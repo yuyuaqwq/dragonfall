@@ -1,0 +1,1620 @@
+# -*- coding: utf-8 -*-
+"""《剑与魔法》存储层 —— SQLite 持久化（v7：玩家数据全局化）
+
+v7 变更：所有玩家数据表主键从 (group_id, qq_id) 改为 qq_id 全局唯一。
+- 玩家私聊/群聊数据完全互通（同一 QQ 一个角色）
+- 新增 player_groups 表记录玩家注册/活跃过的群号，用于广播目标筛选
+- 函数签名保留 (group_id, qq_id) 形式，main.py 调用点无需改动；
+  group_id 仅用于记录玩家群归属与群维度查询（排行/组队/市场）
+"""
+import json
+import os
+import sqlite3
+import threading
+import time
+
+from . import content as C
+
+DB_PATH = os.environ.get(
+    "GWEN_GAME_DB",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game_data.db"),
+)
+
+C_MAP_IDS = set(C.MAP_BY_ID.keys())
+
+_lock = threading.Lock()
+
+
+def _connect():
+    conn = sqlite3.connect(DB_PATH, timeout=10)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _has_global_schema(conn) -> bool:
+    """检测 players 表是否已是 qq_id 主键的全局结构（旧结构为 (group_id, qq_id)）"""
+    rows = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='players'").fetchall()
+    if not rows:
+        return False
+    sql = rows[0]["sql"] or ""
+    norm = sql.replace("\n", " ").replace("  ", " ").replace("  ", " ")
+    # 新结构：行内主键（qq_id TEXT PRIMARY KEY）或表级主键（PRIMARY KEY (qq_id)）
+    return ("PRIMARY KEY (qq_id)" in norm or "PRIMARY KEY(qq_id)" in norm
+            or "qq_id TEXT PRIMARY KEY" in norm or "qq_id TEXT NOT NULL PRIMARY KEY" in norm)
+
+
+def _migrate_legacy(conn):
+    """旧库（group_id 主键）→ 新库（qq_id 主键）迁移。
+
+    同 qq 多群数据：保留 last_active 最新的一条；player_groups 记录所有出现过的群。
+    """
+    tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+    if "players" not in tables:
+        return
+    # 已是新结构则跳过
+    if _has_global_schema(conn):
+        return
+    cur = conn.cursor()
+    # 1. 旧玩家数据（多群取最新）
+    old_players = cur.execute(
+        "SELECT * FROM players ORDER BY last_active DESC"
+    ).fetchall()
+    seen_qq = set()
+    player_rows = []
+    group_rows = []  # (qq_id, group_id)
+    for r in old_players:
+        d = dict(r)
+        qq = d["qq_id"]
+        if qq not in seen_qq:
+            seen_qq.add(qq)
+            player_rows.append(d)
+        if d.get("group_id"):
+            group_rows.append((qq, d["group_id"]))
+    # 2. 迁移各表（去重保留第一条 = 最新）
+    def migrate_table(table, pk_cols):
+        cols = [c[1] for c in cur.execute(f"PRAGMA table_info({table})").fetchall()]
+        if not cols:
+            return
+        non_pk = [c for c in cols if c not in pk_cols]
+        rows = cur.execute(f"SELECT * FROM {table}").fetchall()
+        seen = set()
+        keep = []
+        for r in rows:
+            d = dict(r)
+            key = tuple(str(d[c]) for c in pk_cols)
+            if key in seen:
+                continue
+            seen.add(key)
+            keep.append(d)
+        return cols, non_pk, keep
+
+    def rebuild(table, pk_cols, defaults):
+        """重建单表：新表（qq_id 主键）+ 复制数据；defaults 中的新列会自动补上"""
+        cols, non_pk, keep = migrate_table(table, pk_cols)
+        if cols is None:
+            return
+        # 合并 defaults 里的新列（老库升级补列）
+        for c in defaults:
+            if c not in cols:
+                cols.append(c)
+        col_defs = []
+        for c in cols:
+            if c in pk_cols:
+                col_defs.append(f"{c} TEXT NOT NULL")
+            else:
+                col_defs.append(f"{c} {defaults.get(c, 'TEXT')}")
+        pk_sql = ", ".join(pk_cols)
+        cur.execute(f"DROP TABLE IF EXISTS {table}_new")
+        cur.execute(f"CREATE TABLE {table}_new ({', '.join(col_defs)}, PRIMARY KEY ({pk_sql}))")
+        # 只复制旧列数据，新列（defaults 新增）留默认值
+        old_cols = [c for c in cols if c in (keep[0].keys() if keep else cols)]
+        copy_cols = old_cols if keep else cols
+        placeholders = ", ".join(["?"] * len(copy_cols))
+        for d in keep:
+            cur.execute(
+                f"INSERT OR IGNORE INTO {table}_new ({', '.join(copy_cols)}) VALUES ({placeholders})",
+                [d.get(c) for c in copy_cols],
+            )
+        cur.execute(f"DROP TABLE {table}")
+        cur.execute(f"ALTER TABLE {table}_new RENAME TO {table}")
+
+    rebuild("players", ["qq_id"], {
+        "name": "TEXT NOT NULL", "class_name": "TEXT NOT NULL", "level": "INTEGER DEFAULT 1",
+        "exp": "INTEGER DEFAULT 0", "gold": "INTEGER DEFAULT 0", "hp": "INTEGER", "mp": "INTEGER",
+        "max_hp": "INTEGER", "max_mp": "INTEGER", "cur_map": "TEXT DEFAULT 'vila'",
+        "equipment": "TEXT DEFAULT '{}'", "skills": "TEXT DEFAULT '[]'", "class_tier": "INTEGER DEFAULT 0",
+        "attr_pts": "INTEGER DEFAULT 0",
+        "attributes": "TEXT DEFAULT '{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}'",
+        "portals": "TEXT DEFAULT '[]'",
+        "skill_bar": "TEXT DEFAULT '[]'",
+        "skill_spent": "INTEGER DEFAULT 0",
+        "skill_points": "INTEGER DEFAULT 0",
+        "learned_skills": "TEXT DEFAULT '[]'",
+        "shortcuts": "TEXT DEFAULT '{}'",
+        "evolve_path": "INTEGER DEFAULT 0",
+        "skill_levels": "TEXT DEFAULT '{}'",
+        "created_at": "INTEGER", "last_active": "INTEGER",
+    })
+    rebuild("inventory", ["qq_id", "item_key"], {"item_data": "TEXT NOT NULL", "count": "INTEGER DEFAULT 1"})
+    rebuild("quests", ["qq_id"], {
+        "main_quest": "TEXT", "main_status": "TEXT DEFAULT 'pending'", "main_progress": "TEXT DEFAULT '{}'",
+        "daily": "TEXT DEFAULT '{}'", "completed_main": "TEXT DEFAULT '[]'", "side": "TEXT DEFAULT '{}'",
+    })
+    rebuild("battle_state", ["qq_id"], {"monster": "TEXT NOT NULL", "state": "TEXT NOT NULL", "updated_at": "INTEGER"})
+    rebuild("achievements", ["qq_id", "ach_key"], {"progress": "INTEGER DEFAULT 0", "claimed": "INTEGER DEFAULT 0"})
+    rebuild("stats", ["qq_id"], {
+        "kills": "INTEGER DEFAULT 0", "elite_kills": "INTEGER DEFAULT 0", "boss_kills": "INTEGER DEFAULT 0",
+        "deaths": "INTEGER DEFAULT 0", "day_kills": "INTEGER DEFAULT 0", "day_date": "TEXT DEFAULT ''",
+    })
+    rebuild("reputation", ["qq_id", "faction"], {"points": "INTEGER DEFAULT 0"})
+    rebuild("signin", ["qq_id"], {"last_date": "TEXT DEFAULT ''", "streak": "INTEGER DEFAULT 0", "total": "INTEGER DEFAULT 0"})
+    rebuild("fishing", ["qq_id"], {"total": "INTEGER DEFAULT 0"})
+    rebuild("bestiary", ["qq_id", "monster"], {"kills": "INTEGER DEFAULT 0"})
+    rebuild("visited", ["qq_id", "map_id"], {})
+    # 3. player_groups 表（先建表再插入，rebuild 期间可能不存在）
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS player_groups ("
+        " qq_id TEXT NOT NULL, group_id TEXT NOT NULL, first_seen INTEGER, last_active INTEGER,"
+        " PRIMARY KEY (qq_id, group_id))"
+    )
+    now = int(time.time())
+    for qq, gid in group_rows:
+        cur.execute(
+            "INSERT OR IGNORE INTO player_groups (qq_id, group_id, first_seen, last_active) VALUES (?,?,?,?)",
+            (qq, gid, now, now),
+        )
+    conn.commit()
+
+
+def init_db():
+    """建表（全局 qq_id 主键）"""
+    with _lock:
+        conn = _connect()
+        try:
+            # 旧库迁移（必须在建表前执行：旧 players 表结构检测）
+            _migrate_legacy(conn)
+            conn.executescript("""
+            CREATE TABLE IF NOT EXISTS players (
+                qq_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                class_name TEXT NOT NULL,
+                level INTEGER DEFAULT 1,
+                exp INTEGER DEFAULT 0,
+                gold INTEGER DEFAULT 0,
+                hp INTEGER,
+                mp INTEGER,
+                max_hp INTEGER,
+                max_mp INTEGER,
+                cur_map TEXT DEFAULT 'vila',
+                equipment TEXT DEFAULT '{}',
+                skills TEXT DEFAULT '[]',
+                class_tier INTEGER DEFAULT 0,
+                attr_pts INTEGER DEFAULT 0,
+                attributes TEXT DEFAULT '{"str":0,"agi":0,"int":0,"vit":0}',
+                skill_points INTEGER DEFAULT 0,
+                learned_skills TEXT DEFAULT '[]',
+                shortcuts TEXT DEFAULT '{}',
+                evolve_path INTEGER DEFAULT 0,
+                skill_levels TEXT DEFAULT '{}',
+                created_at INTEGER,
+                last_active INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS inventory (
+                qq_id TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                item_data TEXT NOT NULL,
+                count INTEGER DEFAULT 1,
+                PRIMARY KEY (qq_id, item_key)
+            );
+            CREATE TABLE IF NOT EXISTS quests (
+                qq_id TEXT PRIMARY KEY,
+                main_quest TEXT,
+                main_status TEXT DEFAULT 'pending',
+                main_progress TEXT DEFAULT '{}',
+                daily TEXT DEFAULT '{}',
+                completed_main TEXT DEFAULT '[]',
+                side TEXT DEFAULT '{}'
+            );
+            CREATE TABLE IF NOT EXISTS battle_state (
+                qq_id TEXT PRIMARY KEY,
+                monster TEXT NOT NULL,
+                state TEXT NOT NULL,
+                updated_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS achievements (
+                qq_id TEXT NOT NULL,
+                ach_key TEXT NOT NULL,
+                progress INTEGER DEFAULT 0,
+                claimed INTEGER DEFAULT 0,
+                PRIMARY KEY (qq_id, ach_key)
+            );
+            CREATE TABLE IF NOT EXISTS stats (
+                qq_id TEXT PRIMARY KEY,
+                kills INTEGER DEFAULT 0,
+                elite_kills INTEGER DEFAULT 0,
+                boss_kills INTEGER DEFAULT 0,
+                deaths INTEGER DEFAULT 0,
+                day_kills INTEGER DEFAULT 0,
+                day_date TEXT DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS reputation (
+                qq_id TEXT NOT NULL,
+                faction TEXT NOT NULL,
+                points INTEGER DEFAULT 0,
+                PRIMARY KEY (qq_id, faction)
+            );
+            CREATE TABLE IF NOT EXISTS signin (
+                qq_id TEXT PRIMARY KEY,
+                last_date TEXT DEFAULT '',
+                streak INTEGER DEFAULT 0,
+                total INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS fishing (
+                qq_id TEXT PRIMARY KEY,
+                total INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS bestiary (
+                qq_id TEXT NOT NULL,
+                monster TEXT NOT NULL,
+                kills INTEGER DEFAULT 0,
+                PRIMARY KEY (qq_id, monster)
+            );
+            CREATE TABLE IF NOT EXISTS visited (
+                qq_id TEXT NOT NULL,
+                map_id TEXT NOT NULL,
+                PRIMARY KEY (qq_id, map_id)
+            );
+            CREATE TABLE IF NOT EXISTS player_groups (
+                qq_id TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                first_seen INTEGER,
+                last_active INTEGER,
+                PRIMARY KEY (qq_id, group_id)
+            );
+            CREATE TABLE IF NOT EXISTS world_event (
+                id INTEGER PRIMARY KEY,
+                etype TEXT NOT NULL,
+                starts_at INTEGER,
+                ends_at INTEGER,
+                data TEXT DEFAULT '{}'
+            );
+            CREATE TABLE IF NOT EXISTS event_state (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            );
+            CREATE TABLE IF NOT EXISTS market (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id TEXT NOT NULL,
+                seller TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                item_data TEXT NOT NULL,
+                price INTEGER NOT NULL,
+                listed_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS party (
+                group_id TEXT NOT NULL,
+                leader TEXT NOT NULL,
+                member TEXT NOT NULL,
+                created_at INTEGER,
+                PRIMARY KEY (group_id, member)
+            );
+            CREATE TABLE IF NOT EXISTS guilds (
+                gid INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                leader TEXT NOT NULL,
+                icon TEXT DEFAULT '🏰',
+                desc TEXT DEFAULT '',
+                level INTEGER DEFAULT 1,
+                exp INTEGER DEFAULT 0,
+                created_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS guild_members (
+                gid INTEGER NOT NULL,
+                qq_id TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                joined_at INTEGER,
+                contribute INTEGER DEFAULT 0,
+                sign_date TEXT DEFAULT '',
+                task_date TEXT DEFAULT '',
+                task_progress INTEGER DEFAULT 0,
+                PRIMARY KEY (gid, qq_id)
+            );
+            CREATE TABLE IF NOT EXISTS pets (
+                qq_id TEXT PRIMARY KEY,
+                pet_key TEXT NOT NULL,
+                name TEXT NOT NULL,
+                level INTEGER DEFAULT 1,
+                exp INTEGER DEFAULT 0,
+                satiety INTEGER DEFAULT 100,
+                bond INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                qq_id TEXT NOT NULL,
+                group_id TEXT DEFAULT '',
+                content TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                status TEXT DEFAULT 'new',
+                reply TEXT DEFAULT ''
+            );
+            """)
+            # 兼容旧库：players 表补 class_tier 列（转职系统）
+            pcols = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
+            if "class_tier" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN class_tier INTEGER DEFAULT 0")
+            if "attr_pts" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN attr_pts INTEGER DEFAULT 0")
+            if "attributes" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN attributes TEXT DEFAULT '{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}'")
+            if "skill_points" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN skill_points INTEGER DEFAULT 0")
+            if "learned_skills" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN learned_skills TEXT DEFAULT '[]'")
+            if "portals" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN portals TEXT DEFAULT '[]'")
+            if "skill_bar" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN skill_bar TEXT DEFAULT '[]'")
+            if "skill_spent" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN skill_spent INTEGER DEFAULT 0")
+            if "shortcuts" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN shortcuts TEXT DEFAULT '{}'")
+            if "evolve_path" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN evolve_path INTEGER DEFAULT 0")
+            if "skill_levels" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN skill_levels TEXT DEFAULT '{}'")
+            if "mounts" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN mounts TEXT DEFAULT '{}'")
+            # 兼容旧库：feedback 表补 reply 列（意见回复）
+            fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
+            if "reply" not in fcols:
+                conn.execute("ALTER TABLE feedback ADD COLUMN reply TEXT DEFAULT ''")
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 玩家群归属 ----------------
+def record_player_group(qq_id, group_id):
+    """记录玩家在某个群注册/活跃过（广播目标筛选）"""
+    if not group_id or group_id == "private":
+        return
+    with _lock:
+        conn = _connect()
+        try:
+            now = int(time.time())
+            conn.execute(
+                "INSERT INTO player_groups (qq_id, group_id, first_seen, last_active) VALUES (?,?,?,?) "
+                "ON CONFLICT(qq_id, group_id) DO UPDATE SET last_active=excluded.last_active",
+                (qq_id, group_id, now, now),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_player_groups():
+    """返回所有有玩家注册/活跃过的群号列表（广播目标）"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT group_id FROM player_groups WHERE group_id != 'private'"
+            ).fetchall()
+            return [r["group_id"] for r in rows]
+        finally:
+            conn.close()
+
+
+def get_group_players(group_id):
+    """返回在指定群注册/活跃过的玩家 {qq_id: player}（玩家数据全局，此处按群筛选）"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT p.* FROM players p JOIN player_groups g ON p.qq_id=g.qq_id "
+                "WHERE g.group_id=? ORDER BY p.level DESC",
+                (group_id,),
+            ).fetchall()
+            out = {}
+            for r in rows:
+                p = dict(r)
+                p["equipment"] = json.loads(p["equipment"] or "{}")
+                p["skills"] = json.loads(p["skills"] or "[]")
+                p["attributes"] = json.loads(p.get("attributes") or '{"str":0,"agi":0,"int":0,"vit":0}')
+                p["learned_skills"] = json.loads(p.get("learned_skills") or "[]")
+                out[p["qq_id"]] = p
+            return out
+        finally:
+            conn.close()
+
+
+# ---------------- 玩家 ----------------
+def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp):
+    with _lock:
+        conn = _connect()
+        try:
+            now = int(time.time())
+            conn.execute(
+                "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active) "
+                "VALUES (?,?,?,1,0,50,?,?,?,?,'vila_square',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active",
+                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    record_player_group(qq_id, group_id)
+
+
+def get_player(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM players WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            if not row:
+                return None
+            p = dict(row)
+            p["equipment"] = json.loads(p["equipment"] or "{}")
+            p["skills"] = json.loads(p["skills"] or "[]")
+            p["attributes"] = json.loads(p.get("attributes") or '{"str":0,"agi":0,"int":0,"vit":0}')
+            p["learned_skills"] = json.loads(p.get("learned_skills") or "[]")
+            # v46：learned_skills 存档为技能 ID，读入内存转回技能名（battle 层用名字查定义）
+            p["learned_skills"] = [C.display("skills", s) if s else s for s in p["learned_skills"]]
+            p["shortcuts"] = json.loads(p.get("shortcuts") or "{}")
+            p["skill_levels"] = json.loads(p.get("skill_levels") or "{}")
+            # v46：skill_levels 键名同样转回技能名
+            p["skill_levels"] = {C.display("skills", k) if k else k: v for k, v in p["skill_levels"].items()}
+            p["mounts"] = json.loads(p.get("mounts") or "{}")
+            # 旧存档地图 id 迁移（vila → vila_gate 等），迁移后回写
+            cur = p.get("cur_map")
+            if cur and cur not in C_MAP_IDS and cur in C.LEGACY_MAP_ALIAS:
+                new_map = C.LEGACY_MAP_ALIAS[cur]
+                p["cur_map"] = new_map
+                try:
+                    conn.execute(
+                        "UPDATE players SET cur_map=? WHERE qq_id=?",
+                        (new_map, qq_id),
+                    )
+                    conn.commit()
+                except Exception:
+                    pass
+            return p
+        finally:
+            conn.close()
+
+
+def find_player_by_name(name: str):
+    """按名字查找玩家（玩家跨群共用，只按名字查）。返回 {qq_id, name} 或 None"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT qq_id, name FROM players WHERE name=?", (name,)
+            ).fetchone()
+            if not row:
+                return None
+            return {"qq_id": row["qq_id"], "name": row["name"]}
+        finally:
+            conn.close()
+
+
+def update_player(group_id, qq_id, **fields):
+    """通用更新。fields: hp/mp/exp/gold/level/cur_map/equipment/skills/name/max_hp/max_mp"""
+    if not fields:
+        return
+    with _lock:
+        conn = _connect()
+        try:
+            sets = []
+            vals = []
+            for k, v in fields.items():
+                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts"):
+                    # v46：技能名列表/技能等级表 写入时转 ID（存档只存 ID）
+                    if k in ("learned_skills", "skills") and isinstance(v, list):
+                        v = [C.resolve("skills", s) if s else s for s in v]
+                    elif k == "skill_levels" and isinstance(v, dict):
+                        v = {C.resolve("skills", kk) if kk else kk: vv for kk, vv in v.items()}
+                    v = json.dumps(v, ensure_ascii=False)
+                sets.append(f"{k}=?")
+                vals.append(v)
+            vals += [int(time.time()), qq_id]
+            conn.execute(
+                f"UPDATE players SET {', '.join(sets)}, last_active=? WHERE qq_id=?",
+                vals,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    record_player_group(qq_id, group_id)
+
+
+def top_players(group_id, limit=10):
+    """全服强者榜（跨群）：玩家数据全局，排行不按群过滤。group_id 仅作兼容参数"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT p.name, p.class_name, p.level, p.exp FROM players p "
+                "ORDER BY p.level DESC, p.exp DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+def all_players(group_id):
+    """返回全部玩家（全局）——group_id 仅作兼容参数"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute("SELECT * FROM players ORDER BY level DESC").fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+# ---------------- 星穹祭坛（v10 传送点） ----------------
+def get_portals(qq_id) -> list:
+    """已激活的祭坛地图 id 列表"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT portals FROM players WHERE qq_id=?", (qq_id,)).fetchone()
+            if not row or not row["portals"]:
+                return []
+            try:
+                return json.loads(row["portals"])
+            except (ValueError, TypeError):
+                return []
+        finally:
+            conn.close()
+
+
+def add_portal(qq_id, map_id):
+    """激活一座祭坛（幂等）"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT portals FROM players WHERE qq_id=?", (qq_id,)).fetchone()
+            lst = []
+            if row and row["portals"]:
+                try:
+                    lst = json.loads(row["portals"])
+                except (ValueError, TypeError):
+                    lst = []
+            if map_id not in lst:
+                lst.append(map_id)
+                conn.execute("UPDATE players SET portals=? WHERE qq_id=?", (json.dumps(lst), qq_id))
+                conn.commit()
+                return True
+            return False
+        finally:
+            conn.close()
+
+
+# ---------------- 技能栏（v12 自定义技能位） ----------------
+def get_skill_bar(qq_id) -> list:
+    """技能栏 6 槽（技能 ID 列表，空槽为 None）；旧档技能名自动转 ID"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT skill_bar FROM players WHERE qq_id=?", (qq_id,)).fetchone()
+            if not row or not row["skill_bar"]:
+                return []
+            try:
+                bar = json.loads(row["skill_bar"])
+                if not isinstance(bar, list):
+                    return []
+                # v46：旧档技能名 → 技能 ID，再统一转回名字（内存层用名字）
+                return [C.display("skills", C.resolve("skills", s)) if s else None for s in bar]
+            except (ValueError, TypeError):
+                return []
+        finally:
+            conn.close()
+
+
+def set_skill_bar(qq_id, bar: list):
+    """保存技能栏（自动补齐 6 槽）；v46 统一存技能 ID"""
+    padded = list(bar) + [None] * max(0, 6 - len(bar))
+    padded = padded[:6]
+    # v46：技能名 → ID
+    padded = [C.resolve("skills", s) if s else None for s in padded]
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("UPDATE players SET skill_bar=? WHERE qq_id=?", (json.dumps(padded), qq_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 背包 ----------------
+def _key_to_id(item_key, item_data=None):
+    """v46：把「名字型」物品 key 转成稳定 ID（存档只存 ID）。
+    规则：
+      - 已有前缀 id（eq_/petegg_/mountrein_/rune_/it_/mat_英文/...）原样返回
+      - mat_中文名 → mat_拼音；rec_中文名 → rec_拼音；fish_中文名 → fish_拼音
+      - 纯中文名（装备/材料/消耗品/图纸）→ 查索引转 ID
+    """
+    if not item_key:
+        return item_key
+    # 已是纯 ID（含英文前缀）：mat_lang_pi / eq_xxx / i_treatment_potion 等
+    if item_key.startswith(("eq_", "petegg_", "mountrein_", "rune_", "i_", "npc_", "m_")):
+        return item_key
+    # mat_ / rec_ / fish_ 前缀：后面已是英文拼音（无中文）→ 原样返回
+    for pfx in ("mat_", "rec_", "fish_"):
+        if item_key.startswith(pfx):
+            rest = item_key[len(pfx):]
+            if not any("\u4e00" <= ch <= "\u9fff" for ch in rest):
+                return item_key
+    # mat_ / rec_ / fish_ 前缀 + 中文 → 拼音 id
+    for pfx, tbl in (("mat_", "materials"), ("rec_", "recipes"), ("fish_", "fish")):
+        if item_key.startswith(pfx):
+            cn = item_key[len(pfx):]
+            rid = C.resolve(tbl, cn)
+            if rid != cn:
+                return f"{pfx}{rid}" if not rid.startswith(pfx) else rid
+            return f"{pfx}{C.pinyin_id(cn)}"
+    # 纯中文名 → 查索引（材料/配方/物品/鱼）
+    for tbl in ("materials", "recipes", "items", "fish"):
+        rid = C.resolve(tbl, item_key)
+        if rid != item_key:
+            return rid
+    # 兜底：装备/图纸等直接给名字当 key 的，保持原样（外部 data 里有 name）
+    return item_key
+
+
+def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
+    """item_key: 唯一键（装备用 uuid 或 材料/消耗品用 id）；v46 自动转 ID 存储"""
+    item_key = _key_to_id(item_key, item_data)
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+                (qq_id, item_key),
+            ).fetchone()
+            if row and item_data.get("stackable", True):
+                conn.execute(
+                    "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
+                    (count, qq_id, item_key),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
+                    (qq_id, item_key, json.dumps(item_data, ensure_ascii=False), count),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_inventory(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT item_key, item_data, count FROM inventory WHERE qq_id=? ORDER BY rowid",
+                (qq_id,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = json.loads(r["item_data"])
+                # v46：补显示名（旧档 name 可能缺失，用 id 反查或 key）
+                if not d.get("name"):
+                    d["name"] = C.display("materials", r["item_key"]) if r["item_key"].startswith("mat_") else r["item_key"]
+                out.append({"key": r["item_key"], "data": d, "count": r["count"]})
+            return out
+        finally:
+            conn.close()
+
+
+def count_item(group_id, qq_id, name):
+    """按物品名称/ID 统计背包中数量（材料类，key 为 mat_名称）"""
+    kid = _key_to_id(name)
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT item_key, item_data, count FROM inventory WHERE qq_id=?",
+                (qq_id,),
+            ).fetchall()
+            total = 0
+            for r in rows:
+                d = json.loads(r["item_data"])
+                if d.get("name") == name or r["item_key"] == kid:
+                    total += r["count"]
+            return total
+        finally:
+            conn.close()
+
+
+def remove_item(group_id, qq_id, item_key, count=1):
+    item_key = _key_to_id(item_key)
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+                (qq_id, item_key),
+            ).fetchone()
+            if not row:
+                return False
+            if row["count"] <= count:
+                conn.execute(
+                    "DELETE FROM inventory WHERE qq_id=? AND item_key=?",
+                    (qq_id, item_key),
+                )
+            else:
+                conn.execute(
+                    "UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                    (count, qq_id, item_key),
+                )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+# ---------------- 任务 ----------------
+def get_quests(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM quests WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            if not row:
+                return {"main_quest": "q1", "main_status": "pending", "main_progress": {}, "daily": {}, "completed_main": [], "side": {}}
+            q = dict(row)
+            q["main_progress"] = json.loads(q["main_progress"] or "{}")
+            q["daily"] = json.loads(q["daily"] or "{}")
+            q["completed_main"] = json.loads(q["completed_main"] or "[]")
+            q["main_status"] = q.get("main_status") or "pending"
+            q["side"] = json.loads(q["side"] or "{}")
+            return q
+        finally:
+            conn.close()
+
+
+def save_quests(group_id, qq_id, quest_data):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO quests (qq_id, main_quest, main_status, main_progress, daily, completed_main, side) VALUES (?,?,?,?,?,?,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET main_quest=excluded.main_quest, main_status=excluded.main_status, main_progress=excluded.main_progress, daily=excluded.daily, completed_main=excluded.completed_main, side=excluded.side",
+                (
+                    qq_id,
+                    quest_data.get("main_quest"),
+                    quest_data.get("main_status"),
+                    json.dumps(quest_data.get("main_progress", {}), ensure_ascii=False),
+                    json.dumps(quest_data.get("daily", {}), ensure_ascii=False),
+                    json.dumps(quest_data.get("completed_main", []), ensure_ascii=False),
+                    json.dumps(quest_data.get("side", {}), ensure_ascii=False),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 战斗状态 ----------------
+def save_battle(group_id, qq_id, state: dict):
+    """保存完整战斗上下文（v9：含 type/round/buffs/enemy 等）
+    兼容旧调用：若传入的是裸怪物 dict，自动包装为 v9 状态。
+    """
+    if "type" not in state:
+        state = {
+            "type": "monster", "round": 0,
+            "enemy": state, "p_buffs": {}, "e_buffs": {},
+            "p_defending": False, "e_defending": False,
+        }
+    with _lock:
+        conn = _connect()
+        try:
+            enemy = state.get("enemy") or {}
+            conn.execute(
+                "INSERT INTO battle_state (qq_id, monster, state, updated_at) VALUES (?,?,?,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET monster=excluded.monster, state=excluded.state, updated_at=excluded.updated_at",
+                (qq_id, enemy.get("name", ""), json.dumps(state, ensure_ascii=False), int(time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_battle(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT monster, state, updated_at FROM battle_state WHERE qq_id=?",
+                (qq_id,),
+            ).fetchone()
+            if not row:
+                return None
+            state = json.loads(row["state"])
+            # 兼容 v9 之前的旧数据（state 字段直接是裸怪物 dict）
+            if "type" not in state:
+                state = {
+                    "type": "monster", "round": 0,
+                    "enemy": state, "p_buffs": {}, "e_buffs": {},
+                    "p_defending": False, "e_defending": False,
+                }
+            return {"state": state, "monster": state.get("enemy", {}), "name": row["monster"], "updated_at": row["updated_at"]}
+        finally:
+            conn.close()
+
+
+def clear_battle(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "DELETE FROM battle_state WHERE qq_id=?", (qq_id,)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 统计/成就 ----------------
+def init_stats(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO stats (qq_id) VALUES (?)", (qq_id,)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def bump_stats(group_id, qq_id, **fields):
+    with _lock:
+        conn = _connect()
+        try:
+            sets = ", ".join(f"{k}={k}+?" for k in fields)
+            conn.execute(
+                f"UPDATE stats SET {sets} WHERE qq_id=?",
+                (*fields.values(), qq_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_stats(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM stats WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            return dict(row) if row else {}
+        finally:
+            conn.close()
+
+
+def set_achievement(group_id, qq_id, ach_key, progress, claimed=0):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO achievements (qq_id, ach_key, progress, claimed) VALUES (?,?,?,?) "
+                "ON CONFLICT(qq_id, ach_key) DO UPDATE SET progress=excluded.progress, claimed=excluded.claimed",
+                (qq_id, ach_key, progress, claimed),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_achievements(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM achievements WHERE qq_id=?", (qq_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+# ---------------- 声望 ----------------
+def add_reputation(group_id, qq_id, faction, points):
+    """增加势力声望"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO reputation (qq_id, faction, points) VALUES (?,?,?) "
+                "ON CONFLICT(qq_id, faction) DO UPDATE SET points=points+?",
+                (qq_id, faction, points, points),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_reputation(group_id, qq_id):
+    """返回 {faction: points}"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT faction, points FROM reputation WHERE qq_id=?",
+                (qq_id,),
+            ).fetchall()
+            return {r["faction"]: r["points"] for r in rows}
+        finally:
+            conn.close()
+
+
+# ---------------- 签到 ----------------
+def get_signin(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM signin WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            if not row:
+                return {"last_date": "", "streak": 0, "total": 0}
+            return dict(row)
+        finally:
+            conn.close()
+
+
+def save_signin(group_id, qq_id, last_date, streak, total):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO signin (qq_id, last_date, streak, total) VALUES (?,?,?,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET last_date=excluded.last_date, streak=excluded.streak, total=excluded.total",
+                (qq_id, last_date, streak, total),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 钓鱼 ----------------
+def bump_fishing(group_id, qq_id, n=1):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO fishing (qq_id, total) VALUES (?,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET total=total+?",
+                (qq_id, n, n),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_fishing_total(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT total FROM fishing WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            return row["total"] if row else 0
+        finally:
+            conn.close()
+
+
+# ---------------- 图鉴 ----------------
+def bump_bestiary(group_id, qq_id, monster, n=1):
+    """v46：怪物名/ID 统一存怪物 ID（monster 参数兼容名字或 m_xxx id）"""
+    mon_id = C.resolve("monsters", monster)
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO bestiary (qq_id, monster, kills) VALUES (?,?,?) "
+                "ON CONFLICT(qq_id, monster) DO UPDATE SET kills=kills+?",
+                (qq_id, mon_id, n, n),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_bestiary(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT monster, kills FROM bestiary WHERE qq_id=? ORDER BY kills DESC",
+                (qq_id,),
+            ).fetchall()
+            out = []
+            for r in rows:
+                out.append({"monster": r["monster"],
+                            "name": C.display("monsters", r["monster"]),
+                            "kills": r["kills"]})
+            return out
+        finally:
+            conn.close()
+
+
+# ---------------- 到访记录 ----------------
+def add_visited(group_id, qq_id, map_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO visited (qq_id, map_id) VALUES (?,?)",
+                (qq_id, map_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_visited_count(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) AS c FROM visited WHERE qq_id=?",
+                (qq_id,),
+            ).fetchone()
+            return row["c"] if row else 0
+        finally:
+            conn.close()
+
+
+# ---------------- 世界事件（v6）----------------
+def get_world_event(include_expired: bool = False):
+    """返回当前活动事件（未过期），无则 None；include_expired=True 时返回最近一条（含过期）"""
+    with _lock:
+        conn = _connect()
+        try:
+            now = int(time.time())
+            if include_expired:
+                row = conn.execute(
+                    "SELECT * FROM world_event ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT * FROM world_event WHERE ends_at > ? ORDER BY id DESC LIMIT 1", (now,)
+                ).fetchone()
+            if not row:
+                return None
+            e = dict(row)
+            e["data"] = json.loads(e.get("data") or "{}")
+            return e
+        finally:
+            conn.close()
+
+
+def save_world_event(etype, ends_at, data: dict):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM world_event")
+            conn.execute(
+                "INSERT INTO world_event (etype, starts_at, ends_at, data) VALUES (?,?,?,?)",
+                (etype, int(time.time()), int(ends_at), json.dumps(data, ensure_ascii=False)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def clear_world_event():
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM world_event")
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_event_state(key: str):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT value FROM event_state WHERE key=?", (key,)).fetchone()
+            return row["value"] if row else None
+        finally:
+            conn.close()
+
+
+def set_event_state(key: str, value):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO event_state (key, value) VALUES (?,?)",
+                (key, str(value)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 市场（v6.2）----------------
+def market_list(group_id):
+    """查看市场列表（全局市场：所有群互通）"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM market ORDER BY id DESC", ()
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["item_data"] = json.loads(d["item_data"] or "{}")
+                out.append(d)
+            return out
+        finally:
+            conn.close()
+
+
+def market_add(group_id, seller, item_key, item_data, price):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at) VALUES (?,?,?,?,?,?)",
+                (group_id, seller, item_key, json.dumps(item_data, ensure_ascii=False), price, int(time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def market_remove(mid):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT * FROM market WHERE id=?", (mid,)).fetchone()
+            conn.execute("DELETE FROM market WHERE id=?", (mid,))
+            conn.commit()
+            if row:
+                d = dict(row)
+                d["item_data"] = json.loads(d["item_data"] or "{}")
+                return d
+            return None
+        finally:
+            conn.close()
+
+
+# ---------------- 组队（v6.2）----------------
+def party_create(group_id, leader, member):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM party WHERE group_id=? AND leader=?", (group_id, leader))
+            conn.execute("DELETE FROM party WHERE group_id=? AND member=?", (group_id, leader))
+            conn.execute(
+                "INSERT INTO party (group_id, leader, member, created_at) VALUES (?,?,?,?)",
+                (group_id, leader, leader, int(time.time())),
+            )
+            if member != leader:
+                conn.execute(
+                    "INSERT INTO party (group_id, leader, member, created_at) VALUES (?,?,?,?)",
+                    (group_id, leader, member, int(time.time())),
+                )
+                conn.execute("DELETE FROM party WHERE group_id=? AND member=? AND leader!=?", (group_id, member, leader))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def party_members(group_id, qq_id):
+    """返回玩家所在队伍的成员列表（含自己），无队返回 []"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT leader FROM party WHERE group_id=? AND member=?", (group_id, qq_id)
+            ).fetchone()
+            if not row:
+                return []
+            leader = row["leader"]
+            rows = conn.execute(
+                "SELECT member FROM party WHERE group_id=? AND leader=?", (group_id, leader)
+            ).fetchall()
+            return [r["member"] for r in rows]
+        finally:
+            conn.close()
+
+
+def party_leave(group_id, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT leader FROM party WHERE group_id=? AND member=?", (group_id, qq_id)
+            ).fetchone()
+            if not row:
+                return False
+            leader = row["leader"]
+            conn.execute("DELETE FROM party WHERE group_id=? AND member=?", (group_id, qq_id))
+            conn.commit()
+            if leader == qq_id:
+                conn.execute("DELETE FROM party WHERE group_id=? AND leader=?", (group_id, qq_id))
+                conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+# ---------------- 公会（v8）----------------
+def guild_create(name, leader, icon="🏰", desc=""):
+    """创建公会；重名返回 None"""
+    with _lock:
+        conn = _connect()
+        try:
+            now = int(time.time())
+            cur = conn.execute(
+                "INSERT INTO guilds (name, leader, icon, desc, level, exp, created_at) VALUES (?,?,?,?,1,0,?)",
+                (name, leader, icon, desc, now),
+            )
+            gid = cur.lastrowid
+            conn.execute(
+                "INSERT INTO guild_members (gid, qq_id, role, joined_at, contribute) VALUES (?,?,?,?,0)",
+                (gid, leader, "leader", now),
+            )
+            conn.commit()
+            return gid
+        except sqlite3.IntegrityError:
+            return None
+        finally:
+            conn.close()
+
+
+def guild_get_by_leader(qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT g.* FROM guilds g JOIN guild_members gm ON g.gid=gm.gid "
+                "WHERE gm.qq_id=? AND gm.role='leader'", (qq_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
+def guild_get_by_member(qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT g.* FROM guilds g JOIN guild_members gm ON g.gid=gm.gid "
+                "WHERE gm.qq_id=?", (qq_id,)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
+def guild_get(gid):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
+def guild_get_by_name(name):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT * FROM guilds WHERE name=?", (name,)).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
+def guild_members(gid):
+    """返回 (gid, qq_id, role, joined_at, contribute) 列表，按贡献排序"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM guild_members WHERE gid=? ORDER BY role='leader' DESC, contribute DESC",
+                (gid,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+def guild_join(gid, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO guild_members (gid, qq_id, role, joined_at, contribute) VALUES (?,?,?,?,0)",
+                (gid, qq_id, "member", int(time.time())),
+            )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+def guild_leave(gid, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM guild_members WHERE gid=? AND qq_id=?", (gid, qq_id))
+            conn.commit()
+            # 若成员为会长 → 解散公会
+            g = conn.execute("SELECT * FROM guilds WHERE gid=? AND leader=?", (gid, qq_id)).fetchone()
+            if g:
+                conn.execute("DELETE FROM guild_members WHERE gid=?", (gid,))
+                conn.execute("DELETE FROM guilds WHERE gid=?", (gid,))
+                conn.commit()
+                return "disbanded"
+            return "left"
+        finally:
+            conn.close()
+
+
+def guild_kick(gid, leader, qq_id):
+    """会长踢人；返回 True 成功"""
+    with _lock:
+        conn = _connect()
+        try:
+            g = conn.execute("SELECT * FROM guilds WHERE gid=? AND leader=?", (gid, leader)).fetchone()
+            if not g:
+                return False
+            conn.execute("DELETE FROM guild_members WHERE gid=? AND qq_id=? AND role!='leader'", (gid, qq_id))
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+
+def guild_count(gid):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT COUNT(*) AS c FROM guild_members WHERE gid=?", (gid,)).fetchone()
+            return row["c"] if row else 0
+        finally:
+            conn.close()
+
+
+def guild_add_exp(gid, exp, member_qq=None, contribute=0):
+    """公会获得经验（可附带成员贡献）"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("UPDATE guilds SET exp=exp+? WHERE gid=?", (exp, gid))
+            if member_qq:
+                conn.execute(
+                    "UPDATE guild_members SET contribute=contribute+? WHERE gid=? AND qq_id=?",
+                    (contribute, gid, member_qq),
+                )
+            conn.commit()
+            # 升级判定：lv*300 经验升一级
+            g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
+            if g:
+                while g["exp"] >= g["level"] * 300:
+                    conn.execute("UPDATE guilds SET exp=exp-?, level=level+1 WHERE gid=?", (g["level"] * 300, gid))
+                    conn.commit()
+                    g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
+            return True
+        finally:
+            conn.close()
+
+
+def guild_set_sign(gid, qq_id, date):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE guild_members SET sign_date=? WHERE gid=? AND qq_id=?", (date, gid, qq_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def guild_get_sign(gid, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT sign_date FROM guild_members WHERE gid=? AND qq_id=?", (gid, qq_id)
+            ).fetchone()
+            return row["sign_date"] if row else ""
+        finally:
+            conn.close()
+
+
+def guild_set_task(gid, qq_id, date, progress):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE guild_members SET task_date=?, task_progress=? WHERE gid=? AND qq_id=?",
+                (date, progress, gid, qq_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def guild_get_task(gid, qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT task_date, task_progress FROM guild_members WHERE gid=? AND qq_id=?",
+                (gid, qq_id),
+            ).fetchone()
+            return (row["task_date"], row["task_progress"]) if row else ("", 0)
+        finally:
+            conn.close()
+
+
+def guild_top(limit=10):
+    """公会排行榜：按等级/人数"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT g.gid, g.name, g.level, g.icon, COUNT(gm.qq_id) AS members "
+                "FROM guilds g LEFT JOIN guild_members gm ON g.gid=gm.gid "
+                "GROUP BY g.gid ORDER BY g.level DESC, members DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+# ---------------- 宠物（v8）----------------
+def pet_get(qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT * FROM pets WHERE qq_id=?", (qq_id,)).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+
+def pet_create(qq_id, pet_key, name):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO pets (qq_id, pet_key, name, level, exp, satiety, bond) VALUES (?,?,?,1,0,100,0)",
+                (qq_id, pet_key, name),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def pet_update(qq_id, **fields):
+    with _lock:
+        conn = _connect()
+        try:
+            sets = ", ".join(f"{k}=?" for k in fields)
+            conn.execute(
+                f"UPDATE pets SET {sets} WHERE qq_id=?", (*fields.values(), qq_id)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def pet_delete(qq_id):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM pets WHERE qq_id=?", (qq_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# ---------------- 玩家意见箱 ----------------
+def add_feedback(qq_id, group_id, content):
+    """记录一条玩家意见，返回意见编号"""
+    from datetime import datetime
+    with _lock:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "INSERT INTO feedback (qq_id, group_id, content, created_at, status) VALUES (?,?,?,?, 'new')",
+                (qq_id, group_id, content, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            )
+            conn.commit()
+            return cur.lastrowid
+        finally:
+            conn.close()
+
+
+def get_feedback(status=None, limit=50):
+    """查询意见；status=None 查全部，'new' 只查未处理"""
+    with _lock:
+        conn = _connect()
+        try:
+            if status:
+                rows = conn.execute(
+                    "SELECT id, qq_id, group_id, content, created_at, status FROM feedback WHERE status=? ORDER BY id DESC LIMIT ?",
+                    (status, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT id, qq_id, group_id, content, created_at, status FROM feedback ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            return rows
+        finally:
+            conn.close()
+
+
+def mark_feedback_done(feedback_id):
+    """把意见标记为已处理"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("UPDATE feedback SET status='done' WHERE id=?", (feedback_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def ensure_feedback_reply_col():
+    """兼容迁移：旧 feedback 表补 reply 列"""
+    with _lock:
+        conn = _connect()
+        try:
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
+            if "reply" not in cols:
+                conn.execute("ALTER TABLE feedback ADD COLUMN reply TEXT DEFAULT ''")
+                conn.commit()
+        finally:
+            conn.close()
+
+
+def get_feedback_with_reply(status="replied", limit=10):
+    """查询已回复待广播的意见（reply 非空）"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT id, qq_id, group_id, content, reply FROM feedback "
+                "WHERE reply != '' AND status='replied' ORDER BY id ASC LIMIT ?",
+                (limit,),
+            ).fetchall()
+            return rows
+        finally:
+            conn.close()
+
+
+def mark_feedback_broadcast(feedback_id):
+    """意见已广播到群，状态改为 done"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("UPDATE feedback SET status='done' WHERE id=?", (feedback_id,))
+            conn.commit()
+        finally:
+            conn.close()

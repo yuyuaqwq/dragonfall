@@ -1,0 +1,836 @@
+# -*- coding: utf-8 -*-
+"""《剑与魔法》命令层 - social（social）
+
+由 main.py 拆分而来，作为 Mixin 被 Main 继承。
+"""
+import functools
+import inspect
+import random
+import re
+import time
+
+from astrbot.api import star
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.core.message.message_event_result import MessageChain
+
+from .. import content as C
+from .. import db
+from .. import engine as E
+from .. import battle as BT
+from ..commands.base import CommandBase
+
+
+class SocialCmds(CommandBase):
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?市场(?:\s*|$)")
+
+    async def market(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        items = db.market_list(group_id)
+        if not items:
+            yield event.plain_result("🏪 市场空空如也。『上架 <物品> <价格>』寄售你的宝贝！")
+            return
+        raw = self._strip_cmd(event, "市场")
+        page = self._parse_page(raw)
+        page_items, pages, page = self._page_items(items, page, per_page=5)
+        lines = [f"🏪 【群友市场】（第 {page}/{pages} 页 · 共 {len(items)} 件）", "━━━━━━━━━━━━"]
+        for i, it in enumerate(page_items, (page - 1) * 5 + 1):
+            seller = self._player(group_id, it["seller"])
+            sname = seller["name"] if seller else it["seller"]
+            d = it["item_data"]
+            lines.append(f"{i:>2}. #{it['id']} {d.get('name','?')} ｜ {it['price']} 金币 ｜ 卖家 {sname}")
+        lines.append("")
+        if pages > 1:
+            lines.append(f"💡 『市场 {page+1}』看下一页（共 {pages} 页）")
+        lines.append("💡 『购入 <编号>』购买，『上架 <物品> <价格>』寄售")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?上架(?:\s*|$)")
+
+    async def market_sell(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "上架").rsplit(None, 1)
+        if len(args) < 2 or not args[1].isdigit():
+            yield event.plain_result("格式：上架 <物品名> <价格>，如『上架 铁剑 500』")
+            return
+        item_name = args[0]
+        price = int(args[1])
+        inv = db.get_inventory(group_id, qq_id)
+        found = None
+        for it in inv:
+            if it["data"].get("name") == item_name:
+                found = (it["key"], it["data"])
+                break
+        if not found:
+            yield event.plain_result(f"背包里没有『{item_name}』！『背包』查看～")
+            return
+        item_key, data = found
+        db.market_add(group_id, qq_id, item_key, data, price)
+        db.remove_item(group_id, qq_id, item_key, count=1)
+        yield event.plain_result(f"📦 已上架【{data['name']}】，定价 {price} 金币！\n『市场』查看，『下架 <编号>』撤回")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?下架(?:\s*|$)")
+
+    async def market_unsell(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "下架").split()
+        if not args or not args[0].isdigit():
+            yield event.plain_result("格式：下架 <编号>，『市场』查看编号")
+            return
+        mid = int(args[0])
+        items = db.market_list(group_id)
+        it = next((x for x in items if x["id"] == mid), None)
+        if not it:
+            yield event.plain_result("没有这个上架物品！")
+            return
+        if str(it["seller"]) != str(qq_id):
+            yield event.plain_result("只能下架自己的物品！")
+            return
+        db.market_remove(mid)
+        db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
+        yield event.plain_result(f"↩️ 已下架【{it['item_data'].get('name','?')}】，物品退回背包")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?购入(?:\s*|$)")
+
+    async def market_buy(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "购入").split()
+        if not args or not args[0].isdigit():
+            yield event.plain_result("格式：购入 <编号>，『市场』查看编号")
+            return
+        mid = int(args[0])
+        items = db.market_list(group_id)
+        it = next((x for x in items if x["id"] == mid), None)
+        if not it:
+            yield event.plain_result("没有这个物品！可能已被买走。")
+            return
+        if str(it["seller"]) == str(qq_id):
+            yield event.plain_result("不能买自己的物品！")
+            return
+        if player["gold"] < it["price"]:
+            yield event.plain_result(f"金币不足！需要 {it['price']} 金币。")
+            return
+        db.update_player(group_id, qq_id, gold=player["gold"] - it["price"])
+        seller = self._player(group_id, it["seller"])
+        if seller:
+            db.update_player(group_id, it["seller"], gold=seller["gold"] + it["price"])
+        db.market_remove(mid)
+        db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
+        yield event.plain_result(f"🛒 购入成功！【{it['item_data'].get('name','?')}】已放入背包（花费 {it['price']} 金币）")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)")
+
+    async def party(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        target = self._strip_cmd(event, "组队").strip()
+        if target == "队伍":
+            target = ""
+        members = db.party_members(group_id, qq_id)
+        if not target:
+            if members:
+                lines = [f"🤝 【队伍】（{len(members)}人）", "━━━━━━━━━━━━"]
+                for i, m in enumerate(members, 1):
+                    p = self._player(group_id, m)
+                    lines.append(f"{i}. {p['name'] if p else m}" + ("（队长）" if m == members[0] else ""))
+                lines.append("💡 组队打怪经验 +10%！队长『组队 <名字>』可再拉人（上限 4 人）；『退队』离开")
+                yield event.plain_result("\n".join(lines))
+            else:
+                yield event.plain_result("你还没有队伍。『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验 +10%")
+            return
+        # 找目标玩家
+        all_players = db.get_group_players(group_id)
+        target_qq = None
+        for q, p in all_players.items():
+            if p.get("name") == target or q == target:
+                target_qq = q
+                break
+        if not target_qq:
+            yield event.plain_result(f"找不到玩家『{target}』！确保对方已『注册』角色～")
+            return
+        if str(target_qq) == str(qq_id):
+            yield event.plain_result("不能和自己组队！")
+            return
+        # v49：已有队伍时，队长用『组队 <名字>』拉新人（上限 3 人）
+        if members:
+            if str(members[0]) != str(qq_id):
+                yield event.plain_result("你已在队伍中，让队长『组队 <名字>』拉人吧～")
+                return
+            tname = self._player(group_id, target_qq)
+            tname_str = tname["name"] if tname else target
+            if db.party_add(group_id, qq_id, target_qq):
+                yield event.plain_result(
+                    f"🤝 {tname_str} 加入了你的队伍！（当前 {len(db.party_members(group_id, qq_id))} 人，上限 4 人）\n"
+                    f"💡 组队打怪经验 +10%！"
+                )
+            else:
+                yield event.plain_result(f"无法拉入 {tname_str}：TA 可能已在队伍中，或队伍已满（4 人）～")
+            return
+        db.party_create(group_id, qq_id, target_qq)
+        tname = self._player(group_id, target_qq)
+        yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验 +10%！『组队 <名字>』可再拉人（上限 4 人）")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")
+
+    async def party_leave(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if db.party_leave(group_id, qq_id):
+            yield event.plain_result("👋 你已退出队伍！（队长退队将解散队伍）")
+        else:
+            yield event.plain_result("你还没有队伍～")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?创建公会(?:\s*|$)")
+
+    async def guild_create_cmd(self, event: AstrMessageEvent):
+        import datetime
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        name = self._strip_cmd(event, "创建公会").strip()[:10]
+        if not name:
+            yield event.plain_result("格式：创建公会 <名字>，如『创建公会 屠龙勇士』")
+            return
+        if db.guild_get_by_member(qq_id):
+            yield event.plain_result("你已经在一个公会里啦！先『退出公会』再加入新的～")
+            return
+        cfg = C.GUILD_CONFIG
+        if player["level"] < cfg["create_level"]:
+            yield event.plain_result(f"创建公会需要 {cfg['create_level']} 级！你才 {player['level']} 级，先去冒险吧～")
+            return
+        if player["gold"] < cfg["create_cost"]:
+            yield event.plain_result(f"创建公会需要 {cfg['create_cost']} 金币！你只有 {player['gold']} 金币。")
+            return
+        gid = db.guild_create(name, qq_id, desc=f"{player['name']} 创立的公会")
+        if not gid:
+            yield event.plain_result(f"公会『{name}』已存在！换个名字吧～")
+            return
+        db.update_player(group_id, qq_id, gold=player["gold"] - cfg["create_cost"])
+        yield event.plain_result(
+            f"🏰 【公会创建成功】『{name}』！\n"
+            f"你成为了公会会长！\n"
+            f"💡 『公会』查看信息，『公会签到』『公会任务』为公会贡献力量！"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)")
+
+    async def guild_join_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        name = self._strip_cmd(event, "加入公会").strip()
+        if not name:
+            yield event.plain_result("格式：加入公会 <公会名>，如『加入公会 屠龙勇士』")
+            return
+        if db.guild_get_by_member(qq_id):
+            yield event.plain_result("你已经在一个公会里啦！")
+            return
+        g = db.guild_get_by_name(name)
+        if not g:
+            yield event.plain_result(f"找不到公会『{name}』！输入『公会排行』看看有哪些公会～")
+            return
+        db.guild_join(g["gid"], qq_id)
+        yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n💡 『公会』查看信息，『公会签到』每日报到！")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)")
+
+    async def guild_leave_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你不在任何公会里～")
+            return
+        if g["leader"] == qq_id:
+            yield event.plain_result("你是会长！『解散公会』或先转让会长吧～")
+            return
+        db.guild_leave(g["gid"], qq_id)
+        yield event.plain_result(f"👋 你已退出公会【{g['name']}】。江湖再见！")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?解散公会(?:\s*|$)")
+
+    async def guild_disband_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        g = db.guild_get_by_leader(qq_id)
+        if not g:
+            yield event.plain_result("只有会长才能解散公会！")
+            return
+        db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
+        yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|排行|创建|加入|退出|解散)(?:\s*|$)")
+
+    async def guild_info(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！『创建公会 <名字>』（20级+5000金币）或『加入公会 <名字>』")
+            return
+        members = db.guild_members(g["gid"])
+        count = len(members)
+        exp_need = g["level"] * 300
+        raw = self._strip_cmd(event, "公会")
+        page = self._parse_page(raw)
+        page_items, pages, page = self._page_items(members, page, per_page=5)
+        lines = [
+            f"{g['icon']} 【{g['name']}】Lv.{g['level']}",
+            f"━━━━━━━━━━━━",
+            f"👥 成员 {count} 人 ｜ 经验 {g['exp']}/{exp_need}",
+            f"📜 {g['desc'] or '暂无宣言'}",
+            f"💡 公会加成：打怪经验 +{min(int(g['level'] * C.GUILD_CONFIG['exp_bonus_per_level'] * 100), int(C.GUILD_CONFIG['max_bonus'] * 100))}%",
+            f"━━━━━━━━━━━━",
+            f"成员（第 {page}/{pages} 页）：",
+        ]
+        for i, m in enumerate(page_items, (page - 1) * 5 + 1):
+            p = self._player(group_id, m["qq_id"])
+            role = "👑" if m["role"] == "leader" else "⚔️"
+            name = p["name"] if p else m["qq_id"]
+            lines.append(f"{i:>2}. {role} {name} Lv.{p['level'] if p else '?'} ｜ 贡献 {m['contribute']}")
+        lines.append("")
+        if pages > 1:
+            lines.append(f"💡 『公会 {page+1}』看下一页（共 {pages} 页）")
+        lines.append("💡 『公会签到』『公会任务』为公会赚经验！")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)")
+
+    async def guild_sign(self, event: AstrMessageEvent):
+        import datetime
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
+            return
+        today = datetime.date.today().isoformat()
+        if db.guild_get_sign(g["gid"], qq_id) == today:
+            yield event.plain_result("今天已经公会签过到啦！明天再来～")
+            return
+        cfg = C.GUILD_CONFIG
+        db.guild_set_sign(g["gid"], qq_id, today)
+        db.guild_add_exp(g["gid"], cfg["sign_exp"], member_qq=qq_id, contribute=cfg["sign_contribute"])
+        db.update_player(group_id, qq_id, gold=player["gold"] + cfg["sign_gold"])
+        yield event.plain_result(
+            f"📅 【公会签到】在【{g['name']}】报到！\n"
+            f"🏰 公会经验 +{cfg['sign_exp']} ｜ 个人贡献 +{cfg['sign_contribute']}\n"
+            f"💰 金币 +{cfg['sign_gold']}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会任务(?:\s*|$)")
+
+    async def guild_task(self, event: AstrMessageEvent):
+        import datetime
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
+            return
+        today = datetime.date.today().isoformat()
+        tdate, tprog = db.guild_get_task(g["gid"], qq_id)
+        if tdate != today:
+            tdate, tprog = today, 0
+        need = C.GUILD_CONFIG["kill_task"]
+        if tprog >= need:
+            yield event.plain_result("今天的公会任务已完成！明天再来～")
+            return
+        yield event.plain_result(
+            f"🎯 【公会任务】击杀 {need} 只怪物（当前 {tprog}/{need}）\n"
+            f"💡 击杀怪物自动推进，完成后回来领取奖励！"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会排行(?:\s*|$)")
+
+    async def guild_rank(self, event: AstrMessageEvent):
+        tops = db.guild_top(10)
+        if not tops:
+            yield event.plain_result("还没有公会成立！『创建公会 <名字>』建立第一个公会吧～")
+            return
+        lines = ["🏆 【公会排行榜】", "━━━━━━━━━━━━"]
+        for i, g in enumerate(tops, 1):
+            lines.append(f"{i}. {g['icon']} {g['name']} Lv.{g['level']}（{g['members']}人）")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物(?!改名)(?:\s*|$)")
+
+    async def pet_view(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        pet = db.pet_get(qq_id)
+        if not pet:
+            yield event.plain_result("你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～")
+            return
+        pdef = next((p for p in C.PET_POOL if p["key"] == pet["pet_key"]), None)
+        icon = pdef["icon"] if pdef else "🐾"
+        need = C.pet_exp_need(pet["level"])
+        sat = pet["satiety"]
+        sat_str = "😋" if sat > 70 else ("😐" if sat > 30 else "😵")
+        bonus = int(min(pet["level"] / 10, 0.5) * 100)
+        lines = [
+            f"{icon} 【{pet['name']}】Lv.{pet['level']}",
+            f"━━━━━━━━━━━━",
+            f"💕 亲密度 {pet['bond']} ｜ {sat_str} 饱食度 {sat}/100",
+            f"✨ 经验 {pet['exp']}/{need}",
+            f"⚡ 战斗经验加成 +{bonus}%",
+        ]
+        if pdef:
+            lines.append(f"📖 {pdef['desc']}")
+        lines.append("")
+        lines.append("💡 『喂养 <材料名>』提升饱食度，『宠物改名 <名字>』，『放生』告别")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物改名(?:\s*|$)")
+
+    async def pet_rename(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        pet = db.pet_get(qq_id)
+        if not pet:
+            yield event.plain_result("你还没有宠物！")
+            return
+        new_name = self._strip_cmd(event, "宠物改名").strip()[:8]
+        if not new_name:
+            yield event.plain_result("格式：宠物改名 <名字>")
+            return
+        db.pet_update(qq_id, name=new_name)
+        yield event.plain_result(f"🐾 你的宠物改名为【{new_name}】！")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?喂养(?:\s*|$)")
+
+    async def pet_feed(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        pet = db.pet_get(qq_id)
+        if not pet:
+            yield event.plain_result("你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～")
+            return
+        mat_name = self._strip_cmd(event, "喂养").strip()
+        if not mat_name:
+            yield event.plain_result("格式：喂养 <材料名/序号>，如『喂养 狼皮』或『喂养 1』（打怪/采集可获得材料）")
+            return
+        # 找背包里的材料
+        items = db.get_inventory(group_id, qq_id)
+        target = None
+        if mat_name.isdigit():
+            mats = [it for it in items if it["data"].get("type") == "材料"]
+            idx = int(mat_name)
+            if idx < 1 or idx > len(mats):
+                yield event.plain_result(f"背包里没有第 {idx} 个材料（共 {len(mats)} 个）！打怪、『采集』、『采矿』可获得材料。")
+                return
+            target = mats[idx - 1]
+        else:
+            for it in items:
+                d = it["data"]
+                if d.get("type") == "材料" and mat_name in d["name"]:
+                    target = it
+                    break
+        if not target:
+            yield event.plain_result(f"背包里没有材料『{mat_name}』！打怪、『采集』、『采矿』可获得材料。")
+            return
+        # 喂食：饱食度+25，亲密度+5，经验+10
+        db.remove_item(group_id, qq_id, target["key"])
+        sat = min(100, pet["satiety"] + 25)
+        bond = pet["bond"] + 5
+        exp = pet["exp"] + 10
+        lv = pet["level"]
+        while exp >= C.pet_exp_need(lv):
+            exp -= C.pet_exp_need(lv)
+            lv += 1
+        db.pet_update(qq_id, satiety=sat, bond=bond, exp=exp, level=lv)
+        lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
+        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +25 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
+
+    async def pet_release(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        pet = db.pet_get(qq_id)
+        if not pet:
+            yield event.plain_result("你还没有宠物～")
+            return
+        db.pet_delete(qq_id)
+        yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:坐骑|骑乘|下马)(?:\s*|$)")
+
+    async def mount_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        raw = self._strip_cmd(event, "骑乘") if event.get_message_str().startswith(("骑乘", "[At:")) else ""
+        cmd = event.get_message_str().strip()
+        # 下马
+        if cmd.startswith("下马") or raw.startswith("下马"):
+            mounts = player.get("mounts") or {}
+            if mounts.get("active"):
+                mounts["active"] = None
+                db.update_player(group_id, qq_id, mounts=mounts)
+                yield event.plain_result("🛑 你翻身下马，坐骑回到了马厩。")
+            else:
+                yield event.plain_result("你现在没有骑乘任何坐骑～")
+            return
+        # 骑乘/购买（带参数）
+        if event.get_message_str().startswith(("骑乘", "[At:")) or raw:
+            name = (raw or "").strip()
+            mounts = player.get("mounts") or {}
+            owned = mounts.get("owned") or []
+            # 骑乘
+            if name:
+                target = None
+                for mk in owned:
+                    m = C.MOUNT_BY_KEY.get(mk)
+                    if m and name in (m["name"], mk):
+                        target = m
+                        break
+                if not target:
+                    # 未拥有的坐骑 → 提示
+                    for m in C.MOUNT_POOL:
+                        if name in (m["name"], m["key"]):
+                            yield event.plain_result(f"你还没有『{m['name']}』！{'去商店『购买 老马』' if m['key'] == 'mount_horse' else '打精英/Boss 掉缰绳后用『使用 缰绳』解锁'}～")
+                            return
+                    yield event.plain_result(f"没有叫『{name}』的坐骑～『坐骑』查看全部")
+                    return
+                if player["level"] < target["lv"]:
+                    yield event.plain_result(f"『{target['name']}』需要 Lv.{target['lv']} 才能骑乘，你才 Lv.{player['level']}！")
+                    return
+                mounts["active"] = target["key"]
+                db.update_player(group_id, qq_id, mounts=mounts)
+                yield event.plain_result(f"{target['icon']} 你骑上了【{target['name']}】！{target['desc']}")
+                return
+        # 坐骑面板
+        mounts = player.get("mounts") or {}
+        owned = mounts.get("owned") or []
+        active = mounts.get("active")
+        lines = ["🐾 【坐骑】", "━━━━━━━━━━━━"]
+        if not owned:
+            lines.append("你还没有坐骑。去维拉镇商店『购买 老马』，或者打精英/Boss 碰碰运气！")
+        for mk in owned:
+            m = C.MOUNT_BY_KEY.get(mk)
+            if not m:
+                continue
+            mark = " 🟢 骑乘中" if active == mk else ""
+            lines.append(f"{m['icon']} {m['name']}{mark} — {m['desc']}")
+        if owned:
+            lines.append("")
+            lines.append("💡 『骑乘 <名称>』骑上坐骑，『下马』下来")
+        else:
+            lines.append("")
+            lines.append(f"💡 可获得的坐骑：{'、'.join(m['name'] for m in C.MOUNT_POOL)}")
+        yield event.plain_result("\n".join(lines))
+
+    def _maybe_roll_event(self) -> str:
+        """惰性事件调度：无事件且冷却到期 → 概率触发新事件。返回公告文本（无则空串）"""
+        import random as _rnd
+        cur = db.get_world_event(include_expired=True)
+        now = int(time.time())
+        # 当前事件过期 → 清除（拍卖/Boss 结算由各自指令处理）
+        if cur and now >= cur["ends_at"]:
+            db.clear_world_event()
+            cur = None
+        if cur:
+            return ""
+        # 冷却检查：上次事件结束时间 + 随机 30~90 分钟
+        last_end = db.get_event_state("last_event_end")
+        cooldown = 1800 + _rnd.randint(0, 3600)
+        if last_end and now < int(last_end) + cooldown:
+            return ""
+        # 60% 概率触发
+        if _rnd.random() > 0.6:
+            db.set_event_state("last_event_end", str(now))
+            return ""
+        evt = _rnd.choice(C.WORLD_EVENT_POOL)
+        ends = now + evt["duration"]
+        data = {}
+        if evt["type"] == "auction":
+            # 生成 3 件拍卖品（高品质随机装备）
+            items = []
+            pool = _rnd.sample(C.AUCTION_POOL, min(3, len(C.AUCTION_POOL)))
+            for i, ap in enumerate(pool, 1):
+                equip = C.generate_equip(ap["slot"], ap["lv"], ap["quality"])
+                items.append({
+                    "id": i, "name": equip["name"], "slot": ap["slot"],
+                    "stats": equip.get("stats", {}), "desc": equip.get("desc", ""),
+                    "base": ap["base"], "buyout": ap["buyout"],
+                    "bids": {},  # qq -> amount
+                })
+            data["items"] = items
+        elif evt["type"] == "boss":
+            b = _rnd.choice(C.WORLD_BOSS_POOL)
+            data["boss"] = {"name": b["name"], "icon": b["icon"], "lv": b["lv"],
+                            "hp": b["hp"], "max_hp": b["hp"],
+                            "reward": b["reward"], "contrib": {},
+                            "mech": b.get("mech", ""),
+                            "map": b.get("map", ""), "map_name": b.get("map_name", "")}
+        db.save_world_event(evt["type"], ends, data)
+        db.set_event_state("last_event_end", str(ends))
+        return f"\n🌍 【世界事件】{evt['icon']} {evt['name']}！\n{evt['desc']}"
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?事件(?:\s*|$)")
+
+    async def world_event(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        notice = self._maybe_roll_event()
+        # 新事件刚触发 → 广播到所有注册群（当前群已通过 yield 看到）
+        if notice.strip():
+            try:
+                await self._broadcast(notice.strip(), exclude_group=group_id)
+            except Exception as _e:
+                pass
+        cur = db.get_world_event()
+        now = int(time.time())
+        if not cur:
+            yield event.plain_result("🌍 大陆风平浪静……\n" + notice)
+            return
+        evt = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur["etype"]), None)
+        left = max(0, cur["ends_at"] - now)
+        mm, ss = divmod(left, 60)
+        lines = [f"🌍 【世界事件】{evt['icon']} {evt['name']}（剩余 {mm}分{ss}秒）" if evt else "🌍 世界事件",
+                 f"━━━━━━━━━━━━"]
+        if evt:
+            lines.append(evt["desc"])
+        lines.append("")
+        if cur["etype"] == "auction":
+            items = cur["data"].get("items", [])
+            for it in items:
+                top = max(it["bids"].values()) if it["bids"] else 0
+                top_name = ""
+                if it["bids"]:
+                    top_qq = max(it["bids"], key=it["bids"].get)
+                    top_name = self._player(group_id, top_qq)
+                    top_name = top_name["name"] if top_name else top_qq
+                lines.append(f"📦 {it['id']}. {it['name']} ｜ 底价 {it['base']}｜ 最高 {top_name or '无人出价'}：{top}")
+                lines.append(f"   💰 一口价 {it['buyout']}｜『竞拍 {it['id']} <金币>』")
+        elif cur["etype"] == "boss":
+            b = cur["data"].get("boss", {})
+            pct = max(0, int(b.get("hp", 0) / max(1, b.get("max_hp", 1)) * 100))
+            lines.append(f"{b.get('icon','')} {b.get('name','')} Lv.{b.get('lv',1)}")
+            lines.append(f"❤️ 剩余血量 {max(0,b.get('hp',0)):,} / {b.get('max_hp',0):,}（{pct}%）")
+            lines.append(f"⚔️ 输入『讨伐』参与战斗！贡献越高奖励越丰厚！")
+        elif cur["etype"] == "merchant":
+            lines.append("🎁 所有商店 8 折优惠进行中！『商店』查看，『购买 <物品>』扫货！")
+        elif cur["etype"] == "omen":
+            lines.append("🌧️ 经验与金币收益 +50%！快去『探索』打怪吧！")
+        elif cur["etype"] == "swarm":
+            lines.append("⚔️ 怪物经验 +30%，击杀声望双倍！守护大陆！")
+        elif cur["etype"] == "festival":
+            lines.append("🎉 『签到』奖励翻倍！金币掉落增加！")
+        lines.append("")
+        lines.append(notice)
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?拍卖(?:\s*|$)")
+
+    async def auction(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        cur = db.get_world_event()
+        now = int(time.time())
+        if not cur:
+            # 是否有过期的拍卖待结算
+            expired = db.get_world_event(include_expired=True)
+            if expired and expired["etype"] == "auction" and now >= expired["ends_at"]:
+                lines = self._settle_auction(expired, group_id)
+                db.clear_world_event()
+                broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
+                try:
+                    await self._broadcast(broadcast_text)
+                except Exception:
+                    pass
+                yield event.plain_result(broadcast_text)
+                return
+            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！（『事件』查看）")
+            return
+        if cur["etype"] != "auction":
+            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！（『事件』查看）")
+            return
+        items = cur["data"].get("items", [])
+        left = cur["ends_at"] - now
+        mm, ss = divmod(left, 60)
+        lines = [f"🏪 【神秘拍卖行】（剩余 {mm}分{ss}秒）", "━━━━━━━━━━━━"]
+        for it in items:
+            top = max(it["bids"].values()) if it["bids"] else 0
+            top_name = "无人出价"
+            if it["bids"]:
+                top_qq = max(it["bids"], key=it["bids"].get)
+                tp = self._player(group_id, top_qq)
+                top_name = f"{tp['name'] if tp else top_qq}（{top}）"
+            lines.append(f"📦 {it['id']}. {it['name']}")
+            lines.append(f"   底价 {it['base']} ｜ 最高：{top_name} ｜ 一口价 {it['buyout']}")
+            lines.append(f"   『竞拍 {it['id']} <金币>』出价")
+        lines.append("")
+        lines.append("💡 出价立即扣款；被超越自动退还；结束最高价者得！")
+        yield event.plain_result("\n".join(lines))
+
+    def _settle_auction(self, cur, group_id: str) -> str:
+        """拍卖到期结算：最高价者得物品，其余退还。返回结算文本"""
+        if not cur or cur["etype"] != "auction":
+            return "拍卖行已关闭。"
+        items = cur["data"].get("items", [])
+        lines = []
+        for it in items:
+            if it["bids"]:
+                top_qq = max(it["bids"], key=it["bids"].get)
+                amount = it["bids"][top_qq]
+                # 发放装备（v48：品质档英文 ID；key 用唯一 id 而非装备名）
+                import uuid as _uuid
+                equip = C.generate_equip(it["slot"], 30, it.get("quality", "purple"))
+                db.add_item(group_id, top_qq, f"eq_{_uuid.uuid4().hex[:8]}", equip, count=1)
+                p = self._player(group_id, top_qq)
+                name = p["name"] if p else top_qq
+                lines.append(f"🎉 {name} 以 {amount} 金币拍得【{it['name']}】！")
+                # 退还其他出价者
+                for qq2, amt2 in it["bids"].items():
+                    if qq2 != top_qq:
+                        p2 = self._player(group_id, qq2)
+                        if p2:
+                            db.update_player(group_id, qq2, gold=p2["gold"] + amt2)
+                            lines.append(f"↩️ 退还 {p2['name']} {amt2} 金币")
+            else:
+                lines.append(f"💤 【{it['name']}】无人出价，流拍。")
+        return "\n".join(lines)
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?竞拍(?:\s*|$)")
+
+    async def bid(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "竞拍").split()
+        cur = db.get_world_event()
+        now = int(time.time())
+        if not cur:
+            # 过期的拍卖待结算
+            expired = db.get_world_event(include_expired=True)
+            if expired and expired["etype"] == "auction" and now >= expired["ends_at"]:
+                lines = self._settle_auction(expired, group_id)
+                db.clear_world_event()
+                broadcast_text = f"🏪 【拍卖行 · 落槌结算】\n{lines}"
+                try:
+                    await self._broadcast(broadcast_text)
+                except Exception:
+                    pass
+                yield event.plain_result(broadcast_text)
+                return
+            yield event.plain_result("🏪 拍卖行暂未开张。")
+            return
+        if cur["etype"] != "auction":
+            yield event.plain_result("🏪 拍卖行暂未开张。")
+            return
+        if len(args) < 2 or not args[0].isdigit() or not args[1].isdigit():
+            yield event.plain_result("格式：竞拍 <编号> <金币>，如『竞拍 1 5000』（『拍卖』查看编号）")
+            return
+        item_id = int(args[0])
+        amount = int(args[1])
+        items = cur["data"].get("items", [])
+        it = next((x for x in items if x["id"] == item_id), None)
+        if not it:
+            yield event.plain_result("没有这个拍卖品！『拍卖』查看当前物品～")
+            return
+        if amount < it["base"]:
+            yield event.plain_result(f"出价不能低于底价 {it['base']} 金币！")
+            return
+        if player["gold"] < amount:
+            yield event.plain_result(f"你只有 {player['gold']} 金币，出不起 {amount}！")
+            return
+        # 被超越 → 退还当前最高出价者（并移除其出价记录）
+        if it["bids"]:
+            top_qq = max(it["bids"], key=it["bids"].get)
+            if it["bids"][top_qq] < amount and top_qq != str(qq_id):
+                p_top = self._player(group_id, top_qq)
+                if p_top:
+                    db.update_player(group_id, top_qq, gold=p_top["gold"] + it["bids"][top_qq])
+                del it["bids"][top_qq]
+        # 自己重复出价 → 退还自己的先前出价
+        if str(qq_id) in it["bids"]:
+            prev = it["bids"][str(qq_id)]
+            db.update_player(group_id, qq_id, gold=player["gold"] + prev)
+            del it["bids"][str(qq_id)]
+            player = self._player(group_id, qq_id)
+        # 扣款并记录
+        db.update_player(group_id, qq_id, gold=player["gold"] - amount)
+        it["bids"][str(qq_id)] = amount
+        db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
+        # 一口价立即成交
+        if amount >= it["buyout"]:
+            # 退还其他出价者
+            for qq2, amt2 in it["bids"].items():
+                if qq2 != str(qq_id):
+                    p2 = self._player(group_id, qq2)
+                    if p2:
+                        db.update_player(group_id, qq2, gold=p2["gold"] + amt2)
+            equip = C.generate_equip(it["slot"], 30, it.get("quality", "purple"))
+            import uuid as _uuid2
+            db.add_item(group_id, qq_id, f"eq_{_uuid2.uuid4().hex[:8]}", equip, count=1)
+            it["bids"] = {str(qq_id): amount}
+            cur["data"]["items"] = [x for x in items if x["id"] != item_id]
+            db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
+            yield event.plain_result(f"💰 一口价成交！你以 {amount} 金币拍得【{it['name']}】！\n📦 装备已放入背包（『背包』查看）")
+            return
+        yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n（若被超越将自动退还）")

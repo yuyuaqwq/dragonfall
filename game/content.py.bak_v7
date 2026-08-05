@@ -1,0 +1,1473 @@
+# -*- coding: utf-8 -*-
+"""
+《剑与魔法》游戏内容库 v2.0 —— 公式驱动，策划支持 100 级
+============================================================
+架构说明：
+- 怪物/装备属性全部由【公式 + 模板】生成，不手写每条数据
+- 新增地图 = 在 MAPS 加一行；新增怪物 = 在模板池选型
+- 当前实现 1-30 级内容（第 1-3 篇章），31-100 级按同架构扩展
+世界观：维斯特兰大陆 —— 六大势力交错，剑与魔法并行。
+"""
+
+import random
+
+# ============================================================
+# 〇、基础数值公式（策划核心）
+# ============================================================
+def monster_stats(lv: int, role: str) -> dict:
+    """怪物属性公式：按等级 + 角色模板生成。
+    role: tank(血牛) / dps(攻高) / caster(魔攻) / speedster(敏捷) / boss(首领) / elite(精英)
+    """
+    base = {
+        "tank":       {"hp": 60,  "atk": 8,  "def": 7,  "matk": 3,  "mdef": 6,  "spd": 6},
+        "dps":        {"hp": 45,  "atk": 12, "def": 4,  "matk": 4,  "mdef": 4,  "spd": 10},
+        "caster":     {"hp": 40,  "atk": 5,  "def": 3,  "matk": 14, "mdef": 8,  "spd": 9},
+        "speedster":  {"hp": 35,  "atk": 9,  "def": 3,  "matk": 5,  "mdef": 4,  "spd": 16},
+        "elite":      {"hp": 95,  "atk": 14, "def": 8,  "matk": 10, "mdef": 8,  "spd": 11},
+        "boss":       {"hp": 160, "atk": 16, "def": 10, "matk": 12, "mdef": 10, "spd": 10},
+    }[role]
+    growth = {
+        "tank":       {"hp": 14,  "atk": 1.1, "def": 1.0, "matk": 0.5, "mdef": 0.9, "spd": 0.2},
+        "dps":        {"hp": 9,   "atk": 1.6, "def": 0.7, "matk": 0.6, "mdef": 0.6, "spd": 0.8},
+        "caster":     {"hp": 7,   "atk": 0.6, "def": 0.5, "matk": 1.8, "mdef": 1.1, "spd": 0.7},
+        "speedster":  {"hp": 6,   "atk": 1.2, "def": 0.5, "matk": 0.6, "mdef": 0.6, "spd": 1.4},
+        "elite":      {"hp": 20,  "atk": 1.8, "def": 1.2, "matk": 1.4, "mdef": 1.2, "spd": 0.9},
+        "boss":       {"hp": 38,  "atk": 2.2, "def": 1.5, "matk": 1.8, "mdef": 1.4, "spd": 1.0},
+    }[role]
+    stats = {}
+    for k in base:
+        stats[k] = int(base[k] + growth[k] * (lv - 1))
+    # 首领/精英血量系数按等级段放大，保证后期 Boss 有压迫感
+    if role == "boss":
+        stats["hp"] = int(stats["hp"] * (1 + lv * 0.06))
+    if role == "elite":
+        stats["hp"] = int(stats["hp"] * (1 + lv * 0.04))
+    return stats
+
+
+def equip_stats(slot: str, lv: int, quality: str) -> dict:
+    """装备属性公式：部位 + 装备等级 + 品质 → 属性字典"""
+    mult = QUALITY[quality]["mult"]
+    base = {
+        "weapon":   {"atk": 3,  "matk": 3},
+        "helm":     {"def": 2,  "hp": 8},
+        "armor":    {"def": 4,  "hp": 15},
+        "legs":     {"def": 3,  "hp": 10},
+        "boots":    {"def": 1,  "spd": 2},
+        "ring":     {"atk": 1,  "matk": 1},
+        "necklace": {"mdef": 2, "hp": 6},
+    }[slot]
+    scaling = {
+        "weapon":   {"atk": 2.0, "matk": 2.0},
+        "helm":     {"def": 1.0, "hp": 6},
+        "armor":    {"def": 1.8, "hp": 12},
+        "legs":     {"def": 1.3, "hp": 8},
+        "boots":    {"def": 0.8, "spd": 1.0},
+        "ring":     {"atk": 0.7, "matk": 0.7},
+        "necklace": {"mdef": 1.2, "hp": 5},
+    }[slot]
+    stats = {}
+    for k in base:
+        stats[k] = int((base[k] + scaling[k] * lv) * mult)
+    if slot in ("weapon", "ring") and quality in ("蓝", "紫", "橙"):
+        stats["crit"] = round((0.02 + 0.01 * lv / 10) * (QUALITY[quality]["mult"] - 1), 3)
+    if slot == "necklace" and quality in ("蓝", "紫", "橙"):
+        stats["mdef"] += int(3 * mult)
+    return stats
+
+
+def exp_to_next(level: int) -> int:
+    """升到下一级所需经验（100级可扩展）"""
+    return int(35 * level ** 1.45 + 25)
+
+
+def monster_exp(lv: int, role: str) -> int:
+    """怪物经验公式"""
+    base = {"tank": 10, "dps": 11, "caster": 12, "speedster": 11, "elite": 30, "boss": 90}[role]
+    return int(base * (1 + lv * 0.9))
+
+
+def monster_gold(lv: int, role: str) -> int:
+    """怪物金币公式"""
+    base = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "elite": 20, "boss": 60}[role]
+    return int(base * (1 + lv * 0.6))
+
+
+# ============================================================
+# 一、职业定义（含 100 级转职线）
+# ============================================================
+CLASSES = {
+    "战士": {
+        "desc": "身穿重甲、手持巨剑的钢铁壁垒，正面硬刚一切敌人。",
+        "icon": "🛡️",
+        "evolve": ["狂战士(30)", "战争领主(60)", "战神(90)"],
+        "base": {"hp": 150, "mp": 40, "atk": 18, "def": 14, "matk": 6, "mdef": 10, "spd": 10, "crit": 0.05, "dodge": 0.03},
+        "growth": {"hp": 22, "mp": 3, "atk": 3.2, "def": 2.6, "matk": 0.5, "mdef": 1.2, "spd": 0.6},
+        "weapon_type": "剑",
+    },
+    "法师": {
+        "desc": "掌控元素之力的施法者，输出爆炸但身板脆弱。",
+        "icon": "🔥",
+        "evolve": ["元素大师(30)", "奥术贤者(60)", "大魔导师(90)"],
+        "base": {"hp": 90, "mp": 120, "atk": 8, "def": 7, "matk": 22, "mdef": 14, "spd": 12, "crit": 0.08, "dodge": 0.05},
+        "growth": {"hp": 10, "mp": 10, "atk": 0.8, "def": 1.0, "matk": 3.8, "mdef": 1.8, "spd": 0.8},
+        "weapon_type": "法杖",
+    },
+    "游侠": {
+        "desc": "敏捷的弓箭手，箭无虚发，暴击与闪避的艺术家。",
+        "icon": "🏹",
+        "evolve": ["猎魔人(30)", "风行者(60)", "神射手(90)"],
+        "base": {"hp": 110, "mp": 60, "atk": 15, "def": 10, "matk": 8, "mdef": 9, "spd": 16, "crit": 0.15, "dodge": 0.12},
+        "growth": {"hp": 14, "mp": 5, "atk": 2.6, "def": 1.6, "matk": 0.8, "mdef": 1.0, "spd": 1.8},
+        "weapon_type": "弓",
+    },
+    "牧师": {
+        "desc": "信仰圣光的神职者，能打能奶，队伍的灵魂。",
+        "icon": "✨",
+        "evolve": ["圣武士(30)", "圣殿骑士(60)", "神眷者(90)"],
+        "base": {"hp": 100, "mp": 110, "atk": 10, "def": 11, "matk": 16, "mdef": 16, "spd": 11, "crit": 0.06, "dodge": 0.06},
+        "growth": {"hp": 12, "mp": 9, "atk": 1.2, "def": 1.8, "matk": 2.6, "mdef": 2.4, "spd": 0.7},
+        "weapon_type": "权杖",
+    },
+}
+
+# ============================================================
+# 二、地图（第 1-3 篇章，1-30 级；31-100 级同架构扩展）
+# 架构 v3：大地图 → 子区域（zone）
+# - 每张大地图拆分为多个子区域：城镇（城门/大街/广场/酒馆/旅店）、野外（入口/深处/核心）
+# - 子区域是实际可移动的最小单位，怪物/精英/Boss/NPC 都挂在子区域上
+# - 旧地图 id（vila/emerald...）作为区域别名保留，老存档自动迁移到区域入口
+# ============================================================
+# 每张图: monsters = [(怪物id, 名称, 角色模板, 等级, 技能列表, 掉落), ...]
+# elite/boss 单独列出
+# type: 城镇区域(安全区,无怪) / 城镇外郊(可遇怪) / 野外 / 深处 / 核心(Boss)
+MAPS = [
+    # ============ 维拉镇（区域 id: vila，5 子区域） ============
+    {
+        "id": "vila_gate", "name": "维拉镇城门", "lv": 1, "region": "西境", "chapter": 1,
+        "area": "vila", "area_name": "维拉镇",
+        "desc": "维拉镇的东大门，商队与冒险者从这里进出。城门外的野地里偶尔有野兽出没。",
+        "type": "城镇外郊", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_stray_dog", "野狗", "dps", 1, ["撕咬"], ["野狗獠牙"]),
+            ("m_giant_rat", "巨型老鼠", "speedster", 2, ["撕咬"], ["鼠尾"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "vila_street", "name": "维拉镇中央大街", "lv": 1, "region": "西境", "chapter": 1,
+        "area": "vila", "area_name": "维拉镇",
+        "desc": "石板铺就的主街，两侧商铺林立，叫卖声此起彼伏。铁匠铺的炉火昼夜不熄。",
+        "type": "城镇区域", "shop": True, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_wild_boar", "野猪", "tank", 3, ["冲撞"], ["野猪皮"]),
+        ],
+        "elite": ("e_bandit_leader", "山贼头目", "elite", 4, ["劈砍", "怒吼"], ["山贼徽章"]),
+        "boss": None, "npcs": ["npc_blacksmith"],
+    },
+    {
+        "id": "vila_square", "name": "维拉镇中心广场", "lv": 1, "region": "西境", "chapter": 1,
+        "area": "vila", "area_name": "维拉镇",
+        "desc": "城镇的心脏，喷泉旁竖着公告板，镇长府邸就在广场北侧。新来的冒险者都在这里报到。",
+        "type": "城镇区域", "shop": False, "healer": False, "hidden": False,
+        "monsters": [], "elite": None, "boss": None,
+        "npcs": ["npc_mayor", "npc_bard"],
+    },
+    {
+        "id": "vila_tavern", "name": "维拉镇酒馆·醉熊", "lv": 1, "region": "西境", "chapter": 1,
+        "area": "vila", "area_name": "维拉镇",
+        "desc": "整个小镇最热闹的地方，麦酒与冒险故事一样管够。赏金猎人喜欢在这里物色搭档。",
+        "type": "城镇区域", "shop": True, "healer": False, "hidden": False,
+        "monsters": [], "elite": None, "boss": None,
+        "npcs": ["npc_bartender", "npc_bounty"],
+    },
+    {
+        "id": "vila_inn", "name": "维拉镇旅店·星夜", "lv": 1, "region": "西境", "chapter": 1,
+        "area": "vila", "area_name": "维拉镇",
+        "desc": "干净温暖的旅店，老板娘玛丽总是笑眯眯的。在这里住宿能恢复全部状态。",
+        "type": "城镇区域", "shop": False, "healer": True, "hidden": False,
+        "monsters": [], "elite": None, "boss": None,
+        "npcs": ["npc_innkeeper"],
+    },
+    # ============ 翡翠森林（区域 id: emerald，3 子区域） ============
+    {
+        "id": "emerald_edge", "name": "翡翠森林边缘", "lv": 4, "region": "西境", "chapter": 1,
+        "area": "emerald", "area_name": "翡翠森林",
+        "desc": "森林的边缘地带，阳光还能透过树冠。林间传来狼嚎，深入请小心。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_forest_wolf", "森林狼", "dps", 4, ["撕咬", "嚎叫"], ["狼皮"]),
+            ("m_venom_spider", "毒蜘蛛", "speedster", 5, ["毒咬"], ["蜘蛛毒囊"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "emerald_trail", "name": "翡翠林间小径", "lv": 5, "region": "西境", "chapter": 1,
+        "area": "emerald", "area_name": "翡翠森林",
+        "desc": "精灵走出来的小径，树木会说话，魔法的光芒在林间流淌。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_venom_spider", "毒蜘蛛", "speedster", 5, ["毒咬"], ["蜘蛛毒囊"]),
+            ("m_greensprite", "绿妖精", "caster", 6, ["魔法飞弹"], ["妖精之尘"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "emerald_heart", "name": "翡翠森林之心", "lv": 6, "region": "西境", "chapter": 1,
+        "area": "emerald", "area_name": "翡翠森林",
+        "desc": "森林最古老的神木所在，精灵的圣域。守护这里的远古圣鹿不容侵犯。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_greensprite", "绿妖精", "caster", 6, ["魔法飞弹"], ["妖精之尘"]),
+            ("m_forest_wolf", "森林狼", "dps", 6, ["撕咬", "嚎叫"], ["狼皮"]),
+        ],
+        "elite": ("e_forest_treant", "远古树人", "elite", 7, ["重击", "自然祝福"], ["远古树皮"]),
+        "boss": ("b_ancient_elk", "远古圣鹿", "boss", 8, ["圣光冲锋", "自然祝福", "践踏"], ["圣鹿角"]),
+        "npcs": ["npc_druid"],
+    },
+    # ============ 石拳丘陵（区域 id: stonefist，3 子区域） ============
+    {
+        "id": "stonefist_camp", "name": "石拳营地", "lv": 7, "region": "西境", "chapter": 1,
+        "area": "stonefist", "area_name": "石拳丘陵",
+        "desc": "矮人在丘陵脚下搭建的营地，篝火与铁砧声不断。矿洞方向常有地精的动静。",
+        "type": "城镇区域", "shop": True, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_goblin_grunt", "地精步兵", "dps", 7, ["劈砍"], ["地精耳朵"]),
+        ],
+        "elite": None, "boss": None, "npcs": ["npc_dwarf_elder"],
+    },
+    {
+        "id": "stonefist_mine", "name": "矿洞入口", "lv": 8, "region": "西境", "chapter": 1,
+        "area": "stonefist", "area_name": "石拳丘陵",
+        "desc": "矮人世代开采的矿脉洞口，如今被地精占领，洞内幽深黑暗。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_goblin_grunt", "地精步兵", "dps", 7, ["劈砍"], ["地精耳朵"]),
+            ("m_mine_bat", "矿洞蝙蝠", "speedster", 8, ["俯冲"], ["蝙蝠翼"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "stonefist_deep", "name": "矿洞深处", "lv": 9, "region": "西境", "chapter": 1,
+        "area": "stonefist", "area_name": "石拳丘陵",
+        "desc": "矿洞最深处，巨大的蛇影在黑暗中游弋。地精萨满在这里举行诡异的仪式。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_tunnel_snake", "洞穴巨蛇", "tank", 9, ["毒咬", "缠绕"], ["蛇鳞"]),
+            ("m_mine_bat", "矿洞蝙蝠", "speedster", 9, ["俯冲"], ["蝙蝠翼"]),
+        ],
+        "elite": ("e_goblin_shaman", "地精萨满", "elite", 10, ["暗影箭", "召唤"], ["萨满图腾"]),
+        "boss": ("b_tunnel_king", "隧洞之王", "boss", 11, ["重击", "怒吼", "地动"], ["地精王冠"]),
+        "npcs": [],
+    },
+    # ============ 幽暗沼泽（区域 id: gloom，3 子区域） ============
+    {
+        "id": "gloom_edge", "name": "幽暗沼泽边缘", "lv": 10, "region": "腐土", "chapter": 2,
+        "area": "gloom", "area_name": "幽暗沼泽",
+        "desc": "沼泽的最外围，瘴气开始弥漫，脚下的泥土松软而危险。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_swamp_zombie", "沼泽僵尸", "tank", 10, ["爪击"], ["僵尸腐肉"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "gloom_mire", "name": "泥沼深处", "lv": 11, "region": "腐土", "chapter": 2,
+        "area": "gloom", "area_name": "幽暗沼泽",
+        "desc": "越深入，瘴气越浓。腐尸爬行者在泥水中蠕动着，鬼魂的哀嚎此起彼伏。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_bog_ghost", "沼泽鬼魂", "caster", 11, ["汲取", "哀嚎"], ["鬼魂精华"]),
+            ("m_corpse_crawler", "腐尸爬行者", "dps", 12, ["爪击", "毒咬"], ["爬行虫壳"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "gloom_heart", "name": "沼泽之心", "lv": 12, "region": "腐土", "chapter": 2,
+        "area": "gloom", "area_name": "幽暗沼泽",
+        "desc": "亡灵天灾的腐化源头，骸骨术士的祭坛立于此地，腐朽领主盘踞其上。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_corpse_crawler", "腐尸爬行者", "dps", 12, ["爪击", "毒咬"], ["爬行虫壳"]),
+            ("m_swamp_zombie", "沼泽僵尸", "tank", 12, ["爪击"], ["僵尸腐肉"]),
+        ],
+        "elite": ("e_bone_warlock", "骸骨术士", "elite", 13, ["暗影箭", "招魂", "汲取"], ["术士核心"]),
+        "boss": ("b_decay_lord", "腐朽领主", "boss", 14, ["爪击", "腐息", "招魂", "狂暴"], ["腐朽之刃"]),
+        "npcs": [],
+    },
+    # ============ 赤脊荒原（区域 id: redridge，3 子区域） ============
+    {
+        "id": "redridge_field", "name": "赤脊旷野", "lv": 13, "region": "腐土", "chapter": 2,
+        "area": "redridge", "area_name": "赤脊荒原",
+        "desc": "赤色岩石覆盖的旷野，兽人部落的巡逻队在此出没，座狼的嚎叫撕破寂静。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_orc_grunt", "兽人步兵", "dps", 13, ["劈砍", "怒吼"], ["兽人獠牙"]),
+            ("m_warg", "座狼", "speedster", 14, ["撕咬", "嚎叫"], ["座狼犬齿"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "redridge_ridge", "name": "赤脊山脊", "lv": 15, "region": "腐土", "chapter": 2,
+        "area": "redridge", "area_name": "赤脊荒原",
+        "desc": "陡峭的山脊上风声猎猎，鹰身女妖在天空中盘旋，随时准备俯冲。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_harpy", "鹰身女妖", "caster", 15, ["俯冲", "尖啸"], ["女妖之羽"]),
+            ("m_warg", "座狼", "speedster", 15, ["撕咬", "嚎叫"], ["座狼犬齿"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "redridge_camp", "name": "战歌营地", "lv": 16, "region": "腐土", "chapter": 2,
+        "area": "redridge", "area_name": "赤脊荒原",
+        "desc": "战歌部落的大营，旌旗猎猎，兽人狂战士在营地中央的图腾柱下磨刀。",
+        "type": "核心", "shop": True, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_orc_grunt", "兽人步兵", "dps", 16, ["劈砍", "怒吼"], ["兽人獠牙"]),
+            ("m_harpy", "鹰身女妖", "caster", 16, ["俯冲", "尖啸"], ["女妖之羽"]),
+        ],
+        "elite": ("e_orc_berserker", "兽人狂战士", "elite", 16, ["劈砍", "狂暴", "重击"], ["狂战之心"]),
+        "boss": ("b_warband_chief", "战歌部落酋长", "boss", 17, ["劈砍", "战吼", "重击", "狂暴"], ["酋长战刃"]),
+        "npcs": ["npc_orc_prisoner"],
+    },
+    # ============ 黑石城废墟（区域 id: blackrock，3 子区域） ============
+    {
+        "id": "blackrock_gate", "name": "黑石城门", "lv": 16, "region": "腐土", "chapter": 2,
+        "area": "blackrock", "area_name": "黑石城废墟",
+        "desc": "曾是人类王国都城的东门，如今城门倒塌，骷髅卫兵在废墟间巡游。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_skeleton_guard", "骷髅卫兵", "tank", 16, ["劈砍", "盾击"], ["骨片"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "blackrock_street", "name": "死城大街", "lv": 17, "region": "腐土", "chapter": 2,
+        "area": "blackrock", "area_name": "黑石城废墟",
+        "desc": "曾经繁华的主街，如今只剩下断壁残垣。食尸鬼在阴影中啃食着什么。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_ghoul", "食尸鬼", "dps", 17, ["爪击", "吞噬"], ["食尸鬼之爪"]),
+            ("m_spectre", "怨灵", "caster", 18, ["汲取", "哀嚎", "附身"], ["灵魂碎片"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "blackrock_keep", "name": "黑石王座", "lv": 18, "region": "腐土", "chapter": 2,
+        "area": "blackrock", "area_name": "黑石城废墟",
+        "desc": "旧王国的王宫大殿，巫妖宰相的寒冰王座矗立于此，死亡骑士侍立两侧。",
+        "type": "核心", "shop": False, "healer": True, "hidden": False,
+        "monsters": [
+            ("m_skeleton_guard", "骷髅卫兵", "tank", 18, ["劈砍", "盾击"], ["骨片"]),
+            ("m_spectre", "怨灵", "caster", 18, ["汲取", "哀嚎", "附身"], ["灵魂碎片"]),
+        ],
+        "elite": ("e_death_knight", "死亡骑士", "elite", 19, ["劈砍", "死亡之握", "暗影箭", "狂暴"], ["死亡骑士之刃"]),
+        "boss": ("b_lich_vizier", "巫妖宰相", "boss", 20, ["暗影箭", "招魂", "汲取", "巫妖齐射"], ["巫妖法杖"]),
+        "npcs": ["npc_ghost_knight"],
+    },
+    # ============ 熔岩裂谷（区域 id: magma，2 子区域） ============
+    {
+        "id": "magma_gorge", "name": "熔岩峡谷", "lv": 19, "region": "魔渊", "chapter": 3,
+        "area": "magma", "area_name": "熔岩裂谷",
+        "desc": "深渊恶魔撕开大地的裂隙，岩浆在脚下奔涌，火元素从熔岩中升起。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_fire_elemental", "火元素", "caster", 19, ["火球", "灼烧"], ["火焰核心"]),
+            ("m_imp", "小恶魔", "speedster", 20, ["火球", "尖啸"], ["恶魔之角"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "magma_heart", "name": "熔岩核心", "lv": 21, "region": "魔渊", "chapter": 3,
+        "area": "magma", "area_name": "熔岩裂谷",
+        "desc": "裂谷的最深处，岩浆瀑布倾泻而下。熔岩暴君在此沉睡，火焰巨人看守着它的梦。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_lava_hound", "熔岩猎犬", "tank", 21, ["撕咬", "灼烧", "冲撞"], ["熔岩石"]),
+            ("m_imp", "小恶魔", "speedster", 21, ["火球", "尖啸"], ["恶魔之角"]),
+        ],
+        "elite": ("e_flame_giant", "火焰巨人", "elite", 22, ["重击", "火球", "灼烧", "烈焰震击"], ["巨人余烬"]),
+        "boss": ("b_magma_tyrant", "熔岩暴君", "boss", 23, ["火球", "烈焰震击", "灼烧", "岩浆喷发"], ["熔岩之剑"]),
+        "npcs": [],
+    },
+    # ============ 冰封苔原（区域 id: tundra，2 子区域） ============
+    {
+        "id": "tundra_field", "name": "冰封旷野", "lv": 22, "region": "魔渊", "chapter": 3,
+        "area": "tundra", "area_name": "冰封苔原",
+        "desc": "极北的冰雪世界，暴风雪中传来冰原狼的低吼，冰霜巨魔在雪丘间游荡。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_ice_wolf", "冰原狼", "dps", 22, ["撕咬", "冰咬"], ["冰原毛皮"]),
+            ("m_frost_troll", "冰霜巨魔", "tank", 23, ["重击", "再生", "冰咬"], ["巨魔血肉"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "tundra_cave", "name": "冰霜洞穴", "lv": 24, "region": "魔渊", "chapter": 3,
+        "area": "tundra", "area_name": "冰封苔原",
+        "desc": "冰川下的巨大洞穴，冰晶折射着幽蓝的光。霜裔亚龙就在这里筑巢。",
+        "type": "核心", "shop": False, "healer": True, "hidden": False,
+        "monsters": [
+            ("m_snow_wraith", "雪魅", "caster", 24, ["汲取", "冰咬", "暴风雪"], ["雪之精华"]),
+            ("m_frost_troll", "冰霜巨魔", "tank", 24, ["重击", "再生", "冰咬"], ["巨魔血肉"]),
+        ],
+        "elite": ("e_glacier_golem", "冰川魔像", "elite", 25, ["重击", "冰墙", "霜息"], ["永恒之冰"]),
+        "boss": ("b_frost_wyrm", "霜裔亚龙", "boss", 26, ["霜息", "暴风雪", "撕咬", "龙之怒"], ["霜龙之牙"]),
+        "npcs": [],
+    },
+    # ============ 风暴之巅（区域 id: stormpeak，2 子区域） ============
+    {
+        "id": "stormpeak_path", "name": "风暴山道", "lv": 25, "region": "魔渊", "chapter": 3,
+        "area": "stormpeak", "area_name": "风暴之巅",
+        "desc": "通往山巅的陡峭山道，终年雷暴，雷电元素在云层中翻涌，巨鹰盘旋警戒。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_thunder_elemental", "雷电元素", "caster", 25, ["闪电箭", "雷击"], ["雷电核心"]),
+            ("m_giant_eagle", "巨鹰", "speedster", 26, ["俯冲", "风刃"], ["巨鹰翎羽"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "stormpeak_peak", "name": "风暴之巅", "lv": 27, "region": "魔渊", "chapter": 3,
+        "area": "stormpeak", "area_name": "风暴之巅",
+        "desc": "世界的屋脊，雷暴的中心。风暴巨人王手持雷霆之锤，君临此处。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_storm_serpent", "风暴巨蛇", "tank", 27, ["闪电箭", "缠绕", "雷击"], ["风暴蛇鳞"]),
+            ("m_giant_eagle", "巨鹰", "speedster", 27, ["俯冲", "风刃"], ["巨鹰翎羽"]),
+        ],
+        "elite": ("e_sky_hunter", "苍穹猎手", "elite", 28, ["风刃", "闪电箭", "风暴召唤"], ["苍穹之刃"]),
+        "boss": ("b_storm_giant", "风暴巨人王", "boss", 29, ["雷击", "风暴召唤", "闪电箭", "暴风之怒"], ["雷霆之锤"]),
+        "npcs": ["npc_sky_hermit"],
+    },
+    # ============ 暗影之城（区域 id: shadow_city，3 子区域） ============
+    {
+        "id": "shadow_gate", "name": "暗影城门", "lv": 28, "region": "魔渊", "chapter": 3,
+        "area": "shadow_city", "area_name": "暗影之城",
+        "desc": "深渊之门前的恶魔之城，城门由暗影恶魔把守，邪恶的气息扑面而来。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_shadow_demon", "暗影恶魔", "caster", 28, ["暗影箭", "爪击", "汲取"], ["暗影碎片"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "shadow_street", "name": "暗影大街", "lv": 29, "region": "魔渊", "chapter": 3,
+        "area": "shadow_city", "area_name": "暗影之城",
+        "desc": "恶魔的集市大街，灾厄小魔在屋檐间跳跃，虚空掠夺者盯上了每一个闯入者。",
+        "type": "野外", "shop": True, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_doom_imp", "灾厄小魔", "speedster", 29, ["火球", "暗影箭", "尖啸"], ["灾厄之心"]),
+            ("m_void_reaver", "虚空掠夺者", "dps", 30, ["爪击", "虚空斩", "狂暴"], ["虚空碎片"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "shadow_keep", "name": "暗影王座", "lv": 30, "region": "魔渊", "chapter": 3,
+        "area": "shadow_city", "area_name": "暗影之城",
+        "desc": "暗影主教的黑曜石王座大厅，深渊领主们在此匍匐。这里是深渊之门最后的屏障。",
+        "type": "核心", "shop": False, "healer": True, "hidden": False,
+        "monsters": [
+            ("m_void_reaver", "虚空掠夺者", "dps", 30, ["爪击", "虚空斩", "狂暴"], ["虚空碎片"]),
+            ("m_shadow_demon", "暗影恶魔", "caster", 30, ["暗影箭", "爪击", "汲取"], ["暗影碎片"]),
+        ],
+        "elite": ("e_pit_lord", "深渊领主", "elite", 30, ["重击", "火球", "虚空斩", "地狱火"], ["深渊徽记"]),
+        "boss": ("b_shadow_archon", "暗影主教", "boss", 30, ["暗影箭", "虚空斩", "汲取", "暗影风暴"], ["暗影之冠"]),
+        "npcs": [],
+    },
+    # ============ 深渊之门（区域 id: abyss_gate，2 子区域） ============
+    {
+        "id": "abyss_plain", "name": "深渊荒原", "lv": 30, "region": "魔渊", "chapter": 3,
+        "area": "abyss_gate", "area_name": "深渊之门",
+        "desc": "深渊之门前的荒原，大地龟裂，虚空之力扭曲着空间。恶魔大军在此列阵。",
+        "type": "野外", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_abyss_guardian", "深渊守卫", "tank", 30, ["劈砍", "虚空斩", "盾击"], ["深渊精钢"]),
+            ("m_void_hound", "虚空猎犬", "speedster", 30, ["撕咬", "虚空斩", "嚎叫"], ["虚空獠牙"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "abyss_gate", "name": "深渊之门", "lv": 30, "region": "魔渊", "chapter": 3,
+        "area": "abyss_gate", "area_name": "深渊之门",
+        "desc": "魔王所在的最终战场，黑暗君主·灭世者立于深渊之门下，大陆的命运在此一决。",
+        "type": "核心", "shop": False, "healer": False, "hidden": False,
+        "monsters": [
+            ("m_demon_herald", "恶魔先驱", "caster", 30, ["火球", "暗影箭", "地狱火"], ["先驱号角"]),
+            ("m_void_hound", "虚空猎犬", "speedster", 30, ["撕咬", "虚空斩", "嚎叫"], ["虚空獠牙"]),
+        ],
+        "elite": None,
+        "boss": ("b_dark_lord", "黑暗君主·灭世者", "boss", 30, ["虚空斩", "地狱火", "暗影风暴", "灭世"], ["黑暗君主之刃"]),
+        "npcs": [],
+    },
+    # ============ 秘银遗迹（隐藏，区域 id: mithril，2 子区域） ============
+    {
+        "id": "mithril_hall", "name": "秘银大厅", "lv": 26, "region": "魔渊", "chapter": 3,
+        "area": "mithril", "area_name": "秘银遗迹",
+        "desc": "上古矮人王的宝库大厅，秘银魔像沿着走廊巡视，符文骑士守卫着每一道门。",
+        "type": "野外", "shop": False, "healer": False, "hidden": True,
+        "monsters": [
+            ("m_mithril_golem", "秘银魔像", "tank", 26, ["重击", "盾击"], ["秘银矿石"]),
+            ("m_runebound_knight", "符文骑士", "dps", 28, ["劈砍", "符文爆发", "盾击"], ["符文碎片"]),
+        ],
+        "elite": None, "boss": None, "npcs": [],
+    },
+    {
+        "id": "mithril_vault", "name": "秘银宝库", "lv": 30, "region": "魔渊", "chapter": 3,
+        "area": "mithril", "area_name": "秘银遗迹",
+        "desc": "宝库的最深处，矮人王冠静静躺在王座上，宝藏守护者寸步不离。",
+        "type": "核心", "shop": False, "healer": False, "hidden": True,
+        "monsters": [
+            ("m_treasure_guardian", "宝藏守护者", "boss", 30, ["重击", "虚空斩", "怒吼"], ["宝藏钥匙"]),
+        ],
+        "elite": ("e_ancient_dwarf", "上古矮人王魂", "elite", 30, ["重击", "符文爆发", "战吼", "先祖之怒"], ["矮人王之戒"]),
+        "boss": ("b_dwarf_king", "秘银之王", "boss", 30, ["重击", "符文爆发", "先祖之怒", "秘银震击"], ["秘银王冠"]),
+        "npcs": [],
+    },
+    {'id': 'holy_field', 'name': '圣辉草甸', 'lv': 31, 'region': '神域边境', 'chapter': 4, 'area': 'holy', 'area_name': '圣辉高原', 'desc': '圣辉高原的入口草甸，圣光透过云层洒下，却掩盖不住空气中弥漫的异样气息。光耀狼在草丛间游荡。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_holy_hawk', '圣辉猎鹰', 'dps', 31, ['俯冲', '风刃'], ['圣光羽毛']), ('m_radiant_wolf', '光耀狼', 'speedster', 32, ['撕咬', '嚎叫'], ['光耀之皮']), ('m_holy_deer', '圣辉麋鹿', 'tank', 33, ['冲撞', '自然祝福'], ['圣辉鹿角'])], 'elite': ('e_holy_knight', '圣辉骑士', 'elite', 34, ['劈砍', '圣光斩', '盾击'], ['圣光徽章']), 'boss': None, 'npcs': []},
+    {'id': 'holy_altar', 'name': '圣辉祭坛', 'lv': 34, 'region': '神域边境', 'chapter': 4, 'area': 'holy', 'area_name': '圣辉高原', 'desc': '古老的圣光祭坛，信徒们曾在此祈祷。如今祭坛被暗影侵蚀，圣殿修士们神色诡异地低声吟唱。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_temple_adept', '圣殿修士', 'caster', 34, ['魔法飞弹', '圣光斩'], ['圣光结晶']), ('m_radiant_wolf', '光耀狼', 'speedster', 33, ['撕咬', '嚎叫'], ['光耀之皮'])], 'elite': ('e_holy_knight_captain', '圣殿骑士长', 'elite', 36, ['劈砍', '圣光斩', '战吼'], ['圣骑士剑']), 'boss': None, 'npcs': ['npc_holy_cardinal']},
+    {'id': 'holy_temple', 'name': '圣光圣殿', 'lv': 38, 'region': '神域边境', 'chapter': 4, 'area': 'holy', 'area_name': '圣辉高原', 'desc': '圣光圣殿的核心大殿，天使的雕像被暗影藤蔓缠绕。大主教说，天使长·拉斐尔已经……堕落了。', 'type': '核心', 'shop': False, 'healer': True, 'hidden': False, 'monsters': [('m_holy_guard', '圣光卫士', 'tank', 36, ['盾击', '圣光斩'], ['圣光盾牌']), ('m_seraph', '炽天使', 'caster', 37, ['天罚', '圣光斩'], ['天使之羽'])], 'elite': ('e_seraph_captain', '炽天使长', 'elite', 37, ['圣光斩', '天罚', '神威'], ['天使圣印']), 'boss': ('b_archangel', '天使长·拉斐尔', 'boss', 38, ['圣光斩', '天罚', '神威', '圣光冲锋'], ['天使圣印']), 'npcs': []},
+    {'id': 'elf_forest', 'name': '精灵之森', 'lv': 41, 'region': '神域边境', 'chapter': 4, 'area': 'elf_court', 'area_name': '精灵王庭', 'desc': '精灵王庭外围的原始森林，古树参天，月光透过叶隙洒下。森林在低语，精灵们已经很久没有歌唱了。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_elf_archer', '精灵弓手', 'dps', 41, ['风刃', '俯冲'], ['精灵箭矢']), ('m_moon_panther', '月影豹', 'speedster', 42, ['爪击', '嚎叫'], ['月影之皮']), ('m_forest_spirit', '林间鹿灵', 'caster', 43, ['自然祝福', '魔法飞弹'], ['森林之灵'])], 'elite': ('e_moon_guard', '月光守卫', 'elite', 44, ['风刃', '缠绕', '自然祝福'], ['月之刃']), 'boss': None, 'npcs': []},
+    {'id': 'elf_courtyard', 'name': '月之庭院', 'lv': 44, 'region': '神域边境', 'chapter': 4, 'area': 'elf_court', 'area_name': '精灵王庭', 'desc': '精灵王庭的月之庭院，银月泉水依旧流淌，但守护它的精灵法师们眼中只剩空洞。', 'type': '野外', 'shop': True, 'healer': False, 'hidden': False, 'monsters': [('m_elf_mage', '精灵法师', 'caster', 44, ['火球', '闪电箭'], ['精灵法珠']), ('m_jade_bird', '翠羽灵鸟', 'speedster', 45, ['俯冲', '风刃'], ['翠羽'])], 'elite': ('e_court_guard', '王庭禁卫', 'elite', 46, ['劈砍', '风刃', '盾击'], ['王庭徽章']), 'boss': None, 'npcs': ['npc_elf_sage']},
+    {'id': 'elf_throne', 'name': '王庭深处', 'lv': 48, 'region': '神域边境', 'chapter': 4, 'area': 'elf_court', 'area_name': '精灵王庭', 'desc': '精灵王庭的最深处，月神祭坛上，女王的身影被暗影笼罩。她手中的月之泪，已化为黑色。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_court_guard', '王庭禁卫', 'tank', 48, ['劈砍', '风刃', '盾击'], ['王庭徽章']), ('m_elf_mage', '精灵法师', 'caster', 47, ['火球', '闪电箭'], ['精灵法珠'])], 'elite': ('e_moon_priest', '月神祭司', 'elite', 49, ['魔法飞弹', '暴风雪', '自然祝福'], ['月之泪']), 'boss': ('b_elf_queen', '精灵女王·艾薇安', 'boss', 50, ['风刃', '暴风雪', '自然祝福', '天罚'], ['月神之冠']), 'npcs': []},
+    {'id': 'dragon_path', 'name': '龙脊山道', 'lv': 51, 'region': '神域边境', 'chapter': 4, 'area': 'dragon_ridge', 'area_name': '龙脊山脉', 'desc': '龙脊山脉的蜿蜒山道，灼热的气浪从山巅翻涌而下。龙裔战士在山道间巡逻，警惕地盯着每个闯入者。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_dragon_lizard', '龙鳞蜥蜴', 'tank', 51, ['撕咬', '龙之怒'], ['龙鳞']), ('m_cliff_wyvern', '岩脊飞龙', 'speedster', 52, ['俯冲', '龙之怒'], ['飞龙翼']), ('m_dragonkin', '龙裔战士', 'dps', 53, ['劈砍', '龙之怒', '战吼'], ['龙裔徽记'])], 'elite': ('e_dragon_warrior', '龙脉战士长', 'elite', 54, ['重击', '龙之怒', '战吼'], ['龙脉战刃']), 'boss': None, 'npcs': []},
+    {'id': 'dragon_nest', 'name': '龙巢之巅', 'lv': 54, 'region': '神域边境', 'chapter': 4, 'area': 'dragon_ridge', 'area_name': '龙脊山脉', 'desc': '龙巢之巅，幼龙们在巢穴间嬉戏，却带着不属于幼龙的暴戾。贤者岩语说，龙血正在被某种力量唤醒。', 'type': '野外', 'shop': True, 'healer': False, 'hidden': False, 'monsters': [('m_ember_whelp', '赤炎幼龙', 'caster', 54, ['火球', '龙之怒'], ['龙炎精华']), ('m_dragonkin', '龙裔战士', 'dps', 53, ['劈砍', '龙之怒', '战吼'], ['龙裔徽记'])], 'elite': ('e_dragon_guardian', '龙脉守护者', 'elite', 56, ['龙之怒', '烈焰震击', '战吼'], ['龙脉护符']), 'boss': None, 'npcs': ['npc_dragon_elder']},
+    {'id': 'dragon_shrine', 'name': '万龙圣殿', 'lv': 58, 'region': '神域边境', 'chapter': 4, 'area': 'dragon_ridge', 'area_name': '龙脊山脉', 'desc': '万龙圣殿，龙族的圣地。龙王·奥瑞斯盘踞在王座上，龙眼中燃烧着不属于龙族的混沌之火。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_flame_wyvern', '赤炎飞龙', 'dps', 58, ['火球', '龙之怒', '俯冲'], ['飞龙鳞']), ('m_dragon_guardian', '龙脉守护者', 'tank', 57, ['龙之怒', '烈焰震击', '战吼'], ['龙脉护符'])], 'elite': ('e_dragon_wing', '龙翼亲卫', 'elite', 59, ['龙之怒', '圣光冲锋', '战吼'], ['龙翼剑']), 'boss': ('b_dragon_king', '龙王·奥瑞斯', 'boss', 60, ['龙之怒', '烈焰震击', '狂暴', '吞噬'], ['龙王之角']), 'npcs': []},
+    {'id': 'void_edge', 'name': '裂隙边缘', 'lv': 61, 'region': '深渊外围', 'chapter': 5, 'area': 'void_rift', 'area_name': '虚空裂隙', 'desc': '虚空裂隙的边缘地带，空间在这里扭曲成漩涡。虚空蠕虫在裂隙间蠕动，发出令人牙酸的嘶鸣。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_void_worm', '虚空蠕虫', 'speedster', 61, ['撕咬', '虚空斩'], ['虚空粘液']), ('m_rift_wraith', '裂隙魔灵', 'caster', 62, ['暗影箭', '虚空斩'], ['裂隙碎片']), ('m_void_minion', '虚空爪牙', 'dps', 63, ['爪击', '虚空斩'], ['虚空之爪'])], 'elite': ('e_void_ripper', '虚空撕裂者', 'elite', 64, ['虚空斩', '暗影风暴', '吞噬'], ['撕裂者核心']), 'boss': None, 'npcs': []},
+    {'id': 'void_corridor', 'name': '虚空长廊', 'lv': 64, 'region': '深渊外围', 'chapter': 5, 'area': 'void_rift', 'area_name': '虚空裂隙', 'desc': '虚空长廊，无数破碎的世界在此重叠。虚空守望者悬浮在长廊两侧，空洞的眼眶注视着每一个过客。', 'type': '野外', 'shop': True, 'healer': False, 'hidden': False, 'monsters': [('m_void_watcher', '虚空守望者', 'tank', 64, ['重击', '虚空斩', '盾击'], ['虚空护甲']), ('m_rift_wraith', '裂隙魔灵', 'caster', 63, ['暗影箭', '虚空斩'], ['裂隙碎片'])], 'elite': ('e_void_lord', '虚空领主', 'elite', 66, ['虚空斩', '虚空崩塌', '暗影风暴'], ['虚空领主印记']), 'boss': None, 'npcs': ['npc_void_prophet']},
+    {'id': 'void_heart', 'name': '虚空之心', 'lv': 68, 'region': '深渊外围', 'chapter': 5, 'area': 'void_rift', 'area_name': '虚空裂隙', 'desc': '虚空裂隙的核心，一颗巨大的暗紫色心脏在虚空中跳动。虚空巨像们守护着它——那是吞噬者的心脏。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_void_colossus', '虚空巨像', 'tank', 68, ['重击', '虚空崩塌', '吞噬'], ['虚空巨像核心']), ('m_void_watcher', '虚空守望者', 'tank', 67, ['重击', '虚空斩', '盾击'], ['虚空护甲'])], 'elite': ('e_void_overlord', '虚空主宰', 'elite', 69, ['虚空崩塌', '暗影风暴', '吞噬'], ['虚空主宰权杖']), 'boss': ('b_void_devourer', '虚空吞噬者', 'boss', 70, ['虚空斩', '虚空崩塌', '吞噬', '暗影风暴'], ['吞噬者之核']), 'npcs': []},
+    {'id': 'temple_hall', 'name': '圣殿前厅', 'lv': 71, 'region': '深渊外围', 'chapter': 5, 'area': 'dark_temple', 'area_name': '黑暗圣殿', 'desc': '黑暗圣殿的前厅，曾经供奉光明神的殿堂如今爬满暗影。黑暗修士们低声吟唱着亵渎的祷词。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_dark_acolyte', '黑暗修士', 'caster', 71, ['暗影箭', '汲取'], ['黑暗经卷']), ('m_abyss_servant', '深渊仆从', 'dps', 72, ['爪击', '暗影箭'], ['深渊之尘']), ('m_fallen_paladin', '堕落圣骑', 'tank', 73, ['劈砍', '暗影箭', '盾击'], ['堕落圣徽'])], 'elite': ('e_inquisitor', '审判官', 'elite', 74, ['暗影箭', '死亡之握', '暗影风暴'], ['审判官之印']), 'boss': None, 'npcs': []},
+    {'id': 'temple_aisle', 'name': '忏悔回廊', 'lv': 74, 'region': '深渊外围', 'chapter': 5, 'area': 'dark_temple', 'area_name': '黑暗圣殿', 'desc': '忏悔回廊，两侧是无数忏悔室的残骸。被囚禁的灵魂在此徘徊，发出永无止境的哀叹。', 'type': '野外', 'shop': True, 'healer': False, 'hidden': False, 'monsters': [('m_penitent_wraith', '忏悔亡灵', 'caster', 74, ['哀嚎', '暗影箭'], ['忏悔之泪']), ('m_abyss_priest', '深渊牧师', 'caster', 75, ['暗影箭', '汲取', '死亡之握'], ['深渊法珠'])], 'elite': ('e_heresy_executor', '异端处刑者', 'elite', 76, ['重击', '暗影箭', '暗影风暴'], ['处刑者之斧']), 'boss': None, 'npcs': ['npc_fallen_priest']},
+    {'id': 'temple_altar', 'name': '深渊祭坛', 'lv': 78, 'region': '深渊外围', 'chapter': 5, 'area': 'dark_temple', 'area_name': '黑暗圣殿', 'desc': '深渊祭坛，教团献祭的中心。祭坛之上，深渊教宗正在举行召唤仪式——他在召唤深渊真正的主人。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_abyss_ritualist', '深渊祭祀', 'caster', 78, ['暗影箭', '地狱火', '死亡之握'], ['祭祀之火']), ('m_heresy_executor', '异端处刑者', 'dps', 77, ['重击', '暗影箭', '暗影风暴'], ['处刑者之斧'])], 'elite': ('e_archpriest', '教团大祭司', 'elite', 79, ['地狱火', '暗影风暴', '死亡之握'], ['大祭司之环']), 'boss': ('b_abyss_pope', '深渊教宗', 'boss', 80, ['地狱火', '暗影风暴', '死亡之握', '混沌侵蚀'], ['教宗权杖']), 'npcs': []},
+    {'id': 'annih_front', 'name': '荒芜前线', 'lv': 81, 'region': '深渊外围', 'chapter': 5, 'area': 'annihilation', 'area_name': '湮灭平原', 'desc': '湮灭平原的前线阵地，大地被烧成焦黑。湮灭魔兵列成方阵，灾厄骑士的铁蹄震动着荒芜的地面。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_annih_soldier', '湮灭魔兵', 'dps', 81, ['重击', '湮灭射线', '狂暴'], ['湮灭碎片']), ('m_doom_knight', '灾厄骑士', 'tank', 82, ['重击', '湮灭射线', '盾击'], ['灾厄战甲']), ('m_soul_devourer', '噬魂者', 'caster', 83, ['汲取', '湮灭射线', '哀嚎'], ['噬魂结晶'])], 'elite': ('e_annih_vanguard', '湮灭先锋', 'elite', 84, ['湮灭射线', '狂暴', '暗影风暴'], ['先锋战旗']), 'boss': None, 'npcs': []},
+    {'id': 'annih_field', 'name': '湮灭战场', 'lv': 84, 'region': '深渊外围', 'chapter': 5, 'area': 'annihilation', 'area_name': '湮灭平原', 'desc': '湮灭战场，尸骸遍野，破碎的旗帜在风中摇曳。湮灭魔将们在此督战，等待总攻的命令。', 'type': '野外', 'shop': True, 'healer': False, 'hidden': False, 'monsters': [('m_annih_general', '湮灭魔将', 'dps', 84, ['湮灭射线', '虚空斩', '狂暴'], ['魔将之刃']), ('m_doom_knight', '灾厄骑士', 'tank', 83, ['重击', '湮灭射线', '盾击'], ['灾厄战甲'])], 'elite': ('e_annih_lord', '湮灭领主', 'elite', 86, ['湮灭射线', '虚空崩塌', '狂暴'], ['湮灭领主之环']), 'boss': None, 'npcs': ['npc_annih_spy']},
+    {'id': 'annih_throne', 'name': '死寂王座', 'lv': 88, 'region': '深渊外围', 'chapter': 5, 'area': 'annihilation', 'area_name': '湮灭平原', 'desc': '死寂王座，湮灭大军的指挥中心。死寂之王端坐于骸骨堆成的王座上，静静等待最终时刻。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_annih_guard', '湮灭禁卫', 'tank', 88, ['湮灭射线', '盾击', '狂暴'], ['禁卫铠甲']), ('m_annih_general', '湮灭魔将', 'dps', 87, ['湮灭射线', '虚空斩', '狂暴'], ['魔将之刃'])], 'elite': ('e_silent_guard', '死寂亲卫', 'elite', 89, ['湮灭射线', '暗影风暴', '吞噬'], ['死寂之刃']), 'boss': ('b_silent_king', '死寂之王', 'boss', 90, ['湮灭射线', '虚空崩塌', '吞噬', '混沌侵蚀'], ['死寂王冠']), 'npcs': []},
+    {'id': 'divine_path', 'name': '天穹之路', 'lv': 91, 'region': '神域', 'chapter': 6, 'area': 'divine_gate', 'area_name': '神域之门', 'desc': '通往神域的天穹之路，云海在脚下翻涌。天穹守卫们驻守在阶梯两侧，目光望向天空的尽头。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_sky_guard', '天穹守卫', 'tank', 91, ['圣光斩', '天罚', '盾击'], ['天穹护甲']), ('m_astral_messenger', '星界使者', 'caster', 92, ['天罚', '圣光斩', '魔法飞弹'], ['星界之尘']), ('m_divine_warrior', '神域战灵', 'dps', 93, ['圣光斩', '天罚', '神威'], ['神域战魂'])], 'elite': ('e_astral_knight', '星界骑士长', 'elite', 94, ['圣光斩', '天罚', '神威', '圣光冲锋'], ['星界骑士剑']), 'boss': None, 'npcs': []},
+    {'id': 'divine_hall', 'name': '星界回廊', 'lv': 93, 'region': '神域', 'chapter': 6, 'area': 'divine_gate', 'area_name': '神域之门', 'desc': '星界回廊，群星的墓地。星界贤者们在此守护着诸神陨落前的最后记忆。', 'type': '野外', 'shop': True, 'healer': True, 'hidden': False, 'monsters': [('m_astral_sage', '星界贤者', 'caster', 93, ['天罚', '暴风雪', '神威'], ['星界法珠']), ('m_divine_warrior', '神域战灵', 'dps', 93, ['圣光斩', '天罚', '神威'], ['神域战魂'])], 'elite': ('e_astral_judge', '星界裁决者', 'elite', 95, ['天罚', '神威', '创世之力'], ['星界裁决之杖']), 'boss': None, 'npcs': ['npc_star_warden']},
+    {'id': 'divine_gate', 'name': '神域门扉', 'lv': 95, 'region': '神域', 'chapter': 6, 'area': 'divine_gate', 'area_name': '神域之门', 'desc': '神域的门扉，万古不灭的圣光之门。天穹守望者手持长枪立于门前——门后，是众神的战场。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_gate_guardian', '门扉守护者', 'tank', 95, ['圣光斩', '天罚', '盾击'], ['门扉之钥']), ('m_astral_sage', '星界贤者', 'caster', 94, ['天罚', '暴风雪', '神威'], ['星界法珠'])], 'elite': None, 'boss': ('b_sky_warden', '天穹守望者', 'boss', 96, ['圣光斩', '天罚', '神威', '创世之力'], ['天穹之冠']), 'npcs': []},
+    {'id': 'panth_court', 'name': '众神庭院', 'lv': 96, 'region': '神域', 'chapter': 6, 'area': 'pantheon', 'area_name': '万神殿', 'desc': '万神殿的庭院，诸神的雕像沉默地矗立。神域圣灵在庭院间游荡，混沌的阴影已经开始侵蚀这片圣地。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': False, 'monsters': [('m_divine_spirit', '神域圣灵', 'caster', 96, ['天罚', '创世之力', '神威'], ['神域精华']), ('m_chaos_servant', '混沌仆从', 'dps', 97, ['混沌侵蚀', '湮灭射线'], ['混沌之渣']), ('m_god_echo', '诸神残影', 'tank', 98, ['圣光斩', '创世之力'], ['诸神遗辉'])], 'elite': ('e_god_messenger', '众神使者', 'elite', 99, ['创世之力', '天罚', '神威', '混沌侵蚀'], ['使者之戒']), 'boss': None, 'npcs': ['npc_last_god']},
+    {'id': 'panth_hall', 'name': '创世之厅', 'lv': 98, 'region': '神域', 'chapter': 6, 'area': 'pantheon', 'area_name': '万神殿', 'desc': '创世之厅，诸神铸造世界的殿堂。如今混沌之王盘踞于此，试图将整个大陆拖入永恒的黑暗。', 'type': '核心', 'shop': False, 'healer': True, 'hidden': False, 'monsters': [('m_creation_guard', '创世守卫', 'tank', 98, ['创世之力', '圣光斩', '盾击'], ['创世之盾']), ('m_god_echo', '诸神残影', 'tank', 98, ['圣光斩', '创世之力'], ['诸神遗辉'])], 'elite': None, 'boss': ('b_chaos_lord', '深渊之王·混沌', 'boss', 100, ['混沌侵蚀', '湮灭射线', '创世之力', '暗影风暴', '灭世'], ['混沌之核']), 'npcs': []},
+    {'id': 'chaos_entry', 'name': '混沌裂隙', 'lv': 100, 'region': '神域', 'chapter': 6, 'area': 'chaos_depths', 'area_name': '永恒之渊', 'desc': '混沌之王倒下之处，空间被撕开一道永久的裂隙。裂隙深处传来低沉的轰鸣——有什么东西还在苏醒。', 'type': '野外', 'shop': False, 'healer': False, 'hidden': True, 'monsters': [('m_chaos_shade', '混沌魔影', 'speedster', 100, ['混沌侵蚀', '暗影风暴'], ['混沌碎片'])], 'elite': None, 'boss': None, 'npcs': []},
+    {'id': 'chaos_depths', 'name': '混沌深渊', 'lv': 100, 'region': '神域', 'chapter': 6, 'area': 'chaos_depths', 'area_name': '永恒之渊', 'desc': '混沌深渊，一切存在的终点。混沌化身·超越者悬浮在虚无之中——它自称是『第一次深渊战争之前的意志』。', 'type': '核心', 'shop': False, 'healer': False, 'hidden': True, 'monsters': [('m_chaos_avatar', '混沌化身', 'dps', 100, ['混沌侵蚀', '湮灭射线', '吞噬'], ['混沌碎片'])], 'elite': None, 'boss': ('b_chaos_transcendent', '混沌化身·超越者', 'boss', 100, ['混沌侵蚀', '湮灭射线', '吞噬', '创世之力', '灭世', '虚空崩塌'], ['超越之核']), 'npcs': []},
+]
+
+MAP_BY_ID = {m["id"]: m for m in MAPS}
+
+# 区域定义：区域 id → 子区域 id 列表（用于地图视图分组）
+MAP_AREAS = {}
+for _m in MAPS:
+    _aid = _m.get("area", _m["id"])
+    MAP_AREAS.setdefault(_aid, []).append(_m["id"])
+# 区域默认入口（也是旧存档迁移目标）
+AREA_ENTRY = {
+    "vila": "vila_gate", "emerald": "emerald_edge", "stonefist": "stonefist_camp",
+    "gloom": "gloom_edge", "redridge": "redridge_field", "blackrock": "blackrock_gate",
+    "magma": "magma_gorge", "tundra": "tundra_field", "stormpeak": "stormpeak_path",
+    "shadow_city": "shadow_gate", "abyss_gate": "abyss_plain", "mithril": "mithril_hall",
+    'holy': 'holy_field',     'elf_court': 'elf_forest',     'dragon_ridge': 'dragon_path',     'void_rift': 'void_edge',     'dark_temple': 'temple_hall',     'annihilation': 'annih_front',     'divine_gate': 'divine_path',     'pantheon': 'panth_court',     'chaos_depths': 'chaos_entry', 
+}
+# 旧大地图 id 别名 → 子区域 id（老存档兼容）
+LEGACY_MAP_ALIAS = dict(AREA_ENTRY)
+
+# 地图连接（子区域之间；隐藏图需条件）
+MAP_CONNECTIONS = {
+    # 维拉镇内部
+    "vila_gate": ["vila_street", "emerald_edge"],
+    "vila_street": ["vila_gate", "vila_square"],
+    "vila_square": ["vila_street", "vila_tavern", "vila_inn"],
+    "vila_tavern": ["vila_square", "vila_inn"],
+    "vila_inn": ["vila_square", "vila_tavern"],
+    # 翡翠森林
+    "emerald_edge": ["vila_gate", "emerald_trail"],
+    "emerald_trail": ["emerald_edge", "emerald_heart"],
+    "emerald_heart": ["emerald_trail", "stonefist_camp"],
+    # 石拳丘陵
+    "stonefist_camp": ["emerald_heart", "stonefist_mine"],
+    "stonefist_mine": ["stonefist_camp", "stonefist_deep"],
+    "stonefist_deep": ["stonefist_mine", "gloom_edge"],
+    # 幽暗沼泽
+    "gloom_edge": ["stonefist_deep", "gloom_mire"],
+    "gloom_mire": ["gloom_edge", "gloom_heart"],
+    "gloom_heart": ["gloom_mire", "redridge_field"],
+    # 赤脊荒原
+    "redridge_field": ["gloom_heart", "redridge_ridge"],
+    "redridge_ridge": ["redridge_field", "redridge_camp"],
+    "redridge_camp": ["redridge_ridge", "blackrock_gate"],
+    # 黑石城废墟
+    "blackrock_gate": ["redridge_camp", "blackrock_street"],
+    "blackrock_street": ["blackrock_gate", "blackrock_keep"],
+    "blackrock_keep": ["blackrock_street", "magma_gorge"],
+    # 熔岩裂谷
+    "magma_gorge": ["blackrock_keep", "magma_heart"],
+    "magma_heart": ["magma_gorge", "tundra_field"],
+    # 冰封苔原
+    "tundra_field": ["magma_heart", "tundra_cave"],
+    "tundra_cave": ["tundra_field", "stormpeak_path"],
+    # 风暴之巅
+    "stormpeak_path": ["tundra_cave", "stormpeak_peak"],
+    "stormpeak_peak": ["stormpeak_path", "shadow_gate"],
+    # 暗影之城
+    "shadow_gate": ["stormpeak_peak", "shadow_street"],
+    "shadow_street": ["shadow_gate", "shadow_keep"],
+    "shadow_keep": ["shadow_street", "abyss_plain"],
+    # 深渊之门
+    "abyss_plain": ["shadow_keep", "abyss_gate"],
+    "abyss_gate": ["abyss_plain", "holy_field"],
+    # 秘银遗迹（隐藏，从风暴之巅和暗影之城进入）
+    "mithril_hall": ["stormpeak_peak", "shadow_gate", "mithril_vault"],
+    "mithril_vault": ["mithril_hall"],
+    'holy_field': ['abyss_gate', 'holy_altar'],
+    'holy_altar': ['holy_field', 'holy_temple'],
+    'holy_temple': ['holy_altar', 'elf_forest'],
+    'elf_forest': ['holy_temple', 'elf_courtyard'],
+    'elf_courtyard': ['elf_forest', 'elf_throne'],
+    'elf_throne': ['elf_courtyard', 'dragon_path'],
+    'dragon_path': ['elf_throne', 'dragon_nest'],
+    'dragon_nest': ['dragon_path', 'dragon_shrine'],
+    'dragon_shrine': ['dragon_nest', 'void_edge'],
+    'void_edge': ['dragon_shrine', 'void_corridor'],
+    'void_corridor': ['void_edge', 'void_heart'],
+    'void_heart': ['void_corridor', 'temple_hall'],
+    'temple_hall': ['void_heart', 'temple_aisle'],
+    'temple_aisle': ['temple_hall', 'temple_altar'],
+    'temple_altar': ['temple_aisle', 'annih_front'],
+    'annih_front': ['temple_altar', 'annih_field'],
+    'annih_field': ['annih_front', 'annih_throne'],
+    'annih_throne': ['annih_field', 'divine_path'],
+    'divine_path': ['annih_throne', 'divine_hall'],
+    'divine_hall': ['divine_path', 'divine_gate'],
+    'divine_gate': ['divine_hall', 'panth_court'],
+    'panth_court': ['divine_gate', 'panth_hall'],
+    'panth_hall': ['panth_court', 'chaos_entry'],
+    'chaos_entry': ['panth_hall', 'chaos_depths'],
+    'chaos_depths': ['chaos_entry'],
+}
+
+# 隐藏图解锁：需要完成主线 q10 + 等级 ≥ 25
+HIDDEN_MAP_UNLOCK = {"mithril_hall": {"level": 25, "quest": "q10"}, "mithril_vault": {"level": 25, "quest": "q10"}, 'chaos_entry': {'level': 100, 'quest': 'q28'}, 'chaos_depths': {'level': 100, 'quest': 'q28'}}
+
+# ============================================================
+# 三、怪物技能库（名称 → 效果描述，供战斗引擎使用）
+# ============================================================
+MONSTER_SKILLS = {
+    "撕咬": {"kind": "物理", "power": 1.2, "desc": "用尖牙撕咬敌人"},
+    "爪击": {"kind": "物理", "power": 1.3, "desc": "用利爪攻击敌人"},
+    "冲撞": {"kind": "物理", "power": 1.5, "desc": "猛力冲撞敌人"},
+    "劈砍": {"kind": "物理", "power": 1.4, "desc": "挥砍武器攻击"},
+    "重击": {"kind": "物理", "power": 1.8, "desc": "蓄力重击敌人"},
+    "盾击": {"kind": "物理", "power": 1.5, "desc": "用盾牌猛击，降低敌防"},
+    "毒咬": {"kind": "物理", "power": 1.3, "desc": "带毒的撕咬，造成中毒"},
+    "冰咬": {"kind": "物理", "power": 1.4, "desc": "寒冰之咬，降低敌速"},
+    "嚎叫": {"kind": "增益", "effect": "atk_up", "desc": "嚎叫提升自身攻击"},
+    "怒吼": {"kind": "增益", "effect": "atk_up", "desc": "怒吼提升自身攻击"},
+    "战吼": {"kind": "增益", "effect": "atk_up", "desc": "战吼大幅提升自身攻击"},
+    "狂暴": {"kind": "增益", "effect": "atk_up_strong", "desc": "进入狂暴状态，攻击大幅提升"},
+    "自然祝福": {"kind": "增益", "effect": "heal_self", "desc": "自然之力治愈自身"},
+    "再生": {"kind": "增益", "effect": "heal_self", "desc": "巨魔再生，恢复生命"},
+    "魔法飞弹": {"kind": "魔法", "power": 1.4, "desc": "射出魔法飞弹"},
+    "火球": {"kind": "魔法", "power": 1.7, "desc": "投掷火球"},
+    "闪电箭": {"kind": "魔法", "power": 1.7, "desc": "射出闪电"},
+    "暗影箭": {"kind": "魔法", "power": 1.8, "desc": "射出暗影能量"},
+    "汲取": {"kind": "魔法", "power": 1.5, "desc": "吸取敌人生命"},
+    "哀嚎": {"kind": "魔法", "power": 1.2, "desc": "刺耳哀嚎"},
+    "尖啸": {"kind": "魔法", "power": 1.3, "desc": "刺耳尖啸"},
+    "灼烧": {"kind": "魔法", "power": 1.5, "desc": "灼烧敌人"},
+    "雷击": {"kind": "魔法", "power": 1.9, "desc": "召唤雷电"},
+    "风刃": {"kind": "物理", "power": 1.6, "desc": "风之利刃"},
+    "霜息": {"kind": "魔法", "power": 2.0, "desc": "吐出寒霜吐息"},
+    "暴风雪": {"kind": "魔法", "power": 1.8, "desc": "召唤暴风雪"},
+    "圣光冲锋": {"kind": "物理", "power": 2.0, "desc": "裹挟圣光冲锋"},
+    "践踏": {"kind": "物理", "power": 1.6, "desc": "猛踏地面"},
+    "缠绕": {"kind": "物理", "power": 1.4, "desc": "缠绕敌人，降低其速"},
+    "俯冲": {"kind": "物理", "power": 1.5, "desc": "从天俯冲攻击"},
+    "召唤": {"kind": "增益", "effect": "summon", "desc": "召唤援军"},
+    "招魂": {"kind": "增益", "effect": "summon", "desc": "招魂骷髅"},
+    "地动": {"kind": "物理", "power": 1.8, "desc": "引发地震"},
+    "烈焰震击": {"kind": "魔法", "power": 2.0, "desc": "烈焰震击大地"},
+    "岩浆喷发": {"kind": "魔法", "power": 2.4, "desc": "岩浆喷发"},
+    "腐息": {"kind": "魔法", "power": 1.8, "desc": "腐败吐息"},
+    "死亡之握": {"kind": "魔法", "power": 1.7, "desc": "死亡之力扼住敌人"},
+    "巫妖齐射": {"kind": "魔法", "power": 2.2, "desc": "齐射暗影能量"},
+    "虚空斩": {"kind": "物理", "power": 2.0, "desc": "虚空之力斩击"},
+    "地狱火": {"kind": "魔法", "power": 2.4, "desc": "召唤地狱火"},
+    "暗影风暴": {"kind": "魔法", "power": 2.6, "desc": "暗影风暴席卷"},
+    "灭世": {"kind": "魔法", "power": 3.0, "desc": "灭世之力"},
+    "符文爆发": {"kind": "魔法", "power": 2.2, "desc": "符文之力爆发"},
+    "先祖之怒": {"kind": "物理", "power": 2.4, "desc": "先祖之怒"},
+    "秘银震击": {"kind": "物理", "power": 2.6, "desc": "秘银之力震击"},
+    "龙之怒": {"kind": "物理", "power": 2.2, "desc": "亚龙之怒"},
+    "风暴召唤": {"kind": "增益", "effect": "atk_up_strong", "desc": "召唤风暴强化自身"},
+    "冰墙": {"kind": "增益", "effect": "def_up", "desc": "冰墙守护"},
+    "吞噬": {"kind": "物理", "power": 1.6, "desc": "吞噬敌人回复生命"},
+    "附身": {"kind": "魔法", "power": 1.4, "desc": "怨灵附身"},
+    "暴风之怒": {"kind": "魔法", "power": 2.2, "desc": "风暴之怒席卷"},
+    '圣光斩': {'kind': '物理', 'power': 2.0, 'desc': '圣光之力斩击'},
+    '天罚': {'kind': '魔法', 'power': 2.5, 'desc': '神圣天罚降临'},
+    '神威': {'kind': '增益', 'effect': 'atk_up_strong', 'desc': '神威加身，攻击大幅提升'},
+    '混沌侵蚀': {'kind': '魔法', 'power': 2.2, 'desc': '混沌之力侵蚀敌人'},
+    '虚空崩塌': {'kind': '魔法', 'power': 2.4, 'desc': '虚空崩塌，撕裂空间'},
+    '湮灭射线': {'kind': '魔法', 'power': 2.6, 'desc': '湮灭射线贯穿一切'},
+    '混沌领域': {'kind': '魔法', 'power': 2.8, 'desc': '混沌领域笼罩战场'},
+    '创世之力': {'kind': '魔法', 'power': 3.2, 'desc': '创世之力，毁灭与新生'},
+    '吞噬虚空': {'kind': '物理', 'power': 2.4, 'desc': '吞噬虚空，回复自身'},
+}
+
+# 怪物技能 → 等级段限制（低等级怪只用基础技能）
+def monster_skills_pool(lv: int):
+    """按等级返回可选技能池（越高等级技能越丰富）"""
+    if lv <= 5:
+        return ["撕咬", "爪击", "冲撞", "劈砍", "魔法飞弹"]
+    if lv <= 10:
+        return ["撕咬", "爪击", "冲撞", "劈砍", "重击", "毒咬", "火球", "嚎叫", "魔法飞弹"]
+    if lv <= 15:
+        return ["撕咬", "爪击", "重击", "劈砍", "毒咬", "火球", "闪电箭", "暗影箭", "怒吼", "战吼", "汲取", "哀嚎"]
+    if lv <= 20:
+        return ["重击", "劈砍", "盾击", "毒咬", "冰咬", "火球", "闪电箭", "暗影箭", "汲取", "狂暴", "招魂", "吞噬", "腐息"]
+    if lv <= 25:
+        return ["重击", "盾击", "火球", "闪电箭", "暗影箭", "虚空斩", "灼烧", "雷击", "风刃", "霜息", "暴风雪", "狂暴", "地狱火"]
+    if lv <= 45:
+        return ["重击", "盾击", "火球", "闪电箭", "暗影箭", "虚空斩", "灼烧", "雷击", "风刃", "霜息", "暴风雪", "狂暴", "地狱火", "暗影风暴", "灭世", "符文爆发", "先祖之怒", "秘银震击", "龙之怒", "风暴召唤", "圣光斩", "天罚", "神威"]
+    if lv <= 65:
+        return ["重击", "盾击", "火球", "闪电箭", "暗影箭", "虚空斩", "灼烧", "雷击", "风刃", "霜息", "暴风雪", "狂暴", "地狱火", "暗影风暴", "灭世", "符文爆发", "先祖之怒", "秘银震击", "龙之怒", "风暴召唤", "圣光斩", "天罚", "神威", "混沌侵蚀", "虚空崩塌"]
+    if lv <= 85:
+        return ["重击", "盾击", "火球", "闪电箭", "暗影箭", "虚空斩", "灼烧", "雷击", "风刃", "霜息", "暴风雪", "狂暴", "地狱火", "暗影风暴", "灭世", "符文爆发", "先祖之怒", "秘银震击", "龙之怒", "风暴召唤", "圣光斩", "天罚", "神威", "混沌侵蚀", "虚空崩塌", "湮灭射线", "吞噬虚空"]
+    return ["重击", "盾击", "火球", "闪电箭", "暗影箭", "虚空斩", "灼烧", "雷击", "风刃", "霜息", "暴风雪", "狂暴", "地狱火", "暗影风暴", "灭世", "符文爆发", "先祖之怒", "秘银震击", "龙之怒", "风暴召唤", "圣光斩", "天罚", "神威", "混沌侵蚀", "虚空崩塌", "湮灭射线", "吞噬虚空", "混沌领域", "创世之力"]
+
+# ============================================================
+# 四、玩家技能（32 个；100级扩展预留）
+# ============================================================
+PLAYER_SKILLS = {
+    "战士": {
+        "猛击": {"lv": 1, "mp": 5, "power": 1.5, "kind": "物理", "desc": "挥剑猛击敌人，造成 150% 物理伤害"},
+        "破甲斩": {"lv": 5, "mp": 12, "power": 2.0, "kind": "物理", "desc": "撕裂护甲的斩击，造成 200% 伤害并降低敌防"},
+        "怒吼": {"lv": 10, "mp": 15, "power": 0, "kind": "增益", "effect": "atk_up", "desc": "怒吼提升攻击力 30%，持续 3 回合"},
+        "旋风斩": {"lv": 15, "mp": 25, "power": 2.6, "kind": "物理", "desc": "旋转斩击，造成 260% 物理伤害"},
+        "铁壁": {"lv": 20, "mp": 20, "power": 0, "kind": "增益", "effect": "def_up", "desc": "凝聚钢铁意志，防御提升 40%，持续 3 回合"},
+        "战意沸腾": {"lv": 20, "mp": 30, "power": 0, "kind": "增益", "effect": "atk_up_strong", "desc": "战意沸腾，攻击提升 60%，持续 3 回合"},
+        "处决": {"lv": 25, "mp": 35, "power": 3.5, "kind": "物理", "desc": "对残血敌人执行处决，造成 350% 伤害（敌人血量越低伤害越高）"},
+        "裂空斩": {"lv": 30, "mp": 50, "power": 4.5, "kind": "物理", "desc": "撕裂天空的终极斩击，造成 450% 物理伤害"},
+        '狂战之怒': {'lv': 35, 'mp': 30, 'power': 0, 'kind': '增益', 'effect': 'atk_up_strong', 'desc': '狂战之怒，攻击提升 70%，持续 3 回合'},
+        '战斧投掷': {'lv': 40, 'mp': 28, 'power': 2.2, 'kind': '物理', 'desc': '掷出战斧，造成 220% 物理伤害'},
+        '嗜血斩': {'lv': 45, 'mp': 35, 'power': 2.8, 'kind': '物理', 'effect': 'lifesteal', 'desc': '嗜血斩击，造成 280% 伤害并吸取 20% 生命'},
+        '裂地斩': {'lv': 50, 'mp': 45, 'power': 3.2, 'kind': '物理', 'desc': '斩裂大地，造成 320% 物理伤害'},
+        '战神降临': {'lv': 55, 'mp': 40, 'power': 0, 'kind': '增益', 'effect': 'atk_up_strong', 'desc': '战神附体，攻击提升 90%，持续 3 回合'},
+        '无尽斩击': {'lv': 60, 'mp': 55, 'power': 2.0, 'kind': '物理', 'multi': 3, 'desc': '连续斩击 3 次，每次造成 200% 伤害'},
+        '霸体': {'lv': 70, 'mp': 45, 'power': 0, 'kind': '增益', 'effect': 'def_up', 'desc': '霸体护身，防御提升 70%，持续 3 回合'},
+        '毁灭重斩': {'lv': 80, 'mp': 70, 'power': 4.8, 'kind': '物理', 'desc': '毁灭性重斩，造成 480% 物理伤害'},
+        '神之裁决': {'lv': 90, 'mp': 90, 'power': 5.5, 'kind': '物理', 'pierce': True, 'desc': '诸神裁决，造成 550% 无视防御伤害'},
+        '破灭一击': {'lv': 100, 'mp': 120, 'power': 6.5, 'kind': '物理', 'pierce': True, 'desc': '破灭万物的终极一击，造成 650% 无视防御伤害'},
+    },
+    "法师": {
+        "火球术": {"lv": 1, "mp": 8, "power": 1.6, "kind": "魔法", "desc": "投掷火球，造成 160% 魔法伤害"},
+        "寒冰箭": {"lv": 5, "mp": 14, "power": 2.0, "kind": "魔法", "desc": "冰霜之箭，造成 200% 伤害并降低敌速"},
+        "雷电术": {"lv": 10, "mp": 22, "power": 2.4, "kind": "魔法", "desc": "召唤雷电轰击，造成 240% 魔法伤害"},
+        "魔力涌动": {"lv": 15, "mp": 18, "power": 0, "kind": "增益", "effect": "matk_up", "desc": "魔力涌动，魔法攻击提升 35%，持续 3 回合"},
+        "陨石术": {"lv": 20, "mp": 35, "power": 3.2, "kind": "魔法", "desc": "召唤陨石坠落，造成 320% 魔法伤害"},
+        "寒冰护盾": {"lv": 20, "mp": 20, "power": 0, "kind": "增益", "effect": "def_up", "desc": "冰晶护盾环绕，防御提升 30%，持续 3 回合"},
+        "奥术强化": {"lv": 25, "mp": 30, "power": 0, "kind": "增益", "effect": "matk_up_strong", "desc": "奥术之力涌入，魔法攻击提升 65%，持续 3 回合"},
+        "禁咒·龙息": {"lv": 30, "mp": 55, "power": 4.8, "kind": "魔法", "desc": "古龙之息再现，造成 480% 魔法伤害"},
+        '火焰风暴': {'lv': 35, 'mp': 32, 'power': 2.2, 'kind': '魔法', 'desc': '召唤火焰风暴，造成 220% 魔法伤害'},
+        '冰晶结界': {'lv': 40, 'mp': 25, 'power': 0, 'kind': '增益', 'effect': 'def_up', 'desc': '冰晶结界守护，防御提升 50%，持续 3 回合'},
+        '雷暴术': {'lv': 45, 'mp': 40, 'power': 2.6, 'kind': '魔法', 'desc': '召来雷暴，造成 260% 魔法伤害'},
+        '时空裂隙': {'lv': 50, 'mp': 50, 'power': 3.0, 'kind': '魔法', 'desc': '撕开时空裂隙，造成 300% 魔法伤害'},
+        '奥术洪流': {'lv': 55, 'mp': 45, 'power': 1.9, 'kind': '魔法', 'multi': 2, 'desc': '奥术洪流奔涌，连击 2 次每次 190% 伤害'},
+        '极光轰炸': {'lv': 60, 'mp': 60, 'power': 3.8, 'kind': '魔法', 'desc': '极光轰炸，造成 380% 魔法伤害'},
+        '元素融合': {'lv': 70, 'mp': 50, 'power': 0, 'kind': '增益', 'effect': 'matk_up_strong', 'desc': '元素之力融合，魔法攻击提升 90%，持续 3 回合'},
+        '混沌领域': {'lv': 80, 'mp': 80, 'power': 5.0, 'kind': '魔法', 'desc': '混沌领域，造成 500% 魔法伤害'},
+        '星陨': {'lv': 90, 'mp': 100, 'power': 5.8, 'kind': '魔法', 'desc': '召唤星辰陨落，造成 580% 魔法伤害'},
+        '大魔导禁咒': {'lv': 100, 'mp': 130, 'power': 6.8, 'kind': '魔法', 'desc': '大魔导的终极禁咒，造成 680% 魔法伤害'},
+    },
+    "游侠": {
+        "精准射击": {"lv": 1, "mp": 5, "power": 1.5, "kind": "物理", "desc": "瞄准要害射击，造成 150% 物理伤害"},
+        "连射": {"lv": 5, "mp": 12, "power": 1.2, "kind": "物理", "multi": 2, "desc": "快速射出两箭，每箭造成 120% 伤害"},
+        "毒箭": {"lv": 10, "mp": 15, "power": 1.8, "kind": "物理", "desc": "淬毒之箭，造成 180% 伤害并中毒"},
+        "疾风步": {"lv": 15, "mp": 18, "power": 0, "kind": "增益", "effect": "spd_up", "desc": "疾风加持，速度提升 40%，持续 3 回合"},
+        "贯穿箭": {"lv": 20, "mp": 28, "power": 2.8, "kind": "物理", "pierce": True, "desc": "无视防御的贯穿箭，造成 280% 物理伤害"},
+        "鹰眼": {"lv": 20, "mp": 20, "power": 0, "kind": "增益", "effect": "crit_up", "desc": "鹰眼开启，暴击率大幅提升，持续 3 回合"},
+        "标记猎杀": {"lv": 25, "mp": 25, "power": 2.0, "kind": "物理", "effect": "mark", "desc": "标记目标，造成 200% 伤害并使其受到伤害增加"},
+        "龙息箭": {"lv": 30, "mp": 50, "power": 4.2, "kind": "物理", "pierce": True, "desc": "灌注龙息之力的终极一箭，造成 420% 无视防御伤害"},
+        '穿透箭雨': {'lv': 35, 'mp': 30, 'power': 2.0, 'kind': '物理', 'pierce': True, 'desc': '箭雨倾泻，造成 200% 无视防御伤害'},
+        '迅捷射击': {'lv': 40, 'mp': 30, 'power': 1.5, 'kind': '物理', 'multi': 3, 'desc': '迅捷连射 3 箭，每箭 150% 伤害'},
+        '影袭': {'lv': 45, 'mp': 32, 'power': 2.4, 'kind': '物理', 'desc': '暗影突袭，造成 240% 物理伤害'},
+        '猎杀标记': {'lv': 50, 'mp': 35, 'power': 2.0, 'kind': '物理', 'effect': 'mark', 'desc': '标记猎杀目标，造成 200% 伤害并使其受伤增加'},
+        '风神之箭': {'lv': 55, 'mp': 45, 'power': 2.8, 'kind': '物理', 'pierce': True, 'desc': '风神之力贯注，造成 280% 无视防御伤害'},
+        '多重射击': {'lv': 60, 'mp': 50, 'power': 1.6, 'kind': '物理', 'multi': 4, 'desc': '多重射击，连射 4 箭每箭 160% 伤害'},
+        '幻影步': {'lv': 70, 'mp': 40, 'power': 0, 'kind': '增益', 'effect': 'spd_up', 'desc': '幻影步法，速度提升 80%，持续 3 回合'},
+        '死亡狙击': {'lv': 80, 'mp': 75, 'power': 5.2, 'kind': '物理', 'pierce': True, 'desc': '死亡狙击，造成 520% 无视防御伤害'},
+        '神射无双': {'lv': 90, 'mp': 60, 'power': 0, 'kind': '增益', 'effect': 'crit_up', 'desc': '神射无双，暴击率大幅提升，持续 3 回合'},
+        '灭世之箭': {'lv': 100, 'mp': 120, 'power': 6.5, 'kind': '物理', 'pierce': True, 'desc': '灭世一箭，造成 650% 无视防御伤害'},
+    },
+    "牧师": {
+        "圣光弹": {"lv": 1, "mp": 8, "power": 1.5, "kind": "魔法", "desc": "凝聚圣光攻击，造成 150% 魔法伤害"},
+        "治愈术": {"lv": 5, "mp": 15, "power": 3.0, "kind": "治疗", "desc": "圣光治愈，恢复 300% 魔法攻击的生命"},
+        "圣盾": {"lv": 10, "mp": 18, "power": 0, "kind": "增益", "effect": "def_up", "desc": "圣光护盾，防御提升 45%，持续 3 回合"},
+        "惩戒": {"lv": 15, "mp": 25, "power": 2.4, "kind": "魔法", "desc": "圣光惩戒，造成 240% 魔法伤害"},
+        "群体治愈": {"lv": 20, "mp": 35, "power": 4.5, "kind": "治疗", "desc": "群体圣光，恢复 450% 魔法攻击的生命"},
+        "驱散": {"lv": 20, "mp": 22, "power": 2.0, "kind": "魔法", "desc": "驱散邪恶，造成 200% 伤害并清除自身负面状态"},
+        "神圣祷言": {"lv": 25, "mp": 30, "power": 0, "kind": "增益", "effect": "matk_up_strong", "desc": "祷言加身，魔法攻击提升 65%，持续 3 回合"},
+        "神罚": {"lv": 30, "mp": 55, "power": 4.6, "kind": "魔法", "desc": "诸神之罚降临，造成 460% 魔法伤害"},
+        '圣光审判': {'lv': 35, 'mp': 35, 'power': 2.4, 'kind': '魔法', 'desc': '圣光审判，造成 240% 魔法伤害'},
+        '神圣庇护': {'lv': 40, 'mp': 25, 'power': 0, 'kind': '增益', 'effect': 'def_up', 'desc': '神圣庇护，防御提升 55%，持续 3 回合'},
+        '复活术': {'lv': 45, 'mp': 60, 'power': 5.0, 'kind': '治疗', 'desc': '圣光复活之力，恢复 500% 魔法攻击的生命'},
+        '圣歌': {'lv': 50, 'mp': 30, 'power': 0, 'kind': '增益', 'effect': 'matk_up', 'desc': '圣歌缭绕，魔法攻击提升 45%，持续 3 回合'},
+        '天堂之盾': {'lv': 55, 'mp': 40, 'power': 0, 'kind': '增益', 'effect': 'def_up', 'desc': '天堂之盾，防御提升 80%，持续 3 回合'},
+        '神恩': {'lv': 60, 'mp': 50, 'power': 6.0, 'kind': '治疗', 'desc': '神恩降临，恢复 600% 魔法攻击的生命'},
+        '圣域': {'lv': 70, 'mp': 55, 'power': 0, 'kind': '增益', 'effect': 'matk_up_strong', 'desc': '圣域展开，魔法攻击提升 90%，持续 3 回合'},
+        '光之裁决': {'lv': 80, 'mp': 80, 'power': 5.2, 'kind': '魔法', 'desc': '圣光裁决，造成 520% 魔法伤害'},
+        '神眷': {'lv': 90, 'mp': 70, 'power': 0, 'kind': '增益', 'effect': 'matk_up_strong', 'desc': '诸神眷顾，魔法攻击提升 120%，持续 3 回合'},
+        '创世圣光': {'lv': 100, 'mp': 110, 'power': 8.0, 'kind': '治疗', 'desc': '创世圣光，恢复 800% 魔法攻击的生命'},
+    },
+}
+
+# ============================================================
+# 五、装备系统
+# ============================================================
+EQUIP_SLOTS = {
+    "weapon": "武器", "helm": "头盔", "armor": "胸甲",
+    "legs": "护腿", "boots": "靴子", "ring": "戒指", "necklace": "项链",
+}
+QUALITY = {
+    "白": {"mult": 1.0, "color": "⚪", "name": "普通"},
+    "绿": {"mult": 1.3, "color": "🟢", "name": "优秀"},
+    "蓝": {"mult": 1.7, "color": "🔵", "name": "稀有"},
+    "紫": {"mult": 2.2, "color": "🟣", "name": "史诗"},
+    "橙": {"mult": 3.0, "color": "🟠", "name": "传说"},
+}
+QUALITY_ORDER = ["白", "绿", "蓝", "紫", "橙"]
+
+# 武器类型（职业绑定）
+WEAPON_TYPES = {
+    "剑": ["战士"],
+    "法杖": ["法师"],
+    "弓": ["游侠"],
+    "权杖": ["牧师"],
+}
+
+# 装备名模板（随机组合，前缀按品质/等级）
+EQUIP_NAME_PREFIX = {
+    "白": ["陈旧", "磨损", "普通", "粗制"],
+    "绿": ["精良", "坚韧", "锋利", "强固"],
+    "蓝": ["稀有", "附魔", "寒霜", "烈焰", "雷霆", "秘银"],
+    "紫": ["史诗", "龙鳞", "星辉", "深渊", "圣光", "虚空"],
+    "橙": ["传说", "诸神", "灭世", "永恒", "创世", "命运"],
+}
+EQUIP_NAME_SUFFIX = {
+    "weapon": ["之刃", "之杖", "之弓", "之锤"],
+    "helm": ["头盔", "之冠"],
+    "armor": ["胸甲", "战甲"],
+    "legs": ["护腿", "战裙"],
+    "boots": ["之靴", "战靴"],
+    "ring": ["之戒", "指环"],
+    "necklace": ["项链", "护符"],
+}
+
+# ============================================================
+# 六、道具
+# ============================================================
+ITEMS = {
+    "i_treatment_potion": {"name": "治疗药水", "type": "消耗品", "desc": "恢复 200 点生命", "heal": 200, "price": 20},
+    "i_mana_potion": {"name": "魔力药水", "type": "消耗品", "desc": "恢复 150 点魔力", "mana": 150, "price": 25},
+    "i_great_treatment": {"name": "强效治疗药水", "type": "消耗品", "desc": "恢复 500 点生命", "heal": 500, "price": 60},
+    "i_great_mana": {"name": "强效魔力药水", "type": "消耗品", "desc": "恢复 400 点魔力", "mana": 400, "price": 70},
+    "i_scroll_escape": {"name": "回城卷轴", "type": "消耗品", "desc": "立即返回维拉镇", "price": 50, "effect": "return_vila"},
+    'i_super_treatment': {'name': '超级治疗药水', 'type': '消耗品', 'desc': '恢复 1500 点生命', 'heal': 1500, 'price': 180},
+    'i_super_mana': {'name': '超级魔力药水', 'type': '消耗品', 'desc': '恢复 1200 点魔力', 'mana': 1200, 'price': 200},
+}
+# 材料（怪物掉落 → 可出售）
+MATERIALS = {
+    "野狗獠牙": {"price": 3}, "鼠尾": {"price": 4}, "野猪皮": {"price": 6}, "山贼徽章": {"price": 15},
+    "狼皮": {"price": 8}, "蜘蛛毒囊": {"price": 9}, "妖精之尘": {"price": 14}, "远古树皮": {"price": 20},
+    "圣鹿角": {"price": 30}, "地精耳朵": {"price": 10}, "蝙蝠翼": {"price": 11}, "蛇鳞": {"price": 13},
+    "萨满图腾": {"price": 22}, "僵尸腐肉": {"price": 12}, "鬼魂精华": {"price": 18}, "爬行虫壳": {"price": 15},
+    "术士核心": {"price": 28}, "兽人獠牙": {"price": 16}, "座狼犬齿": {"price": 18}, "女妖之羽": {"price": 24},
+    "狂战之心": {"price": 35}, "骨片": {"price": 17}, "食尸鬼之爪": {"price": 19}, "灵魂碎片": {"price": 26},
+    "火焰核心": {"price": 28}, "恶魔之角": {"price": 30}, "熔岩石": {"price": 32}, "巨人余烬": {"price": 45},
+    "冰原毛皮": {"price": 30}, "巨魔血肉": {"price": 33}, "雪之精华": {"price": 36}, "永恒之冰": {"price": 50},
+    "雷电核心": {"price": 38}, "巨鹰翎羽": {"price": 40}, "风暴蛇鳞": {"price": 42}, "暗影碎片": {"price": 45},
+    "灾厄之心": {"price": 48}, "虚空碎片": {"price": 52}, "深渊精钢": {"price": 55}, "虚空獠牙": {"price": 50},
+    "先驱号角": {"price": 55}, "秘银矿石": {"price": 60}, "符文碎片": {"price": 55}, "宝藏钥匙": {"price": 65},
+    "传说精华": {"price": 200},
+    '圣光羽毛': {'price': 80},
+    '光耀之皮': {'price': 85},
+    '圣辉鹿角': {'price': 90},
+    '圣光徽章': {'price': 95},
+    '圣光结晶': {'price': 100},
+    '圣骑士剑': {'price': 110},
+    '圣光盾牌': {'price': 105},
+    '天使之羽': {'price': 130},
+    '天使圣印': {'price': 150},
+    '精灵箭矢': {'price': 100},
+    '月影之皮': {'price': 105},
+    '森林之灵': {'price': 110},
+    '月之刃': {'price': 120},
+    '精灵法珠': {'price': 115},
+    '翠羽': {'price': 110},
+    '王庭徽章': {'price': 125},
+    '月之泪': {'price': 160},
+    '月神之冠': {'price': 200},
+    '龙鳞': {'price': 130},
+    '飞龙翼': {'price': 135},
+    '龙裔徽记': {'price': 140},
+    '龙脉战刃': {'price': 155},
+    '龙炎精华': {'price': 150},
+    '龙脉护符': {'price': 165},
+    '飞龙鳞': {'price': 145},
+    '龙翼剑': {'price': 180},
+    '龙王之角': {'price': 250},
+    '虚空粘液': {'price': 160},
+    '裂隙碎片': {'price': 165},
+    '虚空之爪': {'price': 170},
+    '撕裂者核心': {'price': 200},
+    '虚空护甲': {'price': 185},
+    '虚空领主印记': {'price': 220},
+    '虚空巨像核心': {'price': 230},
+    '虚空主宰权杖': {'price': 260},
+    '吞噬者之核': {'price': 300},
+    '黑暗经卷': {'price': 190},
+    '深渊之尘': {'price': 195},
+    '堕落圣徽': {'price': 200},
+    '审判官之印': {'price': 240},
+    '忏悔之泪': {'price': 210},
+    '深渊法珠': {'price': 225},
+    '处刑者之斧': {'price': 260},
+    '祭祀之火': {'price': 245},
+    '大祭司之环': {'price': 290},
+    '教宗权杖': {'price': 350},
+    '湮灭碎片': {'price': 240},
+    '灾厄战甲': {'price': 255},
+    '噬魂结晶': {'price': 260},
+    '先锋战旗': {'price': 300},
+    '魔将之刃': {'price': 290},
+    '湮灭领主之环': {'price': 330},
+    '禁卫铠甲': {'price': 310},
+    '死寂之刃': {'price': 360},
+    '死寂王冠': {'price': 420},
+    '天穹护甲': {'price': 340},
+    '星界之尘': {'price': 350},
+    '神域战魂': {'price': 360},
+    '星界骑士剑': {'price': 420},
+    '星界法珠': {'price': 400},
+    '星界裁决之杖': {'price': 460},
+    '门扉之钥': {'price': 450},
+    '天穹之冠': {'price': 520},
+    '神域精华': {'price': 450},
+    '混沌之渣': {'price': 460},
+    '诸神遗辉': {'price': 480},
+    '使者之戒': {'price': 550},
+    '创世之盾': {'price': 520},
+    '混沌之核': {'price': 800},
+    '混沌碎片': {'price': 500},
+    '超越之核': {'price': 2000},
+    '地精王冠': {'price': 120},
+    '腐朽之刃': {'price': 150},
+    '酋长战刃': {'price': 200},
+    '死亡骑士之刃': {'price': 220},
+    '巫妖法杖': {'price': 260},
+    '熔岩之剑': {'price': 280},
+    '霜龙之牙': {'price': 300},
+    '苍穹之刃': {'price': 260},
+    '雷霆之锤': {'price': 320},
+    '深渊徽记': {'price': 300},
+    '暗影之冠': {'price': 350},
+    '黑暗君主之刃': {'price': 500},
+    '矮人王之戒': {'price': 400},
+    '秘银王冠': {'price': 450},
+
+}
+
+# ============================================================
+# 七、NPC（角色、对话、功能）
+# ============================================================
+# funcs: quest(发任务) / shop(商店) / heal(治疗) / lore(情报) / daily(每日)
+# quest_id: 关联的主线/支线任务
+NPCS = {
+    # ---- 维拉镇 ----
+    "npc_mayor": {
+        "name": "镇长·阿尔文", "title": "维拉镇镇长", "map": "vila_square",
+        "icon": "🧔", "funcs": ["quest"], "quest_id": "q1",
+        "dialogue": "年轻人，你来得正是时候。最近镇子外围的野狗越来越猖狂，商队都不敢进城了。帮我解决这个麻烦，镇子不会亏待你的。",
+    },
+    "npc_blacksmith": {
+        "name": "铁匠·托尔", "title": "铁匠铺老板", "map": "vila_street",
+        "icon": "🔨", "funcs": ["shop"],
+        "dialogue": "嘿，冒险者！我这儿的家伙什都是上好的货。买把趁手的武器再上路吧！",
+    },
+    "npc_bartender": {
+        "name": "老板·老杰克", "title": "酒馆老板", "map": "vila_tavern",
+        "icon": "🍺", "funcs": ["lore"],
+        "dialogue": "欢迎光临醉熊酒馆！要听故事还是喝一杯？听说翡翠森林最近来了头远古圣鹿，不少人盯着呢。",
+    },
+    "npc_bounty": {
+        "name": "赏金猎人·卡珊德拉", "title": "赏金猎人", "map": "vila_tavern",
+        "icon": "🗡️", "funcs": ["daily"],
+        "dialogue": "小子，想赚点外快？每天都有悬赏任务，干完来我这儿领赏金。",
+    },
+    "npc_innkeeper": {
+        "name": "老板娘·玛丽", "title": "旅店老板娘", "map": "vila_inn",
+        "icon": "🏨", "funcs": ["heal"],
+        "dialogue": "累了吧？在星夜旅店歇一晚，保你明天生龙活虎！",
+    },
+    "npc_bard": {
+        "name": "吟游诗人·莉莉", "title": "吟游诗人", "map": "vila_square",
+        "icon": "🎻", "funcs": ["lore"],
+        "dialogue": "你听说了吗？矮人那边石拳丘陵的矿洞被地精占了，听说深处出了个‘隧洞之王’……",
+    },
+    # ---- 翡翠森林 ----
+    "npc_druid": {
+        "name": "德鲁伊·艾露", "title": "翡翠森林守护者", "map": "emerald_heart",
+        "icon": "🌿", "funcs": ["quest"], "quest_id": "q2",
+        "dialogue": "外来者，森林在哭泣。远古圣鹿被黑暗侵蚀了心智，只有击败它才能让森林重归平静。",
+    },
+    # ---- 石拳丘陵 ----
+    "npc_dwarf_elder": {
+        "name": "长老·铁砧", "title": "矮人长老", "map": "stonefist_camp",
+        "icon": "⛏️", "funcs": ["quest", "shop"], "quest_id": "q3",
+        "dialogue": "地精那群小崽子霸占了我们的矿洞！勇士，帮我们把矿洞夺回来，矮人的友谊和商店都给你！",
+    },
+    # ---- 赤脊荒原 ----
+    "npc_orc_prisoner": {
+        "name": "俘虏·血牙", "title": "被俘的兽人", "map": "redridge_camp",
+        "icon": "⛓️", "funcs": ["quest"], "quest_id": "q5",
+        "dialogue": "勇士……帮我逃出酋长的营地，兽人欠你一个人情。酋长太残暴了，部落需要新的首领……",
+    },
+    # ---- 黑石城废墟 ----
+    "npc_ghost_knight": {
+        "name": "亡魂·赛德里克", "title": "旧王国骑士", "map": "blackrock_keep",
+        "icon": "👻", "funcs": ["quest", "heal"], "quest_id": "q6",
+        "dialogue": "吾乃旧王国骑士赛德里克……巫妖宰相篡夺了王座。勇士，替我复仇，吾将指引你圣光之路……",
+    },
+    # ---- 风暴之巅 ----
+    "npc_sky_hermit": {
+        "name": "隐士·云渡", "title": "风暴之巅的隐士", "map": "stormpeak_peak",
+        "icon": "🧙", "funcs": ["quest", "lore"], "quest_id": "q9",
+        "dialogue": "哦？居然有人能走到这里。你可知秘银遗迹的传说？那才是强者真正的试炼……",
+    },
+    'npc_holy_cardinal': {'name': '圣辉大主教·菲奥娜', 'title': '圣光圣殿大主教', 'map': 'holy_altar', 'icon': '🕊️', 'funcs': ['quest', 'shop', 'heal'], 'quest_id': 'q11', 'dialogue': '圣光在上……天使长竟然堕落了。年轻人，祭坛的圣光正在熄灭，只有你能阻止这场浩劫。'},
+    'npc_elf_sage': {'name': '精灵贤者·塞琳', 'title': '精灵王庭贤者', 'map': 'elf_courtyard', 'icon': '🧝', 'funcs': ['quest', 'shop', 'lore'], 'quest_id': 'q13', 'dialogue': '月之泉水已经浑浊……女王被暗影蒙蔽了双眼。请救救精灵王庭，救救我们的女王。'},
+    'npc_dragon_elder': {'name': '龙裔贤者·岩语', 'title': '龙族贤者', 'map': 'dragon_nest', 'icon': '🐉', 'funcs': ['quest', 'shop', 'lore'], 'quest_id': 'q15', 'dialogue': '龙血在沸腾，古老的意志正在苏醒。龙王知道些什么——他眼中的混沌之火，不属于任何龙族。'},
+    'npc_void_prophet': {'name': '虚空先知·弥撒', 'title': '虚空裂隙的先知', 'map': 'void_corridor', 'icon': '🔮', 'funcs': ['quest', 'shop', 'lore'], 'quest_id': 'q17', 'dialogue': '你击败的灭世者，不过是深渊的先锋。虚空的心脏还在跳动——真正的敌人，就在裂隙的最深处。'},
+    'npc_fallen_priest': {'name': '堕落祭司·格雷', 'title': '教团叛逃者', 'map': 'temple_aisle', 'icon': '🕯️', 'funcs': ['quest', 'heal'], 'quest_id': 'q19', 'dialogue': '我曾是教团的祭司……直到我看见他们在祭坛上召唤的东西。那不是神，那是深渊本身。'},
+    'npc_annih_spy': {'name': '前线斥候·铁牙', 'title': '联军前线斥候', 'map': 'annih_field', 'icon': '🐺', 'funcs': ['quest', 'shop'], 'quest_id': 'q21', 'dialogue': '湮灭大军马上就要总攻了！我们的人正在集结，但你得先挫一挫他们的锐气！'},
+    'npc_star_warden': {'name': '星界守望者·阿尔法', 'title': '神域之门守望者', 'map': 'divine_hall', 'icon': '⭐', 'funcs': ['quest', 'shop', 'heal'], 'quest_id': 'q23', 'dialogue': '神谕已经降临：诸神陨落之前，将最后的希望托付给凡人。去吧，推开那扇门。'},
+    'npc_last_god': {'name': '最后之神·艾瑟', 'title': '众神之末', 'map': 'panth_court', 'icon': '👁️', 'funcs': ['quest', 'lore'], 'quest_id': 'q27', 'dialogue': '我是诸神中最后幸存的一位。混沌之王……不，他是第一次深渊战争之前的意志。凡人，终结这一切吧。'},
+}
+
+# ============================================================
+# 八、任务（主线 10 章 + 支线 + 每日）
+# 任务类型 objective：
+#   {"kill": 怪物名, "count": N}        击杀指定怪物
+#   {"collect": 材料名, "count": N}     收集指定材料（交任务时扣除）
+#   {"explore": 地图id}                  到达指定子区域
+# ============================================================
+MAIN_QUESTS = [
+    {"id": "q1", "name": "初出茅庐", "giver": "npc_mayor", "desc": "在维拉镇外围击败 5 只野狗，为镇长解决商队之患", "objective": {"kill": "野狗", "count": 5}, "reward_exp": 80, "reward_gold": 30, "next": "q2"},
+    {"id": "q2", "name": "森林的呼唤", "giver": "npc_druid", "desc": "前往翡翠森林之心，击败远古圣鹿，净化被侵蚀的森林", "objective": {"kill": "远古圣鹿", "count": 1}, "reward_exp": 200, "reward_gold": 80, "next": "q3"},
+    {"id": "q3", "name": "矿洞危机", "giver": "npc_dwarf_elder", "desc": "深入矿洞深处，击败隧洞之王，夺回矮人的矿脉", "objective": {"kill": "隧洞之王", "count": 1}, "reward_exp": 400, "reward_gold": 150, "next": "q4"},
+    {"id": "q4", "name": "沼泽的诅咒", "giver": "npc_mayor", "desc": "前往幽暗沼泽之心，击败腐朽领主，破除亡灵诅咒", "objective": {"kill": "腐朽领主", "count": 1}, "reward_exp": 700, "reward_gold": 250, "next": "q5"},
+    {"id": "q5", "name": "赤脊之敌", "giver": "npc_orc_prisoner", "desc": "击败战歌部落酋长，解放被暴政压迫的兽人", "objective": {"kill": "战歌部落酋长", "count": 1}, "reward_exp": 1000, "reward_gold": 400, "next": "q6"},
+    {"id": "q6", "name": "死城复仇", "giver": "npc_ghost_knight", "desc": "击败巫妖宰相，为旧王国复仇", "objective": {"kill": "巫妖宰相", "count": 1}, "reward_exp": 1500, "reward_gold": 600, "next": "q7"},
+    {"id": "q7", "name": "烈焰试炼", "giver": "npc_mayor", "desc": "前往熔岩核心，击败熔岩暴君", "objective": {"kill": "熔岩暴君", "count": 1}, "reward_exp": 2200, "reward_gold": 900, "next": "q8"},
+    {"id": "q8", "name": "极北寒冰", "giver": "npc_mayor", "desc": "前往冰霜洞穴，击败霜裔亚龙", "objective": {"kill": "霜裔亚龙", "count": 1}, "reward_exp": 3200, "reward_gold": 1300, "next": "q9"},
+    {"id": "q9", "name": "雷暴之上", "giver": "npc_sky_hermit", "desc": "在风暴之巅击败风暴巨人王，登上世界之巅", "objective": {"kill": "风暴巨人王", "count": 1}, "reward_exp": 4500, "reward_gold": 1800, "next": "q10"},
+    {"id": "q10", "name": "终焉之战", "giver": "npc_mayor", "desc": "击败黑暗君主·灭世者，终结深渊的威胁！", "objective": {"kill": "黑暗君主·灭世者", "count": 1}, "reward_exp": 10000, "reward_gold": 5000, "next": None},
+    {'id': 'q11', 'name': '圣辉的召唤', 'giver': 'npc_holy_cardinal', 'desc': '圣辉祭坛的圣光被侵蚀，击败圣殿骑士长，查明真相', 'objective': {'kill': '圣殿骑士长', 'count': 1}, 'reward_exp': 6000, 'reward_gold': 2500, 'next': 'q12'},
+    {'id': 'q12', 'name': '圣殿阴影', 'giver': 'npc_holy_cardinal', 'desc': '天使长·拉斐尔已经堕落，击败他，净化圣光圣殿', 'objective': {'kill': '天使长·拉斐尔', 'count': 1}, 'reward_exp': 8000, 'reward_gold': 3500, 'next': 'q13'},
+    {'id': 'q13', 'name': '精灵之森的叹息', 'giver': 'npc_elf_sage', 'desc': '前往精灵之森，聆听精灵王庭的求救', 'objective': {'explore': 'elf_forest'}, 'reward_exp': 10000, 'reward_gold': 4000, 'next': 'q14'},
+    {'id': 'q14', 'name': '月之哀歌', 'giver': 'npc_elf_sage', 'desc': '精灵女王·艾薇安被暗影侵蚀，击败她，夺回月之泪', 'objective': {'kill': '精灵女王·艾薇安', 'count': 1}, 'reward_exp': 13000, 'reward_gold': 5000, 'next': 'q15'},
+    {'id': 'q15', 'name': '龙脊的试炼', 'giver': 'npc_dragon_elder', 'desc': '龙血正在被唤醒，击败龙脉守护者，获得龙族的认可', 'objective': {'kill': '龙脉守护者', 'count': 1}, 'reward_exp': 16000, 'reward_gold': 6500, 'next': 'q16'},
+    {'id': 'q16', 'name': '万龙圣殿', 'giver': 'npc_dragon_elder', 'desc': '龙王·奥瑞斯知道深渊的秘密，击败他，得知真相', 'objective': {'kill': '龙王·奥瑞斯', 'count': 1}, 'reward_exp': 20000, 'reward_gold': 8000, 'next': 'q17'},
+    {'id': 'q17', 'name': '裂缝之后', 'giver': 'npc_void_prophet', 'desc': '灭世者只是先锋，前往虚空长廊，寻找真正的敌人', 'objective': {'explore': 'void_corridor'}, 'reward_exp': 25000, 'reward_gold': 10000, 'next': 'q18'},
+    {'id': 'q18', 'name': '虚空之心', 'giver': 'npc_void_prophet', 'desc': '击败虚空吞噬者，粉碎虚空之心', 'objective': {'kill': '虚空吞噬者', 'count': 1}, 'reward_exp': 30000, 'reward_gold': 12000, 'next': 'q19'},
+    {'id': 'q19', 'name': '教团的阴影', 'giver': 'npc_fallen_priest', 'desc': '黑暗圣殿的审判官正在抓捕反抗者，击败他', 'objective': {'kill': '审判官', 'count': 1}, 'reward_exp': 36000, 'reward_gold': 14000, 'next': 'q20'},
+    {'id': 'q20', 'name': '深渊祭坛', 'giver': 'npc_fallen_priest', 'desc': '深渊教宗在召唤深渊真正的主人，阻止仪式', 'objective': {'kill': '深渊教宗', 'count': 1}, 'reward_exp': 43000, 'reward_gold': 17000, 'next': 'q21'},
+    {'id': 'q21', 'name': '大军压境', 'giver': 'npc_annih_spy', 'desc': '湮灭大军即将总攻，击败湮灭先锋，挫其锐气', 'objective': {'kill': '湮灭先锋', 'count': 1}, 'reward_exp': 50000, 'reward_gold': 20000, 'next': 'q22'},
+    {'id': 'q22', 'name': '死寂之王', 'giver': 'npc_annih_spy', 'desc': '击败死寂之王，瓦解湮灭大军的指挥', 'objective': {'kill': '死寂之王', 'count': 1}, 'reward_exp': 60000, 'reward_gold': 24000, 'next': 'q23'},
+    {'id': 'q23', 'name': '神谕降临', 'giver': 'npc_star_warden', 'desc': '星界守望者带来了神谕：前往天穹之路，踏上通往神域之路', 'objective': {'explore': 'divine_path'}, 'reward_exp': 70000, 'reward_gold': 28000, 'next': 'q24'},
+    {'id': 'q24', 'name': '天穹之路', 'giver': 'npc_star_warden', 'desc': '击败星界骑士长，扫清天穹之路的阻碍', 'objective': {'kill': '星界骑士长', 'count': 1}, 'reward_exp': 80000, 'reward_gold': 32000, 'next': 'q25'},
+    {'id': 'q25', 'name': '门扉之后', 'giver': 'npc_star_warden', 'desc': '神域门扉近在眼前，前往神域门扉', 'objective': {'explore': 'divine_gate'}, 'reward_exp': 90000, 'reward_gold': 36000, 'next': 'q26'},
+    {'id': 'q26', 'name': '神域门扉', 'giver': 'npc_star_warden', 'desc': '击败天穹守望者，推开神域的大门', 'objective': {'kill': '天穹守望者', 'count': 1}, 'reward_exp': 95000, 'reward_gold': 38000, 'next': 'q27'},
+    {'id': 'q27', 'name': '众神庭院', 'giver': 'npc_last_god', 'desc': '诸神被囚禁，击败众神使者，解放庭院', 'objective': {'kill': '众神使者', 'count': 1}, 'reward_exp': 110000, 'reward_gold': 45000, 'next': 'q28'},
+    {'id': 'q28', 'name': '创世之厅', 'giver': 'npc_last_god', 'desc': '深渊之王·混沌盘踞创世之厅，击败他，拯救世界', 'objective': {'kill': '深渊之王·混沌', 'count': 1}, 'reward_exp': 130000, 'reward_gold': 52000, 'next': 'q29'},
+    {'id': 'q29', 'name': '永恒之渊', 'giver': 'npc_last_god', 'desc': '混沌之王倒下之处裂开永恒之渊，前往混沌深渊', 'objective': {'explore': 'chaos_depths'}, 'reward_exp': 145000, 'reward_gold': 58000, 'next': 'q30'},
+    {'id': 'q30', 'name': '超越者', 'giver': 'npc_last_god', 'desc': '击败混沌化身·超越者，终结第一次深渊战争之前的古老意志', 'objective': {'kill': '混沌化身·超越者', 'count': 1}, 'reward_exp': 200000, 'reward_gold': 80000, 'next': None},
+]
+
+# 支线任务（可重复做，从酒馆/各地 NPC 领取）
+SIDE_QUESTS = [
+    {"id": "s1", "name": "狼皮订单", "giver": "npc_blacksmith", "map": "vila_street", "desc": "铁匠需要 5 张狼皮做护甲", "objective": {"collect": "狼皮", "count": 5}, "reward_exp": 100, "reward_gold": 50},
+    {"id": "s2", "name": "清理鼠患", "giver": "npc_innkeeper", "map": "vila_inn", "desc": "旅店地窖闹老鼠，击败 3 只巨型老鼠", "objective": {"kill": "巨型老鼠", "count": 3}, "reward_exp": 60, "reward_gold": 30},
+    {"id": "s3", "name": "探秘秘银", "giver": "npc_sky_hermit", "map": "stormpeak_peak", "desc": "找到并进入隐藏的秘银遗迹", "objective": {"explore": "mithril_hall"}, "reward_exp": 800, "reward_gold": 300},
+    {'id': 's4', 'name': '圣辉贡品', 'giver': 'npc_holy_cardinal', 'map': 'holy_altar', 'desc': '圣辉大主教需要 5 颗圣光结晶净化祭坛', 'objective': {'collect': '圣光结晶', 'count': 5}, 'reward_exp': 4000, 'reward_gold': 1500},
+    {'id': 's5', 'name': '月之泪', 'giver': 'npc_elf_sage', 'map': 'elf_courtyard', 'desc': '贤者需要 3 滴月之泪唤醒月神泉水', 'objective': {'collect': '月之泪', 'count': 3}, 'reward_exp': 7000, 'reward_gold': 2500},
+    {'id': 's6', 'name': '龙鳞护甲', 'giver': 'npc_dragon_elder', 'map': 'dragon_nest', 'desc': '龙裔贤者需要 5 片龙鳞制作护甲', 'objective': {'collect': '龙鳞', 'count': 5}, 'reward_exp': 10000, 'reward_gold': 4000},
+    {'id': 's7', 'name': '虚空的低语', 'giver': 'npc_void_prophet', 'map': 'void_corridor', 'desc': '虚空先知需要清除 5 只虚空蠕虫', 'objective': {'kill': '虚空蠕虫', 'count': 5}, 'reward_exp': 15000, 'reward_gold': 6000},
+    {'id': 's8', 'name': '净化堕落', 'giver': 'npc_fallen_priest', 'map': 'temple_aisle', 'desc': '堕落祭司需要击败 5 只深渊仆从', 'objective': {'kill': '深渊仆从', 'count': 5}, 'reward_exp': 20000, 'reward_gold': 8000},
+    {'id': 's9', 'name': '战前侦察', 'giver': 'npc_annih_spy', 'map': 'annih_field', 'desc': '前线斥候需要你潜入湮灭战场侦察敌情', 'objective': {'explore': 'annih_field'}, 'reward_exp': 26000, 'reward_gold': 10000},
+    {'id': 's10', 'name': '星界碎片', 'giver': 'npc_star_warden', 'map': 'divine_hall', 'desc': '星界守望者需要 3 块星界碎片修复星图', 'objective': {'collect': '星界之尘', 'count': 3}, 'reward_exp': 40000, 'reward_gold': 16000},
+    {'id': 's11', 'name': '神域的试炼', 'giver': 'npc_last_god', 'map': 'panth_court', 'desc': '最后之神需要你击败 3 只神域圣灵证明实力', 'objective': {'kill': '神域圣灵', 'count': 3}, 'reward_exp': 55000, 'reward_gold': 22000},
+    {'id': 's12', 'name': '龙裔的荣耀', 'giver': 'npc_dragon_elder', 'map': 'dragon_nest', 'desc': '击败 5 只龙鳞蜥蜴，证明你的勇武', 'objective': {'kill': '龙鳞蜥蜴', 'count': 5}, 'reward_exp': 12000, 'reward_gold': 5000},
+    {'id': 's13', 'name': '圣光试炼', 'giver': 'npc_holy_cardinal', 'map': 'holy_altar', 'desc': '击败 3 只圣辉猎鹰，接受圣光的试炼', 'objective': {'kill': '圣辉猎鹰', 'count': 3}, 'reward_exp': 5000, 'reward_gold': 2000},
+]
+
+DAILY_QUESTS = [
+    {"name": "日常讨伐", "desc": "击败 10 只任意怪物", "objective": {"kill_any": 10}, "reward_exp": 500, "reward_gold": 200},
+    {"name": "清理兽患", "desc": "击败 3 只精英怪物", "objective": {"kill_elite": 3}, "reward_exp": 800, "reward_gold": 300},
+    {"name": "猎杀领主", "desc": "击败 1 个区域 Boss", "objective": {"kill_boss": 1}, "reward_exp": 1200, "reward_gold": 500},
+    {"name": "大扫除", "desc": "击败 15 只任意怪物", "objective": {"kill_any": 15}, "reward_exp": 700, "reward_gold": 300},
+]
+
+# ============================================================
+# 八、商店
+# ============================================================
+SHOP_ITEMS = {
+    "vila": ["i_treatment_potion", "i_mana_potion", "i_scroll_escape"],
+    "stonefist": ["i_treatment_potion", "i_mana_potion", "i_great_treatment", "i_scroll_escape"],
+    "redridge": ["i_great_treatment", "i_great_mana", "i_scroll_escape"],
+    "blackrock": ["i_great_treatment", "i_great_mana", "i_scroll_escape"],
+    "shadow_city": ["i_great_treatment", "i_great_mana", "i_scroll_escape"],
+    'holy': ['i_great_treatment', 'i_great_mana', 'i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'elf_court': ['i_great_treatment', 'i_great_mana', 'i_super_treatment', 'i_scroll_escape'],
+    'dragon_ridge': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'void_rift': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'dark_temple': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'annihilation': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'divine_gate': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+    'pantheon': ['i_super_treatment', 'i_super_mana', 'i_scroll_escape'],
+}
+
+# 商店武器（按职业/等级段）
+SHOP_WEAPONS = {
+    "vila": [("铁剑", "剑", 2, "白"), ("学徒法杖", "法杖", 2, "白"), ("猎弓", "弓", 2, "白"), ("圣光权杖", "权杖", 2, "白")],
+    "stonefist": [("精钢剑", "剑", 8, "绿"), ("大法师之杖", "法杖", 8, "绿"), ("复合弓", "弓", 8, "绿"), ("祝福权杖", "权杖", 8, "绿")],
+    "redridge": [("狂战之斧", "剑", 14, "蓝"), ("元素法杖", "法杖", 14, "蓝"), ("反曲弓", "弓", 14, "蓝"), ("战争权杖", "权杖", 14, "蓝")],
+    "blackrock": [("骑士之剑", "剑", 20, "蓝"), ("巫术法杖", "法杖", 20, "蓝"), ("无声之弓", "弓", 20, "蓝"), ("圣锤权杖", "权杖", 20, "蓝")],
+    "shadow_city": [("斩魔之剑", "剑", 27, "紫"), ("虚空法杖", "法杖", 27, "紫"), ("暗影之弓", "弓", 27, "紫"), ("大主教权杖", "权杖", 27, "紫")],
+    'holy': [('圣辉之剑', '剑', 35, '蓝'), ('圣辉法杖', '法杖', 35, '蓝'), ('圣光之弓', '弓', 35, '蓝'), ('圣印权杖', '权杖', 35, '蓝')],
+    'elf_court': [('月刃', '剑', 45, '蓝'), ('月之法杖', '法杖', 45, '蓝'), ('精灵长弓', '弓', 45, '蓝'), ('月神权杖', '权杖', 45, '蓝')],
+    'dragon_ridge': [('龙牙剑', '剑', 55, '紫'), ('龙息法杖', '法杖', 55, '紫'), ('龙翼弓', '弓', 55, '紫'), ('龙鳞权杖', '权杖', 55, '紫')],
+    'void_rift': [('虚空之刃', '剑', 65, '紫'), ('裂隙法杖', '法杖', 65, '紫'), ('虚空之弓', '弓', 65, '紫'), ('虚空权杖', '权杖', 65, '紫')],
+    'dark_temple': [('堕落之剑', '剑', 75, '紫'), ('深渊法杖', '法杖', 75, '紫'), ('黑暗之弓', '弓', 75, '紫'), ('诅咒权杖', '权杖', 75, '紫')],
+    'annihilation': [('湮灭战刃', '剑', 85, '橙'), ('湮灭法杖', '法杖', 85, '橙'), ('湮灭之弓', '弓', 85, '橙'), ('湮灭权杖', '权杖', 85, '橙')],
+    'divine_gate': [('天穹圣剑', '剑', 92, '橙'), ('星界法杖', '法杖', 92, '橙'), ('天穹之弓', '弓', 92, '橙'), ('圣光权杖', '权杖', 92, '橙')],
+    'pantheon': [('创世之刃', '剑', 98, '橙'), ('混沌法杖', '法杖', 98, '橙'), ('万神之弓', '弓', 98, '橙'), ('神眷权杖', '权杖', 98, '橙')],
+}
+
+
+# ============================================================
+# 九、掉落权重表（按怪物角色模板）
+# ============================================================
+def roll_drop(monster_lv: int, role: str):
+    """怪物死亡掉落：返回 (装备或None, 材料名或None, 金币, 经验)
+    掉落品质权重随等级提升：等级越高，高品质装备概率越大
+    """
+    quality_weights = {"白": 60, "绿": 25, "蓝": 10, "紫": 4, "橙": 1}
+    # 精英/首领提高高品质权重
+    if role == "elite":
+        quality_weights = {"白": 30, "绿": 30, "蓝": 22, "紫": 13, "橙": 5}
+    elif role == "boss":
+        quality_weights = {"白": 10, "绿": 20, "蓝": 30, "紫": 25, "橙": 15}
+    # 等级每高 5 级，高品质略增
+    bonus = min(monster_lv // 10, 5)
+    for q in ["紫", "橙"]:
+        quality_weights[q] = min(quality_weights[q] + bonus, 30)
+    quality = random.choices(list(quality_weights.keys()), weights=list(quality_weights.values()))[0]
+    # 25% 概率掉落装备（首领 100%）
+    drop_chance = 1.0 if role == "boss" else (0.35 if role == "elite" else 0.25)
+    equip = None
+    if random.random() < drop_chance:
+        slot = random.choice(["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
+        equip = generate_equip(slot, monster_lv, quality)
+    return equip
+
+
+def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = None):
+    """生成一件装备（名称 + 属性）"""
+    if slot == "weapon":
+        if not weapon_type:
+            weapon_type = random.choice(list(WEAPON_TYPES.keys()))
+        base_name = EQUIP_NAME_PREFIX[quality][random.randrange(len(EQUIP_NAME_PREFIX[quality]))]
+        suffix = random.choice(["之刃", "之杖", "之弓", "之锤"])
+        name = f"{base_name}{suffix}"
+        if quality == "橙":
+            name = f"传说·{base_name}{suffix}"
+    else:
+        prefix = EQUIP_NAME_PREFIX[quality][random.randrange(len(EQUIP_NAME_PREFIX[quality]))]
+        suffix = random.choice(EQUIP_NAME_SUFFIX[slot])
+        name = f"{prefix}{suffix}"
+    stats = equip_stats(slot, lv, quality)
+    return {
+        "name": name,
+        "slot": slot,
+        "quality": quality,
+        "lv": lv,
+        "weapon_type": weapon_type if slot == "weapon" else None,
+        "stats": stats,
+        "price": int(sum(stats.values()) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
+    }
+
+
+def build_monster(monster_def: tuple, map_obj: dict):
+    """将地图怪物配置展开为完整怪物字典"""
+    mid, name, role, lv, skills, drops = monster_def
+    stats = monster_stats(lv, role)
+    is_boss = role == "boss"
+    is_elite = role == "elite"
+    return {
+        "id": mid,
+        "name": name,
+        "lv": lv,
+        "role": role,
+        "hp": stats["hp"],
+        "max_hp": stats["hp"],
+        "atk": stats["atk"],
+        "def": stats["def"],
+        "matk": stats["matk"],
+        "mdef": stats["mdef"],
+        "spd": stats["spd"],
+        "exp": monster_exp(lv, role),
+        "gold": monster_gold(lv, role),
+        "skills": skills,
+        "drops": drops,
+        "map": map_obj["name"],
+        "map_area": map_obj.get("area", map_obj["id"]),
+        "is_boss": is_boss,
+        "is_elite": is_elite,
+    }
+
+
+# ============================================================
+# 十、六大势力 · 声望系统（世界格局）
+# ============================================================
+# 击杀对应势力怪物 / 完成任务获得声望；声望解锁折扣与称号
+FACTIONS = {
+    "humans":  {"name": "人类王国",   "icon": "🏰", "desc": "西境的人类诸国，文明与秩序的最后壁垒。"},
+    "elves":   {"name": "精灵议会",   "icon": "🌿", "desc": "翡翠森林的古老精灵，魔法与自然的守护者。"},
+    "dwarves": {"name": "矮人部族",   "icon": "⛏️", "desc": "石拳丘陵的矮人，锻造与开矿的大师。"},
+    "orcs":    {"name": "兽人部落",   "icon": "🐺", "desc": "赤脊荒原的兽人，崇尚力量与荣耀。"},
+    "undead":  {"name": "亡灵天灾",   "icon": "💀", "desc": "黑石城的亡灵军团，死亡之力的化身。"},
+    "abyss":   {"name": "深渊恶魔",   "icon": "👹", "desc": "深渊之门的恶魔，大陆最大的威胁。"},
+}
+FACTION_ORDER = ["humans", "elves", "dwarves", "orcs", "undead", "abyss"]
+
+# 声望等级阈值（点数）
+REPUTATION_TIERS = [
+    (0,    "陌生"),
+    (100,  "友好"),
+    (300,  "尊敬"),
+    (700,  "崇敬"),
+    (1500, "崇拜"),
+]
+
+# 区域 → 势力（子区域归属势力）
+AREA_FACTION = {
+    "vila": "humans", "emerald": "elves", "stonefist": "dwarves",
+    "gloom": "undead", "redridge": "orcs", "blackrock": "undead",
+    "magma": "abyss", "tundra": "abyss", "stormpeak": "abyss",
+    "shadow_city": "abyss", "abyss_gate": "abyss", "mithril": "abyss",
+    'holy': 'humans',     'elf_court': 'elves',     'dragon_ridge': 'abyss',     'void_rift': 'abyss',     'dark_temple': 'abyss',     'annihilation': 'abyss',     'divine_gate': 'humans',     'pantheon': 'humans',     'chaos_depths': 'abyss', 
+}
+
+
+def faction_reputation_tier(points: int) -> str:
+    """声望点数 → 等级名"""
+    name = "陌生"
+    for th, n in REPUTATION_TIERS:
+        if points >= th:
+            name = n
+    return name
+
+
+# ============================================================
+# 十一、维斯特兰编年史（世界传说库）
+# ============================================================
+CHRONICLES = [
+    {"title": "创世与诸神", "text": "传说世界由九位古神共同铸造。龙神铸群山，精灵女神织森林，矮人神锻地脉，死神则于最深处埋下『永恒之暗』——那便是深渊的起源。"},
+    {"title": "第一次深渊战争", "text": "一千年前，深渊恶魔撕开大陆南方的裂隙。人类、精灵、矮人与兽人放下千年积怨结成联军，在如今的暗影之城旧址血战七年，最终将恶魔封印于深渊之门后。"},
+    {"title": "黑石城的陷落", "text": "三十年前，亡灵天灾从东境崛起。巫妖宰相以瘟疫腐蚀了人类王国的都城黑石城，国王战死，千万子民化为不死者。旧王国的骑士们至今仍在废墟中徘徊，等待复仇之日。"},
+    {"title": "秘银遗迹的传说", "text": "矮人王『秘银之王』在鼎盛时期建成了举世无双的宝库，据说其中藏着足以颠覆大陆的力量。宝库随矮人王朝的衰落一同消失，只留下进入秘银遗迹的传闻……"},
+    {'title': '圣辉高原的由来', 'text': '第一次深渊战争后，众神赐福于最忠诚的信徒，赐下圣辉高原这片神眷之地。圣光圣殿供奉着天使长·拉斐尔——可惜，连天使也无法抵御混沌的侵蚀。'},
+    {'title': '月之泪的传说', 'text': '精灵王庭的月之泪是月神陨落时流下的最后一滴泪，拥有净化一切诅咒的力量。历代精灵女王以生命守护它——直到艾薇安亲手将它染黑。'},
+    {'title': '龙脊山脉的秘密', 'text': '龙族是创世之初最古老的种族。龙王·奥瑞斯活了三千岁，他见过第一次深渊战争——他说，灭世者不过是个传令兵。真正的深渊意志，远比诸神古老。'},
+    {'title': '深渊的真正主人', 'text': '传说第一次深渊战争封印的只是深渊的先锋。虚空裂隙深处、黑暗圣殿的祭坛、湮灭平原的王座……所有迹象都指向同一个答案：深渊之王·混沌，正在神域苏醒。'},
+    {'title': '诸神之战', 'text': '混沌之王侵入神域后，诸神与其血战七日。七位古神陨落，众神使者被俘，唯有最后之神·艾瑟幸存。她把最后的希望，托付给了一个凡人。'},
+    {"title": "圣鹿与森林之心", "text": "翡翠森林的神木之下，远古圣鹿世代守护着精灵的生命之源。德鲁伊们相信，若圣鹿倒下，整片森林都将枯萎——而黑暗，正在侵蚀它的心智。"},
+    {"title": "风暴巨人的王座", "text": "世界之巅风暴之巅，是风暴巨人王的领地。传说谁能登上山巅、击败巨人王，便能得到雷霆之锤的认可，成为风暴的君主。"},
+    {"title": "霜裔亚龙的巢穴", "text": "冰封苔原的冰川洞穴中，盘踞着最后的霜裔亚龙。它的鳞片是极北之地最珍贵的材料，而它的怒火能让整片苔原陷入百年寒冬。"},
+    {"title": "亡灵的悲歌", "text": "黑石城废墟的怨灵们仍在吟唱着旧王国的歌谣。有人说，只要有人能完成巫妖宰相无法做到的事——让逝者安息，这些灵魂就能得到解脱。"},
+    {"title": "兽人的荣耀", "text": "赤脊荒原的兽人崇尚力量，但战歌部落的酋长用残暴统治了一切。老兽人们说，真正的兽人之王应该让部落重归荣耀，而不是恐惧。"},
+    {"title": "深渊之门的低语", "text": "封印深渊之门的古老符文正在逐渐失效。黑暗君主·灭世者已在门后集结大军——大陆的命运，悬于一线。"},
+]
+
+
+# ============================================================
+# 十二、钓鱼系统（休闲玩法）
+# ============================================================
+# 水域子区域：钓鱼需要在水边
+FISHING_SPOTS = {
+    "vila_gate": "城门外的护城河",
+    "emerald_trail": "林间溪流",
+    "emerald_heart": "翡翠湖畔",
+    "gloom_edge": "沼泽水潭",
+    "tundra_field": "冰封湖面",
+    "blackrock_street": "死城运河",
+}
+
+# 鱼获池：name, type(鱼/材料/宝物/垃圾), price, desc
+FISH_POOL = [
+    {"name": "银鳞鱼", "type": "鱼", "price": 12, "desc": "常见的淡水鱼，肉质鲜美"},
+    {"name": "金鲤", "type": "鱼", "price": 25, "desc": "鳞片泛着金光的鲤鱼，酒楼抢着收"},
+    {"name": "帝王鲑", "type": "鱼", "price": 45, "desc": "罕见的大鱼，据说吃了能增强体质"},
+    {"name": "神秘鳞片", "type": "材料", "price": 30, "desc": "不知名生物留下的鳞片，铁匠会感兴趣"},
+    {"name": "珍珠", "type": "材料", "price": 40, "desc": "贝中孕育的珍宝，商人愿意高价收购"},
+    {"name": "陈旧的宝箱", "type": "宝物", "price": 0, "desc": "水底的宝箱！打开看看有什么好东西"},
+    {"name": "破旧的靴子", "type": "垃圾", "price": 1, "desc": "不知道谁扔进水里的，毫无用处"},
+    {"name": "水草", "type": "垃圾", "price": 1, "desc": "缠成一团的水草，什么也没有"},
+]
+FISH_WEIGHTS = [35, 25, 15, 10, 6, 4, 3, 2]  # 与 FISH_POOL 对应
+
+
+def roll_fish():
+    """钓鱼结果：返回 FISH_POOL 中的一项"""
+    return random.choices(FISH_POOL, weights=FISH_WEIGHTS, k=1)[0]
+
+
+# ============================================================
+# 十三、装备强化（铁匠铺）
+# ============================================================
+# 强化等级 → (成功率, 金币消耗, 属性增幅)
+ENHANCE_TABLE = {
+    0: {"rate": 1.00, "cost": 50,   "mult": 1.00},
+    1: {"rate": 0.90, "cost": 120,  "mult": 1.10},
+    2: {"rate": 0.80, "cost": 250,  "mult": 1.22},
+    3: {"rate": 0.65, "cost": 450,  "mult": 1.36},
+    4: {"rate": 0.50, "cost": 800,  "mult": 1.52},
+    5: {"rate": 0.35, "cost": 1300, "mult": 1.70},
+    6: {"rate": 0.22, "cost": 2000, "mult": 1.90},
+    7: {"rate": 0.12, "cost": 3200, "mult": 2.12},
+    8: {"rate": 0.06, "cost": 5000, "mult": 2.36},
+    9: {"rate": 0.03, "cost": 8000, "mult": 2.62},
+}
+MAX_ENHANCE = 9
+# 强化失败：掉 1 级（+5 以上失败掉 2 级），不会低于 0
+ENHANCE_FAIL_DROP = {5: 2}
+ENHANCE_SMITH_MAPS = ["vila_street", "stonefist_camp", "shadow_street"]  # 有铁匠铺的子区域
+
+
+# ============================================================
+# 十四、探索随机事件（世界活力）
+# ============================================================
+# 探索时有概率触发（遇怪之前判定）
+EXPLORE_EVENTS = [
+    {"id": "treasure", "weight": 18, "name": "闪闪发光的宝箱", "desc": "草丛里藏着一个宝箱！"},
+    {"id": "merchant", "weight": 10, "name": "流浪商人", "desc": "一个行色匆匆的商人想低价卖你点东西。"},
+    {"id": "spring",   "weight": 14, "name": "神秘泉水", "desc": "一汪冒着微光的泉水，饮下后感觉浑身舒畅。"},
+    {"id": "trap",     "weight": 10, "name": "隐蔽的陷阱", "desc": "脚下突然一空，你掉进了猎人的陷阱！"},
+    {"id": "omen",     "weight": 8,  "name": "古老的遗迹", "desc": "废墟中刻着古老的符文，似乎隐藏着什么秘密。"},
+    {"id": "herb",     "weight": 12, "name": "草药丛", "desc": "一片野生草药，可以采集一些。"},
+    {"id": "windfall", "weight": 10, "name": "意外之财", "desc": "地上散落着几枚金币，像是某位粗心商人掉的。"},
+    {"id": "wandering", "weight": 8, "name": "迷路的旅人", "desc": "一位迷路的旅人向你求助，想用物品换取指引。"},
+]
+EVENT_WEIGHT_SUM = sum(e["weight"] for e in EXPLORE_EVENTS)
+
+
+def roll_explore_event():
+    """掷一个随机事件，返回事件 dict"""
+    r = random.random() * EVENT_WEIGHT_SUM
+    acc = 0
+    for e in EXPLORE_EVENTS:
+        acc += e["weight"]
+        if r <= acc:
+            return e
+    return EXPLORE_EVENTS[0]
+
+
+# ============================================================
+# 十五、称号系统
+# ============================================================
+# 每个称号：id, name, desc, 判定函数入参（player, stats, rep）
+# 在 main.py 中动态计算
+TITLES = [
+    {"id": "novice",      "name": "初出茅庐",   "desc": "注册角色，踏上冒险之路"},
+    {"id": "lv10",        "name": "崭露头角",   "desc": "达到 10 级"},
+    {"id": "lv20",        "name": "名声鹊起",   "desc": "达到 20 级"},
+    {"id": "lv30",        "name": "大陆传奇",   "desc": "达到 30 级"},
+    {"id": "kill10",      "name": "新手猎人",   "desc": "累计击杀 10 只怪物"},
+    {"id": "kill100",     "name": "百人斩",     "desc": "累计击杀 100 只怪物"},
+    {"id": "kill500",     "name": "屠戮者",     "desc": "累计击杀 500 只怪物"},
+    {"id": "elite5",      "name": "精英猎手",   "desc": "击杀 5 只精英怪物"},
+    {"id": "boss1",       "name": "屠龙者",     "desc": "击杀 1 个区域 Boss"},
+    {"id": "boss3",       "name": "弑神者",     "desc": "击杀 3 个区域 Boss"},
+    {"id": "rep_honor",   "name": "一方霸主",   "desc": "任一势力声望达到崇敬"},
+    {"id": "rep_legend",  "name": "万民敬仰",   "desc": "任一势力声望达到崇拜"},
+    {"id": "quest10",     "name": "任务达人",   "desc": "完成 10 个主线任务"},
+    {"id": "wealthy",     "name": "腰缠万贯",   "desc": "拥有 5000 金币"},
+    {"id": "explorer",    "name": "大陆探险家", "desc": "到访 10 个不同子区域"},
+    {"id": "fish10",      "name": "垂钓大师",   "desc": "钓鱼 10 次"},
+    {"id": "enhance5",    "name": "锻造新星",   "desc": "成功强化装备至 +5"},
+    {"id": "enhance9",    "name": "神匠之手",   "desc": "成功强化装备至 +9"},
+    {"id": "hidden",      "name": "秘银追寻者", "desc": "进入隐藏地图秘银遗迹"},
+    {"id": "final",       "name": "大陆救世主", "desc": "完成全部主线任务"},
+]
+
+# 新物品：钓鱼/事件用道具补充
+ITEMS["i_fish_chest"] = {"name": "陈旧的宝箱", "type": "消耗品", "desc": "水底捞出的宝箱，打开有惊喜！", "price": 0, "effect": "open_chest"}
+
+# ============================================================
+# 十六、更多支线任务（每个 NPC 都有故事）
+# ============================================================
+SIDE_QUESTS += [
+    {"id": "s14", "name": "美酒佳肴", "giver": "npc_bartender", "map": "vila_tavern", "desc": "酒馆招牌菜的食材不够了，收集 3 张野猪皮", "objective": {"collect": "野猪皮", "count": 3}, "reward_exp": 120, "reward_gold": 60},
+    {"id": "s15", "name": "诗人的素材", "giver": "npc_bard", "map": "vila_square", "desc": "吟游诗人需要 2 份妖精之尘谱写新歌", "objective": {"collect": "妖精之尘", "count": 2}, "reward_exp": 150, "reward_gold": 70},
+    {"id": "s16", "name": "猎犬之患", "giver": "npc_bounty", "map": "vila_tavern", "desc": "赏金猎人悬赏：击败 5 只森林狼", "objective": {"kill": "森林狼", "count": 5}, "reward_exp": 200, "reward_gold": 100},
+    {"id": "s17", "name": "德鲁伊的忧虑", "giver": "npc_druid", "map": "emerald_heart", "desc": "德鲁伊担心毒蜘蛛泛滥，收集 3 个蜘蛛毒囊", "objective": {"collect": "蜘蛛毒囊", "count": 3}, "reward_exp": 180, "reward_gold": 90},
+    {"id": "s18", "name": "矿工的遗物", "giver": "npc_dwarf_elder", "map": "stonefist_camp", "desc": "找回被蝙蝠叼走的矿灯，收集 2 个蝙蝠翼", "objective": {"collect": "蝙蝠翼", "count": 2}, "reward_exp": 160, "reward_gold": 80},
+    {"id": "s19", "name": "亡者的安息", "giver": "npc_ghost_knight", "map": "blackrock_keep", "desc": "超度游荡的怨灵，击败 3 只沼泽鬼魂", "objective": {"kill": "沼泽鬼魂", "count": 3}, "reward_exp": 300, "reward_gold": 150},
+    {"id": "s20", "name": "风暴之核", "giver": "npc_sky_hermit", "map": "stormpeak_peak", "desc": "隐士需要 2 个雷电核心研究风暴之力", "objective": {"collect": "雷电核心", "count": 2}, "reward_exp": 500, "reward_gold": 250},
+    {"id": "s21", "name": "城门的危机", "giver": "npc_mayor", "map": "vila_square", "desc": "山贼在中央大街作乱，击败 1 个山贼头目", "objective": {"kill": "山贼头目", "count": 1}, "reward_exp": 90, "reward_gold": 40},
+    {"id": "s22", "name": "旅人的谢礼", "giver": "npc_innkeeper", "map": "vila_inn", "desc": "帮助旅店收集 5 份巨魔血肉给远行客人", "objective": {"collect": "巨魔血肉", "count": 5}, "reward_exp": 350, "reward_gold": 180},
+    {"id": "s23", "name": "兽人的抉择", "giver": "npc_orc_prisoner", "map": "redridge_camp", "desc": "击败 3 只座狼，证明你的力量值得信任", "objective": {"kill": "座狼", "count": 3}, "reward_exp": 260, "reward_gold": 130},
+]
+
+# ============================================================
+# 十七、世界随机大事件（v6）
+# ============================================================
+# 事件类型池：type 用于 db 存储；duration 秒
+WORLD_EVENT_POOL = [
+    {"type": "auction",  "name": "神秘拍卖行", "icon": "🏪", "duration": 7200,
+     "desc": "一位神秘商人出现在维拉镇，带来了三件稀世珍宝！输入『拍卖』查看，『竞拍 <编号> <金币>』出价！"},
+    {"type": "boss",     "name": "世界Boss入侵", "icon": "👹", "duration": 10800,
+     "desc": "强大的魔物突破封印降临大陆！全服勇士共同讨伐，输入『讨伐』加入战斗！"},
+    {"type": "merchant", "name": "商队集市", "icon": "🎁", "duration": 3600,
+     "desc": "远方商队进城了！所有商店限时 8 折，快去扫货！（输入『商店』查看）"},
+    {"type": "omen",     "name": "元素异象", "icon": "🌧️", "duration": 7200,
+     "desc": "魔法元素异常活跃，全大陆经验与金币收益 +50%！抓住机会升级！"},
+    {"type": "swarm",    "name": "兽潮来袭", "icon": "⚔️", "duration": 7200,
+     "desc": "兽潮涌向大陆，怪物经验 +30%，击杀声望双倍！守护这片土地！"},
+    {"type": "festival", "name": "节日庆典", "icon": "🎉", "duration": 14400,
+     "desc": "大陆迎来庆典！签到奖励翻倍，今日金币掉落增加！"},
+]
+
+# 拍卖品池（type/slot/lv/quality/weapon_type/base/buyout）
+AUCTION_POOL = [
+    {"slot": "weapon", "lv": 15, "quality": "紫", "base": 800,  "buyout": 3000},
+    {"slot": "weapon", "lv": 25, "quality": "紫", "base": 2000, "buyout": 8000},
+    {"slot": "armor",  "lv": 20, "quality": "紫", "base": 1500, "buyout": 6000},
+    {"slot": "weapon", "lv": 35, "quality": "橙", "base": 5000, "buyout": 20000},
+    {"slot": "ring",   "lv": 30, "quality": "橙", "base": 4000, "buyout": 15000},
+    {"slot": "weapon", "lv": 50, "quality": "橙", "base": 12000, "buyout": 50000},
+    {"slot": "necklace", "lv": 45, "quality": "橙", "base": 10000, "buyout": 40000},
+    {"slot": "weapon", "lv": 70, "quality": "橙", "base": 30000, "buyout": 120000},
+    {"slot": "legs",   "lv": 80, "quality": "橙", "base": 40000, "buyout": 150000},
+    {"slot": "weapon", "lv": 95, "quality": "橙", "base": 80000, "buyout": 300000},
+]
+
+# 世界 Boss 池（lv 决定强度；hp 为全服共享总血量；reward 为参与奖励）
+WORLD_BOSS_POOL = [
+    {"name": "深渊魔王·阿兹莫丹", "icon": "👹", "lv": 35, "hp": 300000,  "reward": {"gold": 2000, "exp": 3000}},
+    {"name": "混沌领主·巴巴托斯", "icon": "😈", "lv": 55, "hp": 800000,  "reward": {"gold": 5000, "exp": 8000}},
+    {"name": "亡灵天灾·克尔苏加德", "icon": "💀", "lv": 75, "hp": 2000000, "reward": {"gold": 12000, "exp": 20000}},
+    {"name": "灭世之龙·尼德霍格", "icon": "🐉", "lv": 95, "hp": 5000000, "reward": {"gold": 30000, "exp": 50000}},
+    {"name": "混沌之源·原始意志", "icon": "🌀", "lv": 100, "hp": 10000000, "reward": {"gold": 60000, "exp": 100000}},
+]
+

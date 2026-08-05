@@ -1,0 +1,73 @@
+# -*- coding: utf-8 -*-
+"""v47 测试重构：commands 层（QQ 交互薄层冒烟）
+
+验证重构后的命令装配（Main Mixin）与核心流程：
+  1. 注册 → 角色 → 地图 → 探索 → 攻击 全链路
+  2. 背包 / 打造 / 商店 基础命令
+  3. 帮助指令含 6 大 Mixin 的命令
+  4. 快捷指令静态表回退（test_v14 核心场景）
+"""
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from conftest import FakeEvent, run, clean_db, Main
+
+passed = failed = 0
+def check(name, cond, detail=""):
+    global passed, failed
+    if cond:
+        passed += 1
+        print(f"  ✅ {name}")
+    else:
+        failed += 1
+        print(f"  ❌ {name} {detail}")
+
+
+async def cmd(m, handler_name, gid, qid, msg):
+    """执行命令并返回最后一条回复文本"""
+    ev = FakeEvent(gid, qid, msg)
+    handler = getattr(m, handler_name)
+    results = await run(handler, ev)
+    return results[-1] if results else ""
+
+
+async def main():
+    m = Main(None)
+    clean_db()
+    print("【commands 层：注册→角色→探索→攻击 全链路】")
+    out = await cmd(m, "register", "g1", "q1", "注册 战士 格温")
+    check("注册成功", "注册成功" in out or "战士" in out, out[:80])
+    out = await cmd(m, "profile", "g1", "q1", "角色")
+    check("角色显示", "格温" in out and "战士" in out, out[:80])
+    out = await cmd(m, "map_view", "g1", "q1", "地图")
+    check("地图显示", "维拉" in out or "地图" in out, out[:80])
+    out = await cmd(m, "explore", "g1", "q1", "探索")
+    check("探索有返回", len(out) > 10, out[:80])
+    out = await cmd(m, "attack", "g1", "q1", "攻击")
+    check("攻击有返回", len(out) > 10, out[:80])
+
+    print("【commands 层：背包/打造/商店】")
+    out = await cmd(m, "inventory", "g1", "q1", "背包")
+    check("背包显示", "背包" in out or "空" in out or "狼皮" in out, out[:80])
+    out = await cmd(m, "craft", "g1", "q1", "打造")
+    check("打造显示", "铁匠" in out or "打造" in out or "配方" in out, out[:80])
+    out = await cmd(m, "shop", "g1", "q1", "商店")
+    check("商店显示", "商店" in out or "购买" in out, out[:80])
+
+    print("【commands 层：帮助含各 Mixin】")
+    out = await cmd(m, "help_cmd", "g1", "q1", "帮助")
+    for section in ("冒险", "战斗", "背包", "公会", "快捷", "炼金"):
+        check(f"帮助含『{section}』", section in out, out[:200])
+
+    print("【commands 层：快捷指令静态表回退】")
+    # 绑定后数字触发
+    out = await cmd(m, "shortcut", "g1", "q1", "快捷绑定 1 探索")
+    check("快捷绑定成功", "绑定成功" in out, out[:80])
+    out = await cmd(m, "shortcut_trigger", "g1", "q1", "1")
+    check("发1=探索（静态回退）", "❌" not in out and len(out) > 10, out[:100])
+
+    print(f"\n结果: {passed} 通过, {failed} 失败")
+    return failed == 0
+
+if __name__ == "__main__":
+    import asyncio
+    sys.exit(0 if asyncio.run(main()) else 1)

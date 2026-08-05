@@ -1,0 +1,65 @@
+# -*- coding: utf-8 -*-
+"""《剑与魔法》数据层 —— 纯静态内容（无逻辑、无IO）
+
+聚合导出全部数据表，保持 `from game.data import *` 或
+`import game.data as C` 用法与旧 content 一致。
+"""
+import random  # noqa: F401  (部分表构造使用)
+
+from .index import _INDEXES  # noqa: F401
+from .classes import CLASSES  # noqa: F401
+from .maps import (
+    MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
+    MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
+)  # noqa: F401
+from .monsters import MONSTER_SKILLS  # noqa: F401
+from .monster_mods import MONSTER_MODS  # noqa: F401
+from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
+from .builds import BUILDS  # noqa: F401
+from .equipment import (  # noqa: F401
+    EQUIP_SLOTS, QUALITY, QUALITY_ORDER, WEAPON_TYPES, WEAPON_NAME_SUFFIX,
+    WEAPON_FLAVOR, EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX, EQUIP_PREFIX_FLAVOR,
+    AFFIX_COUNT, AFFIX_RATIO, AFFIX_POOL, AFFIX_FALLBACK,
+    QUALITY_CN, WT_CN,
+)
+from .items import ITEMS, MATERIALS  # noqa: F401
+from .npcs import NPCS  # noqa: F401
+from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
+from .shop import SHOP_ITEMS, SHOP_WEAPONS  # noqa: F401
+from .factions import (  # noqa: F401
+    FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES,
+)
+from .fishing import FISHING_SPOTS, FISH_POOL, FISH_WEIGHTS, FISH_RARE_BONUS  # noqa: F401
+from .enhance import (  # noqa: F401
+    ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS,
+)
+from .sets import SET_THEMES, SET_CHANCE, SETS, CLASS_SET_STAGES, CLASS_SET_THEMES  # noqa: F401
+from .craft import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES  # noqa: F401
+from .enchant import (  # noqa: F401
+    ENCHANT_SLOTS, ENCHANT_RECIPES, ENCHANT_CRIT_CHANCE, ENCHANT_MAX_VALUE,
+    ENCHANT_STONES, ENCHANT_EFFECT_NAMES,
+)
+from .runes import (  # noqa: F401
+    RUNES, RUNE_CONFLICTS, RUNE_DROP, RUNE_EFFECT_NAMES, RUNE_LEVEL_ROMAN,
+)
+from .portals import PORTALS  # noqa: F401
+from .gather import CAMP_SPOTS, MINE_SPOTS  # noqa: F401
+from .events import EXPLORE_EVENTS, EVENT_WEIGHT_SUM  # noqa: F401
+from .titles import TITLES  # noqa: F401
+from .world import WORLD_EVENT_POOL, AUCTION_POOL, WORLD_BOSS_POOL  # noqa: F401
+from .pets import PET_POOL  # noqa: F401
+from .mounts import (  # noqa: F401
+    MOUNT_POOL, MOUNT_BY_KEY, MOUNT_DROP_ELITE, MOUNT_DROP_BOSS,
+)
+from .alchemy import ALCHEMY_RECIPES  # noqa: F401
+from .cooking import COOKING_RECIPES  # noqa: F401
+from .guild import GUILD_CONFIG  # noqa: F401
+from .instances import INSTANCES  # noqa: F401
+
+# 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
+from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
+
+# 让 build_index 产生的派生表也可见（_SKILL_FLAT/_MONSTER_INDEX 等）
+from ._assembly import (  # noqa: F401
+    _SKILL_FLAT, _MONSTER_INDEX, _FISH_INDEX, _NPC_INDEX, _SHOP_W_INDEX,
+)
