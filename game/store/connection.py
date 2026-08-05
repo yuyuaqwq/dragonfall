@@ -246,6 +246,10 @@ def init_db():
             fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
             if "reply" not in fcols:
                 conn.execute("ALTER TABLE feedback ADD COLUMN reply TEXT DEFAULT ''")
+            # v66 摆摊：market 表补 map_id 列（NULL/'' = 群市场寄售；有值 = 在该地图摆摊）
+            mcols = [r[1] for r in conn.execute("PRAGMA table_info(market)").fetchall()]
+            if "map_id" not in mcols:
+                conn.execute("ALTER TABLE market ADD COLUMN map_id TEXT DEFAULT ''")
             conn.commit()
         finally:
             conn.close()

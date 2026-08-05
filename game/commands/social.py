@@ -115,14 +115,19 @@ class SocialCmds(CommandBase):
             yield event.plain_result("格式：购入 <编号>，『市场』查看编号")
             return
         mid = int(args[0])
-        items = db.market_list(group_id)
-        it = next((x for x in items if x["id"] == mid), None)
+        it = db.market_get(mid)
         if not it:
             yield event.plain_result("没有这个物品！可能已被买走。")
             return
         if str(it["seller"]) == str(qq_id):
             yield event.plain_result("不能买自己的物品！")
             return
+        # v66：摊位货必须当面买（摆摊在当前位置，需要同地图）
+        if it.get("map_id"):
+            if player.get("cur_map") != it["map_id"]:
+                map_name = C.MAP_BY_ID.get(it["map_id"], {}).get("name", "那里")
+                yield event.plain_result(f"这是【{it['item_data'].get('name','?')}】的摊位货，需要到『{map_name}』当面购入～（『摊位』看看谁在摆摊）")
+                return
         if player["gold"] < it["price"]:
             yield event.plain_result(f"金币不足！需要 {it['price']} 金币。")
             return
@@ -133,6 +138,106 @@ class SocialCmds(CommandBase):
         db.market_remove(mid)
         db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
         yield event.plain_result(f"🛒 购入成功！【{it['item_data'].get('name','?')}】已放入背包（花费 {it['price']} 金币）")
+
+    # ---------------- v66 摆摊系统 ----------------
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆摊(?:[\s\S]*)$")
+    async def stall(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "摆摊").rsplit(None, 1)
+        if len(args) < 2 or not args[1].isdigit():
+            yield event.plain_result("格式：摆摊 <物品名> <价格>，如『摆摊 铁剑 500』")
+            return
+        item_name, price = args[0], int(args[1])
+        if price < 1:
+            yield event.plain_result("价格至少 1 金币！")
+            return
+        inv = db.get_inventory(group_id, qq_id)
+        found = next((it for it in inv if it["data"].get("name") == item_name), None)
+        if not found:
+            yield event.plain_result(f"背包里没有『{item_name}』！『背包』查看～")
+            return
+        cur_map = player.get("cur_map", "")
+        map_obj = C.MAP_BY_ID.get(cur_map, {})
+        if not map_obj:
+            yield event.plain_result("这里没法摆摊……换个地方试试。")
+            return
+        # 已有摊位 → 自动收旧摊（物品退回）
+        old = [s for s in db.market_list_by_seller(group_id, qq_id) if s.get("map_id")]
+        for s in old:
+            db.market_remove(s["id"])
+            db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
+        db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
+        db.remove_item(group_id, qq_id, found["key"], count=1)
+        map_name = map_obj.get("name", cur_map)
+        tip = f"（旧摊位已收摊，{len(old)} 件物品退回背包）" if old else ""
+        yield event.plain_result(
+            f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
+            f"『收摊』收摊，『摊位』看看本地谁在摆摊"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?收摊(?:[\s\S]*)$")
+    async def stall_close(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        removed = db.market_remove_by_seller(group_id, qq_id)
+        if not removed:
+            yield event.plain_result("你现在没有摊位。『摆摊 <物品> <价格>』支起摊位～")
+            return
+        for s in removed:
+            db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
+        names = "、".join(s["item_data"].get("name", "?") for s in removed)
+        yield event.plain_result(f"🏪 收摊！【{names}】退回背包")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摊位(?:[\s\S]*)$")
+    async def stall_view(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        raw = self._strip_cmd(event, "摊位").strip()
+        # 指定玩家 → 看他的摊位
+        if raw:
+            target = db.find_player_by_name(raw)
+            if not target:
+                yield event.plain_result(f"没找到玩家『{raw}』！")
+                return
+            target_id = target["qq_id"]
+            tp = db.get_player(group_id, target_id)
+            if tp:
+                db.market_sync_stall(target_id, tp.get("cur_map", ""))  # 摊位惰性跟随
+            stalls = [s for s in db.market_list_by_seller(group_id, target_id) if s.get("map_id")]
+            if not stalls:
+                yield event.plain_result(f"{target['name']} 没有在摆摊。")
+                return
+            lines = [f"🏪 【{target['name']} 的摊位】", "━━━━━━━━━━━━"]
+            for s in stalls:
+                map_name = C.MAP_BY_ID.get(s.get("map_id", ""), {}).get("name", "？")
+                lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {s['price']} 金币 ｜ 在 {map_name}")
+            lines.append("💡 『购入 <编号>』当面购买（需在同一位置）")
+            yield event.plain_result("\n".join(lines))
+            return
+        # 无参 → 当前地图所有摊位
+        cur_map = player.get("cur_map", "")
+        stalls = db.market_list(group_id, cur_map)
+        if not stalls:
+            yield event.plain_result("此地没有摊位。『摆摊 <物品> <价格>』支起你的小摊！")
+            return
+        lines = [f"🏪 【此地摊位】（{C.MAP_BY_ID.get(cur_map, {}).get('name', '这里')}）", "━━━━━━━━━━━━"]
+        for s in stalls:
+            seller = db.get_player(group_id, s["seller"])
+            sname = seller["name"] if seller else s["seller"]
+            lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {s['price']} 金币 ｜ {sname}")
+        lines.append("💡 『购入 <编号>』当面购买，『摊位 <玩家名>』看指定摊位")
+        yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)")
 

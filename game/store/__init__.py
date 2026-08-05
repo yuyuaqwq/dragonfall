@@ -38,6 +38,7 @@ from .professions import (  # noqa: F401
 from .social import (  # noqa: F401
     add_reputation, get_reputation, get_signin, save_signin,
     market_list, market_add, market_remove,
+    market_list_by_seller, market_get, market_sync_stall, market_remove_by_seller,
     party_create, party_add, party_members, party_leave,
     guild_create, guild_get_by_leader, guild_get_by_member, guild_get,
     guild_get_by_name, guild_members, guild_join, guild_leave, guild_kick,

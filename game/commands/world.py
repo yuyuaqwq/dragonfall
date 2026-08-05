@@ -105,6 +105,15 @@ class WorldCmds(CommandBase):
             lines.append("👥 这里的 NPC：")
             for n in npcs:
                 lines.append(f"  {n['icon']}{n['name']}（{n['title']}）")
+        # v66 此地玩家（含摆摊标记）
+        mid = cur_map.get("id", "")
+        here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
+        if here_players:
+            stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, mid)}
+            lines.append("👤 此地的玩家：")
+            for p in here_players:
+                stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
+                lines.append(f"  {p['name']} Lv.{p['level']}{stall_mark}")
         # 当前地图怪物
         if cur_map.get("monsters"):
             lines.append(f"🐾 此地的怪物 (Lv.{cur_map['lv']}-{cur_map['lv']+2})：")

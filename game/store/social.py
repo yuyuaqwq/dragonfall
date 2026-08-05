@@ -62,13 +62,50 @@ def save_signin(group_id, qq_id, last_date, streak, total):
             conn.close()
 
 
-def market_list(group_id):
-    """查看市场列表（全局市场：所有群互通）"""
+def market_list(group_id, map_id=None):
+    """查看市场列表（全局市场：所有群互通）。
+
+    map_id=None → 群市场寄售（map_id 为空）；map_id=具体地图 → 该地图摆摊。
+    """
+    with _lock:
+        conn = _connect()
+        try:
+            if map_id is None:
+                rows = conn.execute(
+                    "SELECT * FROM market WHERE map_id IS NULL OR map_id='' ORDER BY id DESC", ()
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM market WHERE map_id=? ORDER BY id DESC", (map_id,)
+                ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["item_data"] = json.loads(d["item_data"] or "{}")
+                out.append(d)
+            return out
+        finally:
+            conn.close()
+
+def market_add(group_id, seller, item_key, item_data, price, map_id=None):
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
+                (group_id, seller, item_key, json.dumps(item_data, ensure_ascii=False), price, int(time.time()), map_id or ""),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+def market_list_by_seller(group_id, seller):
+    """某玩家的全部寄售/摆摊条目"""
     with _lock:
         conn = _connect()
         try:
             rows = conn.execute(
-                "SELECT * FROM market ORDER BY id DESC", ()
+                "SELECT * FROM market WHERE seller=? ORDER BY id DESC", (seller,)
             ).fetchall()
             out = []
             for r in rows:
@@ -79,15 +116,53 @@ def market_list(group_id):
         finally:
             conn.close()
 
-def market_add(group_id, seller, item_key, item_data, price):
+def market_get(mid):
+    """按编号查单条（群市场/摆摊通用），返回 dict 或 None"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT * FROM market WHERE id=?", (mid,)).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["item_data"] = json.loads(d["item_data"] or "{}")
+            return d
+        finally:
+            conn.close()
+
+def market_sync_stall(seller, cur_map):
+    """摆摊惰性跟随：把该卖家所有摊位条目 map_id 同步到当前位置"""
+    if not cur_map:
+        return
     with _lock:
         conn = _connect()
         try:
             conn.execute(
-                "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at) VALUES (?,?,?,?,?,?)",
-                (group_id, seller, item_key, json.dumps(item_data, ensure_ascii=False), price, int(time.time())),
+                "UPDATE market SET map_id=? WHERE seller=? AND map_id IS NOT NULL AND map_id!=''",
+                (cur_map, seller),
             )
             conn.commit()
+        finally:
+            conn.close()
+
+def market_remove_by_seller(group_id, seller):
+    """收摊：删除该玩家的全部摆摊条目，返回物品列表（供退回背包）"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM market WHERE seller=? AND map_id IS NOT NULL AND map_id!=''", (seller,)
+            ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["item_data"] = json.loads(d["item_data"] or "{}")
+                out.append(d)
+            conn.execute(
+                "DELETE FROM market WHERE seller=? AND map_id IS NOT NULL AND map_id!=''", (seller,)
+            )
+            conn.commit()
+            return out
         finally:
             conn.close()
 
