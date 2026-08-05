@@ -67,6 +67,55 @@ def player_final_stats(class_name: str, level: int, equipment: dict, tier: int =
     st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus)
     return st
 
+
+# ---------------- 被动技能（v64） ----------------
+# 属性型被动：stat -> 修正属性；返回 dict 与 player_final_stats 相同键（max_hp/max_mp/atk/...）
+def player_passive_stats(class_name: str, learned_skills: list | None = None) -> dict:
+    """计算已学被动技能的属性加成（v64 被动系统）。
+
+    被动技能 kind="被动"，passive 字段结构：
+      {"stat": "atk", "mult": 0.15}             属性百分比加成（atk/def/matk/mdef/spd/mp/crit）
+      {"stat": "atk", "cond": "rage>=5", ...}   条件型属性（暂不结算数值，战斗内按条件处理）
+      {"stat": "chi_gain", "mult": 1}           气获取 +1（战斗内处理）
+      {"stat": "fire", "mult": 0.10}            火系增伤（战斗内处理）
+      其他 proc 型被动不在属性结算里，由 battle.py 处理
+    返回属性加成 dict（百分比已转成系数 1+mult 形式，由调用方决定如何乘）。
+    """
+    bonus = {"hp_mult": 1.0, "mp_mult": 1.0, "atk_mult": 1.0, "def_mult": 1.0,
+             "matk_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.0, "crit_add": 0.0}
+    learned = [C.display("skills", s) for s in (learned_skills or []) if s]
+    for name in learned:
+        info = skill_info(class_name, name)
+        if not info or info.get("kind") != "被动":
+            continue
+        ps = info.get("passive") or {}
+        if ps.get("stat") == "mp" and ps.get("cond") is None:
+            bonus["mp_mult"] *= (1 + float(ps.get("mult", 0)))
+        elif ps.get("stat") == "spd":
+            bonus["spd_mult"] *= (1 + float(ps.get("mult", 0)))
+        elif ps.get("stat") == "crit":
+            bonus["crit_add"] += float(ps.get("mult", 0))
+        elif ps.get("stat") == "fire" or ps.get("stat") == "chi_gain":
+            pass  # 战斗内机制，不参与面板
+        # 条件型属性（rage>=5 / battle_start）由 battle.py 按条件结算
+    return bonus
+
+
+def passive_skills_learned(class_name: str, learned_skills: list | None = None) -> list:
+    """返回已学被动技能的中文名列表（v64）。battle.py 用它查触发型被动。"""
+    learned = [C.display("skills", s) for s in (learned_skills or []) if s]
+    out = []
+    for name in learned:
+        info = skill_info(class_name, name)
+        if info and info.get("kind") == "被动":
+            out.append(name)
+    return out
+
+
+def is_passive_learned(class_name: str, passive_name: str, learned_skills: list | None = None) -> bool:
+    """指定被动是否已学（v64）。passive_name 为被动技能中文名。"""
+    return passive_name in passive_skills_learned(class_name, learned_skills)
+
 # 属性中文名（面板/来源展示用）
 STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", "matk": "魔攻",
               "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避"}

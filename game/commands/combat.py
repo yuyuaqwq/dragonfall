@@ -401,6 +401,13 @@ class CombatCmds(CommandBase):
                     f"『{skill_name}』还没学会！『技能学习 {skill_name}』消耗 {cost} 技能点学会后再使用～"
                 )
             return
+        # v64 被动技能：无需施放，学习后战斗自动生效
+        if info.get("kind") == "被动":
+            yield event.plain_result(
+                f"⚙️ 『{skill_name}』是被动技能，学会后战斗自动生效，无需施放！\n"
+                f"『技能列表』查看效果，『技能详情 {skill_name}』看说明～"
+            )
+            return
         # v52 Build 系统：战斗中只能使用技能栏里设置的技能
         bar = db.get_skill_bar(qq_id)
         if skill_name not in (bar or []):
@@ -468,6 +475,7 @@ class CombatCmds(CommandBase):
             "『技能栏』查看 / 『设置技能 <槽位> <技能名>』配置快捷栏",
             "『技能洗点』重置技能（500金币返还技能点）",
             "战斗中『技能 <槽位>』或『技能 <技能名>』施放",
+            "⚙️ 被动技能无需施放，学会后战斗自动生效（『技能列表』可见<被动>标签）",
         ]
         return "\n".join(lines)
 
@@ -511,7 +519,9 @@ class CombatCmds(CommandBase):
                   "counter": "反击", "rage_burst": "爆发", "burn_burst": "引爆", "bless_shield": "护盾"}
 
     def _skill_tag(self, info: dict) -> str:
-        """功能标签：effect 优先，其次 mech，再次 cond label 前两字"""
+        """功能标签：被动优先，其次 effect/mech/cond"""
+        if info.get("kind") == "被动":
+            return "被动"
         if info.get("effect"):
             return self._EFFECT_CN.get(info["effect"], info["effect"])
         if info.get("mech"):

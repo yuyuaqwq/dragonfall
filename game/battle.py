@@ -406,6 +406,15 @@ class Battle:
             st["spd"] = int(st.get("spd", 0) * (1 + C.rune_value("swift", effs["swift"])))
         if self._enchant_lvl(effs, "ironwall"):
             st["def"] = int(st.get("def", 0) * (1 + C.rune_value("ironwall", effs["ironwall"])))
+        # v64 被动属性：魔力涌动/风行步/疾影/鹰眼（百分比属性被动）
+        pb = E.player_passive_stats(player["class_name"], player.get("learned_skills", []))
+        if pb.get("mp_mult", 1.0) != 1.0:
+            st["max_mp"] = int(st.get("max_mp", 0) * pb["mp_mult"])
+            st["mp"] = int(st.get("mp", 0) * pb["mp_mult"])
+        if pb.get("spd_mult", 1.0) != 1.0:
+            st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
+        if pb.get("crit_add", 0.0):
+            st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
         return st
 
     def _player_attack(self, st: dict, player: dict) -> list:
@@ -488,8 +497,19 @@ class Battle:
             cond_mult = self._cond_mult(info, player, lv)
             cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
             heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+            # v64 被动·神恩：治疗技能效果 +10%
+            pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+            if "神恩" in pv:
+                heal = int(heal * 1.10)
             over = 0
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+            # v64 被动·庇护之光：治疗溢出 20% 转为护盾
+            if "庇护之光" in pv and player.get("hp", 0) >= player.get("max_hp", player["hp"]):
+                overflow = player.get("hp", 0) - (player.get("max_hp", player["hp"]) - player.get("hp", 0))
+                if overflow > 0:
+                    shield_gain = int(overflow * 0.20)
+                    self.shield = self.shield + shield_gain
+                    logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
             if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
                 over = heal - (player["hp"] - (player.get("max_hp", player["hp"]) - player.get("hp", 0)))
                 p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
@@ -583,8 +603,15 @@ class Battle:
         # v34 破魔：魔法伤害 +x%
         mb_lvl = self._enchant_lvl(effs, "magic_break")
         magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == "魔法" else 1.0
+        # v64 被动：破甲本能（破防技能伤害+10%）/ 烈焰亲和（火系伤害+10%）
+        pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+        passive_bonus = 1.0
+        if "破甲本能" in pv and info.get("pierce"):
+            passive_bonus *= 1.10
+        if "烈焰亲和" in pv and "火" in (skill_name or "") and kind == "魔法":
+            passive_bonus *= 1.10
         total = 0
-        pmult = E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult * magic_bonus
+        pmult = E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult * magic_bonus * passive_bonus
         for _ in range(multi):
             if kind == "物理":
                 if info.get("pierce"):
@@ -1121,6 +1148,12 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * C.rune_value("regen", regen_lvl))
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"✨ 符文治愈生效，你回复了 {heal} 点生命！")
+        # v64 被动·气息调和：每回合回复 2% 生命
+        if "气息调和" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])) \
+                and player.get("hp", 0) < player.get("max_hp", 1):
+            heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
+            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+            logs.append(f"🍃 气息调和生效，你回复了 {heal} 点生命！")
         return logs
 
     def _end_round(self):
@@ -1134,6 +1167,12 @@ class Battle:
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
+        # v64 被动·铁壁之心/磐石体：受到伤害时减伤 5%
+        pv = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
+        if "铁壁之心" in pv or "磐石体" in pv:
+            reduce = int(dmg * 0.05)
+            dmg = max(1, dmg - reduce)
+            logs.append(f"🛡️ 被动减伤 {reduce} 点（铁壁之心/磐石体）")
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < 0.6:
@@ -1179,6 +1218,12 @@ class Battle:
             if dmg <= 0:
                 return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
+        # v64 被动·神圣坚韧：受击后 20% 概率回复 5% 生命
+        if player["hp"] > 0 and "神圣坚韧" in pv:
+            if random.random() < 0.20:
+                heal = int(player.get("max_hp", player.get("hp", 1)) * 0.05)
+                player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
+                logs.append(f"✨ 神圣坚韧：回复 {heal} 点生命！")
 
     def _enemy_dead(self) -> bool:
         return self.enemy.get("hp", 1) <= 0

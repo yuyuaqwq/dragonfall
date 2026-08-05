@@ -687,6 +687,12 @@ class PlayerCmds(CommandBase):
         learned = list(learned) + [skill_name]
         spent = player.get("skill_spent", 0) + cost
         db.update_player(group_id, player["qq_id"], skill_points=pts - cost, learned_skills=learned, skill_spent=spent)
+        if info.get("kind") == "被动":
+            return (
+                f"✨ 消耗 {cost} 技能点，学会了被动技能『{display_name}』！\n"
+                f"⚙️ 被动技能无需施放，战斗自动生效！剩余技能点 {pts - cost}\n"
+                f"「{info['desc']}」"
+            )
         return (
             f"✨ 消耗 {cost} 技能点，学会了『{display_name}』！\n"
             f"现在 Lv.{player['level']} 就能使用它了，剩余技能点 {pts - cost}"
@@ -738,6 +744,12 @@ class PlayerCmds(CommandBase):
         learned = player.get("learned_skills", [])
         if not E.is_skill_learned(player["class_name"], player["level"], skill_name, learned):
             yield event.plain_result(f"『{skill_name}』还没学会！先『技能学习 {skill_name}』学会后才能升级～")
+            return
+        # v64 被动技能：不可升级（learned 后即满效果）
+        if info.get("kind") == "被动":
+            yield event.plain_result(
+                f"⚙️ 『{info.get('name', skill_name)}』是被动技能，无需升级——学会后战斗自动生效！"
+            )
             return
         levels = dict(player.get("skill_levels") or {})
         cur_lv = int(levels.get(skill_name, 1) or 1)
