@@ -34,6 +34,7 @@ from .stats import (  # noqa: F401
 from .professions import (  # noqa: F401
     get_professions, get_prof_level, add_prof_exp, prof_top,
     bump_fish_king, get_fish_king, PROF_FIELDS,
+    MAX_ACTIVE_PROFS, get_activated_profs, activate_prof, forget_prof,
 )
 from .social import (  # noqa: F401
     add_reputation, get_reputation, get_signin, save_signin,

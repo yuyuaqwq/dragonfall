@@ -6,6 +6,7 @@
 - add_prof_exp 自动处理升级与封顶（Lv.10 满级不再累积）
 """
 from .connection import _connect, _lock
+import json  # v67 activated 列 JSON 序列化
 
 PROF_FIELDS = {
     "gather": "采集",
@@ -94,6 +95,76 @@ def prof_top(group_id, limit=10):
                 (limit,),
             ).fetchall()
             return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+
+# ---------- v67 双副业上限 ----------
+
+MAX_ACTIVE_PROFS = 2
+
+
+def get_activated_profs(group_id, qq_id):
+    """已激活的副业 key 列表（v67：每人最多发展 2 条）"""
+    with _lock:
+        conn = _connect()
+        try:
+            _ensure_prof_row(conn, qq_id)
+            conn.commit()
+            row = conn.execute(
+                "SELECT activated FROM professions WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            raw = (row["activated"] if row else "") or "[]"
+            try:
+                import json
+                lst = json.loads(raw)
+                return [k for k in lst if k in PROF_FIELDS] if isinstance(lst, list) else []
+            except (ValueError, TypeError):
+                return []
+        finally:
+            conn.close()
+
+
+def activate_prof(group_id, qq_id, key):
+    """激活副业（幂等）。返回 True=本次新激活；False=已在激活列表或非法 key"""
+    if key not in PROF_FIELDS:
+        return False
+    lst = get_activated_profs(group_id, qq_id)
+    if key in lst:
+        return False
+    lst.append(key)
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE professions SET activated=? WHERE qq_id=?",
+                (json.dumps(lst, ensure_ascii=False), qq_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    return True
+
+
+def forget_prof(group_id, qq_id, key):
+    """遗忘副业：移除激活 + 等级/经验清零。返回旧等级"""
+    lst = get_activated_profs(group_id, qq_id)
+    if key not in lst:
+        return None
+    lst.remove(key)
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                f"SELECT {key}_lv AS lv FROM professions WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            old_lv = row["lv"] if row else 1
+            conn.execute(
+                f"UPDATE professions SET activated=?, {key}_lv=1, {key}_exp=0 WHERE qq_id=?",
+                (json.dumps(lst, ensure_ascii=False), qq_id),
+            )
+            conn.commit()
+            return old_lv
         finally:
             conn.close()
 

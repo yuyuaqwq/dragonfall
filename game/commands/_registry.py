@@ -19,6 +19,7 @@ COMMAND_REGEX = {
     "buy": r'^(?:\[At:\d+\]\s*)?购买(?:\s*|$)',
     "chronicle": r'^(?:\[At:\d+\]\s*)?(?:传说|编年史)(?:\s*|$)',
     "craft": r'^(?:\[At:\d+\]\s*)?(?:打造列表|打造)(?:[\s\S]*)$',
+    "craft_commission": r'^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$',
     "daily": r'^(?:\[At:\d+\]\s*)?每日(?:\s*|$)',
     "defend": r'^(?:\[At:\d+\]\s*)?防御(?:\s*|$)',
     "enchant": r'^(?:\[At:\d+\]\s*)?附魔(?:\s*|$)',
@@ -95,6 +96,7 @@ COMMAND_REGEX = {
     "cooking": r'^(?:\[At:\d+\]\s*)?烹饪(?:\s*|$)',
     "cooking_list": r'^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)',
     "profession_view": r'^(?:\[At:\d+\]\s*)?副业(?:[\s\S]*)$',
+    "prof_forget": r'^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$',
     "daily_prof": r'^(?:\[At:\d+\]\s*)?(?:每日副业|副业任务|今日副业)(?:\s*|$)',
     "instance_cmd": r'^(?:\[At:\d+\]\s*)?副本(?:[\s\S]*)$',
 }

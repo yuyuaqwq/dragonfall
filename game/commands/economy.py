@@ -232,6 +232,10 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "gather")
+        if not ok:
+            yield event.plain_result(act_msg)
+            return
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         if cur_map.get("type") == "城镇区域":
             yield event.plain_result("城镇里没有可采集的野生物资，去野外『移动』吧！")
@@ -241,7 +245,7 @@ class EconomyCmds(CommandBase):
             event, group_id, qq_id, "gather",
             begin_text=f"🌿 你俯身开始采集【{cur_map.get('name', '？')}】的野生物资……预计 ",
         )
-        yield event.plain_result(text)
+        yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?采矿(?:\s*|$)")
 
@@ -250,6 +254,10 @@ class EconomyCmds(CommandBase):
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "mining")
+        if not ok:
+            yield event.plain_result(act_msg)
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         # 矿脉点（v13：明确配置，地图上显示⛏️）
@@ -261,7 +269,7 @@ class EconomyCmds(CommandBase):
             event, group_id, qq_id, "mining",
             begin_text=f"⛏️ 你举起镐子凿向【{cur_map.get('name', '？')}】的矿脉……预计 ",
         )
-        yield event.plain_result(text)
+        yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$")
 
@@ -301,6 +309,10 @@ class EconomyCmds(CommandBase):
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy")
+        if not ok:
+            yield event.plain_result(act_msg)
             return
         rname = self._strip_cmd(event, "合成").strip()
         if not rname:
@@ -358,7 +370,7 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "alchemy")
         lv_msg += _msg
-        yield event.plain_result(f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg)
+        yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)")
 
@@ -390,6 +402,10 @@ class EconomyCmds(CommandBase):
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "cooking")
+        if not ok:
+            yield event.plain_result(act_msg)
             return
         raw = self._strip_cmd(event, "烹饪").strip()
         if not raw or raw == "列表":
@@ -433,10 +449,35 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "cooking")
         lv_msg += _msg
-        yield event.plain_result(
-            f"🍳 灶火升腾，香气四溢……\n"
+        yield event.plain_result(act_msg + f"🍳 灶火升腾，香气四溢……\n"
             f"✅ 烹饪成功！【{itdef.get('name', pkey)}】（{itdef.get('desc', '')}）已放入背包！{lv_msg}"
         )
+
+    def _prof_active_check(self, group_id, qq_id, key):
+        """v67 双副业上限：动作前检查副业是否激活。
+
+        未激活 → 有位置自动激活（提示）；已满 → 拦截。
+        老玩家兼容：已有等级（>1）未激活 → 自动激活无感迁移。
+        返回 (ok, 提示消息)
+        """
+        lst = db.get_activated_profs(group_id, qq_id)
+        if key in lst:
+            return True, ""
+        # 位置满：有等级也拦截（严格双副业上限，玩家自己遗忘取舍）
+        if len(lst) >= db.MAX_ACTIVE_PROFS:
+            names = "、".join(db.PROF_FIELDS[k] for k in lst)
+            return False, (
+                f"你的副业位已满（{len(lst)}/{db.MAX_ACTIVE_PROFS}：{names}）！"
+                f"想发展新副业，先『遗忘副业 <名称>』放弃一条吧～"
+            )
+        # 老玩家兼容：位置有空 + 已有等级（>1）未激活 → 自动激活无感迁移
+        lv = db.get_prof_level(group_id, qq_id, key)
+        if lv > 1:
+            db.activate_prof(group_id, qq_id, key)
+            return True, ""
+        db.activate_prof(group_id, qq_id, key)
+        new_lst = db.get_activated_profs(group_id, qq_id)
+        return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业（{len(new_lst)}/{db.MAX_ACTIVE_PROFS}）！"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副业(?:[\s\S]*)$")
 
@@ -451,7 +492,8 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(self._prof_rank_text(group_id))
             return
         profs = db.get_professions(group_id, qq_id)
-        lines = ["🧵 【副业面板】", "━━━━━━━━━━━━"]
+        activated = db.get_activated_profs(group_id, qq_id)
+        lines = [f"🧵 【副业面板】（已激活 {len(activated)}/{db.MAX_ACTIVE_PROFS}）", "━━━━━━━━━━━━"]
         icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳"}
         total = 0
         for key, p in profs.items():
@@ -459,12 +501,41 @@ class EconomyCmds(CommandBase):
             need = p["lv"] * 20
             bar_len = min(10, p["exp"] // (need // 10 + 1))
             bar = "█" * bar_len + "░" * (10 - bar_len)
-            lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验")
+            mark = "✅" if key in activated else "🔒"
+            lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验 {mark}")
         lines.append("")
-        lines.append(f"📊 副业总分：{total}（6 条满级共 60）")
+        lines.append(f"📊 副业总分：{total}（已激活副业计入，最多发展 {db.MAX_ACTIVE_PROFS} 条）")
+        lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』（等级清零）")
         lines.append("💡 『副业 排行』看群友等级，『烹饪列表』看料理配方～")
-        lines.append("💡 每条副业 Lv.3/6/10 有成就和专属称号！")
         yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$")
+    async def prof_forget(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        raw = self._strip_cmd(event, "遗忘副业").strip()
+        if not raw:
+            yield event.plain_result("格式：遗忘副业 <名称>，如『遗忘副业 采集』（等级清零，请慎重！）")
+            return
+        key = None
+        for k, name in db.PROF_FIELDS.items():
+            if raw in name or raw in k:
+                key = k
+                break
+        if not key:
+            yield event.plain_result(f"没有『{raw}』这个副业！可选：{'、'.join(db.PROF_FIELDS.values())}")
+            return
+        old_lv = db.forget_prof(group_id, qq_id, key)
+        if old_lv is None:
+            yield event.plain_result(f"{db.PROF_FIELDS[key]} 本来就没激活，不用遗忘～")
+            return
+        yield event.plain_result(
+            f"📦 你遗忘了「{db.PROF_FIELDS[key]}」（原 Lv.{old_lv}，已清零）！\n"
+            f"副业位空出（{len(db.get_activated_profs(group_id, qq_id))}/{db.MAX_ACTIVE_PROFS}），下次做副业时自动占位。"
+        )
 
     def _prof_rank_text(self, group_id):
         tops = db.prof_top(group_id, 10)
@@ -555,6 +626,10 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "fishing")
+        if not ok:
+            yield event.plain_result(act_msg)
+            return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
             return
@@ -576,7 +651,7 @@ class EconomyCmds(CommandBase):
             extra={"spot": spot},
             begin_text=f"🎣 你在{spot}抛出鱼竿，开始钓鱼……预计 ",
         )
-        yield event.plain_result(text)
+        yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:打造列表|打造)(?:[\s\S]*)$")
 
@@ -588,6 +663,10 @@ class EconomyCmds(CommandBase):
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft")
+        if not ok:
+            yield event.plain_result(act_msg)
             return
         if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
             yield event.plain_result("需要到铁匠铺才能打造装备！（维拉镇中央大街、石拳营地、暗影大街）")
@@ -660,7 +739,8 @@ class EconomyCmds(CommandBase):
         need_prof = self._craft_prof_need(rec["lv"])
         if prof_lv < need_prof:
             yield event.plain_result(
-                f"【{rec_disp}】需要打造副业 Lv.{need_prof}，你才 Lv.{prof_lv}！多打造装备升级副业吧～"
+                f"【{rec_disp}】需要打造副业 Lv.{need_prof}，你才 Lv.{prof_lv}！多打造装备升级副业吧～\n"
+                f"💡 赶时间可以找铁匠『代工 <装备名>』：3 倍金币，不需要副业等级（单人玩家的救星）"
             )
             return
         # v54 图纸学习制：需图纸配方必须已学习（不再每件消耗图纸）
@@ -726,11 +806,80 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "craft")
         lv_msg += _msg
-        yield event.plain_result(
-            f"🔨 铁匠挥锤敲打，火星四溅……\n"
+        yield event.plain_result(act_msg + f"🔨 铁匠挥锤敲打，火星四溅……\n"
             f"✅ 打造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']}"
             f"{af_str}{set_str}\n"
             f"💰 消耗 {rec['gold']} 金币，装备已放入背包！{lv_msg}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")
+    async def craft_commission(self, event: AstrMessageEvent):
+        """铁匠代工：图纸+材料+3倍金币 → 装备（v67 单人补偿，不需要打造副业等级）"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
+            yield event.plain_result("需要到铁匠铺才能找铁匠代工！（维拉镇中央大街、石拳营地、暗影大街）")
+            return
+        text = self._strip_cmd(event, "代工").strip()
+        if not text:
+            yield event.plain_result(
+                "格式：代工 <装备名>，如『代工 铁皮长剑』\n"
+                "铁匠代工 = 图纸 + 材料 + 3倍金币，不需要打造副业等级（单人玩家也能拿高级装备）"
+            )
+            return
+        rec_name = C.craft_recipe_search(text)
+        if not rec_name:
+            yield event.plain_result(f"没有找到『{text}』的打造配方！『打造 配方 <装备名>』查看详情～")
+            return
+        rec = C.CRAFT_RECIPES[rec_name]
+        rec_disp = C.display("recipes", rec_name)
+        if rec["lv"] > player["level"] + 6:
+            yield event.plain_result(f"【{rec_disp}】需要 Lv.{rec['lv']} 的锻造技艺，你才 Lv.{player['level']}，先练练级再来吧！")
+            return
+        # 图纸检查（与打造一致：需图纸配方必须已学习）
+        if rec.get("blueprint"):
+            bp_name = rec["blueprint"]
+            if bp_name not in (player.get("learned_blueprints") or []):
+                have_bp = db.count_item(group_id, qq_id, bp_name)
+                if have_bp >= 1:
+                    yield event.plain_result(f"你背包里有『{bp_name}』！输入『学习 {bp_name}』解锁配方后就能代工了～")
+                else:
+                    yield event.plain_result(f"【{rec_disp}】需要先学习图纸『{bp_name}』（精英/Boss 掉落）！")
+                return
+        # 材料检查
+        lack = []
+        for m, n in rec["mats"].items():
+            have = db.count_item(group_id, qq_id, m)
+            if have < n:
+                lack.append(f"{C.display('materials', m)}×{n}(你有{have})")
+        if lack:
+            yield event.plain_result(f"材料不足！代工【{rec_disp}】还缺：{'、'.join(lack)}。打对应怪物收集材料！")
+            return
+        cost = rec["gold"] * 3
+        if player["gold"] < cost:
+            yield event.plain_result(f"金币不足！铁匠代工【{rec_disp}】要 {cost} 金币（打造价×3），你只有 {player['gold']}。")
+            return
+        # 扣材料 + 扣金币 + 发装备
+        for m, n in rec["mats"].items():
+            mname = C.display("materials", m)
+            items = db.get_inventory(group_id, qq_id)
+            for it in items:
+                if it["data"].get("name") == mname:
+                    db.remove_item(group_id, qq_id, it["key"], n)
+                    break
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost)
+        equip = C.craft_recipe_make(rec_name)
+        import uuid
+        key = f"eq_{uuid.uuid4().hex[:8]}"
+        db.add_item(group_id, qq_id, key, equip)
+        q = C.QUALITY[equip["quality"]]
+        yield event.plain_result(
+            f"🔨 铁匠接过材料，替你挥锤……\n"
+            f"✅ 代工完成！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']}\n"
+            f"💰 代工费 {cost} 金币（打造价×3），装备已放入背包！"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?学习(?:[\s\S]*)$")
@@ -975,6 +1124,18 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"【{d['name']}】已经强化到极限 +{cur_enh} 了！")
             return
         info = C.ENHANCE_TABLE[cur_enh]
+        # v67 强化归位打造：强化 +N 需要打造副业 Lv.N（打造是锻造工艺）
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft")
+        if not ok:
+            yield event.plain_result(act_msg)
+            return
+        prof_lv = db.get_prof_level(group_id, qq_id, "craft")
+        need = min(cur_enh + 1, 10)
+        if prof_lv < need:
+            yield event.plain_result(
+                f"强化 +{cur_enh} → +{cur_enh+1} 需要打造副业 Lv.{need}（你 Lv.{prof_lv}）！多打造装备升级打造吧～"
+            )
+            return
         if player["gold"] < info["cost"]:
             yield event.plain_result(f"强化 +{cur_enh} → +{cur_enh+1} 需要 {info['cost']} 金币，你只有 {player['gold']}。")
             return
@@ -1025,6 +1186,17 @@ class EconomyCmds(CommandBase):
             return
         item_name = parts[0]
         stat_label = parts[1] if len(parts) > 1 else ""
+        # v67 附魔归位炼金：附魔需要炼金副业 Lv.2（魔法墨水/符文工艺）
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy")
+        if not ok:
+            yield event.plain_result(act_msg)
+            return
+        prof_lv = db.get_prof_level(group_id, qq_id, "alchemy")
+        if prof_lv < 2:
+            yield event.plain_result(
+                f"附魔需要炼金副业 Lv.2（你 Lv.{prof_lv}）！多炼金升级吧～"
+            )
+            return
         # ---- v34 符文路径：第二参数含"符文"则走符文附魔 ----
         if "符文" in stat_label:
             items = db.get_inventory(group_id, qq_id)

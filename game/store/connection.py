@@ -250,6 +250,10 @@ def init_db():
             mcols = [r[1] for r in conn.execute("PRAGMA table_info(market)").fetchall()]
             if "map_id" not in mcols:
                 conn.execute("ALTER TABLE market ADD COLUMN map_id TEXT DEFAULT ''")
+            # v67 双副业上限：professions 表补 activated 列（JSON 数组：已激活副业 key）
+            prcols = [r[1] for r in conn.execute("PRAGMA table_info(professions)").fetchall()]
+            if "activated" not in prcols:
+                conn.execute("ALTER TABLE professions ADD COLUMN activated TEXT DEFAULT '[]'")
             conn.commit()
         finally:
             conn.close()
