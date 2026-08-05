@@ -56,6 +56,7 @@ from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
+from .housing import PROPERTIES  # noqa: F401
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)

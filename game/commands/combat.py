@@ -38,6 +38,9 @@ class CombatCmds(CommandBase):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
             return
         cur = player["cur_map"]
+        if cur.startswith("home_"):
+            yield event.plain_result("在家里安心休息吧，没有怪物会闯进来～（『出门』去冒险）")
+            return
         cur_map = C.MAP_BY_ID[cur]
         # 城镇区域（安全区）：明确提示无怪
         if cur_map.get("type") == "城镇区域":

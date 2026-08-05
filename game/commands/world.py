@@ -5,6 +5,7 @@
 """
 import functools
 import inspect
+import json
 import random
 import re
 import time
@@ -66,6 +67,216 @@ class WorldCmds(CommandBase):
     def _npc_func_label(f: str) -> str:
         return {"quest": "接任务", "shop": "交易", "heal": "治疗", "daily": "每日委托", "lore": "情报", "ency": "百科"}.get(f, f)
 
+    # ---------------- v68 地契房产 ----------------
+
+    def _home_map_id(self, qq_id):
+        return f"home_{qq_id}"
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?地契(?:[\s\S]*)$")
+    async def deed_view(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        deed = player.get("deed", "") or ""
+        lines = ["🏠 【地契大厅】", "━━━━━━━━━━━━"]
+        if deed and deed in C.PROPERTIES:
+            prop = C.PROPERTIES[deed]
+            lines.append(f"✅ 我的地契：{prop['name']}（{C.MAP_BY_ID.get(prop['map'], {}).get('name', '？')}）")
+            lines.append(f"   『回家』进入，『卖房』退契（返还一半）")
+        else:
+            lines.append("你还没有房产。以下地皮在出售：")
+            for i, (pid, prop) in enumerate(C.PROPERTIES.items(), 1):
+                mname = C.MAP_BY_ID.get(prop["map"], {}).get("name", "？")
+                lines.append(f"{i:>2}. {prop['name']} ｜ {prop['price']} 金币 ｜ {mname}")
+                lines.append(f"     {prop['desc']}")
+            lines.append("💡 『买房 <编号>』购下心仪的地皮（一人一张）")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$")
+    async def deed_buy(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if player.get("deed"):
+            yield event.plain_result("你已经有一张地契了！『地契』查看，『卖房』可以退契～")
+            return
+        raw = self._strip_cmd(event, "买房").strip()
+        if not raw.isdigit():
+            yield event.plain_result("格式：买房 <编号>！『地契』查看在售地皮～")
+            return
+        idx = int(raw)
+        props = list(C.PROPERTIES.items())
+        if idx < 1 or idx > len(props):
+            yield event.plain_result(f"没有第 {idx} 块地皮（共 {len(props)} 块）！『地契』查看～")
+            return
+        pid, prop = props[idx - 1]
+        price = prop["price"]
+        if player["gold"] < price:
+            yield event.plain_result(f"买【{prop['name']}】需要 {price} 金币，你只有 {player['gold']}。攒够钱再来吧！")
+            return
+        db.update_player(group_id, qq_id, gold=player["gold"] - price, deed=pid)
+        yield event.plain_result(
+            f"🏠 恭喜置业！你买下了【{prop['name']}】（花费 {price} 金币）\n"
+            f"『回家』入住，『地契』查看详情，『仓库』管理家当～"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?卖房(?:[\s\S]*)$")
+    async def deed_sell(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        deed = player.get("deed", "") or ""
+        if not deed or deed not in C.PROPERTIES:
+            yield event.plain_result("你没有房产，卖不了～『地契』看看在售地皮！")
+            return
+        prop = C.PROPERTIES[deed]
+        refund = prop["price"] // 2
+        db.update_player(group_id, qq_id, gold=player["gold"] + refund, deed="")
+        yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】，退还 {refund} 金币（原价一半）。")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?回家(?:[\s\S]*)$")
+    @no_prof_waiting()
+    async def go_home(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if not (player.get("deed") or ""):
+            yield event.plain_result("你没有房产！『地契』看看在售地皮，『买房 <编号>』置业～")
+            return
+        if self._in_battle(group_id, qq_id):
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
+            return
+        db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id))
+        yield event.plain_result("🏠 你回到了自己的家，炭火噼啪作响，安心～")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?出门(?:[\s\S]*)$")
+    @no_prof_waiting()
+    async def go_out(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        cur = player.get("cur_map", "")
+        if not cur.startswith("home_"):
+            yield event.plain_result("你不在家里，不需要出门～")
+            return
+        deed = player.get("deed", "") or ""
+        prop = C.PROPERTIES.get(deed)
+        target = prop["map"] if prop else "vila_square"
+        db.update_player(group_id, qq_id, cur_map=target)
+        yield event.plain_result(f"🚪 你走出家门，回到了{C.MAP_BY_ID.get(target, {}).get('name', '城镇')}。")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?拜访(?:[\s\S]*)$")
+    @no_prof_waiting()
+    async def visit_home(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        raw = self._strip_cmd(event, "拜访").strip()
+        if not raw:
+            yield event.plain_result("格式：拜访 <玩家名>，去他家逛逛～（对方需要有房产）")
+            return
+        target = db.find_player_by_name(raw)
+        if not target:
+            yield event.plain_result(f"没找到玩家『{raw}』！")
+            return
+        tid = target["qq_id"]
+        tp = db.get_player(group_id, tid)
+        if not tp or not (tp.get("deed") or ""):
+            yield event.plain_result(f"{target['name']} 还没有房产，去不了他家～")
+            return
+        if self._in_battle(group_id, qq_id):
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
+            return
+        db.update_player(group_id, qq_id, cur_map=self._home_map_id(tid))
+        yield event.plain_result(f"🚪 你敲了敲门，走进了 {target['name']} 的家。『地图』看看他家有什么～")
+
+    def _home_storage_key(self, group_id, qq_id):
+        return f"home_storage_{group_id}_{qq_id}"
+
+    def _home_storage_load(self, group_id, qq_id):
+        raw = db.get_event_state(self._home_storage_key(group_id, qq_id))
+        if not raw:
+            return []
+        try:
+            lst = json.loads(raw)
+            return lst if isinstance(lst, list) else []
+        except (ValueError, TypeError):
+            return []
+
+    def _home_storage_save(self, group_id, qq_id, lst):
+        db.set_event_state(self._home_storage_key(group_id, qq_id), json.dumps(lst, ensure_ascii=False))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?仓库(?:[\s\S]*)$")
+    async def home_storage(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if not player.get("cur_map", "").startswith("home_"):
+            yield event.plain_result("仓库在家里！先『回家』吧～")
+            return
+        raw = self._strip_cmd(event, "仓库").strip()
+        # 存：仓库 <物品名>
+        if raw:
+            inv = db.get_inventory(group_id, qq_id)
+            found = next((it for it in inv if it["data"].get("name") == raw), None)
+            if not found:
+                yield event.plain_result(f"背包里没有『{raw}』！")
+                return
+            lst = self._home_storage_load(group_id, qq_id)
+            lst.append({"key": found["key"], "data": found["data"], "count": 1})
+            self._home_storage_save(group_id, qq_id, lst)
+            db.remove_item(group_id, qq_id, found["key"], 1)
+            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】")
+            return
+        # 查看
+        lst = self._home_storage_load(group_id, qq_id)
+        if not lst:
+            yield event.plain_result("仓库空空如也。『仓库 <物品名>』把背包里的宝贝存进来～")
+            return
+        lines = ["📦 【家中仓库】", "━━━━━━━━━━━━"]
+        for i, it in enumerate(lst, 1):
+            lines.append(f"{i:>2}. {it['data'].get('name', '?')} ×{it.get('count', 1)}")
+        lines.append("💡 『仓库 <物品名>』存入，『取出 <编号>』取出")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?取出(?:[\s\S]*)$")
+    async def home_storage_take(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if not player.get("cur_map", "").startswith("home_"):
+            yield event.plain_result("仓库在家里！先『回家』吧～")
+            return
+        raw = self._strip_cmd(event, "取出").strip()
+        if not raw.isdigit():
+            yield event.plain_result("格式：取出 <编号>！『仓库』查看～")
+            return
+        idx = int(raw)
+        lst = self._home_storage_load(group_id, qq_id)
+        if idx < 1 or idx > len(lst):
+            yield event.plain_result(f"仓库里没有第 {idx} 件（共 {len(lst)} 件）！")
+            return
+        it = lst.pop(idx - 1)
+        self._home_storage_save(group_id, qq_id, lst)
+        db.add_item(group_id, qq_id, it["key"], it["data"], it.get("count", 1))
+        yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置)(?:\s*|$)")
 
     async def map_view(self, event: AstrMessageEvent):
@@ -75,6 +286,10 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         cur = player["cur_map"]
+        # v68 家地图：home_{qq_id} 不在 MAPS，定制展示
+        if cur.startswith("home_"):
+            yield event.plain_result(self._home_view(group_id, qq_id, cur))
+            return
         cur_map = C.MAP_BY_ID[cur]
         cur_area = cur_map.get("area_name", cur_map["name"])
         lines = [f"🗺️ 【{cur_area} · {cur_map['name']}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
@@ -552,6 +767,44 @@ class WorldCmds(CommandBase):
             lines.append(f"    奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
         yield event.plain_result("\n".join(lines))
 
+    def _home_view(self, group_id, qq_id, cur_map_id):
+        """v68 家地图展示：home_{owner} → 家的定制面板"""
+        owner_qid = cur_map_id[len("home_"):]
+        owner = db.get_player(group_id, owner_qid)
+        if not owner:
+            return "这个家的主人已经离开了……（『出门』离开）"
+        is_mine = str(owner_qid) == str(qq_id)
+        deed = owner.get("deed", "") or ""
+        prop = C.PROPERTIES.get(deed, {})
+        lines = [f"🏠 【{('我的' if is_mine else owner['name'] + '的') + '家'}】"]
+        if prop:
+            lines.append(prop["name"])
+            lines.append(f"　{prop['desc']}")
+        lines.append("━━━━━━━━━━━━")
+        # 此地玩家
+        here = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == cur_map_id]
+        if here:
+            lines.append("👤 屋里的人：")
+            for p in here:
+                lines.append(f"  {p['name']} Lv.{p['level']}")
+        # 铺面摊位
+        stalls = db.market_list(group_id, cur_map_id)
+        if stalls:
+            lines.append("🏪 铺面摊位上摆着：")
+            for s in stalls:
+                sname = "你" if str(s["seller"]) == str(qq_id) else (owner["name"] if str(s["seller"]) == str(owner_qid) else s["seller"])
+                lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {s['price']} 金币 ｜ {sname}")
+            lines.append("💡 『购入 <编号>』当面买下")
+        else:
+            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> <价格>』开张！")
+        # 仓库（自己的家）
+        if is_mine:
+            storage = self._home_storage_load(group_id, qq_id)
+            lines.append(f"📦 家中仓库：{len(storage)} 件（『仓库』管理）")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『出门』回到城镇")
+        return "\n".join(lines)
+
     def _find_npc_in_map(self, player, name_key):
         """在当前地图找 NPC，返回 (npc_id, npc_dict) 或 (None, None)"""
         cur_map = player["cur_map"]
@@ -670,7 +923,11 @@ class WorldCmds(CommandBase):
             return
         name_key = name_key.strip()
         if not name_key:
-            npcs = [C.NPCS[nid] for nid in C.MAP_BY_ID[player["cur_map"]].get("npcs", []) if nid in C.NPCS]
+            cur_m = player["cur_map"]
+            if cur_m.startswith("home_"):
+                yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
+                return
+            npcs = [C.NPCS[nid] for nid in C.MAP_BY_ID[cur_m].get("npcs", []) if nid in C.NPCS]
             if not npcs:
                 yield event.plain_result("这里没有 NPC。输入『地图』看看哪里有 NPC～")
             else:
@@ -682,6 +939,9 @@ class WorldCmds(CommandBase):
             return
         # 序号找：『找 1』→ 当前地图第 1 个 NPC
         if name_key.isdigit():
+            if player["cur_map"].startswith("home_"):
+                yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
+                return
             npcs = [C.NPCS[nid] for nid in C.MAP_BY_ID[player["cur_map"]].get("npcs", []) if nid in C.NPCS]
             idx = int(name_key)
             if idx < 1 or idx > len(npcs):

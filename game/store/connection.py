@@ -254,6 +254,10 @@ def init_db():
             prcols = [r[1] for r in conn.execute("PRAGMA table_info(professions)").fetchall()]
             if "activated" not in prcols:
                 conn.execute("ALTER TABLE professions ADD COLUMN activated TEXT DEFAULT '[]'")
+            # v68 地契：players 表补 deed 列（地皮 ID，一人一张）
+            pcols2 = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
+            if "deed" not in pcols2:
+                conn.execute("ALTER TABLE players ADD COLUMN deed TEXT DEFAULT ''")
             conn.commit()
         finally:
             conn.close()

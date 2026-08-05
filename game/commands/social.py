@@ -163,9 +163,14 @@ class SocialCmds(CommandBase):
             return
         cur_map = player.get("cur_map", "")
         map_obj = C.MAP_BY_ID.get(cur_map, {})
-        if not map_obj:
+        if not map_obj and not cur_map.startswith("home_"):
             yield event.plain_result("这里没法摆摊……换个地方试试。")
             return
+        # v68：家里摆摊 = 铺面（map 名显示为"家里"）
+        if cur_map.startswith("home_"):
+            map_name = "家里"
+        else:
+            map_name = map_obj.get("name", cur_map)
         # 已有摊位 → 自动收旧摊（物品退回）
         old = [s for s in db.market_list_by_seller(group_id, qq_id) if s.get("map_id")]
         for s in old:
@@ -173,7 +178,6 @@ class SocialCmds(CommandBase):
             db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
         db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
         db.remove_item(group_id, qq_id, found["key"], count=1)
-        map_name = map_obj.get("name", cur_map)
         tip = f"（旧摊位已收摊，{len(old)} 件物品退回背包）" if old else ""
         yield event.plain_result(
             f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
