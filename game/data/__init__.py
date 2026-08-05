@@ -24,6 +24,7 @@ from .equipment import (  # noqa: F401
 )
 from .items import ITEMS, MATERIALS  # noqa: F401
 from .npcs import NPCS  # noqa: F401
+from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
 from .shop import SHOP_ITEMS, SHOP_WEAPONS  # noqa: F401
 from .factions import (  # noqa: F401

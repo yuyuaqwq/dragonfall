@@ -166,3 +166,64 @@ def delete_event_state(key: str):
             conn.close()
 
 
+# ---------- v65 NPC 多轮对话状态 ----------
+# 会话状态（当前正在跟谁聊、聊到哪个节点）：event_state key = talk_{gid}_{qid}
+# 对话 flag（聊过什么/彩蛋解锁，跨会话持久）：event_state key = talkflags_{gid}_{qid}
+
+def talk_state_key(group_id, qq_id):
+    return f"talk_{group_id}_{qq_id}"
+
+def talk_flags_key(group_id, qq_id):
+    return f"talkflags_{group_id}_{qq_id}"
+
+def get_talk_state(group_id, qq_id):
+    """返回当前对话会话 {"npc": id, "node": id} 或 None"""
+    raw = get_event_state(talk_state_key(group_id, qq_id))
+    if not raw:
+        return None
+    try:
+        import json
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return None
+
+def set_talk_state(group_id, qq_id, npc_id, node_id):
+    """保存对话会话"""
+    import json
+    set_event_state(talk_state_key(group_id, qq_id),
+                    json.dumps({"npc": npc_id, "node": node_id}, ensure_ascii=False))
+
+def clear_talk_state(group_id, qq_id):
+    """结束对话（删除会话，flag 保留）"""
+    delete_event_state(talk_state_key(group_id, qq_id))
+
+def get_talk_flags(group_id, qq_id, npc_id):
+    """该 NPC 已设置的对话 flag 列表"""
+    raw = get_event_state(talk_flags_key(group_id, qq_id))
+    if not raw:
+        return []
+    try:
+        import json
+        data = json.loads(raw)
+        return list(data.get(npc_id, []))
+    except (ValueError, TypeError):
+        return []
+
+def set_talk_flag(group_id, qq_id, npc_id, flag):
+    """给该 NPC 设置对话 flag（幂等）"""
+    import json
+    key = talk_flags_key(group_id, qq_id)
+    raw = get_event_state(key)
+    data = {}
+    if raw:
+        try:
+            data = json.loads(raw)
+        except (ValueError, TypeError):
+            data = {}
+    lst = list(data.get(npc_id, []))
+    if flag not in lst:
+        lst.append(flag)
+    data[npc_id] = lst
+    set_event_state(key, json.dumps(data, ensure_ascii=False))
+
+

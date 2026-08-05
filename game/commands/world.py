@@ -685,7 +685,15 @@ class WorldCmds(CommandBase):
         if not npc:
             yield event.plain_result(f"你在这里没找到『{name_key}』。输入『地图』看看哪里有 NPC～")
             return
-        lines = [f"{npc['icon']}【{npc['name']}】{npc['title']}", f"“{self._npc_dialogue(group_id, qq_id, npc_id, npc)}”"]
+        dlg = C.get_dialogue(npc_id)
+        if dlg:
+            # v65：配置了多轮对话树 → 进入对话
+            db.set_talk_state(group_id, qq_id, npc_id, dlg.get("start", ""))
+            ctx = self._talk_ctx(group_id, qq_id, npc_id)
+            node = C.dialogue_node(dlg, dlg.get("start", ""))
+            lines = self._render_talk_node(npc, dlg, node, ctx)
+        else:
+            lines = [f"{npc['icon']}【{npc['name']}】{npc['title']}", f"“{self._npc_dialogue(group_id, qq_id, npc_id, npc)}”"]
         # 功能提示
         funcs = npc.get("funcs", [])
         if "quest" in funcs:
@@ -701,6 +709,128 @@ class WorldCmds(CommandBase):
             lines.append("🎻 他给你讲了一个关于大陆的传说……（输入『任务』看看支线）")
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识（镇长藏书）")
+        yield event.plain_result("\n".join(lines))
+
+    # ---------------- v65 NPC 多轮对话 ----------------
+
+    def _talk_ctx(self, group_id, qq_id, npc_id):
+        """对话引擎上下文：player + quests + 该 NPC 已设 flag"""
+        return {
+            "player": self._player(group_id, qq_id),
+            "quests": db.get_quests(group_id, qq_id),
+            "flags": db.get_talk_flags(group_id, qq_id, npc_id),
+        }
+
+    def _render_talk_node(self, npc, dlg, node, ctx) -> list:
+        """渲染一个对话节点：头像 + 台词 + 可见选项"""
+        lines = [f"{npc['icon']}【{npc['name']}】{npc['title']}",
+                 f"“{node.get('text', '……')}”"]
+        opts = C.visible_options(dlg, node, ctx)
+        if opts:
+            lines.append("━━━━━━━━━━━━")
+            for i, opt in enumerate(opts, 1):
+                lines.append(f"{i}. {opt['text']}")
+            lines.append("0. 结束对话")
+            lines.append("💡 『对话 <序号>』继续交谈")
+        return lines
+
+    def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
+        """执行选项动作（涉及 DB 的副作用统一在这落地），返回通知行"""
+        lines = []
+        if not action:
+            return lines
+        if "set_flag" in action:
+            db.set_talk_flag(group_id, qq_id, npc_id, action["set_flag"])
+        if "give_gold" in action:
+            gold = int(action["give_gold"])
+            db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) + gold)
+            lines.append(f"💰 获得金币 ×{gold}")
+        if "give_exp" in action:
+            exp = int(action["give_exp"])
+            db.update_player(group_id, qq_id, exp=(player.get("exp", 0) or 0) + exp)
+            lines.append(f"✨ 获得经验 +{exp}")
+        if "give_item" in action:
+            item = action["give_item"]
+            key = item.get("key", "")
+            count = int(item.get("count", 1))
+            if key:
+                db.add_item(group_id, qq_id, key, {}, count)
+                lines.append(f"🎒 获得 {key} ×{count}")
+        if action.get("open_shop"):
+            lines.append("🏪 输入『商店』可以买东西")
+        if action.get("hint"):
+            lines.append(action["hint"])
+        return lines
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
+    async def talk_choice(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        st = db.get_talk_state(group_id, qq_id)
+        if not st:
+            yield event.plain_result("你现在没有正在进行的对话。输入『找 <NPC名>』开始交谈～")
+            return
+        npc_id = st.get("npc", "")
+        npc = C.NPCS.get(npc_id)
+        if not npc:
+            db.clear_talk_state(group_id, qq_id)
+            yield event.plain_result("这位 NPC 似乎已经离开了……")
+            return
+        # 惰性失效：NPC 不在当前地图 → 会话作废
+        if npc.get("map") != player.get("cur_map"):
+            db.clear_talk_state(group_id, qq_id)
+            yield event.plain_result(f"{npc['name']}不在这里了，对话只能作罢。去找他再聊聊吧～")
+            return
+        dlg = C.get_dialogue(npc_id)
+        if not dlg:
+            db.clear_talk_state(group_id, qq_id)
+            yield event.plain_result(f"{npc['name']}似乎不想再多说了。")
+            return
+        # 剥指令名拿参数（对话/继续/结束对话/再见/告辞）
+        msg = event.get_message_str().strip()
+        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
+        raw = msg
+        for cmd in ("结束对话", "对话", "继续", "再见", "告辞"):
+            if msg.startswith(cmd):
+                raw = msg[len(cmd):].strip()
+                break
+        cur_node_id = st.get("node", dlg.get("start", ""))
+        node = C.dialogue_node(dlg, cur_node_id)
+        ctx = self._talk_ctx(group_id, qq_id, npc_id)
+        opts = C.visible_options(dlg, node, ctx)
+        if raw.isdigit():
+            idx = int(raw)
+            if idx == 0:
+                db.clear_talk_state(group_id, qq_id)
+                yield event.plain_result(f"{npc['name']}：那就再会了，冒险者。")
+                return
+            if idx < 1 or idx > len(opts):
+                yield event.plain_result(f"没有这个选项！输入『对话 1-{len(opts)}』选择，『对话 0』结束。")
+                return
+            opt = opts[idx - 1]
+            player = self._player(group_id, qq_id)
+            notices = self._apply_talk_action(group_id, qq_id, player, npc_id, opt.get("action"))
+            nxt = opt.get("next", "__end__")
+            if C.is_end(nxt):
+                db.clear_talk_state(group_id, qq_id)
+                lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]
+                yield event.plain_result("\n".join(lines))
+                return
+            db.set_talk_state(group_id, qq_id, npc_id, nxt)
+            new_node = C.dialogue_node(dlg, nxt)
+            ctx = self._talk_ctx(group_id, qq_id, npc_id)
+            lines = notices + self._render_talk_node(npc, dlg, new_node, ctx)
+            yield event.plain_result("\n".join(lines))
+            return
+        if not raw and any(c in msg for c in ("结束对话", "再见", "告辞")):
+            db.clear_talk_state(group_id, qq_id)
+            yield event.plain_result(f"{npc['name']}：那就再会了，冒险者。")
+            return
+        # 无参数/其他 → 重渲染当前节点
+        lines = self._render_talk_node(npc, dlg, node, ctx)
         yield event.plain_result("\n".join(lines))
 
     def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
