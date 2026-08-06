@@ -60,6 +60,7 @@ class Battle:
         # v2.0 核心资源（12 章 1.2：怒气/元素亲和/精力/信仰/连击点/气）
         # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
+        self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余回合数），随战斗序列化；回合结束递减
         if player:
             self._init_resources(player)
         # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
@@ -83,6 +84,7 @@ class Battle:
             "mech_stacks": self.mech_stacks,
             "shield": self.shield,
             "resources": self.resources,
+            "cooldown": self.cooldown,
             "p_progress": self.p_progress,
             "e_progress": self.e_progress,
             "p_extra_left": self.p_extra_left,
@@ -101,6 +103,7 @@ class Battle:
         b.mech_stacks = st.get("mech_stacks", {}) or {}
         b.shield = int(st.get("shield", 0) or 0)
         b.resources = st.get("resources", {}) or {}
+        b.cooldown = st.get("cooldown", {}) or {}
         b.team_effects = []
         # v61 进度条字段（老存档用 .get 兜底为 0）
         b.p_progress = float(st.get("p_progress", 0) or 0)
@@ -137,6 +140,26 @@ class Battle:
         if k == "element":
             return f"✦ {E.ELEMENT_CN.get(v, '?')}系"
         return f"✦ {rd['name']} {v}/{rd['max']}"
+
+    # ---------------- 技能冷却（v2.0） ----------------
+    def _skill_cd_left(self, skill_name: str) -> int:
+        """技能剩余冷却回合数（0 = 可用）。"""
+        return int(self.cooldown.get(skill_name, 0) or 0)
+
+    def _skill_on_cd(self, skill_name: str) -> bool:
+        return self._skill_cd_left(skill_name) > 0
+
+    def _set_skill_cd(self, skill_name: str, cd: int):
+        """设置技能冷却（cd 回合，1 表示下一回合即可用）。"""
+        if cd > 0:
+            self.cooldown[skill_name] = cd
+
+    def _tick_cooldowns(self):
+        """回合结束：所有冷却 -1，归零清除。"""
+        for k in list(self.cooldown):
+            self.cooldown[k] -= 1
+            if self.cooldown[k] <= 0:
+                del self.cooldown[k]
 
     # ---------------- 玩家行动入口 ----------------
     def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True) -> tuple:
@@ -299,6 +322,11 @@ class Battle:
                                   player.get("learned_skills", [])):
             logs.append(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}（或『技能学习 {skill_name}』提前学习）")
             return logs
+        # v2.0 冷却：CD 未结束拦截（强控/终结技等）
+        if self._skill_on_cd(skill_name):
+            left = self._skill_cd_left(skill_name)
+            logs.append(f"⏳【{skill_name}】还在冷却中（剩余 {left} 回合）！")
+            return logs
         if player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
             return logs
@@ -309,6 +337,10 @@ class Battle:
             mp_cost = max(1, int(mp_cost * (1 - C.rune_value("mana_flow", mana_lvl))))
         player["mp"] -= mp_cost
         logs += self._player_skill(st, skill_name, info, player)
+        # v2.0 冷却：技能表 cd 字段（回合），施放后进入冷却
+        cd = info.get("cd", 0)
+        if cd:
+            self._set_skill_cd(skill_name, cd)
         return logs
 
     # ---------------- 防御 / 逃跑 ----------------
@@ -1215,12 +1247,13 @@ class Battle:
         return logs
 
     def _end_round(self):
-        """回合结束：buff 剩余回合递减"""
+        """回合结束：buff 剩余回合递减 + v2.0 技能冷却递减"""
         for tbl in (self.p_buffs, self.e_buffs):
             for k in list(tbl):
                 tbl[k] -= 1
                 if tbl[k] <= 0:
                     del tbl[k]
+        self._tick_cooldowns()
 
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
