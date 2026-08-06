@@ -467,4 +467,587 @@ DIALOGUES = {
             },
         },
     },
+    # ==================== 副业导师（19 章第八章：三关拜师） ====================
+    # 通用结构：ask(理论) → ask_wrong → practice_intro → practice_check → master_intro → master_check → master_pass(拜师成功) → chat
+    # 选项 action 扩展：
+    #   {"apprentice_check": {"item": 材料名, "count": N}} + 选项 fail_next → 命令层检查背包，不足走 fail_next
+    #   {"unlock_prof": 副业key} → 拜师成功激活副业 + 记录学徒资格
+    #   {"give_prof_exp": N} → 给副业经验
+    #   {"consume_item": {"item": 材料名, "count": N}} → 扣材料（授业交付）
+    # 条件 need 扩展：{"not_apprentice": 副业key} → 未拜师才显示（已拜师走 chat 分支）
+
+    # ---------- 采集·草药师艾琳（橡木镇） ----------
+    "npc_herb_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "小姑娘别怕，采药不是力气活。想拜师学采集，先回答我——哪种草能治伤口？",
+                "options": [
+                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro", "answer": True},
+                    {"text": "毒蘑菇", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
+                    {"text": "荆棘叶", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "gather"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "艾琳笑着摇头：再想想，采错药可是要出人命的。哪种草能治伤口？",
+                "options": [
+                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro", "answer": True},
+                    {"text": "毒蘑菇", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
+                    {"text": "荆棘叶", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "不错，有点天分。不过光会认不行——去橡木草地采 3 份草药回来给我看看。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "回来啦？让我看看你采的草药。",
+                "options": [
+                    {"text": "草药采够了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "草药", "count": 3}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "艾琳摇头：还差一点，采够了再来找我。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                ],
+            },
+            "master_intro": {
+                "text": "最后一道考验——把 1 份最鲜嫩的草药亲手交给我，证明你的眼力。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "嗯……让我看看这份草药。",
+                "options": [
+                    {"text": "草药在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "草药", "count": 1}, "consume_item": {"item": "草药", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "艾琳摇头：这份还不够新鲜，再采一份来。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                ],
+            },
+            "master_pass": {
+                "text": "好！从今天起你就是我的学徒了。这把小铲送给你，好好学！",
+                "options": [
+                    {"text": "谢谢艾琳婆婆！", "next": "chat", "action": {"unlock_prof": "gather", "give_prof_exp": 50, "give_item": {"key": "草药", "count": 3}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "艾琳笑眯眯：采药讲究的是耐心，跟种花一个道理。有空常来，婆婆给你讲讲故事。",
+                "options": [
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+        },
+    },
+    # ---------- 挖掘·矿工长巴尔金（铁港城） ----------
+    "npc_mine_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "挖矿跟喝酒一样，讲究一个痛快！想拜师学挖掘，先回答我——什么矿石最坚硬？",
+                "options": [
+                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro", "answer": True},
+                    {"text": "铁矿石", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
+                    {"text": "秘银", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "mining"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "巴尔金灌了口烈酒：哈哈哈，再想想！越往地下走，好东西越硬！",
+                "options": [
+                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro", "answer": True},
+                    {"text": "铁矿石", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
+                    {"text": "秘银", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "有点眼力！去矿洞挖 5 份铁矿石回来，让我看看你的力气。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "回来了？把矿石摆出来我瞧瞧。",
+                "options": [
+                    {"text": "铁矿石挖够了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "铁矿石", "count": 5}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "巴尔金摇头：不够不够，矿洞里还有的是！",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一道考验——交 1 份精铁上来，证明你分得清矿的好坏。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "嗯，让老子看看这块料。",
+                "options": [
+                    {"text": "精铁在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "精铁", "count": 1}, "consume_item": {"item": "精铁", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "巴尔金皱眉：这块不成色！再去找找。",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "好小子！从今天起你就是矿工行会的人了。这把鹤嘴锄拿好，别丢矿工的脸！",
+                "options": [
+                    {"text": "谢巴尔金大哥！", "next": "chat", "action": {"unlock_prof": "mining", "give_prof_exp": 50, "give_item": {"key": "铁矿石", "count": 3}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "巴尔金豪迈大笑：挖矿的汉子没有孬种！缺矿石就来找我喝一杯。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 垂钓·老渔夫马库斯（铁港城） ----------
+    "npc_fish_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "……夜里的海，有鱼。想拜师学垂钓，先回答我——哪种鱼只在深夜出没？",
+                "options": [
+                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro", "answer": True},
+                    {"text": "银鳞鱼", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
+                    {"text": "金鲤", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "fishing"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "马库斯望着海面，轻声说：夜里才出来的鱼，身上带着光……再想想。",
+                "options": [
+                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro", "answer": True},
+                    {"text": "银鳞鱼", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
+                    {"text": "金鲤", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "……知道。去钓 3 条银鳞鱼回来，让老头子看看你的耐心。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "……回来了？鱼篓给我看看。",
+                "options": [
+                    {"text": "银鳞鱼钓够了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "银鳞鱼", "count": 3}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "马库斯摇头：……还差几条，海里的鱼跑不了。",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一道考验——钓 1 条金鲤回来，证明你的运气。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "……金鲤，金灿灿的，让我看看。",
+                "options": [
+                    {"text": "金鲤在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "金鲤", "count": 1}, "consume_item": {"item": "金鲤", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "马库斯淡淡说：……不是金鲤。再试试。",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "……行，你过关了。这根鱼竿送你。以后潮起潮落，鱼都在那里等你。",
+                "options": [
+                    {"text": "谢谢马库斯爷爷！", "next": "chat", "action": {"unlock_prof": "fishing", "give_prof_exp": 50, "give_item": {"key": "银鳞鱼", "count": 2}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "马库斯望着海：……钓鱼不急，急的人钓不到大鱼。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 烹饪·大厨罗莎（白鹿城） ----------
+    "npc_cook_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "年轻人会做饭吗？不会？没关系！先回答我——烤肉串的主料是啥？",
+                "options": [
+                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro", "answer": True},
+                    {"text": "草药", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
+                    {"text": "面粉", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "cooking"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "罗莎叉腰大笑：哈哈哈，那玩意儿能烤吗！再想想！",
+                "options": [
+                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro", "answer": True},
+                    {"text": "草药", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
+                    {"text": "面粉", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "有悟性！给我收集 2 份兽肉和 1 份草药来，当今天的食材。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "食材带回来了？让我看看新鲜不新鲜。",
+                "options": [
+                    {"text": "食材齐了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "兽肉", "count": 2}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "罗莎摆手：不够不够！厨房里可不兴偷工减料。",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一道考验——交 1 份面粉上来，让我看看你备料的功夫。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "面粉呢？拿来我看看成色。",
+                "options": [
+                    {"text": "面粉在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "面粉", "count": 1}, "consume_item": {"item": "面粉", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "罗莎摇头：这面粉不行，换一袋来！",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "行，收你当徒弟！这本基础菜谱送你，好好练手艺！",
+                "options": [
+                    {"text": "谢谢罗莎大厨！", "next": "chat", "action": {"unlock_prof": "cooking", "give_prof_exp": 50, "give_item": {"key": "兽肉", "count": 2}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "罗莎热情道：学会做饭走遍天下都不怕！缺食材随时来找我。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 炼金·炼金术士梅尔文（晨曦城） ----------
+    "npc_alchemy_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "外行总以为炼金是玩火。哼，治疗药水的主料是什么？答不上来就滚。",
+                "options": [
+                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro", "answer": True},
+                    {"text": "矿石", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
+                    {"text": "羽毛", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "alchemy"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "梅尔文冷笑：啧，连这都不知道，还想碰烧瓶？再想想。",
+                "options": [
+                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro", "answer": True},
+                    {"text": "矿石", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
+                    {"text": "羽毛", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "哼，勉强算你答对了。去收集 3 份草药和 1 个空瓶来，我要看看你的材料鉴别能力。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "材料拿来了？摆桌上，我看看。",
+                "options": [
+                    {"text": "材料齐了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "草药", "count": 3}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "梅尔文不耐：这点材料都凑不齐，还想当炼金术士？",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一项——交 1 份草药上来，我教你分辨药性。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "草药呢？拿来看看。",
+                "options": [
+                    {"text": "草药在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "草药", "count": 1}, "consume_item": {"item": "草药", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "梅尔文皱眉：这株药性太差。换一株。",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "……行，收你了。这本基础炼金配方拿去，别炸了我的工房。",
+                "options": [
+                    {"text": "谢谢梅尔文先生！", "next": "chat", "action": {"unlock_prof": "alchemy", "give_prof_exp": 50, "give_item": {"key": "空瓶", "count": 2}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "梅尔文冷哼：炼金是严谨的科学，不是戏法。有空多读读书。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 打造·铁匠大师奥格（铁港城） ----------
+    "npc_craft_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "打铁，凭的是手和心。想拜师学打造，先回答我——打造装备需要什么？",
+                "options": [
+                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
+                    {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
+                    {"text": "只有金币", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "craft"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "奥格敲了敲铁砧：没有图纸，材料就是废铁！再想想。",
+                "options": [
+                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
+                    {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
+                    {"text": "只有金币", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "懂行！去矿洞挖 5 份铁矿石回来，让我看看你的力气。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "矿石搬来了？放这儿，我瞅瞅。",
+                "options": [
+                    {"text": "铁矿石齐了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "铁矿石", "count": 5}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "奥格摇头：不够打一把剑的，再去挖！",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一道考验——交 1 份铁矿石上来，让我看看你识料的眼力。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "铁矿石拿来，我掂掂分量。",
+                "options": [
+                    {"text": "铁矿石在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "铁矿石", "count": 1}, "consume_item": {"item": "铁矿石", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "奥格摇头：这块矿杂质太多，换一块！",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "好，从今天起你就是我的学徒了。基础武器图纸拿去，别砸了我的招牌！",
+                "options": [
+                    {"text": "谢奥格师傅！", "next": "chat", "action": {"unlock_prof": "craft", "give_prof_exp": 50, "give_item": {"key": "铁矿石", "count": 3}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "奥格擦了擦手：打铁如做人，实打实，不能虚。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 强化·强化师克拉拉（白鹿城） ----------
+    "npc_enhance_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "强化是门生意，也是门赌术。想拜师学强化，先回答我——+6 以上强化失败会怎样？",
+                "options": [
+                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
+                    {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
+                    {"text": "装备消失", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "enhance"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "克拉拉拨着算盘：高风险高回报，+6 以上失败可不止掉一级。再想想。",
+                "options": [
+                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
+                    {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
+                    {"text": "装备消失", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "明白人！去收集 3 颗强化石来，让我看看你的本钱。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "强化石带来了？我点点数。",
+                "options": [
+                    {"text": "强化石齐了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "强化石", "count": 3}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "克拉拉摇头：本钱不够可玩不起强化，再去收几颗。",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一项——交 1 颗强化石上来，让我看看你的诚意。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "强化石呢？拿来看看成色。",
+                "options": [
+                    {"text": "强化石在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "强化石", "count": 1}, "consume_item": {"item": "强化石", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "克拉拉皱眉：这颗品质太差，换一颗。",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "行，收你了！送你 3 颗强化石练手。记住：赌对了是本事，赌输了是学费！",
+                "options": [
+                    {"text": "谢克拉拉姐！", "next": "chat", "action": {"unlock_prof": "enhance", "give_prof_exp": 50, "give_item": {"key": "强化石", "count": 3}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "克拉拉挑眉：强化这事，心里要有一本账，别红了眼。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
+    # ---------- 附魔·符文大师吉姆利（铁砧要塞） ----------
+    "npc_rune_master": {
+        "start": "ask",
+        "nodes": {
+            "ask": {
+                "text": "符文不是刻上去的花纹，是大地母神的语言。想拜师学附魔，先回答我——法师最适合附魔什么属性？",
+                "options": [
+                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro", "answer": True},
+                    {"text": "攻击", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
+                    {"text": "速度", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
+                    {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "enchant"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "ask_wrong": {
+                "text": "吉姆利敲着符文石：法师靠魔力吃饭，附魔也得顺着力量走。再想想。",
+                "options": [
+                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro", "answer": True},
+                    {"text": "攻击", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
+                    {"text": "速度", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
+                ],
+            },
+            "practice_intro": {
+                "text": "有悟性！去收集 3 份魔法粉尘来，让我看看你收集材料的本事。",
+                "options": [
+                    {"text": "这就去", "next": "practice_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "practice_check": {
+                "text": "魔法粉尘带来了？我看看纯度。",
+                "options": [
+                    {"text": "魔法粉尘齐了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "魔法粉尘", "count": 3}}, "fail_next": "practice_wait"},
+                    {"text": "还差一些", "next": "practice_wait"},
+                ],
+            },
+            "practice_wait": {
+                "text": "吉姆利摇头：粉尘不够，符文画不完整。",
+                "options": [{"text": "这就去", "next": "practice_check"}],
+            },
+            "master_intro": {
+                "text": "最后一项——交 1 份魔法粉尘上来，作为你入门的第一份材料。",
+                "options": [
+                    {"text": "这就去", "next": "master_check"},
+                    {"text": "先告辞", "next": "__end__"},
+                ],
+            },
+            "master_check": {
+                "text": "魔法粉尘呢？拿来我看看。",
+                "options": [
+                    {"text": "魔法粉尘在这里，请收下", "next": "master_pass", "action": {"apprentice_check": {"item": "魔法粉尘", "count": 1}, "consume_item": {"item": "魔法粉尘", "count": 1}}, "fail_next": "master_wait"},
+                    {"text": "还差一些", "next": "master_wait"},
+                ],
+            },
+            "master_wait": {
+                "text": "吉姆利摇头：纯度不够，画不出完整的符文。",
+                "options": [{"text": "这就去", "next": "master_check"}],
+            },
+            "master_pass": {
+                "text": "好，从今往后你就是符文塔的学徒了。这颗符文石送你，记住符文之心。",
+                "options": [
+                    {"text": "谢吉姆利大师！", "next": "chat", "action": {"unlock_prof": "enchant", "give_prof_exp": 50, "give_item": {"key": "魔法粉尘", "count": 2}}},
+                    {"text": "告辞", "next": "__end__"},
+                ],
+            },
+            "chat": {
+                "text": "吉姆利低语：符文刻在石上，也刻在心里。多听大地母神的话。",
+                "options": [{"text": "告辞", "next": "__end__"}],
+            },
+        },
+    },
 }

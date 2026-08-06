@@ -209,6 +209,10 @@ def init_db():
                 craft_exp INTEGER DEFAULT 0,
                 cooking_lv INTEGER DEFAULT 1,
                 cooking_exp INTEGER DEFAULT 0,
+                enhance_lv INTEGER DEFAULT 1,
+                enhance_exp INTEGER DEFAULT 0,
+                enchant_lv INTEGER DEFAULT 1,
+                enchant_exp INTEGER DEFAULT 0,
                 fish_king INTEGER DEFAULT 0
             );
             """)
@@ -254,6 +258,17 @@ def init_db():
             prcols = [r[1] for r in conn.execute("PRAGMA table_info(professions)").fetchall()]
             if "activated" not in prcols:
                 conn.execute("ALTER TABLE professions ADD COLUMN activated TEXT DEFAULT '[]'")
+            # 导师进修（19 章第八章）：professions 表补 强化/附魔 独立副业列（8 副业）
+            if "enhance_lv" not in prcols:
+                conn.execute("ALTER TABLE professions ADD COLUMN enhance_lv INTEGER DEFAULT 1")
+                conn.execute("ALTER TABLE professions ADD COLUMN enhance_exp INTEGER DEFAULT 0")
+            if "enchant_lv" not in prcols:
+                conn.execute("ALTER TABLE professions ADD COLUMN enchant_lv INTEGER DEFAULT 1")
+                conn.execute("ALTER TABLE professions ADD COLUMN enchant_exp INTEGER DEFAULT 0")
+            # 导师进修：players 表补 apprentices 列（JSON 数组：已拜师副业 key）
+            apcols = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
+            if "apprentices" not in apcols:
+                conn.execute("ALTER TABLE players ADD COLUMN apprentices TEXT DEFAULT '[]'")
             # v68 地契：players 表补 deed 列（地皮 ID，一人一张）
             pcols2 = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
             if "deed" not in pcols2:

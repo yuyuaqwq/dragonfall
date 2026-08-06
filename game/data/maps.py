@@ -18,7 +18,7 @@ MAPS = [
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks"],
+        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks", "npc_herb_master"],
     },
     {
         "id": "oak_meadow",
@@ -82,7 +82,7 @@ MAPS = [
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor"],
+        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor", "npc_cook_master", "npc_enhance_master"],
     },
     {
         "id": "emerald_forest",
@@ -189,7 +189,7 @@ MAPS = [
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant"],
+        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant", "npc_mine_master", "npc_fish_master", "npc_craft_master"],
     },
     {
         "id": "harbor_docks",
@@ -397,7 +397,7 @@ MAPS = [
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess"],
+        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess", "npc_alchemy_master"],
     },
     {
         "id": "dawn_cathedral",
@@ -2232,7 +2232,7 @@ MAP_BY_ID = {
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks"],
+        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks", "npc_herb_master"],
     },
     "oak_meadow": {
         "id": "oak_meadow",
@@ -2296,7 +2296,7 @@ MAP_BY_ID = {
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor"],
+        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor", "npc_cook_master", "npc_enhance_master"],
     },
     "emerald_forest": {
         "id": "emerald_forest",
@@ -2403,7 +2403,7 @@ MAP_BY_ID = {
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant"],
+        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant", "npc_mine_master", "npc_fish_master", "npc_craft_master"],
     },
     "harbor_docks": {
         "id": "harbor_docks",
@@ -2611,7 +2611,7 @@ MAP_BY_ID = {
         ],
         "elite": None,
         "boss": None,
-        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess"],
+        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess", "npc_alchemy_master"],
     },
     "dawn_cathedral": {
         "id": "dawn_cathedral",

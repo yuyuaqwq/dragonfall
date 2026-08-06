@@ -996,11 +996,13 @@ class WorldCmds(CommandBase):
     # ---------------- v65 NPC 多轮对话 ----------------
 
     def _talk_ctx(self, group_id, qq_id, npc_id):
-        """对话引擎上下文：player + quests + 该 NPC 已设 flag"""
+        """对话引擎上下文：player + quests + 该 NPC 已设 flag + 已拜师副业"""
+        player = self._player(group_id, qq_id) or {}
         return {
-            "player": self._player(group_id, qq_id),
+            "player": player,
             "quests": db.get_quests(group_id, qq_id),
             "flags": db.get_talk_flags(group_id, qq_id, npc_id),
+            "apprentices": player.get("apprentices", []),
         }
 
     def _render_talk_node(self, npc, dlg, node, ctx) -> list:
@@ -1042,6 +1044,34 @@ class WorldCmds(CommandBase):
             lines.append("🏪 输入『商店』可以买东西")
         if action.get("hint"):
             lines.append(action["hint"])
+        # ---- v81 导师进修动作 ----
+        if "consume_item" in action:
+            ci = action["consume_item"]
+            key = ci.get("item", "")
+            count = int(ci.get("count", 1))
+            if key:
+                db.remove_item(group_id, qq_id, key, count)
+                lines.append(f"🎒 交出 {key} ×{count}")
+        if "unlock_prof" in action:
+            prof = action["unlock_prof"]
+            appr = list(player.get("apprentices", []))
+            if prof in appr:
+                lines.append(f"你已经拜过{db.PROF_FIELDS.get(prof, prof)}的导师了。")
+            else:
+                ok, act_msg = self._prof_active_check(group_id, qq_id, prof)
+                if not ok:
+                    lines.append(act_msg)
+                else:
+                    appr.append(prof)
+                    db.update_player(group_id, qq_id, apprentices=appr)
+                    # 入门礼：副业经验（unlock_prof 配套 give_prof_exp 时由命令层统一给）
+                    exp = action.get("give_prof_exp")
+                    if exp:
+                        lv, _ = db.add_prof_exp(group_id, qq_id, prof, int(exp))
+                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」（副业经验 +{exp}）")
+                    else:
+                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
+                    lines.append("💡 『副业』查看你的生活职业面板")
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
@@ -1094,8 +1124,22 @@ class WorldCmds(CommandBase):
                 return
             opt = opts[idx - 1]
             player = self._player(group_id, qq_id)
-            notices = self._apply_talk_action(group_id, qq_id, player, npc_id, opt.get("action"))
-            nxt = opt.get("next", "__end__")
+            action = opt.get("action") or {}
+            # v81 导师进修：apprentice_check 判定（检查背包材料）
+            if "apprentice_check" in action:
+                check = action["apprentice_check"]
+                have = db.count_item(group_id, qq_id, check.get("item", ""))
+                need = int(check.get("count", 1))
+                if have >= need:
+                    nxt = opt.get("next", "__end__")
+                    notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
+                    notices.append(f"✅ {npc['name']}满意地点了点头。")
+                else:
+                    nxt = opt.get("fail_next", opt.get("next", "__end__"))
+                    notices = [f"{npc['name']}摇头：还差 {need-have} 份{check.get('item', '材料')}，备齐了再来。"]
+            else:
+                nxt = opt.get("next", "__end__")
+                notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
             if C.is_end(nxt):
                 db.clear_talk_state(group_id, qq_id)
                 lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]

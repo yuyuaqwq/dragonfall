@@ -51,12 +51,15 @@ def check_need(need, ctx: dict) -> bool:
       main_done   : 全部主线完成
       level       : 等级下限
       flag        : 该 NPC 对话 flag 已设置
+      apprentice      : 已拜师该副业（19 章第八章导师进修）
+      not_apprentice  : 未拜师该副业（拜师选项只在未拜师时显示）
     """
     if not need:
         return True
     player = ctx.get("player") or {}
     quests = ctx.get("quests") or {}
     flags = ctx.get("flags") or []
+    apprentices = ctx.get("apprentices") or []
     for k, v in need.items():
         if k in ("quest_done", "quest_active", "quest_pending"):
             if not _quest_state(quests, v, k.replace("quest_", "")):
@@ -69,6 +72,12 @@ def check_need(need, ctx: dict) -> bool:
                 return False
         elif k == "flag":
             if v not in flags:
+                return False
+        elif k == "apprentice":
+            if v not in apprentices:
+                return False
+        elif k == "not_apprentice":
+            if v in apprentices:
                 return False
     return True
 

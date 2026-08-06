@@ -1533,6 +1533,107 @@ MATERIALS = {
         "price": 50,
         "name": "罗兰的断剑"
     },
+    # ---- 副业基础材料（2026-08-06 补齐，13 章 5.1 副业基础材料表）----
+    "mat_cao_yao": {
+        "price": 8,
+        "name": "草药"
+    },
+    "mat_jiang_guo": {
+        "price": 5,
+        "name": "浆果"
+    },
+    "mat_yue_guang_cao": {
+        "price": 80,
+        "name": "月光草"
+    },
+    "mat_zhao_ze_hua": {
+        "price": 40,
+        "name": "沼泽花"
+    },
+    "mat_bing_jing": {
+        "price": 60,
+        "name": "冰晶"
+    },
+    "mat_long_xue_cao": {
+        "price": 400,
+        "name": "龙血草"
+    },
+    "mat_tie_kuang_shi": {
+        "price": 10,
+        "name": "铁矿石"
+    },
+    "mat_jing_tie": {
+        "price": 30,
+        "name": "精铁"
+    },
+    "mat_mi_yin": {
+        "price": 80,
+        "name": "秘银"
+    },
+    "mat_jing_jin": {
+        "price": 200,
+        "name": "精金"
+    },
+    "mat_yuan_zhi": {
+        "price": 500,
+        "name": "源质"
+    },
+    "mat_shou_rou": {
+        "price": 12,
+        "name": "兽肉"
+    },
+    "mat_mian_fen": {
+        "price": 3,
+        "name": "面粉"
+    },
+    "mat_kong_ping": {
+        "price": 5,
+        "name": "空瓶"
+    },
+    "mat_yu_mao": {
+        "price": 8,
+        "name": "羽毛"
+    },
+    "mat_shou_xue": {
+        "price": 15,
+        "name": "兽血"
+    },
+    "mat_shui_jing": {
+        "price": 20,
+        "name": "水晶"
+    },
+    "mat_mo_fa_fen_chen": {
+        "price": 25,
+        "name": "魔法粉尘"
+    },
+    "mat_yin_lin_yu": {
+        "price": 12,
+        "name": "银鳞鱼"
+    },
+    "mat_jin_li": {
+        "price": 25,
+        "name": "金鲤"
+    },
+    "mat_ye_guang_jiao": {
+        "price": 35,
+        "name": "夜光鲛"
+    },
+    "mat_jiao_ren_lei": {
+        "price": 120,
+        "name": "鲛人泪"
+    },
+    "mat_shen_hai_shui_jing": {
+        "price": 250,
+        "name": "深海水晶"
+    },
+    "mat_long_xian_xiang": {
+        "price": 180,
+        "name": "龙涎香"
+    },
+    "mat_gu_dai_yu_gu": {
+        "price": 350,
+        "name": "古代鱼骨"
+    },
 }
 
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料

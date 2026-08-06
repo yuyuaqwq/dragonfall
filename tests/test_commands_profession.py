@@ -34,7 +34,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 def reset_profs(gid, qid):
-    for k in ("gather", "mining", "fishing", "alchemy", "craft", "cooking"):
+    for k in ("gather", "mining", "fishing", "alchemy", "craft", "cooking", "enhance", "enchant"):
         db.forget_prof(gid, qid, k)
 
 
@@ -91,27 +91,27 @@ async def main():
     out = await cmd(m, "cooking", "g1", "w1", "烹饪 鱼汤")
     check("遗忘后老玩家自动激活", "cooking" in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
 
-    print("【v67 强化归位打造】")
+    print("【v81 强化独立副业（原 v67 归位打造）】")
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", cur_map="vila_street", gold=5000)
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
-    check("+1 强化成功（打造自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])
+    check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
-    check("+2 需要打造Lv.2拦截", "需要打造副业 Lv.2" in out, out[:200])
-    db.add_prof_exp("g1", "w1", "craft", 30)  # Lv.2
+    check("+2 需要强化Lv.2拦截", "需要强化副业 Lv.2" in out, out[:200])
+    db.add_prof_exp("g1", "w1", "enhance", 30)  # Lv.2
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
-    check("打造Lv.2后+2可强化", "强化成功" in out or "强化失败" in out or "降级" in out, out[:200])
+    check("强化Lv.2后+2可强化", "强化成功" in out or "强化失败" in out or "降级" in out, out[:200])
 
-    print("【v67 附魔归位炼金】")
+    print("【v81 附魔独立副业（原 v67 归位炼金）】")
     reset_profs("g1", "w1")
     out = await cmd(m, "enchant", "g1", "w1", "附魔")
-    check("无参附魔先给格式（不被炼金拦）", "附魔哪件装备" in out, out[:200])
+    check("无参附魔先给格式（不被附魔拦）", "附魔哪件装备" in out, out[:200])
     out = await cmd(m, "enchant", "g1", "w1", "附魔 试炼剑 攻击")
-    check("炼金Lv.1附魔被拦", "需要炼金副业 Lv.2" in out, out[:200])
-    db.add_prof_exp("g1", "w1", "alchemy", 30)  # Lv.2
+    check("附魔Lv.1附魔被拦", "需要附魔副业 Lv.2" in out, out[:200])
+    db.add_prof_exp("g1", "w1", "enchant", 30)  # Lv.2
     out = await cmd(m, "enchant", "g1", "w1", "附魔 试炼剑 攻击")
-    check("炼金Lv.2后通过门槛", "需要炼金副业 Lv.2" not in out, out[:200])
+    check("附魔Lv.2后通过门槛", "需要附魔副业 Lv.2" not in out, out[:200])
 
     print("【v67 代工补偿】")
     reset_profs("g1", "w1")

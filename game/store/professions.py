@@ -15,6 +15,8 @@ PROF_FIELDS = {
     "alchemy": "炼金",
     "craft": "打造",
     "cooking": "烹饪",
+    "enhance": "强化",
+    "enchant": "附魔",
 }
 
 

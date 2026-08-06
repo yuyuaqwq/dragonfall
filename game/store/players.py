@@ -97,6 +97,8 @@ def get_player(group_id, qq_id):
             p["skill_levels"] = {C.display("skills", k) if k else k: v for k, v in p["skill_levels"].items()}
             p["mounts"] = json.loads(p.get("mounts") or "{}")
             p["learned_blueprints"] = json.loads(p.get("learned_blueprints") or "[]")
+            # v81 导师进修：apprentices 已拜师副业列表（JSON 数组）
+            p["apprentices"] = json.loads(p.get("apprentices") or "[]")
             return p
         finally:
             conn.close()
@@ -125,7 +127,7 @@ def update_player(group_id, qq_id, **fields):
             sets = []
             vals = []
             for k, v in fields.items():
-                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints"):
+                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices"):
                     # v46：技能名列表/技能等级表 写入时转 ID（存档只存 ID）
                     if k in ("learned_skills", "skills") and isinstance(v, list):
                         v = [C.resolve("skills", s) if s else s for s in v]

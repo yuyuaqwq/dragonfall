@@ -1124,16 +1124,16 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"【{d['name']}】已经强化到极限 +{cur_enh} 了！")
             return
         info = C.ENHANCE_TABLE[cur_enh]
-        # v67 强化归位打造：强化 +N 需要打造副业 Lv.N（打造是锻造工艺）
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft")
+        # v67 强化归位打造 → 导师进修后强化为独立副业（19 章第八章）：强化 +N 需要强化副业 Lv.N
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "enhance")
         if not ok:
             yield event.plain_result(act_msg)
             return
-        prof_lv = db.get_prof_level(group_id, qq_id, "craft")
+        prof_lv = db.get_prof_level(group_id, qq_id, "enhance")
         need = min(cur_enh + 1, 10)
         if prof_lv < need:
             yield event.plain_result(
-                f"强化 +{cur_enh} → +{cur_enh+1} 需要打造副业 Lv.{need}（你 Lv.{prof_lv}）！多打造装备升级打造吧～"
+                f"强化 +{cur_enh} → +{cur_enh+1} 需要强化副业 Lv.{need}（你 Lv.{prof_lv}）！多强化装备升级吧～"
             )
             return
         if player["gold"] < info["cost"]:
@@ -1186,15 +1186,15 @@ class EconomyCmds(CommandBase):
             return
         item_name = parts[0]
         stat_label = parts[1] if len(parts) > 1 else ""
-        # v67 附魔归位炼金：附魔需要炼金副业 Lv.2（魔法墨水/符文工艺）
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy")
+        # v67 附魔归位炼金 → 导师进修后附魔为独立副业（19 章第八章）：附魔需要附魔副业 Lv.2
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant")
         if not ok:
             yield event.plain_result(act_msg)
             return
-        prof_lv = db.get_prof_level(group_id, qq_id, "alchemy")
+        prof_lv = db.get_prof_level(group_id, qq_id, "enchant")
         if prof_lv < 2:
             yield event.plain_result(
-                f"附魔需要炼金副业 Lv.2（你 Lv.{prof_lv}）！多炼金升级吧～"
+                f"附魔需要附魔副业 Lv.2（你 Lv.{prof_lv}）！多附魔升级吧～"
             )
             return
         # ---- v34 符文路径：第二参数含"符文"则走符文附魔 ----
