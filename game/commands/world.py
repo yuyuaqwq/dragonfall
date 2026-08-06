@@ -793,10 +793,10 @@ class WorldCmds(CommandBase):
             lines.append("🏪 铺面摊位上摆着：")
             for s in stalls:
                 sname = "你" if str(s["seller"]) == str(qq_id) else (owner["name"] if str(s["seller"]) == str(owner_qid) else s["seller"])
-                lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {s['price']} 金币 ｜ {sname}")
-            lines.append("💡 『购入 <编号>』当面买下")
+                lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {self._stall_label(s)} ｜ {sname}")
+            lines.append("💡 『购入 <编号>』买下，标 🔄 的用『换 <编号> <物品名>』交换")
         else:
-            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> <价格>』开张！")
+            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> [价格]』开张（不带价格 = 换摊）！")
         # 仓库（自己的家）
         if is_mine:
             storage = self._home_storage_load(group_id, qq_id)

@@ -122,6 +122,12 @@ class SocialCmds(CommandBase):
         if str(it["seller"]) == str(qq_id):
             yield event.plain_result("不能买自己的物品！")
             return
+        # 换摊（price=0）：不走金币购买
+        if (it.get("price") or 0) <= 0:
+            yield event.plain_result(
+                f"【{it['item_data'].get('name','?')}】是换摊（只换不卖）——用『换 {mid} <物品名>』提出交换！"
+            )
+            return
         # v66：摊位货必须当面买（摆摊在当前位置，需要同地图）
         if it.get("map_id"):
             if player.get("cur_map") != it["map_id"]:
@@ -149,12 +155,15 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         args = self._strip_cmd(event, "摆摊").rsplit(None, 1)
-        if len(args) < 2 or not args[1].isdigit():
-            yield event.plain_result("格式：摆摊 <物品名> <价格>，如『摆摊 铁剑 500』")
-            return
-        item_name, price = args[0], int(args[1])
-        if price < 1:
-            yield event.plain_result("价格至少 1 金币！")
+        if len(args) == 1:
+            item_name, price = args[0], 0  # 不带价格 = 以物换物
+        elif args[1].isdigit():
+            item_name, price = args[0], int(args[1])
+            if price < 1:
+                yield event.plain_result("价格至少 1 金币！")
+                return
+        else:
+            yield event.plain_result("格式：摆摊 <物品名> [价格]，不带价格 = 以物换物，如『摆摊 铁剑』或『摆摊 铁剑 500』")
             return
         inv = db.get_inventory(group_id, qq_id)
         found = next((it for it in inv if it["data"].get("name") == item_name), None)
@@ -179,10 +188,13 @@ class SocialCmds(CommandBase):
         db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
         db.remove_item(group_id, qq_id, found["key"], count=1)
         tip = f"（旧摊位已收摊，{len(old)} 件物品退回背包）" if old else ""
-        yield event.plain_result(
-            f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
-            f"『收摊』收摊，『摊位』看看本地谁在摆摊"
-        )
+        if price > 0:
+            head = f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
+            tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
+        else:
+            head = f"🔄 你在『{map_name}』支起了换摊——【{found['data']['name']}】只换不卖！{tip}\n"
+            tail = "『收摊』收摊，别人可用『换 <编号> <物品名>』跟你交换"
+        yield event.plain_result(head + tail)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?收摊(?:[\s\S]*)$")
     async def stall_close(self, event: AstrMessageEvent):
@@ -199,6 +211,12 @@ class SocialCmds(CommandBase):
             db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
         names = "、".join(s["item_data"].get("name", "?") for s in removed)
         yield event.plain_result(f"🏪 收摊！【{names}】退回背包")
+
+    @staticmethod
+    def _stall_label(s):
+        """摊位价格标签：price>0 → 'N 金币'；price=0 → '🔄 换'（以物换物）"""
+        price = s.get("price") or 0
+        return f"{price} 金币" if price > 0 else "🔄 换"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?摊位(?:[\s\S]*)$")
     async def stall_view(self, event: AstrMessageEvent):
@@ -225,23 +243,73 @@ class SocialCmds(CommandBase):
             lines = [f"🏪 【{target['name']} 的摊位】", "━━━━━━━━━━━━"]
             for s in stalls:
                 map_name = C.MAP_BY_ID.get(s.get("map_id", ""), {}).get("name", "？")
-                lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {s['price']} 金币 ｜ 在 {map_name}")
-            lines.append("💡 『购入 <编号>』当面购买（需在同一位置）")
+                lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {self._stall_label(s)} ｜ 在 {map_name}")
+            lines.append("💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』（需在同一位置）")
             yield event.plain_result("\n".join(lines))
             return
         # 无参 → 当前地图所有摊位
         cur_map = player.get("cur_map", "")
         stalls = db.market_list(group_id, cur_map)
         if not stalls:
-            yield event.plain_result("此地没有摊位。『摆摊 <物品> <价格>』支起你的小摊！")
+            yield event.plain_result("此地没有摊位。『摆摊 <物品> [价格]』支起你的小摊（不带价格 = 换摊）！")
             return
         lines = [f"🏪 【此地摊位】（{C.MAP_BY_ID.get(cur_map, {}).get('name', '这里')}）", "━━━━━━━━━━━━"]
         for s in stalls:
             seller = db.get_player(group_id, s["seller"])
             sname = seller["name"] if seller else s["seller"]
-            lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {s['price']} 金币 ｜ {sname}")
-        lines.append("💡 『购入 <编号>』当面购买，『摊位 <玩家名>』看指定摊位")
+            lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {self._stall_label(s)} ｜ {sname}")
+        lines.append("💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』，『摊位 <玩家名>』看指定摊位")
         yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?换(?:[\s\S]*)$")
+    async def stall_exchange(self, event: AstrMessageEvent):
+        """以物换物：『换 <摊位编号> <物品名>』——对方摆摊不带价格（换摊）时，用背包物品当面交换"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        args = self._strip_cmd(event, "换").split(None, 1)
+        if len(args) < 2 or not args[0].isdigit():
+            yield event.plain_result("格式：换 <摊位编号> <物品名>，如『换 3 狼皮』（对方摆摊不带价格 = 换摊）")
+            return
+        mid, give_name = int(args[0]), args[1].strip()
+        it = db.market_get(mid)
+        if not it:
+            yield event.plain_result(f"没有编号 {mid} 的摊位！『摊位』看看～")
+            return
+        if not it.get("map_id"):
+            yield event.plain_result("这是群市场寄售，不参与交换——用『购入 <编号>』金币购买～")
+            return
+        # 当面交换：双方必须同地图
+        if player.get("cur_map", "") != it["map_id"]:
+            map_name = C.MAP_BY_ID.get(it["map_id"], {}).get("name", "那里")
+            yield event.plain_result(
+                f"这是【{it['item_data'].get('name','?')}】的换摊，需要到『{map_name}』当面交换～"
+            )
+            return
+        if str(it["seller"]) == str(qq_id):
+            yield event.plain_result("不能和自己交换！")
+            return
+        if (it.get("price") or 0) > 0:
+            yield event.plain_result(
+                f"【{it['item_data'].get('name','?')}】是出售中的（{it['price']} 金币），用『购入 {mid}』购买～"
+            )
+            return
+        inv = db.get_inventory(group_id, qq_id)
+        give = next((x for x in inv if x["data"].get("name") == give_name), None)
+        if not give:
+            yield event.plain_result(f"背包里没有『{give_name}』！『背包』查看～")
+            return
+        # 成交：摊主的货给买家，买家的货送到摊主背包
+        db.market_remove(mid)
+        db.add_item(it.get("group_id") or group_id, qq_id, it["item_key"], it["item_data"], count=1)
+        db.remove_item(group_id, qq_id, give["key"], count=1)
+        db.add_item(it.get("group_id") or group_id, str(it["seller"]), give["key"], give["data"], count=1)
+        yield event.plain_result(
+            f"🔄 交换成功！你用【{give['data']['name']}】换到了【{it['item_data'].get('name','?')}】！\n"
+            f"对方的东西已放进你背包，你的【{give['data']['name']}】已送到对方背包～"
+        )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)")
 
