@@ -1,7720 +1,4606 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - maps.py（v48 怪物技能/掉落转 ID）"""
+"""奥兰迪亚·余烬纪年 数据层 - maps.py（阶段一生成，2026-08-06）"""
 MAPS = [
     {
-        "id": "vila_gate",
-        "name": "维拉镇城门",
+        "id": "oak_town",
+        "name": "橡木镇",
         "lv": 1,
-        "region": "西境",
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "维拉镇的东大门，商队与冒险者从这里进出。城门外的野地里偶尔有野兽出没。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_stray_dog",
-                "野狗",
-                "dps",
-                1,
-                [
-                    "ms_si_yao"
-                ],
-                [
-                    "mat_ye_gou_liao_ya"
-                ]
-            ],
-            [
-                "m_giant_rat",
-                "巨型老鼠",
-                "speedster",
-                2,
-                [
-                    "ms_si_yao"
-                ],
-                [
-                    "mat_shu_wei"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_bandit_leader",
-            "山贼头目",
-            "elite",
-            4,
-            [
-                "ms_pi_kan",
-                "ms_nu_hou"
-            ],
-            [
-                "mat_shan_zei_hui_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "vila_street",
-        "name": "维拉镇中央大街",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "石板铺就的主街，两侧商铺林立，叫卖声此起彼伏。铁匠铺的炉火昼夜不熄。",
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木镇，奥兰迪亚大陆的重要聚落。新手村",
         "type": "城镇区域",
         "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_blacksmith"
-        ]
-    },
-    {
-        "id": "vila_square",
-        "name": "维拉镇中心广场",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "城镇的心脏，喷泉旁竖着公告板，镇长府邸就在广场北侧。新来的冒险者都在这里报到。",
-        "type": "城镇区域",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_mayor",
-            "npc_bard"
-        ]
-    },
-    {
-        "id": "vila_tavern",
-        "name": "维拉镇酒馆·醉熊",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "整个小镇最热闹的地方，麦酒与冒险故事一样管够。赏金猎人喜欢在这里物色搭档。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_bartender",
-            "npc_bounty"
-        ]
-    },
-    {
-        "id": "vila_inn",
-        "name": "维拉镇旅店·星夜",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "干净温暖的旅店，老板娘玛丽总是笑眯眯的。在这里住宿能恢复全部状态。",
-        "type": "城镇区域",
-        "shop": False,
         "healer": True,
         "hidden": False,
-        "monsters": [],
+        "monsters": [
+        ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_innkeeper"
-        ]
+        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks"],
     },
     {
-        "id": "emerald_edge",
-        "name": "翡翠森林边缘",
-        "lv": 4,
-        "region": "西境",
+        "id": "oak_meadow",
+        "name": "橡木草地",
+        "lv": 1,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "emerald",
-        "area_name": "翡翠森林",
-        "desc": "森林的边缘地带，阳光还能透过树冠。林间传来狼嚎，深入请小心。",
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木草地，奥兰迪亚的野外区域，野兽与危险并存。史莱姆练级场",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_forest_wolf",
-                "森林狼",
-                "dps",
-                4,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_lang_pi"
-                ]
-            ],
-            [
-                "m_venom_spider",
-                "毒蜘蛛",
-                "speedster",
-                5,
-                [
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_zhi_zhu_du_nang"
-                ]
-            ]
+            ["m_slime", "绿史莱姆", "tank", 1, ["ms_zhuang_ji"], ["史莱姆黏液"]],
+            ["m_rabbit", "野兔", "speedster", 1, ["ms_ji_pao"], ["兔毛"]],
+            ["m_boar", "野猪", "dps", 3, ["ms_chong_zhuang"], ["野猪牙"]],
+        ],
+        "elite": ["e_great_boar", "巨型野猪", "elite", 4, ["ms_chong_zhuang", "ms_jian_ta"], ["巨型野猪牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "oak_forest",
+        "name": "橡木林",
+        "lv": 3,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木林，奥兰迪亚的野外区域，野兽与危险并存。野狗/哥布林",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_dog", "野狗", "dps", 3, ["ms_si_yao"], ["狗牙"]],
+            ["m_snake", "毒蛇", "speedster", 4, ["ms_du_ya"], ["蛇皮"]],
+            ["m_goblin_scout", "哥布林斥候", "speedster", 5, ["ms_duan_dao"], ["哥布林耳朵"]],
+            ["e_goblin_raider", "哥布林劫掠者", "dps", 6, ["ms_duan_dao", "ms_tou_shi"], ["劫掠者徽记"]],
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "emerald_trail",
-        "name": "翡翠林间小径",
+        "id": "white_deer",
+        "name": "白鹿城",
         "lv": 5,
-        "region": "西境",
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "white_deer",
+        "area_name": "白鹿城",
+        "desc": "白鹿城，奥兰迪亚大陆的重要聚落。南境首府",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor"],
+    },
+    {
+        "id": "emerald_forest",
+        "name": "翡翠森林",
+        "lv": 8,
+        "region": "南境·绿野",
         "chapter": 1,
         "area": "emerald",
         "area_name": "翡翠森林",
-        "desc": "精灵走出来的小径，树木会说话，魔法的光芒在林间流淌。",
+        "desc": "翡翠森林，奥兰迪亚的野外区域，野兽与危险并存。森林狼/树人",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_venom_spider",
-                "毒蜘蛛",
-                "speedster",
-                5,
-                [
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_zhi_zhu_du_nang"
-                ]
-            ],
-            [
-                "m_greensprite",
-                "绿妖精",
-                "caster",
-                6,
-                [
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_yao_jing_zhi_chen"
-                ]
-            ]
+            ["m_forest_wolf", "森林狼", "dps", 8, ["ms_si_yao", "ms_hao_jiao"], ["狼皮"]],
+            ["m_goblin_warrior", "哥布林战士", "dps", 10, ["ms_duan_dao", "ms_dun_ji"], ["哥布林徽记"]],
+            ["m_treant", "树人", "tank", 12, ["ms_teng_bian", "ms_ying_hua"], ["古木枝"]],
         ],
-        "elite": None,
+        "elite": ["e_wolf_alpha", "狼王·灰影", "elite", 14, ["ms_si_yao", "ms_hao_jiao", "ms_pu_ji"], ["灰影狼牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "emerald_heart",
-        "name": "翡翠森林之心",
-        "lv": 6,
-        "region": "西境",
+        "id": "misty_swamp",
+        "name": "迷雾沼泽",
+        "lv": 12,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "emerald",
-        "area_name": "翡翠森林",
-        "desc": "森林最古老的神木所在，精灵的圣域。守护这里的远古圣鹿不容侵犯。",
-        "type": "核心",
+        "area": "misty",
+        "area_name": "迷雾沼泽",
+        "desc": "迷雾沼泽，奥兰迪亚的野外区域，野兽与危险并存。大史莱姆/鳄鱼",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_greensprite",
-                "绿妖精",
-                "caster",
-                6,
-                [
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_yao_jing_zhi_chen"
-                ]
-            ],
-            [
-                "m_forest_wolf",
-                "森林狼",
-                "dps",
-                6,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_lang_pi"
-                ]
-            ]
+            ["m_big_slime", "大史莱姆", "tank", 12, ["ms_zhuang_ji", "ms_nian_ye"], ["大史莱姆核"]],
+            ["m_crocodile", "沼泽鳄鱼", "dps", 14, ["ms_yao_sui", "ms_shuai_wei"], ["鳄鱼皮"]],
+            ["m_swamp_mage", "沼泽巫师", "healer", 16, ["ms_du_wu", "ms_shui_dan"], ["巫师法杖碎片"]],
         ],
-        "elite": [
-            "e_forest_treant",
-            "远古树人",
-            "elite",
-            7,
-            [
-                "ms_zhong_ji",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yuan_gu_shu_pi"
-            ]
-        ],
-        "boss": [
-            "b_ancient_elk",
-            "远古圣鹿",
-            "boss",
-            8,
-            [
-                "ms_sheng_guang_chong_feng",
-                "ms_zi_ran_zhu_fu",
-                "ms_jian_ta"
-            ],
-            [
-                "mat_sheng_lu_jiao"
-            ]
-        ],
-        "npcs": [
-            "npc_druid"
-        ]
+        "elite": ["e_swamp_king", "沼泽巨鳄", "elite", 18, ["ms_yao_sui", "ms_shuai_wei", "ms_ni_jiang"], ["巨鳄鳞"]],
+        "boss": None,
+        "npcs": [],
     },
     {
-        "id": "stonefist_camp",
-        "name": "石拳营地",
-        "lv": 7,
-        "region": "西境",
+        "id": "goblin_camp",
+        "name": "哥布林营地",
+        "lv": 15,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矮人在丘陵脚下搭建的营地，篝火与铁砧声不断。矿洞方向常有地精的动静。",
+        "area": "goblin",
+        "area_name": "哥布林营地",
+        "desc": "哥布林营地，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_goblin_guard", "哥布林守卫", "tank", 15, ["ms_dun_ji"], ["哥布林铁片"]],
+            ["m_goblin_shaman", "哥布林萨满", "healer", 16, ["ms_zhi_liao", "ms_du_wu"], ["萨满图腾"]],
+            ["m_goblin_berserker", "哥布林狂战士", "dps", 18, ["ms_lian_zhan"], ["狂战士腰带"]],
+        ],
+        "elite": None,
+        "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20, ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"], ["咕噜的皇冠"]],
+        "npcs": [],
+    },
+    {
+        "id": "hill_mine",
+        "name": "山丘矿洞",
+        "lv": 18,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "hill",
+        "area_name": "山丘矿洞",
+        "desc": "山丘矿洞，奥兰迪亚的野外区域，野兽与危险并存。采矿点",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cave_bat", "洞穴蝙蝠", "speedster", 18, ["ms_fu_chong"], ["蝠翼"]],
+            ["m_goblin_miner", "地精矿工", "dps", 20, ["ms_gao_ji"], ["矿石碎片"]],
+            ["m_rock_lizard", "岩石蜥蜴", "tank", 22, ["ms_yao_sui", "ms_ying_hua"], ["岩蜥鳞"]],
+        ],
+        "elite": ["e_cave_troll", "洞穴巨魔", "elite", 24, ["ms_zhong_ji", "ms_zai_sheng"], ["巨魔血"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "ironharbor",
+        "name": "铁港城",
+        "lv": 10,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "ironharbor",
+        "area_name": "铁港城",
+        "desc": "铁港城，奥兰迪亚大陆的重要聚落。冒险者圣地",
         "type": "城镇区域",
         "shop": True,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_goblin_grunt",
-                "地精步兵",
-                "dps",
-                7,
-                [
-                    "ms_pi_kan"
-                ],
-                [
-                    "mat_di_jing_er_duo"
-                ]
-            ]
         ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_dwarf_elder"
-        ]
+        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant"],
     },
     {
-        "id": "stonefist_mine",
-        "name": "矿洞入口",
-        "lv": 8,
-        "region": "西境",
+        "id": "harbor_docks",
+        "name": "铁港码头",
+        "lv": 20,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矮人世代开采的矿脉洞口，如今被地精占领，洞内幽深黑暗。",
+        "area": "ironharbor",
+        "area_name": "铁港城",
+        "desc": "铁港码头，奥兰迪亚的野外区域，野兽与危险并存。水鬼/海盗",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_goblin_grunt",
-                "地精步兵",
-                "dps",
-                7,
-                [
-                    "ms_pi_kan"
-                ],
-                [
-                    "mat_di_jing_er_duo"
-                ]
-            ],
-            [
-                "m_mine_bat",
-                "矿洞蝙蝠",
-                "speedster",
-                8,
-                [
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_bian_fu_yi"
-                ]
-            ]
+            ["m_water_ghost", "水鬼", "dps", 20, ["ms_zhao_ji"], ["水鬼之泪"]],
+            ["m_pirate", "海盗水手", "dps", 22, ["ms_wan_dao"], ["弯刀碎片"]],
+            ["m_seagull", "大海鸥", "speedster", 22, ["ms_fu_chong"], ["海鸥羽毛"]],
         ],
-        "elite": None,
+        "elite": ["e_pirate_lieutenant", "海盗副官", "elite", 25, ["ms_wan_dao", "ms_huo_qiang"], ["副官勋章"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "stonefist_deep",
-        "name": "矿洞深处",
-        "lv": 9,
-        "region": "西境",
-        "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矿洞最深处，巨大的蛇影在黑暗中游弋。地精萨满在这里举行诡异的仪式。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_tunnel_snake",
-                "洞穴巨蛇",
-                "tank",
-                9,
-                [
-                    "ms_du_yao",
-                    "ms_chan_rao"
-                ],
-                [
-                    "mat_she_lin"
-                ]
-            ],
-            [
-                "m_mine_bat",
-                "矿洞蝙蝠",
-                "speedster",
-                9,
-                [
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_bian_fu_yi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_goblin_shaman",
-            "地精萨满",
-            "elite",
-            10,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_huan"
-            ],
-            [
-                "mat_sa_man_tu_teng"
-            ]
-        ],
-        "boss": [
-            "b_tunnel_king",
-            "隧洞之王",
-            "boss",
-            11,
-            [
-                "ms_zhong_ji",
-                "ms_nu_hou",
-                "ms_xuan_yun_zhong_ji",
-                "ms_di_dong"
-            ],
-            [
-                "mat_di_jing_wang_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "gloom_edge",
-        "name": "幽暗沼泽边缘",
-        "lv": 10,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "沼泽的最外围，瘴气开始弥漫，脚下的泥土松软而危险。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_swamp_zombie",
-                "沼泽僵尸",
-                "tank",
-                10,
-                [
-                    "ms_zhao_ji"
-                ],
-                [
-                    "mat_jiang_shi_fu_rou"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "gloom_mire",
-        "name": "泥沼深处",
-        "lv": 11,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "越深入，瘴气越浓。腐尸爬行者在泥水中蠕动着，鬼魂的哀嚎此起彼伏。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_bog_ghost",
-                "沼泽鬼魂",
-                "caster",
-                11,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao"
-                ],
-                [
-                    "mat_gui_hun_jing_hua"
-                ]
-            ],
-            [
-                "m_corpse_crawler",
-                "腐尸爬行者",
-                "dps",
-                12,
-                [
-                    "ms_zhao_ji",
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_pa_xing_chong_ke"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "gloom_heart",
-        "name": "沼泽之心",
-        "lv": 12,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "亡灵天灾的腐化源头，骸骨术士的祭坛立于此地，腐朽领主盘踞其上。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_corpse_crawler",
-                "腐尸爬行者",
-                "dps",
-                12,
-                [
-                    "ms_zhao_ji",
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_pa_xing_chong_ke"
-                ]
-            ],
-            [
-                "m_swamp_zombie",
-                "沼泽僵尸",
-                "tank",
-                12,
-                [
-                    "ms_zhao_ji"
-                ],
-                [
-                    "mat_jiang_shi_fu_rou"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_bone_warlock",
-            "骸骨术士",
-            "elite",
-            13,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_hun",
-                "ms_ji_qu"
-            ],
-            [
-                "mat_shu_shi_he_xin"
-            ]
-        ],
-        "boss": [
-            "b_decay_lord",
-            "腐朽领主",
-            "boss",
-            14,
-            [
-                "ms_zhao_ji",
-                "ms_fu_xi",
-                "ms_zhao_hun",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_fu_xiu_zhi_ren"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "redridge_field",
-        "name": "赤脊旷野",
-        "lv": 13,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "赤色岩石覆盖的旷野，兽人部落的巡逻队在此出没，座狼的嚎叫撕破寂静。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_orc_grunt",
-                "兽人步兵",
-                "dps",
-                13,
-                [
-                    "ms_pi_kan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_shou_ren_liao_ya"
-                ]
-            ],
-            [
-                "m_warg",
-                "座狼",
-                "speedster",
-                14,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_zuo_lang_quan_chi"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "redridge_ridge",
-        "name": "赤脊山脊",
-        "lv": 15,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "陡峭的山脊上风声猎猎，鹰身女妖在天空中盘旋，随时准备俯冲。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_harpy",
-                "鹰身女妖",
-                "caster",
-                15,
-                [
-                    "ms_fu_chong",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_nv_yao_zhi_yu"
-                ]
-            ],
-            [
-                "m_warg",
-                "座狼",
-                "speedster",
-                15,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_zuo_lang_quan_chi"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "redridge_camp",
-        "name": "战歌营地",
-        "lv": 16,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "战歌部落的大营，旌旗猎猎，兽人狂战士在营地中央的图腾柱下磨刀。",
-        "type": "核心",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_orc_grunt",
-                "兽人步兵",
-                "dps",
-                16,
-                [
-                    "ms_pi_kan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_shou_ren_liao_ya"
-                ]
-            ],
-            [
-                "m_harpy",
-                "鹰身女妖",
-                "caster",
-                16,
-                [
-                    "ms_fu_chong",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_nv_yao_zhi_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_orc_berserker",
-            "兽人狂战士",
-            "elite",
-            16,
-            [
-                "ms_pi_kan",
-                "ms_kuang_bao",
-                "ms_zhong_ji"
-            ],
-            [
-                "mat_kuang_zhan_zhi_xin"
-            ]
-        ],
-        "boss": [
-            "b_warband_chief",
-            "战歌部落酋长",
-            "boss",
-            17,
-            [
-                "ms_pi_kan",
-                "ms_zhan_hou",
-                "ms_zhong_ji",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_qiu_zhang_zhan_ren"
-            ]
-        ],
-        "npcs": [
-            "npc_orc_prisoner"
-        ]
-    },
-    {
-        "id": "blackrock_gate",
-        "name": "黑石城门",
-        "lv": 16,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "曾是人类王国都城的东门，如今城门倒塌，骷髅卫兵在废墟间巡游。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_skeleton_guard",
-                "骷髅卫兵",
-                "tank",
-                16,
-                [
-                    "ms_pi_kan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_gu_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "blackrock_street",
-        "name": "死城大街",
-        "lv": 17,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "曾经繁华的主街，如今只剩下断壁残垣。食尸鬼在阴影中啃食着什么。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_ghoul",
-                "食尸鬼",
-                "dps",
-                17,
-                [
-                    "ms_zhao_ji",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_shi_shi_gui_zhi_zhao"
-                ]
-            ],
-            [
-                "m_spectre",
-                "怨灵",
-                "caster",
-                18,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao",
-                    "ms_fu_shen"
-                ],
-                [
-                    "mat_ling_hun_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "blackrock_keep",
-        "name": "黑石王座",
-        "lv": 18,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "旧王国的王宫大殿，巫妖宰相的寒冰王座矗立于此，死亡骑士侍立两侧。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_skeleton_guard",
-                "骷髅卫兵",
-                "tank",
-                18,
-                [
-                    "ms_pi_kan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_gu_pian"
-                ]
-            ],
-            [
-                "m_spectre",
-                "怨灵",
-                "caster",
-                18,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao",
-                    "ms_fu_shen"
-                ],
-                [
-                    "mat_ling_hun_sui_pian"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_death_knight",
-            "死亡骑士",
-            "elite",
-            19,
-            [
-                "ms_pi_kan",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_jian",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_si_wang_qi_shi_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_lich_vizier",
-            "巫妖宰相",
-            "boss",
-            20,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_hun",
-                "ms_ji_qu",
-                "ms_wu_yao_qi_she"
-            ],
-            [
-                "mat_wu_yao_fa_zhang"
-            ]
-        ],
-        "npcs": [
-            "npc_ghost_knight"
-        ]
-    },
-    {
-        "id": "magma_gorge",
-        "name": "熔岩峡谷",
-        "lv": 19,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "magma",
-        "area_name": "熔岩裂谷",
-        "desc": "深渊恶魔撕开大地的裂隙，岩浆在脚下奔涌，火元素从熔岩中升起。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_fire_elemental",
-                "火元素",
-                "caster",
-                19,
-                [
-                    "ms_huo_qiu",
-                    "ms_zhuo_shao"
-                ],
-                [
-                    "mat_huo_yan_he_xin"
-                ]
-            ],
-            [
-                "m_imp",
-                "小恶魔",
-                "speedster",
-                20,
-                [
-                    "ms_huo_qiu",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_e_mo_zhi_jiao"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "magma_heart",
-        "name": "熔岩核心",
-        "lv": 21,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "magma",
-        "area_name": "熔岩裂谷",
-        "desc": "裂谷的最深处，岩浆瀑布倾泻而下。熔岩暴君在此沉睡，火焰巨人看守着它的梦。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_lava_hound",
-                "熔岩猎犬",
-                "tank",
-                21,
-                [
-                    "ms_si_yao",
-                    "ms_zhuo_shao",
-                    "ms_chong_zhuang"
-                ],
-                [
-                    "mat_rong_yan_shi"
-                ]
-            ],
-            [
-                "m_imp",
-                "小恶魔",
-                "speedster",
-                21,
-                [
-                    "ms_huo_qiu",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_e_mo_zhi_jiao"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_flame_giant",
-            "火焰巨人",
-            "elite",
-            22,
-            [
-                "ms_zhong_ji",
-                "ms_huo_qiu",
-                "ms_zhuo_shao",
-                "ms_lie_yan_zhen_ji"
-            ],
-            [
-                "mat_ju_ren_yu_jin"
-            ]
-        ],
-        "boss": [
-            "b_magma_tyrant",
-            "熔岩暴君",
-            "boss",
-            23,
-            [
-                "ms_huo_qiu",
-                "ms_lie_yan_zhen_ji",
-                "ms_zhuo_shao",
-                "ms_yan_jiang_pen_fa"
-            ],
-            [
-                "mat_rong_yan_zhi_jian"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "tundra_field",
-        "name": "冰封旷野",
+        "id": "sea_cave",
+        "name": "海蚀洞窟",
         "lv": 22,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "tundra",
-        "area_name": "冰封苔原",
-        "desc": "极北的冰雪世界，暴风雪中传来冰原狼的低吼，冰霜巨魔在雪丘间游荡。",
-        "type": "野外",
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "seacave",
+        "area_name": "海蚀洞窟",
+        "desc": "海蚀洞窟，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_ice_wolf",
-                "冰原狼",
-                "dps",
-                22,
-                [
-                    "ms_si_yao",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_bing_yuan_mao_pi"
-                ]
-            ],
-            [
-                "m_frost_troll",
-                "冰霜巨魔",
-                "tank",
-                23,
-                [
-                    "ms_zhong_ji",
-                    "ms_zai_sheng",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_ju_mo_xue_rou"
-                ]
-            ]
+            ["m_sea_slime", "海史莱姆", "tank", 22, ["ms_zhuang_ji", "ms_nian_ye"], ["海盐结晶"]],
+            ["m_siren", "海妖", "healer", 24, ["ms_mei_huo_zhi_ge", "ms_shui_dan"], ["海妖鳞片"]],
+            ["m_pirate_elite", "海盗精锐", "dps", 26, ["ms_wan_dao", "ms_huo_qiang"], ["精锐佩剑"]],
         ],
         "elite": None,
-        "boss": None,
-        "npcs": []
+        "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 28, ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"], ["杰克的金钩"]],
+        "npcs": [],
     },
     {
-        "id": "tundra_cave",
-        "name": "冰霜洞穴",
-        "lv": 24,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "tundra",
-        "area_name": "冰封苔原",
-        "desc": "冰川下的巨大洞穴，冰晶折射着幽蓝的光。霜裔亚龙就在这里筑巢。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_snow_wraith",
-                "雪魅",
-                "caster",
-                24,
-                [
-                    "ms_ji_qu",
-                    "ms_bing_yao",
-                    "ms_bao_feng_xue"
-                ],
-                [
-                    "mat_xue_zhi_jing_hua"
-                ]
-            ],
-            [
-                "m_frost_troll",
-                "冰霜巨魔",
-                "tank",
-                24,
-                [
-                    "ms_zhong_ji",
-                    "ms_zai_sheng",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_ju_mo_xue_rou"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_glacier_golem",
-            "冰川魔像",
-            "elite",
-            25,
-            [
-                "ms_zhong_ji",
-                "ms_bing_qiang",
-                "ms_shuang_xi"
-            ],
-            [
-                "mat_yong_heng_zhi_bing"
-            ]
-        ],
-        "boss": [
-            "b_frost_wyrm",
-            "霜裔亚龙",
-            "boss",
-            26,
-            [
-                "ms_shuang_xi",
-                "ms_bao_feng_xue",
-                "ms_si_yao",
-                "ms_long_zhi_nu"
-            ],
-            [
-                "mat_shuang_long_zhi_ya"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "stormpeak_path",
-        "name": "风暴山道",
-        "lv": 25,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "stormpeak",
-        "area_name": "风暴之巅",
-        "desc": "通往山巅的陡峭山道，终年雷暴，雷电元素在云层中翻涌，巨鹰盘旋警戒。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_thunder_elemental",
-                "雷电元素",
-                "caster",
-                25,
-                [
-                    "ms_shan_dian_jian",
-                    "ms_lei_ji"
-                ],
-                [
-                    "mat_lei_dian_he_xin"
-                ]
-            ],
-            [
-                "m_giant_eagle",
-                "巨鹰",
-                "speedster",
-                26,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_ju_ying_ling_yu"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "stormpeak_peak",
-        "name": "风暴之巅",
-        "lv": 27,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "stormpeak",
-        "area_name": "风暴之巅",
-        "desc": "世界的屋脊，雷暴的中心。风暴巨人王手持雷霆之锤，君临此处。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_storm_serpent",
-                "风暴巨蛇",
-                "tank",
-                27,
-                [
-                    "ms_shan_dian_jian",
-                    "ms_chan_rao",
-                    "ms_lei_ji"
-                ],
-                [
-                    "mat_feng_bao_she_lin"
-                ]
-            ],
-            [
-                "m_giant_eagle",
-                "巨鹰",
-                "speedster",
-                27,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_ju_ying_ling_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_sky_hunter",
-            "苍穹猎手",
-            "elite",
-            28,
-            [
-                "ms_feng_ren",
-                "ms_shan_dian_jian",
-                "ms_feng_bao_zhao_huan"
-            ],
-            [
-                "mat_cang_qiong_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_storm_giant",
-            "风暴巨人王",
-            "boss",
-            29,
-            [
-                "ms_lei_ji",
-                "ms_feng_bao_zhao_huan",
-                "ms_shan_dian_jian",
-                "ms_bao_feng_zhi_nu"
-            ],
-            [
-                "mat_lei_ting_zhi_chui"
-            ]
-        ],
-        "npcs": [
-            "npc_sky_hermit"
-        ]
-    },
-    {
-        "id": "shadow_gate",
-        "name": "暗影城门",
-        "lv": 28,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "深渊之门前的恶魔之城，城门由暗影恶魔把守，邪恶的气息扑面而来。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_shadow_demon",
-                "暗影恶魔",
-                "caster",
-                28,
-                [
-                    "ms_an_ying_jian",
-                    "ms_zhao_ji",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_an_ying_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "shadow_street",
-        "name": "暗影大街",
-        "lv": 29,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "恶魔的集市大街，灾厄小魔在屋檐间跳跃，虚空掠夺者盯上了每一个闯入者。",
-        "type": "野外",
+        "id": "silver_brook",
+        "name": "银溪镇",
+        "lv": 12,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "silver",
+        "area_name": "银溪镇",
+        "desc": "银溪镇，奥兰迪亚大陆的重要聚落。南境农业镇（新）",
+        "type": "城镇区域",
         "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_doom_imp",
-                "灾厄小魔",
-                "speedster",
-                29,
-                [
-                    "ms_huo_qiu",
-                    "ms_an_ying_jian",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_zai_e_zhi_xin"
-                ]
-            ],
-            [
-                "m_void_reaver",
-                "虚空掠夺者",
-                "dps",
-                30,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_xu_kong_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "shadow_keep",
-        "name": "暗影王座",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "暗影主教的黑曜石王座大厅，深渊领主们在此匍匐。这里是深渊之门最后的屏障。",
-        "type": "核心",
-        "shop": False,
         "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_void_reaver",
-                "虚空掠夺者",
-                "dps",
-                30,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_xu_kong_sui_pian"
-                ]
-            ],
-            [
-                "m_shadow_demon",
-                "暗影恶魔",
-                "caster",
-                30,
-                [
-                    "ms_an_ying_jian",
-                    "ms_zhao_ji",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_an_ying_sui_pian"
-                ]
-            ]
         ],
-        "elite": [
-            "e_pit_lord",
-            "深渊领主",
-            "elite",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_huo_qiu",
-                "ms_xu_kong_zhan",
-                "ms_di_yu_huo"
-            ],
-            [
-                "mat_shen_yuan_hui_ji"
-            ]
-        ],
-        "boss": [
-            "b_shadow_archon",
-            "暗影主教",
-            "boss",
-            30,
-            [
-                "ms_an_ying_jian",
-                "ms_xu_kong_zhan",
-                "ms_ji_qu",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_an_ying_zhi_guan"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
     {
-        "id": "abyss_plain",
-        "name": "深渊荒原",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "abyss_gate",
-        "area_name": "深渊之门",
-        "desc": "深渊之门前的荒原，大地龟裂，虚空之力扭曲着空间。恶魔大军在此列阵。",
+        "id": "silver_valley",
+        "name": "银溪谷地",
+        "lv": 10,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "silver",
+        "area_name": "银溪镇",
+        "desc": "银溪谷地，奥兰迪亚的野外区域，野兽与危险并存。溪谷野兽（新）",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_abyss_guardian",
-                "深渊守卫",
-                "tank",
-                30,
-                [
-                    "ms_pi_kan",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_shen_yuan_jing_gang"
-                ]
-            ],
-            [
-                "m_void_hound",
-                "虚空猎犬",
-                "speedster",
-                30,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_xu_kong_liao_ya"
-                ]
-            ]
+            ["m_river_deer", "溪鹿", "speedster", 10, ["ms_ji_chi"], ["溪鹿皮"]],
+            ["m_valley_goat", "谷山羊", "dps", 12, ["ms_ding_zhuang"], ["山羊角"]],
+            ["m_stream_lizard", "溪蜥", "tank", 14, ["ms_yao_sui", "ms_ying_hua"], ["溪蜥鳞"]],
+        ],
+        "elite": ["e_valley_troll", "谷地巨魔", "elite", 16, ["ms_zhong_ji", "ms_tou_shi"], ["巨魔牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "windmill_plain",
+        "name": "风车原野",
+        "lv": 14,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "windmill",
+        "area_name": "风车原野",
+        "desc": "风车原野，奥兰迪亚的野外区域，野兽与危险并存。平原兽群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_plain_rabbit", "平原兔", "speedster", 14, ["ms_ji_pao"], ["兔皮"]],
+            ["m_windmill_boar", "风车野猪", "dps", 16, ["ms_chong_zhuang"], ["野猪牙"]],
+            ["m_plain_ox", "平原野牛", "tank", 18, ["ms_chong_zhuang", "ms_jian_ta"], ["牛角"]],
+        ],
+        "elite": ["e_plain_wolf", "平原狼王", "elite", 20, ["ms_si_yao", "ms_hao_jiao"], ["狼王牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "deer_fort",
+        "name": "鹿角要塞",
+        "lv": 18,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "deerfort",
+        "area_name": "鹿角要塞",
+        "desc": "鹿角要塞，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
+    },
+    {
+        "id": "maple_village",
+        "name": "枫橡村",
+        "lv": 6,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "枫橡村，奥兰迪亚大陆的重要聚落。橡木镇西侧村落（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_oak_elder", "npc_hunter_gray", "npc_inn_tess"],
+    },
+    {
+        "id": "rockfall_gorge",
+        "name": "落石峡谷",
+        "lv": 4,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "落石峡谷，奥兰迪亚的野外区域，野兽与危险并存。峡谷岩兽（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rock_rat", "岩鼠", "speedster", 4, ["ms_ken_yao"], ["岩鼠牙"]],
+            ["m_mountain_goat", "岩羊", "dps", 5, ["ms_ding_zhuang"], ["岩羊毛"]],
+            ["m_cave_lizard", "石蜥蜴", "tank", 6, ["ms_yao_sui", "ms_ying_hua"], ["石蜥鳞"]],
+        ],
+        "elite": ["e_gorge_troll", "峡谷巨魔", "elite", 8, ["ms_zhong_ji", "ms_tou_shi"], ["巨魔獠牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "boar_ridge",
+        "name": "野猪岭",
+        "lv": 6,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "野猪岭，奥兰迪亚的野外区域，野兽与危险并存。野猪王领地（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_boar", "野猪", "dps", 6, ["ms_chong_zhuang"], ["野猪牙"]],
+            ["m_boar_sow", "母猪兽", "tank", 7, ["ms_si_yao", "ms_hu_zai"], ["母猪皮"]],
+            ["m_hornet", "巨型马蜂", "speedster", 8, ["ms_du_ci"], ["蜂针"]],
+        ],
+        "elite": ["e_boar_king", "野猪王·裂鬃", "elite", 10, ["ms_chong_zhuang", "ms_jian_ta", "ms_hao_jiao"], ["裂鬃獠牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "dawn_city",
+        "name": "晨曦城",
+        "lv": 25,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "dawn",
+        "area_name": "晨曦城",
+        "desc": "晨曦城，奥兰迪亚大陆的重要聚落。首都",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess"],
+    },
+    {
+        "id": "dawn_cathedral",
+        "name": "晨曦大圣堂",
+        "lv": 28,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "dawn",
+        "area_name": "晨曦城",
+        "desc": "晨曦大圣堂，奥兰迪亚的野外区域，野兽与危险并存。圣殿守卫/暗影教徒",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_temple_guard", "圣殿守卫（魔像）", "tank", 28, ["ms_zhong_ji", "ms_tie_bi"], ["圣殿铁块"]],
+            ["m_cultist", "暗影教徒", "dps", 30, ["ms_an_ying_dan"], ["暗影徽记"]],
+        ],
+        "elite": ["e_inquisitor", "审判官", "elite", 33, ["ms_an_ying_dan", "ms_suo_lian"], ["审判官之链"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "gold_plain",
+        "name": "金穗平原",
+        "lv": 30,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "gold",
+        "area_name": "金穗平原",
+        "desc": "金穗平原，奥兰迪亚的野外区域，野兽与危险并存。野牛/盗贼团",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_bull", "野牛", "tank", 30, ["ms_chong_zhuang"], ["牛角"]],
+            ["m_bandit", "盗贼", "speedster", 32, ["ms_duan_jian", "ms_tou_qie"], ["盗贼面巾"]],
+            ["m_steppe_wolf", "草原狼", "dps", 34, ["ms_si_yao"], ["草原狼皮"]],
+        ],
+        "elite": ["e_bandit_leader", "盗贼头目·黑鸦", "elite", 38, ["ms_duan_jian", "ms_yan_wu"], ["黑鸦披风"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "white_abbey",
+        "name": "白石修道院",
+        "lv": 32,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "abbey",
+        "area_name": "白石修道院",
+        "desc": "白石修道院，奥兰迪亚的野外区域，野兽与危险并存。修道院隐藏真相",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_corrupted_nun", "腐蚀修女", "healer", 32, ["ms_an_ying_zhi_liao", "ms_fu_shi_shu"], ["染黑圣铃"]],
+            ["m_stone_golem", "石魔像", "tank", 34, ["ms_zhong_ji", "ms_ying_hua"], ["魔像核心"]],
+        ],
+        "elite": ["e_abbey_guardian", "修道院守护者", "elite", 37, ["ms_zhong_ji", "ms_sheng_guang_zhan_bei_wu_ran"], ["守护者碎片"]],
+        "boss": None,
+        "npcs": ["npc_abbess"],
+    },
+    {
+        "id": "old_king_tomb",
+        "name": "旧王陵",
+        "lv": 35,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "oldtomb",
+        "area_name": "旧王陵",
+        "desc": "旧王陵，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_skeleton", "骷髅兵", "dps", 35, ["ms_jian_ji"], ["碎骨"]],
+            ["m_zombie", "僵尸", "tank", 37, ["ms_zhao_ji", "ms_gan_ran"], ["腐肉"]],
+            ["m_ghost", "幽灵", "speedster", 40, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵之尘"]],
+        ],
+        "elite": None,
+        "boss": ["b_king_odric", "古王·奥德里克", "boss", 45, ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"], ["古王剑"]],
+        "npcs": [],
+    },
+    {
+        "id": "border_castle",
+        "name": "边境堡",
+        "lv": 40,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "border",
+        "area_name": "边境堡",
+        "desc": "边境堡，奥兰迪亚的野外区域，野兽与危险并存。兽人入侵者",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_orc_raider", "兽人劫掠者", "dps", 40, ["ms_fu_ji"], ["兽人斧刃"]],
+            ["m_war_machine", "战争机器", "tank", 44, ["ms_chong_zhuang", "ms_huo_pao"], ["战争机器零件"]],
+        ],
+        "elite": ["e_orc_warrior", "兽人战士", "elite", 47, ["ms_fu_ji", "ms_zhan_hou"], ["兽人战徽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "silver_river",
+        "name": "银铃河",
+        "lv": 38,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "silverriver",
+        "area_name": "银铃河",
+        "desc": "银铃河，奥兰迪亚的野外区域，野兽与危险并存。水妖/鲛人",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_river_spirit", "水精灵", "healer", 38, ["ms_shui_dan", "ms_zhi_liao"], ["水精灵泪"]],
+            ["m_mermaid", "鲛人", "dps", 40, ["ms_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
+            ["m_river_dragon", "河龙", "tank", 44, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞"]],
+        ],
+        "elite": ["e_river_dragon_lord", "河龙领主", "elite", 46, ["ms_shui_xi", "ms_xuan_wo"], ["河龙领主鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "secret_crypt",
+        "name": "圣堂地窖",
+        "lv": 42,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "crypt",
+        "area_name": "圣堂地窖",
+        "desc": "圣堂地窖，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_shadow_priest", "暗影祭司", "healer", 42, ["ms_an_ying_dan", "ms_hei_an_zhi_liao"], ["染黑圣典"]],
+            ["m_inquisitor_hound", "审判猎犬", "speedster", 45, ["ms_si_yao"], ["猎犬项圈"]],
+        ],
+        "elite": None,
+        "boss": ["b_marcus", "审判长·马尔库斯", "boss", 52, ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"], ["马尔库斯的法冠"]],
+        "npcs": [],
+    },
+    {
+        "id": "knight_yard",
+        "name": "圣骑士训练场",
+        "lv": 26,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "knight",
+        "area_name": "圣骑士训练场",
+        "desc": "圣骑士训练场，奥兰迪亚的野外区域，野兽与危险并存。训练魔像",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_training_golem", "训练魔像", "tank", 26, ["ms_zhong_ji", "ms_tie_bi"], ["魔像核心"]],
+            ["m_training_dummy", "训练木桩", "dps", 28, ["ms_pi_kan"], ["木桩碎片"]],
+            ["m_knight_apprentice", "见习骑士", "dps", 30, ["ms_jian_ji"], ["骑士徽记"]],
+        ],
+        "elite": ["e_knight_instructor", "骑士教官", "elite", 34, ["ms_jian_ji", "ms_zhan_hou"], ["教官之剑"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "king_road",
+        "name": "王陵古道",
+        "lv": 33,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "kingroad",
+        "area_name": "王陵古道",
+        "desc": "王陵古道，奥兰迪亚的野外区域，野兽与危险并存。亡灵游荡",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_road_skeleton", "古道骷髅", "dps", 33, ["ms_jian_ji"], ["碎骨"]],
+            ["m_grave_ghost", "古墓幽灵", "speedster", 36, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵之尘"]],
+            ["m_ancient_knight", "古代骑士", "tank", 39, ["ms_jian_ji", "ms_tie_bi"], ["锈甲碎片"]],
+        ],
+        "elite": ["e_grave_lord", "古墓领主", "elite", 42, ["ms_an_ying_zhan", "ms_zhao_huan_ku_lou"], ["领主骨甲"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "holy_trial",
+        "name": "圣光试炼场",
+        "lv": 36,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "holytrial",
+        "area_name": "圣光试炼场",
+        "desc": "圣光试炼场，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "ironshield_town",
+        "name": "铁盾镇",
+        "lv": 30,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "ironshield",
+        "area_name": "铁盾镇",
+        "desc": "铁盾镇，奥兰迪亚大陆的重要聚落。晨曦城北卫镇（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_ironshield_mayor", "npc_ironshield_smith", "npc_ironshield_scout"],
+    },
+    {
+        "id": "ironshield_hills",
+        "name": "铁盾丘陵",
+        "lv": 28,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "ironshield",
+        "area_name": "铁盾镇",
+        "desc": "铁盾丘陵，奥兰迪亚的野外区域，野兽与危险并存。丘陵狼群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_hill_wolf", "丘陵狼", "dps", 28, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮"]],
+            ["m_iron_boar", "铁甲野猪", "tank", 30, ["ms_chong_zhuang", "ms_tie_pi"], ["铁甲猪皮"]],
+            ["m_hill_vulture", "秃鹫", "speedster", 32, ["ms_fu_chong"], ["秃鹫羽"]],
+        ],
+        "elite": ["e_hill_wolf_king", "丘陵狼王·铁牙", "elite", 34, ["ms_si_yao", "ms_pu_ji", "ms_hao_jiao"], ["铁牙狼皮"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "old_battlefield",
+        "name": "旧战场遗址",
+        "lv": 32,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "oldbattle",
+        "area_name": "旧战场遗址",
+        "desc": "旧战场遗址，奥兰迪亚的野外区域，野兽与危险并存。百族战争遗迹（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rust_warrior", "锈甲亡兵", "dps", 32, ["ms_xiu_jian"], ["锈甲碎片"]],
+            ["m_field_ghost", "战场幽魂", "speedster", 34, ["ms_chuan_shen", "ms_ai_hao"], ["幽魂尘"]],
+            ["m_war_golem", "战争魔像（残）", "tank", 37, ["ms_zhong_ji", "ms_tie_bi"], ["魔像残核"]],
+        ],
+        "elite": ["e_battle_lord", "百族战将·亡影", "elite", 40, ["ms_zhan_chui", "ms_zhan_hou", "ms_zhao_huan_you_hun"], ["亡影战徽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "moon_gate",
+        "name": "月冠隘口",
+        "lv": 45,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moongate",
+        "area_name": "月冠隘口",
+        "desc": "月冠隘口，奥兰迪亚大陆的重要聚落。精灵领地入口",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "silverwood",
+        "name": "银月林海",
+        "lv": 46,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "silverwood",
+        "area_name": "银月林海",
+        "desc": "银月林海，奥兰迪亚的野外区域，野兽与危险并存。精灵兽/月狼",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_elf_beast", "精灵鹿", "speedster", 46, ["ms_ji_pao", "ms_ding_zhuang"], ["精灵鹿角"]],
+            ["m_moon_wolf", "月狼", "dps", 50, ["ms_si_yao", "ms_yue_guang_zhan"], ["月狼毛皮"]],
+            ["m_treant_elder", "古树人", "tank", 54, ["ms_teng_bian", "ms_ying_hua", "ms_gen_xu"], ["古树之心"]],
+        ],
+        "elite": ["e_moon_wolf_alpha", "月狼王·银鬃", "elite", 56, ["ms_si_yao", "ms_yue_guang_zhan", "ms_hao_jiao"], ["银鬃狼皮"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "starlake",
+        "name": "星语湖",
+        "lv": 50,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "starlake",
+        "area_name": "星语湖",
+        "desc": "星语湖，奥兰迪亚的野外区域，野兽与危险并存。湖妖/水精灵",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_lake_demon", "湖妖", "healer", 50, ["ms_shui_dan", "ms_mei_huo"], ["湖妖泪"]],
+            ["m_water_elf", "水精灵战士", "dps", 54, ["ms_san_cha_ji"], ["水精灵鳞"]],
+            ["m_giant_bass", "巨鲈", "tank", 56, ["ms_zhuang_ji", "ms_shui_dan"], ["巨鲈鱼骨"]],
+        ],
+        "elite": ["e_lake_king", "星语湖王", "elite", 58, ["ms_shui_dan", "ms_xuan_wo", "ms_zhao_huan_shui_jing_ling"], ["湖王珠"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "moon_court",
+        "name": "月冠王庭",
+        "lv": 55,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "mooncourt",
+        "area_name": "月冠王庭",
+        "desc": "月冠王庭，奥兰迪亚大陆的重要聚落。精灵主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_elf_queen", "npc_elf_guardian", "npc_elf_sage"],
+    },
+    {
+        "id": "elven_ruins",
+        "name": "精灵废墟",
+        "lv": 58,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "elvenruins",
+        "area_name": "精灵废墟",
+        "desc": "精灵废墟，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_corrupted_elf", "堕落精灵", "dps", 58, ["ms_jing_ling_jian_shu", "ms_an_ying_zhan"], ["堕落精灵护符"]],
+            ["m_ancient_golem", "远古魔像", "tank", 62, ["ms_zhong_ji", "ms_fu_wen_chong_ji"], ["远古符文石"]],
+        ],
+        "elite": None,
+        "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 66, ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"], ["晨曦之冠"]],
+        "npcs": [],
+    },
+    {
+        "id": "ancient_tree",
+        "name": "古树隘口",
+        "lv": 62,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "ancienttree",
+        "area_name": "古树隘口",
+        "desc": "古树隘口，奥兰迪亚的野外区域，野兽与危险并存。通往北境",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_giant_spider", "巨型蜘蛛", "speedster", 62, ["ms_du_ya", "ms_zhi_wang"], ["蜘蛛丝"]],
+            ["m_shadow_elf", "暗影精灵", "dps", 64, ["ms_an_ying_jian", "ms_qian_xing"], ["暗影精灵刃"]],
+            ["m_old_tree_guardian", "古树守卫", "tank", 68, ["ms_teng_bian", "ms_ying_hua"], ["守卫古木"]],
+        ],
+        "elite": ["e_tree_lord", "古树领主", "elite", 70, ["ms_teng_bian", "ms_gen_xu_chan_rao", "ms_zhao_huan_shu_ren"], ["领主古木心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "star_song",
+        "name": "星歌镇",
+        "lv": 48,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "starsong",
+        "area_name": "星歌镇",
+        "desc": "星歌镇，奥兰迪亚大陆的重要聚落。精灵边陲小镇",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "moon_glade",
+        "name": "月光林",
+        "lv": 52,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moonglade",
+        "area_name": "月光林",
+        "desc": "月光林，奥兰迪亚的野外区域，野兽与危险并存。月下精灵兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_moon_deer", "月鹿", "speedster", 52, ["ms_ji_chi", "ms_yue_guang_zhan"], ["月鹿角"]],
+            ["m_moon_bear", "月熊", "tank", 56, ["ms_xiong_zhang", "ms_yue_guang_zhan"], ["月熊皮"]],
+            ["m_moon_spirit", "月光精灵", "healer", 58, ["ms_yue_guang_zhan", "ms_zhi_yu"], ["月光精华"]],
+        ],
+        "elite": ["e_moon_lord", "月光领主·银辉", "elite", 62, ["ms_yue_guang_zhan", "ms_zhao_huan_yue_lu"], ["银辉月石"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "emerald_valley",
+        "name": "翠谷",
+        "lv": 47,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "emeraldvalley",
+        "area_name": "翠谷",
+        "desc": "翠谷，奥兰迪亚的野外区域，野兽与危险并存。精灵鹿群",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_emerald_deer", "翠鹿", "speedster", 47, ["ms_ji_chi", "ms_ding_zhuang"], ["翠鹿角"]],
+            ["m_valley_faerie", "谷地仙灵", "healer", 50, ["ms_cai_guang", "ms_zhu_fu"], ["谷地露水"]],
+            ["m_green_stag", "绿角雄鹿", "tank", 52, ["ms_ding_zhuang", "ms_ying_hua"], ["绿鹿角"]],
+        ],
+        "elite": ["e_valley_lord", "翠谷领主·林语", "elite", 55, ["ms_teng_bian", "ms_gen_xu_chan_rao"], ["林语之叶"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "moon_temple",
+        "name": "月神圣殿",
+        "lv": 60,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moontemple",
+        "area_name": "月神圣殿",
+        "desc": "月神圣殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "windvale",
+        "name": "风语谷",
+        "lv": 50,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "windvale",
+        "area_name": "风语谷",
+        "desc": "风语谷，奥兰迪亚的野外区域，野兽与危险并存。风语精灵/鹿群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wind_deer", "风语鹿", "speedster", 50, ["ms_ji_chi", "ms_feng_ren"], ["风语鹿角"]],
+            ["m_whisper_spirit", "风语精灵", "healer", 52, ["ms_feng_ren", "ms_wei_feng_zhu_fu"], ["风语结晶"]],
+            ["m_valley_eagle", "谷地巨鹰", "dps", 54, ["ms_fu_chong", "ms_zhao_ji"], ["巨鹰羽"]],
+        ],
+        "elite": ["e_wind_king", "风语王·岚歌", "elite", 58, ["ms_feng_ren", "ms_feng_bao", "ms_zhao_huan_feng_yu_jing_ling"], ["岚歌之羽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "moonshadow_wood",
+        "name": "月影林",
+        "lv": 54,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moonshadow",
+        "area_name": "月影林",
+        "desc": "月影林，奥兰迪亚的野外区域，野兽与危险并存。影豹/月影兽（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_shadow_panther", "影豹", "speedster", 54, ["ms_pu_ji", "ms_qian_xing"], ["影豹皮"]],
+            ["m_moon_shade", "月影兽", "dps", 56, ["ms_an_ying_zhao", "ms_yue_guang_zhan"], ["月影之爪"]],
+            ["m_glow_fox", "荧光狐", "healer", 58, ["ms_mei_huo", "ms_ying_guang_shan"], ["荧光狐尾"]],
+        ],
+        "elite": ["e_moonshadow_lord", "月影领主·夜歌", "elite", 62, ["ms_an_ying_zhao", "ms_yue_guang_zhan", "ms_zhao_huan_ying_bao"], ["夜歌之眼"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "frost_horn",
+        "name": "霜角堡",
+        "lv": 60,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frosthorn",
+        "area_name": "霜角堡",
+        "desc": "霜角堡，奥兰迪亚大陆的重要聚落。北境人类主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_north_chief", "npc_garrison", "npc_field_priest"],
+    },
+    {
+        "id": "frost_field",
+        "name": "霜原",
+        "lv": 62,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostfield",
+        "area_name": "霜原",
+        "desc": "霜原，奥兰迪亚的野外区域，野兽与危险并存。雪狼/霜巨魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_snow_wolf", "雪狼", "dps", 62, ["ms_si_yao", "ms_bing_ya"], ["雪狼皮"]],
+            ["m_ice_elemental", "冰元素", "tank", 65, ["ms_bing_dan", "ms_dong_jie"], ["冰元素核心"]],
+            ["m_frost_troll", "霜巨魔", "dps", 68, ["ms_zhong_ji", "ms_zai_sheng", "ms_bing_ji"], ["霜巨魔血"]],
+        ],
+        "elite": ["e_frost_troll_lord", "霜巨魔王", "elite", 72, ["ms_zhong_ji", "ms_bing_ji", "ms_zhao_huan_xue_lang"], ["霜巨魔王角"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "anvil_fort",
+        "name": "铁砧要塞",
+        "lv": 65,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "anvilfort",
+        "area_name": "铁砧要塞",
+        "desc": "铁砧要塞，奥兰迪亚大陆的重要聚落。矮人主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_dwarf_elder", "npc_rune_master"],
+    },
+    {
+        "id": "forge_valley",
+        "name": "熔炉谷",
+        "lv": 66,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "forgevalley",
+        "area_name": "熔炉谷",
+        "desc": "熔炉谷，奥兰迪亚的野外区域，野兽与危险并存。火蜥蜴/熔岩元素",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_fire_lizard", "火蜥蜴", "speedster", 66, ["ms_huo_dan"], ["火蜥蜴鳞"]],
+            ["m_lava_elemental", "熔岩元素", "tank", 70, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["熔岩核心"]],
+            ["m_mining_demon", "矿魔", "dps", 72, ["ms_gao_ji", "ms_huo_yan"], ["矿魔之角"]],
+        ],
+        "elite": ["e_lava_lord", "熔岩领主", "elite", 76, ["ms_rong_yan_dan", "ms_zhuo_shao", "ms_di_lie"], ["熔岩领主核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "black_forest",
+        "name": "黑森林",
+        "lv": 72,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "blackforest",
+        "area_name": "黑森林",
+        "desc": "黑森林，奥兰迪亚的野外区域，野兽与危险并存。腐牙兽人",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rot_orc", "腐牙兽人", "dps", 72, ["ms_fu_ji", "ms_fu_shi"], ["腐牙兽牙"]],
+            ["m_dark_elf", "黑暗精灵", "speedster", 75, ["ms_an_ying_jian", "ms_qian_xing"], ["黑暗精灵刃"]],
+            ["m_corrupt_beast", "腐蚀兽", "tank", 78, ["ms_zhao_ji", "ms_fu_shi"], ["腐蚀兽爪"]],
+        ],
+        "elite": ["e_rot_chief_guard", "腐牙亲卫", "elite", 80, ["ms_fu_ji", "ms_zhan_hou"], ["腐牙战徽"]],
+        "boss": None,
+        "npcs": ["npc_fallen_chief"],
+    },
+    {
+        "id": "cinder_mountain",
+        "name": "烬山",
+        "lv": 78,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "cinder",
+        "area_name": "烬山",
+        "desc": "烬山，奥兰迪亚的野外区域，野兽与危险并存。恶魔/炎魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_imp", "小恶魔", "speedster", 78, ["ms_huo_dan", "ms_zhao_ji"], ["小恶魔角"]],
+            ["m_hellhound", "地狱犬", "dps", 80, ["ms_si_yao", "ms_di_yu_huo"], ["地狱犬牙"]],
+            ["m_demon_servant", "深渊奴仆", "tank", 82, ["ms_zhong_ji", "ms_an_ying_dan"], ["奴仆锁链"]],
+        ],
+        "elite": ["e_demon_warrior", "恶魔战士", "elite", 86, ["ms_zhang_jian", "ms_di_yu_huo"], ["恶魔战刃"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "ash_temple",
+        "name": "烬山祭坛",
+        "lv": 82,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "ashtemple",
+        "area_name": "烬山祭坛",
+        "desc": "烬山祭坛，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_demon_priest", "恶魔祭司", "healer", 82, ["ms_an_ying_dan", "ms_hei_an_zhi_liao"], ["染血祭器"]],
+            ["m_seal_guardian", "封印守卫（腐蚀）", "tank", 86, ["ms_zhong_ji", "ms_fu_shi"], ["碎裂封印石"]],
+        ],
+        "elite": None,
+        "boss": ["b_helga", "恶魔祭司·赫尔加", "boss", 92, ["ms_an_ying_dan", "ms_zhao_huan_e_mo", "ms_hei_an_yi_shi"], ["赫尔加的祭器"]],
+        "npcs": ["npc_demon_priestess"],
     },
     {
         "id": "abyss_gate",
-        "name": "深渊之门",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "abyss_gate",
-        "area_name": "深渊之门",
-        "desc": "魔王所在的最终战场，魔王·阿兹莫丹立于深渊之门下，大陆的命运在此一决。",
-        "type": "核心",
+        "name": "深渊裂隙",
+        "lv": 90,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "abyssgate",
+        "area_name": "深渊裂隙",
+        "desc": "深渊裂隙，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_demon_herald",
-                "恶魔先驱",
-                "caster",
-                30,
-                [
-                    "ms_huo_qiu",
-                    "ms_an_ying_jian",
-                    "ms_di_yu_huo"
-                ],
-                [
-                    "mat_xian_qu_hao_jiao"
-                ]
-            ],
-            [
-                "m_void_hound",
-                "虚空猎犬",
-                "speedster",
-                30,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_xu_kong_liao_ya"
-                ]
-            ]
+            ["m_abyss_hound", "深渊猎犬", "dps", 90, ["ms_si_yao", "ms_an_ying_zhao"], ["深渊犬牙"]],
+            ["m_abyss_knight", "深渊骑士", "tank", 92, ["ms_jian_ji", "ms_an_ying_zhan"], ["深渊骑士盔甲碎片"]],
+            ["m_abyss_mage", "深渊法师", "healer", 94, ["ms_an_ying_dan", "ms_hei_an_zhi_liao", "ms_zhao_huan"], ["深渊法师杖"]],
         ],
         "elite": None,
-        "boss": [
-            "b_dark_lord",
-            "魔王·阿兹莫丹",
-            "boss",
-            30,
-            [
-                "ms_xu_kong_zhan",
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_hui_mie_zhi_ji",
-                "ms_han_bing_tu_xi"
-            ],
-            [
-                "mat_hei_an_jun_zhu_zhi_ren"
-            ]
-        ],
-        "npcs": []
+        "boss": ["b_eter", "蚀夜（真相形态）", "boss", 100, ["ms_an_ying_zhan", "ms_shen_yuan_zhi_nu", "ms_zhao_huan_shen_yuan"], ["黎明之光碎片"]],
+        "npcs": [],
     },
     {
-        "id": "mithril_hall",
-        "name": "秘银大厅",
-        "lv": 26,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "mithril",
-        "area_name": "秘银遗迹",
-        "desc": "上古矮人王的宝库大厅，秘银魔像沿着走廊巡视，符文骑士守卫着每一道门。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": True,
-        "monsters": [
-            [
-                "m_mithril_golem",
-                "秘银魔像",
-                "tank",
-                26,
-                [
-                    "ms_zhong_ji",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_mi_yin_kuang_shi"
-                ]
-            ],
-            [
-                "m_runebound_knight",
-                "符文骑士",
-                "dps",
-                28,
-                [
-                    "ms_pi_kan",
-                    "ms_fu_wen_bao_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_fu_wen_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "mithril_vault",
-        "name": "秘银宝库",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "mithril",
-        "area_name": "秘银遗迹",
-        "desc": "宝库的最深处，矮人王冠静静躺在王座上，宝藏守护者寸步不离。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": True,
-        "monsters": [
-            [
-                "m_treasure_guardian",
-                "宝藏守护者",
-                "boss",
-                30,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_bao_cang_yao_shi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_ancient_dwarf",
-            "上古矮人王魂",
-            "elite",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_fu_wen_bao_fa",
-                "ms_zhan_hou",
-                "ms_xian_zu_zhi_nu"
-            ],
-            [
-                "mat_ai_ren_wang_zhi_jie"
-            ]
-        ],
-        "boss": [
-            "b_dwarf_king",
-            "秘银之王",
-            "boss",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_fu_wen_bao_fa",
-                "ms_xian_zu_zhi_nu",
-                "ms_mi_yin_zhen_ji"
-            ],
-            [
-                "mat_mi_yin_wang_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "holy_field",
-        "name": "远境草甸",
-        "lv": 31,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "远境高原的入口草甸，圣光透过云层洒下，却掩盖不住空气中弥漫的异样气息。光耀狼在草丛间游荡。",
+        "id": "frost_fang",
+        "name": "冰牙谷",
+        "lv": 63,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostfang",
+        "area_name": "冰牙谷",
+        "desc": "冰牙谷，奥兰迪亚的野外区域，野兽与危险并存。冰牙兽群",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_holy_hawk",
-                "远境猎鹰",
-                "dps",
-                31,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_sheng_guang_yu_mao"
-                ]
-            ],
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                32,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ],
-            [
-                "m_holy_deer",
-                "远境麋鹿",
-                "tank",
-                33,
-                [
-                    "ms_chong_zhuang",
-                    "ms_zi_ran_zhu_fu"
-                ],
-                [
-                    "mat_sheng_hui_lu_jiao"
-                ]
-            ]
+            ["m_ice_sabre", "冰牙剑齿虎", "dps", 63, ["ms_si_yao", "ms_bing_ya"], ["剑齿虎牙"]],
+            ["m_snow_mammoth", "雪原猛犸", "tank", 66, ["ms_chong_zhuang", "ms_jian_ta"], ["猛犸毛"]],
+            ["m_glacier_rabbit", "冰川雪兔", "speedster", 68, ["ms_ji_pao", "ms_bing_dan"], ["雪兔皮"]],
         ],
-        "elite": [
-            "e_holy_knight",
-            "远境骑士",
-            "elite",
-            34,
-            [
-                "ms_pi_kan",
-                "ms_sheng_guang_zhan",
-                "ms_dun_ji"
-            ],
-            [
-                "mat_sheng_guang_hui_zhang"
-            ]
-        ],
+        "elite": ["e_ice_fang_lord", "冰牙领主·霜白", "elite", 71, ["ms_si_yao", "ms_bing_hou", "ms_zhao_huan_xue_lang"], ["霜白獠牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "holy_altar",
-        "name": "远境祭坛",
-        "lv": 34,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "古老的圣光祭坛，信徒们曾在此祈祷。如今祭坛被暗影侵蚀，教会修士们神色诡异地低声吟唱。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_temple_adept",
-                "教会修士",
-                "caster",
-                34,
-                [
-                    "ms_mo_fa_fei_dan",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_sheng_guang_jie_jing"
-                ]
-            ],
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                33,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_holy_knight_captain",
-            "远境骑士长",
-            "elite",
-            36,
-            [
-                "ms_pi_kan",
-                "ms_sheng_guang_zhan",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_sheng_qi_shi_jian"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_holy_cardinal"
-        ]
-    },
-    {
-        "id": "holy_temple",
-        "name": "远境大教堂",
-        "lv": 38,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "远境大教堂的核心大殿，天使的雕像被暗影藤蔓缠绕。大主教说，赛拉斯大主教已经……堕落了。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_holy_guard",
-                "大教堂卫士",
-                "tank",
-                36,
-                [
-                    "ms_dun_ji",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_sheng_guang_dun_pai"
-                ]
-            ],
-            [
-                "m_seraph",
-                "白翼教众",
-                "caster",
-                37,
-                [
-                    "ms_tian_fa",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_tian_shi_zhi_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_seraph_captain",
-            "白翼统领",
-            "elite",
-            37,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei"
-            ],
-            [
-                "mat_tian_shi_sheng_yin"
-            ]
-        ],
-        "boss": [
-            "b_archangel",
-            "大主教·赛拉斯",
-            "boss",
-            38,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_sheng_guang_chong_feng"
-            ],
-            [
-                "mat_tian_shi_sheng_yin"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "elf_forest",
-        "name": "精灵之森",
-        "lv": 41,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭外围的原始森林，古树参天，月光透过叶隙洒下。森林在低语，精灵们已经很久没有歌唱了。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_elf_archer",
-                "精灵弓手",
-                "dps",
-                41,
-                [
-                    "ms_feng_ren",
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_jing_ling_jian_shi"
-                ]
-            ],
-            [
-                "m_moon_panther",
-                "月影豹",
-                "speedster",
-                42,
-                [
-                    "ms_zhao_ji",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_yue_ying_zhi_pi"
-                ]
-            ],
-            [
-                "m_forest_spirit",
-                "林间鹿灵",
-                "caster",
-                43,
-                [
-                    "ms_zi_ran_zhu_fu",
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_sen_lin_zhi_ling"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_moon_guard",
-            "月光守卫",
-            "elite",
-            44,
-            [
-                "ms_feng_ren",
-                "ms_chan_rao",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yue_zhi_ren"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "elf_courtyard",
-        "name": "月之庭院",
-        "lv": 44,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭的月之庭院，银月泉水依旧流淌，但守护它的精灵法师们眼中只剩空洞。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_elf_mage",
-                "精灵法师",
-                "caster",
-                44,
-                [
-                    "ms_huo_qiu",
-                    "ms_shan_dian_jian"
-                ],
-                [
-                    "mat_jing_ling_fa_zhu"
-                ]
-            ],
-            [
-                "m_jade_bird",
-                "翠羽灵鸟",
-                "speedster",
-                45,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_cui_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_court_guard",
-            "王庭禁卫",
-            "elite",
-            46,
-            [
-                "ms_pi_kan",
-                "ms_feng_ren",
-                "ms_dun_ji"
-            ],
-            [
-                "mat_wang_ting_hui_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_elf_sage"
-        ]
-    },
-    {
-        "id": "elf_throne",
-        "name": "王庭深处",
-        "lv": 48,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭的最深处，月神祭坛上，女王的身影被暗影笼罩。她手中的月之泪，已化为黑色。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_court_guard",
-                "王庭禁卫",
-                "tank",
-                48,
-                [
-                    "ms_pi_kan",
-                    "ms_feng_ren",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_wang_ting_hui_zhang"
-                ]
-            ],
-            [
-                "m_elf_mage",
-                "精灵法师",
-                "caster",
-                47,
-                [
-                    "ms_huo_qiu",
-                    "ms_shan_dian_jian"
-                ],
-                [
-                    "mat_jing_ling_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_moon_priest",
-            "月神祭司",
-            "elite",
-            49,
-            [
-                "ms_mo_fa_fei_dan",
-                "ms_bao_feng_xue",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yue_zhi_lei"
-            ]
-        ],
-        "boss": [
-            "b_elf_queen",
-            "精灵女王·艾薇安",
-            "boss",
-            50,
-            [
-                "ms_feng_ren",
-                "ms_bao_feng_xue",
-                "ms_zi_ran_zhu_fu",
-                "ms_tian_fa"
-            ],
-            [
-                "mat_yue_shen_zhi_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "dragon_path",
-        "name": "龙脊山道",
-        "lv": 51,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙脊山脉的蜿蜒山道，灼热的气浪从山巅翻涌而下。龙裔战士在山道间巡逻，警惕地盯着每个闯入者。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_dragon_lizard",
-                "龙鳞蜥蜴",
-                "tank",
-                51,
-                [
-                    "ms_si_yao",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_long_lin"
-                ]
-            ],
-            [
-                "m_cliff_wyvern",
-                "岩脊飞龙",
-                "speedster",
-                52,
-                [
-                    "ms_fu_chong",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_fei_long_yi"
-                ]
-            ],
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_warrior",
-            "龙脉战士长",
-            "elite",
-            54,
-            [
-                "ms_zhong_ji",
-                "ms_long_zhi_nu",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_mai_zhan_ren"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "dragon_nest",
-        "name": "龙巢之巅",
-        "lv": 54,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙巢之巅，幼龙们在巢穴间嬉戏，却带着不属于幼龙的暴戾。贤者·岩语说，龙血正在被某种力量唤醒。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_ember_whelp",
-                "赤炎幼龙",
-                "caster",
-                54,
-                [
-                    "ms_huo_qiu",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_long_yan_jing_hua"
-                ]
-            ],
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_guardian",
-            "龙脉守护者",
-            "elite",
-            56,
-            [
-                "ms_long_zhi_nu",
-                "ms_lie_yan_zhen_ji",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_mai_hu_fu"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_dragon_elder"
-        ]
-    },
-    {
-        "id": "dragon_shrine",
-        "name": "龙眠圣殿",
-        "lv": 58,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙眠圣殿，龙族的圣地。古龙·奥瑞斯盘踞在王座上，龙眼中燃烧着不属于龙族的混沌之火。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_flame_wyvern",
-                "赤炎飞龙",
-                "dps",
-                58,
-                [
-                    "ms_huo_qiu",
-                    "ms_long_zhi_nu",
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_fei_long_lin"
-                ]
-            ],
-            [
-                "m_dragon_guardian",
-                "龙脉守护者",
-                "tank",
-                57,
-                [
-                    "ms_long_zhi_nu",
-                    "ms_lie_yan_zhen_ji",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_mai_hu_fu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_wing",
-            "龙翼亲卫",
-            "elite",
-            59,
-            [
-                "ms_long_zhi_nu",
-                "ms_sheng_guang_chong_feng",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_yi_jian"
-            ]
-        ],
-        "boss": [
-            "b_dragon_king",
-            "古龙·奥瑞斯",
-            "boss",
-            60,
-            [
-                "ms_long_zhi_nu",
-                "ms_lie_yan_zhen_ji",
-                "ms_kuang_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_long_wang_zhi_jiao"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "void_edge",
-        "name": "裂隙谷口",
-        "lv": 61,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "裂隙谷地的边缘地带，空间在这里扭曲成漩涡。裂隙蠕虫在裂隙间蠕动，发出令人牙酸的嘶鸣。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_worm",
-                "裂隙蠕虫",
-                "speedster",
-                61,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhan_ye"
-                ]
-            ],
-            [
-                "m_rift_wraith",
-                "裂隙魔灵",
-                "caster",
-                62,
-                [
-                    "ms_an_ying_jian",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_lie_xi_sui_pian"
-                ]
-            ],
-            [
-                "m_void_minion",
-                "废墟爪牙",
-                "dps",
-                63,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhi_zhao"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_void_ripper",
-            "裂隙撕裂者",
-            "elite",
-            64,
-            [
-                "ms_xu_kong_zhan",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_si_lie_zhe_he_xin"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "void_corridor",
-        "name": "古战场回廊",
-        "lv": 64,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "古战场回廊，无数破碎的世界在此重叠。谷口守望者悬浮在长廊两侧，空洞的眼眶注视着每一个过客。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_watcher",
-                "谷口守望者",
-                "tank",
-                64,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_xu_kong_hu_jia"
-                ]
-            ],
-            [
-                "m_rift_wraith",
-                "裂隙魔灵",
-                "caster",
-                63,
-                [
-                    "ms_an_ying_jian",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_lie_xi_sui_pian"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_void_lord",
-            "裂隙领主",
-            "elite",
-            66,
-            [
-                "ms_xu_kong_zhan",
-                "ms_xu_kong_beng_ta",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_lie_xi_ling_zhu_yin_ji"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_void_prophet"
-        ]
-    },
-    {
-        "id": "void_heart",
-        "name": "战场中心",
+        "id": "cold_ridge",
+        "name": "寒脊营地",
         "lv": 68,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "裂隙谷地的核心，一颗巨大的暗紫色心脏在虚空中跳动。裂隙巨像们守护着它——那是吞噬者的心脏。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "coldridge",
+        "area_name": "寒脊营地",
+        "desc": "寒脊营地，奥兰迪亚大陆的重要聚落。北境补给点",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_void_colossus",
-                "裂隙巨像",
-                "tank",
-                68,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_beng_ta",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_lie_xi_ju_xiang_he_xin"
-                ]
-            ],
-            [
-                "m_void_watcher",
-                "谷口守望者",
-                "tank",
-                67,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_xu_kong_hu_jia"
-                ]
-            ]
         ],
-        "elite": [
-            "e_void_overlord",
-            "裂隙主宰",
-            "elite",
-            69,
-            [
-                "ms_xu_kong_beng_ta",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_lie_xi_zhu_zai_quan_zhang"
-            ]
-        ],
-        "boss": [
-            "b_void_devourer",
-            "裂隙巨兽",
-            "boss",
-            70,
-            [
-                "ms_xu_kong_zhan",
-                "ms_xu_kong_beng_ta",
-                "ms_tun_shi",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_tun_shi_zhe_zhi_he"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
     {
-        "id": "temple_hall",
-        "name": "旧教团大厅",
-        "lv": 71,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "旧教团遗址的前厅，曾经供奉光明神的殿堂如今爬满暗影。黑袍修士们低声吟唱着亵渎的祷词。",
+        "id": "winter_lake",
+        "name": "永冬湖",
+        "lv": 70,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "winterlake",
+        "area_name": "永冬湖",
+        "desc": "永冬湖，奥兰迪亚的野外区域，野兽与危险并存。湖中冰怪",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_dark_acolyte",
-                "黑袍修士",
-                "caster",
-                71,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_hei_an_jing_juan"
-                ]
-            ],
-            [
-                "m_abyss_servant",
-                "教团仆从",
-                "dps",
-                72,
-                [
-                    "ms_zhao_ji",
-                    "ms_an_ying_jian"
-                ],
-                [
-                    "mat_shen_yuan_zhi_chen"
-                ]
-            ],
-            [
-                "m_fallen_paladin",
-                "堕落骑士",
-                "tank",
-                73,
-                [
-                    "ms_pi_kan",
-                    "ms_an_ying_jian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_duo_luo_sheng_hui"
-                ]
-            ]
+            ["m_lake_ice_elemental", "湖冰元素", "tank", 70, ["ms_bing_dan", "ms_dong_jie"], ["湖冰核心"]],
+            ["m_frozen_fish", "冰封鱼怪", "dps", 72, ["ms_zhuang_ji", "ms_shui_dan"], ["冻鱼鳞"]],
+            ["m_lake_spirit", "湖中水灵", "healer", 74, ["ms_shui_dan", "ms_zhi_liao"], ["湖灵泪"]],
         ],
-        "elite": [
-            "e_inquisitor",
-            "审判官",
-            "elite",
-            74,
-            [
-                "ms_an_ying_jian",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_shen_pan_guan_zhi_yin"
-            ]
-        ],
+        "elite": ["e_lake_lord", "永冬湖主·冰瞳", "elite", 78, ["ms_bing_xi", "ms_ju_lang", "ms_zhao_huan_shui_ling"], ["冰瞳之珠"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "temple_aisle",
-        "name": "忏悔回廊",
+        "id": "frost_throne",
+        "name": "冰霜王座",
         "lv": 74,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "忏悔回廊，两侧是无数忏悔室的残骸。被囚禁的灵魂在此徘徊，发出永无止境的哀叹。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_penitent_wraith",
-                "忏悔亡灵",
-                "caster",
-                74,
-                [
-                    "ms_ai_hao",
-                    "ms_an_ying_jian"
-                ],
-                [
-                    "mat_chan_hui_zhi_lei"
-                ]
-            ],
-            [
-                "m_abyss_priest",
-                "黑袍牧师",
-                "caster",
-                75,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu",
-                    "ms_si_wang_zhi_wo"
-                ],
-                [
-                    "mat_shen_yuan_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_heresy_executor",
-            "处刑修士",
-            "elite",
-            76,
-            [
-                "ms_zhong_ji",
-                "ms_an_ying_jian",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_chu_xing_zhe_zhi_fu"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_fallen_priest"
-        ]
-    },
-    {
-        "id": "temple_altar",
-        "name": "旧教团祭坛",
-        "lv": 78,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "旧教团祭坛，教团献祭的中心。祭坛之上，大祭司·克劳斯正在举行召唤仪式——他在召唤深渊真正的主人。",
-        "type": "核心",
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostthrone",
+        "area_name": "冰霜王座",
+        "desc": "冰霜王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_abyss_ritualist",
-                "教团祭祀",
-                "caster",
-                78,
-                [
-                    "ms_an_ying_jian",
-                    "ms_di_yu_huo",
-                    "ms_si_wang_zhi_wo"
-                ],
-                [
-                    "mat_ji_si_zhi_huo"
-                ]
-            ],
-            [
-                "m_heresy_executor",
-                "处刑修士",
-                "dps",
-                77,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_jian",
-                    "ms_an_ying_feng_bao"
-                ],
-                [
-                    "mat_chu_xing_zhe_zhi_fu"
-                ]
-            ]
         ],
-        "elite": [
-            "e_archpriest",
-            "教团大祭司",
-            "elite",
-            79,
-            [
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_si_wang_zhi_wo"
-            ],
-            [
-                "mat_da_ji_si_zhi_huan"
-            ]
-        ],
-        "boss": [
-            "b_abyss_pope",
-            "大祭司·克劳斯",
-            "boss",
-            80,
-            [
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_jiao_zong_quan_zhang"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
     {
-        "id": "annih_front",
-        "name": "白骨前线",
-        "lv": 81,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "白骨平原的前线阵地，大地被烧成焦黑。枯骨魔兵列成方阵，黑甲骑士的铁蹄震动着荒芜的地面。",
+        "id": "aurora_town",
+        "name": "极光镇",
+        "lv": 70,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "aurora",
+        "area_name": "极光镇",
+        "desc": "极光镇，奥兰迪亚大陆的重要聚落。极光下的北境小镇（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_aurora_mayor", "npc_frost_blade", "npc_warm_stove"],
+    },
+    {
+        "id": "permafrost_field",
+        "name": "永冻冰原",
+        "lv": 68,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "permafrost",
+        "area_name": "永冻冰原",
+        "desc": "永冻冰原，奥兰迪亚的野外区域，野兽与危险并存。冰原巨兽（新）",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_soldier",
-                "枯骨魔兵",
-                "dps",
-                81,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_yan_mie_sui_pian"
-                ]
-            ],
-            [
-                "m_doom_knight",
-                "黑甲骑士",
-                "tank",
-                82,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_zai_e_zhan_jia"
-                ]
-            ],
-            [
-                "m_soul_devourer",
-                "噬魂怨灵",
-                "caster",
-                83,
-                [
-                    "ms_ji_qu",
-                    "ms_an_ying_she_xian",
-                    "ms_ai_hao"
-                ],
-                [
-                    "mat_shi_hun_jie_jing"
-                ]
-            ]
+            ["m_frost_bear", "冰原巨熊", "tank", 68, ["ms_xiong_zhang", "ms_bing_hou"], ["冰熊皮"]],
+            ["m_ice_wolf", "极地冰狼", "dps", 70, ["ms_si_yao", "ms_bing_ya"], ["冰狼牙"]],
+            ["m_aurora_fox", "极光狐", "speedster", 72, ["ms_ji_chi", "ms_ji_guang_shan"], ["极光狐尾"]],
         ],
-        "elite": [
-            "e_annih_vanguard",
-            "枯骨先锋",
-            "elite",
-            84,
-            [
-                "ms_an_ying_she_xian",
-                "ms_kuang_bao",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_xian_feng_zhan_qi"
-            ]
-        ],
+        "elite": ["e_frost_mammoth", "冰原猛犸·雪岭", "elite", 76, ["ms_chong_zhuang", "ms_jian_ta", "ms_bing_hou"], ["雪岭獠牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "annih_field",
-        "name": "白骨战场",
-        "lv": 84,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "白骨战场，尸骸遍野，破碎的旗帜在风中摇曳。枯骨魔将们在此督战，等待总攻的命令。",
+        "id": "frostwhisper_canyon",
+        "name": "霜语峡谷",
+        "lv": 72,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostwhisper",
+        "area_name": "霜语峡谷",
+        "desc": "霜语峡谷，奥兰迪亚的野外区域，野兽与危险并存。霜语巨魔/冰龙（新）",
         "type": "野外",
-        "shop": True,
+        "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_general",
-                "枯骨魔将",
-                "dps",
-                84,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_mo_jiang_zhi_ren"
-                ]
-            ],
-            [
-                "m_doom_knight",
-                "黑甲骑士",
-                "tank",
-                83,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_zai_e_zhan_jia"
-                ]
-            ]
+            ["m_ice_serpent", "冰蛇", "speedster", 72, ["ms_du_ya", "ms_bing_dong"], ["冰蛇鳞"]],
+            ["m_frost_cultist", "霜语祭司", "healer", 74, ["ms_bing_dan", "ms_bing_shuang_zhu_fu"], ["霜语圣典"]],
+            ["m_frost_giant", "霜语巨魔", "tank", 78, ["ms_zhong_ji", "ms_bing_ji"], ["霜语巨魔血"]],
         ],
-        "elite": [
-            "e_annih_lord",
-            "枯骨领主",
-            "elite",
-            86,
-            [
-                "ms_an_ying_she_xian",
-                "ms_xu_kong_beng_ta",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_ku_gu_ling_zhu_zhi_huan"
-            ]
-        ],
+        "elite": ["e_glacier_wyrm", "冰川龙·霜牙", "elite", 82, ["ms_bing_xi", "ms_long_zhao", "ms_dong_jie"], ["霜牙龙鳞"]],
         "boss": None,
-        "npcs": [
-            "npc_annih_spy"
-        ]
+        "npcs": [],
     },
     {
-        "id": "annih_throne",
-        "name": "旧王陵寝",
+        "id": "dragon_pass",
+        "name": "龙脊山口",
+        "lv": 80,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonpass",
+        "area_name": "龙脊山口",
+        "desc": "龙脊山口，奥兰迪亚大陆的重要聚落。东境入口",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_dragon_elder"],
+    },
+    {
+        "id": "dragon_ridge",
+        "name": "龙脊山脉",
+        "lv": 82,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonridge",
+        "area_name": "龙脊山脉",
+        "desc": "龙脊山脉，奥兰迪亚的野外区域，野兽与危险并存。龙裔/石龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_dragonkin", "龙裔战士", "dps", 82, ["ms_long_jian_shu"], ["龙鳞碎片"]],
+            ["m_stone_dragon", "石龙", "tank", 85, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞"]],
+            ["m_wind_dragon", "风龙", "speedster", 88, ["ms_feng_ren", "ms_fu_chong"], ["风龙羽"]],
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "dragon_roost",
+        "name": "龙巢",
         "lv": 88,
-        "region": "旧战场",
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonroost",
+        "area_name": "龙巢",
+        "desc": "龙巢，奥兰迪亚的野外区域，野兽与危险并存。成年龙/古龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_young_dragon", "幼年龙", "dps", 88, ["ms_long_xi", "ms_long_zhao"], ["幼龙鳞"]],
+            ["m_adult_dragon", "成年龙", "tank", 92, ["ms_long_xi", "ms_long_wei_190", "ms_wei_ya"], ["成年龙鳞"]],
+            ["m_dragon_hatchling", "龙崽", "speedster", 90, ["ms_si_yao", "ms_huo_dan"], ["龙崽爪"]],
+        ],
+        "elite": ["e_dragon_roost_king", "龙巢王·焰翼", "elite", 96, ["ms_long_xi", "ms_lie_yan_zhao", "ms_zhao_huan_long_zai"], ["焰翼龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "ancient_battlefield",
+        "name": "古战场",
+        "lv": 85,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "ancientbattle",
+        "area_name": "古战场",
+        "desc": "古战场，奥兰迪亚的野外区域，野兽与危险并存。百族战争遗迹",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_battle_skeleton", "战死骷髅", "dps", 85, ["ms_jian_ji"], ["锈剑碎片"]],
+            ["m_war_ghost", "战魂", "speedster", 88, ["ms_chuan_shen", "ms_ai_hao"], ["战魂之尘"]],
+            ["m_battle_remnant", "百族残骸", "tank", 92, ["ms_zhong_ji", "ms_fu_hua"], ["残骸核心"]],
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "dragon_tomb",
+        "name": "龙之墓",
+        "lv": 90,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragontomb",
+        "area_name": "龙之墓",
+        "desc": "龙之墓，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_dragon_ghost", "龙魂", "dps", 90, ["ms_long_xi", "ms_long_zhao"], ["龙魂碎片"]],
+            ["m_ancient_dragon", "古龙", "tank", 95, ["ms_long_xi", "ms_long_wei_190", "ms_wei_ya"], ["古龙鳞"]],
+        ],
+        "elite": None,
+        "boss": ["b_om_shadow", "古龙·奥姆之影", "boss", 100, ["ms_long_xi", "ms_long_zhao", "ms_gu_long_wei_ya"], ["龙语传承"]],
+        "npcs": [],
+    },
+    {
+        "id": "dragon_kin",
+        "name": "龙裔聚落",
+        "lv": 82,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonkin",
+        "area_name": "龙裔聚落",
+        "desc": "龙裔聚落，奥兰迪亚大陆的重要聚落。龙裔村落",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "bone_wild",
+        "name": "龙骨荒野",
+        "lv": 84,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "bonewild",
+        "area_name": "龙骨荒野",
+        "desc": "龙骨荒野，奥兰迪亚的野外区域，野兽与危险并存。骨龙游荡",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_bone_wyrm", "骨虫", "speedster", 84, ["ms_gu_xi", "ms_chuan_shen"], ["骨虫壳"]],
+            ["m_bone_golem", "骨魔像", "tank", 86, ["ms_zhong_ji", "ms_gu_xi"], ["骨魔像核"]],
+            ["m_bone_vulture", "骨鹫", "dps", 88, ["ms_fu_chong", "ms_gu_xi"], ["骨鹫羽"]],
+        ],
+        "elite": ["e_bone_lord", "骨龙领主·骸王", "elite", 92, ["ms_gu_xi", "ms_long_zhao", "ms_zhao_huan_gu_chong"], ["骸王龙骨"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "storm_cliff",
+        "name": "风暴崖",
+        "lv": 86,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "stormcliff",
+        "area_name": "风暴崖",
+        "desc": "风暴崖，奥兰迪亚的野外区域，野兽与危险并存。风龙/雷鸟",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_storm_hawk", "风暴猎鹰", "speedster", 86, ["ms_fu_chong", "ms_lei_ji"], ["风暴鹰羽"]],
+            ["m_thunder_lizard", "雷蜥", "dps", 88, ["ms_lei_ji", "ms_si_yao"], ["雷蜥皮"]],
+            ["m_wind_guardian", "风之守卫", "tank", 90, ["ms_feng_ren", "ms_ying_hua"], ["风之核心"]],
+        ],
+        "elite": ["e_storm_cliff_lord", "风暴崖主·雷鸣", "elite", 94, ["ms_lei_bao", "ms_feng_bao_zhi_nu", "ms_zhao_huan_lie_ying"], ["雷鸣之翼"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "storm_throne",
+        "name": "风暴王座",
+        "lv": 90,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "stormthrone",
+        "area_name": "风暴王座",
+        "desc": "风暴王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "redridge_plateau",
+        "name": "赤脊高原",
+        "lv": 84,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "redridge",
+        "area_name": "赤脊高原",
+        "desc": "赤脊高原，奥兰迪亚的野外区域，野兽与危险并存。赤龙/岩龙（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_red_raptor", "赤脊迅猛龙", "speedster", 84, ["ms_pu_ji", "ms_si_yao"], ["迅猛龙爪"]],
+            ["m_rock_drake", "岩龙", "tank", 86, ["ms_shi_xi", "ms_zhong_ji"], ["岩龙鳞"]],
+            ["m_red_wyvern", "赤翼飞龙", "dps", 88, ["ms_fu_chong", "ms_huo_dan"], ["赤翼羽"]],
+        ],
+        "elite": ["e_red_dragon_lord", "赤龙领主·烬翼", "elite", 92, ["ms_long_xi", "ms_lie_yan_zhao", "ms_wei_ya"], ["烬翼龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "dragonsfall_valley",
+        "name": "龙陨谷",
+        "lv": 88,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonsfall",
+        "area_name": "龙陨谷",
+        "desc": "龙陨谷，奥兰迪亚的野外区域，野兽与危险并存。古龙遗骸/龙裔亡灵（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_bone_dragon", "骨龙", "tank", 88, ["ms_gu_xi", "ms_si_yao"], ["骨龙残骸"]],
+            ["m_dragon_wraith", "龙裔亡灵", "speedster", 90, ["ms_chuan_shen", "ms_long_yu_ai_hao"], ["龙裔残魂"]],
+            ["m_dragonscale_beast", "龙鳞兽", "dps", 92, ["ms_si_yao", "ms_long_lin_chong_ji"], ["龙鳞兽皮"]],
+        ],
+        "elite": ["e_dragon_lord_ghost", "龙陨战魂·暮影", "elite", 96, ["ms_long_xi", "ms_long_zhao", "ms_zhao_huan_gu_long"], ["暮影龙魂"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "jade_port",
+        "name": "翡翠港",
+        "lv": 35,
+        "region": "翡翠海群岛",
         "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "旧王陵寝，亡灵大军的指挥中心。白骨君王端坐于骸骨堆成的王座上，静静等待最终时刻。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
+        "area": "jade",
+        "area_name": "翡翠港",
+        "desc": "翡翠港，奥兰迪亚大陆的重要聚落。群岛门户",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_guard",
-                "枯骨禁卫",
-                "tank",
-                88,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_jin_wei_kai_jia"
-                ]
-            ],
-            [
-                "m_annih_general",
-                "枯骨魔将",
-                "dps",
-                87,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_mo_jiang_zhi_ren"
-                ]
-            ]
         ],
-        "elite": [
-            "e_silent_guard",
-            "旧王亲卫",
-            "elite",
-            89,
-            [
-                "ms_an_ying_she_xian",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_si_ji_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_silent_king",
-            "白骨君王",
-            "boss",
-            90,
-            [
-                "ms_an_ying_she_xian",
-                "ms_xu_kong_beng_ta",
-                "ms_tun_shi",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_si_ji_wang_guan"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
     {
-        "id": "divine_path",
-        "name": "王国古道",
-        "lv": 91,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "通往失落王国的古道，云海在脚下翻涌。古道守卫们驻守在阶梯两侧，目光望向天空的尽头。",
+        "id": "shell_town",
+        "name": "贝壳镇",
+        "lv": 40,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "shell",
+        "area_name": "贝壳镇",
+        "desc": "贝壳镇，奥兰迪亚大陆的重要聚落。渔村风情",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "coral_reef",
+        "name": "珊瑚礁",
+        "lv": 36,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "coral",
+        "area_name": "珊瑚礁",
+        "desc": "珊瑚礁，奥兰迪亚的野外区域，野兽与危险并存。海蟹/海星怪",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_sky_guard",
-                "古道守卫",
-                "tank",
-                91,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_tian_qiong_hu_jia"
-                ]
-            ],
-            [
-                "m_astral_messenger",
-                "旧宫使者",
-                "caster",
-                92,
-                [
-                    "ms_tian_fa",
-                    "ms_sheng_guang_zhan",
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_xing_jie_zhi_chen"
-                ]
-            ],
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
+            ["m_sea_crab", "巨钳海蟹", "tank", 36, ["ms_qian_ji", "ms_ying_hua"], ["蟹壳"]],
+            ["m_star_beast", "海星怪", "dps", 38, ["ms_chan_rao", "ms_du_ci"], ["海星片"]],
+            ["m_puffer", "河豚怪", "speedster", 40, ["ms_du_ci", "ms_peng_zhang"], ["河豚毒素"]],
         ],
-        "elite": [
-            "e_astral_knight",
-            "王家骑士长",
-            "elite",
-            94,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_sheng_guang_chong_feng"
-            ],
-            [
-                "mat_xing_jie_qi_shi_jian"
-            ]
-        ],
+        "elite": ["e_reef_king", "珊瑚礁主·红棘", "elite", 42, ["ms_qian_ji", "ms_jing_ji_chan_rao"], ["红棘珊瑚"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "divine_hall",
-        "name": "旧宫回廊",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧宫回廊，群星的墓地。旧宫贤者们在此守护着王国倾覆前的最后记忆。",
-        "type": "野外",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_astral_sage",
-                "旧宫贤者",
-                "caster",
-                93,
-                [
-                    "ms_tian_fa",
-                    "ms_bao_feng_xue",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_xing_jie_fa_zhu"
-                ]
-            ],
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_astral_judge",
-            "旧宫裁决者",
-            "elite",
-            95,
-            [
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_wang_quan_zhi_li"
-            ],
-            [
-                "mat_xing_jie_cai_jue_zhi_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_star_warden"
-        ]
-    },
-    {
-        "id": "divine_gate",
-        "name": "失落王城之门",
-        "lv": 95,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "失落王城的大门，古老的石门刻满王国徽记。王城守望者手持长枪立于门前——门后，是旧日王国的战场。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_gate_guardian",
-                "王城守卫",
-                "tank",
-                95,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_men_fei_zhi_yao"
-                ]
-            ],
-            [
-                "m_astral_sage",
-                "旧宫贤者",
-                "caster",
-                94,
-                [
-                    "ms_tian_fa",
-                    "ms_bao_feng_xue",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_xing_jie_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": [
-            "b_sky_warden",
-            "王城守望者",
-            "boss",
-            96,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_wang_quan_zhi_li"
-            ],
-            [
-                "mat_tian_qiong_zhi_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "panth_court",
-        "name": "先王庭院",
-        "lv": 96,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "pantheon",
-        "area_name": "先王陵寝",
-        "desc": "先王陵寝的庭院，先王的雕像沉默地矗立。古王残魂在庭院间游荡，暗影已经开始侵蚀这片旧地。",
+        "id": "sunset_isle",
+        "name": "落日岛",
+        "lv": 42,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "sunset",
+        "area_name": "落日岛",
+        "desc": "落日岛，奥兰迪亚的野外区域，野兽与危险并存。岛屿猛兽",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_divine_spirit",
-                "古王残魂",
-                "caster",
-                96,
-                [
-                    "ms_tian_fa",
-                    "ms_wang_quan_zhi_li",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_jing_hua"
-                ]
-            ],
-            [
-                "m_chaos_servant",
-                "暗影仆从",
-                "dps",
-                97,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_she_xian"
-                ],
-                [
-                    "mat_hun_dun_zhi_zha"
-                ]
-            ],
-            [
-                "m_god_echo",
-                "先王残影",
-                "tank",
-                98,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_wang_quan_zhi_li"
-                ],
-                [
-                    "mat_zhu_shen_yi_hui"
-                ]
-            ]
+            ["m_island_boar", "岛野猪", "dps", 42, ["ms_chong_zhuang"], ["岛猪牙"]],
+            ["m_giant_iguana", "巨型鬣蜥", "speedster", 44, ["ms_si_yao", "ms_shuai_wei"], ["鬣蜥皮"]],
+            ["m_parrot_demon", "鹦鹉魔", "healer", 46, ["ms_jian_xiao", "ms_feng_ren"], ["鹦鹉羽"]],
         ],
-        "elite": [
-            "e_god_messenger",
-            "先王使者",
-            "elite",
-            99,
-            [
-                "ms_wang_quan_zhi_li",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_shi_zhe_zhi_jie"
-            ]
-        ],
+        "elite": ["e_island_tiger", "落日岛虎·金焰", "elite", 48, ["ms_si_yao", "ms_pu_ji", "ms_lie_yan_zhao"], ["金焰虎皮"]],
         "boss": None,
-        "npcs": [
-            "npc_last_god"
-        ]
+        "npcs": [],
     },
     {
-        "id": "panth_hall",
-        "name": "王座大殿",
-        "lv": 98,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "pantheon",
-        "area_name": "先王陵寝",
-        "desc": "王座大殿，先王铸造世界的殿堂。如今巫王盘踞于此，试图将整个大陆拖入永恒的黑暗。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_creation_guard",
-                "王座守卫",
-                "tank",
-                98,
-                [
-                    "ms_wang_quan_zhi_li",
-                    "ms_sheng_guang_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_chuang_shi_zhi_dun"
-                ]
-            ],
-            [
-                "m_god_echo",
-                "先王残影",
-                "tank",
-                98,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_wang_quan_zhi_li"
-                ],
-                [
-                    "mat_zhu_shen_yi_hui"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": [
-            "b_chaos_lord",
-            "巫王·莫里斯",
-            "boss",
-            100,
-            [
-                "ms_an_ying_qin_shi",
-                "ms_an_ying_she_xian",
-                "ms_wang_quan_zhi_li",
-                "ms_an_ying_feng_bao",
-                "灭世"
-            ],
-            [
-                "mat_hun_dun_zhi_he"
-            ]
-        ],
-        "npcs": []
-    },
-    {
-        "id": "holy_city_gate",
-        "name": "远境城门",
-        "lv": 33,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "圣光王国的首都远境城，白色城墙高耸入云，城门前远境骑士列队巡逻。城门外的草甸上偶有野兽出没。",
-        "type": "城镇外郊",
+        "id": "storm_strait",
+        "name": "风暴海峡",
+        "lv": 48,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "stormstrait",
+        "area_name": "风暴海峡",
+        "desc": "风暴海峡，奥兰迪亚的野外区域，野兽与危险并存。风暴元素",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                32,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ]
+            ["m_storm_element", "风暴元素", "dps", 48, ["ms_lei_ji", "ms_feng_ren"], ["风暴核心"]],
+            ["m_whirlpool_spirit", "漩涡精灵", "healer", 50, ["ms_shui_dan", "ms_xuan_wo"], ["漩涡泪"]],
+            ["m_sea_serpent", "海蛇", "tank", 52, ["ms_jiao_sha", "ms_shui_xi"], ["海蛇鳞"]],
         ],
-        "elite": None,
+        "elite": ["e_storm_leviathan", "风暴巨兽", "elite", 56, ["ms_lei_ji", "ms_ju_lang"], ["巨兽之牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "holy_city_square",
-        "name": "远境广场",
-        "lv": 33,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "圣光王国的心脏，大教堂的钟声响彻全城。来自大陆各地的圣骑士与学者在此汇聚。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_holy_king",
-            "npc_holy_innkeeper"
-        ]
-    },
-    {
-        "id": "elf_city_gate",
-        "name": "银月城门",
-        "lv": 43,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王国首都银月城，城门由月光石雕琢而成，即便在白昼也泛着银辉。城外的森林依然低语。",
-        "type": "城镇外郊",
+        "id": "mermaid_bay",
+        "name": "海妖湾",
+        "lv": 45,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "mermaid",
+        "area_name": "海妖湾",
+        "desc": "海妖湾，奥兰迪亚的野外区域，野兽与危险并存。海妖/鲛人",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_moon_panther",
-                "月影豹",
-                "speedster",
-                42,
-                [
-                    "ms_zhao_ji",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_yue_ying_zhi_pi"
-                ]
-            ]
+            ["m_siren_scout", "海妖斥候", "speedster", 45, ["ms_mei_huo_zhi_ge"], ["海妖鳞"]],
+            ["m_merrow", "鲛人战士", "dps", 48, ["ms_san_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
         ],
-        "elite": None,
+        "elite": ["e_siren_lord", "海妖领主·潮汐", "elite", 52, ["ms_mei_huo", "ms_ju_lang"], ["潮汐之泪"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "elf_city_square",
-        "name": "银月广场",
-        "lv": 43,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "银月城的中心，生命之树在广场中央舒展枝叶。精灵工匠们在这里出售世代传承的技艺结晶。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_elf_royal",
-            "npc_elf_innkeeper"
-        ]
-    },
-    {
-        "id": "dragon_city_gate",
-        "name": "龙喉堡城门",
-        "lv": 53,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙裔王国在山巅开凿的要塞龙喉堡，城墙由熔岩冷却后的黑曜石筑成。门口的火盆昼夜不熄。",
-        "type": "城镇外郊",
+        "id": "sunken_ship",
+        "name": "沉船湾",
+        "lv": 38,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "sunkenship",
+        "area_name": "沉船湾",
+        "desc": "沉船湾，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
+            ["m_ghost_sailor", "幽灵水手", "dps", 38, ["ms_xiu_jian", "ms_ai_hao"], ["幽灵帆布"]],
+            ["m_drowned", "溺死者", "tank", 42, ["ms_zhao_ji", "ms_chan_rao"], ["海藻缠绕"]],
         ],
         "elite": None,
-        "boss": None,
-        "npcs": []
+        "boss": ["b_ghost_captain", "幽灵船长·克罗", "boss", 48, ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"], ["克罗的罗盘"]],
+        "npcs": [],
     },
     {
-        "id": "dragon_city_square",
-        "name": "龙喉大厅",
-        "lv": 53,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙裔的议事大厅，石柱上雕刻着龙族千年的战争史诗。矮人与龙裔的铁匠在这里锻造传奇兵器。",
+        "id": "siren_nest",
+        "name": "海妖巢穴",
+        "lv": 52,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "siren",
+        "area_name": "海妖巢穴",
+        "desc": "海妖巢穴，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_siren_elite", "海妖精英", "dps", 52, ["ms_mei_huo", "ms_du_ci"], ["海妖之羽"]],
+            ["m_kraken_tentacle", "海妖触手", "tank", 54, ["ms_jiao_sha", "ms_shui_xi"], ["触手皮"]],
+        ],
+        "elite": None,
+        "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 60, ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"], ["蓝歌之冠"]],
+        "npcs": [],
+    },
+    {
+        "id": "nameless_harbor",
+        "name": "无名港",
+        "lv": 55,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "nameless",
+        "area_name": "无名港",
+        "desc": "无名港，奥兰迪亚大陆的重要聚落。远洋第一站，冒险者中转港",
         "type": "城镇区域",
         "shop": True,
         "healer": True,
         "hidden": False,
-        "monsters": [],
+        "monsters": [
+        ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_dragon_king",
-            "npc_dragon_innkeeper"
-        ]
+        "npcs": ["npc_harbor_master", "npc_captain_maelian"],
     },
     {
-        "id": "void_city_gate",
-        "name": "虚空前哨大门",
+        "id": "pearl_city",
+        "name": "珍珠城",
+        "lv": 62,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "pearl",
+        "area_name": "珍珠城",
+        "desc": "珍珠城，奥兰迪亚大陆的重要聚落。海上贸易中心",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_sea_gull_tim", "npc_pearl_lord", "npc_coral_auctioneer", "npc_old_whale"],
+    },
+    {
+        "id": "mist_trench",
+        "name": "迷雾海沟",
+        "lv": 56,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "misttrench",
+        "area_name": "迷雾海沟",
+        "desc": "迷雾海沟，奥兰迪亚的野外区域，野兽与危险并存。雾中暗礁/深海兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_jelly", "深渊水母", "healer", 56, ["ms_du_ci", "ms_ying_guang_shan"], ["水母凝胶"]],
+            ["m_reef_shark", "暗礁鲨", "dps", 58, ["ms_si_yao", "ms_chong_zhuang"], ["鲨鱼牙"]],
+            ["m_mist_octopus", "迷雾章鱼", "tank", 60, ["ms_chan_rao", "ms_mo_zhi"], ["章鱼墨囊"]],
+        ],
+        "elite": ["e_trench_leviathan", "海沟巨兽·渊影", "elite", 64, ["ms_tun_shi", "ms_ju_lang", "ms_zhao_huan_shui_mu"], ["渊影之鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "whale_domain",
+        "name": "龙鲸海域",
+        "lv": 60,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "whale",
+        "area_name": "龙鲸海域",
+        "desc": "龙鲸海域，奥兰迪亚的野外区域，野兽与危险并存。龙鲸/巨型章鱼",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_whale_calf", "幼年龙鲸", "tank", 60, ["ms_chong_zhuang", "ms_shui_xi"], ["龙鲸脂"]],
+            ["m_giant_squid", "巨型乌贼", "dps", 62, ["ms_jiao_sha", "ms_mo_zhi"], ["乌贼腕足"]],
+            ["m_sea_serpent", "海蛇", "speedster", 64, ["ms_jiao_sha", "ms_shui_xi"], ["海蛇鳞"]],
+        ],
+        "elite": ["e_whale_king", "龙鲸王·涛声", "elite", 68, ["ms_shui_xi", "ms_ju_lang", "ms_zhao_huan_you_jing"], ["涛声鲸角"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "shipwreck_graveyard",
+        "name": "沉船墓地",
         "lv": 63,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "人类联军在裂隙谷地边缘建立的最后前哨，魔法屏障勉强挡住空间的扭曲。哨兵们面色凝重。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_minion",
-                "废墟爪牙",
-                "dps",
-                63,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhi_zhao"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "void_city_square",
-        "name": "前哨营地",
-        "lv": 63,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "前哨的核心营地，军需官与随军牧师在此为远征军提供补给。营火旁流传着关于战场中心的传说。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_void_general",
-            "npc_void_innkeeper"
-        ]
-    },
-    {
-        "id": "exile_camp_gate",
-        "name": "悲怆营地入口",
-        "lv": 73,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "从旧教团遗址逃出的流亡者建立的营地，用圣殿的碎石搭起简陋的围墙。这里是黑暗中的一盏孤灯。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_dark_acolyte",
-                "黑袍修士",
-                "caster",
-                71,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_hei_an_jing_juan"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "exile_camp_square",
-        "name": "悲怆营火",
-        "lv": 73,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "营地中央的营火，流亡者们围坐取暖。随军牧师在这里为伤者祈祷，商贩用残存的物资交换补给。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_exile_leader",
-            "npc_exile_innkeeper"
-        ]
-    },
-    {
-        "id": "iron_city_gate",
-        "name": "铁壁城门",
-        "lv": 83,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "人类在白骨平原最后的堡垒铁壁城，三十米高的钢铁城墙是绝望中唯一的希望。城头炮火轰鸣。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_annih_soldier",
-                "枯骨魔兵",
-                "dps",
-                81,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_yan_mie_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "iron_city_square",
-        "name": "铁壁指挥所",
-        "lv": 83,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "铁壁城的指挥中枢，各大势力的联军代表在此共商对策。军需库里的每一件装备都弥足珍贵。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_iron_marshal",
-            "npc_iron_innkeeper"
-        ]
-    },
-    {
-        "id": "divine_city_gate",
-        "name": "旧王城门",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧王城，悬浮在云海之上的白色巨城。古道守卫持戟而立，目光如星辰般冰冷。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    {
-        "id": "divine_city_square",
-        "name": "天穹圣殿",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧王城的中心圣殿，光之柱直贯天际。先王遗留下的知识与神兵在这里等待凡人的继承。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_divine_archon",
-            "npc_divine_innkeeper"
-        ]
-    },
-    {
-        "id": "chaos_entry",
-        "name": "陷落王都",
-        "lv": 100,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "chaos_depths",
-        "area_name": "陷落王都",
-        "desc": "巫王倒下之处，空间被撕开一道永久的裂隙。裂隙深处传来低沉的轰鸣——有什么东西还在苏醒。",
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "shipwreck",
+        "area_name": "沉船墓地",
+        "desc": "沉船墓地，奥兰迪亚的野外区域，野兽与危险并存。幽灵船/亡灵水手",
         "type": "野外",
         "shop": False,
         "healer": False,
-        "hidden": True,
+        "hidden": False,
         "monsters": [
-            [
-                "m_chaos_shade",
-                "王都魔影",
-                "speedster",
-                100,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_feng_bao"
-                ],
-                [
-                    "mat_hun_dun_sui_pian"
-                ]
-            ]
+            ["m_drowned_sailor", "溺亡水手", "dps", 63, ["ms_xiu_jian"], ["水手骨牌"]],
+            ["m_ship_ghost", "船幽灵", "speedster", 65, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵帆布"]],
+            ["m_cursed_captain", "受诅船长", "healer", 67, ["ms_zu_zhou", "ms_zhi_hui"], ["船长罗盘"]],
+        ],
+        "elite": ["e_graveyard_lord", "沉船领主·溺骨", "elite", 71, ["ms_wan_dao", "ms_zhao_huan_shui_shou", "ms_zu_zhou"], ["溺骨之锚"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "storm_sea",
+        "name": "风暴之海",
+        "lv": 66,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "stormsea",
+        "area_name": "风暴之海",
+        "desc": "风暴之海，奥兰迪亚的野外区域，野兽与危险并存。风暴元素/海龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_storm_wisp", "风暴之灵", "speedster", 66, ["ms_lei_ji", "ms_feng_ren"], ["风暴之灵尘"]],
+            ["m_thunder_eel", "雷鳗", "dps", 68, ["ms_lei_ji", "ms_chan_rao"], ["雷鳗皮"]],
+            ["m_sea_titan", "海巨人", "tank", 70, ["ms_ju_lang", "ms_zhong_ji"], ["海巨人鳞"]],
+        ],
+        "elite": ["e_storm_dragon", "风暴海龙·雷鸣", "elite", 74, ["ms_long_xi", "ms_lei_bao", "ms_ju_lang"], ["雷鸣龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "sea_god_temple",
+        "name": "海神神殿",
+        "lv": 64,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "seagod",
+        "area_name": "海神神殿",
+        "desc": "海神神殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_sea_priest", "海神祭司", "healer", 64, ["ms_shui_dan", "ms_hai_chao_zhu_fu"], ["海神祭器"]],
+            ["m_tidal_guard", "潮汐守卫", "tank", 66, ["ms_ju_lang", "ms_tie_bi"], ["潮汐碎片"]],
+            ["m_shell_warrior", "甲壳战士", "dps", 68, ["ms_qian_ji", "ms_ying_hua"], ["甲壳残片"]],
+        ],
+        "elite": None,
+        "boss": ["b_lange", "海神祭司·澜歌", "boss", 72, ["ms_hai_chao", "ms_zhao_huan_sha_yu", "ms_jing_hua_zhi_chao"], ["澜歌之泪"]],
+        "npcs": [],
+    },
+    {
+        "id": "deep_dragon_palace",
+        "name": "深海龙宫",
+        "lv": 70,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "deepdragon",
+        "area_name": "深海龙宫",
+        "desc": "深海龙宫，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_coral_mage", "珊瑚法师", "healer", 70, ["ms_shui_dan", "ms_shan_hu_hu_dun"], ["珊瑚枝"]],
+            ["m_deep_knight", "深海骑士", "tank", 72, ["ms_san_cha_ji", "ms_shui_xi"], ["深海骑士甲"]],
+            ["m_dragon_prawn", "龙虾战士", "dps", 74, ["ms_qian_ji", "ms_chong_zhuang"], ["龙虾壳"]],
+        ],
+        "elite": None,
+        "boss": ["b_aolan", "深海龙王·敖澜", "boss", 78, ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"], ["敖澜之珠"]],
+        "npcs": [],
+    },
+    {
+        "id": "deep_tunnel",
+        "name": "深岩隧道",
+        "lv": 65,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "deeptunnel",
+        "area_name": "深岩隧道",
+        "desc": "深岩隧道，奥兰迪亚大陆的重要聚落。地底入口营地",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
     {
-        "id": "chaos_depths",
-        "name": "王都废墟",
-        "lv": 100,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "chaos_depths",
-        "area_name": "陷落王都",
-        "desc": "王都废墟，传说中王国的尽头。巫王之影悬浮在虚无之中——它自称是『第一次战争之前的古老意志』。",
-        "type": "核心",
-        "shop": False,
+        "id": "under_market",
+        "name": "地底集市",
+        "lv": 70,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "undermarket",
+        "area_name": "地底集市",
+        "desc": "地底集市，奥兰迪亚大陆的重要聚落。地下贸易城",
+        "type": "城镇区域",
+        "shop": True,
         "healer": False,
-        "hidden": True,
+        "hidden": False,
         "monsters": [
-            [
-                "m_chaos_avatar",
-                "侵蚀化身",
-                "dps",
-                100,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_she_xian",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_hun_dun_sui_pian"
-                ]
-            ]
         ],
         "elite": None,
-        "boss": [
-            "b_chaos_transcendent",
-            "巫王之影",
-            "boss",
-            100,
-            [
-                "ms_an_ying_qin_shi",
-                "ms_an_ying_she_xian",
-                "ms_tun_shi",
-                "ms_wang_quan_zhi_li",
-                "灭世",
-                "ms_xu_kong_beng_ta"
-            ],
-            [
-                "mat_chao_yue_zhi_he"
-            ]
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "fungus_forest",
+        "name": "真菌森林",
+        "lv": 66,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "fungus",
+        "area_name": "真菌森林",
+        "desc": "真菌森林，奥兰迪亚的野外区域，野兽与危险并存。真菌兽/孢子怪",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_spore_slime", "孢子史莱姆", "tank", 66, ["ms_zhuang_ji", "ms_bao_zi_du"], ["孢子囊"]],
+            ["m_fungus_beast", "真菌兽", "dps", 68, ["ms_si_yao", "ms_bao_zi_pen_she"], ["真菌肉"]],
+            ["m_glow_moth", "荧光蛾", "speedster", 70, ["ms_lin_fen", "ms_zhi_mang"], ["荧光粉"]],
         ],
-        "npcs": []
-    }
+        "elite": ["e_fungus_lord", "真菌领主·腐冠", "elite", 74, ["ms_bao_zi_bao", "ms_zhao_huan_zhen_jun_shou"], ["腐冠菌"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "deep_lake",
+        "name": "地下湖",
+        "lv": 72,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "deeplake",
+        "area_name": "地下湖",
+        "desc": "地下湖，奥兰迪亚的野外区域，野兽与危险并存。湖底巨物",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_fish", "深渊盲鱼", "speedster", 72, ["ms_si_yao"], ["盲鱼鳞"]],
+            ["m_under_turtle", "地底巨龟", "tank", 75, ["ms_jia_ji", "ms_shui_xi"], ["巨龟甲"]],
+            ["m_lake_haunt", "湖底怨灵", "healer", 78, ["ms_ai_hao", "ms_an_ying_dan"], ["怨灵之尘"]],
+        ],
+        "elite": ["e_dark_leech", "黑暗水蛭王", "elite", 80, ["ms_xi_xue", "ms_chan_rao"], ["水蛭王牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "molten_abyss",
+        "name": "熔火深渊",
+        "lv": 78,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "molten",
+        "area_name": "熔火深渊",
+        "desc": "熔火深渊，奥兰迪亚的野外区域，野兽与危险并存。火元素/地底恶魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_magma_worm", "熔岩蠕虫", "dps", 78, ["ms_huo_dan", "ms_zuan_di"], ["熔岩蠕虫皮"]],
+            ["m_under_imp", "地底小恶魔", "speedster", 80, ["ms_huo_dan", "ms_zhao_ji"], ["地底恶魔角"]],
+            ["m_obsidian_golem", "黑曜石魔像", "tank", 82, ["ms_zhong_ji", "ms_ying_hua"], ["黑曜碎片"]],
+        ],
+        "elite": ["e_molten_lord", "熔火领主·烬核", "elite", 86, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["烬核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "gray_dwarf",
+        "name": "灰矮人要塞",
+        "lv": 74,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "graydwarf",
+        "area_name": "灰矮人要塞",
+        "desc": "灰矮人要塞，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_gray_dwarf", "灰矮人战士", "dps", 74, ["ms_zhan_chui", "ms_dun_ji"], ["灰矮人徽记"]],
+            ["m_gray_engineer", "灰矮人技师", "healer", 76, ["ms_xiu_li", "ms_bao_dan"], ["机械零件"]],
+        ],
+        "elite": None,
+        "boss": ["b_gray_lord", "灰矮人领主·石炉", "boss", 84, ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"], ["石炉之锤"]],
+        "npcs": [],
+    },
+    {
+        "id": "under_dragon",
+        "name": "地底龙巢",
+        "lv": 84,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "underdragon",
+        "area_name": "地底龙巢",
+        "desc": "地底龙巢，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_under_drake", "地底幼龙", "dps", 84, ["ms_suan_xi", "ms_long_zhao"], ["地底龙鳞"]],
+            ["m_under_wyrm", "地底古龙裔", "tank", 88, ["ms_suan_xi", "ms_long_wei_190"], ["古龙裔甲"]],
+        ],
+        "elite": None,
+        "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 92, ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"], ["黑渊之眼"]],
+        "npcs": [],
+    },
+    {
+        "id": "ember_camp",
+        "name": "灰烬营地",
+        "lv": 85,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "ember",
+        "area_name": "灰烬营地",
+        "desc": "灰烬营地，奥兰迪亚大陆的重要聚落。幽暗地域深处补给点（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_ember_camp_leader", "npc_under_guide", "npc_ember_merchant"],
+    },
+    {
+        "id": "lava_bed",
+        "name": "熔岩河床",
+        "lv": 86,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "lavabed",
+        "area_name": "熔岩河床",
+        "desc": "熔岩河床，奥兰迪亚的野外区域，野兽与危险并存。岩浆兽/火蠕虫（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_magma_worm", "岩浆蠕虫", "dps", 86, ["ms_huo_dan", "ms_zuan_di"], ["岩浆蠕虫皮"]],
+            ["m_lava_beetle", "熔岩甲虫", "tank", 88, ["ms_chong_zhuang", "ms_zhuo_shao"], ["熔岩甲壳"]],
+            ["m_fire_bat", "火蝠", "speedster", 90, ["ms_fu_chong", "ms_huo_dan"], ["火蝠翼"]],
+        ],
+        "elite": ["e_magma_king", "岩浆王·烬核", "elite", 94, ["ms_rong_yan_dan", "ms_zhuo_shao", "ms_zhao_huan_ru_chong"], ["烬核之心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "abyss_altar",
+        "name": "深渊祭坛",
+        "lv": 88,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "abyssaltar",
+        "area_name": "深渊祭坛",
+        "desc": "深渊祭坛，奥兰迪亚的野外区域，野兽与危险并存。地底恶魔大本营（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_cultist", "深渊信徒", "healer", 88, ["ms_an_ying_dan", "ms_hei_an_qi_dao"], ["染血圣典"]],
+            ["m_void_hound", "虚空猎犬", "speedster", 90, ["ms_si_yao", "ms_an_ying_zhao"], ["虚空犬牙"]],
+            ["m_abyss_demon", "深渊恶魔", "dps", 92, ["ms_zhao_ji", "ms_di_yu_huo"], ["深渊恶魔角"]],
+        ],
+        "elite": ["e_altar_guardian", "祭坛守卫·魔眼", "elite", 96, ["ms_an_ying_dan", "ms_zhao_huan_lie_quan", "ms_fu_shi"], ["魔眼之核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "abyss_throne",
+        "name": "深渊王座",
+        "lv": 90,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "abyssthrone",
+        "area_name": "深渊王座",
+        "desc": "深渊王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_guard", "深渊守卫", "tank", 90, ["ms_zhong_ji", "ms_an_ying_zhan"], ["深渊守卫甲"]],
+            ["m_abyss_warlock", "深渊术士", "healer", 92, ["ms_an_ying_dan", "ms_zhao_huan_e_mo"], ["术士法杖"]],
+        ],
+        "elite": None,
+        "boss": ["b_moro", "深渊领主·摩罗", "boss", 98, ["ms_shen_yuan_zhi_nu", "ms_zhao_huan_e_mo", "ms_fu_shi_ling_yu"], ["摩罗之冠"]],
+        "npcs": [],
+    },
+    {
+        "id": "wind_city",
+        "name": "风翼城",
+        "lv": 85,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "windcity",
+        "area_name": "风翼城",
+        "desc": "风翼城，奥兰迪亚大陆的重要聚落。浮空城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "cloud_sea",
+        "name": "云海",
+        "lv": 86,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "cloudsea",
+        "area_name": "云海",
+        "desc": "云海，奥兰迪亚的野外区域，野兽与危险并存。云兽/风精灵",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cloud_beast", "云兽", "tank", 86, ["ms_yun_dan", "ms_piao_fu"], ["云絮"]],
+            ["m_wind_spirit", "风精灵", "speedster", 88, ["ms_feng_ren", "ms_ji_chi"], ["风之羽"]],
+            ["m_sky_hawk", "天鹰", "dps", 90, ["ms_fu_chong", "ms_zhao_ji"], ["天鹰羽"]],
+        ],
+        "elite": ["e_cloud_lord", "云海领主·雾冠", "elite", 92, ["ms_yun_dan", "ms_feng_bao"], ["雾冠晶"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "storm_plateau",
+        "name": "雷暴高原",
+        "lv": 90,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "stormplateau",
+        "area_name": "雷暴高原",
+        "desc": "雷暴高原，奥兰迪亚的野外区域，野兽与危险并存。雷元素/风暴兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_thunder_element", "雷元素", "dps", 90, ["ms_lei_ji", "ms_shan_dian_lian"], ["雷晶"]],
+            ["m_storm_beast", "风暴兽", "tank", 92, ["ms_lei_ji", "ms_jian_ta"], ["风暴兽皮"]],
+            ["m_lightning_bird", "雷鸟", "speedster", 94, ["ms_fu_chong", "ms_lei_yu"], ["雷鸟羽"]],
+        ],
+        "elite": ["e_storm_lord", "雷暴领主·雷霆", "elite", 96, ["ms_lei_ji", "ms_feng_bao_zhi_nu"], ["雷霆之心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "eye_of_storm",
+        "name": "风暴之眼",
+        "lv": 92,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "eyeofstorm",
+        "area_name": "风暴之眼",
+        "desc": "风暴之眼，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_eye_guardian", "风暴守卫", "tank", 92, ["ms_lei_ji", "ms_tie_bi"], ["守卫铠甲碎片"]],
+            ["m_sky_warrior", "天空战士", "dps", 94, ["ms_feng_ren", "ms_lei_jian"], ["天空战刃"]],
+        ],
+        "elite": None,
+        "boss": ["b_storm_master", "风暴之主·云怒", "boss", 100, ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"], ["云怒之核"]],
+        "npcs": [],
+    },
+    {
+        "id": "rainbow_cloud",
+        "name": "彩虹云谷",
+        "lv": 90,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "rainbow",
+        "area_name": "彩虹云谷",
+        "desc": "彩虹云谷，奥兰迪亚的野外区域，野兽与危险并存。彩虹龙/云精灵（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rainbow_faerie", "彩虹小仙灵", "healer", 90, ["ms_cai_guang", "ms_zhu_fu"], ["彩虹露"]],
+            ["m_cloud_bear", "云熊", "tank", 92, ["ms_pai_ji", "ms_yun_dan"], ["云熊毛"]],
+            ["m_rainbow_serpent", "彩虹蛇", "speedster", 94, ["ms_chan_rao", "ms_cai_guang"], ["彩虹鳞"]],
+        ],
+        "elite": ["e_rainbow_dragon", "彩虹龙·霞光", "elite", 96, ["ms_cai_xi", "ms_cai_hong_zhan", "ms_zhao_huan_xian_ling"], ["霞光龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "starlight_terrace",
+        "name": "星辉台",
+        "lv": 92,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "starlight",
+        "area_name": "星辉台",
+        "desc": "星辉台，奥兰迪亚的野外区域，野兽与危险并存。星龙/星光元素（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_star_spirit", "星光精灵", "speedster", 92, ["ms_xing_hui_dan", "ms_shan_shuo"], ["星辉尘"]],
+            ["m_astral_wolf", "星狼", "dps", 94, ["ms_si_yao", "ms_xing_hui_zhan"], ["星狼皮"]],
+            ["m_meteor_golem", "陨星魔像", "tank", 96, ["ms_zhong_ji", "ms_yun_shi"], ["陨星核"]],
+        ],
+        "elite": ["e_star_dragon", "星龙·辰光", "elite", 98, ["ms_xing_xi", "ms_long_zhao", "ms_zhao_huan_xing_ling"], ["辰光龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    {
+        "id": "cloud_sanctum",
+        "name": "云中圣殿",
+        "lv": 94,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "cloudsanctum",
+        "area_name": "云中圣殿",
+        "desc": "云中圣殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cloud_guard", "云殿守卫", "tank", 94, ["ms_yun_dun", "ms_feng_ren"], ["云殿铠甲"]],
+            ["m_light_priest", "光之祭司", "healer", 96, ["ms_sheng_guang_dan", "ms_zhu_fu"], ["光之圣典"]],
+        ],
+        "elite": None,
+        "boss": ["b_ola", "云中圣者·奥拉", "boss", 100, ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"], ["奥拉圣印"]],
+        "npcs": [],
+    },
 ]
 
-# ========== 派生表 ==========
 MAP_BY_ID = {
-    "vila_gate": {
-        "id": "vila_gate",
-        "name": "维拉镇城门",
+    "oak_town": {
+        "id": "oak_town",
+        "name": "橡木镇",
         "lv": 1,
-        "region": "西境",
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "维拉镇的东大门，商队与冒险者从这里进出。城门外的野地里偶尔有野兽出没。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_stray_dog",
-                "野狗",
-                "dps",
-                1,
-                [
-                    "ms_si_yao"
-                ],
-                [
-                    "mat_ye_gou_liao_ya"
-                ]
-            ],
-            [
-                "m_giant_rat",
-                "巨型老鼠",
-                "speedster",
-                2,
-                [
-                    "ms_si_yao"
-                ],
-                [
-                    "mat_shu_wei"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_bandit_leader",
-            "山贼头目",
-            "elite",
-            4,
-            [
-                "ms_pi_kan",
-                "ms_nu_hou"
-            ],
-            [
-                "mat_shan_zei_hui_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    "vila_street": {
-        "id": "vila_street",
-        "name": "维拉镇中央大街",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "石板铺就的主街，两侧商铺林立，叫卖声此起彼伏。铁匠铺的炉火昼夜不熄。",
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木镇，奥兰迪亚大陆的重要聚落。新手村",
         "type": "城镇区域",
         "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_blacksmith"
-        ]
-    },
-    "vila_square": {
-        "id": "vila_square",
-        "name": "维拉镇中心广场",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "城镇的心脏，喷泉旁竖着公告板，镇长府邸就在广场北侧。新来的冒险者都在这里报到。",
-        "type": "城镇区域",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_mayor",
-            "npc_bard"
-        ]
-    },
-    "vila_tavern": {
-        "id": "vila_tavern",
-        "name": "维拉镇酒馆·醉熊",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "整个小镇最热闹的地方，麦酒与冒险故事一样管够。赏金猎人喜欢在这里物色搭档。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_bartender",
-            "npc_bounty"
-        ]
-    },
-    "vila_inn": {
-        "id": "vila_inn",
-        "name": "维拉镇旅店·星夜",
-        "lv": 1,
-        "region": "西境",
-        "chapter": 1,
-        "area": "vila",
-        "area_name": "维拉镇",
-        "desc": "干净温暖的旅店，老板娘玛丽总是笑眯眯的。在这里住宿能恢复全部状态。",
-        "type": "城镇区域",
-        "shop": False,
         "healer": True,
         "hidden": False,
-        "monsters": [],
+        "monsters": [
+        ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_innkeeper"
-        ]
+        "npcs": ["npc_mayor", "npc_blacksmith", "npc_innkeeper", "npc_guild_clerks"],
     },
-    "emerald_edge": {
-        "id": "emerald_edge",
-        "name": "翡翠森林边缘",
-        "lv": 4,
-        "region": "西境",
+    "oak_meadow": {
+        "id": "oak_meadow",
+        "name": "橡木草地",
+        "lv": 1,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "emerald",
-        "area_name": "翡翠森林",
-        "desc": "森林的边缘地带，阳光还能透过树冠。林间传来狼嚎，深入请小心。",
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木草地，奥兰迪亚的野外区域，野兽与危险并存。史莱姆练级场",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_forest_wolf",
-                "森林狼",
-                "dps",
-                4,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_lang_pi"
-                ]
-            ],
-            [
-                "m_venom_spider",
-                "毒蜘蛛",
-                "speedster",
-                5,
-                [
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_zhi_zhu_du_nang"
-                ]
-            ]
+            ["m_slime", "绿史莱姆", "tank", 1, ["ms_zhuang_ji"], ["史莱姆黏液"]],
+            ["m_rabbit", "野兔", "speedster", 1, ["ms_ji_pao"], ["兔毛"]],
+            ["m_boar", "野猪", "dps", 3, ["ms_chong_zhuang"], ["野猪牙"]],
+        ],
+        "elite": ["e_great_boar", "巨型野猪", "elite", 4, ["ms_chong_zhuang", "ms_jian_ta"], ["巨型野猪牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "oak_forest": {
+        "id": "oak_forest",
+        "name": "橡木林",
+        "lv": 3,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "oak",
+        "area_name": "橡木镇",
+        "desc": "橡木林，奥兰迪亚的野外区域，野兽与危险并存。野狗/哥布林",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_dog", "野狗", "dps", 3, ["ms_si_yao"], ["狗牙"]],
+            ["m_snake", "毒蛇", "speedster", 4, ["ms_du_ya"], ["蛇皮"]],
+            ["m_goblin_scout", "哥布林斥候", "speedster", 5, ["ms_duan_dao"], ["哥布林耳朵"]],
+            ["e_goblin_raider", "哥布林劫掠者", "dps", 6, ["ms_duan_dao", "ms_tou_shi"], ["劫掠者徽记"]],
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "emerald_trail": {
-        "id": "emerald_trail",
-        "name": "翡翠林间小径",
+    "white_deer": {
+        "id": "white_deer",
+        "name": "白鹿城",
         "lv": 5,
-        "region": "西境",
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "white_deer",
+        "area_name": "白鹿城",
+        "desc": "白鹿城，奥兰迪亚大陆的重要聚落。南境首府",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_baron", "npc_blacksmith2", "npc_tavern_owner", "npc_priest", "npc_doctor"],
+    },
+    "emerald_forest": {
+        "id": "emerald_forest",
+        "name": "翡翠森林",
+        "lv": 8,
+        "region": "南境·绿野",
         "chapter": 1,
         "area": "emerald",
         "area_name": "翡翠森林",
-        "desc": "精灵走出来的小径，树木会说话，魔法的光芒在林间流淌。",
+        "desc": "翡翠森林，奥兰迪亚的野外区域，野兽与危险并存。森林狼/树人",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_venom_spider",
-                "毒蜘蛛",
-                "speedster",
-                5,
-                [
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_zhi_zhu_du_nang"
-                ]
-            ],
-            [
-                "m_greensprite",
-                "绿妖精",
-                "caster",
-                6,
-                [
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_yao_jing_zhi_chen"
-                ]
-            ]
+            ["m_forest_wolf", "森林狼", "dps", 8, ["ms_si_yao", "ms_hao_jiao"], ["狼皮"]],
+            ["m_goblin_warrior", "哥布林战士", "dps", 10, ["ms_duan_dao", "ms_dun_ji"], ["哥布林徽记"]],
+            ["m_treant", "树人", "tank", 12, ["ms_teng_bian", "ms_ying_hua"], ["古木枝"]],
         ],
-        "elite": None,
+        "elite": ["e_wolf_alpha", "狼王·灰影", "elite", 14, ["ms_si_yao", "ms_hao_jiao", "ms_pu_ji"], ["灰影狼牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "emerald_heart": {
-        "id": "emerald_heart",
-        "name": "翡翠森林之心",
-        "lv": 6,
-        "region": "西境",
+    "misty_swamp": {
+        "id": "misty_swamp",
+        "name": "迷雾沼泽",
+        "lv": 12,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "emerald",
-        "area_name": "翡翠森林",
-        "desc": "森林最古老的神木所在，精灵的圣域。守护这里的远古圣鹿不容侵犯。",
-        "type": "核心",
+        "area": "misty",
+        "area_name": "迷雾沼泽",
+        "desc": "迷雾沼泽，奥兰迪亚的野外区域，野兽与危险并存。大史莱姆/鳄鱼",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_greensprite",
-                "绿妖精",
-                "caster",
-                6,
-                [
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_yao_jing_zhi_chen"
-                ]
-            ],
-            [
-                "m_forest_wolf",
-                "森林狼",
-                "dps",
-                6,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_lang_pi"
-                ]
-            ]
+            ["m_big_slime", "大史莱姆", "tank", 12, ["ms_zhuang_ji", "ms_nian_ye"], ["大史莱姆核"]],
+            ["m_crocodile", "沼泽鳄鱼", "dps", 14, ["ms_yao_sui", "ms_shuai_wei"], ["鳄鱼皮"]],
+            ["m_swamp_mage", "沼泽巫师", "healer", 16, ["ms_du_wu", "ms_shui_dan"], ["巫师法杖碎片"]],
         ],
-        "elite": [
-            "e_forest_treant",
-            "远古树人",
-            "elite",
-            7,
-            [
-                "ms_zhong_ji",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yuan_gu_shu_pi"
-            ]
-        ],
-        "boss": [
-            "b_ancient_elk",
-            "远古圣鹿",
-            "boss",
-            8,
-            [
-                "ms_sheng_guang_chong_feng",
-                "ms_zi_ran_zhu_fu",
-                "ms_jian_ta"
-            ],
-            [
-                "mat_sheng_lu_jiao"
-            ]
-        ],
-        "npcs": [
-            "npc_druid"
-        ]
+        "elite": ["e_swamp_king", "沼泽巨鳄", "elite", 18, ["ms_yao_sui", "ms_shuai_wei", "ms_ni_jiang"], ["巨鳄鳞"]],
+        "boss": None,
+        "npcs": [],
     },
-    "stonefist_camp": {
-        "id": "stonefist_camp",
-        "name": "石拳营地",
-        "lv": 7,
-        "region": "西境",
+    "goblin_camp": {
+        "id": "goblin_camp",
+        "name": "哥布林营地",
+        "lv": 15,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矮人在丘陵脚下搭建的营地，篝火与铁砧声不断。矿洞方向常有地精的动静。",
+        "area": "goblin",
+        "area_name": "哥布林营地",
+        "desc": "哥布林营地，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_goblin_guard", "哥布林守卫", "tank", 15, ["ms_dun_ji"], ["哥布林铁片"]],
+            ["m_goblin_shaman", "哥布林萨满", "healer", 16, ["ms_zhi_liao", "ms_du_wu"], ["萨满图腾"]],
+            ["m_goblin_berserker", "哥布林狂战士", "dps", 18, ["ms_lian_zhan"], ["狂战士腰带"]],
+        ],
+        "elite": None,
+        "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20, ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"], ["咕噜的皇冠"]],
+        "npcs": [],
+    },
+    "hill_mine": {
+        "id": "hill_mine",
+        "name": "山丘矿洞",
+        "lv": 18,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "hill",
+        "area_name": "山丘矿洞",
+        "desc": "山丘矿洞，奥兰迪亚的野外区域，野兽与危险并存。采矿点",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cave_bat", "洞穴蝙蝠", "speedster", 18, ["ms_fu_chong"], ["蝠翼"]],
+            ["m_goblin_miner", "地精矿工", "dps", 20, ["ms_gao_ji"], ["矿石碎片"]],
+            ["m_rock_lizard", "岩石蜥蜴", "tank", 22, ["ms_yao_sui", "ms_ying_hua"], ["岩蜥鳞"]],
+        ],
+        "elite": ["e_cave_troll", "洞穴巨魔", "elite", 24, ["ms_zhong_ji", "ms_zai_sheng"], ["巨魔血"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "ironharbor": {
+        "id": "ironharbor",
+        "name": "铁港城",
+        "lv": 10,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "ironharbor",
+        "area_name": "铁港城",
+        "desc": "铁港城，奥兰迪亚大陆的重要聚落。冒险者圣地",
         "type": "城镇区域",
         "shop": True,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_goblin_grunt",
-                "地精步兵",
-                "dps",
-                7,
-                [
-                    "ms_pi_kan"
-                ],
-                [
-                    "mat_di_jing_er_duo"
-                ]
-            ]
         ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_dwarf_elder"
-        ]
+        "npcs": ["npc_guildmaster", "npc_citylord", "npc_auctioneer", "npc_bard", "npc_goblin_merchant"],
     },
-    "stonefist_mine": {
-        "id": "stonefist_mine",
-        "name": "矿洞入口",
-        "lv": 8,
-        "region": "西境",
+    "harbor_docks": {
+        "id": "harbor_docks",
+        "name": "铁港码头",
+        "lv": 20,
+        "region": "南境·绿野",
         "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矮人世代开采的矿脉洞口，如今被地精占领，洞内幽深黑暗。",
+        "area": "ironharbor",
+        "area_name": "铁港城",
+        "desc": "铁港码头，奥兰迪亚的野外区域，野兽与危险并存。水鬼/海盗",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_goblin_grunt",
-                "地精步兵",
-                "dps",
-                7,
-                [
-                    "ms_pi_kan"
-                ],
-                [
-                    "mat_di_jing_er_duo"
-                ]
-            ],
-            [
-                "m_mine_bat",
-                "矿洞蝙蝠",
-                "speedster",
-                8,
-                [
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_bian_fu_yi"
-                ]
-            ]
+            ["m_water_ghost", "水鬼", "dps", 20, ["ms_zhao_ji"], ["水鬼之泪"]],
+            ["m_pirate", "海盗水手", "dps", 22, ["ms_wan_dao"], ["弯刀碎片"]],
+            ["m_seagull", "大海鸥", "speedster", 22, ["ms_fu_chong"], ["海鸥羽毛"]],
         ],
-        "elite": None,
+        "elite": ["e_pirate_lieutenant", "海盗副官", "elite", 25, ["ms_wan_dao", "ms_huo_qiang"], ["副官勋章"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "stonefist_deep": {
-        "id": "stonefist_deep",
-        "name": "矿洞深处",
-        "lv": 9,
-        "region": "西境",
-        "chapter": 1,
-        "area": "stonefist",
-        "area_name": "石拳丘陵",
-        "desc": "矿洞最深处，巨大的蛇影在黑暗中游弋。地精萨满在这里举行诡异的仪式。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_tunnel_snake",
-                "洞穴巨蛇",
-                "tank",
-                9,
-                [
-                    "ms_du_yao",
-                    "ms_chan_rao"
-                ],
-                [
-                    "mat_she_lin"
-                ]
-            ],
-            [
-                "m_mine_bat",
-                "矿洞蝙蝠",
-                "speedster",
-                9,
-                [
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_bian_fu_yi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_goblin_shaman",
-            "地精萨满",
-            "elite",
-            10,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_huan"
-            ],
-            [
-                "mat_sa_man_tu_teng"
-            ]
-        ],
-        "boss": [
-            "b_tunnel_king",
-            "隧洞之王",
-            "boss",
-            11,
-            [
-                "ms_zhong_ji",
-                "ms_nu_hou",
-                "ms_chen_mo_jian_xiao",
-                "ms_di_dong"
-            ],
-            [
-                "mat_di_jing_wang_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    "gloom_edge": {
-        "id": "gloom_edge",
-        "name": "幽暗沼泽边缘",
-        "lv": 10,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "沼泽的最外围，瘴气开始弥漫，脚下的泥土松软而危险。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_swamp_zombie",
-                "沼泽僵尸",
-                "tank",
-                10,
-                [
-                    "ms_zhao_ji"
-                ],
-                [
-                    "mat_jiang_shi_fu_rou"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "gloom_mire": {
-        "id": "gloom_mire",
-        "name": "泥沼深处",
-        "lv": 11,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "越深入，瘴气越浓。腐尸爬行者在泥水中蠕动着，鬼魂的哀嚎此起彼伏。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_bog_ghost",
-                "沼泽鬼魂",
-                "caster",
-                11,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao"
-                ],
-                [
-                    "mat_gui_hun_jing_hua"
-                ]
-            ],
-            [
-                "m_corpse_crawler",
-                "腐尸爬行者",
-                "dps",
-                12,
-                [
-                    "ms_zhao_ji",
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_pa_xing_chong_ke"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "gloom_heart": {
-        "id": "gloom_heart",
-        "name": "沼泽之心",
-        "lv": 12,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "gloom",
-        "area_name": "幽暗沼泽",
-        "desc": "亡灵天灾的腐化源头，骸骨术士的祭坛立于此地，腐朽领主盘踞其上。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_corpse_crawler",
-                "腐尸爬行者",
-                "dps",
-                12,
-                [
-                    "ms_zhao_ji",
-                    "ms_du_yao"
-                ],
-                [
-                    "mat_pa_xing_chong_ke"
-                ]
-            ],
-            [
-                "m_swamp_zombie",
-                "沼泽僵尸",
-                "tank",
-                12,
-                [
-                    "ms_zhao_ji"
-                ],
-                [
-                    "mat_jiang_shi_fu_rou"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_bone_warlock",
-            "骸骨术士",
-            "elite",
-            13,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_hun",
-                "ms_ji_qu"
-            ],
-            [
-                "mat_shu_shi_he_xin"
-            ]
-        ],
-        "boss": [
-            "b_decay_lord",
-            "腐朽领主",
-            "boss",
-            14,
-            [
-                "ms_zhao_ji",
-                "ms_fu_xi",
-                "ms_zhao_hun",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_fu_xiu_zhi_ren"
-            ]
-        ],
-        "npcs": []
-    },
-    "redridge_field": {
-        "id": "redridge_field",
-        "name": "赤脊旷野",
-        "lv": 13,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "赤色岩石覆盖的旷野，兽人部落的巡逻队在此出没，座狼的嚎叫撕破寂静。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_orc_grunt",
-                "兽人步兵",
-                "dps",
-                13,
-                [
-                    "ms_pi_kan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_shou_ren_liao_ya"
-                ]
-            ],
-            [
-                "m_warg",
-                "座狼",
-                "speedster",
-                14,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_zuo_lang_quan_chi"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "redridge_ridge": {
-        "id": "redridge_ridge",
-        "name": "赤脊山脊",
-        "lv": 15,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "陡峭的山脊上风声猎猎，鹰身女妖在天空中盘旋，随时准备俯冲。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_harpy",
-                "鹰身女妖",
-                "caster",
-                15,
-                [
-                    "ms_fu_chong",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_nv_yao_zhi_yu"
-                ]
-            ],
-            [
-                "m_warg",
-                "座狼",
-                "speedster",
-                15,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_zuo_lang_quan_chi"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "redridge_camp": {
-        "id": "redridge_camp",
-        "name": "战歌营地",
-        "lv": 16,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "redridge",
-        "area_name": "赤脊荒原",
-        "desc": "战歌部落的大营，旌旗猎猎，兽人狂战士在营地中央的图腾柱下磨刀。",
-        "type": "核心",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_orc_grunt",
-                "兽人步兵",
-                "dps",
-                16,
-                [
-                    "ms_pi_kan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_shou_ren_liao_ya"
-                ]
-            ],
-            [
-                "m_harpy",
-                "鹰身女妖",
-                "caster",
-                16,
-                [
-                    "ms_fu_chong",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_nv_yao_zhi_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_orc_berserker",
-            "兽人狂战士",
-            "elite",
-            16,
-            [
-                "ms_pi_kan",
-                "ms_kuang_bao",
-                "ms_zhong_ji"
-            ],
-            [
-                "mat_kuang_zhan_zhi_xin"
-            ]
-        ],
-        "boss": [
-            "b_warband_chief",
-            "战歌部落酋长",
-            "boss",
-            17,
-            [
-                "ms_pi_kan",
-                "ms_zhan_hou",
-                "ms_zhong_ji",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_qiu_zhang_zhan_ren"
-            ]
-        ],
-        "npcs": [
-            "npc_orc_prisoner"
-        ]
-    },
-    "blackrock_gate": {
-        "id": "blackrock_gate",
-        "name": "黑石城门",
-        "lv": 16,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "曾是人类王国都城的东门，如今城门倒塌，骷髅卫兵在废墟间巡游。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_skeleton_guard",
-                "骷髅卫兵",
-                "tank",
-                16,
-                [
-                    "ms_pi_kan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_gu_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "blackrock_street": {
-        "id": "blackrock_street",
-        "name": "死城大街",
-        "lv": 17,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "曾经繁华的主街，如今只剩下断壁残垣。食尸鬼在阴影中啃食着什么。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_ghoul",
-                "食尸鬼",
-                "dps",
-                17,
-                [
-                    "ms_zhao_ji",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_shi_shi_gui_zhi_zhao"
-                ]
-            ],
-            [
-                "m_spectre",
-                "怨灵",
-                "caster",
-                18,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao",
-                    "ms_fu_shen"
-                ],
-                [
-                    "mat_ling_hun_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "blackrock_keep": {
-        "id": "blackrock_keep",
-        "name": "黑石王座",
-        "lv": 18,
-        "region": "腐土",
-        "chapter": 2,
-        "area": "blackrock",
-        "area_name": "黑石城废墟",
-        "desc": "旧王国的王宫大殿，巫妖宰相的寒冰王座矗立于此，死亡骑士侍立两侧。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_skeleton_guard",
-                "骷髅卫兵",
-                "tank",
-                18,
-                [
-                    "ms_pi_kan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_gu_pian"
-                ]
-            ],
-            [
-                "m_spectre",
-                "怨灵",
-                "caster",
-                18,
-                [
-                    "ms_ji_qu",
-                    "ms_ai_hao",
-                    "ms_fu_shen"
-                ],
-                [
-                    "mat_ling_hun_sui_pian"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_death_knight",
-            "死亡骑士",
-            "elite",
-            19,
-            [
-                "ms_pi_kan",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_jian",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_si_wang_qi_shi_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_lich_vizier",
-            "巫妖宰相",
-            "boss",
-            20,
-            [
-                "ms_an_ying_jian",
-                "ms_zhao_hun",
-                "ms_ji_qu",
-                "ms_wu_yao_qi_she"
-            ],
-            [
-                "mat_wu_yao_fa_zhang"
-            ]
-        ],
-        "npcs": [
-            "npc_ghost_knight"
-        ]
-    },
-    "magma_gorge": {
-        "id": "magma_gorge",
-        "name": "熔岩峡谷",
-        "lv": 19,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "magma",
-        "area_name": "熔岩裂谷",
-        "desc": "深渊恶魔撕开大地的裂隙，岩浆在脚下奔涌，火元素从熔岩中升起。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_fire_elemental",
-                "火元素",
-                "caster",
-                19,
-                [
-                    "ms_huo_qiu",
-                    "ms_zhuo_shao"
-                ],
-                [
-                    "mat_huo_yan_he_xin"
-                ]
-            ],
-            [
-                "m_imp",
-                "小恶魔",
-                "speedster",
-                20,
-                [
-                    "ms_huo_qiu",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_e_mo_zhi_jiao"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "magma_heart": {
-        "id": "magma_heart",
-        "name": "熔岩核心",
-        "lv": 21,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "magma",
-        "area_name": "熔岩裂谷",
-        "desc": "裂谷的最深处，岩浆瀑布倾泻而下。熔岩暴君在此沉睡，火焰巨人看守着它的梦。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_lava_hound",
-                "熔岩猎犬",
-                "tank",
-                21,
-                [
-                    "ms_si_yao",
-                    "ms_zhuo_shao",
-                    "ms_chong_zhuang"
-                ],
-                [
-                    "mat_rong_yan_shi"
-                ]
-            ],
-            [
-                "m_imp",
-                "小恶魔",
-                "speedster",
-                21,
-                [
-                    "ms_huo_qiu",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_e_mo_zhi_jiao"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_flame_giant",
-            "火焰巨人",
-            "elite",
-            22,
-            [
-                "ms_zhong_ji",
-                "ms_huo_qiu",
-                "ms_zhuo_shao",
-                "ms_lie_yan_zhen_ji"
-            ],
-            [
-                "mat_ju_ren_yu_jin"
-            ]
-        ],
-        "boss": [
-            "b_magma_tyrant",
-            "熔岩暴君",
-            "boss",
-            23,
-            [
-                "ms_huo_qiu",
-                "ms_lie_yan_zhen_ji",
-                "ms_zhuo_shao",
-                "ms_yan_jiang_pen_fa"
-            ],
-            [
-                "mat_rong_yan_zhi_jian"
-            ]
-        ],
-        "npcs": []
-    },
-    "tundra_field": {
-        "id": "tundra_field",
-        "name": "冰封旷野",
+    "sea_cave": {
+        "id": "sea_cave",
+        "name": "海蚀洞窟",
         "lv": 22,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "tundra",
-        "area_name": "冰封苔原",
-        "desc": "极北的冰雪世界，暴风雪中传来冰原狼的低吼，冰霜巨魔在雪丘间游荡。",
-        "type": "野外",
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "seacave",
+        "area_name": "海蚀洞窟",
+        "desc": "海蚀洞窟，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_ice_wolf",
-                "冰原狼",
-                "dps",
-                22,
-                [
-                    "ms_si_yao",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_bing_yuan_mao_pi"
-                ]
-            ],
-            [
-                "m_frost_troll",
-                "冰霜巨魔",
-                "tank",
-                23,
-                [
-                    "ms_zhong_ji",
-                    "ms_zai_sheng",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_ju_mo_xue_rou"
-                ]
-            ]
+            ["m_sea_slime", "海史莱姆", "tank", 22, ["ms_zhuang_ji", "ms_nian_ye"], ["海盐结晶"]],
+            ["m_siren", "海妖", "healer", 24, ["ms_mei_huo_zhi_ge", "ms_shui_dan"], ["海妖鳞片"]],
+            ["m_pirate_elite", "海盗精锐", "dps", 26, ["ms_wan_dao", "ms_huo_qiang"], ["精锐佩剑"]],
         ],
         "elite": None,
-        "boss": None,
-        "npcs": []
+        "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 28, ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"], ["杰克的金钩"]],
+        "npcs": [],
     },
-    "tundra_cave": {
-        "id": "tundra_cave",
-        "name": "冰霜洞穴",
-        "lv": 24,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "tundra",
-        "area_name": "冰封苔原",
-        "desc": "冰川下的巨大洞穴，冰晶折射着幽蓝的光。霜裔亚龙就在这里筑巢。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_snow_wraith",
-                "雪魅",
-                "caster",
-                24,
-                [
-                    "ms_ji_qu",
-                    "ms_bing_yao",
-                    "ms_bao_feng_xue"
-                ],
-                [
-                    "mat_xue_zhi_jing_hua"
-                ]
-            ],
-            [
-                "m_frost_troll",
-                "冰霜巨魔",
-                "tank",
-                24,
-                [
-                    "ms_zhong_ji",
-                    "ms_zai_sheng",
-                    "ms_bing_yao"
-                ],
-                [
-                    "mat_ju_mo_xue_rou"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_glacier_golem",
-            "冰川魔像",
-            "elite",
-            25,
-            [
-                "ms_zhong_ji",
-                "ms_bing_qiang",
-                "ms_shuang_xi"
-            ],
-            [
-                "mat_yong_heng_zhi_bing"
-            ]
-        ],
-        "boss": [
-            "b_frost_wyrm",
-            "霜裔亚龙",
-            "boss",
-            26,
-            [
-                "ms_shuang_xi",
-                "ms_bao_feng_xue",
-                "ms_si_yao",
-                "ms_long_zhi_nu"
-            ],
-            [
-                "mat_shuang_long_zhi_ya"
-            ]
-        ],
-        "npcs": []
-    },
-    "stormpeak_path": {
-        "id": "stormpeak_path",
-        "name": "风暴山道",
-        "lv": 25,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "stormpeak",
-        "area_name": "风暴之巅",
-        "desc": "通往山巅的陡峭山道，终年雷暴，雷电元素在云层中翻涌，巨鹰盘旋警戒。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_thunder_elemental",
-                "雷电元素",
-                "caster",
-                25,
-                [
-                    "ms_shan_dian_jian",
-                    "ms_lei_ji"
-                ],
-                [
-                    "mat_lei_dian_he_xin"
-                ]
-            ],
-            [
-                "m_giant_eagle",
-                "巨鹰",
-                "speedster",
-                26,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_ju_ying_ling_yu"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "stormpeak_peak": {
-        "id": "stormpeak_peak",
-        "name": "风暴之巅",
-        "lv": 27,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "stormpeak",
-        "area_name": "风暴之巅",
-        "desc": "世界的屋脊，雷暴的中心。风暴巨人王手持雷霆之锤，君临此处。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_storm_serpent",
-                "风暴巨蛇",
-                "tank",
-                27,
-                [
-                    "ms_shan_dian_jian",
-                    "ms_chan_rao",
-                    "ms_lei_ji"
-                ],
-                [
-                    "mat_feng_bao_she_lin"
-                ]
-            ],
-            [
-                "m_giant_eagle",
-                "巨鹰",
-                "speedster",
-                27,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_ju_ying_ling_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_sky_hunter",
-            "苍穹猎手",
-            "elite",
-            28,
-            [
-                "ms_feng_ren",
-                "ms_shan_dian_jian",
-                "ms_feng_bao_zhao_huan"
-            ],
-            [
-                "mat_cang_qiong_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_storm_giant",
-            "风暴巨人王",
-            "boss",
-            29,
-            [
-                "ms_lei_ji",
-                "ms_feng_bao_zhao_huan",
-                "ms_shan_dian_jian",
-                "ms_bao_feng_zhi_nu"
-            ],
-            [
-                "mat_lei_ting_zhi_chui"
-            ]
-        ],
-        "npcs": [
-            "npc_sky_hermit"
-        ]
-    },
-    "shadow_gate": {
-        "id": "shadow_gate",
-        "name": "暗影城门",
-        "lv": 28,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "深渊之门前的恶魔之城，城门由暗影恶魔把守，邪恶的气息扑面而来。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_shadow_demon",
-                "暗影恶魔",
-                "caster",
-                28,
-                [
-                    "ms_an_ying_jian",
-                    "ms_zhao_ji",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_an_ying_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "shadow_street": {
-        "id": "shadow_street",
-        "name": "暗影大街",
-        "lv": 29,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "恶魔的集市大街，灾厄小魔在屋檐间跳跃，虚空掠夺者盯上了每一个闯入者。",
-        "type": "野外",
+    "silver_brook": {
+        "id": "silver_brook",
+        "name": "银溪镇",
+        "lv": 12,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "silver",
+        "area_name": "银溪镇",
+        "desc": "银溪镇，奥兰迪亚大陆的重要聚落。南境农业镇（新）",
+        "type": "城镇区域",
         "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_doom_imp",
-                "灾厄小魔",
-                "speedster",
-                29,
-                [
-                    "ms_huo_qiu",
-                    "ms_an_ying_jian",
-                    "ms_jian_xiao"
-                ],
-                [
-                    "mat_zai_e_zhi_xin"
-                ]
-            ],
-            [
-                "m_void_reaver",
-                "虚空掠夺者",
-                "dps",
-                30,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_xu_kong_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "shadow_keep": {
-        "id": "shadow_keep",
-        "name": "暗影王座",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "shadow_city",
-        "area_name": "暗影之城",
-        "desc": "暗影主教的黑曜石王座大厅，深渊领主们在此匍匐。这里是深渊之门最后的屏障。",
-        "type": "核心",
-        "shop": False,
         "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_void_reaver",
-                "虚空掠夺者",
-                "dps",
-                30,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_xu_kong_sui_pian"
-                ]
-            ],
-            [
-                "m_shadow_demon",
-                "暗影恶魔",
-                "caster",
-                30,
-                [
-                    "ms_an_ying_jian",
-                    "ms_zhao_ji",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_an_ying_sui_pian"
-                ]
-            ]
         ],
-        "elite": [
-            "e_pit_lord",
-            "深渊领主",
-            "elite",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_huo_qiu",
-                "ms_xu_kong_zhan",
-                "ms_di_yu_huo"
-            ],
-            [
-                "mat_shen_yuan_hui_ji"
-            ]
-        ],
-        "boss": [
-            "b_shadow_archon",
-            "暗影主教",
-            "boss",
-            30,
-            [
-                "ms_an_ying_jian",
-                "ms_xu_kong_zhan",
-                "ms_ji_qu",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_an_ying_zhi_guan"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
-    "abyss_plain": {
-        "id": "abyss_plain",
-        "name": "深渊荒原",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "abyss_gate",
-        "area_name": "深渊之门",
-        "desc": "深渊之门前的荒原，大地龟裂，虚空之力扭曲着空间。恶魔大军在此列阵。",
+    "silver_valley": {
+        "id": "silver_valley",
+        "name": "银溪谷地",
+        "lv": 10,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "silver",
+        "area_name": "银溪镇",
+        "desc": "银溪谷地，奥兰迪亚的野外区域，野兽与危险并存。溪谷野兽（新）",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_abyss_guardian",
-                "深渊守卫",
-                "tank",
-                30,
-                [
-                    "ms_pi_kan",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_shen_yuan_jing_gang"
-                ]
-            ],
-            [
-                "m_void_hound",
-                "虚空猎犬",
-                "speedster",
-                30,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_xu_kong_liao_ya"
-                ]
-            ]
+            ["m_river_deer", "溪鹿", "speedster", 10, ["ms_ji_chi"], ["溪鹿皮"]],
+            ["m_valley_goat", "谷山羊", "dps", 12, ["ms_ding_zhuang"], ["山羊角"]],
+            ["m_stream_lizard", "溪蜥", "tank", 14, ["ms_yao_sui", "ms_ying_hua"], ["溪蜥鳞"]],
+        ],
+        "elite": ["e_valley_troll", "谷地巨魔", "elite", 16, ["ms_zhong_ji", "ms_tou_shi"], ["巨魔牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "windmill_plain": {
+        "id": "windmill_plain",
+        "name": "风车原野",
+        "lv": 14,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "windmill",
+        "area_name": "风车原野",
+        "desc": "风车原野，奥兰迪亚的野外区域，野兽与危险并存。平原兽群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_plain_rabbit", "平原兔", "speedster", 14, ["ms_ji_pao"], ["兔皮"]],
+            ["m_windmill_boar", "风车野猪", "dps", 16, ["ms_chong_zhuang"], ["野猪牙"]],
+            ["m_plain_ox", "平原野牛", "tank", 18, ["ms_chong_zhuang", "ms_jian_ta"], ["牛角"]],
+        ],
+        "elite": ["e_plain_wolf", "平原狼王", "elite", 20, ["ms_si_yao", "ms_hao_jiao"], ["狼王牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "deer_fort": {
+        "id": "deer_fort",
+        "name": "鹿角要塞",
+        "lv": 18,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "deerfort",
+        "area_name": "鹿角要塞",
+        "desc": "鹿角要塞，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
+    },
+    "maple_village": {
+        "id": "maple_village",
+        "name": "枫橡村",
+        "lv": 6,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "枫橡村，奥兰迪亚大陆的重要聚落。橡木镇西侧村落（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_oak_elder", "npc_hunter_gray", "npc_inn_tess"],
+    },
+    "rockfall_gorge": {
+        "id": "rockfall_gorge",
+        "name": "落石峡谷",
+        "lv": 4,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "落石峡谷，奥兰迪亚的野外区域，野兽与危险并存。峡谷岩兽（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rock_rat", "岩鼠", "speedster", 4, ["ms_ken_yao"], ["岩鼠牙"]],
+            ["m_mountain_goat", "岩羊", "dps", 5, ["ms_ding_zhuang"], ["岩羊毛"]],
+            ["m_cave_lizard", "石蜥蜴", "tank", 6, ["ms_yao_sui", "ms_ying_hua"], ["石蜥鳞"]],
+        ],
+        "elite": ["e_gorge_troll", "峡谷巨魔", "elite", 8, ["ms_zhong_ji", "ms_tou_shi"], ["巨魔獠牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "boar_ridge": {
+        "id": "boar_ridge",
+        "name": "野猪岭",
+        "lv": 6,
+        "region": "南境·绿野",
+        "chapter": 1,
+        "area": "maple",
+        "area_name": "枫橡村",
+        "desc": "野猪岭，奥兰迪亚的野外区域，野兽与危险并存。野猪王领地（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_boar", "野猪", "dps", 6, ["ms_chong_zhuang"], ["野猪牙"]],
+            ["m_boar_sow", "母猪兽", "tank", 7, ["ms_si_yao", "ms_hu_zai"], ["母猪皮"]],
+            ["m_hornet", "巨型马蜂", "speedster", 8, ["ms_du_ci"], ["蜂针"]],
+        ],
+        "elite": ["e_boar_king", "野猪王·裂鬃", "elite", 10, ["ms_chong_zhuang", "ms_jian_ta", "ms_hao_jiao"], ["裂鬃獠牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "dawn_city": {
+        "id": "dawn_city",
+        "name": "晨曦城",
+        "lv": 25,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "dawn",
+        "area_name": "晨曦城",
+        "desc": "晨曦城，奥兰迪亚大陆的重要聚落。首都",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_king", "npc_pope", "npc_cardinal", "npc_knight_commander", "npc_saintess"],
+    },
+    "dawn_cathedral": {
+        "id": "dawn_cathedral",
+        "name": "晨曦大圣堂",
+        "lv": 28,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "dawn",
+        "area_name": "晨曦城",
+        "desc": "晨曦大圣堂，奥兰迪亚的野外区域，野兽与危险并存。圣殿守卫/暗影教徒",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_temple_guard", "圣殿守卫（魔像）", "tank", 28, ["ms_zhong_ji", "ms_tie_bi"], ["圣殿铁块"]],
+            ["m_cultist", "暗影教徒", "dps", 30, ["ms_an_ying_dan"], ["暗影徽记"]],
+        ],
+        "elite": ["e_inquisitor", "审判官", "elite", 33, ["ms_an_ying_dan", "ms_suo_lian"], ["审判官之链"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "gold_plain": {
+        "id": "gold_plain",
+        "name": "金穗平原",
+        "lv": 30,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "gold",
+        "area_name": "金穗平原",
+        "desc": "金穗平原，奥兰迪亚的野外区域，野兽与危险并存。野牛/盗贼团",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wild_bull", "野牛", "tank", 30, ["ms_chong_zhuang"], ["牛角"]],
+            ["m_bandit", "盗贼", "speedster", 32, ["ms_duan_jian", "ms_tou_qie"], ["盗贼面巾"]],
+            ["m_steppe_wolf", "草原狼", "dps", 34, ["ms_si_yao"], ["草原狼皮"]],
+        ],
+        "elite": ["e_bandit_leader", "盗贼头目·黑鸦", "elite", 38, ["ms_duan_jian", "ms_yan_wu"], ["黑鸦披风"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "white_abbey": {
+        "id": "white_abbey",
+        "name": "白石修道院",
+        "lv": 32,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "abbey",
+        "area_name": "白石修道院",
+        "desc": "白石修道院，奥兰迪亚的野外区域，野兽与危险并存。修道院隐藏真相",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_corrupted_nun", "腐蚀修女", "healer", 32, ["ms_an_ying_zhi_liao", "ms_fu_shi_shu"], ["染黑圣铃"]],
+            ["m_stone_golem", "石魔像", "tank", 34, ["ms_zhong_ji", "ms_ying_hua"], ["魔像核心"]],
+        ],
+        "elite": ["e_abbey_guardian", "修道院守护者", "elite", 37, ["ms_zhong_ji", "ms_sheng_guang_zhan_bei_wu_ran"], ["守护者碎片"]],
+        "boss": None,
+        "npcs": ["npc_abbess"],
+    },
+    "old_king_tomb": {
+        "id": "old_king_tomb",
+        "name": "旧王陵",
+        "lv": 35,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "oldtomb",
+        "area_name": "旧王陵",
+        "desc": "旧王陵，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_skeleton", "骷髅兵", "dps", 35, ["ms_jian_ji"], ["碎骨"]],
+            ["m_zombie", "僵尸", "tank", 37, ["ms_zhao_ji", "ms_gan_ran"], ["腐肉"]],
+            ["m_ghost", "幽灵", "speedster", 40, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵之尘"]],
+        ],
+        "elite": None,
+        "boss": ["b_king_odric", "古王·奥德里克", "boss", 45, ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"], ["古王剑"]],
+        "npcs": [],
+    },
+    "border_castle": {
+        "id": "border_castle",
+        "name": "边境堡",
+        "lv": 40,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "border",
+        "area_name": "边境堡",
+        "desc": "边境堡，奥兰迪亚的野外区域，野兽与危险并存。兽人入侵者",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_orc_raider", "兽人劫掠者", "dps", 40, ["ms_fu_ji"], ["兽人斧刃"]],
+            ["m_war_machine", "战争机器", "tank", 44, ["ms_chong_zhuang", "ms_huo_pao"], ["战争机器零件"]],
+        ],
+        "elite": ["e_orc_warrior", "兽人战士", "elite", 47, ["ms_fu_ji", "ms_zhan_hou"], ["兽人战徽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "silver_river": {
+        "id": "silver_river",
+        "name": "银铃河",
+        "lv": 38,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "silverriver",
+        "area_name": "银铃河",
+        "desc": "银铃河，奥兰迪亚的野外区域，野兽与危险并存。水妖/鲛人",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_river_spirit", "水精灵", "healer", 38, ["ms_shui_dan", "ms_zhi_liao"], ["水精灵泪"]],
+            ["m_mermaid", "鲛人", "dps", 40, ["ms_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
+            ["m_river_dragon", "河龙", "tank", 44, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞"]],
+        ],
+        "elite": ["e_river_dragon_lord", "河龙领主", "elite", 46, ["ms_shui_xi", "ms_xuan_wo"], ["河龙领主鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "secret_crypt": {
+        "id": "secret_crypt",
+        "name": "圣堂地窖",
+        "lv": 42,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "crypt",
+        "area_name": "圣堂地窖",
+        "desc": "圣堂地窖，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_shadow_priest", "暗影祭司", "healer", 42, ["ms_an_ying_dan", "ms_hei_an_zhi_liao"], ["染黑圣典"]],
+            ["m_inquisitor_hound", "审判猎犬", "speedster", 45, ["ms_si_yao"], ["猎犬项圈"]],
+        ],
+        "elite": None,
+        "boss": ["b_marcus", "审判长·马尔库斯", "boss", 52, ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"], ["马尔库斯的法冠"]],
+        "npcs": [],
+    },
+    "knight_yard": {
+        "id": "knight_yard",
+        "name": "圣骑士训练场",
+        "lv": 26,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "knight",
+        "area_name": "圣骑士训练场",
+        "desc": "圣骑士训练场，奥兰迪亚的野外区域，野兽与危险并存。训练魔像",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_training_golem", "训练魔像", "tank", 26, ["ms_zhong_ji", "ms_tie_bi"], ["魔像核心"]],
+            ["m_training_dummy", "训练木桩", "dps", 28, ["ms_pi_kan"], ["木桩碎片"]],
+            ["m_knight_apprentice", "见习骑士", "dps", 30, ["ms_jian_ji"], ["骑士徽记"]],
+        ],
+        "elite": ["e_knight_instructor", "骑士教官", "elite", 34, ["ms_jian_ji", "ms_zhan_hou"], ["教官之剑"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "king_road": {
+        "id": "king_road",
+        "name": "王陵古道",
+        "lv": 33,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "kingroad",
+        "area_name": "王陵古道",
+        "desc": "王陵古道，奥兰迪亚的野外区域，野兽与危险并存。亡灵游荡",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_road_skeleton", "古道骷髅", "dps", 33, ["ms_jian_ji"], ["碎骨"]],
+            ["m_grave_ghost", "古墓幽灵", "speedster", 36, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵之尘"]],
+            ["m_ancient_knight", "古代骑士", "tank", 39, ["ms_jian_ji", "ms_tie_bi"], ["锈甲碎片"]],
+        ],
+        "elite": ["e_grave_lord", "古墓领主", "elite", 42, ["ms_an_ying_zhan", "ms_zhao_huan_ku_lou"], ["领主骨甲"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "holy_trial": {
+        "id": "holy_trial",
+        "name": "圣光试炼场",
+        "lv": 36,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "holytrial",
+        "area_name": "圣光试炼场",
+        "desc": "圣光试炼场，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "ironshield_town": {
+        "id": "ironshield_town",
+        "name": "铁盾镇",
+        "lv": 30,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "ironshield",
+        "area_name": "铁盾镇",
+        "desc": "铁盾镇，奥兰迪亚大陆的重要聚落。晨曦城北卫镇（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_ironshield_mayor", "npc_ironshield_smith", "npc_ironshield_scout"],
+    },
+    "ironshield_hills": {
+        "id": "ironshield_hills",
+        "name": "铁盾丘陵",
+        "lv": 28,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "ironshield",
+        "area_name": "铁盾镇",
+        "desc": "铁盾丘陵，奥兰迪亚的野外区域，野兽与危险并存。丘陵狼群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_hill_wolf", "丘陵狼", "dps", 28, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮"]],
+            ["m_iron_boar", "铁甲野猪", "tank", 30, ["ms_chong_zhuang", "ms_tie_pi"], ["铁甲猪皮"]],
+            ["m_hill_vulture", "秃鹫", "speedster", 32, ["ms_fu_chong"], ["秃鹫羽"]],
+        ],
+        "elite": ["e_hill_wolf_king", "丘陵狼王·铁牙", "elite", 34, ["ms_si_yao", "ms_pu_ji", "ms_hao_jiao"], ["铁牙狼皮"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "old_battlefield": {
+        "id": "old_battlefield",
+        "name": "旧战场遗址",
+        "lv": 32,
+        "region": "中域·圣光之心",
+        "chapter": 4,
+        "area": "oldbattle",
+        "area_name": "旧战场遗址",
+        "desc": "旧战场遗址，奥兰迪亚的野外区域，野兽与危险并存。百族战争遗迹（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rust_warrior", "锈甲亡兵", "dps", 32, ["ms_xiu_jian"], ["锈甲碎片"]],
+            ["m_field_ghost", "战场幽魂", "speedster", 34, ["ms_chuan_shen", "ms_ai_hao"], ["幽魂尘"]],
+            ["m_war_golem", "战争魔像（残）", "tank", 37, ["ms_zhong_ji", "ms_tie_bi"], ["魔像残核"]],
+        ],
+        "elite": ["e_battle_lord", "百族战将·亡影", "elite", 40, ["ms_zhan_chui", "ms_zhan_hou", "ms_zhao_huan_you_hun"], ["亡影战徽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "moon_gate": {
+        "id": "moon_gate",
+        "name": "月冠隘口",
+        "lv": 45,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moongate",
+        "area_name": "月冠隘口",
+        "desc": "月冠隘口，奥兰迪亚大陆的重要聚落。精灵领地入口",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "silverwood": {
+        "id": "silverwood",
+        "name": "银月林海",
+        "lv": 46,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "silverwood",
+        "area_name": "银月林海",
+        "desc": "银月林海，奥兰迪亚的野外区域，野兽与危险并存。精灵兽/月狼",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_elf_beast", "精灵鹿", "speedster", 46, ["ms_ji_pao", "ms_ding_zhuang"], ["精灵鹿角"]],
+            ["m_moon_wolf", "月狼", "dps", 50, ["ms_si_yao", "ms_yue_guang_zhan"], ["月狼毛皮"]],
+            ["m_treant_elder", "古树人", "tank", 54, ["ms_teng_bian", "ms_ying_hua", "ms_gen_xu"], ["古树之心"]],
+        ],
+        "elite": ["e_moon_wolf_alpha", "月狼王·银鬃", "elite", 56, ["ms_si_yao", "ms_yue_guang_zhan", "ms_hao_jiao"], ["银鬃狼皮"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "starlake": {
+        "id": "starlake",
+        "name": "星语湖",
+        "lv": 50,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "starlake",
+        "area_name": "星语湖",
+        "desc": "星语湖，奥兰迪亚的野外区域，野兽与危险并存。湖妖/水精灵",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_lake_demon", "湖妖", "healer", 50, ["ms_shui_dan", "ms_mei_huo"], ["湖妖泪"]],
+            ["m_water_elf", "水精灵战士", "dps", 54, ["ms_san_cha_ji"], ["水精灵鳞"]],
+            ["m_giant_bass", "巨鲈", "tank", 56, ["ms_zhuang_ji", "ms_shui_dan"], ["巨鲈鱼骨"]],
+        ],
+        "elite": ["e_lake_king", "星语湖王", "elite", 58, ["ms_shui_dan", "ms_xuan_wo", "ms_zhao_huan_shui_jing_ling"], ["湖王珠"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "moon_court": {
+        "id": "moon_court",
+        "name": "月冠王庭",
+        "lv": 55,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "mooncourt",
+        "area_name": "月冠王庭",
+        "desc": "月冠王庭，奥兰迪亚大陆的重要聚落。精灵主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_elf_queen", "npc_elf_guardian", "npc_elf_sage"],
+    },
+    "elven_ruins": {
+        "id": "elven_ruins",
+        "name": "精灵废墟",
+        "lv": 58,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "elvenruins",
+        "area_name": "精灵废墟",
+        "desc": "精灵废墟，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_corrupted_elf", "堕落精灵", "dps", 58, ["ms_jing_ling_jian_shu", "ms_an_ying_zhan"], ["堕落精灵护符"]],
+            ["m_ancient_golem", "远古魔像", "tank", 62, ["ms_zhong_ji", "ms_fu_wen_chong_ji"], ["远古符文石"]],
+        ],
+        "elite": None,
+        "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 66, ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"], ["晨曦之冠"]],
+        "npcs": [],
+    },
+    "ancient_tree": {
+        "id": "ancient_tree",
+        "name": "古树隘口",
+        "lv": 62,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "ancienttree",
+        "area_name": "古树隘口",
+        "desc": "古树隘口，奥兰迪亚的野外区域，野兽与危险并存。通往北境",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_giant_spider", "巨型蜘蛛", "speedster", 62, ["ms_du_ya", "ms_zhi_wang"], ["蜘蛛丝"]],
+            ["m_shadow_elf", "暗影精灵", "dps", 64, ["ms_an_ying_jian", "ms_qian_xing"], ["暗影精灵刃"]],
+            ["m_old_tree_guardian", "古树守卫", "tank", 68, ["ms_teng_bian", "ms_ying_hua"], ["守卫古木"]],
+        ],
+        "elite": ["e_tree_lord", "古树领主", "elite", 70, ["ms_teng_bian", "ms_gen_xu_chan_rao", "ms_zhao_huan_shu_ren"], ["领主古木心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "star_song": {
+        "id": "star_song",
+        "name": "星歌镇",
+        "lv": 48,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "starsong",
+        "area_name": "星歌镇",
+        "desc": "星歌镇，奥兰迪亚大陆的重要聚落。精灵边陲小镇",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "moon_glade": {
+        "id": "moon_glade",
+        "name": "月光林",
+        "lv": 52,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moonglade",
+        "area_name": "月光林",
+        "desc": "月光林，奥兰迪亚的野外区域，野兽与危险并存。月下精灵兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_moon_deer", "月鹿", "speedster", 52, ["ms_ji_chi", "ms_yue_guang_zhan"], ["月鹿角"]],
+            ["m_moon_bear", "月熊", "tank", 56, ["ms_xiong_zhang", "ms_yue_guang_zhan"], ["月熊皮"]],
+            ["m_moon_spirit", "月光精灵", "healer", 58, ["ms_yue_guang_zhan", "ms_zhi_yu"], ["月光精华"]],
+        ],
+        "elite": ["e_moon_lord", "月光领主·银辉", "elite", 62, ["ms_yue_guang_zhan", "ms_zhao_huan_yue_lu"], ["银辉月石"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "emerald_valley": {
+        "id": "emerald_valley",
+        "name": "翠谷",
+        "lv": 47,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "emeraldvalley",
+        "area_name": "翠谷",
+        "desc": "翠谷，奥兰迪亚的野外区域，野兽与危险并存。精灵鹿群",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_emerald_deer", "翠鹿", "speedster", 47, ["ms_ji_chi", "ms_ding_zhuang"], ["翠鹿角"]],
+            ["m_valley_faerie", "谷地仙灵", "healer", 50, ["ms_cai_guang", "ms_zhu_fu"], ["谷地露水"]],
+            ["m_green_stag", "绿角雄鹿", "tank", 52, ["ms_ding_zhuang", "ms_ying_hua"], ["绿鹿角"]],
+        ],
+        "elite": ["e_valley_lord", "翠谷领主·林语", "elite", 55, ["ms_teng_bian", "ms_gen_xu_chan_rao"], ["林语之叶"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "moon_temple": {
+        "id": "moon_temple",
+        "name": "月神圣殿",
+        "lv": 60,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moontemple",
+        "area_name": "月神圣殿",
+        "desc": "月神圣殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "windvale": {
+        "id": "windvale",
+        "name": "风语谷",
+        "lv": 50,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "windvale",
+        "area_name": "风语谷",
+        "desc": "风语谷，奥兰迪亚的野外区域，野兽与危险并存。风语精灵/鹿群（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_wind_deer", "风语鹿", "speedster", 50, ["ms_ji_chi", "ms_feng_ren"], ["风语鹿角"]],
+            ["m_whisper_spirit", "风语精灵", "healer", 52, ["ms_feng_ren", "ms_wei_feng_zhu_fu"], ["风语结晶"]],
+            ["m_valley_eagle", "谷地巨鹰", "dps", 54, ["ms_fu_chong", "ms_zhao_ji"], ["巨鹰羽"]],
+        ],
+        "elite": ["e_wind_king", "风语王·岚歌", "elite", 58, ["ms_feng_ren", "ms_feng_bao", "ms_zhao_huan_feng_yu_jing_ling"], ["岚歌之羽"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "moonshadow_wood": {
+        "id": "moonshadow_wood",
+        "name": "月影林",
+        "lv": 54,
+        "region": "西境·银月林海",
+        "chapter": 6,
+        "area": "moonshadow",
+        "area_name": "月影林",
+        "desc": "月影林，奥兰迪亚的野外区域，野兽与危险并存。影豹/月影兽（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_shadow_panther", "影豹", "speedster", 54, ["ms_pu_ji", "ms_qian_xing"], ["影豹皮"]],
+            ["m_moon_shade", "月影兽", "dps", 56, ["ms_an_ying_zhao", "ms_yue_guang_zhan"], ["月影之爪"]],
+            ["m_glow_fox", "荧光狐", "healer", 58, ["ms_mei_huo", "ms_ying_guang_shan"], ["荧光狐尾"]],
+        ],
+        "elite": ["e_moonshadow_lord", "月影领主·夜歌", "elite", 62, ["ms_an_ying_zhao", "ms_yue_guang_zhan", "ms_zhao_huan_ying_bao"], ["夜歌之眼"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "frost_horn": {
+        "id": "frost_horn",
+        "name": "霜角堡",
+        "lv": 60,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frosthorn",
+        "area_name": "霜角堡",
+        "desc": "霜角堡，奥兰迪亚大陆的重要聚落。北境人类主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_north_chief", "npc_garrison", "npc_field_priest"],
+    },
+    "frost_field": {
+        "id": "frost_field",
+        "name": "霜原",
+        "lv": 62,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostfield",
+        "area_name": "霜原",
+        "desc": "霜原，奥兰迪亚的野外区域，野兽与危险并存。雪狼/霜巨魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_snow_wolf", "雪狼", "dps", 62, ["ms_si_yao", "ms_bing_ya"], ["雪狼皮"]],
+            ["m_ice_elemental", "冰元素", "tank", 65, ["ms_bing_dan", "ms_dong_jie"], ["冰元素核心"]],
+            ["m_frost_troll", "霜巨魔", "dps", 68, ["ms_zhong_ji", "ms_zai_sheng", "ms_bing_ji"], ["霜巨魔血"]],
+        ],
+        "elite": ["e_frost_troll_lord", "霜巨魔王", "elite", 72, ["ms_zhong_ji", "ms_bing_ji", "ms_zhao_huan_xue_lang"], ["霜巨魔王角"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "anvil_fort": {
+        "id": "anvil_fort",
+        "name": "铁砧要塞",
+        "lv": 65,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "anvilfort",
+        "area_name": "铁砧要塞",
+        "desc": "铁砧要塞，奥兰迪亚大陆的重要聚落。矮人主城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_dwarf_elder", "npc_rune_master"],
+    },
+    "forge_valley": {
+        "id": "forge_valley",
+        "name": "熔炉谷",
+        "lv": 66,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "forgevalley",
+        "area_name": "熔炉谷",
+        "desc": "熔炉谷，奥兰迪亚的野外区域，野兽与危险并存。火蜥蜴/熔岩元素",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_fire_lizard", "火蜥蜴", "speedster", 66, ["ms_huo_dan"], ["火蜥蜴鳞"]],
+            ["m_lava_elemental", "熔岩元素", "tank", 70, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["熔岩核心"]],
+            ["m_mining_demon", "矿魔", "dps", 72, ["ms_gao_ji", "ms_huo_yan"], ["矿魔之角"]],
+        ],
+        "elite": ["e_lava_lord", "熔岩领主", "elite", 76, ["ms_rong_yan_dan", "ms_zhuo_shao", "ms_di_lie"], ["熔岩领主核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "black_forest": {
+        "id": "black_forest",
+        "name": "黑森林",
+        "lv": 72,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "blackforest",
+        "area_name": "黑森林",
+        "desc": "黑森林，奥兰迪亚的野外区域，野兽与危险并存。腐牙兽人",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rot_orc", "腐牙兽人", "dps", 72, ["ms_fu_ji", "ms_fu_shi"], ["腐牙兽牙"]],
+            ["m_dark_elf", "黑暗精灵", "speedster", 75, ["ms_an_ying_jian", "ms_qian_xing"], ["黑暗精灵刃"]],
+            ["m_corrupt_beast", "腐蚀兽", "tank", 78, ["ms_zhao_ji", "ms_fu_shi"], ["腐蚀兽爪"]],
+        ],
+        "elite": ["e_rot_chief_guard", "腐牙亲卫", "elite", 80, ["ms_fu_ji", "ms_zhan_hou"], ["腐牙战徽"]],
+        "boss": None,
+        "npcs": ["npc_fallen_chief"],
+    },
+    "cinder_mountain": {
+        "id": "cinder_mountain",
+        "name": "烬山",
+        "lv": 78,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "cinder",
+        "area_name": "烬山",
+        "desc": "烬山，奥兰迪亚的野外区域，野兽与危险并存。恶魔/炎魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_imp", "小恶魔", "speedster", 78, ["ms_huo_dan", "ms_zhao_ji"], ["小恶魔角"]],
+            ["m_hellhound", "地狱犬", "dps", 80, ["ms_si_yao", "ms_di_yu_huo"], ["地狱犬牙"]],
+            ["m_demon_servant", "深渊奴仆", "tank", 82, ["ms_zhong_ji", "ms_an_ying_dan"], ["奴仆锁链"]],
+        ],
+        "elite": ["e_demon_warrior", "恶魔战士", "elite", 86, ["ms_zhang_jian", "ms_di_yu_huo"], ["恶魔战刃"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "ash_temple": {
+        "id": "ash_temple",
+        "name": "烬山祭坛",
+        "lv": 82,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "ashtemple",
+        "area_name": "烬山祭坛",
+        "desc": "烬山祭坛，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_demon_priest", "恶魔祭司", "healer", 82, ["ms_an_ying_dan", "ms_hei_an_zhi_liao"], ["染血祭器"]],
+            ["m_seal_guardian", "封印守卫（腐蚀）", "tank", 86, ["ms_zhong_ji", "ms_fu_shi"], ["碎裂封印石"]],
+        ],
+        "elite": None,
+        "boss": ["b_helga", "恶魔祭司·赫尔加", "boss", 92, ["ms_an_ying_dan", "ms_zhao_huan_e_mo", "ms_hei_an_yi_shi"], ["赫尔加的祭器"]],
+        "npcs": ["npc_demon_priestess"],
     },
     "abyss_gate": {
         "id": "abyss_gate",
-        "name": "深渊之门",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "abyss_gate",
-        "area_name": "深渊之门",
-        "desc": "魔王所在的最终战场，魔王·阿兹莫丹立于深渊之门下，大陆的命运在此一决。",
-        "type": "核心",
+        "name": "深渊裂隙",
+        "lv": 90,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "abyssgate",
+        "area_name": "深渊裂隙",
+        "desc": "深渊裂隙，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_demon_herald",
-                "恶魔先驱",
-                "caster",
-                30,
-                [
-                    "ms_huo_qiu",
-                    "ms_an_ying_jian",
-                    "ms_di_yu_huo"
-                ],
-                [
-                    "mat_xian_qu_hao_jiao"
-                ]
-            ],
-            [
-                "m_void_hound",
-                "虚空猎犬",
-                "speedster",
-                30,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_xu_kong_liao_ya"
-                ]
-            ]
+            ["m_abyss_hound", "深渊猎犬", "dps", 90, ["ms_si_yao", "ms_an_ying_zhao"], ["深渊犬牙"]],
+            ["m_abyss_knight", "深渊骑士", "tank", 92, ["ms_jian_ji", "ms_an_ying_zhan"], ["深渊骑士盔甲碎片"]],
+            ["m_abyss_mage", "深渊法师", "healer", 94, ["ms_an_ying_dan", "ms_hei_an_zhi_liao", "ms_zhao_huan"], ["深渊法师杖"]],
         ],
         "elite": None,
-        "boss": [
-            "b_dark_lord",
-            "魔王·阿兹莫丹",
-            "boss",
-            30,
-            [
-                "ms_xu_kong_zhan",
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_hui_mie_zhi_ji"
-            ],
-            [
-                "mat_hei_an_jun_zhu_zhi_ren"
-            ]
-        ],
-        "npcs": []
+        "boss": ["b_eter", "蚀夜（真相形态）", "boss", 100, ["ms_an_ying_zhan", "ms_shen_yuan_zhi_nu", "ms_zhao_huan_shen_yuan"], ["黎明之光碎片"]],
+        "npcs": [],
     },
-    "mithril_hall": {
-        "id": "mithril_hall",
-        "name": "秘银大厅",
-        "lv": 26,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "mithril",
-        "area_name": "秘银遗迹",
-        "desc": "上古矮人王的宝库大厅，秘银魔像沿着走廊巡视，符文骑士守卫着每一道门。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": True,
-        "monsters": [
-            [
-                "m_mithril_golem",
-                "秘银魔像",
-                "tank",
-                26,
-                [
-                    "ms_zhong_ji",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_mi_yin_kuang_shi"
-                ]
-            ],
-            [
-                "m_runebound_knight",
-                "符文骑士",
-                "dps",
-                28,
-                [
-                    "ms_pi_kan",
-                    "ms_fu_wen_bao_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_fu_wen_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "mithril_vault": {
-        "id": "mithril_vault",
-        "name": "秘银宝库",
-        "lv": 30,
-        "region": "魔渊",
-        "chapter": 3,
-        "area": "mithril",
-        "area_name": "秘银遗迹",
-        "desc": "宝库的最深处，矮人王冠静静躺在王座上，宝藏守护者寸步不离。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": True,
-        "monsters": [
-            [
-                "m_treasure_guardian",
-                "宝藏守护者",
-                "boss",
-                30,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_nu_hou"
-                ],
-                [
-                    "mat_bao_cang_yao_shi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_ancient_dwarf",
-            "上古矮人王魂",
-            "elite",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_fu_wen_bao_fa",
-                "ms_zhan_hou",
-                "ms_xian_zu_zhi_nu"
-            ],
-            [
-                "mat_ai_ren_wang_zhi_jie"
-            ]
-        ],
-        "boss": [
-            "b_dwarf_king",
-            "秘银之王",
-            "boss",
-            30,
-            [
-                "ms_zhong_ji",
-                "ms_fu_wen_bao_fa",
-                "ms_xian_zu_zhi_nu",
-                "ms_mi_yin_zhen_ji"
-            ],
-            [
-                "mat_mi_yin_wang_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    "holy_field": {
-        "id": "holy_field",
-        "name": "远境草甸",
-        "lv": 31,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "远境高原的入口草甸，圣光透过云层洒下，却掩盖不住空气中弥漫的异样气息。光耀狼在草丛间游荡。",
+    "frost_fang": {
+        "id": "frost_fang",
+        "name": "冰牙谷",
+        "lv": 63,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostfang",
+        "area_name": "冰牙谷",
+        "desc": "冰牙谷，奥兰迪亚的野外区域，野兽与危险并存。冰牙兽群",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_holy_hawk",
-                "远境猎鹰",
-                "dps",
-                31,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_sheng_guang_yu_mao"
-                ]
-            ],
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                32,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ],
-            [
-                "m_holy_deer",
-                "远境麋鹿",
-                "tank",
-                33,
-                [
-                    "ms_chong_zhuang",
-                    "ms_zi_ran_zhu_fu"
-                ],
-                [
-                    "mat_sheng_hui_lu_jiao"
-                ]
-            ]
+            ["m_ice_sabre", "冰牙剑齿虎", "dps", 63, ["ms_si_yao", "ms_bing_ya"], ["剑齿虎牙"]],
+            ["m_snow_mammoth", "雪原猛犸", "tank", 66, ["ms_chong_zhuang", "ms_jian_ta"], ["猛犸毛"]],
+            ["m_glacier_rabbit", "冰川雪兔", "speedster", 68, ["ms_ji_pao", "ms_bing_dan"], ["雪兔皮"]],
         ],
-        "elite": [
-            "e_holy_knight",
-            "远境骑士",
-            "elite",
-            34,
-            [
-                "ms_pi_kan",
-                "ms_sheng_guang_zhan",
-                "ms_dun_ji"
-            ],
-            [
-                "mat_sheng_guang_hui_zhang"
-            ]
-        ],
+        "elite": ["e_ice_fang_lord", "冰牙领主·霜白", "elite", 71, ["ms_si_yao", "ms_bing_hou", "ms_zhao_huan_xue_lang"], ["霜白獠牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "holy_altar": {
-        "id": "holy_altar",
-        "name": "远境祭坛",
-        "lv": 34,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "古老的圣光祭坛，信徒们曾在此祈祷。如今祭坛被暗影侵蚀，教会修士们神色诡异地低声吟唱。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_temple_adept",
-                "教会修士",
-                "caster",
-                34,
-                [
-                    "ms_mo_fa_fei_dan",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_sheng_guang_jie_jing"
-                ]
-            ],
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                33,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_holy_knight_captain",
-            "远境骑士长",
-            "elite",
-            36,
-            [
-                "ms_pi_kan",
-                "ms_sheng_guang_zhan",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_sheng_qi_shi_jian"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_holy_cardinal"
-        ]
-    },
-    "holy_temple": {
-        "id": "holy_temple",
-        "name": "远境大教堂",
-        "lv": 38,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "远境大教堂的核心大殿，天使的雕像被暗影藤蔓缠绕。大主教说，赛拉斯大主教已经……堕落了。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_holy_guard",
-                "大教堂卫士",
-                "tank",
-                36,
-                [
-                    "ms_dun_ji",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_sheng_guang_dun_pai"
-                ]
-            ],
-            [
-                "m_seraph",
-                "白翼教众",
-                "caster",
-                37,
-                [
-                    "ms_tian_fa",
-                    "ms_sheng_guang_zhan"
-                ],
-                [
-                    "mat_tian_shi_zhi_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_seraph_captain",
-            "白翼统领",
-            "elite",
-            37,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei"
-            ],
-            [
-                "mat_tian_shi_sheng_yin"
-            ]
-        ],
-        "boss": [
-            "b_archangel",
-            "大主教·赛拉斯",
-            "boss",
-            38,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_sheng_guang_chong_feng"
-            ],
-            [
-                "mat_tian_shi_sheng_yin"
-            ]
-        ],
-        "npcs": []
-    },
-    "elf_forest": {
-        "id": "elf_forest",
-        "name": "精灵之森",
-        "lv": 41,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭外围的原始森林，古树参天，月光透过叶隙洒下。森林在低语，精灵们已经很久没有歌唱了。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_elf_archer",
-                "精灵弓手",
-                "dps",
-                41,
-                [
-                    "ms_feng_ren",
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_jing_ling_jian_shi"
-                ]
-            ],
-            [
-                "m_moon_panther",
-                "月影豹",
-                "speedster",
-                42,
-                [
-                    "ms_zhao_ji",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_yue_ying_zhi_pi"
-                ]
-            ],
-            [
-                "m_forest_spirit",
-                "林间鹿灵",
-                "caster",
-                43,
-                [
-                    "ms_zi_ran_zhu_fu",
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_sen_lin_zhi_ling"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_moon_guard",
-            "月光守卫",
-            "elite",
-            44,
-            [
-                "ms_feng_ren",
-                "ms_chan_rao",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yue_zhi_ren"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    "elf_courtyard": {
-        "id": "elf_courtyard",
-        "name": "月之庭院",
-        "lv": 44,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭的月之庭院，银月泉水依旧流淌，但守护它的精灵法师们眼中只剩空洞。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_elf_mage",
-                "精灵法师",
-                "caster",
-                44,
-                [
-                    "ms_huo_qiu",
-                    "ms_shan_dian_jian"
-                ],
-                [
-                    "mat_jing_ling_fa_zhu"
-                ]
-            ],
-            [
-                "m_jade_bird",
-                "翠羽灵鸟",
-                "speedster",
-                45,
-                [
-                    "ms_fu_chong",
-                    "ms_feng_ren"
-                ],
-                [
-                    "mat_cui_yu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_court_guard",
-            "王庭禁卫",
-            "elite",
-            46,
-            [
-                "ms_pi_kan",
-                "ms_feng_ren",
-                "ms_dun_ji"
-            ],
-            [
-                "mat_wang_ting_hui_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_elf_sage"
-        ]
-    },
-    "elf_throne": {
-        "id": "elf_throne",
-        "name": "王庭深处",
-        "lv": 48,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王庭的最深处，月神祭坛上，女王的身影被暗影笼罩。她手中的月之泪，已化为黑色。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_court_guard",
-                "王庭禁卫",
-                "tank",
-                48,
-                [
-                    "ms_pi_kan",
-                    "ms_feng_ren",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_wang_ting_hui_zhang"
-                ]
-            ],
-            [
-                "m_elf_mage",
-                "精灵法师",
-                "caster",
-                47,
-                [
-                    "ms_huo_qiu",
-                    "ms_shan_dian_jian"
-                ],
-                [
-                    "mat_jing_ling_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_moon_priest",
-            "月神祭司",
-            "elite",
-            49,
-            [
-                "ms_mo_fa_fei_dan",
-                "ms_bao_feng_xue",
-                "ms_zi_ran_zhu_fu"
-            ],
-            [
-                "mat_yue_zhi_lei"
-            ]
-        ],
-        "boss": [
-            "b_elf_queen",
-            "精灵女王·艾薇安",
-            "boss",
-            50,
-            [
-                "ms_feng_ren",
-                "ms_bao_feng_xue",
-                "ms_zi_ran_zhu_fu",
-                "ms_tian_fa"
-            ],
-            [
-                "mat_yue_shen_zhi_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    "dragon_path": {
-        "id": "dragon_path",
-        "name": "龙脊山道",
-        "lv": 51,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙脊山脉的蜿蜒山道，灼热的气浪从山巅翻涌而下。龙裔战士在山道间巡逻，警惕地盯着每个闯入者。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_dragon_lizard",
-                "龙鳞蜥蜴",
-                "tank",
-                51,
-                [
-                    "ms_si_yao",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_long_lin"
-                ]
-            ],
-            [
-                "m_cliff_wyvern",
-                "岩脊飞龙",
-                "speedster",
-                52,
-                [
-                    "ms_fu_chong",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_fei_long_yi"
-                ]
-            ],
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_warrior",
-            "龙脉战士长",
-            "elite",
-            54,
-            [
-                "ms_zhong_ji",
-                "ms_long_zhi_nu",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_mai_zhan_ren"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    "dragon_nest": {
-        "id": "dragon_nest",
-        "name": "龙巢之巅",
-        "lv": 54,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙巢之巅，幼龙们在巢穴间嬉戏，却带着不属于幼龙的暴戾。贤者·岩语说，龙血正在被某种力量唤醒。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_ember_whelp",
-                "赤炎幼龙",
-                "caster",
-                54,
-                [
-                    "ms_huo_qiu",
-                    "ms_long_zhi_nu"
-                ],
-                [
-                    "mat_long_yan_jing_hua"
-                ]
-            ],
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_guardian",
-            "龙脉守护者",
-            "elite",
-            56,
-            [
-                "ms_long_zhi_nu",
-                "ms_lie_yan_zhen_ji",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_mai_hu_fu"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_dragon_elder"
-        ]
-    },
-    "dragon_shrine": {
-        "id": "dragon_shrine",
-        "name": "龙眠圣殿",
-        "lv": 58,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙眠圣殿，龙族的圣地。古龙·奥瑞斯盘踞在王座上，龙眼中燃烧着不属于龙族的混沌之火。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_flame_wyvern",
-                "赤炎飞龙",
-                "dps",
-                58,
-                [
-                    "ms_huo_qiu",
-                    "ms_long_zhi_nu",
-                    "ms_fu_chong"
-                ],
-                [
-                    "mat_fei_long_lin"
-                ]
-            ],
-            [
-                "m_dragon_guardian",
-                "龙脉守护者",
-                "tank",
-                57,
-                [
-                    "ms_long_zhi_nu",
-                    "ms_lie_yan_zhen_ji",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_mai_hu_fu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_dragon_wing",
-            "龙翼亲卫",
-            "elite",
-            59,
-            [
-                "ms_long_zhi_nu",
-                "ms_sheng_guang_chong_feng",
-                "ms_zhan_hou"
-            ],
-            [
-                "mat_long_yi_jian"
-            ]
-        ],
-        "boss": [
-            "b_dragon_king",
-            "古龙·奥瑞斯",
-            "boss",
-            60,
-            [
-                "ms_long_zhi_nu",
-                "ms_lie_yan_zhen_ji",
-                "ms_kuang_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_long_wang_zhi_jiao"
-            ]
-        ],
-        "npcs": []
-    },
-    "void_edge": {
-        "id": "void_edge",
-        "name": "裂隙谷口",
-        "lv": 61,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "裂隙谷地的边缘地带，空间在这里扭曲成漩涡。裂隙蠕虫在裂隙间蠕动，发出令人牙酸的嘶鸣。",
-        "type": "野外",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_worm",
-                "裂隙蠕虫",
-                "speedster",
-                61,
-                [
-                    "ms_si_yao",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhan_ye"
-                ]
-            ],
-            [
-                "m_rift_wraith",
-                "裂隙魔灵",
-                "caster",
-                62,
-                [
-                    "ms_an_ying_jian",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_lie_xi_sui_pian"
-                ]
-            ],
-            [
-                "m_void_minion",
-                "废墟爪牙",
-                "dps",
-                63,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhi_zhao"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_void_ripper",
-            "裂隙撕裂者",
-            "elite",
-            64,
-            [
-                "ms_xu_kong_zhan",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_si_lie_zhe_he_xin"
-            ]
-        ],
-        "boss": None,
-        "npcs": []
-    },
-    "void_corridor": {
-        "id": "void_corridor",
-        "name": "古战场回廊",
-        "lv": 64,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "古战场回廊，无数破碎的世界在此重叠。谷口守望者悬浮在长廊两侧，空洞的眼眶注视着每一个过客。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_watcher",
-                "谷口守望者",
-                "tank",
-                64,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_xu_kong_hu_jia"
-                ]
-            ],
-            [
-                "m_rift_wraith",
-                "裂隙魔灵",
-                "caster",
-                63,
-                [
-                    "ms_an_ying_jian",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_lie_xi_sui_pian"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_void_lord",
-            "裂隙领主",
-            "elite",
-            66,
-            [
-                "ms_xu_kong_zhan",
-                "ms_xu_kong_beng_ta",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_lie_xi_ling_zhu_yin_ji"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_void_prophet"
-        ]
-    },
-    "void_heart": {
-        "id": "void_heart",
-        "name": "战场中心",
+    "cold_ridge": {
+        "id": "cold_ridge",
+        "name": "寒脊营地",
         "lv": 68,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "裂隙谷地的核心，一颗巨大的暗紫色心脏在虚空中跳动。裂隙巨像们守护着它——那是吞噬者的心脏。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "coldridge",
+        "area_name": "寒脊营地",
+        "desc": "寒脊营地，奥兰迪亚大陆的重要聚落。北境补给点",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_void_colossus",
-                "裂隙巨像",
-                "tank",
-                68,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_beng_ta",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_lie_xi_ju_xiang_he_xin"
-                ]
-            ],
-            [
-                "m_void_watcher",
-                "谷口守望者",
-                "tank",
-                67,
-                [
-                    "ms_zhong_ji",
-                    "ms_xu_kong_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_xu_kong_hu_jia"
-                ]
-            ]
         ],
-        "elite": [
-            "e_void_overlord",
-            "裂隙主宰",
-            "elite",
-            69,
-            [
-                "ms_xu_kong_beng_ta",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_lie_xi_zhu_zai_quan_zhang"
-            ]
-        ],
-        "boss": [
-            "b_void_devourer",
-            "裂隙巨兽",
-            "boss",
-            70,
-            [
-                "ms_xu_kong_zhan",
-                "ms_xu_kong_beng_ta",
-                "ms_tun_shi",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_tun_shi_zhe_zhi_he"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
-    "temple_hall": {
-        "id": "temple_hall",
-        "name": "旧教团大厅",
-        "lv": 71,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "旧教团遗址的前厅，曾经供奉光明神的殿堂如今爬满暗影。黑袍修士们低声吟唱着亵渎的祷词。",
+    "winter_lake": {
+        "id": "winter_lake",
+        "name": "永冬湖",
+        "lv": 70,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "winterlake",
+        "area_name": "永冬湖",
+        "desc": "永冬湖，奥兰迪亚的野外区域，野兽与危险并存。湖中冰怪",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_dark_acolyte",
-                "黑袍修士",
-                "caster",
-                71,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_hei_an_jing_juan"
-                ]
-            ],
-            [
-                "m_abyss_servant",
-                "教团仆从",
-                "dps",
-                72,
-                [
-                    "ms_zhao_ji",
-                    "ms_an_ying_jian"
-                ],
-                [
-                    "mat_shen_yuan_zhi_chen"
-                ]
-            ],
-            [
-                "m_fallen_paladin",
-                "堕落骑士",
-                "tank",
-                73,
-                [
-                    "ms_pi_kan",
-                    "ms_an_ying_jian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_duo_luo_sheng_hui"
-                ]
-            ]
+            ["m_lake_ice_elemental", "湖冰元素", "tank", 70, ["ms_bing_dan", "ms_dong_jie"], ["湖冰核心"]],
+            ["m_frozen_fish", "冰封鱼怪", "dps", 72, ["ms_zhuang_ji", "ms_shui_dan"], ["冻鱼鳞"]],
+            ["m_lake_spirit", "湖中水灵", "healer", 74, ["ms_shui_dan", "ms_zhi_liao"], ["湖灵泪"]],
         ],
-        "elite": [
-            "e_inquisitor",
-            "审判官",
-            "elite",
-            74,
-            [
-                "ms_an_ying_jian",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_shen_pan_guan_zhi_yin"
-            ]
-        ],
+        "elite": ["e_lake_lord", "永冬湖主·冰瞳", "elite", 78, ["ms_bing_xi", "ms_ju_lang", "ms_zhao_huan_shui_ling"], ["冰瞳之珠"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "temple_aisle": {
-        "id": "temple_aisle",
-        "name": "忏悔回廊",
+    "frost_throne": {
+        "id": "frost_throne",
+        "name": "冰霜王座",
         "lv": 74,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "忏悔回廊，两侧是无数忏悔室的残骸。被囚禁的灵魂在此徘徊，发出永无止境的哀叹。",
-        "type": "野外",
-        "shop": True,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_penitent_wraith",
-                "忏悔亡灵",
-                "caster",
-                74,
-                [
-                    "ms_ai_hao",
-                    "ms_an_ying_jian"
-                ],
-                [
-                    "mat_chan_hui_zhi_lei"
-                ]
-            ],
-            [
-                "m_abyss_priest",
-                "黑袍牧师",
-                "caster",
-                75,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu",
-                    "ms_si_wang_zhi_wo"
-                ],
-                [
-                    "mat_shen_yuan_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_heresy_executor",
-            "处刑修士",
-            "elite",
-            76,
-            [
-                "ms_zhong_ji",
-                "ms_an_ying_jian",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_chu_xing_zhe_zhi_fu"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_fallen_priest"
-        ]
-    },
-    "temple_altar": {
-        "id": "temple_altar",
-        "name": "旧教团祭坛",
-        "lv": 78,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "旧教团祭坛，教团献祭的中心。祭坛之上，大祭司·克劳斯正在举行召唤仪式——他在召唤深渊真正的主人。",
-        "type": "核心",
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostthrone",
+        "area_name": "冰霜王座",
+        "desc": "冰霜王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_abyss_ritualist",
-                "教团祭祀",
-                "caster",
-                78,
-                [
-                    "ms_an_ying_jian",
-                    "ms_di_yu_huo",
-                    "ms_si_wang_zhi_wo"
-                ],
-                [
-                    "mat_ji_si_zhi_huo"
-                ]
-            ],
-            [
-                "m_heresy_executor",
-                "处刑修士",
-                "dps",
-                77,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_jian",
-                    "ms_an_ying_feng_bao"
-                ],
-                [
-                    "mat_chu_xing_zhe_zhi_fu"
-                ]
-            ]
         ],
-        "elite": [
-            "e_archpriest",
-            "教团大祭司",
-            "elite",
-            79,
-            [
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_si_wang_zhi_wo"
-            ],
-            [
-                "mat_da_ji_si_zhi_huan"
-            ]
-        ],
-        "boss": [
-            "b_abyss_pope",
-            "大祭司·克劳斯",
-            "boss",
-            80,
-            [
-                "ms_di_yu_huo",
-                "ms_an_ying_feng_bao",
-                "ms_si_wang_zhi_wo",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_jiao_zong_quan_zhang"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
-    "annih_front": {
-        "id": "annih_front",
-        "name": "白骨前线",
-        "lv": 81,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "白骨平原的前线阵地，大地被烧成焦黑。枯骨魔兵列成方阵，黑甲骑士的铁蹄震动着荒芜的地面。",
+    "aurora_town": {
+        "id": "aurora_town",
+        "name": "极光镇",
+        "lv": 70,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "aurora",
+        "area_name": "极光镇",
+        "desc": "极光镇，奥兰迪亚大陆的重要聚落。极光下的北境小镇（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_aurora_mayor", "npc_frost_blade", "npc_warm_stove"],
+    },
+    "permafrost_field": {
+        "id": "permafrost_field",
+        "name": "永冻冰原",
+        "lv": 68,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "permafrost",
+        "area_name": "永冻冰原",
+        "desc": "永冻冰原，奥兰迪亚的野外区域，野兽与危险并存。冰原巨兽（新）",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_soldier",
-                "枯骨魔兵",
-                "dps",
-                81,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_yan_mie_sui_pian"
-                ]
-            ],
-            [
-                "m_doom_knight",
-                "黑甲骑士",
-                "tank",
-                82,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_zai_e_zhan_jia"
-                ]
-            ],
-            [
-                "m_soul_devourer",
-                "噬魂怨灵",
-                "caster",
-                83,
-                [
-                    "ms_ji_qu",
-                    "ms_an_ying_she_xian",
-                    "ms_ai_hao"
-                ],
-                [
-                    "mat_shi_hun_jie_jing"
-                ]
-            ]
+            ["m_frost_bear", "冰原巨熊", "tank", 68, ["ms_xiong_zhang", "ms_bing_hou"], ["冰熊皮"]],
+            ["m_ice_wolf", "极地冰狼", "dps", 70, ["ms_si_yao", "ms_bing_ya"], ["冰狼牙"]],
+            ["m_aurora_fox", "极光狐", "speedster", 72, ["ms_ji_chi", "ms_ji_guang_shan"], ["极光狐尾"]],
         ],
-        "elite": [
-            "e_annih_vanguard",
-            "枯骨先锋",
-            "elite",
-            84,
-            [
-                "ms_an_ying_she_xian",
-                "ms_kuang_bao",
-                "ms_an_ying_feng_bao"
-            ],
-            [
-                "mat_xian_feng_zhan_qi"
-            ]
-        ],
+        "elite": ["e_frost_mammoth", "冰原猛犸·雪岭", "elite", 76, ["ms_chong_zhuang", "ms_jian_ta", "ms_bing_hou"], ["雪岭獠牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "annih_field": {
-        "id": "annih_field",
-        "name": "白骨战场",
-        "lv": 84,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "白骨战场，尸骸遍野，破碎的旗帜在风中摇曳。枯骨魔将们在此督战，等待总攻的命令。",
+    "frostwhisper_canyon": {
+        "id": "frostwhisper_canyon",
+        "name": "霜语峡谷",
+        "lv": 72,
+        "region": "北境·霜原",
+        "chapter": 8,
+        "area": "frostwhisper",
+        "area_name": "霜语峡谷",
+        "desc": "霜语峡谷，奥兰迪亚的野外区域，野兽与危险并存。霜语巨魔/冰龙（新）",
         "type": "野外",
-        "shop": True,
+        "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_general",
-                "枯骨魔将",
-                "dps",
-                84,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_mo_jiang_zhi_ren"
-                ]
-            ],
-            [
-                "m_doom_knight",
-                "黑甲骑士",
-                "tank",
-                83,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_zai_e_zhan_jia"
-                ]
-            ]
+            ["m_ice_serpent", "冰蛇", "speedster", 72, ["ms_du_ya", "ms_bing_dong"], ["冰蛇鳞"]],
+            ["m_frost_cultist", "霜语祭司", "healer", 74, ["ms_bing_dan", "ms_bing_shuang_zhu_fu"], ["霜语圣典"]],
+            ["m_frost_giant", "霜语巨魔", "tank", 78, ["ms_zhong_ji", "ms_bing_ji"], ["霜语巨魔血"]],
         ],
-        "elite": [
-            "e_annih_lord",
-            "枯骨领主",
-            "elite",
-            86,
-            [
-                "ms_an_ying_she_xian",
-                "ms_xu_kong_beng_ta",
-                "ms_kuang_bao"
-            ],
-            [
-                "mat_ku_gu_ling_zhu_zhi_huan"
-            ]
-        ],
+        "elite": ["e_glacier_wyrm", "冰川龙·霜牙", "elite", 82, ["ms_bing_xi", "ms_long_zhao", "ms_dong_jie"], ["霜牙龙鳞"]],
         "boss": None,
-        "npcs": [
-            "npc_annih_spy"
-        ]
+        "npcs": [],
     },
-    "annih_throne": {
-        "id": "annih_throne",
-        "name": "旧王陵寝",
+    "dragon_pass": {
+        "id": "dragon_pass",
+        "name": "龙脊山口",
+        "lv": 80,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonpass",
+        "area_name": "龙脊山口",
+        "desc": "龙脊山口，奥兰迪亚大陆的重要聚落。东境入口",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_dragon_elder"],
+    },
+    "dragon_ridge": {
+        "id": "dragon_ridge",
+        "name": "龙脊山脉",
+        "lv": 82,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonridge",
+        "area_name": "龙脊山脉",
+        "desc": "龙脊山脉，奥兰迪亚的野外区域，野兽与危险并存。龙裔/石龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_dragonkin", "龙裔战士", "dps", 82, ["ms_long_jian_shu"], ["龙鳞碎片"]],
+            ["m_stone_dragon", "石龙", "tank", 85, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞"]],
+            ["m_wind_dragon", "风龙", "speedster", 88, ["ms_feng_ren", "ms_fu_chong"], ["风龙羽"]],
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "dragon_roost": {
+        "id": "dragon_roost",
+        "name": "龙巢",
         "lv": 88,
-        "region": "旧战场",
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonroost",
+        "area_name": "龙巢",
+        "desc": "龙巢，奥兰迪亚的野外区域，野兽与危险并存。成年龙/古龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_young_dragon", "幼年龙", "dps", 88, ["ms_long_xi", "ms_long_zhao"], ["幼龙鳞"]],
+            ["m_adult_dragon", "成年龙", "tank", 92, ["ms_long_xi", "ms_long_wei_190", "ms_wei_ya"], ["成年龙鳞"]],
+            ["m_dragon_hatchling", "龙崽", "speedster", 90, ["ms_si_yao", "ms_huo_dan"], ["龙崽爪"]],
+        ],
+        "elite": ["e_dragon_roost_king", "龙巢王·焰翼", "elite", 96, ["ms_long_xi", "ms_lie_yan_zhao", "ms_zhao_huan_long_zai"], ["焰翼龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "ancient_battlefield": {
+        "id": "ancient_battlefield",
+        "name": "古战场",
+        "lv": 85,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "ancientbattle",
+        "area_name": "古战场",
+        "desc": "古战场，奥兰迪亚的野外区域，野兽与危险并存。百族战争遗迹",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_battle_skeleton", "战死骷髅", "dps", 85, ["ms_jian_ji"], ["锈剑碎片"]],
+            ["m_war_ghost", "战魂", "speedster", 88, ["ms_chuan_shen", "ms_ai_hao"], ["战魂之尘"]],
+            ["m_battle_remnant", "百族残骸", "tank", 92, ["ms_zhong_ji", "ms_fu_hua"], ["残骸核心"]],
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "dragon_tomb": {
+        "id": "dragon_tomb",
+        "name": "龙之墓",
+        "lv": 90,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragontomb",
+        "area_name": "龙之墓",
+        "desc": "龙之墓，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_dragon_ghost", "龙魂", "dps", 90, ["ms_long_xi", "ms_long_zhao"], ["龙魂碎片"]],
+            ["m_ancient_dragon", "古龙", "tank", 95, ["ms_long_xi", "ms_long_wei_190", "ms_wei_ya"], ["古龙鳞"]],
+        ],
+        "elite": None,
+        "boss": ["b_om_shadow", "古龙·奥姆之影", "boss", 100, ["ms_long_xi", "ms_long_zhao", "ms_gu_long_wei_ya"], ["龙语传承"]],
+        "npcs": [],
+    },
+    "dragon_kin": {
+        "id": "dragon_kin",
+        "name": "龙裔聚落",
+        "lv": 82,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonkin",
+        "area_name": "龙裔聚落",
+        "desc": "龙裔聚落，奥兰迪亚大陆的重要聚落。龙裔村落",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "bone_wild": {
+        "id": "bone_wild",
+        "name": "龙骨荒野",
+        "lv": 84,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "bonewild",
+        "area_name": "龙骨荒野",
+        "desc": "龙骨荒野，奥兰迪亚的野外区域，野兽与危险并存。骨龙游荡",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_bone_wyrm", "骨虫", "speedster", 84, ["ms_gu_xi", "ms_chuan_shen"], ["骨虫壳"]],
+            ["m_bone_golem", "骨魔像", "tank", 86, ["ms_zhong_ji", "ms_gu_xi"], ["骨魔像核"]],
+            ["m_bone_vulture", "骨鹫", "dps", 88, ["ms_fu_chong", "ms_gu_xi"], ["骨鹫羽"]],
+        ],
+        "elite": ["e_bone_lord", "骨龙领主·骸王", "elite", 92, ["ms_gu_xi", "ms_long_zhao", "ms_zhao_huan_gu_chong"], ["骸王龙骨"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "storm_cliff": {
+        "id": "storm_cliff",
+        "name": "风暴崖",
+        "lv": 86,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "stormcliff",
+        "area_name": "风暴崖",
+        "desc": "风暴崖，奥兰迪亚的野外区域，野兽与危险并存。风龙/雷鸟",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_storm_hawk", "风暴猎鹰", "speedster", 86, ["ms_fu_chong", "ms_lei_ji"], ["风暴鹰羽"]],
+            ["m_thunder_lizard", "雷蜥", "dps", 88, ["ms_lei_ji", "ms_si_yao"], ["雷蜥皮"]],
+            ["m_wind_guardian", "风之守卫", "tank", 90, ["ms_feng_ren", "ms_ying_hua"], ["风之核心"]],
+        ],
+        "elite": ["e_storm_cliff_lord", "风暴崖主·雷鸣", "elite", 94, ["ms_lei_bao", "ms_feng_bao_zhi_nu", "ms_zhao_huan_lie_ying"], ["雷鸣之翼"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "storm_throne": {
+        "id": "storm_throne",
+        "name": "风暴王座",
+        "lv": 90,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "stormthrone",
+        "area_name": "风暴王座",
+        "desc": "风暴王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "redridge_plateau": {
+        "id": "redridge_plateau",
+        "name": "赤脊高原",
+        "lv": 84,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "redridge",
+        "area_name": "赤脊高原",
+        "desc": "赤脊高原，奥兰迪亚的野外区域，野兽与危险并存。赤龙/岩龙（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_red_raptor", "赤脊迅猛龙", "speedster", 84, ["ms_pu_ji", "ms_si_yao"], ["迅猛龙爪"]],
+            ["m_rock_drake", "岩龙", "tank", 86, ["ms_shi_xi", "ms_zhong_ji"], ["岩龙鳞"]],
+            ["m_red_wyvern", "赤翼飞龙", "dps", 88, ["ms_fu_chong", "ms_huo_dan"], ["赤翼羽"]],
+        ],
+        "elite": ["e_red_dragon_lord", "赤龙领主·烬翼", "elite", 92, ["ms_long_xi", "ms_lie_yan_zhao", "ms_wei_ya"], ["烬翼龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "dragonsfall_valley": {
+        "id": "dragonsfall_valley",
+        "name": "龙陨谷",
+        "lv": 88,
+        "region": "东境·龙脊",
+        "chapter": 10,
+        "area": "dragonsfall",
+        "area_name": "龙陨谷",
+        "desc": "龙陨谷，奥兰迪亚的野外区域，野兽与危险并存。古龙遗骸/龙裔亡灵（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_bone_dragon", "骨龙", "tank", 88, ["ms_gu_xi", "ms_si_yao"], ["骨龙残骸"]],
+            ["m_dragon_wraith", "龙裔亡灵", "speedster", 90, ["ms_chuan_shen", "ms_long_yu_ai_hao"], ["龙裔残魂"]],
+            ["m_dragonscale_beast", "龙鳞兽", "dps", 92, ["ms_si_yao", "ms_long_lin_chong_ji"], ["龙鳞兽皮"]],
+        ],
+        "elite": ["e_dragon_lord_ghost", "龙陨战魂·暮影", "elite", 96, ["ms_long_xi", "ms_long_zhao", "ms_zhao_huan_gu_long"], ["暮影龙魂"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "jade_port": {
+        "id": "jade_port",
+        "name": "翡翠港",
+        "lv": 35,
+        "region": "翡翠海群岛",
         "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "旧王陵寝，亡灵大军的指挥中心。白骨君王端坐于骸骨堆成的王座上，静静等待最终时刻。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
+        "area": "jade",
+        "area_name": "翡翠港",
+        "desc": "翡翠港，奥兰迪亚大陆的重要聚落。群岛门户",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
         "hidden": False,
         "monsters": [
-            [
-                "m_annih_guard",
-                "枯骨禁卫",
-                "tank",
-                88,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_dun_ji",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_jin_wei_kai_jia"
-                ]
-            ],
-            [
-                "m_annih_general",
-                "枯骨魔将",
-                "dps",
-                87,
-                [
-                    "ms_an_ying_she_xian",
-                    "ms_xu_kong_zhan",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_mo_jiang_zhi_ren"
-                ]
-            ]
         ],
-        "elite": [
-            "e_silent_guard",
-            "旧王亲卫",
-            "elite",
-            89,
-            [
-                "ms_an_ying_she_xian",
-                "ms_an_ying_feng_bao",
-                "ms_tun_shi"
-            ],
-            [
-                "mat_si_ji_zhi_ren"
-            ]
-        ],
-        "boss": [
-            "b_silent_king",
-            "白骨君王",
-            "boss",
-            90,
-            [
-                "ms_an_ying_she_xian",
-                "ms_xu_kong_beng_ta",
-                "ms_tun_shi",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_si_ji_wang_guan"
-            ]
-        ],
-        "npcs": []
+        "elite": None,
+        "boss": None,
+        "npcs": [],
     },
-    "divine_path": {
-        "id": "divine_path",
-        "name": "王国古道",
-        "lv": 91,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "通往失落王国的古道，云海在脚下翻涌。古道守卫们驻守在阶梯两侧，目光望向天空的尽头。",
+    "shell_town": {
+        "id": "shell_town",
+        "name": "贝壳镇",
+        "lv": 40,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "shell",
+        "area_name": "贝壳镇",
+        "desc": "贝壳镇，奥兰迪亚大陆的重要聚落。渔村风情",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "coral_reef": {
+        "id": "coral_reef",
+        "name": "珊瑚礁",
+        "lv": 36,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "coral",
+        "area_name": "珊瑚礁",
+        "desc": "珊瑚礁，奥兰迪亚的野外区域，野兽与危险并存。海蟹/海星怪",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_sky_guard",
-                "古道守卫",
-                "tank",
-                91,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_tian_qiong_hu_jia"
-                ]
-            ],
-            [
-                "m_astral_messenger",
-                "旧宫使者",
-                "caster",
-                92,
-                [
-                    "ms_tian_fa",
-                    "ms_sheng_guang_zhan",
-                    "ms_mo_fa_fei_dan"
-                ],
-                [
-                    "mat_xing_jie_zhi_chen"
-                ]
-            ],
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
+            ["m_sea_crab", "巨钳海蟹", "tank", 36, ["ms_qian_ji", "ms_ying_hua"], ["蟹壳"]],
+            ["m_star_beast", "海星怪", "dps", 38, ["ms_chan_rao", "ms_du_ci"], ["海星片"]],
+            ["m_puffer", "河豚怪", "speedster", 40, ["ms_du_ci", "ms_peng_zhang"], ["河豚毒素"]],
         ],
-        "elite": [
-            "e_astral_knight",
-            "王家骑士长",
-            "elite",
-            94,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_sheng_guang_chong_feng"
-            ],
-            [
-                "mat_xing_jie_qi_shi_jian"
-            ]
-        ],
+        "elite": ["e_reef_king", "珊瑚礁主·红棘", "elite", 42, ["ms_qian_ji", "ms_jing_ji_chan_rao"], ["红棘珊瑚"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "divine_hall": {
-        "id": "divine_hall",
-        "name": "旧宫回廊",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧宫回廊，群星的墓地。旧宫贤者们在此守护着王国倾覆前的最后记忆。",
-        "type": "野外",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_astral_sage",
-                "旧宫贤者",
-                "caster",
-                93,
-                [
-                    "ms_tian_fa",
-                    "ms_bao_feng_xue",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_xing_jie_fa_zhu"
-                ]
-            ],
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
-        ],
-        "elite": [
-            "e_astral_judge",
-            "旧宫裁决者",
-            "elite",
-            95,
-            [
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_wang_quan_zhi_li"
-            ],
-            [
-                "mat_xing_jie_cai_jue_zhi_zhang"
-            ]
-        ],
-        "boss": None,
-        "npcs": [
-            "npc_star_warden"
-        ]
-    },
-    "divine_gate": {
-        "id": "divine_gate",
-        "name": "失落王城之门",
-        "lv": 95,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "失落王城的大门，古老的石门刻满王国徽记。王城守望者手持长枪立于门前——门后，是旧日王国的战场。",
-        "type": "核心",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_gate_guardian",
-                "王城守卫",
-                "tank",
-                95,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_men_fei_zhi_yao"
-                ]
-            ],
-            [
-                "m_astral_sage",
-                "旧宫贤者",
-                "caster",
-                94,
-                [
-                    "ms_tian_fa",
-                    "ms_bao_feng_xue",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_xing_jie_fa_zhu"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": [
-            "b_sky_warden",
-            "王城守望者",
-            "boss",
-            96,
-            [
-                "ms_sheng_guang_zhan",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_wang_quan_zhi_li"
-            ],
-            [
-                "mat_tian_qiong_zhi_guan"
-            ]
-        ],
-        "npcs": []
-    },
-    "panth_court": {
-        "id": "panth_court",
-        "name": "先王庭院",
-        "lv": 96,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "pantheon",
-        "area_name": "先王陵寝",
-        "desc": "先王陵寝的庭院，先王的雕像沉默地矗立。古王残魂在庭院间游荡，暗影已经开始侵蚀这片旧地。",
+    "sunset_isle": {
+        "id": "sunset_isle",
+        "name": "落日岛",
+        "lv": 42,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "sunset",
+        "area_name": "落日岛",
+        "desc": "落日岛，奥兰迪亚的野外区域，野兽与危险并存。岛屿猛兽",
         "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_divine_spirit",
-                "古王残魂",
-                "caster",
-                96,
-                [
-                    "ms_tian_fa",
-                    "ms_wang_quan_zhi_li",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_jing_hua"
-                ]
-            ],
-            [
-                "m_chaos_servant",
-                "暗影仆从",
-                "dps",
-                97,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_she_xian"
-                ],
-                [
-                    "mat_hun_dun_zhi_zha"
-                ]
-            ],
-            [
-                "m_god_echo",
-                "先王残影",
-                "tank",
-                98,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_wang_quan_zhi_li"
-                ],
-                [
-                    "mat_zhu_shen_yi_hui"
-                ]
-            ]
+            ["m_island_boar", "岛野猪", "dps", 42, ["ms_chong_zhuang"], ["岛猪牙"]],
+            ["m_giant_iguana", "巨型鬣蜥", "speedster", 44, ["ms_si_yao", "ms_shuai_wei"], ["鬣蜥皮"]],
+            ["m_parrot_demon", "鹦鹉魔", "healer", 46, ["ms_jian_xiao", "ms_feng_ren"], ["鹦鹉羽"]],
         ],
-        "elite": [
-            "e_god_messenger",
-            "先王使者",
-            "elite",
-            99,
-            [
-                "ms_wang_quan_zhi_li",
-                "ms_tian_fa",
-                "ms_shen_wei",
-                "ms_an_ying_qin_shi"
-            ],
-            [
-                "mat_shi_zhe_zhi_jie"
-            ]
-        ],
+        "elite": ["e_island_tiger", "落日岛虎·金焰", "elite", 48, ["ms_si_yao", "ms_pu_ji", "ms_lie_yan_zhao"], ["金焰虎皮"]],
         "boss": None,
-        "npcs": [
-            "npc_last_god"
-        ]
+        "npcs": [],
     },
-    "panth_hall": {
-        "id": "panth_hall",
-        "name": "王座大殿",
-        "lv": 98,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "pantheon",
-        "area_name": "先王陵寝",
-        "desc": "王座大殿，先王铸造世界的殿堂。如今巫王盘踞于此，试图将整个大陆拖入永恒的黑暗。",
-        "type": "核心",
-        "shop": False,
-        "healer": True,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_creation_guard",
-                "王座守卫",
-                "tank",
-                98,
-                [
-                    "ms_wang_quan_zhi_li",
-                    "ms_sheng_guang_zhan",
-                    "ms_dun_ji"
-                ],
-                [
-                    "mat_chuang_shi_zhi_dun"
-                ]
-            ],
-            [
-                "m_god_echo",
-                "先王残影",
-                "tank",
-                98,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_wang_quan_zhi_li"
-                ],
-                [
-                    "mat_zhu_shen_yi_hui"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": [
-            "b_chaos_lord",
-            "巫王·莫里斯",
-            "boss",
-            100,
-            [
-                "ms_an_ying_qin_shi",
-                "ms_an_ying_she_xian",
-                "ms_wang_quan_zhi_li",
-                "ms_an_ying_feng_bao",
-                "灭世"
-            ],
-            [
-                "mat_hun_dun_zhi_he"
-            ]
-        ],
-        "npcs": []
-    },
-    "holy_city_gate": {
-        "id": "holy_city_gate",
-        "name": "远境城门",
-        "lv": 33,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "圣光王国的首都远境城，白色城墙高耸入云，城门前远境骑士列队巡逻。城门外的草甸上偶有野兽出没。",
-        "type": "城镇外郊",
+    "storm_strait": {
+        "id": "storm_strait",
+        "name": "风暴海峡",
+        "lv": 48,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "stormstrait",
+        "area_name": "风暴海峡",
+        "desc": "风暴海峡，奥兰迪亚的野外区域，野兽与危险并存。风暴元素",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_radiant_wolf",
-                "光耀狼",
-                "speedster",
-                32,
-                [
-                    "ms_si_yao",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_guang_yao_zhi_pi"
-                ]
-            ]
+            ["m_storm_element", "风暴元素", "dps", 48, ["ms_lei_ji", "ms_feng_ren"], ["风暴核心"]],
+            ["m_whirlpool_spirit", "漩涡精灵", "healer", 50, ["ms_shui_dan", "ms_xuan_wo"], ["漩涡泪"]],
+            ["m_sea_serpent", "海蛇", "tank", 52, ["ms_jiao_sha", "ms_shui_xi"], ["海蛇鳞"]],
         ],
-        "elite": None,
+        "elite": ["e_storm_leviathan", "风暴巨兽", "elite", 56, ["ms_lei_ji", "ms_ju_lang"], ["巨兽之牙"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "holy_city_square": {
-        "id": "holy_city_square",
-        "name": "远境广场",
-        "lv": 33,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "holy",
-        "area_name": "远境高原",
-        "desc": "圣光王国的心脏，大教堂的钟声响彻全城。来自大陆各地的圣骑士与学者在此汇聚。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_holy_king",
-            "npc_holy_innkeeper"
-        ]
-    },
-    "elf_city_gate": {
-        "id": "elf_city_gate",
-        "name": "银月城门",
-        "lv": 43,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "精灵王国首都银月城，城门由月光石雕琢而成，即便在白昼也泛着银辉。城外的森林依然低语。",
-        "type": "城镇外郊",
+    "mermaid_bay": {
+        "id": "mermaid_bay",
+        "name": "海妖湾",
+        "lv": 45,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "mermaid",
+        "area_name": "海妖湾",
+        "desc": "海妖湾，奥兰迪亚的野外区域，野兽与危险并存。海妖/鲛人",
+        "type": "野外",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_moon_panther",
-                "月影豹",
-                "speedster",
-                42,
-                [
-                    "ms_zhao_ji",
-                    "ms_hao_jiao"
-                ],
-                [
-                    "mat_yue_ying_zhi_pi"
-                ]
-            ]
+            ["m_siren_scout", "海妖斥候", "speedster", 45, ["ms_mei_huo_zhi_ge"], ["海妖鳞"]],
+            ["m_merrow", "鲛人战士", "dps", 48, ["ms_san_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
         ],
-        "elite": None,
+        "elite": ["e_siren_lord", "海妖领主·潮汐", "elite", 52, ["ms_mei_huo", "ms_ju_lang"], ["潮汐之泪"]],
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "elf_city_square": {
-        "id": "elf_city_square",
-        "name": "银月广场",
-        "lv": 43,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "elf_court",
-        "area_name": "精灵王庭",
-        "desc": "银月城的中心，生命之树在广场中央舒展枝叶。精灵工匠们在这里出售世代传承的技艺结晶。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_elf_royal",
-            "npc_elf_innkeeper"
-        ]
-    },
-    "dragon_city_gate": {
-        "id": "dragon_city_gate",
-        "name": "龙喉堡城门",
-        "lv": 53,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙裔王国在山巅开凿的要塞龙喉堡，城墙由熔岩冷却后的黑曜石筑成。门口的火盆昼夜不熄。",
-        "type": "城镇外郊",
+    "sunken_ship": {
+        "id": "sunken_ship",
+        "name": "沉船湾",
+        "lv": 38,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "sunkenship",
+        "area_name": "沉船湾",
+        "desc": "沉船湾，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
         "shop": False,
         "healer": False,
         "hidden": False,
         "monsters": [
-            [
-                "m_dragonkin",
-                "龙裔战士",
-                "dps",
-                53,
-                [
-                    "ms_pi_kan",
-                    "ms_long_zhi_nu",
-                    "ms_zhan_hou"
-                ],
-                [
-                    "mat_long_yi_hui_ji"
-                ]
-            ]
+            ["m_ghost_sailor", "幽灵水手", "dps", 38, ["ms_xiu_jian", "ms_ai_hao"], ["幽灵帆布"]],
+            ["m_drowned", "溺死者", "tank", 42, ["ms_zhao_ji", "ms_chan_rao"], ["海藻缠绕"]],
         ],
         "elite": None,
-        "boss": None,
-        "npcs": []
+        "boss": ["b_ghost_captain", "幽灵船长·克罗", "boss", 48, ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"], ["克罗的罗盘"]],
+        "npcs": [],
     },
-    "dragon_city_square": {
-        "id": "dragon_city_square",
-        "name": "龙喉大厅",
-        "lv": 53,
-        "region": "远境高地",
-        "chapter": 4,
-        "area": "dragon_ridge",
-        "area_name": "龙脊山脉",
-        "desc": "龙裔的议事大厅，石柱上雕刻着龙族千年的战争史诗。矮人与龙裔的铁匠在这里锻造传奇兵器。",
+    "siren_nest": {
+        "id": "siren_nest",
+        "name": "海妖巢穴",
+        "lv": 52,
+        "region": "翡翠海群岛",
+        "chapter": 5,
+        "area": "siren",
+        "area_name": "海妖巢穴",
+        "desc": "海妖巢穴，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_siren_elite", "海妖精英", "dps", 52, ["ms_mei_huo", "ms_du_ci"], ["海妖之羽"]],
+            ["m_kraken_tentacle", "海妖触手", "tank", 54, ["ms_jiao_sha", "ms_shui_xi"], ["触手皮"]],
+        ],
+        "elite": None,
+        "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 60, ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"], ["蓝歌之冠"]],
+        "npcs": [],
+    },
+    "nameless_harbor": {
+        "id": "nameless_harbor",
+        "name": "无名港",
+        "lv": 55,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "nameless",
+        "area_name": "无名港",
+        "desc": "无名港，奥兰迪亚大陆的重要聚落。远洋第一站，冒险者中转港",
         "type": "城镇区域",
         "shop": True,
         "healer": True,
         "hidden": False,
-        "monsters": [],
+        "monsters": [
+        ],
         "elite": None,
         "boss": None,
-        "npcs": [
-            "npc_dragon_king",
-            "npc_dragon_innkeeper"
-        ]
+        "npcs": ["npc_harbor_master", "npc_captain_maelian"],
     },
-    "void_city_gate": {
-        "id": "void_city_gate",
-        "name": "虚空前哨大门",
+    "pearl_city": {
+        "id": "pearl_city",
+        "name": "珍珠城",
+        "lv": 62,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "pearl",
+        "area_name": "珍珠城",
+        "desc": "珍珠城，奥兰迪亚大陆的重要聚落。海上贸易中心",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_sea_gull_tim", "npc_pearl_lord", "npc_coral_auctioneer", "npc_old_whale"],
+    },
+    "mist_trench": {
+        "id": "mist_trench",
+        "name": "迷雾海沟",
+        "lv": 56,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "misttrench",
+        "area_name": "迷雾海沟",
+        "desc": "迷雾海沟，奥兰迪亚的野外区域，野兽与危险并存。雾中暗礁/深海兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_jelly", "深渊水母", "healer", 56, ["ms_du_ci", "ms_ying_guang_shan"], ["水母凝胶"]],
+            ["m_reef_shark", "暗礁鲨", "dps", 58, ["ms_si_yao", "ms_chong_zhuang"], ["鲨鱼牙"]],
+            ["m_mist_octopus", "迷雾章鱼", "tank", 60, ["ms_chan_rao", "ms_mo_zhi"], ["章鱼墨囊"]],
+        ],
+        "elite": ["e_trench_leviathan", "海沟巨兽·渊影", "elite", 64, ["ms_tun_shi", "ms_ju_lang", "ms_zhao_huan_shui_mu"], ["渊影之鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "whale_domain": {
+        "id": "whale_domain",
+        "name": "龙鲸海域",
+        "lv": 60,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "whale",
+        "area_name": "龙鲸海域",
+        "desc": "龙鲸海域，奥兰迪亚的野外区域，野兽与危险并存。龙鲸/巨型章鱼",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_whale_calf", "幼年龙鲸", "tank", 60, ["ms_chong_zhuang", "ms_shui_xi"], ["龙鲸脂"]],
+            ["m_giant_squid", "巨型乌贼", "dps", 62, ["ms_jiao_sha", "ms_mo_zhi"], ["乌贼腕足"]],
+            ["m_sea_serpent", "海蛇", "speedster", 64, ["ms_jiao_sha", "ms_shui_xi"], ["海蛇鳞"]],
+        ],
+        "elite": ["e_whale_king", "龙鲸王·涛声", "elite", 68, ["ms_shui_xi", "ms_ju_lang", "ms_zhao_huan_you_jing"], ["涛声鲸角"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "shipwreck_graveyard": {
+        "id": "shipwreck_graveyard",
+        "name": "沉船墓地",
         "lv": 63,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "人类联军在裂隙谷地边缘建立的最后前哨，魔法屏障勉强挡住空间的扭曲。哨兵们面色凝重。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_void_minion",
-                "废墟爪牙",
-                "dps",
-                63,
-                [
-                    "ms_zhao_ji",
-                    "ms_xu_kong_zhan"
-                ],
-                [
-                    "mat_xu_kong_zhi_zhao"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "void_city_square": {
-        "id": "void_city_square",
-        "name": "前哨营地",
-        "lv": 63,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "void_rift",
-        "area_name": "裂隙谷地",
-        "desc": "前哨的核心营地，军需官与随军牧师在此为远征军提供补给。营火旁流传着关于战场中心的传说。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_void_general",
-            "npc_void_innkeeper"
-        ]
-    },
-    "exile_camp_gate": {
-        "id": "exile_camp_gate",
-        "name": "悲怆营地入口",
-        "lv": 73,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "从旧教团遗址逃出的流亡者建立的营地，用圣殿的碎石搭起简陋的围墙。这里是黑暗中的一盏孤灯。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_dark_acolyte",
-                "黑袍修士",
-                "caster",
-                71,
-                [
-                    "ms_an_ying_jian",
-                    "ms_ji_qu"
-                ],
-                [
-                    "mat_hei_an_jing_juan"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "exile_camp_square": {
-        "id": "exile_camp_square",
-        "name": "悲怆营火",
-        "lv": 73,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "dark_temple",
-        "area_name": "旧教团遗址",
-        "desc": "营地中央的营火，流亡者们围坐取暖。随军牧师在这里为伤者祈祷，商贩用残存的物资交换补给。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_exile_leader",
-            "npc_exile_innkeeper"
-        ]
-    },
-    "iron_city_gate": {
-        "id": "iron_city_gate",
-        "name": "铁壁城门",
-        "lv": 83,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "人类在白骨平原最后的堡垒铁壁城，三十米高的钢铁城墙是绝望中唯一的希望。城头炮火轰鸣。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_annih_soldier",
-                "枯骨魔兵",
-                "dps",
-                81,
-                [
-                    "ms_zhong_ji",
-                    "ms_an_ying_she_xian",
-                    "ms_kuang_bao"
-                ],
-                [
-                    "mat_yan_mie_sui_pian"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "iron_city_square": {
-        "id": "iron_city_square",
-        "name": "铁壁指挥所",
-        "lv": 83,
-        "region": "旧战场",
-        "chapter": 5,
-        "area": "annihilation",
-        "area_name": "白骨平原",
-        "desc": "铁壁城的指挥中枢，各大势力的联军代表在此共商对策。军需库里的每一件装备都弥足珍贵。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_iron_marshal",
-            "npc_iron_innkeeper"
-        ]
-    },
-    "divine_city_gate": {
-        "id": "divine_city_gate",
-        "name": "旧王城门",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧王城，悬浮在云海之上的白色巨城。古道守卫持戟而立，目光如星辰般冰冷。",
-        "type": "城镇外郊",
-        "shop": False,
-        "healer": False,
-        "hidden": False,
-        "monsters": [
-            [
-                "m_divine_warrior",
-                "古王战灵",
-                "dps",
-                93,
-                [
-                    "ms_sheng_guang_zhan",
-                    "ms_tian_fa",
-                    "ms_shen_wei"
-                ],
-                [
-                    "mat_shen_yu_zhan_hun"
-                ]
-            ]
-        ],
-        "elite": None,
-        "boss": None,
-        "npcs": []
-    },
-    "divine_city_square": {
-        "id": "divine_city_square",
-        "name": "天穹圣殿",
-        "lv": 93,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "divine_gate",
-        "area_name": "失落王城",
-        "desc": "旧王城的中心圣殿，光之柱直贯天际。先王遗留下的知识与神兵在这里等待凡人的继承。",
-        "type": "城镇区域",
-        "shop": True,
-        "healer": True,
-        "hidden": False,
-        "monsters": [],
-        "elite": None,
-        "boss": None,
-        "npcs": [
-            "npc_divine_archon",
-            "npc_divine_innkeeper"
-        ]
-    },
-    "chaos_entry": {
-        "id": "chaos_entry",
-        "name": "陷落王都",
-        "lv": 100,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "chaos_depths",
-        "area_name": "陷落王都",
-        "desc": "巫王倒下之处，空间被撕开一道永久的裂隙。裂隙深处传来低沉的轰鸣——有什么东西还在苏醒。",
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "shipwreck",
+        "area_name": "沉船墓地",
+        "desc": "沉船墓地，奥兰迪亚的野外区域，野兽与危险并存。幽灵船/亡灵水手",
         "type": "野外",
         "shop": False,
         "healer": False,
-        "hidden": True,
+        "hidden": False,
         "monsters": [
-            [
-                "m_chaos_shade",
-                "王都魔影",
-                "speedster",
-                100,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_feng_bao"
-                ],
-                [
-                    "mat_hun_dun_sui_pian"
-                ]
-            ]
+            ["m_drowned_sailor", "溺亡水手", "dps", 63, ["ms_xiu_jian"], ["水手骨牌"]],
+            ["m_ship_ghost", "船幽灵", "speedster", 65, ["ms_chuan_shen", "ms_ai_hao"], ["幽灵帆布"]],
+            ["m_cursed_captain", "受诅船长", "healer", 67, ["ms_zu_zhou", "ms_zhi_hui"], ["船长罗盘"]],
+        ],
+        "elite": ["e_graveyard_lord", "沉船领主·溺骨", "elite", 71, ["ms_wan_dao", "ms_zhao_huan_shui_shou", "ms_zu_zhou"], ["溺骨之锚"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "storm_sea": {
+        "id": "storm_sea",
+        "name": "风暴之海",
+        "lv": 66,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "stormsea",
+        "area_name": "风暴之海",
+        "desc": "风暴之海，奥兰迪亚的野外区域，野兽与危险并存。风暴元素/海龙",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_storm_wisp", "风暴之灵", "speedster", 66, ["ms_lei_ji", "ms_feng_ren"], ["风暴之灵尘"]],
+            ["m_thunder_eel", "雷鳗", "dps", 68, ["ms_lei_ji", "ms_chan_rao"], ["雷鳗皮"]],
+            ["m_sea_titan", "海巨人", "tank", 70, ["ms_ju_lang", "ms_zhong_ji"], ["海巨人鳞"]],
+        ],
+        "elite": ["e_storm_dragon", "风暴海龙·雷鸣", "elite", 74, ["ms_long_xi", "ms_lei_bao", "ms_ju_lang"], ["雷鸣龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "sea_god_temple": {
+        "id": "sea_god_temple",
+        "name": "海神神殿",
+        "lv": 64,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "seagod",
+        "area_name": "海神神殿",
+        "desc": "海神神殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_sea_priest", "海神祭司", "healer", 64, ["ms_shui_dan", "ms_hai_chao_zhu_fu"], ["海神祭器"]],
+            ["m_tidal_guard", "潮汐守卫", "tank", 66, ["ms_ju_lang", "ms_tie_bi"], ["潮汐碎片"]],
+            ["m_shell_warrior", "甲壳战士", "dps", 68, ["ms_qian_ji", "ms_ying_hua"], ["甲壳残片"]],
+        ],
+        "elite": None,
+        "boss": ["b_lange", "海神祭司·澜歌", "boss", 72, ["ms_hai_chao", "ms_zhao_huan_sha_yu", "ms_jing_hua_zhi_chao"], ["澜歌之泪"]],
+        "npcs": [],
+    },
+    "deep_dragon_palace": {
+        "id": "deep_dragon_palace",
+        "name": "深海龙宫",
+        "lv": 70,
+        "region": "无尽海",
+        "chapter": 7,
+        "area": "deepdragon",
+        "area_name": "深海龙宫",
+        "desc": "深海龙宫，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_coral_mage", "珊瑚法师", "healer", 70, ["ms_shui_dan", "ms_shan_hu_hu_dun"], ["珊瑚枝"]],
+            ["m_deep_knight", "深海骑士", "tank", 72, ["ms_san_cha_ji", "ms_shui_xi"], ["深海骑士甲"]],
+            ["m_dragon_prawn", "龙虾战士", "dps", 74, ["ms_qian_ji", "ms_chong_zhuang"], ["龙虾壳"]],
+        ],
+        "elite": None,
+        "boss": ["b_aolan", "深海龙王·敖澜", "boss", 78, ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"], ["敖澜之珠"]],
+        "npcs": [],
+    },
+    "deep_tunnel": {
+        "id": "deep_tunnel",
+        "name": "深岩隧道",
+        "lv": 65,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "deeptunnel",
+        "area_name": "深岩隧道",
+        "desc": "深岩隧道，奥兰迪亚大陆的重要聚落。地底入口营地",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
         ],
         "elite": None,
         "boss": None,
-        "npcs": []
+        "npcs": [],
     },
-    "chaos_depths": {
-        "id": "chaos_depths",
-        "name": "王都废墟",
-        "lv": 100,
-        "region": "失落王国",
-        "chapter": 6,
-        "area": "chaos_depths",
-        "area_name": "陷落王都",
-        "desc": "王都废墟，传说中王国的尽头。巫王之影悬浮在虚无之中——它自称是『第一次战争之前的古老意志』。",
-        "type": "核心",
-        "shop": False,
+    "under_market": {
+        "id": "under_market",
+        "name": "地底集市",
+        "lv": 70,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "undermarket",
+        "area_name": "地底集市",
+        "desc": "地底集市，奥兰迪亚大陆的重要聚落。地下贸易城",
+        "type": "城镇区域",
+        "shop": True,
         "healer": False,
-        "hidden": True,
+        "hidden": False,
         "monsters": [
-            [
-                "m_chaos_avatar",
-                "侵蚀化身",
-                "dps",
-                100,
-                [
-                    "ms_an_ying_qin_shi",
-                    "ms_an_ying_she_xian",
-                    "ms_tun_shi"
-                ],
-                [
-                    "mat_hun_dun_sui_pian"
-                ]
-            ]
         ],
         "elite": None,
-        "boss": [
-            "b_chaos_transcendent",
-            "巫王之影",
-            "boss",
-            100,
-            [
-                "ms_an_ying_qin_shi",
-                "ms_an_ying_she_xian",
-                "ms_tun_shi",
-                "ms_wang_quan_zhi_li",
-                "灭世",
-                "ms_xu_kong_beng_ta"
-            ],
-            [
-                "mat_chao_yue_zhi_he"
-            ]
+        "boss": None,
+        "npcs": [],
+    },
+    "fungus_forest": {
+        "id": "fungus_forest",
+        "name": "真菌森林",
+        "lv": 66,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "fungus",
+        "area_name": "真菌森林",
+        "desc": "真菌森林，奥兰迪亚的野外区域，野兽与危险并存。真菌兽/孢子怪",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_spore_slime", "孢子史莱姆", "tank", 66, ["ms_zhuang_ji", "ms_bao_zi_du"], ["孢子囊"]],
+            ["m_fungus_beast", "真菌兽", "dps", 68, ["ms_si_yao", "ms_bao_zi_pen_she"], ["真菌肉"]],
+            ["m_glow_moth", "荧光蛾", "speedster", 70, ["ms_lin_fen", "ms_zhi_mang"], ["荧光粉"]],
         ],
-        "npcs": []
-    }
+        "elite": ["e_fungus_lord", "真菌领主·腐冠", "elite", 74, ["ms_bao_zi_bao", "ms_zhao_huan_zhen_jun_shou"], ["腐冠菌"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "deep_lake": {
+        "id": "deep_lake",
+        "name": "地下湖",
+        "lv": 72,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "deeplake",
+        "area_name": "地下湖",
+        "desc": "地下湖，奥兰迪亚的野外区域，野兽与危险并存。湖底巨物",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_fish", "深渊盲鱼", "speedster", 72, ["ms_si_yao"], ["盲鱼鳞"]],
+            ["m_under_turtle", "地底巨龟", "tank", 75, ["ms_jia_ji", "ms_shui_xi"], ["巨龟甲"]],
+            ["m_lake_haunt", "湖底怨灵", "healer", 78, ["ms_ai_hao", "ms_an_ying_dan"], ["怨灵之尘"]],
+        ],
+        "elite": ["e_dark_leech", "黑暗水蛭王", "elite", 80, ["ms_xi_xue", "ms_chan_rao"], ["水蛭王牙"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "molten_abyss": {
+        "id": "molten_abyss",
+        "name": "熔火深渊",
+        "lv": 78,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "molten",
+        "area_name": "熔火深渊",
+        "desc": "熔火深渊，奥兰迪亚的野外区域，野兽与危险并存。火元素/地底恶魔",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_magma_worm", "熔岩蠕虫", "dps", 78, ["ms_huo_dan", "ms_zuan_di"], ["熔岩蠕虫皮"]],
+            ["m_under_imp", "地底小恶魔", "speedster", 80, ["ms_huo_dan", "ms_zhao_ji"], ["地底恶魔角"]],
+            ["m_obsidian_golem", "黑曜石魔像", "tank", 82, ["ms_zhong_ji", "ms_ying_hua"], ["黑曜碎片"]],
+        ],
+        "elite": ["e_molten_lord", "熔火领主·烬核", "elite", 86, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["烬核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "gray_dwarf": {
+        "id": "gray_dwarf",
+        "name": "灰矮人要塞",
+        "lv": 74,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "graydwarf",
+        "area_name": "灰矮人要塞",
+        "desc": "灰矮人要塞，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_gray_dwarf", "灰矮人战士", "dps", 74, ["ms_zhan_chui", "ms_dun_ji"], ["灰矮人徽记"]],
+            ["m_gray_engineer", "灰矮人技师", "healer", 76, ["ms_xiu_li", "ms_bao_dan"], ["机械零件"]],
+        ],
+        "elite": None,
+        "boss": ["b_gray_lord", "灰矮人领主·石炉", "boss", 84, ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"], ["石炉之锤"]],
+        "npcs": [],
+    },
+    "under_dragon": {
+        "id": "under_dragon",
+        "name": "地底龙巢",
+        "lv": 84,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "underdragon",
+        "area_name": "地底龙巢",
+        "desc": "地底龙巢，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_under_drake", "地底幼龙", "dps", 84, ["ms_suan_xi", "ms_long_zhao"], ["地底龙鳞"]],
+            ["m_under_wyrm", "地底古龙裔", "tank", 88, ["ms_suan_xi", "ms_long_wei_190"], ["古龙裔甲"]],
+        ],
+        "elite": None,
+        "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 92, ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"], ["黑渊之眼"]],
+        "npcs": [],
+    },
+    "ember_camp": {
+        "id": "ember_camp",
+        "name": "灰烬营地",
+        "lv": 85,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "ember",
+        "area_name": "灰烬营地",
+        "desc": "灰烬营地，奥兰迪亚大陆的重要聚落。幽暗地域深处补给点（新）",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": ["npc_ember_camp_leader", "npc_under_guide", "npc_ember_merchant"],
+    },
+    "lava_bed": {
+        "id": "lava_bed",
+        "name": "熔岩河床",
+        "lv": 86,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "lavabed",
+        "area_name": "熔岩河床",
+        "desc": "熔岩河床，奥兰迪亚的野外区域，野兽与危险并存。岩浆兽/火蠕虫（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_magma_worm", "岩浆蠕虫", "dps", 86, ["ms_huo_dan", "ms_zuan_di"], ["岩浆蠕虫皮"]],
+            ["m_lava_beetle", "熔岩甲虫", "tank", 88, ["ms_chong_zhuang", "ms_zhuo_shao"], ["熔岩甲壳"]],
+            ["m_fire_bat", "火蝠", "speedster", 90, ["ms_fu_chong", "ms_huo_dan"], ["火蝠翼"]],
+        ],
+        "elite": ["e_magma_king", "岩浆王·烬核", "elite", 94, ["ms_rong_yan_dan", "ms_zhuo_shao", "ms_zhao_huan_ru_chong"], ["烬核之心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "abyss_altar": {
+        "id": "abyss_altar",
+        "name": "深渊祭坛",
+        "lv": 88,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "abyssaltar",
+        "area_name": "深渊祭坛",
+        "desc": "深渊祭坛，奥兰迪亚的野外区域，野兽与危险并存。地底恶魔大本营（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_cultist", "深渊信徒", "healer", 88, ["ms_an_ying_dan", "ms_hei_an_qi_dao"], ["染血圣典"]],
+            ["m_void_hound", "虚空猎犬", "speedster", 90, ["ms_si_yao", "ms_an_ying_zhao"], ["虚空犬牙"]],
+            ["m_abyss_demon", "深渊恶魔", "dps", 92, ["ms_zhao_ji", "ms_di_yu_huo"], ["深渊恶魔角"]],
+        ],
+        "elite": ["e_altar_guardian", "祭坛守卫·魔眼", "elite", 96, ["ms_an_ying_dan", "ms_zhao_huan_lie_quan", "ms_fu_shi"], ["魔眼之核"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "abyss_throne": {
+        "id": "abyss_throne",
+        "name": "深渊王座",
+        "lv": 90,
+        "region": "幽暗地域",
+        "chapter": 8,
+        "area": "abyssthrone",
+        "area_name": "深渊王座",
+        "desc": "深渊王座，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_abyss_guard", "深渊守卫", "tank", 90, ["ms_zhong_ji", "ms_an_ying_zhan"], ["深渊守卫甲"]],
+            ["m_abyss_warlock", "深渊术士", "healer", 92, ["ms_an_ying_dan", "ms_zhao_huan_e_mo"], ["术士法杖"]],
+        ],
+        "elite": None,
+        "boss": ["b_moro", "深渊领主·摩罗", "boss", 98, ["ms_shen_yuan_zhi_nu", "ms_zhao_huan_e_mo", "ms_fu_shi_ling_yu"], ["摩罗之冠"]],
+        "npcs": [],
+    },
+    "wind_city": {
+        "id": "wind_city",
+        "name": "风翼城",
+        "lv": 85,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "windcity",
+        "area_name": "风翼城",
+        "desc": "风翼城，奥兰迪亚大陆的重要聚落。浮空城",
+        "type": "城镇区域",
+        "shop": True,
+        "healer": True,
+        "hidden": False,
+        "monsters": [
+        ],
+        "elite": None,
+        "boss": None,
+        "npcs": [],
+    },
+    "cloud_sea": {
+        "id": "cloud_sea",
+        "name": "云海",
+        "lv": 86,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "cloudsea",
+        "area_name": "云海",
+        "desc": "云海，奥兰迪亚的野外区域，野兽与危险并存。云兽/风精灵",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cloud_beast", "云兽", "tank", 86, ["ms_yun_dan", "ms_piao_fu"], ["云絮"]],
+            ["m_wind_spirit", "风精灵", "speedster", 88, ["ms_feng_ren", "ms_ji_chi"], ["风之羽"]],
+            ["m_sky_hawk", "天鹰", "dps", 90, ["ms_fu_chong", "ms_zhao_ji"], ["天鹰羽"]],
+        ],
+        "elite": ["e_cloud_lord", "云海领主·雾冠", "elite", 92, ["ms_yun_dan", "ms_feng_bao"], ["雾冠晶"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "storm_plateau": {
+        "id": "storm_plateau",
+        "name": "雷暴高原",
+        "lv": 90,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "stormplateau",
+        "area_name": "雷暴高原",
+        "desc": "雷暴高原，奥兰迪亚的野外区域，野兽与危险并存。雷元素/风暴兽",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_thunder_element", "雷元素", "dps", 90, ["ms_lei_ji", "ms_shan_dian_lian"], ["雷晶"]],
+            ["m_storm_beast", "风暴兽", "tank", 92, ["ms_lei_ji", "ms_jian_ta"], ["风暴兽皮"]],
+            ["m_lightning_bird", "雷鸟", "speedster", 94, ["ms_fu_chong", "ms_lei_yu"], ["雷鸟羽"]],
+        ],
+        "elite": ["e_storm_lord", "雷暴领主·雷霆", "elite", 96, ["ms_lei_ji", "ms_feng_bao_zhi_nu"], ["雷霆之心"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "eye_of_storm": {
+        "id": "eye_of_storm",
+        "name": "风暴之眼",
+        "lv": 92,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "eyeofstorm",
+        "area_name": "风暴之眼",
+        "desc": "风暴之眼，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_eye_guardian", "风暴守卫", "tank", 92, ["ms_lei_ji", "ms_tie_bi"], ["守卫铠甲碎片"]],
+            ["m_sky_warrior", "天空战士", "dps", 94, ["ms_feng_ren", "ms_lei_jian"], ["天空战刃"]],
+        ],
+        "elite": None,
+        "boss": ["b_storm_master", "风暴之主·云怒", "boss", 100, ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"], ["云怒之核"]],
+        "npcs": [],
+    },
+    "rainbow_cloud": {
+        "id": "rainbow_cloud",
+        "name": "彩虹云谷",
+        "lv": 90,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "rainbow",
+        "area_name": "彩虹云谷",
+        "desc": "彩虹云谷，奥兰迪亚的野外区域，野兽与危险并存。彩虹龙/云精灵（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_rainbow_faerie", "彩虹小仙灵", "healer", 90, ["ms_cai_guang", "ms_zhu_fu"], ["彩虹露"]],
+            ["m_cloud_bear", "云熊", "tank", 92, ["ms_pai_ji", "ms_yun_dan"], ["云熊毛"]],
+            ["m_rainbow_serpent", "彩虹蛇", "speedster", 94, ["ms_chan_rao", "ms_cai_guang"], ["彩虹鳞"]],
+        ],
+        "elite": ["e_rainbow_dragon", "彩虹龙·霞光", "elite", 96, ["ms_cai_xi", "ms_cai_hong_zhan", "ms_zhao_huan_xian_ling"], ["霞光龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "starlight_terrace": {
+        "id": "starlight_terrace",
+        "name": "星辉台",
+        "lv": 92,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "starlight",
+        "area_name": "星辉台",
+        "desc": "星辉台，奥兰迪亚的野外区域，野兽与危险并存。星龙/星光元素（新）",
+        "type": "野外",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_star_spirit", "星光精灵", "speedster", 92, ["ms_xing_hui_dan", "ms_shan_shuo"], ["星辉尘"]],
+            ["m_astral_wolf", "星狼", "dps", 94, ["ms_si_yao", "ms_xing_hui_zhan"], ["星狼皮"]],
+            ["m_meteor_golem", "陨星魔像", "tank", 96, ["ms_zhong_ji", "ms_yun_shi"], ["陨星核"]],
+        ],
+        "elite": ["e_star_dragon", "星龙·辰光", "elite", 98, ["ms_xing_xi", "ms_long_zhao", "ms_zhao_huan_xing_ling"], ["辰光龙鳞"]],
+        "boss": None,
+        "npcs": [],
+    },
+    "cloud_sanctum": {
+        "id": "cloud_sanctum",
+        "name": "云中圣殿",
+        "lv": 94,
+        "region": "风翼群岛",
+        "chapter": 12,
+        "area": "cloudsanctum",
+        "area_name": "云中圣殿",
+        "desc": "云中圣殿，传说中的危险之地，唯有勇者敢于踏入。",
+        "type": "副本",
+        "shop": False,
+        "healer": False,
+        "hidden": False,
+        "monsters": [
+            ["m_cloud_guard", "云殿守卫", "tank", 94, ["ms_yun_dun", "ms_feng_ren"], ["云殿铠甲"]],
+            ["m_light_priest", "光之祭司", "healer", 96, ["ms_sheng_guang_dan", "ms_zhu_fu"], ["光之圣典"]],
+        ],
+        "elite": None,
+        "boss": ["b_ola", "云中圣者·奥拉", "boss", 100, ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"], ["奥拉圣印"]],
+        "npcs": [],
+    },
 }
 
 MAP_AREAS = {}
 
 AREA_ENTRY = {
-    "vila": "vila_gate",
-    "emerald": "emerald_edge",
-    "stonefist": "stonefist_camp",
-    "gloom": "gloom_edge",
-    "redridge": "redridge_field",
-    "blackrock": "blackrock_gate",
-    "magma": "magma_gorge",
-    "tundra": "tundra_field",
-    "stormpeak": "stormpeak_path",
-    "shadow_city": "shadow_gate",
-    "abyss_gate": "abyss_plain",
-    "mithril": "mithril_hall",
-    "holy": "holy_field",
-    "elf_court": "elf_forest",
-    "dragon_ridge": "dragon_path",
-    "void_rift": "void_edge",
-    "dark_temple": "temple_hall",
-    "annihilation": "annih_front",
-    "divine_gate": "divine_path",
-    "pantheon": "panth_court",
-    "chaos_depths": "chaos_entry"
+    "abbey": "white_abbey",
+    "abyssaltar": "abyss_altar",
+    "abyssgate": "abyss_gate",
+    "abyssthrone": "abyss_throne",
+    "ancientbattle": "ancient_battlefield",
+    "ancienttree": "ancient_tree",
+    "anvilfort": "anvil_fort",
+    "ashtemple": "ash_temple",
+    "aurora": "aurora_town",
+    "blackforest": "black_forest",
+    "bonewild": "bone_wild",
+    "border": "border_castle",
+    "cinder": "cinder_mountain",
+    "cloudsanctum": "cloud_sanctum",
+    "cloudsea": "cloud_sea",
+    "coldridge": "cold_ridge",
+    "coral": "coral_reef",
+    "crypt": "secret_crypt",
+    "dawn": "dawn_city",
+    "deepdragon": "deep_dragon_palace",
+    "deeplake": "deep_lake",
+    "deeptunnel": "deep_tunnel",
+    "deerfort": "deer_fort",
+    "dragonkin": "dragon_kin",
+    "dragonpass": "dragon_pass",
+    "dragonridge": "dragon_ridge",
+    "dragonroost": "dragon_roost",
+    "dragonsfall": "dragonsfall_valley",
+    "dragontomb": "dragon_tomb",
+    "elvenruins": "elven_ruins",
+    "ember": "ember_camp",
+    "emerald": "emerald_forest",
+    "emeraldvalley": "emerald_valley",
+    "eyeofstorm": "eye_of_storm",
+    "forgevalley": "forge_valley",
+    "frostfang": "frost_fang",
+    "frostfield": "frost_field",
+    "frosthorn": "frost_horn",
+    "frostthrone": "frost_throne",
+    "frostwhisper": "frostwhisper_canyon",
+    "fungus": "fungus_forest",
+    "goblin": "goblin_camp",
+    "gold": "gold_plain",
+    "graydwarf": "gray_dwarf",
+    "hill": "hill_mine",
+    "holytrial": "holy_trial",
+    "ironharbor": "ironharbor",
+    "ironshield": "ironshield_town",
+    "jade": "jade_port",
+    "kingroad": "king_road",
+    "knight": "knight_yard",
+    "lavabed": "lava_bed",
+    "maple": "maple_village",
+    "mermaid": "mermaid_bay",
+    "misttrench": "mist_trench",
+    "misty": "misty_swamp",
+    "molten": "molten_abyss",
+    "mooncourt": "moon_court",
+    "moongate": "moon_gate",
+    "moonglade": "moon_glade",
+    "moonshadow": "moonshadow_wood",
+    "moontemple": "moon_temple",
+    "nameless": "nameless_harbor",
+    "oak": "oak_town",
+    "oldbattle": "old_battlefield",
+    "oldtomb": "old_king_tomb",
+    "pearl": "pearl_city",
+    "permafrost": "permafrost_field",
+    "rainbow": "rainbow_cloud",
+    "redridge": "redridge_plateau",
+    "seacave": "sea_cave",
+    "seagod": "sea_god_temple",
+    "shell": "shell_town",
+    "shipwreck": "shipwreck_graveyard",
+    "silver": "silver_brook",
+    "silverriver": "silver_river",
+    "silverwood": "silverwood",
+    "siren": "siren_nest",
+    "starlake": "starlake",
+    "starlight": "starlight_terrace",
+    "starsong": "star_song",
+    "stormcliff": "storm_cliff",
+    "stormplateau": "storm_plateau",
+    "stormsea": "storm_sea",
+    "stormstrait": "storm_strait",
+    "stormthrone": "storm_throne",
+    "sunkenship": "sunken_ship",
+    "sunset": "sunset_isle",
+    "underdragon": "under_dragon",
+    "undermarket": "under_market",
+    "whale": "whale_domain",
+    "white_deer": "white_deer",
+    "windcity": "wind_city",
+    "windmill": "windmill_plain",
+    "windvale": "windvale",
+    "winterlake": "winter_lake",
 }
 
 MAP_CONNECTIONS = {
-    "vila_gate": [
-        "emerald_edge",
-        "vila_square",
-        "vila_street"
-    ],
-    "vila_street": [
-        "vila_gate",
-        "vila_square"
-    ],
-    "vila_square": [
-        "vila_gate",
-        "vila_inn",
-        "vila_street",
-        "vila_tavern"
-    ],
-    "vila_tavern": [
-        "vila_inn",
-        "vila_square"
-    ],
-    "vila_inn": [
-        "vila_square",
-        "vila_tavern"
-    ],
-    "emerald_edge": [
-        "emerald_trail",
-        "vila_gate"
-    ],
-    "emerald_trail": [
-        "emerald_edge",
-        "emerald_heart"
-    ],
-    "emerald_heart": [
-        "emerald_trail",
-        "stonefist_camp"
-    ],
-    "stonefist_camp": [
-        "emerald_heart",
-        "stonefist_mine"
-    ],
-    "stonefist_mine": [
-        "stonefist_camp",
-        "stonefist_deep"
-    ],
-    "stonefist_deep": [
-        "gloom_edge",
-        "stonefist_mine"
-    ],
-    "gloom_edge": [
-        "gloom_mire",
-        "stonefist_deep"
-    ],
-    "gloom_mire": [
-        "gloom_edge",
-        "gloom_heart"
-    ],
-    "gloom_heart": [
-        "gloom_mire",
-        "redridge_field"
-    ],
-    "redridge_field": [
-        "gloom_heart",
-        "redridge_ridge"
-    ],
-    "redridge_ridge": [
-        "redridge_camp",
-        "redridge_field"
-    ],
-    "redridge_camp": [
-        "blackrock_gate",
-        "redridge_ridge"
-    ],
-    "blackrock_gate": [
-        "blackrock_street",
-        "redridge_camp"
-    ],
-    "blackrock_street": [
-        "blackrock_gate",
-        "blackrock_keep"
-    ],
-    "blackrock_keep": [
-        "blackrock_street",
-        "magma_gorge"
-    ],
-    "magma_gorge": [
-        "blackrock_keep",
-        "magma_heart"
-    ],
-    "magma_heart": [
-        "magma_gorge",
-        "tundra_field"
-    ],
-    "tundra_field": [
-        "magma_heart",
-        "tundra_cave"
-    ],
-    "tundra_cave": [
-        "stormpeak_path",
-        "tundra_field"
-    ],
-    "stormpeak_path": [
-        "stormpeak_peak",
-        "tundra_cave"
-    ],
-    "stormpeak_peak": [
-        "mithril_hall",
-        "shadow_gate",
-        "stormpeak_path"
-    ],
-    "shadow_gate": [
-        "shadow_street",
-        "stormpeak_peak"
-    ],
-    "shadow_street": [
-        "shadow_gate",
-        "shadow_keep"
-    ],
-    "shadow_keep": [
-        "abyss_plain",
-        "shadow_street"
-    ],
-    "abyss_plain": [
-        "abyss_gate",
-        "mithril_hall",
-        "shadow_keep"
-    ],
-    "abyss_gate": [
-        "abyss_plain"
-    ],
-    "mithril_hall": [
-        "abyss_plain",
-        "mithril_vault",
-        "stormpeak_peak"
-    ],
-    "mithril_vault": [
-        "holy_field",
-        "mithril_hall"
-    ],
-    "holy_field": [
-        "holy_city_gate",
-        "mithril_vault"
-    ],
-    "holy_city_gate": [
-        "holy_city_square",
-        "holy_field"
-    ],
-    "holy_city_square": [
-        "holy_altar",
-        "holy_city_gate"
-    ],
-    "holy_altar": [
-        "holy_city_square",
-        "holy_temple"
-    ],
-    "holy_temple": [
-        "elf_forest",
-        "holy_altar"
-    ],
-    "elf_forest": [
-        "elf_city_gate",
-        "holy_temple"
-    ],
-    "elf_city_gate": [
-        "elf_city_square",
-        "elf_forest"
-    ],
-    "elf_city_square": [
-        "elf_city_gate",
-        "elf_courtyard"
-    ],
-    "elf_courtyard": [
-        "elf_city_square",
-        "elf_throne"
-    ],
-    "elf_throne": [
-        "dragon_path",
-        "elf_courtyard"
-    ],
-    "dragon_path": [
-        "dragon_city_gate",
-        "elf_throne"
-    ],
-    "dragon_city_gate": [
-        "dragon_city_square",
-        "dragon_path"
-    ],
-    "dragon_city_square": [
-        "dragon_city_gate",
-        "dragon_nest"
-    ],
-    "dragon_nest": [
-        "dragon_city_square",
-        "dragon_shrine"
-    ],
-    "dragon_shrine": [
-        "dragon_nest",
-        "void_edge"
-    ],
-    "void_edge": [
-        "dragon_shrine",
-        "void_city_gate"
-    ],
-    "void_city_gate": [
-        "void_city_square",
-        "void_edge"
-    ],
-    "void_city_square": [
-        "void_city_gate",
-        "void_corridor"
-    ],
-    "void_corridor": [
-        "void_city_square",
-        "void_heart"
-    ],
-    "void_heart": [
-        "temple_hall",
-        "void_corridor"
-    ],
-    "temple_hall": [
-        "exile_camp_gate",
-        "void_heart"
-    ],
-    "exile_camp_gate": [
-        "exile_camp_square",
-        "temple_hall"
-    ],
-    "exile_camp_square": [
-        "exile_camp_gate",
-        "temple_aisle"
-    ],
-    "temple_aisle": [
-        "exile_camp_square",
-        "temple_altar"
-    ],
-    "temple_altar": [
-        "annih_front",
-        "temple_aisle"
-    ],
-    "annih_front": [
-        "iron_city_gate",
-        "temple_altar"
-    ],
-    "iron_city_gate": [
-        "annih_front",
-        "iron_city_square"
-    ],
-    "iron_city_square": [
-        "annih_field",
-        "iron_city_gate"
-    ],
-    "annih_field": [
-        "annih_throne",
-        "iron_city_square"
-    ],
-    "annih_throne": [
-        "annih_field",
-        "divine_path"
-    ],
-    "divine_path": [
-        "annih_throne",
-        "divine_hall"
-    ],
-    "divine_hall": [
-        "divine_city_gate",
-        "divine_path"
-    ],
-    "divine_city_gate": [
-        "divine_city_square",
-        "divine_hall"
-    ],
-    "divine_city_square": [
-        "divine_city_gate",
-        "divine_gate"
-    ],
-    "divine_gate": [
-        "chaos_entry",
-        "divine_city_square",
-        "panth_court"
-    ],
-    "panth_court": [
-        "divine_gate",
-        "panth_hall"
-    ],
-    "panth_hall": [
-        "chaos_entry",
-        "panth_court"
-    ],
-    "chaos_entry": [
-        "chaos_depths",
-        "divine_gate",
-        "panth_hall"
-    ],
-    "chaos_depths": [
-        "chaos_entry"
-    ]
+    "abyss_altar": ["lava_bed", "abyss_throne"],
+    "abyss_gate": ["ash_temple"],
+    "abyss_throne": ["abyss_altar"],
+    "ancient_battlefield": ["dragon_pass"],
+    "ancient_tree": ["moon_court", "frost_field", "frost_horn"],
+    "anvil_fort": ["frost_field", "forge_valley", "cold_ridge", "frost_horn", "deep_tunnel"],
+    "ash_temple": ["cinder_mountain", "abyss_gate"],
+    "aurora_town": ["frost_horn", "permafrost_field"],
+    "black_forest": ["frost_horn", "cinder_mountain"],
+    "boar_ridge": ["maple_village"],
+    "bone_wild": ["dragon_pass"],
+    "border_castle": ["dawn_city"],
+    "cinder_mountain": ["black_forest", "ash_temple", "frostwhisper_canyon"],
+    "cloud_sanctum": ["rainbow_cloud", "starlight_terrace"],
+    "cloud_sea": ["wind_city", "storm_plateau"],
+    "cold_ridge": ["anvil_fort"],
+    "coral_reef": ["jade_port", "sunset_isle"],
+    "dawn_cathedral": ["dawn_city", "secret_crypt"],
+    "dawn_city": ["dawn_cathedral", "gold_plain", "old_king_tomb", "knight_yard", "king_road", "holy_trial", "ironshield_town", "border_castle", "moon_gate", "silver_river"],
+    "deep_dragon_palace": ["storm_sea"],
+    "deep_lake": ["under_market", "gray_dwarf"],
+    "deep_tunnel": ["anvil_fort", "fungus_forest"],
+    "deer_fort": ["hill_mine"],
+    "dragon_kin": ["dragon_pass"],
+    "dragon_pass": ["moon_court", "dragon_ridge", "ancient_battlefield", "bone_wild", "storm_cliff", "redridge_plateau", "dragonsfall_valley", "dragon_kin", "wind_city"],
+    "dragon_ridge": ["dragon_pass", "dragon_roost"],
+    "dragon_roost": ["dragon_ridge", "dragon_tomb"],
+    "dragon_tomb": ["dragon_roost"],
+    "dragonsfall_valley": ["dragon_pass"],
+    "elven_ruins": ["moon_court"],
+    "ember_camp": ["molten_abyss", "lava_bed"],
+    "emerald_forest": ["white_deer", "misty_swamp"],
+    "emerald_valley": ["star_song"],
+    "eye_of_storm": ["storm_plateau"],
+    "forge_valley": ["anvil_fort", "winter_lake"],
+    "frost_fang": ["frost_horn"],
+    "frost_field": ["frost_horn", "anvil_fort", "ancient_tree"],
+    "frost_horn": ["ancient_tree", "frost_field", "black_forest", "frost_fang", "aurora_town", "anvil_fort"],
+    "frost_throne": ["winter_lake"],
+    "frostwhisper_canyon": ["cinder_mountain"],
+    "fungus_forest": ["deep_tunnel", "under_market"],
+    "goblin_camp": ["misty_swamp"],
+    "gold_plain": ["dawn_city", "white_abbey"],
+    "gray_dwarf": ["deep_lake"],
+    "harbor_docks": ["ironharbor", "sea_cave"],
+    "hill_mine": ["white_deer", "deer_fort"],
+    "holy_trial": ["king_road", "dawn_city"],
+    "ironharbor": ["white_deer", "harbor_docks"],
+    "ironshield_hills": ["ironshield_town"],
+    "ironshield_town": ["dawn_city", "ironshield_hills", "old_battlefield"],
+    "jade_port": ["coral_reef", "shell_town", "sunken_ship", "nameless_harbor"],
+    "king_road": ["old_king_tomb", "holy_trial", "dawn_city"],
+    "knight_yard": ["dawn_city"],
+    "lava_bed": ["molten_abyss", "ember_camp", "abyss_altar"],
+    "maple_village": ["oak_town", "rockfall_gorge", "boar_ridge"],
+    "mermaid_bay": ["shell_town", "siren_nest"],
+    "mist_trench": ["nameless_harbor"],
+    "misty_swamp": ["emerald_forest", "goblin_camp"],
+    "molten_abyss": ["under_market", "under_dragon", "ember_camp", "lava_bed"],
+    "moon_court": ["starlake", "elven_ruins", "moon_temple", "moon_glade", "ancient_tree", "dragon_pass"],
+    "moon_gate": ["dawn_city", "silverwood", "star_song"],
+    "moon_glade": ["moon_court"],
+    "moon_temple": ["moon_court"],
+    "moonshadow_wood": ["silverwood"],
+    "nameless_harbor": ["jade_port", "mist_trench", "whale_domain", "pearl_city"],
+    "oak_forest": ["oak_town", "white_deer"],
+    "oak_meadow": ["oak_town"],
+    "oak_town": ["oak_meadow", "oak_forest", "maple_village", "white_deer"],
+    "old_battlefield": ["ironshield_town"],
+    "old_king_tomb": ["dawn_city", "king_road"],
+    "pearl_city": ["nameless_harbor", "storm_sea"],
+    "permafrost_field": ["aurora_town"],
+    "rainbow_cloud": ["wind_city", "cloud_sanctum"],
+    "redridge_plateau": ["dragon_pass"],
+    "rockfall_gorge": ["maple_village"],
+    "sea_cave": ["harbor_docks"],
+    "sea_god_temple": ["storm_sea"],
+    "secret_crypt": ["dawn_cathedral"],
+    "shell_town": ["jade_port", "mermaid_bay"],
+    "shipwreck_graveyard": ["whale_domain"],
+    "silver_brook": ["white_deer", "silver_valley"],
+    "silver_river": ["dawn_city", "white_deer"],
+    "silver_valley": ["silver_brook"],
+    "silverwood": ["moon_gate", "starlake", "windvale", "moonshadow_wood"],
+    "siren_nest": ["mermaid_bay"],
+    "star_song": ["moon_gate", "emerald_valley"],
+    "starlake": ["silverwood", "moon_court"],
+    "starlight_terrace": ["wind_city", "cloud_sanctum"],
+    "storm_cliff": ["dragon_pass", "storm_throne"],
+    "storm_plateau": ["cloud_sea", "eye_of_storm"],
+    "storm_sea": ["pearl_city", "sea_god_temple", "deep_dragon_palace"],
+    "storm_strait": ["sunset_isle", "sunken_ship"],
+    "storm_throne": ["storm_cliff"],
+    "sunken_ship": ["jade_port", "storm_strait"],
+    "sunset_isle": ["coral_reef", "storm_strait"],
+    "under_dragon": ["molten_abyss"],
+    "under_market": ["fungus_forest", "deep_lake", "molten_abyss"],
+    "whale_domain": ["nameless_harbor", "shipwreck_graveyard"],
+    "white_abbey": ["gold_plain"],
+    "white_deer": ["oak_forest", "emerald_forest", "hill_mine", "silver_brook", "windmill_plain", "ironharbor", "silver_river", "oak_town"],
+    "wind_city": ["dragon_pass", "cloud_sea", "rainbow_cloud", "starlight_terrace"],
+    "windmill_plain": ["white_deer"],
+    "windvale": ["silverwood"],
+    "winter_lake": ["forge_valley", "frost_throne"],
 }
 
 HIDDEN_MAP_UNLOCK = {
-    "mithril_hall": {
-        "level": 25,
-        "quest": "q8"
-    },
-    "mithril_vault": {
-        "level": 30,
-        "quest": "q10"
-    },
-    "chaos_entry": {
-        "level": 95,
-        "quest": "q28"
-    },
-    "chaos_depths": {
-        "level": 100,
-        "quest": "q29"
-    }
+    "dragon_sanctum": {"level": 90, "quest": "dragon_reputation"},
+    "elf_opera": {"level": 55, "quest": "s_hidden_bard"},
+    "mithril_hall": {"level": 25, "quest": "q8"},
+    "sea_altar": {"level": 50, "quest": "diving_gear"},
+    "under_king_hall": {"level": 85, "quest": "under_runes"},
 }
 
 LEGACY_MAP_ALIAS = {
-    "vila": "vila_gate",
-    "维拉镇": "vila_gate",
-    "emerald": "emerald_edge",
-    "翡翠森林": "emerald_edge",
-    "stonefist": "stonefist_camp",
-    "石拳丘陵": "stonefist_camp",
-    "gloom": "gloom_edge",
-    "幽暗沼泽": "gloom_edge",
-    "redridge": "redridge_field",
-    "赤脊荒原": "redridge_field",
-    "blackrock": "blackrock_gate",
-    "黑石城废墟": "blackrock_gate",
-    "magma": "magma_gorge",
-    "熔岩裂谷": "magma_gorge",
-    "tundra": "tundra_field",
-    "冰封苔原": "tundra_field",
-    "stormpeak": "stormpeak_path",
-    "风暴之巅": "stormpeak_path",
-    "shadow_city": "shadow_gate",
-    "暗影之城": "shadow_gate",
-    "abyss_gate": "abyss_plain",
-    "深渊之门": "abyss_plain",
-    "mithril": "mithril_hall",
-    "秘银遗迹": "mithril_hall",
-    "holy": "holy_field",
-    "远境高原": "holy_field",
-    "elf_court": "elf_forest",
-    "精灵王庭": "elf_forest",
-    "dragon_ridge": "dragon_path",
-    "龙脊山脉": "dragon_path",
-    "void_rift": "void_edge",
-    "裂隙谷地": "void_edge",
-    "dark_temple": "temple_hall",
-    "旧教团遗址": "temple_hall",
-    "annihilation": "annih_front",
-    "白骨平原": "annih_front",
-    "divine_gate": "divine_path",
-    "失落王城": "divine_path",
-    "pantheon": "panth_court",
-    "先王陵寝": "panth_court",
-    "chaos_depths": "chaos_entry",
-    "陷落王都": "chaos_entry"
+    "vila": "oak_town", "维拉镇": "oak_town",
+    "白鹿城": "white_deer", "翡翠森林": "emerald_forest", "铁港城": "ironharbor",
+    "晨曦城": "dawn_city", "月冠王庭": "moon_court", "霜角堡": "frost_horn",
+    "铁砧要塞": "anvil_fort", "龙脊山口": "dragon_pass", "橡木镇": "oak_town",
 }
 
 ENCY_MAP_MONSTERS = {}

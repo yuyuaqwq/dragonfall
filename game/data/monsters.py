@@ -1,388 +1,1168 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - monsters.py（v48 key 转 ID）"""
+"""奥兰迪亚·余烬纪年 数据层 - monsters.py（阶段一生成，2026-08-06）"""
 MONSTER_SKILLS = {
-    "ms_si_yao": {
-        "kind": "物理",
-        "power": 1.2,
-        "desc": "用尖牙撕咬敌人",
-        "name": "撕咬"
-    },
-    "ms_zhao_ji": {
-        "kind": "物理",
+    "ms_ai_hao": {
+        "kind": "魔法",
         "power": 1.3,
-        "desc": "用利爪攻击敌人",
-        "name": "爪击"
+        "desc": "哀嚎，恐惧敌人使其伤害降低",
+        "name": "哀嚎",
+    },
+    "ms_an_ying_dan": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "暗影弹，暗影能量弹攻击敌人",
+        "name": "暗影弹",
+    },
+    "ms_an_ying_jian": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "暗影箭，暗影之箭攻击敌人",
+        "name": "暗影箭",
+    },
+    "ms_an_ying_zhan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "暗影斩，暗影之刃斩击敌人",
+        "name": "暗影斩",
+    },
+    "ms_an_ying_zhao": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "暗影爪，暗影之爪撕裂敌人",
+        "name": "暗影爪",
+    },
+    "ms_an_ying_zhi_liao": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "暗影治疗，暗影之力治愈自身",
+        "name": "暗影治疗",
+    },
+    "ms_bao_dan": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "爆弹，投掷爆弹炸伤敌人",
+        "name": "爆弹",
+    },
+    "ms_bao_zi_bao": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "孢子爆，引爆孢子造成范围伤害",
+        "name": "孢子爆",
+    },
+    "ms_bao_zi_du": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "孢子毒，释放毒孢子使敌人中毒",
+        "name": "孢子毒",
+    },
+    "ms_bao_zi_pen_she": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "孢子喷射，喷射毒孢子攻击敌人",
+        "name": "孢子喷射",
+    },
+    "ms_bing_dan": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "冰弹，寒冰弹攻击敌人",
+        "name": "冰弹",
+    },
+    "ms_bing_dong": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "冰冻，寒冰之力冻结敌人",
+        "name": "冰冻",
+    },
+    "ms_bing_hou": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "冰吼，寒冰咆哮攻击敌人",
+        "name": "冰吼",
+    },
+    "ms_bing_ji": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "冰击，寒冰冲击攻击敌人",
+        "name": "冰击",
+    },
+    "ms_bing_shuang_zhu_fu": {
+        "kind": "增益",
+        "effect": "def_up",
+        "desc": "冰霜祝福，寒冰护体提升防御",
+        "name": "冰霜祝福",
+    },
+    "ms_bing_xi": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "冰息，寒冰吐息攻击敌人",
+        "name": "冰息",
+    },
+    "ms_bing_ya": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "冰牙，寒冰之牙攻击敌人",
+        "name": "冰牙",
+    },
+    "ms_cai_guang": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "彩光，彩虹光芒攻击敌人",
+        "name": "彩光",
+    },
+    "ms_cai_hong_zhan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "彩虹斩，彩虹之力斩击敌人",
+        "name": "彩虹斩",
+    },
+    "ms_cai_xi": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "彩息，彩虹吐息攻击敌人",
+        "name": "彩息",
+    },
+    "ms_cha_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "叉击，攻击敌人",
+        "name": "叉击",
+    },
+    "ms_chan_rao": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "缠绕，束缚敌人使其无法行动",
+        "name": "缠绕",
     },
     "ms_chong_zhuang": {
         "kind": "物理",
-        "power": 1.5,
-        "desc": "猛力冲撞敌人",
-        "name": "冲撞"
+        "power": 1.4,
+        "desc": "冲撞，攻击敌人",
+        "name": "冲撞",
     },
-    "ms_pi_kan": {
+    "ms_chuan_shen": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "穿身，穿透防御攻击敌人",
+        "name": "穿身",
+    },
+    "ms_di_lie": {
         "kind": "物理",
         "power": 1.4,
-        "desc": "挥砍武器攻击",
-        "name": "劈砍"
+        "desc": "地裂，攻击敌人",
+        "name": "地裂",
     },
-    "ms_zhong_ji": {
+    "ms_di_yu_huo": {
+        "kind": "魔法",
+        "power": 2.2,
+        "desc": "地狱火，地狱烈焰灼烧敌人",
+        "name": "地狱火",
+    },
+    "ms_ding_zhuang": {
         "kind": "物理",
-        "power": 1.8,
-        "desc": "蓄力重击敌人",
-        "name": "重击"
+        "power": 1.4,
+        "desc": "顶撞，攻击敌人",
+        "name": "顶撞",
+    },
+    "ms_dong_jie": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "冻结，冰冻敌人使其无法行动",
+        "name": "冻结",
+    },
+    "ms_du_ci": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "毒刺，毒刺扎伤敌人使其中毒",
+        "name": "毒刺",
+    },
+    "ms_du_wu": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "毒雾，攻击敌人",
+        "name": "毒雾",
+    },
+    "ms_du_ya": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "毒牙，毒液侵蚀敌人",
+        "name": "毒牙",
+    },
+    "ms_duan_dao": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "短刀，攻击敌人",
+        "name": "短刀",
+    },
+    "ms_duan_jian": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "短剑，攻击敌人",
+        "name": "短剑",
     },
     "ms_dun_ji": {
         "kind": "物理",
-        "power": 1.5,
-        "desc": "用盾牌猛击，降低敌防",
-        "name": "盾击"
+        "power": 1.4,
+        "desc": "盾击，攻击敌人",
+        "name": "盾击",
     },
-    "ms_du_yao": {
-        "kind": "物理",
-        "power": 1.3,
-        "desc": "带毒的撕咬，造成中毒",
-        "name": "毒咬"
+    "ms_feng_bao": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "风暴，召唤风暴攻击敌人",
+        "name": "风暴",
     },
-    "ms_bing_yao": {
+    "ms_feng_bao_zhi_nu": {
+        "kind": "魔法",
+        "power": 2.2,
+        "desc": "风暴之怒，风暴之力爆发攻击敌人",
+        "name": "风暴之怒",
+    },
+    "ms_feng_bao_zhi_yan": {
+        "kind": "魔法",
+        "power": 2.4,
+        "desc": "风暴之眼，风暴核心爆发攻击敌人",
+        "name": "风暴之眼",
+    },
+    "ms_feng_ren": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "风刃，风之利刃攻击敌人",
+        "name": "风刃",
+    },
+    "ms_fu_chong": {
         "kind": "物理",
         "power": 1.4,
-        "desc": "寒冰之咬，降低敌速",
-        "name": "冰咬"
+        "desc": "俯冲，攻击敌人",
+        "name": "俯冲",
+    },
+    "ms_fu_hua": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "腐化，腐败之力侵蚀敌人",
+        "name": "腐化",
+    },
+    "ms_fu_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "斧击，攻击敌人",
+        "name": "斧击",
+    },
+    "ms_fu_shi": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "腐蚀，腐蚀敌人护甲",
+        "name": "腐蚀",
+    },
+    "ms_fu_shi_ling_yu": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "腐蚀领域，腐蚀周围一切",
+        "name": "腐蚀领域",
+    },
+    "ms_fu_shi_shu": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "腐蚀术，腐蚀敌人使其持续掉血",
+        "name": "腐蚀术",
+    },
+    "ms_fu_wen_chong_ji": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "符文冲击，符文之力冲击敌人",
+        "name": "符文冲击",
+    },
+    "ms_gan_ran": {
+        "kind": "魔法",
+        "power": 1.3,
+        "desc": "感染，使敌人持续受到伤害",
+        "name": "感染",
+    },
+    "ms_gao_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "镐击，攻击敌人",
+        "name": "镐击",
+    },
+    "ms_gen_xu": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "根须，攻击敌人",
+        "name": "根须",
+    },
+    "ms_gen_xu_chan_rao": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "根须缠绕，对敌人造成伤害并附加控制",
+        "name": "根须缠绕",
+    },
+    "ms_gu_long_wei_ya": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "古龙威压，远古龙威震慑敌人",
+        "name": "古龙威压",
+    },
+    "ms_gu_xi": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "骨息，亡灵吐息攻击敌人",
+        "name": "骨息",
+    },
+    "ms_hai_chao": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "海潮，召唤巨浪冲击敌人",
+        "name": "海潮",
+    },
+    "ms_hai_chao_zhu_fu": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "海潮祝福，潮水治愈自身",
+        "name": "海潮祝福",
     },
     "ms_hao_jiao": {
         "kind": "增益",
         "effect": "atk_up",
-        "desc": "嚎叫提升自身攻击",
-        "name": "嚎叫"
+        "desc": "嚎叫，提升自身攻击",
+        "name": "嚎叫",
     },
-    "ms_nu_hou": {
-        "kind": "增益",
-        "effect": "atk_up",
-        "desc": "怒吼提升自身攻击",
-        "name": "怒吼"
+    "ms_hei_an_qi_dao": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "黑暗祈祷，攻击敌人",
+        "name": "黑暗祈祷",
     },
-    "ms_zhan_hou": {
-        "kind": "增益",
-        "effect": "atk_up",
-        "desc": "战吼大幅提升自身攻击",
-        "name": "战吼"
+    "ms_hei_an_yi_shi": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "黑暗仪式，攻击敌人",
+        "name": "黑暗仪式",
     },
-    "ms_kuang_bao": {
-        "kind": "增益",
-        "effect": "atk_up_strong",
-        "desc": "进入狂暴状态，攻击大幅提升",
-        "name": "狂暴"
-    },
-    "ms_zi_ran_zhu_fu": {
+    "ms_hei_an_zhi_liao": {
         "kind": "增益",
         "effect": "heal_self",
-        "desc": "自然之力治愈自身",
-        "name": "自然祝福"
+        "desc": "黑暗治疗，暗影之力治愈自身",
+        "name": "黑暗治疗",
     },
-    "ms_zai_sheng": {
+    "ms_hu_zai": {
         "kind": "增益",
         "effect": "heal_self",
-        "desc": "巨魔再生，恢复生命",
-        "name": "再生"
+        "desc": "护崽，保护幼崽恢复自身生命",
+        "name": "护崽",
     },
-    "ms_mo_fa_fei_dan": {
-        "kind": "魔法",
-        "power": 1.4,
-        "desc": "射出魔法飞弹",
-        "name": "魔法飞弹"
-    },
-    "ms_huo_qiu": {
-        "kind": "魔法",
-        "power": 1.7,
-        "desc": "投掷火球",
-        "name": "火球"
-    },
-    "ms_shan_dian_jian": {
-        "kind": "魔法",
-        "power": 1.7,
-        "desc": "射出闪电",
-        "name": "闪电箭"
-    },
-    "ms_an_ying_jian": {
-        "kind": "魔法",
-        "power": 1.8,
-        "desc": "射出暗影能量",
-        "name": "暗影箭"
-    },
-    "ms_ji_qu": {
+    "ms_huo_dan": {
         "kind": "魔法",
         "power": 1.5,
-        "desc": "吸取敌人生命",
-        "name": "汲取"
+        "desc": "火弹，火焰弹攻击敌人",
+        "name": "火弹",
     },
-    "ms_ai_hao": {
+    "ms_huo_pao": {
         "kind": "魔法",
-        "power": 1.2,
-        "desc": "刺耳哀嚎",
-        "name": "哀嚎"
+        "power": 1.8,
+        "desc": "火炮，轰击敌人",
+        "name": "火炮",
+    },
+    "ms_huo_qiang": {
+        "kind": "物理",
+        "power": 1.6,
+        "desc": "火枪，射击敌人",
+        "name": "火枪",
+    },
+    "ms_huo_yan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "火焰，烈焰灼烧敌人",
+        "name": "火焰",
+    },
+    "ms_ji_chi": {
+        "kind": "增益",
+        "effect": "spd_up",
+        "desc": "疾驰，提升自身速度",
+        "name": "疾驰",
+    },
+    "ms_ji_guang_shan": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "极光闪，极光闪耀攻击敌人",
+        "name": "极光闪",
+    },
+    "ms_ji_pao": {
+        "kind": "增益",
+        "effect": "spd_up",
+        "desc": "疾跑，提升自身速度",
+        "name": "疾跑",
+    },
+    "ms_jia_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "甲击，攻击敌人",
+        "name": "甲击",
+    },
+    "ms_jian_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "剑击，攻击敌人",
+        "name": "剑击",
+    },
+    "ms_jian_ta": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "践踏，攻击敌人",
+        "name": "践踏",
     },
     "ms_jian_xiao": {
         "kind": "魔法",
         "power": 1.3,
-        "desc": "刺耳尖啸",
-        "name": "尖啸"
+        "desc": "尖啸，震慑敌人使其速度降低",
+        "name": "尖啸",
     },
-    "ms_zhuo_shao": {
+    "ms_jiao_sha": {
+        "kind": "物理",
+        "power": 1.6,
+        "desc": "绞杀，缠绕绞杀敌人",
+        "name": "绞杀",
+    },
+    "ms_jing_hua_zhi_chao": {
         "kind": "魔法",
-        "power": 1.5,
-        "desc": "灼烧敌人",
-        "name": "灼烧"
+        "power": 1.8,
+        "desc": "净化之潮，神圣潮水净化敌人",
+        "name": "净化之潮",
+    },
+    "ms_jing_ji_chan_rao": {
+        "kind": "魔法",
+        "power": 1.3,
+        "desc": "荆棘缠绕，束缚并刺伤敌人",
+        "name": "荆棘缠绕",
+    },
+    "ms_jing_ling_jian_shu": {
+        "kind": "物理",
+        "power": 1.8,
+        "desc": "精灵剑术，精灵秘传剑法攻击敌人",
+        "name": "精灵剑术",
+    },
+    "ms_ju_lang": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "巨浪，掀起巨浪冲击敌人",
+        "name": "巨浪",
+    },
+    "ms_ken_yao": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "啃咬，攻击敌人",
+        "name": "啃咬",
+    },
+    "ms_lei_bao": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "雷暴，召唤雷暴攻击敌人",
+        "name": "雷暴",
     },
     "ms_lei_ji": {
         "kind": "魔法",
-        "power": 1.9,
-        "desc": "召唤雷电",
-        "name": "雷击"
-    },
-    "ms_feng_ren": {
-        "kind": "物理",
         "power": 1.6,
-        "desc": "风之利刃",
-        "name": "风刃"
+        "desc": "雷击，雷电轰击敌人",
+        "name": "雷击",
     },
-    "ms_shuang_xi": {
-        "kind": "魔法",
-        "power": 2.0,
-        "desc": "吐出寒霜吐息",
-        "name": "霜息"
-    },
-    "ms_bao_feng_xue": {
+    "ms_lei_jian": {
         "kind": "魔法",
         "power": 1.8,
-        "desc": "召唤暴风雪",
-        "name": "暴风雪"
+        "desc": "雷剑，雷电之剑斩击敌人",
+        "name": "雷剑",
     },
-    "ms_sheng_guang_chong_feng": {
-        "kind": "物理",
-        "power": 2.0,
-        "desc": "裹挟圣光冲锋",
-        "name": "圣光冲锋"
-    },
-    "ms_jian_ta": {
-        "kind": "物理",
+    "ms_lei_yu": {
+        "kind": "魔法",
         "power": 1.6,
-        "desc": "猛踏地面",
-        "name": "践踏"
+        "desc": "雷羽，雷电羽毛攻击敌人",
+        "name": "雷羽",
     },
-    "ms_chan_rao": {
+    "ms_lian_zhan": {
         "kind": "物理",
         "power": 1.4,
-        "desc": "缠绕敌人，降低其速",
-        "name": "缠绕"
+        "desc": "连斩，攻击敌人",
+        "name": "连斩",
     },
-    "ms_fu_chong": {
+    "ms_lie_yan_zhao": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "烈焰爪，攻击敌人",
+        "name": "烈焰爪",
+    },
+    "ms_lin_fen": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "磷粉，洒出磷粉使敌人致盲",
+        "name": "磷粉",
+    },
+    "ms_long_jian_shu": {
+        "kind": "物理",
+        "power": 2.2,
+        "desc": "龙剑术，攻击敌人",
+        "name": "龙剑术",
+    },
+    "ms_long_lin_chong_ji": {
+        "kind": "物理",
+        "power": 2.2,
+        "desc": "龙鳞冲击，攻击敌人",
+        "name": "龙鳞冲击",
+    },
+    "ms_long_wei": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "龙威，龙之威压震慑敌人",
+        "name": "龙威",
+    },
+    "ms_long_wei_190": {
+        "kind": "物理",
+        "power": 2.2,
+        "desc": "龙尾，攻击敌人",
+        "name": "龙尾",
+    },
+    "ms_long_xi": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "龙息，龙焰吐息攻击敌人",
+        "name": "龙息",
+    },
+    "ms_long_yu_ai_hao": {
+        "kind": "魔法",
+        "power": 2.4,
+        "desc": "龙语哀嚎，攻击敌人",
+        "name": "龙语哀嚎",
+    },
+    "ms_long_zhao": {
+        "kind": "物理",
+        "power": 2.2,
+        "desc": "龙爪，攻击敌人",
+        "name": "龙爪",
+    },
+    "ms_mei_huo": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "魅惑，迷惑敌人使其攻击偏离",
+        "name": "魅惑",
+    },
+    "ms_mei_huo_zhi_ge": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "魅惑之歌，迷惑敌人使其伤害降低",
+        "name": "魅惑之歌",
+    },
+    "ms_mo_zhi": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "墨汁，喷出墨汁降低敌人命中",
+        "name": "墨汁",
+    },
+    "ms_ni_jiang": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "泥浆，对敌人造成伤害并附加控制",
+        "name": "泥浆",
+    },
+    "ms_nian_ye": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "黏液，对敌人造成伤害并附加控制",
+        "name": "黏液",
+    },
+    "ms_nu_hou": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "怒吼，提升自身攻击",
+        "name": "怒吼",
+    },
+    "ms_pai_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "拍击，攻击敌人",
+        "name": "拍击",
+    },
+    "ms_peng_zhang": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "膨胀，鼓起身体提升防御",
+        "name": "膨胀",
+    },
+    "ms_pi_kan": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "劈砍，攻击敌人",
+        "name": "劈砍",
+    },
+    "ms_piao_fu": {
+        "kind": "增益",
+        "effect": "def_up",
+        "desc": "飘浮，漂浮在空中躲避攻击",
+        "name": "飘浮",
+    },
+    "ms_pu_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "扑击，攻击敌人",
+        "name": "扑击",
+    },
+    "ms_qian_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "钳击，攻击敌人",
+        "name": "钳击",
+    },
+    "ms_qian_xing": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "潜行，隐藏身形提升下一次攻击",
+        "name": "潜行",
+    },
+    "ms_rong_yan_dan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "熔岩弹，熔岩弹攻击敌人",
+        "name": "熔岩弹",
+    },
+    "ms_san_cha_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "三叉戟，攻击敌人",
+        "name": "三叉戟",
+    },
+    "ms_shan_dian_lian": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "闪电链，连锁闪电攻击敌人",
+        "name": "闪电链",
+    },
+    "ms_shan_hu_hu_dun": {
+        "kind": "增益",
+        "effect": "shield",
+        "desc": "珊瑚护盾，凝聚珊瑚护甲",
+        "name": "珊瑚护盾",
+    },
+    "ms_shan_shuo": {
+        "kind": "增益",
+        "effect": "spd_up",
+        "desc": "闪烁，瞬间移动提升闪避",
+        "name": "闪烁",
+    },
+    "ms_shen_pan_zhi_yan": {
+        "kind": "魔法",
+        "power": 2.2,
+        "desc": "审判之炎，圣火审判攻击敌人",
+        "name": "审判之炎",
+    },
+    "ms_shen_yuan_zhi_nu": {
+        "kind": "魔法",
+        "power": 2.4,
+        "desc": "深渊之怒，深渊之力爆发攻击敌人",
+        "name": "深渊之怒",
+    },
+    "ms_sheng_guang": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "圣光，神圣光芒灼烧敌人",
+        "name": "圣光",
+    },
+    "ms_sheng_guang_dan": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "圣光弹，发射圣光弹攻击敌人",
+        "name": "圣光弹",
+    },
+    "ms_sheng_guang_zhan_bei_wu_ran": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "被污染的圣光斩，暗影与圣光交织",
+        "name": "圣光斩（被污染）",
+    },
+    "ms_shi_xi": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "石息，岩石吐息攻击敌人",
+        "name": "石息",
+    },
+    "ms_shuai_wei": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "甩尾，攻击敌人",
+        "name": "甩尾",
+    },
+    "ms_shui_dan": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "水弹，水之弹攻击敌人",
+        "name": "水弹",
+    },
+    "ms_shui_xi": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "水息，水柱吐息攻击敌人",
+        "name": "水息",
+    },
+    "ms_si_yao": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "撕咬，攻击敌人",
+        "name": "撕咬",
+    },
+    "ms_suan_xi": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "酸息，酸性吐息腐蚀敌人",
+        "name": "酸息",
+    },
+    "ms_suo_lian": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "锁链，攻击敌人",
+        "name": "锁链",
+    },
+    "ms_teng_bian": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "藤鞭，攻击敌人",
+        "name": "藤鞭",
+    },
+    "ms_tie_bi": {
+        "kind": "增益",
+        "effect": "shield",
+        "desc": "铁壁，为自己套上护盾",
+        "name": "铁壁",
+    },
+    "ms_tie_pi": {
+        "kind": "增益",
+        "effect": "def_up",
+        "desc": "铁皮，提升自身防御",
+        "name": "铁皮",
+    },
+    "ms_tou_qie": {
+        "kind": "魔法",
+        "power": 1.0,
+        "desc": "偷窃，窃取敌人财物（少量金币）",
+        "name": "偷窃",
+    },
+    "ms_tou_shi": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "投石，攻击敌人",
+        "name": "投石",
+    },
+    "ms_tun_shi": {
+        "kind": "物理",
+        "power": 1.8,
+        "desc": "吞噬，吞没敌人造成伤害",
+        "name": "吞噬",
+    },
+    "ms_wan_dao": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "弯刀，攻击敌人",
+        "name": "弯刀",
+    },
+    "ms_wang_wei": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "王威，王者之威震慑敌人",
+        "name": "王威",
+    },
+    "ms_wei_feng_zhu_fu": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "微风祝福，微风治愈自身",
+        "name": "微风祝福",
+    },
+    "ms_wei_ya": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "威压，以气势压制敌人使其伤害降低",
+        "name": "威压",
+    },
+    "ms_xi_xue": {
         "kind": "物理",
         "power": 1.5,
-        "desc": "从天俯冲攻击",
-        "name": "俯冲"
+        "desc": "吸血，吸取敌人生命恢复自身",
+        "name": "吸血",
+    },
+    "ms_xing_hui_dan": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "星辉弹，星光之力攻击敌人",
+        "name": "星辉弹",
+    },
+    "ms_xing_hui_zhan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "星辉斩，星光之刃斩击敌人",
+        "name": "星辉斩",
+    },
+    "ms_xing_xi": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "星息，星辰吐息攻击敌人",
+        "name": "星息",
+    },
+    "ms_xiong_zhang": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "熊掌，攻击敌人",
+        "name": "熊掌",
+    },
+    "ms_xiu_jian": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "锈剑，攻击敌人",
+        "name": "锈剑",
+    },
+    "ms_xiu_li": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "修理，修复自身机械结构恢复生命",
+        "name": "修理",
+    },
+    "ms_xuan_wo": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "漩涡，制造漩涡吞噬敌人",
+        "name": "漩涡",
+    },
+    "ms_yan_wu": {
+        "kind": "增益",
+        "effect": "def_up",
+        "desc": "烟雾，释放烟雾掩护自己",
+        "name": "烟雾",
+    },
+    "ms_yao_sui": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "咬碎，攻击敌人",
+        "name": "咬碎",
+    },
+    "ms_ying_guang_shan": {
+        "kind": "魔法",
+        "power": 1.4,
+        "desc": "荧光闪，荧光爆发攻击敌人",
+        "name": "荧光闪",
+    },
+    "ms_ying_hua": {
+        "kind": "增益",
+        "effect": "def_up",
+        "desc": "硬化，提升自身防御",
+        "name": "硬化",
+    },
+    "ms_yue_guang_zhan": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "月光斩，月华之刃斩击敌人",
+        "name": "月光斩",
+    },
+    "ms_yun_dan": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "云弹，云雾弹攻击敌人",
+        "name": "云弹",
+    },
+    "ms_yun_dun": {
+        "kind": "增益",
+        "effect": "shield",
+        "desc": "云盾，凝聚云雾形成护盾",
+        "name": "云盾",
+    },
+    "ms_yun_shi": {
+        "kind": "魔法",
+        "power": 2.2,
+        "desc": "陨石，召唤陨石轰击敌人",
+        "name": "陨石",
+    },
+    "ms_zai_sheng": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "再生，恢复自身生命",
+        "name": "再生",
+    },
+    "ms_zhan_chui": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "战锤，攻击敌人",
+        "name": "战锤",
+    },
+    "ms_zhan_hou": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "战吼，提升自身攻击",
+        "name": "战吼",
+    },
+    "ms_zhang_jian": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "长剑，攻击敌人",
+        "name": "长剑",
     },
     "ms_zhao_huan": {
         "kind": "增益",
         "effect": "summon",
-        "desc": "召唤援军",
-        "name": "召唤"
+        "desc": "召唤，召唤援军",
+        "name": "召唤",
     },
-    "ms_zhao_hun": {
+    "ms_zhao_huan_chu_shou": {
         "kind": "增益",
         "effect": "summon",
-        "desc": "招魂骷髅",
-        "name": "招魂"
+        "desc": "召唤触手，召唤援军",
+        "name": "召唤触手",
     },
-    "ms_di_dong": {
-        "kind": "物理",
-        "power": 1.8,
-        "desc": "引发地震",
-        "name": "地动"
-    },
-    "ms_lie_yan_zhen_ji": {
-        "kind": "魔法",
-        "power": 2.0,
-        "desc": "烈焰震击大地",
-        "name": "烈焰震击"
-    },
-    "ms_yan_jiang_pen_fa": {
-        "kind": "魔法",
-        "power": 2.4,
-        "desc": "岩浆喷发",
-        "name": "岩浆喷发"
-    },
-    "ms_fu_xi": {
-        "kind": "魔法",
-        "power": 1.8,
-        "desc": "腐败吐息",
-        "name": "腐息"
-    },
-    "ms_si_wang_zhi_wo": {
-        "kind": "魔法",
-        "power": 1.7,
-        "desc": "死亡之力扼住敌人",
-        "name": "死亡之握"
-    },
-    "ms_wu_yao_qi_she": {
-        "kind": "魔法",
-        "power": 2.2,
-        "desc": "齐射暗影能量",
-        "name": "巫妖齐射"
-    },
-    "ms_xu_kong_zhan": {
-        "kind": "物理",
-        "power": 2.0,
-        "desc": "虚空之力斩击",
-        "name": "虚空斩"
-    },
-    "ms_di_yu_huo": {
-        "kind": "魔法",
-        "power": 2.4,
-        "desc": "召唤地狱火",
-        "name": "地狱火"
-    },
-    "ms_an_ying_feng_bao": {
-        "kind": "魔法",
-        "power": 2.6,
-        "desc": "暗影风暴席卷",
-        "name": "暗影风暴"
-    },
-    "ms_hui_mie_zhi_ji": {
-        "kind": "魔法",
-        "power": 3.0,
-        "desc": "毁灭之力",
-        "name": "毁灭之击"
-    },
-    "ms_fu_wen_bao_fa": {
-        "kind": "魔法",
-        "power": 2.2,
-        "desc": "符文之力爆发",
-        "name": "符文爆发"
-    },
-    "ms_xian_zu_zhi_nu": {
-        "kind": "物理",
-        "power": 2.4,
-        "desc": "先祖之怒",
-        "name": "先祖之怒"
-    },
-    "ms_mi_yin_zhen_ji": {
-        "kind": "物理",
-        "power": 2.6,
-        "desc": "秘银之力震击",
-        "name": "秘银震击"
-    },
-    "ms_long_zhi_nu": {
-        "kind": "物理",
-        "power": 2.2,
-        "desc": "亚龙之怒",
-        "name": "龙之怒"
-    },
-    "ms_feng_bao_zhao_huan": {
+    "ms_zhao_huan_e_mo": {
         "kind": "增益",
-        "effect": "atk_up_strong",
-        "desc": "召唤风暴强化自身",
-        "name": "风暴召唤"
+        "effect": "summon",
+        "desc": "召唤恶魔，召唤援军",
+        "name": "召唤恶魔",
     },
-    "ms_bing_qiang": {
+    "ms_zhao_huan_feng_yu_jing_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤风语精灵，召唤援军",
+        "name": "召唤风语精灵",
+    },
+    "ms_zhao_huan_gong_cheng_shou": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤工程兽，召唤援军",
+        "name": "召唤工程兽",
+    },
+    "ms_zhao_huan_gu_chong": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤骨虫，召唤援军",
+        "name": "召唤骨虫",
+    },
+    "ms_zhao_huan_gu_long": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤骨龙，召唤援军",
+        "name": "召唤骨龙",
+    },
+    "ms_zhao_huan_hai_shou": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤海兽，召唤援军",
+        "name": "召唤海兽",
+    },
+    "ms_zhao_huan_ku_lou": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤骷髅，召唤援军",
+        "name": "召唤骷髅",
+    },
+    "ms_zhao_huan_lei_niao": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤雷鸟，召唤援军",
+        "name": "召唤雷鸟",
+    },
+    "ms_zhao_huan_lie_quan": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤猎犬，召唤援军",
+        "name": "召唤猎犬",
+    },
+    "ms_zhao_huan_lie_ying": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤猎鹰，召唤援军",
+        "name": "召唤猎鹰",
+    },
+    "ms_zhao_huan_long_zai": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤龙崽，召唤援军",
+        "name": "召唤龙崽",
+    },
+    "ms_zhao_huan_ru_chong": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤蠕虫，召唤援军",
+        "name": "召唤蠕虫",
+    },
+    "ms_zhao_huan_sha_yu": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤鲨鱼，召唤援军",
+        "name": "召唤鲨鱼",
+    },
+    "ms_zhao_huan_shen_yuan": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤深渊，召唤援军",
+        "name": "召唤深渊",
+    },
+    "ms_zhao_huan_shu_ren": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤树人，召唤援军",
+        "name": "召唤树人",
+    },
+    "ms_zhao_huan_shui_gui": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤水鬼，召唤援军",
+        "name": "召唤水鬼",
+    },
+    "ms_zhao_huan_shui_jing_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤水精灵，召唤援军",
+        "name": "召唤水精灵",
+    },
+    "ms_zhao_huan_shui_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤水灵，召唤援军",
+        "name": "召唤水灵",
+    },
+    "ms_zhao_huan_shui_mu": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤水母，召唤援军",
+        "name": "召唤水母",
+    },
+    "ms_zhao_huan_shui_shou": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤水手，召唤援军",
+        "name": "召唤水手",
+    },
+    "ms_zhao_huan_xian_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤仙灵，召唤援军",
+        "name": "召唤仙灵",
+    },
+    "ms_zhao_huan_xing_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤星灵，召唤援军",
+        "name": "召唤星灵",
+    },
+    "ms_zhao_huan_xue_lang": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤雪狼，召唤援军",
+        "name": "召唤雪狼",
+    },
+    "ms_zhao_huan_ying_bao": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤影豹，召唤援军",
+        "name": "召唤影豹",
+    },
+    "ms_zhao_huan_you_hun": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤幽魂，召唤援军",
+        "name": "召唤幽魂",
+    },
+    "ms_zhao_huan_you_jing": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤幼鲸，召唤援军",
+        "name": "召唤幼鲸",
+    },
+    "ms_zhao_huan_you_ling": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤幽灵，召唤援军",
+        "name": "召唤幽灵",
+    },
+    "ms_zhao_huan_you_long": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤幼龙，召唤援军",
+        "name": "召唤幼龙",
+    },
+    "ms_zhao_huan_yue_lu": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤月鹿，召唤援军",
+        "name": "召唤月鹿",
+    },
+    "ms_zhao_huan_yun_wei": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤云卫，召唤援军",
+        "name": "召唤云卫",
+    },
+    "ms_zhao_huan_zhen_jun_shou": {
+        "kind": "增益",
+        "effect": "summon",
+        "desc": "召唤真菌兽，召唤援军",
+        "name": "召唤真菌兽",
+    },
+    "ms_zhao_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "爪击，攻击敌人",
+        "name": "爪击",
+    },
+    "ms_zhi_hui": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "指挥，统率部众提升攻击",
+        "name": "指挥",
+    },
+    "ms_zhi_liao": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "治疗，治疗自身恢复生命",
+        "name": "治疗",
+    },
+    "ms_zhi_mang": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "致盲，使敌人攻击落空",
+        "name": "致盲",
+    },
+    "ms_zhi_wang": {
+        "kind": "魔法",
+        "power": 1.2,
+        "desc": "织网，束缚敌人",
+        "name": "织网",
+    },
+    "ms_zhi_yu": {
+        "kind": "增益",
+        "effect": "heal_self",
+        "desc": "治愈，治愈自身恢复生命",
+        "name": "治愈",
+    },
+    "ms_zhong_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "重击，攻击敌人",
+        "name": "重击",
+    },
+    "ms_zhu_fu": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "祝福，祝福自身提升攻击",
+        "name": "祝福",
+    },
+    "ms_zhuang_ji": {
+        "kind": "物理",
+        "power": 1.4,
+        "desc": "撞击，攻击敌人",
+        "name": "撞击",
+    },
+    "ms_zhuo_shao": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "灼烧，烈焰灼烧敌人",
+        "name": "灼烧",
+    },
+    "ms_zu_zhou": {
+        "kind": "魔法",
+        "power": 1.3,
+        "desc": "诅咒，降低敌人攻击",
+        "name": "诅咒",
+    },
+    "ms_zuan_di": {
         "kind": "增益",
         "effect": "def_up",
-        "desc": "冰墙守护",
-        "name": "冰墙"
+        "desc": "钻地，遁入地下躲避攻击",
+        "name": "钻地",
     },
-    "ms_tun_shi": {
-        "kind": "物理",
-        "power": 1.6,
-        "desc": "吞噬敌人回复生命",
-        "name": "吞噬"
-    },
-    "ms_fu_shen": {
-        "kind": "魔法",
-        "power": 1.4,
-        "desc": "怨灵附身",
-        "name": "附身"
-    },
-    "ms_bao_feng_zhi_nu": {
-        "kind": "魔法",
-        "power": 2.2,
-        "desc": "风暴之怒席卷",
-        "name": "暴风之怒"
-    },
-    "ms_sheng_guang_zhan": {
-        "kind": "物理",
-        "power": 2.0,
-        "desc": "圣光之力斩击",
-        "name": "圣光斩"
-    },
-    "ms_tian_fa": {
-        "kind": "魔法",
-        "power": 2.5,
-        "desc": "神圣天罚降临",
-        "name": "天罚"
-    },
-    "ms_shen_wei": {
-        "kind": "增益",
-        "effect": "atk_up_strong",
-        "desc": "神威加身，攻击大幅提升",
-        "name": "神威"
-    },
-    "ms_an_ying_qin_shi": {
-        "kind": "魔法",
-        "power": 2.2,
-        "desc": "暗影之力侵蚀敌人",
-        "name": "暗影侵蚀"
-    },
-    "ms_xu_kong_beng_ta": {
-        "kind": "魔法",
-        "power": 2.4,
-        "desc": "虚空崩塌，撕裂空间",
-        "name": "虚空崩塌"
-    },
-    "ms_an_ying_she_xian": {
-        "kind": "魔法",
-        "power": 2.6,
-        "desc": "暗影射线贯穿一切",
-        "name": "暗影射线"
-    },
-    "ms_an_ying_ling_yu": {
-        "kind": "魔法",
-        "power": 2.8,
-        "desc": "混沌领域笼罩战场",
-        "name": "暗影领域"
-    },
-    "ms_wang_quan_zhi_li": {
-        "kind": "魔法",
-        "power": 3.2,
-        "desc": "王权之力，毁灭与新生",
-        "name": "王权之力"
-    },
-    "ms_tun_shi_xu_kong": {
-        "kind": "物理",
-        "power": 2.4,
-        "desc": "吞噬虚空，回复自身",
-        "name": "吞噬虚空"
-    },
-    "ms_xuan_yun_zhong_ji": {
-        "kind": "物理",
-        "power": 1.2,
-        "mech": "stun",
-        "mech_val": 1,
-        "desc": "沉重的一击，可能将你打晕（v63 控制）",
-        "name": "眩晕重击"
-    },
-    "ms_chen_mo_jian_xiao": {
-        "kind": "魔法",
-        "power": 1.1,
-        "mech": "silence",
-        "mech_val": 1,
-        "desc": "刺耳尖啸，沉默敌人 2 回合（v63 控制）",
-        "name": "沉默尖啸"
-    },
-    "ms_han_bing_tu_xi": {
-        "kind": "魔法",
-        "power": 1.4,
-        "mech": "freeze",
-        "mech_val": 1,
-        "desc": "极寒吐息，概率冻结敌人（v63 控制）",
-        "name": "寒冰吐息"
-    }
 }

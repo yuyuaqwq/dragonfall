@@ -1245,7 +1245,7 @@ class CombatCmds(CommandBase):
         except (ValueError, TypeError):
             return 0
 
-    def _pvp_snapshot(self, p: dict) -> dict:
+    def _pvp_snapshot(self, p: dict, group_id: str = "", qq_id: str = "") -> dict:
         """玩家快照（PVP 战斗状态用）"""
         st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id))
         return {
@@ -1320,8 +1320,8 @@ class CombatCmds(CommandBase):
             "type": "pvp",
             "actor": "attacker",
             "attacker_qq": str(qq_id),
-            "attacker": self._pvp_snapshot(player),
-            "defender": self._pvp_snapshot(target_player),
+            "attacker": self._pvp_snapshot(player, group_id, qq_id),
+            "defender": self._pvp_snapshot(target_player, group_id, target_qq),
             "a_buffs": {}, "b_buffs": {},
         }
         db.save_battle(group_id, qq_id, state)
