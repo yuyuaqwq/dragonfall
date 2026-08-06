@@ -73,7 +73,7 @@ class CombatCmds(CommandBase):
                 monster = C.build_monster(cur_map["boss"], cur_map)
                 tag = "👑 BOSS"
             if monster:
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id)).to_state())
+                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
                 self._lock_battle(group_id, qq_id)
                 yield event.plain_result(
                     f"⚔️ 遭遇战斗！\n"
@@ -87,7 +87,7 @@ class CombatCmds(CommandBase):
             # 普通怪：50% 低概率（新手保护）
             if random.random() < 0.5 and events:
                 monster = C.build_monster(random.choice(events)[1], cur_map)
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id)).to_state())
+                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
                 self._lock_battle(group_id, qq_id)
                 hint = ""
                 if cur_map.get("elite"):
@@ -130,7 +130,7 @@ class CombatCmds(CommandBase):
             elif cur_map.get("boss"):
                 hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{cur_map['boss'][1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
-        db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id)).to_state())
+        db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
         self._lock_battle(group_id, qq_id)
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         yield event.plain_result(
@@ -1109,7 +1109,7 @@ class CombatCmds(CommandBase):
         if not boss.get("skills"):
             cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in ("物理", "魔法")]
             boss["skills"] = _rnd.sample(cand, min(2, len(cand)))
-        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id))
+        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player)
         db.save_battle(group_id, qq_id, nb.to_state())
         self._lock_battle(group_id, qq_id)
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
@@ -1352,7 +1352,7 @@ class CombatCmds(CommandBase):
         player["hp"] = state[my_key].get("hp", player["hp"])
         player["mp"] = state[my_key].get("mp", player["mp"])
         # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）
-        b = BT.Battle("pvp", enemy=dict(opp), title_bonus=self._title_bonus(group_id, qq_id))
+        b = BT.Battle("pvp", enemy=dict(opp), title_bonus=self._title_bonus(group_id, qq_id), player=player)
         b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
         if action == "skill":

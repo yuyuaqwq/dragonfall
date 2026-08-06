@@ -44,7 +44,7 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None):
         self.btype = btype                 # monster | worldboss | pvp
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
@@ -57,6 +57,11 @@ class Battle:
         self.team_effects: list = []         # v50 团队技能效果（副本全队广播用）
         self.mech_stacks: dict = {}          # v59 分支机制叠层（随战斗持久化，不再挂 player 避免每回合丢失）
         self.shield: int = 0                     # v59 护盾值（随战斗持久化，player 无此列会每回合丢）
+        # v2.0 核心资源（12 章 1.2：怒气/元素亲和/精力/信仰/连击点/气）
+        # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
+        self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
+        if player:
+            self._init_resources(player)
         # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
         self.p_progress: float = 0.0          # 玩家行动进度
         self.e_progress: float = 0.0          # 敌方行动进度
@@ -77,6 +82,7 @@ class Battle:
             "title_bonus": self.title_bonus,
             "mech_stacks": self.mech_stacks,
             "shield": self.shield,
+            "resources": self.resources,
             "p_progress": self.p_progress,
             "e_progress": self.e_progress,
             "p_extra_left": self.p_extra_left,
@@ -94,6 +100,7 @@ class Battle:
         b.e_defending = st.get("e_defending", False)
         b.mech_stacks = st.get("mech_stacks", {}) or {}
         b.shield = int(st.get("shield", 0) or 0)
+        b.resources = st.get("resources", {}) or {}
         b.team_effects = []
         # v61 进度条字段（老存档用 .get 兜底为 0）
         b.p_progress = float(st.get("p_progress", 0) or 0)
@@ -102,6 +109,34 @@ class Battle:
         b.e_extra_left = int(st.get("e_extra_left", 0) or 0)
         b.e_first = bool(st.get("e_first", False))
         return b
+
+    # ---------------- 核心资源（v2.0） ----------------
+    def _init_resources(self, player: dict):
+        """战斗开始：按职业初始化核心资源 dict。
+        元素亲和（法师）默认 fire；游侠精力满 100；其余 0。"""
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd:
+            return
+        k = rd["key"]
+        if k == "element":
+            self.resources[k] = "fire"
+        elif k == "energy":
+            self.resources[k] = rd.get("max", 100)
+        else:
+            self.resources[k] = 0
+
+    def _resource_label(self, player: dict) -> str:
+        """战斗状态栏显示核心资源（如 ⚡ 怒气 3/10）。"""
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd:
+            return ""
+        k = rd["key"]
+        v = self.resources.get(k, 0)
+        if k == "element":
+            return f"✦ {E.ELEMENT_CN.get(v, '?')}系"
+        return f"✦ {rd['name']} {v}/{rd['max']}"
 
     # ---------------- 玩家行动入口 ----------------
     def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True) -> tuple:
@@ -440,7 +475,20 @@ class Battle:
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
         self._apply_enchant_attack(effs, dmg, st, player, logs)
         self._set_attack_proc(player, dmg, logs)
+        # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
+        self._resource_on_attack(player)
         return logs
+
+    def _resource_on_attack(self, player: dict):
+        """v2.0 核心资源：普攻/技能命中自动获取（on_attack/on_skill）。"""
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd:
+            return
+        k = rd["key"]
+        gain = rd.get("on_attack", 0)
+        if gain:
+            self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
 
     def _apply_enchant_attack(self, effs: dict, dmg: int, st: dict, player: dict, logs: list):
         """v34：攻击后符文效果结算（灼烧/冻结/吸血/连锁/虚弱/破魔）"""
@@ -1154,6 +1202,16 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"🍃 气息调和生效，你回复了 {heal} 点生命！")
+        # v2.0 核心资源：回合回复（游侠精力 +25/回合）
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if rd and rd.get("regen", 0) > 0:
+            k = rd["key"]
+            old = self.resources.get(k, 0)
+            self.resources[k] = E.core_resource_regen(cls, self.resources)
+            new = self.resources[k]
+            if new > old:
+                logs.append(f"🍃 {rd['name']}回复 {new - old} 点（{new}/{rd['max']}）")
         return logs
 
     def _end_round(self):
@@ -1218,6 +1276,12 @@ class Battle:
             if dmg <= 0:
                 return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
+        # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if rd and rd.get("on_hit"):
+            k = rd["key"]
+            self.resources[k] = E.core_resource_gain(cls, self.resources, rd["on_hit"])
         # v64 被动·神圣坚韧：受击后 20% 概率回复 5% 生命
         if player["hp"] > 0 and "神圣坚韧" in pv:
             if random.random() < 0.20:

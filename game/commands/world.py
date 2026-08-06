@@ -431,7 +431,7 @@ class WorldCmds(CommandBase):
         # v49 意见#4：移动撞怪（生物趋避利害——低级闯高级区容易撞怪，高级玩家威慑低级区）
         ambush = self._travel_ambush(player, target)
         if ambush:
-            db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id)).to_state())
+            db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id), player=player).to_state())
             self._lock_battle(group_id, qq_id)
             yield event.plain_result(
                 f"🚶 你来到了【{target['name']}】\n{target['desc']}{lv_msg}{extra}{portal_msg}\n"

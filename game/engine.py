@@ -17,6 +17,91 @@ BRANCH_BONUS = {
 }
 
 # ============================================================
+# v2.0 核心资源系统（12 章 1.2 战斗资源总览）
+# 每职业一个独立战斗资源 dict，随战斗序列化（同 mech_stacks 机制）。
+# 阶段五先建引擎，技能数据落地（阶段六）后按技能表挂载获取/消耗。
+# ============================================================
+CORE_RESOURCES = {
+    "cls_zhan_shi": {
+        "key": "rage", "name": "怒气", "max": 10, "regen": 0,
+        "desc": "攻击/受击 +1-2，终结技消耗，越战越勇",
+        "on_attack": 1, "on_hit": 1, "on_skill": 2,
+    },
+    "cls_fa_shi": {
+        "key": "element", "name": "元素亲和", "max": 1, "regen": 0,
+        "desc": "火/冰/雷三系切换，施法触发元素反应",
+        "on_attack": 0, "on_hit": 0, "on_skill": 0, "type": "switch",
+    },
+    "cls_you_xia": {
+        "key": "energy", "name": "精力", "max": 100, "regen": 25,
+        "desc": "每回合回 25 点，技能消耗 15-40，不耗魔力",
+        "on_attack": 0, "on_hit": 0, "on_skill": 0,
+    },
+    "cls_mu_shi": {
+        "key": "faith", "name": "信仰值", "max": 10, "regen": 0,
+        "desc": "治疗/圣光技/受击 +1，神迹技消耗",
+        "on_attack": 0, "on_hit": 1, "on_skill": 1, "on_heal": 2,
+    },
+    "cls_ci_ke": {
+        "key": "cp", "name": "连击点", "max": 5, "regen": 0,
+        "desc": "攒点技积累，终结技消耗，潜行爆发",
+        "on_attack": 1, "on_hit": 0, "on_skill": 1,
+    },
+    "cls_quan_shi": {
+        "key": "chi", "name": "气", "max": 10, "regen": 0,
+        "desc": "连招/受击 +1，终结技/斗气消耗",
+        "on_attack": 1, "on_hit": 1, "on_skill": 1,
+    },
+}
+
+# 元素亲和可切换的系（法师）
+ELEMENT_OPTIONS = ["fire", "ice", "thunder"]
+ELEMENT_CN = {"fire": "火", "ice": "冰", "thunder": "雷"}
+
+
+def core_resource_def(class_name: str) -> dict:
+    """职业核心资源定义（v48：中文或 ID → ID）。无定义返回 {}。"""
+    cls_id = C.resolve("classes", class_name) if class_name else ""
+    return CORE_RESOURCES.get(cls_id, {})
+
+
+def core_resource_gain(class_name: str, resources: dict, amount: int, key: str = "") -> int:
+    """核心资源增加（带上限）。resources 是战斗内资源 dict（Battle 实例持有）。
+    返回新值。未配置上限/未定义的资源不限制。
+    """
+    rd = core_resource_def(class_name)
+    if not rd:
+        return resources.get(key, 0)
+    k = key or rd["key"]
+    cap = rd.get("max", 99)
+    return min(cap, resources.get(k, 0) + amount)
+
+
+def core_resource_spend(class_name: str, resources: dict, amount: int, key: str = "") -> bool:
+    """核心资源消耗。返回是否足够并扣除。不足则不扣返回 False。"""
+    rd = core_resource_def(class_name)
+    if not rd:
+        return True
+    k = key or rd["key"]
+    cur = resources.get(k, 0)
+    if cur < amount:
+        return False
+    resources[k] = cur - amount
+    return True
+
+
+def core_resource_regen(class_name: str, resources: dict) -> int:
+    """回合开始核心资源回复（如游侠精力 +25）。返回新值。"""
+    rd = core_resource_def(class_name)
+    if not rd:
+        return resources.get(rd.get("key", ""), 0)
+    k = rd["key"]
+    regen = rd.get("regen", 0)
+    if regen <= 0:
+        return resources.get(k, 0)
+    return min(rd["max"], resources.get(k, 0) + regen)
+
+# ============================================================
 # v59 叠层上限（防数值爆炸：一场战斗叠 25 层金身=无敌、灼烧 10 层=烧死 Boss）
 # 层数封顶后依然能用爆发技能一次性清空，只是限制无限滚雪球。
 # ============================================================
