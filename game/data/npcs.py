@@ -450,4 +450,76 @@ NPCS = {
         'funcs': ["quest"],
         'dialogue': "封印松动是必然的。你们的教会用谎言维持了三百年，也该到还债的时候了。",
     },
+
+    "npc_tavern_burnkettle": {
+        'name': "酒馆老板·烧壶",
+        'title': "霜角堡酒馆老板",
+        'map': "frost_horn",
+        'icon': "🍺",
+        'funcs': ['quest'],
+        'dialogue': "北境的冬天能冻死龙。帮我弄点雪狼皮，给守城的兄弟们做皮袄！",
+    },
+
+    "npc_wind_elder": {
+        'name': "大长老·云翼",
+        'title': "风翼城大长老",
+        'map': "wind_city",
+        'icon': "☁️",
+        'funcs': ['quest', 'lore'],
+        'dialogue': "风翼城守望天空三百年。云中圣殿的传承，是该找一个继承者了。",
+    },
+
+    "npc_elf_poet": {
+        'name': "精灵诗人·夜歌",
+        'title': "星语湖的精灵诗人",
+        'map': "starlake",
+        'icon': "🎵",
+        'funcs': ['quest', 'lore'],
+        'dialogue': "三百年前，一个人类骑士在这里向精灵姑娘求婚……戒指掉进了湖里。",
+    },
+
+    "npc_north_hunter": {
+        'name': "北境猎手·铁弓",
+        'title': "黑森林猎人",
+        'map': "black_forest",
+        'icon': "🏹",
+        'funcs': ['quest'],
+        'dialogue': "我弟弟……被腐牙兽人抓去了。他可能已经……但如果还有一丝希望，求你救救他。",
+    },
+
+    "npc_pilgrim": {
+        'name': "老朝圣者·灰袍",
+        'title': "烬山的朝圣者",
+        'map': "cinder_mountain",
+        'icon': "🗿",
+        'funcs': ['quest'],
+        'dialogue': "三百年前，我爷爷在这里亲眼看见英雄王走进封印。我来替他看看。",
+    },
+
+    "npc_war_scholar": {
+        'name': "亡灵学者·骨语",
+        'title': "古战场研究者",
+        'map': "ancient_battlefield",
+        'icon': "📖",
+        'funcs': ['quest', 'lore'],
+        'dialogue': "百族战争的亡魂还在游荡。他们不是怪物，是三百年前战死的英魂。",
+    },
+
+    "npc_druid_oakheart": {
+        'name': "老德鲁伊·橡心",
+        'title': "古树隘口的德鲁伊",
+        'map': "ancient_tree",
+        'icon': "🌳",
+        'funcs': ['quest', 'lore'],
+        'dialogue': "古树记得三百年前的一切：人类骑士和金色的守夜者，一起走向烬山。",
+    },
+
+    "npc_eter": {
+        'name': "封印守护者·蚀夜",
+        'title': "深渊封印的守护者",
+        'map': "ash_temple",
+        'icon': "✨",
+        'funcs': ["quest"],
+        'dialogue': "三百年来……终于有人走到这里。凡人，你是来杀我的吗？……不，你看懂了。就像当年的艾德里克一样。",
+    },
 }
