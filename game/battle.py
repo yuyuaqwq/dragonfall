@@ -61,6 +61,7 @@ class Battle:
         # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余回合数），随战斗序列化；回合结束递减
+        self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
         if player:
             self._init_resources(player)
         # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
@@ -85,6 +86,7 @@ class Battle:
             "shield": self.shield,
             "resources": self.resources,
             "cooldown": self.cooldown,
+            "combo_seq": self.combo_seq,
             "p_progress": self.p_progress,
             "e_progress": self.e_progress,
             "p_extra_left": self.p_extra_left,
@@ -104,6 +106,7 @@ class Battle:
         b.shield = int(st.get("shield", 0) or 0)
         b.resources = st.get("resources", {}) or {}
         b.cooldown = st.get("cooldown", {}) or {}
+        b.combo_seq = st.get("combo_seq", []) or []
         b.team_effects = []
         # v61 进度条字段（老存档用 .get 兜底为 0）
         b.p_progress = float(st.get("p_progress", 0) or 0)
@@ -160,6 +163,35 @@ class Battle:
             self.cooldown[k] -= 1
             if self.cooldown[k] <= 0:
                 del self.cooldown[k]
+
+    # ---------------- 连招序列（v2.0，拳师） ----------------
+    # 连招顺序：拳 → 踢 → 掌 →（三连触发）→ 重新开始
+    COMBO_ORDER = ["拳", "踢", "掌"]
+
+    def _combo_push(self, tag: str) -> bool:
+        """记录连招 tag（拳/踢/掌）。返回是否触发三连。
+        非连招 tag 不清空序列（只有非连招技能打断不重置）。"""
+        if tag not in self.COMBO_ORDER:
+            return False
+        expect = self.COMBO_ORDER[len(self.combo_seq)]
+        if tag == expect:
+            self.combo_seq.append(tag)
+        else:
+            # 顺序不对：从该 tag 重新开始（如果 tag 是起手拳则开始新序列）
+            self.combo_seq = [tag] if tag == self.COMBO_ORDER[0] else []
+        if len(self.combo_seq) == len(self.COMBO_ORDER):
+            self.combo_seq = []
+            return True
+        return False
+
+    def _combo_label(self) -> str:
+        """当前连招进度显示（如 拳→踢→_）。"""
+        if not self.combo_seq:
+            return ""
+        parts = list(self.combo_seq)
+        while len(parts) < len(self.COMBO_ORDER):
+            parts.append("_")
+        return "→".join(parts)
 
     # ---------------- 玩家行动入口 ----------------
     def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True) -> tuple:
@@ -761,6 +793,17 @@ class Battle:
             E.element_mark_apply(self.e_buffs, element, 1)
             if self.resources.get("element") is not None:
                 self.resources["element"] = element
+        # v2.0 连招序列：拳师 combo 字段推进（拳→踢→掌 三连触发额外效果）
+        combo_tag = info.get("combo", "")
+        if combo_tag:
+            combo_full = self._combo_push(combo_tag)
+            if combo_full:
+                combo_bonus = int(total * 0.30)
+                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - combo_bonus)
+                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！（下次斗气技 +20%）")
+                self.resources["combo_ready"] = 1
+            else:
+                logs.append(f"🥊 连招 {self._combo_label()}")
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
         self._apply_enchant_attack(effs, total, st, player, logs)
 
