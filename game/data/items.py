@@ -1521,6 +1521,18 @@ MATERIALS = {
         'price': 15,
         'name': "龙鳞药剂",
     },
+    "mat_sheng_guang_bai_he": {
+        "price": 30,
+        "name": "圣光百合"
+    },
+    "mat_qi_shi_tuan_hui_ji": {
+        "price": 35,
+        "name": "骑士团徽记"
+    },
+    "mat_luo_lan_de_duan_jian": {
+        "price": 50,
+        "name": "罗兰的断剑"
+    },
 }
 
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料

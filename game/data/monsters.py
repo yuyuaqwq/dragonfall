@@ -1165,4 +1165,16 @@ MONSTER_SKILLS = {
         "desc": "钻地，遁入地下躲避攻击",
         "name": "钻地",
     },
+    "ms_sheng_guang_zhui_bing": {
+        "kind": "物理",
+        "power": 1.6,
+        "desc": "圣光骑士团的追击剑术，攻击敌人",
+        "name": "追猎剑术"
+    },
+    "ms_sheng_guang_jian_zhen": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "罗兰的圣光剑阵，攻击敌人",
+        "name": "圣光剑阵"
+    },
 }

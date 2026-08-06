@@ -520,6 +520,30 @@ MAPS = [
         "healer": False,
         "hidden": False,
         "monsters": [
+            [
+                "m_knight_pursuer",
+                "圣光骑士团追兵",
+                "dps",
+                40,
+                [
+                    "ms_sheng_guang_zhui_bing"
+                ],
+                [
+                    "骑士团徽记"
+                ]
+            ],
+            [
+                "m_roland",
+                "罗兰·圣剑",
+                "dps",
+                44,
+                [
+                    "ms_sheng_guang_jian_zhen"
+                ],
+                [
+                    "罗兰的断剑"
+                ]
+            ],
             ["m_river_spirit", "水精灵", "healer", 38, ["ms_shui_dan", "ms_zhi_liao"], ["水精灵泪"]],
             ["m_mermaid", "鲛人", "dps", 40, ["ms_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
             ["m_river_dragon", "河龙", "tank", 44, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞"]],
@@ -2710,6 +2734,8 @@ MAP_BY_ID = {
         "healer": False,
         "hidden": False,
         "monsters": [
+            ["m_knight_pursuer", "圣光骑士团追兵", "dps", 40, ["ms_sheng_guang_zhui_bing"], ["骑士团徽记"]],
+            ["m_roland", "罗兰·圣剑", "dps", 44, ["ms_sheng_guang_jian_zhen"], ["罗兰的断剑"]],
             ["m_river_spirit", "水精灵", "healer", 38, ["ms_shui_dan", "ms_zhi_liao"], ["水精灵泪"]],
             ["m_mermaid", "鲛人", "dps", 40, ["ms_cha_ji", "ms_shui_dan"], ["鲛人鳞"]],
             ["m_river_dragon", "河龙", "tank", 44, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞"]],

@@ -685,6 +685,9 @@ class WorldCmds(CommandBase):
                         lines.append(f"  收集：{cur}/{obj['count']}")
                     elif obj.get("explore"):
                         lines.append(f"  前往：{C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}")
+                    elif obj.get("talk"):
+                        npc = C.NPCS.get(obj["talk"], {}).get("name", "？")
+                        lines.append(f"  交谈：与 {npc} 对话")
         else:
             lines.append("【主线】已全部完成！🎊")
         # 支线
@@ -852,12 +855,19 @@ class WorldCmds(CommandBase):
         if st == "pending":
             quests["main_status"] = "active"
             quests["main_progress"] = {}
+            # talk 型任务：与发布 NPC 交谈即达成目标（对话即完成）
+            obj = mq["objective"]
+            if obj.get("talk") and obj["talk"] == npc_id:
+                quests["main_status"] = "ready"
+                quests["main_progress"] = {obj["talk"]: 1}
             db.save_quests(group_id, qq_id, quests)
             lines.append(f"📜 【接取任务】『{mq['name']}』")
             if mq.get("story"):
                 lines.append(f"  📖 {mq['story']}")
             lines.append(f"  🎯 目标：{self._obj_text(mq['objective'])}")
             lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
+            if quests["main_status"] == "ready":
+                lines.append("  ✨ 交谈完成！再与这位 NPC 对话即可交付任务。")
         elif st == "ready":
             # 交任务领奖
             player = self._player(group_id, qq_id)
@@ -894,6 +904,9 @@ class WorldCmds(CommandBase):
             return f"收集 {obj['collect']} ×{obj['count']}"
         if obj.get("explore"):
             return f"前往 {C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}"
+        if obj.get("talk"):
+            npc = C.NPCS.get(obj["talk"], {})
+            return f"与 {npc.get('name', '？')} 交谈"
         return "？"
 
     def _quest_reputation(self, group_id, qq_id, npc_id):
