@@ -21,7 +21,7 @@ def _stage_for_lv(monster_lv: int) -> dict:
 
 def roll_blueprint(monster_lv: int):
     """精英/Boss 掉图纸：按怪物等级匹配阶段，随机掉一张该阶段职业图纸
-    返回图纸物品 data（type=图纸），用于打造毕业套（必需材料）。
+    返回图纸物品 data（type=图纸），用于锻造毕业套（必需材料）。
     """
     st = _stage_for_lv(monster_lv)
     label = st["label"]
@@ -34,13 +34,13 @@ def roll_blueprint(monster_lv: int):
         "price": st["gold"] // 5, "blueprint_for": prefix,
         "stage": label, "class": cls,
         # v56.4：玩家语言描述——不含内部 ID、不含"毕业套"开发者术语
-        "desc": f"{C.display('classes', cls)}·{prefix}套装打造图纸（{label}阶）",
+        "desc": f"{C.display('classes', cls)}·{prefix}套装锻造图纸（{label}阶）",
     }
 
 def roll_drop(monster_lv: int, role: str):
     """怪物死亡掉落：返回 (装备/图纸 or None, 材料名 or None, 金币, 经验)
     v41 装备 2.0：普通怪不再掉装备（0%）；精英/Boss 掉「图纸」而非成品装备，
-    装备统一走打造（图纸是打造毕业套的必需材料）。
+    装备统一走锻造（图纸是锻造毕业套的必需材料）。
     """
     if role == "elite":
         bp = roll_blueprint(monster_lv)

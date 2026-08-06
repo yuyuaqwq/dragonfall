@@ -334,7 +334,7 @@ DIALOGUES = {
                 ],
             },
             "shop": {
-                "text": "矮人打造的货，大陆上最好的！钱货两讫，童叟无欺！",
+                "text": "矮人锻造的货，大陆上最好的！钱货两讫，童叟无欺！",
                 "options": [
                     {"text": "告辞。", "next": "__end__"},
                 ],
@@ -837,12 +837,12 @@ DIALOGUES = {
             },
         },
     },
-    # ---------- 打造·铁匠大师奥格（铁港城） ----------
+    # ---------- 锻造·铁匠大师奥格（铁港城） ----------
     "npc_craft_master": {
         "start": "ask",
         "nodes": {
             "ask": {
-                "text": "打铁，凭的是手和心。想拜师学打造，先回答我——打造装备需要什么？",
+                "text": "打铁，凭的是手和心。想拜师学锻造，先回答我——锻造装备需要什么？",
                 "options": [
                     {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
                     {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},

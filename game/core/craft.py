@@ -7,7 +7,7 @@ from ..core.index import resolve, display as _display
 
 """《剑与魔法》数据层 - craft.py（v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文）"""
 def craft_recipe_make(name: str) -> dict | None:
-    """按配方打造一件装备（装备等级 = 配方 lv，名字 = 配方名）"""
+    """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）"""
     rec = CRAFT_RECIPES.get(name)
     if not rec:
         return None
@@ -54,7 +54,7 @@ def craft_recipes_by_material(text: str, max_show: int = 8):
     return out[:max_show]
 
 def craft_recipes_for_level(player_lv: int, max_show: int = 12):
-    """列出玩家可打造（lv 门槛 ±6 内）的配方"""
+    """列出玩家可锻造（lv 门槛 ±6 内）的配方"""
     out = []
     for name, rec in CRAFT_RECIPES.items():
         if rec["lv"] <= player_lv + 6 and rec["lv"] >= max(1, player_lv - 12):

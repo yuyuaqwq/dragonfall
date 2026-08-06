@@ -43,7 +43,7 @@ def main():
 
     print("【data·索引族：别名兼容】")
     check("LEGACY_MAP_ALIAS 非空（移动命令输入兼容）", len(C.LEGACY_MAP_ALIAS) > 0, str(len(C.LEGACY_MAP_ALIAS)))
-    check("CRAFT_RECIPE_ALIASES 非空（打造搜索别名）", len(C.CRAFT_RECIPE_ALIASES) > 0, str(len(C.CRAFT_RECIPE_ALIASES)))
+    check("CRAFT_RECIPE_ALIASES 非空（锻造搜索别名）", len(C.CRAFT_RECIPE_ALIASES) > 0, str(len(C.CRAFT_RECIPE_ALIASES)))
 
     print("\n结果: %d 通过, %d 失败" % (passed, failed))
     return failed == 0

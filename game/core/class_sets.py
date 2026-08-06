@@ -8,7 +8,7 @@ from ..core.index import pinyin_id
 def _build_class_sets():
     # v53.1：wtype 是中文（theme["wtype"]），用 WT_CN 反向映射转英文 ID。
     # 不能用 resolve("weapon_types", ...) —— 本函数在 _assembly 里比 weapon_types 索引构建更早执行，
-    # resolve 查不到会原样返回中文，导致生成配方 weapon_type="剑" → 打造时 generate_equip KeyError。
+    # resolve 查不到会原样返回中文，导致生成配方 weapon_type="剑" → 锻造时 generate_equip KeyError。
     _wt_rev = {v: k for k, v in WT_CN.items()}
     for cls, theme in CLASS_SET_THEMES.items():
         for idx, st in enumerate(CLASS_SET_STAGES):

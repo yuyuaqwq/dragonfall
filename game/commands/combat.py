@@ -177,7 +177,7 @@ class CombatCmds(CommandBase):
             gold = random.randint(15, 50) + player["level"] * 2
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
             extra = ""
-            # v41：宝箱不再掉成品装备（装备统一走打造），改为掉图纸/材料
+            # v41：宝箱不再掉成品装备（装备统一走锻造），改为掉图纸/材料
             if random.random() < 0.5:
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)

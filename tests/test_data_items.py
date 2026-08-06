@@ -45,7 +45,7 @@ def main():
     bad_wt = [(k, r.get("name"), r.get("weapon_type")) for k, r in C.CRAFT_RECIPES.items()
               if r.get("slot") == "weapon" and r.get("weapon_type") not in WT_IDS]
     check("所有武器配方 weapon_type 英文 ID", not bad_wt, str(bad_wt[:3]))
-    # 全部武器配方可打造（v53.1 修复前：毕业套武器 weapon_type 中文 → craft_recipe_make KeyError）
+    # 全部武器配方可锻造（v53.1 修复前：毕业套武器 weapon_type 中文 → craft_recipe_make KeyError）
     fail_make = []
     for k, r in C.CRAFT_RECIPES.items():
         if r.get("slot") == "weapon":
@@ -55,7 +55,7 @@ def main():
                     fail_make.append((k, r.get("name")))
             except Exception as e:
                 fail_make.append((k, str(e)))
-    check("全部武器配方可打造且名字正确", not fail_make, str(fail_make[:3]))
+    check("全部武器配方可锻造且名字正确", not fail_make, str(fail_make[:3]))
 
     print("【data·物品族：毕业套武器名不撞白装前缀（v53.1）】")
     WHITE_PREFIX = set(C.EQUIP_NAME_PREFIX["white"])

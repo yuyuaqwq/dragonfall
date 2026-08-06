@@ -6,10 +6,10 @@
   2. 首次动作自动激活（1/2 → 2/2 → 第3条被拦）
   3. 遗忘副业：位空出 + 等级清零
   4. 严格上限：位置满时已有等级也拦截；遗忘后自动激活
-  5. 强化归位打造：+N 需要打造 Lv.N
+  5. 强化归位锻造：+N 需要锻造 Lv.N
   6. 附魔归位炼金：需要炼金 Lv.2
   7. 代工：无副业要求 + 3 倍金币
-  8. 打造副业不足提示引流代工
+  8. 锻造副业不足提示引流代工
 """
 import sys, os, sqlite3, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -91,7 +91,7 @@ async def main():
     out = await cmd(m, "cooking", "g1", "w1", "烹饪 鱼汤")
     check("遗忘后老玩家自动激活", "cooking" in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
 
-    print("【v81 强化独立副业（原 v67 归位打造）】")
+    print("【v81 强化独立副业（原 v67 归位锻造）】")
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", cur_map="vila_street", gold=5000)
     add_equip("g1", "w1", "试炼剑")
@@ -119,7 +119,7 @@ async def main():
     add_mats("g1", "w1", count=6)  # 6 份：第一次代工消耗 5+3，剩 1 獠牙 → 第二次拦
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
     check("代工成功", "代工完成" in out and "铁剑" in out and "90 金币" in out, out[:200])
-    check("打造未激活", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
+    check("锻造未激活", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
     check("金币扣3倍", db.get_player("g1", "w1")["gold"] == 4910, str(db.get_player("g1", "w1")["gold"]))
     check("装备入包", db.count_item("g1", "w1", "铁剑") >= 1, "")
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
@@ -127,13 +127,13 @@ async def main():
     out = await cmd(m, "craft_commission", "g1", "w1", "代工")
     check("无参提示格式", "格式：代工" in out, out[:120])
 
-    print("【v67 打造引流】")
+    print("【v67 锻造引流】")
     add_mats("g1", "w1", count=10)
-    out = await cmd(m, "craft", "g1", "w1", "打造 铁剑")
-    check("打造未激活自动激活", "选择了「打造」" in out, out[:200])
+    out = await cmd(m, "craft", "g1", "w1", "锻造 铁剑")
+    check("锻造未激活自动激活", "选择了「锻造」" in out, out[:200])
     db.update_player("g1", "w1", level=35, gold=5000)
     add_mats("g1", "w1", count=10)
-    out = await cmd(m, "craft", "g1", "w1", "打造 雷霆之锤")
+    out = await cmd(m, "craft", "g1", "w1", "锻造 雷霆之锤")
     check("高等级配方提示引流代工", "代工" in out, out[:200])
 
     print(f"\n结果: {passed} 通过, {failed} 失败")

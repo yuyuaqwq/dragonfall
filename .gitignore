@@ -21,3 +21,4 @@ logs/
 
 # 测试临时文件
 *.tmp
+game/game_data.db.bak_old_world

@@ -40,7 +40,7 @@ def test_newline_trigger():
     check("意见+换行开头触发", re.match(pat_fb, "意见\n换行开头") is not None)
     # 其余改过正则的指令（抽查）
     pat_map = {n: p for p, n in handlers}
-    for name, word in [("craft", "打造 铁剑\n备注"), ("item_detail", "物品详情 铁剑\n看属性"),
+    for name, word in [("craft", "锻造 铁剑\n备注"), ("item_detail", "物品详情 铁剑\n看属性"),
                        ("skill", "技能 1\n继续"), ("instance_cmd", "副本\n组队")]:
         if name in pat_map:
             r = re.match(pat_map[name], word)

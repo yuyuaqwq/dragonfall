@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""commands 层：经济域（背包/打造/商店/市场/图鉴/强化/附魔）（源自 v10/v17/v21/v23/v40/v42/v62b/v83/v85）
+"""commands 层：经济域（背包/锻造/商店/市场/图鉴/强化/附魔）（源自 v10/v17/v21/v23/v40/v42/v62b/v83/v85）
 
 验证：
   1. 背包：分类筛选/物品详情/翻页/无空格
-  2. 打造：职业导航/材料不足/等级门槛/模糊搜索/配方详情
+  2. 锻造：职业导航/材料不足/等级门槛/模糊搜索/配方详情
   3. 商店：购买/金币扣除
   4. 市场：上架/下架/购入
   5. 图鉴：掉落来源查询
@@ -56,31 +56,31 @@ async def main():
     out = await cmd(m, "item_detail", "g1", "e1", "物品详情 1")
     check("物品详情有返回", len(out) > 5, out[:120])
 
-    print("【打造：可打造列表（v54）】")
-    out = await cmd(m, "craft", "g1", "e1", "打造")
-    check("只列可打造配方", "当前可打造" in out and "铁剑" in out, out[:200])
-    check("列表提示全部/职业", "打造 全部" in out and "打造 <职业>" in out, out[:200])
-    out = await cmd(m, "craft", "g1", "e1", "打造 全部")
+    print("【锻造：可锻造列表（v54）】")
+    out = await cmd(m, "craft", "g1", "e1", "锻造")
+    check("只列可锻造配方", "当前可锻造" in out and "铁剑" in out, out[:200])
+    check("列表提示全部/职业", "锻造 全部" in out and "锻造 <职业>" in out, out[:200])
+    out = await cmd(m, "craft", "g1", "e1", "锻造 全部")
     check("全部配方含未学标记", "未学" in out or "✅" in out, out[:200])
-    out = await cmd(m, "craft", "g1", "e1", "打造 战士")
+    out = await cmd(m, "craft", "g1", "e1", "锻造 战士")
     check("战士配方列表", "铁皮长剑" in out or "铁剑" in out, out[:120])
 
-    print("【打造：等级门槛】")
+    print("【锻造：等级门槛】")
     db.update_player("g1", "e1", level=3)
-    out = await cmd(m, "craft", "g1", "e1", "打造 混沌之核")
+    out = await cmd(m, "craft", "g1", "e1", "锻造 混沌之核")
     check("等级不够拦截", "锻造技艺" in out or "等级" in out, out[:120])
     db.update_player("g1", "e1", level=5)
 
-    print("【打造：材料不足】")
-    out = await cmd(m, "craft", "g1", "e1", "打造 铁剑")
+    print("【锻造：材料不足】")
+    out = await cmd(m, "craft", "g1", "e1", "锻造 铁剑")
     check("材料不足提示", "材料不足" in out, out[:120])
 
-    print("【打造：模糊搜索】")
+    print("【锻造：模糊搜索】")
     db.add_item("g1", "e1", "mat_lv_pi", {"name": "旅人皮革", "type": "材料", "stackable": True, "price": 8}, 5)
-    out = await cmd(m, "craft", "g1", "e1", "打造 皮甲")
-    check("别名搜索打造皮甲→旅人胸甲", "旅人胸甲" in out, out[:120])
+    out = await cmd(m, "craft", "g1", "e1", "锻造 皮甲")
+    check("别名搜索锻造皮甲→旅人胸甲", "旅人胸甲" in out, out[:120])
 
-    print("【打造：配方详情】")
+    print("【锻造：配方详情】")
     out = await cmd(m, "recipe_list", "g1", "e1", "配方 铁剑")
     check("配方详情显示铁剑", "铁剑" in out, out[:120])
     check("配方详情显示材料", "野狗獠牙" in out, out[:120])
@@ -110,21 +110,21 @@ async def main():
     check("装备武器有返回", "装备" in out or "无法" in out or "佩戴" in out, out[:120])
 
     print("【图纸学习制（v54）】")
-    # 未学图纸 → 打造毕业套被拦
+    # 未学图纸 → 锻造毕业套被拦
     db.update_player("g1", "e1", level=15, gold=100000)
-    out = await cmd(m, "craft", "g1", "e1", "打造 铁皮长剑")
+    out = await cmd(m, "craft", "g1", "e1", "锻造 铁皮长剑")
     check("未学图纸拦截", "学习" in out and "铁皮图纸" in out, out[:200])
     # 背包加图纸 → 懒迁移提示学习
     db.add_item("g1", "e1", "bp_tiepi", {"name": "铁皮图纸", "type": "图纸", "stackable": True, "blueprint_for": "铁皮", "price": 60})
-    out = await cmd(m, "craft", "g1", "e1", "打造 铁皮长剑")
+    out = await cmd(m, "craft", "g1", "e1", "锻造 铁皮长剑")
     check("背包有图纸提示学习", "『学习 铁皮图纸』" in out, out[:200])
     # 学习 → 解锁
     out = await cmd(m, "learn", "g1", "e1", "学习 铁皮图纸")
     check("学习解锁配方", "永久解锁" in out and "铁皮长剑" in out, out[:300])
     p = db.get_player("g1", "e1")
     check("learned_blueprints 记录", "铁皮图纸" in (p.get("learned_blueprints") or []), str(p.get("learned_blueprints")))
-    # 已学后打造不再提示图纸（材料不足也要显示材料而非图纸）
-    out = await cmd(m, "craft", "g1", "e1", "打造 铁皮长剑")
+    # 已学后锻造不再提示图纸（材料不足也要显示材料而非图纸）
+    out = await cmd(m, "craft", "g1", "e1", "锻造 铁皮长剑")
     check("已学不再要图纸", "学习" not in out and "材料不足" in out, out[:200])
     # 重复学习提示
     db.add_item("g1", "e1", "bp_tiepi2", {"name": "铁皮图纸", "type": "图纸", "stackable": True, "blueprint_for": "铁皮", "price": 60})

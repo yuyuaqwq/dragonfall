@@ -87,10 +87,10 @@ async def main():
     db.activate_prof("g1", "w1", "cooking")
     check("位置已满", len(db.get_activated_profs("g1", "w1")) >= 2, str(db.get_activated_profs("g1", "w1")))
     # 尝试拜罗莎（烹饪）——已在激活列表？不，activate 的是 cooking，要拜 crafting 之外的
-    # 拜奥格（打造）：位置满应拦截
+    # 拜奥格（锻造）：位置满应拦截
     db.update_player("g1", "w1", cur_map="ironharbor")
     out = await cmd(m, "find_npc", "g1", "w1", "找 奥格")
-    check("打造导师对话树", "图纸+材料" in out, out[:200])
+    check("锻造导师对话树", "图纸+材料" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("答对进实践", "5 份铁矿石" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
@@ -105,7 +105,7 @@ async def main():
     check("授业通过进入拜师礼", "学徒" in out, out[:300])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("位置满拦截拜师", "副业位已满" in out, out[:300])
-    check("未激活打造", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
+    check("未激活锻造", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
     check("未记录学徒", "craft" not in player.get("apprentices", []), str(player.get("apprentices")))
 
     print("【v81 对话树数据完整性】")

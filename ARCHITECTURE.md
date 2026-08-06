@@ -94,7 +94,7 @@ dragonfall/
 ## 五、服务层 game/services/
 
 > ⚠️ **未实施（v47 进度 65% 时的状态）**：命令层目前直接调 store/core。
-> 未来若出现跨领域编排重复，再抽 services 层（注册/转职/战斗结算/打造/公会等编排）。
+> 未来若出现跨领域编排重复，再抽 services 层（注册/转职/战斗结算/锻造/公会等编排）。
 
 ## 六、命令层 game/commands/
 
@@ -104,7 +104,7 @@ dragonfall/
 | `player.py` | PlayerCmds：注册/角色/排行/转职/称号/属性/加点/洗点/战力/技能系列/快捷 |
 | `world.py` | WorldCmds：地图/移动/传送/方碑/NPC/任务/每日/交任务/休息/住宿/传说/编年史 |
 | `combat.py` | CombatCmds：探索/攻击/技能/防御/逃跑/战斗结算/讨伐/PVP |
-| `economy.py` | EconomyCmds：背包/装备/卸下/使用/出售/商店/购买/打造/配方/强化/附魔/套装/图鉴/钓鱼/采集/采矿/炼金 |
+| `economy.py` | EconomyCmds：背包/装备/卸下/使用/出售/商店/购买/锻造/配方/强化/附魔/套装/图鉴/钓鱼/采集/采矿/炼金 |
 | `social.py` | SocialCmds：公会系列/组队/市场/上架/下架/购入/宠物/坐骑/世界事件/拍卖/竞拍 |
 | `misc.py` | MiscCmds：签到/百科/称号/成就/意见/帮助 |
 | `_registry.py` | COMMAND_REGEX 静态正则表（方法名→正则，自动生成，快捷指令测试回退用） |
@@ -133,9 +133,9 @@ tests/
 ├── test_store_progress.py       # 进度族：quests任务/battle_state战斗状态              5 断言
 ├── test_store_meta.py           # 统计族：feedback/stats/world_event/bestiary图鉴      4 断言
 │                                # ── commands 层（按功能域，1:1）──
-├── test_commands_layer.py       # commands 基础流程：注册→探索→攻击→背包→打造→快捷     16 断言
+├── test_commands_layer.py       # commands 基础流程：注册→探索→攻击→背包→锻造→快捷     16 断言
 ├── test_commands_battle.py      # 战斗域：Battle状态机/buff/分支机制/数值铁律/PVP      34 断言
-├── test_commands_economy.py     # 经济域：背包筛选/打造/商店/市场/图鉴/装备             19 断言
+├── test_commands_economy.py     # 经济域：背包筛选/锻造/商店/市场/图鉴/装备             19 断言
 ├── test_commands_world.py       # 世界域：地图/移动/传送/NPC/任务/事件/钓鱼/采集        14 断言
 ├── test_commands_social.py      # 社交域：公会/宠物/坐骑/意见/签到/成就                 13 断言
 ├── test_commands_skills.py      # 技能域：属性/加点/技能/升级/转职/声望/战力            12 断言

@@ -111,7 +111,7 @@ CRAFT_RECIPES = {
             "mat_lang_pi": 5
         },
         "gold": 200,
-        "desc": "以远古圣鹿之角打造的宝甲",
+        "desc": "以远古圣鹿之角锻造的宝甲",
         "name": "圣鹿之盾"
     },
     "rec_jing_gang_jian": {
@@ -176,7 +176,7 @@ CRAFT_RECIPES = {
             "mat_zuo_lang_quan_chi": 4
         },
         "gold": 300,
-        "desc": "黑石城精工打造的锁甲",
+        "desc": "黑石城精工锻造的锁甲",
         "name": "黑石战甲"
     },
     "rec_huang_yuan_hu_tui": {
@@ -377,7 +377,7 @@ CRAFT_RECIPES = {
             "mat_long_yi_hui_ji": 4
         },
         "gold": 2600,
-        "desc": "以飞龙之翼打造的强弓",
+        "desc": "以飞龙之翼锻造的强弓",
         "name": "龙翼长弓"
     },
     "rec_yue_shen_quan_zhang": {

@@ -3,7 +3,7 @@
 
 验证重构后的命令装配（Main Mixin）与核心流程：
   1. 注册 → 角色 → 地图 → 探索 → 攻击 全链路
-  2. 背包 / 打造 / 商店 基础命令
+  2. 背包 / 锻造 / 商店 基础命令
   3. 帮助指令含 6 大 Mixin 的命令
   4. 快捷指令静态表回退（test_v14 核心场景）
 """
@@ -45,11 +45,11 @@ async def main():
     out = await cmd(m, "attack", "g1", "q1", "攻击")
     check("攻击有返回", len(out) > 10, out[:80])
 
-    print("【commands 层：背包/打造/商店】")
+    print("【commands 层：背包/锻造/商店】")
     out = await cmd(m, "inventory", "g1", "q1", "背包")
     check("背包显示", "背包" in out or "空" in out or "狼皮" in out, out[:80])
-    out = await cmd(m, "craft", "g1", "q1", "打造")
-    check("打造显示", "铁匠" in out or "打造" in out or "配方" in out, out[:80])
+    out = await cmd(m, "craft", "g1", "q1", "锻造")
+    check("锻造显示", "铁匠" in out or "锻造" in out or "配方" in out, out[:80])
     out = await cmd(m, "shop", "g1", "q1", "商店")
     check("商店显示", "商店" in out or "购买" in out, out[:80])
 

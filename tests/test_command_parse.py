@@ -108,7 +108,7 @@ async def main():
     fuzz_hits = 0
     for i in range(200):
         # 随机中文命令词组合
-        w = random.choice(["背包", "技能", "物品", "打造", "公会", "攻击", "探索", "移动", "宠物", "属性", "任务", "地图", "垂钓"])
+        w = random.choice(["背包", "技能", "物品", "锻造", "公会", "攻击", "探索", "移动", "宠物", "属性", "任务", "地图", "垂钓"])
         n = random.choice(["", "1", "2", "材料", "详情", "学习", "升级", " 2", "5"])
         text = w + n
         hit = [name for (_, name), c in zip(handlers, comps) if c.search(text)]

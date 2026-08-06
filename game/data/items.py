@@ -455,7 +455,7 @@ MATERIALS = {
     },
     "mat_da_zao": {
         'price': 15,
-        'name': "打造",
+        'name': "锻造",
     },
     "mat_kuo_bei_bao": {
         'price': 15,

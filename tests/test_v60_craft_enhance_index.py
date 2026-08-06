@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""v60：打造列表指令修复 + 打造/强化支持背包序号（玩家意见 2026-08-05）
+"""v60：锻造列表指令修复 + 锻造/强化支持背包序号（玩家意见 2026-08-05）
 
 验证：
-  1. 『打造列表』是独立列表指令（修复：原 _strip_cmd 剥"打造"剩"列表"→ 报找不到配方）
-  2. 『打造列表 N』/『打造列表N』翻页（免空格粘页码）
-  3. 『打造 N』= 打造可打造列表第 N 个配方（序号与列表显示一致，1-based）
+  1. 『锻造列表』是独立列表指令（修复：原 _strip_cmd 剥"锻造"剩"列表"→ 报找不到配方）
+  2. 『锻造列表 N』/『锻造列表N』翻页（免空格粘页码）
+  3. 『锻造 N』= 锻造可锻造列表第 N 个配方（序号与列表显示一致，1-based）
   4. 『强化 N』= 强化背包第 N 件（与『物品详情 N』同语义，全背包连续编号）
   5. 强化序号越界 / 指向非装备的提示
 """
@@ -34,33 +34,33 @@ async def main():
     await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
     db.update_player("g1", "e1", cur_map="vila_street", level=5, gold=100000)
 
-    print("【打造列表指令（v60 修复）】")
-    out = await cmd(m, "craft", "g1", "e1", "打造列表")
-    check("打造列表=可打造列表", "当前可打造" in out, out[:200])
+    print("【锻造列表指令（v60 修复）】")
+    out = await cmd(m, "craft", "g1", "e1", "锻造列表")
+    check("锻造列表=可锻造列表", "当前可锻造" in out, out[:200])
     check("不再报找不到配方", "没有找到" not in out, out[:200])
-    check("提示序号打造", "打造 <序号>" in out, out[:200])
+    check("提示序号锻造", "锻造 <序号>" in out, out[:200])
 
-    print("【打造列表 翻页】")
+    print("【锻造列表 翻页】")
     # level=5 时配方足够多（>5 件）才有多页；无条件翻页应退到最后一页不报错
-    out = await cmd(m, "craft", "g1", "e1", "打造列表 2")
-    check("打造列表 2 翻页", "第 2/" in out or "第 1/1" in out, out[:200])
-    out = await cmd(m, "craft", "g1", "e1", "打造列表2")
-    check("免空格打造列表2", "第 2/" in out or "第 1/1" in out, out[:200])
-    out = await cmd(m, "craft", "g1", "e1", "打造列表 99")
+    out = await cmd(m, "craft", "g1", "e1", "锻造列表 2")
+    check("锻造列表 2 翻页", "第 2/" in out or "第 1/1" in out, out[:200])
+    out = await cmd(m, "craft", "g1", "e1", "锻造列表2")
+    check("免空格锻造列表2", "第 2/" in out or "第 1/1" in out, out[:200])
+    out = await cmd(m, "craft", "g1", "e1", "锻造列表 99")
     check("超页翻页兜底不报错", "📄 第 " in out, out[:200])
 
-    print("【打造 N 序号打造】")
-    out = await cmd(m, "craft", "g1", "e1", "打造")
+    print("【锻造 N 序号锻造】")
+    out = await cmd(m, "craft", "g1", "e1", "锻造")
     first_line = [l for l in out.splitlines() if l.strip() and not l.startswith(("🔨", "━", "📄", "💡"))][0]
     name_in_list = first_line.split(". ", 1)[-1] if ". " in first_line else first_line
     check("列表首条有名字", len(name_in_list) > 2, first_line[:120])
-    # 『打造 1』应走打造流程（材料不足/成功/金币不足），而不是"没有找到『1』的配方"
-    out = await cmd(m, "craft", "g1", "e1", "打造 1")
-    check("打造 1 走打造流程", "没有找到" not in out, out[:200])
-    check("打造 1 有配方响应", ("不足" in out or "成功" in out or "铁匠铺" in out or "Lv." in out), out[:200])
+    # 『锻造 1』应走锻造流程（材料不足/成功/金币不足），而不是"没有找到『1』的配方"
+    out = await cmd(m, "craft", "g1", "e1", "锻造 1")
+    check("锻造 1 走锻造流程", "没有找到" not in out, out[:200])
+    check("锻造 1 有配方响应", ("不足" in out or "成功" in out or "铁匠铺" in out or "Lv." in out), out[:200])
     # 越界
-    out = await cmd(m, "craft", "g1", "e1", "打造 999")
-    check("打造 999 越界提示", "没有第 999 个" in out, out[:200])
+    out = await cmd(m, "craft", "g1", "e1", "锻造 999")
+    check("锻造 999 越界提示", "没有第 999 个" in out, out[:200])
 
     print("【强化 N 背包序号】")
     # 背包第 1 件 = 材料（非装备）→ 提示不是装备
