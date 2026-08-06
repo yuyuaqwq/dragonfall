@@ -9,7 +9,7 @@
 - battle_state: 战斗状态
 - stats:      统计/成就
 - social:     声望/签到/市场/组队/公会/宠物
-- world:      图鉴/到访/世界事件/钓鱼
+- world:      图鉴/到访/世界事件/垂钓
 - feedback:   意见箱
 
 聚合导出全部函数，保持 `db.xxx` 调用兼容。

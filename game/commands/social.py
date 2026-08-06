@@ -644,7 +644,7 @@ class SocialCmds(CommandBase):
             mats = [it for it in items if it["data"].get("type") == "材料"]
             idx = int(mat_name)
             if idx < 1 or idx > len(mats):
-                yield event.plain_result(f"背包里没有第 {idx} 个材料（共 {len(mats)} 个）！打怪、『采集』、『采矿』可获得材料。")
+                yield event.plain_result(f"背包里没有第 {idx} 个材料（共 {len(mats)} 个）！打怪、『采集』、『挖掘』可获得材料。")
                 return
             target = mats[idx - 1]
         else:
@@ -654,7 +654,7 @@ class SocialCmds(CommandBase):
                     target = it
                     break
         if not target:
-            yield event.plain_result(f"背包里没有材料『{mat_name}』！打怪、『采集』、『采矿』可获得材料。")
+            yield event.plain_result(f"背包里没有材料『{mat_name}』！打怪、『采集』、『挖掘』可获得材料。")
             return
         # 喂食：饱食度+25，亲密度+5，经验+10
         db.remove_item(group_id, qq_id, target["key"])

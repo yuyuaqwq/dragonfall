@@ -22,7 +22,7 @@ from .. import battle as BT
 
 
 def no_prof_waiting():
-    """等待型副业（v55：钓鱼/采集/采矿）进行中时拦截该命令。
+    """等待型副业（v55：垂钓/采集/挖掘）进行中时拦截该命令。
 
     装饰 async generator 命令方法（命令类方法都是 yield event.plain_result 的 async generator）。
     用法（@filter.regex 的下方）：

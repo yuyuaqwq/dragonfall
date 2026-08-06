@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""commands 层：世界域（地图/移动/传送/NPC/任务/探索/事件/钓鱼/采集）（源自 v6/v6_events/v7/v11/v18/v19/v20/v30/v36/v38）
+"""commands 层：世界域（地图/移动/传送/NPC/任务/探索/事件/垂钓/采集）（源自 v6/v6_events/v7/v11/v18/v19/v20/v30/v36/v38）
 
 验证：
   1. 地图/移动：地图列表/移动/跨地图
@@ -8,7 +8,7 @@
   4. 任务：主线/每日/支线接取与交还
   5. 探索：野外探索/精英怪
   6. 世界事件：讨伐/拍卖
-  7. 钓鱼/采集/采矿
+  7. 垂钓/采集/挖掘
 """
 import sys, os, sqlite3, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -47,10 +47,10 @@ async def main():
     check("移动有返回", len(out) > 5, out[:120])
     p = db.get_player("g1", "w1")
     check("地图切换", p.get("cur_map") == "vila_street", str(p.get("cur_map")))
-    # v54.1 修复：钓鱼点地图查看不再抛 get_prof_level 缺参异常
+    # v54.1 修复：垂钓点地图查看不再抛 get_prof_level 缺参异常
     db.update_player("g1", "w1", cur_map="vila_gate")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
-    check("钓鱼点地图显示正常", len(out) > 5 and "钓鱼" in out or "此地" in out, out[:150])
+    check("垂钓点地图显示正常", len(out) > 5 and "垂钓" in out or "此地" in out, out[:150])
 
     print("【探索：野外】")
     db.update_player("g1", "w1", cur_map="vila_gate")
@@ -83,23 +83,23 @@ async def main():
     out = await cmd(m, "world_event", "g1", "w1", "事件")
     check("事件列表有返回", len(out) > 5, out[:120])
 
-    print("【钓鱼/采集】")
+    print("【垂钓/采集】")
     db.update_player("g1", "w1", cur_map="vila_gate")
     db.clear_battle("g1", "w1")  # v55：先清战斗状态（前面探索/事件可能进过战斗）
-    out = await cmd(m, "fishing", "g1", "w1", "钓鱼")
-    check("钓鱼有返回", len(out) > 5, out[:120])
-    # v55 等待制：开始钓鱼后是等待状态，立即再发提示剩余
-    out = await cmd(m, "fishing", "g1", "w1", "钓鱼")
-    check("钓鱼等待中提示剩余", "还在钓鱼" in out, out[:120])
-    # v55 等待制：钓鱼等待中采集被互斥拦截
+    out = await cmd(m, "fishing", "g1", "w1", "垂钓")
+    check("垂钓有返回", len(out) > 5, out[:120])
+    # v55 等待制：开始垂钓后是等待状态，立即再发提示剩余
+    out = await cmd(m, "fishing", "g1", "w1", "垂钓")
+    check("垂钓等待中提示剩余", "还在垂钓" in out, out[:120])
+    # v55 等待制：垂钓等待中采集被互斥拦截
     out = await cmd(m, "gather", "g1", "w1", "采集")
-    check("等待中采集互斥拦截", "还在钓鱼" in out, out[:120])
+    check("等待中采集互斥拦截", "还在垂钓" in out, out[:120])
     # v55 等待制：把完成时间改成过去 → 惰性结算 + 自动开新轮
     st = m._prof_wait_state("g1", "w1")
     st["finish"] = int(time.time()) - 1
     db.set_event_state(m._prof_wait_key("g1", "w1"), json.dumps(st, ensure_ascii=False))
-    out = await cmd(m, "fishing", "g1", "w1", "钓鱼")
-    check("钓鱼到期结算+自动开新", ("钓上来" in out or "钓上了" in out or "垃圾" in out or "宝物" in out or "鱼王" in out) and "开始钓鱼" in out, out[:200])
+    out = await cmd(m, "fishing", "g1", "w1", "垂钓")
+    check("垂钓到期结算+自动开新", ("钓上来" in out or "钓上了" in out or "垃圾" in out or "宝物" in out or "鱼王" in out) and "开始垂钓" in out, out[:200])
     # v55 等待制：清状态后采集正常开轮
     m._prof_wait_clear("g1", "w1")
     out = await cmd(m, "gather", "g1", "w1", "采集")
@@ -110,13 +110,13 @@ async def main():
     wait_hi = m._prof_wait_duration("fishing", lv)
     wait_lo = m._prof_wait_duration("fishing", 1)
     check("等待随等级缩短", wait_hi <= wait_lo and wait_hi >= 10, f"Lv{lv}={wait_hi}s Lv1={wait_lo}s")
-    # v55 装饰器统一互斥：钓鱼等待中 移动/传送/探索/副本/讨伐 全被拦
+    # v55 装饰器统一互斥：垂钓等待中 移动/传送/探索/副本/讨伐 全被拦
     m._prof_wait_clear("g1", "w1")  # 先清掉前面测试残留的采集等待
-    await cmd(m, "fishing", "g1", "w1", "钓鱼")
+    await cmd(m, "fishing", "g1", "w1", "垂钓")
     for hname, msg, label in [("move", "移动 维拉镇", "移动"), ("portal_travel", "传送 维拉镇", "传送"),
                                ("explore", "探索", "探索"), ("instance_cmd", "副本", "副本"), ("hunt_boss", "讨伐", "讨伐")]:
         out = await cmd(m, hname, "g1", "w1", msg)
-        check(f"副业等待中{label}被拦", "还在钓鱼" in out, out[:80])
+        check(f"副业等待中{label}被拦", "还在垂钓" in out, out[:80])
 
     print("【数据：主线任务完整性】")
     missing = [q for q in C.MAIN_QUESTS if not q.get("story") or not q.get("ending")] if hasattr(C, "MAIN_QUESTS") else []

@@ -7,7 +7,7 @@ from ..data.fishing import FISH_POOL, FISH_WEIGHTS, FISH_RARE_BONUS
 
 """《剑与魔法》核心 - fishing.py"""
 def roll_fish(prof_lv: int = 1):
-    """钓鱼结果：返回 FISH_POOL 中的一项。
+    """垂钓结果：返回 FISH_POOL 中的一项。
 
     副业等级越高，稀有鱼（金鲤/帝王鲑/珍珠/宝物）权重适度提升，
     鱼王权重单独按等级大幅提升（Lv.9+ 概率约为新手 5 倍）。

@@ -33,7 +33,7 @@ class MiscCmds(CommandBase):
 【冒险】地图 移动 探索 休息 住宿
 【战斗】攻击 防御 逃跑（详见『帮助 战斗』）
 【技能】技能 技能列表 技能详情 技能学习 技能升级（详见『帮助 技能』）
-【副业】采集 采矿 钓鱼 炼金 打造 烹饪 强化 附魔（详见『帮助 副业』）
+【副业】采集 挖掘 垂钓 炼金 打造 烹饪 强化 附魔（详见『帮助 副业』）
 【副本】组队 队伍 退队 副本（详见『帮助 副本』）
 【社交】公会 宠物 坐骑 市场 拍卖 快捷 签到 成就（详见『帮助 社交』）
 【世界】任务 主线 每日 找 交任务 事件 讨伐 声望 图鉴 百科 方碑 传送 地契 买房 回家 拜访（详见『帮助 世界』）
@@ -66,7 +66,7 @@ class MiscCmds(CommandBase):
 
     CMD_HELP_PROF = """⚔️ 【副业】指令
 ━━━━━━━━━━━━
-『采集』 『采矿』 『钓鱼』 野外副业，越高级地图产出越好
+『采集』 『挖掘』 『垂钓』 野外副业，越高级地图产出越好
 『副业』 副业面板（等级/经验/激活位 2/2）
 『遗忘副业 <名称>』 放弃一条副业（等级清零，重新选）
 『副业排行』 副业等级排行
@@ -81,7 +81,7 @@ class MiscCmds(CommandBase):
 『附魔 <装备> <符文名>』 给装备打符文（要炼金副业 Lv.2）
 💡 每人只能发展 2 条副业！练满再选新的需『遗忘副业』（等级清零）
 💡 副业 Lv.3/6/10 有成就和专属称号（大师称号有属性加成）
-💡 采集多产、钓鱼稀有、烹饪回血回蓝，是冒险的重要补给来源"""
+💡 采集多产、垂钓稀有、烹饪回血回蓝，是冒险的重要补给来源"""
 
     CMD_HELP_INSTANCE = """🏰 【组队副本】指令
 ━━━━━━━━━━━━
@@ -212,12 +212,12 @@ class MiscCmds(CommandBase):
             ("采药人", profs["gather"]["lv"] >= 3, f"采集 Lv.3（{profs['gather']['lv']}/3）"),
             ("草药专家", profs["gather"]["lv"] >= 6, f"采集 Lv.6（{profs['gather']['lv']}/6）"),
             ("万物采集大师", profs["gather"]["lv"] >= 10, f"采集 Lv.10（{profs['gather']['lv']}/10）"),
-            ("挖矿工", profs["mining"]["lv"] >= 3, f"采矿 Lv.3（{profs['mining']['lv']}/3）"),
-            ("矿脉猎手", profs["mining"]["lv"] >= 6, f"采矿 Lv.6（{profs['mining']['lv']}/6）"),
-            ("群山之王", profs["mining"]["lv"] >= 10, f"采矿 Lv.10（{profs['mining']['lv']}/10）"),
-            ("垂钓新手", profs["fishing"]["lv"] >= 3, f"钓鱼 Lv.3（{profs['fishing']['lv']}/3）"),
-            ("捕鱼能手", profs["fishing"]["lv"] >= 6, f"钓鱼 Lv.6（{profs['fishing']['lv']}/6）"),
-            ("深海渔神", profs["fishing"]["lv"] >= 10, f"钓鱼 Lv.10（{profs['fishing']['lv']}/10）"),
+            ("挖矿工", profs["mining"]["lv"] >= 3, f"挖掘 Lv.3（{profs['mining']['lv']}/3）"),
+            ("矿脉猎手", profs["mining"]["lv"] >= 6, f"挖掘 Lv.6（{profs['mining']['lv']}/6）"),
+            ("群山之王", profs["mining"]["lv"] >= 10, f"挖掘 Lv.10（{profs['mining']['lv']}/10）"),
+            ("垂钓新手", profs["fishing"]["lv"] >= 3, f"垂钓 Lv.3（{profs['fishing']['lv']}/3）"),
+            ("捕鱼能手", profs["fishing"]["lv"] >= 6, f"垂钓 Lv.6（{profs['fishing']['lv']}/6）"),
+            ("深海渔神", profs["fishing"]["lv"] >= 10, f"垂钓 Lv.10（{profs['fishing']['lv']}/10）"),
             ("炼金学徒", profs["alchemy"]["lv"] >= 3, f"炼金 Lv.3（{profs['alchemy']['lv']}/3）"),
             ("药剂师", profs["alchemy"]["lv"] >= 6, f"炼金 Lv.6（{profs['alchemy']['lv']}/6）"),
             ("贤者之石", profs["alchemy"]["lv"] >= 10, f"炼金 Lv.10（{profs['alchemy']['lv']}/10）"),

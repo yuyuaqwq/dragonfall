@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""data 层 · 世界族：地图 / 连接 / NPC / 传送门 / 钓鱼点 / 任务 / 事件
+"""data 层 · 世界族：地图 / 连接 / NPC / 传送门 / 垂钓点 / 任务 / 事件
 
 验证 MAP_BY_ID / MAP_CONNECTIONS / NPCS / PORTALS / FISHING_SPOTS 与任务事件池。
 """
@@ -35,7 +35,7 @@ def main():
     print("【data·世界族：传送门】")
     check("PORTALS 15 个", len(C.PORTALS) >= 10, str(len(C.PORTALS)))
 
-    print("【data·世界族：钓鱼点】")
+    print("【data·世界族：垂钓点】")
     check("FISHING_SPOTS 6 个", len(C.FISHING_SPOTS) >= 4, str(len(C.FISHING_SPOTS)))
     check("FISH_POOL 非空", hasattr(C, "FISH_POOL") and len(getattr(C, "FISH_POOL", [])) > 0, "FISH_POOL")
 

@@ -49,11 +49,11 @@ class WorldCmds(CommandBase):
             _fneed = _fi.get("min_lv", 1) if isinstance(_fi, dict) else 1
             _flv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "fishing") if player else 1
             _lock = " 🔒" if _flv < _fneed else ""
-            lines.append(f"🎣 钓鱼点·{_fname}（钓鱼Lv.{_fneed}）{_lock}（『钓鱼』）")
+            lines.append(f"🎣 垂钓点·{_fname}（垂钓Lv.{_fneed}）{_lock}（『垂钓』）")
         if mid in C.CAMP_SPOTS:
             lines.append(f"🔥 篝火营地·{C.CAMP_SPOTS[mid]}（『休息』恢复一半生命）")
         if mid in C.MINE_SPOTS:
-            lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『采矿』）")
+            lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『挖掘』）")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
             lines.append("🌿 野地可采集（『采集』）")
         # NPC（含功能）

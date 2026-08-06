@@ -24,7 +24,7 @@ from ..commands.base import CommandBase
 
 
 class EconomyCmds(CommandBase):
-    """背包/装备/打造/强化/商店/采集/钓鱼/炼金"""
+    """背包/装备/打造/强化/商店/采集/垂钓/炼金"""
 
     BAG_FILTER_TYPES = ["装备", "材料", "消耗品", "符文", "宠物蛋", "坐骑", "图纸", "鱼"]
 
@@ -44,12 +44,12 @@ class EconomyCmds(CommandBase):
             n += 1
         return [_rnd.choice(cand) for _ in range(n)]
 
-    # ---------------- 等待型副业（v55：钓鱼/采集/采矿） ----------------
+    # ---------------- 等待型副业（v55：垂钓/采集/挖掘） ----------------
     # 基准等待（秒）随机范围：fish/gather 45~75，mining 65~115；副业等级每级 -5%（上限 -50%），保底 10 秒
     _PROF_WAIT_BASE = {
-        "fishing": (45, 75, "钓鱼"),
+        "fishing": (45, 75, "垂钓"),
         "gather": (45, 75, "采集"),
-        "mining": (65, 115, "采矿"),
+        "mining": (65, 115, "挖掘"),
     }
 
     def _prof_wait_key(self, group_id, qq_id):
@@ -154,7 +154,7 @@ class EconomyCmds(CommandBase):
         # 鱼/材料入背包
         db.add_item(group_id, qq_id, f"fish_{fname}", {"name": fname, "type": fish["type"], "stackable": True, "price": fish["price"]})
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", 1)
-        lv_msg = f"\n🌟 钓鱼等级提升到 Lv.{new_lv}！" if leveled else ""
+        lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
         lv_msg += _msg
         return (f"🎣 你在{spot}钓上来一条【{fname}】！\n"
@@ -203,7 +203,7 @@ class EconomyCmds(CommandBase):
         oname = C.display("materials", ore)
         db.add_item(group_id, qq_id, ore, {"name": oname, "type": "材料", "stackable": True, "price": C.MATERIALS[ore]["price"]})
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "mining", 1)
-        lv_msg = f"\n🌟 采矿等级提升到 Lv.{new_lv}！" if leveled else ""
+        lv_msg = f"\n🌟 挖掘等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "mining")
         lv_msg += _msg
         return f"⛏️ 矿脉敲开了！你获得了 {oname} x{n}！（『背包』查看）{lv_msg}"
@@ -247,7 +247,7 @@ class EconomyCmds(CommandBase):
         )
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?采矿(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:挖掘|采矿)(?:\s*|$)")
 
     async def mining(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -262,7 +262,7 @@ class EconomyCmds(CommandBase):
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         # 矿脉点（v13：明确配置，地图上显示⛏️）
         if cur_map.get("id") not in C.MINE_SPOTS:
-            yield event.plain_result("这里没有矿脉！地图上会显示⛏️矿脉的位置，去那边『采矿』吧～")
+            yield event.plain_result("这里没有矿脉！地图上会显示⛏️矿脉的位置，去那边『挖掘』吧～")
             return
         # v55 等待制（原 90 秒 CD 改为随机等待，自动入包，等级减时）
         text, _ok = self._prof_wait_flow(
@@ -392,7 +392,7 @@ class EconomyCmds(CommandBase):
             lines.append(f"    {cost} → {C.display('items', next(iter(r['product'])))}")
         lines.append("")
         lines.append(f"💡 你当前烹饪等级 Lv.{cook_lv}，『烹饪 <料理名>』制作（如：烹饪 鱼汤）")
-        lines.append("💡 烹饪等级：采集植物 + 钓鱼 → 料理，成功制作 +1 经验")
+        lines.append("💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作 +1 经验")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪(?:\s*|$)")
@@ -428,7 +428,7 @@ class EconomyCmds(CommandBase):
                 mname = C.display("materials", m) if m.startswith("mat_") else C.display("fish", m)
                 lack.append(f"{mname}×{cnt}(你有{have})")
         if lack:
-            yield event.plain_result(f"食材不足！做【{r['name']}】还缺：{'、'.join(lack)}。钓鱼/采集收集食材～")
+            yield event.plain_result(f"食材不足！做【{r['name']}】还缺：{'、'.join(lack)}。垂钓/采集收集食材～")
             return
         # 扣食材
         for m, cnt in r["cost"].items():
@@ -556,8 +556,8 @@ class EconomyCmds(CommandBase):
     # ---------------- 每日副业任务 ----------------
     DAILY_PROF_TASKS = {
         "gather": ("采集", 5, 30),
-        "mining": ("采矿", 3, 30),
-        "fishing": ("钓鱼", 5, 30),
+        "mining": ("挖掘", 3, 30),
+        "fishing": ("垂钓", 5, 30),
         "alchemy": ("炼金合成", 2, 25),
         "craft": ("打造装备", 1, 40),
         "cooking": ("烹饪料理", 2, 25),
@@ -618,7 +618,7 @@ class EconomyCmds(CommandBase):
             lines.append("✨ 今日任务已完成，明天再来～")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?钓鱼(?:选择|点)?(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)")
 
     async def fishing(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -636,20 +636,20 @@ class EconomyCmds(CommandBase):
         cur = player["cur_map"]
         spot_info = C.FISHING_SPOTS.get(cur)
         if not spot_info:
-            yield event.plain_result("这里没有水域！找有水的地方钓鱼：城门护城河、林间溪流、翡翠湖畔、沼泽水潭、冰封湖面、死城运河")
+            yield event.plain_result("这里没有水域！找有水的地方垂钓：城门护城河、林间溪流、翡翠湖畔、沼泽水潭、冰封湖面、死城运河")
             return
         spot = spot_info["name"] if isinstance(spot_info, dict) else spot_info
-        # 钓鱼点分级：副业等级不足不能去高级水域
+        # 垂钓点分级：副业等级不足不能去高级水域
         prof_lv = db.get_prof_level(group_id, qq_id, "fishing")
         need = spot_info.get("min_lv", 1) if isinstance(spot_info, dict) else 1
         if prof_lv < need:
-            yield event.plain_result(f"🌊 {spot}是高级水域（需钓鱼 Lv.{need}，你 Lv.{prof_lv}）……先在低阶水域练练吧！")
+            yield event.plain_result(f"🌊 {spot}是高级水域（需垂钓 Lv.{need}，你 Lv.{prof_lv}）……先在低阶水域练练吧！")
             return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时；spot 存状态供结算消息用）
         text, _ok = self._prof_wait_flow(
             event, group_id, qq_id, "fishing",
             extra={"spot": spot},
-            begin_text=f"🎣 你在{spot}抛出鱼竿，开始钓鱼……预计 ",
+            begin_text=f"🎣 你在{spot}抛出鱼竿，开始垂钓……预计 ",
         )
         yield event.plain_result(act_msg + text)
 

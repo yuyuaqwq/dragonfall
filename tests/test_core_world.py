@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""core 层 · 世界族：钓鱼 / 传送
+"""core 层 · 世界族：垂钓 / 传送
 
 验证 roll_fish / portal_cost 等世界交互逻辑。
 """
@@ -19,7 +19,7 @@ def check(name, cond, detail=""):
 
 
 def main():
-    print("【core·世界族：钓鱼】")
+    print("【core·世界族：垂钓】")
     rf = getattr(C, "roll_fish", None)
     if rf:
         f = rf()
