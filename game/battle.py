@@ -359,6 +359,16 @@ class Battle:
             left = self._skill_cd_left(skill_name)
             logs.append(f"⏳【{skill_name}】还在冷却中（剩余 {left} 回合）！")
             return logs
+        # v2.0 核心资源：技能消耗检查（res_cost，如怒气/连击点/信仰/气）
+        res_cost = info.get("res_cost") or {}
+        if res_cost:
+            for rk, rv in res_cost.items():
+                if not E.core_resource_spend(player["class_name"], self.resources, rv, key=rk):
+                    rd = E.core_resource_def(player["class_name"])
+                    rname = rd.get("name", rk)
+                    cur = self.resources.get(rk, 0)
+                    logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}（『攻击』攒资源）")
+                    return logs
         if player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
             return logs
@@ -554,6 +564,26 @@ class Battle:
         if gain:
             self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
 
+    def _resource_on_skill(self, player: dict, info: dict = None):
+        """v2.0 核心资源：技能命中获取（on_skill 或技能 res_gain 覆盖）。
+        牧师治疗获取信仰（on_heal）。有 res_cost 的终结技不获取（消耗型）。"""
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd:
+            return
+        k = rd["key"]
+        # 终结技（有 res_cost）不获取资源
+        if info and info.get("res_cost"):
+            return
+        # 技能自带 res_gain 覆盖默认（如终结技 0 获取）
+        gain = 0
+        if info and info.get("res_gain") is not None:
+            gain = info["res_gain"]
+        elif rd.get("on_skill"):
+            gain = rd["on_skill"]
+        if gain:
+            self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
+
     def _apply_enchant_attack(self, effs: dict, dmg: int, st: dict, player: dict, logs: list):
         """v34：攻击后符文效果结算（灼烧/冻结/吸血/连锁/虚弱/破魔）"""
         if not effs:
@@ -632,6 +662,8 @@ class Battle:
             if info.get("team"):
                 self.team_effects.append({"kind": "heal_all", "power": info["power"], "lv": lv, "matk": st["matk"]})
                 logs.append(f"🌟【团队】圣光笼罩全队，所有人恢复 {heal} 点生命！")
+            # v2.0 核心资源：治疗获取信仰（on_heal=2）
+            self._resource_on_skill(player, info)
             return logs
         if kind == "增益":
             eff = info.get("effect")
@@ -675,6 +707,8 @@ class Battle:
                 st2 = self._player_stats(player)
                 self.team_effects.append({"kind": team, "effect": eff, "lv": lv, "stats": st2})
                 logs.append(f"🌟【团队】{info.get('name', skill_name)} 笼罩全队！")
+            # v2.0 核心资源：增益技能获取（如战吼怒气+3）
+            self._resource_on_skill(player, info)
             return logs
 
         if kind == "嘲讽":
@@ -816,26 +850,16 @@ class Battle:
             self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit)
 
         # ---- 技能特效（v9 落地）----
-        if skill_name == "处决":
-            bonus = int(total * (1 - self.enemy.get("hp", 0) / max(1, self.enemy.get("max_hp", 1))))
-            self.enemy["hp"] = max(0, self.enemy["hp"] - bonus)
-            logs[-1] = f"你施展【{skill_name}】，造成 {total + bonus} 点伤害（残血加成 {bonus}）！"
-        if skill_name == "破甲斩":
-            self.e_buffs["def_down"] = E.skill_buff_turns(lv)
-            logs[-1] += " 敌防下降！"
-        if skill_name == "寒冰箭":
-            self.e_buffs["spd_down"] = E.skill_buff_turns(lv)
-            logs[-1] += " 敌速下降！"
-        if skill_name == "毒箭":
-            self.e_buffs["poison"] = E.skill_buff_turns(lv)
-            logs[-1] += " 敌人中毒了！"
-        if skill_name in ("标记猎杀", "猎杀标记"):
-            self.e_buffs["mark"] = E.skill_buff_turns(lv)
-            logs[-1] += " 目标被标记！"
+        # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
         if info.get("effect") == "lifesteal":
             heal = int(total * E.skill_lifesteal_pct(info, lv))
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
+        # v2.0 破防（pierce 数据字段）：直接给敌方降防
+        if info.get("pierce") and self.enemy.get("hp", 0) > 0:
+            self.e_buffs["def_down"] = E.skill_buff_turns(lv)
+        # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/武僧气，res_gain 覆盖默认）
+        self._resource_on_skill(player, info)
         # ---- v10 套装攻击特效 ----
         if total > 0:
             self._set_attack_proc(player, total, logs)
@@ -914,6 +938,17 @@ class Battle:
         elif ctype == "player_chi_stacks":
             p_mech = self.mech_stacks
             if p_mech.get("chi", 0) >= cond.get("stacks", 3):
+                return mult
+        elif ctype == "player_res_stacks":
+            # v2.0 核心资源条件（怒气≥5 / 连击点≥3 / 信仰≥5 / 气≥3）
+            rk = cond.get("res_key", "rage")
+            if self.resources.get(rk, 0) >= cond.get("stacks", 3):
+                return mult
+        elif ctype == "player_first":
+            # v2.0 先手条件（速度高于目标）
+            pst = self._player_stats(player)
+            est = self._enemy_stats()
+            if pst.get("spd", 0) > est.get("spd", 0):
                 return mult
         return 1.0
 

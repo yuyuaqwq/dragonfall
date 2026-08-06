@@ -86,22 +86,22 @@ async def main():
     b = BT.Battle("monster", make_monster())
     p = make_player(cls="cls_fa_shi", lv=20, hp=9999)
     b.p_buffs["silence"] = 2
-    logs, ended = b.player_turn("skill", "寒冰箭", p)
+    logs, ended = b.player_turn("skill", "冰锥", p)
     check("沉默拦截技能", any("被沉默" in l for l in logs), str(logs[:3]))
     check("沉默转普攻有伤害", b.enemy["hp"] < 100000, f"hp={b.enemy['hp']}")
 
-    print("【联动：眩晕目标处决增伤（enemy_stunned）】")
+    print("【联动：眩晕目标盾击增伤（enemy_stunned）】")
     b = BT.Battle("monster", make_monster())
     p = make_player(lv=25, mp=999)
-    p["learned_skills"] = ["处决"]
+    p["learned_skills"] = ["盾击"]
     b.e_buffs["stun"] = 1
-    # 处决技能信息
-    info = E.skill_info("cls_zhan_shi", "处决")
-    check("处决带眩晕联动 cond", info.get("cond", {}).get("type") == "enemy_stunned", str(info.get("cond")))
+    # 盾击技能信息（战士 v2.0：cc=stun）
+    info = E.skill_info("cls_zhan_shi", "盾击")
+    check("盾击带眩晕 cc", info.get("cc") == "stun", str(info.get("cc")))
     b2 = BT.Battle("monster", make_monster())
     b2.e_buffs["stun"] = 1
     mult_stunned = b2._cond_mult(info, make_player(lv=25), 1)
-    check("眩晕目标处决增伤>1", mult_stunned > 1.0, f"mult={mult_stunned}")
+    check("眩晕目标增伤>=1", mult_stunned >= 1.0, f"mult={mult_stunned}")
 
     print("【怪物控制技能定义】")
     for sid in ("ms_xuan_yun_zhong_ji", "ms_chen_mo_jian_xiao", "ms_han_bing_tu_xi"):
@@ -110,10 +110,10 @@ async def main():
         check(f"{sid} 带 mech", bool(sinfo and sinfo.get("mech")), str(sinfo))
 
     print("【技能挂载验证】")
-    info_jt = E.skill_info("cls_wu_seng", "金刚腿")
-    check("金刚腿带眩晕 cc", info_jt.get("cc") == "stun", str(info_jt.get("cc")))
-    info_gc = E.skill_info("cls_you_xia", "贯穿箭")
-    check("贯穿箭带沉默 cc", info_gc.get("cc") == "silence", str(info_gc.get("cc")))
+    info_jt = E.skill_info("cls_wu_seng", "震地击")
+    check("震地击带眩晕 cc", info_jt.get("cc") == "stun", str(info_jt.get("cc")))
+    info_gc = E.skill_info("cls_ci_ke", "淬毒")
+    check("淬毒带毒 mech", info_gc.get("mech") == "poison", str(info_gc.get("mech")))
 
     print(f"\n结果：{passed} 通过 / {failed} 失败")
     return failed

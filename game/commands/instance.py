@@ -416,7 +416,7 @@ class InstanceCmds(CommandBase):
             return logs
         # 全队 buff（写入各自 p_buffs，Boss 回合按仇恨打时生效）
         buff_effects = {
-            "def_all": "def_up", "reduce_all": "def_up",
+            "def_all": "def_up", "reduce_all": "def_up", "atk_all": "atk_up",
             "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
         }
         if kind in buff_effects:

@@ -161,12 +161,12 @@ async def test_no_upgrade():
 # ---------- 10. 被动不占技能栏（设置技能时提示/不生效？跳过）----------
 def test_data_integrity():
     print("\n== 10. 数据完整性：被动不污染主动技能表 ==")
-    # 主动技能数应不变（各职业基础技能原本数量）
-    for cls, cname, expect in [("cls_zhan_shi", "战士", 16), ("cls_fa_shi", "法师", 16),
-                               ("cls_you_xia", "游侠", 16), ("cls_mu_shi", "牧师", 16),
-                               ("cls_ci_ke", "刺客", 16), ("cls_wu_seng", "武僧", 16)]:
+    # 阶段六：新世界每职业 10 主动 + 4 被动 = 14
+    for cls, cname, expect in [("cls_zhan_shi", "战士", 14), ("cls_fa_shi", "法师", 14),
+                               ("cls_you_xia", "游侠", 14), ("cls_mu_shi", "牧师", 14),
+                               ("cls_ci_ke", "刺客", 14), ("cls_wu_seng", "武僧", 14)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
-        check(f"{cname} 技能总数 {n} (16基础+4被动?)", n >= 16, f"实际 {n}")
+        check(f"{cname} 技能总数 {n} (10基础+4被动)", n == expect, f"实际 {n}")
 
 async def run_all():
     test_defs()

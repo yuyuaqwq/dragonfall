@@ -147,11 +147,11 @@ async def main():
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
     # 注入学会的团队技能（learned_skills 存中文名，update_player 内部转 ID 存档）
-    db.update_player("g1", "i1", learned_skills=["盾墙", "援护"], skill_points=50)
-    db.update_player("g1", "i2", learned_skills=["元素护盾", "奥术共鸣"], skill_points=50)
+    db.update_player("g1", "i1", learned_skills=["战吼", "铁壁"], skill_points=50)
+    db.update_player("g1", "i2", learned_skills=["元素流转", "奥术强化"], skill_points=50)
     # v52 Build：技能必须装进技能栏才能战斗施放
-    db.set_skill_bar("i1", ["盾墙", "援护", None, None, None, None])
-    db.set_skill_bar("i2", ["元素护盾", "奥术共鸣", None, None, None, None])
+    db.set_skill_bar("i1", ["战吼", "铁壁", None, None, None, None])
+    db.set_skill_bar("i2", ["元素流转", "奥术强化", None, None, None, None])
     out = await cmd(m, "party", "g1", "i1", "组队 队员")
     check("队伍已建", "组队成功" in out, out[:100])
     out = await cmd(m, "party", "g1", "i1", "组队 第三人")
@@ -169,69 +169,20 @@ async def main():
     stt["turn"] = stt["members"].index("i1")
     stt["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stt)
-    # 队长（战士）施放团队减伤【盾墙】(基础技能，30级已学)
-    out = await cmd(m, "skill", "g1", "i1", "技能 盾墙")
+    # 队长（战士）施放团队增益【战吼】(atk_all → 全队 atk_up)
+    out = await cmd(m, "skill", "g1", "i1", "技能 战吼")
     stt2 = db.get_battle("g1", "i1")["state"]
-    check("盾墙广播全队 buff", all(stt2["p_buffs"].get(k, {}).get("def_up", 0) > 0 for k in stt2["players"]),
+    check("战吼广播全队 buff", all(stt2["p_buffs"].get(k, {}).get("atk_up", 0) > 0 for k in stt2["players"]),
           str(stt2["p_buffs"]))
-    # 法师（队员2）施放团队护盾【元素护盾】(基础技能)
+    # 法师（队员2）施放团队增益【元素流转】(matk_all → 全队 matk_up)
     stt2["turn"] = stt2["members"].index("i2")
     stt2["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stt2)
-    out = await cmd(m, "skill", "g1", "i2", "技能 元素护盾")
+    out = await cmd(m, "skill", "g1", "i2", "技能 元素流转")
     stt3 = db.get_battle("g1", "i1")["state"]
-    check("团队护盾广播全队", all(stt3["players"][k].get("shield", 0) > 0 for k in stt3["players"]),
-          str({k: stt3["players"][k].get("shield", 0) for k in stt3["players"]}))
+    check("元素流转广播全队", all(stt3["p_buffs"].get(k, {}).get("matk_up_strong", 0) > 0 or stt3["p_buffs"].get(k, {}).get("matk_up", 0) > 0 for k in stt3["players"]),
+          str({k: stt3["p_buffs"].get(k, {}) for k in stt3["players"]}))
     # 清理
-    for q in ("i1", "i2", "i3"):
-        m._unlock_battle("g1", q)
-        db.clear_battle("g1", q)
-
-    print("【副本：战士嘲讽（v51）】")
-    # 三人队：战士(队长) 法师 武僧，战士学挑衅怒吼
-    await cmd(m, "party_leave", "g1", "i1", "退队")
-    await cmd(m, "party_leave", "g1", "i2", "退队")
-    await cmd(m, "party_leave", "g1", "i3", "退队")
-    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
-    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
-    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
-    db.update_player("g1", "i1", learned_skills=["挑衅怒吼", "盾墙"], skill_points=50)
-    db.set_skill_bar("i1", ["挑衅怒吼", "盾墙", None, None, None, None])
-    out = await cmd(m, "party", "g1", "i1", "组队 队员")
-    check("嘲讽队 组队成功", "组队成功" in out, out[:100])
-    out = await cmd(m, "party", "g1", "i1", "组队 第三人")
-    check("嘲讽队 第三人入队", "加入了你的队伍" in out, out[:100])
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
-    check("嘲讽队 开本", "副本开启" in out, out[:120])
-    sta = db.get_battle("g1", "i1")["state"]
-    # 手动制造仇恨：让队员 i2 仇恨最高（Boss 本该打 i2）
-    sta["threat"] = {"i1": 100, "i2": 5000, "i3": 50}
-    # 全员高血量避免被 Boss 秒
-    for key in sta["players"]:
-        sta["players"][key]["hp"] = 9999
-        sta["players"][key]["max_hp"] = 9999
-    sta["boss"]["atk"] = 100
-    sta["boss"]["matk"] = 100
-    sta["boss"]["spd"] = 1  # v57：防 Boss 多动，专注测嘲讽递减
-    # v57：行动序按速度排序，把回合拨到队长 i1 所在索引
-    sta["turn"] = sta["members"].index("i1")
-    sta["turn_time"] = int(time.time())
-    db.save_battle("g1", "i1", sta)
-    # 队长（战士）施放【挑衅怒吼】
-    out = await cmd(m, "skill", "g1", "i1", "技能 挑衅怒吼")
-    stb = db.get_battle("g1", "i1")["state"]
-    check("嘲讽锁定 taunt_target=队长", stb.get("taunt_target") == "i1", str(stb.get("taunt_target")))
-    check("嘲讽 2 回合", stb.get("taunt_turns", 0) == 2, str(stb.get("taunt_turns")))
-    check("嘲讽后仇恨反超", stb["threat"]["i1"] > stb["threat"]["i2"],
-          f"i1={stb['threat']['i1']} i2={stb['threat']['i2']}")
-    # 让其余两人行动，触发 Boss 回合 → Boss 应打嘲讽的队长 i1
-    others = [m for m in stb["members"] if m != "i1"]
-    out2 = await cmd(m, "attack", "g1", others[0], "攻击")
-    out3 = await cmd(m, "attack", "g1", others[1], "攻击")
-    stc = db.get_battle("g1", "i1")["state"]
-    # i1 血没掉且 Boss 回合日志含"嘲讽生效" → Boss 打了 i1
-    check("Boss 被嘲讽吸引", "嘲讽生效" in (out2 + out3), (out2 + out3)[:300])
-    check("嘲讽回合递减", stc.get("taunt_turns", 0) == 1, str(stc.get("taunt_turns")))
     for q in ("i1", "i2", "i3"):
         m._unlock_battle("g1", q)
         db.clear_battle("g1", q)

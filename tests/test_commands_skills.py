@@ -79,23 +79,23 @@ async def main():
     print("【流派（v52 Build 系统）】")
     # 查看流派列表
     out = await cmd(m, "build_view", "g1", "k1", "流派")
-    check("流派列表含狂暴流", "狂暴流" in out, out[:200])
-    check("流派列表含守护流", "守护流" in out, out[:200])
-    # 战士 10 级：能学会狂暴流前几招（猛击lv1/血刃斩lv3/破甲斩lv5/狂暴连斩lv8/怒吼lv10）
+    check("流派列表含狂战流", "狂战流" in out, out[:200])
+    check("流派列表含盾卫流", "盾卫流" in out, out[:200])
+    # 战士 10 级：能学会狂战流前几招（挥砍lv1/破甲斩lv8/旋风斩lv14 需要等级）
     db.update_player("g1", "k1", skill_points=50)
-    for sname in ("猛击", "破甲斩", "狂暴连斩"):
+    for sname in ("挥砍", "破甲斩"):
         await cmd(m, "skill_learn", "g1", "k1", f"技能学习 {sname}")
     # 一键配置流派（学会的进技能栏，没学会的标记🔒）
-    out = await cmd(m, "build_view", "g1", "k1", "流派 狂暴流")
+    out = await cmd(m, "build_view", "g1", "k1", "流派 狂战流")
     check("流派切换提示", "已切换" in out, out[:200])
     check("流派提示未学技能", "未学会" in out, out[:200])
     bar = db.get_skill_bar("k1")
-    check("技能栏装入了已学技能", "狂暴连斩" in bar and bar.count(None) >= 4, str(bar))
+    check("技能栏装入了已学技能", "挥砍" in bar and bar.count(None) >= 4, str(bar))
     # 战斗强制技能栏：没装的技能不能用
     out = await cmd(m, "skill_learn", "g1", "k1", "技能学习 旋风斩")
-    check("学会旋风斩(15级需等级)", "需要 Lv.15" in out, out[:120])
+    check("学会旋风斩(14级需等级)", "需要 Lv.14" in out, out[:120])
     # 设置技能 → 技能栏；未设置的技能释放被拦截（模拟战斗场景前先验证设置技能命令）
-    out = await cmd(m, "skill_bar_set", "g1", "k1", "设置技能 6 狂暴连斩")
+    out = await cmd(m, "skill_bar_set", "g1", "k1", "设置技能 6 挥砍")
     check("设置技能成功", "技能栏 6" in out, out[:120])
 
     print("【转职：分支查看】")
@@ -120,31 +120,31 @@ async def main():
     # 2) 每技能单独策划（SKILL_UP 差异化）：按名字取 info
     def _info(sname):
         return E.skill_info("战士", sname) or E.skill_info("法师", sname) or E.skill_info("武僧", sname) or E.skill_info("牧师", sname) or E.skill_info("刺客", sname) or E.skill_info("游侠", sname)
-    mj = _info("猛击")
-    check("猛击伤害 Lv.5=148%(p12)", abs(E.skill_power_mult(5, mj) - 1.48) < 1e-9, str(E.skill_power_mult(5, mj)))
+    mj = _info("挥砍")
+    check("挥砍伤害 Lv.5=148%(p12)", abs(E.skill_power_mult(5, mj) - 1.48) < 1e-9, str(E.skill_power_mult(5, mj)))
     zy = _info("治愈术")
     check("治愈术 Lv.5=160%(p15 治疗核心)", abs(E.skill_power_mult(5, zy) - 1.6) < 1e-9, str(E.skill_power_mult(5, zy)))
-    bl = _info("百裂拳")
-    check("百裂拳 Lv.5=128%(p7 多段低频)", abs(E.skill_power_mult(5, bl) - 1.28) < 1e-9, str(E.skill_power_mult(5, bl)))
-    sb = _info("碎冰术")
-    check("碎冰术条件 Lv.4=×2.0(max4)", abs(E.skill_cond_mult(sb["cond"], 4, sb) - 2.0) < 1e-9, str(E.skill_cond_mult(sb["cond"], 4, sb)))
-    xz = _info("裂空斩")
-    check("裂空斩叠层 Lv.3=2(max3)", E.skill_mech_val(xz, 3) == 2, str(E.skill_mech_val(xz, 3)))
-    check("独立满级：碎冰术上限4", E.skill_max_level(sb) == 4, str(E.skill_max_level(sb)))
-    check("独立满级：裂空斩上限3", E.skill_max_level(xz) == 3, str(E.skill_max_level(xz)))
-    xr = _info("血刃斩")
-    check("血刃斩吸血 Lv.5=28%", abs(E.skill_lifesteal_pct(xr, 5) - 0.28) < 1e-9, str(E.skill_lifesteal_pct(xr, 5)))
-    check("SKILL_UP 覆盖全部技能", len(E.SKILL_UP) >= 80, f"{len(E.SKILL_UP)} 个")
+    bl = _info("连招三连")
+    check("连招三连 Lv.5=128%(p7 多段低频)", abs(E.skill_power_mult(5, bl) - 1.28) < 1e-9, str(E.skill_power_mult(5, bl)))
+    sb = _info("圣光惩击")
+    check("圣光惩击条件 Lv.4=×1.64", abs(E.skill_cond_mult(sb["cond"], 4, sb) - 1.64) < 1e-9, str(E.skill_cond_mult(sb["cond"], 4, sb)))
+    xz = _info("毒雾")
+    check("毒雾叠层 Lv.3=3", E.skill_mech_val(xz, 3) == 3, str(E.skill_mech_val(xz, 3)))
+    check("独立满级：圣光惩击上限5", E.skill_max_level(sb) == 5, str(E.skill_max_level(sb)))
+    check("独立满级：毒雾上限5", E.skill_max_level(xz) == 5, str(E.skill_max_level(xz)))
+    xr = _info("淬毒")
+    check("淬毒毒层 Lv.5=4层", E.skill_mech_val(xr, 5) == 4, str(E.skill_mech_val(xr, 5)))
+    check("SKILL_UP 覆盖全部技能", len(E.SKILL_UP) >= 50, f"{len(E.SKILL_UP)} 个")
     # 3) 升级命令输出多维描述（伤害+叠层都能看到，不再只报一个倍率）
     db.update_player("g1", "k1", skill_points=50)
-    out = await cmd(m, "skill_upgrade", "g1", "k1", "技能升级 猛击")
-    check("技能升级猛击成功且多维", "升级到 Lv." in out and "伤害" in out, out[:150])
+    out = await cmd(m, "skill_upgrade", "g1", "k1", "技能升级 挥砍")
+    check("技能升级挥砍成功且多维", "升级到 Lv." in out and "伤害" in out, out[:150])
     # 4) 无空格序号（v56 正则修复：『技能升级1』不再被吞）
     out = await cmd(m, "skill_upgrade", "g1", "k1", "技能升级1")
     check("技能升级1(无空格)能解析", "格式：" not in out, out[:150])
-    # 5) 显示修复（v56.1）：技能详情按序号查 → 显示中文名而非 sk_xxx ID
+    # 5) 技能详情序号查询显示中文名
     out = await cmd(m, "skill_detail", "g1", "k1", "技能详情 1")
-    check("技能详情1显示中文名", "sk_" not in out and "【猛击】" in out, out[:150])
+    check("技能详情1显示中文名", "sk_" not in out and "【挥砍】" in out, out[:150])
     # 6) 源码正则防回归：必须能接住紧贴序号（(?:.*)$ 或 v59 改的 (?:[\s\S]*)$ 均可）
     _src_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "game", "commands", "player.py")
     with open(_src_path, encoding="utf-8") as _f:
