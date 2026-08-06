@@ -690,8 +690,35 @@ class Battle:
             passive_bonus *= 1.10
         if "烈焰亲和" in pv and "火" in (skill_name or "") and kind == "魔法":
             passive_bonus *= 1.10
+        # v2.0 元素反应：当前系 × 目标印记（技能带 element 字段时判定）
+        element = info.get("element", "")
+        reaction_mult = 1.0
+        reaction_log = ""
+        if element and E.ELEMENT_MARKS.get(element):
+            marks = {k: v for k, v in self.e_buffs.items() if k in E.ELEMENT_MARKS.values()}
+            r = E.element_reaction(element, marks)
+            if r:
+                reaction_mult = r["mult"]
+                reaction_log = f"💥{r['name']}！"
+                # 超载：额外全体伤害（对非当前目标模拟为追加单体伤害的 20%）
+                if r["extra"] == "aoe":
+                    aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
+                    self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - aoe_dmg)
+                    reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
+                # 冻结：目标冻结 1 回合
+                elif r["extra"] == "freeze":
+                    self.e_buffs["freeze"] = 1
+                    reaction_log = "❄️冻结！目标被冰封 1 回合！"
+                # 感电：连击 +1（追加一次伤害）
+                elif r["extra"] == "chain":
+                    multi += 1
+                    reaction_log = "⚡感电连锁！追加一次攻击！"
+                # 清除印记（感电保留）
+                if r["clear"]:
+                    for mk in E.ELEMENT_MARKS.values():
+                        self.e_buffs.pop(mk, None)
         total = 0
-        pmult = E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult * magic_bonus * passive_bonus
+        pmult = E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult * magic_bonus * passive_bonus * reaction_mult
         for _ in range(multi):
             if kind == "物理":
                 if info.get("pierce"):
@@ -727,6 +754,13 @@ class Battle:
             tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
         if tags:
             logs[-1] += " " + "·".join(tags)
+        if reaction_log:
+            logs.append(reaction_log)
+        # v2.0 元素印记：施放带 element 的技能后给目标挂印记 + 法师切换当前系
+        if element and E.ELEMENT_MARKS.get(element):
+            E.element_mark_apply(self.e_buffs, element, 1)
+            if self.resources.get("element") is not None:
+                self.resources["element"] = element
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
         self._apply_enchant_attack(effs, total, st, player, logs)
 

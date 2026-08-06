@@ -57,6 +57,46 @@ CORE_RESOURCES = {
 # 元素亲和可切换的系（法师）
 ELEMENT_OPTIONS = ["fire", "ice", "thunder"]
 ELEMENT_CN = {"fire": "火", "ice": "冰", "thunder": "雷"}
+# 元素印记 key（存敌方 e_buffs，层数）
+ELEMENT_MARKS = {"fire": "fire_mark", "ice": "ice_mark", "thunder": "thunder_mark"}
+
+# ============================================================
+# v2.0 元素反应（12 章 3.1，严格按策划案表）
+# 当前系 × 目标印记 → 反应：
+#   蒸发 = 火印(目标) + 水/冰(当前系) → 增伤 30%，清除印记
+#   超载 = 雷印(目标) + 火(当前系)   → 全体 120% 伤害，清除印记
+#   冻结 = 冰印(目标) + 水(当前系)   → 冻结 1 回合（法师暂无水系技能，预留）
+#   感电 = 雷印(目标) + 雷(当前系)   → 连击 +1，印记保留
+# ============================================================
+ELEMENT_REACTIONS = {
+    ("ice", "fire_mark"):      {"name": "蒸发", "mult": 1.30, "clear": True, "extra": ""},
+    ("fire", "thunder_mark"):  {"name": "超载", "mult": 1.00, "clear": True, "extra": "aoe"},
+    ("water", "ice_mark"):     {"name": "冻结", "mult": 1.00, "clear": True, "extra": "freeze"},
+    ("thunder", "thunder_mark"): {"name": "感电", "mult": 1.00, "clear": False, "extra": "chain"},
+}
+
+
+def element_reaction(cur_element: str, target_marks: dict) -> dict | None:
+    """判定元素反应。
+    cur_element: 当前系 fire/ice/thunder
+    target_marks: 敌方印记 dict（key 见 ELEMENT_MARKS，值为层数）
+    返回反应 dict 或 None：{"name", "mult", "clear", "extra"}
+    """
+    for mark_key, layers in target_marks.items():
+        if layers and layers > 0:
+            r = ELEMENT_REACTIONS.get((cur_element, mark_key))
+            if r:
+                return r
+    return None
+
+
+def element_mark_apply(target_marks: dict, element: str, layers: int = 1, max_layers: int = 5) -> dict:
+    """给目标挂元素印记（带上限）。返回更新后的印记 dict。"""
+    mark_key = ELEMENT_MARKS.get(element, "")
+    if not mark_key:
+        return target_marks
+    target_marks[mark_key] = min(max_layers, target_marks.get(mark_key, 0) + layers)
+    return target_marks
 
 
 def core_resource_def(class_name: str) -> dict:
