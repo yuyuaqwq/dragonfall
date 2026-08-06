@@ -551,11 +551,12 @@ class InstanceCmds(CommandBase):
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):
                 mat = random.choice(mats) if mats else None
-                if mat and mat in C.MATERIALS:
-                    mname = C.display("materials", mat)
-                    db.add_item(group_id, m, mat, {
+                mat_id = C.resolve("materials", mat) if mat else None  # v48：中文名 → ID
+                if mat_id and mat_id in C.MATERIALS:
+                    mname = C.display("materials", mat_id)
+                    db.add_item(group_id, m, mat_id, {
                         "name": mname, "type": "材料", "stackable": True,
-                        "price": C.MATERIALS[mat]["price"],
+                        "price": C.MATERIALS[mat_id]["price"],
                     })
                     lines.append(f"  🎒 {p['name']} 拾取：{mname}")
         # 贡献最高 → 职业图纸

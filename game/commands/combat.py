@@ -851,9 +851,10 @@ class CombatCmds(CommandBase):
             # 精英/Boss：从专属掉落里多抽几种
             chosen = random.sample(monster["drops"], min(drop_count, len(monster["drops"])))
             for mat_name in chosen:
-                if mat_name in C.MATERIALS:
-                    mname = C.display("materials", mat_name)
-                    db.add_item(group_id, qq_id, mat_name, {"name": mname, "type": "材料", "stackable": True, "price": C.MATERIALS[mat_name]["price"]})
+                mid = C.resolve("materials", mat_name)  # v48：中文名 → ID
+                if mid in C.MATERIALS:
+                    mname = C.display("materials", mid)
+                    db.add_item(group_id, qq_id, mid, {"name": mname, "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
                     drop_lines.append(f"🎒 拾取材料：{mname}")
             if not chosen:
                 material = None

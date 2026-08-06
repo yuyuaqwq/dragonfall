@@ -323,7 +323,7 @@ MAPS = [
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_fort_ghost", "要塞幽灵", "boss", 24, ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"], ["要塞残片"]],
         "npcs": [],
     },
     {
@@ -654,7 +654,7 @@ MAPS = [
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_trial_knight", "试炼骑士长", "boss", 46, ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"], ["试炼徽记"]],
         "npcs": [],
     },
     {
@@ -932,7 +932,7 @@ MAPS = [
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_moon_guard", "月神守卫", "boss", 68, ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"], ["月辉碎片"]],
         "npcs": [],
     },
     {
@@ -1237,7 +1237,7 @@ MAPS = [
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_frost_lord", "冰霜领主", "boss", 84, ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"], ["永冻之核"]],
         "npcs": [],
     },
     {
@@ -1494,7 +1494,7 @@ MAPS = [
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_storm_king", "风暴龙王", "boss", 98, ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"], ["风暴之核"]],
         "npcs": [],
     },
     {
@@ -2601,7 +2601,7 @@ MAP_BY_ID = {
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_fort_ghost", "要塞幽灵", "boss", 24, ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"], ["要塞残片"]],
         "npcs": [],
     },
     "maple_village": {
@@ -2899,7 +2899,7 @@ MAP_BY_ID = {
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_trial_knight", "试炼骑士长", "boss", 46, ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"], ["试炼徽记"]],
         "npcs": [],
     },
     "ironshield_town": {
@@ -3169,7 +3169,7 @@ MAP_BY_ID = {
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_moon_guard", "月神守卫", "boss", 68, ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"], ["月辉碎片"]],
         "npcs": [],
     },
     "windvale": {
@@ -3464,7 +3464,7 @@ MAP_BY_ID = {
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_frost_lord", "冰霜领主", "boss", 84, ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"], ["永冻之核"]],
         "npcs": [],
     },
     "aurora_town": {
@@ -3715,7 +3715,7 @@ MAP_BY_ID = {
         "monsters": [
         ],
         "elite": None,
-        "boss": None,
+        "boss": ["b_storm_king", "风暴龙王", "boss", 98, ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"], ["风暴之核"]],
         "npcs": [],
     },
     "redridge_plateau": {

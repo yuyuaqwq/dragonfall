@@ -1634,7 +1634,117 @@ MATERIALS = {
         "price": 350,
         "name": "古代鱼骨"
     },
+    # ---- 阶段四：5 个新副本 Boss 专属材料（04 章补登，13 章 5.7 登记）----
+    "mat_yao_sai_can_pian": {
+        "price": 60,
+        "name": "要塞残片"
+    },
+    "mat_shi_lian_hui_ji": {
+        "price": 90,
+        "name": "试炼徽记"
+    },
+    "mat_yue_hui_sui_pian": {
+        "price": 130,
+        "name": "月辉碎片"
+    },
+    "mat_yong_dong_zhi_he": {
+        "price": 180,
+        "name": "永冻之核"
+    },
+    "mat_feng_bao_zhi_he": {
+        "price": 230,
+        "name": "风暴之核"
+    },
+}
+
+# ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============
+# 价格按 13 章货币说明：银币/金币数值直接取整为金币（1 银币 = 1 金币）
+# heal/mana 为百分比（0.2 = 回复 20% HP），use 命令会转绝对值；旧固定值物品（heal>=1）兼容
+CONSUMABLES = {
+    # ---- 2.1 药水（回复类） ----
+    "i_treat_s": {"name": "治疗药水（小）", "price": 10, "heal": 0.2,
+                  "desc": "回复 20% HP"},
+    "i_treat_m": {"name": "治疗药水（中）", "price": 30, "heal": 0.4,
+                  "desc": "回复 40% HP"},
+    "i_treat_l": {"name": "治疗药水（大）", "price": 100, "heal": 0.6,
+                  "desc": "回复 60% HP"},
+    "i_mana_s": {"name": "魔法药水（小）", "price": 10, "mana": 0.2,
+                 "desc": "回复 20% MP"},
+    "i_mana_m": {"name": "魔法药水（中）", "price": 30, "mana": 0.4,
+                 "desc": "回复 40% MP"},
+    "i_mana_l": {"name": "魔法药水（大）", "price": 100, "mana": 0.6,
+                 "desc": "回复 60% MP"},
+    "i_full_potion": {"name": "全效药水", "price": 50, "heal": 0.3, "mana": 0.3,
+                      "desc": "回复 30% HP + 30% MP"},
+    "i_holy_water": {"name": "圣水", "price": 80, "heal": 0.25,
+                     "desc": "回复 25% HP 并驱散 1 层负面"},
+    # ---- 2.2 食物（非战斗回复 + 持续 buff） ----
+    "i_bread": {"name": "黑面包", "price": 5, "heal": 0.3,
+                "desc": "非战斗回复 30% HP"},
+    "i_meat_skewer": {"name": "烤肉串", "price": 15, "heal": 0.5,
+                      "desc": "非战斗回复 50% HP"},
+    "i_ale": {"name": "麦酒", "price": 10, "heal": 0.15, "mana": 0.15,
+              "desc": "回复 15% HP/MP"},
+    "i_stew": {"name": "炖菜", "price": 20, "heal": 0.4, "mana": 0.2,
+               "desc": "非战斗回复 40% HP + 20% MP"},
+    "i_elf_fruit": {"name": "精灵果", "price": 30, "heal": 0.3, "mana": 0.3,
+                    "desc": "非战斗回复 30% HP + 30% MP"},
+    "i_dwarf_liquor": {"name": "矮人烈酒", "price": 40, "effect": "buff_atk",
+                       "desc": "攻击 +5%，持续 3 场战斗"},
+    # ---- 3 药剂（战斗中瞬时 buff） ----
+    "i_str_potion": {"name": "力量药剂", "price": 100, "effect": "buff_atk",
+                     "desc": "本回合攻击 +30%"},
+    "i_def_potion": {"name": "铁壁药剂", "price": 100, "effect": "buff_def",
+                     "desc": "本回合防御 +30%"},
+    "i_spd_potion": {"name": "疾风药剂", "price": 100, "effect": "buff_spd",
+                     "desc": "本回合速度 +30%"},
+    "i_fury_potion": {"name": "狂怒药剂", "price": 200, "effect": "buff_atk",
+                      "desc": "下一次攻击 +50%"},
+    "i_holy_potion": {"name": "圣光药剂", "price": 100, "effect": "buff_matk",
+                      "desc": "本回合治疗效果 +20%"},
+    "i_dragon_scale_potion": {"name": "龙鳞药剂", "price": 200, "effect": "buff_def",
+                              "desc": "本回合魔法减伤 +15%"},
+    "i_battlecry_potion": {"name": "战吼药剂", "price": 300, "effect": "buff_atk",
+                           "desc": "本回合攻击 +40%（爆发）"},
+    "i_lucky_potion": {"name": "幸运药剂", "price": 200, "effect": "buff_crit",
+                       "desc": "本回合暴击率 +20%"},
+    # ---- 4 卷轴（一次性法术） ----
+    "i_scroll_fireball": {"name": "火球卷轴", "price": 200,
+                          "desc": "战斗内 120% 单体火系"},
+    "i_scroll_ice": {"name": "冰锥卷轴", "price": 200,
+                     "desc": "战斗内 100% 单体 + 减速"},
+    "i_scroll_heal": {"name": "治愈卷轴", "price": 200, "heal": 0.4,
+                      "desc": "战斗内回复 40% HP"},
+    "i_scroll_purify": {"name": "净化卷轴", "price": 300,
+                        "desc": "战斗内驱散全队负面"},
+    "i_scroll_teleport": {"name": "传送卷轴", "price": 500,
+                          "desc": "立即返回最近城镇"},
+    "i_scroll_revive": {"name": "唤醒卷轴", "price": 1000,
+                        "desc": "战斗内复活（回复 50% HP）"},
+    "i_scroll_goblin": {"name": "召唤卷轴·哥布林", "price": 500,
+                        "desc": "召唤 1 只哥布林助战"},
+    # ---- 07 章 6.3 ----
+    "i_holy_charm": {"name": "圣光护符", "price": 100,
+                     "desc": "驱散一次负面状态"},
+    "i_moon_dew": {"name": "月之露", "price": 50, "heal": 0.5, "mana": 0.5,
+                   "desc": "战斗外回复 50% HP/MP"},
+    # ---- 旧 ID 别名（兼容旧测试/旧数据引用，内容对齐新世界） ----
+    "i_treatment_potion": {"name": "治疗药水", "price": 10, "heal": 0.2,
+                           "desc": "回复 20% HP"},
+    "i_mana_potion": {"name": "魔法药水", "price": 10, "mana": 0.2,
+                      "desc": "回复 20% MP"},
+    "i_great_treatment": {"name": "强效治疗药水", "price": 30, "heal": 0.4,
+                          "desc": "回复 40% HP"},
+    "i_great_mana": {"name": "强效魔法药水", "price": 30, "mana": 0.4,
+                     "desc": "回复 40% MP"},
+    "i_super_treatment": {"name": "超级治疗药水", "price": 100, "heal": 0.6,
+                          "desc": "回复 60% HP"},
+    "i_super_mana": {"name": "超级魔法药水", "price": 100, "mana": 0.6,
+                     "desc": "回复 60% MP"},
+    "i_scroll_escape": {"name": "回城卷轴", "price": 500,
+                        "desc": "立即返回最近城镇"},
 }
 
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料
 ITEMS = dict(MATERIALS)
+ITEMS.update(CONSUMABLES)

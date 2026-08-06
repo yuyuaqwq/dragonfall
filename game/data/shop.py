@@ -1,414 +1,206 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - shop.py（v48 武器类型/品质转英文 ID）"""
+"""奥兰迪亚·余烬纪年 数据层 - shop.py（阶段四重写，2026-08-06）
+
+商店体系（07 章 6.2 城镇特色 + 6.3 消耗品 + 13 章 2.1/2.2/3/4）：
+- SHOP_ITEMS：key = 城镇地图 ID（24 城镇，按等级递进补货）
+- SHOP_WEAPONS：key = 城镇地图 ID，值 = (名字, 武器类型英文ID, 等级, 品质ID)
+  武器名来自 10 章装备名册（商店可售的基础/进阶武器）
+"""
 SHOP_ITEMS = {
-    "vila": [
-        "i_treatment_potion",
-        "i_mana_potion",
-        "i_scroll_escape"
+    # ---- 南境（Lv.1-30） ----
+    "oak_town": [          # 橡木镇 新手村：基础补给
+        "i_treat_s", "i_mana_s", "i_bread", "i_ale", "i_scroll_escape",
     ],
-    "stonefist": [
-        "i_treatment_potion",
-        "i_mana_potion",
-        "i_great_treatment",
-        "i_scroll_escape"
+    "maple_village": [     # 枫橡村
+        "i_treat_s", "i_mana_s", "i_bread", "i_ale",
     ],
-    "redridge": [
-        "i_great_treatment",
-        "i_great_mana",
-        "i_scroll_escape"
+    "white_deer": [        # 白鹿城 南境首府
+        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_meat_skewer", "i_ale",
     ],
-    "blackrock": [
-        "i_great_treatment",
-        "i_great_mana",
-        "i_scroll_escape"
+    "ironharbor": [        # 铁港城 冒险者圣地：全种类
+        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_meat_skewer", "i_stew", "i_scroll_teleport",
     ],
-    "shadow_city": [
-        "i_great_treatment",
-        "i_great_mana",
-        "i_scroll_escape"
+    "silver_brook": [      # 银溪镇
+        "i_treat_m", "i_mana_m", "i_meat_skewer", "i_ale",
     ],
-    "holy": [
-        "i_great_treatment",
-        "i_great_mana",
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    # ---- 中域（Lv.25-55） ----
+    "dawn_city": [         # 晨曦城 王都：圣光/药剂
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_holy_water", "i_str_potion",
+        "i_def_potion", "i_spd_potion", "i_scroll_purify", "i_holy_charm",
     ],
-    "elf_court": [
-        "i_great_treatment",
-        "i_great_mana",
-        "i_super_treatment",
-        "i_scroll_escape"
+    "ironshield_town": [   # 铁盾镇
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion",
     ],
-    "dragon_ridge": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    "jade_port": [         # 翡翠港（外域·群岛门户）
+        "i_treat_m", "i_mana_m", "i_meat_skewer", "i_ale", "i_scroll_teleport",
     ],
-    "void_rift": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    "shell_town": [        # 贝壳镇
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_meat_skewer",
     ],
-    "dark_temple": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    "moon_gate": [         # 月冠隘口
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_elf_fruit",
     ],
-    "annihilation": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    "star_song": [         # 星歌镇
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_elf_fruit",
     ],
-    "divine_gate": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
+    # ---- 西境/无尽海（Lv.45-78） ----
+    "moon_court": [        # 月冠王庭 精灵主城：月系
+        "i_treat_l", "i_mana_l", "i_elf_fruit", "i_full_potion", "i_moon_dew",
     ],
-    "pantheon": [
-        "i_super_treatment",
-        "i_super_mana",
-        "i_scroll_escape"
-    ]
+    "nameless_harbor": [   # 无名港
+        "i_treat_l", "i_mana_l", "i_meat_skewer", "i_stew", "i_scroll_teleport",
+    ],
+    "pearl_city": [        # 珍珠城
+        "i_treat_l", "i_mana_l", "i_full_potion", "i_scroll_teleport",
+    ],
+    # ---- 北境（Lv.60-95） ----
+    "frost_horn": [        # 霜角堡 北境主城：抗寒
+        "i_treat_l", "i_mana_l", "i_full_potion", "i_dwarf_liquor",
+    ],
+    "anvil_fort": [        # 铁砧要塞 矮人主城：符文/烈酒
+        "i_treat_l", "i_mana_l", "i_dwarf_liquor", "i_full_potion",
+    ],
+    "cold_ridge": [        # 寒脊营地
+        "i_treat_l", "i_mana_l", "i_stew",
+    ],
+    "aurora_town": [       # 极光镇
+        "i_treat_l", "i_mana_l", "i_ale",
+    ],
+    "deep_tunnel": [       # 深岩隧道（地底入口）
+        "i_treat_l", "i_mana_l", "i_bread",
+    ],
+    "under_market": [      # 地底集市
+        "i_treat_l", "i_mana_l", "i_full_potion",
+    ],
+    # ---- 东境/风翼群岛（Lv.80-100） ----
+    "dragon_pass": [       # 龙脊山口：龙裔
+        "i_treat_l", "i_mana_l", "i_full_potion", "i_battlecry_potion",
+    ],
+    "dragon_kin": [        # 龙裔聚落
+        "i_treat_l", "i_mana_l", "i_dragon_scale_potion",
+    ],
+    "ember_camp": [        # 灰烬营地
+        "i_treat_l", "i_mana_l", "i_battlecry_potion",
+    ],
+    "wind_city": [         # 风翼城
+        "i_treat_l", "i_mana_l", "i_holy_charm", "i_scroll_purify",
+    ],
 }
 
 SHOP_WEAPONS = {
-    "vila": [
-        [
-            "铁剑",
-            "sword",
-            2,
-            "white"
-        ],
-        [
-            "学徒法杖",
-            "staff",
-            2,
-            "white"
-        ],
-        [
-            "猎弓",
-            "bow",
-            2,
-            "white"
-        ],
-        [
-            "圣光权杖",
-            "mace",
-            2,
-            "white"
-        ]
+    # 南境·橡木系列（10 章 4.1：白装新手武器）
+    "oak_town": [
+        ["铁剑", "sword", 2, "white"],
+        ["猎弓", "bow", 2, "white"],
+        ["学徒法杖", "staff", 2, "white"],
+        ["橡木短棍", "mace", 2, "white"],
     ],
-    "stonefist": [
-        [
-            "精钢剑",
-            "sword",
-            8,
-            "green"
-        ],
-        [
-            "大法师之杖",
-            "staff",
-            8,
-            "green"
-        ],
-        [
-            "复合弓",
-            "bow",
-            8,
-            "green"
-        ],
-        [
-            "祝福权杖",
-            "mace",
-            8,
-            "green"
-        ]
+    "maple_village": [
+        ["铁剑", "sword", 2, "white"],
+        ["猎弓", "bow", 2, "white"],
+        ["学徒法杖", "staff", 2, "white"],
     ],
-    "redridge": [
-        [
-            "狂战之斧",
-            "sword",
-            14,
-            "blue"
-        ],
-        [
-            "元素法杖",
-            "staff",
-            14,
-            "blue"
-        ],
-        [
-            "反曲弓",
-            "bow",
-            14,
-            "blue"
-        ],
-        [
-            "战争权杖",
-            "mace",
-            14,
-            "blue"
-        ]
+    # 南境·白鹿城：进阶白装 + 蓝装
+    "white_deer": [
+        ["铁剑", "sword", 3, "white"],
+        ["猎鹿弓", "bow", 5, "blue"],
+        ["学徒之杖", "staff", 5, "blue"],
+        ["橡木短棍", "mace", 3, "white"],
     ],
-    "blackrock": [
-        [
-            "骑士之剑",
-            "sword",
-            20,
-            "blue"
-        ],
-        [
-            "巫术法杖",
-            "staff",
-            20,
-            "blue"
-        ],
-        [
-            "无声之弓",
-            "bow",
-            20,
-            "blue"
-        ],
-        [
-            "圣锤权杖",
-            "mace",
-            20,
-            "blue"
-        ]
+    # 南境·铁港系列（10 章 4.2：海盗/水手风）
+    "ironharbor": [
+        ["弯刀", "sword", 14, "blue"],
+        ["水手短刃", "dagger", 12, "blue"],
+        ["海风长弓", "bow", 16, "blue"],
     ],
-    "shadow_city": [
-        [
-            "斩魔之剑",
-            "sword",
-            27,
-            "purple"
-        ],
-        [
-            "虚空法杖",
-            "staff",
-            27,
-            "purple"
-        ],
-        [
-            "暗影之弓",
-            "bow",
-            27,
-            "purple"
-        ],
-        [
-            "大主教权杖",
-            "mace",
-            27,
-            "purple"
-        ]
+    "silver_brook": [
+        ["弯刀", "sword", 14, "blue"],
+        ["海风长弓", "bow", 14, "blue"],
     ],
-    "holy": [
-        [
-            "圣辉之剑",
-            "sword",
-            35,
-            "blue"
-        ],
-        [
-            "圣辉法杖",
-            "staff",
-            35,
-            "blue"
-        ],
-        [
-            "圣光之弓",
-            "bow",
-            35,
-            "blue"
-        ],
-        [
-            "圣印权杖",
-            "mace",
-            35,
-            "blue"
-        ]
+    # 中域·圣光系列（10 章 4.3：王国/教会风）
+    "dawn_city": [
+        ["圣光长剑", "sword", 28, "blue"],
+        ["晨曦法杖", "staff", 28, "blue"],
+        ["王都长弓", "bow", 32, "purple"],
+        ["圣殿战锤", "mace", 34, "purple"],
     ],
-    "elf_court": [
-        [
-            "月刃",
-            "sword",
-            45,
-            "blue"
-        ],
-        [
-            "月之法杖",
-            "staff",
-            45,
-            "blue"
-        ],
-        [
-            "精灵长弓",
-            "bow",
-            45,
-            "blue"
-        ],
-        [
-            "月神权杖",
-            "mace",
-            45,
-            "blue"
-        ]
+    "ironshield_town": [
+        ["圣光长剑", "sword", 28, "blue"],
+        ["晨曦法杖", "staff", 28, "blue"],
     ],
-    "dragon_ridge": [
-        [
-            "龙牙剑",
-            "sword",
-            55,
-            "purple"
-        ],
-        [
-            "龙息法杖",
-            "staff",
-            55,
-            "purple"
-        ],
-        [
-            "龙翼弓",
-            "bow",
-            55,
-            "purple"
-        ],
-        [
-            "龙鳞权杖",
-            "mace",
-            55,
-            "purple"
-        ]
+    # 群岛（翡翠海）
+    "jade_port": [
+        ["弯刀", "sword", 36, "blue"],
+        ["海风长弓", "bow", 38, "blue"],
     ],
-    "void_rift": [
-        [
-            "虚空之刃",
-            "sword",
-            65,
-            "purple"
-        ],
-        [
-            "裂隙法杖",
-            "staff",
-            65,
-            "purple"
-        ],
-        [
-            "虚空之弓",
-            "bow",
-            65,
-            "purple"
-        ],
-        [
-            "虚空权杖",
-            "mace",
-            65,
-            "purple"
-        ]
+    "shell_town": [
+        ["水手短刃", "dagger", 40, "blue"],
+        ["海风长弓", "bow", 42, "blue"],
     ],
-    "dark_temple": [
-        [
-            "堕落之剑",
-            "sword",
-            75,
-            "purple"
-        ],
-        [
-            "深渊法杖",
-            "staff",
-            75,
-            "purple"
-        ],
-        [
-            "黑暗之弓",
-            "bow",
-            75,
-            "purple"
-        ],
-        [
-            "诅咒权杖",
-            "mace",
-            75,
-            "purple"
-        ]
+    # 西境·月语系列（10 章 4.4：精灵风）
+    "moon_gate": [
+        ["月语长弓", "bow", 46, "purple"],
+        ["银叶法杖", "staff", 46, "purple"],
+        ["月光短刃", "dagger", 48, "purple"],
     ],
-    "annihilation": [
-        [
-            "旧王战刃",
-            "sword",
-            85,
-            "orange"
-        ],
-        [
-            "旧王法杖",
-            "staff",
-            85,
-            "orange"
-        ],
-        [
-            "旧王之弓",
-            "bow",
-            85,
-            "orange"
-        ],
-        [
-            "旧王权杖",
-            "mace",
-            85,
-            "orange"
-        ]
+    "star_song": [
+        ["月语长弓", "bow", 48, "purple"],
+        ["银叶法杖", "staff", 48, "purple"],
     ],
-    "divine_gate": [
-        [
-            "天穹圣剑",
-            "sword",
-            92,
-            "orange"
-        ],
-        [
-            "星界法杖",
-            "staff",
-            92,
-            "orange"
-        ],
-        [
-            "天穹之弓",
-            "bow",
-            92,
-            "orange"
-        ],
-        [
-            "圣光权杖",
-            "mace",
-            92,
-            "orange"
-        ]
+    "moon_court": [
+        ["月语长弓", "bow", 55, "purple"],
+        ["银叶法杖", "staff", 55, "purple"],
+        ["月光短刃", "dagger", 58, "purple"],
     ],
-    "pantheon": [
-        [
-            "创世之刃",
-            "sword",
-            98,
-            "orange"
-        ],
-        [
-            "混沌法杖",
-            "staff",
-            98,
-            "orange"
-        ],
-        [
-            "万神之弓",
-            "bow",
-            98,
-            "orange"
-        ],
-        [
-            "神眷权杖",
-            "mace",
-            98,
-            "orange"
-        ]
-    ]
+    # 无尽海
+    "nameless_harbor": [
+        ["海风长弓", "bow", 56, "purple"],
+        ["弯刀", "sword", 55, "purple"],
+    ],
+    "pearl_city": [
+        ["海风长弓", "bow", 62, "purple"],
+        ["银叶法杖", "staff", 62, "purple"],
+    ],
+    # 北境·霜狼系列（10 章 4.5：北境/矮人风）
+    "frost_horn": [
+        ["霜狼长剑", "sword", 62, "purple"],
+        ["北风长弓", "bow", 60, "purple"],
+        ["铁砧战锤", "mace", 65, "purple"],
+    ],
+    "anvil_fort": [
+        ["铁砧战锤", "mace", 65, "purple"],
+        ["霜狼长剑", "sword", 66, "purple"],
+    ],
+    "cold_ridge": [
+        ["北风长弓", "bow", 68, "purple"],
+        ["霜狼长剑", "sword", 68, "purple"],
+    ],
+    "aurora_town": [
+        ["霜狼长剑", "sword", 70, "purple"],
+        ["北风长弓", "bow", 70, "purple"],
+    ],
+    "deep_tunnel": [
+        ["铁砧战锤", "mace", 65, "purple"],
+    ],
+    "under_market": [
+        ["铁砧战锤", "mace", 70, "purple"],
+        ["霜狼长剑", "sword", 70, "purple"],
+    ],
+    # 东境·龙脊系列（10 章 4.6：龙裔风）
+    "dragon_pass": [
+        ["龙脊大剑", "sword", 82, "purple"],
+        ["龙语法杖", "staff", 82, "purple"],
+    ],
+    "dragon_kin": [
+        ["龙脊大剑", "sword", 84, "purple"],
+        ["龙语法杖", "staff", 84, "purple"],
+    ],
+    "ember_camp": [
+        ["龙脊大剑", "sword", 86, "purple"],
+        ["龙语法杖", "staff", 86, "purple"],
+    ],
+    "wind_city": [
+        ["龙脊大剑", "sword", 86, "purple"],
+        ["龙语法杖", "staff", 86, "purple"],
+    ],
 }

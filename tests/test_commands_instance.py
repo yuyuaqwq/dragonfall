@@ -36,20 +36,20 @@ async def main():
     m = Main(None)
     await cmd(m, "register", "g1", "i1", "注册 战士 队长")
     await cmd(m, "register", "g1", "i2", "注册 法师 队员")
-    db.update_player("g1", "i1", level=15, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i2", level=15, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
 
     print("【副本：列表】")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本")
-    check("显示副本列表", "幽暗墓穴" in out, out[:200])
+    check("显示副本列表", "旧王陵" in out, out[:200])
 
     print("【副本：未组队开本】")
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("提示先组队", "组队" in out, out[:120])
 
     print("【副本：组队后开本】")
     await cmd(m, "party", "g1", "i1", "组队 队员")
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("开本成功", "副本开启" in out, out[:200])
     check("显示行动顺序", "按速度" in out or "行动顺序" in out, out[:200])
     battle = db.get_battle("g1", "i1")
@@ -70,7 +70,7 @@ async def main():
     out = await cmd(m, "attack", "g1", second_m, "攻击")
     check("非当前行动者被拦", "等待" in out or "回合" in out, out[:120])
     out = await cmd(m, "attack", "g1", first_m, "攻击")
-    check("当前行动者有返回", "骷髅王" in out or "轮到" in out, out[:200])
+    check("当前行动者有返回", "古王·奥德里克" in out or "轮到" in out, out[:200])
     st2 = db.get_battle("g1", "i1")["state"]
     check("轮到下一位", st2["turn"] == 1, f"turn={st2['turn']}")
 
@@ -94,27 +94,27 @@ async def main():
     out = await cmd(m, "attack", "g1", cur, "攻击")
     check("通关结算", "通关" in out or "击败" in out, out[:300])
     check("金币奖励", "+200" in out or "金币" in out, out[:300])
-    check("材料奖励", "墓穴粉尘" in out, out[:300])
+    check("材料奖励", "古王剑" in out, out[:300])
     battle = db.get_battle("g1", "i1")
     check("战斗已清除", battle is None, "")
     achs = db.get_achievements("g1", "i1") or []
-    found = any(a.get("ach_key") == "inst_clear_inst_crypt" and a.get("progress", 0) >= 1 for a in achs)
+    found = any(a.get("ach_key") == "inst_clear_inst_old_king_tomb" and a.get("progress", 0) >= 1 for a in achs)
     check("首通成就", found, str(achs)[:200])
 
     print("【副本：3 人队】")
     await cmd(m, "register", "g1", "i3", "注册 游侠 第三人")
-    db.update_player("g1", "i3", level=15, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
     out = await cmd(m, "party", "g1", "i1", "组队 第三人")
     check("队长拉第三人", "加入" in out and "3" in out, out[:150])
     members3 = db.party_members("g1", "i1")
     check("队伍 3 人", len(members3) == 3, str(members3))
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("3 人开本成功", "副本开启" in out, out[:150])
     st6 = db.get_battle("g1", "i1")["state"]
     check("3 人状态成员", len(st6["members"]) == 3, str(st6["members"]))
     boss6 = st6["boss"]
     # 2 人队基准 hp_mult=2.5 → 3 人 = 3.15
-    base = C.build_monster(C.INSTANCES["inst_crypt"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
+    base = C.build_monster(C.INSTANCES["inst_old_king_tomb"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect = int(base * (2.5 + 0.65))
     check("Boss 血量 3.15 倍", abs(boss6["max_hp"] - expect) <= 1, f"{boss6['max_hp']} vs {expect}")
     # 调低 Boss 攻击，专注测轮转逻辑（避免随机秒杀脆皮导致 turn 跳变）
@@ -143,9 +143,9 @@ async def main():
     await cmd(m, "party_leave", "g1", "i1", "退队")
     await cmd(m, "party_leave", "g1", "i2", "退队")
     await cmd(m, "party_leave", "g1", "i3", "退队")
-    db.update_player("g1", "i1", level=30, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i2", level=30, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i3", level=30, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
     # 注入学会的团队技能（learned_skills 存中文名，update_player 内部转 ID 存档）
     db.update_player("g1", "i1", learned_skills=["盾墙", "援护"], skill_points=50)
     db.update_player("g1", "i2", learned_skills=["元素护盾", "奥术共鸣"], skill_points=50)
@@ -156,7 +156,7 @@ async def main():
     check("队伍已建", "组队成功" in out, out[:100])
     out = await cmd(m, "party", "g1", "i1", "组队 第三人")
     check("第三人入队", "加入了你的队伍" in out, out[:100])
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("团队技能本开本", "副本开启" in out, out[:120])
     stt = db.get_battle("g1", "i1")["state"]
     # 全员低血量，便于验证团队治疗
@@ -192,16 +192,16 @@ async def main():
     await cmd(m, "party_leave", "g1", "i1", "退队")
     await cmd(m, "party_leave", "g1", "i2", "退队")
     await cmd(m, "party_leave", "g1", "i3", "退队")
-    db.update_player("g1", "i1", level=30, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i2", level=30, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i3", level=30, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i1", learned_skills=["挑衅怒吼", "盾墙"], skill_points=50)
     db.set_skill_bar("i1", ["挑衅怒吼", "盾墙", None, None, None, None])
     out = await cmd(m, "party", "g1", "i1", "组队 队员")
     check("嘲讽队 组队成功", "组队成功" in out, out[:100])
     out = await cmd(m, "party", "g1", "i1", "组队 第三人")
     check("嘲讽队 第三人入队", "加入了你的队伍" in out, out[:100])
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("嘲讽队 开本", "副本开启" in out, out[:120])
     sta = db.get_battle("g1", "i1")["state"]
     # 手动制造仇恨：让队员 i2 仇恨最高（Boss 本该打 i2）
@@ -212,6 +212,7 @@ async def main():
         sta["players"][key]["max_hp"] = 9999
     sta["boss"]["atk"] = 100
     sta["boss"]["matk"] = 100
+    sta["boss"]["spd"] = 1  # v57：防 Boss 多动，专注测嘲讽递减
     # v57：行动序按速度排序，把回合拨到队长 i1 所在索引
     sta["turn"] = sta["members"].index("i1")
     sta["turn_time"] = int(time.time())
@@ -237,7 +238,7 @@ async def main():
 
     print("【副本：全灭失败】")
     await cmd(m, "party", "g1", "i1", "组队 队员")
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("再次开本", "副本开启" in out, out[:120])
     st5 = db.get_battle("g1", "i1")["state"]
     for key in st5["players"]:
@@ -272,19 +273,19 @@ async def main():
     await cmd(m, "party_leave", "g1", "i1", "退队")
     await cmd(m, "party_leave", "g1", "i2", "退队")
     await cmd(m, "party_leave", "g1", "i3", "退队")
-    db.update_player("g1", "i1", level=20, gold=10000, cur_map="vila_square", hp=500)
+    db.update_player("g1", "i1", level=70, gold=10000, cur_map="dawn_city", hp=500)
     # 列表显示人数要求
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本")
     check("列表显示单人标记", "单人" in out, out[:300])
     check("列表显示 2-3 人", "2-3人" in out, out[:300])
     check("列表显示 4 人", "4人" in out, out[:300])
     # 单人副本：无需组队直接开本
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 哥布林巢穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 哥布林营地")
     check("单人副本免组队开本", "副本开启" in out, out[:200])
     battle = db.get_battle("g1", "i1")
     stg = battle["state"]
     check("单人副本成员 1 人", len(stg["members"]) == 1, str(stg["members"]))
-    base_g = C.build_monster(C.INSTANCES["inst_goblin_nest"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
+    base_g = C.build_monster(C.INSTANCES["inst_goblin_camp"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect_g = int(base_g * 1.6)  # min_players=1 → hp_mult 不缩放
     check("单人 Boss 血量 = 1.6 倍", abs(stg["boss"]["max_hp"] - expect_g) <= 1, f"{stg['boss']['max_hp']} vs {expect_g}")
     check("单人无队伍构成警告", "没有坦克" not in out, out[:200])
@@ -294,35 +295,37 @@ async def main():
     db.save_battle("g1", "i1", stg)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
     check("单人副本通关", "通关" in out or "击败" in out, out[:300])
-    check("单人掉落地精耳朵", "地精耳朵" in out, out[:300])
+    check("单人掉落咕噜的皇冠", "咕噜的皇冠" in out, out[:300])
     battle = db.get_battle("g1", "i1")
     check("单人副本战斗清除", battle is None, "")
     # 4 人副本：3 人队伍被拦截
     await cmd(m, "register", "g1", "i4", "注册 牧师 第四人")
-    db.update_player("g1", "i4", level=20, gold=10000, cur_map="vila_square")
+    # 全队提到 70 级（深海龙宫 Lv.70+）
+    for q in ("i2", "i3", "i4"):
+        db.update_player("g1", q, level=70, gold=10000, cur_map="dawn_city")
     await cmd(m, "party", "g1", "i1", "组队 队员")
     await cmd(m, "party", "g1", "i1", "组队 第三人")
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 月影神庙")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 深海龙宫")
     check("4 人副本 3 人拦截", "至少需要 4 人" in out, out[:200])
     # 拉第四人 → 4 人队伍开本成功
     out = await cmd(m, "party", "g1", "i1", "组队 第四人")
     check("队长拉第四人", "加入了你的队伍" in out and "4" in out, out[:200])
     members4 = db.party_members("g1", "i1")
     check("队伍 4 人", len(members4) == 4, str(members4))
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 月影神庙")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 深海龙宫")
     check("4 人副本开本成功", "副本开启" in out, out[:200])
     stm = db.get_battle("g1", "i1")["state"]
     check("4 人副本成员 4 人", len(stm["members"]) == 4, str(stm["members"]))
-    base_m = C.build_monster(C.INSTANCES["inst_moon_temple"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
-    expect_m = int(base_m * 2.5)  # min_players=4 → 4 人不缩放
+    base_m = C.build_monster(C.INSTANCES["inst_deep_dragon_palace"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
+    expect_m = int(base_m * 2.7)  # min_players=4 → 4 人不缩放
     check("4 人 Boss 血量 = 2.5 倍", abs(stm["boss"]["max_hp"] - expect_m) <= 1, f"{stm['boss']['max_hp']} vs {expect_m}")
-    # 清理月影神庙战斗（否则 instance_cmd 直接显示状态，走不到人数校验）
+    # 清理深海龙宫战斗（否则 instance_cmd 直接显示状态，走不到人数校验）
     for q in ("i1", "i2", "i3", "i4"):
         m._unlock_battle("g1", q)
         db.clear_battle("g1", q)
-    # 2 人副本超限提示（队伍 4 人打幽暗墓穴）
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
-    check("幽暗墓穴 4 人超限", "最多 3 人" in out, out[:200])
+    # 2 人副本超限提示（队伍 4 人打旧王陵）
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
+    check("旧王陵 4 人超限", "最多 3 人" in out, out[:200])
     for q in ("i1", "i2", "i3", "i4"):
         m._unlock_battle("g1", q)
         db.clear_battle("g1", q)

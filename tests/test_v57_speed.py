@@ -104,10 +104,10 @@ async def main():
         return results[-1] if results else ""
     await cmd(m, "register", "g1", "i1", "注册 战士 慢速")
     await cmd(m, "register", "g1", "i2", "注册 游侠 高速")
-    db.update_player("g1", "i1", level=15, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "i2", level=15, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
     await cmd(m, "party", "g1", "i1", "组队 高速")
-    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 幽暗墓穴")
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     st = db.get_battle("g1", "i1")["state"]
     spds = {k: st["players"][k].get("spd", 0) for k in st["members"]}
     check("成员按速度降序", spds[st["members"][0]] >= spds[st["members"][1]], str(spds))

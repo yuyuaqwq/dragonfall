@@ -2054,10 +2054,15 @@ class EconomyCmds(CommandBase):
             # 扣物品（战斗回合使用）
             db.remove_item(group_id, qq_id, target["key"])
             # 生命/魔力恢复（先恢复再走回合，怪物行动可能打掉）
+            # v82 阶段四：heal/mana < 1 视为百分比（新世界 13 章），>=1 视为固定值（旧物品兼容）
             if heal:
+                if heal < 1:
+                    heal = int(player["max_hp"] * heal)
                 new_hp = min(player["max_hp"], player["hp"] + heal)
                 player["hp"] = new_hp
             if mana:
+                if mana < 1:
+                    mana = int(player["max_mp"] * mana)
                 new_mp = min(player["max_mp"], player["mp"] + mana)
                 player["mp"] = new_mp
             # v54 战斗药水：传 buff:<p_buffs key>（atk_up/def_up/spd_up/crit_up）
@@ -2082,17 +2087,23 @@ class EconomyCmds(CommandBase):
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
-        # 消耗品
+        # 消耗品（v82 阶段四：heal/mana < 1 视为百分比）
         if d.get("heal"):
-            new_hp = min(player["max_hp"], player["hp"] + d["heal"])
+            heal_v = d["heal"]
+            if heal_v < 1:
+                heal_v = int(player["max_hp"] * heal_v)
+            new_hp = min(player["max_hp"], player["hp"] + heal_v)
             db.update_player(group_id, qq_id, hp=new_hp)
             db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💊 你使用了【{d['name']}】，恢复 {d['heal']} 点生命！\n❤️ {new_hp}/{player['max_hp']}")
+            yield event.plain_result(f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{player['max_hp']}")
         elif d.get("mana"):
-            new_mp = min(player["max_mp"], player["mp"] + d["mana"])
+            mana_v = d["mana"]
+            if mana_v < 1:
+                mana_v = int(player["max_mp"] * mana_v)
+            new_mp = min(player["max_mp"], player["mp"] + mana_v)
             db.update_player(group_id, qq_id, mp=new_mp)
             db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {d['mana']} 点魔力！\n💙 {new_mp}/{player['max_mp']}")
+            yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}")
         elif d.get("effect") == "return_vila":
             db.remove_item(group_id, qq_id, target["key"])
             db.update_player(group_id, qq_id, cur_map="vila_square")
