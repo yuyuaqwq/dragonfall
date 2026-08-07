@@ -45,6 +45,24 @@ class InstanceCmds(CommandBase):
             yield event.plain_result(self._instance_list(player))
             return
         # 队长开本：『副本 <名字>』
+        # v87.2：若存在已撤退（retreated）的同副本记录 → 恢复进度继续
+        old_row = self._instance_retreated_row(group_id, qq_id)
+        if old_row:
+            old_st = old_row["state"]
+            if old_st.get("inst_id") and (old_st["inst_id"] == arg or
+                                          C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
+                old_st["retreated"] = False
+                old_st["mode"] = "map"
+                for m in old_st["members"]:
+                    self._lock_battle(group_id, m)
+                db.save_battle(group_id, qq_id, old_st)
+                inst = C.INSTANCES.get(old_st["inst_id"], {})
+                yield event.plain_result(
+                    f"{inst.get('icon', '🏰')} 【{inst.get('name', '')}】你回到了副本深处！\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"{self._instance_map_view(old_st, group_id)}"
+                )
+                return
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
             yield _r
 
@@ -77,26 +95,27 @@ class InstanceCmds(CommandBase):
         st["stage_idx"] += 1
         st["stage_cleared"] = False
         next_stage = stages[st["stage_idx"]]
+        # v87.2 机关效果：skip_elite_next（下一层跳过精英）/ skip_wave_next（下一层少一波）
+        skip_elite = st.get("skip_elite_next", False)
+        skip_wave = st.get("skip_wave_next", False)
+        st["skip_elite_next"] = False
+        st["skip_wave_next"] = False
         s_mons = next_stage.get("monsters") or []
-        if s_mons:
-            st["boss"] = C.build_monster(s_mons[0], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
-            st["stage_pending"] = list(s_mons[1:])
-            if next_stage.get("elite"):
+        if skip_wave and s_mons:
+            s_mons = list(s_mons[:-1]) if len(s_mons) > 1 else []
+        if s_mons or next_stage.get("elite") or next_stage.get("boss"):
+            # 地图化：进入新层地图模式（含 Boss 房），探索触发战斗
+            st["mode"] = "map"
+            st["stage_pending"] = list(s_mons)
+            if next_stage.get("elite") and not skip_elite:
                 st["stage_pending"].append(next_stage["elite"])
-        elif next_stage.get("elite"):
-            st["boss"] = C.build_monster(next_stage["elite"], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
-            st["stage_pending"] = []
-        elif next_stage.get("boss"):
-            st["boss"] = C.build_monster(next_stage["boss"], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
-            inst2 = C.INSTANCES[st["inst_id"]]
-            if inst2.get("mech"):
-                st["boss"]["mech"] = inst2["mech"]
-            hp_mult = inst2["hp_mult"] + 0.65 * (len(st["members"]) - inst2.get("min_players", 1))
-            st["boss"]["max_hp"] = int(st["boss"]["max_hp"] * hp_mult)
-            st["boss"]["hp"] = st["boss"]["max_hp"]
-            st["boss"]["atk"] = int(st["boss"]["atk"] * inst2["atk_mult"])
-            st["boss"]["matk"] = int(st["boss"]["matk"] * inst2["atk_mult"])
-            st["stage_pending"] = []
+            if next_stage.get("boss"):
+                st["stage_pending"].append(next_stage["boss"])
+            st["boss"] = None
+            st["enemy"] = None
+            st["stage_secret_found"] = False
+            st["stage_secret_cleared"] = False
+            self._check_stage_secret_cond(st)  # 新层 secret cond 检查（如海蚀洞窟 L3 藏宝密室）
         st["enemy"] = st["boss"]
         st["e_buffs"] = {}
         st["round"] = 1
@@ -110,6 +129,15 @@ class InstanceCmds(CommandBase):
         for m in st["members"]:
             self._lock_battle(group_id, m)
         db.save_battle(group_id, st["leader"], st)
+        if st.get("mode") == "map":
+            # 新层地图模式：显示层全景
+            map_view = self._instance_map_view(st, group_id)
+            yield event.plain_result(
+                f"🧭 你继续深入……\n"
+                f"━━━━━━━━━━━━\n"
+                f"{map_view}"
+            )
+            return
         role = "👑 BOSS" if next_stage.get("boss") else ("⭐ 精英" if next_stage.get("elite") and not s_mons else "🐾")
         yield event.plain_result(
             f"🧭 你继续深入……\n"
@@ -120,7 +148,184 @@ class InstanceCmds(CommandBase):
             f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』"
         )
 
-    # ---------------- 查询 ----------------
+    # ---------------- 副本地图（v87.2） ----------------
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?副本地图\s*$")
+    @no_prof_waiting()
+
+    async def instance_map_view_cmd(self, event: AstrMessageEvent):
+        """查看当前层小地图全景（29 章 13.5）"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            return
+        st = inst_row["state"]
+        if st.get("mode") != "map":
+            yield event.plain_result("战斗进行中！先解决眼前的敌人～（『攻击』『技能 <名称>』『防御』）")
+            return
+        yield event.plain_result(self._instance_map_view(st, group_id))
+
+    # ---------------- 调查（v87.2） ----------------
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?调查\s*(\S+)\s*$")
+    @no_prof_waiting()
+
+    async def instance_investigate(self, event: AstrMessageEvent):
+        """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱（29 章 13.5）"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            return
+        st = inst_row["state"]
+        if st.get("mode") != "map":
+            yield event.plain_result("战斗进行中！先解决眼前的敌人～")
+            return
+        name = self._strip_cmd(event, "调查").strip()
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        poi = self._find_stage_poi(stage, name)
+        # 隐藏房间 POI 也算
+        secret = stage.get("secret")
+        if not poi and secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
+            for sp in secret.get("pois", []):
+                if sp.get("name") == name or (name and name in sp.get("name", "")):
+                    poi = sp
+                    break
+        if not poi:
+            yield event.plain_result(f"这里没有『{name}』可以调查～『副本地图』看看周围有什么。")
+            return
+        if self._poi_used(st, sidx, poi.get("id", "")):
+            yield event.plain_result(f"{poi.get('name', '')}已经被处理过了。")
+            return
+        # v87.2 复用世界地图 POI 处理（_handle_poi → _handle_inst_poi）
+        text = self._handle_poi(group_id, qq_id, player, stage, poi.get("id", ""), poi, st=st)
+        self._check_stage_secret_cond(st)
+        db.save_battle(group_id, st["leader"], st)
+        yield event.plain_result(text)
+
+    # ---------------- 撤退（v87.2） ----------------
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?撤退\s*$")
+    @no_prof_waiting()
+
+    async def instance_retreat(self, event: AstrMessageEvent):
+        """退出副本：解锁战斗，保留层进度与 POI 状态（29 章 13.6）"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！")
+            return
+        st = inst_row["state"]
+        if st.get("mode") != "map":
+            yield event.plain_result("战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！")
+            return
+        st["retreated"] = True
+        db.save_battle(group_id, st["leader"], st)
+        for m in st["members"]:
+            self._unlock_battle(group_id, m)
+        inst = C.INSTANCES.get(st["inst_id"], {})
+        stages = st.get("inst_stages") or []
+        sidx = st.get("stage_idx", 0)
+        sname = stages[sidx]["name"] if sidx < len(stages) else ""
+        yield event.plain_result(
+            f"🏳️ 你们决定撤退……副本进度已保留。\n"
+            f"📌 下次『副本 {inst.get('name', '')}』将从【第 {sidx + 1} 层 · {sname}】继续！"
+        )
+
+    # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
+    async def _instance_explore(self, event, group_id, qq_id, inst_row):
+        """副本内探索：优先遇怪（进入战斗），未触发陷阱概率踩中，否则无事。"""
+        st = inst_row["state"]
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        pending = st.get("stage_pending") or []
+        if pending:
+            # 遇怪 → 进战斗
+            nxt = pending.pop(0)
+            self._enter_stage_combat(group_id, st, nxt, stage)
+            db.save_battle(group_id, st["leader"], st)
+            if nxt[2] == "boss":
+                role = "👑 BOSS"
+            elif nxt[2] == "elite":
+                role = "⭐ 精英"
+            else:
+                role = "🐾"
+            yield event.plain_result(
+                f"🍃 你警惕地探索着，突然——{stage.get('name', '')}里的怪物扑了上来！\n"
+                f"━━━━━━━━━━━━\n"
+                f"{role}【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+                f"━━━━━━━━━━━━\n"
+                f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』"
+            )
+            return
+        # 无怪：检查陷阱（未用的 trap POI）——50% 概率踩中
+        player = self._player(group_id, qq_id)
+        for p in stage.get("pois") or []:
+            if p.get("type") == "trap" and not self._poi_used(st, sidx, p.get("id", "")):
+                if random.random() < 0.5:
+                    text = self._handle_poi(group_id, qq_id, player, stage, p.get("id", ""), p, st=st)
+                    self._check_stage_secret_cond(st)
+                    db.save_battle(group_id, st["leader"], st)
+                    yield event.plain_result("🍃 你小心翼翼地探索……\n" + text)
+                    return
+                break
+        # 无事
+        yield event.plain_result("🍃 你仔细搜索了这片区域，除了风声什么也没有发现。")
+
+    def _enter_stage_combat(self, group_id, st: dict, mon_def, stage: dict):
+        """把层内怪物投入战斗（mode → battle，初始化战斗状态）
+        若 mon_def 是层 Boss（role=boss）→ 应用血量缩放/mech/风神铭文"""
+        st["mode"] = "battle"
+        st["boss"] = C.build_monster(mon_def, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+        if mon_def[2] == "boss":
+            inst2 = C.INSTANCES[st["inst_id"]]
+            if inst2.get("mech"):
+                st["boss"]["mech"] = inst2["mech"]
+            hp_mult = inst2["hp_mult"] + 0.65 * (len(st["members"]) - inst2.get("min_players", 1))
+            st["boss"]["max_hp"] = int(st["boss"]["max_hp"] * hp_mult)
+            st["boss"]["hp"] = st["boss"]["max_hp"]
+            st["boss"]["atk"] = int(st["boss"]["atk"] * inst2["atk_mult"])
+            st["boss"]["matk"] = int(st["boss"]["matk"] * inst2["atk_mult"])
+            # 风神铭文：Boss 战前全队 +10% 速度（boss_buff_next）
+            if st.get("boss_buff_next"):
+                for m in st["members"]:
+                    pb = st["p_buffs"].setdefault(m, {})
+                    pb["spd_up"] = max(pb.get("spd_up", 0), 2)
+                st["boss_buff_next"] = False
+        st["enemy"] = st["boss"]
+        st["e_buffs"] = {}
+        st["round"] = 1
+        for m in st["members"]:
+            st["p_buffs"][m] = {}
+            st["p_defending"][m] = False
+        st["turn"] = 0
+        st["acted"] = [False] * len(st["members"])
+        st["turn_time"] = int(time.time())
+        st["threat"] = {str(m): 0 for m in st["members"]}  # 仇恨表（v49）
+        # 锁全队（战斗重新上锁）
+        for m in st["members"]:
+            self._lock_battle(group_id, m)
+        # Boss 层附加：boss_buff_next → 全队速度加成 1 战（风神铭文）
+        if st.get("boss_buff_next") and stage.get("boss"):
+            for m in st["members"]:
+                pb = st["p_buffs"].setdefault(m, {})
+                pb["spd_up"] = max(pb.get("spd_up", 0), 2)
+            st["boss_buff_next"] = False
+
+
     def _class_role_label(self, class_name) -> str:
         """职业定位标签：战士·坦克 / 牧师·治疗"""
         info = C.CLASSES.get(class_name, {})
@@ -141,15 +346,23 @@ class InstanceCmds(CommandBase):
         return hints
 
     def _instance_battle_for(self, group_id, qq_id):
-        """查找玩家（队长或队员）当前的副本战斗状态；无则 None"""
+        """查找玩家（队长或队员）当前的副本战斗状态；无则 None
+        v87.2：retreated（撤退保留进度）的副本不参与战斗判定（玩家可自由行动）"""
         b = db.get_battle(group_id, qq_id)
-        if b and b["state"].get("type") == "instance":
+        if b and b["state"].get("type") == "instance" and not b["state"].get("retreated"):
             return b
         members = db.party_members(group_id, qq_id)
         if members and str(members[0]) != str(qq_id):
             lb = db.get_battle(group_id, members[0])
-            if lb and lb["state"].get("type") == "instance":
+            if lb and lb["state"].get("type") == "instance" and not lb["state"].get("retreated"):
                 return lb
+        return None
+
+    def _instance_retreated_row(self, group_id, qq_id):
+        """查找队长名下已撤退（retreated）的副本记录（恢复进度用）"""
+        b = db.get_battle(group_id, qq_id)
+        if b and b["state"].get("type") == "instance" and b["state"].get("retreated"):
+            return b
         return None
 
     def _instance_list(self, player) -> str:
@@ -179,6 +392,9 @@ class InstanceCmds(CommandBase):
 
     def _instance_status(self, group_id, qq_id, battle_row) -> str:
         st = battle_row["state"]
+        # v87.2 副本地图化：地图模式显示层全景
+        if st.get("mode") == "map":
+            return self._instance_map_view(st, group_id)
         inst = C.INSTANCES.get(st["inst_id"], {})
         boss = st["boss"]
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
@@ -209,6 +425,128 @@ class InstanceCmds(CommandBase):
         lines.append("━━━━━━━━━━━━")
         lines.append(f"⏳ 轮到 {cur_p['name'] if cur_p else cur_key} 行动！『攻击』『技能 <名称>』『防御』")
         return "\n".join(lines)
+
+    # ---------------- 副本地图化 helpers（v87.2，29 章十三节） ----------------
+    def _stage_poi_state(self, st: dict, stage_idx: int) -> dict:
+        """当前层 POI 使用状态表：{poi_id: {"used": bool}}"""
+        return st.setdefault("stage_pois", {}).setdefault(str(stage_idx), {})
+
+    def _poi_used(self, st: dict, stage_idx: int, poi_id: str) -> bool:
+        return self._stage_poi_state(st, stage_idx).get(poi_id, {}).get("used", False)
+
+    def _any_poi_used(self, st: dict, poi_id: str) -> bool:
+        """任意层是否已用过某 POI（secret cond 跨层检查用）"""
+        for _sidx_state in st.get("stage_pois", {}).values():
+            if _sidx_state.get(poi_id, {}).get("used"):
+                return True
+        return False
+
+    def _check_stage_secret_cond(self, st: dict):
+        """当前层 secret 条件检查：cond.poi 已调查 → 隐藏房间解锁"""
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        secret = stage.get("secret")
+        if secret and not st.get("stage_secret_found"):
+            cond = secret.get("cond") or {}
+            if cond.get("poi") and self._any_poi_used(st, cond["poi"]):
+                st["stage_secret_found"] = True
+
+    def _mark_poi_used(self, st: dict, stage_idx: int, poi_id: str):
+        self._stage_poi_state(st, stage_idx)[poi_id] = {"used": True}
+
+    def _find_stage_poi(self, stage: dict, name: str):
+        """按名字找层 POI（先完全匹配，再包含匹配）"""
+        pois = stage.get("pois") or []
+        for p in pois:
+            if p.get("name") == name:
+                return p
+        for p in pois:
+            if name and name in p.get("name", ""):
+                return p
+        return None
+
+    def _stage_virtual_map(self, st: dict) -> dict:
+        """构造当前层"虚拟地图"（复用世界地图展示管线 _map_interactions）"""
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        pois = [p for p in (stage.get("pois") or []) if not self._poi_used(st, sidx, p.get("id", ""))]
+        # 隐藏房间（已发现未清）并入可交互点
+        secret = stage.get("secret")
+        if secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
+            for sp in secret.get("pois", []):
+                if not self._poi_used(st, sidx, sp.get("id", "")):
+                    pois.append(sp)
+        return {
+            "id": f"{st['inst_id']}:{sidx}",
+            "name": stage.get("name", ""),
+            "type": "副本",
+            "desc": stage.get("desc", ""),
+            "pois": pois,
+            "inline_npcs": stage.get("npcs") or [],
+            "monsters": stage.get("monsters") or [],
+            "elite": stage.get("elite"),
+            "boss": stage.get("boss"),
+            "secret": secret,
+        }
+
+    def _instance_map_view(self, st: dict, group_id) -> str:
+        """生成当前层小地图全景（desc + 复用 _map_interactions + 怪物/隐藏房间）"""
+        vmap = self._stage_virtual_map(st)
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        inst = C.INSTANCES.get(st["inst_id"], {})
+        lines = [f"🗺️ 【{inst.get('icon', '🏰')}{inst.get('name', '')}】第 {sidx + 1} 层 · {stage.get('name', '')}"]
+        lines.append("━━━━━━━━━━━━")
+        desc = vmap.get("desc")
+        if desc:
+            lines.append(f"📜 {desc}")
+        else:
+            lines.append("📜 你环顾四周，准备迎接这里的敌人。")
+        # 隐藏房间提示
+        secret = vmap.get("secret")
+        if secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
+            lines.append(f"🔓 隐藏房间：{secret.get('desc', '')}")
+        elif secret and not st.get("stage_secret_found"):
+            lines.append("🤔 似乎有暗门/机关的气息……（线索可能藏在石碑或机关里）")
+        # 复用世界地图展示管线：内联 POI / NPC
+        inter = self._map_interactions(vmap, None)
+        if inter:
+            lines.append("━━━━━━━━━━━━")
+            lines.append("🔎 可交互：")
+            lines.extend(f"  {l}" for l in inter)
+        # 怪物
+        mons = vmap.get("monsters") or []
+        el = vmap.get("elite")
+        if st.get("stage_cleared"):
+            lines.append("━━━━━━━━━━━━")
+            lines.append("✅ 本层敌人已肃清！可以『深入』下一层，或先『调查』剩余交互点。")
+        elif vmap.get("boss"):
+            lines.append("━━━━━━━━━━━━")
+            lines.append(f"👑 Boss 就在前方：{vmap['boss'][1]}！『探索』进入战斗！")
+        else:
+            lines.append("━━━━━━━━━━━━")
+            mstr = "、".join(m[1] for m in mons) + (f" ⭐精英·{el[1]}" if el else "")
+            if mstr:
+                lines.append(f"🐾 敌人：{mstr}（『探索』遇怪）")
+            else:
+                lines.append("🐾 这里暂时没有敌人。")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『探索』遇怪 · 『调查 <名称>』互动 · 『深入』推进 · 『副本地图』查看全景 · 『撤退』离开")
+        return "\n".join(lines)
+
+    def _stage_npcs(self, group_id, qq_id) -> list:
+        """当前副本层内 NPC 列表（供『找』路由）"""
+        st_row = self._instance_battle_for(group_id, qq_id)
+        if not st_row:
+            return []
+        st = st_row["state"]
+        stages = st.get("inst_stages") or []
+        sidx = st.get("stage_idx", 0)
+        stage = stages[sidx] if sidx < len(stages) else {}
+        return stage.get("npcs") or []
 
     # ---------------- 开本 ----------------
     async def _instance_start(self, event, group_id, qq_id, player, arg):
@@ -295,31 +633,94 @@ class InstanceCmds(CommandBase):
         boss["atk"] = int(boss["atk"] * inst["atk_mult"])
         boss["matk"] = int(boss["matk"] * inst["atk_mult"])
         now = int(time.time())
-        # v86.2 副本分层（02 章 13.8）：stages 副本 → 当前层小怪，最后一层才 Boss
+        # v86.2 副本分层（02 章 13.8）+ v87.2 副本地图化（29 章十三节）
         stages = inst.get("stages") or []
         stage_idx = 0
-        stage_pending = []  # 当前层剩余怪物（除首只外）
+        stage_pending = []  # 当前层剩余怪物（未出战）
         stage_cleared = False
+        mode = "battle"  # 无 stages 老副本 / 单层 Boss 房 → 直接战斗
         if stages:
             first_stage = stages[0]
             s_mons = first_stage.get("monsters") or []
-            if s_mons:
-                # 首只怪进战斗，其余存 pending
-                boss = C.build_monster(s_mons[0], {"id": kid, "name": inst["name"], "area": "instance"})
-                stage_pending = list(s_mons[1:])
-                if first_stage.get("elite"):
-                    stage_pending.append(first_stage["elite"])
-            elif first_stage.get("elite"):
-                boss = C.build_monster(first_stage["elite"], {"id": kid, "name": inst["name"], "area": "instance"})
+            el = first_stage.get("elite")
+            if s_mons or el:
+                # 地图化：首层有怪 → 进入地图模式，探索触发战斗
+                mode = "map"
+                stage_pending = list(s_mons)
+                if el:
+                    stage_pending.append(el)
+                st_pre = {
+                    "type": "instance",
+                    "inst_id": kid,
+                    "leader": str(qq_id),
+                    "members": [str(m) for m in members],
+                    "alive": {str(m): True for m in members},
+                    "players": {},
+                    "boss": None,
+                    "enemy": None,
+                    "turn": 0,
+                    "round": 1,
+                    "stage_idx": stage_idx,
+                    "stage_pending": stage_pending,
+                    "stage_cleared": stage_cleared,
+                    "inst_stages": stages,
+                    "mode": mode,
+                    "stage_pois": {},
+                    "stage_secret_found": False,
+                    "stage_secret_cleared": False,
+                    "poi_unlocks": {},
+                    "skip_elite_next": False,
+                    "skip_wave_next": False,
+                    "boss_buff_next": False,
+                    "acted": [False] * len(members),
+                    "p_buffs": {str(m): {} for m in members},
+                    "e_buffs": {},
+                    "p_defending": {str(m): False for m in members},
+                    "mech_stacks": {str(m): {} for m in members},
+                    "contribution": {},
+                    "over": False,
+                }
             elif first_stage.get("boss"):
-                boss = C.build_monster(first_stage["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
-                if inst.get("mech"):
-                    boss["mech"] = inst["mech"]
-                boss["max_hp"] = int(boss["max_hp"] * hp_mult)
-                boss["hp"] = boss["max_hp"]
-                boss["atk"] = int(boss["atk"] * inst["atk_mult"])
-                boss["matk"] = int(boss["matk"] * inst["atk_mult"])
-        st = {
+                # 首层即 Boss 房（单层副本）→ 地图模式，探索触发 Boss 战
+                mode = "map"
+                st_pre = {
+                    "type": "instance",
+                    "inst_id": kid,
+                    "leader": str(qq_id),
+                    "members": [str(m) for m in members],
+                    "alive": {str(m): True for m in members},
+                    "players": {},
+                    "boss": None,
+                    "enemy": None,
+                    "turn": 0,
+                    "round": 1,
+                    "stage_idx": stage_idx,
+                    "stage_pending": [first_stage["boss"]],
+                    "stage_cleared": stage_cleared,
+                    "inst_stages": stages,
+                    "mode": mode,
+                    "stage_pois": {},
+                    "stage_secret_found": False,
+                    "stage_secret_cleared": False,
+                    "poi_unlocks": {},
+                    "skip_elite_next": False,
+                    "skip_wave_next": False,
+                    "boss_buff_next": False,
+                    "acted": [False] * len(members),
+                    "p_buffs": {str(m): {} for m in members},
+                    "e_buffs": {},
+                    "p_defending": {str(m): False for m in members},
+                    "mech_stacks": {str(m): {} for m in members},
+                    "contribution": {},
+                    "over": False,
+                }
+        if not stages:
+            # 老副本（无 stages）→ 直接 Boss 战（现状）
+            st_pre = None
+        if st_pre is not None:
+            st = st_pre
+        else:
+            st = {
             "type": "instance",
             "inst_id": kid,
             "leader": str(qq_id),
@@ -383,6 +784,18 @@ class InstanceCmds(CommandBase):
         else:
             size_tip = f"🕐 单人挑战：{comp}\n"
         stage_name = stages[0]["name"] if stages else "主厅"
+        # v87.2 副本地图化：地图模式显示层全景，战斗模式保持原样
+        if st.get("mode") == "map":
+            map_view = self._instance_map_view(st, group_id)
+            yield event.plain_result(
+                f"{inst['icon']} 【{inst['name']}】副本开启！你踏入了这片区域。\n"
+                f"━━━━━━━━━━━━\n"
+                f"{map_view}\n"
+                f"━━━━━━━━━━━━\n"
+                f"{size_tip}"
+                f"💡 先『探索』看看有什么，或『调查』周围的交互点！"
+            )
+            return
         stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""
         yield event.plain_result(
             f"{inst['icon']} 【{inst['name']}】副本开启！\n"
@@ -515,20 +928,24 @@ class InstanceCmds(CommandBase):
             if stages:
                 last = st["stage_idx"] >= len(stages) - 1
                 if not last:
-                    # 清完非末层 → 待『深入』
+                    # 清完非末层 → 地图模式（可调查剩余 POI / 深入）
                     st["stage_cleared"] = True
                     st["over"] = False
-                    st["boss"]["hp"] = 1  # 保留展示用（防御状态）
-                    st["enemy"] = st["boss"]
+                    st["mode"] = "map"
+                    st["boss"] = None
+                    st["enemy"] = None
                     for m in st["members"]:
                         self._unlock_battle(group_id, m)
                     db.save_battle(group_id, st["leader"], st)
                     cur_name = stages[st["stage_idx"]]["name"]
                     nxt_name = stages[st["stage_idx"] + 1]["name"]
+                    map_view = self._instance_map_view(st, group_id)
                     yield event.plain_result(
                         "\n".join(logs) +
                         f"\n━━━━━━━━━━━━\n"
                         f"✅ 【{cur_name}】的敌人被肃清了！\n"
+                        f"{map_view}\n"
+                        f"━━━━━━━━━━━━\n"
                         f"🧭 前方是【{nxt_name}】……输入『深入』继续推进！"
                     )
                     return

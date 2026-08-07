@@ -13,6 +13,8 @@ from .maps import (
     MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
+from .instances import INSTANCES  # noqa: F401
+from .instance_stage_maps import INSTANCE_STAGE_MAPS, INSTANCE_STAGE_NPCS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
 from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401
@@ -24,6 +26,7 @@ from .equipment import (  # noqa: F401
 )
 from .items import ITEMS, MATERIALS  # noqa: F401
 from .npcs import NPCS  # noqa: F401
+from .wild_npcs import HIDDEN_NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
 from .shop import SHOP_ITEMS, SHOP_WEAPONS  # noqa: F401
@@ -76,6 +79,23 @@ for _m in MAPS:
 #    统一以 MAPS 为唯一数据源，subareas 注入后两处一致）
 MAP_BY_ID.clear()
 MAP_BY_ID.update({_m["id"]: _m for _m in MAPS})
+
+# ---- 1.7 副本地图装配（29 章十三节，v87.2）：INSTANCE_STAGE_MAPS merge 进 stages ----
+# 层增强数据（desc/pois/npcs/secret）与战斗数据（monsters/elite/boss）分离维护，
+# 装配时合并；无增强数据的层保持纯战斗层（兼容旧副本）。
+for _iid, _stage_maps in INSTANCE_STAGE_MAPS.items():
+    _ins = INSTANCES.get(_iid)
+    if not _ins:
+        continue
+    _stages = _ins.get("stages") or []
+    for _idx, _emap in _stage_maps.items():
+        if 0 <= _idx < len(_stages):
+            _stages[_idx].update(_emap)
+
+# 层内 NPC 并入 HIDDEN_NPCS（找 NPC/对话逻辑统一从 HIDDEN_NPCS 查询）
+for _nid, _npc in INSTANCE_STAGE_NPCS.items():
+    _npc.setdefault("title", "副本中的神秘来客")
+HIDDEN_NPCS.update(INSTANCE_STAGE_NPCS)
 
 # ---- 2. 扁平派生表（兼容 v48 前旧结构 {职业:{技能}} 与 v48 新结构 {cls_id:{skills}}）----
 _SKILL_FLAT = {}
@@ -140,9 +160,9 @@ for _i, _f in enumerate(FISH_POOL):
 _INDEXES["fish"] = {"name_to_id": _FISH_INDEX,
                     "id_to_name": {v: k for k, v in _FISH_INDEX.items()}}
 
-# NPC：key 已是 npc_xxx id，补 name 映射
+# NPC：key 已是 npc_xxx id，补 name 映射（含隐藏/层内 NPC）
 _NPC_INDEX = {}
-for _nk, _nv in NPCS.items():
+for _nk, _nv in list(NPCS.items()) + list(HIDDEN_NPCS.items()):
     _nn = _nv.get("name", _nk) if isinstance(_nv, dict) else _nk
     _NPC_INDEX[_nn] = _nk
 _INDEXES["npcs"] = {"name_to_id": _NPC_INDEX,

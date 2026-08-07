@@ -113,7 +113,10 @@ async def main():
     st = db.get_battle("g1", "i1")["state"]
     spds = {k: st["players"][k].get("spd", 0) for k in st["members"]}
     check("成员按速度降序", spds[st["members"][0]] >= spds[st["members"][1]], str(spds))
-    check("开本提示行动顺序", "行动顺序" in out, out[:200])
+    check("开本地图模式", "副本开启" in out, out[:200])
+    # v87.2 副本地图化：探索触发第 1 层战斗
+    await cmd(m, "explore", "g1", "i1", "探索")
+    st = db.get_battle("g1", "i1")["state"]
     # Boss 多动：把 Boss 速度拉满，验证 Boss 回合行动多次
     st["boss"]["spd"] = 999
     st["boss"]["atk"] = 5

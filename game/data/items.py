@@ -1834,6 +1834,23 @@ MATERIALS = {
         "type": "任务道具",
         "desc": "烬火领主·伊格尼斯心脏中的灼热核心，灰烬守卫套锻造核心（H7 隐藏区域 Boss 掉落）"
     },
+    # ---- v87.2 副本地图化 loot 材料（29 章 13.3：宝箱/补给/遗骸掉落）----
+    "mat_jun_qi_sui_pian": {"price": 100, "name": "军旗碎片", "type": "材料", "desc": "鹿角要塞军旗的碎片，可作钥匙进入鹿角要塞（首通后免钥匙）"},
+    "mat_gu_wang_sui_pian": {"price": 200, "name": "古王碎片", "type": "材料", "desc": "古王奥德里克陪葬品的残片，蕴含古老的力量"},
+    "mat_sheng_tang_mi_juan": {"price": 180, "name": "圣堂密卷", "type": "材料", "desc": "枢机主教密室的封印密卷，记载着教会秘史"},
+    "mat_da_sheng_ming_yao_shui": {"price": 150, "name": "大生命药水", "type": "材料", "desc": "浓稠的生命药水，可恢复大量生命（材料，可用于交易/任务）"},
+    "mat_you_ling_chuan_piao": {"price": 120, "name": "幽灵船票", "type": "材料", "desc": "锈蚀的船票，幽灵水手用它摆渡亡魂（可作钥匙进入沉船湾）"},
+    "mat_xing_hui_shi": {"price": 300, "name": "星辉石", "type": "材料", "desc": "星门开启时落下的星辉结晶，锻造极品材料"},
+    "mat_yue_guang_shi": {"price": 220, "name": "月光石", "type": "材料", "desc": "月光凝成的宝石，精灵古物常用它镶嵌"},
+    "mat_yue_hui_shi": {"price": 180, "name": "月辉石", "type": "材料", "desc": "月神圣殿的供品宝石，泛着清冷的月辉"},
+    "mat_lang_mu_jiu": {"price": 80, "name": "朗姆酒", "type": "材料", "desc": "沉船湾出产的烈酒，水手们的最爱"},
+    "mat_hai_dao_cang_bao_tu": {"price": 60, "name": "海盗的藏宝图", "type": "材料", "desc": "从搁浅水手怀里找到的藏宝图，标着海蚀洞窟的秘密角落"},
+    "mat_hai_shen_dao_wen": {"price": 260, "name": "海神祷文", "type": "材料", "desc": "海神神殿的祷文刻章（可作钥匙进入海神神殿）"},
+    "mat_shen_yuan_qi_shi_hu_fu": {"price": 240, "name": "深渊骑士护符", "type": "材料", "desc": "深渊骑士残骸上的护符，抵挡过黑暗的侵蚀"},
+    "mat_jing_tie_ding": {"price": 130, "name": "精铁锭", "type": "材料", "desc": "矮人工艺锻造的优质铁锭，装备强化材料"},
+    "mat_lei_he": {"price": 280, "name": "雷核", "type": "材料", "desc": "风暴中凝聚的雷电核心，蕴含狂暴的能量"},
+    "mat_long_gong_zhu": {"price": 300, "name": "龙宫珠", "type": "材料", "desc": "龙宫的夜明珠，价值连城（可作钥匙进入深海龙宫）"},
+    "mat_long_lin": {"price": 260, "name": "龙鳞", "type": "材料", "desc": "古龙的鳞片，坚硬如铁，锻造极品材料"},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============

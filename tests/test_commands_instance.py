@@ -31,6 +31,11 @@ async def cmd(m, handler_name, gid, qid, msg):
     return results[-1] if results else ""
 
 
+async def enter_combat(m, gid, qid):
+    """v87.2 副本地图化：开本后为地图模式（无直接战斗），『探索』触发第一场战斗"""
+    return await cmd(m, "explore", gid, qid, "探索")
+
+
 async def main():
     clean_db()
     m = Main(None)
@@ -54,7 +59,7 @@ async def main():
     await cmd(m, "party", "g1", "i1", "组队 队员")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("开本成功", "副本开启" in out, out[:200])
-    check("显示行动顺序", "按速度" in out or "行动顺序" in out, out[:200])
+    check("地图模式展示", "营地" in out or "第 1 层" in out or "探索" in out, out[:200])
     battle = db.get_battle("g1", "i1")
     check("状态存队长名下", battle and battle["state"]["type"] == "instance")
     st = battle["state"]
@@ -63,12 +68,19 @@ async def main():
     spd0 = st["players"][st["members"][0]].get("spd", 0)
     spd1 = st["players"][st["members"][1]].get("spd", 0)
     check("行动序按速度排序", spd0 >= spd1, f"{st['members']} spd={spd0},{spd1}")
+    # v87.2 副本地图化：开本为地图模式（boss 未进入战斗）
+    check("地图模式 mode=map", st.get("mode") == "map", f"mode={st.get('mode')}")
+    check("地图模式 boss=None", st.get("boss") is None, f"boss={st.get('boss')}")
+    check("层内有待清怪物", len(st.get("stage_pending", [])) >= 2, str(st.get("stage_pending")))
+    # 『探索』触发第一场战斗
+    out = await enter_combat(m, "g1", "i1")
+    st = db.get_battle("g1", "i1")["state"]
     boss = st["boss"]
     # v86.2 分层：旧王陵第 1 层是骷髅兵（非 Boss）
     check("第 1 层小怪登场", boss["name"] in ("骷髅兵", "僵尸"), f"enemy={boss['name']}")
     check("小怪非首领", boss.get("is_boss") is not True, f"is_boss={boss.get('is_boss')}")
     check("分层状态", st.get("stage_idx") == 0 and st.get("inst_stages"), str(st.get("stage_idx")))
-    check("层内有待清怪物", len(st.get("stage_pending", [])) >= 1, str(st.get("stage_pending")))
+    check("战斗模式 mode=battle", st.get("mode") == "battle", f"mode={st.get('mode')}")
 
     print("【副本：轮流回合】")
     first_m = st["members"][0]
@@ -121,6 +133,8 @@ async def main():
     # 『深入』→ 第 2 层（幽灵 + 幽灵骑士精英）
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
     check("深入第 2 层", "第 2 层" in out or "幽灵" in out, out[:200])
+    # v87.2 地图模式：探索触发第 2 层战斗
+    await enter_combat(m, "g1", "i1")
     # 清第 2 层
     for _ in range(8):
         battle = db.get_battle("g1", "i1")
@@ -139,6 +153,8 @@ async def main():
     # 『深入』→ 第 3 层 Boss（古王·奥德里克）
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
     check("深入第 3 层 Boss", "古王·奥德里克" in out, out[:200])
+    # v87.2 地图化：Boss 房探索触发 Boss 战
+    await enter_combat(m, "g1", "i1")
     # Boss 血量缩放验证（2 人队 hp_mult=2.5）
     base = C.build_monster(C.INSTANCES["inst_old_king_tomb"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect = int(base * 2.5)
@@ -172,6 +188,9 @@ async def main():
     check("3 人开本成功", "副本开启" in out, out[:150])
     st6 = db.get_battle("g1", "i1")["state"]
     check("3 人状态成员", len(st6["members"]) == 3, str(st6["members"]))
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
+    st6 = db.get_battle("g1", "i1")["state"]
     boss6 = st6["boss"]
     # v86.2 分层：3 人开本第 1 层也是小怪（骷髅兵）
     check("3 人第 1 层小怪", boss6["name"] in ("骷髅兵", "僵尸"), f"enemy={boss6['name']}")
@@ -216,6 +235,8 @@ async def main():
     check("第三人入队", "加入了你的队伍" in out, out[:100])
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("团队技能本开本", "副本开启" in out, out[:120])
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
     stt = db.get_battle("g1", "i1")["state"]
     # 全员低血量，便于验证团队治疗
     for key in stt["players"]:
@@ -249,6 +270,8 @@ async def main():
     await cmd(m, "party", "g1", "i1", "组队 队员")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("再次开本", "副本开启" in out, out[:120])
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
     st5 = db.get_battle("g1", "i1")["state"]
     for key in st5["players"]:
         st5["players"][key]["hp"] = 1
@@ -294,6 +317,9 @@ async def main():
     battle = db.get_battle("g1", "i1")
     stg = battle["state"]
     check("单人副本成员 1 人", len(stg["members"]) == 1, str(stg["members"]))
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
+    stg = db.get_battle("g1", "i1")["state"]
     # v86.2 分层：第 1 层是哥布林守卫（非 Boss）
     check("单人第 1 层小怪", stg["boss"]["name"] in ("哥布林守卫", "哥布林萨满"), f"enemy={stg['boss']['name']}")
     check("单人无队伍构成警告", "没有坦克" not in out, out[:200])
@@ -312,6 +338,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图模式：探索触发第 2 层战斗
+    await enter_combat(m, "g1", "i1")
     for _ in range(20):
         battle = db.get_battle("g1", "i1")
         if not battle:
@@ -326,6 +354,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图化：Boss 房探索触发 Boss 战
+    await enter_combat(m, "g1", "i1")
     stg3 = db.get_battle("g1", "i1")["state"]
     check("单人第 3 层 Boss", "哥布林酋长" in stg3["boss"]["name"], f"enemy={stg3['boss']['name']}")
     base_g = C.build_monster(C.INSTANCES["inst_goblin_camp"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
@@ -362,6 +392,9 @@ async def main():
     check("4 人副本开本成功", "副本开启" in out, out[:200])
     stm = db.get_battle("g1", "i1")["state"]
     check("4 人副本成员 4 人", len(stm["members"]) == 4, str(stm["members"]))
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
+    stm = db.get_battle("g1", "i1")["state"]
     # v86.2 分层：第 1 层小怪，推进到 Boss 层验证血量缩放
     check("4 人第 1 层小怪", stm["boss"].get("is_boss") is not True, f"enemy={stm['boss']['name']}")
     for _ in range(25):
@@ -379,6 +412,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图模式：探索触发第 2 层战斗
+    await enter_combat(m, "g1", "i1")
     for _ in range(25):
         battle = db.get_battle("g1", "i1")
         if not battle:
@@ -394,6 +429,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图化：Boss 房探索触发 Boss 战
+    await enter_combat(m, "g1", "i1")
     stm3 = db.get_battle("g1", "i1")["state"]
     base_m = C.build_monster(C.INSTANCES["inst_deep_dragon_palace"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect_m = int(base_m * 2.7)  # min_players=4 → 4 人不缩放
@@ -424,7 +461,8 @@ async def main():
     inv = db.get_inventory("g1", "i1")
     keys = [i for i in inv if "军旗" in (i.get("data") or {}).get("name", "")]
     check("钥匙已消耗", len(keys) == 0, str([(i.get("data") or {}).get("name") for i in inv])[:200])
-    # 首通后免钥匙
+    # v87.2 副本地图化：探索触发战斗
+    await enter_combat(m, "g1", "i1")
     stk = db.get_battle("g1", "i1")["state"]
     stk["boss"]["hp"] = 1
     stk["boss"]["atk"] = 5
@@ -446,6 +484,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图模式：探索触发第 2 层战斗
+    await enter_combat(m, "g1", "i1")
     for _ in range(10):
         battle = db.get_battle("g1", "i1")
         if not battle:
@@ -461,6 +501,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图化：Boss 房探索触发 Boss 战
+    await enter_combat(m, "g1", "i1")
     stk3 = db.get_battle("g1", "i1")["state"]
     stk3["boss"]["hp"] = 1
     stk3["boss"]["atk"] = 5

@@ -34,6 +34,12 @@ class CombatCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        # v87.2 副本地图化：副本地图模式（mode=map）→ 副本内探索
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if inst_row and inst_row["state"].get("mode") == "map":
+            async for _r in self._instance_explore(event, group_id, qq_id, inst_row):
+                yield _r
+            return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
             return
@@ -192,12 +198,16 @@ class CombatCmds(CommandBase):
     def _in_battle(self, group_id, qq_id):
         # v28：锁按 qq_id 全局维度（玩家数据已全局化，群/临时会话共用同一角色）。
         # 自愈：db 无战斗记录但内存锁残留时自动清除（跨群打完/异常中断导致）。
-        db_battle = db.get_battle(group_id, qq_id) is not None
+        # v87.2：副本撤退后（retreated）保留进度但不算战斗中
+        db_battle = db.get_battle(group_id, qq_id)
+        db_in_battle = db_battle is not None
+        if db_battle and db_battle["state"].get("type") == "instance" and db_battle["state"].get("retreated"):
+            db_in_battle = False
         key = str(qq_id)
-        if not db_battle and key in _battle_locks:
+        if not db_in_battle and key in _battle_locks:
             _battle_locks.discard(key)
             return False
-        return key in _battle_locks or db_battle
+        return key in _battle_locks or db_in_battle
 
     def _lock_battle(self, group_id, qq_id):
         _battle_locks.add(str(qq_id))
@@ -534,9 +544,13 @@ class CombatCmds(CommandBase):
             )
         return False, ""
 
-    def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi):
-        """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。"""
+    def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
+        """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。
+        v87.2 副本地图化：支持副本层内联 POI（poi 带 type 字段 + st 战斗上下文）。"""
         import uuid as _uuid
+        # ---- v87.2 副本内联 POI（宝箱/篝火/石碑/机关/陷阱/补给/遗骸）----
+        if poi.get("type"):
+            return self._handle_inst_poi(group_id, qq_id, st, poi)
         name = cur_map.get("name", "此地")
         sub_name = ""
         cur_sa_id = player.get("cur_subarea") or ""
@@ -620,6 +634,114 @@ class CombatCmds(CommandBase):
             return (f"{icon} 【{pname}】你摘下{loc}树干上的字条，墨迹已有些褪色。\n"
                     f"📜 {txt}")
         return f"{icon} 【{pname}】你打量了一下{loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
+
+    def _handle_inst_poi(self, group_id, qq_id, st, poi) -> str:
+        """v87.2 副本层内联 POI 效果结算（29 章 13.3）。
+
+        宝箱/补给/遗骸→loot；篝火→回血；石碑→lore+解锁；机关→effect；
+        陷阱→可拆解（有石碑线索）或全队受伤。st 为副本战斗状态（含 POI used 记录）。
+        """
+        logs = []
+        sidx = st["stage_idx"]
+        pid = poi.get("id", "")
+        ptype = poi.get("type", "")
+        pname = poi.get("name", "")
+        # 需要前置条件（need）
+        need = poi.get("need") or {}
+        if need:
+            if need.get("poi_read") and not st.get("poi_unlocks", {}).get(need["poi_read"]):
+                return f"🔒 {pname}纹丝不动——需要先找到某种启示/线索。"
+            if need.get("unlock") and not st.get("poi_unlocks", {}).get(need["unlock"]):
+                return f"🔒 {pname}还没准备好——似乎缺少某样东西。"
+        # 宝箱 / 补给 / 遗骸：给 loot
+        if ptype in ("chest", "supply", "corpse"):
+            loot = poi.get("loot") or {}
+            gold = loot.get("gold", 0)
+            mats = loot.get("materials") or []
+            p = self._player(group_id, qq_id)
+            if gold > 0 and p:
+                db.update_player(group_id, qq_id, gold=p["gold"] + gold)
+                logs.append(f"💰 你从{pname}里摸出了 {gold} 金币！")
+            for mn in mats:
+                mid = C.resolve("materials", mn)
+                if mid in C.MATERIALS:
+                    mname = C.display("materials", mid)
+                    db.add_item(group_id, qq_id, mid, {
+                        "name": mname, "type": "材料", "stackable": True,
+                        "price": C.MATERIALS[mid]["price"],
+                    })
+                    logs.append(f"🎒 拾取：{mname}")
+            self._mark_poi_used(st, sidx, pid)
+            head = f"💀 你蹲下搜刮{pname}……" if ptype == "corpse" else f"📦 {pname}："
+            return "\n".join([head] + logs)
+        # 篝火：回血
+        if ptype == "campfire":
+            for m in st["members"]:
+                if not st["alive"].get(str(m), True):
+                    continue
+                snap = st["players"].get(str(m), {})
+                if snap.get("hp") is not None:
+                    heal = max(1, int(snap.get("max_hp", snap["hp"]) * 0.2))
+                    snap["hp"] = min(snap.get("max_hp", snap["hp"]), snap["hp"] + heal)
+                    logs.append(f"🔥 {snap.get('name', m)} 在{pname}旁烤火，恢复 {heal} 点生命！")
+            self._mark_poi_used(st, sidx, pid)
+            return "\n".join(logs)
+        # 石碑：读 lore（可反复读，不标 used；effect.unlock 记录）
+        if ptype == "rune_stone":
+            lore = poi.get("lore", "碑文模糊不清，似乎被岁月磨平了。")
+            logs.append(f"🗿 你阅读{pname}：")
+            logs.append(f"  “{lore}”")
+            eff = poi.get("effect") or {}
+            if eff.get("unlock"):
+                st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
+                logs.append("✨ 碑文的内容似乎触发了什么……（某个机关被解锁了！）")
+            if eff.get("avoid_trap"):
+                st.setdefault("poi_unlocks", {})[f"avoid_{eff['avoid_trap']}"] = True
+                logs.append("✨ 你记住了避开陷阱的路线。")
+            if eff.get("boss_buff"):
+                st["boss_buff_next"] = True
+                logs.append("✨ 风神的祝福涌入体内——Boss 战前将获得速度加持！")
+            return "\n".join(logs)
+        # 机关：按 effect 处理
+        if ptype == "mechanism":
+            eff = poi.get("effect") or {}
+            desc = poi.get("desc", f"你扳动了{pname}。")
+            logs.append(f"⚙️ {desc}")
+            if eff.get("open_secret"):
+                st["stage_secret_found"] = True
+                logs.append("🔓 隐藏房间出现了！『副本地图』查看详情。")
+            if eff.get("skip_elite"):
+                st["skip_elite_next"] = True
+                logs.append("🧭 机关打通了一条捷径——下一层的精英被绕开了！")
+            if eff.get("skip_wave"):
+                st["skip_wave_next"] = True
+                logs.append("🧭 援兵被引开了一部分——下一层的敌人减少了！")
+            if eff.get("unlock"):
+                st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
+                logs.append("✨ 机关启动，某种封锁被解除了！")
+            self._mark_poi_used(st, sidx, pid)
+            return "\n".join(logs)
+        # 陷阱：可拆解（有石碑线索）或踩中受伤
+        if ptype == "trap":
+            if st.get("poi_unlocks", {}).get(f"avoid_{pid}"):
+                self._mark_poi_used(st, sidx, pid)
+                return f"⚠️ 你记得石碑上的提示，小心地拆除了{pname}！"
+            logs.append(f"⚠️ 你触发了{pname}！全队受到 10% 最大生命的伤害！")
+            for m in st["members"]:
+                if not st["alive"].get(str(m), True):
+                    continue
+                snap = st["players"].get(str(m), {})
+                if snap.get("hp") is not None:
+                    dmg = max(1, int(snap.get("max_hp", snap["hp"]) * 0.1))
+                    snap["hp"] = max(0, snap["hp"] - dmg)
+                    if snap["hp"] <= 0:
+                        st["alive"][str(m)] = False
+                        logs.append(f"💀 {snap.get('name', m)} 被陷阱击倒了！")
+                    else:
+                        logs.append(f"❤️ {snap.get('name', m)} 剩余 {snap['hp']}/{snap['max_hp']}")
+            self._mark_poi_used(st, sidx, pid)
+            return "\n".join(logs)
+        return f"你检查了{pname}，没发现特别之处。"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)")
 

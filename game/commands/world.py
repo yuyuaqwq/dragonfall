@@ -75,9 +75,20 @@ class WorldCmds(CommandBase):
                 _p = C.POIS.get(_pid)
                 if _p:
                     lines.append(f"{_p['icon']} {_p['name']}（『探索』有机会发现）")
-        # NPC（含功能）：子区域优先
+        # v87.2 副本地图化：内联 POI（副本层自带 pois → 直接显示，『调查 <名称>』互动）
+        for _p in (cur_map.get("pois") or []):
+            if isinstance(_p, dict) and _p.get("name"):
+                lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}（『调查 {_p['name']}』）")
+        # NPC（含功能）：子区域优先；内联 NPC（副本层）从 HIDDEN_NPCS 查
         npc_ids = sa_npcs if sa_npcs is not None else cur_map.get("npcs", [])
-        npcs = [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
+        if cur_map.get("inline_npcs"):
+            npc_ids = cur_map["inline_npcs"]
+        npcs = []
+        for nid in npc_ids:
+            if nid in C.HIDDEN_NPCS:
+                npcs.append(C.HIDDEN_NPCS[nid])
+            elif nid in C.NPCS:
+                npcs.append(C.NPCS[nid])
         for n in npcs:
             funcs = "、".join(self._npc_func_label(f) for f in n.get("funcs", []))
             lines.append(f"{n['icon']}{n['name']}（『找 {n['name']}』{funcs}）")
@@ -1305,6 +1316,16 @@ class WorldCmds(CommandBase):
             npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
         else:
             npc_id, npc = self._find_npc_in_map(player, name_key)
+        if not npc:
+            # v87.2 副本地图化：副本层内 NPC（HIDDEN_NPCS，按当前层 npcs 列表查）
+            inst_row = self._instance_battle_for(group_id, qq_id)
+            if inst_row and inst_row["state"].get("mode") == "map":
+                stage_npcs = self._stage_npcs(group_id, qq_id)
+                for nid in stage_npcs:
+                    n = C.HIDDEN_NPCS.get(nid, {})
+                    if n and (name_key in n.get("name", "") or name_key in nid):
+                        npc_id, npc = nid, n
+                        break
         if not npc:
             # 9.4：野外 NPC（当前地图 + 出现条件）
             npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)

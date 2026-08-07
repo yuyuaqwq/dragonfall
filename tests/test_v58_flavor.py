@@ -138,6 +138,9 @@ async def main():
     db.add_item("g1", "i1", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})
     await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     st = db.get_battle("g1", "i1")["state"]
+    # v87.2 副本地图化：开本为地图模式 → 探索触发第 1 层战斗
+    await cmd(m, "explore", "g1", "i1", "探索")
+    st = db.get_battle("g1", "i1")["state"]
     # v86.2 分层：开本第 1 层小怪，第 3 层才是 Boss → 深入两次到 Boss 层验证 mech
     st["boss"]["hp"] = 1
     st["boss"]["atk"] = 5
@@ -159,6 +162,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图模式：探索触发第 2 层战斗
+    await cmd(m, "explore", "g1", "i1", "探索")
     for _ in range(10):
         battle = db.get_battle("g1", "i1")
         if not battle:
@@ -174,6 +179,8 @@ async def main():
         if "深入" in out or "通关" in out:
             break
     await cmd(m, "instance_advance", "g1", "i1", "深入")
+    # v87.2 地图模式：Boss 房探索触发 Boss 战
+    await cmd(m, "explore", "g1", "i1", "探索")
     st = db.get_battle("g1", "i1")["state"]
     check("古王·奥德里克 mech=enrage,summon", st["boss"].get("mech") == "enrage,summon", str(st["boss"].get("mech")))
     for q in ("i1", "i2"):
