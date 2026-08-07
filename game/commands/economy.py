@@ -703,7 +703,14 @@ class EconomyCmds(CommandBase):
         if cls in C.CLASSES:
             yield event.plain_result(self._craft_list_class(player, cls, 1))
             return
-        # 锻造指定装备
+        # 锻造指定装备（20 章 4.3：『锻造 <装备名> <词条倾向>』指定词条池）
+        affinity = None
+        parts = text.split()
+        if len(parts) >= 2:
+            last = parts[-1]
+            if last in C.AFFIX_AFFINITY_CN:
+                affinity = C.AFFIX_AFFINITY_CN[last]
+                text = " ".join(parts[:-1])
         rec_name = C.craft_recipe_search(text)
         if not rec_name:
             # 可能是查看配方详情
@@ -769,8 +776,12 @@ class EconomyCmds(CommandBase):
         if lack:
             yield event.plain_result(f"材料不足！锻造【{rec_disp}】还缺：{'、'.join(lack)}。打对应怪物收集材料！")
             return
-        if player["gold"] < rec["gold"]:
-            yield event.plain_result(f"金币不足！锻造【{rec_disp}】需要 {rec['gold']} 金币，你只有 {player['gold']}。")
+        # 20 章 4.3：词条倾向额外消耗（+50% 金币）
+        gold_need = rec["gold"]
+        if affinity:
+            gold_need = int(gold_need * 1.5)
+        if player["gold"] < gold_need:
+            yield event.plain_result(f"金币不足！锻造【{rec_disp}】需要 {gold_need} 金币，你只有 {player['gold']}。")
             return
         # 扣材料 + 扣金币 + 发装备（v48：背包 data.name 存中文，mats key 是 ID）
         for m, n in rec["mats"].items():
@@ -781,8 +792,8 @@ class EconomyCmds(CommandBase):
                 if d.get("name") == mname:
                     db.remove_item(group_id, qq_id, it["key"], n)
                     break
-        db.update_player(group_id, qq_id, gold=player["gold"] - rec["gold"])
-        equip = C.craft_recipe_make(rec_name)
+        db.update_player(group_id, qq_id, gold=player["gold"] - gold_need)
+        equip = C.craft_recipe_make(rec_name, affinity)
         import uuid
         key = f"eq_{uuid.uuid4().hex[:8]}"
         db.add_item(group_id, qq_id, key, equip)
@@ -790,13 +801,12 @@ class EconomyCmds(CommandBase):
         afs = equip.get("affixes", [])
         af_str = ""
         if afs:
-            sn = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
-                  "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
-            parts = []
-            for a in afs:
-                k, v = a.get("stat"), a.get("value", 0)
-                parts.append(f"{sn.get(k, k)} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{sn.get(k, k)} +{v}")
-            af_str = f"\n    ✨ 词条：{'  '.join(parts)}"
+            parts = [C.affix_label(a) for a in afs if isinstance(a, str)]
+            if parts:
+                af_str = f"\n    ✨ 词条：{'  '.join(parts)}"
+        if equip.get("legendary"):
+            lg = C.LEGENDARY_EFFECTS[equip["legendary"]]
+            af_str += f"\n    ✨ 专属：{lg['name']}"
         set_str = ""
         if equip.get("set"):
             set_str = f"\n    🎴 套装：{equip['set']}"
@@ -808,10 +818,11 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "craft")
         lv_msg += _msg
+        affinity_str = f"（{affinity}倾向）" if affinity else ""
         yield event.plain_result(act_msg + f"🔨 铁匠挥锤敲打，火星四溅……\n"
-            f"✅ 锻造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']}"
+            f"✅ 锻造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']} {affinity_str}"
             f"{af_str}{set_str}\n"
-            f"💰 消耗 {rec['gold']} 金币，装备已放入背包！{lv_msg}"
+            f"💰 消耗 {gold_need} 金币，装备已放入背包！{lv_msg}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")

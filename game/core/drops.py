@@ -167,12 +167,13 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
     return equip
 
 
-def generate_roster_equip(rid: str) -> dict:
+def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
     """按 10 章名册精确生成一件装备（锻造/图纸/Boss 掉落/商店主推）。
 
     装备名 = 名册名（确定性）；词条 = 系列固定词条（20 章 3.x）+ 按品质随机补足；
     橙装挂名册专属；需求用名册 req；套装归属 = 系列套装名（10 章五节）。
     品质词条数：白 0 / 蓝 2（固定+随机补足）/ 紫 3 / 橙 3 + 专属。
+    affinity（20 章 4.3 锻造词条倾向）：攻击/防御/元素/机动——随机补足从倾向池抽。
     """
     r = C.EQUIP_ROSTER[rid]
     slot, lv, quality = r["slot"], r["lv"], r["quality"]
@@ -206,6 +207,14 @@ def generate_roster_equip(rid: str) -> dict:
             if a not in fixed]
     want_kind = "attack" if slot == "weapon" else "defense"
     pool = [a for a in pool if AFFIXES[a]["kind"] == want_kind]
+    # 20 章 4.3：词条倾向 → 倾向池直接作为候选（过滤部位类型 + 固定词条）
+    # 比品质随机池宽（如蓝装也能出元素词条），玩家主动指定合理
+    if affinity:
+        aff_pool = C.AFFIX_AFFINITY_POOLS.get(affinity, [])
+        aff_pool = [a for a in aff_pool
+                    if AFFIXES[a]["kind"] == want_kind and a not in fixed]
+        if aff_pool:
+            pool = aff_pool
     rnd = random.sample(pool, min(random_n, len(pool))) if pool and random_n else []
     affix_ids = fixed + rnd
     for k, v in stat_affix_stats(affix_ids, slot, lv).items():

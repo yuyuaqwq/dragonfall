@@ -190,6 +190,23 @@ AFFIX_POOL_BY_QUALITY = {
 # 词条类型（装备显示/随机池按部位过滤用）
 AFFIX_KIND = {"attack": "武器", "defense": "防具"}
 
+# 锻造词条倾向池（20 章 4.3：『锻造 <装备> <词条倾向>』指定词条类型）
+AFFIX_AFFINITY_POOLS = {
+    "攻击": ["bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up",
+             "crit_dmg", "precise", "charge", "pierce", "hunt", "break_magic",
+             "purify", "dragon_aw"],
+    "防御": ["block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity",
+             "regen", "meditate", "swift", "hp_up", "elem_resist", "abyss_resist"],
+    "元素": ["element_fire", "element_ice", "element_thunder", "elem_resist"],
+    "机动": ["swift", "precise", "combo", "charge", "pierce", "hunt", "dodge"],
+}
+AFFIX_AFFINITY_CN = {  # 玩家输入别名
+    "攻击": "攻击", "输出": "攻击",
+    "防御": "防御", "防": "防御", "生存": "防御",
+    "元素": "元素", "元素伤害": "元素",
+    "机动": "机动", "速度": "机动", "灵活": "机动",
+}
+
 # 传说专属效果（20 章 2.3：每件传说 1 个专属。20 章已配 + 名册补齐）
 # 结构与 AFFIXES 一致，battle 触发逻辑共用；显示时标注「专属」
 LEGENDARY_EFFECTS = {

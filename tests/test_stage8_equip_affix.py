@@ -306,6 +306,16 @@ def test_craft_set():
     check("圣光套 4 件防御+8%", abs(b4.get("def", 0) - 0.08) < 1e-6, str(b4))
     # 白装不触发套装
     check("白装无套装字段", C.generate_roster_equip("eq_tie_jian").get("set") is None)
+    # 20 章 4.3 锻造词条倾向：元素倾向出元素词条
+    random.seed(5)
+    ea = C.craft_recipe_make("rec_wan_dao", "元素")
+    check("元素倾向出元素词条", any(a.startswith("element_") for a in ea.get("affixes", [])), str(ea.get("affixes")))
+    random.seed(9)
+    ea2 = C.craft_recipe_make("rec_jin_gou_wan_dao", "元素")
+    check("橙装元素倾向固定+元素", any(a.startswith("element_") for a in ea2.get("affixes", [])), str(ea2.get("affixes")))
+    random.seed(7)
+    ed = C.craft_recipe_make("rec_chuan_zhang_mao", "防御")
+    check("防御倾向出防御词条", any(a in ("block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity", "regen", "meditate", "swift", "hp_up") for a in ed.get("affixes", [])), str(ed.get("affixes")))
 
 
 async def main():
