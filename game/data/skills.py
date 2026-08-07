@@ -898,629 +898,1826 @@ BRANCH_SKILLS = {
         "branches": {
             1: {
                 "狂战士": {
-            "连环斩": {
-                "lv": 32,
-                "mp": 45,
-                "power": 2.6,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "rage",
-                "mech_val": 2,
-                "desc": "狂暴连斩 2 次，每次 260%，叠加狂暴层数",
-                "name": "连环斩",
-            },
-            "战吼": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up_strong",
-                "mech": "rage",
-                "mech_val": 1,
-                "desc": "攻击+75%，叠 1 层狂暴",
-                "name": "战吼",
-            },
-            "嗜血斩": {
-                "lv": 45,
-                "mp": 40,
-                "power": 5.8,
-                "kind": "物理",
-                "effect": "lifesteal",
-                "mech": "rage",
-                "mech_val": 1,
-                "cond": {
-                    "type": "enemy_hp_high",
-                    "hp_pct": 0.7,
-                    "mult": 1.5,
-                    "label": "狂暴压制",
+                    "怒斩":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.4,
+                        "kind": "物理",
+                        "res_gain": 2,
+                        "cond": {
+                            "type": "player_hp_low",
+                            "hp_pct": 0.5,
+                            "mult": 1.25,
+                            "label": "狂战血统"
+                        },
+                        "desc": "140% 斩击，怒气+2。自身 HP<50% 时伤害 +25%（残血狂战）",
+                        "name": "怒斩"
+                    }
+,
+                    "死战":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "atk",
+                            "cond": "hp_low_50",
+                            "mult": 0.1
+                        },
+                        "desc": "属性被动：生命低于 50% 时攻击 +10%",
+                        "name": "死战"
+                    }
+,
+                    "嗜血斩":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.6,
+                        "kind": "物理",
+                        "lifesteal": 0.25,
+                        "res_gain": 2,
+                        "cond": {
+                            "type": "enemy_debuff",
+                            "mult": 1.2,
+                            "label": "猎物标记"
+                        },
+                        "desc": "160% 吸血斩击（吸血 25%），怒气+2。目标有减益时伤害 +20%",
+                        "name": "嗜血斩"
+                    }
+,
+                    "狂怒爆发":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.4,
+                        "kind": "物理",
+                        "res_cost": {
+                            "rage": 5
+                        },
+                        "cond": {
+                            "type": "player_hp_low",
+                            "hp_pct": 0.3,
+                            "mult": 1.4,
+                            "label": "绝境狂怒"
+                        },
+                        "desc": "终结技，240% 斩击，消耗 5 怒气。自身 HP<30% 时伤害 +40%（背水一战）",
+                        "name": "狂怒爆发"
+                    }
+,
                 },
-                "desc": "580% 吸血斩击，叠 1 层狂暴（敌方血量>70%时威力×1.5）",
-                "name": "嗜血斩",
-            },
-            "狂战之魂": {
-                "lv": 55,
-                "mp": 45,
-                "power": 0,
-                "kind": "增益",
-                "effect": "rage_burst",
-                "desc": "消耗全部狂暴层，每层 +18% 攻击，持续 3 回合",
-                "name": "狂战之魂",
-            },
+                "盾卫士": {
+                    "盾击":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "物理",
+                        "mech": "stun",
+                        "mech_val": 1,
+                        "cond": {
+                            "type": "enemy_stunned",
+                            "mult": 1.5,
+                            "label": "盾击连打"
+                        },
+                        "desc": "130% 盾击，概率眩晕 1 回合。目标被眩晕时追加 50% 伤害（控制链）",
+                        "name": "盾击"
+                    }
+,
+                    "守护姿态":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "dmg_taken",
+                            "reduce": 0.1,
+                            "res_gain": 2
+                        },
+                        "desc": "触发被动：受击伤害 -10%，受击怒气+2（坦克攒怒）",
+                        "name": "守护姿态"
+                    }
+,
+                    "圣光壁垒":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "def_up",
+                        "team": "def_all",
+                        "res_gain": 3,
+                        "desc": "全队防御强化（组队时广播），怒气+3。坦克核心",
+                        "name": "圣光壁垒"
+                    }
+,
+                    "嘲讽":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "嘲讽",
+                        "cd": 3,
+                        "team": "taunt",
+                        "res_gain": 4,
+                        "desc": "嘲讽，CD3，强制怪物攻击自己 2 回合，怒气+4（拉怪核心）",
+                        "name": "嘲讽"
+                    }
+,
                 },
-                "圣骑士": {
-            "圣光斩": {
-                "lv": 32,
-                "mp": 45,
-                "power": 5.0,
-                "kind": "物理",
-                "pierce": True,
-                "mech": "shield",
-                "mech_val": 1,
-                "desc": "500% 无视防御圣光斩，叠 1 层圣盾",
-                "name": "圣光斩",
             },
-            "圣盾术": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "mech": "shield",
-                "mech_val": 2,
-                "desc": "防御+45%，叠 2 层圣盾",
-                "name": "圣盾术",
-            },
-            "圣光祝福": {
-                "lv": 45,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up_strong",
-                "mech": "shield",
-                "mech_val": 1,
-                "desc": "攻击+75%，叠 1 层圣盾",
-                "name": "圣光祝福",
-            },
-            "盾击": {
-                "lv": 55,
-                "mp": 50,
-                "power": 6.2,
-                "kind": "物理",
-                "mech": "shield_burst",
-                "cond": {
-                    "type": "player_shield",
-                    "mult": 1.5,
-                    "label": "坚盾反击",
+            2: {
+                "狂战统领": {
+                    "狂战之魂":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "res_gain_bonus": 1
+                        },
+                        "desc": "二转被动：怒气获取 +1（攒怒更快）",
+                        "name": "狂战之魂"
+                    }
+,
+                    "乱舞":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "物理",
+                        "multi": 3,
+                        "res_gain": 3,
+                        "desc": "120%×3 快速连斩，怒气+3（输出循环填充）",
+                        "name": "乱舞"
+                    }
+,
+                    "处决":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "rage": 4
+                        },
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.35,
+                            "mult": 1.5,
+                            "label": "残血终结"
+                        },
+                        "desc": "终结技，300% 斩杀，消耗 4 怒气。目标 HP<35% 时伤害 +50%",
+                        "name": "处决"
+                    }
+,
                 },
-                "desc": "消耗全部圣盾层，每层 +12% 伤害（自身有护盾时威力×1.5）",
-                "name": "盾击",
-            },
+                "圣殿骑士": {
+                    "圣盾":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "block",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：格挡率 +10%（减伤强化）",
+                        "name": "圣盾"
+                    }
+,
+                    "复仇":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "counter",
+                            "mult": 1.3
+                        },
+                        "desc": "触发被动：受击后下次攻击 +30%（挨打反打）",
+                        "name": "复仇"
+                    }
+,
+                    "破城锤":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.2,
+                        "kind": "物理",
+                        "pierce": True,
+                        "res_cost": {
+                            "rage": 3
+                        },
+                        "cond": {
+                            "type": "enemy_hp_high",
+                            "hp_pct": 0.7,
+                            "mult": 1.5,
+                            "label": "重装压制"
+                        },
+                        "desc": "220% 破防重锤，消耗 3 怒气。目标 HP>70% 时伤害 +50%（压制满血）",
+                        "name": "破城锤"
+                    }
+,
                 },
-            }
-        }
+            },
+            3: {
+                "战争领主": {
+                    "怒涛连斩":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.8,
+                        "kind": "物理",
+                        "multi": 3,
+                        "res_cost": {
+                            "rage": 5
+                        },
+                        "cond": {
+                            "type": "player_res_stacks",
+                            "res_key": "rage",
+                            "stacks": 9,
+                            "mult": 1.3,
+                            "label": "战意通天"
+                        },
+                        "desc": "180%×3 全体连斩，消耗 5 怒气。怒气≥9 时伤害 +30%",
+                        "name": "怒涛连斩"
+                    }
+,
+                    "战争化身":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 5.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "rage": 10
+                        },
+                        "cd": 5,
+                        "desc": "终极技，500% 毁灭斩击，消耗全部 10 怒气（狂战巅峰）",
+                        "name": "战争化身"
+                    }
+,
+                    "战争领域":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "atk_up_strong",
+                        "res_cost": {
+                            "rage": 10
+                        },
+                        "cd": 6,
+                        "desc": "三转奥义，消耗 10 怒气，3 回合内攻击大幅提升（战争领域）",
+                        "name": "战争领域"
+                    }
+,
+                },
+                "圣辉骑士": {
+                    "守护誓言":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "def_all",
+                        "team": "def_all",
+                        "res_cost": {
+                            "rage": 4
+                        },
+                        "desc": "替全队承受伤害的誓言，全队防御强化，消耗 4 怒气（团队保护）",
+                        "name": "守护誓言"
+                    }
+,
+                    "不破壁垒":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "reduce_all",
+                        "team": "reduce_all",
+                        "res_cost": {
+                            "rage": 5
+                        },
+                        "cd": 5,
+                        "desc": "终极技，全队减伤 25% 3 回合，消耗 5 怒气（团队终极防御）",
+                        "name": "不破壁垒"
+                    }
+,
+                    "守护圣域":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "reduce_all",
+                        "team": "reduce_all",
+                        "res_cost": {
+                            "rage": 5
+                        },
+                        "cd": 6,
+                        "desc": "三转奥义，消耗 5 怒气，全队无敌屏障（守护圣域）",
+                        "name": "守护圣域"
+                    }
+,
+                },
+            },
+        },
     },
     "cls_fa_shi": {
         "name": "法师",
         "branches": {
             1: {
-                "元素大师": {
-            "烈焰冲击": {
-                "lv": 32,
-                "mp": 45,
-                "power": 5.2,
-                "kind": "魔法",
-                "mech": "burn",
-                "mech_val": 2,
-                "desc": "520% 烈焰冲击，叠 2 层灼烧",
-                "name": "烈焰冲击",
-            },
-            "魔力激荡": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up_strong",
-                "mech": "burn",
-                "mech_val": 1,
-                "desc": "魔攻+75%，叠 1 层灼烧",
-                "name": "魔力激荡",
-            },
-            "连珠火球": {
-                "lv": 45,
-                "mp": 45,
-                "power": 2.4,
-                "kind": "魔法",
-                "multi": 2,
-                "mech": "burn",
-                "mech_val": 2,
-                "desc": "连珠火球 2 次每次 240%，叠 2 层灼烧",
-                "name": "连珠火球",
-            },
-            "元素狂暴": {
-                "lv": 55,
-                "mp": 50,
-                "power": 0,
-                "kind": "增益",
-                "effect": "burn_burst",
-                "cond": {
-                    "type": "enemy_hp_low",
-                    "hp_pct": 0.4,
-                    "mult": 1.8,
-                    "label": "残血引爆",
+                "烈焰法师": {
+                    "火环":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "fire",
+                            "stacks": 1,
+                            "mult": 1.15,
+                            "label": "火环蔓延"
+                        },
+                        "desc": "火系 120% 全体伤害，挂火印。目标已有火印时伤害 +15%",
+                        "name": "火环"
+                    }
+,
+                    "燃尽":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "kill_mp",
+                            "mult": 0.15
+                        },
+                        "desc": "触发被动：击杀敌人时回复 15% 魔力（火系续航）",
+                        "name": "燃尽"
+                    }
+,
+                    "连珠火球":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.4,
+                        "kind": "魔法",
+                        "multi": 2,
+                        "element": "fire",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "fire",
+                            "stacks": 3,
+                            "mult": 1.3,
+                            "label": "连环引爆"
+                        },
+                        "desc": "火系 140%×2，挂 2 层火印。目标火印≥3 层时伤害 +30%（叠印引爆）",
+                        "name": "连珠火球"
+                    }
+,
+                    "超载引爆":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.4,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "fire",
+                            "stacks": 2,
+                            "mult": 1.3,
+                            "label": "元素共鸣"
+                        },
+                        "desc": "火系 240%，引爆火印。目标火印≥2 层时伤害 +30%",
+                        "name": "超载引爆"
+                    }
+,
                 },
-                "desc": "引爆灼烧：每层灼烧立即造成 30% 魔攻伤害（敌方血量<40%时威力×1.8）",
-                "name": "元素狂暴",
-            },
+                "寒霜法师": {
+                    "冰环":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "魔法",
+                        "element": "ice",
+                        "mech": "freeze",
+                        "mech_val": 1,
+                        "cond": {
+                            "type": "enemy_slowed",
+                            "mult": 1.2,
+                            "label": "寒霜亲和"
+                        },
+                        "desc": "冰系 120% 全体，概率冻结，挂冰印。目标减速时伤害 +20%",
+                        "name": "冰环"
+                    }
+,
+                    "凝霜":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "enemy_slowed_dmg",
+                            "mult": 0.1
+                        },
+                        "desc": "触发被动：减速目标受到伤害 +10%（冰系增伤）",
+                        "name": "凝霜"
+                    }
+,
+                    "冰锥连射":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "魔法",
+                        "multi": 2,
+                        "element": "ice",
+                        "cond": {
+                            "type": "player_hp_high",
+                            "hp_pct": 0.7,
+                            "mult": 1.15,
+                            "label": "冰心"
+                        },
+                        "desc": "冰系 130%×2，挂 2 层冰印。自身 HP>70% 时伤害 +15%（满血施法稳定）",
+                        "name": "冰锥连射"
+                    }
+,
+                    "冻结":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 1.5,
+                        "kind": "魔法",
+                        "element": "ice",
+                        "mech": "freeze",
+                        "mech_val": 2,
+                        "cd": 3,
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.5,
+                            "mult": 1.3,
+                            "label": "绝对零度前奏"
+                        },
+                        "desc": "冰系 150% + 强效冻结，CD3。目标 HP<50% 时伤害 +30%（残血控制）",
+                        "name": "冻结"
+                    }
+,
                 },
-                "冰霜贤者": {
-            "冰枪术": {
-                "lv": 32,
-                "mp": 45,
-                "power": 5.2,
-                "kind": "魔法",
-                "mech": "freeze",
-                "mech_val": 1,
-                "desc": "520% 冰枪，概率冻结敌人 1 回合",
-                "name": "冰枪术",
             },
-            "寒冰壁垒": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "mech": "freeze",
-                "mech_val": 1,
-                "desc": "防御+45%，冰系技能冻结概率+15%",
-                "name": "寒冰壁垒",
-            },
-            "冰霜新星": {
-                "lv": 45,
-                "mp": 45,
-                "power": 2.4,
-                "kind": "魔法",
-                "multi": 2,
-                "mech": "freeze",
-                "mech_val": 1,
-                "desc": "冰霜新星 2 次每次 240%，概率冻结",
-                "name": "冰霜新星",
-            },
-            "冰锥术": {
-                "lv": 55,
-                "mp": 50,
-                "power": 6.5,
-                "kind": "魔法",
-                "mech": "freeze",
-                "mech_val": 2,
-                "cond": {
-                    "type": "enemy_frozen",
-                    "mult": 1.7,
-                    "label": "碎冰重击",
+            2: {
+                "烈焰术士": {
+                    "烈焰之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "fire",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：火系技能伤害 +10%（火系强化）",
+                        "name": "烈焰之心"
+                    }
+,
+                    "流星火雨":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.6,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "fire",
+                            "stacks": 1,
+                            "mult": 1.5,
+                            "label": "流星坠落"
+                        },
+                        "desc": "火系 160% 全体。目标有火印时伤害 +50%（补刀）",
+                        "name": "流星火雨"
+                    }
+,
+                    "熔岩喷发":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.4,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "cd": 3,
+                        "desc": "火系 240% 全体爆发，CD3（群体引爆）",
+                        "name": "熔岩喷发"
+                    }
+,
                 },
-                "desc": "650% 巨型冰锥，冻结概率翻倍（敌人被冻结时威力×1.7）",
-                "name": "冰锥术",
-            },
+                "寒霜术士": {
+                    "寒霜之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "ice",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：冰系技能伤害 +10%（冰系强化）",
+                        "name": "寒霜之心"
+                    }
+,
+                    "暴风雪":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.5,
+                        "kind": "魔法",
+                        "element": "ice",
+                        "cond": {
+                            "type": "enemy_slowed",
+                            "mult": 1.2,
+                            "label": "风雪交加"
+                        },
+                        "desc": "冰系 150% 全体 + 减速。目标已减速时伤害 +20%（减速增伤）",
+                        "name": "暴风雪"
+                    }
+,
+                    "极寒领域":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "element": "ice",
+                        "effect": "matk_up_strong",
+                        "team": "matk_all",
+                        "cd": 4,
+                        "desc": "全队冰系魔攻强化，敌人减速 3 回合（领域技）",
+                        "name": "极寒领域"
+                    }
+,
                 },
-            }
-        }
+            },
+            3: {
+                "余烬贤者": {
+                    "烈焰风暴":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.8,
+                        "kind": "魔法",
+                        "multi": 3,
+                        "element": "fire",
+                        "desc": "火系 180%×3 全体（终极 AOE）",
+                        "name": "烈焰风暴"
+                    }
+,
+                    "太阳之怒":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 3.5,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "team": "matk_all",
+                        "cd": 5,
+                        "desc": "终极技，火系 350% 全体 + 全队魔攻强化（团队爆发）",
+                        "name": "太阳之怒"
+                    }
+,
+                    "烈焰裁决":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 4.0,
+                        "kind": "魔法",
+                        "element": "fire",
+                        "team": "matk_all",
+                        "cd": 6,
+                        "desc": "三转奥义，火系 400% 全体核弹（清场）",
+                        "name": "烈焰裁决"
+                    }
+,
+                },
+                "永冬贤者": {
+                    "寒冰风暴":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.7,
+                        "kind": "魔法",
+                        "multi": 3,
+                        "element": "ice",
+                        "desc": "冰系 170%×3 全体（终极 AOE）",
+                        "name": "寒冰风暴"
+                    }
+,
+                    "绝对零度":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "魔法",
+                        "element": "ice",
+                        "mech": "freeze",
+                        "mech_val": 3,
+                        "cd": 5,
+                        "desc": "终极技，冰系 300% + 必定冻结（终极控制）",
+                        "name": "绝对零度"
+                    }
+,
+                    "绝对冰封":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 2.0,
+                        "kind": "魔法",
+                        "element": "ice",
+                        "mech": "freeze",
+                        "mech_val": 3,
+                        "cd": 6,
+                        "desc": "三转奥义，全体冻结 2 回合（终极控制）",
+                        "name": "绝对冰封"
+                    }
+,
+                },
+            },
+        },
     },
     "cls_you_xia": {
         "name": "游侠",
         "branches": {
             1: {
                 "猎魔人": {
-            "追猎箭": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.0,
-                "kind": "物理",
-                "mech": "mark",
-                "mech_val": 2,
-                "desc": "500% 追猎箭，标记目标 2 回合",
-                "name": "追猎箭",
-            },
-            "猎手本能": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "crit_up",
-                "mech": "mark",
-                "mech_val": 1,
-                "desc": "暴击提升，叠 1 层猎杀印记",
-                "name": "猎手本能",
-            },
-            "双箭齐发": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "mark",
-                "mech_val": 1,
-                "desc": "双箭齐发 2 次每次 240%，标记目标",
-                "name": "双箭齐发",
-            },
-            "夺命射击": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.8,
-                "kind": "物理",
-                "mech": "mark_burst",
-                "cond": {
-                    "type": "enemy_hp_low",
-                    "hp_pct": 0.4,
-                    "mult": 1.6,
-                    "label": "处决狙击",
-                },
-                "desc": "680% 夺命一击，对标记目标每层 +20%（敌方血量<40%时威力×1.6）",
-                "name": "夺命射击",
-            },
+                    "追猎":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "物理",
+                        "cond": {
+                            "type": "enemy_marked",
+                            "mult": 1.3,
+                            "label": "猎杀本能"
+                        },
+                        "desc": "120% 狙击，目标被标记时伤害 +30%（标记特攻）",
+                        "name": "追猎"
+                    }
+,
+                    "追猎者":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "mark_dmg",
+                            "mult": 0.08
+                        },
+                        "desc": "触发被动：对标记目标伤害 +8%（标记特攻）",
+                        "name": "追猎者"
+                    }
+,
+                    "三连射":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "物理",
+                        "multi": 3,
+                        "cond": {
+                            "type": "player_res_stacks",
+                            "res_key": "energy",
+                            "stacks": 50,
+                            "mult": 1.15,
+                            "label": "猎手专注"
+                        },
+                        "desc": "110%×3 三连射。精力>50 时伤害 +15%（满精力精准）",
+                        "name": "三连射"
+                    }
+,
+                    "夺命一击":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "物理",
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.3,
+                            "mult": 1.5,
+                            "label": "绝杀"
+                        },
+                        "desc": "300% 夺命一击，目标 HP<30% 时伤害 +50%（处决残血）",
+                        "name": "夺命一击"
+                    }
+,
                 },
                 "风行者": {
-            "疾风射击": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.0,
-                "kind": "物理",
-                "mech": "wind",
-                "mech_val": 1,
-                "desc": "500% 疾风射击，叠 1 层风印（每层连击+1）",
-                "name": "疾风射击",
-            },
-            "风行步": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "spd_up",
-                "mech": "wind",
-                "mech_val": 2,
-                "desc": "速度+40%，叠 2 层风印",
-                "name": "风行步",
-            },
-            "双重射击": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "wind",
-                "mech_val": 1,
-                "desc": "双重射击 2 次每次 240%，叠 1 层风印",
-                "name": "双重射击",
-            },
-            "精准打击": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.2,
-                "kind": "物理",
-                "mech": "wind_burst",
-                "cond": {
-                    "type": "player_spd_up",
-                    "mult": 1.5,
-                    "label": "风行无影",
+                    "疾风射击":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "物理",
+                        "cond": {
+                            "type": "speed_ratio",
+                            "ratio": 1.5,
+                            "mult": 1.5,
+                            "label": "疾风连击"
+                        },
+                        "desc": "120% 疾风射击，速度比≥1.5x 时伤害 +50%（速度压制）",
+                        "name": "疾风射击"
+                    }
+,
+                    "疾驰":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "speed_dmg",
+                            "mult": 0.08
+                        },
+                        "desc": "触发被动：速度高于目标时伤害 +8%（高速压制）",
+                        "name": "疾驰"
+                    }
+,
+                    "双重射击":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "物理",
+                        "multi": 2,
+                        "cond": {
+                            "type": "player_untouched",
+                            "mult": 1.15,
+                            "label": "轻灵"
+                        },
+                        "desc": "110%×2 双重射击。自身未受击时伤害 +15%（无伤精准）",
+                        "name": "双重射击"
+                    }
+,
+                    "风刃乱舞":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "物理",
+                        "multi": 3,
+                        "pierce": True,
+                        "cd": 3,
+                        "cond": {
+                            "type": "speed_ratio",
+                            "ratio": 2.0,
+                            "mult": 1.25,
+                            "label": "疾风领域"
+                        },
+                        "desc": "130%×3 风刃（无视防御），CD3。速度比≥2x 时伤害 +25%（极速压制）",
+                        "name": "风刃乱舞"
+                    }
+,
                 },
-                "desc": "620% 精准打击，风印层数转化为连击次数（自身加速时威力×1.5）",
-                "name": "精准打击",
             },
+            2: {
+                "暗夜猎手": {
+                    "猎魔之眼":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "mark_dmg",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：对标记目标伤害 +10%（标记强化）",
+                        "name": "猎魔之眼"
+                    }
+,
+                    "狩猎盛宴":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "crit_all",
+                        "team": "crit_all",
+                        "cd": 4,
+                        "desc": "全队暴击强化 3 回合（团队技能）",
+                        "name": "狩猎盛宴"
+                    }
+,
+                    "穿心箭":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.8,
+                        "kind": "物理",
+                        "pierce": True,
+                        "cond": {
+                            "type": "enemy_marked",
+                            "mult": 1.3,
+                            "label": "要害瞄准"
+                        },
+                        "desc": "280% 破防穿心箭，目标被标记时伤害 +30%",
+                        "name": "穿心箭"
+                    }
+,
                 },
-            }
-        }
+                "疾风射手": {
+                    "疾风之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "spd",
+                            "mult": 0.08
+                        },
+                        "desc": "二转被动：速度 +8%（机动强化）",
+                        "name": "疾风之心"
+                    }
+,
+                    "急速射击":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0.9,
+                        "kind": "物理",
+                        "multi": 5,
+                        "desc": "90%×5 急速射击（高速叠印）",
+                        "name": "急速射击"
+                    }
+,
+                    "穿云箭":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.2,
+                        "kind": "物理",
+                        "pierce": True,
+                        "cond": {
+                            "type": "player_buffed",
+                            "mult": 1.2,
+                            "label": "风速"
+                        },
+                        "desc": "220% 破防穿云箭。自身有增益时伤害 +20%（加速增伤）",
+                        "name": "穿云箭"
+                    }
+,
+                },
+            },
+            3: {
+                "猎魔先驱": {
+                    "致命连射":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.4,
+                        "kind": "物理",
+                        "multi": 4,
+                        "desc": "140%×4 致命连射（叠印爆发）",
+                        "name": "致命连射"
+                    }
+,
+                    "死神之箭":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 4.5,
+                        "kind": "物理",
+                        "pierce": True,
+                        "cond": {
+                            "type": "enemy_marked",
+                            "mult": 1.5,
+                            "label": "死神注视"
+                        },
+                        "desc": "终极技，450% 死神之箭，标记目标必暴击（终极斩杀）",
+                        "name": "死神之箭"
+                    }
+,
+                    "猎杀时刻":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 4.0,
+                        "kind": "物理",
+                        "pierce": True,
+                        "cond": {
+                            "type": "enemy_marked",
+                            "mult": 1.3,
+                            "label": "猎杀时刻"
+                        },
+                        "cd": 6,
+                        "desc": "三转奥义，400% 标记斩杀（单点核爆）",
+                        "name": "猎杀时刻"
+                    }
+,
+                },
+                "疾风猎手": {
+                    "风暴之舞":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.6,
+                        "kind": "物理",
+                        "multi": 4,
+                        "cd": 4,
+                        "desc": "160%×4 风暴之舞（终极连射）",
+                        "name": "风暴之舞"
+                    }
+,
+                    "疾风骤雨":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 2.0,
+                        "kind": "物理",
+                        "multi": 3,
+                        "cd": 5,
+                        "desc": "终极技，200%×3 疾风骤雨（冷却联动）",
+                        "name": "疾风骤雨"
+                    }
+,
+                    "风神降临":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "spd_up",
+                        "cd": 6,
+                        "desc": "三转奥义，速度大幅提升 3 回合（极速爆发）",
+                        "name": "风神降临"
+                    }
+,
+                },
+            },
+        },
     },
     "cls_mu_shi": {
         "name": "牧师",
         "branches": {
             1: {
                 "圣武士": {
-            "圣光之刃": {
-                "lv": 32,
-                "mp": 45,
-                "power": 5.0,
-                "kind": "魔法",
-                "mech": "judge",
-                "mech_val": 1,
-                "desc": "500% 圣光之刃，暴击时叠 1 层审判",
-                "name": "圣光之刃",
-            },
-            "圣战之誓": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up_strong",
-                "mech": "judge",
-                "mech_val": 1,
-                "desc": "魔攻+75%，叠 1 层审判",
-                "name": "圣战之誓",
-            },
-            "圣光连击": {
-                "lv": 45,
-                "mp": 45,
-                "power": 2.4,
-                "kind": "魔法",
-                "multi": 2,
-                "mech": "judge",
-                "mech_val": 1,
-                "desc": "圣光连击 2 次每次 240%，暴击叠审判",
-                "name": "圣光连击",
-            },
-            "圣裁之光": {
-                "lv": 55,
-                "mp": 50,
-                "power": 6.5,
-                "kind": "魔法",
-                "mech": "judge_burst",
-                "cond": {
-                    "type": "player_hp_high",
-                    "hp_pct": 0.8,
-                    "mult": 1.5,
-                    "label": "圣战之势",
-                },
-                "desc": "650% 圣裁，消耗审判层每层 +15%（自身血量>80%时威力×1.5）",
-                "name": "圣裁之光",
-            },
+                    "圣光之刃":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.4,
+                        "kind": "魔法",
+                        "res_gain": 1,
+                        "cond": {
+                            "type": "player_hp_high",
+                            "hp_pct": 0.7,
+                            "mult": 1.15,
+                            "label": "圣战之心"
+                        },
+                        "desc": "140% 圣光之刃，信仰+1。自身 HP>70% 时伤害 +15%（满血战斗）",
+                        "name": "圣光之刃"
+                    }
+,
+                    "神圣狂热":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "attack_res",
+                            "res": "faith",
+                            "gain": 2
+                        },
+                        "desc": "触发被动：攻击时信仰+2（战斗攒信）",
+                        "name": "神圣狂热"
+                    }
+,
+                    "圣光连斩":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "魔法",
+                        "multi": 2,
+                        "res_gain": 2,
+                        "cond": {
+                            "type": "player_buffed",
+                            "mult": 1.15,
+                            "label": "神圣狂热"
+                        },
+                        "desc": "120%×2 圣光连斩，信仰+2。自身有增益时伤害 +15%",
+                        "name": "圣光连斩"
+                    }
+,
+                    "圣裁":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.6,
+                        "kind": "魔法",
+                        "res_cost": {
+                            "faith": 4
+                        },
+                        "mech": "stun",
+                        "mech_val": 1,
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.4,
+                            "mult": 1.4,
+                            "label": "审判日"
+                        },
+                        "desc": "260% 圣裁 + 概率眩晕，消耗 4 信仰。目标 HP<40% 时伤害 +40%（斩杀）",
+                        "name": "圣裁"
+                    }
+,
                 },
                 "神谕者": {
-            "圣言术": {
-                "lv": 32,
-                "mp": 45,
-                "power": 4.8,
-                "kind": "魔法",
-                "mech": "bless",
-                "mech_val": 1,
-                "cc": "cleanse",
-                "desc": "480% 圣言术，过量治疗转护盾（净化敌人增益 v63）",
-                "name": "圣言术",
-            },
-            "庇护之光": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "mech": "bless",
-                "mech_val": 1,
-                "desc": "防御+45%，神恩+1",
-                "name": "庇护之光",
-            },
-            "恢复术": {
-                "lv": 45,
-                "mp": 45,
-                "power": 6.0,
-                "kind": "治疗",
-                "mech": "bless",
-                "mech_val": 2,
-                "desc": "恢复 600% 魔攻生命，过量转护盾",
-                "name": "恢复术",
-            },
-            "大治愈术": {
-                "lv": 55,
-                "mp": 55,
-                "power": 8.0,
-                "kind": "治疗",
-                "mech": "bless",
-                "mech_val": 3,
-                "cond": {
-                    "type": "player_hp_low",
-                    "hp_pct": 0.5,
-                    "mult": 1.8,
-                    "label": "濒危救治",
+                    "圣言术":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 2.5,
+                        "kind": "治疗",
+                        "res_gain": 2,
+                        "cond": {
+                            "type": "player_hp_low",
+                            "hp_pct": 0.3,
+                            "mult": 1.5,
+                            "label": "圣言回响"
+                        },
+                        "desc": "治疗 250%，信仰+2。自身 HP<30% 时治疗量 +50%（紧急救治）",
+                        "name": "圣言术"
+                    }
+,
+                    "圣祷":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "heal_crit",
+                            "mult": 0.3,
+                            "chance": 0.2
+                        },
+                        "desc": "触发被动：治疗时 20% 概率额外治疗 30%（治疗暴击）",
+                        "name": "圣祷"
+                    }
+,
+                    "净化术":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "def_up",
+                        "cd": 2,
+                        "desc": "驱散全队负面状态（防御强化），CD2（驱散核心）",
+                        "name": "净化术"
+                    }
+,
+                    "大治愈术":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "治疗",
+                        "res_cost": {
+                            "faith": 3
+                        },
+                        "team": "heal_all",
+                        "desc": "全队治疗 300%，消耗 3 信仰（团队核心）",
+                        "name": "大治愈术"
+                    }
+,
                 },
-                "desc": "恢复 800% 魔攻生命，神恩层数增加护盾（自身血量<50%时治疗量×1.8）",
-                "name": "大治愈术",
             },
+            2: {
+                "审判骑士": {
+                    "审判之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "judge",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：圣光技能伤害 +10%（战斗牧师强化）",
+                        "name": "审判之心"
+                    }
+,
+                    "审判之剑":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.8,
+                        "kind": "魔法",
+                        "pierce": True,
+                        "res_gain": 2,
+                        "desc": "180% 破防审判之剑，信仰+2",
+                        "name": "审判之剑"
+                    }
+,
+                    "圣光风暴":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.2,
+                        "kind": "魔法",
+                        "res_cost": {
+                            "faith": 4
+                        },
+                        "cond": {
+                            "type": "enemy_debuff",
+                            "mult": 1.4,
+                            "label": "圣光扩散"
+                        },
+                        "desc": "220% 圣光风暴，消耗 4 信仰。目标有减益时伤害 +40%（净化增伤）",
+                        "name": "圣光风暴"
+                    }
+,
                 },
-            }
-        }
+                "大主教": {
+                    "神圣恩典":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "heal",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：治疗效果 +10%（治疗强化）",
+                        "name": "神圣恩典"
+                    }
+,
+                    "生命之泉":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "team_regen",
+                            "mult": 0.05
+                        },
+                        "desc": "触发被动：全队每回合回血 5%（团队续航）",
+                        "name": "生命之泉"
+                    }
+,
+                    "神圣庇护":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "shield_all",
+                        "team": "shield_all",
+                        "cd": 4,
+                        "desc": "全队护盾，CD4（持续保护）",
+                        "name": "神圣庇护"
+                    }
+,
+                },
+            },
+            3: {
+                "裁决骑士": {
+                    "天使之怒":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "魔法",
+                        "res_cost": {
+                            "faith": 5
+                        },
+                        "desc": "300% 天使之怒，消耗 5 信仰（能打能奶）",
+                        "name": "天使之怒"
+                    }
+,
+                    "圣裁之光":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 4.5,
+                        "kind": "魔法",
+                        "res_cost": {
+                            "faith": 10
+                        },
+                        "team": "shield_all",
+                        "cd": 5,
+                        "desc": "终极技，450% 圣裁之光，消耗 10 信仰 + 全队护盾（终极神迹）",
+                        "name": "圣裁之光"
+                    }
+,
+                    "圣光化身":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "atk_up_strong",
+                        "cd": 6,
+                        "desc": "三转奥义，3 回合内攻击附带圣光（每次攻击大幅增伤）",
+                        "name": "圣光化身"
+                    }
+,
+                },
+                "圣光先知": {
+                    "圣光赞歌":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 2.5,
+                        "kind": "治疗",
+                        "res_cost": {
+                            "faith": 5
+                        },
+                        "team": "heal_all",
+                        "desc": "全队治疗 250%，消耗 5 信仰（终极群奶）",
+                        "name": "圣光赞歌"
+                    }
+,
+                    "神迹·重生":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 5.0,
+                        "kind": "治疗",
+                        "team": "heal_all",
+                        "cd": 5,
+                        "desc": "终极技，全队满血治疗（团队终极技）",
+                        "name": "神迹·重生"
+                    }
+,
+                    "生命圣域":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "治疗",
+                        "team": "heal_all",
+                        "cd": 6,
+                        "desc": "三转奥义，全队满血 + 减伤（终极救场）",
+                        "name": "生命圣域"
+                    }
+,
+                },
+            },
+        },
     },
     "cls_ci_ke": {
         "name": "刺客",
         "branches": {
             1: {
                 "影舞者": {
-            "影刃": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.2,
-                "kind": "物理",
-                "mech": "shadow",
-                "mech_val": 1,
-                "desc": "520% 影刃，满血目标必暴",
-                "name": "影刃",
-            },
-            "暗影步伐": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "spd_up",
-                "mech": "shadow",
-                "mech_val": 1,
-                "desc": "速度+50%，影袭印记+1",
-                "name": "暗影步伐",
-            },
-            "影刃连刺": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "shadow",
-                "mech_val": 2,
-                "desc": "影刃连刺 2 次每次 240%，叠 2 层影袭",
-                "name": "影刃连刺",
-            },
-            "致命突袭": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.8,
-                "kind": "物理",
-                "mech": "shadow_burst",
-                "cond": {
-                    "type": "enemy_full_hp",
-                    "mult": 1.6,
-                    "label": "先手背刺",
-                },
-                "desc": "680% 致命突袭，影袭层每层 +18%（敌方满血时威力×1.6）",
-                "name": "致命突袭",
-            },
+                    "影刃":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "物理",
+                        "res_gain": 1,
+                        "cond": {
+                            "type": "enemy_hp_high",
+                            "hp_pct": 0.7,
+                            "mult": 1.2,
+                            "label": "暗影亲和"
+                        },
+                        "desc": "130% 影刃，连击点+1。目标 HP>70% 时伤害 +20%（满血刺杀）",
+                        "name": "影刃"
+                    }
+,
+                    "无声":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "dodge_up",
+                            "mult": 0.3
+                        },
+                        "desc": "触发被动：被攻击概率降低 30%（潜行生存）",
+                        "name": "无声"
+                    }
+,
+                    "幻影连刺":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.0,
+                        "kind": "物理",
+                        "multi": 3,
+                        "res_gain": 3,
+                        "cond": {
+                            "type": "player_untouched",
+                            "mult": 1.15,
+                            "label": "身轻如燕"
+                        },
+                        "desc": "100%×3 幻影连刺，连击点+3。自身未受击时伤害 +15%（无伤精准）",
+                        "name": "幻影连刺"
+                    }
+,
+                    "终结·处刑":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 4.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "cp": 5
+                        },
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.4,
+                            "mult": 1.4,
+                            "label": "死亡之舞"
+                        },
+                        "desc": "终结技，400% 处刑，消耗 5 连击点。目标 HP<40% 时伤害 +40%（斩杀）",
+                        "name": "终结·处刑"
+                    }
+,
                 },
                 "毒刃者": {
-            "淬毒匕首": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.0,
-                "kind": "物理",
-                "mech": "poison",
-                "mech_val": 2,
-                "desc": "500% 淬毒匕首，叠 2 层毒",
-                "name": "淬毒匕首",
-            },
-            "淬毒术": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "crit_up",
-                "mech": "poison",
-                "mech_val": 1,
-                "desc": "暴击提升，叠 1 层毒",
-                "name": "淬毒术",
-            },
-            "毒刃双刺": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "poison",
-                "mech_val": 2,
-                "desc": "毒刃双刺 2 次每次 240%，叠 2 层毒",
-                "name": "毒刃双刺",
-            },
-            "毒蚀": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.2,
-                "kind": "物理",
-                "mech": "poison_burst",
-                "cond": {
-                    "type": "enemy_poison_stacks",
-                    "stacks": 3,
-                    "mult": 1.6,
-                    "label": "剧毒侵蚀",
+                    "毒刃":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 2,
+                        "res_gain": 1,
+                        "cond": {
+                            "type": "enemy_poison_stacks",
+                            "stacks": 1,
+                            "mult": 1.15,
+                            "label": "毒刃蔓延"
+                        },
+                        "desc": "110% 毒刃，叠 2 层毒，连击点+1。目标已中毒时伤害 +15%（叠毒加速）",
+                        "name": "毒刃"
+                    }
+,
+                    "毒师":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "poison_dmg",
+                            "mult": 0.08
+                        },
+                        "desc": "触发被动：中毒目标受到伤害 +8%（毒系增伤）",
+                        "name": "毒师"
+                    }
+,
+                    "双毒刃":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.0,
+                        "kind": "物理",
+                        "multi": 2,
+                        "mech": "poison",
+                        "mech_val": 3,
+                        "cond": {
+                            "type": "enemy_poison_stacks",
+                            "stacks": 3,
+                            "mult": 1.15,
+                            "label": "毒师专注"
+                        },
+                        "desc": "100%×2 双毒刃，叠 3 层毒。目标毒≥3 层时伤害 +15%（深度毒伤）",
+                        "name": "双毒刃"
+                    }
+,
+                    "毒爆":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.0,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 2,
+                        "cond": {
+                            "type": "enemy_poison_stacks",
+                            "stacks": 5,
+                            "mult": 1.3,
+                            "label": "剧毒共鸣"
+                        },
+                        "desc": "200% 毒爆，叠毒。目标毒≥5 层时伤害 +30%（满层毒爆）",
+                        "name": "毒爆"
+                    }
+,
                 },
-                "desc": "620% 毒蚀，引爆毒层每层 +15%（敌方中毒≥3层时威力×1.6）",
-                "name": "毒蚀",
             },
+            2: {
+                "幻影刺客": {
+                    "暗影之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "shadow",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：潜行持续时间 +1 回合（潜行强化）",
+                        "name": "暗影之心"
+                    }
+,
+                    "暗影突袭":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.6,
+                        "kind": "物理",
+                        "cd": 2,
+                        "cond": {
+                            "type": "player_untouched",
+                            "mult": 1.2,
+                            "label": "暗影突袭"
+                        },
+                        "desc": "160% 暗影突袭，CD2。自身未受击时伤害 +20%",
+                        "name": "暗影突袭"
+                    }
+,
+                    "死亡标记":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "mech": "mark",
+                        "mech_val": 2,
+                        "desc": "标记目标，目标易伤（配合团队斩杀）",
+                        "name": "死亡标记"
+                    }
+,
                 },
-            }
-        }
+                "淬毒师": {
+                    "淬毒之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "poison_dmg",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：毒层伤害 +10%（毒强化）",
+                        "name": "淬毒之心"
+                    }
+,
+                    "毒雾":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0.8,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 2,
+                        "cd": 3,
+                        "desc": "80% 毒雾（全体），叠 2 层毒，CD3（AOE 叠毒）",
+                        "name": "毒雾"
+                    }
+,
+                    "淬毒刺杀":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.0,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 4,
+                        "desc": "200% 淬毒刺杀，叠 4 层毒（深度叠毒）",
+                        "name": "淬毒刺杀"
+                    }
+,
+                },
+            },
+            3: {
+                "幽影刺客": {
+                    "幻影舞":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.0,
+                        "kind": "物理",
+                        "multi": 5,
+                        "cd": 4,
+                        "desc": "100%×5 幻影舞（终极连击）",
+                        "name": "幻影舞"
+                    }
+,
+                    "终结·暗影绞杀":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 5.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "cp": 5
+                        },
+                        "cd": 5,
+                        "desc": "终极技，500% 暗影绞杀，消耗 5 连击点（终极爆发）",
+                        "name": "终结·暗影绞杀"
+                    }
+,
+                    "影之国度":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "spd_up",
+                        "cd": 6,
+                        "desc": "三转奥义，进入暗影国度 3 回合（每回合高暴击）",
+                        "name": "影之国度"
+                    }
+,
+                },
+                "蚀骨者": {
+                    "剧毒风暴":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.5,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 4,
+                        "cd": 4,
+                        "desc": "150% 剧毒风暴（全体），叠 4 层毒，CD4（群体毒爆）",
+                        "name": "剧毒风暴"
+                    }
+,
+                    "万毒噬心":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 3.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "cp": 5
+                        },
+                        "mech": "poison",
+                        "mech_val": 5,
+                        "cd": 5,
+                        "desc": "终极技，300% 万毒噬心，消耗 5 连击点 + 叠 5 层毒（终极毒杀）",
+                        "name": "万毒噬心"
+                    }
+,
+                    "万毒归宗":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 2.5,
+                        "kind": "物理",
+                        "mech": "poison",
+                        "mech_val": 5,
+                        "cd": 6,
+                        "desc": "三转奥义，全体剧毒爆发（毒爆核弹）",
+                        "name": "万毒归宗"
+                    }
+,
+                },
+            },
+        },
     },
     "cls_wu_seng": {
-        "name": "武僧",
+        "name": "拳师",
         "branches": {
             1: {
-                "拳师": {
-            "寸劲": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.0,
-                "kind": "物理",
-                "mech": "chi",
-                "mech_val": 2,
-                "desc": "500% 寸劲，攒 2 点气力",
-                "name": "寸劲",
-            },
-            "气劲凝聚": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up_strong",
-                "mech": "chi",
-                "mech_val": 1,
-                "desc": "攻击+75%，攒 1 点气力",
-                "name": "气劲凝聚",
-            },
-            "连环拳": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "chi",
-                "mech_val": 2,
-                "desc": "连环拳 2 次每次 240%，攒 2 点气力",
-                "name": "连环拳",
-            },
-            "重拳": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.5,
-                "kind": "物理",
-                "mech": "chi_burst",
-                "cond": {
-                    "type": "player_chi_stacks",
-                    "stacks": 3,
-                    "mult": 1.6,
-                    "label": "一气呵成",
+                "拳斗士": {
+                    "疾风拳":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.2,
+                        "kind": "物理",
+                        "combo": "拳",
+                        "res_gain": 2,
+                        "cond": {
+                            "type": "player_res_stacks",
+                            "res_key": "chi",
+                            "stacks": 5,
+                            "mult": 1.5,
+                            "label": "疾风连打"
+                        },
+                        "desc": "120% 疾风拳，气+2。气≥5 时伤害 +50%（气力滚雪球）",
+                        "name": "疾风拳"
+                    }
+,
+                    "武技":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "combo_dmg",
+                            "mult": 0.05
+                        },
+                        "desc": "触发被动：连招期间伤害 +5%（连招强化）",
+                        "name": "武技"
+                    }
+,
+                    "旋风踢":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "物理",
+                        "combo": "踢",
+                        "res_gain": 1,
+                        "cond": {
+                            "type": "enemy_slowed",
+                            "mult": 1.2,
+                            "label": "踢击要害"
+                        },
+                        "desc": "130% 旋风踢，气+1。目标减速时伤害 +20%",
+                        "name": "旋风踢"
+                    }
+,
+                    "斗气爆发":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.8,
+                        "kind": "物理",
+                        "res_cost": {
+                            "chi": 5
+                        },
+                        "cond": {
+                            "type": "player_hp_low",
+                            "hp_pct": 0.4,
+                            "mult": 1.3,
+                            "label": "斗气护体"
+                        },
+                        "desc": "280% 斗气爆发，消耗 5 气。自身 HP<40% 时伤害 +30%（残血爆发）",
+                        "name": "斗气爆发"
+                    }
+,
                 },
-                "desc": "650% 重拳，气力每点 +12%（气力≥3点时威力×1.6）",
-                "name": "重拳",
-            },
+                "磐石行者": {
+                    "铁壁拳":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "物理",
+                        "combo": "拳",
+                        "res_gain": 1,
+                        "effect": "def_up",
+                        "cond": {
+                            "type": "player_shield",
+                            "mult": 1.15,
+                            "label": "铁壁连拳"
+                        },
+                        "desc": "110% 铁壁拳，防御强化，气+1。自身有护盾时伤害 +15%（护盾强化）",
+                        "name": "铁壁拳"
+                    }
+,
+                    "厚土":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "stat": "def",
+                            "cond": "hp_high_70",
+                            "mult": 0.1
+                        },
+                        "desc": "属性被动：生命高于 70% 时防御 +10%（满血坦克）",
+                        "name": "厚土"
+                    }
+,
+                    "回气掌":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 2.0,
+                        "kind": "治疗",
+                        "combo": "掌",
+                        "res_gain": 3,
+                        "cond": {
+                            "type": "player_hp_low",
+                            "hp_pct": 0.4,
+                            "mult": 1.5,
+                            "label": "回气连绵"
+                        },
+                        "desc": "治疗 200%（自愈），气+3。自身 HP<40% 时治疗量 +50%（残血自愈）",
+                        "name": "回气掌"
+                    }
+,
+                    "反震":                     {
+                        "lv": 45,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "reflect",
+                            "mult": 0.3
+                        },
+                        "desc": "触发被动：受击后 30% 反伤（挨打反打）",
+                        "name": "反震"
+                    }
+,
+                    "磐石护壁":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "reduce_all",
+                        "team": "reduce_all",
+                        "res_cost": {
+                            "chi": 3
+                        },
+                        "desc": "全队减伤 15% 2 回合，消耗 3 气（坦克核心）",
+                        "name": "磐石护壁"
+                    }
+,
                 },
-                "金刚罗汉": {
-            "罗汉拳": {
-                "lv": 32,
-                "mp": 40,
-                "power": 5.0,
-                "kind": "物理",
-                "mech": "iron",
-                "mech_val": 1,
-                "desc": "500% 罗汉拳，叠 1 层金身（减伤+反伤）",
-                "name": "罗汉拳",
             },
-            "金钟罩": {
-                "lv": 38,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "mech": "iron",
-                "mech_val": 2,
-                "desc": "防御+45%，叠 2 层金身",
-                "name": "金钟罩",
-            },
-            "金刚连拳": {
-                "lv": 45,
-                "mp": 40,
-                "power": 2.4,
-                "kind": "物理",
-                "multi": 2,
-                "mech": "iron",
-                "mech_val": 1,
-                "desc": "金刚连拳 2 次每次 240%，叠 1 层金身",
-                "name": "金刚连拳",
-            },
-            "伏虎拳": {
-                "lv": 55,
-                "mp": 45,
-                "power": 6.2,
-                "kind": "物理",
-                "mech": "iron_burst",
-                "cond": {
-                    "type": "player_hp_low",
-                    "hp_pct": 0.3,
-                    "mult": 1.8,
-                    "label": "背水金身",
+            2: {
+                "武斗师": {
+                    "斗气之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "res_gain_bonus": 1
+                        },
+                        "desc": "二转被动：气获取 +1（连招强化）",
+                        "name": "斗气之心"
+                    }
+,
+                    "连环拳":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "物理",
+                        "multi": 4,
+                        "combo": "拳",
+                        "res_gain": 4,
+                        "desc": "110%×4 连环拳，气+4（快速攒气）",
+                        "name": "连环拳"
+                    }
+,
+                    "斗气裂空":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 2.6,
+                        "kind": "物理",
+                        "pierce": True,
+                        "res_cost": {
+                            "chi": 4
+                        },
+                        "desc": "260% 破防斗气裂空，消耗 4 气",
+                        "name": "斗气裂空"
+                    }
+,
                 },
-                "desc": "620% 伏虎拳，金身层转伤害（自身血量<30%时威力×1.8）",
-                "name": "伏虎拳",
-            },
+                "铁壁行者": {
+                    "磐石之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "dmg_taken",
+                            "reduce": 0.05
+                        },
+                        "desc": "二转被动：受击减伤 +5%（坦克强化）",
+                        "name": "磐石之心"
+                    }
+,
+                    "斗气守御":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "shield_all",
+                        "team": "shield_all",
+                        "res_cost": {
+                            "chi": 4
+                        },
+                        "desc": "全队护盾 20% HP，消耗 4 气（团队盾）",
+                        "name": "斗气守御"
+                    }
+,
                 },
-            }
-        }
+            },
+            3: {
+                "破晓者": {
+                    "无影连打":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 1.3,
+                        "kind": "物理",
+                        "multi": 5,
+                        "combo": "拳",
+                        "cond": {
+                            "type": "player_res_stacks",
+                            "res_key": "chi",
+                            "stacks": 8,
+                            "mult": 1.3,
+                            "label": "气贯长虹"
+                        },
+                        "desc": "130%×5 无影连打（终极连招）。气≥8 时伤害 +30%（满气终极连招）",
+                        "name": "无影连打"
+                    }
+,
+                    "斗气天地":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 5.0,
+                        "kind": "物理",
+                        "res_cost": {
+                            "chi": 10
+                        },
+                        "team": "atk_all",
+                        "cd": 5,
+                        "desc": "终极技，500% 斗气天地，消耗 10 气 + 全队攻击强化（终极斗气）",
+                        "name": "斗气天地"
+                    }
+,
+                    "斗气通天":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "atk_up_strong",
+                        "cd": 6,
+                        "desc": "三转奥义，3 回合内每次攻击大幅增伤（连招极限）",
+                        "name": "斗气通天"
+                    }
+,
+                },
+                "磐岩壁垒": {
+                    "磐石之躯":                     {
+                        "lv": 92,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "dmg_taken",
+                            "reduce": 0.4,
+                            "cond": "hp_low_30"
+                        },
+                        "desc": "触发被动：HP<30% 时减伤 40%（残血坦克）",
+                        "name": "磐石之躯"
+                    }
+,
+                    "斗气万法":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "reduce_all",
+                        "team": "reduce_all",
+                        "res_cost": {
+                            "chi": 10
+                        },
+                        "cd": 5,
+                        "desc": "终极技，全队减伤 30% 3 回合，消耗 10 气（终极团队技）",
+                        "name": "斗气万法"
+                    }
+,
+                    "大地守护":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "reduce_all",
+                        "team": "reduce_all",
+                        "cd": 6,
+                        "desc": "三转奥义，全队减伤 50% 3 回合（终极坦克）",
+                        "name": "大地守护"
+                    }
+,
+                },
+            },
+        },
     },
 }

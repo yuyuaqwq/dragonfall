@@ -256,9 +256,9 @@ class PlayerCmds(CommandBase):
             return
         cls = C.CLASSES[player["class_name"]]
         tier = player.get("class_tier", 0)
-        # 转职等级门槛：tier 1→30级（v50 只保留一转，60/90 已砍）
+        # 转职等级门槛：tier 1→30级 / tier 2→60级 / tier 3→90级（21 章三转体系）
         next_tier = tier + 1
-        need_lv = {1: 30}.get(next_tier)
+        need_lv = {1: 30, 2: 60, 3: 90}.get(next_tier)
         branches = cls.get("evolve_branches", {}).get(next_tier, [])
         # 已满级转职
         if not need_lv:
@@ -358,6 +358,18 @@ class PlayerCmds(CommandBase):
         if path:
             tag = "⚔️ 进攻路线" if path == 1 else "🛡️ 防御路线"
             branch_line = f"\n🔀 {tag}"
+        # v2.1（21 章）：转职自动获得二转被动（tier2 lv.60）/ 三转奥义（tier3 lv.90）
+        auto_skills = self._evolve_auto_skills(player, next_tier)
+        if auto_skills:
+            learned = player.get("learned_skills", [])
+            learned = [s for s in learned if s not in auto_skills]
+            learned += auto_skills
+            db.update_player(group_id, qq_id, learned_skills=learned)
+            player = self._player(group_id, qq_id)
+        auto_line = ""
+        if auto_skills:
+            auto_line = f"\n🌟 领悟：{'、'.join(auto_skills)}"
+        is_final = next_tier >= 3
         yield event.plain_result(
             f"🌟 转职成功！\n"
             f"━━━━━━━━━━━━\n"
@@ -365,10 +377,31 @@ class PlayerCmds(CommandBase):
             f"  ↓↓↓\n"
             f"{cls['icon']} {new_title}{branch_line}\n\n"
             f"✨ 成长加成 +{bonus}%（全属性）\n"
-            f"📜 新技能已解锁，输入『技能』查看！\n"
-            f"👑 已达成当前最终转职！"
+            f"📜 新技能已解锁，输入『技能』查看！{auto_line}\n"
+            f"{'👑 已达成最终转职（Lv.90 三转）！' if is_final else '💪 继续历练，下一次转职在 Lv.60/90'}"
         )
         return
+
+    def _evolve_auto_skills(self, player: dict, next_tier: int) -> list:
+        """转职自动获得的技能（二转被动 60 级 / 三转奥义 90 级）"""
+        if next_tier not in (2, 3):
+            return []
+        cls = player.get("class_name", "")
+        path = player.get("evolve_path", 0)
+        branches = C.BRANCH_SKILLS.get(cls, {}).get("branches", {})
+        tier_branches = branches.get(next_tier, {})
+        names = list(tier_branches.keys())
+        if not names:
+            return []
+        idx = 0 if path == 1 else 1
+        if idx >= len(names):
+            return []
+        target_lv = 60 if next_tier == 2 else 90
+        out = []
+        for sname, sinfo in tier_branches[names[idx]].items():
+            if sinfo.get("lv") == target_lv:
+                out.append(sinfo.get("name", sname))
+        return out
 
     def _tier_title(self, class_name: str, tier: int, evolve_path: int = 0) -> str:
         """职业进阶称号（v25：按分支返回）"""
@@ -487,6 +520,58 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(
             f"🔄 技能洗点成功！返还 {spent} 技能点（花费 {cost} 金币）\n"
             f"已学技能清空（保留初始技能：{'、'.join(init_skills) or '无'}），技能等级已重置，『技能学习』重新规划 build 吧～"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$")
+
+    async def evolve_reset(self, event: AstrMessageEvent):
+        """转职重置（21 章 §8）：付费清空转职分支，保留等级，可重新选择分支"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        tier = player.get("class_tier", 0)
+        if tier <= 0:
+            yield event.plain_result("你还没有转职过，无需重置～『转职』查看路线。")
+            return
+        cost = {1: 500, 2: 2000, 3: 5000}.get(tier, 500)
+        if player["gold"] < cost:
+            yield event.plain_result(f"转职重置需要 {cost} 金币（当前 {tier} 转），你只有 {player['gold']} 金币。")
+            return
+        # 清除分支技能（learned_skills 中属于分支的）+ 分支技能等级
+        cls = player["class_name"]
+        learned = list(player.get("learned_skills", []))
+        keep = []
+        removed = []
+        for s in learned:
+            if E.branch_skill_owner(cls, s):
+                removed.append(s)
+            else:
+                keep.append(s)
+        slv = dict(player.get("skill_levels", {}) or {})
+        for s in removed:
+            slv.pop(s, None)
+        db.update_player(group_id, qq_id,
+                         gold=player["gold"] - cost,
+                         class_tier=0,
+                         evolve_path=0,
+                         learned_skills=keep,
+                         skill_levels=slv)
+        # 技能栏清除被移除的分支技能
+        try:
+            bar = db.get_skill_bar(qq_id) or []
+            nbar = [b if (b is None or b in keep) else None for b in bar]
+            db.set_skill_bar(qq_id, nbar)
+        except Exception:
+            pass
+        old_title = self._tier_title(cls, tier, player.get("evolve_path", 0))
+        yield event.plain_result(
+            f"🔄 转职重置成功！（花费 {cost} 金币）\n"
+            f"━━━━━━━━━━━━\n"
+            f"{old_title} → 回到基础职业\n"
+            f"✨ 等级与基础技能保留，分支技能已清除（{'、'.join(removed) or '无'}）\n"
+            f"💡 到 30/60/90 级可重新『转职』选择新分支！"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?洗点(?:\s*|$)")
@@ -609,10 +694,20 @@ class PlayerCmds(CommandBase):
                 "player_hp_high": f"自身血量>{pct}%",
                 "enemy_full_hp": "敌方满血",
                 "enemy_frozen": "敌方被冻结",
+                "enemy_stunned": "敌方被眩晕",
                 "enemy_poison_stacks": f"敌方中毒≥{stacks}层",
+                "enemy_marked": "敌方被标记",
+                "enemy_debuff": "敌方有减益",
+                "enemy_slowed": "敌方减速中",
+                "element_marks": f"敌方{cond.get('element','')}印记≥{stacks}层",
+                "speed_ratio": f"速度比≥{cond.get('ratio',1.5)}x",
                 "player_shield": "自身有护盾",
                 "player_spd_up": "自身加速中",
                 "player_chi_stacks": f"自身气力≥{stacks}点",
+                "player_res_stacks": f"自身{cond.get('res_key','')}≥{stacks}",
+                "player_first": "先手行动",
+                "player_untouched": "本场未受击",
+                "player_buffed": "自身有增益",
             }
             ctext = ctype_map.get(ctype, ctype)
             lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』（威力 ×{mult}）")

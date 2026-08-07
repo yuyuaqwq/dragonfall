@@ -70,6 +70,7 @@ class Battle:
         self.p_extra_left: int = 0            # 玩家本回合剩余额外行动次数（自由选择出手）
         self.e_extra_left: int = 0            # 敌方本回合剩余额外行动次数
         self.e_first: bool = False            # 敌方是否先手（速度更快）
+        self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
@@ -92,6 +93,7 @@ class Battle:
             "p_extra_left": self.p_extra_left,
             "e_extra_left": self.e_extra_left,
             "e_first": self.e_first,
+            "player_hit": self._player_hit,
         }
 
     @classmethod
@@ -114,6 +116,7 @@ class Battle:
         b.p_extra_left = int(st.get("p_extra_left", 0) or 0)
         b.e_extra_left = int(st.get("e_extra_left", 0) or 0)
         b.e_first = bool(st.get("e_first", False))
+        b._player_hit = bool(st.get("player_hit", False))
         return b
 
     # ---------------- 核心资源（v2.0） ----------------
@@ -950,6 +953,38 @@ class Battle:
             est = self._enemy_stats()
             if pst.get("spd", 0) > est.get("spd", 0):
                 return mult
+        elif ctype == "enemy_debuff":
+            # v2.1 分支条件：目标有减益（负面 buff 或毒/灼烧/标记层）
+            debuff_keys = ("def_down", "spd_down", "mon_atk_down", "atk_down",
+                           "stun", "freeze", "silence", "poison", "burn", "mark")
+            if any(k in self.e_buffs for k in debuff_keys):
+                return mult
+            if any(k in self.mech_stacks for k in ("poison", "burn", "mark")):
+                return mult
+        elif ctype == "element_marks":
+            # v2.1 分支条件：目标元素印记层数 ≥ stacks（火印/冰印/雷印）
+            mk = E.ELEMENT_MARKS.get(cond.get("element", ""), "")
+            if mk and self.e_buffs.get(mk, 0) >= cond.get("stacks", 1):
+                return mult
+        elif ctype == "enemy_slowed":
+            # v2.1 分支条件：目标减速中
+            if "spd_down" in self.e_buffs or "mon_spd_down" in self.e_buffs:
+                return mult
+        elif ctype == "speed_ratio":
+            # v2.1 分支条件：速度比 ≥ ratio（疾风连击 / 极速压制）
+            pst = self._player_stats(player)
+            est = self._enemy_stats()
+            espd = est.get("spd", 0)
+            if espd > 0 and pst.get("spd", 0) / espd >= cond.get("ratio", 1.5):
+                return mult
+        elif ctype == "player_untouched":
+            # v2.1 分支条件：本场未受击（无伤精准 / 轻灵）
+            if not getattr(self, "_player_hit", False):
+                return mult
+        elif ctype == "player_buffed":
+            # v2.1 分支条件：自身有增益（神圣狂热 / 风速）
+            if self.p_buffs:
+                return mult
         return 1.0
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
@@ -1370,6 +1405,7 @@ class Battle:
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
+        self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # v64 被动·铁壁之心/磐石体：受到伤害时减伤 5%
         pv = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
         if "铁壁之心" in pv or "磐石体" in pv:

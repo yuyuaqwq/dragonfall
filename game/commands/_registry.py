@@ -83,6 +83,7 @@ COMMAND_REGEX = {
     "reputation": r'^(?:\[At:\d+\]\s*)?声望(?:\s*|$)',
     "reset_attr": r'^(?:\[At:\d+\]\s*)?洗点(?:\s*|$)',
     "reset_skill": r'^(?:\[At:\d+\]\s*)?技能洗点(?:\s*|$)',
+    "evolve_reset": r'^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$',
     "rest": r'^(?:\[At:\d+\]\s*)?住宿(?:\s*|$)',
     "rest_camp": r'^(?:\[At:\d+\]\s*)?休息(?:\s*|$)',
     "sell": r'^(?:\[At:\d+\]\s*)?出售(?:\s*|$)',

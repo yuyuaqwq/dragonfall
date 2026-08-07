@@ -485,6 +485,8 @@ class CombatCmds(CommandBase):
     def _branch_skills_for(self, player: dict) -> dict:
         """玩家已解锁分支的专属技能表 {技能名: info}（v26：按 tier 升序合并，只含已转职分支）"""
         cls = C.BRANCH_SKILLS.get(player["class_name"], {})
+        if isinstance(cls, dict) and "branches" in cls:
+            cls = cls["branches"]
         tier = player.get("class_tier", 0)
         path = player.get("evolve_path", 0)
         out = {}
