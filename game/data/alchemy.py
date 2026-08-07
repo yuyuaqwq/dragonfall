@@ -46,7 +46,7 @@ ALCHEMY_RECIPES = {
             "i_scroll_escape": 1
         },
         "need_prof_lv": 2,
-        "desc": "瞬间回到维拉镇",
+        "desc": "瞬间回到橡木镇",
         "name": "回城卷轴"
     },
     "al_qiang_xiao_zhi_liao": {

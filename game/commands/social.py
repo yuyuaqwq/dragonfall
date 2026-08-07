@@ -760,7 +760,7 @@ class SocialCmds(CommandBase):
         active = mounts.get("active")
         lines = ["🐾 【坐骑】", "━━━━━━━━━━━━"]
         if not owned:
-            lines.append("你还没有坐骑。去维拉镇商店『购买 老马』，或者打精英/Boss 碰碰运气！")
+            lines.append("你还没有坐骑。去橡木镇商店『购买 老马』，或者打精英/Boss 碰碰运气！")
         for mk in owned:
             m = C.MOUNT_BY_KEY.get(mk)
             if not m:

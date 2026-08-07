@@ -2436,7 +2436,8 @@ class EconomyCmds(CommandBase):
         area_id = cur_map.get("area", cur)
         shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id)
         if not shop_items:
-            yield event.plain_result("这里没有商店！去城镇看看：维拉镇、圣辉城、银月城、龙喉堡、铁壁城、天穹城")
+            town_names = [C.display("maps", k) for k in C.SHOP_ITEMS if k != cur and k != area_id][:6]
+            yield event.plain_result(f"这里没有商店！去城镇看看：{'、'.join(town_names)}")
             return
         lines = []
         entries = []

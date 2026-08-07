@@ -185,12 +185,12 @@ class PlayerCmds(CommandBase):
         init_display = "、".join(C.display("skills", s) for s in init_skills)
         race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}（{C.RACES[race_id]['desc']}）\n" if race_id in C.RACES else ""
         yield event.plain_result(
-            f"✨ 欢迎来到维斯特兰大陆，{name}！\n"
+            f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
             f"{race_line}"
             f"『{cls['desc']}』\n\n"
-            f"你出生在维拉镇中心广场，输入『找 镇长』接取第一个任务，『地图』查看周边。\n"
-            f"🌅 你注意到广场中央矗立着一座【维拉方碑】，已为你激活！输入『方碑』查看，以后可以『传送』到各地路标。\n"
+            f"你出生在橡木镇中心广场，输入『找 镇长』接取第一个任务，『地图』查看周边。\n"
+            f"🌅 你注意到广场中央矗立着一座【橡木方碑】，已为你激活！输入『方碑』查看，以后可以『传送』到各地路标。\n"
             f"⚔️ 你已学会初始技能：{init_display}（升级获得技能点，『技能学习 <技能名>』学新技能）\n"
             f"冒险者，你的故事开始了！"
         )
@@ -211,7 +211,7 @@ class PlayerCmds(CommandBase):
             self._title_bonus(group_id, qq_id), player.get("race"),
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
-        cur_map = C.MAP_BY_ID.get(player["cur_map"], {}).get("name", "维拉镇")
+        cur_map = C.MAP_BY_ID.get(player["cur_map"], {}).get("name", "橡木镇")
         # 装备展示（v33：固定部位顺序，空位显示 —）
         eq_lines = []
         for slot in ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"]:
@@ -277,7 +277,7 @@ class PlayerCmds(CommandBase):
         if not tops:
             yield event.plain_result("还没有人注册角色，快来当第一名！『注册 战士 名字』")
             return
-        lines = ["🏆 【维斯特兰强者榜】 🏆", "━━━━━━━━━━━━"]
+        lines = ["🏆 【奥兰迪亚强者榜】 🏆", "━━━━━━━━━━━━"]
         medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
         for i, p in enumerate(tops):
             lines.append(f"{medals[i]} Lv.{p['level']} {C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")

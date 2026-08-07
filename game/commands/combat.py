@@ -1131,7 +1131,7 @@ class CombatCmds(CommandBase):
         # 回城并满血（新手保护）
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"], cur_map="oak_town")
         lines.append(
-            f"你丢失了 {lost} 金币，被好心人送回了维拉镇中心广场。\n"
+            f"你丢失了 {lost} 金币，被好心人送回了橡木镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
         yield event.plain_result("\n".join(lines))
@@ -1650,7 +1650,7 @@ class CombatCmds(CommandBase):
         lines = [log_body, "", f"💀 【{loser['name']}】被击败了！"]
         if lost > 0:
             lines.append(f"💰 你夺走了 {lost} 金币！")
-        lines.append(f"🏥 对方被送回维拉镇疗养（HP 1）。")
+        lines.append(f"🏥 对方被送回橡木镇疗养（HP 1）。")
         if self._is_redname(loser_qq):
             honor = self._get_honor(winner_qq) + 50
             db.set_event_state(f"honor_{winner_qq}", str(honor))

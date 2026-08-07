@@ -717,7 +717,7 @@ class WorldCmds(CommandBase):
                     if nq:
                         lines.append(f"📜 新主线：『{nq['name']}』{nq['desc']}")
                 else:
-                    lines.append("🎊 恭喜！你完成了全部主线任务，成为维斯特兰的传说！")
+                    lines.append("🎊 恭喜！你完成了全部主线任务，成为奥兰迪亚的传说！")
         # 支线 explore
         side = dict(quests.get("side", {}))
         for sid, sq in list(side.items()):
@@ -951,7 +951,7 @@ class WorldCmds(CommandBase):
         quests = db.get_quests(group_id, qq_id)
         main_id = quests.get("main_quest")
         if not main_id:
-            lines.append("🎊 主线任务已全部完成，你已是维斯特兰的传说！")
+            lines.append("🎊 主线任务已全部完成，你已是奥兰迪亚的传说！")
             return lines
         mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
         if not mq or mq["giver"] != npc_id:
@@ -1002,7 +1002,7 @@ class WorldCmds(CommandBase):
                     lines.append(f"📜 新主线：『{nq['name']}』{nq['desc']}")
                     lines.append(f"  🎯 去找 {C.NPCS[nq['giver']]['name']} 接取新任务")
             else:
-                lines.append("🎊 恭喜！你完成了全部主线任务，成为维斯特兰的传说！")
+                lines.append("🎊 恭喜！你完成了全部主线任务，成为奥兰迪亚的传说！")
         else:
             lines.append(f"📜 你已接取『{mq['name']}』：{mq['desc']}")
         return lines
@@ -1519,7 +1519,7 @@ class WorldCmds(CommandBase):
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"])
         if not cur_map or not cur_map.get("healer"):
-            yield event.plain_result("这里没有旅店。到有旅店的地方（如维拉镇旅店）输入『住宿』～")
+            yield event.plain_result("这里没有旅店。到有旅店的地方（如橡木镇旅店）输入『住宿』～")
             return
         cost = 30
         if player["gold"] < cost:
@@ -1565,5 +1565,5 @@ class WorldCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"{c['text']}\n"
             f"━━━━━━━━━━━━\n"
-            f"（维斯特兰编年史 · 输入『传说』再听一段）"
+            f"（奥兰迪亚编年史 · 输入『传说』再听一段）"
         )
