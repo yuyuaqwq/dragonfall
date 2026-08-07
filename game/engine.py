@@ -397,7 +397,7 @@ def _set_info(set_name: str) -> dict | None:
 
 def set_bonus_2(equipment: dict) -> dict:
     """汇总所有激活套装的 2 件百分比加成 {stat: 总和}
-    阶段八：>=4 件时叠加 4 件属性加成（bonus_4_stats，10 章名册套装）"""
+    阶段八：>=4 件时叠加 4 件属性加成（bonus_4_stats），>=5 件时叠加 5 件 stat 型效果（bonus_5.crit/dodge，10 章五节橡木/铁港）"""
     bonus = {}
     for sname, cnt in active_sets(equipment).items():
         info = _set_info(sname)
@@ -408,6 +408,11 @@ def set_bonus_2(equipment: dict) -> dict:
         if cnt >= 4:
             for k, v in info.get("bonus_4_stats", {}).items():
                 bonus[k] = bonus.get(k, 0) + v
+        if cnt >= 5:
+            for k, v in info.get("bonus_5", {}).items():
+                # 5 件 stat 型效果（crit/dodge 直接是属性）；desc 型（战斗特效）不在这里结算
+                if k in ("crit", "dodge"):
+                    bonus[k] = bonus.get(k, 0) + v
     return bonus
 
 

@@ -318,6 +318,120 @@ def test_craft_set():
     check("防御倾向出防御词条", any(a in ("block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity", "regen", "meditate", "swift", "hp_up") for a in ed.get("affixes", [])), str(ed.get("affixes")))
 
 
+# ============ 9. 套装 5 件效果 + 元素抗性落地（阶段八.1） ============
+def mk_sets_player(set_name, n, affix_ids=None):
+    """n 件同套装装备（填 weapon/helm/armor/legs/boots 前 n 个部位）"""
+    eq = {}
+    slots = ["weapon", "helm", "armor", "legs", "boots"]
+    for i in range(n):
+        eq[slots[i]] = {"name": f"{set_name}部件{i}", "slot": slots[i], "quality": "purple",
+                        "lv": 60, "stats": {"atk": 10}, "set": set_name, "affixes": affix_ids or []}
+    return {"class_name": "cls_zhan_shi", "level": 60, "hp": 500, "max_hp": 500,
+            "mp": 100, "max_mp": 100, "equipment": eq,
+            "attributes": {"str": 30, "agi": 10, "int": 10, "vit": 10},
+            "learned_skills": [], "skill_levels": {}, "title_bonus": {}}
+
+
+def mk_sets_enemy(name="测试怪", skills=None):
+    e = {"name": name, "role": "dps", "hp": 1000, "max_hp": 1000,
+         "atk": 30, "def": 10, "matk": 10, "mdef": 10, "spd": 5}
+    if skills:
+        e["skills"] = skills
+    return e
+
+
+def test_set5_and_resist():
+    print("【9. 套装 5 件效果 + 元素抗性落地】")
+    # 9.1 stat 型 5 件（engine.set_bonus_2 消费 bonus_5.crit/dodge）
+    b = E.set_bonus_2(mk_sets_player("橡木套", 5)["equipment"])
+    check("橡木 5 件 crit +5%", abs(b.get("crit", 0) - 0.05) < 1e-6, str(b))
+    b4 = E.set_bonus_2(mk_sets_player("橡木套", 4)["equipment"])
+    check("橡木 4 件无 crit", b4.get("crit", 0) == 0, str(b4))
+    b5 = E.set_bonus_2(mk_sets_player("海风套", 5)["equipment"])
+    check("铁港 5 件 dodge +5%", abs(b5.get("dodge", 0) - 0.05) < 1e-6, str(b5))
+    # 9.2 对敌增伤 5 件（圣光克暗影 / 龙脊克龙 / 地底克深渊）
+    p_sg = mk_sets_player("圣光套", 5)
+    p_lj = mk_sets_player("龙脊套", 5)
+    p_dd = mk_sets_player("地底套", 5)
+    bt = BT.Battle("monster", mk_sets_enemy("亡灵骑士"), {}, p_sg)
+    mult, tags = bt._affix_dmg_mult(p_sg)
+    check("圣光套打亡灵 +10%", abs(mult - 1.10) < 1e-6 and any("圣光克暗" in t for t in tags), f"{mult} {tags}")
+    bt2 = BT.Battle("monster", mk_sets_enemy("古龙"), {}, p_lj)
+    mult2, tags2 = bt2._affix_dmg_mult(p_lj)
+    check("龙脊套打古龙 +10%", abs(mult2 - 1.10) < 1e-6 and any("龙息追猎" in t for t in tags2), f"{mult2} {tags2}")
+    bt3 = BT.Battle("monster", mk_sets_enemy("深渊魔像"), {}, p_dd)
+    mult3, tags3 = bt3._affix_dmg_mult(p_dd)
+    check("地底套打深渊 +10%", abs(mult3 - 1.10) < 1e-6 and any("深渊共鸣" in t for t in tags3), f"{mult3} {tags3}")
+    bt4 = BT.Battle("monster", mk_sets_enemy("野狼"), {}, p_sg)
+    mult4, _ = bt4._affix_dmg_mult(p_sg)
+    check("圣光套打野狼不加成", abs(mult4 - 1.0) < 1e-6, str(mult4))
+    # 9.3 元素增伤 5 件（月语/海神冰、苍穹雷）
+    p_yy = mk_sets_player("月语套", 5)
+    p_hs = mk_sets_player("海神套", 5)
+    p_cq = mk_sets_player("苍穹套", 5)
+    bty = BT.Battle("monster", mk_sets_enemy(), {}, p_yy)
+    check("月语套冰系 +10%", abs(bty._affix_element_dmg(p_yy, "ice") - 1.10) < 1e-6)
+    check("月语套火系不加成", abs(bty._affix_element_dmg(p_yy, "fire") - 1.0) < 1e-6)
+    bth = BT.Battle("monster", mk_sets_enemy(), {}, p_hs)
+    check("海神套冰系 +10%", abs(bth._affix_element_dmg(p_hs, "ice") - 1.10) < 1e-6)
+    btc = BT.Battle("monster", mk_sets_enemy(), {}, p_cq)
+    check("苍穹套雷系 +10%", abs(btc._affix_element_dmg(p_cq, "thunder") - 1.10) < 1e-6)
+    check("苍穹套冰系不加成", abs(btc._affix_element_dmg(p_cq, "ice") - 1.0) < 1e-6)
+    # 9.4 怪物技能元素字段 + 减速机制（数据完整性）
+    elem_count = sum(1 for s in C.MONSTER_SKILLS.values() if s.get("element"))
+    slow_count = sum(1 for s in C.MONSTER_SKILLS.values() if s.get("mech") == "slow")
+    check("怪物元素技能 >=30", elem_count >= 30, str(elem_count))
+    check("冰系减速技能 >=6", slow_count >= 6, str(slow_count))
+    ice_slow_ok = all(C.MONSTER_SKILLS[k].get("element") == "ice"
+                      for k, v in C.MONSTER_SKILLS.items() if v.get("mech") == "slow")
+    check("减速技能全为冰系", ice_slow_ok)
+    # 9.5 元素抗性减免（elem_resist 火冰雷 / abyss_resist 暗影）
+    p_res = mk_sets_player("橡木套", 5, affix_ids=["elem_resist"])
+    p_abyss = mk_sets_player("橡木套", 5, affix_ids=["abyss_resist"])
+    p_plain = mk_sets_player("橡木套", 5)
+    enemy_bing = mk_sets_enemy("冰霜狼", skills=["ms_bing_dan"])  # 冰弹 ice+slow
+    random.seed(1)
+    btr = BT.Battle("monster", dict(enemy_bing), {}, p_res)
+    found_r = False
+    for _ in range(10):
+        logs, _ = btr._enemy_turn(p_res)
+        if "元素抗性减免" in "".join(logs):
+            found_r = True
+            break
+    check("elem_resist 减免冰伤", found_r)
+    enemy_dark = mk_sets_enemy("暗影法师", skills=["ms_an_ying_dan"])  # 暗影弹 dark
+    random.seed(2)
+    btd = BT.Battle("monster", dict(enemy_dark), {}, p_abyss)
+    found_d = False
+    for _ in range(10):
+        logs, _ = btd._enemy_turn(p_abyss)
+        if "元素抗性减免" in "".join(logs):
+            found_d = True
+            break
+    check("abyss_resist 减免暗影伤", found_d)
+    random.seed(2)
+    btp = BT.Battle("monster", dict(enemy_dark), {}, p_plain)
+    found_n = False
+    for _ in range(10):
+        logs, _ = btp._enemy_turn(p_plain)
+        if "元素抗性减免" in "".join(logs):
+            found_n = True
+            break
+    check("无抗性不减伤", not found_n)
+    # 9.6 霜狼套 5 件免疫减速（抗寒）
+    p_sl = mk_sets_player("霜狼套", 5)
+    random.seed(1)
+    bts = BT.Battle("monster", dict(enemy_bing), {}, p_sl)
+    found_im = False
+    for _ in range(10):
+        logs, _ = bts._enemy_turn(p_sl)
+        if "抗寒" in "".join(logs):
+            found_im = True
+            break
+    check("霜狼套免疫减速", found_im)
+    check("霜狼套无 spd_down", bts.p_buffs.get("spd_down", 0) == 0)
+
+
 async def main():
     test_data()
     test_roster_gen()
@@ -327,6 +441,7 @@ async def main():
     test_battle_affix()
     await test_shop_roster()
     test_craft_set()
+    test_set5_and_resist()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
 

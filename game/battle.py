@@ -652,6 +652,11 @@ class Battle:
                 ids.append(item["legendary"])
         return ids
 
+    def _set_bonus_5(self, player: dict) -> list:
+        """已激活 5 件套的套装名列表（10 章五节 5 件效果，战斗特效型）"""
+        return [sname for sname, cnt in E.active_sets(player.get("equipment") or {}).items()
+                if cnt >= 5]
+
     def _affix_dmg_mult(self, player: dict) -> tuple:
         """被动词条/专属对本次伤害的倍率。返回 (倍率, 标签列表)。
 
@@ -659,10 +664,22 @@ class Battle:
         /精准（命中强化近似 +10%）/龙语印记（每层 +2% 伤害）。
         """
         ids = self._equip_affix_ids(player)
-        if not ids:
-            return 1.0, []
+        # 套装 5 件对敌增伤不依赖词条（10 章五节，复用龙威/黎明破晓的关键词模式）
         mult = 1.0
         tags = []
+        s5names = "|".join(self._set_bonus_5(player))
+        ename = self.enemy.get("name", "")
+        if "圣光" in s5names and any(k in ename for k in ("暗", "影", "亡", "鬼", "骨", "骷髅")):
+            mult *= 1.10
+            tags.append("✨圣光克暗")
+        if "龙脊" in s5names and "龙" in ename:
+            mult *= 1.10
+            tags.append("🐉龙息追猎")
+        if "地底" in s5names and "深渊" in ename:
+            mult *= 1.10
+            tags.append("🕳️深渊共鸣")
+        if not ids:
+            return mult, tags
         e = self.enemy
         hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
         if "execute" in ids and hp_ratio < 0.30:
@@ -695,7 +712,9 @@ class Battle:
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
-        """专属元素伤害加成（冰/雷属性伤害 +x%）：技能带对应 element 时生效"""
+        """元素伤害加成（冰/雷属性伤害 +x%）：技能带对应 element 时生效
+        来源：专属词条（LEGENDARY_EFFECTS ice_dmg/thunder_dmg，澜歌之泪/奥拉圣印等）
+             + 套装 5 件（10 章五节：月语/海神=冰系 +10%、苍穹=雷系 +10%）"""
         if not element:
             return 1.0
         bonus = 0.0
@@ -708,6 +727,12 @@ class Battle:
                 bonus += eff.get("ice_dmg", 0) or 0
             elif element == "thunder":
                 bonus += eff.get("thunder_dmg", 0) or 0
+        # 套装 5 件元素增伤（月语=寒月冰、海神=水属落地冰、苍穹=雷）
+        s5 = "|".join(self._set_bonus_5(player))
+        if element == "ice" and ("月语" in s5 or "海神" in s5):
+            bonus += 0.10
+        if element == "thunder" and "苍穹" in s5:
+            bonus += 0.10
         return 1.0 + bonus
 
     def _affix_on_hit(self, player: dict, dmg: int, logs: list):
@@ -1530,6 +1555,19 @@ class Battle:
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit)
                 else:
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit)
+                # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（elem_resist 火/冰/雷 -8%、abyss_resist 暗影 -10%）
+                melem = sinfo.get("element", "")
+                if melem:
+                    resist = 0.0
+                    pids = self._equip_affix_ids(player)
+                    if melem in ("fire", "ice", "thunder") and "elem_resist" in pids:
+                        resist += 0.08
+                    elif melem == "dark" and "abyss_resist" in pids:
+                        resist += 0.10
+                    if resist > 0:
+                        red = max(1, int(dmg * resist))
+                        dmg = max(1, dmg - red)
+                        logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
                 logs.append(f"【{self.enemy['name']}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
                 # v63 怪物技能机制：眩晕/沉默/冻结 等控制
                 mmech = sinfo.get("mech")
@@ -1548,6 +1586,13 @@ class Battle:
                     elif mmech == "silence":
                         self.p_buffs["silence"] = 2
                         logs.append("🤐 你被沉默，2 回合内无法使用技能！")
+                # 阶段八.1：怪物减速机制（slow）→ 玩家减速；霜狼套 5 件免疫（抗寒）
+                elif mmech == "slow":
+                    if "霜狼" in "|".join(self._set_bonus_5(player)):
+                        logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
+                    else:
+                        self.p_buffs["spd_down"] = max(self.p_buffs.get("spd_down", 0), 2)
+                        logs.append("🧊 你被减速，2 回合内速度下降！")
                 return logs, dmg
         dmg = E.calc_damage(est["atk"], pst["def"])
         logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！")
