@@ -10376,270 +10376,1102 @@ SUBAREAS = {
             "healer": False
         }
     ],
-    "road_anvil_fort_cold_ridge": [
-        {
-            "id": "road_anvil_fort_cold_ridge_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "铁砧要塞-寒脊营地路·路口",
-            "type": "野外",
-            "lv": 66,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "silver_wind_road": [
+      {
+        "id": "silver_wind_road_1",
+        "name": "银风道口",
+        "icon": "🌲",
+        "desc": "银风商道·银风道口",
+        "type": "野外",
+        "lv": 6,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_wild_dog",
+            "野狗",
+            "dps",
+            3,
+            [
+              "ms_si_yao"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "狗牙"
+            ]
+          ],
+          [
+            "m_cave_lizard",
+            "石蜥蜴",
+            "tank",
+            6,
+            [
+              "ms_yao_sui",
+              "ms_ying_hua"
+            ],
+            [
+              "石蜥鳞"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "silver_wind_road_2",
+        "name": "银风驿站",
+        "icon": "🌲",
+        "desc": "银风商道·银风驿站",
+        "type": "野外",
+        "lv": 8,
+        "npcs": ["npc_caravan_leader"],
+        "monsters": [
+          [
+            "m_forest_wolf",
+            "森林狼",
+            "dps",
+            8,
+            [
+              "ms_si_yao",
+              "ms_hao_jiao"
+            ],
+            [
+              "狼皮"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_anvil_fort_deep_tunnel": [
-        {
-            "id": "road_anvil_fort_deep_tunnel_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "铁砧要塞-深岩隧道路·路口",
-            "type": "野外",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "west_ridge_wilds": [
+      {
+        "id": "west_ridge_wilds_1",
+        "name": "西岭口",
+        "icon": "🌲",
+        "desc": "西岭荒原·西岭口",
+        "type": "野外",
+        "lv": 28,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_hill_wolf",
+            "丘陵狼",
+            "dps",
+            28,
+            [
+              "ms_si_yao",
+              "ms_hao_jiao"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "丘陵狼皮"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "west_ridge_wilds_2",
+        "name": "荒原腹地",
+        "icon": "🌲",
+        "desc": "西岭荒原·荒原腹地",
+        "type": "野外",
+        "lv": 31,
+        "npcs": ["npc_border_patrol"],
+        "monsters": [
+          [
+            "m_wild_bull",
+            "野牛",
+            "tank",
+            30,
+            [
+              "ms_chong_zhuang"
+            ],
+            [
+              "牛角"
+            ]
+          ],
+          [
+            "m_bandit",
+            "盗贼",
+            "speedster",
+            32,
+            [
+              "ms_duan_jian",
+              "ms_tou_qie"
+            ],
+            [
+              "盗贼面巾"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "west_ridge_wilds_3",
+        "name": "落霞坡",
+        "icon": "🌲",
+        "desc": "西岭荒原·落霞坡",
+        "type": "野外",
+        "lv": 34,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_road_skeleton",
+            "古道骷髅",
+            "dps",
+            33,
+            [
+              "ms_jian_ji"
+            ],
+            [
+              "碎骨"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_aurora_town_frost_horn": [
-        {
-            "id": "road_aurora_town_frost_horn_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "极光镇-霜角堡路·路口",
-            "type": "野外",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "dusk_ridge_road": [
+      {
+        "id": "dusk_ridge_road_1",
+        "name": "岭脚石阶",
+        "icon": "🌲",
+        "desc": "暮岭古道·岭脚石阶",
+        "type": "野外",
+        "lv": 36,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_field_ghost",
+            "战场幽魂",
+            "speedster",
+            34,
+            [
+              "ms_chuan_shen",
+              "ms_ai_hao"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "幽魂尘"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dusk_ridge_road_2",
+        "name": "半山烽台",
+        "icon": "🌲",
+        "desc": "暮岭古道·半山烽台",
+        "type": "野外",
+        "lv": 39,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_grave_ghost",
+            "古墓幽灵",
+            "speedster",
+            36,
+            [
+              "ms_chuan_shen",
+              "ms_ai_hao"
+            ],
+            [
+              "幽灵之尘"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dusk_ridge_road_3",
+        "name": "月冠垭口",
+        "icon": "🌲",
+        "desc": "暮岭古道·月冠垭口",
+        "type": "野外",
+        "lv": 42,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_war_golem",
+            "战争魔像（残）",
+            "tank",
+            37,
+            [
+              "ms_zhong_ji",
+              "ms_tie_bi"
+            ],
+            [
+              "魔像残核"
+            ]
+          ],
+          [
+            "e_knight_instructor",
+            "骑士教官",
+            "elite",
+            34,
+            [
+              "ms_jian_ji",
+              "ms_zhan_hou"
+            ],
+            [
+              "教官之剑"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_knight_instructor",
+          "骑士教官",
+          "elite",
+          34,
+          [
+            "ms_jian_ji",
+            "ms_zhan_hou"
+          ],
+          [
+            "教官之剑"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_dawn_city_ironshield_town": [
-        {
-            "id": "road_dawn_city_ironshield_town_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "晨曦城-铁盾镇路·路口",
-            "type": "野外",
-            "lv": 27,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "mist_tide_passage": [
+      {
+        "id": "mist_tide_passage_1",
+        "name": "港外锚地",
+        "icon": "🌲",
+        "desc": "雾潮航道·港外锚地",
+        "type": "野外",
+        "lv": 45,
+        "npcs": ["npc_old_sailor"],
+        "monsters": [
+          [
+            "m_siren_scout",
+            "海妖斥候",
+            "speedster",
+            45,
+            [
+              "ms_mei_huo_zhi_ge"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "海妖鳞"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "mist_tide_passage_2",
+        "name": "雾潮中段",
+        "icon": "🌲",
+        "desc": "雾潮航道·雾潮中段",
+        "type": "野外",
+        "lv": 47,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_inquisitor_hound",
+            "审判猎犬",
+            "speedster",
+            45,
+            [
+              "ms_si_yao"
+            ],
+            [
+              "猎犬项圈"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "mist_tide_passage_3",
+        "name": "无名灯塔",
+        "icon": "🌲",
+        "desc": "雾潮航道·无名灯塔",
+        "type": "野外",
+        "lv": 50,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_emerald_deer",
+            "翠鹿",
+            "speedster",
+            47,
+            [
+              "ms_ji_chi",
+              "ms_ding_zhuang"
+            ],
+            [
+              "翠鹿角"
+            ]
+          ],
+          [
+            "e_island_tiger",
+            "落日岛虎·金焰",
+            "elite",
+            48,
+            [
+              "ms_si_yao",
+              "ms_pu_ji",
+              "ms_lie_yan_zhao"
+            ],
+            [
+              "金焰虎皮"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_island_tiger",
+          "落日岛虎·金焰",
+          "elite",
+          48,
+          [
+            "ms_si_yao",
+            "ms_pu_ji",
+            "ms_lie_yan_zhao"
+          ],
+          [
+            "金焰虎皮"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_dawn_city_moon_gate": [
-        {
-            "id": "road_dawn_city_moon_gate_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "晨曦城-月冠隘口路·路口",
-            "type": "野外",
-            "lv": 35,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "black_tide_strait": [
+      {
+        "id": "black_tide_strait_1",
+        "name": "无名礁口",
+        "icon": "🌲",
+        "desc": "黑潮海峡·无名礁口",
+        "type": "野外",
+        "lv": 58,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_corrupted_elf",
+            "堕落精灵",
+            "dps",
+            58,
+            [
+              "ms_jing_ling_jian_shu",
+              "ms_an_ying_zhan"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "堕落精灵护符"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "black_tide_strait_2",
+        "name": "黑潮中流",
+        "icon": "🌲",
+        "desc": "黑潮海峡·黑潮中流",
+        "type": "野外",
+        "lv": 60,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_moon_spirit",
+            "月光精灵",
+            "healer",
+            58,
+            [
+              "ms_yue_guang_zhan",
+              "ms_zhi_yu"
+            ],
+            [
+              "月光精华"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "black_tide_strait_3",
+        "name": "珍珠湾",
+        "icon": "🌲",
+        "desc": "黑潮海峡·珍珠湾",
+        "type": "野外",
+        "lv": 63,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_mist_octopus",
+            "迷雾章鱼",
+            "tank",
+            60,
+            [
+              "ms_chan_rao",
+              "ms_mo_zhi"
+            ],
+            [
+              "章鱼墨囊"
+            ]
+          ],
+          [
+            "e_lake_king",
+            "星语湖王",
+            "elite",
+            58,
+            [
+              "ms_shui_dan",
+              "ms_xuan_wo",
+              "ms_zhao_huan_shui_jing_ling"
+            ],
+            [
+              "湖王珠"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_lake_king",
+          "星语湖王",
+          "elite",
+          58,
+          [
+            "ms_shui_dan",
+            "ms_xuan_wo",
+            "ms_zhao_huan_shui_jing_ling"
+          ],
+          [
+            "湖王珠"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_dragon_kin_dragon_pass": [
-        {
-            "id": "road_dragon_kin_dragon_pass_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "龙裔聚落-龙脊山口路·路口",
-            "type": "野外",
-            "lv": 81,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "dwarf_long_gallery": [
+      {
+        "id": "dwarf_long_gallery_1",
+        "name": "要塞铁门",
+        "icon": "🌲",
+        "desc": "矮人长廊·要塞铁门",
+        "type": "野外",
+        "lv": 62,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_ancient_golem",
+            "远古魔像",
+            "tank",
+            62,
+            [
+              "ms_zhong_ji",
+              "ms_fu_wen_chong_ji"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "远古符文石"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dwarf_long_gallery_2",
+        "name": "长廊中段",
+        "icon": "🌲",
+        "desc": "矮人长廊·长廊中段",
+        "type": "野外",
+        "lv": 65,
+        "npcs": ["npc_dwarf_engineer"],
+        "monsters": [
+          [
+            "m_ice_elemental",
+            "冰元素",
+            "tank",
+            65,
+            [
+              "ms_bing_dan",
+              "ms_dong_jie"
+            ],
+            [
+              "冰元素核心"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dwarf_long_gallery_3",
+        "name": "深岩闸门",
+        "icon": "🌲",
+        "desc": "矮人长廊·深岩闸门",
+        "type": "野外",
+        "lv": 68,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_frost_troll",
+            "霜巨魔",
+            "dps",
+            68,
+            [
+              "ms_zhong_ji",
+              "ms_zai_sheng",
+              "ms_bing_ji"
+            ],
+            [
+              "霜巨魔血"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_dragon_pass_moon_court": [
-        {
-            "id": "road_dragon_pass_moon_court_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "龙脊山口-月冠王庭路·路口",
-            "type": "野外",
-            "lv": 67,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "cold_spine_snow_trail": [
+      {
+        "id": "cold_spine_snow_trail_1",
+        "name": "铁砧北门",
+        "icon": "🌲",
+        "desc": "寒脊雪道·铁砧北门",
+        "type": "野外",
+        "lv": 66,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_snow_mammoth",
+            "雪原猛犸",
+            "tank",
+            66,
+            [
+              "ms_chong_zhuang",
+              "ms_jian_ta"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "猛犸毛"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "cold_spine_snow_trail_2",
+        "name": "雪道中段",
+        "icon": "🌲",
+        "desc": "寒脊雪道·雪道中段",
+        "type": "野外",
+        "lv": 68,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_old_tree_guardian",
+            "古树守卫",
+            "tank",
+            68,
+            [
+              "ms_teng_bian",
+              "ms_ying_hua"
+            ],
+            [
+              "守卫古木"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "cold_spine_snow_trail_3",
+        "name": "寒脊风口",
+        "icon": "🌲",
+        "desc": "寒脊雪道·寒脊风口",
+        "type": "野外",
+        "lv": 71,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_frost_bear",
+            "冰原巨熊",
+            "tank",
+            68,
+            [
+              "ms_xiong_zhang",
+              "ms_bing_hou"
+            ],
+            [
+              "冰熊皮"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_dragon_pass_wind_city": [
-        {
-            "id": "road_dragon_pass_wind_city_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "龙脊山口-风翼城路·路口",
-            "type": "野外",
-            "lv": 82,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "dragon_ridge_old_road": [
+      {
+        "id": "dragon_ridge_old_road_1",
+        "name": "王庭东门",
+        "icon": "🌲",
+        "desc": "龙脊古道·王庭东门",
+        "type": "野外",
+        "lv": 64,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_shadow_elf",
+            "暗影精灵",
+            "dps",
+            64,
+            [
+              "ms_an_ying_jian",
+              "ms_qian_xing"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "暗影精灵刃"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dragon_ridge_old_road_2",
+        "name": "古道龙纹",
+        "icon": "🌲",
+        "desc": "龙脊古道·古道龙纹",
+        "type": "野外",
+        "lv": 67,
+        "npcs": ["npc_grave_keeper"],
+        "monsters": [
+          [
+            "m_ancient_golem",
+            "远古魔像",
+            "tank",
+            62,
+            [
+              "ms_zhong_ji",
+              "ms_fu_wen_chong_ji"
+            ],
+            [
+              "远古符文石"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dragon_ridge_old_road_3",
+        "name": "龙脊崖脚",
+        "icon": "🌲",
+        "desc": "龙脊古道·龙脊崖脚",
+        "type": "野外",
+        "lv": 70,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_lava_elemental",
+            "熔岩元素",
+            "tank",
+            70,
+            [
+              "ms_rong_yan_dan",
+              "ms_zhuo_shao"
+            ],
+            [
+              "熔岩核心"
+            ]
+          ],
+          [
+            "e_tree_lord",
+            "古树领主",
+            "elite",
+            70,
+            [
+              "ms_teng_bian",
+              "ms_gen_xu_chan_rao",
+              "ms_zhao_huan_shu_ren"
+            ],
+            [
+              "领主古木心"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_tree_lord",
+          "古树领主",
+          "elite",
+          70,
+          [
+            "ms_teng_bian",
+            "ms_gen_xu_chan_rao",
+            "ms_zhao_huan_shu_ren"
+          ],
+          [
+            "领主古木心"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_ironharbor_white_deer": [
-        {
-            "id": "road_ironharbor_white_deer_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "铁港城-白鹿城路·路口",
-            "type": "野外",
-            "lv": 7,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "dragonborn_valley_trail": [
+      {
+        "id": "dragonborn_valley_trail_1",
+        "name": "聚落石阶",
+        "icon": "🌲",
+        "desc": "龙裔谷道·聚落石阶",
+        "type": "野外",
+        "lv": 81,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_demon_servant",
+            "深渊奴仆",
+            "tank",
+            82,
+            [
+              "ms_zhong_ji",
+              "ms_an_ying_dan"
             ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "奴仆锁链"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dragonborn_valley_trail_2",
+        "name": "谷道中段",
+        "icon": "🌲",
+        "desc": "龙裔谷道·谷道中段",
+        "type": "野外",
+        "lv": 83,
+        "npcs": ["npc_dragonborn_elder"],
+        "monsters": [
+          [
+            "m_dragonkin",
+            "龙裔战士",
+            "dps",
+            82,
+            [
+              "ms_long_jian_shu"
+            ],
+            [
+              "龙鳞碎片"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "dragonborn_valley_trail_3",
+        "name": "山口龙喉",
+        "icon": "🌲",
+        "desc": "龙裔谷道·山口龙喉",
+        "type": "野外",
+        "lv": 86,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_bone_wyrm",
+            "骨虫",
+            "speedster",
+            84,
+            [
+              "ms_gu_xi",
+              "ms_chuan_shen"
+            ],
+            [
+              "骨虫壳"
+            ]
+          ],
+          [
+            "e_glacier_wyrm",
+            "冰川龙·霜牙",
+            "elite",
+            82,
+            [
+              "ms_bing_xi",
+              "ms_long_zhao",
+              "ms_dong_jie"
+            ],
+            [
+              "霜牙龙鳞"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_glacier_wyrm",
+          "冰川龙·霜牙",
+          "elite",
+          82,
+          [
+            "ms_bing_xi",
+            "ms_long_zhao",
+            "ms_dong_jie"
+          ],
+          [
+            "霜牙龙鳞"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ],
-    "road_jade_port_nameless_harbor": [
-        {
-            "id": "road_jade_port_nameless_harbor_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "翡翠港-无名港路·路口",
-            "type": "野外",
-            "lv": 45,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+    "sky_ladder_path": [
+      {
+        "id": "sky_ladder_path_1",
+        "name": "云梯起步",
+        "icon": "🌲",
+        "desc": "天梯云径·云梯起步",
+        "type": "野外",
+        "lv": 82,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_obsidian_golem",
+            "黑曜石魔像",
+            "tank",
+            82,
+            [
+              "ms_zhong_ji",
+              "ms_ying_hua"
             ],
-            "shop": False,
-            "healer": False
-        }
-    ],
-    "road_jade_port_shell_town": [
-        {
-            "id": "road_jade_port_shell_town_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "翡翠港-贝壳镇路·路口",
-            "type": "野外",
-            "lv": 37,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+            [
+              "黑曜碎片"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "sky_ladder_path_2",
+        "name": "云径中段",
+        "icon": "🌲",
+        "desc": "天梯云径·云径中段",
+        "type": "野外",
+        "lv": 85,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_demon_priest",
+            "恶魔祭司",
+            "healer",
+            82,
+            [
+              "ms_an_ying_dan",
+              "ms_hei_an_zhi_liao"
             ],
-            "shop": False,
-            "healer": False
-        }
-    ],
-    "road_moon_gate_star_song": [
-        {
-            "id": "road_moon_gate_star_song_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "月冠隘口-星歌镇路·路口",
-            "type": "野外",
-            "lv": 46,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+            [
+              "染血祭器"
+            ]
+          ]
+        ],
+        "elite": None,
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      },
+      {
+        "id": "sky_ladder_path_3",
+        "name": "风翼台",
+        "icon": "🌲",
+        "desc": "天梯云径·风翼台",
+        "type": "野外",
+        "lv": 88,
+        "npcs": [],
+        "monsters": [
+          [
+            "m_stone_dragon",
+            "石龙",
+            "tank",
+            85,
+            [
+              "ms_shi_xi",
+              "ms_zhong_ji"
             ],
-            "shop": False,
-            "healer": False
-        }
-    ],
-    "road_nameless_harbor_pearl_city": [
-        {
-            "id": "road_nameless_harbor_pearl_city_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "无名港-珍珠城路·路口",
-            "type": "野外",
-            "lv": 58,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
+            [
+              "石龙鳞"
+            ]
+          ],
+          [
+            "e_demon_warrior",
+            "恶魔战士",
+            "elite",
+            86,
+            [
+              "ms_zhang_jian",
+              "ms_di_yu_huo"
             ],
-            "shop": False,
-            "healer": False
-        }
-    ],
-    "road_silver_brook_white_deer": [
-        {
-            "id": "road_silver_brook_white_deer_1",
-            "name": "路口",
-            "icon": "🌲",
-            "desc": "银溪镇-白鹿城路·路口",
-            "type": "野外",
-            "lv": 8,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "explore"
-            ],
-            "shop": False,
-            "healer": False
-        }
+            [
+              "恶魔战刃"
+            ]
+          ]
+        ],
+        "elite": [
+          "e_demon_warrior",
+          "恶魔战士",
+          "elite",
+          86,
+          [
+            "ms_zhang_jian",
+            "ms_di_yu_huo"
+          ],
+          [
+            "恶魔战刃"
+          ]
+        ],
+        "boss": None,
+        "funcs": [
+          "explore"
+        ],
+        "shop": False,
+        "healer": False
+      }
     ]
 }

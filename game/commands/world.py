@@ -668,7 +668,7 @@ class WorldCmds(CommandBase):
         # v87.3 必经之路：进入城镇时提示方向（从路图/野外进城）
         arrive_txt = f"🚶 你来到了【{target['name']}】"
         if target.get("type") == "城镇区域" and first_sa:
-            arrive_txt = f"🚶 你从{'荒野' if cur.startswith('road_') else '野外'}方向来到了【{target['name']}】{first_sa['name']}"
+            arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
             sub_line = ""
         yield event.plain_result(
             f"{arrive_txt}\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"

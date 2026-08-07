@@ -88,6 +88,17 @@ SUBAREA_POIS = {
     "storm_sea:storm_sea_3": ["rune_stone", "note"],
     "molten_abyss:molten_abyss_3": ["rune_stone", "loot_pile"],
     "abyss_altar:abyss_altar_3": ["rune_stone", "note"],
+    # ==== v87.7 城镇间新图（02 章 13.4.6 通路自然化）====
+    "silver_wind_road:silver_wind_road_1": ["loot_pile"],      # 银风道口：被遗落的货箱
+    "silver_wind_road:silver_wind_road_2": ["campfire", "note"],  # 银风驿站：商队营地
+    "west_ridge_wilds:west_ridge_wilds_1": ["herb_patch"],     # 西岭口：荒原药草
+    "dusk_ridge_road:dusk_ridge_road_2": ["rune_stone"],       # 半山烽台：残破符文碑
+    "mist_tide_passage:mist_tide_passage_2": ["loot_pile"],    # 雾潮中段：漂流残骸
+    "black_tide_strait:black_tide_strait_3": ["rune_stone"],   # 珍珠湾：海底符文
+    "dwarf_long_gallery:dwarf_long_gallery_2": ["rune_stone"], # 长廊中段：矮人符文
+    "cold_spine_snow_trail:cold_spine_snow_trail_1": ["shrine"],  # 铁砧北门：冰封神龛
+    "dragon_ridge_old_road:dragon_ridge_old_road_2": ["note"], # 古道龙纹：龙战字条
+    "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
 }
 
 # 随机线索 POI 文案池（note 效果：线索收集）
