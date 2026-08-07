@@ -282,6 +282,9 @@ def init_db():
                     conn.execute(f"ALTER TABLE stats ADD COLUMN {scol} INTEGER DEFAULT 0")
             if "equipped_title" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN equipped_title TEXT DEFAULT ''")
+            # v84 房屋升级（25 章）：players 表补 deed_lv 列（房产等级，默认 1 级木屋）
+            if "deed_lv" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN deed_lv INTEGER DEFAULT 1")
             # 兼容旧库：feedback 表补 reply 列（意见回复）
             fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
             if "reply" not in fcols:

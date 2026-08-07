@@ -80,12 +80,27 @@ class WorldCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        # v84 『地契 升级』→ 房屋升级
+        raw_arg = self._strip_cmd(event, "地契").strip()
+        if raw_arg.startswith("升级"):
+            async for _r in self._deed_upgrade(event, group_id, qq_id, player):
+                yield _r
+            return
         deed = player.get("deed", "") or ""
         lines = ["🏠 【地契大厅】", "━━━━━━━━━━━━"]
         if deed and deed in C.PROPERTIES:
             prop = C.PROPERTIES[deed]
+            dlv = int(player.get("deed_lv", 1) or 1)
+            hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
             lines.append(f"✅ 我的地契：{prop['name']}（{C.MAP_BY_ID.get(prop['map'], {}).get('name', '？')}）")
-            lines.append(f"   『回家』进入，『卖房』退契（返还一半）")
+            lines.append(f"   🏗️ {hl['name']} Lv.{dlv} ｜ 仓库 {hl['storage']} 格 ｜ 回家恢复 {int(hl['heal_pct'] * 100)}%")
+            if dlv < C.HOUSE_MAX_LEVEL:
+                nxt = C.HOUSE_LEVELS[dlv + 1]
+                cost = f"{nxt['upgrade_cost']['gold']} 金币 + " + " + ".join(f"{C.display('materials', m)}×{c}" for m, c in nxt['upgrade_cost']['mats'].items())
+                lines.append(f"   ⬆️ 升级 Lv.{dlv + 1}【{nxt['name']}】：{cost}（『地契 升级』）")
+            else:
+                lines.append("   ⭐ 已满级宅邸！")
+            lines.append(f"   『回家』进入，『卖房』退契（返还 {int(C.HOUSE_REFUND.get(dlv, 0.5) * 100)}%）")
         else:
             lines.append("你还没有房产。以下地皮在出售：")
             for i, (pid, prop) in enumerate(C.PROPERTIES.items(), 1):
@@ -137,9 +152,56 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你没有房产，卖不了～『地契』看看在售地皮！")
             return
         prop = C.PROPERTIES[deed]
-        refund = prop["price"] // 2
-        db.update_player(group_id, qq_id, gold=player["gold"] + refund, deed="")
-        yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】，退还 {refund} 金币（原价一半）。")
+        dlv = int(player.get("deed_lv", 1) or 1)
+        refund_pct = C.HOUSE_REFUND.get(dlv, 0.5)
+        refund = int(prop["price"] * refund_pct)
+        db.update_player(group_id, qq_id, gold=player["gold"] + refund, deed="", deed_lv=1)
+        yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】（{C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])['name']} Lv.{dlv}），退还 {refund} 金币（{int(refund_pct * 100)}%）。")
+
+    async def _deed_upgrade(self, event, group_id, qq_id, player):
+        """v84 房屋升级（25 章三）：『地契 升级』消耗金币+材料升房屋等级"""
+        deed = player.get("deed", "") or ""
+        if not deed or deed not in C.PROPERTIES:
+            yield event.plain_result("你没有房产，升级不了～『地契』看看在售地皮！")
+            return
+        dlv = int(player.get("deed_lv", 1) or 1)
+        if dlv >= C.HOUSE_MAX_LEVEL:
+            yield event.plain_result("你的房屋已经是满级宅邸啦！")
+            return
+        nxt = C.HOUSE_LEVELS[dlv + 1]
+        cost = nxt["upgrade_cost"]
+        # 金币检查
+        if player["gold"] < cost["gold"]:
+            yield event.plain_result(
+                f"升级 Lv.{dlv + 1}【{nxt['name']}】需要 {cost['gold']} 金币，你只有 {player['gold']}。")
+            return
+        # 材料检查
+        inv = db.get_inventory(group_id, qq_id)
+        inv_map = {}
+        for it in inv:
+            nm = it["data"].get("name", "")
+            inv_map[nm] = inv_map.get(nm, 0) + it.get("count", 1)
+        for mid, need in cost["mats"].items():
+            mname = C.display("materials", mid)
+            if inv_map.get(mname, 0) < need:
+                yield event.plain_result(
+                    f"升级 Lv.{dlv + 1}【{nxt['name']}】需要 {mname}×{need}，你只有 {inv_map.get(mname, 0)}。去『挖掘』吧～")
+                return
+        # 扣材料 + 扣金币 + 升级
+        for mid, need in cost["mats"].items():
+            mname = C.display("materials", mid)
+            for _ in range(need):
+                found = next((it for it in inv if it["data"].get("name") == mname), None)
+                if found:
+                    db.remove_item(group_id, qq_id, found["key"], 1)
+                    inv = db.get_inventory(group_id, qq_id)
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost["gold"], deed_lv=dlv + 1)
+        hl = C.HOUSE_LEVELS[dlv + 1]
+        yield event.plain_result(
+            f"🔨 叮叮当当一阵敲打——房屋升级为【{hl['name']}】Lv.{dlv + 1}！\n"
+            f"📦 仓库扩容至 {hl['storage']} 格 ｜ 回家恢复 {int(hl['heal_pct'] * 100)}%"
+            + (f" ｜ 铺面挂机位 +{hl['stall_slots']}" if hl["stall_slots"] else "")
+            + (f"\n💡 满级宅邸解锁专属传送点（『回家』可直达）" if dlv + 1 >= C.HOUSE_MAX_LEVEL else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?回家(?:[\s\S]*)$")
     @no_prof_waiting()
@@ -155,8 +217,16 @@ class WorldCmds(CommandBase):
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
             return
-        db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id))
-        yield event.plain_result("🏠 你回到了自己的家，炭火噼啪作响，安心～")
+        # v84 回家恢复（按房屋等级 heal_pct）
+        dlv = int(player.get("deed_lv", 1) or 1)
+        hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
+        heal_pct = hl.get("heal_pct", 0.5)
+        new_hp = max(player.get("hp", 0), int(player.get("max_hp", 1) * heal_pct))
+        new_mp = max(player.get("mp", 0), int(player.get("max_mp", 1) * heal_pct))
+        db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id), hp=new_hp, mp=new_mp)
+        yield event.plain_result(
+            f"🏠 你回到了自己的家（{hl['name']}），炭火噼啪作响，安心～\n"
+            f"💚 恢复至 {new_hp}/{player.get('max_hp', 1)} HP ｜ 💙 {new_mp}/{player.get('max_mp', 1)} MP")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出门(?:[\s\S]*)$")
     @no_prof_waiting()
@@ -232,16 +302,23 @@ class WorldCmds(CommandBase):
         raw = self._strip_cmd(event, "仓库").strip()
         # 存：仓库 <物品名>
         if raw:
+            # v84 仓库容量按房屋等级
+            dlv = int(player.get("deed_lv", 1) or 1)
+            hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
+            lst = self._home_storage_load(group_id, qq_id)
+            if len(lst) >= hl["storage"]:
+                yield event.plain_result(
+                    f"📦 仓库满了（{len(lst)}/{hl['storage']} 格）！升级房屋扩容（『地契 升级』）")
+                return
             inv = db.get_inventory(group_id, qq_id)
             found = next((it for it in inv if it["data"].get("name") == raw), None)
             if not found:
                 yield event.plain_result(f"背包里没有『{raw}』！")
                 return
-            lst = self._home_storage_load(group_id, qq_id)
             lst.append({"key": found["key"], "data": found["data"], "count": 1})
             self._home_storage_save(group_id, qq_id, lst)
             db.remove_item(group_id, qq_id, found["key"], 1)
-            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】")
+            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】（{len(lst)}/{hl['storage']}）")
             return
         # 查看
         lst = self._home_storage_load(group_id, qq_id)
@@ -400,6 +477,12 @@ class WorldCmds(CommandBase):
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
         if target["id"] != cur and target["id"] not in neighbors:
             yield event.plain_result(f"无法直接前往{target['name']}！需要先到相邻地图。看看『地图』～")
+            return
+        # v84 红名限制（26 章三 第一档）：红名不能进入城镇安全区
+        if self._is_redname(qq_id) and target.get("type") in ("城镇区域", "城镇外郊"):
+            yield event.plain_result(
+                "🛡️ 城门口的守卫拦住了你：\"你身上沾着血腥味！红名期间禁止进入城镇！\"\n"
+                "（红名期间不能进入安全区，去野外避避风头吧）")
             return
         # 等级提示
         lv_msg = ""
@@ -785,7 +868,9 @@ class WorldCmds(CommandBase):
         prop = C.PROPERTIES.get(deed, {})
         lines = [f"🏠 【{('我的' if is_mine else owner['name'] + '的') + '家'}】"]
         if prop:
-            lines.append(prop["name"])
+            dlv = int(owner.get("deed_lv", 1) or 1)
+            hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
+            lines.append(f"{prop['name']}（{hl['name']} Lv.{dlv}）")
             lines.append(f"　{prop['desc']}")
         lines.append("━━━━━━━━━━━━")
         # 此地玩家
@@ -807,7 +892,11 @@ class WorldCmds(CommandBase):
         # 仓库（自己的家）
         if is_mine:
             storage = self._home_storage_load(group_id, qq_id)
-            lines.append(f"📦 家中仓库：{len(storage)} 件（『仓库』管理）")
+            dlv = int(owner.get("deed_lv", 1) or 1)
+            hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
+            lines.append(f"📦 家中仓库：{len(storage)}/{hl['storage']} 件（『仓库』管理）")
+            if hl.get("stall_slots"):
+                lines.append(f"🏪 铺面挂机位：{hl['stall_slots']} 个（『摆摊 <物品> [价格]』开张）")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『出门』回到城镇")
         return "\n".join(lines)

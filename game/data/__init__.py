@@ -66,7 +66,7 @@ from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
-from .housing import PROPERTIES  # noqa: F401
+from .housing import PROPERTIES, HOUSE_LEVELS, HOUSE_MAX_LEVEL, HOUSE_REFUND  # noqa: F401
 from .races import RACES  # noqa: F401
 from .achievements import ACHIEVEMENTS  # noqa: F401
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401

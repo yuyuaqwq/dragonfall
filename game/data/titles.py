@@ -41,5 +41,7 @@ TITLES = [
     {"id": "pro_cooking6", "name": "料理人",     "desc": "烹饪达到 Lv.6"},
     {"id": "pro_cooking10", "name": "食神",       "desc": "烹饪达到 Lv.10（速度 +3）", "bonus": {"spd": 3}},
     {"id": "fish_king",   "name": "鱼王猎手",   "desc": "钓上传说中的鱼王"},
+    # ---- 荣誉商店称号（26 章 3.3）----
+    {"id": "pvp_hero",    "name": "荣誉勋章",   "desc": "PVP 强者，攻击 +10（荣誉商店兑换）", "bonus": {"atk": 10}},
 ]
 

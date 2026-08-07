@@ -1647,6 +1647,9 @@ class EconomyCmds(CommandBase):
                         ok = db.get_prof_level(group_id, qq_id, prof_key) >= need_lv
             elif tid == "fish_king":
                 ok = db.get_fish_king(group_id, qq_id) >= 1
+            elif tid == "pvp_hero":
+                # 荣誉商店兑换过荣誉勋章（event_state honor_medal_<qq_id> = 1）
+                ok = int(db.get_event_state(f"honor_medal_{qq_id}") or 0) >= 1
             earned.append(ok)
         return earned
 
@@ -2306,6 +2309,14 @@ class EconomyCmds(CommandBase):
                 "🍀 幸运护符泛起微光，你的气息变得祥和……\n"
                 "💡 10 分钟内打怪金币 +50%、材料掉落 +1！"
             )
+        elif d.get("effect") == "clear_red":
+            # v84 红名清除券（26 章 3.3）：立即消除红名
+            if not self._is_redname(qq_id):
+                yield event.plain_result("你现在不是红名，用不着这张券～（留着防身吧）")
+                return
+            db.remove_item(group_id, qq_id, target["key"])
+            db.set_event_state(f"red_{qq_id}", "0")
+            yield event.plain_result("🎫 券面符文亮起，笼罩你的杀气消散了！你不再是红名了。")
         elif d.get("effect") == "open_chest":
             import uuid
             db.remove_item(group_id, qq_id, target["key"])

@@ -1122,14 +1122,19 @@ class CombatCmds(CommandBase):
         db.bump_stats(group_id, qq_id, deaths=1)
         lost = int(player["gold"] * 0.1)
         new_gold = max(0, player["gold"] - lost)
+        lines = [f"{result}", f"💀 你倒下了……被【{monster['name']}】击败。"]
+        # v84 红名死亡惩罚（26 章三 第二档）：红名期间死亡额外掉 10%（上限 2000）
+        if self._is_redname(qq_id):
+            extra = min(int(player["gold"] * 0.1), 2000)
+            new_gold = max(0, new_gold - extra)
+            lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币（上限 2000）！")
         # 回城并满血（新手保护）
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"], cur_map="oak_town")
-        yield event.plain_result(
-            f"{result}\n"
-            f"💀 你倒下了……被【{monster['name']}】击败。\n"
+        lines.append(
             f"你丢失了 {lost} 金币，被好心人送回了维拉镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
+        yield event.plain_result("\n".join(lines))
 
     def _update_quests(self, group_id, qq_id, monster):
         """战斗后更新任务进度，返回通知行
@@ -1424,6 +1429,82 @@ class CombatCmds(CommandBase):
         except (ValueError, TypeError):
             return 0
 
+    # ---------------- v84 荣誉商店（26 章 3.3） ----------------
+    HONOR_SHOP = {
+        1: {"name": "荣誉勋章", "cost": 300, "desc": "PVP 强者称号（攻击 +10），兑换后在『称号 装备 荣誉勋章』佩戴"},
+        2: {"name": "决斗者披风", "cost": 500, "desc": "外观装备（纯展示，穿上很帅）"},
+        3: {"name": "荣誉药剂", "cost": 100, "desc": "使用后恢复 50% 生命与魔力"},
+        4: {"name": "红名清除券", "cost": 800, "desc": "使用后立即消除红名状态"},
+    }
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?荣誉(?:[\s\S]*)$")
+    async def honor_shop(self, event: AstrMessageEvent):
+        """荣誉商店：『荣誉』查看，『荣誉 兑换 <编号>』兑换"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        raw = self._strip_cmd(event, "荣誉").strip()
+        if raw.startswith("兑换"):
+            num = raw[2:].strip()
+            if not num.isdigit():
+                yield event.plain_result("格式：『荣誉 兑换 <编号>』！『荣誉』查看商店～")
+                return
+            async for _r in self._honor_buy(event, group_id, qq_id, player, int(num)):
+                yield _r
+            return
+        honor = self._get_honor(qq_id)
+        lines = [f"⚜️ 【荣誉商店】（荣誉：{honor}）", "━━━━━━━━━━━━"]
+        for i, item in self.HONOR_SHOP.items():
+            lines.append(f"{i}. {item['name']} ｜ {item['cost']} 荣誉")
+            lines.append(f"   {item['desc']}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 荣誉获取：击杀红名玩家 +50；『荣誉 兑换 <编号>』兑换")
+        if self._is_redname(qq_id):
+            lines.append(f"☠️ 你当前红名中（剩余 {max(0, self._red_until(qq_id) - int(time.time())) // 60} 分钟）！")
+        yield event.plain_result("\n".join(lines))
+
+    async def _honor_buy(self, event, group_id, qq_id, player, num):
+        """荣誉兑换：扣荣誉给物品/标记"""
+        item = self.HONOR_SHOP.get(num)
+        if not item:
+            yield event.plain_result(f"没有第 {num} 件商品！『荣誉』查看商店～")
+            return
+        honor = self._get_honor(qq_id)
+        if honor < item["cost"]:
+            yield event.plain_result(f"荣誉不足！兑换【{item['name']}】需要 {item['cost']} 荣誉，你只有 {honor}。")
+            return
+        db.set_event_state(f"honor_{qq_id}", str(honor - item["cost"]))
+        if num == 1:
+            db.set_event_state(f"honor_medal_{qq_id}", "1")
+            yield event.plain_result(
+                f"⚜️ 你兑换了【荣誉勋章】称号！（花费 {item['cost']} 荣誉）\n"
+                f"👑 『称号 装备 荣誉勋章』即可佩戴（攻击 +10）！")
+        elif num == 2:
+            import uuid as _uuid
+            db.add_item(group_id, qq_id, f"cape_{_uuid.uuid4().hex[:8]}", {
+                "name": "决斗者披风", "type": "外观", "stackable": False,
+                "price": 0, "desc": "荣誉商店出品的外观披风（纯展示）",
+            })
+            yield event.plain_result(f"⚜️ 你兑换了【决斗者披风】！（花费 {item['cost']} 荣誉）\n🦸 穿上它你就是全场最靓的仔～『背包』查看")
+        elif num == 3:
+            import uuid as _uuid
+            db.add_item(group_id, qq_id, f"pot_{_uuid.uuid4().hex[:8]}", {
+                "name": "荣誉药剂", "type": "消耗品", "stackable": True,
+                "price": 0, "heal": 0.5, "mana": 0.5,
+                "desc": "使用后恢复 50% 生命与魔力",
+            })
+            yield event.plain_result(f"⚜️ 你兑换了【荣誉药剂】！（花费 {item['cost']} 荣誉）\n💊 『使用 荣誉药剂』恢复 50% 血蓝")
+        elif num == 4:
+            import uuid as _uuid
+            db.add_item(group_id, qq_id, f"clearr_{_uuid.uuid4().hex[:8]}", {
+                "name": "红名清除券", "type": "消耗品", "stackable": True,
+                "price": 0, "effect": "clear_red",
+                "desc": "使用后立即消除红名状态",
+            })
+            yield event.plain_result(f"⚜️ 你兑换了【红名清除券】！（花费 {item['cost']} 荣誉）\n🎫 『使用 红名清除券』立即洗白～")
+
     async def _pvp_start(self, event, group_id, qq_id, player, target_arg):
         """PVP 发起：『攻击 @目标』（安全区/等级保护/灰名/袭击CD）"""
         cd = self._pvp_cd_left(qq_id)
@@ -1447,6 +1528,13 @@ class CombatCmds(CommandBase):
             return
         if self._in_battle(group_id, target_qq):
             yield event.plain_result(f"【{target_player['name']}】正在战斗中，无法应战！")
+            return
+        # v84 新手保护（26 章二）：Lv.<10 不能被攻击
+        if target_player["level"] < 10:
+            yield event.plain_result(f"【{target_player['name']}】才 Lv.{target_player['level']}，处于新手保护期（Lv.<10 不能被攻击）！")
+            return
+        if player["level"] < 10:
+            yield event.plain_result(f"你才 Lv.{player['level']}，处于新手保护期（Lv.<10 不能攻击玩家）！去野外打怪练练级吧～")
             return
         # 安全区检查（城镇区域/城镇外郊不可 PK）
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
@@ -1564,9 +1652,9 @@ class CombatCmds(CommandBase):
             lines.append(f"💰 你夺走了 {lost} 金币！")
         lines.append(f"🏥 对方被送回维拉镇疗养（HP 1）。")
         if self._is_redname(loser_qq):
-            honor = self._get_honor(winner_qq) + 1
+            honor = self._get_honor(winner_qq) + 50
             db.set_event_state(f"honor_{winner_qq}", str(honor))
-            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉 +1（当前 {honor}）")
+            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉 +50（当前 {honor}）")
         else:
             if str(winner_qq) == str(attacker_qq):
                 red_until = self._red_until(winner_qq)

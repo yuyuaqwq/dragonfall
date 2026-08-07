@@ -1562,6 +1562,10 @@ MATERIALS = {
         "price": 10,
         "name": "铁矿石"
     },
+    "mat_shi_cai": {
+        "price": 5,
+        "name": "石材"
+    },
     "mat_jing_tie": {
         "price": 30,
         "name": "精铁"
