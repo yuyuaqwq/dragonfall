@@ -32,7 +32,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
-    db.update_player("g1", "e1", cur_map="oak_town", level=5, gold=100000)
+    db.update_player("g1", "e1", cur_map="oak_town", cur_subarea="oak_town_3", level=5, gold=100000)
 
     print("【锻造列表指令（v60 修复）】")
     out = await cmd(m, "craft", "g1", "e1", "锻造列表")

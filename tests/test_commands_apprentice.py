@@ -35,7 +35,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
+    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town", cur_subarea="oak_town_5")
 
     print("【v81 拜师：艾琳理论关】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 艾琳")

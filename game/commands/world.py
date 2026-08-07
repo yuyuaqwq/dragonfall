@@ -42,8 +42,12 @@ class WorldCmds(CommandBase):
             lines.append("🏪 商店（『购买』）")
         if (sa_healer is not None and sa_healer) or (sa_healer is None and cur_map.get("healer")):
             lines.append("🏨 旅店（『住宿』恢复全状态）")
-        if mid in C.ENHANCE_SMITH_MAPS and (sa_obj is None or "craft" in (sa_obj.get("funcs") or []) or sa_obj.get("shop")):
-            lines.append("🔨 铁匠铺（『强化』『附魔』）")
+        if mid in C.ENHANCE_SMITH_MAPS:
+            _sa_name = sa_obj.get("name", "") if sa_obj else ""
+            _sa_funcs = (sa_obj.get("funcs") or []) if sa_obj else []
+            _smith = "craft" in _sa_funcs or any(k in _sa_name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+            if _smith:
+                lines.append("🔨 铁匠铺（『强化』『附魔』）")
         # 旅者方碑（只在中心广场/首个子区域提示）
         if mid in C.PORTALS:
             p = C.PORTALS[mid]
@@ -714,7 +718,12 @@ class WorldCmds(CommandBase):
         mtype = target_map.get("type", "野外")
         if mtype in ("城镇区域", "城镇外郊"):
             return None
-        monsters = target_map.get("monsters") or []
+        # v87.6 内容下沉子区域：从目标图子区域取怪（优先落点首个子区域）
+        monsters = []
+        for sa in (target_map.get("subareas") or []):
+            if sa.get("monsters"):
+                monsters = sa["monsters"]
+                break
         if not monsters:
             return None
         diff = target_map.get("lv", 1) - player["level"]

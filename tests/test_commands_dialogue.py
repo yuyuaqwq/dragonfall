@@ -36,7 +36,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
+    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town", cur_subarea="oak_town_2")
 
     print("【v65 对话树：入口】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
@@ -93,7 +93,7 @@ async def main():
 
     print("【v65 对话树：条件显隐】")
     # 主线全部完成 → quest_pending 不再显示
-    db.update_player("g1", "w1", cur_map="oak_town")
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_2")
     db.save_quests("g1", "w1", {"main_quest": None, "main_status": "pending", "main_progress": {},
                                 "daily": {}, "completed_main": ["q1"], "side": {}})
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
@@ -101,7 +101,7 @@ async def main():
 
     print("【v65 对话树：动作执行】")
     # 铁匠：open_shop 动作
-    db.update_player("g1", "w1", cur_map="oak_town")
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3")
     out = await cmd(m, "find_npc", "g1", "w1", "找 铁匠")
     check("铁匠对话树", "1. 看看你的货。" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")

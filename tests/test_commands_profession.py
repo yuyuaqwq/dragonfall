@@ -92,7 +92,7 @@ async def main():
 
     print("【v81 强化独立副业（原 v67 归位锻造）】")
     reset_profs("g1", "w1")
-    db.update_player("g1", "w1", cur_map="oak_town", gold=5000)
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3", gold=5000)
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
     check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])

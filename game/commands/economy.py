@@ -745,8 +745,8 @@ class EconomyCmds(CommandBase):
         if not ok:
             yield event.plain_result(act_msg)
             return
-        if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能锻造装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能锻造装备！（先『地图』移动到铁匠铺）")
             return
         text = raw.strip()
         # 『锻造列表 [N]』：列表指令（翻页），与『锻造 N』锻造序号分离
@@ -912,8 +912,8 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能找铁匠代工！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能找铁匠代工！（先『地图』移动到铁匠铺）")
             return
         text = self._strip_cmd(event, "代工").strip()
         if not text:
@@ -1182,8 +1182,8 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能强化装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能强化装备！（先『地图』移动到铁匠铺）")
             return
         item_name = item_name.strip()
         if not item_name:
@@ -1266,8 +1266,8 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能附魔装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能附魔装备！（先『地图』移动到铁匠铺）")
             return
         parts = raw.strip().split()
         if not parts:

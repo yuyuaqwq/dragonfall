@@ -84,6 +84,25 @@ class CommandBase:
             return int(raw)
         return 1
 
+    def _at_smith(self, player: dict) -> bool:
+        """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（锻造/代工/强化/附魔场所）。
+        v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。"""
+        cur_map = player.get("cur_map", "")
+        if cur_map not in C.ENHANCE_SMITH_MAPS:
+            return False
+        sa_id = player.get("cur_subarea") or ""
+        if not sa_id:
+            return False
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        for sa in (cm.get("subareas") or []):
+            if sa["id"] == sa_id:
+                name = sa.get("name", "")
+                funcs = sa.get("funcs") or []
+                if "craft" in funcs:
+                    return True
+                return any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+        return False
+
     # 静态命令正则表（Mixin 切分后各文件 @filter.regex 的汇总）。
     # 用于测试环境/注册表缺失时快捷指令的校验与转发；真实 AstrBot 注册表优先。
     _STATIC_HANDLERS = None

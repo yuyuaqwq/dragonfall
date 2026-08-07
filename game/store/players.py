@@ -122,6 +122,12 @@ def update_player(group_id, qq_id, **fields):
     """通用更新。fields: hp/mp/exp/gold/level/cur_map/equipment/skills/name/max_hp/max_mp"""
     if not fields:
         return
+    # v87.6 内容下沉子区域：cur_map 变更且未显式指定子区域时，自动补目标图首个子区域
+    # （保证玩家总有 cur_subarea 落点；home_ 等无子区域图保持原值）
+    if "cur_map" in fields and "cur_subarea" not in fields:
+        _sas = C.SUBAREAS.get(fields["cur_map"]) or []
+        if _sas:
+            fields["cur_subarea"] = _sas[0]["id"]
     with _lock:
         conn = _connect()
         try:

@@ -134,21 +134,33 @@ build_index("weapon_types", WEAPON_TYPES)
 _INDEXES["weapon_types"]["id_to_name"] = dict(WT_CN)
 _INDEXES["weapon_types"]["name_to_id"] = {v: k for k, v in WT_CN.items()}
 
-# 怪物：从 MAPS 的 monsters/elite/boss 收集 怪物名→id（怪物 key 本身已是 m_xxx id）
+# 怪物：v87.6 内容下沉子区域——从 SUBAREAS 的 monsters/elite/boss 收集 怪物名→id（地图级仅兜底）
 _MONSTER_INDEX = {}
-for _m in MAPS:
-    for _slot in ("monsters", "elite", "boss"):
-        _ent = _m.get(_slot)
+
+
+def _collect_monster_entries(_slots_source, _slots):
+    """收集 (mid, mname) 对；兼容 str（单怪）与 list（多怪）。"""
+    for _slot in _slots:
+        _ent = _slots_source.get(_slot)
         if not _ent:
             continue
         _lst = _ent if isinstance(_ent, list) else [_ent]
         for _t in _lst:
             if isinstance(_t, (tuple, list)) and len(_t) >= 2:
-                _mid = _t[0]
-                _mname = _t[1]
-                # 同名怪物（多地图）→ 取第一个 id，保证反查稳定
-                if _mname not in _MONSTER_INDEX:
-                    _MONSTER_INDEX[_mname] = _mid
+                yield _t[0], _t[1]
+
+
+for _sas in SUBAREAS.values():
+    for _sa in _sas:
+        for _mid, _mname in _collect_monster_entries(_sa, ("monsters", "elite", "boss")):
+            # 同名怪物（多地图）→ 取第一个 id，保证反查稳定
+            if _mname not in _MONSTER_INDEX:
+                _MONSTER_INDEX[_mname] = _mid
+# 兜底：无子区域的地图级内容（当前全图都有子区域，此处为空）
+for _m in MAPS:
+    for _mid, _mname in _collect_monster_entries(_m, ("monsters", "elite", "boss")):
+        if _mname not in _MONSTER_INDEX:
+            _MONSTER_INDEX[_mname] = _mid
 _INDEXES["monsters"] = {"name_to_id": dict(_MONSTER_INDEX),
                         "id_to_name": {v: k for k, v in _MONSTER_INDEX.items()}}
 

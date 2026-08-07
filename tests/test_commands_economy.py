@@ -35,7 +35,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
-    db.update_player("g1", "e1", cur_map="oak_town", level=5, gold=1000)
+    db.update_player("g1", "e1", cur_map="oak_town", cur_subarea="oak_town_3", level=5, gold=1000)
 
     print("【背包：分类筛选】")
     # 入库各类物品
@@ -96,7 +96,7 @@ async def main():
     check("购买 治疗药水 有返回", len(out) > 5, out[:120])
 
     print("【商店：老马坐骑（新世界 oak 区域限定）】")
-    db.update_player("g1", "e1", gold=1000, cur_map="oak_town")
+    db.update_player("g1", "e1", gold=1000, cur_map="oak_town", cur_subarea="oak_town_3")
     out = await cmd(m, "buy", "g1", "e1", "购买 老马")
     check("橡木镇可买老马", "买了一匹老马" in out, out[:150])
     db.update_player("g1", "e1", cur_map="white_deer")
@@ -121,7 +121,7 @@ async def main():
     # 海风长弓 Lv.18 紫装 → 需要锻造副业 Lv.2（_craft_prof_need 折算），先升副业再测图纸拦截
     for _ in range(25):
         db.add_prof_exp("g1", "e1", "craft", 1)
-    db.update_player("g1", "e1", level=15, gold=100000)
+    db.update_player("g1", "e1", level=15, gold=100000, cur_map="oak_town", cur_subarea="oak_town_3")
     out = await cmd(m, "craft", "g1", "e1", "锻造 海风长弓")
     check("未学图纸拦截", "学习" in out and "海风长弓图纸" in out, out[:200])
     # 背包加图纸 → 懒迁移提示学习

@@ -71,18 +71,20 @@ def main():
     check("H6 lost_library 存在", bool(h6), "地图缺失")
     check("H6 hidden=True", h6.get("hidden") is True)
     check("H6 等级 55", h6.get("lv") == 55, f"实际 {h6.get('lv')}")
-    check("H6 Boss 守馆者", h6.get("boss", [None])[0] == "b_lost_archivist",
-          f"实际 {h6.get('boss')}")
-    check("H6 挂载魔剑士残魂 NPC", "npc_spellblade_ghost" in h6.get("npcs", []),
-          f"实际 {h6.get('npcs')}")
-    check("H6 怪物含图书馆守卫", any(m[1] == "图书馆守卫" for m in h6.get("monsters", [])),
-          f"实际 {[m[1] for m in h6.get('monsters', [])]}")
+    h6_sa = C.SUBAREAS.get("lost_library", [{}])[0]
+    check("H6 Boss 守馆者", (h6_sa.get("boss") or [None])[0] == "b_lost_archivist",
+          f"实际 {h6_sa.get('boss')}")
+    check("H6 挂载魔剑士残魂 NPC", "npc_spellblade_ghost" in (h6_sa.get("npcs") or []),
+          f"实际 {h6_sa.get('npcs')}")
+    check("H6 怪物含图书馆守卫", any(m[1] == "图书馆守卫" for m in (h6_sa.get("monsters") or [])),
+          f"实际 {[m[1] for m in h6_sa.get('monsters', [])]}")
     h7 = C.MAP_BY_ID.get("ember_corridor", {})
     check("H7 ember_corridor 存在", bool(h7), "地图缺失")
     check("H7 hidden=True", h7.get("hidden") is True)
     check("H7 等级 85", h7.get("lv") == 85, f"实际 {h7.get('lv')}")
-    check("H7 Boss 烬火领主", h7.get("boss", [None])[0] == "b_ember_lord",
-          f"实际 {h7.get('boss')}")
+    h7_sa = C.SUBAREAS.get("ember_corridor", [{}])[0]
+    check("H7 Boss 烬火领主", (h7_sa.get("boss") or [None])[0] == "b_ember_lord",
+          f"实际 {h7_sa.get('boss')}")
 
     # ===== 4. 准入条件（物品型） =====
     print("  · 准入条件")
