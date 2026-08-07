@@ -817,32 +817,32 @@ class CombatCmds(CommandBase):
             db.add_reputation(group_id, qq_id, faction, rep_gain)
             if rep_gain > 1:
                 rep_lines.append(f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +{rep_gain}")
-        # 掉落（v41：普通怪 0% 装备；精英/Boss 掉图纸）
-        drop_equip, _drop_mat, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"])
+        # 掉落（阶段八：普通怪掉绿/蓝装备；精英/Boss 掉紫/橙装备 + 名册图纸）
+        drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"])
         drop_lines = []
+        if drop_bp:
+            import uuid
+            bp_key = f"eq_{uuid.uuid4().hex[:8]}"
+            db.add_item(group_id, qq_id, bp_key, drop_bp)
+            # v56.4：掉落提示只显示名字，不把 desc 整段塞进括号（曾漏内部 ID）
+            drop_lines.append(f"📜 掉落图纸：{drop_bp['name']}")
         if drop_equip:
             import uuid
             key = f"eq_{uuid.uuid4().hex[:8]}"
             db.add_item(group_id, qq_id, key, drop_equip)
-            if drop_equip.get("type") == "图纸":
-                # v56.4：掉落提示只显示名字+阶数，不把 desc 整段塞进括号（曾漏内部 ID）
-                stg = drop_equip.get("stage", "")
-                drop_lines.append(f"📜 掉落图纸：{drop_equip['name']}{'（' + stg + '阶）' if stg else ''}")
-            else:
-                q = C.QUALITY[drop_equip["quality"]]
-                drop_lines.append(f"🎁 掉落装备：{q['color']}【{drop_equip['name']}】({C.EQUIP_SLOTS[drop_equip['slot']]})")
-                # v10：掉落提示附带词条/套装
-                afs = drop_equip.get("affixes", [])
-                if afs:
-                    sn = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
-                          "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
-                    parts = []
-                    for a in afs:
-                        k, v = a.get("stat"), a.get("value", 0)
-                        parts.append(f"{sn.get(k, k)} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{sn.get(k, k)} +{v}")
+            q = C.QUALITY[drop_equip["quality"]]
+            drop_lines.append(f"🎁 掉落装备：{q['color']}【{drop_equip['name']}】({C.EQUIP_SLOTS[drop_equip['slot']]})")
+            # 阶段八：词条 v2（特效词条 ID 列表 → 短名）
+            afs = drop_equip.get("affixes", [])
+            if afs:
+                parts = [C.affix_label(a) for a in afs if isinstance(a, str)]
+                if parts:
                     drop_lines.append(f"    ✨ 词条：{'  '.join(parts)}")
-                if drop_equip.get("set"):
-                    drop_lines.append(f"    🎴 套装：{drop_equip['set']}")
+            if drop_equip.get("legendary"):
+                lg = C.LEGENDARY_EFFECTS[drop_equip["legendary"]]
+                drop_lines.append(f"    ✨ 专属：{lg['name']}")
+            if drop_equip.get("set"):
+                drop_lines.append(f"    🎴 套装：{drop_equip['set']}")
         # 材料掉落（v23：普通怪 100% 必掉 1 个；精英/Boss 必掉 2 个；v54 幸运护符 +1）
         material = None
         if monster.get("drops"):

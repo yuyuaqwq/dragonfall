@@ -17,12 +17,12 @@ QUALITY = {
         "name": "普通"
     },
     "green": {
-        "mult": 1.2,
+        "mult": 1.3,
         "color": "🟢",
         "name": "优秀"
     },
     "blue": {
-        "mult": 1.5,
+        "mult": 1.6,
         "color": "🔵",
         "name": "稀有"
     },
@@ -64,6 +64,12 @@ WEAPON_TYPES = {
     ],
     "fist": [
         "武僧"
+    ],
+    "spear": [
+        "战士"
+    ],
+    "shield": [
+        "战士"
     ]
 }
 
@@ -103,6 +109,18 @@ WEAPON_NAME_SUFFIX = {
         "之拳",
         "铁拳",
         "爪套"
+    ],
+    "spear": [
+        "之枪",
+        "长枪",
+        "战枪",
+        "骑枪"
+    ],
+    "shield": [
+        "之盾",
+        "盾牌",
+        "重盾",
+        "圆盾"
     ]
 }
 
@@ -132,6 +150,16 @@ WEAPON_FLAVOR = {
     "fist": {
         "atk": 0.08,
         "desc": "拳套：攻击额外 +8%"
+    },
+    "spear": {
+        "atk": 0.08,
+        "crit": 0.01,
+        "desc": "长枪：攻击额外 +8%、暴击 +1%"
+    },
+    "shield": {
+        "def": 0.08,
+        "hp_fix": 30,
+        "desc": "盾牌：防御额外 +8%、生命 +30"
     }
 }
 
@@ -319,4 +347,5 @@ QUALITY_CN = {
 WT_CN = {
     "sword": "剑", "staff": "法杖", "bow": "弓",
     "mace": "权杖", "dagger": "匕首", "fist": "拳套",
+    "spear": "枪", "shield": "盾",
 }

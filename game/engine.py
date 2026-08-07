@@ -295,9 +295,12 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             if k in STAT_NAMES:
                 item_src[k] = item_src.get(k, 0) + (int(v * mult) if k != "crit" else v)
         for af in item.get("affixes", []):
-            k, v = af.get("stat"), af.get("value", 0)
-            if k in STAT_NAMES:
-                item_src[k] = item_src.get(k, 0) + v
+            # 阶段八：词条 v2 是 ID 列表（str），常驻属性已在生成时折算进 stats；
+            # 旧结构 [{"stat","value"}] 兼容处理
+            if isinstance(af, dict):
+                k, v = af.get("stat"), af.get("value", 0)
+                if k in STAT_NAMES:
+                    item_src[k] = item_src.get(k, 0) + v
         for en in item.get("enchant", []):
             k, v = en.get("stat"), en.get("value", 0)
             if k in STAT_NAMES:

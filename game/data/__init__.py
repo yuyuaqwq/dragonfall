@@ -22,6 +22,13 @@ from .equipment import (  # noqa: F401
     AFFIX_COUNT, AFFIX_RATIO, AFFIX_POOL, AFFIX_FALLBACK,
     QUALITY_CN, WT_CN,
 )
+from .affixes import (  # noqa: F401
+    AFFIXES, AFFIX_POOL_BY_QUALITY, AFFIX_KIND, LEGENDARY_EFFECTS,
+    SERIES_FIXED_AFFIX,
+)
+from .equip_roster import (  # noqa: F401
+    EQUIP_ROSTER, EQUIP_ROSTER_BY_NAME, SERIES_SETS,
+)
 from .items import ITEMS, MATERIALS  # noqa: F401
 from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401

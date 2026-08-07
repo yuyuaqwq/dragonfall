@@ -1735,8 +1735,8 @@ class EconomyCmds(CommandBase):
             lines.append("━━━━━━━━━━━━")
             lines.append(f"品质：{q['name']} ｜ 需求等级：Lv.{d['lv']}")
             if d.get("weapon_type"):
-                allowed = C.WEAPON_TYPES.get(d["weapon_type"], [])
-                lines.append(f"类型：{d['weapon_type']}（{'、'.join(allowed)}专用）")
+                # 阶段八：武器不锁职业，只显示类型（20 章装备只限属性）
+                lines.append(f"类型：{C.display('weapon_types', d['weapon_type'])}")
                 flavor_desc = C.WEAPON_FLAVOR.get(d["weapon_type"], {}).get("desc", "")
                 if flavor_desc:
                     lines.append(f"✦ {flavor_desc}")
@@ -1750,14 +1750,29 @@ class EconomyCmds(CommandBase):
                     stat_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
             if stat_lines:
                 lines.append("属性：" + "  ".join(stat_lines))
-            # v10：词条（独立于强化）
+            # 阶段八：特效词条 v2（ID 列表 → 名称+描述）+ 传说专属
             aff_lines = []
             for af in d.get("affixes", []):
-                k, v = af.get("stat"), af.get("value", 0)
-                label = stat_names.get(k, k)
-                aff_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+                if isinstance(af, dict):  # 旧结构兼容
+                    k, v = af.get("stat"), af.get("value", 0)
+                    label = stat_names.get(k, k)
+                    aff_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+                    continue
+                info = C.AFFIXES.get(af)
+                if info:
+                    aff_lines.append(f"{info['name']}（{info['desc']}）")
             if aff_lines:
                 lines.append("✨ 词条：" + "  ".join(aff_lines))
+            if d.get("legendary"):
+                lg = C.LEGENDARY_EFFECTS.get(d["legendary"])
+                if lg:
+                    lines.append(f"✨ 专属·{lg['name']}：{lg['desc']}")
+            # 阶段八：属性需求（不锁职业，只锁力量/智力/敏捷/耐力）
+            req = d.get("req")
+            if req:
+                req_names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                req_str = " + ".join(f"{req_names.get(k, k)} {v}" for k, v in req.items())
+                lines.append(f"需求：{req_str}")
             # v10：附魔（v34：符文效果词条，带等级）
             ench_lines = []
             for en in d.get("enchant", []):
@@ -1845,6 +1860,33 @@ class EconomyCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
 
+    def _req_check(self, player: dict, d: dict):
+        """阶段八：装备属性需求检查。返回 (通过, 提示文本)。"""
+        req = d.get("req")
+        if not req:
+            return True, ""
+        attr = player.get("attributes") or {}
+        names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+        missing = []
+        for k, need in req.items():
+            cur = attr.get(k, 0)
+            if cur < need:
+                missing.append(f"{names.get(k, k)} {cur}/{need}")
+        if missing:
+            req_str = "、".join(f"{names.get(k, k)} {v}" for k, v in req.items())
+            return False, f"需求：{req_str}（你当前 {'、'.join(missing)}）"
+        return True, ""
+
+    def _buy_weapon(self, wname: str, wtype: str, wlv: int, wq: str) -> dict:
+        """阶段八：商店武器生成。名册名走名册精确生成（正确 req + 固定词条），
+        非名册武器名（兜底）走随机生成再覆盖名。"""
+        ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
+        if ids:
+            return C.generate_roster_equip(ids[0])
+        eq = C.generate_equip("weapon", wlv, wq, wtype)
+        eq["name"] = wname
+        return eq
+
     async def equip(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "装备")
@@ -1893,12 +1935,11 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"背包里没有叫『{item_name}』的装备！")
             return
         d = target["data"]
-        # 武器类型限制（v48：class_name 存 ID，WEAPON_TYPES 值是中文职业名）
-        if d["slot"] == "weapon" and d.get("weapon_type"):
-            allowed = C.WEAPON_TYPES.get(d["weapon_type"], [])
-            if C.display("classes", player["class_name"]) not in allowed:
-                yield event.plain_result(f"你是{C.display('classes', player['class_name'])}，不能装备{C.display('weapon_types', d['weapon_type'])}！")
-                return
+        # 阶段八：武器不锁职业（20 章），改为属性需求检查（力量/智力/敏捷/耐力）
+        ok_req, req_msg = self._req_check(player, d)
+        if not ok_req:
+            yield event.plain_result(f"属性不够，穿不上【{d['name']}】！{req_msg}\n加点后属性达标才能装备（『属性』查看、『加点 力量 N』加点）")
+            return
         # 等级限制
         if player["level"] < d["lv"]:
             yield event.plain_result(f"需要 Lv.{d['lv']} 才能装备【{d['name']}】，你才 Lv.{player['level']}")
@@ -2290,12 +2331,9 @@ class EconomyCmds(CommandBase):
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
                     return
-                if C.display("classes", player["class_name"]) not in C.WEAPON_TYPES.get(wtype, []):
-                    yield event.plain_result(f"你是{C.display('classes', player['class_name'])}，买不了{C.display('weapon_types', wtype)}！")
-                    return
+                # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                equip_item = C.generate_equip("weapon", wlv, wq, wtype)
-                equip_item["name"] = wname
+                equip_item = self._buy_weapon(wname, wtype, wlv, wq)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半（否则属性推导价远高于买入价，可无限倒卖刷钱）
                 equip_item["price"] = int(price * 0.5)
                 import uuid
@@ -2336,12 +2374,9 @@ class EconomyCmds(CommandBase):
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
                     return
-                if C.display("classes", player["class_name"]) not in C.WEAPON_TYPES.get(wtype, []):
-                    yield event.plain_result(f"你是{C.display('classes', player['class_name'])}，买不了{C.display('weapon_types', wtype)}！")
-                    return
+                # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                equip_item = C.generate_equip("weapon", wlv, wq, wtype)
-                equip_item["name"] = wname
+                equip_item = self._buy_weapon(wname, wtype, wlv, wq)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半
                 equip_item["price"] = int(price * 0.5)
                 import uuid

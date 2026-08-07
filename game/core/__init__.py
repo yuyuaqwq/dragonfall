@@ -15,11 +15,15 @@ from .stats import (  # noqa: F401
 from .maps import _build_ency  # noqa: F401
 from .monsters import monster_skills_pool  # noqa: F401
 from .drops import (  # noqa: F401
-    _stage_for_lv, roll_blueprint, roll_drop, generate_equip, build_monster,
+    _stage_for_lv, roll_blueprint, roll_drop, generate_equip, generate_roster_equip,
+    build_monster,
 )
 from .factions import faction_reputation_tier  # noqa: F401
 from .fishing import roll_fish  # noqa: F401
-from .affix import _affix_base_value, roll_affixes  # noqa: F401
+from .affix import (  # noqa: F401
+    roll_affixes, fixed_affixes, stat_affix_stats, random_req,
+    affix_label, equip_affix_lines,
+)
 from .craft import (  # noqa: F401
     craft_recipe_make, craft_recipe_search, craft_recipes_by_material,
     craft_recipes_for_level,
