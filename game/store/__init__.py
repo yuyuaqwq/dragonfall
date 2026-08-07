@@ -46,6 +46,7 @@ from .social import (  # noqa: F401
     guild_count, guild_add_exp, guild_set_sign, guild_get_sign,
     guild_set_task, guild_get_task, guild_top,
     pet_get, pet_create, pet_update, pet_delete,
+    pet_decay_satiety, pet_dex_get, pet_dex_add,
 )
 from .world import (  # noqa: F401
     bump_fishing, get_fishing_total, bump_bestiary, get_bestiary,

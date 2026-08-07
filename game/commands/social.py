@@ -585,26 +585,38 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         pet = db.pet_get(qq_id)
+        # 饱食度自然衰减（每小时 -1）先结算再展示
+        pet = db.pet_decay_satiety(pet)
         if not pet:
-            yield event.plain_result("你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～")
+            dex = db.pet_dex_get(qq_id)
+            dex_line = ""
+            if dex:
+                names = [next((p["name"] for p in C.PET_POOL if p["key"] == k), k) for k in dex]
+                dex_line = f"\n📖 图鉴收集：{'、'.join(names)}"
+            yield event.plain_result(f"你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～{dex_line}")
             return
         pdef = next((p for p in C.PET_POOL if p["key"] == pet["pet_key"]), None)
         icon = pdef["icon"] if pdef else "🐾"
-        need = C.pet_exp_need(pet["level"])
+        # 饱食度衰减持久化
+        db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         sat = pet["satiety"]
-        sat_str = "😋" if sat > 70 else ("😐" if sat > 30 else "😵")
         bonus = int(min(pet["level"] / 10, 0.5) * 100)
-        lines = [
-            f"{icon} 【{pet['name']}】Lv.{pet['level']}",
-            f"━━━━━━━━━━━━",
-            f"💕 亲密度 {pet['bond']} ｜ {sat_str} 饱食度 {sat}/100",
-            f"✨ 经验 {pet['exp']}/{need}",
-            f"⚡ 战斗经验加成 +{bonus}%",
-        ]
+        skill_line = ""
         if pdef:
-            lines.append(f"📖 {pdef['desc']}")
-        lines.append("")
-        lines.append("💡 『喂养 <材料名>』提升饱食度，『宠物改名 <名字>』，『放生』告别")
+            skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}（Lv.10 解锁）"
+        if sat <= 0:
+            skill_line = "\n😵 技能失效（饱食度归零）"
+        lines = [
+            f"{icon} 【宠物 · {pdef['name'] if pdef else pet['name']}】",
+            f"━━━━━━━━━━━━",
+            f"名字：{pet['name']} | Lv.{pet['level']}",
+            f"❤️ 饱食度：{sat}/100",
+            f"✨ 经验加成：+{bonus}%（主人战斗经验）",
+        ]
+        if skill_line:
+            lines.insert(4, skill_line)
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『喂养 <材料>』恢复饱食度，『宠物改名 <名字>』改名，『放生』告别")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物改名(?:\s*|$)")
@@ -635,35 +647,39 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         pet = db.pet_get(qq_id)
+        # 饱食度自然衰减先结算
+        pet = db.pet_decay_satiety(pet)
         if not pet:
             yield event.plain_result("你还没有宠物！打怪有概率掉落宠物蛋，『使用 宠物蛋』孵化～")
             return
+        db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         mat_name = self._strip_cmd(event, "喂养").strip()
         if not mat_name:
             yield event.plain_result("格式：喂养 <材料名/序号>，如『喂养 狼皮』或『喂养 1』（打怪/采集可获得材料）")
             return
-        # 找背包里的材料
+        # 找背包里的食材（材料/鱼/草药均可，24 章四）
         items = db.get_inventory(group_id, qq_id)
         target = None
+        FOOD_TYPES = {"材料", "鱼"}
         if mat_name.isdigit():
-            mats = [it for it in items if it["data"].get("type") == "材料"]
+            mats = [it for it in items if it["data"].get("type") in FOOD_TYPES]
             idx = int(mat_name)
             if idx < 1 or idx > len(mats):
-                yield event.plain_result(f"背包里没有第 {idx} 个材料（共 {len(mats)} 个）！打怪、『采集』、『挖掘』可获得材料。")
+                yield event.plain_result(f"背包里没有第 {idx} 个食材（共 {len(mats)} 个）！打怪、『采集』、『垂钓』可获得食材。")
                 return
             target = mats[idx - 1]
         else:
             for it in items:
                 d = it["data"]
-                if d.get("type") == "材料" and mat_name in d["name"]:
+                if d.get("type") in FOOD_TYPES and mat_name in d["name"]:
                     target = it
                     break
         if not target:
-            yield event.plain_result(f"背包里没有材料『{mat_name}』！打怪、『采集』、『挖掘』可获得材料。")
+            yield event.plain_result(f"背包里没有食材『{mat_name}』！打怪、『采集』、『垂钓』可获得食材。")
             return
-        # 喂食：饱食度+25，亲密度+5，经验+10
+        # 喂食：饱食度 +30（24 章四），亲密度 +5，经验 +10
         db.remove_item(group_id, qq_id, target["key"])
-        sat = min(100, pet["satiety"] + 25)
+        sat = min(100, pet["satiety"] + 30)
         bond = pet["bond"] + 5
         exp = pet["exp"] + 10
         lv = pet["level"]
@@ -672,7 +688,7 @@ class SocialCmds(CommandBase):
             lv += 1
         db.pet_update(qq_id, satiety=sat, bond=bond, exp=exp, level=lv)
         lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
-        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +25 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
+        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
 
@@ -687,7 +703,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你还没有宠物～")
             return
         db.pet_delete(qq_id)
-        yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。")
+        # 图鉴记录保留（24 章三：放生后宠物蛋可重新掉落，图鉴记录保留）
+        yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。\n📖 图鉴记录已保留，之后还有机会遇到它！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:坐骑|骑乘|下马)(?:\s*|$)")
 

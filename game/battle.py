@@ -45,8 +45,9 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None):
         self.btype = btype                 # monster | worldboss | pvp
+        self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
@@ -83,6 +84,7 @@ class Battle:
             "type": self.btype,
             "round": self.round,
             "enemy": self.enemy,
+            "pet": self.pet,
             "p_buffs": self.p_buffs,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
@@ -104,7 +106,7 @@ class Battle:
 
     @classmethod
     def from_state(cls, st: dict):
-        b = cls(st.get("type", "monster"), st.get("enemy", {}), st.get("title_bonus") or {})
+        b = cls(st.get("type", "monster"), st.get("enemy", {}), st.get("title_bonus") or {}, pet=st.get("pet") or {})
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
         b.e_buffs = st.get("e_buffs", {}) or {}
@@ -250,6 +252,12 @@ class Battle:
         # ---- 正常回合开始 ----
         self.round += 1
         logs += self._turn_start(player)
+        # 24 章宠物技能：回合开始自动触发（宠物击杀直接胜利）
+        if self.pet:
+            logs = self._pet_skill_turn(player, logs)
+            if self.result == "victory":
+                self._end_round()
+                return logs, True
         # v61 进度条速度机制（PVP 保持真人轮流，不介入）
         p_extra = e_extra = 0
         e_first = False
@@ -1785,6 +1793,76 @@ class Battle:
             return int(dmg * (1 + MARK_EXTRA))
         return dmg
 
+    def _pet_skill_turn(self, player: dict, logs: list) -> list:
+        """24 章宠物技能：每 N 回合自动触发（不占玩家行动、不消耗 MP）。
+        撕咬(atk_pct)/龙息(matk_pct)/月光祝福(heal_pct) 在玩家回合开始触发；
+        影袭(block) 在 _damage_player 前拦截（见 _pet_block_check）。
+        Lv.10 解锁；饱食度 =0 时技能失效。
+        """
+        pet = self.pet or {}
+        if not pet:
+            return logs
+        if int(pet.get("level", 0)) < 10:
+            return logs
+        if int(pet.get("satiety", 0)) <= 0:
+            return logs
+        pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+        if not pdef:
+            return logs
+        interval = int(pdef.get("skill_interval", 0) or 0)
+        if interval <= 0 or self.round % interval != 0:
+            return logs
+        stype = pdef.get("skill_type")
+        pname = pet.get("name") or pdef["name"]
+        sname = pdef["skill_name"]
+        if stype == "atk_pct":
+            st = self._player_stats(player)
+            est = self._enemy_stats()
+            dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
+            if self._enemy_dead():
+                self.result = "victory"
+                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！（宠物击杀）")
+        elif stype == "matk_pct":
+            st = self._player_stats(player)
+            est = self._enemy_stats()
+            dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
+            if self._enemy_dead():
+                self.result = "victory"
+                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！（宠物击杀）")
+        elif stype == "heal_pct":
+            if player.get("hp", 0) < player.get("max_hp", 1):
+                heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+                logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！")
+        return logs
+
+    def _pet_block_check(self, dmg: int, logs: list) -> int:
+        """24 章宠物技能·影袭：每 N 回合 value 概率替主人挡一次攻击（敌方伤害结算前）。"""
+        if dmg <= 0:
+            return dmg
+        pet = self.pet or {}
+        if not pet:
+            return dmg
+        if int(pet.get("level", 0)) < 10:
+            return dmg
+        if int(pet.get("satiety", 0)) <= 0:
+            return dmg
+        pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+        if not pdef or pdef.get("skill_type") != "block":
+            return dmg
+        interval = int(pdef.get("skill_interval", 0) or 0)
+        if interval <= 0 or self.round % interval != 0:
+            return dmg
+        if random.random() < pdef.get("skill_value", 0):
+            pname = pet.get("name") or pdef["name"]
+            logs.append(f"🐾 {pname}的【{pdef['skill_name']}】替你挡下了这次攻击！")
+            return 0
+        return dmg
+
     def _turn_start(self, player: dict) -> list:
         """回合开始：持续伤害结算 + v10 套装每回合回复"""
         logs = []
@@ -1872,6 +1950,10 @@ class Battle:
         self._tick_cooldowns()
 
     def _damage_player(self, player: dict, dmg: int, logs: list):
+        if dmg <= 0:
+            return
+        # 24 章宠物技能·影袭：替主人挡一次攻击（拦截后直接结束本次伤害）
+        dmg = self._pet_block_check(dmg, logs)
         if dmg <= 0:
             return
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）

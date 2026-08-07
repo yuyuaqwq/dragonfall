@@ -197,8 +197,14 @@ class EconomyCmds(CommandBase):
         db.bump_stats(group_id, qq_id, fish_count=1)
         C.check_achievements(group_id, qq_id, player)
         _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
+        # 24 章二：月光兔蛋特殊渠道——垂钓传说档（orange）15% 概率（真稀有原则）
+        _pet_egg_line = ""
+        if fq == "orange" and random.random() < 0.15:
+            egg = C.make_pet_egg("pet_rabbit")
+            db.add_item(group_id, qq_id, f"petegg_pet_rabbit", egg)
+            _pet_egg_line = f"\n🥚 咦？鱼肚子里藏着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}{_cf_line}")
+                f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}{_cf_line}{_pet_egg_line}")
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行（未命中返回空串）"""
@@ -230,9 +236,16 @@ class EconomyCmds(CommandBase):
         db.bump_stats(group_id, qq_id, gather_count=1)
         C.check_achievements(group_id, qq_id, player)
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
+        # 24 章二：月光兔蛋特殊渠道——采集稀有产出 10% 概率（稀有材料判定参考 _gather_roll 的高价段）
+        _pet_egg_line = ""
+        rare_hit = any(C.MATERIALS[m].get("price", 0) >= 150 for m in mats)
+        if rare_hit and random.random() < 0.10:
+            egg = C.make_pet_egg("pet_rabbit")
+            db.add_item(group_id, qq_id, "petegg_pet_rabbit", egg)
+            _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：\n"
                 f"{'、'.join(got)}\n"
-                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}")
+                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_pet_egg_line}")
 
     def _settle_mining(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -2306,13 +2319,22 @@ class EconomyCmds(CommandBase):
                 lines.append(f"📜 宝箱里还有：{bp['name']}！")
             yield event.plain_result("\n".join(lines))
         elif d.get("type") == "宠物蛋":
-            # 孵化宠物
+            # 孵化宠物（24 章三：使用宠物蛋 → 获得对应品种宠物，首次孵化自动命名）
             pet_key = d.get("pet_key")
             if not pet_key:
                 yield event.plain_result("这枚宠物蛋有点奇怪……")
                 return
-            if db.pet_get(qq_id):
-                yield event.plain_result("你已经有一只宠物啦！先『放生』或等它长大吧～")
+            pet = db.pet_get(qq_id)
+            # 饱食度自然衰减先结算（防止换了很久的宠物面板数据过期）
+            pet = db.pet_decay_satiety(pet)
+            if pet:
+                db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
+            if pet:
+                same = pet.get("pet_key") == pet_key
+                if same:
+                    yield event.plain_result("你已经有一只【该品种】宠物啦！可以『出售』这颗蛋，或『放生』后重新孵化（图鉴记录保留）。")
+                else:
+                    yield event.plain_result("你已经有一只宠物啦！先『放生』再孵化新品种吧～")
                 return
             pdef = next((p for p in C.PET_POOL if p["key"] == pet_key), None)
             if not pdef:
@@ -2320,10 +2342,12 @@ class EconomyCmds(CommandBase):
                 return
             db.remove_item(group_id, qq_id, target["key"])
             db.pet_create(qq_id, pet_key, pdef["name"])
+            db.pet_dex_add(qq_id, pet_key)
+            dex_count = len(db.pet_dex_get(qq_id))
             yield event.plain_result(
                 f"🥚 宠物蛋微微颤动……裂开了！\n"
-                f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！\n"
-                f"💡 输入『宠物』查看，『喂养 <材料名>』增进感情，战斗时它还会带来经验加成！"
+                f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！（图鉴 {dex_count}/4）\n"
+                f"💡 输入『宠物』查看，『喂养 <食材>』恢复饱食度，升到 Lv.10 解锁宠物技能！"
             )
         elif d.get("type") == "坐骑":
             # 坐骑缰绳：解锁坐骑

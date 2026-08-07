@@ -85,7 +85,7 @@ class CombatCmds(CommandBase):
                 monster = C.build_monster(cur_map["boss"], cur_map)
                 tag = "👑 BOSS"
             if monster:
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
+                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
                 self._lock_battle(group_id, qq_id)
                 yield event.plain_result(
                     f"⚔️ 遭遇战斗！\n"
@@ -99,7 +99,7 @@ class CombatCmds(CommandBase):
             # 普通怪：50% 低概率（新手保护）
             if random.random() < 0.5 and events:
                 monster = C.build_monster(random.choice(events)[1], cur_map)
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
+                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
                 self._lock_battle(group_id, qq_id)
                 hint = ""
                 if cur_map.get("elite"):
@@ -142,7 +142,7 @@ class CombatCmds(CommandBase):
             elif cur_map.get("boss"):
                 hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{cur_map['boss'][1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
-        db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player).to_state())
+        db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
         self._lock_battle(group_id, qq_id)
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         yield event.plain_result(
@@ -880,15 +880,32 @@ class CombatCmds(CommandBase):
             if gb > 0:
                 exp = int(exp * (1 + gb))
                 guild_bonus.append(f"🏰 公会加成：经验 +{int(gb*100)}%")
-        # 宠物经验加成（等级/10，上限 50%）
+        # 宠物经验加成（24 章五：等级/10 上限 50%；饱食度 >0 全额，=0 减半）
         pet_bonus = []
         pet = db.pet_get(qq_id)
-        if pet and pet["satiety"] > 0:
+        pet = db.pet_decay_satiety(pet)
+        if pet:
             pb = min(pet["level"] / 10, 0.5)
-            exp = int(exp * (1 + pb))
-            pet_bonus.append(f"🐾 {pet['name']} 陪伴：经验 +{int(pb*100)}%")
-            # 宠物饱食度随时间/战斗缓慢下降
-            db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2))
+            if pet["satiety"] <= 0:
+                pb = pb / 2  # 饱食度 =0：经验加成减半
+            if pb > 0:
+                exp = int(exp * (1 + pb))
+                ptag = "🐾 陪伴（饱食度归零，加成减半）" if pet["satiety"] <= 0 else "🐾 陪伴"
+                pet_bonus.append(f"{ptag}：经验 +{int(pb*100)}%")
+            # 战斗消耗饱食度 -2（先自然衰减再扣战斗消耗）
+            db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2), last_sat_time=pet["last_sat_time"])
+            # 宠物分得经验（24 章四：击杀怪宠物分得经验，取怪物基础经验 20%）
+            p_gain = max(1, int(monster["exp"] * 0.2))
+            p_exp = pet["exp"] + p_gain
+            p_lv = pet["level"]
+            p_lvup = False
+            while p_exp >= C.pet_exp_need(p_lv):
+                p_exp -= C.pet_exp_need(p_lv)
+                p_lv += 1
+                p_lvup = True
+            db.pet_update(qq_id, exp=p_exp, level=p_lv)
+            if p_lvup:
+                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！（Lv.10 解锁宠物技能）" if p_lv >= 10 else f"🎉 宠物升到 Lv.{p_lv}！")
         # 世界事件加成：元素异象 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
         evt_bonus = []
         cur_evt = db.get_world_event()
@@ -969,15 +986,22 @@ class CombatCmds(CommandBase):
                     drop_lines.append(f"🎒 拾取材料：{mname}")
             if not chosen:
                 material = None
-        # 宠物蛋掉落（v55 改为仅 Boss 掉落 8% 概率，按怪物等级段选宠物；已有宠物则不掉）
+        # 宠物蛋掉落（24 章二/三：分档掉落——普通兽类怪 1.5% 狼崽蛋、精英 6.5% 黑猫蛋、Boss 12% 龙裔蛋）
         pet_egg_line = ""
-        if not db.pet_get(qq_id) and monster.get("is_boss") and random.random() < 0.08:
-            cand = [p for p in C.PET_POOL if monster["lv"] >= p["lv"]]
-            if cand:
-                pdef = random.choice(cand)
-                egg = C.make_pet_egg(pdef["key"])
-                db.add_item(group_id, qq_id, f"petegg_{pdef['key']}", egg)
-                pet_egg_line = f"🥚 咦？【{egg['name']}】从怪物身上掉下来了！『使用 宠物蛋』孵化！"
+        pet_egg_roll = {
+            "pet_wolf":   (0.015, monster.get("role") == "dps" and any(k in monster.get("name", "") for k in ["狼", "狗", "野猪", "熊"])),
+            "pet_cat":    (0.065, monster.get("is_elite")),
+            "pet_drake":  (0.12, monster.get("is_boss")),
+        }
+        egg_key = None
+        for k, (rate, cond) in pet_egg_roll.items():
+            if cond and random.random() < rate:
+                egg_key = k
+                break
+        if egg_key:
+            egg = C.make_pet_egg(egg_key)
+            db.add_item(group_id, qq_id, f"petegg_{egg_key}", egg)
+            pet_egg_line = f"🥚 咦？【{egg['name']}】从怪物身上掉下来了！『使用 宠物蛋』孵化！"
         # v39 坐骑缰绳掉落（精英/Boss 概率，背包『使用』解锁坐骑）
         mount_line = ""
         mk = C.roll_mount_drop(monster.get("role", ""))
@@ -1227,7 +1251,7 @@ class CombatCmds(CommandBase):
         if not boss.get("skills"):
             cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in ("物理", "魔法")]
             boss["skills"] = _rnd.sample(cand, min(2, len(cand)))
-        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player)
+        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, nb.to_state())
         self._lock_battle(group_id, qq_id)
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
@@ -1470,7 +1494,7 @@ class CombatCmds(CommandBase):
         player["hp"] = state[my_key].get("hp", player["hp"])
         player["mp"] = state[my_key].get("mp", player["mp"])
         # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）
-        b = BT.Battle("pvp", enemy=dict(opp), title_bonus=self._title_bonus(group_id, qq_id), player=player)
+        b = BT.Battle("pvp", enemy=dict(opp), title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
         b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
         if action == "skill":

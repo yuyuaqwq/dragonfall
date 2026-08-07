@@ -68,7 +68,7 @@ def clean_db(*tables):
         targets = tables or (
             "players", "player_groups", "inventory", "quests", "battle_state",
             "achievements", "stats", "feedback", "market", "bestiary",
-            "guilds", "guild_members", "party", "pets", "reputation", "signin", "fishing",
+            "guilds", "guild_members", "party", "pets", "pet_dex", "reputation", "signin", "fishing",
             "visited", "world_event", "event_state", "professions",
         )
         for t in targets:

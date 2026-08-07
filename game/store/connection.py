@@ -199,7 +199,14 @@ def init_db():
                 level INTEGER DEFAULT 1,
                 exp INTEGER DEFAULT 0,
                 satiety INTEGER DEFAULT 100,
-                bond INTEGER DEFAULT 0
+                bond INTEGER DEFAULT 0,
+                last_sat_time INTEGER DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS pet_dex (
+                qq_id TEXT NOT NULL,
+                pet_key TEXT NOT NULL,
+                hatched INTEGER DEFAULT 0,
+                PRIMARY KEY (qq_id, pet_key)
             );
             CREATE TABLE IF NOT EXISTS feedback (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -302,6 +309,10 @@ def init_db():
             pcols2 = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
             if "deed" not in pcols2:
                 conn.execute("ALTER TABLE players ADD COLUMN deed TEXT DEFAULT ''")
+            # 24 章宠物系统：pets 表补 last_sat_time 列（饱食度自然衰减时间戳，老库自愈）
+            petcols = [r[1] for r in conn.execute("PRAGMA table_info(pets)").fetchall()]
+            if "last_sat_time" not in petcols:
+                conn.execute("ALTER TABLE pets ADD COLUMN last_sat_time INTEGER DEFAULT 0")
             conn.commit()
         finally:
             conn.close()

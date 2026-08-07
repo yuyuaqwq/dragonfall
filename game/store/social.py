@@ -507,8 +507,8 @@ def pet_create(qq_id, pet_key, name):
         conn = _connect()
         try:
             conn.execute(
-                "INSERT OR REPLACE INTO pets (qq_id, pet_key, name, level, exp, satiety, bond) VALUES (?,?,?,1,0,100,0)",
-                (qq_id, pet_key, name),
+                "INSERT OR REPLACE INTO pets (qq_id, pet_key, name, level, exp, satiety, bond, last_sat_time) VALUES (?,?,?,1,0,100,0,?)",
+                (qq_id, pet_key, name, int(time.time())),
             )
             conn.commit()
         finally:
@@ -532,6 +532,55 @@ def pet_delete(qq_id):
         try:
             conn.execute("DELETE FROM pets WHERE qq_id=?", (qq_id,))
             conn.commit()
+        finally:
+            conn.close()
+
+def pet_decay_satiety(pet, now=None):
+    """按时间自然衰减饱食度：每小时 -1（上限 100，下限 0）。
+    返回更新后的 pet dict（内存副本），不写库；调用方决定是否持久化。"""
+    if not pet:
+        return pet
+    now = int(now or time.time())
+    last = int(pet.get("last_sat_time") or 0)
+    if last <= 0:
+        pet = dict(pet)
+        pet["last_sat_time"] = now
+        return pet
+    hours = (now - last) // 3600
+    if hours > 0:
+        pet = dict(pet)
+        pet["satiety"] = max(0, int(pet["satiety"]) - hours)
+        pet["last_sat_time"] = now
+    return pet
+
+# ---------------- 宠物图鉴（24 章） ----------------
+def pet_dex_get(qq_id):
+    """图鉴收集记录：返回 {pet_key: hatched_count}"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT pet_key, hatched FROM pet_dex WHERE qq_id=?", (qq_id,)
+            ).fetchall()
+            return {r[0]: r[1] for r in rows}
+        finally:
+            conn.close()
+
+def pet_dex_add(qq_id, pet_key):
+    """孵化记录：图鉴 +1（INSERT OR REPLACE 语义为计数累加需先查）"""
+    with _lock:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "SELECT hatched FROM pet_dex WHERE qq_id=? AND pet_key=?", (qq_id, pet_key)
+            ).fetchone()
+            n = (cur[0] + 1) if cur else 1
+            conn.execute(
+                "INSERT OR REPLACE INTO pet_dex (qq_id, pet_key, hatched) VALUES (?,?,?)",
+                (qq_id, pet_key, n),
+            )
+            conn.commit()
+            return n
         finally:
             conn.close()
 
