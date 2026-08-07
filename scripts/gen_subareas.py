@@ -12,32 +12,32 @@ sys.path.insert(0, PLUGIN_DIR)
 
 # ---------- 拆分表（策划案 13.2/13.3，硬编码权威数据） ----------
 # 城镇：map_id -> [子区域名, ...]（顺序即默认落点顺序，第一个为广场/入口）
-# v2 差异化命名：具体建筑名+方位词，禁止模板化（中心广场/中央大街/旅店街会审美疲劳）
+# v3 内容本位：每个子区域必须有 NPC/功能/怪物，行政人物配行政场所，空壳不生成
 TOWN_SPLIT = {
-    "oak_town": ["冒险者广场", "老铁铁匠铺", "橡木桶旅店", "草药铺", "东街", "西巷", "镇口"],
-    "white_deer": ["白鹿广场", "银盾大街", "金鹿旅馆", "铁匠街", "南市", "医师巷", "北门"],
-    "ironharbor": ["港口广场", "冒险者公会", "铁锚旅店", "拍卖行", "东码头", "船坞", "货仓街", "贫民窟"],
-    "silver_brook": ["银溪广场", "磨坊街", "河畔旅店", "集市", "民居巷"],
-    "maple_village": ["村口", "枫叶小街", "枫叶旅店", "农田边"],
-    "dawn_city": ["王都广场", "圣光大教堂", "皇家大街", "白鸽旅店", "拍卖行", "东市", "西市", "王宫前", "南门"],
-    "ironshield_town": ["铁盾广场", "军械街", "老兵旅店", "集市", "兵营巷"],
-    "moon_gate": ["月门广场", "银月旅店", "哨塔集市", "瞭望台"],
-    "moon_court": ["王庭广场", "月辉大街", "月神圣殿", "林语旅店", "月市", "花园"],
-    "star_song": ["星歌广场", "旅店街", "星光集市", "林间"],
-    "frost_horn": ["堡垒广场", "寒铁大街", "霜角旅店", "集市", "兵营", "北门"],
-    "anvil_fort": ["熔炉广场", "锻造街", "矮人旅店", "集市", "矿道口"],
-    "cold_ridge": ["营地口", "主帐篷", "篝火旅店", "哨站"],
-    "aurora_town": ["极光广场", "旅店街", "集市", "观星台"],
-    "dragon_pass": ["山口广场", "龙脊旅店", "集市", "瞭望台"],
-    "dragon_kin": ["聚落入口", "龙裔广场", "祭坛区", "旅店"],
-    "jade_port": ["港口广场", "翡翠大街", "集市", "东码头", "船坞", "珍珠旅店"],
-    "shell_town": ["镇口", "贝壳集市", "码头", "旅店"],
-    "nameless_harbor": ["港口广场", "集市", "码头区", "旅店街", "灯塔下"],
-    "pearl_city": ["珍珠广场", "中央大街", "集市", "拍卖行", "码头区", "旅店街"],
-    "deep_tunnel": ["隧道口", "中央大厅", "集市", "营地区"],
-    "under_market": ["集市广场", "拍卖区", "旅店", "矿工区", "暗巷"],
-    "ember_camp": ["营地口", "中央区", "旅店", "熔炉边"],
-    "wind_city": ["浮空广场", "中央大街", "旅店街", "集市", "观景台"],
+    "oak_town": ["冒险者广场", "镇长办公处", "老铁铁匠铺", "橡木桶旅店", "草药铺"],
+    "white_deer": ["白鹿广场", "城主府", "鹿角铁匠铺", "白鹿圣堂", "白鹿与麦酒酒馆", "医师馆", "烹饪坊", "强化工坊"],
+    "ironharbor": ["港口广场", "城主府", "冒险者行会总部", "金槌拍卖行", "铁锚酒馆", "金齿轮商行", "矿工工会", "渔人码头", "锻造坊"],
+    "silver_brook": ["银溪广场", "磨坊街", "河畔旅店", "集市"],
+    "maple_village": ["村口广场", "村长屋", "猎人小屋", "枫叶旅店"],
+    "dawn_city": ["王都广场", "圣光王宫", "圣光大教堂", "骑士团驻地", "炼金工坊"],
+    "ironshield_town": ["铁盾广场", "镇公所", "军械铺", "斥候营"],
+    "moon_gate": ["月门广场", "银月旅店", "哨塔集市"],
+    "moon_court": ["王庭广场", "月辉王宫", "月影卫营", "贤者书阁"],
+    "star_song": ["星歌广场", "星光集市", "星歌旅店"],
+    "frost_horn": ["堡垒广场", "酋长大厅", "霜角酒馆", "守备营", "随军圣堂"],
+    "anvil_fort": ["熔炉广场", "铁砧议会厅", "符文工坊"],
+    "cold_ridge": ["营地口", "主帐篷", "补给站"],
+    "aurora_town": ["极光广场", "镇长公馆", "猎手营", "暖炉旅店"],
+    "dragon_pass": ["山口广场", "龙裔长老堂"],
+    "dragon_kin": ["聚落广场", "龙裔祭坛", "旅店"],
+    "jade_port": ["港口广场", "翡翠集市", "船坞旅店"],
+    "shell_town": ["贝壳集市", "码头", "旅店"],
+    "nameless_harbor": ["港口广场", "港务厅", "远洋码头"],
+    "pearl_city": ["珍珠广场", "城主府", "珊瑚拍卖行", "商行", "渔港"],
+    "deep_tunnel": ["隧道口", "中央大厅", "营地区"],
+    "under_market": ["集市广场", "拍卖区", "旅店"],
+    "ember_camp": ["营地口", "营长帐", "地底向导所", "补给站"],
+    "wind_city": ["浮空广场", "云翼议会厅"],
 }
 
 # 野外：map_id -> [(子区域名, 等级), ...]（顺序即由浅入深）
@@ -104,19 +104,23 @@ WILD_SPLIT = {
 }
 
 # 城镇子区域 -> 功能关键词（按子区域名分配 funcs/shop/healer）
-# v2：优先精确建筑名，再方位词兜底
+# v3：精确建筑名优先；行政场所（府/宫/厅/处/所/营）→ quest；营业场所 → shop/heal 等
 TOWN_FUNC_RULES = [
     ("铁匠铺", ["shop", "craft"], True, False),   # 具体铁匠铺
+    ("锻造坊", ["shop", "craft"], True, False),   # 铁港城锻造坊
+    ("军械铺", ["shop", "craft"], True, False),
     ("锻造街", ["shop", "craft"], True, False),   # 矮人锻造街
-    ("军械街", ["shop", "craft"], True, False),
     ("铁匠街", ["shop", "craft"], True, False),
     ("磨坊街", ["shop"], True, False),
     ("拍卖行", ["auction"], True, False),
+    ("拍卖区", ["auction"], True, False),
     ("大教堂", ["heal"], False, True),
+    ("圣堂", ["heal"], False, True),
     ("圣殿", ["heal"], False, True),
     ("旅店", ["heal"], False, True),
     ("旅馆", ["heal"], False, True),
     ("公会", ["quest"], False, False),
+    ("行会", ["quest"], False, False),
     ("集市", ["shop", "stall"], True, False),
     ("南市", ["shop", "stall"], True, False),
     ("东市", ["shop", "stall"], True, False),
@@ -126,8 +130,47 @@ TOWN_FUNC_RULES = [
     ("贝壳集市", ["shop", "stall"], True, False),
     ("哨塔集市", ["shop", "stall"], True, False),
     ("集市广场", ["shop", "stall"], True, False),
+    ("翡翠集市", ["shop", "stall"], True, False),
+    ("商行", ["shop"], True, False),
+    ("补给站", ["shop"], True, False),
+    ("营地口", ["shop"], True, False),          # 寒脊营地：营地口补给
+    ("主帐篷", ["heal"], False, True),          # 寒脊营地：主帐篷休息
+    ("营地区", ["heal"], False, True),          # 深岩隧道：营地休息
+    ("隧道口", ["quest"], False, False),        # 深岩隧道：入口指引
+    ("龙裔祭坛", ["lore"], False, False),       # 龙裔聚落：祭坛讲述传说
     ("码头", ["shop"], True, False),
+    ("渔港", ["shop"], True, False),
     ("船坞", [], True, False),
+    # v3 行政/办公场所 → quest（镇长/城主/国王/酋长所在地）
+    ("办公处", ["quest"], False, False),
+    ("城主府", ["quest"], False, False),
+    ("王宫", ["quest"], False, False),
+    ("王庭", ["quest"], False, False),
+    ("大厅", ["quest"], False, False),
+    ("公馆", ["quest"], False, False),
+    ("议会厅", ["quest"], False, False),
+    ("长老堂", ["quest"], False, False),
+    ("港务厅", ["quest"], False, False),
+    ("村口广场", ["quest"], False, False),
+    ("镇长", ["quest"], False, False),
+    ("镇公所", ["quest"], False, False),
+    ("酋长", ["quest"], False, False),
+    ("营长帐", ["quest"], False, False),
+    ("向导所", ["quest", "lore"], False, False),
+    ("村长屋", ["quest"], False, False),
+    ("祭坛", [], False, False),
+    ("驻地", ["quest"], False, False),
+    ("卫营", ["quest"], False, False),
+    ("守备营", ["quest"], False, False),
+    ("猎手营", ["quest"], False, False),
+    ("书阁", ["lore", "quest"], False, False),
+    ("工坊", ["shop", "craft"], True, False),
+    ("炼金", ["apprentice"], True, False),
+    ("烹饪", ["apprentice"], True, False),
+    ("强化", ["apprentice"], True, False),
+    ("医师", ["heal"], False, True),
+    ("医馆", ["heal"], False, True),
+    ("酒馆", ["lore"], False, False),
     ("广场", ["quest"], False, False),            # 广场：行会/任务（无商店）
     ("大街", ["shop"], True, False),
     ("街", ["shop"], True, False),
@@ -140,6 +183,7 @@ TOWN_FUNC_RULES = [
 ]
 
 # NPC 分配规则：按 funcs/name/title 关键词 → 子区域关键词（城镇）
+# v3：行政人物 → 办公场所（镇长办公处/城主府/王宫/酋长大厅/长老堂等）；营业人物 → 营业场所
 NPC_ROUTING = [
     (["quest"], "广场"),        # 行会/任务 → 广场类
     (["shop", "craft"], "中央大街"),  # 铁匠 → 大街
@@ -153,6 +197,29 @@ NPC_ROUTING = [
     (["ship"], "码头"),
 ]
 
+# v3 行政关键词 → 办公场所子区域关键词（顺序优先）
+# 城主/国王/酋长/镇长/村长/长老/首领 → 府/宫/厅/处/所/公馆/王庭/堂
+ADMIN_ROUTING = [
+    ("国王", ["王宫", "王庭", "王都广场"]),
+    ("城主", ["城主府", "港口广场"]),
+    ("酋长", ["酋长大厅", "大厅"]),
+    ("镇长", ["办公处", "公馆", "镇公所", "广场"]),
+    ("村长", ["村长屋", "村口广场", "广场"]),
+    ("大长老", ["议会厅", "广场"]),
+    ("长老", ["长老堂", "广场"]),
+    ("教皇", ["大教堂", "圣堂"]),
+    ("主教", ["大教堂", "圣堂"]),
+    ("圣女", ["大教堂", "圣堂"]),
+    ("营长", ["营长帐", "营地口"]),
+    ("港务长", ["港务厅", "广场"]),
+    ("会长", ["行会", "公会"]),
+    ("大工匠", ["议会厅", "大厅"]),
+    ("院长", ["大教堂", "圣堂"]),
+    ("首领", ["大厅", "广场"]),
+    ("领袖", ["大厅", "广场"]),
+    ("女王", ["王宫", "王庭"]),
+]
+
 
 def _sub_id(mid, idx, name):
     """子区域 id：地图id_序号（如 oak_town_1）。"""
@@ -160,10 +227,18 @@ def _sub_id(mid, idx, name):
 
 
 def _pick_npc_subarea(npc, subarea_names):
-    """按 NPC funcs/名字选城镇子区域关键词，默认第一个广场。v2：优先建筑名精确匹配。"""
+    """按 NPC funcs/名字选城镇子区域关键词，默认第一个广场。v3：行政人物优先办公场所，再建筑名精确匹配。"""
     funcs = npc.get("funcs", [])
     title = npc.get("title", "")
     name = npc.get("name", "")
+    # v3 行政人物 → 办公场所（镇长/城主/国王/酋长/村长/长老/首领等）
+    for kw, cands in ADMIN_ROUTING:
+        if kw in title or kw in name:
+            for cand in cands:
+                for nm in subarea_names:
+                    if cand in nm:
+                        return nm
+            break
     # 铁匠 → 含"铁匠"的子区域
     if "铁匠" in title or "铁匠" in name:
         for nm in subarea_names:
@@ -182,39 +257,55 @@ def _pick_npc_subarea(npc, subarea_names):
         for nm in subarea_names:
             if "市" in nm:
                 return nm
-    # 牧师/神父/院长 → 含"教堂/圣殿"子区域
+    # 牧师/神父/院长 → 含"教堂/圣堂/圣殿"子区域
     if any(k in title for k in ("神父", "牧师", "主教", "院长", "修女")):
         for nm in subarea_names:
-            if "教堂" in nm or "圣殿" in nm:
+            if "教堂" in nm or "圣堂" in nm or "圣殿" in nm:
                 return nm
     # 医师/医生 → 含"医师/医馆"或民居类
     if any(k in title for k in ("医师", "医生", "药师")):
         for nm in subarea_names:
-            if "医师" in nm or "医" in nm:
+            if "医师" in nm or "医馆" in nm or "医" in nm:
                 return nm
         for nm in subarea_names:
             if "巷" in nm:
                 return nm
-    # 强化/附魔 → 大街/街
+    # 强化/附魔 → 强化/工坊/大街/街
     if any(k in title for k in ("强化", "附魔")):
+        for nm in subarea_names:
+            if "强化" in nm or "附魔" in nm:
+                return nm
         for nm in subarea_names:
             if "大街" in nm or "街" in nm:
                 return nm
-    # 厨师/摊主 → 集市类
+    # 厨师/摊主 → 烹饪坊/集市类
     if any(k in title for k in ("厨师", "摊主", "小贩", "大厨")):
+        for nm in subarea_names:
+            if "烹饪" in nm:
+                return nm
         for nm in subarea_names:
             if "市" in nm or "集市" in nm:
                 return nm
-    # 行会/公会 → 广场或公会
+    # 行会/公会 → 行会/公会子区域，否则广场
     if "行会" in title or "公会" in title:
         for nm in subarea_names:
-            if "公会" in nm:
+            if "行会" in nm or "公会" in nm:
                 return nm
         return subarea_names[0]
     # 拍卖 → 拍卖行
     if "拍卖" in title or "拍卖" in name:
         for nm in subarea_names:
             if "拍卖" in nm:
+                return nm
+    # 矿工 → 矿工工会/矿道
+    if any(k in title for k in ("矿工", "矿工长")):
+        for nm in subarea_names:
+            if "矿工" in nm or "矿" in nm:
+                return nm
+    # 猎人/斥候 → 猎人小屋/猎手营/斥候营/守备营
+    if any(k in title for k in ("猎人", "斥候", "猎手")):
+        for nm in subarea_names:
+            if "猎人" in nm or "猎手" in nm or "斥候" in nm or "守备" in nm:
                 return nm
     # 码头/船坞
     if "码头" in title or "船长" in title or "船" in title:
@@ -258,14 +349,14 @@ def build_subareas():
     for m in MAPS:
         mid = m["id"]
         mtype = m.get("type", "野外")
-        if mtype == "副本":
-            # 副本不拆子区域：单入口子区域（挂 NPC/Boss）
+        if mtype in ("副本", "隐藏区域"):
+            # 副本/隐藏区域不拆子区域：单入口子区域（挂 NPC/Boss）
             items = [{
                 "id": f"{mid}_1",
                 "name": "入口",
                 "icon": "🚪",
                 "desc": f"{m['name']}入口",
-                "type": "副本",
+                "type": mtype,
                 "lv": m.get("lv", 1),
                 "npcs": list(m.get("npcs", [])),
                 "monsters": m.get("monsters", []),
@@ -319,7 +410,11 @@ def build_subareas():
         else:
             rows = WILD_SPLIT.get(mid)
             if not rows:
-                continue
+                # v87.3 必经之路（road_*）无拆分表 → 单子区域「路口」
+                if mid.startswith("road_"):
+                    rows = [("路口", m.get("lv", 1))]
+                else:
+                    continue
             monsters = m.get("monsters", []) or []
             # 按等级排序怪物（低→高）
             ms = sorted(monsters, key=lambda x: x[3])

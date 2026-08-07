@@ -410,7 +410,11 @@ class WorldCmds(CommandBase):
                 if _sa["id"] == cur_sa:
                     sa_now = _sa["name"]
                     break
-        lines = [f"🗺️ 【{cur_area} · {cur_map['name']}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
+        # v87.3 标题修复：地图名 + 当前子区域（不再重复"橡木镇 · 橡木镇"）
+        title = cur_map["name"]
+        if sa_now:
+            title = f"{cur_map['name']} · {sa_now}"
+        lines = [f"🗺️ 【{title}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
         # v86 子区域：当前子区域 + 本图子区域列表（『移动 <序号>』同图切换）
         sas = cur_map.get("subareas") or []
         if sas:
@@ -634,8 +638,13 @@ class WorldCmds(CommandBase):
             )
             return
         sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
+        # v87.3 必经之路：进入城镇时提示方向（从路图/野外进城）
+        arrive_txt = f"🚶 你来到了【{target['name']}】"
+        if target.get("type") == "城镇区域" and first_sa:
+            arrive_txt = f"🚶 你从{'荒野' if cur.startswith('road_') else '野外'}方向来到了【{target['name']}】{first_sa['name']}"
+            sub_line = ""
         yield event.plain_result(
-            f"🚶 你来到了【{target['name']}】\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
+            f"{arrive_txt}\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
         )
 
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:

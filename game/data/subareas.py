@@ -11,7 +11,6 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_mayor",
                 "npc_guild_clerks"
             ],
             "monsters": [],
@@ -25,6 +24,25 @@ SUBAREAS = {
         },
         {
             "id": "oak_town_2",
+            "name": "镇长办公处",
+            "icon": "🏘️",
+            "desc": "橡木镇·镇长办公处",
+            "type": "城镇",
+            "lv": 1,
+            "npcs": [
+                "npc_mayor"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "oak_town_3",
             "name": "老铁铁匠铺",
             "icon": "🏘️",
             "desc": "橡木镇·老铁铁匠铺",
@@ -44,7 +62,7 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "oak_town_3",
+            "id": "oak_town_4",
             "name": "橡木桶旅店",
             "icon": "🏘️",
             "desc": "橡木镇·橡木桶旅店",
@@ -63,7 +81,7 @@ SUBAREAS = {
             "healer": True
         },
         {
-            "id": "oak_town_4",
+            "id": "oak_town_5",
             "name": "草药铺",
             "icon": "🏘️",
             "desc": "橡木镇·草药铺",
@@ -72,53 +90,6 @@ SUBAREAS = {
             "npcs": [
                 "npc_herb_master"
             ],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "oak_town_5",
-            "name": "东街",
-            "icon": "🏘️",
-            "desc": "橡木镇·东街",
-            "type": "城镇",
-            "lv": 1,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "oak_town_6",
-            "name": "西巷",
-            "icon": "🏘️",
-            "desc": "橡木镇·西巷",
-            "type": "城镇",
-            "lv": 1,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "oak_town_7",
-            "name": "镇口",
-            "icon": "🏘️",
-            "desc": "橡木镇·镇口",
-            "type": "城镇",
-            "lv": 1,
-            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -358,7 +329,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_baron"
+                "npc_tavern_owner"
             ],
             "monsters": [],
             "elite": None,
@@ -371,48 +342,28 @@ SUBAREAS = {
         },
         {
             "id": "white_deer_2",
-            "name": "银盾大街",
+            "name": "城主府",
             "icon": "🏘️",
-            "desc": "白鹿城·银盾大街",
+            "desc": "白鹿城·城主府",
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_enhance_master"
+                "npc_baron"
             ],
             "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop"
+                "quest"
             ],
-            "shop": True,
+            "shop": False,
             "healer": False
         },
         {
             "id": "white_deer_3",
-            "name": "金鹿旅馆",
+            "name": "鹿角铁匠铺",
             "icon": "🏘️",
-            "desc": "白鹿城·金鹿旅馆",
-            "type": "城镇",
-            "lv": 5,
-            "npcs": [
-                "npc_tavern_owner",
-                "npc_priest"
-            ],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "white_deer_4",
-            "name": "铁匠街",
-            "icon": "🏘️",
-            "desc": "白鹿城·铁匠街",
+            "desc": "白鹿城·鹿角铁匠铺",
             "type": "城镇",
             "lv": 5,
             "npcs": [
@@ -429,10 +380,65 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "white_deer_5",
-            "name": "南市",
+            "id": "white_deer_4",
+            "name": "白鹿圣堂",
             "icon": "🏘️",
-            "desc": "白鹿城·南市",
+            "desc": "白鹿城·白鹿圣堂",
+            "type": "城镇",
+            "lv": 5,
+            "npcs": [
+                "npc_priest"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "heal"
+            ],
+            "shop": False,
+            "healer": True
+        },
+        {
+            "id": "white_deer_5",
+            "name": "白鹿与麦酒酒馆",
+            "icon": "🏘️",
+            "desc": "白鹿城·白鹿与麦酒酒馆",
+            "type": "城镇",
+            "lv": 5,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "lore"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "white_deer_6",
+            "name": "医师馆",
+            "icon": "🏘️",
+            "desc": "白鹿城·医师馆",
+            "type": "城镇",
+            "lv": 5,
+            "npcs": [
+                "npc_doctor"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "heal"
+            ],
+            "shop": False,
+            "healer": True
+        },
+        {
+            "id": "white_deer_7",
+            "name": "烹饪坊",
+            "icon": "🏘️",
+            "desc": "白鹿城·烹饪坊",
             "type": "城镇",
             "lv": 5,
             "npcs": [
@@ -442,42 +448,29 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop",
-                "stall"
+                "apprentice"
             ],
             "shop": True,
             "healer": False
         },
         {
-            "id": "white_deer_6",
-            "name": "医师巷",
+            "id": "white_deer_8",
+            "name": "强化工坊",
             "icon": "🏘️",
-            "desc": "白鹿城·医师巷",
+            "desc": "白鹿城·强化工坊",
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_doctor"
+                "npc_enhance_master"
             ],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "white_deer_7",
-            "name": "北门",
-            "icon": "🏘️",
-            "desc": "白鹿城·北门",
-            "type": "城镇",
-            "lv": 5,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop",
+                "craft"
+            ],
+            "shop": True,
             "healer": False
         }
     ],
@@ -936,8 +929,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_citylord",
-                "npc_mine_master",
+                "npc_bard",
+                "npc_goblin_merchant",
                 "npc_fish_master",
                 "npc_craft_master"
             ],
@@ -952,9 +945,28 @@ SUBAREAS = {
         },
         {
             "id": "ironharbor_2",
-            "name": "冒险者公会",
+            "name": "城主府",
             "icon": "🏘️",
-            "desc": "铁港城·冒险者公会",
+            "desc": "铁港城·城主府",
+            "type": "城镇",
+            "lv": 10,
+            "npcs": [
+                "npc_citylord"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "ironharbor_3",
+            "name": "冒险者行会总部",
+            "icon": "🏘️",
+            "desc": "铁港城·冒险者行会总部",
             "type": "城镇",
             "lv": 10,
             "npcs": [
@@ -970,29 +982,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "ironharbor_3",
-            "name": "铁锚旅店",
-            "icon": "🏘️",
-            "desc": "铁港城·铁锚旅店",
-            "type": "城镇",
-            "lv": 10,
-            "npcs": [
-                "npc_bard"
-            ],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
             "id": "ironharbor_4",
-            "name": "拍卖行",
+            "name": "金槌拍卖行",
             "icon": "🏘️",
-            "desc": "铁港城·拍卖行",
+            "desc": "铁港城·金槌拍卖行",
             "type": "城镇",
             "lv": 10,
             "npcs": [
@@ -1009,9 +1002,26 @@ SUBAREAS = {
         },
         {
             "id": "ironharbor_5",
-            "name": "东码头",
+            "name": "铁锚酒馆",
             "icon": "🏘️",
-            "desc": "铁港城·东码头",
+            "desc": "铁港城·铁锚酒馆",
+            "type": "城镇",
+            "lv": 10,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "lore"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "ironharbor_6",
+            "name": "金齿轮商行",
+            "icon": "🏘️",
+            "desc": "铁港城·金齿轮商行",
             "type": "城镇",
             "lv": 10,
             "npcs": [],
@@ -1021,34 +1031,34 @@ SUBAREAS = {
             "funcs": [
                 "shop"
             ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "ironharbor_6",
-            "name": "船坞",
-            "icon": "🏘️",
-            "desc": "铁港城·船坞",
-            "type": "城镇",
-            "lv": 10,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
             "shop": True,
             "healer": False
         },
         {
             "id": "ironharbor_7",
-            "name": "货仓街",
+            "name": "矿工工会",
             "icon": "🏘️",
-            "desc": "铁港城·货仓街",
+            "desc": "铁港城·矿工工会",
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_goblin_merchant"
+                "npc_mine_master"
             ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "ironharbor_8",
+            "name": "渔人码头",
+            "icon": "🏘️",
+            "desc": "铁港城·渔人码头",
+            "type": "城镇",
+            "lv": 10,
+            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -1059,18 +1069,21 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "ironharbor_8",
-            "name": "贫民窟",
+            "id": "ironharbor_9",
+            "name": "锻造坊",
             "icon": "🏘️",
-            "desc": "铁港城·贫民窟",
+            "desc": "铁港城·锻造坊",
             "type": "城镇",
             "lv": 10,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop",
+                "craft"
+            ],
+            "shop": True,
             "healer": False
         }
     ],
@@ -1346,21 +1359,6 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        },
-        {
-            "id": "silver_brook_5",
-            "name": "民居巷",
-            "icon": "🏘️",
-            "desc": "银溪镇·民居巷",
-            "type": "城镇",
-            "lv": 12,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "silver_valley": [
@@ -1634,13 +1632,48 @@ SUBAREAS = {
     "maple_village": [
         {
             "id": "maple_village_1",
-            "name": "村口",
+            "name": "村口广场",
             "icon": "🏘️",
-            "desc": "枫橡村·村口",
+            "desc": "枫橡村·村口广场",
+            "type": "城镇",
+            "lv": 6,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "maple_village_2",
+            "name": "村长屋",
+            "icon": "🏘️",
+            "desc": "枫橡村·村长屋",
             "type": "城镇",
             "lv": 6,
             "npcs": [
-                "npc_oak_elder",
+                "npc_oak_elder"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "maple_village_3",
+            "name": "猎人小屋",
+            "icon": "🏘️",
+            "desc": "枫橡村·猎人小屋",
+            "type": "城镇",
+            "lv": 6,
+            "npcs": [
                 "npc_hunter_gray"
             ],
             "monsters": [],
@@ -1651,24 +1684,7 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "maple_village_2",
-            "name": "枫叶小街",
-            "icon": "🏘️",
-            "desc": "枫橡村·枫叶小街",
-            "type": "城镇",
-            "lv": 6,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "maple_village_3",
+            "id": "maple_village_4",
             "name": "枫叶旅店",
             "icon": "🏘️",
             "desc": "枫橡村·枫叶旅店",
@@ -1685,21 +1701,6 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        },
-        {
-            "id": "maple_village_4",
-            "name": "农田边",
-            "icon": "🏘️",
-            "desc": "枫橡村·农田边",
-            "type": "城镇",
-            "lv": 6,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "rockfall_gorge": [
@@ -1949,10 +1950,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 25,
             "npcs": [
-                "npc_king",
-                "npc_pope",
                 "npc_knight_commander",
-                "npc_saintess"
+                "npc_alchemy_master"
             ],
             "monsters": [],
             "elite": None,
@@ -1965,13 +1964,34 @@ SUBAREAS = {
         },
         {
             "id": "dawn_city_2",
+            "name": "圣光王宫",
+            "icon": "🏘️",
+            "desc": "晨曦城·圣光王宫",
+            "type": "城镇",
+            "lv": 25,
+            "npcs": [
+                "npc_king"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "dawn_city_3",
             "name": "圣光大教堂",
             "icon": "🏘️",
             "desc": "晨曦城·圣光大教堂",
             "type": "城镇",
             "lv": 25,
             "npcs": [
-                "npc_cardinal"
+                "npc_pope",
+                "npc_cardinal",
+                "npc_saintess"
             ],
             "monsters": [],
             "elite": None,
@@ -1981,29 +2001,12 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        },
-        {
-            "id": "dawn_city_3",
-            "name": "皇家大街",
-            "icon": "🏘️",
-            "desc": "晨曦城·皇家大街",
-            "type": "城镇",
-            "lv": 25,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop"
-            ],
-            "shop": True,
-            "healer": False
         },
         {
             "id": "dawn_city_4",
-            "name": "白鸽旅店",
+            "name": "骑士团驻地",
             "icon": "🏘️",
-            "desc": "晨曦城·白鸽旅店",
+            "desc": "晨曦城·骑士团驻地",
             "type": "城镇",
             "lv": 25,
             "npcs": [],
@@ -2011,53 +2014,16 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "quest"
             ],
             "shop": False,
-            "healer": True
+            "healer": False
         },
         {
             "id": "dawn_city_5",
-            "name": "拍卖行",
+            "name": "炼金工坊",
             "icon": "🏘️",
-            "desc": "晨曦城·拍卖行",
-            "type": "城镇",
-            "lv": 25,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "auction"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "dawn_city_6",
-            "name": "东市",
-            "icon": "🏘️",
-            "desc": "晨曦城·东市",
-            "type": "城镇",
-            "lv": 25,
-            "npcs": [
-                "npc_alchemy_master"
-            ],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "dawn_city_7",
-            "name": "西市",
-            "icon": "🏘️",
-            "desc": "晨曦城·西市",
+            "desc": "晨曦城·炼金工坊",
             "type": "城镇",
             "lv": 25,
             "npcs": [],
@@ -2066,39 +2032,9 @@ SUBAREAS = {
             "boss": None,
             "funcs": [
                 "shop",
-                "stall"
+                "craft"
             ],
             "shop": True,
-            "healer": False
-        },
-        {
-            "id": "dawn_city_8",
-            "name": "王宫前",
-            "icon": "🏘️",
-            "desc": "晨曦城·王宫前",
-            "type": "城镇",
-            "lv": 25,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "dawn_city_9",
-            "name": "南门",
-            "icon": "🏘️",
-            "desc": "晨曦城·南门",
-            "type": "城镇",
-            "lv": 25,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
             "healer": False
         }
     ],
@@ -3134,8 +3070,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 30,
             "npcs": [
-                "npc_ironshield_mayor",
-                "npc_ironshield_scout"
+                "npc_ironshield_smith"
             ],
             "monsters": [],
             "elite": None,
@@ -3148,14 +3083,31 @@ SUBAREAS = {
         },
         {
             "id": "ironshield_town_2",
-            "name": "军械街",
+            "name": "镇公所",
             "icon": "🏘️",
-            "desc": "铁盾镇·军械街",
+            "desc": "铁盾镇·镇公所",
             "type": "城镇",
             "lv": 30,
             "npcs": [
-                "npc_ironshield_smith"
+                "npc_ironshield_mayor"
             ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "ironshield_town_3",
+            "name": "军械铺",
+            "icon": "🏘️",
+            "desc": "铁盾镇·军械铺",
+            "type": "城镇",
+            "lv": 30,
+            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -3167,48 +3119,15 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "ironshield_town_3",
-            "name": "老兵旅店",
-            "icon": "🏘️",
-            "desc": "铁盾镇·老兵旅店",
-            "type": "城镇",
-            "lv": 30,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
             "id": "ironshield_town_4",
-            "name": "集市",
+            "name": "斥候营",
             "icon": "🏘️",
-            "desc": "铁盾镇·集市",
+            "desc": "铁盾镇·斥候营",
             "type": "城镇",
             "lv": 30,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
+            "npcs": [
+                "npc_ironshield_scout"
             ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "ironshield_town_5",
-            "name": "兵营巷",
-            "icon": "🏘️",
-            "desc": "铁盾镇·兵营巷",
-            "type": "城镇",
-            "lv": 30,
-            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -3511,21 +3430,6 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        },
-        {
-            "id": "moon_gate_4",
-            "name": "瞭望台",
-            "icon": "🏘️",
-            "desc": "月冠隘口·瞭望台",
-            "type": "城镇",
-            "lv": 45,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "silverwood": [
@@ -3783,8 +3687,6 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 55,
             "npcs": [
-                "npc_elf_queen",
-                "npc_elf_guardian",
                 "npc_elf_sage"
             ],
             "monsters": [],
@@ -3798,26 +3700,29 @@ SUBAREAS = {
         },
         {
             "id": "moon_court_2",
-            "name": "月辉大街",
+            "name": "月辉王宫",
             "icon": "🏘️",
-            "desc": "月冠王庭·月辉大街",
+            "desc": "月冠王庭·月辉王宫",
             "type": "城镇",
             "lv": 55,
-            "npcs": [],
+            "npcs": [
+                "npc_elf_queen",
+                "npc_elf_guardian"
+            ],
             "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop"
+                "quest"
             ],
-            "shop": True,
+            "shop": False,
             "healer": False
         },
         {
             "id": "moon_court_3",
-            "name": "月神圣殿",
+            "name": "月影卫营",
             "icon": "🏘️",
-            "desc": "月冠王庭·月神圣殿",
+            "desc": "月冠王庭·月影卫营",
             "type": "城镇",
             "lv": 55,
             "npcs": [],
@@ -3825,58 +3730,26 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "quest"
             ],
             "shop": False,
-            "healer": True
-        },
-        {
-            "id": "moon_court_4",
-            "name": "林语旅店",
-            "icon": "🏘️",
-            "desc": "月冠王庭·林语旅店",
-            "type": "城镇",
-            "lv": 55,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "moon_court_5",
-            "name": "月市",
-            "icon": "🏘️",
-            "desc": "月冠王庭·月市",
-            "type": "城镇",
-            "lv": 55,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
             "healer": False
         },
         {
-            "id": "moon_court_6",
-            "name": "花园",
+            "id": "moon_court_4",
+            "name": "贤者书阁",
             "icon": "🏘️",
-            "desc": "月冠王庭·花园",
+            "desc": "月冠王庭·贤者书阁",
             "type": "城镇",
             "lv": 55,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "lore",
+                "quest"
+            ],
             "shop": False,
             "healer": False
         }
@@ -4098,23 +3971,6 @@ SUBAREAS = {
         },
         {
             "id": "star_song_2",
-            "name": "旅店街",
-            "icon": "🏘️",
-            "desc": "星歌镇·旅店街",
-            "type": "城镇",
-            "lv": 48,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "star_song_3",
             "name": "星光集市",
             "icon": "🏘️",
             "desc": "星歌镇·星光集市",
@@ -4132,19 +3988,21 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "star_song_4",
-            "name": "林间",
+            "id": "star_song_3",
+            "name": "星歌旅店",
             "icon": "🏘️",
-            "desc": "星歌镇·林间",
+            "desc": "星歌镇·星歌旅店",
             "type": "城镇",
             "lv": 48,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "heal"
+            ],
             "shop": False,
-            "healer": False
+            "healer": True
         }
     ],
     "moon_glade": [
@@ -4672,6 +4530,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 60,
             "npcs": [
+                "npc_tavern_burnkettle",
                 "npc_garrison"
             ],
             "monsters": [],
@@ -4685,9 +4544,9 @@ SUBAREAS = {
         },
         {
             "id": "frost_horn_2",
-            "name": "寒铁大街",
+            "name": "酋长大厅",
             "icon": "🏘️",
-            "desc": "霜角堡·寒铁大街",
+            "desc": "霜角堡·酋长大厅",
             "type": "城镇",
             "lv": 60,
             "npcs": [
@@ -4697,20 +4556,53 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop"
+                "quest"
             ],
-            "shop": True,
+            "shop": False,
             "healer": False
         },
         {
             "id": "frost_horn_3",
-            "name": "霜角旅店",
+            "name": "霜角酒馆",
             "icon": "🏘️",
-            "desc": "霜角堡·霜角旅店",
+            "desc": "霜角堡·霜角酒馆",
+            "type": "城镇",
+            "lv": 60,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "lore"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "frost_horn_4",
+            "name": "守备营",
+            "icon": "🏘️",
+            "desc": "霜角堡·守备营",
+            "type": "城镇",
+            "lv": 60,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "frost_horn_5",
+            "name": "随军圣堂",
+            "icon": "🏘️",
+            "desc": "霜角堡·随军圣堂",
             "type": "城镇",
             "lv": 60,
             "npcs": [
-                "npc_tavern_burnkettle",
                 "npc_field_priest"
             ],
             "monsters": [],
@@ -4721,54 +4613,6 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        },
-        {
-            "id": "frost_horn_4",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "霜角堡·集市",
-            "type": "城镇",
-            "lv": 60,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "frost_horn_5",
-            "name": "兵营",
-            "icon": "🏘️",
-            "desc": "霜角堡·兵营",
-            "type": "城镇",
-            "lv": 60,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "frost_horn_6",
-            "name": "北门",
-            "icon": "🏘️",
-            "desc": "霜角堡·北门",
-            "type": "城镇",
-            "lv": 60,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "frost_field": [
@@ -4903,7 +4747,6 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 65,
             "npcs": [
-                "npc_dwarf_elder",
                 "npc_rune_master"
             ],
             "monsters": [],
@@ -4917,9 +4760,28 @@ SUBAREAS = {
         },
         {
             "id": "anvil_fort_2",
-            "name": "锻造街",
+            "name": "铁砧议会厅",
             "icon": "🏘️",
-            "desc": "铁砧要塞·锻造街",
+            "desc": "铁砧要塞·铁砧议会厅",
+            "type": "城镇",
+            "lv": 65,
+            "npcs": [
+                "npc_dwarf_elder"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "anvil_fort_3",
+            "name": "符文工坊",
+            "icon": "🏘️",
+            "desc": "铁砧要塞·符文工坊",
             "type": "城镇",
             "lv": 65,
             "npcs": [],
@@ -4931,56 +4793,6 @@ SUBAREAS = {
                 "craft"
             ],
             "shop": True,
-            "healer": False
-        },
-        {
-            "id": "anvil_fort_3",
-            "name": "矮人旅店",
-            "icon": "🏘️",
-            "desc": "铁砧要塞·矮人旅店",
-            "type": "城镇",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "anvil_fort_4",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "铁砧要塞·集市",
-            "type": "城镇",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "anvil_fort_5",
-            "name": "矿道口",
-            "icon": "🏘️",
-            "desc": "铁砧要塞·矿道口",
-            "type": "城镇",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
             "healer": False
         }
     ],
@@ -5648,8 +5460,10 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop"
+            ],
+            "shop": True,
             "healer": False
         },
         {
@@ -5663,21 +5477,6 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "cold_ridge_3",
-            "name": "篝火旅店",
-            "icon": "🏘️",
-            "desc": "寒脊营地·篝火旅店",
-            "type": "城镇",
-            "lv": 68,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
             "funcs": [
                 "heal"
             ],
@@ -5685,18 +5484,20 @@ SUBAREAS = {
             "healer": True
         },
         {
-            "id": "cold_ridge_4",
-            "name": "哨站",
+            "id": "cold_ridge_3",
+            "name": "补给站",
             "icon": "🏘️",
-            "desc": "寒脊营地·哨站",
+            "desc": "寒脊营地·补给站",
             "type": "城镇",
             "lv": 68,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop"
+            ],
+            "shop": True,
             "healer": False
         }
     ],
@@ -5862,8 +5663,43 @@ SUBAREAS = {
             "desc": "极光镇·极光广场",
             "type": "城镇",
             "lv": 70,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "aurora_town_2",
+            "name": "镇长公馆",
+            "icon": "🏘️",
+            "desc": "极光镇·镇长公馆",
+            "type": "城镇",
+            "lv": 70,
             "npcs": [
-                "npc_aurora_mayor",
+                "npc_aurora_mayor"
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "aurora_town_3",
+            "name": "猎手营",
+            "icon": "🏘️",
+            "desc": "极光镇·猎手营",
+            "type": "城镇",
+            "lv": 70,
+            "npcs": [
                 "npc_frost_blade"
             ],
             "monsters": [],
@@ -5876,10 +5712,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "aurora_town_2",
-            "name": "旅店街",
+            "id": "aurora_town_4",
+            "name": "暖炉旅店",
             "icon": "🏘️",
-            "desc": "极光镇·旅店街",
+            "desc": "极光镇·暖炉旅店",
             "type": "城镇",
             "lv": 70,
             "npcs": [
@@ -5893,39 +5729,6 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        },
-        {
-            "id": "aurora_town_3",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "极光镇·集市",
-            "type": "城镇",
-            "lv": 70,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "aurora_town_4",
-            "name": "观星台",
-            "icon": "🏘️",
-            "desc": "极光镇·观星台",
-            "type": "城镇",
-            "lv": 70,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "permafrost_field": [
@@ -6180,9 +5983,7 @@ SUBAREAS = {
             "desc": "龙脊山口·山口广场",
             "type": "城镇",
             "lv": 80,
-            "npcs": [
-                "npc_dragon_elder"
-            ],
+            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -6194,51 +5995,20 @@ SUBAREAS = {
         },
         {
             "id": "dragon_pass_2",
-            "name": "龙脊旅店",
+            "name": "龙裔长老堂",
             "icon": "🏘️",
-            "desc": "龙脊山口·龙脊旅店",
+            "desc": "龙脊山口·龙裔长老堂",
             "type": "城镇",
             "lv": 80,
-            "npcs": [],
+            "npcs": [
+                "npc_dragon_elder"
+            ],
             "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "quest"
             ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "dragon_pass_3",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "龙脊山口·集市",
-            "type": "城镇",
-            "lv": 80,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "dragon_pass_4",
-            "name": "瞭望台",
-            "icon": "🏘️",
-            "desc": "龙脊山口·瞭望台",
-            "type": "城镇",
-            "lv": 80,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
             "shop": False,
             "healer": False
         }
@@ -6633,24 +6403,9 @@ SUBAREAS = {
     "dragon_kin": [
         {
             "id": "dragon_kin_1",
-            "name": "聚落入口",
+            "name": "聚落广场",
             "icon": "🏘️",
-            "desc": "龙裔聚落·聚落入口",
-            "type": "城镇",
-            "lv": 82,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "dragon_kin_2",
-            "name": "龙裔广场",
-            "icon": "🏘️",
-            "desc": "龙裔聚落·龙裔广场",
+            "desc": "龙裔聚落·聚落广场",
             "type": "城镇",
             "lv": 82,
             "npcs": [],
@@ -6664,22 +6419,24 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "dragon_kin_3",
-            "name": "祭坛区",
+            "id": "dragon_kin_2",
+            "name": "龙裔祭坛",
             "icon": "🏘️",
-            "desc": "龙裔聚落·祭坛区",
+            "desc": "龙裔聚落·龙裔祭坛",
             "type": "城镇",
             "lv": 82,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "lore"
+            ],
             "shop": False,
             "healer": False
         },
         {
-            "id": "dragon_kin_4",
+            "id": "dragon_kin_3",
             "name": "旅店",
             "icon": "🏘️",
             "desc": "龙裔聚落·旅店",
@@ -7236,26 +6993,9 @@ SUBAREAS = {
         },
         {
             "id": "jade_port_2",
-            "name": "翡翠大街",
+            "name": "翡翠集市",
             "icon": "🏘️",
-            "desc": "翡翠港·翡翠大街",
-            "type": "城镇",
-            "lv": 35,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "jade_port_3",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "翡翠港·集市",
+            "desc": "翡翠港·翡翠集市",
             "type": "城镇",
             "lv": 35,
             "npcs": [],
@@ -7270,42 +7010,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "jade_port_4",
-            "name": "东码头",
+            "id": "jade_port_3",
+            "name": "船坞旅店",
             "icon": "🏘️",
-            "desc": "翡翠港·东码头",
-            "type": "城镇",
-            "lv": 35,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "jade_port_5",
-            "name": "船坞",
-            "icon": "🏘️",
-            "desc": "翡翠港·船坞",
-            "type": "城镇",
-            "lv": 35,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "jade_port_6",
-            "name": "珍珠旅店",
-            "icon": "🏘️",
-            "desc": "翡翠港·珍珠旅店",
+            "desc": "翡翠港·船坞旅店",
             "type": "城镇",
             "lv": 35,
             "npcs": [],
@@ -7322,21 +7030,6 @@ SUBAREAS = {
     "shell_town": [
         {
             "id": "shell_town_1",
-            "name": "镇口",
-            "icon": "🏘️",
-            "desc": "贝壳镇·镇口",
-            "type": "城镇",
-            "lv": 40,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "shell_town_2",
             "name": "贝壳集市",
             "icon": "🏘️",
             "desc": "贝壳镇·贝壳集市",
@@ -7354,7 +7047,7 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "shell_town_3",
+            "id": "shell_town_2",
             "name": "码头",
             "icon": "🏘️",
             "desc": "贝壳镇·码头",
@@ -7371,7 +7064,7 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "shell_town_4",
+            "id": "shell_town_3",
             "name": "旅店",
             "icon": "🏘️",
             "desc": "贝壳镇·旅店",
@@ -8009,6 +7702,23 @@ SUBAREAS = {
             "desc": "无名港·港口广场",
             "type": "城镇",
             "lv": 55,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "quest"
+            ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "nameless_harbor_2",
+            "name": "港务厅",
+            "icon": "🏘️",
+            "desc": "无名港·港务厅",
+            "type": "城镇",
+            "lv": 55,
             "npcs": [
                 "npc_harbor_master"
             ],
@@ -8022,28 +7732,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "nameless_harbor_2",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "无名港·集市",
-            "type": "城镇",
-            "lv": 55,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
             "id": "nameless_harbor_3",
-            "name": "码头区",
+            "name": "远洋码头",
             "icon": "🏘️",
-            "desc": "无名港·码头区",
+            "desc": "无名港·远洋码头",
             "type": "城镇",
             "lv": 55,
             "npcs": [
@@ -8057,38 +7749,6 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        },
-        {
-            "id": "nameless_harbor_4",
-            "name": "旅店街",
-            "icon": "🏘️",
-            "desc": "无名港·旅店街",
-            "type": "城镇",
-            "lv": 55,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "nameless_harbor_5",
-            "name": "灯塔下",
-            "icon": "🏘️",
-            "desc": "无名港·灯塔下",
-            "type": "城镇",
-            "lv": 55,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "pearl_city": [
@@ -8100,7 +7760,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 62,
             "npcs": [
-                "npc_pearl_lord",
+                "npc_sea_gull_tim",
                 "npc_old_whale"
             ],
             "monsters": [],
@@ -8114,46 +7774,28 @@ SUBAREAS = {
         },
         {
             "id": "pearl_city_2",
-            "name": "中央大街",
+            "name": "城主府",
             "icon": "🏘️",
-            "desc": "珍珠城·中央大街",
+            "desc": "珍珠城·城主府",
             "type": "城镇",
             "lv": 62,
             "npcs": [
-                "npc_sea_gull_tim"
+                "npc_pearl_lord"
             ],
             "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop"
+                "quest"
             ],
-            "shop": True,
+            "shop": False,
             "healer": False
         },
         {
             "id": "pearl_city_3",
-            "name": "集市",
+            "name": "珊瑚拍卖行",
             "icon": "🏘️",
-            "desc": "珍珠城·集市",
-            "type": "城镇",
-            "lv": 62,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "pearl_city_4",
-            "name": "拍卖行",
-            "icon": "🏘️",
-            "desc": "珍珠城·拍卖行",
+            "desc": "珍珠城·珊瑚拍卖行",
             "type": "城镇",
             "lv": 62,
             "npcs": [
@@ -8169,10 +7811,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "pearl_city_5",
-            "name": "码头区",
+            "id": "pearl_city_4",
+            "name": "商行",
             "icon": "🏘️",
-            "desc": "珍珠城·码头区",
+            "desc": "珍珠城·商行",
             "type": "城镇",
             "lv": 62,
             "npcs": [],
@@ -8186,10 +7828,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "pearl_city_6",
-            "name": "旅店街",
+            "id": "pearl_city_5",
+            "name": "渔港",
             "icon": "🏘️",
-            "desc": "珍珠城·旅店街",
+            "desc": "珍珠城·渔港",
             "type": "城镇",
             "lv": 62,
             "npcs": [],
@@ -8197,10 +7839,10 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "shop"
             ],
-            "shop": False,
-            "healer": True
+            "shop": True,
+            "healer": False
         }
     ],
     "mist_trench": [
@@ -8874,7 +8516,9 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "quest"
+            ],
             "shop": False,
             "healer": False
         },
@@ -8889,30 +8533,14 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "quest"
+            ],
             "shop": False,
             "healer": False
         },
         {
             "id": "deep_tunnel_3",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "深岩隧道·集市",
-            "type": "城镇",
-            "lv": 65,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "deep_tunnel_4",
             "name": "营地区",
             "icon": "🏘️",
             "desc": "深岩隧道·营地区",
@@ -8922,9 +8550,11 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "heal"
+            ],
             "shop": False,
-            "healer": False
+            "healer": True
         }
     ],
     "under_market": [
@@ -8957,8 +8587,10 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "auction"
+            ],
+            "shop": True,
             "healer": False
         },
         {
@@ -8977,36 +8609,6 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        },
-        {
-            "id": "under_market_4",
-            "name": "矿工区",
-            "icon": "🏘️",
-            "desc": "地底集市·矿工区",
-            "type": "城镇",
-            "lv": 70,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
-        },
-        {
-            "id": "under_market_5",
-            "name": "暗巷",
-            "icon": "🏘️",
-            "desc": "地底集市·暗巷",
-            "type": "城镇",
-            "lv": 70,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
-            "shop": False,
-            "healer": False
         }
     ],
     "fungus_forest": [
@@ -9521,37 +9123,42 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 85,
             "npcs": [
-                "npc_ember_camp_leader",
                 "npc_under_guide",
                 "npc_ember_merchant"
             ],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop"
+            ],
+            "shop": True,
             "healer": False
         },
         {
             "id": "ember_camp_2",
-            "name": "中央区",
+            "name": "营长帐",
             "icon": "🏘️",
-            "desc": "灰烬营地·中央区",
+            "desc": "灰烬营地·营长帐",
             "type": "城镇",
             "lv": 85,
-            "npcs": [],
+            "npcs": [
+                "npc_ember_camp_leader"
+            ],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "quest"
+            ],
             "shop": False,
             "healer": False
         },
         {
             "id": "ember_camp_3",
-            "name": "旅店",
+            "name": "地底向导所",
             "icon": "🏘️",
-            "desc": "灰烬营地·旅店",
+            "desc": "灰烬营地·地底向导所",
             "type": "城镇",
             "lv": 85,
             "npcs": [],
@@ -9559,24 +9166,27 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "quest",
+                "lore"
             ],
             "shop": False,
-            "healer": True
+            "healer": False
         },
         {
             "id": "ember_camp_4",
-            "name": "熔炉边",
+            "name": "补给站",
             "icon": "🏘️",
-            "desc": "灰烬营地·熔炉边",
+            "desc": "灰烬营地·补给站",
             "type": "城镇",
             "lv": 85,
             "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
-            "shop": False,
+            "funcs": [
+                "shop"
+            ],
+            "shop": True,
             "healer": False
         }
     ],
@@ -9905,9 +9515,7 @@ SUBAREAS = {
             "desc": "风翼城·浮空广场",
             "type": "城镇",
             "lv": 85,
-            "npcs": [
-                "npc_wind_elder"
-            ],
+            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -9919,68 +9527,20 @@ SUBAREAS = {
         },
         {
             "id": "wind_city_2",
-            "name": "中央大街",
+            "name": "云翼议会厅",
             "icon": "🏘️",
-            "desc": "风翼城·中央大街",
+            "desc": "风翼城·云翼议会厅",
             "type": "城镇",
             "lv": 85,
-            "npcs": [],
+            "npcs": [
+                "npc_wind_elder"
+            ],
             "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop"
+                "quest"
             ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "wind_city_3",
-            "name": "旅店街",
-            "icon": "🏘️",
-            "desc": "风翼城·旅店街",
-            "type": "城镇",
-            "lv": 85,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "heal"
-            ],
-            "shop": False,
-            "healer": True
-        },
-        {
-            "id": "wind_city_4",
-            "name": "集市",
-            "icon": "🏘️",
-            "desc": "风翼城·集市",
-            "type": "城镇",
-            "lv": 85,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [
-                "shop",
-                "stall"
-            ],
-            "shop": True,
-            "healer": False
-        },
-        {
-            "id": "wind_city_5",
-            "name": "观景台",
-            "icon": "🏘️",
-            "desc": "风翼城·观景台",
-            "type": "城镇",
-            "lv": 85,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": None,
-            "funcs": [],
             "shop": False,
             "healer": False
         }
@@ -10610,6 +10170,473 @@ SUBAREAS = {
             ],
             "funcs": [
                 "instance"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "lost_library": [
+        {
+            "id": "lost_library_1",
+            "name": "入口",
+            "icon": "🚪",
+            "desc": "失落图书馆入口",
+            "type": "隐藏区域",
+            "lv": 55,
+            "npcs": [
+                "npc_spellblade_ghost"
+            ],
+            "monsters": [
+                [
+                    "m_lib_guard",
+                    "图书馆守卫",
+                    "tank",
+                    55,
+                    [
+                        "ms_tie_bi",
+                        "ms_fu_shi_shu"
+                    ],
+                    [
+                        "旧书残页",
+                        "剑圣残页"
+                    ]
+                ],
+                [
+                    "m_book_spirit",
+                    "书页精灵",
+                    "speedster",
+                    56,
+                    [
+                        "ms_jing_ling_jian_shu",
+                        "ms_shan_shuo"
+                    ],
+                    [
+                        "墨水瓶"
+                    ]
+                ],
+                [
+                    "m_paper_wraith",
+                    "纸墨幽魂",
+                    "dps",
+                    58,
+                    [
+                        "ms_an_ying_zhan",
+                        "ms_fu_shi"
+                    ],
+                    [
+                        "褪色墨水"
+                    ]
+                ],
+                [
+                    "e_archive_warden",
+                    "档案馆长·奥古斯特",
+                    "elite",
+                    60,
+                    [
+                        "ms_fu_wen_chong_ji",
+                        "ms_jian_xiao",
+                        "ms_zhao_huan_ku_lou"
+                    ],
+                    [
+                        "档案室钥匙"
+                    ]
+                ]
+            ],
+            "elite": [
+                "e_archive_warden",
+                "档案馆长·奥古斯特",
+                "elite",
+                60,
+                [
+                    "ms_fu_wen_chong_ji",
+                    "ms_jian_xiao",
+                    "ms_zhao_huan_ku_lou"
+                ],
+                [
+                    "档案室钥匙"
+                ]
+            ],
+            "boss": [
+                "b_lost_archivist",
+                "守馆者·遗忘贤者",
+                "boss",
+                62,
+                [
+                    "ms_fu_shi_ling_yu",
+                    "ms_an_ying_dan",
+                    "ms_zhao_huan_yun_wei"
+                ],
+                [
+                    "星尘沙漏"
+                ]
+            ],
+            "funcs": [
+                "instance"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "ember_corridor": [
+        {
+            "id": "ember_corridor_1",
+            "name": "入口",
+            "icon": "🚪",
+            "desc": "灰烬回廊入口",
+            "type": "隐藏区域",
+            "lv": 85,
+            "npcs": [],
+            "monsters": [
+                [
+                    "m_ember_guard",
+                    "烬火守卫",
+                    "tank",
+                    85,
+                    [
+                        "ms_lie_yan_zhao",
+                        "ms_tie_bi"
+                    ],
+                    [
+                        "余烬甲片"
+                    ]
+                ],
+                [
+                    "m_cinder_wolf",
+                    "烬狼",
+                    "speedster",
+                    86,
+                    [
+                        "ms_si_yao",
+                        "ms_huo_yan"
+                    ],
+                    [
+                        "烬狼牙"
+                    ]
+                ],
+                [
+                    "m_ash_knight",
+                    "灰烬骑士",
+                    "dps",
+                    87,
+                    [
+                        "ms_duan_jian",
+                        "ms_huo_qiang"
+                    ],
+                    [
+                        "烧焦剑刃"
+                    ]
+                ],
+                [
+                    "e_ash_champion",
+                    "灰烬勇士",
+                    "elite",
+                    88,
+                    [
+                        "ms_huo_pao",
+                        "ms_lian_zhan",
+                        "ms_bao_zi_bao"
+                    ],
+                    [
+                        "勇士余烬"
+                    ]
+                ]
+            ],
+            "elite": [
+                "e_ash_champion",
+                "灰烬勇士",
+                "elite",
+                88,
+                [
+                    "ms_huo_pao",
+                    "ms_lian_zhan",
+                    "ms_bao_zi_bao"
+                ],
+                [
+                    "勇士余烬"
+                ]
+            ],
+            "boss": [
+                "b_ember_lord",
+                "烬火领主·伊格尼斯",
+                "boss",
+                90,
+                [
+                    "ms_rong_yan_dan",
+                    "ms_di_yu_huo",
+                    "ms_zhao_huan"
+                ],
+                [
+                    "灰烬之核"
+                ]
+            ],
+            "funcs": [
+                "instance"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_anvil_fort_cold_ridge": [
+        {
+            "id": "road_anvil_fort_cold_ridge_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "铁砧要塞-寒脊营地路·路口",
+            "type": "野外",
+            "lv": 66,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_anvil_fort_deep_tunnel": [
+        {
+            "id": "road_anvil_fort_deep_tunnel_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "铁砧要塞-深岩隧道路·路口",
+            "type": "野外",
+            "lv": 65,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_aurora_town_frost_horn": [
+        {
+            "id": "road_aurora_town_frost_horn_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "极光镇-霜角堡路·路口",
+            "type": "野外",
+            "lv": 65,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_dawn_city_ironshield_town": [
+        {
+            "id": "road_dawn_city_ironshield_town_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "晨曦城-铁盾镇路·路口",
+            "type": "野外",
+            "lv": 27,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_dawn_city_moon_gate": [
+        {
+            "id": "road_dawn_city_moon_gate_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "晨曦城-月冠隘口路·路口",
+            "type": "野外",
+            "lv": 35,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_dragon_kin_dragon_pass": [
+        {
+            "id": "road_dragon_kin_dragon_pass_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "龙裔聚落-龙脊山口路·路口",
+            "type": "野外",
+            "lv": 81,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_dragon_pass_moon_court": [
+        {
+            "id": "road_dragon_pass_moon_court_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "龙脊山口-月冠王庭路·路口",
+            "type": "野外",
+            "lv": 67,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_dragon_pass_wind_city": [
+        {
+            "id": "road_dragon_pass_wind_city_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "龙脊山口-风翼城路·路口",
+            "type": "野外",
+            "lv": 82,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_ironharbor_white_deer": [
+        {
+            "id": "road_ironharbor_white_deer_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "铁港城-白鹿城路·路口",
+            "type": "野外",
+            "lv": 7,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_jade_port_nameless_harbor": [
+        {
+            "id": "road_jade_port_nameless_harbor_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "翡翠港-无名港路·路口",
+            "type": "野外",
+            "lv": 45,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_jade_port_shell_town": [
+        {
+            "id": "road_jade_port_shell_town_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "翡翠港-贝壳镇路·路口",
+            "type": "野外",
+            "lv": 37,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_moon_gate_star_song": [
+        {
+            "id": "road_moon_gate_star_song_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "月冠隘口-星歌镇路·路口",
+            "type": "野外",
+            "lv": 46,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_nameless_harbor_pearl_city": [
+        {
+            "id": "road_nameless_harbor_pearl_city_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "无名港-珍珠城路·路口",
+            "type": "野外",
+            "lv": 58,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
+            ],
+            "shop": False,
+            "healer": False
+        }
+    ],
+    "road_silver_brook_white_deer": [
+        {
+            "id": "road_silver_brook_white_deer_1",
+            "name": "路口",
+            "icon": "🌲",
+            "desc": "银溪镇-白鹿城路·路口",
+            "type": "野外",
+            "lv": 8,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "explore"
             ],
             "shop": False,
             "healer": False

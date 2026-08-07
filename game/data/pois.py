@@ -49,8 +49,7 @@ POIS = {
 # 子区域 ID 为 map_N 数字格式（map_1=入口/广场，map_3=深处）
 SUBAREA_POIS = {
     # ==== 新手村·橡木镇 ====
-    "oak_town:oak_town_1": ["shrine", "campfire"],   # 冒险者广场
-    "oak_town:oak_town_6": ["note"],                  # 西巷
+    "oak_town:oak_town_1": ["shrine", "campfire", "note"],   # 冒险者广场（含西巷字条）
     # ==== 白鹿城 ====
     "white_deer:white_deer_1": ["shrine"],            # 白鹿广场
     "white_deer:white_deer_5": ["herb_patch", "loot_pile"],  # 南市
@@ -58,8 +57,8 @@ SUBAREA_POIS = {
     "ironharbor:ironharbor_1": ["fishing_spot", "loot_pile"],  # 港口广场
     "ironharbor:ironharbor_5": ["fishing_spot", "note"],       # 东码头
     # ==== 晨曦城 ====
-    "dawn_city:dawn_city_3": ["shrine", "note"],      # 皇家大街
-    "dawn_city:dawn_city_9": ["loot_pile"],           # 南门
+    "dawn_city:dawn_city_3": ["shrine", "note"],      # 圣光大教堂
+    "dawn_city:dawn_city_1": ["loot_pile"],           # 王都广场（南门遗物）
     # ==== 月冠王庭 ====
     "moon_court:moon_court_1": ["shrine", "rune_stone"],  # 王庭广场
     # ==== 野外·南境 ====
