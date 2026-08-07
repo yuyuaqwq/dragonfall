@@ -141,6 +141,29 @@ def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) ->
             return cond.get("key") in (player or {}).get("hidden_class_unlock", [])
         if t == "hidden_class_lv":
             return (player or {}).get("class_name") == cond.get("key") and (player or {}).get("level", 0) >= cond.get("value", 0)
+        # v87 隐藏线成就新条件类型
+        if t == "quest_done":
+            # 已完成隐藏任务（quests.side 里曾存在过，或 extra 主动传入）
+            if extra.get("quest_done") == cond.get("key"):
+                return True
+            q = db.get_quests(group_id, qq_id)
+            qd = (q or {}).get("side", {})
+            return cond.get("key") not in qd  # 不在进行中 = 已交付（隐藏任务无 completed 表）
+        if t == "set_has":
+            # 套装收集：player 的装备 set 字段计数
+            eqs = (player or {}).get("equipment", {}) or {}
+            cnt = 0
+            for _slot, _eq in eqs.items():
+                if isinstance(_eq, dict) and _eq.get("set") == cond.get("key"):
+                    cnt += 1
+            return cnt >= cond.get("value", 4)
+        if t == "item_has":
+            return db.count_item(group_id, qq_id, cond.get("key")) > 0
+        if t == "hidden_monsters_all":
+            # 击败全部 6 种隐藏怪物（extra 传 defeated_hidden_monsters 集合）
+            hm = extra.get("defeated_hidden_monsters") or set()
+            from ..data.hidden_monsters import HIDDEN_MONSTERS
+            return len(hm & set(HIDDEN_MONSTERS.keys())) >= len(HIDDEN_MONSTERS)
 
 
 

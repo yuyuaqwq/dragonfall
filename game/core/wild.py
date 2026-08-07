@@ -62,6 +62,10 @@ def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
     if unlock.startswith("quest:"):
         qid = unlock[6:]
         return _quest_known(db.get_quests(group_id, qq_id), qid)
+    if unlock.startswith("quest_done:"):
+        # v87：已完成任务解锁（如 图书管理员·贝拉 需通关圣堂地窖）
+        qid = unlock[11:]
+        return _quest_known(db.get_quests(group_id, qq_id), qid)
     return True
 
 

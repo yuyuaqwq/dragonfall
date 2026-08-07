@@ -71,6 +71,19 @@ _SERIES_SET_BONUS = {
         "bonus_4_stats": {"crit": 0.08},
         "bonus_5": {"desc": "雷系增伤 +10%（待元素系统）"},
     },
+    # v87 隐藏线（10 章 10.1/10.2）
+    "星尘": {
+        "icon": "✨", "quality": "purple",
+        "bonus_2": {"atk": 0.05, "matk": 0.05, "def": 0.05, "spd": 0.05},
+        "bonus_4_stats": {"matk": 0.08},
+        "bonus_5": {"desc": "星尘祝福：夜间每回合回蓝 5%（battle 消费）"},
+    },
+    "灰烬守卫": {
+        "icon": "🔥", "quality": "orange",
+        "bonus_2": {"mdef": 0.10},
+        "bonus_4_stats": {"def": 0.08},
+        "bonus_5": {"desc": "灰烬祝福：生命低于 30% 攻击 +20%（battle 消费）"},
+    },
 }
 
 

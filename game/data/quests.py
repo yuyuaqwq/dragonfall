@@ -1339,6 +1339,31 @@ SIDE_QUESTS = [
         "reward_gold": 8000,
         "story": "奥姆之子：『龙陨谷是古龙长眠之地。暮影是千年前陨落的龙王之魂，它还在等着一个能结束它守望的人。』",
     },
+    # ---- v87 隐藏任务链（06 章七.5：H3/H4，通往隐藏区域）----
+    {
+        "id": "s_hidden_ember",
+        "name": "烬火的余温",
+        "giver": "h_gravekeeper",
+        "map": "cinder_mountain",
+        "desc": "收集 3 块烬火余烬，交给老守墓人·灰须",
+        "objective": {"collect": "烬火余烬", "count": 3},
+        "reward_exp": 18000,
+        "reward_gold": 9000,
+        "story": "灰须：『圣战结束那天，活下来的只有我爷爷和一把烧红的剑。那剑还在烬山深处等着它的主人。替我取来烬火余烬，我带你去见它。』",
+        "reward_item": "烬火信标",
+    },
+    {
+        "id": "s_hidden_library",
+        "name": "失落的图书馆",
+        "giver": "h_librarian",
+        "map": "dawn_cathedral",
+        "desc": "收集 3 张泛黄书页，交给图书管理员·贝拉",
+        "objective": {"collect": "泛黄书页", "count": 3},
+        "reward_exp": 9000,
+        "reward_gold": 4000,
+        "story": "贝拉：『他们把真相锁进了地窖最深处。三百年了……我守着这些书，就是在等一个能读完它们的人。帮我找回散落的三页旧纸吧。』",
+        "reward_item": "星尘沙漏",
+    },
 ]
 
 DAILY_QUESTS = [

@@ -79,8 +79,8 @@ async def main():
     check("hidden_class_lv cond 命中", cond_met(p3, {}, {}, {}, {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}), "")
     p4 = dict(p3); p4["level"] = 89
     check("hidden_class_lv cond 不命中", not cond_met(p4, {}, {}, {}, {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}), "")
-    # 成就总数 103
-    check("成就总数 103", len(C.ACHIEVEMENTS) == 103, str(len(C.ACHIEVEMENTS)))
+    # 成就总数 109（v87 隐藏线 +6）
+    check("成就总数 109", len(C.ACHIEVEMENTS) == 109, str(len(C.ACHIEVEMENTS)))
     ach_names = [a["name"] for a in C.ACHIEVEMENTS]
     for n in ("虹彩邂逅", "夜钓月华", "星海遗民", "流星祈愿者", "诗人传承", "黎明颂者"):
         check(f"成就含 {n}", n in ach_names, "")

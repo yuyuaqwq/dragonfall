@@ -13,6 +13,11 @@ EXPLORE_EVENTS = [
     {"id": "herb",     "weight": 12, "name": "草药丛", "desc": "一片长势喜人的野生草药，炼金师会为它们出个好价钱。"},
     {"id": "windfall", "weight": 10, "name": "意外之财", "desc": "地上散落着几枚金币，像是某位粗心商人翻车时掉的。"},
     {"id": "wandering", "weight": 8, "name": "迷路的旅人", "desc": "一位迷路的旅人向你求助，想用随身物品换取指路。"},
+    # v87 02 章 7.6：常规事件扩容 8 → 12
+    {"id": "lost_camp", "weight": 9, "name": "废弃营地", "desc": "一处被遗弃的营地，篝火余烬尚温，帐篷里似乎还有前人留下的物资。"},
+    {"id": "meteor",    "weight": 5, "name": "陨石坑", "desc": "地面凹陷着一个冒着热气的陨石坑，坑底嵌着一块奇异的金属。"},
+    {"id": "animal",    "weight": 9, "name": "迷路的小动物", "desc": "一只小动物从灌木丛探出头来，好奇地打量着你。"},
+    {"id": "rain",      "weight": 7, "name": "突如其来的雨", "desc": "天空骤然阴沉，豆大的雨点砸了下来。"},
 ]
 
 # v83 02 章 7.5：探索彩蛋事件（独立于常规权重，总概率 EXPLORE_EGG_CHANCE）
@@ -25,6 +30,11 @@ EXPLORE_EGG_EVENTS = [
      "desc": "埋藏千年的宝匣。"},
     {"id": "night_visitor", "weight": 10, "name": "神秘访客",
      "desc": "雾中出现的神秘身影。"},
+    # v87 02 章 7.5：彩蛋扩充（权重相应调低老彩蛋）
+    {"id": "old_map", "weight": 12, "name": "泛黄藏宝图",
+     "desc": "一张泛黄的藏宝图。"},
+    {"id": "gold_slime", "weight": 8, "name": "金色史莱姆",
+     "desc": "一只通体金黄的史莱姆！"},
 ]
 EXPLORE_EGG_SUM = sum(e["weight"] for e in EXPLORE_EGG_EVENTS)
 

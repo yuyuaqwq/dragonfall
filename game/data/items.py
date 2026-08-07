@@ -1759,6 +1759,69 @@ MATERIALS = {
         "quality": "purple",
         "type": "收藏"
     },
+    # ---- v87 隐藏线材料（04 章十六节隐藏怪物掉落）----
+    "mat_hu_po_jing_hua": {
+        "price": 88,
+        "name": "琥珀精华",
+        "quality": "purple",
+        "desc": "黄金史莱姆的精华凝结，据说能点石成金（炼金高级配方）。"
+    },
+    "mat_bai_lu_jiao": {
+        "price": 150,
+        "name": "白鹿角",
+        "quality": "orange",
+        "type": "传说",
+        "desc": "白鹿王的角，蕴含月光的祝福（传说锻造材料）。"
+    },
+    "mat_ying_guang_lin": {
+        "price": 66,
+        "name": "荧光鳞",
+        "quality": "blue",
+        "desc": "荧光鱼群的鳞片，在暗处散发幽光（炼金稀有材料）。"
+    },
+    "mat_fu_wen_sui_pian": {
+        "price": 100,
+        "name": "符文碎片",
+        "quality": "purple",
+        "desc": "符文魔像的碎片，刻着失传的符文知识（图鉴补全/隐藏成就线索）。"
+    },
+    "mat_an_ying_jing_hua": {
+        "price": 120,
+        "name": "暗影精华",
+        "quality": "purple",
+        "desc": "暗影猎手留下的精华，蕴藏着夜色之力（附魔材料）。"
+    },
+    "mat_xing_yun_fu": {
+        "price": 50,
+        "name": "幸运符",
+        "quality": "green",
+        "desc": "幸运灵狐赠与的护符，使用后当日运势提升（签到运势+1 档）。"
+    },
+    # ---- v87 隐藏线任务道具（06 章七.5：H3/H4，collect 目标走 resolve("materials")）----
+    "mat_ember_ash": {
+        "price": 100,
+        "name": "烬火余烬",
+        "type": "任务道具",
+        "desc": "烬山深处烧红的余烬，仍散发着灼人的温度（隐藏任务 H3 收集品）"
+    },
+    "mat_old_page": {
+        "price": 80,
+        "name": "泛黄书页",
+        "type": "任务道具",
+        "desc": "一张泛黄的书页，边缘烧焦，字迹依稀可辨（隐藏任务 H4 收集品）"
+    },
+    "mat_ember_beacon": {
+        "price": 500,
+        "name": "烬火信标",
+        "type": "任务道具",
+        "desc": "老守墓人·灰须的馈赠，指引通往灰烬回廊（H7 隐藏区域准入）"
+    },
+    "mat_star_hourglass": {
+        "price": 800,
+        "name": "星尘沙漏",
+        "type": "任务道具",
+        "desc": "图书管理员·贝拉托付的沙漏，沙粒泛着星辉（星尘套锻造核心）"
+    },
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============

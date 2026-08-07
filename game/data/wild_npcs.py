@@ -338,4 +338,32 @@ HIDDEN_NPCS = {
         "funcs": ["lore", "teach"],
         "dialogue": "……你来早了，也来晚了。时间对我而言，只是另一条路。",
     },
+    # ---- v87 03 章附章：隐藏线专属 NPC +3 ----
+    "h_gravekeeper": {
+        "name": "老守墓人·灰须", "icon": "🪦", "map": "cinder_mountain",
+        "condition": {"time": ["night"]}, "chance": 0.20,
+        "unlock": None,
+        "desc": "守着烬山墓园的独臂老人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "圣战结束那天，活下来的只有我爷爷和一把烧红的剑。那剑……还在烬山深处等着它的主人。",
+        "quest": "s_hidden_ember",  # 隐藏任务 H3·烬火的余温
+    },
+    "h_librarian": {
+        "name": "图书管理员·贝拉", "icon": "📖", "map": "dawn_cathedral",
+        "condition": {}, "chance": 0.25,
+        "unlock": "quest_done:inst_secret_crypt",  # 击败圣堂地窖 Boss 后出现（主线副本通关标记）
+        "desc": "教会图书馆幸存的书记官",
+        "funcs": ["quest", "trade"],
+        "dialogue": "他们把真相锁进了地窖最深处。三百年了……我守着这些书，就是在等一个能读完它们的人。",
+        "quest": "s_hidden_library",  # 隐藏任务 H4·失落的图书馆
+    },
+    "h_night_trader": {
+        "name": "夜行者商人", "icon": "🌙", "map": None,
+        "condition": {"time": ["night"]}, "chance": 0.05,
+        "roam": ["oak_town", "white_deer", "ironharbor", "dawn_city", "moon_court", "frost_horn"],
+        "unlock": None,
+        "desc": "只在夜里出没的神秘商人",
+        "funcs": ["trade"],
+        "dialogue": "识货人？夜晚的货物，只卖给识货人。",
+    },
 }

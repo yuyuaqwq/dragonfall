@@ -57,7 +57,7 @@ async def main():
 
     print("【9.4 数据完整性】")
     check("WILD_NPCS ≥28", len(C.WILD_NPCS) >= 28, str(len(C.WILD_NPCS)))
-    check("HIDDEN_NPCS = 10", len(C.HIDDEN_NPCS) == 10, str(len(C.HIDDEN_NPCS)))
+    check("HIDDEN_NPCS ≥13（v87 增 3）", len(C.HIDDEN_NPCS) >= 13, str(len(C.HIDDEN_NPCS)))
     bad = []
     for nid, npc in C.ALL_WILD.items():
         if not npc.get("name") or not npc.get("icon"):
@@ -71,7 +71,7 @@ async def main():
                 if rm not in C.MAP_BY_ID:
                     bad.append((nid, f"roam 地图不存在 {rm}"))
         un = npc.get("unlock")
-        if un and not un.startswith(("flag:", "item:", "quest:")):
+        if un and not un.startswith(("flag:", "item:", "quest:", "quest_done:")):
             bad.append((nid, f"unlock 前缀非法 {un}"))
         cond = npc.get("condition", {})
         for t in cond.get("time", []):

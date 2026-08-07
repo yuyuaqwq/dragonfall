@@ -68,6 +68,13 @@ class WorldCmds(CommandBase):
             lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『挖掘』）")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
             lines.append("🌿 野地可采集（『采集』）")
+        # v87 02 章 7.6：探索点 POI 显示（子区域挂载）
+        if player:
+            poi_ids = C.subarea_pois(mid, sa_id)
+            for _pid in poi_ids:
+                _p = C.POIS.get(_pid)
+                if _p:
+                    lines.append(f"{_p['icon']} {_p['name']}（『探索』有机会发现）")
         # NPC（含功能）：子区域优先
         npc_ids = sa_npcs if sa_npcs is not None else cur_map.get("npcs", [])
         npcs = [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
@@ -1595,6 +1602,13 @@ class WorldCmds(CommandBase):
                 db.remove_item(group_id, qq_id, _ckey)
         player = self._player(group_id, qq_id)
         db.update_player(group_id, qq_id, exp=player["exp"] + sqd["reward_exp"], gold=player["gold"] + sqd["reward_gold"])
+        # v87 隐藏任务：奖励道具（reward_item）入包
+        ri = sqd.get("reward_item")
+        if ri:
+            rimid = C.resolve("materials", ri)
+            if rimid in C.MATERIALS:
+                db.add_item(group_id, qq_id, rimid, {"name": C.display("materials", rimid), "type": "材料", "stackable": True, "price": C.MATERIALS[rimid]["price"]})
+                lines.append(f"  🎁 获得特殊道具：{ri}")
         del quests["side"][sid]
         db.save_quests(group_id, qq_id, quests)
         lines.append(f"✅ 【支线完成】『{sqd['name']}』！")

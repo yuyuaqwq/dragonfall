@@ -57,6 +57,8 @@ from .runes import (  # noqa: F401
 from .portals import PORTALS  # noqa: F401
 from .gather import CAMP_SPOTS, MINE_SPOTS  # noqa: F401
 from .events import EXPLORE_EVENTS, EVENT_WEIGHT_SUM, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM  # noqa: F401
+from .pois import POIS, SUBAREA_POIS, NOTE_POOL, RUNE_POOL  # noqa: F401
+from .hidden_monsters import HIDDEN_MONSTERS  # noqa: F401
 from .titles import TITLES  # noqa: F401
 from .world import WORLD_EVENT_POOL, AUCTION_POOL, WORLD_BOSS_POOL  # noqa: F401
 from .pets import PET_POOL  # noqa: F401

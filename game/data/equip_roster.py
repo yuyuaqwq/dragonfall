@@ -113,12 +113,29 @@ EQUIP_ROSTER = {
     "eq_cang_qiong_hu_tui": {"name": "苍穹护腿", "slot": "legs", "quality": "purple", "lv": 86, "series": "苍穹", "req": {"agi": 86}, "source": "图纸"},
     "eq_cang_qiong_xiang_lian": {"name": "苍穹项链", "slot": "necklace", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"int": 88}, "source": "图纸"},
     "eq_ao_la_sheng_yin": {"name": "奥拉圣印", "slot": "necklace", "quality": "orange", "lv": 95, "series": "苍穹", "req": {"int": 95}, "legendary": "aura_seal", "source": "boss"},
+    # ================= v87 隐藏线：星尘套（H6 失落图书馆，Lv.55 紫）=================
+    "eq_xing_chen_fa_zhang": {"name": "星尘法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 60}, "source": "图纸"},
+    "eq_xing_chen_chang_pao": {"name": "星尘长袍", "slot": "armor", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 55}, "source": "图纸"},
+    "eq_xing_chen_zhi_jie": {"name": "星尘之戒", "slot": "ring", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 40}, "source": "图纸"},
+    "eq_xing_chen_zhui_shi": {"name": "星尘坠饰", "slot": "necklace", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 45}, "source": "图纸"},
+    "eq_xing_chen_hu_tui": {"name": "星尘护腿", "slot": "legs", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 50}, "source": "图纸"},
+    # ================= v87 隐藏线：灰烬守卫套（H7 灰烬回廊，Lv.85 橙）=================
+    "eq_hui_jin_chang_jian": {"name": "灰烬长剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 90}, "legendary": "ember_ward", "source": "boss"},
+    "eq_hui_jin_kai_jia": {"name": "灰烬铠甲", "slot": "armor", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 85}, "legendary": "ember_ward", "source": "boss"},
+    "eq_hui_jin_zhi_kui": {"name": "灰烬之盔", "slot": "helm", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 80}, "legendary": "ember_ward", "source": "boss"},
+    "eq_hui_jin_zhi_dun": {"name": "灰烬之盾", "slot": "weapon", "weapon_type": "shield", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 75}, "legendary": "ember_ward", "source": "boss"},
+    "eq_hui_jin_hu_tui": {"name": "灰烬护腿", "slot": "legs", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 82}, "legendary": "ember_ward", "source": "boss"},
+    "eq_hui_jin_zhan_xue": {"name": "灰烬战靴", "slot": "boots", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 78}, "legendary": "ember_ward", "source": "boss"},
+    # ================= v87 隐藏线：传说·星陨之剑（隐藏线终点，Lv.100 橙·传说）=================
+    "eq_starfall_sword": {"name": "星陨之剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 100, "series": "星尘", "req": {"str": 100, "int": 100}, "legendary": "starfall", "source": "legend"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）
 SERIES_SETS = {
     "橡木": "橡木套", "铁港": "海风套", "圣光": "圣光套", "月语": "月语套",
     "霜狼": "霜狼套", "龙脊": "龙脊套", "海神": "海神套", "地底": "地底套", "苍穹": "苍穹套",
+    # v87 隐藏线
+    "星尘": "星尘套", "灰烬守卫": "灰烬守卫套",
 }
 
 # 名册查询辅助：按名称索引（锻造/掉落/商店通用）

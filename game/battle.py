@@ -901,6 +901,11 @@ class Battle:
             rd = int(dmg * 0.30)
             e["hp"] = max(0, e.get("hp", 0) - rd)
             logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
+        # 灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害
+        if "ember_ward" in ids and random.random() < 0.20 and e.get("hp", 0) > 0:
+            rd = int(dmg * 0.50)
+            e["hp"] = max(0, e.get("hp", 0) - rd)
+            logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
         # 深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）
         if "moro_crown" in ids and random.random() < 0.15:
             self.e_buffs["mon_atk_down"] = max(self.e_buffs.get("mon_atk_down", 0), 2)

@@ -44,6 +44,7 @@ from .enchant import enchant_value, enchant_match_material  # noqa: F401
 from .runes import rune_value, rune_conflict, rune_item  # noqa: F401
 from .portals import portal_cost  # noqa: F401
 from .events import roll_explore_event, roll_explore_egg  # noqa: F401
+from .pois import subarea_pois, roll_poi  # noqa: F401
 from .pets import make_pet_egg, pet_exp_need, pet_skill_label  # noqa: F401
 from .mounts import make_mount_rein, roll_mount_drop  # noqa: F401
 

@@ -2,7 +2,7 @@
 """阶段八：装备重写 v2.0（10 章名册 + 20 章词条/属性需求）
 
 验证：
-  1. 数据完整性：30 词条 / 14 专属 / 名册 91 件 / 固定词条全覆盖 / 需求格式
+  1. 数据完整性：30 词条 / 16 专属 / 名册 103 件 / 固定词条全覆盖 / 需求格式
   2. 名册生成 generate_roster_equip：名字/词条数/需求/套装/专属
   3. 随机生成 generate_equip：词条 v2 / req / 橙装专属
   4. 掉落 roll_drop：普通怪绿蓝 / 精英紫蓝+图纸 / Boss 橙紫+图纸
@@ -58,8 +58,8 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
-    check("专属 14", len(C.LEGENDARY_EFFECTS) == 14, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 91 件", len(C.EQUIP_ROSTER) == 91, str(len(C.EQUIP_ROSTER)))
+    check("专属 16", len(C.LEGENDARY_EFFECTS) == 16, str(len(C.LEGENDARY_EFFECTS)))
+    check("名册 103 件", len(C.EQUIP_ROSTER) == 103, str(len(C.EQUIP_ROSTER)))
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -83,7 +83,7 @@ def test_data():
     # 每个系列有 5 件套（含护腿）
     series_ok = all(len([r for r in C.EQUIP_ROSTER.values() if r["series"] == s and r["slot"] == "legs"]) >= 1
                     for s in set(r["series"] for r in C.EQUIP_ROSTER.values()))
-    check("9 系列各有护腿", series_ok)
+    check("11 系列各有护腿", series_ok)
 
 
 # ============ 2. 名册生成 ============

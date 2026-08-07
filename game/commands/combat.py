@@ -68,6 +68,14 @@ class CombatCmds(CommandBase):
             if handled:
                 yield event.plain_result(ev_text)
                 return
+        # v87 02 章 7.6：POI 探索点独立判定（15%，不占事件/遇怪权重）
+        cur_sa_id_poi = player.get("cur_subarea") or ""
+        poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
+        if poi_hit:
+            poi_id, poi = poi_hit
+            poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
+            yield event.plain_result(poi_text)
+            return
         # 探索事件池（v86 子区域：用当前子区域的怪物，无则回退地图级）
         cur_sa = None
         cur_sa_id = player.get("cur_subarea") or ""
@@ -134,6 +142,21 @@ class CombatCmds(CommandBase):
         if not events:
             yield event.plain_result("你四处搜寻，什么也没发现……")
             return
+        # v87 04 章十六节：隐藏怪物独立判定（低概率彩蛋怪，优先级最高）
+        hm = self._roll_hidden_monster(group_id, qq_id, player, cur_map)
+        if hm:
+            monster, tag, flavor = hm
+            db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+            self._lock_battle(group_id, qq_id)
+            yield event.plain_result(
+                f"✨ 遭遇隐藏怪物！\n"
+                f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
+                f"　　{flavor}\n"
+                f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
+                f"━━━━━━━━━━━━\n"
+                f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
+            )
+            return
         # 随机遇怪：精英/首领独立保底判定（不混进普通怪池子玄学抽）
         monster = None
         tag = ""
@@ -189,6 +212,58 @@ class CombatCmds(CommandBase):
         if active_mk and active_mk in C.MOUNT_BY_KEY:
             return C.MOUNT_BY_KEY[active_mk].get("elite_bonus", 0)
         return 0.0
+
+    def _roll_hidden_monster(self, group_id, qq_id, player, cur_map):
+        """v87 04 章十六节：隐藏怪物独立判定。
+
+        按 HIDDEN_MONSTERS 表的 cond 匹配当前地图环境，chance 概率触发。
+        返回 (monster, tag, flavor) 或 None。
+        """
+        mid = cur_map.get("id", "")
+        # 时间系统时段（night 判定：用 time_weather.current_period）
+        is_night = False
+        try:
+            from ..core.time_weather import current_period
+            is_night = current_period() in ("night", "深夜", "夜晚")
+        except Exception:
+            pass
+        # 地图环境分类
+        is_forest = any(k in mid for k in ("forest", "wood", "glade"))
+        is_water = any(k in mid for k in ("river", "lake", "sea", "reef", "dock", "swamp", "brook"))
+        is_ruin = any(k in mid for k in ("ruin", "mine", "abyss", "battlefield", "altar", "tunnel", "crypt"))
+        if cur_map.get("type") == "城镇区域":
+            return None  # 城镇不出隐藏怪
+        for hid, hdef in C.HIDDEN_MONSTERS.items():
+            cond = hdef.get("cond", "any")
+            if cond == "forest_night":
+                if not (is_forest and is_night):
+                    continue
+            elif cond == "forest":
+                if not is_forest:
+                    continue
+            elif cond == "water":
+                if not is_water:
+                    continue
+            elif cond == "ruin":
+                if not is_ruin:
+                    continue
+            elif cond == "night_any":
+                if not is_night:
+                    continue
+            # any / 其他：无限制
+            if random.random() >= hdef.get("chance", 0.004):
+                continue
+            # 命中：构造怪物（等级 = 地图等级 + 偏移，clamp ≥1）
+            base_lv = cur_map.get("lv", 1)
+            lv = max(1, base_lv + hdef.get("lv_off", 0))
+            monster_def = (hid, hdef["name"], hdef.get("role", "elite"), lv,
+                           hdef.get("skills", []), hdef.get("drops", []))
+            monster = C.build_monster(monster_def, cur_map)
+            # 隐藏怪金币加成（gold_mult 倍）
+            gold_extra = monster.get("gold", 0) * hdef.get("gold_mult", 1)
+            monster["gold"] = gold_extra
+            return monster, hdef.get("tag", "✨ 隐藏"), hdef.get("flavor", "")
+        return None
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?许愿(?:[\s\S]*)$")
 
@@ -285,6 +360,31 @@ class CombatCmds(CommandBase):
                     f"“深渊的裂隙……正在低语……去找它。”\n"
                     f"身影说完便消散在雾中，你隐约感到，某个秘密被揭开了（隐藏线索已记入见闻）。"
                 )
+            # v87 02 章 7.5：新彩蛋——泛黄藏宝图（H6 书页线索）
+            if eid == "old_map":
+                db.set_talk_flag(group_id, qq_id, "h_lost_library", "got_old_map")
+                return True, (
+                    f"🗺️ 【泛黄藏宝图】你在一棵老树的树洞里发现一张泛黄的藏宝图！\n"
+                    f"图上画着一条通往圣堂地窖深处的地下通道，边缘写着：\n"
+                    f"“三页旧纸，一扇石门——书页不齐，石门不开。”\n"
+                    f"你收好藏宝图（隐藏线索：失落图书馆·书页之一 已记入见闻）。"
+                )
+            # v87 02 章 7.5：新彩蛋——金色史莱姆（必掉稀有材料+金币）
+            if eid == "gold_slime":
+                gold = random.randint(200, 400) + player["level"] * 30
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                mat_line = ""
+                mid = C.resolve("materials", "琥珀精华")
+                if mid in C.MATERIALS:
+                    db.add_item(group_id, qq_id, mid,
+                                {"name": C.display("materials", mid), "type": "材料",
+                                 "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                    mat_line = f"\n🎒 获得稀有材料：琥珀精华！"
+                return True, (
+                    f"✨ 【金色史莱姆】一只通体金黄的史莱姆蹦跳着挡住去路！\n"
+                    f"你三两下把它敲扁——金色的浆液迸溅出来！\n"
+                    f"💰 获得 {gold} 金币！{mat_line}"
+                )
         ev = C.roll_explore_event()
         eid = ev["id"]
         name = cur_map.get("name", "此地")
@@ -378,7 +478,148 @@ class CombatCmds(CommandBase):
                 f"🧭 【迷路的旅人】一位旅人感激你的指路，硬塞给你一件谢礼！\n"
                 f"🎒 获得：{rw}"
             )
+        # v87 02 章 7.6：新常规事件——废弃营地（材料+小概率图纸）
+        if eid == "lost_camp":
+            mats_pool = ["狼皮", "兽肉", "铁矿石", "野猪皮", "妖精之尘"]
+            got = []
+            for _ in range(2):
+                m = random.choice(mats_pool)
+                mid = C.resolve("materials", m)
+                if mid in C.MATERIALS:
+                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                    got.append(C.display("materials", mid))
+            extra = ""
+            if random.random() < 0.15:
+                bp = C.roll_blueprint(max(1, player["level"]))
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+                extra = f"\n📜 帐篷角落里还压着一张图纸：{bp['name']}！"
+            return True, (
+                f"🏕️ 【废弃营地】你翻找着前人的遗物——篝火余烬还带着温度。\n"
+                f"🎒 获得材料：{'、'.join(got)}！{extra}"
+            )
+        # v87 02 章 7.6：新常规事件——陨石坑（稀有矿石）
+        if eid == "meteor":
+            ores = ["铁矿石", "银矿石", "秘银矿", "陨铁"]
+            ore = random.choice(ores)
+            mid = C.resolve("materials", ore)
+            got = ""
+            if mid in C.MATERIALS:
+                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                got = C.display("materials", mid)
+            exp_gain = 20 + player["level"] * 2
+            db.update_player(group_id, qq_id, exp=player["exp"] + exp_gain)
+            return True, (
+                f"☄️ 【陨石坑】坑底嵌着一块奇异的金属，你费了番力气把它撬了出来。\n"
+                f"🎒 获得矿石：{got}！✨ 经验 +{exp_gain}"
+            )
+        # v87 02 章 7.6：新常规事件——迷路的小动物（随机材料/好感）
+        if eid == "animal":
+            rewards = ["兽肉", "狼皮", "妖精之尘", "神秘鳞片"]
+            rw = random.choice(rewards)
+            mid = C.resolve("materials", rw)
+            got = ""
+            if mid in C.MATERIALS:
+                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                got = C.display("materials", mid)
+            return True, (
+                f"🐿️ 【迷路的小动物】你喂了它一点干粮，小家伙蹭了蹭你的手，留下一份谢礼跑了。\n"
+                f"🎒 获得：{got}"
+            )
+        # v87 02 章 7.6：新常规事件——突如其来的雨（概率 buff：雨后清新）
+        if eid == "rain":
+            db.set_event_state(f"rain_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
+            return True, (
+                f"🌧️ 【突如其来的雨】豆大的雨点砸下来，你躲进树荫避雨。\n"
+                f"雨后的空气格外清新——你感到一阵清明（接下来 30 分钟探索遇怪率小幅提升）。"
+            )
         return False, ""
+
+    def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi):
+        """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。"""
+        import uuid as _uuid
+        name = cur_map.get("name", "此地")
+        sub_name = ""
+        cur_sa_id = player.get("cur_subarea") or ""
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa["id"] == cur_sa_id:
+                sub_name = _sa.get("name", "")
+                break
+        loc = f"{name}·{sub_name}" if sub_name else name
+        icon = poi.get("icon", "🌿")
+        pname = poi.get("name", "探索点")
+        eff = poi.get("effect", "")
+        # 篝火：恢复 30% 生命/魔力 + 随机烹饪食材
+        if eff == "recover":
+            hp_gain = int(player["max_hp"] * 0.30)
+            mp_gain = int(player["max_mp"] * 0.30)
+            db.update_player(group_id, qq_id, hp=min(player["max_hp"], player["hp"] + hp_gain), mp=min(player["max_mp"], player["mp"] + mp_gain))
+            foods = ["兽肉", "野猪皮", "妖精之尘"]
+            fd = random.choice(foods)
+            mid = C.resolve("materials", fd)
+            got = ""
+            if mid in C.MATERIALS:
+                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                got = C.display("materials", mid)
+            return (f"{icon} 【{pname}】你在{loc}的篝火旁坐下烤火。\n"
+                    f"❤️ 恢复 {hp_gain} 生命！💙 恢复 {mp_gain} 魔力！\n"
+                    f"🍖 篝火上还烤着一份{got}，顺手带走了。")
+        # 神龛：随机 buff（攻击/防御/速度 +10% 持续 5 次战斗）
+        if eff == "buff":
+            buffs = [("攻击", "atk"), ("防御", "def"), ("速度", "spd")]
+            bname, bkey = random.choice(buffs)
+            db.set_event_state(f"poi_buff_{group_id}_{qq_id}", _json.dumps({"stat": bkey, "mult": 1.10, "left": 5}))
+            return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
+                    f"✨ 获得祝福：{bname} +10%（持续 5 次战斗）！")
+        # 草药丛：1-2 份炼金材料
+        if eff == "herb":
+            herbs = ["狼皮", "蜘蛛毒囊", "蛇鳞", "妖精之尘", "草药"]
+            got = []
+            for _ in range(random.randint(1, 2)):
+                h = random.choice(herbs)
+                mid = C.resolve("materials", h)
+                if mid in C.MATERIALS:
+                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                    got.append(C.display("materials", mid))
+            return (f"{icon} 【{pname}】你在{loc}的草丛里仔细翻找，采到了一些好材料。\n"
+                    f"🎒 获得：{'、'.join(got)}！")
+        # 可疑包裹：金币 / 装备 / 陷阱
+        if eff == "loot":
+            r = random.random()
+            if r < 0.6:
+                gold = random.randint(20, 80) + player["level"] * 3
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                return (f"{icon} 【{pname}】你打开{loc}路边的可疑包裹——里面是金币！\n"
+                        f"💰 获得 {gold} 金币！")
+            if r < 0.85:
+                bp = C.roll_blueprint(max(1, player["level"]))
+                db.add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
+                return (f"{icon} 【{pname}】包裹里卷着一张泛黄的图纸：{bp['name']}！\n"
+                        f"📜 看来是某位锻造师遗失的手稿。")
+            dmg = int(player["max_hp"] * 0.10) + 5
+            new_hp = max(1, player["hp"] - dmg)
+            db.update_player(group_id, qq_id, hp=new_hp)
+            return (f"💥 【{pname}】你刚打开包裹，里面弹出一只发条咬人夹！\n"
+                    f"你被夹了一下，损失 {dmg} 生命（当前 ❤️ {new_hp}/{player['max_hp']}）")
+        # 符文石：图鉴/隐藏线索
+        if eff == "rune":
+            from ..data.pois import RUNE_POOL
+            txt = random.choice(RUNE_POOL)
+            db.set_talk_flag(group_id, qq_id, "poi_rune_read", "read_rune")
+            return (f"{icon} 【{pname}】你伸手轻触{loc}的符文石，碑面泛起幽光。\n"
+                    f"📖 {txt}")
+        # 鱼群聚集：免费垂钓次数
+        if eff == "fish":
+            db.set_event_state(f"poi_fish_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
+            return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
+                    f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数（30 分钟内有效）！")
+        # 神秘字条：隐藏线索
+        if eff == "note":
+            from ..data.pois import NOTE_POOL
+            txt = random.choice(NOTE_POOL)
+            db.set_talk_flag(group_id, qq_id, "poi_note_found", "found_note")
+            return (f"{icon} 【{pname}】你摘下{loc}树干上的字条，墨迹已有些褪色。\n"
+                    f"📜 {txt}")
+        return f"{icon} 【{pname}】你打量了一下{loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)")
 
@@ -931,6 +1172,25 @@ class CombatCmds(CommandBase):
             elif cur_evt["etype"] == "festival":
                 gold = int(gold * 1.5)
                 evt_bonus.append("🎉 庆典：金币 +50%")
+        # v87 02 章 7.6：每日运势加成（大吉 经验+10% / 小凶 金币-10%）
+        fortune_line = ""
+        try:
+            import json as _j
+            _fstate = db.get_event_state(f"daily_fortune_{group_id}_{qq_id}")
+            if _fstate:
+                _f = _j.loads(_fstate)
+                import datetime as _dt
+                if _f.get("date") == _dt.date.today().isoformat():
+                    if _f.get("fortune") == "大吉":
+                        exp = int(exp * 1.10)
+                        fortune_line = "🌟 今日大吉：经验 +10%！"
+                    elif _f.get("fortune") == "小凶":
+                        gold = int(gold * 0.90)
+                        fortune_line = "🌧️ 今日小凶：金币 -10%……"
+        except Exception:
+            pass
+        if fortune_line:
+            evt_bonus.append(fortune_line)
         # 任务统计
         db.init_stats(group_id, qq_id)
         if monster.get("is_boss"):
@@ -1117,7 +1377,18 @@ class CombatCmds(CommandBase):
             lines += [""] + quest_lines
         # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
         ach_lines = []
-        new_achs = C.check_achievements(group_id, qq_id, player)
+        # v87：隐藏怪击杀累计（成就·传说猎人）
+        hm_defeated = set()
+        try:
+            _hm_st = db.get_event_state(f"hm_defeated_{group_id}_{qq_id}")
+            if _hm_st:
+                hm_defeated = set(_hm_st.split(",")) if _hm_st else set()
+            if monster.get("id") in C.HIDDEN_MONSTERS:
+                hm_defeated.add(monster["id"])
+                db.set_event_state(f"hm_defeated_{group_id}_{qq_id}", ",".join(sorted(hm_defeated)))
+        except Exception:
+            pass
+        new_achs = C.check_achievements(group_id, qq_id, player, {"defeated_hidden_monsters": hm_defeated})
         for a in new_achs:
             ach_lines.append(f"🏆 成就解锁：{a['name']}！（{a['desc']}）")
         if ach_lines:

@@ -280,6 +280,16 @@ LEGENDARY_EFFECTS = {
         "effect": {"ice_dmg": 0.20},
         "desc": "冰属性伤害 +20%",
     },
+    "starfall": {  # v87 星陨之剑：攻击 10% 概率全屏星陨 200% 伤害
+        "name": "星陨", "kind": "attack", "trigger": "on_hit", "chance": 0.10,
+        "effect": {"mult": 2.0, "aoe": True},
+        "desc": "攻击 10% 概率触发星陨：全体 200% 伤害",
+    },
+    "ember_ward": {  # v87 灰烬守卫套：受击 20% 反弹 50% 伤害（重装反伤）
+        "name": "灰烬壁垒", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
+        "effect": {"reflect_pct": 0.50},
+        "desc": "受击 20% 概率触发灰烬壁垒：反弹 50% 伤害",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -335,4 +345,14 @@ SERIES_FIXED_AFFIX = {
     "苍穹头盔": ["swift"], "云纹胸甲": ["dodge", "swift"], "星辉长靴": ["swift"],
     "苍穹护腿": ["swift"],
     "苍穹项链": ["element_thunder", "crit_up"], "奥拉圣印": ["element_thunder", "crit_up"],
+    # v87 隐藏线：星尘（法系星空）
+    "星尘法杖": ["element_thunder", "meditate"], "星尘长袍": ["dodge", "meditate"],
+    "星尘之戒": ["crit_up", "element_thunder"], "星尘坠饰": ["crit_dmg", "meditate"],
+    "星尘护腿": ["dodge"],
+    # v87 隐藏线：灰烬守卫（重装防御）
+    "灰烬长剑": ["execute", "charge"], "灰烬铠甲": ["dmg_reduce", "block"],
+    "灰烬之盔": ["tenacity"], "灰烬之盾": ["block", "thorns"], "灰烬护腿": ["dmg_reduce"],
+    "灰烬战靴": ["tenacity", "block"],
+    # v87 隐藏线：传说·星陨之剑
+    "星陨之剑": ["crit_up", "element_thunder"],
 }

@@ -229,4 +229,18 @@ ACHIEVEMENTS = [
     {"id": "ach_collect_star", "cat": "隐藏", "name": "星海遗民", "title": "星海旅人",
      "desc": "无尽海钓到收藏鱼星骸遗鳞", "cond": {"type": "collect_fish", "key": "mat_star_remnant"}, "points": 2},
 
+    # ---- v87 隐藏线成就（14 章 2.7 扩充 +6）----
+    {"id": "ach_spellblade_unlock", "cat": "隐藏", "name": "剑与书的誓约", "title": "剑与书的誓约",
+     "desc": "解锁隐藏职业「魔剑士」", "cond": {"type": "hidden_class", "key": "cls_spellblade"}, "points": 2},
+    {"id": "ach_h3_ember", "cat": "隐藏", "name": "灰烬守墓人", "title": "灰烬守墓人",
+     "desc": "完成隐藏任务 H3·烬火的余温", "cond": {"type": "quest_done", "key": "s_hidden_ember"}, "points": 2},
+    {"id": "ach_h4_library", "cat": "隐藏", "name": "图书馆的书记官", "title": "图书馆的书记官",
+     "desc": "完成隐藏任务 H4·失落的图书馆", "cond": {"type": "quest_done", "key": "s_hidden_library"}, "points": 2},
+    {"id": "ach_stardust_set", "cat": "隐藏", "name": "星尘守望者", "title": "星尘守望者",
+     "desc": "获得星尘套 4 件套", "cond": {"type": "set_has", "key": "set_xing_chen_tao", "value": 4}, "points": 2},
+    {"id": "ach_hidden_hunter", "cat": "隐藏", "name": "传说猎人", "title": "传说猎人",
+     "desc": "击败全部 6 种隐藏怪物", "cond": {"type": "hidden_monsters_all"}, "points": 2},
+    {"id": "ach_starfall_sword", "cat": "隐藏", "name": "星陨之剑主", "title": "星陨之剑主",
+     "desc": "获得传说武器·星陨之剑", "cond": {"type": "item_has", "key": "eq_starfall_sword"}, "points": 2},
+
 ]

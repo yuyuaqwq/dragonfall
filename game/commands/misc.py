@@ -5,6 +5,7 @@
 """
 import functools
 import inspect
+import json as _json
 import random
 import re
 import time
@@ -212,6 +213,26 @@ class MiscCmds(CommandBase):
         if si.get("last_date") == today:
             yield event.plain_result("今天已经签过到啦！明天再来～")
             return
+        # v87 02 章 7.6：每日运势（签到随机三档：大吉/平/小凶；幸运符可+1 档）
+        fortune_roll = random.random()
+        if fortune_roll < 0.15:
+            fortune = "小凶"   # 15%：当日金币 -10%
+        elif fortune_roll < 0.55:
+            fortune = "平"     # 40%：无效果
+        else:
+            fortune = "大吉"   # 45%：当日经验 +10%
+        # 幸运符：使用后当日运势+1 档（小凶→平→大吉→大吉）
+        if fortune == "小凶":
+            luck_mat = C.resolve("materials", "幸运符")
+            if luck_mat in C.MATERIALS and db.count_item(group_id, qq_id, luck_mat) > 0:
+                db.remove_item(group_id, qq_id, luck_mat)
+                fortune = "平"
+        elif fortune == "平":
+            luck_mat = C.resolve("materials", "幸运符")
+            if luck_mat in C.MATERIALS and db.count_item(group_id, qq_id, luck_mat) > 0:
+                db.remove_item(group_id, qq_id, luck_mat)
+                fortune = "大吉"
+        db.set_event_state(f"daily_fortune_{group_id}_{qq_id}", _json.dumps({"date": today, "fortune": fortune}))
         # 连续签到
         yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
         streak = si.get("streak", 0) + 1 if si.get("last_date") == yesterday else 1
@@ -228,6 +249,10 @@ class MiscCmds(CommandBase):
             f"📅 【签到成功】第 {total} 次签到！连续 {streak} 天！",
             f"💰 获得 {gold} 金币",
         ]
+        # v87：运势显示
+        fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
+        fortune_desc = {"大吉": "今日经验 +10%", "平": "今日平平无奇", "小凶": "今日金币 -10%"}.get(fortune, "")
+        lines.append(f"{fortune_icon} 今日运势：{fortune}（{fortune_desc}）")
         if cur_evt and cur_evt["etype"] == "festival":
             lines.append("🎉 节日庆典：签到奖励翻倍！")
         # 每 7 天额外奖励
