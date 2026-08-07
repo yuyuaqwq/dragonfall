@@ -66,7 +66,7 @@ def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp,
             now = int(time.time())
             conn.execute(
                 "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race) "
-                "VALUES (?,?,?,1,0,50,?,?,?,?,'vila_square',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?) "
+                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?) "
                 "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race",
                 (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race),
             )
@@ -99,6 +99,7 @@ def get_player(group_id, qq_id):
             p["learned_blueprints"] = json.loads(p.get("learned_blueprints") or "[]")
             # v81 导师进修：apprentices 已拜师副业列表（JSON 数组）
             p["apprentices"] = json.loads(p.get("apprentices") or "[]")
+            p["hidden_class_unlock"] = json.loads(p.get("hidden_class_unlock") or "[]")
             return p
         finally:
             conn.close()
@@ -127,7 +128,7 @@ def update_player(group_id, qq_id, **fields):
             sets = []
             vals = []
             for k, v in fields.items():
-                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices"):
+                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices", "hidden_class_unlock"):
                     # v46：技能名列表/技能等级表 写入时转 ID（存档只存 ID）
                     if k in ("learned_skills", "skills") and isinstance(v, list):
                         v = [C.resolve("skills", s) if s else s for s in v]

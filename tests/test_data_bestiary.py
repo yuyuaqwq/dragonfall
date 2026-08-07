@@ -27,8 +27,8 @@ def main():
     print("【data·生物族：索引双向】")
     mi = C._INDEXES["monsters"]
     check("怪物索引 130 个", len(mi["name_to_id"]) >= 100, str(len(mi["name_to_id"])))
-    check("野狗 → m_stray_dog", mi["name_to_id"]["野狗"] == "m_stray_dog")
-    check("m_stray_dog → 野狗", mi["id_to_name"]["m_stray_dog"] == "野狗")
+    check("野狗 → m_wild_dog", mi["name_to_id"]["野狗"] == "m_wild_dog")
+    check("m_wild_dog → 野狗", mi["id_to_name"]["m_wild_dog"] == "野狗")
 
     print("【data·生物族：坐骑/宠物】")
     check("MOUNT_BY_KEY 非空", len(C.MOUNT_BY_KEY) > 0, str(len(C.MOUNT_BY_KEY)))

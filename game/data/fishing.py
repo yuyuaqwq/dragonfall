@@ -147,3 +147,17 @@ FISH_POOL = [
      "spots": ["harbor_docks"],
      "weight": 40, "desc": "上古巨兽的遗骨，蕴含神秘力量"},
 ]
+
+# v83 16 章 4.x：超稀有收藏鱼（彩蛋，独立于五档权重，纯收藏）
+# chance 固定不随垂钓等级提升；spots=None 任意钓点；time="night" 仅夜晚
+# 判定：core/fishing.py roll_collect_fish（概率升序，高稀有优先，最多 1 条）
+FISH_COLLECT = [
+    {"id": "mat_rainbow_kite", "name": "虹彩龙鲤", "chance": 0.0005, "spots": None,
+     "desc": "传说中只在彩虹映照深潭时现身的龙鲤，鳞片流光溢彩。"},
+    {"id": "mat_moon_jelly", "name": "月华水母", "chance": 0.0003, "spots": None,
+     "time": "night",
+     "desc": "月光下才会浮起的透明水母，触须如月华般柔软。"},
+    {"id": "mat_star_remnant", "name": "星骸遗鳞", "chance": 0.0002,
+     "spots": ["mist_trench", "whale_domain", "storm_sea"],
+     "desc": "据说来自坠入海底的星辰，鳞片还带着星空的微光。"},
+]

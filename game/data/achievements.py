@@ -214,4 +214,19 @@ ACHIEVEMENTS = [
      "desc": "战斗胜利 100 次无败绩", "cond": {"type": "kills", "value": 100, "no_death": True}, "points": 2},
     {"id": "ach_event_all", "cat": "隐藏", "name": "世界的见证者", "title": "世界的见证者",
      "desc": "触发全部世界事件", "cond": {"type": "event_all"}, "points": 2},
+    {"id": "ach_collect_rainbow", "cat": "隐藏", "name": "虹彩邂逅", "title": "虹彩幸运儿",
+     "desc": "钓到传说收藏鱼虹彩龙鲤", "cond": {"type": "collect_fish", "key": "mat_rainbow_kite"}, "points": 2},
+    {"id": "ach_wish_met", "cat": "隐藏", "name": "流星祈愿者", "title": "流星祈愿者",
+     "desc": "触发流星许愿并选择任一祝福", "cond": {"type": "wish_met"}, "points": 2},
+    {"id": "ach_bard_unlock", "cat": "隐藏", "name": "诗人传承", "title": "诗人传承",
+     "desc": "解锁隐藏职业「吟游诗人」", "cond": {"type": "hidden_class", "key": "cls_bard"}, "points": 2},
+    {"id": "ach_bard_master", "cat": "隐藏", "name": "黎明颂者", "title": "黎明颂者",
+     "desc": "隐藏职业吟游诗人达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}, "points": 2},
+
+
+    {"id": "ach_collect_moon", "cat": "隐藏", "name": "夜钓月华", "title": "月夜守望者",
+     "desc": "夜晚钓到收藏鱼月华水母", "cond": {"type": "collect_fish", "key": "mat_moon_jelly"}, "points": 2},
+    {"id": "ach_collect_star", "cat": "隐藏", "name": "星海遗民", "title": "星海旅人",
+     "desc": "无尽海钓到收藏鱼星骸遗鳞", "cond": {"type": "collect_fish", "key": "mat_star_remnant"}, "points": 2},
+
 ]

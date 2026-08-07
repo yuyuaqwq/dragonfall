@@ -155,7 +155,7 @@ async def main():
     check("老存档兜底0", b9.p_extra_left == 0 and b9.p_progress == 0.0,
           f"{b9.p_extra_left}/{b9.p_progress}")
 
-    print(f"\n结果：{passed} 通过 / {failed} 失败")
+    print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed
 
 if __name__ == "__main__":

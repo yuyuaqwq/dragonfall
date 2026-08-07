@@ -21,8 +21,8 @@ def check(name, cond, detail=""):
 
 def main():
     print("【core·索引族：resolve/display】")
-    check("resolve 双向一致", C.resolve("monsters", "野狗") == "m_stray_dog")
-    check("display 双向一致", C.display("monsters", "m_stray_dog") == "野狗")
+    check("resolve 双向一致", C.resolve("monsters", "野狗") == "m_wild_dog")
+    check("display 双向一致", C.display("monsters", "m_wild_dog") == "野狗")
     check("resolve 未知名字返回原值", C.resolve("monsters", "不存在的怪物") == "不存在的怪物")
 
     print("【core·索引族：pinyin_id】")

@@ -63,4 +63,4 @@ if __name__ == "__main__":
     test_footer()
     test_no_status()
     test_enrage()
-    print(f"\n✅ v59 战斗状态展示：{passed} 项全部通过")
+    print(f"\n结果: {passed} 通过, 0 失败")

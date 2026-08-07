@@ -115,7 +115,7 @@ async def main():
     info_gc = E.skill_info("cls_ci_ke", "淬毒")
     check("淬毒带毒 mech", info_gc.get("mech") == "poison", str(info_gc.get("mech")))
 
-    print(f"\n结果：{passed} 通过 / {failed} 失败")
+    print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed
 
 if __name__ == "__main__":

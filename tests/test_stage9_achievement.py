@@ -37,10 +37,10 @@ async def cmd(m, name, gid, qid, msg):
 # ============ 1. 数据完整性 ============
 def test_data():
     print("【1. 数据完整性】")
-    check("97 成就", len(C.ACHIEVEMENTS) == 97, str(len(C.ACHIEVEMENTS)))
+    check("103 成就", len(C.ACHIEVEMENTS) == 103, str(len(C.ACHIEVEMENTS)))
     from collections import Counter
     cats = Counter(a["cat"] for a in C.ACHIEVEMENTS)
-    check("分类计数", cats == {"战斗": 20, "成长": 15, "探索": 15, "副业": 27, "社交": 10, "隐藏": 10}, str(dict(cats)))
+    check("分类计数", cats == {"战斗": 20, "成长": 15, "探索": 15, "副业": 27, "社交": 10, "隐藏": 16}, str(dict(cats)))
     ids = [a["id"] for a in C.ACHIEVEMENTS]
     check("id 唯一", len(ids) == len(set(ids)))
     bad = [a["id"] for a in C.ACHIEVEMENTS if not a.get("cond") or not a["cond"].get("type")]

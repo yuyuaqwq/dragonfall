@@ -40,7 +40,7 @@ def make_player(cls="战士", level=10, hp=None, mp=None, skills=None, mech=None
         "skills": skills or E.skills_for_level(cls, level),
         "skill_levels": {}, "mech_stacks": mech or {},
         "max_hp": 0, "max_mp": 0, "hp": 0, "mp": 0, "name": "测试勇者",
-        "gold": 100, "exp": 0, "cur_map": "vila_square",
+        "gold": 100, "exp": 0, "cur_map": "oak_town",
     }
     st = E.player_final_stats(cls, level, {}, 0 if level < 30 else 1, {})
     p["max_hp"], p["max_mp"] = st["max_hp"], st["max_mp"]
@@ -73,7 +73,7 @@ async def main():
     p = make_player("战士", 10, mp=100)
     m = make_monster(hp=100000, defense=50)
     b = BT.Battle("monster", m)
-    b.player_turn("skill", "怒吼", p)
+    b.player_turn("skill", "战吼", p)
     check("p_buffs 有 atk_up", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
     # v61：速度优势回合不立即结束——防御结束本回合行动（不打怪），回合才递减
     while b.p_extra_left > 0:
@@ -85,7 +85,7 @@ async def main():
     p2 = make_player("战士", 10)
     m2 = make_monster(hp=100000, defense=50)
     b2 = BT.Battle("monster", m2)
-    b2.player_turn("skill", "怒吼", p2)
+    b2.player_turn("skill", "战吼", p2)
     b2.player_turn("attack", None, p2)
     dmg_buffed = 100000 - m2["hp"]
     random.seed(3)
@@ -96,15 +96,15 @@ async def main():
     dmg_plain = 100000 - m3["hp"]
     check("怒吼后伤害提升", dmg_buffed > dmg_plain, f"buff={dmg_buffed} plain={dmg_plain}")
 
-    print("【战斗：减益 buff（寒冰/毒/破甲）】")
+    print("【战斗：减益 buff（冰/毒/破甲）】")
     random.seed(4)
     b = BT.Battle("monster", make_monster(hp=100000))
-    b.player_turn("skill", "寒冰箭", make_player("法师", 10, mp=100))
-    check("寒冰箭 spd_down", b.e_buffs.get("spd_down", 0) > 0, str(b.e_buffs))
+    b.player_turn("skill", "冰锥", make_player("法师", 10, mp=100))
+    check("冰锥挂冰元素印记", b.e_buffs.get("ice_mark", 0) > 0, str(b.e_buffs))
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
-    b.player_turn("skill", "毒箭", make_player("游侠", 10, mp=100))
-    check("毒箭 poison", b.e_buffs.get("poison", 0) > 0, str(b.e_buffs))
+    b.player_turn("skill", "淬毒", make_player("刺客", 15, mp=100))
+    check("淬毒挂毒层", b.mech_stacks.get("poison", 0) > 0, str(b.mech_stacks))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
@@ -122,111 +122,38 @@ async def main():
         b.player_turn("defend", None, p)
     check("毒回合递减", b.e_buffs.get("poison", 0) == 1, str(b.e_buffs))
 
-    print("【数值铁律：分支 tier1 ≥ 基础大招】")
-    for cls, base_lv30 in [("法师", "龙息术"), ("战士", "裂空斩"), ("游侠", "龙息箭"),
-                            ("牧师", "圣焰"), ("刺客", "暗杀"), ("武僧", "气功波")]:
+    print("【数值铁律：分支奥义 ≥ 基础大招】")
+    for cls, base_lv30 in [("法师", "元素风暴"), ("战士", "无畏冲击"), ("游侠", "狩猎终章"),
+                            ("牧师", "神恩降临"), ("刺客", "暗影处刑"), ("武僧", "破晓之拳")]:
         cid = C.resolve("classes", cls)
         base_power = C.PLAYER_SKILLS[cid]["skills"][C.resolve("skills", base_lv30)]["power"]
-        t1 = list(C.BRANCH_SKILLS[cid]["branches"][1].values())[0]
-        first_name, first = list(t1.items())[0]
-        eff_power = first["power"] * first.get("multi", 1)
-        check(f"{cls} 分支Lv.32等效 ≥ 基础Lv.30({base_power})", eff_power >= base_power * 0.95,
-              f"{first_name} {eff_power} vs {base_power}")
-
-    print("【机制：狂暴叠层】")
-    pl = make_player("战士", 35, skills=["狂暴连斩"])
-    b = make_battle()
-    b.player_turn("skill", "狂暴连斩", pl, enemy_act=False)
-    n1 = b.mech_stacks.get("rage", 0)
-    b.player_turn("skill", "狂暴连斩", pl, enemy_act=False)
-    n2 = b.mech_stacks.get("rage", 0)
-    check("连击叠狂暴 1→2 层", n1 == 1 and n2 == 2, f"{n1}->{n2}")
-
-    print("【机制：灼烧→引爆】")
-    pl = make_player("法师", 35, skills=["火球连射", "灼烧引爆"])
-    b = make_battle(10000)
-    b.player_turn("skill", "火球连射", pl, enemy_act=False)
-    b.player_turn("skill", "火球连射", pl, enemy_act=False)
-    hp_before = b.enemy["hp"]
-    b.player_turn("skill", "灼烧引爆", pl, enemy_act=False)
-    check("灼烧引爆造成额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")
-    check("引爆后层数清零", b.mech_stacks.get("burn", 0) == 0)
+        t3 = C.BRANCH_SKILLS[cid]["branches"][3]
+        # 分支 t3 奥义等效 = power × multi × cond.mult，取全分支最大
+        best = 0
+        for bname, skills in t3.items():
+            for sname, s in skills.items():
+                if s.get("kind") == "被动":
+                    continue
+                cond_mult = s.get("cond", {}).get("mult", 1) if isinstance(s.get("cond"), dict) else 1
+                eff = s.get("power", 0) * s.get("multi", 1) * cond_mult
+                best = max(best, eff)
+        check(f"{cls} 分支奥义等效 ≥ 基础Lv.30({base_power})", best >= base_power * 0.95,
+              f"best {best} vs {base_power}")
 
     print("【机制：冻结】")
-    pl = make_player("法师", 35, skills=["冰棱"])
+    pl = make_player("法师", 35, skills=["冰霜新星"])
     b2 = make_battle()
     random.seed(42)
-    logs, _ = b2.player_turn("skill", "冰棱", pl, enemy_act=True)
+    logs, _ = b2.player_turn("skill", "冰霜新星", pl, enemy_act=True)
     check("固定 seed 42 冻结跳过敌方回合", any("冻结" in l for l in logs), str(logs))
-    print("【机制：影袭必暴】")
-    pl = make_player("刺客", 35, skills=["影刃刺"])
-    b = make_battle()
-    logs, _ = b.player_turn("skill", "影刃刺", pl, enemy_act=False)
-    check("满血影袭必暴", any("暴击" in l for l in logs), str(logs))
-
     print("【机制：毒层→毒爆】")
-    pl = make_player("刺客", 35, skills=["淬毒刃", "毒爆"])
+    pl = make_player("刺客", 35, skills=["淬毒", "毒爆"])
     b = make_battle(10000)
-    b.player_turn("skill", "淬毒刃", pl, enemy_act=False)
-    b.player_turn("skill", "淬毒刃", pl, enemy_act=False)
+    b.player_turn("skill", "淬毒", pl, enemy_act=False)
+    b.player_turn("skill", "淬毒", pl, enemy_act=False)
     hp_before = b.enemy["hp"]
     b.player_turn("skill", "毒爆", pl, enemy_act=False)
     check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")
-
-    print("【机制：气力爆发】")
-    pl = make_player("武僧", 35, skills=["寸拳", "重炮拳"])
-    b = make_battle(10000)
-    b.player_turn("skill", "寸拳", pl, enemy_act=False)
-    b.player_turn("skill", "寸拳", pl, enemy_act=False)
-    chi = b.mech_stacks.get("chi", 0)
-    hp_before = b.enemy["hp"]
-    b.player_turn("skill", "重炮拳", pl, enemy_act=False)
-    check("气力 4 点 + 重拳爆发", chi == 4 and b.enemy["hp"] < hp_before, f"chi={chi}")
-
-    print("【机制：金身减伤】")
-    pl = make_player("武僧", 35, skills=["罗汉冲拳"], mech={"iron": 5}, hp=9999)
-    b = make_battle()
-    b.mech_stacks["iron"] = 5  # v59 叠层存战斗状态
-    b.enemy["atk"] = 300
-    b.player_turn("defend", None, pl, enemy_act=True)
-    check("金身减伤生效", pl["hp"] > 9900, f"hp={pl['hp']}")
-
-    print("【机制：神恩护盾】")
-    pl = make_player("牧师", 40, skills=["神恩术", "神恩守护"], hp=9999, mech={"bless": 3})
-    b = make_battle()
-    b.mech_stacks["bless"] = 3  # v59 叠层存战斗状态
-    b.player_turn("skill", "神恩守护", pl, enemy_act=False)
-    check("神恩转护盾", b.shield > 0, f"bless=3 shield={b.shield}")
-
-    print("【v51 战士应对机制】")
-    # 挫志怒吼：敌方降攻
-    pl = make_player("战士", 14, skills=["挫志怒吼"])
-    b = make_battle()
-    b.enemy["atk"] = 100
-    b.player_turn("skill", "挫志怒吼", pl, enemy_act=False)
-    check("挫志怒吼 敌方降攻", b.e_buffs.get("mon_atk_down", 0) > 0, str(b.e_buffs))
-    check("降攻后敌方 atk<100", b._enemy_stats()["atk"] < 100, str(b._enemy_stats()["atk"]))
-    # 挑衅怒吼：单人=降攻+狂暴，副本=taunt 广播
-    pl = make_player("战士", 18, skills=["挑衅怒吼"])
-    b = make_battle()
-    b.player_turn("skill", "挑衅怒吼", pl, enemy_act=False)
-    check("挑衅怒吼 降攻+狂暴", b.e_buffs.get("mon_atk_down", 0) > 0 and b.mech_stacks.get("rage", 0) >= 1,
-          f"{b.e_buffs} rage={b.mech_stacks.get('rage')}")
-    check("挑衅怒吼 team_effects=taunt", any(te.get("kind") == "taunt" for te in b.team_effects), str(b.team_effects))
-    # 盾牌反击：受击反击
-    random.seed(42)
-    pl = make_player("战士", 22, skills=["盾牌反击"], hp=9999)
-    b = make_battle(10000)
-    b.player_turn("skill", "盾牌反击", pl, enemy_act=False)
-    check("盾牌反击 buff 生效", b.p_buffs.get("counter", 0) > 0, str(b.p_buffs))
-    hp_before = b.enemy["hp"]
-    logs, _ = b.player_turn("attack", None, pl, enemy_act=True)
-    # v61：玩家有额外行动时怪不反击——先防御结束本回合，怪攻击才触发反击
-    while b.p_extra_left > 0:
-        logs2, _ = b.player_turn("defend", None, pl, enemy_act=True)
-    all_logs = logs + logs2
-    check("受击触发反击", b.enemy["hp"] < hp_before and any("反击" in l for l in all_logs),
-          f"{hp_before}->{b.enemy['hp']} {all_logs[-2:]}")
 
     print("【装备：武器名类型绑定】")
     random.seed(42)

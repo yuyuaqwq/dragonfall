@@ -17,5 +17,6 @@ MAX_ENHANCE = 9
 
 ENHANCE_FAIL_DROP = {5: 2}
 
-ENHANCE_SMITH_MAPS = ["vila_street", "stonefist_camp", "shadow_street"]
+# v83：改为余烬纪元真实铁匠铺地图（旧版是已删旧世界地图，新世界玩家找不到铁匠铺）
+ENHANCE_SMITH_MAPS = ["oak_town", "white_deer", "ironharbor", "ironshield_town", "anvil_fort"]
 

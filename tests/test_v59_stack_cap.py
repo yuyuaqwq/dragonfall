@@ -77,4 +77,4 @@ if __name__ == "__main__":
     test_stack_cap()
     test_battle_cap()
     test_poison_all_cap()
-    print(f"\n✅ v59 叠层上限：{passed} 项全部通过")
+    print(f"\n结果: {passed} 通过, 0 失败")

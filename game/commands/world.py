@@ -172,7 +172,7 @@ class WorldCmds(CommandBase):
             return
         deed = player.get("deed", "") or ""
         prop = C.PROPERTIES.get(deed)
-        target = prop["map"] if prop else "vila_square"
+        target = prop["map"] if prop else "oak_town"
         db.update_player(group_id, qq_id, cur_map=target)
         yield event.plain_result(f"🚪 你走出家门，回到了{C.MAP_BY_ID.get(target, {}).get('name', '城镇')}。")
 

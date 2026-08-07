@@ -28,7 +28,7 @@ async def main():
     roles = {C.CLASSES[k]["name"]: C.CLASSES[k].get("role") for k in C.CLASSES}
     check("战士=坦克", roles.get("战士") == "坦克", str(roles))
     check("牧师=治疗", roles.get("牧师") == "治疗", str(roles))
-    check("6 职业都有定位", len(roles) == 6 and all(roles.values()), str(roles))
+    check("全部职业都有定位", len(roles) == 7 and all(roles.values()), str(roles))
     label = m._class_role_label("cls_zhan_shi")
     check("定位标签", "坦克" in label, label)
 
@@ -45,15 +45,15 @@ async def main():
 
     print("【#4 移动撞怪】")
     await cmd(m, "register", "g1", "f2", "注册 战士 低级玩家")
-    db.update_player("g1", "f2", level=5, cur_map="vila_square")
+    db.update_player("g1", "f2", level=5, cur_map="oak_town")
     # 高级图：Lv.15 玩家去 Lv.30+ 图 → 必触发（diff>=5 概率 30%，多试几次）
-    high_map = next(x for x in C.MAPS if x["id"] == "abyss_plain")
+    high_map = next(x for x in C.MAPS if x["id"] == "gold_plain")
     random.seed(42)
     hit = any(m._travel_ambush(db.get_player("g1", "f2"), high_map) for _ in range(50))
     check("低级闯高级图会撞怪", hit)
     # 高级玩家去低级图 → 不撞（威慑）
     db.update_player("g1", "f2", level=60)
-    low_map = next(x for x in C.MAPS if x["id"] == "emerald_trail")
+    low_map = next(x for x in C.MAPS if x["id"] == "rockfall_gorge")
     random.seed(42)
     hit2 = any(m._travel_ambush(db.get_player("g1", "f2"), low_map) for _ in range(50))
     check("高级玩家威慑低级怪不撞", not hit2)
@@ -63,16 +63,16 @@ async def main():
 
     print("【#5 世界Boss指定地点】")
     await cmd(m, "register", "g1", "f3", "注册 战士 讨伐者")
-    db.update_player("g1", "f3", level=40, cur_map="vila_square")
+    db.update_player("g1", "f3", level=40, cur_map="oak_town")
     # 造一个 boss 事件：深渊魔王出现在深渊荒原
     db.save_world_event("boss", int(time.time()) + 3600, {
-        "boss": {"name": "深渊魔王·阿兹莫丹", "icon": "👹", "lv": 35, "hp": 300000,
+        "boss": {"name": "百族战魂·奥德里克残影", "icon": "👹", "lv": 35, "hp": 300000,
                  "max_hp": 300000, "reward": {"gold": 2000, "exp": 3000},
-                 "map": "abyss_plain", "map_name": "深渊荒原"}})
+                 "map": "old_king_tomb", "map_name": "旧王陵外"}})
     out = await cmd(m, "hunt_boss", "g1", "f3", "讨伐")
-    check("不在地点提示前往", "深渊荒原" in out and "前往" in out, out[:150])
+    check("不在地点提示前往", "旧王陵外" in out and "前往" in out, out[:150])
     # 移动到指定地点
-    db.update_player("g1", "f3", cur_map="abyss_plain")
+    db.update_player("g1", "f3", cur_map="old_king_tomb")
     out = await cmd(m, "hunt_boss", "g1", "f3", "讨伐")
     check("到达后可以讨伐", "讨伐开始" in out or "冲向" in out, out[:150])
     db.clear_world_event()
@@ -82,10 +82,10 @@ async def main():
     print("【#6 副本仇恨】")
     await cmd(m, "register", "g1", "f4", "注册 战士 坦克甲")
     await cmd(m, "register", "g1", "f5", "注册 法师 输出乙")
-    db.update_player("g1", "f4", level=20, gold=9999, cur_map="vila_square")
-    db.update_player("g1", "f5", level=20, gold=9999, cur_map="vila_square")
+    db.update_player("g1", "f4", level=40, gold=9999, cur_map="oak_town")
+    db.update_player("g1", "f5", level=40, gold=9999, cur_map="oak_town")
     await cmd(m, "party", "g1", "f4", "组队 输出乙")
-    await cmd(m, "instance_cmd", "g1", "f4", "副本 幽暗墓穴")
+    await cmd(m, "instance_cmd", "g1", "f4", "副本 旧王陵")
     st = db.get_battle("g1", "f4")["state"]
     check("开本有仇恨表", "threat" in st, str(st.keys()))
     check("仇恨初始 0", all(v == 0 for v in st["threat"].values()), str(st["threat"]))

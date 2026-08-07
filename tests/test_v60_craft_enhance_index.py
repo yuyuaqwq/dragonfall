@@ -32,7 +32,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
-    db.update_player("g1", "e1", cur_map="vila_street", level=5, gold=100000)
+    db.update_player("g1", "e1", cur_map="oak_town", level=5, gold=100000)
 
     print("【锻造列表指令（v60 修复）】")
     out = await cmd(m, "craft", "g1", "e1", "锻造列表")
@@ -79,7 +79,7 @@ async def main():
     out = await cmd(m, "enhance", "g1", "e1", "强化 铁剑")
     check("强化 名字仍可用", len(out) > 5, out[:200])
 
-    print(f"\n结果：{passed} 通过 / {failed} 失败")
+    print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed
 
 if __name__ == "__main__":

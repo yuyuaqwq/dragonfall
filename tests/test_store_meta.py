@@ -45,7 +45,7 @@ def main():
     db.bump_bestiary("g1", "q1", "野狗")
     be = db.get_bestiary("g1", "q1")
     check("图鉴 kills 累计（ID 存储+名字字段）",
-          any(b["monster"] == "m_stray_dog" and b["name"] == "野狗" and b["kills"] == 2 for b in be),
+          any(b["monster"] == "m_wild_dog" and b["name"] == "野狗" and b["kills"] == 2 for b in be),
           str(be)[:150])
 
     print("\n结果: %d 通过, %d 失败" % (passed, failed))

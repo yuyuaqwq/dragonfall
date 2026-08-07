@@ -1,6 +1,40 @@
 # -*- coding: utf-8 -*-
 """《剑与魔法》数据层 - classes.py（v48 key 转 ID）"""
 CLASSES = {
+    "cls_bard": {
+        "desc": "流浪于各地的吟游诗人，歌声能鼓舞士气、也能迷惑敌人。隐藏职业，需特殊传承解锁（22 章）。",
+        "icon": "🎻",
+        "role": "辅助",
+        "evolve": ["吟游诗人(30)", "游吟歌者(60)", "黎明颂者(90)"],
+        "evolve_branches": {
+            1: ["吟游诗人"],
+            2: ["游吟歌者"],
+            3: ["黎明颂者"],
+        },
+        "base": {
+            "hp": 100,
+            "mp": 100,
+            "atk": 12,
+            "def": 9,
+            "matk": 14,
+            "mdef": 12,
+            "spd": 12,
+            "crit": 0.06,
+            "dodge": 0.05
+        },
+        "growth": {
+            "hp": 9,
+            "mp": 8,
+            "atk": 1.2,
+            "def": 1.2,
+            "matk": 1.8,
+            "mdef": 1.4,
+            "spd": 0.9
+        },
+        "weapon_type": "sword",
+        "name": "吟游诗人",
+        "hidden": True,
+    },
     "cls_zhan_shi": {
         "desc": "身穿重甲、手持巨剑的钢铁壁垒，正面硬刚一切敌人。",
         "icon": "🛡️",

@@ -42,8 +42,8 @@ async def main():
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
     await cmd(m, "register", "g1", "w2", "注册 法师 米娅")
-    db.update_player("g1", "w1", level=5, gold=1000, cur_map="vila_square")
-    db.update_player("g1", "w2", level=5, gold=2000, cur_map="vila_square")
+    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
+    db.update_player("g1", "w2", level=5, gold=2000, cur_map="oak_town")
 
     print("【v66 摆摊：支摊】")
     add_sword("g1", "w1")
@@ -67,24 +67,24 @@ async def main():
     check("摆摊标记", "摆摊中" in out, out[:200])
 
     print("【v66 摆摊：购入】")
-    stalls = db.market_list("g1", "vila_square")
+    stalls = db.market_list("g1", "oak_town")
     check("摊位入库", len(stalls) == 1, str(len(stalls)))
     mid = stalls[0]["id"]
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
     check("当面购入成功", "购入成功" in out and "铁剑" in out, out[:200])
     check("买家背包有货", db.count_item("g1", "w2", "铁剑") == 1, "")
     check("卖家收款", db.get_player("g1", "w1")["gold"] == 1500, str(db.get_player("g1", "w1")["gold"]))
-    check("摊位已清", len(db.market_list("g1", "vila_square")) == 0, "")
+    check("摊位已清", len(db.market_list("g1", "oak_town")) == 0, "")
 
     print("【v66 摆摊：异地拦截】")
     add_sword("g1", "w1", "精铁长剑")
     await cmd(m, "stall", "g1", "w1", "摆摊 精铁长剑 800")
-    db.update_player("g1", "w2", cur_map="vila_gate")  # w2 离开
-    stalls = db.market_list("g1", "vila_square")
+    db.update_player("g1", "w2", cur_map="oak_meadow")  # w2 离开
+    stalls = db.market_list("g1", "oak_town")
     mid = stalls[0]["id"]
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
     check("异地买摊位货被拦", "当面购入" in out, out[:200])
-    db.update_player("g1", "w2", cur_map="vila_square")
+    db.update_player("g1", "w2", cur_map="oak_town")
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
     check("回到原地可买", "购入成功" in out, out[:200])
 
@@ -104,15 +104,15 @@ async def main():
     out = await cmd(m, "stall", "g1", "w1", "摆摊 铁皮盾 600")
     check("旧摊自动收", "旧摊位已收摊" in out, out[:200])
     check("旧物退回", db.count_item("g1", "w1", "狼牙棒") == 1, "")
-    stalls = db.market_list("g1", "vila_square")
+    stalls = db.market_list("g1", "oak_town")
     check("新摊只有一件", len(stalls) == 1 and stalls[0]["item_data"].get("name") == "铁皮盾", str(stalls))
 
     print("【v66 摆摊：摊位惰性跟随】")
     await cmd(m, "stall", "g1", "w1", "摆摊 铁皮盾 600")  # 重新摆
-    db.update_player("g1", "w1", cur_map="vila_street")  # 卖家移动
+    db.update_player("g1", "w1", cur_map="oak_town")  # 卖家移动
     out = await cmd(m, "stall_view", "g1", "w1", "摊位 旅人")
-    check("摊位跟随到新位置", "维拉镇中央大街" in out or "vila_street" in out or "铁皮盾" in out, out[:200])
-    stalls = db.market_list("g1", "vila_street")
+    check("摊位跟随到新位置", "橡木镇" in out or "vila_street" in out or "铁皮盾" in out, out[:200])
+    stalls = db.market_list("g1", "oak_town")
     check("新地图可见摊位", len(stalls) == 1, str([s["map_id"] for s in stalls]))
     # 群市场兼容：上架/购入不受影响（用背包里有的狼牙棒）
     out = await cmd(m, "market_sell", "g1", "w1", "上架 狼牙棒 500")
@@ -126,17 +126,18 @@ async def main():
     add_sword("g1", "w1", "精铁胸甲")
     out = await cmd(m, "stall", "g1", "w1", "摆摊 精铁胸甲")
     check("无价格=换摊", "换摊" in out and "只换不卖" in out, out[:200])
-    stalls = db.market_list("g1", "vila_street")
+    stalls = db.market_list("g1", "oak_town")
     check("换摊 price=0", len(stalls) == 1 and stalls[0]["price"] == 0, str([s["price"] for s in stalls]))
     mid = stalls[0]["id"]
     out = await cmd(m, "stall_view", "g1", "w1", "摊位")
     check("摊位显示🔄换", "🔄 换" in out and "精铁胸甲" in out, out[:200])
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
     check("购入换摊被拦", "换摊" in out and "只换不卖" in out, out[:200])
-    # w2 在 vila_square，摊位在 vila_street → 异地拦截
+    # w2 在橡木草地，摊位在橡木镇 → 异地拦截
+    db.update_player("g1", "w2", cur_map="oak_meadow")
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {mid} 铁剑")
     check("异地交换被拦", "当面交换" in out, out[:200])
-    db.update_player("g1", "w2", cur_map="vila_street")
+    db.update_player("g1", "w2", cur_map="oak_town")
     out = await cmd(m, "stall_exchange", "g1", "w1", f"换 {mid} 铁剑")
     check("自己交换被拦", "不能和自己交换" in out, out[:200])
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {mid} 狼皮")
@@ -144,20 +145,20 @@ async def main():
     # 卖摊用换 → 提示用购入
     add_sword("g1", "w1", "青铜斧")
     await cmd(m, "stall", "g1", "w1", "摆摊 青铜斧 300")  # 收掉换摊（精铁胸甲退回）
-    stalls2 = db.market_list("g1", "vila_street")
+    stalls2 = db.market_list("g1", "oak_town")
     mid2 = stalls2[0]["id"]
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {mid2} 铁剑")
     check("卖摊交换被拦", "出售中" in out, out[:200])
     # 成功交换：w1 收掉卖摊（青铜斧回背包），再摆换摊，w2 用铁剑换
     await cmd(m, "stall_close", "g1", "w1", "收摊")
     await cmd(m, "stall", "g1", "w1", "摆摊 青铜斧")
-    stalls3 = db.market_list("g1", "vila_street")
+    stalls3 = db.market_list("g1", "oak_town")
     mid3 = stalls3[0]["id"]
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {mid3} 铁剑")
     check("交换成功", "交换成功" in out and "青铜斧" in out and "铁剑" in out, out[:200])
     check("买家拿到货", db.count_item("g1", "w2", "青铜斧") == 1, "")
     check("摊主收到货", db.count_item("g1", "w1", "铁剑") == 1, "")
-    check("换摊已清", len(db.market_list("g1", "vila_street")) == 0, "")
+    check("换摊已清", len(db.market_list("g1", "oak_town")) == 0, "")
     # 群市场寄售不参与交换
     gmarket = [s for s in db.market_list("g1") if s["item_data"].get("name") == "狼牙棒"]
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {gmarket[0]['id']} 铁剑")

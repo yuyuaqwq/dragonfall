@@ -19,7 +19,7 @@ from .drops import (  # noqa: F401
     build_monster,
 )
 from .factions import faction_reputation_tier  # noqa: F401
-from .fishing import roll_fish  # noqa: F401
+from .fishing import roll_fish, roll_collect_fish  # noqa: F401
 from .time_weather import (  # noqa: F401
     current_period, current_season, today_weather, time_weather_summary,
     PERIOD_CN, SEASON_CN, WEATHER_CN,
@@ -43,7 +43,7 @@ from .class_sets import _build_class_sets  # noqa: F401
 from .enchant import enchant_value, enchant_match_material  # noqa: F401
 from .runes import rune_value, rune_conflict, rune_item  # noqa: F401
 from .portals import portal_cost  # noqa: F401
-from .events import roll_explore_event  # noqa: F401
+from .events import roll_explore_event, roll_explore_egg  # noqa: F401
 from .pets import make_pet_egg, pet_exp_need  # noqa: F401
 from .mounts import make_mount_rein, roll_mount_drop  # noqa: F401
 

@@ -1736,9 +1736,24 @@ MATERIALS = {
         "price": 60,
         "name": "龙肉"
     },
-    "mat_huo_yuan_su_he_xin": {
-        "price": 35,
-        "name": "火元素核心"
+    # ---- v83 彩蛋收藏鱼（16 章 4.x，纯收藏：不入配方、回收 1 金币）----
+    "mat_rainbow_kite": {
+        "price": 1,
+        "name": "虹彩龙鲤",
+        "quality": "orange",
+        "type": "收藏"
+    },
+    "mat_moon_jelly": {
+        "price": 1,
+        "name": "月华水母",
+        "quality": "blue",
+        "type": "收藏"
+    },
+    "mat_star_remnant": {
+        "price": 1,
+        "name": "星骸遗鳞",
+        "quality": "purple",
+        "type": "收藏"
     },
 }
 

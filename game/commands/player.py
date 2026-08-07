@@ -138,6 +138,14 @@ class PlayerCmds(CommandBase):
             avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
             yield event.plain_result(f"未知职业『{class_name}』！可选职业：{avail}")
             return
+        # v83 22 章：隐藏职业不可直接注册（需传承解锁）
+        if C.CLASSES.get(cls_id, {}).get("hidden"):
+            avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
+            yield event.plain_result(
+                f"『{class_name}』是传说中才会出现的隐藏职业，普通人无法选择……\n"
+                f"💡 世界深处藏着它的线索（隐藏成就/隐藏区域）。可选职业：{avail}"
+            )
+            return
         # 阶段九：种族解析（08 章，可选，缺省人类；支持简称如"精灵"→"银月精灵"）
         race_id = "human"
         race_display = ""
@@ -160,7 +168,7 @@ class PlayerCmds(CommandBase):
         cls_display = cls.get("name", cls_id)
         db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id)
         db.init_stats(group_id, qq_id)
-        db.add_portal(qq_id, "vila_square")  # v10：新手自动激活维拉方碑
+        db.add_portal(qq_id, "oak_town")  # v10：新手自动激活橡木镇方碑（v83：原维拉方碑旧地图）
         # v12：自动学会初始技能（职业 Lv.1 技能），后续技能用技能点学习
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {}) if isinstance(C.PLAYER_SKILLS.get(cls_id), dict) and "skills" in C.PLAYER_SKILLS.get(cls_id) else C.PLAYER_SKILLS.get(cls_id, {})
         init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
@@ -325,6 +333,12 @@ class PlayerCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        # v83 22 章：隐藏职业·吟游诗人（『转职 吟游诗人』）
+        _raw0 = self._strip_cmd(event, "转职").strip()
+        if "吟游诗人" in _raw0 or _raw0 == "诗人":
+            async for r in self._evolve_bard(event, group_id, qq_id, player):
+                yield r
+            return
         cls = C.CLASSES[player["class_name"]]
         tier = player.get("class_tier", 0)
         # 转职等级门槛：tier 1→30级 / tier 2→60级 / tier 3→90级（21 章三转体系）
@@ -414,6 +428,44 @@ class PlayerCmds(CommandBase):
         if tier - 1 < len(evolve):
             return evolve[tier - 1].split("(")[0]
         return C.display("classes", class_name) if isinstance(class_name, str) else class_name
+
+    async def _evolve_bard(self, event, group_id, qq_id, player):
+        """v83 22 章：隐藏职业·吟游诗人传承转职（30 级 + 已解锁 + 非诗人）"""
+        unlocks = player.get("hidden_class_unlock", [])
+        if "cls_bard" not in unlocks:
+            yield event.plain_result(
+                "🎻 吟游诗人的传承还未向你敞开……\n"
+                "💡 线索：听完 3 位诗人的全部歌谣（成就「史诗聆听者」），再到精灵歌剧院寻找传承。"
+            )
+            return
+        if player["level"] < 30:
+            yield event.plain_result(
+                f"🎻 传承需要 30 级历练，当前 Lv.{player['level']}，先游历四方吧。")
+            return
+        if player["class_name"] == "cls_bard":
+            yield event.plain_result("🎻 你已是吟游诗人了。")
+            return
+        cls = C.CLASSES["cls_bard"]
+        sk_table = C.PLAYER_SKILLS.get("cls_bard", {}).get("skills", {})
+        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
+        st = E.player_final_stats(
+            "cls_bard", player["level"], player.get("equipment", {}), 0,
+            player.get("attributes"), 0,
+            self._title_bonus(group_id, qq_id), player.get("race"))
+        db.update_player(group_id, qq_id,
+                         class_name="cls_bard", class_tier=0, evolve_path=0,
+                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         learned_skills=init_skills)
+        player = self._player(group_id, qq_id)
+        C.check_achievements(group_id, qq_id, player)
+        yield event.plain_result(
+            f"🎻 传承完成！你成为了【{cls['icon']}吟游诗人】！\n"
+            f"━━━━━━━━━━━━\n"
+            f"琴弦轻拨，古老的歌谣在血脉中苏醒……\n"
+            f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
+            f"💡 你的歌声将成为队伍的力量（辅助定位，副本中尤为闪耀）！"
+        )
+        return
 
     async def _do_evolve(self, event, group_id, qq_id, player, cls, tier, next_tier, path):
         """执行转职（path: 0=默认, 1=左进攻, 2=右防御）"""

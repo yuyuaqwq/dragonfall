@@ -38,12 +38,12 @@ async def main():
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
     await cmd(m, "register", "g1", "w2", "注册 法师 米娅")
-    db.update_player("g1", "w1", level=5, gold=5000, cur_map="vila_square")
-    db.update_player("g1", "w2", level=5, gold=100, cur_map="vila_square")
+    db.update_player("g1", "w1", level=5, gold=5000, cur_map="oak_town")
+    db.update_player("g1", "w2", level=5, gold=100, cur_map="oak_town")
 
     print("【v68 地契：大厅】")
     out = await cmd(m, "deed_view", "g1", "w1", "地契")
-    check("在售地皮列表", "维拉镇·喷泉小屋" in out and "2000 金币" in out, out[:200])
+    check("在售地皮列表", "橡木镇·喷泉小屋" in out and "2000 金币" in out, out[:200])
     check("提示买房", "买房 <编号>" in out, out[:200])
 
     print("【v68 地契：买房】")
@@ -72,8 +72,8 @@ async def main():
     out = await cmd(m, "find_npc", "g1", "w1", "找")
     check("在家找不到NPC", "家里没有 NPC" in out, out[:120])
     out = await cmd(m, "go_out", "g1", "w1", "出门")
-    check("出门回城镇", "回到" in out and "维拉镇" in out, out[:120])
-    check("回城镇地图", db.get_player("g1", "w1")["cur_map"] == "vila_square", str(db.get_player("g1", "w1")["cur_map"]))
+    check("出门回城镇", "回到" in out and "橡木镇" in out, out[:120])
+    check("回城镇地图", db.get_player("g1", "w1")["cur_map"] == "oak_town", str(db.get_player("g1", "w1")["cur_map"]))
     out = await cmd(m, "go_out", "g1", "w1", "出门")
     check("不在家出门提示", "不在家里" in out, out[:120])
 

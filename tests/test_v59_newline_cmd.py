@@ -58,4 +58,4 @@ if __name__ == "__main__":
     test_no_dotstar()
     test_newline_trigger()
     test_no_conflict()
-    print(f"\n✅ v59 换行指令修复：{passed} 项全部通过")
+    print(f"\n结果: {passed} 通过, 0 失败")

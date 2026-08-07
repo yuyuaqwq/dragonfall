@@ -572,6 +572,7 @@ class Battle:
         if "crit_dmg" in self._equip_affix_ids(player) and is_crit:
             dmg = int(dmg * 1.20)
         dmg = self._apply_mark(dmg)
+        dmg = self._boss_dmg_filter(dmg, player, logs)
         self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
         tag = " 💥暴击" if is_crit else ""
         if affix_tags:
@@ -1127,6 +1128,7 @@ class Battle:
                 dmg_i = int(dmg_i * 1.20)
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
+        total = self._boss_dmg_filter(total, player, logs)
         self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - total)
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
@@ -1535,29 +1537,78 @@ class Battle:
                     logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")
 
     # ---------------- 敌方回合 ----------------
+    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list) -> int:
+        """v83 04 章 2.5：Boss 护盾/反伤过滤（挂在玩家伤害结算主路径）。
+        shield：护盾存在期间受伤 -50%，先扣盾再扣血（破盾提示）。
+        reflect：血量 <25% 反弹 15% 伤害给玩家。"""
+        mech = self.enemy.get("mech")
+        if not mech or self.btype == "pvp":
+            return dmg
+        mechs = [x.strip() for x in mech.split(",") if x.strip()]
+        e = self.enemy
+        if "shield" in mechs:
+            sh = e.get("boss_shield", 0)
+            if sh > 0:
+                real = int(dmg * 0.5)
+                absorbed = min(sh, real)
+                e["boss_shield"] = sh - absorbed
+                if e["boss_shield"] <= 0:
+                    e.pop("boss_shield", None)
+                    logs.append("💥 护盾破碎！")
+                dmg = real
+        if "reflect" in mechs:
+            ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
+            if ratio < 0.25:
+                rb = int(dmg * 0.15)
+                if rb > 0:
+                    player["hp"] = max(1, player.get("hp", 1) - rb)
+                    logs.append(f"🩸【{e['name']}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
+        return dmg
+
     def _boss_mech(self, logs: list):
-        """v58 Boss 专属机制：enrage 低血狂暴 / summon 定期召唤 / heal 定期自愈
-        状态存 enemy dict（随战斗序列化持久化）"""
+        """v58/v83 Boss 专属机制（04 章 2.5）：enrage/summon/heal/shield/phase/stacks/reflect
+        支持逗号分隔多机制（如 "enrage,summon"）。状态存 enemy dict（随战斗序列化持久化）"""
         mech = self.enemy.get("mech")
         if not mech or self.btype == "pvp":
             return
+        mechs = [x.strip() for x in mech.split(",") if x.strip()]
         r = self.round
-        if mech == "enrage":
-            ratio = self.enemy.get("hp", 1) / max(1, self.enemy.get("max_hp", 1))
-            if ratio < 0.30 and not self.enemy.get("enraged"):
-                self.enemy["enraged"] = True
-                logs.append(f"😡【{self.enemy['name']}】陷入狂暴！攻击大幅提升！")
-        elif mech == "summon":
-            if r > 1 and r % 3 == 0 and self.enemy.get("summoned_round") != r:
-                self.enemy["summoned_round"] = r
-                self.e_buffs["mon_atk_up"] = max(self.e_buffs.get("mon_atk_up", 0), 2)
-                logs.append(f"👥【{self.enemy['name']}】召唤了援军！攻击提升！")
-        elif mech == "heal":
-            if r > 1 and r % 4 == 0 and self.enemy.get("healed_round") != r:
-                self.enemy["healed_round"] = r
-                heal = int(self.enemy.get("max_hp", 1) * 0.08)
-                self.enemy["hp"] = min(self.enemy.get("max_hp", 1), self.enemy.get("hp", 0) + heal)
-                logs.append(f"💚【{self.enemy['name']}】汲取力量，恢复了 {heal} 点生命！")
+        e = self.enemy
+        for m in mechs:
+            if m == "enrage":
+                ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
+                if ratio < 0.30 and not e.get("enraged"):
+                    e["enraged"] = True
+                    logs.append(f"😡【{e['name']}】陷入狂暴！攻击大幅提升！")
+            elif m == "summon":
+                if r > 1 and r % 3 == 0 and e.get("summoned_round") != r:
+                    e["summoned_round"] = r
+                    self.e_buffs["mon_atk_up"] = max(self.e_buffs.get("mon_atk_up", 0), 2)
+                    logs.append(f"👥【{e['name']}】召唤了援军！攻击提升！")
+            elif m == "heal":
+                if r > 1 and r % 4 == 0 and e.get("healed_round") != r:
+                    e["healed_round"] = r
+                    heal = int(e.get("max_hp", 1) * 0.08)
+                    e["hp"] = min(e.get("max_hp", 1), e.get("hp", 0) + heal)
+                    logs.append(f"💚【{e['name']}】汲取力量，恢复了 {heal} 点生命！")
+            elif m == "shield":
+                if r == 1 and not e.get("boss_shield"):
+                    e["boss_shield"] = int(e.get("max_hp", 1) * 0.20)
+                    logs.append(f"🛡️【{e['name']}】周身浮现一层护盾（受伤减半）！")
+            elif m == "phase":
+                pc = e.get("phase_count", 0)
+                target = 0.5 ** (pc + 1)
+                ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
+                if ratio < target and pc < 3:
+                    e["phase_count"] = pc + 1
+                    logs.append(f"🔥【{e['name']}】进入第 {pc + 2} 阶段！力量再度攀升！")
+            elif m == "stacks":
+                if r > 0 and r % 2 == 0:
+                    cur = e.get("mech_stacks_n", 0)
+                    if cur < 5:
+                        e["mech_stacks_n"] = cur + 1
+                        logs.append(f"⚔️【{e['name']}】气势攀升，攻击叠层 +1（{cur + 1}/5）")
+            # reflect 是被动：在 _boss_dmg_filter 中处理
 
     def _enemy_turn(self, player: dict) -> tuple:
         """敌方行动。返回 (日志列表, 对玩家伤害)"""
@@ -1708,6 +1759,14 @@ class Battle:
         if e.get("enraged"):
             est["atk"] = int(est["atk"] * 1.35)
             est["matk"] = int(est["matk"] * 1.35)
+        # v83 04 章 2.5：多阶段（每阶段 +20%）/ 叠层强化（每层 +8%）
+        if e.get("phase_count"):
+            pm = 1 + 0.20 * e["phase_count"]
+            est["atk"] = int(est["atk"] * pm)
+            est["matk"] = int(est["matk"] * pm)
+        if e.get("mech_stacks_n"):
+            sm = 1 + 0.08 * e["mech_stacks_n"]
+            est["atk"] = int(est["atk"] * sm)
         if "def_down" in self.e_buffs:
             # 阶段八：词条破甲 15%（_armor_break_pct），旧技能破甲减半兜底
             pct = float(self.e_buffs.get("_armor_break_pct", DEF_DOWN_MULT) or DEF_DOWN_MULT)

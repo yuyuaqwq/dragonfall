@@ -39,7 +39,7 @@ from .factions import (  # noqa: F401
 )
 from .fishing import (  # noqa: F401
     FISHING_SPOTS, FISH_POOL, FISH_QUALITY_WEIGHTS,
-    FISH_QUALITY_ORDER, FISH_QUALITY_CN, FISH_EXP,
+    FISH_QUALITY_ORDER, FISH_QUALITY_CN, FISH_EXP, FISH_COLLECT,
 )
 from .enhance import (  # noqa: F401
     ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS,
@@ -55,7 +55,7 @@ from .runes import (  # noqa: F401
 )
 from .portals import PORTALS  # noqa: F401
 from .gather import CAMP_SPOTS, MINE_SPOTS  # noqa: F401
-from .events import EXPLORE_EVENTS, EVENT_WEIGHT_SUM  # noqa: F401
+from .events import EXPLORE_EVENTS, EVENT_WEIGHT_SUM, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM  # noqa: F401
 from .titles import TITLES  # noqa: F401
 from .world import WORLD_EVENT_POOL, AUCTION_POOL, WORLD_BOSS_POOL  # noqa: F401
 from .pets import PET_POOL  # noqa: F401

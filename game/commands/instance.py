@@ -585,5 +585,5 @@ class InstanceCmds(CommandBase):
             db.clear_battle(group_id, m)
             p = self._player(group_id, m)
             if p:
-                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0), cur_map="vila_square")
+                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0), cur_map="oak_town")
         yield event.plain_result("\n".join(lines))

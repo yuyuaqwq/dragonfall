@@ -53,7 +53,8 @@ class EconomyCmds(CommandBase):
     }
 
     def _prof_wait_key(self, group_id, qq_id):
-        return f"prof_wait_{group_id}_{qq_id}"
+        # v83: 去掉 group_id —— 等待型副业按玩家全局互斥，防止跨群双开多刷
+        return f"prof_wait_{qq_id}"
 
     def _prof_wait_state(self, group_id, qq_id):
         """读取进行中的等待型副业状态（无/损坏返回 None）"""
@@ -125,6 +126,8 @@ class EconomyCmds(CommandBase):
             return None
         prof_lv = db.get_prof_level(group_id, qq_id, "fishing")
         spot = st.get("spot", "水边")
+        # v83 16 章 4.x：彩蛋收藏鱼（独立判定，纯收藏惊喜）
+        _cf = C.roll_collect_fish(st.get("spot_map"), C.current_period() == "night")
         # 9.3：钓点差异化（禁出档位 + 品种限定水域），roll_fish 按 16 章五档权重表
         fish = C.roll_fish(prof_lv, st.get("spot_map"))
         db.bump_fishing(group_id, qq_id)
@@ -152,10 +155,11 @@ class EconomyCmds(CommandBase):
             # 阶段九：垂钓次数 + 鱼王成就
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player, {"fish_king": True})
+            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
             return (f"🐉 天啊！你在{spot}钓上了【{q_name}】！！\n"
                     f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
                     f"💰 获得 {gold} 金币的赏金！{lv_msg}\n"
-                    f"📜 你的图鉴记下了这传说的一笔……")
+                    f"📜 你的图鉴记下了这传说的一笔……{_cf_line}")
         # 宝物宝箱：立即开
         if fish["type"] == "宝物":
             import uuid
@@ -170,14 +174,16 @@ class EconomyCmds(CommandBase):
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
                 extra = f"\n📜 宝箱里还有：{bp['name']}！"
+            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
             return (f"{catch_pre}🎣 你在{spot}钓上来了一个【{q_name}】！\n"
-                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}")
+                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}{_cf_line}")
         if fish["type"] == "垃圾":
             new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
             lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
-            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}"
+            _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
+            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}{_cf_line}"
         # 鱼/材料入背包（9.3：mat_ ID 入包 + quality 字段，16 章 2.7 禁动态中文 key）
         mat_key = C.resolve("materials", fname)
         db.add_item(group_id, qq_id, mat_key,
@@ -190,8 +196,20 @@ class EconomyCmds(CommandBase):
         # 阶段九：垂钓次数 + 成就判定
         db.bump_stats(group_id, qq_id, fish_count=1)
         C.check_achievements(group_id, qq_id, player)
+        _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}")
+                f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}{_cf_line}")
+
+    def _collect_bonus_line(self, group_id, qq_id, player, cf):
+        """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行（未命中返回空串）"""
+        if not cf:
+            return ""
+        db.add_item(group_id, qq_id, cf["id"],
+                    {"name": cf["name"], "type": "收藏", "stackable": True, "price": 1})
+        db.bump_stats(group_id, qq_id, catch_collect=1)
+        C.check_achievements(group_id, qq_id, player, {"collect_fish": cf["id"]})
+        return (f"\n🌈 水面忽然泛起奇异的光——【{cf['name']}】跃出水面！\n"
+                f"　它美得不像凡物，你小心翼翼地收进了图鉴（彩蛋收藏品，回收仅 1 金币）")
 
     def _settle_gather(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -681,7 +699,7 @@ class EconomyCmds(CommandBase):
         cur = player["cur_map"]
         spot_info = C.FISHING_SPOTS.get(cur)
         if not spot_info:
-            yield event.plain_result("这里没有水域！找有水的地方垂钓：城门护城河、林间溪流、翡翠湖畔、沼泽水潭、冰封湖面、死城运河")
+            yield event.plain_result("这里没有水域！找有水的地方垂钓：橡木溪流、星语湖、铁港码头、银铃河、迷雾沼泽、霜原冰湖")
             return
         spot = spot_info["name"] if isinstance(spot_info, dict) else spot_info
         # 垂钓点分级：副业等级不足不能去高级水域
@@ -717,7 +735,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(act_msg)
             return
         if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能锻造装备！（维拉镇中央大街、石拳营地、暗影大街）")
+            yield event.plain_result("需要到铁匠铺才能锻造装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
             return
         text = raw.strip()
         # 『锻造列表 [N]』：列表指令（翻页），与『锻造 N』锻造序号分离
@@ -884,7 +902,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能找铁匠代工！（维拉镇中央大街、石拳营地、暗影大街）")
+            yield event.plain_result("需要到铁匠铺才能找铁匠代工！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
             return
         text = self._strip_cmd(event, "代工").strip()
         if not text:
@@ -1154,7 +1172,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能强化装备！（维拉镇中央大街、石拳营地、暗影大街）")
+            yield event.plain_result("需要到铁匠铺才能强化装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
             return
         item_name = item_name.strip()
         if not item_name:
@@ -1238,7 +1256,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if player["cur_map"] not in C.ENHANCE_SMITH_MAPS:
-            yield event.plain_result("需要到铁匠铺才能附魔装备！（维拉镇中央大街、石拳营地、暗影大街）")
+            yield event.plain_result("需要到铁匠铺才能附魔装备！（橡木镇、白鹿城、铁港城、铁盾镇、铁砧要塞）")
             return
         parts = raw.strip().split()
         if not parts:
@@ -2273,8 +2291,8 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}")
         elif d.get("effect") == "return_vila":
             db.remove_item(group_id, qq_id, target["key"])
-            db.update_player(group_id, qq_id, cur_map="vila_square")
-            yield event.plain_result("🧭 卷轴展开，光芒闪过——你回到了维拉镇中心广场！")
+            db.update_player(group_id, qq_id, cur_map="oak_town")
+            yield event.plain_result("🧭 卷轴展开，光芒闪过——你回到了橡木镇中心广场！")
         elif d.get("effect") == "lucky":
             # v54 幸运护符：10 分钟打怪金币 ×1.5、材料 +1
             db.remove_item(group_id, qq_id, target["key"])
@@ -2512,7 +2530,7 @@ class EconomyCmds(CommandBase):
         # v39 坐骑：维拉镇马厩买老马
         if "老马" in item_name or "马" == item_name.strip():
             if area_id not in ("vila",) and cur not in ("vila_street", "vila_gate", "vila_square"):
-                yield event.plain_result("维拉镇的商人才能买到老马！去维拉镇『商店』看看～")
+                yield event.plain_result("橡木镇的商人才能买到老马！去橡木镇『商店』看看～")
                 return
             mdef = C.MOUNT_BY_KEY["mount_horse"]
             mounts = player.get("mounts") or {}

@@ -133,6 +133,17 @@ def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) ->
             return False  # 世界事件全触发记录受限
         if t == "fish_king":
             return bool(extra.get("fish_king"))
+        if t == "collect_fish":
+            return extra.get("collect_fish") == cond.get("key")
+        if t == "wish_met":
+            return bool(extra.get("wish_met"))
+        if t == "hidden_class":
+            return cond.get("key") in (player or {}).get("hidden_class_unlock", [])
+        if t == "hidden_class_lv":
+            return (player or {}).get("class_name") == cond.get("key") and (player or {}).get("level", 0) >= cond.get("value", 0)
+
+
+
         if t == "main_done":
             q = db.get_quests(player["qq_id"])
             return bool(q and q.get("completed_main"))

@@ -39,7 +39,7 @@ async def main():
     out = await cmd(m, "profile", "g1", "q1", "角色")
     check("角色显示", "格温" in out and "战士" in out, out[:80])
     out = await cmd(m, "map_view", "g1", "q1", "地图")
-    check("地图显示", "维拉" in out or "地图" in out, out[:80])
+    check("地图显示", "橡木" in out or "地图" in out, out[:80])
     out = await cmd(m, "explore", "g1", "q1", "探索")
     check("探索有返回", len(out) > 10, out[:80])
     out = await cmd(m, "attack", "g1", "q1", "攻击")

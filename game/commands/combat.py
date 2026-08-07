@@ -178,9 +178,101 @@ class CombatCmds(CommandBase):
             return C.MOUNT_BY_KEY[active_mk].get("elite_bonus", 0)
         return 0.0
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?许愿(?:[\s\S]*)$")
+
+    async def wish(self, event: AstrMessageEvent):
+        """流星许愿（02 章 7.5 探索彩蛋）：三选一祝福"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        import json as _json, time as _time
+        raw = db.get_event_state(f"wish_{group_id}_{qq_id}")
+        if not raw:
+            yield event.plain_result("没有流星在等你许愿……（野外『探索』偶遇流星许愿彩蛋时才能许愿）")
+            return
+        try:
+            st = _json.loads(raw)
+        except Exception:
+            st = {"ts": 0}
+        if _time.time() - st.get("ts", 0) > 120:
+            db.set_event_state(f"wish_{group_id}_{qq_id}", "")
+            yield event.plain_result("流星已经划过天际，你的愿望随风消散了……（下次探索再碰碰运气）")
+            return
+        opt = self._strip_cmd(event, "许愿").strip()
+        if opt not in ("经验", "金币", "材料"):
+            yield event.plain_result("『许愿 经验』『许愿 金币』『许愿 材料』——快选一个吧！")
+            return
+        db.set_event_state(f"wish_{group_id}_{qq_id}", "")
+        if opt == "经验":
+            need = C.exp_to_next(player["level"]) - player["exp"]
+            gain = max(20, int(need * 0.2))
+            db.update_player(group_id, qq_id, exp=player["exp"] + gain)
+            player = self._player(group_id, qq_id)
+            lv_logs, _ = E.check_player_level_up(group_id, qq_id, player)
+            tail = ("\n" + "\n".join(lv_logs)) if lv_logs else ""
+            msg = f"✨ 流星回应了你的愿望！经验 +{gain}{tail}"
+        elif opt == "金币":
+            gain = 80 + player["level"] * 8
+            db.update_player(group_id, qq_id, gold=player["gold"] + gain)
+            msg = f"💰 流星回应了你的愿望！金币 +{gain}"
+        else:
+            pool = ["狼皮", "蛇鳞", "野猪皮", "妖精之尘", "蜘蛛毒囊", "铁矿石"]
+            mat = random.choice(pool)
+            mid = C.resolve("materials", mat)
+            if mid in C.MATERIALS:
+                db.add_item(group_id, qq_id, mid,
+                            {"name": C.display("materials", mid), "type": "材料",
+                             "stackable": True, "price": C.MATERIALS[mid]["price"]})
+            msg = f"🎒 流星回应了你的愿望！获得材料：{C.display('materials', mid)}"
+        C.check_achievements(group_id, qq_id, player, {"wish_met": True})
+        yield event.plain_result(f"🌠 【许愿成真】{msg}")
+
     def _handle_explore_event(self, group_id, qq_id, player, cur_map):
         """处理探索随机事件；返回 (handled, 文本)"""
-        import uuid
+        import uuid, json as _json, time as _time
+        name = cur_map.get("name", "此地")
+        # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重）
+        egg = C.roll_explore_egg()
+        if egg:
+            eid = egg["id"]
+            if eid == "shooting_star":
+                db.set_event_state(f"wish_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
+                return True, (
+                    f"🌠 【流星许愿】一道流星拖着长尾划过{name}的夜空！\n"
+                    f"你赶紧闭上眼睛许愿——流星似乎回应了你！\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"💡 快决定吧：『许愿 经验』『许愿 金币』『许愿 材料』"
+                )
+            if eid == "mystery_chest":
+                gold = random.randint(50, 120) + player["level"] * 5
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                # 当前地图怪物掉落池随机一个材料（稀有惊喜）
+                mat_line = ""
+                pool = [m[5] for m in cur_map.get("monsters", [])]
+                mats = [x for sub in pool for x in sub if x and "图纸" not in x]
+                if mats:
+                    mid = C.resolve("materials", random.choice(mats))
+                    if mid in C.MATERIALS:
+                        db.add_item(group_id, qq_id, mid,
+                                    {"name": C.display("materials", mid), "type": "材料",
+                                     "stackable": True, "price": C.MATERIALS[mid]["price"]})
+                        mat_line = f"\n🎒 还得到一份材料：{C.display('materials', mid)}！"
+                bp = C.roll_blueprint(max(1, player["level"]))
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+                return True, (
+                    f"📦 【神秘宝匣】你在{name}的角落发现一只埋藏千年的宝匣！\n"
+                    f"💰 打开：{gold} 金币！{mat_line}\n"
+                    f"📜 里面还有一张泛黄的图纸：{bp['name']}！"
+                )
+            if eid == "night_visitor":
+                db.set_talk_flag(group_id, qq_id, "h_abyss_whisper", "saw_the_rift")
+                return True, (
+                    f"🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n"
+                    f"“深渊的裂隙……正在低语……去找它。”\n"
+                    f"身影说完便消散在雾中，你隐约感到，某个秘密被揭开了（隐藏线索已记入见闻）。"
+                )
         ev = C.roll_explore_event()
         eid = ev["id"]
         name = cur_map.get("name", "此地")
@@ -1007,7 +1099,7 @@ class CombatCmds(CommandBase):
         lost = int(player["gold"] * 0.1)
         new_gold = max(0, player["gold"] - lost)
         # 回城并满血（新手保护）
-        db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"], cur_map="vila_square")
+        db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"], cur_map="oak_town")
         yield event.plain_result(
             f"{result}\n"
             f"💀 你倒下了……被【{monster['name']}】击败。\n"
@@ -1437,7 +1529,7 @@ class CombatCmds(CommandBase):
         winner = db.get_player(group_id, winner_qq)
         lost = int(loser["gold"] * 0.1)
         db.update_player(group_id, winner_qq, gold=winner["gold"] + lost)
-        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map="vila_square")
+        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map="oak_town")
         db.init_stats(group_id, loser_qq)
         db.bump_stats(group_id, loser_qq, deaths=1)
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）

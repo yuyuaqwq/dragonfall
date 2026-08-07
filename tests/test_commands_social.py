@@ -35,8 +35,8 @@ async def main():
     m = Main(None)
     await cmd(m, "register", "g1", "s1", "注册 战士 会长")
     await cmd(m, "register", "g1", "s2", "注册 法师 会员")
-    db.update_player("g1", "s1", level=25, gold=10000, cur_map="vila_square")
-    db.update_player("g1", "s2", level=25, gold=10000, cur_map="vila_square")
+    db.update_player("g1", "s1", level=25, gold=10000, cur_map="oak_town")
+    db.update_player("g1", "s2", level=25, gold=10000, cur_map="oak_town")
 
     print("【公会：创建】")
     out = await cmd(m, "guild_create_cmd", "g1", "s1", "创建公会 屠龙勇士")

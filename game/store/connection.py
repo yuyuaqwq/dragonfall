@@ -49,6 +49,7 @@ def init_db():
                 attributes TEXT DEFAULT '{"str":0,"agi":0,"int":0,"vit":0}',
                 skill_points INTEGER DEFAULT 0,
                 learned_skills TEXT DEFAULT '[]',
+                hidden_class_unlock TEXT DEFAULT '[]',
                 shortcuts TEXT DEFAULT '{}',
                 evolve_path INTEGER DEFAULT 0,
                 skill_levels TEXT DEFAULT '{}',
@@ -106,7 +107,8 @@ def init_db():
                 craft_count INTEGER DEFAULT 0,
                 enhance_count INTEGER DEFAULT 0,
                 enchant_count INTEGER DEFAULT 0,
-                world_events INTEGER DEFAULT 0
+                world_events INTEGER DEFAULT 0,
+                catch_collect INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS reputation (
                 qq_id TEXT NOT NULL,
@@ -241,6 +243,8 @@ def init_db():
                 conn.execute("ALTER TABLE players ADD COLUMN skill_points INTEGER DEFAULT 0")
             if "learned_skills" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN learned_skills TEXT DEFAULT '[]'")
+            if "hidden_class_unlock" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN hidden_class_unlock TEXT DEFAULT '[]'")
             if "portals" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN portals TEXT DEFAULT '[]'")
             if "skill_bar" not in pcols:
@@ -266,7 +270,7 @@ def init_db():
             scols = [r[1] for r in conn.execute("PRAGMA table_info(stats)").fetchall()]
             for scol in ("visited_areas", "inst_clears", "party_count", "fish_count", "gather_count",
                          "mine_count", "cook_count", "alchemy_count", "craft_count", "enhance_count",
-                         "enchant_count", "world_events"):
+                         "enchant_count", "world_events", "catch_collect"):
                 if scol not in scols:
                     conn.execute(f"ALTER TABLE stats ADD COLUMN {scol} INTEGER DEFAULT 0")
             if "equipped_title" not in pcols:

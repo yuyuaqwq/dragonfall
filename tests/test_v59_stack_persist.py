@@ -63,4 +63,4 @@ if __name__ == "__main__":
     test_serialize_roundtrip()
     test_two_rounds_stack_persist()
     test_shield_persist_and_absorb()
-    print(f"\n✅ v59 叠层/护盾持久化：{passed} 项全部通过")
+    print(f"\n结果: {passed} 通过, 0 失败")

@@ -68,6 +68,7 @@ MONSTER_SKILLS = {
         "name": "孢子喷射",
     },
     "ms_bing_dan": {
+
         "kind": "魔法",
         "power": 1.5,
         "desc": "冰弹，寒冰弹攻击敌人",
@@ -1226,5 +1227,28 @@ MONSTER_SKILLS = {
         "power": 1.8,
         "desc": "罗兰的圣光剑阵，攻击敌人",
         "name": "圣光剑阵"
+    },
+
+    "ms_xuan_yun_zhong_ji": {
+        "kind": "物理",
+        "power": 1.8,
+        "desc": "眩晕重击，重击敌人头部使其眩晕",
+        "name": "眩晕重击",
+        "mech": "stun",
+    },
+    "ms_chen_mo_jian_xiao": {
+        "kind": "魔法",
+        "power": 1.5,
+        "desc": "沉默尖啸，刺耳的尖啸令敌人无法施法",
+        "name": "沉默尖啸",
+        "mech": "silence",
+    },
+    "ms_han_bing_tu_xi": {
+        "kind": "魔法",
+        "power": 1.7,
+        "desc": "寒冰吐息，龙息冰封敌人的行动",
+        "name": "寒冰吐息",
+        "element": "ice",
+        "mech": "freeze",
     },
 }

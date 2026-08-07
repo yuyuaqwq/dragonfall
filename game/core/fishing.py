@@ -11,6 +11,7 @@ from ..data.fishing import (
     FISH_POOL,
     FISH_QUALITY_ORDER,
     FISH_QUALITY_WEIGHTS,
+    FISH_COLLECT,
 )
 
 
@@ -56,3 +57,18 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None):
         # 防御性兜底：先去掉 spots 限定重试（如新钓点蓝档无全水域品种），再退全品质池
         pool = [f for f in FISH_POOL if f["quality"] == quality]
     return random.choices(pool, weights=[f.get("weight", 1) for f in pool], k=1)[0]
+
+def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):
+    """彩蛋收藏鱼判定（16 章 4.x）：五档之外独立判定。
+
+    概率升序判定（最稀有优先），命中即返回，最多 1 条。
+    spot_id: 钓点地图 ID；is_night: 当前是否为夜晚（18 章时间系统）。
+    """
+    for cf in sorted(FISH_COLLECT, key=lambda x: x["chance"]):
+        if cf.get("spots") and (spot_id not in cf["spots"]):
+            continue
+        if cf.get("time") == "night" and not is_night:
+            continue
+        if random.random() < cf["chance"]:
+            return cf
+    return None

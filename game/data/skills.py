@@ -1,6 +1,71 @@
 # -*- coding: utf-8 -*-
 """《剑与魔法》数据层 - skills.py（阶段六：基础技能 v2.0，12 章）"""
 PLAYER_SKILLS = {
+    "cls_bard": {
+        "name": "吟游诗人",
+        "skills": {
+"sk_ji_xing_tan_chang": {
+                "lv": 1, "mp": 0, "power": 1.0, "kind": "物理",
+                "mech": "poison", "mech_val": 1,
+                "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒",
+                "name": "即兴弹唱",
+            },
+"sk_zhan_ge": {
+                "lv": 3, "mp": 10, "power": 0, "kind": "增益",
+                "effect": "atk_up", "team": "atk_all", "cd": 2,
+                "desc": "激昂战歌！全队攻+25% 2 回合（副本广播，团队技能）",
+                "name": "战歌",
+            },
+"sk_an_mian_qu": {
+                "lv": 6, "mp": 10, "power": 0, "kind": "增益",
+                "effect": "mon_atk_down", "cd": 3,
+                "desc": "安眠曲！敌方攻击 -30% 3 回合",
+                "name": "安眠曲",
+            },
+"sk_gu_wu": {
+                "lv": 9, "mp": 10, "power": 0, "kind": "增益",
+                "effect": "crit_up", "team": "crit_all", "cd": 2,
+                "desc": "鼓舞士气！全队暴击 +20% 2 回合（副本广播，团队技能）",
+                "name": "鼓舞",
+            },
+"sk_ai_ge": {
+                "lv": 14, "mp": 15, "power": 1.6, "kind": "魔法",
+                "cc": "silence", "cd": 3,
+                "desc": "哀歌！160% 魔法伤害，50% 概率沉默目标 2 回合",
+                "name": "哀歌",
+            },
+"sk_jing_mo_zhi_ge": {
+                "lv": 18, "mp": 15, "power": 0, "kind": "增益",
+                "effect": "spd_up", "team": "spd_all", "cd": 2,
+                "desc": "轻快旋律！全队速度 +40% 2 回合（副本广播，团队技能）",
+                "name": "静默之歌",
+            },
+"sk_ying_xiong_xu_shi_shi": {
+                "lv": 24, "mp": 20, "power": 1.5, "kind": "治疗",
+                "cd": 2, "team": "heal_all",
+                "desc": "英雄叙事诗！治疗全队 150% 生命（副本广播，团队技能）",
+                "name": "英雄叙事诗",
+            },
+"sk_ao_shu_yong_tan_diao": {
+                "lv": 30, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "matk_up", "team": "matk_all", "cd": 2,
+                "desc": "奥术咏叹调！全队魔攻 +35% 2 回合（副本广播，团队技能）",
+                "name": "奥术咏叹调",
+            },
+"sk_li_ming_song_ge": {
+                "lv": 40, "mp": 35, "power": 0, "kind": "增益",
+                "effect": "atk_up_strong", "team": "atk_all", "cd": 5,
+                "desc": "终章·黎明颂歌！全队攻+75% 3 回合（副本广播，团队技能）",
+                "name": "终章·黎明颂歌",
+            },
+"sk_ban_zou": {
+                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "crit", "add": 0.08},
+                "desc": "属性被动：伴奏之魂，暴击 +8%",
+                "name": "伴奏",
+            },
+        }
+    },
     "cls_zhan_shi": {
         "name": "战士",
         "skills": {

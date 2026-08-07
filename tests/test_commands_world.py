@@ -36,24 +36,24 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", level=5, gold=1000, cur_map="vila_square")
+    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
 
     print("【地图：地图列表】")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
-    check("地图显示", "维拉" in out or "地图" in out, out[:120])
+    check("地图显示", "橡木" in out or "地图" in out, out[:120])
 
     print("【移动】")
-    out = await cmd(m, "move", "g1", "w1", "移动 维拉镇中央大街")
+    out = await cmd(m, "move", "g1", "w1", "移动 橡木草地")
     check("移动有返回", len(out) > 5, out[:120])
     p = db.get_player("g1", "w1")
-    check("地图切换", p.get("cur_map") == "vila_street", str(p.get("cur_map")))
+    check("地图切换", p.get("cur_map") == "oak_meadow", str(p.get("cur_map")))
     # v54.1 修复：垂钓点地图查看不再抛 get_prof_level 缺参异常
-    db.update_player("g1", "w1", cur_map="vila_gate")
+    db.update_player("g1", "w1", cur_map="oak_meadow")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
     check("垂钓点地图显示正常", len(out) > 5 and "垂钓" in out or "此地" in out, out[:150])
 
     print("【探索：野外】")
-    db.update_player("g1", "w1", cur_map="vila_gate")
+    db.update_player("g1", "w1", cur_map="oak_meadow")
     out = await cmd(m, "explore", "g1", "w1", "探索")
     check("探索有返回", len(out) > 10, out[:100])
 
@@ -61,7 +61,7 @@ async def main():
     out = await cmd(m, "portal_view", "g1", "w1", "方碑")
     check("方碑有返回", len(out) > 3, out[:120])
     # 激活/传送（若已激活过则提示不同）
-    out = await cmd(m, "portal_activate", "g1", "w1", "激活 维拉镇")
+    out = await cmd(m, "portal_activate", "g1", "w1", "激活 橡木镇")
     check("激活有返回", len(out) > 3, out[:120])
 
     print("【NPC：找/对话】")
@@ -84,7 +84,7 @@ async def main():
     check("事件列表有返回", len(out) > 5, out[:120])
 
     print("【垂钓/采集】")
-    db.update_player("g1", "w1", cur_map="vila_gate")
+    db.update_player("g1", "w1", cur_map="oak_meadow")
     db.clear_battle("g1", "w1")  # v55：先清战斗状态（前面探索/事件可能进过战斗）
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("垂钓有返回", len(out) > 5, out[:120])
@@ -113,7 +113,7 @@ async def main():
     # v55 装饰器统一互斥：垂钓等待中 移动/传送/探索/副本/讨伐 全被拦
     m._prof_wait_clear("g1", "w1")  # 先清掉前面测试残留的采集等待
     await cmd(m, "fishing", "g1", "w1", "垂钓")
-    for hname, msg, label in [("move", "移动 维拉镇", "移动"), ("portal_travel", "传送 维拉镇", "传送"),
+    for hname, msg, label in [("move", "移动 橡木镇", "移动"), ("portal_travel", "传送 橡木镇", "传送"),
                                ("explore", "探索", "探索"), ("instance_cmd", "副本", "副本"), ("hunt_boss", "讨伐", "讨伐")]:
         out = await cmd(m, hname, "g1", "w1", msg)
         check(f"副业等待中{label}被拦", "还在垂钓" in out, out[:80])

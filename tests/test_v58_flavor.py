@@ -136,7 +136,7 @@ async def main():
     await cmd(m, "party", "g1", "i1", "组队 队员")
     await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     st = db.get_battle("g1", "i1")["state"]
-    check("古王·奥德里克 mech=enrage", st["boss"].get("mech") == "enrage", str(st["boss"].get("mech")))
+    check("古王·奥德里克 mech=enrage,summon", st["boss"].get("mech") == "enrage,summon", str(st["boss"].get("mech")))
     for q in ("i1", "i2"):
         m._unlock_battle("g1", q)
         db.clear_battle("g1", q)

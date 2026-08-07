@@ -37,9 +37,9 @@ def main():
             check("%s 有索引" % domain, False, "缺 domain")
 
     print("【data·索引族：resolve/display 调用】")
-    check("resolve(monsters, 野狗)→ID", C.resolve("monsters", "野狗") == "m_stray_dog", C.resolve("monsters", "野狗"))
-    check("display(monsters, m_stray_dog)→野狗", C.display("monsters", "m_stray_dog") == "野狗",
-          C.display("monsters", "m_stray_dog"))
+    check("resolve(monsters, 野狗)→ID", C.resolve("monsters", "野狗") == "m_wild_dog", C.resolve("monsters", "野狗"))
+    check("display(monsters, m_wild_dog)→野狗", C.display("monsters", "m_wild_dog") == "野狗",
+          C.display("monsters", "m_wild_dog"))
 
     print("【data·索引族：别名兼容】")
     check("LEGACY_MAP_ALIAS 非空（移动命令输入兼容）", len(C.LEGACY_MAP_ALIAS) > 0, str(len(C.LEGACY_MAP_ALIAS)))

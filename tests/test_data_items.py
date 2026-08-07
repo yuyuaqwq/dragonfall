@@ -20,7 +20,7 @@ def check(name, cond, detail=""):
 
 def main():
     print("【data·物品族：物品】")
-    check("ITEMS key 为 ID（i_ 前缀）", list(C.ITEMS)[0].startswith("i_"), list(C.ITEMS)[0])
+    check("ITEMS key 为 ID（mat_/i_ 前缀）", list(C.ITEMS)[0].startswith(("i_", "mat_")), list(C.ITEMS)[0])
     potion = C.ITEMS.get("i_treatment_potion", {})
     check("i_treatment_potion.name=治疗药水", potion.get("name") == "治疗药水", str(potion)[:80])
     mat = C.resolve("materials", "狼皮")
@@ -34,14 +34,14 @@ def main():
     check("套装含部件定义", all(isinstance(v, dict) for v in C.SETS.values()), str(list(C.SETS)[:3]))
 
     print("【data·物品族：配方】")
-    check("CRAFT_RECIPES 195 配方", len(C.CRAFT_RECIPES) >= 100, str(len(C.CRAFT_RECIPES)))
+    check("CRAFT_RECIPES 87 配方（名册化）", len(C.CRAFT_RECIPES) >= 80, str(len(C.CRAFT_RECIPES)))
     if C.CRAFT_RECIPES:
         r = next(iter(C.CRAFT_RECIPES.values()))
         check("配方含 mats", isinstance(r.get("mats"), dict) and len(r["mats"]) > 0, str(r)[:80])
     check("CRAFT_RECIPE_ALIASES 非空", len(C.CRAFT_RECIPE_ALIASES) > 0, str(len(C.CRAFT_RECIPE_ALIASES)))
 
     print("【data·物品族：武器配方 weapon_type 全英文 ID（v53.1）】")
-    WT_IDS = ("sword", "staff", "bow", "mace", "dagger", "fist")
+    WT_IDS = ("sword", "staff", "bow", "mace", "dagger", "fist", "spear", "shield")
     bad_wt = [(k, r.get("name"), r.get("weapon_type")) for k, r in C.CRAFT_RECIPES.items()
               if r.get("slot") == "weapon" and r.get("weapon_type") not in WT_IDS]
     check("所有武器配方 weapon_type 英文 ID", not bad_wt, str(bad_wt[:3]))

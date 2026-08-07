@@ -39,8 +39,7 @@ def reset_profs(gid, qid):
 
 
 def add_mats(gid, qid, count=10):
-    db.add_item(gid, qid, "mat_ye_gou_liao_ya", {"name": "野狗獠牙", "type": "材料", "stackable": True}, count)
-    db.add_item(gid, qid, "mat_shu_wei", {"name": "鼠尾", "type": "材料", "stackable": True}, count)
+    db.add_item(gid, qid, "mat_shi_lai_mu_nian_ye", {"name": "史莱姆黏液", "type": "材料", "stackable": True}, count)
 
 
 def add_equip(gid, qid, name="铁剑"):
@@ -52,7 +51,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", level=20, gold=5000, cur_map="vila_gate")
+    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_meadow")
 
     print("【v67 双副业：面板】")
     out = await cmd(m, "profession_view", "g1", "w1", "副业")
@@ -64,11 +63,11 @@ async def main():
     check("采集自动激活", "选择了「采集」" in out and "1/2" in out, out[:200])
     check("采集进行中", "开始采集" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="stonefist_mine")
+    db.update_player("g1", "w1", cur_map="hill_mine")
     out = await cmd(m, "mining", "g1", "w1", "挖掘")
     check("挖掘自动激活2/2", "选择了「挖掘」" in out and "2/2" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="vila_gate")
+    db.update_player("g1", "w1", cur_map="oak_meadow")
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("第三条被拦", "副业位已满" in out and "遗忘副业" in out, out[:200])
 
@@ -93,7 +92,7 @@ async def main():
 
     print("【v81 强化独立副业（原 v67 归位锻造）】")
     reset_profs("g1", "w1")
-    db.update_player("g1", "w1", cur_map="vila_street", gold=5000)
+    db.update_player("g1", "w1", cur_map="oak_town", gold=5000)
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
     check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])
@@ -116,11 +115,11 @@ async def main():
     print("【v67 代工补偿】")
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", gold=5000)
-    add_mats("g1", "w1", count=6)  # 6 份：第一次代工消耗 5+3，剩 1 獠牙 → 第二次拦
+    add_mats("g1", "w1", count=2)  # 铁剑 mats = 史莱姆黏液×2：第一次代工消耗 2，剩 0 → 第二次拦
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
-    check("代工成功", "代工完成" in out and "铁剑" in out and "90 金币" in out, out[:200])
+    check("代工成功", "代工完成" in out and "铁剑" in out and "108 金币" in out, out[:200])
     check("锻造未激活", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
-    check("金币扣3倍", db.get_player("g1", "w1")["gold"] == 4910, str(db.get_player("g1", "w1")["gold"]))
+    check("金币扣3倍", db.get_player("g1", "w1")["gold"] == 4892, str(db.get_player("g1", "w1")["gold"]))
     check("装备入包", db.count_item("g1", "w1", "铁剑") >= 1, "")
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
     check("材料不足拦截", "材料不足" in out, out[:200])
@@ -133,7 +132,7 @@ async def main():
     check("锻造未激活自动激活", "选择了「锻造」" in out, out[:200])
     db.update_player("g1", "w1", level=35, gold=5000)
     add_mats("g1", "w1", count=10)
-    out = await cmd(m, "craft", "g1", "w1", "锻造 雷霆之锤")
+    out = await cmd(m, "craft", "g1", "w1", "锻造 审判之链")
     check("高等级配方提示引流代工", "代工" in out, out[:200])
 
     print(f"\n结果: {passed} 通过, {failed} 失败")

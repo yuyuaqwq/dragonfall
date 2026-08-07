@@ -15,4 +15,18 @@ EXPLORE_EVENTS = [
     {"id": "wandering", "weight": 8, "name": "迷路的旅人", "desc": "一位迷路的旅人向你求助，想用随身物品换取指路。"},
 ]
 
+# v83 02 章 7.5：探索彩蛋事件（独立于常规权重，总概率 EXPLORE_EGG_CHANCE）
+# 命中后按权重分配：流星 60 / 宝匣 30 / 访客 10 → 实际 0.30%/0.15%/0.05%
+EXPLORE_EGG_CHANCE = 0.005
+EXPLORE_EGG_EVENTS = [
+    {"id": "shooting_star", "weight": 60, "name": "流星许愿",
+     "desc": "一道流星划过夜空！"},
+    {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣",
+     "desc": "埋藏千年的宝匣。"},
+    {"id": "night_visitor", "weight": 10, "name": "神秘访客",
+     "desc": "雾中出现的神秘身影。"},
+]
+EXPLORE_EGG_SUM = sum(e["weight"] for e in EXPLORE_EGG_EVENTS)
+
+
 EVENT_WEIGHT_SUM = sum(e["weight"] for e in EXPLORE_EVENTS)
