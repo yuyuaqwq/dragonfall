@@ -38,6 +38,9 @@ async def main():
     await cmd(m, "register", "g1", "i2", "注册 法师 队员")
     db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
+    # v86.3 入场钥匙：旧王陵用例多，队长备 10 把王陵钥匙（每个用例开本消耗 1 把）
+    for _ in range(10):
+        db.add_item("g1", "i1", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})
 
     print("【副本：列表】")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本")
@@ -61,8 +64,11 @@ async def main():
     spd1 = st["players"][st["members"][1]].get("spd", 0)
     check("行动序按速度排序", spd0 >= spd1, f"{st['members']} spd={spd0},{spd1}")
     boss = st["boss"]
-    check("Boss 血量 > 单人模板", boss["max_hp"] > 1500, f"hp={boss['max_hp']}")
-    check("Boss 是首领标记", boss.get("is_boss") is True)
+    # v86.2 分层：旧王陵第 1 层是骷髅兵（非 Boss）
+    check("第 1 层小怪登场", boss["name"] in ("骷髅兵", "僵尸"), f"enemy={boss['name']}")
+    check("小怪非首领", boss.get("is_boss") is not True, f"is_boss={boss.get('is_boss')}")
+    check("分层状态", st.get("stage_idx") == 0 and st.get("inst_stages"), str(st.get("stage_idx")))
+    check("层内有待清怪物", len(st.get("stage_pending", [])) >= 1, str(st.get("stage_pending")))
 
     print("【副本：轮流回合】")
     first_m = st["members"][0]
@@ -70,7 +76,7 @@ async def main():
     out = await cmd(m, "attack", "g1", second_m, "攻击")
     check("非当前行动者被拦", "等待" in out or "回合" in out, out[:120])
     out = await cmd(m, "attack", "g1", first_m, "攻击")
-    check("当前行动者有返回", "古王·奥德里克" in out or "轮到" in out, out[:200])
+    check("当前行动者有返回", "骷髅兵" in out or "轮到" in out or "僵尸" in out, out[:200])
     st2 = db.get_battle("g1", "i1")["state"]
     check("轮到下一位", st2["turn"] == 1, f"turn={st2['turn']}")
 
@@ -85,12 +91,66 @@ async def main():
     out = await cmd(m, "attack", "g1", second_m, "攻击")
     check("超时自动防御并行动", "自动" in out, out[:200])
 
-    print("【副本：通关结算】")
+    print("【副本：分层推进通关】")
     st4 = db.get_battle("g1", "i1")["state"]
+    # 第 1 层：清掉当前小怪（骷髅兵）→ 自动切僵尸 → 再清 → 待深入
     st4["boss"]["hp"] = 1
     st4["turn_time"] = int(time.time())
+    st4["boss"]["atk"] = 5
+    st4["boss"]["matk"] = 5
     db.save_battle("g1", "i1", st4)
     cur = st4["members"][st4["turn"]]
+    out = await cmd(m, "attack", "g1", cur, "攻击")
+    check("清完首怪切下一只", "又一只怪物" in out or "骷髅兵" in out or "僵尸" in out, out[:200])
+    # 继续清僵尸 → 第 1 层完成
+    for _ in range(6):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt4 = battle["state"]
+        stt4["boss"]["hp"] = 1
+        stt4["boss"]["atk"] = 5
+        stt4["boss"]["matk"] = 5
+        stt4["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt4)
+        cur = stt4["members"][stt4["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "肃清" in out or "深入" in out:
+            check("第 1 层肃清提示深入", "深入" in out, out[:200])
+            break
+    # 『深入』→ 第 2 层（幽灵 + 幽灵骑士精英）
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    check("深入第 2 层", "第 2 层" in out or "幽灵" in out, out[:200])
+    # 清第 2 层
+    for _ in range(8):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt4 = battle["state"]
+        stt4["boss"]["hp"] = 1
+        stt4["boss"]["atk"] = 5
+        stt4["boss"]["matk"] = 5
+        stt4["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt4)
+        cur = stt4["members"][stt4["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "肃清" in out or "深入" in out:
+            break
+    # 『深入』→ 第 3 层 Boss（古王·奥德里克）
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    check("深入第 3 层 Boss", "古王·奥德里克" in out, out[:200])
+    # Boss 血量缩放验证（2 人队 hp_mult=2.5）
+    base = C.build_monster(C.INSTANCES["inst_old_king_tomb"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
+    expect = int(base * 2.5)
+    stboss = db.get_battle("g1", "i1")["state"]
+    check("Boss 血量 2.5 倍", abs(stboss["boss"]["max_hp"] - expect) <= 1, f"{stboss['boss']['max_hp']} vs {expect}")
+    # 击杀 Boss → 通关
+    stboss["boss"]["hp"] = 1
+    stboss["boss"]["atk"] = 5
+    stboss["boss"]["matk"] = 5
+    stboss["turn_time"] = int(time.time())
+    db.save_battle("g1", "i1", stboss)
+    cur = stboss["members"][stboss["turn"]]
     out = await cmd(m, "attack", "g1", cur, "攻击")
     check("通关结算", "通关" in out or "击败" in out, out[:300])
     check("金币奖励", "+200" in out or "金币" in out, out[:300])
@@ -113,11 +173,9 @@ async def main():
     st6 = db.get_battle("g1", "i1")["state"]
     check("3 人状态成员", len(st6["members"]) == 3, str(st6["members"]))
     boss6 = st6["boss"]
-    # 2 人队基准 hp_mult=2.5 → 3 人 = 3.15
-    base = C.build_monster(C.INSTANCES["inst_old_king_tomb"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
-    expect = int(base * (2.5 + 0.65))
-    check("Boss 血量 3.15 倍", abs(boss6["max_hp"] - expect) <= 1, f"{boss6['max_hp']} vs {expect}")
-    # 调低 Boss 攻击，专注测轮转逻辑（避免随机秒杀脆皮导致 turn 跳变）
+    # v86.2 分层：3 人开本第 1 层也是小怪（骷髅兵）
+    check("3 人第 1 层小怪", boss6["name"] in ("骷髅兵", "僵尸"), f"enemy={boss6['name']}")
+    # 调低攻击，专注测轮转逻辑（避免随机秒杀脆皮导致 turn 跳变）
     st6["boss"]["atk"] = 5
     st6["boss"]["matk"] = 5
     db.save_battle("g1", "i1", st6)
@@ -236,14 +294,49 @@ async def main():
     battle = db.get_battle("g1", "i1")
     stg = battle["state"]
     check("单人副本成员 1 人", len(stg["members"]) == 1, str(stg["members"]))
+    # v86.2 分层：第 1 层是哥布林守卫（非 Boss）
+    check("单人第 1 层小怪", stg["boss"]["name"] in ("哥布林守卫", "哥布林萨满"), f"enemy={stg['boss']['name']}")
+    check("单人无队伍构成警告", "没有坦克" not in out, out[:200])
+    # 打到第 3 层验证 Boss 血量缩放（单人 min_players=1 → 1.6 倍）
+    for _ in range(20):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        out = await cmd(m, "attack", "g1", "i1", "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    for _ in range(20):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        out = await cmd(m, "attack", "g1", "i1", "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    stg3 = db.get_battle("g1", "i1")["state"]
+    check("单人第 3 层 Boss", "哥布林酋长" in stg3["boss"]["name"], f"enemy={stg3['boss']['name']}")
     base_g = C.build_monster(C.INSTANCES["inst_goblin_camp"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect_g = int(base_g * 1.6)  # min_players=1 → hp_mult 不缩放
-    check("单人 Boss 血量 = 1.6 倍", abs(stg["boss"]["max_hp"] - expect_g) <= 1, f"{stg['boss']['max_hp']} vs {expect_g}")
-    check("单人无队伍构成警告", "没有坦克" not in out, out[:200])
+    check("单人 Boss 血量 = 1.6 倍", abs(stg3["boss"]["max_hp"] - expect_g) <= 1, f"{stg3['boss']['max_hp']} vs {expect_g}")
     # 单人副本直接通关
-    stg["boss"]["hp"] = 1
-    stg["turn_time"] = int(time.time())
-    db.save_battle("g1", "i1", stg)
+    stg3["boss"]["hp"] = 1
+    stg3["boss"]["atk"] = 5
+    stg3["boss"]["matk"] = 5
+    stg3["turn_time"] = int(time.time())
+    db.save_battle("g1", "i1", stg3)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
     check("单人副本通关", "通关" in out or "击败" in out, out[:300])
     check("单人掉落咕噜的皇冠", "咕噜的皇冠" in out, out[:300])
@@ -263,13 +356,48 @@ async def main():
     check("队长拉第四人", "加入了你的队伍" in out and "4" in out, out[:200])
     members4 = db.party_members("g1", "i1")
     check("队伍 4 人", len(members4) == 4, str(members4))
+    # v86.3 入场钥匙：深海龙宫需要龙宫珠
+    db.add_item("g1", "i1", "i_key_dragon_palace", {"name": "龙宫珠", "type": "钥匙", "stackable": True, "price": 2500})
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 深海龙宫")
     check("4 人副本开本成功", "副本开启" in out, out[:200])
     stm = db.get_battle("g1", "i1")["state"]
     check("4 人副本成员 4 人", len(stm["members"]) == 4, str(stm["members"]))
+    # v86.2 分层：第 1 层小怪，推进到 Boss 层验证血量缩放
+    check("4 人第 1 层小怪", stm["boss"].get("is_boss") is not True, f"enemy={stm['boss']['name']}")
+    for _ in range(25):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        curm = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", curm, "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    for _ in range(25):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        curm = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", curm, "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    stm3 = db.get_battle("g1", "i1")["state"]
     base_m = C.build_monster(C.INSTANCES["inst_deep_dragon_palace"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect_m = int(base_m * 2.7)  # min_players=4 → 4 人不缩放
-    check("4 人 Boss 血量 = 2.5 倍", abs(stm["boss"]["max_hp"] - expect_m) <= 1, f"{stm['boss']['max_hp']} vs {expect_m}")
+    check("4 人 Boss 血量 = 2.7 倍", abs(stm3["boss"]["max_hp"] - expect_m) <= 1, f"{stm3['boss']['max_hp']} vs {expect_m}")
     # 清理深海龙宫战斗（否则 instance_cmd 直接显示状态，走不到人数校验）
     for q in ("i1", "i2", "i3", "i4"):
         m._unlock_battle("g1", q)
@@ -278,6 +406,74 @@ async def main():
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     check("旧王陵 4 人超限", "最多 3 人" in out, out[:200])
     for q in ("i1", "i2", "i3", "i4"):
+        m._unlock_battle("g1", q)
+        db.clear_battle("g1", q)
+
+    print("【副本：入场钥匙（v86.3）】")
+    # 单人副本鹿角要塞需要军旗碎片
+    await cmd(m, "party_leave", "g1", "i1", "退队")
+    db.update_player("g1", "i1", level=20, gold=10000, cur_map="dawn_city", hp=500)
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
+    check("无钥匙被拦截", "军旗碎片" in out and "封印" in out, out[:200])
+    battle = db.get_battle("g1", "i1")
+    check("拦截后未开本", battle is None, "")
+    # 给钥匙 → 开本成功 → 钥匙消耗
+    db.add_item("g1", "i1", "i_key_deer_fort", {"name": "军旗碎片", "type": "钥匙", "stackable": True, "price": 200})
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
+    check("有钥匙开本成功", "副本开启" in out, out[:200])
+    inv = db.get_inventory("g1", "i1")
+    keys = [i for i in inv if "军旗" in (i.get("data") or {}).get("name", "")]
+    check("钥匙已消耗", len(keys) == 0, str([(i.get("data") or {}).get("name") for i in inv])[:200])
+    # 首通后免钥匙
+    stk = db.get_battle("g1", "i1")["state"]
+    stk["boss"]["hp"] = 1
+    stk["boss"]["atk"] = 5
+    stk["boss"]["matk"] = 5
+    stk["turn_time"] = int(time.time())
+    db.save_battle("g1", "i1", stk)
+    for _ in range(10):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        cur = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    for _ in range(10):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        cur = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    out = await cmd(m, "instance_advance", "g1", "i1", "深入")
+    stk3 = db.get_battle("g1", "i1")["state"]
+    stk3["boss"]["hp"] = 1
+    stk3["boss"]["atk"] = 5
+    stk3["boss"]["matk"] = 5
+    stk3["turn_time"] = int(time.time())
+    db.save_battle("g1", "i1", stk3)
+    cur = stk3["members"][stk3["turn"]]
+    out = await cmd(m, "attack", "g1", cur, "攻击")
+    check("首通完成", "通关" in out or "击败" in out, out[:300])
+    # 首通后再开本 → 免钥匙直接进
+    out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
+    check("首通后免钥匙开本", "副本开启" in out, out[:200])
+    for q in ("i1",):
         m._unlock_battle("g1", q)
         db.clear_battle("g1", q)
 

@@ -2299,7 +2299,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}")
         elif d.get("effect") == "return_vila":
             db.remove_item(group_id, qq_id, target["key"])
-            db.update_player(group_id, qq_id, cur_map="oak_town")
+            db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")
             yield event.plain_result("🧭 卷轴展开，光芒闪过——你回到了橡木镇中心广场！")
         elif d.get("effect") == "lucky":
             # v54 幸运护符：10 分钟打怪金币 ×1.5、材料 +1

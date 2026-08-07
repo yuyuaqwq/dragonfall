@@ -35,6 +35,7 @@ def monster_stats(lv: int, role: str) -> dict:
         "dps":        {"hp": 45,  "atk": 12, "def": 4,  "matk": 4,  "mdef": 4,  "spd": 10},
         "caster":     {"hp": 40,  "atk": 5,  "def": 3,  "matk": 14, "mdef": 8,  "spd": 9},
         "speedster":  {"hp": 35,  "atk": 9,  "def": 3,  "matk": 5,  "mdef": 4,  "spd": 16},
+        "healer":     {"hp": 38,  "atk": 4,  "def": 3,  "matk": 12, "mdef": 8,  "spd": 8},  # v86.2 治疗型（副本小怪）
         "elite":      {"hp": 95,  "atk": 14, "def": 8,  "matk": 10, "mdef": 8,  "spd": 11},
         "boss":       {"hp": 160, "atk": 16, "def": 10, "matk": 12, "mdef": 10, "spd": 10},
     }[role]
@@ -43,6 +44,7 @@ def monster_stats(lv: int, role: str) -> dict:
         "dps":        {"hp": 15,  "atk": 3.5, "def": 2.0, "matk": 1.0, "mdef": 1.2, "spd": 1.0},
         "caster":     {"hp": 11,  "atk": 1.2, "def": 1.0, "matk": 3.5, "mdef": 2.2, "spd": 0.9},
         "speedster":  {"hp": 10,  "atk": 2.6, "def": 1.0, "matk": 1.0, "mdef": 1.0, "spd": 1.8},
+        "healer":     {"hp": 10,  "atk": 1.0, "def": 1.0, "matk": 3.0, "mdef": 1.8, "spd": 0.8},
         # v57 精英上调：hp 32→40、atk 5.5→6.5（鱼鱼反馈前期精英太弱，2级全力量战士无脑碾压4级精英）
         "elite":      {"hp": 40,  "atk": 6.5, "def": 2.8, "matk": 5.0, "mdef": 2.8, "spd": 1.5},
         "boss":       {"hp": 58,  "atk": 7.5, "def": 3.8, "matk": 6.0, "mdef": 3.4, "spd": 1.8},
@@ -97,14 +99,14 @@ def exp_to_next(level: int) -> int:
 def monster_exp(lv: int, role: str) -> int:
     """怪物经验公式（v28 校准：base 下调，配合等级差惩罚）
     v56.2：怪 hp 变肉后经验同步补偿（×hp_mult^0.7，30 级约 ×1.8）"""
-    base = {"tank": 8, "dps": 9, "caster": 10, "speedster": 9, "elite": 24, "boss": 60}[role]
+    base = {"tank": 8, "dps": 9, "caster": 10, "speedster": 9, "healer": 10, "elite": 24, "boss": 60}[role]
     exp = int(base * (1 + lv * 0.9))
     return int(exp * (hp_stage_mult(lv) ** 0.7))
 
 
 def monster_gold(lv: int, role: str) -> int:
     """怪物金币公式（v56.2：同步补偿 ×hp_mult^0.5）"""
-    base = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "elite": 20, "boss": 60}[role]
+    base = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "healer": 6, "elite": 20, "boss": 60}[role]
     gold = int(base * (1 + lv * 0.6))
     return int(gold * (hp_stage_mult(lv) ** 0.5))
 

@@ -48,6 +48,78 @@ class InstanceCmds(CommandBase):
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
             yield _r
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?深入(?:第\s*(\d+)\s*层)?(?:[层进]\s*)?$")
+    @no_prof_waiting()
+
+    async def instance_advance(self, event: AstrMessageEvent):
+        """v86.2 副本推进：清完当前层后『深入』进入下一层。"""
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
+            return
+        st = inst_row["state"]
+        stages = st.get("inst_stages") or []
+        if not stages:
+            yield event.plain_result("这个副本没有分层结构，直接挑战 Boss 吧～")
+            return
+        if not st.get("stage_cleared"):
+            yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
+            return
+        if st["stage_idx"] >= len(stages) - 1:
+            yield event.plain_result("已经是最深层了，击败面前的 Boss 就通关了！")
+            return
+        # 推进下一层
+        st["stage_idx"] += 1
+        st["stage_cleared"] = False
+        next_stage = stages[st["stage_idx"]]
+        s_mons = next_stage.get("monsters") or []
+        if s_mons:
+            st["boss"] = C.build_monster(s_mons[0], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+            st["stage_pending"] = list(s_mons[1:])
+            if next_stage.get("elite"):
+                st["stage_pending"].append(next_stage["elite"])
+        elif next_stage.get("elite"):
+            st["boss"] = C.build_monster(next_stage["elite"], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+            st["stage_pending"] = []
+        elif next_stage.get("boss"):
+            st["boss"] = C.build_monster(next_stage["boss"], {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+            inst2 = C.INSTANCES[st["inst_id"]]
+            if inst2.get("mech"):
+                st["boss"]["mech"] = inst2["mech"]
+            hp_mult = inst2["hp_mult"] + 0.65 * (len(st["members"]) - inst2.get("min_players", 1))
+            st["boss"]["max_hp"] = int(st["boss"]["max_hp"] * hp_mult)
+            st["boss"]["hp"] = st["boss"]["max_hp"]
+            st["boss"]["atk"] = int(st["boss"]["atk"] * inst2["atk_mult"])
+            st["boss"]["matk"] = int(st["boss"]["matk"] * inst2["atk_mult"])
+            st["stage_pending"] = []
+        st["enemy"] = st["boss"]
+        st["e_buffs"] = {}
+        st["round"] = 1
+        for m in st["members"]:
+            st["p_buffs"][m] = {}
+            st["p_defending"][m] = False
+        st["turn"] = 0
+        st["acted"] = [False] * len(st["members"])
+        st["turn_time"] = int(time.time())
+        # 锁全队（层推进重新上锁）
+        for m in st["members"]:
+            self._lock_battle(group_id, m)
+        db.save_battle(group_id, st["leader"], st)
+        role = "👑 BOSS" if next_stage.get("boss") else ("⭐ 精英" if next_stage.get("elite") and not s_mons else "🐾")
+        yield event.plain_result(
+            f"🧭 你继续深入……\n"
+            f"━━━━━━━━━━━━\n"
+            f"🚪 第 {st['stage_idx'] + 1} 层 · {next_stage['name']}\n"
+            f"{role}【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+            f"━━━━━━━━━━━━\n"
+            f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』"
+        )
+
     # ---------------- 查询 ----------------
     def _class_role_label(self, class_name) -> str:
         """职业定位标签：战士·坦克 / 牧师·治疗"""
@@ -110,8 +182,14 @@ class InstanceCmds(CommandBase):
         inst = C.INSTANCES.get(st["inst_id"], {})
         boss = st["boss"]
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
+        stages = st.get("inst_stages") or []
+        stage_line = ""
+        if stages:
+            sidx = st.get("stage_idx", 0)
+            sname = stages[sidx]["name"] if sidx < len(stages) else ""
+            stage_line = f" 🚪 第 {sidx + 1} 层 · {sname}"
         lines = [
-            f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮",
+            f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮{stage_line}",
             "━━━━━━━━━━━━",
             f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}（{pct}%）",
         ]
@@ -182,6 +260,31 @@ class InstanceCmds(CommandBase):
             if self._in_battle(group_id, m):
                 yield event.plain_result(f"{p['name']} 正在战斗中，先打完再来！")
                 return
+        # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
+        key_item = inst.get("key_item")
+        if key_item:
+            inv = db.get_inventory(group_id, qq_id)
+            # 找到匹配的钥匙（按物品名匹配）
+            key_entry = None
+            for it in (inv or []):
+                it_name = (it.get("data") or {}).get("name", "")
+                if it_name == key_item or it.get("key") == key_item or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
+                    key_entry = it
+                    break
+            has_key = key_entry is not None and (key_entry.get("count") or 0) >= 1
+            cleared_before = any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
+                                 for a in (db.get_achievements(group_id, qq_id) or []))
+            if not has_key and not cleared_before:
+                src = inst.get("key_source", "？？？")
+                yield event.plain_result(
+                    f"🔒 『{inst['name']}』被封印之门挡住！\n"
+                    f"需要『{key_item}』才能进入（已通关副本可免钥匙）\n"
+                    f"📜 获取途径：{src}"
+                )
+                return
+            # 消耗钥匙（首通前）
+            if has_key and not cleared_before:
+                db.remove_item(group_id, qq_id, key_entry["key"])
         # 构建副本 Boss（血量按人数缩放：min_players 人数 = hp_mult，每多 1 人 +0.65；攻击 ×atk_mult）
         boss = C.build_monster(inst["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
         if inst.get("mech"):
@@ -192,6 +295,30 @@ class InstanceCmds(CommandBase):
         boss["atk"] = int(boss["atk"] * inst["atk_mult"])
         boss["matk"] = int(boss["matk"] * inst["atk_mult"])
         now = int(time.time())
+        # v86.2 副本分层（02 章 13.8）：stages 副本 → 当前层小怪，最后一层才 Boss
+        stages = inst.get("stages") or []
+        stage_idx = 0
+        stage_pending = []  # 当前层剩余怪物（除首只外）
+        stage_cleared = False
+        if stages:
+            first_stage = stages[0]
+            s_mons = first_stage.get("monsters") or []
+            if s_mons:
+                # 首只怪进战斗，其余存 pending
+                boss = C.build_monster(s_mons[0], {"id": kid, "name": inst["name"], "area": "instance"})
+                stage_pending = list(s_mons[1:])
+                if first_stage.get("elite"):
+                    stage_pending.append(first_stage["elite"])
+            elif first_stage.get("elite"):
+                boss = C.build_monster(first_stage["elite"], {"id": kid, "name": inst["name"], "area": "instance"})
+            elif first_stage.get("boss"):
+                boss = C.build_monster(first_stage["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
+                if inst.get("mech"):
+                    boss["mech"] = inst["mech"]
+                boss["max_hp"] = int(boss["max_hp"] * hp_mult)
+                boss["hp"] = boss["max_hp"]
+                boss["atk"] = int(boss["atk"] * inst["atk_mult"])
+                boss["matk"] = int(boss["matk"] * inst["atk_mult"])
         st = {
             "type": "instance",
             "inst_id": kid,
@@ -203,6 +330,10 @@ class InstanceCmds(CommandBase):
             "enemy": boss,
             "turn": 0,
             "round": 1,
+            "stage_idx": stage_idx,
+            "stage_pending": stage_pending,
+            "stage_cleared": stage_cleared,
+            "inst_stages": stages,
             "acted": [False] * len(members),
             "p_buffs": {str(m): {} for m in members},
             "e_buffs": {},
@@ -251,16 +382,19 @@ class InstanceCmds(CommandBase):
             size_tip = f"👥 队伍构成：{comp}{hint_msg}\n"
         else:
             size_tip = f"🕐 单人挑战：{comp}\n"
+        stage_name = stages[0]["name"] if stages else "主厅"
+        stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""
         yield event.plain_result(
             f"{inst['icon']} 【{inst['name']}】副本开启！\n"
             f"━━━━━━━━━━━━\n"
+            f"{stage_line}"
             f"👹【{boss['name']}】Lv.{boss['lv']} ❤️ {boss['max_hp']:,}\n"
             f"📜 {inst['desc']}\n"
             f"━━━━━━━━━━━━\n"
             f"{size_tip}"
             f"⚡ 行动顺序（按速度）：{' → '.join(st['players'][m].get('name', m) for m in st['members'])}\n"
             f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』\n"
-            f"💡 按顺序轮流出手，超时 2 分钟自动防御；Boss 锁定无法逃跑！"
+            f"💡 按顺序轮流出手，超时 2 分钟自动防御；清光当前层怪物可『深入』下一层！"
         )
 
     # ---------------- 行动核心 ----------------
@@ -351,8 +485,54 @@ class InstanceCmds(CommandBase):
             else:
                 logs += self._apply_team_effect(st, cur_key, te)
 
-        # 4. Boss 死亡 → 通关
+        # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
         if st["boss"]["hp"] <= 0:
+            stages = st.get("inst_stages") or []
+            pending = st.get("stage_pending") or []
+            if pending:
+                # 当前层还有怪 → 切下一只
+                nxt = pending.pop(0)
+                st["boss"] = C.build_monster(nxt, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+                st["enemy"] = st["boss"]
+                st["e_buffs"] = {}
+                st["round"] = 1
+                for i in st["members"]:
+                    st["p_buffs"][i] = {}
+                    st["p_defending"][i] = False
+                st["turn"] = 0
+                st["acted"] = [False] * len(st["members"])
+                st["turn_time"] = now
+                db.save_battle(group_id, st["leader"], st)
+                yield event.plain_result(
+                    "\n".join(logs) +
+                    f"\n━━━━━━━━━━━━\n"
+                    f"⚔️ 又一只怪物挡在面前！\n"
+                    f"👹【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』"
+                )
+                return
+            if stages:
+                last = st["stage_idx"] >= len(stages) - 1
+                if not last:
+                    # 清完非末层 → 待『深入』
+                    st["stage_cleared"] = True
+                    st["over"] = False
+                    st["boss"]["hp"] = 1  # 保留展示用（防御状态）
+                    st["enemy"] = st["boss"]
+                    for m in st["members"]:
+                        self._unlock_battle(group_id, m)
+                    db.save_battle(group_id, st["leader"], st)
+                    cur_name = stages[st["stage_idx"]]["name"]
+                    nxt_name = stages[st["stage_idx"] + 1]["name"]
+                    yield event.plain_result(
+                        "\n".join(logs) +
+                        f"\n━━━━━━━━━━━━\n"
+                        f"✅ 【{cur_name}】的敌人被肃清了！\n"
+                        f"🧭 前方是【{nxt_name}】……输入『深入』继续推进！"
+                    )
+                    return
+            # 最后一层 / 无 stages → 通关
             st["over"] = True
             async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
                 yield _r
@@ -585,5 +765,5 @@ class InstanceCmds(CommandBase):
             db.clear_battle(group_id, m)
             p = self._player(group_id, m)
             if p:
-                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0), cur_map="oak_town")
+                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0), cur_map="oak_town", cur_subarea="oak_town_1")
         yield event.plain_result("\n".join(lines))

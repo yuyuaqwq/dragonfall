@@ -12,6 +12,7 @@ from .maps import (
     MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
     MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
 )  # noqa: F401
+from .subareas import SUBAREAS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
 from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401
@@ -57,6 +58,24 @@ from ..core.class_sets import _build_class_sets  # noqa: F401
 _build_ency()
 
 _build_class_sets()
+
+# ---- 1.5 子区域装配（02 章 13 节）：MAPS 注入 subareas + 索引 ----
+SUBAREA_INDEX = {}   # "地图id:子区域id" / "子区域名" → 子区域 dict
+SUBAREA_BY_MAP = {}  # 地图id → {子区域id: 子区域dict}
+for _m in MAPS:
+    _sas = SUBAREAS.get(_m["id"], [])
+    if not _sas:
+        continue
+    _m["subareas"] = _sas
+    SUBAREA_BY_MAP[_m["id"]] = {sa["id"]: sa for sa in _sas}
+    for _sa in _sas:
+        SUBAREA_INDEX[f"{_m['id']}:{_sa['id']}"] = _sa
+        SUBAREA_INDEX.setdefault(f"{_m['id']}:{_sa['name']}", _sa)
+
+# 1.6 用 MAPS 重建 MAP_BY_ID（历史手写副本与 MAPS 双源易失步；
+#    统一以 MAPS 为唯一数据源，subareas 注入后两处一致）
+MAP_BY_ID.clear()
+MAP_BY_ID.update({_m["id"]: _m for _m in MAPS})
 
 # ---- 2. 扁平派生表（兼容 v48 前旧结构 {职业:{技能}} 与 v48 新结构 {cls_id:{skills}}）----
 _SKILL_FLAT = {}

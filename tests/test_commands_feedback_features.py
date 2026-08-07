@@ -92,6 +92,8 @@ async def main():
     db.update_player("g1", "f4", level=40, gold=9999, cur_map="oak_town")
     db.update_player("g1", "f5", level=40, gold=9999, cur_map="oak_town")
     await cmd(m, "party", "g1", "f4", "组队 输出乙")
+    # v86.3 入场钥匙：旧王陵需要王陵钥匙
+    db.add_item("g1", "f4", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})
     await cmd(m, "instance_cmd", "g1", "f4", "副本 旧王陵")
     st = db.get_battle("g1", "f4")["state"]
     check("开本有仇恨表", "threat" in st, str(st.keys()))

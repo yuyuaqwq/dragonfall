@@ -12,6 +12,7 @@ from .maps import (
     MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
     MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
 )  # noqa: F401
+from .subareas import SUBAREAS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
 from .monster_mods import MONSTER_MODS  # noqa: F401
 from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
@@ -77,4 +78,5 @@ from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
 # 让 build_index 产生的派生表也可见（_SKILL_FLAT/_MONSTER_INDEX 等）
 from ._assembly import (  # noqa: F401
     _SKILL_FLAT, _MONSTER_INDEX, _FISH_INDEX, _NPC_INDEX, _SHOP_W_INDEX,
+    SUBAREA_INDEX, SUBAREA_BY_MAP,
 )

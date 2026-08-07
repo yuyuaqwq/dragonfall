@@ -24,24 +24,35 @@ from ..commands.base import CommandBase, no_prof_waiting
 class WorldCmds(CommandBase):
 
     def _map_interactions(self, cur_map: dict, player: dict = None) -> list:
-        """当前地图可互动元素清单（v13：互动直接显示）"""
+        """当前地图可互动元素清单（v13：互动直接显示；v86：子区域感知）"""
         lines = []
         mid = cur_map.get("id", "")
         portals = db.get_portals(player["qq_id"]) if player else []
+        # v86 子区域：设施/NPC 按当前子区域过滤（无子区域/无标记则地图级）
+        sa_obj = None
+        sa_id = (player or {}).get("cur_subarea") or ""
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa["id"] == sa_id:
+                sa_obj = _sa
+                break
+        sa_shop = sa_obj.get("shop") if sa_obj else None
+        sa_healer = sa_obj.get("healer") if sa_obj else None
+        sa_npcs = (sa_obj.get("npcs") if sa_obj else None)
         # 设施
-        if cur_map.get("shop"):
+        if (sa_shop is not None and sa_shop) or (sa_shop is None and cur_map.get("shop")):
             lines.append("🏪 商店（『购买』）")
-        if cur_map.get("healer"):
+        if (sa_healer is not None and sa_healer) or (sa_healer is None and cur_map.get("healer")):
             lines.append("🏨 旅店（『住宿』恢复全状态）")
-        if mid in C.ENHANCE_SMITH_MAPS:
+        if mid in C.ENHANCE_SMITH_MAPS and (sa_obj is None or "craft" in (sa_obj.get("funcs") or []) or sa_obj.get("shop")):
             lines.append("🔨 铁匠铺（『强化』『附魔』）")
-        # 旅者方碑
+        # 旅者方碑（只在中心广场/首个子区域提示）
         if mid in C.PORTALS:
             p = C.PORTALS[mid]
-            if mid in portals:
-                lines.append(f"🌌 {p['icon']}{p['name']}（已激活，『传送 <名称>』）")
-            else:
-                lines.append(f"🌌 {p['icon']}{p['name']}（『激活』解锁传送点）")
+            if sa_obj is None or sa_obj is cur_map.get("subareas", [None])[0]:
+                if mid in portals:
+                    lines.append(f"🌌 {p['icon']}{p['name']}（已激活，『传送 <名称>』）")
+                else:
+                    lines.append(f"🌌 {p['icon']}{p['name']}（『激活』解锁传送点）")
         # 自然互动（9.3：垂钓点显示特色描述）
         if mid in C.FISHING_SPOTS:
             _fi = C.FISHING_SPOTS[mid]
@@ -57,8 +68,9 @@ class WorldCmds(CommandBase):
             lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『挖掘』）")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
             lines.append("🌿 野地可采集（『采集』）")
-        # NPC（含功能）
-        npcs = [C.NPCS[nid] for nid in cur_map.get("npcs", []) if nid in C.NPCS]
+        # NPC（含功能）：子区域优先
+        npc_ids = sa_npcs if sa_npcs is not None else cur_map.get("npcs", [])
+        npcs = [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
         for n in npcs:
             funcs = "、".join(self._npc_func_label(f) for f in n.get("funcs", []))
             lines.append(f"{n['icon']}{n['name']}（『找 {n['name']}』{funcs}）")
@@ -223,7 +235,7 @@ class WorldCmds(CommandBase):
         heal_pct = hl.get("heal_pct", 0.5)
         new_hp = max(player.get("hp", 0), int(player.get("max_hp", 1) * heal_pct))
         new_mp = max(player.get("mp", 0), int(player.get("max_mp", 1) * heal_pct))
-        db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id), hp=new_hp, mp=new_mp)
+        db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id), cur_subarea="", hp=new_hp, mp=new_mp)
         yield event.plain_result(
             f"🏠 你回到了自己的家（{hl['name']}），炭火噼啪作响，安心～\n"
             f"💚 恢复至 {new_hp}/{player.get('max_hp', 1)} HP ｜ 💙 {new_mp}/{player.get('max_mp', 1)} MP")
@@ -243,7 +255,10 @@ class WorldCmds(CommandBase):
         deed = player.get("deed", "") or ""
         prop = C.PROPERTIES.get(deed)
         target = prop["map"] if prop else "oak_town"
-        db.update_player(group_id, qq_id, cur_map=target)
+        tgt_sas = C.MAP_BY_ID.get(target, {}).get("subareas") or []
+        first_sa = tgt_sas[0] if tgt_sas else None
+        db.update_player(group_id, qq_id, cur_map=target,
+                         cur_subarea=first_sa["id"] if first_sa else "")
         yield event.plain_result(f"🚪 你走出家门，回到了{C.MAP_BY_ID.get(target, {}).get('name', '城镇')}。")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?拜访(?:[\s\S]*)$")
@@ -270,7 +285,7 @@ class WorldCmds(CommandBase):
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
             return
-        db.update_player(group_id, qq_id, cur_map=self._home_map_id(tid))
+        db.update_player(group_id, qq_id, cur_map=self._home_map_id(tid), cur_subarea="")
         yield event.plain_result(f"🚪 你敲了敲门，走进了 {target['name']} 的家。『地图』看看他家有什么～")
 
     def _home_storage_key(self, group_id, qq_id):
@@ -370,7 +385,26 @@ class WorldCmds(CommandBase):
             return
         cur_map = C.MAP_BY_ID[cur]
         cur_area = cur_map.get("area_name", cur_map["name"])
+        cur_sa = player.get("cur_subarea") or ""
+        sa_now = ""
+        if cur_sa:
+            for _sa in (cur_map.get("subareas") or []):
+                if _sa["id"] == cur_sa:
+                    sa_now = _sa["name"]
+                    break
         lines = [f"🗺️ 【{cur_area} · {cur_map['name']}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
+        # v86 子区域：当前子区域 + 本图子区域列表（『移动 <序号>』同图切换）
+        sas = cur_map.get("subareas") or []
+        if sas:
+            if sa_now:
+                lines.append(f"📍 当前位置：{sa_now}")
+            lines.append("🏘️ 本图位置：")
+            for i, sa in enumerate(sas, 1):
+                mark = "（你在这里）" if sa["id"] == cur_sa else ""
+                npc_mark = f" · {len(sa.get('npcs', []))} NPC" if sa.get("npcs") else ""
+                lv_mark = f" Lv.{sa['lv']}" if sa.get("type") == "野外" else ""
+                lines.append(f"  {i}. {sa['name']}{lv_mark}{npc_mark}{mark}")
+            lines.append("━━━━━━━━━━━━")
         # 本区域其他子区域
         same_area = [m for m in C.MAPS if m.get("area_name") == cur_area and m["id"] != cur]
         if same_area:
@@ -393,7 +427,15 @@ class WorldCmds(CommandBase):
             for l in inter:
                 lines.append(f"  {l}")
         # 本地 NPC
-        npcs = [C.NPCS[nid] for nid in cur_map.get("npcs", []) if nid in C.NPCS]
+        # v86 子区域：NPC 按当前子区域显示（无子区域则地图级）
+        cur_sa_obj = None
+        if cur_sa:
+            for _sa in sas:
+                if _sa["id"] == cur_sa:
+                    cur_sa_obj = _sa
+                    break
+        npc_ids = (cur_sa_obj.get("npcs") if cur_sa_obj else None) or cur_map.get("npcs", [])
+        npcs = [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
         if npcs:
             lines.append("👥 这里的 NPC：")
             for n in npcs:
@@ -407,19 +449,23 @@ class WorldCmds(CommandBase):
             for p in here_players:
                 stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
                 lines.append(f"  {p['name']} Lv.{p['level']}{stall_mark}")
-        # 当前地图怪物
-        if cur_map.get("monsters"):
-            lines.append(f"🐾 此地的怪物 (Lv.{cur_map['lv']}-{cur_map['lv']+2})：")
-            for mid, name, role, lv, skills, drops in cur_map["monsters"]:
+        # v86 子区域：怪物按当前子区域（无则回退地图级）
+        mons = (cur_sa_obj.get("monsters") if cur_sa_obj else None)
+        if mons is None:
+            mons = cur_map.get("monsters", [])
+        if mons:
+            base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
+            lines.append(f"🐾 此地的怪物 (Lv.{base_lv}-{base_lv+2})：")
+            for mid, name, role, lv, skills, drops in mons:
                 mark = "👑" if role == "boss" else ("⭐" if role == "elite" else "")
                 lines.append(f"  {mark}{name} Lv.{lv}")
-        # 精英/Boss
-        if cur_map.get("elite"):
-            ename = cur_map["elite"][1]
-            lines.append(f"  ⭐ 精英：{ename}")
-        if cur_map.get("boss"):
-            bname = cur_map["boss"][1]
-            lines.append(f"  👑 Boss：{bname}")
+        # 精英/Boss（子区域优先）
+        elite = (cur_sa_obj.get("elite") if cur_sa_obj else None) or cur_map.get("elite")
+        boss = (cur_sa_obj.get("boss") if cur_sa_obj else None) or cur_map.get("boss")
+        if elite:
+            lines.append(f"  ⭐ 精英：{elite[1]}")
+        if boss:
+            lines.append(f"  👑 Boss：{boss[1]}")
         lines.append(f"\n输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
@@ -434,10 +480,33 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         dest = dest.strip()
+        cur = player["cur_map"]
+        cur_map = C.MAP_BY_ID.get(cur, {})
+        cur_sas = cur_map.get("subareas") or []
+        # v86 子区域：『移动 <序号>』→ 同图子区域序号优先（地图面板展示），再邻居地图序号
+        if dest.isdigit():
+            idx = int(dest)
+            if 1 <= idx <= len(cur_sas):
+                sa = cur_sas[idx - 1]
+                if sa["id"] == player.get("cur_subarea"):
+                    yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
+                    return
+                db.update_player(group_id, qq_id, cur_subarea=sa["id"])
+                yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
+                return
+        # v86 子区域：『移动 <子区域名>』→ 同图子区域（免费切换）
+        if dest:
+            for sa in cur_sas:
+                if dest in (sa["name"], sa["id"]):
+                    if sa["id"] == player.get("cur_subarea"):
+                        yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
+                        return
+                    db.update_player(group_id, qq_id, cur_subarea=sa["id"])
+                    yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
+                    return
         # 查找目标地图：优先序号（相对当前地图邻居列表），其次地图名/ID/旧区域别名
         target = None
         if dest.isdigit():
-            cur = player["cur_map"]
             neighbors = C.MAP_CONNECTIONS.get(cur, [])
             idx = int(dest)
             if 1 <= idx <= len(neighbors):
@@ -488,7 +557,11 @@ class WorldCmds(CommandBase):
         lv_msg = ""
         if player["level"] < target["lv"]:
             lv_msg = f"\n⚠️ 建议等级 Lv.{target['lv']}，你才 Lv.{player['level']}，小心行事！"
-        db.update_player(group_id, qq_id, cur_map=target["id"])
+        # v86 子区域：跨图移动 → 默认落该图首个子区域（城镇=中心广场，野外=入口）
+        target_sas = target.get("subareas") or []
+        first_sa = target_sas[0] if target_sas else None
+        db.update_player(group_id, qq_id, cur_map=target["id"],
+                         cur_subarea=first_sa["id"] if first_sa else "")
         # 记录到访（称号用）
         db.add_visited(group_id, qq_id, target["id"])
         # 阶段九：到访成就判定（14 章 2.4 探索成就）
@@ -519,8 +592,9 @@ class WorldCmds(CommandBase):
         if ambush:
             db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
             self._lock_battle(group_id, qq_id)
+            sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
             yield event.plain_result(
-                f"🚶 你来到了【{target['name']}】\n{target['desc']}{lv_msg}{extra}{portal_msg}\n"
+                f"🚶 你来到了【{target['name']}】\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}\n"
                 f"━━━━━━━━━━━━\n"
                 f"🛡️ 还没站稳，{ambush['name']} 就拦住了去路！\n"
                 f"🐾【{ambush['name']}】Lv.{ambush['lv']} ❤️ {ambush['hp']}/{ambush['max_hp']}\n"
@@ -528,9 +602,42 @@ class WorldCmds(CommandBase):
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
+        sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
         yield event.plain_result(
-            f"🚶 你来到了【{target['name']}】\n{target['desc']}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
+            f"🚶 你来到了【{target['name']}】\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
         )
+
+    def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
+        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。"""
+        lines = [
+            f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
+            f"{sa.get('desc', '')}",
+            f"━━━━━━━━━━━━",
+        ]
+        # 本子区域 NPC
+        npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS]
+        if npcs:
+            lines.append("👥 这里的 NPC：")
+            for n in npcs:
+                lines.append(f"  {n['icon']}{n['name']}（{n['title']}）")
+        # 功能提示
+        funcs = sa.get("funcs") or []
+        func_cn = {"shop": "商店", "heal": "旅店", "quest": "任务", "craft": "铁匠",
+                   "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
+                   "apprentice": "副业", "enhance": "强化", "portal": "方碑"}
+        show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
+        if show_funcs:
+            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}（『商店』『旅店』『找 <NPC名>』等）")
+        # 子区域间切换（同图免费）
+        sas = cur_map.get("subareas") or []
+        others = [i for i, x in enumerate(sas, 1) if x["id"] != sa["id"]]
+        if others:
+            lines.append("📮 同区域可前往：")
+            for i, idx in enumerate(others, 1):
+                lines.append(f"  {i}. {sas[idx - 1]['name']}")
+        lines.append("")
+        lines.append("💡 『移动 <子区域名/序号>』切换位置，『地图』查看详情")
+        return "\n".join(lines)
 
     def _travel_ambush(self, player: dict, target_map: dict):
         """移动撞怪判定：返回撞到的怪物 dict 或 None。
@@ -678,7 +785,11 @@ class WorldCmds(CommandBase):
         if player["gold"] < cost:
             yield event.plain_result(f"传送需要 {cost} 金币（你只有 {player['gold']}）！打怪攒点金币吧～")
             return
-        db.update_player(group_id, qq_id, gold=player["gold"] - cost, cur_map=target["id"])
+        # v86 子区域：传送落地目标图首个子区域
+        tgt_sas = target.get("subareas") or []
+        first_sa = tgt_sas[0] if tgt_sas else None
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost, cur_map=target["id"],
+                         cur_subarea=first_sa["id"] if first_sa else "")
         db.add_visited(group_id, qq_id, target["id"])
         quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
         extra = ""
@@ -901,10 +1012,32 @@ class WorldCmds(CommandBase):
         lines.append("💡 『出门』回到城镇")
         return "\n".join(lines)
 
-    def _find_npc_in_map(self, player, name_key):
-        """在当前地图找 NPC，返回 (npc_id, npc_dict) 或 (None, None)"""
+    def _current_npcs(self, player):
+        """v86 子区域：当前所在位置可交互的 NPC 列表（子区域优先，回退地图级）。"""
         cur_map = player["cur_map"]
-        for nid in C.MAP_BY_ID[cur_map].get("npcs", []):
+        m = C.MAP_BY_ID.get(cur_map, {})
+        sa_id = player.get("cur_subarea") or ""
+        for sa in (m.get("subareas") or []):
+            if sa["id"] == sa_id:
+                npc_ids = sa.get("npcs") or []
+                return [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
+        return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
+
+    def _find_npc_in_map(self, player, name_key):
+        """在当前地图找 NPC（子区域优先，回退地图级），返回 (npc_id, npc_dict) 或 (None, None)"""
+        cur_map = player["cur_map"]
+        m = C.MAP_BY_ID.get(cur_map, {})
+        sa_id = player.get("cur_subarea") or ""
+        # 子区域 NPC 优先
+        for sa in (m.get("subareas") or []):
+            if sa["id"] == sa_id:
+                for nid in sa.get("npcs", []):
+                    npc = C.NPCS.get(nid)
+                    if npc and (name_key in npc["name"] or name_key in nid):
+                        return nid, npc
+                break
+        # 地图级 NPC（含其他子区域）
+        for nid in m.get("npcs", []):
             npc = C.NPCS.get(nid)
             if npc and (name_key in npc["name"] or name_key in nid):
                 return nid, npc
@@ -1128,7 +1261,7 @@ class WorldCmds(CommandBase):
             if cur_m.startswith("home_"):
                 yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
                 return
-            npcs = [C.NPCS[nid] for nid in C.MAP_BY_ID[cur_m].get("npcs", []) if nid in C.NPCS]
+            npcs = self._current_npcs(player)
             if not npcs:
                 yield event.plain_result("这里没有 NPC。输入『地图』看看哪里有 NPC～")
             else:
@@ -1143,7 +1276,7 @@ class WorldCmds(CommandBase):
             if player["cur_map"].startswith("home_"):
                 yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
                 return
-            npcs = [C.NPCS[nid] for nid in C.MAP_BY_ID[player["cur_map"]].get("npcs", []) if nid in C.NPCS]
+            npcs = self._current_npcs(player)
             idx = int(name_key)
             if idx < 1 or idx > len(npcs):
                 yield event.plain_result(f"这里没有第 {idx} 位 NPC（共 {len(npcs)} 位）！『找』查看列表～")

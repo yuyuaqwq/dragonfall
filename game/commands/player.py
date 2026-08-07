@@ -167,6 +167,8 @@ class PlayerCmds(CommandBase):
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
         db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id)
+        # v86 子区域：新手出生落中心广场
+        db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")
         db.init_stats(group_id, qq_id)
         db.add_portal(qq_id, "oak_town")  # v10：新手自动激活橡木镇方碑（v83：原维拉方碑旧地图）
         # v12：自动学会初始技能（职业 Lv.1 技能），后续技能用技能点学习
@@ -188,10 +190,19 @@ class PlayerCmds(CommandBase):
             f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
             f"{race_line}"
-            f"『{cls['desc']}』\n\n"
-            f"你出生在橡木镇中心广场，输入『找 镇长』接取第一个任务，『地图』查看周边。\n"
-            f"🌅 你注意到广场中央矗立着一座【橡木方碑】，已为你激活！输入『方碑』查看，以后可以『传送』到各地路标。\n"
-            f"⚔️ 你已学会初始技能：{init_display}（升级获得技能点，『技能学习 <技能名>』学新技能）\n"
+            f"『{cls['desc']}』\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📍 出生点：橡木镇中心广场\n"
+            f"　· 输入『找 镇长』接取第一个任务\n"
+            f"　· 『地图』查看周边\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🌅 广场中央的【橡木方碑】已为你激活！\n"
+            f"　· 『方碑』查看详情\n"
+            f"　· 『传送』可前往各地路标\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"⚔️ 已学会初始技能：{init_display}\n"
+            f"　· 升级获得技能点，『技能学习 <技能名>』学新技能\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
             f"冒险者，你的故事开始了！"
         )
 

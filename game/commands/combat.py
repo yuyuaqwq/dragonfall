@@ -68,21 +68,33 @@ class CombatCmds(CommandBase):
             if handled:
                 yield event.plain_result(ev_text)
                 return
-        # 探索事件池
+        # 探索事件池（v86 子区域：用当前子区域的怪物，无则回退地图级）
+        cur_sa = None
+        cur_sa_id = player.get("cur_subarea") or ""
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa["id"] == cur_sa_id:
+                cur_sa = _sa
+                break
         events = []
-        for mid, name, role, lv, skills, drops in cur_map.get("monsters", []):
+        mon_src = (cur_sa.get("monsters") if cur_sa else None)
+        if mon_src is None:
+            mon_src = cur_map.get("monsters", [])
+        for mid, name, role, lv, skills, drops in mon_src:
             events.append(("monster", (mid, name, role, lv, skills, drops)))
+        # 精英/Boss：子区域优先，回退地图级
+        sa_elite = (cur_sa.get("elite") if cur_sa else None) or cur_map.get("elite")
+        sa_boss = (cur_sa.get("boss") if cur_sa else None) or cur_map.get("boss")
         # 城镇外郊：外围低概率遇怪，新手不会卡住（但精英/Boss 独立保底判定，与野外一致）
         if cur_map.get("type") == "城镇外郊":
             # 精英/Boss 独立判定（修复：外郊此前漏判精英，导致山贼头目等永远遇不到）
             monster = None
             tag = ""
             eb = self._mount_explore_bonus(player)
-            if cur_map.get("elite") and random.random() < (0.20 + eb):
-                monster = C.build_monster(cur_map["elite"], cur_map)
+            if sa_elite and random.random() < (0.20 + eb):
+                monster = C.build_monster(sa_elite, cur_map)
                 tag = "⭐ 精英"
-            elif cur_map.get("boss") and random.random() < 0.08:
-                monster = C.build_monster(cur_map["boss"], cur_map)
+            elif sa_boss and random.random() < 0.08:
+                monster = C.build_monster(sa_boss, cur_map)
                 tag = "👑 BOSS"
             if monster:
                 db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
@@ -126,21 +138,21 @@ class CombatCmds(CommandBase):
         monster = None
         tag = ""
         eb = self._mount_explore_bonus(player)
-        if cur_map.get("elite") and random.random() < (0.20 + eb):
-            monster = C.build_monster(cur_map["elite"], cur_map)
+        if sa_elite and random.random() < (0.20 + eb):
+            monster = C.build_monster(sa_elite, cur_map)
             tag = "⭐ 精英"
-        elif cur_map.get("boss") and random.random() < 0.08:
-            monster = C.build_monster(cur_map["boss"], cur_map)
+        elif sa_boss and random.random() < 0.08:
+            monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
         else:
             monster = C.build_monster(random.choice(events)[1], cur_map)
         # 遇普通怪但此地有精英/Boss → 提示气息（刷精英的方向感）
         hint = ""
         if not tag:
-            if cur_map.get("elite"):
-                hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{cur_map['elite'][1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
-            elif cur_map.get("boss"):
-                hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{cur_map['boss'][1]}】蛰伏于深处，继续『探索』有机会遇到！"
+            if sa_elite:
+                hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{sa_elite[1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
+            elif sa_boss:
+                hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{sa_boss[1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
         db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
         self._lock_battle(group_id, qq_id)
@@ -1128,8 +1140,9 @@ class CombatCmds(CommandBase):
             extra = min(int(player["gold"] * 0.1), 2000)
             new_gold = max(0, new_gold - extra)
             lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币（上限 2000）！")
-        # 回城并满血（新手保护）
-        db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"], cur_map="oak_town")
+        # 回城并满血（新手保护；v86 子区域：落中心广场）
+        db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
+                         cur_map="oak_town", cur_subarea="oak_town_1")
         lines.append(
             f"你丢失了 {lost} 金币，被好心人送回了橡木镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
@@ -1641,7 +1654,7 @@ class CombatCmds(CommandBase):
         winner = db.get_player(group_id, winner_qq)
         lost = int(loser["gold"] * 0.1)
         db.update_player(group_id, winner_qq, gold=winner["gold"] + lost)
-        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map="oak_town")
+        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map="oak_town", cur_subarea="oak_town_1")
         db.init_stats(group_id, loser_qq)
         db.bump_stats(group_id, loser_qq, deaths=1)
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）

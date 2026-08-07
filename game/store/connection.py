@@ -42,6 +42,7 @@ def init_db():
                 max_hp INTEGER,
                 max_mp INTEGER,
                 cur_map TEXT DEFAULT 'vila',
+                cur_subarea TEXT DEFAULT '',
                 equipment TEXT DEFAULT '{}',
                 skills TEXT DEFAULT '[]',
                 class_tier INTEGER DEFAULT 0,
@@ -285,6 +286,9 @@ def init_db():
             # v84 房屋升级（25 章）：players 表补 deed_lv 列（房产等级，默认 1 级木屋）
             if "deed_lv" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN deed_lv INTEGER DEFAULT 1")
+            # v86 子区域（02 章 13 节）：players 表补 cur_subarea 列（当前所在子区域，空=地图默认落点）
+            if "cur_subarea" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN cur_subarea TEXT DEFAULT ''")
             # 兼容旧库：feedback 表补 reply 列（意见回复）
             fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
             if "reply" not in fcols:

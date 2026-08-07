@@ -107,6 +107,8 @@ async def main():
     db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
     await cmd(m, "party", "g1", "i1", "组队 高速")
+    # v86.3 入场钥匙：旧王陵需要王陵钥匙
+    db.add_item("g1", "i1", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     st = db.get_battle("g1", "i1")["state"]
     spds = {k: st["players"][k].get("spd", 0) for k in st["members"]}
