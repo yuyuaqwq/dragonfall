@@ -50,6 +50,18 @@ class CombatCmds(CommandBase):
                 f"🧭 前往『地图』查看周边可去的地方。"
             )
             return
+        # 9.4：野外 NPC 偶遇（满足条件 → 偶遇提示，不消耗探索；30 分钟冷却防刷）
+        wild = C.roll_wild_encounter(group_id, qq_id, player, cur)
+        if wild:
+            nid, wnpc = wild
+            yield event.plain_result(
+                f"🍃 你在{cur_map['name']}偶遇了【{wnpc['icon']}{wnpc['name']}】！\n"
+                f"　　{wnpc.get('desc', '')}\n"
+                f"“{wnpc.get('dialogue', '……')}”\n"
+                f"━━━━━━━━━━━━\n"
+                f"💡 『找 {wnpc['name']}』与他交谈——他今天在这里，错过就要等下次了！"
+            )
+            return
         # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
         if random.random() < 0.35:
             handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)

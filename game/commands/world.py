@@ -643,7 +643,8 @@ class WorldCmds(CommandBase):
                 if sqd and sqd["objective"].get("explore") == map_id:
                     sq["status"] = "ready"
                     changed = True
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {C.NPCS[sqd['giver']]['name']} 交任务吧～")
+                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
+                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} 交任务吧～")
         if changed:
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)
@@ -820,6 +821,23 @@ class WorldCmds(CommandBase):
                 return nid, npc
         return None, None
 
+    def _find_wild_npc(self, player, name_key, group_id, qq_id):
+        """9.4：在当前地图找野外 NPC（含 roam 定位 + 出现条件判定）。
+        名字匹配但今天不在/条件不满足 → 返回 (None, None)，由调用方提示。"""
+        cur = player["cur_map"]
+        for nid, wnpc in C.ALL_WILD.items():
+            if wnpc.get("name") != name_key:
+                continue
+            if C.npc_map_id(nid, wnpc) != cur:
+                return None, None
+            if not C.wild_npc_findable(nid, wnpc, player, group_id, qq_id):
+                return None, None
+            wnpc = dict(wnpc)
+            wnpc.setdefault("title", "游历于野外的旅人")
+            return nid, wnpc
+        return None, None
+
+
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
         """按主线进度返回 NPC 对话（主线完成后不再重复初始台词）"""
         base = npc.get("dialogue", "……")
@@ -925,6 +943,84 @@ class WorldCmds(CommandBase):
         db.add_reputation(group_id, qq_id, faction, 10)
         return f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +10"
 
+    def _wild_cond_label(self, npc: dict) -> str:
+        """野外 NPC 出现条件 → 中文标签（见闻录/时间面板用）"""
+        cond = npc.get("condition", {})
+        labels = []
+        t = cond.get("time")
+        if t:
+            tm = {"morning": "清晨", "day": "白天", "evening": "黄昏", "night": "夜晚"}
+            labels.append("/".join(tm.get(x, x) for x in t) + "出现")
+        s_ = cond.get("season")
+        if s_:
+            sm = {"spring": "春季", "summer": "夏季", "autumn": "秋季", "winter": "冬季"}
+            labels.append("/".join(sm.get(x, x) for x in s_) + "限定")
+        w = cond.get("weather")
+        if w:
+            wm = {"rain": "雨天", "storm": "暴风雨", "snow": "雪天", "fog": "雾天", "sunny": "晴夜"}
+            labels.append(wm.get(w, w) + "出现")
+        if cond.get("min_level"):
+            labels.append(f"Lv.{cond['min_level']}+")
+        if npc.get("cycle"):
+            labels.append(f"每{npc['cycle']}天")
+        if npc.get("chance"):
+            labels.append(f"概率 {int(npc['chance']*100)}%")
+        if npc.get("unlock"):
+            labels.append("🔓 需解锁")
+        return "，".join(labels) if labels else "随时可能出现"
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?时间(?:指令)?(?:\s*|$)")
+
+    async def time_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        cur = player["cur_map"]
+        summary = C.time_weather_summary(cur)
+        cur_map = C.MAP_BY_ID.get(cur, {})
+        lines = [
+            f"🕰️ 【时间】{summary}",
+            f"📍 你在【{cur_map.get('name', '未知区域')}】",
+            "━━━━━━━━━━━━",
+        ]
+        hints = C.nearby_hints(group_id, qq_id, player, cur)
+        if hints:
+            lines.append("🍃 附近似乎有人影出没：")
+            for nid, npc in hints[:5]:
+                lines.append(f"  {npc['icon']}{npc['name']}（{self._wild_cond_label(npc)}）")
+            lines.append("💡 『探索』碰碰运气，『找 <名字>』直接寻找")
+        else:
+            lines.append("🍃 附近没有特别的气息……")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?见闻录(?:\s*|$)")
+
+    async def wild_notes(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        met = C.met_wild(group_id, qq_id)
+        if not met:
+            yield event.plain_result(
+                "📖 【见闻录】还是空白的……\n"
+                "去野外走走，那些藏在角落里的旅人、隐士、夜行者，都在等着被遇见。"
+            )
+            return
+        lines = [f"📖 【见闻录】你见过的人（{len(met)}/{len(C.ALL_WILD)}）：", "━━━━━━━━━━━━"]
+        for nid in met:
+            npc = C.ALL_WILD.get(nid)
+            if not npc:
+                continue
+            lines.append(f"{npc['icon']}{npc['name']}")
+            lines.append(f"　　{npc['desc']}")
+            lines.append(f"　　🕐 {self._wild_cond_label(npc)}")
+        lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
+        yield event.plain_result("\n".join(lines))
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?找(?:\s*|$)")
 
     async def find_npc(self, event: AstrMessageEvent):
@@ -968,7 +1064,11 @@ class WorldCmds(CommandBase):
         else:
             npc_id, npc = self._find_npc_in_map(player, name_key)
         if not npc:
-            yield event.plain_result(f"你在这里没找到『{name_key}』。输入『地图』看看哪里有 NPC～")
+            # 9.4：野外 NPC（当前地图 + 出现条件）
+            npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)
+        if not npc:
+            yield event.plain_result(
+                f"你在这里没找到『{name_key}』。他可能不在这里，或还没到出现的时候……（『时间』看看此刻谁在附近）")
             return
         dlg = C.get_dialogue(npc_id)
         if dlg:
@@ -1214,7 +1314,7 @@ class WorldCmds(CommandBase):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if not sqd:
                 continue
-            npc = C.NPCS.get(sqd["giver"])
+            npc = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"])
             obj = sqd["objective"]
             # 收集型：实时检查背包材料（不依赖 ready 状态）
             if obj.get("collect"):
@@ -1225,7 +1325,7 @@ class WorldCmds(CommandBase):
                         yield event.plain_result("\n".join(lines))
                         return
                     else:
-                        giver = C.NPCS.get(sqd["giver"], {}).get("name", "？")
+                        giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
                         yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver} 交任务！")
                         return
                 else:
@@ -1238,7 +1338,7 @@ class WorldCmds(CommandBase):
                     yield event.plain_result("\n".join(lines))
                     return
                 else:
-                    giver = C.NPCS.get(sqd["giver"], {}).get("name", "？")
+                    giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
                     yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver} 交任务！")
                     return
         if collect_missing:
@@ -1260,7 +1360,9 @@ class WorldCmds(CommandBase):
         obj = sqd["objective"]
         # 收集型：实时检查背包材料（不依赖 ready 状态）
         if obj.get("collect"):
-            have = db.count_item(group_id, qq_id, obj["collect"])
+            # 9.4：collect 中文名 → mat_ ID（原 f"mat_{中文}" 查不到 key，S1 起就坏的潜伏 bug）
+            _ckey = C.resolve("materials", obj["collect"])
+            have = db.count_item(group_id, qq_id, _ckey)
             if have < obj["count"]:
                 return [f"材料不够！需要 {obj['collect']} ×{obj['count']}，你只有 {have} 个。"]
         elif sq.get("status") != "ready":
@@ -1268,7 +1370,7 @@ class WorldCmds(CommandBase):
         # 收集类：扣除材料
         if obj.get("collect"):
             for _ in range(obj["count"]):
-                db.remove_item(group_id, qq_id, f"mat_{obj['collect']}")
+                db.remove_item(group_id, qq_id, _ckey)
         player = self._player(group_id, qq_id)
         db.update_player(group_id, qq_id, exp=player["exp"] + sqd["reward_exp"], gold=player["gold"] + sqd["reward_gold"])
         del quests["side"][sid]
