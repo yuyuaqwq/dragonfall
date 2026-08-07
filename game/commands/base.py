@@ -61,8 +61,8 @@ class CommandBase:
         if msg.startswith(cmd):
             msg = msg[len(cmd):].strip()
         else:
-            # 尝试别名
-            for alias in ("我的角色", "排行榜", "位置", "前往", "撤退", "主线", "物品", "help"):
+            # 尝试别名（v83.1 精简：只保留仍在用的别名）
+            for alias in ("我的角色", "位置", "主线", "help"):
                 if alias != cmd and msg.startswith(alias):
                     msg = msg[len(alias):].strip()
                     break

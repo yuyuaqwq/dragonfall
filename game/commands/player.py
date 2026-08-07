@@ -264,10 +264,15 @@ class PlayerCmds(CommandBase):
         lines.append(f"装备：\n{eq_str}")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:排行|排行榜)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?排行(?:[\s\S]*)$")
 
     async def leaderboard(self, event: AstrMessageEvent):
-        group_id, _ = self._uid(event)
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "排行").strip()
+        # v83.1：『排行 副业』→ 副业排行（原『副业 排行』参数保留兼容）
+        if "副业" in raw:
+            yield event.plain_result(self._prof_rank_text(group_id))
+            return
         tops = db.top_players(group_id, 10)
         if not tops:
             yield event.plain_result("还没有人注册角色，快来当第一名！『注册 战士 名字』")
@@ -276,6 +281,8 @@ class PlayerCmds(CommandBase):
         medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
         for i, p in enumerate(tops):
             lines.append(f"{medals[i]} Lv.{p['level']} {C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")
+        lines.append("")
+        lines.append("💡 『排行 副业』看副业等级榜")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?种族(?:\s*|$)")

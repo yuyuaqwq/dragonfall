@@ -92,8 +92,7 @@ async def main():
         ("技能学习怒吼", "skill_learn"),
         ("背包材料", "inventory"),      # v42：无空格筛选走 inventory（内部解析类型）
         ("背包 材料", "inventory"),
-        ("背包筛选 材料", "bag_filter"),  # 独立筛选指令
-        ("筛选", "bag_filter"),
+        ("背包筛选 材料", "bag_filter"),  # 独立筛选指令（v83.1 只留『背包筛选』，删『筛选』别名）
         ("背包", "inventory"),
     ]
     for text, expect in cases:

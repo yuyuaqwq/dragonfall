@@ -346,7 +346,7 @@ class WorldCmds(CommandBase):
         lines.append(f"\n输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:移动|前往)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?移动(?:\s*|$)")
     @no_prof_waiting()
 
     async def move(self, event: AstrMessageEvent):
@@ -1462,7 +1462,7 @@ class WorldCmds(CommandBase):
         lines.append("💡 击杀各地怪物、完成当地任务可获得对应势力声望")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:传说|编年史)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")
 
     async def chronicle(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

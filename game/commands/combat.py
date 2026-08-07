@@ -729,7 +729,7 @@ class CombatCmds(CommandBase):
             f"{self._battle_footer(player, b, monster)}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:逃跑|撤退)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?逃跑(?:\s*|$)")
 
     async def flee(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

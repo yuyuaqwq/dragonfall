@@ -304,7 +304,7 @@ class EconomyCmds(CommandBase):
         )
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:挖掘|采矿)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?挖掘(?:\s*|$)")
 
     async def mining(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -659,7 +659,7 @@ class EconomyCmds(CommandBase):
             return True, f"\n🎯 今日副业任务完成！【{name}×{need}】奖励 {gold} 金币！"
         return False, ""
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:每日副业|副业任务|今日副业)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?副业任务(?:\s*|$)")
 
     async def daily_prof(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -717,15 +717,13 @@ class EconomyCmds(CommandBase):
         )
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:锻造列表|锻造|打造列表|打造)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?锻造(?:[\s\S]*)$")
 
     async def craft(self, event: AstrMessageEvent):
         """锻造装备：消耗材料 + 金币 → 获得指定装备（铁匠铺）
         v41：按职业分组展示；套装需要精英/Boss 掉的图纸"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "锻造")
-        if raw.startswith("锻造"):
-            raw = raw[len("锻造"):].strip()
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
@@ -1133,7 +1131,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 到铁匠铺输入『锻造 装备名』制作！")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:配方列表|配方)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?配方(?:\s*|$)")
 
     async def recipe_list(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -1769,7 +1767,7 @@ class EconomyCmds(CommandBase):
         result = self._bag_view(group_id, qq_id, raw)
         yield event.plain_result(result)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:背包筛选|筛选)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?背包筛选(?:[\s\S]*)$")
 
     async def bag_filter(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -1778,10 +1776,6 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         raw = self._strip_cmd(event, "背包筛选")
-        if raw == "筛选":  # 『筛选』前缀时 _strip_cmd 剥错的情况
-            raw = ""
-        elif raw.startswith("筛选"):
-            raw = raw[2:].strip()
         result = self._bag_view(group_id, qq_id, raw, filter_only=True)
         yield event.plain_result(result)
 
@@ -1822,14 +1816,12 @@ class EconomyCmds(CommandBase):
         lines.append("💡 『装备 <名称>』『使用 <名称>』『物品详情 <名称>』『出售 <名称>』")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:物品详情|查看)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$")
 
     async def item_detail(self, event: AstrMessageEvent):
         """查看物品详细信息：装备属性/材料/消耗品/宠物蛋"""
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "物品详情")
-        if item_name.startswith("查看"):
-            item_name = item_name[2:].strip()
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
