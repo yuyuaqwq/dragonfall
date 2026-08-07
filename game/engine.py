@@ -385,23 +385,45 @@ def active_sets(equipment: dict) -> dict:
     return {s: c for s, c in counts.items() if c >= 2}
 
 
+def _set_info(set_name: str) -> dict | None:
+    """按套装名（装备 set 字段，中文）查 SETS 条目（SETS key 是 set_xxx ID）"""
+    if set_name in C.SETS:
+        return C.SETS[set_name]
+    for info in C.SETS.values():
+        if info.get("name") == set_name:
+            return info
+    return None
+
+
 def set_bonus_2(equipment: dict) -> dict:
-    """汇总所有激活套装的 2 件百分比加成 {stat: 总和}"""
+    """汇总所有激活套装的 2 件百分比加成 {stat: 总和}
+    阶段八：>=4 件时叠加 4 件属性加成（bonus_4_stats，10 章名册套装）"""
     bonus = {}
     for sname, cnt in active_sets(equipment).items():
-        info = C.SETS.get(sname)
+        info = _set_info(sname)
         if not info:
             continue
         for k, v in info.get("bonus_2", {}).items():
             bonus[k] = bonus.get(k, 0) + v
+        if cnt >= 4:
+            for k, v in info.get("bonus_4_stats", {}).items():
+                bonus[k] = bonus.get(k, 0) + v
     return bonus
+
+
+def has_set(equipment: dict, set_name: str) -> bool:
+    """装备是否穿戴了指定套装（10 章名册套装按套装名匹配）"""
+    for item in (equipment or {}).values():
+        if item and item.get("set") == set_name:
+            return True
+    return False
 
 
 def set_bonus_4(equipment: dict) -> list:
     """返回已激活套装（>=4 件）的 4 件特效效果名列表"""
     effs = []
     for sname, cnt in active_sets(equipment).items():
-        info = C.SETS.get(sname)
+        info = _set_info(sname)
         if info and cnt >= 4 and info.get("bonus_4", {}).get("effect"):
             effs.append(info["bonus_4"]["effect"])
     return effs

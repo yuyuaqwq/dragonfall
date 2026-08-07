@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from .drops import generate_equip
+from .drops import generate_equip, generate_roster_equip
 from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES
 from ..core.index import resolve, display as _display
 
 
 """《剑与魔法》数据层 - craft.py（v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文）"""
 def craft_recipe_make(name: str) -> dict | None:
-    """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）"""
+    """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）
+    阶段八：名册配方（roster_id）走名册精确生成（词条 v2/需求/套装）"""
     rec = CRAFT_RECIPES.get(name)
     if not rec:
         return None
+    if rec.get("roster_id"):
+        return generate_roster_equip(rec["roster_id"])
+    # 兜底（无 roster_id 的旧配方）：随机生成 + 覆盖名
     equip = generate_equip(rec["slot"], rec["lv"], rec["quality"],
                            rec.get("weapon_type"))
     equip["name"] = _display("recipes", name)  # v48：配方名转中文（背包/存档显示用中文名）

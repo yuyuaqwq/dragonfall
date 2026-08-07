@@ -867,6 +867,9 @@ class Battle:
             pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
             if "神恩" in pv:
                 heal = int(heal * 1.10)
+            # 阶段八：圣光套 2 件效果——治疗 +10%
+            if E.has_set(player.get("equipment", {}), "圣光套"):
+                heal = int(heal * 1.10)
             over = 0
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             # v64 被动·庇护之光：治疗溢出 20% 转为护盾

@@ -1333,26 +1333,40 @@ class EconomyCmds(CommandBase):
         lines = ["🎴 【套装状态】", "━━━━━━━━━━━━"]
         any_active = False
         for sname, cnt in counts.items():
-            info = C.SETS.get(sname)
+            info = E._set_info(sname)
             if not info:
                 continue
             b2 = "  ".join(
                 f"{sn} +{int(v * 100)}%"
                 for k, v in info.get("bonus_2", {}).items()
-                for sn in [{"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击", "dodge": "闪避"}.get(k, k)]
+                for sn in [{"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击", "dodge": "闪避", "heal": "治疗"}.get(k, k)]
             )
-            b4 = info.get("bonus_4", {}).get("desc", "")
+            # 阶段八：4 件效果 = 属性加成（bonus_4_stats）或特效（bonus_4.effect）
+            b4_parts = []
+            for k, v in info.get("bonus_4_stats", {}).items():
+                sn = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击", "dodge": "闪避"}.get(k, k)
+                b4_parts.append(f"{sn} +{int(v * 100)}%")
+            b4_desc = info.get("bonus_4", {}).get("desc", "")
+            if b4_desc:
+                b4_parts.append(b4_desc)
+            b4 = "  ".join(b4_parts) or "（待解锁）"
+            # 阶段八：5 件效果（数据先行）
+            b5 = info.get("bonus_5", {}).get("desc", "")
             active_2 = cnt >= 2
             active_4 = cnt >= 4
-            if active_2 or active_4:
+            active_5 = cnt >= 5
+            if active_2 or active_4 or active_5:
                 any_active = True
             lines.append(
-                f"{info['icon']}{sname}（{cnt}/4 件）"
+                f"{info['icon']}{sname}（{cnt}/5 件）"
                 + (" ✅" if active_2 else "")
                 + (" ⭐" if active_4 else "")
+                + (" 👑" if active_5 else "")
             )
             lines.append(f"  2件：{b2}" + ("（已激活）" if active_2 else ""))
             lines.append(f"  4件：{b4}" + ("（已激活）" if active_4 else ""))
+            if b5:
+                lines.append(f"  5件：{b5}" + ("（已激活）" if active_5 else ""))
         if not any_active:
             lines.append("穿满 2 件同套装即激活 2 件效果，4 件激活 4 件效果！继续收集吧～")
         lines.append("━━━━━━━━━━━━")

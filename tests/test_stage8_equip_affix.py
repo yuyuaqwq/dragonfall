@@ -106,8 +106,11 @@ def test_roster_gen():
     # 苍穹之枪武器类型
     e4 = C.generate_roster_equip("eq_cang_qiong_zhi_qiang")
     check("苍穹之枪类型枪", e4.get("weapon_type") == "spear")
-    # 名册系列全部映射套装
-    no_set = [rid for rid, r in C.EQUIP_ROSTER.items() if not e.get("set") and r["quality"] != "white"]
+    # 名册系列全部映射套装（蓝以上）
+    random.seed(11)
+    no_set = [rid for rid, r in C.EQUIP_ROSTER.items()
+              if r["quality"] != "white"
+              and not C.generate_roster_equip(rid).get("set")]
     check("蓝紫橙名册全部有套装归属", not no_set, str(no_set[:5]))
 
 
@@ -273,6 +276,38 @@ async def test_shop_roster():
           str([it["data"].get("affixes") for it in found]))
 
 
+# ============ 8. 锻造名册化 + 套装 ============
+def test_craft_set():
+    print("【8. 锻造名册化 + 套装】")
+    # 锻造配方 = 名册（87 个，无旧毕业套）
+    check("配方数 87", len(C.CRAFT_RECIPES) == 87, str(len(C.CRAFT_RECIPES)))
+    check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
+    # 锻造产物 = 名册精确生成（需求/套装/专属）
+    eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
+    check("锻造橙装名册生成", eq["name"] == "金钩弯刀" and eq.get("legendary") == "gold_hook", str(eq))
+    check("锻造橙装套装", eq.get("set") == "海风套", str(eq.get("set")))
+    eq2 = C.craft_recipe_make("rec_tie_jian")
+    check("锻造白装无套装", eq2.get("set") is None and eq2["req"] == {"str": 5})
+    # 需图纸配方（紫/橙）
+    bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
+    check("需图纸配方存在", len(bp_recs) == 64, str(len(bp_recs)))
+    check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
+    # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
+    w = C.generate_roster_equip("eq_sheng_guang_chang_jian")
+    h = C.generate_roster_equip("eq_qi_shi_tou_kui")
+    a = C.generate_roster_equip("eq_sheng_guang_xiong_jia")
+    b = C.generate_roster_equip("eq_qi_shi_chang_xue")
+    eq2set = {"weapon": w, "helm": h}
+    b2 = E.set_bonus_2(eq2set)
+    check("圣光套 2 件治疗+10%", abs(b2.get("heal", 0) - 0.10) < 1e-6, str(b2))
+    check("圣光套 has_set", E.has_set(eq2set, "圣光套"))
+    eq4set = {"weapon": w, "helm": h, "armor": a, "boots": b}
+    b4 = E.set_bonus_2(eq4set)
+    check("圣光套 4 件防御+8%", abs(b4.get("def", 0) - 0.08) < 1e-6, str(b4))
+    # 白装不触发套装
+    check("白装无套装字段", C.generate_roster_equip("eq_tie_jian").get("set") is None)
+
+
 async def main():
     test_data()
     test_roster_gen()
@@ -281,6 +316,7 @@ async def main():
     await test_req()
     test_battle_affix()
     await test_shop_roster()
+    test_craft_set()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
 

@@ -230,7 +230,8 @@ def generate_roster_equip(rid: str) -> dict:
         equip["affixes"] = affix_ids
     if r.get("legendary"):
         equip["legendary"] = r["legendary"]
-    if r["series"] in SERIES_SETS:
+    # 阶段八：蓝以上名册装备挂系列套装（白装新手过渡，不触发套装）
+    if r["series"] in SERIES_SETS and quality != "white":
         equip["set"] = SERIES_SETS[r["series"]]
     return equip
 

@@ -1,3067 +1,1230 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - craft.py（v48 全 key 转 ID）"""
+"""奥兰迪亚·余烬纪年 数据层 - craft.py（阶段八重写，2026-08-06）
+
+锻造配方 = 10 章装备名册（传说不锻造）。
+- 白/蓝：材料直接锻造（10 章 7.2）；紫/橙：需图纸（blueprint，『学习』解锁）
+- 配方名 = 装备名（确定性），产物 = generate_roster_equip（名册精确生成）
+- CRAFT_RECIPE_ALIASES 保留（旧世界玩家输入别名，v48 约定常驻）
+"""
 CRAFT_RECIPES = {
-    "rec_tie_jian": {
-        "slot": "weapon",
-        "quality": "white",
-        "lv": 3,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_ye_gou_liao_ya": 5,
-            "mat_shu_wei": 3
-        },
-        "gold": 30,
-        "desc": "新手铁匠的第一件作品",
-        "name": "铁剑"
-    },
-    "rec_xue_tu_fa_zhang": {
-        "slot": "weapon",
-        "quality": "white",
-        "lv": 3,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_shu_wei": 5,
-            "mat_ye_gou_liao_ya": 3
-        },
-        "gold": 30,
-        "desc": "初学者练习魔法用的法杖",
-        "name": "学徒法杖"
-    },
-    "rec_lie_gong": {
-        "slot": "weapon",
-        "quality": "white",
-        "lv": 3,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_ye_gou_liao_ya": 4,
-            "mat_lang_pi": 2
-        },
-        "gold": 30,
-        "desc": "用野狗筋和硬木做的弓",
-        "name": "猎弓"
-    },
-    "rec_sheng_guang_quan_zhang": {
-        "slot": "weapon",
-        "quality": "white",
-        "lv": 3,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_shu_wei": 4,
-            "mat_lang_pi": 3
-        },
-        "gold": 30,
-        "desc": "祝福过的新手权杖",
-        "name": "圣光权杖"
-    },
-    "rec_lv_ren_xiong_jia": {
-        "slot": "armor",
-        "quality": "green",
-        "lv": 4,
-        "mats": {
-            "mat_lang_pi": 5,
-            "mat_ye_gou_liao_ya": 4
-        },
-        "gold": 50,
-        "desc": "冒险者最常穿的皮甲",
-        "name": "旅人胸甲"
-    },
-    "rec_lv_ren_hu_tui": {
-        "slot": "legs",
-        "quality": "green",
-        "lv": 4,
-        "mats": {
-            "mat_ye_zhu_pi": 4,
-            "mat_shu_wei": 4
-        },
-        "gold": 40,
-        "desc": "耐磨的皮革护腿",
-        "name": "旅人护腿"
-    },
-    "rec_lv_ren_zhi_xue": {
-        "slot": "boots",
-        "quality": "green",
-        "lv": 4,
-        "mats": {
-            "mat_lang_pi": 3,
-            "mat_ye_gou_liao_ya": 3
-        },
-        "gold": 35,
-        "desc": "轻便的旅行靴",
-        "name": "旅人之靴"
-    },
-    "rec_shan_zei_zhi_kui": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 5,
-        "mats": {
-            "mat_shan_zei_hui_zhang": 3,
-            "mat_lang_pi": 4
-        },
-        "gold": 80,
-        "desc": "用山贼头目的徽章熔铸而成",
-        "name": "山贼之盔"
-    },
-    "rec_sheng_lu_zhi_dun": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 8,
-        "mats": {
-            "mat_sheng_lu_jiao": 2,
-            "mat_yuan_gu_shu_pi": 4,
-            "mat_lang_pi": 5
-        },
-        "gold": 200,
-        "desc": "以远古圣鹿之角锻造的宝甲",
-        "name": "圣鹿之盾"
-    },
-    "rec_jing_gang_jian": {
-        "slot": "weapon",
-        "quality": "green",
-        "lv": 12,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_gu_pian": 6,
-            "mat_jiang_shi_fu_rou": 4
-        },
-        "gold": 120,
-        "desc": "黑石城铁匠的招牌货",
-        "name": "精钢剑"
-    },
-    "rec_you_hun_fa_zhang": {
-        "slot": "weapon",
-        "quality": "green",
-        "lv": 12,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_gui_hun_jing_hua": 5,
-            "mat_ling_hun_sui_pian": 3
-        },
-        "gold": 120,
-        "desc": "缠绕着亡灵气息的法杖",
-        "name": "幽魂法杖"
-    },
-    "rec_lie_mo_gong": {
-        "slot": "weapon",
-        "quality": "green",
-        "lv": 12,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_pa_xing_chong_ke": 5,
-            "mat_shou_ren_liao_ya": 3
-        },
-        "gold": 120,
-        "desc": "专门猎杀恶魔的弓",
-        "name": "猎魔弓"
-    },
-    "rec_sheng_hai_quan_zhang": {
-        "slot": "weapon",
-        "quality": "green",
-        "lv": 12,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_shi_shi_gui_zhi_zhao": 5,
-            "mat_nv_yao_zhi_yu": 3
-        },
-        "gold": 120,
-        "desc": "净化亡者的权杖",
-        "name": "圣骸权杖"
-    },
-    "rec_hei_shi_zhan_jia": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 14,
-        "mats": {
-            "mat_shu_shi_he_xin": 3,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 300,
-        "desc": "黑石城精工锻造的锁甲",
-        "name": "黑石战甲"
-    },
-    "rec_huang_yuan_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 14,
-        "mats": {
-            "mat_kuang_zhan_zhi_xin": 2,
-            "mat_zuo_lang_quan_chi": 6,
-            "mat_gu_pian": 5
-        },
-        "gold": 260,
-        "desc": "赤脊荒原兽人风格的护腿",
-        "name": "荒原护腿"
-    },
-    "rec_fu_xiu_zhi_ren": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 15,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_fu_xiu_zhi_ren": 2,
-            "mat_shu_shi_he_xin": 4,
-            "mat_ling_hun_sui_pian": 6
-        },
-        "gold": 600,
-        "desc": "从腐朽领主手中夺来的魔刃",
-        "name": "腐朽之刃"
-    },
-    "rec_qiu_zhang_zhan_ren": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 18,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_qiu_zhang_zhan_ren": 2,
-            "mat_kuang_zhan_zhi_xin": 4,
-            "mat_shou_ren_liao_ya": 8
-        },
-        "gold": 800,
-        "desc": "战歌部落酋长的荣耀之刃",
-        "name": "酋长战刃"
-    },
-    "rec_wu_yao_fa_zhang": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 20,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_wu_yao_fa_zhang": 3,
-            "mat_gui_hun_jing_hua": 8,
-            "mat_ling_hun_sui_pian": 8
-        },
-        "gold": 1500,
-        "desc": "巫妖宰相的传说法杖",
-        "name": "巫妖法杖"
-    },
-    "rec_han_shuang_zhi_jian": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 24,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_bing_yuan_mao_pi": 6,
-            "mat_ju_mo_xue_rou": 5
-        },
-        "gold": 500,
-        "desc": "极北冰原锻造的利剑",
-        "name": "寒霜之剑"
-    },
-    "rec_lie_yan_fa_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 24,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_huo_yan_he_xin": 5,
-            "mat_rong_yan_shi": 6
-        },
-        "gold": 500,
-        "desc": "熔岩之心铸就的法杖",
-        "name": "烈焰法杖"
-    },
-    "rec_feng_bao_zhi_gong": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 24,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_ju_ying_ling_yu": 6,
-            "mat_feng_bao_she_lin": 4
-        },
-        "gold": 500,
-        "desc": "凝聚风暴之力的强弓",
-        "name": "风暴之弓"
-    },
-    "rec_shen_yuan_quan_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 24,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_an_ying_sui_pian": 6,
-            "mat_shen_yuan_jing_gang": 4
-        },
-        "gold": 500,
-        "desc": "浸染深渊气息的权杖",
-        "name": "深渊权杖"
-    },
-    "rec_rong_yan_zhan_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 26,
-        "mats": {
-            "mat_ju_ren_yu_jin": 4,
-            "mat_rong_yan_shi": 8,
-            "mat_huo_yan_he_xin": 6
-        },
-        "gold": 1200,
-        "desc": "熔岩暴君座下的炽热战甲",
-        "name": "熔岩战甲"
-    },
-    "rec_bing_shuang_zhi_dun": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 27,
-        "mats": {
-            "mat_yong_heng_zhi_bing": 4,
-            "mat_bing_yuan_mao_pi": 8,
-            "mat_ju_mo_xue_rou": 6
-        },
-        "gold": 1300,
-        "desc": "冰川魔像的永恒之冰铸成",
-        "name": "冰霜之盾"
-    },
-    "rec_lei_ting_zhi_chui": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 29,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_lei_ting_zhi_chui": 2,
-            "mat_ju_ying_ling_yu": 8,
-            "mat_feng_bao_she_lin": 6
-        },
-        "gold": 1800,
-        "desc": "风暴巨人王的传说武器",
-        "name": "雷霆之锤"
-    },
-    "rec_hei_an_jun_zhu_zhi_ren": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 30,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_hei_an_jun_zhu_zhi_ren": 3,
-            "mat_zai_e_zhi_xin": 6,
-            "mat_shen_yuan_jing_gang": 8
-        },
-        "gold": 3000,
-        "desc": "魔王·阿兹莫丹的黑暗神兵",
-        "name": "黑暗君主之刃"
-    },
-    "rec_sheng_hui_zhi_jian": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 36,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_sheng_guang_yu_mao": 6,
-            "mat_guang_yao_zhi_pi": 5
-        },
-        "gold": 900,
-        "desc": "远境教会的制式圣剑",
-        "name": "圣辉之剑"
-    },
-    "rec_yue_ying_fa_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 44,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_yue_ying_zhi_pi": 6,
-            "mat_sen_lin_zhi_ling": 5
-        },
-        "gold": 1200,
-        "desc": "精灵王庭秘传的月之法杖",
-        "name": "月影法杖"
-    },
-    "rec_long_yi_zhang_gong": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 56,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_fei_long_yi": 5,
-            "mat_long_lin": 6,
-            "mat_long_yi_hui_ji": 4
-        },
-        "gold": 2600,
-        "desc": "以飞龙之翼锻造的强弓",
-        "name": "龙翼长弓"
-    },
-    "rec_yue_shen_quan_zhang": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_yue_zhi_lei": 3,
-            "mat_jing_ling_fa_zhu": 6,
-            "mat_wang_ting_hui_zhang": 4
-        },
-        "gold": 2400,
-        "desc": "月神祭司的祝福权杖",
-        "name": "月神权杖"
-    },
-    "rec_long_lin_zhan_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 55,
-        "mats": {
-            "mat_long_lin": 6,
-            "mat_fei_long_yi": 4,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 2800,
-        "desc": "古龙之鳞缝制的战甲",
-        "name": "龙鳞战甲"
-    },
-    "rec_yue_shen_zhi_guan": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 50,
-        "mats": {
-            "mat_yue_shen_zhi_guan": 3,
-            "mat_yue_zhi_lei": 6,
-            "mat_jing_ling_fa_zhu": 8
-        },
-        "gold": 4000,
-        "desc": "精灵女王的月神王冠",
-        "name": "月神之冠"
-    },
-    "rec_long_wang_zhi_jiao": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 60,
-        "mats": {
-            "mat_long_wang_zhi_jiao": 3,
-            "mat_long_lin": 8,
-            "mat_long_yan_jing_hua": 6
-        },
-        "gold": 5000,
-        "desc": "古龙·奥瑞斯的龙角之冠",
-        "name": "龙王之角"
-    },
-    "rec_lie_xi_zhi_ren": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 66,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_xu_kong_zhi_zhao": 6,
-            "mat_yan_mie_sui_pian": 5
-        },
-        "gold": 2000,
-        "desc": "从裂隙中取出的利刃",
-        "name": "裂隙之刃"
-    },
-    "rec_shi_hun_fa_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 66,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_shi_hun_jie_jing": 6,
-            "mat_shen_yuan_fa_zhu": 5
-        },
-        "gold": 2000,
-        "desc": "吞噬灵魂的邪恶法杖",
-        "name": "噬魂法杖"
-    },
-    "rec_shen_pan_zhi_gong": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 76,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_shen_pan_guan_zhi_yin": 3,
-            "mat_chu_xing_zhe_zhi_fu": 5,
-            "mat_jin_wei_kai_jia": 6
-        },
-        "gold": 4000,
-        "desc": "审判官狩猎异端的圣弓",
-        "name": "审判之弓"
-    },
-    "rec_jiao_zong_quan_zhang": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 80,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 3,
-            "mat_da_ji_si_zhi_huan": 6,
-            "mat_duo_luo_sheng_hui": 8
-        },
-        "gold": 8000,
-        "desc": "大祭司·克劳斯的教宗权杖",
-        "name": "教宗权杖"
-    },
-    "rec_tun_shi_zhe_zhi_he": {
-        "slot": "necklace",
-        "quality": "orange",
-        "lv": 70,
-        "mats": {
-            "mat_tun_shi_zhe_zhi_he": 3,
-            "mat_lie_xi_zhu_zai_quan_zhang": 5,
-            "mat_xu_kong_hu_jia": 6
-        },
-        "gold": 7000,
-        "desc": "裂隙巨兽的吞噬核心",
-        "name": "吞噬者之核"
-    },
-    "rec_si_ji_wang_guan": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "mats": {
-            "mat_si_ji_wang_guan": 3,
-            "mat_ku_gu_ling_zhu_zhi_huan": 6,
-            "mat_si_ji_zhi_ren": 5
-        },
-        "gold": 10000,
-        "desc": "白骨君王的死寂王冠",
-        "name": "死寂王冠"
-    },
-    "rec_xing_jie_zhi_jian": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 94,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_xing_jie_zhi_chen": 6,
-            "mat_tian_qiong_hu_jia": 5
-        },
-        "gold": 4000,
-        "desc": "星光淬炼的神兵",
-        "name": "星界之剑"
-    },
-    "rec_hun_dun_fa_zhu": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 96,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_hun_dun_sui_pian": 6,
-            "mat_hun_dun_zhi_zha": 5,
-            "mat_xing_jie_fa_zhu": 4
-        },
-        "gold": 8000,
-        "desc": "混沌初开的法珠",
-        "name": "混沌法珠"
-    },
-    "rec_tian_qiong_zhi_gong": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 96,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_zhu_shen_yi_hui": 6,
-            "mat_shen_yu_zhan_hun": 5,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 8000,
-        "desc": "天穹之巅的神弓",
-        "name": "天穹之弓"
-    },
-    "rec_shen_yu_quan_zhang": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 98,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_men_fei_zhi_yao": 5,
-            "mat_shen_yu_jing_hua": 8,
-            "mat_zhu_shen_yi_hui": 6
-        },
-        "gold": 15000,
-        "desc": "开启神域之门的权杖",
-        "name": "神域权杖"
-    },
-    "rec_tian_qiong_zhi_guan": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 96,
-        "mats": {
-            "mat_tian_qiong_zhi_guan": 3,
-            "mat_xing_jie_qi_shi_jian": 5,
-            "mat_tian_qiong_hu_jia": 8
-        },
-        "gold": 12000,
-        "desc": "王城守望者的天穹王冠",
-        "name": "天穹之冠"
-    },
-    "rec_hun_dun_zhi_he": {
-        "slot": "necklace",
-        "quality": "orange",
-        "lv": 100,
-        "mats": {
-            "mat_hun_dun_zhi_he": 3,
-            "mat_hun_dun_sui_pian": 8,
-            "mat_xing_jie_zhi_chen": 10
-        },
-        "gold": 20000,
-        "desc": "巫王·莫里斯的力量之源",
-        "name": "混沌之核"
-    },
-    "rec_tie_pi_tou_kui": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "铁皮图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_tie_pi",
-        "desc": "铁皮套装·Ⅰ阶核心部件",
-        "name": "铁皮头盔"
-    },
-    "rec_tie_pi_xiong_jia": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "铁皮图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_tie_pi",
-        "desc": "铁皮套装·Ⅰ阶核心部件",
-        "name": "铁皮胸甲"
-    },
-    "rec_tie_pi_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "铁皮图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_tie_pi",
-        "desc": "铁皮套装·Ⅰ阶核心部件",
-        "name": "铁皮护腿"
-    },
-    "rec_tie_pi_zhan_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "铁皮图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_tie_pi",
-        "desc": "铁皮套装·Ⅰ阶核心部件",
-        "name": "铁皮战靴"
-    },
-    "rec_jing_tie_zhang_jian": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "精铁图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_jing_tie",
-        "desc": "精铁套装·Ⅱ阶核心部件",
-        "name": "精铁长剑"
-    },
-    "rec_jing_tie_tou_kui": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "精铁图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_jing_tie",
-        "desc": "精铁套装·Ⅱ阶核心部件",
-        "name": "精铁头盔"
-    },
-    "rec_jing_tie_xiong_jia": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "精铁图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_jing_tie",
-        "desc": "精铁套装·Ⅱ阶核心部件",
-        "name": "精铁胸甲"
-    },
-    "rec_jing_tie_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "精铁图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_jing_tie",
-        "desc": "精铁套装·Ⅱ阶核心部件",
-        "name": "精铁护腿"
-    },
-    "rec_jing_tie_zhan_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "精铁图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_jing_tie",
-        "desc": "精铁套装·Ⅱ阶核心部件",
-        "name": "精铁战靴"
-    },
-    "rec_qi_shi_zhang_jian": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "骑士图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_qi_shi",
-        "desc": "骑士套装·Ⅲ阶核心部件",
-        "name": "骑士长剑"
-    },
-    "rec_qi_shi_tou_kui": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "骑士图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_qi_shi",
-        "desc": "骑士套装·Ⅲ阶核心部件",
-        "name": "骑士头盔"
-    },
-    "rec_qi_shi_xiong_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "骑士图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_qi_shi",
-        "desc": "骑士套装·Ⅲ阶核心部件",
-        "name": "骑士胸甲"
-    },
-    "rec_qi_shi_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "骑士图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_qi_shi",
-        "desc": "骑士套装·Ⅲ阶核心部件",
-        "name": "骑士护腿"
-    },
-    "rec_qi_shi_zhan_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "骑士图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_qi_shi",
-        "desc": "骑士套装·Ⅲ阶核心部件",
-        "name": "骑士战靴"
-    },
-    "rec_shou_wang_zhe_zhi_jian": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "守望图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_shou_wang",
-        "desc": "守望套装·Ⅳ阶核心部件",
-        "name": "守望者之剑"
-    },
-    "rec_shou_wang_tou_kui": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "守望图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_shou_wang",
-        "desc": "守望套装·Ⅳ阶核心部件",
-        "name": "守望头盔"
-    },
-    "rec_shou_wang_xiong_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "守望图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_shou_wang",
-        "desc": "守望套装·Ⅳ阶核心部件",
-        "name": "守望胸甲"
-    },
-    "rec_shou_wang_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "守望图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_shou_wang",
-        "desc": "守望套装·Ⅳ阶核心部件",
-        "name": "守望护腿"
-    },
-    "rec_shou_wang_zhan_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "守望图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_shou_wang",
-        "desc": "守望套装·Ⅳ阶核心部件",
-        "name": "守望战靴"
-    },
-    "rec_li_ming_sheng_jian": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "sword",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "黎明图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_li_ming",
-        "desc": "黎明套装·Ⅴ阶核心部件",
-        "name": "黎明圣剑"
-    },
-    "rec_li_ming_tou_kui": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "黎明图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_li_ming",
-        "desc": "黎明套装·Ⅴ阶核心部件",
-        "name": "黎明头盔"
-    },
-    "rec_li_ming_xiong_jia": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "黎明图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_li_ming",
-        "desc": "黎明套装·Ⅴ阶核心部件",
-        "name": "黎明胸甲"
-    },
-    "rec_li_ming_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "黎明图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_li_ming",
-        "desc": "黎明套装·Ⅴ阶核心部件",
-        "name": "黎明护腿"
-    },
-    "rec_li_ming_zhan_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "黎明图纸",
-        "class": "cls_zhan_shi",
-        "set": "set_li_ming",
-        "desc": "黎明套装·Ⅴ阶核心部件",
-        "name": "黎明战靴"
-    },
-    "rec_jian_xi_fa_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "学徒图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xue_tu",
-        "desc": "学徒套装·Ⅰ阶核心部件",
-        "name": "见习法杖"
-    },
-    "rec_xue_tu_fa_mao": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "学徒图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xue_tu",
-        "desc": "学徒套装·Ⅰ阶核心部件",
-        "name": "学徒法帽"
-    },
-    "rec_xue_tu_zhang_pao": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "学徒图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xue_tu",
-        "desc": "学徒套装·Ⅰ阶核心部件",
-        "name": "学徒长袍"
-    },
-    "rec_xue_tu_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "学徒图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xue_tu",
-        "desc": "学徒套装·Ⅰ阶核心部件",
-        "name": "学徒护腿"
-    },
-    "rec_xue_tu_fa_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "学徒图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xue_tu",
-        "desc": "学徒套装·Ⅰ阶核心部件",
-        "name": "学徒法靴"
-    },
-    "rec_fu_wen_fa_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "符文图纸",
-        "class": "cls_fa_shi",
-        "set": "set_fu_wen",
-        "desc": "符文套装·Ⅱ阶核心部件",
-        "name": "符文法杖"
-    },
-    "rec_fu_wen_fa_mao": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "符文图纸",
-        "class": "cls_fa_shi",
-        "set": "set_fu_wen",
-        "desc": "符文套装·Ⅱ阶核心部件",
-        "name": "符文法帽"
-    },
-    "rec_fu_wen_zhang_pao": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "符文图纸",
-        "class": "cls_fa_shi",
-        "set": "set_fu_wen",
-        "desc": "符文套装·Ⅱ阶核心部件",
-        "name": "符文长袍"
-    },
-    "rec_fu_wen_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "符文图纸",
-        "class": "cls_fa_shi",
-        "set": "set_fu_wen",
-        "desc": "符文套装·Ⅱ阶核心部件",
-        "name": "符文护腿"
-    },
-    "rec_fu_wen_fa_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "符文图纸",
-        "class": "cls_fa_shi",
-        "set": "set_fu_wen",
-        "desc": "符文套装·Ⅱ阶核心部件",
-        "name": "符文法靴"
-    },
-    "rec_mi_fa_fa_zhang": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "秘法图纸",
-        "class": "cls_fa_shi",
-        "set": "set_mi_fa",
-        "desc": "秘法套装·Ⅲ阶核心部件",
-        "name": "秘法法杖"
-    },
-    "rec_mi_fa_fa_mao": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "秘法图纸",
-        "class": "cls_fa_shi",
-        "set": "set_mi_fa",
-        "desc": "秘法套装·Ⅲ阶核心部件",
-        "name": "秘法法帽"
-    },
-    "rec_mi_fa_zhang_pao": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "秘法图纸",
-        "class": "cls_fa_shi",
-        "set": "set_mi_fa",
-        "desc": "秘法套装·Ⅲ阶核心部件",
-        "name": "秘法长袍"
-    },
-    "rec_mi_fa_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "秘法图纸",
-        "class": "cls_fa_shi",
-        "set": "set_mi_fa",
-        "desc": "秘法套装·Ⅲ阶核心部件",
-        "name": "秘法护腿"
-    },
-    "rec_mi_fa_fa_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "秘法图纸",
-        "class": "cls_fa_shi",
-        "set": "set_mi_fa",
-        "desc": "秘法套装·Ⅲ阶核心部件",
-        "name": "秘法法靴"
-    },
-    "rec_xing_jie_fa_zhang": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "星界图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_jie",
-        "desc": "星界套装·Ⅳ阶核心部件",
-        "name": "星界法杖"
-    },
-    "rec_xing_jie_fa_mao": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "星界图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_jie",
-        "desc": "星界套装·Ⅳ阶核心部件",
-        "name": "星界法帽"
-    },
-    "rec_xing_jie_zhang_pao": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "星界图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_jie",
-        "desc": "星界套装·Ⅳ阶核心部件",
-        "name": "星界长袍"
-    },
-    "rec_xing_jie_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "星界图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_jie",
-        "desc": "星界套装·Ⅳ阶核心部件",
-        "name": "星界护腿"
-    },
-    "rec_xing_jie_fa_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "星界图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_jie",
-        "desc": "星界套装·Ⅳ阶核心部件",
-        "name": "星界法靴"
-    },
-    "rec_xing_chen_fa_zhang": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "staff",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "星辰图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_chen",
-        "desc": "星辰套装·Ⅴ阶核心部件",
-        "name": "星辰法杖"
-    },
-    "rec_xing_chen_fa_mao": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "星辰图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_chen",
-        "desc": "星辰套装·Ⅴ阶核心部件",
-        "name": "星辰法帽"
-    },
-    "rec_xing_chen_zhang_pao": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "星辰图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_chen",
-        "desc": "星辰套装·Ⅴ阶核心部件",
-        "name": "星辰长袍"
-    },
-    "rec_xing_chen_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "星辰图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_chen",
-        "desc": "星辰套装·Ⅴ阶核心部件",
-        "name": "星辰护腿"
-    },
-    "rec_xing_chen_fa_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "星辰图纸",
-        "class": "cls_fa_shi",
-        "set": "set_xing_chen",
-        "desc": "星辰套装·Ⅴ阶核心部件",
-        "name": "星辰法靴"
-    },
-    "rec_lie_shou_pi_mao": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "猎手图纸",
-        "class": "cls_you_xia",
-        "set": "set_lie_shou",
-        "desc": "猎手套装·Ⅰ阶核心部件",
-        "name": "猎手皮帽"
-    },
-    "rec_lie_shou_pi_jia": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "猎手图纸",
-        "class": "cls_you_xia",
-        "set": "set_lie_shou",
-        "desc": "猎手套装·Ⅰ阶核心部件",
-        "name": "猎手皮甲"
-    },
-    "rec_lie_shou_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "猎手图纸",
-        "class": "cls_you_xia",
-        "set": "set_lie_shou",
-        "desc": "猎手套装·Ⅰ阶核心部件",
-        "name": "猎手护腿"
-    },
-    "rec_lie_shou_zhang_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "猎手图纸",
-        "class": "cls_you_xia",
-        "set": "set_lie_shou",
-        "desc": "猎手套装·Ⅰ阶核心部件",
-        "name": "猎手长靴"
-    },
-    "rec_lie_shou_zhang_gong": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "风行图纸",
-        "class": "cls_you_xia",
-        "set": "set_feng_xing",
-        "desc": "风行套装·Ⅱ阶核心部件",
-        "name": "猎手长弓"
-    },
-    "rec_feng_xing_pi_mao": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "风行图纸",
-        "class": "cls_you_xia",
-        "set": "set_feng_xing",
-        "desc": "风行套装·Ⅱ阶核心部件",
-        "name": "风行皮帽"
-    },
-    "rec_feng_xing_pi_jia": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "风行图纸",
-        "class": "cls_you_xia",
-        "set": "set_feng_xing",
-        "desc": "风行套装·Ⅱ阶核心部件",
-        "name": "风行皮甲"
-    },
-    "rec_feng_xing_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "风行图纸",
-        "class": "cls_you_xia",
-        "set": "set_feng_xing",
-        "desc": "风行套装·Ⅱ阶核心部件",
-        "name": "风行护腿"
-    },
-    "rec_feng_xing_zhang_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "风行图纸",
-        "class": "cls_you_xia",
-        "set": "set_feng_xing",
-        "desc": "风行套装·Ⅱ阶核心部件",
-        "name": "风行长靴"
-    },
-    "rec_feng_xing_zhang_gong": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "暗夜图纸",
-        "class": "cls_you_xia",
-        "set": "set_an_ye",
-        "desc": "暗夜套装·Ⅲ阶核心部件",
-        "name": "风行长弓"
-    },
-    "rec_an_ye_pi_mao": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "暗夜图纸",
-        "class": "cls_you_xia",
-        "set": "set_an_ye",
-        "desc": "暗夜套装·Ⅲ阶核心部件",
-        "name": "暗夜皮帽"
-    },
-    "rec_an_ye_pi_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "暗夜图纸",
-        "class": "cls_you_xia",
-        "set": "set_an_ye",
-        "desc": "暗夜套装·Ⅲ阶核心部件",
-        "name": "暗夜皮甲"
-    },
-    "rec_an_ye_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "暗夜图纸",
-        "class": "cls_you_xia",
-        "set": "set_an_ye",
-        "desc": "暗夜套装·Ⅲ阶核心部件",
-        "name": "暗夜护腿"
-    },
-    "rec_an_ye_zhang_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "暗夜图纸",
-        "class": "cls_you_xia",
-        "set": "set_an_ye",
-        "desc": "暗夜套装·Ⅲ阶核心部件",
-        "name": "暗夜长靴"
-    },
-    "rec_ying_yan_zhi_gong": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "鹰眼图纸",
-        "class": "cls_you_xia",
-        "set": "set_ying_yan",
-        "desc": "鹰眼套装·Ⅳ阶核心部件",
-        "name": "鹰眼之弓"
-    },
-    "rec_ying_yan_pi_mao": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "鹰眼图纸",
-        "class": "cls_you_xia",
-        "set": "set_ying_yan",
-        "desc": "鹰眼套装·Ⅳ阶核心部件",
-        "name": "鹰眼皮帽"
-    },
-    "rec_ying_yan_pi_jia": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "鹰眼图纸",
-        "class": "cls_you_xia",
-        "set": "set_ying_yan",
-        "desc": "鹰眼套装·Ⅳ阶核心部件",
-        "name": "鹰眼皮甲"
-    },
-    "rec_ying_yan_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "鹰眼图纸",
-        "class": "cls_you_xia",
-        "set": "set_ying_yan",
-        "desc": "鹰眼套装·Ⅳ阶核心部件",
-        "name": "鹰眼护腿"
-    },
-    "rec_ying_yan_zhang_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "鹰眼图纸",
-        "class": "cls_you_xia",
-        "set": "set_ying_yan",
-        "desc": "鹰眼套装·Ⅳ阶核心部件",
-        "name": "鹰眼长靴"
-    },
-    "rec_cang_qiong_zhi_gong": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "bow",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "苍穹图纸",
-        "class": "cls_you_xia",
-        "set": "set_cang_qiong",
-        "desc": "苍穹套装·Ⅴ阶核心部件",
-        "name": "苍穹之弓"
-    },
-    "rec_cang_qiong_pi_mao": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "苍穹图纸",
-        "class": "cls_you_xia",
-        "set": "set_cang_qiong",
-        "desc": "苍穹套装·Ⅴ阶核心部件",
-        "name": "苍穹皮帽"
-    },
-    "rec_cang_qiong_pi_jia": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "苍穹图纸",
-        "class": "cls_you_xia",
-        "set": "set_cang_qiong",
-        "desc": "苍穹套装·Ⅴ阶核心部件",
-        "name": "苍穹皮甲"
-    },
-    "rec_cang_qiong_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "苍穹图纸",
-        "class": "cls_you_xia",
-        "set": "set_cang_qiong",
-        "desc": "苍穹套装·Ⅴ阶核心部件",
-        "name": "苍穹护腿"
-    },
-    "rec_cang_qiong_zhang_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "苍穹图纸",
-        "class": "cls_you_xia",
-        "set": "set_cang_qiong",
-        "desc": "苍穹套装·Ⅴ阶核心部件",
-        "name": "苍穹长靴"
-    },
-    "rec_bu_yi_sheng_guan": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "布衣图纸",
-        "class": "cls_mu_shi",
-        "set": "set_bu_yi",
-        "desc": "布衣套装·Ⅰ阶核心部件",
-        "name": "布衣圣冠"
-    },
-    "rec_bu_yi_fa_yi": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "布衣图纸",
-        "class": "cls_mu_shi",
-        "set": "set_bu_yi",
-        "desc": "布衣套装·Ⅰ阶核心部件",
-        "name": "布衣法衣"
-    },
-    "rec_bu_yi_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "布衣图纸",
-        "class": "cls_mu_shi",
-        "set": "set_bu_yi",
-        "desc": "布衣套装·Ⅰ阶核心部件",
-        "name": "布衣护腿"
-    },
-    "rec_bu_yi_sheng_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "布衣图纸",
-        "class": "cls_mu_shi",
-        "set": "set_bu_yi",
-        "desc": "布衣套装·Ⅰ阶核心部件",
-        "name": "布衣圣靴"
-    },
-    "rec_zhu_fu_quan_zhang": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "祝福图纸",
-        "class": "cls_mu_shi",
-        "set": "set_zhu_fu",
-        "desc": "祝福套装·Ⅱ阶核心部件",
-        "name": "祝福权杖"
-    },
-    "rec_zhu_fu_sheng_guan": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "祝福图纸",
-        "class": "cls_mu_shi",
-        "set": "set_zhu_fu",
-        "desc": "祝福套装·Ⅱ阶核心部件",
-        "name": "祝福圣冠"
-    },
-    "rec_zhu_fu_fa_yi": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "祝福图纸",
-        "class": "cls_mu_shi",
-        "set": "set_zhu_fu",
-        "desc": "祝福套装·Ⅱ阶核心部件",
-        "name": "祝福法衣"
-    },
-    "rec_zhu_fu_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "祝福图纸",
-        "class": "cls_mu_shi",
-        "set": "set_zhu_fu",
-        "desc": "祝福套装·Ⅱ阶核心部件",
-        "name": "祝福护腿"
-    },
-    "rec_zhu_fu_sheng_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "祝福图纸",
-        "class": "cls_mu_shi",
-        "set": "set_zhu_fu",
-        "desc": "祝福套装·Ⅱ阶核心部件",
-        "name": "祝福圣靴"
-    },
-    "rec_sheng_tang_quan_zhang": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "圣堂图纸",
-        "class": "cls_mu_shi",
-        "set": "set_sheng_tang",
-        "desc": "圣堂套装·Ⅲ阶核心部件",
-        "name": "圣堂权杖"
-    },
-    "rec_sheng_tang_sheng_guan": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "圣堂图纸",
-        "class": "cls_mu_shi",
-        "set": "set_sheng_tang",
-        "desc": "圣堂套装·Ⅲ阶核心部件",
-        "name": "圣堂圣冠"
-    },
-    "rec_sheng_tang_fa_yi": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "圣堂图纸",
-        "class": "cls_mu_shi",
-        "set": "set_sheng_tang",
-        "desc": "圣堂套装·Ⅲ阶核心部件",
-        "name": "圣堂法衣"
-    },
-    "rec_sheng_tang_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "圣堂图纸",
-        "class": "cls_mu_shi",
-        "set": "set_sheng_tang",
-        "desc": "圣堂套装·Ⅲ阶核心部件",
-        "name": "圣堂护腿"
-    },
-    "rec_sheng_tang_sheng_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "圣堂图纸",
-        "class": "cls_mu_shi",
-        "set": "set_sheng_tang",
-        "desc": "圣堂套装·Ⅲ阶核心部件",
-        "name": "圣堂圣靴"
-    },
-    "rec_shen_pan_zhi_zhang": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "审判图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_pan",
-        "desc": "审判套装·Ⅳ阶核心部件",
-        "name": "审判之杖"
-    },
-    "rec_shen_pan_sheng_guan": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "审判图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_pan",
-        "desc": "审判套装·Ⅳ阶核心部件",
-        "name": "审判圣冠"
-    },
-    "rec_shen_pan_fa_yi": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "审判图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_pan",
-        "desc": "审判套装·Ⅳ阶核心部件",
-        "name": "审判法衣"
-    },
-    "rec_shen_pan_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "审判图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_pan",
-        "desc": "审判套装·Ⅳ阶核心部件",
-        "name": "审判护腿"
-    },
-    "rec_shen_pan_sheng_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "审判图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_pan",
-        "desc": "审判套装·Ⅳ阶核心部件",
-        "name": "审判圣靴"
-    },
-    "rec_shen_en_quan_zhang": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "mace",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "神恩图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_en",
-        "desc": "神恩套装·Ⅴ阶核心部件",
-        "name": "神恩权杖"
-    },
-    "rec_shen_en_sheng_guan": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "神恩图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_en",
-        "desc": "神恩套装·Ⅴ阶核心部件",
-        "name": "神恩圣冠"
-    },
-    "rec_shen_en_fa_yi": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "神恩图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_en",
-        "desc": "神恩套装·Ⅴ阶核心部件",
-        "name": "神恩法衣"
-    },
-    "rec_shen_en_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "神恩图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_en",
-        "desc": "神恩套装·Ⅴ阶核心部件",
-        "name": "神恩护腿"
-    },
-    "rec_shen_en_sheng_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "神恩图纸",
-        "class": "cls_mu_shi",
-        "set": "set_shen_en",
-        "desc": "神恩套装·Ⅴ阶核心部件",
-        "name": "神恩圣靴"
-    },
-    "rec_qing_ying_mian_jin": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "轻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_qing_ying",
-        "desc": "轻影套装·Ⅰ阶核心部件",
-        "name": "轻影面巾"
-    },
-    "rec_qing_ying_pi_yi": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "轻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_qing_ying",
-        "desc": "轻影套装·Ⅰ阶核心部件",
-        "name": "轻影皮衣"
-    },
-    "rec_qing_ying_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "轻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_qing_ying",
-        "desc": "轻影套装·Ⅰ阶核心部件",
-        "name": "轻影护腿"
-    },
-    "rec_qing_ying_qing_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "轻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_qing_ying",
-        "desc": "轻影套装·Ⅰ阶核心部件",
-        "name": "轻影轻靴"
-    },
-    "rec_ye_xing_bi_shou": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "dagger",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "夜行图纸",
-        "class": "cls_ci_ke",
-        "set": "set_ye_xing",
-        "desc": "夜行套装·Ⅱ阶核心部件",
-        "name": "夜行匕首"
-    },
-    "rec_ye_xing_mian_jin": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "夜行图纸",
-        "class": "cls_ci_ke",
-        "set": "set_ye_xing",
-        "desc": "夜行套装·Ⅱ阶核心部件",
-        "name": "夜行面巾"
-    },
-    "rec_ye_xing_pi_yi": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "夜行图纸",
-        "class": "cls_ci_ke",
-        "set": "set_ye_xing",
-        "desc": "夜行套装·Ⅱ阶核心部件",
-        "name": "夜行皮衣"
-    },
-    "rec_ye_xing_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "夜行图纸",
-        "class": "cls_ci_ke",
-        "set": "set_ye_xing",
-        "desc": "夜行套装·Ⅱ阶核心部件",
-        "name": "夜行护腿"
-    },
-    "rec_ye_xing_qing_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "夜行图纸",
-        "class": "cls_ci_ke",
-        "set": "set_ye_xing",
-        "desc": "夜行套装·Ⅱ阶核心部件",
-        "name": "夜行轻靴"
-    },
-    "rec_yin_ying_bi_shou": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "dagger",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "阴影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_yin_ying",
-        "desc": "阴影套装·Ⅲ阶核心部件",
-        "name": "阴影匕首"
-    },
-    "rec_yin_ying_mian_jin": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "阴影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_yin_ying",
-        "desc": "阴影套装·Ⅲ阶核心部件",
-        "name": "阴影面巾"
-    },
-    "rec_yin_ying_pi_yi": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "阴影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_yin_ying",
-        "desc": "阴影套装·Ⅲ阶核心部件",
-        "name": "阴影皮衣"
-    },
-    "rec_yin_ying_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "阴影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_yin_ying",
-        "desc": "阴影套装·Ⅲ阶核心部件",
-        "name": "阴影护腿"
-    },
-    "rec_yin_ying_qing_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "阴影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_yin_ying",
-        "desc": "阴影套装·Ⅲ阶核心部件",
-        "name": "阴影轻靴"
-    },
-    "rec_huan_ying_zhi_bi": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "dagger",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "幻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_huan_ying",
-        "desc": "幻影套装·Ⅳ阶核心部件",
-        "name": "幻影之匕"
-    },
-    "rec_huan_ying_mian_jin": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "幻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_huan_ying",
-        "desc": "幻影套装·Ⅳ阶核心部件",
-        "name": "幻影面巾"
-    },
-    "rec_huan_ying_pi_yi": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "幻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_huan_ying",
-        "desc": "幻影套装·Ⅳ阶核心部件",
-        "name": "幻影皮衣"
-    },
-    "rec_huan_ying_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "幻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_huan_ying",
-        "desc": "幻影套装·Ⅳ阶核心部件",
-        "name": "幻影护腿"
-    },
-    "rec_huan_ying_qing_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "幻影图纸",
-        "class": "cls_ci_ke",
-        "set": "set_huan_ying",
-        "desc": "幻影套装·Ⅳ阶核心部件",
-        "name": "幻影轻靴"
-    },
-    "rec_wu_ye_zhi_ren": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "dagger",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "午夜图纸",
-        "class": "cls_ci_ke",
-        "set": "set_wu_ye",
-        "desc": "午夜套装·Ⅴ阶核心部件",
-        "name": "午夜之刃"
-    },
-    "rec_wu_ye_mian_jin": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "午夜图纸",
-        "class": "cls_ci_ke",
-        "set": "set_wu_ye",
-        "desc": "午夜套装·Ⅴ阶核心部件",
-        "name": "午夜面巾"
-    },
-    "rec_wu_ye_pi_yi": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "午夜图纸",
-        "class": "cls_ci_ke",
-        "set": "set_wu_ye",
-        "desc": "午夜套装·Ⅴ阶核心部件",
-        "name": "午夜皮衣"
-    },
-    "rec_wu_ye_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "午夜图纸",
-        "class": "cls_ci_ke",
-        "set": "set_wu_ye",
-        "desc": "午夜套装·Ⅴ阶核心部件",
-        "name": "午夜护腿"
-    },
-    "rec_wu_ye_qing_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "午夜图纸",
-        "class": "cls_ci_ke",
-        "set": "set_wu_ye",
-        "desc": "午夜套装·Ⅴ阶核心部件",
-        "name": "午夜轻靴"
-    },
-    "rec_xing_zhe_tou_dai": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "行者图纸",
-        "class": "cls_wu_seng",
-        "set": "set_xing_zhe",
-        "desc": "行者套装·Ⅰ阶核心部件",
-        "name": "行者头带"
-    },
-    "rec_xing_zhe_seng_pao": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "行者图纸",
-        "class": "cls_wu_seng",
-        "set": "set_xing_zhe",
-        "desc": "行者套装·Ⅰ阶核心部件",
-        "name": "行者僧袍"
-    },
-    "rec_xing_zhe_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "行者图纸",
-        "class": "cls_wu_seng",
-        "set": "set_xing_zhe",
-        "desc": "行者套装·Ⅰ阶核心部件",
-        "name": "行者护腿"
-    },
-    "rec_xing_zhe_bu_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 10,
-        "weapon_type": None,
-        "mats": {
-            "mat_lang_pi": 6,
-            "mat_ye_zhu_pi": 5,
-            "mat_shan_zei_hui_zhang": 3
-        },
-        "gold": 300,
-        "blueprint": "行者图纸",
-        "class": "cls_wu_seng",
-        "set": "set_xing_zhe",
-        "desc": "行者套装·Ⅰ阶核心部件",
-        "name": "行者布靴"
-    },
-    "rec_tie_shou_quan_tao": {
-        "slot": "weapon",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": "fist",
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "铁手图纸",
-        "class": "cls_wu_seng",
-        "set": "set_tie_shou",
-        "desc": "铁手套装·Ⅱ阶核心部件",
-        "name": "铁手拳套"
-    },
-    "rec_tie_shou_tou_dai": {
-        "slot": "helm",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "铁手图纸",
-        "class": "cls_wu_seng",
-        "set": "set_tie_shou",
-        "desc": "铁手套装·Ⅱ阶核心部件",
-        "name": "铁手头带"
-    },
-    "rec_tie_shou_seng_pao": {
-        "slot": "armor",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "铁手图纸",
-        "class": "cls_wu_seng",
-        "set": "set_tie_shou",
-        "desc": "铁手套装·Ⅱ阶核心部件",
-        "name": "铁手僧袍"
-    },
-    "rec_tie_shou_hu_tui": {
-        "slot": "legs",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "铁手图纸",
-        "class": "cls_wu_seng",
-        "set": "set_tie_shou",
-        "desc": "铁手套装·Ⅱ阶核心部件",
-        "name": "铁手护腿"
-    },
-    "rec_tie_shou_bu_xue": {
-        "slot": "boots",
-        "quality": "blue",
-        "lv": 30,
-        "weapon_type": None,
-        "mats": {
-            "mat_shu_shi_he_xin": 4,
-            "mat_shou_ren_liao_ya": 6,
-            "mat_zuo_lang_quan_chi": 4
-        },
-        "gold": 1200,
-        "blueprint": "铁手图纸",
-        "class": "cls_wu_seng",
-        "set": "set_tie_shou",
-        "desc": "铁手套装·Ⅱ阶核心部件",
-        "name": "铁手布靴"
-    },
-    "rec_hu_xiao_quan_tao": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": "fist",
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "虎啸图纸",
-        "class": "cls_wu_seng",
-        "set": "set_hu_xiao",
-        "desc": "虎啸套装·Ⅲ阶核心部件",
-        "name": "虎啸拳套"
-    },
-    "rec_hu_xiao_tou_dai": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "虎啸图纸",
-        "class": "cls_wu_seng",
-        "set": "set_hu_xiao",
-        "desc": "虎啸套装·Ⅲ阶核心部件",
-        "name": "虎啸头带"
-    },
-    "rec_hu_xiao_seng_pao": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "虎啸图纸",
-        "class": "cls_wu_seng",
-        "set": "set_hu_xiao",
-        "desc": "虎啸套装·Ⅲ阶核心部件",
-        "name": "虎啸僧袍"
-    },
-    "rec_hu_xiao_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "虎啸图纸",
-        "class": "cls_wu_seng",
-        "set": "set_hu_xiao",
-        "desc": "虎啸套装·Ⅲ阶核心部件",
-        "name": "虎啸护腿"
-    },
-    "rec_hu_xiao_bu_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 50,
-        "weapon_type": None,
-        "mats": {
-            "mat_sheng_guang_jie_jing": 5,
-            "mat_yue_ying_zhi_pi": 5,
-            "mat_long_yan_jing_hua": 3
-        },
-        "gold": 3000,
-        "blueprint": "虎啸图纸",
-        "class": "cls_wu_seng",
-        "set": "set_hu_xiao",
-        "desc": "虎啸套装·Ⅲ阶核心部件",
-        "name": "虎啸布靴"
-    },
-    "rec_pan_shi_quan_tao": {
-        "slot": "weapon",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": "fist",
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "磐石图纸",
-        "class": "cls_wu_seng",
-        "set": "set_pan_shi",
-        "desc": "磐石套装·Ⅳ阶核心部件",
-        "name": "磐石拳套"
-    },
-    "rec_pan_shi_tou_dai": {
-        "slot": "helm",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "磐石图纸",
-        "class": "cls_wu_seng",
-        "set": "set_pan_shi",
-        "desc": "磐石套装·Ⅳ阶核心部件",
-        "name": "磐石头带"
-    },
-    "rec_pan_shi_seng_pao": {
-        "slot": "armor",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "磐石图纸",
-        "class": "cls_wu_seng",
-        "set": "set_pan_shi",
-        "desc": "磐石套装·Ⅳ阶核心部件",
-        "name": "磐石僧袍"
-    },
-    "rec_pan_shi_hu_tui": {
-        "slot": "legs",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "磐石图纸",
-        "class": "cls_wu_seng",
-        "set": "set_pan_shi",
-        "desc": "磐石套装·Ⅳ阶核心部件",
-        "name": "磐石护腿"
-    },
-    "rec_pan_shi_bu_xue": {
-        "slot": "boots",
-        "quality": "purple",
-        "lv": 70,
-        "weapon_type": None,
-        "mats": {
-            "mat_xu_kong_hu_jia": 5,
-            "mat_lie_xi_ling_zhu_yin_ji": 4,
-            "mat_long_yan_jing_hua": 4
-        },
-        "gold": 6500,
-        "blueprint": "磐石图纸",
-        "class": "cls_wu_seng",
-        "set": "set_pan_shi",
-        "desc": "磐石套装·Ⅳ阶核心部件",
-        "name": "磐石布靴"
-    },
-    "rec_jin_shen_quan_tao": {
-        "slot": "weapon",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": "fist",
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "金身图纸",
-        "class": "cls_wu_seng",
-        "set": "set_jin_shen",
-        "desc": "金身套装·Ⅴ阶核心部件",
-        "name": "金身拳套"
-    },
-    "rec_jin_shen_tou_dai": {
-        "slot": "helm",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "金身图纸",
-        "class": "cls_wu_seng",
-        "set": "set_jin_shen",
-        "desc": "金身套装·Ⅴ阶核心部件",
-        "name": "金身头带"
-    },
-    "rec_jin_shen_seng_pao": {
-        "slot": "armor",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "金身图纸",
-        "class": "cls_wu_seng",
-        "set": "set_jin_shen",
-        "desc": "金身套装·Ⅴ阶核心部件",
-        "name": "金身僧袍"
-    },
-    "rec_jin_shen_hu_tui": {
-        "slot": "legs",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "金身图纸",
-        "class": "cls_wu_seng",
-        "set": "set_jin_shen",
-        "desc": "金身套装·Ⅴ阶核心部件",
-        "name": "金身护腿"
-    },
-    "rec_jin_shen_bu_xue": {
-        "slot": "boots",
-        "quality": "orange",
-        "lv": 90,
-        "weapon_type": None,
-        "mats": {
-            "mat_jiao_zong_quan_zhang": 5,
-            "mat_si_ji_wang_guan": 4,
-            "mat_tian_qiong_hu_jia": 4
-        },
-        "gold": 12000,
-        "blueprint": "金身图纸",
-        "class": "cls_wu_seng",
-        "set": "set_jin_shen",
-        "desc": "金身套装·Ⅴ阶核心部件",
-        "name": "金身布靴"
-    }
+    'rec_ao_la_sheng_yin': {
+        'slot': 'necklace',
+        'quality': 'orange',
+        'lv': 95,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 780,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '奥拉圣印',
+        'roster_id': 'eq_ao_la_sheng_yin',
+        'blueprint': '奥拉圣印图纸',
+    },
+    'rec_ao_lan_zhi_zhu': {
+        'slot': 'ring',
+        'quality': 'orange',
+        'lv': 72,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 596,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '敖澜之珠',
+        'roster_id': 'eq_ao_lan_zhi_zhu',
+        'blueprint': '敖澜之珠图纸',
+    },
+    'rec_bai_lu_pi_jia': {
+        'slot': 'armor',
+        'quality': 'blue',
+        'lv': 8,
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 84,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '白鹿皮甲',
+        'roster_id': 'eq_bai_lu_pi_jia',
+    },
+    'rec_bei_feng_zhang_gong': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 65,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 540,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '北风长弓',
+        'roster_id': 'eq_bei_feng_chang_gong',
+        'blueprint': '北风长弓图纸',
+    },
+    'rec_cang_qiong_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 86,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 708,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '苍穹护腿',
+        'roster_id': 'eq_cang_qiong_hu_tui',
+        'blueprint': '苍穹护腿图纸',
+    },
+    'rec_cang_qiong_tou_kui': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 85,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 700,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '苍穹头盔',
+        'roster_id': 'eq_cang_qiong_tou_kui',
+        'blueprint': '苍穹头盔图纸',
+    },
+    'rec_cang_qiong_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 88,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 724,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '苍穹项链',
+        'roster_id': 'eq_cang_qiong_xiang_lian',
+        'blueprint': '苍穹项链图纸',
+    },
+    'rec_cang_qiong_zhi_qiang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 88,
+        'weapon_type': 'spear',
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 724,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '苍穹之枪',
+        'roster_id': 'eq_cang_qiong_zhi_qiang',
+        'blueprint': '苍穹之枪图纸',
+    },
+    'rec_chao_xi_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 58,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 484,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '潮汐法杖',
+        'roster_id': 'eq_chao_xi_fa_zhang',
+        'blueprint': '潮汐法杖图纸',
+    },
+    'rec_chen_xi_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 28,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 244,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '晨曦法杖',
+        'roster_id': 'eq_chen_xi_fa_zhang',
+    },
+    'rec_chen_xi_zhi_guan': {
+        'slot': 'helm',
+        'quality': 'orange',
+        'lv': 62,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 516,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '晨曦之冠',
+        'roster_id': 'eq_chen_xi_zhi_guan',
+        'blueprint': '晨曦之冠图纸',
+    },
+    'rec_chuan_zhang_mao': {
+        'slot': 'helm',
+        'quality': 'blue',
+        'lv': 14,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 132,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '船长帽',
+        'roster_id': 'eq_chuan_zhang_mao',
+    },
+    'rec_di_di_zhang_xue': {
+        'slot': 'boots',
+        'quality': 'purple',
+        'lv': 70,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 4,
+            'mat_shen_yuan_e_mo_jiao': 3,
+        },
+        'gold': 580,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '地底长靴',
+        'roster_id': 'eq_di_di_chang_xue',
+        'blueprint': '地底长靴图纸',
+    },
+    'rec_fu_wen_jie_zhi': {
+        'slot': 'ring',
+        'quality': 'purple',
+        'lv': 65,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 540,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '符文戒指',
+        'roster_id': 'eq_fu_wen_jie_zhi',
+        'blueprint': '符文戒指图纸',
+    },
+    'rec_gu_wang_jian': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 42,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 356,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '古王剑',
+        'roster_id': 'eq_gu_wang_jian',
+        'blueprint': '古王剑图纸',
+    },
+    'rec_hai_dao_xue': {
+        'slot': 'boots',
+        'quality': 'blue',
+        'lv': 14,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 132,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '海盗靴',
+        'roster_id': 'eq_hai_dao_xue',
+    },
+    'rec_hai_feng_zhang_gong': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 18,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 164,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '海风长弓',
+        'roster_id': 'eq_hai_feng_chang_gong',
+        'blueprint': '海风长弓图纸',
+    },
+    'rec_hai_shen_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 58,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 484,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '海神护腿',
+        'roster_id': 'eq_hai_shen_hu_tui',
+        'blueprint': '海神护腿图纸',
+    },
+    'rec_hai_shen_jie_zhi': {
+        'slot': 'ring',
+        'quality': 'purple',
+        'lv': 60,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 500,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '海神戒指',
+        'roster_id': 'eq_hai_shen_jie_zhi',
+        'blueprint': '海神戒指图纸',
+    },
+    'rec_hai_shen_san_cha_ji': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 58,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 484,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '海神三叉戟',
+        'roster_id': 'eq_hai_shen_san_cha_ji',
+        'blueprint': '海神三叉戟图纸',
+    },
+    'rec_hai_shen_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 58,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 484,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '海神项链',
+        'roster_id': 'eq_hai_shen_xiang_lian',
+        'blueprint': '海神项链图纸',
+    },
+    'rec_hai_shen_zhang_xue': {
+        'slot': 'boots',
+        'quality': 'purple',
+        'lv': 55,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 460,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '海神长靴',
+        'roster_id': 'eq_hai_shen_chang_xue',
+        'blueprint': '海神长靴图纸',
+    },
+    'rec_he_er_jia_de_ji_qi': {
+        'slot': 'necklace',
+        'quality': 'orange',
+        'lv': 72,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 596,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '赫尔加的祭器',
+        'roster_id': 'eq_he_er_jia_de_ji_qi',
+        'blueprint': '赫尔加的祭器图纸',
+    },
+    'rec_hei_yao_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 75,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 5,
+            'mat_shen_yuan_e_mo_jiao': 4,
+        },
+        'gold': 620,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '黑曜护腿',
+        'roster_id': 'eq_hei_yao_hu_tui',
+        'blueprint': '黑曜护腿图纸',
+    },
+    'rec_hei_yao_xiong_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 78,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 5,
+            'mat_shen_yuan_e_mo_jiao': 4,
+        },
+        'gold': 644,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '黑曜胸甲',
+        'roster_id': 'eq_hei_yao_xiong_jia',
+        'blueprint': '黑曜胸甲图纸',
+    },
+    'rec_jin_gou_wan_dao': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 26,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 3,
+            'mat_hai_yao_lin_pian': 2,
+        },
+        'gold': 228,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '金钩弯刀',
+        'roster_id': 'eq_jin_gou_wan_dao',
+        'blueprint': '金钩弯刀图纸',
+    },
+    'rec_jing_ling_lian_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 55,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 460,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '精灵链甲',
+        'roster_id': 'eq_jing_ling_lian_jia',
+        'blueprint': '精灵链甲图纸',
+    },
+    'rec_jiu_pi_xue': {
+        'slot': 'boots',
+        'quality': 'white',
+        'lv': 3,
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 44,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '旧皮靴',
+        'roster_id': 'eq_jiu_pi_xue',
+    },
+    'rec_lan_ge_zhi_lei': {
+        'slot': 'necklace',
+        'quality': 'orange',
+        'lv': 68,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 564,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '澜歌之泪',
+        'roster_id': 'eq_lang_ge_zhi_lei',
+        'blueprint': '澜歌之泪图纸',
+    },
+    'rec_lie_gong': {
+        'slot': 'weapon',
+        'quality': 'white',
+        'lv': 2,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 36,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '猎弓',
+        'roster_id': 'eq_lie_gong',
+    },
+    'rec_lie_lu_gong': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 6,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 68,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '猎鹿弓',
+        'roster_id': 'eq_lie_lu_gong',
+    },
+    'rec_long_ji_da_jian': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 85,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 700,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙脊大剑',
+        'roster_id': 'eq_long_ji_da_jian',
+        'blueprint': '龙脊大剑图纸',
+    },
+    'rec_long_lin_hai_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 60,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 500,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '龙鳞海甲',
+        'roster_id': 'eq_long_lin_hai_jia',
+        'blueprint': '龙鳞海甲图纸',
+    },
+    'rec_long_lin_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 82,
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 676,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙鳞护腿',
+        'roster_id': 'eq_long_lin_hu_tui',
+        'blueprint': '龙鳞护腿图纸',
+    },
+    'rec_long_lin_tou_kui': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 80,
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 660,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙鳞头盔',
+        'roster_id': 'eq_long_lin_tou_kui',
+        'blueprint': '龙鳞头盔图纸',
+    },
+    'rec_long_lin_xiong_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 85,
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 700,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙鳞胸甲',
+        'roster_id': 'eq_long_lin_xiong_jia',
+        'blueprint': '龙鳞胸甲图纸',
+    },
+    'rec_long_yan_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 80,
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 660,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙眼项链',
+        'roster_id': 'eq_long_yan_xiang_lian',
+        'blueprint': '龙眼项链图纸',
+    },
+    'rec_long_yu_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 85,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 700,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙语法杖',
+        'roster_id': 'eq_long_yu_fa_zhang',
+        'blueprint': '龙语法杖图纸',
+    },
+    'rec_long_yu_sheng_jian': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 92,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 756,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙语圣剑',
+        'roster_id': 'eq_long_yu_sheng_jian',
+        'blueprint': '龙语圣剑图纸',
+    },
+    'rec_long_zhao_shou_tao': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 82,
+        'weapon_type': 'fist',
+        "mats": {
+            'mat_long_lin_sui_pian': 5,
+            'mat_shen_yuan_quan_ya': 4,
+        },
+        'gold': 676,
+        'desc': '龙脊山隘的龙裔锻造技艺',
+        'name': '龙爪手套',
+        'roster_id': 'eq_long_zhao_shou_tao',
+        'blueprint': '龙爪手套图纸',
+    },
+    'rec_mao_xing_jie_zhi': {
+        'slot': 'ring',
+        'quality': 'purple',
+        'lv': 20,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 180,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '锚形戒指',
+        'roster_id': 'eq_mao_xing_jie_zhi',
+        'blueprint': '锚形戒指图纸',
+    },
+    'rec_mo_luo_zhi_guan': {
+        'slot': 'helm',
+        'quality': 'orange',
+        'lv': 85,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 5,
+            'mat_shen_yuan_e_mo_jiao': 4,
+        },
+        'gold': 700,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '摩罗之冠',
+        'roster_id': 'eq_mo_luo_zhi_guan',
+        'blueprint': '摩罗之冠图纸',
+    },
+    'rec_pi_jia': {
+        'slot': 'armor',
+        'quality': 'white',
+        'lv': 3,
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 44,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '皮甲',
+        'roster_id': 'eq_pi_jia',
+    },
+    'rec_qi_shi_tou_kui': {
+        'slot': 'helm',
+        'quality': 'blue',
+        'lv': 28,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 244,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '骑士头盔',
+        'roster_id': 'eq_qi_shi_tou_kui',
+    },
+    'rec_qi_shi_zhang_xue': {
+        'slot': 'boots',
+        'quality': 'blue',
+        'lv': 28,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 244,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '骑士长靴',
+        'roster_id': 'eq_qi_shi_chang_xue',
+    },
+    'rec_rong_lu_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 62,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 516,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '熔炉项链',
+        'roster_id': 'eq_rong_lu_xiang_lian',
+        'blueprint': '熔炉项链图纸',
+    },
+    'rec_rong_yan_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 72,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_shen_yuan_quan_ya': 4,
+            'mat_shen_yuan_e_mo_jiao': 3,
+        },
+        'gold': 596,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '熔岩法杖',
+        'roster_id': 'eq_rong_yan_fa_zhang',
+        'blueprint': '熔岩法杖图纸',
+    },
+    'rec_shen_pan_zhi_lian': {
+        'slot': 'necklace',
+        'quality': 'orange',
+        'lv': 40,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 340,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '审判之链',
+        'roster_id': 'eq_shen_pan_zhi_lian',
+        'blueprint': '审判之链图纸',
+    },
+    'rec_shen_yuan_tou_kui': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 70,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 4,
+            'mat_shen_yuan_e_mo_jiao': 3,
+        },
+        'gold': 580,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '深渊头盔',
+        'roster_id': 'eq_shen_yuan_tou_kui',
+        'blueprint': '深渊头盔图纸',
+    },
+    'rec_shen_yuan_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 75,
+        "mats": {
+            'mat_shen_yuan_quan_ya': 5,
+            'mat_shen_yuan_e_mo_jiao': 4,
+        },
+        'gold': 620,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '深渊项链',
+        'roster_id': 'eq_shen_yuan_xiang_lian',
+        'blueprint': '深渊项链图纸',
+    },
+    'rec_shen_yuan_zhan_ren': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 75,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_shen_yuan_quan_ya': 5,
+            'mat_shen_yuan_e_mo_jiao': 4,
+        },
+        'gold': 620,
+        'desc': '幽暗地域的黑曜锻造术',
+        'name': '深渊战刃',
+        'roster_id': 'eq_shen_yuan_zhan_ren',
+        'blueprint': '深渊战刃图纸',
+    },
+    'rec_sheng_dian_zhan_chui': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 34,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 292,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣殿战锤',
+        'roster_id': 'eq_sheng_dian_zhan_chui',
+        'blueprint': '圣殿战锤图纸',
+    },
+    'rec_sheng_guang_hu_fu': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 32,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 276,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光护符',
+        'roster_id': 'eq_sheng_guang_hu_fu',
+        'blueprint': '圣光护符图纸',
+    },
+    'rec_sheng_guang_hu_tui': {
+        'slot': 'legs',
+        'quality': 'blue',
+        'lv': 30,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 260,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光护腿',
+        'roster_id': 'eq_sheng_guang_hu_tui',
+    },
+    'rec_sheng_guang_xiong_jia': {
+        'slot': 'armor',
+        'quality': 'blue',
+        'lv': 30,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 260,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光胸甲',
+        'roster_id': 'eq_sheng_guang_xiong_jia',
+    },
+    'rec_sheng_guang_zhang_jian': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 28,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 244,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光长剑',
+        'roster_id': 'eq_sheng_guang_chang_jian',
+    },
+    'rec_shuang_lang_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 62,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 516,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '霜狼护腿',
+        'roster_id': 'eq_shuang_lang_hu_tui',
+        'blueprint': '霜狼护腿图纸',
+    },
+    'rec_shuang_lang_tou_kui': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 60,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 500,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '霜狼头盔',
+        'roster_id': 'eq_shuang_lang_tou_kui',
+        'blueprint': '霜狼头盔图纸',
+    },
+    'rec_shuang_lang_zhang_jian': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 65,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 540,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '霜狼长剑',
+        'roster_id': 'eq_shuang_lang_chang_jian',
+        'blueprint': '霜狼长剑图纸',
+    },
+    'rec_shuang_yuan_zhang_xue': {
+        'slot': 'boots',
+        'quality': 'purple',
+        'lv': 60,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 500,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '霜原长靴',
+        'roster_id': 'eq_shuang_yuan_chang_xue',
+        'blueprint': '霜原长靴图纸',
+    },
+    'rec_shui_shou_duan_ren': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 12,
+        'weapon_type': 'dagger',
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 116,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '水手短刃',
+        'roster_id': 'eq_shui_shou_duan_ren',
+    },
+    'rec_shui_shou_hu_tui': {
+        'slot': 'legs',
+        'quality': 'blue',
+        'lv': 14,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 132,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '水手护腿',
+        'roster_id': 'eq_shui_shou_hu_tui',
+    },
+    'rec_shui_shou_jia_ke': {
+        'slot': 'armor',
+        'quality': 'blue',
+        'lv': 15,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 140,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '水手夹克',
+        'roster_id': 'eq_shui_shou_jia_ke',
+    },
+    'rec_tie_jian': {
+        'slot': 'weapon',
+        'quality': 'white',
+        'lv': 2,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 36,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '铁剑',
+        'roster_id': 'eq_tie_jian',
+    },
+    'rec_tie_zhen_xiong_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 66,
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 548,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '铁砧胸甲',
+        'roster_id': 'eq_tie_zhen_xiong_jia',
+        'blueprint': '铁砧胸甲图纸',
+    },
+    'rec_tie_zhen_zhan_chui': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 68,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_shuang_ju_mo_xue': 4,
+            'mat_tie_kuang_shi': 3,
+        },
+        'gold': 564,
+        'desc': '北境霜狼部族的御寒战具',
+        'name': '铁砧战锤',
+        'roster_id': 'eq_tie_zhen_zhan_chui',
+        'blueprint': '铁砧战锤图纸',
+    },
+    'rec_wan_dao': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 14,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 132,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '弯刀',
+        'roster_id': 'eq_wan_dao',
+    },
+    'rec_wang_dou_zhang_gong': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 32,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 276,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '王都长弓',
+        'roster_id': 'eq_wang_du_chang_gong',
+        'blueprint': '王都长弓图纸',
+    },
+    'rec_wang_guo_hui_jie': {
+        'slot': 'ring',
+        'quality': 'purple',
+        'lv': 34,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 292,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '王国徽戒',
+        'roster_id': 'eq_wang_guo_hui_jie',
+        'blueprint': '王国徽戒图纸',
+    },
+    'rec_xiang_mu_duan_gun': {
+        'slot': 'weapon',
+        'quality': 'white',
+        'lv': 2,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 36,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '橡木短棍',
+        'roster_id': 'eq_xiang_mu_duan_gun',
+    },
+    'rec_xiang_mu_dun': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 6,
+        'weapon_type': 'shield',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 68,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '橡木盾',
+        'roster_id': 'eq_xiang_mu_dun',
+    },
+    'rec_xiang_mu_hu_tui': {
+        'slot': 'legs',
+        'quality': 'white',
+        'lv': 3,
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 44,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '橡木护腿',
+        'roster_id': 'eq_xiang_mu_hu_tui',
+    },
+    'rec_xing_guang_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 88,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 724,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '星光法杖',
+        'roster_id': 'eq_xing_guang_fa_zhang',
+        'blueprint': '星光法杖图纸',
+    },
+    'rec_xing_hui_zhang_xue': {
+        'slot': 'boots',
+        'quality': 'purple',
+        'lv': 85,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 700,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '星辉长靴',
+        'roster_id': 'eq_xing_hui_chang_xue',
+        'blueprint': '星辉长靴图纸',
+    },
+    'rec_xing_yu_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 52,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 436,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '星语项链',
+        'roster_id': 'eq_xing_yu_xiang_lian',
+        'blueprint': '星语项链图纸',
+    },
+    'rec_xue_tu_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'white',
+        'lv': 2,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 36,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '学徒法杖',
+        'roster_id': 'eq_xue_tu_fa_zhang',
+    },
+    'rec_xue_tu_zhi_zhang': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 6,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_shi_lai_mu_nian_ye': 2,
+        },
+        'gold': 68,
+        'desc': '南境橡木镇的基础工艺，结实耐用',
+        'name': '学徒之杖',
+        'roster_id': 'eq_xue_tu_zhi_zhang',
+    },
+    'rec_yin_ye_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 52,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 436,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '银叶法杖',
+        'roster_id': 'eq_yin_ye_fa_zhang',
+        'blueprint': '银叶法杖图纸',
+    },
+    'rec_yue_guan_tou_kui': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 50,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 420,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月冠头盔',
+        'roster_id': 'eq_yue_guan_tou_kui',
+        'blueprint': '月冠头盔图纸',
+    },
+    'rec_yue_guang_duan_ren': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 50,
+        'weapon_type': 'dagger',
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 420,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月光短刃',
+        'roster_id': 'eq_yue_guang_duan_ren',
+        'blueprint': '月光短刃图纸',
+    },
+    'rec_yue_hua_jie_zhi': {
+        'slot': 'ring',
+        'quality': 'purple',
+        'lv': 50,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 420,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月华戒指',
+        'roster_id': 'eq_yue_hua_jie_zhi',
+        'blueprint': '月华戒指图纸',
+    },
+    'rec_yue_yu_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 52,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 436,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月语护腿',
+        'roster_id': 'eq_yue_yu_hu_tui',
+        'blueprint': '月语护腿图纸',
+    },
+    'rec_yue_yu_zhang_gong': {
+        'slot': 'weapon',
+        'quality': 'purple',
+        'lv': 52,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 436,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月语长弓',
+        'roster_id': 'eq_yue_yu_chang_gong',
+        'blueprint': '月语长弓图纸',
+    },
+    'rec_yue_zhi_xue': {
+        'slot': 'boots',
+        'quality': 'purple',
+        'lv': 50,
+        "mats": {
+            'mat_jing_ling_lu_jiao': 4,
+            'mat_yue_lang_mao_pi': 3,
+        },
+        'gold': 420,
+        'desc': '精灵月语工艺，轻盈灵动',
+        'name': '月之靴',
+        'roster_id': 'eq_yue_zhi_xue',
+        'blueprint': '月之靴图纸',
+    },
+    'rec_yun_wen_xiong_jia': {
+        'slot': 'armor',
+        'quality': 'purple',
+        'lv': 88,
+        "mats": {
+            'mat_feng_zhi_yu': 5,
+            'mat_xing_hui_chen': 4,
+        },
+        'gold': 724,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '云纹胸甲',
+        'roster_id': 'eq_yun_wen_xiong_jia',
+        'blueprint': '云纹胸甲图纸',
+    },
+    'rec_zhen_zhu_tou_guan': {
+        'slot': 'helm',
+        'quality': 'purple',
+        'lv': 55,
+        "mats": {
+            'mat_shen_hai_shui_jing': 4,
+            'mat_hai_yan_jie_jing': 3,
+        },
+        'gold': 460,
+        'desc': '无尽海的海神祭器工艺',
+        'name': '珍珠头冠',
+        'roster_id': 'eq_zhen_zhu_tou_guan',
+        'blueprint': '珍珠头冠图纸',
+    },
+    'rec_zhen_zhu_xiang_lian': {
+        'slot': 'necklace',
+        'quality': 'purple',
+        'lv': 18,
+        "mats": {
+            'mat_ge_bu_lin_hui_ji': 2,
+            'mat_hai_yao_lin_pian': 1,
+        },
+        'gold': 164,
+        'desc': '铁港城工匠的手艺，带着海风的咸味',
+        'name': '珍珠项链',
+        'roster_id': 'eq_zhen_zhu_xiang_lian',
+        'blueprint': '珍珠项链图纸',
+    },
 }
 
-# 别名：配方名 → 别名列表（key 已转 rec ID，别名保留中文供输入匹配）
 CRAFT_RECIPE_ALIASES = {
     "rec_tie_jian": [
         "铁剑",
@@ -3202,3 +1365,6 @@ CRAFT_RECIPE_ALIASES = {
         "混沌核心"
     ]
 }
+
+
+
