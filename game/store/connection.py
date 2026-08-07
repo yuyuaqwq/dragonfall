@@ -55,7 +55,8 @@ def init_db():
                 learned_blueprints TEXT DEFAULT '[]',
                 lucky_until INTEGER DEFAULT 0,
                 created_at INTEGER,
-                last_active INTEGER
+                last_active INTEGER,
+                race TEXT DEFAULT 'human'
             );
             CREATE TABLE IF NOT EXISTS inventory (
                 qq_id TEXT NOT NULL,
@@ -246,6 +247,9 @@ def init_db():
                 conn.execute("ALTER TABLE players ADD COLUMN learned_blueprints TEXT DEFAULT '[]'")
             if "lucky_until" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN lucky_until INTEGER DEFAULT 0")
+            # 阶段九：种族系统（08 章）——players 表补 race 列（老库自愈）
+            if "race" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN race TEXT DEFAULT 'human'")
             # 兼容旧库：feedback 表补 reply 列（意见回复）
             fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
             if "reply" not in fcols:

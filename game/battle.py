@@ -74,6 +74,7 @@ class Battle:
         self.e_extra_left: int = 0            # 敌方本回合剩余额外行动次数
         self.e_first: bool = False            # 敌方是否先手（速度更快）
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
+        self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
@@ -97,6 +98,7 @@ class Battle:
             "e_extra_left": self.e_extra_left,
             "e_first": self.e_first,
             "player_hit": self._player_hit,
+            "first_attack_done": self.first_attack_done,
         }
 
     @classmethod
@@ -120,6 +122,7 @@ class Battle:
         b.e_extra_left = int(st.get("e_extra_left", 0) or 0)
         b.e_first = bool(st.get("e_first", False))
         b._player_hit = bool(st.get("player_hit", False))
+        b.first_attack_done = bool(st.get("first_attack_done", False))
         return b
 
     # ---------------- 核心资源（v2.0） ----------------
@@ -340,6 +343,10 @@ class Battle:
             logs.append(f"🧪 你饮下战斗药水，{_cn.get(kind, kind)}大幅提升！（3 回合）")
         else:
             heal = int(payload or 0)  # 复用 skill_name 传恢复量
+            # 阶段九：半身人灵巧双手——消耗品效果 +10%
+            rr = E.race_stats(player.get("race")).get("item_effect")
+            if rr:
+                heal = max(1, int(heal * (1 + rr)))
             if heal > 0:
                 before = player["hp"]
                 player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
@@ -513,7 +520,8 @@ class Battle:
                                   player.get("class_tier", 0),
                                   player.get("attributes"),
                                   player.get("evolve_path", 0),
-                                  getattr(self, "title_bonus", None) or {})
+                                  getattr(self, "title_bonus", None) or {},
+                                  player.get("race"))
         st = self._apply_buffs(st, self.p_buffs)
         # v33/v34 符文属性：疾风(速度+) / 铁壁(防御+)
         effs = self._enchant_effects(player)
@@ -547,6 +555,11 @@ class Battle:
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
+        # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
+        race_mult, race_tags = self._race_attack_mult(player)
+        dmg = int(dmg * race_mult)
+        if race_tags:
+            affix_tags = list(affix_tags) + race_tags
         # v34 残忍：暴击伤害 +x%（按等级）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and is_crit:
@@ -656,6 +669,34 @@ class Battle:
         """已激活 5 件套的套装名列表（10 章五节 5 件效果，战斗特效型）"""
         return [sname for sname, cnt in E.active_sets(player.get("equipment") or {}).items()
                 if cnt >= 5]
+
+    def _race_bonus(self, player: dict) -> dict:
+        """种族天赋表（08 章，battle 消费战斗型天赋）"""
+        return E.race_stats(player.get("race"))
+
+    def _race_attack_mult(self, player: dict) -> tuple:
+        """种族对玩家攻击的伤害倍率（无畏/怯战 残血攻击、龙之吐息 首击）。
+        返回 (倍率, 标签列表)。"""
+        rt = self._race_bonus(player)
+        if not rt:
+            return 1.0, []
+        mult = 1.0
+        tags = []
+        ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
+        bz = rt.get("berserk_hp")
+        if bz and ratio < bz:
+            mult *= 1.20
+            tags.append("🔥无畏")
+        tm = rt.get("timid_hp")
+        if tm and ratio < tm:
+            mult *= 0.90
+            tags.append("😰怯战")
+        fh = rt.get("first_hit")
+        if fh and not self.first_attack_done:
+            mult *= 1 + fh
+            tags.append(f"🐲龙之吐息x{round(1 + fh, 2)}")
+            self.first_attack_done = True
+        return mult, tags
 
     def _affix_dmg_mult(self, player: dict) -> tuple:
         """被动词条/专属对本次伤害的倍率。返回 (倍率, 标签列表)。
@@ -895,6 +936,14 @@ class Battle:
             # 阶段八：圣光套 2 件效果——治疗 +10%
             if E.has_set(player.get("equipment", {}), "圣光套"):
                 heal = int(heal * 1.10)
+            # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
+            hr = self._race_bonus(player).get("heal_received", 0) or 0
+            if hr:
+                heal = max(1, int(heal * (1 + hr)))
+                if hr > 0:
+                    logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
+                else:
+                    logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
             over = 0
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             # v64 被动·庇护之光：治疗溢出 20% 转为护盾
@@ -1051,8 +1100,12 @@ class Battle:
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         elem_mult = self._affix_element_dmg(player, element)
+        # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
+        race_mult, race_tags = self._race_attack_mult(player)
+        if race_tags:
+            affix_tags = list(affix_tags) + race_tags
         pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult
-                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult)
+                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult)
         for _ in range(multi):
             if kind == "物理":
                 if info.get("pierce"):
@@ -1555,6 +1608,17 @@ class Battle:
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit)
                 else:
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit)
+                # 阶段九：种族受击天赋（龙鳞 魔伤-10% / 鲁莽之心 魔伤+5%，魔法技能段）
+                if kind != "物理":
+                    rt = self._race_bonus(player)
+                    mr = rt.get("magic_reduce", 0) or 0
+                    if mr:
+                        red = max(1, int(dmg * mr))
+                        dmg = max(1, dmg - red)
+                        if mr > 0:
+                            logs.append(f"🐲 龙鳞抗魔，减免 {red} 点伤害！")
+                        else:
+                            logs.append(f"🔥 鲁莽之心，额外受到 {-red} 点伤害！")
                 # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（elem_resist 火/冰/雷 -8%、abyss_resist 暗影 -10%）
                 melem = sinfo.get("element", "")
                 if melem:
@@ -1595,6 +1659,13 @@ class Battle:
                         logs.append("🧊 你被减速，2 回合内速度下降！")
                 return logs, dmg
         dmg = E.calc_damage(est["atk"], pst["def"])
+        # 阶段九：种族受击天赋（石肤 物理伤害-10%，普攻段）
+        rt = self._race_bonus(player)
+        pr = rt.get("phys_reduce", 0) or 0
+        if pr:
+            red = max(1, int(dmg * pr))
+            dmg = max(1, dmg - red)
+            logs.append(f"🪨 石肤护体，减免 {red} 点物理伤害！")
         logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！")
         return logs, dmg
 

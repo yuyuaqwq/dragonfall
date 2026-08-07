@@ -200,7 +200,7 @@ class CommandBase:
             st, sources = E.player_stats_detail(
                 player["class_name"], player["level"], player["equipment"],
                 player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
-                title_bonus)
+                title_bonus, player.get("race"))
         except Exception:
             return []
         lines = []

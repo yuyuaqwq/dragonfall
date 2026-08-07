@@ -810,8 +810,9 @@ class EconomyCmds(CommandBase):
         set_str = ""
         if equip.get("set"):
             set_str = f"\n    🎴 套装：{equip['set']}"
-        # 副业经验（锻造成功 +1）
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "craft", 1)
+        # 副业经验（锻造成功 +1；阶段九：矮人熔炉之心——锻造经验 +1）
+        prof_gain = 1 + (1 if E.race_stats(player.get("race")).get("craft_bonus") else 0)
+        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "craft", prof_gain)
         lv_msg = ""
         if leveled:
             lv_msg = f"\n🌟 锻造等级提升到 Lv.{new_lv}！"
@@ -1974,7 +1975,7 @@ class EconomyCmds(CommandBase):
         old_stats = None
         if old:
             old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
-                                             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0))
+                                             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), None, player.get("race"))
         # 卸下旧装备回背包
         if old:
             import uuid
@@ -1983,7 +1984,7 @@ class EconomyCmds(CommandBase):
         db.update_player(group_id, qq_id, equipment=equipment)
         db.remove_item(group_id, qq_id, target["key"])
         q = C.QUALITY[d["quality"]]
-        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id))
+        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         # v16：属性变化对比（对比穿上前后的差值）
         diff_parts = []
         if old_stats is not None:
@@ -2039,12 +2040,12 @@ class EconomyCmds(CommandBase):
             return
         # 属性变化对比（复用 equip 逻辑）
         old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
-                                         player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0))
+                                         player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), None, player.get("race"))
         import uuid
         db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", item)
         equipment[slot] = None
         db.update_player(group_id, qq_id, equipment=equipment)
-        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id))
+        st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         diff_parts = []
         keys = [("atk", "攻击"), ("def", "防御"), ("matk", "魔攻"), ("mdef", "魔防"),
                 ("spd", "速度"), ("max_hp", "生命"), ("max_mp", "魔力"), ("crit", "暴击"), ("dodge", "闪避")]

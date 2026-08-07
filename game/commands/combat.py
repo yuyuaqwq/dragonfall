@@ -178,7 +178,9 @@ class CombatCmds(CommandBase):
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
             extra = ""
             # v41：宝箱不再掉成品装备（装备统一走锻造），改为掉图纸/材料
-            if random.random() < 0.5:
+            # 阶段九：精灵森林之友——探索获得物品概率 +10%
+            item_chance = 0.5 + (0.10 if E.race_stats(player.get("race")).get("explore_item") else 0)
+            if random.random() < item_chance:
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
                 extra = f"\n📜 还翻出一张图纸：{bp['name']}！"
@@ -819,6 +821,9 @@ class CombatCmds(CommandBase):
                 rep_lines.append(f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +{rep_gain}")
         # 掉落（阶段八：普通怪掉绿/蓝装备；精英/Boss 掉紫/橙装备 + 名册图纸）
         drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"])
+        # 阶段九：半身人幸运儿——金币掉落 +15%
+        if E.race_stats(player.get("race")).get("gold_bonus"):
+            gold = int(gold * (1 + E.race_stats(player.get("race"))["gold_bonus"]))
         drop_lines = []
         if drop_bp:
             import uuid
@@ -1250,14 +1255,14 @@ class CombatCmds(CommandBase):
 
     def _pvp_snapshot(self, p: dict, group_id: str = "", qq_id: str = "") -> dict:
         """玩家快照（PVP 战斗状态用）"""
-        st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id))
+        st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
         return {
             "qq_id": str(p["qq_id"]), "name": p["name"],
             "class_name": p["class_name"], "level": p["level"],
             "hp": p["hp"], "mp": p["mp"], "max_hp": st["max_hp"], "max_mp": st["max_mp"],
             "equipment": p.get("equipment", {}), "class_tier": p.get("class_tier", 0),
             "attributes": p.get("attributes", {}),
-            "evolve_path": p.get("evolve_path", 0),
+            "evolve_path": p.get("evolve_path", 0), "race": p.get("race"),
         }
 
     def _pvp_handle_timeout(self, battle, group_id, qq_id) -> bool:

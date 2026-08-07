@@ -225,7 +225,7 @@ class InstanceCmds(CommandBase):
                 # v57：快照补算真实 spd（此前 p 无 spd 字段恒为 0，速度机制无从生效）
                 "spd": E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
-                                            p.get("evolve_path", 0)).get("spd", 0),
+                                            p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
                 "equipment": p.get("equipment", {}),
                 "skills": p.get("skills", []),
                 "learned_skills": p.get("learned_skills", []),

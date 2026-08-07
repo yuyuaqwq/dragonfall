@@ -113,9 +113,10 @@ class PlayerCmds(CommandBase):
 
     async def register(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
-        _args = self._strip_cmd(event, "注册").split(maxsplit=1)
+        _args = self._strip_cmd(event, "注册").split(maxsplit=2)
         class_name = _args[0] if _args else ""
         name = _args[1] if len(_args) > 1 else ""
+        race_arg = _args[2] if len(_args) > 2 else ""
         if self._player(group_id, qq_id):
             yield event.plain_result("你已经注册过角色啦！输入『角色』查看～")
             return
@@ -137,13 +138,27 @@ class PlayerCmds(CommandBase):
             avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
             yield event.plain_result(f"未知职业『{class_name}』！可选职业：{avail}")
             return
+        # 阶段九：种族解析（08 章，可选，缺省人类；支持简称如"精灵"→"银月精灵"）
+        race_id = "human"
+        race_display = ""
+        if race_arg:
+            r = C.resolve("races", race_arg)
+            if r not in C.RACES:
+                # 简称兼容：输入"精灵"匹配"银月精灵"
+                r = next((rid for rid, ri in C.RACES.items() if race_arg in ri["name"]), r)
+            if r not in C.RACES:
+                races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
+                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}（格式：注册 <职业> <名字> <种族>）")
+                return
+            race_id = r
+            race_display = C.RACES[r]["name"]
         name = name.strip()[:12]
         if not name:
-            yield event.plain_result("名字不能为空！格式：注册 <职业> <名字>")
+            yield event.plain_result("名字不能为空！格式：注册 <职业> <名字> [种族]")
             return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
-        db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"])
+        db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id)
         db.init_stats(group_id, qq_id)
         db.add_portal(qq_id, "vila_square")  # v10：新手自动激活维拉方碑
         # v12：自动学会初始技能（职业 Lv.1 技能），后续技能用技能点学习
@@ -158,9 +173,11 @@ class PlayerCmds(CommandBase):
             db.set_skill_bar(qq_id, bar)
         player = self._player(group_id, qq_id)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
+        race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}（{C.RACES[race_id]['desc']}）\n" if race_id in C.RACES else ""
         yield event.plain_result(
             f"✨ 欢迎来到维斯特兰大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
+            f"{race_line}"
             f"『{cls['desc']}』\n\n"
             f"你出生在维拉镇中心广场，输入『找 镇长』接取第一个任务，『地图』查看周边。\n"
             f"🌅 你注意到广场中央矗立着一座【维拉方碑】，已为你激活！输入『方碑』查看，以后可以『传送』到各地路标。\n"
@@ -181,7 +198,7 @@ class PlayerCmds(CommandBase):
         st, sources = E.player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
-            self._title_bonus(group_id, qq_id),
+            self._title_bonus(group_id, qq_id), player.get("race"),
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {}).get("name", "维拉镇")
@@ -202,6 +219,7 @@ class PlayerCmds(CommandBase):
         lines = [
             f"⚔️ 【{player['name']}】",
             f"🛡 Lv.{player['level']} {C.display('classes', player['class_name'])}",
+            f"🧬 {E.race_name(player.get('race'))}",
             "━━━━━━━━━━━━",
         ]
         stat_rows = [
@@ -244,6 +262,53 @@ class PlayerCmds(CommandBase):
         medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
         for i, p in enumerate(tops):
             lines.append(f"{medals[i]} Lv.{p['level']} {C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?种族(?:\s*|$)")
+
+    async def races(self, event: AstrMessageEvent):
+        """阶段九：种族一览（08 章，注册前查看 6 族天赋）"""
+        lines = ["🧬 【种族】6 大种族各有取舍（注册时选择：注册 <职业> <名字> <种族>）", "━━━━━━━━━━━━"]
+        for rid, r in C.RACES.items():
+            t = r["talents"]
+            tnames = r.get("talent_names", {})
+            parts = []
+            for k, v in t.items():
+                nm = tnames.get(k, k)
+                if k in ("hp_mult", "growth_mult", "spd_mult"):
+                    pct = int((v - 1) * 100)
+                    parts.append(f"{'🔻' if v < 1 else ''}{nm} {pct:+d}%")
+                elif k == "crit_add":
+                    parts.append(f"{nm} 暴击+{int(v*100)}%")
+                elif k in ("phys_reduce", "magic_reduce"):
+                    if v > 0:
+                        parts.append(f"{nm} -{int(v*100)}%")
+                    else:
+                        parts.append(f"🔻{nm} +{int(-v*100)}%")
+                elif k == "heal_received":
+                    if v > 0:
+                        parts.append(f"{nm} 受疗+{int(v*100)}%")
+                    else:
+                        parts.append(f"🔻{nm} 受疗{int(v*100)}%")
+                elif k == "berserk_hp":
+                    parts.append(f"{nm} 残血攻+20%")
+                elif k == "timid_hp":
+                    parts.append(f"🔻{nm} 残血攻-10%")
+                elif k == "first_hit":
+                    parts.append(f"{nm} 首击+{int(v*100)}%")
+                elif k == "learn_discount":
+                    parts.append(f"{nm} 学习-{int(v*100)}%")
+                elif k == "gold_bonus":
+                    parts.append(f"{nm} 金币+{int(v*100)}%")
+                elif k == "item_effect":
+                    parts.append(f"{nm} 消耗品+{int(v*100)}%")
+                elif k == "craft_bonus":
+                    parts.append(f"{nm} 锻造经验+{int(v*100)}%")
+                elif k == "explore_item":
+                    parts.append(f"{nm} 探索物品+{int(v*100)}%")
+            lines.append(f"{r['icon']} {r['name']}：{'，'.join(parts)}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿（净强度≈不变），选取舍不选碾压！")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?:\s*|$)")
@@ -419,7 +484,7 @@ class PlayerCmds(CommandBase):
         st, sources = E.player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
-            self._title_bonus(group_id, qq_id),
+            self._title_bonus(group_id, qq_id), player.get("race"),
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
         attr = player.get("attributes", {})
@@ -610,7 +675,7 @@ class PlayerCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        st = E.player_final_stats(player["class_name"], player["level"], player["equipment"], player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id))
+        st = E.player_final_stats(player["class_name"], player["level"], player["equipment"], player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         pw = int(st["atk"] * 2 + st["matk"] * 2 + st["def"] * 1.5 + st["mdef"] * 1.5
                 + st["max_hp"] / 10 + st["max_mp"] / 10 + st["spd"] * 3)
         tier = player.get("class_tier", 0)
@@ -774,6 +839,9 @@ class PlayerCmds(CommandBase):
         if player["level"] < need_lv:
             return f"『{display_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}——升级吧！（每级 +1 技能点）"
         cost = E.skill_learn_cost(player["level"], need_lv)
+        # 阶段九：人类多才多艺——学习技能点 -8%
+        if E.race_stats(player.get("race")).get("learn_discount"):
+            cost = max(1, int(cost * (1 - E.race_stats(player.get("race"))["learn_discount"])))
         pts = player.get("skill_points", 0)
         if pts < cost:
             return (

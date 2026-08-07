@@ -166,15 +166,18 @@ def mech_stack_gain(mech: str, p_mech: dict, mval: int) -> int:
     cap = MECH_STACK_MAX.get(mech, 99)
     return min(cap, p_mech.get(mech, 0) + mval)
 
-def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: int = 0) -> dict:
-    """职业基础 + 等级成长（含转职成长加成 + v25 分支属性倾向）"""
+def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: int = 0, race: str = None) -> dict:
+    """职业基础 + 等级成长（含转职成长加成 + v25 分支属性倾向）
+    阶段九：race 种族天赋（凡人之躯 growth_mult 只影响基础成长）"""
     class_name = C.resolve("classes", class_name)  # v48：中文或 ID → ID
     cls = C.CLASSES[class_name]
     base = dict(cls["base"])
     growth = cls["growth"]
     mult = TIER_GROWTH.get(tier, 1.0)
+    # 阶段九：种族成长倍率（08 章人类凡人之躯 -2%）
+    rmult = race_stats(race).get("growth_mult", 1.0) if race else 1.0
     for k in ("hp", "mp", "atk", "def", "matk", "mdef", "spd"):
-        base[k] = int(base[k] + growth[k] * (level - 1) * mult)
+        base[k] = int(base[k] + growth[k] * (level - 1) * mult * rmult)
     # v25 分支属性倾向（选择转职分支后生效）
     if evolve_path:
         bb = BRANCH_BONUS.get(evolve_path, {})
@@ -188,9 +191,24 @@ def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: i
     return base
 
 
-def player_final_stats(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None) -> dict:
-    """基础属性 + 装备加成（含强化增幅）+ 自由属性点加成 + 称号加成"""
-    st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus)
+def race_stats(race: str | None) -> dict:
+    """种族天赋表（08 章）。未知/空种族返回空 dict（无天赋，向后兼容）。"""
+    if not race:
+        return {}
+    info = C.RACES.get(race) or {}
+    return info.get("talents") or {}
+
+
+def race_name(race: str | None) -> str:
+    """种族显示名（未知返回空串，兼容旧档无 race 字段）"""
+    if not race:
+        return ""
+    return (C.RACES.get(race) or {}).get("name", "")
+
+
+def player_final_stats(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> dict:
+    """基础属性 + 装备加成（含强化增幅）+ 自由属性点加成 + 称号加成 + 种族天赋"""
+    st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus, race)
     return st
 
 
@@ -247,15 +265,15 @@ STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", 
               "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
 
 
-def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None) -> tuple:
+def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
     """拆解属性来源。返回 (最终属性 dict, 来源明细 list)。
 
     来源明细每项: {"name": 来源名, "stats": {属性: 加值}}。
     与 player_final_stats 共用同一套计算（最终属性完全一致），保证面板显示和实际战斗一致。
     """
     sources = []
-    # 1. 基础（职业 + 等级成长 + 转职加成 + v25 分支倾向）
-    st = player_base_stats(class_name, level, tier, evolve_path)
+    # 1. 基础（职业 + 等级成长 + 转职加成 + v25 分支倾向 + 种族成长倍率）
+    st = player_base_stats(class_name, level, tier, evolve_path, race)
     base_src = {"hp": st["max_hp"], "mp": st["max_mp"]}
     for k in ("atk", "def", "matk", "mdef", "spd"):
         base_src[k] = st[k]
@@ -369,6 +387,21 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                 else:
                     st[k] += int(v)
             sources.append({"name": "副业称号", "stats": tb})
+    # 7. 种族天赋 stat 型（08 章：月缺 HP-5% / 磐石步履先手-5% / 月之优雅暴击+8% / 坚韧体魄 HP+8%）
+    rt = race_stats(race)
+    if rt:
+        race_src = {}
+        if rt.get("hp_mult", 1.0) != 1.0:
+            race_src["hp"] = rt["hp_mult"]
+            st["max_hp"] = int(st["max_hp"] * rt["hp_mult"])
+        if rt.get("spd_mult", 1.0) != 1.0:
+            race_src["spd"] = rt["spd_mult"]
+            st["spd"] = int(st["spd"] * rt["spd_mult"])
+        if rt.get("crit_add"):
+            race_src["crit"] = rt["crit_add"]
+            st["crit"] = min(st["crit"] + rt["crit_add"], 0.5)
+        if race_src:
+            sources.append({"name": "种族天赋", "stats": race_src, "pct": True})
     return st, sources
 
 

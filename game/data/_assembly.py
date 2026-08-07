@@ -48,6 +48,7 @@ from .mounts import MOUNT_POOL, MOUNT_BY_KEY, MOUNT_DROP_ELITE, MOUNT_DROP_BOSS 
 from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
+from .races import RACES  # noqa: F401
 
 from ..core.maps import _build_ency  # noqa: F401
 from ..core.class_sets import _build_class_sets  # noqa: F401
@@ -76,6 +77,7 @@ build_index("runes", RUNES, prefix="rn_", name_field="name")
 build_index("monster_skills", MONSTER_SKILLS, prefix="ms_", name_field="name")
 build_index("alchemy", ALCHEMY_RECIPES, prefix="al_", name_field="name")
 build_index("cooking", COOKING_RECIPES, prefix="cook_", name_field="name")
+build_index("races", RACES, name_field="name")  # 阶段九：种族（08 章，key 即 ID，无前缀）
 
 # 品质：颜色档位（白/绿/蓝/紫/橙）→ ID（white/...）；稀有度文字（普通/稀有）单独查 QUALITY[name]
 if any(k in QUALITY_CN for k in QUALITY):  # v48：key 已是英文 ID
