@@ -2285,6 +2285,54 @@ MAPS = [
         "boss": ["b_ola", "云中圣者·奥拉", "boss", 100, ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"], ["奥拉圣印"]],
         "npcs": [],
     },
+    # ================= v87 隐藏线：H6 失落图书馆（02 章七 H6，Lv.55，准入=3 张泛黄书页）=================
+    {
+        "id": "lost_library",
+        "name": "失落图书馆",
+        "lv": 55,
+        "region": "中域·圣光之心",
+        "chapter": 11,
+        "area": "crypt",
+        "area_name": "圣堂地窖",
+        "desc": "圣堂地窖最深处的古老图书馆，三百年前教会封印真相之地。书页飘浮、星光流淌……",
+        "type": "隐藏区域",
+        "shop": False,
+        "healer": False,
+        "hidden": True,
+        "monsters": [
+            ["m_lib_guard", "图书馆守卫", "tank", 55, ["ms_tie_bi", "ms_fu_shi_shu"], ["旧书残页", "剑圣残页"]],
+            ["m_book_spirit", "书页精灵", "speedster", 56, ["ms_jing_ling_jian_shu", "ms_shan_shuo"], ["墨水瓶"]],
+            ["m_paper_wraith", "纸墨幽魂", "dps", 58, ["ms_an_ying_zhan", "ms_fu_shi"], ["褪色墨水"]],
+        ["e_archive_warden", "档案馆长·奥古斯特", "elite", 60, ["ms_fu_wen_chong_ji", "ms_jian_xiao", "ms_zhao_huan_ku_lou"], ["档案室钥匙"]],
+        ],
+        "elite": ["e_archive_warden", "档案馆长·奥古斯特", "elite", 60, ["ms_fu_wen_chong_ji", "ms_jian_xiao", "ms_zhao_huan_ku_lou"], ["档案室钥匙"]],
+        "boss": ["b_lost_archivist", "守馆者·遗忘贤者", "boss", 62, ["ms_fu_shi_ling_yu", "ms_an_ying_dan", "ms_zhao_huan_yun_wei"], ["星尘沙漏"]],
+        "npcs": ["npc_spellblade_ghost"],
+    },
+    # ================= v87 隐藏线：H7 灰烬回廊（02 章七 H7，Lv.85，准入=烬火信标）=================
+    {
+        "id": "ember_corridor",
+        "name": "灰烬回廊",
+        "lv": 85,
+        "region": "北境·烬原",
+        "chapter": 9,
+        "area": "cinder",
+        "area_name": "烬山",
+        "desc": "烬山深处的灼热回廊，三百年前封印之战的最后战场。烧红的剑仍在等待它的主人……",
+        "type": "隐藏区域",
+        "shop": False,
+        "healer": False,
+        "hidden": True,
+        "monsters": [
+            ["m_ember_guard", "烬火守卫", "tank", 85, ["ms_lie_yan_zhao", "ms_tie_bi"], ["余烬甲片"]],
+            ["m_cinder_wolf", "烬狼", "speedster", 86, ["ms_si_yao", "ms_huo_yan"], ["烬狼牙"]],
+            ["m_ash_knight", "灰烬骑士", "dps", 87, ["ms_duan_jian", "ms_huo_qiang"], ["烧焦剑刃"]],
+        ["e_ash_champion", "灰烬勇士", "elite", 88, ["ms_huo_pao", "ms_lian_zhan", "ms_bao_zi_bao"], ["勇士余烬"]],
+        ],
+        "elite": ["e_ash_champion", "灰烬勇士", "elite", 88, ["ms_huo_pao", "ms_lian_zhan", "ms_bao_zi_bao"], ["勇士余烬"]],
+        "boss": ["b_ember_lord", "烬火领主·伊格尼斯", "boss", 90, ["ms_rong_yan_dan", "ms_di_yu_huo", "ms_zhao_huan"], ["灰烬之核"]],
+        "npcs": [],
+    },
 ]
 
 MAP_BY_ID = {
@@ -4594,7 +4642,7 @@ MAP_CONNECTIONS = {
     "boar_ridge": ["maple_village"],
     "bone_wild": ["dragon_pass"],
     "border_castle": ["dawn_city"],
-    "cinder_mountain": ["black_forest", "ash_temple", "frostwhisper_canyon"],
+    "cinder_mountain": ["black_forest", "ash_temple", "frostwhisper_canyon", "ember_corridor"],
     "cloud_sanctum": ["rainbow_cloud", "starlight_terrace"],
     "cloud_sea": ["wind_city", "storm_plateau"],
     "cold_ridge": ["anvil_fort"],
@@ -4613,6 +4661,7 @@ MAP_CONNECTIONS = {
     "dragonsfall_valley": ["dragon_pass"],
     "elven_ruins": ["moon_court"],
     "ember_camp": ["molten_abyss", "lava_bed"],
+    "ember_corridor": ["cinder_mountain"],
     "emerald_forest": ["white_deer", "misty_swamp"],
     "emerald_valley": ["star_song"],
     "eye_of_storm": ["storm_plateau"],
@@ -4636,6 +4685,7 @@ MAP_CONNECTIONS = {
     "king_road": ["old_king_tomb", "holy_trial", "dawn_city"],
     "knight_yard": ["dawn_city"],
     "lava_bed": ["molten_abyss", "ember_camp", "abyss_altar"],
+    "lost_library": ["secret_crypt"],
     "maple_village": ["oak_town", "rockfall_gorge", "boar_ridge"],
     "mermaid_bay": ["shell_town", "siren_nest"],
     "mist_trench": ["nameless_harbor"],
@@ -4659,7 +4709,7 @@ MAP_CONNECTIONS = {
     "rockfall_gorge": ["maple_village"],
     "sea_cave": ["harbor_docks"],
     "sea_god_temple": ["storm_sea"],
-    "secret_crypt": ["dawn_cathedral"],
+    "secret_crypt": ["dawn_cathedral", "lost_library"],
     "shell_town": ["jade_port", "mermaid_bay"],
     "shipwreck_graveyard": ["whale_domain"],
     "silver_brook": ["white_deer", "silver_valley"],
@@ -4694,6 +4744,9 @@ HIDDEN_MAP_UNLOCK = {
     "mithril_hall": {"level": 25, "quest": "q8"},
     "sea_altar": {"level": 50, "quest": "diving_gear"},
     "under_king_hall": {"level": 85, "quest": "under_runes"},
+    # v87 隐藏线：H6/H7 物品型准入
+    "lost_library": {"level": 45, "item": {"泛黄书页": 3}},
+    "ember_corridor": {"level": 80, "item": {"烬火信标": 1}},
 }
 
 LEGACY_MAP_ALIAS = {

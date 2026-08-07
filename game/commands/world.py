@@ -544,6 +544,19 @@ class WorldCmds(CommandBase):
             if player["level"] < unlock.get("level", 99):
                 yield event.plain_result("前方被无形的屏障阻挡……这里需要更强大的实力！（等级不足）")
                 return
+            # v87：物品型准入（H6 泛黄书页×3 / H7 烬火信标）
+            item_req = unlock.get("item")
+            if item_req:
+                lack = [f"{name}×{need}" for name, need in item_req.items()
+                        if db.count_item(group_id, qq_id, name) < need]
+                if lack:
+                    yield event.plain_result(
+                        "入口被古老的力量封锁，似乎需要信物才能进入……\n"
+                        f"🔒 缺少：{'、'.join(lack)}\n"
+                        "💡 失落图书馆：集齐 3 张泛黄书页（探索彩蛋/圣堂地窖精英/符文石）\n"
+                        "💡 灰烬回廊：找到老守墓人·灰须领取烬火信标"
+                    )
+                    return
             quests = db.get_quests(group_id, qq_id)
             if unlock.get("quest") not in quests.get("completed_main", []):
                 yield event.plain_result("地图的入口被古老魔法封印，似乎只有完成主线任务才能解开……")
@@ -914,7 +927,7 @@ class WorldCmds(CommandBase):
                 # 收集型：实时按背包材料判断
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
-                    need = obj["count"]
+                    need = obj.get("collect_count", obj["count"])
                     if have >= need:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交]")
                         lines.append(f"    材料已齐！回去找 {giver} 交任务")
@@ -1589,16 +1602,23 @@ class WorldCmds(CommandBase):
         obj = sqd["objective"]
         # 收集型：实时检查背包材料（不依赖 ready 状态）
         if obj.get("collect"):
-            # 9.4：collect 中文名 → mat_ ID（原 f"mat_{中文}" 查不到 key，S1 起就坏的潜伏 bug）
+            # v87 复合目标：kill+collect（魔剑士试炼），collect_count 独立于 kill count
+            need = obj.get("collect_count", obj["count"])
             _ckey = C.resolve("materials", obj["collect"])
             have = db.count_item(group_id, qq_id, _ckey)
-            if have < obj["count"]:
-                return [f"材料不够！需要 {obj['collect']} ×{obj['count']}，你只有 {have} 个。"]
+            if have < need:
+                return [f"材料不够！需要 {obj['collect']} ×{need}，你只有 {have} 个。"]
+            # v87 复合目标：同时存在 kill 目标时，击杀进度也要满足
+            if obj.get("kill"):
+                kp = (sq.get("progress") or {}).get(obj["kill"], 0)
+                if kp < obj["count"]:
+                    return [f"还要击败 {obj['kill']} ×{obj['count'] - kp}（当前 {kp}/{obj['count']}）！"]
         elif sq.get("status") != "ready":
             return ["这个任务还没完成呢。"]
         # 收集类：扣除材料
         if obj.get("collect"):
-            for _ in range(obj["count"]):
+            need = obj.get("collect_count", obj["count"])
+            for _ in range(need):
                 db.remove_item(group_id, qq_id, _ckey)
         player = self._player(group_id, qq_id)
         db.update_player(group_id, qq_id, exp=player["exp"] + sqd["reward_exp"], gold=player["gold"] + sqd["reward_gold"])
@@ -1609,6 +1629,16 @@ class WorldCmds(CommandBase):
             if rimid in C.MATERIALS:
                 db.add_item(group_id, qq_id, rimid, {"name": C.display("materials", rimid), "type": "材料", "stackable": True, "price": C.MATERIALS[rimid]["price"]})
                 lines.append(f"  🎁 获得特殊道具：{ri}")
+        # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
+        uc = sqd.get("unlock_class")
+        if uc:
+            player_now = self._player(group_id, qq_id)
+            unlocks = list(player_now.get("hidden_class_unlock", []) or [])
+            if uc not in unlocks:
+                unlocks.append(uc)
+                db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
+                lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
+                lines.append("  💡 达到 60 级后输入『转职 魔剑士』接受传承！")
         del quests["side"][sid]
         db.save_quests(group_id, qq_id, quests)
         lines.append(f"✅ 【支线完成】『{sqd['name']}』！")

@@ -232,5 +232,39 @@ CLASSES = {
         },
         "weapon_type": "fist",
         "name": "拳师"
+    },
+    "cls_spellblade": {
+        "desc": "力量×智力的双修战士——近战普攻+法术附魔，中距离爆发。隐藏职业，需完成失落图书馆试炼解锁（09 章九）。",
+        "icon": "⚔️",
+        "role": "输出",
+        "evolve": ["魔剑士(60)", "魔剑宗师(75)", "剑圣(90)"],
+        "evolve_branches": {
+            1: ["魔剑士"],
+            2: ["魔剑宗师"],
+            3: ["剑圣"],
+        },
+        "base": {
+            "hp": 130,
+            "mp": 90,
+            "atk": 16,
+            "def": 11,
+            "matk": 14,
+            "mdef": 10,
+            "spd": 12,
+            "crit": 0.08,
+            "dodge": 0.04
+        },
+        "growth": {
+            "hp": 19,
+            "mp": 6,
+            "atk": 2.6,
+            "def": 1.8,
+            "matk": 2.2,
+            "mdef": 1.4,
+            "spd": 1.0
+        },
+        "weapon_type": "sword",
+        "name": "魔剑士",
+        "hidden": True,
     }
 }

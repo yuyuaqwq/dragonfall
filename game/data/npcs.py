@@ -522,4 +522,15 @@ NPCS = {
         'funcs': ["quest"],
         'dialogue': "三百年来……终于有人走到这里。凡人，你是来杀我的吗？……不，你看懂了。就像当年的艾德里克一样。",
     },
+
+    # v87 隐藏线：魔剑士残魂（H6 失落图书馆，魔剑士职业传承 NPC）
+    "npc_spellblade_ghost": {
+        'name': "魔剑士残魂",
+        'title': "失落图书馆的守护者之魂",
+        'map': "lost_library",
+        'icon': "⚔️",
+        'funcs': ["quest", "lore"],
+        'quest': "s_spellblade_trial",
+        'dialogue': "尘封三百年的剑与书……终于有人集齐了信物。来吧，握住这把剑，让魔能重新流转。",
+    },
 }

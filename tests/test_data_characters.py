@@ -27,7 +27,7 @@ def main():
     check("职业含基础技能表", isinstance(cls, dict), str(type(cls)))
 
     print("【data·角色族：技能】")
-    check("PLAYER_SKILLS 6 职业+1隐藏", len(C.PLAYER_SKILLS) == 7 and C.PLAYER_SKILLS.get("cls_bard") is not None, str(len(C.PLAYER_SKILLS)))
+    check("PLAYER_SKILLS 6 职业+2隐藏", len(C.PLAYER_SKILLS) == 8 and C.PLAYER_SKILLS.get("cls_bard") is not None and C.PLAYER_SKILLS.get("cls_spellblade") is not None, str(len(C.PLAYER_SKILLS)))
     check("每职业有技能表", all(isinstance(v, dict) and len(v) > 0 for v in C.PLAYER_SKILLS.values()),
           str({k: len(v) for k, v in C.PLAYER_SKILLS.items()}))
     check("BRANCH_SKILLS 6 职业（隐藏单线无分支）", len(C.BRANCH_SKILLS) == 6, str(len(C.BRANCH_SKILLS)))

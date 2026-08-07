@@ -1364,6 +1364,19 @@ SIDE_QUESTS = [
         "story": "贝拉：『他们把真相锁进了地窖最深处。三百年了……我守着这些书，就是在等一个能读完它们的人。帮我找回散落的三页旧纸吧。』",
         "reward_item": "星尘沙漏",
     },
+    # ---- v87 隐藏职业：剑与书的誓约（09 章九.1 魔剑士试炼，H6 失落图书馆）----
+    {
+        "id": "s_spellblade_trial",
+        "name": "剑与书的誓约",
+        "giver": "npc_spellblade_ghost",
+        "map": "lost_library",
+        "desc": "击败 3 只图书馆守卫，收集 2 片剑圣残页，回到魔剑士残魂处接受传承",
+        "objective": {"kill": "图书馆守卫", "count": 3, "collect": "剑圣残页", "collect_count": 2},
+        "reward_exp": 20000,
+        "reward_gold": 10000,
+        "unlock_class": "cls_spellblade",
+        "story": "残魂：『三百年前，我握着这把剑与魔龙同归于尽。剑术与魔法的融合之道不该就此断绝——击败我的守卫，取回残页，证明你有资格继承魔剑士之名。』",
+    },
 ]
 
 DAILY_QUESTS = [

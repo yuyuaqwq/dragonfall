@@ -357,6 +357,11 @@ class PlayerCmds(CommandBase):
             async for r in self._evolve_bard(event, group_id, qq_id, player):
                 yield r
             return
+        # v87 09 章九：隐藏职业·魔剑士（『转职 魔剑士』）
+        if "魔剑士" in _raw0 or _raw0 == "剑士":
+            async for r in self._evolve_spellblade(event, group_id, qq_id, player):
+                yield r
+            return
         cls = C.CLASSES[player["class_name"]]
         tier = player.get("class_tier", 0)
         # 转职等级门槛：tier 1→30级 / tier 2→60级 / tier 3→90级（21 章三转体系）
@@ -482,6 +487,44 @@ class PlayerCmds(CommandBase):
             f"琴弦轻拨，古老的歌谣在血脉中苏醒……\n"
             f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
             f"💡 你的歌声将成为队伍的力量（辅助定位，副本中尤为闪耀）！"
+        )
+        return
+
+    async def _evolve_spellblade(self, event, group_id, qq_id, player):
+        """v87 09 章九：隐藏职业·魔剑士传承转职（60 级 + 已解锁 + 非魔剑士）"""
+        unlocks = player.get("hidden_class_unlock", [])
+        if "cls_spellblade" not in unlocks:
+            yield event.plain_result(
+                "⚔️ 魔剑士的传承还未向你敞开……\n"
+                "💡 线索：击败符文魔像收集符文碎片，集齐 3 张泛黄书页进入 H6 失落图书馆，找魔剑士残魂接受试炼「剑与书的誓约」。"
+            )
+            return
+        if player["level"] < 60:
+            yield event.plain_result(
+                f"⚔️ 传承需要 60 级历练，当前 Lv.{player['level']}，先锤炼剑术与魔法吧。")
+            return
+        if player["class_name"] == "cls_spellblade":
+            yield event.plain_result("⚔️ 你已是魔剑士了。")
+            return
+        cls = C.CLASSES["cls_spellblade"]
+        sk_table = C.PLAYER_SKILLS.get("cls_spellblade", {}).get("skills", {})
+        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 60]
+        st = E.player_final_stats(
+            "cls_spellblade", player["level"], player.get("equipment", {}), 0,
+            player.get("attributes"), 0,
+            self._title_bonus(group_id, qq_id), player.get("race"))
+        db.update_player(group_id, qq_id,
+                         class_name="cls_spellblade", class_tier=0, evolve_path=0,
+                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         learned_skills=init_skills)
+        player = self._player(group_id, qq_id)
+        C.check_achievements(group_id, qq_id, player)
+        yield event.plain_result(
+            f"⚔️ 传承完成！你成为了【{cls['icon']}魔剑士】！\n"
+            f"━━━━━━━━━━━━\n"
+            f"剑与书在血脉中共鸣，尘封的魔能重新流转……\n"
+            f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
+            f"💡 魔能斩命中叠魔能，符文刻印每回合充能——叠层→爆发，打出你的节奏！"
         )
         return
 

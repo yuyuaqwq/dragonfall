@@ -1085,6 +1085,11 @@ class Battle:
             passive_bonus *= 1.10
         if "烈焰亲和" in pv and "火" in (skill_name or "") and kind == "魔法":
             passive_bonus *= 1.10
+        # v87 被动·双修精通：力量/智力同时增加时，额外 +5% 攻击（魔剑士专属）
+        if "双修精通" in pv:
+            st_full = self._player_stats(player)
+            if st_full.get("atk") and st_full.get("matk"):
+                passive_bonus *= 1.05
         # v2.0 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
         element = info.get("element", "")
         if element == "current":
@@ -1130,8 +1135,17 @@ class Battle:
                     dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True)
                 else:
                     dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], is_crit)
+                # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
+                if info.get("magic_add"):
+                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit)
+                    dmg_i += dmg_m
             else:
                 dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit)
+            # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
+            if self.p_buffs.get("spellblade_surge"):
+                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit)
+                dmg_i += surge_dmg
+                del self.p_buffs["spellblade_surge"]
             # v34 残忍：暴击伤害 +x%（按等级）
             brutal_lvl = self._enchant_lvl(effs, "brutal")
             if brutal_lvl and is_crit:
@@ -1222,6 +1236,10 @@ class Battle:
             n = p_mech.get(mech, 0)
             if n:
                 return 1.0 + n * 0.12
+        if mech == "spellblade":
+            n = p_mech.get("spellblade", 0)
+            if n:
+                return 1.0 + n * 0.08
         return 1.0
 
     def _cond_mult(self, info: dict, player: dict, lv: int = 1) -> float:
@@ -1347,7 +1365,7 @@ class Battle:
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
         """增益类技能叠层（v59：封顶）"""
-        if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane"):
+        if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade"):
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
     def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False):
@@ -1449,6 +1467,51 @@ class Battle:
                 self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
                 logs.append(f"📖 奥术共鸣！{n} 层充能额外 {bonus} 点伤害")
             p_mech["arcane"] = 0
+        # v87 魔剑士·魔能：叠层（魔能斩/符文刻印，每层 +8% 伤害，上限 5）
+        elif mech == "spellblade" and mval:
+            p_mech["spellblade"] = E.mech_stack_gain("spellblade", p_mech, mval)
+            logs.append(f"⚔️ 魔能充能 {p_mech['spellblade']} 层（每层 +8% 伤害）")
+        # v87 魔剑士·魔力涌动：消耗 2 层魔能，下次攻击额外 80% 魔法伤害
+        elif mech == "spellblade_surge":
+            n = p_mech.get("spellblade", 0)
+            if n >= 2:
+                p_mech["spellblade"] = max(0, n - 2)
+                self.p_buffs["spellblade_surge"] = 1
+                logs.append(f"✨ 魔力涌动！消耗 2 层魔能，下次攻击额外 +80% 魔法伤害")
+            else:
+                logs.append(f"⚔️ 魔能不足（{n}/2），魔力涌动无法施展！")
+        # v87 魔剑士·剑刃风暴：消耗 3 层魔能，全体 120% 物理 + 40% 魔法（对单体等效）
+        elif mech == "spellblade_storm":
+            n = p_mech.get("spellblade", 0)
+            if n >= 3:
+                p_mech["spellblade"] = max(0, n - 3)
+                st2 = self._player_stats(self._last_player) if hasattr(self, "_last_player") else None
+                if st2:
+                    bonus = int(st2["matk"] * 0.40)
+                    self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
+                    logs.append(f"🌪️ 剑刃风暴！消耗 3 层魔能，剑气横扫追加 {bonus} 点魔法伤害！")
+            else:
+                logs.append(f"⚔️ 魔能不足（{n}/3），剑刃风暴无法施展！")
+        # v87 魔剑士·魔能爆发：消耗全部魔能（≥4），每层 +25% 伤害，最高 200%
+        elif mech == "spellblade_burst":
+            n = p_mech.get("spellblade", 0)
+            if n >= 4:
+                bonus = int(total * n * 0.25)
+                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
+                logs.append(f"💥 魔能爆发！{n} 层魔能倾泻，额外 {bonus} 点伤害！")
+                p_mech["spellblade"] = 0
+            else:
+                logs.append(f"⚔️ 魔能不足（{n}/4），魔能爆发无法施展！")
+        # v87 魔剑士·星陨斩：消耗 5 层魔能，400% 混合伤害 + 20% 概率眩晕
+        elif mech == "spellblade_meteor":
+            n = p_mech.get("spellblade", 0)
+            if n >= 5:
+                p_mech["spellblade"] = 0
+                if random.random() < 0.20:
+                    self.e_buffs["stun"] = 1
+                    logs.append("🌠 星陨斩的余威将敌人眩晕！")
+            else:
+                logs.append(f"⚔️ 魔能不足（{n}/5），星陨斩无法施展！")
         # 审判：叠层（暴击时）
         elif mech == "judge" and mval:
             if is_crit:
@@ -1933,6 +1996,10 @@ class Battle:
         if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
             logs.append(f"📖 奥术直觉：充能自动 +1（当前 {self.mech_stacks['arcane']} 层）")
+        # v87 被动·符文刻印：魔剑士每回合自动获得 1 层魔能（上限 5）
+        if "符文刻印" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
+            self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
+            logs.append(f"⚔️ 符文刻印：魔能自动 +1（当前 {self.mech_stacks['spellblade']} 层）")
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
