@@ -975,6 +975,13 @@ class CombatCmds(CommandBase):
         quest_lines = self._update_quests(group_id, qq_id, monster)
         if quest_lines:
             lines += [""] + quest_lines
+        # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
+        ach_lines = []
+        new_achs = C.check_achievements(group_id, qq_id, player)
+        for a in new_achs:
+            ach_lines.append(f"🏆 成就解锁：{a['name']}！（{a['desc']}）")
+        if ach_lines:
+            lines += [""] + ach_lines
         lines.append("━━━━━━━━━━━━")
         lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         yield event.plain_result("\n".join(lines))

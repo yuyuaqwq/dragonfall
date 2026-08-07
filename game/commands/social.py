@@ -364,6 +364,11 @@ class SocialCmds(CommandBase):
             return
         db.party_create(group_id, qq_id, target_qq)
         tname = self._player(group_id, target_qq)
+        # 阶段九：组队次数 + 成就判定（双方）
+        db.bump_stats(group_id, qq_id, party_count=1)
+        db.bump_stats(group_id, target_qq, party_count=1)
+        C.check_achievements(group_id, qq_id)
+        C.check_achievements(group_id, target_qq)
         yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验 +10%！『组队 <名字>』可再拉人（上限 4 人）")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")

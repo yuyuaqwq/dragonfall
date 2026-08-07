@@ -20,6 +20,9 @@ from .drops import (  # noqa: F401
 )
 from .factions import faction_reputation_tier  # noqa: F401
 from .fishing import roll_fish  # noqa: F401
+from .achievements import (  # noqa: F401
+    check_achievements, achievement_titles, achievement_points,
+)
 from .affix import (  # noqa: F401
     roll_affixes, fixed_affixes, stat_affix_stats, random_req,
     affix_label, equip_affix_lines,

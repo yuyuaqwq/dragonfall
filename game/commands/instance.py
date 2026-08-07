@@ -567,10 +567,12 @@ class InstanceCmds(CommandBase):
                 bp = C.roll_blueprint(boss["lv"])
                 db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
                 lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
-        # 首通记录（每人）
+        # 首通记录（每人）+ 阶段九：副本次数 + 成就判定
         for m in st["members"]:
             if st["alive"].get(str(m), True):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
+                db.bump_stats(group_id, m, inst_clears=1)
+                C.check_achievements(group_id, m, None, {"inst_id": st["inst_id"]})
         lines.append("\n💡 副本通关！『副本』可再次挑战，首通成就已记录～")
         yield event.plain_result("\n".join(lines))
 

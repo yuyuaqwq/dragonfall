@@ -195,46 +195,37 @@ class MiscCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        stats = db.get_stats(group_id, qq_id)
-        if not stats:
-            stats = {"kills": 0, "elite_kills": 0, "boss_kills": 0, "deaths": 0}
-        profs = db.get_professions(group_id, qq_id)
-        # 简单成就计算（动态）
-        achs = [
-            ("初露锋芒", stats.get("kills", 0) >= 10, f"击杀 10 只怪物（{stats.get('kills', 0)}/10）"),
-            ("老兵", stats.get("kills", 0) >= 100, f"击杀 100 只怪物（{stats.get('kills', 0)}/100）"),
-            ("屠魔者", stats.get("elite_kills", 0) >= 5, f"击杀 5 只精英（{stats.get('elite_kills', 0)}/5）"),
-            ("猎龙人", stats.get("boss_kills", 0) >= 3, f"击杀 3 个 Boss（{stats.get('boss_kills', 0)}/3）"),
-            ("传说", player["level"] >= 30, f"达到 30 级"),
-        ]
-        # 副业成就（每条 3 档：Lv.3/6/10）
-        prof_ach = [
-            ("采药人", profs["gather"]["lv"] >= 3, f"采集 Lv.3（{profs['gather']['lv']}/3）"),
-            ("草药专家", profs["gather"]["lv"] >= 6, f"采集 Lv.6（{profs['gather']['lv']}/6）"),
-            ("万物采集大师", profs["gather"]["lv"] >= 10, f"采集 Lv.10（{profs['gather']['lv']}/10）"),
-            ("挖矿工", profs["mining"]["lv"] >= 3, f"挖掘 Lv.3（{profs['mining']['lv']}/3）"),
-            ("矿脉猎手", profs["mining"]["lv"] >= 6, f"挖掘 Lv.6（{profs['mining']['lv']}/6）"),
-            ("群山之王", profs["mining"]["lv"] >= 10, f"挖掘 Lv.10（{profs['mining']['lv']}/10）"),
-            ("垂钓新手", profs["fishing"]["lv"] >= 3, f"垂钓 Lv.3（{profs['fishing']['lv']}/3）"),
-            ("捕鱼能手", profs["fishing"]["lv"] >= 6, f"垂钓 Lv.6（{profs['fishing']['lv']}/6）"),
-            ("深海渔神", profs["fishing"]["lv"] >= 10, f"垂钓 Lv.10（{profs['fishing']['lv']}/10）"),
-            ("炼金学徒", profs["alchemy"]["lv"] >= 3, f"炼金 Lv.3（{profs['alchemy']['lv']}/3）"),
-            ("药剂师", profs["alchemy"]["lv"] >= 6, f"炼金 Lv.6（{profs['alchemy']['lv']}/6）"),
-            ("贤者之石", profs["alchemy"]["lv"] >= 10, f"炼金 Lv.10（{profs['alchemy']['lv']}/10）"),
-            ("铁匠学徒", profs["craft"]["lv"] >= 3, f"锻造 Lv.3（{profs['craft']['lv']}/3）"),
-            ("锻造师", profs["craft"]["lv"] >= 6, f"锻造 Lv.6（{profs['craft']['lv']}/6）"),
-            ("神锻宗师", profs["craft"]["lv"] >= 10, f"锻造 Lv.10（{profs['craft']['lv']}/10）"),
-            ("厨房新手", profs["cooking"]["lv"] >= 3, f"烹饪 Lv.3（{profs['cooking']['lv']}/3）"),
-            ("料理人", profs["cooking"]["lv"] >= 6, f"烹饪 Lv.6（{profs['cooking']['lv']}/6）"),
-            ("食神", profs["cooking"]["lv"] >= 10, f"烹饪 Lv.10（{profs['cooking']['lv']}/10）"),
-            ("鱼王猎手", db.get_fish_king(group_id, qq_id) >= 1, f"钓上鱼王（{db.get_fish_king(group_id, qq_id)}/1）"),
-        ]
-        achs += prof_ach
-        lines = ["🏅 【成就】", "━━━━━━━━━━━━"]
-        for i, (name, done, desc) in enumerate(achs, 1):
-            mark = "✅" if done else "⬜"
-            lines.append(f"{i:>2}. {mark} {name}：{desc}")
-        lines.append(f"\n💀 阵亡次数：{stats.get('deaths', 0)}")
+        raw = self._strip_cmd(event, "成就").strip()
+        try:
+            rows = db.get_achievements(qq_id)
+            unlocked = {r[0] for r in rows}
+        except Exception:
+            unlocked = set()
+        # 分类筛选
+        cats = ["战斗", "成长", "探索", "副业", "社交", "隐藏"]
+        cat = raw if raw in cats else ""
+        achs = [a for a in C.ACHIEVEMENTS if (not cat or a["cat"] == cat)]
+        if cat:
+            title = f"🏅 【成就·{cat}】"
+        else:
+            title = f"🏅 【成就】"
+        total_all = len(C.ACHIEVEMENTS)
+        got_all = len(unlocked)
+        points = C.achievement_points(qq_id)
+        lines = [title, "━━━━━━━━━━━━"]
+        if cat:
+            lines.append(f"解锁 {sum(1 for a in achs if a['id'] in unlocked)}/{len(achs)} 个")
+            for a in achs:
+                mark = "✅" if a["id"] in unlocked else "⬜"
+                lines.append(f"{mark} {a['name']}：{a['desc']}")
+        else:
+            lines.append(f"总进度：{got_all}/{total_all}　🏆 成就点：{points}")
+            for c in cats:
+                sub = [a for a in C.ACHIEVEMENTS if a["cat"] == c]
+                got_c = sum(1 for a in sub if a["id"] in unlocked)
+                lines.append(f"{'✅' if got_c == len(sub) else '⬜'} {c}：{got_c}/{len(sub)}（『成就 {c}』查看明细）")
+        lines.append("")
+        lines.append("💡 达成条件自动解锁，称号自动获得；『称号』可佩戴展示")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?意见(?:[\s\S]*)$")

@@ -94,7 +94,19 @@ def init_db():
                 boss_kills INTEGER DEFAULT 0,
                 deaths INTEGER DEFAULT 0,
                 day_kills INTEGER DEFAULT 0,
-                day_date TEXT DEFAULT ''
+                day_date TEXT DEFAULT '',
+                visited_areas INTEGER DEFAULT 0,
+                inst_clears INTEGER DEFAULT 0,
+                party_count INTEGER DEFAULT 0,
+                fish_count INTEGER DEFAULT 0,
+                gather_count INTEGER DEFAULT 0,
+                mine_count INTEGER DEFAULT 0,
+                cook_count INTEGER DEFAULT 0,
+                alchemy_count INTEGER DEFAULT 0,
+                craft_count INTEGER DEFAULT 0,
+                enhance_count INTEGER DEFAULT 0,
+                enchant_count INTEGER DEFAULT 0,
+                world_events INTEGER DEFAULT 0
             );
             CREATE TABLE IF NOT EXISTS reputation (
                 qq_id TEXT NOT NULL,
@@ -250,6 +262,15 @@ def init_db():
             # 阶段九：种族系统（08 章）——players 表补 race 列（老库自愈）
             if "race" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN race TEXT DEFAULT 'human'")
+            # 阶段九：成就系统（14 章）——stats 表补计数列 + players 表补 equipped_title 列
+            scols = [r[1] for r in conn.execute("PRAGMA table_info(stats)").fetchall()]
+            for scol in ("visited_areas", "inst_clears", "party_count", "fish_count", "gather_count",
+                         "mine_count", "cook_count", "alchemy_count", "craft_count", "enhance_count",
+                         "enchant_count", "world_events"):
+                if scol not in scols:
+                    conn.execute(f"ALTER TABLE stats ADD COLUMN {scol} INTEGER DEFAULT 0")
+            if "equipped_title" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN equipped_title TEXT DEFAULT ''")
             # 兼容旧库：feedback 表补 reply 列（意见回复）
             fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
             if "reply" not in fcols:

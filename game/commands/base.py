@@ -244,7 +244,7 @@ class CommandBase:
         return db.get_player(group_id, qq_id)
 
     def _title_bonus(self, group_id, qq_id) -> dict:
-        """副业大师称号的属性加成汇总（Lv.10 称号 bonus 叠加）"""
+        """副业大师称号的属性加成汇总（Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus）"""
         bonus = {}
         try:
             earned = self._earned_titles(group_id, qq_id, self._player(group_id, qq_id) or {})
@@ -252,6 +252,16 @@ class CommandBase:
                 if earned[i] and t.get("bonus"):
                     for k, v in t["bonus"].items():
                         bonus[k] = bonus.get(k, 0) + v
+            # 阶段九：成就称号 bonus（14 章 3.3，达成即生效）
+            try:
+                unlocked_achs = {r[0] for r in db.get_achievements("", qq_id)}
+            except Exception:
+                unlocked_achs = set()
+            for a in C.ACHIEVEMENTS:
+                if a.get("bonus") and a["id"] in unlocked_achs:
+                    for k, v in a["bonus"].items():
+                        if k != "atk" or v != 0:  # 占位字段跳过
+                            bonus[k] = bonus.get(k, 0) + v
         except Exception:
             pass
         return bonus

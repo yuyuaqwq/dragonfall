@@ -133,6 +133,9 @@ class EconomyCmds(CommandBase):
             db.bump_fish_king(group_id, qq_id)
             gold = 300 + player["level"] * 10
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+            # 阶段九：垂钓次数 + 鱼王成就
+            db.bump_stats(group_id, qq_id, fish_count=1)
+            C.check_achievements(group_id, qq_id, player, {"fish_king": True})
             return (f"🐉 天啊！你在{spot}钓上了【{fname}】！！\n"
                     f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
                     f"💰 获得 {gold} 金币的赏金！\n"
@@ -142,6 +145,8 @@ class EconomyCmds(CommandBase):
             import uuid
             gold = random.randint(30, 80) + player["level"] * 3
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+            db.bump_stats(group_id, qq_id, fish_count=1)
+            C.check_achievements(group_id, qq_id, player)
             extra = ""
             if random.random() < 0.5:
                 bp = C.roll_blueprint(max(1, player["level"]))
@@ -150,6 +155,8 @@ class EconomyCmds(CommandBase):
             return (f"🎣 你在{spot}钓上来了一个【{fname}】！\n"
                     f"打开一看：💰 {gold} 金币！{extra}")
         if fish["type"] == "垃圾":
+            db.bump_stats(group_id, qq_id, fish_count=1)
+            C.check_achievements(group_id, qq_id, player)
             return f"🎣 你在{spot}钓上来一个【{fname}】……唉，今天的运气不太好。"
         # 鱼/材料入背包
         db.add_item(group_id, qq_id, f"fish_{fname}", {"name": fname, "type": fish["type"], "stackable": True, "price": fish["price"]})
@@ -157,6 +164,9 @@ class EconomyCmds(CommandBase):
         lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
         lv_msg += _msg
+        # 阶段九：垂钓次数 + 成就判定
+        db.bump_stats(group_id, qq_id, fish_count=1)
+        C.check_achievements(group_id, qq_id, player)
         return (f"🎣 你在{spot}钓上来一条【{fname}】！\n"
                 f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}")
 
@@ -175,6 +185,9 @@ class EconomyCmds(CommandBase):
         lv_msg = f"\n🌟 采集等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "gather")
         lv_msg += _msg
+        # 阶段九：采集次数 + 成就判定
+        db.bump_stats(group_id, qq_id, gather_count=1)
+        C.check_achievements(group_id, qq_id, player)
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：\n"
                 f"{'、'.join(got)}\n"
@@ -206,6 +219,9 @@ class EconomyCmds(CommandBase):
         lv_msg = f"\n🌟 挖掘等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "mining")
         lv_msg += _msg
+        # 阶段九：挖掘次数 + 成就判定
+        db.bump_stats(group_id, qq_id, mine_count=1)
+        C.check_achievements(group_id, qq_id, player)
         return f"⛏️ 矿脉敲开了！你获得了 {oname} x{n}！（『背包』查看）{lv_msg}"
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
@@ -370,6 +386,9 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "alchemy")
         lv_msg += _msg
+        # 阶段九：炼金次数 + 成就判定
+        db.bump_stats(group_id, qq_id, alchemy_count=1)
+        C.check_achievements(group_id, qq_id, player)
         yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)")
@@ -449,6 +468,9 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "cooking")
         lv_msg += _msg
+        # 阶段九：烹饪次数 + 成就判定
+        db.bump_stats(group_id, qq_id, cook_count=1)
+        C.check_achievements(group_id, qq_id, player)
         yield event.plain_result(act_msg + f"🍳 灶火升腾，香气四溢……\n"
             f"✅ 烹饪成功！【{itdef.get('name', pkey)}】（{itdef.get('desc', '')}）已放入背包！{lv_msg}"
         )
@@ -819,6 +841,9 @@ class EconomyCmds(CommandBase):
         # 每日任务推进
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "craft")
         lv_msg += _msg
+        # 阶段九：锻造次数 + 成就判定
+        db.bump_stats(group_id, qq_id, craft_count=1)
+        C.check_achievements(group_id, qq_id, player)
         affinity_str = f"（{affinity}倾向）" if affinity else ""
         yield event.plain_result(act_msg + f"🔨 铁匠挥锤敲打，火星四溅……\n"
             f"✅ 锻造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']} {affinity_str}"
@@ -1160,6 +1185,9 @@ class EconomyCmds(CommandBase):
             db.remove_item(group_id, qq_id, target["key"])
             db.add_item(group_id, qq_id, target["key"], d, 1)
             lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！"]
+            # 阶段九：强化次数 + 成就判定
+            db.bump_stats(group_id, qq_id, enhance_count=1)
+            C.check_achievements(group_id, qq_id, player)
             if cur_enh + 1 == 5:
                 lines.append("⚡ 装备绽放出耀眼的光芒！")
             elif cur_enh + 1 == 9:
@@ -1321,6 +1349,9 @@ class EconomyCmds(CommandBase):
         sn = {"atk": "攻击", "matk": "魔攻", "def": "防御", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击"}
         val_str = f"+{int(v * 100)}%" if stat_key in ("crit", "dodge") else f"+{v}"
         big_str = "🌟 大成功！" if big else ""
+        # 阶段九：附魔次数 + 成就判定
+        db.bump_stats(group_id, qq_id, enchant_count=1)
+        C.check_achievements(group_id, qq_id, player)
         yield event.plain_result(
             f"🔮 附魔成功！【{d['name']}】获得 {sn.get(stat_key, stat_key)} {val_str}{big_str}\n"
             f"（消耗 {mat_name} x1 + {rec['cost']} 金币；已用 {len(enchanted)}/{slots} 槽）"
@@ -1591,22 +1622,64 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
+        raw = self._strip_cmd(event, "称号").strip()
+        # 装备/卸下称号
+        if raw.startswith("装备") or raw.startswith("佩戴"):
+            tname = raw[2:].strip()
+            async for r in self._equip_title(event, group_id, qq_id, player, tname):
+                yield r
+            return
+        if raw in ("卸下", "取消"):
+            db.update_player(group_id, qq_id, equipped_title="")
+            yield event.plain_result("🏅 已卸下称号。")
+            return
         earned = self._earned_titles(group_id, qq_id, player)
         got = [C.TITLES[i]["name"] for i in range(len(C.TITLES)) if earned[i]]
+        # 阶段九：成就称号合并（14 章：达成成就自动获得称号）
+        try:
+            got += C.achievement_titles(qq_id)
+        except Exception:
+            pass
+        got = list(dict.fromkeys(got))  # 去重保序
+        cur = player.get("equipped_title") or ""
         if not got:
-            yield event.plain_result("🏅 【称号】\n━━━━━━━━━━━━\n还没有称号……提升等级、击杀怪物、积累声望可获得！")
+            yield event.plain_result("🏅 【称号】\n━━━━━━━━━━━━\n还没有称号……提升等级、击杀怪物、解锁成就可以获得！")
             return
-        raw = self._strip_cmd(event, "称号")
-        page = self._parse_page(raw)
-        page_items, pages, page = self._page_items(got, page, per_page=5)
+        if raw and raw.isdigit():
+            page = int(raw)
+        else:
+            page = 1
+        page_items, pages, page = self._page_items(got, page, per_page=8)
         lines = [f"🏅 【称号】已获得 {len(got)} 个（第 {page}/{pages} 页）", "━━━━━━━━━━━━"]
-        for i, n in enumerate(page_items, (page - 1) * 5 + 1):
-            lines.append(f"{i:>2}. ✅ {n}")
+        for i, n in enumerate(page_items, (page - 1) * 8 + 1):
+            mark = "👑" if n == cur else "  "
+            lines.append(f"{mark}{i:>2}. {n}")
         lines.append("")
         if pages > 1:
-            lines.append(f"💡 『称号 {page+1}』看下一页（共 {pages} 页）")
-        lines.append("💡 提升等级、击杀怪物、积累声望可获得更多称号")
+            lines.append(f"💡 『称号 {page+1}』看下一页")
+        lines.append(f"💡 『称号 装备 <名称>』佩戴展示（显示在角色名前），『称号 卸下』取消")
+        if not cur:
+            lines.append("💡 当前未佩戴称号")
         yield event.plain_result("\n".join(lines))
+
+    async def _equip_title(self, event, group_id, qq_id, player, tname):
+        """装备称号（必须是已获得称号）"""
+        if not tname:
+            yield event.plain_result("格式：『称号 装备 <称号名>』～")
+            return
+        earned = self._earned_titles(group_id, qq_id, player)
+        got = [C.TITLES[i]["name"] for i in range(len(C.TITLES)) if earned[i]]
+        try:
+            got += C.achievement_titles(qq_id)
+        except Exception:
+            pass
+        got = list(dict.fromkeys(got))
+        hit = next((n for n in got if tname in n), None)
+        if not hit:
+            yield event.plain_result(f"还没获得称号『{tname}』！『称号』查看已获得列表～")
+            return
+        db.update_player(group_id, qq_id, equipped_title=hit)
+        yield event.plain_result(f"👑 你佩戴上了称号【{hit}】！现在别人会称你为 [{hit}] 冒险者～")
 
     @staticmethod
     def _item_category(d: dict) -> str:

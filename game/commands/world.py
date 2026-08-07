@@ -407,6 +407,8 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, cur_map=target["id"])
         # 记录到访（称号用）
         db.add_visited(group_id, qq_id, target["id"])
+        # 阶段九：到访成就判定（14 章 2.4 探索成就）
+        C.check_achievements(group_id, qq_id, self._player(group_id, qq_id))
         # 探索型任务触发（到达目标子区域自动完成）
         quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
         extra = ""

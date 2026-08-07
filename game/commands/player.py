@@ -172,6 +172,8 @@ class PlayerCmds(CommandBase):
                 bar.append(None)
             db.set_skill_bar(qq_id, bar)
         player = self._player(group_id, qq_id)
+        # 阶段九：注册成就（14 章 2.3 冒险者起步）
+        C.check_achievements(group_id, qq_id, player)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
         race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}（{C.RACES[race_id]['desc']}）\n" if race_id in C.RACES else ""
         yield event.plain_result(
@@ -222,6 +224,10 @@ class PlayerCmds(CommandBase):
             f"🧬 {E.race_name(player.get('race'))}",
             "━━━━━━━━━━━━",
         ]
+        # 阶段九：装备称号显示在角色名前（14 章 3.4）
+        eq_title = player.get("equipped_title") or ""
+        if eq_title:
+            lines[0] = f"⚔️ [{eq_title}] 【{player['name']}】"
         stat_rows = [
             ("❤️", "hp", "max_hp", "生命", f"{player['hp']}/"),
             ("💙", "mp", "max_mp", "魔力", f"{player['mp']}/"),
@@ -435,6 +441,8 @@ class PlayerCmds(CommandBase):
         if auto_skills:
             auto_line = f"\n🌟 领悟：{'、'.join(auto_skills)}"
         is_final = next_tier >= 3
+        # 阶段九：转职成就判定
+        C.check_achievements(group_id, qq_id, player)
         yield event.plain_result(
             f"🌟 转职成功！\n"
             f"━━━━━━━━━━━━\n"
@@ -850,6 +858,8 @@ class PlayerCmds(CommandBase):
         learned = list(learned) + [skill_name]
         spent = player.get("skill_spent", 0) + cost
         db.update_player(group_id, player["qq_id"], skill_points=pts - cost, learned_skills=learned, skill_spent=spent)
+        # 阶段九：学习技能成就判定
+        C.check_achievements(group_id, player["qq_id"], player)
         if info.get("kind") == "被动":
             return (
                 f"✨ 消耗 {cost} 技能点，学会了被动技能『{display_name}』！\n"
