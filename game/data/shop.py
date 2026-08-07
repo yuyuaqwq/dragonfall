@@ -8,7 +8,7 @@
 """
 SHOP_ITEMS = {
     # ---- 南境（Lv.1-30） ----
-    "oak_town": [          # 橡木镇 新手村：基础补给
+    "oak_town": [          # 橡木镇：基础补给
         "i_treat_s", "i_mana_s", "i_bread", "i_ale", "i_scroll_escape",
     ],
     "maple_village": [     # 枫橡村

@@ -48,7 +48,7 @@ POIS = {
 # 子区域 → POI 分配（key = "地图id:子区域id"，value = poi id 列表）
 # 子区域 ID 为 map_N 数字格式（map_1=入口/广场，map_3=深处）
 SUBAREA_POIS = {
-    # ==== 新手村·橡木镇 ====
+    # ==== 绿野·橡木镇 ====
     "oak_town:oak_town_1": ["shrine", "campfire", "note"],   # 冒险者广场（含西巷字条）
     # ==== 白鹿城 ====
     "white_deer:white_deer_1": ["shrine"],            # 白鹿广场

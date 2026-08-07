@@ -37,7 +37,6 @@ class WorldCmds(CommandBase):
                 break
         sa_shop = sa_obj.get("shop") if sa_obj else None
         sa_healer = sa_obj.get("healer") if sa_obj else None
-        sa_npcs = (sa_obj.get("npcs") if sa_obj else None)
         # 设施
         if (sa_shop is not None and sa_shop) or (sa_shop is None and cur_map.get("shop")):
             lines.append("🏪 商店（『购买』）")
@@ -79,19 +78,7 @@ class WorldCmds(CommandBase):
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
                 lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}（『调查 {_p['name']}』）")
-        # NPC（含功能）：子区域优先；内联 NPC（副本层）从 HIDDEN_NPCS 查
-        npc_ids = sa_npcs if sa_npcs is not None else cur_map.get("npcs", [])
-        if cur_map.get("inline_npcs"):
-            npc_ids = cur_map["inline_npcs"]
-        npcs = []
-        for nid in npc_ids:
-            if nid in C.HIDDEN_NPCS:
-                npcs.append(C.HIDDEN_NPCS[nid])
-            elif nid in C.NPCS:
-                npcs.append(C.NPCS[nid])
-        for n in npcs:
-            funcs = "、".join(self._npc_func_label(f) for f in n.get("funcs", []))
-            lines.append(f"{n['icon']}{n['name']}（『找 {n['name']}』{funcs}）")
+        # v87.4 NPC 不再进可互动（由地图面板「👥 这里的 NPC」统一显示，避免重复）
         return lines
 
     @staticmethod
@@ -402,7 +389,6 @@ class WorldCmds(CommandBase):
             yield event.plain_result(self._home_view(group_id, qq_id, cur))
             return
         cur_map = C.MAP_BY_ID[cur]
-        cur_area = cur_map.get("area_name", cur_map["name"])
         cur_sa = player.get("cur_subarea") or ""
         sa_now = ""
         if cur_sa:
@@ -415,32 +401,22 @@ class WorldCmds(CommandBase):
         if sa_now:
             title = f"{cur_map['name']} · {sa_now}"
         lines = [f"🗺️ 【{title}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
-        # v86 子区域：当前子区域 + 本图子区域列表（『移动 <序号>』同图切换）
+        # v87.4 合并显示：子区域 + 相邻地图统一连续编号（『移动 <序号>』直接可用）
         sas = cur_map.get("subareas") or []
-        if sas:
+        neighbors = C.MAP_CONNECTIONS.get(cur, [])
+        if sas or neighbors:
             if sa_now:
                 lines.append(f"📍 当前位置：{sa_now}")
-            lines.append("🏘️ 本图位置：")
+            lines.append("📮 可前往：")
             for i, sa in enumerate(sas, 1):
                 mark = "（你在这里）" if sa["id"] == cur_sa else ""
-                npc_mark = f" · {len(sa.get('npcs', []))} NPC" if sa.get("npcs") else ""
                 lv_mark = f" Lv.{sa['lv']}" if sa.get("type") == "野外" else ""
-                lines.append(f"  {i}. {sa['name']}{lv_mark}{npc_mark}{mark}")
-            lines.append("━━━━━━━━━━━━")
-        # 本区域其他子区域
-        same_area = [m for m in C.MAPS if m.get("area_name") == cur_area and m["id"] != cur]
-        if same_area:
-            lines.append(f"🏘️ 同区域：{'、'.join(m['name'] for m in same_area)}")
-        # 周边子区域（带序号，支持『移动 序号』）
-        neighbors = C.MAP_CONNECTIONS.get(cur, [])
-        if neighbors:
-            lines.append("📮 可前往：")
-            for i, nid in enumerate(neighbors, 1):
+                lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
+            for i, nid in enumerate(neighbors, len(sas) + 1):
                 nm = C.MAP_BY_ID[nid]
-                lock = ""
-                if nm.get("hidden"):
-                    lock = " (🔒隐藏)"
+                lock = " (🔒隐藏)" if nm.get("hidden") else ""
                 lines.append(f"  {i}. {nm['name']} Lv.{nm['lv']}{lock}")
+            lines.append("━━━━━━━━━━━━")
         # 此地可互动（v13）
         inter = self._map_interactions(cur_map, player)
         if inter:
@@ -457,7 +433,14 @@ class WorldCmds(CommandBase):
                     cur_sa_obj = _sa
                     break
         npc_ids = (cur_sa_obj.get("npcs") if cur_sa_obj else None) or cur_map.get("npcs", [])
-        npcs = [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
+        if cur_map.get("inline_npcs"):
+            npc_ids = cur_map["inline_npcs"]
+        npcs = []
+        for nid in npc_ids:
+            if nid in C.HIDDEN_NPCS:
+                npcs.append(C.HIDDEN_NPCS[nid])
+            elif nid in C.NPCS:
+                npcs.append(C.NPCS[nid])
         if npcs:
             lines.append("👥 这里的 NPC：")
             for n in npcs:
@@ -531,10 +514,12 @@ class WorldCmds(CommandBase):
         if dest.isdigit():
             neighbors = C.MAP_CONNECTIONS.get(cur, [])
             idx = int(dest)
-            if 1 <= idx <= len(neighbors):
-                target = C.MAP_BY_ID[neighbors[idx - 1]]
+            offset = len(cur_sas)
+            if offset + 1 <= idx <= offset + len(neighbors):
+                target = C.MAP_BY_ID[neighbors[idx - offset - 1]]
             else:
-                yield event.plain_result(f"序号无效！可前往 {len(neighbors)} 张地图，输入『地图』查看～")
+                total = len(cur_sas) + len(neighbors)
+                yield event.plain_result(f"序号无效！这里可前往 {total} 处，输入『地图』查看～")
                 return
         else:
             for m in C.MAPS:
