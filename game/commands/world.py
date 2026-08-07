@@ -82,6 +82,27 @@ class WorldCmds(CommandBase):
         return lines
 
     @staticmethod
+    def _conn_target(conn) -> tuple:
+        """解析可前往连接项 → (目标地图 dict, 指定子区域 id 或 None)
+        v87.5 支持两字段配置：'map_id' 或 ('map_id', 'subarea_id')"""
+        if isinstance(conn, tuple):
+            return C.MAP_BY_ID[conn[0]], conn[1]
+        return C.MAP_BY_ID[conn], None
+
+    @staticmethod
+    def _conn_subarea_name(nm: dict, want_sa) -> str:
+        """目标地图的落点子区域显示名（默认首个子区域，可指定）"""
+        sas = nm.get("subareas") or []
+        if not sas:
+            return ""
+        if want_sa:
+            for s in sas:
+                if s["id"] == want_sa:
+                    return f" · {s['name']}"
+            return ""
+        return f" · {sas[0]['name']}"
+
+    @staticmethod
     def _npc_func_label(f: str) -> str:
         return {"quest": "接任务", "shop": "交易", "heal": "治疗", "daily": "每日委托", "lore": "情报", "ency": "百科"}.get(f, f)
 
@@ -410,17 +431,19 @@ class WorldCmds(CommandBase):
             lines.append("📮 可前往：")
             for i, sa in enumerate(sas, 1):
                 mark = "（你在这里）" if sa["id"] == cur_sa else ""
-                lv_mark = f" Lv.{sa['lv']}" if sa.get("type") == "野外" else ""
+                lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
                 lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
             for i, nid in enumerate(neighbors, len(sas) + 1):
-                nm = C.MAP_BY_ID[nid]
+                nm, want_sa = self._conn_target(nid)
+                sa_lbl = self._conn_subarea_name(nm, want_sa)
                 lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                lines.append(f"  {i}. {nm['name']} Lv.{nm['lv']}{lock}")
-            lines.append("━━━━━━━━━━━━")
+                lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+        # v87.4 区块间统一空行分隔（不再叠分隔线）
+        if lines and lines[-1]:
+            lines.append("")
         # 此地可互动（v13）
         inter = self._map_interactions(cur_map, player)
         if inter:
-            lines.append("━━━━━━━━━━━━")
             lines.append("📜 此地可互动：")
             for l in inter:
                 lines.append(f"  {l}")
@@ -442,6 +465,8 @@ class WorldCmds(CommandBase):
             elif nid in C.NPCS:
                 npcs.append(C.NPCS[nid])
         if npcs:
+            if lines and lines[-1]:
+                lines.append("")
             lines.append("👥 这里的 NPC：")
             for n in npcs:
                 lines.append(f"  {n['icon']}{n['name']}（{n['title']}）")
@@ -450,6 +475,8 @@ class WorldCmds(CommandBase):
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
         if here_players:
             stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, mid)}
+            if lines and lines[-1]:
+                lines.append("")
             lines.append("👤 此地的玩家：")
             for p in here_players:
                 stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
@@ -459,6 +486,8 @@ class WorldCmds(CommandBase):
         if mons is None:
             mons = cur_map.get("monsters", [])
         if mons:
+            if lines and lines[-1]:
+                lines.append("")
             base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
             lines.append(f"🐾 此地的怪物 (Lv.{base_lv}-{base_lv+2})：")
             for mid, name, role, lv, skills, drops in mons:
@@ -471,7 +500,9 @@ class WorldCmds(CommandBase):
             lines.append(f"  ⭐ 精英：{elite[1]}")
         if boss:
             lines.append(f"  👑 Boss：{boss[1]}")
-        lines.append(f"\n输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
+        if lines and lines[-1]:
+            lines.append("")
+        lines.append("输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?移动(?:\s*|$)")
@@ -511,12 +542,13 @@ class WorldCmds(CommandBase):
                     return
         # 查找目标地图：优先序号（相对当前地图邻居列表），其次地图名/ID/旧区域别名
         target = None
+        want_sa = None
         if dest.isdigit():
             neighbors = C.MAP_CONNECTIONS.get(cur, [])
             idx = int(dest)
             offset = len(cur_sas)
             if offset + 1 <= idx <= offset + len(neighbors):
-                target = C.MAP_BY_ID[neighbors[idx - offset - 1]]
+                target, want_sa = self._conn_target(neighbors[idx - offset - 1])
             else:
                 total = len(cur_sas) + len(neighbors)
                 yield event.plain_result(f"序号无效！这里可前往 {total} 处，输入『地图』查看～")
@@ -564,7 +596,8 @@ class WorldCmds(CommandBase):
         # 是否相邻
         cur = player["cur_map"]
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
-        if target["id"] != cur and target["id"] not in neighbors:
+        nids = [c[0] if isinstance(c, tuple) else c for c in neighbors]
+        if target["id"] != cur and target["id"] not in nids:
             yield event.plain_result(f"无法直接前往{target['name']}！需要先到相邻地图。看看『地图』～")
             return
         # v84 红名限制（26 章三 第一档）：红名不能进入城镇安全区
@@ -580,6 +613,11 @@ class WorldCmds(CommandBase):
         # v86 子区域：跨图移动 → 默认落该图首个子区域（城镇=中心广场，野外=入口）
         target_sas = target.get("subareas") or []
         first_sa = target_sas[0] if target_sas else None
+        if want_sa:
+            for _s in target_sas:
+                if _s["id"] == want_sa:
+                    first_sa = _s
+                    break
         db.update_player(group_id, qq_id, cur_map=target["id"],
                          cur_subarea=first_sa["id"] if first_sa else "")
         # 记录到访（称号用）
@@ -601,7 +639,7 @@ class WorldCmds(CommandBase):
         nav = ""
         if neighbors:
             nav = "\n\n📮 可前往：" + "  ".join(
-                f"{i}.{C.MAP_BY_ID[nid]['name']}" for i, nid in enumerate(neighbors[:6], 1)
+                f"{i}.{self._conn_target(c)[0]['name']}" for i, c in enumerate(neighbors[:6], 1)
             )
         inter = self._map_interactions(target, player)
         inter_msg = ""
