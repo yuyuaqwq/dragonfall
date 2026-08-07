@@ -125,26 +125,44 @@ class EconomyCmds(CommandBase):
             return None
         prof_lv = db.get_prof_level(group_id, qq_id, "fishing")
         spot = st.get("spot", "水边")
-        fish = C.roll_fish(prof_lv)
+        # 9.3：钓点差异化（禁出档位 + 品种限定水域），roll_fish 按 16 章五档权重表
+        fish = C.roll_fish(prof_lv, st.get("spot_map"))
         db.bump_fishing(group_id, qq_id)
         fname = fish["name"]
+        fq = fish.get("quality", "white")
+        # 品质标记：白档不显示，绿/蓝/紫/橙 ✦品质（16 章 1.1 定稿）
+        q_mark = "" if fq == "white" else f"✦{C.FISH_QUALITY_CN.get(fq, fq)}"
+        q_name = f"{q_mark}·{fname}" if q_mark else fname
+        # 垂钓经验：白 1 / 绿 1 / 蓝 2 / 紫 3 / 橙 5（16 章 2.6）
+        f_exp = C.FISH_EXP.get(fq, 1)
+        # 出货文案按档位（16 章 2.6）
+        _catch_line = {
+            "blue": "水面泛起奇异的光晕…",
+            "purple": "鱼线猛地绷紧！",
+            "orange": "一道金光破水而出——",
+        }.get(fq, "")
+        catch_pre = f"{_catch_line}\n" if _catch_line else ""
         # 鱼王：全服公告 + 鱼王计数
         if fish["type"] == "鱼王":
             db.bump_fish_king(group_id, qq_id)
             gold = 300 + player["level"] * 10
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
+            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
             # 阶段九：垂钓次数 + 鱼王成就
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player, {"fish_king": True})
-            return (f"🐉 天啊！你在{spot}钓上了【{fname}】！！\n"
+            return (f"🐉 天啊！你在{spot}钓上了【{q_name}】！！\n"
                     f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
-                    f"💰 获得 {gold} 金币的赏金！\n"
+                    f"💰 获得 {gold} 金币的赏金！{lv_msg}\n"
                     f"📜 你的图鉴记下了这传说的一笔……")
         # 宝物宝箱：立即开
         if fish["type"] == "宝物":
             import uuid
             gold = random.randint(30, 80) + player["level"] * 3
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
+            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
             extra = ""
@@ -152,22 +170,27 @@ class EconomyCmds(CommandBase):
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
                 extra = f"\n📜 宝箱里还有：{bp['name']}！"
-            return (f"🎣 你在{spot}钓上来了一个【{fname}】！\n"
-                    f"打开一看：💰 {gold} 金币！{extra}")
+            return (f"{catch_pre}🎣 你在{spot}钓上来了一个【{q_name}】！\n"
+                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}")
         if fish["type"] == "垃圾":
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
+            lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
-            return f"🎣 你在{spot}钓上来一个【{fname}】……唉，今天的运气不太好。"
-        # 鱼/材料入背包
-        db.add_item(group_id, qq_id, f"fish_{fname}", {"name": fname, "type": fish["type"], "stackable": True, "price": fish["price"]})
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", 1)
+            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}"
+        # 鱼/材料入背包（9.3：mat_ ID 入包 + quality 字段，16 章 2.7 禁动态中文 key）
+        mat_key = C.resolve("materials", fname)
+        db.add_item(group_id, qq_id, mat_key,
+                    {"name": fname, "type": fish["type"], "stackable": True,
+                     "price": fish["price"], "quality": fq})
+        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
         lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
         lv_msg += _msg
         # 阶段九：垂钓次数 + 成就判定
         db.bump_stats(group_id, qq_id, fish_count=1)
         C.check_achievements(group_id, qq_id, player)
-        return (f"🎣 你在{spot}钓上来一条【{fname}】！\n"
+        return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
                 f"📦 {fish['desc']}（可『出售 {fname}』，价值 {fish['price']} 金币）{lv_msg}")
 
     def _settle_gather(self, group_id, qq_id, st):
@@ -668,9 +691,10 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"🌊 {spot}是高级水域（需垂钓 Lv.{need}，你 Lv.{prof_lv}）……先在低阶水域练练吧！")
             return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时；spot 存状态供结算消息用）
+        # 9.3：extra 带 spot_map 供 roll_fish 钓点差异化（禁出档位 + 品种限定水域）
         text, _ok = self._prof_wait_flow(
             event, group_id, qq_id, "fishing",
-            extra={"spot": spot},
+            extra={"spot": spot, "spot_map": cur},
             begin_text=f"🎣 你在{spot}抛出鱼竿，开始垂钓……预计 ",
         )
         yield event.plain_result(act_msg + text)
@@ -2173,7 +2197,7 @@ class EconomyCmds(CommandBase):
         d = target["data"]
         # 战斗中：只允许恢复类 + 战斗药水，且算一回合（敌方会行动）
         buff_eff = d.get("effect", "")
-        is_buff = buff_eff in ("buff_atk", "buff_def", "buff_spd", "buff_crit")
+        is_buff = buff_eff in ("buff_atk", "buff_def", "buff_spd", "buff_crit", "buff_matk", "buff_atk_def")
         if self._in_battle(group_id, qq_id):
             if not (d.get("heal") or d.get("mana") or is_buff):
                 yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
@@ -2206,7 +2230,10 @@ class EconomyCmds(CommandBase):
                 new_mp = min(player["max_mp"], player["mp"] + mana)
                 player["mp"] = new_mp
             # v54 战斗药水：传 buff:<p_buffs key>（atk_up/def_up/spd_up/crit_up）
-            _BF = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up", "buff_crit": "crit_up"}
+            # 9.3：buff_matk → matk_up_pot（鲛人之泪）、buff_atk_def → 复合（龙涎药剂）
+            _BF = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
+                   "buff_crit": "crit_up", "buff_matk": "matk_up_pot",
+                   "buff_atk_def": "atk_up,def_up"}
             payload = f"buff:{_BF[buff_eff]}" if is_buff else str(heal)
             logs, ended = b.player_turn("use_item", payload, player)
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])

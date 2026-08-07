@@ -25,6 +25,7 @@ BUFF_MULT = {
     "atk_up_strong":  ("atk", 1.75),
     "matk_up":        ("matk", 1.35),
     "matk_up_strong": ("matk", 1.80),
+    "matk_up_pot":    ("matk", 1.30),   # 9.3 鲛人之泪：本回合魔攻 +30%
     "def_up":         ("def", 1.45),
     "spd_up":         ("spd", 1.40),
     "crit_up":        ("crit", 0.20),      # 暴击率 +20%
@@ -337,10 +338,13 @@ class Battle:
         logs = []
         if payload.startswith("buff:"):
             # v54 战斗药水：effect → p_buffs 增益 3 回合
+            # 9.3：支持逗号分隔复合 buff（如龙涎药剂 buff:atk_up,def_up）
             kind = payload[5:]
-            _cn = {"atk_up": "攻击", "def_up": "防御", "spd_up": "速度", "crit_up": "暴击"}
-            self.p_buffs[kind] = max(self.p_buffs.get(kind, 0), 3)
-            logs.append(f"🧪 你饮下战斗药水，{_cn.get(kind, kind)}大幅提升！（3 回合）")
+            _cn = {"atk_up": "攻击", "def_up": "防御", "spd_up": "速度", "crit_up": "暴击",
+                   "matk_up_pot": "魔攻"}
+            for _k in kind.split(","):
+                self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
+            logs.append(f"🧪 你饮下战斗药水，{','.join(_cn.get(k, k) for k in kind.split(','))}大幅提升！（3 回合）")
         else:
             heal = int(payload or 0)  # 复用 skill_name 传恢复量
             # 阶段九：半身人灵巧双手——消耗品效果 +10%

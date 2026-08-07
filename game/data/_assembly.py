@@ -27,7 +27,7 @@ from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
 from .shop import SHOP_ITEMS, SHOP_WEAPONS  # noqa: F401
 from .factions import FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES  # noqa: F401
-from .fishing import FISHING_SPOTS, FISH_POOL, FISH_WEIGHTS  # noqa: F401
+from .fishing import FISHING_SPOTS, FISH_POOL  # noqa: F401
 from .enhance import ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS  # noqa: F401
 from .sets import SET_THEMES, SET_CHANCE, SETS, CLASS_SET_STAGES, CLASS_SET_THEMES  # noqa: F401
 from .craft import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES  # noqa: F401

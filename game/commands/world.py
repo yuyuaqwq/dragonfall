@@ -42,14 +42,15 @@ class WorldCmds(CommandBase):
                 lines.append(f"🌌 {p['icon']}{p['name']}（已激活，『传送 <名称>』）")
             else:
                 lines.append(f"🌌 {p['icon']}{p['name']}（『激活』解锁传送点）")
-        # 自然互动
+        # 自然互动（9.3：垂钓点显示特色描述）
         if mid in C.FISHING_SPOTS:
             _fi = C.FISHING_SPOTS[mid]
             _fname = _fi["name"] if isinstance(_fi, dict) else _fi
             _fneed = _fi.get("min_lv", 1) if isinstance(_fi, dict) else 1
             _flv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "fishing") if player else 1
             _lock = " 🔒" if _flv < _fneed else ""
-            lines.append(f"🎣 垂钓点·{_fname}（垂钓Lv.{_fneed}）{_lock}（『垂钓』）")
+            _fdesc = _fi.get("desc", "") if isinstance(_fi, dict) else ""
+            lines.append(f"🎣 垂钓点·{_fname}（垂钓Lv.{_fneed}）{_lock}（『垂钓』）{(' · ' + _fdesc) if _fdesc else ''}")
         if mid in C.CAMP_SPOTS:
             lines.append(f"🔥 篝火营地·{C.CAMP_SPOTS[mid]}（『休息』恢复一半生命）")
         if mid in C.MINE_SPOTS:

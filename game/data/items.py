@@ -1608,11 +1608,13 @@ MATERIALS = {
     },
     "mat_yin_lin_yu": {
         "price": 12,
-        "name": "银鳞鱼"
+        "name": "银鳞鱼",
+        "quality": "white"
     },
     "mat_jin_li": {
         "price": 25,
-        "name": "金鲤"
+        "name": "金鲤",
+        "quality": "green"
     },
     "mat_ye_guang_jiao": {
         "price": 35,
@@ -1620,19 +1622,23 @@ MATERIALS = {
     },
     "mat_jiao_ren_lei": {
         "price": 120,
-        "name": "鲛人泪"
+        "name": "鲛人泪",
+        "quality": "blue"
     },
     "mat_shen_hai_shui_jing": {
         "price": 250,
-        "name": "深海水晶"
+        "name": "深海水晶",
+        "quality": "purple"
     },
     "mat_long_xian_xiang": {
         "price": 180,
-        "name": "龙涎香"
+        "name": "龙涎香",
+        "quality": "purple"
     },
     "mat_gu_dai_yu_gu": {
         "price": 350,
-        "name": "古代鱼骨"
+        "name": "古代鱼骨",
+        "quality": "orange"
     },
     # ---- 阶段四：5 个新副本 Boss 专属材料（04 章补登，13 章 5.7 登记）----
     "mat_yao_sai_can_pian": {
@@ -1654,6 +1660,85 @@ MATERIALS = {
     "mat_feng_bao_zhi_he": {
         "price": 230,
         "name": "风暴之核"
+    },
+    # ---- 渔获材料（16 章品质垂钓：垂钓唯一/主要来源，quality 对齐五档）----
+    "mat_yue_guang_yu": {
+        "price": 55,
+        "name": "月光鱼",
+        "quality": "blue"
+    },
+    "mat_di_wang_gui": {
+        "price": 45,
+        "name": "帝王鲑",
+        "quality": "green"
+    },
+    "mat_shen_mi_lin_pian": {
+        "price": 30,
+        "name": "神秘鳞片",
+        "quality": "blue"
+    },
+    "mat_hu_zhen_zhu": {
+        "price": 40,
+        "name": "湖珍珠",
+        "quality": "blue"
+    },
+    "mat_hai_zao": {
+        "price": 15,
+        "name": "海藻",
+        "quality": "green"
+    },
+    "mat_zhen_zhu_bei": {
+        "price": 35,
+        "name": "珍珠贝",
+        "quality": "blue"
+    },
+    "mat_jing_xu_cao": {
+        "price": 20,
+        "name": "鲸须草",
+        "quality": "green"
+    },
+    "mat_lei_jing_sha": {
+        "price": 80,
+        "name": "雷晶砂",
+        "quality": "purple"
+    },
+    "mat_feng_bao_bei": {
+        "price": 40,
+        "name": "风暴贝",
+        "quality": "blue"
+    },
+    "mat_mang_yu": {
+        "price": 18,
+        "name": "盲鱼",
+        "quality": "green"
+    },
+    "mat_shen_yuan_zhen_zhu": {
+        "price": 45,
+        "name": "深渊珍珠",
+        "quality": "blue"
+    },
+    "mat_yun_mian": {
+        "price": 22,
+        "name": "云棉",
+        "quality": "green"
+    },
+    "mat_cai_hong_lu_zhu": {
+        "price": 50,
+        "name": "彩虹露珠",
+        "quality": "blue"
+    },
+    # ---- 烹饪材料（13 章 2.3 烹饪表）----
+    "mat_lang_rou": {
+        "price": 25,
+        "name": "狼肉"
+    },
+    "mat_long_rou": {
+        "price": 60,
+        "name": "龙肉"
+    },
+    "mat_huo_yuan_su_he_xin": {
+        "price": 35,
+        "name": "火元素核心"
     },
 }
 
@@ -1728,6 +1813,18 @@ CONSUMABLES = {
                      "desc": "驱散一次负面状态"},
     "i_moon_dew": {"name": "月之露", "price": 50, "heal": 0.5, "mana": 0.5,
                    "desc": "战斗外回复 50% HP/MP"},
+    # ---- 烹饪产物（13 章 2.3 烹饪表） ----
+    "it_slime_jelly": {"name": "史莱姆果冻", "price": 20, "heal": 0.2,
+                      "desc": "战斗外回复 20% HP"},
+    "it_cook_skewer": {"name": "烤肉串（自制）", "price": 30, "heal": 0.35,
+                      "desc": "战斗外回复 35% HP"},
+    "it_gold_feast": {"name": "金鲤盛宴", "price": 60, "heal": 0.5, "mana": 0.2,
+                     "desc": "战斗外回复 50% HP + 20% MP"},
+    # ---- 垂钓产业链·炼金（16 章 2.5：鲛人泪/龙涎香独占材料） ----
+    "i_mermaid_tear": {"name": "鲛人之泪", "price": 150, "effect": "buff_matk",
+                      "desc": "本回合魔攻 +30%"},
+    "i_ambergris_draught": {"name": "龙涎药剂", "price": 250, "effect": "buff_atk_def",
+                           "desc": "本回合攻击 +30%、防御 +20%"},
     # ---- 旧 ID 别名（兼容旧测试/旧数据引用，内容对齐新世界） ----
     "i_treatment_potion": {"name": "治疗药水", "price": 10, "heal": 0.2,
                            "desc": "回复 20% HP"},

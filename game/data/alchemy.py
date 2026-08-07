@@ -169,4 +169,27 @@ ALCHEMY_RECIPES = {
         "desc": "战斗中使用，暴击率 +20%（3 回合）",
         "name": "暴击药水"
     },
+    # ---- 垂钓产业链（16 章 2.5：鲛人泪/龙涎香仅垂钓产出）----
+    "al_jiao_ren_zhi_lei": {
+        "cost": {
+            "mat_jiao_ren_lei": 1
+        },
+        "product": {
+            "i_mermaid_tear": 1
+        },
+        "need_prof_lv": 3,
+        "desc": "战斗中使用，本回合魔攻 +30%",
+        "name": "鲛人之泪"
+    },
+    "al_long_xian_yao_ji": {
+        "cost": {
+            "mat_long_xian_xiang": 1
+        },
+        "product": {
+            "i_ambergris_draught": 1
+        },
+        "need_prof_lv": 5,
+        "desc": "战斗中使用，本回合攻击 +30%、防御 +20%",
+        "name": "龙涎药剂"
+    },
 }

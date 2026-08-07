@@ -1,68 +1,37 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - cooking.py：烹饪副业
+"""奥兰迪亚·余烬纪年 数据层 - cooking.py：烹饪副业（13 章 2.3 烹饪表 v2.0，2026-08-06 重写）
 
-副业联动：垂钓（鱼）+ 采集（药材/蘑菇/浆果）→ 烹饪 → 战斗消耗品。
-- 食谱按烹饪等级解锁（min_lv）
-- 产出都是消耗品（heal/mana/effect），走『使用』指令
+副业联动：垂钓（鱼）+ 采集（药材）→ 烹饪 → 战斗外恢复/持续 buff。
+- 成本 key 一律 mat_ ID（v48 ID 规范，禁止 fish_ 中文动态 key）
+- 持续 buff 型料理（银鳞鱼汤/狼肉煲/龙息炖锅/精灵果酱）随 19 章食物 buff 系统落地，
+  本表只收当前可即时生效的配方（战斗外回复）
 """
 COOKING_RECIPES = {
-    "cook_fish_soup": {
-        "name": "鱼汤",
-        "desc": "鲜鱼慢炖的浓汤，暖暖身子",
+    "cook_slime_jelly": {
+        "name": "史莱姆果冻",
+        "desc": "史莱姆黏液熬成的果冻，滑嫩爽口",
         "min_lv": 1,
-        "cost": {"fish_银鳞鱼": 2, "mat_香草": 1},
-        "product": {"it_fish_soup": 1},
+        "cost": {"mat_shi_lai_mu_nian_ye": 3},
+        "product": {"it_slime_jelly": 1},
     },
-    "cook_herb_tea": {
-        "name": "香草茶",
-        "desc": "采集的香草泡的茶，提神醒脑",
+    "cook_skewer": {
+        "name": "烤肉串（自制）",
+        "desc": "新鲜兽肉串烤，滋滋冒油",
         "min_lv": 1,
-        "cost": {"mat_香草": 2},
-        "product": {"it_herb_tea": 1},
+        "cost": {"mat_shou_rou": 2},
+        "product": {"it_cook_skewer": 1},
     },
-    "cook_mushroom_stew": {
-        "name": "蘑菇炖菜",
-        "desc": "林间蘑菇炖的杂烩，饱腹又补血",
+    "cook_gold_feast": {
+        "name": "金鲤盛宴",
+        "desc": "金鲤红烧一锅端，富贵人家才吃得起",
         "min_lv": 2,
-        "cost": {"mat_蘑菇": 2, "mat_香草": 1},
-        "product": {"it_mushroom_stew": 1},
-    },
-    "cook_royal_salmon": {
-        "name": "香煎帝王鲑",
-        "desc": "帝王鲑煎得金黄，贵族的享受",
-        "min_lv": 3,
-        "cost": {"fish_帝王鲑": 1, "mat_香料": 1},
-        "product": {"it_royal_salmon": 1},
-    },
-    "cook_berry_pie": {
-        "name": "浆果派",
-        "desc": "甜香扑鼻的浆果派，吃了心情大好",
-        "min_lv": 4,
-        "cost": {"mat_浆果": 3, "mat_蜂蜜": 1},
-        "product": {"it_berry_pie": 1},
-    },
-    "cook_elixir_soup": {
-        "name": "秘制灵药汤",
-        "desc": "加入珍稀药材熬制，药效非凡",
-        "min_lv": 6,
-        "cost": {"mat_灵芝": 1, "fish_金鲤": 1, "mat_蜂蜜": 1},
-        "product": {"it_elixir_soup": 1},
-    },
-    "cook_dragon_banquet": {
-        "name": "龙脊盛宴",
-        "desc": "传说级料理，龙脊山涧的珍品全在此锅",
-        "min_lv": 8,
-        "cost": {"fish_帝王鲑": 2, "mat_灵芝": 2, "mat_香料": 2, "mat_蜂蜜": 1},
-        "product": {"it_dragon_banquet": 1},
+        "cost": {"mat_jin_li": 2},
+        "product": {"it_gold_feast": 1},
     },
 }
 
 COOKING_REQUIRED_LV = {
-    "fish_soup": 1,
-    "herb_tea": 1,
-    "mushroom_stew": 2,
-    "royal_salmon": 3,
-    "berry_pie": 4,
-    "elixir_soup": 6,
-    "dragon_banquet": 8,
+    "cook_slime_jelly": 1,
+    "cook_skewer": 1,
+    "cook_gold_feast": 2,
 }

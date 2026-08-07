@@ -1,27 +1,58 @@
 # -*- coding: utf-8 -*-
+"""奥兰迪亚·余烬纪年 核心 - fishing.py（16 章品质垂钓 v2.0）
 
+roll 流程：垂钓等级查五档权重表（中间等级线性插值）→ 过滤钓点禁出档位 → 选档位
+→ 档位内按品种权重选（过滤品种限定水域）。
+"""
 import random
 
-from ..data.fishing import FISH_POOL, FISH_WEIGHTS, FISH_RARE_BONUS
+from ..data.fishing import (
+    FISHING_SPOTS,
+    FISH_POOL,
+    FISH_QUALITY_ORDER,
+    FISH_QUALITY_WEIGHTS,
+)
 
 
-"""《剑与魔法》核心 - fishing.py"""
-def roll_fish(prof_lv: int = 1):
+def _quality_weights(prof_lv: int) -> list:
+    """垂钓等级 → 五档权重（Lv.1/3/5/7/9 查表，中间等级线性插值）。"""
+    lv = max(1, min(9, int(prof_lv)))
+    keys = sorted(FISH_QUALITY_WEIGHTS)
+    if lv <= keys[0]:
+        return list(FISH_QUALITY_WEIGHTS[keys[0]])
+    if lv >= keys[-1]:
+        return list(FISH_QUALITY_WEIGHTS[keys[-1]])
+    for a, b in zip(keys, keys[1:]):
+        if a <= lv <= b:
+            wa = FISH_QUALITY_WEIGHTS[a]
+            wb = FISH_QUALITY_WEIGHTS[b]
+            t = (lv - a) / (b - a)
+            return [wa[i] + (wb[i] - wa[i]) * t for i in range(len(wa))]
+    return list(FISH_QUALITY_WEIGHTS[keys[0]])
+
+
+def roll_fish(prof_lv: int = 1, spot_id: str | None = None):
     """垂钓结果：返回 FISH_POOL 中的一项。
 
-    副业等级越高，稀有鱼（金鲤/帝王鲑/珍珠/宝物）权重适度提升，
-    鱼王权重单独按等级大幅提升（Lv.9+ 概率约为新手 5 倍）。
+    prof_lv: 垂钓副业等级（1-9）
+    spot_id: 钓点地图 ID（FISHING_SPOTS 的 key）；钓点禁出档位权重清零，
+             品种限定水域（spots 字段）不满足时跳过。
     """
-    weights = list(FISH_WEIGHTS)
-    if prof_lv > 1:
-        bonus = 1.0
-        for lv_th, mult in sorted(FISH_RARE_BONUS.items()):
-            if prof_lv >= lv_th:
-                bonus = mult
-        # 稀有鱼（金鲤/帝王鲑/珍珠/宝物）权重乘 1 + (bonus-1)*0.3，避免总权重被撑爆
-        rare_mult = 1.0 + (bonus - 1.0) * 0.3
-        for idx in (1, 2, 4, 5):
-            weights[idx] = FISH_WEIGHTS[idx] * rare_mult
-        # 鱼王权重单独放大：直接乘 bonus
-        weights[8] = FISH_WEIGHTS[8] * bonus
-    return random.choices(FISH_POOL, weights=weights, k=1)[0]
+    spot = FISHING_SPOTS.get(spot_id) if spot_id else None
+    ban = set(spot.get("ban_quality", [])) if spot else set()
+    weights = _quality_weights(prof_lv)
+    for i, q in enumerate(FISH_QUALITY_ORDER):
+        if q in ban:
+            weights[i] = 0.0
+    quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
+
+    def _match(f):
+        return f["quality"] == quality and (
+            not f.get("spots") or (spot_id and spot_id in f["spots"])
+        )
+
+    pool = [f for f in FISH_POOL if _match(f)]
+    if not pool:
+        # 防御性兜底：先去掉 spots 限定重试（如新钓点蓝档无全水域品种），再退全品质池
+        pool = [f for f in FISH_POOL if f["quality"] == quality]
+    return random.choices(pool, weights=[f.get("weight", 1) for f in pool], k=1)[0]
