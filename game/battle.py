@@ -64,6 +64,9 @@ class Battle:
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
         if player:
             self._init_resources(player)
+        # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾）
+        if player and "shield" in self._equip_affix_ids(player):
+            self.shield = int(player.get("max_hp", 100) * 0.10)
         # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
         self.p_progress: float = 0.0          # 玩家行动进度
         self.e_progress: float = 0.0          # 敌方行动进度
@@ -541,16 +544,26 @@ class Battle:
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
         is_crit = random.random() < st["crit"]
         dmg = E.calc_damage(st["atk"], est["def"], is_crit)
+        # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
+        affix_mult, affix_tags = self._affix_dmg_mult(player)
+        dmg = int(dmg * affix_mult)
         # v34 残忍：暴击伤害 +x%（按等级）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and is_crit:
             dmg = int(dmg * (1 + C.rune_value("brutal", brutal_lvl)))
+        # 阶段八：暴击伤害词条（crit_dmg +20%）
+        if "crit_dmg" in self._equip_affix_ids(player) and is_crit:
+            dmg = int(dmg * 1.20)
         dmg = self._apply_mark(dmg)
         self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
         tag = " 💥暴击" if is_crit else ""
+        if affix_tags:
+            tag += " " + "·".join(affix_tags)
         logs.append(f"你挥剑攻击，造成 {dmg} 点伤害！{tag}")
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
         self._apply_enchant_attack(effs, dmg, st, player, logs)
+        # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
+        self._affix_on_hit(player, dmg, logs)
         self._set_attack_proc(player, dmg, logs)
         # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
         self._resource_on_attack(player)
@@ -626,6 +639,214 @@ class Battle:
         mb_lvl = self._enchant_lvl(effs, "magic_break")
         if mb_lvl:
             pass  # 在技能魔法伤害里处理
+
+    # ---------------- 阶段八：装备特效词条触发（20 章） ----------------
+    def _equip_affix_ids(self, player: dict) -> list:
+        """玩家已装备的全部词条 ID（affixes + legendary 专属）"""
+        ids = []
+        for item in (player.get("equipment") or {}).values():
+            if not item:
+                continue
+            ids.extend(item.get("affixes", []) or [])
+            if item.get("legendary"):
+                ids.append(item["legendary"])
+        return ids
+
+    def _affix_dmg_mult(self, player: dict) -> tuple:
+        """被动词条/专属对本次伤害的倍率。返回 (倍率, 标签列表)。
+
+        处决（低血增伤）/追猎（标记）/破魔（魔法系）/龙威（龙系）/黎明之光（深渊系）
+        /精准（命中强化近似 +10%）/龙语印记（每层 +2% 伤害）。
+        """
+        ids = self._equip_affix_ids(player)
+        if not ids:
+            return 1.0, []
+        mult = 1.0
+        tags = []
+        e = self.enemy
+        hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
+        if "execute" in ids and hp_ratio < 0.30:
+            mult *= 1.30
+            tags.append("💀处决")
+        if "jack_hook" in ids and hp_ratio < 0.30:
+            mult *= 1.80
+            tags.append("💀处决狂潮")
+        if "ancient_king" in ids and hp_ratio < 0.35:
+            mult *= 1.35
+            tags.append("👑王权处决")
+        if "hunt" in ids and "mark" in self.e_buffs:
+            mult *= 1.20
+            tags.append("🎯追猎")
+        if "break_magic" in ids and e.get("role") == "caster":
+            mult *= 1.25
+            tags.append("🔮破魔")
+        if "dragon_aw" in ids and "龙" in e.get("name", ""):
+            mult *= 1.25
+            tags.append("🐉龙威")
+        if "dawn_light" in ids and "深渊" in e.get("name", ""):
+            mult *= 1.50
+            tags.append("🌅黎明破晓")
+        if "precise" in ids:
+            mult *= 1.10
+            tags.append("🎯精准")
+        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
+        if dm:
+            mult *= 1 + 0.02 * dm
+        return mult, tags
+
+    def _affix_element_dmg(self, player: dict, element: str) -> float:
+        """专属元素伤害加成（冰/雷属性伤害 +x%）：技能带对应 element 时生效"""
+        if not element:
+            return 1.0
+        bonus = 0.0
+        for aid in self._equip_affix_ids(player):
+            info = C.LEGENDARY_EFFECTS.get(aid)
+            if not info:
+                continue
+            eff = info.get("effect") or {}
+            if element == "ice":
+                bonus += eff.get("ice_dmg", 0) or 0
+            elif element == "thunder":
+                bonus += eff.get("thunder_dmg", 0) or 0
+        return 1.0 + bonus
+
+    def _affix_on_hit(self, player: dict, dmg: int, logs: list):
+        """攻击命中后词条触发：流血/破甲/连击/吸血/元素附加/贯穿/蓄力/净化/龙语印记/审判之链"""
+        ids = self._equip_affix_ids(player)
+        if not ids or self.enemy.get("hp", 0) <= 0:
+            return
+        e = self.enemy
+        pst = self._player_stats(player)
+        # 流血：20% 使目标流血（每回合 5% 生命，3 回合）
+        if "bleed" in ids and random.random() < 0.20:
+            self.e_buffs["bleed"] = max(self.e_buffs.get("bleed", 0), 3)
+            logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
+        # 破甲：25% 降低目标防御 15%（2 回合）
+        if "armor_break" in ids and random.random() < 0.25:
+            self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
+            self.e_buffs["_armor_break_pct"] = 0.15
+            logs.append("🛡️ 破甲！敌人防御下降 15%！")
+        # 连击：15% 追加一次 50% 伤害
+        if "combo" in ids and random.random() < 0.15:
+            cd = int(dmg * 0.50)
+            e["hp"] = max(0, e.get("hp", 0) - cd)
+            logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
+        # 吸血：伤害的 8% 转化为生命
+        if "lifesteal" in ids and dmg > 0:
+            heal = int(dmg * 0.08)
+            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+            logs.append(f"🩸 吸血：回复 {heal} 点生命！")
+        # 元素附加：火/冰/雷 5% 属性伤害（冰附减速）
+        for aid, elem, emoji, slow in (
+                ("element_fire", "fire", "🔥", False),
+                ("element_ice", "ice", "❄️", True),
+                ("element_thunder", "thunder", "⚡", False)):
+            if aid in ids:
+                ed = max(1, int(dmg * 0.05))
+                e["hp"] = max(0, e.get("hp", 0) - ed)
+                logs.append(f"{emoji} {elem}属性附加 {ed} 点伤害！")
+                if slow:
+                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
+                    logs.append("❄️ 减速！")
+        # 贯穿：20% 无视防御追加伤害
+        if "pierce" in ids and random.random() < 0.20:
+            pd = E.calc_damage(int(pst.get("atk", 0) * 0.6), 0)
+            if pd > 0:
+                e["hp"] = max(0, e.get("hp", 0) - pd)
+                logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
+        # 蓄力：10% 造成 150% 伤害（追加 50%）
+        if "charge" in ids and random.random() < 0.10:
+            cd = int(dmg * 0.50)
+            e["hp"] = max(0, e.get("hp", 0) - cd)
+            logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
+        # 净化：15% 驱散敌人 1 层增益（审判之链专属 25% 驱散 2 层）
+        purge_n = 0
+        if "judgment_chain" in ids and random.random() < 0.25:
+            purge_n = 2
+        elif "purify" in ids and random.random() < 0.15:
+            purge_n = 1
+        if purge_n:
+            gain_keys = [k for k in self.e_buffs
+                         if k.startswith("mon_") or k in ("summon", "atk_up_strong")]
+            removed = 0
+            for _ in range(purge_n):
+                if not gain_keys:
+                    break
+                k = gain_keys.pop(random.randrange(len(gain_keys)))
+                del self.e_buffs[k]
+                removed += 1
+            if removed:
+                logs.append(f"✨ 净化！驱散了敌人 {removed} 层增益！")
+        # 龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）
+        if "dragon_tongue" in ids:
+            self.mech_stacks["dragon_mark"] = min(5, int(self.mech_stacks.get("dragon_mark", 0) or 0) + 1)
+            logs.append(f"🐉 龙语印记叠加！（{self.mech_stacks['dragon_mark']} 层，每层 +2% 伤害）")
+
+    def _affix_on_taken(self, player: dict, dmg: int, logs: list) -> int:
+        """受击词条：减伤/格挡/坚韧/反击/反伤/深渊腐蚀。返回结算后的伤害。"""
+        ids = self._equip_affix_ids(player)
+        if not ids:
+            return dmg
+        out = dmg
+        e = self.enemy
+        # 减伤（常驻：减伤词条 +3%、大地之心专属 +5%）
+        reduce_pct = 0.0
+        if "dmg_reduce" in ids:
+            reduce_pct += 0.03
+        if "earth_heart" in ids:
+            reduce_pct += 0.05
+        if reduce_pct:
+            out = max(1, int(out * (1 - reduce_pct)))
+            logs.append(f"🛡️ 减伤 {dmg - out} 点")
+        # 格挡：15% 减伤 50%
+        if "block" in ids and random.random() < 0.15:
+            blocked = int(out * 0.50)
+            out = max(1, out - blocked)
+            logs.append(f"🛡️ 格挡！减伤 {blocked} 点")
+        # 坚韧：20% 免疫/清除自身负面（减速/降攻）
+        if "tenacity" in ids and random.random() < 0.20:
+            neg = [k for k in self.p_buffs if k in ("spd_down", "atk_down", "def_down")]
+            if neg:
+                del self.p_buffs[random.choice(neg)]
+                logs.append("💪 坚韧！免疫了负面效果")
+        # 反击：20% 反击 60% 伤害
+        if "counter" in ids and random.random() < 0.20 and e.get("hp", 0) > 0:
+            pst2 = self._player_stats(player)
+            est2 = self._enemy_stats()
+            cd = E.calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
+            if cd > 0:
+                e["hp"] = max(0, e.get("hp", 0) - cd)
+                logs.append(f"⚔️ 反击！对【{e.get('name', '敌人')}】造成 {cd} 点伤害！")
+        # 反伤：10% 反弹 30% 伤害
+        if "thorns" in ids and random.random() < 0.10 and e.get("hp", 0) > 0:
+            rd = int(dmg * 0.30)
+            e["hp"] = max(0, e.get("hp", 0) - rd)
+            logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
+        # 深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）
+        if "moro_crown" in ids and random.random() < 0.15:
+            self.e_buffs["mon_atk_down"] = max(self.e_buffs.get("mon_atk_down", 0), 2)
+            self.e_buffs["_weaken_val"] = 0.10
+            logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
+        return out
+
+    def _affix_turn_start(self, player: dict, logs: list):
+        """回合开始词条：回春（1% 生命）/冥想（1% 魔力）/晨曦祝福（2% 生命）"""
+        ids = self._equip_affix_ids(player)
+        if not ids:
+            return
+        regen_pct = 0.0
+        if "regen" in ids:
+            regen_pct += 0.01
+        if "dawn_crown" in ids:
+            regen_pct += 0.02
+        if regen_pct and player.get("hp", 0) < player.get("max_hp", 1):
+            heal = int(player.get("max_hp", player.get("hp", 1)) * regen_pct)
+            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+            logs.append(f"🌿 回春生效，回复 {heal} 点生命！")
+        if "meditate" in ids and player.get("mp", 0) < player.get("max_mp", 1):
+            heal = int(player.get("max_mp", player.get("mp", 1)) * 0.01)
+            player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
+            logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
 
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地（v27 技能等级 + v29 分支机制）"""
@@ -799,7 +1020,11 @@ class Battle:
                     for mk in E.ELEMENT_MARKS.values():
                         self.e_buffs.pop(mk, None)
         total = 0
-        pmult = E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult * magic_bonus * passive_bonus * reaction_mult
+        # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
+        affix_mult, affix_tags = self._affix_dmg_mult(player)
+        elem_mult = self._affix_element_dmg(player, element)
+        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult
+                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult)
         for _ in range(multi):
             if kind == "物理":
                 if info.get("pierce"):
@@ -812,6 +1037,9 @@ class Battle:
             brutal_lvl = self._enchant_lvl(effs, "brutal")
             if brutal_lvl and is_crit:
                 dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
+            # 阶段八：暴击伤害词条（crit_dmg +20%）
+            if "crit_dmg" in self._equip_affix_ids(player) and is_crit:
+                dmg_i = int(dmg_i * 1.20)
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
         self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - total)
@@ -833,6 +1061,11 @@ class Battle:
             tags.append(f"⚔️{cond_label}x{round(cond_mult, 1)}")
         if mb_lvl:
             tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
+        # 阶段八：词条伤害标签（处决/追猎/精准等）
+        if affix_tags:
+            tags.extend(affix_tags)
+        if elem_mult > 1.0:
+            tags.append(f"✨元素x{round(elem_mult, 2)}")
         if tags:
             logs[-1] += " " + "·".join(tags)
         if reaction_log:
@@ -855,6 +1088,8 @@ class Battle:
                 logs.append(f"🥊 连招 {self._combo_label()}")
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱）
         self._apply_enchant_attack(effs, total, st, player, logs)
+        # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
+        self._affix_on_hit(player, total, logs)
 
         # ---- 分支机制结算（v29） ----
         self._last_player = player
@@ -1351,7 +1586,9 @@ class Battle:
             est["atk"] = int(est["atk"] * 1.35)
             est["matk"] = int(est["matk"] * 1.35)
         if "def_down" in self.e_buffs:
-            est["def"] = int(est["def"] * DEF_DOWN_MULT)
+            # 阶段八：词条破甲 15%（_armor_break_pct），旧技能破甲减半兜底
+            pct = float(self.e_buffs.get("_armor_break_pct", DEF_DOWN_MULT) or DEF_DOWN_MULT)
+            est["def"] = int(est["def"] * (1 - pct))
         if "spd_down" in self.e_buffs:
             est["spd"] = int(est["spd"] * SPD_DOWN_MULT)
         # v34 符文虚弱：敌人攻击 -x%
@@ -1396,6 +1633,17 @@ class Battle:
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！（毒发身亡）")
+        # 阶段八：流血词条（每回合 5% 生命，e_buffs["bleed"] = 剩余回合数，回合递减交给 _end_round）
+        bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
+        if bleed_n > 0:
+            p = int(self.enemy.get("max_hp", 1) * 0.05)
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
+            logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
+            if self._enemy_dead():
+                self.result = "victory"
+                logs.append(f"🎉 你击败了【{self.enemy['name']}】！（失血过多）")
+        # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
+        self._affix_turn_start(player, logs)
         # 圣光/永恒套：每回合开始回复生命
         for eff in E.set_bonus_4(player.get("equipment", {})):
             if eff in ("regen", "regen_strong") and player.get("hp", 0) < player.get("max_hp", 1):
@@ -1445,6 +1693,8 @@ class Battle:
         if dmg <= 0:
             return
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
+        # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
+        dmg = self._affix_on_taken(player, dmg, logs)
         # v64 被动·铁壁之心/磐石体：受到伤害时减伤 5%
         pv = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
         if "铁壁之心" in pv or "磐石体" in pv:
