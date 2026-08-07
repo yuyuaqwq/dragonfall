@@ -46,7 +46,7 @@ def test_data():
     print("【数据：分支名对照 21 章】")
     expect = {
         "cls_zhan_shi": {1: ["狂战士", "盾卫士"], 2: ["狂战统领", "圣殿骑士"], 3: ["战争领主", "圣辉骑士"]},
-        "cls_fa_shi": {1: ["烈焰法师", "寒霜法师"], 2: ["烈焰术士", "寒霜术士"], 3: ["余烬贤者", "永冬贤者"]},
+        "cls_fa_shi": {1: ["元素法师", "奥术法师"], 2: ["元素术士", "奥术术士"], 3: ["元素贤者", "奥秘贤者"]},
         "cls_you_xia": {1: ["猎魔人", "风行者"], 2: ["暗夜猎手", "疾风射手"], 3: ["猎魔先驱", "疾风猎手"]},
         "cls_mu_shi": {1: ["圣武士", "神谕者"], 2: ["审判骑士", "大主教"], 3: ["裁决骑士", "圣光先知"]},
         "cls_ci_ke": {1: ["影舞者", "毒刃者"], 2: ["幻影刺客", "淬毒师"], 3: ["幽影刺客", "蚀骨者"]},
@@ -239,6 +239,68 @@ def await_cmd(m, name, msg):
     return results[-1] if results else ""
 
 
+def test_mage_mechanics():
+    print("【元素/奥术机制：奥术充能叠层 + 爆发】")
+    p = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
+    b = make_battle(p, {"name": "木桩", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 10, "spd": 5})
+    info = E.skill_info("法师", "奥术弹幕")
+    check("奥术弹幕可查到", bool(info), str(info))
+    if info:
+        lv = 1
+        mval = E.skill_mech_val(info, lv)
+        p_mech = b.mech_stacks
+        b._apply_mech_effect("arcane", mval, p_mech, 100, [], "奥术弹幕")
+        check("奥术弹幕叠 1 层充能", b.mech_stacks.get("arcane") == 1, str(b.mech_stacks.get("arcane")))
+        b._apply_mech_effect("arcane", 2, p_mech, 100, [], "奥术爆破")
+        check("奥术爆破叠 2 层（共 3）", b.mech_stacks.get("arcane") == 3, str(b.mech_stacks.get("arcane")))
+        # 奥术洪流 arcane_burst：消耗充能每层 +15%
+        hp_before = b.enemy["hp"]
+        b._apply_mech_effect("arcane_burst", 0, p_mech, 100, [], "奥术洪流")
+        check("奥术洪流消耗充能追加伤害", b.enemy["hp"] == hp_before - int(100 * 3 * 0.15), f"{hp_before}->{b.enemy['hp']}")
+        check("充能清空", b.mech_stacks.get("arcane") == 0, str(b.mech_stacks.get("arcane")))
+
+    print("【元素/奥术机制：元素跃迁切系（element_shift）】")
+    b2 = make_battle(p)
+    check("初始火系", b2.resources.get("element") == "fire", str(b2.resources.get("element")))
+    info2 = E.skill_info("法师", "元素跃迁")
+    check("元素跃迁可查到", bool(info2), str(info2))
+    if info2:
+        logs = b2._player_skill(b2._player_stats(p), "元素跃迁", info2, dict(p))
+        check("切到冰系", b2.resources.get("element") == "ice", str(b2.resources.get("element")))
+        check("切系日志", any("元素跃迁" in lg for lg in logs), str(logs))
+
+    print("【元素/奥术机制：current 系技能读当前元素】")
+    info3 = E.skill_info("法师", "元素冲击")
+    check("元素冲击 element=current", bool(info3) and info3.get("element") == "current", str(info3))
+    if info3:
+        b3 = make_battle(p)
+        b3.resources["element"] = "thunder"
+        logs = b3._player_skill(b3._player_stats(p), "元素冲击", info3, dict(p))
+        check("current 系按雷系挂雷印", b3.e_buffs.get("thunder_mark", 0) >= 1, str(b3.e_buffs))
+
+    print("【元素/奥术机制：奥术直觉被动回合充能】")
+    b4 = make_battle(p)
+    b4.mech_stacks["arcane"] = 1
+    p4 = dict(p)
+    p4["learned_skills"] = ["奥术直觉"]
+    logs = b4._turn_start(p4)
+    check("奥术直觉回合充能+1", b4.mech_stacks.get("arcane") == 2, str(b4.mech_stacks.get("arcane")))
+
+    print("【元素/奥术机制：player_mech_stacks cond】")
+    b5 = make_battle(p)
+    cond = {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.3, "label": "共鸣"}
+    check("充能不足不触发", abs(b5._cond_mult({"cond": cond}, p) - 1.0) < 1e-9, "")
+    b5.mech_stacks["arcane"] = 3
+    check("充能≥3 触发", abs(b5._cond_mult({"cond": cond}, p) - 1.3) < 1e-9, "")
+
+    print("【元素/奥术机制：element_marks any 任意系】")
+    b6 = make_battle(p)
+    cond6 = {"type": "element_marks", "element": "any", "stacks": 1, "mult": 1.2, "label": "万象共鸣"}
+    check("无印记不触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.0) < 1e-9, "")
+    b6.e_buffs["ice_mark"] = 2
+    check("任意系印记触发", abs(b6._cond_mult({"cond": cond6}, p) - 1.2) < 1e-9, "")
+
+
 def main():
     clean_db()
     test_data()
@@ -246,6 +308,7 @@ def main():
     test_branch_skill_gate()
     test_evolve_reset()
     test_new_conds()
+    test_mage_mechanics()
     print("\n结果: %d 通过, %d 失败" % (passed, failed))
     return failed == 0
 

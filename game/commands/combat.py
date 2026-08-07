@@ -518,7 +518,7 @@ class CombatCmds(CommandBase):
     # v56.3：技能功能标签（<kind><功能> 双标签，参考鱼鱼排版示例）
     _MECH_CN = {"rage": "狂暴", "burn": "灼烧", "freeze": "冰冻", "poison": "中毒", "mark": "标记",
                 "shadow": "影袭", "chi": "气力", "wind": "风印", "judge": "审判", "bless": "神恩",
-                "iron": "铁壁", "shield": "圣盾"}
+                "iron": "铁壁", "shield": "圣盾", "arcane": "奥术"}
     _EFFECT_CN = {"atk_up": "攻击", "def_up": "防御", "matk_up": "魔攻", "spd_up": "速度", "crit_up": "暴击",
                   "atk_up_strong": "强攻", "matk_up_strong": "强魔攻", "mon_atk_down": "威压", "lifesteal": "吸血",
                   "counter": "反击", "rage_burst": "爆发", "burn_burst": "引爆", "bless_shield": "护盾"}

@@ -674,6 +674,13 @@ class Battle:
                 if eff == "mon_atk_down":
                     # v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）
                     self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
+                elif eff == "element_shift":
+                    # v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%
+                    cur = self.resources.get("element", "fire")
+                    nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
+                    self.resources["element"] = nxt
+                    self.p_buffs["matk_up"] = E.skill_buff_turns(lv)
+                    self._shifted_element = nxt
                 else:
                     self.p_buffs[eff] = E.skill_buff_turns(lv)
             # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
@@ -704,6 +711,9 @@ class Battle:
                 p_mech["bless"] = 0
             self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
             logs.append(f"你施展【{skill_name}】！")
+            if eff == "element_shift" and getattr(self, "_shifted_element", None):
+                logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系（下次元素技能伤害 +20%）")
+                self._shifted_element = None
             # v50 团队增益：记录全队效果（副本广播）
             team = info.get("team")
             if team:
@@ -759,8 +769,10 @@ class Battle:
             passive_bonus *= 1.10
         if "烈焰亲和" in pv and "火" in (skill_name or "") and kind == "魔法":
             passive_bonus *= 1.10
-        # v2.0 元素反应：当前系 × 目标印记（技能带 element 字段时判定）
+        # v2.0 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
         element = info.get("element", "")
+        if element == "current":
+            element = self.resources.get("element", "fire")
         reaction_mult = 1.0
         reaction_log = ""
         if element and E.ELEMENT_MARKS.get(element):
@@ -962,10 +974,16 @@ class Battle:
             if any(k in self.mech_stacks for k in ("poison", "burn", "mark")):
                 return mult
         elif ctype == "element_marks":
-            # v2.1 分支条件：目标元素印记层数 ≥ stacks（火印/冰印/雷印）
-            mk = E.ELEMENT_MARKS.get(cond.get("element", ""), "")
-            if mk and self.e_buffs.get(mk, 0) >= cond.get("stacks", 1):
-                return mult
+            # v2.1 分支条件：目标元素印记层数 ≥ stacks（火印/冰印/雷印；element=any 任意系）
+            elem = cond.get("element", "")
+            if elem == "any":
+                marks_total = sum(self.e_buffs.get(mk, 0) for mk in E.ELEMENT_MARKS.values())
+                if marks_total >= cond.get("stacks", 1):
+                    return mult
+            else:
+                mk = E.ELEMENT_MARKS.get(elem, "")
+                if mk and self.e_buffs.get(mk, 0) >= cond.get("stacks", 1):
+                    return mult
         elif ctype == "enemy_slowed":
             # v2.1 分支条件：目标减速中
             if "spd_down" in self.e_buffs or "mon_spd_down" in self.e_buffs:
@@ -985,11 +1003,16 @@ class Battle:
             # v2.1 分支条件：自身有增益（神圣狂热 / 风速）
             if self.p_buffs:
                 return mult
+        elif ctype == "player_mech_stacks":
+            # v2.1 分支条件：自身机制层数 ≥ stacks（奥术充能 / 狂暴等）
+            p_mech = self.mech_stacks
+            if p_mech.get(cond.get("mech", "arcane"), 0) >= cond.get("stacks", 3):
+                return mult
         return 1.0
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
         """增益类技能叠层（v59：封顶）"""
-        if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze"):
+        if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane"):
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
     def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False):
@@ -1079,6 +1102,18 @@ class Battle:
             n = p_mech.get("wind", 0)
             logs.append(f"💨 风印爆发！{n} 层转化为连击")
             p_mech["wind"] = 0
+        # 奥术充能：叠层（奥术法师，层数供 player_mech_stacks 条件 + arcane_burst 消费）
+        elif mech == "arcane" and mval:
+            p_mech["arcane"] = E.mech_stack_gain("arcane", p_mech, mval)
+            logs.append(f"📖 奥术充能 {p_mech['arcane']} 层（共鸣爆发前置）")
+        # 奥术充能爆发：消耗全部充能，每层 +15% 伤害（奥术洪流）
+        elif mech == "arcane_burst":
+            n = p_mech.get("arcane", 0)
+            if n:
+                bonus = int(total * n * 0.15)
+                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
+                logs.append(f"📖 奥术共鸣！{n} 层充能额外 {bonus} 点伤害")
+            p_mech["arcane"] = 0
         # 审判：叠层（暴击时）
         elif mech == "judge" and mval:
             if is_crit:
@@ -1381,6 +1416,10 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"🍃 气息调和生效，你回复了 {heal} 点生命！")
+        # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（奥术法师自动蓄能）
+        if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
+            self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
+            logs.append(f"📖 奥术直觉：充能自动 +1（当前 {self.mech_stacks['arcane']} 层）")
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)

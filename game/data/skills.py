@@ -1215,304 +1215,318 @@ BRANCH_SKILLS = {
         "name": "法师",
         "branches": {
             1: {
-                "烈焰法师": {
-                    "火环":                     {
+                "元素法师": {
+                    "元素冲击":                     {
                         "lv": 32,
-                        "mp": 0,
-                        "power": 1.2,
-                        "kind": "魔法",
-                        "element": "fire",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "fire",
-                            "stacks": 1,
-                            "mult": 1.15,
-                            "label": "火环蔓延"
-                        },
-                        "desc": "火系 120% 全体伤害，挂火印。目标已有火印时伤害 +15%",
-                        "name": "火环"
-                    }
-,
-                    "燃尽":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "kill_mp",
-                            "mult": 0.15
-                        },
-                        "desc": "触发被动：击杀敌人时回复 15% 魔力（火系续航）",
-                        "name": "燃尽"
-                    }
-,
-                    "连珠火球":                     {
-                        "lv": 45,
                         "mp": 0,
                         "power": 1.4,
                         "kind": "魔法",
-                        "multi": 2,
-                        "element": "fire",
+                        "element": "current",
                         "cond": {
                             "type": "element_marks",
-                            "element": "fire",
-                            "stacks": 3,
-                            "mult": 1.3,
-                            "label": "连环引爆"
-                        },
-                        "desc": "火系 140%×2，挂 2 层火印。目标火印≥3 层时伤害 +30%（叠印引爆）",
-                        "name": "连珠火球"
-                    }
-,
-                    "超载引爆":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 2.4,
-                        "kind": "魔法",
-                        "element": "fire",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "fire",
-                            "stacks": 2,
-                            "mult": 1.3,
-                            "label": "元素共鸣"
-                        },
-                        "desc": "火系 240%，引爆火印。目标火印≥2 层时伤害 +30%",
-                        "name": "超载引爆"
-                    }
-,
-                },
-                "寒霜法师": {
-                    "冰环":                     {
-                        "lv": 32,
-                        "mp": 0,
-                        "power": 1.2,
-                        "kind": "魔法",
-                        "element": "ice",
-                        "mech": "freeze",
-                        "mech_val": 1,
-                        "cond": {
-                            "type": "enemy_slowed",
+                            "element": "any",
+                            "stacks": 1,
                             "mult": 1.2,
-                            "label": "寒霜亲和"
+                            "label": "万象共鸣"
                         },
-                        "desc": "冰系 120% 全体，概率冻结，挂冰印。目标减速时伤害 +20%",
-                        "name": "冰环"
+                        "desc": "当前系 140% 单体，挂元素印记。目标已有印记时伤害 +20%（反应前奏）",
+                        "name": "元素冲击"
                     }
 ,
-                    "凝霜":                     {
+                    "万象亲和":                     {
                         "lv": 38,
                         "mp": 0,
                         "power": 0,
                         "kind": "被动",
                         "passive": {
-                            "proc": "enemy_slowed_dmg",
-                            "mult": 0.1
+                            "proc": "element_dmg",
+                            "mult": 0.08
                         },
-                        "desc": "触发被动：减速目标受到伤害 +10%（冰系增伤）",
-                        "name": "凝霜"
+                        "desc": "触发被动：施放元素技能时伤害 +8%（三系强化）",
+                        "name": "万象亲和"
                     }
 ,
-                    "冰锥连射":                     {
+                    "双系连珠":                     {
                         "lv": 45,
                         "mp": 0,
                         "power": 1.3,
                         "kind": "魔法",
                         "multi": 2,
-                        "element": "ice",
+                        "element": "current",
                         "cond": {
-                            "type": "player_hp_high",
-                            "hp_pct": 0.7,
-                            "mult": 1.15,
-                            "label": "冰心"
+                            "type": "element_marks",
+                            "element": "any",
+                            "stacks": 3,
+                            "mult": 1.25,
+                            "label": "连环引爆"
                         },
-                        "desc": "冰系 130%×2，挂 2 层冰印。自身 HP>70% 时伤害 +15%（满血施法稳定）",
-                        "name": "冰锥连射"
+                        "desc": "当前系 130%×2，挂 2 层印记。目标印记≥3 层时伤害 +25%（叠印引爆）",
+                        "name": "双系连珠"
                     }
 ,
-                    "冻结":                     {
+                    "元素引爆":                     {
                         "lv": 55,
+                        "mp": 0,
+                        "power": 2.4,
+                        "kind": "魔法",
+                        "element": "current",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "any",
+                            "stacks": 2,
+                            "mult": 1.3,
+                            "label": "元素共鸣"
+                        },
+                        "desc": "当前系 240%，引爆印记。目标印记≥2 层时伤害 +30%",
+                        "name": "元素引爆"
+                    }
+,
+                },
+                "奥术法师": {
+                    "奥术弹幕":                     {
+                        "lv": 32,
+                        "mp": 0,
+                        "power": 1.1,
+                        "kind": "魔法",
+                        "multi": 3,
+                        "mech": "arcane",
+                        "mech_val": 1,
+                        "cond": {
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 2,
+                            "mult": 1.15,
+                            "label": "蓄势待发"
+                        },
+                        "desc": "奥术 110%×3，奥术充能+1。充能≥2 层时伤害 +15%（蓄能强化）",
+                        "name": "奥术弹幕"
+                    }
+,
+                    "奥术直觉":                     {
+                        "lv": 38,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "arcane_regen",
+                            "mult": 1
+                        },
+                        "desc": "触发被动：每回合开始奥术充能 +1（自动蓄能）",
+                        "name": "奥术直觉"
+                    }
+,
+                    "奥术爆破":                     {
+                        "lv": 45,
                         "mp": 0,
                         "power": 1.5,
                         "kind": "魔法",
-                        "element": "ice",
-                        "mech": "freeze",
+                        "multi": 2,
+                        "mech": "arcane",
                         "mech_val": 2,
-                        "cd": 3,
                         "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.5,
-                            "mult": 1.3,
-                            "label": "绝对零度前奏"
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 4,
+                            "mult": 1.25,
+                            "label": "共鸣输出"
                         },
-                        "desc": "冰系 150% + 强效冻结，CD3。目标 HP<50% 时伤害 +30%（残血控制）",
-                        "name": "冻结"
+                        "desc": "奥术 150%×2，奥术充能+2。充能≥4 层时伤害 +25%（共鸣输出）",
+                        "name": "奥术爆破"
+                    }
+,
+                    "奥术洪流":                     {
+                        "lv": 55,
+                        "mp": 0,
+                        "power": 2.5,
+                        "kind": "魔法",
+                        "mech": "arcane_burst",
+                        "cond": {
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 5,
+                            "mult": 1.4,
+                            "label": "共鸣巅峰"
+                        },
+                        "desc": "奥术 250%，消耗全部充能每层 +15%。充能≥5 层时伤害 +40%（爆发窗口）",
+                        "name": "奥术洪流"
                     }
 ,
                 },
             },
             2: {
-                "烈焰术士": {
-                    "烈焰之心":                     {
+                "元素术士": {
+                    "元素之心":                     {
                         "lv": 60,
                         "mp": 0,
                         "power": 0,
                         "kind": "被动",
                         "passive": {
-                            "stat": "fire",
+                            "proc": "element_dmg",
                             "mult": 0.1
                         },
-                        "desc": "二转被动：火系技能伤害 +10%（火系强化）",
-                        "name": "烈焰之心"
+                        "desc": "二转被动：元素系技能伤害 +10%（元素强化）",
+                        "name": "元素之心"
                     }
 ,
-                    "流星火雨":                     {
+                    "元素跃迁":                     {
                         "lv": 62,
                         "mp": 0,
-                        "power": 1.6,
-                        "kind": "魔法",
-                        "element": "fire",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "fire",
-                            "stacks": 1,
-                            "mult": 1.5,
-                            "label": "流星坠落"
-                        },
-                        "desc": "火系 160% 全体。目标有火印时伤害 +50%（补刀）",
-                        "name": "流星火雨"
-                    }
-,
-                    "熔岩喷发":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 2.4,
-                        "kind": "魔法",
-                        "element": "fire",
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "element_shift",
                         "cd": 3,
-                        "desc": "火系 240% 全体爆发，CD3（群体引爆）",
-                        "name": "熔岩喷发"
+                        "desc": "切换当前元素系（火→冰→雷），下次元素技能伤害 +20%（切系适应）",
+                        "name": "元素跃迁"
                     }
 ,
-                },
-                "寒霜术士": {
-                    "寒霜之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "ice",
-                            "mult": 0.1
-                        },
-                        "desc": "二转被动：冰系技能伤害 +10%（冰系强化）",
-                        "name": "寒霜之心"
-                    }
-,
-                    "暴风雪":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 1.5,
-                        "kind": "魔法",
-                        "element": "ice",
-                        "cond": {
-                            "type": "enemy_slowed",
-                            "mult": 1.2,
-                            "label": "风雪交加"
-                        },
-                        "desc": "冰系 150% 全体 + 减速。目标已减速时伤害 +20%（减速增伤）",
-                        "name": "暴风雪"
-                    }
-,
-                    "极寒领域":                     {
+                    "元素壁垒":                     {
                         "lv": 68,
                         "mp": 0,
                         "power": 0,
                         "kind": "增益",
-                        "element": "ice",
-                        "effect": "matk_up_strong",
-                        "team": "matk_all",
-                        "cd": 4,
-                        "desc": "全队冰系魔攻强化，敌人减速 3 回合（领域技）",
-                        "name": "极寒领域"
+                        "effect": "def_up",
+                        "cd": 3,
+                        "desc": "防御强化（元素法师的护盾，不脆）",
+                        "name": "元素壁垒"
+                    }
+,
+                },
+                "奥术术士": {
+                    "奥术之心":                     {
+                        "lv": 60,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "arcane_dmg",
+                            "mult": 0.1
+                        },
+                        "desc": "二转被动：奥术技能伤害 +10%（奥术强化）",
+                        "name": "奥术之心"
+                    }
+,
+                    "法术反制":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0.6,
+                        "kind": "魔法",
+                        "mech": "arcane",
+                        "mech_val": 2,
+                        "cc": "silence",
+                        "cond": {
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 2,
+                            "mult": 1.2,
+                            "label": "反制强化"
+                        },
+                        "desc": "60% 反制，沉默敌人 + 奥术充能+2。充能≥2 层时伤害 +20%（控制向）",
+                        "name": "法术反制"
+                    }
+,
+                    "法力护盾":                     {
+                        "lv": 68,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "增益",
+                        "effect": "def_up",
+                        "cd": 3,
+                        "desc": "防御强化（法力护盾，奥术法师不脆）",
+                        "name": "法力护盾"
                     }
 ,
                 },
             },
             3: {
-                "余烬贤者": {
-                    "烈焰风暴":                     {
+                "元素贤者": {
+                    "万象风暴":                     {
                         "lv": 92,
                         "mp": 0,
                         "power": 1.8,
                         "kind": "魔法",
                         "multi": 3,
-                        "element": "fire",
-                        "desc": "火系 180%×3 全体（终极 AOE）",
-                        "name": "烈焰风暴"
+                        "element": "current",
+                        "cond": {
+                            "type": "element_marks",
+                            "element": "any",
+                            "stacks": 1,
+                            "mult": 1.3,
+                            "label": "万象连环"
+                        },
+                        "desc": "当前系 180%×3 全体。目标有印记时伤害 +30%（万象清场）",
+                        "name": "万象风暴"
                     }
 ,
-                    "太阳之怒":                     {
+                    "万象天雷":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 3.5,
+                        "power": 4.5,
                         "kind": "魔法",
-                        "element": "fire",
+                        "element": "thunder",
                         "team": "matk_all",
                         "cd": 5,
-                        "desc": "终极技，火系 350% 全体 + 全队魔攻强化（团队爆发）",
-                        "name": "太阳之怒"
+                        "desc": "终极技，雷系 450% 全体 + 全队魔攻强化（终极元素爆发）",
+                        "name": "万象天雷"
                     }
 ,
-                    "烈焰裁决":                     {
+                    "元素裁决":                     {
                         "lv": 90,
                         "mp": 0,
                         "power": 4.0,
                         "kind": "魔法",
-                        "element": "fire",
-                        "team": "matk_all",
+                        "element": "current",
                         "cd": 6,
-                        "desc": "三转奥义，火系 400% 全体核弹（清场）",
-                        "name": "烈焰裁决"
+                        "desc": "三转奥义，当前系 400% 全体核弹（清场）",
+                        "name": "元素裁决"
                     }
 ,
                 },
-                "永冬贤者": {
-                    "寒冰风暴":                     {
+                "奥秘贤者": {
+                    "大奥术":                     {
                         "lv": 92,
-                        "mp": 0,
-                        "power": 1.7,
-                        "kind": "魔法",
-                        "multi": 3,
-                        "element": "ice",
-                        "desc": "冰系 170%×3 全体（终极 AOE）",
-                        "name": "寒冰风暴"
-                    }
-,
-                    "绝对零度":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 3.0,
-                        "kind": "魔法",
-                        "element": "ice",
-                        "mech": "freeze",
-                        "mech_val": 3,
-                        "cd": 5,
-                        "desc": "终极技，冰系 300% + 必定冻结（终极控制）",
-                        "name": "绝对零度"
-                    }
-,
-                    "绝对冰封":                     {
-                        "lv": 90,
                         "mp": 0,
                         "power": 2.0,
                         "kind": "魔法",
-                        "element": "ice",
-                        "mech": "freeze",
-                        "mech_val": 3,
+                        "multi": 2,
+                        "mech": "arcane",
+                        "mech_val": 2,
+                        "cond": {
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 6,
+                            "mult": 1.3,
+                            "label": "大奥术回响"
+                        },
+                        "desc": "奥术 200%×2 全体，奥术充能+2。充能≥6 层时伤害 +30%（群体共鸣）",
+                        "name": "大奥术"
+                    }
+,
+                    "奥术主宰":                     {
+                        "lv": 98,
+                        "mp": 0,
+                        "power": 4.5,
+                        "kind": "魔法",
+                        "cond": {
+                            "type": "player_mech_stacks",
+                            "mech": "arcane",
+                            "stacks": 5,
+                            "mult": 1.5,
+                            "label": "奥术主宰"
+                        },
+                        "cd": 5,
+                        "desc": "终极技，奥术 450% 单体。充能≥5 层时伤害 +50%（终极奥术爆发）",
+                        "name": "奥术主宰"
+                    }
+,
+                    "奥术领域":                     {
+                        "lv": 90,
+                        "mp": 0,
+                        "power": 4.0,
+                        "kind": "魔法",
+                        "team": "shield_all",
                         "cd": 6,
-                        "desc": "三转奥义，全体冻结 2 回合（终极控制）",
-                        "name": "绝对冰封"
+                        "desc": "三转奥义，奥术 400% 全体 + 全队护盾（终极领域）",
+                        "name": "奥术领域"
                     }
 ,
                 },
