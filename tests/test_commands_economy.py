@@ -95,6 +95,14 @@ async def main():
     out = await cmd(m, "buy", "g1", "e1", "购买 治疗药水")
     check("购买 治疗药水 有返回", len(out) > 5, out[:120])
 
+    print("【商店：老马坐骑（新世界 oak 区域限定）】")
+    db.update_player("g1", "e1", gold=1000, cur_map="oak_town")
+    out = await cmd(m, "buy", "g1", "e1", "购买 老马")
+    check("橡木镇可买老马", "买了一匹老马" in out, out[:150])
+    db.update_player("g1", "e1", cur_map="white_deer")
+    out = await cmd(m, "buy", "g1", "e1", "购买 老马")
+    check("非橡木镇拦截买老马", "橡木镇的商人" in out, out[:150])
+
     print("【市场：上架/下架】")
     out = await cmd(m, "market", "g1", "e1", "上架 1 100")
     check("上架有返回", len(out) > 5, out[:120])

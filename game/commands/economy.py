@@ -2527,9 +2527,9 @@ class EconomyCmds(CommandBase):
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
                 return
-        # v39 坐骑：维拉镇马厩买老马
+        # v39 坐骑：橡木镇马厩买老马（新世界 oak 区域，旧 vila 判断已随旧世界废弃）
         if "老马" in item_name or "马" == item_name.strip():
-            if area_id not in ("vila",) and cur not in ("vila_street", "vila_gate", "vila_square"):
+            if area_id != "oak" or cur != "oak_town":
                 yield event.plain_result("橡木镇的商人才能买到老马！去橡木镇『商店』看看～")
                 return
             mdef = C.MOUNT_BY_KEY["mount_horse"]
