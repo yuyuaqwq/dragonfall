@@ -15,7 +15,7 @@ def check(name, cond, detail=""):
         failed += 1
         print(f"  ❌ {name} {detail}")
 
-def mk(cls='武僧', lv=10, mp=500):
+def mk(cls='拳师', lv=10, mp=500):
     return {'class_name': cls, 'level': lv, 'hp': 300, 'max_hp': 300, 'mp': mp, 'max_mp': mp,
             'atk': 30, 'def': 10, 'matk': 5, 'mdef': 5, 'spd': 10, 'crit': 0.0, 'dodge': 0.0,
             'equipment': {}, 'learned_skills': [], 'skill_levels': {}}

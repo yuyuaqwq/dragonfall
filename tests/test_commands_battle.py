@@ -124,7 +124,7 @@ async def main():
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
     for cls, base_lv30 in [("法师", "元素风暴"), ("战士", "无畏冲击"), ("游侠", "狩猎终章"),
-                            ("牧师", "神恩降临"), ("刺客", "暗影处刑"), ("武僧", "破晓之拳")]:
+                            ("牧师", "神恩降临"), ("刺客", "暗影处刑"), ("拳师", "破晓之拳")]:
         cid = C.resolve("classes", cls)
         base_power = C.PLAYER_SKILLS[cid]["skills"][C.resolve("skills", base_lv30)]["power"]
         t3 = C.BRANCH_SKILLS[cid]["branches"][3]

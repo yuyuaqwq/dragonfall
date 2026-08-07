@@ -805,7 +805,7 @@ PLAYER_SKILLS = {
         },
     },
     "cls_wu_seng": {
-        "name": "武僧",
+        "name": "拳师",
         "skills": {
     "sk_zhi_quan": {
                 "lv": 1,

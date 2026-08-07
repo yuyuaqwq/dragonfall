@@ -231,6 +231,6 @@ CLASSES = {
             "spd": 1.4
         },
         "weapon_type": "fist",
-        "name": "武僧"
+        "name": "拳师"
     }
 }

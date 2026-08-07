@@ -138,7 +138,7 @@ async def main():
         db.clear_battle("g1", q)
 
     print("【副本：团队技能广播（v50）】")
-    # 三人队：战士(队长) 牧师 武僧，30 级学会团队技能
+    # 三人队：战士(队长) 牧师 拳师，30 级学会团队技能
     # 上一用例残留队伍 → 先全员退队
     await cmd(m, "party_leave", "g1", "i1", "退队")
     await cmd(m, "party_leave", "g1", "i2", "退队")

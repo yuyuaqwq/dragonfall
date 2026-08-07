@@ -824,7 +824,7 @@ CLASS_SET_THEMES = {
             "effect": "lifesteal_set",
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
-        "name": "武僧"
+        "name": "拳师"
     }
 }
 

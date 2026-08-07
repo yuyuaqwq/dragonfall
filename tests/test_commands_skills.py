@@ -119,7 +119,7 @@ async def main():
     check("条件倍率默认随等级成长", abs(E.skill_cond_mult({"mult": 1.4}, 5) - 1.6) < 1e-9, str(E.skill_cond_mult({"mult": 1.4}, 5)))
     # 2) 每技能单独策划（SKILL_UP 差异化）：按名字取 info
     def _info(sname):
-        return E.skill_info("战士", sname) or E.skill_info("法师", sname) or E.skill_info("武僧", sname) or E.skill_info("牧师", sname) or E.skill_info("刺客", sname) or E.skill_info("游侠", sname)
+        return E.skill_info("战士", sname) or E.skill_info("法师", sname) or E.skill_info("拳师", sname) or E.skill_info("牧师", sname) or E.skill_info("刺客", sname) or E.skill_info("游侠", sname)
     mj = _info("挥砍")
     check("挥砍伤害 Lv.5=148%(p12)", abs(E.skill_power_mult(5, mj) - 1.48) < 1e-9, str(E.skill_power_mult(5, mj)))
     zy = _info("治愈术")

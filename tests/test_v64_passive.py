@@ -37,7 +37,7 @@ def check(name, cond, detail=""):
 def test_defs():
     print("\n== 1. 被动技能定义 ==")
     for cls, cname in [("cls_zhan_shi", "战士"), ("cls_fa_shi", "法师"), ("cls_you_xia", "游侠"),
-                       ("cls_mu_shi", "牧师"), ("cls_ci_ke", "刺客"), ("cls_wu_seng", "武僧")]:
+                       ("cls_mu_shi", "牧师"), ("cls_ci_ke", "刺客"), ("cls_wu_seng", "拳师")]:
         tbl = C.PLAYER_SKILLS[cls]["skills"]
         passives = [v for v in tbl.values() if v.get("kind") == "被动"]
         check(f"{cname} 被动数量=4", len(passives) == 4, f"实际 {len(passives)}")
@@ -110,7 +110,7 @@ def test_dmg_reduce():
 # ---------- 6. 气息调和每回合回血 ----------
 def test_turn_heal():
     print("\n== 6. 气息调和每回合回血 ==")
-    pl = make_player(cls="武僧", level=40)
+    pl = make_player(cls="拳师", level=40)
     pl["class_name"] = "cls_wu_seng"
     pl["learned_skills"] = ["气息调和"]
     pl["hp"] = 200
@@ -164,7 +164,7 @@ def test_data_integrity():
     # 阶段六：新世界每职业 10 主动 + 4 被动 = 14
     for cls, cname, expect in [("cls_zhan_shi", "战士", 14), ("cls_fa_shi", "法师", 14),
                                ("cls_you_xia", "游侠", 14), ("cls_mu_shi", "牧师", 14),
-                               ("cls_ci_ke", "刺客", 14), ("cls_wu_seng", "武僧", 14)]:
+                               ("cls_ci_ke", "刺客", 14), ("cls_wu_seng", "拳师", 14)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
         check(f"{cname} 技能总数 {n} (10基础+4被动)", n == expect, f"实际 {n}")
 

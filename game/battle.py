@@ -1203,7 +1203,7 @@ class Battle:
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
         if info.get("pierce") and self.enemy.get("hp", 0) > 0:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
-        # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/武僧气，res_gain 覆盖默认）
+        # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         self._resource_on_skill(player, info)
         # ---- v10 套装攻击特效 ----
         if total > 0:
