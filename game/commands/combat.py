@@ -5,6 +5,7 @@
 """
 import functools
 import inspect
+import json
 import random
 import re
 import time
@@ -48,8 +49,15 @@ class CombatCmds(CommandBase):
             yield event.plain_result("在家里安心休息吧，没有怪物会闯进来～（『出门』去冒险）")
             return
         cur_map = C.MAP_BY_ID[cur]
-        # 城镇区域（安全区）：明确提示无怪
+        # 城镇区域（安全区）：可触发 POI，无怪
         if cur_map.get("type") == "城镇区域":
+            cur_sa_id_poi = player.get("cur_subarea") or ""
+            poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
+            if poi_hit:
+                poi_id, poi = poi_hit
+                poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
+                yield event.plain_result(poi_text)
+                return
             yield event.plain_result(
                 f"🏘️ 你在{cur_map['name']}里闲逛，这里是安全的城镇。\n"
                 f"👥 输入『找 <NPC名>』与这里的 NPC 交谈，『商店』购买补给。\n"
@@ -68,13 +76,8 @@ class CombatCmds(CommandBase):
                 f"💡 『找 {wnpc['name']}』与他交谈——他今天在这里，错过就要等下次了！"
             )
             return
-        # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
-        if random.random() < 0.35:
-            handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)
-            if handled:
-                yield event.plain_result(ev_text)
-                return
-        # v87 02 章 7.6：POI 探索点独立判定（15%，不占事件/遇怪权重）
+        # v87 02 章 7.6：POI 探索点独立判定（15%）
+        # v87.9 修复：放在随机事件之前——事件命中直接 return 会吞掉 POI 判定，导致挂载了却探索不到
         cur_sa_id_poi = player.get("cur_subarea") or ""
         poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
         if poi_hit:
@@ -82,6 +85,12 @@ class CombatCmds(CommandBase):
             poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
             yield event.plain_result(poi_text)
             return
+        # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
+        if random.random() < 0.35:
+            handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)
+            if handled:
+                yield event.plain_result(ev_text)
+                return
         # 探索事件池（v86 子区域：用当前子区域的怪物，无则回退地图级）
         cur_sa = None
         cur_sa_id = player.get("cur_subarea") or ""
@@ -581,7 +590,7 @@ class CombatCmds(CommandBase):
         if eff == "buff":
             buffs = [("攻击", "atk"), ("防御", "def"), ("速度", "spd")]
             bname, bkey = random.choice(buffs)
-            db.set_event_state(f"poi_buff_{group_id}_{qq_id}", _json.dumps({"stat": bkey, "mult": 1.10, "left": 5}))
+            db.set_event_state(f"poi_buff_{group_id}_{qq_id}", json.dumps({"stat": bkey, "mult": 1.10, "left": 5}))
             return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
                     f"✨ 获得祝福：{bname} +10%（持续 5 次战斗）！")
         # 草药丛：1-2 份炼金材料
@@ -623,7 +632,7 @@ class CombatCmds(CommandBase):
                     f"📖 {txt}")
         # 鱼群聚集：免费垂钓次数
         if eff == "fish":
-            db.set_event_state(f"poi_fish_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
+            db.set_event_state(f"poi_fish_{group_id}_{qq_id}", json.dumps({"ts": time.time()}))
             return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
                     f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数（30 分钟内有效）！")
         # 神秘字条：隐藏线索

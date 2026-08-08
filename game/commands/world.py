@@ -1437,20 +1437,29 @@ class WorldCmds(CommandBase):
                 pp = C.PROPS.get(pid, {})
                 if pp:
                     lines.append(f"{i}. {pp['icon']}{pp['name']}：{pp.get('desc', '')}")
-            lines.append("💡 输入『交互 <名称>』互动")
+            lines.append("💡 输入『交互 <名称>』或『交互 <序号>』互动")
             yield event.plain_result("\n".join(lines))
             return
-        # 找 prop：名称子串 / id 匹配
-        found = None
-        for pid in prop_ids:
-            pp = C.PROPS.get(pid, {})
-            if pp and (name_key in pp.get("name", "") or name_key in pid):
-                found = (pid, pp)
-                break
-        if not found:
-            names = "、".join(C.PROPS[pid]["name"] for pid in prop_ids if pid in C.PROPS) or "没有"
-            yield event.plain_result(f"这里没有『{name_key}』可以交互～（这里有：{names}）")
-            return
+        # 序号交互：『交互 1』→ 当前子区域第 1 个元素
+        if name_key.isdigit():
+            idx = int(name_key)
+            if idx < 1 or idx > len(prop_ids):
+                yield event.plain_result(f"这里没有第 {idx} 个场景元素（共 {len(prop_ids)} 个）！『交互』查看列表～")
+                return
+            pid = prop_ids[idx - 1]
+            found = (pid, C.PROPS.get(pid, {}))
+        else:
+            # 找 prop：名称子串 / id 匹配
+            found = None
+            for pid in prop_ids:
+                pp = C.PROPS.get(pid, {})
+                if pp and (name_key in pp.get("name", "") or name_key in pid):
+                    found = (pid, pp)
+                    break
+            if not found:
+                names = "、".join(C.PROPS[pid]["name"] for pid in prop_ids if pid in C.PROPS) or "没有"
+                yield event.plain_result(f"这里没有『{name_key}』可以交互～（这里有：{names}）")
+                return
         pid, pp = found
         texts = pp.get("texts") or []
         text = random.choice(texts) if texts else pp.get("desc", "……")

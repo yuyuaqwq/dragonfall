@@ -31,7 +31,7 @@ def main():
     check("HIDDEN_MONSTERS 6 种", len(C.HIDDEN_MONSTERS) == 6,
           f"实际 {len(C.HIDDEN_MONSTERS)}")
     check("POIS 10 种（含 v87.9 风景）", len(C.POIS) == 10, f"实际 {len(C.POIS)}")
-    check("PROPS 30 种", len(C.PROPS) == 30, f"实际 {len(C.PROPS)}")
+    check("PROPS 55 种", len(C.PROPS) == 55, f"实际 {len(C.PROPS)}")
     check("SUBAREA_POIS 挂载数 ≥25", len(C.SUBAREA_POIS) >= 25,
           f"实际 {len(C.SUBAREA_POIS)}")
     # 子区域 ID 全有效

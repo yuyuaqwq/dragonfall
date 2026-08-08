@@ -291,88 +291,317 @@ PROPS = {
         ],
         "effect": None,
     },
+
+    # ======================
+    # v87.10 场所专属元素（阶段一：核心城镇）
+    # ======================
+    "forge_table": {
+        "name": "锻造台", "icon": "⚒️",
+        "desc": "一张厚实的橡木工作台，台面上摆满了锤子、钳子和淬火槽，木面被敲得坑坑洼洼。",
+        "texts": [
+            "你拿起台上的铁钳掂了掂——沉甸甸的，铁匠的伙伴果然跟冒险者的剑一样值得信赖。",
+            "锻造台的一角刻着一行小字：『每一件好兵器，都是被耐心喂大的。』",
+        ],
+        "effect": None,
+    },
+    "anvil": {
+        "name": "铁砧", "icon": "🔨",
+        "desc": "一座结实的铁砧，砧面磨得发亮，映着炉火的光。",
+        "texts": [
+            "你伸手敲了敲铁砧，『叮——』一声清脆的金属鸣响在铺子里回荡。",
+            "铁砧边角有一道深痕，不知道是哪个性急的铁匠敲出来的。",
+        ],
+        "effect": None,
+    },
+    "bellows": {
+        "name": "风箱", "icon": "🌬️",
+        "desc": "一只老式的皮制风箱，拉着它能把炉火烧得呼呼作响。",
+        "texts": [
+            "你拉了两下风箱，炉膛里的火苗腾地蹿高，映得整间铺子一片橘红。",
+            "风箱的皮面缝了又缝，补丁摞补丁——看得出它被用了很多年。",
+        ],
+        "effect": None,
+    },
+    "bar_counter": {
+        "name": "吧台", "icon": "🍺",
+        "desc": "一条擦得锃亮的木质吧台，台面上放着几只倒扣的酒杯。",
+        "texts": [
+            "你倚着吧台坐了一会儿，听酒保跟常客闲扯今天镇上的新鲜事。",
+            "吧台台面上有一道浅浅的划痕，不知道是哪个醉汉的杰作。",
+        ],
+        "effect": None,
+    },
+    "ale_barrel": {
+        "name": "酒桶", "icon": "🛢️",
+        "desc": "几只码得整整齐齐的橡木酒桶，桶上标着年份和酒名。",
+        "texts": [
+            "你拍了拍酒桶，里面传来沉甸甸的回响——装得满满当当。",
+            "酒桶上贴着标签：『橡木镇特酿·三年陈』，闻着就有一股麦香。",
+        ],
+        "effect": None,
+    },
+    "fireplace": {
+        "name": "壁炉", "icon": "🔥",
+        "desc": "一座石砌壁炉，炉火正旺，木柴噼啪作响，暖意融融。",
+        "texts": [
+            "你凑到壁炉边烤了烤手，暖意顺着指尖爬满全身。这一刻，旅途的疲惫都被融化了。",
+            "壁炉上方的架子上摆着几件小摆件，都是旅人留下的纪念品。",
+        ],
+        "effect": None,
+    },
+    "medicine_cabinet": {
+        "name": "药柜", "icon": "💊",
+        "desc": "一面贴墙的木药柜，一格一格的小抽屉上都贴着药材名。",
+        "texts": [
+            "你拉开一格抽屉，里面是晒干的草药，药香扑鼻。你赶紧合上——偷看药柜可不礼貌。",
+            "药柜最上层摆着一只白瓷瓶，标签写着『内服』，笔迹端端正正。",
+        ],
+        "effect": None,
+    },
+    "mortar_pestle": {
+        "name": "捣药臼", "icon": "🌿",
+        "desc": "一只石臼配着铜杵，臼壁上还沾着没洗净的绿色药渣。",
+        "texts": [
+            "你拿起铜杵轻轻捣了两下，一股草药味在空气中散开。",
+            "臼里的药渣还微微湿润，看来主人不久前才用过它。",
+        ],
+        "effect": None,
+    },
+    "candle_stand": {
+        "name": "烛台", "icon": "🕯️",
+        "desc": "几盏银烛台排成一列，烛火轻轻摇曳，在墙上投下柔和的光影。",
+        "texts": [
+            "你凑近一盏烛台，火苗在你眼底跳动。这一刻，连呼吸都安静了下来。",
+            "烛油沿着烛台缓缓滑落，凝成细长的泪痕——它们已经燃了很久。",
+        ],
+        "effect": None,
+    },
+    "holy_icon": {
+        "name": "圣像", "icon": "⛪",
+        "desc": "一尊低眉垂目的圣像，双手合拢，衣袍的褶皱被刻得细腻柔和。",
+        "texts": [
+            "你站在圣像前，不知为何，心里那些毛躁的念头悄悄平复了下来。",
+            "圣像的基座上刻着一行小字：『愿光指引迷途者。』",
+        ],
+        "effect": None,
+    },
+    "throne": {
+        "name": "王座", "icon": "👑",
+        "desc": "一把高背雕花的座椅，扶手镶着金线，坐垫是深红的绒布。",
+        "texts": [
+            "你当然不敢坐上去——但光是站在它面前，就能感觉到那种沉甸甸的分量。",
+            "王座扶手上有一道细微的磨痕，是无数只紧张的手留下的。",
+        ],
+        "effect": None,
+    },
+    "tapestry": {
+        "name": "挂毯", "icon": "🧶",
+        "desc": "一幅巨大的织锦挂毯，描绘着古老的战役，金线在火光下微微发亮。",
+        "texts": [
+            "你仰头细看挂毯——织着一位骑士持剑而立，身后是燃烧的城池。故事感扑面而来。",
+            "挂毯边缘的线头有些松散，但这件作品依然透着岁月的华贵。",
+        ],
+        "effect": None,
+    },
+    "armor_stand": {
+        "name": "甲胄架", "icon": "🛡️",
+        "desc": "一具立在墙边的全身甲，头盔的面甲合拢着，甲面上留着碰撞的凹痕。",
+        "texts": [
+            "你伸手敲了敲甲胄，金属发出一声闷响——是货真价实的铁甲，不是摆样子。",
+            "甲胄的胸甲上刻着一枚徽记，可惜磨损得看不清了。它一定见过真正的战场。",
+        ],
+        "effect": None,
+    },
+    "quest_board": {
+        "name": "任务板", "icon": "📜",
+        "desc": "行会墙上钉着一块大木板，上面贴满了委托单，从『帮我找猫』到『讨伐山贼』什么都有。",
+        "texts": [
+            "你扫了一眼任务板——大部分委托对你来说太简单了，但最底下一张『深入烬山』的悬赏让你多看了两眼。",
+            "任务板的一角贴着一张快褪色的委托：『寻找失踪的商队——赏金面议』。",
+        ],
+        "effect": None,
+    },
+    "trophy_rack": {
+        "name": "奖杯架", "icon": "🏆",
+        "desc": "一座展示柜，摆着各种战利品：褪色的龙牙、半面魔物头骨、发黑的金币。",
+        "texts": [
+            "你凑近看了看奖杯架——每一件战利品背后，都有一段拿命换来的故事。",
+            "展示柜最高处放着一只残缺的号角，标签写着：『第一次讨伐纪念』。",
+        ],
+        "effect": None,
+    },
+    "deer_head": {
+        "name": "鹿头装饰", "icon": "🦌",
+        "desc": "墙上挂着一只雄鹿的头骨，鹿角又大又漂亮，显然是猎人的得意战利品。",
+        "texts": [
+            "你抬头看那只鹿头——鹿角的分叉数得出来，主人一定对那次狩猎津津乐道。",
+            "鹿头的角上系着一根褪色的红绳，像是某种古老的祝福。",
+        ],
+        "effect": None,
+    },
+    "hunting_bow": {
+        "name": "猎弓", "icon": "🏹",
+        "desc": "一张保养得极好的木弓，弓弦绷得很紧，旁边挂着箭袋。",
+        "texts": [
+            "你试着拉了拉弓弦——纹丝不动。这弓的力道，没有几年臂力根本拉不开。",
+            "弓身上刻着一道小小的刻痕，数了数，大概代表着打到的猎物数。",
+        ],
+        "effect": None,
+    },
+    "animal_hide": {
+        "name": "兽皮", "icon": "🐻",
+        "desc": "一张铺在地上的兽皮，毛色油亮，边角被磨得起了毛边。",
+        "texts": [
+            "你踩上去试了试——又软又暖，确实比睡草堆舒服多了。",
+            "兽皮的腹部有一道旧伤疤，那是它生前留下的最后一道痕迹。",
+        ],
+        "effect": None,
+    },
+    "weapon_rack": {
+        "name": "武器架", "icon": "🗡️",
+        "desc": "一排插着各式兵器的木架：长剑、战斧、长矛，擦得干干净净。",
+        "texts": [
+            "你拔出一把长剑看了看刃口——虽然算不上神兵，但保养得一丝不苟。",
+            "武器架的底层放着一把训练用木剑，剑身被磕得坑坑洼洼，看得出用得很勤。",
+        ],
+        "effect": None,
+    },
+    "cauldron": {
+        "name": "坩埚", "icon": "🧪",
+        "desc": "一只架在炉火上的铜坩埚，里面的液体咕嘟咕嘟冒着泡，散发出奇特的气味。",
+        "texts": [
+            "你探头看了一眼坩埚——紫色的液体翻滚着，冒出的泡泡炸开时发出轻微的嘶声。还是别碰为好。",
+            "坩埚边的台子上摆着一排小瓶，装着各种颜色的粉末，标签都朝里，看不清字。",
+        ],
+        "effect": None,
+    },
+    "fishing_net": {
+        "name": "渔网", "icon": "🎣",
+        "desc": "一张挂在杆上晾晒的渔网，网眼细密，水珠在阳光下闪闪发亮。",
+        "texts": [
+            "你摸了摸渔网——网线结实而湿润，还带着海水的咸味。",
+            "渔网上卡着一片银色的鳞片，在光下闪着光。",
+        ],
+        "effect": None,
+    },
+    "fish_drying_rack": {
+        "name": "晒鱼架", "icon": "🐟",
+        "desc": "一排木架上晾着剖开的鱼，鱼身抹着盐，海风一吹微微晃动。",
+        "texts": [
+            "咸鱼的味道扑面而来——虽然有点冲，但你知道，这是海边人家过冬的底气。",
+            "晒鱼架上的鱼大小不一，看来今天渔获不错。",
+        ],
+        "effect": None,
+    },
+    "oar": {
+        "name": "船桨", "icon": "🛶",
+        "desc": "几支靠在墙边的木船桨，桨面被水磨得光滑，泛着温润的光泽。",
+        "texts": [
+            "你拿起一支船桨掂了掂——很趁手。也许有一天你会划着它出海。",
+            "船桨上刻着一个歪歪扭扭的名字，大概是某个小水手的杰作。",
+        ],
+        "effect": None,
+    },
+    "miner_lamp": {
+        "name": "矿灯", "icon": "💡",
+        "desc": "一盏铁皮矿灯，灯罩被熏得发黑，但火苗依然亮得稳稳当当。",
+        "texts": [
+            "你提起矿灯晃了晃——火苗纹丝不动，是好灯。矿工们就靠它在黑暗里挣饭吃。",
+            "矿灯的把手上缠着粗糙的布条，是常年握持留下的痕迹。",
+        ],
+        "effect": None,
+    },
+    "goods_shelf": {
+        "name": "货架", "icon": "📦",
+        "desc": "一排齐墙的货架，摆着布匹、香料、铁器和各种杂货，码得整整齐齐。",
+        "texts": [
+            "你顺着货架看过去——从针头线脑到上好的精铁锭，一应俱全。商行的底气都在这排架子上。",
+            "货架最上层放着一只落灰的木箱，标签写着『特殊订货，勿动』。",
+        ],
+        "effect": None,
+    },
 }
 
 # 子区域 → PROPS 分配（key = "地图id:子区域id"，value = prop id 列表）
 # 挂载克制：城镇广场 2-3 个、野外要点 1-2 个；不撒太密
 SUBAREA_PROPS = {
-    # ==== 绿野·橡木镇 ====
-    "oak_town:oak_town_1": ["fountain", "notice_board", "benches"],   # 冒险者广场
-    "oak_town:oak_town_2": ["statue"],                                 # 镇长办公处前
-    "oak_town:oak_town_4": ["market_stall", "camp_flag"],             # 集市
-    # ==== 枫橡村 ====
-    "maple_village:maple_village_1": ["old_tree", "flower_bed"],       # 村口
-    # ==== 白鹿城 ====
-    "white_deer:white_deer_1": ["fountain", "statue", "clock_tower"],  # 白鹿广场
-    "white_deer:white_deer_3": ["market_stall"],                       # 鹿角铁匠铺一带
-    # ==== 铁港城 ====
-    "ironharbor:ironharbor_1": ["anchor", "lighthouse", "fishing_boats"],  # 港口广场
-    "ironharbor:ironharbor_5": ["fishing_boats"],                      # 东码头
-    # ==== 晨曦城 ====
-    "dawn_city:dawn_city_1": ["fountain", "statue", "clock_tower"],    # 王都广场
-    "dawn_city:dawn_city_3": ["flower_bed"],                           # 圣光大教堂
-    # ==== 铁盾镇 ====
-    "ironshield_town:ironshield_town_1": ["windmill", "market_stall"], # 铁盾广场
-    # ==== 月门城 ====
-    "moon_gate:moon_gate_1": ["fountain", "clock_tower"],              # 月门广场
-    # ==== 星歌镇 ====
-    "star_song:star_song_1": ["market_stall", "benches"],              # 星歌广场
-    # ==== 月庭（精灵）====
-    "moon_court:moon_court_1": ["moon_pool", "elf_carving"],           # 王庭广场
-    # ==== 翡翠港 ====
-    "jade_port:jade_port_1": ["anchor", "fishing_boats"],              # 翡翠码头
-    # ==== 贝壳镇 ====
-    "shell_town:shell_town_1": ["fishing_boats", "anchor"],            # 贝壳沙滩
-    # ==== 无名港 ====
-    "nameless_harbor:nameless_harbor_1": ["lighthouse", "anchor"],     # 无名港
-    # ==== 珍珠城 ====
-    "pearl_city:pearl_city_1": ["fishing_boats", "lighthouse"],        # 珍珠广场
-    # ==== 寒角堡 ====
-    "frost_horn:frost_horn_1": ["ice_sculpture", "campfire_remains"],  # 寒角堡广场
-    # ==== 极光镇 ====
-    "aurora_town:aurora_town_1": ["aurora_gazing", "benches"],         # 极光广场
-    # ==== 铁砧堡（矮人）====
-    "anvil_fort:anvil_fort_1": ["rune_pillar", "minecart"],            # 铁砧大厅
-    # ==== 深隧 ====
-    "deep_tunnel:deep_tunnel_1": ["rune_pillar", "minecart"],          # 深隧入口
-    "deep_tunnel:deep_tunnel_2": ["deep_well"],                        # 中段
-    # ==== 地下集市 ====
-    "under_market:under_market_1": ["market_stall", "rune_pillar"],    # 集市入口
-    # ==== 灰烬营地 ====
-    "ember_camp:ember_camp_1": ["campfire_remains", "camp_flag"],      # 营地口
-    # ==== 风之城 ====
-    "wind_city:wind_city_1": ["highland_rock"],                        # 风之城广场
-    # ==== 银溪村 ====
-    "silver_brook:silver_brook_1": ["fountain", "old_tree"],           # 银溪广场
-    # ==== 龙脊隘口 ====
-    "dragon_pass:dragon_pass_1": ["boundary_stone", "highland_rock"],  # 隘口
-    # ==== 野外 ====
-    "oak_meadow:oak_meadow_1": ["boundary_stone", "wild_flowers"],     # 橡木草地
-    "oak_forest:oak_forest_2": ["old_tree", "campfire_remains"],       # 橡木林
-    "emerald_forest:emerald_forest_2": ["old_tree", "wild_flowers"],   # 翡翠森林
-    "misty_swamp:misty_swamp_1": ["ruined_wagon"],                     # 迷雾沼泽
-    "gold_plain:gold_plain_1": ["wild_flowers", "boundary_stone"],     # 金穗平原
-    "silver_river:silver_river_1": ["mountain_spring", "birch_grove"], # 银溪河
-    "old_battlefield:old_battlefield_1": ["stone_altar_ruin", "ruined_wagon"],  # 古战场
-    "ancient_tree:ancient_tree_1": ["old_tree"],                       # 古树
-    "frost_field:frost_field_1": ["ice_sculpture", "boundary_stone"],  # 霜原
-    "cinder_mountain:cinder_mountain_2": ["stone_altar_ruin"],         # 烬山
-    "black_forest:black_forest_2": ["old_tree", "campfire_remains"],   # 黑森林
-    "dragon_ridge:dragon_ridge_1": ["highland_rock", "boundary_stone"],  # 龙脊
-    "coral_reef:coral_reef_1": ["fishing_boats"],                      # 珊瑚礁
-    "storm_sea:storm_sea_1": ["anchor"],                               # 风暴海
-    "molten_abyss:molten_abyss_1": ["deep_well"],                      # 熔火深渊
-    # ==== v87.7 城镇间新图 ====
-    "silver_wind_road:silver_wind_road_1": ["boundary_stone", "wild_flowers"],  # 银风道口
-    "silver_wind_road:silver_wind_road_2": ["campfire_remains", "old_tree"],    # 银风驿站
-    "west_ridge_wilds:west_ridge_wilds_1": ["wild_flowers", "boundary_stone"],  # 西岭口
-    "west_ridge_wilds:west_ridge_wilds_2": ["stone_altar_ruin"],               # 荒原深处
-    "dusk_ridge_road:dusk_ridge_road_1": ["highland_rock"],                    # 暮岭
-    "mist_tide_passage:mist_tide_passage_1": ["lighthouse"],                   # 雾潮
-    "black_tide_strait:black_tide_strait_1": ["anchor"],                       # 黑潮
-    "dwarf_long_gallery:dwarf_long_gallery_1": ["rune_pillar", "minecart"],    # 矮人长廊
-    "cold_spine_snow_trail:cold_spine_snow_trail_1": ["ice_sculpture"],        # 寒脊雪道
-    "dragon_ridge_old_road:dragon_ridge_old_road_1": ["boundary_stone", "stone_altar_ruin"],  # 龙脊古道
-    "dragonborn_valley_trail:dragonborn_valley_trail_1": ["highland_rock"],    # 龙裔谷道
-    "sky_ladder_path:sky_ladder_path_1": ["highland_rock", "mountain_spring"], # 天梯云径
+    "oak_town:oak_town_1": ['fountain', 'notice_board', 'benches'],
+    "oak_town:oak_town_2": ['statue', 'tapestry', 'candle_stand'],
+    "oak_town:oak_town_4": ['bar_counter', 'ale_barrel', 'fireplace'],
+    "maple_village:maple_village_1": ['old_tree', 'flower_bed'],
+    "white_deer:white_deer_1": ['fountain', 'statue', 'clock_tower'],
+    "white_deer:white_deer_3": ['forge_table', 'anvil', 'bellows'],
+    "ironharbor:ironharbor_1": ['anchor', 'lighthouse', 'fishing_boats'],
+    "ironharbor:ironharbor_5": ['fishing_boats', 'bar_counter', 'ale_barrel', 'fireplace'],
+    "dawn_city:dawn_city_1": ['fountain', 'statue', 'clock_tower'],
+    "dawn_city:dawn_city_3": ['flower_bed', 'candle_stand', 'holy_icon'],
+    "ironshield_town:ironshield_town_1": ['windmill', 'market_stall'],
+    "moon_gate:moon_gate_1": ['fountain', 'clock_tower'],
+    "star_song:star_song_1": ['market_stall', 'benches'],
+    "moon_court:moon_court_1": ['moon_pool', 'elf_carving'],
+    "jade_port:jade_port_1": ['anchor', 'fishing_boats'],
+    "shell_town:shell_town_1": ['fishing_boats', 'anchor'],
+    "nameless_harbor:nameless_harbor_1": ['lighthouse', 'anchor'],
+    "pearl_city:pearl_city_1": ['fishing_boats', 'lighthouse'],
+    "frost_horn:frost_horn_1": ['ice_sculpture', 'campfire_remains'],
+    "aurora_town:aurora_town_1": ['aurora_gazing', 'benches'],
+    "anvil_fort:anvil_fort_1": ['rune_pillar', 'minecart'],
+    "deep_tunnel:deep_tunnel_1": ['rune_pillar', 'minecart'],
+    "deep_tunnel:deep_tunnel_2": ['deep_well'],
+    "under_market:under_market_1": ['market_stall', 'rune_pillar'],
+    "ember_camp:ember_camp_1": ['campfire_remains', 'camp_flag'],
+    "wind_city:wind_city_1": ['highland_rock'],
+    "silver_brook:silver_brook_1": ['fountain', 'old_tree'],
+    "dragon_pass:dragon_pass_1": ['boundary_stone', 'highland_rock'],
+    "oak_meadow:oak_meadow_1": ['boundary_stone', 'wild_flowers'],
+    "oak_forest:oak_forest_2": ['old_tree', 'campfire_remains'],
+    "emerald_forest:emerald_forest_2": ['old_tree', 'wild_flowers'],
+    "misty_swamp:misty_swamp_1": ['ruined_wagon'],
+    "gold_plain:gold_plain_1": ['wild_flowers', 'boundary_stone'],
+    "silver_river:silver_river_1": ['mountain_spring', 'birch_grove'],
+    "old_battlefield:old_battlefield_1": ['stone_altar_ruin', 'ruined_wagon'],
+    "ancient_tree:ancient_tree_1": ['old_tree'],
+    "frost_field:frost_field_1": ['ice_sculpture', 'boundary_stone'],
+    "cinder_mountain:cinder_mountain_2": ['stone_altar_ruin'],
+    "black_forest:black_forest_2": ['old_tree', 'campfire_remains'],
+    "dragon_ridge:dragon_ridge_1": ['highland_rock', 'boundary_stone'],
+    "coral_reef:coral_reef_1": ['fishing_boats'],
+    "storm_sea:storm_sea_1": ['anchor'],
+    "molten_abyss:molten_abyss_1": ['deep_well'],
+    "silver_wind_road:silver_wind_road_1": ['boundary_stone', 'wild_flowers'],
+    "silver_wind_road:silver_wind_road_2": ['campfire_remains', 'old_tree'],
+    "west_ridge_wilds:west_ridge_wilds_1": ['wild_flowers', 'boundary_stone'],
+    "west_ridge_wilds:west_ridge_wilds_2": ['stone_altar_ruin'],
+    "dusk_ridge_road:dusk_ridge_road_1": ['highland_rock'],
+    "mist_tide_passage:mist_tide_passage_1": ['lighthouse'],
+    "black_tide_strait:black_tide_strait_1": ['anchor'],
+    "dwarf_long_gallery:dwarf_long_gallery_1": ['rune_pillar', 'minecart'],
+    "cold_spine_snow_trail:cold_spine_snow_trail_1": ['ice_sculpture'],
+    "dragon_ridge_old_road:dragon_ridge_old_road_1": ['boundary_stone', 'stone_altar_ruin'],
+    "dragonborn_valley_trail:dragonborn_valley_trail_1": ['highland_rock'],
+    "sky_ladder_path:sky_ladder_path_1": ['highland_rock', 'mountain_spring'],
+    "oak_town:oak_town_3": ['forge_table', 'anvil', 'bellows'],
+    "oak_town:oak_town_5": ['medicine_cabinet', 'mortar_pestle'],
+    "white_deer:white_deer_2": ['throne', 'tapestry'],
+    "white_deer:white_deer_4": ['candle_stand', 'holy_icon'],
+    "white_deer:white_deer_5": ['bar_counter', 'ale_barrel', 'fireplace'],
+    "white_deer:white_deer_6": ['medicine_cabinet', 'mortar_pestle'],
+    "white_deer:white_deer_7": ['fireplace', 'goods_shelf'],
+    "white_deer:white_deer_8": ['forge_table', 'anvil'],
+    "ironharbor:ironharbor_2": ['throne', 'tapestry'],
+    "ironharbor:ironharbor_3": ['quest_board', 'trophy_rack', 'weapon_rack'],
+    "ironharbor:ironharbor_4": ['trophy_rack', 'goods_shelf'],
+    "ironharbor:ironharbor_6": ['goods_shelf'],
+    "ironharbor:ironharbor_7": ['miner_lamp', 'forge_table'],
+    "ironharbor:ironharbor_8": ['fishing_net', 'fish_drying_rack', 'oar'],
+    "ironharbor:ironharbor_9": ['forge_table', 'anvil', 'bellows'],
+    "dawn_city:dawn_city_2": ['throne', 'tapestry', 'armor_stand'],
+    "dawn_city:dawn_city_4": ['armor_stand', 'weapon_rack'],
+    "dawn_city:dawn_city_5": ['cauldron', 'mortar_pestle'],
+    "ironshield_town:ironshield_town_2": ['tapestry'],
+    "ironshield_town:ironshield_town_3": ['weapon_rack', 'armor_stand', 'forge_table'],
+    "ironshield_town:ironshield_town_4": ['quest_board', 'weapon_rack'],
+    "maple_village:maple_village_2": ['fireplace', 'candle_stand'],
+    "maple_village:maple_village_3": ['deer_head', 'hunting_bow', 'animal_hide'],
+    "maple_village:maple_village_4": ['bar_counter', 'fireplace', 'ale_barrel'],
 }
