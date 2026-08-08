@@ -23,17 +23,18 @@ from ..commands.base import CommandBase, no_prof_waiting
 
 class WorldCmds(CommandBase):
 
-    def _map_facilities(self, cur_map: dict, player: dict = None) -> list:
+    def _map_facilities(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> list:
         """当前地图功能性设施清单（商店/旅店/铁匠/方碑/垂钓/篝火/矿脉/采集）。
 
         v87.13 与 _map_scene 拆分：设施 = 干事的功能入口；场景 = 氛围景物。
+        v87.13b sa_id_override：移动到达展示时目标子区域还没写进 player，显式传入落点子区域 id。
         """
         lines = []
         mid = cur_map.get("id", "")
         portals = db.get_portals(player["qq_id"]) if player else []
         # v86 子区域：设施/NPC 按当前子区域过滤（无子区域/无标记则地图级）
         sa_obj = None
-        sa_id = (player or {}).get("cur_subarea") or ""
+        sa_id = sa_id_override or (player or {}).get("cur_subarea") or ""
         for _sa in (cur_map.get("subareas") or []):
             if _sa["id"] == sa_id:
                 sa_obj = _sa
@@ -76,14 +77,15 @@ class WorldCmds(CommandBase):
             lines.append("🌿 野地可采集（『采集』）")
         return lines
 
-    def _map_scene(self, cur_map: dict, player: dict = None) -> list:
+    def _map_scene(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> list:
         """当前子区域场景元素清单（POI 探索点 + PROPS 场景元素 + 副本内联 POI）。
 
         v87.13 从 _map_interactions 拆出：氛围/景物类，标题用「✨ 场景」。
+        v87.13b sa_id_override：移动到达展示时目标子区域还没写进 player，显式传入落点子区域 id。
         """
         lines = []
         mid = cur_map.get("id", "")
-        sa_id = (player or {}).get("cur_subarea") or ""
+        sa_id = sa_id_override or (player or {}).get("cur_subarea") or ""
         # v87 02 章 7.6：探索点 POI 显示（子区域挂载）
         if player:
             poi_ids = C.subarea_pois(mid, sa_id)
@@ -688,11 +690,11 @@ class WorldCmds(CommandBase):
             nav = "\n\n📮 可前往：" + "  ".join(
                 f"{i}.{self._conn_target(c)[0]['name']}" for i, c in enumerate(neighbors[:6], 1)
             )
-        fac = self._map_facilities(target, player)
+        fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
         fac_msg = ""
         if fac:
             fac_msg = "\n\n🏪 此地设施：\n  " + "\n  ".join(fac)
-        scene = self._map_scene(target, player)
+        scene = self._map_scene(target, player, first_sa["id"] if first_sa else "")
         scene_msg = ""
         if scene:
             scene_msg = "\n\n✨ 场景：\n  " + "\n  ".join(scene)
@@ -703,8 +705,10 @@ class WorldCmds(CommandBase):
             db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
             self._lock_battle(group_id, qq_id)
             sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
+            # v87.13b 到达描述优先子区域 desc（与『地图』展示一致）
+            arrive_desc = (first_sa.get("desc") if first_sa else "") or target.get("desc", "")
             yield event.plain_result(
-                f"🚶 你来到了【{target['name']}】\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}\n"
+                f"🚶 你来到了【{target['name']}】\n{arrive_desc}{sub_line}{lv_msg}{extra}{portal_msg}\n"
                 f"━━━━━━━━━━━━\n"
                 f"🛡️ 还没站稳，{ambush['name']} 就拦住了去路！\n"
                 f"🐾【{ambush['name']}】Lv.{ambush['lv']} ❤️ {ambush['hp']}/{ambush['max_hp']}\n"
@@ -713,13 +717,15 @@ class WorldCmds(CommandBase):
             )
             return
         sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
+        # v87.13b 到达描述优先子区域 desc（与『地图』展示一致）
+        arrive_desc = (first_sa.get("desc") if first_sa else "") or target.get("desc", "")
         # v87.3 必经之路：进入城镇时提示方向（从路图/野外进城）
         arrive_txt = f"🚶 你来到了【{target['name']}】"
         if target.get("type") == "城镇区域" and first_sa:
             arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
             sub_line = ""
         yield event.plain_result(
-            f"{arrive_txt}\n{target['desc']}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
+            f"{arrive_txt}\n{arrive_desc}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
         )
 
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
