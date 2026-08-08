@@ -63,7 +63,7 @@ def main():
     # 验证 build_monster 能构造隐藏怪
     import uuid
     test_def = ("e_gold_slime", "黄金史莱姆", "elite", 5, ["ms_du_ya"], ["琥珀精华"])
-    m = C.build_monster(test_def, {"id": "oak_meadow", "name": "橡木草地", "lv": 2})
+    m = C.build_monster(test_def, {"id": "oak_plain", "name": "橡木平原", "lv": 2})
     check("隐藏怪 build_monster 成功", m["name"] == "黄金史莱姆" and m["is_elite"])
     check("隐藏怪等级 = 地图等级+偏移", m["lv"] == 5, f"实际 {m['lv']}")
 

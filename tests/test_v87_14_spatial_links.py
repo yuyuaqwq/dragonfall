@@ -55,31 +55,31 @@ async def main():
     # ===== 出城走城门 =====
     print("· 出城走城门")
     await move("1")  # 回广场
-    r = await move("7")  # 7 = oak_meadow（邻居地图序号 = len(sas)+1 = 7）
+    r = await move("7")  # 7 = oak_plain（邻居地图序号 = len(sas)+1 = 7）
     check("广场直接出城被拦", "城门" in r and "不能" in r, r[:120])
     check("仍在广场", pos() == "oak_town:oak_town_1", pos())
     # 到城门（oak_town 6 个子区域：1-5 + 6 城门）
     r = await move("6")
     check("广场→城门", pos() == "oak_town:oak_town_gate", f"{pos()} | {r[:80]}")
-    # 从城门出城到橡木草地（邻居序号 7）
+    # 从城门出城到橡木平原（邻居序号 7）
     r = await move("7")
-    check("城门→橡木草地", pos() == "oak_meadow:oak_meadow_1", f"{pos()} | {r[:120]}")
+    check("城门→橡木平原", pos() == "oak_plain:oak_plain_1", f"{pos()} | {r[:120]}")
 
     # ===== 野外线性 =====
     print("· 野外线性（相邻顺序）")
     r = await move("2")  # 草地边缘 → 草地深处
-    check("草地边缘→草地深处", pos() == "oak_meadow:oak_meadow_2", pos())
+    check("草地边缘→草地深处", pos() == "oak_plain:oak_plain_2", pos())
     r = await move("3")  # 草地深处 → 溪边草地
-    check("草地深处→溪边草地", pos() == "oak_meadow:oak_meadow_3", pos())
+    check("草地深处→溪边草地", pos() == "oak_plain:oak_plain_3", pos())
     r = await move("1")  # 溪边草地 → 草地边缘：被拦（要经过深处）
     check("溪边草地→草地边缘被拦", "路只有一条" in r or "先经过" in r, r[:120])
-    check("位置未变", pos() == "oak_meadow:oak_meadow_3", pos())
+    check("位置未变", pos() == "oak_plain:oak_plain_3", pos())
 
     # ===== 进城落城门 =====
     print("· 进城落城门")
     r = await move("2")  # 溪边草地 → 草地深处
     r = await move("1")  # 草地深处 → 草地边缘
-    check("回到草地边缘", pos() == "oak_meadow:oak_meadow_1", pos())
+    check("回到草地边缘", pos() == "oak_plain:oak_plain_1", pos())
     r = await move("4")  # 草地边缘 → 橡木镇（邻居序号 = 3+1 = 4）
     check("进城落城门", pos() == "oak_town:oak_town_gate", f"{pos()} | {r[:120]}")
     r = await move("1")  # 城门 → 广场

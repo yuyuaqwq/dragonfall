@@ -259,7 +259,7 @@ DIALOGUES = {
                 ],
             },
             "practice_intro": {
-                "text": "不错，有点天分。不过光会认不行——去橡木草地采 3 份草药回来给我看看。",
+                "text": "不错，有点天分。不过光会认不行——去橡木平原采 3 份草药回来给我看看。",
                 "options": [
                     {"text": "这就去", "next": "practice_check"},
                     {"text": "先告辞", "next": "__end__"},

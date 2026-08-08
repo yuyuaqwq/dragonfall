@@ -43,6 +43,10 @@ async def main():
     check("地图显示", "橡木" in out or "地图" in out, out[:120])
 
     print("【移动】")
+    # v87.14 空间连接：出城需先到城门（橡木镇子区域 6 = 橡木镇城门）
+    out = await cmd(m, "move", "g1", "w1", "移动 6")
+    p = db.get_player("g1", "w1")
+    check("移动到城门", p.get("cur_subarea") == "oak_town_gate", str(p.get("cur_subarea")))
     out = await cmd(m, "move", "g1", "w1", "移动 橡木平原")
     check("移动有返回", len(out) > 5, out[:120])
     p = db.get_player("g1", "w1")

@@ -583,7 +583,7 @@ MATERIALS = {
     },
     "mat_xiang_mu_cao_di": {
         'price': 15,
-        'name': "橡木草地",
+        'name': "橡木平原",
     },
     "mat_can_hai_he_xin": {
         'price': 60,

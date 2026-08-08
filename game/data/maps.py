@@ -4123,10 +4123,10 @@ MAP_CONNECTIONS = {
     "harbor_docks": ["ironharbor", "sea_cave"],
     "hill_mine": ["silver_valley", "deer_fort"],
     "holy_trial": ["king_road"],
-    "ironharbor": ["silver_wind_road", "harbor_docks"],
+    "ironharbor": ["silver_wind_road", "harbor_docks", "jade_port"],  # ⛵ 坐船→翡翠海群岛
     "ironshield_hills": ["gold_plain", "ironshield_town"],
     "ironshield_town": ["ironshield_hills", "old_battlefield", "border_castle"],
-    "jade_port": ["coral_reef", "mist_tide_passage"],
+    "jade_port": ["coral_reef", "mist_tide_passage", "ironharbor"],  # ⛵ 坐船→铁港城
     "king_road": ["dawn_city", "old_king_tomb", "holy_trial"],
     "knight_yard": ["dawn_cathedral"],
     "lava_bed": ["ember_camp", "abyss_altar"],

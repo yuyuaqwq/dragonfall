@@ -24,27 +24,35 @@ async def main():
     make_player("g1", "1001", "甲", "战士")
     p = db.get_player("g1", "1001")
     check("造玩家", p is not None)
-    # 玩家初始位置 oak_town
+    # 玩家初始位置 oak_town（广场 oak_town_1）
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
 
-    # oak_town 的邻居：看 MAP_CONNECTIONS —— 橡木草地 oak_meadow 应该是邻居
-    # 移动 6（橡木草地）→ 落点 oak_meadow_1 草地边缘
+    # v87.14 空间连接：出城需先到城门 → 移动 6（橡木镇城门）
     ev = FakeEvent("g1", "1001", "移动 6")
+    r0 = "".join(str(x) for x in await run(m.move, ev))
+    print("  [到城门]", r0[:120].replace("\n", " | "))
+    p = db.get_player("g1", "1001")
+    check("到达城门", p["cur_subarea"] == "oak_town_gate", str(p.get("cur_subarea")))
+
+    # oak_town 的邻居：看 MAP_CONNECTIONS —— 橡木平原 oak_plain 应该是邻居
+    # 橡木镇子区域 6 个（广场/镇长/铁匠/旅店/草药/城门），邻居序号从 7 开始
+    # 移动 7（橡木平原）→ 落点 oak_plain_1 草地边缘
+    ev = FakeEvent("g1", "1001", "移动 7")
     r1 = "".join(str(x) for x in await run(m.move, ev))
     p1 = db.get_player("g1", "1001")
-    print("  [跨图移动6]", r1[:300].replace("\n", " | "))
-    check("落点 oak_meadow_1", p1["cur_map"] == "oak_meadow" and p1["cur_subarea"] == "oak_meadow_1",
+    print("  [跨图移动7]", r1[:300].replace("\n", " | "))
+    check("落点 oak_plain_1", p1["cur_map"] == "oak_plain" and p1["cur_subarea"] == "oak_plain_1",
           f"{p1['cur_map']}:{p1['cur_subarea']}")
     check("移动展示含子区域描述", "草地边缘" in r1, r1[:150])
-    # 场景应显示 oak_meadow_1 的元素（橡木草地界碑）
-    check("移动展示含目标场景元素", "界碑" in r1 or "橡木草地" in r1, r1[:300])
+    # 场景应显示 oak_plain_1 的元素（橡木平原界碑）
+    check("移动展示含目标场景元素", "界碑" in r1 or "橡木平原" in r1, r1[:300])
 
     # 然后发『地图』对比
     ev = FakeEvent("g1", "1001", "地图")
     r2 = "".join(str(x) for x in await run(m.map_view, ev))
     print("  [地图@草地边缘]", r2[:300].replace("\n", " | "))
     check("地图展示含子区域描述", "草地边缘" in r2, r2[:150])
-    check("地图展示含场景元素", "界碑" in r2 or "橡木草地" in r2, r2[:300])
+    check("地图展示含场景元素", "界碑" in r2 or "橡木平原" in r2, r2[:300])
 
     # 一致性：移动到达的场景行 ⊆ 地图展示的场景行（都显示草地边缘的 PROPS）
     # 提取"✨ 场景"后的行

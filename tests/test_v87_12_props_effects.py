@@ -49,21 +49,28 @@ async def main():
     print("  再次交互:", r2[:80])
     check("每日限制提示", "今天已经" in r2, r2[:80])
 
-    # 移动 5 → 草药铺（oak_town_5，有 medicine_cabinet）
+    # v87.14 空间连接：场所只连广场 → 先回广场（移动 1）再移动 5 → 草药铺
+    ev = FakeEvent("g1", "1001", "移动 1")
+    await run(m.move, ev)
     ev = FakeEvent("g1", "1001", "移动 5")
     await run(m.move, ev)
+    p = db.get_player("g1", "1001")
+    check("移动到草药铺", p["cur_subarea"] == "oak_town_5", str(p.get("cur_subarea")))
     ev = FakeEvent("g1", "1001", "交互 1")
     r3 = "".join(str(x) for x in await run(m.interact_prop, ev))
     print("  药柜交互:", r3[:80])
     check("药柜给药草", "翻到" in r3 or "发现" in r3 or "×1" in r3, r3[:80])
 
-    # 移动 4 → 橡木桶旅店（oak_town_4，有 fireplace）
+    # 移动 4 → 橡木桶旅店（oak_town_4，有 fireplace）——先回广场
     # 先扣血（直接 update_player 模拟受伤）
     p = db.get_player("g1", "1001")
     db.update_player("g1", "1001", hp=max(1, p["hp"] - 50))
     hurt_hp = db.get_player("g1", "1001")["hp"]
+    ev = FakeEvent("g1", "1001", "移动 1")
+    await run(m.move, ev)
     ev = FakeEvent("g1", "1001", "移动 4")
     await run(m.move, ev)
+    # 旅店 PROPS 顺序：1吧台 2酒桶 3壁炉 → 交互 3 命中壁炉
     ev = FakeEvent("g1", "1001", "交互 3")
     r4 = "".join(str(x) for x in await run(m.interact_prop, ev))
     print("  壁炉交互:", r4[:100])

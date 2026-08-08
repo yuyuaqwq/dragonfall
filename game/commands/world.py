@@ -775,7 +775,11 @@ class WorldCmds(CommandBase):
         )
 
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
-        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。"""
+        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
+
+        v6 修复：与跨图移动一致，展示本子区域 PROPS/POI 场景元素
+        （鱼鱼验收：移动展示必须与『地图』面板一致）。
+        """
         lines = [
             f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
             f"{sa.get('desc', '')}",
@@ -795,6 +799,15 @@ class WorldCmds(CommandBase):
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
         if show_funcs:
             lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}（『商店』『旅店』『找 <NPC名>』等）")
+        # v6：设施 + 场景（与『地图』面板一致）
+        fac = self._map_facilities(cur_map, player, sa["id"])
+        if fac:
+            lines.append("🏪 此地设施：")
+            lines.append("  " + "  ".join(fac))
+        scene = self._map_scene(cur_map, player, sa["id"])
+        if scene:
+            lines.append("✨ 场景：")
+            lines.append("  " + "  ".join(scene))
         # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板一致）
         sas = cur_map.get("subareas") or []
         links = C.subarea_links(cur_map.get("id", ""), sa["id"])

@@ -24,7 +24,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
 
     # ---- 数据层：4 品种 + 技能定义 ----
     check("PET_POOL 恰 4 品种", len(C.PET_POOL) == 4, str([p["key"] for p in C.PET_POOL]))
@@ -82,7 +82,7 @@ async def main():
     # ---- 战斗引擎：宠物技能（撕咬 40% 攻击伤害，每 3 回合）----
     # 造一只 Lv.10 狼崽
     db.pet_update("w1", level=10, satiety=100)
-    monster = C.build_monster(["m_test", "测试野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"])
+    monster = C.build_monster(["m_test", "测试野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"])
     b = BT.Battle("monster", monster, {}, player=db.get_player("g1", "w1"), pet=db.pet_get("w1"))
     # 打满 3 回合：round=3 时应触发撕咬
     logs = []
@@ -94,7 +94,7 @@ async def main():
     pet_log = "\n".join(logs)
     check("撕咬触发", "撕咬" in pet_log, pet_log[-300:])
     # 饱食度 =0 → 技能失效
-    b2 = BT.Battle("monster", C.build_monster(["m_test2", "测试野狗2", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"]),
+    b2 = BT.Battle("monster", C.build_monster(["m_test2", "测试野狗2", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"]),
                    {}, player=db.get_player("g1", "w1"), pet={"pet_key": "pet_wolf", "name": "阿黄", "level": 10, "satiety": 0})
     logs2 = []
     for _ in range(3):
@@ -105,7 +105,7 @@ async def main():
     check("饱食度 0 技能不触发", "撕咬" not in "\n".join(logs2), "\n".join(logs2)[-200:])
 
     # ---- 战斗引擎：黑猫影袭挡刀（每 3 回合触发，先跑到 round=3）----
-    b3 = BT.Battle("monster", C.build_monster(["m_test3", "测试强敌", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"]),
+    b3 = BT.Battle("monster", C.build_monster(["m_test3", "测试强敌", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"]),
                    {}, player=db.get_player("g1", "w1"), pet={"pet_key": "pet_cat", "name": "咪咪", "level": 10, "satiety": 100})
     b3.round = 2  # 下一回合到 round=3（影袭判定点）
     # 固定随机：让影袭必然触发（random 在 0.25 内）
@@ -123,7 +123,7 @@ async def main():
     # 先喂饱
     db.pet_update("w1", satiety=100, level=1, exp=0)
     # 造 3 级怪（exp 约 30+）
-    mon = C.build_monster(["m_test4", "测试野狼", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"])
+    mon = C.build_monster(["m_test4", "测试野狼", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"])
     exp0 = mon["exp"]
     # 手动调宠物到 Lv.5（加成 50% 上限），饱食度 100
     db.pet_update("w1", level=5, satiety=100, exp=0)
@@ -160,11 +160,11 @@ async def main():
     random.seed(42)
     n = 20000
     wolf_hits = sum(1 for _ in range(n)
-                    if C.build_monster(["m_wild_dog", "野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"])["role"] == "dps")
+                    if C.build_monster(["m_wild_dog", "野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"])["role"] == "dps")
     # 狼崽蛋：普通兽类怪 1.5%（名字含 狼/狗）
     egg_hits = 0
     for _ in range(n):
-        mm = C.build_monster(["m_wild_dog", "野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_meadow"])
+        mm = C.build_monster(["m_wild_dog", "野狗", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"])
         # 模拟掉落判定（与 combat._handle_victory 一致）
         if mm.get("role") == "dps" and any(k in mm.get("name", "") for k in ["狼", "狗", "野猪", "熊"]):
             if random.random() < 0.015:
