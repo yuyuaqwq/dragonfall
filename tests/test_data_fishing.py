@@ -40,7 +40,7 @@ def main():
                 bad_spot.append((mid, f"非法档位 {bq}"))
     check("钓点 map_id 全在 MAPS + 结构完整", not bad_spot, str(bad_spot[:3]))
     check("铁港码头无禁出（全档位）", C.FISHING_SPOTS["harbor_docks"]["ban_quality"] == [], str(C.FISHING_SPOTS["harbor_docks"]))
-    check("橡木溪流禁紫/橙", set(C.FISHING_SPOTS["oak_meadow"]["ban_quality"]) == {"purple", "orange"}, str(C.FISHING_SPOTS["oak_meadow"]))
+    check("橡木溪流禁紫/橙", set(C.FISHING_SPOTS["oak_plain"]["ban_quality"]) == {"purple", "orange"}, str(C.FISHING_SPOTS["oak_plain"]))
 
     print("【data·垂钓：档位权重表 FISH_QUALITY_WEIGHTS】")
     w = C.FISH_QUALITY_WEIGHTS

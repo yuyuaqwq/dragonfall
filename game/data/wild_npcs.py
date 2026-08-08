@@ -23,21 +23,21 @@
 WILD_NPCS = {
     # ---- 2.1 南境·绿野（Lv.1-30）----
     "w_old_trader": {
-        "name": "游商·老马", "icon": "🧭", "map": "oak_meadow",
+        "name": "游商·老马", "icon": "🧭", "map": "oak_plain",
         "condition": {"time": ["day"]},
         "desc": "走南闯北的行商，消息灵通",
         "funcs": ["trade", "info"],
         "dialogue": "赶路呢？要不要看看货？都是走南闯北淘来的好东西。",
     },
     "w_forest_girl": {
-        "name": "采药女·小荨", "icon": "🌿", "map": "oak_forest",
+        "name": "采药女·小荨", "icon": "🌿", "map": "white_deer_forest",
         "condition": {"time": ["morning", "day"]},
         "desc": "采药为生，知道草药的秘密",
         "funcs": ["trade", "quest"],
         "dialogue": "这片林子的草药我闭着眼都能找到……你也要采药？",
     },
     "w_sage_ryder": {
-        "name": "隐士·莱德", "icon": "🗡️", "map": "oak_forest",
+        "name": "隐士·莱德", "icon": "🗡️", "map": "white_deer_forest",
         "condition": {"time": ["evening", "night"], "season": ["summer", "autumn"]},
         "desc": "退役剑客，隐居避世",
         "funcs": ["teach", "info"],
@@ -256,7 +256,7 @@ WILD_NPCS = {
 # 隐藏 NPC（18 章 5.5.1：解锁条件 + 高随机性；隐藏任务链 H3-H12 数据落地后续阶段）
 HIDDEN_NPCS = {
     "h_owl": {
-        "name": "夜枭·啼月", "icon": "🦉", "map": "oak_forest",
+        "name": "夜枭·啼月", "icon": "🦉", "map": "white_deer_forest",
         "condition": {"time": ["night"]}, "chance": 0.15,
         "unlock": "flag:heard_owl_song",
         "desc": "月下的影子，唱着无人听过的歌",

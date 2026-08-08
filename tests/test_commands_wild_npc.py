@@ -50,7 +50,7 @@ async def main():
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
     await cmd(m, "register", "g1", "w2", "注册 法师 新手")
-    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_meadow")
+    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
     set_clock("day", "summer", "sunny")
     clear_wild_meta("g1", "w1")
     clear_wild_meta("g1", "w2")
@@ -107,11 +107,11 @@ async def main():
     set_clock("day", "summer", "sunny")
 
     print("【9.4 偶遇 + 见闻录 + 冷却】")
-    hit = W.roll_wild_encounter("g1", "w1", p, "oak_meadow")
-    check("白天 oak_meadow 偶遇老马", hit and hit[0] == "w_old_trader", str(hit))
+    hit = W.roll_wild_encounter("g1", "w1", p, "oak_plain")
+    check("白天 oak_plain 偶遇老马", hit and hit[0] == "w_old_trader", str(hit))
     check("见闻录记录老马", "w_old_trader" in W.met_wild("g1", "w1"), str(W.met_wild("g1", "w1")))
     # 30 分钟冷却：立刻再 roll 不返回
-    hit2 = W.roll_wild_encounter("g1", "w1", p, "oak_meadow")
+    hit2 = W.roll_wild_encounter("g1", "w1", p, "oak_plain")
     check("30 分钟冷却内不重复偶遇", hit2 is None, str(hit2))
 
     print("【9.4 保底机制】")
@@ -134,7 +134,7 @@ async def main():
     print("【9.4 『时间』指令】")
     out = await cmd(m, "time_cmd", "g1", "w1", "时间")
     check("时间面板显示时段/季节/天气", "【时间】" in out and ("白天" in out or "夜晚" in out or "清晨" in out or "黄昏" in out), out[:200])
-    check("附近人影提示（老马白天在橡木草地）", "附近似乎有人影" in out and "游商·老马" in out, out[:300])
+    check("附近人影提示（老马白天在橡木平原）", "附近似乎有人影" in out and "游商·老马" in out, out[:300])
 
     print("【9.4 『见闻录』指令】")
     out = await cmd(m, "wild_notes", "g1", "w2", "见闻录")
@@ -143,7 +143,7 @@ async def main():
     check("w1 见闻录有老马", "游商·老马" in out, out[:300])
 
     print("【9.4 『找 野外NPC』】")
-    db.update_player("g1", "w1", cur_map="oak_forest")
+    db.update_player("g1", "w1", cur_map="white_deer_forest")
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
     check("白天找隐士（黄昏/夜晚出现）→ 提示不在", "没找到" in out or "还没到出现" in out, out[:200])
     set_clock("night", "summer", "sunny")
@@ -152,7 +152,7 @@ async def main():
     set_clock("day", "summer", "sunny")
 
     print("【9.4 支线 S36：采药女 offer + 『交任务』交付（修复 bug）】")
-    db.update_player("g1", "w1", cur_map="oak_forest")
+    db.update_player("g1", "w1", cur_map="white_deer_forest")
     set_clock("day", "summer", "sunny")
     out = await cmd(m, "find_npc", "g1", "w1", "找 采药女·小荨")
     check("找采药女接 S36", "采药女的心愿" in out, out[:400])

@@ -85,7 +85,7 @@ async def main():
     print("【v65 对话树：移动后惰性失效】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
     check("再次进入对话", "0. 结束对话" in out, out[:200])
-    db.update_player("g1", "w1", cur_map="oak_meadow")  # 模拟移动走
+    db.update_player("g1", "w1", cur_map="oak_plain")  # 模拟移动走
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("离开地图会话失效", "不在这里了" in out, out[:200])
     st = db.get_talk_state("g1", "w1")

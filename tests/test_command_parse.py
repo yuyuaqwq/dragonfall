@@ -116,7 +116,7 @@ async def main():
     check("200 次 fuzz 无双触发", fuzz_hits == 0, f"{fuzz_hits} 次多命中")
 
     print("【免空格：移动序号】")
-    # 移动 2：从 oak_town 的邻居（橡木草地, ...）取第 2 个
+    # 移动 2：从 oak_town 的邻居（橡木平原, ...）取第 2 个
     from conftest import db as _db, Main as _Main
     _db.init_db()
     m = _Main(None)

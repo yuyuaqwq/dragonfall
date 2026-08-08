@@ -78,8 +78,8 @@ SUBAREA_POIS = {
     # ==== 月冠王庭 ====
     "moon_court:moon_court_1": ["shrine", "rune_stone"],  # 王庭广场
     # ==== 野外·南境 ====
-    "oak_meadow:oak_meadow_3": ["campfire", "herb_patch"],
-    "oak_forest:oak_forest_3": ["campfire", "note"],
+    "oak_plain:oak_plain_3": ["campfire", "herb_patch"],
+    "white_deer_forest:white_deer_forest_3": ["campfire", "note"],
     "emerald_forest:emerald_forest_3": ["rune_stone", "herb_patch"],
     "misty_swamp:misty_swamp_3": ["loot_pile", "note"],
     "hill_mine:hill_mine_3": ["rune_stone", "loot_pile"],
@@ -116,7 +116,7 @@ SUBAREA_POIS = {
     "dragon_ridge_old_road:dragon_ridge_old_road_2": ["note"], # 古道龙纹：龙战字条
     "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
     # ==== v87.9 风景 POI（探索触发，纯氛围）====
-    "oak_meadow:oak_meadow_3": ["scenic_view"],            # 草地尽头：远眺丘陵
+    "oak_plain:oak_plain_3": ["scenic_view"],            # 草地尽头：远眺丘陵
     "emerald_forest:emerald_forest_3": ["ancient_tree_sight"],  # 翡翠森林深处：古木参天
     "gold_plain:gold_plain_3": ["star_gazing"],            # 金穗平原：旷野星野
     "starlake:starlake_3": ["star_gazing"],                # 星湖：星空倒映

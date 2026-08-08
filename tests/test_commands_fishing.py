@@ -64,11 +64,11 @@ async def main():
     # 激活垂钓 + 练到 Lv.5（蓝档 10%）
     await cmd(m, "fishing", "g1", "w1", "垂钓")
     db.add_prof_exp("g1", "w1", "fishing", 200)
-    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_meadow")
+    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
 
     print("【9.3 垂钓点显示】")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
-    check("橡木草地显示垂钓点·橡木溪流", "垂钓点·橡木溪流" in out, out[:300])
+    check("橡木平原显示垂钓点·橡木溪流", "垂钓点·橡木溪流" in out, out[:300])
     check("钓点特色描述显示", "新手区，白绿为主" in out, out[:300])
 
     print("【9.3 垂钓入口】")

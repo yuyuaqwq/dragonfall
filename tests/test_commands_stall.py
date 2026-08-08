@@ -79,7 +79,7 @@ async def main():
     print("【v66 摆摊：异地拦截】")
     add_sword("g1", "w1", "精铁长剑")
     await cmd(m, "stall", "g1", "w1", "摆摊 精铁长剑 800")
-    db.update_player("g1", "w2", cur_map="oak_meadow")  # w2 离开
+    db.update_player("g1", "w2", cur_map="oak_plain")  # w2 离开
     stalls = db.market_list("g1", "oak_town")
     mid = stalls[0]["id"]
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
@@ -133,8 +133,8 @@ async def main():
     check("摊位显示🔄换", "🔄 换" in out and "精铁胸甲" in out, out[:200])
     out = await cmd(m, "market_buy", "g1", "w2", f"购入 {mid}")
     check("购入换摊被拦", "换摊" in out and "只换不卖" in out, out[:200])
-    # w2 在橡木草地，摊位在橡木镇 → 异地拦截
-    db.update_player("g1", "w2", cur_map="oak_meadow")
+    # w2 在橡木平原，摊位在橡木镇 → 异地拦截
+    db.update_player("g1", "w2", cur_map="oak_plain")
     out = await cmd(m, "stall_exchange", "g1", "w2", f"换 {mid} 铁剑")
     check("异地交换被拦", "当面交换" in out, out[:200])
     db.update_player("g1", "w2", cur_map="oak_town")

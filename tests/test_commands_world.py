@@ -43,17 +43,17 @@ async def main():
     check("地图显示", "橡木" in out or "地图" in out, out[:120])
 
     print("【移动】")
-    out = await cmd(m, "move", "g1", "w1", "移动 橡木草地")
+    out = await cmd(m, "move", "g1", "w1", "移动 橡木平原")
     check("移动有返回", len(out) > 5, out[:120])
     p = db.get_player("g1", "w1")
-    check("地图切换", p.get("cur_map") == "oak_meadow", str(p.get("cur_map")))
+    check("地图切换", p.get("cur_map") == "oak_plain", str(p.get("cur_map")))
     # v54.1 修复：垂钓点地图查看不再抛 get_prof_level 缺参异常
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
     check("垂钓点地图显示正常", len(out) > 5 and "垂钓" in out or "此地" in out, out[:150])
 
     print("【探索：野外】")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     out = await cmd(m, "explore", "g1", "w1", "探索")
     check("探索有返回", len(out) > 10, out[:100])
 
@@ -84,7 +84,7 @@ async def main():
     check("事件列表有返回", len(out) > 5, out[:120])
 
     print("【垂钓/采集】")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     db.clear_battle("g1", "w1")  # v55：先清战斗状态（前面探索/事件可能进过战斗）
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("垂钓有返回", len(out) > 5, out[:120])

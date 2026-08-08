@@ -28,12 +28,12 @@ async def main():
     # 注册玩家（make_player: 战士 旅人）
     make_player("g1", "w1", "旅人", "战士")
     db.init_stats("g1", "w1")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     db.add_prof_exp("g1", "w1", "fishing", 0)
 
     # 伪造等待状态
     import time
-    st = {"finish": time.time() - 10, "type": "fishing", "spot": "橡木溪流", "spot_map": "oak_meadow"}
+    st = {"finish": time.time() - 10, "type": "fishing", "spot": "橡木溪流", "spot_map": "oak_plain"}
     db.set_event_state(f"prof_wait_w1", json.dumps(st, ensure_ascii=False))
 
     # 强制彩蛋命中：monkeypatch roll_collect_fish

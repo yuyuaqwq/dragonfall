@@ -51,7 +51,7 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_meadow")
+    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
 
     print("【v67 双副业：面板】")
     out = await cmd(m, "profession_view", "g1", "w1", "副业")
@@ -67,7 +67,7 @@ async def main():
     out = await cmd(m, "mining", "g1", "w1", "挖掘")
     check("挖掘自动激活2/2", "选择了「挖掘」" in out and "2/2" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("第三条被拦", "副业位已满" in out and "遗忘副业" in out, out[:200])
 

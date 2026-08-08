@@ -89,16 +89,16 @@ async def main():
     await cmd(M, "找 镇长", "找镇长")
 
     # 2.5 移动去野外（城镇安全区探索不到敌人）
-    await cmd(M, "移动 橡木林", "移动去橡木林")
+    await cmd(M, "移动 白鹿之森", "移动去白鹿之森")
     await cmd(M, "地图", "地图")
 
-    # 3. 打怪升级循环：先橡木草地(Lv.1)练到3级 → 再橡木林(Lv.3)练到10级
+    # 3. 打怪升级循环：先橡木平原(Lv.1)练到3级 → 再白鹿之森(Lv.3)练到10级
     lv = 1
     guard = 0
     while lv < 10 and guard < 80:
         guard += 1
         p = db.get_player(G, Q)
-        target_map = "oak_meadow" if lv < 3 else "oak_forest"
+        target_map = "oak_plain" if lv < 3 else "white_deer_forest"
         if p["cur_map"] != target_map:
             await cmd(M, f"移动 {target_map}", "")
         # 探索遇怪（若已在战斗中则跳过）

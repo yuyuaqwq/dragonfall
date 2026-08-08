@@ -101,7 +101,7 @@ SUBAREAS = {
             "id": "oak_town_gate",
             "name": "橡木镇城门",
             "icon": "🏰",
-            "desc": "两扇包铁的木门昼开夜闭，门洞上挂着褪色的镇徽。出镇就是橡木草地，进城便是冒险者广场。",
+            "desc": "两扇包铁的木门昼开夜闭，门洞上挂着褪色的镇徽。出镇就是橡木平原，进城便是冒险者广场。",
             "type": "城镇出口",
             "lv": 1,
             "npcs": [],
@@ -113,12 +113,12 @@ SUBAREAS = {
             "healer": False
         },
     ],
-    "oak_meadow": [
+    "oak_plain": [
         {
-            "id": "oak_meadow_1",
+            "id": "oak_plain_1",
             "name": "草地边缘",
             "icon": "🌲",
-            "desc": "橡木草地·草地边缘",
+            "desc": "橡木平原·草地边缘",
             "type": "野外",
             "lv": 1,
             "npcs": [],
@@ -145,10 +145,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "oak_meadow_2",
+            "id": "oak_plain_2",
             "name": "草地深处",
             "icon": "🌲",
-            "desc": "橡木草地·草地深处",
+            "desc": "橡木平原·草地深处",
             "type": "野外",
             "lv": 2,
             "npcs": [],
@@ -175,10 +175,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "oak_meadow_3",
+            "id": "oak_plain_3",
             "name": "溪边草地",
             "icon": "🌲",
-            "desc": "橡木草地·溪边草地",
+            "desc": "橡木平原·溪边草地",
             "type": "野外",
             "lv": 3,
             "npcs": [],
@@ -230,12 +230,12 @@ SUBAREAS = {
             "healer": False
         }
     ],
-    "oak_forest": [
+    "white_deer_forest": [
         {
-            "id": "oak_forest_1",
+            "id": "white_deer_forest_1",
             "name": "林间入口",
             "icon": "🌲",
-            "desc": "橡木林·林间入口",
+            "desc": "白鹿之森·林间入口",
             "type": "野外",
             "lv": 3,
             "npcs": [],
@@ -262,10 +262,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "oak_forest_2",
-            "name": "橡木林深处",
+            "id": "white_deer_forest_2",
+            "name": "白鹿之森深处",
             "icon": "🌲",
-            "desc": "橡木林·橡木林深处",
+            "desc": "白鹿之森·白鹿之森深处",
             "type": "野外",
             "lv": 5,
             "npcs": [],
@@ -292,10 +292,10 @@ SUBAREAS = {
             "healer": False
         },
         {
-            "id": "oak_forest_3",
+            "id": "white_deer_forest_3",
             "name": "溪谷",
             "icon": "🌲",
-            "desc": "橡木林·溪谷",
+            "desc": "白鹿之森·溪谷",
             "type": "野外",
             "lv": 6,
             "npcs": [],
@@ -2684,14 +2684,14 @@ SUBAREAS = {
             "icon": "🌲",
             "desc": "银铃河·河岸",
             "type": "野外",
-            "lv": 38,
+            "lv": 20,
             "npcs": [],
             "monsters": [
                 [
                     "m_river_spirit",
                     "水精灵",
                     "healer",
-                    38,
+                    20,
                     [
                         "ms_shui_dan",
                         "ms_zhi_liao"
@@ -2704,7 +2704,7 @@ SUBAREAS = {
                     "m_knight_pursuer",
                     "圣光骑士团追兵",
                     "dps",
-                    40,
+                    22,
                     [
                         "ms_sheng_guang_zhui_bing"
                     ],
@@ -2727,14 +2727,14 @@ SUBAREAS = {
             "icon": "🌲",
             "desc": "银铃河·渡口",
             "type": "野外",
-            "lv": 43,
+            "lv": 25,
             "npcs": [],
             "monsters": [
                 [
                     "m_mermaid",
                     "鲛人",
                     "dps",
-                    40,
+                    22,
                     [
                         "ms_cha_ji",
                         "ms_shui_dan"
@@ -2747,7 +2747,7 @@ SUBAREAS = {
                     "m_roland",
                     "罗兰·圣剑",
                     "dps",
-                    44,
+                    25,
                     [
                         "ms_sheng_guang_jian_zhen"
                     ],
@@ -2770,14 +2770,14 @@ SUBAREAS = {
             "icon": "🌲",
             "desc": "银铃河·河心洲",
             "type": "野外",
-            "lv": 48,
+            "lv": 30,
             "npcs": [],
             "monsters": [
                 [
                     "m_river_dragon",
                     "河龙",
                     "tank",
-                    44,
+                    25,
                     [
                         "ms_shui_xi",
                         "ms_shuai_wei"
@@ -2790,7 +2790,7 @@ SUBAREAS = {
                     "e_river_dragon_lord",
                     "河龙领主",
                     "elite",
-                    46,
+                    27,
                     [
                         "ms_shui_xi",
                         "ms_xuan_wo"
@@ -2804,7 +2804,7 @@ SUBAREAS = {
                 "e_river_dragon_lord",
                 "河龙领主",
                 "elite",
-                46,
+                27,
                 [
                     "ms_shui_xi",
                     "ms_xuan_wo"

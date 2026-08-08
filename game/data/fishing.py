@@ -7,7 +7,7 @@
 - 钓点差异化：FISHING_SPOTS 的 ban_quality 禁出档位 + 品种 spots 限定水域
 """
 FISHING_SPOTS = {
-    "oak_meadow": {
+    "oak_plain": {
         "name": "橡木溪流", "min_lv": 1, "ban_quality": ["purple", "orange"],
         "desc": "新手区，白绿为主",
     },

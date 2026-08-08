@@ -26,9 +26,9 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    db.update_player("g1", "w1", cur_map="oak_meadow")
+    db.update_player("g1", "w1", cur_map="oak_plain")
     player = db.get_player("g1", "w1")
-    cur_map = C.MAP_BY_ID["oak_meadow"]
+    cur_map = C.MAP_BY_ID["oak_plain"]
 
     # ---- 概率采样（固定 seed 量级）----
     import random
