@@ -14,10 +14,24 @@ def subarea_pois(map_id: str, subarea_id: str) -> list:
 
 
 def subarea_props(map_id: str, subarea_id: str) -> list:
-    """返回指定子区域挂载的场景元素 PROPS id 列表（无则空）。"""
+    """返回指定子区域挂载的场景元素 PROPS 列表（无则空）。
+
+    元素为 prop id 字符串，或 (prop_id, 专属名) 元组——元组表示该处
+    使用专属名显示/交互（同一 prop 在不同子区域可有不同名字）。
+    """
     from ..data.props import SUBAREA_PROPS
     key = f"{map_id}:{subarea_id}"
     return SUBAREA_PROPS.get(key, [])
+
+
+def prop_entry(entry):
+    """PROPS 挂载条目 → (prop_id, display_name 或 None)。
+
+    支持 str（用默认名）或 (prop_id, 专属名) 元组（v87.11 专属命名）。
+    """
+    if isinstance(entry, (tuple, list)) and len(entry) >= 2:
+        return entry[0], entry[1]
+    return entry, None
 
 
 def roll_poi(group_id: str, qq_id: str, map_id: str, subarea_id: str, chance: float = 0.15):

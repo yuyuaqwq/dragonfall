@@ -79,12 +79,15 @@ class WorldCmds(CommandBase):
                 if _p:
                     lines.append(f"{_p['icon']} {_p['name']}（『探索』有机会发现）")
         # v87.9 场景元素 PROPS 显示（子区域挂载，直接交互）
+        # v87.11 支持专属名：挂载条目可为 (prop_id, 专属名) 元组
         if player:
             prop_ids = C.subarea_props(mid, sa_id)
-            for _ppid in prop_ids:
+            for _entry in prop_ids:
+                _ppid, _label = C.prop_entry(_entry)
                 _pp = C.PROPS.get(_ppid)
                 if _pp:
-                    lines.append(f"{_pp['icon']} {_pp['name']}（『交互 {_pp['name']}』）")
+                    _name = _label or _pp['name']
+                    lines.append(f"{_pp['icon']} {_name}（『交互 {_name}』）")
         # v87.2 副本地图化：内联 POI（副本层自带 pois → 直接显示，『调查 <名称>』互动）
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
@@ -1433,10 +1436,12 @@ class WorldCmds(CommandBase):
                 yield event.plain_result("这里没什么可交互的，风倒是挺大。")
                 return
             lines = ["✨ 这里的场景元素："]
-            for i, pid in enumerate(prop_ids, 1):
+            for i, entry in enumerate(prop_ids, 1):
+                pid, label = C.prop_entry(entry)
                 pp = C.PROPS.get(pid, {})
                 if pp:
-                    lines.append(f"{i}. {pp['icon']}{pp['name']}：{pp.get('desc', '')}")
+                    name = label or pp['name']
+                    lines.append(f"{i}. {pp['icon']}{name}：{pp.get('desc', '')}")
             lines.append("💡 输入『交互 <名称>』或『交互 <序号>』互动")
             yield event.plain_result("\n".join(lines))
             return
@@ -1446,24 +1451,32 @@ class WorldCmds(CommandBase):
             if idx < 1 or idx > len(prop_ids):
                 yield event.plain_result(f"这里没有第 {idx} 个场景元素（共 {len(prop_ids)} 个）！『交互』查看列表～")
                 return
-            pid = prop_ids[idx - 1]
-            found = (pid, C.PROPS.get(pid, {}))
+            entry = prop_ids[idx - 1]
+            pid, label = C.prop_entry(entry)
+            found = (pid, C.PROPS.get(pid, {}), label)
         else:
-            # 找 prop：名称子串 / id 匹配
+            # 找 prop：专属名/默认名子串 / id 匹配
             found = None
-            for pid in prop_ids:
+            for entry in prop_ids:
+                pid, label = C.prop_entry(entry)
                 pp = C.PROPS.get(pid, {})
-                if pp and (name_key in pp.get("name", "") or name_key in pid):
-                    found = (pid, pp)
+                name = label or pp.get("name", "")
+                if pp and (name_key in name or name_key in pid):
+                    found = (pid, pp, label)
                     break
             if not found:
-                names = "、".join(C.PROPS[pid]["name"] for pid in prop_ids if pid in C.PROPS) or "没有"
+                names = "、".join(
+                    (label or C.PROPS[pid]["name"])
+                    for entry in prop_ids
+                    if (pid := C.prop_entry(entry)[0]) in C.PROPS
+                ) or "没有"
                 yield event.plain_result(f"这里没有『{name_key}』可以交互～（这里有：{names}）")
                 return
-        pid, pp = found
+        pid, pp, label = found
+        name = label or pp['name']
         texts = pp.get("texts") or []
         text = random.choice(texts) if texts else pp.get("desc", "……")
-        lines = [f"{pp['icon']}【{pp['name']}】", f"“{text}”"]
+        lines = [f"{pp['icon']}【{name}】", f"“{text}”"]
         # 极小彩蛋（纯趣味，不破坏平衡）
         eff = pp.get("effect")
         if eff == "wish":
