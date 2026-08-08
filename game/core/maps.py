@@ -5,7 +5,10 @@ from ..data import ENCY_MAP_MONSTERS, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, MA
 
 """《剑与魔法》数据层 - maps.py（v48：派生表 key 用 ID，value 存 ID）
 v87.6：内容下沉子区域，百科表从 SUBAREAS 构建（地图级字段已清空）。
+v87.14：空间连接规则——子区域相邻关系 + 城门出入。
 """
+
+
 def _build_ency():
     for m in MAPS:
         mid = m["id"]
@@ -30,3 +33,62 @@ def _build_ency():
                     ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mid, bid))
                 entries.append((bid, blv, "首领"))
         ENCY_MAP_MONSTERS[mid] = entries
+
+
+def subarea_links(map_id: str, subarea_id: str) -> list:
+    """同图内可直达的子区域 id 列表（v87.14 空间连接）。
+
+    - 城镇区域：星形拓扑——中心广场（首个子区域）连所有；其余子区域（含城门）只连广场
+    - 野外/副本：线性拓扑——按列表顺序相邻（i ↔ i+1），入口 _1 是图内枢纽
+    """
+    sas = SUBAREAS.get(map_id, [])
+    if not sas:
+        return []
+    idx = next((i for i, s in enumerate(sas) if s["id"] == subarea_id), None)
+    if idx is None:
+        return []
+    center = sas[0]
+    if center.get("type") == "城镇":
+        if subarea_id == center["id"]:
+            return [s["id"] for s in sas if s["id"] != center["id"]]
+        return [center["id"]]
+    # 线性
+    out = []
+    if idx > 0:
+        out.append(sas[idx - 1]["id"])
+    if idx < len(sas) - 1:
+        out.append(sas[idx + 1]["id"])
+    return out
+
+
+def map_exit_subarea(map_id: str) -> str:
+    """离开该图必须所在的子区域（v87.14）。
+
+    - 城镇：城门子区域（id 以 _gate 结尾）
+    - 非城镇：首个子区域（入口）
+    """
+    sas = SUBAREAS.get(map_id, [])
+    if not sas:
+        return ""
+    if sas[0].get("type") == "城镇":
+        for s in sas:
+            if s["id"].endswith("_gate"):
+                return s["id"]
+    return sas[0]["id"]
+
+
+def map_entry_subarea(map_id: str) -> str:
+    """跨图进入该图的落点子区域（v87.14）。
+
+    - 城镇：城门子区域（从野外进城先到城门，再进广场）
+    - 非城镇：首个子区域（入口）
+    注：注册/传送/回家等"城内直达"场景用 subareas[0]（广场），不走城门。
+    """
+    sas = SUBAREAS.get(map_id, [])
+    if not sas:
+        return ""
+    if sas[0].get("type") == "城镇":
+        for s in sas:
+            if s["id"].endswith("_gate"):
+                return s["id"]
+    return sas[0]["id"]

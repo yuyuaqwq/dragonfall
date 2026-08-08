@@ -550,6 +550,25 @@ class WorldCmds(CommandBase):
         lines.append("输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
+    def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
+        """v87.14 同图内不可直达时的提示（城镇星形 / 野外线性）。"""
+        cur_sa_id = player.get("cur_subarea") or ""
+        cur_name = cur_sa_id
+        tgt_name = target_sa.get("name", target_sa.get("id", "？"))
+        sas = cur_map.get("subareas") or []
+        for s in sas:
+            if s["id"] == cur_sa_id:
+                cur_name = s["name"]
+                break
+        center = sas[0] if sas else {}
+        if center.get("type") == "城镇":
+            return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
+                    f"得先回到{center.get('name', '广场')}（『移动 {center.get('name', '广场')}』），再从那里过去。")
+        links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
+        link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
+        return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
+                f"路只有一条，需要先经过{'、'.join(link_names)}。")
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?移动(?:\s*|$)")
     @no_prof_waiting()
 
@@ -576,6 +595,11 @@ class WorldCmds(CommandBase):
                 if sa["id"] == player.get("cur_subarea"):
                     yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
                     return
+                # v87.14 空间连接：同图只能移动到相邻子区域（城镇星形/野外线性）
+                links = C.subarea_links(cur, player.get("cur_subarea") or "")
+                if sa["id"] not in links:
+                    yield event.plain_result(self._move_blocked_msg(cur_map, player, sa))
+                    return
                 db.update_player(group_id, qq_id, cur_subarea=sa["id"])
                 yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
                 return
@@ -585,6 +609,11 @@ class WorldCmds(CommandBase):
                 if dest in (sa["name"], sa["id"]):
                     if sa["id"] == player.get("cur_subarea"):
                         yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
+                        return
+                    # v87.14 空间连接：同图只能移动到相邻子区域
+                    links = C.subarea_links(cur, player.get("cur_subarea") or "")
+                    if sa["id"] not in links:
+                        yield event.plain_result(self._move_blocked_msg(cur_map, player, sa))
                         return
                     db.update_player(group_id, qq_id, cur_subarea=sa["id"])
                     yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
@@ -659,9 +688,26 @@ class WorldCmds(CommandBase):
         lv_msg = ""
         if player["level"] < target["lv"]:
             lv_msg = f"\n⚠️ 建议等级 Lv.{target['lv']}，你才 Lv.{player['level']}，小心行事！"
-        # v86 子区域：跨图移动 → 默认落该图首个子区域（城镇=中心广场，野外=入口）
+        # v87.14 出图必须在该图出口子区域（城镇=城门，野外=入口）
+        exit_sa_id = C.map_exit_subarea(cur)
+        if exit_sa_id and player.get("cur_subarea") != exit_sa_id:
+            _exit_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == exit_sa_id), "出口")
+            _cur_sa_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == player.get("cur_subarea")), player.get("cur_subarea", ""))
+            yield event.plain_result(
+                f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
+                f"需要先到{_exit_name}（『移动 {_exit_name}』）才能出城/出图。"
+            )
+            return
+        # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
         target_sas = target.get("subareas") or []
-        first_sa = target_sas[0] if target_sas else None
+        first_sa = None
+        entry_sa_id = C.map_entry_subarea(target["id"])
+        for _s in target_sas:
+            if _s["id"] == entry_sa_id:
+                first_sa = _s
+                break
+        if first_sa is None and target_sas:
+            first_sa = target_sas[0]
         if want_sa:
             for _s in target_sas:
                 if _s["id"] == want_sa:
@@ -749,13 +795,14 @@ class WorldCmds(CommandBase):
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
         if show_funcs:
             lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}（『商店』『旅店』『找 <NPC名>』等）")
-        # 子区域间切换（同图免费）
+        # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板一致）
         sas = cur_map.get("subareas") or []
-        others = [i for i, x in enumerate(sas, 1) if x["id"] != sa["id"]]
+        links = C.subarea_links(cur_map.get("id", ""), sa["id"])
+        others = [(i, x) for i, x in enumerate(sas, 1) if x["id"] in links]
         if others:
-            lines.append("📮 同区域可前往：")
-            for i, idx in enumerate(others, 1):
-                lines.append(f"  {i}. {sas[idx - 1]['name']}")
+            lines.append("📮 可前往：")
+            for i, x in others:
+                lines.append(f"  {i}. {x['name']}")
         lines.append("")
         lines.append("💡 『移动 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)

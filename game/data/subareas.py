@@ -96,7 +96,22 @@ SUBAREAS = {
             "funcs": [],
             "shop": False,
             "healer": False
-        }
+        },
+        {
+            "id": "oak_town_gate",
+            "name": "橡木镇城门",
+            "icon": "🏰",
+            "desc": "两扇包铁的木门昼开夜闭，门洞上挂着褪色的镇徽。出镇就是橡木草地，进城便是冒险者广场。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "oak_meadow": [
         {
@@ -473,7 +488,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "white_deer_gate",
+            "name": "白鹿城门",
+            "icon": "🏰",
+            "desc": "白鹿城的白石城门，门楣雕着一头回眸的白鹿。城门内外，人声与风一起流动。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "emerald_forest": [
         {
@@ -1089,7 +1119,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "ironharbor_gate",
+            "name": "铁港城门",
+            "icon": "🏰",
+            "desc": "铁港城的铁闸门锈迹斑斑却坚实无比，门缝里能闻到海风的咸味。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "harbor_docks": [
         {
@@ -1367,7 +1412,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "silver_brook_gate",
+            "name": "银溪镇城门",
+            "icon": "🏰",
+            "desc": "银溪镇的木桥式城门横跨溪流，水声潺潺，守门的老人摇着蒲扇。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "silver_valley": [
         {
@@ -1710,7 +1770,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "maple_village_gate",
+            "name": "枫橡村寨门",
+            "icon": "🏰",
+            "desc": "枫橡村低矮的木栅寨门，门柱上缠着干枯的枫藤，村里飘来炊烟。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "rockfall_gorge": [
         {
@@ -2047,7 +2122,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "dawn_city_gate",
+            "name": "王都城门",
+            "icon": "🏰",
+            "desc": "圣光王都的巍峨城门，白色石墙上刻着圣辉纹章，两列卫兵持戟而立。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "dawn_cathedral": [
         {
@@ -3146,7 +3236,22 @@ SUBAREAS = {
             "funcs": [],
             "shop": False,
             "healer": False
-        }
+        },
+        {
+            "id": "ironshield_town_gate",
+            "name": "铁盾镇城门",
+            "icon": "🏰",
+            "desc": "铁盾镇的门楼厚重如盾，城墙上钉着密密麻麻的旧盾牌。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "ironshield_hills": [
         {
@@ -3445,7 +3550,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "moon_gate_gate",
+            "name": "月门城门",
+            "icon": "🏰",
+            "desc": "月门城的银白色城门，门拱形如满月，夜里会泛起柔和的月光。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "silverwood": [
         {
@@ -3769,7 +3889,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": False
-        }
+        },
+        {
+            "id": "moon_court_gate",
+            "name": "月庭宫门",
+            "icon": "🏰",
+            "desc": "月辉王庭的宫门由银木与月光石砌成，门上的精灵纹样流转着微光。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "elven_ruins": [
         {
@@ -4023,7 +4158,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "star_song_gate",
+            "name": "星歌镇城门",
+            "icon": "🏰",
+            "desc": "星歌镇的城门嵌着蓝色星石，入夜后星辉点点，像落了一地星辰。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "moon_glade": [
         {
@@ -4635,7 +4785,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "frost_horn_gate",
+            "name": "寒角堡城门",
+            "icon": "🏰",
+            "desc": "寒角堡的兽骨城门裹着铁皮，门缝里透出北地的寒气。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "frost_field": [
         {
@@ -4817,7 +4982,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "anvil_fort_gate",
+            "name": "铁砧堡闸门",
+            "icon": "🏰",
+            "desc": "铁砧堡的矮人闸门是整块精铁浇铸，门闩粗如树桩，凿着符文。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "forge_valley": [
         {
@@ -5525,7 +5705,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "cold_ridge_gate",
+            "name": "寒脊营门",
+            "icon": "🏰",
+            "desc": "寒脊营地的鹿角营门，木架上挂着风干的兽皮与冰棱。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "winter_lake": [
         {
@@ -5756,7 +5951,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "aurora_town_gate",
+            "name": "极光镇城门",
+            "icon": "🏰",
+            "desc": "极光镇的城门架在雪堆之间，门楼上悬着一盏永不熄灭的长明灯。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "permafrost_field": [
         {
@@ -6039,7 +6249,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": False
-        }
+        },
+        {
+            "id": "dragon_pass_gate",
+            "name": "山口关隘",
+            "icon": "🏰",
+            "desc": "龙裔山口的老关隘，石墙斑驳，风从隘口灌进来，呼呼作响。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "dragon_ridge": [
         {
@@ -6482,7 +6707,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "dragon_kin_gate",
+            "name": "龙裔寨门",
+            "icon": "🏰",
+            "desc": "龙裔聚落的寨门由龙骨与黑石砌成，门楣上悬着一枚巨大的龙牙。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "bone_wild": [
         {
@@ -7059,7 +7299,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "jade_port_gate",
+            "name": "翡翠港埠门",
+            "icon": "🏰",
+            "desc": "翡翠港的埠门直通码头，门柱缠着退色的缆绳，潮声就在门外。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "shell_town": [
         {
@@ -7116,7 +7371,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "shell_town_gate",
+            "name": "贝壳镇海门",
+            "icon": "🏰",
+            "desc": "贝壳镇的海门由珊瑚与贝壳堆成，涨潮时海水会漫过门前的礁石。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "coral_reef": [
         {
@@ -7787,7 +8057,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "nameless_harbor_gate",
+            "name": "无名港埠门",
+            "icon": "🏰",
+            "desc": "无名港的埠门被雾气常年浸着，门上的铭文早已锈蚀难辨。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "pearl_city": [
         {
@@ -7883,7 +8168,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "pearl_city_gate",
+            "name": "珍珠城水门",
+            "icon": "🏰",
+            "desc": "珍珠城的水门立在浅湾中，门柱镶着蚌壳与珍珠母，潮起潮落。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "mist_trench": [
         {
@@ -8598,7 +8898,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "deep_tunnel_gate",
+            "name": "深隧铁闸",
+            "icon": "🏰",
+            "desc": "深隧的矮人铁闸嵌在岩壁里，绞盘上的铁链粗如手臂，转动时轰轰作响。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "under_market": [
         {
@@ -8655,7 +8970,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": True
-        }
+        },
+        {
+            "id": "under_market_gate",
+            "name": "地下集市闸门",
+            "icon": "🏰",
+            "desc": "地下集市的闸门锈迹斑斑，门后透出集市嘈杂的灯光与叫卖声。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "fungus_forest": [
         {
@@ -9236,7 +9566,22 @@ SUBAREAS = {
             ],
             "shop": True,
             "healer": False
-        }
+        },
+        {
+            "id": "ember_camp_gate",
+            "name": "灰烬营门",
+            "icon": "🏰",
+            "desc": "灰烬营地的木门楼熏得发黑，门柱上钉着烬山探险队的旧旗。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "lava_bed": [
         {
@@ -9592,7 +9937,22 @@ SUBAREAS = {
             ],
             "shop": False,
             "healer": False
-        }
+        },
+        {
+            "id": "wind_city_gate",
+            "name": "云门",
+            "icon": "🏰",
+            "desc": "风之城的云门浮在断崖边，门框由云母石砌成，脚下便是万丈云海。",
+            "type": "城镇出口",
+            "lv": 1,
+            "npcs": [],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
     ],
     "cloud_sea": [
         {
