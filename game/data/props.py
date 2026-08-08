@@ -302,7 +302,11 @@ PROPS = {
             "你拿起台上的铁钳掂了掂——沉甸甸的，铁匠的伙伴果然跟冒险者的剑一样值得信赖。",
             "锻造台的一角刻着一行小字：『每一件好兵器，都是被耐心喂大的。』",
         ],
-        "effect": None,
+        "effect": {
+            "type": "material", "daily": True,
+            "pool": ["mat_tie_kuang_shi", "mat_shi_cai", "mat_jing_tie"],
+            "found_text": "你在锻造台旁的废料桶里翻到",
+        },
     },
     "anvil": {
         "name": "铁砧", "icon": "🔨",
@@ -347,7 +351,10 @@ PROPS = {
             "你凑到壁炉边烤了烤手，暖意顺着指尖爬满全身。这一刻，旅途的疲惫都被融化了。",
             "壁炉上方的架子上摆着几件小摆件，都是旅人留下的纪念品。",
         ],
-        "effect": None,
+        "effect": {
+            "type": "heal", "daily": True, "pct": 0.15,
+            "found_text": "壁炉的暖意渗进骨头里",
+        },
     },
     "medicine_cabinet": {
         "name": "药柜", "icon": "💊",
@@ -356,7 +363,11 @@ PROPS = {
             "你拉开一格抽屉，里面是晒干的草药，药香扑鼻。你赶紧合上——偷看药柜可不礼貌。",
             "药柜最上层摆着一只白瓷瓶，标签写着『内服』，笔迹端端正正。",
         ],
-        "effect": None,
+        "effect": {
+            "type": "material", "daily": True,
+            "pool": ["mat_cao_yao", "mat_jiang_guo", "mat_yue_guang_cao", "mat_zhao_ze_hua"],
+            "found_text": "你在药柜角落的抽屉里发现",
+        },
     },
     "mortar_pestle": {
         "name": "捣药臼", "icon": "🌿",

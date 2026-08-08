@@ -511,11 +511,11 @@ class InstanceCmds(CommandBase):
             lines.append(f"🔓 隐藏房间：{secret.get('desc', '')}")
         elif secret and not st.get("stage_secret_found"):
             lines.append("🤔 似乎有暗门/机关的气息……（线索可能藏在石碑或机关里）")
-        # 复用世界地图展示管线：内联 POI / NPC
-        inter = self._map_interactions(vmap, None)
+        # 复用世界地图展示管线：内联 POI / NPC（v87.13 场景函数）
+        inter = self._map_scene(vmap, None)
         if inter:
             lines.append("━━━━━━━━━━━━")
-            lines.append("🔎 可交互：")
+            lines.append("✨ 场景：")
             lines.extend(f"  {l}" for l in inter)
         # 怪物
         mons = vmap.get("monsters") or []

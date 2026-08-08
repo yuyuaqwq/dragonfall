@@ -59,3 +59,6 @@ from .feedback import (  # noqa: F401
     add_feedback, get_feedback, mark_feedback_done,
     ensure_feedback_reply_col, get_feedback_with_reply, mark_feedback_broadcast,
 )
+from .props_use import (  # noqa: F401
+    get_props_use, mark_props_use,
+)

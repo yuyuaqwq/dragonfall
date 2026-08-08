@@ -123,6 +123,10 @@ def init_db():
                 streak INTEGER DEFAULT 0,
                 total INTEGER DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS props_use (
+                qq_id TEXT PRIMARY KEY,
+                used TEXT DEFAULT '{}'
+            );
             CREATE TABLE IF NOT EXISTS fishing (
                 qq_id TEXT PRIMARY KEY,
                 total INTEGER DEFAULT 0

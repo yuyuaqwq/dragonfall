@@ -23,8 +23,11 @@ from ..commands.base import CommandBase, no_prof_waiting
 
 class WorldCmds(CommandBase):
 
-    def _map_interactions(self, cur_map: dict, player: dict = None) -> list:
-        """当前地图可互动元素清单（v13：互动直接显示；v86：子区域感知）"""
+    def _map_facilities(self, cur_map: dict, player: dict = None) -> list:
+        """当前地图功能性设施清单（商店/旅店/铁匠/方碑/垂钓/篝火/矿脉/采集）。
+
+        v87.13 与 _map_scene 拆分：设施 = 干事的功能入口；场景 = 氛围景物。
+        """
         lines = []
         mid = cur_map.get("id", "")
         portals = db.get_portals(player["qq_id"]) if player else []
@@ -71,6 +74,16 @@ class WorldCmds(CommandBase):
             lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『挖掘』）")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
             lines.append("🌿 野地可采集（『采集』）")
+        return lines
+
+    def _map_scene(self, cur_map: dict, player: dict = None) -> list:
+        """当前子区域场景元素清单（POI 探索点 + PROPS 场景元素 + 副本内联 POI）。
+
+        v87.13 从 _map_interactions 拆出：氛围/景物类，标题用「✨ 场景」。
+        """
+        lines = []
+        mid = cur_map.get("id", "")
+        sa_id = (player or {}).get("cur_subarea") or ""
         # v87 02 章 7.6：探索点 POI 显示（子区域挂载）
         if player:
             poi_ids = C.subarea_pois(mid, sa_id)
@@ -92,7 +105,7 @@ class WorldCmds(CommandBase):
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
                 lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}（『调查 {_p['name']}』）")
-        # v87.4 NPC 不再进可互动（由地图面板「👥 这里的 NPC」统一显示，避免重复）
+        # v87.4 NPC 不再进场景（由地图面板「👥 这里的 NPC」统一显示，避免重复）
         return lines
 
     @staticmethod
@@ -435,7 +448,14 @@ class WorldCmds(CommandBase):
         title = cur_map["name"]
         if sa_now:
             title = f"{cur_map['name']} · {sa_now}"
-        lines = [f"🗺️ 【{title}】", f"{cur_map['desc']}", "━━━━━━━━━━━━"]
+        # v87.13 描述优先显示当前子区域（子区域无 desc 时回退地图 desc）
+        sa_desc = ""
+        if cur_sa:
+            for _sa in (cur_map.get("subareas") or []):
+                if _sa["id"] == cur_sa:
+                    sa_desc = _sa.get("desc", "") or ""
+                    break
+        lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
         # v87.4 合并显示：子区域 + 相邻地图统一连续编号（『移动 <序号>』直接可用）
         sas = cur_map.get("subareas") or []
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
@@ -455,11 +475,20 @@ class WorldCmds(CommandBase):
         # v87.4 区块间统一空行分隔（不再叠分隔线）
         if lines and lines[-1]:
             lines.append("")
-        # 此地可互动（v13）
-        inter = self._map_interactions(cur_map, player)
-        if inter:
-            lines.append("📜 此地可互动：")
-            for l in inter:
+        # 此地设施 + 场景（v87.13 拆分：设施=功能入口，场景=氛围景物）
+        fac = self._map_facilities(cur_map, player)
+        if fac:
+            if lines and lines[-1]:
+                lines.append("")
+            lines.append("🏪 此地设施：")
+            for l in fac:
+                lines.append(f"  {l}")
+        scene = self._map_scene(cur_map, player)
+        if scene:
+            if lines and lines[-1]:
+                lines.append("")
+            lines.append("✨ 场景：")
+            for l in scene:
                 lines.append(f"  {l}")
         # 本地 NPC
         # v86 子区域：NPC 按当前子区域显示（无子区域则地图级）
@@ -528,6 +557,10 @@ class WorldCmds(CommandBase):
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        # v87.13 对话中禁止移动：多轮对话进行时先『对话 0』结束
+        if db.get_talk_state(group_id, qq_id):
+            yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
             return
         dest = dest.strip()
         cur = player["cur_map"]
@@ -648,17 +681,22 @@ class WorldCmds(CommandBase):
         if target["id"] in C.PORTALS and target["id"] not in db.get_portals(qq_id):
             p = C.PORTALS[target["id"]]
             portal_msg = f"\n\n🌌 一座{p['icon']}{p['name']}矗立在此！『激活』可解锁传送点～"
-        # v13：到达后显示可前往 + 此地可互动
+        # v13：到达后显示可前往 + 设施/场景（v87.13 拆分）
         neighbors = C.MAP_CONNECTIONS.get(target["id"], [])
         nav = ""
         if neighbors:
             nav = "\n\n📮 可前往：" + "  ".join(
                 f"{i}.{self._conn_target(c)[0]['name']}" for i, c in enumerate(neighbors[:6], 1)
             )
-        inter = self._map_interactions(target, player)
-        inter_msg = ""
-        if inter:
-            inter_msg = "\n\n📜 此地可互动：\n  " + "\n  ".join(inter)
+        fac = self._map_facilities(target, player)
+        fac_msg = ""
+        if fac:
+            fac_msg = "\n\n🏪 此地设施：\n  " + "\n  ".join(fac)
+        scene = self._map_scene(target, player)
+        scene_msg = ""
+        if scene:
+            scene_msg = "\n\n✨ 场景：\n  " + "\n  ".join(scene)
+        inter_msg = fac_msg + scene_msg
         # v49 意见#4：移动撞怪（生物趋避利害——低级闯高级区容易撞怪，高级玩家威慑低级区）
         ambush = self._travel_ambush(player, target)
         if ambush:
@@ -1478,6 +1516,8 @@ class WorldCmds(CommandBase):
         text = random.choice(texts) if texts else pp.get("desc", "……")
         lines = [f"{pp['icon']}【{name}】", f"“{text}”"]
         # 极小彩蛋（纯趣味，不破坏平衡）
+        # v87.12 专属元素带小效果：dict effect = {"type": "material"/"heal", "daily": True}
+        import datetime as _dt
         eff = pp.get("effect")
         if eff == "wish":
             if random.random() < 0.25:
@@ -1486,6 +1526,35 @@ class WorldCmds(CommandBase):
                 lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
         elif eff == "refresh":
             lines.append("💧 泉水入喉，神清气爽。旅途的疲惫仿佛也被这淙淙水声冲淡了一些。")
+        elif isinstance(eff, dict) and eff.get("daily"):
+            # 每日 1 次（按元素实例：地图:子区域:prop_id 独立计数，防刷）
+            today = _dt.date.today().isoformat()
+            use_key = f"{cur}:{sa_id}:{pid}"
+            used = db.get_props_use(group_id, qq_id)
+            if used.get(use_key) == today:
+                lines.append("⏳ 今天已经在这里翻找过了……明天再来碰碰运气吧。")
+            else:
+                etype = eff.get("type")
+                if etype == "material":
+                    pool = eff.get("pool") or []
+                    if pool:
+                        mid = random.choice(pool)
+                        mname = C.display("materials", mid)
+                        db.add_item(group_id, qq_id, mid, {
+                            "name": mname, "type": "材料", "stackable": True,
+                            "price": C.MATERIALS[mid]["price"],
+                        }, 1)
+                        db.mark_props_use(group_id, qq_id, use_key, today)
+                        lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
+                elif etype == "heal":
+                    pct = float(eff.get("pct", 0.1))
+                    heal = max(1, int((player.get("max_hp", 1) - player.get("hp", 0)) * pct))
+                    if heal <= 0:
+                        lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～（明天再来也一样暖）")
+                    else:
+                        db.update_player(group_id, qq_id, hp=player["hp"] + heal)
+                        db.mark_props_use(group_id, qq_id, use_key, today)
+                        lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命（{player['hp'] + heal}/{player.get('max_hp', 1)}）！")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v65 NPC 多轮对话 ----------------

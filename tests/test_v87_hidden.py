@@ -90,13 +90,13 @@ def main():
           len(ev_ids) == 12 and all(x in ev_ids for x in ("lost_camp", "meteor", "animal", "rain")),
           f"实际 {len(ev_ids)}")
 
-    # ===== 5. 探索点显示（_map_interactions 包含 POI）=====
+    # ===== 5. 探索点显示（_map_scene 包含 POI）=====
     print("  · 探索点显示")
     from data.plugins.dragonfall.main import Main
     inst = Main.__new__(Main)
     player = {"qq_id": "q", "cur_subarea": "oak_town_1"}
     cur_map = C.MAP_BY_ID["oak_town"]
-    lines = inst._map_interactions(cur_map, player)
+    lines = inst._map_scene(cur_map, player)
     poi_lines = [l for l in lines if "探索" in l and "发现" in l]
     check("地图面板显示 POI（冒险者广场）", len(poi_lines) >= 1, f"实际 {poi_lines}")
 
