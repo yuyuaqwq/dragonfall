@@ -405,8 +405,9 @@ SUBAREAS = {
             "desc": "白鹿城·白鹿与麦酒酒馆",
             "type": "城镇",
             "lv": 5,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_deer_newsboy",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1007,8 +1008,9 @@ SUBAREAS = {
             "desc": "铁港城·铁锚酒馆",
             "type": "城镇",
             "lv": 10,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_harbor_rope",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1024,8 +1026,9 @@ SUBAREAS = {
             "desc": "铁港城·金齿轮商行",
             "type": "城镇",
             "lv": 10,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_harbor_fishwife",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1075,8 +1078,9 @@ SUBAREAS = {
             "desc": "铁港城·锻造坊",
             "type": "城镇",
             "lv": 10,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_harbor_watchman",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1298,8 +1302,9 @@ SUBAREAS = {
             "desc": "银溪镇·银溪广场",
             "type": "城镇",
             "lv": 12,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_silver_fisher",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1315,8 +1320,9 @@ SUBAREAS = {
             "desc": "银溪镇·磨坊街",
             "type": "城镇",
             "lv": 12,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_silver_washer",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1332,8 +1338,9 @@ SUBAREAS = {
             "desc": "银溪镇·河畔旅店",
             "type": "城镇",
             "lv": 12,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_silver_apprentice",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1349,8 +1356,9 @@ SUBAREAS = {
             "desc": "银溪镇·集市",
             "type": "城镇",
             "lv": 12,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_silver_peddler",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -1637,8 +1645,9 @@ SUBAREAS = {
             "desc": "枫橡村·村口广场",
             "type": "城镇",
             "lv": 6,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_maple_woodcutter",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -2009,8 +2018,9 @@ SUBAREAS = {
             "desc": "晨曦城·骑士团驻地",
             "type": "城镇",
             "lv": 25,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_dawn_gardener",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -2026,8 +2036,9 @@ SUBAREAS = {
             "desc": "晨曦城·炼金工坊",
             "type": "城镇",
             "lv": 25,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_dawn_squire",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3107,8 +3118,9 @@ SUBAREAS = {
             "desc": "铁盾镇·军械铺",
             "type": "城镇",
             "lv": 30,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_shield_watch",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3386,8 +3398,9 @@ SUBAREAS = {
             "desc": "月冠隘口·月门广场",
             "type": "城镇",
             "lv": 45,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_moongate_guard",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3403,8 +3416,9 @@ SUBAREAS = {
             "desc": "月冠隘口·银月旅店",
             "type": "城镇",
             "lv": 45,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_moongate_astronomer",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3420,8 +3434,9 @@ SUBAREAS = {
             "desc": "月冠隘口·哨塔集市",
             "type": "城镇",
             "lv": 45,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_moongate_silk",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3725,8 +3740,9 @@ SUBAREAS = {
             "desc": "月冠王庭·月影卫营",
             "type": "城镇",
             "lv": 55,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_elf_gardener",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3742,8 +3758,9 @@ SUBAREAS = {
             "desc": "月冠王庭·贤者书阁",
             "type": "城镇",
             "lv": 55,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_elf_rabbit",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3959,8 +3976,9 @@ SUBAREAS = {
             "desc": "星歌镇·星歌广场",
             "type": "城镇",
             "lv": 48,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_starsong_bardling",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3976,8 +3994,9 @@ SUBAREAS = {
             "desc": "星歌镇·星光集市",
             "type": "城镇",
             "lv": 48,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_starsong_baker",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -3994,8 +4013,9 @@ SUBAREAS = {
             "desc": "星歌镇·星歌旅店",
             "type": "城镇",
             "lv": 48,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_starsong_drunkard",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -4568,8 +4588,9 @@ SUBAREAS = {
             "desc": "霜角堡·霜角酒馆",
             "type": "城镇",
             "lv": 60,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_frost_hunter",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -4585,8 +4606,9 @@ SUBAREAS = {
             "desc": "霜角堡·守备营",
             "type": "城镇",
             "lv": 60,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_frost_weaver",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -4784,8 +4806,9 @@ SUBAREAS = {
             "desc": "铁砧要塞·符文工坊",
             "type": "城镇",
             "lv": 65,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_anvil_brewer",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -5456,8 +5479,9 @@ SUBAREAS = {
             "desc": "寒脊营地·营地口",
             "type": "城镇",
             "lv": 68,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_cold_hunter",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -5473,8 +5497,9 @@ SUBAREAS = {
             "desc": "寒脊营地·主帐篷",
             "type": "城镇",
             "lv": 68,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_cold_herder",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -5490,8 +5515,9 @@ SUBAREAS = {
             "desc": "寒脊营地·补给站",
             "type": "城镇",
             "lv": 68,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_cold_firekeeper",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -5663,8 +5689,9 @@ SUBAREAS = {
             "desc": "极光镇·极光广场",
             "type": "城镇",
             "lv": 70,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_aurora_scribe",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -5983,8 +6010,9 @@ SUBAREAS = {
             "desc": "龙脊山口·山口广场",
             "type": "城镇",
             "lv": 80,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_pass_stationmaster",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -6408,8 +6436,9 @@ SUBAREAS = {
             "desc": "龙裔聚落·聚落广场",
             "type": "城镇",
             "lv": 82,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_dragonkin_youth",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -6425,8 +6454,9 @@ SUBAREAS = {
             "desc": "龙裔聚落·龙裔祭坛",
             "type": "城镇",
             "lv": 82,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_dragonkin_elder",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -6442,8 +6472,9 @@ SUBAREAS = {
             "desc": "龙裔聚落·旅店",
             "type": "城镇",
             "lv": 82,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_dragonkin_smith",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -6981,8 +7012,9 @@ SUBAREAS = {
             "desc": "翡翠港·港口广场",
             "type": "城镇",
             "lv": 35,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_jade_docker",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -6998,8 +7030,9 @@ SUBAREAS = {
             "desc": "翡翠港·翡翠集市",
             "type": "城镇",
             "lv": 35,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_jade_carver",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7016,8 +7049,9 @@ SUBAREAS = {
             "desc": "翡翠港·船坞旅店",
             "type": "城镇",
             "lv": 35,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_jade_helmsman",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7035,8 +7069,9 @@ SUBAREAS = {
             "desc": "贝壳镇·贝壳集市",
             "type": "城镇",
             "lv": 40,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_shell_picker",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7053,8 +7088,9 @@ SUBAREAS = {
             "desc": "贝壳镇·码头",
             "type": "城镇",
             "lv": 40,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_shell_netter",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7070,8 +7106,9 @@ SUBAREAS = {
             "desc": "贝壳镇·旅店",
             "type": "城镇",
             "lv": 40,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_shell_gatherer",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7702,8 +7739,9 @@ SUBAREAS = {
             "desc": "无名港·港口广场",
             "type": "城镇",
             "lv": 55,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_nameless_catwoman",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7817,8 +7855,9 @@ SUBAREAS = {
             "desc": "珍珠城·商行",
             "type": "城镇",
             "lv": 62,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_pearl_diver",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -7834,8 +7873,9 @@ SUBAREAS = {
             "desc": "珍珠城·渔港",
             "type": "城镇",
             "lv": 62,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_pearl_shuttler",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8512,8 +8552,9 @@ SUBAREAS = {
             "desc": "深岩隧道·隧道口",
             "type": "城镇",
             "lv": 65,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_tunnel_miner",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8529,8 +8570,9 @@ SUBAREAS = {
             "desc": "深岩隧道·中央大厅",
             "type": "城镇",
             "lv": 65,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_tunnel_lamp",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8546,8 +8588,9 @@ SUBAREAS = {
             "desc": "深岩隧道·营地区",
             "type": "城镇",
             "lv": 65,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_tunnel_carter",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8565,8 +8608,9 @@ SUBAREAS = {
             "desc": "地底集市·集市广场",
             "type": "城镇",
             "lv": 70,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_under_trader",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8583,8 +8627,9 @@ SUBAREAS = {
             "desc": "地底集市·拍卖区",
             "type": "城镇",
             "lv": 70,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_under_guard",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -8600,8 +8645,9 @@ SUBAREAS = {
             "desc": "地底集市·旅店",
             "type": "城镇",
             "lv": 70,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_under_whisper",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -9161,8 +9207,9 @@ SUBAREAS = {
             "desc": "灰烬营地·地底向导所",
             "type": "城镇",
             "lv": 85,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_ember_cook",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -9179,8 +9226,9 @@ SUBAREAS = {
             "desc": "灰烬营地·补给站",
             "type": "城镇",
             "lv": 85,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_ember_scout",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -9515,8 +9563,9 @@ SUBAREAS = {
             "desc": "风翼城·浮空广场",
             "type": "城镇",
             "lv": 85,
-            "npcs": [],
-            "monsters": [],
+            "npcs": [
+                "npc_wind_kitemaker",
+            ],            "monsters": [],
             "elite": None,
             "boss": None,
             "funcs": [
@@ -10384,8 +10433,9 @@ SUBAREAS = {
         "desc": "银风商道·银风道口",
         "type": "野外",
         "lv": 6,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_road_peddler",
+        ],        "monsters": [
           [
             "m_wild_dog",
             "野狗",
@@ -10460,8 +10510,9 @@ SUBAREAS = {
         "desc": "西岭荒原·西岭口",
         "type": "野外",
         "lv": 28,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_wild_herbalist",
+        ],        "monsters": [
           [
             "m_hill_wolf",
             "丘陵狼",
@@ -10686,7 +10737,10 @@ SUBAREAS = {
         "desc": "雾潮航道·港外锚地",
         "type": "野外",
         "lv": 45,
-        "npcs": ["npc_old_sailor"],
+        "npcs": [
+            "npc_old_sailor",
+            "npc_mist_fisher",
+        ],
         "monsters": [
           [
             "m_siren_scout",
@@ -10806,8 +10860,9 @@ SUBAREAS = {
         "desc": "黑潮海峡·无名礁口",
         "type": "野外",
         "lv": 58,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_strait_ferryman",
+        ],        "monsters": [
           [
             "m_corrupted_elf",
             "堕落精灵",
@@ -10928,8 +10983,9 @@ SUBAREAS = {
         "desc": "矮人长廊·要塞铁门",
         "type": "野外",
         "lv": 62,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_gallery_mule",
+        ],        "monsters": [
           [
             "m_ancient_golem",
             "远古魔像",
@@ -11024,8 +11080,9 @@ SUBAREAS = {
         "desc": "寒脊雪道·铁砧北门",
         "type": "野外",
         "lv": 66,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_snow_hunter",
+        ],        "monsters": [
           [
             "m_snow_mammoth",
             "雪原猛犸",
@@ -11119,8 +11176,9 @@ SUBAREAS = {
         "desc": "龙脊古道·王庭东门",
         "type": "野外",
         "lv": 64,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_ridge_bonecollector",
+        ],        "monsters": [
           [
             "m_shadow_elf",
             "暗影精灵",
@@ -11241,8 +11299,9 @@ SUBAREAS = {
         "desc": "龙裔谷道·聚落石阶",
         "type": "野外",
         "lv": 81,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_valley_pilgrim",
+        ],        "monsters": [
           [
             "m_demon_servant",
             "深渊奴仆",
@@ -11362,8 +11421,9 @@ SUBAREAS = {
         "desc": "天梯云径·云梯起步",
         "type": "野外",
         "lv": 82,
-        "npcs": [],
-        "monsters": [
+        "npcs": [
+            "npc_sky_monk",
+        ],        "monsters": [
           [
             "m_obsidian_golem",
             "黑曜石魔像",
