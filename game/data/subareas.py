@@ -121,7 +121,7 @@ SUBAREAS = {
             "desc": "橡木平原·草地边缘",
             "type": "野外",
             "lv": 1,
-            "npcs": [],
+            "npcs": ["npc_oak_shepherd"],
             "monsters": [
                 [
                     "m_slime",
@@ -238,7 +238,7 @@ SUBAREAS = {
             "desc": "白鹿之森·林间入口",
             "type": "野外",
             "lv": 3,
-            "npcs": [],
+            "npcs": ["npc_deer_forester"],
             "monsters": [
                 [
                     "m_wild_dog",
@@ -513,7 +513,7 @@ SUBAREAS = {
             "desc": "翡翠森林·林间小径",
             "type": "野外",
             "lv": 8,
-            "npcs": [],
+            "npcs": ["npc_emerald_hunter"],
             "monsters": [
                 [
                     "m_forest_wolf",
@@ -635,7 +635,7 @@ SUBAREAS = {
             "desc": "迷雾沼泽·沼泽边缘",
             "type": "野外",
             "lv": 12,
-            "npcs": [],
+            "npcs": ["npc_swamp_fisher"],
             "monsters": [
                 [
                     "m_big_slime",
@@ -841,7 +841,7 @@ SUBAREAS = {
             "desc": "山丘矿洞·矿洞入口",
             "type": "野外",
             "lv": 18,
-            "npcs": [],
+            "npcs": ["npc_mine_miner"],
             "monsters": [
                 [
                     "m_cave_bat",
@@ -1144,7 +1144,7 @@ SUBAREAS = {
             "desc": "铁港码头·码头栈桥",
             "type": "野外",
             "lv": 20,
-            "npcs": [],
+            "npcs": ["npc_dock_foreman"],
             "monsters": [
                 [
                     "m_water_ghost",
@@ -1437,7 +1437,7 @@ SUBAREAS = {
             "desc": "银溪谷地·谷地入口",
             "type": "野外",
             "lv": 10,
-            "npcs": [],
+            "npcs": ["npc_valley_fisher"],
             "monsters": [
                 [
                     "m_river_deer",
@@ -1555,7 +1555,7 @@ SUBAREAS = {
             "desc": "风车原野·原野边缘",
             "type": "野外",
             "lv": 14,
-            "npcs": [],
+            "npcs": ["npc_windmill_miller"],
             "monsters": [
                 [
                     "m_plain_rabbit",
@@ -1795,7 +1795,7 @@ SUBAREAS = {
             "desc": "落石峡谷·峡谷口",
             "type": "野外",
             "lv": 4,
-            "npcs": [],
+            "npcs": ["npc_gorge_stonecutter"],
             "monsters": [
                 [
                     "m_rock_rat",
@@ -1913,7 +1913,7 @@ SUBAREAS = {
             "desc": "野猪岭·山脚",
             "type": "野外",
             "lv": 6,
-            "npcs": [],
+            "npcs": ["npc_boar_hunter"],
             "monsters": [
                 [
                     "m_wild_boar",
@@ -2147,7 +2147,7 @@ SUBAREAS = {
             "desc": "晨曦大圣堂·圣堂前庭",
             "type": "野外",
             "lv": 28,
-            "npcs": [],
+            "npcs": ["npc_cathedral_deacon"],
             "monsters": [
                 [
                     "m_temple_guard",
@@ -2267,7 +2267,7 @@ SUBAREAS = {
             "desc": "金穗平原·平原边缘",
             "type": "野外",
             "lv": 30,
-            "npcs": [],
+            "npcs": ["npc_gold_farmchief"],
             "monsters": [
                 [
                     "m_wild_bull",
@@ -2579,7 +2579,7 @@ SUBAREAS = {
             "desc": "边境堡·堡外荒野",
             "type": "野外",
             "lv": 40,
-            "npcs": [],
+            "npcs": ["npc_border_quartermaster"],
             "monsters": [
                 [
                     "m_orc_raider",
@@ -2685,7 +2685,7 @@ SUBAREAS = {
             "desc": "银铃河·河岸",
             "type": "野外",
             "lv": 20,
-            "npcs": [],
+            "npcs": ["npc_river_ferryman"],
             "monsters": [
                 [
                     "m_river_spirit",
@@ -2901,7 +2901,7 @@ SUBAREAS = {
             "desc": "圣骑士训练场·训练场入口",
             "type": "野外",
             "lv": 26,
-            "npcs": [],
+            "npcs": ["npc_knight_instructor"],
             "monsters": [
                 [
                     "m_training_golem",
@@ -3019,7 +3019,7 @@ SUBAREAS = {
             "desc": "王陵古道·古道口",
             "type": "野外",
             "lv": 33,
-            "npcs": [],
+            "npcs": ["npc_kingroad_gravekeeper"],
             "monsters": [
                 [
                     "m_road_skeleton",
@@ -3261,7 +3261,7 @@ SUBAREAS = {
             "desc": "铁盾丘陵·丘陵脚",
             "type": "野外",
             "lv": 28,
-            "npcs": [],
+            "npcs": ["npc_hills_scout"],
             "monsters": [
                 [
                     "m_hill_wolf",
@@ -3382,7 +3382,7 @@ SUBAREAS = {
             "desc": "旧战场遗址·遗址边缘",
             "type": "野外",
             "lv": 32,
-            "npcs": [],
+            "npcs": ["npc_battlefield_veteran"],
             "monsters": [
                 [
                     "m_rust_warrior",
@@ -3575,7 +3575,7 @@ SUBAREAS = {
             "desc": "银月林海·林海边缘",
             "type": "野外",
             "lv": 46,
-            "npcs": [],
+            "npcs": ["npc_silverwood_ranger"],
             "monsters": [
                 [
                     "m_elf_beast",
@@ -4183,7 +4183,7 @@ SUBAREAS = {
             "desc": "月光林·林缘",
             "type": "野外",
             "lv": 52,
-            "npcs": [],
+            "npcs": ["npc_moonglade_moonpriest"],
             "monsters": [
                 [
                     "m_moon_deer",
@@ -4303,7 +4303,7 @@ SUBAREAS = {
             "desc": "翠谷·谷口",
             "type": "野外",
             "lv": 47,
-            "npcs": [],
+            "npcs": ["npc_emeraldvalley_deerherd"],
             "monsters": [
                 [
                     "m_emerald_deer",
@@ -4455,7 +4455,7 @@ SUBAREAS = {
             "desc": "风语谷·谷口",
             "type": "野外",
             "lv": 50,
-            "npcs": [],
+            "npcs": ["npc_windvale_whisperer"],
             "monsters": [
                 [
                     "m_wind_deer",
@@ -4577,7 +4577,7 @@ SUBAREAS = {
             "desc": "月影林·林缘",
             "type": "野外",
             "lv": 54,
-            "npcs": [],
+            "npcs": ["npc_moonshadow_hunter"],
             "monsters": [
                 [
                     "m_shadow_panther",
@@ -4810,7 +4810,7 @@ SUBAREAS = {
             "desc": "霜原·霜原边缘",
             "type": "野外",
             "lv": 62,
-            "npcs": [],
+            "npcs": ["npc_frostfield_hunter"],
             "monsters": [
                 [
                     "m_snow_wolf",
@@ -5007,7 +5007,7 @@ SUBAREAS = {
             "desc": "熔炉谷·谷口",
             "type": "野外",
             "lv": 66,
-            "npcs": [],
+            "npcs": ["npc_forge_miner"],
             "monsters": [
                 [
                     "m_fire_lizard",
@@ -5537,7 +5537,7 @@ SUBAREAS = {
             "desc": "冰牙谷·谷口",
             "type": "野外",
             "lv": 63,
-            "npcs": [],
+            "npcs": ["npc_frostfang_hunter"],
             "monsters": [
                 [
                     "m_ice_sabre",
@@ -5730,7 +5730,7 @@ SUBAREAS = {
             "desc": "永冬湖·湖畔",
             "type": "野外",
             "lv": 70,
-            "npcs": [],
+            "npcs": ["npc_winterlake_fisher"],
             "monsters": [
                 [
                     "m_lake_ice_elemental",
@@ -5976,7 +5976,7 @@ SUBAREAS = {
             "desc": "永冻冰原·冰原边缘",
             "type": "野外",
             "lv": 68,
-            "npcs": [],
+            "npcs": ["npc_permafrost_sledder"],
             "monsters": [
                 [
                     "m_frost_bear",
@@ -6098,7 +6098,7 @@ SUBAREAS = {
             "desc": "霜语峡谷·峡谷口",
             "type": "野外",
             "lv": 72,
-            "npcs": [],
+            "npcs": ["npc_frostwhisper_mountaineer"],
             "monsters": [
                 [
                     "m_ice_serpent",
@@ -6274,7 +6274,7 @@ SUBAREAS = {
             "desc": "龙脊山脉·山脚",
             "type": "野外",
             "lv": 82,
-            "npcs": [],
+            "npcs": ["npc_dragonridge_guide"],
             "monsters": [
                 [
                     "m_dragonkin",
@@ -6368,7 +6368,7 @@ SUBAREAS = {
             "desc": "龙巢·巢外峭壁",
             "type": "野外",
             "lv": 88,
-            "npcs": [],
+            "npcs": ["npc_dragonroost_dragonspeaker"],
             "monsters": [
                 [
                     "m_young_dragon",
@@ -6732,7 +6732,7 @@ SUBAREAS = {
             "desc": "龙骨荒野·荒野边缘",
             "type": "野外",
             "lv": 84,
-            "npcs": [],
+            "npcs": ["npc_bonewild_scavenger"],
             "monsters": [
                 [
                     "m_bone_wyrm",
@@ -6854,7 +6854,7 @@ SUBAREAS = {
             "desc": "风暴崖·崖脚",
             "type": "野外",
             "lv": 86,
-            "npcs": [],
+            "npcs": ["npc_stormcliff_watcher"],
             "monsters": [
                 [
                     "m_storm_hawk",
@@ -7008,7 +7008,7 @@ SUBAREAS = {
             "desc": "赤脊高原·高原边缘",
             "type": "野外",
             "lv": 84,
-            "npcs": [],
+            "npcs": ["npc_redridge_dragonherd"],
             "monsters": [
                 [
                     "m_red_raptor",
@@ -7130,7 +7130,7 @@ SUBAREAS = {
             "desc": "龙陨谷·谷口",
             "type": "野外",
             "lv": 88,
-            "npcs": [],
+            "npcs": ["npc_dragonsfall_scholar"],
             "monsters": [
                 [
                     "m_bone_dragon",
@@ -7396,7 +7396,7 @@ SUBAREAS = {
             "desc": "珊瑚礁·礁滩",
             "type": "野外",
             "lv": 36,
-            "npcs": [],
+            "npcs": ["npc_coral_pearldiver"],
             "monsters": [
                 [
                     "m_sea_crab",
@@ -7516,7 +7516,7 @@ SUBAREAS = {
             "desc": "落日岛·岛滩",
             "type": "野外",
             "lv": 42,
-            "npcs": [],
+            "npcs": ["npc_sunset_islander"],
             "monsters": [
                 [
                     "m_island_boar",
@@ -7637,7 +7637,7 @@ SUBAREAS = {
             "desc": "风暴海峡·海峡口",
             "type": "野外",
             "lv": 48,
-            "npcs": [],
+            "npcs": ["npc_stormstrait_navigator"],
             "monsters": [
                 [
                     "m_storm_element",
@@ -7757,7 +7757,7 @@ SUBAREAS = {
             "desc": "海妖湾·湾口",
             "type": "野外",
             "lv": 45,
-            "npcs": [],
+            "npcs": ["npc_mermaidbay_fishergirl"],
             "monsters": [
                 [
                     "m_siren_scout",
@@ -8193,7 +8193,7 @@ SUBAREAS = {
             "desc": "迷雾海沟·海沟口",
             "type": "野外",
             "lv": 56,
-            "npcs": [],
+            "npcs": ["npc_misttrench_diver"],
             "monsters": [
                 [
                     "m_abyss_jelly",
@@ -8315,7 +8315,7 @@ SUBAREAS = {
             "desc": "龙鲸海域·海域边缘",
             "type": "野外",
             "lv": 60,
-            "npcs": [],
+            "npcs": ["npc_whale_watcher"],
             "monsters": [
                 [
                     "m_whale_calf",
@@ -8437,7 +8437,7 @@ SUBAREAS = {
             "desc": "沉船墓地·墓地边缘",
             "type": "野外",
             "lv": 63,
-            "npcs": [],
+            "npcs": ["npc_shipwreck_salvager"],
             "monsters": [
                 [
                     "m_drowned_sailor",
@@ -8558,7 +8558,7 @@ SUBAREAS = {
             "desc": "风暴之海·海缘",
             "type": "野外",
             "lv": 66,
-            "npcs": [],
+            "npcs": ["npc_stormsea_observer"],
             "monsters": [
                 [
                     "m_storm_wisp",
@@ -8995,7 +8995,7 @@ SUBAREAS = {
             "desc": "真菌森林·菌林边缘",
             "type": "野外",
             "lv": 66,
-            "npcs": [],
+            "npcs": ["npc_fungus_farmer"],
             "monsters": [
                 [
                     "m_spore_slime",
@@ -9115,7 +9115,7 @@ SUBAREAS = {
             "desc": "地下湖·湖岸",
             "type": "野外",
             "lv": 72,
-            "npcs": [],
+            "npcs": ["npc_deeplake_fisher"],
             "monsters": [
                 [
                     "m_abyss_fish",
@@ -9234,7 +9234,7 @@ SUBAREAS = {
             "desc": "熔火深渊·深渊口",
             "type": "野外",
             "lv": 78,
-            "npcs": [],
+            "npcs": ["npc_molten_scout"],
             "monsters": [
                 [
                     "m_magma_worm",
@@ -9591,7 +9591,7 @@ SUBAREAS = {
             "desc": "熔岩河床·河床口",
             "type": "野外",
             "lv": 86,
-            "npcs": [],
+            "npcs": ["npc_lavabed_miner"],
             "monsters": [
                 [
                     "m_magma_worm",
@@ -9713,7 +9713,7 @@ SUBAREAS = {
             "desc": "深渊祭坛·祭坛外围",
             "type": "野外",
             "lv": 88,
-            "npcs": [],
+            "npcs": ["npc_abyssaltar_whisperer"],
             "monsters": [
                 [
                     "m_abyss_cultist",
@@ -9962,7 +9962,7 @@ SUBAREAS = {
             "desc": "云海·云海边",
             "type": "野外",
             "lv": 86,
-            "npcs": [],
+            "npcs": ["npc_cloudsea_boatman"],
             "monsters": [
                 [
                     "m_cloud_beast",
@@ -10082,7 +10082,7 @@ SUBAREAS = {
             "desc": "雷暴高原·高原边缘",
             "type": "野外",
             "lv": 90,
-            "npcs": [],
+            "npcs": ["npc_stormplateau_lightning"],
             "monsters": [
                 [
                     "m_thunder_element",
@@ -10275,7 +10275,7 @@ SUBAREAS = {
             "desc": "彩虹云谷·云谷口",
             "type": "野外",
             "lv": 90,
-            "npcs": [],
+            "npcs": ["npc_rainbow_herder"],
             "monsters": [
                 [
                     "m_rainbow_faerie",
@@ -10397,7 +10397,7 @@ SUBAREAS = {
             "desc": "星辉台·台缘",
             "type": "野外",
             "lv": 92,
-            "npcs": [],
+            "npcs": ["npc_starlight_stargazer"],
             "monsters": [
                 [
                     "m_star_spirit",
@@ -10977,7 +10977,7 @@ SUBAREAS = {
         "desc": "暮岭古道·岭脚石阶",
         "type": "野外",
         "lv": 36,
-        "npcs": [],
+        "npcs": ["npc_dusk_caravan"],
         "monsters": [
           [
             "m_field_ghost",
