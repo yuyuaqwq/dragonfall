@@ -13,6 +13,13 @@ def subarea_pois(map_id: str, subarea_id: str) -> list:
     return SUBAREA_POIS.get(key, [])
 
 
+def subarea_props(map_id: str, subarea_id: str) -> list:
+    """返回指定子区域挂载的场景元素 PROPS id 列表（无则空）。"""
+    from ..data.props import SUBAREA_PROPS
+    key = f"{map_id}:{subarea_id}"
+    return SUBAREA_PROPS.get(key, [])
+
+
 def roll_poi(group_id: str, qq_id: str, map_id: str, subarea_id: str, chance: float = 0.15):
     """探索时独立判定：chance 概率触发当前子区域随机 POI。
 

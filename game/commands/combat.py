@@ -633,6 +633,12 @@ class CombatCmds(CommandBase):
             db.set_talk_flag(group_id, qq_id, "poi_note_found", "found_note")
             return (f"{icon} 【{pname}】你摘下{loc}树干上的字条，墨迹已有些褪色。\n"
                     f"📜 {txt}")
+        # v87.9 风景 POI：纯氛围观景（无数值收益）
+        if eff == "sight":
+            from ..data.pois import SIGHT_POOL
+            txt = random.choice(SIGHT_POOL)
+            return (f"{icon} 【{pname}】你停住脚步，抬头望向{loc}的风景。\n"
+                    f"🌄 {txt}")
         return f"{icon} 【{pname}】你打量了一下{loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
 
     def _handle_inst_poi(self, group_id, qq_id, st, poi) -> str:

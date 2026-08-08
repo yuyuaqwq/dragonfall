@@ -43,6 +43,22 @@ POIS = {
         "desc": "一张钉在树干上的字条，墨迹已经有些褪色。",
         "effect": "note",  # 收集线索（H6 书页/H7 信标前置）
     },
+    # ---- v87.9 风景 POI（探索触发，纯氛围）----
+    "scenic_view": {
+        "name": "观景台", "icon": "🏞️",
+        "desc": "一块探出山崖的天然平台，视野豁然开朗。",
+        "effect": "sight",  # 探索触发：一段风景描写（纯 flavor）
+    },
+    "ancient_tree_sight": {
+        "name": "古木参天", "icon": "🌳",
+        "desc": "一株盘根错节的老树，树冠几乎遮蔽了半边天空。",
+        "effect": "sight",
+    },
+    "star_gazing": {
+        "name": "星野", "icon": "🌌",
+        "desc": "夜空澄澈如洗，繁星低垂，仿佛伸手就能摘下。",
+        "effect": "sight",
+    },
 }
 
 # 子区域 → POI 分配（key = "地图id:子区域id"，value = poi id 列表）
@@ -99,6 +115,18 @@ SUBAREA_POIS = {
     "cold_spine_snow_trail:cold_spine_snow_trail_1": ["shrine"],  # 铁砧北门：冰封神龛
     "dragon_ridge_old_road:dragon_ridge_old_road_2": ["note"], # 古道龙纹：龙战字条
     "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
+    # ==== v87.9 风景 POI（探索触发，纯氛围）====
+    "oak_meadow:oak_meadow_3": ["scenic_view"],            # 草地尽头：远眺丘陵
+    "emerald_forest:emerald_forest_3": ["ancient_tree_sight"],  # 翡翠森林深处：古木参天
+    "gold_plain:gold_plain_3": ["star_gazing"],            # 金穗平原：旷野星野
+    "starlake:starlake_3": ["star_gazing"],                # 星湖：星空倒映
+    "frost_field:frost_field_3": ["scenic_view"],          # 霜原：雪线远眺
+    "dragon_ridge:dragon_ridge_3": ["scenic_view"],        # 龙脊：群山之巅
+    "cinder_mountain:cinder_mountain_3": ["star_gazing"],  # 烬山：夜观星火
+    "coral_reef:coral_reef_3": ["scenic_view"],            # 珊瑚礁：海天一线
+    "sky_ladder_path:sky_ladder_path_1": ["star_gazing"],  # 天梯云径：云端星空
+    "dragon_ridge_old_road:dragon_ridge_old_road_3": ["scenic_view"],  # 龙脊古道尽头
+    "west_ridge_wilds:west_ridge_wilds_3": ["scenic_view"],  # 西岭荒原深处
 }
 
 # 随机线索 POI 文案池（note 效果：线索收集）
@@ -114,4 +142,13 @@ RUNE_POOL = [
     "符文在光芒中浮现：『白鹿王只会在月光下的森林现身。』（图鉴线索）",
     "符文在光芒中浮现：『符文魔像守护着失落的图书馆。』（隐藏区域线索）",
     "符文在光芒中浮现：『暗影猎手喜欢在深夜捕猎。』（图鉴线索）",
+]
+
+# v87.9 风景描写池（sight 效果：探索触发的纯氛围观景）
+SIGHT_POOL = [
+    "你站在这处风景前，山风拂过面颊。远处的山峦在暮色中勾勒出深蓝色的剪影，像一幅泼墨的画卷。",
+    "天地在这里豁然开朗。你忽然明白，为什么无数冒险者愿意为了这一刻的风景，走这么远的路。",
+    "你静静地看了一会儿。这一刻没有敌人、没有任务，只有风声、光影，和你微微发烫的心跳。",
+    "日落的光把整片大地染成金色，你眯起眼睛，把这幅画面刻进记忆里。旅程漫长，但值得。",
+    "你俯身看了看脚下的世界——有人在这片土地上生活、战斗、相爱、死去，而你正走在他们的脚印里。",
 ]

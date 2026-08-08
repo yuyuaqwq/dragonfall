@@ -78,6 +78,13 @@ class WorldCmds(CommandBase):
                 _p = C.POIS.get(_pid)
                 if _p:
                     lines.append(f"{_p['icon']} {_p['name']}（『探索』有机会发现）")
+        # v87.9 场景元素 PROPS 显示（子区域挂载，直接交互）
+        if player:
+            prop_ids = C.subarea_props(mid, sa_id)
+            for _ppid in prop_ids:
+                _pp = C.PROPS.get(_ppid)
+                if _pp:
+                    lines.append(f"{_pp['icon']} {_pp['name']}（『交互 {_pp['name']}』）")
         # v87.2 副本地图化：内联 POI（副本层自带 pois → 直接显示，『调查 <名称>』互动）
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
@@ -1398,6 +1405,65 @@ class WorldCmds(CommandBase):
             lines.append("🎻 他给你讲了一个关于大陆的传说……（输入『任务』看看支线）")
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识（镇长藏书）")
+        yield event.plain_result("\n".join(lines))
+
+    # ---------------- v87.9 场景元素交互 ----------------
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?交互(?:\s*|$)")
+    @no_prof_waiting()
+
+    async def interact_prop(self, event: AstrMessageEvent):
+        """与当前子区域的场景元素（喷泉/雕像/告示板等）交互。纯氛围 + 极小彩蛋。"""
+        group_id, qq_id = self._uid(event)
+        name_key = self._strip_cmd(event, "交互").strip()
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if self._is_redname(qq_id):
+            yield event.plain_result("☠️ 你是红名！城里的元素都绕着你走……（等红名消退再来）")
+            return
+        cur = player["cur_map"]
+        cur_map = C.MAP_BY_ID.get(cur, {})
+        sa_id = player.get("cur_subarea") or ""
+        prop_ids = C.subarea_props(cur, sa_id)
+        if not name_key:
+            # 无参：列出当前子区域的场景元素
+            if not prop_ids:
+                yield event.plain_result("这里没什么可交互的，风倒是挺大。")
+                return
+            lines = ["✨ 这里的场景元素："]
+            for i, pid in enumerate(prop_ids, 1):
+                pp = C.PROPS.get(pid, {})
+                if pp:
+                    lines.append(f"{i}. {pp['icon']}{pp['name']}：{pp.get('desc', '')}")
+            lines.append("💡 输入『交互 <名称>』互动")
+            yield event.plain_result("\n".join(lines))
+            return
+        # 找 prop：名称子串 / id 匹配
+        found = None
+        for pid in prop_ids:
+            pp = C.PROPS.get(pid, {})
+            if pp and (name_key in pp.get("name", "") or name_key in pid):
+                found = (pid, pp)
+                break
+        if not found:
+            names = "、".join(C.PROPS[pid]["name"] for pid in prop_ids if pid in C.PROPS) or "没有"
+            yield event.plain_result(f"这里没有『{name_key}』可以交互～（这里有：{names}）")
+            return
+        pid, pp = found
+        texts = pp.get("texts") or []
+        text = random.choice(texts) if texts else pp.get("desc", "……")
+        lines = [f"{pp['icon']}【{pp['name']}】", f"“{text}”"]
+        # 极小彩蛋（纯趣味，不破坏平衡）
+        eff = pp.get("effect")
+        if eff == "wish":
+            if random.random() < 0.25:
+                gold = random.randint(1, 5)
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
+        elif eff == "refresh":
+            lines.append("💧 泉水入喉，神清气爽。旅途的疲惫仿佛也被这淙淙水声冲淡了一些。")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v65 NPC 多轮对话 ----------------
