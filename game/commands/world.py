@@ -1184,8 +1184,9 @@ class WorldCmds(CommandBase):
         if main_id:
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
             if mq:
-                giver = C.NPCS.get(mq["giver"], {}).get("name", "？")
-                giver_map = C.NPCS.get(mq["giver"], {}).get("map", "")
+                _ginfo = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
+                giver = _ginfo.get("name", "？")
+                giver_map = _ginfo.get("map", "")
                 giver_map_name = C.MAP_BY_ID.get(giver_map, {}).get("name", "？")
                 lines.append(f"【主线】『{mq['name']}』")
                 lines.append(f"  {mq['desc']}")
@@ -1223,7 +1224,7 @@ class WorldCmds(CommandBase):
                 sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
                 if not sqd:
                     continue
-                giver = C.NPCS.get(sqd["giver"], {}).get("name", "？")
+                giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
                 st = sq.get("status", "active")
                 obj = sqd["objective"]
                 # v95.12：已交付支线显示已完成（不占可交付位）
@@ -1285,7 +1286,7 @@ class WorldCmds(CommandBase):
         if mq:
             st = quests.get("main_status", "pending")
             if st == "pending" and (not raw or raw in (mq["name"], "任务", "主线")):
-                npc = C.NPCS.get(mq["giver"], {})
+                npc = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
                 if npc.get("map") == player["cur_map"]:
                     lines = self._take_main_quest(group_id, qq_id, mq["giver"], npc)
                     yield event.plain_result("\n".join(lines))
@@ -1297,7 +1298,7 @@ class WorldCmds(CommandBase):
             # v95.14：『接取任务』/『接取 主线』（raw=任务/主线）等同无参数，同样提示主线状态
             if not raw or raw in ("任务", "主线"):
                 if st == "ready":
-                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {C.NPCS.get(mq['giver'], {}).get('name', '发布人')} 处对话领奖励～")
+                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {(C.NPCS.get(mq['giver']) or C.ALL_WILD.get(mq['giver']) or {}).get('name', '发布人')} 处对话领奖励～")
                 else:
                     yield event.plain_result(f"主线『{mq['name']}』进行中！输入『任务』查看进度～")
                 return
@@ -1318,7 +1319,7 @@ class WorldCmds(CommandBase):
         # 无参数 → 列出当前地图可接任务（主线 pending + 未接支线）
         available = []
         if mq and quests.get("main_status") == "pending":
-            giver = C.NPCS.get(mq["giver"], {})
+            giver = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
             if giver.get("map") == player["cur_map"]:
                 available.append(f"📜 主线『{mq['name']}』（{giver.get('name', '？')}发布）")
         for sq in C.SIDE_QUESTS:

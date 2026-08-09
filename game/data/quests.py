@@ -1232,9 +1232,9 @@ SIDE_QUESTS = [
     {
         "id": "s37",
         "name": "迷路骑士的归途",
-        "giver": "w_lost_knight",
+        "giver": "npc_baron",
         "map": "emerald_forest",
-        "desc": "护送迷路的骑士回到白鹿城",
+        "desc": "护送迷路的骑士回到白鹿城，向城主复命",
         "objective": {"explore": "white_deer"},
         "reward_exp": 800,
         "reward_gold": 400,
