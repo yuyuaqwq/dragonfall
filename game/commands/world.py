@@ -1933,9 +1933,15 @@ class WorldCmds(CommandBase):
         if changed:
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)
+        # v95.4：该 NPC 有已完成支线 → 提示交付入口（反馈：可交任务找不到交付方式）
+        for sid, sq in list(quests.get("side", {}).items()):
+            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
+            if sqd and sqd["giver"] == npc_id and sq.get("status") == "ready":
+                lines.append(f"✅ 『{sqd['name']}』已完成！输入『交任务』领取奖励～")
+                break
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?交任务(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交任务|交付)(?:\s*|$)")
 
     async def turn_in(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)

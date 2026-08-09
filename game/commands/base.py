@@ -113,9 +113,9 @@ class CommandBase:
             cm = C.MAP_BY_ID.get(cur_map, {})
             for sa in (cm.get("subareas") or []):
                 if sa["id"] == sa_id:
-                    if sa.get("shop"):
+                    if sa.get("shop") or "shop" in (sa.get("funcs") or []):
                         return True
-                    return "shop" in (sa.get("funcs") or [])
+                    break  # v95.4：当前子区域不是商店 → 继续查野外行商
         # v95.4：不在城镇设施 → 看是否有野外行商在场
         return self._wild_trader_here(player, group_id, qq_id)
 
