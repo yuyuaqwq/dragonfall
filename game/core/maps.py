@@ -62,8 +62,11 @@ def subarea_links(map_id: str, subarea_id: str) -> list:
             out.append(center["id"])
             return out
         if cur_type == "城镇出口":
-            # 出口：只连城镇街道（链首）
-            return [s["id"] for s in sas if s.get("type") == "城镇街道"]
+            # 出口：只连城镇街道（链首）；无街道时直连广场（防断链，v95 实测白鹿城/铁港城缺街道）
+            streets = [s["id"] for s in sas if s.get("type") == "城镇街道"]
+            if streets:
+                return streets
+            return [center["id"]]
         return [center["id"]]
     # 线性
     out = []
