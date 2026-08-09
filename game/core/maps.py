@@ -54,8 +54,13 @@ def subarea_links(map_id: str, subarea_id: str) -> list:
         cur_type = sas[idx].get("type")
         if subarea_id == center["id"]:
             # 广场连所有场所 + 街道链首（不含城镇出口——镇郊需经东大街）
-            return [s["id"] for s in sas
-                    if s["id"] != center["id"] and s.get("type") != "城镇出口"]
+            out = [s["id"] for s in sas
+                   if s["id"] != center["id"] and s.get("type") != "城镇出口"]
+            # v95.12 无街道链城镇（白鹿城/铁港城）对称防断链：广场直连出口，
+            # 否则广场→出口 "先经过XX(自己)" 死循环，玩家出不了城
+            if not any(s.get("type") == "城镇街道" for s in sas):
+                out += [s["id"] for s in sas if s.get("type") == "城镇出口"]
+            return out
         if cur_type == "城镇街道":
             # 街道：连出口（链尾）+ 广场（链首）
             out = [s["id"] for s in sas if s.get("type") == "城镇出口"]

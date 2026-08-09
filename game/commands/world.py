@@ -592,7 +592,9 @@ class WorldCmds(CommandBase):
             # v87.16 街道链：在广场想去链上目标（东大街/镇郊）时提示必经之路
             if cur_sa_id == center.get("id", ""):
                 chain = [s for s in sas if s.get("type") in ("城镇街道", "城镇出口")]
-                if any(s["id"] == target_sa.get("id") for s in chain):
+                # v95.12 防御：目标就是链首（无街道时链首=出口自身）不拦截，避免"先经过自己"
+                if (any(s["id"] == target_sa.get("id") for s in chain)
+                        and chain and chain[0]["id"] != target_sa.get("id")):
                     first = chain[0]["name"] if chain else center.get("name", "广场")
                     return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                             f"路只有一条，需要先经过{first}。")

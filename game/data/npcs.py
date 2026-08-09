@@ -47,7 +47,7 @@ NPCS = {
         'title': "鹿角铁匠铺老板",
         'map': "white_deer",
         'icon': "🔨",
-        'funcs': ["shop", "craft", "enhance"],
+        'funcs': ["quest", "shop", "craft", "enhance"],
         'dialogue': "好剑。可惜配不上好鞘。要不要我给它加个工？",
     },
     "npc_tavern_owner": {
@@ -55,7 +55,7 @@ NPCS = {
         'title': "白鹿与麦酒酒馆老板",
         'map': "white_deer",
         'icon': "🏨",
-        'funcs': ["lore", "daily"],
+        'funcs': ["quest", "lore", "daily"],
         'dialogue': "听说王都那边的圣女殿下不见了，教会派了骑士到处找……哎呀这种事老头子我不该多嘴，再来一杯？",
     },
     "npc_priest": {
@@ -71,7 +71,7 @@ NPCS = {
         'title': "白鹿城医师",
         'map': "white_deer",
         'icon': "🏥",
-        'funcs': ["heal"],
+        'funcs': ["quest", "heal"],
         'dialogue': "伤口处理好了。记住，药不能停，酒不能喝。",
     },
     "npc_guildmaster": {
@@ -95,7 +95,7 @@ NPCS = {
         'title': "金槌拍卖行拍卖师",
         'map': "ironharbor",
         'icon': "🔨",
-        'funcs': ["auction"],
+        'funcs': ["quest", "auction"],
         'dialogue': "稀世珍宝，一件不留！这位冒险者，你手里那件东西，说不定能卖个好价钱哦～",
     },
     "npc_bard": {
@@ -129,7 +129,7 @@ NPCS = {
         'map': "maple_village",
         'icon': "🏨",
         'gender': "女",
-        'funcs': ["heal", "lore"],
+        'funcs': ["quest", "heal", "lore"],
         'dialogue': "住店吗？村里没什么好菜，但麦酒管够。听说了吗？白鹿城那边好像在招人打狼。",
     },
     "npc_king": {
@@ -267,7 +267,7 @@ NPCS = {
         'title': "符文大师",
         'map': "anvil_fort",
         'icon': "🔨",
-        'funcs': ["rune", "enchant", "apprentice"],
+        'funcs': ["quest", "rune", "enchant", "apprentice"],
         'dialogue': "符文不是刻上去的花纹，是大地母神的语言。想学？先把铁砧敲响一万次再说。",
     },
     # ---- 副业导师（19 章第八章：找导师拜师进修解锁副业）----
@@ -396,7 +396,7 @@ NPCS = {
         'title': "珍珠城老渔夫",
         'map': "pearl_city",
         'icon': "📖",
-        'funcs': ["lore", "daily"],
+        'funcs': ["quest", "lore", "daily"],
         'dialogue': "沉船墓地那边的船幽灵，都是些回不了家的可怜人。要是你能让他们安息……老头子我请你喝酒。",
     },
     "npc_ember_camp_leader": {
