@@ -101,7 +101,7 @@ MAIN_QUESTS = [
         "id": "q2_3",
         "name": "狼王·灰影",
         "giver": "npc_baron",
-        "desc": "击败精英·狼王灰影",
+        "desc": "前往翡翠森林·古树空地，击败精英·狼王灰影",
         "objective": {"kill": "狼王·灰影", "count": 1},
         "reward_exp": 600,
         "reward_gold": 300,
