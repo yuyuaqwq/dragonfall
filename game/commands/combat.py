@@ -1639,7 +1639,8 @@ class CombatCmds(CommandBase):
                     changed = True
                     if prog.get(monster["name"], 0) >= obj["count"]:
                         quests["main_status"] = "ready"
-                        lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {C.NPCS[mq['giver']]['name']} 对话交付吧～")
+                        _g = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
+                        lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(mq['giver'])}吧～")
                     else:
                         lines.append(f"📜 主线『{mq['name']}』：{prog[monster['name']]}/{obj['count']}")
         # 每日
@@ -1690,7 +1691,8 @@ class CombatCmds(CommandBase):
                 changed = True
                 if prog.get(monster["name"], 0) >= obj["count"]:
                     sq["status"] = "ready"
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {C.NPCS[sqd['giver']]['name']} 对话交付吧～")
+                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
+                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
                 else:
                     lines.append(f"📜 支线『{sqd['name']}』：{prog[monster['name']]}/{obj['count']}")
         if side:

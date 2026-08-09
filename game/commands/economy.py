@@ -2369,6 +2369,9 @@ class EconomyCmds(CommandBase):
                     return
             db.save_battle(group_id, qq_id, b.to_state())
             log_str = "\n".join(logs)
+            # v95.16 #76：满血时吃食物显示"恢复 0 点生命"误导——有体力恢复时改为体力为主文案
+            if "恢复 0 点生命" in log_str and st_msg:
+                log_str = log_str.replace("💊 你使用了战斗道具，恢复 0 点生命！", "🍖 你吃下了食物，恢复了体力！")
             yield event.plain_result(
                 f"{log_str}\n{st_msg}━━━━━━━━━━━━\n"
                 f"❤️ HP {player['hp']}/{player['max_hp']}  💙 MP {player['mp']}/{player['max_mp']}\n"

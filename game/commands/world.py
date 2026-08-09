@@ -1160,7 +1160,7 @@ class WorldCmds(CommandBase):
                     sq["status"] = "ready"
                     changed = True
                     _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} 对话交付吧～")
+                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
         if changed:
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)
@@ -1193,7 +1193,7 @@ class WorldCmds(CommandBase):
                 if st == "pending":
                     lines.append(f"  ⏳ 未接取：去找 {giver}(在{giver_map_name})对话接取")
                 elif st == "ready":
-                    lines.append(f"  ✅ 目标达成！回去找 {giver} 对话交付")
+                    lines.append(f"  ✅ 目标达成！回去找 {giver} {self._deliver_hint(mq['giver'])}")
                 else:
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
@@ -1236,7 +1236,7 @@ class WorldCmds(CommandBase):
                     need = obj.get("collect_count", obj["count"])
                     if have >= need:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交]")
-                        lines.append(f"    材料已齐！回去找 {giver} 对话交付")
+                        lines.append(f"    材料已齐！回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     else:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}")
@@ -1244,7 +1244,7 @@ class WorldCmds(CommandBase):
                 mark = "✅ 可交" if st == "ready" else "⏳"
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
                 if st == "ready":
-                    lines.append(f"    回去找 {giver} 对话交付")
+                    lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
             if pages > 1:
                 lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
         else:
@@ -2191,6 +2191,12 @@ class WorldCmds(CommandBase):
         lines = self._render_talk_node(npc, dlg, node, ctx)
         yield event.plain_result("\n".join(lines))
 
+    def _deliver_hint(self, npc_id):
+        """交付方式提示（v95.16 #75）：有对话树 NPC 走对话交付，无对话树 NPC 用『交付任务』"""
+        if C.DIALOGUES.get(npc_id):
+            return "对话交付"
+        return "『交付任务』交付"
+
     def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
         """NPC 有未接的支线任务时自动接取，返回通知行列表"""
         lines = []
@@ -2212,11 +2218,15 @@ class WorldCmds(CommandBase):
             db.save_quests(group_id, qq_id, quests)
         # v95.4：该 NPC 有已完成支线 → 提示交付入口（反馈：可交任务找不到交付方式）
         # v95.15 #73：代词按 NPC 性别（迷路骑士等男性 NPC 用"他"）
+        # v95.16 #75：按是否有对话树区分交付引导（无对话树 NPC 的『对话』没有交付选项）
         _ta = "她" if npc.get("gender") == "女" else "他"
         for sid, sq in list(quests.get("side", {}).items()):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if sqd and sqd["giver"] == npc_id and sq.get("status") == "ready":
-                lines.append(f"✅ 『{sqd['name']}』已完成！与{_ta}对话即可交付～")
+                if C.DIALOGUES.get(npc_id):
+                    lines.append(f"✅ 『{sqd['name']}』已完成！与{_ta}对话即可交付～")
+                else:
+                    lines.append(f"✅ 『{sqd['name']}』已完成！输入『交付任务』即可交付～")
                 break
         return lines
 
