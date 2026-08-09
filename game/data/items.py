@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年 数据层 - items.py 材料部分(阶段一生成，2026－08－06)"""
 MATERIALS = {
+    # v94 图纸经济：重复图纸折算材料，出售 10 金/张（铁匠/炼金 0.9 折 → 9 金）
+    "mat_tu_zhi_can_ye": {
+        'price': 10,
+        'name': "图纸残页",
+    },
     "mat_qiu_ling_lang_pi": {
         'price': 5,
         'name': "丘陵狼皮",

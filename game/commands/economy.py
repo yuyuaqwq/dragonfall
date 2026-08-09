@@ -308,7 +308,7 @@ class EconomyCmds(CommandBase):
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         if cur_map.get("type") == "城镇区域":
-            yield event.plain_result("城镇里没有可采集的野生物资，去野外『移动』吧！")
+            yield event.plain_result("城镇里没有可采集的野生物资，去野外吧（『前往 <地图名>』）！")
             return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时）
         text, _ok = self._prof_wait_flow(
@@ -333,6 +333,20 @@ class EconomyCmds(CommandBase):
         # 矿脉点（v13：明确配置，地图上显示⛏️）
         if cur_map.get("id") not in C.MINE_SPOTS:
             yield event.plain_result("这里没有矿脉！地图上会显示⛏️矿脉的位置，去那边『挖掘』吧～")
+            return
+        # v87.17 子区域绑定：矿脉在指定子区域，不在那边挖不了
+        _mine = C.MINE_SPOTS[cur_map.get("id")]
+        _mine_sa = _mine.get("subarea", "") if isinstance(_mine, dict) else ""
+        if _mine_sa and player.get("cur_subarea") != _mine_sa:
+            _sa_name = ""
+            for _s in (cur_map.get("subareas") or []):
+                if _s["id"] == _mine_sa:
+                    _sa_name = _s.get("name", "")
+                    break
+            _mine_name = _mine.get("name", "矿脉") if isinstance(_mine, dict) else str(_mine)
+            yield event.plain_result(
+                f"⛏️ {_mine_name}在{_sa_name or _mine_sa}那边，这里没有矿！（『前往 {_sa_name or _mine_sa}』）"
+            )
             return
         # v55 等待制（原 90 秒 CD 改为随机等待，自动入包，等级减时）
         text, _ok = self._prof_wait_flow(
@@ -713,6 +727,18 @@ class EconomyCmds(CommandBase):
         spot_info = C.FISHING_SPOTS.get(cur)
         if not spot_info:
             yield event.plain_result("这里没有水域！找有水的地方垂钓：橡木溪流、星语湖、铁港码头、银铃河、迷雾沼泽、霜原冰湖")
+            return
+        # v87.17 子区域绑定：钓点在指定子区域，不在那边没钓位
+        _want_sa = spot_info.get("subarea", "") if isinstance(spot_info, dict) else ""
+        if _want_sa and player.get("cur_subarea") != _want_sa:
+            _sa_name = ""
+            for _s in (C.MAP_BY_ID.get(cur, {}).get("subareas") or []):
+                if _s["id"] == _want_sa:
+                    _sa_name = _s.get("name", "")
+                    break
+            yield event.plain_result(
+                f"🎣 {spot_info.get('name', '水域')}在{_sa_name or _want_sa}那边，这里没有好钓位！（『前往 {_sa_name or _want_sa}』）"
+            )
             return
         spot = spot_info["name"] if isinstance(spot_info, dict) else spot_info
         # 垂钓点分级：副业等级不足不能去高级水域
@@ -2383,6 +2409,56 @@ class EconomyCmds(CommandBase):
         else:
             yield event.plain_result(f"『{d['name']}』不能使用。")
 
+    def _cur_subarea(self, player: dict) -> dict:
+        """当前所在子区域 dict（无则 {}）。"""
+        cur_map = player.get("cur_map", "")
+        sa_id = player.get("cur_subarea") or ""
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        for sa in (cm.get("subareas") or []):
+            if sa["id"] == sa_id:
+                return sa
+        return {}
+
+    def _is_smith_shop(self, player: dict) -> bool:
+        """v92 铁匠类商店：craft 场所只卖武器+锻造材料。
+        炼金工坊除外（炼金卖药剂合理，dawn_city_5）。"""
+        sa = self._cur_subarea(player)
+        if not sa:
+            return False
+        if "炼金" in sa.get("name", ""):
+            return False
+        funcs = sa.get("funcs") or []
+        if "craft" in funcs:
+            return True
+        return any(k in sa.get("name", "") for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+
+    def _pawn_rate(self, player: dict, d: dict):
+        """v93 材料回收价：铁匠/工坊 0.9（矿石金属）、炼金工坊 0.9（草药粉尘）、普通商店 0.8（杂货）；非设施 None（材料不可售）。"""
+        if d.get("type", "") != "材料":
+            return 1.0
+        sa = self._cur_subarea(player)
+        if not sa:
+            return None
+        name = sa.get("name", "")
+        funcs = sa.get("funcs") or []
+        if "炼金" in name or "alchemy" in funcs:
+            return 0.9
+        if self._is_smith_shop(player):
+            return 0.9
+        if self._at_shop(player):
+            return 0.8
+        return None
+
+    def _sell_one(self, group_id, qq_id, player, it, rate):
+        """出售单件物品（按回收价），返回 (名称, 数量, 金币) 或 None。"""
+        d = it["data"]
+        price = int(d.get("price", 0) * rate)
+        if price <= 0:
+            return None
+        db.update_player(group_id, qq_id, gold=player["gold"] + price * it["count"])
+        db.remove_item(group_id, qq_id, it["key"], it["count"])
+        return (d["name"], it["count"], price * it["count"])
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出售(?:\s*|$)")
 
     async def sell(self, event: AstrMessageEvent):
@@ -2394,12 +2470,54 @@ class EconomyCmds(CommandBase):
             return
         item_name = item_name.strip()
         items = db.get_inventory(group_id, qq_id)
+        # 批量出售模式：『出售 全部』/『出售 材料』/『出售 装备』
+        if item_name in ("全部", "所有", "全部物品"):
+            mode = "all"
+        elif item_name in ("材料", "材料 全部", "全部材料"):
+            mode = "mat"
+        elif item_name in ("装备", "装备 全部", "全部装备"):
+            mode = "equip"
+        else:
+            mode = None
+        if mode:
+            blocked = 0
+            total = 0
+            sold = []
+            for it in items:
+                d = it["data"]
+                if mode == "mat" and d.get("type", "") != "材料":
+                    continue
+                if mode == "equip" and not d.get("slot"):
+                    continue
+                rate = self._pawn_rate(player, d)
+                if rate is None:
+                    blocked += 1
+                    continue
+                r = self._sell_one(group_id, qq_id, player, it, rate)
+                if r:
+                    sold.append(f"{r[0]} ×{r[1]}（{r[2]} 金）")
+                    total += r[2]
+                    player = self._player(group_id, qq_id)
+            if not sold:
+                tip = "（材料要去城镇商店/铁匠铺/炼金工坊才能卖）" if blocked else ""
+                yield event.plain_result(f"没有可出售的物品！{tip}")
+                return
+            head = "全部" if mode == "all" else ("材料" if mode == "mat" else "装备")
+            lines = [f"💰 批量出售{head}完成，共 {len(sold)} 种物品，获得 {total} 金币！"]
+            for s in sold[:8]:
+                lines.append(f"  · {s}")
+            if len(sold) > 8:
+                lines.append(f"  · ……等 {len(sold)} 种")
+            if blocked:
+                lines.append(f"💡 有 {blocked} 种材料需要到城镇商店/铁匠铺/炼金工坊出售～")
+            yield event.plain_result("\n".join(lines))
+            return
         target = None
         if item_name.isdigit():
             # 序号出售：『出售 1』→ 背包第 1 件物品（与『背包』序号一致）
             idx = int(item_name)
             if idx < 1 or idx > len(items):
-                yield event.plain_result(f"背包里没有第 {idx} 件物品(共 {len(items)} 件)！『背包』查看～")
+                yield event.plain_result(f"背包里没有第 {idx} 件物品（共 {len(items)} 件）！『背包』查看～")
                 return
             target = items[idx - 1]
         else:
@@ -2412,13 +2530,17 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
         d = target["data"]
-        price = d.get("price", 0)
-        if price <= 0:
+        rate = self._pawn_rate(player, d)
+        if rate is None:
+            yield event.plain_result(f"『{d['name']}』是材料，要到城镇的商店（杂货）/铁匠铺/炼金工坊才能回收成金币～")
+            return
+        r = self._sell_one(group_id, qq_id, player, target, rate)
+        if not r:
             yield event.plain_result(f"『{d['name']}』不能出售。")
             return
-        db.update_player(group_id, qq_id, gold=player["gold"] + price * target["count"])
-        db.remove_item(group_id, qq_id, target["key"], target["count"])
-        yield event.plain_result(f"💰 你出售了 {d['name']} ×{target['count']}，获得 {price * target['count']} 金币！")
+        name, cnt, gold = r
+        tip = "" if rate >= 1.0 else f"（回收价 {int(rate * 100)}%）"
+        yield event.plain_result(f"💰 你出售了 {name} ×{cnt}，获得 {gold} 金币！{tip}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?商店(?:\s*|$)")
 
@@ -2429,34 +2551,59 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！商店老板把你轰了出来……(等红名消退再来)")
+            yield event.plain_result("☠️ 你是红名！商店老板把你轰了出来……（等红名消退再来）")
             return
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
-        area_id = cur_map.get("area", cur)
-        shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id)
-        if not shop_items:
-            town_names = [C.display("maps", k) for k in C.SHOP_ITEMS if k != cur and k != area_id][:6]
-            yield event.plain_result(f"这里没有商店！去城镇看看：{'、'.join(town_names)}")
+        if not self._at_shop(player):
+            hint = self._facility_hint(player, "shop")
+            yield event.plain_result(
+                f"这里没有商店！到有商店的地方（如 {hint}）再输入『商店』吧～" if hint else "这里没有商店！去城镇里找找商铺吧～"
+            )
             return
+        area_id = cur_map.get("area", cur)
+        is_smith = self._is_smith_shop(player)
+        subarea = self._cur_subarea(player)
+        shop_title = (subarea.get("name") or cur_map.get("name") or cur)
         lines = []
         entries = []
-        for iid in shop_items:
-            it = C.ITEMS[iid]
-            entries.append((iid, f"{it['name']} —— {it['price']} 金币({it['desc']})"))
-        weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
-        for wname, wtype, wlv, wq in weapons:
-            q = C.QUALITY[wq]
-            entries.append((f"w:{wname}", f"{q['color']}{wname}({C.display('weapon_types', wtype)})Lv.{wlv} —— {int((8 + wlv * 6) * q['mult'])} 金币"))
+        if is_smith:
+            # 铁匠类商店：只卖武器 + 锻造材料 + 全套装备，不卖消耗品
+            materials = C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])
+            for mid in materials:
+                mt = C.MATERIALS[mid]
+                entries.append((mid, f"{mt['name']} —— {mt['price']} 金币（锻造材料）"))
+            # v94 图纸经济：铁匠铺兜底卖图纸（随机一张，价格 = 图纸价×3 = (lv×3+20)×3）
+            bp_price = int((max(1, player["level"]) * 3 + 20) * 3)
+            entries.append(("bp:rand", f"📜 神秘锻造图纸（随机一张）—— {bp_price} 金币"))
+            equip_items = C.SHOP_EQUIP.get(cur) or C.SHOP_EQUIP.get(area_id, [])
+            for rid in equip_items:
+                r = C.EQUIP_ROSTER[rid]
+                q = C.QUALITY[r["quality"]]
+                entries.append((f"e:{rid}", f"{q['color']}{r['name']}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']} —— {int((8 + r['lv'] * 6) * q['mult'])} 金币"))
+            weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
+            for wname, wtype, wlv, wq in weapons:
+                q = C.QUALITY[wq]
+                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {int((8 + wlv * 6) * q['mult'])} 金币"))
+        else:
+            # 普通商店：消耗品 + 武器
+            shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
+            for iid in shop_items:
+                it = C.ITEMS[iid]
+                entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
+            weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
+            for wname, wtype, wlv, wq in weapons:
+                q = C.QUALITY[wq]
+                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {int((8 + wlv * 6) * q['mult'])} 金币"))
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)
-        lines = [f"🏪 【{cur_map.get('name', cur)} 商店】(第 {page}/{pages} 页 · 共 {len(entries)} 件)", "━━━━━━━━━━━━"]
+        lines = [f"🏪 【{shop_title} 商店】（第 {page}/{pages} 页 · 共 {len(entries)} 件）", "━━━━━━━━━━━━"]
         for i, (key, row) in enumerate(page_items, (page - 1) * 5 + 1):
             lines.append(f"{i:>2}. {row}")
         lines.append("")
         if pages > 1:
-            lines.append(f"💡 『商店 {page+1}』看下一页(共 {pages} 页)")
+            lines.append(f"💡 『商店 {page+1}』看下一页（共 {pages} 页）")
         lines.append(f"💰 你的金币：{player['gold']}")
         lines.append("💡 『购买 <名称>』或『购买 <序号>』")
         yield event.plain_result("\n".join(lines))
@@ -2471,12 +2618,20 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！商店老板不敢卖你东西……(等红名消退再来)")
+            yield event.plain_result("☠️ 你是红名！商店老板不敢卖你东西……（等红名消退再来）")
             return
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
+        if not self._at_shop(player):
+            hint = self._facility_hint(player, "shop")
+            yield event.plain_result(
+                f"这里没有商店！到有商店的地方（如 {hint}）再输入『购买』吧～" if hint else "这里没有商店！去城镇里找找商铺吧～"
+            )
+            return
         area_id = cur_map.get("area", cur)
-        shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
+        is_smith = self._is_smith_shop(player)
+        shop_items = [] if is_smith else (C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, []))
+        materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
         item_name = item_name.strip()
         # 商队集市事件：商店 8 折
         discount = 1.0
@@ -2484,14 +2639,41 @@ class EconomyCmds(CommandBase):
         if cur_evt and cur_evt["etype"] == "merchant":
             discount = 0.8
         weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
-        # 序号购买：『购买 3』→ 与商店列表一致的第 3 件商品
+        equip_items = C.SHOP_EQUIP.get(cur) or C.SHOP_EQUIP.get(area_id, [])
+        # 序号购买：『购买 3』→ 与商店列表一致的第 3 件商品（顺序：材料→装备→武器，与 shop 面板一致）
         if item_name.isdigit():
-            entries = list(shop_items) + [f"w:{w[0]}" for w in weapons]
+            entries = list(shop_items) + [f"m:{m}" for m in materials] + (["bp:rand"] if is_smith else []) + [f"e:{rid}" for rid in equip_items] + [f"w:{w[0]}" for w in weapons]
             idx = int(item_name)
             if idx < 1 or idx > len(entries):
                 yield event.plain_result(f"没有第 {idx} 号商品！『商店』查看商品列表。")
                 return
             key = entries[idx - 1]
+            if key == "bp:rand":
+                # v94 图纸经济：铁匠铺随机图纸（价格 = 图纸价×3，商队集市 8 折）
+                bp_price = int((max(1, player["level"]) * 3 + 20) * 3 * discount)
+                if player["gold"] < bp_price:
+                    yield event.plain_result(f"金币不足！需要 {bp_price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - bp_price)
+                bp = C.roll_blueprint(max(1, player["level"]))
+                import uuid
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                yield event.plain_result(f"✅ 你买到一张【{bp['name']}】！{tip}")
+                return
+            if str(key).startswith("m:"):
+                # 锻造材料购买
+                mid = str(key)[2:]
+                mt = C.MATERIALS[mid]
+                price = int(mt["price"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price})
+                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{mt['name']}】！{tip}")
+                return
             if str(key).startswith("w:"):
                 wname = str(key)[2:]
                 wt = next((w for w in weapons if w[0] == wname), None)
@@ -2512,6 +2694,23 @@ class EconomyCmds(CommandBase):
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
                 return
+            if str(key).startswith("e:"):
+                # 名册装备购买（铁匠铺全套装备）
+                rid = str(key)[2:]
+                r = C.EQUIP_ROSTER[rid]
+                q = C.QUALITY[r["quality"]]
+                price = int((8 + r["lv"] * 6) * q["mult"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                equip_item = C.generate_roster_equip(rid)
+                # v21 防刷钱：商店装备卖出价 = 买入价一半
+                equip_item["price"] = int(price * 0.5)
+                import uuid
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
+                yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")
+                return
             else:
                 iid = key
                 it = C.ITEMS[iid]
@@ -2522,7 +2721,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
                 db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect")})
-                tip = "(商队集市 8 折！)" if discount < 1 else ""
+                tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
                 return
         # 找补给品（按名称）
@@ -2536,8 +2735,21 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
                 db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect")})
-                tip = "(商队集市 8 折！)" if discount < 1 else ""
+                tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
+                return
+        # 找材料（按名称）
+        for mid in materials:
+            mt = C.MATERIALS[mid]
+            if item_name in mt["name"]:
+                price = int(mt["price"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price})
+                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{mt['name']}】！{tip}")
                 return
         # 找武器（按名称）
         for wname, wtype, wlv, wq in weapons:
@@ -2554,6 +2766,22 @@ class EconomyCmds(CommandBase):
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
+                return
+        # 找装备（按名称）
+        for rid in equip_items:
+            r = C.EQUIP_ROSTER[rid]
+            if item_name in r["name"]:
+                q = C.QUALITY[r["quality"]]
+                price = int((8 + r["lv"] * 6) * q["mult"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                equip_item = C.generate_roster_equip(rid)
+                equip_item["price"] = int(price * 0.5)
+                import uuid
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
+                yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")
                 return
         # v39 坐骑：橡木镇马厩买老马（新世界 oak 区域，旧 vila 判断已随旧世界废弃）
         if "老马" in item_name or "马" == item_name.strip():

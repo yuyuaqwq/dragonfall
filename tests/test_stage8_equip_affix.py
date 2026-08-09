@@ -130,29 +130,37 @@ def test_random_gen():
 # ============ 4. 掉落 ============
 def test_drop():
     print("【4. 掉落】")
-    # v93 经济改革：怪物不再掉装备（铁匠铺购买+图纸锻造），只掉图纸
-    triggered = False
+    # v93 经济改革：怪物不再掉装备（铁匠铺购买+图纸锻造）
+    # v94 图纸经济改革（2026-08-09 鱼鱼拍板）：图纸退出战斗掉落防泛滥
+    #   - 普通怪/精英：永不掉图纸（图纸改走探索宝箱/垂钓宝物/铁匠铺购买）
+    #   - Boss：仅 5% 惊喜掉率
     for seed in range(1, 300):
         random.seed(seed)
         d = C.roll_drop(10, "normal")
-        if d[1] is not None:
-            check(f"普通怪掉图纸（seed {seed}）", d[1]["type"] == "图纸", d[1]["type"])
-            triggered = True
-            break
-    if not triggered:
-        check("普通怪掉图纸", False, "300 seed 无触发")
+        check(f"普通怪不掉图纸（seed {seed}）", d[1] is None, str(d[1]))
     random.seed(4)
     d = C.roll_drop(20, "normal")
     check("普通怪不掉装备", d[0] is None)
     random.seed(4)
     d2 = C.roll_drop(20, "elite")
     check("精英不掉装备", d2[0] is None)
-    check("精英掉图纸", d2[1] is not None and d2[1]["type"] == "图纸", str(d2[1]))
-    check("图纸 blueprint_for", d2[1]["blueprint_for"] in C.EQUIP_ROSTER_BY_NAME, str(d2[1]["blueprint_for"]))
-    random.seed(8)
-    d3 = C.roll_drop(40, "boss")
-    check("Boss 不掉装备", d3[0] is None)
-    check("Boss 掉图纸", d3[1] is not None)
+    check("精英不掉图纸(v94)", d2[1] is None, str(d2[1]))
+    # Boss 5%：扫 seed 找触发，验证图纸结构合法
+    triggered = False
+    for seed in range(1, 500):
+        random.seed(seed)
+        d3 = C.roll_drop(40, "boss")
+        if d3[1] is not None:
+            check("Boss 图纸 blueprint_for 合法", d3[1]["blueprint_for"] in C.EQUIP_ROSTER_BY_NAME, str(d3[1]["blueprint_for"]))
+            triggered = True
+            break
+    if not triggered:
+        check("Boss 掉图纸(5%)", False, "500 seed 无触发")
+    # 图纸构造一致性：make_blueprint 与 roll_blueprint 同构（商店显示=购买入包）
+    random.seed(123)
+    bp = C.roll_blueprint(30)
+    bp2 = C.make_blueprint(bp["roster_id"])
+    check("make_blueprint 与 roll 同构", bp == bp2, str(bp2))
 
 
 # ============ 5. 属性需求穿戴 ============

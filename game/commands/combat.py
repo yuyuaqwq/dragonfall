@@ -325,7 +325,7 @@ class CombatCmds(CommandBase):
             db.update_player(group_id, qq_id, gold=player["gold"] + gain)
             msg = f"💰 流星回应了你的愿望！金币 +{gain}"
         else:
-            pool = ["狼皮", "蛇鳞", "野猪皮", "妖精之尘", "蜘蛛毒囊", "铁矿石"]
+            pool = ["狼皮", "蛇皮", "野猪牙", "魔法粉尘", "蜘蛛丝", "铁矿石"]
             mat = random.choice(pool)
             mid = C.resolve("materials", mat)
             if mid in C.MATERIALS:
@@ -415,7 +415,8 @@ class CombatCmds(CommandBase):
             extra = ""
             # v41：宝箱不再掉成品装备（装备统一走锻造），改为掉图纸/材料
             # 阶段九：精灵森林之友——探索获得物品概率 +10%
-            item_chance = 0.5 + (0.10 if E.race_stats(player.get("race")).get("explore_item") else 0)
+            # v94 图纸经济：宝箱为图纸主要来源之一，基础概率 50% → 70%
+            item_chance = 0.7 + (0.10 if E.race_stats(player.get("race")).get("explore_item") else 0)
             if random.random() < item_chance:
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
@@ -471,7 +472,7 @@ class CombatCmds(CommandBase):
             return True, "\n".join(lines)
         # 草药丛：采集材料
         if eid == "herb":
-            herbs = ["狼皮", "蜘蛛毒囊", "野猪皮", "妖精之尘", "蛇鳞"]
+            herbs = ["草药", "林语之叶", "谷地露水", "浆果"]
             herb = random.choice(herbs)
             mid = C.resolve("materials", herb)  # v48：中文 → ID
             if mid in C.MATERIALS:
@@ -490,7 +491,7 @@ class CombatCmds(CommandBase):
             )
         # 迷路的旅人：用材料换奖励
         if eid == "wandering":
-            rewards = ["神秘鳞片", "珍珠", "宝藏钥匙"]
+            rewards = ["克罗的罗盘", "传送卷轴", "谷地露水"]
             rw = random.choice(rewards)
             mid = C.resolve("materials", rw)  # v48：中文 → ID
             if mid in C.MATERIALS:
@@ -501,7 +502,7 @@ class CombatCmds(CommandBase):
             )
         # v87 02 章 7.6：新常规事件——废弃营地（材料+小概率图纸）
         if eid == "lost_camp":
-            mats_pool = ["狼皮", "兽肉", "铁矿石", "野猪皮", "妖精之尘"]
+            mats_pool = ["狼皮", "兽肉", "铁矿石", "野猪牙", "魔法粉尘"]
             got = []
             for _ in range(2):
                 m = random.choice(mats_pool)
@@ -520,7 +521,7 @@ class CombatCmds(CommandBase):
             )
         # v87 02 章 7.6：新常规事件——陨石坑（稀有矿石）
         if eid == "meteor":
-            ores = ["铁矿石", "银矿石", "秘银矿", "陨铁"]
+            ores = ["铁矿石", "秘银", "精铁", "星辉石"]
             ore = random.choice(ores)
             mid = C.resolve("materials", ore)
             got = ""
@@ -535,7 +536,7 @@ class CombatCmds(CommandBase):
             )
         # v87 02 章 7.6：新常规事件——迷路的小动物（随机材料/好感）
         if eid == "animal":
-            rewards = ["兽肉", "狼皮", "妖精之尘", "神秘鳞片"]
+            rewards = ["兽肉", "狼皮", "兔毛", "兔皮"]
             rw = random.choice(rewards)
             mid = C.resolve("materials", rw)
             got = ""
@@ -578,7 +579,7 @@ class CombatCmds(CommandBase):
             hp_gain = int(player["max_hp"] * 0.30)
             mp_gain = int(player["max_mp"] * 0.30)
             db.update_player(group_id, qq_id, hp=min(player["max_hp"], player["hp"] + hp_gain), mp=min(player["max_mp"], player["mp"] + mp_gain))
-            foods = ["兽肉", "野猪皮", "妖精之尘"]
+            foods = ["兽肉", "野猪牙", "魔法粉尘"]
             fd = random.choice(foods)
             mid = C.resolve("materials", fd)
             got = ""
@@ -597,7 +598,7 @@ class CombatCmds(CommandBase):
                     f"✨ 获得祝福：{bname}＋10%(持续 5 次战斗)！")
         # 草药丛：1-2 份炼金材料
         if eff == "herb":
-            herbs = ["狼皮", "蜘蛛毒囊", "蛇鳞", "妖精之尘", "草药"]
+            herbs = ["狼皮", "蜘蛛丝", "蛇皮", "魔法粉尘", "草药"]
             got = []
             for _ in range(random.randint(1, 2)):
                 h = random.choice(herbs)
@@ -1304,13 +1305,13 @@ class CombatCmds(CommandBase):
         if cur_evt:
             if cur_evt["etype"] == "omen":
                 exp = int(exp * 1.5); gold = int(gold * 1.5)
-                evt_bonus.append("🌧️ 元素异象：收益＋50%")
+                evt_bonus.append("🌧️ 元素异象：收益 +50%")
             elif cur_evt["etype"] == "swarm":
                 exp = int(exp * 1.3)
-                evt_bonus.append("⚔️ 兽潮：经验＋30%")
+                evt_bonus.append("⚔️ 兽潮：经验 +30%")
             elif cur_evt["etype"] == "festival":
                 gold = int(gold * 1.5)
-                evt_bonus.append("🎉 庆典：金币＋50%")
+                evt_bonus.append("🎉 庆典：掉落价值 +50%")
         # v87 02 章 7.6：每日运势加成（大吉 经验+10% / 小凶 金币-10%）
         fortune_line = ""
         try:
@@ -1322,10 +1323,10 @@ class CombatCmds(CommandBase):
                 if _f.get("date") == _dt.date.today().isoformat():
                     if _f.get("fortune") == "大吉":
                         exp = int(exp * 1.10)
-                        fortune_line = "🌟 今日大吉：经验＋10%！"
+                        fortune_line = "🌟 今日大吉：经验 +10%！"
                     elif _f.get("fortune") == "小凶":
                         gold = int(gold * 0.90)
-                        fortune_line = "🌧️ 今日小凶：金币－10%……"
+                        fortune_line = "🌧️ 今日小凶：掉落价值 -10%……"
         except Exception:
             pass
         if fortune_line:
@@ -1351,35 +1352,28 @@ class CombatCmds(CommandBase):
             db.add_reputation(group_id, qq_id, faction, rep_gain)
             if rep_gain > 1:
                 rep_lines.append(f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +{rep_gain}")
-        # 掉落（阶段八：普通怪掉绿/蓝装备；精英/Boss 掉紫/橙装备 + 名册图纸）
+        # 掉落（v93 经济改革：怪物永不掉装备——装备走铁匠铺购买 + 图纸锻造）
         drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"])
         # 阶段九：半身人幸运儿——金币掉落 +15%
         if E.race_stats(player.get("race")).get("gold_bonus"):
             gold = int(gold * (1 + E.race_stats(player.get("race"))["gold_bonus"]))
         drop_lines = []
         if drop_bp:
-            import uuid
-            bp_key = f"eq_{uuid.uuid4().hex[:8]}"
-            db.add_item(group_id, qq_id, bp_key, drop_bp)
-            # v56.4：掉落提示只显示名字，不把 desc 整段塞进括号（曾漏内部 ID）
-            drop_lines.append(f"📜 掉落图纸：{drop_bp['name']}")
-        if drop_equip:
-            import uuid
-            key = f"eq_{uuid.uuid4().hex[:8]}"
-            db.add_item(group_id, qq_id, key, drop_equip)
-            q = C.QUALITY[drop_equip["quality"]]
-            drop_lines.append(f"🎁 掉落装备：{q['color']}【{drop_equip['name']}】({C.EQUIP_SLOTS[drop_equip['slot']]})")
-            # 阶段八：词条 v2（特效词条 ID 列表 → 短名）
-            afs = drop_equip.get("affixes", [])
-            if afs:
-                parts = [C.affix_label(a) for a in afs if isinstance(a, str)]
-                if parts:
-                    drop_lines.append(f"    ✨ 词条：{'  '.join(parts)}")
-            if drop_equip.get("legendary"):
-                lg = C.LEGENDARY_EFFECTS[drop_equip["legendary"]]
-                drop_lines.append(f"    ✨ 专属：{lg['name']}")
-            if drop_equip.get("set"):
-                drop_lines.append(f"    🎴 套装：{drop_equip['set']}")
+            # v94 图纸经济：已学过的图纸自动折算图纸残页（普通1/优秀1/稀有2/史诗4/传说6）
+            _learned = player.get("learned_blueprints") or []
+            if drop_bp.get("blueprint_for") in _learned:
+                _bpq = drop_bp.get("quality", "white")
+                _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(_bpq, 1)
+                db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                            {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                            count=_pages)
+                drop_lines.append(f"📜 图纸已学会，化作 {_pages} 张图纸残页（『出售 图纸残页』变现）")
+            else:
+                import uuid
+                bp_key = f"eq_{uuid.uuid4().hex[:8]}"
+                db.add_item(group_id, qq_id, bp_key, drop_bp)
+                # v56.4：掉落提示只显示名字，不把 desc 整段塞进括号（曾漏内部 ID）
+                drop_lines.append(f"📜 掉落图纸：{drop_bp['name']}")
         # 材料掉落（v23：普通怪 100% 必掉 1 个；精英/Boss 必掉 2 个；v54 幸运护符 +1）
         material = None
         if monster.get("drops"):
@@ -1457,18 +1451,39 @@ class CombatCmds(CommandBase):
             gold = int(gold * (1 + C.rune_value("scavenger", _rune_effs["scavenger"])))
         if _rune_effs.get("exp_bless"):
             exp = int(exp * (1 + C.rune_value("exp_bless", _rune_effs["exp_bless"])))
-        # v54 幸运护符：10 分钟内打怪金币 ×1.5、材料 +1
+        # v54 幸运护符：10 分钟内打怪掉落价值 +50%（v93：金币改折算材料后，加成落在材料价值上）
         lucky_line = ""
         if int(player.get("lucky_until") or 0) > int(time.time()):
             gold = int(gold * 1.5)
-            lucky_line = "\n🍀 幸运护符生效：金币＋50%！"
-        # 经验/金币
-        db.update_player(group_id, qq_id, exp=player["exp"] + exp, gold=player["gold"] + gold)
+            lucky_line = "\n🍀 幸运护符生效：掉落价值 +50%！"
+        # v93 经济改革：金币不再入账，按 原金币×1.5 折算成 1-2 种可卖材料（怪物掉落池优先，通用池兜底）
+        mat_value = int(gold * 1.5)
+        if mat_value > 0:
+            drop_pool = [m for m in (monster.get("drops") or []) if m and "图纸" not in str(m)]
+            if not drop_pool:
+                drop_pool = list(("兽肉", "狼皮", "蛇皮", "野猪牙"))
+            is_hi = monster.get("is_elite") or monster.get("is_boss")
+            picks = random.sample(drop_pool, min(2 if is_hi else 1, len(drop_pool)))
+            per_val = mat_value / len(picks)
+            for mat_name in picks:
+                mid = C.resolve("materials", mat_name)
+                if mid not in C.MATERIALS:
+                    continue
+                mprice = C.MATERIALS[mid].get("price", 0)
+                if mprice <= 0:
+                    continue
+                n = max(1, min(30, round(per_val / mprice)))
+                db.add_item(group_id, qq_id, mid,
+                            {"name": C.display("materials", mid), "type": "材料",
+                             "stackable": True, "price": mprice}, n)
+                drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
+        # 经验/金币（v93：只入经验，金币已折算成材料）
+        db.update_player(group_id, qq_id, exp=player["exp"] + exp)
         player = self._player(group_id, qq_id)
         need = C.exp_to_next(player["level"])
         exp_pct = min(100, int(player["exp"] / need * 100)) if need else 0
         lines = [result, f"🎉 你击败了【{monster['name']}】！",
-                 f"✨ 经验 +{exp}  💰 金币 +{gold}",
+                 f"✨ 经验 +{exp}",
                  f"📈 经验进度 {player['exp']}/{need} ({exp_pct}%)"]
         if lucky_line:
             lines.append(lucky_line.strip())
@@ -1584,8 +1599,13 @@ class CombatCmds(CommandBase):
                     else:
                         lines.append(f"📜 主线『{mq['name']}』：{prog[monster['name']]}/{obj['count']}")
         # 每日
+        # v94：先清跨天任务（daily 里 _date 不是今天 → 清空），避免旧任务残留
+        if db.expire_daily(quests):
+            changed = True
         daily = dict(quests.get("daily", {}))
         for dkey, dq in list(daily.items()):
+            if dkey == "_date":  # 跨天字段，不是任务
+                continue
             dobj = dq["objective"]
             prog = dq.get("progress", 0)
             if dobj.get("kill_any"):
@@ -1659,7 +1679,7 @@ class CombatCmds(CommandBase):
             yield event.plain_result(
                 f"👹 世界 Boss【{b.get('name', '?')}】出现在【{b.get('map_name', '未知之地')}】！\n"
                 f"📍 你当前在【{cur_map_name}】，不在 Boss 出没地！\n"
-                f"🧭 用『移动 <地图名>』前往指定地点才能讨伐！"
+                f"🧭 用『前往 <地图名>』前往指定地点才能讨伐！"
             )
             return
         # 已有世界BOSS战斗状态 → 显示当前状态
@@ -1680,7 +1700,7 @@ class CombatCmds(CommandBase):
         if not boss.get("skills"):
             cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in ("物理", "魔法")]
             boss["skills"] = _rnd.sample(cand, min(2, len(cand)))
-        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), dmg_mult=db.get_boss_dmg_mult(qq_id))
         db.save_battle(group_id, qq_id, nb.to_state())
         self._lock_battle(group_id, qq_id)
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))

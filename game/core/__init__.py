@@ -15,7 +15,7 @@ from .stats import (  # noqa: F401
 from .maps import _build_ency  # noqa: F401
 from .monsters import monster_skills_pool  # noqa: F401
 from .drops import (  # noqa: F401
-    _stage_for_lv, roll_blueprint, roll_drop, generate_equip, generate_roster_equip,
+    _stage_for_lv, make_blueprint, roll_blueprint, roll_drop, generate_equip, generate_roster_equip,
     build_monster,
 )
 from .factions import faction_reputation_tier  # noqa: F401

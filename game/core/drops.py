@@ -21,12 +21,28 @@ def _stage_for_lv(monster_lv: int) -> dict:
             best = st
     return best
 
-def roll_blueprint(monster_lv: int):
-    """精英/Boss 掉图纸（阶段八：名册图纸化）。
+def make_blueprint(rid: str) -> dict:
+    """按名册 ID 精确构造图纸物品（v94：商店『购买 图纸』用）。
 
-    按怪物等级就近匹配 10 章名册中需要图纸的装备（source = 图纸/boss），
+    与 roll_blueprint 同一构造逻辑，保证显示与入包一致。
+    """
+    r = C.EQUIP_ROSTER[rid]
+    q = QUALITY[r["quality"]]
+    return {
+        "name": f"{r['name']}图纸", "type": "图纸", "stackable": True,
+        "price": int(r["lv"] * 3 + 20), "blueprint_for": r["name"], "roster_id": rid,
+        "quality": r["quality"],
+        # v56.4：玩家语言描述——不含内部 ID
+        "desc": f"{q['name']}级图纸：{r['name']}({C.EQUIP_SLOTS[r['slot']]})",
+    }
+
+def roll_blueprint(monster_lv: int):
+    """按等级就近从名册抽一张图纸（阶段八：名册图纸化）。
+
+    候选 = 10 章名册中需要图纸的装备（source = 图纸/boss），
     返回图纸物品 data（type=图纸，blueprint_for=装备名，roster_id=名册 ID），
     学习后解锁对应名册配方（craft.py『学习』）。
+    v94 起图纸不再靠战斗掉落（改走宝箱/垂钓/商店），此函数供探索宝箱/垂钓/商店使用。
     """
     cands = []
     for rid, r in C.EQUIP_ROSTER.items():
@@ -37,40 +53,23 @@ def roll_blueprint(monster_lv: int):
     # 等级就近：优先 |lv - monster_lv| <= 15，再放宽
     near = [c for c in cands if abs(c[1]["lv"] - monster_lv) <= 15]
     pool = near or cands
-    rid, r = random.choice(pool)
-    q = QUALITY[r["quality"]]
-    return {
-        "name": f"{r['name']}图纸", "type": "图纸", "stackable": True,
-        "price": int(r["lv"] * 3 + 20), "blueprint_for": r["name"], "roster_id": rid,
-        "quality": r["quality"],
-        # v56.4：玩家语言描述——不含内部 ID
-        "desc": f"{q['name']}级图纸：{r['name']}({C.EQUIP_SLOTS[r['slot']]})",
-    }
+    rid, _r = random.choice(pool)
+    return make_blueprint(rid)
 
 def roll_drop(monster_lv: int, role: str):
-    """怪物死亡掉落（阶段八，20 章 4.1）：返回 (装备 or None, 图纸 or None, 金币, 经验)
+    """怪物死亡掉落（v94 图纸经济改革，2026-08-09）：返回 (装备 or None, 图纸 or None, 金币, 经验)
 
-    - 普通怪：12% 掉绿/蓝随机装备（固定词条 + 随机）
-    - 精英：紫/蓝随机装备 + 名册图纸
-    - Boss：橙/紫随机装备 + 名册图纸
-    图纸与装备同时掉，消费端分别入包。
+    v93 改革（鱼鱼拍板）：怪物**永不掉装备**——装备走铁匠铺购买 + 图纸锻造进阶；
+    v94（鱼鱼拍板）：图纸**退出战斗掉落**——普通怪/精英不再掉图纸（防止泛滥），
+    图纸改走探索宝箱/垂钓宝物/商店购买；仅 Boss 保留 5% 惊喜掉率。
+    材料掉落由消费端 _handle_victory 按 monster['drops'] 处理。
+    消费端（_handle_victory）只入包图纸，装备位恒为 None。
     """
-    slots = ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"]
-    if role == "elite":
-        bp = roll_blueprint(monster_lv)
-        eq = generate_equip(random.choice(slots), monster_lv,
-                            random.choices(["purple", "blue"], [0.65, 0.35])[0])
-        return eq, bp, 0, 0
     if role == "boss":
-        bp = roll_blueprint(monster_lv)
-        eq = generate_equip(random.choice(slots), monster_lv,
-                            random.choices(["orange", "purple"], [0.35, 0.65])[0])
-        return eq, bp, 0, 0
-    # 普通怪 12% 掉绿/蓝
-    if random.random() < 0.12:
-        eq = generate_equip(random.choice(slots), monster_lv,
-                            random.choices(["green", "blue"], [0.7, 0.3])[0])
-        return eq, None, 0, 0
+        if random.random() < 0.05:
+            return None, roll_blueprint(monster_lv), 0, 0
+        return None, None, 0, 0
+    # 普通怪 / 精英：不掉图纸（v94）
     return None, None, 0, 0
 
 def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = None):
@@ -230,7 +229,7 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
         "weapon_type": weapon_type if slot == "weapon" else None,
         "stats": stats,
         "price": int(sum(stats.values()) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
-        "req": dict(r["req"]),
+        "req": dict(r.get("req") or {}),
         "series": r["series"],
     }
     if flavor_stats:
