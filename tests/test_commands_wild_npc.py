@@ -166,7 +166,8 @@ async def main():
     out = await cmd(m, "turn_in", "g1", "w1", "交付任务")
     check("交付完成 S36", "支线完成" in out and "采药女的心愿" in out, out[:400])
     q = db.get_quests("g1", "w1")
-    check("S36 从 side 移除（完成）", "s36" not in q.get("side", {}), str(q.get("side")))
+    # v95.12：交付后条目标记 done 保留（防自动重接）
+    check("S36 标记 done（完成）", q.get("side", {}).get("s36", {}).get("status") == "done", str(q.get("side")))
     have = db.count_item("g1", "w1", "mat_yue_guang_cao")
     check("月光草被扣除（collect 修复生效）", have == 0, f"剩余 {have}")
 
