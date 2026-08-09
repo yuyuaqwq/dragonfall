@@ -138,6 +138,8 @@ def get_player(group_id, qq_id):
                 pass
             # v95.7 #26：读档惰性结算经验溢出（面板曾出现 100% 不升级，要打一场才结算）
             # 任务奖励等路径若漏查升级，读档时自动补算并写回（升级回满血/给属性点技能点）
+            # v95.12 #143：惰性升级的 logs 不能丢——挂到 p["_lv_logs"]，由 check_player_level_up 消费
+            # （否则战斗结算重读 player 后 check 拿不到升级提示，玩家看不到"恭喜升级/属性点+3"）
             try:
                 _lv0 = p.get("level", 1)
                 if p.get("exp", 0) >= C.exp_to_next(_lv0):
@@ -152,6 +154,7 @@ def get_player(group_id, qq_id):
                              _p2.get("attr_pts", 0), _p2.get("skill_points", 0), qq_id),
                         )
                         conn.commit()
+                        p["_lv_logs"] = _logs  # 升级提示暂存，供调用方展示
             except Exception:
                 pass
             return p

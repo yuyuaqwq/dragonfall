@@ -915,6 +915,9 @@ def monster_turn(monster: dict, player_stats: dict) -> tuple:
 def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
     """检查是否升级(处理多次连升)。返回 (log列表, 更新后的player)"""
     logs = []
+    # v95.12 #143：消费读档惰性升级暂存的提示（get_player 已静默升级写回，这里补回提示）
+    if player.get("_lv_logs"):
+        logs = player.pop("_lv_logs")
     while player["exp"] >= C.exp_to_next(player["level"]):
         player["exp"] -= C.exp_to_next(player["level"])
         player["level"] += 1
