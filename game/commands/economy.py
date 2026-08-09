@@ -2070,6 +2070,9 @@ class EconomyCmds(CommandBase):
 
     def _req_check(self, player: dict, d: dict):
         """阶段八：装备属性需求检查。返回 (通过, 提示文本)。"""
+        # v95.4：新手武器（橡木系列 Lv.2-3）需求已从名册移除，旧存量装备快照仍带 req → 一并豁免
+        if d.get("slot") == "weapon" and d.get("lv", 99) <= 3:
+            return True, ""
         req = d.get("req")
         if not req:
             return True, ""
