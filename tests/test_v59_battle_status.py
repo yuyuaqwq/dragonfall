@@ -15,9 +15,13 @@ def check(name, cond, detail=""):
 
 mixin = CombatCmds.__new__(CombatCmds)
 
+def mk_player():
+    # stage5 核心资源后 _resource_line 需要 class_name
+    return {"class_name": "cls_you_xia", "hp": 800, "max_hp": 1000, "mp": 120, "max_mp": 300, "mech_stacks": {}}
+
 def test_status_line():
     print("【战斗状态展示】")
-    player = {"hp": 800, "max_hp": 1000, "mp": 120, "max_mp": 300, "mech_stacks": {}}
+    player = mk_player()
     b = BT.Battle("monster", {"name": "山贼头目", "hp": 3000, "max_hp": 4000})
     b.mech_stacks = {"rage": 5, "burn": 3, "bless": 2}  # v59 叠层存战斗状态
     b.shield = 150
@@ -32,7 +36,7 @@ def test_status_line():
 
 def test_footer():
     print("【战斗底部】")
-    player = {"hp": 800, "max_hp": 1000, "mp": 120, "max_mp": 300, "mech_stacks": {}}
+    player = mk_player()
     b = BT.Battle("monster", {"name": "山贼头目", "hp": 3000, "max_hp": 4000})
     b.mech_stacks = {"rage": 5}  # v59 叠层存战斗状态
     b.p_buffs = {"atk_up": 3}
@@ -45,7 +49,7 @@ def test_footer():
 def test_no_status():
     print("【无状态不显示】")
     b = BT.Battle("monster", {"name": "野狗", "hp": 50, "max_hp": 50})
-    player = {"hp": 800, "max_hp": 1000, "mp": 120, "max_mp": 300, "mech_stacks": {}}
+    player = mk_player()
     s = mixin._status_line(player, b)
     check("无状态为空", s == "", repr(s))
     f = mixin._battle_footer(player, b, b.enemy)
@@ -54,7 +58,7 @@ def test_no_status():
 def test_enrage():
     print("【敌方狂暴显示】")
     b = BT.Battle("monster", {"name": "骷髅王", "hp": 500, "max_hp": 2000, "enraged": True})
-    player = {"hp": 800, "max_hp": 1000, "mp": 120, "max_mp": 300, "mech_stacks": {}}
+    player = mk_player()
     s = mixin._status_line(player, b)
     check("狂暴标记", "😡狂暴" in s, s)
 

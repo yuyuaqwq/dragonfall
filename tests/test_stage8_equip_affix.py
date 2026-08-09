@@ -94,7 +94,7 @@ def test_roster_gen():
     e = C.generate_roster_equip("eq_tie_jian")
     check("铁剑名字", e["name"] == "铁剑")
     check("铁剑白装 0 词条", e.get("affixes") is None, str(e.get("affixes")))
-    check("铁剑需求力量 5", e["req"] == {"str": 5}, str(e["req"]))
+    check("铁剑新手无需求", e["req"] == {}, str(e["req"]))
     e2 = C.generate_roster_equip("eq_jin_gou_wan_dao")
     check("金钩弯刀橙装 3 词条", len(e2.get("affixes", [])) == 3, str(e2.get("affixes")))
     check("金钩弯刀固定词条在列", "crit_up" in e2["affixes"] and "lifesteal" in e2["affixes"], str(e2["affixes"]))
@@ -299,7 +299,7 @@ def test_craft_set():
     check("锻造橙装名册生成", eq["name"] == "金钩弯刀" and eq.get("legendary") == "gold_hook", str(eq))
     check("锻造橙装套装", eq.get("set") == "海风套", str(eq.get("set")))
     eq2 = C.craft_recipe_make("rec_tie_jian")
-    check("锻造白装无套装", eq2.get("set") is None and eq2["req"] == {"str": 5})
+    check("锻造白装无套装", eq2.get("set") is None and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
     check("需图纸配方存在", len(bp_recs) == 64, str(len(bp_recs)))
