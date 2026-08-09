@@ -28,6 +28,27 @@ class EconomyCmds(CommandBase):
 
     BAG_FILTER_TYPES = ["装备", "材料", "消耗品", "符文", "宠物蛋", "坐骑", "图纸", "鱼"]
 
+    def _nearest_town(self, cur_map: str) -> str:
+        """BFS 找离当前地图最近的城镇（回城卷轴用）。cur_map 本身是城镇则原地。"""
+        from collections import deque
+        if cur_map in C.MAP_BY_ID and C.MAP_BY_ID[cur_map].get("type") == "城镇区域":
+            return cur_map
+        q = deque([(cur_map, 0)])
+        seen = {cur_map}
+        while q:
+            m, d = q.popleft()
+            if d >= 6:
+                continue
+            for nxt in C.MAP_CONNECTIONS.get(m, []):
+                if nxt in seen:
+                    continue
+                seen.add(nxt)
+                mm = C.MAP_BY_ID.get(nxt, {})
+                if mm.get("type") == "城镇区域":
+                    return nxt
+                q.append((nxt, d + 1))
+        return "oak_town"
+
     def _gather_roll(self, level: int, prof_lv: int = 1) -> list:
         """按等级采集材料：价格区间匹配等级段；副业等级提高产出数量与稀有度"""
         import random as _rnd
@@ -2384,9 +2405,17 @@ class EconomyCmds(CommandBase):
                 _p4 = self._player(group_id, qq_id)
                 yield event.plain_result(f"🍖 你肚子还饱着呢(体力 {self._stamina(_p4)}/{self._stamina_max(_p4)})，先活动活动再吃吧～")
         elif d.get("effect") == "return_vila":
+            # v95.13 #63：卷轴回"最近城镇"（原写死 oak_town，新世界地图不合用）
             db.remove_item(group_id, qq_id, target["key"])
-            db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")
-            yield event.plain_result("🧭 卷轴展开，光芒闪过——你回到了橡木镇中心广场！")
+            cur = player.get("cur_map", "")
+            dest = self._nearest_town(cur)
+            entry_sa = C.map_entry_subarea(dest) if dest else None
+            sas = C.MAP_BY_ID.get(dest, {}).get("subareas") or []
+            first_sa = next((s for s in sas if s["id"] == entry_sa), None) or (sas[0] if sas else None)
+            db.update_player(group_id, qq_id, cur_map=dest,
+                             cur_subarea=first_sa["id"] if first_sa else "")
+            town_name = C.MAP_BY_ID.get(dest, {}).get("name", "城镇")
+            yield event.plain_result(f"🧭 卷轴展开，光芒闪过——你回到了{town_name}！")
         elif d.get("effect") == "lucky":
             # v54 幸运护符：10 分钟打怪金币 ×1.5、材料 +1
             db.remove_item(group_id, qq_id, target["key"])

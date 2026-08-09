@@ -507,11 +507,17 @@ class CombatCmds(CommandBase):
             # v95.4：迷路的旅人谢礼限一次（防重复刷同一物品）
             if db.get_player(group_id, qq_id).get("explore_wandering"):
                 return True, "🧭 【迷路的旅人】旅人认出了你，笑着摆摆手：'缘分到此为止，下次有缘再见！'"
-            rewards = ["克罗的罗盘", "传送卷轴", "谷地露水"]
+            rewards = ["克罗的罗盘", "回城卷轴", "谷地露水"]
             rw = random.choice(rewards)
-            mid = C.resolve("materials", rw)  # v48：中文 → ID
-            if mid in C.MATERIALS:
-                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+            if rw == "回城卷轴":
+                # v95.13 #63：卷轴必须掉消耗品版（材料版同名物品不能用），可立即回城保命
+                db.add_item(group_id, qq_id, "i_scroll_escape",
+                            {"name": "回城卷轴", "type": "消耗品", "stackable": True,
+                             "effect": "return_vila", "price": 500})
+            else:
+                mid = C.resolve("materials", rw)  # v48：中文 → ID
+                if mid in C.MATERIALS:
+                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
             db.update_player(group_id, qq_id, explore_wandering=1)
             return True, (
                 f"🧭 【迷路的旅人】一位旅人感激你的指路，硬塞给你一件谢礼！\n"

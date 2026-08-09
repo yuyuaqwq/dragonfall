@@ -1918,7 +1918,7 @@ CONSUMABLES = {
                       "desc": "战斗内回复 40% HP"},
     "i_scroll_purify": {"name": "净化卷轴", "price": 300,
                         "desc": "战斗内驱散全队负面"},
-    "i_scroll_teleport": {"name": "传送卷轴", "price": 500,
+    "i_scroll_teleport": {"name": "传送卷轴", "price": 500, "effect": "return_vila",
                           "desc": "立即返回最近城镇"},
     "i_scroll_revive": {"name": "唤醒卷轴", "price": 1000,
                         "desc": "战斗内复活(回复 50% HP)"},
@@ -1955,7 +1955,7 @@ CONSUMABLES = {
                           "desc": "回复 60% HP"},
     "i_super_mana": {"name": "超级魔法药水", "price": 100, "mana": 0.6,
                      "desc": "回复 60% MP"},
-    "i_scroll_escape": {"name": "回城卷轴", "price": 500,
+    "i_scroll_escape": {"name": "回城卷轴", "price": 500, "effect": "return_vila",
                         "desc": "立即返回最近城镇"},
     # ---- 2.9 副本入场钥匙（29 章 11 节：高难/外域副本门槛） ----
     "i_key_old_king": {"name": "王陵钥匙", "price": 500, "key_item": True,

@@ -89,7 +89,7 @@ MAIN_QUESTS = [
         "id": "q2_2",
         "name": "森林的狼患",
         "giver": "npc_baron",
-        "desc": "击败 10 只森林狼",
+        "desc": "前往翡翠森林，击败 10 只森林狼",
         "objective": {"kill": "森林狼", "count": 10},
         "reward_exp": 400,
         "reward_gold": 150,

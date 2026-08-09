@@ -191,7 +191,7 @@ WILD_NPCS = {
         "name": "龙语者·古尔", "icon": "🐉", "map": "dragon_ridge",
         "condition": {"time": ["evening"]},
         "desc": "能与龙对话的人",
-        "funcs": ["info", "teach"],
+        "funcs": ["info", "teach", "quest"],
         "dialogue": "龙说，黄昏是它们最清醒的时候。你想听龙在说什么吗？",
     },
     "w_bone_collector": {
@@ -212,7 +212,7 @@ WILD_NPCS = {
         "name": "追风者·岚", "icon": "🌪️", "map": "storm_cliff",
         "condition": {"weather": "storm"},
         "desc": "追逐风暴的疯子",
-        "funcs": ["info"],
+        "funcs": ["info", "quest"],
         "dialogue": "风暴就是最壮丽的诗！别躲，站上来，感受它！",
     },
     "w_ancient_guardian": {
