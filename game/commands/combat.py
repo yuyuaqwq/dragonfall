@@ -1523,6 +1523,15 @@ class CombatCmds(CommandBase):
         # 经验/金币（v93：只入经验，金币已折算成材料）
         db.update_player(group_id, qq_id, exp=player["exp"] + exp)
         player = self._player(group_id, qq_id)
+        # v95.19: 结算面板与战斗内口径一致（DB max_hp/max_mp 是注册/升级快照，换装备后过时）
+        try:
+            _st = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+                                       player.get("class_tier", 0), player.get("attributes"),
+                                       player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
+            player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
+            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+        except Exception:
+            pass
         need = C.exp_to_next(player["level"])
         exp_pct = min(100, int(player["exp"] / need * 100)) if need else 0
         lines = [result, f"🎉 你击败了【{monster['name']}】！",
