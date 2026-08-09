@@ -15,6 +15,7 @@
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run, make_player, new_main
+from data.plugins.dragonfall.game.core import wild as W
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -38,6 +39,8 @@ def stamina(gid, qid):
 async def main():
     m = new_main()
     make_player("g1", "q1", level=1)
+    # v95.15：固定非雨天，防 emerald_forest 雨天限定的『迷路的骑士』偶遇干扰探索扣体力断言
+    W.today_weather = lambda map_id=None: "sunny"
     # 测试档体力 999999 —— 先手动压到正常值验证逻辑
     db.update_player("g1", "q1", stamina=100, stamina_ts=int(time.time()))
 
