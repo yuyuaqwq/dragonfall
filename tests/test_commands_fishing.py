@@ -64,7 +64,7 @@ async def main():
     # 激活垂钓 + 练到 Lv.5（蓝档 10%）
     await cmd(m, "fishing", "g1", "w1", "垂钓")
     db.add_prof_exp("g1", "w1", "fishing", 200)
-    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
+    db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain", cur_subarea="oak_plain_3")  # v87.17 垂钓点=溪边草地
 
     print("【9.3 垂钓点显示】")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
@@ -78,12 +78,12 @@ async def main():
     # 低级玩家（Lv.1）去高级水域 → 拦截
     await cmd(m, "register", "g1", "w2", "注册 法师 新手")
     await cmd(m, "fishing", "g1", "w2", "垂钓")
-    db.update_player("g1", "w2", cur_map="harbor_docks")
+    db.update_player("g1", "w2", cur_map="harbor_docks", cur_subarea="harbor_docks_1")  # v87.17 垂钓点=码头栈桥
     m._prof_wait_clear("g1", "w2")
     out = await cmd(m, "fishing", "g1", "w2", "垂钓")
     check("高级水域等级不足拦截（Lv.1→铁港 Lv.3）", "高级水域" in out, out[:200])
     # 铁港 min_lv 3，当前 Lv.5 → 放行（等待开始）
-    db.update_player("g1", "w1", cur_map="harbor_docks")
+    db.update_player("g1", "w1", cur_map="harbor_docks", cur_subarea="harbor_docks_1")
     m._prof_wait_clear("g1", "w1")
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("铁港 Lv.5 放行开始垂钓", "抛出鱼竿" in out, out[:200])

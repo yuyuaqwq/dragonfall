@@ -46,7 +46,7 @@ async def main():
     out = await cmd(m, "help_cmd", "g1", "f1", "帮助 角色")
     check("角色分类", "注册" in out and "属性" in out, out[:80])
     out = await cmd(m, "help_cmd", "g1", "f1", "帮助 冒险")
-    check("冒险分类", "探索" in out and "移动" in out, out[:80])
+    check("冒险分类", "探索" in out and "前往" in out, out[:80])
     out = await cmd(m, "help_cmd", "g1", "f1", "帮助 物品")
     check("物品分类", "背包" in out and "商店" in out, out[:80])
 

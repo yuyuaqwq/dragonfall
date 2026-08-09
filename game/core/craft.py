@@ -5,7 +5,7 @@ from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES
 from ..core.index import resolve, display as _display
 
 
-"""《剑与魔法》数据层 - craft.py（v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文）"""
+"""《剑与魔法》数据层 - craft.py(v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文)"""
 def craft_recipe_make(name: str, affinity: str | None = None) -> dict | None:
     """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）
     阶段八：名册配方（roster_id）走名册精确生成（词条 v2/需求/套装）；
@@ -25,7 +25,7 @@ def craft_recipe_make(name: str, affinity: str | None = None) -> dict | None:
     return equip
 
 def craft_recipe_search(text: str):
-    """模糊查找配方：精确名 > 别名 > 包含匹配（v48：输入中文/ID 都 resolve）"""
+    """模糊查找配方：精确名 > 别名 > 包含匹配(v48：输入中文/ID 都 resolve)"""
     rid = resolve("recipes", text)
     if rid in CRAFT_RECIPES:
         return rid
@@ -59,7 +59,7 @@ def craft_recipes_by_material(text: str, max_show: int = 8):
     return out[:max_show]
 
 def craft_recipes_for_level(player_lv: int, max_show: int = 12):
-    """列出玩家可锻造（lv 门槛 ±6 内）的配方"""
+    """列出玩家可锻造(lv 门槛 ±6 内)的配方"""
     out = []
     for name, rec in CRAFT_RECIPES.items():
         if rec["lv"] <= player_lv + 6 and rec["lv"] >= max(1, player_lv - 12):

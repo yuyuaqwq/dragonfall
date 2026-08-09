@@ -145,7 +145,7 @@ class Battle:
             self.resources[k] = 0
 
     def _resource_label(self, player: dict) -> str:
-        """战斗状态栏显示核心资源（如 ⚡ 怒气 3/10）。"""
+        """战斗状态栏显示核心资源(如 ⚡ 怒气 3/10)。"""
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
         if not rd:
@@ -158,19 +158,19 @@ class Battle:
 
     # ---------------- 技能冷却（v2.0） ----------------
     def _skill_cd_left(self, skill_name: str) -> int:
-        """技能剩余冷却回合数（0 = 可用）。"""
+        """技能剩余冷却回合数(0 = 可用)。"""
         return int(self.cooldown.get(skill_name, 0) or 0)
 
     def _skill_on_cd(self, skill_name: str) -> bool:
         return self._skill_cd_left(skill_name) > 0
 
     def _set_skill_cd(self, skill_name: str, cd: int):
-        """设置技能冷却（cd 回合，1 表示下一回合即可用）。"""
+        """设置技能冷却(cd 回合，1 表示下一回合即可用)。"""
         if cd > 0:
             self.cooldown[skill_name] = cd
 
     def _tick_cooldowns(self):
-        """回合结束：所有冷却 -1，归零清除。"""
+        """回合结束：所有冷却－1，归零清除。"""
         for k in list(self.cooldown):
             self.cooldown[k] -= 1
             if self.cooldown[k] <= 0:
@@ -197,7 +197,7 @@ class Battle:
         return False
 
     def _combo_label(self) -> str:
-        """当前连招进度显示（如 拳→踢→_）。"""
+        """当前连招进度显示(如 拳→踢→_)。"""
         if not self.combo_seq:
             return ""
         parts = list(self.combo_seq)
@@ -236,7 +236,7 @@ class Battle:
                 self._end_round()
                 return logs, True
             if self.p_extra_left > 0:
-                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次（『攻击』『技能 <名称>』『使用 <道具>』）")
+                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
                 return logs, False
             # 额外行动用完 → 敌方行动
             return self._enemy_phase(player, logs, enemy_act)
@@ -274,7 +274,7 @@ class Battle:
             return self._enemy_phase(player, logs, enemy_act)
         # v63 玩家被沉默：技能类行动被拦截，只能普攻/防御/道具
         if "silence" in self.p_buffs and action == "skill":
-            logs.append("🤐 你被沉默，无法使用技能！（只能普攻/防御/道具）")
+            logs.append("🤐 你被沉默，无法使用技能！(只能普攻/防御/道具)")
             action = "attack"
 
         if action == "defend":
@@ -289,7 +289,7 @@ class Battle:
                 return logs, True
             # 用道具后速度优势仍在 → 留给玩家自由选择
             if self.p_extra_left > 0:
-                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次（『攻击』『技能 <名称>』『使用 <道具>』）")
+                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
                 return logs, False
             return self._enemy_phase(player, logs, enemy_act)
 
@@ -315,7 +315,7 @@ class Battle:
 
         # v61：玩家速度优势 → 额外行动留给玩家自由选择（不再自动普攻）
         if self.p_extra_left > 0:
-            logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手（『攻击』『技能 <名称>』『使用 <道具>』）")
+            logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
             return logs, False
 
         # 玩家无额外行动 → 敌方行动
@@ -334,7 +334,7 @@ class Battle:
                 logs += mlogs
                 if defend and dmg > 0:
                     dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    logs.append(f"（格挡后 {dmg} 点伤害）")
+                    logs.append(f"(格挡后 {dmg} 点伤害)")
                 self._damage_player(player, dmg, logs)
                 if self._player_dead(player):
                     self.result = "defeat"
@@ -342,7 +342,7 @@ class Battle:
         return logs, self.result is not None
 
     def _do_use_item(self, payload: str, player: dict) -> list:
-        """战斗中使用消耗品：恢复/增益（v61 抽公共，普通回合与额外行动共用）"""
+        """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
         if payload.startswith("buff:"):
             # v54 战斗药水：effect → p_buffs 增益 3 回合
@@ -352,7 +352,7 @@ class Battle:
                    "matk_up_pot": "魔攻"}
             for _k in kind.split(","):
                 self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
-            logs.append(f"🧪 你饮下战斗药水，{','.join(_cn.get(k, k) for k in kind.split(','))}大幅提升！（3 回合）")
+            logs.append(f"🧪 你饮下战斗药水，{','.join(_cn.get(k, k) for k in kind.split(','))}大幅提升！(3 回合)")
         else:
             heal = int(payload or 0)  # 复用 skill_name 传恢复量
             # 阶段九：半身人灵巧双手——消耗品效果 +10%
@@ -362,13 +362,13 @@ class Battle:
             if heal > 0:
                 before = player["hp"]
                 player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
-                logs.append(f"💊 你使用了战斗道具，恢复 {player['hp'] - before} 点生命！（{player['hp']}/{player['max_hp']}）")
+                logs.append(f"💊 你使用了战斗道具，恢复 {player['hp'] - before} 点生命！({player['hp']}/{player['max_hp']})")
             else:
                 logs.append("💊 你使用了战斗道具！")
         return logs
 
     def _do_player_skill(self, skill_name: str, player: dict) -> list:
-        """玩家施放技能（v61 抽公共，普通回合与额外行动共用）"""
+        """玩家施放技能(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
         st = self._player_stats(player)
         info = E.skill_info(player["class_name"], skill_name)
@@ -377,12 +377,12 @@ class Battle:
             return logs
         if not E.is_skill_learned(player["class_name"], player["level"], skill_name,
                                   player.get("learned_skills", [])):
-            logs.append(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}（或『技能学习 {skill_name}』提前学习）")
+            logs.append(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}(或『技能学习 {skill_name}』提前学习)")
             return logs
         # v2.0 冷却：CD 未结束拦截（强控/终结技等）
         if self._skill_on_cd(skill_name):
             left = self._skill_cd_left(skill_name)
-            logs.append(f"⏳【{skill_name}】还在冷却中（剩余 {left} 回合）！")
+            logs.append(f"⏳【{skill_name}】还在冷却中(剩余 {left} 回合)！")
             return logs
         # v2.0 核心资源：技能消耗检查（res_cost，如怒气/连击点/信仰/气）
         res_cost = info.get("res_cost") or {}
@@ -392,7 +392,7 @@ class Battle:
                     rd = E.core_resource_def(player["class_name"])
                     rname = rd.get("name", rk)
                     cur = self.resources.get(rk, 0)
-                    logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}（『攻击』攒资源）")
+                    logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
                     return logs
         if player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
@@ -448,7 +448,7 @@ class Battle:
             logs += mlogs
             if dmg > 0:
                 dmg = max(1, int(dmg * DEFEND_REDUCE))
-                logs.append(f"（格挡后 {dmg} 点伤害）")
+                logs.append(f"(格挡后 {dmg} 点伤害)")
             self._damage_player(player, dmg, logs)
             if self._player_dead(player):
                 self.result = "defeat"
@@ -460,7 +460,7 @@ class Battle:
                 logs += mlogs
                 if dmg > 0:
                     dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    logs.append(f"（格挡后 {dmg} 点伤害）")
+                    logs.append(f"(格挡后 {dmg} 点伤害)")
                 self._damage_player(player, dmg, logs)
                 if self._player_dead(player):
                     self.result = "defeat"
@@ -523,7 +523,7 @@ class Battle:
         return effects
 
     def _enchant_lvl(self, effs: dict, effect: str) -> int:
-        """符文效果等级（无则 0）"""
+        """符文效果等级(无则 0)"""
         return int(effs.get(effect, 0) or 0)
 
     def _player_stats(self, player: dict) -> dict:
@@ -553,7 +553,7 @@ class Battle:
         return st
 
     def _player_attack(self, st: dict, player: dict) -> list:
-        """普攻（含标记加成 + v10 套装攻击特效 + v34 符文效果）"""
+        """普攻(含标记加成 + v10 套装攻击特效 + v34 符文效果)"""
         logs = []
         est = self._enemy_stats()
         effs = self._enchant_effects(player)
@@ -596,7 +596,7 @@ class Battle:
         return logs
 
     def _resource_on_attack(self, player: dict):
-        """v2.0 核心资源：普攻/技能命中自动获取（on_attack/on_skill）。"""
+        """v2.0 核心资源：普攻/技能命中自动获取(on_attack/on_skill)。"""
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
         if not rd:
@@ -627,7 +627,7 @@ class Battle:
             self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
 
     def _apply_enchant_attack(self, effs: dict, dmg: int, st: dict, player: dict, logs: list):
-        """v34：攻击后符文效果结算（灼烧/冻结/吸血/连锁/虚弱/破魔）"""
+        """v34：攻击后符文效果结算(灼烧/冻结/吸血/连锁/虚弱/破魔)"""
         if not effs:
             return
         p_mech = self.mech_stacks
@@ -668,7 +668,7 @@ class Battle:
 
     # ---------------- 阶段八：装备特效词条触发（20 章） ----------------
     def _equip_affix_ids(self, player: dict) -> list:
-        """玩家已装备的全部词条 ID（affixes + legendary 专属）"""
+        """玩家已装备的全部词条 ID(affixes + legendary 专属)"""
         ids = []
         for item in (player.get("equipment") or {}).values():
             if not item:
@@ -679,12 +679,12 @@ class Battle:
         return ids
 
     def _set_bonus_5(self, player: dict) -> list:
-        """已激活 5 件套的套装名列表（10 章五节 5 件效果，战斗特效型）"""
+        """已激活 5 件套的套装名列表(10 章五节 5 件效果，战斗特效型)"""
         return [sname for sname, cnt in E.active_sets(player.get("equipment") or {}).items()
                 if cnt >= 5]
 
     def _race_bonus(self, player: dict) -> dict:
-        """种族天赋表（08 章，battle 消费战斗型天赋）"""
+        """种族天赋表(08 章，battle 消费战斗型天赋)"""
         return E.race_stats(player.get("race"))
 
     def _race_attack_mult(self, player: dict) -> tuple:
@@ -859,7 +859,7 @@ class Battle:
         # 龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）
         if "dragon_tongue" in ids:
             self.mech_stacks["dragon_mark"] = min(5, int(self.mech_stacks.get("dragon_mark", 0) or 0) + 1)
-            logs.append(f"🐉 龙语印记叠加！（{self.mech_stacks['dragon_mark']} 层，每层 +2% 伤害）")
+            logs.append(f"🐉 龙语印记叠加！({self.mech_stacks['dragon_mark']} 层，每层＋2% 伤害)")
 
     def _affix_on_taken(self, player: dict, dmg: int, logs: list) -> int:
         """受击词条：减伤/格挡/坚韧/反击/反伤/深渊腐蚀。返回结算后的伤害。"""
@@ -914,7 +914,7 @@ class Battle:
         return out
 
     def _affix_turn_start(self, player: dict, logs: list):
-        """回合开始词条：回春（1% 生命）/冥想（1% 魔力）/晨曦祝福（2% 生命）"""
+        """回合开始词条：回春(1% 生命)/冥想(1% 魔力)/晨曦祝福(2% 生命)"""
         ids = self._equip_affix_ids(player)
         if not ids:
             return
@@ -933,7 +933,7 @@ class Battle:
             logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
 
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
-        """施放技能：治疗/增益/攻击 + 特效全部落地（v27 技能等级 + v29 分支机制）"""
+        """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
         lv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
         kind = info["kind"]
@@ -976,7 +976,7 @@ class Battle:
                 p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
             logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
             if mech == "bless":
-                logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层（下次『神圣之光』转化护盾）")
+                logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层(下次『神圣之光』转化护盾)")
             # v50 团队治疗：记录全队效果（副本广播）
             if info.get("team"):
                 self.team_effects.append({"kind": "heal_all", "power": info["power"], "lv": lv, "matk": st["matk"]})
@@ -1028,7 +1028,7 @@ class Battle:
             self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
             logs.append(f"你施展【{skill_name}】！")
             if eff == "element_shift" and getattr(self, "_shifted_element", None):
-                logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系（下次元素技能伤害 +20%）")
+                logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害＋20%)")
                 self._shifted_element = None
             # v50 团队增益：记录全队效果（副本广播）
             team = info.get("team")
@@ -1196,7 +1196,7 @@ class Battle:
             if combo_full:
                 combo_bonus = int(total * 0.30)
                 self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - combo_bonus)
-                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！（下次斗气技 +20%）")
+                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技＋20%)")
                 self.resources["combo_ready"] = 1
             else:
                 logs.append(f"🥊 连招 {self._combo_label()}")
@@ -1364,7 +1364,7 @@ class Battle:
         return 1.0
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
-        """增益类技能叠层（v59：封顶）"""
+        """增益类技能叠层(v59：封顶)"""
         if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade"):
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
@@ -1373,11 +1373,11 @@ class Battle:
         # 狂暴：叠层
         if mech == "rage" and mval:
             p_mech["rage"] = E.mech_stack_gain("rage", p_mech, mval)
-            logs.append(f"🔥 狂暴层数 {p_mech['rage']}（每层 +12% 伤害）")
+            logs.append(f"🔥 狂暴层数 {p_mech['rage']}(每层＋12% 伤害)")
         # 圣盾：叠层
         elif mech == "shield" and mval:
             p_mech["shield"] = E.mech_stack_gain("shield", p_mech, mval)
-            logs.append(f"🛡️ 圣盾层数 {p_mech['shield']}（每层减伤）")
+            logs.append(f"🛡️ 圣盾层数 {p_mech['shield']}(每层减伤)")
         # 圣盾爆发：消耗层数转伤害
         elif mech == "shield_burst":
             n = p_mech.get("shield", 0)
@@ -1395,7 +1395,7 @@ class Battle:
         # 灼烧：叠层（每层每回合掉 3% 生命）
         elif mech == "burn" and mval:
             p_mech["burn"] = E.mech_stack_gain("burn", p_mech, mval)
-            logs.append(f"🔥 灼烧层数 {p_mech['burn']}（每回合 {p_mech['burn'] * 3}% 生命）")
+            logs.append(f"🔥 灼烧层数 {p_mech['burn']}(每回合 {p_mech['burn'] * 3}% 生命)")
         # 灼烧引爆：每层立即 30% 魔攻
         elif mech == "burn_burst":
             n = p_mech.get("burn", 0)
@@ -1449,7 +1449,7 @@ class Battle:
         # 风印：叠层（连击次数 +1/层，已在伤害循环处理）
         elif mech == "wind" and mval:
             p_mech["wind"] = E.mech_stack_gain("wind", p_mech, mval)
-            logs.append(f"💨 风印层数 {p_mech['wind']}（连击次数 +{p_mech['wind']}）")
+            logs.append(f"💨 风印层数 {p_mech['wind']}(连击次数 +{p_mech['wind']})")
         # 风印爆发：层数转连击
         elif mech == "wind_burst":
             n = p_mech.get("wind", 0)
@@ -1458,7 +1458,7 @@ class Battle:
         # 奥术充能：叠层（奥术法师，层数供 player_mech_stacks 条件 + arcane_burst 消费）
         elif mech == "arcane" and mval:
             p_mech["arcane"] = E.mech_stack_gain("arcane", p_mech, mval)
-            logs.append(f"📖 奥术充能 {p_mech['arcane']} 层（共鸣爆发前置）")
+            logs.append(f"📖 奥术充能 {p_mech['arcane']} 层(共鸣爆发前置)")
         # 奥术充能爆发：消耗全部充能，每层 +15% 伤害（奥术洪流）
         elif mech == "arcane_burst":
             n = p_mech.get("arcane", 0)
@@ -1470,16 +1470,16 @@ class Battle:
         # v87 魔剑士·魔能：叠层（魔能斩/符文刻印，每层 +8% 伤害，上限 5）
         elif mech == "spellblade" and mval:
             p_mech["spellblade"] = E.mech_stack_gain("spellblade", p_mech, mval)
-            logs.append(f"⚔️ 魔能充能 {p_mech['spellblade']} 层（每层 +8% 伤害）")
+            logs.append(f"⚔️ 魔能充能 {p_mech['spellblade']} 层(每层＋8% 伤害)")
         # v87 魔剑士·魔力涌动：消耗 2 层魔能，下次攻击额外 80% 魔法伤害
         elif mech == "spellblade_surge":
             n = p_mech.get("spellblade", 0)
             if n >= 2:
                 p_mech["spellblade"] = max(0, n - 2)
                 self.p_buffs["spellblade_surge"] = 1
-                logs.append(f"✨ 魔力涌动！消耗 2 层魔能，下次攻击额外 +80% 魔法伤害")
+                logs.append(f"✨ 魔力涌动！消耗 2 层魔能，下次攻击额外＋80% 魔法伤害")
             else:
-                logs.append(f"⚔️ 魔能不足（{n}/2），魔力涌动无法施展！")
+                logs.append(f"⚔️ 魔能不足({n}/2)，魔力涌动无法施展！")
         # v87 魔剑士·剑刃风暴：消耗 3 层魔能，全体 120% 物理 + 40% 魔法（对单体等效）
         elif mech == "spellblade_storm":
             n = p_mech.get("spellblade", 0)
@@ -1491,7 +1491,7 @@ class Battle:
                     self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
                     logs.append(f"🌪️ 剑刃风暴！消耗 3 层魔能，剑气横扫追加 {bonus} 点魔法伤害！")
             else:
-                logs.append(f"⚔️ 魔能不足（{n}/3），剑刃风暴无法施展！")
+                logs.append(f"⚔️ 魔能不足({n}/3)，剑刃风暴无法施展！")
         # v87 魔剑士·魔能爆发：消耗全部魔能（≥4），每层 +25% 伤害，最高 200%
         elif mech == "spellblade_burst":
             n = p_mech.get("spellblade", 0)
@@ -1501,7 +1501,7 @@ class Battle:
                 logs.append(f"💥 魔能爆发！{n} 层魔能倾泻，额外 {bonus} 点伤害！")
                 p_mech["spellblade"] = 0
             else:
-                logs.append(f"⚔️ 魔能不足（{n}/4），魔能爆发无法施展！")
+                logs.append(f"⚔️ 魔能不足({n}/4)，魔能爆发无法施展！")
         # v87 魔剑士·星陨斩：消耗 5 层魔能，400% 混合伤害 + 20% 概率眩晕
         elif mech == "spellblade_meteor":
             n = p_mech.get("spellblade", 0)
@@ -1511,12 +1511,12 @@ class Battle:
                     self.e_buffs["stun"] = 1
                     logs.append("🌠 星陨斩的余威将敌人眩晕！")
             else:
-                logs.append(f"⚔️ 魔能不足（{n}/5），星陨斩无法施展！")
+                logs.append(f"⚔️ 魔能不足({n}/5)，星陨斩无法施展！")
         # 审判：叠层（暴击时）
         elif mech == "judge" and mval:
             if is_crit:
                 p_mech["judge"] = E.mech_stack_gain("judge", p_mech, mval)
-                logs.append(f"⚖️ 审判层数 {p_mech['judge']}（每层 +15%）")
+                logs.append(f"⚖️ 审判层数 {p_mech['judge']}(每层＋15%)")
         # 审判爆发
         elif mech == "judge_burst":
             n = p_mech.get("judge", 0)
@@ -1527,7 +1527,7 @@ class Battle:
         # 影袭：叠层
         elif mech == "shadow" and mval:
             p_mech["shadow"] = E.mech_stack_gain("shadow", p_mech, mval)
-            logs.append(f"🌑 影袭层数 {p_mech['shadow']}（每层 +12%）")
+            logs.append(f"🌑 影袭层数 {p_mech['shadow']}(每层＋12%)")
         # 影袭爆发
         elif mech == "shadow_burst":
             n = p_mech.get("shadow", 0)
@@ -1538,7 +1538,7 @@ class Battle:
         # 毒层：叠层（每层每回合 3% 生命）
         elif mech == "poison" and mval:
             p_mech["poison"] = E.mech_stack_gain("poison", p_mech, mval)
-            logs.append(f"☠️ 毒层 {p_mech['poison']}（每回合 {p_mech['poison'] * 3}% 生命）")
+            logs.append(f"☠️ 毒层 {p_mech['poison']}(每回合 {p_mech['poison'] * 3}% 生命)")
         # 毒爆：每层立即 15% 攻击
         elif mech == "poison_burst":
             n = p_mech.get("poison", 0)
@@ -1549,7 +1549,7 @@ class Battle:
         # 气力：攒层
         elif mech == "chi" and mval:
             p_mech["chi"] = E.mech_stack_gain("chi", p_mech, mval)
-            logs.append(f"🌀 气力 {p_mech['chi']}（每点 +12%）")
+            logs.append(f"🌀 气力 {p_mech['chi']}(每点＋12%)")
         # 气力爆发
         elif mech == "chi_burst":
             n = p_mech.get("chi", 0)
@@ -1560,7 +1560,7 @@ class Battle:
         # 金身：叠层（减伤，在 _damage_player 生效）
         elif mech == "iron" and mval:
             p_mech["iron"] = E.mech_stack_gain("iron", p_mech, mval)
-            logs.append(f"🪷 金身层数 {p_mech['iron']}（每层减伤 4%）")
+            logs.append(f"🪷 金身层数 {p_mech['iron']}(每层减伤 4%)")
         # 金身爆发：层数转伤害
         elif mech == "iron_burst":
             n = p_mech.get("iron", 0)
@@ -1670,7 +1670,7 @@ class Battle:
             elif m == "shield":
                 if r == 1 and not e.get("boss_shield"):
                     e["boss_shield"] = int(e.get("max_hp", 1) * 0.20)
-                    logs.append(f"🛡️【{e['name']}】周身浮现一层护盾（受伤减半）！")
+                    logs.append(f"🛡️【{e['name']}】周身浮现一层护盾(受伤减半)！")
             elif m == "phase":
                 pc = e.get("phase_count", 0)
                 target = 0.5 ** (pc + 1)
@@ -1683,7 +1683,7 @@ class Battle:
                     cur = e.get("mech_stacks_n", 0)
                     if cur < 5:
                         e["mech_stacks_n"] = cur + 1
-                        logs.append(f"⚔️【{e['name']}】气势攀升，攻击叠层 +1（{cur + 1}/5）")
+                        logs.append(f"⚔️【{e['name']}】气势攀升，攻击叠层＋1({cur + 1}/5)")
             # reflect 是被动：在 _boss_dmg_filter 中处理
 
     def _enemy_turn(self, player: dict) -> tuple:
@@ -1801,7 +1801,7 @@ class Battle:
         return logs, dmg
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
-        """PVP：敌方玩家行动（v9.2 启用；先实现 AI 普攻）"""
+        """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)"""
         est = self._enemy_stats()
         pst = self._player_stats(player)
         logs = []
@@ -1823,7 +1823,7 @@ class Battle:
         return st
 
     def _enemy_stats(self) -> dict:
-        """敌方当前属性（应用敌方增益/减益）"""
+        """敌方当前属性(应用敌方增益/减益)"""
         e = self.enemy
         est = {
             "atk": e.get("atk", 0), "def": e.get("def", 0),
@@ -1891,7 +1891,7 @@ class Battle:
             logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！（宠物击杀）")
+                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
         elif stype == "matk_pct":
             st = self._player_stats(player)
             est = self._enemy_stats()
@@ -1900,7 +1900,7 @@ class Battle:
             logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！（宠物击杀）")
+                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
         elif stype == "heal_pct":
             if player.get("hp", 0) < player.get("max_hp", 1):
                 heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
@@ -1909,7 +1909,7 @@ class Battle:
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
-        """24 章宠物技能·影袭：每 N 回合 value 概率替主人挡一次攻击（敌方伤害结算前）。"""
+        """24 章宠物技能·影袭：每 N 回合 value 概率替主人挡一次攻击(敌方伤害结算前)。"""
         if dmg <= 0:
             return dmg
         pet = self.pet or {}
@@ -1943,7 +1943,7 @@ class Battle:
             logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！（灼烧致死）")
+                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(灼烧致死)")
         # v29 毒层：每层 3% 生命（优先战斗层数；老毒箭仍用 e_buffs 布尔标记）
         mech = self.mech_stacks
         poison_n = int(mech.get("poison", 0) or 0)
@@ -1953,14 +1953,14 @@ class Battle:
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！（毒发身亡）")
+                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         elif "poison" in self.e_buffs:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT)
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！（毒发身亡）")
+                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         # 阶段八：流血词条（每回合 5% 生命，e_buffs["bleed"] = 剩余回合数，回合递减交给 _end_round）
         bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
         if bleed_n > 0:
@@ -1969,7 +1969,7 @@ class Battle:
             logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！（失血过多）")
+                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(失血过多)")
         # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
         # 圣光/永恒套：每回合开始回复生命
@@ -1995,11 +1995,11 @@ class Battle:
         # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（奥术法师自动蓄能）
         if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
-            logs.append(f"📖 奥术直觉：充能自动 +1（当前 {self.mech_stacks['arcane']} 层）")
+            logs.append(f"📖 奥术直觉：充能自动＋1(当前 {self.mech_stacks['arcane']} 层)")
         # v87 被动·符文刻印：魔剑士每回合自动获得 1 层魔能（上限 5）
         if "符文刻印" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
-            logs.append(f"⚔️ 符文刻印：魔能自动 +1（当前 {self.mech_stacks['spellblade']} 层）")
+            logs.append(f"⚔️ 符文刻印：魔能自动＋1(当前 {self.mech_stacks['spellblade']} 层)")
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
@@ -2009,7 +2009,7 @@ class Battle:
             self.resources[k] = E.core_resource_regen(cls, self.resources)
             new = self.resources[k]
             if new > old:
-                logs.append(f"🍃 {rd['name']}回复 {new - old} 点（{new}/{rd['max']}）")
+                logs.append(f"🍃 {rd['name']}回复 {new - old} 点({new}/{rd['max']})")
         return logs
 
     def _end_round(self):
@@ -2036,7 +2036,7 @@ class Battle:
         if "铁壁之心" in pv or "磐石体" in pv:
             reduce = int(dmg * 0.05)
             dmg = max(1, dmg - reduce)
-            logs.append(f"🛡️ 被动减伤 {reduce} 点（铁壁之心/磐石体）")
+            logs.append(f"🛡️ 被动减伤 {reduce} 点(铁壁之心/磐石体)")
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < 0.6:
@@ -2057,7 +2057,7 @@ class Battle:
         if iron > 0:
             reduce = int(dmg * 0.04 * iron)
             dmg = max(1, dmg - reduce)
-            logs.append(f"🪷 金身减伤 {reduce} 点（{iron} 层）")
+            logs.append(f"🪷 金身减伤 {reduce} 点({iron} 层)")
         # v34 符文·壁垒：受击时 x% 概率获得护盾（y% 生命值）；荆棘：受击反弹 x% 伤害
         effs = self._enchant_effects(player)
         barrier_lvl = self._enchant_lvl(effs, "barrier")
@@ -2078,7 +2078,7 @@ class Battle:
             absorb = min(shield, dmg)
             dmg -= absorb
             self.shield = shield - absorb
-            logs.append(f"✨ 护盾吸收 {absorb} 点伤害（剩余 {self.shield}）")
+            logs.append(f"✨ 护盾吸收 {absorb} 点伤害(剩余 {self.shield})")
             if dmg <= 0:
                 return
         player["hp"] = max(0, player.get("hp", 0) - dmg)

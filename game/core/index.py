@@ -45,12 +45,12 @@ def build_index(table_name: str, table: dict, prefix: str = "", name_field: str 
     _INDEXES[table_name] = {"name_to_id": n2i, "id_to_name": i2n}
 
 def resolve(table_name: str, name_or_id: str):
-    """统一解析：输入名字或 id，都返回 id（找不到原样返回）"""
+    """统一解析：输入名字或 id，都返回 id(找不到原样返回)"""
     idx = _INDEXES.get(table_name, {}).get("name_to_id", {})
     return idx.get(name_or_id, name_or_id)
 
 def display(table_name: str, entity_id: str):
-    """id → 显示名（找不到原样返回）"""
+    """id → 显示名(找不到原样返回)"""
     idx = _INDEXES.get(table_name, {}).get("id_to_name", {})
     return idx.get(entity_id, entity_id)
 

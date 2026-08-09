@@ -93,7 +93,7 @@ def equip_stats(slot: str, lv: int, quality: str) -> dict:
     return stats
 
 def exp_to_next(level: int) -> int:
-    """升到下一级所需经验（v28 校准：系数 35→60，升级节奏放缓）"""
+    """升到下一级所需经验(v28 校准：系数 35→60，升级节奏放缓)"""
     return int(60 * level ** 1.45 + 50)
 
 def monster_exp(lv: int, role: str) -> int:
@@ -105,7 +105,7 @@ def monster_exp(lv: int, role: str) -> int:
 
 
 def monster_gold(lv: int, role: str) -> int:
-    """怪物金币公式（v56.2：同步补偿 ×hp_mult^0.5）"""
+    """怪物金币公式(v56.2：同步补偿 ×hp_mult^0.5)"""
     base = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "healer": 6, "elite": 20, "boss": 60}[role]
     gold = int(base * (1 + lv * 0.6))
     return int(gold * (hp_stage_mult(lv) ** 0.5))

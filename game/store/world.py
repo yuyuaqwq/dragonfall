@@ -33,7 +33,7 @@ def get_fishing_total(group_id, qq_id):
 
 
 def bump_bestiary(group_id, qq_id, monster, n=1):
-    """v46：怪物名/ID 统一存怪物 ID（monster 参数兼容名字或 m_xxx id）"""
+    """v46：怪物名/ID 统一存怪物 ID(monster 参数兼容名字或 m_xxx id)"""
     mon_id = C.resolve("monsters", monster)
     with _lock:
         conn = _connect()
@@ -91,7 +91,7 @@ def get_visited_count(group_id, qq_id):
 
 
 def get_world_event(include_expired: bool = False):
-    """返回当前活动事件（未过期），无则 None；include_expired=True 时返回最近一条（含过期）"""
+    """返回当前活动事件(未过期)，无则 None；include_expired=True 时返回最近一条(含过期)"""
     with _lock:
         conn = _connect()
         try:
@@ -156,7 +156,7 @@ def set_event_state(key: str, value):
             conn.close()
 
 def delete_event_state(key: str):
-    """删除事件状态（v62 注销确认用）"""
+    """删除事件状态(v62 注销确认用)"""
     with _lock:
         conn = _connect()
         try:
@@ -194,7 +194,7 @@ def set_talk_state(group_id, qq_id, npc_id, node_id):
                     json.dumps({"npc": npc_id, "node": node_id}, ensure_ascii=False))
 
 def clear_talk_state(group_id, qq_id):
-    """结束对话（删除会话，flag 保留）"""
+    """结束对话(删除会话，flag 保留)"""
     delete_event_state(talk_state_key(group_id, qq_id))
 
 def get_talk_flags(group_id, qq_id, npc_id):
@@ -210,7 +210,7 @@ def get_talk_flags(group_id, qq_id, npc_id):
         return []
 
 def set_talk_flag(group_id, qq_id, npc_id, flag):
-    """给该 NPC 设置对话 flag（幂等）"""
+    """给该 NPC 设置对话 flag(幂等)"""
     import json
     key = talk_flags_key(group_id, qq_id)
     raw = get_event_state(key)

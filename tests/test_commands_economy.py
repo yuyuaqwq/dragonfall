@@ -99,7 +99,7 @@ async def main():
     db.update_player("g1", "e1", gold=1000, cur_map="oak_town", cur_subarea="oak_town_3")
     out = await cmd(m, "buy", "g1", "e1", "购买 老马")
     check("橡木镇可买老马", "买了一匹老马" in out, out[:150])
-    db.update_player("g1", "e1", cur_map="white_deer")
+    db.update_player("g1", "e1", cur_map="white_deer", cur_subarea="white_deer_3")  # v87.17 商店子区域
     out = await cmd(m, "buy", "g1", "e1", "购买 老马")
     check("非橡木镇拦截买老马", "橡木镇的商人" in out, out[:150])
 

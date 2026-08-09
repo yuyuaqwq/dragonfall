@@ -127,7 +127,7 @@ DIALOGUES = {
             "welcome": {
                 "text": "累了吧？在星夜旅店歇一晚，保你明天生龙活虎！",
                 "options": [
-                    {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血（需要金币）"}},
+                    {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "最近有奇怪的客人吗？", "next": "gossip"},
                     {"text": "告辞。", "next": "__end__"},
                 ],
@@ -142,7 +142,7 @@ DIALOGUES = {
             "gossip": {
                 "text": "哎哟，可别说——前几天住了个矮人商人，喝多了吹牛说石拳丘陵的矿洞里藏着宝贝。还有那个吟游诗人莉莉，天天在广场上弹琴，唱什么'隧洞之王'，把小孩子都吓哭了！",
                 "options": [
-                    {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血（需要金币）"}},
+                    {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
@@ -673,7 +673,7 @@ DIALOGUES = {
         "start": "ask",
         "nodes": {
             "ask": {
-                "text": "强化是门生意，也是门赌术。想拜师学强化，先回答我——+6 以上强化失败会怎样？",
+                "text": "强化是门生意，也是门赌术。想拜师学强化，先回答我——＋6 以上强化失败会怎样？",
                 "options": [
                     {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
                     {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
@@ -683,7 +683,7 @@ DIALOGUES = {
                 ],
             },
             "ask_wrong": {
-                "text": "克拉拉拨着算盘：高风险高回报，+6 以上失败可不止掉一级。再想想。",
+                "text": "克拉拉拨着算盘：高风险高回报，＋6 以上失败可不止掉一级。再想想。",
                 "options": [
                     {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
                     {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},

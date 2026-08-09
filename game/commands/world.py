@@ -43,23 +43,23 @@ class WorldCmds(CommandBase):
         sa_healer = sa_obj.get("healer") if sa_obj else None
         # 设施
         if (sa_shop is not None and sa_shop) or (sa_shop is None and cur_map.get("shop")):
-            lines.append("🏪 商店（『购买』）")
+            lines.append("🏪 商店(『购买』)")
         if (sa_healer is not None and sa_healer) or (sa_healer is None and cur_map.get("healer")):
-            lines.append("🏨 旅店（『住宿』恢复全状态）")
+            lines.append("🏨 旅店(『住宿』恢复全状态)")
         if mid in C.ENHANCE_SMITH_MAPS:
             _sa_name = sa_obj.get("name", "") if sa_obj else ""
             _sa_funcs = (sa_obj.get("funcs") or []) if sa_obj else []
             _smith = "craft" in _sa_funcs or any(k in _sa_name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
             if _smith:
-                lines.append("🔨 铁匠铺（『强化』『附魔』）")
+                lines.append("🔨 铁匠铺(『强化』『附魔』)")
         # 旅者方碑（只在中心广场/首个子区域提示）
         if mid in C.PORTALS:
             p = C.PORTALS[mid]
             if sa_obj is None or sa_obj is cur_map.get("subareas", [None])[0]:
                 if mid in portals:
-                    lines.append(f"🌌 {p['icon']}{p['name']}（已激活，『传送 <名称>』）")
+                    lines.append(f"🌌 {p['icon']}{p['name']}(已激活，『传送 <名称>』)")
                 else:
-                    lines.append(f"🌌 {p['icon']}{p['name']}（『激活』解锁传送点）")
+                    lines.append(f"🌌 {p['icon']}{p['name']}(『激活』解锁传送点)")
         # 自然互动（9.3：垂钓点显示特色描述）
         if mid in C.FISHING_SPOTS:
             _fi = C.FISHING_SPOTS[mid]
@@ -68,13 +68,13 @@ class WorldCmds(CommandBase):
             _flv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "fishing") if player else 1
             _lock = " 🔒" if _flv < _fneed else ""
             _fdesc = _fi.get("desc", "") if isinstance(_fi, dict) else ""
-            lines.append(f"🎣 垂钓点·{_fname}（垂钓Lv.{_fneed}）{_lock}（『垂钓』）{(' · ' + _fdesc) if _fdesc else ''}")
+            lines.append(f"🎣 垂钓点·{_fname}(垂钓Lv.{_fneed}){_lock}(『垂钓』){(' · ' + _fdesc) if _fdesc else ''}")
         if mid in C.CAMP_SPOTS:
-            lines.append(f"🔥 篝火营地·{C.CAMP_SPOTS[mid]}（『休息』恢复一半生命）")
+            lines.append(f"🔥 篝火营地·{C.CAMP_SPOTS[mid]}(『休息』恢复一半生命)")
         if mid in C.MINE_SPOTS:
-            lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}（『挖掘』）")
+            lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}(『挖掘』)")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
-            lines.append("🌿 野地可采集（『采集』）")
+            lines.append("🌿 野地可采集(『采集』)")
         return lines
 
     def _map_scene(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> list:
@@ -92,7 +92,7 @@ class WorldCmds(CommandBase):
             for _pid in poi_ids:
                 _p = C.POIS.get(_pid)
                 if _p:
-                    lines.append(f"{_p['icon']} {_p['name']}（『探索』有机会发现）")
+                    lines.append(f"{_p['icon']} {_p['name']}(『探索』有机会发现)")
         # v87.9 场景元素 PROPS 显示（子区域挂载，直接交互）
         # v87.11 支持专属名：挂载条目可为 (prop_id, 专属名) 元组
         if player:
@@ -102,11 +102,11 @@ class WorldCmds(CommandBase):
                 _pp = C.PROPS.get(_ppid)
                 if _pp:
                     _name = _label or _pp['name']
-                    lines.append(f"{_pp['icon']} {_name}（『交互 {_name}』）")
+                    lines.append(f"{_pp['icon']} {_name}(『交互 {_name}』)")
         # v87.2 副本地图化：内联 POI（副本层自带 pois → 直接显示，『调查 <名称>』互动）
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
-                lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}（『调查 {_p['name']}』）")
+                lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}(『调查 {_p['name']}』)")
         # v87.4 NPC 不再进场景（由地图面板「👥 这里的 NPC」统一显示，避免重复）
         return lines
 
@@ -120,7 +120,7 @@ class WorldCmds(CommandBase):
 
     @staticmethod
     def _conn_subarea_name(nm: dict, want_sa) -> str:
-        """目标地图的落点子区域显示名（默认首个子区域，可指定）"""
+        """目标地图的落点子区域显示名(默认首个子区域，可指定)"""
         sas = nm.get("subareas") or []
         if not sas:
             return ""
@@ -159,22 +159,22 @@ class WorldCmds(CommandBase):
             prop = C.PROPERTIES[deed]
             dlv = int(player.get("deed_lv", 1) or 1)
             hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
-            lines.append(f"✅ 我的地契：{prop['name']}（{C.MAP_BY_ID.get(prop['map'], {}).get('name', '？')}）")
+            lines.append(f"✅ 我的地契：{prop['name']}({C.MAP_BY_ID.get(prop['map'], {}).get('name', '？')})")
             lines.append(f"   🏗️ {hl['name']} Lv.{dlv} ｜ 仓库 {hl['storage']} 格 ｜ 回家恢复 {int(hl['heal_pct'] * 100)}%")
             if dlv < C.HOUSE_MAX_LEVEL:
                 nxt = C.HOUSE_LEVELS[dlv + 1]
                 cost = f"{nxt['upgrade_cost']['gold']} 金币 + " + " + ".join(f"{C.display('materials', m)}×{c}" for m, c in nxt['upgrade_cost']['mats'].items())
-                lines.append(f"   ⬆️ 升级 Lv.{dlv + 1}【{nxt['name']}】：{cost}（『地契 升级』）")
+                lines.append(f"   ⬆️ 升级 Lv.{dlv + 1}【{nxt['name']}】：{cost}(『地契 升级』)")
             else:
                 lines.append("   ⭐ 已满级宅邸！")
-            lines.append(f"   『回家』进入，『卖房』退契（返还 {int(C.HOUSE_REFUND.get(dlv, 0.5) * 100)}%）")
+            lines.append(f"   『回家』进入，『卖房』退契(返还 {int(C.HOUSE_REFUND.get(dlv, 0.5) * 100)}%)")
         else:
             lines.append("你还没有房产。以下地皮在出售：")
             for i, (pid, prop) in enumerate(C.PROPERTIES.items(), 1):
                 mname = C.MAP_BY_ID.get(prop["map"], {}).get("name", "？")
                 lines.append(f"{i:>2}. {prop['name']} ｜ {prop['price']} 金币 ｜ {mname}")
                 lines.append(f"     {prop['desc']}")
-            lines.append("💡 『买房 <编号>』购下心仪的地皮（一人一张）")
+            lines.append("💡 『买房 <编号>』购下心仪的地皮(一人一张)")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$")
@@ -194,7 +194,7 @@ class WorldCmds(CommandBase):
         idx = int(raw)
         props = list(C.PROPERTIES.items())
         if idx < 1 or idx > len(props):
-            yield event.plain_result(f"没有第 {idx} 块地皮（共 {len(props)} 块）！『地契』查看～")
+            yield event.plain_result(f"没有第 {idx} 块地皮(共 {len(props)} 块)！『地契』查看～")
             return
         pid, prop = props[idx - 1]
         price = prop["price"]
@@ -203,7 +203,7 @@ class WorldCmds(CommandBase):
             return
         db.update_player(group_id, qq_id, gold=player["gold"] - price, deed=pid)
         yield event.plain_result(
-            f"🏠 恭喜置业！你买下了【{prop['name']}】（花费 {price} 金币）\n"
+            f"🏠 恭喜置业！你买下了【{prop['name']}】(花费 {price} 金币)\n"
             f"『回家』入住，『地契』查看详情，『仓库』管理家当～"
         )
 
@@ -223,10 +223,10 @@ class WorldCmds(CommandBase):
         refund_pct = C.HOUSE_REFUND.get(dlv, 0.5)
         refund = int(prop["price"] * refund_pct)
         db.update_player(group_id, qq_id, gold=player["gold"] + refund, deed="", deed_lv=1)
-        yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】（{C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])['name']} Lv.{dlv}），退还 {refund} 金币（{int(refund_pct * 100)}%）。")
+        yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】({C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])['name']} Lv.{dlv})，退还 {refund} 金币({int(refund_pct * 100)}%)。")
 
     async def _deed_upgrade(self, event, group_id, qq_id, player):
-        """v84 房屋升级（25 章三）：『地契 升级』消耗金币+材料升房屋等级"""
+        """v84 房屋升级(25 章三)：『地契 升级』消耗金币+材料升房屋等级"""
         deed = player.get("deed", "") or ""
         if not deed or deed not in C.PROPERTIES:
             yield event.plain_result("你没有房产，升级不了～『地契』看看在售地皮！")
@@ -268,7 +268,7 @@ class WorldCmds(CommandBase):
             f"🔨 叮叮当当一阵敲打——房屋升级为【{hl['name']}】Lv.{dlv + 1}！\n"
             f"📦 仓库扩容至 {hl['storage']} 格 ｜ 回家恢复 {int(hl['heal_pct'] * 100)}%"
             + (f" ｜ 铺面挂机位 +{hl['stall_slots']}" if hl["stall_slots"] else "")
-            + (f"\n💡 满级宅邸解锁专属传送点（『回家』可直达）" if dlv + 1 >= C.HOUSE_MAX_LEVEL else ""))
+            + (f"\n💡 满级宅邸解锁专属传送点(『回家』可直达)" if dlv + 1 >= C.HOUSE_MAX_LEVEL else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?回家(?:[\s\S]*)$")
     @no_prof_waiting()
@@ -282,7 +282,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你没有房产！『地契』看看在售地皮，『买房 <编号>』置业～")
             return
         if self._in_battle(group_id, qq_id):
-            yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人(攻击/逃跑)")
             return
         # v84 回家恢复（按房屋等级 heal_pct）
         dlv = int(player.get("deed_lv", 1) or 1)
@@ -292,7 +292,7 @@ class WorldCmds(CommandBase):
         new_mp = max(player.get("mp", 0), int(player.get("max_mp", 1) * heal_pct))
         db.update_player(group_id, qq_id, cur_map=self._home_map_id(qq_id), cur_subarea="", hp=new_hp, mp=new_mp)
         yield event.plain_result(
-            f"🏠 你回到了自己的家（{hl['name']}），炭火噼啪作响，安心～\n"
+            f"🏠 你回到了自己的家({hl['name']})，炭火噼啪作响，安心～\n"
             f"💚 恢复至 {new_hp}/{player.get('max_hp', 1)} HP ｜ 💙 {new_mp}/{player.get('max_mp', 1)} MP")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出门(?:[\s\S]*)$")
@@ -326,7 +326,7 @@ class WorldCmds(CommandBase):
             return
         raw = self._strip_cmd(event, "拜访").strip()
         if not raw:
-            yield event.plain_result("格式：拜访 <玩家名>，去他家逛逛～（对方需要有房产）")
+            yield event.plain_result("格式：拜访 <玩家名>，去他家逛逛～(对方需要有房产)")
             return
         target = db.find_player_by_name(raw)
         if not target:
@@ -338,7 +338,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result(f"{target['name']} 还没有房产，去不了他家～")
             return
         if self._in_battle(group_id, qq_id):
-            yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人(攻击/逃跑)")
             return
         db.update_player(group_id, qq_id, cur_map=self._home_map_id(tid), cur_subarea="")
         yield event.plain_result(f"🚪 你敲了敲门，走进了 {target['name']} 的家。『地图』看看他家有什么～")
@@ -378,7 +378,7 @@ class WorldCmds(CommandBase):
             lst = self._home_storage_load(group_id, qq_id)
             if len(lst) >= hl["storage"]:
                 yield event.plain_result(
-                    f"📦 仓库满了（{len(lst)}/{hl['storage']} 格）！升级房屋扩容（『地契 升级』）")
+                    f"📦 仓库满了({len(lst)}/{hl['storage']} 格)！升级房屋扩容(『地契 升级』)")
                 return
             inv = db.get_inventory(group_id, qq_id)
             found = next((it for it in inv if it["data"].get("name") == raw), None)
@@ -388,7 +388,7 @@ class WorldCmds(CommandBase):
             lst.append({"key": found["key"], "data": found["data"], "count": 1})
             self._home_storage_save(group_id, qq_id, lst)
             db.remove_item(group_id, qq_id, found["key"], 1)
-            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】（{len(lst)}/{hl['storage']}）")
+            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】({len(lst)}/{hl['storage']})")
             return
         # 查看
         lst = self._home_storage_load(group_id, qq_id)
@@ -418,7 +418,7 @@ class WorldCmds(CommandBase):
         idx = int(raw)
         lst = self._home_storage_load(group_id, qq_id)
         if idx < 1 or idx > len(lst):
-            yield event.plain_result(f"仓库里没有第 {idx} 件（共 {len(lst)} 件）！")
+            yield event.plain_result(f"仓库里没有第 {idx} 件(共 {len(lst)} 件)！")
             return
         it = lst.pop(idx - 1)
         self._home_storage_save(group_id, qq_id, lst)
@@ -466,7 +466,7 @@ class WorldCmds(CommandBase):
                 lines.append(f"📍 当前位置：{sa_now}")
             lines.append("📮 可前往：")
             for i, sa in enumerate(sas, 1):
-                mark = "（你在这里）" if sa["id"] == cur_sa else ""
+                mark = "(你在这里)" if sa["id"] == cur_sa else ""
                 lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
                 lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
             for i, nid in enumerate(neighbors, len(sas) + 1):
@@ -514,7 +514,7 @@ class WorldCmds(CommandBase):
                 lines.append("")
             lines.append("👥 这里的 NPC：")
             for n in npcs:
-                lines.append(f"  {n['icon']}{n['name']}（{n['title']}）")
+                lines.append(f"  {n['icon']}{n['name']}({n['title']})")
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
@@ -551,7 +551,7 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
-        """v87.14 同图内不可直达时的提示（城镇星形 / 野外线性）。"""
+        """v87.14 同图内不可直达时的提示(城镇星形 / 野外线性)。"""
         cur_sa_id = player.get("cur_subarea") or ""
         cur_name = cur_sa_id
         tgt_name = target_sa.get("name", target_sa.get("id", "？"))
@@ -563,7 +563,7 @@ class WorldCmds(CommandBase):
         center = sas[0] if sas else {}
         if center.get("type") == "城镇":
             return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                    f"得先回到{center.get('name', '广场')}（『移动 {center.get('name', '广场')}』），再从那里过去。")
+                    f"得先回到{center.get('name', '广场')}(『移动 {center.get('name', '广场')}』)，再从那里过去。")
         links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
         link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
@@ -593,7 +593,7 @@ class WorldCmds(CommandBase):
             if 1 <= idx <= len(cur_sas):
                 sa = cur_sas[idx - 1]
                 if sa["id"] == player.get("cur_subarea"):
-                    yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
+                    yield event.plain_result(f"你已经在这里了({cur_map['name']}·{sa['name']})～")
                     return
                 # v87.14 空间连接：同图只能移动到相邻子区域（城镇星形/野外线性）
                 links = C.subarea_links(cur, player.get("cur_subarea") or "")
@@ -608,7 +608,7 @@ class WorldCmds(CommandBase):
             for sa in cur_sas:
                 if dest in (sa["name"], sa["id"]):
                     if sa["id"] == player.get("cur_subarea"):
-                        yield event.plain_result(f"你已经在这里了（{cur_map['name']}·{sa['name']}）～")
+                        yield event.plain_result(f"你已经在这里了({cur_map['name']}·{sa['name']})～")
                         return
                     # v87.14 空间连接：同图只能移动到相邻子区域
                     links = C.subarea_links(cur, player.get("cur_subarea") or "")
@@ -652,7 +652,7 @@ class WorldCmds(CommandBase):
         if target.get("hidden"):
             unlock = C.HIDDEN_MAP_UNLOCK.get(target["id"], {})
             if player["level"] < unlock.get("level", 99):
-                yield event.plain_result("前方被无形的屏障阻挡……这里需要更强大的实力！（等级不足）")
+                yield event.plain_result("前方被无形的屏障阻挡……这里需要更强大的实力！(等级不足)")
                 return
             # v87：物品型准入（H6 泛黄书页×3 / H7 烬火信标）
             item_req = unlock.get("item")
@@ -663,7 +663,7 @@ class WorldCmds(CommandBase):
                     yield event.plain_result(
                         "入口被古老的力量封锁，似乎需要信物才能进入……\n"
                         f"🔒 缺少：{'、'.join(lack)}\n"
-                        "💡 失落图书馆：集齐 3 张泛黄书页（探索彩蛋/圣堂地窖精英/符文石）\n"
+                        "💡 失落图书馆：集齐 3 张泛黄书页(探索彩蛋/圣堂地窖精英/符文石)\n"
                         "💡 灰烬回廊：找到老守墓人·灰须领取烬火信标"
                     )
                     return
@@ -682,7 +682,7 @@ class WorldCmds(CommandBase):
         if self._is_redname(qq_id) and target.get("type") in ("城镇区域", "城镇外郊"):
             yield event.plain_result(
                 "🛡️ 城门口的守卫拦住了你：\"你身上沾着血腥味！红名期间禁止进入城镇！\"\n"
-                "（红名期间不能进入安全区，去野外避避风头吧）")
+                "(红名期间不能进入安全区，去野外避避风头吧)")
             return
         # 等级提示
         lv_msg = ""
@@ -695,7 +695,7 @@ class WorldCmds(CommandBase):
             _cur_sa_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == player.get("cur_subarea")), player.get("cur_subarea", ""))
             yield event.plain_result(
                 f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
-                f"需要先到{_exit_name}（『移动 {_exit_name}』）才能出城/出图。"
+                f"需要先到{_exit_name}(『移动 {_exit_name}』)才能出城/出图。"
             )
             return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
@@ -790,7 +790,7 @@ class WorldCmds(CommandBase):
         if npcs:
             lines.append("👥 这里的 NPC：")
             for n in npcs:
-                lines.append(f"  {n['icon']}{n['name']}（{n['title']}）")
+                lines.append(f"  {n['icon']}{n['name']}({n['title']})")
         # 功能提示
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "旅店", "quest": "任务", "craft": "铁匠",
@@ -798,7 +798,7 @@ class WorldCmds(CommandBase):
                    "apprentice": "副业", "enhance": "强化", "portal": "方碑"}
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
         if show_funcs:
-            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}（『商店』『旅店』『找 <NPC名>』等）")
+            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『旅店』『找 <NPC名>』等)")
         # v6：设施 + 场景（与『地图』面板一致）
         fac = self._map_facilities(cur_map, player, sa["id"])
         if fac:
@@ -868,23 +868,23 @@ class WorldCmds(CommandBase):
         if cur in C.PORTALS:
             p = C.PORTALS[cur]
             if cur in portals:
-                lines.append(f"📍 此地：{p['icon']}{p['name']}（已激活）")
+                lines.append(f"📍 此地：{p['icon']}{p['name']}(已激活)")
             else:
-                lines.append(f"📍 此地：{p['icon']}{p['name']}（未激活，『激活』解锁！）")
+                lines.append(f"📍 此地：{p['icon']}{p['name']}(未激活，『激活』解锁！)")
         else:
             lines.append("📍 此地没有方碑")
         lines.append("━━━━━━━━━━━━")
         if not portals:
             lines.append("你还没激活任何方碑……去大陆各处寻找方碑，『激活』解锁传送点吧！")
         else:
-            lines.append("✨ 已激活方碑（『传送 <序号>』直达）：")
+            lines.append("✨ 已激活方碑(『传送 <序号>』直达)：")
             for i, mid in enumerate(portals, 1):
                 m = C.MAP_BY_ID.get(mid, {})
                 p = C.PORTALS.get(mid, {})
                 cost = C.portal_cost(m)
                 name = p.get("name", mid) if p else mid
                 icon = p.get("icon", "🌌") if p else "🌌"
-                lines.append(f" {i}. {icon}{name}（{m.get('name', '?')} · {cost} 金币）")
+                lines.append(f" {i}. {icon}{name}({m.get('name', '?')} · {cost} 金币)")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『传送 <名称/序号>』付费传送；到新地图发现方碑就『激活』吧～")
         yield event.plain_result("\n".join(lines))
@@ -911,7 +911,7 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, exp=player["exp"] + exp)
         yield event.plain_result(
             f"✨ 星辉流转，{p['icon']}{p['name']} 与你建立了链接！\n"
-            f"📍 传送点已激活：{m.get('name', '?')}（✨ 经验 +{exp}）\n"
+            f"📍 传送点已激活：{m.get('name', '?')}(✨ 经验 +{exp})\n"
             f"💡 输入『方碑』查看全部已激活方碑，『传送 {p['name']}』即可直达！"
         )
 
@@ -969,7 +969,7 @@ class WorldCmds(CommandBase):
             disc = C.MOUNT_BY_KEY[active_mk].get("discount", 0)
             cost = max(1, int(cost * (1 - disc)))
         if player["gold"] < cost:
-            yield event.plain_result(f"传送需要 {cost} 金币（你只有 {player['gold']}）！打怪攒点金币吧～")
+            yield event.plain_result(f"传送需要 {cost} 金币(你只有 {player['gold']})！打怪攒点金币吧～")
             return
         # v86 子区域：传送落地目标图首个子区域
         tgt_sas = target.get("subareas") or []
@@ -986,12 +986,12 @@ class WorldCmds(CommandBase):
         picon = p.get("icon", "🌌") if p else "🌌"
         yield event.plain_result(
             f"🌌 星辉流转，你踏入了传送通道……\n"
-            f"✨ 你抵达了【{target['name']}】（{picon}{pname}，花费 {cost} 金币）\n"
+            f"✨ 你抵达了【{target['name']}】({picon}{pname}，花费 {cost} 金币)\n"
             f"{target['desc']}{extra}"
         )
 
     def _update_explore_quests(self, group_id, qq_id, map_id):
-        """到达子区域时检查 explore 型任务（主线和支线）"""
+        """到达子区域时检查 explore 型任务(主线和支线)"""
         lines = []
         quests = db.get_quests(group_id, qq_id)
         changed = False
@@ -1039,7 +1039,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！守卫不让你靠近任务板……（等红名消退再来）")
+            yield event.plain_result("☠️ 你是红名！守卫不让你靠近任务板……(等红名消退再来)")
             return
         quests = db.get_quests(group_id, qq_id)
         lines = ["📜 【冒险日志】", "━━━━━━━━━━━━"]
@@ -1055,9 +1055,9 @@ class WorldCmds(CommandBase):
                 lines.append(f"  {mq['desc']}")
                 st = quests.get("main_status", "pending")
                 if st == "pending":
-                    lines.append(f"  ⏳ 未接取：去找 {giver}（在{giver_map_name}）接取任务")
+                    lines.append(f"  ⏳ 未接取：去找 {giver}(在{giver_map_name})接取任务")
                 elif st == "ready":
-                    lines.append(f"  ✅ 目标达成！回去找 {giver} 交任务（『交任务』）")
+                    lines.append(f"  ✅ 目标达成！回去找 {giver} 交任务(『交任务』)")
                 else:
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
@@ -1106,7 +1106,7 @@ class WorldCmds(CommandBase):
                 if st == "ready":
                     lines.append(f"    回去找 {giver} 交任务")
             if pages > 1:
-                lines.append(f"💡 『任务 {page+1}』看下一页（共 {pages} 页）")
+                lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
         else:
             lines.append("")
             lines.append("【支线】暂无——找镇上的 NPC 聊聊可能有意外收获")
@@ -1135,7 +1135,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！悬赏板上的任务都被守卫收走了……（等红名消退再来）")
+            yield event.plain_result("☠️ 你是红名！悬赏板上的任务都被守卫收走了……(等红名消退再来)")
             return
         quests = db.get_quests(group_id, qq_id)
         if quests.get("daily"):
@@ -1159,7 +1159,7 @@ class WorldCmds(CommandBase):
         owner_qid = cur_map_id[len("home_"):]
         owner = db.get_player(group_id, owner_qid)
         if not owner:
-            return "这个家的主人已经离开了……（『出门』离开）"
+            return "这个家的主人已经离开了……(『出门』离开)"
         is_mine = str(owner_qid) == str(qq_id)
         deed = owner.get("deed", "") or ""
         prop = C.PROPERTIES.get(deed, {})
@@ -1167,7 +1167,7 @@ class WorldCmds(CommandBase):
         if prop:
             dlv = int(owner.get("deed_lv", 1) or 1)
             hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
-            lines.append(f"{prop['name']}（{hl['name']} Lv.{dlv}）")
+            lines.append(f"{prop['name']}({hl['name']} Lv.{dlv})")
             lines.append(f"　{prop['desc']}")
         lines.append("━━━━━━━━━━━━")
         # 此地玩家
@@ -1185,21 +1185,21 @@ class WorldCmds(CommandBase):
                 lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {self._stall_label(s)} ｜ {sname}")
             lines.append("💡 『购入 <编号>』买下，标 🔄 的用『换 <编号> <物品名>』交换")
         else:
-            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> [价格]』开张（不带价格 = 换摊）！")
+            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> [价格]』开张(不带价格 = 换摊)！")
         # 仓库（自己的家）
         if is_mine:
             storage = self._home_storage_load(group_id, qq_id)
             dlv = int(owner.get("deed_lv", 1) or 1)
             hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
-            lines.append(f"📦 家中仓库：{len(storage)}/{hl['storage']} 件（『仓库』管理）")
+            lines.append(f"📦 家中仓库：{len(storage)}/{hl['storage']} 件(『仓库』管理)")
             if hl.get("stall_slots"):
-                lines.append(f"🏪 铺面挂机位：{hl['stall_slots']} 个（『摆摊 <物品> [价格]』开张）")
+                lines.append(f"🏪 铺面挂机位：{hl['stall_slots']} 个(『摆摊 <物品> [价格]』开张)")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『出门』回到城镇")
         return "\n".join(lines)
 
     def _current_npcs(self, player):
-        """v86 子区域：当前所在位置可交互的 NPC 列表（子区域优先，回退地图级）。"""
+        """v86 子区域：当前所在位置可交互的 NPC 列表(子区域优先，回退地图级)。"""
         cur_map = player["cur_map"]
         m = C.MAP_BY_ID.get(cur_map, {})
         sa_id = player.get("cur_subarea") or ""
@@ -1210,7 +1210,7 @@ class WorldCmds(CommandBase):
         return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
 
     def _find_npc_in_map(self, player, name_key):
-        """在当前地图找 NPC（子区域优先，回退地图级），返回 (npc_id, npc_dict) 或 (None, None)"""
+        """在当前地图找 NPC(子区域优先，回退地图级)，返回 (npc_id, npc_dict) 或 (None, None)"""
         cur_map = player["cur_map"]
         m = C.MAP_BY_ID.get(cur_map, {})
         sa_id = player.get("cur_subarea") or ""
@@ -1247,7 +1247,7 @@ class WorldCmds(CommandBase):
 
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
-        """按主线进度返回 NPC 对话（主线完成后不再重复初始台词）"""
+        """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)"""
         base = npc.get("dialogue", "……")
         # 只对发布主线的 NPC 动态化
         if "quest" not in npc.get("funcs", []):
@@ -1339,7 +1339,7 @@ class WorldCmds(CommandBase):
         return "？"
 
     def _quest_reputation(self, group_id, qq_id, npc_id):
-        """完成任务时给对应势力加声望，返回提示行（如有）"""
+        """完成任务时给对应势力加声望，返回提示行(如有)"""
         npc = C.NPCS.get(npc_id)
         if not npc:
             return ""
@@ -1349,10 +1349,10 @@ class WorldCmds(CommandBase):
         if not faction:
             return ""
         db.add_reputation(group_id, qq_id, faction, 10)
-        return f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +10"
+        return f"🏛️ {C.FACTIONS[faction]['icon']} 声望＋10"
 
     def _wild_cond_label(self, npc: dict) -> str:
-        """野外 NPC 出现条件 → 中文标签（见闻录/时间面板用）"""
+        """野外 NPC 出现条件 → 中文标签(见闻录/时间面板用)"""
         cond = npc.get("condition", {})
         labels = []
         t = cond.get("time")
@@ -1397,7 +1397,7 @@ class WorldCmds(CommandBase):
         if hints:
             lines.append("🍃 附近似乎有人影出没：")
             for nid, npc in hints[:5]:
-                lines.append(f"  {npc['icon']}{npc['name']}（{self._wild_cond_label(npc)}）")
+                lines.append(f"  {npc['icon']}{npc['name']}({self._wild_cond_label(npc)})")
             lines.append("💡 『探索』碰碰运气，『找 <名字>』直接寻找")
         else:
             lines.append("🍃 附近没有特别的气息……")
@@ -1418,7 +1418,7 @@ class WorldCmds(CommandBase):
                 "去野外走走，那些藏在角落里的旅人、隐士、夜行者，都在等着被遇见。"
             )
             return
-        lines = [f"📖 【见闻录】你见过的人（{len(met)}/{len(C.ALL_WILD)}）：", "━━━━━━━━━━━━"]
+        lines = [f"📖 【见闻录】你见过的人({len(met)}/{len(C.ALL_WILD)})：", "━━━━━━━━━━━━"]
         for nid in met:
             npc = C.ALL_WILD.get(nid)
             if not npc:
@@ -1439,7 +1439,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！城里的 NPC 都躲着你走……（等红名消退再来）")
+            yield event.plain_result("☠️ 你是红名！城里的 NPC 都躲着你走……(等红名消退再来)")
             return
         name_key = name_key.strip()
         if not name_key:
@@ -1453,7 +1453,7 @@ class WorldCmds(CommandBase):
             else:
                 lines = ["👥 这里的 NPC："]
                 for i, n in enumerate(npcs, 1):
-                    lines.append(f"{i:>2}. {n['icon']}{n['name']}（{n['title']}）")
+                    lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
                 lines.append("💡 输入『找 <名字>』或『找 <序号>』交谈")
                 yield event.plain_result("\n".join(lines))
             return
@@ -1465,7 +1465,7 @@ class WorldCmds(CommandBase):
             npcs = self._current_npcs(player)
             idx = int(name_key)
             if idx < 1 or idx > len(npcs):
-                yield event.plain_result(f"这里没有第 {idx} 位 NPC（共 {len(npcs)} 位）！『找』查看列表～")
+                yield event.plain_result(f"这里没有第 {idx} 位 NPC(共 {len(npcs)} 位)！『找』查看列表～")
                 return
             npc = npcs[idx - 1]
             npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
@@ -1486,7 +1486,7 @@ class WorldCmds(CommandBase):
             npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)
         if not npc:
             yield event.plain_result(
-                f"你在这里没找到『{name_key}』。他可能不在这里，或还没到出现的时候……（『时间』看看此刻谁在附近）")
+                f"你在这里没找到『{name_key}』。他可能不在这里，或还没到出现的时候……(『时间』看看此刻谁在附近)")
             return
         dlg = C.get_dialogue(npc_id)
         if dlg:
@@ -1505,13 +1505,13 @@ class WorldCmds(CommandBase):
         if "shop" in funcs:
             lines.append("🏪 输入『商店』可以买东西")
         if "heal" in funcs:
-            lines.append("🏨 输入『住宿』恢复满血（需要金币）")
+            lines.append("🏨 输入『住宿』恢复满血(需要金币)")
         if "daily" in funcs:
             lines.append("📜 输入『每日』领取今日悬赏")
         if "lore" in funcs:
-            lines.append("🎻 他给你讲了一个关于大陆的传说……（输入『任务』看看支线）")
+            lines.append("🎻 他给你讲了一个关于大陆的传说……(输入『任务』看看支线)")
         if "ency" in funcs:
-            lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识（镇长藏书）")
+            lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识(镇长藏书)")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v87.9 场景元素交互 ----------------
@@ -1520,7 +1520,7 @@ class WorldCmds(CommandBase):
     @no_prof_waiting()
 
     async def interact_prop(self, event: AstrMessageEvent):
-        """与当前子区域的场景元素（喷泉/雕像/告示板等）交互。纯氛围 + 极小彩蛋。"""
+        """与当前子区域的场景元素(喷泉/雕像/告示板等)交互。纯氛围 + 极小彩蛋。"""
         group_id, qq_id = self._uid(event)
         name_key = self._strip_cmd(event, "交互").strip()
         player = self._player(group_id, qq_id)
@@ -1528,7 +1528,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！城里的元素都绕着你走……（等红名消退再来）")
+            yield event.plain_result("☠️ 你是红名！城里的元素都绕着你走……(等红名消退再来)")
             return
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
@@ -1553,7 +1553,7 @@ class WorldCmds(CommandBase):
         if name_key.isdigit():
             idx = int(name_key)
             if idx < 1 or idx > len(prop_ids):
-                yield event.plain_result(f"这里没有第 {idx} 个场景元素（共 {len(prop_ids)} 个）！『交互』查看列表～")
+                yield event.plain_result(f"这里没有第 {idx} 个场景元素(共 {len(prop_ids)} 个)！『交互』查看列表～")
                 return
             entry = prop_ids[idx - 1]
             pid, label = C.prop_entry(entry)
@@ -1574,7 +1574,7 @@ class WorldCmds(CommandBase):
                     for entry in prop_ids
                     if (pid := C.prop_entry(entry)[0]) in C.PROPS
                 ) or "没有"
-                yield event.plain_result(f"这里没有『{name_key}』可以交互～（这里有：{names}）")
+                yield event.plain_result(f"这里没有『{name_key}』可以交互～(这里有：{names})")
                 return
         pid, pp, label = found
         name = label or pp['name']
@@ -1616,11 +1616,11 @@ class WorldCmds(CommandBase):
                     pct = float(eff.get("pct", 0.1))
                     heal = max(1, int((player.get("max_hp", 1) - player.get("hp", 0)) * pct))
                     if heal <= 0:
-                        lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～（明天再来也一样暖）")
+                        lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～(明天再来也一样暖)")
                     else:
                         db.update_player(group_id, qq_id, hp=player["hp"] + heal)
                         db.mark_props_use(group_id, qq_id, use_key, today)
-                        lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命（{player['hp'] + heal}/{player.get('max_hp', 1)}）！")
+                        lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命({player['hp'] + heal}/{player.get('max_hp', 1)})！")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v65 NPC 多轮对话 ----------------
@@ -1649,7 +1649,7 @@ class WorldCmds(CommandBase):
         return lines
 
     def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
-        """执行选项动作（涉及 DB 的副作用统一在这落地），返回通知行"""
+        """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行"""
         lines = []
         if not action:
             return lines
@@ -1698,7 +1698,7 @@ class WorldCmds(CommandBase):
                     exp = action.get("give_prof_exp")
                     if exp:
                         lv, _ = db.add_prof_exp(group_id, qq_id, prof, int(exp))
-                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」（副业经验 +{exp}）")
+                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」(副业经验 +{exp})")
                     else:
                         lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
                     lines.append("💡 『副业』查看你的生活职业面板")
@@ -1870,7 +1870,7 @@ class WorldCmds(CommandBase):
                     return
         if collect_missing:
             name, mat, have, need = collect_missing
-            yield event.plain_result(f"支线『{name}』还差 {mat} ×{need - have}（背包 {have}/{need}）！")
+            yield event.plain_result(f"支线『{name}』还差 {mat} ×{need - have}(背包 {have}/{need})！")
             return
         yield event.plain_result("没有可交的任务。输入『任务』查看进度～")
 
@@ -1897,7 +1897,7 @@ class WorldCmds(CommandBase):
             if obj.get("kill"):
                 kp = (sq.get("progress") or {}).get(obj["kill"], 0)
                 if kp < obj["count"]:
-                    return [f"还要击败 {obj['kill']} ×{obj['count'] - kp}（当前 {kp}/{obj['count']}）！"]
+                    return [f"还要击败 {obj['kill']} ×{obj['count'] - kp}(当前 {kp}/{obj['count']})！"]
         elif sq.get("status") != "ready":
             return ["这个任务还没完成呢。"]
         # 收集类：扣除材料
@@ -1944,7 +1944,7 @@ class WorldCmds(CommandBase):
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         mid = cur_map.get("id", "")
         if mid not in C.CAMP_SPOTS:
-            yield event.plain_result("这里没有篝火营地！找找野外地图的营地（地图上会显示🔥篝火营地）～")
+            yield event.plain_result("这里没有篝火营地！找找野外地图的营地(地图上会显示🔥篝火营地)～")
             return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("⚔️ 你正在战斗中！先解决眼前的敌人再说。")
@@ -1953,7 +1953,7 @@ class WorldCmds(CommandBase):
         last = db.get_event_state(f"camp_{group_id}_{qq_id}")
         if last and int(time.time()) - int(last) < 30:
             left = 30 - (int(time.time()) - int(last))
-            yield event.plain_result(f"⏳ 营地篝火需要添柴（{left}秒后恢复）……")
+            yield event.plain_result(f"⏳ 营地篝火需要添柴({left}秒后恢复)……")
             return
         if player["hp"] >= player["max_hp"]:
             yield event.plain_result("你精神饱满，不需要休息～")
@@ -1964,7 +1964,7 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, hp=new_hp)
         yield event.plain_result(
             f"🔥 你在{C.CAMP_SPOTS[mid]}的篝火旁歇了歇脚……\n"
-            f"❤️ 恢复 {heal} 点生命（{new_hp}/{player['max_hp']}）\n"
+            f"❤️ 恢复 {heal} 点生命({new_hp}/{player['max_hp']})\n"
             f"💡 营地只能恢复一半伤势，重伤请回旅店『住宿』～"
         )
 
@@ -1977,11 +1977,11 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if self._is_redname(qq_id):
-            yield event.plain_result("☠️ 你是红名！旅店老板不敢收留你……（等红名消退再来）")
+            yield event.plain_result("☠️ 你是红名！旅店老板不敢收留你……(等红名消退再来)")
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"])
         if not cur_map or not cur_map.get("healer"):
-            yield event.plain_result("这里没有旅店。到有旅店的地方（如橡木镇旅店）输入『住宿』～")
+            yield event.plain_result("这里没有旅店。到有旅店的地方(如橡木镇旅店)输入『住宿』～")
             return
         cost = 30
         if player["gold"] < cost:
@@ -2008,7 +2008,7 @@ class WorldCmds(CommandBase):
             f = C.FACTIONS[fid]
             pts = rep.get(fid, 0)
             tier = C.faction_reputation_tier(pts)
-            lines.append(f"{i:>2}. {f['icon']} {f['name']}：{tier}（{pts}）")
+            lines.append(f"{i:>2}. {f['icon']} {f['name']}：{tier}({pts})")
         lines.append("")
         lines.append("💡 击杀各地怪物、完成当地任务可获得对应势力声望")
         yield event.plain_result("\n".join(lines))
@@ -2027,5 +2027,5 @@ class WorldCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"{c['text']}\n"
             f"━━━━━━━━━━━━\n"
-            f"（奥兰迪亚编年史 · 输入『传说』再听一段）"
+            f"(奥兰迪亚编年史 · 输入『传说』再听一段)"
         )

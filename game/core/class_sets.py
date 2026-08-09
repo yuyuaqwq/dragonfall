@@ -21,74 +21,74 @@ _SERIES_SET_BONUS = {
         "icon": "🌳", "quality": "white",
         "bonus_2": {"atk": 0.05},
         "bonus_4_stats": {"hp": 0.10},
-        "bonus_5": {"crit": 0.05, "desc": "暴击 +5%"},
+        "bonus_5": {"crit": 0.05, "desc": "暴击＋5%"},
     },
     "铁港": {
         "icon": "⚓", "quality": "blue",
         "bonus_2": {"spd": 0.10},
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"dodge": 0.05, "desc": "闪避 +5%"},
+        "bonus_5": {"dodge": 0.05, "desc": "闪避＋5%"},
     },
     "圣光": {
         "icon": "✨", "quality": "blue",
         "bonus_2": {"heal": 0.10},   # 治疗 +10%（battle 治疗段消费）
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "圣光增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "圣光增伤＋10%(待元素系统)"},
     },
     "月语": {
         "icon": "🌙", "quality": "purple",
         "bonus_2": {"crit": 0.08},
         "bonus_4_stats": {"spd": 0.10},   # 敏捷 +10% ≈ 速度 +10%
-        "bonus_5": {"desc": "月系增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "月系增伤＋10%(待元素系统)"},
     },
     "霜狼": {
         "icon": "🐺", "quality": "purple",
         "bonus_2": {"def": 0.10},
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "抗寒：免疫减速（待元素系统）"},
+        "bonus_5": {"desc": "抗寒：免疫减速(待元素系统)"},
     },
     "龙脊": {
         "icon": "🐉", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "龙息增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "龙息增伤＋10%(待元素系统)"},
     },
     "海神": {
         "icon": "🌊", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 水抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "海系增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "海系增伤＋10%(待元素系统)"},
     },
     "地底": {
         "icon": "🕳️", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 暗抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "深渊增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "深渊增伤＋10%(待元素系统)"},
     },
     "苍穹": {
         "icon": "☁️", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 风抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"crit": 0.08},
-        "bonus_5": {"desc": "雷系增伤 +10%（待元素系统）"},
+        "bonus_5": {"desc": "雷系增伤＋10%(待元素系统)"},
     },
     # v87 隐藏线（10 章 10.1/10.2）
     "星尘": {
         "icon": "✨", "quality": "purple",
         "bonus_2": {"atk": 0.05, "matk": 0.05, "def": 0.05, "spd": 0.05},
         "bonus_4_stats": {"matk": 0.08},
-        "bonus_5": {"desc": "星尘祝福：夜间每回合回蓝 5%（battle 消费）"},
+        "bonus_5": {"desc": "星尘祝福：夜间每回合回蓝 5%(battle 消费)"},
     },
     "灰烬守卫": {
         "icon": "🔥", "quality": "orange",
         "bonus_2": {"mdef": 0.10},
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "灰烬祝福：生命低于 30% 攻击 +20%（battle 消费）"},
+        "bonus_5": {"desc": "灰烬祝福：生命低于 30% 攻击＋20%(battle 消费)"},
     },
 }
 
 
 def _build_class_sets():
-    """注册 10 章名册套装到 SETS（幂等：key 唯一，重复运行覆盖同名）。"""
+    """注册 10 章名册套装到 SETS(幂等：key 唯一，重复运行覆盖同名)。"""
     for series, set_name in SERIES_SETS.items():
         b = _SERIES_SET_BONUS[series]
         set_id = f"set_{pinyin_id(set_name)}"

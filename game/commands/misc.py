@@ -251,8 +251,8 @@ class MiscCmds(CommandBase):
         ]
         # v87：运势显示
         fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
-        fortune_desc = {"大吉": "今日经验 +10%", "平": "今日平平无奇", "小凶": "今日金币 -10%"}.get(fortune, "")
-        lines.append(f"{fortune_icon} 今日运势：{fortune}（{fortune_desc}）")
+        fortune_desc = {"大吉": "今日经验＋10%", "平": "今日平平无奇", "小凶": "今日金币－10%"}.get(fortune, "")
+        lines.append(f"{fortune_icon} 今日运势：{fortune}({fortune_desc})")
         if cur_evt and cur_evt["etype"] == "festival":
             lines.append("🎉 节日庆典：签到奖励翻倍！")
         # 每 7 天额外奖励
@@ -300,7 +300,7 @@ class MiscCmds(CommandBase):
             for c in cats:
                 sub = [a for a in C.ACHIEVEMENTS if a["cat"] == c]
                 got_c = sum(1 for a in sub if a["id"] in unlocked)
-                lines.append(f"{'✅' if got_c == len(sub) else '⬜'} {c}：{got_c}/{len(sub)}（『成就 {c}』查看明细）")
+                lines.append(f"{'✅' if got_c == len(sub) else '⬜'} {c}：{got_c}/{len(sub)}(『成就 {c}』查看明细)")
         lines.append("")
         lines.append("💡 达成条件自动解锁，称号自动获得；『称号』可佩戴展示")
         yield event.plain_result("\n".join(lines))
@@ -315,14 +315,14 @@ class MiscCmds(CommandBase):
             yield event.plain_result("📮 想给格温提建议？发『意见 <你的想法>』就行～\n例：『意见 希望能出个坐骑系统』")
             return
         if len(args) > 200:
-            yield event.plain_result("❌ 意见太长啦（≤200 字），精简一下再说～")
+            yield event.plain_result("❌ 意见太长啦(≤200 字)，精简一下再说～")
             return
         try:
             fid = db.add_feedback(qq_id, group_id, args)
             # 主动通知 Hermes（格温本体）：异步 POST，不阻塞玩家回复
             await self._notify_hermes(group_id, qq_id, args, "feedback")
             yield event.plain_result(
-                f"📮 收到你的意见啦！（编号 #{fid}）\n「{args}」\n\n我会整理给鱼鱼看的，感谢你让这个世界变得更好✂️"
+                f"📮 收到你的意见啦！(编号 #{fid})\n「{args}」\n\n我会整理给鱼鱼看的，感谢你让这个世界变得更好✂️"
             )
         except Exception as e:
             import logging
@@ -347,7 +347,7 @@ class MiscCmds(CommandBase):
             )
             secret = os.environ.get(
                 "HERMES_WEBHOOK_SECRET",
-                "MLS6me_1R1PvCCnPHCcv_lzH7KONlyv-1Mz3OorGIYg",
+                "MLS6me_1R1PvCCnPHCcv_lzH7KONlyv－1Mz3OorGIYg",
             )
             payload = _json.dumps(
                 {
@@ -357,10 +357,10 @@ class MiscCmds(CommandBase):
                     "msg_type": msg_type,
                 },
                 ensure_ascii=False,
-            ).encode("utf-8")
+            ).encode("utf－8")
             headers = {"Content-Type": "application/json"}
             if secret:
-                sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
+                sig = hmac.new(secret.encode("utf－8"), payload, hashlib.sha256).hexdigest()
                 headers["X-Webhook-Signature"] = sig
             async with aiohttp.ClientSession() as session:
                 async with session.post(webhook_url, data=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:

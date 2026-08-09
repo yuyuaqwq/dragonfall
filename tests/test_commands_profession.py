@@ -63,11 +63,11 @@ async def main():
     check("采集自动激活", "选择了「采集」" in out and "1/2" in out, out[:200])
     check("采集进行中", "开始采集" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="hill_mine")
+    db.update_player("g1", "w1", cur_map="hill_mine", cur_subarea="hill_mine_2")  # v87.17 矿脉=矿道
     out = await cmd(m, "mining", "g1", "w1", "挖掘")
     check("挖掘自动激活2/2", "选择了「挖掘」" in out and "2/2" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="oak_plain")
+    db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="oak_plain_3")  # v87.17 垂钓点=溪边草地
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("第三条被拦", "副业位已满" in out and "遗忘副业" in out, out[:200])
 

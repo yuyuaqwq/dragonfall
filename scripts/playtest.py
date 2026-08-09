@@ -42,7 +42,7 @@ HANDLERS = {
     "注册": "register", "找": "find_npc", "探索": "explore", "攻击": "attack",
     "角色": "profile", "属性": "attributes", "背包": "inventory", "技能": "skill",
     "地图": "map_view", "帮助": "help_cmd", "商店": "shop", "任务": "quest_view",
-    "移动": "move",
+    "前往": "move",
 }
 
 
@@ -89,7 +89,7 @@ async def main():
     await cmd(M, "找 镇长", "找镇长")
 
     # 2.5 移动去野外（城镇安全区探索不到敌人）
-    await cmd(M, "移动 白鹿之森", "移动去白鹿之森")
+    await cmd(M, "前往 白鹿之森", "前往白鹿之森")
     await cmd(M, "地图", "地图")
 
     # 3. 打怪升级循环：先橡木平原(Lv.1)练到3级 → 再白鹿之森(Lv.3)练到10级
@@ -100,12 +100,12 @@ async def main():
         p = db.get_player(G, Q)
         target_map = "oak_plain" if lv < 3 else "white_deer_forest"
         if p["cur_map"] != target_map:
-            await cmd(M, f"移动 {target_map}", "")
+            await cmd(M, f"前往 {target_map}", "")
         # 探索遇怪（若已在战斗中则跳过）
         if not db.get_battle(G, Q):
             r = await cmd(M, "探索", "")
             if "附近没有敌人" in r:
-                await cmd(M, f"移动 {target_map}", "")
+                await cmd(M, f"前往 {target_map}", "")
                 await cmd(M, "探索", "")
         # 连续攻击直到战斗结束
         round_guard = 0

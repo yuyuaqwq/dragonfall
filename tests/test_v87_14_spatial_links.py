@@ -23,67 +23,73 @@ async def main():
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
 
     async def move(dest):
-        ev = FakeEvent("g1", "1001", f"移动 {dest}")
+        ev = FakeEvent("g1", "1001", f"前往 {dest}")
         return "".join(str(x) for x in await run(m.move, ev))
 
     def pos():
         p = db.get_player("g1", "1001")
         return f"{p['cur_map']}:{p['cur_subarea']}"
 
-    # ===== 城镇星形 =====
-    print("· 城镇星形（广场连所有，场所只连广场）")
-    r = await move("2")  # 广场 → 镇长办公处
+    # ===== 城镇星形 + 街道链 =====
+    # v87.16 显示=解析：广场可达 1=镇长办公处 2=铁匠铺 3=旅店 4=草药铺 5=东大街（镇郊需经东大街）
+    print("· 城镇星形（广场连场所，街道链通郊外）")
+    r = await move("1")  # 广场 → 镇长办公处
     check("广场→镇长办公处", pos() == "oak_town:oak_town_2", pos())
-    r = await move("3")  # 镇长办公处 → 铁匠铺：应被拦
-    check("镇长办公处→铁匠铺被拦", "不能直接去" in r and "广场" in r, r[:120])
+    r = await move("2")  # 镇长办公处 → 邻居（橡木平原）：非出口被拦
+    check("镇长办公处直接出图被拦", "镇郊" in r or "东大街" in r, r[:120])
     check("位置未变", pos() == "oak_town:oak_town_2", pos())
-    r = await move("1")  # 回广场
+    r = await move("1")  # 回广场（场所只连广场）
     check("镇长办公处→广场", pos() == "oak_town:oak_town_1", pos())
 
     # 广场可直达所有场所
-    for d, tgt in [("2", "oak_town_2"), ("3", "oak_town_3"), ("4", "oak_town_4"), ("5", "oak_town_5")]:
+    for d, tgt in [("1", "oak_town_2"), ("2", "oak_town_3"), ("3", "oak_town_4"), ("4", "oak_town_5")]:
         r = await move(d)
         check(f"广场→{tgt}", pos() == f"oak_town:{tgt}", f"{pos()} | {r[:60]}")
         await move("1")
 
-    # 草药铺(5) 只连广场
-    r = await move("5")
+    # 草药铺(4) 只连广场
+    r = await move("4")
     check("到草药铺", pos() == "oak_town:oak_town_5", pos())
-    r = await move("2")
-    check("草药铺→镇长办公处被拦", "不能直接去" in r and "广场" in r, r[:120])
-
-    # ===== 出城走城门 =====
-    print("· 出城走城门")
+    r = await move("2")  # 草药铺 → 邻居（橡木平原）：非出口被拦
+    check("草药铺直接出图被拦", "镇郊" in r or "东大街" in r, r[:120])
     await move("1")  # 回广场
-    r = await move("7")  # 7 = oak_plain（邻居地图序号 = len(sas)+1 = 7）
-    check("广场直接出城被拦", "城门" in r and "不能" in r, r[:120])
-    check("仍在广场", pos() == "oak_town:oak_town_1", pos())
-    # 到城门（oak_town 6 个子区域：1-5 + 6 城门）
+
+    # ===== 街道链：出镇走东大街 → 镇郊 =====
+    print("· 街道链（东大街 → 镇郊）")
+    # 广场直接出城被拦（序号 6 = 邻居橡木平原，但广场不是出口子区域）
     r = await move("6")
-    check("广场→城门", pos() == "oak_town:oak_town_gate", f"{pos()} | {r[:80]}")
-    # 从城门出城到橡木平原（邻居序号 7）
-    r = await move("7")
-    check("城门→橡木平原", pos() == "oak_plain:oak_plain_1", f"{pos()} | {r[:120]}")
+    check("广场无直达野外", "镇郊" in r, r[:120])
+    check("仍在广场", pos() == "oak_town:oak_town_1", pos())
+    r = await move("5")  # 广场 → 东大街（链首）
+    check("广场→东大街", pos() == "oak_town:oak_town_street", f"{pos()} | {r[:80]}")
+    # 东大街可回广场/去镇郊
+    r = await move("1")  # 东大街 → 镇郊（链尾）
+    check("东大街→镇郊", pos() == "oak_town:oak_town_outskirts", f"{pos()} | {r[:80]}")
+    # 镇郊是出口：可回东大街 + 出图
+    r = await move("2")  # 镇郊 → 橡木平原（邻居序号 = 1+1 = 2）
+    check("镇郊→橡木平原", pos() == "oak_plain:oak_plain_1", f"{pos()} | {r[:120]}")
 
     # ===== 野外线性 =====
     print("· 野外线性（相邻顺序）")
-    r = await move("2")  # 草地边缘 → 草地深处
+    r = await move("1")  # 草地边缘(入口) → 草地深处
     check("草地边缘→草地深处", pos() == "oak_plain:oak_plain_2", pos())
-    r = await move("3")  # 草地深处 → 溪边草地
+    r = await move("2")  # 草地深处 → 溪边草地
     check("草地深处→溪边草地", pos() == "oak_plain:oak_plain_3", pos())
-    r = await move("1")  # 溪边草地 → 草地边缘：被拦（要经过深处）
-    check("溪边草地→草地边缘被拦", "路只有一条" in r or "先经过" in r, r[:120])
+    r = await move("2")  # 溪边草地 → 邻居（橡木镇）：非入口被拦
+    check("溪边草地直接出图被拦", "草地边缘" in r, r[:120])
     check("位置未变", pos() == "oak_plain:oak_plain_3", pos())
 
-    # ===== 进城落城门 =====
-    print("· 进城落城门")
-    r = await move("2")  # 溪边草地 → 草地深处
+    # ===== 进城落出口 =====
+    print("· 进城落出口（镇郊）")
+    r = await move("1")  # 溪边草地 → 草地深处
     r = await move("1")  # 草地深处 → 草地边缘
     check("回到草地边缘", pos() == "oak_plain:oak_plain_1", pos())
-    r = await move("4")  # 草地边缘 → 橡木镇（邻居序号 = 3+1 = 4）
-    check("进城落城门", pos() == "oak_town:oak_town_gate", f"{pos()} | {r[:120]}")
-    r = await move("1")  # 城门 → 广场
-    check("城门→广场", pos() == "oak_town:oak_town_1", pos())
+    r = await move("2")  # 草地边缘 → 橡木镇（邻居序号 = 1+1 = 2）
+    check("进城落镇郊", pos() == "oak_town:oak_town_outskirts", f"{pos()} | {r[:120]}")
+    r = await move("1")  # 镇郊 → 东大街
+    check("镇郊→东大街", pos() == "oak_town:oak_town_street", pos())
+    r = await move("2")  # 东大街 → 广场
+    check("东大街→广场", pos() == "oak_town:oak_town_1", pos())
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

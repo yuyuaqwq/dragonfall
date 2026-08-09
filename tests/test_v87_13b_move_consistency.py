@@ -27,17 +27,22 @@ async def main():
     # 玩家初始位置 oak_town（广场 oak_town_1）
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
 
-    # v87.14 空间连接：出城需先到城门 → 移动 6（橡木镇城门）
-    ev = FakeEvent("g1", "1001", "移动 6")
+    # v87.14 空间连接：出城需先到出口子区域
+    # v87.16 街道链：广场 → 东大街(5) → 镇郊(1) → 橡木平原(2)
+    ev = FakeEvent("g1", "1001", "前往 5")
     r0 = "".join(str(x) for x in await run(m.move, ev))
-    print("  [到城门]", r0[:120].replace("\n", " | "))
+    print("  [到东大街]", r0[:120].replace("\n", " | "))
     p = db.get_player("g1", "1001")
-    check("到达城门", p["cur_subarea"] == "oak_town_gate", str(p.get("cur_subarea")))
+    check("到达东大街", p["cur_subarea"] == "oak_town_street", str(p.get("cur_subarea")))
+    ev = FakeEvent("g1", "1001", "前往 1")
+    r0 = "".join(str(x) for x in await run(m.move, ev))
+    p = db.get_player("g1", "1001")
+    check("到达镇郊", p["cur_subarea"] == "oak_town_outskirts", str(p.get("cur_subarea")))
 
-    # oak_town 的邻居：看 MAP_CONNECTIONS —— 橡木平原 oak_plain 应该是邻居
-    # 橡木镇子区域 6 个（广场/镇长/铁匠/旅店/草药/城门），邻居序号从 7 开始
-    # 移动 7（橡木平原）→ 落点 oak_plain_1 草地边缘
-    ev = FakeEvent("g1", "1001", "移动 7")
+    # oak_town 的邻居：橡木平原 oak_plain
+    # v87.16 镇郊 vis_sas=[东大街] 1 个，邻居序号从 2 开始
+    # 移动 2（橡木平原）→ 落点 oak_plain_1 草地边缘
+    ev = FakeEvent("g1", "1001", "前往 2")
     r1 = "".join(str(x) for x in await run(m.move, ev))
     p1 = db.get_player("g1", "1001")
     print("  [跨图移动7]", r1[:300].replace("\n", " | "))
@@ -63,10 +68,12 @@ async def main():
             if "✨ 场景" in ln:
                 in_scene = True
                 continue
-            if in_scene and ln.strip():
-                if ln.strip().startswith(("🏪", "👥", "👤", "🐾", "📮", "📍", "💡", "输入")):
+            if in_scene:
+                # 场景元素行以两个空格缩进（"  " + join）；撞怪等后续内容无缩进 → 截断
+                if ln.strip() and not ln.startswith("  "):
                     break
-                out.append(ln.strip())
+                if ln.strip():
+                    out.append(ln.strip())
         return out
     s1 = scene_lines(r1)
     s2 = scene_lines(r2)

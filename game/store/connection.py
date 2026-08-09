@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""《剑与魔法》存储层 - connection：连接管理 + 建表（唯一碰 sqlite 连接的地方）"""
+"""《剑与魔法》存储层 - connection：连接管理 + 建表(唯一碰 sqlite 连接的地方)"""
 import os
 import sqlite3
 import threading
@@ -25,7 +25,7 @@ def _connect():
 
 
 def init_db():
-    """建表（全局 qq_id 主键）"""
+    """建表(全局 qq_id 主键)"""
     with _lock:
         conn = _connect()
         try:

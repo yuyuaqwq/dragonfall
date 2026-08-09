@@ -76,11 +76,11 @@ def test_learned():
 def test_battle_stats():
     print("\n== 4. battle._player_stats 被动叠加 ==")
     pl = make_player(cls="游侠", level=30)
-    pl["class_name"] = "cls_you_xia"  # 生产 class_name 是 cls_id（conftest make_player 存中文，手动对齐）
+    pl["class_name"] = "cls_you_xia"  # 生产 class_name 是 cls_id（make_player 已 resolve，此行保留兼容）
     pl["learned_skills"] = ["风行步"]
     b = BT.Battle("monster", {"name": "测试怪", "hp": 500, "max_hp": 500, "atk": 30, "def": 10, "matk": 10, "mdef": 5, "spd": 10, "lv": 5, "role": "dps"})
     st = b._player_stats(pl)
-    base_spd = E.player_final_stats(pl["class_name"], pl["level"], pl.get("equipment", {}), pl.get("class_tier", 0), pl.get("attributes"), pl.get("evolve_path", 0))["spd"]
+    base_spd = E.player_final_stats(pl["class_name"], pl["level"], pl.get("equipment", {}), pl.get("class_tier", 0), pl.get("attributes"), pl.get("evolve_path", 0), None, pl.get("race"))["spd"]  # v87.17 与 _player_stats 同参（race）
     check("风行步 spd +8%", st["spd"] == int(base_spd * 1.08), f"st={st['spd']} base={base_spd}")
     # 法师魔力涌动
     pl2 = make_player(cls="法师", level=40)
@@ -88,7 +88,7 @@ def test_battle_stats():
     pl2["learned_skills"] = ["魔力涌动"]
     b2 = BT.Battle("monster", {"name": "测试怪", "hp": 500, "max_hp": 500, "atk": 30, "def": 10, "matk": 10, "mdef": 5, "spd": 10, "lv": 5, "role": "dps"})
     st2 = b2._player_stats(pl2)
-    base_mp = E.player_final_stats(pl2["class_name"], pl2["level"], pl2.get("equipment", {}), pl2.get("class_tier", 0), pl2.get("attributes"), pl2.get("evolve_path", 0))["max_mp"]
+    base_mp = E.player_final_stats(pl2["class_name"], pl2["level"], pl2.get("equipment", {}), pl2.get("class_tier", 0), pl2.get("attributes"), pl2.get("evolve_path", 0), None, pl2.get("race"))["max_mp"]  # v87.17 同参
     check("魔力涌动 max_mp +15%", st2["max_mp"] == int(base_mp * 1.15), f"st={st2['max_mp']} base={base_mp}")
 
 # ---------- 5. 受击减伤被动 ----------
@@ -161,10 +161,10 @@ async def test_no_upgrade():
 # ---------- 10. 被动不占技能栏（设置技能时提示/不生效？跳过）----------
 def test_data_integrity():
     print("\n== 10. 数据完整性：被动不污染主动技能表 ==")
-    # 阶段六：新世界每职业 10 主动 + 4 被动 = 14
-    for cls, cname, expect in [("cls_zhan_shi", "战士", 14), ("cls_fa_shi", "法师", 14),
-                               ("cls_you_xia", "游侠", 14), ("cls_mu_shi", "牧师", 14),
-                               ("cls_ci_ke", "刺客", 14), ("cls_wu_seng", "拳师", 14)]:
+    # 阶段六：新世界每职业 10 主动 + 4 被动 = 14；v95 补 Lv.2 过渡技能 +1 → 15
+    for cls, cname, expect in [("cls_zhan_shi", "战士", 15), ("cls_fa_shi", "法师", 15),
+                               ("cls_you_xia", "游侠", 15), ("cls_mu_shi", "牧师", 15),
+                               ("cls_ci_ke", "刺客", 15), ("cls_wu_seng", "拳师", 15)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
         check(f"{cname} 技能总数 {n} (10基础+4被动)", n == expect, f"实际 {n}")
 

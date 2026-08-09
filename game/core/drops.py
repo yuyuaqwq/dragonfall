@@ -14,7 +14,7 @@ from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CLASS_SET_STAGES, CLASS_SET_
 
 """《剑与魔法》数据层 - drops.py"""
 def _stage_for_lv(monster_lv: int) -> dict:
-    """怪物等级 → 毕业套阶段（就近取阶段等级）"""
+    """怪物等级 → 毕业套阶段(就近取阶段等级)"""
     best = CLASS_SET_STAGES[0]
     for st in CLASS_SET_STAGES:
         if monster_lv >= st["lv"] - 5:
@@ -44,7 +44,7 @@ def roll_blueprint(monster_lv: int):
         "price": int(r["lv"] * 3 + 20), "blueprint_for": r["name"], "roster_id": rid,
         "quality": r["quality"],
         # v56.4：玩家语言描述——不含内部 ID
-        "desc": f"{q['name']}级图纸：{r['name']}（{C.EQUIP_SLOTS[r['slot']]}）",
+        "desc": f"{q['name']}级图纸：{r['name']}({C.EQUIP_SLOTS[r['slot']]})",
     }
 
 def roll_drop(monster_lv: int, role: str):

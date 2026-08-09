@@ -21,12 +21,12 @@ AFFIXES = {
     "bleed": {
         "name": "流血", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"dot_pct": 0.05, "turns": 3},
-        "desc": "攻击 20% 使目标流血（每回合 5% 生命，3 回合）",
+        "desc": "攻击 20% 使目标流血(每回合 5% 生命，3 回合)",
     },
     "armor_break": {
         "name": "破甲", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
         "effect": {"debuff": "def", "pct": 0.15, "turns": 2},
-        "desc": "攻击 25% 降低目标防御 15%（2 回合）",
+        "desc": "攻击 25% 降低目标防御 15%(2 回合)",
     },
     "combo": {
         "name": "连击", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
@@ -36,7 +36,7 @@ AFFIXES = {
     "execute": {
         "name": "处决", "kind": "attack", "trigger": "passive",
         "effect": {"hp_pct": 0.30, "dmg_pct": 0.30},
-        "desc": "对生命 <30% 的目标 +30% 伤害",
+        "desc": "对生命 <30% 的目标＋30% 伤害",
     },
     "lifesteal": {
         "name": "吸血", "kind": "attack", "trigger": "on_hit",
@@ -46,12 +46,12 @@ AFFIXES = {
     "crit_up": {
         "name": "暴击强化", "kind": "attack", "trigger": "stat",
         "effect": {"crit": 0.05},
-        "desc": "暴击率 +5%",
+        "desc": "暴击率＋5%",
     },
     "crit_dmg": {
         "name": "暴击伤害", "kind": "attack", "trigger": "stat",
         "effect": {"crit_dmg": 0.20},
-        "desc": "暴击伤害 +20%",
+        "desc": "暴击伤害＋20%",
     },
     "element_fire": {
         "name": "元素·火", "kind": "attack", "trigger": "on_hit",
@@ -71,7 +71,7 @@ AFFIXES = {
     "precise": {
         "name": "精准", "kind": "attack", "trigger": "stat",
         "effect": {"precise": 0.10},
-        "desc": "命中 +10%，无视闪避",
+        "desc": "命中＋10%，无视闪避",
     },
     "pierce": {
         "name": "贯穿", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
@@ -81,7 +81,7 @@ AFFIXES = {
     "hunt": {
         "name": "追猎", "kind": "attack", "trigger": "passive",
         "effect": {"marked_dmg": 0.20},
-        "desc": "对标记目标 +20% 伤害",
+        "desc": "对标记目标＋20% 伤害",
     },
     "charge": {
         "name": "蓄力", "kind": "attack", "trigger": "on_hit", "chance": 0.10,
@@ -96,7 +96,7 @@ AFFIXES = {
     "break_magic": {
         "name": "破魔", "kind": "attack", "trigger": "passive",
         "effect": {"vs_caster": 0.25},
-        "desc": "对魔法系敌人 +25% 伤害",
+        "desc": "对魔法系敌人＋25% 伤害",
     },
     "purify": {
         "name": "净化", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
@@ -106,7 +106,7 @@ AFFIXES = {
     "dragon_aw": {
         "name": "龙威", "kind": "attack", "trigger": "passive",
         "effect": {"vs_dragon": 0.25},
-        "desc": "对龙系敌人 +25% 伤害",
+        "desc": "对龙系敌人＋25% 伤害",
     },
     # ================= 防具防御词条（12） =================
     "block": {
@@ -122,7 +122,7 @@ AFFIXES = {
     "dmg_reduce": {
         "name": "减伤", "kind": "defense", "trigger": "stat",
         "effect": {"dmg_reduce": 0.03},
-        "desc": "受击伤害 -3%",
+        "desc": "受击伤害－3%",
     },
     "shield": {
         "name": "护盾", "kind": "defense", "trigger": "battle_start",
@@ -132,7 +132,7 @@ AFFIXES = {
     "dodge": {
         "name": "闪避", "kind": "defense", "trigger": "stat",
         "effect": {"dodge": 0.05},
-        "desc": "闪避率 +5%",
+        "desc": "闪避率＋5%",
     },
     "tenacity": {
         "name": "坚韧", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
@@ -152,22 +152,22 @@ AFFIXES = {
     "swift": {
         "name": "迅捷", "kind": "defense", "trigger": "stat",
         "effect": {"spd_pct": 0.05},
-        "desc": "速度 +5%",
+        "desc": "速度＋5%",
     },
     "elem_resist": {
         "name": "元素抗性", "kind": "defense", "trigger": "stat",
         "effect": {"elem_resist": 0.08},
-        "desc": "火/冰/雷抗性 +8%",
+        "desc": "火/冰/雷抗性＋8%",
     },
     "abyss_resist": {
         "name": "深渊抗性", "kind": "defense", "trigger": "stat",
         "effect": {"abyss_resist": 0.10},
-        "desc": "暗影伤害 -10%",
+        "desc": "暗影伤害－10%",
     },
     "hp_up": {
         "name": "生命强化", "kind": "defense", "trigger": "stat",
         "effect": {"hp_pct": 0.05},
-        "desc": "最大生命 +5%",
+        "desc": "最大生命＋5%",
     },
 }
 
@@ -213,17 +213,17 @@ LEGENDARY_EFFECTS = {
     "gold_hook": {  # 金钩弯刀：暴击伤害 +30%
         "name": "金钩锋锐", "kind": "attack", "trigger": "stat",
         "effect": {"crit_dmg": 0.30},
-        "desc": "暴击伤害 +30%",
+        "desc": "暴击伤害＋30%",
     },
     "jack_hook": {  # 杰克的金钩：对低血目标处决大幅强化
         "name": "处决狂潮", "kind": "attack", "trigger": "passive",
         "effect": {"hp_pct": 0.30, "dmg_pct": 0.80},
-        "desc": "对生命 <30% 的目标额外 +80% 伤害",
+        "desc": "对生命 <30% 的目标额外＋80% 伤害",
     },
     "ancient_king": {  # 古王剑：处决强化
         "name": "王权处决", "kind": "attack", "trigger": "passive",
         "effect": {"hp_pct": 0.35, "dmg_pct": 0.35},
-        "desc": "对生命 <35% 的目标 +35% 伤害",
+        "desc": "对生命 <35% 的目标＋35% 伤害",
     },
     "judgment_chain": {  # 审判之链：净化强化
         "name": "审判之链", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
@@ -238,47 +238,47 @@ LEGENDARY_EFFECTS = {
     "moon_bow": {  # 月神之弓：暴击大幅强化
         "name": "月神眷顾", "kind": "attack", "trigger": "stat",
         "effect": {"crit": 0.10},
-        "desc": "暴击率 +10%",
+        "desc": "暴击率＋10%",
     },
     "helga_relic": {  # 赫尔加的祭器：冰系强化
         "name": "霜语", "kind": "attack", "trigger": "stat",
         "effect": {"ice_dmg": 0.15},
-        "desc": "冰属性伤害 +15%",
+        "desc": "冰属性伤害＋15%",
     },
     "earth_heart": {  # 符文战锤·大地之心：减伤+生命
         "name": "大地护佑", "kind": "defense", "trigger": "stat",
         "effect": {"dmg_reduce": 0.05, "hp_pct": 0.05},
-        "desc": "受击伤害 -5%，最大生命 +5%",
+        "desc": "受击伤害－5%，最大生命＋5%",
     },
     "dragon_tongue": {  # 龙语圣剑：攻击叠印记
         "name": "龙语印记", "kind": "attack", "trigger": "on_hit",
         "effect": {"dragon_mark": 0.02, "max_mark": 5},
-        "desc": "攻击叠加龙语印记（每层 +2% 伤害，上限 5 层）",
+        "desc": "攻击叠加龙语印记(每层＋2% 伤害，上限 5 层)",
     },
     "dawn_light": {  # 黎明之光：深渊特攻
         "name": "黎明破晓", "kind": "attack", "trigger": "passive",
         "effect": {"vs_abyss": 0.50},
-        "desc": "对深渊系敌人 +50% 伤害",
+        "desc": "对深渊系敌人＋50% 伤害",
     },
     "moro_crown": {  # 摩罗之冠：受击腐蚀
         "name": "深渊腐蚀", "kind": "defense", "trigger": "on_taken", "chance": 0.15,
         "effect": {"corrupt": 0.10, "turns": 2},
-        "desc": "受击 15% 使敌人攻击 -10%（2 回合）",
+        "desc": "受击 15% 使敌人攻击－10%(2 回合)",
     },
     "aura_seal": {  # 奥拉圣印：雷系强化
         "name": "风暴之印", "kind": "attack", "trigger": "stat",
         "effect": {"thunder_dmg": 0.20},
-        "desc": "雷属性伤害 +20%",
+        "desc": "雷属性伤害＋20%",
     },
     "lang_tear": {  # 澜歌之泪：水系强化（游戏元素池冰系承载）
         "name": "澜歌", "kind": "attack", "trigger": "stat",
         "effect": {"ice_dmg": 0.20},
-        "desc": "冰属性伤害 +20%",
+        "desc": "冰属性伤害＋20%",
     },
     "ao_lan_pearl": {  # 敖澜之珠：水系强化
         "name": "海渊之珠", "kind": "attack", "trigger": "stat",
         "effect": {"ice_dmg": 0.20},
-        "desc": "冰属性伤害 +20%",
+        "desc": "冰属性伤害＋20%",
     },
     "starfall": {  # v87 星陨之剑：攻击 10% 概率全屏星陨 200% 伤害
         "name": "星陨", "kind": "attack", "trigger": "on_hit", "chance": 0.10,

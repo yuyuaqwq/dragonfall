@@ -14,7 +14,7 @@ from .. import content as C
 
 
 def get_dialogue(npc_id: str):
-    """返回 NPC 的对话树（dict）或 None（未配置多轮对话 → 走旧单轮逻辑）"""
+    """返回 NPC 的对话树(dict)或 None(未配置多轮对话 → 走旧单轮逻辑)"""
     dlg = C.DIALOGUES.get(npc_id)
     return dlg if dlg else None
 
@@ -83,7 +83,7 @@ def check_need(need, ctx: dict) -> bool:
 
 
 def visible_options(dlg, node, ctx: dict) -> list:
-    """过滤出当前可见的选项（need 不满足的隐藏）"""
+    """过滤出当前可见的选项(need 不满足的隐藏)"""
     return [opt for opt in node.get("options", []) if check_need(opt.get("need"), ctx)]
 
 

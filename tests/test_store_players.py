@@ -26,7 +26,7 @@ def main():
     print("【store·玩家族：players 档案】")
     p = make_player("g1", "q1", "格温", "战士")
     check("create_player 返回 player", p is not None and p["name"] == "格温", str(p)[:100])
-    check("class_name 正确", p["class_name"] == "战士", str(p.get("class_name")))
+    check("class_name 正确", p["class_name"] == "cls_zhan_shi", str(p.get("class_name")))  # v87.17 make_player 走 resolve
     check("level 默认 1", p["level"] == 1, str(p.get("level")))
     db.update_player("g1", "q1", level=5, gold=999)
     p2 = db.get_player("g1", "q1")

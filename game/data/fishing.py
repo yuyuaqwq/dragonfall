@@ -13,7 +13,7 @@ FISHING_SPOTS = {
     },
     "starlake": {
         "name": "星语湖", "min_lv": 1, "ban_quality": ["purple", "orange"],
-        "desc": "湖珍珠（附魔）/鲛人泪的传说水域",
+        "desc": "湖珍珠(附魔)/鲛人泪的传说水域",
     },
     "harbor_docks": {
         "name": "铁港码头", "min_lv": 3, "ban_quality": [],

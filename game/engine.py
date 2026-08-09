@@ -24,7 +24,7 @@ BRANCH_BONUS = {
 CORE_RESOURCES = {
     "cls_zhan_shi": {
         "key": "rage", "name": "怒气", "max": 10, "regen": 0,
-        "desc": "攻击/受击 +1-2，终结技消耗，越战越勇",
+        "desc": "攻击/受击＋1－2，终结技消耗，越战越勇",
         "on_attack": 1, "on_hit": 1, "on_skill": 2,
     },
     "cls_fa_shi": {
@@ -34,12 +34,12 @@ CORE_RESOURCES = {
     },
     "cls_you_xia": {
         "key": "energy", "name": "精力", "max": 100, "regen": 25,
-        "desc": "每回合回 25 点，技能消耗 15-40，不耗魔力",
+        "desc": "每回合回 25 点，技能消耗 15－40，不耗魔力",
         "on_attack": 0, "on_hit": 0, "on_skill": 0,
     },
     "cls_mu_shi": {
         "key": "faith", "name": "信仰值", "max": 10, "regen": 0,
-        "desc": "治疗/圣光技/受击 +1，神迹技消耗",
+        "desc": "治疗/圣光技/受击＋1，神迹技消耗",
         "on_attack": 0, "on_hit": 1, "on_skill": 1, "on_heal": 2,
     },
     "cls_ci_ke": {
@@ -49,7 +49,7 @@ CORE_RESOURCES = {
     },
     "cls_wu_seng": {
         "key": "chi", "name": "气", "max": 10, "regen": 0,
-        "desc": "连招/受击 +1，终结技/斗气消耗",
+        "desc": "连招/受击＋1，终结技/斗气消耗",
         "on_attack": 1, "on_hit": 1, "on_skill": 1,
     },
 }
@@ -91,7 +91,7 @@ def element_reaction(cur_element: str, target_marks: dict) -> dict | None:
 
 
 def element_mark_apply(target_marks: dict, element: str, layers: int = 1, max_layers: int = 5) -> dict:
-    """给目标挂元素印记（带上限）。返回更新后的印记 dict。"""
+    """给目标挂元素印记(带上限)。返回更新后的印记 dict。"""
     mark_key = ELEMENT_MARKS.get(element, "")
     if not mark_key:
         return target_marks
@@ -100,7 +100,7 @@ def element_mark_apply(target_marks: dict, element: str, layers: int = 1, max_la
 
 
 def core_resource_def(class_name: str) -> dict:
-    """职业核心资源定义（v48：中文或 ID → ID）。无定义返回 {}。"""
+    """职业核心资源定义(v48：中文或 ID → ID)。无定义返回 {}。"""
     cls_id = C.resolve("classes", class_name) if class_name else ""
     return CORE_RESOURCES.get(cls_id, {})
 
@@ -131,7 +131,7 @@ def core_resource_spend(class_name: str, resources: dict, amount: int, key: str 
 
 
 def core_resource_regen(class_name: str, resources: dict) -> int:
-    """回合开始核心资源回复（如游侠精力 +25）。返回新值。"""
+    """回合开始核心资源回复(如游侠精力＋25)。返回新值。"""
     rd = core_resource_def(class_name)
     if not rd:
         return resources.get(rd.get("key", ""), 0)
@@ -163,7 +163,7 @@ MECH_STACK_MAX = {
 
 
 def mech_stack_gain(mech: str, p_mech: dict, mval: int) -> int:
-    """叠层（带上限）。返回新层数。未配上限的机制不限制。"""
+    """叠层(带上限)。返回新层数。未配上限的机制不限制。"""
     cap = MECH_STACK_MAX.get(mech, 99)
     return min(cap, p_mech.get(mech, 0) + mval)
 
@@ -193,7 +193,7 @@ def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: i
 
 
 def race_stats(race: str | None) -> dict:
-    """种族天赋表（08 章）。未知/空种族返回空 dict（无天赋，向后兼容）。"""
+    """种族天赋表(08 章)。未知/空种族返回空 dict(无天赋，向后兼容)。"""
     if not race:
         return {}
     info = C.RACES.get(race) or {}
@@ -201,14 +201,14 @@ def race_stats(race: str | None) -> dict:
 
 
 def race_name(race: str | None) -> str:
-    """种族显示名（未知返回空串，兼容旧档无 race 字段）"""
+    """种族显示名(未知返回空串，兼容旧档无 race 字段)"""
     if not race:
         return ""
     return (C.RACES.get(race) or {}).get("name", "")
 
 
 def player_final_stats(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> dict:
-    """基础属性 + 装备加成（含强化增幅）+ 自由属性点加成 + 称号加成 + 种族天赋"""
+    """基础属性 + 装备加成(含强化增幅)+ 自由属性点加成 + 称号加成 + 种族天赋"""
     st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus, race)
     return st
 
@@ -247,7 +247,7 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
 
 
 def passive_skills_learned(class_name: str, learned_skills: list | None = None) -> list:
-    """返回已学被动技能的中文名列表（v64）。battle.py 用它查触发型被动。"""
+    """返回已学被动技能的中文名列表(v64)。battle.py 用它查触发型被动。"""
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     out = []
     for name in learned:
@@ -258,7 +258,7 @@ def passive_skills_learned(class_name: str, learned_skills: list | None = None) 
 
 
 def is_passive_learned(class_name: str, passive_name: str, learned_skills: list | None = None) -> bool:
-    """指定被动是否已学（v64）。passive_name 为被动技能中文名。"""
+    """指定被动是否已学(v64)。passive_name 为被动技能中文名。"""
     return passive_name in passive_skills_learned(class_name, learned_skills)
 
 # 属性中文名（面板/来源展示用）
@@ -408,7 +408,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
 
 # ---------------- v10 套装计算 ----------------
 def active_sets(equipment: dict) -> dict:
-    """返回 {套装名: 已穿件数}，只含 >=2 件的套装（2 件才有效果）"""
+    """返回 {套装名: 已穿件数}，只含 >=2 件的套装(2 件才有效果)"""
     counts = {}
     for slot, item in (equipment or {}).items():
         if not item:
@@ -420,7 +420,7 @@ def active_sets(equipment: dict) -> dict:
 
 
 def _set_info(set_name: str) -> dict | None:
-    """按套装名（装备 set 字段，中文）查 SETS 条目（SETS key 是 set_xxx ID）"""
+    """按套装名(装备 set 字段，中文)查 SETS 条目(SETS key 是 set_xxx ID)"""
     if set_name in C.SETS:
         return C.SETS[set_name]
     for info in C.SETS.values():
@@ -451,7 +451,7 @@ def set_bonus_2(equipment: dict) -> dict:
 
 
 def has_set(equipment: dict, set_name: str) -> bool:
-    """装备是否穿戴了指定套装（10 章名册套装按套装名匹配）"""
+    """装备是否穿戴了指定套装(10 章名册套装按套装名匹配)"""
     for item in (equipment or {}).values():
         if item and item.get("set") == set_name:
             return True
@@ -459,7 +459,7 @@ def has_set(equipment: dict, set_name: str) -> bool:
 
 
 def set_bonus_4(equipment: dict) -> list:
-    """返回已激活套装（>=4 件）的 4 件特效效果名列表"""
+    """返回已激活套装(>=4 件)的 4 件特效效果名列表"""
     effs = []
     for sname, cnt in active_sets(equipment).items():
         info = _set_info(sname)
@@ -492,7 +492,7 @@ def skills_for_level(class_name: str, level: int) -> list[str]:
 
 
 def is_skill_learned(class_name: str, level: int, skill_name: str, learned_skills: list | None = None) -> bool:
-    """技能是否已学会（v12：必须『技能学习』花技能点学会才能使用，不再按等级自动解锁）"""
+    """技能是否已学会(v12：必须『技能学习』花技能点学会才能使用，不再按等级自动解锁)"""
     info = skill_info(class_name, skill_name)
     if not info:
         return False
@@ -503,7 +503,7 @@ def is_skill_learned(class_name: str, level: int, skill_name: str, learned_skill
 
 
 def skill_learn_cost(level: int, need_lv: int) -> int:
-    """学习技能消耗的技能点（v12：按技能等级定价，等级越高越贵）"""
+    """学习技能消耗的技能点(v12：按技能等级定价，等级越高越贵)"""
     return need_lv // 6 + 2
 
 
@@ -683,7 +683,7 @@ SKILL_UP = {
 
 
 def _skill_up(info: dict | None) -> dict:
-    """按技能 info 查升级配置（key 用中文名）"""
+    """按技能 info 查升级配置(key 用中文名)"""
     if not info:
         return {}
     return SKILL_UP.get(info.get("name", "")) or {}
@@ -699,27 +699,27 @@ def skill_upgrade_cost(cur_lv: int, info: dict | None = None) -> int:
 
 
 def skill_max_level(info: dict | None = None) -> int:
-    """技能独立满级（v56.4）：SKILL_UP 配了 max 用配置，否则默认 5"""
+    """技能独立满级(v56.4)：SKILL_UP 配了 max 用配置，否则默认 5"""
     if not info:
         return SKILL_MAX_LEVEL
     return int(_skill_up(info).get("max", SKILL_MAX_LEVEL))
 
 
 def skill_power_mult(level: int, info: dict | None = None) -> float:
-    """技能等级对 power 的倍率。info 给定且配了 p 时按该技能成长，否则默认每级 +10%"""
+    """技能等级对 power 的倍率。info 给定且配了 p 时按该技能成长，否则默认每级＋10%"""
     lv = max(1, min(level, skill_max_level(info)))
     p = _skill_up(info).get("p", SKILL_POWER_PER_LV * 100)
     return 1.0 + (p / 100) * (lv - 1)
 
 
 def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int:
-    """增益技能升级：每级持续回合 +1（Lv.1=3，Lv.5=7）"""
+    """增益技能升级：每级持续回合＋1(Lv.1=3，Lv.5=7)"""
     lv = max(1, min(level, skill_max_level(info)))
     return base + (lv - 1)
 
 
 def skill_cond_mult(cond: dict | None, level: int, info: dict | None = None) -> float:
-    """条件转化倍率随等级成长。info 配了 c 时按该技能成长，否则默认每级 +0.05"""
+    """条件转化倍率随等级成长。info 配了 c 时按该技能成长，否则默认每级＋0.05"""
     if not cond:
         return 1.0
     lv = max(1, min(level, skill_max_level(info)))
@@ -728,7 +728,7 @@ def skill_cond_mult(cond: dict | None, level: int, info: dict | None = None) -> 
 
 
 def skill_mech_val(info: dict, level: int) -> int:
-    """机制叠层随等级成长。info 配了 m 时按该技能间隔，否则默认每 2 级 +1 层"""
+    """机制叠层随等级成长。info 配了 m 时按该技能间隔，否则默认每 2 级＋1 层"""
     base = int(info.get("mech_val", 0) or 0)
     lv = max(1, min(level, skill_max_level(info)))
     m = _skill_up(info).get("m", 2)
@@ -736,7 +736,7 @@ def skill_mech_val(info: dict, level: int) -> int:
 
 
 def skill_lifesteal_pct(info: dict | None, level: int) -> float:
-    """吸血比例随等级成长：基础 20%，配了 l 时每级 +2%"""
+    """吸血比例随等级成长：基础 20%，配了 l 时每级＋2%"""
     lv = max(1, min(level, skill_max_level(info)))
     return 0.20 + _skill_up(info).get("l", 0) / 100 * (lv - 1)
 
@@ -757,7 +757,7 @@ def skill_info(class_name: str, skill_name: str):
 
 
 def branch_skill_owner(class_name: str, skill_name: str):
-    """分支专属技能归属：(tier, 分支名)；非分支技能返回 None（v26）"""
+    """分支专属技能归属：(tier, 分支名)；非分支技能返回 None(v26)"""
     skill_name = C.resolve("skills", skill_name)
     for tier, branches in _br_table(class_name).items():
         for bname, skills in branches.items():
@@ -768,7 +768,7 @@ def branch_skill_owner(class_name: str, skill_name: str):
 # 战斗
 # ============================================================
 def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False):
-    """伤害公式（v22 非线性减伤）：dmg = atk²/(atk+def)，防御收益递减，杜绝物理免疫"""
+    """伤害公式(v22 非线性减伤)：dmg = atk²/(atk+def)，防御收益递减，杜绝物理免疫"""
     if pierce:
         dmg = atk
     else:
@@ -834,7 +834,7 @@ def player_attack(class_name: str, level: int, equipment: dict, monster: dict, s
         if skill_name == SK("处决"):
             bonus = int(total * (1 - monster["hp"] / monster["max_hp"]))
             monster["hp"] -= bonus
-            logs[-1] = f"你施展【{skill_name}】，造成 {total + bonus} 点伤害（残血加成 {bonus}）！"
+            logs[-1] = f"你施展【{skill_name}】，造成 {total + bonus} 点伤害(残血加成 {bonus})！"
         if skill_name == SK("破甲斩"):
             extra["def_down"] = 1
             logs[-1] += " 敌防下降！"
@@ -903,14 +903,15 @@ def monster_turn(monster: dict, player_stats: dict) -> tuple:
 
 
 def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
-    """检查是否升级（处理多次连升）。返回 (log列表, 更新后的player)"""
+    """检查是否升级(处理多次连升)。返回 (log列表, 更新后的player)"""
     logs = []
     while player["exp"] >= C.exp_to_next(player["level"]):
         player["exp"] -= C.exp_to_next(player["level"])
         player["level"] += 1
         tier = player.get("class_tier", 0)
         prev_base = player_base_stats(player["class_name"], player["level"] - 1, tier)
-        st = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}), tier, player.get("attributes"))
+        # v94 #41：升级重算必须传全 7 参数（race/evolve_path/title_bonus 漏传 → 写入值与面板/战斗重算不一致）
+        st = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}), tier, player.get("attributes"), player.get("evolve_path", 0), player.get("_title_bonus", {}) or {}, player.get("race"))
         player["attr_pts"] = player.get("attr_pts", 0) + 3  # 每级 +3 自由属性点
         player["skill_points"] = player.get("skill_points", 0) + 1  # 每级 +1 技能点
         player["max_hp"] = st["max_hp"]
@@ -927,7 +928,7 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
             f"(生命上限 +{st['max_hp'] - prev_base['hp']}, 攻击 +{st['atk'] - prev_base['atk']})"
         )
         if can_learn:
-            logs.append(f"📖 有 {len(can_learn)} 个新技能可学习！『技能学习 <技能名>』消耗技能点学会（『技能列表』查看）")
+            logs.append(f"📖 有 {len(can_learn)} 个新技能可学习！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")
         if player["level"] in (30,):
             logs.append(f"🌟 你已达到 {player['level']} 级，可以转职了！(输入『转职』查看)")
     return logs, player

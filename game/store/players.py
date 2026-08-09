@@ -8,7 +8,7 @@ from .. import content as C
 
 
 def record_player_group(qq_id, group_id):
-    """记录玩家在某个群注册/活跃过（广播目标筛选）"""
+    """记录玩家在某个群注册/活跃过(广播目标筛选)"""
     if not group_id or group_id == "private":
         return
     with _lock:
@@ -25,7 +25,7 @@ def record_player_group(qq_id, group_id):
             conn.close()
 
 def get_player_groups():
-    """返回所有有玩家注册/活跃过的群号列表（广播目标）"""
+    """返回所有有玩家注册/活跃过的群号列表(广播目标)"""
     with _lock:
         conn = _connect()
         try:
@@ -37,7 +37,7 @@ def get_player_groups():
             conn.close()
 
 def get_group_players(group_id):
-    """返回在指定群注册/活跃过的玩家 {qq_id: player}（玩家数据全局，此处按群筛选）"""
+    """返回在指定群注册/活跃过的玩家 {qq_id: player}(玩家数据全局，此处按群筛选)"""
     with _lock:
         conn = _connect()
         try:
@@ -100,12 +100,22 @@ def get_player(group_id, qq_id):
             # v81 导师进修：apprentices 已拜师副业列表（JSON 数组）
             p["apprentices"] = json.loads(p.get("apprentices") or "[]")
             p["hidden_class_unlock"] = json.loads(p.get("hidden_class_unlock") or "[]")
+            # v94 #41：读取时 clamp 存量档 hp/mp 超上限（升级漏传 race 导致 max 差 1 的遗留档）
+            try:
+                mx_hp = p.get("max_hp") or 0
+                mx_mp = p.get("max_mp") or 0
+                if mx_hp and (p.get("hp") or 0) > mx_hp:
+                    p["hp"] = mx_hp
+                if mx_mp and (p.get("mp") or 0) > mx_mp:
+                    p["mp"] = mx_mp
+            except Exception:
+                pass
             return p
         finally:
             conn.close()
 
 def find_player_by_name(name: str):
-    """按名字查找玩家（玩家跨群共用，只按名字查）。返回 {qq_id, name} 或 None"""
+    """按名字查找玩家(玩家跨群共用，只按名字查)。返回 {qq_id, name} 或 None"""
     with _lock:
         conn = _connect()
         try:
@@ -154,7 +164,7 @@ def update_player(group_id, qq_id, **fields):
     record_player_group(qq_id, group_id)
 
 def top_players(group_id, limit=10):
-    """全服强者榜（跨群）：玩家数据全局，排行不按群过滤。group_id 仅作兼容参数"""
+    """全服强者榜(跨群)：玩家数据全局，排行不按群过滤。group_id 仅作兼容参数"""
     with _lock:
         conn = _connect()
         try:
@@ -168,7 +178,7 @@ def top_players(group_id, limit=10):
             conn.close()
 
 def all_players(group_id):
-    """返回全部玩家（全局）——group_id 仅作兼容参数"""
+    """返回全部玩家(全局)——group_id 仅作兼容参数"""
     with _lock:
         conn = _connect()
         try:
@@ -194,7 +204,7 @@ def get_portals(qq_id) -> list:
             conn.close()
 
 def add_portal(qq_id, map_id):
-    """激活一座祭坛（幂等）"""
+    """激活一座祭坛(幂等)"""
     with _lock:
         conn = _connect()
         try:
@@ -216,7 +226,7 @@ def add_portal(qq_id, map_id):
 
 
 def get_skill_bar(qq_id) -> list:
-    """技能栏 6 槽（技能 ID 列表，空槽为 None）；旧档技能名自动转 ID"""
+    """技能栏 6 槽(技能 ID 列表，空槽为 None)；旧档技能名自动转 ID"""
     with _lock:
         conn = _connect()
         try:
@@ -235,7 +245,7 @@ def get_skill_bar(qq_id) -> list:
             conn.close()
 
 def set_skill_bar(qq_id, bar: list):
-    """保存技能栏（自动补齐 6 槽）；v46 统一存技能 ID"""
+    """保存技能栏(自动补齐 6 槽)；v46 统一存技能 ID"""
     padded = list(bar) + [None] * max(0, 6 - len(bar))
     padded = padded[:6]
     # v46：技能名 → ID

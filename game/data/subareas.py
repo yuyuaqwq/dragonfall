@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 数据层 - subareas.py（自动生成，2026-08-07）"""
+"""奥兰迪亚·余烬纪年 数据层 - subareas.py(自动生成，2026－08－07)"""
 # 子区域拆分：02 章 13 节。key=地图id，value=子区域列表（顺序即默认落点）
 SUBAREAS = {
     "oak_town": [
@@ -2151,7 +2151,7 @@ SUBAREAS = {
             "monsters": [
                 [
                     "m_temple_guard",
-                    "圣殿守卫（魔像）",
+                    "圣殿守卫(魔像)",
                     "tank",
                     28,
                     [
@@ -3447,7 +3447,7 @@ SUBAREAS = {
             "monsters": [
                 [
                     "m_war_golem",
-                    "战争魔像（残）",
+                    "战争魔像(残)",
                     "tank",
                     37,
                     [
@@ -5394,7 +5394,7 @@ SUBAREAS = {
                 ],
                 [
                     "m_seal_guardian",
-                    "封印守卫（腐蚀）",
+                    "封印守卫(腐蚀)",
                     "tank",
                     86,
                     [
@@ -5494,7 +5494,7 @@ SUBAREAS = {
                 ],
                 [
                     "b_eter",
-                    "蚀夜（真相形态）",
+                    "蚀夜(真相形态)",
                     "boss",
                     100,
                     [
@@ -5510,7 +5510,7 @@ SUBAREAS = {
             "elite": None,
             "boss": [
                 "b_eter",
-                "蚀夜（真相形态）",
+                "蚀夜(真相形态)",
                 "boss",
                 100,
                 [
@@ -11043,7 +11043,7 @@ SUBAREAS = {
         "monsters": [
           [
             "m_war_golem",
-            "战争魔像（残）",
+            "战争魔像(残)",
             "tank",
             37,
             [

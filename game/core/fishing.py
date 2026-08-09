@@ -16,7 +16,7 @@ from ..data.fishing import (
 
 
 def _quality_weights(prof_lv: int) -> list:
-    """垂钓等级 → 五档权重（Lv.1/3/5/7/9 查表，中间等级线性插值）。"""
+    """垂钓等级 → 五档权重(Lv.1/3/5/7/9 查表，中间等级线性插值)。"""
     lv = max(1, min(9, int(prof_lv)))
     keys = sorted(FISH_QUALITY_WEIGHTS)
     if lv <= keys[0]:

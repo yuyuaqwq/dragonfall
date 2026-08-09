@@ -44,7 +44,7 @@ def current_period(now: datetime.datetime | None = None) -> str:
 
 
 def current_season(now: datetime.datetime | None = None) -> str:
-    """当前季节：spring/summer/autumn/winter（按现实月份）"""
+    """当前季节：spring/summer/autumn/winter(按现实月份)"""
     now = now or datetime.datetime.now()
     m = now.month
     if m in (3, 4, 5):
@@ -57,7 +57,7 @@ def current_season(now: datetime.datetime | None = None) -> str:
 
 
 def _day_hash(seed: int, salt: str = "") -> int:
-    """日期哈希：全服一致、可查（roam/cycle/天气共用）"""
+    """日期哈希：全服一致、可查(roam/cycle/天气共用)"""
     h = seed * 2654435761 + (sum(ord(c) for c in salt) if salt else 0)
     return h & 0x7FFFFFFF
 

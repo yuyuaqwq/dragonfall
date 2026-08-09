@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 数据层 - items.py 材料部分（阶段一生成，2026-08-06）"""
+"""奥兰迪亚·余烬纪年 数据层 - items.py 材料部分(阶段一生成，2026－08－06)"""
 MATERIALS = {
     "mat_qiu_ling_lang_pi": {
         'price': 5,
@@ -1764,92 +1764,92 @@ MATERIALS = {
         "price": 88,
         "name": "琥珀精华",
         "quality": "purple",
-        "desc": "黄金史莱姆的精华凝结，据说能点石成金（炼金高级配方）。"
+        "desc": "黄金史莱姆的精华凝结，据说能点石成金(炼金高级配方)。"
     },
     "mat_bai_lu_jiao": {
         "price": 150,
         "name": "白鹿角",
         "quality": "orange",
         "type": "传说",
-        "desc": "白鹿王的角，蕴含月光的祝福（传说锻造材料）。"
+        "desc": "白鹿王的角，蕴含月光的祝福(传说锻造材料)。"
     },
     "mat_ying_guang_lin": {
         "price": 66,
         "name": "荧光鳞",
         "quality": "blue",
-        "desc": "荧光鱼群的鳞片，在暗处散发幽光（炼金稀有材料）。"
+        "desc": "荧光鱼群的鳞片，在暗处散发幽光(炼金稀有材料)。"
     },
     "mat_fu_wen_sui_pian": {
         "price": 100,
         "name": "符文碎片",
         "quality": "purple",
-        "desc": "符文魔像的碎片，刻着失传的符文知识（图鉴补全/隐藏成就线索）。"
+        "desc": "符文魔像的碎片，刻着失传的符文知识(图鉴补全/隐藏成就线索)。"
     },
     "mat_an_ying_jing_hua": {
         "price": 120,
         "name": "暗影精华",
         "quality": "purple",
-        "desc": "暗影猎手留下的精华，蕴藏着夜色之力（附魔材料）。"
+        "desc": "暗影猎手留下的精华，蕴藏着夜色之力(附魔材料)。"
     },
     "mat_xing_yun_fu": {
         "price": 50,
         "name": "幸运符",
         "quality": "green",
-        "desc": "幸运灵狐赠与的护符，使用后当日运势提升（签到运势+1 档）。"
+        "desc": "幸运灵狐赠与的护符，使用后当日运势提升(签到运势＋1 档)。"
     },
     # ---- v87 隐藏线任务道具（06 章七.5：H3/H4，collect 目标走 resolve("materials")）----
     "mat_ember_ash": {
         "price": 100,
         "name": "烬火余烬",
         "type": "任务道具",
-        "desc": "烬山深处烧红的余烬，仍散发着灼人的温度（隐藏任务 H3 收集品）"
+        "desc": "烬山深处烧红的余烬，仍散发着灼人的温度(隐藏任务 H3 收集品)"
     },
     "mat_old_page": {
         "price": 80,
         "name": "泛黄书页",
         "type": "任务道具",
-        "desc": "一张泛黄的书页，边缘烧焦，字迹依稀可辨（隐藏任务 H4 收集品）"
+        "desc": "一张泛黄的书页，边缘烧焦，字迹依稀可辨(隐藏任务 H4 收集品)"
     },
     "mat_ember_beacon": {
         "price": 500,
         "name": "烬火信标",
         "type": "任务道具",
-        "desc": "老守墓人·灰须的馈赠，指引通往灰烬回廊（H7 隐藏区域准入）"
+        "desc": "老守墓人·灰须的馈赠，指引通往灰烬回廊(H7 隐藏区域准入)"
     },
     "mat_jian_sheng_can_ye": {
         "price": 120,
         "name": "剑圣残页",
         "type": "任务道具",
-        "desc": "失落图书馆中散落的剑圣剑谱残页，记载着魔能剑术的奥义（魔剑士试炼收集品）"
+        "desc": "失落图书馆中散落的剑圣剑谱残页，记载着魔能剑术的奥义(魔剑士试炼收集品)"
     },
     "mat_star_hourglass": {
         "price": 800,
         "name": "星尘沙漏",
         "type": "任务道具",
-        "desc": "图书管理员·贝拉托付的沙漏，沙粒泛着星辉（星尘套锻造核心）"
+        "desc": "图书管理员·贝拉托付的沙漏，沙粒泛着星辉(星尘套锻造核心)"
     },
     "mat_hui_jin_zhi_he": {
         "price": 1200,
         "name": "灰烬之核",
         "type": "任务道具",
-        "desc": "烬火领主·伊格尼斯心脏中的灼热核心，灰烬守卫套锻造核心（H7 隐藏区域 Boss 掉落）"
+        "desc": "烬火领主·伊格尼斯心脏中的灼热核心，灰烬守卫套锻造核心(H7 隐藏区域 Boss 掉落)"
     },
     # ---- v87.2 副本地图化 loot 材料（29 章 13.3：宝箱/补给/遗骸掉落）----
-    "mat_jun_qi_sui_pian": {"price": 100, "name": "军旗碎片", "type": "材料", "desc": "鹿角要塞军旗的碎片，可作钥匙进入鹿角要塞（首通后免钥匙）"},
+    "mat_jun_qi_sui_pian": {"price": 100, "name": "军旗碎片", "type": "材料", "desc": "鹿角要塞军旗的碎片，可作钥匙进入鹿角要塞(首通后免钥匙)"},
     "mat_gu_wang_sui_pian": {"price": 200, "name": "古王碎片", "type": "材料", "desc": "古王奥德里克陪葬品的残片，蕴含古老的力量"},
     "mat_sheng_tang_mi_juan": {"price": 180, "name": "圣堂密卷", "type": "材料", "desc": "枢机主教密室的封印密卷，记载着教会秘史"},
-    "mat_da_sheng_ming_yao_shui": {"price": 150, "name": "大生命药水", "type": "材料", "desc": "浓稠的生命药水，可恢复大量生命（材料，可用于交易/任务）"},
-    "mat_you_ling_chuan_piao": {"price": 120, "name": "幽灵船票", "type": "材料", "desc": "锈蚀的船票，幽灵水手用它摆渡亡魂（可作钥匙进入沉船湾）"},
+    "mat_da_sheng_ming_yao_shui": {"price": 150, "name": "大生命药水", "type": "材料", "desc": "浓稠的生命药水，可恢复大量生命(材料，可用于交易/任务)"},
+    "mat_you_ling_chuan_piao": {"price": 120, "name": "幽灵船票", "type": "材料", "desc": "锈蚀的船票，幽灵水手用它摆渡亡魂(可作钥匙进入沉船湾)"},
     "mat_xing_hui_shi": {"price": 300, "name": "星辉石", "type": "材料", "desc": "星门开启时落下的星辉结晶，锻造极品材料"},
     "mat_yue_guang_shi": {"price": 220, "name": "月光石", "type": "材料", "desc": "月光凝成的宝石，精灵古物常用它镶嵌"},
     "mat_yue_hui_shi": {"price": 180, "name": "月辉石", "type": "材料", "desc": "月神圣殿的供品宝石，泛着清冷的月辉"},
     "mat_lang_mu_jiu": {"price": 80, "name": "朗姆酒", "type": "材料", "desc": "沉船湾出产的烈酒，水手们的最爱"},
     "mat_hai_dao_cang_bao_tu": {"price": 60, "name": "海盗的藏宝图", "type": "材料", "desc": "从搁浅水手怀里找到的藏宝图，标着海蚀洞窟的秘密角落"},
-    "mat_hai_shen_dao_wen": {"price": 260, "name": "海神祷文", "type": "材料", "desc": "海神神殿的祷文刻章（可作钥匙进入海神神殿）"},
+    "mat_hai_shen_dao_wen": {"price": 260, "name": "海神祷文", "type": "材料", "desc": "海神神殿的祷文刻章(可作钥匙进入海神神殿)"},
     "mat_shen_yuan_qi_shi_hu_fu": {"price": 240, "name": "深渊骑士护符", "type": "材料", "desc": "深渊骑士残骸上的护符，抵挡过黑暗的侵蚀"},
     "mat_jing_tie_ding": {"price": 130, "name": "精铁锭", "type": "材料", "desc": "矮人工艺锻造的优质铁锭，装备强化材料"},
     "mat_lei_he": {"price": 280, "name": "雷核", "type": "材料", "desc": "风暴中凝聚的雷电核心，蕴含狂暴的能量"},
-    "mat_long_gong_zhu": {"price": 300, "name": "龙宫珠", "type": "材料", "desc": "龙宫的夜明珠，价值连城（可作钥匙进入深海龙宫）"},
+    "mat_long_gong_zhu": {"price": 300, "name": "龙宫珠", "type": "材料", "desc": "龙宫的夜明珠，价值连城(可作钥匙进入深海龙宫)"},
     "mat_long_lin": {"price": 260, "name": "龙鳞", "type": "材料", "desc": "古龙的鳞片，坚硬如铁，锻造极品材料"},
 }
 
@@ -1858,20 +1858,20 @@ MATERIALS = {
 # heal/mana 为百分比（0.2 = 回复 20% HP），use 命令会转绝对值；旧固定值物品（heal>=1）兼容
 CONSUMABLES = {
     # ---- 2.1 药水（回复类） ----
-    "i_treat_s": {"name": "治疗药水（小）", "price": 10, "heal": 0.2,
+    "i_treat_s": {"name": "治疗药水(小)", "price": 10, "heal": 0.2,
                   "desc": "回复 20% HP"},
-    "i_treat_m": {"name": "治疗药水（中）", "price": 30, "heal": 0.4,
+    "i_treat_m": {"name": "治疗药水(中)", "price": 30, "heal": 0.4,
                   "desc": "回复 40% HP"},
-    "i_treat_l": {"name": "治疗药水（大）", "price": 100, "heal": 0.6,
+    "i_treat_l": {"name": "治疗药水(大)", "price": 100, "heal": 0.6,
                   "desc": "回复 60% HP"},
-    "i_mana_s": {"name": "魔法药水（小）", "price": 10, "mana": 0.2,
+    "i_mana_s": {"name": "魔法药水(小)", "price": 10, "mana": 0.2,
                  "desc": "回复 20% MP"},
-    "i_mana_m": {"name": "魔法药水（中）", "price": 30, "mana": 0.4,
+    "i_mana_m": {"name": "魔法药水(中)", "price": 30, "mana": 0.4,
                  "desc": "回复 40% MP"},
-    "i_mana_l": {"name": "魔法药水（大）", "price": 100, "mana": 0.6,
+    "i_mana_l": {"name": "魔法药水(大)", "price": 100, "mana": 0.6,
                  "desc": "回复 60% MP"},
     "i_full_potion": {"name": "全效药水", "price": 50, "heal": 0.3, "mana": 0.3,
-                      "desc": "回复 30% HP + 30% MP"},
+                      "desc": "回复 30% HP＋30% MP"},
     "i_holy_water": {"name": "圣水", "price": 80, "heal": 0.25,
                      "desc": "回复 25% HP 并驱散 1 层负面"},
     # ---- 2.2 食物（非战斗回复 + 持续 buff） ----
@@ -1882,28 +1882,28 @@ CONSUMABLES = {
     "i_ale": {"name": "麦酒", "price": 10, "heal": 0.15, "mana": 0.15,
               "desc": "回复 15% HP/MP"},
     "i_stew": {"name": "炖菜", "price": 20, "heal": 0.4, "mana": 0.2,
-               "desc": "非战斗回复 40% HP + 20% MP"},
+               "desc": "非战斗回复 40% HP＋20% MP"},
     "i_elf_fruit": {"name": "精灵果", "price": 30, "heal": 0.3, "mana": 0.3,
-                    "desc": "非战斗回复 30% HP + 30% MP"},
+                    "desc": "非战斗回复 30% HP＋30% MP"},
     "i_dwarf_liquor": {"name": "矮人烈酒", "price": 40, "effect": "buff_atk",
-                       "desc": "攻击 +5%，持续 3 场战斗"},
+                       "desc": "攻击＋5%，持续 3 场战斗"},
     # ---- 3 药剂（战斗中瞬时 buff） ----
     "i_str_potion": {"name": "力量药剂", "price": 100, "effect": "buff_atk",
-                     "desc": "本回合攻击 +30%"},
+                     "desc": "本回合攻击＋30%"},
     "i_def_potion": {"name": "铁壁药剂", "price": 100, "effect": "buff_def",
-                     "desc": "本回合防御 +30%"},
+                     "desc": "本回合防御＋30%"},
     "i_spd_potion": {"name": "疾风药剂", "price": 100, "effect": "buff_spd",
-                     "desc": "本回合速度 +30%"},
+                     "desc": "本回合速度＋30%"},
     "i_fury_potion": {"name": "狂怒药剂", "price": 200, "effect": "buff_atk",
-                      "desc": "下一次攻击 +50%"},
+                      "desc": "下一次攻击＋50%"},
     "i_holy_potion": {"name": "圣光药剂", "price": 100, "effect": "buff_matk",
-                      "desc": "本回合治疗效果 +20%"},
+                      "desc": "本回合治疗效果＋20%"},
     "i_dragon_scale_potion": {"name": "龙鳞药剂", "price": 200, "effect": "buff_def",
-                              "desc": "本回合魔法减伤 +15%"},
+                              "desc": "本回合魔法减伤＋15%"},
     "i_battlecry_potion": {"name": "战吼药剂", "price": 300, "effect": "buff_atk",
-                           "desc": "本回合攻击 +40%（爆发）"},
+                           "desc": "本回合攻击＋40%(爆发)"},
     "i_lucky_potion": {"name": "幸运药剂", "price": 200, "effect": "buff_crit",
-                       "desc": "本回合暴击率 +20%"},
+                       "desc": "本回合暴击率＋20%"},
     # ---- 4 卷轴（一次性法术） ----
     "i_scroll_fireball": {"name": "火球卷轴", "price": 200,
                           "desc": "战斗内 120% 单体火系"},
@@ -1916,7 +1916,7 @@ CONSUMABLES = {
     "i_scroll_teleport": {"name": "传送卷轴", "price": 500,
                           "desc": "立即返回最近城镇"},
     "i_scroll_revive": {"name": "唤醒卷轴", "price": 1000,
-                        "desc": "战斗内复活（回复 50% HP）"},
+                        "desc": "战斗内复活(回复 50% HP)"},
     "i_scroll_goblin": {"name": "召唤卷轴·哥布林", "price": 500,
                         "desc": "召唤 1 只哥布林助战"},
     # ---- 07 章 6.3 ----
@@ -1927,15 +1927,15 @@ CONSUMABLES = {
     # ---- 烹饪产物（13 章 2.3 烹饪表） ----
     "it_slime_jelly": {"name": "史莱姆果冻", "price": 20, "heal": 0.2,
                       "desc": "战斗外回复 20% HP"},
-    "it_cook_skewer": {"name": "烤肉串（自制）", "price": 30, "heal": 0.35,
+    "it_cook_skewer": {"name": "烤肉串(自制)", "price": 30, "heal": 0.35,
                       "desc": "战斗外回复 35% HP"},
     "it_gold_feast": {"name": "金鲤盛宴", "price": 60, "heal": 0.5, "mana": 0.2,
-                     "desc": "战斗外回复 50% HP + 20% MP"},
+                     "desc": "战斗外回复 50% HP＋20% MP"},
     # ---- 垂钓产业链·炼金（16 章 2.5：鲛人泪/龙涎香独占材料） ----
     "i_mermaid_tear": {"name": "鲛人之泪", "price": 150, "effect": "buff_matk",
-                      "desc": "本回合魔攻 +30%"},
+                      "desc": "本回合魔攻＋30%"},
     "i_ambergris_draught": {"name": "龙涎药剂", "price": 250, "effect": "buff_atk_def",
-                           "desc": "本回合攻击 +30%、防御 +20%"},
+                           "desc": "本回合攻击＋30%、防御＋20%"},
     # ---- 旧 ID 别名（兼容旧测试/旧数据引用，内容对齐新世界） ----
     "i_treatment_potion": {"name": "治疗药水", "price": 10, "heal": 0.2,
                            "desc": "回复 20% HP"},
@@ -1953,45 +1953,45 @@ CONSUMABLES = {
                         "desc": "立即返回最近城镇"},
     # ---- 2.9 副本入场钥匙（29 章 11 节：高难/外域副本门槛） ----
     "i_key_old_king": {"name": "王陵钥匙", "price": 500, "key_item": True,
-                       "desc": "旧王陵的入场钥匙（白鹿城铁匠铺购买）"},
+                       "desc": "旧王陵的入场钥匙(白鹿城铁匠铺购买)"},
     "i_key_crypt": {"name": "圣堂信物", "price": 300, "key_item": True,
-                    "desc": "圣堂地窖的入场信物（晨曦城大教堂任务奖励）"},
+                    "desc": "圣堂地窖的入场信物(晨曦城大教堂任务奖励)"},
     "i_key_elven": {"name": "精灵遗印", "price": 800, "key_item": True,
-                    "desc": "精灵废墟的入场印记（翡翠森林精英掉落）"},
+                    "desc": "精灵废墟的入场印记(翡翠森林精英掉落)"},
     "i_key_ash": {"name": "烬火令", "price": 1500, "key_item": True,
-                  "desc": "烬山祭坛的入场令牌（烬山精英掉落）"},
+                  "desc": "烬山祭坛的入场令牌(烬山精英掉落)"},
     "i_key_abyss": {"name": "深渊钥匙", "price": 2000, "key_item": True,
-                    "desc": "深渊裂隙的入场钥匙（深渊骑士掉落）"},
+                    "desc": "深渊裂隙的入场钥匙(深渊骑士掉落)"},
     "i_key_dragon_tomb": {"name": "龙牙信物", "price": 2000, "key_item": True,
-                          "desc": "龙之墓的入场信物（龙脊山脉精英掉落）"},
+                          "desc": "龙之墓的入场信物(龙脊山脉精英掉落)"},
     "i_key_deer_fort": {"name": "军旗碎片", "price": 200, "key_item": True,
-                        "desc": "鹿角要塞的入场碎片（要塞地图探索掉落）"},
+                        "desc": "鹿角要塞的入场碎片(要塞地图探索掉落)"},
     "i_key_trial": {"name": "试炼令", "price": 400, "key_item": True,
-                    "desc": "圣光试炼场的入场令牌（铁盾镇兵营任务奖励）"},
+                    "desc": "圣光试炼场的入场令牌(铁盾镇兵营任务奖励)"},
     "i_key_moon": {"name": "月辉钥匙", "price": 3000, "key_item": True,
-                   "desc": "月神圣殿的入场钥匙（月冠王庭月市购买）"},
+                   "desc": "月神圣殿的入场钥匙(月冠王庭月市购买)"},
     "i_key_frost": {"name": "寒冰令", "price": 3500, "key_item": True,
-                    "desc": "冰霜王座的入场令牌（永冻冰原精英掉落）"},
+                    "desc": "冰霜王座的入场令牌(永冻冰原精英掉落)"},
     "i_key_storm_throne": {"name": "雷光令", "price": 4000, "key_item": True,
-                           "desc": "风暴王座的入场令牌（风暴崖精英掉落）"},
+                           "desc": "风暴王座的入场令牌(风暴崖精英掉落)"},
     "i_key_sunken": {"name": "幽灵船票", "price": 600, "key_item": True,
-                     "desc": "沉船湾的入场船票（铁港码头精英掉落）"},
+                     "desc": "沉船湾的入场船票(铁港码头精英掉落)"},
     "i_key_siren": {"name": "海妖鳞片信物", "price": 1200, "key_item": True,
-                    "desc": "海妖巢穴的入场信物（海妖湾精英掉落）"},
+                    "desc": "海妖巢穴的入场信物(海妖湾精英掉落)"},
     "i_key_sea_god": {"name": "海神祷文", "price": 1800, "key_item": True,
-                      "desc": "海神神殿的入场祷文（无名港灯塔任务奖励）"},
+                      "desc": "海神神殿的入场祷文(无名港灯塔任务奖励)"},
     "i_key_dragon_palace": {"name": "龙宫珠", "price": 2500, "key_item": True,
-                            "desc": "深海龙宫的入场宝珠（龙鲸海域精英掉落）"},
+                            "desc": "深海龙宫的入场宝珠(龙鲸海域精英掉落)"},
     "i_key_gray_dwarf": {"name": "灰矮人通行令", "price": 2800, "key_item": True,
-                         "desc": "灰矮人要塞的通行令（地底集市任务奖励）"},
+                         "desc": "灰矮人要塞的通行令(地底集市任务奖励)"},
     "i_key_under_dragon": {"name": "龙鳞钥匙", "price": 3000, "key_item": True,
-                           "desc": "地底龙巢的入场钥匙（熔火深渊精英掉落）"},
+                           "desc": "地底龙巢的入场钥匙(熔火深渊精英掉落)"},
     "i_key_eye_storm": {"name": "雷核钥匙", "price": 4500, "key_item": True,
-                        "desc": "风暴之眼的入场钥匙（雷暴高原精英掉落）"},
+                        "desc": "风暴之眼的入场钥匙(雷暴高原精英掉落)"},
     "i_key_abyss_throne": {"name": "深渊圣印", "price": 4500, "key_item": True,
-                           "desc": "深渊王座的入场圣印（深渊祭坛精英掉落）"},
+                           "desc": "深渊王座的入场圣印(深渊祭坛精英掉落)"},
     "i_key_cloud": {"name": "云玺", "price": 5000, "key_item": True,
-                    "desc": "云中圣殿的入场玉玺（星辉台精英掉落）"},
+                    "desc": "云中圣殿的入场玉玺(星辉台精英掉落)"},
 }
 
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料

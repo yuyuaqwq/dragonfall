@@ -37,7 +37,7 @@ class SocialCmds(CommandBase):
         raw = self._strip_cmd(event, "市场")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(items, page, per_page=5)
-        lines = [f"🏪 【群友市场】（第 {page}/{pages} 页 · 共 {len(items)} 件）", "━━━━━━━━━━━━"]
+        lines = [f"🏪 【群友市场】(第 {page}/{pages} 页 · 共 {len(items)} 件)", "━━━━━━━━━━━━"]
         for i, it in enumerate(page_items, (page - 1) * 5 + 1):
             seller = self._player(group_id, it["seller"])
             sname = seller["name"] if seller else it["seller"]
@@ -45,7 +45,7 @@ class SocialCmds(CommandBase):
             lines.append(f"{i:>2}. #{it['id']} {d.get('name','?')} ｜ {it['price']} 金币 ｜ 卖家 {sname}")
         lines.append("")
         if pages > 1:
-            lines.append(f"💡 『市场 {page+1}』看下一页（共 {pages} 页）")
+            lines.append(f"💡 『市场 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『购入 <编号>』购买，『上架 <物品> <价格>』寄售")
         yield event.plain_result("\n".join(lines))
 
@@ -125,14 +125,14 @@ class SocialCmds(CommandBase):
         # 换摊（price=0）：不走金币购买
         if (it.get("price") or 0) <= 0:
             yield event.plain_result(
-                f"【{it['item_data'].get('name','?')}】是换摊（只换不卖）——用『换 {mid} <物品名>』提出交换！"
+                f"【{it['item_data'].get('name','?')}】是换摊(只换不卖)——用『换 {mid} <物品名>』提出交换！"
             )
             return
         # v66：摊位货必须当面买（摆摊在当前位置，需要同地图）
         if it.get("map_id"):
             if player.get("cur_map") != it["map_id"]:
                 map_name = C.MAP_BY_ID.get(it["map_id"], {}).get("name", "那里")
-                yield event.plain_result(f"这是【{it['item_data'].get('name','?')}】的摊位货，需要到『{map_name}』当面购入～（『摊位』看看谁在摆摊）")
+                yield event.plain_result(f"这是【{it['item_data'].get('name','?')}】的摊位货，需要到『{map_name}』当面购入～(『摊位』看看谁在摆摊)")
                 return
         if player["gold"] < it["price"]:
             yield event.plain_result(f"金币不足！需要 {it['price']} 金币。")
@@ -143,7 +143,7 @@ class SocialCmds(CommandBase):
             db.update_player(group_id, it["seller"], gold=seller["gold"] + it["price"])
         db.market_remove(mid)
         db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
-        yield event.plain_result(f"🛒 购入成功！【{it['item_data'].get('name','?')}】已放入背包（花费 {it['price']} 金币）")
+        yield event.plain_result(f"🛒 购入成功！【{it['item_data'].get('name','?')}】已放入背包(花费 {it['price']} 金币)")
 
     # ---------------- v66 摆摊系统 ----------------
 
@@ -187,7 +187,7 @@ class SocialCmds(CommandBase):
             db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
         db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
         db.remove_item(group_id, qq_id, found["key"], count=1)
-        tip = f"（旧摊位已收摊，{len(old)} 件物品退回背包）" if old else ""
+        tip = f"(旧摊位已收摊，{len(old)} 件物品退回背包)" if old else ""
         if price > 0:
             head = f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
             tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
@@ -214,7 +214,7 @@ class SocialCmds(CommandBase):
 
     @staticmethod
     def _stall_label(s):
-        """摊位价格标签：price>0 → 'N 金币'；price=0 → '🔄 换'（以物换物）"""
+        """摊位价格标签：price>0 → 'N 金币'；price=0 → '🔄 换'(以物换物)"""
         price = s.get("price") or 0
         return f"{price} 金币" if price > 0 else "🔄 换"
 
@@ -244,16 +244,16 @@ class SocialCmds(CommandBase):
             for s in stalls:
                 map_name = C.MAP_BY_ID.get(s.get("map_id", ""), {}).get("name", "？")
                 lines.append(f"#{s['id']} {s['item_data'].get('name','?')} ｜ {self._stall_label(s)} ｜ 在 {map_name}")
-            lines.append("💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』（需在同一位置）")
+            lines.append("💡 标 🔄 的是换摊：『换 <编号> <物品名>』当面交换；其他『购入 <编号>』(需在同一位置)")
             yield event.plain_result("\n".join(lines))
             return
         # 无参 → 当前地图所有摊位
         cur_map = player.get("cur_map", "")
         stalls = db.market_list(group_id, cur_map)
         if not stalls:
-            yield event.plain_result("此地没有摊位。『摆摊 <物品> [价格]』支起你的小摊（不带价格 = 换摊）！")
+            yield event.plain_result("此地没有摊位。『摆摊 <物品> [价格]』支起你的小摊(不带价格 = 换摊)！")
             return
-        lines = [f"🏪 【此地摊位】（{C.MAP_BY_ID.get(cur_map, {}).get('name', '这里')}）", "━━━━━━━━━━━━"]
+        lines = [f"🏪 【此地摊位】({C.MAP_BY_ID.get(cur_map, {}).get('name', '这里')})", "━━━━━━━━━━━━"]
         for s in stalls:
             seller = db.get_player(group_id, s["seller"])
             sname = seller["name"] if seller else s["seller"]
@@ -263,7 +263,7 @@ class SocialCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?换(?:[\s\S]*)$")
     async def stall_exchange(self, event: AstrMessageEvent):
-        """以物换物：『换 <摊位编号> <物品名>』——对方摆摊不带价格（换摊）时，用背包物品当面交换"""
+        """以物换物：『换 <摊位编号> <物品名>』——对方摆摊不带价格(换摊)时，用背包物品当面交换"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -271,7 +271,7 @@ class SocialCmds(CommandBase):
             return
         args = self._strip_cmd(event, "换").split(None, 1)
         if len(args) < 2 or not args[0].isdigit():
-            yield event.plain_result("格式：换 <摊位编号> <物品名>，如『换 3 狼皮』（对方摆摊不带价格 = 换摊）")
+            yield event.plain_result("格式：换 <摊位编号> <物品名>，如『换 3 狼皮』(对方摆摊不带价格 = 换摊)")
             return
         mid, give_name = int(args[0]), args[1].strip()
         it = db.market_get(mid)
@@ -293,7 +293,7 @@ class SocialCmds(CommandBase):
             return
         if (it.get("price") or 0) > 0:
             yield event.plain_result(
-                f"【{it['item_data'].get('name','?')}】是出售中的（{it['price']} 金币），用『购入 {mid}』购买～"
+                f"【{it['item_data'].get('name','?')}】是出售中的({it['price']} 金币)，用『购入 {mid}』购买～"
             )
             return
         inv = db.get_inventory(group_id, qq_id)
@@ -325,14 +325,14 @@ class SocialCmds(CommandBase):
         members = db.party_members(group_id, qq_id)
         if not target:
             if members:
-                lines = [f"🤝 【队伍】（{len(members)}人）", "━━━━━━━━━━━━"]
+                lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]
                 for i, m in enumerate(members, 1):
                     p = self._player(group_id, m)
-                    lines.append(f"{i}. {p['name'] if p else m}" + ("（队长）" if m == members[0] else ""))
-                lines.append("💡 组队打怪经验 +10%！队长『组队 <名字>』可再拉人（上限 4 人）；『退队』离开")
+                    lines.append(f"{i}. {p['name'] if p else m}" + ("(队长)" if m == members[0] else ""))
+                lines.append("💡 组队打怪经验＋10%！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
                 yield event.plain_result("\n".join(lines))
             else:
-                yield event.plain_result("你还没有队伍。『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验 +10%")
+                yield event.plain_result("你还没有队伍。『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%")
             return
         # 找目标玩家
         all_players = db.get_group_players(group_id)
@@ -356,11 +356,11 @@ class SocialCmds(CommandBase):
             tname_str = tname["name"] if tname else target
             if db.party_add(group_id, qq_id, target_qq):
                 yield event.plain_result(
-                    f"🤝 {tname_str} 加入了你的队伍！（当前 {len(db.party_members(group_id, qq_id))} 人，上限 4 人）\n"
-                    f"💡 组队打怪经验 +10%！"
+                    f"🤝 {tname_str} 加入了你的队伍！(当前 {len(db.party_members(group_id, qq_id))} 人，上限 4 人)\n"
+                    f"💡 组队打怪经验＋10%！"
                 )
             else:
-                yield event.plain_result(f"无法拉入 {tname_str}：TA 可能已在队伍中，或队伍已满（4 人）～")
+                yield event.plain_result(f"无法拉入 {tname_str}：TA 可能已在队伍中，或队伍已满(4 人)～")
             return
         db.party_create(group_id, qq_id, target_qq)
         tname = self._player(group_id, target_qq)
@@ -369,7 +369,7 @@ class SocialCmds(CommandBase):
         db.bump_stats(group_id, target_qq, party_count=1)
         C.check_achievements(group_id, qq_id)
         C.check_achievements(group_id, target_qq)
-        yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验 +10%！『组队 <名字>』可再拉人（上限 4 人）")
+        yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")
 
@@ -380,7 +380,7 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         if db.party_leave(group_id, qq_id):
-            yield event.plain_result("👋 你已退出队伍！（队长退队将解散队伍）")
+            yield event.plain_result("👋 你已退出队伍！(队长退队将解散队伍)")
         else:
             yield event.plain_result("你还没有队伍～")
 
@@ -483,7 +483,7 @@ class SocialCmds(CommandBase):
             return
         g = db.guild_get_by_member(qq_id)
         if not g:
-            yield event.plain_result("你还没有公会！『创建公会 <名字>』（20级+5000金币）或『加入公会 <名字>』")
+            yield event.plain_result("你还没有公会！『创建公会 <名字>』(20级＋5000金币)或『加入公会 <名字>』")
             return
         members = db.guild_members(g["gid"])
         count = len(members)
@@ -498,7 +498,7 @@ class SocialCmds(CommandBase):
             f"📜 {g['desc'] or '暂无宣言'}",
             f"💡 公会加成：打怪经验 +{min(int(g['level'] * C.GUILD_CONFIG['exp_bonus_per_level'] * 100), int(C.GUILD_CONFIG['max_bonus'] * 100))}%",
             f"━━━━━━━━━━━━",
-            f"成员（第 {page}/{pages} 页）：",
+            f"成员(第 {page}/{pages} 页)：",
         ]
         for i, m in enumerate(page_items, (page - 1) * 5 + 1):
             p = self._player(group_id, m["qq_id"])
@@ -507,7 +507,7 @@ class SocialCmds(CommandBase):
             lines.append(f"{i:>2}. {role} {name} Lv.{p['level'] if p else '?'} ｜ 贡献 {m['contribute']}")
         lines.append("")
         if pages > 1:
-            lines.append(f"💡 『公会 {page+1}』看下一页（共 {pages} 页）")
+            lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『公会签到』『公会任务』为公会赚经验！")
         yield event.plain_result("\n".join(lines))
 
@@ -560,7 +560,7 @@ class SocialCmds(CommandBase):
             yield event.plain_result("今天的公会任务已完成！明天再来～")
             return
         yield event.plain_result(
-            f"🎯 【公会任务】击杀 {need} 只怪物（当前 {tprog}/{need}）\n"
+            f"🎯 【公会任务】击杀 {need} 只怪物(当前 {tprog}/{need})\n"
             f"💡 击杀怪物自动推进，完成后回来领取奖励！"
         )
 
@@ -573,7 +573,7 @@ class SocialCmds(CommandBase):
             return
         lines = ["🏆 【公会排行榜】", "━━━━━━━━━━━━"]
         for i, g in enumerate(tops, 1):
-            lines.append(f"{i}. {g['icon']} {g['name']} Lv.{g['level']}（{g['members']}人）")
+            lines.append(f"{i}. {g['icon']} {g['name']} Lv.{g['level']}({g['members']}人)")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物(?!改名)(?:\s*|$)")
@@ -603,15 +603,15 @@ class SocialCmds(CommandBase):
         bonus = int(min(pet["level"] / 10, 0.5) * 100)
         skill_line = ""
         if pdef:
-            skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}（Lv.10 解锁）"
+            skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}(Lv.10 解锁)"
         if sat <= 0:
-            skill_line = "\n😵 技能失效（饱食度归零）"
+            skill_line = "\n😵 技能失效(饱食度归零)"
         lines = [
             f"{icon} 【宠物 · {pdef['name'] if pdef else pet['name']}】",
             f"━━━━━━━━━━━━",
             f"名字：{pet['name']} | Lv.{pet['level']}",
             f"❤️ 饱食度：{sat}/100",
-            f"✨ 经验加成：+{bonus}%（主人战斗经验）",
+            f"✨ 经验加成：+{bonus}%(主人战斗经验)",
         ]
         if skill_line:
             lines.insert(4, skill_line)
@@ -655,7 +655,7 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         mat_name = self._strip_cmd(event, "喂养").strip()
         if not mat_name:
-            yield event.plain_result("格式：喂养 <材料名/序号>，如『喂养 狼皮』或『喂养 1』（打怪/采集可获得材料）")
+            yield event.plain_result("格式：喂养 <材料名/序号>，如『喂养 狼皮』或『喂养 1』(打怪/采集可获得材料)")
             return
         # 找背包里的食材（材料/鱼/草药均可，24 章四）
         items = db.get_inventory(group_id, qq_id)
@@ -665,7 +665,7 @@ class SocialCmds(CommandBase):
             mats = [it for it in items if it["data"].get("type") in FOOD_TYPES]
             idx = int(mat_name)
             if idx < 1 or idx > len(mats):
-                yield event.plain_result(f"背包里没有第 {idx} 个食材（共 {len(mats)} 个）！打怪、『采集』、『垂钓』可获得食材。")
+                yield event.plain_result(f"背包里没有第 {idx} 个食材(共 {len(mats)} 个)！打怪、『采集』、『垂钓』可获得食材。")
                 return
             target = mats[idx - 1]
         else:
@@ -688,7 +688,7 @@ class SocialCmds(CommandBase):
             lv += 1
         db.pet_update(qq_id, satiety=sat, bond=bond, exp=exp, level=lv)
         lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
-        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
+        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度＋30 ｜ 💕 亲密度＋5 ｜ ✨ 经验＋10{lv_str}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
 
@@ -776,7 +776,7 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _maybe_roll_event(self) -> str:
-        """惰性事件调度：无事件且冷却到期 → 概率触发新事件。返回公告文本（无则空串）"""
+        """惰性事件调度：无事件且冷却到期 → 概率触发新事件。返回公告文本(无则空串)"""
         import random as _rnd
         cur = db.get_world_event(include_expired=True)
         now = int(time.time())
@@ -845,7 +845,7 @@ class SocialCmds(CommandBase):
         evt = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur["etype"]), None)
         left = max(0, cur["ends_at"] - now)
         mm, ss = divmod(left, 60)
-        lines = [f"🌍 【世界事件】{evt['icon']} {evt['name']}（剩余 {mm}分{ss}秒）" if evt else "🌍 世界事件",
+        lines = [f"🌍 【世界事件】{evt['icon']} {evt['name']}(剩余 {mm}分{ss}秒)" if evt else "🌍 世界事件",
                  f"━━━━━━━━━━━━"]
         if evt:
             lines.append(evt["desc"])
@@ -865,14 +865,14 @@ class SocialCmds(CommandBase):
             b = cur["data"].get("boss", {})
             pct = max(0, int(b.get("hp", 0) / max(1, b.get("max_hp", 1)) * 100))
             lines.append(f"{b.get('icon','')} {b.get('name','')} Lv.{b.get('lv',1)}")
-            lines.append(f"❤️ 剩余血量 {max(0,b.get('hp',0)):,} / {b.get('max_hp',0):,}（{pct}%）")
+            lines.append(f"❤️ 剩余血量 {max(0,b.get('hp',0)):,} / {b.get('max_hp',0):,}({pct}%)")
             lines.append(f"⚔️ 输入『讨伐』参与战斗！贡献越高奖励越丰厚！")
         elif cur["etype"] == "merchant":
             lines.append("🎁 所有商店 8 折优惠进行中！『商店』查看，『购买 <物品>』扫货！")
         elif cur["etype"] == "omen":
-            lines.append("🌧️ 经验与金币收益 +50%！快去『探索』打怪吧！")
+            lines.append("🌧️ 经验与金币收益＋50%！快去『探索』打怪吧！")
         elif cur["etype"] == "swarm":
-            lines.append("⚔️ 怪物经验 +30%，击杀声望双倍！守护大陆！")
+            lines.append("⚔️ 怪物经验＋30%，击杀声望双倍！守护大陆！")
         elif cur["etype"] == "festival":
             lines.append("🎉 『签到』奖励翻倍！金币掉落增加！")
         lines.append("")
@@ -902,22 +902,22 @@ class SocialCmds(CommandBase):
                     pass
                 yield event.plain_result(broadcast_text)
                 return
-            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！（『事件』查看）")
+            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！(『事件』查看)")
             return
         if cur["etype"] != "auction":
-            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！（『事件』查看）")
+            yield event.plain_result("🏪 拍卖行暂未开张。世界事件出现『神秘拍卖行』时再来吧！(『事件』查看)")
             return
         items = cur["data"].get("items", [])
         left = cur["ends_at"] - now
         mm, ss = divmod(left, 60)
-        lines = [f"🏪 【神秘拍卖行】（剩余 {mm}分{ss}秒）", "━━━━━━━━━━━━"]
+        lines = [f"🏪 【神秘拍卖行】(剩余 {mm}分{ss}秒)", "━━━━━━━━━━━━"]
         for it in items:
             top = max(it["bids"].values()) if it["bids"] else 0
             top_name = "无人出价"
             if it["bids"]:
                 top_qq = max(it["bids"], key=it["bids"].get)
                 tp = self._player(group_id, top_qq)
-                top_name = f"{tp['name'] if tp else top_qq}（{top}）"
+                top_name = f"{tp['name'] if tp else top_qq}({top})"
             lines.append(f"📦 {it['id']}. {it['name']}")
             lines.append(f"   底价 {it['base']} ｜ 最高：{top_name} ｜ 一口价 {it['buyout']}")
             lines.append(f"   『竞拍 {it['id']} <金币>』出价")
@@ -983,7 +983,7 @@ class SocialCmds(CommandBase):
             yield event.plain_result("🏪 拍卖行暂未开张。")
             return
         if len(args) < 2 or not args[0].isdigit() or not args[1].isdigit():
-            yield event.plain_result("格式：竞拍 <编号> <金币>，如『竞拍 1 5000』（『拍卖』查看编号）")
+            yield event.plain_result("格式：竞拍 <编号> <金币>，如『竞拍 1 5000』(『拍卖』查看编号)")
             return
         item_id = int(args[0])
         amount = int(args[1])
@@ -1030,6 +1030,6 @@ class SocialCmds(CommandBase):
             it["bids"] = {str(qq_id): amount}
             cur["data"]["items"] = [x for x in items if x["id"] != item_id]
             db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
-            yield event.plain_result(f"💰 一口价成交！你以 {amount} 金币拍得【{it['name']}】！\n📦 装备已放入背包（『背包』查看）")
+            yield event.plain_result(f"💰 一口价成交！你以 {amount} 金币拍得【{it['name']}】！\n📦 装备已放入背包(『背包』查看)")
             return
-        yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n（若被超越将自动退还）")
+        yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n(若被超越将自动退还)")

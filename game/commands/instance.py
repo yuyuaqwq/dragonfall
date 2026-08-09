@@ -153,7 +153,7 @@ class InstanceCmds(CommandBase):
     @no_prof_waiting()
 
     async def instance_map_view_cmd(self, event: AstrMessageEvent):
-        """查看当前层小地图全景（29 章 13.5）"""
+        """查看当前层小地图全景(29 章 13.5)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -165,7 +165,7 @@ class InstanceCmds(CommandBase):
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
-            yield event.plain_result("战斗进行中！先解决眼前的敌人～（『攻击』『技能 <名称>』『防御』）")
+            yield event.plain_result("战斗进行中！先解决眼前的敌人～(『攻击』『技能 <名称>』『防御』)")
             return
         yield event.plain_result(self._instance_map_view(st, group_id))
 
@@ -174,7 +174,7 @@ class InstanceCmds(CommandBase):
     @no_prof_waiting()
 
     async def instance_investigate(self, event: AstrMessageEvent):
-        """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱（29 章 13.5）"""
+        """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱(29 章 13.5)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -217,7 +217,7 @@ class InstanceCmds(CommandBase):
     @no_prof_waiting()
 
     async def instance_retreat(self, event: AstrMessageEvent):
-        """退出副本：解锁战斗，保留层进度与 POI 状态（29 章 13.6）"""
+        """退出副本：解锁战斗，保留层进度与 POI 状态(29 章 13.6)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -246,7 +246,7 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
     async def _instance_explore(self, event, group_id, qq_id, inst_row):
-        """副本内探索：优先遇怪（进入战斗），未触发陷阱概率踩中，否则无事。"""
+        """副本内探索：优先遇怪(进入战斗)，未触发陷阱概率踩中，否则无事。"""
         st = inst_row["state"]
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
@@ -333,7 +333,7 @@ class InstanceCmds(CommandBase):
         return f"{info.get('name', class_name)}{'·' + role if role else ''}"
 
     def _party_composition_hint(self, st: dict) -> list:
-        """队伍构成提示（v49 意见#7 职业组队搭配）"""
+        """队伍构成提示(v49 意见#7 职业组队搭配)"""
         roles = [C.CLASSES.get(st["players"][str(m)].get("class_name", ""), {}).get("role", "")
                  for m in st["members"]]
         hints = []
@@ -359,7 +359,7 @@ class InstanceCmds(CommandBase):
         return None
 
     def _instance_retreated_row(self, group_id, qq_id):
-        """查找队长名下已撤退（retreated）的副本记录（恢复进度用）"""
+        """查找队长名下已撤退(retreated)的副本记录(恢复进度用)"""
         b = db.get_battle(group_id, qq_id)
         if b and b["state"].get("type") == "instance" and b["state"].get("retreated"):
             return b
@@ -378,15 +378,15 @@ class InstanceCmds(CommandBase):
                 size = f"👥 {mn}人"
             else:
                 size = f"👥 {mn}-{mx}人"
-            lines.append(f"{i}. {mark} {inst['icon']} {inst['name']}（Lv.{inst['lv']}+ · {size}）")
+            lines.append(f"{i}. {mark} {inst['icon']} {inst['name']}(Lv.{inst['lv']}+ · {size})")
             lines.append(f"   {inst['desc']}")
             mats = "、".join(
                 C.display("materials", m) if m in C.MATERIALS else m
                 for m in inst.get("materials", [])
             )
-            lines.append(f"   👹 Boss：{inst['boss'][1]}（Lv.{inst['boss'][3]}）· 掉落：{mats}")
+            lines.append(f"   👹 Boss：{inst['boss'][1]}(Lv.{inst['boss'][3]})· 掉落：{mats}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 单人副本直接『副本 <名字>』开本！多人副本先『组队 <对方名字>』（上限 4 人），队长『副本 <名字>』开本！")
+        lines.append("💡 单人副本直接『副本 <名字>』开本！多人副本先『组队 <对方名字>』(上限 4 人)，队长『副本 <名字>』开本！")
         lines.append("💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！")
         return "\n".join(lines)
 
@@ -407,7 +407,7 @@ class InstanceCmds(CommandBase):
         lines = [
             f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮{stage_line}",
             "━━━━━━━━━━━━",
-            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}（{pct}%）",
+            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}({pct}%)",
         ]
         for m in st["members"]:
             p = self._player(group_id, m)
@@ -417,7 +417,7 @@ class InstanceCmds(CommandBase):
             mark = "✅" if alive else "💀"
             cls_label = self._class_role_label(snap.get("class_name", ""))
             lines.append(
-                f"{mark} {pname}（{cls_label}）：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} "
+                f"{mark} {pname}({cls_label})：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} "
                 f"💙 {snap.get('mp', 0)}/{snap.get('max_mp', 1)}"
             )
         cur_key = str(st["members"][st["turn"]])
@@ -435,7 +435,7 @@ class InstanceCmds(CommandBase):
         return self._stage_poi_state(st, stage_idx).get(poi_id, {}).get("used", False)
 
     def _any_poi_used(self, st: dict, poi_id: str) -> bool:
-        """任意层是否已用过某 POI（secret cond 跨层检查用）"""
+        """任意层是否已用过某 POI(secret cond 跨层检查用)"""
         for _sidx_state in st.get("stage_pois", {}).values():
             if _sidx_state.get(poi_id, {}).get("used"):
                 return True
@@ -456,7 +456,7 @@ class InstanceCmds(CommandBase):
         self._stage_poi_state(st, stage_idx)[poi_id] = {"used": True}
 
     def _find_stage_poi(self, stage: dict, name: str):
-        """按名字找层 POI（先完全匹配，再包含匹配）"""
+        """按名字找层 POI(先完全匹配，再包含匹配)"""
         pois = stage.get("pois") or []
         for p in pois:
             if p.get("name") == name:
@@ -467,7 +467,7 @@ class InstanceCmds(CommandBase):
         return None
 
     def _stage_virtual_map(self, st: dict) -> dict:
-        """构造当前层"虚拟地图"（复用世界地图展示管线 _map_interactions）"""
+        """构造当前层"虚拟地图"(复用世界地图展示管线 _map_interactions)"""
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
         stage = stages[sidx] if sidx < len(stages) else {}
@@ -492,7 +492,7 @@ class InstanceCmds(CommandBase):
         }
 
     def _instance_map_view(self, st: dict, group_id) -> str:
-        """生成当前层小地图全景（desc + 复用 _map_interactions + 怪物/隐藏房间）"""
+        """生成当前层小地图全景(desc + 复用 _map_interactions + 怪物/隐藏房间)"""
         vmap = self._stage_virtual_map(st)
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
@@ -510,7 +510,7 @@ class InstanceCmds(CommandBase):
         if secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
             lines.append(f"🔓 隐藏房间：{secret.get('desc', '')}")
         elif secret and not st.get("stage_secret_found"):
-            lines.append("🤔 似乎有暗门/机关的气息……（线索可能藏在石碑或机关里）")
+            lines.append("🤔 似乎有暗门/机关的气息……(线索可能藏在石碑或机关里)")
         # 复用世界地图展示管线：内联 POI / NPC（v87.13 场景函数）
         inter = self._map_scene(vmap, None)
         if inter:
@@ -530,7 +530,7 @@ class InstanceCmds(CommandBase):
             lines.append("━━━━━━━━━━━━")
             mstr = "、".join(m[1] for m in mons) + (f" ⭐精英·{el[1]}" if el else "")
             if mstr:
-                lines.append(f"🐾 敌人：{mstr}（『探索』遇怪）")
+                lines.append(f"🐾 敌人：{mstr}(『探索』遇怪)")
             else:
                 lines.append("🐾 这里暂时没有敌人。")
         lines.append("━━━━━━━━━━━━")
@@ -538,7 +538,7 @@ class InstanceCmds(CommandBase):
         return "\n".join(lines)
 
     def _stage_npcs(self, group_id, qq_id) -> list:
-        """当前副本层内 NPC 列表（供『找』路由）"""
+        """当前副本层内 NPC 列表(供『找』路由)"""
         st_row = self._instance_battle_for(group_id, qq_id)
         if not st_row:
             return []
@@ -616,7 +616,7 @@ class InstanceCmds(CommandBase):
                 src = inst.get("key_source", "？？？")
                 yield event.plain_result(
                     f"🔒 『{inst['name']}』被封印之门挡住！\n"
-                    f"需要『{key_item}』才能进入（已通关副本可免钥匙）\n"
+                    f"需要『{key_item}』才能进入(已通关副本可免钥匙)\n"
                     f"📜 获取途径：{src}"
                 )
                 return
@@ -805,14 +805,14 @@ class InstanceCmds(CommandBase):
             f"📜 {inst['desc']}\n"
             f"━━━━━━━━━━━━\n"
             f"{size_tip}"
-            f"⚡ 行动顺序（按速度）：{' → '.join(st['players'][m].get('name', m) for m in st['members'])}\n"
+            f"⚡ 行动顺序(按速度)：{' → '.join(st['players'][m].get('name', m) for m in st['members'])}\n"
             f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』\n"
             f"💡 按顺序轮流出手，超时 2 分钟自动防御；清光当前层怪物可『深入』下一层！"
         )
 
     # ---------------- 行动核心 ----------------
     async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None):
-        """副本回合行动（由攻击/技能/防御指令路由进来）"""
+        """副本回合行动(由攻击/技能/防御指令路由进来)"""
         members = st["members"]
         now = int(time.time())
         logs = []
@@ -882,7 +882,7 @@ class InstanceCmds(CommandBase):
         if action == "defend":
             top = max(threat.values()) if threat else 0
             threat[cur_key] = max(threat.get(cur_key, 0), int(top * 1.3) + 50)
-            logs.append("🛡️ 你大声挑衅，Boss 的注意力被你吸引过来！（仇恨飙升）")
+            logs.append("🛡️ 你大声挑衅，Boss 的注意力被你吸引过来！(仇恨飙升)")
         logs += act_logs
 
         # v50 团队技能：广播到全队（治疗/增益/护盾/减伤/暴击/魔攻/速度）
@@ -987,7 +987,7 @@ class InstanceCmds(CommandBase):
         yield event.plain_result(
             "\n".join(logs) +
             f"\n━━━━━━━━━━━━\n"
-            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}（{pct}%）\n"
+            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}({pct}%)\n"
             f"⏳ 轮到 {nxt_p['name'] if nxt_p else nxt_key} 行动！"
         )
 
@@ -1070,7 +1070,7 @@ class InstanceCmds(CommandBase):
         return logs
 
     def _instance_boss_one_turn(self, st: dict, group_id: int) -> list:
-        """Boss 单次行动：打仇恨最高（或嘲讽目标）的存活队员"""
+        """Boss 单次行动：打仇恨最高(或嘲讽目标)的存活队员"""
         logs = []
         members = st["members"]
         alive = [m for m in members if st["alive"].get(str(m), True)]

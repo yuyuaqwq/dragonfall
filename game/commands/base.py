@@ -41,7 +41,7 @@ def no_prof_waiting():
                 left = st["finish"] - int(time.time())
                 tname = self._PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
                 yield event.plain_result(
-                    f"⏳ 你还在{tname}呢，再有 {left} 秒完成，先别走开！（完成会自动入包）"
+                    f"⏳ 你还在{tname}呢，再有 {left} 秒完成，先别走开！(完成会自动入包)"
                 )
                 return
             async for item in fn(self, event, *args, **kwargs):
@@ -109,7 +109,7 @@ class CommandBase:
 
     @classmethod
     def _static_handlers(cls):
-        """收集本类（含 Mixin）上所有 @filter.regex 正则 → [(正则, 方法名)]"""
+        """收集本类(含 Mixin)上所有 @filter.regex 正则 → [(正则, 方法名)]"""
         if cls._STATIC_HANDLERS is not None:
             return cls._STATIC_HANDLERS
         from ._registry import COMMAND_REGEX
@@ -165,7 +165,7 @@ class CommandBase:
             # 静态表回退：hit = (方法名, regex)，直接 getattr 取 bound method
             handler_fn = getattr(self, hit[0], None)
             if handler_fn is None:
-                yield event.plain_result(f"❌ 快捷指令『{text}』无法识别（处理器缺失）～")
+                yield event.plain_result(f"❌ 快捷指令『{text}』无法识别(处理器缺失)～")
                 return
             is_prebound = True
         else:
@@ -197,7 +197,7 @@ class CommandBase:
             event.message_str = orig_msg
 
     def _fmt_stat_src(self, src: dict) -> str:
-        """格式化单条属性来源：『来源名: 攻击+8 生命+40 暴击+5%』"""
+        """格式化单条属性来源：『来源名: 攻击＋8 生命＋40 暴击＋5%』"""
         parts = []
         for k, v in src["stats"].items():
             name = E.STAT_NAMES.get(k, k)
@@ -214,7 +214,7 @@ class CommandBase:
         return f"{src['name']}: {' '.join(parts)}" if parts else ""
 
     def _attr_sources(self, player: dict, title_bonus: dict = None) -> list[str]:
-        """玩家属性来源明细（v16 属性来源拆解）"""
+        """玩家属性来源明细(v16 属性来源拆解)"""
         try:
             st, sources = E.player_stats_detail(
                 player["class_name"], player["level"], player["equipment"],
@@ -263,7 +263,7 @@ class CommandBase:
         return db.get_player(group_id, qq_id)
 
     def _title_bonus(self, group_id, qq_id) -> dict:
-        """副业大师称号的属性加成汇总（Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus）"""
+        """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)"""
         bonus = {}
         try:
             earned = self._earned_titles(group_id, qq_id, self._player(group_id, qq_id) or {})

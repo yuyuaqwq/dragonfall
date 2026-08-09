@@ -59,7 +59,7 @@ def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
     check("专属 16", len(C.LEGENDARY_EFFECTS) == 16, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 103 件", len(C.EQUIP_ROSTER) == 103, str(len(C.EQUIP_ROSTER)))
+    check("名册 112 件", len(C.EQUIP_ROSTER) == 112, str(len(C.EQUIP_ROSTER)))
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -70,8 +70,9 @@ def test_data():
     missing_fixed = [rid for rid, r in C.EQUIP_ROSTER.items()
                      if r["name"] not in C.SERIES_FIXED_AFFIX]
     check("固定词条全覆盖", not missing_fixed, str(missing_fixed[:5]))
+    # v95：商店饰品无属性需求（新手期不卡职业），req 允许缺失/为空
     bad_req = [rid for rid, r in C.EQUIP_ROSTER.items()
-               if not r.get("req") or not set(r["req"]).issubset({"str", "agi", "int", "vit"})]
+               if not set(r.get("req") or {}).issubset({"str", "agi", "int", "vit"})]
     check("需求格式合法", not bad_req, str(bad_req[:5]))
     bad_lg = [rid for rid, r in C.EQUIP_ROSTER.items()
               if r["quality"] == "orange" and not r.get("legendary")]
@@ -129,25 +130,28 @@ def test_random_gen():
 # ============ 4. 掉落 ============
 def test_drop():
     print("【4. 掉落】")
-    # 普通怪 12% 概率（seed 循环找触发）
+    # v93 经济改革：怪物不再掉装备（铁匠铺购买+图纸锻造），只掉图纸
     triggered = False
     for seed in range(1, 300):
         random.seed(seed)
         d = C.roll_drop(10, "normal")
-        if d[0] is not None:
-            check(f"普通怪掉装备（seed {seed}）", d[0]["quality"] in ("green", "blue"), d[0]["quality"])
+        if d[1] is not None:
+            check(f"普通怪掉图纸（seed {seed}）", d[1]["type"] == "图纸", d[1]["type"])
             triggered = True
             break
     if not triggered:
-        check("普通怪掉装备", False, "300 seed 无触发")
+        check("普通怪掉图纸", False, "300 seed 无触发")
+    random.seed(4)
+    d = C.roll_drop(20, "normal")
+    check("普通怪不掉装备", d[0] is None)
     random.seed(4)
     d2 = C.roll_drop(20, "elite")
-    check("精英掉装备", d2[0] is not None and d2[0]["quality"] in ("purple", "blue"))
+    check("精英不掉装备", d2[0] is None)
     check("精英掉图纸", d2[1] is not None and d2[1]["type"] == "图纸", str(d2[1]))
     check("图纸 blueprint_for", d2[1]["blueprint_for"] in C.EQUIP_ROSTER_BY_NAME, str(d2[1]["blueprint_for"]))
     random.seed(8)
     d3 = C.roll_drop(40, "boss")
-    check("Boss 掉装备", d3[0] is not None and d3[0]["quality"] in ("orange", "purple"))
+    check("Boss 不掉装备", d3[0] is None)
     check("Boss 掉图纸", d3[1] is not None)
 
 
@@ -263,8 +267,8 @@ async def test_shop_roster():
     clean_db()
     await cmd(m, "register", "g1", "q1", "注册 战士 测试")
     db.update_player("g1", "q1", gold=10000, attributes='{"str": 40, "agi": 40, "int": 40, "vit": 40}')
-    # 铁港买弯刀（名册 req 敏捷 12）
-    db.update_player("g1", "q1", cur_map="ironharbor")
+    # 铁港买弯刀（名册 req 敏捷 12）——v87.17 需在商店子区域
+    db.update_player("g1", "q1", cur_map="ironharbor", cur_subarea="ironharbor_6")
     r = await cmd(m, "buy", "g1", "q1", "购买 弯刀")
     txt = r[-1]
     check("买弯刀成功", "购买了【弯刀】" in txt, txt)

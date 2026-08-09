@@ -42,11 +42,11 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         if self._in_battle(group_id, qq_id):
-            yield event.plain_result("你正在战斗中！先解决眼前的敌人（攻击/逃跑）")
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人(攻击/逃跑)")
             return
         cur = player["cur_map"]
         if cur.startswith("home_"):
-            yield event.plain_result("在家里安心休息吧，没有怪物会闯进来～（『出门』去冒险）")
+            yield event.plain_result("在家里安心休息吧，没有怪物会闯进来～(『出门』去冒险)")
             return
         cur_map = C.MAP_BY_ID[cur]
         # 城镇区域（安全区）：可触发 POI，无怪
@@ -151,7 +151,7 @@ class CombatCmds(CommandBase):
                 return
             yield event.plain_result(
                 f"🏘️ 你在{cur_map['name']}附近转了一圈，暂时没什么动静。\n"
-                f"🧭 前往『地图』选择去野外的地图（如翡翠森林），或者进城看看 NPC。"
+                f"🧭 前往『地图』选择去野外的地图(如翡翠森林)，或者进城看看 NPC。"
             )
             return
         if not events:
@@ -287,7 +287,7 @@ class CombatCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?许愿(?:[\s\S]*)$")
 
     async def wish(self, event: AstrMessageEvent):
-        """流星许愿（02 章 7.5 探索彩蛋）：三选一祝福"""
+        """流星许愿(02 章 7.5 探索彩蛋)：三选一祝福"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -296,7 +296,7 @@ class CombatCmds(CommandBase):
         import json as _json, time as _time
         raw = db.get_event_state(f"wish_{group_id}_{qq_id}")
         if not raw:
-            yield event.plain_result("没有流星在等你许愿……（野外『探索』偶遇流星许愿彩蛋时才能许愿）")
+            yield event.plain_result("没有流星在等你许愿……(野外『探索』偶遇流星许愿彩蛋时才能许愿)")
             return
         try:
             st = _json.loads(raw)
@@ -304,7 +304,7 @@ class CombatCmds(CommandBase):
             st = {"ts": 0}
         if _time.time() - st.get("ts", 0) > 120:
             db.set_event_state(f"wish_{group_id}_{qq_id}", "")
-            yield event.plain_result("流星已经划过天际，你的愿望随风消散了……（下次探索再碰碰运气）")
+            yield event.plain_result("流星已经划过天际，你的愿望随风消散了……(下次探索再碰碰运气)")
             return
         opt = self._strip_cmd(event, "许愿").strip()
         if opt not in ("经验", "金币", "材料"):
@@ -316,6 +316,7 @@ class CombatCmds(CommandBase):
             gain = max(20, int(need * 0.2))
             db.update_player(group_id, qq_id, exp=player["exp"] + gain)
             player = self._player(group_id, qq_id)
+            player["_title_bonus"] = self._title_bonus(group_id, qq_id)
             lv_logs, _ = E.check_player_level_up(group_id, qq_id, player)
             tail = ("\n" + "\n".join(lv_logs)) if lv_logs else ""
             msg = f"✨ 流星回应了你的愿望！经验 +{gain}{tail}"
@@ -377,7 +378,7 @@ class CombatCmds(CommandBase):
                 return True, (
                     f"🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n"
                     f"“深渊的裂隙……正在低语……去找它。”\n"
-                    f"身影说完便消散在雾中，你隐约感到，某个秘密被揭开了（隐藏线索已记入见闻）。"
+                    f"身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"
                 )
             # v87 02 章 7.5：新彩蛋——泛黄藏宝图（H6 书页线索）
             if eid == "old_map":
@@ -386,7 +387,7 @@ class CombatCmds(CommandBase):
                     f"🗺️ 【泛黄藏宝图】你在一棵老树的树洞里发现一张泛黄的藏宝图！\n"
                     f"图上画着一条通往圣堂地窖深处的地下通道，边缘写着：\n"
                     f"“三页旧纸，一扇石门——书页不齐，石门不开。”\n"
-                    f"你收好藏宝图（隐藏线索：失落图书馆·书页之一 已记入见闻）。"
+                    f"你收好藏宝图(隐藏线索：失落图书馆·书页之一 已记入见闻)。"
                 )
             # v87 02 章 7.5：新彩蛋——金色史莱姆（必掉稀有材料+金币）
             if eid == "gold_slime":
@@ -454,13 +455,14 @@ class CombatCmds(CommandBase):
             db.update_player(group_id, qq_id, hp=new_hp)
             return True, (
                 f"🕳️ 【陷阱】脚下突然一空，你掉进了猎人废弃的陷阱！\n"
-                f"你摔伤了，损失 {dmg} 点生命（当前 ❤️ {new_hp}/{player['max_hp']}）"
+                f"你摔伤了，损失 {dmg} 点生命(当前 ❤️ {new_hp}/{player['max_hp']})"
             )
         # 古老遗迹：经验
         if eid == "omen":
             exp_gain = 15 + player["level"] * 3
             db.update_player(group_id, qq_id, exp=player["exp"] + exp_gain)
             player = self._player(group_id, qq_id)
+            player["_title_bonus"] = self._title_bonus(group_id, qq_id)
             lines = [f"🏛️ 【古老遗迹】你在废墟中发现一段古老符文，隐约蕴含着知识的力量！\n✨ 经验 +{exp_gain}"]
             lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
             if lv_logs:
@@ -549,7 +551,7 @@ class CombatCmds(CommandBase):
             db.set_event_state(f"rain_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
             return True, (
                 f"🌧️ 【突如其来的雨】豆大的雨点砸下来，你躲进树荫避雨。\n"
-                f"雨后的空气格外清新——你感到一阵清明（接下来 30 分钟探索遇怪率小幅提升）。"
+                f"雨后的空气格外清新——你感到一阵清明(接下来 30 分钟探索遇怪率小幅提升)。"
             )
         return False, ""
 
@@ -592,7 +594,7 @@ class CombatCmds(CommandBase):
             bname, bkey = random.choice(buffs)
             db.set_event_state(f"poi_buff_{group_id}_{qq_id}", json.dumps({"stat": bkey, "mult": 1.10, "left": 5}))
             return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
-                    f"✨ 获得祝福：{bname} +10%（持续 5 次战斗）！")
+                    f"✨ 获得祝福：{bname}＋10%(持续 5 次战斗)！")
         # 草药丛：1-2 份炼金材料
         if eff == "herb":
             herbs = ["狼皮", "蜘蛛毒囊", "蛇鳞", "妖精之尘", "草药"]
@@ -622,7 +624,7 @@ class CombatCmds(CommandBase):
             new_hp = max(1, player["hp"] - dmg)
             db.update_player(group_id, qq_id, hp=new_hp)
             return (f"💥 【{pname}】你刚打开包裹，里面弹出一只发条咬人夹！\n"
-                    f"你被夹了一下，损失 {dmg} 生命（当前 ❤️ {new_hp}/{player['max_hp']}）")
+                    f"你被夹了一下，损失 {dmg} 生命(当前 ❤️ {new_hp}/{player['max_hp']})")
         # 符文石：图鉴/隐藏线索
         if eff == "rune":
             from ..data.pois import RUNE_POOL
@@ -634,7 +636,7 @@ class CombatCmds(CommandBase):
         if eff == "fish":
             db.set_event_state(f"poi_fish_{group_id}_{qq_id}", json.dumps({"ts": time.time()}))
             return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
-                    f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数（30 分钟内有效）！")
+                    f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数(30 分钟内有效)！")
         # 神秘字条：隐藏线索
         if eff == "note":
             from ..data.pois import NOTE_POOL
@@ -709,7 +711,7 @@ class CombatCmds(CommandBase):
             eff = poi.get("effect") or {}
             if eff.get("unlock"):
                 st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
-                logs.append("✨ 碑文的内容似乎触发了什么……（某个机关被解锁了！）")
+                logs.append("✨ 碑文的内容似乎触发了什么……(某个机关被解锁了！)")
             if eff.get("avoid_trap"):
                 st.setdefault("poi_unlocks", {})[f"avoid_{eff['avoid_trap']}"] = True
                 logs.append("✨ 你记住了避开陷阱的路线。")
@@ -879,7 +881,7 @@ class CombatCmds(CommandBase):
             if inst_row:
                 battle = inst_row
         if not battle:
-            yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～（『技能列表』查看技能）")
+            yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～(『技能列表』查看技能)")
             return
         skill_name = skill_name.strip()
         info = E.skill_info(player["class_name"], skill_name)
@@ -911,7 +913,7 @@ class CombatCmds(CommandBase):
         bar = db.get_skill_bar(qq_id)
         if skill_name not in (bar or []):
             yield event.plain_result(
-                f"『{skill_name}』没放进技能栏！『技能栏』查看，『设置技能 1 {skill_name}』（或任意空槽）配置后才能在战斗中使用～\n"
+                f"『{skill_name}』没放进技能栏！『技能栏』查看，『设置技能 1 {skill_name}』(或任意空槽)配置后才能在战斗中使用～\n"
                 f"💡 想快速搭配？试试『流派』一键配置技能组合！"
             )
             return
@@ -954,7 +956,7 @@ class CombatCmds(CommandBase):
         )
 
     def _skill_panel(self, player: dict) -> str:
-        """技能系统面板（无参『技能』）"""
+        """技能系统面板(无参『技能』)"""
         cls = player["class_name"]
         cls_info = C.CLASSES.get(cls, {})
         total = len(E._sk_table(cls))
@@ -964,22 +966,22 @@ class CombatCmds(CommandBase):
         lines = [
             f"⚔️ 【技能系统】 {cls_info.get('icon','')}{C.display('classes', cls)} Lv.{player['level']}",
             "━━━━━━━━━━━━",
-            f"💡 技能点：{pts}（每升 1 级 +1）",
+            f"💡 技能点：{pts}(每升 1 级＋1)",
             f"✅ 已学：{have}/{total} ｜ 🔒 未学：{total - have}",
             "━━━━━━━━━━━━",
-            "『技能列表』查看全部技能（可翻页）",
+            "『技能列表』查看全部技能(可翻页)",
             "『技能详情 <名称/序号>』查看单个技能",
             "『技能学习 <名称>』消耗技能点学会技能",
-            "『技能升级 <名称>』消耗技能点升级（满级 Lv.5）",
+            "『技能升级 <名称>』消耗技能点升级(满级 Lv.5)",
             "『技能栏』查看 / 『设置技能 <槽位> <技能名>』配置快捷栏",
-            "『技能洗点』重置技能（500金币返还技能点）",
+            "『技能洗点』重置技能(500金币返还技能点)",
             "战斗中『技能 <槽位>』或『技能 <技能名>』施放",
-            "⚙️ 被动技能无需施放，学会后战斗自动生效（『技能列表』可见<被动>标签）",
+            "⚙️ 被动技能无需施放，学会后战斗自动生效(『技能列表』可见<被动>标签)",
         ]
         return "\n".join(lines)
 
     def _branch_skills_for(self, player: dict) -> dict:
-        """玩家已解锁分支的专属技能表 {技能名: info}（v26：按 tier 升序合并，只含已转职分支）"""
+        """玩家已解锁分支的专属技能表 {技能名: info}(v26：按 tier 升序合并，只含已转职分支)"""
         cls = C.BRANCH_SKILLS.get(player["class_name"], {})
         if isinstance(cls, dict) and "branches" in cls:
             cls = cls["branches"]
@@ -1033,7 +1035,7 @@ class CombatCmds(CommandBase):
         return ""
 
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
-        """技能列表翻页（每页 5 条带序号，序号与『技能 N』释放一致；未学显示 Lv.0）"""
+        """技能列表翻页(每页 5 条带序号，序号与『技能 N』释放一致；未学显示 Lv.0)"""
         skills = self._player_skill_table(player)
         skill_items = list(skills.items())
         learned = player.get("learned_skills", [])
@@ -1230,7 +1232,7 @@ class CombatCmds(CommandBase):
         return "\n".join(parts)
 
     def _battle_footer(self, player: dict, b, monster: dict) -> str:
-        """战斗底部：血蓝 + 状态行（有状态才追加）+ 速度优势提示（v61）"""
+        """战斗底部：血蓝 + 状态行(有状态才追加)+ 速度优势提示(v61)"""
         status = self._status_line(player, b)
         lines = [
             f"🐾【{monster['name']}】❤️ {max(0, monster['hp'])}/{monster['max_hp']}",
@@ -1240,7 +1242,7 @@ class CombatCmds(CommandBase):
             lines.append(status)
         # v61：玩家还有剩余额外行动时提示自由出手
         if getattr(b, "p_extra_left", 0) > 0:
-            lines.append(f"⚡ 速度优势！你还可以行动 {b.p_extra_left} 次（『攻击』『技能 <名称>』『使用 <道具>』）")
+            lines.append(f"⚡ 速度优势！你还可以行动 {b.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
         return "\n".join(lines)
 
     def _handle_victory(self, event, group_id, qq_id, player, monster, result):
@@ -1280,7 +1282,7 @@ class CombatCmds(CommandBase):
                 pb = pb / 2  # 饱食度 =0：经验加成减半
             if pb > 0:
                 exp = int(exp * (1 + pb))
-                ptag = "🐾 陪伴（饱食度归零，加成减半）" if pet["satiety"] <= 0 else "🐾 陪伴"
+                ptag = "🐾 陪伴(饱食度归零，加成减半)" if pet["satiety"] <= 0 else "🐾 陪伴"
                 pet_bonus.append(f"{ptag}：经验 +{int(pb*100)}%")
             # 战斗消耗饱食度 -2（先自然衰减再扣战斗消耗）
             db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2), last_sat_time=pet["last_sat_time"])
@@ -1295,20 +1297,20 @@ class CombatCmds(CommandBase):
                 p_lvup = True
             db.pet_update(qq_id, exp=p_exp, level=p_lv)
             if p_lvup:
-                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！（Lv.10 解锁宠物技能）" if p_lv >= 10 else f"🎉 宠物升到 Lv.{p_lv}！")
+                pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.10 解锁宠物技能)" if p_lv >= 10 else f"🎉 宠物升到 Lv.{p_lv}！")
         # 世界事件加成：元素异象 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
         evt_bonus = []
         cur_evt = db.get_world_event()
         if cur_evt:
             if cur_evt["etype"] == "omen":
                 exp = int(exp * 1.5); gold = int(gold * 1.5)
-                evt_bonus.append("🌧️ 元素异象：收益 +50%")
+                evt_bonus.append("🌧️ 元素异象：收益＋50%")
             elif cur_evt["etype"] == "swarm":
                 exp = int(exp * 1.3)
-                evt_bonus.append("⚔️ 兽潮：经验 +30%")
+                evt_bonus.append("⚔️ 兽潮：经验＋30%")
             elif cur_evt["etype"] == "festival":
                 gold = int(gold * 1.5)
-                evt_bonus.append("🎉 庆典：金币 +50%")
+                evt_bonus.append("🎉 庆典：金币＋50%")
         # v87 02 章 7.6：每日运势加成（大吉 经验+10% / 小凶 金币-10%）
         fortune_line = ""
         try:
@@ -1320,10 +1322,10 @@ class CombatCmds(CommandBase):
                 if _f.get("date") == _dt.date.today().isoformat():
                     if _f.get("fortune") == "大吉":
                         exp = int(exp * 1.10)
-                        fortune_line = "🌟 今日大吉：经验 +10%！"
+                        fortune_line = "🌟 今日大吉：经验＋10%！"
                     elif _f.get("fortune") == "小凶":
                         gold = int(gold * 0.90)
-                        fortune_line = "🌧️ 今日小凶：金币 -10%……"
+                        fortune_line = "🌧️ 今日小凶：金币－10%……"
         except Exception:
             pass
         if fortune_line:
@@ -1459,7 +1461,7 @@ class CombatCmds(CommandBase):
         lucky_line = ""
         if int(player.get("lucky_until") or 0) > int(time.time()):
             gold = int(gold * 1.5)
-            lucky_line = "\n🍀 幸运护符生效：金币 +50%！"
+            lucky_line = "\n🍀 幸运护符生效：金币＋50%！"
         # 经验/金币
         db.update_player(group_id, qq_id, exp=player["exp"] + exp, gold=player["gold"] + gold)
         player = self._player(group_id, qq_id)
@@ -1504,6 +1506,7 @@ class CombatCmds(CommandBase):
                 else:
                     lines.append(f"🎯 公会任务进度 {tprog}/{C.GUILD_CONFIG['kill_task']}")
         # 升级
+        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
         lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
         if lv_logs:
             lines += [""] + lv_logs
@@ -1527,7 +1530,7 @@ class CombatCmds(CommandBase):
             pass
         new_achs = C.check_achievements(group_id, qq_id, player, {"defeated_hidden_monsters": hm_defeated})
         for a in new_achs:
-            ach_lines.append(f"🏆 成就解锁：{a['name']}！（{a['desc']}）")
+            ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']})")
         if ach_lines:
             lines += [""] + ach_lines
         lines.append("━━━━━━━━━━━━")
@@ -1547,7 +1550,7 @@ class CombatCmds(CommandBase):
         if self._is_redname(qq_id):
             extra = min(int(player["gold"] * 0.1), 2000)
             new_gold = max(0, new_gold - extra)
-            lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币（上限 2000）！")
+            lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币(上限 2000)！")
         # 回城并满血（新手保护；v86 子区域：落中心广场）
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
                          cur_map="oak_town", cur_subarea="oak_town_1")
@@ -1666,7 +1669,7 @@ class CombatCmds(CommandBase):
             pct = max(0, int(b2.get("hp", 0) / max(1, b2.get("max_hp", 1)) * 100))
             yield event.plain_result(
                 f"⚔️ 你已加入讨伐！\n"
-                f"👹【{b2.get('name', '?')}】❤️ {max(0, b2.get('hp', 0)):,} / {b2.get('max_hp', 0):,}（{pct}%）\n"
+                f"👹【{b2.get('name', '?')}】❤️ {max(0, b2.get('hp', 0)):,} / {b2.get('max_hp', 0):,}({pct}%)\n"
                 f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
                 f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
             )
@@ -1683,7 +1686,7 @@ class CombatCmds(CommandBase):
         pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
         yield event.plain_result(
             f"⚔️ 你冲向【{boss['name']}】，讨伐开始！\n"
-            f"👹 Lv.{boss.get('lv', 30)} ❤️ {boss['hp']:,} / {boss['max_hp']:,}（{pct}%）\n"
+            f"👹 Lv.{boss.get('lv', 30)} ❤️ {boss['hp']:,} / {boss['max_hp']:,}({pct}%)\n"
             f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』\n"
             f"💡 造成伤害计入讨伐贡献，Boss 倒下后按贡献分奖励！"
         )
@@ -1723,7 +1726,7 @@ class CombatCmds(CommandBase):
                 g = int(gboss["reward"]["gold"] * ratio * 3)
                 e = int(gboss["reward"]["exp"] * ratio * 3)
                 db.update_player(group_id, qq2, gold=p2["gold"] + g, exp=p2["exp"] + e)
-                lines.append(f"  {p2['name']} 贡献 {d:,}（{int(ratio*100)}%）→ 金币 +{g} 经验 +{e}")
+                lines.append(f"  {p2['name']} 贡献 {d:,}({int(ratio*100)}%)→ 金币 +{g} 经验 +{e}")
             top_qq = max(contrib, key=contrib.get)
             tp = self._player(group_id, top_qq)
             if tp:
@@ -1768,7 +1771,7 @@ class CombatCmds(CommandBase):
         status = self._status_line(player, b)
         yield event.plain_result(
             f"{body}\n━━━━━━━━━━━━\n"
-            f"👹【{gboss['name']}】❤️ {gboss['hp']:,} / {gboss['max_hp']:,}（{pct}%）｜你的贡献 {contrib[str(qq_id)]:,}\n"
+            f"👹【{gboss['name']}】❤️ {gboss['hp']:,} / {gboss['max_hp']:,}({pct}%)｜你的贡献 {contrib[str(qq_id)]:,}\n"
             f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}"
             + (f"\n{status}" if status else "")
         )
@@ -1785,7 +1788,7 @@ class CombatCmds(CommandBase):
         if m:
             return m.group(1), None
         # @名字(123) 或 名字(123) —— QQ @ 消息的文本格式（括号内是 QQ 号）
-        m = re.match(r"^@?[^()（）]*[（(](\d+)[)）]$", t)
+        m = re.match(r"^@?[^()()]*[((](\d+)[))]$", t)
         if m:
             return m.group(1), None
         tp = db.find_player_by_name(t)
@@ -1815,7 +1818,7 @@ class CombatCmds(CommandBase):
             return 0
 
     def _pvp_snapshot(self, p: dict, group_id: str = "", qq_id: str = "") -> dict:
-        """玩家快照（PVP 战斗状态用）"""
+        """玩家快照(PVP 战斗状态用)"""
         st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
         return {
             "qq_id": str(p["qq_id"]), "name": p["name"],
@@ -1827,7 +1830,7 @@ class CombatCmds(CommandBase):
         }
 
     def _pvp_handle_timeout(self, battle, group_id, qq_id) -> bool:
-        """PVP 超时检查：5 分钟无行动自动解除（防对方离线卡死）。返回 True=已解除"""
+        """PVP 超时检查：5 分钟无行动自动解除(防对方离线卡死)。返回 True=已解除"""
         if time.time() - battle.get("updated_at", 0) > 300:
             st = battle["state"]
             opp_qq = st["attacker"]["qq_id"] if str(st["defender"]["qq_id"]) == str(qq_id) else st["defender"]["qq_id"]
@@ -1841,7 +1844,7 @@ class CombatCmds(CommandBase):
         return False
 
     def _set_pvp_cd(self, qq_id):
-        """PVP 结束后主动攻击方 2 分钟袭击冷却（防打一下逃跑反复骚扰）"""
+        """PVP 结束后主动攻击方 2 分钟袭击冷却(防打一下逃跑反复骚扰)"""
         db.set_event_state(f"pvp_cd_{qq_id}", str(int(time.time()) + 120))
 
     def _pvp_cd_left(self, qq_id) -> int:
@@ -1852,8 +1855,8 @@ class CombatCmds(CommandBase):
 
     # ---------------- v84 荣誉商店（26 章 3.3） ----------------
     HONOR_SHOP = {
-        1: {"name": "荣誉勋章", "cost": 300, "desc": "PVP 强者称号（攻击 +10），兑换后在『称号 装备 荣誉勋章』佩戴"},
-        2: {"name": "决斗者披风", "cost": 500, "desc": "外观装备（纯展示，穿上很帅）"},
+        1: {"name": "荣誉勋章", "cost": 300, "desc": "PVP 强者称号(攻击＋10)，兑换后在『称号 装备 荣誉勋章』佩戴"},
+        2: {"name": "决斗者披风", "cost": 500, "desc": "外观装备(纯展示，穿上很帅)"},
         3: {"name": "荣誉药剂", "cost": 100, "desc": "使用后恢复 50% 生命与魔力"},
         4: {"name": "红名清除券", "cost": 800, "desc": "使用后立即消除红名状态"},
     }
@@ -1876,14 +1879,14 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         honor = self._get_honor(qq_id)
-        lines = [f"⚜️ 【荣誉商店】（荣誉：{honor}）", "━━━━━━━━━━━━"]
+        lines = [f"⚜️ 【荣誉商店】(荣誉：{honor})", "━━━━━━━━━━━━"]
         for i, item in self.HONOR_SHOP.items():
             lines.append(f"{i}. {item['name']} ｜ {item['cost']} 荣誉")
             lines.append(f"   {item['desc']}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 荣誉获取：击杀红名玩家 +50；『荣誉 兑换 <编号>』兑换")
+        lines.append("💡 荣誉获取：击杀红名玩家＋50；『荣誉 兑换 <编号>』兑换")
         if self._is_redname(qq_id):
-            lines.append(f"☠️ 你当前红名中（剩余 {max(0, self._red_until(qq_id) - int(time.time())) // 60} 分钟）！")
+            lines.append(f"☠️ 你当前红名中(剩余 {max(0, self._red_until(qq_id) - int(time.time())) // 60} 分钟)！")
         yield event.plain_result("\n".join(lines))
 
     async def _honor_buy(self, event, group_id, qq_id, player, num):
@@ -1900,15 +1903,15 @@ class CombatCmds(CommandBase):
         if num == 1:
             db.set_event_state(f"honor_medal_{qq_id}", "1")
             yield event.plain_result(
-                f"⚜️ 你兑换了【荣誉勋章】称号！（花费 {item['cost']} 荣誉）\n"
-                f"👑 『称号 装备 荣誉勋章』即可佩戴（攻击 +10）！")
+                f"⚜️ 你兑换了【荣誉勋章】称号！(花费 {item['cost']} 荣誉)\n"
+                f"👑 『称号 装备 荣誉勋章』即可佩戴(攻击＋10)！")
         elif num == 2:
             import uuid as _uuid
             db.add_item(group_id, qq_id, f"cape_{_uuid.uuid4().hex[:8]}", {
                 "name": "决斗者披风", "type": "外观", "stackable": False,
-                "price": 0, "desc": "荣誉商店出品的外观披风（纯展示）",
+                "price": 0, "desc": "荣誉商店出品的外观披风(纯展示)",
             })
-            yield event.plain_result(f"⚜️ 你兑换了【决斗者披风】！（花费 {item['cost']} 荣誉）\n🦸 穿上它你就是全场最靓的仔～『背包』查看")
+            yield event.plain_result(f"⚜️ 你兑换了【决斗者披风】！(花费 {item['cost']} 荣誉)\n🦸 穿上它你就是全场最靓的仔～『背包』查看")
         elif num == 3:
             import uuid as _uuid
             db.add_item(group_id, qq_id, f"pot_{_uuid.uuid4().hex[:8]}", {
@@ -1916,7 +1919,7 @@ class CombatCmds(CommandBase):
                 "price": 0, "heal": 0.5, "mana": 0.5,
                 "desc": "使用后恢复 50% 生命与魔力",
             })
-            yield event.plain_result(f"⚜️ 你兑换了【荣誉药剂】！（花费 {item['cost']} 荣誉）\n💊 『使用 荣誉药剂』恢复 50% 血蓝")
+            yield event.plain_result(f"⚜️ 你兑换了【荣誉药剂】！(花费 {item['cost']} 荣誉)\n💊 『使用 荣誉药剂』恢复 50% 血蓝")
         elif num == 4:
             import uuid as _uuid
             db.add_item(group_id, qq_id, f"clearr_{_uuid.uuid4().hex[:8]}", {
@@ -1924,10 +1927,10 @@ class CombatCmds(CommandBase):
                 "price": 0, "effect": "clear_red",
                 "desc": "使用后立即消除红名状态",
             })
-            yield event.plain_result(f"⚜️ 你兑换了【红名清除券】！（花费 {item['cost']} 荣誉）\n🎫 『使用 红名清除券』立即洗白～")
+            yield event.plain_result(f"⚜️ 你兑换了【红名清除券】！(花费 {item['cost']} 荣誉)\n🎫 『使用 红名清除券』立即洗白～")
 
     async def _pvp_start(self, event, group_id, qq_id, player, target_arg):
-        """PVP 发起：『攻击 @目标』（安全区/等级保护/灰名/袭击CD）"""
+        """PVP 发起：『攻击 @目标』(安全区/等级保护/灰名/袭击CD)"""
         cd = self._pvp_cd_left(qq_id)
         if cd > 0:
             yield event.plain_result(f"⏳ 你刚结束一场 PVP，{cd} 秒后才能再次袭击玩家！")
@@ -1952,10 +1955,10 @@ class CombatCmds(CommandBase):
             return
         # v84 新手保护（26 章二）：Lv.<10 不能被攻击
         if target_player["level"] < 10:
-            yield event.plain_result(f"【{target_player['name']}】才 Lv.{target_player['level']}，处于新手保护期（Lv.<10 不能被攻击）！")
+            yield event.plain_result(f"【{target_player['name']}】才 Lv.{target_player['level']}，处于新手保护期(Lv.<10 不能被攻击)！")
             return
         if player["level"] < 10:
-            yield event.plain_result(f"你才 Lv.{player['level']}，处于新手保护期（Lv.<10 不能攻击玩家）！去野外打怪练练级吧～")
+            yield event.plain_result(f"你才 Lv.{player['level']}，处于新手保护期(Lv.<10 不能攻击玩家)！去野外打怪练练级吧～")
             return
         # 安全区检查（城镇区域/城镇外郊不可 PK）
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
@@ -1965,7 +1968,7 @@ class CombatCmds(CommandBase):
             return
         # 等级保护：等级差 > 10 不能主动攻击
         if abs(player["level"] - target_player["level"]) > 10:
-            yield event.plain_result(f"等级差超过 10 级，无法发起攻击！（你 {player['level']} 级 vs 对方 {target_player['level']} 级）")
+            yield event.plain_result(f"等级差超过 10 级，无法发起攻击！(你 {player['level']} 级 vs 对方 {target_player['level']} 级)")
             return
         # 创建 PVP 战斗状态（双方各存一份）
         state = {
@@ -2053,7 +2056,7 @@ class CombatCmds(CommandBase):
             f"{body}\n━━━━━━━━━━━━\n"
             f"【{opp['name']}】❤️ {max(0, opp['hp'])}/{opp['max_hp']} 💙 {opp['mp']}/{opp['max_mp']}\n"
             f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
-            f"━━━━━━━━━━━━\n已轮到对方行动！（对方输入『攻击』『技能』『防御』）"
+            f"━━━━━━━━━━━━\n已轮到对方行动！(对方输入『攻击』『技能』『防御』)"
         )
 
     async def _pvp_finish(self, event, group_id, winner_qq, loser_qq, attacker_qq, log_body):
@@ -2071,15 +2074,15 @@ class CombatCmds(CommandBase):
         lines = [log_body, "", f"💀 【{loser['name']}】被击败了！"]
         if lost > 0:
             lines.append(f"💰 你夺走了 {lost} 金币！")
-        lines.append(f"🏥 对方被送回橡木镇疗养（HP 1）。")
+        lines.append(f"🏥 对方被送回橡木镇疗养(HP 1)。")
         if self._is_redname(loser_qq):
             honor = self._get_honor(winner_qq) + 50
             db.set_event_state(f"honor_{winner_qq}", str(honor))
-            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉 +50（当前 {honor}）")
+            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉＋50(当前 {honor})")
         else:
             if str(winner_qq) == str(attacker_qq):
                 red_until = self._red_until(winner_qq)
                 new_red = max(red_until, now) + 1800
                 db.set_event_state(f"red_{winner_qq}", str(new_red))
-                lines.append("☠️ 你击杀了玩家，红名 30 分钟！（红名期间无法进入安全区）")
+                lines.append("☠️ 你击杀了玩家，红名 30 分钟！(红名期间无法进入安全区)")
         yield event.plain_result("\n".join(lines))

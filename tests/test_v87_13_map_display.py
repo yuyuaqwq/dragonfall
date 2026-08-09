@@ -41,8 +41,8 @@ async def main():
     check("① 含场景区标题", "✨ 场景" in r, r[:300])
 
     # ② 移动命令到达后也有设施/场景
-    # 移动到白鹿城（相邻）——oak_town 连接里有 white_deer？用子区域切换先验证 _subarea_arrive
-    ev = FakeEvent("g1", "1001", "移动 2")
+    # v87.15 星形可达：广场出发序号 1 = 镇长办公处（oak_town_2）
+    ev = FakeEvent("g1", "1001", "前往 1")
     r2 = "".join(str(x) for x in await run(m.move, ev))
     p2 = db.get_player("g1", "1001")
     print("  [移动2]", r2[:200].replace("\n", " | "))
@@ -58,7 +58,7 @@ async def main():
     # ③ 对话中禁止移动：先找 NPC 对话
     # oak_town_2 镇长办公处有什么 NPC？直接设置 talk state 模拟
     db.set_talk_state("g1", "1001", "npc_mayor", "start")
-    ev = FakeEvent("g1", "1001", "移动 1")
+    ev = FakeEvent("g1", "1001", "前往 1")
     r4 = "".join(str(x) for x in await run(m.move, ev))
     print("  [对话中移动]", r4[:120])
     check("③ 对话中移动被阻止", "交谈中" in r4 or "结束谈话" in r4, r4[:120])
@@ -67,7 +67,7 @@ async def main():
 
     # 结束对话后可以移动
     db.clear_talk_state("g1", "1001")
-    ev = FakeEvent("g1", "1001", "移动 1")
+    ev = FakeEvent("g1", "1001", "前往 1")
     r5 = "".join(str(x) for x in await run(m.move, ev))
     p5 = db.get_player("g1", "1001")
     check("③ 结束对话后可移动", p5["cur_subarea"] == "oak_town_1", f"{r5[:80]} | {p5.get('cur_subarea')}")

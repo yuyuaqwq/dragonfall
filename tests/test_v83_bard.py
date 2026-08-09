@@ -32,7 +32,7 @@ async def main():
     check("cls_bard 标记隐藏", bard and bard.get("hidden") is True, str(bard and bard.get("hidden")))
     check("cls_bard 辅助定位", bard and bard.get("role") == "辅助", str(bard and bard.get("role")))
     sk = C.PLAYER_SKILLS.get("cls_bard", {}).get("skills", {})
-    check("吟游诗人 10 技能", len(sk) == 10, str(len(sk)))
+    check("吟游诗人 11 技能", len(sk) == 11, str(len(sk)))  # v95 补 Lv.2 轻快拨弦
     names = [v.get("name") for v in sk.values()]
     check("技能名齐全", "即兴弹唱" in names and "战歌" in names and "终章·黎明颂歌" in names, str(names))
     team_cnt = sum(1 for v in sk.values() if v.get("team"))

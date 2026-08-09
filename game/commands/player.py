@@ -25,7 +25,7 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$")
 
     async def shortcut(self, event: AstrMessageEvent):
-        """快捷指令：绑定数字一键执行常用指令（如『快捷绑定 1 探索』，之后发『1』=探索）"""
+        """快捷指令：绑定数字一键执行常用指令(如『快捷绑定 1 探索』，之后发『1』=探索)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -49,7 +49,7 @@ class PlayerCmds(CommandBase):
             num = parts[0]
             cmd_text = parts[1].strip()
             if len(cmd_text) > 30:
-                yield event.plain_result("❌ 指令太长啦（≤30 字）～")
+                yield event.plain_result("❌ 指令太长啦(≤30 字)～")
                 return
             if cmd_text.isdigit():
                 yield event.plain_result("❌ 不能绑定纯数字指令，防止连环跳转～")
@@ -86,13 +86,13 @@ class PlayerCmds(CommandBase):
                 "支持：快捷列表 / 快捷删除 <数字> / 快捷清除"
             )
             return
-        lines = [f"⚡ {qq_id} 的快捷（{len(shortcuts)} 个）："]
+        lines = [f"⚡ {qq_id} 的快捷({len(shortcuts)} 个)："]
         for num in sorted(shortcuts.keys(), key=lambda x: int(x) if x.isdigit() else 999):
             lines.append(f"  {num} → {shortcuts[num]}")
         lines.append("『快捷绑定 <数字> <指令>』新增，『快捷删除 <数字>』删除")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9]\d?$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0－9]\d?$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
         """纯数字消息：查玩家的快捷绑定并转发执行"""
@@ -143,7 +143,7 @@ class PlayerCmds(CommandBase):
             avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
             yield event.plain_result(
                 f"『{class_name}』是传说中才会出现的隐藏职业，普通人无法选择……\n"
-                f"💡 世界深处藏着它的线索（隐藏成就/隐藏区域）。可选职业：{avail}"
+                f"💡 世界深处藏着它的线索(隐藏成就/隐藏区域)。可选职业：{avail}"
             )
             return
         # 阶段九：种族解析（08 章，可选，缺省人类；支持简称如"精灵"→"银月精灵"）
@@ -156,7 +156,7 @@ class PlayerCmds(CommandBase):
                 r = next((rid for rid, ri in C.RACES.items() if race_arg in ri["name"]), r)
             if r not in C.RACES:
                 races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
-                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}（格式：注册 <职业> <名字> <种族>）")
+                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}(格式：注册 <职业> <名字> <种族>)")
                 return
             race_id = r
             race_display = C.RACES[r]["name"]
@@ -185,7 +185,7 @@ class PlayerCmds(CommandBase):
         # 阶段九：注册成就（14 章 2.3 冒险者起步）
         C.check_achievements(group_id, qq_id, player)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
-        race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}（{C.RACES[race_id]['desc']}）\n" if race_id in C.RACES else ""
+        race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}({C.RACES[race_id]['desc']})\n" if race_id in C.RACES else ""
         yield event.plain_result(
             f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
@@ -299,8 +299,8 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?种族(?:\s*|$)")
 
     async def races(self, event: AstrMessageEvent):
-        """阶段九：种族一览（08 章，注册前查看 6 族天赋）"""
-        lines = ["🧬 【种族】6 大种族各有取舍（注册时选择：注册 <职业> <名字> <种族>）", "━━━━━━━━━━━━"]
+        """阶段九：种族一览(08 章，注册前查看 6 族天赋)"""
+        lines = ["🧬 【种族】6 大种族各有取舍(注册时选择：注册 <职业> <名字> <种族>)", "━━━━━━━━━━━━"]
         for rid, r in C.RACES.items():
             t = r["talents"]
             tnames = r.get("talent_names", {})
@@ -323,9 +323,9 @@ class PlayerCmds(CommandBase):
                     else:
                         parts.append(f"🔻{nm} 受疗{int(v*100)}%")
                 elif k == "berserk_hp":
-                    parts.append(f"{nm} 残血攻+20%")
+                    parts.append(f"{nm} 残血攻＋20%")
                 elif k == "timid_hp":
-                    parts.append(f"🔻{nm} 残血攻-10%")
+                    parts.append(f"🔻{nm} 残血攻－10%")
                 elif k == "first_hit":
                     parts.append(f"{nm} 首击+{int(v*100)}%")
                 elif k == "learn_discount":
@@ -340,7 +340,7 @@ class PlayerCmds(CommandBase):
                     parts.append(f"{nm} 探索物品+{int(v*100)}%")
             lines.append(f"{r['icon']} {r['name']}：{'，'.join(parts)}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿（净强度≈不变），选取舍不选碾压！")
+        lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿(净强度≈不变)，选取舍不选碾压！")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?:\s*|$)")
@@ -372,7 +372,7 @@ class PlayerCmds(CommandBase):
         if not need_lv:
             yield event.plain_result(
                 f"👑 你已完成全部转职！{self._tier_title(player['class_name'], tier, player.get('evolve_path', 0))}\n"
-                f"当前职业：{cls['icon']} {self._branch_title(player['class_name'], tier, player.get('evolve_path', 0))}（Lv.{player['level']}）"
+                f"当前职业：{cls['icon']} {self._branch_title(player['class_name'], tier, player.get('evolve_path', 0))}(Lv.{player['level']})"
             )
             return
         # 等级不足
@@ -409,9 +409,9 @@ class PlayerCmds(CommandBase):
             lines = [f"🌟 {cls['icon']}{C.display('classes', player['class_name'])} 达到了 {need_lv} 级，可以选择进化方向！", ""]
             for i, b in enumerate(branches):
                 tag = "⚔️ 进攻" if i == 0 else "🛡️ 防御"
-                lines.append(f"  {i+1}. {b}（{tag}）")
+                lines.append(f"  {i+1}. {b}({tag})")
             lines.append("")
-            lines.append("💡 输入『转职 <序号/名字>』选择路线（如：转职 1 或 转职 圣骑士）")
+            lines.append("💡 输入『转职 <序号/名字>』选择路线(如：转职 1 或 转职 圣骑士)")
             yield event.plain_result("\n".join(lines))
             return
         # 带参数或已有路径 → 解析分支
@@ -453,12 +453,12 @@ class PlayerCmds(CommandBase):
         return C.display("classes", class_name) if isinstance(class_name, str) else class_name
 
     async def _evolve_bard(self, event, group_id, qq_id, player):
-        """v83 22 章：隐藏职业·吟游诗人传承转职（30 级 + 已解锁 + 非诗人）"""
+        """v83 22 章：隐藏职业·吟游诗人传承转职(30 级 + 已解锁 + 非诗人)"""
         unlocks = player.get("hidden_class_unlock", [])
         if "cls_bard" not in unlocks:
             yield event.plain_result(
                 "🎻 吟游诗人的传承还未向你敞开……\n"
-                "💡 线索：听完 3 位诗人的全部歌谣（成就「史诗聆听者」），再到精灵歌剧院寻找传承。"
+                "💡 线索：听完 3 位诗人的全部歌谣(成就「史诗聆听者」)，再到精灵歌剧院寻找传承。"
             )
             return
         if player["level"] < 30:
@@ -486,12 +486,12 @@ class PlayerCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"琴弦轻拨，古老的歌谣在血脉中苏醒……\n"
             f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
-            f"💡 你的歌声将成为队伍的力量（辅助定位，副本中尤为闪耀）！"
+            f"💡 你的歌声将成为队伍的力量(辅助定位，副本中尤为闪耀)！"
         )
         return
 
     async def _evolve_spellblade(self, event, group_id, qq_id, player):
-        """v87 09 章九：隐藏职业·魔剑士传承转职（60 级 + 已解锁 + 非魔剑士）"""
+        """v87 09 章九：隐藏职业·魔剑士传承转职(60 级 + 已解锁 + 非魔剑士)"""
         unlocks = player.get("hidden_class_unlock", [])
         if "cls_spellblade" not in unlocks:
             yield event.plain_result(
@@ -529,7 +529,7 @@ class PlayerCmds(CommandBase):
         return
 
     async def _do_evolve(self, event, group_id, qq_id, player, cls, tier, next_tier, path):
-        """执行转职（path: 0=默认, 1=左进攻, 2=右防御）"""
+        """执行转职(path: 0=默认, 1=左进攻, 2=右防御)"""
         old_title = self._tier_title(player["class_name"], tier, player.get("evolve_path", 0))
         fields = {"class_tier": next_tier}
         if path:
@@ -562,14 +562,14 @@ class PlayerCmds(CommandBase):
             f"{old_title}\n"
             f"  ↓↓↓\n"
             f"{cls['icon']} {new_title}{branch_line}\n\n"
-            f"✨ 成长加成 +{bonus}%（全属性）\n"
+            f"✨ 成长加成 +{bonus}%(全属性)\n"
             f"📜 新技能已解锁，输入『技能』查看！{auto_line}\n"
             f"{'👑 已达成最终转职（Lv.90 三转）！' if is_final else '💪 继续历练，下一次转职在 Lv.60/90'}"
         )
         return
 
     def _evolve_auto_skills(self, player: dict, next_tier: int) -> list:
-        """转职自动获得的技能（二转被动 60 级 / 三转奥义 90 级）"""
+        """转职自动获得的技能(二转被动 60 级 / 三转奥义 90 级)"""
         if next_tier not in (2, 3):
             return []
         cls = player.get("class_name", "")
@@ -590,7 +590,7 @@ class PlayerCmds(CommandBase):
         return out
 
     def _tier_title(self, class_name: str, tier: int, evolve_path: int = 0) -> str:
-        """职业进阶称号（v25：按分支返回）"""
+        """职业进阶称号(v25：按分支返回)"""
         return f"{C.CLASSES.get(class_name, {}).get('icon', '')} {self._branch_title(class_name, tier, evolve_path)}"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?属性(?:\s*|$)")
@@ -634,12 +634,12 @@ class PlayerCmds(CommandBase):
         lines.append("━━━━━━━━━━━━")
         lines.append(f"🎯 自由属性点：{player.get('attr_pts', 0)}")
         # 加点分配（每项单独一行）
-        lines.append(f"💪 力量 {attr.get('str', 0)}(每点 +1.2 攻击)")
-        lines.append(f"🏃 敏捷 {attr.get('agi', 0)}(每点 +0.8 速度 ＋ 0.4% 暴击)")
-        lines.append(f"🧠 智力 {attr.get('int', 0)}(每点 +1.2 魔攻 ＋ 1.5 魔力)")
-        lines.append(f"❤️‍🩹 耐力 {attr.get('vit', 0)}(每点 +8 生命)")
+        lines.append(f"💪 力量 {attr.get('str', 0)}(每点＋1.2 攻击)")
+        lines.append(f"🏃 敏捷 {attr.get('agi', 0)}(每点＋0.8 速度 ＋ 0.4% 暴击)")
+        lines.append(f"🧠 智力 {attr.get('int', 0)}(每点＋1.2 魔攻 ＋ 1.5 魔力)")
+        lines.append(f"❤️‍🩹 耐力 {attr.get('vit', 0)}(每点＋8 生命)")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『加点 力量 <点数>』分配属性点，『洗点』重置（500金币）")
+        lines.append("💡 『加点 力量 <点数>』分配属性点，『洗点』重置(500金币)")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加点(?:\s*|$)")
@@ -677,7 +677,7 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能洗点(?:\s*|$)")
 
     async def reset_skill(self, event: AstrMessageEvent):
-        """技能洗点（v27 独立指令）：花 500 金币返还全部已花费技能点（学习+升级），清空已学技能与等级"""
+        """技能洗点(v27 独立指令)：花 500 金币返还全部已花费技能点(学习+升级)，清空已学技能与等级"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -704,14 +704,14 @@ class PlayerCmds(CommandBase):
             bar.append(None)
         db.set_skill_bar(qq_id, bar)
         yield event.plain_result(
-            f"🔄 技能洗点成功！返还 {spent} 技能点（花费 {cost} 金币）\n"
-            f"已学技能清空（保留初始技能：{'、'.join(init_skills) or '无'}），技能等级已重置，『技能学习』重新规划 build 吧～"
+            f"🔄 技能洗点成功！返还 {spent} 技能点(花费 {cost} 金币)\n"
+            f"已学技能清空(保留初始技能：{'、'.join(init_skills) or '无'})，技能等级已重置，『技能学习』重新规划 build 吧～"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$")
 
     async def evolve_reset(self, event: AstrMessageEvent):
-        """转职重置（21 章 §8）：付费清空转职分支，保留等级，可重新选择分支"""
+        """转职重置(21 章 §8)：付费清空转职分支，保留等级，可重新选择分支"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -723,7 +723,7 @@ class PlayerCmds(CommandBase):
             return
         cost = {1: 500, 2: 2000, 3: 5000}.get(tier, 500)
         if player["gold"] < cost:
-            yield event.plain_result(f"转职重置需要 {cost} 金币（当前 {tier} 转），你只有 {player['gold']} 金币。")
+            yield event.plain_result(f"转职重置需要 {cost} 金币(当前 {tier} 转)，你只有 {player['gold']} 金币。")
             return
         # 清除分支技能（learned_skills 中属于分支的）+ 分支技能等级
         cls = player["class_name"]
@@ -753,10 +753,10 @@ class PlayerCmds(CommandBase):
             pass
         old_title = self._tier_title(cls, tier, player.get("evolve_path", 0))
         yield event.plain_result(
-            f"🔄 转职重置成功！（花费 {cost} 金币）\n"
+            f"🔄 转职重置成功！(花费 {cost} 金币)\n"
             f"━━━━━━━━━━━━\n"
             f"{old_title} → 回到基础职业\n"
-            f"✨ 等级与基础技能保留，分支技能已清除（{'、'.join(removed) or '无'}）\n"
+            f"✨ 等级与基础技能保留，分支技能已清除({'、'.join(removed) or '无'})\n"
             f"💡 到 30/60/90 级可重新『转职』选择新分支！"
         )
 
@@ -771,7 +771,7 @@ class PlayerCmds(CommandBase):
             return
         # v27：技能洗点已拆分为独立指令『技能洗点』，避免与属性洗点混淆
         if "技能" in raw:
-            yield event.plain_result("技能洗点是独立指令：『技能洗点』（500金币返还技能点）～『洗点』只重置属性点。")
+            yield event.plain_result("技能洗点是独立指令：『技能洗点』(500金币返还技能点)～『洗点』只重置属性点。")
             return
         attr = player.get("attributes", {})
         used = sum(attr.values())
@@ -786,7 +786,7 @@ class PlayerCmds(CommandBase):
         db.update_player(group_id, qq_id, gold=player["gold"] - cost,
                          attr_pts=player.get("attr_pts", 0) + used,
                          attributes=json.dumps({"str": 0, "agi": 0, "int": 0, "vit": 0}, ensure_ascii=False))
-        yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点（花费 {cost} 金币）\n『加点』重新分配～")
+        yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币)\n『加点』重新分配～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?战力(?:\s*|$)")
 
@@ -802,7 +802,7 @@ class PlayerCmds(CommandBase):
         tier = player.get("class_tier", 0)
         title = self._tier_title(player["class_name"], tier)
         yield event.plain_result(
-            f"⚡ 【战力】{player['name']}（{title} Lv.{player['level']}）\n"
+            f"⚡ 【战力】{player['name']}({title} Lv.{player['level']})\n"
             f"战斗力：{pw:,}\n"
             f"━━━━━━━━━━━━\n"
             f"❤️ {st['max_hp']} ｜ ⚔️ {st['atk']} ｜ 🔮 {st['matk']} ｜ 🛡️ {st['def']} ｜ 💨 {st['spd']}\n"
@@ -843,9 +843,9 @@ class PlayerCmds(CommandBase):
             slv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
             status = f"✅ 已学会 Lv.{slv}/{mx}"
         elif info["lv"] <= player["level"]:
-            status = f"📖 可学习（Lv.{info['lv']}）"
+            status = f"📖 可学习(Lv.{info['lv']})"
         else:
-            status = f"🔒 未学会（Lv.{info['lv']} 解锁）"
+            status = f"🔒 未学会(Lv.{info['lv']} 解锁)"
         lines = [
             f"📜 【{display_name}】｜{status}",
             f"━━━━━━━━━━━━",
@@ -854,7 +854,7 @@ class PlayerCmds(CommandBase):
         ]
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
-            lines.append(f"专属：{owner[1]}（Lv.{owner[0]*30} 转职解锁）")
+            lines.append(f"专属：{owner[1]}(Lv.{owner[0]*30} 转职解锁)")
         if info.get("multi"):
             lines.append(f"连击：x{info['multi']}")
         if info.get("pierce"):
@@ -865,7 +865,7 @@ class PlayerCmds(CommandBase):
             team_cn = {"heal_all": "治疗全队", "def_all": "防御全队", "reduce_all": "减伤全队",
                        "shield_all": "护盾全队", "matk_all": "魔攻全队", "crit_all": "暴击全队",
                        "spd_all": "速度全队", "poison_all": "毒伤全队", "taunt": "嘲讽"}
-            lines.append(f"团队：{team_cn.get(info['team'], info['team'])}（副本中广播全队）")
+            lines.append(f"团队：{team_cn.get(info['team'], info['team'])}(副本中广播全队)")
         if info.get("cond"):
             cond = info["cond"]
             ctype = cond.get("type")
@@ -896,16 +896,16 @@ class PlayerCmds(CommandBase):
                 "player_buffed": "自身有增益",
             }
             ctext = ctype_map.get(ctype, ctype)
-            lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』（威力 ×{mult}）")
+            lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』(威力 ×{mult})")
         if not is_learned and info["lv"] <= player["level"]:
             cost = E.skill_learn_cost(player["level"], info["lv"])
-            lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会（当前 {player.get('skill_points',0)} 点）")
+            lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会(当前 {player.get('skill_points',0)} 点)")
         elif is_learned:
             slv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
             if slv < mx:
                 cost = E.skill_upgrade_cost(slv, info)
                 nxt = " · ".join(self._skill_upgrade_gains(info, slv + 1))
-                lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}（{nxt}，当前 {player.get('skill_points',0)} 点）")
+                lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}({nxt}，当前 {player.get('skill_points',0)} 点)")
             else:
                 lines.append("✨ 已满级！")
         yield event.plain_result("\n".join(lines))
@@ -913,7 +913,7 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能学习(?:[\s\S]*)$")
 
     async def skill_learn(self, event: AstrMessageEvent):
-        """技能学习（v12）：等级门槛 + 消耗技能点学会，学会永久可用"""
+        """技能学习(v12)：等级门槛 + 消耗技能点学会，学会永久可用"""
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能学习")
         player = self._player(group_id, qq_id)
@@ -923,7 +923,7 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(self._skill_learn_msg(group_id, player, skill_name))
 
     def _skill_learn_msg(self, group_id, player: dict, skill_name: str) -> str:
-        """技能学习核心逻辑（v12：等级门槛 + 技能点学会，学会永久可用）"""
+        """技能学习核心逻辑(v12：等级门槛 + 技能点学会，学会永久可用)"""
         skill_name = (skill_name or "").strip()
         if not skill_name:
             return "格式：技能学习 <技能名/序号>，如『技能学习 裂空斩』或『技能学习 3』"
@@ -950,7 +950,7 @@ class PlayerCmds(CommandBase):
             my_tier = player.get("class_tier", 0)
             my_path = player.get("evolve_path", 0)
             if my_tier < need_tier or not my_path:
-                return f"『{display_name}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！（Lv.30/60/90 可转职）"
+                return f"『{display_name}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！(Lv.30/60/90 可转职)"
             branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
             idx = 0 if my_path == 1 else 1
             my_branch = branches[idx] if idx < len(branches) else ""
@@ -958,7 +958,7 @@ class PlayerCmds(CommandBase):
                 return f"『{display_name}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"
         need_lv = info["lv"]
         if player["level"] < need_lv:
-            return f"『{display_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}——升级吧！（每级 +1 技能点）"
+            return f"『{display_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}——升级吧！(每级＋1 技能点)"
         cost = E.skill_learn_cost(player["level"], need_lv)
         # 阶段九：人类多才多艺——学习技能点 -8%
         if E.race_stats(player.get("race")).get("learn_discount"):
@@ -966,7 +966,7 @@ class PlayerCmds(CommandBase):
         pts = player.get("skill_points", 0)
         if pts < cost:
             return (
-                f"学习『{display_name}』需要 {cost} 技能点（技能 Lv.{need_lv}），你只有 {pts} 点——升级可获得技能点（每级 +1）～"
+                f"学习『{display_name}』需要 {cost} 技能点(技能 Lv.{need_lv})，你只有 {pts} 点——升级可获得技能点(每级＋1)～"
             )
         learned = list(learned) + [skill_name]
         spent = player.get("skill_spent", 0) + cost
@@ -985,7 +985,7 @@ class PlayerCmds(CommandBase):
         )
 
     def _skill_upgrade_gains(self, info: dict, lv: int) -> list:
-        """技能升级多维成长描述（v56.1）：按技能单独策划的成长配置列出各维度提升"""
+        """技能升级多维成长描述(v56.1)：按技能单独策划的成长配置列出各维度提升"""
         parts = []
         kind = info.get("kind", "")
         if info.get("power"):
@@ -1004,7 +1004,7 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能升级(?:[\s\S]*)$")
 
     async def skill_upgrade(self, event: AstrMessageEvent):
-        """技能升级（v27）：已学技能花技能点升级，攻击/治疗 power 提升、增益回合延长"""
+        """技能升级(v27)：已学技能花技能点升级，攻击/治疗 power 提升、增益回合延长"""
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能升级").strip()
         player = self._player(group_id, qq_id)
@@ -1047,7 +1047,7 @@ class PlayerCmds(CommandBase):
         pts = player.get("skill_points", 0)
         if pts < cost:
             yield event.plain_result(
-                f"升级『{skill_name}』到 Lv.{cur_lv + 1} 需要 {cost} 技能点，你只有 {pts} 点——升级可获得技能点（每级 +1）～"
+                f"升级『{skill_name}』到 Lv.{cur_lv + 1} 需要 {cost} 技能点，你只有 {pts} 点——升级可获得技能点(每级＋1)～"
             )
             return
         levels[skill_name] = cur_lv + 1
@@ -1060,7 +1060,7 @@ class PlayerCmds(CommandBase):
         next_cost = E.skill_upgrade_cost(cur_lv + 1, info)
         tail = f"｜ 升到 Lv.{cur_lv + 2} 需 {next_cost} 点" if next_cost else "｜ 已满级！"
         yield event.plain_result(
-            f"⬆️ 『{display_name}』升级到 Lv.{cur_lv + 1}（{desc}）！消耗 {cost} 技能点，剩余 {pts - cost} 点{tail}"
+            f"⬆️ 『{display_name}』升级到 Lv.{cur_lv + 1}({desc})！消耗 {cost} 技能点，剩余 {pts - cost} 点{tail}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能栏(?:\s*|$)")
@@ -1072,17 +1072,17 @@ class PlayerCmds(CommandBase):
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
         bar = db.get_skill_bar(qq_id)
-        lines = ["🎛️ 【技能栏】（战斗中『技能 <槽位>』快捷施放）", "━━━━━━━━━━━━"]
+        lines = ["🎛️ 【技能栏】(战斗中『技能 <槽位>』快捷施放)", "━━━━━━━━━━━━"]
         for i in range(6):
             sname = bar[i] if i < len(bar) else None
             if sname:
                 info = E.skill_info(player["class_name"], sname)
                 kind = info.get("kind", "") if info else ""
-                lines.append(f" {i+1}. {sname}（{kind}）")
+                lines.append(f" {i+1}. {sname}({kind})")
             else:
-                lines.append(f" {i+1}. （空）")
+                lines.append(f" {i+1}. (空)")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『设置技能 <槽位> <技能名>』配置，如：设置技能 1 火球术（须先学会）")
+        lines.append("💡 『设置技能 <槽位> <技能名>』配置，如：设置技能 1 火球术(须先学会)")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?设置技能(?:\s*|$)")
@@ -1096,11 +1096,11 @@ class PlayerCmds(CommandBase):
             return
         parts = raw.split(maxsplit=1)
         if len(parts) < 2 or not parts[0].isdigit():
-            yield event.plain_result("格式：设置技能 <槽位1-6> <技能名>，如『设置技能 1 火球术』")
+            yield event.plain_result("格式：设置技能 <槽位1－6> <技能名>，如『设置技能 1 火球术』")
             return
         slot = int(parts[0])
         if slot < 1 or slot > 6:
-            yield event.plain_result("技能栏只有 6 个槽位（1~6）！")
+            yield event.plain_result("技能栏只有 6 个槽位(1~6)！")
             return
         sname = parts[1].strip()
         info = E.skill_info(player["class_name"], sname)
@@ -1120,7 +1120,7 @@ class PlayerCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$")
 
     async def build_view(self, event: AstrMessageEvent):
-        """流派（v52 Build 系统）：查看本职业流派 / 一键配置技能栏"""
+        """流派(v52 Build 系统)：查看本职业流派 / 一键配置技能栏"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "流派").strip()
         player = self._player(group_id, qq_id)
@@ -1137,7 +1137,7 @@ class PlayerCmds(CommandBase):
             lines = [f"⚔️ 【{C.display('classes', cid)}流派】—— 同一职业，不同打法！", "━━━━━━━━━━━━"]
             for name, info in builds.items():
                 learned_cnt = sum(1 for s in info["skills"] if E.is_skill_learned(cid, player["level"], s, player.get("learned_skills", [])))
-                lines.append(f"{info.get('icon','')} {name}（已学 {learned_cnt}/6）")
+                lines.append(f"{info.get('icon','')} {name}(已学 {learned_cnt}/6)")
                 lines.append(f"    {info['desc']}")
             lines.append("━━━━━━━━━━━━")
             lines.append("💡 『流派 <名称>』一键配置技能栏，如『流派 狂暴流』")
@@ -1166,7 +1166,7 @@ class PlayerCmds(CommandBase):
             if sname in bar:
                 lines.append(f"  {i}. ⚔️ {sname}")
             else:
-                lines.append(f"  {i}. 🔒 {sname}（未学会）")
+                lines.append(f"  {i}. 🔒 {sname}(未学会)")
         if missing:
             lines.append(f"⚠️ 还没学会：{'、'.join(missing)}——『技能学习 <名称>』学会后重新『流派 {name}』即可补上")
         lines.append(f"💡 打法：{info['desc']}")
@@ -1213,6 +1213,6 @@ class PlayerCmds(CommandBase):
             f"⚠️ 真的要注销角色【{player['name']}】吗？\n"
             f"删除后将失去：等级/装备/背包/金币/技能/副业/宠物/公会 全部数据！\n"
             f"━━━━━━━━━━━━\n"
-            f"确认请回复：『注销 确认』（10 分钟内有效）\n"
+            f"确认请回复：『注销 确认』(10 分钟内有效)\n"
             f"想切职业也可以直接注销后重新注册～"
         )

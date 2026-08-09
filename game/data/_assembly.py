@@ -139,7 +139,7 @@ _MONSTER_INDEX = {}
 
 
 def _collect_monster_entries(_slots_source, _slots):
-    """收集 (mid, mname) 对；兼容 str（单怪）与 list（多怪）。"""
+    """收集 (mid, mname) 对；兼容 str(单怪)与 list(多怪)。"""
     for _slot in _slots:
         _ent = _slots_source.get(_slot)
         if not _ent:

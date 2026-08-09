@@ -61,7 +61,7 @@ def ensure_feedback_reply_col():
             conn.close()
 
 def get_feedback_with_reply(status="replied", limit=10):
-    """查询已回复待广播的意见（reply 非空）"""
+    """查询已回复待广播的意见(reply 非空)"""
     with _lock:
         conn = _connect()
         try:

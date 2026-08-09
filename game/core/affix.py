@@ -19,7 +19,7 @@ TRIGGER_TYPES = {"stat", "on_hit", "on_taken", "turn_start", "battle_start", "pa
 
 
 def _affix_base_value(slot: str, lv: int, stat: str) -> int:
-    """附魔数值兜底：优先部位白板属性，无则用保底模板（旧词条系统遗留，enchant 用）"""
+    """附魔数值兜底：优先部位白板属性，无则用保底模板(旧词条系统遗留，enchant 用)"""
     from .stats import equip_stats
     base = equip_stats(slot, lv, "white")
     if base.get(stat, 0) > 0:
@@ -64,7 +64,7 @@ def roll_affixes(slot: str, lv: int, quality: str) -> list:
 
 
 def fixed_affixes(name: str) -> list:
-    """名册装备固定词条（20 章 3.x 系列主题，无随机）"""
+    """名册装备固定词条(20 章 3.x 系列主题，无随机)"""
     return list(SERIES_FIXED_AFFIX.get(name, []))
 
 
@@ -103,7 +103,7 @@ def random_req(slot: str, lv: int, weapon_type: str | None = None) -> dict:
 
 
 def affix_label(aid: str) -> str:
-    """词条显示短名（装备详情/词条表）"""
+    """词条显示短名(装备详情/词条表)"""
     info = AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)
     return info["name"] if info else aid
 

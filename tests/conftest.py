@@ -80,7 +80,12 @@ def clean_db(*tables):
 
 def make_player(gid="g1", qid="q1", name="测试", cls="战士", level=1):
     """落库一个玩家，返回 player dict。"""
-    db.create_player(gid, qid, name, cls, {}, 100, 100)
+    # v87.17 与真实注册一致：中文职业名 → 内部 cls_id（如 战士 → cls_zhan_shi）
+    cls_id = C.resolve("classes", cls) if hasattr(C, "resolve") else cls
+    db.create_player(gid, qid, name, cls_id, {}, 100, 100)
+    p = db.get_player(gid, qid)
+    if level > 1:
+        db.update_player(gid, qid, level=level)
     return db.get_player(gid, qid)
 
 

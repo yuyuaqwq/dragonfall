@@ -41,7 +41,7 @@ def _key_to_id(item_key, item_data=None):
     return item_key
 
 def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
-    """item_key: 唯一键（装备用 uuid 或 材料/消耗品用 id）；v46 自动转 ID 存储"""
+    """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储"""
     item_key = _key_to_id(item_key, item_data)
     with _lock:
         conn = _connect()
@@ -84,7 +84,7 @@ def get_inventory(group_id, qq_id):
             conn.close()
 
 def count_item(group_id, qq_id, name):
-    """按物品名称/ID 统计背包中数量（材料类，key 为 mat_名称）"""
+    """按物品名称/ID 统计背包中数量(材料类，key 为 mat_名称)"""
     kid = _key_to_id(name)
     with _lock:
         conn = _connect()

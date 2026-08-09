@@ -7,7 +7,7 @@ import random
 
 
 def subarea_pois(map_id: str, subarea_id: str) -> list:
-    """返回指定子区域挂载的 POI id 列表（无则空）。"""
+    """返回指定子区域挂载的 POI id 列表(无则空)。"""
     from ..data.pois import SUBAREA_POIS
     key = f"{map_id}:{subarea_id}"
     return SUBAREA_POIS.get(key, [])

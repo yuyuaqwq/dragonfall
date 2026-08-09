@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from .runes import RUNES, RUNE_EFFECT_NAMES
-"""《剑与魔法》数据层 - enchant.py（v48 ENCHANT_SLOTS 品质英文 ID）"""
+"""《剑与魔法》数据层 - enchant.py(v48 ENCHANT_SLOTS 品质英文 ID)"""
 ENCHANT_SLOTS = {
     "blue": 1,
     "purple": 2,

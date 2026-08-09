@@ -87,7 +87,7 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
 
 
 def prof_top(group_id, limit=10):
-    """副业总分排行（6 条副业等级之和）"""
+    """副业总分排行(6 条副业等级之和)"""
     with _lock:
         conn = _connect()
         try:
@@ -107,7 +107,7 @@ MAX_ACTIVE_PROFS = 2
 
 
 def get_activated_profs(group_id, qq_id):
-    """已激活的副业 key 列表（v67：每人最多发展 2 条）"""
+    """已激活的副业 key 列表(v67：每人最多发展 2 条)"""
     with _lock:
         conn = _connect()
         try:
@@ -128,7 +128,7 @@ def get_activated_profs(group_id, qq_id):
 
 
 def activate_prof(group_id, qq_id, key):
-    """激活副业（幂等）。返回 True=本次新激活；False=已在激活列表或非法 key"""
+    """激活副业(幂等)。返回 True=本次新激活；False=已在激活列表或非法 key"""
     if key not in PROF_FIELDS:
         return False
     lst = get_activated_profs(group_id, qq_id)
@@ -177,7 +177,7 @@ def bump_fish_king(group_id, qq_id):
         try:
             _ensure_prof_row(conn, qq_id)
             conn.execute(
-                "UPDATE professions SET fish_king=fish_king+1 WHERE qq_id=?",
+                "UPDATE professions SET fish_king=fish_king＋1 WHERE qq_id=?",
                 (qq_id,),
             )
             conn.commit()

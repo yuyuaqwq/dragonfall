@@ -117,7 +117,7 @@ def market_list_by_seller(group_id, seller):
             conn.close()
 
 def market_get(mid):
-    """按编号查单条（群市场/摆摊通用），返回 dict 或 None"""
+    """按编号查单条(群市场/摆摊通用)，返回 dict 或 None"""
     with _lock:
         conn = _connect()
         try:
@@ -146,7 +146,7 @@ def market_sync_stall(seller, cur_map):
             conn.close()
 
 def market_remove_by_seller(group_id, seller):
-    """收摊：删除该玩家的全部摆摊条目，返回物品列表（供退回背包）"""
+    """收摊：删除该玩家的全部摆摊条目，返回物品列表(供退回背包)"""
     with _lock:
         conn = _connect()
         try:
@@ -203,7 +203,7 @@ def party_create(group_id, leader, member):
             conn.close()
 
 def party_add(group_id, leader, new_member, max_size=4):
-    """队长拉新人入队（v53 组队扩至 4 人，支持 4 人副本）。成功返回 True；非队长/已在队/满员返回 False"""
+    """队长拉新人入队(v53 组队扩至 4 人，支持 4 人副本)。成功返回 True；非队长/已在队/满员返回 False"""
     with _lock:
         conn = _connect()
         try:
@@ -241,7 +241,7 @@ def party_add(group_id, leader, new_member, max_size=4):
             conn.close()
 
 def party_members(group_id, qq_id):
-    """返回玩家所在队伍的成员列表（含自己），无队返回 []"""
+    """返回玩家所在队伍的成员列表(含自己)，无队返回 []"""
     with _lock:
         conn = _connect()
         try:
@@ -409,7 +409,7 @@ def guild_count(gid):
             conn.close()
 
 def guild_add_exp(gid, exp, member_qq=None, contribute=0):
-    """公会获得经验（可附带成员贡献）"""
+    """公会获得经验(可附带成员贡献)"""
     with _lock:
         conn = _connect()
         try:
@@ -424,7 +424,7 @@ def guild_add_exp(gid, exp, member_qq=None, contribute=0):
             g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             if g:
                 while g["exp"] >= g["level"] * 300:
-                    conn.execute("UPDATE guilds SET exp=exp-?, level=level+1 WHERE gid=?", (g["level"] * 300, gid))
+                    conn.execute("UPDATE guilds SET exp=exp-?, level=level＋1 WHERE gid=?", (g["level"] * 300, gid))
                     conn.commit()
                     g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             return True
@@ -567,7 +567,7 @@ def pet_dex_get(qq_id):
             conn.close()
 
 def pet_dex_add(qq_id, pet_key):
-    """孵化记录：图鉴 +1（INSERT OR REPLACE 语义为计数累加需先查）"""
+    """孵化记录：图鉴＋1(INSERT OR REPLACE 语义为计数累加需先查)"""
     with _lock:
         conn = _connect()
         try:

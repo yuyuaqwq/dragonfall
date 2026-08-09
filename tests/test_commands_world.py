@@ -43,11 +43,16 @@ async def main():
     check("地图显示", "橡木" in out or "地图" in out, out[:120])
 
     print("【移动】")
-    # v87.14 空间连接：出城需先到城门（橡木镇子区域 6 = 橡木镇城门）
-    out = await cmd(m, "move", "g1", "w1", "移动 6")
+    # v87.14 空间连接：出城需先到出口子区域
+    # v87.16 街道链：广场可达 1=镇长办公处 2=铁匠铺 3=旅店 4=草药铺 5=东大街
+    # 出镇路径：广场 → 东大街(5) → 镇郊(1) → 橡木平原(2)
+    out = await cmd(m, "move", "g1", "w1", "前往 5")
     p = db.get_player("g1", "w1")
-    check("移动到城门", p.get("cur_subarea") == "oak_town_gate", str(p.get("cur_subarea")))
-    out = await cmd(m, "move", "g1", "w1", "移动 橡木平原")
+    check("移动到东大街", p.get("cur_subarea") == "oak_town_street", str(p.get("cur_subarea")))
+    out = await cmd(m, "move", "g1", "w1", "前往 1")
+    p = db.get_player("g1", "w1")
+    check("移动到镇郊", p.get("cur_subarea") == "oak_town_outskirts", str(p.get("cur_subarea")))
+    out = await cmd(m, "move", "g1", "w1", "前往 橡木平原")
     check("移动有返回", len(out) > 5, out[:120])
     p = db.get_player("g1", "w1")
     check("地图切换", p.get("cur_map") == "oak_plain", str(p.get("cur_map")))
@@ -88,7 +93,7 @@ async def main():
     check("事件列表有返回", len(out) > 5, out[:120])
 
     print("【垂钓/采集】")
-    db.update_player("g1", "w1", cur_map="oak_plain")
+    db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="oak_plain_3")  # v87.17 垂钓点=溪边草地
     db.clear_battle("g1", "w1")  # v55：先清战斗状态（前面探索/事件可能进过战斗）
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("垂钓有返回", len(out) > 5, out[:120])
@@ -117,7 +122,7 @@ async def main():
     # v55 装饰器统一互斥：垂钓等待中 移动/传送/探索/副本/讨伐 全被拦
     m._prof_wait_clear("g1", "w1")  # 先清掉前面测试残留的采集等待
     await cmd(m, "fishing", "g1", "w1", "垂钓")
-    for hname, msg, label in [("move", "移动 橡木镇", "移动"), ("portal_travel", "传送 橡木镇", "传送"),
+    for hname, msg, label in [("move", "前往 橡木镇", "前往"), ("portal_travel", "传送 橡木镇", "传送"),
                                ("explore", "探索", "探索"), ("instance_cmd", "副本", "副本"), ("hunt_boss", "讨伐", "讨伐")]:
         out = await cmd(m, hname, "g1", "w1", msg)
         check(f"副业等待中{label}被拦", "还在垂钓" in out, out[:80])

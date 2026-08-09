@@ -31,7 +31,7 @@ def _bestiary_kills(qq_id, keyword) -> int:
 
 
 def _monster_total() -> int:
-    """地图怪物去重总数（图鉴全解锁判定）"""
+    """地图怪物去重总数(图鉴全解锁判定)"""
     from .. import content as C
     from .. import db
     try:
@@ -48,7 +48,7 @@ def _monster_total() -> int:
 
 
 def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) -> bool:
-    """成就条件判定。extra 携带事件上下文（inst_id/flawless/worldboss/flags 等）"""
+    """成就条件判定。extra 携带事件上下文(inst_id/flawless/worldboss/flags 等)"""
     from .. import content as C
     from .. import db
     t = cond.get("type")
@@ -184,7 +184,7 @@ def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) ->
 
 
 def achievement_titles(qq_id) -> list:
-    """已解锁成就的称号名列表（14 章：达成成就自动获得称号）"""
+    """已解锁成就的称号名列表(14 章：达成成就自动获得称号)"""
     from .. import content as C
     from .. import db
     try:
@@ -196,7 +196,7 @@ def achievement_titles(qq_id) -> list:
 
 
 def achievement_points(qq_id) -> int:
-    """成就点（普通 1 / 隐藏 2）"""
+    """成就点(普通 1 / 隐藏 2)"""
     from .. import content as C
     from .. import db
     try:
@@ -208,7 +208,7 @@ def achievement_points(qq_id) -> int:
 
 
 def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
-    """通用成就判定：事件后调用。返回本次新解锁的成就（dict）列表。"""
+    """通用成就判定：事件后调用。返回本次新解锁的成就(dict)列表。"""
     from .. import content as C
     from .. import db
     try:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""奥兰迪亚·余烬纪年 数据层 - monsters.py（阶段一生成，2026-08-06）"""
+"""奥兰迪亚·余烬纪年 数据层 - monsters.py(阶段一生成，2026－08－06)"""
 MONSTER_SKILLS = {
     "ms_ai_hao": {
         "kind": "魔法",
@@ -714,7 +714,7 @@ MONSTER_SKILLS = {
         "kind": "魔法",
         "power": 1.8,
         "desc": "被污染的圣光斩，暗影与圣光交织",
-        "name": "圣光斩（被污染）",
+        "name": "圣光斩(被污染)",
     },
     "ms_shi_xi": {
         "kind": "魔法",
@@ -783,7 +783,7 @@ MONSTER_SKILLS = {
     "ms_tou_qie": {
         "kind": "魔法",
         "power": 1.0,
-        "desc": "偷窃，窃取敌人财物（少量金币）",
+        "desc": "偷窃，窃取敌人财物(少量金币)",
         "name": "偷窃",
     },
     "ms_tou_shi": {

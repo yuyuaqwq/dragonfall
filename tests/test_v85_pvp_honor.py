@@ -85,13 +85,15 @@ async def main():
     check("w1 红名 30 分钟", m._is_redname("w1"), "")
     # 红名不能进城镇（翡翠森林 → 相邻城镇白鹿城被拦）
     db.update_player("g1", "w1", cur_map="emerald_forest")
-    out = await cmd(m, "move", "g1", "w1", "移动 白鹿城")
+    out = await cmd(m, "move", "g1", "w1", "前往 白鹿城")
     check("红名进城镇被拦", "守卫" in out and "红名" in out, out[:300])
 
     print("【v84 击杀红名 → 荣誉 +50】")
     # w2 复活打红名的 w1（w3 是新手不能攻击，用 w2）
+    # v94.1：get_player 会 clamp hp 到 max_hp（#41 修复），hp=99999 作弊不再生效，
+    # 因此把红名 w1 的 hp 设为 1，确保 w2 一击必杀（测试意图：击杀红名得荣誉）
     db.update_player("g1", "w2", level=15, gold=5000, hp=99999, mp=99999, cur_map="misty_swamp")
-    db.update_player("g1", "w1", level=15, gold=5000, hp=100, mp=100, cur_map="misty_swamp")
+    db.update_player("g1", "w1", level=15, gold=5000, hp=1, mp=100, cur_map="misty_swamp")
     honor_before = m._get_honor("w2")
     out = await cmd(m, "attack", "g1", "w2", "攻击 铁拳")
     out = ""

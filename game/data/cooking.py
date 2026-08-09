@@ -15,7 +15,7 @@ COOKING_RECIPES = {
         "product": {"it_slime_jelly": 1},
     },
     "cook_skewer": {
-        "name": "烤肉串（自制）",
+        "name": "烤肉串(自制)",
         "desc": "新鲜兽肉串烤，滋滋冒油",
         "min_lv": 1,
         "cost": {"mat_shou_rou": 2},

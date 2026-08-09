@@ -17,7 +17,7 @@ def roll_explore_event():
     return EXPLORE_EVENTS[0]
 
 def roll_explore_egg():
-    """探索彩蛋判定（02 章 7.5）：常规事件之外独立判定，命中返回蛋事件 dict。"""
+    """探索彩蛋判定(02 章 7.5)：常规事件之外独立判定，命中返回蛋事件 dict。"""
     if random.random() >= EXPLORE_EGG_CHANCE:
         return None
     r = random.random() * EXPLORE_EGG_SUM

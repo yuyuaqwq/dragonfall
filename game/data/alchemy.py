@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - alchemy.py（v48 key 转 ID；v54 加副业等级限制 + 配方丰富）"""
+"""《剑与魔法》数据层 - alchemy.py(v48 key 转 ID；v54 加副业等级限制 + 配方丰富)"""
 ALCHEMY_RECIPES = {
     "al_zhi_liao_yao_shui": {
         "cost": {
@@ -82,7 +82,7 @@ ALCHEMY_RECIPES = {
             "i_lucky_charm": 1
         },
         "need_prof_lv": 3,
-        "desc": "提升打怪金币与材料掉落（10 分钟）",
+        "desc": "提升打怪金币与材料掉落(10 分钟)",
         "name": "幸运护符"
     },
     "al_jing_lian_qiang_hua_shi": {
@@ -106,7 +106,7 @@ ALCHEMY_RECIPES = {
             "i_atk_potion": 1
         },
         "need_prof_lv": 4,
-        "desc": "战斗中使用，攻击力 +30%（3 回合）",
+        "desc": "战斗中使用，攻击力＋30%(3 回合)",
         "name": "攻击药水"
     },
     "al_fang_yu_yao_shui": {
@@ -118,7 +118,7 @@ ALCHEMY_RECIPES = {
             "i_def_potion": 1
         },
         "need_prof_lv": 4,
-        "desc": "战斗中使用，防御力 +45%（3 回合）",
+        "desc": "战斗中使用，防御力＋45%(3 回合)",
         "name": "防御药水"
     },
     "al_chao_ji_zhi_liao_yao_shui": {
@@ -154,7 +154,7 @@ ALCHEMY_RECIPES = {
             "i_spd_potion": 1
         },
         "need_prof_lv": 5,
-        "desc": "战斗中使用，速度 +40%（3 回合）",
+        "desc": "战斗中使用，速度＋40%(3 回合)",
         "name": "速度药水"
     },
     "al_bao_ji_yao_shui": {
@@ -166,7 +166,7 @@ ALCHEMY_RECIPES = {
             "i_crit_potion": 1
         },
         "need_prof_lv": 6,
-        "desc": "战斗中使用，暴击率 +20%（3 回合）",
+        "desc": "战斗中使用，暴击率＋20%(3 回合)",
         "name": "暴击药水"
     },
     # ---- 垂钓产业链（16 章 2.5：鲛人泪/龙涎香仅垂钓产出）----
@@ -178,7 +178,7 @@ ALCHEMY_RECIPES = {
             "i_mermaid_tear": 1
         },
         "need_prof_lv": 3,
-        "desc": "战斗中使用，本回合魔攻 +30%",
+        "desc": "战斗中使用，本回合魔攻＋30%",
         "name": "鲛人之泪"
     },
     "al_long_xian_yao_ji": {
@@ -189,7 +189,7 @@ ALCHEMY_RECIPES = {
             "i_ambergris_draught": 1
         },
         "need_prof_lv": 5,
-        "desc": "战斗中使用，本回合攻击 +30%、防御 +20%",
+        "desc": "战斗中使用，本回合攻击＋30%、防御＋20%",
         "name": "龙涎药剂"
     },
 }

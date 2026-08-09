@@ -41,7 +41,7 @@ WILD_NPCS = {
         "condition": {"time": ["evening", "night"], "season": ["summer", "autumn"]},
         "desc": "退役剑客，隐居避世",
         "funcs": ["teach", "info"],
-        "dialogue": "（头也不抬）……这里不是观光的林子。你是迷路了，还是专程来找我的？",
+        "dialogue": "(头也不抬)……这里不是观光的林子。你是迷路了，还是专程来找我的？",
     },
     "w_lost_knight": {
         "name": "迷路的骑士", "icon": "🛡️", "map": "emerald_forest",
@@ -127,7 +127,7 @@ WILD_NPCS = {
         "condition": {"time": ["evening", "night"]},
         "desc": "猎影豹的老猎人",
         "funcs": ["trade", "info"],
-        "dialogue": "……（沉默地整理箭袋，半天才开口）影豹的皮，要趁热剥。",
+        "dialogue": "……(沉默地整理箭袋，半天才开口)影豹的皮，要趁热剥。",
     },
     "w_elf_poet": {
         "name": "精灵诗人·夜歌", "icon": "🌙", "map": "starlake",
@@ -220,7 +220,7 @@ WILD_NPCS = {
         "condition": {"time": ["day", "evening"]}, "cycle": 7,
         "desc": "守护龙冢的神秘存在",
         "funcs": ["lore", "teach"],
-        "dialogue": "……（石像般的守卫者缓缓开口）第七日，又一位旅人踏足龙冢。",
+        "dialogue": "……(石像般的守卫者缓缓开口)第七日，又一位旅人踏足龙冢。",
     },
     # ---- 2.6 外域·无尽海（Lv.55-78）----
     "w_lighthouse_old": {

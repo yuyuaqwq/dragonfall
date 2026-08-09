@@ -9,7 +9,7 @@
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, Main
+from conftest import FakeEvent, run, clean_db, Main, db
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -52,6 +52,11 @@ async def main():
     check("锻造显示", "铁匠" in out or "锻造" in out or "配方" in out, out[:80])
     out = await cmd(m, "shop", "g1", "q1", "商店")
     check("商店显示", "商店" in out or "购买" in out, out[:80])
+    # v87.17 设施子区域绑定：广场没商店被拦，到商店子区域才能打开
+    # v92 #28 铁匠铺改造：oak_town_3=老铁铁匠铺 → 卖武器+锻造材料（铁矿石），不再卖治疗药水
+    db.update_player("g1", "q1", cur_map="oak_town", cur_subarea="oak_town_3")
+    out = await cmd(m, "shop", "g1", "q1", "商店")
+    check("商店子区域可打开", "商店" in out and "铁矿石" in out, out[:120])
 
     print("【commands 层：帮助含各 Mixin】")
     out = await cmd(m, "help_cmd", "g1", "q1", "帮助")

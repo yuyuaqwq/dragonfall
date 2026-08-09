@@ -27,7 +27,7 @@ def enchant_value(slot: str, lv: int, stat: str, big: bool = False) -> int | flo
     return v
 
 def enchant_match_material(stat: str, items: list) -> str | None:
-    """从背包物品里找第一个匹配该附魔系的材料名（无则 None）"""
+    """从背包物品里找第一个匹配该附魔系的材料名(无则 None)"""
     rec = ENCHANT_RECIPES.get(stat)
     if not rec:
         return None

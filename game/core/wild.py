@@ -43,12 +43,12 @@ def npc_map_id(npc_id: str, npc: dict, now: datetime.date | None = None) -> str 
 
 
 def _quest_known(q: dict, qid: str) -> bool:
-    """任务已知（主线完成 / 支线已接或进行中）。支线完成即从 side 删除，无完成记录。"""
+    """任务已知(主线完成 / 支线已接或进行中)。支线完成即从 side 删除，无完成记录。"""
     return qid in q.get("completed_main", []) or qid in q.get("side", {})
 
 
 def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
-    """解锁条件（unlock）：flag:xxx / item:mat_xxx / quest:qid。无 unlock=天然解锁。"""
+    """解锁条件(unlock)：flag:xxx / item:mat_xxx / quest:qid。无 unlock=天然解锁。"""
     from .. import db  # noqa: E402（延迟导入防 data/_assembly 循环）
     unlock = npc.get("unlock")
     if not unlock:
@@ -70,7 +70,7 @@ def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
 
 
 def base_conditions_met(npc_id: str, npc: dict, player: dict, group_id: str, qq_id: str) -> bool:
-    """基础出现条件（AND）：time/season/weather/min_level/max_level/quest_done/quest_active/flag/item/day_of_week"""
+    """基础出现条件(AND)：time/season/weather/min_level/max_level/quest_done/quest_active/flag/item/day_of_week"""
     from .. import db  # noqa: E402（延迟导入防 data/_assembly 循环）
     cond = npc.get("condition", {})
     # 时间段
@@ -141,7 +141,7 @@ def met_wild(group_id: str, qq_id: str) -> list:
 
 
 def _roll_random(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
-    """随机性判定：cycle 硬条件 + chance 概率（含保底）。返回是否出现。"""
+    """随机性判定：cycle 硬条件 + chance 概率(含保底)。返回是否出现。"""
     cycle = npc.get("cycle")
     if cycle and datetime.date.today().toordinal() % cycle != 0:
         return False
@@ -202,7 +202,7 @@ def roll_wild_encounter(group_id: str, qq_id: str, player: dict, map_id: str):
 
 
 def nearby_hints(group_id: str, qq_id: str, player: dict, map_id: str) -> list:
-    """『时间』指令：当前地图满足条件（含随机性）的野外 NPC 提示列表（供"附近可遇"显示）"""
+    """『时间』指令：当前地图满足条件(含随机性)的野外 NPC 提示列表(供"附近可遇"显示)"""
     hints = []
     today = datetime.date.today()
     for nid, npc in ALL_WILD.items():

@@ -107,7 +107,7 @@ async def main():
     fuzz_hits = 0
     for i in range(200):
         # 随机中文命令词组合
-        w = random.choice(["背包", "技能", "物品", "锻造", "公会", "攻击", "探索", "移动", "宠物", "属性", "任务", "地图", "垂钓"])
+        w = random.choice(["背包", "技能", "物品", "锻造", "公会", "攻击", "探索", "前往", "宠物", "属性", "任务", "地图", "垂钓"])
         n = random.choice(["", "1", "2", "材料", "详情", "学习", "升级", " 2", "5"])
         text = w + n
         hit = [name for (_, name), c in zip(handlers, comps) if c.search(text)]
@@ -123,7 +123,7 @@ async def main():
     ev = FakeEvent("g1", "m1", "注册 战士 移动者")
     await run(m.register, ev)
     _db.update_player("g1", "m1", cur_map="oak_town")
-    ev = FakeEvent("g1", "m1", "移动 2")
+    ev = FakeEvent("g1", "m1", "前往 2")
     results = await run(m.move, ev)
     out = results[-1] if results else ""
     check("移动序号有返回", len(out) > 5, out[:100])

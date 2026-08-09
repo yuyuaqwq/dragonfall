@@ -5,14 +5,14 @@ from ..data import RUNES, RUNE_CONFLICTS, RUNE_LEVEL_ROMAN
 
 """《剑与魔法》数据层 - runes.py"""
 def rune_value(effect: str, lvl: int):
-    """符文效果数值：effect + 等级 → 数值（用于战斗结算）"""
+    """符文效果数值：effect + 等级 → 数值(用于战斗结算)"""
     for name, r in RUNES.items():
         if r["effect"] == effect:
             return r["lvl"].get(lvl, r["lvl"].get(1, 0))
     return 0
 
 def rune_conflict(effect_a: str, effect_b: str) -> bool:
-    """两个符文效果是否冲突（同件装备不能共存）"""
+    """两个符文效果是否冲突(同件装备不能共存)"""
     if effect_a == effect_b:
         return False
     for (x, y) in RUNE_CONFLICTS:
@@ -21,7 +21,7 @@ def rune_conflict(effect_a: str, effect_b: str) -> bool:
     return False
 
 def rune_item(effect: str, lvl: int = 1) -> dict:
-    """构造符文物品 data（掉落/奖励用）"""
+    """构造符文物品 data(掉落/奖励用)"""
     for name, r in RUNES.items():
         if r["effect"] == effect:
             lv = min(3, max(1, lvl))
