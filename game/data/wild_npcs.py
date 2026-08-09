@@ -32,6 +32,7 @@ WILD_NPCS = {
     "w_forest_girl": {
         "name": "采药女·小荨", "icon": "🌿", "map": "white_deer_forest",
         "condition": {"time": ["morning", "day"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
         "desc": "采药为生，知道草药的秘密",
         "funcs": ["trade", "quest"],
         "dialogue": "这片林子的草药我闭着眼都能找到……你也要采药？",
@@ -104,6 +105,7 @@ WILD_NPCS = {
     "w_elf_wanderer": {
         "name": "流浪精灵·薇拉", "icon": "🏹", "map": "silverwood",
         "condition": {"time": ["night"], "weather": "sunny"},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
         "desc": "被逐出王庭的精灵",
         "funcs": ["quest", "info"],
         "dialogue": "月亮的眼睛看着我，你也看见了吗？王庭不承认我，但月亮认得我。",
@@ -233,6 +235,7 @@ WILD_NPCS = {
     "w_pearl_diver": {
         "name": "采珠女·明珠", "icon": "🫧", "map": "pearl_city",
         "condition": {"time": ["morning"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
         "desc": "潜海采珠的姑娘",
         "funcs": ["trade", "info"],
         "dialogue": "清晨的海最平静，珍珠也最亮。要不要看看今天的收成？",
@@ -247,6 +250,7 @@ WILD_NPCS = {
     "w_whale_whisper": {
         "name": "鲸语者·潮", "icon": "🐳", "map": "whale_domain",
         "condition": {"season": ["summer"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
         "desc": "能与龙鲸沟通的少女",
         "funcs": ["info", "trade"],
         "dialogue": "龙鲸说，夏天它们会游到最温暖的海域……你想听听它们的歌吗？",
@@ -351,6 +355,7 @@ HIDDEN_NPCS = {
     "h_librarian": {
         "name": "图书管理员·贝拉", "icon": "📖", "map": "dawn_cathedral",
         "condition": {}, "chance": 0.25,
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
         "unlock": "quest_done:inst_secret_crypt",  # 击败圣堂地窖 Boss 后出现（主线副本通关标记）
         "desc": "教会图书馆幸存的书记官",
         "funcs": ["quest", "trade"],

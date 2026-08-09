@@ -929,7 +929,9 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         player["hp"] = st["max_hp"]
         player["mp"] = st["max_mp"]
         # v12：等级只解锁"可学习资格"，不再自动学会（要花技能点学）
-        available = [s for s, info in _sk_table(player["class_name"]).items()
+        # v95 #136：available 是 sk_xxx ID，learned_now 是中文名（v46 内存层转名），
+        # 必须取 info["name"] 比较，否则已学技能也计入"可学"（s not in learned_now 恒 True）
+        available = [info.get("name", s) for s, info in _sk_table(player["class_name"]).items()
                      if info["lv"] <= player["level"]]
         learned_now = set(player.get("learned_skills", []))
         can_learn = [s for s in available if s not in learned_now]

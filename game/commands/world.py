@@ -1106,6 +1106,8 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, gold=player["gold"] - cost, cur_map=target["id"],
                          cur_subarea=first_sa["id"] if first_sa else "")
         db.add_visited(group_id, qq_id, target["id"])
+        # v95 #142：传送落地后清除对话会话（否则对话状态跨图残留，『前往』被"还在交谈中"拦截）
+        db.clear_talk_state(group_id, qq_id)
         quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
         extra = ""
         if quest_lines:
@@ -1857,7 +1859,8 @@ class WorldCmds(CommandBase):
         if "shop" in funcs:
             lines.append("🏪 输入『商店』可以买东西")
         if "trade" in funcs:
-            lines.append("🧭 输入『商店』看看他的货（行商有独家补给）")
+            _ta = "她" if npc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
+            lines.append(f"🧭 输入『商店』看看{_ta}的货（行商有独家补给）")
         if "heal" in funcs:
             lines.append("🏨 输入『住宿』恢复满血(需要金币)")
         if "daily" in funcs:
@@ -2133,7 +2136,8 @@ class WorldCmds(CommandBase):
         # 惰性失效：NPC 不在当前地图 → 会话作废（wild NPC 按 roam 定位）
         if C.npc_map_id(npc_id, npc) != player.get("cur_map"):
             db.clear_talk_state(group_id, qq_id)
-            yield event.plain_result(f"{npc['name']}不在这里了，对话只能作罢。去找他再聊聊吧～")
+            _ta = "她" if npc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
+            yield event.plain_result(f"{npc['name']}不在这里了，对话只能作罢。去找{_ta}再聊聊吧～")
             return
         dlg = C.get_dialogue(npc_id)
         if not dlg:
