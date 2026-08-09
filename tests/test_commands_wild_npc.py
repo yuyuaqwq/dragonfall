@@ -34,11 +34,14 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 def set_clock(period="day", season="summer", weather="sunny"):
-    """monkeypatch wild 模块的时间/天气（wild 里是 import 绑定，改 W 属性）"""
+    """monkeypatch wild 模块的时间/天气（wild 里是 import 绑定，改 W 属性）
+    v95.15 #71：C.current_period 同步 patch（world._wild_unseen_hint 走 C 命名空间）"""
     W.current_period = lambda: period
     W.current_season = lambda: season
     W.today_weather = lambda map_id=None: weather
     W.current_period_orig = TW.current_period
+    C.current_period = lambda: period
+    C.current_season = lambda: season
 
 
 def clear_wild_meta(gid, qid):
@@ -145,7 +148,7 @@ async def main():
     print("【9.4 『找 野外NPC』】")
     db.update_player("g1", "w1", cur_map="white_deer_forest")
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
-    check("白天找隐士（黄昏/夜晚出现）→ 方向提示(在白鹿之森)", "白鹿之森" in out and "🧭" in out, out[:200])
+    check("白天找隐士（黄昏/夜晚出现）→ 时段未到提示(#71)", "还没到出现的时候" in out and "🧭" in out, out[:200])
     set_clock("night", "summer", "sunny")
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
     check("夜晚找隐士 → 找到并对话", "隐士·莱德" in out, out[:300])

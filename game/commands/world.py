@@ -850,12 +850,12 @@ class WorldCmds(CommandBase):
                 lines.append(f"  {n['icon']}{n['name']}({n['title']})")
         # 功能提示
         funcs = sa.get("funcs") or []
-        func_cn = {"shop": "商店", "heal": "旅店", "quest": "任务", "craft": "铁匠",
+        func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "铁匠",
                    "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
                    "apprentice": "副业", "enhance": "强化", "portal": "方碑"}
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
         if show_funcs:
-            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『旅店』『找 <NPC名>』等)")
+            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『找 <NPC名>』等)")
         # v6：设施 + 场景（与『地图』面板一致）
         fac = self._map_facilities(cur_map, player, sa["id"])
         if fac:
@@ -1333,6 +1333,14 @@ class WorldCmds(CommandBase):
             lines.append("💡 输入『接取 <任务名>』接取指定任务～")
             yield event.plain_result("\n".join(lines))
             return
+        # v95.15 #70：指名接取但上面没匹配到 → 明确提示未找到/已接取
+        if raw and raw not in ("任务", "主线"):
+            all_names = [q["name"] for q in C.SIDE_QUESTS] + [q["name"] for q in C.MAIN_QUESTS]
+            if raw in all_names:
+                yield event.plain_result(f"任务『{raw}』已接取或已完成，输入『任务』查看进度～")
+            else:
+                yield event.plain_result(f"未找到名为『{raw}』的任务。输入『任务』查看进度～")
+            return
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
 
@@ -1484,6 +1492,22 @@ class WorldCmds(CommandBase):
             wnpc.setdefault("title", "游历于野外的旅人")
             return nid, wnpc
         return None, None
+
+    def _wild_unseen_hint(self, player, name_key, group_id, qq_id):
+        """v95.15 #71：野外 NPC 名字命中、在本图但当前条件(时段/季节/天气/解锁)不满足
+        → 提示出现条件，区分『NPC 在但需定位』vs『当前时段 NPC 未出现』；无命中返回 None"""
+        cur = player["cur_map"]
+        for nid, wnpc in C.ALL_WILD.items():
+            if name_key not in (wnpc.get("name") or "") and name_key not in nid:
+                continue
+            if C.npc_map_id(nid, wnpc) != cur:
+                continue  # 今天不在这张图 → 交给方向提示
+            if C.wild_npc_findable(nid, wnpc, player, group_id, qq_id):
+                continue  # 条件满足（概率/保底问题），不归这里管
+            label = self._wild_cond_label(wnpc)
+            period = (C.PERIOD_CN.get(C.current_period(), "") or "").strip()
+            return f"🧭 『{name_key}』{label}，现在({period})还没到出现的时候，换个时间再来找找吧～"
+        return None
 
     def _npc_direction_hint(self, player, name_key):
         """v95.8 #51：当前地图没找到 NPC 时，全局搜位置给方向提示；找不到返回 None"""
@@ -1768,6 +1792,11 @@ class WorldCmds(CommandBase):
             # 9.4：野外 NPC（当前地图 + 出现条件）
             npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)
         if not npc:
+            # v95.15 #71：名字命中但时段/条件不满足（NPC 在本图却找不到）→ 提示出现条件
+            unseen = self._wild_unseen_hint(player, name_key, group_id, qq_id)
+            if unseen:
+                yield event.plain_result(unseen)
+                return
             # v95.8 #51：不在当前子区域/地图时，全局搜位置给方向提示
             hint = self._npc_direction_hint(player, name_key)
             if hint:
@@ -2182,10 +2211,12 @@ class WorldCmds(CommandBase):
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)
         # v95.4：该 NPC 有已完成支线 → 提示交付入口（反馈：可交任务找不到交付方式）
+        # v95.15 #73：代词按 NPC 性别（迷路骑士等男性 NPC 用"他"）
+        _ta = "她" if npc.get("gender") == "女" else "他"
         for sid, sq in list(quests.get("side", {}).items()):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if sqd and sqd["giver"] == npc_id and sq.get("status") == "ready":
-                lines.append(f"✅ 『{sqd['name']}』已完成！与她对话即可交付～")
+                lines.append(f"✅ 『{sqd['name']}』已完成！与{_ta}对话即可交付～")
                 break
         return lines
 
