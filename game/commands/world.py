@@ -1302,6 +1302,14 @@ class WorldCmds(CommandBase):
                 else:
                     yield event.plain_result(f"主线『{mq['name']}』进行中！输入『任务』查看进度～")
                 return
+            # v95.20 #103：指名当前主线名但非 pending → 明确提示进行中/待交付
+            # （此前会落到底部"可接取任务列表"分支，回显无关支线误导玩家）
+            if raw == mq["name"]:
+                if st == "ready":
+                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {(C.NPCS.get(mq['giver']) or C.ALL_WILD.get(mq['giver']) or {}).get('name', '发布人')} 处对话领奖励～")
+                else:
+                    yield event.plain_result(f"主线『{mq['name']}』已在进行中，无需重复接取！输入『任务』查看进度～")
+                return
         # 支线：必须指名道姓才接（v95.8 #47：无参数/『接取 任务』不再静默接支线）
         if raw and raw not in ("任务", "主线"):
             for sq in C.SIDE_QUESTS:

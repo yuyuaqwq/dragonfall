@@ -134,6 +134,21 @@ async def main():
     else:
         print("  ⚠️ MAIN_QUESTS 未暴露，跳过")
 
+    print("【v95.20 #103：指名接取进行中主线 → 明确提示而非支线列表】")
+    clean_db()
+    m2 = Main(None)
+    await cmd(m2, "register", "g1", "w1", "注册 战士 旅人")
+    db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
+    # 找到第一环主线（pending）并推进到进行中（active）
+    mq0 = C.MAIN_QUESTS[0]
+    qs = db.get_quests("g1", "w1")
+    qs["main_quest"] = mq0["id"]
+    qs["main_status"] = "active"
+    db.save_quests("g1", "w1", qs)
+    out = await cmd(m2, "quest_accept", "g1", "w1", f"接取 {mq0['name']}")
+    check("指名进行中主线→进行中提示", "进行中" in out and "无需重复" in out, out[:120])
+    check("不回显支线列表", "【可接取任务】" not in out, out[:120])
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

@@ -186,6 +186,7 @@ class CombatCmds(CommandBase):
         # 随机遇怪：精英/首领独立保底判定（不混进普通怪池子玄学抽）
         monster = None
         tag = ""
+        stam_warn = ""
         eb = self._mount_explore_bonus(player)
         if sa_elite and random.random() < (0.08 + eb):
             monster = C.build_monster(sa_elite, cur_map)
@@ -193,6 +194,9 @@ class CombatCmds(CommandBase):
         elif sa_boss and random.random() < 0.05:
             monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
+            # v95.20 #101：Boss 战无法逃跑且每回合耗体力，体力低时预警，避免中途耗尽被困
+            if (player.get("stamina") or 0) < 20:
+                stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
         else:
             monster = C.build_monster(random.choice(events)[1], cur_map)
         # 遇普通怪但此地有精英/Boss → 提示气息（刷精英的方向感）
@@ -214,7 +218,7 @@ class CombatCmds(CommandBase):
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
             + f"━━━━━━━━━━━━\n"
             f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
-            f"{hint}"
+            f"{hint}{stam_warn}"
         )
 
     def _in_battle(self, group_id, qq_id):
@@ -821,7 +825,11 @@ class CombatCmds(CommandBase):
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "攻击")
         if not _ok:
-            yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
+            if b.enemy.get("is_boss"):
+                # v95.20 #101：Boss 战无法逃跑，体力耗尽=被困战斗——提示必须说清出路
+                yield event.plain_result(_st + "\n👑 Boss 战无法逃跑！『防御』不耗体力可拖延等待自然恢复，或吃食物(『使用 <食物>』)立即恢复～")
+            else:
+                yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
         if b.btype == "worldboss":
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None):
@@ -964,7 +972,11 @@ class CombatCmds(CommandBase):
         # v94.2 体力：施放技能扣 1（instance/pvp 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "施放技能")
         if not _ok:
-            yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
+            if b.enemy.get("is_boss"):
+                # v95.20 #101：Boss 战无法逃跑，体力耗尽=被困战斗——提示必须说清出路
+                yield event.plain_result(_st + "\n👑 Boss 战无法逃跑！『防御』不耗体力可拖延等待自然恢复，或吃食物(『使用 <食物>』)立即恢复～")
+            else:
+                yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
         if b.btype == "worldboss":
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name):
