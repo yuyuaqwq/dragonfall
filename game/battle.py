@@ -241,6 +241,14 @@ class Battle:
         玩家额外行动可自由选择出手方式（攻击/技能/道具），不再自动普攻。
         """
         logs = []
+        # v95.19: 战斗内上限统一实时值——覆盖 from_state 恢复的战斗（恢复时不传 player，
+        # __init__ 刷新不到；DB max_hp/max_mp 换装备后过时，会导致战斗内上限与面板不一致）
+        try:
+            _st = self._player_stats(player)
+            player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
+            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+        except Exception:
+            pass
         # v63 额外行动阶段被控：眩晕/冻结跳过（消耗额外行动但不执行动作）
         if self.p_extra_left > 0 and ("stun" in self.p_buffs or "freeze" in self.p_buffs):
             logs.append("🌀 你被控制，无法出手！")
