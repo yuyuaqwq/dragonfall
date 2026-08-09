@@ -1294,7 +1294,8 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"当前主线『{mq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
                 return
             # v95.8 #47：主线进行中/待交付时，无参数『接取』不应静默去接支线
-            if not raw:
+            # v95.14：『接取任务』/『接取 主线』（raw=任务/主线）等同无参数，同样提示主线状态
+            if not raw or raw in ("任务", "主线"):
                 if st == "ready":
                     yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {C.NPCS.get(mq['giver'], {}).get('name', '发布人')} 处对话领奖励～")
                 else:
@@ -1887,11 +1888,15 @@ class WorldCmds(CommandBase):
                     found = (pid, pp, label)
                     break
             if not found:
-                names = "、".join(
-                    (label or C.PROPS[pid]["name"])
-                    for entry in prop_ids
-                    if (pid := C.prop_entry(entry)[0]) in C.PROPS
-                ) or "没有"
+                # v95.14：海象运算符只在 if 条件绑定 pid，label 未定义 → NameError；改用显式循环 + 去重
+                _cand = []
+                for _entry in prop_ids:
+                    _pid, _lbl = C.prop_entry(_entry)
+                    if _pid in C.PROPS:
+                        _nm = _lbl or C.PROPS[_pid]["name"]
+                        if _nm not in _cand:
+                            _cand.append(_nm)
+                names = "、".join(_cand) or "没有"
                 yield event.plain_result(f"这里没有『{name_key}』可以交互～(这里有：{names})")
                 return
         pid, pp, label = found
