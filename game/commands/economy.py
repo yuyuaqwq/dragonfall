@@ -2340,11 +2340,11 @@ class EconomyCmds(CommandBase):
                     st_msg = f"⚡ 恢复 {st_gain} 点体力({self._stamina(player)}/{self._stamina_max(player)})\n"
             # 生命/魔力恢复（先恢复再走回合，怪物行动可能打掉）
             # v82 阶段四：heal/mana < 1 视为百分比（新世界 13 章），>=1 视为固定值（旧物品兼容）
+            # v95.16 #79：heal 只在这里换算数值，不要更新 player["hp"]——battle._do_use_item
+            # 会用 payload 实际恢复，预更新会导致双重回复（实测回 60% 却只显示恢复 67）
             if heal:
                 if heal < 1:
                     heal = int(player["max_hp"] * heal)
-                new_hp = min(player["max_hp"], player["hp"] + heal)
-                player["hp"] = new_hp
             if mana:
                 if mana < 1:
                     mana = int(player["max_mp"] * mana)
