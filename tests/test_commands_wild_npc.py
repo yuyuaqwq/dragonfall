@@ -145,7 +145,7 @@ async def main():
     print("【9.4 『找 野外NPC』】")
     db.update_player("g1", "w1", cur_map="white_deer_forest")
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
-    check("白天找隐士（黄昏/夜晚出现）→ 提示不在", "没找到" in out or "还没到出现" in out, out[:200])
+    check("白天找隐士（黄昏/夜晚出现）→ 方向提示(在白鹿之森)", "白鹿之森" in out and "🧭" in out, out[:200])
     set_clock("night", "summer", "sunny")
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
     check("夜晚找隐士 → 找到并对话", "隐士·莱德" in out, out[:300])

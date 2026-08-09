@@ -1272,8 +1272,9 @@ class WorldCmds(CommandBase):
         # 主线（pending 可接）
         main_id = quests.get("main_quest")
         mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None) if main_id else None
-        if mq and quests.get("main_status") == "pending":
-            if not raw or raw in (mq["name"], "任务", "主线"):
+        if mq:
+            st = quests.get("main_status", "pending")
+            if st == "pending" and (not raw or raw in (mq["name"], "任务", "主线")):
                 npc = C.NPCS.get(mq["giver"], {})
                 if npc.get("map") == player["cur_map"]:
                     lines = self._take_main_quest(group_id, qq_id, mq["giver"], npc)
@@ -1282,19 +1283,45 @@ class WorldCmds(CommandBase):
                 giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
                 yield event.plain_result(f"当前主线『{mq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
                 return
-        # 支线（未接的）
+            # v95.8 #47：主线进行中/待交付时，无参数『接取』不应静默去接支线
+            if not raw:
+                if st == "ready":
+                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {C.NPCS.get(mq['giver'], {}).get('name', '发布人')} 处『交任务』领奖励～")
+                else:
+                    yield event.plain_result(f"主线『{mq['name']}』进行中！输入『任务』查看进度～")
+                return
+        # 支线：必须指名道姓才接（v95.8 #47：无参数/『接取 任务』不再静默接支线）
+        if raw and raw not in ("任务", "主线"):
+            for sq in C.SIDE_QUESTS:
+                if sq["id"] in (quests.get("side") or {}):
+                    continue
+                if raw in (sq["name"],):
+                    npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
+                    if npc.get("map") == player["cur_map"]:
+                        lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
+                        yield event.plain_result("\n".join(lines))
+                        return
+                    giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
+                    yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
+                    return
+        # 无参数 → 列出当前地图可接任务（主线 pending + 未接支线）
+        available = []
+        if mq and quests.get("main_status") == "pending":
+            giver = C.NPCS.get(mq["giver"], {})
+            if giver.get("map") == player["cur_map"]:
+                available.append(f"📜 主线『{mq['name']}』（{giver.get('name', '？')}发布）")
         for sq in C.SIDE_QUESTS:
             if sq["id"] in (quests.get("side") or {}):
                 continue
-            if not raw or raw in (sq["name"], "任务"):
-                npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
-                if npc.get("map") == player["cur_map"]:
-                    lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
-                    yield event.plain_result("\n".join(lines))
-                    return
-                giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
-                yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
-                return
+            npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
+            if npc.get("map") == player["cur_map"]:
+                available.append(f"📜 支线『{sq['name']}』（{npc.get('name', '？')}发布）")
+        if available:
+            lines = ["📜 【可接取任务】", "━━━━━━━━━━━━"]
+            lines += [f"{i:>2}. {a}" for i, a in enumerate(available, 1)]
+            lines.append("💡 输入『接取 <任务名>』接取指定任务～")
+            yield event.plain_result("\n".join(lines))
+            return
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
 
@@ -1447,6 +1474,35 @@ class WorldCmds(CommandBase):
             return nid, wnpc
         return None, None
 
+    def _npc_direction_hint(self, player, name_key):
+        """v95.8 #51：当前地图没找到 NPC 时，全局搜位置给方向提示；找不到返回 None"""
+        cur = player["cur_map"]
+        hits = []
+        for nid, npc in C.NPCS.items():
+            if name_key in (npc.get("name") or "") or name_key in nid:
+                hits.append((nid, npc))
+        for nid, wnpc in C.ALL_WILD.items():
+            if name_key in (wnpc.get("name") or "") or name_key in nid:
+                hits.append((nid, wnpc))
+        if not hits:
+            return None
+        locs = []
+        for nid, npc in hits:
+            m_id = npc.get("map") or ""
+            m = C.MAP_BY_ID.get(m_id, {})
+            m_name = m.get("name", m_id or "未知之地")
+            sa_name = ""
+            for sa in (m.get("subareas") or []):
+                if nid in (sa.get("npcs") or []):
+                    sa_name = sa.get("name", "")
+                    break
+            if sa_name:
+                locs.append(f"{m_name}·{sa_name}")
+            else:
+                locs.append(m_name)
+        uniq = list(dict.fromkeys(locs))
+        here = "你所在的地图" if cur in {npc.get("map") for _, npc in hits} else "别处"
+        return f"🧭 『{name_key}』在{here}的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『找』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
         """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)"""
@@ -1701,6 +1757,11 @@ class WorldCmds(CommandBase):
             # 9.4：野外 NPC（当前地图 + 出现条件）
             npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)
         if not npc:
+            # v95.8 #51：不在当前子区域/地图时，全局搜位置给方向提示
+            hint = self._npc_direction_hint(player, name_key)
+            if hint:
+                yield event.plain_result(hint)
+                return
             yield event.plain_result(
                 f"你在这里没找到『{name_key}』。他可能不在这里，或还没到出现的时候……(『时间』看看此刻谁在附近)")
             return
@@ -1727,7 +1788,10 @@ class WorldCmds(CommandBase):
         if "daily" in funcs:
             lines.append("📜 输入『每日』领取今日悬赏")
         if "lore" in funcs:
-            lines.append("🎻 他给你讲了一个关于大陆的传说……(输入『任务』看看支线)")
+            ta = "她" if npc.get("gender") == "女" else "他"
+            lines.append(f"🎻 {ta}给你讲了一个关于大陆的传说……(输入『任务』看看支线)")
+        if "teach" in funcs:
+            lines.append("🗡️ 输入『对话 <序号>』继续交谈，这位前辈或许能指点你一二")
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识(镇长藏书)")
         yield event.plain_result("\n".join(lines))

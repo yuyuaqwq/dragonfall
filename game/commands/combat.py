@@ -118,10 +118,10 @@ class CombatCmds(CommandBase):
             monster = None
             tag = ""
             eb = self._mount_explore_bonus(player)
-            if sa_elite and random.random() < (0.20 + eb):
+            if sa_elite and random.random() < (0.08 + eb):
                 monster = C.build_monster(sa_elite, cur_map)
                 tag = "⭐ 精英"
-            elif sa_boss and random.random() < 0.08:
+            elif sa_boss and random.random() < 0.05:
                 monster = C.build_monster(sa_boss, cur_map)
                 tag = "👑 BOSS"
             if monster:
@@ -187,10 +187,10 @@ class CombatCmds(CommandBase):
         monster = None
         tag = ""
         eb = self._mount_explore_bonus(player)
-        if sa_elite and random.random() < (0.20 + eb):
+        if sa_elite and random.random() < (0.08 + eb):
             monster = C.build_monster(sa_elite, cur_map)
             tag = "⭐ 精英"
-        elif sa_boss and random.random() < 0.08:
+        elif sa_boss and random.random() < 0.05:
             monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
         else:

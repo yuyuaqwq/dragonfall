@@ -136,8 +136,8 @@ async def main():
                 if nxt != "__end__" and nxt not in nodes:
                     bad.append(f"{npc_id}:{nid}->{nxt}")
     check("对话树引用全部合法", len(bad) == 0, str(bad[:5]))
-    # 有对话树的 NPC 都在 NPCS 里
-    orphan = [nid for nid in C.DIALOGUES if nid not in C.NPCS]
+    # 有对话树的 NPC 都在 NPCS 或野外 NPC(ALL_WILD) 里（v95.8：隐士·莱德等野外 NPC 也有对话树）
+    orphan = [nid for nid in C.DIALOGUES if nid not in C.NPCS and nid not in C.ALL_WILD]
     check("对话树 NPC 全部存在", len(orphan) == 0, str(orphan))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
