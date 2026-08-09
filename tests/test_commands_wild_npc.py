@@ -159,11 +159,11 @@ async def main():
     q = db.get_quests("g1", "w1")
     check("S36 已接取", "s36" in q.get("side", {}), str(q.get("side")))
     # 材料不够时交任务 → 提示缺材料
-    out = await cmd(m, "turn_in", "g1", "w1", "交任务")
+    out = await cmd(m, "turn_in", "g1", "w1", "交付任务")
     check("材料不够提示（月光草×10）", "月光草" in out and "还差" in out, out[:300])
     # 给 10 份月光草（mat_ ID 入包）→ 交任务完成
     db.add_item("g1", "w1", "mat_yue_guang_cao", {"name": "月光草", "type": "材料", "stackable": True}, 10)
-    out = await cmd(m, "turn_in", "g1", "w1", "交任务")
+    out = await cmd(m, "turn_in", "g1", "w1", "交付任务")
     check("交付完成 S36", "支线完成" in out and "采药女的心愿" in out, out[:400])
     q = db.get_quests("g1", "w1")
     check("S36 从 side 移除（完成）", "s36" not in q.get("side", {}), str(q.get("side")))

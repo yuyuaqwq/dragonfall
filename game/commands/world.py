@@ -2146,7 +2146,7 @@ class WorldCmds(CommandBase):
                 break
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交付任务|交任务|交付)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?交付任务(?:\s*|$)")
 
     async def turn_in(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
