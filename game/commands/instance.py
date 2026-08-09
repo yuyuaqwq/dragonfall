@@ -752,11 +752,17 @@ class InstanceCmds(CommandBase):
         }
         for m in members:
             p = self._player(group_id, m)
+            # v95.19: 副本快照 max_hp/max_mp 用实时计算值（DB 字段换装备后过时），与普通战斗口径统一
+            _st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                                       p.get("class_tier", 0), p.get("attributes"),
+                                       p.get("evolve_path", 0), None, p.get("race"))
             st["players"][str(m)] = {
                 "name": p["name"], "qq_id": m,
                 "class_name": p["class_name"], "level": p["level"],
-                "hp": p["hp"], "max_hp": p["max_hp"],
-                "mp": p["mp"], "max_mp": p["max_mp"],
+                "hp": min(int(p.get("hp", 0)), int(_st.get("max_hp", p.get("max_hp", 100)))),
+                "max_hp": int(_st.get("max_hp", p.get("max_hp", 100))),
+                "mp": min(int(p.get("mp", 0)), int(_st.get("max_mp", p.get("max_mp", 50)))),
+                "max_mp": int(_st.get("max_mp", p.get("max_mp", 50))),
                 "atk": p.get("atk", 0), "def": p.get("def", 0),
                 "matk": p.get("matk", 0), "mdef": p.get("mdef", 0),
                 # v57：快照补算真实 spd（此前 p 无 spd 字段恒为 0，速度机制无从生效）

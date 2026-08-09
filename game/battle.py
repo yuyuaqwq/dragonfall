@@ -83,6 +83,14 @@ class Battle:
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余回合数），随战斗序列化；回合结束递减
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
         if player:
+            # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
+            # 会导致战斗内血量上限/治疗 clamp/护盾与『角色』面板不一致（装备 HP 加成战斗内不生效）
+            try:
+                _st = self._player_stats(player)
+                player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
+                player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+            except Exception:
+                pass
             self._init_resources(player)
         # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾）
         if player and "shield" in self._equip_affix_ids(player):
