@@ -2068,8 +2068,6 @@ class EconomyCmds(CommandBase):
             lines.append(f"💡 『使用 {d['name']}』使用它")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
-
     def _req_check(self, player: dict, d: dict):
         """阶段八：装备属性需求检查。返回 (通过, 提示文本)。"""
         req = d.get("req")
@@ -2096,6 +2094,8 @@ class EconomyCmds(CommandBase):
         eq = C.generate_equip("weapon", wlv, wq, wtype)
         eq["name"] = wname
         return eq
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
 
     async def equip(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
