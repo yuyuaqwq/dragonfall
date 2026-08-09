@@ -1222,6 +1222,10 @@ class WorldCmds(CommandBase):
                 giver = C.NPCS.get(sqd["giver"], {}).get("name", "？")
                 st = sq.get("status", "active")
                 obj = sqd["objective"]
+                # v95.12：已交付支线显示已完成（不占可交付位）
+                if st == "done":
+                    lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 已完成]")
+                    continue
                 # 收集型：实时按背包材料判断
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
@@ -2020,6 +2024,8 @@ class WorldCmds(CommandBase):
                 sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
                 if not sqd or sqd.get("giver") != npc_id:
                     continue
+                if sq.get("status") == "done":  # v95.12：已交付支线不再提示/交付
+                    continue
                 obj = sqd.get("objective", {})
                 if obj.get("collect"):
                     if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("count", 1):
@@ -2205,6 +2211,8 @@ class WorldCmds(CommandBase):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if not sqd:
                 continue
+            if sq.get("status") == "done":  # v95.12：已交付支线不重复接取/交付
+                continue
             npc = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"])
             obj = sqd["objective"]
             # 收集型：实时检查背包材料（不依赖 ready 状态）
@@ -2297,7 +2305,8 @@ class WorldCmds(CommandBase):
                 db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
                 lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
                 lines.append("  💡 达到 60 级后输入『转职 魔剑士』接受传承！")
-        del quests["side"][sid]
+        # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接
+        quests["side"][sid] = {"status": "done"}
         db.save_quests(group_id, qq_id, quests)
         lines.append(f"✅ 【支线完成】『{sqd['name']}』！")
         lines.append(f"  奖励：经验 +{sqd['reward_exp']} 金币 +{sqd['reward_gold']}")

@@ -82,6 +82,8 @@ def check_need(need, ctx: dict) -> bool:
                 sqd = next((q for q in (ctx.get("side_quests") or []) if q["id"] == sid), None)
                 if not sqd or sqd.get("giver") != npc_id:
                     continue
+                if sq.get("status") == "done":  # v95.12：已交付支线不重复提示
+                    continue
                 obj = sqd.get("objective", {})
                 if obj.get("collect"):
                     have = ctx.get("item_counts") or {}

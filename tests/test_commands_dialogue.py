@@ -161,12 +161,16 @@ async def main():
     opt = mm.group(1) if mm else "5"
     out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
     check("C:支线交付成功", "任务完成" in out or "史莱姆" in out, out[:200])
-    check("C:支线移除", "s1" not in (db.get_quests("g1", "w1").get("side") or {}),
+    # v95.12：交付后条目标记 done 保留（防自动重接），不再删除
+    check("C:支线标记done", (db.get_quests("g1", "w1").get("side") or {}).get("s1", {}).get("status") == "done",
           str(db.get_quests("g1", "w1").get("side")))
     # 场景D：找有对话树的任务 NPC 不再自动接支线（提示引导对话）
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_2")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("D:支线提示不自动接", "可接取" in out and not (db.get_quests("g1", "w1").get("side") or {}), out[:250])
+    # v95.12：side 里只剩 done 标记（无 active）即视为无待办支线
+    _side = db.get_quests("g1", "w1").get("side") or {}
+    check("D:支线提示不自动接", "可接取" in out and not any(sq.get("status") != "done" for sq in _side.values()),
+          f"{out[:150]} | side={_side}")
 
     print("【v65 引擎：数据完整性】")
     # 所有对话树节点引用合法：next 要么是 __end__ 要么是存在的节点
