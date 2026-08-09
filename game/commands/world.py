@@ -2146,7 +2146,7 @@ class WorldCmds(CommandBase):
                 break
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交任务|交付)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交付任务|交任务|交付)(?:\s*|$)")
 
     async def turn_in(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -2169,7 +2169,7 @@ class WorldCmds(CommandBase):
                 else:
                     giver = C.NPCS.get(mq["giver"], {}).get("name", "？")
                     giver_map = C.NPCS.get(mq["giver"], {}).get("map", "")
-                    yield event.plain_result(f"你需要到 {C.MAP_BY_ID.get(giver_map, {}).get('name', '？')} 找 {giver} 交任务！")
+                    yield event.plain_result(f"你需要到 {C.MAP_BY_ID.get(giver_map, {}).get('name', '？')} 找 {giver} 交付任务！")
                     return
         # 支线可交
         collect_missing = None  # 收集型材料还差的信息（用于最后提示）
@@ -2190,7 +2190,7 @@ class WorldCmds(CommandBase):
                     else:
                         giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
                         giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
-                        yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交任务！")
+                        yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交付任务！")
                         return
                 else:
                     collect_missing = (sqd["name"], obj["collect"], have, obj["count"])
@@ -2204,7 +2204,7 @@ class WorldCmds(CommandBase):
                 else:
                     giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
                     giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
-                    yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver}(在{giver_map}) 交任务！")
+                    yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver}(在{giver_map}) 交付任务！")
                     return
         if collect_missing:
             name, mat, have, need = collect_missing
