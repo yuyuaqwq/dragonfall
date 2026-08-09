@@ -2357,7 +2357,7 @@ class EconomyCmds(CommandBase):
                    "buff_atk_def": "atk_up,def_up"}
             payload = f"buff:{_BF[buff_eff]}" if is_buff else str(heal)
             logs, ended = b.player_turn("use_item", payload, player)
-            db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+            db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:
                 if b.result == "victory":
                     for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):

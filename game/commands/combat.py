@@ -828,7 +828,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         logs, ended = b.player_turn("attack", None, player)
-        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
                 for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
@@ -971,7 +971,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         logs, ended = b.player_turn("skill", skill_name, player)
-        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
                 for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
@@ -1150,7 +1150,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         logs, ended = b.player_turn("defend", None, player)
-        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended and b.result == "defeat":
             for _r in self._handle_defeat(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
                 yield _r
@@ -1199,7 +1199,7 @@ class CombatCmds(CommandBase):
             return
         b = BT.Battle.from_state(battle["state"])
         logs, ended = b.player_turn("flee", None, player)
-        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "fled":
                 self._unlock_battle(group_id, qq_id)
@@ -1521,7 +1521,8 @@ class CombatCmds(CommandBase):
                              "stackable": True, "price": mprice}, n)
                 drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
         # 经验/金币（v93：只入经验，金币已折算成材料）
-        db.update_player(group_id, qq_id, exp=player["exp"] + exp)
+        # v95.19: 顺带同步 DB max_hp/max_mp 实时值（player 已由 Battle 刷新，防 get_player clamp 误伤）
+        db.update_player(group_id, qq_id, exp=player["exp"] + exp, max_hp=player["max_hp"], max_mp=player["max_mp"])
         player = self._player(group_id, qq_id)
         # v95.19: 结算面板与战斗内口径一致（DB max_hp/max_mp 是注册/升级快照，换装备后过时）
         try:
@@ -1619,7 +1620,9 @@ class CombatCmds(CommandBase):
             new_gold = max(0, new_gold - extra)
             lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币(上限 2000)！")
         # 回城并满血（新手保护；v86 子区域：落中心广场）
+        # v95.19: max_hp/max_mp 同步实时值（player 已由 Battle 刷新），DB 字段不再过时
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
+                         max_hp=player["max_hp"], max_mp=player["max_mp"],
                          cur_map="oak_town", cur_subarea="oak_town_1")
         lines.append(
             f"你丢失了 {lost} 金币，被好心人送回了橡木镇中心广场。\n"
@@ -1789,7 +1792,7 @@ class CombatCmds(CommandBase):
         b.enemy["hp"] = gboss.get("hp", b.enemy.get("hp", 0))  # 同步全局血量
         before = b.enemy["hp"]
         logs, ended = b.player_turn(action, skill_name, player)
-        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"])
+        db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         dealt = max(0, before - b.enemy["hp"])
         contrib = gboss.setdefault("contrib", {})
         contrib[str(qq_id)] = contrib.get(str(qq_id), 0) + dealt

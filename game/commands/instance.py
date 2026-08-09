@@ -1153,7 +1153,8 @@ class InstanceCmds(CommandBase):
             exp = inst.get("exp", 150)
             snap = st["players"][str(m)]
             db.update_player(group_id, m, gold=p["gold"] + gold, exp=p["exp"] + exp,
-                             hp=snap["hp"], mp=snap["mp"])
+                             hp=snap["hp"], mp=snap["mp"],
+                             max_hp=snap["max_hp"], max_mp=snap["max_mp"])
             lines.append(f"  {p['name']}：金币 +{gold} 经验 +{exp}")
             # 专属材料
             mats = inst.get("materials", [])
