@@ -1634,7 +1634,14 @@ class CombatCmds(CommandBase):
             if prog >= dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99))):
                 lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
                 player = self._player(group_id, qq_id)
-                db.update_player(group_id, qq_id, exp=player["exp"] + dq["reward_exp"], gold=player["gold"] + dq["reward_gold"])
+                player["exp"] += dq["reward_exp"]
+                player["gold"] += dq["reward_gold"]
+                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+                if lv_logs:
+                    lines.append("")
+                    lines += lv_logs
                 del daily[dkey]
         # 无条件写回：即使全部完成（daily 为空）也要清空 quests，否则任务残留会无限重复发奖励
         quests["daily"] = daily

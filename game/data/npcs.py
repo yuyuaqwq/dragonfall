@@ -22,7 +22,7 @@ NPCS = {
         'title': "橡木桶旅店老板娘",
         'map': "oak_town",
         'icon': "🏨",
-        'funcs': ["heal", "lore"],
+        'funcs': ["heal", "lore", "quest"],
         'dialogue': "住店还是听消息？都是好价钱。哦对了，听说白鹿城最近在招冒险者，你这样的年轻人该去闯闯。",
     },
     "npc_guild_clerks": {

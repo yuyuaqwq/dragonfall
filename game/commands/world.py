@@ -1068,7 +1068,14 @@ class WorldCmds(CommandBase):
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
             if mq and mq["objective"].get("explore") == map_id:
                 player = self._player(group_id, qq_id)
-                db.update_player(group_id, qq_id, exp=player["exp"] + mq["reward_exp"], gold=player["gold"] + mq["reward_gold"])
+                player["exp"] += mq["reward_exp"]
+                player["gold"] += mq["reward_gold"]
+                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+                if lv_logs:
+                    lines.append("")
+                    lines += lv_logs
                 completed = list(quests.get("completed_main", []))
                 completed.append(main_id)
                 quests["completed_main"] = completed
@@ -1405,7 +1412,14 @@ class WorldCmds(CommandBase):
         elif st == "ready":
             # 交任务领奖
             player = self._player(group_id, qq_id)
-            db.update_player(group_id, qq_id, exp=player["exp"] + mq["reward_exp"], gold=player["gold"] + mq["reward_gold"])
+            player["exp"] += mq["reward_exp"]
+            player["gold"] += mq["reward_gold"]
+            player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+            lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+            db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+            if lv_logs:
+                lines.append("")
+                lines += lv_logs
             completed = list(quests.get("completed_main", []))
             completed.append(main_id)
             quests["completed_main"] = completed
@@ -2011,7 +2025,14 @@ class WorldCmds(CommandBase):
             for _ in range(need):
                 db.remove_item(group_id, qq_id, _ckey)
         player = self._player(group_id, qq_id)
-        db.update_player(group_id, qq_id, exp=player["exp"] + sqd["reward_exp"], gold=player["gold"] + sqd["reward_gold"])
+        player["exp"] += sqd["reward_exp"]
+        player["gold"] += sqd["reward_gold"]
+        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+        lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+        db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+        if lv_logs:
+            lines.append("")
+            lines += lv_logs
         # v87 隐藏任务：奖励道具（reward_item）入包
         ri = sqd.get("reward_item")
         if ri:
