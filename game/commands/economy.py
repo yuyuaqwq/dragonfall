@@ -2333,8 +2333,11 @@ class EconomyCmds(CommandBase):
             # 扣物品（战斗回合使用）
             db.remove_item(group_id, qq_id, target["key"])
             # v94 体力：战斗中使用食物恢复体力（不占回合结算显示）
+            st_msg = ""
             if d.get("stamina"):
-                self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+                st_gain = self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+                if st_gain > 0:
+                    st_msg = f"⚡ 恢复 {st_gain} 点体力({self._stamina(player)}/{self._stamina_max(player)})\n"
             # 生命/魔力恢复（先恢复再走回合，怪物行动可能打掉）
             # v82 阶段四：heal/mana < 1 视为百分比（新世界 13 章），>=1 视为固定值（旧物品兼容）
             if heal:
@@ -2367,7 +2370,7 @@ class EconomyCmds(CommandBase):
             db.save_battle(group_id, qq_id, b.to_state())
             log_str = "\n".join(logs)
             yield event.plain_result(
-                f"{log_str}\n━━━━━━━━━━━━\n"
+                f"{log_str}\n{st_msg}━━━━━━━━━━━━\n"
                 f"❤️ HP {player['hp']}/{player['max_hp']}  💙 MP {player['mp']}/{player['max_mp']}\n"
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
