@@ -354,6 +354,7 @@ class CommandBase:
         new = min(mx, cur + amount)
         if new != cur:
             db.update_player(group_id, qq_id, stamina=new, stamina_ts=int(time.time()))
+            player["stamina"] = new  # v95.16 #80：同步 player dict，st_msg 显示恢复后值而非旧值
         return new - cur
 
     def _stamina_bar(self, player: dict) -> str:
