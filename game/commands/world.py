@@ -1777,6 +1777,8 @@ class WorldCmds(CommandBase):
         # 功能提示
         funcs = npc.get("funcs", [])
         if "quest" in funcs:
+            # v95.11 #50：代词按 NPC 性别（玛莎等女性 NPC 用"她"）
+            _ta = "她" if npc.get("gender") == "女" else "他"
             if dlg:
                 # v95.9 对话式任务：有对话树的 NPC 通过对话选项接取/交付，这里只给引导
                 _quests = db.get_quests(group_id, qq_id)
@@ -1785,19 +1787,19 @@ class WorldCmds(CommandBase):
                 if _mq and _mq["giver"] == npc_id:
                     _st = _quests.get("main_status", "pending")
                     if _st == "pending":
-                        lines.append(f"📜 主线『{_mq['name']}』可接取——和他对话接下任务吧～")
+                        lines.append(f"📜 主线『{_mq['name']}』可接取——和{_ta}对话接下任务吧～")
                     elif _st == "ready":
-                        lines.append(f"✅ 主线『{_mq['name']}』达成！和他对话交付领奖～")
+                        lines.append(f"✅ 主线『{_mq['name']}』达成！和{_ta}对话交付领奖～")
                 _side = _quests.get("side", {})
                 for _sq in C.SIDE_QUESTS:
                     if _sq["giver"] != npc_id or _sq["id"] in _side:
                         continue
-                    lines.append(f"📜 支线『{_sq['name']}』可接取——和他对话接下吧～")
+                    lines.append(f"📜 支线『{_sq['name']}』可接取——和{_ta}对话接下吧～")
                     break
                 for _sid, _sq in list(_side.items()):
                     _sqd = next((q for q in C.SIDE_QUESTS if q["id"] == _sid), None)
                     if _sqd and _sqd["giver"] == npc_id and _sq.get("status") == "ready":
-                        lines.append(f"✅ 支线『{_sqd['name']}』已完成！和他对话交付～")
+                        lines.append(f"✅ 支线『{_sqd['name']}』已完成！和{_ta}对话交付～")
                         break
             else:
                 # 无对话树的 NPC：保持自动接取/交付（对话选项不存在，指令与提示兜底）
@@ -1957,6 +1959,26 @@ class WorldCmds(CommandBase):
             lines.append("💡 『对话 <序号>』继续交谈")
         return lines
 
+    def _talk_quest_progress(self, group_id, qq_id, npc_id) -> list:
+        """v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready）。
+        覆盖 v95.9 对话化之前接取、或接取瞬间未置 ready 的存量档，返回通知行。"""
+        quests = db.get_quests(group_id, qq_id)
+        if quests.get("main_status") != "active":
+            return []
+        mid = quests.get("main_quest")
+        if not mid:
+            return []
+        mq = next((q for q in C.MAIN_QUESTS if q["id"] == mid), None)
+        if not mq:
+            return []
+        obj = mq.get("objective", {})
+        if obj.get("talk") != npc_id:
+            return []
+        quests["main_status"] = "ready"
+        quests["main_progress"] = {npc_id: 1}
+        db.save_quests(group_id, qq_id, quests)
+        return ["✨ 交谈完成！再与这位 NPC 对话即可交付任务。"]
+
     def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
         """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行"""
         lines = []
@@ -2046,13 +2068,13 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你现在没有正在进行的对话。输入『找 <NPC名>』开始交谈～")
             return
         npc_id = st.get("npc", "")
-        npc = C.NPCS.get(npc_id)
+        npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id)
         if not npc:
             db.clear_talk_state(group_id, qq_id)
             yield event.plain_result("这位 NPC 似乎已经离开了……")
             return
-        # 惰性失效：NPC 不在当前地图 → 会话作废
-        if npc.get("map") != player.get("cur_map"):
+        # 惰性失效：NPC 不在当前地图 → 会话作废（wild NPC 按 roam 定位）
+        if C.npc_map_id(npc_id, npc) != player.get("cur_map"):
             db.clear_talk_state(group_id, qq_id)
             yield event.plain_result(f"{npc['name']}不在这里了，对话只能作罢。去找他再聊聊吧～")
             return
@@ -2100,6 +2122,8 @@ class WorldCmds(CommandBase):
             else:
                 nxt = opt.get("next", "__end__")
                 notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
+            # v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready，修复主线卡死）
+            notices += self._talk_quest_progress(group_id, qq_id, npc_id)
             if C.is_end(nxt):
                 db.clear_talk_state(group_id, qq_id)
                 lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]

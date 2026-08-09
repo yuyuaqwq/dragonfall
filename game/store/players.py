@@ -119,6 +119,10 @@ def get_player(group_id, qq_id):
                     _st = 100
                     p["stamina"] = 100
                 _ts = p.get("stamina_ts") or 0
+                if _st < _max_st and not _ts:
+                    # v95.11：存量档 stamina_ts=0（v94 前建档，ALTER 补列默认 0）→ 补记时间戳，
+                    # 最多折算 10 点恢复量，避免体力耗尽后永久卡死（铁拳 0/110 卡死根因）
+                    _ts = int(time.time()) - 600 * max(0, min(10, _max_st - _st))
                 if _st < _max_st and _ts:
                     _now = int(time.time())
                     _gain = (_now - _ts) // 600  # 每 10 分钟 1 点

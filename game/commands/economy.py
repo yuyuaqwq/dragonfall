@@ -459,7 +459,7 @@ class EconomyCmds(CommandBase):
                 lines.append(f"  🎒 获得材料：{mname} ×{pcnt}")
             else:
                 itdef = C.ITEMS.get(pkey, {})
-                db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 100), **({k: v for k, v in itdef.items() if k in ("heal", "mana", "effect")})}, count=pcnt)
+                db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 100), **({k: v for k, v in itdef.items() if k in ("heal", "mana", "effect", "stamina")})}, count=pcnt)
                 lines.append(f"  🎒 获得：{itdef.get('name', pkey)} ×{pcnt}")
         # 副业经验（炼金成功 +1）
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "alchemy", 1)
@@ -542,7 +542,7 @@ class EconomyCmds(CommandBase):
         # 发料理（读 ITEMS 定义）
         pkey = next(iter(r["product"]))
         itdef = C.ITEMS.get(pkey, {})
-        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **({k: v for k, v in itdef.items() if k in ("heal", "mana", "effect")})})
+        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **({k: v for k, v in itdef.items() if k in ("heal", "mana", "effect", "stamina")})})
         # 副业经验
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "cooking", 1)
         lv_msg = ""
@@ -2785,7 +2785,7 @@ class EconomyCmds(CommandBase):
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect")})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0)})
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
                 return
@@ -2799,7 +2799,7 @@ class EconomyCmds(CommandBase):
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect")})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0)})
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
                 return
