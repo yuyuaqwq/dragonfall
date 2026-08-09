@@ -1154,7 +1154,7 @@ class WorldCmds(CommandBase):
                     sq["status"] = "ready"
                     changed = True
                     _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
-                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} 交任务吧～")
+                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} 对话交付吧～")
         if changed:
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)
@@ -1185,9 +1185,9 @@ class WorldCmds(CommandBase):
                 lines.append(f"  {mq['desc']}")
                 st = quests.get("main_status", "pending")
                 if st == "pending":
-                    lines.append(f"  ⏳ 未接取：去找 {giver}(在{giver_map_name})接取任务")
+                    lines.append(f"  ⏳ 未接取：去找 {giver}(在{giver_map_name})对话接取")
                 elif st == "ready":
-                    lines.append(f"  ✅ 目标达成！回去找 {giver} 交任务(『交任务』)")
+                    lines.append(f"  ✅ 目标达成！回去找 {giver} 对话交付")
                 else:
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
@@ -1226,7 +1226,7 @@ class WorldCmds(CommandBase):
                     need = obj.get("collect_count", obj["count"])
                     if have >= need:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交]")
-                        lines.append(f"    材料已齐！回去找 {giver} 交任务")
+                        lines.append(f"    材料已齐！回去找 {giver} 对话交付")
                     else:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}")
@@ -1234,7 +1234,7 @@ class WorldCmds(CommandBase):
                 mark = "✅ 可交" if st == "ready" else "⏳"
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
                 if st == "ready":
-                    lines.append(f"    回去找 {giver} 交任务")
+                    lines.append(f"    回去找 {giver} 对话交付")
             if pages > 1:
                 lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
         else:
@@ -1286,7 +1286,7 @@ class WorldCmds(CommandBase):
             # v95.8 #47：主线进行中/待交付时，无参数『接取』不应静默去接支线
             if not raw:
                 if st == "ready":
-                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {C.NPCS.get(mq['giver'], {}).get('name', '发布人')} 处『交任务』领奖励～")
+                    yield event.plain_result(f"主线『{mq['name']}』已完成目标！回 {C.NPCS.get(mq['giver'], {}).get('name', '发布人')} 处对话领奖励～")
                 else:
                     yield event.plain_result(f"主线『{mq['name']}』进行中！输入『任务』查看进度～")
                 return
@@ -1777,8 +1777,32 @@ class WorldCmds(CommandBase):
         # 功能提示
         funcs = npc.get("funcs", [])
         if "quest" in funcs:
-            lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
-        lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
+            if dlg:
+                # v95.9 对话式任务：有对话树的 NPC 通过对话选项接取/交付，这里只给引导
+                _quests = db.get_quests(group_id, qq_id)
+                _mid = _quests.get("main_quest")
+                _mq = next((q for q in C.MAIN_QUESTS if q["id"] == _mid), None) if _mid else None
+                if _mq and _mq["giver"] == npc_id:
+                    _st = _quests.get("main_status", "pending")
+                    if _st == "pending":
+                        lines.append(f"📜 主线『{_mq['name']}』可接取——和他对话接下任务吧～")
+                    elif _st == "ready":
+                        lines.append(f"✅ 主线『{_mq['name']}』达成！和他对话交付领奖～")
+                _side = _quests.get("side", {})
+                for _sq in C.SIDE_QUESTS:
+                    if _sq["giver"] != npc_id or _sq["id"] in _side:
+                        continue
+                    lines.append(f"📜 支线『{_sq['name']}』可接取——和他对话接下吧～")
+                    break
+                for _sid, _sq in list(_side.items()):
+                    _sqd = next((q for q in C.SIDE_QUESTS if q["id"] == _sid), None)
+                    if _sqd and _sqd["giver"] == npc_id and _sq.get("status") == "ready":
+                        lines.append(f"✅ 支线『{_sqd['name']}』已完成！和他对话交付～")
+                        break
+            else:
+                # 无对话树的 NPC：保持自动接取/交付（对话选项不存在，指令与提示兜底）
+                lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
+                lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
         if "shop" in funcs:
             lines.append("🏪 输入『商店』可以买东西")
         if "trade" in funcs:
@@ -1915,6 +1939,9 @@ class WorldCmds(CommandBase):
             "quests": db.get_quests(group_id, qq_id),
             "flags": db.get_talk_flags(group_id, qq_id, npc_id),
             "apprentices": player.get("apprentices", []),
+            "npc_id": npc_id,
+            "side_quests": C.SIDE_QUESTS,
+            "item_counts": {m: db.count_item(group_id, qq_id, m) for m in {(o.get("objective") or {}).get("collect") for o in C.SIDE_QUESTS} if m},
         }
 
     def _render_talk_node(self, npc, dlg, node, ctx) -> list:
@@ -1956,6 +1983,27 @@ class WorldCmds(CommandBase):
             lines.append("🏪 输入『商店』可以买东西")
         if action.get("hint"):
             lines.append(action["hint"])
+        # ---- v95.9 对话式任务接取/交付（取代『交任务』『接取任务』指令的引导）----
+        if action.get("quest_take"):
+            # 主线：pending → 接取；ready → 交付领奖（_take_main_quest 自动分流）
+            npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
+            if npc:
+                lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
+        if action.get("side_take"):
+            # 支线：交付该 NPC 名下第一个可交支线
+            quests = db.get_quests(group_id, qq_id)
+            for sid, sq in list((quests.get("side") or {}).items()):
+                sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
+                if not sqd or sqd.get("giver") != npc_id:
+                    continue
+                obj = sqd.get("objective", {})
+                if obj.get("collect"):
+                    if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("count", 1):
+                        lines += self._complete_side_quest(group_id, qq_id, sid)
+                        break
+                elif sq.get("status") == "ready":
+                    lines += self._complete_side_quest(group_id, qq_id, sid)
+                    break
         # ---- v81 导师进修动作 ----
         if "consume_item" in action:
             ci = action["consume_item"]
@@ -2094,7 +2142,7 @@ class WorldCmds(CommandBase):
         for sid, sq in list(quests.get("side", {}).items()):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if sqd and sqd["giver"] == npc_id and sq.get("status") == "ready":
-                lines.append(f"✅ 『{sqd['name']}』已完成！输入『交任务』领取奖励～")
+                lines.append(f"✅ 『{sqd['name']}』已完成！与她对话即可交付～")
                 break
         return lines
 

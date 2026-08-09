@@ -55,3 +55,20 @@
 | 51 | 找NPC无方向 | find_npc 找不到时全局搜位置：`🧭 『X』在你所在的地图的「橡木镇·镇长办公处」一带…` | ✅ 实测镇长/老铁/胖托尼方向正确；白天找隐士也提示白鹿之森 |
 
 测试：test_commands_world(26✅) + test_commands_dialogue(30✅，断言放宽至 ALL_WILD) + test_commands_wild_npc(33✅，白天找隐士断言更新为方向提示) 全绿。
+
+---
+
+## 🔧 第九弹修复（2026-08-09，v95.9）——任务接取/交付对话化
+
+鱼鱼拍板：任务接取/交付改为**找 NPC 对话完成**，不再依赖『交任务』『接取任务』指令。
+
+| 改动 | 说明 |
+|---|---|
+| 对话引擎 | need 支持 `quest_pending:""`/`quest_ready:""`（空 qid=当前主线动态判断）+ `side_ready`（该 NPC 名下有可交支线） |
+| 新动作 | `quest_take`（主线：pending→接取 / ready→交付领奖）、`side_take`（交付该 NPC 第一个可交支线） |
+| 镇长对话树 | welcome/quest_status 加「📜 我需要任务」「✅ 任务完成了」「✅ 有支线要交付」选项；quest_talk『交给我了！』=接取；quest_done_talk『收下报酬！』=交付 |
+| 玛莎对话树 | welcome 加接取/交付选项（她同时是支线 s1 和主线 q1_5 的发布人） |
+| find_npc | 有对话树的任务 NPC：只提示引导（不再自动接取/交付，选项负责）；无对话树 NPC：保持自动接取兜底 |
+| 文案 | 任务日志/支线提示里的『交任务』引导全部改为「对话交付」 |
+
+验证：test_commands_dialogue 新增 12 项端到端场景（A 对话接主线/B 对话交主线推进 q1_5/C 玛莎对话交支线/D 找镇长不自动接支线），42✅ 全绿；world 26✅ wild_npc 33✅ battle 27✅ instance 71✅ 无回归。

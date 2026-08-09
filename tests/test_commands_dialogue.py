@@ -10,7 +10,7 @@
   6. 动作：set_flag / open_shop / give_item / give_gold / hint
   7. 兼容：无对话树 NPC 走旧单轮台词
 """
-import sys, os, sqlite3, time, json
+import sys, os, sqlite3, time, json, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 
@@ -97,7 +97,7 @@ async def main():
     db.save_quests("g1", "w1", {"main_quest": None, "main_status": "pending", "main_progress": {},
                                 "daily": {}, "completed_main": ["q1"], "side": {}})
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("主线完成后任务选项隐藏", "我需要任务。" not in out and "1. 野狗是怎么回事？" in out, out[:200])
+    check("主线完成后任务选项隐藏", "我需要任务" not in out and "1. 野狗是怎么回事？" in out, out[:200])
 
     print("【v65 对话树：动作执行】")
     # 铁匠：open_shop 动作
@@ -122,6 +122,51 @@ async def main():
     db.update_player("g1", "w1", cur_map="dawn_city")
     out = await cmd(m, "find_npc", "g1", "w1", "找 旅店")
     check("旧单轮台词", "远道而来的冒险者" in out or "旅店" in out, out[:200])
+
+    print("【v95.9 对话式任务接取/交付（取代『交任务』指令）】")
+    # 场景A：主线 pending → 对话接取（两段式：我需要任务 → 交给我了）
+    q = db.get_quests("g1", "w1")
+    q["main_quest"] = "q1_4"; q["main_status"] = "pending"; q["main_progress"] = {}; q["side"] = {}
+    db.save_quests("g1", "w1", q)
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_2")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
+    check("A:选项📜我需要任务", "我需要任务" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")
+    check("A:进入任务对话", "交给我了" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("A:接取成功", "接取任务" in out, out[:150])
+    check("A:主线=active", db.get_quests("g1", "w1").get("main_status") == "active",
+          str(db.get_quests("g1", "w1").get("main_status")))
+    # 场景B：主线 ready → 对话交付
+    q = db.get_quests("g1", "w1")
+    q["main_status"] = "ready"; q["main_progress"] = {"kill": 3}
+    db.save_quests("g1", "w1", q)
+    out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
+    check("B:选项✅任务完成了", "任务完成了" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 4")
+    check("B:进入交付对话", "报酬" in out, out[:150])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("B:交付成功", "任务完成" in out, out[:150])
+    check("B:主线推进 q1_5", db.get_quests("g1", "w1").get("main_quest") == "q1_5",
+          str(db.get_quests("g1", "w1").get("main_quest")))
+    # 场景C：支线收集型 → 对话交付（玛莎 s1 史莱姆果冻）
+    q = db.get_quests("g1", "w1")
+    q["side"] = {"s1": {"status": "active", "progress": {}}}
+    db.save_quests("g1", "w1", q)
+    db.add_item("g1", "w1", "史莱姆黏液", {}, 5)
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_4")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 玛莎")
+    mm = re.search(r"(\d+)\. ✅ 有东西要交给你", out)
+    check("C:选项✅有东西要交给你", mm is not None, out[:250])
+    opt = mm.group(1) if mm else "5"
+    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    check("C:支线交付成功", "任务完成" in out or "史莱姆" in out, out[:200])
+    check("C:支线移除", "s1" not in (db.get_quests("g1", "w1").get("side") or {}),
+          str(db.get_quests("g1", "w1").get("side")))
+    # 场景D：找有对话树的任务 NPC 不再自动接支线（提示引导对话）
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_2")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
+    check("D:支线提示不自动接", "可接取" in out and not (db.get_quests("g1", "w1").get("side") or {}), out[:250])
 
     print("【v65 引擎：数据完整性】")
     # 所有对话树节点引用合法：next 要么是 __end__ 要么是存在的节点

@@ -32,9 +32,10 @@ DIALOGUES = {
                 "options": [
                     {"text": "野狗是怎么回事？", "next": "dogs"},
                     {"text": "镇长，镇子最近还好吗？", "next": "town"},
-                    {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q1"}},
+                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
-                    {"text": "任务完成了！", "next": "quest_done_talk", "need": {"quest_active": "q1"}, "action": {"set_flag": "rewarded"}},
+                    {"text": "✅ 任务完成了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
+                    {"text": "✅ 有支线要交付。", "next": "__end__", "need": {"side_ready": True}, "action": {"side_take": True}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
@@ -70,19 +71,21 @@ DIALOGUES = {
             "quest_talk": {
                 "text": "正好！镇子西边路口那群野狗越来越猖狂，商队都不敢进城了。帮我解决这个麻烦，镇子不会亏待你的。",
                 "options": [
-                    {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint"}},
+                    {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
                     {"text": "再想想。", "next": "welcome"},
                 ],
             },
             "quest_status": {
-                # v95.7 #46：引导交付/接取指令，避免 talk 型任务(如『第一杯麦酒』)达成后玩家找不到交付入口
-                "text": "冒险日志我都记着呢——任务完成就输入『交任务』领奖励，要接新任务就『接取任务』，或者去『任务』看看进度。",
+                # v95.9：对话式接取/交付引导（取代『交任务』『接取任务』指令文案）
+                "text": "冒险日志我都记着呢——任务办妥了，回来跟我说一声就成；想接新任务，也尽管开口。『任务』能随时看进度。",
                 "options": [
+                    {"text": "✅ 任务完成了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
+                    {"text": "📜 我要接新任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "好，我知道了。", "next": "__end__"},
                 ],
             },
             "quest_accept": {
-                "text": "好！往西走到野狗出没的地方，把它们清干净，回来找我领赏。",
+                "text": "好样的！具体目标都在冒险日志里，办妥了回来找我就行。",
                 "options": [
                     {"text": "出发！", "next": "__end__"},
                 ],
@@ -90,7 +93,7 @@ DIALOGUES = {
             "quest_done_talk": {
                 "text": "你回来了！商队已经在准备进城了，镇子欠你一个大人情。来吧，这是你应得的报酬！",
                 "options": [
-                    {"text": "收下报酬！", "next": "__end__"},
+                    {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
                 ],
             },
         },
@@ -137,6 +140,9 @@ DIALOGUES = {
                 "options": [
                     {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "最近有奇怪的客人吗？", "next": "gossip"},
+                    {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"quest_pending": ""}, "action": {"quest_take": True}},
+                    {"text": "✅ 任务办妥了！", "next": "__end__", "need": {"quest_ready": ""}, "action": {"quest_take": True}},
+                    {"text": "✅ 有东西要交给你。", "next": "__end__", "need": {"side_ready": True}, "action": {"side_take": True}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
