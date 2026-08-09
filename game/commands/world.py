@@ -598,8 +598,12 @@ class WorldCmds(CommandBase):
                     first = chain[0]["name"] if chain else center.get("name", "广场")
                     return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                             f"路只有一条，需要先经过{first}。")
+            # v95.12：非广场城镇子区域按空间连接提示必经路线（街道/出口链），
+            # 不要一律"回广场"——镇郊去广场要先经过东大街，提示必须与真实路径一致
+            links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
+            link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
             return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                    f"得先回到{center.get('name', '广场')}(『前往 {center.get('name', '广场')}』)，再从那里过去。")
+                    f"路只有一条，需要先经过{'、'.join(link_names)}。")
         links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
         link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
