@@ -125,13 +125,15 @@ class CombatCmds(CommandBase):
                 monster = C.build_monster(sa_boss, cur_map)
                 tag = "👑 BOSS"
             if monster:
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+                b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+                db.save_battle(group_id, qq_id, b.to_state())
                 self._lock_battle(group_id, qq_id)
                 yield event.plain_result(
                     f"⚔️ 遭遇战斗！\n"
                     f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
                     f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
                     + (f"📜 {monster.get('mod', '')}\n" if monster.get("mod") else "")
+                    + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
                     + f"━━━━━━━━━━━━\n"
                     f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
                 )
@@ -139,7 +141,8 @@ class CombatCmds(CommandBase):
             # 普通怪：50% 低概率（新手保护）
             if random.random() < 0.5 and events:
                 monster = C.build_monster(random.choice(events)[1], cur_map)
-                db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+                b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+                db.save_battle(group_id, qq_id, b.to_state())
                 self._lock_battle(group_id, qq_id)
                 hint = ""
                 if cur_map.get("elite"):
@@ -149,7 +152,8 @@ class CombatCmds(CommandBase):
                 yield event.plain_result(
                     f"🏘️ 你在{cur_map['name']}外围的野地里遇到了麻烦！\n"
                     f"🐾【{monster['name']}】Lv.{monster['lv']} ❤️ {monster['hp']}/{monster['max_hp']}\n"
-                    f"━━━━━━━━━━━━\n"
+                    + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
+                    + f"━━━━━━━━━━━━\n"
                     f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
                     f"{hint}"
                 )
@@ -166,14 +170,16 @@ class CombatCmds(CommandBase):
         hm = self._roll_hidden_monster(group_id, qq_id, player, cur_map)
         if hm:
             monster, tag, flavor = hm
-            db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+            b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+            db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             yield event.plain_result(
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
                 f"　　{flavor}\n"
                 f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
-                f"━━━━━━━━━━━━\n"
+                + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
+                + f"━━━━━━━━━━━━\n"
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
@@ -197,14 +203,16 @@ class CombatCmds(CommandBase):
             elif sa_boss:
                 hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{sa_boss[1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
-        db.save_battle(group_id, qq_id, BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+        b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+        db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
             f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
-            f"━━━━━━━━━━━━\n"
+            + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
+            + f"━━━━━━━━━━━━\n"
             f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             f"{hint}"
         )
@@ -496,11 +504,15 @@ class CombatCmds(CommandBase):
             )
         # 迷路的旅人：用材料换奖励
         if eid == "wandering":
+            # v95.4：迷路的旅人谢礼限一次（防重复刷同一物品）
+            if db.get_player(group_id, qq_id).get("explore_wandering"):
+                return True, "🧭 【迷路的旅人】旅人认出了你，笑着摆摆手：'缘分到此为止，下次有缘再见！'"
             rewards = ["克罗的罗盘", "传送卷轴", "谷地露水"]
             rw = random.choice(rewards)
             mid = C.resolve("materials", rw)  # v48：中文 → ID
             if mid in C.MATERIALS:
                 db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
+            db.update_player(group_id, qq_id, explore_wandering=1)
             return True, (
                 f"🧭 【迷路的旅人】一位旅人感激你的指路，硬塞给你一件谢礼！\n"
                 f"🎒 获得：{rw}"
@@ -1070,9 +1082,10 @@ class CombatCmds(CommandBase):
             learned_now = E.is_skill_learned(player["class_name"], player["level"], sname, learned)
             if learned_now:
                 slv = int((player.get("skill_levels") or {}).get(sname, 1) or 1)
+                lv_str = f"Lv.{slv}/{E.skill_max_level(info)}"  # v56.4：每技能独立满级
             else:
                 slv = 0  # v56.3：未学显示 0 级
-            lv_str = f"Lv.{slv}/{E.skill_max_level(info)}"  # v56.4：每技能独立满级
+                lv_str = f"未学(Lv.{info.get('lv', '?')}解锁)"  # v95.4：标注解锁等级
             tags = [info.get("kind", "")]
             ftag = self._skill_tag(info)
             if ftag and ftag != info.get("kind", ""):
@@ -1247,6 +1260,21 @@ class CombatCmds(CommandBase):
             parts.append(f"👹敌：「{' '.join(ebuf)}」")
         return "\n".join(parts)
 
+    def _resource_line(self, player: dict, b) -> str:
+        """v95.4：核心资源条（怒气/元素亲和/精力/信仰/连击点/气）——反馈：资源体系无界面显示"""
+        rd = E.core_resource_def(player["class_name"])
+        if not rd:
+            return ""
+        res = getattr(b, "resources", {}) or {}
+        key = rd["key"]
+        name = rd.get("name", key)
+        if rd.get("type") == "switch":
+            cur = E.ELEMENT_CN.get(res.get(key, "fire"), "火")
+            return f"🔮 {name}：{cur}系"
+        cur = res.get(key, 0)
+        cap = rd.get("max", 99)
+        return f"⚡ {name}：{cur}/{cap}"
+
     def _battle_footer(self, player: dict, b, monster: dict) -> str:
         """战斗底部：血蓝 + 状态行(有状态才追加)+ 速度优势提示(v61)"""
         status = self._status_line(player, b)
@@ -1254,6 +1282,9 @@ class CombatCmds(CommandBase):
             f"🐾【{monster['name']}】❤️ {max(0, monster['hp'])}/{monster['max_hp']}",
             f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}",
         ]
+        rl = self._resource_line(player, b)
+        if rl:
+            lines.append(rl)
         if status:
             lines.append(status)
         # v61：玩家还有剩余额外行动时提示自由出手

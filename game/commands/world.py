@@ -493,11 +493,14 @@ class WorldCmds(CommandBase):
                 mark = " (你在这里)" if sa["id"] == cur_sa else ""
                 lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
                 lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
+            exit_sa_id = C.map_exit_subarea(cur)
+            at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
             for i, nid in enumerate(neighbors, len(links) + 1):
                 nm, want_sa = self._conn_target(nid)
                 sa_lbl = self._conn_subarea_name(nm, want_sa)
                 lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+                need_exit = "" if at_exit else " ⛔需先到出口"  # v95.4：非出口子区域标注不可达
+                lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}{need_exit}")
         # v87.4 区块间统一空行分隔（不再叠分隔线）
         if lines and lines[-1]:
             lines.append("")
@@ -678,7 +681,7 @@ class WorldCmds(CommandBase):
                         break
         if not target:
             names = "、".join([m["name"] for m in C.MAPS])
-            yield event.plain_result(f"找不到『{dest}』！大陆上有：{names}")
+            yield event.plain_result(f"找不到『{dest}』！输入『地图』查看可前往区域，或『传送 <名称>』用方碑快速旅行～")
             return
         # 隐藏图检查
         if target.get("hidden"):
@@ -996,7 +999,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result("传送到哪？『方碑』查看已激活方碑，『传送 <序号/名称>』直达～")
             return
         if self._in_battle(group_id, qq_id):
-            yield event.plain_result("⚔️ 你正在战斗中！先解决眼前的敌人再说传送。")
+            yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说传送。")
             return
         portals = db.get_portals(qq_id)
         if not portals:
@@ -1339,7 +1342,8 @@ class WorldCmds(CommandBase):
         名字匹配但今天不在/条件不满足 → 返回 (None, None)，由调用方提示。"""
         cur = player["cur_map"]
         for nid, wnpc in C.ALL_WILD.items():
-            if wnpc.get("name") != name_key:
+            # v95.4：与 _find_npc_in_map 一致的子串匹配（『找 游商』→『游商·老马』）
+            if name_key not in (wnpc.get("name") or ""):
                 continue
             if C.npc_map_id(nid, wnpc) != cur:
                 return None, None
@@ -1623,6 +1627,8 @@ class WorldCmds(CommandBase):
         lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
         if "shop" in funcs:
             lines.append("🏪 输入『商店』可以买东西")
+        if "trade" in funcs:
+            lines.append("🧭 输入『商店』看看他的货（行商有独家补给）")
         if "heal" in funcs:
             lines.append("🏨 输入『住宿』恢复满血(需要金币)")
         if "daily" in funcs:

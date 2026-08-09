@@ -46,7 +46,7 @@ async def main():
     check("技能列表有返回", len(out) > 5, out[:120])
     check("技能列表无状态emoji", "✅" not in out and "📖" not in out and "🔒" not in out, out[:200])
     check("技能列表描述用「」框", "「" in out and "」" in out, out[:200])
-    check("未学技能显示 Lv.0", "Lv.0/5" in out, out[:200])
+    check("未学技能标注解锁等级(v95.4)", "未学(Lv." in out, out[:200])
     check("技能列表尖括号标签", "<物理>" in out or "<魔法>" in out, out[:200])
     check("页数格式", "页数：1/" in out, out[:200])
 

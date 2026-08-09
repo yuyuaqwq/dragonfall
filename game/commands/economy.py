@@ -2609,7 +2609,7 @@ class EconomyCmds(CommandBase):
             return
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
-        if not self._at_shop(player):
+        if not self._at_shop(player, group_id, qq_id):
             hint = self._facility_hint(player, "shop")
             yield event.plain_result(
                 f"这里没有商店！到有商店的地方（如 {hint}）再输入『商店』吧～" if hint else "这里没有商店！去城镇里找找商铺吧～"
@@ -2642,6 +2642,9 @@ class EconomyCmds(CommandBase):
         else:
             # 普通商店：消耗品 + 武器
             shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
+            if not shop_items and self._wild_trader_here(player, group_id, qq_id):
+                shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
+                shop_title = "🧭 游商·老马的货摊"
             for iid in shop_items:
                 it = C.ITEMS[iid]
                 entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
@@ -2676,7 +2679,7 @@ class EconomyCmds(CommandBase):
             return
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
-        if not self._at_shop(player):
+        if not self._at_shop(player, group_id, qq_id):
             hint = self._facility_hint(player, "shop")
             yield event.plain_result(
                 f"这里没有商店！到有商店的地方（如 {hint}）再输入『购买』吧～" if hint else "这里没有商店！去城镇里找找商铺吧～"
@@ -2685,6 +2688,8 @@ class EconomyCmds(CommandBase):
         area_id = cur_map.get("area", cur)
         is_smith = self._is_smith_shop(player)
         shop_items = [] if is_smith else (C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, []))
+        if not shop_items and not is_smith and self._wild_trader_here(player, group_id, qq_id):
+            shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
         item_name = item_name.strip()
         # 商队集市事件：商店 8 折

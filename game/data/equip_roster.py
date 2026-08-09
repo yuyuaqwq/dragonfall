@@ -14,10 +14,10 @@
 
 EQUIP_ROSTER = {
     # ================= 南境·橡木系列（Lv.1-10，新手） =================
-    "eq_tie_jian":        {"name": "铁剑", "slot": "weapon", "weapon_type": "sword", "quality": "white", "lv": 2,  "series": "橡木", "req": {"str": 5}, "source": "商店"},
-    "eq_lie_gong":        {"name": "猎弓", "slot": "weapon", "weapon_type": "bow", "quality": "white", "lv": 2,  "series": "橡木", "req": {"agi": 5}, "source": "商店"},
-    "eq_xue_tu_fa_zhang": {"name": "学徒法杖", "slot": "weapon", "weapon_type": "staff", "quality": "white", "lv": 2, "series": "橡木", "req": {"int": 5}, "source": "商店"},
-    "eq_xiang_mu_duan_gun": {"name": "橡木短棍", "slot": "weapon", "weapon_type": "mace", "quality": "white", "lv": 2, "series": "橡木", "req": {"str": 3}, "source": "商店"},
+    "eq_tie_jian":        {"name": "铁剑", "slot": "weapon", "weapon_type": "sword", "quality": "white", "lv": 2,  "series": "橡木", "source": "商店"},
+    "eq_lie_gong":        {"name": "猎弓", "slot": "weapon", "weapon_type": "bow", "quality": "white", "lv": 2,  "series": "橡木", "source": "商店"},
+    "eq_xue_tu_fa_zhang": {"name": "学徒法杖", "slot": "weapon", "weapon_type": "staff", "quality": "white", "lv": 2, "series": "橡木", "source": "商店"},
+    "eq_xiang_mu_duan_gun": {"name": "橡木短棍", "slot": "weapon", "weapon_type": "mace", "quality": "white", "lv": 2, "series": "橡木", "source": "商店"},
     "eq_pi_jia":          {"name": "皮甲", "slot": "armor", "quality": "white", "lv": 3, "series": "橡木", "req": {"vit": 3}, "source": "商店"},
     "eq_jiu_pi_xue":      {"name": "旧皮靴", "slot": "boots", "quality": "white", "lv": 3, "series": "橡木", "req": {"agi": 3}, "source": "商店"},
     "eq_xiang_mu_dun":    {"name": "橡木盾", "slot": "weapon", "weapon_type": "shield", "quality": "blue", "lv": 6, "series": "橡木", "req": {"str": 8}, "source": "锻造"},

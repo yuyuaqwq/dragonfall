@@ -73,6 +73,10 @@ def check_need(need, ctx: dict) -> bool:
         elif k == "flag":
             if v not in flags:
                 return False
+        elif k == "quest_any_active":
+            # v95.4：当前存在任意进行中主线（对话树指引用）
+            if not quests.get("main_quest"):
+                return False
         elif k == "apprentice":
             if v not in apprentices:
                 return False

@@ -985,7 +985,8 @@ class PlayerCmds(CommandBase):
             )
         return (
             f"✨ 消耗 {cost} 技能点，学会了『{display_name}』！\n"
-            f"现在 Lv.{player['level']} 就能使用它了，剩余技能点 {pts - cost}"
+            f"现在 Lv.{player['level']} 就能使用它了，剩余技能点 {pts - cost}\n"
+            f"💡 记得『设置技能 <槽位> {display_name}』放入技能栏，战斗中『技能 <槽位>』即可施放～"
         )
 
     def _skill_upgrade_gains(self, info: dict, lv: int) -> list:
@@ -1082,7 +1083,7 @@ class PlayerCmds(CommandBase):
             if sname:
                 info = E.skill_info(player["class_name"], sname)
                 kind = info.get("kind", "") if info else ""
-                lines.append(f" {i+1}. {sname}({kind})")
+                lines.append(f" {i+1}. {C.display('skills', sname)}({kind})")
             else:
                 lines.append(f" {i+1}. (空)")
         lines.append("━━━━━━━━━━━━")

@@ -87,6 +87,11 @@ SHOP_ITEMS = {
     ],
 }
 
+# v95.4 野外行商货物（游商·老马等 trade 型野外 NPC 在场时可用）
+SHOP_WILD_TRADE = [
+    "i_treat_s", "i_mana_s", "i_bread", "i_ale", "i_meat_skewer", "i_scroll_escape",
+]
+
 SHOP_WEAPONS = {
     # 南境·橡木系列（10 章 4.1：白装新手武器）
     "oak_town": [

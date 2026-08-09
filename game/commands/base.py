@@ -103,19 +103,34 @@ class CommandBase:
                 return any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
         return False
 
-    def _at_shop(self, player: dict) -> bool:
+    def _at_shop(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
         """v87.17 当前子区域是否有商店（shop: true 或 funcs 含 shop）。
-        设施子区域绑定铁律：商店命令只在有商店的子区域放行。"""
+        设施子区域绑定铁律：商店命令只在有商店的子区域放行。
+        v95.4：野外行商（trade funcs）在场时也可交易。"""
         cur_map = player.get("cur_map", "")
         sa_id = player.get("cur_subarea") or ""
-        if not sa_id:
+        if sa_id:
+            cm = C.MAP_BY_ID.get(cur_map, {})
+            for sa in (cm.get("subareas") or []):
+                if sa["id"] == sa_id:
+                    if sa.get("shop"):
+                        return True
+                    return "shop" in (sa.get("funcs") or [])
+        # v95.4：不在城镇设施 → 看是否有野外行商在场
+        return self._wild_trader_here(player, group_id, qq_id)
+
+    def _wild_trader_here(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
+        """v95.4：当前地图是否有可交易的野外行商（funcs 含 trade 且出现条件满足）"""
+        if not (group_id and qq_id):
             return False
-        cm = C.MAP_BY_ID.get(cur_map, {})
-        for sa in (cm.get("subareas") or []):
-            if sa["id"] == sa_id:
-                if sa.get("shop"):
-                    return True
-                return "shop" in (sa.get("funcs") or [])
+        cur = player.get("cur_map", "")
+        for nid, wnpc in C.ALL_WILD.items():
+            if "trade" not in (wnpc.get("funcs") or []):
+                continue
+            if C.npc_map_id(nid, wnpc) != cur:
+                continue
+            if C.wild_npc_findable(nid, wnpc, player, group_id, qq_id):
+                return True
         return False
 
     def _at_healer(self, player: dict) -> bool:

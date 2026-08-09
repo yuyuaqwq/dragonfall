@@ -33,6 +33,7 @@ DIALOGUES = {
                     {"text": "野狗是怎么回事？", "next": "dogs"},
                     {"text": "镇长，镇子最近还好吗？", "next": "town"},
                     {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q1"}},
+                    {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
                     {"text": "任务完成了！", "next": "quest_done_talk", "need": {"quest_active": "q1"}, "action": {"set_flag": "rewarded"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
@@ -71,6 +72,12 @@ DIALOGUES = {
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint"}},
                     {"text": "再想想。", "next": "welcome"},
+                ],
+            },
+            "quest_status": {
+                "text": "你手上还有更要紧的事——先去完成当前的任务吧，办妥了记得回来找我。",
+                "options": [
+                    {"text": "好，我这就去。", "next": "__end__"},
                 ],
             },
             "quest_accept": {

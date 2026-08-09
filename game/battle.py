@@ -18,6 +18,23 @@ import random
 from . import content as C
 from . import engine as E
 
+# v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
+_ATK_VERB = {
+    "cls_zhan_shi": "挥剑斩击",
+    "cls_fa_shi": "凝聚魔力轰出法球",
+    "cls_you_xia": "弯弓搭箭",
+    "cls_mu_shi": "圣光冲击",
+    "cls_ci_ke": "匕首突刺",
+    "cls_wu_seng": "挥拳轰击",
+    "cls_bard": "拨弦激荡音波",
+    "cls_spellblade": "魔能斩击",
+}
+
+
+def _basic_attack_verb(player: dict) -> str:
+    """普攻动作文案（按职业；未知职业 fallback 挥剑攻击）"""
+    return _ATK_VERB.get(player.get("class_name", ""), "挥剑攻击")
+
 
 # 增益倍率映射：effect -> (修正属性, 倍率/加成)
 BUFF_MULT = {
@@ -493,7 +510,7 @@ class Battle:
             logs.append("💨 你成功脱离了战斗！")
             self.result = "fled"
             return logs, True
-        logs.append("逃跑失败！被追上了！")
+        logs.append("💨 逃跑失败！被追上了！(可以再『逃跑』，或『防御』『用药』撑住)" )
         mlogs, dmg = self._enemy_turn(player)
         logs += mlogs
         self._damage_player(player, dmg, logs)
@@ -586,7 +603,7 @@ class Battle:
         tag = " 💥暴击" if is_crit else ""
         if affix_tags:
             tag += " " + "·".join(affix_tags)
-        logs.append(f"你挥剑攻击，造成 {dmg} 点伤害！{tag}")
+        logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
         # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
         self._apply_enchant_attack(effs, dmg, st, player, logs)
         # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）

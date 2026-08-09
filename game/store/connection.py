@@ -242,7 +242,8 @@ def init_db():
                 enhance_exp INTEGER DEFAULT 0,
                 enchant_lv INTEGER DEFAULT 1,
                 enchant_exp INTEGER DEFAULT 0,
-                fish_king INTEGER DEFAULT 0
+                fish_king INTEGER DEFAULT 0,
+                explore_wandering INTEGER DEFAULT 0
             );
             """)
             # 兼容旧库：players 表补 class_tier 列（转职系统）
@@ -267,6 +268,8 @@ def init_db():
                 conn.execute("ALTER TABLE players ADD COLUMN skill_spent INTEGER DEFAULT 0")
             if "shortcuts" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN shortcuts TEXT DEFAULT '{}'")
+            if "explore_wandering" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN explore_wandering INTEGER DEFAULT 0")
             if "evolve_path" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN evolve_path INTEGER DEFAULT 0")
             if "skill_levels" not in pcols:
