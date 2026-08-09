@@ -2073,6 +2073,8 @@ class WorldCmds(CommandBase):
             db.clear_talk_state(group_id, qq_id)
             yield event.plain_result("这位 NPC 似乎已经离开了……")
             return
+        npc = dict(npc)
+        npc.setdefault("title", "游历于野外的旅人")  # v95.11：wild NPC 无 title，与 _find_wild_npc 一致
         # 惰性失效：NPC 不在当前地图 → 会话作废（wild NPC 按 roam 定位）
         if C.npc_map_id(npc_id, npc) != player.get("cur_map"):
             db.clear_talk_state(group_id, qq_id)
