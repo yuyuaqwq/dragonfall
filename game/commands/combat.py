@@ -1088,7 +1088,8 @@ class CombatCmds(CommandBase):
                 need_lv = info.get("lv", 99)
                 if player["level"] >= need_lv:
                     # v95.7 #36：已达解锁等级 → 显示"可学(X技能点)"而非静态"未学(Lv.X解锁)"
-                    cost = E.skill_learn_cost(player["level"], need_lv)
+                    # v95.7 修复：cost 用 skill_learn_cost_for（含种族折扣），与『技能学习』实际扣点一致
+                    cost = E.skill_learn_cost_for(player, need_lv)
                     lv_str = f"可学({cost}技能点)"
                 else:
                     lv_str = f"未学(Lv.{need_lv}解锁)"  # v95.4：标注解锁等级

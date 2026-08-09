@@ -963,10 +963,7 @@ class PlayerCmds(CommandBase):
         need_lv = info["lv"]
         if player["level"] < need_lv:
             return f"『{display_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}——升级吧！(每级＋1 技能点)"
-        cost = E.skill_learn_cost(player["level"], need_lv)
-        # 阶段九：人类多才多艺——学习技能点 -8%
-        if E.race_stats(player.get("race")).get("learn_discount"):
-            cost = max(1, int(cost * (1 - E.race_stats(player.get("race"))["learn_discount"])))
+        cost = E.skill_learn_cost_for(player, need_lv)
         pts = player.get("skill_points", 0)
         if pts < cost:
             return (

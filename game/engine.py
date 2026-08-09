@@ -507,6 +507,15 @@ def skill_learn_cost(level: int, need_lv: int) -> int:
     return need_lv // 6 + 2
 
 
+def skill_learn_cost_for(player: dict, need_lv: int) -> int:
+    """v95.7 #36：最终学习成本（含种族折扣）——技能列表/学习提示/扣点必须同源，避免显示不一致"""
+    cost = skill_learn_cost(player.get("level", 1), need_lv)
+    disc = race_stats(player.get("race")).get("learn_discount")
+    if disc:
+        cost = max(1, int(cost * (1 - disc)))
+    return cost
+
+
 # ---------------- 技能升级（v27） ----------------
 SKILL_MAX_LEVEL = 5          # 技能等级上限
 SKILL_POWER_PER_LV = 0.10    # 攻击/治疗每级 power +10%（未单独配置时的默认值）
