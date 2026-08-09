@@ -927,6 +927,7 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         logs.append(
             f"🎉 恭喜升级！现在 {player['level']} 级！"
             f"(生命上限 +{st['max_hp'] - prev_base['hp']}, 攻击 +{st['atk'] - prev_base['atk']})"
+            f"\n📌 属性点 +3、技能点 +1(『属性』加点 / 『技能学习 <名称>』学技能)"
         )
         if can_learn:
             logs.append(f"📖 有 {len(can_learn)} 个新技能可学习！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")

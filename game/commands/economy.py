@@ -2073,6 +2073,9 @@ class EconomyCmds(CommandBase):
         # v95.4：新手武器（橡木系列 Lv.2-3）需求已从名册移除，旧存量装备快照仍带 req → 一并豁免
         if d.get("slot") == "weapon" and d.get("lv", 99) <= 3:
             return True, ""
+        # v95.7 #27：v93 商店装饰品（毛皮帽/橡木戒指/橡木项链）名册已去 req，旧存量快照仍带 → 豁免
+        if d.get("slot") in ("ring", "necklace", "helm") and d.get("lv", 99) <= 4:
+            return True, ""
         req = d.get("req")
         if not req:
             return True, ""
@@ -2159,10 +2162,10 @@ class EconomyCmds(CommandBase):
             return
         equipment = dict(player["equipment"])
         old = equipment.get(d["slot"])
-        old_stats = None
-        if old:
-            old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
-                                             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), None, player.get("race"))
+        # v95.7 #28：无论槽位是否有旧装备都计算穿前属性——空槽穿第一件时 old 为 None，
+        # 旧代码 old_stats 保持 None 导致 diff 显示"(无变化)"；title_bonus 与穿后一致
+        old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
+                                         player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         # 卸下旧装备回背包
         if old:
             import uuid
@@ -2225,9 +2228,9 @@ class EconomyCmds(CommandBase):
         if not item:
             yield event.plain_result(f"{C.EQUIP_SLOTS[slot]}位置没有装备！")
             return
-        # 属性变化对比（复用 equip 逻辑）
+        # 属性变化对比（复用 equip 逻辑；v95.7 #28：title_bonus 与卸后一致）
         old_stats = E.player_final_stats(player["class_name"], player["level"], equipment,
-                                         player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), None, player.get("race"))
+                                         player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         import uuid
         db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", item)
         equipment[slot] = None

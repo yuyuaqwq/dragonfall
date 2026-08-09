@@ -132,6 +132,24 @@ def get_player(group_id, qq_id):
                         conn.commit()
             except Exception:
                 pass
+            # v95.7 #26：读档惰性结算经验溢出（面板曾出现 100% 不升级，要打一场才结算）
+            # 任务奖励等路径若漏查升级，读档时自动补算并写回（升级回满血/给属性点技能点）
+            try:
+                _lv0 = p.get("level", 1)
+                if p.get("exp", 0) >= C.exp_to_next(_lv0):
+                    from ..engine import check_player_level_up  # 延迟导入避免初始化顺序问题
+                    _logs, _p2 = check_player_level_up(group_id, qq_id, p)
+                    if _p2.get("level", 1) > _lv0:
+                        conn.execute(
+                            "UPDATE players SET level=?, exp=?, hp=?, mp=?, max_hp=?, max_mp=?, "
+                            "attr_pts=?, skill_points=? WHERE qq_id=?",
+                            (_p2["level"], _p2["exp"], _p2["hp"], _p2["mp"],
+                             _p2["max_hp"], _p2["max_mp"],
+                             _p2.get("attr_pts", 0), _p2.get("skill_points", 0), qq_id),
+                        )
+                        conn.commit()
+            except Exception:
+                pass
             return p
         finally:
             conn.close()

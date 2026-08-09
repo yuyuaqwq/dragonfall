@@ -1085,7 +1085,13 @@ class CombatCmds(CommandBase):
                 lv_str = f"Lv.{slv}/{E.skill_max_level(info)}"  # v56.4：每技能独立满级
             else:
                 slv = 0  # v56.3：未学显示 0 级
-                lv_str = f"未学(Lv.{info.get('lv', '?')}解锁)"  # v95.4：标注解锁等级
+                need_lv = info.get("lv", 99)
+                if player["level"] >= need_lv:
+                    # v95.7 #36：已达解锁等级 → 显示"可学(X技能点)"而非静态"未学(Lv.X解锁)"
+                    cost = E.skill_learn_cost(player["level"], need_lv)
+                    lv_str = f"可学({cost}技能点)"
+                else:
+                    lv_str = f"未学(Lv.{need_lv}解锁)"  # v95.4：标注解锁等级
             tags = [info.get("kind", "")]
             ftag = self._skill_tag(info)
             if ftag and ftag != info.get("kind", ""):
@@ -1635,7 +1641,8 @@ class CombatCmds(CommandBase):
             if mq and quests.get("main_status") == "active":
                 prog = dict(quests.get("main_progress", {}))
                 obj = mq["objective"]
-                if obj.get("kill") == monster["name"]:
+                if obj.get("kill") and (obj["kill"] == monster["name"] or obj["kill"] in monster["name"]):
+                    # v95.7 #33：精英/头目变体名包含目标怪名（如『野猪』←『精英野猪』）也计入任务进度
                     prog[monster["name"]] = prog.get(monster["name"], 0) + 1
                     quests["main_progress"] = prog
                     changed = True

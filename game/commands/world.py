@@ -444,7 +444,7 @@ class WorldCmds(CommandBase):
         db.add_item(group_id, qq_id, it["key"], it["data"], it.get("count", 1))
         yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置|周围)(?:\s*|$)")
 
     async def map_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -499,7 +499,7 @@ class WorldCmds(CommandBase):
                 nm, want_sa = self._conn_target(nid)
                 sa_lbl = self._conn_subarea_name(nm, want_sa)
                 lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                need_exit = "" if at_exit else " ⛔需先到出口"  # v95.4：非出口子区域标注不可达
+                need_exit = "" if at_exit else f" ⛔需先到{next((s['name'] for s in sas if s['id'] == exit_sa_id), '出口')}"  # v95.7 #34：标注出口名（如『镇郊』）
                 lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}{need_exit}")
         # v87.4 区块间统一空行分隔（不再叠分隔线）
         if lines and lines[-1]:
@@ -914,6 +914,59 @@ class WorldCmds(CommandBase):
             return None
         return C.build_monster(random.choice(monsters), target_map)
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:\s*|$)")
+    @no_prof_waiting()
+
+    async def move_back(self, event: AstrMessageEvent):
+        """v95.7 #31：『返回 <城镇名>』快捷回城——无视出口限制直接回城（消耗 1 体力），
+        解决野外残血回城被『需先到出口』卡住的问题(#35 配套)。"""
+        group_id, qq_id = self._uid(event)
+        dest = self._strip_cmd(event, "返回").strip()
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        if db.get_talk_state(group_id, qq_id):
+            yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
+            return
+        target = None
+        if dest:
+            for m in C.MAPS:
+                if m.get("type") == "城镇区域" and dest in (m["name"], m["id"]):
+                    target = m
+                    break
+        if not target:
+            towns = "、".join(m["name"] for m in C.MAPS if m.get("type") == "城镇区域")
+            yield event.plain_result(f"找不到城镇『{dest}』！可返回：{towns}(例：『返回 橡木镇』)")
+            return
+        if player["cur_map"] == target["id"]:
+            yield event.plain_result(f"你已经在{target['name']}了～")
+            return
+        if self._is_redname(qq_id):
+            yield event.plain_result("🛡️ 城门口的守卫拦住了你：\"你身上沾着血腥味！红名期间禁止进入城镇！\"\n(红名期间不能进入安全区，去野外避避风头吧)")
+            return
+        if self._stamina(player) < 1:
+            yield event.plain_result(
+                f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
+                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每10分钟+1)"
+            )
+            return
+        self._spend_stamina(group_id, qq_id, 1, player, "返回")
+        entry_sa_id = C.map_entry_subarea(target["id"])
+        target_sas = target.get("subareas") or []
+        first_sa = next((s for s in target_sas if s["id"] == entry_sa_id), None) or (target_sas[0] if target_sas else None)
+        db.update_player(group_id, qq_id, cur_map=target["id"],
+                         cur_subarea=first_sa["id"] if first_sa else "")
+        db.add_visited(group_id, qq_id, target["id"])
+        try:
+            C.check_achievements(group_id, qq_id, self._player(group_id, qq_id))
+        except Exception:
+            pass
+        quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
+        extra = ("\n\n" + "\n".join(quest_lines)) if quest_lines else ""
+        yield event.plain_result(f"🧭 你一路疾行，回到了{target['name']}！(『地图』查看位置){extra}")
+
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
 
     async def portal_view(self, event: AstrMessageEvent):
@@ -1204,6 +1257,46 @@ class WorldCmds(CommandBase):
         lines.append("")
         lines.append("💡 输入『每日』领取今日任务，『找 <NPC名>』接取任务")
         yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?接取(?:\s*|$)")
+
+    async def quest_accept(self, event: AstrMessageEvent):
+        """v95.7 #38：『接取任务』/『接取 <任务名>』——当前地图有发布 NPC 时直接接取，否则提示位置"""
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "接取").strip()
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
+            return
+        quests = db.get_quests(group_id, qq_id)
+        # 主线（pending 可接）
+        main_id = quests.get("main_quest")
+        mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None) if main_id else None
+        if mq and quests.get("main_status") == "pending":
+            if not raw or raw in (mq["name"], "任务", "主线"):
+                npc = C.NPCS.get(mq["giver"], {})
+                if npc.get("map") == player["cur_map"]:
+                    lines = self._take_main_quest(group_id, qq_id, mq["giver"], npc)
+                    yield event.plain_result("\n".join(lines))
+                    return
+                giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
+                yield event.plain_result(f"当前主线『{mq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
+                return
+        # 支线（未接的）
+        for sq in C.SIDE_QUESTS:
+            if sq["id"] in (quests.get("side") or {}):
+                continue
+            if not raw or raw in (sq["name"], "任务"):
+                npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
+                if npc.get("map") == player["cur_map"]:
+                    lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
+                    yield event.plain_result("\n".join(lines))
+                    return
+                giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
+                yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
+                return
+        yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
+
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?:\s*|$)")
 
@@ -1984,7 +2077,8 @@ class WorldCmds(CommandBase):
                         return
                     else:
                         giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
-                        yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver} 交任务！")
+                        giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
+                        yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交任务！")
                         return
                 else:
                     collect_missing = (sqd["name"], obj["collect"], have, obj["count"])
@@ -1997,7 +2091,8 @@ class WorldCmds(CommandBase):
                     return
                 else:
                     giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
-                    yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver} 交任务！")
+                    giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
+                    yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver}(在{giver_map}) 交任务！")
                     return
         if collect_missing:
             name, mat, have, need = collect_missing
