@@ -149,6 +149,40 @@ async def main():
     check("指名进行中主线→进行中提示", "进行中" in out and "无需重复" in out, out[:120])
     check("不回显支线列表", "【可接取任务】" not in out, out[:120])
 
+    print("【v95.13 #126：kill_any 支线计数（护送商货）】")
+    clean_db()
+    m3 = Main(None)
+    await cmd(m3, "register", "g1", "w1", "注册 战士 旅人")
+    db.update_player("g1", "w1", level=10, gold=1000, cur_map="silver_wind_road")
+    qs = db.get_quests("g1", "w1")
+    qs["side"] = {"s_caravan_escort": {"status": "active", "progress": {}}}
+    db.save_quests("g1", "w1", qs)
+    # 击杀任意怪 3 次（进度 1/5 → 3/5）
+    for i in range(3):
+        lines = m3._update_quests("g1", "w1", {"name": "野狗"})
+        joined = "|".join(lines)
+        check(f"kill_any 第{i+1}次击杀有进度提示", f"{i+1}/5" in joined, joined[:100])
+    qs2 = db.get_quests("g1", "w1")
+    sq2 = qs2["side"]["s_caravan_escort"]
+    check("progress any 累计 3", sq2.get("progress", {}).get("any") == 3, str(sq2.get("progress")))
+    check("3/5 未 ready", sq2.get("status") == "active", str(sq2.get("status")))
+    # 再杀 2 只（任意怪名不同也可）→ 5/5 ready
+    for i in range(2):
+        lines = m3._update_quests("g1", "w1", {"name": "森林狼"})
+        joined = "|".join(lines)
+    qs3 = db.get_quests("g1", "w1")
+    sq3 = qs3["side"]["s_caravan_escort"]
+    check("5/5 转 ready", sq3.get("status") == "ready", str(sq3.get("status")))
+    check("目标达成提示", "目标达成" in "|".join(lines), "|".join(lines)[:120])
+    # 交付验证
+    p0 = db.get_player("g1", "w1")
+    g0, e0 = p0.get("gold", 0), p0.get("exp", 0)
+    out = m3._complete_side_quest("g1", "w1", "s_caravan_escort")
+    p1 = db.get_player("g1", "w1")
+    check("kill_any 支线可交付", "奖励" in "|".join(out) or out == [], "|".join(out)[:150])
+    check("交付后金币+150", p1.get("gold", 0) == g0 + 150, f"{g0}->{p1.get('gold',0)}")
+    check("交付后经验+300", p1.get("exp", 0) == e0 + 300, f"{e0}->{p1.get('exp',0)}")
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

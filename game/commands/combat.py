@@ -1708,7 +1708,19 @@ class CombatCmds(CommandBase):
             if not sqd:
                 continue
             obj = sqd["objective"]
-            if obj.get("kill") == monster["name"]:
+            if obj.get("kill_any"):
+                # v95.13 修复：kill_any 支线（护送商货等）此前无计数分支，任务永久卡死
+                prog = dict(sq.get("progress", {}))
+                prog["any"] = prog.get("any", 0) + 1
+                sq["progress"] = prog
+                changed = True
+                if prog["any"] >= obj["kill_any"]:
+                    sq["status"] = "ready"
+                    _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
+                    lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
+                else:
+                    lines.append(f"📜 支线『{sqd['name']}』：{prog['any']}/{obj['kill_any']}")
+            elif obj.get("kill") == monster["name"]:
                 prog = dict(sq.get("progress", {}))
                 prog[monster["name"]] = prog.get(monster["name"], 0) + 1
                 sq["progress"] = prog
