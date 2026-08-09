@@ -36,9 +36,11 @@ def _build_ency():
 
 
 def subarea_links(map_id: str, subarea_id: str) -> list:
-    """同图内可直达的子区域 id 列表（v87.14 空间连接）。
+    """同图内可直达的子区域 id 列表（v87.14 空间连接 + v87.16 街道链）。
 
-    - 城镇区域：星形拓扑——中心广场（首个子区域）连所有；其余子区域（含城门）只连广场
+    - 城镇区域：星形拓扑——中心广场（首个子区域）连所有场所 + 街道链首；
+      普通场所只连广场；城镇街道（如东大街）连 广场 + 城镇出口；
+      城镇出口（如镇郊）连城镇街道。
     - 野外/副本：线性拓扑——按列表顺序相邻（i ↔ i+1），入口 _1 是图内枢纽
     """
     sas = SUBAREAS.get(map_id, [])
@@ -49,8 +51,19 @@ def subarea_links(map_id: str, subarea_id: str) -> list:
         return []
     center = sas[0]
     if center.get("type") == "城镇":
+        cur_type = sas[idx].get("type")
         if subarea_id == center["id"]:
-            return [s["id"] for s in sas if s["id"] != center["id"]]
+            # 广场连所有场所 + 街道链首（不含城镇出口——镇郊需经东大街）
+            return [s["id"] for s in sas
+                    if s["id"] != center["id"] and s.get("type") != "城镇出口"]
+        if cur_type == "城镇街道":
+            # 街道：连出口（链尾）+ 广场（链首）
+            out = [s["id"] for s in sas if s.get("type") == "城镇出口"]
+            out.append(center["id"])
+            return out
+        if cur_type == "城镇出口":
+            # 出口：只连城镇街道（链首）
+            return [s["id"] for s in sas if s.get("type") == "城镇街道"]
         return [center["id"]]
     # 线性
     out = []
@@ -62,9 +75,9 @@ def subarea_links(map_id: str, subarea_id: str) -> list:
 
 
 def map_exit_subarea(map_id: str) -> str:
-    """离开该图必须所在的子区域（v87.14）。
+    """离开该图必须所在的子区域（v87.14 + v87.16）。
 
-    - 城镇：城门子区域（id 以 _gate 结尾）
+    - 城镇：城镇出口子区域（镇郊）；无城镇出口则退回 _gate 结尾（旧数据）
     - 非城镇：首个子区域（入口）
     """
     sas = SUBAREAS.get(map_id, [])
@@ -72,15 +85,18 @@ def map_exit_subarea(map_id: str) -> str:
         return ""
     if sas[0].get("type") == "城镇":
         for s in sas:
+            if s.get("type") == "城镇出口":
+                return s["id"]
+        for s in sas:
             if s["id"].endswith("_gate"):
                 return s["id"]
     return sas[0]["id"]
 
 
 def map_entry_subarea(map_id: str) -> str:
-    """跨图进入该图的落点子区域（v87.14）。
+    """跨图进入该图的落点子区域（v87.14 + v87.16）。
 
-    - 城镇：城门子区域（从野外进城先到城门，再进广场）
+    - 城镇：城镇出口子区域（从野外进城先到镇郊，再经东大街进广场）
     - 非城镇：首个子区域（入口）
     注：注册/传送/回家等"城内直达"场景用 subareas[0]（广场），不走城门。
     """
@@ -88,6 +104,9 @@ def map_entry_subarea(map_id: str) -> str:
     if not sas:
         return ""
     if sas[0].get("type") == "城镇":
+        for s in sas:
+            if s.get("type") == "城镇出口":
+                return s["id"]
         for s in sas:
             if s["id"].endswith("_gate"):
                 return s["id"]

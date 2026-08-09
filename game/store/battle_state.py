@@ -9,6 +9,8 @@ def save_battle(group_id, qq_id, state: dict):
 
 
     兼容旧调用：若传入的是裸怪物 dict，自动包装为 v9 状态。
+    v94.1：续存时自动继承旧 state 的 stamina_charged 标记（b.to_state() 不含该字段，
+    否则战斗内第二击会重复扣体力）。
     """
     if "type" not in state:
         state = {
@@ -20,6 +22,16 @@ def save_battle(group_id, qq_id, state: dict):
         conn = _connect()
         try:
             enemy = state.get("enemy") or {}
+            old = conn.execute(
+                "SELECT state FROM battle_state WHERE qq_id=?", (qq_id,)
+            ).fetchone()
+            if old and state.get("stamina_charged") is None:
+                try:
+                    old_state = json.loads(old["state"])
+                    if old_state.get("stamina_charged"):
+                        state["stamina_charged"] = True
+                except (ValueError, TypeError):
+                    pass
             conn.execute(
                 "INSERT INTO battle_state (qq_id, monster, state, updated_at) VALUES (?,?,?,?) "
                 "ON CONFLICT(qq_id) DO UPDATE SET monster=excluded.monster, state=excluded.state, updated_at=excluded.updated_at",

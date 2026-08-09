@@ -623,6 +623,11 @@ class InstanceCmds(CommandBase):
             # 消耗钥匙（首通前）
             if has_key and not cleared_before:
                 db.remove_item(group_id, qq_id, key_entry["key"])
+        # v94 体力：开本消耗 20 体力（全队队长扣）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # 构建副本 Boss（血量按人数缩放：min_players 人数 = hp_mult，每多 1 人 +0.65；攻击 ×atk_mult）
         boss = C.build_monster(inst["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
         if inst.get("mech"):

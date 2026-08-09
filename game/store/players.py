@@ -65,10 +65,10 @@ def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp,
         try:
             now = int(time.time())
             conn.execute(
-                "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race) "
-                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?) "
+                "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race, stamina, stamina_ts) "
+                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,100,?) "
                 "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race",
-                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race),
+                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race, now),
             )
             conn.commit()
         finally:
@@ -108,6 +108,28 @@ def get_player(group_id, qq_id):
                     p["hp"] = mx_hp
                 if mx_mp and (p.get("mp") or 0) > mx_mp:
                     p["mp"] = mx_mp
+            except Exception:
+                pass
+            # v94 体力系统：惰性自然恢复（每 10 分钟 +1，封顶 100+等级×2）。
+            # 仅在 stamina < 上限时触发——测试档 stamina=999999 不会被拉回上限。
+            try:
+                _max_st = 100 + (p.get("level") or 1) * 2
+                _st = p.get("stamina")
+                if _st is None:
+                    _st = 100
+                    p["stamina"] = 100
+                _ts = p.get("stamina_ts") or 0
+                if _st < _max_st and _ts:
+                    _now = int(time.time())
+                    _gain = (_now - _ts) // 600  # 每 10 分钟 1 点
+                    if _gain > 0:
+                        _new = min(_max_st, _st + _gain)
+                        p["stamina"] = _new
+                        conn.execute(
+                            "UPDATE players SET stamina=?, stamina_ts=? WHERE qq_id=?",
+                            (_new, _now, qq_id),
+                        )
+                        conn.commit()
             except Exception:
                 pass
             return p

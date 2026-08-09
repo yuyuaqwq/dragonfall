@@ -11,8 +11,9 @@ from .economy import EconomyCmds  # noqa: F401
 from .social import SocialCmds  # noqa: F401
 from .misc import MiscCmds  # noqa: F401
 from .instance import InstanceCmds  # noqa: F401
+from .gm import GmCmds  # noqa: F401
 
 __all__ = [
     "CommandBase", "PlayerCmds", "WorldCmds", "CombatCmds",
-    "EconomyCmds", "SocialCmds", "MiscCmds", "InstanceCmds",
+    "EconomyCmds", "SocialCmds", "MiscCmds", "InstanceCmds", "GmCmds",
 ]

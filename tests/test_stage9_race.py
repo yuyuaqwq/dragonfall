@@ -139,7 +139,7 @@ def test_battle_talents():
     enemy = mk_enemy("暗影法师", skills=["ms_an_ying_dan"], matk=50)
     b2 = BT.Battle("monster", enemy, {}, p_db)
     found = False
-    for _ in range(10):
+    for _ in range(30):  # 敌人 30% 概率用技能：30 次全普攻概率≈0.002%，消除偶发
         logs2, _ = b2._enemy_turn(p_db)
         if "龙鳞" in "".join(logs2):
             found = True
@@ -149,7 +149,7 @@ def test_battle_talents():
     p_orc = mk_player("orc")
     b3 = BT.Battle("monster", mk_enemy("暗影法师", skills=["ms_an_ying_dan"], matk=50), {}, p_orc)
     found3 = False
-    for _ in range(10):
+    for _ in range(30):  # 同上：消除敌人技能随机性偶发
         logs3, _ = b3._enemy_turn(p_orc)
         if "鲁莽之心" in "".join(logs3):
             found3 = True

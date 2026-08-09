@@ -56,6 +56,8 @@ def init_db():
                 skill_levels TEXT DEFAULT '{}',
                 learned_blueprints TEXT DEFAULT '[]',
                 lucky_until INTEGER DEFAULT 0,
+                stamina INTEGER DEFAULT 100,
+                stamina_ts INTEGER DEFAULT 0,
                 created_at INTEGER,
                 last_active INTEGER,
                 race TEXT DEFAULT 'human'
@@ -275,6 +277,11 @@ def init_db():
                 conn.execute("ALTER TABLE players ADD COLUMN learned_blueprints TEXT DEFAULT '[]'")
             if "lucky_until" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN lucky_until INTEGER DEFAULT 0")
+            # v94 体力系统：动作类行为消耗体力，食物/住宿/自然恢复（老库自愈）
+            if "stamina" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN stamina INTEGER DEFAULT 100")
+            if "stamina_ts" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN stamina_ts INTEGER DEFAULT 0")
             # 阶段九：种族系统（08 章）——players 表补 race 列（老库自愈）
             if "race" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN race TEXT DEFAULT 'human'")

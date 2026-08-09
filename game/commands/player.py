@@ -167,6 +167,8 @@ class PlayerCmds(CommandBase):
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
         db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id)
+        # v95 #47：注册送 1 技能点 → Lv.1 有 1 点、Lv.2 有 2 点正好学第一个技能（Lv.1/Lv.2 技能 cost=2），断层消除
+        db.update_player(group_id, qq_id, skill_points=1)
         # v86 子区域：新手出生落中心广场
         db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")
         db.init_stats(group_id, qq_id)
@@ -268,6 +270,8 @@ class PlayerCmds(CommandBase):
         # 资源块（金币/位置/技能点/EXP 独立成块，每项单独一行）
         lines.append("━━━━━━━━━━━━")
         lines.append(f"💰 金币：{player['gold']}")
+        # v94 体力：角色面板显示体力
+        lines.append(self._stamina_bar(player))
         lines.append(f"📍 位置：{cur_map}")
         lines.append(f"💡 技能点：{player.get('skill_points', 0)}")
         lines.append(f"✨ EXP：{player['exp']}/{need} ({exp_pct}%)")

@@ -78,6 +78,11 @@ class CombatCmds(CommandBase):
             return
         # v87 02 章 7.6：POI 探索点独立判定（15%）
         # v87.9 修复：放在随机事件之前——事件命中直接 return 会吞掉 POI 判定，导致挂载了却探索不到
+        # v94 体力：野外探索消耗 1 体力（偶遇 NPC 不消耗）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "探索")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         cur_sa_id_poi = player.get("cur_subarea") or ""
         poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
         if poi_hit:
@@ -795,6 +800,11 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
+        # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "攻击")
+        if not _ok:
+            yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
+            return
         if b.btype == "worldboss":
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None):
                 yield _r
@@ -932,6 +942,11 @@ class CombatCmds(CommandBase):
                 return
             async for _r in self._pvp_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name):
                 yield _r
+            return
+        # v94.2 体力：施放技能扣 1（instance/pvp 已在上方分流）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "施放技能")
+        if not _ok:
+            yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
         if b.btype == "worldboss":
             async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name):

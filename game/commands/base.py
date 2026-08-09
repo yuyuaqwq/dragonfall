@@ -103,6 +103,57 @@ class CommandBase:
                 return any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
         return False
 
+    def _at_shop(self, player: dict) -> bool:
+        """v87.17 当前子区域是否有商店（shop: true 或 funcs 含 shop）。
+        设施子区域绑定铁律：商店命令只在有商店的子区域放行。"""
+        cur_map = player.get("cur_map", "")
+        sa_id = player.get("cur_subarea") or ""
+        if not sa_id:
+            return False
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        for sa in (cm.get("subareas") or []):
+            if sa["id"] == sa_id:
+                if sa.get("shop"):
+                    return True
+                return "shop" in (sa.get("funcs") or [])
+        return False
+
+    def _at_healer(self, player: dict) -> bool:
+        """v87.17 当前子区域是否有旅店（healer: true 或 funcs 含 heal）。
+        设施子区域绑定铁律：住宿只在旅店子区域放行。"""
+        cur_map = player.get("cur_map", "")
+        sa_id = player.get("cur_subarea") or ""
+        if not sa_id:
+            return False
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        for sa in (cm.get("subareas") or []):
+            if sa["id"] == sa_id:
+                if sa.get("healer"):
+                    return True
+                return "heal" in (sa.get("funcs") or [])
+        return False
+
+    def _facility_hint(self, player: dict, kind: str) -> str:
+        """v87.17 提示最近设施所在子区域（kind: shop/healer）。
+        返回如『去 老铁铁匠铺 或 草药铺 看看』，无则空串。"""
+        cur_map = player.get("cur_map", "")
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        names = []
+        for sa in (cm.get("subareas") or []):
+            if kind == "shop":
+                if sa.get("shop") or "shop" in (sa.get("funcs") or []):
+                    names.append(sa.get("name", ""))
+            elif kind == "healer":
+                if sa.get("healer") or "heal" in (sa.get("funcs") or []):
+                    names.append(sa.get("name", ""))
+        if not names:
+            return ""
+        uniq = []
+        for n in names:
+            if n and n not in uniq:
+                uniq.append(n)
+        return "去 " + " 或 ".join(uniq[:3]) + " 看看"
+
     # 静态命令正则表（Mixin 切分后各文件 @filter.regex 的汇总）。
     # 用于测试环境/注册表缺失时快捷指令的校验与转发；真实 AstrBot 注册表优先。
     _STATIC_HANDLERS = None
@@ -261,6 +312,39 @@ class CommandBase:
 
     def _player(self, group_id, qq_id):
         return db.get_player(group_id, qq_id)
+
+    # ---------- v94 体力系统 ----------
+    def _stamina_max(self, player: dict) -> int:
+        """体力上限：100 + 等级×2"""
+        return 100 + (player.get("level") or 1) * 2
+
+    def _stamina(self, player: dict) -> int:
+        return int(player.get("stamina") or 0)
+
+    def _spend_stamina(self, group_id, qq_id, cost: int, player: dict, action: str = "行动") -> tuple:
+        """扣体力；不足返回 (False, 提示)。够则落库并返回 (True, 剩余)。"""
+        cur = self._stamina(player)
+        if cur < cost:
+            return False, (
+                f"😮‍💨 体力不足！{action}需要 {cost} 点体力，你只有 {cur} 点。\n"
+                f"🍖 吃点食物(『烹饪』/『使用 <食物>』)或去旅店『住宿』恢复体力～"
+            )
+        db.update_player(group_id, qq_id, stamina=cur - cost)
+        return True, cur - cost
+
+    def _add_stamina(self, group_id, qq_id, amount: int, player: dict) -> int:
+        """加体力（封顶上限），返回实际增加量。"""
+        cur = self._stamina(player)
+        mx = self._stamina_max(player)
+        new = min(mx, cur + amount)
+        if new != cur:
+            db.update_player(group_id, qq_id, stamina=new, stamina_ts=int(time.time()))
+        return new - cur
+
+    def _stamina_bar(self, player: dict) -> str:
+        """体力显示条：⚡ 82/102"""
+        return f"⚡ 体力 {self._stamina(player)}/{self._stamina_max(player)}"
+
 
     def _title_bonus(self, group_id, qq_id) -> dict:
         """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)"""

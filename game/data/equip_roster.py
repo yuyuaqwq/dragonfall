@@ -25,6 +25,17 @@ EQUIP_ROSTER = {
     "eq_xue_tu_zhi_zhang": {"name": "学徒之杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 6, "series": "橡木", "req": {"int": 8}, "source": "锻造"},
     "eq_bai_lu_pi_jia":   {"name": "白鹿皮甲", "slot": "armor", "quality": "blue", "lv": 8, "series": "橡木", "req": {"agi": 8}, "source": "锻造"},
     "eq_xiang_mu_hu_tui": {"name": "橡木护腿", "slot": "legs", "quality": "white", "lv": 3, "series": "橡木", "req": {"vit": 3}, "source": "商店"},
+    # v93 商店装：毛皮帽 + 白装饰品（v95 去属性需求，新手期不卡职业）
+    "eq_mao_pi_mao":      {"name": "毛皮帽", "slot": "helm", "quality": "white", "lv": 3, "series": "橡木", "source": "商店"},
+    "eq_xiang_mu_jie_zhi": {"name": "橡木戒指", "slot": "ring", "quality": "white", "lv": 4, "series": "橡木", "source": "商店"},
+    "eq_xiang_mu_xiang_lian": {"name": "橡木项链", "slot": "necklace", "quality": "white", "lv": 4, "series": "橡木", "source": "商店"},
+    # v93 商店装：白鹿绿装套（v95 去属性需求）
+    "eq_bai_lu_pi_mao":   {"name": "白鹿皮帽", "slot": "helm", "quality": "green", "lv": 6, "series": "白鹿", "source": "商店"},
+    "eq_bai_lu_xiong_jia": {"name": "白鹿胸甲", "slot": "armor", "quality": "green", "lv": 7, "series": "白鹿", "source": "商店"},
+    "eq_bai_lu_hu_tui":   {"name": "白鹿护腿", "slot": "legs", "quality": "green", "lv": 7, "series": "白鹿", "source": "商店"},
+    "eq_bai_lu_pi_xue":   {"name": "白鹿皮靴", "slot": "boots", "quality": "green", "lv": 6, "series": "白鹿", "source": "商店"},
+    "eq_bai_lu_zhi_jie":  {"name": "白鹿之戒", "slot": "ring", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
+    "eq_bai_lu_diao_zhu": {"name": "白鹿吊坠", "slot": "necklace", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
     # ================= 南境·铁港系列（Lv.12-28，海盗/水手风） =================
     "eq_wan_dao":         {"name": "弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 14, "series": "铁港", "req": {"agi": 12}, "source": "锻造"},
     "eq_shui_shou_duan_ren": {"name": "水手短刃", "slot": "weapon", "weapon_type": "dagger", "quality": "blue", "lv": 12, "series": "铁港", "req": {"agi": 10}, "source": "锻造"},
@@ -134,6 +145,8 @@ EQUIP_ROSTER = {
 SERIES_SETS = {
     "橡木": "橡木套", "铁港": "海风套", "圣光": "圣光套", "月语": "月语套",
     "霜狼": "霜狼套", "龙脊": "龙脊套", "海神": "海神套", "地底": "地底套", "苍穹": "苍穹套",
+    # v93 商店装：白鹿绿装套
+    "白鹿": "白鹿套",
     # v87 隐藏线
     "星尘": "星尘套", "灰烬守卫": "灰烬守卫套",
 }

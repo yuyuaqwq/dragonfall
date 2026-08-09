@@ -27,6 +27,21 @@ from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 from data.plugins.dragonfall.main import Main  # noqa: E402
 
 
+# v94 体力：测试环境走 register 命令建号（不走 make_player）时，注册后体力拉满，
+# 防动作类命令（探索/战斗/锻造/开本等）被体力拦截导致测试误挂。
+_orig_register = Main.register
+async def _register_with_stamina(self, event):
+    gid = event.get_group_id() or "private"
+    qid = event.get_sender_id() or "unknown"
+    async for r in _orig_register(self, event):
+        yield r
+    try:
+        db.update_player(gid, qid, stamina=999999)
+    except Exception:
+        pass
+Main.register = _register_with_stamina
+
+
 class FakeEvent:
     """模拟 AstrBot 消息事件。"""
 
@@ -86,6 +101,8 @@ def make_player(gid="g1", qid="q1", name="测试", cls="战士", level=1):
     p = db.get_player(gid, qid)
     if level > 1:
         db.update_player(gid, qid, level=level)
+    # v94 体力：测试环境体力拉满（999999），防动作类命令被体力拦截
+    db.update_player(gid, qid, stamina=999999)
     return db.get_player(gid, qid)
 
 

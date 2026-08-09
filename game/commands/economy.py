@@ -310,6 +310,11 @@ class EconomyCmds(CommandBase):
         if cur_map.get("type") == "城镇区域":
             yield event.plain_result("城镇里没有可采集的野生物资，去野外吧（『前往 <地图名>』）！")
             return
+        # v94 体力：采集消耗 5 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "采集")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时）
         text, _ok = self._prof_wait_flow(
             event, group_id, qq_id, "gather",
@@ -347,6 +352,11 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(
                 f"⛏️ {_mine_name}在{_sa_name or _mine_sa}那边，这里没有矿！（『前往 {_sa_name or _mine_sa}』）"
             )
+            return
+        # v94 体力：挖掘消耗 5 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "挖掘")
+        if not _ok:
+            yield event.plain_result(_st)
             return
         # v55 等待制（原 90 秒 CD 改为随机等待，自动入包，等级减时）
         text, _ok = self._prof_wait_flow(
@@ -415,6 +425,11 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(
                 f"【{C.display('alchemy', rkey)}】需要炼金 Lv.{need}，你才 Lv.{prof_lv}！多合成低级配方升级炼金吧～"
             )
+            return
+        # v94 体力：炼金合成消耗 10 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "炼金")
+        if not _ok:
+            yield event.plain_result(_st)
             return
         items = db.get_inventory(group_id, qq_id)
         # 检查材料是否够（背包 data.name 存中文，r.cost key 是 ID）
@@ -747,6 +762,11 @@ class EconomyCmds(CommandBase):
         if prof_lv < need:
             yield event.plain_result(f"🌊 {spot}是高级水域(需垂钓 Lv.{need}，你 Lv.{prof_lv})……先在低阶水域练练吧！")
             return
+        # v94 体力：垂钓消耗 5 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "垂钓")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时；spot 存状态供结算消息用）
         # 9.3：extra 带 spot_map 供 roll_fish 钓点差异化（禁出档位 + 品种限定水域）
         text, _ok = self._prof_wait_flow(
@@ -868,6 +888,11 @@ class EconomyCmds(CommandBase):
                         f"【{rec_disp}】需要先学习图纸『{bp_name}』(精英/Boss 掉落)！『学习 <图纸名>』永久解锁。"
                     )
                 return
+        # v94 体力：锻造消耗 10 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "锻造")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # 检查材料（毕业套图纸已学习，无需再检查图纸）
         lack = []
         for m, n in rec["mats"].items():
@@ -1242,6 +1267,11 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"【{d['name']}】已经强化到极限 +{cur_enh} 了！")
             return
         info = C.ENHANCE_TABLE[cur_enh]
+        # v94 体力：强化消耗 10 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "强化")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # v67 强化归位锻造 → 导师进修后强化为独立副业（19 章第八章）：强化 +N 需要强化副业 Lv.N
         ok, act_msg = self._prof_active_check(group_id, qq_id, "enhance")
         if not ok:
@@ -1307,6 +1337,11 @@ class EconomyCmds(CommandBase):
             return
         item_name = parts[0]
         stat_label = parts[1] if len(parts) > 1 else ""
+        # v94 体力：附魔消耗 10 体力
+        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
         # v67 附魔归位炼金 → 导师进修后附魔为独立副业（19 章第八章）：附魔需要附魔副业 Lv.2
         ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant")
         if not ok:
@@ -2251,7 +2286,8 @@ class EconomyCmds(CommandBase):
         buff_eff = d.get("effect", "")
         is_buff = buff_eff in ("buff_atk", "buff_def", "buff_spd", "buff_crit", "buff_matk", "buff_atk_def")
         if self._in_battle(group_id, qq_id):
-            if not (d.get("heal") or d.get("mana") or is_buff):
+            # v94 体力：体力食物也算战斗可用恢复类
+            if not (d.get("heal") or d.get("mana") or d.get("stamina") or is_buff):
                 yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
                 return
             battle = db.get_battle(group_id, qq_id)
@@ -2264,11 +2300,14 @@ class EconomyCmds(CommandBase):
             b = BT.Battle.from_state(battle["state"])
             heal = d.get("heal", 0)
             mana = d.get("mana", 0)
-            if heal <= 0 and mana <= 0 and not is_buff:
+            if heal <= 0 and mana <= 0 and not d.get("stamina") and not is_buff:
                 yield event.plain_result("该道具没有恢复/增益效果，战斗中无法使用～")
                 return
             # 扣物品（战斗回合使用）
             db.remove_item(group_id, qq_id, target["key"])
+            # v94 体力：战斗中使用食物恢复体力（不占回合结算显示）
+            if d.get("stamina"):
+                self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
             # 生命/魔力恢复（先恢复再走回合，怪物行动可能打掉）
             # v82 阶段四：heal/mana < 1 视为百分比（新世界 13 章），>=1 视为固定值（旧物品兼容）
             if heal:
@@ -2307,6 +2346,14 @@ class EconomyCmds(CommandBase):
             )
             return
         # 消耗品（v82 阶段四：heal/mana < 1 视为百分比）
+        # v94 体力：食物恢复体力（可与 hp/mp 同物品叠加显示）
+        st_gain = 0
+        st_msg = ""
+        if d.get("stamina"):
+            st_gain = self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+            if st_gain > 0:
+                _p3 = self._player(group_id, qq_id)
+                st_msg = f"\n⚡ 恢复 {st_gain} 点体力({self._stamina(_p3)}/{self._stamina_max(_p3)})"
         if d.get("heal"):
             heal_v = d["heal"]
             if heal_v < 1:
@@ -2314,7 +2361,7 @@ class EconomyCmds(CommandBase):
             new_hp = min(player["max_hp"], player["hp"] + heal_v)
             db.update_player(group_id, qq_id, hp=new_hp)
             db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{player['max_hp']}")
+            yield event.plain_result(f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{player['max_hp']}{st_msg}")
         elif d.get("mana"):
             mana_v = d["mana"]
             if mana_v < 1:
@@ -2322,7 +2369,14 @@ class EconomyCmds(CommandBase):
             new_mp = min(player["max_mp"], player["mp"] + mana_v)
             db.update_player(group_id, qq_id, mp=new_mp)
             db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}")
+            yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}{st_msg}")
+        elif d.get("stamina") is not None:
+            if st_gain > 0:
+                db.remove_item(group_id, qq_id, target["key"])
+                yield event.plain_result(f"🍖 你吃下了【{d['name']}】！{st_msg}")
+            else:
+                _p4 = self._player(group_id, qq_id)
+                yield event.plain_result(f"🍖 你肚子还饱着呢(体力 {self._stamina(_p4)}/{self._stamina_max(_p4)})，先活动活动再吃吧～")
         elif d.get("effect") == "return_vila":
             db.remove_item(group_id, qq_id, target["key"])
             db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")

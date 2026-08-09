@@ -177,7 +177,7 @@ def bump_fish_king(group_id, qq_id):
         try:
             _ensure_prof_row(conn, qq_id)
             conn.execute(
-                "UPDATE professions SET fish_king=fish_king＋1 WHERE qq_id=?",
+                "UPDATE professions SET fish_king=fish_king+1 WHERE qq_id=?",
                 (qq_id,),
             )
             conn.commit()

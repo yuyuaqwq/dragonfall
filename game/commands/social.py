@@ -688,7 +688,7 @@ class SocialCmds(CommandBase):
             lv += 1
         db.pet_update(qq_id, satiety=sat, bond=bond, exp=exp, level=lv)
         lv_str = f"\n🎉 宠物升级到 Lv.{lv}！" if lv > pet["level"] else ""
-        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度＋30 ｜ 💕 亲密度＋5 ｜ ✨ 经验＋10{lv_str}")
+        yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
 

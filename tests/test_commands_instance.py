@@ -13,6 +13,12 @@ import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 
+# v94 体力：本文件用 register 命令建号（不走 make_player 的 999999），
+# 副本测试不测体力系统，直接豁免体力扣减，防开本被体力拦截。
+def _fake_spend(self, gid, qid, cost, player, action="行动"):
+    return True, self._stamina(player)
+Main._spend_stamina = _fake_spend
+
 passed = failed = 0
 def check(name, cond, detail=""):
     global passed, failed
@@ -32,8 +38,16 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 async def enter_combat(m, gid, qid):
-    """v87.2 副本地图化：开本后为地图模式（无直接战斗），『探索』触发第一场战斗"""
-    return await cmd(m, "explore", gid, qid, "探索")
+    """v87.2 副本地图化：开本后为地图模式（无直接战斗），『探索』触发第一场战斗。
+
+    副本探索可能随机触发陷阱/无事（不进入战斗），重试最多 5 次直到真正开战，
+    消除全量回归下的偶发失败。
+    """
+    for _ in range(5):
+        out = await cmd(m, "explore", gid, qid, "探索")
+        if db.get_battle(gid, qid):
+            return out
+    return out
 
 
 async def main():

@@ -71,6 +71,13 @@ _SERIES_SET_BONUS = {
         "bonus_4_stats": {"crit": 0.08},
         "bonus_5": {"desc": "雷系增伤＋10%(待元素系统)"},
     },
+    # v93 商店装：白鹿绿装套（敏捷/闪避风格）
+    "白鹿": {
+        "icon": "🦌", "quality": "green",
+        "bonus_2": {"dodge": 0.05},
+        "bonus_4_stats": {"spd": 0.08},
+        "bonus_5": {"crit": 0.03, "desc": "暴击＋3%"},
+    },
     # v87 隐藏线（10 章 10.1/10.2）
     "星尘": {
         "icon": "✨", "quality": "purple",

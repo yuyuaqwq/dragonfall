@@ -226,4 +226,11 @@ def set_talk_flag(group_id, qq_id, npc_id, flag):
     data[npc_id] = lst
     set_event_state(key, json.dumps(data, ensure_ascii=False))
 
+def get_boss_dmg_mult(qq_id) -> float:
+    """世界 Boss 伤害倍率（gm_伤害 设置，默认 1.0）。"""
+    try:
+        return float(get_event_state(f"boss_dmg_{qq_id}") or 1)
+    except (ValueError, TypeError):
+        return 1.0
+
 

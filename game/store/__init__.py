@@ -26,7 +26,7 @@ from .players import (  # noqa: F401
 from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
 )
-from .quests import get_quests, save_quests  # noqa: F401
+from .quests import get_quests, save_quests, expire_daily  # noqa: F401
 from .battle_state import save_battle, get_battle, clear_battle  # noqa: F401
 from .stats import (  # noqa: F401
     init_stats, bump_stats, get_stats, set_achievement, get_achievements,
@@ -53,7 +53,7 @@ from .world import (  # noqa: F401
     add_visited, get_visited_count, get_world_event, save_world_event,
     clear_world_event, get_event_state, set_event_state, delete_event_state,
     get_talk_state, set_talk_state, clear_talk_state,
-    get_talk_flags, set_talk_flag,
+    get_talk_flags, set_talk_flag, get_boss_dmg_mult,
 )
 from .feedback import (  # noqa: F401
     add_feedback, get_feedback, mark_feedback_done,

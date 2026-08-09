@@ -45,8 +45,9 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0):
         self.btype = btype                 # monster | worldboss | pvp
+        self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
@@ -1616,7 +1617,12 @@ class Battle:
     def _boss_dmg_filter(self, dmg: int, player: dict, logs: list) -> int:
         """v83 04 章 2.5：Boss 护盾/反伤过滤（挂在玩家伤害结算主路径）。
         shield：护盾存在期间受伤 -50%，先扣盾再扣血（破盾提示）。
-        reflect：血量 <25% 反弹 15% 伤害给玩家。"""
+        reflect：血量 <25% 反弹 15% 伤害给玩家。
+        v93：worldboss 应用 GM 伤害倍率（gm_伤害 设置）。"""
+        if self.btype == "worldboss" and self.dmg_mult != 1.0:
+            dmg = int(dmg * self.dmg_mult)
+            if dmg < 1:
+                dmg = 1
         mech = self.enemy.get("mech")
         if not mech or self.btype == "pvp":
             return dmg

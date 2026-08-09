@@ -1,8 +1,23 @@
 # -*- coding: utf-8 -*-
-import json
+import json, datetime
 from .connection import _connect, _lock
 
 """《剑与魔法》存储层 - quests"""
+
+
+def expire_daily(quest_data):
+    """v94 每日任务跨天清理：daily 里 _date 不是今天 → 清空 daily 返回 True。
+
+    调用方（daily 领取/战斗结算）在返回 True 后需 save_quests 落库。
+    旧存档没有 _date 字段 → 视为跨天（清空重领），避免玩家被旧任务卡住。
+    """
+    daily = quest_data.get("daily") or {}
+    if not daily:
+        return False
+    if daily.get("_date") == datetime.date.today().isoformat():
+        return False
+    quest_data["daily"] = {}
+    return True
 
 
 def get_quests(group_id, qq_id):

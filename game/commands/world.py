@@ -60,19 +60,29 @@ class WorldCmds(CommandBase):
                     lines.append(f"🌌 {p['icon']}{p['name']}(已激活，『传送 <名称>』)")
                 else:
                     lines.append(f"🌌 {p['icon']}{p['name']}(『激活』解锁传送点)")
-        # 自然互动（9.3：垂钓点显示特色描述）
+        # 自然互动（9.3：垂钓点显示特色描述；v87.17 子区域绑定：不在对应子区域不显示）
         if mid in C.FISHING_SPOTS:
             _fi = C.FISHING_SPOTS[mid]
-            _fname = _fi["name"] if isinstance(_fi, dict) else _fi
-            _fneed = _fi.get("min_lv", 1) if isinstance(_fi, dict) else 1
-            _flv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "fishing") if player else 1
-            _lock = " 🔒" if _flv < _fneed else ""
-            _fdesc = _fi.get("desc", "") if isinstance(_fi, dict) else ""
-            lines.append(f"🎣 垂钓点·{_fname}(垂钓Lv.{_fneed}){_lock}(『垂钓』){(' · ' + _fdesc) if _fdesc else ''}")
+            _want_sa = _fi.get("subarea", "") if isinstance(_fi, dict) else ""
+            if not (_want_sa and (sa_obj is None or sa_obj.get("id") != _want_sa)):
+                _fname = _fi["name"] if isinstance(_fi, dict) else _fi
+                _fneed = _fi.get("min_lv", 1) if isinstance(_fi, dict) else 1
+                _flv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "fishing") if player else 1
+                _lock = " 🔒" if _flv < _fneed else ""
+                _fdesc = _fi.get("desc", "") if isinstance(_fi, dict) else ""
+                lines.append(f"🎣 垂钓点·{_fname}(垂钓Lv.{_fneed}){_lock}(『垂钓』){(' · ' + _fdesc) if _fdesc else ''}")
         if mid in C.CAMP_SPOTS:
-            lines.append(f"🔥 篝火营地·{C.CAMP_SPOTS[mid]}(『休息』恢复一半生命)")
+            _cp = C.CAMP_SPOTS[mid]
+            _cp_sa = _cp.get("subarea", "") if isinstance(_cp, dict) else ""
+            if not (_cp_sa and (sa_obj is None or sa_obj.get("id") != _cp_sa)):
+                _cp_name = _cp.get("name", "营地") if isinstance(_cp, dict) else str(_cp)
+                lines.append(f"🔥 篝火营地·{_cp_name}(『休息』恢复一半生命)")
         if mid in C.MINE_SPOTS:
-            lines.append(f"⛏️ 矿脉·{C.MINE_SPOTS[mid]}(『挖掘』)")
+            _mi = C.MINE_SPOTS[mid]
+            _mi_sa = _mi.get("subarea", "") if isinstance(_mi, dict) else ""
+            if not (_mi_sa and (sa_obj is None or sa_obj.get("id") != _mi_sa)):
+                _mi_name = _mi.get("name", "矿脉") if isinstance(_mi, dict) else str(_mi)
+                lines.append(f"⛏️ 矿脉·{_mi_name}(『挖掘』)")
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
             lines.append("🌿 野地可采集(『采集』)")
         return lines
@@ -120,7 +130,10 @@ class WorldCmds(CommandBase):
 
     @staticmethod
     def _conn_subarea_name(nm: dict, want_sa) -> str:
-        """目标地图的落点子区域显示名(默认首个子区域，可指定)"""
+        """目标地图的落点子区域显示名(默认入口子区域，可指定)
+
+        v87.16：无指定时用 map_entry_subarea（进城落点=出口/入口），不再是首个子区域
+        """
         sas = nm.get("subareas") or []
         if not sas:
             return ""
@@ -129,6 +142,12 @@ class WorldCmds(CommandBase):
                 if s["id"] == want_sa:
                     return f" · {s['name']}"
             return ""
+        # v87.16：跨图落点 = 城镇出口（镇郊）/ 野外入口，显示与实际到达一致
+        entry_id = C.map_entry_subarea(nm.get("id", ""))
+        if entry_id:
+            for s in sas:
+                if s["id"] == entry_id:
+                    return f" · {s['name']}"
         return f" · {sas[0]['name']}"
 
     @staticmethod
@@ -459,17 +478,22 @@ class WorldCmds(CommandBase):
                     break
         lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
         # v87.4 合并显示：子区域 + 相邻地图统一连续编号（『移动 <序号>』直接可用）
+        # v87.16 空间连接：只列相邻可达子区域（subarea_links），序号与 move 解析一致
         sas = cur_map.get("subareas") or []
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
-        if sas or neighbors:
+        links = C.subarea_links(cur, cur_sa)
+        shown = [(i + 1, next((s for s in sas if s["id"] == lid), None))
+                 for i, lid in enumerate(links)]
+        shown = [(i, s) for i, s in shown if s]
+        if shown or neighbors:
             if sa_now:
                 lines.append(f"📍 当前位置：{sa_now}")
             lines.append("📮 可前往：")
-            for i, sa in enumerate(sas, 1):
-                mark = "(你在这里)" if sa["id"] == cur_sa else ""
+            for i, sa in shown:
+                mark = " (你在这里)" if sa["id"] == cur_sa else ""
                 lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
                 lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
-            for i, nid in enumerate(neighbors, len(sas) + 1):
+            for i, nid in enumerate(neighbors, len(links) + 1):
                 nm, want_sa = self._conn_target(nid)
                 sa_lbl = self._conn_subarea_name(nm, want_sa)
                 lock = " (🔒隐藏)" if nm.get("hidden") else ""
@@ -547,7 +571,7 @@ class WorldCmds(CommandBase):
             lines.append(f"  👑 Boss：{boss[1]}")
         if lines and lines[-1]:
             lines.append("")
-        lines.append("输入『探索』遇怪，『移动 序号』前往他处，『找 <NPC名>』交谈")
+        lines.append("输入『探索』遇怪，『前往 序号』前往他处，『找 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
@@ -562,19 +586,26 @@ class WorldCmds(CommandBase):
                 break
         center = sas[0] if sas else {}
         if center.get("type") == "城镇":
+            # v87.16 街道链：在广场想去链上目标（东大街/镇郊）时提示必经之路
+            if cur_sa_id == center.get("id", ""):
+                chain = [s for s in sas if s.get("type") in ("城镇街道", "城镇出口")]
+                if any(s["id"] == target_sa.get("id") for s in chain):
+                    first = chain[0]["name"] if chain else center.get("name", "广场")
+                    return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
+                            f"路只有一条，需要先经过{first}。")
             return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
-                    f"得先回到{center.get('name', '广场')}(『移动 {center.get('name', '广场')}』)，再从那里过去。")
+                    f"得先回到{center.get('name', '广场')}(『前往 {center.get('name', '广场')}』)，再从那里过去。")
         links = C.subarea_links(cur_map.get("id", ""), cur_sa_id)
         link_names = [next((s["name"] for s in sas if s["id"] == lid), lid) for lid in links]
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?移动(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?:\s*|$)")
     @no_prof_waiting()
 
     async def move(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
-        dest = self._strip_cmd(event, "移动")
+        dest = self._strip_cmd(event, "前往")
         player = self._player(group_id, qq_id)
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
@@ -584,21 +615,22 @@ class WorldCmds(CommandBase):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
             return
         dest = dest.strip()
+        # v94 体力：同图子区域移动免费（城内溜达不算赶路）；跨图移动扣 2、体力不足拒绝
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
         cur_sas = cur_map.get("subareas") or []
-        # v86 子区域：『移动 <序号>』→ 同图子区域序号优先（地图面板展示），再邻居地图序号
+        # v86 子区域：『移动 <序号>』→ 同图可前往列表序号优先（v87.14 空间连接），再邻居地图序号
+        links = C.subarea_links(cur, player.get("cur_subarea") or "")
         if dest.isdigit():
             idx = int(dest)
-            if 1 <= idx <= len(cur_sas):
-                sa = cur_sas[idx - 1]
+            if 1 <= idx <= len(links):
+                sa_id = links[idx - 1]
+                sa = next((s for s in cur_sas if s["id"] == sa_id), None)
+                if sa is None:
+                    yield event.plain_result("目标子区域不存在！输入『地图』查看～")
+                    return
                 if sa["id"] == player.get("cur_subarea"):
                     yield event.plain_result(f"你已经在这里了({cur_map['name']}·{sa['name']})～")
-                    return
-                # v87.14 空间连接：同图只能移动到相邻子区域（城镇星形/野外线性）
-                links = C.subarea_links(cur, player.get("cur_subarea") or "")
-                if sa["id"] not in links:
-                    yield event.plain_result(self._move_blocked_msg(cur_map, player, sa))
                     return
                 db.update_player(group_id, qq_id, cur_subarea=sa["id"])
                 yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
@@ -624,11 +656,11 @@ class WorldCmds(CommandBase):
         if dest.isdigit():
             neighbors = C.MAP_CONNECTIONS.get(cur, [])
             idx = int(dest)
-            offset = len(cur_sas)
+            offset = len(links)
             if offset + 1 <= idx <= offset + len(neighbors):
                 target, want_sa = self._conn_target(neighbors[idx - offset - 1])
             else:
-                total = len(cur_sas) + len(neighbors)
+                total = len(links) + len(neighbors)
                 yield event.plain_result(f"序号无效！这里可前往 {total} 处，输入『地图』查看～")
                 return
         else:
@@ -695,7 +727,7 @@ class WorldCmds(CommandBase):
             _cur_sa_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == player.get("cur_subarea")), player.get("cur_subarea", ""))
             yield event.plain_result(
                 f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
-                f"需要先到{_exit_name}(『移动 {_exit_name}』)才能出城/出图。"
+                f"需要先到{_exit_name}(『前往 {_exit_name}』)才能出城/出图。"
             )
             return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
@@ -713,6 +745,15 @@ class WorldCmds(CommandBase):
                 if _s["id"] == want_sa:
                     first_sa = _s
                     break
+        # v94 体力：跨图移动扣 1；体力 0 拒绝（同图移动免费已在上方处理）
+        if self._stamina(player) < 1:
+            yield event.plain_result(
+                f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
+                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每10分钟+1)\n"
+                "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～"
+            )
+            return
+        self._spend_stamina(group_id, qq_id, 1, player, "移动")
         db.update_player(group_id, qq_id, cur_map=target["id"],
                          cur_subarea=first_sa["id"] if first_sa else "")
         # 记录到访（称号用）
@@ -730,12 +771,19 @@ class WorldCmds(CommandBase):
             p = C.PORTALS[target["id"]]
             portal_msg = f"\n\n🌌 一座{p['icon']}{p['name']}矗立在此！『激活』可解锁传送点～"
         # v13：到达后显示可前往 + 设施/场景（v87.13 拆分）
+        # v87.16 与地图面板一致：links 顺序号 + 邻居从 len(links)+1 编号
+        target_sas = target.get("subareas") or []
+        t_links = C.subarea_links(target["id"], first_sa["id"] if first_sa else "")
+        t_shown = [(i + 1, next((s for s in target_sas if s["id"] == lid), None))
+                   for i, lid in enumerate(t_links)]
+        t_shown = [(i, s) for i, s in t_shown if s]
         neighbors = C.MAP_CONNECTIONS.get(target["id"], [])
         nav = ""
-        if neighbors:
-            nav = "\n\n📮 可前往：" + "  ".join(
-                f"{i}.{self._conn_target(c)[0]['name']}" for i, c in enumerate(neighbors[:6], 1)
-            )
+        nav_items = [f"{i}.{s['name']}" for i, s in t_shown]
+        nav_items += [f"{i}.{self._conn_target(c)[0]['name']}"
+                      for i, c in enumerate(neighbors, len(t_links) + 1)]
+        if nav_items:
+            nav = "\n\n📮 可前往：" + "  ".join(nav_items[:8])
         fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
         fac_msg = ""
         if fac:
@@ -808,16 +856,26 @@ class WorldCmds(CommandBase):
         if scene:
             lines.append("✨ 场景：")
             lines.append("  " + "  ".join(scene))
-        # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板一致）
+        # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板/move 一致）
         sas = cur_map.get("subareas") or []
         links = C.subarea_links(cur_map.get("id", ""), sa["id"])
-        others = [(i, x) for i, x in enumerate(sas, 1) if x["id"] in links]
+        others = [(i + 1, next((x for x in sas if x["id"] == lid), None))
+                  for i, lid in enumerate(links)]
+        others = [(i, x) for i, x in others if x]
         if others:
             lines.append("📮 可前往：")
             for i, x in others:
                 lines.append(f"  {i}. {x['name']}")
+        # v87.16 与地图面板一致：邻居地图从 len(links)+1 编号
+        neighbors = C.MAP_CONNECTIONS.get(cur_map.get("id", ""), [])
+        if neighbors:
+            if not others:
+                lines.append("📮 可前往：")
+            for i, nid in enumerate(neighbors, len(links) + 1):
+                nm, _ = self._conn_target(nid)
+                lines.append(f"  {i}. {nm['name']}")
         lines.append("")
-        lines.append("💡 『移动 <子区域名/序号>』切换位置，『地图』查看详情")
+        lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)
 
     def _travel_ambush(self, player: dict, target_map: dict):
@@ -900,6 +958,15 @@ class WorldCmds(CommandBase):
         cur = player["cur_map"]
         if cur not in C.PORTALS:
             yield event.plain_result("这里没有方碑……寻找大陆上古道上刻着符文的古老路标吧！")
+            return
+        # v87.17 子区域绑定：方碑矗立在首个子区域（广场），必须走到跟前才能激活
+        _pm = C.MAP_BY_ID.get(cur, {})
+        _first_sa = (_pm.get("subareas") or [None])[0]
+        if _first_sa and player.get("cur_subarea") != _first_sa.get("id"):
+            yield event.plain_result(
+                f"🌌 {C.PORTALS[cur].get('icon', '')}{C.PORTALS[cur].get('name', '方碑')}矗立在"
+                f"{_first_sa.get('name', '广场')}，你离得太远够不着！（『前往 {_first_sa.get('name', '广场')}』）"
+            )
             return
         p = C.PORTALS[cur]
         if cur in db.get_portals(qq_id):
@@ -1116,8 +1183,10 @@ class WorldCmds(CommandBase):
             lines.append("")
             lines.append("【每日】")
             for i, (dkey, dq) in enumerate(daily.items(), 1):
+                if dkey == "_date":  # v94 跨天字段，跳过
+                    continue
                 dobj = dq["objective"]
-                need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99)))
+                need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("count", 99))))
                 lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
         else:
             lines.append("")
@@ -1138,21 +1207,50 @@ class WorldCmds(CommandBase):
             yield event.plain_result("☠️ 你是红名！悬赏板上的任务都被守卫收走了……(等红名消退再来)")
             return
         quests = db.get_quests(group_id, qq_id)
+        # v94 跨天清理：昨天的任务过期，先清空再判断（旧存档无 _date 视为过期）
+        if db.expire_daily(quests):
+            db.save_quests(group_id, qq_id, quests)
         if quests.get("daily"):
             yield event.plain_result("你已经有每日任务了！输入『任务』查看～")
             return
-        # 随机抽 2 个每日任务
-        chosen = random.sample(C.DAILY_QUESTS, min(2, len(C.DAILY_QUESTS)))
-        daily = {}
+        # v94 随机抽 2 个每日任务（按等级过滤：低等级不抽打不到的任务）
+        pool = [dq for dq in C.DAILY_QUESTS if self._daily_pool(player, dq)]
+        chosen = random.sample(pool, min(2, len(pool)))
+        import datetime as _dt
+        daily = {"_date": _dt.date.today().isoformat()}
         for i, dq in enumerate(chosen):
             daily[f"d{i}"] = {"name": dq["name"], "desc": dq["desc"], "objective": dq["objective"], "reward_exp": dq["reward_exp"], "reward_gold": dq["reward_gold"], "progress": 0}
         quests["daily"] = daily
         db.save_quests(group_id, qq_id, quests)
         lines = ["📜 今日任务已发布！", "━━━━━━━━━━━━"]
         for i, (dkey, dq) in enumerate(daily.items(), 1):
+            if dkey == "_date":
+                continue
             lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']}")
             lines.append(f"    奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
         yield event.plain_result("\n".join(lines))
+
+    def _daily_pool(self, player, dq):
+        """v94 每日任务按等级过滤：低等级不抽打不到的任务（修复 #45）。
+        通用任意怪任务全等级可做；精英 Lv.6+、Boss Lv.10+；
+        区域任务按奖励分档（reward_exp 与区域怪物等级强相关）。
+        """
+        lv = int(player.get("level") or 1)
+        obj = dq.get("objective", {})
+        exp = int(dq.get("reward_exp") or 0)
+        if "kill_any" in obj:
+            return True
+        if "kill_elite" in obj:
+            return lv >= 6
+        if "kill_boss" in obj:
+            return lv >= 10
+        if lv < 3:
+            return False
+        cap = 400
+        for min_lv, c in ((3, 400), (6, 800), (10, 1200), (15, 1600), (20, 2000), (25, 2600), (30, 1000000000)):
+            if lv >= min_lv:
+                cap = c
+        return exp <= cap
 
     def _home_view(self, group_id, qq_id, cur_map_id):
         """v68 家地图展示：home_{owner} → 家的定制面板"""
@@ -1273,6 +1371,13 @@ class WorldCmds(CommandBase):
             lines.append("🎊 主线任务已全部完成，你已是奥兰迪亚的传说！")
             return lines
         mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
+        # 存档容错：main_quest 指向已不存在的任务（旧存档/主线数据变更）→ 重置回主线起点
+        if not mq and main_id:
+            quests["main_quest"] = "q1_1"
+            quests["main_status"] = "pending"
+            quests["main_progress"] = {}
+            main_id = "q1_1"
+            mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
         if not mq or mq["giver"] != npc_id:
             # 不是这个 NPC 的任务
             need_npc = C.NPCS.get(mq["giver"], {}).get("name", "？") if mq else "？"
@@ -1946,6 +2051,20 @@ class WorldCmds(CommandBase):
         if mid not in C.CAMP_SPOTS:
             yield event.plain_result("这里没有篝火营地！找找野外地图的营地(地图上会显示🔥篝火营地)～")
             return
+        # v87.17 子区域绑定：营地在指定子区域，不在那边够不着火堆
+        _camp = C.CAMP_SPOTS[mid]
+        _camp_sa = _camp.get("subarea", "") if isinstance(_camp, dict) else ""
+        if _camp_sa and player.get("cur_subarea") != _camp_sa:
+            _sa_name = ""
+            for _s in (cur_map.get("subareas") or []):
+                if _s["id"] == _camp_sa:
+                    _sa_name = _s.get("name", "")
+                    break
+            _camp_name = _camp.get("name", "营地") if isinstance(_camp, dict) else str(_camp)
+            yield event.plain_result(
+                f"🔥 {_camp_name}在{_sa_name or _camp_sa}那边，这里够不着火堆！（『前往 {_sa_name or _camp_sa}』）"
+            )
+            return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("⚔️ 你正在战斗中！先解决眼前的敌人再说。")
             return
@@ -1955,16 +2074,20 @@ class WorldCmds(CommandBase):
             left = 30 - (int(time.time()) - int(last))
             yield event.plain_result(f"⏳ 营地篝火需要添柴({left}秒后恢复)……")
             return
-        if player["hp"] >= player["max_hp"]:
+        # v94 体力：营地篝火恢复 50 体力（+ 原有半伤恢复）
+        if player["hp"] >= player["max_hp"] and self._stamina(player) >= self._stamina_max(player):
             yield event.plain_result("你精神饱满，不需要休息～")
             return
         db.set_event_state(f"camp_{group_id}_{qq_id}", str(int(time.time())))
         heal = max(1, int((player["max_hp"] - player["hp"]) * 0.5))
         new_hp = min(player["max_hp"], player["hp"] + heal)
+        _st_gain = self._add_stamina(group_id, qq_id, 50, player)
         db.update_player(group_id, qq_id, hp=new_hp)
+        _p2 = self._player(group_id, qq_id)
+        _st_line = f"\n⚡ 恢复 {_st_gain} 点体力({self._stamina(_p2)}/{self._stamina_max(_p2)})" if _st_gain > 0 else ""
         yield event.plain_result(
             f"🔥 你在{C.CAMP_SPOTS[mid]}的篝火旁歇了歇脚……\n"
-            f"❤️ 恢复 {heal} 点生命({new_hp}/{player['max_hp']})\n"
+            f"❤️ 恢复 {heal} 点生命({new_hp}/{player['max_hp']}){_st_line}\n"
             f"💡 营地只能恢复一半伤势，重伤请回旅店『住宿』～"
         )
 
@@ -1980,17 +2103,25 @@ class WorldCmds(CommandBase):
             yield event.plain_result("☠️ 你是红名！旅店老板不敢收留你……(等红名消退再来)")
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"])
-        if not cur_map or not cur_map.get("healer"):
-            yield event.plain_result("这里没有旅店。到有旅店的地方(如橡木镇旅店)输入『住宿』～")
+        # v87.17 子区域化旅店：_at_healer 检查当前子区域，不在旅店给设施提示
+        if not self._at_healer(player):
+            hint = self._facility_hint(player, "healer")
+            yield event.plain_result(
+                "这里没有旅店。"
+                + (f"到有旅店的地方(如 {hint})输入『住宿』～" if hint else "到城镇旅店(如橡木镇旅店)输入『住宿』～")
+            )
             return
-        cost = 30
+        cost = max(30, (player.get("level") or 1) * 5)
         if player["gold"] < cost:
             yield event.plain_result(f"住宿需要 {cost} 金币，你只有 {player['gold']} 金币。先去『探索』赚点钱吧～")
             return
-        db.update_player(group_id, qq_id, gold=player["gold"] - cost, hp=player["max_hp"], mp=player["max_mp"])
+        # v94 体力：住宿恢复满体力（+ 生命魔力）
+        _st = self._stamina_max(player)
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost, hp=player["max_hp"], mp=player["max_mp"],
+                         stamina=_st, stamina_ts=int(time.time()))
         yield event.plain_result(
             f"🏨 你在旅店美美地睡了一觉……\n"
-            f"❤️ 生命全满！💙 魔力全满！\n"
+            f"❤️ 生命全满！💙 魔力全满！{self._stamina_bar({**player, 'stamina': _st})}！\n"
             f"花费 {cost} 金币，当前余额：{player['gold'] - cost}"
         )
 

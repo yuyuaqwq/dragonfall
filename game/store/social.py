@@ -424,7 +424,7 @@ def guild_add_exp(gid, exp, member_qq=None, contribute=0):
             g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             if g:
                 while g["exp"] >= g["level"] * 300:
-                    conn.execute("UPDATE guilds SET exp=exp-?, level=level＋1 WHERE gid=?", (g["level"] * 300, gid))
+                    conn.execute("UPDATE guilds SET exp=exp-?, level=level+1 WHERE gid=?", (g["level"] * 300, gid))
                     conn.commit()
                     g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             return True

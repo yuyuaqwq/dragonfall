@@ -204,3 +204,54 @@ SHOP_WEAPONS = {
         ["龙语法杖", "staff", 86, "purple"],
     ],
 }
+
+# v92 铁匠类商店材料：craft 场所（铁匠铺/锻造坊/军械/符文工坊等）只卖武器+锻造材料+全套装备，不卖消耗品
+# key = 城镇地图 ID（cur or area_id 回退），值 = 材料 ID 列表（MATERIALS 表）
+SHOP_SMITH_MATERIALS = {
+    # 南境（Lv.1-30）：橡木镇/白鹿城/铁港
+    "oak_town": [           # 老铁铁匠铺
+        "mat_tie_kuang_shi",  # 铁矿石 10
+        "mat_shi_cai",        # 石材 5
+        "mat_jing_tie",       # 精铁 30
+    ],
+    "white_deer": [         # 鹿角铁匠铺
+        "mat_tie_kuang_shi",  # 铁矿石 10
+        "mat_jing_tie",       # 精铁 30
+        "mat_mi_yin",         # 秘银 80
+    ],
+    "ironharbor": [         # 锻造坊
+        "mat_jing_tie",       # 精铁 30
+        "mat_mi_yin",         # 秘银 80
+    ],
+    # 中域（Lv.25-55）
+    "ironshield_town": [    # 军械铺
+        "mat_mi_yin",         # 秘银 80
+        "mat_jing_jin",       # 精金
+    ],
+    "dawn_city": [          # 炼金工坊（craft 但炼金除外走普通商店）
+    ],
+    "anvil_fort": [         # 符文工坊
+        "mat_jing_jin",       # 精金
+        "mat_bing_jing",      # 冰晶
+    ],
+}
+
+# v93 铁匠类商店全套装备：key = 城镇地图 ID，值 = 装备名册 ID 列表（EQUIP_ROSTER）
+SHOP_EQUIP = {
+    "oak_town": [           # 橡木镇白装 6 件
+        "eq_pi_jia",
+        "eq_jiu_pi_xue",
+        "eq_xiang_mu_hu_tui",
+        "eq_mao_pi_mao",
+        "eq_xiang_mu_jie_zhi",
+        "eq_xiang_mu_xiang_lian",
+    ],
+    "white_deer": [         # 白鹿城绿装 6 件
+        "eq_bai_lu_pi_mao",
+        "eq_bai_lu_xiong_jia",
+        "eq_bai_lu_hu_tui",
+        "eq_bai_lu_pi_xue",
+        "eq_bai_lu_zhi_jie",
+        "eq_bai_lu_diao_zhu",
+    ],
+}
