@@ -1427,24 +1427,8 @@ class CombatCmds(CommandBase):
                 db.add_item(group_id, qq_id, bp_key, drop_bp)
                 # v56.4：掉落提示只显示名字，不把 desc 整段塞进括号（曾漏内部 ID）
                 drop_lines.append(f"📜 掉落图纸：{drop_bp['name']}")
-        # 材料掉落（v23：普通怪 100% 必掉 1 个；精英/Boss 必掉 2 个；v54 幸运护符 +1）
-        material = None
-        if monster.get("drops"):
-            lucky_active = int(player.get("lucky_until") or 0) > int(time.time())
-            drop_count = 2 if monster.get("is_boss") or monster.get("is_elite") else 1
-            if lucky_active:
-                drop_count += 1
-            # 精英/Boss：从专属掉落里多抽几种
-            chosen = random.sample(monster["drops"], min(drop_count, len(monster["drops"])))
-            for mat_name in chosen:
-                mid = C.resolve("materials", mat_name)  # v48：中文名 → ID
-                if mid in C.MATERIALS:
-                    mname = C.display("materials", mid)
-                    db.add_item(group_id, qq_id, mid, {"name": mname, "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                    drop_lines.append(f"🎒 拾取材料：{mname}")
-            if not chosen:
-                material = None
-        # 宠物蛋掉落（24 章二/三：分档掉落——普通兽类怪 1.5% 狼崽蛋、精英 6.5% 黑猫蛋、Boss 12% 龙裔蛋）
+        # 材料掉落（v95.7 #45：v23 旧路径与 v93 折算路径重复掉落同一材料 → 删除旧路径，
+        # 统一走下方 v93 折算（掉落池优先 + 数量按价值），修复『拾取材料X』+『拾取材料X ×N』双行）
         pet_egg_line = ""
         pet_egg_roll = {
             "pet_wolf":   (0.015, monster.get("role") == "dps" and any(k in monster.get("name", "") for k in ["狼", "狗", "野猪", "熊"])),
