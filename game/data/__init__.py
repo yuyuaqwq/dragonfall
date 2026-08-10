@@ -75,6 +75,7 @@ from .races import RACES  # noqa: F401
 from .achievements import ACHIEVEMENTS  # noqa: F401
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401
 from .gather_pools import GATHER_MAP_POOLS  # noqa: F401
+from .poi_pools import WISH_POOL, CAMPFIRE_FOOD_POOL, HERB_POOL  # noqa: F401
 from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401
     PROF_TUTORS, PROF_WAIT_BASE, DAILY_PROF_TASKS, BAG_FILTER_TYPES,

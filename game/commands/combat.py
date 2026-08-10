@@ -341,8 +341,8 @@ class CombatCmds(CommandBase):
             db.update_player(group_id, qq_id, gold=player["gold"] + gain)
             msg = f"💰 流星回应了你的愿望！金币 +{gain}"
         else:
-            pool = ["狼皮", "蛇皮", "野猪牙", "魔法粉尘", "蜘蛛丝", "铁矿石"]
-            mat = random.choice(pool)
+            # v101.4：流星愿望材料池数据化 → data/poi_pools.py WISH_POOL
+            mat = random.choice(C.WISH_POOL)
             mid = C.resolve("materials", mat)
             if mid in C.MATERIALS:
                 db.add_item(group_id, qq_id, mid,
@@ -440,8 +440,8 @@ class CombatCmds(CommandBase):
             hp_gain = int(player["max_hp"] * 0.30)
             mp_gain = int(player["max_mp"] * 0.30)
             db.update_player(group_id, qq_id, hp=min(player["max_hp"], player["hp"] + hp_gain), mp=min(player["max_mp"], player["mp"] + mp_gain))
-            foods = ["兽肉", "野猪牙", "魔法粉尘"]
-            fd = random.choice(foods)
+            # v101.4：篝火食材池数据化 → data/poi_pools.py CAMPFIRE_FOOD_POOL
+            fd = random.choice(C.CAMPFIRE_FOOD_POOL)
             mid = C.resolve("materials", fd)
             got = ""
             if mid in C.MATERIALS:
@@ -459,10 +459,10 @@ class CombatCmds(CommandBase):
                     f"✨ 获得祝福：{bname}＋10%(持续 5 次战斗)！")
         # 草药丛：1-2 份炼金材料
         if eff == "herb":
-            herbs = ["狼皮", "蜘蛛丝", "蛇皮", "魔法粉尘", "草药"]
+            # v101.4：草药丛材料池数据化 → data/poi_pools.py HERB_POOL
             got = []
             for _ in range(random.randint(1, 2)):
-                h = random.choice(herbs)
+                h = random.choice(C.HERB_POOL)
                 mid = C.resolve("materials", h)
                 if mid in C.MATERIALS:
                     db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
