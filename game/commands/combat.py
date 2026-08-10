@@ -272,6 +272,10 @@ class CombatCmds(CommandBase):
             st = _json.loads(raw)
         except Exception:
             st = {"ts": 0}
+        if not isinstance(st, dict):
+            # v95.39 #216：v83 曾把 value 写成 "wish_ts" 字符串（set_state 只认 "ts"），
+            # 旧状态残留字符串会在这里崩 AttributeError——统一按过期处理
+            st = {"ts": 0}
         if _time.time() - st.get("ts", 0) > 120:
             db.set_event_state(f"wish_{group_id}_{qq_id}", "")
             yield event.plain_result("流星已经划过天际，你的愿望随风消散了……(下次探索再碰碰运气)")
@@ -725,7 +729,7 @@ class CombatCmds(CommandBase):
                     f"『{skill_name}』需要 Lv.{need_lv} 才能学习，你才 Lv.{player['level']}！"
                 )
             else:
-                cost = E.skill_learn_cost(player["level"], need_lv)
+                cost = E.skill_learn_cost_for(player, need_lv)
                 yield event.plain_result(
                     f"『{skill_name}』还没学会！『技能学习 {skill_name}』消耗 {cost} 技能点学会后再使用～"
                 )

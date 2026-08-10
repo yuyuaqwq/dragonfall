@@ -304,7 +304,7 @@ EXPLORE_EGG_EVENTS = [
     {"id": "shooting_star", "weight": 60, "name": "流星许愿",
      "desc": "一道流星划过夜空！",
      "template": "set_state",
-     "params": {"key": "wish_{gid}_{qid}", "value": "wish_ts",
+     "params": {"key": "wish_{gid}_{qid}", "value": "ts",
                 "header": "🌠 【流星许愿】一道流星拖着长尾划过{name}的夜空！\n你赶紧闭上眼睛许愿——流星似乎回应了你！\n━━━━━━━━━━━━\n💡 快决定吧：『许愿 经验』『许愿 金币』『许愿 材料』"}},
     {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣",
      "desc": "埋藏千年的宝匣。",

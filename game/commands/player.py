@@ -848,7 +848,7 @@ class PlayerCmds(CommandBase):
             ctext = label_fn(cond) if label_fn else ctype
             lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』(威力 ×{mult})")
         if not is_learned and info["lv"] <= player["level"]:
-            cost = E.skill_learn_cost(player["level"], info["lv"])
+            cost = E.skill_learn_cost_for(player, info["lv"])
             lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会(当前 {player.get('skill_points',0)} 点)")
         elif is_learned:
             slv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
