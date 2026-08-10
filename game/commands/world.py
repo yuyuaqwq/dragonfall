@@ -930,6 +930,11 @@ class WorldCmds(CommandBase):
         mtype = target_map.get("type", C.MAP_TYPE_FIELD)
         if mtype == C.MAP_TYPE_TOWN:
             return None
+        # v95.23 #247：副本区域不参与移动撞怪——副本 Boss 在入口子区域 monsters 池里，
+        # 撞怪会绕过『副本 <名字>』开本流程的等级/人数校验，低等级玩家进副本入口被 Boss 秒杀。
+        # 副本入口应显示地图信息，引导玩家走开本流程（'副本' 命令有完整校验）。
+        if mtype == C.MAP_TYPE_INSTANCE:
+            return None
         # v87.6 内容下沉子区域：从目标图子区域取怪（优先落点首个子区域）
         monsters = []
         for sa in (target_map.get("subareas") or []):

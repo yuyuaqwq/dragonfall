@@ -109,6 +109,10 @@ class CombatCmds(CommandBase):
         if mon_src is None:
             mon_src = cur_map.get("monsters", [])
         for mid, name, role, lv, skills, drops in mon_src:
+            # v95.23 #247：role=boss 条目不进普通怪池（boss 字段有独立判定 SA_BOSS_CHANCE），
+            # 否则副本入口等区域探索 random.choice 会抽中 Boss → 无法逃跑被秒杀
+            if role == "boss":
+                continue
             events.append(("monster", (mid, name, role, lv, skills, drops)))
         # 精英/Boss：子区域优先，回退地图级
         sa_elite = (cur_sa.get("elite") if cur_sa else None) or cur_map.get("elite")
