@@ -495,12 +495,14 @@ class WorldCmds(CommandBase):
                 lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
             exit_sa_id = C.map_exit_subarea(cur)
             at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
-            for i, nid in enumerate(neighbors, len(links) + 1):
-                nm, want_sa = self._conn_target(nid)
-                sa_lbl = self._conn_subarea_name(nm, want_sa)
-                lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                need_exit = "" if at_exit else f" ⛔需先到{next((s['name'] for s in sas if s['id'] == exit_sa_id), '出口')}"  # v95.7 #34：标注出口名（如『镇郊』）
-                lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}{need_exit}")
+            # v95.21 跨图连接只在出口子区域列出：普通场所（镇长办公处等）不显示野外/他镇目的地，
+            # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
+            if at_exit:
+                for i, nid in enumerate(neighbors, len(links) + 1):
+                    nm, want_sa = self._conn_target(nid)
+                    sa_lbl = self._conn_subarea_name(nm, want_sa)
+                    lock = " (🔒隐藏)" if nm.get("hidden") else ""
+                    lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
         # v87.4 区块间统一空行分隔（不再叠分隔线）
         if lines and lines[-1]:
             lines.append("")
