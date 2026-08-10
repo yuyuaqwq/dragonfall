@@ -549,96 +549,9 @@ class InstanceCmds(CommandBase):
         return stage.get("npcs") or []
 
     # ---------------- 开本 ----------------
-    async def _instance_start(self, event, group_id, qq_id, player, arg):
-        kid = None
-        for k, inst in C.INSTANCES.items():
-            if inst["name"] == arg or k == arg:
-                kid = k
-                break
-        if not kid:
-            yield event.plain_result(f"没有『{arg}』这个副本！『副本』查看列表～")
-            return
-        inst = C.INSTANCES[kid]
-        min_players = inst.get("min_players", 2)
-        max_players = inst.get("max_players", 3)
-        # 单人副本：无需组队，直接以自己开本
-        if min_players <= 1:
-            members = [qq_id]
-        else:
-            members = db.party_members(group_id, qq_id)
-            if not members:
-                yield event.plain_result(
-                    f"『{inst['name']}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～"
-                )
-                return
-            if str(members[0]) != str(qq_id):
-                yield event.plain_result("只有队长才能开启副本！让队长来『副本 <名字>』吧～")
-                return
-            if len(members) < min_players:
-                yield event.plain_result(
-                    f"『{inst['name']}』至少需要 {min_players} 人！还差 {min_players - len(members)} 个队友，让队长『组队 <名字>』拉人～"
-                )
-                return
-            if len(members) > max_players:
-                yield event.plain_result(
-                    f"『{inst['name']}』最多 {max_players} 人！当前 {len(members)} 人太多了～"
-                )
-                return
-        # 全队等级 / 战斗检查
-        for m in members:
-            p = self._player(group_id, m)
-            if not p:
-                yield event.plain_result("队友还没有角色！无法开本～")
-                return
-            if p["level"] < inst["lv"]:
-                yield event.plain_result(
-                    f"{p['name']} 才 Lv.{p['level']}，副本需要全队 Lv.{inst['lv']}+！"
-                )
-                return
-            if self._in_battle(group_id, m):
-                yield event.plain_result(f"{p['name']} 正在战斗中，先打完再来！")
-                return
-        # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
-        key_item = inst.get("key_item")
-        if key_item:
-            inv = db.get_inventory(group_id, qq_id)
-            # 找到匹配的钥匙（按物品名匹配）
-            key_entry = None
-            for it in (inv or []):
-                it_name = (it.get("data") or {}).get("name", "")
-                if it_name == key_item or it.get("key") == key_item or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
-                    key_entry = it
-                    break
-            has_key = key_entry is not None and (key_entry.get("count") or 0) >= 1
-            cleared_before = any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
-                                 for a in (db.get_achievements(group_id, qq_id) or []))
-            if not has_key and not cleared_before:
-                src = inst.get("key_source", "？？？")
-                yield event.plain_result(
-                    f"🔒 『{inst['name']}』被封印之门挡住！\n"
-                    f"需要『{key_item}』才能进入(已通关副本可免钥匙)\n"
-                    f"📜 获取途径：{src}"
-                )
-                return
-            # 消耗钥匙（首通前）
-            if has_key and not cleared_before:
-                db.remove_item(group_id, qq_id, key_entry["key"])
-        # v94 体力：开本消耗 20 体力（全队队长扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
-        if not _ok:
-            yield event.plain_result(_st)
-            return
-        # 构建副本 Boss（血量按人数缩放：min_players 人数 = hp_mult，每多 1 人 +0.65；攻击 ×atk_mult）
-        boss = C.build_monster(inst["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
-        if inst.get("mech"):
-            boss["mech"] = inst["mech"]  # v58 Boss 专属机制
-        hp_mult = inst["hp_mult"] + 0.65 * (len(members) - min_players)
-        boss["max_hp"] = int(boss["max_hp"] * hp_mult)
-        boss["hp"] = boss["max_hp"]
-        boss["atk"] = int(boss["atk"] * inst["atk_mult"])
-        boss["matk"] = int(boss["matk"] * inst["atk_mult"])
-        now = int(time.time())
-        # v86.2 副本分层（02 章 13.8）+ v87.2 副本地图化（29 章十三节）
+
+    def _instance_build_state(self, kid, inst, members, boss, now, qq_id):
+        """v103.7 B1-3：副本状态构建（stages 分层/地图模式判定/st 初始 dict），原 _instance_start 中段拆出"""
         stages = inst.get("stages") or []
         stage_idx = 0
         stage_pending = []  # 当前层剩余怪物（未出战）
@@ -750,6 +663,101 @@ class InstanceCmds(CommandBase):
             "threat": {str(m): 0 for m in members},
             "over": False,
         }
+        return st
+
+
+    async def _instance_start(self, event, group_id, qq_id, player, arg):
+        kid = None
+        for k, inst in C.INSTANCES.items():
+            if inst["name"] == arg or k == arg:
+                kid = k
+                break
+        if not kid:
+            yield event.plain_result(f"没有『{arg}』这个副本！『副本』查看列表～")
+            return
+        inst = C.INSTANCES[kid]
+        min_players = inst.get("min_players", 2)
+        max_players = inst.get("max_players", 3)
+        # 单人副本：无需组队，直接以自己开本
+        if min_players <= 1:
+            members = [qq_id]
+        else:
+            members = db.party_members(group_id, qq_id)
+            if not members:
+                yield event.plain_result(
+                    f"『{inst['name']}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～"
+                )
+                return
+            if str(members[0]) != str(qq_id):
+                yield event.plain_result("只有队长才能开启副本！让队长来『副本 <名字>』吧～")
+                return
+            if len(members) < min_players:
+                yield event.plain_result(
+                    f"『{inst['name']}』至少需要 {min_players} 人！还差 {min_players - len(members)} 个队友，让队长『组队 <名字>』拉人～"
+                )
+                return
+            if len(members) > max_players:
+                yield event.plain_result(
+                    f"『{inst['name']}』最多 {max_players} 人！当前 {len(members)} 人太多了～"
+                )
+                return
+        # 全队等级 / 战斗检查
+        for m in members:
+            p = self._player(group_id, m)
+            if not p:
+                yield event.plain_result("队友还没有角色！无法开本～")
+                return
+            if p["level"] < inst["lv"]:
+                yield event.plain_result(
+                    f"{p['name']} 才 Lv.{p['level']}，副本需要全队 Lv.{inst['lv']}+！"
+                )
+                return
+            if self._in_battle(group_id, m):
+                yield event.plain_result(f"{p['name']} 正在战斗中，先打完再来！")
+                return
+        # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
+        key_item = inst.get("key_item")
+        if key_item:
+            inv = db.get_inventory(group_id, qq_id)
+            # 找到匹配的钥匙（按物品名匹配）
+            key_entry = None
+            for it in (inv or []):
+                it_name = (it.get("data") or {}).get("name", "")
+                if it_name == key_item or it.get("key") == key_item or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
+                    key_entry = it
+                    break
+            has_key = key_entry is not None and (key_entry.get("count") or 0) >= 1
+            cleared_before = any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
+                                 for a in (db.get_achievements(group_id, qq_id) or []))
+            if not has_key and not cleared_before:
+                src = inst.get("key_source", "？？？")
+                yield event.plain_result(
+                    f"🔒 『{inst['name']}』被封印之门挡住！\n"
+                    f"需要『{key_item}』才能进入(已通关副本可免钥匙)\n"
+                    f"📜 获取途径：{src}"
+                )
+                return
+            # 消耗钥匙（首通前）
+            if has_key and not cleared_before:
+                db.remove_item(group_id, qq_id, key_entry["key"])
+        # v94 体力：开本消耗 20 体力（全队队长扣）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
+        # 构建副本 Boss（血量按人数缩放：min_players 人数 = hp_mult，每多 1 人 +0.65；攻击 ×atk_mult）
+        boss = C.build_monster(inst["boss"], {"id": kid, "name": inst["name"], "area": "instance"})
+        if inst.get("mech"):
+            boss["mech"] = inst["mech"]  # v58 Boss 专属机制
+        hp_mult = inst["hp_mult"] + 0.65 * (len(members) - min_players)
+        boss["max_hp"] = int(boss["max_hp"] * hp_mult)
+        boss["hp"] = boss["max_hp"]
+        boss["atk"] = int(boss["atk"] * inst["atk_mult"])
+        boss["matk"] = int(boss["matk"] * inst["atk_mult"])
+        now = int(time.time())
+        # v86.2 副本分层（02 章 13.8）+ v87.2 副本地图化（29 章十三节）
+        st = self._instance_build_state(kid, inst, members, boss, now, qq_id)
+        stages = st.get("inst_stages") or []  # 恢复 stages 局部引用（输出段用）
         for m in members:
             p = self._player(group_id, m)
             # v95.19: 副本快照 max_hp/max_mp 用实时计算值（DB 字段换装备后过时），与普通战斗口径统一
