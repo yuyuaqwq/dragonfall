@@ -238,12 +238,21 @@ class EconomyCmds(CommandBase):
         self._prof_wait_clear(group_id, qq_id)
         prof_type = st.get("type")
         if prof_type == "fishing":
-            return self._settle_fishing(group_id, qq_id, st)
-        if prof_type == "gather":
-            return self._settle_gather(group_id, qq_id, st)
-        if prof_type == "mining":
-            return self._settle_mining(group_id, qq_id, st)
-        return None
+            text = self._settle_fishing(group_id, qq_id, st)
+        elif prof_type == "gather":
+            text = self._settle_gather(group_id, qq_id, st)
+        elif prof_type == "mining":
+            text = self._settle_mining(group_id, qq_id, st)
+        else:
+            return None
+        if text:
+            # v97.5 行为彩蛋规则：副业结算后（采集/挖掘/垂钓统一挂点）
+            _p = db.get_player(group_id, qq_id)
+            _cm = C.MAP_BY_ID.get(_p.get("cur_map"), {}) if _p else {}
+            _rule_txt = self._rule_fire("gather_done", group_id, qq_id, _p, _cm, {"event": prof_type})
+            if _rule_txt:
+                text += "\n" + _rule_txt
+        return text
 
     def _settle_fishing(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -597,7 +606,11 @@ class EconomyCmds(CommandBase):
         # 阶段九：炼金次数 + 成就判定
         db.bump_stats(group_id, qq_id, alchemy_count=1)
         C.check_achievements(group_id, qq_id, player)
-        yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg)
+        # v97.5 行为彩蛋规则：炼金成功后
+        _rule_txt = self._rule_fire("craft_done", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player["cur_map"], {}))
+        yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg
+                                 + (f"\n{_rule_txt}" if _rule_txt else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)")
 
@@ -679,8 +692,12 @@ class EconomyCmds(CommandBase):
         # 阶段九：烹饪次数 + 成就判定
         db.bump_stats(group_id, qq_id, cook_count=1)
         C.check_achievements(group_id, qq_id, player)
+        # v97.5 行为彩蛋规则：烹饪成功后
+        _rule_txt = self._rule_fire("craft_done", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player["cur_map"], {}))
         yield event.plain_result(act_msg + f"🍳 灶火升腾，香气四溢……\n"
             f"✅ 烹饪成功！【{itdef.get('name', pkey)}】({itdef.get('desc', '')})已放入背包！{lv_msg}"
+            + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
     def _prof_active_check(self, group_id, qq_id, key, require_apprentice=False):
@@ -1089,11 +1106,15 @@ class EconomyCmds(CommandBase):
         # 阶段九：锻造次数 + 成就判定
         db.bump_stats(group_id, qq_id, craft_count=1)
         C.check_achievements(group_id, qq_id, player)
+        # v97.5 行为彩蛋规则：锻造成功后
+        _rule_txt = self._rule_fire("craft_done", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player["cur_map"], {}))
         affinity_str = f"({affinity}倾向)" if affinity else ""
         yield event.plain_result(act_msg + f"🔨 铁匠挥锤敲打，火星四溅……\n"
             f"✅ 锻造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']} {affinity_str}"
             f"{af_str}{set_str}\n"
             f"💰 消耗 {gold_need} 金币，装备已放入背包！{lv_msg}"
+            + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")

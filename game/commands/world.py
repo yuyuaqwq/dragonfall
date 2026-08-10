@@ -834,8 +834,11 @@ class WorldCmds(CommandBase):
         if target.get("type") == "城镇区域" and first_sa:
             arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
             sub_line = ""
+        # v97.5 行为彩蛋规则：进入新地图
+        _rule_txt = self._rule_fire("move_enter", group_id, qq_id, player, target)
         yield event.plain_result(
             f"{arrive_txt}\n{arrive_desc}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
+            + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
@@ -2573,6 +2576,11 @@ class WorldCmds(CommandBase):
         rep_line = self._quest_reputation(group_id, qq_id, sqd["giver"])
         if rep_line:
             lines.append(f"  {rep_line}")
+        # v97.5 行为彩蛋规则：任务交付后
+        _rule_txt = self._rule_fire("quest_deliver", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player.get("cur_map"), {}))
+        if _rule_txt:
+            lines.append(f"  {_rule_txt}")
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?休息(?:\s*|$)")

@@ -161,13 +161,17 @@ class CombatCmds(CommandBase):
                     f"{hint}"
                 )
                 return
+            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
             yield event.plain_result(
                 f"🏘️ 你在{cur_map['name']}附近转了一圈，暂时没什么动静。\n"
                 f"🧭 前往『地图』选择去野外的地图(如翡翠森林)，或者进城看看 NPC。"
+                + (f"\n{_rule_txt}" if _rule_txt else "")
             )
             return
         if not events:
-            yield event.plain_result("你四处搜寻，什么也没发现……")
+            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
+            yield event.plain_result("你四处搜寻，什么也没发现……"
+                                     + (f"\n{_rule_txt}" if _rule_txt else ""))
             return
         # v87 04 章十六节：隐藏怪物独立判定（低概率彩蛋怪，优先级最高）
         hm = self._roll_hidden_monster(group_id, qq_id, player, cur_map)
@@ -1456,6 +1460,12 @@ class CombatCmds(CommandBase):
             ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']})")
         if ach_lines:
             lines += [""] + ach_lines
+        # v97.5 行为彩蛋规则：战斗胜利后
+        _rule_txt = self._rule_fire("battle_win", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player.get("cur_map"), {}),
+                                    {"event": "win", "enemy": monster})
+        if _rule_txt:
+            lines.append(_rule_txt)
         lines.append("━━━━━━━━━━━━")
         lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         yield event.plain_result("\n".join(lines))
@@ -1483,6 +1493,10 @@ class CombatCmds(CommandBase):
             f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了橡木镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
+        # v97.5 行为彩蛋规则：战败（用于清零连胜等计数，不产出彩蛋）
+        self._rule_fire("battle_win", group_id, qq_id, player,
+                        C.MAP_BY_ID.get(player.get("cur_map"), {}),
+                        {"event": "lose"})
         yield event.plain_result("\n".join(lines))
 
     def _update_quests(self, group_id, qq_id, monster):

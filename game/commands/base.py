@@ -457,6 +457,13 @@ class CommandBase:
         """体力显示条：⚡ 82/102"""
         return f"⚡ 体力 {self._stamina(player)}/{self._stamina_max(player)}"
 
+    # ---------- v97.5 行为彩蛋规则 ----------
+    def _rule_fire(self, trigger: str, group_id, qq_id, player: dict, cur_map: dict, evt: dict = None) -> str:
+        """行为规则触发器挂点：命中返回彩蛋文本，未命中返回 ""。"""
+        from ..core.rule_engine import fire as _fire
+        return _fire(group_id, qq_id, player, cur_map, trigger, evt or {},
+                     hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
+
 
     def _title_bonus(self, group_id, qq_id) -> dict:
         """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)"""
