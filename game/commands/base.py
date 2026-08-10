@@ -5,6 +5,8 @@
 """
 import functools
 import inspect
+import json
+import os
 import random
 import re
 import time
@@ -12,6 +14,7 @@ import time
 from astrbot.api import star
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.core.message.message_event_result import MessageChain
+from astrbot.core.star.filter.custom_filter import CustomFilter
 from astrbot.core.star.filter.regex import RegexFilter
 from astrbot.core.star.star_handler import EventType, star_handlers_registry
 
@@ -19,6 +22,31 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
+
+
+# ---------- v96 停服维护全局拦截 ----------
+# 停服时非 GM 玩家发任何游戏指令都会被高优先级 gate 拦下（日常聊天不受影响）。
+class _GameCmdFilter(CustomFilter):
+    """只命中「游戏指令」（_registry.COMMAND_REGEX 任一正则），避免误拦群聊日常。"""
+
+    _PATTERNS = None
+
+    @classmethod
+    def _patterns(cls):
+        if cls._PATTERNS is None:
+            from ._registry import COMMAND_REGEX
+            cls._PATTERNS = [re.compile(pat) for pat in COMMAND_REGEX.values()]
+        return cls._PATTERNS
+
+    def filter(self, event, cfg) -> bool:
+        text = event.get_message_str().strip()
+        for pat in self._patterns():
+            try:
+                if pat.search(text):
+                    return True
+            except re.error:
+                continue
+        return False
 
 
 def no_prof_waiting():
@@ -51,6 +79,66 @@ def no_prof_waiting():
 
 
 class CommandBase:
+
+    # ---------- v96 GM 身份与停服状态 ----------
+    @staticmethod
+    def _gm_whitelist() -> set:
+        """GM 白名单：环境变量 GWEN_GM_QQ ∪ 数据库 gm_whitelist(JSON 数组)。"""
+        wl = set()
+        for x in os.environ.get("GWEN_GM_QQ", "").split(","):
+            x = x.strip()
+            if x:
+                wl.add(x)
+        try:
+            raw = db.get_event_state("gm_whitelist")
+            if raw:
+                for x in json.loads(raw):
+                    wl.add(str(x))
+        except Exception:
+            pass
+        return wl
+
+    def _is_gm(self, qq_id) -> bool:
+        """GM 判定：gm_ 前缀测试身份 / 数据库+环境变量白名单。"""
+        qq_id = str(qq_id)
+        if qq_id.startswith("gm_"):
+            return True
+        return qq_id in self._gm_whitelist()
+
+    @staticmethod
+    def _server_down() -> bool:
+        """服务器是否处于停服维护状态。"""
+        try:
+            return db.get_event_state("server_maintenance") == "1"
+        except Exception:
+            return False
+
+    @staticmethod
+    def _server_down_msg() -> str:
+        try:
+            return db.get_event_state("server_maintenance_msg") or ""
+        except Exception:
+            return ""
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?", priority=100)
+    @filter.custom_filter(_GameCmdFilter, priority=100)
+    async def _maint_gate(self, event: AstrMessageEvent):
+        """v96 停服维护拦截：停服时非 GM 的游戏指令一律拦下并停止传播。
+        开服或 GM 直接放行（不产出任何结果，事件继续传给真正的指令 handler）。"""
+        group_id, qq_id = self._uid(event)
+        if self._is_gm(qq_id):
+            return
+        if self._server_down():
+            msg = self._server_down_msg()
+            yield event.plain_result(
+                "🔧 服务器维护中，暂时无法游玩～\n"
+                + (f"📢 {msg}\n" if msg else "")
+                + "维护期间请稍候，开服会广播通知～"
+            )
+            event.stop_event()
+            return
+        # 开服：放行
+        return
 
     def _strip_cmd(self, event: AstrMessageEvent, cmd: str) -> str:
         """从消息中剥离 At 前缀和指令名，返回剩余参数"""
