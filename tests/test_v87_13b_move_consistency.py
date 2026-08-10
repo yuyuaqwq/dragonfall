@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """v87.13b 验证：移动到达展示与『地图』展示一致（子区域级信息）"""
-import sys, os, asyncio
+import sys, os, asyncio, random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import FakeEvent, run, clean_db, Main, db
+
+random.seed(20260810)  # 固定 seed：消除移动撞怪(25%)的随机性，保证场景行稳定
 
 passed = failed = 0
 def check(name, ok, detail=""):
