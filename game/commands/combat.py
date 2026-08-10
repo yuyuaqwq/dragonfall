@@ -117,6 +117,11 @@ class CombatCmds(CommandBase):
         # 精英/Boss：子区域优先，回退地图级
         sa_elite = (cur_sa.get("elite") if cur_sa else None) or cur_map.get("elite")
         sa_boss = (cur_sa.get("boss") if cur_sa else None) or cur_map.get("boss")
+        # v95.23 #247：副本区域探索不触发精英/Boss 独立判定——副本 Boss 只能走『副本 <名字>』
+        # 开本流程（有等级/人数校验和通关结算），探索撞 Boss 打赢也不计入副本进度，纯坑玩家
+        if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
+            sa_elite = None
+            sa_boss = None
         # v102.1 移除：'城镇外郊' 类型不存在于数据（maps.py 仅 城镇区域/副本/野外/隐藏区域），
         # 该分支恒 False 从未执行（历史遗留自 82abbde 红名系统，数据层重写后成孤儿）
         # v95r38 空池保护：纯精英/Boss 房（如野猪王巢）探索不报"什么也没发现"，由下方必遇逻辑接管
