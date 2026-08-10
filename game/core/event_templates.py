@@ -267,9 +267,10 @@ def tpl_wandering(ctx):
     player = db.get_player(ctx.group_id, ctx.qq_id)
     if player.get("explore_wandering"):
         return "🧭 【迷路的旅人】旅人认出了你，笑着摆摆手：'缘分到此为止，下次有缘再见！'"
-    rewards = ["克罗的罗盘", "回城卷轴", "谷地露水"]
+    # v102.2：特殊物品用 key（i_scroll_escape），材料保留中文名（resolve 按名解析）
+    rewards = ["克罗的罗盘", "i_scroll_escape", "谷地露水"]
     rw = random.choice(rewards)
-    if rw == "回城卷轴":
+    if rw == "i_scroll_escape":
         db.add_item(ctx.group_id, ctx.qq_id, "i_scroll_escape",
                     {"name": "回城卷轴", "type": "消耗品", "stackable": True,
                      "effect": "return_vila", "price": 500})

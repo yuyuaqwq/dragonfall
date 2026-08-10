@@ -77,6 +77,7 @@ class ItemContext:
 
 def infer_template(data):
     """从道具数据推断模板名（use() 分发用）。"""
+    from .. import content as C  # v102.2 延迟导入（core 聚合链惯例）
     if data.get("heal"):
         return "heal"
     if data.get("mana"):
@@ -86,9 +87,10 @@ def infer_template(data):
     eff = data.get("effect")
     if eff:
         return eff if eff in TEMPLATES else "none"
-    if data.get("type") == "宠物蛋":
+    # v102.2：type 中文文案收敛为常量（改物品类型文案只动数据+constants）
+    if data.get("type") == C.ITEM_TYPE_PET_EGG:
         return "pet_egg"
-    if data.get("type") == "坐骑":
+    if data.get("type") == C.ITEM_TYPE_MOUNT:
         return "mount"
     return "none"
 

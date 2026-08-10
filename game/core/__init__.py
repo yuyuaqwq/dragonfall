@@ -18,6 +18,8 @@ from .constants import (  # noqa: F401
     # v102.1 地图/子区域类型常量
     MAP_TYPE_TOWN, MAP_TYPE_FIELD, MAP_TYPE_INSTANCE, MAP_TYPE_HIDDEN,
     SUB_TYPE_TOWN, SUB_TYPE_STREET, SUB_TYPE_GATE,
+    # v102.2 物品 type 常量
+    ITEM_TYPE_PET_EGG, ITEM_TYPE_MOUNT,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

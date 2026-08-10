@@ -51,3 +51,8 @@ MAP_TYPE_HIDDEN = "隐藏区域"
 SUB_TYPE_TOWN = "城镇"           # 中心广场（首个子区域）
 SUB_TYPE_STREET = "城镇街道"     # 如东大街：连广场 + 城镇出口
 SUB_TYPE_GATE = "城镇出口"       # 如镇郊：出城/进城落点
+
+# ================= v102.2 物品 type 常量 =================
+# （item_templates.infer_template 原裸比较中文 type，收敛后改类型文案只动数据+这里）
+ITEM_TYPE_PET_EGG = "宠物蛋"
+ITEM_TYPE_MOUNT = "坐骑"
