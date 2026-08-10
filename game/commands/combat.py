@@ -279,6 +279,9 @@ class CombatCmds(CommandBase):
         if cur_map.get("type") == "城镇区域":
             return None  # 城镇不出隐藏怪
         for hid, hdef in C.HIDDEN_MONSTERS.items():
+            # v97.6 区域限定：maps 字段指定地图 id 列表，当前图不在其中则跳过
+            if hdef.get("maps") and mid not in hdef["maps"]:
+                continue
             cond = hdef.get("cond", "any")
             if cond == "forest_night":
                 if not (is_forest and is_night):
@@ -409,8 +412,8 @@ class CombatCmds(CommandBase):
             return True, find_lines
         name = cur_map.get("name", "此地")
         from ..core.event_templates import EventContext, execute_event_template
-        # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重）
-        egg = C.roll_explore_egg()
+        # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重；v97.6 区域彩蛋按地图过滤）
+        egg = C.roll_explore_egg(cur_map.get("id"))
         if egg:
             ctx = EventContext(group_id, qq_id, player, cur_map,
                                params=egg.get("params", {}), name=name,

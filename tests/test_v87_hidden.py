@@ -28,7 +28,7 @@ def main():
 
     # ===== 1. 数据完整性 =====
     print("  · 数据完整性")
-    check("HIDDEN_MONSTERS 6 种", len(C.HIDDEN_MONSTERS) == 6,
+    check("HIDDEN_MONSTERS 25 种", len(C.HIDDEN_MONSTERS) == 25,
           f"实际 {len(C.HIDDEN_MONSTERS)}")
     check("POIS 10 种（含 v87.9 风景）", len(C.POIS) == 10, f"实际 {len(C.POIS)}")
     check("PROPS 55 种", len(C.PROPS) == 55, f"实际 {len(C.PROPS)}")
@@ -82,9 +82,11 @@ def main():
     print("  · 探索彩蛋扩充")
     from data.plugins.dragonfall.game.data.events import EXPLORE_EGG_EVENTS, EXPLORE_EVENTS
     egg_ids = [e["id"] for e in EXPLORE_EGG_EVENTS]
-    check("彩蛋事件 5 种（含 old_map/gold_slime）",
-          len(egg_ids) == 5 and "old_map" in egg_ids and "gold_slime" in egg_ids,
-          f"实际 {egg_ids}")
+    # v97.6 扩容 5→30（区域 15 + 全局 10）
+    check("彩蛋事件 30 种（含 old_map/gold_slime + v97.6 新 25）",
+          len(egg_ids) == 30 and "old_map" in egg_ids and "gold_slime" in egg_ids
+          and "egg_oak_whisper" in egg_ids and "egg_twin_moon" in egg_ids,
+          f"实际 {len(egg_ids)}")
     ev_ids = [e["id"] for e in EXPLORE_EVENTS]
     # v97.4 扩容 12→30（新 18：firefly/old_well/windmill/hunter_hut/beehive/floating_bridge/
     # old_tree_hollow/stone_tablet/cart_wreck/night_owl/spider_web/frost_flower/old_boot/

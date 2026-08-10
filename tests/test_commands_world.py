@@ -180,7 +180,10 @@ async def main():
     out = m3._complete_side_quest("g1", "w1", "s_caravan_escort")
     p1 = db.get_player("g1", "w1")
     check("kill_any 支线可交付", "奖励" in "|".join(out) or out == [], "|".join(out)[:150])
-    check("交付后金币+150", p1.get("gold", 0) == g0 + 150, f"{g0}->{p1.get('gold',0)}")
+    # v97.5 quest_deliver 规则：委托人追着塞钱（30% 概率 +10~25+等级 金币）→ 金币允许超额
+    _lv = p0.get("level", 1)
+    check("交付后金币+150（允许 v97.5 委托人谢礼加成）",
+          g0 + 150 <= p1.get("gold", 0) <= g0 + 150 + 25 + _lv, f"{g0}->{p1.get('gold',0)}")
     check("交付后经验+300", p1.get("exp", 0) == e0 + 300, f"{e0}->{p1.get('exp',0)}")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
