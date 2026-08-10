@@ -277,7 +277,8 @@ class PlayerCmds(CommandBase):
             self._title_bonus(group_id, qq_id), player.get("race"),
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
-        cur_map = C.MAP_BY_ID.get(player["cur_map"], {}).get("name", "橡木镇")
+        cur_map = (C.MAP_BY_ID.get(player["cur_map"]) or C.MAP_BY_ID.get(C.START_MAP, {}))
+        cur_map = cur_map.get("name", "橡木镇")
         # 装备展示（v33：固定部位顺序，空位显示 —）
         eq_lines = []
         for slot in ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"]:
