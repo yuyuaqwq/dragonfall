@@ -1584,6 +1584,12 @@ class Battle:
         """回合结束：buff 剩余回合递减 + v2.0 技能冷却递减"""
         for tbl in (self.p_buffs, self.e_buffs):
             for k in list(tbl):
+                # v95.24 #252: 控制类 buff（stun/freeze）是"行动级"控制——由行动消费点
+                # （_enemy_turn 1295-1303 / player_turn 314-321 / 额外行动 265-271）负责 pop，
+                # 不能在回合结束时递减：否则施放当回合若敌方无行动（副本 enemy_act=False、
+                # 敌方先手 e_extra_left=0、敌方施放眩晕给玩家）会被直接吞掉，眩晕永远不生效。
+                if k in ("stun", "freeze"):
+                    continue
                 tbl[k] -= 1
                 if tbl[k] <= 0:
                     del tbl[k]
