@@ -207,10 +207,11 @@ class CommandBase:
         # v95.4：不在城镇设施 → 看是否有野外行商在场
         return self._wild_trader_here(player, group_id, qq_id)
 
-    def _wild_trader_here(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
-        """v95.4：当前地图是否有可交易的野外行商（funcs 含 trade 且出现条件满足）"""
+    def _wild_trader_here(self, player: dict, group_id: str = "", qq_id: str = "") -> str | None:
+        """v95.4：当前地图是否有可交易的野外行商（funcs 含 trade 且出现条件满足）。
+        #151 修复：返回命中的 NPC id（用于货摊标题显示正确 NPC 名），无则 None。"""
         if not (group_id and qq_id):
-            return False
+            return None
         cur = player.get("cur_map", "")
         for nid, wnpc in C.ALL_WILD.items():
             if "trade" not in (wnpc.get("funcs") or []):
@@ -218,8 +219,8 @@ class CommandBase:
             if C.npc_map_id(nid, wnpc) != cur:
                 continue
             if C.wild_npc_findable(nid, wnpc, player, group_id, qq_id):
-                return True
-        return False
+                return nid
+        return None
 
     def _at_healer(self, player: dict) -> bool:
         """v87.17 当前子区域是否有旅店（healer: true 或 funcs 含 heal）。

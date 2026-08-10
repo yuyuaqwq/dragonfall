@@ -39,6 +39,7 @@ from .craft import (  # noqa: F401
     craft_recipe_make, craft_recipe_search, craft_recipes_by_material,
     craft_recipes_for_level,
 )
+from .event_templates import EventContext, execute_event_template  # noqa: F401
 from .class_sets import _build_class_sets  # noqa: F401
 from .enchant import enchant_value, enchant_match_material  # noqa: F401
 from .runes import rune_value, rune_conflict, rune_item  # noqa: F401

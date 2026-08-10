@@ -393,237 +393,30 @@ class CombatCmds(CommandBase):
         return None
 
     def _handle_explore_event(self, group_id, qq_id, player, cur_map):
-        """处理探索随机事件；返回 (handled, 文本)"""
-        import uuid, json as _json, time as _time
-        name = cur_map.get("name", "此地")
+        """处理探索随机事件；返回 (handled, 文本)
+        v97.3：事件全部走模板引擎（core/event_templates.py），数据在 data/events.py。"""
         # v97.1 条件探索事件优先：find 型任务(告示委托)命中则不再 roll 常规事件
         find_lines = self._roll_find_quest_events(group_id, qq_id, player, cur_map)
         if find_lines:
             return True, find_lines
+        name = cur_map.get("name", "此地")
+        from ..core.event_templates import EventContext, execute_event_template
         # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重）
         egg = C.roll_explore_egg()
         if egg:
-            eid = egg["id"]
-            if eid == "shooting_star":
-                db.set_event_state(f"wish_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
-                return True, (
-                    f"🌠 【流星许愿】一道流星拖着长尾划过{name}的夜空！\n"
-                    f"你赶紧闭上眼睛许愿——流星似乎回应了你！\n"
-                    f"━━━━━━━━━━━━\n"
-                    f"💡 快决定吧：『许愿 经验』『许愿 金币』『许愿 材料』"
-                )
-            if eid == "mystery_chest":
-                gold = random.randint(50, 120) + player["level"] * 5
-                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                # 当前地图怪物掉落池随机一个材料（稀有惊喜）
-                mat_line = ""
-                pool = [m[5] for m in cur_map.get("monsters", [])]
-                mats = [x for sub in pool for x in sub if x and "图纸" not in x]
-                if mats:
-                    mid = C.resolve("materials", random.choice(mats))
-                    if mid in C.MATERIALS:
-                        db.add_item(group_id, qq_id, mid,
-                                    {"name": C.display("materials", mid), "type": "材料",
-                                     "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                        mat_line = f"\n🎒 还得到一份材料：{C.display('materials', mid)}！"
-                bp = C.roll_blueprint(max(1, player["level"]))
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                return True, (
-                    f"📦 【神秘宝匣】你在{name}的角落发现一只埋藏千年的宝匣！\n"
-                    f"💰 打开：{gold} 金币！{mat_line}\n"
-                    f"📜 里面还有一张泛黄的图纸：{bp['name']}！"
-                )
-            if eid == "night_visitor":
-                db.set_talk_flag(group_id, qq_id, "h_abyss_whisper", "saw_the_rift")
-                return True, (
-                    f"🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n"
-                    f"“深渊的裂隙……正在低语……去找它。”\n"
-                    f"身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"
-                )
-            # v87 02 章 7.5：新彩蛋——泛黄藏宝图（H6 书页线索）
-            if eid == "old_map":
-                db.set_talk_flag(group_id, qq_id, "h_lost_library", "got_old_map")
-                return True, (
-                    f"🗺️ 【泛黄藏宝图】你在一棵老树的树洞里发现一张泛黄的藏宝图！\n"
-                    f"图上画着一条通往圣堂地窖深处的地下通道，边缘写着：\n"
-                    f"“三页旧纸，一扇石门——书页不齐，石门不开。”\n"
-                    f"你收好藏宝图(隐藏线索：失落图书馆·书页之一 已记入见闻)。"
-                )
-            # v87 02 章 7.5：新彩蛋——金色史莱姆（必掉稀有材料+金币）
-            if eid == "gold_slime":
-                gold = random.randint(200, 400) + player["level"] * 30
-                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                mat_line = ""
-                mid = C.resolve("materials", "琥珀精华")
-                if mid in C.MATERIALS:
-                    db.add_item(group_id, qq_id, mid,
-                                {"name": C.display("materials", mid), "type": "材料",
-                                 "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                    mat_line = f"\n🎒 获得稀有材料：琥珀精华！"
-                return True, (
-                    f"✨ 【金色史莱姆】一只通体金黄的史莱姆蹦跳着挡住去路！\n"
-                    f"你三两下把它敲扁——金色的浆液迸溅出来！\n"
-                    f"💰 获得 {gold} 金币！{mat_line}"
-                )
+            ctx = EventContext(group_id, qq_id, player, cur_map,
+                               params=egg.get("params", {}), name=name,
+                               hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
+            text = execute_event_template(egg["template"], ctx)
+            if text:
+                return True, text
         ev = C.roll_explore_event()
-        eid = ev["id"]
-        name = cur_map.get("name", "此地")
-        # 宝箱：金币+随机装备/材料
-        if eid == "treasure":
-            gold = random.randint(15, 50) + player["level"] * 2
-            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            extra = ""
-            # v41：宝箱不再掉成品装备（装备统一走锻造），改为掉图纸/材料
-            # 阶段九：精灵森林之友——探索获得物品概率 +10%
-            # v94 图纸经济：宝箱为图纸主要来源之一，基础概率 50% → 70%
-            item_chance = 0.7 + (0.10 if E.race_stats(player.get("race")).get("explore_item") else 0)
-            if random.random() < item_chance:
-                bp = C.roll_blueprint(max(1, player["level"]))
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                extra = f"\n📜 还翻出一张图纸：{bp['name']}！"
-            return True, (
-                f"🎁 【宝箱】你在{name}的草丛里发现一个宝箱！\n"
-                f"💰 获得 {gold} 金币！{extra}"
-            )
-        # 流浪商人：低价装备/药水（v41：可拒绝，不再强买强卖；v48：品质档转英文 ID）
-        if eid == "merchant":
-            q = random.choices(["white", "green", "blue"], weights=[45, 40, 15])[0]
-            equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, player["level"]), q)
-            price = int(equip["price"] * 0.6)
-            if player["gold"] >= price and random.random() < 0.5:
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
-                return True, (
-                    f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"
-                    f"你花 {price} 金币买下了 {C.QUALITY[equip['quality']]['color']}【{equip['name']}】"
-                )
-            else:
-                return True, (
-                    f"🛒 【流浪商人】一个商人向你兜售 {C.QUALITY[equip['quality']]['color']}【{equip['name']}】，"
-                    f"只要 {price} 金币……你摇了摇头：不买不买。商人悻悻地走了。"
-                )
-        # 神秘泉水：回满
-        if eid == "spring":
-            db.update_player(group_id, qq_id, hp=player["max_hp"], mp=player["max_mp"])
-            return True, (
-                f"💧 【神秘泉水】你发现一汪泛着微光的泉水，饮下后浑身舒畅！\n"
-                f"❤️ 生命全满！💙 魔力全满！"
-            )
-        # 陷阱：扣血
-        if eid == "trap":
-            dmg = int(player["max_hp"] * 0.15) + 5
-            new_hp = max(1, player["hp"] - dmg)
-            db.update_player(group_id, qq_id, hp=new_hp)
-            return True, (
-                f"🕳️ 【陷阱】脚下突然一空，你掉进了猎人废弃的陷阱！\n"
-                f"你摔伤了，损失 {dmg} 点生命(当前 ❤️ {new_hp}/{player['max_hp']})"
-            )
-        # 古老遗迹：经验
-        if eid == "omen":
-            exp_gain = 15 + player["level"] * 3
-            db.update_player(group_id, qq_id, exp=player["exp"] + exp_gain)
-            player = self._player(group_id, qq_id)
-            player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-            lines = [f"🏛️ 【古老遗迹】你在废墟中发现一段古老符文，隐约蕴含着知识的力量！\n✨ 经验 +{exp_gain}"]
-            lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-            if lv_logs:
-                lines += [""] + lv_logs
-                db.update_player(group_id, qq_id, level=player["level"], exp=player["exp"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-            return True, "\n".join(lines)
-        # 草药丛：采集材料
-        if eid == "herb":
-            herbs = ["草药", "林语之叶", "谷地露水", "浆果"]
-            herb = random.choice(herbs)
-            mid = C.resolve("materials", herb)  # v48：中文 → ID
-            if mid in C.MATERIALS:
-                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-            return True, (
-                f"🌿 【草药丛】你发现一片野生草药，采摘了一些！\n"
-                f"🎒 获得材料：{herb}"
-            )
-        # 意外之财：金币
-        if eid == "windfall":
-            gold = random.randint(10, 40) + player["level"]
-            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            return True, (
-                f"💰 【意外之财】你在地上发现几枚散落的金币，大概是某位粗心商人的损失！\n"
-                f"获得 {gold} 金币！"
-            )
-        # 迷路的旅人：用材料换奖励
-        if eid == "wandering":
-            # v95.4：迷路的旅人谢礼限一次（防重复刷同一物品）
-            if db.get_player(group_id, qq_id).get("explore_wandering"):
-                return True, "🧭 【迷路的旅人】旅人认出了你，笑着摆摆手：'缘分到此为止，下次有缘再见！'"
-            rewards = ["克罗的罗盘", "回城卷轴", "谷地露水"]
-            rw = random.choice(rewards)
-            if rw == "回城卷轴":
-                # v95.13 #63：卷轴必须掉消耗品版（材料版同名物品不能用），可立即回城保命
-                db.add_item(group_id, qq_id, "i_scroll_escape",
-                            {"name": "回城卷轴", "type": "消耗品", "stackable": True,
-                             "effect": "return_vila", "price": 500})
-            else:
-                mid = C.resolve("materials", rw)  # v48：中文 → ID
-                if mid in C.MATERIALS:
-                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-            db.update_player(group_id, qq_id, explore_wandering=1)
-            return True, (
-                f"🧭 【迷路的旅人】一位旅人感激你的指路，硬塞给你一件谢礼！\n"
-                f"🎒 获得：{rw}"
-            )
-        # v87 02 章 7.6：新常规事件——废弃营地（材料+小概率图纸）
-        if eid == "lost_camp":
-            mats_pool = ["狼皮", "兽肉", "铁矿石", "野猪牙", "魔法粉尘"]
-            got = []
-            for _ in range(2):
-                m = random.choice(mats_pool)
-                mid = C.resolve("materials", m)
-                if mid in C.MATERIALS:
-                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                    got.append(C.display("materials", mid))
-            extra = ""
-            if random.random() < 0.15:
-                bp = C.roll_blueprint(max(1, player["level"]))
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                extra = f"\n📜 帐篷角落里还压着一张图纸：{bp['name']}！"
-            return True, (
-                f"🏕️ 【废弃营地】你翻找着前人的遗物——篝火余烬还带着温度。\n"
-                f"🎒 获得材料：{'、'.join(got)}！{extra}"
-            )
-        # v87 02 章 7.6：新常规事件——陨石坑（稀有矿石）
-        if eid == "meteor":
-            ores = ["铁矿石", "秘银", "精铁", "星辉石"]
-            ore = random.choice(ores)
-            mid = C.resolve("materials", ore)
-            got = ""
-            if mid in C.MATERIALS:
-                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                got = C.display("materials", mid)
-            exp_gain = 20 + player["level"] * 2
-            db.update_player(group_id, qq_id, exp=player["exp"] + exp_gain)
-            return True, (
-                f"☄️ 【陨石坑】坑底嵌着一块奇异的金属，你费了番力气把它撬了出来。\n"
-                f"🎒 获得矿石：{got}！✨ 经验 +{exp_gain}"
-            )
-        # v87 02 章 7.6：新常规事件——迷路的小动物（随机材料/好感）
-        if eid == "animal":
-            rewards = ["兽肉", "狼皮", "兔毛", "兔皮"]
-            rw = random.choice(rewards)
-            mid = C.resolve("materials", rw)
-            got = ""
-            if mid in C.MATERIALS:
-                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                got = C.display("materials", mid)
-            return True, (
-                f"🐿️ 【迷路的小动物】你喂了它一点干粮，小家伙蹭了蹭你的手，留下一份谢礼跑了。\n"
-                f"🎒 获得：{got}"
-            )
-        # v87 02 章 7.6：新常规事件——突如其来的雨（概率 buff：雨后清新）
-        if eid == "rain":
-            db.set_event_state(f"rain_{group_id}_{qq_id}", _json.dumps({"ts": _time.time()}))
-            return True, (
-                f"🌧️ 【突如其来的雨】豆大的雨点砸下来，你躲进树荫避雨。\n"
-                f"雨后的空气格外清新——你感到一阵清明(接下来 30 分钟探索遇怪率小幅提升)。"
-            )
+        ctx = EventContext(group_id, qq_id, player, cur_map,
+                           params=ev.get("params", {}), name=name,
+                           hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
+        text = execute_event_template(ev["template"], ctx)
+        if text:
+            return True, text
         return False, ""
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
