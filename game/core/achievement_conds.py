@@ -227,9 +227,20 @@ def _c_bestiary_all(player, stats, profs, extra, cond):
 
 @register("item_has")
 def _c_item_has(player, stats, profs, extra, cond):
-    """持有指定物品
-    ⚠️ 历史行为：原代码引用未定义 group_id（NameError→False），本条件恒 False。
-    修复需给 cond_met 引入 group_id 上下文（属后续优化，改前 grep 依赖）。"""
+    """持有指定物品（v100.3b 修复：原代码引用未定义 group_id → NameError→False 恒 False）
+    key 为装备 id（如 eq_starfall_sword）或物品名；背包与已装备槽位双查。"""
+    gid = extra.get("_group_id")
+    if not gid:
+        return False  # 无群上下文时保持旧行为（恒 False）
+    from .. import db
+    from ..data.equip_roster import EQUIP_ROSTER
+    key = cond.get("key")
+    name = EQUIP_ROSTER.get(key, {}).get("name", key)
+    if db.count_item(gid, player["qq_id"], name) > 0:
+        return True
+    for slot, item in (player.get("equipment") or {}).items():
+        if item and item.get("name") == name:
+            return True
     return False
 
 
@@ -325,12 +336,16 @@ def _c_goblin_trade(player, stats, profs, extra, cond):
 
 @register("quest_done")
 def _c_quest_done(player, stats, profs, extra, cond):
-    """已完成隐藏任务
-    ⚠️ 历史行为：extra 传 quest_done 时判定；否则原代码 db 分支引用未定义
-    group_id（NameError→False），保持恒 False（修复需 group_id 上下文，后续优化）。"""
+    """已完成隐藏任务（v100.3b 修复：原代码引用未定义 group_id → NameError→False 恒 False）
+    优先走 extra 显式上下文；否则查 quests.side[key].status == \"done\"。"""
     if extra.get("quest_done") == cond.get("key"):
         return True
-    return False
+    gid = extra.get("_group_id")
+    if not gid:
+        return False  # 无群上下文时保持旧行为（恒 False）
+    from .. import db
+    q = db.get_quests(gid, player["qq_id"])
+    return bool(q and q.get("side", {}).get(cond.get("key"), {}).get("status") == "done")
 
 
 @register("main_done")

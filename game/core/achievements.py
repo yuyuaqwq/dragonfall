@@ -47,15 +47,20 @@ def _monster_total() -> int:
         return 150
 
 
-def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) -> bool:
+def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict, group_id: str = None) -> bool:
     """成就条件判定。extra 携带事件上下文(inst_id/flawless/worldboss/flags 等)
     v99.5：判定逻辑数据化 → core/achievement_conds.py COND_CHECKS 注册表
-    （41 种条件类型；未知 type / 异常 → False，与旧 if 链兜底一致）"""
+    （41 种条件类型；未知 type / 异常 → False，与旧 if 链兜底一致）
+    v100.3b：新增可选 group_id —— 非 None 时注入 extra['_group_id'] 副本，
+    供 quest_done/item_has 查询任务/背包（原代码引用未定义 group_id → 恒 False 的历史 bug）"""
     try:
         from .achievement_conds import COND_CHECKS
         fn = COND_CHECKS.get(cond.get("type"))
         if fn is None:
             return False
+        if group_id is not None and extra.get("_group_id") is None:
+            extra = dict(extra)
+            extra["_group_id"] = group_id
         return fn(player, stats, profs, extra, cond)
     except Exception:
         return False
@@ -116,7 +121,7 @@ def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
         for a in C.ACHIEVEMENTS:
             if a["id"] in unlocked:
                 continue
-            if cond_met(player, stats, profs, extra, a["cond"]):
+            if cond_met(player, stats, profs, extra, a["cond"], group_id):
                 try:
                     db.set_achievement(group_id, qq_id, a["id"], 1, 1)
                 except Exception:

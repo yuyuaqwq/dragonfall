@@ -82,6 +82,29 @@ check("inst_id（extra 集合命中）", cond_met(player, stats, profs, extra, {
 check("hidden_monsters_all（空集合）", cond_met(player, stats, profs, extra, {"type": "hidden_monsters_all"}) is False)
 check("hidden_class（已解锁）", cond_met(player, stats, profs, extra, {"type": "hidden_class", "key": "cls_mu_shi"}) is True)
 
+# ============ 3.5 quest_done / item_has 修复（v100.3b） ============
+print("【3.5 quest_done/item_has 修复】")
+check("无 group_id 时 quest_done 保持旧行为（False）",
+      cond_met(player, stats, profs, extra, {"type": "quest_done", "key": "s_hidden_ember"}) is False)
+check("无 group_id 时 item_has 保持旧行为（False）",
+      cond_met(player, stats, profs, extra, {"type": "item_has", "key": "eq_starfall_sword"}) is False)
+_extra2 = {}
+_db_orig_quests = db.get_quests
+db.get_quests = lambda gid, qq: {"side": {"s_hidden_ember": {"status": "done"}, "s_hidden_library": {"status": "active"}}}
+check("quest_done：side status=done 解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_hidden_ember"}, "g1") is True)
+check("quest_done：side status=active 不解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_hidden_library"}, "g1") is False)
+check("quest_done：未知任务不解锁", cond_met(player, stats, profs, _extra2, {"type": "quest_done", "key": "s_unknown"}, "g1") is False)
+db.get_quests = _db_orig_quests
+_db_orig_count = db.count_item
+db.count_item = lambda gid, qq, name: 1 if name == "星陨之剑" else 0
+check("item_has：背包持有解锁", cond_met(player, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is True)
+db.count_item = lambda gid, qq, name: 0
+_p2 = dict(player); _p2["equipment"] = {"weapon": {"name": "星陨之剑"}}
+check("item_has：已装备解锁", cond_met(_p2, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is True)
+check("item_has：都没有不解锁", cond_met(player, stats, profs, _extra2, {"type": "item_has", "key": "eq_starfall_sword"}, "g1") is False)
+check("extra 副本注入不污染调用方", "_group_id" not in _extra2)
+db.count_item = _db_orig_count
+
 # ============ 4. 全覆盖 ============
 print("【4. 数据覆盖检查】")
 import re
