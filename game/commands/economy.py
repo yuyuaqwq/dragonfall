@@ -61,14 +61,38 @@ class EconomyCmds(CommandBase):
                 q.append((nxt, d + 1))
         return "oak_town"
 
-    def _gather_roll(self, level: int, prof_lv: int = 1) -> list:
-        """按等级采集材料：价格区间匹配等级段；副业等级提高产出数量与稀有度"""
+    # 采集物地图绑定池（19 章 §2.1：特定地图只有特定采集物；#154 修复 2026-08-10）
+    # 格式：地图ID → [(材料ID, 权重), ...]；未配置的地图回退下方价格区间逻辑
+    _GATHER_MAP_POOLS = {
+        "oak_plain": [("mat_cao_yao", 30), ("mat_jiang_guo", 20), ("mat_yue_guang_cao", 15),
+                      ("mat_shi_lai_mu_nian_ye", 15), ("mat_tu_mao", 10), ("mat_tu_pi", 10)],
+        "white_deer_forest": [("mat_cao_yao", 25), ("mat_jiang_guo", 15), ("mat_yue_guang_cao", 15),
+                              ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15), ("mat_lang_pi", 10)],
+        "emerald_forest": [("mat_cao_yao", 25), ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15),
+                           ("mat_yue_guang_cao", 10), ("mat_zhao_ze_hua", 15), ("mat_lang_pi", 15)],
+        "misty_swamp": [("mat_zhao_ze_hua", 30), ("mat_cao_yao", 20), ("mat_yue_guang_cao", 10),
+                        ("mat_shi_lai_mu_nian_ye", 15), ("mat_lin_yu_zhi_ye", 15), ("mat_gu_mu_zhi", 10)],
+        "silverwood": [("mat_yue_guang_cao", 40), ("mat_cao_yao", 15), ("mat_jiang_guo", 10),
+                       ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15)],
+        "permafrost_field": [("mat_bing_jing", 40), ("mat_cao_yao", 10), ("mat_yue_guang_cao", 5),
+                             ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 25)],
+        "redridge_plateau": [("mat_long_xue_cao", 15), ("mat_cao_yao", 15), ("mat_yue_guang_cao", 10),
+                             ("mat_lin_yu_zhi_ye", 30), ("mat_gu_mu_zhi", 30)],
+    }
+
+    def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
+        """按等级采集材料：地图绑定池优先（19 章 §2.1）；未配置地图按价格区间匹配等级段；副业等级提高产出数量与稀有度"""
         import random as _rnd
-        # 材料按价格分档（价格 ~ 等级*6 附近）
-        cand = [name for name, m in C.MATERIALS.items()
-                if 3 + level * 4 <= m["price"] <= 20 + level * 8]
-        if not cand:
-            cand = list(C.MATERIALS.keys())
+        pool = self._GATHER_MAP_POOLS.get(cur_map or "")
+        if pool:
+            mats = [m for m, _w in pool for _ in range(_w)]
+            cand = mats
+        else:
+            # 材料按价格分档（价格 ~ 等级*6 附近）
+            cand = [name for name, m in C.MATERIALS.items()
+                    if 3 + level * 4 <= m["price"] <= 20 + level * 8]
+            if not cand:
+                cand = list(C.MATERIALS.keys())
         # 副业等级加成：Lv.3+ 概率采到 2 份材料；Lv.6+ 概率 3 份
         n = _rnd.randint(1, 2)
         if prof_lv >= 3 and _rnd.random() < 0.3:
@@ -255,7 +279,7 @@ class EconomyCmds(CommandBase):
         if not player:
             return None
         prof = db.get_prof_level(group_id, qq_id, "gather")
-        mats = self._gather_roll(player["level"], prof)
+        mats = self._gather_roll(player["level"], prof, player.get("cur_map", ""))
         got = []
         for mat in mats:
             mname = C.display("materials", mat)
