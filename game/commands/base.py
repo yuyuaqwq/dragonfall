@@ -287,6 +287,9 @@ class CommandBase:
                 name = getattr(md.handler, "__name__", "")
                 if name.startswith("shortcut"):
                     continue
+                if name.startswith("_"):
+                    # v96：跳过私有 handler（_maint_gate 等），避免空正则污染快捷转发
+                    continue
                 for f in md.event_filters:
                     if isinstance(f, RegexFilter):
                         try:
