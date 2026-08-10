@@ -365,40 +365,14 @@ class PlayerCmds(CommandBase):
         for rid, r in C.RACES.items():
             t = r["talents"]
             tnames = r.get("talent_names", {})
+            # v98.3：展示格式化全数据化 → core/race_talent_display.py
+            from ..core.race_talent_display import format_talent
             parts = []
             for k, v in t.items():
                 nm = tnames.get(k, k)
-                if k in ("hp_mult", "growth_mult", "spd_mult"):
-                    pct = int((v - 1) * 100)
-                    parts.append(f"{'🔻' if v < 1 else ''}{nm} {pct:+d}%")
-                elif k == "crit_add":
-                    parts.append(f"{nm} 暴击+{int(v*100)}%")
-                elif k in ("phys_reduce", "magic_reduce"):
-                    if v > 0:
-                        parts.append(f"{nm} -{int(v*100)}%")
-                    else:
-                        parts.append(f"🔻{nm} +{int(-v*100)}%")
-                elif k == "heal_received":
-                    if v > 0:
-                        parts.append(f"{nm} 受疗+{int(v*100)}%")
-                    else:
-                        parts.append(f"🔻{nm} 受疗{int(v*100)}%")
-                elif k == "berserk_hp":
-                    parts.append(f"{nm} 残血攻＋20%")
-                elif k == "timid_hp":
-                    parts.append(f"🔻{nm} 残血攻－10%")
-                elif k == "first_hit":
-                    parts.append(f"{nm} 首击+{int(v*100)}%")
-                elif k == "learn_discount":
-                    parts.append(f"{nm} 学习-{int(v*100)}%")
-                elif k == "gold_bonus":
-                    parts.append(f"{nm} 金币+{int(v*100)}%")
-                elif k == "item_effect":
-                    parts.append(f"{nm} 消耗品+{int(v*100)}%")
-                elif k == "craft_bonus":
-                    parts.append(f"{nm} 锻造经验+{int(v*100)}%")
-                elif k == "explore_item":
-                    parts.append(f"{nm} 探索物品+{int(v*100)}%")
+                text = format_talent(k, v, nm)
+                if text is not None:
+                    parts.append(text)
             lines.append(f"{r['icon']} {r['name']}：{'，'.join(parts)}")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿(净强度≈不变)，选取舍不选碾压！")

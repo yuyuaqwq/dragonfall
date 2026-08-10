@@ -1,0 +1,113 @@
+# -*- coding: utf-8 -*-
+"""《剑与魔法》核心层 - race_talent_display.py（v98.3：种族天赋展示格式化注册表）
+
+消灭 commands/player.py races() 里的 if-elif 硬编码：
+天赋数据只声明 key → 值，展示文案统一走本模块注册表。
+
+扩展方式：
+- 加天赋类型：data/races.py 加字段 + 本文件 register 一个格式化函数（~5 行）
+- 函数签名：fn(v, name) -> str（name 为天赋显示名，来自 races talent_names）
+"""
+DISPLAY = {}
+
+
+def register(key):
+    """展示格式化注册装饰器。"""
+    def deco(fn):
+        DISPLAY[key] = fn
+        return fn
+    return deco
+
+
+def format_talent(k, v, name):
+    """返回天赋展示文本；未知 key 返回 None（不显示，与原 elif 链无 else 一致）。"""
+    fn = DISPLAY.get(k)
+    return fn(v, name) if fn else None
+
+
+# ================= 格式化实现（文案与原实现逐字一致） =================
+
+@register("hp_mult")
+def _d_hp_mult(v, name):
+    pct = int((v - 1) * 100)
+    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+
+
+@register("growth_mult")
+def _d_growth_mult(v, name):
+    pct = int((v - 1) * 100)
+    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+
+
+@register("spd_mult")
+def _d_spd_mult(v, name):
+    pct = int((v - 1) * 100)
+    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+
+
+@register("crit_add")
+def _d_crit_add(v, name):
+    return f"{name} 暴击+{int(v*100)}%"
+
+
+@register("phys_reduce")
+def _d_phys_reduce(v, name):
+    if v > 0:
+        return f"{name} -{int(v*100)}%"
+    return f"🔻{name} +{int(-v*100)}%"
+
+
+@register("magic_reduce")
+def _d_magic_reduce(v, name):
+    if v > 0:
+        return f"{name} -{int(v*100)}%"
+    return f"🔻{name} +{int(-v*100)}%"
+
+
+@register("heal_received")
+def _d_heal_received(v, name):
+    if v > 0:
+        return f"{name} 受疗+{int(v*100)}%"
+    return f"🔻{name} 受疗{int(v*100)}%"
+
+
+@register("berserk_hp")
+def _d_berserk_hp(v, name):
+    # 注：文案硬编码 20%（历史实现未用 v，模板化保持原样）
+    return f"{name} 残血攻＋20%"
+
+
+@register("timid_hp")
+def _d_timid_hp(v, name):
+    # 注：文案硬编码 10%（历史实现未用 v，模板化保持原样）
+    return f"🔻{name} 残血攻－10%"
+
+
+@register("first_hit")
+def _d_first_hit(v, name):
+    return f"{name} 首击+{int(v*100)}%"
+
+
+@register("learn_discount")
+def _d_learn_discount(v, name):
+    return f"{name} 学习-{int(v*100)}%"
+
+
+@register("gold_bonus")
+def _d_gold_bonus(v, name):
+    return f"{name} 金币+{int(v*100)}%"
+
+
+@register("item_effect")
+def _d_item_effect(v, name):
+    return f"{name} 消耗品+{int(v*100)}%"
+
+
+@register("craft_bonus")
+def _d_craft_bonus(v, name):
+    return f"{name} 锻造经验+{int(v*100)}%"
+
+
+@register("explore_item")
+def _d_explore_item(v, name):
+    return f"{name} 探索物品+{int(v*100)}%"

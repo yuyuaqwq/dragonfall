@@ -272,33 +272,20 @@ class CombatCmds(CommandBase):
             is_night = current_period() in ("night", "深夜", "夜晚")
         except Exception:
             pass
-        # 地图环境分类
-        is_forest = any(k in mid for k in ("forest", "wood", "glade"))
-        is_water = any(k in mid for k in ("river", "lake", "sea", "reef", "dock", "swamp", "brook"))
-        is_ruin = any(k in mid for k in ("ruin", "mine", "abyss", "battlefield", "altar", "tunnel", "crypt"))
+        # 地图环境分类（v98.3：数据化 → core/hidden_cond.py ENV_KEYWORDS）
+        from ..core.hidden_cond import envs_of, check_cond, HiddenCtx
+        envs = envs_of(mid)
         if cur_map.get("type") == "城镇区域":
             return None  # 城镇不出隐藏怪
+        hctx = HiddenCtx(mid, cur_map, is_night, envs)
         for hid, hdef in C.HIDDEN_MONSTERS.items():
             # v97.6 区域限定：maps 字段指定地图 id 列表，当前图不在其中则跳过
             if hdef.get("maps") and mid not in hdef["maps"]:
                 continue
             cond = hdef.get("cond", "any")
-            if cond == "forest_night":
-                if not (is_forest and is_night):
-                    continue
-            elif cond == "forest":
-                if not is_forest:
-                    continue
-            elif cond == "water":
-                if not is_water:
-                    continue
-            elif cond == "ruin":
-                if not is_ruin:
-                    continue
-            elif cond == "night_any":
-                if not is_night:
-                    continue
-            # any / 其他：无限制
+            if not check_cond(cond, hctx):
+                continue
+            # any / 未知：无限制
             if random.random() >= hdef.get("chance", 0.004):
                 continue
             # 命中：构造怪物（等级 = 地图等级 + 偏移，clamp ≥1）

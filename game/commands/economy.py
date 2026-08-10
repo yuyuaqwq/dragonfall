@@ -1707,68 +1707,26 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(f"百科里没有『{raw}』！试试查材料(如『百科 狼皮』)、怪物(如『百科 光耀狼』)或地图(如『百科 远境草甸』)～")
 
     def _earned_titles(self, group_id, qq_id, player):
-        """计算已获得的称号，返回 (已获列表, 未获列表)"""
+        """计算已获得的称号，返回 (已获列表, 未获列表)
+        v98.3：条件判定全数据化 → core/title_conds.py CONDITIONS 注册表"""
+        from ..core.title_conds import TitleCtx, CONDITIONS, check_pro_title
         stats = db.get_stats(group_id, qq_id) or {}
         rep = db.get_reputation(group_id, qq_id)
         quests = db.get_quests(group_id, qq_id)
+        ctx = TitleCtx(group_id, qq_id, player, stats, rep, quests, hooks={
+            "has_enhanced": self._has_enhanced,
+            "visited_maps": self._visited_maps,
+        })
         earned = []
         for t in C.TITLES:
             tid = t["id"]
-            ok = False
-            if tid == "novice":
-                ok = True
-            elif tid == "lv10":
-                ok = player["level"] >= 10
-            elif tid == "lv20":
-                ok = player["level"] >= 20
-            elif tid == "lv30":
-                ok = player["level"] >= 30
-            elif tid == "kill10":
-                ok = stats.get("kills", 0) >= 10
-            elif tid == "kill100":
-                ok = stats.get("kills", 0) >= 100
-            elif tid == "kill500":
-                ok = stats.get("kills", 0) >= 500
-            elif tid == "elite5":
-                ok = stats.get("elite_kills", 0) >= 5
-            elif tid == "boss1":
-                ok = stats.get("boss_kills", 0) >= 1
-            elif tid == "boss3":
-                ok = stats.get("boss_kills", 0) >= 3
-            elif tid == "rep_honor":
-                ok = any(C.faction_reputation_tier(v) in ("崇敬", "崇拜") for v in rep.values())
-            elif tid == "rep_legend":
-                ok = any(C.faction_reputation_tier(v) == "崇拜" for v in rep.values())
-            elif tid == "quest10":
-                ok = len(quests.get("completed_main", [])) >= 10
-            elif tid == "wealthy":
-                ok = player["gold"] >= 5000
-            elif tid == "explorer":
-                ok = db.get_visited_count(group_id, qq_id) >= 10
-            elif tid == "fish10":
-                ok = db.get_fishing_total(group_id, qq_id) >= 10
-            elif tid == "enhance5":
-                ok = self._has_enhanced(group_id, qq_id, 5)
-            elif tid == "enhance9":
-                ok = self._has_enhanced(group_id, qq_id, 9)
-            elif tid == "hidden":
-                ok = db.get_visited_count(group_id, qq_id) >= 10 and "mithril_hall" in self._visited_maps(group_id, qq_id)
-            elif tid == "final":
-                ok = quests.get("main_quest") is None and len(quests.get("completed_main", [])) >= 10
+            fn = CONDITIONS.get(tid)
+            if fn is not None:
+                ok = fn(ctx)
             elif tid.startswith("pro_"):
-                # 副业称号：pro_<prof><lv>（如 pro_gather3）→ 副业等级达标
-                import re as _re
-                _mm = _re.match(r"^pro_([a-z]+)(\d+)$", tid)
-                if _mm:
-                    prof_key = _mm.group(1)
-                    need_lv = int(_mm.group(2))
-                    if prof_key in ("gather", "mining", "fishing", "alchemy", "craft", "cooking"):
-                        ok = db.get_prof_level(group_id, qq_id, prof_key) >= need_lv
-            elif tid == "fish_king":
-                ok = db.get_fish_king(group_id, qq_id) >= 1
-            elif tid == "pvp_hero":
-                # 荣誉商店兑换过荣誉勋章（event_state honor_medal_<qq_id> = 1）
-                ok = int(db.get_event_state(f"honor_medal_{qq_id}") or 0) >= 1
+                ok = check_pro_title(tid, ctx)
+            else:
+                ok = False  # 未知称号 id：不获得（数据错误时安全降级）
             earned.append(ok)
         return earned
 
