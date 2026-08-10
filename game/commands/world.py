@@ -625,6 +625,10 @@ class WorldCmds(CommandBase):
         if db.get_talk_state(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
             return
+        # v95.17 #146：战斗中禁止移动（与传送/回家/拜访一致，防战斗挂起跨图/被撞怪覆盖）
+        if self._in_battle(group_id, qq_id):
+            yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说移动。")
+            return
         dest = dest.strip()
         # v94 体力：同图子区域移动免费（城内溜达不算赶路）；跨图移动扣 2、体力不足拒绝
         cur = player["cur_map"]
@@ -936,6 +940,10 @@ class WorldCmds(CommandBase):
             return
         if db.get_talk_state(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
+            return
+        # v95.17 #146：战斗中禁止回城（与传送/移动一致）
+        if self._in_battle(group_id, qq_id):
+            yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说回城。")
             return
         target = None
         if dest:

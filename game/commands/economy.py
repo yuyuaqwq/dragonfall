@@ -2107,10 +2107,18 @@ class EconomyCmds(CommandBase):
                 lines.append(f"类型：{d['type']}")
             if d.get("desc"):
                 lines.append(f"效果：{d['desc']}")
-            elif d.get("heal"):
-                lines.append(f"效果：恢复 {d['heal']} 点生命")
-            elif d.get("mana"):
-                lines.append(f"效果：恢复 {d['mana']} 点魔力")
+            elif d.get("heal") or d.get("mana"):
+                # v95.17 #147：heal<1 是百分比（v54 战斗外回复），详情直接显示原始小数误导 → 换算百分比
+                parts = []
+                if d.get("heal"):
+                    h = d["heal"]
+                    parts.append(f"恢复 {int(h * 100)}% 生命" if h < 1 else f"恢复 {h} 点生命")
+                if d.get("mana"):
+                    m = d["mana"]
+                    parts.append(f"恢复 {int(m * 100)}% 魔力" if m < 1 else f"恢复 {m} 点魔力")
+                if d.get("stamina"):
+                    parts.append(f"{d['stamina']} 体力")
+                lines.append("效果：" + "＋".join(parts))
             lines.append("")
             if d.get("price"):
                 lines.append(f"💡 出售价 {d['price']} 金币")
@@ -2848,7 +2856,7 @@ class EconomyCmds(CommandBase):
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0)})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")})
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
                 return
@@ -2862,7 +2870,7 @@ class EconomyCmds(CommandBase):
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0)})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")})
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
                 return
