@@ -36,7 +36,7 @@ SETS = {
             "spd": 0.15
         },
         "bonus_4": {
-            "effect": "frost",
+            "effect": "frost", "chance": 0.3,
             "desc": "攻击 30% 概率使敌人减速 2 回合"
         },
         "name": "寒霜"
@@ -48,7 +48,7 @@ SETS = {
             "atk": 0.12
         },
         "bonus_4": {
-            "effect": "burn",
+            "effect": "burn", "chance": 0.3,
             "desc": "攻击 30% 概率灼烧敌人(2 回合每回合 5% 生命)"
         },
         "name": "烈焰"
@@ -60,7 +60,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "雷霆"
@@ -109,7 +109,7 @@ SETS = {
             "atk": 0.18
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "黑沼"
@@ -134,7 +134,7 @@ SETS = {
             "atk": 0.2
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "白银骑士"
@@ -147,7 +147,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "黑铁佣兵"
@@ -185,7 +185,7 @@ SETS = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "铁皮"
@@ -198,7 +198,7 @@ SETS = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "精铁"
@@ -211,7 +211,7 @@ SETS = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "骑士"
@@ -224,7 +224,7 @@ SETS = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "守望"
@@ -237,7 +237,7 @@ SETS = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "黎明"
@@ -250,7 +250,7 @@ SETS = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "学徒"
@@ -263,7 +263,7 @@ SETS = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "符文"
@@ -276,7 +276,7 @@ SETS = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "秘法"
@@ -289,7 +289,7 @@ SETS = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "星界"
@@ -302,7 +302,7 @@ SETS = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "星辰"
@@ -445,7 +445,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "轻影"
@@ -458,7 +458,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "夜行"
@@ -471,7 +471,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "阴影"
@@ -484,7 +484,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "幻影"
@@ -497,7 +497,7 @@ SETS = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "午夜"
@@ -510,7 +510,7 @@ SETS = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "行者"
@@ -523,7 +523,7 @@ SETS = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "铁手"
@@ -536,7 +536,7 @@ SETS = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "虎啸"
@@ -549,7 +549,7 @@ SETS = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "磐石"
@@ -562,7 +562,7 @@ SETS = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "金身"
@@ -656,7 +656,7 @@ CLASS_SET_THEMES = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce",
+            "effect": "pierce", "chance": 0.3,
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "战士"
@@ -689,7 +689,7 @@ CLASS_SET_THEMES = {
             "crit": 0.04
         },
         "bonus_4": {
-            "effect": "thunder",
+            "effect": "thunder", "chance": 0.25,
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "法师"
@@ -788,7 +788,7 @@ CLASS_SET_THEMES = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute",
+            "effect": "execute", "chance": 1.0,
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "刺客"
@@ -821,7 +821,7 @@ CLASS_SET_THEMES = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set",
+            "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "拳师"

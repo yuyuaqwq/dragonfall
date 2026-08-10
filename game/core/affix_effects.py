@@ -25,6 +25,25 @@
 import random
 
 
+def _affix_chance(aid: str, default: float) -> float:
+    """词条触发概率：读数据（AFFIXES/LEGENDARY_EFFECTS 的 chance），缺失用 default 兜底（v99.2）"""
+    from .. import content as C  # 延迟引用，防 core→content→core 循环
+    info = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid)
+    if info is None:
+        return default
+    return info.get("chance", default)
+
+
+def _set_chance(eff: str, default: float) -> float:
+    """套装 4 件特效概率：读 sets.py bonus_4 的 chance，缺失用 default 兜底（v99.2）"""
+    from .. import content as C  # 延迟引用，防 core→content→core 循环
+    for s in (C.SETS or {}).values():
+        b4 = (s or {}).get("bonus_4") or {}
+        if b4.get("effect") == eff:
+            return b4.get("chance", default)
+    return default
+
+
 def register(registry, key):
     """注册装饰器。"""
     def deco(fn):
@@ -42,7 +61,7 @@ HIT_EFFECTS = {}
 @register(HIT_EFFECTS, "bleed")
 def _h_bleed(battle, player, dmg, logs):
     """流血：20% 使目标流血（每回合 5% 生命，3 回合）"""
-    if "bleed" in battle._equip_affix_ids(player) and random.random() < 0.20:
+    if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
         battle.e_buffs["bleed"] = max(battle.e_buffs.get("bleed", 0), 3)
         logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
 
@@ -50,7 +69,7 @@ def _h_bleed(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "armor_break")
 def _h_armor_break(battle, player, dmg, logs):
     """破甲：25% 降低目标防御 15%（2 回合）"""
-    if "armor_break" in battle._equip_affix_ids(player) and random.random() < 0.25:
+    if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
         battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
         battle.e_buffs["_armor_break_pct"] = 0.15
         logs.append("🛡️ 破甲！敌人防御下降 15%！")
@@ -59,7 +78,7 @@ def _h_armor_break(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "combo")
 def _h_combo(battle, player, dmg, logs):
     """连击：15% 追加一次 50% 伤害"""
-    if "combo" in battle._equip_affix_ids(player) and random.random() < 0.15:
+    if "combo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("combo", 0.15):
         cd = int(dmg * 0.50)
         battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
         logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
@@ -107,7 +126,7 @@ def _h_element_thunder(battle, player, dmg, logs):
 def _h_pierce(battle, player, dmg, logs):
     """贯穿：20% 无视防御追加伤害"""
     from ..engine import calc_damage
-    if "pierce" in battle._equip_affix_ids(player) and random.random() < 0.20:
+    if "pierce" in battle._equip_affix_ids(player) and random.random() < _affix_chance("pierce", 0.20):
         pst = battle._player_stats(player)
         pd = calc_damage(int(pst.get("atk", 0) * 0.6), 0)
         if pd > 0:
@@ -118,7 +137,7 @@ def _h_pierce(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "charge")
 def _h_charge(battle, player, dmg, logs):
     """蓄力：10% 造成 150% 伤害（追加 50%）"""
-    if "charge" in battle._equip_affix_ids(player) and random.random() < 0.10:
+    if "charge" in battle._equip_affix_ids(player) and random.random() < _affix_chance("charge", 0.10):
         cd = int(dmg * 0.50)
         battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
         logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
@@ -129,9 +148,9 @@ def _h_purify(battle, player, dmg, logs):
     """净化：15% 驱散敌人 1 层增益（审判之链专属 25% 驱散 2 层；if-elif 互斥保持原语义）"""
     ids = battle._equip_affix_ids(player)
     purge_n = 0
-    if "judgment_chain" in ids and random.random() < 0.25:
+    if "judgment_chain" in ids and random.random() < _affix_chance("judgment_chain", 0.25):
         purge_n = 2
-    elif "purify" in ids and random.random() < 0.15:
+    elif "purify" in ids and random.random() < _affix_chance("purify", 0.15):
         purge_n = 1
     if purge_n:
         gain_keys = [k for k in battle.e_buffs
@@ -179,7 +198,7 @@ def _t_reduce(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "block")
 def _t_block(battle, player, ctx, logs):
     """格挡：15% 减伤 50%（基于结算中伤害）"""
-    if "block" in battle._equip_affix_ids(player) and random.random() < 0.15:
+    if "block" in battle._equip_affix_ids(player) and random.random() < _affix_chance("block", 0.15):
         blocked = int(ctx["out"] * 0.50)
         ctx["out"] = max(1, ctx["out"] - blocked)
         logs.append(f"🛡️ 格挡！减伤 {blocked} 点")
@@ -188,7 +207,7 @@ def _t_block(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "tenacity")
 def _t_tenacity(battle, player, ctx, logs):
     """坚韧：20% 免疫/清除自身负面（减速/降攻）"""
-    if "tenacity" in battle._equip_affix_ids(player) and random.random() < 0.20:
+    if "tenacity" in battle._equip_affix_ids(player) and random.random() < _affix_chance("tenacity", 0.20):
         neg = [k for k in battle.p_buffs if k in ("spd_down", "atk_down", "def_down")]
         if neg:
             del battle.p_buffs[random.choice(neg)]
@@ -199,7 +218,7 @@ def _t_tenacity(battle, player, ctx, logs):
 def _t_counter(battle, player, ctx, logs):
     """反击：20% 反击 60% 伤害"""
     from ..engine import calc_damage
-    if "counter" in battle._equip_affix_ids(player) and random.random() < 0.20 and battle.enemy.get("hp", 0) > 0:
+    if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle.enemy.get("hp", 0) > 0:
         pst2 = battle._player_stats(player)
         est2 = battle._enemy_stats()
         cd = calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
@@ -211,7 +230,7 @@ def _t_counter(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "thorns")
 def _t_thorns(battle, player, ctx, logs):
     """反伤：10% 反弹 30% 伤害（基于原始 dmg）"""
-    if "thorns" in battle._equip_affix_ids(player) and random.random() < 0.10 and battle.enemy.get("hp", 0) > 0:
+    if "thorns" in battle._equip_affix_ids(player) and random.random() < _affix_chance("thorns", 0.10) and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * 0.30)
         battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
         logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
@@ -220,7 +239,7 @@ def _t_thorns(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "ember_ward")
 def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""
-    if "ember_ward" in battle._equip_affix_ids(player) and random.random() < 0.20 and battle.enemy.get("hp", 0) > 0:
+    if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * 0.50)
         battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
         logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
@@ -229,7 +248,7 @@ def _t_ember_ward(battle, player, ctx, logs):
 @register(TAKEN_EFFECTS, "moro_crown")
 def _t_moro_crown(battle, player, ctx, logs):
     """深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）"""
-    if "moro_crown" in battle._equip_affix_ids(player) and random.random() < 0.15:
+    if "moro_crown" in battle._equip_affix_ids(player) and random.random() < _affix_chance("moro_crown", 0.15):
         battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
         battle.e_buffs["_weaken_val"] = 0.10
         logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
@@ -274,7 +293,15 @@ SET_PROC_EFFECTS = {}
 def _sp_frost(battle, player, dmg, logs):
     """寒霜之力：30% 减速"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < 0.30:
+    if random.random() < _set_chance("frost", 0.30):
+        battle.e_buffs["spd_down"] = DEBUFF_TURNS
+        logs.append("❄️ 寒霜之力！敌人速度下降！")
+
+
+def _sp_frost(battle, player, dmg, logs):
+    """寒霜之力：30% 减速"""
+    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
+    if random.random() < _set_chance("frost", 0.30):
         battle.e_buffs["spd_down"] = DEBUFF_TURNS
         logs.append("❄️ 寒霜之力！敌人速度下降！")
 
@@ -283,7 +310,15 @@ def _sp_frost(battle, player, dmg, logs):
 def _sp_burn(battle, player, dmg, logs):
     """烈焰之力：30% 灼烧"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < 0.30:
+    if random.random() < _set_chance("burn", 0.30):
+        battle.e_buffs["poison"] = DEBUFF_TURNS
+        logs.append("🔥 烈焰之力！敌人被灼烧！")
+
+
+def _sp_burn(battle, player, dmg, logs):
+    """烈焰之力：30% 灼烧"""
+    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
+    if random.random() < _set_chance("burn", 0.30):
         battle.e_buffs["poison"] = DEBUFF_TURNS
         logs.append("🔥 烈焰之力！敌人被灼烧！")
 
@@ -292,7 +327,18 @@ def _sp_burn(battle, player, dmg, logs):
 def _sp_thunder(battle, player, dmg, logs):
     """雷霆一击：25% 追加 60% 攻击伤害"""
     from ..engine import calc_damage
-    if random.random() < 0.25:
+    if random.random() < _set_chance("thunder", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        tdmg = calc_damage(int(pst["atk"] * 0.6), est["def"])
+        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - tdmg)
+        logs.append(f"⚡ 雷霆一击！追加 {tdmg} 点伤害！")
+
+
+def _sp_thunder(battle, player, dmg, logs):
+    """雷霆一击：25% 追加 60% 攻击伤害"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("thunder", 0.25):
         pst = battle._player_stats(player)
         est = battle._enemy_stats()
         tdmg = calc_damage(int(pst["atk"] * 0.6), est["def"])
@@ -304,7 +350,15 @@ def _sp_thunder(battle, player, dmg, logs):
 def _sp_pierce(battle, player, dmg, logs):
     """诸神之力：30% 破甲"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < 0.30:
+    if random.random() < _set_chance("pierce", 0.30):
+        battle.e_buffs["def_down"] = DEBUFF_TURNS
+        logs.append("👑 诸神之力！敌人护甲破碎！")
+
+
+def _sp_pierce(battle, player, dmg, logs):
+    """诸神之力：30% 破甲"""
+    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
+    if random.random() < _set_chance("pierce", 0.30):
         battle.e_buffs["def_down"] = DEBUFF_TURNS
         logs.append("👑 诸神之力！敌人护甲破碎！")
 
@@ -312,13 +366,29 @@ def _sp_pierce(battle, player, dmg, logs):
 @register(SET_PROC_EFFECTS, "lifesteal_set")
 def _sp_lifesteal_set(battle, player, dmg, logs):
     """深渊之力：30% 汲取 15% 伤害为生命"""
-    if random.random() < 0.30:
+    if random.random() < _set_chance("lifesteal_set", 0.30):
+        heal = int(dmg * 0.15)
+        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+        logs.append(f"🌑 深渊之力！汲取 {heal} 点生命！")
+
+
+def _sp_lifesteal_set(battle, player, dmg, logs):
+    """深渊之力：30% 汲取 15% 伤害为生命"""
+    if random.random() < _set_chance("lifesteal_set", 0.30):
         heal = int(dmg * 0.15)
         player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
         logs.append(f"🌑 深渊之力！汲取 {heal} 点生命！")
 
 
 @register(SET_PROC_EFFECTS, "execute")
+def _sp_execute(battle, player, dmg, logs):
+    """灭世之力：处决（敌方 <30% 血时追加 25% 伤害）"""
+    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if ratio < 0.30:
+        bonus = int(dmg * 0.25)
+        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+        logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")
+
 def _sp_execute(battle, player, dmg, logs):
     """灭世之力：处决（敌方 <30% 血时追加 25% 伤害）"""
     ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))

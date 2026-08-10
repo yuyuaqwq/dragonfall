@@ -200,6 +200,27 @@ b = make_battle()
 b._set_attack_proc = Battle._set_attack_proc  # 恢复原方法（防 mock 污染）
 orig_set_bonus_4 = None
 
+# ============ 3.5 概率数据化（v99.2）：改数据即生效 ============
+print("【3.5 概率数据化】")
+# 词条概率读数据：把 bleed 的 chance 临时改 1.0 → 必触发
+from data.plugins.dragonfall.game import content as C
+orig_bleed_chance = C.AFFIXES["bleed"].get("chance")
+C.AFFIXES["bleed"]["chance"] = 1.0
+b = make_battle()
+b._equip_affix_ids = lambda p: ["bleed"]
+logs = []
+b._affix_on_hit(player, 100, logs)
+check("bleed chance=1.0 必触发", "bleed" in b.e_buffs)
+C.AFFIXES["bleed"]["chance"] = orig_bleed_chance
+b = make_battle()
+b._equip_affix_ids = lambda p: ["bleed"]
+_orig_random = random.random
+random.random = lambda: 0.99  # >20% 保证不触发
+logs = []
+b._affix_on_hit(player, 100, logs)
+random.random = _orig_random
+check("chance 恢复后非必触发（20% 不中）", "bleed" not in b.e_buffs)
+
 # ============ 4. 全覆盖：数据 key 全部有注册 ============
 print("【4. 数据覆盖检查】")
 import re

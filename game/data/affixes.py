@@ -40,6 +40,7 @@ AFFIXES = {
     },
     "lifesteal": {
         "name": "吸血", "kind": "attack", "trigger": "on_hit",
+    "chance": 1.0,
         "effect": {"lifesteal": 0.08},
         "desc": "攻击伤害的 8% 转化为生命",
     },
@@ -55,16 +56,19 @@ AFFIXES = {
     },
     "element_fire": {
         "name": "元素·火", "kind": "attack", "trigger": "on_hit",
+    "chance": 1.0,
         "effect": {"element": "fire", "pct": 0.05},
         "desc": "攻击附加 5% 火属性伤害",
     },
     "element_ice": {
         "name": "元素·冰", "kind": "attack", "trigger": "on_hit",
+    "chance": 1.0,
         "effect": {"element": "ice", "pct": 0.05, "slow": 0.10},
         "desc": "攻击附加 5% 冰属性伤害 + 减速 10%",
     },
     "element_thunder": {
         "name": "元素·雷", "kind": "attack", "trigger": "on_hit",
+    "chance": 1.0,
         "effect": {"element": "thunder", "pct": 0.05},
         "desc": "攻击附加 5% 雷属性伤害",
     },
@@ -121,6 +125,7 @@ AFFIXES = {
     },
     "dmg_reduce": {
         "name": "减伤", "kind": "defense", "trigger": "stat",
+    "chance": 1.0,
         "effect": {"dmg_reduce": 0.03},
         "desc": "受击伤害－3%",
     },
@@ -141,11 +146,13 @@ AFFIXES = {
     },
     "regen": {
         "name": "回春", "kind": "defense", "trigger": "turn_start",
+    "chance": 1.0,
         "effect": {"regen_hp_pct": 0.01},
         "desc": "每回合回复 1% 生命",
     },
     "meditate": {
         "name": "冥想", "kind": "defense", "trigger": "turn_start",
+    "chance": 1.0,
         "effect": {"regen_mp_pct": 0.01},
         "desc": "每回合回复 1% 魔力",
     },
@@ -231,6 +238,7 @@ LEGENDARY_EFFECTS = {
         "desc": "攻击 25% 驱散目标 2 层增益",
     },
     "dawn_crown": {  # 晨曦之冠：回春强化
+    "chance": 1.0,
         "name": "晨曦祝福", "kind": "defense", "trigger": "turn_start",
         "effect": {"regen_hp_pct": 0.02},
         "desc": "每回合回复 2% 生命",
@@ -246,11 +254,13 @@ LEGENDARY_EFFECTS = {
         "desc": "冰属性伤害＋15%",
     },
     "earth_heart": {  # 符文战锤·大地之心：减伤+生命
+    "chance": 1.0,
         "name": "大地护佑", "kind": "defense", "trigger": "stat",
         "effect": {"dmg_reduce": 0.05, "hp_pct": 0.05},
         "desc": "受击伤害－5%，最大生命＋5%",
     },
     "dragon_tongue": {  # 龙语圣剑：攻击叠印记
+    "chance": 1.0,
         "name": "龙语印记", "kind": "attack", "trigger": "on_hit",
         "effect": {"dragon_mark": 0.02, "max_mark": 5},
         "desc": "攻击叠加龙语印记(每层＋2% 伤害，上限 5 层)",
