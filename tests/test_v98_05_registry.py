@@ -248,6 +248,23 @@ check("受击词条全覆盖", taken_ids <= set(AFX.TAKEN_EFFECTS.keys()) | {"dm
 turn_ids = {"regen", "dawn_crown", "meditate"}
 check("回合开始词条全覆盖", turn_ids <= set(AFX.TURN_START_EFFECTS.keys()) | {"regen", "dawn_crown"})
 
+# ============ 3.7 世界事件初始化注册表（v100.2） ============
+print("【3.7 世界事件初始化注册表】")
+from game.core.world_event_templates import INITIALIZERS
+from game.data.world import WORLD_EVENT_POOL
+need_init = {"auction", "boss"}
+check("需要 data 的 etype（auction/boss）已注册 init", need_init <= set(INITIALIZERS.keys()))
+check("无 data 事件（merchant/omen/swarm/festival）不注册（data={} 降级）",
+      not ({"merchant", "omen", "swarm", "festival"} & set(INITIALIZERS.keys())))
+import random as _r
+_r.seed(7)
+d_auction = INITIALIZERS["auction"](_r)
+check("auction 初始化产出 3 件拍卖品", len(d_auction["items"]) == 3 and all("bids" in it for it in d_auction["items"]))
+_r.seed(7)
+d_boss = INITIALIZERS["boss"](_r)
+check("boss 初始化产出讨伐状态", d_boss["boss"]["hp"] == d_boss["boss"]["max_hp"] and d_boss["boss"]["contrib"] == {})
+check("未知 etype 安全降级为空 data", INITIALIZERS.get("nope") is None)
+
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

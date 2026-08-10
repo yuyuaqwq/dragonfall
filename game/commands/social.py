@@ -797,27 +797,10 @@ class SocialCmds(CommandBase):
             return ""
         evt = _rnd.choice(C.WORLD_EVENT_POOL)
         ends = now + evt["duration"]
-        data = {}
-        if evt["type"] == "auction":
-            # 生成 3 件拍卖品（高品质随机装备）
-            items = []
-            pool = _rnd.sample(C.AUCTION_POOL, min(3, len(C.AUCTION_POOL)))
-            for i, ap in enumerate(pool, 1):
-                equip = C.generate_equip(ap["slot"], ap["lv"], ap["quality"])
-                items.append({
-                    "id": i, "name": equip["name"], "slot": ap["slot"],
-                    "stats": equip.get("stats", {}), "desc": equip.get("desc", ""),
-                    "base": ap["base"], "buyout": ap["buyout"],
-                    "bids": {},  # qq -> amount
-                })
-            data["items"] = items
-        elif evt["type"] == "boss":
-            b = _rnd.choice(C.WORLD_BOSS_POOL)
-            data["boss"] = {"name": b["name"], "icon": b["icon"], "lv": b["lv"],
-                            "hp": b["hp"], "max_hp": b["hp"],
-                            "reward": b["reward"], "contrib": {},
-                            "mech": b.get("mech", ""),
-                            "map": b.get("map", ""), "map_name": b.get("map_name", "")}
+        # v100.2：事件 data 初始化数据化 → core/world_event_templates.py INITIALIZERS
+        from ..core.world_event_templates import INITIALIZERS
+        init_fn = INITIALIZERS.get(evt["type"])
+        data = init_fn(_rnd) if init_fn else {}
         db.save_world_event(evt["type"], ends, data)
         db.set_event_state("last_event_end", str(ends))
         return f"\n🌍 【世界事件】{evt['icon']} {evt['name']}！\n{evt['desc']}"

@@ -71,3 +71,49 @@ def _d_swarm(self, cur, lines, group_id):
 def _d_festival(self, cur, lines, group_id):
     """庆典：签到奖励翻倍，金币掉落增加"""
     lines.append("🎉 『签到』奖励翻倍！金币掉落增加！")
+
+
+# ============ 事件初始化注册表（v100.2）============
+# 消灭 commands/social.py 事件触发时 data 生成的 etype if-elif（原 2 分支）。
+# 与 DISPLAYS 对称：加新事件类型 = WORLD_EVENT_POOL 加数据 + register 展示 + register_init 初始化。
+# 函数签名：fn(rnd) -> data dict（rnd 为 random 模块/实例，social.py 传入函数内局部 _rnd）
+# 约定：未知 etype 不注册 → 返回空 data（与旧代码非 auction/boss 分支 data={} 一致）
+INITIALIZERS = {}
+
+
+def register_init(etype):
+    """初始化注册装饰器。"""
+    def deco(fn):
+        INITIALIZERS[etype] = fn
+        return fn
+    return deco
+
+
+@register_init("auction")
+def _i_auction(rnd):
+    """拍卖：随机抽 3 件高品质装备作拍卖品"""
+    from .. import content as C  # 延迟导入防循环
+    items = []
+    pool = rnd.sample(C.AUCTION_POOL, min(3, len(C.AUCTION_POOL)))
+    for i, ap in enumerate(pool, 1):
+        equip = C.generate_equip(ap["slot"], ap["lv"], ap["quality"])
+        items.append({
+            "id": i, "name": equip["name"], "slot": ap["slot"],
+            "stats": equip.get("stats", {}), "desc": equip.get("desc", ""),
+            "base": ap["base"], "buyout": ap["buyout"],
+            "bids": {},  # qq -> amount
+        })
+    return {"items": items}
+
+
+@register_init("boss")
+def _i_boss(rnd):
+    """世界 Boss：随机抽取一只并初始化讨伐状态"""
+    from .. import content as C  # 延迟导入防循环
+    b = rnd.choice(C.WORLD_BOSS_POOL)
+    return {"boss": {"name": b["name"], "icon": b["icon"], "lv": b["lv"],
+                     "hp": b["hp"], "max_hp": b["hp"],
+                     "reward": b["reward"], "contrib": {},
+                     "mech": b.get("mech", ""),
+                     "map": b.get("map", ""), "map_name": b.get("map_name", "")}}
+
