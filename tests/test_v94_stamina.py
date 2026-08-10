@@ -53,6 +53,9 @@ async def main():
     out = await cmd(m, "explore", "g1", "q1", "探索")
     st = stamina("g1", "q1")
     check(f"探索后体力 100→{st}（扣1）", st == 99, f"st={st}")
+    # v95r38 测试确定性：探索可能遇怪进入战斗（POI/事件未触发时必遇怪），
+    # 清掉战斗状态避免后续"跨图移动"被战斗拦截导致随机挂（凌晨跑也必过）
+    db.clear_battle("g1", "q1")
 
     print("【3. 体力 0 拦截探索】")
     db.update_player("g1", "q1", stamina=0, stamina_ts=int(time.time()))
@@ -68,6 +71,8 @@ async def main():
     db.update_player("g1", "q1", cur_subarea="oak_town_outskirts", stamina=10)
     out = await cmd(m, "move", "g1", "q1", "前往 橡木平原")
     check(f"跨图移动后体力 10→9", stamina("g1", "q1") == 9, f"st={stamina('g1','q1')} out={out[:60]}")
+    # v95r38 测试确定性：跨图移动可能触发撞怪战斗（_travel_ambush），清掉再测体力拦截
+    db.clear_battle("g1", "q1")
     db.update_player("g1", "q1", cur_map="oak_town", cur_subarea="oak_town_outskirts", stamina=0, stamina_ts=int(time.time()))
     out = await cmd(m, "move", "g1", "q1", "前往 橡木平原")
     check("体力 0 拦截跨图移动", "走不动" in out, out[:80])

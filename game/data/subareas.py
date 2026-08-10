@@ -210,20 +210,7 @@ SUBAREAS = {
                         "野猪牙"
                     ]
                 ],
-                [
-                    "e_great_boar",
-                    "巨型野猪",
-                    "elite",
-                    4,
-                    [
-                        "ms_chong_zhuang",
-                        "ms_jian_ta"
-                    ],
-                    [
-                        "巨型野猪牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_great_boar",
                 "巨型野猪",
@@ -716,21 +703,7 @@ SUBAREAS = {
                         "巫师法杖碎片"
                     ]
                 ],
-                [
-                    "e_swamp_king",
-                    "沼泽巨鳄",
-                    "elite",
-                    18,
-                    [
-                        "ms_yao_sui",
-                        "ms_shuai_wei",
-                        "ms_ni_jiang"
-                    ],
-                    [
-                        "巨鳄鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_swamp_king",
                 "沼泽巨鳄",
@@ -920,20 +893,7 @@ SUBAREAS = {
                         "岩蜥鳞"
                     ]
                 ],
-                [
-                    "e_cave_troll",
-                    "洞穴巨魔",
-                    "elite",
-                    24,
-                    [
-                        "ms_zhong_ji",
-                        "ms_zai_sheng"
-                    ],
-                    [
-                        "巨魔血"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_cave_troll",
                 "洞穴巨魔",
@@ -1225,20 +1185,7 @@ SUBAREAS = {
                         "海鸥羽毛"
                     ]
                 ],
-                [
-                    "e_pirate_lieutenant",
-                    "海盗副官",
-                    "elite",
-                    25,
-                    [
-                        "ms_wan_dao",
-                        "ms_huo_qiang"
-                    ],
-                    [
-                        "副官勋章"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_pirate_lieutenant",
                 "海盗副官",
@@ -1519,20 +1466,7 @@ SUBAREAS = {
                         "溪蜥鳞"
                     ]
                 ],
-                [
-                    "e_valley_troll",
-                    "谷地巨魔",
-                    "elite",
-                    16,
-                    [
-                        "ms_zhong_ji",
-                        "ms_tou_shi"
-                    ],
-                    [
-                        "巨魔牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_valley_troll",
                 "谷地巨魔",
@@ -1637,20 +1571,7 @@ SUBAREAS = {
                         "牛角"
                     ]
                 ],
-                [
-                    "e_plain_wolf",
-                    "平原狼王",
-                    "elite",
-                    20,
-                    [
-                        "ms_si_yao",
-                        "ms_hao_jiao"
-                    ],
-                    [
-                        "狼王牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_plain_wolf",
                 "平原狼王",
@@ -1877,20 +1798,7 @@ SUBAREAS = {
                         "石蜥鳞"
                     ]
                 ],
-                [
-                    "e_gorge_troll",
-                    "峡谷巨魔",
-                    "elite",
-                    8,
-                    [
-                        "ms_zhong_ji",
-                        "ms_tou_shi"
-                    ],
-                    [
-                        "巨魔獠牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_gorge_troll",
                 "峡谷巨魔",
@@ -2323,20 +2231,7 @@ SUBAREAS = {
                         "草原狼皮"
                     ]
                 ],
-                [
-                    "e_bandit_leader",
-                    "盗贼头目·黑鸦",
-                    "elite",
-                    38,
-                    [
-                        "ms_duan_jian",
-                        "ms_yan_wu"
-                    ],
-                    [
-                        "黑鸦披风"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_bandit_leader",
                 "盗贼头目·黑鸦",
@@ -2741,20 +2636,7 @@ SUBAREAS = {
                         "河龙鳞"
                     ]
                 ],
-                [
-                    "e_river_dragon_lord",
-                    "河龙领主",
-                    "elite",
-                    27,
-                    [
-                        "ms_shui_xi",
-                        "ms_xuan_wo"
-                    ],
-                    [
-                        "河龙领主鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_river_dragon_lord",
                 "河龙领主",
@@ -2931,20 +2813,7 @@ SUBAREAS = {
                         "骑士徽记"
                     ]
                 ],
-                [
-                    "e_knight_instructor",
-                    "骑士教官",
-                    "elite",
-                    34,
-                    [
-                        "ms_jian_ji",
-                        "ms_zhan_hou"
-                    ],
-                    [
-                        "教官之剑"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_knight_instructor",
                 "骑士教官",
@@ -3050,20 +2919,7 @@ SUBAREAS = {
                         "锈甲碎片"
                     ]
                 ],
-                [
-                    "e_grave_lord",
-                    "古墓领主",
-                    "elite",
-                    42,
-                    [
-                        "ms_an_ying_zhan",
-                        "ms_zhao_huan_ku_lou"
-                    ],
-                    [
-                        "领主骨甲"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_grave_lord",
                 "古墓领主",
@@ -3292,21 +3148,7 @@ SUBAREAS = {
                         "秃鹫羽"
                     ]
                 ],
-                [
-                    "e_hill_wolf_king",
-                    "丘陵狼王·铁牙",
-                    "elite",
-                    34,
-                    [
-                        "ms_si_yao",
-                        "ms_pu_ji",
-                        "ms_hao_jiao"
-                    ],
-                    [
-                        "铁牙狼皮"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_hill_wolf_king",
                 "丘陵狼王·铁牙",
@@ -3413,21 +3255,7 @@ SUBAREAS = {
                         "魔像残核"
                     ]
                 ],
-                [
-                    "e_battle_lord",
-                    "百族战将·亡影",
-                    "elite",
-                    40,
-                    [
-                        "ms_zhan_chui",
-                        "ms_zhan_hou",
-                        "ms_zhao_huan_you_hun"
-                    ],
-                    [
-                        "亡影战徽"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_battle_lord",
                 "百族战将·亡影",
@@ -3608,21 +3436,7 @@ SUBAREAS = {
                         "古树之心"
                     ]
                 ],
-                [
-                    "e_moon_wolf_alpha",
-                    "月狼王·银鬃",
-                    "elite",
-                    56,
-                    [
-                        "ms_si_yao",
-                        "ms_yue_guang_zhan",
-                        "ms_hao_jiao"
-                    ],
-                    [
-                        "银鬃狼皮"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_moon_wolf_alpha",
                 "月狼王·银鬃",
@@ -3731,21 +3545,7 @@ SUBAREAS = {
                         "巨鲈鱼骨"
                     ]
                 ],
-                [
-                    "e_lake_king",
-                    "星语湖王",
-                    "elite",
-                    58,
-                    [
-                        "ms_shui_dan",
-                        "ms_xuan_wo",
-                        "ms_zhao_huan_shui_jing_ling"
-                    ],
-                    [
-                        "湖王珠"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_lake_king",
                 "星语湖王",
@@ -4021,21 +3821,7 @@ SUBAREAS = {
                         "守卫古木"
                     ]
                 ],
-                [
-                    "e_tree_lord",
-                    "古树领主",
-                    "elite",
-                    70,
-                    [
-                        "ms_teng_bian",
-                        "ms_gen_xu_chan_rao",
-                        "ms_zhao_huan_shu_ren"
-                    ],
-                    [
-                        "领主古木心"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_tree_lord",
                 "古树领主",
@@ -4215,20 +4001,7 @@ SUBAREAS = {
                         "月光精华"
                     ]
                 ],
-                [
-                    "e_moon_lord",
-                    "月光领主·银辉",
-                    "elite",
-                    62,
-                    [
-                        "ms_yue_guang_zhan",
-                        "ms_zhao_huan_yue_lu"
-                    ],
-                    [
-                        "银辉月石"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_moon_lord",
                 "月光领主·银辉",
@@ -4335,20 +4108,7 @@ SUBAREAS = {
                         "绿鹿角"
                     ]
                 ],
-                [
-                    "e_valley_lord",
-                    "翠谷领主·林语",
-                    "elite",
-                    55,
-                    [
-                        "ms_teng_bian",
-                        "ms_gen_xu_chan_rao"
-                    ],
-                    [
-                        "林语之叶"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_valley_lord",
                 "翠谷领主·林语",
@@ -4487,21 +4247,7 @@ SUBAREAS = {
                         "巨鹰羽"
                     ]
                 ],
-                [
-                    "e_wind_king",
-                    "风语王·岚歌",
-                    "elite",
-                    58,
-                    [
-                        "ms_feng_ren",
-                        "ms_feng_bao",
-                        "ms_zhao_huan_feng_yu_jing_ling"
-                    ],
-                    [
-                        "岚歌之羽"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_wind_king",
                 "风语王·岚歌",
@@ -4609,21 +4355,7 @@ SUBAREAS = {
                         "荧光狐尾"
                     ]
                 ],
-                [
-                    "e_moonshadow_lord",
-                    "月影领主·夜歌",
-                    "elite",
-                    62,
-                    [
-                        "ms_an_ying_zhao",
-                        "ms_yue_guang_zhan",
-                        "ms_zhao_huan_ying_bao"
-                    ],
-                    [
-                        "夜歌之眼"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_moonshadow_lord",
                 "月影领主·夜歌",
@@ -4843,21 +4575,7 @@ SUBAREAS = {
                         "霜巨魔血"
                     ]
                 ],
-                [
-                    "e_frost_troll_lord",
-                    "霜巨魔王",
-                    "elite",
-                    72,
-                    [
-                        "ms_zhong_ji",
-                        "ms_bing_ji",
-                        "ms_zhao_huan_xue_lang"
-                    ],
-                    [
-                        "霜巨魔王角"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_frost_troll_lord",
                 "霜巨魔王",
@@ -5038,21 +4756,7 @@ SUBAREAS = {
                         "矿魔之角"
                     ]
                 ],
-                [
-                    "e_lava_lord",
-                    "熔岩领主",
-                    "elite",
-                    76,
-                    [
-                        "ms_rong_yan_dan",
-                        "ms_zhuo_shao",
-                        "ms_di_lie"
-                    ],
-                    [
-                        "熔岩领主核"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_lava_lord",
                 "熔岩领主",
@@ -5164,20 +4868,7 @@ SUBAREAS = {
                         "腐蚀兽爪"
                     ]
                 ],
-                [
-                    "e_rot_chief_guard",
-                    "腐牙亲卫",
-                    "elite",
-                    80,
-                    [
-                        "ms_fu_ji",
-                        "ms_zhan_hou"
-                    ],
-                    [
-                        "腐牙战徽"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_rot_chief_guard",
                 "腐牙亲卫",
@@ -5286,20 +4977,7 @@ SUBAREAS = {
                         "奴仆锁链"
                     ]
                 ],
-                [
-                    "e_demon_warrior",
-                    "恶魔战士",
-                    "elite",
-                    86,
-                    [
-                        "ms_zhang_jian",
-                        "ms_di_yu_huo"
-                    ],
-                    [
-                        "恶魔战刃"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_demon_warrior",
                 "恶魔战士",
@@ -5569,21 +5247,7 @@ SUBAREAS = {
                         "雪兔皮"
                     ]
                 ],
-                [
-                    "e_ice_fang_lord",
-                    "冰牙领主·霜白",
-                    "elite",
-                    71,
-                    [
-                        "ms_si_yao",
-                        "ms_bing_hou",
-                        "ms_zhao_huan_xue_lang"
-                    ],
-                    [
-                        "霜白獠牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_ice_fang_lord",
                 "冰牙领主·霜白",
@@ -5762,21 +5426,7 @@ SUBAREAS = {
                         "湖灵泪"
                     ]
                 ],
-                [
-                    "e_lake_lord",
-                    "永冬湖主·冰瞳",
-                    "elite",
-                    78,
-                    [
-                        "ms_bing_xi",
-                        "ms_ju_lang",
-                        "ms_zhao_huan_shui_ling"
-                    ],
-                    [
-                        "冰瞳之珠"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_lake_lord",
                 "永冬湖主·冰瞳",
@@ -6008,21 +5658,7 @@ SUBAREAS = {
                         "极光狐尾"
                     ]
                 ],
-                [
-                    "e_frost_mammoth",
-                    "冰原猛犸·雪岭",
-                    "elite",
-                    76,
-                    [
-                        "ms_chong_zhuang",
-                        "ms_jian_ta",
-                        "ms_bing_hou"
-                    ],
-                    [
-                        "雪岭獠牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_frost_mammoth",
                 "冰原猛犸·雪岭",
@@ -6130,21 +5766,7 @@ SUBAREAS = {
                         "霜语巨魔血"
                     ]
                 ],
-                [
-                    "e_glacier_wyrm",
-                    "冰川龙·霜牙",
-                    "elite",
-                    82,
-                    [
-                        "ms_bing_xi",
-                        "ms_long_zhao",
-                        "ms_dong_jie"
-                    ],
-                    [
-                        "霜牙龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_glacier_wyrm",
                 "冰川龙·霜牙",
@@ -6401,21 +6023,7 @@ SUBAREAS = {
                         "成年龙鳞"
                     ]
                 ],
-                [
-                    "e_dragon_roost_king",
-                    "龙巢王·焰翼",
-                    "elite",
-                    96,
-                    [
-                        "ms_long_xi",
-                        "ms_lie_yan_zhao",
-                        "ms_zhao_huan_long_zai"
-                    ],
-                    [
-                        "焰翼龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_dragon_roost_king",
                 "龙巢王·焰翼",
@@ -6764,21 +6372,7 @@ SUBAREAS = {
                         "骨鹫羽"
                     ]
                 ],
-                [
-                    "e_bone_lord",
-                    "骨龙领主·骸王",
-                    "elite",
-                    92,
-                    [
-                        "ms_gu_xi",
-                        "ms_long_zhao",
-                        "ms_zhao_huan_gu_chong"
-                    ],
-                    [
-                        "骸王龙骨"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_bone_lord",
                 "骨龙领主·骸王",
@@ -6886,21 +6480,7 @@ SUBAREAS = {
                         "风之核心"
                     ]
                 ],
-                [
-                    "e_storm_cliff_lord",
-                    "风暴崖主·雷鸣",
-                    "elite",
-                    94,
-                    [
-                        "ms_lei_bao",
-                        "ms_feng_bao_zhi_nu",
-                        "ms_zhao_huan_lie_ying"
-                    ],
-                    [
-                        "雷鸣之翼"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_storm_cliff_lord",
                 "风暴崖主·雷鸣",
@@ -7040,21 +6620,7 @@ SUBAREAS = {
                         "赤翼羽"
                     ]
                 ],
-                [
-                    "e_red_dragon_lord",
-                    "赤龙领主·烬翼",
-                    "elite",
-                    92,
-                    [
-                        "ms_long_xi",
-                        "ms_lie_yan_zhao",
-                        "ms_wei_ya"
-                    ],
-                    [
-                        "烬翼龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_red_dragon_lord",
                 "赤龙领主·烬翼",
@@ -7162,21 +6728,7 @@ SUBAREAS = {
                         "龙鳞兽皮"
                     ]
                 ],
-                [
-                    "e_dragon_lord_ghost",
-                    "龙陨战魂·暮影",
-                    "elite",
-                    96,
-                    [
-                        "ms_long_xi",
-                        "ms_long_zhao",
-                        "ms_zhao_huan_gu_long"
-                    ],
-                    [
-                        "暮影龙魂"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_dragon_lord_ghost",
                 "龙陨战魂·暮影",
@@ -7428,20 +6980,7 @@ SUBAREAS = {
                         "河豚毒素"
                     ]
                 ],
-                [
-                    "e_reef_king",
-                    "珊瑚礁主·红棘",
-                    "elite",
-                    42,
-                    [
-                        "ms_qian_ji",
-                        "ms_jing_ji_chan_rao"
-                    ],
-                    [
-                        "红棘珊瑚"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_reef_king",
                 "珊瑚礁主·红棘",
@@ -7547,21 +7086,7 @@ SUBAREAS = {
                         "鹦鹉羽"
                     ]
                 ],
-                [
-                    "e_island_tiger",
-                    "落日岛虎·金焰",
-                    "elite",
-                    48,
-                    [
-                        "ms_si_yao",
-                        "ms_pu_ji",
-                        "ms_lie_yan_zhao"
-                    ],
-                    [
-                        "金焰虎皮"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_island_tiger",
                 "落日岛虎·金焰",
@@ -7669,20 +7194,7 @@ SUBAREAS = {
                         "海蛇鳞"
                     ]
                 ],
-                [
-                    "e_storm_leviathan",
-                    "风暴巨兽",
-                    "elite",
-                    56,
-                    [
-                        "ms_lei_ji",
-                        "ms_ju_lang"
-                    ],
-                    [
-                        "巨兽之牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_storm_leviathan",
                 "风暴巨兽",
@@ -8212,21 +7724,7 @@ SUBAREAS = {
                         "章鱼墨囊"
                     ]
                 ],
-                [
-                    "e_trench_leviathan",
-                    "海沟巨兽·渊影",
-                    "elite",
-                    64,
-                    [
-                        "ms_tun_shi",
-                        "ms_ju_lang",
-                        "ms_zhao_huan_shui_mu"
-                    ],
-                    [
-                        "渊影之鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_trench_leviathan",
                 "海沟巨兽·渊影",
@@ -8334,21 +7832,7 @@ SUBAREAS = {
                         "海蛇鳞"
                     ]
                 ],
-                [
-                    "e_whale_king",
-                    "龙鲸王·涛声",
-                    "elite",
-                    68,
-                    [
-                        "ms_shui_xi",
-                        "ms_ju_lang",
-                        "ms_zhao_huan_you_jing"
-                    ],
-                    [
-                        "涛声鲸角"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_whale_king",
                 "龙鲸王·涛声",
@@ -8455,21 +7939,7 @@ SUBAREAS = {
                         "船长罗盘"
                     ]
                 ],
-                [
-                    "e_graveyard_lord",
-                    "沉船领主·溺骨",
-                    "elite",
-                    71,
-                    [
-                        "ms_wan_dao",
-                        "ms_zhao_huan_shui_shou",
-                        "ms_zu_zhou"
-                    ],
-                    [
-                        "溺骨之锚"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_graveyard_lord",
                 "沉船领主·溺骨",
@@ -8577,21 +8047,7 @@ SUBAREAS = {
                         "海巨人鳞"
                     ]
                 ],
-                [
-                    "e_storm_dragon",
-                    "风暴海龙·雷鸣",
-                    "elite",
-                    74,
-                    [
-                        "ms_long_xi",
-                        "ms_lei_bao",
-                        "ms_ju_lang"
-                    ],
-                    [
-                        "雷鸣龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_storm_dragon",
                 "风暴海龙·雷鸣",
@@ -9014,20 +8470,7 @@ SUBAREAS = {
                         "荧光粉"
                     ]
                 ],
-                [
-                    "e_fungus_lord",
-                    "真菌领主·腐冠",
-                    "elite",
-                    74,
-                    [
-                        "ms_bao_zi_bao",
-                        "ms_zhao_huan_zhen_jun_shou"
-                    ],
-                    [
-                        "腐冠菌"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_fungus_lord",
                 "真菌领主·腐冠",
@@ -9133,20 +8576,7 @@ SUBAREAS = {
                         "怨灵之尘"
                     ]
                 ],
-                [
-                    "e_dark_leech",
-                    "黑暗水蛭王",
-                    "elite",
-                    80,
-                    [
-                        "ms_xi_xue",
-                        "ms_chan_rao"
-                    ],
-                    [
-                        "水蛭王牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_dark_leech",
                 "黑暗水蛭王",
@@ -9253,20 +8683,7 @@ SUBAREAS = {
                         "黑曜碎片"
                     ]
                 ],
-                [
-                    "e_molten_lord",
-                    "熔火领主·烬核",
-                    "elite",
-                    86,
-                    [
-                        "ms_rong_yan_dan",
-                        "ms_zhuo_shao"
-                    ],
-                    [
-                        "烬核"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_molten_lord",
                 "熔火领主·烬核",
@@ -9610,21 +9027,7 @@ SUBAREAS = {
                         "火蝠翼"
                     ]
                 ],
-                [
-                    "e_magma_king",
-                    "岩浆王·烬核",
-                    "elite",
-                    94,
-                    [
-                        "ms_rong_yan_dan",
-                        "ms_zhuo_shao",
-                        "ms_zhao_huan_ru_chong"
-                    ],
-                    [
-                        "烬核之心"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_magma_king",
                 "岩浆王·烬核",
@@ -9732,21 +9135,7 @@ SUBAREAS = {
                         "深渊恶魔角"
                     ]
                 ],
-                [
-                    "e_altar_guardian",
-                    "祭坛守卫·魔眼",
-                    "elite",
-                    96,
-                    [
-                        "ms_an_ying_dan",
-                        "ms_zhao_huan_lie_quan",
-                        "ms_fu_shi"
-                    ],
-                    [
-                        "魔眼之核"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_altar_guardian",
                 "祭坛守卫·魔眼",
@@ -9981,20 +9370,7 @@ SUBAREAS = {
                         "天鹰羽"
                     ]
                 ],
-                [
-                    "e_cloud_lord",
-                    "云海领主·雾冠",
-                    "elite",
-                    92,
-                    [
-                        "ms_yun_dan",
-                        "ms_feng_bao"
-                    ],
-                    [
-                        "雾冠晶"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_cloud_lord",
                 "云海领主·雾冠",
@@ -10101,20 +9477,7 @@ SUBAREAS = {
                         "雷鸟羽"
                     ]
                 ],
-                [
-                    "e_storm_lord",
-                    "雷暴领主·雷霆",
-                    "elite",
-                    96,
-                    [
-                        "ms_lei_ji",
-                        "ms_feng_bao_zhi_nu"
-                    ],
-                    [
-                        "雷霆之心"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_storm_lord",
                 "雷暴领主·雷霆",
@@ -10294,21 +9657,7 @@ SUBAREAS = {
                         "彩虹鳞"
                     ]
                 ],
-                [
-                    "e_rainbow_dragon",
-                    "彩虹龙·霞光",
-                    "elite",
-                    96,
-                    [
-                        "ms_cai_xi",
-                        "ms_cai_hong_zhan",
-                        "ms_zhao_huan_xian_ling"
-                    ],
-                    [
-                        "霞光龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_rainbow_dragon",
                 "彩虹龙·霞光",
@@ -10416,21 +9765,7 @@ SUBAREAS = {
                         "陨星核"
                     ]
                 ],
-                [
-                    "e_star_dragon",
-                    "星龙·辰光",
-                    "elite",
-                    98,
-                    [
-                        "ms_xing_xi",
-                        "ms_long_zhao",
-                        "ms_zhao_huan_xing_ling"
-                    ],
-                    [
-                        "辰光龙鳞"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_star_dragon",
                 "星龙·辰光",
@@ -10578,21 +9913,7 @@ SUBAREAS = {
                         "褪色墨水"
                     ]
                 ],
-                [
-                    "e_archive_warden",
-                    "档案馆长·奥古斯特",
-                    "elite",
-                    60,
-                    [
-                        "ms_fu_wen_chong_ji",
-                        "ms_jian_xiao",
-                        "ms_zhao_huan_ku_lou"
-                    ],
-                    [
-                        "档案室钥匙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_archive_warden",
                 "档案馆长·奥古斯特",
@@ -10677,21 +9998,7 @@ SUBAREAS = {
                         "烧焦剑刃"
                     ]
                 ],
-                [
-                    "e_ash_champion",
-                    "灰烬勇士",
-                    "elite",
-                    88,
-                    [
-                        "ms_huo_pao",
-                        "ms_lian_zhan",
-                        "ms_bao_zi_bao"
-                    ],
-                    [
-                        "勇士余烬"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_ash_champion",
                 "灰烬勇士",
