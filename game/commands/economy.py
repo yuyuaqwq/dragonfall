@@ -646,12 +646,16 @@ class EconomyCmds(CommandBase):
         icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳"}
         total = 0
         for key, p in profs.items():
+            # v95.22 只显示已解锁（已拜师/已激活）副业，未解锁的去导师处学习
+            if key not in activated:
+                continue
             total += p["lv"]
             need = p["lv"] * 20
             bar_len = min(10, p["exp"] // (need // 10 + 1))
             bar = "█" * bar_len + "░" * (10 - bar_len)
-            mark = "✅" if key in activated else "🔒"
-            lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验 {mark}")
+            lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验 ✅")
+        if not activated:
+            lines.append("还没有解锁任何副业！去城里找对应导师拜师学习吧～")
         lines.append("")
         lines.append(f"📊 副业总分：{total}(已激活副业计入，最多发展 {db.MAX_ACTIVE_PROFS} 条)")
         lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』(等级清零)")
