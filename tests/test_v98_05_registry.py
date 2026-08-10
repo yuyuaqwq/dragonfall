@@ -250,8 +250,7 @@ check("回合开始词条全覆盖", turn_ids <= set(AFX.TURN_START_EFFECTS.keys
 
 # ============ 3.7 世界事件初始化注册表（v100.2） ============
 print("【3.7 世界事件初始化注册表】")
-from game.core.world_event_templates import INITIALIZERS
-from game.data.world import WORLD_EVENT_POOL
+INITIALIZERS = WET.INITIALIZERS
 need_init = {"auction", "boss"}
 check("需要 data 的 etype（auction/boss）已注册 init", need_init <= set(INITIALIZERS.keys()))
 check("无 data 事件（merchant/omen/swarm/festival）不注册（data={} 降级）",
