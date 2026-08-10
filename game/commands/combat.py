@@ -1491,7 +1491,7 @@ class CombatCmds(CommandBase):
         # v95.19: max_hp/max_mp 同步实时值（player 已由 Battle 刷新），DB 字段不再过时
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
                          max_hp=player["max_hp"], max_mp=player["max_mp"],
-                         cur_map="oak_town", cur_subarea="oak_town_1")
+                         cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
         lines.append(
             f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了橡木镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
@@ -2034,7 +2034,7 @@ class CombatCmds(CommandBase):
         winner = db.get_player(group_id, winner_qq)
         lost = int(loser["gold"] * 0.1)
         db.update_player(group_id, winner_qq, gold=winner["gold"] + lost)
-        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map="oak_town", cur_subarea="oak_town_1")
+        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
         db.init_stats(group_id, loser_qq)
         db.bump_stats(group_id, loser_qq, deaths=1)
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）

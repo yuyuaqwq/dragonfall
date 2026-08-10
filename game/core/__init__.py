@@ -5,6 +5,9 @@
 """
 import random  # noqa: F401
 
+from .constants import (  # noqa: F401
+    START_MAP, START_SUBAREA, DEFAULT_GOLD, DEFAULT_ATTR_PTS, DEFAULT_STAMINA,
+)
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401
     get_dialogue, dialogue_node, check_need, visible_options, is_end,

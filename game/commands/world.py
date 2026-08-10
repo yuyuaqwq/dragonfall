@@ -328,7 +328,7 @@ class WorldCmds(CommandBase):
             return
         deed = player.get("deed", "") or ""
         prop = C.PROPERTIES.get(deed)
-        target = prop["map"] if prop else "oak_town"
+        target = prop["map"] if prop else C.START_MAP
         tgt_sas = C.MAP_BY_ID.get(target, {}).get("subareas") or []
         first_sa = tgt_sas[0] if tgt_sas else None
         db.update_player(group_id, qq_id, cur_map=target,

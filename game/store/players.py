@@ -60,15 +60,18 @@ def get_group_players(group_id):
 
 
 def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp, race="human", gender=""):
+    # v98.2 默认值收敛：gold/attr_pts/stamina/出生地图 由 core.constants 提供（原写死 SQL）
+    from ..core.constants import START_MAP, DEFAULT_GOLD, DEFAULT_ATTR_PTS, DEFAULT_STAMINA
     with _lock:
         conn = _connect()
         try:
             now = int(time.time())
             conn.execute(
                 "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race, gender, stamina, stamina_ts) "
-                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,?,100,?) "
+                "VALUES (?,?,?,1,0,?,?,?,?,?,?,0,?,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,?,?,?) "
                 "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race, gender=excluded.gender",
-                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race, gender, now),
+                (qq_id, name, class_name, DEFAULT_GOLD, max_hp, max_mp, max_hp, max_mp,
+                 START_MAP, DEFAULT_ATTR_PTS, now, now, race, gender, DEFAULT_STAMINA, now),
             )
             conn.commit()
         finally:

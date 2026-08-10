@@ -188,7 +188,7 @@ def tpl_return_vila(ctx):
     db = ctx._db()
     C = ctx._C()
     cur = ctx.player.get("cur_map", "")
-    dest = ctx.hook("nearest_town", cur) or "oak_town"
+    dest = ctx.hook("nearest_town", cur) or ctx._C().START_MAP
     entry_sa = C.map_entry_subarea(dest) if dest else None
     sas = C.MAP_BY_ID.get(dest, {}).get("subareas") or []
     first_sa = next((s for s in sas if s["id"] == entry_sa), None) or (sas[0] if sas else None)

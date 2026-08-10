@@ -47,7 +47,7 @@ class EconomyCmds(CommandBase):
                 if mm.get("type") == "城镇区域":
                     return nxt
                 q.append((nxt, d + 1))
-        return "oak_town"
+        return C.START_MAP
 
     # 采集物地图绑定池（19 章 §2.1：特定地图只有特定采集物；#154 修复 2026-08-10）
     # 格式：地图ID → [(材料ID, 权重), ...]；未配置的地图回退下方价格区间逻辑
@@ -2838,7 +2838,7 @@ class EconomyCmds(CommandBase):
                 return
         # v39 坐骑：橡木镇马厩买老马（新世界 oak 区域，旧 vila 判断已随旧世界废弃）
         if "老马" in item_name or "马" == item_name.strip():
-            if area_id != "oak" or cur != "oak_town":
+            if area_id != "oak" or cur != C.START_MAP:
                 yield event.plain_result("橡木镇的商人才能买到老马！去橡木镇『商店』看看～")
                 return
             mdef = C.MOUNT_BY_KEY["mount_horse"]

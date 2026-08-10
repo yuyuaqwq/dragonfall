@@ -198,9 +198,9 @@ class PlayerCmds(CommandBase):
         # v95 #47：注册送 1 技能点 → Lv.1 有 1 点、Lv.2 有 2 点正好学第一个技能（Lv.1/Lv.2 技能 cost=2），断层消除
         db.update_player(group_id, qq_id, skill_points=1)
         # v86 子区域：新手出生落中心广场
-        db.update_player(group_id, qq_id, cur_map="oak_town", cur_subarea="oak_town_1")
+        db.update_player(group_id, qq_id, cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
         db.init_stats(group_id, qq_id)
-        db.add_portal(qq_id, "oak_town")  # v10：新手自动激活橡木镇方碑（v83：原维拉方碑旧地图）
+        db.add_portal(qq_id, C.START_MAP)  # v10：新手自动激活橡木镇方碑（v83：原维拉方碑旧地图）
         # v12：自动学会初始技能（职业 Lv.1 技能），后续技能用技能点学习
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {}) if isinstance(C.PLAYER_SKILLS.get(cls_id), dict) and "skills" in C.PLAYER_SKILLS.get(cls_id) else C.PLAYER_SKILLS.get(cls_id, {})
         init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
