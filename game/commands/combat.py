@@ -115,7 +115,8 @@ class CombatCmds(CommandBase):
         sa_boss = (cur_sa.get("boss") if cur_sa else None) or cur_map.get("boss")
         # v102.1 移除：'城镇外郊' 类型不存在于数据（maps.py 仅 城镇区域/副本/野外/隐藏区域），
         # 该分支恒 False 从未执行（历史遗留自 82abbde 红名系统，数据层重写后成孤儿）
-        if not events:
+        # v95r38 空池保护：纯精英/Boss 房（如野猪王巢）探索不报"什么也没发现"，由下方必遇逻辑接管
+        if not events and not sa_elite and not sa_boss:
             _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
             yield event.plain_result("你四处搜寻，什么也没发现……"
                                      + (f"\n{_rule_txt}" if _rule_txt else ""))
@@ -143,17 +144,23 @@ class CombatCmds(CommandBase):
         tag = ""
         stam_warn = ""
         eb = self._mount_explore_bonus(player)
-        if sa_elite and random.random() < (0.08 + eb):
+        if sa_elite and (random.random() < (0.08 + eb) or not events):
             monster = C.build_monster(sa_elite, cur_map)
             tag = "⭐ 精英"
-        elif sa_boss and random.random() < C.SA_BOSS_CHANCE:
+        elif sa_boss and (random.random() < C.SA_BOSS_CHANCE or not events):
             monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
             # v95.20 #101：Boss 战无法逃跑且每回合耗体力，体力低时预警，避免中途耗尽被困
             if (player.get("stamina") or 0) < 20:
                 stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
-        else:
+        elif events:
             monster = C.build_monster(random.choice(events)[1], cur_map)
+        else:
+            # v95r38 兜底（上面空池+无 elite/boss 已提前 return，理论不可达）
+            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
+            yield event.plain_result("你四处搜寻，什么也没发现……"
+                                     + (f"\n{_rule_txt}" if _rule_txt else ""))
+            return
         # 遇普通怪但此地有精英/Boss → 提示气息（刷精英的方向感）
         hint = ""
         if not tag:

@@ -608,21 +608,7 @@ SUBAREAS = {
                         "古木枝"
                     ]
                 ],
-                [
-                    "e_wolf_alpha",
-                    "狼王·灰影",
-                    "elite",
-                    14,
-                    [
-                        "ms_si_yao",
-                        "ms_hao_jiao",
-                        "ms_pu_ji"
-                    ],
-                    [
-                        "灰影狼牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_wolf_alpha",
                 "狼王·灰影",
@@ -2009,21 +1995,7 @@ SUBAREAS = {
                         "蜂针"
                     ]
                 ],
-                [
-                    "e_boar_king",
-                    "野猪王·裂鬃",
-                    "elite",
-                    10,
-                    [
-                        "ms_chong_zhuang",
-                        "ms_jian_ta",
-                        "ms_hao_jiao"
-                    ],
-                    [
-                        "裂鬃獠牙"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_boar_king",
                 "野猪王·裂鬃",
@@ -2231,19 +2203,7 @@ SUBAREAS = {
             "lv": 35,
             "npcs": [],
             "monsters": [
-                [
-                    "e_inquisitor",
-                    "审判官",
-                    "elite",
-                    33,
-                    [
-                        "ms_an_ying_dan",
-                        "ms_suo_lian"
-                    ],
-                    [
-                        "审判官之链"
-                    ]
-                ],
+                
                 [
                     "b_cardinal",
                     "枢机主教·奥古斯都",
@@ -2472,20 +2432,7 @@ SUBAREAS = {
             "lv": 38,
             "npcs": [],
             "monsters": [
-                [
-                    "e_abbey_guardian",
-                    "修道院守护者",
-                    "elite",
-                    37,
-                    [
-                        "ms_zhong_ji",
-                        "ms_sheng_guang_zhan_bei_wu_ran"
-                    ],
-                    [
-                        "守护者碎片"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_abbey_guardian",
                 "修道院守护者",
@@ -2663,20 +2610,7 @@ SUBAREAS = {
             "lv": 50,
             "npcs": [],
             "monsters": [
-                [
-                    "e_orc_warrior",
-                    "兽人战士",
-                    "elite",
-                    47,
-                    [
-                        "ms_fu_ji",
-                        "ms_zhan_hou"
-                    ],
-                    [
-                        "兽人战徽"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_orc_warrior",
                 "兽人战士",
@@ -7841,20 +7775,7 @@ SUBAREAS = {
             "lv": 55,
             "npcs": [],
             "monsters": [
-                [
-                    "e_siren_lord",
-                    "海妖领主·潮汐",
-                    "elite",
-                    52,
-                    [
-                        "ms_mei_huo",
-                        "ms_ju_lang"
-                    ],
-                    [
-                        "潮汐之泪"
-                    ]
-                ]
-            ],
+                ],
             "elite": [
                 "e_siren_lord",
                 "海妖领主·潮汐",

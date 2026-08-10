@@ -563,17 +563,22 @@ class WorldCmds(CommandBase):
         mons = (cur_sa_obj.get("monsters") if cur_sa_obj else None)
         if mons is None:
             mons = cur_map.get("monsters", [])
+        # 精英/Boss（子区域优先）——先取值供去重判断与字段展示
+        elite = (cur_sa_obj.get("elite") if cur_sa_obj else None) or cur_map.get("elite")
+        boss = (cur_sa_obj.get("boss") if cur_sa_obj else None) or cur_map.get("boss")
         if mons:
             if lines and lines[-1]:
                 lines.append("")
             base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
             lines.append(f"🐾 此地的怪物 (Lv.{base_lv}-{base_lv+2})：")
             for mid, name, role, lv, skills, drops in mons:
+                # v95r38 去重：池子条目与 elite/boss 字段重复时不重复显示（字段行会展示）
+                if role == "elite" and elite and elite[0] == mid:
+                    continue
+                if role == "boss" and boss and boss[0] == mid:
+                    continue
                 mark = "👑" if role == "boss" else ("⭐" if role == "elite" else "")
                 lines.append(f"  {mark}{name} Lv.{lv}")
-        # 精英/Boss（子区域优先）
-        elite = (cur_sa_obj.get("elite") if cur_sa_obj else None) or cur_map.get("elite")
-        boss = (cur_sa_obj.get("boss") if cur_sa_obj else None) or cur_map.get("boss")
         if elite:
             lines.append(f"  ⭐ 精英：{elite[1]}")
         if boss:

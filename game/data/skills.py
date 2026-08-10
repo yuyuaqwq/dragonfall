@@ -945,7 +945,7 @@ PLAYER_SKILLS = {
     "sk_qi_xi_tiao_xi": {
                 "lv": 11,
                 "mp": 0,
-                "power": 0,
+                "power": 0.15,
                 "kind": "治疗",
                 "cd": 3,
                 "res_gain": 2,

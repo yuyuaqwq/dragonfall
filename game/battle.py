@@ -874,7 +874,12 @@ class Battle:
         # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
         cond_mult = self._cond_mult(info, player, lv)
         cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
-        heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+        # v95r38：power<1 的治疗技能按 max_hp 百分比结算（如拳师气息调息 15% HP），
+        # power>=1 保持原有"魔攻×power"模式（治愈术 200% 等），与消耗品 heal<1 百分比语义一致
+        if info.get("power", 0) < 1:
+            heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+        else:
+            heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
         # v64 被动·神恩：治疗技能效果 +10%
         pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
         if "神恩" in pv:
