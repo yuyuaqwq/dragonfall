@@ -232,7 +232,7 @@ def tpl_open_chest(ctx):
     gold = random.randint(30, 80) + ctx.lv * 3
     db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
     lines = [f"🎁 你打开了【{ctx.item_name()}】！", f"💰 获得 {gold} 金币！"]
-    if random.random() < 0.5:
+    if random.random() < C.CHEST_BP_CHANCE:  # v101.5 常量
         bp = C.roll_blueprint(max(1, ctx.lv))
         db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
         lines.append(f"📜 宝箱里还有：{bp['name']}！")

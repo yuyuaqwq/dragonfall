@@ -31,6 +31,11 @@ RARE_MAT_CHANCE = 0.10         # economy.py:280 稀有材料额外掉落概率
 PROF5_BONUS_CHANCE = 0.3       # economy.py:306 副业 5 级额外产出概率
 INST_EVENT_CHANCE = 0.5        # instance.py:278 副本探索事件概率
 MOVE_ENCOUNTER_CHANCE = 0.25   # world.py:2026 移动撞怪概率
+# v101.5 新增
+STARFALL_STUN_CHANCE = 0.20    # battle_mech.py:258 星陨斩眩晕概率
+BOSS_BP_DROP_CHANCE = 0.05     # drops.py:69 Boss 图纸惊喜掉率
+TRADER_DEAL_CHANCE = 0.5       # event_templates.py:253 流浪商人成交概率
+CHEST_BP_CHANCE = 0.5          # item_templates.py:235 宝箱蓝图概率
 
 # 配方副业等级阶梯（economy.py _craft_prof_need：装备等级 → 副业门槛）
 RECIPE_LV_TIERS = (10, 30, 50, 70, 90)

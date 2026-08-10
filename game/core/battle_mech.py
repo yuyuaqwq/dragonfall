@@ -255,7 +255,8 @@ def _m_spellblade_meteor(battle, mval, p_mech, total, logs, skill_name, is_crit)
     n = p_mech.get("spellblade", 0)
     if n >= 5:
         p_mech["spellblade"] = 0
-        if random.random() < 0.20:
+        from .. import content as _C  # v101.5 概率常量延迟导入防环
+        if random.random() < _C.STARFALL_STUN_CHANCE:
             battle.e_buffs["stun"] = 1
             logs.append("🌠 星陨斩的余威将敌人眩晕！")
     else:

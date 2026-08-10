@@ -250,7 +250,7 @@ def tpl_merchant(ctx):
     q = random.choices(["white", "green", "blue"], weights=[45, 40, 15])[0]
     equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
     price = int(equip["price"] * 0.6)
-    if ctx.player["gold"] >= price and random.random() < 0.5:
+    if ctx.player["gold"] >= price and random.random() < C.TRADER_DEAL_CHANCE:  # v101.5 常量
         db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] - price)
         db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
         return (f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"

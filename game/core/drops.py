@@ -59,7 +59,7 @@ def roll_drop(monster_lv: int, role: str):
     消费端（_handle_victory）只入包图纸，装备位恒为 None。
     """
     if role == "boss":
-        if random.random() < 0.05:
+        if random.random() < C.BOSS_BP_DROP_CHANCE:  # v101.5 常量
             return None, roll_blueprint(monster_lv), 0, 0
         return None, None, 0, 0
     # 普通怪 / 精英：不掉图纸（v94）
