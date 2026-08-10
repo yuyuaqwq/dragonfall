@@ -501,7 +501,6 @@ def is_skill_learned(class_name: str, level: int, skill_name: str, learned_skill
     return sid in [C.resolve("skills", s) for s in (learned_skills or []) if s]
 
 
-
 def skill_learn_cost(level: int, need_lv: int) -> int:
     """学习技能消耗的技能点(v12：按技能等级定价，等级越高越贵)"""
     return need_lv // 6 + 2
@@ -691,7 +690,6 @@ SKILL_UP = {
 }
 
 
-
 def _skill_up(info: dict | None) -> dict:
     """按技能 info 查升级配置(key 用中文名)"""
     if not info:
@@ -751,7 +749,6 @@ def skill_lifesteal_pct(info: dict | None, level: int) -> float:
     return 0.20 + _skill_up(info).get("l", 0) / 100 * (lv - 1)
 
 
-
 def skill_info(class_name: str, skill_name: str):
     """技能详情：先查基础职业技能表，再查分支专属技能表（v26），最后查导师进阶技能（v95.23）
     v48：skill_name 接受中文名或 ID，统一 resolve 为 ID 再查（表 key 已是 sk_xxx）"""
@@ -793,127 +790,6 @@ def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False):
     if is_crit:
         dmg = int(dmg * 1.5)
     return max(1, dmg)
-
-
-def player_attack(class_name: str, level: int, equipment: dict, monster: dict, skill_name: str | None = None, cur_hp: int = None, cur_mp: int = None, tier: int = 0, attributes: dict = None, evolve_path: int = 0, skill_levels: dict = None) -> tuple:
-    """玩家行动。返回 (log列表, 是否结束, 怪物剩余hp, 消耗mp, 附加效果dict)
-    skill_name 为 None 表示普攻。v27：skill_levels 支持技能升级倍率。
-    """
-    st = player_final_stats(class_name, level, equipment, tier, attributes, evolve_path)
-    logs = []
-    used_mp = 0
-    extra = {}
-
-    if skill_name:
-        skill_name = C.resolve("skills", skill_name)
-        info = _sk_table(class_name)[skill_name]
-        used_mp = info["mp"]
-        if cur_mp is not None and cur_mp < used_mp:
-            return ["魔力不足！"], False, monster["hp"], 0, {}
-        lv = int((skill_levels or {}).get(skill_name, 1) or 1)
-        kind = info["kind"]
-        if kind == "治疗":
-            heal = int(st["matk"] * info["power"] * skill_power_mult(lv))
-            extra["heal"] = heal
-            logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！")
-            return logs, False, monster["hp"], used_mp, extra
-        if kind == "增益":
-            extra["buff"] = info.get("effect")
-            logs.append(f"你施展【{skill_name}】！")
-            return logs, False, monster["hp"], used_mp, extra
-        # 攻击技能
-        is_crit = random.random() < st["crit"]
-        multi = info.get("multi", 1)
-        total = 0
-        hit_logs = []
-        pmult = skill_power_mult(lv)
-        for _ in range(multi):
-            if kind == "物理":
-                if info.get("pierce"):
-                    dmg_i = calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True)
-                else:
-                    dmg_i = calc_damage(int(st["atk"] * info["power"] * pmult), monster["def"], is_crit)
-            else:  # 魔法
-                dmg_i = calc_damage(int(st["matk"] * info["power"] * pmult), monster["mdef"], is_crit)
-            total += dmg_i
-        monster["hp"] -= total
-        if multi > 1:
-            logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
-        else:
-            logs.append(f"你施展【{skill_name}】，造成 {total} 点伤害！")
-        if is_crit:
-            logs[-1] += " 💥暴击！"
-        # 技能特效（v48：技能名已转 ID，用 resolve 动态比较，避免硬编码 ID 漂移）
-        SK = lambda cn: C.resolve("skills", cn)  # noqa: E731
-        if skill_name == SK("处决"):
-            bonus = int(total * (1 - monster["hp"] / monster["max_hp"]))
-            monster["hp"] -= bonus
-            logs[-1] = f"你施展【{skill_name}】，造成 {total + bonus} 点伤害(残血加成 {bonus})！"
-        if skill_name == SK("破甲斩"):
-            extra["def_down"] = 1
-            logs[-1] += " 敌防下降！"
-        if skill_name == SK("寒冰箭"):
-            extra["spd_down"] = 1
-            logs[-1] += " 敌速下降！"
-        if skill_name == SK("毒箭"):
-            extra["poison"] = 2
-            logs[-1] += " 敌人中毒了！"
-        if skill_name == SK("标记猎杀"):
-            extra["mark"] = 2
-            logs[-1] += " 目标被标记！"
-        return logs, False, monster["hp"], used_mp, extra
-    else:
-        # 普攻
-        is_crit = random.random() < st["crit"]
-        dmg = calc_damage(st["atk"], monster["def"], is_crit)
-        monster["hp"] -= dmg
-        logs.append(f"你挥剑攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-        return logs, False, monster["hp"], 0, {}
-
-
-def monster_turn(monster: dict, player_stats: dict) -> tuple:
-    """怪物行动。返回 (log, 对玩家造成的伤害, 附加效果dict)"""
-    logs = []
-    dmg = 0
-    extra = {}
-    # 20% 概率使用技能（有技能时）
-    skill = None
-    if monster.get("skills") and random.random() < 0.3:
-        skill = random.choice(monster["skills"])
-        sinfo = C.MONSTER_SKILLS.get(skill)
-        if sinfo:
-            kind = sinfo.get("kind")
-            if kind == "增益":
-                eff = sinfo.get("effect")
-                if eff == "atk_up":
-                    extra["mon_atk_up"] = 1
-                    logs.append(f"【{monster['name']}】使用了【{skill}】，攻击力提升了！")
-                elif eff == "atk_up_strong":
-                    extra["mon_atk_up_strong"] = 1
-                    logs.append(f"【{monster['name']}】使用了【{skill}】，攻击力大幅提升了！")
-                elif eff == "def_up":
-                    extra["mon_def_up"] = 1
-                    logs.append(f"【{monster['name']}】使用了【{skill}】，防御提升了！")
-                elif eff == "heal_self":
-                    heal = int(monster["max_hp"] * 0.15)
-                    monster["hp"] = min(monster["max_hp"], monster["hp"] + heal)
-                    logs.append(f"【{monster['name']}】使用了【{skill}】，恢复了 {heal} 点生命！")
-                elif eff == "summon":
-                    extra["summon"] = 1
-                    logs.append(f"【{monster['name']}】使用了【{skill}】，召唤了援军！")
-                return logs, 0, extra
-            power = sinfo.get("power", 1.0)
-            is_crit = random.random() < 0.1
-            if kind == "物理":
-                dmg = calc_damage(int(monster["atk"] * power), player_stats["def"], is_crit)
-            else:
-                dmg = calc_damage(int(monster["matk"] * power), player_stats["mdef"], is_crit)
-            logs.append(f"【{monster['name']}】使用了【{skill}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-            return logs, dmg, extra
-    # 普攻
-    dmg = calc_damage(monster["atk"], player_stats["def"])
-    logs.append(f"【{monster['name']}】攻击你，造成 {dmg} 点伤害！")
-    return logs, dmg, {}
 
 
 def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
