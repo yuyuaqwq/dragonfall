@@ -39,7 +39,7 @@ async def main():
 
     # ---- 流星许愿：触发 + 三选一 ----
     orig_egg = C.roll_explore_egg
-    C.roll_explore_egg = lambda: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
     try:
         handled, text = m._handle_explore_event("g1", "w1", player, cur_map)
     finally:
@@ -50,7 +50,7 @@ async def main():
     out = await cmd(m, "wish", "g1", "w1", "许愿 经验")
     check("许愿经验成功", "经验 +" in out, out[:200])
     # 许愿 金币（重新触发）
-    C.roll_explore_egg = lambda: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
     try:
         m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
     finally:
@@ -59,7 +59,7 @@ async def main():
     check("许愿金币成功", "金币 +" in out, out[:200])
     check("金币增加", db.get_player("g1", "w1")["gold"] > gold0, "")
     # 许愿 材料（重新触发）
-    C.roll_explore_egg = lambda: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
     try:
         m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
     finally:
@@ -70,7 +70,7 @@ async def main():
     out = await cmd(m, "wish", "g1", "w1", "许愿 经验")
     check("无流星被拦", "没有流星" in out, out[:200])
     # 非法选项
-    C.roll_explore_egg = lambda: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
     try:
         m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
     finally:
@@ -79,7 +79,7 @@ async def main():
     check("非法选项提示三选一", "三选一" in out or "快选" in out, out[:200])
 
     # ---- 神秘宝匣 ----
-    C.roll_explore_egg = lambda: {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣", "template": "mystery_chest", "params": {}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣", "template": "mystery_chest", "params": {}}
     try:
         handled, text = m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
     finally:
@@ -87,7 +87,7 @@ async def main():
     check("宝匣给金币+图纸", handled and "神秘宝匣" in text and "金币" in text and "图纸" in text, text[:200])
 
     # ---- 神秘访客：设置隐藏 NPC flag ----
-    C.roll_explore_egg = lambda: {"id": "night_visitor", "weight": 10, "name": "神秘访客", "template": "set_flag", "params": {"flag": "h_abyss_whisper", "key": "saw_the_rift", "header": "🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n“深渊的裂隙……正在低语……去找它。”\n身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"}}
+    C.roll_explore_egg = lambda cur_map_id=None: {"id": "night_visitor", "weight": 10, "name": "神秘访客", "template": "set_flag", "params": {"flag": "h_abyss_whisper", "key": "saw_the_rift", "header": "🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n“深渊的裂隙……正在低语……去找它。”\n身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"}}
     try:
         handled, text = m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
     finally:

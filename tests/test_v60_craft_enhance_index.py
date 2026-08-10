@@ -32,6 +32,9 @@ async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
+    # v95 起副业需拜师解锁；老测试直接模拟已激活（老玩家场景）
+    db.activate_prof("g1", "e1", "craft")
+    db.activate_prof("g1", "e1", "enhance")
     db.update_player("g1", "e1", cur_map="oak_town", cur_subarea="oak_town_3", level=5, gold=100000)
 
     print("【锻造列表指令（v60 修复）】")
