@@ -2113,7 +2113,7 @@ class WorldCmds(CommandBase):
         属性按新职业重算（base+成长×等级+种族，自由点保留），赠送基础技能书（职业 Lv.1 技能）。
         返回通知行列表。"""
         lines = []
-        if player.get("class_name") != "cls_novice":
+        if player.get("class_name") != C.CLASS_NOVICE:
             lines.append("你已经有正式职业了，冒险者行会只负责给新人就职。")
             return lines
         cls = C.CLASSES.get(new_cls)

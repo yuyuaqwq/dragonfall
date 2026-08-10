@@ -56,3 +56,7 @@ SUB_TYPE_GATE = "城镇出口"       # 如镇郊：出城/进城落点
 # （item_templates.infer_template 原裸比较中文 type，收敛后改类型文案只动数据+这里）
 ITEM_TYPE_PET_EGG = "宠物蛋"
 ITEM_TYPE_MOUNT = "坐骑"
+
+# ================= v102.3 职业 ID 常量 =================
+# （逻辑层 7 处裸比较 class_name == "cls_novice"，收敛后改职业 ID 只动数据+这里）
+CLASS_NOVICE = "cls_novice"      # 见习冒险者（行会就职判定/隐藏职业解锁）

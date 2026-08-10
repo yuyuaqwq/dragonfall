@@ -136,15 +136,17 @@ def _c_not_apprentice(ctx, v):
 @register("is_novice")
 def _c_is_novice(ctx, v):
     """仅见习冒险者可见（行会就职选项）"""
+    from .. import content as C  # v102.3 延迟导入（core 聚合链惯例）
     player = ctx.get("player") or {}
-    return player.get("class_name") == "cls_novice"
+    return player.get("class_name") == C.CLASS_NOVICE
 
 
 @register("not_novice")
 def _c_not_novice(ctx, v):
     """已就职（非见习）才可见"""
+    from .. import content as C  # v102.3 延迟导入（core 聚合链惯例）
     player = ctx.get("player") or {}
-    return player.get("class_name") != "cls_novice"
+    return player.get("class_name") != C.CLASS_NOVICE
 
 
 @register("class_any")

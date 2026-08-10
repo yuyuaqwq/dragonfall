@@ -139,7 +139,7 @@ class PlayerCmds(CommandBase):
                     break
             else:
                 # v95.23 新格式：名字 [种族] → 见习冒险者（剩余参数统一在下方解析种族/性别）
-                cls_id = "cls_novice"
+                cls_id = C.CLASS_NOVICE
                 class_name = ""
                 name = first
         if cls_id not in C.CLASSES:
@@ -164,7 +164,7 @@ class PlayerCmds(CommandBase):
         gender_id = ""
         _race_done = False
         # 新格式下 rest 可能是种族也可能是性别（如『注册 格温 男』）
-        extra = [rest, race_arg, gender_arg] if cls_id == "cls_novice" else [race_arg, gender_arg]
+        extra = [rest, race_arg, gender_arg] if cls_id == C.CLASS_NOVICE else [race_arg, gender_arg]
         for tok in extra:
             if not tok:
                 continue
@@ -217,7 +217,7 @@ class PlayerCmds(CommandBase):
         init_display = "、".join(C.display("skills", s) for s in init_skills)
         race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}({C.RACES[race_id]['desc']})\n" if race_id in C.RACES else ""
         gender_line = f"性别：{'♂ 男' if gender_id == 'male' else '♀ 女'}\n" if gender_id else ""
-        if cls_id == "cls_novice":
+        if cls_id == C.CLASS_NOVICE:
             # v95.23 见习冒险者：无职业技能，引导去行会/导师就职
             yield event.plain_result(
                 f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
@@ -876,7 +876,7 @@ class PlayerCmds(CommandBase):
         """技能学习核心逻辑(v12：等级门槛 + 技能点学会，学会永久可用)"""
         skill_name = (skill_name or "").strip()
         # v95.23 见习冒险者：无职业技能，先就职
-        if player.get("class_name") == "cls_novice":
+        if player.get("class_name") == C.CLASS_NOVICE:
             return "🧭 见习冒险者还没有职业技能！去广场找『行会接待员·小艾』就职后就能学习技能了～"
         if not skill_name:
             return "格式：技能学习 <技能名/序号>，如『技能学习 裂空斩』或『技能学习 3』"
