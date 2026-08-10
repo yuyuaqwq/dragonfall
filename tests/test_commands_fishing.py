@@ -79,6 +79,7 @@ async def main():
     await cmd(m, "register", "g1", "w2", "注册 法师 新手")
     await cmd(m, "fishing", "g1", "w2", "垂钓")
     db.update_player("g1", "w2", cur_map="harbor_docks", cur_subarea="harbor_docks_1")  # v87.17 垂钓点=码头栈桥
+    db.update_player("g1", "w2", apprentices=["fishing"])  # v95.22 拜师模拟
     m._prof_wait_clear("g1", "w2")
     out = await cmd(m, "fishing", "g1", "w2", "垂钓")
     check("高级水域等级不足拦截（Lv.1→铁港 Lv.3）", "高级水域" in out, out[:200])

@@ -28,6 +28,18 @@ class EconomyCmds(CommandBase):
 
     BAG_FILTER_TYPES = ["装备", "材料", "消耗品", "符文", "宠物蛋", "坐骑", "图纸", "鱼"]
 
+    # v95.22 副业导师映射：副业 key → (导师名, 所在城)。副业必须先找导师拜师（对话 unlock_prof）才解锁
+    PROF_TUTORS = {
+        "gather": ("草药师·艾琳", "橡木镇"),
+        "mining": ("矿工长·巴尔金", "铁港城"),
+        "fishing": ("老渔夫·马库斯", "铁港城"),
+        "cooking": ("大厨·罗莎", "白鹿城"),
+        "alchemy": ("炼金术士·梅尔文", "晨曦城"),
+        "craft": ("铁匠大师·奥格", "铁港城"),
+        "enhance": ("强化师·克拉拉", "白鹿城"),
+        "enchant": ("符文大师·吉姆利", "铁砧要塞"),
+    }
+
     def _nearest_town(self, cur_map: str) -> str:
         """BFS 找离当前地图最近的城镇（回城卷轴用）。cur_map 本身是城镇则原地。"""
         from collections import deque
@@ -323,7 +335,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "gather")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "gather", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -351,7 +363,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "mining")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "mining", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -425,7 +437,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -526,7 +538,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "cooking")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "cooking", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -579,11 +591,13 @@ class EconomyCmds(CommandBase):
             f"✅ 烹饪成功！【{itdef.get('name', pkey)}】({itdef.get('desc', '')})已放入背包！{lv_msg}"
         )
 
-    def _prof_active_check(self, group_id, qq_id, key):
+    def _prof_active_check(self, group_id, qq_id, key, require_apprentice=False):
         """v67 双副业上限：动作前检查副业是否激活。
 
         未激活 → 有位置自动激活（提示）；已满 → 拦截。
         老玩家兼容：已有等级（>1）未激活 → 自动激活无感迁移。
+        v95.22：require_apprentice=True（副业动作）时，未拜师 → 拦截并引导找导师，
+        副业必须先找导师 NPC 拜师学习（对话 unlock_prof）才解锁。
         返回 (ok, 提示消息)
         """
         lst = db.get_activated_profs(group_id, qq_id)
@@ -601,6 +615,15 @@ class EconomyCmds(CommandBase):
         if lv > 1:
             db.activate_prof(group_id, qq_id, key)
             return True, ""
+        # v95.22 副业动作需先拜师：未拜师 → 引导找导师学习（已拜师则正常激活）
+        if require_apprentice:
+            player = self._player(group_id, qq_id) or {}
+            if key not in (player.get("apprentices") or []):
+                tname, tmap = self.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
+                return False, (
+                    f"🔒 副业「{db.PROF_FIELDS.get(key, key)}」还没解锁！\n"
+                    f"先去 {tmap} 找 {tname} 拜师学习吧～(『找 {tname}』)"
+                )
         db.activate_prof(group_id, qq_id, key)
         new_lst = db.get_activated_profs(group_id, qq_id)
         return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业({len(new_lst)}/{db.MAX_ACTIVE_PROFS})！"
@@ -632,6 +655,7 @@ class EconomyCmds(CommandBase):
         lines.append("")
         lines.append(f"📊 副业总分：{total}(已激活副业计入，最多发展 {db.MAX_ACTIVE_PROFS} 条)")
         lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』(等级清零)")
+        lines.append("💡 新副业需先找对应导师拜师学习才解锁（如 铁港城·老渔夫·马库斯 教垂钓）")
         lines.append("💡 『副业 排行』看群友等级，『烹饪列表』看料理配方～")
         yield event.plain_result("\n".join(lines))
 
@@ -752,7 +776,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "fishing")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "fishing", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -808,7 +832,7 @@ class EconomyCmds(CommandBase):
         if not player:
             yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
             return
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -1294,7 +1318,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(_st)
             return
         # v67 强化归位锻造 → 导师进修后强化为独立副业（19 章第八章）：强化 +N 需要强化副业 Lv.N
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "enhance")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "enhance", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
@@ -1364,7 +1388,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(_st)
             return
         # v67 附魔归位炼金 → 导师进修后附魔为独立副业（19 章第八章）：附魔需要附魔副业 Lv.2
-        ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant")
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return

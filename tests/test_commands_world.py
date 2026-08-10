@@ -93,7 +93,7 @@ async def main():
     check("事件列表有返回", len(out) > 5, out[:120])
 
     print("【垂钓/采集】")
-    db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="oak_plain_3")  # v87.17 垂钓点=溪边草地
+    db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="oak_plain_3", apprentices=["fishing", "gather"])  # v87.17 垂钓点=溪边草地 + v95.22 拜师模拟
     db.clear_battle("g1", "w1")  # v55：先清战斗状态（前面探索/事件可能进过战斗）
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("垂钓有返回", len(out) > 5, out[:120])

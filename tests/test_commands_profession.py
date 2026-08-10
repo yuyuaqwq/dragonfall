@@ -58,16 +58,19 @@ async def main():
     check("面板显示已激活 0/2", "0/2" in out, out[:120])
     check("未激活标🔒", "🔒" in out, out[:200])
 
-    print("【v67 双副业：自动激活】")
+    print("【v67 双副业：自动激活（v95.22 需先拜师）】")
+    db.update_player("g1", "w1", apprentices=["gather"])  # v95.22 拜师模拟
     out = await cmd(m, "gather", "g1", "w1", "采集")
     check("采集自动激活", "选择了「采集」" in out and "1/2" in out, out[:200])
     check("采集进行中", "开始采集" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
     db.update_player("g1", "w1", cur_map="hill_mine", cur_subarea="hill_mine_2")  # v87.17 矿脉=矿道
+    db.update_player("g1", "w1", apprentices=["gather", "mining"])
     out = await cmd(m, "mining", "g1", "w1", "挖掘")
     check("挖掘自动激活2/2", "选择了「挖掘」" in out and "2/2" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
     db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="oak_plain_3")  # v87.17 垂钓点=溪边草地
+    db.update_player("g1", "w1", apprentices=["gather", "mining", "fishing"])
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("第三条被拦", "副业位已满" in out and "遗忘副业" in out, out[:200])
 
@@ -92,7 +95,7 @@ async def main():
 
     print("【v81 强化独立副业（原 v67 归位锻造）】")
     reset_profs("g1", "w1")
-    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3", gold=5000)
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3", gold=5000, apprentices=["enhance"])  # v95.22 拜师模拟
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
     check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])
@@ -104,6 +107,7 @@ async def main():
 
     print("【v81 附魔独立副业（原 v67 归位炼金）】")
     reset_profs("g1", "w1")
+    db.update_player("g1", "w1", apprentices=["enchant"])  # v95.22 拜师模拟
     out = await cmd(m, "enchant", "g1", "w1", "附魔")
     check("无参附魔先给格式（不被附魔拦）", "附魔哪件装备" in out, out[:200])
     out = await cmd(m, "enchant", "g1", "w1", "附魔 试炼剑 攻击")
@@ -128,6 +132,7 @@ async def main():
 
     print("【v67 锻造引流】")
     add_mats("g1", "w1", count=10)
+    db.update_player("g1", "w1", apprentices=["craft"])  # v95.22 拜师模拟
     out = await cmd(m, "craft", "g1", "w1", "锻造 铁剑")
     check("锻造未激活自动激活", "选择了「锻造」" in out, out[:200])
     db.update_player("g1", "w1", level=35, gold=5000)

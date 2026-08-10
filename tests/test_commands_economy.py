@@ -57,6 +57,7 @@ async def main():
     check("物品详情有返回", len(out) > 5, out[:120])
 
     print("【锻造：可锻造列表（v54）】")
+    db.update_player("g1", "e1", apprentices=["craft"])  # v95.22 拜师模拟
     out = await cmd(m, "craft", "g1", "e1", "锻造")
     check("只列可锻造配方", "当前可锻造" in out and "铁剑" in out, out[:200])
     check("列表提示全部/职业", "锻造 全部" in out and "锻造 <职业>" in out, out[:200])
@@ -142,7 +143,7 @@ async def main():
     check("重复学习提示", "已经学会" in out, out[:200])
 
     print("【炼金副业等级（v54）】")
-    db.update_player("g1", "e1", level=20, gold=50000)
+    db.update_player("g1", "e1", level=20, gold=50000, apprentices=["alchemy"])  # v95.22 拜师模拟
     # 默认炼金 Lv.1 → 超级治疗药水(need 5) 被拦
     out = await cmd(m, "alchemy_craft", "g1", "e1", "合成 超级治疗药水")
     check("炼金等级不够拦截", "炼金 Lv.5" in out or "炼金等级" in out, out[:200])
