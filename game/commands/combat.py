@@ -92,7 +92,7 @@ class CombatCmds(CommandBase):
             yield event.plain_result(poi_text)
             return
         # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
-        if random.random() < 0.35:
+        if random.random() < C.ENCOUNTER_EVENT_CHANCE:
             handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)
             if handled:
                 yield event.plain_result(ev_text)
@@ -122,7 +122,7 @@ class CombatCmds(CommandBase):
             if sa_elite and random.random() < (0.08 + eb):
                 monster = C.build_monster(sa_elite, cur_map)
                 tag = "⭐ 精英"
-            elif sa_boss and random.random() < 0.05:
+            elif sa_boss and random.random() < C.SA_BOSS_CHANCE:
                 monster = C.build_monster(sa_boss, cur_map)
                 tag = "👑 BOSS"
             if monster:
@@ -141,7 +141,7 @@ class CombatCmds(CommandBase):
                 )
                 return
             # 普通怪：50% 低概率（新手保护）
-            if random.random() < 0.5 and events:
+            if random.random() < C.ENCOUNTER_LOW_CHANCE and events:
                 monster = C.build_monster(random.choice(events)[1], cur_map)
                 b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
                 db.save_battle(group_id, qq_id, b.to_state())
@@ -199,7 +199,7 @@ class CombatCmds(CommandBase):
         if sa_elite and random.random() < (0.08 + eb):
             monster = C.build_monster(sa_elite, cur_map)
             tag = "⭐ 精英"
-        elif sa_boss and random.random() < 0.05:
+        elif sa_boss and random.random() < C.SA_BOSS_CHANCE:
             monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
             # v95.20 #101：Boss 战无法逃跑且每回合耗体力，体力低时预警，避免中途耗尽被困

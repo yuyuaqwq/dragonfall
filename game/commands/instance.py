@@ -275,7 +275,7 @@ class InstanceCmds(CommandBase):
         player = self._player(group_id, qq_id)
         for p in stage.get("pois") or []:
             if p.get("type") == "trap" and not self._poi_used(st, sidx, p.get("id", "")):
-                if random.random() < 0.5:
+                if random.random() < C.INST_EVENT_CHANCE:
                     text = self._handle_poi(group_id, qq_id, player, stage, p.get("id", ""), p, st=st)
                     self._check_stage_secret_cond(st)
                     db.save_battle(group_id, st["leader"], st)

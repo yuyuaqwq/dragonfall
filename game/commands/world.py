@@ -2023,7 +2023,7 @@ class WorldCmds(CommandBase):
         import datetime as _dt
         eff = pp.get("effect")
         if eff == "wish":
-            if random.random() < 0.25:
+            if random.random() < C.MOVE_ENCOUNTER_CHANCE:
                 gold = random.randint(1, 5)
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
                 lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")

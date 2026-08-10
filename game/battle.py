@@ -535,7 +535,7 @@ class Battle:
                     self.result = "defeat"
             self._end_round()
             return logs, self.result is not None
-        if random.random() < 0.75:
+        if random.random() < C.FLEE_CHANCE:
             logs.append("💨 你成功脱离了战斗！")
             self.result = "fled"
             return logs, True
@@ -1291,7 +1291,7 @@ class Battle:
         # 30% 概率使用技能（v63：沉默时只能普攻）
         skill = None
         silenced = "silence" in self.e_buffs
-        if self.enemy.get("skills") and random.random() < 0.3 and not silenced:
+        if self.enemy.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
             skill = random.choice(self.enemy["skills"])
             sinfo = C.MONSTER_SKILLS.get(skill)
             if sinfo:
@@ -1305,7 +1305,7 @@ class Battle:
                         eff_fn(self, logs, sname)
                     return logs, 0
                 power = sinfo.get("power", 1.0)
-                is_crit = random.random() < 0.1
+                is_crit = random.random() < C.MON_SKILL_CRIT
                 if kind == "物理":
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit)
                 else:
@@ -1594,7 +1594,7 @@ class Battle:
             logs.append(f"🛡️ 被动减伤 {reduce} 点(铁壁之心/磐石体)")
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
-            if random.random() < 0.6:
+            if random.random() < C.SHIELD_COUNTER_CHANCE:
                 pst2 = self._player_stats(player)
                 est2 = self._enemy_stats()
                 cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
@@ -1602,7 +1602,7 @@ class Battle:
                 logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
         # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
         if "reflect" in E.set_bonus_4(player.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
-            if random.random() < 0.25:
+            if random.random() < C.REFLECT_CHANCE:
                 rd = int(dmg * 0.25)
                 self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
                 logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
@@ -1645,7 +1645,7 @@ class Battle:
             self.resources[k] = E.core_resource_gain(cls, self.resources, rd["on_hit"])
         # v64 被动·神圣坚韧：受击后 20% 概率回复 5% 生命
         if player["hp"] > 0 and "神圣坚韧" in pv:
-            if random.random() < 0.20:
+            if random.random() < C.HOLY_TENACITY_CHANCE:
                 heal = int(player.get("max_hp", player.get("hp", 1)) * 0.05)
                 player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
                 logs.append(f"✨ 神圣坚韧：回复 {heal} 点生命！")

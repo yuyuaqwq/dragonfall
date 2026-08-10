@@ -208,7 +208,7 @@ class EconomyCmds(CommandBase):
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
             extra = ""
-            if random.random() < 0.5:
+            if random.random() < C.FISH_RARE_CHANCE:
                 bp = C.roll_blueprint(max(1, player["level"]))
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
                 extra = f"\n📜 宝箱里还有：{bp['name']}！"
@@ -237,7 +237,7 @@ class EconomyCmds(CommandBase):
         _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
         # 24 章二：月光兔蛋特殊渠道——垂钓传说档（orange）15% 概率（真稀有原则）
         _pet_egg_line = ""
-        if fq == "orange" and random.random() < 0.15:
+        if fq == "orange" and random.random() < C.PET_EGG_ORANGE_CHANCE:
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, f"petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 咦？鱼肚子里藏着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
@@ -277,7 +277,7 @@ class EconomyCmds(CommandBase):
         # 24 章二：月光兔蛋特殊渠道——采集稀有产出 10% 概率（稀有材料判定参考 _gather_roll 的高价段）
         _pet_egg_line = ""
         rare_hit = any(C.MATERIALS[m].get("price", 0) >= 150 for m in mats)
-        if rare_hit and random.random() < 0.10:
+        if rare_hit and random.random() < C.RARE_MAT_CHANCE:
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, "petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
@@ -303,7 +303,7 @@ class EconomyCmds(CommandBase):
         else:
             ore = random.choice(ores)
         n = random.randint(1, 2)
-        if prof >= 5 and random.random() < 0.3:
+        if prof >= 5 and random.random() < C.PROF5_BONUS_CHANCE:
             n += 1
         oname = C.display("materials", ore)
         db.add_item(group_id, qq_id, ore, {"name": oname, "type": "材料", "stackable": True, "price": C.MATERIALS[ore]["price"]})
@@ -1127,17 +1127,11 @@ class EconomyCmds(CommandBase):
 
     def _craft_prof_need(self, rec_lv: int) -> int:
         """锻造配方副业等级门槛(v54：按装备等级折算)"""
-        if rec_lv <= 10:
-            return 1
-        if rec_lv <= 30:
-            return 2
-        if rec_lv <= 50:
-            return 3
-        if rec_lv <= 70:
-            return 4
-        if rec_lv <= 90:
-            return 5
-        return 6
+        tiers = C.RECIPE_LV_TIERS
+        for i, t in enumerate(tiers, 1):
+            if rec_lv <= t:
+                return i
+        return len(tiers) + 1
 
     def _rec_learned(self, player, rec) -> bool:
         """图纸是否已学习(v54 图纸学习制：无图纸配方恒 True)"""
