@@ -23,9 +23,13 @@
 
 | # | 问题 | 位置 | 现状（2026-08-10 验证） |
 |---|---|---|---|
-| B1 | 10 个超大函数（150-316 行）：_player_skill 296、_handle_victory 305、init_db 317、craft 180、buy 214、_instance_start 271、_instance_act 179、move 226、enchant 155 等 | battle.py、combat.py、economy.py、instance.py、world.py、store/connection.py | ✅ 仍存在（9 个 ≥150 行，实测） |
-| B2 | store 层动态列名 SQL：`f"UPDATE professions SET {key}_lv=?"`、`f"DELETE FROM {tbl}"` 等 6 处 | store/professions.py:64/80/161/165、players.py:208/330、social.py:491、stats.py:24 | ✅ 仍存在（6 处，实测）——key 来自白名单 dict，安全但约定式脆弱 |
-| B3 | 整数魔法数字：30×26、20×21、50×16、99×10、300×6、500×6（等级阈值/容量/奖励量） | engine.py:839、combat.py:332、battle.py:262 等 | ✅ 仍存在 |
+| B1 | 超大函数（150-316 行）：init_db 317、_handle_victory 305、_player_skill 296、_instance_start 271、move 226、buy 214、craft 180、_instance_act 179、enchant 155 | battle.py、combat.py、economy.py、instance.py、world.py、store/connection.py | ✅ 仍存在（9 个 ≥150 行，实测；explore 已从 199 缩至 147 脱离清单） |
+| B2 | store 层动态列名 SQL：`f"UPDATE professions SET {key}_lv=?"`、`f"DELETE FROM {tbl}"`、`f"SELECT {key}_lv AS lv..."` 等 **8 处**（含 2 处 SELECT，审计原记录 6 处漏了 SELECT） | store/professions.py:64/80/161/165、players.py:208/330、social.py:491、stats.py:24 | ✅ 仍存在（8 处，重跑审计实测）——key 来自白名单 dict，安全但约定式脆弱 |
+| B3 | 整数魔法数字：30×26、20×19、50×16、99×10、300×6、500×6（等级阈值/容量/奖励量） | engine.py:839、combat.py:332、battle.py:262 等 | ✅ 仍存在（重跑审计 top50 与初报一致） |
+
+### 🆕 D 维度复核发现（审计脚本重跑 2026-08-10 晚）
+- `world.py:453 map_view()` 内重复语句块 ×2（共 12 行）——初版报告未记录
+- `core/rule_engine.py:78 _match_cond()` 内重复语句块 ×2（共 16 行）——初版报告未记录
 
 ### 🟢 A 级：合理，不动 ✅
 - dict 字段访问（d["name"]×458）——数据结构访问，非硬编码
