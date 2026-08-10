@@ -67,7 +67,7 @@ def no_prof_waiting():
             st = self._prof_wait_state(group_id, qq_id)
             if st and st["finish"] > int(time.time()):
                 left = st["finish"] - int(time.time())
-                tname = self._PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
+                tname = C.PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
                 yield event.plain_result(
                     f"⏳ 你还在{tname}呢，再有 {left} 秒完成，先别走开！(完成会自动入包)"
                 )
