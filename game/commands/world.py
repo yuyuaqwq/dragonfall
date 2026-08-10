@@ -20,6 +20,14 @@ from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting
 
+# 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）
+_OBJ_PROGRESS_LINES = {
+    "kill":    lambda obj, prog: f"  进度：{prog.get(obj['kill'], 0)}/{obj['count']}",
+    "collect": lambda obj, prog: f"  收集：{prog.get(obj['collect'], 0)}/{obj['count']}",
+    "explore": lambda obj, prog: f"  前往：{C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}",
+    "talk":    lambda obj, prog: f"  交谈：与 {C.NPCS.get(obj['talk'], {}).get('name', '？')} 对话",
+}
+
 
 class WorldCmds(CommandBase):
 
@@ -1223,17 +1231,11 @@ class WorldCmds(CommandBase):
                 else:
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
-                    if obj.get("kill"):
-                        cur = prog.get(obj["kill"], 0)
-                        lines.append(f"  进度：{cur}/{obj['count']}")
-                    elif obj.get("collect"):
-                        cur = prog.get(obj["collect"], 0)
-                        lines.append(f"  收集：{cur}/{obj['count']}")
-                    elif obj.get("explore"):
-                        lines.append(f"  前往：{C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}")
-                    elif obj.get("talk"):
-                        npc = C.NPCS.get(obj["talk"], {}).get("name", "？")
-                        lines.append(f"  交谈：与 {npc} 对话")
+                    # v101.3：目标类型展示查表化（kill/collect/explore/talk，顺序与原 if-elif 一致）
+                    for _k, _fn in _OBJ_PROGRESS_LINES.items():
+                        if obj.get(_k):
+                            lines.append(_fn(obj, prog))
+                            break
         else:
             lines.append("【主线】已全部完成！🎊")
         # 支线

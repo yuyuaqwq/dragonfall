@@ -37,22 +37,21 @@ def make_pet_egg(pet_key):
             "price": 200, "desc": f"使用后可孵化出『{p['name']}』"}
 
 
+# 宠物技能类型 → 描述模板（v101.3：加新技能类型 = 加一行，改文案不动逻辑）
+_PET_SKILL_DESC = {
+    "atk_pct":  lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 攻击伤害",
+    "matk_pct": lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 魔攻伤害",
+    "heal_pct": lambda p, iv: f"每 {iv} 回合回复 {int(p['skill_value']*100)}% 生命",
+    "block":    lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 概率挡一次攻击",
+}
+
+
 def pet_skill_label(pet_key):
     """宠物技能一句话描述(面板用)，如「撕咬(每 3 回合 40% 攻击伤害)」"""
     p = next((x for x in PET_POOL if x["key"] == pet_key), None)
     if not p:
         return ""
-    interval = p["skill_interval"]
-    if p["skill_type"] == "atk_pct":
-        detail = f"每 {interval} 回合 {int(p['skill_value']*100)}% 攻击伤害"
-    elif p["skill_type"] == "matk_pct":
-        detail = f"每 {interval} 回合 {int(p['skill_value']*100)}% 魔攻伤害"
-    elif p["skill_type"] == "heal_pct":
-        detail = f"每 {interval} 回合回复 {int(p['skill_value']*100)}% 生命"
-    elif p["skill_type"] == "block":
-        detail = f"每 {interval} 回合 {int(p['skill_value']*100)}% 概率挡一次攻击"
-    else:
-        detail = ""
+    detail = _PET_SKILL_DESC.get(p["skill_type"], lambda p, iv: "")(p, p["skill_interval"])
     return f"{p['skill_name']}({detail})"
 
 
