@@ -13,13 +13,6 @@ from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CLASS_SET_STAGES, CLASS_SET_
 
 
 """《剑与魔法》数据层 - drops.py"""
-def _stage_for_lv(monster_lv: int) -> dict:
-    """怪物等级 → 毕业套阶段(就近取阶段等级)"""
-    best = CLASS_SET_STAGES[0]
-    for st in CLASS_SET_STAGES:
-        if monster_lv >= st["lv"] - 5:
-            best = st
-    return best
 
 def make_blueprint(rid: str) -> dict:
     """按名册 ID 精确构造图纸物品（v94：商店『购买 图纸』用）。

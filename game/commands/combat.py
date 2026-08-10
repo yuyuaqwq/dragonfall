@@ -1761,12 +1761,6 @@ class CombatCmds(CommandBase):
     def _is_redname(self, qq_id) -> bool:
         return time.time() < self._red_until(qq_id)
 
-    def _is_grey(self, qq_id) -> bool:
-        try:
-            return time.time() < int(db.get_event_state(f"grey_{qq_id}") or 0)
-        except (ValueError, TypeError):
-            return False
-
     def _get_honor(self, qq_id) -> int:
         try:
             return int(db.get_event_state(f"honor_{qq_id}") or 0)

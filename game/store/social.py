@@ -324,15 +324,6 @@ def guild_get_by_member(qq_id):
         finally:
             conn.close()
 
-def guild_get(gid):
-    with _lock:
-        conn = _connect()
-        try:
-            row = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
-            return dict(row) if row else None
-        finally:
-            conn.close()
-
 def guild_get_by_name(name):
     with _lock:
         conn = _connect()
@@ -382,29 +373,6 @@ def guild_leave(gid, qq_id):
                 conn.commit()
                 return "disbanded"
             return "left"
-        finally:
-            conn.close()
-
-def guild_kick(gid, leader, qq_id):
-    """会长踢人；返回 True 成功"""
-    with _lock:
-        conn = _connect()
-        try:
-            g = conn.execute("SELECT * FROM guilds WHERE gid=? AND leader=?", (gid, leader)).fetchone()
-            if not g:
-                return False
-            conn.execute("DELETE FROM guild_members WHERE gid=? AND qq_id=? AND role!='leader'", (gid, qq_id))
-            conn.commit()
-            return True
-        finally:
-            conn.close()
-
-def guild_count(gid):
-    with _lock:
-        conn = _connect()
-        try:
-            row = conn.execute("SELECT COUNT(*) AS c FROM guild_members WHERE gid=?", (gid,)).fetchone()
-            return row["c"] if row else 0
         finally:
             conn.close()
 

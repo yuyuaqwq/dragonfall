@@ -539,46 +539,6 @@ class PlayerCmds(CommandBase):
         )
         return
 
-    async def _do_evolve(self, event, group_id, qq_id, player, cls, tier, next_tier, path):
-        """执行转职(path: 0=默认, 1=左进攻, 2=右防御)"""
-        old_title = self._tier_title(player["class_name"], tier, player.get("evolve_path", 0))
-        fields = {"class_tier": next_tier}
-        if path:
-            fields["evolve_path"] = path
-        db.update_player(group_id, qq_id, **fields)
-        player = self._player(group_id, qq_id)
-        new_title = self._branch_title(player["class_name"], next_tier, path or player.get("evolve_path", 0))
-        bonus = int((E.TIER_GROWTH.get(next_tier, 1.0) - 1.0) * 100)
-        branch_line = ""
-        if path:
-            tag = "⚔️ 进攻路线" if path == 1 else "🛡️ 防御路线"
-            branch_line = f"\n🔀 {tag}"
-        # v2.1（21 章）：转职自动获得二转被动（tier2 lv.60）/ 三转奥义（tier3 lv.90）
-        auto_skills = self._evolve_auto_skills(player, next_tier)
-        if auto_skills:
-            learned = player.get("learned_skills", [])
-            learned = [s for s in learned if s not in auto_skills]
-            learned += auto_skills
-            db.update_player(group_id, qq_id, learned_skills=learned)
-            player = self._player(group_id, qq_id)
-        auto_line = ""
-        if auto_skills:
-            auto_line = f"\n🌟 领悟：{'、'.join(auto_skills)}"
-        is_final = next_tier >= 3
-        # 阶段九：转职成就判定
-        C.check_achievements(group_id, qq_id, player)
-        yield event.plain_result(
-            f"🌟 转职成功！\n"
-            f"━━━━━━━━━━━━\n"
-            f"{old_title}\n"
-            f"  ↓↓↓\n"
-            f"{cls['icon']} {new_title}{branch_line}\n\n"
-            f"✨ 成长加成 +{bonus}%(全属性)\n"
-            f"📜 新技能已解锁，输入『技能』查看！{auto_line}\n"
-            f"{'👑 已达成最终转职（Lv.90 三转）！' if is_final else '💪 继续历练，下一次转职在 Lv.60/90'}"
-        )
-        return
-
     def _evolve_auto_skills(self, player: dict, next_tier: int) -> list:
         """转职自动获得的技能(二转被动 60 级 / 三转奥义 90 级)"""
         if next_tier not in (2, 3):

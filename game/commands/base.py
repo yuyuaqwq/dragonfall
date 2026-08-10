@@ -374,26 +374,6 @@ class CommandBase:
                     parts.append(f"{name}{sign}{v}")
         return f"{src['name']}: {' '.join(parts)}" if parts else ""
 
-    def _attr_sources(self, player: dict, title_bonus: dict = None) -> list[str]:
-        """玩家属性来源明细(v16 属性来源拆解)"""
-        try:
-            st, sources = E.player_stats_detail(
-                player["class_name"], player["level"], player["equipment"],
-                player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
-                title_bonus, player.get("race"))
-        except Exception:
-            return []
-        lines = []
-        for src in sources:
-            s = self._fmt_stat_src(src)
-            if s:
-                lines.append(s)
-        return lines
-
-    async def _reply(self, event: AstrMessageEvent, text: str):
-        """统一回复"""
-        yield event.plain_result(text)
-
     async def _broadcast(self, text: str, exclude_group: str | None = None):
         """向所有有玩家注册过的群广播公告（不含私聊）。
 

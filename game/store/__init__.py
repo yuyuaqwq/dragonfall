@@ -41,9 +41,9 @@ from .social import (  # noqa: F401
     market_list, market_add, market_remove,
     market_list_by_seller, market_get, market_sync_stall, market_remove_by_seller,
     party_create, party_add, party_members, party_leave,
-    guild_create, guild_get_by_leader, guild_get_by_member, guild_get,
-    guild_get_by_name, guild_members, guild_join, guild_leave, guild_kick,
-    guild_count, guild_add_exp, guild_set_sign, guild_get_sign,
+    guild_create, guild_get_by_leader, guild_get_by_member,
+    guild_get_by_name, guild_members, guild_join, guild_leave,
+    guild_add_exp, guild_set_sign, guild_get_sign,
     guild_set_task, guild_get_task, guild_top,
     pet_get, pet_create, pet_update, pet_delete,
     pet_decay_satiety, pet_dex_get, pet_dex_add,
@@ -56,8 +56,7 @@ from .world import (  # noqa: F401
     get_talk_flags, set_talk_flag, get_boss_dmg_mult,
 )
 from .feedback import (  # noqa: F401
-    add_feedback, get_feedback, mark_feedback_done,
-    ensure_feedback_reply_col, get_feedback_with_reply, mark_feedback_broadcast,
+    add_feedback, get_feedback,
 )
 from .props_use import (  # noqa: F401
     get_props_use, mark_props_use,

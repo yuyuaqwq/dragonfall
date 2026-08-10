@@ -106,21 +106,3 @@ def affix_label(aid: str) -> str:
     """词条显示短名(装备详情/词条表)"""
     info = AFFIXES.get(aid) or LEGENDARY_EFFECTS.get(aid)
     return info["name"] if info else aid
-
-
-def equip_affix_lines(equip: dict) -> list:
-    """装备详情词条显示行：固定/随机词条 + 传说专属。
-
-    返回 ['✦ 流血（攻击 20% 使目标流血…）', ...] 格式行。
-    """
-    lines = []
-    for aid in equip.get("affixes", []):
-        info = AFFIXES.get(aid)
-        if info:
-            lines.append(f"✦ {info['name']}：{info['desc']}")
-    lg = equip.get("legendary")
-    if lg:
-        info = LEGENDARY_EFFECTS.get(lg)
-        if info:
-            lines.append(f"✨ 专属·{info['name']}：{info['desc']}")
-    return lines

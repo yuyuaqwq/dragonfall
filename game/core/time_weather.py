@@ -94,11 +94,6 @@ def today_weather(map_id: str | None = None, now: datetime.date | None = None) -
     return "snow" if season == "winter" else "sunny"
 
 
-def today_weather_for_test(map_id: str | None = None, seed_date: datetime.date | None = None) -> str:
-    """测试用：可指定日期"""
-    return today_weather(map_id, seed_date)
-
-
 def time_weather_summary(map_id: str | None = None, now: datetime.datetime | None = None) -> str:
     """『时间』指令面板：时间段/季节/天气"""
     now = now or datetime.datetime.now()

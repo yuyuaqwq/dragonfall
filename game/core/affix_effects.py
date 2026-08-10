@@ -298,23 +298,7 @@ def _sp_frost(battle, player, dmg, logs):
         logs.append("❄️ 寒霜之力！敌人速度下降！")
 
 
-def _sp_frost(battle, player, dmg, logs):
-    """寒霜之力：30% 减速"""
-    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < _set_chance("frost", 0.30):
-        battle.e_buffs["spd_down"] = DEBUFF_TURNS
-        logs.append("❄️ 寒霜之力！敌人速度下降！")
-
-
 @register(SET_PROC_EFFECTS, "burn")
-def _sp_burn(battle, player, dmg, logs):
-    """烈焰之力：30% 灼烧"""
-    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < _set_chance("burn", 0.30):
-        battle.e_buffs["poison"] = DEBUFF_TURNS
-        logs.append("🔥 烈焰之力！敌人被灼烧！")
-
-
 def _sp_burn(battle, player, dmg, logs):
     """烈焰之力：30% 灼烧"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
@@ -335,26 +319,7 @@ def _sp_thunder(battle, player, dmg, logs):
         logs.append(f"⚡ 雷霆一击！追加 {tdmg} 点伤害！")
 
 
-def _sp_thunder(battle, player, dmg, logs):
-    """雷霆一击：25% 追加 60% 攻击伤害"""
-    from ..engine import calc_damage
-    if random.random() < _set_chance("thunder", 0.25):
-        pst = battle._player_stats(player)
-        est = battle._enemy_stats()
-        tdmg = calc_damage(int(pst["atk"] * 0.6), est["def"])
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - tdmg)
-        logs.append(f"⚡ 雷霆一击！追加 {tdmg} 点伤害！")
-
-
 @register(SET_PROC_EFFECTS, "pierce")
-def _sp_pierce(battle, player, dmg, logs):
-    """诸神之力：30% 破甲"""
-    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
-    if random.random() < _set_chance("pierce", 0.30):
-        battle.e_buffs["def_down"] = DEBUFF_TURNS
-        logs.append("👑 诸神之力！敌人护甲破碎！")
-
-
 def _sp_pierce(battle, player, dmg, logs):
     """诸神之力：30% 破甲"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
@@ -372,23 +337,7 @@ def _sp_lifesteal_set(battle, player, dmg, logs):
         logs.append(f"🌑 深渊之力！汲取 {heal} 点生命！")
 
 
-def _sp_lifesteal_set(battle, player, dmg, logs):
-    """深渊之力：30% 汲取 15% 伤害为生命"""
-    if random.random() < _set_chance("lifesteal_set", 0.30):
-        heal = int(dmg * 0.15)
-        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-        logs.append(f"🌑 深渊之力！汲取 {heal} 点生命！")
-
-
 @register(SET_PROC_EFFECTS, "execute")
-def _sp_execute(battle, player, dmg, logs):
-    """灭世之力：处决（敌方 <30% 血时追加 25% 伤害）"""
-    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
-    if ratio < 0.30:
-        bonus = int(dmg * 0.25)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
-        logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")
-
 def _sp_execute(battle, player, dmg, logs):
     """灭世之力：处决（敌方 <30% 血时追加 25% 伤害）"""
     ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))

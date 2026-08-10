@@ -150,10 +150,6 @@ class WorldCmds(CommandBase):
                     return f" · {s['name']}"
         return f" · {sas[0]['name']}"
 
-    @staticmethod
-    def _npc_func_label(f: str) -> str:
-        return {"quest": "接任务", "shop": "交易", "heal": "治疗", "daily": "每日委托", "lore": "情报", "ency": "百科"}.get(f, f)
-
     # ---------------- v68 地契房产 ----------------
 
     def _home_map_id(self, qq_id):

@@ -57,12 +57,3 @@ def craft_recipes_by_material(text: str, max_show: int = 8):
             out.append((name, rec))
     out.sort(key=lambda x: x[1]["lv"])
     return out[:max_show]
-
-def craft_recipes_for_level(player_lv: int, max_show: int = 12):
-    """列出玩家可锻造(lv 门槛 ±6 内)的配方"""
-    out = []
-    for name, rec in CRAFT_RECIPES.items():
-        if rec["lv"] <= player_lv + 6 and rec["lv"] >= max(1, player_lv - 12):
-            out.append((name, rec))
-    out.sort(key=lambda x: x[1]["lv"])
-    return out[:max_show]
