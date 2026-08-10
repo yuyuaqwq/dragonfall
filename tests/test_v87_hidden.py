@@ -86,8 +86,17 @@ def main():
           len(egg_ids) == 5 and "old_map" in egg_ids and "gold_slime" in egg_ids,
           f"实际 {egg_ids}")
     ev_ids = [e["id"] for e in EXPLORE_EVENTS]
-    check("常规事件 12 种（含 lost_camp/meteor/animal/rain）",
-          len(ev_ids) == 12 and all(x in ev_ids for x in ("lost_camp", "meteor", "animal", "rain")),
+    # v97.4 扩容 12→30（新 18：firefly/old_well/windmill/hunter_hut/beehive/floating_bridge/
+    # old_tree_hollow/stone_tablet/cart_wreck/night_owl/spider_web/frost_flower/old_boot/
+    # mushroom_ring/echo_cave/campfire_ashes/drifting_bottle/abandoned_minecart）
+    check("常规事件 30 种（含 lost_camp/meteor/animal/rain + v97.4 新 18）",
+          len(ev_ids) == 30
+          and all(x in ev_ids for x in ("lost_camp", "meteor", "animal", "rain"))
+          and all(x in ev_ids for x in ("firefly", "old_well", "windmill", "hunter_hut", "beehive",
+                                        "floating_bridge", "old_tree_hollow", "stone_tablet",
+                                        "cart_wreck", "night_owl", "spider_web", "frost_flower",
+                                        "old_boot", "mushroom_ring", "echo_cave",
+                                        "campfire_ashes", "drifting_bottle", "abandoned_minecart")),
           f"实际 {len(ev_ids)}")
 
     # ===== 5. 探索点显示（_map_scene 包含 POI）=====
