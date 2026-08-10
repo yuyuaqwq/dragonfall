@@ -2458,12 +2458,14 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
         d = target["data"]
-        # 战斗中：只允许恢复类 + 战斗药水，且算一回合（敌方会行动）
-        buff_eff = d.get("effect", "")
-        is_buff = buff_eff in ("buff_atk", "buff_def", "buff_spd", "buff_crit", "buff_matk", "buff_atk_def")
+        # ---- v97.7 道具效果模板引擎分发（消灭 if-elif 硬编码，行为与旧实现逐条对齐）----
+        from ..core import item_templates as IT
+        tpl_name = IT.infer_template(d)
+        meta = IT.META.get(tpl_name, {"battle_ok": False})
+        hooks = self._item_use_hooks(group_id, qq_id, target, player)
         if self._in_battle(group_id, qq_id):
-            # v94 体力：体力食物也算战斗可用恢复类
-            if not (d.get("heal") or d.get("mana") or d.get("stamina") or is_buff):
+            # 战斗中：只允许恢复类 + 战斗药水（模板 meta battle_ok），且算一回合（敌方会行动）
+            if not meta["battle_ok"]:
                 yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
                 return
             battle = db.get_battle(group_id, qq_id)
@@ -2474,39 +2476,21 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
             b = BT.Battle.from_state(battle["state"])
-            heal = d.get("heal", 0)
-            mana = d.get("mana", 0)
-            if heal <= 0 and mana <= 0 and not d.get("stamina") and not is_buff:
-                yield event.plain_result("该道具没有恢复/增益效果，战斗中无法使用～")
-                return
-            # 扣物品（战斗回合使用）
-            db.remove_item(group_id, qq_id, target["key"])
+            ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
+            r = IT.TEMPLATES[tpl_name](ctx)
+            if r.consume:
+                db.remove_item(group_id, qq_id, target["key"])
             # v94 体力：战斗中使用食物恢复体力（不占回合结算显示）
             st_msg = ""
             if d.get("stamina"):
                 st_gain = self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
                 if st_gain > 0:
                     st_msg = f"⚡ 恢复 {st_gain} 点体力({self._stamina(player)}/{self._stamina_max(player)})\n"
-            # 生命/魔力恢复（先恢复再走回合，怪物行动可能打掉）
-            # v82 阶段四：heal/mana < 1 视为百分比（新世界 13 章），>=1 视为固定值（旧物品兼容）
-            # v95.16 #79：heal 只在这里换算数值，不要更新 player["hp"]——battle._do_use_item
-            # 会用 payload 实际恢复，预更新会导致双重回复（实测回 60% 却只显示恢复 67）
-            if heal:
-                if heal < 1:
-                    heal = int(player["max_hp"] * heal)
-            if mana:
-                if mana < 1:
-                    mana = int(player["max_mp"] * mana)
-                new_mp = min(player["max_mp"], player["mp"] + mana)
-                player["mp"] = new_mp
-            # v54 战斗药水：传 buff:<p_buffs key>（atk_up/def_up/spd_up/crit_up）
-            # 9.3：buff_matk → matk_up_pot（鲛人之泪）、buff_atk_def → 复合（龙涎药剂）
-            _BF = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
-                   "buff_crit": "crit_up", "buff_matk": "matk_up_pot",
-                   "buff_atk_def": "atk_up,def_up"}
-            payload = f"buff:{_BF[buff_eff]}" if is_buff else str(heal)
+            # 战斗内 mana 由模板直接改 player["mp"]；heal/buff 走 payload（battle 实际应用）
+            payload = r.payload if r.payload is not None else "0"
             logs, ended = b.player_turn("use_item", payload, player)
-            db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
+            db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
+                             max_hp=player["max_hp"], max_mp=player["max_mp"])
             if ended:
                 if b.result == "victory":
                     for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
@@ -2527,135 +2511,37 @@ class EconomyCmds(CommandBase):
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
-        # 消耗品（v82 阶段四：heal/mana < 1 视为百分比）
-        # v94 体力：食物恢复体力（可与 hp/mp 同物品叠加显示）
-        st_gain = 0
-        st_msg = ""
-        if d.get("stamina"):
-            st_gain = self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+        # 战斗外：模板直接执行副作用并返回展示文本
+        ctx = IT.ItemContext(group_id, qq_id, player, d, battle=None, hooks=hooks)
+        r = IT.TEMPLATES[tpl_name](ctx)
+        yield event.plain_result(r.text)
+
+    def _item_use_hooks(self, group_id, qq_id, target, player):
+        """v97.7：道具模板引擎的命令层回调（体力/回城/红名等专属逻辑注入）。"""
+        d = target["data"]
+
+        def rm():
+            db.remove_item(group_id, qq_id, target["key"])
+
+        def stamina_msg(gid, qid, p):
+            if not d.get("stamina"):
+                return ""
+            st_gain = self._add_stamina(gid, qid, int(d["stamina"]), p)
             if st_gain > 0:
-                _p3 = self._player(group_id, qq_id)
-                st_msg = f"\n⚡ 恢复 {st_gain} 点体力({self._stamina(_p3)}/{self._stamina_max(_p3)})"
-        if d.get("heal"):
-            heal_v = d["heal"]
-            if heal_v < 1:
-                heal_v = int(player["max_hp"] * heal_v)
-            # v95.25 #128：满血使用纯治疗物品不消耗（有体力/魔力恢复的复合物品仍可用）
-            if player["hp"] >= player["max_hp"] and not d.get("stamina") and not d.get("mana"):
-                yield event.plain_result(f"❤️ 你现在的生命是满的({player['hp']}/{player['max_hp']})，用不着【{d['name']}】～")
-                return
-            new_hp = min(player["max_hp"], player["hp"] + heal_v)
-            db.update_player(group_id, qq_id, hp=new_hp)
-            db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{player['max_hp']}{st_msg}")
-        elif d.get("mana"):
-            mana_v = d["mana"]
-            if mana_v < 1:
-                mana_v = int(player["max_mp"] * mana_v)
-            new_mp = min(player["max_mp"], player["mp"] + mana_v)
-            db.update_player(group_id, qq_id, mp=new_mp)
-            db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{player['max_mp']}{st_msg}")
-        elif d.get("stamina") is not None:
-            if st_gain > 0:
-                db.remove_item(group_id, qq_id, target["key"])
-                yield event.plain_result(f"🍖 你吃下了【{d['name']}】！{st_msg}")
-            else:
-                _p4 = self._player(group_id, qq_id)
-                yield event.plain_result(f"🍖 你肚子还饱着呢(体力 {self._stamina(_p4)}/{self._stamina_max(_p4)})，先活动活动再吃吧～")
-        elif d.get("effect") == "return_vila":
-            # v95.13 #63：卷轴回"最近城镇"（原写死 oak_town，新世界地图不合用）
-            db.remove_item(group_id, qq_id, target["key"])
-            cur = player.get("cur_map", "")
-            dest = self._nearest_town(cur)
-            entry_sa = C.map_entry_subarea(dest) if dest else None
-            sas = C.MAP_BY_ID.get(dest, {}).get("subareas") or []
-            first_sa = next((s for s in sas if s["id"] == entry_sa), None) or (sas[0] if sas else None)
-            db.update_player(group_id, qq_id, cur_map=dest,
-                             cur_subarea=first_sa["id"] if first_sa else "")
-            town_name = C.MAP_BY_ID.get(dest, {}).get("name", "城镇")
-            yield event.plain_result(f"🧭 卷轴展开，光芒闪过——你回到了{town_name}！")
-        elif d.get("effect") == "lucky":
-            # v54 幸运护符：10 分钟打怪金币 ×1.5、材料 +1
-            db.remove_item(group_id, qq_id, target["key"])
-            db.update_player(group_id, qq_id, lucky_until=int(time.time()) + 600)
-            yield event.plain_result(
-                "🍀 幸运护符泛起微光，你的气息变得祥和……\n"
-                "💡 10 分钟内打怪金币＋50%、材料掉落＋1！"
-            )
-        elif d.get("effect") == "clear_red":
-            # v84 红名清除券（26 章 3.3）：立即消除红名
-            if not self._is_redname(qq_id):
-                yield event.plain_result("你现在不是红名，用不着这张券～(留着防身吧)")
-                return
-            db.remove_item(group_id, qq_id, target["key"])
-            db.set_event_state(f"red_{qq_id}", "0")
-            yield event.plain_result("🎫 券面符文亮起，笼罩你的杀气消散了！你不再是红名了。")
-        elif d.get("effect") == "open_chest":
-            import uuid
-            db.remove_item(group_id, qq_id, target["key"])
-            gold = random.randint(30, 80) + player["level"] * 3
-            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            lines = [f"🎁 你打开了【{d['name']}】！", f"💰 获得 {gold} 金币！"]
-            # v41：宝箱不再掉成品装备，改为掉图纸（装备统一走锻造）
-            if random.random() < 0.5:
-                bp = C.roll_blueprint(max(1, player["level"]))
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                lines.append(f"📜 宝箱里还有：{bp['name']}！")
-            yield event.plain_result("\n".join(lines))
-        elif d.get("type") == "宠物蛋":
-            # 孵化宠物（24 章三：使用宠物蛋 → 获得对应品种宠物，首次孵化自动命名）
-            pet_key = d.get("pet_key")
-            if not pet_key:
-                yield event.plain_result("这枚宠物蛋有点奇怪……")
-                return
-            pet = db.pet_get(qq_id)
-            # 饱食度自然衰减先结算（防止换了很久的宠物面板数据过期）
-            pet = db.pet_decay_satiety(pet)
-            if pet:
-                db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
-            if pet:
-                same = pet.get("pet_key") == pet_key
-                if same:
-                    yield event.plain_result("你已经有一只【该品种】宠物啦！可以『出售』这颗蛋，或『放生』后重新孵化(图鉴记录保留)。")
-                else:
-                    yield event.plain_result("你已经有一只宠物啦！先『放生』再孵化新品种吧～")
-                return
-            pdef = next((p for p in C.PET_POOL if p["key"] == pet_key), None)
-            if not pdef:
-                yield event.plain_result("宠物蛋里的生命气息微弱……")
-                return
-            db.remove_item(group_id, qq_id, target["key"])
-            db.pet_create(qq_id, pet_key, pdef["name"])
-            db.pet_dex_add(qq_id, pet_key)
-            dex_count = len(db.pet_dex_get(qq_id))
-            yield event.plain_result(
-                f"🥚 宠物蛋微微颤动……裂开了！\n"
-                f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！(图鉴 {dex_count}/4)\n"
-                f"💡 输入『宠物』查看，『喂养 <食材>』恢复饱食度，升到 Lv.10 解锁宠物技能！"
-            )
-        elif d.get("type") == "坐骑":
-            # 坐骑缰绳：解锁坐骑
-            mk = d.get("mount_key")
-            mdef = C.MOUNT_BY_KEY.get(mk) if mk else None
-            if not mdef:
-                yield event.plain_result("这缰绳上的气息有点古怪……")
-                return
-            mounts = player.get("mounts") or {}
-            owned = list(mounts.get("owned") or [])
-            if mk in owned:
-                yield event.plain_result(f"你已经拥有『{mdef['name']}』了！")
-                return
-            owned.append(mk)
-            mounts["owned"] = owned
-            db.update_player(group_id, qq_id, mounts=mounts)
-            db.remove_item(group_id, qq_id, target["key"])
-            yield event.plain_result(
-                f"🐾 缰绳上的封印解开，{mdef['icon']}【{mdef['name']}】顺从地蹭了蹭你！\n"
-                f"💡 输入『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！"
-            )
-        else:
-            yield event.plain_result(f"『{d['name']}』不能使用。")
+                _p3 = self._player(gid, qid)
+                return f"\n⚡ 恢复 {st_gain} 点体力({self._stamina(_p3)}/{self._stamina_max(_p3)})"
+            return ""
+
+        return {
+            "remove_item": rm,
+            "add_stamina": self._add_stamina,
+            "stamina_msg": stamina_msg,
+            "get_player": lambda: self._player(group_id, qq_id),
+            "stamina_cur": self._stamina,
+            "stamina_max": self._stamina_max,
+            "nearest_town": self._nearest_town,
+            "is_redname": self._is_redname,
+        }
 
     def _cur_subarea(self, player: dict) -> dict:
         """当前所在子区域 dict（无则 {}）。"""
