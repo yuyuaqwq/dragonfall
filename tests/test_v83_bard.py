@@ -37,9 +37,9 @@ async def main():
     check("技能名齐全", "即兴弹唱" in names and "战歌" in names and "终章·黎明颂歌" in names, str(names))
     team_cnt = sum(1 for v in sk.values() if v.get("team"))
     check("团队技能>=5", team_cnt >= 5, str(team_cnt))
-    # SKILL_UP 覆盖
+    # SKILL_UP 覆盖（v102.4 下沉 data/skill_up.py，经 C 访问）
     for n in names:
-        check(f"SKILL_UP 有 {n}", n in E.SKILL_UP, "")
+        check(f"SKILL_UP 有 {n}", n in E.C.SKILL_UP, "")
 
     # ---- 2. 注册拦截 ----
     out = await cmd(m, "register", "g2", "w2", "注册 吟游诗人 小诗人")
