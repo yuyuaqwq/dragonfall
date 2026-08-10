@@ -80,6 +80,8 @@ from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401
     PROF_TUTORS, PROF_WAIT_BASE, DAILY_PROF_TASKS, BAG_FILTER_TYPES,
 )
+from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
+from .core_resources import CORE_RESOURCES  # noqa: F401  (v102.4 从 engine.py 下沉)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
