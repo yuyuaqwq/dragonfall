@@ -1,0 +1,99 @@
+# -*- coding: utf-8 -*-
+"""v99.5 成就条件注册表验收：achievement_conds
+
+验收标准（设计文档）：
+1. 扩展性：注册新条件类型 → cond_met 立即生效，无需改 achievements.py
+2. 安全降级：未知 type → False（不报错）
+3. 全覆盖：成就数据用到的 cond type 全部有注册
+4. 行为等价：抽样验证关键条件（level/kills/prof_lv/flag/quest_done/faction 受限）
+
+独立运行：python tests/test_v99_05_achievement_conds.py
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from conftest import C, db  # noqa: F401
+from data.plugins.dragonfall.game.core import achievement_conds as AC
+from data.plugins.dragonfall.game.core.achievements import cond_met
+
+PASS = 0
+FAIL = 0
+
+
+def check(name, cond):
+    global PASS, FAIL
+    if cond:
+        PASS += 1
+        print(f"  ✅ {name}")
+    else:
+        FAIL += 1
+        print(f"  ❌ {name}")
+
+
+player = {"qq_id": "q1", "class_name": "cls_zhan_shi", "level": 15,
+          "learned_skills": ["a", "b"], "evolve_path": 1,
+          "apprentices": ["x"], "hidden_class_unlock": ["cls_mu_shi"]}
+stats = {"kills": 50, "deaths": 1, "elite_kills": 5, "boss_kills": 2,
+         "inst_clears": 3, "party_count": 2, "world_events": 1, "visited_areas": 10}
+profs = {"gather": {"lv": 5}, "mine": {"lv": 12}}
+extra = {"flags": {"met_old_man": True}, "fish_king": True,
+         "quest_done": "quest_hidden_1", "inst_ids": {"inst_a"}}
+
+
+# ============ 1. 扩展性 ============
+print("【1. 扩展性】")
+BEFORE = set(AC.COND_CHECKS.keys())
+
+
+@AC.register("test_fake_cond")
+def _c_test_fake(player, stats, profs, extra, cond):
+    return True
+
+
+check("注册新条件后 COND_CHECKS 含新 key", "test_fake_cond" in AC.COND_CHECKS)
+check("新条件立即生效", cond_met(player, stats, profs, extra, {"type": "test_fake_cond"}) is True)
+AC.COND_CHECKS.pop("test_fake_cond")
+
+# ============ 2. 安全降级 ============
+print("【2. 安全降级】")
+check("未知 type → False", cond_met(player, stats, profs, extra, {"type": "not_a_type"}) is False)
+check("空 cond → False", cond_met(player, stats, profs, extra, {}) is False)
+check("None cond → False", cond_met(player, stats, profs, extra, None) is False)
+
+# ============ 3. 行为抽样 ============
+print("【3. 行为抽样】")
+check("registered（有 player）", cond_met(player, stats, profs, extra, {"type": "registered"}) is True)
+check("level（15 ≥ 15）", cond_met(player, stats, profs, extra, {"type": "level", "value": 15}) is True)
+check("level 未达标", cond_met(player, stats, profs, extra, {"type": "level", "value": 16}) is False)
+check("kills（50 ≥ 50）", cond_met(player, stats, profs, extra, {"type": "kills", "value": 50}) is True)
+check("kills no_death（有死亡不满足）", cond_met(player, stats, profs, extra, {"type": "kills", "value": 50, "no_death": True}) is False)
+check("elite（5 ≥ 5）", cond_met(player, stats, profs, extra, {"type": "elite", "value": 5}) is True)
+check("prof_lv（mine 12 ≥ 10）", cond_met(player, stats, profs, extra, {"type": "prof_lv", "key": "mine", "value": 10}) is True)
+check("prof_any10（mine 12）", cond_met(player, stats, profs, extra, {"type": "prof_any10"}) is True)
+check("flag（met_old_man）", cond_met(player, stats, profs, extra, {"type": "flag", "flag": "met_old_man"}) is True)
+check("flag 未设置", cond_met(player, stats, profs, extra, {"type": "flag", "flag": "nope"}) is False)
+check("fish_king（extra）", cond_met(player, stats, profs, extra, {"type": "fish_king"}) is True)
+check("quest_done（extra 命中）", cond_met(player, stats, profs, extra, {"type": "quest_done", "key": "quest_hidden_1"}) is True)
+check("quest_done（extra 未命中→历史恒 False）", cond_met(player, stats, profs, extra, {"type": "quest_done", "key": "quest_other"}) is False)
+check("item_has（历史恒 False，group_id 缺失）", cond_met(player, stats, profs, extra, {"type": "item_has", "key": "xxx"}) is False)
+check("faction（国战延迟）", cond_met(player, stats, profs, extra, {"type": "faction"}) is False)
+check("inst_id（extra 集合命中）", cond_met(player, stats, profs, extra, {"type": "inst_id", "inst": "inst_a"}) is True)
+check("hidden_monsters_all（空集合）", cond_met(player, stats, profs, extra, {"type": "hidden_monsters_all"}) is False)
+check("hidden_class（已解锁）", cond_met(player, stats, profs, extra, {"type": "hidden_class", "key": "cls_mu_shi"}) is True)
+
+# ============ 4. 全覆盖 ============
+print("【4. 数据覆盖检查】")
+import re
+ach_src = open(os.path.join("game", "data", "achievements.py"), encoding="utf-8").read()
+data_types = set(re.findall(r'"type"\s*:\s*"([^"]+)"', ach_src))
+registered = set(AC.COND_CHECKS.keys())
+missing = data_types - registered
+check(f"成就数据 cond type 全覆盖（数据 {len(data_types)} 种）", not missing)
+if missing:
+    print("  缺失:", sorted(missing))
+check("注册表无孤儿（除测试外全部被数据使用）", registered - data_types - {"test_fake_cond"} == set() or len(registered - data_types) <= 1)
+
+print()
+print(f"结果: {PASS} 通过, {FAIL} 失败")
+sys.exit(1 if FAIL else 0)

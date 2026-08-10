@@ -48,139 +48,17 @@ def _monster_total() -> int:
 
 
 def cond_met(player: dict, stats: dict, profs: dict, extra: dict, cond: dict) -> bool:
-    """成就条件判定。extra 携带事件上下文(inst_id/flawless/worldboss/flags 等)"""
-    from .. import content as C
-    from .. import db
-    t = cond.get("type")
-    value = cond.get("value", 0)
+    """成就条件判定。extra 携带事件上下文(inst_id/flawless/worldboss/flags 等)
+    v99.5：判定逻辑数据化 → core/achievement_conds.py COND_CHECKS 注册表
+    （41 种条件类型；未知 type / 异常 → False，与旧 if 链兜底一致）"""
     try:
-        if t == "registered":
-            return bool(player)
-        if t == "level":
-            return player.get("level", 0) >= value
-        if t == "kills":
-            if cond.get("no_death"):
-                return stats.get("kills", 0) >= value and stats.get("deaths", 0) == 0
-            return stats.get("kills", 0) >= value
-        if t == "elite":
-            return stats.get("elite_kills", 0) >= value
-        if t == "boss":
-            return stats.get("boss_kills", 0) >= value
-        if t == "kills_type":
-            kws = cond.get("keywords") or [cond["keyword"]]
-            return any(_bestiary_kills(player["qq_id"], kw) >= value for kw in kws)
-        if t == "evolve":
-            return player.get("evolve_path", 0) >= value
-        if t == "learned":
-            return len(player.get("learned_skills", []) or []) >= value
-        if t == "learned_all":
-            total = 0
-            cls = player.get("class_name", "")
-            t1 = C.PLAYER_SKILLS.get(cls, {})
-            if isinstance(t1, dict) and "skills" in t1:
-                total += len(t1["skills"])
-            bt = C.BRANCH_SKILLS.get(cls, {})
-            if isinstance(bt, dict) and "branches" in bt:
-                for tier in bt["branches"].values():
-                    for skills in tier.values():
-                        total += len(skills)
-            return total > 0 and len(player.get("learned_skills", []) or []) >= total
-        if t == "prof_lv":
-            p = (profs or {}).get(cond["key"], {})
-            return int(p.get("lv", 0) or 0) >= value
-        if t == "prof_any10":
-            return any(int(p.get("lv", 0) or 0) >= 10 for p in (profs or {}).values())
-        if t == "prof_count":
-            return stats.get(cond["key"], 0) >= value
-        if t == "apprentice":
-            return len(player.get("apprentices", []) or []) >= value
-        if t == "visited":
-            try:
-                return db.get_visited_count("", player["qq_id"]) >= value
-            except Exception:
-                return stats.get("visited_areas", 0) >= value
-        if t == "hidden_area":
-            try:
-                return db.get_visited_count("", player["qq_id"]) >= value  # 隐藏区域并入到访计数（数据源受限）
-            except Exception:
-                return stats.get("visited_areas", 0) >= value
-        if t == "inst_clear":
-            return stats.get("inst_clears", 0) >= value
-        if t == "inst_id":
-            return bool(extra.get("inst_ids", set()) and cond.get("inst") in extra["inst_ids"])
-        if t == "inst_all8":
-            return len(extra.get("inst_ids", set()) or set()) >= 8
-        if t == "flawless":
-            return bool(extra.get("flawless"))
-        if t == "worldboss":
-            return bool(extra.get("worldboss"))
-        if t == "bestiary":
-            return len(db.get_bestiary("", player["qq_id"])) >= value
-        if t == "bestiary_all":
-            return len(db.get_bestiary("", player["qq_id"])) >= _monster_total()
-        if t == "party":
-            return stats.get("party_count", 0) >= value
-        if t == "guild":
-            return bool(db.guild_get_by_member(player["qq_id"]))
-        if t == "guild_lv":
-            g = db.guild_get_by_member(player["qq_id"])
-            return bool(g) and int(g.get("level", 0) or 0) >= value
-        if t in ("faction", "faction_top", "faction_rank1"):
-            return False  # 国战延迟（11 章）
-        if t == "world_event":
-            return stats.get("world_events", 0) >= value
-        if t == "event_all":
-            return False  # 世界事件全触发记录受限
-        if t == "fish_king":
-            return bool(extra.get("fish_king"))
-        if t == "collect_fish":
-            return extra.get("collect_fish") == cond.get("key")
-        if t == "wish_met":
-            return bool(extra.get("wish_met"))
-        if t == "hidden_class":
-            return cond.get("key") in (player or {}).get("hidden_class_unlock", [])
-        if t == "hidden_class_lv":
-            return (player or {}).get("class_name") == cond.get("key") and (player or {}).get("level", 0) >= cond.get("value", 0)
-        # v87 隐藏线成就新条件类型
-        if t == "quest_done":
-            # 已完成隐藏任务（quests.side 里曾存在过，或 extra 主动传入）
-            if extra.get("quest_done") == cond.get("key"):
-                return True
-            q = db.get_quests(group_id, qq_id)
-            qd = (q or {}).get("side", {})
-            return cond.get("key") not in qd  # 不在进行中 = 已交付（隐藏任务无 completed 表）
-        if t == "set_has":
-            # 套装收集：player 的装备 set 字段计数
-            eqs = (player or {}).get("equipment", {}) or {}
-            cnt = 0
-            for _slot, _eq in eqs.items():
-                if isinstance(_eq, dict) and _eq.get("set") == cond.get("key"):
-                    cnt += 1
-            return cnt >= cond.get("value", 4)
-        if t == "item_has":
-            return db.count_item(group_id, qq_id, cond.get("key")) > 0
-        if t == "hidden_monsters_all":
-            # 击败全部 6 种隐藏怪物（extra 传 defeated_hidden_monsters 集合）
-            hm = extra.get("defeated_hidden_monsters") or set()
-            from ..data.hidden_monsters import HIDDEN_MONSTERS
-            return len(hm & set(HIDDEN_MONSTERS.keys())) >= len(HIDDEN_MONSTERS)
-
-
-
-        if t == "main_done":
-            q = db.get_quests(player["qq_id"])
-            return bool(q and q.get("completed_main"))
-        if t == "flag":
-            flags = extra.get("flags") or {}
-            return bool(flags.get(cond.get("flag")))
-        if t == "goblin_trade":
-            return False  # 地精商人交易记录受限
-        if t == "skill_has":
-            learned = [C.display("skills", s) for s in (player.get("learned_skills", []) or []) if s]
-            return any(cond.get("keyword", "") in s for s in learned)
+        from .achievement_conds import COND_CHECKS
+        fn = COND_CHECKS.get(cond.get("type"))
+        if fn is None:
+            return False
+        return fn(player, stats, profs, extra, cond)
     except Exception:
         return False
-    return False
 
 
 def achievement_titles(qq_id) -> list:
