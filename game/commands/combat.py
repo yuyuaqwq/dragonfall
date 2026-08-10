@@ -1809,13 +1809,7 @@ class CombatCmds(CommandBase):
         except (ValueError, TypeError):
             return 0
 
-    # ---------------- v84 荣誉商店（26 章 3.3） ----------------
-    HONOR_SHOP = {
-        1: {"name": "荣誉勋章", "cost": 300, "desc": "PVP 强者称号(攻击＋10)，兑换后在『称号 装备 荣誉勋章』佩戴"},
-        2: {"name": "决斗者披风", "cost": 500, "desc": "外观装备(纯展示，穿上很帅)"},
-        3: {"name": "荣誉药剂", "cost": 100, "desc": "使用后恢复 50% 生命与魔力"},
-        4: {"name": "红名清除券", "cost": 800, "desc": "使用后立即消除红名状态"},
-    }
+    # ---------------- v84 荣誉商店（26 章 3.3；v99.4 数据化 → data/honor_shop.py） ----------------
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?荣誉(?:[\s\S]*)$")
     async def honor_shop(self, event: AstrMessageEvent):
@@ -1836,7 +1830,7 @@ class CombatCmds(CommandBase):
             return
         honor = self._get_honor(qq_id)
         lines = [f"⚜️ 【荣誉商店】(荣誉：{honor})", "━━━━━━━━━━━━"]
-        for i, item in self.HONOR_SHOP.items():
+        for i, item in C.HONOR_SHOP.items():
             lines.append(f"{i}. {item['name']} ｜ {item['cost']} 荣誉")
             lines.append(f"   {item['desc']}")
         lines.append("━━━━━━━━━━━━")
@@ -1846,8 +1840,8 @@ class CombatCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     async def _honor_buy(self, event, group_id, qq_id, player, num):
-        """荣誉兑换：扣荣誉给物品/标记"""
-        item = self.HONOR_SHOP.get(num)
+        """荣誉兑换：扣荣誉 → 按 reward 类型发放（v99.4 数据化 → data/honor_shop.py）"""
+        item = C.HONOR_SHOP.get(num)
         if not item:
             yield event.plain_result(f"没有第 {num} 件商品！『荣誉』查看商店～")
             return
@@ -1856,34 +1850,18 @@ class CombatCmds(CommandBase):
             yield event.plain_result(f"荣誉不足！兑换【{item['name']}】需要 {item['cost']} 荣誉，你只有 {honor}。")
             return
         db.set_event_state(f"honor_{qq_id}", str(honor - item["cost"]))
-        if num == 1:
-            db.set_event_state(f"honor_medal_{qq_id}", "1")
+        reward = item.get("reward") or {}
+        import uuid as _uuid
+        if reward.get("type") == "title":
+            db.set_event_state(f"honor_{reward['title_id']}_{qq_id}", "1")
             yield event.plain_result(
-                f"⚜️ 你兑换了【荣誉勋章】称号！(花费 {item['cost']} 荣誉)\n"
-                f"👑 『称号 装备 荣誉勋章』即可佩戴(攻击＋10)！")
-        elif num == 2:
-            import uuid as _uuid
-            db.add_item(group_id, qq_id, f"cape_{_uuid.uuid4().hex[:8]}", {
-                "name": "决斗者披风", "type": "外观", "stackable": False,
-                "price": 0, "desc": "荣誉商店出品的外观披风(纯展示)",
-            })
-            yield event.plain_result(f"⚜️ 你兑换了【决斗者披风】！(花费 {item['cost']} 荣誉)\n🦸 穿上它你就是全场最靓的仔～『背包』查看")
-        elif num == 3:
-            import uuid as _uuid
-            db.add_item(group_id, qq_id, f"pot_{_uuid.uuid4().hex[:8]}", {
-                "name": "荣誉药剂", "type": "消耗品", "stackable": True,
-                "price": 0, "heal": 0.5, "mana": 0.5,
-                "desc": "使用后恢复 50% 生命与魔力",
-            })
-            yield event.plain_result(f"⚜️ 你兑换了【荣誉药剂】！(花费 {item['cost']} 荣誉)\n💊 『使用 荣誉药剂』恢复 50% 血蓝")
-        elif num == 4:
-            import uuid as _uuid
-            db.add_item(group_id, qq_id, f"clearr_{_uuid.uuid4().hex[:8]}", {
-                "name": "红名清除券", "type": "消耗品", "stackable": True,
-                "price": 0, "effect": "clear_red",
-                "desc": "使用后立即消除红名状态",
-            })
-            yield event.plain_result(f"⚜️ 你兑换了【红名清除券】！(花费 {item['cost']} 荣誉)\n🎫 『使用 红名清除券』立即洗白～")
+                f"⚜️ 你兑换了【{reward['label']}】称号！(花费 {item['cost']} 荣誉)\n"
+                f"{reward.get('msg', '')}")
+        elif reward.get("type") == "item":
+            db.add_item(group_id, qq_id, f"{reward.get('item_prefix', 'h_')}{_uuid.uuid4().hex[:8]}", reward["item"])
+            yield event.plain_result(f"⚜️ 你兑换了【{item['name']}】！(花费 {item['cost']} 荣誉)\n{reward.get('msg', '')}")
+        else:
+            yield event.plain_result(f"⚜️ 兑换失败：商品没有配置 reward 类型！请找 GM 检查数据～")
 
     async def _pvp_start(self, event, group_id, qq_id, player, target_arg):
         """PVP 发起：『攻击 @目标』(安全区/等级保护/灰名/袭击CD)"""

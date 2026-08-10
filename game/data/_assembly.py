@@ -47,6 +47,7 @@ from .gather import CAMP_SPOTS, MINE_SPOTS  # noqa: F401
 from .events import EXPLORE_EVENTS, EVENT_WEIGHT_SUM  # noqa: F401
 from .titles import TITLES  # noqa: F401
 from .world import WORLD_EVENT_POOL, AUCTION_POOL, WORLD_BOSS_POOL  # noqa: F401
+from .honor_shop import HONOR_SHOP  # noqa: F401
 from .pets import PET_POOL  # noqa: F401
 from .mounts import MOUNT_POOL, MOUNT_BY_KEY, MOUNT_DROP_ELITE, MOUNT_DROP_BOSS  # noqa: F401
 from .alchemy import ALCHEMY_RECIPES  # noqa: F401

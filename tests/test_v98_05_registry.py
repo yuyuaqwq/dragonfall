@@ -221,6 +221,11 @@ b._affix_on_hit(player, 100, logs)
 random.random = _orig_random
 check("chance 恢复后非必触发（20% 不中）", "bleed" not in b.e_buffs)
 
+# ============ 3.6 荣誉商店数据化（v99.4） ============
+print("【3.6 荣誉商店数据化】")
+check("HONOR_SHOP 在数据层（C.HONOR_SHOP）", C.HONOR_SHOP.get(1, {}).get("name") == "荣誉勋章")
+check("4 件商品全部带 reward", all("reward" in v for v in C.HONOR_SHOP.values()))
+
 # ============ 4. 全覆盖：数据 key 全部有注册 ============
 print("【4. 数据覆盖检查】")
 import re
