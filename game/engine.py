@@ -215,6 +215,15 @@ def player_final_stats(class_name: str, level: int, equipment: dict, tier: int =
 
 # ---------------- 被动技能（v64） ----------------
 # 属性型被动：stat -> 修正属性；返回 dict 与 player_final_stats 相同键（max_hp/max_mp/atk/...）
+# 被动 stat → (bonus_key, 操作, 需 cond is None)
+# 不在表内的 stat：条件型(rage>=5/battle_start/dual_stat) 与战斗内机制(fire/chi_gain/proc 型) 由 battle.py 结算，面板不处理
+_PASSIVE_STAT_APPLY = {
+    "mp":   ("mp_mult", "mul", True),   # 原代码特判：mp 仅在无 cond 时结算
+    "spd":  ("spd_mult", "mul", False),
+    "crit": ("crit_add", "add", False),
+}
+
+
 def player_passive_stats(class_name: str, learned_skills: list | None = None) -> dict:
     """计算已学被动技能的属性加成（v64 被动系统）。
 
@@ -234,15 +243,17 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
         if not info or info.get("kind") != "被动":
             continue
         ps = info.get("passive") or {}
-        if ps.get("stat") == "mp" and ps.get("cond") is None:
-            bonus["mp_mult"] *= (1 + float(ps.get("mult", 0)))
-        elif ps.get("stat") == "spd":
-            bonus["spd_mult"] *= (1 + float(ps.get("mult", 0)))
-        elif ps.get("stat") == "crit":
-            bonus["crit_add"] += float(ps.get("mult", 0))
-        elif ps.get("stat") == "fire" or ps.get("stat") == "chi_gain":
-            pass  # 战斗内机制，不参与面板
-        # 条件型属性（rage>=5 / battle_start）由 battle.py 按条件结算
+        rule = _PASSIVE_STAT_APPLY.get(ps.get("stat"))
+        if rule is None:
+            continue  # 条件型/战斗内机制 stat 由 battle.py 结算（原 if-elif 无分支，行为一致）
+        key, op, need_cond_none = rule
+        if need_cond_none and ps.get("cond") is not None:
+            continue
+        mult = float(ps.get("mult", 0))
+        if op == "mul":
+            bonus[key] *= (1 + mult)
+        else:  # add（crit）
+            bonus[key] += mult
     return bonus
 
 
