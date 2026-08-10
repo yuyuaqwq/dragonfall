@@ -868,6 +868,108 @@ class Battle:
         for fn in TURN_START_EFFECTS.values():
             fn(self, player, logs)
 
+
+    def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
+        """治疗分支（v103.6 从 _player_skill 拆出）"""
+        # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
+        cond_mult = self._cond_mult(info, player, lv)
+        cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
+        heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+        # v64 被动·神恩：治疗技能效果 +10%
+        pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+        if "神恩" in pv:
+            heal = int(heal * 1.10)
+        # 阶段八：圣光套 2 件效果——治疗 +10%
+        if E.has_set(player.get("equipment", {}), "圣光套"):
+            heal = int(heal * 1.10)
+        # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
+        hr = self._race_bonus(player).get("heal_received", 0) or 0
+        if hr:
+            heal = max(1, int(heal * (1 + hr)))
+            if hr > 0:
+                logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
+            else:
+                logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
+        over = 0
+        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+        # v64 被动·庇护之光：治疗溢出 20% 转为护盾
+        if "庇护之光" in pv and player.get("hp", 0) >= player.get("max_hp", player["hp"]):
+            overflow = player.get("hp", 0) - (player.get("max_hp", player["hp"]) - player.get("hp", 0))
+            if overflow > 0:
+                shield_gain = int(overflow * 0.20)
+                self.shield = self.shield + shield_gain
+                logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
+        if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
+            over = heal - (player["hp"] - (player.get("max_hp", player["hp"]) - player.get("hp", 0)))
+            p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
+        logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
+        if mech == "bless":
+            logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层(下次『神圣之光』转化护盾)")
+        # v50 团队治疗：记录全队效果（副本广播）
+        if info.get("team"):
+            self.team_effects.append({"kind": "heal_all", "power": info["power"], "lv": lv, "matk": st["matk"]})
+            logs.append(f"🌟【团队】圣光笼罩全队，所有人恢复 {heal} 点生命！")
+        # v2.0 核心资源：治疗获取信仰（on_heal=2）
+        self._resource_on_skill(player, info)
+        return logs
+
+
+    def _skill_buff(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
+        """增益分支（v103.6 从 _player_skill 拆出）"""
+        eff = info.get("effect")
+        if eff:
+            if eff == "mon_atk_down":
+                # v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）
+                self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
+            elif eff == "element_shift":
+                # v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%
+                cur = self.resources.get("element", "fire")
+                nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
+                self.resources["element"] = nxt
+                self.p_buffs["matk_up"] = E.skill_buff_turns(lv)
+                self._shifted_element = nxt
+            else:
+                self.p_buffs[eff] = E.skill_buff_turns(lv)
+        # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
+        cond_mult = self._cond_mult(info, player, lv)
+        cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
+        # v29：effect 型机制（引爆/转化类增益技能）
+        if eff == "burn_burst":
+            n = p_mech.get("burn", 0)
+            st2 = self._player_stats(player)
+            if st2 and n:
+                d = int(st2["matk"] * 0.30 * n * cond_mult)
+                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - d)
+                logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
+            p_mech["burn"] = 0
+        elif eff == "rage_burst":
+            n = p_mech.get("rage", 0)
+            if n:
+                self.p_buffs["atk_up_strong"] = E.skill_buff_turns(1)
+                logs.append(f"🔥 狂战之魂！{n} 层狂暴 → 攻击大幅提升")
+            p_mech["rage"] = 0
+        elif eff == "bless_shield":
+            n = p_mech.get("bless", 0)
+            st2 = self._player_stats(player)
+            if st2 and n:
+                shield = int(st2["matk"] * 0.08 * n)
+                self.shield = self.shield + shield
+                logs.append(f"✨ 神恩护盾！{n} 层转化为 {shield} 点护盾")
+            p_mech["bless"] = 0
+        self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
+        logs.append(f"你施展【{skill_name}】！")
+        if eff == "element_shift" and getattr(self, "_shifted_element", None):
+            logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害＋20%)")
+            self._shifted_element = None
+        # v50 团队增益：记录全队效果（副本广播）
+        team = info.get("team")
+        if team:
+            st2 = self._player_stats(player)
+            self.team_effects.append({"kind": team, "effect": eff, "lv": lv, "stats": st2})
+            logs.append(f"🌟【团队】{info.get('name', skill_name)} 笼罩全队！")
+        # v2.0 核心资源：增益技能获取（如战吼怒气+3）
+        self._resource_on_skill(player, info)
+        return logs
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
@@ -879,103 +981,9 @@ class Battle:
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
         p_mech = self.mech_stacks
         if kind == "治疗":
-            # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
-            cond_mult = self._cond_mult(info, player, lv)
-            cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
-            heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
-            # v64 被动·神恩：治疗技能效果 +10%
-            pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
-            if "神恩" in pv:
-                heal = int(heal * 1.10)
-            # 阶段八：圣光套 2 件效果——治疗 +10%
-            if E.has_set(player.get("equipment", {}), "圣光套"):
-                heal = int(heal * 1.10)
-            # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
-            hr = self._race_bonus(player).get("heal_received", 0) or 0
-            if hr:
-                heal = max(1, int(heal * (1 + hr)))
-                if hr > 0:
-                    logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
-                else:
-                    logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
-            over = 0
-            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-            # v64 被动·庇护之光：治疗溢出 20% 转为护盾
-            if "庇护之光" in pv and player.get("hp", 0) >= player.get("max_hp", player["hp"]):
-                overflow = player.get("hp", 0) - (player.get("max_hp", player["hp"]) - player.get("hp", 0))
-                if overflow > 0:
-                    shield_gain = int(overflow * 0.20)
-                    self.shield = self.shield + shield_gain
-                    logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
-            if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
-                over = heal - (player["hp"] - (player.get("max_hp", player["hp"]) - player.get("hp", 0)))
-                p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
-            logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
-            if mech == "bless":
-                logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层(下次『神圣之光』转化护盾)")
-            # v50 团队治疗：记录全队效果（副本广播）
-            if info.get("team"):
-                self.team_effects.append({"kind": "heal_all", "power": info["power"], "lv": lv, "matk": st["matk"]})
-                logs.append(f"🌟【团队】圣光笼罩全队，所有人恢复 {heal} 点生命！")
-            # v2.0 核心资源：治疗获取信仰（on_heal=2）
-            self._resource_on_skill(player, info)
-            return logs
+            return self._skill_heal(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
         if kind == "增益":
-            eff = info.get("effect")
-            if eff:
-                if eff == "mon_atk_down":
-                    # v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）
-                    self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
-                elif eff == "element_shift":
-                    # v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%
-                    cur = self.resources.get("element", "fire")
-                    nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
-                    self.resources["element"] = nxt
-                    self.p_buffs["matk_up"] = E.skill_buff_turns(lv)
-                    self._shifted_element = nxt
-                else:
-                    self.p_buffs[eff] = E.skill_buff_turns(lv)
-            # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
-            cond_mult = self._cond_mult(info, player, lv)
-            cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
-            # v29：effect 型机制（引爆/转化类增益技能）
-            if eff == "burn_burst":
-                n = p_mech.get("burn", 0)
-                st2 = self._player_stats(player)
-                if st2 and n:
-                    d = int(st2["matk"] * 0.30 * n * cond_mult)
-                    self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - d)
-                    logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
-                p_mech["burn"] = 0
-            elif eff == "rage_burst":
-                n = p_mech.get("rage", 0)
-                if n:
-                    self.p_buffs["atk_up_strong"] = E.skill_buff_turns(1)
-                    logs.append(f"🔥 狂战之魂！{n} 层狂暴 → 攻击大幅提升")
-                p_mech["rage"] = 0
-            elif eff == "bless_shield":
-                n = p_mech.get("bless", 0)
-                st2 = self._player_stats(player)
-                if st2 and n:
-                    shield = int(st2["matk"] * 0.08 * n)
-                    self.shield = self.shield + shield
-                    logs.append(f"✨ 神恩护盾！{n} 层转化为 {shield} 点护盾")
-                p_mech["bless"] = 0
-            self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
-            logs.append(f"你施展【{skill_name}】！")
-            if eff == "element_shift" and getattr(self, "_shifted_element", None):
-                logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害＋20%)")
-                self._shifted_element = None
-            # v50 团队增益：记录全队效果（副本广播）
-            team = info.get("team")
-            if team:
-                st2 = self._player_stats(player)
-                self.team_effects.append({"kind": team, "effect": eff, "lv": lv, "stats": st2})
-                logs.append(f"🌟【团队】{info.get('name', skill_name)} 笼罩全队！")
-            # v2.0 核心资源：增益技能获取（如战吼怒气+3）
-            self._resource_on_skill(player, info)
-            return logs
-
+            return self._skill_buff(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
         if kind == "嘲讽":
             # v51 挑衅怒吼：嘲讽（单人=敌方降攻+叠狂暴；副本=instance 层拉仇恨）
             self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
