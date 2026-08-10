@@ -362,9 +362,9 @@ class CommandBase:
         parts = []
         for k, v in src["stats"].items():
             name = E.STAT_NAMES.get(k, k)
-            if k in ("crit", "dodge"):
+            if k in C.PCT_STATS:
                 sign = "+" if v >= 0 else ""
-                pct = "+" if src.get("pct") and k not in ("crit", "dodge") else ""
+                pct = "+" if src.get("pct") and k not in C.PCT_STATS else ""
                 parts.append(f"{name}{pct}{sign}{int(v*100)}%")
             else:
                 sign = "+" if v >= 0 else ""

@@ -52,7 +52,7 @@ def _render_equip(d, lines, equipped):
     for k, v in st.items():
         if v:
             label = stat_names.get(k, k)
-            stat_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+            stat_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
     if stat_lines:
         lines.append("属性：" + "  ".join(stat_lines))
     # 阶段八：特效词条 v2（ID 列表 → 名称+描述）+ 传说专属
@@ -61,7 +61,7 @@ def _render_equip(d, lines, equipped):
         if isinstance(af, dict):  # 旧结构兼容
             k, v = af.get("stat"), af.get("value", 0)
             label = stat_names.get(k, k)
-            aff_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+            aff_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
             continue
         info = C.AFFIXES.get(af)
         if info:
@@ -89,7 +89,7 @@ def _render_equip(d, lines, equipped):
         else:
             k, v = en.get("stat"), en.get("value", 0)
             label = stat_names.get(k, k)
-            ench_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+            ench_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
     if ench_lines:
         lines.append("🔮 符文： " + "  ".join(ench_lines))
     # v10：套装归属
@@ -1696,7 +1696,7 @@ class EconomyCmds(CommandBase):
         db.remove_item(group_id, qq_id, target["key"])
         db.add_item(group_id, qq_id, target["key"], d, 1)
         sn = {"atk": "攻击", "matk": "魔攻", "def": "防御", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击"}
-        val_str = f"+{int(v * 100)}%" if stat_key in ("crit", "dodge") else f"+{v}"
+        val_str = f"+{int(v * 100)}%" if stat_key in C.PCT_STATS else f"+{v}"
         big_str = "🌟 大成功！" if big else ""
         # 阶段九：附魔次数 + 成就判定
         db.bump_stats(group_id, qq_id, enchant_count=1)
@@ -2247,7 +2247,7 @@ class EconomyCmds(CommandBase):
             for k, label in keys:
                 diff = st[k] - old_stats[k]
                 if abs(diff) >= 1e-9:
-                    if k in ("crit", "dodge"):
+                    if k in C.PCT_STATS:
                         diff_parts.append(f"{label} {'+' if diff > 0 else ''}{int(diff*100)}%")
                     else:
                         diff_parts.append(f"{label} {'+' if diff > 0 else ''}{diff}")
@@ -2306,7 +2306,7 @@ class EconomyCmds(CommandBase):
         for k, label in keys:
             diff = st[k] - old_stats[k]
             if abs(diff) >= 1e-9:
-                if k in ("crit", "dodge"):
+                if k in C.PCT_STATS:
                     diff_parts.append(f"{label} {'+' if diff > 0 else ''}{int(diff*100)}%")
                 else:
                     diff_parts.append(f"{label} {'+' if diff > 0 else ''}{diff}")

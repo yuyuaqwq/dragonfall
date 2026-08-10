@@ -105,7 +105,7 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
     prefix_flavor = EQUIP_PREFIX_FLAVOR.get(flavor_prefix, {})
     if prefix_flavor:
         for fk, fv in prefix_flavor.items():
-            if fk in ("crit", "dodge"):
+            if fk in C.PCT_STATS:
                 stats[fk] = round(stats.get(fk, 0) + fv, 3)
             else:
                 stats[fk] = max(0, stats.get(fk, 0) + int(fv))
@@ -132,7 +132,7 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
     # 阶段八：特效词条 v2（随机池 + 常驻属性折算）
     affix_ids = roll_affixes(slot, lv, quality)
     for k, v in stat_affix_stats(affix_ids, slot, lv).items():
-        if k in ("crit", "dodge"):
+        if k in C.PCT_STATS:
             stats[k] = round(stats.get(k, 0) + v, 4)
         else:
             stats[k] = stats.get(k, 0) + int(v)
@@ -210,7 +210,7 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
     rnd = random.sample(pool, min(random_n, len(pool))) if pool and random_n else []
     affix_ids = fixed + rnd
     for k, v in stat_affix_stats(affix_ids, slot, lv).items():
-        if k in ("crit", "dodge"):
+        if k in C.PCT_STATS:
             stats[k] = round(stats.get(k, 0) + v, 4)
         else:
             stats[k] = stats.get(k, 0) + int(v)

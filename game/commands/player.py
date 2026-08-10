@@ -321,7 +321,7 @@ class PlayerCmds(CommandBase):
         for icon, skey, fkey, cname, prefix in stat_rows:
             final = st[fkey]
             bonus = final - base.get(skey, 0)
-            if skey in ("crit", "dodge"):
+            if skey in C.PCT_STATS:
                 lines.append(f"{icon} {cname} {prefix}{int(final*100)}%(+{int(bonus*100)}%)")
             else:
                 lines.append(f"{icon} {cname} {prefix}{final}(+{int(bonus)})")
@@ -598,7 +598,7 @@ class PlayerCmds(CommandBase):
         for icon, skey, fkey, cname in stat_rows:
             final = st[fkey]
             bonus = final - base.get(skey, 0)
-            if skey in ("crit", "dodge"):
+            if skey in C.PCT_STATS:
                 lines.append(f"{icon} {cname} {int(final*100)}%(+{int(bonus*100)}%)")
             else:
                 lines.append(f"{icon} {cname} {final}(+{int(bonus)})")

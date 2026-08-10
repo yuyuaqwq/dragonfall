@@ -134,7 +134,7 @@ async def main():
     check("独立满级：毒雾上限5", E.skill_max_level(xz) == 5, str(E.skill_max_level(xz)))
     xr = _info("淬毒")
     check("淬毒毒层 Lv.5=4层", E.skill_mech_val(xr, 5) == 4, str(E.skill_mech_val(xr, 5)))
-    check("SKILL_UP 覆盖全部技能", len(E.SKILL_UP) >= 50, f"{len(E.SKILL_UP)} 个")
+    check("SKILL_UP 覆盖全部技能", len(E.C.SKILL_UP) >= 50, f"{len(E.C.SKILL_UP)} 个")
     # 3) 升级命令输出多维描述（伤害+叠层都能看到，不再只报一个倍率）
     db.update_player("g1", "k1", skill_points=50)
     out = await cmd(m, "skill_upgrade", "g1", "k1", "技能升级 挥砍")

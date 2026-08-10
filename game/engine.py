@@ -306,7 +306,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         if src["name"] in ("基础", "自由属性点"):
             continue
         for k, v in src["stats"].items():
-            if k in ("crit", "dodge"):
+            if k in C.PCT_STATS:
                 st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
             elif k == "hp":
                 st["max_hp"] += v
@@ -319,7 +319,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     if sb2:
         src2 = {}
         for k, v in sb2.items():
-            if k in ("crit", "dodge"):
+            if k in C.PCT_STATS:
                 src2[k] = v
                 st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
             elif k == "hp":
@@ -353,7 +353,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         tb = {k: v for k, v in title_bonus.items() if k in STAT_NAMES and v}
         if tb:
             for k, v in tb.items():
-                if k in ("crit", "dodge"):
+                if k in C.PCT_STATS:
                     st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
                 elif k == "hp":
                     st["max_hp"] += int(v)
@@ -419,7 +419,7 @@ def set_bonus_2(equipment: dict) -> dict:
         if cnt >= 5:
             for k, v in info.get("bonus_5", {}).items():
                 # 5 件 stat 型效果（crit/dodge 直接是属性）；desc 型（战斗特效）不在这里结算
-                if k in ("crit", "dodge"):
+                if k in C.PCT_STATS:
                     bonus[k] = bonus.get(k, 0) + v
     return bonus
 

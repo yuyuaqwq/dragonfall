@@ -22,6 +22,8 @@ from .constants import (  # noqa: F401
     ITEM_TYPE_PET_EGG, ITEM_TYPE_MOUNT,
     # v102.3 职业 ID 常量
     CLASS_NOVICE,
+    # v102.6 属性集合常量
+    PCT_STATS,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

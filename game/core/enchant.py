@@ -2,6 +2,7 @@
 
 from .stats import equip_stats
 from .affix import _affix_base_value
+from .constants import PCT_STATS  # v102.6 百分比显示属性
 from ..data import ENCHANT_MAX_VALUE, ENCHANT_RECIPES
 
 
@@ -11,7 +12,7 @@ def enchant_value(slot: str, lv: int, stat: str, big: bool = False) -> int | flo
     rec = ENCHANT_RECIPES.get(stat)
     if not rec:
         return 0
-    if stat in ("crit", "dodge"):
+    if stat in PCT_STATS:
         v = rec["ratio"]
     else:
         base = equip_stats(slot, lv, "white").get(stat, 0)
@@ -20,7 +21,7 @@ def enchant_value(slot: str, lv: int, stat: str, big: bool = False) -> int | flo
         v = max(1, int(base * rec["ratio"]))
     if big:
         v = v * 1.5
-        if stat in ("crit", "dodge"):
+        if stat in PCT_STATS:
             v = round(v, 3)
     if stat in ENCHANT_MAX_VALUE:
         v = min(v, ENCHANT_MAX_VALUE[stat])
