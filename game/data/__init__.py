@@ -74,6 +74,10 @@ from .housing import PROPERTIES, HOUSE_LEVELS, HOUSE_MAX_LEVEL, HOUSE_REFUND  # 
 from .races import RACES  # noqa: F401
 from .achievements import ACHIEVEMENTS  # noqa: F401
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401
+from .gather_pools import GATHER_MAP_POOLS  # noqa: F401
+from .prof_config import (  # noqa: F401
+    PROF_TUTORS, PROF_WAIT_BASE, DAILY_PROF_TASKS, BAG_FILTER_TYPES,
+)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)

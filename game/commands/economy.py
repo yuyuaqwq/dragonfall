@@ -26,19 +26,7 @@ from ..commands.base import CommandBase
 class EconomyCmds(CommandBase):
     """背包/装备/锻造/强化/商店/采集/垂钓/炼金"""
 
-    BAG_FILTER_TYPES = ["装备", "材料", "消耗品", "符文", "宠物蛋", "坐骑", "图纸", "鱼"]
 
-    # v95.22 副业导师映射：副业 key → (导师名, 所在城)。副业必须先找导师拜师（对话 unlock_prof）才解锁
-    PROF_TUTORS = {
-        "gather": ("草药师·艾琳", "橡木镇"),
-        "mining": ("矿工长·巴尔金", "铁港城"),
-        "fishing": ("老渔夫·马库斯", "铁港城"),
-        "cooking": ("大厨·罗莎", "白鹿城"),
-        "alchemy": ("炼金术士·梅尔文", "晨曦城"),
-        "craft": ("铁匠大师·奥格", "铁港城"),
-        "enhance": ("强化师·克拉拉", "白鹿城"),
-        "enchant": ("符文大师·吉姆利", "铁砧要塞"),
-    }
 
     def _nearest_town(self, cur_map: str) -> str:
         """BFS 找离当前地图最近的城镇（回城卷轴用）。cur_map 本身是城镇则原地。"""
@@ -63,90 +51,11 @@ class EconomyCmds(CommandBase):
 
     # 采集物地图绑定池（19 章 §2.1：特定地图只有特定采集物；#154 修复 2026-08-10）
     # 格式：地图ID → [(材料ID, 权重), ...]；未配置的地图回退下方价格区间逻辑
-    _GATHER_MAP_POOLS = {
-        # ---- v95.23 首批 7 池（19 章 §2.1） ----
-        "oak_plain": [("mat_cao_yao", 30), ("mat_jiang_guo", 20), ("mat_yue_guang_cao", 15),
-                      ("mat_shi_lai_mu_nian_ye", 15), ("mat_tu_mao", 10), ("mat_tu_pi", 10)],
-        "white_deer_forest": [("mat_cao_yao", 25), ("mat_jiang_guo", 15), ("mat_yue_guang_cao", 15),
-                              ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15), ("mat_lang_pi", 10)],
-        "emerald_forest": [("mat_cao_yao", 25), ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15),
-                           ("mat_yue_guang_cao", 10), ("mat_zhao_ze_hua", 15), ("mat_lang_pi", 15)],
-        "misty_swamp": [("mat_zhao_ze_hua", 30), ("mat_cao_yao", 20), ("mat_yue_guang_cao", 10),
-                        ("mat_shi_lai_mu_nian_ye", 15), ("mat_lin_yu_zhi_ye", 15), ("mat_gu_mu_zhi", 10)],
-        "silverwood": [("mat_yue_guang_cao", 40), ("mat_cao_yao", 15), ("mat_jiang_guo", 10),
-                       ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15)],
-        "permafrost_field": [("mat_bing_jing", 40), ("mat_cao_yao", 10), ("mat_yue_guang_cao", 5),
-                             ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 25)],
-        "redridge_plateau": [("mat_long_xue_cao", 15), ("mat_cao_yao", 15), ("mat_yue_guang_cao", 10),
-                             ("mat_lin_yu_zhi_ye", 30), ("mat_gu_mu_zhi", 30)],
-        # ---- v97.2 全野外地图专属池（2026-08-10）：9 大区域 61 图，材料按区域主题 + 稀有低权重 ----
-        "abyss_altar": [("mat_shen_yuan_e_mo_jiao", 25), ("mat_di_di_e_mo_jiao", 20), ("mat_hei_yuan_zhi_yan", 15), ("mat_shen_yuan_quan_ya", 15), ("mat_mo_yan_zhi_he", 15), ("mat_hui_jin_zhi_he", 2)],
-        "ancient_battlefield": [("mat_zhan_hun_zhi_chen", 25), ("mat_gu_wang_sui_pian", 20), ("mat_jun_qi_sui_pian", 20), ("mat_xiu_jian_sui_pian", 15), ("mat_gu_long_can_hai", 20)],
-        "ancient_tree": [("mat_shou_wei_gu_mu", 30), ("mat_ling_zhu_gu_mu_xin", 20), ("mat_gu_shu_zhi_xin", 20), ("mat_lin_yu_zhi_ye", 15), ("mat_gu_mu_zhi", 15)],
-        "black_forest": [("mat_fu_ya_shou_ya", 25), ("mat_zhi_zhu_si", 20), ("mat_bian_fu_yi", 15), ("mat_fu_rou", 20), ("mat_ying_guang_fen", 20)],
-        "black_tide_strait": [("mat_hei_yao_sui_pian", 25), ("mat_shen_yuan_zhen_zhu", 20), ("mat_hai_she_lin", 20), ("mat_zhang_yu_mo_nang", 15), ("mat_shen_hai_shui_jing", 5)],
-        "boar_ridge": [("mat_ye_zhu_ya", 30), ("mat_ju_xing_ye_zhu_ya", 10), ("mat_shou_rou", 25), ("mat_cao_yao", 15), ("mat_jiang_guo", 20)],
-        "bone_wild": [("mat_gu_long_can_hai", 30), ("mat_hai_wang_long_gu", 20), ("mat_gu_mo_xiang_he", 15), ("mat_gu_jiu_yu", 15), ("mat_sui_gu", 20)],
-        "border_castle": [("mat_shou_ren_fu_ren", 25), ("mat_shou_rou", 20), ("mat_tie_kuang_shi", 20), ("mat_sui_gu", 20), ("mat_tie_ya_lang_pi", 15)],
-        "cinder_mountain": [("mat_jin_he", 25), ("mat_ember_ash", 20), ("mat_huo_fu_yi", 15), ("mat_rong_yan_he_xin", 20), ("mat_e_mo_zhan_ren", 20)],
-        "cloud_sea": [("mat_yun_xu", 25), ("mat_yun_mian", 20), ("mat_tian_ying_yu", 20), ("mat_cai_hong_lu", 15), ("mat_feng_zhi_yu", 20)],
-        "cold_spine_snow_trail": [("mat_meng_ma_mao", 30), ("mat_bing_jing", 20), ("mat_xue_tu_pi", 20), ("mat_bing_xiong_pi", 15), ("mat_bing_yuan_su_he_xin", 15)],
-        "coral_reef": [("mat_shan_hu_zhi", 25), ("mat_xie_ke", 20), ("mat_zhen_zhu_bei", 20), ("mat_hai_xing_pian", 15), ("mat_hong_ji_shan_hu", 20)],
-        "dawn_cathedral": [("mat_sheng_guang_bai_he", 30), ("mat_sheng_shui", 25), ("mat_sheng_guang_jie_jing", 20), ("mat_yu_mao", 15), ("mat_yue_guang_cao", 10)],
-        "deep_lake": [("mat_mang_yu_lin", 25), ("mat_hu_ling_lei", 20), ("mat_shui_zhi_wang_ya", 20), ("mat_hu_zhen_zhu", 20), ("mat_shen_mi_lin_pian", 15)],
-        "dragon_ridge": [("mat_shi_long_lin", 25), ("mat_yan_long_lin", 20), ("mat_long_lin_sui_pian", 20), ("mat_gu_long_lin", 15), ("mat_long_xue_cao", 15), ("mat_long_zai_zhao", 10)],
-        "dragon_ridge_old_road": [("mat_long_lin_sui_pian", 25), ("mat_shi_long_lin", 20), ("mat_gu_long_lin", 15), ("mat_long_zai_zhao", 20), ("mat_long_xue_cao", 5)],
-        "dragon_roost": [("mat_cheng_nian_long_lin", 25), ("mat_gu_long_lin", 25), ("mat_long_zai_zhao", 15), ("mat_hai_wang_long_gu", 20), ("mat_long_xue_cao", 15)],
-        "dragonborn_valley_trail": [("mat_long_yi_can_hun", 25), ("mat_long_lin_sui_pian", 20), ("mat_yan_long_lin", 20), ("mat_long_zai_zhao", 15), ("mat_long_xue_cao", 10)],
-        "dragonsfall_valley": [("mat_long_hun_sui_pian", 25), ("mat_gu_long_lin", 20), ("mat_mu_ying_long_hun", 15), ("mat_hai_wang_long_gu", 20), ("mat_long_xue_cao", 20)],
-        "dusk_ridge_road": [("mat_you_hun_chen", 30), ("mat_bian_fu_yi", 25), ("mat_hei_yao_sui_pian", 20), ("mat_sui_gu", 15), ("mat_fu_rou", 10)],
-        "dwarf_long_gallery": [("mat_mi_yin", 25), ("mat_tie_kuang_shi", 20), ("mat_fu_wen_shi", 20), ("mat_yuan_gu_fu_wen_shi", 15), ("mat_jing_tie", 20)],
-        "emerald_valley": [("mat_jing_ling_guo", 25), ("mat_cui_lu_jiao", 20), ("mat_jing_ling_lu_jiao", 15), ("mat_lin_yu_zhi_ye", 25), ("mat_cao_yao", 15)],
-        "forge_valley": [("mat_rong_yan_he_xin", 25), ("mat_huo_xi_yi_lin", 20), ("mat_jin_he", 15), ("mat_rong_yan_ru_chong_pi", 20), ("mat_tie_kuang_shi", 20)],
-        "frost_fang": [("mat_shuang_ya_long_lin", 25), ("mat_bing_jing", 25), ("mat_jian_chi_hu_ya", 20), ("mat_xue_lang_pi", 15), ("mat_bing_lang_ya", 15)],
-        "frost_field": [("mat_bing_jing", 30), ("mat_xue_lang_pi", 25), ("mat_xue_tu_pi", 20), ("mat_bing_lang_ya", 15), ("mat_meng_ma_mao", 10)],
-        "frostwhisper_canyon": [("mat_shuang_ju_mo_xue", 25), ("mat_shuang_ju_mo_wang_jiao", 20), ("mat_shuang_ya_long_lin", 20), ("mat_bing_jing", 20), ("mat_bing_lang_ya", 15)],
-        "fungus_forest": [("mat_bao_zi_nang", 25), ("mat_zhen_jun_rou", 25), ("mat_fu_guan_jun", 20), ("mat_ying_guang_fen", 15), ("mat_zhi_zhu_si", 15)],
-        "gold_plain": [("mat_shou_rou", 25), ("mat_niu_jiao", 20), ("mat_cao_yao", 20), ("mat_jiang_guo", 15), ("mat_cao_yuan_lang_pi", 20)],
-        "harbor_docks": [("mat_hai_yan_jie_jing", 30), ("mat_hai_ou_yu_mao", 20), ("mat_xie_ke", 15), ("mat_wu_zei_wan_zu", 15), ("mat_hai_zao", 20)],
-        "hill_mine": [("mat_tie_kuang_shi", 35), ("mat_kuang_shi_sui_pian", 20), ("mat_shui_jing", 15), ("mat_shi_cai", 15), ("mat_mi_yin", 15)],
-        "ironshield_hills": [("mat_tie_kuang_shi", 25), ("mat_qiu_ling_lang_pi", 25), ("mat_shi_cai", 20), ("mat_tie_ya_lang_pi", 15), ("mat_shan_yang_jiao", 15)],
-        "king_road": [("mat_you_ling_zhi_chen", 30), ("mat_sui_gu", 20), ("mat_gu_dai_wen_xian", 20), ("mat_sheng_dian_tie_kuai", 15), ("mat_fu_rou", 15)],
-        "knight_yard": [("mat_sheng_guang_jie_jing", 25), ("mat_tie_kuang_shi", 20), ("mat_sheng_shui", 20), ("mat_sheng_dian_tie_kuai", 15), ("mat_fu_wen_shi", 20)],
-        "lava_bed": [("mat_yan_jiang_ru_chong_pi", 25), ("mat_rong_yan_he_xin", 20), ("mat_rong_yan_ling_zhu_he", 20), ("mat_hei_yao_sui_pian", 15), ("mat_jin_he", 20)],
-        "mermaid_bay": [("mat_hai_yao_lin", 25), ("mat_jiao_ren_lin", 20), ("mat_hai_yao_zhi_yu", 15), ("mat_zhen_zhu_bei", 20), ("mat_jiao_ren_lei", 5), ("mat_shen_hai_shui_jing", 5)],
-        "mist_tide_passage": [("mat_wu_guan_jing", 25), ("mat_hai_yan_jie_jing", 20), ("mat_shui_mu_ning_jiao", 20), ("mat_hai_zao", 20), ("mat_hai_she_lin", 15)],
-        "mist_trench": [("mat_yuan_ying_zhi_lin", 25), ("mat_mang_yu_lin", 20), ("mat_shui_mu_ning_jiao", 20), ("mat_zhang_yu_mo_nang", 15), ("mat_shen_yuan_zhen_zhu", 20)],
-        "molten_abyss": [("mat_rong_yan_he_xin", 25), ("mat_di_di_e_mo_jiao", 20), ("mat_xiao_e_mo_jiao", 20), ("mat_huo_fu_yi", 20), ("mat_rong_yan_ru_chong_pi", 15)],
-        "moon_glade": [("mat_yue_guang_jing_hua", 25), ("mat_yue_lu_jiao", 20), ("mat_yue_lang_mao_pi", 20), ("mat_yin_hui_yue_shi", 15), ("mat_yue_guang_cao", 20)],
-        "moonshadow_wood": [("mat_yue_ying_zhi_zhao", 25), ("mat_ying_bao_pi", 25), ("mat_yue_xiong_pi", 20), ("mat_an_ying_jing_hua", 15), ("mat_ying_guang_fen", 15)],
-        "old_battlefield": [("mat_xiu_jian_sui_pian", 25), ("mat_jun_qi_sui_pian", 20), ("mat_sui_gu", 20), ("mat_sheng_dian_tie_kuai", 15), ("mat_zhan_hun_zhi_chen", 20)],
-        "rainbow_cloud": [("mat_cai_hong_lu_zhu", 25), ("mat_cai_hong_lin", 20), ("mat_cai_hong_lu", 20), ("mat_xia_guang_long_lin", 20), ("mat_tian_ying_yu", 15)],
-        "rockfall_gorge": [("mat_shi_cai", 30), ("mat_yan_xi_lin", 25), ("mat_cao_yao", 15), ("mat_tie_kuang_shi", 15), ("mat_jiang_guo", 15)],
-        "shipwreck_graveyard": [("mat_you_ling_chuan_piao", 25), ("mat_chen_mu", 20), ("mat_you_ling_fan_bu", 20), ("mat_lang_mu_jiu", 15), ("mat_you_ling_zhi_chen", 20)],
-        "silver_river": [("mat_yin_lin_yu", 25), ("mat_he_long_lin", 20), ("mat_gu_di_lu_shui", 20), ("mat_shui_jing_ling_lin", 15), ("mat_zhen_zhu_bei", 20)],
-        "silver_valley": [("mat_yin_lin_yu", 25), ("mat_gu_di_lu_shui", 25), ("mat_cao_yao", 20), ("mat_xi_xi_lin", 15), ("mat_jiang_guo", 15)],
-        "silver_wind_road": [("mat_cao_yao", 25), ("mat_jiang_guo", 20), ("mat_lin_yu_zhi_ye", 20), ("mat_tu_mao", 15), ("mat_gu_mu_zhi", 20)],
-        "sky_ladder_path": [("mat_yun_mian", 25), ("mat_tian_ying_yu", 20), ("mat_yun_xu", 20), ("mat_feng_zhi_yu", 20), ("mat_yun_xiong_mao", 15)],
-        "starlake": [("mat_hu_zhen_zhu", 25), ("mat_shui_jing_ling_lin", 20), ("mat_hu_ling_lei", 15), ("mat_star_remnant", 20), ("mat_shen_mi_lin_pian", 20)],
-        "starlight_terrace": [("mat_xing_hui_chen", 25), ("mat_xing_hui_shi", 20), ("mat_xing_lang_pi", 15), ("mat_yue_guang_shi", 15), ("mat_star_hourglass", 3)],
-        "storm_cliff": [("mat_feng_bao_ying_yu", 25), ("mat_feng_long_yu", 20), ("mat_lei_niao_yu", 20), ("mat_feng_bao_he_xin", 15), ("mat_lei_ming_zhi_yi", 20)],
-        "storm_plateau": [("mat_lei_jing", 25), ("mat_lei_niao_yu", 20), ("mat_lei_xi_pi", 20), ("mat_lei_man_pi", 15), ("mat_lei_ting_zhi_xin", 5), ("mat_lei_he", 3)],
-        "storm_sea": [("mat_feng_bao_zhi_ling_chen", 25), ("mat_feng_bao_bei", 20), ("mat_feng_bao_he_xin", 20), ("mat_lei_man_pi", 15), ("mat_shen_hai_shui_jing", 20)],
-        "storm_strait": [("mat_feng_bao_bei", 25), ("mat_lei_man_pi", 20), ("mat_feng_bao_ying_yu", 20), ("mat_hai_she_lin", 15), ("mat_lei_jing_sha", 20)],
-        "sunset_isle": [("mat_dao_zhu_ya", 20), ("mat_ying_wu_yu", 25), ("mat_xie_ke", 20), ("mat_zhen_zhu_bei", 20), ("mat_hong_ji_shan_hu", 15)],
-        "west_ridge_wilds": [("mat_qiu_ling_lang_pi", 25), ("mat_tu_jiu_yu", 20), ("mat_sui_gu", 20), ("mat_fu_rou", 15), ("mat_tie_ya_lang_pi", 20)],
-        "whale_domain": [("mat_long_jing_zhi", 25), ("mat_tao_sheng_jing_jiao", 20), ("mat_hai_ju_ren_lin", 20), ("mat_jing_xu_cao", 20), ("mat_shen_hai_shui_jing", 10)],
-        "white_abbey": [("mat_sheng_shui", 25), ("mat_sheng_guang_bai_he", 25), ("mat_sheng_guang_jie_jing", 20), ("mat_mi_yin", 15), ("mat_fu_wen_shi", 15)],
-        "windmill_plain": [("mat_mian_fen", 25), ("mat_cao_yao", 20), ("mat_jiang_guo", 20), ("mat_feng_zhen", 15), ("mat_tu_mao", 10), ("mat_lin_yu_zhi_ye", 10)],
-        "windvale": [("mat_feng_yu_jie_jing", 25), ("mat_feng_yu_lu_jiao", 20), ("mat_feng_zhi_yu", 20), ("mat_ying_guang_hu_wei", 15), ("mat_lin_yu_zhi_ye", 20)],
-        "winter_lake": [("mat_hu_bing_he_xin", 25), ("mat_bing_jing", 20), ("mat_bing_she_lin", 20), ("mat_dong_yu_lin", 15), ("mat_bing_tong_zhi_zhu", 20)],
-    }
 
     def _gather_roll(self, level: int, prof_lv: int = 1, cur_map: str = "") -> list:
         """按等级采集材料：地图绑定池优先（19 章 §2.1）；未配置地图按地图等级价格区间兜底；副业等级提高产出数量与稀有度"""
         import random as _rnd
-        pool = self._GATHER_MAP_POOLS.get(cur_map or "")
+        pool = C.GATHER_MAP_POOLS.get(cur_map or "")
         if pool:
             mats = [m for m, _w in pool for _ in range(_w)]
             cand = mats
@@ -171,11 +80,6 @@ class EconomyCmds(CommandBase):
 
     # ---------------- 等待型副业（v55：垂钓/采集/挖掘） ----------------
     # 基准等待（秒）随机范围：fish/gather 45~75，mining 65~115；副业等级每级 -5%（上限 -50%），保底 10 秒
-    _PROF_WAIT_BASE = {
-        "fishing": (45, 75, "垂钓"),
-        "gather": (45, 75, "采集"),
-        "mining": (65, 115, "挖掘"),
-    }
 
     def _prof_wait_key(self, group_id, qq_id):
         # v83: 去掉 group_id —— 等待型副业按玩家全局互斥，防止跨群双开多刷
@@ -199,7 +103,7 @@ class EconomyCmds(CommandBase):
 
     def _prof_wait_duration(self, prof_type, prof_lv):
         """等待时长：基准随机范围 ±25%，副业等级每级－5%(上限－50%)，保底 10 秒"""
-        low, high, _ = self._PROF_WAIT_BASE[prof_type]
+        low, high, _ = C.PROF_WAIT_BASE[prof_type]
         wait = random.randint(low, high)
         wait = int(wait * (1 - 0.05 * min(prof_lv, 10)))
         return max(wait, 10)
@@ -419,7 +323,7 @@ class EconomyCmds(CommandBase):
         now = int(time.time())
         if st and st["finish"] > now:
             left = st["finish"] - now
-            tname = self._PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
+            tname = C.PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
             return f"⏳ 你还在{tname}呢，再有 {left} 秒就完成啦～(完成会自动入包)", False
         settle_text = None
         if st:
@@ -728,7 +632,7 @@ class EconomyCmds(CommandBase):
         if require_apprentice:
             player = self._player(group_id, qq_id) or {}
             if key not in (player.get("apprentices") or []):
-                tname, tmap = self.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
+                tname, tmap = C.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
                 return False, (
                     f"🔒 副业「{db.PROF_FIELDS.get(key, key)}」还没解锁！\n"
                     f"先去 {tmap} 找 {tname} 拜师学习吧～(『找 {tname}』)"
@@ -817,14 +721,6 @@ class EconomyCmds(CommandBase):
         return "\n".join(lines)
 
     # ---------------- 每日副业任务 ----------------
-    DAILY_PROF_TASKS = {
-        "gather": ("采集", 5, 30),
-        "mining": ("挖掘", 3, 30),
-        "fishing": ("垂钓", 5, 30),
-        "alchemy": ("炼金合成", 2, 25),
-        "craft": ("锻造装备", 1, 40),
-        "cooking": ("烹饪料理", 2, 25),
-    }
 
     def _daily_prof_key(self, group_id, qq_id):
         today = time.strftime("%Y-%m-%d")
@@ -839,8 +735,8 @@ class EconomyCmds(CommandBase):
                 return parts[0], parts[1], int(parts[2]), int(parts[3]), int(parts[4]), parts[5] == "1"
         # 随机选一个任务
         import random as _rnd
-        tkey = _rnd.choice(list(self.DAILY_PROF_TASKS.keys()))
-        name, need, gold = self.DAILY_PROF_TASKS[tkey]
+        tkey = _rnd.choice(list(C.DAILY_PROF_TASKS.keys()))
+        name, need, gold = C.DAILY_PROF_TASKS[tkey]
         db.set_event_state(self._daily_prof_key(group_id, qq_id), f"{tkey}|{name}|{need}|{gold}|0|0")
         return tkey, name, need, gold, 0, False
 
@@ -1976,13 +1872,13 @@ class EconomyCmds(CommandBase):
         text = (text or "").strip()
         # 带空格形式：『材料』『材料 2』『2』
         for p in text.split():
-            if p in EconomyCmds.BAG_FILTER_TYPES:
+            if p in C.BAG_FILTER_TYPES:
                 category = p
             elif p.isdigit():
                 page = int(p)
         # 无空格形式：『材料2』『2』
         if category is None:
-            for t in EconomyCmds.BAG_FILTER_TYPES:
+            for t in C.BAG_FILTER_TYPES:
                 if text.startswith(t):
                     category = t
                     rest = text[len(t):].strip()

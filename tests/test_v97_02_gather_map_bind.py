@@ -29,7 +29,8 @@ def check(name, cond, detail=""):
 
 def main():
     e = EconomyCmds.__new__(EconomyCmds)
-    pools = e._GATHER_MAP_POOLS
+    # v98.1 数据下沉：采集池移到数据层（game/data/gather_pools.py）
+    pools = C.GATHER_MAP_POOLS
 
     print("== 1. 全野外地图配池 ==")
     wild = [m["id"] for m in C.MAPS if m["type"] == "野外"]
