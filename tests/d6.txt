@@ -1,0 +1,1036 @@
+### combat.py :: _update_quests  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L1567, 534 指令) ---
+      ? MAKE_CELL                    main_id
+      ? MAKE_CELL                    sid
+   1567 RESUME                       
+   1571 BUILD_LIST                   
+   1571 STORE_FAST                   lines
+   1572 LOAD_GLOBAL                  NULL + db
+   1572 LOAD_ATTR                    get_quests
+   1572 LOAD_FAST                    group_id
+   1572 LOAD_FAST                    qq_id
+   1572 PRECALL                      
+   1572 CALL                         
+   1572 STORE_FAST                   quests
+   1573 LOAD_CONST                   False
+   1573 STORE_FAST                   changed
+   1575 LOAD_FAST                    quests
+   1575 LOAD_METHOD                  get
+   1575 LOAD_CONST                   'main_quest'
+   1575 PRECALL                      
+   1575 CALL                         
+   1575 STORE_DEREF                  main_id
+   1576 LOAD_DEREF                   main_id
+   1576 EXTENDED_ARG                 
+   1576 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1577 LOAD_GLOBAL                  NULL + next
+   1577 LOAD_CLOSURE                 main_id
+   1577 BUILD_TUPLE                  
+   1577 LOAD_CONST                   <code object <genexpr> at 0x000001EAA8074990, file "game/commands/combat.py", line 1577>
+   1577 MAKE_FUNCTION                closure
+   1577 LOAD_GLOBAL                  C
+   1577 LOAD_ATTR                    MAIN_QUESTS
+   1577 GET_ITER                     
+   1577 PRECALL                      
+   1577 CALL                         
+   1577 LOAD_CONST                   None
+   1577 PRECALL                      
+   1577 CALL                         
+   1577 STORE_FAST                   mq
+   1578 LOAD_FAST                    mq
+   1578 EXTENDED_ARG                 
+   1578 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1578 LOAD_FAST                    quests
+   1578 LOAD_METHOD                  get
+   1578 LOAD_CONST                   'main_status'
+   1578 PRECALL                      
+   1578 CALL                         
+   1578 LOAD_CONST                   'active'
+   1578 COMPARE_OP                   ==
+   1578 EXTENDED_ARG                 
+   1578 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1579 LOAD_GLOBAL                  NULL + dict
+   1579 LOAD_FAST                    quests
+   1579 LOAD_METHOD                  get
+   1579 LOAD_CONST                   'main_progress'
+   1579 BUILD_MAP                    
+   1579 PRECALL                      
+   1579 CALL                         
+   1579 PRECALL                      
+   1579 CALL                         
+   1579 STORE_FAST                   prog
+   1580 LOAD_FAST                    mq
+   1580 LOAD_CONST                   'objective'
+   1580 BINARY_SUBSCR                
+   1580 STORE_FAST                   obj
+   1581 LOAD_FAST                    obj
+   1581 LOAD_METHOD                  get
+   1581 LOAD_CONST                   'kill'
+   1581 PRECALL                      
+   1581 CALL                         
+   1581 LOAD_FAST                    monster
+   1581 LOAD_CONST                   'name'
+   1581 BINARY_SUBSCR                
+   1581 COMPARE_OP                   ==
+   1581 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1582 LOAD_FAST                    prog
+   1582 LOAD_METHOD                  get
+   1582 LOAD_FAST                    monster
+   1582 LOAD_CONST                   'name'
+   1582 BINARY_SUBSCR                
+   1582 LOAD_CONST                   0
+   1582 PRECALL                      
+   1582 CALL                         
+   1582 LOAD_CONST                   1
+   1582 BINARY_OP                    +
+   1582 LOAD_FAST                    prog
+   1582 LOAD_FAST                    monster
+   1582 LOAD_CONST                   'name'
+   1582 BINARY_SUBSCR                
+   1582 STORE_SUBSCR                 
+   1583 LOAD_FAST                    prog
+   1583 LOAD_FAST                    quests
+   1583 LOAD_CONST                   'main_progress'
+   1583 STORE_SUBSCR                 
+   1584 LOAD_CONST                   True
+   1584 STORE_FAST                   changed
+   1585 LOAD_FAST                    prog
+   1585 LOAD_METHOD                  get
+   1585 LOAD_FAST                    monster
+   1585 LOAD_CONST                   'name'
+   1585 BINARY_SUBSCR                
+   1585 LOAD_CONST                   0
+   1585 PRECALL                      
+   1585 CALL                         
+   1585 LOAD_FAST                    obj
+   1585 LOAD_CONST                   'count'
+   1585 BINARY_SUBSCR                
+   1585 COMPARE_OP                   >=
+   1585 POP_JUMP_FORWARD_IF_FALSE    to 692
+   1586 LOAD_CONST                   'ready'
+   1586 LOAD_FAST                    quests
+   1586 LOAD_CONST                   'main_status'
+   1586 STORE_SUBSCR                 
+   1587 LOAD_FAST                    lines
+   1587 LOAD_METHOD                  append
+   1587 LOAD_CONST                   '📜 主线『'
+   1587 LOAD_FAST                    mq
+   1587 LOAD_CONST                   'name'
+   1587 BINARY_SUBSCR                
+   1587 FORMAT_VALUE                 
+   1587 LOAD_CONST                   '』目标达成！回去找 '
+   1587 LOAD_GLOBAL                  C
+   1587 LOAD_ATTR                    NPCS
+   1587 LOAD_FAST                    mq
+   1587 LOAD_CONST                   'giver'
+   1587 BINARY_SUBSCR                
+   1587 BINARY_SUBSCR                
+   1587 LOAD_CONST                   'name'
+   1587 BINARY_SUBSCR                
+   1587 FORMAT_VALUE                 
+   1587 LOAD_CONST                   ' 交任务吧～'
+   1587 BUILD_STRING                 
+   1587 PRECALL                      
+   1587 CALL                         
+   1587 POP_TOP                      
+   1587 JUMP_FORWARD                 to 800
+   1589 LOAD_FAST                    lines
+   1589 LOAD_METHOD                  append
+   1589 LOAD_CONST                   '📜 主线『'
+   1589 LOAD_FAST                    mq
+   1589 LOAD_CONST                   'name'
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 LOAD_CONST                   '』：'
+   1589 LOAD_FAST                    prog
+   1589 LOAD_FAST                    monster
+   1589 LOAD_CONST                   'name'
+   1589 BINARY_SUBSCR                
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 LOAD_CONST                   '/'
+   1589 LOAD_FAST                    obj
+   1589 LOAD_CONST                   'count'
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 BUILD_STRING                 
+   1589 PRECALL                      
+   1589 CALL                         
+   1589 POP_TOP                      
+   1591 LOAD_GLOBAL                  NULL + db
+   1591 LOAD_ATTR                    expire_daily
+   1591 LOAD_FAST                    quests
+   1591 PRECALL                      
+   1591 CALL                         
+   1591 POP_JUMP_FORWARD_IF_FALSE    to 844
+   1592 LOAD_CONST                   True
+   1592 STORE_FAST                   changed
+   1593 LOAD_GLOBAL                  NULL + dict
+   1593 LOAD_FAST                    quests
+   1593 LOAD_METHOD                  get
+   1593 LOAD_CONST                   'daily'
+   1593 BUILD_MAP                    
+   1593 PRECALL                      
+   1593 CALL                         
+   1593 PRECALL                      
+   1593 CALL                         
+   1593 STORE_FAST                   daily
+   1594 LOAD_GLOBAL                  NULL + list
+   1594 LOAD_FAST                    daily
+   1594 LOAD_METHOD                  items
+   1594 PRECALL                      
+   1594 CALL                         
+   1594 PRECALL                      
+   1594 CALL                         
+   1594 GET_ITER                     
+   1594 EXTENDED_ARG                 
+   1594 FOR_ITER                     to 1844
+   1594 UNPACK_SEQUENCE              
+   1594 STORE_FAST                   dkey
+   1594 STORE_FAST                   dq
+   1595 LOAD_FAST                    dkey
+   1595 LOAD_CONST                   '_date'
+   1595 COMPARE_OP                   ==
+   1595 POP_JUMP_FORWARD_IF_FALSE    to 1006
+   1596 JUMP_BACKWARD                to 980
+   1597 LOAD_FAST                    dq
+   1597 LOAD_CONST                   'objective'
+   1597 BINARY_SUBSCR                
+   1597 STORE_FAST                   dobj
+   1598 LOAD_FAST                    dq
+   1598 LOAD_METHOD                  get
+   1598 LOAD_CONST                   'progress'
+   1598 LOAD_CONST                   0
+   1598 PRECALL                      
+   1598 CALL                         
+   1598 STORE_FAST                   prog
+   1599 LOAD_FAST                    dobj
+   1599 LOAD_METHOD                  get
+   1599 LOAD_CONST                   'kill_any'
+   1599 PRECALL                      
+   1599 CALL                         
+   1599 POP_JUMP_FORWARD_IF_FALSE    to 1120
+   1600 LOAD_FAST                    prog
+   1600 LOAD_CONST                   1
+   1600 BINARY_OP                    +=
+   1600 STORE_FAST                   prog
+   1600 JUMP_FORWARD                 to 1400
+   1601 LOAD_FAST                    dobj
+   1601 LOAD_METHOD                  get
+   1601 LOAD_CONST                   'kill_elite'
+   1601 PRECALL                      
+   1601 CALL                         
+   1601 POP_JUMP_FORWARD_IF_FALSE    to 1216
+   1601 LOAD_FAST                    monster
+   1601 LOAD_METHOD                  get
+   1601 LOAD_CONST                   'is_elite'
+   1601 PRECALL                      
+   1601 CALL                         
+   1601 POP_JUMP_FORWARD_IF_FALSE    to 1216
+   1602 LOAD_FAST                    prog
+   1602 LOAD_CONST                   1
+   1602 BINARY_OP                    +=
+   1602 STORE_FAST                   prog
+   1602 JUMP_FORWARD                 to 1400
+   1603 LOAD_FAST                    dobj
+   1603 LOAD_METHOD                  get
+   1603 LOAD_CONST                   'kill_boss'
+   1603 PRECALL                      
+   1603 CALL                         
+   1603 POP_JUMP_FORWARD_IF_FALSE    to 1312
+   1603 LOAD_FAST                    monster
+   1603 LOAD_METHOD                  get
+   1603 LOAD_CONST                   'is_boss'
+   1603 PRECALL                      
+   1603 CALL                         
+   1603 POP_JUMP_FORWARD_IF_FALSE    to 1312
+   1604 LOAD_FAST                    prog
+   1604 LOAD_CONST                   1
+   1604 BINARY_OP                    +=
+   1604 STORE_FAST                   prog
+   1604 JUMP_FORWARD                 to 1400
+   1605 LOAD_FAST                    dobj
+   1605 LOAD_METHOD                  get
+   1605 LOAD_CONST                   'kill'
+   1605 PRECALL                      
+   1605 CALL                         
+   1605 POP_JUMP_FORWARD_IF_FALSE    to 1400
+   1605 LOAD_FAST                    monster
+   1605 LOAD_CONST                   'name'
+   1605 BINARY_SUBSCR                
+   1605 LOAD_FAST                    dobj
+   1605 LOAD_CONST                   'kill'
+   1605 BINARY_SUBSCR                
+   1605 COMPARE_OP                   ==
+   1605 POP_JUMP_FORWARD_IF_FALSE    to 1400
+   1606 LOAD_FAST                    prog
+   1606 LOAD_CONST                   1
+   1606 BINARY_OP                    +=
+   1606 STORE_FAST                   prog
+   1607 LOAD_FAST                    prog
+   1607 LOAD_FAST                    dq
+   1607 LOAD_CONST                   'progress'
+   1607 STORE_SUBSCR                 
+   1608 LOAD_CONST                   True
+   1608 STORE_FAST                   changed
+   1609 LOAD_FAST                    prog
+   1609 LOAD_FAST                    dobj
+   1609 LOAD_METHOD                  get
+   1609 LOAD_CONST                   'kill_any'
+   1609 LOAD_FAST                    dobj
+   1609 LOAD_METHOD                  get
+   1609 LOAD_CONST                   'kill_elite'
+   1609 LOAD_FAST                    dobj
+   1609 LOAD_METHOD                  get
+   1609 LOAD_CONST                   'kill_boss'
+   1609 LOAD_FAST                    dobj
+   1609 LOAD_METHOD                  get
+   1609 LOAD_CONST                   'count'
+   1609 LOAD_CONST                   99
+   1609 PRECALL                      
+   1609 CALL                         
+   1609 PRECALL                      
+   1609 CALL                         
+   1609 PRECALL                      
+   1609 CALL                         
+   1609 PRECALL                      
+   1609 CALL                         
+   1609 COMPARE_OP                   >=
+   1609 POP_JUMP_FORWARD_IF_FALSE    to 1840
+   1610 LOAD_FAST                    lines
+   1610 LOAD_METHOD                  append
+   1610 LOAD_CONST                   '📜 每日『'
+   1610 LOAD_FAST                    dq
+   1610 LOAD_CONST                   'name'
+   1610 BINARY_SUBSCR                
+   1610 FORMAT_VALUE                 
+   1610 LOAD_CONST                   '』完成！奖励：经验 +'
+   1610 LOAD_FAST                    dq
+   1610 LOAD_CONST                   'reward_exp'
+   1610 BINARY_SUBSCR                
+   1610 FORMAT_VALUE                 
+   1610 LOAD_CONST                   ' 金币 +'
+   1610 LOAD_FAST                    dq
+   1610 LOAD_CONST                   'reward_gold'
+   1610 BINARY_SUBSCR                
+   1610 FORMAT_VALUE                 
+   1610 BUILD_STRING                 
+   1610 PRECALL                      
+   1610 CALL                         
+   1610 POP_TOP                      
+   1611 LOAD_FAST                    self
+   1611 LOAD_METHOD                  _player
+   1611 LOAD_FAST                    group_id
+   1611 LOAD_FAST                    qq_id
+   1611 PRECALL                      
+   1611 CALL                         
+   1611 STORE_FAST                   player
+   1612 LOAD_GLOBAL                  NULL + db
+   1612 LOAD_ATTR                    update_player
+   1612 LOAD_FAST                    group_id
+   1612 LOAD_FAST                    qq_id
+   1612 LOAD_FAST                    player
+   1612 LOAD_CONST                   'exp'
+   1612 BINARY_SUBSCR                
+   1612 LOAD_FAST                    dq
+   1612 LOAD_CONST                   'reward_exp'
+   1612 BINARY_SUBSCR                
+   1612 BINARY_OP                    +
+   1612 LOAD_FAST                    player
+   1612 LOAD_CONST                   'gold'
+   1612 BINARY_SUBSCR                
+   1612 LOAD_FAST                    dq
+   1612 LOAD_CONST                   'reward_gold'
+   1612 BINARY_SUBSCR                
+   1612 BINARY_OP                    +
+   1612 KW_NAMES                     
+   1612 PRECALL                      
+   1612 CALL                         
+   1612 POP_TOP                      
+   1613 LOAD_FAST                    daily
+   1613 LOAD_FAST                    dkey
+   1613 DELETE_SUBSCR                
+      ? EXTENDED_ARG                 
+      ? JUMP_BACKWARD                to 980
+   1615 LOAD_FAST                    daily
+   1615 LOAD_FAST                    quests
+   1615 LOAD_CONST                   'daily'
+   1615 STORE_SUBSCR                 
+   1617 LOAD_GLOBAL                  NULL + dict
+   1617 LOAD_FAST                    quests
+   1617 LOAD_METHOD                  get
+   1617 LOAD_CONST                   'side'
+   1617 BUILD_MAP                    
+   1617 PRECALL                      
+   1617 CALL                         
+   1617 PRECALL                      
+   1617 CALL                         
+   1617 STORE_FAST                   side
+   1618 LOAD_GLOBAL                  NULL + list
+   1618 LOAD_FAST                    side
+   1618 LOAD_METHOD                  items
+   1618 PRECALL                      
+   1618 CALL                         
+   1618 PRECALL                      
+   1618 CALL                         
+   1618 GET_ITER                     
+   1618 EXTENDED_ARG                 
+   1618 FOR_ITER                     to 2704
+   1618 UNPACK_SEQUENCE              
+   1618 STORE_DEREF                  sid
+   1618 STORE_FAST                   sq
+   1619 LOAD_FAST                    sq
+   1619 LOAD_METHOD                  get
+   1619 LOAD_CONST                   'status'
+   1619 PRECALL                      
+   1619 CALL                         
+   1619 LOAD_CONST                   'active'
+   1619 COMPARE_OP                   !=
+   1619 POP_JUMP_FORWARD_IF_FALSE    to 2054
+   1620 JUMP_BACKWARD                to 1990
+   1621 LOAD_GLOBAL                  NULL + next
+   1621 LOAD_CLOSURE                 sid
+   1621 BUILD_TUPLE                  
+   1621 LOAD_CONST                   <code object <genexpr> at 0x000001EAA8074A80, file "game/commands/combat.py", line 1621>
+   1621 MAKE_FUNCTION                closure
+   1621 LOAD_GLOBAL                  C
+   1621 LOAD_ATTR                    SIDE_QUESTS
+   1621 GET_ITER                     
+   1621 PRECALL                      
+   1621 CALL                         
+   1621 LOAD_CONST                   None
+   1621 PRECALL                      
+   1621 CALL                         
+   1621 STORE_FAST                   sqd
+   1622 LOAD_FAST                    sqd
+   1622 POP_JUMP_FORWARD_IF_TRUE     to 2136
+   1623 JUMP_BACKWARD                to 1990
+   1624 LOAD_FAST                    sqd
+   1624 LOAD_CONST                   'objective'
+   1624 BINARY_SUBSCR                
+   1624 STORE_FAST                   obj
+   1625 LOAD_FAST                    obj
+   1625 LOAD_METHOD                  get
+   1625 LOAD_CONST                   'kill'
+   1625 PRECALL                      
+   1625 CALL                         
+   1625 LOAD_FAST                    monster
+   1625 LOAD_CONST                   'name'
+   1625 BINARY_SUBSCR                
+   1625 COMPARE_OP                   ==
+   1625 POP_JUMP_FORWARD_IF_FALSE    to 2700
+   1626 LOAD_GLOBAL                  NULL + dict
+   1626 LOAD_FAST                    sq
+   1626 LOAD_METHOD                  get
+   1626 LOAD_CONST                   'progress'
+   1626 BUILD_MAP                    
+   1626 PRECALL                      
+   1626 CALL                         
+   1626 PRECALL                      
+   1626 CALL                         
+   1626 STORE_FAST                   prog
+   1627 LOAD_FAST                    prog
+   1627 LOAD_METHOD                  get
+   1627 LOAD_FAST                    monster
+   1627 LOAD_CONST                   'name'
+   1627 BINARY_SUBSCR                
+   1627 LOAD_CONST                   0
+   1627 PRECALL                      
+   1627 CALL                         
+   1627 LOAD_CONST                   1
+   1627 BINARY_OP                    +
+   1627 LOAD_FAST                    prog
+   1627 LOAD_FAST                    monster
+   1627 LOAD_CONST                   'name'
+   1627 BINARY_SUBSCR                
+   1627 STORE_SUBSCR                 
+   1628 LOAD_FAST                    prog
+   1628 LOAD_FAST                    sq
+   1628 LOAD_CONST                   'progress'
+   1628 STORE_SUBSCR                 
+   1629 LOAD_CONST                   True
+   1629 STORE_FAST                   changed
+   1630 LOAD_FAST                    prog
+   1630 LOAD_METHOD                  get
+   1630 LOAD_FAST                    monster
+   1630 LOAD_CONST                   'name'
+   1630 BINARY_SUBSCR                
+   1630 LOAD_CONST                   0
+   1630 PRECALL                      
+   1630 CALL                         
+   1630 LOAD_FAST                    obj
+   1630 LOAD_CONST                   'count'
+   1630 BINARY_SUBSCR                
+   1630 COMPARE_OP                   >=
+   1630 POP_JUMP_FORWARD_IF_FALSE    to 2592
+   1631 LOAD_CONST                   'ready'
+   1631 LOAD_FAST                    sq
+   1631 LOAD_CONST                   'status'
+   1631 STORE_SUBSCR                 
+   1632 LOAD_FAST                    lines
+   1632 LOAD_METHOD                  append
+   1632 LOAD_CONST                   '📜 支线『'
+   1632 LOAD_FAST                    sqd
+   1632 LOAD_CONST                   'name'
+   1632 BINARY_SUBSCR                
+   1632 FORMAT_VALUE                 
+   1632 LOAD_CONST                   '』目标达成！回去找 '
+   1632 LOAD_GLOBAL                  C
+   1632 LOAD_ATTR                    NPCS
+   1632 LOAD_FAST                    sqd
+   1632 LOAD_CONST                   'giver'
+   1632 BINARY_SUBSCR                
+   1632 BINARY_SUBSCR                
+   1632 LOAD_CONST                   'name'
+   1632 BINARY_SUBSCR                
+   1632 FORMAT_VALUE                 
+   1632 LOAD_CONST                   ' 交任务吧～'
+   1632 BUILD_STRING                 
+   1632 PRECALL                      
+   1632 CALL                         
+   1632 POP_TOP                      
+   1632 EXTENDED_ARG                 
+   1632 JUMP_BACKWARD                to 1990
+   1634 LOAD_FAST                    lines
+   1634 LOAD_METHOD                  append
+   1634 LOAD_CONST                   '📜 支线『'
+   1634 LOAD_FAST                    sqd
+   1634 LOAD_CONST                   'name'
+   1634 BINARY_SUBSCR                
+   1634 FORMAT_VALUE                 
+   1634 LOAD_CONST                   '』：'
+   1634 LOAD_FAST                    prog
+   1634 LOAD_FAST                    monster
+   1634 LOAD_CONST                   'name'
+   1634 BINARY_SUBSCR                
+   1634 BINARY_SUBSCR                
+   1634 FORMAT_VALUE                 
+   1634 LOAD_CONST                   '/'
+   1634 LOAD_FAST                    obj
+   1634 LOAD_CONST                   'count'
+   1634 BINARY_SUBSCR                
+   1634 FORMAT_VALUE                 
+   1634 BUILD_STRING                 
+   1634 PRECALL                      
+   1634 CALL                         
+   1634 POP_TOP                      
+      ? EXTENDED_ARG                 
+      ? JUMP_BACKWARD                to 1990
+   1635 LOAD_FAST                    side
+   1635 POP_JUMP_FORWARD_IF_FALSE    to 2718
+   1636 LOAD_FAST                    side
+   1636 LOAD_FAST                    quests
+   1636 LOAD_CONST                   'side'
+   1636 STORE_SUBSCR                 
+   1637 LOAD_FAST                    changed
+   1637 POP_JUMP_FORWARD_IF_FALSE    to 2766
+   1638 LOAD_GLOBAL                  NULL + db
+   1638 LOAD_ATTR                    save_quests
+   1638 LOAD_FAST                    group_id
+   1638 LOAD_FAST                    qq_id
+   1638 LOAD_FAST                    quests
+   1638 PRECALL                      
+   1638 CALL                         
+   1638 POP_TOP                      
+   1639 LOAD_FAST                    lines
+   1639 RETURN_VALUE                 
+
+--- py 版 (L1567, 497 指令) ---
+      ? MAKE_CELL                    main_id
+      ? MAKE_CELL                    sid
+   1567 RESUME                       
+   1571 BUILD_LIST                   
+   1571 STORE_FAST                   lines
+   1572 LOAD_GLOBAL                  NULL + db
+   1572 LOAD_ATTR                    get_quests
+   1572 LOAD_FAST                    group_id
+   1572 LOAD_FAST                    qq_id
+   1572 PRECALL                      
+   1572 CALL                         
+   1572 STORE_FAST                   quests
+   1573 LOAD_CONST                   False
+   1573 STORE_FAST                   changed
+   1575 LOAD_FAST                    quests
+   1575 LOAD_METHOD                  get
+   1575 LOAD_CONST                   'main_quest'
+   1575 PRECALL                      
+   1575 CALL                         
+   1575 STORE_DEREF                  main_id
+   1576 LOAD_DEREF                   main_id
+   1576 EXTENDED_ARG                 
+   1576 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1577 LOAD_GLOBAL                  NULL + next
+   1577 LOAD_CLOSURE                 main_id
+   1577 BUILD_TUPLE                  
+   1577 LOAD_CONST                   <code object <genexpr> at 0x000001EAA80747B0, file "game\commands\combat.py", line 1577>
+   1577 MAKE_FUNCTION                closure
+   1577 LOAD_GLOBAL                  C
+   1577 LOAD_ATTR                    MAIN_QUESTS
+   1577 GET_ITER                     
+   1577 PRECALL                      
+   1577 CALL                         
+   1577 LOAD_CONST                   None
+   1577 PRECALL                      
+   1577 CALL                         
+   1577 STORE_FAST                   mq
+   1578 LOAD_FAST                    mq
+   1578 EXTENDED_ARG                 
+   1578 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1578 LOAD_FAST                    quests
+   1578 LOAD_METHOD                  get
+   1578 LOAD_CONST                   'main_status'
+   1578 PRECALL                      
+   1578 CALL                         
+   1578 LOAD_CONST                   'active'
+   1578 COMPARE_OP                   ==
+   1578 EXTENDED_ARG                 
+   1578 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1579 LOAD_GLOBAL                  NULL + dict
+   1579 LOAD_FAST                    quests
+   1579 LOAD_METHOD                  get
+   1579 LOAD_CONST                   'main_progress'
+   1579 BUILD_MAP                    
+   1579 PRECALL                      
+   1579 CALL                         
+   1579 PRECALL                      
+   1579 CALL                         
+   1579 STORE_FAST                   prog
+   1580 LOAD_FAST                    mq
+   1580 LOAD_CONST                   'objective'
+   1580 BINARY_SUBSCR                
+   1580 STORE_FAST                   obj
+   1581 LOAD_FAST                    obj
+   1581 LOAD_METHOD                  get
+   1581 LOAD_CONST                   'kill'
+   1581 PRECALL                      
+   1581 CALL                         
+   1581 LOAD_FAST                    monster
+   1581 LOAD_CONST                   'name'
+   1581 BINARY_SUBSCR                
+   1581 COMPARE_OP                   ==
+   1581 POP_JUMP_FORWARD_IF_FALSE    to 800
+   1582 LOAD_FAST                    prog
+   1582 LOAD_METHOD                  get
+   1582 LOAD_FAST                    monster
+   1582 LOAD_CONST                   'name'
+   1582 BINARY_SUBSCR                
+   1582 LOAD_CONST                   0
+   1582 PRECALL                      
+   1582 CALL                         
+   1582 LOAD_CONST                   1
+   1582 BINARY_OP                    +
+   1582 LOAD_FAST                    prog
+   1582 LOAD_FAST                    monster
+   1582 LOAD_CONST                   'name'
+   1582 BINARY_SUBSCR                
+   1582 STORE_SUBSCR                 
+   1583 LOAD_FAST                    prog
+   1583 LOAD_FAST                    quests
+   1583 LOAD_CONST                   'main_progress'
+   1583 STORE_SUBSCR                 
+   1584 LOAD_CONST                   True
+   1584 STORE_FAST                   changed
+   1585 LOAD_FAST                    prog
+   1585 LOAD_METHOD                  get
+   1585 LOAD_FAST                    monster
+   1585 LOAD_CONST                   'name'
+   1585 BINARY_SUBSCR                
+   1585 LOAD_CONST                   0
+   1585 PRECALL                      
+   1585 CALL                         
+   1585 LOAD_FAST                    obj
+   1585 LOAD_CONST                   'count'
+   1585 BINARY_SUBSCR                
+   1585 COMPARE_OP                   >=
+   1585 POP_JUMP_FORWARD_IF_FALSE    to 692
+   1586 LOAD_CONST                   'ready'
+   1586 LOAD_FAST                    quests
+   1586 LOAD_CONST                   'main_status'
+   1586 STORE_SUBSCR                 
+   1587 LOAD_FAST                    lines
+   1587 LOAD_METHOD                  append
+   1587 LOAD_CONST                   '📜 主线『'
+   1587 LOAD_FAST                    mq
+   1587 LOAD_CONST                   'name'
+   1587 BINARY_SUBSCR                
+   1587 FORMAT_VALUE                 
+   1587 LOAD_CONST                   '』目标达成！回去找 '
+   1587 LOAD_GLOBAL                  C
+   1587 LOAD_ATTR                    NPCS
+   1587 LOAD_FAST                    mq
+   1587 LOAD_CONST                   'giver'
+   1587 BINARY_SUBSCR                
+   1587 BINARY_SUBSCR                
+   1587 LOAD_CONST                   'name'
+   1587 BINARY_SUBSCR                
+   1587 FORMAT_VALUE                 
+   1587 LOAD_CONST                   ' 交任务吧～'
+   1587 BUILD_STRING                 
+   1587 PRECALL                      
+   1587 CALL                         
+   1587 POP_TOP                      
+   1587 JUMP_FORWARD                 to 800
+   1589 LOAD_FAST                    lines
+   1589 LOAD_METHOD                  append
+   1589 LOAD_CONST                   '📜 主线『'
+   1589 LOAD_FAST                    mq
+   1589 LOAD_CONST                   'name'
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 LOAD_CONST                   '』：'
+   1589 LOAD_FAST                    prog
+   1589 LOAD_FAST                    monster
+   1589 LOAD_CONST                   'name'
+   1589 BINARY_SUBSCR                
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 LOAD_CONST                   '/'
+   1589 LOAD_FAST                    obj
+   1589 LOAD_CONST                   'count'
+   1589 BINARY_SUBSCR                
+   1589 FORMAT_VALUE                 
+   1589 BUILD_STRING                 
+   1589 PRECALL                      
+   1589 CALL                         
+   1589 POP_TOP                      
+   1591 LOAD_GLOBAL                  NULL + dict
+   1591 LOAD_FAST                    quests
+   1591 LOAD_METHOD                  get
+   1591 LOAD_CONST                   'daily'
+   1591 BUILD_MAP                    
+   1591 PRECALL                      
+   1591 CALL                         
+   1591 PRECALL                      
+   1591 CALL                         
+   1591 STORE_FAST                   daily
+   1592 LOAD_GLOBAL                  NULL + list
+   1592 LOAD_FAST                    daily
+   1592 LOAD_METHOD                  items
+   1592 PRECALL                      
+   1592 CALL                         
+   1592 PRECALL                      
+   1592 CALL                         
+   1592 GET_ITER                     
+   1592 EXTENDED_ARG                 
+   1592 FOR_ITER                     to 1656
+   1592 UNPACK_SEQUENCE              
+   1592 STORE_FAST                   dkey
+   1592 STORE_FAST                   dq
+   1593 LOAD_FAST                    dq
+   1593 LOAD_CONST                   'objective'
+   1593 BINARY_SUBSCR                
+   1593 STORE_FAST                   dobj
+   1594 LOAD_FAST                    dq
+   1594 LOAD_METHOD                  get
+   1594 LOAD_CONST                   'progress'
+   1594 LOAD_CONST                   0
+   1594 PRECALL                      
+   1594 CALL                         
+   1594 STORE_FAST                   prog
+   1595 LOAD_FAST                    dobj
+   1595 LOAD_METHOD                  get
+   1595 LOAD_CONST                   'kill_any'
+   1595 PRECALL                      
+   1595 CALL                         
+   1595 POP_JUMP_FORWARD_IF_FALSE    to 1062
+   1596 LOAD_FAST                    prog
+   1596 LOAD_CONST                   1
+   1596 BINARY_OP                    +=
+   1596 STORE_FAST                   prog
+   1596 JUMP_FORWARD                 to 1252
+   1597 LOAD_FAST                    dobj
+   1597 LOAD_METHOD                  get
+   1597 LOAD_CONST                   'kill_elite'
+   1597 PRECALL                      
+   1597 CALL                         
+   1597 POP_JUMP_FORWARD_IF_FALSE    to 1158
+   1597 LOAD_FAST                    monster
+   1597 LOAD_METHOD                  get
+   1597 LOAD_CONST                   'is_elite'
+   1597 PRECALL                      
+   1597 CALL                         
+   1597 POP_JUMP_FORWARD_IF_FALSE    to 1158
+   1598 LOAD_FAST                    prog
+   1598 LOAD_CONST                   1
+   1598 BINARY_OP                    +=
+   1598 STORE_FAST                   prog
+   1598 JUMP_FORWARD                 to 1252
+   1599 LOAD_FAST                    dobj
+   1599 LOAD_METHOD                  get
+   1599 LOAD_CONST                   'kill_boss'
+   1599 PRECALL                      
+   1599 CALL                         
+   1599 POP_JUMP_FORWARD_IF_FALSE    to 1252
+   1599 LOAD_FAST                    monster
+   1599 LOAD_METHOD                  get
+   1599 LOAD_CONST                   'is_boss'
+   1599 PRECALL                      
+   1599 CALL                         
+   1599 POP_JUMP_FORWARD_IF_FALSE    to 1252
+   1600 LOAD_FAST                    prog
+   1600 LOAD_CONST                   1
+   1600 BINARY_OP                    +=
+   1600 STORE_FAST                   prog
+   1601 LOAD_FAST                    prog
+   1601 LOAD_FAST                    dq
+   1601 LOAD_CONST                   'progress'
+   1601 STORE_SUBSCR                 
+   1602 LOAD_CONST                   True
+   1602 STORE_FAST                   changed
+   1603 LOAD_FAST                    prog
+   1603 LOAD_FAST                    dobj
+   1603 LOAD_METHOD                  get
+   1603 LOAD_CONST                   'kill_any'
+   1603 LOAD_FAST                    dobj
+   1603 LOAD_METHOD                  get
+   1603 LOAD_CONST                   'kill_elite'
+   1603 LOAD_FAST                    dobj
+   1603 LOAD_METHOD                  get
+   1603 LOAD_CONST                   'kill_boss'
+   1603 LOAD_CONST                   99
+   1603 PRECALL                      
+   1603 CALL                         
+   1603 PRECALL                      
+   1603 CALL                         
+   1603 PRECALL                      
+   1603 CALL                         
+   1603 COMPARE_OP                   >=
+   1603 POP_JUMP_FORWARD_IF_FALSE    to 1652
+   1604 LOAD_FAST                    lines
+   1604 LOAD_METHOD                  append
+   1604 LOAD_CONST                   '📜 每日『'
+   1604 LOAD_FAST                    dq
+   1604 LOAD_CONST                   'name'
+   1604 BINARY_SUBSCR                
+   1604 FORMAT_VALUE                 
+   1604 LOAD_CONST                   '』完成！奖励：经验 +'
+   1604 LOAD_FAST                    dq
+   1604 LOAD_CONST                   'reward_exp'
+   1604 BINARY_SUBSCR                
+   1604 FORMAT_VALUE                 
+   1604 LOAD_CONST                   ' 金币 +'
+   1604 LOAD_FAST                    dq
+   1604 LOAD_CONST                   'reward_gold'
+   1604 BINARY_SUBSCR                
+   1604 FORMAT_VALUE                 
+   1604 BUILD_STRING                 
+   1604 PRECALL                      
+   1604 CALL                         
+   1604 POP_TOP                      
+   1605 LOAD_FAST                    self
+   1605 LOAD_METHOD                  _player
+   1605 LOAD_FAST                    group_id
+   1605 LOAD_FAST                    qq_id
+   1605 PRECALL                      
+   1605 CALL                         
+   1605 STORE_FAST                   player
+   1606 LOAD_GLOBAL                  NULL + db
+   1606 LOAD_ATTR                    update_player
+   1606 LOAD_FAST                    group_id
+   1606 LOAD_FAST                    qq_id
+   1606 LOAD_FAST                    player
+   1606 LOAD_CONST                   'exp'
+   1606 BINARY_SUBSCR                
+   1606 LOAD_FAST                    dq
+   1606 LOAD_CONST                   'reward_exp'
+   1606 BINARY_SUBSCR                
+   1606 BINARY_OP                    +
+   1606 LOAD_FAST                    player
+   1606 LOAD_CONST                   'gold'
+   1606 BINARY_SUBSCR                
+   1606 LOAD_FAST                    dq
+   1606 LOAD_CONST                   'reward_gold'
+   1606 BINARY_SUBSCR                
+   1606 BINARY_OP                    +
+   1606 KW_NAMES                     
+   1606 PRECALL                      
+   1606 CALL                         
+   1606 POP_TOP                      
+   1607 LOAD_FAST                    daily
+   1607 LOAD_FAST                    dkey
+   1607 DELETE_SUBSCR                
+      ? EXTENDED_ARG                 
+      ? JUMP_BACKWARD                to 936
+   1609 LOAD_FAST                    daily
+   1609 LOAD_FAST                    quests
+   1609 LOAD_CONST                   'daily'
+   1609 STORE_SUBSCR                 
+   1611 LOAD_GLOBAL                  NULL + dict
+   1611 LOAD_FAST                    quests
+   1611 LOAD_METHOD                  get
+   1611 LOAD_CONST                   'side'
+   1611 BUILD_MAP                    
+   1611 PRECALL                      
+   1611 CALL                         
+   1611 PRECALL                      
+   1611 CALL                         
+   1611 STORE_FAST                   side
+   1612 LOAD_GLOBAL                  NULL + list
+   1612 LOAD_FAST                    side
+   1612 LOAD_METHOD                  items
+   1612 PRECALL                      
+   1612 CALL                         
+   1612 PRECALL                      
+   1612 CALL                         
+   1612 GET_ITER                     
+   1612 EXTENDED_ARG                 
+   1612 FOR_ITER                     to 2516
+   1612 UNPACK_SEQUENCE              
+   1612 STORE_DEREF                  sid
+   1612 STORE_FAST                   sq
+   1613 LOAD_FAST                    sq
+   1613 LOAD_METHOD                  get
+   1613 LOAD_CONST                   'status'
+   1613 PRECALL                      
+   1613 CALL                         
+   1613 LOAD_CONST                   'active'
+   1613 COMPARE_OP                   !=
+   1613 POP_JUMP_FORWARD_IF_FALSE    to 1866
+   1614 JUMP_BACKWARD                to 1802
+   1615 LOAD_GLOBAL                  NULL + next
+   1615 LOAD_CLOSURE                 sid
+   1615 BUILD_TUPLE                  
+   1615 LOAD_CONST                   <code object <genexpr> at 0x000001EAA8074B70, file "game\commands\combat.py", line 1615>
+   1615 MAKE_FUNCTION                closure
+   1615 LOAD_GLOBAL                  C
+   1615 LOAD_ATTR                    SIDE_QUESTS
+   1615 GET_ITER                     
+   1615 PRECALL                      
+   1615 CALL                         
+   1615 LOAD_CONST                   None
+   1615 PRECALL                      
+   1615 CALL                         
+   1615 STORE_FAST                   sqd
+   1616 LOAD_FAST                    sqd
+   1616 POP_JUMP_FORWARD_IF_TRUE     to 1948
+   1617 JUMP_BACKWARD                to 1802
+   1618 LOAD_FAST                    sqd
+   1618 LOAD_CONST                   'objective'
+   1618 BINARY_SUBSCR                
+   1618 STORE_FAST                   obj
+   1619 LOAD_FAST                    obj
+   1619 LOAD_METHOD                  get
+   1619 LOAD_CONST                   'kill'
+   1619 PRECALL                      
+   1619 CALL                         
+   1619 LOAD_FAST                    monster
+   1619 LOAD_CONST                   'name'
+   1619 BINARY_SUBSCR                
+   1619 COMPARE_OP                   ==
+   1619 POP_JUMP_FORWARD_IF_FALSE    to 2512
+   1620 LOAD_GLOBAL                  NULL + dict
+   1620 LOAD_FAST                    sq
+   1620 LOAD_METHOD                  get
+   1620 LOAD_CONST                   'progress'
+   1620 BUILD_MAP                    
+   1620 PRECALL                      
+   1620 CALL                         
+   1620 PRECALL                      
+   1620 CALL                         
+   1620 STORE_FAST                   prog
+   1621 LOAD_FAST                    prog
+   1621 LOAD_METHOD                  get
+   1621 LOAD_FAST                    monster
+   1621 LOAD_CONST                   'name'
+   1621 BINARY_SUBSCR                
+   1621 LOAD_CONST                   0
+   1621 PRECALL                      
+   1621 CALL                         
+   1621 LOAD_CONST                   1
+   1621 BINARY_OP                    +
+   1621 LOAD_FAST                    prog
+   1621 LOAD_FAST                    monster
+   1621 LOAD_CONST                   'name'
+   1621 BINARY_SUBSCR                
+   1621 STORE_SUBSCR                 
+   1622 LOAD_FAST                    prog
+   1622 LOAD_FAST                    sq
+   1622 LOAD_CONST                   'progress'
+   1622 STORE_SUBSCR                 
+   1623 LOAD_CONST                   True
+   1623 STORE_FAST                   changed
+   1624 LOAD_FAST                    prog
+   1624 LOAD_METHOD                  get
+   1624 LOAD_FAST                    monster
+   1624 LOAD_CONST                   'name'
+   1624 BINARY_SUBSCR                
+   1624 LOAD_CONST                   0
+   1624 PRECALL                      
+   1624 CALL                         
+   1624 LOAD_FAST                    obj
+   1624 LOAD_CONST                   'count'
+   1624 BINARY_SUBSCR                
+   1624 COMPARE_OP                   >=
+   1624 POP_JUMP_FORWARD_IF_FALSE    to 2404
+   1625 LOAD_CONST                   'ready'
+   1625 LOAD_FAST                    sq
+   1625 LOAD_CONST                   'status'
+   1625 STORE_SUBSCR                 
+   1626 LOAD_FAST                    lines
+   1626 LOAD_METHOD                  append
+   1626 LOAD_CONST                   '📜 支线『'
+   1626 LOAD_FAST                    sqd
+   1626 LOAD_CONST                   'name'
+   1626 BINARY_SUBSCR                
+   1626 FORMAT_VALUE                 
+   1626 LOAD_CONST                   '』目标达成！回去找 '
+   1626 LOAD_GLOBAL                  C
+   1626 LOAD_ATTR                    NPCS
+   1626 LOAD_FAST                    sqd
+   1626 LOAD_CONST                   'giver'
+   1626 BINARY_SUBSCR                
+   1626 BINARY_SUBSCR                
+   1626 LOAD_CONST                   'name'
+   1626 BINARY_SUBSCR                
+   1626 FORMAT_VALUE                 
+   1626 LOAD_CONST                   ' 交任务吧～'
+   1626 BUILD_STRING                 
+   1626 PRECALL                      
+   1626 CALL                         
+   1626 POP_TOP                      
+   1626 EXTENDED_ARG                 
+   1626 JUMP_BACKWARD                to 1802
+   1628 LOAD_FAST                    lines
+   1628 LOAD_METHOD                  append
+   1628 LOAD_CONST                   '📜 支线『'
+   1628 LOAD_FAST                    sqd
+   1628 LOAD_CONST                   'name'
+   1628 BINARY_SUBSCR                
+   1628 FORMAT_VALUE                 
+   1628 LOAD_CONST                   '』：'
+   1628 LOAD_FAST                    prog
+   1628 LOAD_FAST                    monster
+   1628 LOAD_CONST                   'name'
+   1628 BINARY_SUBSCR                
+   1628 BINARY_SUBSCR                
+   1628 FORMAT_VALUE                 
+   1628 LOAD_CONST                   '/'
+   1628 LOAD_FAST                    obj
+   1628 LOAD_CONST                   'count'
+   1628 BINARY_SUBSCR                
+   1628 FORMAT_VALUE                 
+   1628 BUILD_STRING                 
+   1628 PRECALL                      
+   1628 CALL                         
+   1628 POP_TOP                      
+      ? EXTENDED_ARG                 
+      ? JUMP_BACKWARD                to 1802
+   1629 LOAD_FAST                    side
+   1629 POP_JUMP_FORWARD_IF_FALSE    to 2530
+   1630 LOAD_FAST                    side
+   1630 LOAD_FAST                    quests
+   1630 LOAD_CONST                   'side'
+   1630 STORE_SUBSCR                 
+   1631 LOAD_FAST                    changed
+   1631 POP_JUMP_FORWARD_IF_FALSE    to 2578
+   1632 LOAD_GLOBAL                  NULL + db
+   1632 LOAD_ATTR                    save_quests
+   1632 LOAD_FAST                    group_id
+   1632 LOAD_FAST                    qq_id
+   1632 LOAD_FAST                    quests
+   1632 PRECALL                      
+   1632 CALL                         
+   1632 POP_TOP                      
+   1633 LOAD_FAST                    lines
+   1633 RETURN_VALUE                 

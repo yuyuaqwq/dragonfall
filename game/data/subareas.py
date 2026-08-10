@@ -359,7 +359,10 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_tavern_owner"
+                "npc_tavern_owner",
+                "npc_warrior_tutor",
+                "npc_mage_tutor",
+                "npc_priest_tutor"
             ],
             "monsters": [],
             "elite": None,
@@ -978,7 +981,10 @@ SUBAREAS = {
                 "npc_bard",
                 "npc_goblin_merchant",
                 "npc_fish_master",
-                "npc_craft_master"
+                "npc_craft_master",
+                "npc_ranger_tutor",
+                "npc_assassin_tutor",
+                "npc_monk_tutor"
             ],
             "monsters": [],
             "elite": None,

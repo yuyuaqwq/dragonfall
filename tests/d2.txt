@@ -1,0 +1,619 @@
+### world.py :: rest_camp  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L2104, 365 指令) ---
+   2104 RETURN_GENERATOR             
+   2104 POP_TOP                      
+   2104 RESUME                       
+   2107 LOAD_FAST                    self
+   2107 LOAD_METHOD                  _uid
+   2107 LOAD_FAST                    event
+   2107 PRECALL                      
+   2107 CALL                         
+   2107 UNPACK_SEQUENCE              
+   2107 STORE_FAST                   group_id
+   2107 STORE_FAST                   qq_id
+   2108 LOAD_FAST                    self
+   2108 LOAD_METHOD                  _player
+   2108 LOAD_FAST                    group_id
+   2108 LOAD_FAST                    qq_id
+   2108 PRECALL                      
+   2108 CALL                         
+   2108 STORE_FAST                   player
+   2109 LOAD_FAST                    player
+   2109 POP_JUMP_FORWARD_IF_TRUE     to 154
+   2110 LOAD_FAST                    event
+   2110 LOAD_METHOD                  plain_result
+   2110 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   2110 PRECALL                      
+   2110 CALL                         
+   2110 ASYNC_GEN_WRAP               
+   2110 YIELD_VALUE                  
+   2110 RESUME                       
+   2110 POP_TOP                      
+   2111 LOAD_CONST                   None
+   2111 RETURN_VALUE                 
+   2112 LOAD_GLOBAL                  C
+   2112 LOAD_ATTR                    MAP_BY_ID
+   2112 LOAD_METHOD                  get
+   2112 LOAD_FAST                    player
+   2112 LOAD_CONST                   'cur_map'
+   2112 BINARY_SUBSCR                
+   2112 BUILD_MAP                    
+   2112 PRECALL                      
+   2112 CALL                         
+   2112 STORE_FAST                   cur_map
+   2113 LOAD_FAST                    cur_map
+   2113 LOAD_METHOD                  get
+   2113 LOAD_CONST                   'id'
+   2113 LOAD_CONST                   ''
+   2113 PRECALL                      
+   2113 CALL                         
+   2113 STORE_FAST                   mid
+   2114 LOAD_FAST                    mid
+   2114 LOAD_GLOBAL                  C
+   2114 LOAD_ATTR                    CAMP_SPOTS
+   2114 CONTAINS_OP                  
+   2114 POP_JUMP_FORWARD_IF_FALSE    to 354
+   2115 LOAD_FAST                    event
+   2115 LOAD_METHOD                  plain_result
+   2115 LOAD_CONST                   '这里没有篝火营地！找找野外地图的营地（地图上会显示🔥篝火营地）～'
+   2115 PRECALL                      
+   2115 CALL                         
+   2115 ASYNC_GEN_WRAP               
+   2115 YIELD_VALUE                  
+   2115 RESUME                       
+   2115 POP_TOP                      
+   2116 LOAD_CONST                   None
+   2116 RETURN_VALUE                 
+   2118 LOAD_GLOBAL                  C
+   2118 LOAD_ATTR                    CAMP_SPOTS
+   2118 LOAD_FAST                    mid
+   2118 BINARY_SUBSCR                
+   2118 STORE_FAST                   _camp
+   2119 LOAD_GLOBAL                  NULL + isinstance
+   2119 LOAD_FAST                    _camp
+   2119 LOAD_GLOBAL                  dict
+   2119 PRECALL                      
+   2119 CALL                         
+   2119 POP_JUMP_FORWARD_IF_FALSE    to 476
+   2119 LOAD_FAST                    _camp
+   2119 LOAD_METHOD                  get
+   2119 LOAD_CONST                   'subarea'
+   2119 LOAD_CONST                   ''
+   2119 PRECALL                      
+   2119 CALL                         
+   2119 JUMP_FORWARD                 to 478
+   2119 LOAD_CONST                   ''
+   2119 STORE_FAST                   _camp_sa
+   2120 LOAD_FAST                    _camp_sa
+   2120 POP_JUMP_FORWARD_IF_FALSE    to 858
+   2120 LOAD_FAST                    player
+   2120 LOAD_METHOD                  get
+   2120 LOAD_CONST                   'cur_subarea'
+   2120 PRECALL                      
+   2120 CALL                         
+   2120 LOAD_FAST                    _camp_sa
+   2120 COMPARE_OP                   !=
+   2120 POP_JUMP_FORWARD_IF_FALSE    to 858
+   2121 LOAD_GLOBAL                  NULL + isinstance
+   2121 LOAD_FAST                    _camp
+   2121 LOAD_GLOBAL                  dict
+   2121 PRECALL                      
+   2121 CALL                         
+   2121 POP_JUMP_FORWARD_IF_FALSE    to 620
+   2121 LOAD_FAST                    _camp
+   2121 LOAD_METHOD                  get
+   2121 LOAD_CONST                   'name'
+   2121 LOAD_CONST                   '营地'
+   2121 PRECALL                      
+   2121 CALL                         
+   2121 JUMP_FORWARD                 to 648
+   2121 LOAD_GLOBAL                  NULL + str
+   2121 LOAD_FAST                    _camp
+   2121 PRECALL                      
+   2121 CALL                         
+   2121 STORE_FAST                   _camp_name
+   2122 LOAD_CONST                   ''
+   2122 STORE_FAST                   _sa_name
+   2123 LOAD_FAST                    cur_map
+   2123 LOAD_METHOD                  get
+   2123 LOAD_CONST                   'subareas'
+   2123 PRECALL                      
+   2123 CALL                         
+   2123 JUMP_IF_TRUE_OR_POP          to 698
+   2123 BUILD_LIST                   
+   2123 GET_ITER                     
+   2123 FOR_ITER                     to 778
+   2123 STORE_FAST                   _s
+   2124 LOAD_FAST                    _s
+   2124 LOAD_CONST                   'id'
+   2124 BINARY_SUBSCR                
+   2124 LOAD_FAST                    _camp_sa
+   2124 COMPARE_OP                   ==
+   2124 POP_JUMP_FORWARD_IF_FALSE    to 776
+   2125 LOAD_FAST                    _s
+   2125 LOAD_METHOD                  get
+   2125 LOAD_CONST                   'name'
+   2125 LOAD_CONST                   ''
+   2125 PRECALL                      
+   2125 CALL                         
+   2125 STORE_FAST                   _sa_name
+   2126 POP_TOP                      
+   2126 JUMP_FORWARD                 to 778
+   2124 JUMP_BACKWARD                to 700
+   2127 LOAD_FAST                    event
+   2127 LOAD_METHOD                  plain_result
+   2128 LOAD_CONST                   '🔥 '
+   2128 LOAD_FAST                    _camp_name
+   2128 FORMAT_VALUE                 
+   2128 LOAD_CONST                   '在'
+   2128 LOAD_FAST                    _sa_name
+   2128 JUMP_IF_TRUE_OR_POP          to 816
+   2128 LOAD_FAST                    _camp_sa
+   2128 FORMAT_VALUE                 
+   2128 LOAD_CONST                   '那边，这里够不着火堆！（『前往 '
+   2128 LOAD_FAST                    _sa_name
+   2128 JUMP_IF_TRUE_OR_POP          to 826
+   2128 LOAD_FAST                    _camp_sa
+   2128 FORMAT_VALUE                 
+   2128 LOAD_CONST                   '』）'
+   2128 BUILD_STRING                 
+   2127 PRECALL                      
+   2127 CALL                         
+   2127 ASYNC_GEN_WRAP               
+   2127 YIELD_VALUE                  
+   2127 RESUME                       
+   2127 POP_TOP                      
+   2130 LOAD_CONST                   None
+   2130 RETURN_VALUE                 
+   2131 LOAD_FAST                    self
+   2131 LOAD_METHOD                  _in_battle
+   2131 LOAD_FAST                    group_id
+   2131 LOAD_FAST                    qq_id
+   2131 PRECALL                      
+   2131 CALL                         
+   2131 POP_JUMP_FORWARD_IF_FALSE    to 954
+   2132 LOAD_FAST                    event
+   2132 LOAD_METHOD                  plain_result
+   2132 LOAD_CONST                   '⚔️ 你正在战斗中！先解决眼前的敌人再说。'
+   2132 PRECALL                      
+   2132 CALL                         
+   2132 ASYNC_GEN_WRAP               
+   2132 YIELD_VALUE                  
+   2132 RESUME                       
+   2132 POP_TOP                      
+   2133 LOAD_CONST                   None
+   2133 RETURN_VALUE                 
+   2135 LOAD_GLOBAL                  NULL + db
+   2135 LOAD_ATTR                    get_event_state
+   2135 LOAD_CONST                   'camp_'
+   2135 LOAD_FAST                    group_id
+   2135 FORMAT_VALUE                 
+   2135 LOAD_CONST                   '_'
+   2135 LOAD_FAST                    qq_id
+   2135 FORMAT_VALUE                 
+   2135 BUILD_STRING                 
+   2135 PRECALL                      
+   2135 CALL                         
+   2135 STORE_FAST                   last
+   2136 LOAD_FAST                    last
+   2136 POP_JUMP_FORWARD_IF_FALSE    to 1276
+   2136 LOAD_GLOBAL                  NULL + int
+   2136 LOAD_GLOBAL                  NULL + time
+   2136 LOAD_ATTR                    time
+   2136 PRECALL                      
+   2136 CALL                         
+   2136 PRECALL                      
+   2136 CALL                         
+   2136 LOAD_GLOBAL                  NULL + int
+   2136 LOAD_FAST                    last
+   2136 PRECALL                      
+   2136 CALL                         
+   2136 BINARY_OP                    -
+   2136 LOAD_CONST                   30
+   2136 COMPARE_OP                   <
+   2136 POP_JUMP_FORWARD_IF_FALSE    to 1276
+   2137 LOAD_CONST                   30
+   2137 LOAD_GLOBAL                  NULL + int
+   2137 LOAD_GLOBAL                  NULL + time
+   2137 LOAD_ATTR                    time
+   2137 PRECALL                      
+   2137 CALL                         
+   2137 PRECALL                      
+   2137 CALL                         
+   2137 LOAD_GLOBAL                  NULL + int
+   2137 LOAD_FAST                    last
+   2137 PRECALL                      
+   2137 CALL                         
+   2137 BINARY_OP                    -
+   2137 BINARY_OP                    -
+   2137 STORE_FAST                   left
+   2138 LOAD_FAST                    event
+   2138 LOAD_METHOD                  plain_result
+   2138 LOAD_CONST                   '⏳ 营地篝火需要添柴（'
+   2138 LOAD_FAST                    left
+   2138 FORMAT_VALUE                 
+   2138 LOAD_CONST                   '秒后恢复）……'
+   2138 BUILD_STRING                 
+   2138 PRECALL                      
+   2138 CALL                         
+   2138 ASYNC_GEN_WRAP               
+   2138 YIELD_VALUE                  
+   2138 RESUME                       
+   2138 POP_TOP                      
+   2139 LOAD_CONST                   None
+   2139 RETURN_VALUE                 
+   2140 LOAD_FAST                    player
+   2140 LOAD_CONST                   'hp'
+   2140 BINARY_SUBSCR                
+   2140 LOAD_FAST                    player
+   2140 LOAD_CONST                   'max_hp'
+   2140 BINARY_SUBSCR                
+   2140 COMPARE_OP                   >=
+   2140 POP_JUMP_FORWARD_IF_FALSE    to 1364
+   2141 LOAD_FAST                    event
+   2141 LOAD_METHOD                  plain_result
+   2141 LOAD_CONST                   '你精神饱满，不需要休息～'
+   2141 PRECALL                      
+   2141 CALL                         
+   2141 ASYNC_GEN_WRAP               
+   2141 YIELD_VALUE                  
+   2141 RESUME                       
+   2141 POP_TOP                      
+   2142 LOAD_CONST                   None
+   2142 RETURN_VALUE                 
+   2143 LOAD_GLOBAL                  NULL + db
+   2143 LOAD_ATTR                    set_event_state
+   2143 LOAD_CONST                   'camp_'
+   2143 LOAD_FAST                    group_id
+   2143 FORMAT_VALUE                 
+   2143 LOAD_CONST                   '_'
+   2143 LOAD_FAST                    qq_id
+   2143 FORMAT_VALUE                 
+   2143 BUILD_STRING                 
+   2143 LOAD_GLOBAL                  NULL + str
+   2143 LOAD_GLOBAL                  NULL + int
+   2143 LOAD_GLOBAL                  NULL + time
+   2143 LOAD_ATTR                    time
+   2143 PRECALL                      
+   2143 CALL                         
+   2143 PRECALL                      
+   2143 CALL                         
+   2143 PRECALL                      
+   2143 CALL                         
+   2143 PRECALL                      
+   2143 CALL                         
+   2143 POP_TOP                      
+   2144 LOAD_GLOBAL                  NULL + max
+   2144 LOAD_CONST                   1
+   2144 LOAD_GLOBAL                  NULL + int
+   2144 LOAD_FAST                    player
+   2144 LOAD_CONST                   'max_hp'
+   2144 BINARY_SUBSCR                
+   2144 LOAD_FAST                    player
+   2144 LOAD_CONST                   'hp'
+   2144 BINARY_SUBSCR                
+   2144 BINARY_OP                    -
+   2144 LOAD_CONST                   0.5
+   2144 BINARY_OP                    *
+   2144 PRECALL                      
+   2144 CALL                         
+   2144 PRECALL                      
+   2144 CALL                         
+   2144 STORE_FAST                   heal
+   2145 LOAD_GLOBAL                  NULL + min
+   2145 LOAD_FAST                    player
+   2145 LOAD_CONST                   'max_hp'
+   2145 BINARY_SUBSCR                
+   2145 LOAD_FAST                    player
+   2145 LOAD_CONST                   'hp'
+   2145 BINARY_SUBSCR                
+   2145 LOAD_FAST                    heal
+   2145 BINARY_OP                    +
+   2145 PRECALL                      
+   2145 CALL                         
+   2145 STORE_FAST                   new_hp
+   2146 LOAD_GLOBAL                  NULL + db
+   2146 LOAD_ATTR                    update_player
+   2146 LOAD_FAST                    group_id
+   2146 LOAD_FAST                    qq_id
+   2146 LOAD_FAST                    new_hp
+   2146 KW_NAMES                     
+   2146 PRECALL                      
+   2146 CALL                         
+   2146 POP_TOP                      
+   2147 LOAD_GLOBAL                  NULL + isinstance
+   2147 LOAD_FAST                    _camp
+   2147 LOAD_GLOBAL                  dict
+   2147 PRECALL                      
+   2147 CALL                         
+   2147 POP_JUMP_FORWARD_IF_FALSE    to 1792
+   2147 LOAD_FAST                    _camp
+   2147 LOAD_METHOD                  get
+   2147 LOAD_CONST                   'name'
+   2147 LOAD_CONST                   '营地'
+   2147 PRECALL                      
+   2147 CALL                         
+   2147 JUMP_FORWARD                 to 1820
+   2147 LOAD_GLOBAL                  NULL + str
+   2147 LOAD_FAST                    _camp
+   2147 PRECALL                      
+   2147 CALL                         
+   2147 STORE_FAST                   _camp_name
+   2148 LOAD_FAST                    event
+   2148 LOAD_METHOD                  plain_result
+   2149 LOAD_CONST                   '🔥 你在'
+   2149 LOAD_FAST                    _camp_name
+   2149 FORMAT_VALUE                 
+   2149 LOAD_CONST                   '的篝火旁歇了歇脚……\n❤️ 恢复 '
+   2150 LOAD_FAST                    heal
+   2149 FORMAT_VALUE                 
+   2149 LOAD_CONST                   ' 点生命（'
+   2150 LOAD_FAST                    new_hp
+   2149 FORMAT_VALUE                 
+   2149 LOAD_CONST                   '/'
+   2150 LOAD_FAST                    player
+   2150 LOAD_CONST                   'max_hp'
+   2150 BINARY_SUBSCR                
+   2149 FORMAT_VALUE                 
+   2149 LOAD_CONST                   '）\n💡 营地只能恢复一半伤势，重伤请回旅店『住宿』～'
+   2149 BUILD_STRING                 
+   2148 PRECALL                      
+   2148 CALL                         
+   2148 ASYNC_GEN_WRAP               
+   2148 YIELD_VALUE                  
+   2148 RESUME                       
+   2148 POP_TOP                      
+   2148 LOAD_CONST                   None
+   2148 RETURN_VALUE                 
+
+--- py 版 (L1986, 249 指令) ---
+   1986 RETURN_GENERATOR             
+   1986 POP_TOP                      
+   1986 RESUME                       
+   1989 LOAD_FAST                    self
+   1989 LOAD_METHOD                  _uid
+   1989 LOAD_FAST                    event
+   1989 PRECALL                      
+   1989 CALL                         
+   1989 UNPACK_SEQUENCE              
+   1989 STORE_FAST                   group_id
+   1989 STORE_FAST                   qq_id
+   1990 LOAD_FAST                    self
+   1990 LOAD_METHOD                  _player
+   1990 LOAD_FAST                    group_id
+   1990 LOAD_FAST                    qq_id
+   1990 PRECALL                      
+   1990 CALL                         
+   1990 STORE_FAST                   player
+   1991 LOAD_FAST                    player
+   1991 POP_JUMP_FORWARD_IF_TRUE     to 154
+   1992 LOAD_FAST                    event
+   1992 LOAD_METHOD                  plain_result
+   1992 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 ASYNC_GEN_WRAP               
+   1992 YIELD_VALUE                  
+   1992 RESUME                       
+   1992 POP_TOP                      
+   1993 LOAD_CONST                   None
+   1993 RETURN_VALUE                 
+   1994 LOAD_GLOBAL                  C
+   1994 LOAD_ATTR                    MAP_BY_ID
+   1994 LOAD_METHOD                  get
+   1994 LOAD_FAST                    player
+   1994 LOAD_CONST                   'cur_map'
+   1994 BINARY_SUBSCR                
+   1994 BUILD_MAP                    
+   1994 PRECALL                      
+   1994 CALL                         
+   1994 STORE_FAST                   cur_map
+   1995 LOAD_FAST                    cur_map
+   1995 LOAD_METHOD                  get
+   1995 LOAD_CONST                   'id'
+   1995 LOAD_CONST                   ''
+   1995 PRECALL                      
+   1995 CALL                         
+   1995 STORE_FAST                   mid
+   1996 LOAD_FAST                    mid
+   1996 LOAD_GLOBAL                  C
+   1996 LOAD_ATTR                    CAMP_SPOTS
+   1996 CONTAINS_OP                  
+   1996 POP_JUMP_FORWARD_IF_FALSE    to 354
+   1997 LOAD_FAST                    event
+   1997 LOAD_METHOD                  plain_result
+   1997 LOAD_CONST                   '这里没有篝火营地！找找野外地图的营地(地图上会显示🔥篝火营地)～'
+   1997 PRECALL                      
+   1997 CALL                         
+   1997 ASYNC_GEN_WRAP               
+   1997 YIELD_VALUE                  
+   1997 RESUME                       
+   1997 POP_TOP                      
+   1998 LOAD_CONST                   None
+   1998 RETURN_VALUE                 
+   1999 LOAD_FAST                    self
+   1999 LOAD_METHOD                  _in_battle
+   1999 LOAD_FAST                    group_id
+   1999 LOAD_FAST                    qq_id
+   1999 PRECALL                      
+   1999 CALL                         
+   1999 POP_JUMP_FORWARD_IF_FALSE    to 450
+   2000 LOAD_FAST                    event
+   2000 LOAD_METHOD                  plain_result
+   2000 LOAD_CONST                   '⚔️ 你正在战斗中！先解决眼前的敌人再说。'
+   2000 PRECALL                      
+   2000 CALL                         
+   2000 ASYNC_GEN_WRAP               
+   2000 YIELD_VALUE                  
+   2000 RESUME                       
+   2000 POP_TOP                      
+   2001 LOAD_CONST                   None
+   2001 RETURN_VALUE                 
+   2003 LOAD_GLOBAL                  NULL + db
+   2003 LOAD_ATTR                    get_event_state
+   2003 LOAD_CONST                   'camp_'
+   2003 LOAD_FAST                    group_id
+   2003 FORMAT_VALUE                 
+   2003 LOAD_CONST                   '_'
+   2003 LOAD_FAST                    qq_id
+   2003 FORMAT_VALUE                 
+   2003 BUILD_STRING                 
+   2003 PRECALL                      
+   2003 CALL                         
+   2003 STORE_FAST                   last
+   2004 LOAD_FAST                    last
+   2004 POP_JUMP_FORWARD_IF_FALSE    to 772
+   2004 LOAD_GLOBAL                  NULL + int
+   2004 LOAD_GLOBAL                  NULL + time
+   2004 LOAD_ATTR                    time
+   2004 PRECALL                      
+   2004 CALL                         
+   2004 PRECALL                      
+   2004 CALL                         
+   2004 LOAD_GLOBAL                  NULL + int
+   2004 LOAD_FAST                    last
+   2004 PRECALL                      
+   2004 CALL                         
+   2004 BINARY_OP                    -
+   2004 LOAD_CONST                   30
+   2004 COMPARE_OP                   <
+   2004 POP_JUMP_FORWARD_IF_FALSE    to 772
+   2005 LOAD_CONST                   30
+   2005 LOAD_GLOBAL                  NULL + int
+   2005 LOAD_GLOBAL                  NULL + time
+   2005 LOAD_ATTR                    time
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 LOAD_GLOBAL                  NULL + int
+   2005 LOAD_FAST                    last
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 BINARY_OP                    -
+   2005 BINARY_OP                    -
+   2005 STORE_FAST                   left
+   2006 LOAD_FAST                    event
+   2006 LOAD_METHOD                  plain_result
+   2006 LOAD_CONST                   '⏳ 营地篝火需要添柴('
+   2006 LOAD_FAST                    left
+   2006 FORMAT_VALUE                 
+   2006 LOAD_CONST                   '秒后恢复)……'
+   2006 BUILD_STRING                 
+   2006 PRECALL                      
+   2006 CALL                         
+   2006 ASYNC_GEN_WRAP               
+   2006 YIELD_VALUE                  
+   2006 RESUME                       
+   2006 POP_TOP                      
+   2007 LOAD_CONST                   None
+   2007 RETURN_VALUE                 
+   2008 LOAD_FAST                    player
+   2008 LOAD_CONST                   'hp'
+   2008 BINARY_SUBSCR                
+   2008 LOAD_FAST                    player
+   2008 LOAD_CONST                   'max_hp'
+   2008 BINARY_SUBSCR                
+   2008 COMPARE_OP                   >=
+   2008 POP_JUMP_FORWARD_IF_FALSE    to 860
+   2009 LOAD_FAST                    event
+   2009 LOAD_METHOD                  plain_result
+   2009 LOAD_CONST                   '你精神饱满，不需要休息～'
+   2009 PRECALL                      
+   2009 CALL                         
+   2009 ASYNC_GEN_WRAP               
+   2009 YIELD_VALUE                  
+   2009 RESUME                       
+   2009 POP_TOP                      
+   2010 LOAD_CONST                   None
+   2010 RETURN_VALUE                 
+   2011 LOAD_GLOBAL                  NULL + db
+   2011 LOAD_ATTR                    set_event_state
+   2011 LOAD_CONST                   'camp_'
+   2011 LOAD_FAST                    group_id
+   2011 FORMAT_VALUE                 
+   2011 LOAD_CONST                   '_'
+   2011 LOAD_FAST                    qq_id
+   2011 FORMAT_VALUE                 
+   2011 BUILD_STRING                 
+   2011 LOAD_GLOBAL                  NULL + str
+   2011 LOAD_GLOBAL                  NULL + int
+   2011 LOAD_GLOBAL                  NULL + time
+   2011 LOAD_ATTR                    time
+   2011 PRECALL                      
+   2011 CALL                         
+   2011 PRECALL                      
+   2011 CALL                         
+   2011 PRECALL                      
+   2011 CALL                         
+   2011 PRECALL                      
+   2011 CALL                         
+   2011 POP_TOP                      
+   2012 LOAD_GLOBAL                  NULL + max
+   2012 LOAD_CONST                   1
+   2012 LOAD_GLOBAL                  NULL + int
+   2012 LOAD_FAST                    player
+   2012 LOAD_CONST                   'max_hp'
+   2012 BINARY_SUBSCR                
+   2012 LOAD_FAST                    player
+   2012 LOAD_CONST                   'hp'
+   2012 BINARY_SUBSCR                
+   2012 BINARY_OP                    -
+   2012 LOAD_CONST                   0.5
+   2012 BINARY_OP                    *
+   2012 PRECALL                      
+   2012 CALL                         
+   2012 PRECALL                      
+   2012 CALL                         
+   2012 STORE_FAST                   heal
+   2013 LOAD_GLOBAL                  NULL + min
+   2013 LOAD_FAST                    player
+   2013 LOAD_CONST                   'max_hp'
+   2013 BINARY_SUBSCR                
+   2013 LOAD_FAST                    player
+   2013 LOAD_CONST                   'hp'
+   2013 BINARY_SUBSCR                
+   2013 LOAD_FAST                    heal
+   2013 BINARY_OP                    +
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 STORE_FAST                   new_hp
+   2014 LOAD_GLOBAL                  NULL + db
+   2014 LOAD_ATTR                    update_player
+   2014 LOAD_FAST                    group_id
+   2014 LOAD_FAST                    qq_id
+   2014 LOAD_FAST                    new_hp
+   2014 KW_NAMES                     
+   2014 PRECALL                      
+   2014 CALL                         
+   2014 POP_TOP                      
+   2015 LOAD_FAST                    event
+   2015 LOAD_METHOD                  plain_result
+   2016 LOAD_CONST                   '🔥 你在'
+   2016 LOAD_GLOBAL                  C
+   2016 LOAD_ATTR                    CAMP_SPOTS
+   2016 LOAD_FAST                    mid
+   2016 BINARY_SUBSCR                
+   2016 FORMAT_VALUE                 
+   2016 LOAD_CONST                   '的篝火旁歇了歇脚……\n❤️ 恢复 '
+   2017 LOAD_FAST                    heal
+   2016 FORMAT_VALUE                 
+   2016 LOAD_CONST                   ' 点生命('
+   2017 LOAD_FAST                    new_hp
+   2016 FORMAT_VALUE                 
+   2016 LOAD_CONST                   '/'
+   2017 LOAD_FAST                    player
+   2017 LOAD_CONST                   'max_hp'
+   2017 BINARY_SUBSCR                
+   2016 FORMAT_VALUE                 
+   2016 LOAD_CONST                   ')\n💡 营地只能恢复一半伤势，重伤请回旅店『住宿』～'
+   2016 BUILD_STRING                 
+   2015 PRECALL                      
+   2015 CALL                         
+   2015 ASYNC_GEN_WRAP               
+   2015 YIELD_VALUE                  
+   2015 RESUME                       
+   2015 POP_TOP                      
+   2015 LOAD_CONST                   None
+   2015 RETURN_VALUE                 

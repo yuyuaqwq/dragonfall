@@ -753,7 +753,7 @@ def skill_lifesteal_pct(info: dict | None, level: int) -> float:
 
 
 def skill_info(class_name: str, skill_name: str):
-    """技能详情：先查基础职业技能表，再查分支专属技能表（v26）
+    """技能详情：先查基础职业技能表，再查分支专属技能表（v26），最后查导师进阶技能（v95.23）
     v48：skill_name 接受中文名或 ID，统一 resolve 为 ID 再查（表 key 已是 sk_xxx）"""
     skill_name = C.resolve("skills", skill_name)
     info = _sk_table(class_name).get(skill_name)
@@ -763,6 +763,10 @@ def skill_info(class_name: str, skill_name: str):
         for bname, skills in branches.items():
             if skill_name in skills:
                 return skills[skill_name]
+    # v95.23 职业导师进阶技能（TUTOR_SKILLS 并入查询链，battle/面板共用）
+    t_info = (C.TUTOR_SKILLS or {}).get(class_name, {}).get(skill_name)
+    if t_info:
+        return t_info
     return None
 
 

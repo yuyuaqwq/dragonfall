@@ -1,0 +1,309 @@
+### world.py :: rest  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L2154, 160 指令) ---
+   2154 RETURN_GENERATOR             
+   2154 POP_TOP                      
+   2154 RESUME                       
+   2157 LOAD_FAST                    self
+   2157 LOAD_METHOD                  _uid
+   2157 LOAD_FAST                    event
+   2157 PRECALL                      
+   2157 CALL                         
+   2157 UNPACK_SEQUENCE              
+   2157 STORE_FAST                   group_id
+   2157 STORE_FAST                   qq_id
+   2158 LOAD_FAST                    self
+   2158 LOAD_METHOD                  _player
+   2158 LOAD_FAST                    group_id
+   2158 LOAD_FAST                    qq_id
+   2158 PRECALL                      
+   2158 CALL                         
+   2158 STORE_FAST                   player
+   2159 LOAD_FAST                    player
+   2159 POP_JUMP_FORWARD_IF_TRUE     to 154
+   2160 LOAD_FAST                    event
+   2160 LOAD_METHOD                  plain_result
+   2160 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   2160 PRECALL                      
+   2160 CALL                         
+   2160 ASYNC_GEN_WRAP               
+   2160 YIELD_VALUE                  
+   2160 RESUME                       
+   2160 POP_TOP                      
+   2161 LOAD_CONST                   None
+   2161 RETURN_VALUE                 
+   2162 LOAD_FAST                    self
+   2162 LOAD_METHOD                  _is_redname
+   2162 LOAD_FAST                    qq_id
+   2162 PRECALL                      
+   2162 CALL                         
+   2162 POP_JUMP_FORWARD_IF_FALSE    to 248
+   2163 LOAD_FAST                    event
+   2163 LOAD_METHOD                  plain_result
+   2163 LOAD_CONST                   '☠️ 你是红名！旅店老板不敢收留你……（等红名消退再来）'
+   2163 PRECALL                      
+   2163 CALL                         
+   2163 ASYNC_GEN_WRAP               
+   2163 YIELD_VALUE                  
+   2163 RESUME                       
+   2163 POP_TOP                      
+   2164 LOAD_CONST                   None
+   2164 RETURN_VALUE                 
+   2165 LOAD_GLOBAL                  C
+   2165 LOAD_ATTR                    MAP_BY_ID
+   2165 LOAD_METHOD                  get
+   2165 LOAD_FAST                    player
+   2165 LOAD_CONST                   'cur_map'
+   2165 BINARY_SUBSCR                
+   2165 PRECALL                      
+   2165 CALL                         
+   2165 STORE_FAST                   cur_map
+   2167 LOAD_FAST                    self
+   2167 LOAD_METHOD                  _at_healer
+   2167 LOAD_FAST                    player
+   2167 PRECALL                      
+   2167 CALL                         
+   2167 POP_JUMP_FORWARD_IF_TRUE     to 486
+   2168 LOAD_FAST                    self
+   2168 LOAD_METHOD                  _facility_hint
+   2168 LOAD_FAST                    player
+   2168 LOAD_CONST                   'healer'
+   2168 PRECALL                      
+   2168 CALL                         
+   2168 STORE_FAST                   hint
+   2169 LOAD_FAST                    event
+   2169 LOAD_METHOD                  plain_result
+   2170 LOAD_CONST                   '这里没有旅店。'
+   2170 LOAD_FAST                    hint
+   2170 POP_JUMP_FORWARD_IF_FALSE    to 454
+   2170 LOAD_CONST                   '到有旅店的地方（如 '
+   2170 LOAD_FAST                    hint
+   2170 BINARY_OP                    +
+   2170 LOAD_CONST                   '）输入『住宿』～'
+   2170 BINARY_OP                    +
+   2170 JUMP_FORWARD                 to 456
+   2170 LOAD_CONST                   '到城镇旅店（如橡木镇旅店）输入『住宿』～'
+   2170 FORMAT_VALUE                 
+   2170 BUILD_STRING                 
+   2169 PRECALL                      
+   2169 CALL                         
+   2169 ASYNC_GEN_WRAP               
+   2169 YIELD_VALUE                  
+   2169 RESUME                       
+   2169 POP_TOP                      
+   2172 LOAD_CONST                   None
+   2172 RETURN_VALUE                 
+   2173 LOAD_CONST                   30
+   2173 STORE_FAST                   cost
+   2174 LOAD_FAST                    player
+   2174 LOAD_CONST                   'gold'
+   2174 BINARY_SUBSCR                
+   2174 LOAD_FAST                    cost
+   2174 COMPARE_OP                   <
+   2174 POP_JUMP_FORWARD_IF_FALSE    to 592
+   2175 LOAD_FAST                    event
+   2175 LOAD_METHOD                  plain_result
+   2175 LOAD_CONST                   '住宿需要 '
+   2175 LOAD_FAST                    cost
+   2175 FORMAT_VALUE                 
+   2175 LOAD_CONST                   ' 金币，你只有 '
+   2175 LOAD_FAST                    player
+   2175 LOAD_CONST                   'gold'
+   2175 BINARY_SUBSCR                
+   2175 FORMAT_VALUE                 
+   2175 LOAD_CONST                   ' 金币。先去『探索』赚点钱吧～'
+   2175 BUILD_STRING                 
+   2175 PRECALL                      
+   2175 CALL                         
+   2175 ASYNC_GEN_WRAP               
+   2175 YIELD_VALUE                  
+   2175 RESUME                       
+   2175 POP_TOP                      
+   2176 LOAD_CONST                   None
+   2176 RETURN_VALUE                 
+   2177 LOAD_GLOBAL                  NULL + db
+   2177 LOAD_ATTR                    update_player
+   2177 LOAD_FAST                    group_id
+   2177 LOAD_FAST                    qq_id
+   2177 LOAD_FAST                    player
+   2177 LOAD_CONST                   'gold'
+   2177 BINARY_SUBSCR                
+   2177 LOAD_FAST                    cost
+   2177 BINARY_OP                    -
+   2177 LOAD_FAST                    player
+   2177 LOAD_CONST                   'max_hp'
+   2177 BINARY_SUBSCR                
+   2177 LOAD_FAST                    player
+   2177 LOAD_CONST                   'max_mp'
+   2177 BINARY_SUBSCR                
+   2177 KW_NAMES                     
+   2177 PRECALL                      
+   2177 CALL                         
+   2177 POP_TOP                      
+   2178 LOAD_FAST                    event
+   2178 LOAD_METHOD                  plain_result
+   2179 LOAD_CONST                   '🏨 你在旅店美美地睡了一觉……\n❤️ 生命全满！💙 魔力全满！\n花费 '
+   2181 LOAD_FAST                    cost
+   2179 FORMAT_VALUE                 
+   2179 LOAD_CONST                   ' 金币，当前余额：'
+   2181 LOAD_FAST                    player
+   2181 LOAD_CONST                   'gold'
+   2181 BINARY_SUBSCR                
+   2181 LOAD_FAST                    cost
+   2181 BINARY_OP                    -
+   2179 FORMAT_VALUE                 
+   2179 BUILD_STRING                 
+   2178 PRECALL                      
+   2178 CALL                         
+   2178 ASYNC_GEN_WRAP               
+   2178 YIELD_VALUE                  
+   2178 RESUME                       
+   2178 POP_TOP                      
+   2178 LOAD_CONST                   None
+   2178 RETURN_VALUE                 
+
+--- py 版 (L2054, 144 指令) ---
+   2054 RETURN_GENERATOR             
+   2054 POP_TOP                      
+   2054 RESUME                       
+   2057 LOAD_FAST                    self
+   2057 LOAD_METHOD                  _uid
+   2057 LOAD_FAST                    event
+   2057 PRECALL                      
+   2057 CALL                         
+   2057 UNPACK_SEQUENCE              
+   2057 STORE_FAST                   group_id
+   2057 STORE_FAST                   qq_id
+   2058 LOAD_FAST                    self
+   2058 LOAD_METHOD                  _player
+   2058 LOAD_FAST                    group_id
+   2058 LOAD_FAST                    qq_id
+   2058 PRECALL                      
+   2058 CALL                         
+   2058 STORE_FAST                   player
+   2059 LOAD_FAST                    player
+   2059 POP_JUMP_FORWARD_IF_TRUE     to 154
+   2060 LOAD_FAST                    event
+   2060 LOAD_METHOD                  plain_result
+   2060 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   2060 PRECALL                      
+   2060 CALL                         
+   2060 ASYNC_GEN_WRAP               
+   2060 YIELD_VALUE                  
+   2060 RESUME                       
+   2060 POP_TOP                      
+   2061 LOAD_CONST                   None
+   2061 RETURN_VALUE                 
+   2062 LOAD_FAST                    self
+   2062 LOAD_METHOD                  _is_redname
+   2062 LOAD_FAST                    qq_id
+   2062 PRECALL                      
+   2062 CALL                         
+   2062 POP_JUMP_FORWARD_IF_FALSE    to 248
+   2063 LOAD_FAST                    event
+   2063 LOAD_METHOD                  plain_result
+   2063 LOAD_CONST                   '☠️ 你是红名！旅店老板不敢收留你……(等红名消退再来)'
+   2063 PRECALL                      
+   2063 CALL                         
+   2063 ASYNC_GEN_WRAP               
+   2063 YIELD_VALUE                  
+   2063 RESUME                       
+   2063 POP_TOP                      
+   2064 LOAD_CONST                   None
+   2064 RETURN_VALUE                 
+   2065 LOAD_GLOBAL                  C
+   2065 LOAD_ATTR                    MAP_BY_ID
+   2065 LOAD_METHOD                  get
+   2065 LOAD_FAST                    player
+   2065 LOAD_CONST                   'cur_map'
+   2065 BINARY_SUBSCR                
+   2065 PRECALL                      
+   2065 CALL                         
+   2065 STORE_FAST                   cur_map
+   2066 LOAD_FAST                    cur_map
+   2066 POP_JUMP_FORWARD_IF_FALSE    to 368
+   2066 LOAD_FAST                    cur_map
+   2066 LOAD_METHOD                  get
+   2066 LOAD_CONST                   'healer'
+   2066 PRECALL                      
+   2066 CALL                         
+   2066 POP_JUMP_FORWARD_IF_TRUE     to 420
+   2067 LOAD_FAST                    event
+   2067 LOAD_METHOD                  plain_result
+   2067 LOAD_CONST                   '这里没有旅店。到有旅店的地方(如橡木镇旅店)输入『住宿』～'
+   2067 PRECALL                      
+   2067 CALL                         
+   2067 ASYNC_GEN_WRAP               
+   2067 YIELD_VALUE                  
+   2067 RESUME                       
+   2067 POP_TOP                      
+   2068 LOAD_CONST                   None
+   2068 RETURN_VALUE                 
+   2069 LOAD_CONST                   30
+   2069 STORE_FAST                   cost
+   2070 LOAD_FAST                    player
+   2070 LOAD_CONST                   'gold'
+   2070 BINARY_SUBSCR                
+   2070 LOAD_FAST                    cost
+   2070 COMPARE_OP                   <
+   2070 POP_JUMP_FORWARD_IF_FALSE    to 526
+   2071 LOAD_FAST                    event
+   2071 LOAD_METHOD                  plain_result
+   2071 LOAD_CONST                   '住宿需要 '
+   2071 LOAD_FAST                    cost
+   2071 FORMAT_VALUE                 
+   2071 LOAD_CONST                   ' 金币，你只有 '
+   2071 LOAD_FAST                    player
+   2071 LOAD_CONST                   'gold'
+   2071 BINARY_SUBSCR                
+   2071 FORMAT_VALUE                 
+   2071 LOAD_CONST                   ' 金币。先去『探索』赚点钱吧～'
+   2071 BUILD_STRING                 
+   2071 PRECALL                      
+   2071 CALL                         
+   2071 ASYNC_GEN_WRAP               
+   2071 YIELD_VALUE                  
+   2071 RESUME                       
+   2071 POP_TOP                      
+   2072 LOAD_CONST                   None
+   2072 RETURN_VALUE                 
+   2073 LOAD_GLOBAL                  NULL + db
+   2073 LOAD_ATTR                    update_player
+   2073 LOAD_FAST                    group_id
+   2073 LOAD_FAST                    qq_id
+   2073 LOAD_FAST                    player
+   2073 LOAD_CONST                   'gold'
+   2073 BINARY_SUBSCR                
+   2073 LOAD_FAST                    cost
+   2073 BINARY_OP                    -
+   2073 LOAD_FAST                    player
+   2073 LOAD_CONST                   'max_hp'
+   2073 BINARY_SUBSCR                
+   2073 LOAD_FAST                    player
+   2073 LOAD_CONST                   'max_mp'
+   2073 BINARY_SUBSCR                
+   2073 KW_NAMES                     
+   2073 PRECALL                      
+   2073 CALL                         
+   2073 POP_TOP                      
+   2074 LOAD_FAST                    event
+   2074 LOAD_METHOD                  plain_result
+   2075 LOAD_CONST                   '🏨 你在旅店美美地睡了一觉……\n❤️ 生命全满！💙 魔力全满！\n花费 '
+   2077 LOAD_FAST                    cost
+   2075 FORMAT_VALUE                 
+   2075 LOAD_CONST                   ' 金币，当前余额：'
+   2077 LOAD_FAST                    player
+   2077 LOAD_CONST                   'gold'
+   2077 BINARY_SUBSCR                
+   2077 LOAD_FAST                    cost
+   2077 BINARY_OP                    -
+   2075 FORMAT_VALUE                 
+   2075 BUILD_STRING                 
+   2074 PRECALL                      
+   2074 CALL                         
+   2074 ASYNC_GEN_WRAP               
+   2074 YIELD_VALUE                  
+   2074 RESUME                       
+   2074 POP_TOP                      
+   2074 LOAD_CONST                   None
+   2074 RETURN_VALUE                 

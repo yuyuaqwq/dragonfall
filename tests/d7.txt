@@ -1,0 +1,340 @@
+### world.py :: _move_blocked_msg  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L600, 208 指令) ---
+      ? MAKE_CELL                    target_sa
+      ? MAKE_CELL                    sas
+    600 RESUME                       
+    602 LOAD_FAST                    player
+    602 LOAD_METHOD                  get
+    602 LOAD_CONST                   'cur_subarea'
+    602 PRECALL                      
+    602 CALL                         
+    602 JUMP_IF_TRUE_OR_POP          to 50
+    602 LOAD_CONST                   ''
+    602 STORE_FAST                   cur_sa_id
+    603 LOAD_FAST                    cur_sa_id
+    603 STORE_FAST                   cur_name
+    604 LOAD_DEREF                   target_sa
+    604 LOAD_METHOD                  get
+    604 LOAD_CONST                   'name'
+    604 LOAD_DEREF                   target_sa
+    604 LOAD_METHOD                  get
+    604 LOAD_CONST                   'id'
+    604 LOAD_CONST                   '？'
+    604 PRECALL                      
+    604 CALL                         
+    604 PRECALL                      
+    604 CALL                         
+    604 STORE_FAST                   tgt_name
+    605 LOAD_FAST                    cur_map
+    605 LOAD_METHOD                  get
+    605 LOAD_CONST                   'subareas'
+    605 PRECALL                      
+    605 CALL                         
+    605 JUMP_IF_TRUE_OR_POP          to 184
+    605 BUILD_LIST                   
+    605 STORE_DEREF                  sas
+    606 LOAD_DEREF                   sas
+    606 GET_ITER                     
+    606 FOR_ITER                     to 240
+    606 STORE_FAST                   s
+    607 LOAD_FAST                    s
+    607 LOAD_CONST                   'id'
+    607 BINARY_SUBSCR                
+    607 LOAD_FAST                    cur_sa_id
+    607 COMPARE_OP                   ==
+    607 POP_JUMP_FORWARD_IF_FALSE    to 238
+    608 LOAD_FAST                    s
+    608 LOAD_CONST                   'name'
+    608 BINARY_SUBSCR                
+    608 STORE_FAST                   cur_name
+    609 POP_TOP                      
+    609 JUMP_FORWARD                 to 240
+    607 JUMP_BACKWARD                to 190
+    610 LOAD_DEREF                   sas
+    610 POP_JUMP_FORWARD_IF_FALSE    to 260
+    610 LOAD_DEREF                   sas
+    610 LOAD_CONST                   0
+    610 BINARY_SUBSCR                
+    610 JUMP_FORWARD                 to 262
+    610 BUILD_MAP                    
+    610 STORE_FAST                   center
+    611 LOAD_FAST                    center
+    611 LOAD_METHOD                  get
+    611 LOAD_CONST                   'type'
+    611 PRECALL                      
+    611 CALL                         
+    611 LOAD_CONST                   '城镇'
+    611 COMPARE_OP                   ==
+    611 POP_JUMP_FORWARD_IF_FALSE    to 764
+    613 LOAD_FAST                    cur_sa_id
+    613 LOAD_FAST                    center
+    613 LOAD_METHOD                  get
+    613 LOAD_CONST                   'id'
+    613 LOAD_CONST                   ''
+    613 PRECALL                      
+    613 CALL                         
+    613 COMPARE_OP                   ==
+    613 POP_JUMP_FORWARD_IF_FALSE    to 654
+    614 LOAD_CONST                   <code object <listcomp> at 0x0000021D4917DA30, file "game/commands/world.py", line 614>
+    614 MAKE_FUNCTION                
+    614 LOAD_DEREF                   sas
+    614 GET_ITER                     
+    614 PRECALL                      
+    614 CALL                         
+    614 STORE_FAST                   chain
+    616 LOAD_GLOBAL                  NULL + any
+    616 LOAD_CLOSURE                 target_sa
+    616 BUILD_TUPLE                  
+    616 LOAD_CONST                   <code object <genexpr> at 0x0000021D491AC9C0, file "game/commands/world.py", line 616>
+    616 MAKE_FUNCTION                closure
+    616 LOAD_FAST                    chain
+    616 GET_ITER                     
+    616 PRECALL                      
+    616 CALL                         
+    616 PRECALL                      
+    616 CALL                         
+    616 POP_JUMP_FORWARD_IF_FALSE    to 544
+    617 LOAD_FAST                    chain
+    617 POP_JUMP_FORWARD_IF_FALSE    to 476
+    617 LOAD_FAST                    chain
+    617 LOAD_CONST                   0
+    617 BINARY_SUBSCR                
+    617 LOAD_CONST                   'name'
+    617 BINARY_SUBSCR                
+    617 JUMP_FORWARD                 to 518
+    617 LOAD_FAST                    center
+    617 LOAD_METHOD                  get
+    617 LOAD_CONST                   'name'
+    617 LOAD_CONST                   '广场'
+    617 PRECALL                      
+    617 CALL                         
+    617 STORE_FAST                   first
+    618 LOAD_CONST                   '🧭 你身处【'
+    618 LOAD_FAST                    cur_name
+    618 FORMAT_VALUE                 
+    618 LOAD_CONST                   '】，不能直接去【'
+    618 LOAD_FAST                    tgt_name
+    618 FORMAT_VALUE                 
+    618 LOAD_CONST                   '】——路只有一条，需要先经过'
+    619 LOAD_FAST                    first
+    618 FORMAT_VALUE                 
+    618 LOAD_CONST                   '。'
+    618 BUILD_STRING                 
+    618 RETURN_VALUE                 
+    621 LOAD_CONST                   '🧭 你身处【'
+    621 LOAD_FAST                    cur_name
+    621 FORMAT_VALUE                 
+    621 LOAD_CONST                   '】，不能直接去【'
+    621 LOAD_FAST                    tgt_name
+    621 FORMAT_VALUE                 
+    621 LOAD_CONST                   '】——得先回到'
+    622 LOAD_FAST                    center
+    622 LOAD_METHOD                  get
+    622 LOAD_CONST                   'name'
+    622 LOAD_CONST                   '广场'
+    622 PRECALL                      
+    622 CALL                         
+    621 FORMAT_VALUE                 
+    621 LOAD_CONST                   '（『前往 '
+    622 LOAD_FAST                    center
+    622 LOAD_METHOD                  get
+    622 LOAD_CONST                   'name'
+    622 LOAD_CONST                   '广场'
+    622 PRECALL                      
+    622 CALL                         
+    621 FORMAT_VALUE                 
+    621 LOAD_CONST                   '』），再从那里过去。'
+    621 BUILD_STRING                 
+    621 RETURN_VALUE                 
+    623 LOAD_CONST                   '🧭 你身处【'
+    623 LOAD_FAST                    cur_name
+    623 FORMAT_VALUE                 
+    623 LOAD_CONST                   '】，不能直接去【'
+    623 LOAD_FAST                    tgt_name
+    623 FORMAT_VALUE                 
+    623 LOAD_CONST                   '】——得先回到'
+    624 LOAD_FAST                    center
+    624 LOAD_METHOD                  get
+    624 LOAD_CONST                   'name'
+    624 LOAD_CONST                   '广场'
+    624 PRECALL                      
+    624 CALL                         
+    623 FORMAT_VALUE                 
+    623 LOAD_CONST                   '（『前往 '
+    624 LOAD_FAST                    center
+    624 LOAD_METHOD                  get
+    624 LOAD_CONST                   'name'
+    624 LOAD_CONST                   '广场'
+    624 PRECALL                      
+    624 CALL                         
+    623 FORMAT_VALUE                 
+    623 LOAD_CONST                   '』），再从那里过去。'
+    623 BUILD_STRING                 
+    623 RETURN_VALUE                 
+    625 LOAD_GLOBAL                  NULL + C
+    625 LOAD_ATTR                    subarea_links
+    625 LOAD_FAST                    cur_map
+    625 LOAD_METHOD                  get
+    625 LOAD_CONST                   'id'
+    625 LOAD_CONST                   ''
+    625 PRECALL                      
+    625 CALL                         
+    625 LOAD_FAST                    cur_sa_id
+    625 PRECALL                      
+    625 CALL                         
+    625 STORE_FAST                   links
+    626 LOAD_CLOSURE                 sas
+    626 BUILD_TUPLE                  
+    626 LOAD_CONST                   <code object <listcomp> at 0x0000021D491ACAD0, file "game/commands/world.py", line 626>
+    626 MAKE_FUNCTION                closure
+    626 LOAD_FAST                    links
+    626 GET_ITER                     
+    626 PRECALL                      
+    626 CALL                         
+    626 STORE_FAST                   link_names
+    627 LOAD_CONST                   '🧭 你身处【'
+    627 LOAD_FAST                    cur_name
+    627 FORMAT_VALUE                 
+    627 LOAD_CONST                   '】，不能直接去【'
+    627 LOAD_FAST                    tgt_name
+    627 FORMAT_VALUE                 
+    627 LOAD_CONST                   '】——路只有一条，需要先经过'
+    628 LOAD_CONST                   '、'
+    628 LOAD_METHOD                  join
+    628 LOAD_FAST                    link_names
+    628 PRECALL                      
+    628 CALL                         
+    627 FORMAT_VALUE                 
+    627 LOAD_CONST                   '。'
+    627 BUILD_STRING                 
+    627 RETURN_VALUE                 
+
+--- py 版 (L568, 127 指令) ---
+      ? MAKE_CELL                    sas
+    568 RESUME                       
+    570 LOAD_FAST                    player
+    570 LOAD_METHOD                  get
+    570 LOAD_CONST                   'cur_subarea'
+    570 PRECALL                      
+    570 CALL                         
+    570 JUMP_IF_TRUE_OR_POP          to 48
+    570 LOAD_CONST                   ''
+    570 STORE_FAST                   cur_sa_id
+    571 LOAD_FAST                    cur_sa_id
+    571 STORE_FAST                   cur_name
+    572 LOAD_FAST                    target_sa
+    572 LOAD_METHOD                  get
+    572 LOAD_CONST                   'name'
+    572 LOAD_FAST                    target_sa
+    572 LOAD_METHOD                  get
+    572 LOAD_CONST                   'id'
+    572 LOAD_CONST                   '？'
+    572 PRECALL                      
+    572 CALL                         
+    572 PRECALL                      
+    572 CALL                         
+    572 STORE_FAST                   tgt_name
+    573 LOAD_FAST                    cur_map
+    573 LOAD_METHOD                  get
+    573 LOAD_CONST                   'subareas'
+    573 PRECALL                      
+    573 CALL                         
+    573 JUMP_IF_TRUE_OR_POP          to 182
+    573 BUILD_LIST                   
+    573 STORE_DEREF                  sas
+    574 LOAD_DEREF                   sas
+    574 GET_ITER                     
+    574 FOR_ITER                     to 238
+    574 STORE_FAST                   s
+    575 LOAD_FAST                    s
+    575 LOAD_CONST                   'id'
+    575 BINARY_SUBSCR                
+    575 LOAD_FAST                    cur_sa_id
+    575 COMPARE_OP                   ==
+    575 POP_JUMP_FORWARD_IF_FALSE    to 236
+    576 LOAD_FAST                    s
+    576 LOAD_CONST                   'name'
+    576 BINARY_SUBSCR                
+    576 STORE_FAST                   cur_name
+    577 POP_TOP                      
+    577 JUMP_FORWARD                 to 238
+    575 JUMP_BACKWARD                to 188
+    578 LOAD_DEREF                   sas
+    578 POP_JUMP_FORWARD_IF_FALSE    to 258
+    578 LOAD_DEREF                   sas
+    578 LOAD_CONST                   0
+    578 BINARY_SUBSCR                
+    578 JUMP_FORWARD                 to 260
+    578 BUILD_MAP                    
+    578 STORE_FAST                   center
+    579 LOAD_FAST                    center
+    579 LOAD_METHOD                  get
+    579 LOAD_CONST                   'type'
+    579 PRECALL                      
+    579 CALL                         
+    579 LOAD_CONST                   '城镇'
+    579 COMPARE_OP                   ==
+    579 POP_JUMP_FORWARD_IF_FALSE    to 422
+    580 LOAD_CONST                   '🧭 你身处【'
+    580 LOAD_FAST                    cur_name
+    580 FORMAT_VALUE                 
+    580 LOAD_CONST                   '】，不能直接去【'
+    580 LOAD_FAST                    tgt_name
+    580 FORMAT_VALUE                 
+    580 LOAD_CONST                   '】——得先回到'
+    581 LOAD_FAST                    center
+    581 LOAD_METHOD                  get
+    581 LOAD_CONST                   'name'
+    581 LOAD_CONST                   '广场'
+    581 PRECALL                      
+    581 CALL                         
+    580 FORMAT_VALUE                 
+    580 LOAD_CONST                   '(『移动 '
+    581 LOAD_FAST                    center
+    581 LOAD_METHOD                  get
+    581 LOAD_CONST                   'name'
+    581 LOAD_CONST                   '广场'
+    581 PRECALL                      
+    581 CALL                         
+    580 FORMAT_VALUE                 
+    580 LOAD_CONST                   '』)，再从那里过去。'
+    580 BUILD_STRING                 
+    580 RETURN_VALUE                 
+    582 LOAD_GLOBAL                  NULL + C
+    582 LOAD_ATTR                    subarea_links
+    582 LOAD_FAST                    cur_map
+    582 LOAD_METHOD                  get
+    582 LOAD_CONST                   'id'
+    582 LOAD_CONST                   ''
+    582 PRECALL                      
+    582 CALL                         
+    582 LOAD_FAST                    cur_sa_id
+    582 PRECALL                      
+    582 CALL                         
+    582 STORE_FAST                   links
+    583 LOAD_CLOSURE                 sas
+    583 BUILD_TUPLE                  
+    583 LOAD_CONST                   <code object <listcomp> at 0x0000021D491AC360, file "game\commands\world.py", line 583>
+    583 MAKE_FUNCTION                closure
+    583 LOAD_FAST                    links
+    583 GET_ITER                     
+    583 PRECALL                      
+    583 CALL                         
+    583 STORE_FAST                   link_names
+    584 LOAD_CONST                   '🧭 你身处【'
+    584 LOAD_FAST                    cur_name
+    584 FORMAT_VALUE                 
+    584 LOAD_CONST                   '】，不能直接去【'
+    584 LOAD_FAST                    tgt_name
+    584 FORMAT_VALUE                 
+    584 LOAD_CONST                   '】——路只有一条，需要先经过'
+    585 LOAD_CONST                   '、'
+    585 LOAD_METHOD                  join
+    585 LOAD_FAST                    link_names
+    585 PRECALL                      
+    585 CALL                         
+    584 FORMAT_VALUE                 
+    584 LOAD_CONST                   '。'
+    584 BUILD_STRING                 
+    584 RETURN_VALUE                 

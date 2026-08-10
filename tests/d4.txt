@@ -1,0 +1,419 @@
+### world.py :: portal_activate  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L1012, 248 指令) ---
+   1012 RETURN_GENERATOR             
+   1012 POP_TOP                      
+   1012 RESUME                       
+   1015 LOAD_FAST                    self
+   1015 LOAD_METHOD                  _uid
+   1015 LOAD_FAST                    event
+   1015 PRECALL                      
+   1015 CALL                         
+   1015 UNPACK_SEQUENCE              
+   1015 STORE_FAST                   group_id
+   1015 STORE_FAST                   qq_id
+   1016 LOAD_FAST                    self
+   1016 LOAD_METHOD                  _player
+   1016 LOAD_FAST                    group_id
+   1016 LOAD_FAST                    qq_id
+   1016 PRECALL                      
+   1016 CALL                         
+   1016 STORE_FAST                   player
+   1017 LOAD_FAST                    player
+   1017 POP_JUMP_FORWARD_IF_TRUE     to 154
+   1018 LOAD_FAST                    event
+   1018 LOAD_METHOD                  plain_result
+   1018 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1018 PRECALL                      
+   1018 CALL                         
+   1018 ASYNC_GEN_WRAP               
+   1018 YIELD_VALUE                  
+   1018 RESUME                       
+   1018 POP_TOP                      
+   1019 LOAD_CONST                   None
+   1019 RETURN_VALUE                 
+   1020 LOAD_FAST                    player
+   1020 LOAD_CONST                   'cur_map'
+   1020 BINARY_SUBSCR                
+   1020 STORE_FAST                   cur
+   1021 LOAD_FAST                    cur
+   1021 LOAD_GLOBAL                  C
+   1021 LOAD_ATTR                    PORTALS
+   1021 CONTAINS_OP                  
+   1021 POP_JUMP_FORWARD_IF_FALSE    to 250
+   1022 LOAD_FAST                    event
+   1022 LOAD_METHOD                  plain_result
+   1022 LOAD_CONST                   '这里没有方碑……寻找大陆上古道上刻着符文的古老路标吧！'
+   1022 PRECALL                      
+   1022 CALL                         
+   1022 ASYNC_GEN_WRAP               
+   1022 YIELD_VALUE                  
+   1022 RESUME                       
+   1022 POP_TOP                      
+   1023 LOAD_CONST                   None
+   1023 RETURN_VALUE                 
+   1025 LOAD_GLOBAL                  C
+   1025 LOAD_ATTR                    MAP_BY_ID
+   1025 LOAD_METHOD                  get
+   1025 LOAD_FAST                    cur
+   1025 BUILD_MAP                    
+   1025 PRECALL                      
+   1025 CALL                         
+   1025 STORE_FAST                   _pm
+   1026 LOAD_FAST                    _pm
+   1026 LOAD_METHOD                  get
+   1026 LOAD_CONST                   'subareas'
+   1026 PRECALL                      
+   1026 CALL                         
+   1026 JUMP_IF_TRUE_OR_POP          to 360
+   1026 LOAD_CONST                   None
+   1026 BUILD_LIST                   
+   1026 LOAD_CONST                   0
+   1026 BINARY_SUBSCR                
+   1026 STORE_FAST                   _first_sa
+   1027 LOAD_FAST                    _first_sa
+   1027 POP_JUMP_FORWARD_IF_FALSE    to 766
+   1027 LOAD_FAST                    player
+   1027 LOAD_METHOD                  get
+   1027 LOAD_CONST                   'cur_subarea'
+   1027 PRECALL                      
+   1027 CALL                         
+   1027 LOAD_FAST                    _first_sa
+   1027 LOAD_METHOD                  get
+   1027 LOAD_CONST                   'id'
+   1027 PRECALL                      
+   1027 CALL                         
+   1027 COMPARE_OP                   !=
+   1027 POP_JUMP_FORWARD_IF_FALSE    to 766
+   1028 LOAD_FAST                    event
+   1028 LOAD_METHOD                  plain_result
+   1029 LOAD_CONST                   '🌌 '
+   1029 LOAD_GLOBAL                  C
+   1029 LOAD_ATTR                    PORTALS
+   1029 LOAD_FAST                    cur
+   1029 BINARY_SUBSCR                
+   1029 LOAD_METHOD                  get
+   1029 LOAD_CONST                   'icon'
+   1029 LOAD_CONST                   ''
+   1029 PRECALL                      
+   1029 CALL                         
+   1029 FORMAT_VALUE                 
+   1029 LOAD_GLOBAL                  C
+   1029 LOAD_ATTR                    PORTALS
+   1029 LOAD_FAST                    cur
+   1029 BINARY_SUBSCR                
+   1029 LOAD_METHOD                  get
+   1029 LOAD_CONST                   'name'
+   1029 LOAD_CONST                   '方碑'
+   1029 PRECALL                      
+   1029 CALL                         
+   1029 FORMAT_VALUE                 
+   1029 LOAD_CONST                   '矗立在'
+   1029 LOAD_FAST                    _first_sa
+   1029 LOAD_METHOD                  get
+   1029 LOAD_CONST                   'name'
+   1029 LOAD_CONST                   '广场'
+   1029 PRECALL                      
+   1029 CALL                         
+   1029 FORMAT_VALUE                 
+   1029 LOAD_CONST                   '，你离得太远够不着！（『前往 '
+   1029 LOAD_FAST                    _first_sa
+   1029 LOAD_METHOD                  get
+   1029 LOAD_CONST                   'name'
+   1029 LOAD_CONST                   '广场'
+   1029 PRECALL                      
+   1029 CALL                         
+   1029 FORMAT_VALUE                 
+   1029 LOAD_CONST                   '』）'
+   1029 BUILD_STRING                 
+   1028 PRECALL                      
+   1028 CALL                         
+   1028 ASYNC_GEN_WRAP               
+   1028 YIELD_VALUE                  
+   1028 RESUME                       
+   1028 POP_TOP                      
+   1031 LOAD_CONST                   None
+   1031 RETURN_VALUE                 
+   1032 LOAD_GLOBAL                  C
+   1032 LOAD_ATTR                    PORTALS
+   1032 LOAD_FAST                    cur
+   1032 BINARY_SUBSCR                
+   1032 STORE_FAST                   p
+   1033 LOAD_FAST                    cur
+   1033 LOAD_GLOBAL                  NULL + db
+   1033 LOAD_ATTR                    get_portals
+   1033 LOAD_FAST                    qq_id
+   1033 PRECALL                      
+   1033 CALL                         
+   1033 CONTAINS_OP                  
+   1033 POP_JUMP_FORWARD_IF_FALSE    to 934
+   1034 LOAD_FAST                    event
+   1034 LOAD_METHOD                  plain_result
+   1034 LOAD_CONST                   '🌌 '
+   1034 LOAD_FAST                    p
+   1034 LOAD_CONST                   'icon'
+   1034 BINARY_SUBSCR                
+   1034 FORMAT_VALUE                 
+   1034 LOAD_FAST                    p
+   1034 LOAD_CONST                   'name'
+   1034 BINARY_SUBSCR                
+   1034 FORMAT_VALUE                 
+   1034 LOAD_CONST                   ' 已经激活过了！『方碑』查看传送列表～'
+   1034 BUILD_STRING                 
+   1034 PRECALL                      
+   1034 CALL                         
+   1034 ASYNC_GEN_WRAP               
+   1034 YIELD_VALUE                  
+   1034 RESUME                       
+   1034 POP_TOP                      
+   1035 LOAD_CONST                   None
+   1035 RETURN_VALUE                 
+   1036 LOAD_GLOBAL                  NULL + db
+   1036 LOAD_ATTR                    add_portal
+   1036 LOAD_FAST                    qq_id
+   1036 LOAD_FAST                    cur
+   1036 PRECALL                      
+   1036 CALL                         
+   1036 POP_TOP                      
+   1037 LOAD_GLOBAL                  C
+   1037 LOAD_ATTR                    MAP_BY_ID
+   1037 LOAD_METHOD                  get
+   1037 LOAD_FAST                    cur
+   1037 BUILD_MAP                    
+   1037 PRECALL                      
+   1037 CALL                         
+   1037 STORE_FAST                   m
+   1038 LOAD_GLOBAL                  NULL + max
+   1038 LOAD_CONST                   20
+   1038 LOAD_GLOBAL                  NULL + int
+   1038 LOAD_FAST                    m
+   1038 LOAD_METHOD                  get
+   1038 LOAD_CONST                   'lv'
+   1038 LOAD_CONST                   1
+   1038 PRECALL                      
+   1038 CALL                         
+   1038 PRECALL                      
+   1038 CALL                         
+   1038 LOAD_CONST                   20
+   1038 BINARY_OP                    *
+   1038 PRECALL                      
+   1038 CALL                         
+   1038 STORE_FAST                   exp
+   1039 LOAD_GLOBAL                  NULL + db
+   1039 LOAD_ATTR                    update_player
+   1039 LOAD_FAST                    group_id
+   1039 LOAD_FAST                    qq_id
+   1039 LOAD_FAST                    player
+   1039 LOAD_CONST                   'exp'
+   1039 BINARY_SUBSCR                
+   1039 LOAD_FAST                    exp
+   1039 BINARY_OP                    +
+   1039 KW_NAMES                     
+   1039 PRECALL                      
+   1039 CALL                         
+   1039 POP_TOP                      
+   1040 LOAD_FAST                    event
+   1040 LOAD_METHOD                  plain_result
+   1041 LOAD_CONST                   '✨ 星辉流转，'
+   1041 LOAD_FAST                    p
+   1041 LOAD_CONST                   'icon'
+   1041 BINARY_SUBSCR                
+   1041 FORMAT_VALUE                 
+   1041 LOAD_FAST                    p
+   1041 LOAD_CONST                   'name'
+   1041 BINARY_SUBSCR                
+   1041 FORMAT_VALUE                 
+   1041 LOAD_CONST                   ' 与你建立了链接！\n📍 传送点已激活：'
+   1042 LOAD_FAST                    m
+   1042 LOAD_METHOD                  get
+   1042 LOAD_CONST                   'name'
+   1042 LOAD_CONST                   '?'
+   1042 PRECALL                      
+   1042 CALL                         
+   1041 FORMAT_VALUE                 
+   1041 LOAD_CONST                   '（✨ 经验 +'
+   1042 LOAD_FAST                    exp
+   1041 FORMAT_VALUE                 
+   1041 LOAD_CONST                   '）\n💡 输入『方碑』查看全部已激活方碑，『传送 '
+   1043 LOAD_FAST                    p
+   1043 LOAD_CONST                   'name'
+   1043 BINARY_SUBSCR                
+   1041 FORMAT_VALUE                 
+   1041 LOAD_CONST                   '』即可直达！'
+   1041 BUILD_STRING                 
+   1040 PRECALL                      
+   1040 CALL                         
+   1040 ASYNC_GEN_WRAP               
+   1040 YIELD_VALUE                  
+   1040 RESUME                       
+   1040 POP_TOP                      
+   1040 LOAD_CONST                   None
+   1040 RETURN_VALUE                 
+
+--- py 版 (L914, 166 指令) ---
+    914 RETURN_GENERATOR             
+    914 POP_TOP                      
+    914 RESUME                       
+    917 LOAD_FAST                    self
+    917 LOAD_METHOD                  _uid
+    917 LOAD_FAST                    event
+    917 PRECALL                      
+    917 CALL                         
+    917 UNPACK_SEQUENCE              
+    917 STORE_FAST                   group_id
+    917 STORE_FAST                   qq_id
+    918 LOAD_FAST                    self
+    918 LOAD_METHOD                  _player
+    918 LOAD_FAST                    group_id
+    918 LOAD_FAST                    qq_id
+    918 PRECALL                      
+    918 CALL                         
+    918 STORE_FAST                   player
+    919 LOAD_FAST                    player
+    919 POP_JUMP_FORWARD_IF_TRUE     to 154
+    920 LOAD_FAST                    event
+    920 LOAD_METHOD                  plain_result
+    920 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+    920 PRECALL                      
+    920 CALL                         
+    920 ASYNC_GEN_WRAP               
+    920 YIELD_VALUE                  
+    920 RESUME                       
+    920 POP_TOP                      
+    921 LOAD_CONST                   None
+    921 RETURN_VALUE                 
+    922 LOAD_FAST                    player
+    922 LOAD_CONST                   'cur_map'
+    922 BINARY_SUBSCR                
+    922 STORE_FAST                   cur
+    923 LOAD_FAST                    cur
+    923 LOAD_GLOBAL                  C
+    923 LOAD_ATTR                    PORTALS
+    923 CONTAINS_OP                  
+    923 POP_JUMP_FORWARD_IF_FALSE    to 250
+    924 LOAD_FAST                    event
+    924 LOAD_METHOD                  plain_result
+    924 LOAD_CONST                   '这里没有方碑……寻找大陆上古道上刻着符文的古老路标吧！'
+    924 PRECALL                      
+    924 CALL                         
+    924 ASYNC_GEN_WRAP               
+    924 YIELD_VALUE                  
+    924 RESUME                       
+    924 POP_TOP                      
+    925 LOAD_CONST                   None
+    925 RETURN_VALUE                 
+    926 LOAD_GLOBAL                  C
+    926 LOAD_ATTR                    PORTALS
+    926 LOAD_FAST                    cur
+    926 BINARY_SUBSCR                
+    926 STORE_FAST                   p
+    927 LOAD_FAST                    cur
+    927 LOAD_GLOBAL                  NULL + db
+    927 LOAD_ATTR                    get_portals
+    927 LOAD_FAST                    qq_id
+    927 PRECALL                      
+    927 CALL                         
+    927 CONTAINS_OP                  
+    927 POP_JUMP_FORWARD_IF_FALSE    to 418
+    928 LOAD_FAST                    event
+    928 LOAD_METHOD                  plain_result
+    928 LOAD_CONST                   '🌌 '
+    928 LOAD_FAST                    p
+    928 LOAD_CONST                   'icon'
+    928 BINARY_SUBSCR                
+    928 FORMAT_VALUE                 
+    928 LOAD_FAST                    p
+    928 LOAD_CONST                   'name'
+    928 BINARY_SUBSCR                
+    928 FORMAT_VALUE                 
+    928 LOAD_CONST                   ' 已经激活过了！『方碑』查看传送列表～'
+    928 BUILD_STRING                 
+    928 PRECALL                      
+    928 CALL                         
+    928 ASYNC_GEN_WRAP               
+    928 YIELD_VALUE                  
+    928 RESUME                       
+    928 POP_TOP                      
+    929 LOAD_CONST                   None
+    929 RETURN_VALUE                 
+    930 LOAD_GLOBAL                  NULL + db
+    930 LOAD_ATTR                    add_portal
+    930 LOAD_FAST                    qq_id
+    930 LOAD_FAST                    cur
+    930 PRECALL                      
+    930 CALL                         
+    930 POP_TOP                      
+    931 LOAD_GLOBAL                  C
+    931 LOAD_ATTR                    MAP_BY_ID
+    931 LOAD_METHOD                  get
+    931 LOAD_FAST                    cur
+    931 BUILD_MAP                    
+    931 PRECALL                      
+    931 CALL                         
+    931 STORE_FAST                   m
+    932 LOAD_GLOBAL                  NULL + max
+    932 LOAD_CONST                   20
+    932 LOAD_GLOBAL                  NULL + int
+    932 LOAD_FAST                    m
+    932 LOAD_METHOD                  get
+    932 LOAD_CONST                   'lv'
+    932 LOAD_CONST                   1
+    932 PRECALL                      
+    932 CALL                         
+    932 PRECALL                      
+    932 CALL                         
+    932 LOAD_CONST                   20
+    932 BINARY_OP                    *
+    932 PRECALL                      
+    932 CALL                         
+    932 STORE_FAST                   exp
+    933 LOAD_GLOBAL                  NULL + db
+    933 LOAD_ATTR                    update_player
+    933 LOAD_FAST                    group_id
+    933 LOAD_FAST                    qq_id
+    933 LOAD_FAST                    player
+    933 LOAD_CONST                   'exp'
+    933 BINARY_SUBSCR                
+    933 LOAD_FAST                    exp
+    933 BINARY_OP                    +
+    933 KW_NAMES                     
+    933 PRECALL                      
+    933 CALL                         
+    933 POP_TOP                      
+    934 LOAD_FAST                    event
+    934 LOAD_METHOD                  plain_result
+    935 LOAD_CONST                   '✨ 星辉流转，'
+    935 LOAD_FAST                    p
+    935 LOAD_CONST                   'icon'
+    935 BINARY_SUBSCR                
+    935 FORMAT_VALUE                 
+    935 LOAD_FAST                    p
+    935 LOAD_CONST                   'name'
+    935 BINARY_SUBSCR                
+    935 FORMAT_VALUE                 
+    935 LOAD_CONST                   ' 与你建立了链接！\n📍 传送点已激活：'
+    936 LOAD_FAST                    m
+    936 LOAD_METHOD                  get
+    936 LOAD_CONST                   'name'
+    936 LOAD_CONST                   '?'
+    936 PRECALL                      
+    936 CALL                         
+    935 FORMAT_VALUE                 
+    935 LOAD_CONST                   '(✨ 经验 +'
+    936 LOAD_FAST                    exp
+    935 FORMAT_VALUE                 
+    935 LOAD_CONST                   ')\n💡 输入『方碑』查看全部已激活方碑，『传送 '
+    937 LOAD_FAST                    p
+    937 LOAD_CONST                   'name'
+    937 BINARY_SUBSCR                
+    935 FORMAT_VALUE                 
+    935 LOAD_CONST                   '』即可直达！'
+    935 BUILD_STRING                 
+    934 PRECALL                      
+    934 CALL                         
+    934 ASYNC_GEN_WRAP               
+    934 YIELD_VALUE                  
+    934 RESUME                       
+    934 POP_TOP                      
+    934 LOAD_CONST                   None
+    934 RETURN_VALUE                 

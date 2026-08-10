@@ -114,26 +114,34 @@ class PlayerCmds(CommandBase):
     async def register(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         _args = self._strip_cmd(event, "注册").split(maxsplit=2)
-        class_name = _args[0] if _args else ""
-        name = _args[1] if len(_args) > 1 else ""
+        first = _args[0] if _args else ""
+        rest = _args[1] if len(_args) > 1 else ""
         race_arg = _args[2] if len(_args) > 2 else ""
         if self._player(group_id, qq_id):
             yield event.plain_result("你已经注册过角色啦！输入『角色』查看～")
             return
-        class_name = class_name.strip()
-        # v48：职业输入（中文或 ID）→ resolve 转 cls ID
-        cls_id = C.resolve("classes", class_name)
+        first = first.strip()
+        # v95.23 双格式注册：
+        #   旧格式 注册 <职业> <名字> [种族] —— 兼容保留（直接带职业）
+        #   新格式 注册 <名字> [种族] —— 见习冒险者，去行会/导师处就职职业
+        cls_id = C.resolve("classes", first)
+        class_name = first
+        name = rest
         if cls_id not in C.CLASSES:
             # 无空格注册兼容：职业名与角色名粘在一起（如"注册战士格温"）
             for cid, cinfo in C.CLASSES.items():
                 cn = cinfo.get("name", cid)
-                if class_name.startswith(cn):
-                    name = class_name[len(cn):] + (" " + name if name else "")
+                if first.startswith(cn):
+                    name = first[len(cn):] + (" " + rest if rest else "")
                     cls_id = cid
                     class_name = cn
                     break
             else:
+                # v95.23 新格式：名字 [种族] → 见习冒险者（种族取第二个参数）
+                cls_id = "cls_novice"
                 class_name = ""
+                name = first
+                race_arg = rest
         if cls_id not in C.CLASSES:
             avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
             yield event.plain_result(f"未知职业『{class_name}』！可选职业：{avail}")
@@ -156,13 +164,13 @@ class PlayerCmds(CommandBase):
                 r = next((rid for rid, ri in C.RACES.items() if race_arg in ri["name"]), r)
             if r not in C.RACES:
                 races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
-                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}(格式：注册 <职业> <名字> <种族>)")
+                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}(格式：注册 <名字> [种族])")
                 return
             race_id = r
             race_display = C.RACES[r]["name"]
         name = name.strip()[:12]
         if not name:
-            yield event.plain_result("名字不能为空！格式：注册 <职业> <名字> [种族]")
+            yield event.plain_result("名字不能为空！格式：注册 <名字> [种族]，如『注册 格温 精灵』")
             return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
@@ -188,6 +196,29 @@ class PlayerCmds(CommandBase):
         C.check_achievements(group_id, qq_id, player)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
         race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}({C.RACES[race_id]['desc']})\n" if race_id in C.RACES else ""
+        if cls_id == "cls_novice":
+            # v95.23 见习冒险者：无职业技能，引导去行会/导师就职
+            yield event.plain_result(
+                f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
+                f"职业：🧭 见习冒险者\n"
+                f"{race_line}"
+                f"你还没有正式职业，先四处走走、熟悉一下这个世界吧。\n"
+                f"━━━━━━━━━━━━\n"
+                f"📍 出生点：橡木镇中心广场\n"
+                f"　· 输入『找 镇长』接取第一个任务\n"
+                f"　· 『地图』查看周边\n"
+                f"━━━━━━━━━━━━\n"
+                f"🌅 广场中央的【橡木方碑】已为你激活！\n"
+                f"　· 『方碑』查看详情\n"
+                f"　· 『传送』可前往各地路标\n"
+                f"━━━━━━━━━━━━\n"
+                f"⚔️ 见习冒险者无法学习职业技能，就职后解锁！\n"
+                f"　· 去广场找『行会接待员·小艾』就职职业（战士/法师/游侠/牧师/刺客/武僧）\n"
+                f"　· 各城还藏着职业导师，可学进阶技能与转职\n"
+                f"━━━━━━━━━━━━\n"
+                f"冒险者，你的故事开始了！"
+            )
+            return
         yield event.plain_result(
             f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
@@ -204,6 +235,7 @@ class PlayerCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"⚔️ 已学会初始技能：{init_display}\n"
             f"　· 升级获得技能点，『技能学习 <技能名>』学新技能\n"
+            f"　· 各城职业导师可学进阶技能，Lv.30/60/90 可转职\n"
             f"━━━━━━━━━━━━\n"
             f"冒险者，你的故事开始了！"
         )
@@ -397,49 +429,24 @@ class PlayerCmds(CommandBase):
                 f"🔒 达到 {need_lv} 级可转职，当前 Lv.{player['level']}，继续加油！"
             )
             return
-        # 可以转职：需要选择分支
-        raw = self._strip_cmd(event, "转职").strip()
-        path = player.get("evolve_path", 0)
-        # 无参数 → 显示分支选择（若尚未选择）
-        if not raw and not path:
-            if len(branches) < 2:
-                # 该职业该 tier 没有分支（兼容），直接转
-                async for r in self._do_evolve(event, group_id, qq_id, player, cls, tier, next_tier, 0):
-                    yield r
-                return
-            descs = {
-                0: "🔀 请选择进化路线：",
-            }
-            lines = [f"🌟 {cls['icon']}{C.display('classes', player['class_name'])} 达到了 {need_lv} 级，可以选择进化方向！", ""]
-            for i, b in enumerate(branches):
-                tag = "⚔️ 进攻" if i == 0 else "🛡️ 防御"
-                lines.append(f"  {i+1}. {b}({tag})")
-            lines.append("")
-            lines.append("💡 输入『转职 <序号/名字>』选择路线(如：转职 1 或 转职 圣骑士)")
-            yield event.plain_result("\n".join(lines))
-            return
-        # 带参数或已有路径 → 解析分支
-        if not path:
-            chosen = None
-            if raw.isdigit():
-                idx = int(raw) - 1
-                if 0 <= idx < len(branches):
-                    chosen = idx
-            else:
-                for i, b in enumerate(branches):
-                    if raw == b or raw in b:
-                        chosen = i
-                        break
-            if chosen is None:
-                opts = "、".join(f"{i+1}.{b}" for i, b in enumerate(branches))
-                yield event.plain_result(f"请选择正确的转职路线：{opts}")
-                return
-            path = chosen + 1  # 1=左(进攻) 2=右(防御)
-        else:
-            # 已有路径：后续转职自动走同分支
-            path = path
-        async for r in self._do_evolve(event, group_id, qq_id, player, cls, tier, next_tier, path):
-            yield r
+        # 可以转职：v95.23 改为找职业导师 NPC 转职（不再直接指令转职）
+        tutor_map = {
+            "cls_zhan_shi": ("老兵·格里姆", "白鹿城·白鹿广场"),
+            "cls_fa_shi": ("大法师·艾德琳", "白鹿城·白鹿广场"),
+            "cls_mu_shi": ("圣殿执事·莉亚", "白鹿城·白鹿广场"),
+            "cls_you_xia": ("猎手·柯恩", "铁港城·港口广场"),
+            "cls_ci_ke": ("暗影渡鸦", "铁港城·港口广场"),
+            "cls_wu_seng": ("船帮武师·老陈", "铁港城·港口广场"),
+        }
+        tname, tloc = tutor_map.get(player["class_name"], ("职业导师", "对应城市"))
+        branch_names = " / ".join(branches) if branches else "对应分支"
+        yield event.plain_result(
+            f"🌟 {cls['icon']}{C.display('classes', player['class_name'])} 达到了 {need_lv} 级，可以转职！\n"
+            f"━━━━━━━━━━━━\n"
+            f"🔀 可选路线：{branch_names}\n\n"
+            f"🧭 去 {tloc} 找 {tname}，由导师为你举行转职仪式吧！\n"
+            f"(『找 {tname}』→ 对话选择转职路线)"
+        )
         return
 
     def _branch_title(self, class_name: str, tier: int, evolve_path: int = 0) -> str:
@@ -929,6 +936,9 @@ class PlayerCmds(CommandBase):
     def _skill_learn_msg(self, group_id, player: dict, skill_name: str) -> str:
         """技能学习核心逻辑(v12：等级门槛 + 技能点学会，学会永久可用)"""
         skill_name = (skill_name or "").strip()
+        # v95.23 见习冒险者：无职业技能，先就职
+        if player.get("class_name") == "cls_novice":
+            return "🧭 见习冒险者还没有职业技能！去广场找『行会接待员·小艾』就职后就能学习技能了～"
         if not skill_name:
             return "格式：技能学习 <技能名/序号>，如『技能学习 裂空斩』或『技能学习 3』"
         # 序号学习：『技能学习 3』→ 技能列表第 3 个技能（与『技能详情』一致）

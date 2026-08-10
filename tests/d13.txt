@@ -1,0 +1,2773 @@
+### economy.py :: item_detail  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L1882, 1384 指令) ---
+      ? MAKE_CELL                    d
+      ? MAKE_CELL                    req_names
+   1882 RETURN_GENERATOR             
+   1882 POP_TOP                      
+   1882 RESUME                       
+   1886 LOAD_FAST                    self
+   1886 LOAD_METHOD                  _uid
+   1886 LOAD_FAST                    event
+   1886 PRECALL                      
+   1886 CALL                         
+   1886 UNPACK_SEQUENCE              
+   1886 STORE_FAST                   group_id
+   1886 STORE_FAST                   qq_id
+   1887 LOAD_FAST                    self
+   1887 LOAD_METHOD                  _strip_cmd
+   1887 LOAD_FAST                    event
+   1887 LOAD_CONST                   '物品详情'
+   1887 PRECALL                      
+   1887 CALL                         
+   1887 STORE_FAST                   item_name
+   1888 LOAD_FAST                    self
+   1888 LOAD_METHOD                  _player
+   1888 LOAD_FAST                    group_id
+   1888 LOAD_FAST                    qq_id
+   1888 PRECALL                      
+   1888 CALL                         
+   1888 STORE_FAST                   player
+   1889 LOAD_FAST                    player
+   1889 POP_JUMP_FORWARD_IF_TRUE     to 202
+   1890 LOAD_FAST                    event
+   1890 LOAD_METHOD                  plain_result
+   1890 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1890 PRECALL                      
+   1890 CALL                         
+   1890 ASYNC_GEN_WRAP               
+   1890 YIELD_VALUE                  
+   1890 RESUME                       
+   1890 POP_TOP                      
+   1891 LOAD_CONST                   None
+   1891 RETURN_VALUE                 
+   1892 LOAD_FAST                    item_name
+   1892 LOAD_METHOD                  strip
+   1892 PRECALL                      
+   1892 CALL                         
+   1892 STORE_FAST                   item_name
+   1893 LOAD_FAST                    item_name
+   1893 POP_JUMP_FORWARD_IF_TRUE     to 298
+   1894 LOAD_FAST                    event
+   1894 LOAD_METHOD                  plain_result
+   1894 LOAD_CONST                   '格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』'
+   1894 PRECALL                      
+   1894 CALL                         
+   1894 ASYNC_GEN_WRAP               
+   1894 YIELD_VALUE                  
+   1894 RESUME                       
+   1894 POP_TOP                      
+   1895 LOAD_CONST                   None
+   1895 RETURN_VALUE                 
+   1896 LOAD_GLOBAL                  NULL + db
+   1896 LOAD_ATTR                    get_inventory
+   1896 LOAD_FAST                    group_id
+   1896 LOAD_FAST                    qq_id
+   1896 PRECALL                      
+   1896 CALL                         
+   1896 STORE_FAST                   items
+   1897 LOAD_CONST                   None
+   1897 STORE_FAST                   target
+   1898 LOAD_CONST                   False
+   1898 STORE_FAST                   equipped
+   1900 LOAD_FAST                    item_name
+   1900 LOAD_METHOD                  isdigit
+   1900 PRECALL                      
+   1900 CALL                         
+   1900 POP_JUMP_FORWARD_IF_FALSE    to 584
+   1901 LOAD_GLOBAL                  NULL + int
+   1901 LOAD_FAST                    item_name
+   1901 PRECALL                      
+   1901 CALL                         
+   1901 STORE_FAST                   idx
+   1902 LOAD_FAST                    idx
+   1902 LOAD_CONST                   1
+   1902 COMPARE_OP                   <
+   1902 POP_JUMP_FORWARD_IF_TRUE     to 468
+   1902 LOAD_FAST                    idx
+   1902 LOAD_GLOBAL                  NULL + len
+   1902 LOAD_FAST                    items
+   1902 PRECALL                      
+   1902 CALL                         
+   1902 COMPARE_OP                   >
+   1902 POP_JUMP_FORWARD_IF_FALSE    to 560
+   1903 LOAD_FAST                    event
+   1903 LOAD_METHOD                  plain_result
+   1903 LOAD_CONST                   '背包里没有第 '
+   1903 LOAD_FAST                    idx
+   1903 FORMAT_VALUE                 
+   1903 LOAD_CONST                   ' 件物品（共 '
+   1903 LOAD_GLOBAL                  NULL + len
+   1903 LOAD_FAST                    items
+   1903 PRECALL                      
+   1903 CALL                         
+   1903 FORMAT_VALUE                 
+   1903 LOAD_CONST                   ' 件）！『背包』查看全部～'
+   1903 BUILD_STRING                 
+   1903 PRECALL                      
+   1903 CALL                         
+   1903 ASYNC_GEN_WRAP               
+   1903 YIELD_VALUE                  
+   1903 RESUME                       
+   1903 POP_TOP                      
+   1904 LOAD_CONST                   None
+   1904 RETURN_VALUE                 
+   1905 LOAD_FAST                    items
+   1905 LOAD_FAST                    idx
+   1905 LOAD_CONST                   1
+   1905 BINARY_OP                    -
+   1905 BINARY_SUBSCR                
+   1905 STORE_FAST                   target
+   1905 JUMP_FORWARD                 to 638
+   1907 LOAD_FAST                    items
+   1907 GET_ITER                     
+   1907 FOR_ITER                     to 638
+   1907 STORE_FAST                   it
+   1908 LOAD_FAST                    it
+   1908 LOAD_CONST                   'data'
+   1908 BINARY_SUBSCR                
+   1908 STORE_DEREF                  d
+   1909 LOAD_FAST                    item_name
+   1909 LOAD_DEREF                   d
+   1909 LOAD_CONST                   'name'
+   1909 BINARY_SUBSCR                
+   1909 CONTAINS_OP                  
+   1909 POP_JUMP_FORWARD_IF_FALSE    to 636
+   1910 LOAD_FAST                    it
+   1910 STORE_FAST                   target
+   1911 POP_TOP                      
+   1911 JUMP_FORWARD                 to 638
+   1909 JUMP_BACKWARD                to 588
+   1913 LOAD_FAST                    target
+   1913 POP_JUMP_FORWARD_IF_TRUE     to 816
+   1913 LOAD_FAST                    item_name
+   1913 LOAD_METHOD                  isdigit
+   1913 PRECALL                      
+   1913 CALL                         
+   1913 POP_JUMP_FORWARD_IF_TRUE     to 816
+   1914 LOAD_FAST                    player
+   1914 LOAD_METHOD                  get
+   1914 LOAD_CONST                   'equipment'
+   1914 PRECALL                      
+   1914 CALL                         
+   1914 JUMP_IF_TRUE_OR_POP          to 726
+   1914 BUILD_MAP                    
+   1914 LOAD_METHOD                  items
+   1914 PRECALL                      
+   1914 CALL                         
+   1914 GET_ITER                     
+   1914 FOR_ITER                     to 816
+   1914 UNPACK_SEQUENCE              
+   1914 STORE_FAST                   slot
+   1914 STORE_FAST                   item
+   1915 LOAD_FAST                    item
+   1915 POP_JUMP_FORWARD_IF_FALSE    to 814
+   1915 LOAD_FAST                    item_name
+   1915 LOAD_FAST                    item
+   1915 LOAD_CONST                   'name'
+   1915 BINARY_SUBSCR                
+   1915 CONTAINS_OP                  
+   1915 POP_JUMP_FORWARD_IF_FALSE    to 814
+   1916 LOAD_CONST                   'data'
+   1916 LOAD_FAST                    item
+   1916 BUILD_MAP                    
+   1916 STORE_FAST                   target
+   1917 LOAD_CONST                   True
+   1917 STORE_FAST                   equipped
+   1918 POP_TOP                      
+   1918 JUMP_FORWARD                 to 816
+      ? JUMP_BACKWARD                to 764
+   1919 LOAD_FAST                    target
+   1919 POP_JUMP_FORWARD_IF_TRUE     to 880
+   1920 LOAD_FAST                    event
+   1920 LOAD_METHOD                  plain_result
+   1920 LOAD_CONST                   '背包里没有叫『'
+   1920 LOAD_FAST                    item_name
+   1920 FORMAT_VALUE                 
+   1920 LOAD_CONST                   '』的物品！『背包』查看全部～'
+   1920 BUILD_STRING                 
+   1920 PRECALL                      
+   1920 CALL                         
+   1920 ASYNC_GEN_WRAP               
+   1920 YIELD_VALUE                  
+   1920 RESUME                       
+   1920 POP_TOP                      
+   1921 LOAD_CONST                   None
+   1921 RETURN_VALUE                 
+   1922 LOAD_FAST                    target
+   1922 LOAD_CONST                   'data'
+   1922 BINARY_SUBSCR                
+   1922 STORE_DEREF                  d
+   1923 BUILD_LIST                   
+   1923 STORE_FAST                   lines
+   1924 LOAD_DEREF                   d
+   1924 LOAD_METHOD                  get
+   1924 LOAD_CONST                   'slot'
+   1924 PRECALL                      
+   1924 CALL                         
+   1924 EXTENDED_ARG                 
+   1924 POP_JUMP_FORWARD_IF_FALSE    to 4428
+   1926 LOAD_GLOBAL                  C
+   1926 LOAD_ATTR                    QUALITY
+   1926 LOAD_DEREF                   d
+   1926 LOAD_CONST                   'quality'
+   1926 BINARY_SUBSCR                
+   1926 BINARY_SUBSCR                
+   1926 STORE_FAST                   q
+   1927 LOAD_DEREF                   d
+   1927 LOAD_METHOD                  get
+   1927 LOAD_CONST                   'enhance'
+   1927 LOAD_CONST                   0
+   1927 PRECALL                      
+   1927 CALL                         
+   1927 STORE_FAST                   enh
+   1928 LOAD_FAST                    enh
+   1928 LOAD_CONST                   0
+   1928 COMPARE_OP                   >
+   1928 POP_JUMP_FORWARD_IF_FALSE    to 1058
+   1928 LOAD_CONST                   ' +'
+   1928 LOAD_FAST                    enh
+   1928 FORMAT_VALUE                 
+   1928 BUILD_STRING                 
+   1928 JUMP_FORWARD                 to 1060
+   1928 LOAD_CONST                   ''
+   1928 STORE_FAST                   enh_str
+   1929 LOAD_FAST                    equipped
+   1929 POP_JUMP_FORWARD_IF_FALSE    to 1070
+   1929 LOAD_CONST                   '（已装备）'
+   1929 JUMP_FORWARD                 to 1072
+   1929 LOAD_CONST                   ''
+   1929 STORE_FAST                   equip_state
+   1930 LOAD_FAST                    lines
+   1930 LOAD_METHOD                  append
+   1930 LOAD_FAST                    q
+   1930 LOAD_CONST                   'color'
+   1930 BINARY_SUBSCR                
+   1930 FORMAT_VALUE                 
+   1930 LOAD_CONST                   '【'
+   1930 LOAD_DEREF                   d
+   1930 LOAD_CONST                   'name'
+   1930 BINARY_SUBSCR                
+   1930 FORMAT_VALUE                 
+   1930 LOAD_FAST                    enh_str
+   1930 FORMAT_VALUE                 
+   1930 LOAD_CONST                   '】('
+   1930 LOAD_GLOBAL                  C
+   1930 LOAD_ATTR                    EQUIP_SLOTS
+   1930 LOAD_DEREF                   d
+   1930 LOAD_CONST                   'slot'
+   1930 BINARY_SUBSCR                
+   1930 BINARY_SUBSCR                
+   1930 FORMAT_VALUE                 
+   1930 LOAD_CONST                   ')'
+   1930 LOAD_FAST                    equip_state
+   1930 FORMAT_VALUE                 
+   1930 BUILD_STRING                 
+   1930 PRECALL                      
+   1930 CALL                         
+   1930 POP_TOP                      
+   1931 LOAD_FAST                    lines
+   1931 LOAD_METHOD                  append
+   1931 LOAD_CONST                   '━━━━━━━━━━━━'
+   1931 PRECALL                      
+   1931 CALL                         
+   1931 POP_TOP                      
+   1932 LOAD_FAST                    lines
+   1932 LOAD_METHOD                  append
+   1932 LOAD_CONST                   '品质：'
+   1932 LOAD_FAST                    q
+   1932 LOAD_CONST                   'name'
+   1932 BINARY_SUBSCR                
+   1932 FORMAT_VALUE                 
+   1932 LOAD_CONST                   ' ｜ 需求等级：Lv.'
+   1932 LOAD_DEREF                   d
+   1932 LOAD_CONST                   'lv'
+   1932 BINARY_SUBSCR                
+   1932 FORMAT_VALUE                 
+   1932 BUILD_STRING                 
+   1932 PRECALL                      
+   1932 CALL                         
+   1932 POP_TOP                      
+   1933 LOAD_DEREF                   d
+   1933 LOAD_METHOD                  get
+   1933 LOAD_CONST                   'weapon_type'
+   1933 PRECALL                      
+   1933 CALL                         
+   1933 POP_JUMP_FORWARD_IF_FALSE    to 1638
+   1935 LOAD_FAST                    lines
+   1935 LOAD_METHOD                  append
+   1935 LOAD_CONST                   '类型：'
+   1935 LOAD_GLOBAL                  NULL + C
+   1935 LOAD_ATTR                    display
+   1935 LOAD_CONST                   'weapon_types'
+   1935 LOAD_DEREF                   d
+   1935 LOAD_CONST                   'weapon_type'
+   1935 BINARY_SUBSCR                
+   1935 PRECALL                      
+   1935 CALL                         
+   1935 FORMAT_VALUE                 
+   1935 BUILD_STRING                 
+   1935 PRECALL                      
+   1935 CALL                         
+   1935 POP_TOP                      
+   1936 LOAD_GLOBAL                  C
+   1936 LOAD_ATTR                    WEAPON_FLAVOR
+   1936 LOAD_METHOD                  get
+   1936 LOAD_DEREF                   d
+   1936 LOAD_CONST                   'weapon_type'
+   1936 BINARY_SUBSCR                
+   1936 BUILD_MAP                    
+   1936 PRECALL                      
+   1936 CALL                         
+   1936 LOAD_METHOD                  get
+   1936 LOAD_CONST                   'desc'
+   1936 LOAD_CONST                   ''
+   1936 PRECALL                      
+   1936 CALL                         
+   1936 STORE_FAST                   flavor_desc
+   1937 LOAD_FAST                    flavor_desc
+   1937 POP_JUMP_FORWARD_IF_FALSE    to 1638
+   1938 LOAD_FAST                    lines
+   1938 LOAD_METHOD                  append
+   1938 LOAD_CONST                   '✦ '
+   1938 LOAD_FAST                    flavor_desc
+   1938 FORMAT_VALUE                 
+   1938 BUILD_STRING                 
+   1938 PRECALL                      
+   1938 CALL                         
+   1938 POP_TOP                      
+   1939 LOAD_DEREF                   d
+   1939 LOAD_METHOD                  get
+   1939 LOAD_CONST                   'stats'
+   1939 BUILD_MAP                    
+   1939 PRECALL                      
+   1939 CALL                         
+   1939 STORE_FAST                   st
+   1940 LOAD_CONST                   '攻击'
+   1940 LOAD_CONST                   '防御'
+   1940 LOAD_CONST                   '魔攻'
+   1940 LOAD_CONST                   '魔防'
+   1941 LOAD_CONST                   '生命'
+   1941 LOAD_CONST                   '魔力'
+   1941 LOAD_CONST                   '速度'
+   1941 LOAD_CONST                   '暴击'
+   1941 LOAD_CONST                   '闪避'
+   1940 LOAD_CONST                   ('atk', 'def', 'matk', 'mdef', 'hp', 'mp', 'spd', 'crit', 'dodge')
+   1940 BUILD_CONST_KEY_MAP          
+   1940 STORE_FAST                   stat_names
+   1942 BUILD_LIST                   
+   1942 STORE_FAST                   stat_lines
+   1943 LOAD_FAST                    st
+   1943 LOAD_METHOD                  items
+   1943 PRECALL                      
+   1943 CALL                         
+   1943 GET_ITER                     
+   1943 FOR_ITER                     to 1918
+   1943 UNPACK_SEQUENCE              
+   1943 STORE_FAST                   k
+   1943 STORE_FAST                   v
+   1944 LOAD_FAST                    v
+   1944 POP_JUMP_FORWARD_IF_FALSE    to 1916
+   1945 LOAD_FAST                    stat_names
+   1945 LOAD_METHOD                  get
+   1945 LOAD_FAST                    k
+   1945 LOAD_FAST                    k
+   1945 PRECALL                      
+   1945 CALL                         
+   1945 STORE_FAST                   label
+   1946 LOAD_FAST                    stat_lines
+   1946 LOAD_METHOD                  append
+   1946 LOAD_FAST                    k
+   1946 LOAD_CONST                   ('crit', 'dodge')
+   1946 CONTAINS_OP                  
+   1946 POP_JUMP_FORWARD_IF_FALSE    to 1888
+   1946 LOAD_FAST                    label
+   1946 FORMAT_VALUE                 
+   1946 LOAD_CONST                   ' +'
+   1946 LOAD_GLOBAL                  NULL + int
+   1946 LOAD_FAST                    v
+   1946 LOAD_CONST                   100
+   1946 BINARY_OP                    *
+   1946 PRECALL                      
+   1946 CALL                         
+   1946 FORMAT_VALUE                 
+   1946 LOAD_CONST                   '%'
+   1946 BUILD_STRING                 
+   1946 JUMP_FORWARD                 to 1900
+   1946 LOAD_FAST                    label
+   1946 FORMAT_VALUE                 
+   1946 LOAD_CONST                   ' +'
+   1946 LOAD_FAST                    v
+   1946 FORMAT_VALUE                 
+   1946 BUILD_STRING                 
+   1946 PRECALL                      
+   1946 CALL                         
+   1946 POP_TOP                      
+      ? JUMP_BACKWARD                to 1750
+   1947 LOAD_FAST                    stat_lines
+   1947 POP_JUMP_FORWARD_IF_FALSE    to 2008
+   1948 LOAD_FAST                    lines
+   1948 LOAD_METHOD                  append
+   1948 LOAD_CONST                   '属性：'
+   1948 LOAD_CONST                   '  '
+   1948 LOAD_METHOD                  join
+   1948 LOAD_FAST                    stat_lines
+   1948 PRECALL                      
+   1948 CALL                         
+   1948 BINARY_OP                    +
+   1948 PRECALL                      
+   1948 CALL                         
+   1948 POP_TOP                      
+   1950 BUILD_LIST                   
+   1950 STORE_FAST                   aff_lines
+   1951 LOAD_DEREF                   d
+   1951 LOAD_METHOD                  get
+   1951 LOAD_CONST                   'affixes'
+   1951 BUILD_LIST                   
+   1951 PRECALL                      
+   1951 CALL                         
+   1951 GET_ITER                     
+   1951 FOR_ITER                     to 2488
+   1951 STORE_FAST                   af
+   1952 LOAD_GLOBAL                  NULL + isinstance
+   1952 LOAD_FAST                    af
+   1952 LOAD_GLOBAL                  dict
+   1952 PRECALL                      
+   1952 CALL                         
+   1952 POP_JUMP_FORWARD_IF_FALSE    to 2342
+   1953 LOAD_FAST                    af
+   1953 LOAD_METHOD                  get
+   1953 LOAD_CONST                   'stat'
+   1953 PRECALL                      
+   1953 CALL                         
+   1953 LOAD_FAST                    af
+   1953 LOAD_METHOD                  get
+   1953 LOAD_CONST                   'value'
+   1953 LOAD_CONST                   0
+   1953 PRECALL                      
+   1953 CALL                         
+   1953 STORE_FAST                   v
+   1953 STORE_FAST                   k
+   1954 LOAD_FAST                    stat_names
+   1954 LOAD_METHOD                  get
+   1954 LOAD_FAST                    k
+   1954 LOAD_FAST                    k
+   1954 PRECALL                      
+   1954 CALL                         
+   1954 STORE_FAST                   label
+   1955 LOAD_FAST                    aff_lines
+   1955 LOAD_METHOD                  append
+   1955 LOAD_FAST                    k
+   1955 LOAD_CONST                   ('crit', 'dodge')
+   1955 CONTAINS_OP                  
+   1955 POP_JUMP_FORWARD_IF_FALSE    to 2312
+   1955 LOAD_FAST                    label
+   1955 FORMAT_VALUE                 
+   1955 LOAD_CONST                   ' +'
+   1955 LOAD_GLOBAL                  NULL + int
+   1955 LOAD_FAST                    v
+   1955 LOAD_CONST                   100
+   1955 BINARY_OP                    *
+   1955 PRECALL                      
+   1955 CALL                         
+   1955 FORMAT_VALUE                 
+   1955 LOAD_CONST                   '%'
+   1955 BUILD_STRING                 
+   1955 JUMP_FORWARD                 to 2324
+   1955 LOAD_FAST                    label
+   1955 FORMAT_VALUE                 
+   1955 LOAD_CONST                   ' +'
+   1955 LOAD_FAST                    v
+   1955 FORMAT_VALUE                 
+   1955 BUILD_STRING                 
+   1955 PRECALL                      
+   1955 CALL                         
+   1955 POP_TOP                      
+   1956 JUMP_BACKWARD                to 2056
+   1957 LOAD_GLOBAL                  C
+   1957 LOAD_ATTR                    AFFIXES
+   1957 LOAD_METHOD                  get
+   1957 LOAD_FAST                    af
+   1957 PRECALL                      
+   1957 CALL                         
+   1957 STORE_FAST                   info
+   1958 LOAD_FAST                    info
+   1958 POP_JUMP_FORWARD_IF_FALSE    to 2486
+   1959 LOAD_FAST                    aff_lines
+   1959 LOAD_METHOD                  append
+   1959 LOAD_FAST                    info
+   1959 LOAD_CONST                   'name'
+   1959 BINARY_SUBSCR                
+   1959 FORMAT_VALUE                 
+   1959 LOAD_CONST                   '（'
+   1959 LOAD_FAST                    info
+   1959 LOAD_CONST                   'desc'
+   1959 BINARY_SUBSCR                
+   1959 FORMAT_VALUE                 
+   1959 LOAD_CONST                   '）'
+   1959 BUILD_STRING                 
+   1959 PRECALL                      
+   1959 CALL                         
+   1959 POP_TOP                      
+      ? JUMP_BACKWARD                to 2056
+   1960 LOAD_FAST                    aff_lines
+   1960 POP_JUMP_FORWARD_IF_FALSE    to 2578
+   1961 LOAD_FAST                    lines
+   1961 LOAD_METHOD                  append
+   1961 LOAD_CONST                   '✨ 词条：'
+   1961 LOAD_CONST                   '  '
+   1961 LOAD_METHOD                  join
+   1961 LOAD_FAST                    aff_lines
+   1961 PRECALL                      
+   1961 CALL                         
+   1961 BINARY_OP                    +
+   1961 PRECALL                      
+   1961 CALL                         
+   1961 POP_TOP                      
+   1962 LOAD_DEREF                   d
+   1962 LOAD_METHOD                  get
+   1962 LOAD_CONST                   'legendary'
+   1962 PRECALL                      
+   1962 CALL                         
+   1962 POP_JUMP_FORWARD_IF_FALSE    to 2776
+   1963 LOAD_GLOBAL                  C
+   1963 LOAD_ATTR                    LEGENDARY_EFFECTS
+   1963 LOAD_METHOD                  get
+   1963 LOAD_DEREF                   d
+   1963 LOAD_CONST                   'legendary'
+   1963 BINARY_SUBSCR                
+   1963 PRECALL                      
+   1963 CALL                         
+   1963 STORE_FAST                   lg
+   1964 LOAD_FAST                    lg
+   1964 POP_JUMP_FORWARD_IF_FALSE    to 2776
+   1965 LOAD_FAST                    lines
+   1965 LOAD_METHOD                  append
+   1965 LOAD_CONST                   '✨ 专属·'
+   1965 LOAD_FAST                    lg
+   1965 LOAD_CONST                   'name'
+   1965 BINARY_SUBSCR                
+   1965 FORMAT_VALUE                 
+   1965 LOAD_CONST                   '：'
+   1965 LOAD_FAST                    lg
+   1965 LOAD_CONST                   'desc'
+   1965 BINARY_SUBSCR                
+   1965 FORMAT_VALUE                 
+   1965 BUILD_STRING                 
+   1965 PRECALL                      
+   1965 CALL                         
+   1965 POP_TOP                      
+   1967 LOAD_DEREF                   d
+   1967 LOAD_METHOD                  get
+   1967 LOAD_CONST                   'req'
+   1967 PRECALL                      
+   1967 CALL                         
+   1967 STORE_FAST                   req
+   1968 LOAD_FAST                    req
+   1968 POP_JUMP_FORWARD_IF_FALSE    to 2986
+   1969 LOAD_CONST                   '力量'
+   1969 LOAD_CONST                   '敏捷'
+   1969 LOAD_CONST                   '智力'
+   1969 LOAD_CONST                   '耐力'
+   1969 LOAD_CONST                   ('str', 'agi', 'int', 'vit')
+   1969 BUILD_CONST_KEY_MAP          
+   1969 STORE_DEREF                  req_names
+   1970 LOAD_CONST                   ' + '
+   1970 LOAD_METHOD                  join
+   1970 LOAD_CLOSURE                 req_names
+   1970 BUILD_TUPLE                  
+   1970 LOAD_CONST                   <code object <genexpr> at 0x0000016D067CDCE0, file "game/commands/economy.py", line 1970>
+   1970 MAKE_FUNCTION                closure
+   1970 LOAD_FAST                    req
+   1970 LOAD_METHOD                  items
+   1970 PRECALL                      
+   1970 CALL                         
+   1970 GET_ITER                     
+   1970 PRECALL                      
+   1970 CALL                         
+   1970 PRECALL                      
+   1970 CALL                         
+   1970 STORE_FAST                   req_str
+   1971 LOAD_FAST                    lines
+   1971 LOAD_METHOD                  append
+   1971 LOAD_CONST                   '需求：'
+   1971 LOAD_FAST                    req_str
+   1971 FORMAT_VALUE                 
+   1971 BUILD_STRING                 
+   1971 PRECALL                      
+   1971 CALL                         
+   1971 POP_TOP                      
+   1973 BUILD_LIST                   
+   1973 STORE_FAST                   ench_lines
+   1974 LOAD_DEREF                   d
+   1974 LOAD_METHOD                  get
+   1974 LOAD_CONST                   'enchant'
+   1974 BUILD_LIST                   
+   1974 PRECALL                      
+   1974 CALL                         
+   1974 GET_ITER                     
+   1974 EXTENDED_ARG                 
+   1974 FOR_ITER                     to 3606
+   1974 STORE_FAST                   en
+   1975 LOAD_FAST                    en
+   1975 LOAD_METHOD                  get
+   1975 LOAD_CONST                   'effect'
+   1975 PRECALL                      
+   1975 CALL                         
+   1975 POP_JUMP_FORWARD_IF_FALSE    to 3364
+   1976 LOAD_GLOBAL                  C
+   1976 LOAD_ATTR                    RUNE_EFFECT_NAMES
+   1976 LOAD_METHOD                  get
+   1976 LOAD_FAST                    en
+   1976 LOAD_CONST                   'effect'
+   1976 BINARY_SUBSCR                
+   1976 LOAD_FAST                    en
+   1976 LOAD_CONST                   'effect'
+   1976 BINARY_SUBSCR                
+   1976 PRECALL                      
+   1976 CALL                         
+   1976 STORE_FAST                   eff_name
+   1977 LOAD_GLOBAL                  NULL + int
+   1977 LOAD_FAST                    en
+   1977 LOAD_METHOD                  get
+   1977 LOAD_CONST                   'lvl'
+   1977 LOAD_CONST                   1
+   1977 PRECALL                      
+   1977 CALL                         
+   1977 JUMP_IF_TRUE_OR_POP          to 3228
+   1977 LOAD_CONST                   1
+   1977 PRECALL                      
+   1977 CALL                         
+   1977 STORE_FAST                   lvl
+   1978 LOAD_GLOBAL                  C
+   1978 LOAD_ATTR                    RUNE_LEVEL_ROMAN
+   1978 LOAD_METHOD                  get
+   1978 LOAD_FAST                    lvl
+   1978 LOAD_CONST                   ''
+   1978 PRECALL                      
+   1978 CALL                         
+   1978 STORE_FAST                   roman
+   1979 LOAD_FAST                    ench_lines
+   1979 LOAD_METHOD                  append
+   1979 LOAD_CONST                   '『'
+   1979 LOAD_FAST                    eff_name
+   1979 FORMAT_VALUE                 
+   1979 LOAD_FAST                    roman
+   1979 FORMAT_VALUE                 
+   1979 LOAD_CONST                   '』'
+   1979 BUILD_STRING                 
+   1979 PRECALL                      
+   1979 CALL                         
+   1979 POP_TOP                      
+   1979 JUMP_BACKWARD                to 3034
+   1981 LOAD_FAST                    en
+   1981 LOAD_METHOD                  get
+   1981 LOAD_CONST                   'stat'
+   1981 PRECALL                      
+   1981 CALL                         
+   1981 LOAD_FAST                    en
+   1981 LOAD_METHOD                  get
+   1981 LOAD_CONST                   'value'
+   1981 LOAD_CONST                   0
+   1981 PRECALL                      
+   1981 CALL                         
+   1981 STORE_FAST                   v
+   1981 STORE_FAST                   k
+   1982 LOAD_FAST                    stat_names
+   1982 LOAD_METHOD                  get
+   1982 LOAD_FAST                    k
+   1982 LOAD_FAST                    k
+   1982 PRECALL                      
+   1982 CALL                         
+   1982 STORE_FAST                   label
+   1983 LOAD_FAST                    ench_lines
+   1983 LOAD_METHOD                  append
+   1983 LOAD_FAST                    k
+   1983 LOAD_CONST                   ('crit', 'dodge')
+   1983 CONTAINS_OP                  
+   1983 POP_JUMP_FORWARD_IF_FALSE    to 3574
+   1983 LOAD_FAST                    label
+   1983 FORMAT_VALUE                 
+   1983 LOAD_CONST                   ' +'
+   1983 LOAD_GLOBAL                  NULL + int
+   1983 LOAD_FAST                    v
+   1983 LOAD_CONST                   100
+   1983 BINARY_OP                    *
+   1983 PRECALL                      
+   1983 CALL                         
+   1983 FORMAT_VALUE                 
+   1983 LOAD_CONST                   '%'
+   1983 BUILD_STRING                 
+   1983 JUMP_FORWARD                 to 3586
+   1983 LOAD_FAST                    label
+   1983 FORMAT_VALUE                 
+   1983 LOAD_CONST                   ' +'
+   1983 LOAD_FAST                    v
+   1983 FORMAT_VALUE                 
+   1983 BUILD_STRING                 
+   1983 PRECALL                      
+   1983 CALL                         
+   1983 POP_TOP                      
+   1983 EXTENDED_ARG                 
+   1983 JUMP_BACKWARD                to 3034
+   1984 LOAD_FAST                    ench_lines
+   1984 POP_JUMP_FORWARD_IF_FALSE    to 3696
+   1985 LOAD_FAST                    lines
+   1985 LOAD_METHOD                  append
+   1985 LOAD_CONST                   '🔮 符文： '
+   1985 LOAD_CONST                   '  '
+   1985 LOAD_METHOD                  join
+   1985 LOAD_FAST                    ench_lines
+   1985 PRECALL                      
+   1985 CALL                         
+   1985 BINARY_OP                    +
+   1985 PRECALL                      
+   1985 CALL                         
+   1985 POP_TOP                      
+   1987 LOAD_DEREF                   d
+   1987 LOAD_METHOD                  get
+   1987 LOAD_CONST                   'set'
+   1987 PRECALL                      
+   1987 CALL                         
+   1987 POP_JUMP_FORWARD_IF_FALSE    to 3984
+   1988 LOAD_GLOBAL                  C
+   1988 LOAD_ATTR                    SETS
+   1988 LOAD_METHOD                  get
+   1988 LOAD_DEREF                   d
+   1988 LOAD_CONST                   'set'
+   1988 BINARY_SUBSCR                
+   1988 PRECALL                      
+   1988 CALL                         
+   1988 STORE_FAST                   sinfo
+   1989 LOAD_FAST                    sinfo
+   1989 POP_JUMP_FORWARD_IF_FALSE    to 3984
+   1990 LOAD_FAST                    sinfo
+   1990 LOAD_METHOD                  get
+   1990 LOAD_CONST                   'bonus_4'
+   1990 BUILD_MAP                    
+   1990 PRECALL                      
+   1990 CALL                         
+   1990 LOAD_METHOD                  get
+   1990 LOAD_CONST                   'desc'
+   1990 LOAD_CONST                   ''
+   1990 PRECALL                      
+   1990 CALL                         
+   1990 STORE_FAST                   b4_desc
+   1991 LOAD_FAST                    lines
+   1991 LOAD_METHOD                  append
+   1991 LOAD_CONST                   '🎴 套装：'
+   1991 LOAD_FAST                    sinfo
+   1991 LOAD_CONST                   'icon'
+   1991 BINARY_SUBSCR                
+   1991 FORMAT_VALUE                 
+   1991 LOAD_DEREF                   d
+   1991 LOAD_CONST                   'set'
+   1991 BINARY_SUBSCR                
+   1991 FORMAT_VALUE                 
+   1991 LOAD_CONST                   '（'
+   1991 LOAD_FAST                    b4_desc
+   1991 FORMAT_VALUE                 
+   1991 LOAD_CONST                   '）'
+   1991 BUILD_STRING                 
+   1991 PRECALL                      
+   1991 CALL                         
+   1991 POP_TOP                      
+   1992 LOAD_FAST                    enh
+   1992 LOAD_CONST                   0
+   1992 COMPARE_OP                   >
+   1992 POP_JUMP_FORWARD_IF_FALSE    to 4172
+   1993 LOAD_GLOBAL                  C
+   1993 LOAD_ATTR                    ENHANCE_TABLE
+   1993 LOAD_METHOD                  get
+   1993 LOAD_FAST                    enh
+   1993 PRECALL                      
+   1993 CALL                         
+   1993 STORE_FAST                   info
+   1994 LOAD_FAST                    lines
+   1994 LOAD_METHOD                  append
+   1994 LOAD_CONST                   '强化：+'
+   1994 LOAD_FAST                    enh
+   1994 FORMAT_VALUE                 
+   1994 BUILD_STRING                 
+   1994 LOAD_FAST                    info
+   1994 POP_JUMP_FORWARD_IF_FALSE    to 4150
+   1994 LOAD_CONST                   '（属性 '
+   1994 LOAD_GLOBAL                  NULL + int
+   1994 LOAD_FAST                    info
+   1994 LOAD_CONST                   'mult'
+   1994 BINARY_SUBSCR                
+   1994 LOAD_CONST                   100
+   1994 BINARY_OP                    *
+   1994 PRECALL                      
+   1994 CALL                         
+   1994 FORMAT_VALUE                 
+   1994 LOAD_CONST                   '%）'
+   1994 BUILD_STRING                 
+   1994 JUMP_FORWARD                 to 4152
+   1994 LOAD_CONST                   ''
+   1994 BINARY_OP                    +
+   1994 PRECALL                      
+   1994 CALL                         
+   1994 POP_TOP                      
+   1995 LOAD_DEREF                   d
+   1995 LOAD_METHOD                  get
+   1995 LOAD_CONST                   'desc'
+   1995 PRECALL                      
+   1995 CALL                         
+   1995 POP_JUMP_FORWARD_IF_FALSE    to 4274
+   1996 LOAD_FAST                    lines
+   1996 LOAD_METHOD                  append
+   1996 LOAD_CONST                   '描述：'
+   1996 LOAD_DEREF                   d
+   1996 LOAD_CONST                   'desc'
+   1996 BINARY_SUBSCR                
+   1996 FORMAT_VALUE                 
+   1996 BUILD_STRING                 
+   1996 PRECALL                      
+   1996 CALL                         
+   1996 POP_TOP                      
+   1997 LOAD_FAST                    lines
+   1997 LOAD_METHOD                  append
+   1997 LOAD_CONST                   ''
+   1997 PRECALL                      
+   1997 CALL                         
+   1997 POP_TOP                      
+   1998 LOAD_FAST                    lines
+   1998 LOAD_METHOD                  append
+   1998 LOAD_CONST                   '💡 『装备 '
+   1998 LOAD_DEREF                   d
+   1998 LOAD_CONST                   'name'
+   1998 BINARY_SUBSCR                
+   1998 FORMAT_VALUE                 
+   1998 LOAD_CONST                   '』穿上它 ｜ 出售价 '
+   1998 LOAD_DEREF                   d
+   1998 LOAD_METHOD                  get
+   1998 LOAD_CONST                   'price'
+   1998 LOAD_CONST                   0
+   1998 PRECALL                      
+   1998 CALL                         
+   1998 FORMAT_VALUE                 
+   1998 LOAD_CONST                   ' 金币'
+   1998 BUILD_STRING                 
+   1998 PRECALL                      
+   1998 CALL                         
+   1998 POP_TOP                      
+   1998 EXTENDED_ARG                 
+   1998 JUMP_FORWARD                 to 7436
+   1999 LOAD_DEREF                   d
+   1999 LOAD_METHOD                  get
+   1999 LOAD_CONST                   'type'
+   1999 PRECALL                      
+   1999 CALL                         
+   1999 LOAD_CONST                   '材料'
+   1999 COMPARE_OP                   ==
+   1999 POP_JUMP_FORWARD_IF_FALSE    to 4976
+   2001 LOAD_FAST                    lines
+   2001 LOAD_METHOD                  append
+   2001 LOAD_CONST                   '🧪 【'
+   2001 LOAD_DEREF                   d
+   2001 LOAD_CONST                   'name'
+   2001 BINARY_SUBSCR                
+   2001 FORMAT_VALUE                 
+   2001 LOAD_CONST                   '】'
+   2001 BUILD_STRING                 
+   2001 PRECALL                      
+   2001 CALL                         
+   2001 POP_TOP                      
+   2002 LOAD_FAST                    lines
+   2002 LOAD_METHOD                  append
+   2002 LOAD_CONST                   '━━━━━━━━━━━━'
+   2002 PRECALL                      
+   2002 CALL                         
+   2002 POP_TOP                      
+   2003 LOAD_FAST                    lines
+   2003 LOAD_METHOD                  append
+   2003 LOAD_CONST                   '类型：材料'
+   2003 PRECALL                      
+   2003 CALL                         
+   2003 POP_TOP                      
+   2004 LOAD_GLOBAL                  C
+   2004 LOAD_ATTR                    MATERIALS
+   2004 LOAD_METHOD                  get
+   2004 LOAD_DEREF                   d
+   2004 LOAD_CONST                   'name'
+   2004 BINARY_SUBSCR                
+   2004 PRECALL                      
+   2004 CALL                         
+   2004 STORE_FAST                   mat
+   2005 LOAD_FAST                    mat
+   2005 POP_JUMP_FORWARD_IF_FALSE    to 4804
+   2005 LOAD_FAST                    mat
+   2005 LOAD_METHOD                  get
+   2005 LOAD_CONST                   'desc'
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 POP_JUMP_FORWARD_IF_FALSE    to 4804
+   2006 LOAD_FAST                    lines
+   2006 LOAD_METHOD                  append
+   2006 LOAD_CONST                   '描述：'
+   2006 LOAD_FAST                    mat
+   2006 LOAD_CONST                   'desc'
+   2006 BINARY_SUBSCR                
+   2006 FORMAT_VALUE                 
+   2006 BUILD_STRING                 
+   2006 PRECALL                      
+   2006 CALL                         
+   2006 POP_TOP                      
+   2007 LOAD_FAST                    lines
+   2007 LOAD_METHOD                  append
+   2007 LOAD_CONST                   ''
+   2007 PRECALL                      
+   2007 CALL                         
+   2007 POP_TOP                      
+   2008 LOAD_FAST                    lines
+   2008 LOAD_METHOD                  append
+   2008 LOAD_CONST                   '💡 出售价 '
+   2008 LOAD_DEREF                   d
+   2008 LOAD_METHOD                  get
+   2008 LOAD_CONST                   'price'
+   2008 LOAD_CONST                   0
+   2008 PRECALL                      
+   2008 CALL                         
+   2008 FORMAT_VALUE                 
+   2008 LOAD_CONST                   ' 金币 ｜ 『出售 '
+   2008 LOAD_DEREF                   d
+   2008 LOAD_CONST                   'name'
+   2008 BINARY_SUBSCR                
+   2008 FORMAT_VALUE                 
+   2008 LOAD_CONST                   '』变现 ｜ 『喂养 '
+   2008 LOAD_DEREF                   d
+   2008 LOAD_CONST                   'name'
+   2008 BINARY_SUBSCR                
+   2008 FORMAT_VALUE                 
+   2008 LOAD_CONST                   '』喂宠物'
+   2008 BUILD_STRING                 
+   2008 PRECALL                      
+   2008 CALL                         
+   2008 POP_TOP                      
+   2008 EXTENDED_ARG                 
+   2008 JUMP_FORWARD                 to 7436
+   2009 LOAD_DEREF                   d
+   2009 LOAD_METHOD                  get
+   2009 LOAD_CONST                   'type'
+   2009 PRECALL                      
+   2009 CALL                         
+   2009 LOAD_CONST                   '符文'
+   2009 COMPARE_OP                   ==
+   2009 EXTENDED_ARG                 
+   2009 POP_JUMP_FORWARD_IF_FALSE    to 5612
+   2011 LOAD_FAST                    lines
+   2011 LOAD_METHOD                  append
+   2011 LOAD_CONST                   '💎 【'
+   2011 LOAD_DEREF                   d
+   2011 LOAD_CONST                   'name'
+   2011 BINARY_SUBSCR                
+   2011 FORMAT_VALUE                 
+   2011 LOAD_CONST                   '】'
+   2011 BUILD_STRING                 
+   2011 PRECALL                      
+   2011 CALL                         
+   2011 POP_TOP                      
+   2012 LOAD_FAST                    lines
+   2012 LOAD_METHOD                  append
+   2012 LOAD_CONST                   '━━━━━━━━━━━━'
+   2012 PRECALL                      
+   2012 CALL                         
+   2012 POP_TOP                      
+   2013 LOAD_FAST                    lines
+   2013 LOAD_METHOD                  append
+   2013 LOAD_CONST                   '类型：符文 ｜ 品质：'
+   2013 LOAD_DEREF                   d
+   2013 LOAD_METHOD                  get
+   2013 LOAD_CONST                   'quality'
+   2013 LOAD_CONST                   ''
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 FORMAT_VALUE                 
+   2013 LOAD_CONST                   ' ｜ 等级：'
+   2013 LOAD_GLOBAL                  C
+   2013 LOAD_ATTR                    RUNE_LEVEL_ROMAN
+   2013 LOAD_METHOD                  get
+   2013 LOAD_GLOBAL                  NULL + int
+   2013 LOAD_DEREF                   d
+   2013 LOAD_METHOD                  get
+   2013 LOAD_CONST                   'lvl'
+   2013 LOAD_CONST                   1
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 JUMP_IF_TRUE_OR_POP          to 5306
+   2013 LOAD_CONST                   1
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 LOAD_CONST                   ''
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 FORMAT_VALUE                 
+   2013 BUILD_STRING                 
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 POP_TOP                      
+   2014 LOAD_DEREF                   d
+   2014 LOAD_METHOD                  get
+   2014 LOAD_CONST                   'desc'
+   2014 PRECALL                      
+   2014 CALL                         
+   2014 POP_JUMP_FORWARD_IF_FALSE    to 5458
+   2015 LOAD_FAST                    lines
+   2015 LOAD_METHOD                  append
+   2015 LOAD_CONST                   '效果：'
+   2015 LOAD_DEREF                   d
+   2015 LOAD_CONST                   'desc'
+   2015 BINARY_SUBSCR                
+   2015 FORMAT_VALUE                 
+   2015 BUILD_STRING                 
+   2015 PRECALL                      
+   2015 CALL                         
+   2015 POP_TOP                      
+   2016 LOAD_FAST                    lines
+   2016 LOAD_METHOD                  append
+   2016 LOAD_CONST                   ''
+   2016 PRECALL                      
+   2016 CALL                         
+   2016 POP_TOP                      
+   2017 LOAD_FAST                    lines
+   2017 LOAD_METHOD                  append
+   2017 LOAD_CONST                   '💡 『附魔 <装备名> '
+   2017 LOAD_DEREF                   d
+   2017 LOAD_CONST                   'name'
+   2017 BINARY_SUBSCR                
+   2017 FORMAT_VALUE                 
+   2017 LOAD_CONST                   '』刻印到装备 ｜ 出售价 '
+   2017 LOAD_DEREF                   d
+   2017 LOAD_METHOD                  get
+   2017 LOAD_CONST                   'price'
+   2017 LOAD_CONST                   0
+   2017 PRECALL                      
+   2017 CALL                         
+   2017 FORMAT_VALUE                 
+   2017 LOAD_CONST                   ' 金币'
+   2017 BUILD_STRING                 
+   2017 PRECALL                      
+   2017 CALL                         
+   2017 POP_TOP                      
+   2017 EXTENDED_ARG                 
+   2017 JUMP_FORWARD                 to 7436
+   2018 LOAD_DEREF                   d
+   2018 LOAD_METHOD                  get
+   2018 LOAD_CONST                   'type'
+   2018 PRECALL                      
+   2018 CALL                         
+   2018 LOAD_CONST                   '图纸'
+   2018 COMPARE_OP                   ==
+   2018 EXTENDED_ARG                 
+   2018 POP_JUMP_FORWARD_IF_FALSE    to 6186
+   2020 LOAD_FAST                    lines
+   2020 LOAD_METHOD                  append
+   2020 LOAD_CONST                   '📜 【'
+   2020 LOAD_DEREF                   d
+   2020 LOAD_CONST                   'name'
+   2020 BINARY_SUBSCR                
+   2020 FORMAT_VALUE                 
+   2020 LOAD_CONST                   '】'
+   2020 BUILD_STRING                 
+   2020 PRECALL                      
+   2020 CALL                         
+   2020 POP_TOP                      
+   2021 LOAD_FAST                    lines
+   2021 LOAD_METHOD                  append
+   2021 LOAD_CONST                   '━━━━━━━━━━━━'
+   2021 PRECALL                      
+   2021 CALL                         
+   2021 POP_TOP                      
+   2022 LOAD_FAST                    lines
+   2022 LOAD_METHOD                  append
+   2022 LOAD_CONST                   '类型：图纸 ｜ 阶段：'
+   2022 LOAD_DEREF                   d
+   2022 LOAD_METHOD                  get
+   2022 LOAD_CONST                   'stage'
+   2022 LOAD_CONST                   ''
+   2022 PRECALL                      
+   2022 CALL                         
+   2022 FORMAT_VALUE                 
+   2022 LOAD_CONST                   ' ｜ 职业：'
+   2022 LOAD_DEREF                   d
+   2022 LOAD_METHOD                  get
+   2022 LOAD_CONST                   'class'
+   2022 LOAD_CONST                   ''
+   2022 PRECALL                      
+   2022 CALL                         
+   2022 FORMAT_VALUE                 
+   2022 BUILD_STRING                 
+   2022 PRECALL                      
+   2022 CALL                         
+   2022 POP_TOP                      
+   2023 LOAD_DEREF                   d
+   2023 LOAD_METHOD                  get
+   2023 LOAD_CONST                   'desc'
+   2023 PRECALL                      
+   2023 CALL                         
+   2023 POP_JUMP_FORWARD_IF_FALSE    to 6004
+   2024 LOAD_FAST                    lines
+   2024 LOAD_METHOD                  append
+   2024 LOAD_CONST                   '描述：'
+   2024 LOAD_DEREF                   d
+   2024 LOAD_CONST                   'desc'
+   2024 BINARY_SUBSCR                
+   2024 FORMAT_VALUE                 
+   2024 BUILD_STRING                 
+   2024 PRECALL                      
+   2024 CALL                         
+   2024 POP_TOP                      
+   2025 LOAD_FAST                    lines
+   2025 LOAD_METHOD                  append
+   2025 LOAD_CONST                   ''
+   2025 PRECALL                      
+   2025 CALL                         
+   2025 POP_TOP                      
+   2026 LOAD_FAST                    lines
+   2026 LOAD_METHOD                  append
+   2026 LOAD_CONST                   '💡 到铁匠铺『锻造 '
+   2026 LOAD_DEREF                   d
+   2026 LOAD_METHOD                  get
+   2026 LOAD_CONST                   'blueprint_for'
+   2026 LOAD_CONST                   ''
+   2026 PRECALL                      
+   2026 CALL                         
+   2026 FORMAT_VALUE                 
+   2026 LOAD_CONST                   '』系列装备 ｜ 出售价 '
+   2026 LOAD_DEREF                   d
+   2026 LOAD_METHOD                  get
+   2026 LOAD_CONST                   'price'
+   2026 LOAD_CONST                   0
+   2026 PRECALL                      
+   2026 CALL                         
+   2026 FORMAT_VALUE                 
+   2026 LOAD_CONST                   ' 金币'
+   2026 BUILD_STRING                 
+   2026 PRECALL                      
+   2026 CALL                         
+   2026 POP_TOP                      
+   2026 EXTENDED_ARG                 
+   2026 JUMP_FORWARD                 to 7436
+   2027 LOAD_DEREF                   d
+   2027 LOAD_METHOD                  get
+   2027 LOAD_CONST                   'type'
+   2027 PRECALL                      
+   2027 CALL                         
+   2027 LOAD_CONST                   '宠物蛋'
+   2027 COMPARE_OP                   ==
+   2027 POP_JUMP_FORWARD_IF_FALSE    to 6708
+   2029 LOAD_FAST                    lines
+   2029 LOAD_METHOD                  append
+   2029 LOAD_CONST                   '🥚 【'
+   2029 LOAD_DEREF                   d
+   2029 LOAD_CONST                   'name'
+   2029 BINARY_SUBSCR                
+   2029 FORMAT_VALUE                 
+   2029 LOAD_CONST                   '】'
+   2029 BUILD_STRING                 
+   2029 PRECALL                      
+   2029 CALL                         
+   2029 POP_TOP                      
+   2030 LOAD_FAST                    lines
+   2030 LOAD_METHOD                  append
+   2030 LOAD_CONST                   '━━━━━━━━━━━━'
+   2030 PRECALL                      
+   2030 CALL                         
+   2030 POP_TOP                      
+   2031 LOAD_GLOBAL                  NULL + next
+   2031 LOAD_CLOSURE                 d
+   2031 BUILD_TUPLE                  
+   2031 LOAD_CONST                   <code object <genexpr> at 0x0000016D06759590, file "game/commands/economy.py", line 2031>
+   2031 MAKE_FUNCTION                closure
+   2031 LOAD_GLOBAL                  C
+   2031 LOAD_ATTR                    PET_POOL
+   2031 GET_ITER                     
+   2031 PRECALL                      
+   2031 CALL                         
+   2031 LOAD_CONST                   None
+   2031 PRECALL                      
+   2031 CALL                         
+   2031 STORE_FAST                   pdef
+   2032 LOAD_FAST                    pdef
+   2032 POP_JUMP_FORWARD_IF_FALSE    to 6578
+   2033 LOAD_FAST                    lines
+   2033 LOAD_METHOD                  append
+   2033 LOAD_CONST                   '可孵化：'
+   2033 LOAD_FAST                    pdef
+   2033 LOAD_CONST                   'icon'
+   2033 BINARY_SUBSCR                
+   2033 FORMAT_VALUE                 
+   2033 LOAD_FAST                    pdef
+   2033 LOAD_CONST                   'name'
+   2033 BINARY_SUBSCR                
+   2033 FORMAT_VALUE                 
+   2033 LOAD_CONST                   '（怪物 Lv.'
+   2033 LOAD_FAST                    pdef
+   2033 LOAD_CONST                   'lv'
+   2033 BINARY_SUBSCR                
+   2033 FORMAT_VALUE                 
+   2033 LOAD_CONST                   ' 及以上掉落）'
+   2033 BUILD_STRING                 
+   2033 PRECALL                      
+   2033 CALL                         
+   2033 POP_TOP                      
+   2034 LOAD_FAST                    lines
+   2034 LOAD_METHOD                  append
+   2034 LOAD_CONST                   '描述：'
+   2034 LOAD_FAST                    pdef
+   2034 LOAD_CONST                   'desc'
+   2034 BINARY_SUBSCR                
+   2034 FORMAT_VALUE                 
+   2034 BUILD_STRING                 
+   2034 PRECALL                      
+   2034 CALL                         
+   2034 POP_TOP                      
+   2034 JUMP_FORWARD                 to 6620
+   2036 LOAD_FAST                    lines
+   2036 LOAD_METHOD                  append
+   2036 LOAD_CONST                   '神秘的蛋，『使用 宠物蛋』孵化试试？'
+   2036 PRECALL                      
+   2036 CALL                         
+   2036 POP_TOP                      
+   2037 LOAD_FAST                    lines
+   2037 LOAD_METHOD                  append
+   2037 LOAD_CONST                   ''
+   2037 PRECALL                      
+   2037 CALL                         
+   2037 POP_TOP                      
+   2038 LOAD_FAST                    lines
+   2038 LOAD_METHOD                  append
+   2038 LOAD_CONST                   '💡 『使用 宠物蛋』孵化'
+   2038 PRECALL                      
+   2038 CALL                         
+   2038 POP_TOP                      
+   2038 EXTENDED_ARG                 
+   2038 JUMP_FORWARD                 to 7436
+   2041 LOAD_FAST                    lines
+   2041 LOAD_METHOD                  append
+   2041 LOAD_CONST                   '📦 【'
+   2041 LOAD_DEREF                   d
+   2041 LOAD_CONST                   'name'
+   2041 BINARY_SUBSCR                
+   2041 FORMAT_VALUE                 
+   2041 LOAD_CONST                   '】'
+   2041 BUILD_STRING                 
+   2041 PRECALL                      
+   2041 CALL                         
+   2041 POP_TOP                      
+   2042 LOAD_FAST                    lines
+   2042 LOAD_METHOD                  append
+   2042 LOAD_CONST                   '━━━━━━━━━━━━'
+   2042 PRECALL                      
+   2042 CALL                         
+   2042 POP_TOP                      
+   2043 LOAD_DEREF                   d
+   2043 LOAD_METHOD                  get
+   2043 LOAD_CONST                   'type'
+   2043 PRECALL                      
+   2043 CALL                         
+   2043 POP_JUMP_FORWARD_IF_FALSE    to 6914
+   2044 LOAD_FAST                    lines
+   2044 LOAD_METHOD                  append
+   2044 LOAD_CONST                   '类型：'
+   2044 LOAD_DEREF                   d
+   2044 LOAD_CONST                   'type'
+   2044 BINARY_SUBSCR                
+   2044 FORMAT_VALUE                 
+   2044 BUILD_STRING                 
+   2044 PRECALL                      
+   2044 CALL                         
+   2044 POP_TOP                      
+   2045 LOAD_DEREF                   d
+   2045 LOAD_METHOD                  get
+   2045 LOAD_CONST                   'desc'
+   2045 PRECALL                      
+   2045 CALL                         
+   2045 POP_JUMP_FORWARD_IF_FALSE    to 7018
+   2046 LOAD_FAST                    lines
+   2046 LOAD_METHOD                  append
+   2046 LOAD_CONST                   '效果：'
+   2046 LOAD_DEREF                   d
+   2046 LOAD_CONST                   'desc'
+   2046 BINARY_SUBSCR                
+   2046 FORMAT_VALUE                 
+   2046 BUILD_STRING                 
+   2046 PRECALL                      
+   2046 CALL                         
+   2046 POP_TOP                      
+   2046 JUMP_FORWARD                 to 7228
+   2047 LOAD_DEREF                   d
+   2047 LOAD_METHOD                  get
+   2047 LOAD_CONST                   'heal'
+   2047 PRECALL                      
+   2047 CALL                         
+   2047 POP_JUMP_FORWARD_IF_FALSE    to 7124
+   2048 LOAD_FAST                    lines
+   2048 LOAD_METHOD                  append
+   2048 LOAD_CONST                   '效果：恢复 '
+   2048 LOAD_DEREF                   d
+   2048 LOAD_CONST                   'heal'
+   2048 BINARY_SUBSCR                
+   2048 FORMAT_VALUE                 
+   2048 LOAD_CONST                   ' 点生命'
+   2048 BUILD_STRING                 
+   2048 PRECALL                      
+   2048 CALL                         
+   2048 POP_TOP                      
+   2048 JUMP_FORWARD                 to 7228
+   2049 LOAD_DEREF                   d
+   2049 LOAD_METHOD                  get
+   2049 LOAD_CONST                   'mana'
+   2049 PRECALL                      
+   2049 CALL                         
+   2049 POP_JUMP_FORWARD_IF_FALSE    to 7228
+   2050 LOAD_FAST                    lines
+   2050 LOAD_METHOD                  append
+   2050 LOAD_CONST                   '效果：恢复 '
+   2050 LOAD_DEREF                   d
+   2050 LOAD_CONST                   'mana'
+   2050 BINARY_SUBSCR                
+   2050 FORMAT_VALUE                 
+   2050 LOAD_CONST                   ' 点魔力'
+   2050 BUILD_STRING                 
+   2050 PRECALL                      
+   2050 CALL                         
+   2050 POP_TOP                      
+   2051 LOAD_FAST                    lines
+   2051 LOAD_METHOD                  append
+   2051 LOAD_CONST                   ''
+   2051 PRECALL                      
+   2051 CALL                         
+   2051 POP_TOP                      
+   2052 LOAD_DEREF                   d
+   2052 LOAD_METHOD                  get
+   2052 LOAD_CONST                   'price'
+   2052 PRECALL                      
+   2052 CALL                         
+   2052 POP_JUMP_FORWARD_IF_FALSE    to 7374
+   2053 LOAD_FAST                    lines
+   2053 LOAD_METHOD                  append
+   2053 LOAD_CONST                   '💡 出售价 '
+   2053 LOAD_DEREF                   d
+   2053 LOAD_CONST                   'price'
+   2053 BINARY_SUBSCR                
+   2053 FORMAT_VALUE                 
+   2053 LOAD_CONST                   ' 金币'
+   2053 BUILD_STRING                 
+   2053 PRECALL                      
+   2053 CALL                         
+   2053 POP_TOP                      
+   2054 LOAD_FAST                    lines
+   2054 LOAD_METHOD                  append
+   2054 LOAD_CONST                   '💡 『使用 '
+   2054 LOAD_DEREF                   d
+   2054 LOAD_CONST                   'name'
+   2054 BINARY_SUBSCR                
+   2054 FORMAT_VALUE                 
+   2054 LOAD_CONST                   '』使用它'
+   2054 BUILD_STRING                 
+   2054 PRECALL                      
+   2054 CALL                         
+   2054 POP_TOP                      
+   2055 LOAD_FAST                    event
+   2055 LOAD_METHOD                  plain_result
+   2055 LOAD_CONST                   '\n'
+   2055 LOAD_METHOD                  join
+   2055 LOAD_FAST                    lines
+   2055 PRECALL                      
+   2055 CALL                         
+   2055 PRECALL                      
+   2055 CALL                         
+   2055 ASYNC_GEN_WRAP               
+   2055 YIELD_VALUE                  
+   2055 RESUME                       
+   2055 POP_TOP                      
+   2055 LOAD_CONST                   None
+   2055 RETURN_VALUE                 
+
+--- py 版 (L1861, 1384 指令) ---
+      ? MAKE_CELL                    d
+      ? MAKE_CELL                    req_names
+   1861 RETURN_GENERATOR             
+   1861 POP_TOP                      
+   1861 RESUME                       
+   1865 LOAD_FAST                    self
+   1865 LOAD_METHOD                  _uid
+   1865 LOAD_FAST                    event
+   1865 PRECALL                      
+   1865 CALL                         
+   1865 UNPACK_SEQUENCE              
+   1865 STORE_FAST                   group_id
+   1865 STORE_FAST                   qq_id
+   1866 LOAD_FAST                    self
+   1866 LOAD_METHOD                  _strip_cmd
+   1866 LOAD_FAST                    event
+   1866 LOAD_CONST                   '物品详情'
+   1866 PRECALL                      
+   1866 CALL                         
+   1866 STORE_FAST                   item_name
+   1867 LOAD_FAST                    self
+   1867 LOAD_METHOD                  _player
+   1867 LOAD_FAST                    group_id
+   1867 LOAD_FAST                    qq_id
+   1867 PRECALL                      
+   1867 CALL                         
+   1867 STORE_FAST                   player
+   1868 LOAD_FAST                    player
+   1868 POP_JUMP_FORWARD_IF_TRUE     to 202
+   1869 LOAD_FAST                    event
+   1869 LOAD_METHOD                  plain_result
+   1869 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1869 PRECALL                      
+   1869 CALL                         
+   1869 ASYNC_GEN_WRAP               
+   1869 YIELD_VALUE                  
+   1869 RESUME                       
+   1869 POP_TOP                      
+   1870 LOAD_CONST                   None
+   1870 RETURN_VALUE                 
+   1871 LOAD_FAST                    item_name
+   1871 LOAD_METHOD                  strip
+   1871 PRECALL                      
+   1871 CALL                         
+   1871 STORE_FAST                   item_name
+   1872 LOAD_FAST                    item_name
+   1872 POP_JUMP_FORWARD_IF_TRUE     to 298
+   1873 LOAD_FAST                    event
+   1873 LOAD_METHOD                  plain_result
+   1873 LOAD_CONST                   '格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』'
+   1873 PRECALL                      
+   1873 CALL                         
+   1873 ASYNC_GEN_WRAP               
+   1873 YIELD_VALUE                  
+   1873 RESUME                       
+   1873 POP_TOP                      
+   1874 LOAD_CONST                   None
+   1874 RETURN_VALUE                 
+   1875 LOAD_GLOBAL                  NULL + db
+   1875 LOAD_ATTR                    get_inventory
+   1875 LOAD_FAST                    group_id
+   1875 LOAD_FAST                    qq_id
+   1875 PRECALL                      
+   1875 CALL                         
+   1875 STORE_FAST                   items
+   1876 LOAD_CONST                   None
+   1876 STORE_FAST                   target
+   1877 LOAD_CONST                   False
+   1877 STORE_FAST                   equipped
+   1879 LOAD_FAST                    item_name
+   1879 LOAD_METHOD                  isdigit
+   1879 PRECALL                      
+   1879 CALL                         
+   1879 POP_JUMP_FORWARD_IF_FALSE    to 584
+   1880 LOAD_GLOBAL                  NULL + int
+   1880 LOAD_FAST                    item_name
+   1880 PRECALL                      
+   1880 CALL                         
+   1880 STORE_FAST                   idx
+   1881 LOAD_FAST                    idx
+   1881 LOAD_CONST                   1
+   1881 COMPARE_OP                   <
+   1881 POP_JUMP_FORWARD_IF_TRUE     to 468
+   1881 LOAD_FAST                    idx
+   1881 LOAD_GLOBAL                  NULL + len
+   1881 LOAD_FAST                    items
+   1881 PRECALL                      
+   1881 CALL                         
+   1881 COMPARE_OP                   >
+   1881 POP_JUMP_FORWARD_IF_FALSE    to 560
+   1882 LOAD_FAST                    event
+   1882 LOAD_METHOD                  plain_result
+   1882 LOAD_CONST                   '背包里没有第 '
+   1882 LOAD_FAST                    idx
+   1882 FORMAT_VALUE                 
+   1882 LOAD_CONST                   ' 件物品(共 '
+   1882 LOAD_GLOBAL                  NULL + len
+   1882 LOAD_FAST                    items
+   1882 PRECALL                      
+   1882 CALL                         
+   1882 FORMAT_VALUE                 
+   1882 LOAD_CONST                   ' 件)！『背包』查看全部～'
+   1882 BUILD_STRING                 
+   1882 PRECALL                      
+   1882 CALL                         
+   1882 ASYNC_GEN_WRAP               
+   1882 YIELD_VALUE                  
+   1882 RESUME                       
+   1882 POP_TOP                      
+   1883 LOAD_CONST                   None
+   1883 RETURN_VALUE                 
+   1884 LOAD_FAST                    items
+   1884 LOAD_FAST                    idx
+   1884 LOAD_CONST                   1
+   1884 BINARY_OP                    -
+   1884 BINARY_SUBSCR                
+   1884 STORE_FAST                   target
+   1884 JUMP_FORWARD                 to 638
+   1886 LOAD_FAST                    items
+   1886 GET_ITER                     
+   1886 FOR_ITER                     to 638
+   1886 STORE_FAST                   it
+   1887 LOAD_FAST                    it
+   1887 LOAD_CONST                   'data'
+   1887 BINARY_SUBSCR                
+   1887 STORE_DEREF                  d
+   1888 LOAD_FAST                    item_name
+   1888 LOAD_DEREF                   d
+   1888 LOAD_CONST                   'name'
+   1888 BINARY_SUBSCR                
+   1888 CONTAINS_OP                  
+   1888 POP_JUMP_FORWARD_IF_FALSE    to 636
+   1889 LOAD_FAST                    it
+   1889 STORE_FAST                   target
+   1890 POP_TOP                      
+   1890 JUMP_FORWARD                 to 638
+   1888 JUMP_BACKWARD                to 588
+   1892 LOAD_FAST                    target
+   1892 POP_JUMP_FORWARD_IF_TRUE     to 816
+   1892 LOAD_FAST                    item_name
+   1892 LOAD_METHOD                  isdigit
+   1892 PRECALL                      
+   1892 CALL                         
+   1892 POP_JUMP_FORWARD_IF_TRUE     to 816
+   1893 LOAD_FAST                    player
+   1893 LOAD_METHOD                  get
+   1893 LOAD_CONST                   'equipment'
+   1893 PRECALL                      
+   1893 CALL                         
+   1893 JUMP_IF_TRUE_OR_POP          to 726
+   1893 BUILD_MAP                    
+   1893 LOAD_METHOD                  items
+   1893 PRECALL                      
+   1893 CALL                         
+   1893 GET_ITER                     
+   1893 FOR_ITER                     to 816
+   1893 UNPACK_SEQUENCE              
+   1893 STORE_FAST                   slot
+   1893 STORE_FAST                   item
+   1894 LOAD_FAST                    item
+   1894 POP_JUMP_FORWARD_IF_FALSE    to 814
+   1894 LOAD_FAST                    item_name
+   1894 LOAD_FAST                    item
+   1894 LOAD_CONST                   'name'
+   1894 BINARY_SUBSCR                
+   1894 CONTAINS_OP                  
+   1894 POP_JUMP_FORWARD_IF_FALSE    to 814
+   1895 LOAD_CONST                   'data'
+   1895 LOAD_FAST                    item
+   1895 BUILD_MAP                    
+   1895 STORE_FAST                   target
+   1896 LOAD_CONST                   True
+   1896 STORE_FAST                   equipped
+   1897 POP_TOP                      
+   1897 JUMP_FORWARD                 to 816
+      ? JUMP_BACKWARD                to 764
+   1898 LOAD_FAST                    target
+   1898 POP_JUMP_FORWARD_IF_TRUE     to 880
+   1899 LOAD_FAST                    event
+   1899 LOAD_METHOD                  plain_result
+   1899 LOAD_CONST                   '背包里没有叫『'
+   1899 LOAD_FAST                    item_name
+   1899 FORMAT_VALUE                 
+   1899 LOAD_CONST                   '』的物品！『背包』查看全部～'
+   1899 BUILD_STRING                 
+   1899 PRECALL                      
+   1899 CALL                         
+   1899 ASYNC_GEN_WRAP               
+   1899 YIELD_VALUE                  
+   1899 RESUME                       
+   1899 POP_TOP                      
+   1900 LOAD_CONST                   None
+   1900 RETURN_VALUE                 
+   1901 LOAD_FAST                    target
+   1901 LOAD_CONST                   'data'
+   1901 BINARY_SUBSCR                
+   1901 STORE_DEREF                  d
+   1902 BUILD_LIST                   
+   1902 STORE_FAST                   lines
+   1903 LOAD_DEREF                   d
+   1903 LOAD_METHOD                  get
+   1903 LOAD_CONST                   'slot'
+   1903 PRECALL                      
+   1903 CALL                         
+   1903 EXTENDED_ARG                 
+   1903 POP_JUMP_FORWARD_IF_FALSE    to 4428
+   1905 LOAD_GLOBAL                  C
+   1905 LOAD_ATTR                    QUALITY
+   1905 LOAD_DEREF                   d
+   1905 LOAD_CONST                   'quality'
+   1905 BINARY_SUBSCR                
+   1905 BINARY_SUBSCR                
+   1905 STORE_FAST                   q
+   1906 LOAD_DEREF                   d
+   1906 LOAD_METHOD                  get
+   1906 LOAD_CONST                   'enhance'
+   1906 LOAD_CONST                   0
+   1906 PRECALL                      
+   1906 CALL                         
+   1906 STORE_FAST                   enh
+   1907 LOAD_FAST                    enh
+   1907 LOAD_CONST                   0
+   1907 COMPARE_OP                   >
+   1907 POP_JUMP_FORWARD_IF_FALSE    to 1058
+   1907 LOAD_CONST                   ' +'
+   1907 LOAD_FAST                    enh
+   1907 FORMAT_VALUE                 
+   1907 BUILD_STRING                 
+   1907 JUMP_FORWARD                 to 1060
+   1907 LOAD_CONST                   ''
+   1907 STORE_FAST                   enh_str
+   1908 LOAD_FAST                    equipped
+   1908 POP_JUMP_FORWARD_IF_FALSE    to 1070
+   1908 LOAD_CONST                   '(已装备)'
+   1908 JUMP_FORWARD                 to 1072
+   1908 LOAD_CONST                   ''
+   1908 STORE_FAST                   equip_state
+   1909 LOAD_FAST                    lines
+   1909 LOAD_METHOD                  append
+   1909 LOAD_FAST                    q
+   1909 LOAD_CONST                   'color'
+   1909 BINARY_SUBSCR                
+   1909 FORMAT_VALUE                 
+   1909 LOAD_CONST                   '【'
+   1909 LOAD_DEREF                   d
+   1909 LOAD_CONST                   'name'
+   1909 BINARY_SUBSCR                
+   1909 FORMAT_VALUE                 
+   1909 LOAD_FAST                    enh_str
+   1909 FORMAT_VALUE                 
+   1909 LOAD_CONST                   '】('
+   1909 LOAD_GLOBAL                  C
+   1909 LOAD_ATTR                    EQUIP_SLOTS
+   1909 LOAD_DEREF                   d
+   1909 LOAD_CONST                   'slot'
+   1909 BINARY_SUBSCR                
+   1909 BINARY_SUBSCR                
+   1909 FORMAT_VALUE                 
+   1909 LOAD_CONST                   ')'
+   1909 LOAD_FAST                    equip_state
+   1909 FORMAT_VALUE                 
+   1909 BUILD_STRING                 
+   1909 PRECALL                      
+   1909 CALL                         
+   1909 POP_TOP                      
+   1910 LOAD_FAST                    lines
+   1910 LOAD_METHOD                  append
+   1910 LOAD_CONST                   '━━━━━━━━━━━━'
+   1910 PRECALL                      
+   1910 CALL                         
+   1910 POP_TOP                      
+   1911 LOAD_FAST                    lines
+   1911 LOAD_METHOD                  append
+   1911 LOAD_CONST                   '品质：'
+   1911 LOAD_FAST                    q
+   1911 LOAD_CONST                   'name'
+   1911 BINARY_SUBSCR                
+   1911 FORMAT_VALUE                 
+   1911 LOAD_CONST                   ' ｜ 需求等级：Lv.'
+   1911 LOAD_DEREF                   d
+   1911 LOAD_CONST                   'lv'
+   1911 BINARY_SUBSCR                
+   1911 FORMAT_VALUE                 
+   1911 BUILD_STRING                 
+   1911 PRECALL                      
+   1911 CALL                         
+   1911 POP_TOP                      
+   1912 LOAD_DEREF                   d
+   1912 LOAD_METHOD                  get
+   1912 LOAD_CONST                   'weapon_type'
+   1912 PRECALL                      
+   1912 CALL                         
+   1912 POP_JUMP_FORWARD_IF_FALSE    to 1638
+   1914 LOAD_FAST                    lines
+   1914 LOAD_METHOD                  append
+   1914 LOAD_CONST                   '类型：'
+   1914 LOAD_GLOBAL                  NULL + C
+   1914 LOAD_ATTR                    display
+   1914 LOAD_CONST                   'weapon_types'
+   1914 LOAD_DEREF                   d
+   1914 LOAD_CONST                   'weapon_type'
+   1914 BINARY_SUBSCR                
+   1914 PRECALL                      
+   1914 CALL                         
+   1914 FORMAT_VALUE                 
+   1914 BUILD_STRING                 
+   1914 PRECALL                      
+   1914 CALL                         
+   1914 POP_TOP                      
+   1915 LOAD_GLOBAL                  C
+   1915 LOAD_ATTR                    WEAPON_FLAVOR
+   1915 LOAD_METHOD                  get
+   1915 LOAD_DEREF                   d
+   1915 LOAD_CONST                   'weapon_type'
+   1915 BINARY_SUBSCR                
+   1915 BUILD_MAP                    
+   1915 PRECALL                      
+   1915 CALL                         
+   1915 LOAD_METHOD                  get
+   1915 LOAD_CONST                   'desc'
+   1915 LOAD_CONST                   ''
+   1915 PRECALL                      
+   1915 CALL                         
+   1915 STORE_FAST                   flavor_desc
+   1916 LOAD_FAST                    flavor_desc
+   1916 POP_JUMP_FORWARD_IF_FALSE    to 1638
+   1917 LOAD_FAST                    lines
+   1917 LOAD_METHOD                  append
+   1917 LOAD_CONST                   '✦ '
+   1917 LOAD_FAST                    flavor_desc
+   1917 FORMAT_VALUE                 
+   1917 BUILD_STRING                 
+   1917 PRECALL                      
+   1917 CALL                         
+   1917 POP_TOP                      
+   1918 LOAD_DEREF                   d
+   1918 LOAD_METHOD                  get
+   1918 LOAD_CONST                   'stats'
+   1918 BUILD_MAP                    
+   1918 PRECALL                      
+   1918 CALL                         
+   1918 STORE_FAST                   st
+   1919 LOAD_CONST                   '攻击'
+   1919 LOAD_CONST                   '防御'
+   1919 LOAD_CONST                   '魔攻'
+   1919 LOAD_CONST                   '魔防'
+   1920 LOAD_CONST                   '生命'
+   1920 LOAD_CONST                   '魔力'
+   1920 LOAD_CONST                   '速度'
+   1920 LOAD_CONST                   '暴击'
+   1920 LOAD_CONST                   '闪避'
+   1919 LOAD_CONST                   ('atk', 'def', 'matk', 'mdef', 'hp', 'mp', 'spd', 'crit', 'dodge')
+   1919 BUILD_CONST_KEY_MAP          
+   1919 STORE_FAST                   stat_names
+   1921 BUILD_LIST                   
+   1921 STORE_FAST                   stat_lines
+   1922 LOAD_FAST                    st
+   1922 LOAD_METHOD                  items
+   1922 PRECALL                      
+   1922 CALL                         
+   1922 GET_ITER                     
+   1922 FOR_ITER                     to 1918
+   1922 UNPACK_SEQUENCE              
+   1922 STORE_FAST                   k
+   1922 STORE_FAST                   v
+   1923 LOAD_FAST                    v
+   1923 POP_JUMP_FORWARD_IF_FALSE    to 1916
+   1924 LOAD_FAST                    stat_names
+   1924 LOAD_METHOD                  get
+   1924 LOAD_FAST                    k
+   1924 LOAD_FAST                    k
+   1924 PRECALL                      
+   1924 CALL                         
+   1924 STORE_FAST                   label
+   1925 LOAD_FAST                    stat_lines
+   1925 LOAD_METHOD                  append
+   1925 LOAD_FAST                    k
+   1925 LOAD_CONST                   ('crit', 'dodge')
+   1925 CONTAINS_OP                  
+   1925 POP_JUMP_FORWARD_IF_FALSE    to 1888
+   1925 LOAD_FAST                    label
+   1925 FORMAT_VALUE                 
+   1925 LOAD_CONST                   ' +'
+   1925 LOAD_GLOBAL                  NULL + int
+   1925 LOAD_FAST                    v
+   1925 LOAD_CONST                   100
+   1925 BINARY_OP                    *
+   1925 PRECALL                      
+   1925 CALL                         
+   1925 FORMAT_VALUE                 
+   1925 LOAD_CONST                   '%'
+   1925 BUILD_STRING                 
+   1925 JUMP_FORWARD                 to 1900
+   1925 LOAD_FAST                    label
+   1925 FORMAT_VALUE                 
+   1925 LOAD_CONST                   ' +'
+   1925 LOAD_FAST                    v
+   1925 FORMAT_VALUE                 
+   1925 BUILD_STRING                 
+   1925 PRECALL                      
+   1925 CALL                         
+   1925 POP_TOP                      
+      ? JUMP_BACKWARD                to 1750
+   1926 LOAD_FAST                    stat_lines
+   1926 POP_JUMP_FORWARD_IF_FALSE    to 2008
+   1927 LOAD_FAST                    lines
+   1927 LOAD_METHOD                  append
+   1927 LOAD_CONST                   '属性：'
+   1927 LOAD_CONST                   '  '
+   1927 LOAD_METHOD                  join
+   1927 LOAD_FAST                    stat_lines
+   1927 PRECALL                      
+   1927 CALL                         
+   1927 BINARY_OP                    +
+   1927 PRECALL                      
+   1927 CALL                         
+   1927 POP_TOP                      
+   1929 BUILD_LIST                   
+   1929 STORE_FAST                   aff_lines
+   1930 LOAD_DEREF                   d
+   1930 LOAD_METHOD                  get
+   1930 LOAD_CONST                   'affixes'
+   1930 BUILD_LIST                   
+   1930 PRECALL                      
+   1930 CALL                         
+   1930 GET_ITER                     
+   1930 FOR_ITER                     to 2488
+   1930 STORE_FAST                   af
+   1931 LOAD_GLOBAL                  NULL + isinstance
+   1931 LOAD_FAST                    af
+   1931 LOAD_GLOBAL                  dict
+   1931 PRECALL                      
+   1931 CALL                         
+   1931 POP_JUMP_FORWARD_IF_FALSE    to 2342
+   1932 LOAD_FAST                    af
+   1932 LOAD_METHOD                  get
+   1932 LOAD_CONST                   'stat'
+   1932 PRECALL                      
+   1932 CALL                         
+   1932 LOAD_FAST                    af
+   1932 LOAD_METHOD                  get
+   1932 LOAD_CONST                   'value'
+   1932 LOAD_CONST                   0
+   1932 PRECALL                      
+   1932 CALL                         
+   1932 STORE_FAST                   v
+   1932 STORE_FAST                   k
+   1933 LOAD_FAST                    stat_names
+   1933 LOAD_METHOD                  get
+   1933 LOAD_FAST                    k
+   1933 LOAD_FAST                    k
+   1933 PRECALL                      
+   1933 CALL                         
+   1933 STORE_FAST                   label
+   1934 LOAD_FAST                    aff_lines
+   1934 LOAD_METHOD                  append
+   1934 LOAD_FAST                    k
+   1934 LOAD_CONST                   ('crit', 'dodge')
+   1934 CONTAINS_OP                  
+   1934 POP_JUMP_FORWARD_IF_FALSE    to 2312
+   1934 LOAD_FAST                    label
+   1934 FORMAT_VALUE                 
+   1934 LOAD_CONST                   ' +'
+   1934 LOAD_GLOBAL                  NULL + int
+   1934 LOAD_FAST                    v
+   1934 LOAD_CONST                   100
+   1934 BINARY_OP                    *
+   1934 PRECALL                      
+   1934 CALL                         
+   1934 FORMAT_VALUE                 
+   1934 LOAD_CONST                   '%'
+   1934 BUILD_STRING                 
+   1934 JUMP_FORWARD                 to 2324
+   1934 LOAD_FAST                    label
+   1934 FORMAT_VALUE                 
+   1934 LOAD_CONST                   ' +'
+   1934 LOAD_FAST                    v
+   1934 FORMAT_VALUE                 
+   1934 BUILD_STRING                 
+   1934 PRECALL                      
+   1934 CALL                         
+   1934 POP_TOP                      
+   1935 JUMP_BACKWARD                to 2056
+   1936 LOAD_GLOBAL                  C
+   1936 LOAD_ATTR                    AFFIXES
+   1936 LOAD_METHOD                  get
+   1936 LOAD_FAST                    af
+   1936 PRECALL                      
+   1936 CALL                         
+   1936 STORE_FAST                   info
+   1937 LOAD_FAST                    info
+   1937 POP_JUMP_FORWARD_IF_FALSE    to 2486
+   1938 LOAD_FAST                    aff_lines
+   1938 LOAD_METHOD                  append
+   1938 LOAD_FAST                    info
+   1938 LOAD_CONST                   'name'
+   1938 BINARY_SUBSCR                
+   1938 FORMAT_VALUE                 
+   1938 LOAD_CONST                   '('
+   1938 LOAD_FAST                    info
+   1938 LOAD_CONST                   'desc'
+   1938 BINARY_SUBSCR                
+   1938 FORMAT_VALUE                 
+   1938 LOAD_CONST                   ')'
+   1938 BUILD_STRING                 
+   1938 PRECALL                      
+   1938 CALL                         
+   1938 POP_TOP                      
+      ? JUMP_BACKWARD                to 2056
+   1939 LOAD_FAST                    aff_lines
+   1939 POP_JUMP_FORWARD_IF_FALSE    to 2578
+   1940 LOAD_FAST                    lines
+   1940 LOAD_METHOD                  append
+   1940 LOAD_CONST                   '✨ 词条：'
+   1940 LOAD_CONST                   '  '
+   1940 LOAD_METHOD                  join
+   1940 LOAD_FAST                    aff_lines
+   1940 PRECALL                      
+   1940 CALL                         
+   1940 BINARY_OP                    +
+   1940 PRECALL                      
+   1940 CALL                         
+   1940 POP_TOP                      
+   1941 LOAD_DEREF                   d
+   1941 LOAD_METHOD                  get
+   1941 LOAD_CONST                   'legendary'
+   1941 PRECALL                      
+   1941 CALL                         
+   1941 POP_JUMP_FORWARD_IF_FALSE    to 2776
+   1942 LOAD_GLOBAL                  C
+   1942 LOAD_ATTR                    LEGENDARY_EFFECTS
+   1942 LOAD_METHOD                  get
+   1942 LOAD_DEREF                   d
+   1942 LOAD_CONST                   'legendary'
+   1942 BINARY_SUBSCR                
+   1942 PRECALL                      
+   1942 CALL                         
+   1942 STORE_FAST                   lg
+   1943 LOAD_FAST                    lg
+   1943 POP_JUMP_FORWARD_IF_FALSE    to 2776
+   1944 LOAD_FAST                    lines
+   1944 LOAD_METHOD                  append
+   1944 LOAD_CONST                   '✨ 专属·'
+   1944 LOAD_FAST                    lg
+   1944 LOAD_CONST                   'name'
+   1944 BINARY_SUBSCR                
+   1944 FORMAT_VALUE                 
+   1944 LOAD_CONST                   '：'
+   1944 LOAD_FAST                    lg
+   1944 LOAD_CONST                   'desc'
+   1944 BINARY_SUBSCR                
+   1944 FORMAT_VALUE                 
+   1944 BUILD_STRING                 
+   1944 PRECALL                      
+   1944 CALL                         
+   1944 POP_TOP                      
+   1946 LOAD_DEREF                   d
+   1946 LOAD_METHOD                  get
+   1946 LOAD_CONST                   'req'
+   1946 PRECALL                      
+   1946 CALL                         
+   1946 STORE_FAST                   req
+   1947 LOAD_FAST                    req
+   1947 POP_JUMP_FORWARD_IF_FALSE    to 2986
+   1948 LOAD_CONST                   '力量'
+   1948 LOAD_CONST                   '敏捷'
+   1948 LOAD_CONST                   '智力'
+   1948 LOAD_CONST                   '耐力'
+   1948 LOAD_CONST                   ('str', 'agi', 'int', 'vit')
+   1948 BUILD_CONST_KEY_MAP          
+   1948 STORE_DEREF                  req_names
+   1949 LOAD_CONST                   ' + '
+   1949 LOAD_METHOD                  join
+   1949 LOAD_CLOSURE                 req_names
+   1949 BUILD_TUPLE                  
+   1949 LOAD_CONST                   <code object <genexpr> at 0x0000016D067CD9B0, file "game\commands\economy.py", line 1949>
+   1949 MAKE_FUNCTION                closure
+   1949 LOAD_FAST                    req
+   1949 LOAD_METHOD                  items
+   1949 PRECALL                      
+   1949 CALL                         
+   1949 GET_ITER                     
+   1949 PRECALL                      
+   1949 CALL                         
+   1949 PRECALL                      
+   1949 CALL                         
+   1949 STORE_FAST                   req_str
+   1950 LOAD_FAST                    lines
+   1950 LOAD_METHOD                  append
+   1950 LOAD_CONST                   '需求：'
+   1950 LOAD_FAST                    req_str
+   1950 FORMAT_VALUE                 
+   1950 BUILD_STRING                 
+   1950 PRECALL                      
+   1950 CALL                         
+   1950 POP_TOP                      
+   1952 BUILD_LIST                   
+   1952 STORE_FAST                   ench_lines
+   1953 LOAD_DEREF                   d
+   1953 LOAD_METHOD                  get
+   1953 LOAD_CONST                   'enchant'
+   1953 BUILD_LIST                   
+   1953 PRECALL                      
+   1953 CALL                         
+   1953 GET_ITER                     
+   1953 EXTENDED_ARG                 
+   1953 FOR_ITER                     to 3606
+   1953 STORE_FAST                   en
+   1954 LOAD_FAST                    en
+   1954 LOAD_METHOD                  get
+   1954 LOAD_CONST                   'effect'
+   1954 PRECALL                      
+   1954 CALL                         
+   1954 POP_JUMP_FORWARD_IF_FALSE    to 3364
+   1955 LOAD_GLOBAL                  C
+   1955 LOAD_ATTR                    RUNE_EFFECT_NAMES
+   1955 LOAD_METHOD                  get
+   1955 LOAD_FAST                    en
+   1955 LOAD_CONST                   'effect'
+   1955 BINARY_SUBSCR                
+   1955 LOAD_FAST                    en
+   1955 LOAD_CONST                   'effect'
+   1955 BINARY_SUBSCR                
+   1955 PRECALL                      
+   1955 CALL                         
+   1955 STORE_FAST                   eff_name
+   1956 LOAD_GLOBAL                  NULL + int
+   1956 LOAD_FAST                    en
+   1956 LOAD_METHOD                  get
+   1956 LOAD_CONST                   'lvl'
+   1956 LOAD_CONST                   1
+   1956 PRECALL                      
+   1956 CALL                         
+   1956 JUMP_IF_TRUE_OR_POP          to 3228
+   1956 LOAD_CONST                   1
+   1956 PRECALL                      
+   1956 CALL                         
+   1956 STORE_FAST                   lvl
+   1957 LOAD_GLOBAL                  C
+   1957 LOAD_ATTR                    RUNE_LEVEL_ROMAN
+   1957 LOAD_METHOD                  get
+   1957 LOAD_FAST                    lvl
+   1957 LOAD_CONST                   ''
+   1957 PRECALL                      
+   1957 CALL                         
+   1957 STORE_FAST                   roman
+   1958 LOAD_FAST                    ench_lines
+   1958 LOAD_METHOD                  append
+   1958 LOAD_CONST                   '『'
+   1958 LOAD_FAST                    eff_name
+   1958 FORMAT_VALUE                 
+   1958 LOAD_FAST                    roman
+   1958 FORMAT_VALUE                 
+   1958 LOAD_CONST                   '』'
+   1958 BUILD_STRING                 
+   1958 PRECALL                      
+   1958 CALL                         
+   1958 POP_TOP                      
+   1958 JUMP_BACKWARD                to 3034
+   1960 LOAD_FAST                    en
+   1960 LOAD_METHOD                  get
+   1960 LOAD_CONST                   'stat'
+   1960 PRECALL                      
+   1960 CALL                         
+   1960 LOAD_FAST                    en
+   1960 LOAD_METHOD                  get
+   1960 LOAD_CONST                   'value'
+   1960 LOAD_CONST                   0
+   1960 PRECALL                      
+   1960 CALL                         
+   1960 STORE_FAST                   v
+   1960 STORE_FAST                   k
+   1961 LOAD_FAST                    stat_names
+   1961 LOAD_METHOD                  get
+   1961 LOAD_FAST                    k
+   1961 LOAD_FAST                    k
+   1961 PRECALL                      
+   1961 CALL                         
+   1961 STORE_FAST                   label
+   1962 LOAD_FAST                    ench_lines
+   1962 LOAD_METHOD                  append
+   1962 LOAD_FAST                    k
+   1962 LOAD_CONST                   ('crit', 'dodge')
+   1962 CONTAINS_OP                  
+   1962 POP_JUMP_FORWARD_IF_FALSE    to 3574
+   1962 LOAD_FAST                    label
+   1962 FORMAT_VALUE                 
+   1962 LOAD_CONST                   ' +'
+   1962 LOAD_GLOBAL                  NULL + int
+   1962 LOAD_FAST                    v
+   1962 LOAD_CONST                   100
+   1962 BINARY_OP                    *
+   1962 PRECALL                      
+   1962 CALL                         
+   1962 FORMAT_VALUE                 
+   1962 LOAD_CONST                   '%'
+   1962 BUILD_STRING                 
+   1962 JUMP_FORWARD                 to 3586
+   1962 LOAD_FAST                    label
+   1962 FORMAT_VALUE                 
+   1962 LOAD_CONST                   ' +'
+   1962 LOAD_FAST                    v
+   1962 FORMAT_VALUE                 
+   1962 BUILD_STRING                 
+   1962 PRECALL                      
+   1962 CALL                         
+   1962 POP_TOP                      
+   1962 EXTENDED_ARG                 
+   1962 JUMP_BACKWARD                to 3034
+   1963 LOAD_FAST                    ench_lines
+   1963 POP_JUMP_FORWARD_IF_FALSE    to 3696
+   1964 LOAD_FAST                    lines
+   1964 LOAD_METHOD                  append
+   1964 LOAD_CONST                   '🔮 符文： '
+   1964 LOAD_CONST                   '  '
+   1964 LOAD_METHOD                  join
+   1964 LOAD_FAST                    ench_lines
+   1964 PRECALL                      
+   1964 CALL                         
+   1964 BINARY_OP                    +
+   1964 PRECALL                      
+   1964 CALL                         
+   1964 POP_TOP                      
+   1966 LOAD_DEREF                   d
+   1966 LOAD_METHOD                  get
+   1966 LOAD_CONST                   'set'
+   1966 PRECALL                      
+   1966 CALL                         
+   1966 POP_JUMP_FORWARD_IF_FALSE    to 3984
+   1967 LOAD_GLOBAL                  C
+   1967 LOAD_ATTR                    SETS
+   1967 LOAD_METHOD                  get
+   1967 LOAD_DEREF                   d
+   1967 LOAD_CONST                   'set'
+   1967 BINARY_SUBSCR                
+   1967 PRECALL                      
+   1967 CALL                         
+   1967 STORE_FAST                   sinfo
+   1968 LOAD_FAST                    sinfo
+   1968 POP_JUMP_FORWARD_IF_FALSE    to 3984
+   1969 LOAD_FAST                    sinfo
+   1969 LOAD_METHOD                  get
+   1969 LOAD_CONST                   'bonus_4'
+   1969 BUILD_MAP                    
+   1969 PRECALL                      
+   1969 CALL                         
+   1969 LOAD_METHOD                  get
+   1969 LOAD_CONST                   'desc'
+   1969 LOAD_CONST                   ''
+   1969 PRECALL                      
+   1969 CALL                         
+   1969 STORE_FAST                   b4_desc
+   1970 LOAD_FAST                    lines
+   1970 LOAD_METHOD                  append
+   1970 LOAD_CONST                   '🎴 套装：'
+   1970 LOAD_FAST                    sinfo
+   1970 LOAD_CONST                   'icon'
+   1970 BINARY_SUBSCR                
+   1970 FORMAT_VALUE                 
+   1970 LOAD_DEREF                   d
+   1970 LOAD_CONST                   'set'
+   1970 BINARY_SUBSCR                
+   1970 FORMAT_VALUE                 
+   1970 LOAD_CONST                   '('
+   1970 LOAD_FAST                    b4_desc
+   1970 FORMAT_VALUE                 
+   1970 LOAD_CONST                   ')'
+   1970 BUILD_STRING                 
+   1970 PRECALL                      
+   1970 CALL                         
+   1970 POP_TOP                      
+   1971 LOAD_FAST                    enh
+   1971 LOAD_CONST                   0
+   1971 COMPARE_OP                   >
+   1971 POP_JUMP_FORWARD_IF_FALSE    to 4172
+   1972 LOAD_GLOBAL                  C
+   1972 LOAD_ATTR                    ENHANCE_TABLE
+   1972 LOAD_METHOD                  get
+   1972 LOAD_FAST                    enh
+   1972 PRECALL                      
+   1972 CALL                         
+   1972 STORE_FAST                   info
+   1973 LOAD_FAST                    lines
+   1973 LOAD_METHOD                  append
+   1973 LOAD_CONST                   '强化：+'
+   1973 LOAD_FAST                    enh
+   1973 FORMAT_VALUE                 
+   1973 BUILD_STRING                 
+   1973 LOAD_FAST                    info
+   1973 POP_JUMP_FORWARD_IF_FALSE    to 4150
+   1973 LOAD_CONST                   '(属性 '
+   1973 LOAD_GLOBAL                  NULL + int
+   1973 LOAD_FAST                    info
+   1973 LOAD_CONST                   'mult'
+   1973 BINARY_SUBSCR                
+   1973 LOAD_CONST                   100
+   1973 BINARY_OP                    *
+   1973 PRECALL                      
+   1973 CALL                         
+   1973 FORMAT_VALUE                 
+   1973 LOAD_CONST                   '%)'
+   1973 BUILD_STRING                 
+   1973 JUMP_FORWARD                 to 4152
+   1973 LOAD_CONST                   ''
+   1973 BINARY_OP                    +
+   1973 PRECALL                      
+   1973 CALL                         
+   1973 POP_TOP                      
+   1974 LOAD_DEREF                   d
+   1974 LOAD_METHOD                  get
+   1974 LOAD_CONST                   'desc'
+   1974 PRECALL                      
+   1974 CALL                         
+   1974 POP_JUMP_FORWARD_IF_FALSE    to 4274
+   1975 LOAD_FAST                    lines
+   1975 LOAD_METHOD                  append
+   1975 LOAD_CONST                   '描述：'
+   1975 LOAD_DEREF                   d
+   1975 LOAD_CONST                   'desc'
+   1975 BINARY_SUBSCR                
+   1975 FORMAT_VALUE                 
+   1975 BUILD_STRING                 
+   1975 PRECALL                      
+   1975 CALL                         
+   1975 POP_TOP                      
+   1976 LOAD_FAST                    lines
+   1976 LOAD_METHOD                  append
+   1976 LOAD_CONST                   ''
+   1976 PRECALL                      
+   1976 CALL                         
+   1976 POP_TOP                      
+   1977 LOAD_FAST                    lines
+   1977 LOAD_METHOD                  append
+   1977 LOAD_CONST                   '💡 『装备 '
+   1977 LOAD_DEREF                   d
+   1977 LOAD_CONST                   'name'
+   1977 BINARY_SUBSCR                
+   1977 FORMAT_VALUE                 
+   1977 LOAD_CONST                   '』穿上它 ｜ 出售价 '
+   1977 LOAD_DEREF                   d
+   1977 LOAD_METHOD                  get
+   1977 LOAD_CONST                   'price'
+   1977 LOAD_CONST                   0
+   1977 PRECALL                      
+   1977 CALL                         
+   1977 FORMAT_VALUE                 
+   1977 LOAD_CONST                   ' 金币'
+   1977 BUILD_STRING                 
+   1977 PRECALL                      
+   1977 CALL                         
+   1977 POP_TOP                      
+   1977 EXTENDED_ARG                 
+   1977 JUMP_FORWARD                 to 7436
+   1978 LOAD_DEREF                   d
+   1978 LOAD_METHOD                  get
+   1978 LOAD_CONST                   'type'
+   1978 PRECALL                      
+   1978 CALL                         
+   1978 LOAD_CONST                   '材料'
+   1978 COMPARE_OP                   ==
+   1978 POP_JUMP_FORWARD_IF_FALSE    to 4976
+   1980 LOAD_FAST                    lines
+   1980 LOAD_METHOD                  append
+   1980 LOAD_CONST                   '🧪 【'
+   1980 LOAD_DEREF                   d
+   1980 LOAD_CONST                   'name'
+   1980 BINARY_SUBSCR                
+   1980 FORMAT_VALUE                 
+   1980 LOAD_CONST                   '】'
+   1980 BUILD_STRING                 
+   1980 PRECALL                      
+   1980 CALL                         
+   1980 POP_TOP                      
+   1981 LOAD_FAST                    lines
+   1981 LOAD_METHOD                  append
+   1981 LOAD_CONST                   '━━━━━━━━━━━━'
+   1981 PRECALL                      
+   1981 CALL                         
+   1981 POP_TOP                      
+   1982 LOAD_FAST                    lines
+   1982 LOAD_METHOD                  append
+   1982 LOAD_CONST                   '类型：材料'
+   1982 PRECALL                      
+   1982 CALL                         
+   1982 POP_TOP                      
+   1983 LOAD_GLOBAL                  C
+   1983 LOAD_ATTR                    MATERIALS
+   1983 LOAD_METHOD                  get
+   1983 LOAD_DEREF                   d
+   1983 LOAD_CONST                   'name'
+   1983 BINARY_SUBSCR                
+   1983 PRECALL                      
+   1983 CALL                         
+   1983 STORE_FAST                   mat
+   1984 LOAD_FAST                    mat
+   1984 POP_JUMP_FORWARD_IF_FALSE    to 4804
+   1984 LOAD_FAST                    mat
+   1984 LOAD_METHOD                  get
+   1984 LOAD_CONST                   'desc'
+   1984 PRECALL                      
+   1984 CALL                         
+   1984 POP_JUMP_FORWARD_IF_FALSE    to 4804
+   1985 LOAD_FAST                    lines
+   1985 LOAD_METHOD                  append
+   1985 LOAD_CONST                   '描述：'
+   1985 LOAD_FAST                    mat
+   1985 LOAD_CONST                   'desc'
+   1985 BINARY_SUBSCR                
+   1985 FORMAT_VALUE                 
+   1985 BUILD_STRING                 
+   1985 PRECALL                      
+   1985 CALL                         
+   1985 POP_TOP                      
+   1986 LOAD_FAST                    lines
+   1986 LOAD_METHOD                  append
+   1986 LOAD_CONST                   ''
+   1986 PRECALL                      
+   1986 CALL                         
+   1986 POP_TOP                      
+   1987 LOAD_FAST                    lines
+   1987 LOAD_METHOD                  append
+   1987 LOAD_CONST                   '💡 出售价 '
+   1987 LOAD_DEREF                   d
+   1987 LOAD_METHOD                  get
+   1987 LOAD_CONST                   'price'
+   1987 LOAD_CONST                   0
+   1987 PRECALL                      
+   1987 CALL                         
+   1987 FORMAT_VALUE                 
+   1987 LOAD_CONST                   ' 金币 ｜ 『出售 '
+   1987 LOAD_DEREF                   d
+   1987 LOAD_CONST                   'name'
+   1987 BINARY_SUBSCR                
+   1987 FORMAT_VALUE                 
+   1987 LOAD_CONST                   '』变现 ｜ 『喂养 '
+   1987 LOAD_DEREF                   d
+   1987 LOAD_CONST                   'name'
+   1987 BINARY_SUBSCR                
+   1987 FORMAT_VALUE                 
+   1987 LOAD_CONST                   '』喂宠物'
+   1987 BUILD_STRING                 
+   1987 PRECALL                      
+   1987 CALL                         
+   1987 POP_TOP                      
+   1987 EXTENDED_ARG                 
+   1987 JUMP_FORWARD                 to 7436
+   1988 LOAD_DEREF                   d
+   1988 LOAD_METHOD                  get
+   1988 LOAD_CONST                   'type'
+   1988 PRECALL                      
+   1988 CALL                         
+   1988 LOAD_CONST                   '符文'
+   1988 COMPARE_OP                   ==
+   1988 EXTENDED_ARG                 
+   1988 POP_JUMP_FORWARD_IF_FALSE    to 5612
+   1990 LOAD_FAST                    lines
+   1990 LOAD_METHOD                  append
+   1990 LOAD_CONST                   '💎 【'
+   1990 LOAD_DEREF                   d
+   1990 LOAD_CONST                   'name'
+   1990 BINARY_SUBSCR                
+   1990 FORMAT_VALUE                 
+   1990 LOAD_CONST                   '】'
+   1990 BUILD_STRING                 
+   1990 PRECALL                      
+   1990 CALL                         
+   1990 POP_TOP                      
+   1991 LOAD_FAST                    lines
+   1991 LOAD_METHOD                  append
+   1991 LOAD_CONST                   '━━━━━━━━━━━━'
+   1991 PRECALL                      
+   1991 CALL                         
+   1991 POP_TOP                      
+   1992 LOAD_FAST                    lines
+   1992 LOAD_METHOD                  append
+   1992 LOAD_CONST                   '类型：符文 ｜ 品质：'
+   1992 LOAD_DEREF                   d
+   1992 LOAD_METHOD                  get
+   1992 LOAD_CONST                   'quality'
+   1992 LOAD_CONST                   ''
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 FORMAT_VALUE                 
+   1992 LOAD_CONST                   ' ｜ 等级：'
+   1992 LOAD_GLOBAL                  C
+   1992 LOAD_ATTR                    RUNE_LEVEL_ROMAN
+   1992 LOAD_METHOD                  get
+   1992 LOAD_GLOBAL                  NULL + int
+   1992 LOAD_DEREF                   d
+   1992 LOAD_METHOD                  get
+   1992 LOAD_CONST                   'lvl'
+   1992 LOAD_CONST                   1
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 JUMP_IF_TRUE_OR_POP          to 5306
+   1992 LOAD_CONST                   1
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 LOAD_CONST                   ''
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 FORMAT_VALUE                 
+   1992 BUILD_STRING                 
+   1992 PRECALL                      
+   1992 CALL                         
+   1992 POP_TOP                      
+   1993 LOAD_DEREF                   d
+   1993 LOAD_METHOD                  get
+   1993 LOAD_CONST                   'desc'
+   1993 PRECALL                      
+   1993 CALL                         
+   1993 POP_JUMP_FORWARD_IF_FALSE    to 5458
+   1994 LOAD_FAST                    lines
+   1994 LOAD_METHOD                  append
+   1994 LOAD_CONST                   '效果：'
+   1994 LOAD_DEREF                   d
+   1994 LOAD_CONST                   'desc'
+   1994 BINARY_SUBSCR                
+   1994 FORMAT_VALUE                 
+   1994 BUILD_STRING                 
+   1994 PRECALL                      
+   1994 CALL                         
+   1994 POP_TOP                      
+   1995 LOAD_FAST                    lines
+   1995 LOAD_METHOD                  append
+   1995 LOAD_CONST                   ''
+   1995 PRECALL                      
+   1995 CALL                         
+   1995 POP_TOP                      
+   1996 LOAD_FAST                    lines
+   1996 LOAD_METHOD                  append
+   1996 LOAD_CONST                   '💡 『附魔 <装备名> '
+   1996 LOAD_DEREF                   d
+   1996 LOAD_CONST                   'name'
+   1996 BINARY_SUBSCR                
+   1996 FORMAT_VALUE                 
+   1996 LOAD_CONST                   '』刻印到装备 ｜ 出售价 '
+   1996 LOAD_DEREF                   d
+   1996 LOAD_METHOD                  get
+   1996 LOAD_CONST                   'price'
+   1996 LOAD_CONST                   0
+   1996 PRECALL                      
+   1996 CALL                         
+   1996 FORMAT_VALUE                 
+   1996 LOAD_CONST                   ' 金币'
+   1996 BUILD_STRING                 
+   1996 PRECALL                      
+   1996 CALL                         
+   1996 POP_TOP                      
+   1996 EXTENDED_ARG                 
+   1996 JUMP_FORWARD                 to 7436
+   1997 LOAD_DEREF                   d
+   1997 LOAD_METHOD                  get
+   1997 LOAD_CONST                   'type'
+   1997 PRECALL                      
+   1997 CALL                         
+   1997 LOAD_CONST                   '图纸'
+   1997 COMPARE_OP                   ==
+   1997 EXTENDED_ARG                 
+   1997 POP_JUMP_FORWARD_IF_FALSE    to 6186
+   1999 LOAD_FAST                    lines
+   1999 LOAD_METHOD                  append
+   1999 LOAD_CONST                   '📜 【'
+   1999 LOAD_DEREF                   d
+   1999 LOAD_CONST                   'name'
+   1999 BINARY_SUBSCR                
+   1999 FORMAT_VALUE                 
+   1999 LOAD_CONST                   '】'
+   1999 BUILD_STRING                 
+   1999 PRECALL                      
+   1999 CALL                         
+   1999 POP_TOP                      
+   2000 LOAD_FAST                    lines
+   2000 LOAD_METHOD                  append
+   2000 LOAD_CONST                   '━━━━━━━━━━━━'
+   2000 PRECALL                      
+   2000 CALL                         
+   2000 POP_TOP                      
+   2001 LOAD_FAST                    lines
+   2001 LOAD_METHOD                  append
+   2001 LOAD_CONST                   '类型：图纸 ｜ 阶段：'
+   2001 LOAD_DEREF                   d
+   2001 LOAD_METHOD                  get
+   2001 LOAD_CONST                   'stage'
+   2001 LOAD_CONST                   ''
+   2001 PRECALL                      
+   2001 CALL                         
+   2001 FORMAT_VALUE                 
+   2001 LOAD_CONST                   ' ｜ 职业：'
+   2001 LOAD_DEREF                   d
+   2001 LOAD_METHOD                  get
+   2001 LOAD_CONST                   'class'
+   2001 LOAD_CONST                   ''
+   2001 PRECALL                      
+   2001 CALL                         
+   2001 FORMAT_VALUE                 
+   2001 BUILD_STRING                 
+   2001 PRECALL                      
+   2001 CALL                         
+   2001 POP_TOP                      
+   2002 LOAD_DEREF                   d
+   2002 LOAD_METHOD                  get
+   2002 LOAD_CONST                   'desc'
+   2002 PRECALL                      
+   2002 CALL                         
+   2002 POP_JUMP_FORWARD_IF_FALSE    to 6004
+   2003 LOAD_FAST                    lines
+   2003 LOAD_METHOD                  append
+   2003 LOAD_CONST                   '描述：'
+   2003 LOAD_DEREF                   d
+   2003 LOAD_CONST                   'desc'
+   2003 BINARY_SUBSCR                
+   2003 FORMAT_VALUE                 
+   2003 BUILD_STRING                 
+   2003 PRECALL                      
+   2003 CALL                         
+   2003 POP_TOP                      
+   2004 LOAD_FAST                    lines
+   2004 LOAD_METHOD                  append
+   2004 LOAD_CONST                   ''
+   2004 PRECALL                      
+   2004 CALL                         
+   2004 POP_TOP                      
+   2005 LOAD_FAST                    lines
+   2005 LOAD_METHOD                  append
+   2005 LOAD_CONST                   '💡 到铁匠铺『锻造 '
+   2005 LOAD_DEREF                   d
+   2005 LOAD_METHOD                  get
+   2005 LOAD_CONST                   'blueprint_for'
+   2005 LOAD_CONST                   ''
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 FORMAT_VALUE                 
+   2005 LOAD_CONST                   '』系列装备 ｜ 出售价 '
+   2005 LOAD_DEREF                   d
+   2005 LOAD_METHOD                  get
+   2005 LOAD_CONST                   'price'
+   2005 LOAD_CONST                   0
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 FORMAT_VALUE                 
+   2005 LOAD_CONST                   ' 金币'
+   2005 BUILD_STRING                 
+   2005 PRECALL                      
+   2005 CALL                         
+   2005 POP_TOP                      
+   2005 EXTENDED_ARG                 
+   2005 JUMP_FORWARD                 to 7436
+   2006 LOAD_DEREF                   d
+   2006 LOAD_METHOD                  get
+   2006 LOAD_CONST                   'type'
+   2006 PRECALL                      
+   2006 CALL                         
+   2006 LOAD_CONST                   '宠物蛋'
+   2006 COMPARE_OP                   ==
+   2006 POP_JUMP_FORWARD_IF_FALSE    to 6708
+   2008 LOAD_FAST                    lines
+   2008 LOAD_METHOD                  append
+   2008 LOAD_CONST                   '🥚 【'
+   2008 LOAD_DEREF                   d
+   2008 LOAD_CONST                   'name'
+   2008 BINARY_SUBSCR                
+   2008 FORMAT_VALUE                 
+   2008 LOAD_CONST                   '】'
+   2008 BUILD_STRING                 
+   2008 PRECALL                      
+   2008 CALL                         
+   2008 POP_TOP                      
+   2009 LOAD_FAST                    lines
+   2009 LOAD_METHOD                  append
+   2009 LOAD_CONST                   '━━━━━━━━━━━━'
+   2009 PRECALL                      
+   2009 CALL                         
+   2009 POP_TOP                      
+   2010 LOAD_GLOBAL                  NULL + next
+   2010 LOAD_CLOSURE                 d
+   2010 BUILD_TUPLE                  
+   2010 LOAD_CONST                   <code object <genexpr> at 0x0000016D06759350, file "game\commands\economy.py", line 2010>
+   2010 MAKE_FUNCTION                closure
+   2010 LOAD_GLOBAL                  C
+   2010 LOAD_ATTR                    PET_POOL
+   2010 GET_ITER                     
+   2010 PRECALL                      
+   2010 CALL                         
+   2010 LOAD_CONST                   None
+   2010 PRECALL                      
+   2010 CALL                         
+   2010 STORE_FAST                   pdef
+   2011 LOAD_FAST                    pdef
+   2011 POP_JUMP_FORWARD_IF_FALSE    to 6578
+   2012 LOAD_FAST                    lines
+   2012 LOAD_METHOD                  append
+   2012 LOAD_CONST                   '可孵化：'
+   2012 LOAD_FAST                    pdef
+   2012 LOAD_CONST                   'icon'
+   2012 BINARY_SUBSCR                
+   2012 FORMAT_VALUE                 
+   2012 LOAD_FAST                    pdef
+   2012 LOAD_CONST                   'name'
+   2012 BINARY_SUBSCR                
+   2012 FORMAT_VALUE                 
+   2012 LOAD_CONST                   '(怪物 Lv.'
+   2012 LOAD_FAST                    pdef
+   2012 LOAD_CONST                   'lv'
+   2012 BINARY_SUBSCR                
+   2012 FORMAT_VALUE                 
+   2012 LOAD_CONST                   ' 及以上掉落)'
+   2012 BUILD_STRING                 
+   2012 PRECALL                      
+   2012 CALL                         
+   2012 POP_TOP                      
+   2013 LOAD_FAST                    lines
+   2013 LOAD_METHOD                  append
+   2013 LOAD_CONST                   '描述：'
+   2013 LOAD_FAST                    pdef
+   2013 LOAD_CONST                   'desc'
+   2013 BINARY_SUBSCR                
+   2013 FORMAT_VALUE                 
+   2013 BUILD_STRING                 
+   2013 PRECALL                      
+   2013 CALL                         
+   2013 POP_TOP                      
+   2013 JUMP_FORWARD                 to 6620
+   2015 LOAD_FAST                    lines
+   2015 LOAD_METHOD                  append
+   2015 LOAD_CONST                   '神秘的蛋，『使用 宠物蛋』孵化试试？'
+   2015 PRECALL                      
+   2015 CALL                         
+   2015 POP_TOP                      
+   2016 LOAD_FAST                    lines
+   2016 LOAD_METHOD                  append
+   2016 LOAD_CONST                   ''
+   2016 PRECALL                      
+   2016 CALL                         
+   2016 POP_TOP                      
+   2017 LOAD_FAST                    lines
+   2017 LOAD_METHOD                  append
+   2017 LOAD_CONST                   '💡 『使用 宠物蛋』孵化'
+   2017 PRECALL                      
+   2017 CALL                         
+   2017 POP_TOP                      
+   2017 EXTENDED_ARG                 
+   2017 JUMP_FORWARD                 to 7436
+   2020 LOAD_FAST                    lines
+   2020 LOAD_METHOD                  append
+   2020 LOAD_CONST                   '📦 【'
+   2020 LOAD_DEREF                   d
+   2020 LOAD_CONST                   'name'
+   2020 BINARY_SUBSCR                
+   2020 FORMAT_VALUE                 
+   2020 LOAD_CONST                   '】'
+   2020 BUILD_STRING                 
+   2020 PRECALL                      
+   2020 CALL                         
+   2020 POP_TOP                      
+   2021 LOAD_FAST                    lines
+   2021 LOAD_METHOD                  append
+   2021 LOAD_CONST                   '━━━━━━━━━━━━'
+   2021 PRECALL                      
+   2021 CALL                         
+   2021 POP_TOP                      
+   2022 LOAD_DEREF                   d
+   2022 LOAD_METHOD                  get
+   2022 LOAD_CONST                   'type'
+   2022 PRECALL                      
+   2022 CALL                         
+   2022 POP_JUMP_FORWARD_IF_FALSE    to 6914
+   2023 LOAD_FAST                    lines
+   2023 LOAD_METHOD                  append
+   2023 LOAD_CONST                   '类型：'
+   2023 LOAD_DEREF                   d
+   2023 LOAD_CONST                   'type'
+   2023 BINARY_SUBSCR                
+   2023 FORMAT_VALUE                 
+   2023 BUILD_STRING                 
+   2023 PRECALL                      
+   2023 CALL                         
+   2023 POP_TOP                      
+   2024 LOAD_DEREF                   d
+   2024 LOAD_METHOD                  get
+   2024 LOAD_CONST                   'desc'
+   2024 PRECALL                      
+   2024 CALL                         
+   2024 POP_JUMP_FORWARD_IF_FALSE    to 7018
+   2025 LOAD_FAST                    lines
+   2025 LOAD_METHOD                  append
+   2025 LOAD_CONST                   '效果：'
+   2025 LOAD_DEREF                   d
+   2025 LOAD_CONST                   'desc'
+   2025 BINARY_SUBSCR                
+   2025 FORMAT_VALUE                 
+   2025 BUILD_STRING                 
+   2025 PRECALL                      
+   2025 CALL                         
+   2025 POP_TOP                      
+   2025 JUMP_FORWARD                 to 7228
+   2026 LOAD_DEREF                   d
+   2026 LOAD_METHOD                  get
+   2026 LOAD_CONST                   'heal'
+   2026 PRECALL                      
+   2026 CALL                         
+   2026 POP_JUMP_FORWARD_IF_FALSE    to 7124
+   2027 LOAD_FAST                    lines
+   2027 LOAD_METHOD                  append
+   2027 LOAD_CONST                   '效果：恢复 '
+   2027 LOAD_DEREF                   d
+   2027 LOAD_CONST                   'heal'
+   2027 BINARY_SUBSCR                
+   2027 FORMAT_VALUE                 
+   2027 LOAD_CONST                   ' 点生命'
+   2027 BUILD_STRING                 
+   2027 PRECALL                      
+   2027 CALL                         
+   2027 POP_TOP                      
+   2027 JUMP_FORWARD                 to 7228
+   2028 LOAD_DEREF                   d
+   2028 LOAD_METHOD                  get
+   2028 LOAD_CONST                   'mana'
+   2028 PRECALL                      
+   2028 CALL                         
+   2028 POP_JUMP_FORWARD_IF_FALSE    to 7228
+   2029 LOAD_FAST                    lines
+   2029 LOAD_METHOD                  append
+   2029 LOAD_CONST                   '效果：恢复 '
+   2029 LOAD_DEREF                   d
+   2029 LOAD_CONST                   'mana'
+   2029 BINARY_SUBSCR                
+   2029 FORMAT_VALUE                 
+   2029 LOAD_CONST                   ' 点魔力'
+   2029 BUILD_STRING                 
+   2029 PRECALL                      
+   2029 CALL                         
+   2029 POP_TOP                      
+   2030 LOAD_FAST                    lines
+   2030 LOAD_METHOD                  append
+   2030 LOAD_CONST                   ''
+   2030 PRECALL                      
+   2030 CALL                         
+   2030 POP_TOP                      
+   2031 LOAD_DEREF                   d
+   2031 LOAD_METHOD                  get
+   2031 LOAD_CONST                   'price'
+   2031 PRECALL                      
+   2031 CALL                         
+   2031 POP_JUMP_FORWARD_IF_FALSE    to 7374
+   2032 LOAD_FAST                    lines
+   2032 LOAD_METHOD                  append
+   2032 LOAD_CONST                   '💡 出售价 '
+   2032 LOAD_DEREF                   d
+   2032 LOAD_CONST                   'price'
+   2032 BINARY_SUBSCR                
+   2032 FORMAT_VALUE                 
+   2032 LOAD_CONST                   ' 金币'
+   2032 BUILD_STRING                 
+   2032 PRECALL                      
+   2032 CALL                         
+   2032 POP_TOP                      
+   2033 LOAD_FAST                    lines
+   2033 LOAD_METHOD                  append
+   2033 LOAD_CONST                   '💡 『使用 '
+   2033 LOAD_DEREF                   d
+   2033 LOAD_CONST                   'name'
+   2033 BINARY_SUBSCR                
+   2033 FORMAT_VALUE                 
+   2033 LOAD_CONST                   '』使用它'
+   2033 BUILD_STRING                 
+   2033 PRECALL                      
+   2033 CALL                         
+   2033 POP_TOP                      
+   2034 LOAD_FAST                    event
+   2034 LOAD_METHOD                  plain_result
+   2034 LOAD_CONST                   '\n'
+   2034 LOAD_METHOD                  join
+   2034 LOAD_FAST                    lines
+   2034 PRECALL                      
+   2034 CALL                         
+   2034 PRECALL                      
+   2034 CALL                         
+   2034 ASYNC_GEN_WRAP               
+   2034 YIELD_VALUE                  
+   2034 RESUME                       
+   2034 POP_TOP                      
+   2034 LOAD_CONST                   None
+   2034 RETURN_VALUE                 

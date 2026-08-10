@@ -114,6 +114,28 @@ def check_need(need, ctx: dict) -> bool:
         elif k == "not_apprentice":
             if v in apprentices:
                 return False
+        elif k == "is_novice":
+            # v95.23：仅见习冒险者可见（行会就职选项）
+            if player.get("class_name") != "cls_novice":
+                return False
+        elif k == "not_novice":
+            # v95.23：已就职（非见习）才可见
+            if player.get("class_name") == "cls_novice":
+                return False
+        elif k == "class_any":
+            # v95.23：玩家职业在列表中才可见（导师对话按职业过滤）
+            if player.get("class_name") not in v:
+                return False
+        elif k == "class_tier":
+            # v95.23：转职阶数匹配
+            if player.get("class_tier", 0) != int(v):
+                return False
+        elif k == "evolve_ready":
+            # v95.23：到达转职等级门槛（{tier: 目标阶, level: 需要等级}）
+            if player.get("class_tier", 0) != int(v.get("tier", 0)):
+                return False
+            if int(player.get("level", 0) or 0) < int(v.get("level", 0)):
+                return False
     return True
 
 

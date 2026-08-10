@@ -15,7 +15,7 @@ from .maps import (
 from .subareas import SUBAREAS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
 from .monster_mods import MONSTER_MODS  # noqa: F401
-from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
+from .skills import PLAYER_SKILLS, BRANCH_SKILLS, TUTOR_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401
 from .equipment import (  # noqa: F401
     EQUIP_SLOTS, QUALITY, QUALITY_ORDER, WEAPON_TYPES, WEAPON_NAME_SUFFIX,

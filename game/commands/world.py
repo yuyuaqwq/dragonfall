@@ -2045,6 +2045,97 @@ class WorldCmds(CommandBase):
         db.save_quests(group_id, qq_id, quests)
         return ["✨ 交谈完成！再与这位 NPC 对话即可交付任务。"]
 
+    # ---------------- v95.23 职业就职 / 导师转职 ----------------
+
+    def _do_join_class(self, group_id, qq_id, player, new_cls):
+        """行会就职：见习冒险者 → 基础职业。
+        属性按新职业重算（base+成长×等级+种族，自由点保留），赠送基础技能书（职业 Lv.1 技能）。
+        返回通知行列表。"""
+        lines = []
+        if player.get("class_name") != "cls_novice":
+            lines.append("你已经有正式职业了，冒险者行会只负责给新人就职。")
+            return lines
+        cls = C.CLASSES.get(new_cls)
+        if not cls or cls.get("hidden"):
+            lines.append("这个职业暂时无法就职……")
+            return lines
+        # 属性按新职业重算（参考隐藏职业传承的属性同步写法）
+        st = E.player_final_stats(
+            new_cls, player.get("level", 1), player.get("equipment", {}), 0,
+            player.get("attributes"), 0,
+            self._title_bonus(group_id, qq_id), player.get("race"))
+        sk_table = C.PLAYER_SKILLS.get(new_cls, {})
+        if isinstance(sk_table, dict) and "skills" in sk_table:
+            sk_table = sk_table["skills"]
+        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
+        db.update_player(group_id, qq_id, class_name=new_cls,
+                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         learned_skills=init_skills)
+        bar = list(init_skills[:6])
+        while len(bar) < 6:
+            bar.append(None)
+        db.set_skill_bar(qq_id, bar)
+        names = "、".join(C.display("skills", s) for s in init_skills)
+        lines.append(f"🎉 行会为你登记在册——就职【{cls['icon']} {cls['name']}】！")
+        lines.append(f"『{cls['desc']}』")
+        if names:
+            lines.append(f"📖 行会赠送基础技能书，你学会了：{names}")
+        lines.append("💡 升级获得技能点，『技能学习 <技能名>』学更多技能")
+        lines.append("💡 各城职业导师可学进阶技能；Lv.30/60/90 找导师转职")
+        return lines
+
+    def _do_evolve_via_npc(self, group_id, qq_id, player, next_tier, path):
+        """导师转职：Lv.30/60/90 找对应职业导师对话转职（同步版，返回通知行）。"""
+        lines = []
+        cls = C.CLASSES.get(player.get("class_name", ""), {})
+        cur_tier = player.get("class_tier", 0)
+        need_lv = {1: 30, 2: 60, 3: 90}.get(next_tier)
+        if not need_lv:
+            lines.append("你已经完成了全部转职！")
+            return lines
+        if cur_tier != next_tier - 1:
+            lines.append("时机未到，先提升自己的境界吧。")
+            return lines
+        if player.get("level", 0) < need_lv:
+            lines.append(f"导师摇摇头：这一阶要 Lv.{need_lv} 才够格，你才 Lv.{player.get('level', 0)}。")
+            return lines
+        branches = cls.get("evolve_branches", {}).get(next_tier, [])
+        if path < 1 or path > len(branches):
+            path = 1
+        old_title = self._tier_title(player["class_name"], cur_tier, player.get("evolve_path", 0))
+        fields = {"class_tier": next_tier}
+        if path:
+            fields["evolve_path"] = path
+        db.update_player(group_id, qq_id, **fields)
+        player = self._player(group_id, qq_id)
+        new_title = self._branch_title(player["class_name"], next_tier, path or player.get("evolve_path", 0))
+        bonus = int((E.TIER_GROWTH.get(next_tier, 1.0) - 1.0) * 100)
+        branch_line = ""
+        if path:
+            tag = "⚔️ 进攻路线" if path == 1 else "🛡️ 防御路线"
+            branch_line = f"\n🔀 {tag}"
+        auto_skills = self._evolve_auto_skills(player, next_tier)
+        if auto_skills:
+            learned = player.get("learned_skills", [])
+            learned = [s for s in learned if s not in auto_skills]
+            learned += auto_skills
+            db.update_player(group_id, qq_id, learned_skills=learned)
+            player = self._player(group_id, qq_id)
+        auto_line = ""
+        if auto_skills:
+            auto_line = f"\n🌟 领悟：{'、'.join(auto_skills)}"
+        C.check_achievements(group_id, qq_id, player)
+        lines.append("🌟 转职成功！")
+        lines.append("━━━━━━━━━━━━")
+        lines.append(f"{old_title}")
+        lines.append("  ↓↓↓")
+        lines.append(f"{cls['icon']} {new_title}{branch_line}")
+        lines.append("")
+        lines.append(f"✨ 成长加成 +{bonus}%(全属性)")
+        lines.append(f"📜 新技能已解锁，输入『技能』查看！{auto_line}")
+        lines.append("👑 已达成最终转职（Lv.90 三转）！" if next_tier >= 3 else "💪 继续历练，下一次转职在 Lv.60/90")
+        return lines
+
     def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
         """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行"""
         lines = []
@@ -2122,6 +2213,42 @@ class WorldCmds(CommandBase):
                     else:
                         lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
                     lines.append("💡 『副业』查看你的生活职业面板")
+        # ---- v95.23 职业就职/进阶/转职动作 ----
+        if "unlock_class" in action:
+            # 行会就职：见习冒险者 → 基础职业（属性按新职业重算 + 初始技能）
+            new_cls = action["unlock_class"]
+            lines += self._do_join_class(group_id, qq_id, player, new_cls)
+        if "tutor_skill" in action:
+            # 导师进阶技能教学：等级门槛 + 金币学费 → 直接学会（不耗技能点）
+            ts = action["tutor_skill"]
+            sk_id = ts.get("skill", "")
+            cost = int(ts.get("cost", 0))
+            need_lv = int(ts.get("need_lv", 1))
+            info = E.skill_info(player.get("class_name", ""), sk_id)
+            if not info:
+                lines.append("这位导师似乎还没准备好教你……")
+            elif player.get("level", 0) < need_lv:
+                lines.append(f"导师摇摇头：这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。")
+            elif (player.get("gold", 0) or 0) < cost:
+                lines.append(f"导师伸出三根手指：学费 {cost} 金币，少一个子儿都不行。(你现在有 {player.get('gold', 0)} 金币)")
+            else:
+                learned = list(player.get("learned_skills", []))
+                sname = info.get("name", sk_id)
+                if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
+                    lines.append(f"『{sname}』你已经学会了，再多练练吧。")
+                else:
+                    db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) - cost,
+                                     learned_skills=learned + [sname])
+                    lines.append(f"💰 支付学费 {cost} 金币")
+                    lines.append(f"✨ 导师悉心传授，你学会了进阶技能『{sname}』！")
+                    lines.append(f"「{info['desc']}」")
+                    lines.append("💡 记得『设置技能 <槽位> <技能名>』放入技能栏～")
+        if "evolve_class" in action:
+            # 导师转职：Lv.30/60/90 找对应职业导师对话转职
+            ev = action["evolve_class"]
+            next_tier = int(ev.get("tier", 1))
+            path = int(ev.get("path", 1))
+            lines += self._do_evolve_via_npc(group_id, qq_id, player, next_tier, path)
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")

@@ -1,0 +1,902 @@
+### combat.py :: hunt_boss  (pyc vs py)
+==========================================================================================
+--- pyc 版 (L1641, 451 指令) ---
+   1641 RETURN_GENERATOR             
+   1641 POP_TOP                      
+   1641 RESUME                       
+   1645 LOAD_FAST                    self
+   1645 LOAD_METHOD                  _uid
+   1645 LOAD_FAST                    event
+   1645 PRECALL                      
+   1645 CALL                         
+   1645 UNPACK_SEQUENCE              
+   1645 STORE_FAST                   group_id
+   1645 STORE_FAST                   qq_id
+   1646 LOAD_FAST                    self
+   1646 LOAD_METHOD                  _player
+   1646 LOAD_FAST                    group_id
+   1646 LOAD_FAST                    qq_id
+   1646 PRECALL                      
+   1646 CALL                         
+   1646 STORE_FAST                   player
+   1647 LOAD_FAST                    player
+   1647 POP_JUMP_FORWARD_IF_TRUE     to 154
+   1648 LOAD_FAST                    event
+   1648 LOAD_METHOD                  plain_result
+   1648 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1648 PRECALL                      
+   1648 CALL                         
+   1648 ASYNC_GEN_WRAP               
+   1648 YIELD_VALUE                  
+   1648 RESUME                       
+   1648 POP_TOP                      
+   1649 LOAD_CONST                   None
+   1649 RETURN_VALUE                 
+   1650 LOAD_GLOBAL                  NULL + db
+   1650 LOAD_ATTR                    get_world_event
+   1650 PRECALL                      
+   1650 CALL                         
+   1650 STORE_FAST                   cur
+   1651 LOAD_GLOBAL                  NULL + int
+   1651 LOAD_GLOBAL                  NULL + time
+   1651 LOAD_ATTR                    time
+   1651 PRECALL                      
+   1651 CALL                         
+   1651 PRECALL                      
+   1651 CALL                         
+   1651 STORE_FAST                   now
+   1652 LOAD_FAST                    cur
+   1652 POP_JUMP_FORWARD_IF_TRUE     to 496
+   1654 LOAD_GLOBAL                  NULL + db
+   1654 LOAD_ATTR                    get_world_event
+   1654 LOAD_CONST                   True
+   1654 KW_NAMES                     
+   1654 PRECALL                      
+   1654 CALL                         
+   1654 STORE_FAST                   expired
+   1655 LOAD_FAST                    expired
+   1655 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1655 LOAD_FAST                    expired
+   1655 LOAD_CONST                   'etype'
+   1655 BINARY_SUBSCR                
+   1655 LOAD_CONST                   'boss'
+   1655 COMPARE_OP                   ==
+   1655 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1655 LOAD_FAST                    now
+   1655 LOAD_FAST                    expired
+   1655 LOAD_CONST                   'ends_at'
+   1655 BINARY_SUBSCR                
+   1655 COMPARE_OP                   >=
+   1655 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1656 LOAD_GLOBAL                  NULL + db
+   1656 LOAD_ATTR                    clear_world_event
+   1656 PRECALL                      
+   1656 CALL                         
+   1656 POP_TOP                      
+   1657 LOAD_FAST                    event
+   1657 LOAD_METHOD                  plain_result
+   1657 LOAD_CONST                   '👹 世界 Boss 已经撤离……下次再战！'
+   1657 PRECALL                      
+   1657 CALL                         
+   1657 ASYNC_GEN_WRAP               
+   1657 YIELD_VALUE                  
+   1657 RESUME                       
+   1657 POP_TOP                      
+   1658 LOAD_CONST                   None
+   1658 RETURN_VALUE                 
+   1659 LOAD_FAST                    event
+   1659 LOAD_METHOD                  plain_result
+   1659 LOAD_CONST                   '👹 没有世界 Boss 入侵！等『世界Boss入侵』事件出现时再来吧！'
+   1659 PRECALL                      
+   1659 CALL                         
+   1659 ASYNC_GEN_WRAP               
+   1659 YIELD_VALUE                  
+   1659 RESUME                       
+   1659 POP_TOP                      
+   1660 LOAD_CONST                   None
+   1660 RETURN_VALUE                 
+   1661 LOAD_FAST                    cur
+   1661 LOAD_CONST                   'etype'
+   1661 BINARY_SUBSCR                
+   1661 LOAD_CONST                   'boss'
+   1661 COMPARE_OP                   !=
+   1661 POP_JUMP_FORWARD_IF_FALSE    to 572
+   1662 LOAD_FAST                    event
+   1662 LOAD_METHOD                  plain_result
+   1662 LOAD_CONST                   '👹 没有世界 Boss 入侵！等『世界Boss入侵』事件出现时再来吧！'
+   1662 PRECALL                      
+   1662 CALL                         
+   1662 ASYNC_GEN_WRAP               
+   1662 YIELD_VALUE                  
+   1662 RESUME                       
+   1662 POP_TOP                      
+   1663 LOAD_CONST                   None
+   1663 RETURN_VALUE                 
+   1664 LOAD_FAST                    cur
+   1664 LOAD_CONST                   'data'
+   1664 BINARY_SUBSCR                
+   1664 LOAD_METHOD                  get
+   1664 LOAD_CONST                   'boss'
+   1664 BUILD_MAP                    
+   1664 PRECALL                      
+   1664 CALL                         
+   1664 STORE_FAST                   b
+   1666 LOAD_FAST                    b
+   1666 LOAD_METHOD                  get
+   1666 LOAD_CONST                   'map'
+   1666 LOAD_CONST                   ''
+   1666 PRECALL                      
+   1666 CALL                         
+   1666 STORE_FAST                   boss_map
+   1667 LOAD_FAST                    boss_map
+   1667 POP_JUMP_FORWARD_IF_FALSE    to 980
+   1667 LOAD_FAST                    player
+   1667 LOAD_CONST                   'cur_map'
+   1667 BINARY_SUBSCR                
+   1667 LOAD_FAST                    boss_map
+   1667 COMPARE_OP                   !=
+   1667 POP_JUMP_FORWARD_IF_FALSE    to 980
+   1668 LOAD_GLOBAL                  C
+   1668 LOAD_ATTR                    MAP_BY_ID
+   1668 LOAD_METHOD                  get
+   1668 LOAD_FAST                    player
+   1668 LOAD_CONST                   'cur_map'
+   1668 BINARY_SUBSCR                
+   1668 BUILD_MAP                    
+   1668 PRECALL                      
+   1668 CALL                         
+   1668 LOAD_METHOD                  get
+   1668 LOAD_CONST                   'name'
+   1668 LOAD_FAST                    player
+   1668 LOAD_CONST                   'cur_map'
+   1668 BINARY_SUBSCR                
+   1668 PRECALL                      
+   1668 CALL                         
+   1668 STORE_FAST                   cur_map_name
+   1669 LOAD_FAST                    event
+   1669 LOAD_METHOD                  plain_result
+   1670 LOAD_CONST                   '👹 世界 Boss【'
+   1670 LOAD_FAST                    b
+   1670 LOAD_METHOD                  get
+   1670 LOAD_CONST                   'name'
+   1670 LOAD_CONST                   '?'
+   1670 PRECALL                      
+   1670 CALL                         
+   1670 FORMAT_VALUE                 
+   1670 LOAD_CONST                   '】出现在【'
+   1670 LOAD_FAST                    b
+   1670 LOAD_METHOD                  get
+   1670 LOAD_CONST                   'map_name'
+   1670 LOAD_CONST                   '未知之地'
+   1670 PRECALL                      
+   1670 CALL                         
+   1670 FORMAT_VALUE                 
+   1670 LOAD_CONST                   '】！\n📍 你当前在【'
+   1671 LOAD_FAST                    cur_map_name
+   1670 FORMAT_VALUE                 
+   1670 LOAD_CONST                   '】，不在 Boss 出没地！\n🧭 用『前往 <地图名>』前往指定地点才能讨伐！'
+   1670 BUILD_STRING                 
+   1669 PRECALL                      
+   1669 CALL                         
+   1669 ASYNC_GEN_WRAP               
+   1669 YIELD_VALUE                  
+   1669 RESUME                       
+   1669 POP_TOP                      
+   1674 LOAD_CONST                   None
+   1674 RETURN_VALUE                 
+   1676 LOAD_GLOBAL                  NULL + db
+   1676 LOAD_ATTR                    get_battle
+   1676 LOAD_FAST                    group_id
+   1676 LOAD_FAST                    qq_id
+   1676 PRECALL                      
+   1676 CALL                         
+   1676 STORE_FAST                   battle
+   1677 LOAD_FAST                    battle
+   1677 EXTENDED_ARG                 
+   1677 POP_JUMP_FORWARD_IF_FALSE    to 1628
+   1677 LOAD_FAST                    battle
+   1677 LOAD_CONST                   'state'
+   1677 BINARY_SUBSCR                
+   1677 LOAD_METHOD                  get
+   1677 LOAD_CONST                   'type'
+   1677 PRECALL                      
+   1677 CALL                         
+   1677 LOAD_CONST                   'worldboss'
+   1677 COMPARE_OP                   ==
+   1677 EXTENDED_ARG                 
+   1677 POP_JUMP_FORWARD_IF_FALSE    to 1628
+   1678 LOAD_FAST                    battle
+   1678 LOAD_CONST                   'state'
+   1678 BINARY_SUBSCR                
+   1678 LOAD_METHOD                  get
+   1678 LOAD_CONST                   'enemy'
+   1678 BUILD_MAP                    
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 STORE_FAST                   b2
+   1679 LOAD_GLOBAL                  NULL + max
+   1679 LOAD_CONST                   0
+   1679 LOAD_GLOBAL                  NULL + int
+   1679 LOAD_FAST                    b2
+   1679 LOAD_METHOD                  get
+   1679 LOAD_CONST                   'hp'
+   1679 LOAD_CONST                   0
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 LOAD_GLOBAL                  NULL + max
+   1679 LOAD_CONST                   1
+   1679 LOAD_FAST                    b2
+   1679 LOAD_METHOD                  get
+   1679 LOAD_CONST                   'max_hp'
+   1679 LOAD_CONST                   1
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 BINARY_OP                    /
+   1679 LOAD_CONST                   100
+   1679 BINARY_OP                    *
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 STORE_FAST                   pct
+   1680 LOAD_FAST                    event
+   1680 LOAD_METHOD                  plain_result
+   1681 LOAD_CONST                   '⚔️ 你已加入讨伐！\n👹【'
+   1682 LOAD_FAST                    b2
+   1682 LOAD_METHOD                  get
+   1682 LOAD_CONST                   'name'
+   1682 LOAD_CONST                   '?'
+   1682 PRECALL                      
+   1682 CALL                         
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   '】❤️ '
+   1682 LOAD_GLOBAL                  NULL + max
+   1682 LOAD_CONST                   0
+   1682 LOAD_FAST                    b2
+   1682 LOAD_METHOD                  get
+   1682 LOAD_CONST                   'hp'
+   1682 LOAD_CONST                   0
+   1682 PRECALL                      
+   1682 CALL                         
+   1682 PRECALL                      
+   1682 CALL                         
+   1682 LOAD_CONST                   ','
+   1681 FORMAT_VALUE                 with format
+   1681 LOAD_CONST                   ' / '
+   1682 LOAD_FAST                    b2
+   1682 LOAD_METHOD                  get
+   1682 LOAD_CONST                   'max_hp'
+   1682 LOAD_CONST                   0
+   1682 PRECALL                      
+   1682 CALL                         
+   1682 LOAD_CONST                   ','
+   1681 FORMAT_VALUE                 with format
+   1681 LOAD_CONST                   '（'
+   1682 LOAD_FAST                    pct
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   '%）\n你：❤️ '
+   1683 LOAD_FAST                    player
+   1683 LOAD_CONST                   'hp'
+   1683 BINARY_SUBSCR                
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   '/'
+   1683 LOAD_FAST                    player
+   1683 LOAD_CONST                   'max_hp'
+   1683 BINARY_SUBSCR                
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   ' 💙 '
+   1683 LOAD_FAST                    player
+   1683 LOAD_CONST                   'mp'
+   1683 BINARY_SUBSCR                
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   '/'
+   1683 LOAD_FAST                    player
+   1683 LOAD_CONST                   'max_mp'
+   1683 BINARY_SUBSCR                
+   1681 FORMAT_VALUE                 
+   1681 LOAD_CONST                   '\n━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』'
+   1681 BUILD_STRING                 
+   1680 PRECALL                      
+   1680 CALL                         
+   1680 ASYNC_GEN_WRAP               
+   1680 YIELD_VALUE                  
+   1680 RESUME                       
+   1680 POP_TOP                      
+   1686 LOAD_CONST                   None
+   1686 RETURN_VALUE                 
+   1688 LOAD_CONST                   0
+   1688 LOAD_CONST                   None
+   1688 IMPORT_NAME                  random
+   1688 STORE_FAST                   _rnd
+   1689 LOAD_GLOBAL                  NULL + dict
+   1689 LOAD_FAST                    b
+   1689 PRECALL                      
+   1689 CALL                         
+   1689 STORE_FAST                   boss
+   1690 LOAD_FAST                    boss
+   1690 LOAD_METHOD                  get
+   1690 LOAD_CONST                   'skills'
+   1690 PRECALL                      
+   1690 CALL                         
+   1690 POP_JUMP_FORWARD_IF_TRUE     to 1892
+   1691 LOAD_CONST                   <code object <listcomp> at 0x00000274569DDD30, file "game/commands/combat.py", line 1691>
+   1691 MAKE_FUNCTION                
+   1691 LOAD_GLOBAL                  C
+   1691 LOAD_ATTR                    MONSTER_SKILLS
+   1691 LOAD_METHOD                  items
+   1691 PRECALL                      
+   1691 CALL                         
+   1691 GET_ITER                     
+   1691 PRECALL                      
+   1691 CALL                         
+   1691 STORE_FAST                   cand
+   1692 LOAD_FAST                    _rnd
+   1692 LOAD_METHOD                  sample
+   1692 LOAD_FAST                    cand
+   1692 LOAD_GLOBAL                  NULL + min
+   1692 LOAD_CONST                   2
+   1692 LOAD_GLOBAL                  NULL + len
+   1692 LOAD_FAST                    cand
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 LOAD_FAST                    boss
+   1692 LOAD_CONST                   'skills'
+   1692 STORE_SUBSCR                 
+   1693 LOAD_GLOBAL                  NULL + BT
+   1693 LOAD_ATTR                    Battle
+   1693 LOAD_CONST                   'worldboss'
+   1693 LOAD_FAST                    boss
+   1693 LOAD_FAST                    self
+   1693 LOAD_METHOD                  _title_bonus
+   1693 LOAD_FAST                    group_id
+   1693 LOAD_FAST                    qq_id
+   1693 PRECALL                      
+   1693 CALL                         
+   1693 LOAD_FAST                    player
+   1693 LOAD_GLOBAL                  NULL + db
+   1693 LOAD_ATTR                    pet_get
+   1693 LOAD_FAST                    qq_id
+   1693 PRECALL                      
+   1693 CALL                         
+   1694 LOAD_GLOBAL                  NULL + db
+   1694 LOAD_ATTR                    get_boss_dmg_mult
+   1694 LOAD_FAST                    qq_id
+   1694 PRECALL                      
+   1694 CALL                         
+   1693 KW_NAMES                     
+   1693 PRECALL                      
+   1693 CALL                         
+   1693 STORE_FAST                   nb
+   1695 LOAD_GLOBAL                  NULL + db
+   1695 LOAD_ATTR                    save_battle
+   1695 LOAD_FAST                    group_id
+   1695 LOAD_FAST                    qq_id
+   1695 LOAD_FAST                    nb
+   1695 LOAD_METHOD                  to_state
+   1695 PRECALL                      
+   1695 CALL                         
+   1695 PRECALL                      
+   1695 CALL                         
+   1695 POP_TOP                      
+   1696 LOAD_FAST                    self
+   1696 LOAD_METHOD                  _lock_battle
+   1696 LOAD_FAST                    group_id
+   1696 LOAD_FAST                    qq_id
+   1696 PRECALL                      
+   1696 CALL                         
+   1696 POP_TOP                      
+   1697 LOAD_GLOBAL                  NULL + max
+   1697 LOAD_CONST                   0
+   1697 LOAD_GLOBAL                  NULL + int
+   1697 LOAD_FAST                    boss
+   1697 LOAD_CONST                   'hp'
+   1697 BINARY_SUBSCR                
+   1697 LOAD_GLOBAL                  NULL + max
+   1697 LOAD_CONST                   1
+   1697 LOAD_FAST                    boss
+   1697 LOAD_CONST                   'max_hp'
+   1697 BINARY_SUBSCR                
+   1697 PRECALL                      
+   1697 CALL                         
+   1697 BINARY_OP                    /
+   1697 LOAD_CONST                   100
+   1697 BINARY_OP                    *
+   1697 PRECALL                      
+   1697 CALL                         
+   1697 PRECALL                      
+   1697 CALL                         
+   1697 STORE_FAST                   pct
+   1698 LOAD_FAST                    event
+   1698 LOAD_METHOD                  plain_result
+   1699 LOAD_CONST                   '⚔️ 你冲向【'
+   1699 LOAD_FAST                    boss
+   1699 LOAD_CONST                   'name'
+   1699 BINARY_SUBSCR                
+   1699 FORMAT_VALUE                 
+   1699 LOAD_CONST                   '】，讨伐开始！\n👹 Lv.'
+   1700 LOAD_FAST                    boss
+   1700 LOAD_METHOD                  get
+   1700 LOAD_CONST                   'lv'
+   1700 LOAD_CONST                   30
+   1700 PRECALL                      
+   1700 CALL                         
+   1699 FORMAT_VALUE                 
+   1699 LOAD_CONST                   ' ❤️ '
+   1700 LOAD_FAST                    boss
+   1700 LOAD_CONST                   'hp'
+   1700 BINARY_SUBSCR                
+   1700 LOAD_CONST                   ','
+   1699 FORMAT_VALUE                 with format
+   1699 LOAD_CONST                   ' / '
+   1700 LOAD_FAST                    boss
+   1700 LOAD_CONST                   'max_hp'
+   1700 BINARY_SUBSCR                
+   1700 LOAD_CONST                   ','
+   1699 FORMAT_VALUE                 with format
+   1699 LOAD_CONST                   '（'
+   1700 LOAD_FAST                    pct
+   1699 FORMAT_VALUE                 
+   1699 LOAD_CONST                   '%）\n━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』\n💡 造成伤害计入讨伐贡献，Boss 倒下后按贡献分奖励！'
+   1699 BUILD_STRING                 
+   1698 PRECALL                      
+   1698 CALL                         
+   1698 ASYNC_GEN_WRAP               
+   1698 YIELD_VALUE                  
+   1698 RESUME                       
+   1698 POP_TOP                      
+   1698 LOAD_CONST                   None
+   1698 RETURN_VALUE                 
+
+--- py 版 (L1640, 446 指令) ---
+   1640 RETURN_GENERATOR             
+   1640 POP_TOP                      
+   1640 RESUME                       
+   1644 LOAD_FAST                    self
+   1644 LOAD_METHOD                  _uid
+   1644 LOAD_FAST                    event
+   1644 PRECALL                      
+   1644 CALL                         
+   1644 UNPACK_SEQUENCE              
+   1644 STORE_FAST                   group_id
+   1644 STORE_FAST                   qq_id
+   1645 LOAD_FAST                    self
+   1645 LOAD_METHOD                  _player
+   1645 LOAD_FAST                    group_id
+   1645 LOAD_FAST                    qq_id
+   1645 PRECALL                      
+   1645 CALL                         
+   1645 STORE_FAST                   player
+   1646 LOAD_FAST                    player
+   1646 POP_JUMP_FORWARD_IF_TRUE     to 154
+   1647 LOAD_FAST                    event
+   1647 LOAD_METHOD                  plain_result
+   1647 LOAD_CONST                   '你还没有角色！输入『注册 战士 名字』创建吧～'
+   1647 PRECALL                      
+   1647 CALL                         
+   1647 ASYNC_GEN_WRAP               
+   1647 YIELD_VALUE                  
+   1647 RESUME                       
+   1647 POP_TOP                      
+   1648 LOAD_CONST                   None
+   1648 RETURN_VALUE                 
+   1649 LOAD_GLOBAL                  NULL + db
+   1649 LOAD_ATTR                    get_world_event
+   1649 PRECALL                      
+   1649 CALL                         
+   1649 STORE_FAST                   cur
+   1650 LOAD_GLOBAL                  NULL + int
+   1650 LOAD_GLOBAL                  NULL + time
+   1650 LOAD_ATTR                    time
+   1650 PRECALL                      
+   1650 CALL                         
+   1650 PRECALL                      
+   1650 CALL                         
+   1650 STORE_FAST                   now
+   1651 LOAD_FAST                    cur
+   1651 POP_JUMP_FORWARD_IF_TRUE     to 496
+   1653 LOAD_GLOBAL                  NULL + db
+   1653 LOAD_ATTR                    get_world_event
+   1653 LOAD_CONST                   True
+   1653 KW_NAMES                     
+   1653 PRECALL                      
+   1653 CALL                         
+   1653 STORE_FAST                   expired
+   1654 LOAD_FAST                    expired
+   1654 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1654 LOAD_FAST                    expired
+   1654 LOAD_CONST                   'etype'
+   1654 BINARY_SUBSCR                
+   1654 LOAD_CONST                   'boss'
+   1654 COMPARE_OP                   ==
+   1654 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1654 LOAD_FAST                    now
+   1654 LOAD_FAST                    expired
+   1654 LOAD_CONST                   'ends_at'
+   1654 BINARY_SUBSCR                
+   1654 COMPARE_OP                   >=
+   1654 POP_JUMP_FORWARD_IF_FALSE    to 444
+   1655 LOAD_GLOBAL                  NULL + db
+   1655 LOAD_ATTR                    clear_world_event
+   1655 PRECALL                      
+   1655 CALL                         
+   1655 POP_TOP                      
+   1656 LOAD_FAST                    event
+   1656 LOAD_METHOD                  plain_result
+   1656 LOAD_CONST                   '👹 世界 Boss 已经撤离……下次再战！'
+   1656 PRECALL                      
+   1656 CALL                         
+   1656 ASYNC_GEN_WRAP               
+   1656 YIELD_VALUE                  
+   1656 RESUME                       
+   1656 POP_TOP                      
+   1657 LOAD_CONST                   None
+   1657 RETURN_VALUE                 
+   1658 LOAD_FAST                    event
+   1658 LOAD_METHOD                  plain_result
+   1658 LOAD_CONST                   '👹 没有世界 Boss 入侵！等『世界Boss入侵』事件出现时再来吧！'
+   1658 PRECALL                      
+   1658 CALL                         
+   1658 ASYNC_GEN_WRAP               
+   1658 YIELD_VALUE                  
+   1658 RESUME                       
+   1658 POP_TOP                      
+   1659 LOAD_CONST                   None
+   1659 RETURN_VALUE                 
+   1660 LOAD_FAST                    cur
+   1660 LOAD_CONST                   'etype'
+   1660 BINARY_SUBSCR                
+   1660 LOAD_CONST                   'boss'
+   1660 COMPARE_OP                   !=
+   1660 POP_JUMP_FORWARD_IF_FALSE    to 572
+   1661 LOAD_FAST                    event
+   1661 LOAD_METHOD                  plain_result
+   1661 LOAD_CONST                   '👹 没有世界 Boss 入侵！等『世界Boss入侵』事件出现时再来吧！'
+   1661 PRECALL                      
+   1661 CALL                         
+   1661 ASYNC_GEN_WRAP               
+   1661 YIELD_VALUE                  
+   1661 RESUME                       
+   1661 POP_TOP                      
+   1662 LOAD_CONST                   None
+   1662 RETURN_VALUE                 
+   1663 LOAD_FAST                    cur
+   1663 LOAD_CONST                   'data'
+   1663 BINARY_SUBSCR                
+   1663 LOAD_METHOD                  get
+   1663 LOAD_CONST                   'boss'
+   1663 BUILD_MAP                    
+   1663 PRECALL                      
+   1663 CALL                         
+   1663 STORE_FAST                   b
+   1665 LOAD_FAST                    b
+   1665 LOAD_METHOD                  get
+   1665 LOAD_CONST                   'map'
+   1665 LOAD_CONST                   ''
+   1665 PRECALL                      
+   1665 CALL                         
+   1665 STORE_FAST                   boss_map
+   1666 LOAD_FAST                    boss_map
+   1666 POP_JUMP_FORWARD_IF_FALSE    to 980
+   1666 LOAD_FAST                    player
+   1666 LOAD_CONST                   'cur_map'
+   1666 BINARY_SUBSCR                
+   1666 LOAD_FAST                    boss_map
+   1666 COMPARE_OP                   !=
+   1666 POP_JUMP_FORWARD_IF_FALSE    to 980
+   1667 LOAD_GLOBAL                  C
+   1667 LOAD_ATTR                    MAP_BY_ID
+   1667 LOAD_METHOD                  get
+   1667 LOAD_FAST                    player
+   1667 LOAD_CONST                   'cur_map'
+   1667 BINARY_SUBSCR                
+   1667 BUILD_MAP                    
+   1667 PRECALL                      
+   1667 CALL                         
+   1667 LOAD_METHOD                  get
+   1667 LOAD_CONST                   'name'
+   1667 LOAD_FAST                    player
+   1667 LOAD_CONST                   'cur_map'
+   1667 BINARY_SUBSCR                
+   1667 PRECALL                      
+   1667 CALL                         
+   1667 STORE_FAST                   cur_map_name
+   1668 LOAD_FAST                    event
+   1668 LOAD_METHOD                  plain_result
+   1669 LOAD_CONST                   '👹 世界 Boss【'
+   1669 LOAD_FAST                    b
+   1669 LOAD_METHOD                  get
+   1669 LOAD_CONST                   'name'
+   1669 LOAD_CONST                   '?'
+   1669 PRECALL                      
+   1669 CALL                         
+   1669 FORMAT_VALUE                 
+   1669 LOAD_CONST                   '】出现在【'
+   1669 LOAD_FAST                    b
+   1669 LOAD_METHOD                  get
+   1669 LOAD_CONST                   'map_name'
+   1669 LOAD_CONST                   '未知之地'
+   1669 PRECALL                      
+   1669 CALL                         
+   1669 FORMAT_VALUE                 
+   1669 LOAD_CONST                   '】！\n📍 你当前在【'
+   1670 LOAD_FAST                    cur_map_name
+   1669 FORMAT_VALUE                 
+   1669 LOAD_CONST                   '】，不在 Boss 出没地！\n🧭 用『移动 <地图名>』前往指定地点才能讨伐！'
+   1669 BUILD_STRING                 
+   1668 PRECALL                      
+   1668 CALL                         
+   1668 ASYNC_GEN_WRAP               
+   1668 YIELD_VALUE                  
+   1668 RESUME                       
+   1668 POP_TOP                      
+   1673 LOAD_CONST                   None
+   1673 RETURN_VALUE                 
+   1675 LOAD_GLOBAL                  NULL + db
+   1675 LOAD_ATTR                    get_battle
+   1675 LOAD_FAST                    group_id
+   1675 LOAD_FAST                    qq_id
+   1675 PRECALL                      
+   1675 CALL                         
+   1675 STORE_FAST                   battle
+   1676 LOAD_FAST                    battle
+   1676 EXTENDED_ARG                 
+   1676 POP_JUMP_FORWARD_IF_FALSE    to 1628
+   1676 LOAD_FAST                    battle
+   1676 LOAD_CONST                   'state'
+   1676 BINARY_SUBSCR                
+   1676 LOAD_METHOD                  get
+   1676 LOAD_CONST                   'type'
+   1676 PRECALL                      
+   1676 CALL                         
+   1676 LOAD_CONST                   'worldboss'
+   1676 COMPARE_OP                   ==
+   1676 EXTENDED_ARG                 
+   1676 POP_JUMP_FORWARD_IF_FALSE    to 1628
+   1677 LOAD_FAST                    battle
+   1677 LOAD_CONST                   'state'
+   1677 BINARY_SUBSCR                
+   1677 LOAD_METHOD                  get
+   1677 LOAD_CONST                   'enemy'
+   1677 BUILD_MAP                    
+   1677 PRECALL                      
+   1677 CALL                         
+   1677 STORE_FAST                   b2
+   1678 LOAD_GLOBAL                  NULL + max
+   1678 LOAD_CONST                   0
+   1678 LOAD_GLOBAL                  NULL + int
+   1678 LOAD_FAST                    b2
+   1678 LOAD_METHOD                  get
+   1678 LOAD_CONST                   'hp'
+   1678 LOAD_CONST                   0
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 LOAD_GLOBAL                  NULL + max
+   1678 LOAD_CONST                   1
+   1678 LOAD_FAST                    b2
+   1678 LOAD_METHOD                  get
+   1678 LOAD_CONST                   'max_hp'
+   1678 LOAD_CONST                   1
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 BINARY_OP                    /
+   1678 LOAD_CONST                   100
+   1678 BINARY_OP                    *
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 PRECALL                      
+   1678 CALL                         
+   1678 STORE_FAST                   pct
+   1679 LOAD_FAST                    event
+   1679 LOAD_METHOD                  plain_result
+   1680 LOAD_CONST                   '⚔️ 你已加入讨伐！\n👹【'
+   1681 LOAD_FAST                    b2
+   1681 LOAD_METHOD                  get
+   1681 LOAD_CONST                   'name'
+   1681 LOAD_CONST                   '?'
+   1681 PRECALL                      
+   1681 CALL                         
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   '】❤️ '
+   1681 LOAD_GLOBAL                  NULL + max
+   1681 LOAD_CONST                   0
+   1681 LOAD_FAST                    b2
+   1681 LOAD_METHOD                  get
+   1681 LOAD_CONST                   'hp'
+   1681 LOAD_CONST                   0
+   1681 PRECALL                      
+   1681 CALL                         
+   1681 PRECALL                      
+   1681 CALL                         
+   1681 LOAD_CONST                   ','
+   1680 FORMAT_VALUE                 with format
+   1680 LOAD_CONST                   ' / '
+   1681 LOAD_FAST                    b2
+   1681 LOAD_METHOD                  get
+   1681 LOAD_CONST                   'max_hp'
+   1681 LOAD_CONST                   0
+   1681 PRECALL                      
+   1681 CALL                         
+   1681 LOAD_CONST                   ','
+   1680 FORMAT_VALUE                 with format
+   1680 LOAD_CONST                   '('
+   1681 LOAD_FAST                    pct
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   '%)\n你：❤️ '
+   1682 LOAD_FAST                    player
+   1682 LOAD_CONST                   'hp'
+   1682 BINARY_SUBSCR                
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   '/'
+   1682 LOAD_FAST                    player
+   1682 LOAD_CONST                   'max_hp'
+   1682 BINARY_SUBSCR                
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   ' 💙 '
+   1682 LOAD_FAST                    player
+   1682 LOAD_CONST                   'mp'
+   1682 BINARY_SUBSCR                
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   '/'
+   1682 LOAD_FAST                    player
+   1682 LOAD_CONST                   'max_mp'
+   1682 BINARY_SUBSCR                
+   1680 FORMAT_VALUE                 
+   1680 LOAD_CONST                   '\n━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』'
+   1680 BUILD_STRING                 
+   1679 PRECALL                      
+   1679 CALL                         
+   1679 ASYNC_GEN_WRAP               
+   1679 YIELD_VALUE                  
+   1679 RESUME                       
+   1679 POP_TOP                      
+   1685 LOAD_CONST                   None
+   1685 RETURN_VALUE                 
+   1687 LOAD_CONST                   0
+   1687 LOAD_CONST                   None
+   1687 IMPORT_NAME                  random
+   1687 STORE_FAST                   _rnd
+   1688 LOAD_GLOBAL                  NULL + dict
+   1688 LOAD_FAST                    b
+   1688 PRECALL                      
+   1688 CALL                         
+   1688 STORE_FAST                   boss
+   1689 LOAD_FAST                    boss
+   1689 LOAD_METHOD                  get
+   1689 LOAD_CONST                   'skills'
+   1689 PRECALL                      
+   1689 CALL                         
+   1689 POP_JUMP_FORWARD_IF_TRUE     to 1892
+   1690 LOAD_CONST                   <code object <listcomp> at 0x00000274569DDE30, file "game\commands\combat.py", line 1690>
+   1690 MAKE_FUNCTION                
+   1690 LOAD_GLOBAL                  C
+   1690 LOAD_ATTR                    MONSTER_SKILLS
+   1690 LOAD_METHOD                  items
+   1690 PRECALL                      
+   1690 CALL                         
+   1690 GET_ITER                     
+   1690 PRECALL                      
+   1690 CALL                         
+   1690 STORE_FAST                   cand
+   1691 LOAD_FAST                    _rnd
+   1691 LOAD_METHOD                  sample
+   1691 LOAD_FAST                    cand
+   1691 LOAD_GLOBAL                  NULL + min
+   1691 LOAD_CONST                   2
+   1691 LOAD_GLOBAL                  NULL + len
+   1691 LOAD_FAST                    cand
+   1691 PRECALL                      
+   1691 CALL                         
+   1691 PRECALL                      
+   1691 CALL                         
+   1691 PRECALL                      
+   1691 CALL                         
+   1691 LOAD_FAST                    boss
+   1691 LOAD_CONST                   'skills'
+   1691 STORE_SUBSCR                 
+   1692 LOAD_GLOBAL                  NULL + BT
+   1692 LOAD_ATTR                    Battle
+   1692 LOAD_CONST                   'worldboss'
+   1692 LOAD_FAST                    boss
+   1692 LOAD_FAST                    self
+   1692 LOAD_METHOD                  _title_bonus
+   1692 LOAD_FAST                    group_id
+   1692 LOAD_FAST                    qq_id
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 LOAD_FAST                    player
+   1692 LOAD_GLOBAL                  NULL + db
+   1692 LOAD_ATTR                    pet_get
+   1692 LOAD_FAST                    qq_id
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 KW_NAMES                     
+   1692 PRECALL                      
+   1692 CALL                         
+   1692 STORE_FAST                   nb
+   1693 LOAD_GLOBAL                  NULL + db
+   1693 LOAD_ATTR                    save_battle
+   1693 LOAD_FAST                    group_id
+   1693 LOAD_FAST                    qq_id
+   1693 LOAD_FAST                    nb
+   1693 LOAD_METHOD                  to_state
+   1693 PRECALL                      
+   1693 CALL                         
+   1693 PRECALL                      
+   1693 CALL                         
+   1693 POP_TOP                      
+   1694 LOAD_FAST                    self
+   1694 LOAD_METHOD                  _lock_battle
+   1694 LOAD_FAST                    group_id
+   1694 LOAD_FAST                    qq_id
+   1694 PRECALL                      
+   1694 CALL                         
+   1694 POP_TOP                      
+   1695 LOAD_GLOBAL                  NULL + max
+   1695 LOAD_CONST                   0
+   1695 LOAD_GLOBAL                  NULL + int
+   1695 LOAD_FAST                    boss
+   1695 LOAD_CONST                   'hp'
+   1695 BINARY_SUBSCR                
+   1695 LOAD_GLOBAL                  NULL + max
+   1695 LOAD_CONST                   1
+   1695 LOAD_FAST                    boss
+   1695 LOAD_CONST                   'max_hp'
+   1695 BINARY_SUBSCR                
+   1695 PRECALL                      
+   1695 CALL                         
+   1695 BINARY_OP                    /
+   1695 LOAD_CONST                   100
+   1695 BINARY_OP                    *
+   1695 PRECALL                      
+   1695 CALL                         
+   1695 PRECALL                      
+   1695 CALL                         
+   1695 STORE_FAST                   pct
+   1696 LOAD_FAST                    event
+   1696 LOAD_METHOD                  plain_result
+   1697 LOAD_CONST                   '⚔️ 你冲向【'
+   1697 LOAD_FAST                    boss
+   1697 LOAD_CONST                   'name'
+   1697 BINARY_SUBSCR                
+   1697 FORMAT_VALUE                 
+   1697 LOAD_CONST                   '】，讨伐开始！\n👹 Lv.'
+   1698 LOAD_FAST                    boss
+   1698 LOAD_METHOD                  get
+   1698 LOAD_CONST                   'lv'
+   1698 LOAD_CONST                   30
+   1698 PRECALL                      
+   1698 CALL                         
+   1697 FORMAT_VALUE                 
+   1697 LOAD_CONST                   ' ❤️ '
+   1698 LOAD_FAST                    boss
+   1698 LOAD_CONST                   'hp'
+   1698 BINARY_SUBSCR                
+   1698 LOAD_CONST                   ','
+   1697 FORMAT_VALUE                 with format
+   1697 LOAD_CONST                   ' / '
+   1698 LOAD_FAST                    boss
+   1698 LOAD_CONST                   'max_hp'
+   1698 BINARY_SUBSCR                
+   1698 LOAD_CONST                   ','
+   1697 FORMAT_VALUE                 with format
+   1697 LOAD_CONST                   '('
+   1698 LOAD_FAST                    pct
+   1697 FORMAT_VALUE                 
+   1697 LOAD_CONST                   '%)\n━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』\n💡 造成伤害计入讨伐贡献，Boss 倒下后按贡献分奖励！'
+   1697 BUILD_STRING                 
+   1696 PRECALL                      
+   1696 CALL                         
+   1696 ASYNC_GEN_WRAP               
+   1696 YIELD_VALUE                  
+   1696 RESUME                       
+   1696 POP_TOP                      
+   1696 LOAD_CONST                   None
+   1696 RETURN_VALUE                 

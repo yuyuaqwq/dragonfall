@@ -1,6 +1,33 @@
 # -*- coding: utf-8 -*-
 """《剑与魔法》数据层 - classes.py(v48 key 转 ID)"""
 CLASSES = {
+    "cls_novice": {
+        "desc": "刚踏上冒险之路的新人，还没有正式职业。去冒险者行会找接待员就职，或到各城寻找职业导师吧！",
+        "icon": "🧭",
+        "role": "见习",
+        "base": {
+            "hp": 110,
+            "mp": 50,
+            "atk": 11,
+            "def": 9,
+            "matk": 9,
+            "mdef": 9,
+            "spd": 10,
+            "crit": 0.05,
+            "dodge": 0.03
+        },
+        "growth": {
+            "hp": 14,
+            "mp": 6,
+            "atk": 1.3,
+            "def": 1.1,
+            "matk": 1.1,
+            "mdef": 1.1,
+            "spd": 1.0
+        },
+        "weapon_type": "sword",
+        "name": "见习冒险者",
+    },
     "cls_bard": {
         "desc": "流浪于各地的吟游诗人，歌声能鼓舞士气、也能迷惑敌人。隐藏职业，需特殊传承解锁(22 章)。",
         "icon": "🎻",
