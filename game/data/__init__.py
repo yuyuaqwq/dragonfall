@@ -82,6 +82,10 @@ from .prof_config import (  # noqa: F401
 )
 from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
 from .core_resources import CORE_RESOURCES  # noqa: F401  (v102.4 从 engine.py 下沉)
+from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
+    MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, MONSTER_EXP_BASE, MONSTER_GOLD_BASE,
+    EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING,
+)
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
 from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
