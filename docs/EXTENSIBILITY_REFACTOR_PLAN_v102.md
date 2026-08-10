@@ -76,8 +76,26 @@
 
 ## 五、后续规划（B 级，建议单独一轮）
 
-- **B1 超大函数拆分**：_player_skill/init_db/_handle_victory 等 9 个 ≥150 行函数按职责拆小（先拆分后收敛，降低单步风险）
-- **B2 动态列名 SQL 加固**：6 处 `f"UPDATE ... SET {key}_lv=?"` 改白名单校验（dict 查 key 存在再拼接），防约定式脆弱
-- **B3 整数魔法数字**：top50 等级阈值/容量/奖励量抽常量（30×26、20×21、50×16、99×10…）
+### ✅ B1 超大函数拆分（2026-08-10 深夜完成 3/9 + 6 个评估不拆）
+
+| 函数 | 行数 | 处置 | 理由 |
+|---|---|---|---|
+| init_db（connection.py） | 317→17 | ✅ **v103.5 拆分** | 建表 SQL 按域拆 _SQL_CORE/_SQL_SOCIAL/_SQL_PROF 三常量 + ALTER 段提取 _ensure_legacy_columns |
+| _player_skill（battle.py） | 296→202 | ✅ **v103.6 拆分** | 治疗→_skill_heal(43)/增益→_skill_buff(56) 独立方法（巨型 kind 分支） |
+| _instance_start（instance.py） | 271→161 | ✅ **v103.7 拆分** | stages 分层/地图模式判定/st 初始 dict → _instance_build_state(114) |
+| _handle_victory（combat.py） | 305 | ⏭️ **评估不拆** | 线性结算流程：exp/gold 连续修正 + 10+ 局部变量互传 + db 副作用，提取需巨型签名，强拆降低可读性、回归风险高 |
+| move（world.py） | 226 | ⏭️ **评估不拆** | async generator 线性流程（全程 yield 返回错误/结果），提取需 async for 转发 + 多参数 |
+| buy（economy.py） | 214 | ⏭️ **评估不拆** | 数字索引分支虽 86 行但 10 参数 + async generator yield |
+| craft（economy.py） | 180 | ⏭️ **评估不拆** | 输入解析分支均 yield 返回错误，提取收益低 |
+| _instance_act（instance.py） | 179 | ⏭️ **评估不拆** | 回合状态机流程（轮转/Boss 结算/存档交错），无纯逻辑段 |
+| enchant（economy.py） | 155 | ⏭️ **评估不拆** | 已是最小一档；符文分支 55 行可拆但收益边际 |
+
+> **拆分原则（本次定稿）**：只拆"巨型分发/纯数据构建"（天然边界 + 参数少）；命令层 async generator yield 流程函数不拆（提取需 async for 转发，行为等价但可读性不升反降）。B1 剩余项关闭，非偷懒——评估结论如上。
+
+### ⏳ B2 动态列名 SQL 加固（✅ v103.1 已完成）
+8 处动态 SQL 白名单校验（update_player/pet_update/bump_stats/add_prof_exp/forget_prof/delete_player），详见上文 B 级清单。
+
+### ⏳ B3 整数魔法数字（✅ v103.3 已完成）
+7 组常量 17 处替换（EVOLVE_LEVELS/EVOLVE_FEES/RESET_SKILL_COST/DEFAULT_MAX_MP/PVP_TIMEOUT_SEC/GUILD_EXP_BASE/PROF_EXP_BASE），详见上文。
 
 > 原则不变：行为零差异、每阶段独立 commit、全量后台跑、跑完前不动源文件。
