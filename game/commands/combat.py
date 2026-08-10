@@ -129,13 +129,14 @@ class CombatCmds(CommandBase):
                 b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
                 db.save_battle(group_id, qq_id, b.to_state())
                 self._lock_battle(group_id, qq_id)
+                bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
                 yield event.plain_result(
                     f"⚔️ 遭遇战斗！\n"
                     f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
                     f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
                     + (f"📜 {monster.get('mod', '')}\n" if monster.get("mod") else "")
                     + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-                    + f"━━━━━━━━━━━━\n"
+                    + f"{bless_note}━━━━━━━━━━━━\n"
                     f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
                 )
                 return
@@ -145,6 +146,7 @@ class CombatCmds(CommandBase):
                 b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
                 db.save_battle(group_id, qq_id, b.to_state())
                 self._lock_battle(group_id, qq_id)
+                bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
                 hint = ""
                 if cur_map.get("elite"):
                     hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{cur_map['elite'][1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
@@ -154,7 +156,7 @@ class CombatCmds(CommandBase):
                     f"🏘️ 你在{cur_map['name']}外围的野地里遇到了麻烦！\n"
                     f"🐾【{monster['name']}】Lv.{monster['lv']} ❤️ {monster['hp']}/{monster['max_hp']}\n"
                     + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-                    + f"━━━━━━━━━━━━\n"
+                    + f"{bless_note}━━━━━━━━━━━━\n"
                     f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
                     f"{hint}"
                 )
@@ -174,13 +176,14 @@ class CombatCmds(CommandBase):
             b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
+            bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
             yield event.plain_result(
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
                 f"　　{flavor}\n"
                 f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
                 + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-                + f"━━━━━━━━━━━━\n"
+                + f"{bless_note}━━━━━━━━━━━━\n"
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
@@ -211,13 +214,14 @@ class CombatCmds(CommandBase):
         b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
+        bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
             f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-            + f"━━━━━━━━━━━━\n"
+            + f"{bless_note}━━━━━━━━━━━━\n"
             f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             f"{hint}{stam_warn}"
         )

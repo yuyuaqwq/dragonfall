@@ -40,6 +40,7 @@ def _basic_attack_verb(player: dict) -> str:
 BUFF_MULT = {
     "atk_up":         ("atk", 1.30),
     "atk_up_strong":  ("atk", 1.75),
+    "echo_bless":     ("atk", 1.05),   # v97.4 回音洞穴祝福：本场攻击 +5%（一次性，探索事件写入）
     "matk_up":        ("matk", 1.35),
     "matk_up_strong": ("matk", 1.80),
     "matk_up_pot":    ("matk", 1.30),   # 9.3 鲛人之泪：本回合魔攻 +30%
@@ -91,6 +92,18 @@ class Battle:
                 player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
             except Exception:
                 pass
+            # v97.4 回音洞穴祝福：探索事件写入 event_state bless_{qid}（玩家级，players 表全局无 group_id），本场攻击 +5%，一次性
+            if player.get("qq_id") and not self.p_buffs.get("echo_bless"):
+                try:
+                    import json as _json
+                    from . import db as _db
+                    _key = f"bless_{player['qq_id']}"
+                    _raw = _db.get_event_state(_key)
+                    if _raw:
+                        self.p_buffs["echo_bless"] = 1
+                        _db.set_event_state(_key, "")
+                except Exception:
+                    pass
             self._init_resources(player)
         # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾）
         if player and "shield" in self._equip_affix_ids(player):

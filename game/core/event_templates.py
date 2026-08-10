@@ -301,6 +301,41 @@ def tpl_combo(ctx):
     return "\n".join(lines)
 
 
+@register("random_choice")
+def tpl_random_choice(ctx):
+    """v97.4 概率分支：chance 命中执行 hit 子模板，否则 miss。params: chance/hit/miss
+    hit/miss 为 {template, params}（与 combo 的 step 同构），支持嵌套。"""
+    branch = ctx.param("hit" if random.random() < ctx.param("chance", 0.5) else "miss", None)
+    if not branch:
+        return ""
+    sub_params = dict(ctx.params)
+    sub_params.update(branch.get("params", {}))
+    sub_ctx = EventContext(ctx.group_id, ctx.qq_id, ctx.player, ctx.cur_map,
+                           params=sub_params, name=ctx.name, hooks=ctx.hooks)
+    fn = TEMPLATES.get(branch.get("template"))
+    if fn:
+        text = fn(sub_ctx)
+        return text or ""
+    return ""
+
+
+@register("stamina_cost")
+def tpl_stamina_cost(ctx):
+    """v97.4 扣体力（浮桥落水等）。params: cost/header
+    体力下限 0，上限 100 + lv*2（与 base.py _stamina_max 一致）。"""
+    db = ctx._db()
+    cost = ctx.param("cost", 5)
+    max_st = 100 + ctx.lv * 2
+    cur = int(ctx.player.get("stamina") or 0)
+    new = max(0, cur - cost)
+    db.update_player(ctx.group_id, ctx.qq_id, stamina=new)
+    header = ctx.param("header", "⚡ 体力 -{cost}（当前 ⚡ {stamina}/{max}）")
+    return (header.replace("{name}", ctx.name)
+                  .replace("{cost}", str(cost))
+                  .replace("{stamina}", str(new))
+                  .replace("{max}", str(max_st)))
+
+
 def execute_event_template(template_name, ctx):
     """执行模板；未注册返回 None（调用方兜底）。"""
     fn = TEMPLATES.get(template_name)
