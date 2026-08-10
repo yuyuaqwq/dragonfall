@@ -23,6 +23,189 @@ from .. import battle as BT
 from ..commands.base import CommandBase
 
 
+# ================= 物品详情渲染器（v101.6） =================
+# 原 item_detail 内 6 分支 if-elif 硬编码：加新物品类型 = 注册一个渲染函数
+_STAT_NAMES = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
+              "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
+_REQ_NAMES = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+
+
+def _render_equip(d, lines, equipped):
+    """装备详情"""
+    # ===== 装备 =====
+    q = C.QUALITY[d["quality"]]
+    enh = d.get("enhance", 0)
+    enh_str = f" +{enh}" if enh > 0 else ""
+    equip_state = "(已装备)" if equipped else ""
+    lines.append(f"{q['color']}【{d['name']}{enh_str}】({C.EQUIP_SLOTS[d['slot']]}){equip_state}")
+    lines.append("━━━━━━━━━━━━")
+    lines.append(f"品质：{q['name']} ｜ 需求等级：Lv.{d['lv']}")
+    if d.get("weapon_type"):
+        # 阶段八：武器不锁职业，只显示类型（20 章装备只限属性）
+        lines.append(f"类型：{C.display('weapon_types', d['weapon_type'])}")
+        flavor_desc = C.WEAPON_FLAVOR.get(d["weapon_type"], {}).get("desc", "")
+        if flavor_desc:
+            lines.append(f"✦ {flavor_desc}")
+    st = d.get("stats", {})
+    stat_names = _STAT_NAMES
+    stat_lines = []
+    for k, v in st.items():
+        if v:
+            label = stat_names.get(k, k)
+            stat_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+    if stat_lines:
+        lines.append("属性：" + "  ".join(stat_lines))
+    # 阶段八：特效词条 v2（ID 列表 → 名称+描述）+ 传说专属
+    aff_lines = []
+    for af in d.get("affixes", []):
+        if isinstance(af, dict):  # 旧结构兼容
+            k, v = af.get("stat"), af.get("value", 0)
+            label = stat_names.get(k, k)
+            aff_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+            continue
+        info = C.AFFIXES.get(af)
+        if info:
+            aff_lines.append(f"{info['name']}({info['desc']})")
+    if aff_lines:
+        lines.append("✨ 词条：" + "  ".join(aff_lines))
+    if d.get("legendary"):
+        lg = C.LEGENDARY_EFFECTS.get(d["legendary"])
+        if lg:
+            lines.append(f"✨ 专属·{lg['name']}：{lg['desc']}")
+    # 阶段八：属性需求（不锁职业，只锁力量/智力/敏捷/耐力）
+    req = d.get("req")
+    if req:
+        req_names = _REQ_NAMES
+        req_str = " + ".join(f"{req_names.get(k, k)} {v}" for k, v in req.items())
+        lines.append(f"需求：{req_str}")
+    # v10：附魔（v34：符文效果词条，带等级）
+    ench_lines = []
+    for en in d.get("enchant", []):
+        if en.get("effect"):
+            eff_name = C.RUNE_EFFECT_NAMES.get(en["effect"], en["effect"])
+            lvl = int(en.get("lvl", 1) or 1)
+            roman = C.RUNE_LEVEL_ROMAN.get(lvl, "")
+            ench_lines.append(f"『{eff_name}{roman}』")
+        else:
+            k, v = en.get("stat"), en.get("value", 0)
+            label = stat_names.get(k, k)
+            ench_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
+    if ench_lines:
+        lines.append("🔮 符文： " + "  ".join(ench_lines))
+    # v10：套装归属
+    if d.get("set"):
+        sinfo = C.SETS.get(d["set"])
+        if sinfo:
+            b4_desc = sinfo.get("bonus_4", {}).get("desc", "")
+            lines.append(f"🎴 套装：{sinfo['icon']}{d['set']}({b4_desc})")
+    if enh > 0:
+        info = C.ENHANCE_TABLE.get(enh)
+        lines.append(f"强化：+{enh}" + (f"(属性 {int(info['mult'] * 100)}%)" if info else ""))
+    if d.get("desc"):
+        lines.append(f"描述：{d['desc']}")
+    lines.append("")
+    lines.append(f"💡 『装备 {d['name']}』穿上它 ｜ 出售价 {d.get('price', 0)} 金币")
+
+
+def _render_material(d, lines, equipped):
+    """材料详情"""
+    # ===== 材料 =====
+    lines.append(f"🧪 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    lines.append("类型：材料")
+    mat = C.MATERIALS.get(d["name"])
+    if mat and mat.get("desc"):
+        lines.append(f"描述：{mat['desc']}")
+    lines.append("")
+    lines.append(f"💡 出售价 {d.get('price', 0)} 金币 ｜ 『出售 {d['name']}』变现 ｜ 『喂养 {d['name']}』喂宠物")
+
+
+def _render_rune(d, lines, equipped):
+    """符文详情"""
+    # ===== 符文（v34） =====
+    lines.append(f"💎 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    lines.append(f"类型：符文 ｜ 品质：{d.get('quality', '')} ｜ 等级：{C.RUNE_LEVEL_ROMAN.get(int(d.get('lvl', 1) or 1), '')}")
+    if d.get("desc"):
+        lines.append(f"效果：{d['desc']}")
+    lines.append("")
+    lines.append(f"💡 『附魔 <装备名> {d['name']}』刻印到装备 ｜ 出售价 {d.get('price', 0)} 金币")
+
+
+def _render_blueprint(d, lines, equipped):
+    """图纸详情"""
+    # ===== 图纸（v41 毕业套锻造材料） =====
+    lines.append(f"📜 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    lines.append(f"类型：图纸 ｜ 阶段：{d.get('stage', '')} ｜ 职业：{d.get('class', '')}")
+    if d.get("desc"):
+        lines.append(f"描述：{d['desc']}")
+    lines.append("")
+    lines.append(f"💡 到铁匠铺『锻造 {d.get('blueprint_for', '')}』系列装备 ｜ 出售价 {d.get('price', 0)} 金币")
+
+
+def _render_pet_egg(d, lines, equipped):
+    """宠物蛋详情"""
+    # ===== 宠物蛋 =====
+    lines.append(f"🥚 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    pdef = next((p for p in C.PET_POOL if p["key"] == d.get("pet_key")), None)
+    if pdef:
+        lines.append(f"可孵化：{pdef['icon']}{pdef['name']}(怪物 Lv.{pdef['lv']} 及以上掉落)")
+        lines.append(f"描述：{pdef['desc']}")
+    else:
+        lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
+    lines.append("")
+    lines.append("💡 『使用 宠物蛋』孵化")
+
+
+def _render_consumable(d, lines, equipped):
+    """消耗品/道具详情"""
+    # ===== 消耗品/道具 =====
+    lines.append(f"📦 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    if d.get("type"):
+        lines.append(f"类型：{d['type']}")
+    if d.get("desc"):
+        lines.append(f"效果：{d['desc']}")
+    elif d.get("heal") or d.get("mana"):
+        # v95.17 #147：heal<1 是百分比（v54 战斗外回复），详情直接显示原始小数误导 → 换算百分比
+        parts = []
+        if d.get("heal"):
+            h = d["heal"]
+            parts.append(f"恢复 {int(h * 100)}% 生命" if h < 1 else f"恢复 {h} 点生命")
+        if d.get("mana"):
+            m = d["mana"]
+            parts.append(f"恢复 {int(m * 100)}% 魔力" if m < 1 else f"恢复 {m} 点魔力")
+        if d.get("stamina"):
+            parts.append(f"{d['stamina']} 体力")
+        lines.append("效果：" + "＋".join(parts))
+    lines.append("")
+    if d.get("price"):
+        lines.append(f"💡 出售价 {d['price']} 金币")
+    lines.append(f"💡 『使用 {d['name']}』使用它")
+
+
+# 大类 → 渲染器（key 与 _item_category 返回值一致）；未知大类走默认消耗品
+_ITEM_DETAIL_RENDERERS = {
+    "装备": _render_equip,
+    "材料": _render_material,
+    "符文": _render_rune,
+    "图纸": _render_blueprint,
+    "宠物蛋": _render_pet_egg,
+    "__default__": _render_consumable,
+}
+
+
+def item_detail_render(d, lines, equipped):
+    """按物品大类分发到渲染器（v101.6：加新类型 = 注册表加一行 + _item_category 加一类）。
+    大类判断与 EconomyCmds._item_category 一致（装备→slot；其余→type/其他）。"""
+    kind = "装备" if d.get("slot") else (d.get("type") or "其他")
+    fn = _ITEM_DETAIL_RENDERERS.get(kind) or _ITEM_DETAIL_RENDERERS["__default__"]
+    fn(d, lines, equipped)
+
+
+
 class EconomyCmds(CommandBase):
     """背包/装备/锻造/强化/商店/采集/垂钓/炼金"""
 
@@ -1945,145 +2128,8 @@ class EconomyCmds(CommandBase):
             return
         d = target["data"]
         lines = []
-        if d.get("slot"):
-            # ===== 装备 =====
-            q = C.QUALITY[d["quality"]]
-            enh = d.get("enhance", 0)
-            enh_str = f" +{enh}" if enh > 0 else ""
-            equip_state = "(已装备)" if equipped else ""
-            lines.append(f"{q['color']}【{d['name']}{enh_str}】({C.EQUIP_SLOTS[d['slot']]}){equip_state}")
-            lines.append("━━━━━━━━━━━━")
-            lines.append(f"品质：{q['name']} ｜ 需求等级：Lv.{d['lv']}")
-            if d.get("weapon_type"):
-                # 阶段八：武器不锁职业，只显示类型（20 章装备只限属性）
-                lines.append(f"类型：{C.display('weapon_types', d['weapon_type'])}")
-                flavor_desc = C.WEAPON_FLAVOR.get(d["weapon_type"], {}).get("desc", "")
-                if flavor_desc:
-                    lines.append(f"✦ {flavor_desc}")
-            st = d.get("stats", {})
-            stat_names = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
-                          "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
-            stat_lines = []
-            for k, v in st.items():
-                if v:
-                    label = stat_names.get(k, k)
-                    stat_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
-            if stat_lines:
-                lines.append("属性：" + "  ".join(stat_lines))
-            # 阶段八：特效词条 v2（ID 列表 → 名称+描述）+ 传说专属
-            aff_lines = []
-            for af in d.get("affixes", []):
-                if isinstance(af, dict):  # 旧结构兼容
-                    k, v = af.get("stat"), af.get("value", 0)
-                    label = stat_names.get(k, k)
-                    aff_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
-                    continue
-                info = C.AFFIXES.get(af)
-                if info:
-                    aff_lines.append(f"{info['name']}({info['desc']})")
-            if aff_lines:
-                lines.append("✨ 词条：" + "  ".join(aff_lines))
-            if d.get("legendary"):
-                lg = C.LEGENDARY_EFFECTS.get(d["legendary"])
-                if lg:
-                    lines.append(f"✨ 专属·{lg['name']}：{lg['desc']}")
-            # 阶段八：属性需求（不锁职业，只锁力量/智力/敏捷/耐力）
-            req = d.get("req")
-            if req:
-                req_names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
-                req_str = " + ".join(f"{req_names.get(k, k)} {v}" for k, v in req.items())
-                lines.append(f"需求：{req_str}")
-            # v10：附魔（v34：符文效果词条，带等级）
-            ench_lines = []
-            for en in d.get("enchant", []):
-                if en.get("effect"):
-                    eff_name = C.RUNE_EFFECT_NAMES.get(en["effect"], en["effect"])
-                    lvl = int(en.get("lvl", 1) or 1)
-                    roman = C.RUNE_LEVEL_ROMAN.get(lvl, "")
-                    ench_lines.append(f"『{eff_name}{roman}』")
-                else:
-                    k, v = en.get("stat"), en.get("value", 0)
-                    label = stat_names.get(k, k)
-                    ench_lines.append(f"{label} +{int(v * 100)}%" if k in ("crit", "dodge") else f"{label} +{v}")
-            if ench_lines:
-                lines.append("🔮 符文： " + "  ".join(ench_lines))
-            # v10：套装归属
-            if d.get("set"):
-                sinfo = C.SETS.get(d["set"])
-                if sinfo:
-                    b4_desc = sinfo.get("bonus_4", {}).get("desc", "")
-                    lines.append(f"🎴 套装：{sinfo['icon']}{d['set']}({b4_desc})")
-            if enh > 0:
-                info = C.ENHANCE_TABLE.get(enh)
-                lines.append(f"强化：+{enh}" + (f"(属性 {int(info['mult'] * 100)}%)" if info else ""))
-            if d.get("desc"):
-                lines.append(f"描述：{d['desc']}")
-            lines.append("")
-            lines.append(f"💡 『装备 {d['name']}』穿上它 ｜ 出售价 {d.get('price', 0)} 金币")
-        elif d.get("type") == "材料":
-            # ===== 材料 =====
-            lines.append(f"🧪 【{d['name']}】")
-            lines.append("━━━━━━━━━━━━")
-            lines.append("类型：材料")
-            mat = C.MATERIALS.get(d["name"])
-            if mat and mat.get("desc"):
-                lines.append(f"描述：{mat['desc']}")
-            lines.append("")
-            lines.append(f"💡 出售价 {d.get('price', 0)} 金币 ｜ 『出售 {d['name']}』变现 ｜ 『喂养 {d['name']}』喂宠物")
-        elif d.get("type") == "符文":
-            # ===== 符文（v34） =====
-            lines.append(f"💎 【{d['name']}】")
-            lines.append("━━━━━━━━━━━━")
-            lines.append(f"类型：符文 ｜ 品质：{d.get('quality', '')} ｜ 等级：{C.RUNE_LEVEL_ROMAN.get(int(d.get('lvl', 1) or 1), '')}")
-            if d.get("desc"):
-                lines.append(f"效果：{d['desc']}")
-            lines.append("")
-            lines.append(f"💡 『附魔 <装备名> {d['name']}』刻印到装备 ｜ 出售价 {d.get('price', 0)} 金币")
-        elif d.get("type") == "图纸":
-            # ===== 图纸（v41 毕业套锻造材料） =====
-            lines.append(f"📜 【{d['name']}】")
-            lines.append("━━━━━━━━━━━━")
-            lines.append(f"类型：图纸 ｜ 阶段：{d.get('stage', '')} ｜ 职业：{d.get('class', '')}")
-            if d.get("desc"):
-                lines.append(f"描述：{d['desc']}")
-            lines.append("")
-            lines.append(f"💡 到铁匠铺『锻造 {d.get('blueprint_for', '')}』系列装备 ｜ 出售价 {d.get('price', 0)} 金币")
-        elif d.get("type") == "宠物蛋":
-            # ===== 宠物蛋 =====
-            lines.append(f"🥚 【{d['name']}】")
-            lines.append("━━━━━━━━━━━━")
-            pdef = next((p for p in C.PET_POOL if p["key"] == d.get("pet_key")), None)
-            if pdef:
-                lines.append(f"可孵化：{pdef['icon']}{pdef['name']}(怪物 Lv.{pdef['lv']} 及以上掉落)")
-                lines.append(f"描述：{pdef['desc']}")
-            else:
-                lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
-            lines.append("")
-            lines.append("💡 『使用 宠物蛋』孵化")
-        else:
-            # ===== 消耗品/道具 =====
-            lines.append(f"📦 【{d['name']}】")
-            lines.append("━━━━━━━━━━━━")
-            if d.get("type"):
-                lines.append(f"类型：{d['type']}")
-            if d.get("desc"):
-                lines.append(f"效果：{d['desc']}")
-            elif d.get("heal") or d.get("mana"):
-                # v95.17 #147：heal<1 是百分比（v54 战斗外回复），详情直接显示原始小数误导 → 换算百分比
-                parts = []
-                if d.get("heal"):
-                    h = d["heal"]
-                    parts.append(f"恢复 {int(h * 100)}% 生命" if h < 1 else f"恢复 {h} 点生命")
-                if d.get("mana"):
-                    m = d["mana"]
-                    parts.append(f"恢复 {int(m * 100)}% 魔力" if m < 1 else f"恢复 {m} 点魔力")
-                if d.get("stamina"):
-                    parts.append(f"{d['stamina']} 体力")
-                lines.append("效果：" + "＋".join(parts))
-            lines.append("")
-            if d.get("price"):
-                lines.append(f"💡 出售价 {d['price']} 金币")
-            lines.append(f"💡 『使用 {d['name']}』使用它")
+        # v101.6：物品类型分发数据化 → item_detail_render（加新类型 = 注册表加一行）
+        item_detail_render(d, lines, equipped)
         yield event.plain_result("\n".join(lines))
 
     def _req_check(self, player: dict, d: dict):
