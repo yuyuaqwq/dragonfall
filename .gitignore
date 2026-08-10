@@ -22,3 +22,9 @@ logs/
 # 测试临时文件
 *.tmp
 game/game_data.db.bak_old_world
+
+# playtest 循环运行时文件（锁/回环日志/备份）
+playtest.lock
+.loopback_worker.lock
+playthrough_out*.txt
+*.bak_v95r*
