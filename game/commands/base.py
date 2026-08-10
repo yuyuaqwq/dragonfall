@@ -284,10 +284,13 @@ class CommandBase:
                     continue
                 if md.handler_module_path != self.__class__.__module__:
                     continue
-                name = getattr(md.handler, "__name__", "")
-                if name.startswith("shortcut"):
-                    continue
-                if name.startswith("_"):
+                raw = md.handler
+                if isinstance(raw, functools.partial):
+                    # AstrBot 加载插件时 handler 被包装成 partial(raw, star_cls)（无 __name__），
+                    # 直接 getattr 拿名字恒为空串 → v96.1 的私有跳过在真实进程失效
+                    raw = raw.func
+                name = getattr(raw, "__name__", "")
+                if name.startswith("shortcut") or name.startswith("_"):
                     # v96：跳过私有 handler（_maint_gate 等），避免空正则污染快捷转发
                     continue
                 for f in md.event_filters:
