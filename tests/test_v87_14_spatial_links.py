@@ -19,7 +19,10 @@ async def main():
     clean_db()
     db.init_db()
     m = Main(None)
-    make_player("g1", "1001", "甲", "战士")
+    # v103.4 修复：玩家等级提到威慑线（地图 lv+5 = 6 级）——_travel_ambush 判定
+    # diff <= -5 永不撞怪。原 Lv.1 vs 橡木平原 Lv.1 → diff=0 → 每次跨图 move 18% 撞怪，
+    # 撞怪后位置不变导致断言随机失败（全量两次深夜跑挂、单跑偶过）。
+    make_player("g1", "1001", "甲", "战士", level=10)
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
 
     async def move(dest):
