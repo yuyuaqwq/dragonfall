@@ -837,147 +837,36 @@ class Battle:
         return 1.0 + bonus
 
     def _affix_on_hit(self, player: dict, dmg: int, logs: list):
-        """攻击命中后词条触发：流血/破甲/连击/吸血/元素附加/贯穿/蓄力/净化/龙语印记/审判之链"""
+        """攻击命中后词条触发：流血/破甲/连击/吸血/元素附加/贯穿/蓄力/净化/龙语印记/审判之链
+        v98.5：效果数据化 → core/affix_effects.py HIT_EFFECTS（并列 if 语义，顺序遍历）"""
         ids = self._equip_affix_ids(player)
         if not ids or self.enemy.get("hp", 0) <= 0:
             return
-        e = self.enemy
-        pst = self._player_stats(player)
-        # 流血：20% 使目标流血（每回合 5% 生命，3 回合）
-        if "bleed" in ids and random.random() < 0.20:
-            self.e_buffs["bleed"] = max(self.e_buffs.get("bleed", 0), 3)
-            logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
-        # 破甲：25% 降低目标防御 15%（2 回合）
-        if "armor_break" in ids and random.random() < 0.25:
-            self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
-            self.e_buffs["_armor_break_pct"] = 0.15
-            logs.append("🛡️ 破甲！敌人防御下降 15%！")
-        # 连击：15% 追加一次 50% 伤害
-        if "combo" in ids and random.random() < 0.15:
-            cd = int(dmg * 0.50)
-            e["hp"] = max(0, e.get("hp", 0) - cd)
-            logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
-        # 吸血：伤害的 8% 转化为生命
-        if "lifesteal" in ids and dmg > 0:
-            heal = int(dmg * 0.08)
-            player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-            logs.append(f"🩸 吸血：回复 {heal} 点生命！")
-        # 元素附加：火/冰/雷 5% 属性伤害（冰附减速）
-        for aid, elem, emoji, slow in (
-                ("element_fire", "fire", "🔥", False),
-                ("element_ice", "ice", "❄️", True),
-                ("element_thunder", "thunder", "⚡", False)):
-            if aid in ids:
-                ed = max(1, int(dmg * 0.05))
-                e["hp"] = max(0, e.get("hp", 0) - ed)
-                logs.append(f"{emoji} {elem}属性附加 {ed} 点伤害！")
-                if slow:
-                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
-                    logs.append("❄️ 减速！")
-        # 贯穿：20% 无视防御追加伤害
-        if "pierce" in ids and random.random() < 0.20:
-            pd = E.calc_damage(int(pst.get("atk", 0) * 0.6), 0)
-            if pd > 0:
-                e["hp"] = max(0, e.get("hp", 0) - pd)
-                logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
-        # 蓄力：10% 造成 150% 伤害（追加 50%）
-        if "charge" in ids and random.random() < 0.10:
-            cd = int(dmg * 0.50)
-            e["hp"] = max(0, e.get("hp", 0) - cd)
-            logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
-        # 净化：15% 驱散敌人 1 层增益（审判之链专属 25% 驱散 2 层）
-        purge_n = 0
-        if "judgment_chain" in ids and random.random() < 0.25:
-            purge_n = 2
-        elif "purify" in ids and random.random() < 0.15:
-            purge_n = 1
-        if purge_n:
-            gain_keys = [k for k in self.e_buffs
-                         if k.startswith("mon_") or k in ("summon", "atk_up_strong")]
-            removed = 0
-            for _ in range(purge_n):
-                if not gain_keys:
-                    break
-                k = gain_keys.pop(random.randrange(len(gain_keys)))
-                del self.e_buffs[k]
-                removed += 1
-            if removed:
-                logs.append(f"✨ 净化！驱散了敌人 {removed} 层增益！")
-        # 龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）
-        if "dragon_tongue" in ids:
-            self.mech_stacks["dragon_mark"] = min(5, int(self.mech_stacks.get("dragon_mark", 0) or 0) + 1)
-            logs.append(f"🐉 龙语印记叠加！({self.mech_stacks['dragon_mark']} 层，每层＋2% 伤害)")
+        from .core.affix_effects import HIT_EFFECTS
+        for fn in HIT_EFFECTS.values():
+            fn(self, player, dmg, logs)
 
     def _affix_on_taken(self, player: dict, dmg: int, logs: list) -> int:
-        """受击词条：减伤/格挡/坚韧/反击/反伤/深渊腐蚀。返回结算后的伤害。"""
+        """受击词条：减伤/格挡/坚韧/反击/反伤/深渊腐蚀。返回结算后的伤害。
+        v98.5：效果数据化 → core/affix_effects.py TAKEN_EFFECTS（ctx 顺序结算）"""
         ids = self._equip_affix_ids(player)
         if not ids:
             return dmg
-        out = dmg
-        e = self.enemy
-        # 减伤（常驻：减伤词条 +3%、大地之心专属 +5%）
-        reduce_pct = 0.0
-        if "dmg_reduce" in ids:
-            reduce_pct += 0.03
-        if "earth_heart" in ids:
-            reduce_pct += 0.05
-        if reduce_pct:
-            out = max(1, int(out * (1 - reduce_pct)))
-            logs.append(f"🛡️ 减伤 {dmg - out} 点")
-        # 格挡：15% 减伤 50%
-        if "block" in ids and random.random() < 0.15:
-            blocked = int(out * 0.50)
-            out = max(1, out - blocked)
-            logs.append(f"🛡️ 格挡！减伤 {blocked} 点")
-        # 坚韧：20% 免疫/清除自身负面（减速/降攻）
-        if "tenacity" in ids and random.random() < 0.20:
-            neg = [k for k in self.p_buffs if k in ("spd_down", "atk_down", "def_down")]
-            if neg:
-                del self.p_buffs[random.choice(neg)]
-                logs.append("💪 坚韧！免疫了负面效果")
-        # 反击：20% 反击 60% 伤害
-        if "counter" in ids and random.random() < 0.20 and e.get("hp", 0) > 0:
-            pst2 = self._player_stats(player)
-            est2 = self._enemy_stats()
-            cd = E.calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
-            if cd > 0:
-                e["hp"] = max(0, e.get("hp", 0) - cd)
-                logs.append(f"⚔️ 反击！对【{e.get('name', '敌人')}】造成 {cd} 点伤害！")
-        # 反伤：10% 反弹 30% 伤害
-        if "thorns" in ids and random.random() < 0.10 and e.get("hp", 0) > 0:
-            rd = int(dmg * 0.30)
-            e["hp"] = max(0, e.get("hp", 0) - rd)
-            logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
-        # 灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害
-        if "ember_ward" in ids and random.random() < 0.20 and e.get("hp", 0) > 0:
-            rd = int(dmg * 0.50)
-            e["hp"] = max(0, e.get("hp", 0) - rd)
-            logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
-        # 深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）
-        if "moro_crown" in ids and random.random() < 0.15:
-            self.e_buffs["mon_atk_down"] = max(self.e_buffs.get("mon_atk_down", 0), 2)
-            self.e_buffs["_weaken_val"] = 0.10
-            logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
-        return out
+        from .core.affix_effects import TAKEN_EFFECTS
+        ctx = {"dmg": dmg, "out": dmg}
+        for fn in TAKEN_EFFECTS.values():
+            fn(self, player, ctx, logs)
+        return ctx["out"]
 
     def _affix_turn_start(self, player: dict, logs: list):
-        """回合开始词条：回春(1% 生命)/冥想(1% 魔力)/晨曦祝福(2% 生命)"""
+        """回合开始词条：回春(1% 生命)/冥想(1% 魔力)/晨曦祝福(2% 生命)
+        v98.5：效果数据化 → core/affix_effects.py TURN_START_EFFECTS"""
         ids = self._equip_affix_ids(player)
         if not ids:
             return
-        regen_pct = 0.0
-        if "regen" in ids:
-            regen_pct += 0.01
-        if "dawn_crown" in ids:
-            regen_pct += 0.02
-        if regen_pct and player.get("hp", 0) < player.get("max_hp", 1):
-            heal = int(player.get("max_hp", player.get("hp", 1)) * regen_pct)
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-            logs.append(f"🌿 回春生效，回复 {heal} 点生命！")
-        if "meditate" in ids and player.get("mp", 0) < player.get("max_mp", 1):
-            heal = int(player.get("max_mp", player.get("mp", 1)) * 0.01)
-            player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
-            logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
+        from .core.affix_effects import TURN_START_EFFECTS
+        for fn in TURN_START_EFFECTS.values():
+            fn(self, player, logs)
 
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
@@ -1319,36 +1208,16 @@ class Battle:
 
     # ---------------- v10 套装攻击特效 ----------------
     def _set_attack_proc(self, player: dict, dmg: int, logs: list):
-        """玩家攻击后触发已激活套装的 4 件攻击特效"""
+        """玩家攻击后触发已激活套装的 4 件攻击特效
+        v98.5：效果数据化 → core/affix_effects.py SET_PROC_EFFECTS"""
         effs = E.set_bonus_4(player.get("equipment", {}))
         if not effs:
             return
-        pst = self._player_stats(player)
+        from .core.affix_effects import SET_PROC_EFFECTS
         for eff in effs:
-            if eff == "frost" and random.random() < 0.30:
-                self.e_buffs["spd_down"] = DEBUFF_TURNS
-                logs.append("❄️ 寒霜之力！敌人速度下降！")
-            elif eff == "burn" and random.random() < 0.30:
-                self.e_buffs["poison"] = DEBUFF_TURNS
-                logs.append("🔥 烈焰之力！敌人被灼烧！")
-            elif eff == "thunder" and random.random() < 0.25:
-                est = self._enemy_stats()
-                tdmg = E.calc_damage(int(pst["atk"] * 0.6), est["def"])
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - tdmg)
-                logs.append(f"⚡ 雷霆一击！追加 {tdmg} 点伤害！")
-            elif eff == "pierce" and random.random() < 0.30:
-                self.e_buffs["def_down"] = DEBUFF_TURNS
-                logs.append("👑 诸神之力！敌人护甲破碎！")
-            elif eff == "lifesteal_set" and random.random() < 0.30:
-                heal = int(dmg * 0.15)
-                player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-                logs.append(f"🌑 深渊之力！汲取 {heal} 点生命！")
-            elif eff == "execute":
-                ratio = self.enemy.get("hp", 0) / max(1, self.enemy.get("max_hp", 1))
-                if ratio < 0.30:
-                    bonus = int(dmg * 0.25)
-                    self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - bonus)
-                    logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")
+            fn = SET_PROC_EFFECTS.get(eff)
+            if fn:
+                fn(self, player, dmg, logs)
 
     # ---------------- 敌方回合 ----------------
     def _boss_dmg_filter(self, dmg: int, player: dict, logs: list) -> int:

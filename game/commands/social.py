@@ -850,31 +850,11 @@ class SocialCmds(CommandBase):
         if evt:
             lines.append(evt["desc"])
         lines.append("")
-        if cur["etype"] == "auction":
-            items = cur["data"].get("items", [])
-            for it in items:
-                top = max(it["bids"].values()) if it["bids"] else 0
-                top_name = ""
-                if it["bids"]:
-                    top_qq = max(it["bids"], key=it["bids"].get)
-                    top_name = self._player(group_id, top_qq)
-                    top_name = top_name["name"] if top_name else top_qq
-                lines.append(f"📦 {it['id']}. {it['name']} ｜ 底价 {it['base']}｜ 最高 {top_name or '无人出价'}：{top}")
-                lines.append(f"   💰 一口价 {it['buyout']}｜『竞拍 {it['id']} <金币>』")
-        elif cur["etype"] == "boss":
-            b = cur["data"].get("boss", {})
-            pct = max(0, int(b.get("hp", 0) / max(1, b.get("max_hp", 1)) * 100))
-            lines.append(f"{b.get('icon','')} {b.get('name','')} Lv.{b.get('lv',1)}")
-            lines.append(f"❤️ 剩余血量 {max(0,b.get('hp',0)):,} / {b.get('max_hp',0):,}({pct}%)")
-            lines.append(f"⚔️ 输入『讨伐』参与战斗！贡献越高奖励越丰厚！")
-        elif cur["etype"] == "merchant":
-            lines.append("🎁 所有商店 8 折优惠进行中！『商店』查看，『购买 <物品>』扫货！")
-        elif cur["etype"] == "omen":
-            lines.append("🌧️ 经验与金币收益＋50%！快去『探索』打怪吧！")
-        elif cur["etype"] == "swarm":
-            lines.append("⚔️ 怪物经验＋30%，击杀声望双倍！守护大陆！")
-        elif cur["etype"] == "festival":
-            lines.append("🎉 『签到』奖励翻倍！金币掉落增加！")
+        # v98.5：etype 展示数据化 → core/world_event_templates.py DISPLAYS
+        from ..core.world_event_templates import DISPLAYS
+        disp_fn = DISPLAYS.get(cur["etype"])
+        if disp_fn:
+            disp_fn(self, cur, lines, group_id)
         lines.append("")
         lines.append(notice)
         yield event.plain_result("\n".join(lines))
