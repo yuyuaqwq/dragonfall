@@ -3,6 +3,7 @@ import json
 import sqlite3
 import time
 from .connection import _connect, _lock
+from .. import content as C
 
 """《剑与魔法》存储层 - social"""
 
@@ -391,8 +392,8 @@ def guild_add_exp(gid, exp, member_qq=None, contribute=0):
             # 升级判定：lv*300 经验升一级
             g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             if g:
-                while g["exp"] >= g["level"] * 300:
-                    conn.execute("UPDATE guilds SET exp=exp-?, level=level+1 WHERE gid=?", (g["level"] * 300, gid))
+                while g["exp"] >= g["level"] * C.GUILD_EXP_BASE:
+                    conn.execute("UPDATE guilds SET exp=exp-?, level=level+1 WHERE gid=?", (g["level"] * C.GUILD_EXP_BASE, gid))
                     conn.commit()
                     g = conn.execute("SELECT * FROM guilds WHERE gid=?", (gid,)).fetchone()
             return True

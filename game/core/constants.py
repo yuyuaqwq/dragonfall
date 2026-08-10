@@ -64,3 +64,13 @@ CLASS_NOVICE = "cls_novice"      # 见习冒险者（行会就职判定/隐藏�
 # ================= v102.6 属性集合常量 =================
 # （19 处裸写 ("crit","dodge") 判断"百分比显示属性"，收敛后改显示规则只动这里）
 PCT_STATS = ("crit", "dodge")    # 以百分比展示的属性（暴击/闪避）
+
+# ================= v103.3 B3 整数魔法数字 =================
+# （第三轮审计 B3：等级阈值/容量/奖励量裸数字，收敛后改数值只动这里）
+EVOLVE_LEVELS = {1: 30, 2: 60, 3: 90}      # 转职等级门槛（player.py:405/419/828、world.py:2153、engine.py:633）
+EVOLVE_FEES = {1: 500, 2: 2000, 3: 5000}   # 转职重置费用（按当前 tier，player.py:695）
+RESET_SKILL_COST = 500                     # 技能洗点费用（player.py:660/752）
+DEFAULT_MAX_MP = 50                        # 面板/战斗 max_mp 兜底（battle.py:92/262、combat.py:1329、instance.py:764/765）
+PVP_TIMEOUT_SEC = 300                      # PVP 超时秒：5 分钟无行动自动解除（combat.py:1731）
+GUILD_EXP_BASE = 300                       # 公会升级经验 = 等级 * 300（social.py:490、store/social.py:394/395）
+PROF_EXP_BASE = 20                         # 副业升级经验 = 当前等级 * 20（professions.py:75/76、economy.py:849）

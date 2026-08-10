@@ -402,7 +402,7 @@ class PlayerCmds(CommandBase):
         tier = player.get("class_tier", 0)
         # 转职等级门槛：tier 1→30级 / tier 2→60级 / tier 3→90级（21 章三转体系）
         next_tier = tier + 1
-        need_lv = {1: 30, 2: 60, 3: 90}.get(next_tier)
+        need_lv = C.EVOLVE_LEVELS.get(next_tier)
         branches = cls.get("evolve_branches", {}).get(next_tier, [])
         # 已满级转职
         if not need_lv:
@@ -416,7 +416,7 @@ class PlayerCmds(CommandBase):
             line = f"{cls['icon']}{C.display('classes', player['class_name'])}"
             evo_lines = []
             for t, branch_list in cls.get("evolve_branches", {}).items():
-                lv = t * 30
+                lv = C.EVOLVE_LEVELS[t]
                 tagged = []
                 for i, b in enumerate(branch_list):
                     tag = "攻" if i == 0 else "守"
@@ -657,7 +657,7 @@ class PlayerCmds(CommandBase):
         if not player.get("learned_skills"):
             yield event.plain_result("你还没有学习过任何技能，无需洗点～")
             return
-        cost = 500
+        cost = C.RESET_SKILL_COST
         if player["gold"] < cost:
             yield event.plain_result(f"技能洗点需要 {cost} 金币，你只有 {player['gold']} 金币。")
             return
@@ -692,7 +692,7 @@ class PlayerCmds(CommandBase):
         if tier <= 0:
             yield event.plain_result("你还没有转职过，无需重置～『转职』查看路线。")
             return
-        cost = {1: 500, 2: 2000, 3: 5000}.get(tier, 500)
+        cost = C.EVOLVE_FEES.get(tier, 500)
         if player["gold"] < cost:
             yield event.plain_result(f"转职重置需要 {cost} 金币(当前 {tier} 转)，你只有 {player['gold']} 金币。")
             return
@@ -749,7 +749,7 @@ class PlayerCmds(CommandBase):
         if used == 0:
             yield event.plain_result("你还没有分配过属性点，无需洗点～")
             return
-        cost = 500
+        cost = C.RESET_SKILL_COST
         if player["gold"] < cost:
             yield event.plain_result(f"洗点需要 {cost} 金币，你只有 {player['gold']} 金币。")
             return
@@ -825,7 +825,7 @@ class PlayerCmds(CommandBase):
         ]
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
-            lines.append(f"专属：{owner[1]}(Lv.{owner[0]*30} 转职解锁)")
+            lines.append(f"专属：{owner[1]}(Lv.{C.EVOLVE_LEVELS[owner[0]]} 转职解锁)")
         if info.get("multi"):
             lines.append(f"连击：x{info['multi']}")
         if info.get("pierce"):

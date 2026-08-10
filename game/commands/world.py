@@ -2150,7 +2150,7 @@ class WorldCmds(CommandBase):
         lines = []
         cls = C.CLASSES.get(player.get("class_name", ""), {})
         cur_tier = player.get("class_tier", 0)
-        need_lv = {1: 30, 2: 60, 3: 90}.get(next_tier)
+        need_lv = C.EVOLVE_LEVELS.get(next_tier)
         if not need_lv:
             lines.append("你已经完成了全部转职！")
             return lines

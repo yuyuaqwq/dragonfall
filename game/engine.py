@@ -630,6 +630,6 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         )
         if can_learn:
             logs.append(f"📖 有 {len(can_learn)} 个新技能可学习！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")
-        if player["level"] in (30,):
+        if player["level"] == C.EVOLVE_LEVELS[1]:
             logs.append(f"🌟 你已达到 {player['level']} 级，可以转职了！(输入『转职』查看)")
     return logs, player

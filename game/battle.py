@@ -89,7 +89,7 @@ class Battle:
             try:
                 _st = self._player_stats(player)
                 player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
-                player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+                player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
             except Exception:
                 pass
             # v97.4 回音洞穴祝福：探索事件写入 event_state bless_{qid}（玩家级，players 表全局无 group_id），本场攻击 +5%，一次性
@@ -259,7 +259,7 @@ class Battle:
         try:
             _st = self._player_stats(player)
             player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
-            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception:
             pass
         # v63 额外行动阶段被控：眩晕/冻结跳过（消耗额外行动但不执行动作）

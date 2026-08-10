@@ -6,6 +6,7 @@
 - add_prof_exp 自动处理升级与封顶（Lv.10 满级不再累积）
 """
 from .connection import _connect, _lock
+from .. import content as C
 import json  # v67 activated 列 JSON 序列化
 
 PROF_FIELDS = {
@@ -72,8 +73,8 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
                 return lv, False
             cur += exp
             leveled = False
-            while lv < 10 and cur >= lv * 20:
-                cur -= lv * 20
+            while lv < 10 and cur >= lv * C.PROF_EXP_BASE:
+                cur -= lv * C.PROF_EXP_BASE
                 lv += 1
                 leveled = True
             if lv >= 10:

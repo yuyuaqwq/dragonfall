@@ -761,8 +761,8 @@ class InstanceCmds(CommandBase):
                 "class_name": p["class_name"], "level": p["level"],
                 "hp": min(int(p.get("hp", 0)), int(_st.get("max_hp", p.get("max_hp", 100)))),
                 "max_hp": int(_st.get("max_hp", p.get("max_hp", 100))),
-                "mp": min(int(p.get("mp", 0)), int(_st.get("max_mp", p.get("max_mp", 50)))),
-                "max_mp": int(_st.get("max_mp", p.get("max_mp", 50))),
+                "mp": min(int(p.get("mp", 0)), int(_st.get("max_mp", p.get("max_mp", C.DEFAULT_MAX_MP)))),
+                "max_mp": int(_st.get("max_mp", p.get("max_mp", C.DEFAULT_MAX_MP))),
                 "atk": p.get("atk", 0), "def": p.get("def", 0),
                 "matk": p.get("matk", 0), "mdef": p.get("mdef", 0),
                 # v57：快照补算真实 spd（此前 p 无 spd 字段恒为 0，速度机制无从生效）

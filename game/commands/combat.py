@@ -1326,7 +1326,7 @@ class CombatCmds(CommandBase):
                                        player.get("class_tier", 0), player.get("attributes"),
                                        player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
             player["max_hp"] = int(_st.get("max_hp", player.get("max_hp", 100)))
-            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", 50)))
+            player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception:
             pass
         need = C.exp_to_next(player["level"])
@@ -1728,7 +1728,7 @@ class CombatCmds(CommandBase):
 
     def _pvp_handle_timeout(self, battle, group_id, qq_id) -> bool:
         """PVP 超时检查：5 分钟无行动自动解除(防对方离线卡死)。返回 True=已解除"""
-        if time.time() - battle.get("updated_at", 0) > 300:
+        if time.time() - battle.get("updated_at", 0) > C.PVP_TIMEOUT_SEC:
             st = battle["state"]
             opp_qq = st["attacker"]["qq_id"] if str(st["defender"]["qq_id"]) == str(qq_id) else st["defender"]["qq_id"]
             # 攻击方获得袭击 CD，防脱离后立刻再骚扰

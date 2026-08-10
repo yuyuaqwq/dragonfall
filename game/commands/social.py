@@ -487,7 +487,7 @@ class SocialCmds(CommandBase):
             return
         members = db.guild_members(g["gid"])
         count = len(members)
-        exp_need = g["level"] * 300
+        exp_need = g["level"] * C.GUILD_EXP_BASE
         raw = self._strip_cmd(event, "公会")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(members, page, per_page=5)

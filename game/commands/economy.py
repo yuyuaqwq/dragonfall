@@ -846,7 +846,7 @@ class EconomyCmds(CommandBase):
             if key not in activated:
                 continue
             total += p["lv"]
-            need = p["lv"] * 20
+            need = p["lv"] * C.PROF_EXP_BASE
             bar_len = min(10, p["exp"] // (need // 10 + 1))
             bar = "█" * bar_len + "░" * (10 - bar_len)
             lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验 ✅")
