@@ -354,10 +354,52 @@ class CombatCmds(CommandBase):
         C.check_achievements(group_id, qq_id, player, {"wish_met": True})
         yield event.plain_result(f"🌠 【许愿成真】{msg}")
 
+    def _roll_find_quest_events(self, group_id, qq_id, player, cur_map):
+        """v97.1 条件探索事件：进行中的 find 型任务，在指定地图探索按 chance 触发。
+        返回触发文案(列表)或 None。机制：告示委托→探索概率遇到目标(鱼鱼示例：找猫)。"""
+        import json as _json
+        cur_id = cur_map.get("id", "")
+        quests = db.get_quests(group_id, qq_id)
+        side = quests.get("side", {}) or {}
+        for sid, sq in list(side.items()):
+            if sq.get("status") != "active":
+                continue
+            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
+            if not sqd:
+                continue
+            obj = sqd.get("objective") or {}
+            if not obj.get("find"):
+                continue
+            if obj.get("map") != cur_id:
+                continue
+            chance = float(obj.get("chance", 0.1))
+            if random.random() >= chance:
+                continue
+            # 命中：任务推进到 ready(交付阶段)
+            sq["status"] = "ready"
+            side[sid] = sq
+            quests["side"] = side
+            db.save_quests(group_id, qq_id, quests)
+            target = obj["find"]
+            mname = cur_map.get("name", "此地")
+            giver = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
+            gname = giver.get("name", "发布人")
+            return (
+                f"🐱【找到目标】你在{mname}的灌木丛里听到一声细弱的『喵——』！\n"
+                f"一只{target}怯生生地探出头，你小心翼翼地靠近，用食物引诱，一把将它抱了起来！\n"
+                f"━━━━━━━━━━━━\n"
+                f"📜 『{sqd['name']}』目标达成！回去找 {gname} {self._deliver_hint(sqd['giver'])}吧～"
+            )
+        return None
+
     def _handle_explore_event(self, group_id, qq_id, player, cur_map):
         """处理探索随机事件；返回 (handled, 文本)"""
         import uuid, json as _json, time as _time
         name = cur_map.get("name", "此地")
+        # v97.1 条件探索事件优先：find 型任务(告示委托)命中则不再 roll 常规事件
+        find_lines = self._roll_find_quest_events(group_id, qq_id, player, cur_map)
+        if find_lines:
+            return True, find_lines
         # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重）
         egg = C.roll_explore_egg()
         if egg:

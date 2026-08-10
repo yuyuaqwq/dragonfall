@@ -1342,6 +1342,19 @@ class WorldCmds(CommandBase):
                 if sq["id"] in (quests.get("side") or {}):
                     continue
                 if raw in (sq["name"],):
+                    # v97.1 告示委托（board: true）：在告示板所在的子区域接取，不要求发布 NPC 在场
+                    if sq.get("board"):
+                        prop_ids = C.subarea_props(player["cur_map"], player.get("cur_subarea") or "")
+                        has_board = any(
+                            C.prop_entry(e)[0] == "notice_board" for e in prop_ids
+                        )
+                        if not has_board:
+                            yield event.plain_result(
+                                f"告示委托『{sq['name']}』要去告示板前才能接取！输入『交互 告示板』看看～")
+                            return
+                        lines = self._offer_side_quests(group_id, qq_id, sq["giver"], {"map": player["cur_map"], "gender": ""})
+                        yield event.plain_result("\n".join(lines))
+                        return
                     npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
                     if npc.get("map") == player["cur_map"]:
                         lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
@@ -1682,6 +1695,9 @@ class WorldCmds(CommandBase):
             return f"收集 {obj['collect']} ×{obj['count']}"
         if obj.get("explore"):
             return f"前往 {C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}"
+        if obj.get("find"):
+            # v97.1 告示委托：在指定地图探索概率找到目标
+            return f"在 {C.MAP_BY_ID.get(obj.get('map', ''), {}).get('name', '？')} 寻找 {obj['find']}(探索有概率遇到)"
         if obj.get("talk"):
             npc = C.NPCS.get(obj["talk"], {})
             return f"与 {npc.get('name', '？')} 交谈"
@@ -1976,6 +1992,29 @@ class WorldCmds(CommandBase):
         texts = pp.get("texts") or []
         text = random.choice(texts) if texts else pp.get("desc", "……")
         lines = [f"{pp['icon']}【{name}】", f"“{text}”"]
+        # v97.1 告示板：附加展示当前地图的告示委托（board 型支线，未接取时）
+        if pid == "notice_board":
+            quests = db.get_quests(group_id, qq_id)
+            side = quests.get("side") or {}
+            board_lines = []
+            for sq in C.SIDE_QUESTS:
+                if not sq.get("board"):
+                    continue
+                if sq["id"] in side:
+                    continue
+                board_lines.append(f"  📜 {sq['name']}：{sq['desc']}")
+            if board_lines:
+                lines.append("━━━━━━━━━━━━")
+                lines.append("🧾 【告示委托】")
+                lines += board_lines
+                lines.append("💡 输入『接取 <委托名>』接下委托～")
+            else:
+                done = any(
+                    side.get(sq["id"], {}).get("status") == "done"
+                    for sq in C.SIDE_QUESTS if sq.get("board")
+                )
+                if done:
+                    lines.append("(你已处理完这里的委托，告示板又恢复了平静。)")
         # 极小彩蛋（纯趣味，不破坏平衡）
         # v87.12 专属元素带小效果：dict effect = {"type": "material"/"heal", "daily": True}
         import datetime as _dt

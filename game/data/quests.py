@@ -1451,6 +1451,19 @@ SIDE_QUESTS = [
         "reward_gold": 15000,
         "story": "烬鳞：『年轻的旅人，你身上的气息……龙神在注视你。冰川龙·霜牙盘踞在山口，它挡了所有龙裔朝圣的路。击败它，取回它的龙血，你将被龙裔视为兄弟。』",
     },
+    # ============ v97.1 告示委托（board: true，告示板接取，find 型条件探索事件） ============
+    {
+        "id": "s_board_cat",
+        "name": "寻猫·虎斑",
+        "giver": "npc_innkeeper",
+        "map": "oak_town",
+        "board": True,
+        "desc": "告示板上的寻猫启事：白鹿之森走丢的虎斑猫『虎斑』，找到它交给玛莎",
+        "objective": {"find": "虎斑猫", "map": "white_deer_forest", "chance": 0.12},
+        "reward_exp": 150,
+        "reward_gold": 60,
+        "story": "告示板贴着一张皱巴巴的寻猫启事：『寻猫启事：我家虎斑(白猫，黄褐斑纹)在白鹿之森走丢了，它胆子小，看到人会跑。提供线索者酬谢三枚铜板！——橡木镇旅店·玛莎』",
+    },
 ]
 
 DAILY_QUESTS = [
@@ -1790,4 +1803,5 @@ DAILY_QUESTS = [
         "reward_exp": 2250,
         "reward_gold": 900,
         "story": "格温：『安抚彩虹云谷的彩虹小仙灵』",
-    },]
+    },
+]
