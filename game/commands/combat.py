@@ -924,8 +924,11 @@ class CombatCmds(CommandBase):
         skill_name = skill_name.strip()
         info = E.skill_info(player["class_name"], skill_name)
         if not info:
+            # v95.25 #145：报错读 learned_skills（v52 后 skills 列不再更新），并引流『技能列表』
+            learned = [C.display("skills", s) for s in (player.get("learned_skills") or [])]
+            learned_str = "、".join(learned) if learned else "无（『技能列表』查看可学技能）"
             yield event.plain_result(
-                f"没有技能『{skill_name}』！你当前的技能：{('、'.join(player['skills']) if player['skills'] else '无（升级解锁）')}"
+                f"没有技能『{skill_name}』！你当前的技能：{learned_str}"
             )
             return
         if not E.is_skill_learned(player["class_name"], player["level"], skill_name, player.get("learned_skills", [])):
@@ -1638,7 +1641,7 @@ class CombatCmds(CommandBase):
                          max_hp=player["max_hp"], max_mp=player["max_mp"],
                          cur_map="oak_town", cur_subarea="oak_town_1")
         lines.append(
-            f"你丢失了 {lost} 金币，被好心人送回了橡木镇中心广场。\n"
+            f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了橡木镇中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
         yield event.plain_result("\n".join(lines))

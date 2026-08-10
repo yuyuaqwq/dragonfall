@@ -765,7 +765,8 @@ class WorldCmds(CommandBase):
             yield event.plain_result(
                 f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
                 "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每10分钟+1)\n"
-                "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～"
+                "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～\n"
+                "💡 新手建议：野外活动前先在城镇『商店』买点食物（烤肉串等），体力 0 才不会困在野外～"
             )
             return
         self._spend_stamina(group_id, qq_id, 1, player, "移动")
@@ -860,6 +861,11 @@ class WorldCmds(CommandBase):
                    "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
                    "apprentice": "副业", "enhance": "强化", "portal": "方碑"}
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
+        # v95.25 #137：可互动提示与实际设施一致——funcs 有 shop/heal 但布尔未开时过滤
+        if "shop" in funcs and not sa.get("shop"):
+            show_funcs = [f for f in show_funcs if f != "商店"]
+        if "heal" in funcs and not sa.get("healer"):
+            show_funcs = [f for f in show_funcs if f != "住宿"]
         if show_funcs:
             lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『找 <NPC名>』等)")
         # v6：设施 + 场景（与『地图』面板一致）
@@ -882,13 +888,20 @@ class WorldCmds(CommandBase):
             for i, x in others:
                 lines.append(f"  {i}. {x['name']}")
         # v87.16 与地图面板一致：邻居地图从 len(links)+1 编号
+        # v95.25 #133/#144/#148：非出口子区域不列跨图目的地（与『地图』一致），避免列出但被拦
         neighbors = C.MAP_CONNECTIONS.get(cur_map.get("id", ""), [])
         if neighbors:
-            if not others:
-                lines.append("📮 可前往：")
-            for i, nid in enumerate(neighbors, len(links) + 1):
-                nm, _ = self._conn_target(nid)
-                lines.append(f"  {i}. {nm['name']}")
+            _exit_sa_id = C.map_exit_subarea(cur_map.get("id", ""))
+            at_exit = (not _exit_sa_id) or (sa["id"] == _exit_sa_id)
+            if at_exit:
+                if not others:
+                    lines.append("📮 可前往：")
+                for i, nid in enumerate(neighbors, len(links) + 1):
+                    nm, _ = self._conn_target(nid)
+                    lines.append(f"  {i}. {nm['name']}")
+            else:
+                _exit_sa_name = next((s["name"] for s in sas if s["id"] == _exit_sa_id), "出口")
+                lines.append(f"🧭 出城需先到『{_exit_sa_name}』")
         lines.append("")
         lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)
@@ -1206,7 +1219,8 @@ class WorldCmds(CommandBase):
                 if st == "pending":
                     lines.append(f"  ⏳ 未接取：去找 {giver}(在{giver_map_name})对话接取")
                 elif st == "ready":
-                    lines.append(f"  ✅ 目标达成！回去找 {giver} {self._deliver_hint(mq['giver'])}")
+                    # v95.25 #47b：主线交付=找 NPC 自动触发（与『交付任务』指令并存），不写死交付方式
+                    lines.append(f"  ✅ 目标达成！回去找 {giver} 交付")
                 else:
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
@@ -1557,8 +1571,11 @@ class WorldCmds(CommandBase):
             else:
                 locs.append(m_name)
         uniq = list(dict.fromkeys(locs))
-        here = "你所在的地图" if cur in {npc.get("map") for _, npc in hits} else "别处"
-        return f"🧭 『{name_key}』在{here}的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『找』定位～"
+        in_here = cur in {npc.get("map") for _, npc in hits}
+        # v95.25 #135：前缀明确"在/不在你所在的地图"，不再用误导性的"你所在的地图的…"
+        if in_here:
+            return f"🧭 『{name_key}』就在你所在的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『找』定位～"
+        return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『找』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
         """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)"""
@@ -1581,6 +1598,7 @@ class WorldCmds(CommandBase):
     def _take_main_quest(self, group_id, qq_id, npc_id, npc):
         """从 NPC 接主线任务；返回通知行列表"""
         lines = []
+        player = self._player(group_id, qq_id)
         quests = db.get_quests(group_id, qq_id)
         main_id = quests.get("main_quest")
         if not main_id:
@@ -1616,6 +1634,9 @@ class WorldCmds(CommandBase):
                 lines.append(f"  📖 {mq['story']}")
             lines.append(f"  🎯 目标：{self._obj_text(mq['objective'])}")
             lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
+            # v95.25 #138：主线等级建议（软提示，不拦截接取）——suggest_lv 在 quests.py 数据里
+            if mq.get("suggest_lv") and player["level"] < mq["suggest_lv"]:
+                lines.append(f"  ⚠️ 建议等级 Lv.{mq['suggest_lv']}，你才 Lv.{player['level']}——可以先练练级再挑战！")
             if quests["main_status"] == "ready":
                 lines.append("  ✨ 交谈完成！再与这位 NPC 对话即可交付任务。")
         elif st == "ready":
@@ -2583,9 +2604,17 @@ class WorldCmds(CommandBase):
         # v87.17 子区域化旅店：_at_healer 检查当前子区域，不在旅店给设施提示
         if not self._at_healer(player):
             hint = self._facility_hint(player, "healer")
+            # v95.25 #134：示例不再写死"橡木镇旅店"——优先提示最近旅店（含当前城镇）
+            if not hint:
+                _cur_m = C.MAP_BY_ID.get(player.get("cur_map"), {})
+                _near = []
+                for _s in (_cur_m.get("subareas") or []):
+                    if _s.get("healer"):
+                        _near.append(f"{_cur_m.get('name', '')}·{_s.get('name', '')}")
+                hint = "、".join(_near[:3]) if _near else ""
             yield event.plain_result(
                 "这里没有旅店。"
-                + (f"到有旅店的地方(如 {hint})输入『住宿』～" if hint else "到城镇旅店(如橡木镇旅店)输入『住宿』～")
+                + (f"到有旅店的地方(如 {hint})输入『住宿』～" if hint else "到城镇旅店输入『住宿』恢复状态～")
             )
             return
         cost = max(30, (player.get("level") or 1) * 5)

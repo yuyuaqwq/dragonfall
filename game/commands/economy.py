@@ -2427,6 +2427,10 @@ class EconomyCmds(CommandBase):
             heal_v = d["heal"]
             if heal_v < 1:
                 heal_v = int(player["max_hp"] * heal_v)
+            # v95.25 #128：满血使用纯治疗物品不消耗（有体力/魔力恢复的复合物品仍可用）
+            if player["hp"] >= player["max_hp"] and not d.get("stamina") and not d.get("mana"):
+                yield event.plain_result(f"❤️ 你现在的生命是满的({player['hp']}/{player['max_hp']})，用不着【{d['name']}】～")
+                return
             new_hp = min(player["max_hp"], player["hp"] + heal_v)
             db.update_player(group_id, qq_id, hp=new_hp)
             db.remove_item(group_id, qq_id, target["key"])
@@ -2769,6 +2773,14 @@ class EconomyCmds(CommandBase):
             shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
         item_name = item_name.strip()
+        # v95.25 #127：支持『购买 <名称/序号> <数量>』（如『购买 治疗药水(中) 6』、『购买 2 8』）
+        qty = 1
+        _parts = item_name.split()
+        if len(_parts) >= 2 and _parts[-1].isdigit():
+            qty = max(1, min(int(_parts[-1]), 999))
+            item_name = " ".join(_parts[:-1])
+        # 全角括号容错：『购买 治疗药水（中）』→ 半角『治疗药水(中)』
+        item_name = item_name.replace("（", "(").replace("）", ")")
         # 商队集市事件：商店 8 折
         discount = 1.0
         cur_evt = db.get_world_event()
@@ -2802,13 +2814,15 @@ class EconomyCmds(CommandBase):
                 mid = str(key)[2:]
                 mt = C.MATERIALS[mid]
                 price = int(mt["price"] * discount)
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                total = price * qty
+                if player["gold"] < total:
+                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price})
+                db.update_player(group_id, qq_id, gold=player["gold"] - total)
+                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                yield event.plain_result(f"✅ 你购买了【{mt['name']}】！{tip}")
+                qty_str = f" ×{qty}" if qty > 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return
             if str(key).startswith("w:"):
                 wname = str(key)[2:]
@@ -2851,41 +2865,47 @@ class EconomyCmds(CommandBase):
                 iid = key
                 it = C.ITEMS[iid]
                 price = int(it["price"] * discount)
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                total = price * qty
+                if player["gold"] < total:
+                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
+                qty_str = f" ×{qty}" if qty > 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
         # 找补给品（按名称）
         for iid in shop_items:
             it = C.ITEMS[iid]
-            if item_name in it["name"]:
+            if item_name in it["name"] or (item_name and item_name in it["name"].replace("(", "").replace(")", "")):
                 price = int(it["price"] * discount)
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                total = price * qty
+                if player["gold"] < total:
+                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
-                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")})
+                db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                yield event.plain_result(f"✅ 你购买了【{it['name']}】！{tip}")
+                qty_str = f" ×{qty}" if qty > 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
         # 找材料（按名称）
         for mid in materials:
             mt = C.MATERIALS[mid]
             if item_name in mt["name"]:
                 price = int(mt["price"] * discount)
-                if player["gold"] < price:
-                    yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                total = price * qty
+                if player["gold"] < total:
+                    yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
-                db.update_player(group_id, qq_id, gold=player["gold"] - price)
-                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price})
+                db.update_player(group_id, qq_id, gold=player["gold"] - total)
+                db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                yield event.plain_result(f"✅ 你购买了【{mt['name']}】！{tip}")
+                qty_str = f" ×{qty}" if qty > 1 else ""
+                yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return
         # 找武器（按名称）
         for wname, wtype, wlv, wq in weapons:

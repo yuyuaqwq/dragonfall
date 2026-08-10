@@ -1068,7 +1068,7 @@ SUBAREAS = {
                 "lore"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "ironharbor_6",
