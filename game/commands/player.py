@@ -113,10 +113,11 @@ class PlayerCmds(CommandBase):
 
     async def register(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
-        _args = self._strip_cmd(event, "注册").split(maxsplit=2)
+        _args = self._strip_cmd(event, "注册").split(maxsplit=3)
         first = _args[0] if _args else ""
         rest = _args[1] if len(_args) > 1 else ""
         race_arg = _args[2] if len(_args) > 2 else ""
+        gender_arg = _args[3] if len(_args) > 3 else ""
         if self._player(group_id, qq_id):
             yield event.plain_result("你已经注册过角色啦！输入『角色』查看～")
             return
@@ -137,11 +138,10 @@ class PlayerCmds(CommandBase):
                     class_name = cn
                     break
             else:
-                # v95.23 新格式：名字 [种族] → 见习冒险者（种族取第二个参数）
+                # v95.23 新格式：名字 [种族] → 见习冒险者（剩余参数统一在下方解析种族/性别）
                 cls_id = "cls_novice"
                 class_name = ""
                 name = first
-                race_arg = rest
         if cls_id not in C.CLASSES:
             avail = "、".join(cinfo.get("name", cid) for cid, cinfo in C.CLASSES.items())
             yield event.plain_result(f"未知职业『{class_name}』！可选职业：{avail}")
@@ -154,27 +154,47 @@ class PlayerCmds(CommandBase):
                 f"💡 世界深处藏着它的线索(隐藏成就/隐藏区域)。可选职业：{avail}"
             )
             return
-        # 阶段九：种族解析（08 章，可选，缺省人类；支持简称如"精灵"→"银月精灵"）
+        # v95.24 性别系统：注册可选性别（男/女），与种族一起从剩余参数中解析。
+        #   旧格式 注册 <职业> <名字> [种族] [性别]；新格式 注册 <名字> [种族] [性别]。
+        #   种族与性别可任意顺序、可省略（默认人类 + 未设置），如『注册 格温 精灵 女』『注册 格温 女』。
+        GENDER_MAP = {"男": "male", "male": "male", "♂": "male", "m": "male",
+                      "女": "female", "female": "female", "♀": "female", "f": "female"}
         race_id = "human"
         race_display = ""
-        if race_arg:
-            r = C.resolve("races", race_arg)
-            if r not in C.RACES:
-                # 简称兼容：输入"精灵"匹配"银月精灵"
-                r = next((rid for rid, ri in C.RACES.items() if race_arg in ri["name"]), r)
-            if r not in C.RACES:
-                races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
-                yield event.plain_result(f"未知种族『{race_arg}』！可选种族：{races_avail}(格式：注册 <名字> [种族])")
-                return
-            race_id = r
-            race_display = C.RACES[r]["name"]
+        gender_id = ""
+        _race_done = False
+        # 新格式下 rest 可能是种族也可能是性别（如『注册 格温 男』）
+        extra = [rest, race_arg, gender_arg] if cls_id == "cls_novice" else [race_arg, gender_arg]
+        for tok in extra:
+            if not tok:
+                continue
+            if not _race_done:
+                r = C.resolve("races", tok)
+                if r not in C.RACES:
+                    # 简称兼容：输入"精灵"匹配"银月精灵"
+                    r = next((rid for rid, ri in C.RACES.items() if tok in ri["name"]), r)
+                if r in C.RACES:
+                    race_id = r
+                    race_display = C.RACES[r]["name"]
+                    _race_done = True
+                    continue
+            g = GENDER_MAP.get(tok.strip().lower())
+            if g and not gender_id:
+                gender_id = g
+                continue
+            races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
+            yield event.plain_result(
+                f"未知种族或性别『{tok}』！可选种族：{races_avail}，性别：男/女\n"
+                f"格式：注册 <名字> [种族] [性别]，如『注册 格温 精灵 女』"
+            )
+            return
         name = name.strip()[:12]
         if not name:
             yield event.plain_result("名字不能为空！格式：注册 <名字> [种族]，如『注册 格温 精灵』")
             return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
-        db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id)
+        db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id, gender_id)
         # v95 #47：注册送 1 技能点 → Lv.1 有 1 点、Lv.2 有 2 点正好学第一个技能（Lv.1/Lv.2 技能 cost=2），断层消除
         db.update_player(group_id, qq_id, skill_points=1)
         # v86 子区域：新手出生落中心广场
@@ -196,12 +216,13 @@ class PlayerCmds(CommandBase):
         C.check_achievements(group_id, qq_id, player)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
         race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}({C.RACES[race_id]['desc']})\n" if race_id in C.RACES else ""
+        gender_line = f"性别：{'♂ 男' if gender_id == 'male' else '♀ 女'}\n" if gender_id else ""
         if cls_id == "cls_novice":
             # v95.23 见习冒险者：无职业技能，引导去行会/导师就职
             yield event.plain_result(
                 f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
                 f"职业：🧭 见习冒险者\n"
-                f"{race_line}"
+                f"{race_line}{gender_line}"
                 f"你还没有正式职业，先四处走走、熟悉一下这个世界吧。\n"
                 f"━━━━━━━━━━━━\n"
                 f"📍 出生点：橡木镇中心广场\n"
@@ -222,7 +243,7 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(
             f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
-            f"{race_line}"
+            f"{race_line}{gender_line}"
             f"『{cls['desc']}』\n"
             f"━━━━━━━━━━━━\n"
             f"📍 出生点：橡木镇中心广场\n"
@@ -275,8 +296,12 @@ class PlayerCmds(CommandBase):
             f"⚔️ 【{player['name']}】",
             f"🛡 Lv.{player['level']} {C.display('classes', player['class_name'])}",
             f"🧬 {E.race_name(player.get('race'))}",
-            "━━━━━━━━━━━━",
         ]
+        # v95.24 性别：角色面板显示（存量档未设置则隐藏）
+        g = player.get("gender") or ""
+        if g:
+            lines.append(f"{'♂' if g == 'male' else '♀'} {'男' if g == 'male' else '女'}")
+        lines.append("━━━━━━━━━━━━")
         # 阶段九：装备称号显示在角色名前（14 章 3.4）
         eq_title = player.get("equipped_title") or ""
         if eq_title:

@@ -84,12 +84,22 @@ def test_data():
 
 
 def test_evolve_flow():
-    print("【转职：30 级一转选分支】")
+    print("【转职：30 级一转（v95.23 找导师仪式）】")
     m = Main(None)
     clean_db()
     await_cmd(m, "register", "注册 战士 勇者")
     db.update_player("g1", "k1", level=30, gold=5000)
     out = await_cmd(m, "evolve", "转职 1")
+    check("转职指令引导找导师", "可以转职" in out and "格里姆" in out, out[:200])
+    p = db.get_player("g1", "k1")
+    check("指令不再直接转职", p.get("class_tier") == 0, str(p.get("class_tier")))
+    # v95.23：去白鹿城找战士导师，对话举行转职仪式
+    db.update_player("g1", "k1", cur_map="white_deer", cur_subarea="white_deer_1")
+    out = await_cmd(m, "find_npc", "找 老兵·格里姆")
+    check("导师对话打开含转职选项", "我想转职" in out, out[:300])
+    out = await_cmd(m, "talk_choice", "对话 3")  # 🌟 我想转职！
+    check("分支选择出现", "狂战士" in out and "盾卫士" in out, out[:300])
+    out = await_cmd(m, "talk_choice", "对话 1")  # 狂战士（进攻）
     check("一转成功含狂战士", "狂战士" in out, out[:200])
     p = db.get_player("g1", "k1")
     check("class_tier=1", p.get("class_tier") == 1, str(p.get("class_tier")))
@@ -98,7 +108,9 @@ def test_evolve_flow():
 
     print("【转职：60 级二转自动同分支 + 自动获得二转被动】")
     db.update_player("g1", "k1", level=60)
-    out = await_cmd(m, "evolve", "转职")
+    out = await_cmd(m, "find_npc", "找 老兵·格里姆")
+    out = await_cmd(m, "talk_choice", "对话 3")  # 🌟 我想继续转职！
+    out = await_cmd(m, "talk_choice", "对话 1")  # 狂战统领（进攻）
     check("二转成功含狂战统领", "狂战统领" in out, out[:200])
     p = db.get_player("g1", "k1")
     check("class_tier=2", p.get("class_tier") == 2, str(p.get("class_tier")))
@@ -107,7 +119,9 @@ def test_evolve_flow():
 
     print("【转职：90 级三转 + 自动获得三转奥义】")
     db.update_player("g1", "k1", level=90)
-    out = await_cmd(m, "evolve", "转职")
+    out = await_cmd(m, "find_npc", "找 老兵·格里姆")
+    out = await_cmd(m, "talk_choice", "对话 3")  # 🌟 我想进行最终转职！
+    out = await_cmd(m, "talk_choice", "对话 1")  # 战争领主（进攻）
     check("三转成功含战争领主", "战争领主" in out, out[:200])
     p = db.get_player("g1", "k1")
     check("class_tier=3", p.get("class_tier") == 3, str(p.get("class_tier")))

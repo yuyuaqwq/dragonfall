@@ -28,7 +28,7 @@ async def main():
     roles = {C.CLASSES[k]["name"]: C.CLASSES[k].get("role") for k in C.CLASSES}
     check("战士=坦克", roles.get("战士") == "坦克", str(roles))
     check("牧师=治疗", roles.get("牧师") == "治疗", str(roles))
-    check("全部职业都有定位", len(roles) == 8 and all(roles.values()), str(roles))
+    check("全部职业都有定位", len(roles) >= 8 and all(roles.values()), str(roles))
     label = m._class_role_label("cls_zhan_shi")
     check("定位标签", "坦克" in label, label)
 

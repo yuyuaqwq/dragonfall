@@ -60,7 +60,8 @@ def init_db():
                 stamina_ts INTEGER DEFAULT 0,
                 created_at INTEGER,
                 last_active INTEGER,
-                race TEXT DEFAULT 'human'
+                race TEXT DEFAULT 'human',
+                gender TEXT DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS inventory (
                 qq_id TEXT NOT NULL,
@@ -288,6 +289,9 @@ def init_db():
             # 阶段九：种族系统（08 章）——players 表补 race 列（老库自愈）
             if "race" not in pcols:
                 conn.execute("ALTER TABLE players ADD COLUMN race TEXT DEFAULT 'human'")
+            # v95.24 性别系统：注册可选性别（男/女），老库自愈
+            if "gender" not in pcols:
+                conn.execute("ALTER TABLE players ADD COLUMN gender TEXT DEFAULT ''")
             # 阶段九：成就系统（14 章）——stats 表补计数列 + players 表补 equipped_title 列
             scols = [r[1] for r in conn.execute("PRAGMA table_info(stats)").fetchall()]
             for scol in ("visited_areas", "inst_clears", "party_count", "fish_count", "gather_count",

@@ -59,16 +59,16 @@ def get_group_players(group_id):
             conn.close()
 
 
-def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp, race="human"):
+def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp, race="human", gender=""):
     with _lock:
         conn = _connect()
         try:
             now = int(time.time())
             conn.execute(
-                "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race, stamina, stamina_ts) "
-                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,100,?) "
-                "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race",
-                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race, now),
+                "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race, gender, stamina, stamina_ts) "
+                "VALUES (?,?,?,1,0,50,?,?,?,?,'oak_town',0,9,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,?,100,?) "
+                "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race, gender=excluded.gender",
+                (qq_id, name, class_name, max_hp, max_mp, max_hp, max_mp, now, now, race, gender, now),
             )
             conn.commit()
         finally:
