@@ -55,6 +55,8 @@ def get_prof_level(group_id, qq_id, key):
 
 def add_prof_exp(group_id, qq_id, key, exp=1):
     """给副业加经验，自动升级。返回 (level, leveled_up)"""
+    if key not in PROF_FIELDS:  # B2 加固（2026-08-10）：动态列名前白名单校验
+        raise ValueError(f"add_prof_exp 非法副业: {key}（不在 PROF_FIELDS）")
     with _lock:
         conn = _connect()
         try:
@@ -150,6 +152,8 @@ def activate_prof(group_id, qq_id, key):
 
 def forget_prof(group_id, qq_id, key):
     """遗忘副业：移除激活 + 等级/经验清零。返回旧等级"""
+    if key not in PROF_FIELDS:  # B2 加固（2026-08-10）：动态列名前白名单校验
+        return None
     lst = get_activated_profs(group_id, qq_id)
     if key not in lst:
         return None

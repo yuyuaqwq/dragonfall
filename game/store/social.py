@@ -482,7 +482,16 @@ def pet_create(qq_id, pet_key, name):
         finally:
             conn.close()
 
+# B2 加固（2026-08-10）：pets 表可更新列白名单（qq_id 为 WHERE 专用不列入）。
+PET_FIELDS = {"pet_key", "name", "level", "exp", "satiety", "bond", "last_sat_time"}
+
+
 def pet_update(qq_id, **fields):
+    if not fields:
+        return
+    bad = [k for k in fields if k not in PET_FIELDS]
+    if bad:  # B2 加固：动态列名前白名单校验
+        raise ValueError(f"pet_update 非法字段: {bad}（不在 pets 表白名单）")
     with _lock:
         conn = _connect()
         try:

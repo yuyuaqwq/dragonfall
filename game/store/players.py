@@ -6,6 +6,19 @@ from .. import content as C
 
 """《剑与魔法》存储层 - players"""
 
+# B2 加固（2026-08-10）：players 表实际列白名单（PRAGMA 验证，qq_id 为 WHERE 专用不列入）。
+# update_player 的字段名必须先过此白名单再拼 SQL，防动态列名注入/拼错列。
+# 加新列（含 ALTER 补列）时必须同步加进这里。
+PLAYER_FIELDS = {
+    "name", "class_name", "level", "exp", "gold", "hp", "mp", "max_hp", "max_mp",
+    "cur_map", "equipment", "skills", "class_tier", "attr_pts", "attributes",
+    "skill_points", "learned_skills", "shortcuts", "evolve_path", "skill_levels",
+    "created_at", "last_active", "portals", "skill_bar", "skill_spent", "mounts",
+    "learned_blueprints", "lucky_until", "deed", "apprentices", "race",
+    "equipped_title", "hidden_class_unlock", "deed_lv", "cur_subarea",
+    "stamina", "stamina_ts", "explore_wandering", "gender",
+}
+
 
 def record_player_group(qq_id, group_id):
     """记录玩家在某个群注册/活跃过(广播目标筛选)"""
@@ -194,6 +207,8 @@ def update_player(group_id, qq_id, **fields):
             sets = []
             vals = []
             for k, v in fields.items():
+                if k not in PLAYER_FIELDS:
+                    raise ValueError(f"update_player 非法字段: {k}（不在 players 表列白名单）")
                 if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices", "hidden_class_unlock"):
                     # v46：技能名列表/技能等级表 写入时转 ID（存档只存 ID）
                     if k in ("learned_skills", "skills") and isinstance(v, list):
@@ -309,6 +324,14 @@ def set_skill_bar(qq_id, bar: list):
             conn.close()
 
 
+# B2 加固（2026-08-10）：注销角色时按 qq_id 清理的关联表白名单。
+# 新增表（且该表有 qq_id 列）时必须同步加进这里，否则注销会残留数据。
+DELETE_TABLES = (
+    "inventory", "quests", "battle_state", "achievements", "stats",
+    "reputation", "signin", "fishing", "bestiary", "visited",
+    "player_groups", "professions", "pets",
+)
+
 def delete_player(qq_id):
     """注销角色：删除玩家主记录 + 全部关联数据（v62 群友想切职业）。
 
@@ -324,9 +347,7 @@ def delete_player(qq_id):
             row = conn.execute("SELECT qq_id FROM players WHERE qq_id=?", (qq_id,)).fetchone()
             if not row:
                 return False
-            for tbl in ("inventory", "quests", "battle_state", "achievements", "stats",
-                        "reputation", "signin", "fishing", "bestiary", "visited",
-                        "player_groups", "professions", "pets"):
+            for tbl in DELETE_TABLES:  # 白名单本身即约束：表名只能来自此常量
                 conn.execute(f"DELETE FROM {tbl} WHERE qq_id=?", (qq_id,))
             # 市场：下架该玩家挂的单
             conn.execute("DELETE FROM market WHERE seller=?", (qq_id,))

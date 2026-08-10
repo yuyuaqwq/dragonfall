@@ -3,6 +3,14 @@ from .connection import _connect, _lock
 
 """《剑与魔法》存储层 - stats"""
 
+# B2 加固（2026-08-10）：stats 表可 bump 列白名单（qq_id/day_date 为 TEXT 不参与 +1 不列入）。
+STAT_FIELDS = {
+    "kills", "elite_kills", "boss_kills", "deaths", "day_kills", "visited_areas",
+    "inst_clears", "party_count", "fish_count", "gather_count", "mine_count",
+    "cook_count", "alchemy_count", "craft_count", "enhance_count",
+    "enchant_count", "world_events", "catch_collect",
+}
+
 
 def init_stats(group_id, qq_id):
     with _lock:
@@ -16,6 +24,9 @@ def init_stats(group_id, qq_id):
             conn.close()
 
 def bump_stats(group_id, qq_id, **fields):
+    bad = [k for k in fields if k not in STAT_FIELDS]
+    if bad:  # B2 加固（2026-08-10）：动态列名前白名单校验
+        raise ValueError(f"bump_stats 非法字段: {bad}（不在 stats 表白名单）")
     with _lock:
         conn = _connect()
         try:
