@@ -248,6 +248,18 @@ implied = all_boss_mech - {"reflect", "freeze", "silence", "slow", "stun"}
 missing_boss = implied - set(BM.BOSS_MECHS.keys())
 check(f"boss mech 全覆盖（数据 {len(implied)} 个需实现）", not missing_boss)
 
+# ============ 4.5 条件 label 全覆盖（v101.2） ============
+print("【4.5 条件 label】")
+all_cond_types = set()
+for src in (skills, monsters, instances, ism):
+    for m in re.finditer(r'"cond"\s*:\s*\{[^}]*"type"\s*:\s*"([^"]+)"', src):
+        all_cond_types.add(m.group(1))
+missing_label = all_cond_types - set(BC.COND_LABELS.keys())
+check(f"技能/怪物/boss 数据用到的条件 type 全部有 label（数据 {len(all_cond_types)} 种）", not missing_label)
+check("label 是函数且可渲染", all(callable(v) for v in BC.COND_LABELS.values()))
+fn = BC.COND_LABELS.get("enemy_hp_low")
+check("label 渲染样例（敌方血量<40%）", fn and fn({"hp_pct": 0.4}) == "敌方血量<40%")
+
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

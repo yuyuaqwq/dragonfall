@@ -840,33 +840,12 @@ class PlayerCmds(CommandBase):
         if info.get("cond"):
             cond = info["cond"]
             ctype = cond.get("type")
-            pct = int(cond.get("hp_pct", 0.4) * 100)
             mult = cond.get("mult", 1.0)
             label = cond.get("label", "")
-            stacks = cond.get("stacks", 0)
-            ctype_map = {
-                "enemy_hp_low": f"敌方血量<{pct}%",
-                "player_hp_low": f"自身血量<{pct}%",
-                "enemy_hp_high": f"敌方血量>{pct}%",
-                "player_hp_high": f"自身血量>{pct}%",
-                "enemy_full_hp": "敌方满血",
-                "enemy_frozen": "敌方被冻结",
-                "enemy_stunned": "敌方被眩晕",
-                "enemy_poison_stacks": f"敌方中毒≥{stacks}层",
-                "enemy_marked": "敌方被标记",
-                "enemy_debuff": "敌方有减益",
-                "enemy_slowed": "敌方减速中",
-                "element_marks": f"敌方{cond.get('element','')}印记≥{stacks}层",
-                "speed_ratio": f"速度比≥{cond.get('ratio',1.5)}x",
-                "player_shield": "自身有护盾",
-                "player_spd_up": "自身加速中",
-                "player_chi_stacks": f"自身气力≥{stacks}点",
-                "player_res_stacks": f"自身{cond.get('res_key','')}≥{stacks}",
-                "player_first": "先手行动",
-                "player_untouched": "本场未受击",
-                "player_buffed": "自身有增益",
-            }
-            ctext = ctype_map.get(ctype, ctype)
+            # v101.2：条件显示文案数据化 → battle_conds.py COND_LABELS（加条件类型只改注册表一处）
+            from ..core.battle_conds import COND_LABELS
+            label_fn = COND_LABELS.get(ctype)
+            ctext = label_fn(cond) if label_fn else ctype
             lines.append(f"⚔️ 条件转化：{ctext}时激活『{label}』(威力 ×{mult})")
         if not is_learned and info["lv"] <= player["level"]:
             cost = E.skill_learn_cost(player["level"], info["lv"])
