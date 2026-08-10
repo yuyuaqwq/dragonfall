@@ -2815,9 +2815,11 @@ class EconomyCmds(CommandBase):
         else:
             # 普通商店：消耗品 + 武器
             shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
-            if not shop_items and self._wild_trader_here(player, group_id, qq_id):
+            trader = self._wild_trader_here(player, group_id, qq_id)
+            if not shop_items and trader:
                 shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
-                shop_title = "🧭 游商·老马的货摊"
+                tname = C.WILD_NPCS.get(trader, {}).get("name", "行商")
+                shop_title = f"🧭 {tname}的货摊"  # #151：标题跟随实际在场的交易 NPC
             for iid in shop_items:
                 it = C.ITEMS[iid]
                 entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))

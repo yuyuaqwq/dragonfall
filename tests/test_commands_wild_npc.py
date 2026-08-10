@@ -174,6 +174,18 @@ async def main():
     have = db.count_item("g1", "w1", "mat_yue_guang_cao")
     check("月光草被扣除（collect 修复生效）", have == 0, f"剩余 {have}")
 
+    print("【#151 商店上下文：野外行商货摊标题跟随在场 NPC】")
+    # 小荨（w_forest_girl，morning/day 出现，funcs 含 trade）在白鹿之森 → 商店标题应是她而非游商老马
+    db.update_player("g1", "w1", cur_map="white_deer_forest")
+    set_clock("day", "summer", "sunny")
+    out = await cmd(m, "shop", "g1", "w1", "商店")
+    check("#151 小荨在场 → 货摊标题=采药女·小荨", "采药女·小荨的货摊" in out, out[:300])
+    check("#151 不再误显示游商·老马的货摊", "游商·老马的货摊" not in out, out[:300])
+    # 老马（w_old_trader，day 出现）在橡木平原 → 标题应为老马
+    db.update_player("g1", "w1", cur_map="oak_plain")
+    out = await cmd(m, "shop", "g1", "w1", "商店")
+    check("#151 老马在场 → 货摊标题=游商·老马", "游商·老马的货摊" in out, out[:300])
+
     print("\n结果: %d 通过, %d 失败" % (passed, failed))
     return failed == 0
 
