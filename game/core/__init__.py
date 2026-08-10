@@ -15,6 +15,9 @@ from .constants import (  # noqa: F401
     INST_EVENT_CHANCE, MOVE_ENCOUNTER_CHANCE,
     STARFALL_STUN_CHANCE, BOSS_BP_DROP_CHANCE, TRADER_DEAL_CHANCE, CHEST_BP_CHANCE,
     RECIPE_LV_TIERS,
+    # v102.1 地图/子区域类型常量
+    MAP_TYPE_TOWN, MAP_TYPE_FIELD, MAP_TYPE_INSTANCE, MAP_TYPE_HIDDEN,
+    SUB_TYPE_TOWN, SUB_TYPE_STREET, SUB_TYPE_GATE,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

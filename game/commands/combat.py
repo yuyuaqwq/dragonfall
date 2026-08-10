@@ -50,7 +50,7 @@ class CombatCmds(CommandBase):
             return
         cur_map = C.MAP_BY_ID[cur]
         # 城镇区域（安全区）：可触发 POI，无怪
-        if cur_map.get("type") == "城镇区域":
+        if cur_map.get("type") == C.MAP_TYPE_TOWN:
             cur_sa_id_poi = player.get("cur_subarea") or ""
             poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
             if poi_hit:
@@ -113,61 +113,8 @@ class CombatCmds(CommandBase):
         # 精英/Boss：子区域优先，回退地图级
         sa_elite = (cur_sa.get("elite") if cur_sa else None) or cur_map.get("elite")
         sa_boss = (cur_sa.get("boss") if cur_sa else None) or cur_map.get("boss")
-        # 城镇外郊：外围低概率遇怪，新手不会卡住（但精英/Boss 独立保底判定，与野外一致）
-        if cur_map.get("type") == "城镇外郊":
-            # 精英/Boss 独立判定（修复：外郊此前漏判精英，导致山贼头目等永远遇不到）
-            monster = None
-            tag = ""
-            eb = self._mount_explore_bonus(player)
-            if sa_elite and random.random() < (0.08 + eb):
-                monster = C.build_monster(sa_elite, cur_map)
-                tag = "⭐ 精英"
-            elif sa_boss and random.random() < C.SA_BOSS_CHANCE:
-                monster = C.build_monster(sa_boss, cur_map)
-                tag = "👑 BOSS"
-            if monster:
-                b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
-                db.save_battle(group_id, qq_id, b.to_state())
-                self._lock_battle(group_id, qq_id)
-                bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
-                yield event.plain_result(
-                    f"⚔️ 遭遇战斗！\n"
-                    f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
-                    f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
-                    + (f"📜 {monster.get('mod', '')}\n" if monster.get("mod") else "")
-                    + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-                    + f"{bless_note}━━━━━━━━━━━━\n"
-                    f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
-                )
-                return
-            # 普通怪：50% 低概率（新手保护）
-            if random.random() < C.ENCOUNTER_LOW_CHANCE and events:
-                monster = C.build_monster(random.choice(events)[1], cur_map)
-                b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
-                db.save_battle(group_id, qq_id, b.to_state())
-                self._lock_battle(group_id, qq_id)
-                bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
-                hint = ""
-                if cur_map.get("elite"):
-                    hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{cur_map['elite'][1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
-                elif cur_map.get("boss"):
-                    hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{cur_map['boss'][1]}】蛰伏于深处，继续『探索』有机会遇到！"
-                yield event.plain_result(
-                    f"🏘️ 你在{cur_map['name']}外围的野地里遇到了麻烦！\n"
-                    f"🐾【{monster['name']}】Lv.{monster['lv']} ❤️ {monster['hp']}/{monster['max_hp']}\n"
-                    + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
-                    + f"{bless_note}━━━━━━━━━━━━\n"
-                    f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
-                    f"{hint}"
-                )
-                return
-            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
-            yield event.plain_result(
-                f"🏘️ 你在{cur_map['name']}附近转了一圈，暂时没什么动静。\n"
-                f"🧭 前往『地图』选择去野外的地图(如翡翠森林)，或者进城看看 NPC。"
-                + (f"\n{_rule_txt}" if _rule_txt else "")
-            )
-            return
+        # v102.1 移除：'城镇外郊' 类型不存在于数据（maps.py 仅 城镇区域/副本/野外/隐藏区域），
+        # 该分支恒 False 从未执行（历史遗留自 82abbde 红名系统，数据层重写后成孤儿）
         if not events:
             _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
             yield event.plain_result("你四处搜寻，什么也没发现……"
@@ -275,7 +222,7 @@ class CombatCmds(CommandBase):
         # 地图环境分类（v98.3：数据化 → core/hidden_cond.py ENV_KEYWORDS）
         from ..core.hidden_cond import envs_of, check_cond, HiddenCtx
         envs = envs_of(mid)
-        if cur_map.get("type") == "城镇区域":
+        if cur_map.get("type") == C.MAP_TYPE_TOWN:
             return None  # 城镇不出隐藏怪
         hctx = HiddenCtx(mid, cur_map, is_night, envs)
         for hid, hdef in C.HIDDEN_MONSTERS.items():
@@ -1888,10 +1835,10 @@ class CombatCmds(CommandBase):
         if player["level"] < 10:
             yield event.plain_result(f"你才 Lv.{player['level']}，处于新手保护期(Lv.<10 不能攻击玩家)！去野外打怪练练级吧～")
             return
-        # 安全区检查（城镇区域/城镇外郊不可 PK）
+        # 安全区检查（城镇区域不可 PK；'城镇外郊' 类型数据不存在，v102.1 清理）
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         tgt_map = C.MAP_BY_ID.get(target_player["cur_map"], {})
-        if cur_map.get("type") in ("城镇区域", "城镇外郊") or tgt_map.get("type") in ("城镇区域", "城镇外郊"):
+        if cur_map.get("type") == C.MAP_TYPE_TOWN or tgt_map.get("type") == C.MAP_TYPE_TOWN:
             yield event.plain_result("🏘️ 这里是安全区，禁止攻击玩家！去野外地图才能 PK。")
             return
         # 等级保护：等级差 > 10 不能主动攻击

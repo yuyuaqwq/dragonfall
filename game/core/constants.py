@@ -39,3 +39,15 @@ CHEST_BP_CHANCE = 0.5          # item_templates.py:235 宝箱蓝图概率
 
 # 配方副业等级阶梯（economy.py _craft_prof_need：装备等级 → 副业门槛）
 RECIPE_LV_TIERS = (10, 30, 50, 70, 90)
+
+# ================= v102.1 地图/子区域类型常量 =================
+# （v102 审计：代码层 15+ 处裸比较中文字符串，收敛后改类型名只动数据+这里）
+# 地图 type（data/maps.py）
+MAP_TYPE_TOWN = "城镇区域"       # 安全区：可触发 POI，无怪
+MAP_TYPE_FIELD = "野外"
+MAP_TYPE_INSTANCE = "副本"
+MAP_TYPE_HIDDEN = "隐藏区域"
+# 子区域 type（data/subareas.py）
+SUB_TYPE_TOWN = "城镇"           # 中心广场（首个子区域）
+SUB_TYPE_STREET = "城镇街道"     # 如东大街：连广场 + 城镇出口
+SUB_TYPE_GATE = "城镇出口"       # 如镇郊：出城/进城落点

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from ..data import ENCY_MAP_MONSTERS, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, MAPS, SUBAREAS
+from .constants import SUB_TYPE_GATE, SUB_TYPE_STREET, SUB_TYPE_TOWN  # v102.1 类型常量
 
 
 """《剑与魔法》数据层 - maps.py（v48：派生表 key 用 ID，value 存 ID）
@@ -50,25 +51,25 @@ def subarea_links(map_id: str, subarea_id: str) -> list:
     if idx is None:
         return []
     center = sas[0]
-    if center.get("type") == "城镇":
+    if center.get("type") == SUB_TYPE_TOWN:
         cur_type = sas[idx].get("type")
         if subarea_id == center["id"]:
             # 广场连所有场所 + 街道链首（不含城镇出口——镇郊需经东大街）
             out = [s["id"] for s in sas
-                   if s["id"] != center["id"] and s.get("type") != "城镇出口"]
+                   if s["id"] != center["id"] and s.get("type") != SUB_TYPE_GATE]
             # v95.12 无街道链城镇（白鹿城/铁港城）对称防断链：广场直连出口，
             # 否则广场→出口 "先经过XX(自己)" 死循环，玩家出不了城
-            if not any(s.get("type") == "城镇街道" for s in sas):
-                out += [s["id"] for s in sas if s.get("type") == "城镇出口"]
+            if not any(s.get("type") == SUB_TYPE_STREET for s in sas):
+                out += [s["id"] for s in sas if s.get("type") == SUB_TYPE_GATE]
             return out
-        if cur_type == "城镇街道":
+        if cur_type == SUB_TYPE_STREET:
             # 街道：连出口（链尾）+ 广场（链首）
-            out = [s["id"] for s in sas if s.get("type") == "城镇出口"]
+            out = [s["id"] for s in sas if s.get("type") == SUB_TYPE_GATE]
             out.append(center["id"])
             return out
-        if cur_type == "城镇出口":
+        if cur_type == SUB_TYPE_GATE:
             # 出口：只连城镇街道（链首）；无街道时直连广场（防断链，v95 实测白鹿城/铁港城缺街道）
-            streets = [s["id"] for s in sas if s.get("type") == "城镇街道"]
+            streets = [s["id"] for s in sas if s.get("type") == SUB_TYPE_STREET]
             if streets:
                 return streets
             return [center["id"]]
@@ -91,9 +92,9 @@ def map_exit_subarea(map_id: str) -> str:
     sas = SUBAREAS.get(map_id, [])
     if not sas:
         return ""
-    if sas[0].get("type") == "城镇":
+    if sas[0].get("type") == SUB_TYPE_TOWN:
         for s in sas:
-            if s.get("type") == "城镇出口":
+            if s.get("type") == SUB_TYPE_GATE:
                 return s["id"]
         for s in sas:
             if s["id"].endswith("_gate"):
@@ -111,9 +112,9 @@ def map_entry_subarea(map_id: str) -> str:
     sas = SUBAREAS.get(map_id, [])
     if not sas:
         return ""
-    if sas[0].get("type") == "城镇":
+    if sas[0].get("type") == SUB_TYPE_TOWN:
         for s in sas:
-            if s.get("type") == "城镇出口":
+            if s.get("type") == SUB_TYPE_GATE:
                 return s["id"]
         for s in sas:
             if s["id"].endswith("_gate"):

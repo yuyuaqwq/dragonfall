@@ -594,10 +594,10 @@ class WorldCmds(CommandBase):
                 cur_name = s["name"]
                 break
         center = sas[0] if sas else {}
-        if center.get("type") == "城镇":
+        if center.get("type") == C.SUB_TYPE_TOWN:
             # v87.16 街道链：在广场想去链上目标（东大街/镇郊）时提示必经之路
             if cur_sa_id == center.get("id", ""):
-                chain = [s for s in sas if s.get("type") in ("城镇街道", "城镇出口")]
+                chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
                 # v95.12 防御：目标就是链首（无街道时链首=出口自身）不拦截，避免"先经过自己"
                 if (any(s["id"] == target_sa.get("id") for s in chain)
                         and chain and chain[0]["id"] != target_sa.get("id")):
@@ -729,8 +729,8 @@ class WorldCmds(CommandBase):
         if target["id"] != cur and target["id"] not in nids:
             yield event.plain_result(f"无法直接前往{target['name']}！需要先到相邻地图。看看『地图』～")
             return
-        # v84 红名限制（26 章三 第一档）：红名不能进入城镇安全区
-        if self._is_redname(qq_id) and target.get("type") in ("城镇区域", "城镇外郊"):
+        # v84 红名限制（26 章三 第一档）：红名不能进入城镇安全区（'城镇外郊' 数据不存在，v102.1 清理）
+        if self._is_redname(qq_id) and target.get("type") == C.MAP_TYPE_TOWN:
             yield event.plain_result(
                 "🛡️ 城门口的守卫拦住了你：\"你身上沾着血腥味！红名期间禁止进入城镇！\"\n"
                 "(红名期间不能进入安全区，去野外避避风头吧)")
@@ -835,7 +835,7 @@ class WorldCmds(CommandBase):
         arrive_desc = (first_sa.get("desc") if first_sa else "") or target.get("desc", "")
         # v87.3 必经之路：进入城镇时提示方向（从路图/野外进城）
         arrive_txt = f"🚶 你来到了【{target['name']}】"
-        if target.get("type") == "城镇区域" and first_sa:
+        if target.get("type") == C.MAP_TYPE_TOWN and first_sa:
             arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
             sub_line = ""
         # v97.5 行为彩蛋规则：进入新地图
@@ -920,10 +920,10 @@ class WorldCmds(CommandBase):
         - 玩家等级 ≥ 地图等级+5：威慑低等级生物，不撞怪
         - 玩家等级 ≤ 地图等级-5：闯入强者地盘，30% 概率撞怪
         - 同级/略低：8~18% 概率
-        城镇区域/外郊不撞怪（安全区）。
+        城镇区域不撞怪（安全区）。'城镇外郊' 类型数据不存在，v102.1 清理。
         """
-        mtype = target_map.get("type", "野外")
-        if mtype in ("城镇区域", "城镇外郊"):
+        mtype = target_map.get("type", C.MAP_TYPE_FIELD)
+        if mtype == C.MAP_TYPE_TOWN:
             return None
         # v87.6 内容下沉子区域：从目标图子区域取怪（优先落点首个子区域）
         monsters = []
@@ -968,11 +968,11 @@ class WorldCmds(CommandBase):
         target = None
         if dest:
             for m in C.MAPS:
-                if m.get("type") == "城镇区域" and dest in (m["name"], m["id"]):
+                if m.get("type") == C.MAP_TYPE_TOWN and dest in (m["name"], m["id"]):
                     target = m
                     break
         if not target:
-            towns = "、".join(m["name"] for m in C.MAPS if m.get("type") == "城镇区域")
+            towns = "、".join(m["name"] for m in C.MAPS if m.get("type") == C.MAP_TYPE_TOWN)
             yield event.plain_result(f"找不到城镇『{dest}』！可返回：{towns}(例：『返回 橡木镇』)")
             return
         if player["cur_map"] == target["id"]:

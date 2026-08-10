@@ -214,7 +214,7 @@ class EconomyCmds(CommandBase):
     def _nearest_town(self, cur_map: str) -> str:
         """BFS 找离当前地图最近的城镇（回城卷轴用）。cur_map 本身是城镇则原地。"""
         from collections import deque
-        if cur_map in C.MAP_BY_ID and C.MAP_BY_ID[cur_map].get("type") == "城镇区域":
+        if cur_map in C.MAP_BY_ID and C.MAP_BY_ID[cur_map].get("type") == C.MAP_TYPE_TOWN:
             return cur_map
         q = deque([(cur_map, 0)])
         seen = {cur_map}
@@ -227,7 +227,7 @@ class EconomyCmds(CommandBase):
                     continue
                 seen.add(nxt)
                 mm = C.MAP_BY_ID.get(nxt, {})
-                if mm.get("type") == "城镇区域":
+                if mm.get("type") == C.MAP_TYPE_TOWN:
                     return nxt
                 q.append((nxt, d + 1))
         return C.START_MAP
@@ -528,7 +528,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(act_msg)
             return
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
-        if cur_map.get("type") == "城镇区域":
+        if cur_map.get("type") == C.MAP_TYPE_TOWN:
             yield event.plain_result("城镇里没有可采集的野生物资，去野外吧（『前往 <地图名>』）！")
             return
         # v94 体力：采集消耗 5 体力
