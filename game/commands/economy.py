@@ -151,7 +151,7 @@ def _render_pet_egg(d, lines, equipped):
     lines.append("━━━━━━━━━━━━")
     pdef = next((p for p in C.PET_POOL if p["key"] == d.get("pet_key")), None)
     if pdef:
-        lines.append(f"可孵化：{pdef['icon']}{pdef['name']}(怪物 Lv.{pdef['lv']} 及以上掉落)")
+        lines.append(f"可孵化：{pdef['icon']}{pdef['name']}（{pdef.get('source', '怪物掉落')}）")
         lines.append(f"描述：{pdef['desc']}")
     else:
         lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
