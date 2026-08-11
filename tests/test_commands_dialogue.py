@@ -3,7 +3,7 @@
 
 验证：
   1. 对话树入口：找有树 NPC 显示选项
-  2. 推进：对话 N 切换节点 / 分支
+  2. 推进：裸数字 N 选菜单选项（v101.25 #320 起『对话 N』=找 NPC）；对话 0 结束
   3. 结束：对话 0 / 再见 / 告辞
   4. 会话生命周期：无会话提示 / 移动后惰性失效 / 重复找重置
   5. 条件选项：quest_pending 按主线状态显隐
@@ -45,16 +45,17 @@ async def main():
     check("对话树保留功能提示", "接任务" in out or "任务" in out, out[:200])
 
     print("【v65 对话树：推进】")
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    # v101.25 #320：『对话 N』有会话时=找 NPC（完整指令优先），菜单选项用裸数字
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("对话1推进到史莱姆分支", "黏糊糊的绿家伙" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("对话1推进到誓言", "好样的！镇子西边的草地" in out and "包在我身上！" in out, out[:200])
     # set_flag pledged 已写入（选"我这就去解决它们！"时触发）
     flags = db.get_talk_flags("g1", "w1", "npc_mayor")
     check("set_flag 写入", "pledged" in flags, str(flags))
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("包在我身上接取主线", "接取任务" in out and "冒险日志" in out, out[:300])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("出发结束对话", "那就再会了" in out, out[:200])
 
     print("【v101.16 对话改版：无会话时『对话 N』直接开始对话】")
@@ -65,11 +66,11 @@ async def main():
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
     check("重新找回到 start", "1. 史莱姆是怎么回事？" in out, out[:200])
     # 镇长接取 q1 后（find_npc 自动接），quest_pending 选项隐藏
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 2")
+    out = await cmd(m, "talk_choice", "g1", "w1", "2")
     check("对话2到镇子近况", "镇子还算太平" in out, out[:200])
 
     print("【v65 对话树：分支与结束】")
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("town 分支可回史莱姆", "黏糊糊的绿家伙" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 0")
     check("对话0结束", "那就再会了" in out, out[:120])
@@ -106,7 +107,7 @@ async def main():
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3")
     out = await cmd(m, "find_npc", "g1", "w1", "找 铁匠")
     check("铁匠对话树", "1. 看看你的货。" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("open_shop 提示", "输入『商店』可以买东西" in out and "慢慢挑" in out, out[:200])
     # give_item / give_gold 动作（直接测 apply 方法）
     notices = m._apply_talk_action("g1", "w1", db.get_player("g1", "w1"), "npc_mayor",
@@ -133,9 +134,9 @@ async def main():
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_2")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
     check("A:选项📜我需要任务", "我需要任务" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")
+    out = await cmd(m, "talk_choice", "g1", "w1", "3")
     check("A:进入任务对话", "交给我了" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("A:接取成功", "接取任务" in out, out[:150])
     check("A:主线=active", db.get_quests("g1", "w1").get("main_status") == "active",
           str(db.get_quests("g1", "w1").get("main_status")))
@@ -147,9 +148,9 @@ async def main():
     check("B:选项✅任务完成了", "任务完成了" in out, out[:250])
     mm = re.search(r"(\d+)\. ✅ 任务完成了", out)  # v101.24：动态定位（选项序号会随 side_available 等条件变化）
     opt = mm.group(1) if mm else "4"
-    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    out = await cmd(m, "talk_choice", "g1", "w1", f"{opt}")
     check("B:进入交付对话", "报酬" in out, out[:150])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("B:交付成功", "任务完成" in out, out[:150])
     check("B:主线推进 q1_5", db.get_quests("g1", "w1").get("main_quest") == "q1_5",
           str(db.get_quests("g1", "w1").get("main_quest")))
@@ -163,7 +164,7 @@ async def main():
     mm = re.search(r"(\d+)\. ✅ 有东西要交给你", out)
     check("C:选项✅有东西要交给你", mm is not None, out[:250])
     opt = mm.group(1) if mm else "5"
-    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    out = await cmd(m, "talk_choice", "g1", "w1", f"{opt}")
     check("C:支线交付成功", "任务完成" in out or "史莱姆" in out, out[:200])
     # v95.12：交付后条目标记 done 保留（防自动重接），不再删除
     check("C:支线标记done", (db.get_quests("g1", "w1").get("side") or {}).get("s1", {}).get("status") == "done",
@@ -183,14 +184,14 @@ async def main():
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_1")
     out = await cmd(m, "find_npc", "g1", "w1", "找 行会")
     check("行会:找NPC进对话树", "新委托" in out or "就职" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("行会:进入chat分支", "新委托" in out, out[:250])
     mm = re.search(r"(\d+)\. 📜 行会有任务委托吗", out)
     check("行会:任务选项可见", mm is not None, out[:250])
     opt = mm.group(1) if mm else "1"
-    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    out = await cmd(m, "talk_choice", "g1", "w1", f"{opt}")
     check("行会:进入任务对话", "交给我了" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("行会:接取q1_2", "接取任务" in out and "行会入门" in out, out[:250])
     check("行会:主线已接取", db.get_quests("g1", "w1").get("main_status") in ("active", "ready"),
           str(db.get_quests("g1", "w1").get("main_status")))
@@ -204,9 +205,9 @@ async def main():
     mm = re.search(r"(\d+)\. 📜 我能帮上什么忙", out)
     check("矮人:任务选项可见", mm is not None, out[:250])
     opt = mm.group(1) if mm else "1"
-    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    out = await cmd(m, "talk_choice", "g1", "w1", f"{opt}")
     check("矮人:进入任务对话", "交给我了" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("矮人:接取q8_3", "接取任务" in out and "铁砧要塞" in out, out[:250])
 
     print("【v59.#51 找NPC方向提示：同名NPC只列当前地图位置】")

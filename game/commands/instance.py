@@ -915,6 +915,9 @@ class InstanceCmds(CommandBase):
         st["p_buffs"][cur_key] = b.p_buffs
         st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.mech_stacks
+        # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
+        # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
+        st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
         snap["shield"] = b.shield
         dealt = max(0, boss_before - st["boss"]["hp"])
         if dealt > 0:
@@ -930,7 +933,13 @@ class InstanceCmds(CommandBase):
         if action == "defend":
             top = max(threat.values()) if threat else 0
             threat[cur_key] = max(threat.get(cur_key, 0), int(top * 1.3) + 50)
-            logs.append("🛡️ 你大声挑衅，Boss 的注意力被你吸引过来！(仇恨飙升)")
+            # v101.25 #324：副本非 Boss 怪（精英/普通）不该念"Boss 的注意力"文案——
+            # playtest round67 影刃抓包精英怪复用 Boss 挑衅台词
+            _e_name = st["boss"].get("name", "怪物")
+            if st["boss"].get("role") == "boss":
+                logs.append(f"🛡️ 你大声挑衅，Boss 的注意力被你吸引过来！(仇恨飙升)")
+            else:
+                logs.append(f"🛡️ 你大声挑衅，【{_e_name}】的注意力被你吸引过来！(仇恨飙升)")
         logs += act_logs
 
         # v50 团队技能：广播到全队（治疗/增益/护盾/减伤/暴击/魔攻/速度）

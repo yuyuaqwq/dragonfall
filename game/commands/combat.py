@@ -468,6 +468,16 @@ class CombatCmds(CommandBase):
                         f"💰 获得 {gold} 金币！")
             if r < 0.85:
                 bp = C.roll_blueprint(max(1, player["level"]))
+                # v101.25 #293：探索掉落已学图纸不再重复入包——与战斗掉落同款折算
+                # （playtest round66+ 抓包：探索反复掉落已学图纸）
+                _learned = player.get("learned_blueprints") or []
+                if bp.get("blueprint_for") in _learned:
+                    _bpq = bp.get("quality", "white")
+                    _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(_bpq, 1)
+                    db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye", {
+                        "name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=_pages)
+                    return (f"{icon} 【{pname}】包裹里卷着一张泛黄的图纸……{bp['name']}！\n"
+                            f"📜 这张图纸你已经学会了，化作 {_pages} 张图纸残页（『出售 图纸残页』变现）")
                 db.add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
                 return (f"{icon} 【{pname}】包裹里卷着一张泛黄的图纸：{bp['name']}！\n"
                         f"📜 看来是某位锻造师遗失的手稿。")
@@ -738,6 +748,37 @@ class CombatCmds(CommandBase):
             if inst_row:
                 battle = inst_row
         if not battle:
+            # v101.25 #300：治疗类技能脱战可直接施放（回复生命），不再误导"找敌人"。
+            # 战斗外治疗不要求技能栏配置（技能栏是战斗配置），但必须已学会。
+            info = E.skill_info(player["class_name"], skill_name)
+            if info and info.get("kind") == "治疗" and E.is_skill_learned(
+                player["class_name"], player["level"], skill_name, player.get("learned_skills", [])
+            ):
+                if player["mp"] < info["mp"]:
+                    yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
+                    return
+                if player.get("hp", 0) >= player.get("max_hp", 1):
+                    yield event.plain_result(f"你精神饱满，不需要治疗～(当前 {player['hp']}/{player['max_hp']})")
+                    return
+                st = E.player_final_stats(player["class_name"], player["level"],
+                                          player.get("equipment", {}), player.get("class_tier", 0),
+                                          player.get("attributes"), player.get("evolve_path", 0),
+                                          self._title_bonus(group_id, qq_id), player.get("race"))
+                # 与 battle.py _skill_heal 同款结算：power<1 按 max_hp 百分比，power>=1 按魔攻×power
+                if info.get("power", 0) < 1:
+                    heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(player["level"], info))
+                else:
+                    heal = int(st["matk"] * info["power"] * E.skill_power_mult(player["level"], info))
+                pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+                if "神恩" in pv:
+                    heal = int(heal * 1.10)
+                new_hp = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
+                db.update_player(group_id, qq_id, hp=new_hp, mp=player["mp"] - info["mp"])
+                yield event.plain_result(
+                    f"✨ 你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！({new_hp}/{player['max_hp']})\n"
+                    f"💡 脱战施放不消耗体力～(『使用 <食物>』也能恢复)"
+                )
+                return
             yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～(『技能列表』查看技能)")
             return
         skill_name = skill_name.strip()

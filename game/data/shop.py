@@ -228,6 +228,9 @@ SHOP_SMITH_MATERIALS = {
         "mat_mi_yin",         # 秘银 80
     ],
     "ironharbor": [         # 锻造坊
+        # v101.25 #319：补铁矿石——挖掘拜师（矿工长巴尔金）要 5 铁矿石，
+        # 玩家没挖掘技能挖不了矿（#318 闭环断裂），铁港城锻造坊直接卖矿解决死锁
+        "mat_tie_kuang_shi",  # 铁矿石 10
         "mat_jing_tie",       # 精铁 30
         "mat_mi_yin",         # 秘银 80
     ],

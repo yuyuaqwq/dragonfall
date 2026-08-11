@@ -556,8 +556,16 @@ class WorldCmds(CommandBase):
         if mons:
             if lines and lines[-1]:
                 lines.append("")
-            base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
-            lines.append(f"🐾 此地的怪物 (Lv.{base_lv}-{base_lv+2})：")
+            # v101.25 #289：标题等级改用怪物实际 min-max——此前用子区域 lv+2 推断，
+            # 与怪物真实等级差 2 级误导（round66 银风道口标 Lv.6-8 实际野狗 Lv.3）
+            _mlvs = [lv for _m, _n, _r, lv, _s, _d in mons if lv]
+            if _mlvs:
+                _lo, _hi = min(_mlvs), max(_mlvs)
+                lv_label = f"Lv.{_lo}" if _lo == _hi else f"Lv.{_lo}-{_hi}"
+            else:
+                base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
+                lv_label = f"Lv.{base_lv}"
+            lines.append(f"🐾 此地的怪物 ({lv_label})：")
             for mid, name, role, lv, skills, drops in mons:
                 # v95r38 去重：池子条目与 elite/boss 字段重复时不重复显示（字段行会展示）
                 if role == "elite" and elite and elite[0] == mid:
@@ -1005,6 +1013,18 @@ class WorldCmds(CommandBase):
             towns = "、".join(m["name"] for m in C.MAPS if m.get("type") == C.MAP_TYPE_TOWN)
             yield event.plain_result(f"找不到城镇『{dest}』！可返回：{towns}(例：『返回 橡木镇』)")
             return
+        # v101.25 #308：『返回 <子区域名>』且已在目标城镇 → 直接移动到该子区域
+        # （此前走到 1008 行"已经在城镇"就拦截，实际没移动——playtest round65 小蓝抓包）
+        if dest:
+            cur_map_obj = C.MAP_BY_ID.get(player["cur_map"], {})
+            for sa in (cur_map_obj.get("subareas") or []):
+                if dest in (sa.get("name", ""), sa.get("id", "")):
+                    if sa["id"] == player.get("cur_subarea"):
+                        yield event.plain_result(f"你已经在这里了({cur_map_obj.get('name', '')}·{sa.get('name', '')})～")
+                        return
+                    db.update_player(group_id, qq_id, cur_subarea=sa["id"])
+                    yield event.plain_result(self._subarea_arrive(player, cur_map_obj, sa))
+                    return
         if player["cur_map"] == target["id"]:
             yield event.plain_result(f"你已经在{target['name']}了～")
             return
@@ -2078,18 +2098,26 @@ class WorldCmds(CommandBase):
                 # 无对话树的 NPC：保持自动接取/交付（对话选项不存在，指令与提示兜底）
                 lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
                 lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
-        if "shop" in funcs:
+        if "shop" in funcs and self._at_shop(player, group_id, qq_id):
             lines.append("🏪 输入『商店』可以买东西")
         if "trade" in funcs:
             _ta = "她" if npc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
             lines.append(f"🧭 输入『商店』看看{_ta}的货（行商有独家补给）")
-        if "heal" in funcs:
+        if "heal" in funcs and self._at_healer(player):
             lines.append("🏨 输入『住宿』恢复满血(需要金币)")
         if "daily" in funcs:
             lines.append("📜 输入『每日』领取今日悬赏")
         if "lore" in funcs:
             ta = "她" if npc.get("gender") == "女" else "他"
-            lines.append(f"🎻 {ta}给你讲了一个关于大陆的传说……(输入『任务』看看支线)")
+            # v101.25 #311：lore 空挂修复——提示"讲传说"却没有传说内容（world.py 注释
+            # 曾承认翠羽/说书人·巴尔空挂）。现在直接输出 NPC dialogue 作为传说正文，
+            # 不再只给一句空引导。
+            _lore_txt = npc.get("lore") or npc.get("dialogue", "")
+            if _lore_txt:
+                lines.append(f"🎻 {ta}给你讲了一个传说：\n“{_lore_txt}”")
+            else:
+                lines.append(f"🎻 {ta}捋了捋胡子，说起一段大陆往事……(传说散落在各地，多去听听老人们的见闻吧)")
+            lines.append("💡 『百科 <名称>』还能查询怪物/材料/地图的记载～")
         if "teach" in funcs:
             lines.append("🗡️ 直接回复序号继续交谈，这位前辈或许能指点你一二")
         if "ency" in funcs:
@@ -2433,6 +2461,17 @@ class WorldCmds(CommandBase):
             if msg.startswith(cmd):
                 raw = msg[len(cmd):].strip()
                 break
+        # v101.25 #320：完整指令优先于菜单选项——对话菜单中发『对话 2』
+        # 此前被当"选项 2.告辞"退出（playtest round68 小四抓包）。『对话 X』
+        # 语义是"找 NPC X 交谈"，应路由到 find_npc 而不是菜单；纯数字才是菜单选项。
+        # v101.25b：『对话 0』是结束对话的标准指令，不能路由（否则报"没有第 0 位 NPC"）。
+        if msg.startswith("对话") and raw and raw != "0":
+            _prev_msg = event.message_str
+            event.message_str = "找 " + raw
+            async for r in self.find_npc(event):
+                yield r
+            event.message_str = _prev_msg
+            return
         cur_node_id = st.get("node", dlg.get("start", ""))
         node = C.dialogue_node(dlg, cur_node_id)
         ctx = self._talk_ctx(group_id, qq_id, npc_id)

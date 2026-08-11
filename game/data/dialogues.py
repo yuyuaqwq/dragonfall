@@ -400,7 +400,11 @@ DIALOGUES = {
         "start": "ask",
         "nodes": {
             "ask": {
-                "text": "挖矿跟喝酒一样，讲究一个痛快！想拜师学挖掘，先回答我——什么矿石最坚硬？",
+                # v101.25 #327：拜师后不再展示入门问答——apprentice 满足时切师傅日常
+                "texts": [
+                    {"need": {"apprentice": "mining"}, "text": "巴尔金灌了口酒，拍了拍你的肩：好小子！矿洞里的动静我都听着呢，缺铁矿石来我这拿，别跟我客气。"},
+                    {"need": {}, "text": "挖矿跟喝酒一样，讲究一个痛快！想拜师学挖掘，先回答我——什么矿石最坚硬？"},
+                ],
                 "options": [
                     {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro", "answer": True},
                     {"text": "铁矿石", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
@@ -418,21 +422,26 @@ DIALOGUES = {
                 ],
             },
             "practice_intro": {
-                "text": "有点眼力！去矿洞挖 5 份铁矿石回来，让我看看你的力气。",
+                # v101.25 #318/#319：指引矿洞方位（山丘矿洞·南境绿野）+ 商店兜底买矿，
+                # 修复"没挖掘技能挖不了矿"的拜师死锁（playtest round68 小红实锤）
+                "text": "有点眼力！去矿洞挖 5 份铁矿石回来，让我看看你的力气。矿脉在南境绿野的山丘矿洞（Lv.18 野区，『前往 山丘矿洞』）——没把握的话，铁港城锻造坊也能买到铁矿石，就看你的钱包厚不厚了！",
                 "options": [
                     {"text": "这就去", "next": "practice_check"},
                     {"text": "先告辞", "next": "__end__"},
                 ],
             },
             "practice_check": {
-                "text": "回来了？把矿石摆出来我瞧瞧。",
+                # v101.25 #328：接取后先引导挖矿——选项文本不直接给"交付"，而是
+                # 先问准备情况；material 型考验校验仍走 apprentice_check（下方交付选项）
+                "text": "矿挖得怎么样了？凑齐 5 份铁矿石才够我看你的力气。",
                 "options": [
                     {"text": "铁矿石挖够了，请过目", "next": "master_intro", "action": {"apprentice_check": {"item": "铁矿石", "count": 5}}, "fail_next": "practice_wait"},
-                    {"text": "还差一些", "next": "practice_wait"},
+                    {"text": "还没挖够，先去矿洞", "next": "practice_wait"},
                 ],
             },
             "practice_wait": {
-                "text": "巴尔金摇头：不够不够，矿洞里还有的是！",
+                # v101.25 #328/#319：没矿时的引导带方位+商店兜底（此前只说"再挖"）
+                "text": "巴尔金摇头：不够不够！山丘矿洞（南境绿野 Lv.18，『前往 山丘矿洞』）里还能挖到，实在不行去铁港城锻造坊买几块，别空手回来。",
                 "options": [{"text": "这就去", "next": "practice_check"}],
             },
             "master_intro": {
@@ -684,7 +693,11 @@ DIALOGUES = {
         "start": "ask",
         "nodes": {
             "ask": {
-                "text": "打铁，凭的是手和心。想拜师学锻造，先回答我——锻造装备需要什么？",
+                # v101.25 #327：拜师后不再展示入门问答——apprentice 满足时切师傅日常
+                "texts": [
+                    {"need": {"apprentice": "craft"}, "text": "奥格抡着锤子忙得满头汗，见你来了咧嘴一笑：来得正好！缺材料就说，锻造铺子的火候我盯着呢。"},
+                    {"need": {}, "text": "打铁，凭的是手和心。想拜师学锻造，先回答我——锻造装备需要什么？"},
+                ],
                 "options": [
                     {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
                     {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},

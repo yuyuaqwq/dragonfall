@@ -68,8 +68,11 @@ def no_prof_waiting():
             if st and st["finish"] > int(time.time()):
                 left = st["finish"] - int(time.time())
                 tname = C.PROF_WAIT_BASE.get(st["type"], (0, 0, "副业"))[2]
+                # v101.25 #307：等待期互斥是设计使然（防结算错乱），但提示要说清
+                # 等待期间能做什么、完成后自动入包，避免"被锁死"的错觉
                 yield event.plain_result(
-                    f"⏳ 你还在{tname}呢，再有 {left} 秒完成，先别走开！(完成会自动入包)"
+                    f"⏳ 你还在{tname}呢，再有 {left} 秒完成！(完成后自动入包)\n"
+                    f"💡 等待期间可以『背包』『属性』『任务』，但移动/探索/战斗要等{tname}结束～"
                 )
                 return
             async for item in fn(self, event, *args, **kwargs):

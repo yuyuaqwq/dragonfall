@@ -1558,7 +1558,15 @@ class EconomyCmds(CommandBase):
                     target = it
                     break
             if not target:
-                yield event.plain_result(f"背包里没有叫『{item_name}』的装备！")
+                # v101.25 #329：已装备的武器/装备无法直接强化（playtest round68 影刃抓包：
+                # 『强化 弯刀』报背包里没有）。已装备物品在 equipment 槽位，补查并支持就地强化。
+                eq = player.get("equipment") or {}
+                for slot, ed in eq.items():
+                    if item_name in (ed.get("name", "") if isinstance(ed, dict) else ""):
+                        target = {"key": f"eq_equipped_{slot}", "data": ed, "_equipped": slot}
+                        break
+            if not target:
+                yield event.plain_result(f"背包里没有叫『{item_name}』的装备！(已装备的武器也可以直接『强化 <武器名>』)")
                 return
         d = target["data"]
         cur_enh = d.get("enhance", 0)
@@ -1590,8 +1598,14 @@ class EconomyCmds(CommandBase):
         # 掷强化
         if random.random() < info["rate"]:
             d["enhance"] = cur_enh + 1
-            db.remove_item(group_id, qq_id, target["key"])
-            db.add_item(group_id, qq_id, target["key"], d, 1)
+            if target.get("_equipped"):
+                # v101.25 #329：已装备武器强化成功 → 写回装备槽位（属性实时生效）
+                eq = dict(player.get("equipment") or {})
+                eq[target["_equipped"]] = d
+                db.update_player(group_id, qq_id, equipment=eq)
+            else:
+                db.remove_item(group_id, qq_id, target["key"])
+                db.add_item(group_id, qq_id, target["key"], d, 1)
             lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！"]
             # 阶段九：强化次数 + 成就判定
             db.bump_stats(group_id, qq_id, enhance_count=1)
@@ -1606,8 +1620,14 @@ class EconomyCmds(CommandBase):
             new_enh = max(0, cur_enh - drop)
             if new_enh != cur_enh:
                 d["enhance"] = new_enh
-                db.remove_item(group_id, qq_id, target["key"])
-                db.add_item(group_id, qq_id, target["key"], d, 1)
+                if target.get("_equipped"):
+                    # v101.25 #329：已装备武器强化失败降级 → 同步写回装备槽位
+                    eq = dict(player.get("equipment") or {})
+                    eq[target["_equipped"]] = d
+                    db.update_player(group_id, qq_id, equipment=eq)
+                else:
+                    db.remove_item(group_id, qq_id, target["key"])
+                    db.add_item(group_id, qq_id, target["key"], d, 1)
                 yield event.plain_result(f"💥 强化失败！【{d['name']}】降级到 +{new_enh}。铁匠摇摇头：『下次一定行！』")
             else:
                 yield event.plain_result(f"💥 强化失败！好在【{d['name']}】保住了等级(+{new_enh})。再试一次？")
@@ -2121,7 +2141,9 @@ class EconomyCmds(CommandBase):
             if d.get("type") == "材料":
                 lines.append(f"{i:>2}. {d['name']} ×{it['count']} (材料，可出售)")
             elif d.get("type") == "图纸":
-                lines.append(f"{i:>2}. 📜 {d['name']} ×{it['count']} (锻造套装用)")
+                # v101.25 #326：图纸标注补充"需解锁锻造副业"——玩家学完才能用，
+                # 副业未解锁时提前说明（playtest round67 小蓝抓包海风长弓图纸误导）
+                lines.append(f"{i:>2}. 📜 {d['name']} ×{it['count']} (锻造套装用·需解锁锻造副业)")
             elif d.get("slot"):
                 q = C.QUALITY[d["quality"]]
                 enh = d.get("enhance", 0)
@@ -2211,26 +2233,30 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     def _req_check(self, player: dict, d: dict):
-        """阶段八：装备属性需求检查。返回 (通过, 提示文本)。
+        """阶段八：装备属性需求检查。返回 (通过, 提示文本, 缺失属性名列表)。
 
         v101.21g 鱼鱼拍板：不豁免任何装备（无兼容包袱）——名册已去需求的
         旧存量快照由数据修正清理 req 字段（scripts/fix_legacy_req.py），
         代码层不搞特例。
+        v101.25 #321：返回缺失属性名列表，调用方按实际缺失属性生成加点引导
+        （不再写死『加点 力量 N』）。
         """
         req = d.get("req")
         if not req:
-            return True, ""
+            return True, "", []
         attr = player.get("attributes") or {}
         names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
         missing = []
+        missing_keys = []
         for k, need in req.items():
             cur = attr.get(k, 0)
             if cur < need:
                 missing.append(f"{names.get(k, k)} {cur}/{need}")
+                missing_keys.append(k)
         if missing:
             req_str = "、".join(f"{names.get(k, k)} {v}" for k, v in req.items())
-            return False, f"需求：{req_str}(你当前 {'、'.join(missing)})"
-        return True, ""
+            return False, f"需求：{req_str}(你当前 {'、'.join(missing)})", missing_keys
+        return True, "", []
 
     def _buy_weapon(self, wname: str, wtype: str, wlv: int, wq: str) -> dict:
         """阶段八：商店武器生成。名册名走名册精确生成（正确 req + 固定词条），
@@ -2291,9 +2317,12 @@ class EconomyCmds(CommandBase):
             return
         d = target["data"]
         # 阶段八：武器不锁职业（20 章），改为属性需求检查（力量/智力/敏捷/耐力）
-        ok_req, req_msg = self._req_check(player, d)
+        ok_req, req_msg, miss_keys = self._req_check(player, d)
         if not ok_req:
-            yield event.plain_result(f"属性不够，穿不上【{d['name']}】！{req_msg}\n加点后属性达标才能装备(『属性』查看、『加点 力量 N』加点)")
+            # v101.25 #321：按实际缺失属性生成加点引导（缺耐力引导『加点 耐力』，
+            # 不再写死『加点 力量 N』误导玩家）
+            first_miss = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}.get(miss_keys[0], "力量") if miss_keys else "力量"
+            yield event.plain_result(f"属性不够，穿不上【{d['name']}】！{req_msg}\n加点后属性达标才能装备(『属性』查看、『加点 {first_miss} N』加点)")
             return
         # 等级限制
         if player["level"] < d["lv"]:
@@ -2592,6 +2621,31 @@ class EconomyCmds(CommandBase):
         db.remove_item(group_id, qq_id, it["key"], it["count"])
         return (d["name"], it["count"], price * it["count"])
 
+    def _apprentice_protect_mats(self, group_id, qq_id) -> dict:
+        """v101.25 #305：当前对话树节点（拜师考验）需要的材料名 → 数量。
+
+        玩家正在导师考验节点（apprentice_check 选项）时，批量出售不能误卖这些
+        材料——round68 小红实锤：『出售 材料』把铁矿石×7 混卖，挖掘拜师直接卡死。
+        返回 {材料名: 需要数量}，无考验返回 {}。
+        """
+        st = db.get_talk_state(group_id, qq_id)
+        if not st:
+            return {}
+        npc_id = st.get("npc", "")
+        node_id = st.get("node", "")
+        dlg = C.get_dialogue(npc_id)
+        if not dlg:
+            return {}
+        node = C.dialogue_node(dlg, node_id)
+        if not isinstance(node, dict):
+            return {}
+        mats = {}
+        for o in (node.get("options") or []):
+            ac = (o.get("action") or {}).get("apprentice_check")
+            if ac:
+                mats[ac.get("item", "")] = int(ac.get("count", 1))
+        return mats
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出售(?:\s*|$)")
     @require_player()
 
@@ -2614,11 +2668,17 @@ class EconomyCmds(CommandBase):
             blocked = 0
             total = 0
             sold = []
+            # v101.25 #305：拜师考验材料保护——批量出售跳过考验所需材料
+            protect = self._apprentice_protect_mats(group_id, qq_id)
+            protected = []
             for it in items:
                 d = it["data"]
                 if mode == "mat" and d.get("type", "") != "材料":
                     continue
                 if mode == "equip" and not d.get("slot"):
+                    continue
+                if protect and d.get("name") in protect:
+                    protected.append(f"{d['name']}×{it['count']}")
                     continue
                 rate = self._pawn_rate(player, d)
                 if rate is None:
@@ -2631,6 +2691,8 @@ class EconomyCmds(CommandBase):
                     player = self._player(group_id, qq_id)
             if not sold:
                 tip = "（装备要去铁匠铺、材料要去商店/铁匠/炼金才能卖）" if blocked else ""
+                if protected:
+                    tip += f"；{ '、'.join(protected) } 是拜师考验材料，已帮你留着"
                 yield event.plain_result(f"没有可出售的物品！{tip}")
                 return
             head = "全部" if mode == "all" else ("材料" if mode == "mat" else "装备")
@@ -2641,6 +2703,8 @@ class EconomyCmds(CommandBase):
                 lines.append(f"  · ……等 {len(sold)} 种")
             if blocked:
                 lines.append(f"💡 有 {blocked} 种物品要对应店铺出售（装备→铁匠铺、材料→商店/铁匠/炼金工坊）～")
+            if protected:
+                lines.append(f"🛡️ 已跳过 { '、'.join(protected) }（拜师考验材料，导师要验收）")
             yield event.plain_result("\n".join(lines))
             return
         target = None
@@ -2652,11 +2716,28 @@ class EconomyCmds(CommandBase):
                 return
             target = items[idx - 1]
         else:
+            # v101.25 #306：精确名优先——『出售 狼皮』不再被"星狼皮"抢跑
+            # （playtest round68 抓包：模糊匹配先卖星狼皮）。精确名无 → 模糊收集
+            # 候选，多个时列出让玩家精确选择。
             for it in items:
                 d = it["data"]
-                if item_name in d["name"]:
+                if d["name"] == item_name:
                     target = it
                     break
+            if not target:
+                fuzzy = [it for it in items if item_name in it["data"]["name"]]
+                if len(fuzzy) > 1:
+                    flines = [f"❓ 找到 {len(fuzzy)} 件名字含『{item_name}』的物品，用全名指定卖哪件："]
+                    for i, it in enumerate(fuzzy, 1):
+                        fd = it["data"]
+                        fq = C.QUALITY[fd["quality"]] if fd.get("quality") and fd.get("slot") else None
+                        fname_s = f"{fq['color']}【{fd['name']}】" if fq else fd["name"]
+                        flines.append(f"  {i}. {fname_s} ×{it['count']}（出售价 {self._pawn_rate(player, fd) or '需对应店铺'}）")
+                    flines.append("💡 例如『出售 星狼皮』或『出售 <完整名>』～")
+                    yield event.plain_result("\n".join(flines))
+                    return
+                if len(fuzzy) == 1:
+                    target = fuzzy[0]
         if not target:
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
