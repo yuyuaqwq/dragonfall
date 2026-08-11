@@ -1866,6 +1866,21 @@ MATERIALS = {
     # v97.6 彩蛋事件专属材料（橡木种子/月之泪）
     "mat_xiang_mu_zhong_zi": {"price": 20, "name": "橡木种子", "type": "材料", "desc": "会说话的老橡树赠予的种子，据说种下能长出守护之树"},
     "mat_yue_zhi_lei": {"price": 120, "name": "月之泪", "type": "材料", "desc": "月光凝成的泪滴，只在月门城的月色下出现，精灵视若珍宝"},
+    # v95.32 #403 炼金配方数据断裂修复：12 材料 + 2 强化石补全（原 alchemy.py/sets.py 引用但无定义无掉落源）
+    "mat_yao_jing_zhi_chen": {"price": 45, "name": "妖精之尘", "desc": "妖精振翅时洒落的微光之尘，是炼金术最常用的媒介"},
+    "mat_zhi_zhu_du_nang": {"price": 35, "name": "蜘蛛毒囊", "desc": "巨型蜘蛛腹部的毒囊，剧毒浓缩成一颗，炼金师小心取用"},
+    "mat_rong_yan_shi": {"price": 55, "name": "熔岩石", "desc": "熔岩元素崩解后留下的滚烫石块，冷却后依然温热"},
+    "mat_shen_yuan_jing_gang": {"price": 160, "name": "深渊精钢", "desc": "深渊之力淬炼的钢铁，暗沉无光却坚硬异常"},
+    "mat_gui_hun_jing_hua": {"price": 85, "name": "鬼魂精华", "desc": "亡魂消散时凝成的幽蓝精华，触碰指尖发凉"},
+    "mat_sheng_guang_yu_mao": {"price": 110, "name": "圣光羽毛", "desc": "圣光笼罩下飘落的羽毛，带着暖意与肃穆"},
+    "mat_xue_zhi_jing_hua": {"price": 90, "name": "雪之精华", "desc": "千年雪原凝出的冰之精华，握在手里反而清凉舒服"},
+    "mat_an_ying_sui_pian": {"price": 75, "name": "暗影碎片", "desc": "暗影教徒身上剥落的阴影碎片，轻若无物却沉甸甸"},
+    "mat_huo_yan_he_xin": {"price": 150, "name": "火焰核心", "desc": "火蜥蜴心口跳动的火种，熔金化铁不在话下"},
+    "mat_ling_hun_sui_pian": {"price": 180, "name": "灵魂碎片", "desc": "怨灵不灭的执念碎片，幽光里隐约有低语"},
+    "mat_shou_ren_liao_ya": {"price": 100, "name": "兽人獠牙", "desc": "兽人劫掠者的獠牙，粗粝弯曲，带着凶性"},
+    "mat_zuo_lang_quan_chi": {"price": 110, "name": "座狼犬齿", "desc": "狼王座下凶兽的犬齿，锋利得能划开铁甲"},
+    "i_stone_upgrade": {"price": 200, "name": "强化石", "desc": "炼金提纯的魔力矿石，铁匠铺高价收购，强化装备的良材"},
+    "i_stone_refine": {"price": 400, "name": "精炼强化石", "desc": "二次精炼的强化石，光泽内敛，价值不菲"},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============
@@ -2396,6 +2411,13 @@ CONSUMABLES = {
                            "desc": "深渊王座的入场圣印(深渊祭坛精英掉落)"},
     "i_key_cloud": {"name": "云玺", "price": 5000, "key_item": True,
                     "desc": "云中圣殿的入场玉玺(星辉台精英掉落)"},
+    # v95.32 #403 炼金配方数据断裂修复：3 个战斗药水/护符补全（alchemy.py 产出物）
+    "i_atk_potion": {"name": "攻击药水", "price": 150, "effect": "buff_atk",
+                     "desc": "战斗中使用，攻击力＋30%(3 回合)"},
+    "i_crit_potion": {"name": "暴击药水", "price": 250, "effect": "buff_crit",
+                      "desc": "战斗中使用，暴击率＋20%(3 回合)"},
+    "i_lucky_charm": {"name": "幸运护符", "price": 300, "effect": "lucky",
+                      "desc": "提升打怪金币与材料掉落(10 分钟)"},
 }
 
 # ================= 材料分类与品质（v101.25e 鱼鱼拍板：按类型分设施出售 + 全服通用品质） =================
