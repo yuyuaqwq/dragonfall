@@ -11,7 +11,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_guild_clerks"
+                "npc_guild_clerks",
+                'npc_oak_candy', 'npc_oak_novice', 'npc_oak_oldman', 'npc_oak_kid',
             ],
             "monsters": [],
             "elite": None,
@@ -30,7 +31,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_mayor"
+                "npc_mayor",
+                'npc_oak_clerk',
             ],
             "monsters": [],
             "elite": None,
@@ -49,7 +51,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_blacksmith"
+                "npc_blacksmith",
+                'npc_oak_apprentice_smith',
             ],
             "monsters": [],
             "elite": None,
@@ -69,7 +72,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_innkeeper"
+                "npc_innkeeper",
+                'npc_oak_bellboy',
             ],
             "monsters": [],
             "elite": None,
@@ -88,7 +92,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 1,
             "npcs": [
-                "npc_herb_master"
+                "npc_herb_master",
+                'npc_oak_herb_girl',
             ],
             "monsters": [],
             "elite": None,
@@ -104,7 +109,7 @@ SUBAREAS = {
             "desc": "橡木镇最热闹的街道，两侧是木板房与布棚摊，沿街飘着烤面包的香气。走到尽头，镇子就融进了田野。",
             "type": "城镇街道",
             "lv": 1,
-            "npcs": ["npc_oak_street_vendor"],
+            "npcs": ["npc_oak_street_vendor", 'npc_oak_vegwife'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -119,7 +124,7 @@ SUBAREAS = {
             "desc": "橡木镇边缘的田野，麦垛堆在路边，一条土路向东延伸进橡木平原，向西通往枫橡村。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_oak_outskirts_farmer"],
+            "npcs": ["npc_oak_outskirts_farmer", 'npc_oak_farmer'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -349,7 +354,8 @@ SUBAREAS = {
                 "npc_tavern_owner",
                 "npc_warrior_tutor",
                 "npc_mage_tutor",
-                "npc_priest_tutor"
+                "npc_priest_tutor",
+                'npc_deer_guard', 'npc_deer_bard',
             ],
             "monsters": [],
             "elite": None,
@@ -368,7 +374,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_baron"
+                "npc_baron",
+                'npc_deer_scribe',
             ],
             "monsters": [],
             "elite": None,
@@ -387,7 +394,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_blacksmith2"
+                "npc_blacksmith2",
+                'npc_deer_blacksmith_h',
             ],
             "monsters": [],
             "elite": None,
@@ -407,7 +415,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_priest"
+                "npc_priest",
+                'npc_deer_nun',
             ],
             "monsters": [],
             "elite": None,
@@ -427,6 +436,7 @@ SUBAREAS = {
             "lv": 5,
             "npcs": [
                 "npc_deer_newsboy",
+                'npc_deer_drunk',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -444,7 +454,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_doctor"
+                "npc_doctor",
+                'npc_deer_nurse',
             ],
             "monsters": [],
             "elite": None,
@@ -463,7 +474,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_cook_master"
+                "npc_cook_master",
+                'npc_deer_cook',
             ],
             "monsters": [],
             "elite": None,
@@ -482,7 +494,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_enhance_master"
+                "npc_enhance_master",
+                'npc_deer_enchanter',
             ],
             "monsters": [],
             "elite": None,
@@ -501,7 +514,7 @@ SUBAREAS = {
             "desc": "白鹿城的白石城门，门楣雕着一头回眸的白鹿。城门内外，人声与风一起流动。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_white_deer_gate_guard"],
+            "npcs": ["npc_white_deer_gate_guard", 'npc_deer_gatekeeper'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -930,7 +943,8 @@ SUBAREAS = {
                 "npc_craft_master",
                 "npc_ranger_tutor",
                 "npc_assassin_tutor",
-                "npc_monk_tutor"
+                "npc_monk_tutor",
+                'npc_harbor_sailor', 'npc_harbor_trader',
             ],
             "monsters": [],
             "elite": None,
@@ -949,7 +963,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_citylord"
+                "npc_citylord",
+                'npc_harbor_ledger',
             ],
             "monsters": [],
             "elite": None,
@@ -968,7 +983,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_guildmaster"
+                "npc_guildmaster",
+                'npc_harbor_mule',
             ],
             "monsters": [],
             "elite": None,
@@ -987,7 +1003,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_auctioneer"
+                "npc_auctioneer",
+                'npc_harbor_auction',
             ],
             "monsters": [],
             "elite": None,
@@ -1007,6 +1024,7 @@ SUBAREAS = {
             "lv": 10,
             "npcs": [
                 "npc_harbor_rope",
+                'npc_harbor_bartender',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1025,6 +1043,7 @@ SUBAREAS = {
             "lv": 10,
             "npcs": [
                 "npc_harbor_fishwife",
+                'npc_harbor_clerk',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1042,7 +1061,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 10,
             "npcs": [
-                "npc_mine_master"
+                "npc_mine_master",
+                'npc_harbor_miner_old',
             ],
             "monsters": [],
             "elite": None,
@@ -1058,7 +1078,7 @@ SUBAREAS = {
             "desc": "码头的木栈道延伸到海里，渔船随浪起伏。渔人们吆喝着卸下满舱的鱼获，海鸥在头顶盘旋争食。",
             "type": "城镇",
             "lv": 10,
-            "npcs": [],
+            "npcs": ['npc_harbor_fisher'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -1077,6 +1097,7 @@ SUBAREAS = {
             "lv": 10,
             "npcs": [
                 "npc_harbor_watchman",
+                'npc_harbor_forge_app',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1094,7 +1115,7 @@ SUBAREAS = {
             "desc": "铁港城的铁闸门锈迹斑斑却坚实无比，门缝里能闻到海风的咸味。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_ironharbor_gate_guard"],
+            "npcs": ["npc_ironharbor_gate_guard", 'npc_harbor_gate'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -1303,6 +1324,7 @@ SUBAREAS = {
             "lv": 12,
             "npcs": [
                 "npc_silver_fisher",
+                'npc_silver_miller',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1339,6 +1361,7 @@ SUBAREAS = {
             "lv": 12,
             "npcs": [
                 "npc_silver_apprentice",
+                'npc_silver_inn',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1357,6 +1380,7 @@ SUBAREAS = {
             "lv": 12,
             "npcs": [
                 "npc_silver_peddler",
+                'npc_silver_granny',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1635,6 +1659,7 @@ SUBAREAS = {
             "lv": 6,
             "npcs": [
                 "npc_maple_woodcutter",
+                'npc_maple_granny', 'npc_maple_child',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -1671,7 +1696,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 6,
             "npcs": [
-                "npc_hunter_gray"
+                "npc_hunter_gray",
+                'npc_maple_hunter_w',
             ],
             "monsters": [],
             "elite": None,
@@ -1688,7 +1714,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 6,
             "npcs": [
-                "npc_inn_tess"
+                "npc_inn_tess",
+                'npc_maple_innkeep',
             ],
             "monsters": [],
             "elite": None,
@@ -1936,7 +1963,8 @@ SUBAREAS = {
             "lv": 25,
             "npcs": [
                 "npc_knight_commander",
-                "npc_alchemy_master"
+                "npc_alchemy_master",
+                'npc_dawn_guard', 'npc_dawn_herald',
             ],
             "monsters": [],
             "elite": None,
@@ -1955,7 +1983,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 25,
             "npcs": [
-                "npc_king"
+                "npc_king",
+                'npc_dawn_chancellor',
             ],
             "monsters": [],
             "elite": None,
@@ -1976,7 +2005,8 @@ SUBAREAS = {
             "npcs": [
                 "npc_pope",
                 "npc_cardinal",
-                "npc_saintess"
+                "npc_saintess",
+                'npc_dawn_deacon',
             ],
             "monsters": [],
             "elite": None,
@@ -1996,6 +2026,7 @@ SUBAREAS = {
             "lv": 25,
             "npcs": [
                 "npc_dawn_gardener",
+                'npc_dawn_stableboy',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -2014,6 +2045,7 @@ SUBAREAS = {
             "lv": 25,
             "npcs": [
                 "npc_dawn_squire",
+                'npc_dawn_alchemist',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -2031,7 +2063,7 @@ SUBAREAS = {
             "desc": "圣光王都的巍峨城门，白色石墙上刻着圣辉纹章，两列卫兵持戟而立。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_dawn_city_gate_guard"],
+            "npcs": ["npc_dawn_city_gate_guard", 'npc_dawn_gate'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -2982,7 +3014,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 30,
             "npcs": [
-                "npc_ironshield_smith"
+                "npc_ironshield_smith",
+                'npc_shield_townfolk',
             ],
             "monsters": [],
             "elite": None,
@@ -3021,6 +3054,7 @@ SUBAREAS = {
             "lv": 30,
             "npcs": [
                 "npc_shield_watch",
+                'npc_shield_smith',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3039,7 +3073,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 30,
             "npcs": [
-                "npc_ironshield_scout"
+                "npc_ironshield_scout",
+                'npc_shield_scout',
             ],
             "monsters": [],
             "elite": None,
@@ -3055,7 +3090,7 @@ SUBAREAS = {
             "desc": "铁盾镇口的拒马与烽火台，哨兵在此盘查过往旅人。木栅外是通往丘陵与旧战场的路。",
             "type": "城镇出口",
             "lv": 30,
-            "npcs": ["npc_ironshield_town_gate_guard"],
+            "npcs": ["npc_ironshield_town_gate_guard", 'npc_shield_sentry'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -3288,6 +3323,7 @@ SUBAREAS = {
             "lv": 45,
             "npcs": [
                 "npc_moongate_guard",
+                'npc_moongate_traveler',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3306,6 +3342,7 @@ SUBAREAS = {
             "lv": 45,
             "npcs": [
                 "npc_moongate_astronomer",
+                'npc_moongate_inn',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3324,6 +3361,7 @@ SUBAREAS = {
             "lv": 45,
             "npcs": [
                 "npc_moongate_silk",
+                'npc_moongate_spice',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3577,7 +3615,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 55,
             "npcs": [
-                "npc_elf_sage"
+                "npc_elf_sage",
+                'npc_elf_poet2',
             ],
             "monsters": [],
             "elite": None,
@@ -3597,7 +3636,8 @@ SUBAREAS = {
             "lv": 55,
             "npcs": [
                 "npc_elf_queen",
-                "npc_elf_guardian"
+                "npc_elf_guardian",
+                'npc_elf_maid',
             ],
             "monsters": [],
             "elite": None,
@@ -3617,6 +3657,7 @@ SUBAREAS = {
             "lv": 55,
             "npcs": [
                 "npc_elf_gardener",
+                'npc_elf_trainee',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3635,6 +3676,7 @@ SUBAREAS = {
             "lv": 55,
             "npcs": [
                 "npc_elf_rabbit",
+                'npc_elf_librarian',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3652,7 +3694,7 @@ SUBAREAS = {
             "desc": "月辉王庭的宫门由银木与月光石砌成，门上的精灵纹样流转着微光。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_moon_court_gate_guard"],
+            "npcs": ["npc_moon_court_gate_guard", 'npc_elf_gateguard2'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -3854,6 +3896,7 @@ SUBAREAS = {
             "lv": 48,
             "npcs": [
                 "npc_starsong_bardling",
+                'npc_starsong_acrobat',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3872,6 +3915,7 @@ SUBAREAS = {
             "lv": 48,
             "npcs": [
                 "npc_starsong_baker",
+                'npc_starsong_florist',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -3891,6 +3935,7 @@ SUBAREAS = {
             "lv": 48,
             "npcs": [
                 "npc_starsong_drunkard",
+                'npc_starsong_waiter',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -4388,7 +4433,8 @@ SUBAREAS = {
             "lv": 60,
             "npcs": [
                 "npc_tavern_burnkettle",
-                "npc_garrison"
+                "npc_garrison",
+                'npc_frost_leather',
             ],
             "monsters": [],
             "elite": None,
@@ -4407,7 +4453,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 60,
             "npcs": [
-                "npc_north_chief"
+                "npc_north_chief",
+                'npc_frost_elder',
             ],
             "monsters": [],
             "elite": None,
@@ -4427,6 +4474,7 @@ SUBAREAS = {
             "lv": 60,
             "npcs": [
                 "npc_frost_hunter",
+                'npc_frost_drinker',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -4445,6 +4493,7 @@ SUBAREAS = {
             "lv": 60,
             "npcs": [
                 "npc_frost_weaver",
+                'npc_frost_armorer',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -4607,7 +4656,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 65,
             "npcs": [
-                "npc_rune_master"
+                "npc_rune_master",
+                'npc_anvil_apprentice',
             ],
             "monsters": [],
             "elite": None,
@@ -4626,7 +4676,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 65,
             "npcs": [
-                "npc_dwarf_elder"
+                "npc_dwarf_elder",
+                'npc_anvil_clerk',
             ],
             "monsters": [],
             "elite": None,
@@ -4646,6 +4697,7 @@ SUBAREAS = {
             "lv": 65,
             "npcs": [
                 "npc_anvil_brewer",
+                'npc_anvil_runeapp',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -4663,7 +4715,7 @@ SUBAREAS = {
             "desc": "铁砧堡的矮人闸门是整块精铁浇铸，门闩粗如树桩，凿着符文。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_anvil_fort_gate_guard"],
+            "npcs": ["npc_anvil_fort_gate_guard", 'npc_anvil_mule'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -5280,6 +5332,7 @@ SUBAREAS = {
             "lv": 68,
             "npcs": [
                 "npc_cold_hunter",
+                'npc_cold_skinner',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5298,6 +5351,7 @@ SUBAREAS = {
             "lv": 68,
             "npcs": [
                 "npc_cold_herder",
+                'npc_cold_oldherder',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5316,6 +5370,7 @@ SUBAREAS = {
             "lv": 68,
             "npcs": [
                 "npc_cold_firekeeper",
+                'npc_cold_bowyer',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5332,7 +5387,7 @@ SUBAREAS = {
             "desc": "寒脊营地边缘的木栅哨卡，雪地里插着狼皮旗，哨位外是通往铁砧的雪道。",
             "type": "城镇出口",
             "lv": 68,
-            "npcs": ["npc_cold_ridge_gate_guard"],
+            "npcs": ["npc_cold_ridge_gate_guard", 'npc_cold_patrol'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -5491,6 +5546,7 @@ SUBAREAS = {
             "lv": 70,
             "npcs": [
                 "npc_aurora_scribe",
+                'npc_aurora_lantern',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5508,7 +5564,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 70,
             "npcs": [
-                "npc_aurora_mayor"
+                "npc_aurora_mayor",
+                'npc_aurora_butler',
             ],
             "monsters": [],
             "elite": None,
@@ -5527,7 +5584,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 70,
             "npcs": [
-                "npc_frost_blade"
+                "npc_frost_blade",
+                'npc_aurora_reindeer',
             ],
             "monsters": [],
             "elite": None,
@@ -5546,7 +5604,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 70,
             "npcs": [
-                "npc_warm_stove"
+                "npc_warm_stove",
+                'npc_aurora_innkeep2',
             ],
             "monsters": [],
             "elite": None,
@@ -5564,7 +5623,7 @@ SUBAREAS = {
             "desc": "极光镇口的雪径在极光下泛着幽蓝的光，雪松夹道，小路通向冰原与霜语峡谷。",
             "type": "城镇出口",
             "lv": 70,
-            "npcs": ["npc_aurora_town_gate_guard"],
+            "npcs": ["npc_aurora_town_gate_guard", 'npc_aurora_sled'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -5799,6 +5858,7 @@ SUBAREAS = {
             "lv": 80,
             "npcs": [
                 "npc_pass_stationmaster",
+                'npc_pass_caravan',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5816,7 +5876,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 80,
             "npcs": [
-                "npc_dragon_elder"
+                "npc_dragon_elder",
+                'npc_pass_attendant',
             ],
             "monsters": [],
             "elite": None,
@@ -5834,7 +5895,7 @@ SUBAREAS = {
             "desc": "龙裔山口的老关隘，石墙斑驳，风从隘口灌进来，呼呼作响。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_dragon_pass_gate_guard"],
+            "npcs": ["npc_dragon_pass_gate_guard", 'npc_pass_sentinel'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -6226,6 +6287,7 @@ SUBAREAS = {
             "lv": 82,
             "npcs": [
                 "npc_dragonkin_youth",
+                'npc_dragonkin_child',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6244,6 +6306,7 @@ SUBAREAS = {
             "lv": 82,
             "npcs": [
                 "npc_dragonkin_elder",
+                'npc_dragonkin_priestess',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6262,6 +6325,7 @@ SUBAREAS = {
             "lv": 82,
             "npcs": [
                 "npc_dragonkin_smith",
+                'npc_dragonkin_cook',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6761,6 +6825,7 @@ SUBAREAS = {
             "lv": 35,
             "npcs": [
                 "npc_jade_docker",
+                'npc_jade_sailor',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6779,6 +6844,7 @@ SUBAREAS = {
             "lv": 35,
             "npcs": [
                 "npc_jade_carver",
+                'npc_jade_spice',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6798,6 +6864,7 @@ SUBAREAS = {
             "lv": 35,
             "npcs": [
                 "npc_jade_helmsman",
+                'npc_jade_waiter',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6833,6 +6900,7 @@ SUBAREAS = {
             "lv": 40,
             "npcs": [
                 "npc_shell_picker",
+                'npc_shell_coral',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6852,6 +6920,7 @@ SUBAREAS = {
             "lv": 40,
             "npcs": [
                 "npc_shell_netter",
+                'npc_shell_fisher',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6870,6 +6939,7 @@ SUBAREAS = {
             "lv": 40,
             "npcs": [
                 "npc_shell_gatherer",
+                'npc_shell_helper',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -6886,7 +6956,7 @@ SUBAREAS = {
             "desc": "贝壳镇外的沙滩泊着几艘独木舟，退潮后礁石露出来，海路通向珊瑚礁与海妖湾。",
             "type": "城镇出口",
             "lv": 40,
-            "npcs": ["npc_shell_town_gate_guard"],
+            "npcs": ["npc_shell_town_gate_guard", 'npc_shell_kelp'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -7465,6 +7535,7 @@ SUBAREAS = {
             "lv": 55,
             "npcs": [
                 "npc_nameless_catwoman",
+                'npc_nameless_sellsword',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -7482,7 +7553,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 55,
             "npcs": [
-                "npc_harbor_master"
+                "npc_harbor_master",
+                'npc_nameless_clerk',
             ],
             "monsters": [],
             "elite": None,
@@ -7501,7 +7573,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 55,
             "npcs": [
-                "npc_captain_maelian"
+                "npc_captain_maelian",
+                'npc_nameless_deckhand',
             ],
             "monsters": [],
             "elite": None,
@@ -7519,7 +7592,7 @@ SUBAREAS = {
             "desc": "无名港灯塔下的外海锚区，雾钟在风里低鸣，远洋船从这里启航驶向无尽海。",
             "type": "城镇出口",
             "lv": 55,
-            "npcs": ["npc_nameless_harbor_gate_guard"],
+            "npcs": ["npc_nameless_harbor_gate_guard", 'npc_nameless_pilot'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -7538,7 +7611,8 @@ SUBAREAS = {
             "lv": 62,
             "npcs": [
                 "npc_sea_gull_tim",
-                "npc_old_whale"
+                "npc_old_whale",
+                'npc_pearl_crafter',
             ],
             "monsters": [],
             "elite": None,
@@ -7557,7 +7631,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 62,
             "npcs": [
-                "npc_pearl_lord"
+                "npc_pearl_lord",
+                'npc_pearl_lady',
             ],
             "monsters": [],
             "elite": None,
@@ -7576,7 +7651,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 62,
             "npcs": [
-                "npc_coral_auctioneer"
+                "npc_coral_auctioneer",
+                'npc_pearl_auction2',
             ],
             "monsters": [],
             "elite": None,
@@ -7596,6 +7672,7 @@ SUBAREAS = {
             "lv": 62,
             "npcs": [
                 "npc_pearl_diver",
+                'npc_pearl_merchant',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -7614,6 +7691,7 @@ SUBAREAS = {
             "lv": 62,
             "npcs": [
                 "npc_pearl_shuttler",
+                'npc_pearl_fishwife',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8252,6 +8330,7 @@ SUBAREAS = {
             "lv": 65,
             "npcs": [
                 "npc_tunnel_miner",
+                'npc_tunnel_foreman',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8270,6 +8349,7 @@ SUBAREAS = {
             "lv": 65,
             "npcs": [
                 "npc_tunnel_lamp",
+                'npc_tunnel_engineer',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8288,6 +8368,7 @@ SUBAREAS = {
             "lv": 65,
             "npcs": [
                 "npc_tunnel_carter",
+                'npc_tunnel_cook',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8304,7 +8385,7 @@ SUBAREAS = {
             "desc": "深岩隧道尽头的开阔口，铁轨从这里伸进矮人长廊，矿灯的光在岩壁上晃动。",
             "type": "城镇出口",
             "lv": 65,
-            "npcs": ["npc_deep_tunnel_gate_guard"],
+            "npcs": ["npc_deep_tunnel_gate_guard", 'npc_tunnel_trackman'],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -8323,6 +8404,7 @@ SUBAREAS = {
             "lv": 70,
             "npcs": [
                 "npc_under_trader",
+                'npc_under_herbalist', 'npc_under_farmer',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8342,6 +8424,7 @@ SUBAREAS = {
             "lv": 70,
             "npcs": [
                 "npc_under_guard",
+                'npc_under_broker',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8360,6 +8443,7 @@ SUBAREAS = {
             "lv": 70,
             "npcs": [
                 "npc_under_whisper",
+                'npc_under_helper',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8859,7 +8943,8 @@ SUBAREAS = {
             "lv": 85,
             "npcs": [
                 "npc_under_guide",
-                "npc_ember_merchant"
+                "npc_ember_merchant",
+                'npc_ember_weaponsmith',
             ],
             "monsters": [],
             "elite": None,
@@ -8878,7 +8963,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 85,
             "npcs": [
-                "npc_ember_camp_leader"
+                "npc_ember_camp_leader",
+                'npc_ember_adjutant',
             ],
             "monsters": [],
             "elite": None,
@@ -8898,6 +8984,7 @@ SUBAREAS = {
             "lv": 85,
             "npcs": [
                 "npc_ember_cook",
+                'npc_ember_mapper',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -8917,6 +9004,7 @@ SUBAREAS = {
             "lv": 85,
             "npcs": [
                 "npc_ember_scout",
+                'npc_ember_storeman',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -9241,6 +9329,7 @@ SUBAREAS = {
             "lv": 85,
             "npcs": [
                 "npc_wind_kitemaker",
+                'npc_wind_cloudmerchant',
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -9258,7 +9347,8 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 85,
             "npcs": [
-                "npc_wind_elder"
+                "npc_wind_elder",
+                'npc_wind_scribe',
             ],
             "monsters": [],
             "elite": None,
@@ -9276,7 +9366,7 @@ SUBAREAS = {
             "desc": "风之城的云门浮在断崖边，门框由云母石砌成，脚下便是万丈云海。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_wind_city_gate_guard"],
+            "npcs": ["npc_wind_city_gate_guard", 'npc_wind_guard2'],
             "monsters": [],
             "elite": None,
             "boss": None,
