@@ -52,8 +52,8 @@ DIALOGUES = {
                 ],
                 "text": "唉，那些黏糊糊的绿家伙是入秋之后从西边草地渗过来的，专拱麦田，越打越多。庄稼汉们试着清了几次，可它们怎么都除不尽。",
                 "options": [
-                    {"text": "我这就去解决它们！", "next": "dogs_pledge", "action": {"set_flag": "pledged"}},
-                    {"text": "麦田损失大吗？", "next": "dogs_trade"},
+                    {"text": "我这就去解决它们！", "next": "dogs_pledge", "action": {"set_flag": "pledged"}, "need": {"not_quest_done": "q1_1"}},
+                    {"text": "麦田损失大吗？", "next": "dogs_trade", "need": {"not_quest_done": "q1_1"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
@@ -194,6 +194,11 @@ DIALOGUES = {
         "start": "welcome",
         "nodes": {
             "welcome": {
+                # v101.23c：q8_3 矿洞剧情结束后，传闻更新（不再唱"矿洞被地精占了"）
+                "texts": [
+                    {"need": {"quest_done": "q8_3"},
+                     "text": "听说了吗？矮人那边的矿洞闹腾了那么久，总算消停了。不过那'隧洞之王'的传说还在流传……"},
+                ],
                 "text": "你听说了吗？矮人那边石拳丘陵的矿洞被地精占了，听说深处出了个'隧洞之王'……",
                 "options": [
                     {"text": "唱首歌吧。", "next": "song", "action": {"set_flag": "heard_song"}},
@@ -233,6 +238,11 @@ DIALOGUES = {
         "start": "welcome",
         "nodes": {
             "welcome": {
+                # v101.23c：q8_3 铁砧会议完成后不再喊"夺回矿洞"（矿洞剧情已翻篇）
+                "texts": [
+                    {"need": {"quest_done": "q8_3"},
+                     "text": "哈哈，老朋友来了！矿洞的事你功不可没，矮人们都记在心里呢。"},
+                ],
                 "text": "地精那群小崽子霸占了我们的矿洞！勇士，帮我们把矿洞夺回来，矮人的友谊和商店都给你！",
                 "options": [
                     {"text": "矿洞里情况怎么样？", "next": "situation"},
@@ -244,6 +254,11 @@ DIALOGUES = {
                 ],
             },
             "quest_talk": {
+                # v101.23c：接取台词按当前主线切换（长老不止矿洞一个任务）
+                "texts": [
+                    {"need": {"quest_pending": "q8_5"},
+                     "text": "托尔丁那小子急得跳脚——祖传的酒桶被偷了！那是矮人的传世之宝，帮我找回来！"},
+                ],
                 "text": "哼，总算有人愿意搭把手！矿洞的事，就交给你了。",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
