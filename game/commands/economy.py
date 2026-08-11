@@ -2212,8 +2212,10 @@ class EconomyCmds(CommandBase):
         # v95.4：新手武器（橡木系列 Lv.2-3）需求已从名册移除，旧存量装备快照仍带 req → 一并豁免
         if d.get("slot") == "weapon" and d.get("lv", 99) <= 3:
             return True, ""
-        # v95.7 #27：v93 商店装饰品（毛皮帽/橡木戒指/橡木项链）名册已去 req，旧存量快照仍带 → 豁免
-        if d.get("slot") in ("ring", "necklace", "helm") and d.get("lv", 99) <= 4:
+        # v95.7 #27：v93 商店装饰品（毛皮帽/橡木戒指/橡木项链）名册已去 req，
+        # 旧存量快照仍带 → 按装备名精确豁免（v101.21f 修复：原部位+等级一刀切
+        # 放过了所有低级戒指/项链/头盔的真需求，如附魔之戒 Lv.1 需求敏捷 5）
+        if d.get("name") in ("毛皮帽", "橡木戒指", "橡木项链"):
             return True, ""
         req = d.get("req")
         if not req:
