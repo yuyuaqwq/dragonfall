@@ -1455,12 +1455,20 @@ class Battle:
         stype = pdef.get("skill_type")
         pname = pet.get("name") or pdef["name"]
         sname = pdef["skill_name"]
-        if stype == "atk_pct":
+        line = C.pet_line(pdef["key"])  # v101.11 宠物战斗台词
+        if stype in ("atk_pct", "lifesteal", "pierce"):
             st = self._player_stats(player)
             est = self._enemy_stats()
             dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
-            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
+            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"({line})" if line else ""))
+            if stype == "lifesteal":
+                heal = max(1, int(dmg * 0.5))
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+                logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
+            elif stype == "pierce":
+                self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), 2)
+                logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 回合)")
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
@@ -1469,7 +1477,7 @@ class Battle:
             est = self._enemy_stats()
             dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
-            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！")
+            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"({line})" if line else ""))
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
@@ -1477,7 +1485,13 @@ class Battle:
             if player.get("hp", 0) < player.get("max_hp", 1):
                 heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！")
+                logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"({line})" if line else ""))
+        elif stype == "buff_atk":
+            self.p_buffs["atk_up"] = max(int(self.p_buffs.get("atk_up", 0) or 0), 2)
+            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +30%，2 回合)" + (f"（{line}）" if line else ""))
+        elif stype == "crit_up":
+            self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
+            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +20%，2 回合)" + (f"（{line}）" if line else ""))
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
