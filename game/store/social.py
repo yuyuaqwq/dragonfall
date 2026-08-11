@@ -194,11 +194,14 @@ def party_create(group_id, leader, member):
                 (group_id, leader, leader, int(time.time())),
             )
             if member != leader:
+                # 先清 member 的旧队伍行再插入，避免 UNIQUE(group_id, member) 冲突
+                # （修复 v95 组队 bug：原顺序 INSERT 先于 DELETE，目标成员在别的队时直接主键冲突）
+                conn.execute("DELETE FROM party WHERE group_id=? AND member=? AND leader!=?", (group_id, member, leader))
+                conn.execute("DELETE FROM party WHERE group_id=? AND leader=?", (group_id, member))
                 conn.execute(
                     "INSERT INTO party (group_id, leader, member, created_at) VALUES (?,?,?,?)",
                     (group_id, leader, member, int(time.time())),
                 )
-                conn.execute("DELETE FROM party WHERE group_id=? AND member=? AND leader!=?", (group_id, member, leader))
             conn.commit()
         finally:
             conn.close()
