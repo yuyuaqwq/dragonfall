@@ -174,7 +174,19 @@ class CombatCmds(CommandBase):
         hint = ""
         if not tag:
             if sa_elite:
-                hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{sa_elite[1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
+                # #242: 精英气息提示 10 分钟冷却——迷雾沼泽等地图此前连续 6 次探索全刷提示
+                _hint_key = f"elite_hint_{group_id}_{qq_id}"
+                _last_hint = 0
+                try:
+                    _last_hint = int(db.get_event_state(_hint_key) or 0)
+                except Exception:
+                    pass
+                if time.time() - _last_hint > 600:
+                    hint = f"\n💨 空气中有不寻常的气息……⭐ 此地精英【{sa_elite[1]}】似乎在附近徘徊，继续『探索』有机会遇到！"
+                    try:
+                        db.set_event_state(_hint_key, str(int(time.time())))
+                    except Exception:
+                        pass
             elif sa_boss:
                 hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{sa_boss[1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
@@ -452,7 +464,8 @@ class CombatCmds(CommandBase):
             dmg = int(player["max_hp"] * 0.10) + 5
             new_hp = max(1, player["hp"] - dmg)
             db.update_player(group_id, qq_id, hp=new_hp)
-            return (f"💥 【{pname}】你刚打开包裹，里面弹出一只发条咬人夹！\n"
+            # #256: 陷阱触发文案带先兆（包裹缝隙的寒光）——此前无任何提示直接扣血
+            return (f"💥 【{pname}】包裹的缝隙里隐约闪过一道金属寒光——你还没来得及缩手，一只发条咬人夹弹了出来！\n"
                     f"你被夹了一下，损失 {dmg} 生命(当前 ❤️ {new_hp}/{player['max_hp']})")
         # 符文石：图鉴/隐藏线索
         if eff == "rune":
@@ -1064,7 +1077,7 @@ class CombatCmds(CommandBase):
         pbuf = []
         for k, v in (b.p_buffs or {}).items():
             if v and v > 0 and k in self._P_BUFF_NAMES:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}×{v}")
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: ×N 是回合数，标注避免误读倍率
         # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
         stacks = (b.mech_stacks or {})
         for k, v in stacks.items():
@@ -1081,7 +1094,7 @@ class CombatCmds(CommandBase):
         ebuf = []
         for k, v in (b.e_buffs or {}).items():
             if v and v > 0 and k in self._E_BUFF_NAMES:
-                ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
+                ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: 同上，回合数标注
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")

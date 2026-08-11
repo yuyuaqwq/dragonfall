@@ -99,6 +99,7 @@ SHOP_WEAPONS = {
         ["猎弓", "bow", 2, "white"],
         ["学徒法杖", "staff", 2, "white"],
         ["橡木短棍", "mace", 2, "white"],
+        ["布拳套", "fist", 2, "white"],  # #236: 拳师武器链
     ],
     "maple_village": [
         ["铁剑", "sword", 2, "white"],
@@ -111,12 +112,14 @@ SHOP_WEAPONS = {
         ["猎鹿弓", "bow", 5, "blue"],
         ["学徒之杖", "staff", 5, "blue"],
         ["橡木短棍", "mace", 3, "white"],
+        ["皮革拳套", "fist", 6, "green"],  # #236: 拳师武器链
     ],
     # 南境·铁港系列（10 章 4.2：海盗/水手风）
     "ironharbor": [
         ["弯刀", "sword", 14, "blue"],
         ["水手短刃", "dagger", 12, "blue"],
         ["海风长弓", "bow", 16, "blue"],
+        ["铁指虎", "fist", 14, "blue"],  # #236: 拳师武器链
     ],
     "silver_brook": [
         ["弯刀", "sword", 14, "blue"],

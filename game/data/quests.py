@@ -911,7 +911,7 @@ SIDE_QUESTS = [
         "name": "考古学家的请求",
         "giver": "npc_guildmaster",
         "map": "ironharbor",
-        "desc": "探索山丘矿洞，取回古代石板碎片",
+        "desc": "深入山丘矿洞，调查古代石板遗迹",
         "objective": {"explore": "hill_mine"},
         "reward_exp": 600,
         "reward_gold": 300,

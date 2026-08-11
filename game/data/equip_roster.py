@@ -29,6 +29,8 @@ EQUIP_ROSTER = {
     "eq_mao_pi_mao":      {"name": "毛皮帽", "slot": "helm", "quality": "white", "lv": 3, "series": "橡木", "source": "商店"},
     "eq_xiang_mu_jie_zhi": {"name": "橡木戒指", "slot": "ring", "quality": "white", "lv": 4, "series": "橡木", "source": "商店"},
     "eq_xiang_mu_xiang_lian": {"name": "橡木项链", "slot": "necklace", "quality": "white", "lv": 4, "series": "橡木", "source": "商店"},
+    # #236: 拳师武器链——低等级拳套名册（力量型 req，商店可购）
+    "eq_bu_quan_tao":    {"name": "布拳套", "slot": "weapon", "weapon_type": "fist", "quality": "white", "lv": 2, "series": "橡木", "source": "商店"},
     # v93 商店装：白鹿绿装套（v95 去属性需求）
     "eq_bai_lu_pi_mao":   {"name": "白鹿皮帽", "slot": "helm", "quality": "green", "lv": 6, "series": "白鹿", "source": "商店"},
     "eq_bai_lu_xiong_jia": {"name": "白鹿胸甲", "slot": "armor", "quality": "green", "lv": 7, "series": "白鹿", "source": "商店"},
@@ -36,6 +38,7 @@ EQUIP_ROSTER = {
     "eq_bai_lu_pi_xue":   {"name": "白鹿皮靴", "slot": "boots", "quality": "green", "lv": 6, "series": "白鹿", "source": "商店"},
     "eq_bai_lu_zhi_jie":  {"name": "白鹿之戒", "slot": "ring", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
     "eq_bai_lu_diao_zhu": {"name": "白鹿吊坠", "slot": "necklace", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
+    "eq_pi_ge_quan_tao": {"name": "皮革拳套", "slot": "weapon", "weapon_type": "fist", "quality": "green", "lv": 6, "series": "白鹿", "req": {"str": 6}, "source": "商店"},  # #236: 拳师武器链
     # ================= 南境·铁港系列（Lv.12-28，海盗/水手风） =================
     "eq_wan_dao":         {"name": "弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 14, "series": "铁港", "req": {"agi": 12}, "source": "锻造"},
     "eq_shui_shou_duan_ren": {"name": "水手短刃", "slot": "weapon", "weapon_type": "dagger", "quality": "blue", "lv": 12, "series": "铁港", "req": {"agi": 10}, "source": "锻造"},
@@ -46,6 +49,7 @@ EQUIP_ROSTER = {
     "eq_shui_shou_hu_tui": {"name": "水手护腿", "slot": "legs", "quality": "blue", "lv": 14, "series": "铁港", "req": {"agi": 12}, "source": "锻造"},
     "eq_zhen_zhu_xiang_lian": {"name": "珍珠项链", "slot": "necklace", "quality": "purple", "lv": 18, "series": "铁港", "req": {"agi": 18}, "source": "图纸"},
     "eq_mao_xing_jie_zhi": {"name": "锚形戒指", "slot": "ring", "quality": "purple", "lv": 20, "series": "铁港", "req": {"str": 15, "agi": 15}, "source": "图纸"},
+    "eq_tie_zhi_hu":      {"name": "铁指虎", "slot": "weapon", "weapon_type": "fist", "quality": "blue", "lv": 14, "series": "铁港", "req": {"str": 12}, "source": "商店"},  # #236: 拳师武器链
     "eq_jin_gou_wan_dao": {"name": "金钩弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 26, "series": "铁港", "req": {"agi": 25}, "legendary": "gold_hook", "source": "boss"},
     "eq_jie_ke_jin_gou":  {"name": "杰克的金钩", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 28, "series": "铁港", "req": {"agi": 28}, "legendary": "jack_hook", "source": "legend"},
     # ================= 中域·圣光系列（Lv.25-55，王国/教会风） =================

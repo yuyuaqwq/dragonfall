@@ -884,6 +884,12 @@ class WorldCmds(CommandBase):
             show_funcs = [f for f in show_funcs if f != "商店"]
         if "heal" in funcs and not sa.get("healer"):
             show_funcs = [f for f in show_funcs if f != "住宿"]
+        # #232: lore 只在子区域有讲故事的 NPC 时显示——铁锚酒馆等无 lore NPC 的子区域
+        # "听故事"是空挂（吟游诗人·莎拉在港口广场，酒馆内无触发入口）
+        if "lore" in funcs and not any(
+            "lore" in (C.NPCS.get(nid, {}).get("funcs") or []) for nid in sa.get("npcs", [])
+        ):
+            show_funcs = [f for f in show_funcs if f != "听故事"]
         if show_funcs:
             lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『找 <NPC名>』等)")
         # v6：设施 + 场景（与『地图』面板一致）
