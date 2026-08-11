@@ -2877,6 +2877,19 @@ class EconomyCmds(CommandBase):
                 qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
+        # 找铁匠铺随机图纸（按名称）：『购买 神秘锻造图纸』→ bp:rand（序号分支 v94 已支持，名称分支补上）
+        if is_smith and item_name in ("神秘锻造图纸", "锻造图纸", "图纸", "神秘图纸"):
+            bp_price = int((max(1, player["level"]) * 3 + 20) * 3 * discount)
+            if player["gold"] < bp_price:
+                yield event.plain_result(f"金币不足！需要 {bp_price} 金币。")
+                return
+            db.update_player(group_id, qq_id, gold=player["gold"] - bp_price)
+            bp = C.roll_blueprint(max(1, player["level"]))
+            import uuid
+            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+            tip = "（商队集市 8 折！）" if discount < 1 else ""
+            yield event.plain_result(f"✅ 你买到一张【{bp['name']}】！{tip}")
+            return
         # 找补给品（按名称）
         for iid in shop_items:
             it = C.ITEMS[iid]
