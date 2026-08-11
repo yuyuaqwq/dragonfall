@@ -20,7 +20,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase
+from ..commands.base import CommandBase, require_player
 
 
 # ================= 物品详情渲染器（v101.6） =================
@@ -516,13 +516,11 @@ class EconomyCmds(CommandBase):
         return f"{head}{begin_text}{wait} 秒后完成，自动入包～", True
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?采集(?:\s*|$)")
+    @require_player()
 
     async def gather(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "gather", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -544,13 +542,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?挖掘(?:\s*|$)")
+    @require_player()
 
     async def mining(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "mining", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -587,13 +583,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$")
+    @require_player()
 
     async def alchemy(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "炼金").strip()
         page = int(raw) if raw.isdigit() else 1
         prof_lv = db.get_prof_level(group_id, qq_id, "alchemy")
@@ -618,13 +612,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?合成(?:\s*|$)")
+    @require_player()
 
     async def alchemy_craft(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "alchemy", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -700,14 +692,12 @@ class EconomyCmds(CommandBase):
                                  + (f"\n{_rule_txt}" if _rule_txt else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)")
+    @require_player()
 
     async def cooking_list(self, event: AstrMessageEvent):
         """烹饪配方列表(按烹饪等级解锁)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cook_lv = db.get_prof_level(group_id, qq_id, "cooking")
         lines = ["🍳 【烹饪灶台】料理配方：", "━━━━━━━━━━━━"]
         for i, (rkey, r) in enumerate(C.COOKING_RECIPES.items(), 1):
@@ -723,13 +713,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪(?:\s*|$)")
+    @require_player()
 
     async def cooking(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "cooking", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -825,13 +813,11 @@ class EconomyCmds(CommandBase):
         return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业({len(new_lst)}/{db.MAX_ACTIVE_PROFS})！"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副业(?:[\s\S]*)$")
+    @require_player()
 
     async def profession_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "副业").strip()
         if "排行" in raw:
             yield event.plain_result(self._prof_rank_text(group_id))
@@ -860,12 +846,10 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$")
+    @require_player()
     async def prof_forget(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "遗忘副业").strip()
         if not raw:
             yield event.plain_result("格式：遗忘副业 <名称>，如『遗忘副业 采集』(等级清零，请慎重！)")
@@ -939,13 +923,11 @@ class EconomyCmds(CommandBase):
         return False, ""
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副业任务(?:\s*|$)")
+    @require_player()
 
     async def daily_prof(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         tkey, name, need, gold, cnt, claimed = self._daily_prof_state(group_id, qq_id)
         mark = "✅" if claimed else f"({cnt}/{need})"
         lines = [
@@ -961,13 +943,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)")
+    @require_player()
 
     async def fishing(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "fishing", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -1014,6 +994,7 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?锻造(?:[\s\S]*)$")
+    @require_player()
 
     async def craft(self, event: AstrMessageEvent):
         """锻造装备：消耗材料 + 金币 → 获得指定装备（铁匠铺）
@@ -1021,9 +1002,6 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "锻造")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         ok, act_msg = self._prof_active_check(group_id, qq_id, "craft", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
@@ -1207,13 +1185,11 @@ class EconomyCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")
+    @require_player()
     async def craft_commission(self, event: AstrMessageEvent):
         """铁匠代工：图纸+材料＋3倍金币 → 装备(v67 单人补偿，不需要锻造副业等级)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not self._at_smith(player):
             yield event.plain_result("需要到铁匠铺/锻造坊才能找铁匠代工！(先『地图』移动到铁匠铺)")
             return
@@ -1277,14 +1253,12 @@ class EconomyCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?学习(?:[\s\S]*)$")
+    @require_player()
 
     async def learn(self, event: AstrMessageEvent):
         """『学习 <图纸名>』：消耗 1 张图纸，永久解锁对应套装配方(v54 图纸学习制)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         bp_name = self._strip_cmd(event, "学习").strip()
         if not bp_name:
             yield event.plain_result("格式：『学习 <图纸名>』，如『学习 铁皮图纸』！图纸由精英/Boss 掉落。")
@@ -1441,14 +1415,12 @@ class EconomyCmds(CommandBase):
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?配方(?:\s*|$)")
+    @require_player()
 
     async def recipe_list(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "配方")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         text = raw.strip()
         # 无参数：按职业分组列出全部配方
         if not text or text == "列表":
@@ -1470,14 +1442,12 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(self._recipe_detail(rec_name))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?强化(?:\s*|$)")
+    @require_player()
 
     async def enhance(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "强化")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not self._at_smith(player):
             yield event.plain_result("需要到铁匠铺/锻造坊才能强化装备！(先『地图』移动到铁匠铺)")
             return
@@ -1559,14 +1529,12 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(f"💥 强化失败！好在【{d['name']}】保住了等级(+{new_enh})。再试一次？")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?附魔(?:\s*|$)")
+    @require_player()
 
     async def enchant(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "附魔")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not self._at_smith(player):
             yield event.plain_result("需要到铁匠铺/锻造坊才能附魔装备！(先『地图』移动到铁匠铺)")
             return
@@ -1717,13 +1685,11 @@ class EconomyCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?套装(?:\s*|$)")
+    @require_player()
 
     async def set_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         equipment = player.get("equipment") or {}
         counts = {}
         for slot, item in equipment.items():
@@ -1776,13 +1742,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?图鉴(?:\s*|$)")
+    @require_player()
 
     async def bestiary(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "图鉴")
         page = self._parse_page(raw)
         rows = db.get_bestiary(group_id, qq_id)
@@ -1801,14 +1765,12 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?百科(?:\s*|$)")
+    @require_player()
 
     async def encyclopedia(self, event: AstrMessageEvent):
         """百科：查材料掉落来源 / 怪物分布 / 地图怪物(v33)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "百科").strip()
         if not raw:
             lines = [
@@ -1935,13 +1897,11 @@ class EconomyCmds(CommandBase):
         return False
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?称号(?:\s*|$)")
+    @require_player()
 
     async def titles(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "称号").strip()
         # 装备/卸下称号
         if raw.startswith("装备") or raw.startswith("佩戴"):
@@ -2036,25 +1996,21 @@ class EconomyCmds(CommandBase):
         return category, page
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:背包|物品)(?!详情|筛选)(?:\s*.*)?$")
+    @require_player()
 
     async def inventory(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "背包")
         result = self._bag_view(group_id, qq_id, raw)
         yield event.plain_result(result)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?背包筛选(?:[\s\S]*)$")
+    @require_player()
 
     async def bag_filter(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "背包筛选")
         result = self._bag_view(group_id, qq_id, raw, filter_only=True)
         yield event.plain_result(result)
@@ -2098,15 +2054,13 @@ class EconomyCmds(CommandBase):
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$")
+    @require_player()
 
     async def item_detail(self, event: AstrMessageEvent):
         """查看物品详细信息：装备属性/材料/消耗品/宠物蛋"""
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "物品详情")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         item_name = item_name.strip()
         if not item_name:
             yield event.plain_result("格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』")
@@ -2177,14 +2131,12 @@ class EconomyCmds(CommandBase):
         return eq
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
+    @require_player()
 
     async def equip(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "装备")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("战斗中不能更换装备！先解决眼前的敌人吧～")
             return
@@ -2270,15 +2222,13 @@ class EconomyCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?卸下(?:\s*|$)")
+    @require_player()
 
     async def unequip(self, event: AstrMessageEvent):
         """卸下装备回背包(v33)"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "卸下").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("战斗中不能更换装备！先解决眼前的敌人吧～")
             return
@@ -2332,14 +2282,12 @@ class EconomyCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?使用(?:\s*|$)")
+    @require_player()
 
     async def use(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "使用")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         item_name = item_name.strip()
         items = db.get_inventory(group_id, qq_id)
         target = None
@@ -2499,14 +2447,12 @@ class EconomyCmds(CommandBase):
         return (d["name"], it["count"], price * it["count"])
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出售(?:\s*|$)")
+    @require_player()
 
     async def sell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "出售")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         item_name = item_name.strip()
         items = db.get_inventory(group_id, qq_id)
         # 批量出售模式：『出售 全部』/『出售 材料』/『出售 装备』
@@ -2582,13 +2528,11 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(f"💰 你出售了 {name} ×{cnt}，获得 {gold} 金币！{tip}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?商店(?:\s*|$)")
+    @require_player()
 
     async def shop(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！商店老板把你轰了出来……（等红名消退再来）")
             return
@@ -2653,14 +2597,12 @@ class EconomyCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?购买(?:\s*|$)")
+    @require_player()
 
     async def buy(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "购买")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！商店老板不敢卖你东西……（等红名消退再来）")
             return

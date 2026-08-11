@@ -168,7 +168,7 @@ async def test_req():
     print("【5. 属性需求穿戴】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 测试")
+    await cmd(m, "register", "g1", "q1", "注册 战士 测试 男")
     # 造一件高需求装备（力量 50）
     eq = C.generate_roster_equip("eq_sheng_dian_zhan_chui")  # 圣殿战锤 req 力量 38
     db.add_item("g1", "q1", "eq_test", eq)
@@ -273,7 +273,7 @@ async def test_shop_roster():
     print("【7. 商店买武器名册化】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 测试")
+    await cmd(m, "register", "g1", "q1", "注册 战士 测试 男")
     db.update_player("g1", "q1", gold=10000, attributes='{"str": 40, "agi": 40, "int": 40, "vit": 40}')
     # 铁港买弯刀（名册 req 敏捷 12）——v87.17 需在商店子区域
     db.update_player("g1", "q1", cur_map="ironharbor", cur_subarea="ironharbor_6")

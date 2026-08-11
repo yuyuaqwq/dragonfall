@@ -50,7 +50,7 @@ def add_equip(gid, qid, name="铁剑"):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
 
     print("【v67 双副业：面板（v95.22 只显示已解锁）】")

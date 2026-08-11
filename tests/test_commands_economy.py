@@ -34,7 +34,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
+    await cmd(m, "register", "g1", "e1", "注册 战士 铁匠 男")
     db.update_player("g1", "e1", cur_map="oak_town", cur_subarea="oak_town_3", level=5, gold=1000)
 
     print("【背包：分类筛选】")

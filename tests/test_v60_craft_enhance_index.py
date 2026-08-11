@@ -31,7 +31,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "e1", "注册 战士 铁匠")
+    await cmd(m, "register", "g1", "e1", "注册 战士 铁匠 男")
     # v95 起副业需拜师解锁；老测试直接模拟已激活（老玩家场景）
     db.activate_prof("g1", "e1", "craft")
     db.activate_prof("g1", "e1", "enhance")

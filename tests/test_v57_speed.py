@@ -102,8 +102,8 @@ async def main():
         handler = getattr(m, handler_name)
         results = await run(handler, ev)
         return results[-1] if results else ""
-    await cmd(m, "register", "g1", "i1", "注册 战士 慢速")
-    await cmd(m, "register", "g1", "i2", "注册 游侠 高速")
+    await cmd(m, "register", "g1", "i1", "注册 战士 慢速 男")
+    await cmd(m, "register", "g1", "i2", "注册 游侠 高速 男")
     db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
     await cmd(m, "party", "g1", "i1", "组队 高速")

@@ -33,7 +33,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=10, gold=200000, cur_map="oak_town")
     # 给足材料（石材×20 / 精铁×10 / 秘银×5）
     db.add_item("g1", "w1", "mat_shi_cai", {"name": "石材", "type": "材料", "stackable": True}, 20)
@@ -85,7 +85,7 @@ async def main():
         out = await cmd(m, "home_storage", "g1", "w1", f"仓库 样品{i}")
     check("Lv.4 仓库可存 10 件", "10/160" in out or "已存入" in out, out[:200])
     # 新玩家 Lv.1 仓库满 20 拦截
-    await cmd(m, "register", "g1", "w2", "注册 法师 米娅")
+    await cmd(m, "register", "g1", "w2", "注册 法师 米娅 男")
     db.update_player("g1", "w2", level=5, gold=50000, cur_map="oak_town")
     await cmd(m, "deed_buy", "g1", "w2", "买房 1")
     await cmd(m, "go_home", "g1", "w2", "回家")

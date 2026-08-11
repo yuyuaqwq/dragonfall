@@ -44,7 +44,7 @@ async def main():
     gf = _GameCmdFilter()
     check("『探索』命中游戏指令", gf.filter(FakeEvent("g1", "w1", "探索"), None) is True)
     check("『地图』命中", gf.filter(FakeEvent("g1", "w1", "地图"), None) is True)
-    check("『注册 战士 xx』命中", gf.filter(FakeEvent("g1", "w1", "注册 战士 小明"), None) is True)
+    check("『注册 战士 xx』命中", gf.filter(FakeEvent("g1", "w1", "注册 战士 小明 男"), None) is True)
     check("日常聊天不命中", gf.filter(FakeEvent("g1", "w1", "今天天气不错啊"), None) is False)
     check("带At前缀命中", gf.filter(FakeEvent("g1", "w1", "[At:123] 探索"), None) is True)
 
@@ -95,7 +95,7 @@ async def main():
     check("开服后非 GM 放行", len(results) == 0 and not getattr(ev, "_stopped", False), str(results))
 
     print("【4. 玩家查询】")
-    await cmd(m, "register", "g1", "w1", "注册 战士 测试员")
+    await cmd(m, "register", "g1", "w1", "注册 战士 测试员 男")
     db.update_player("g1", "w1", level=5, gold=300, cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "gm_query", "g1", "1454832774", "gm_查询 w1")
     check("按 QQ 查详情", "测试员" in out and "Lv.5" in out and "300" in out, out[:300])

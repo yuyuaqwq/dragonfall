@@ -49,7 +49,7 @@ async def main():
     check("余烬行者徽章 收藏品", consum["i_mem_emberwalker"]["type"] == "收藏品", "")
 
     # ---- 4. 新道具实际使用（战斗外）----
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", cur_map="oak_plain", level=5, gold=999999)
     p = db.get_player("g1", "w1")
     db.update_player("g1", "w1", hp=int(p["max_hp"] * 0.5), mp=int(p["max_mp"] * 0.5))

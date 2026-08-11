@@ -31,7 +31,9 @@ for _p in glob.glob(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath
     with open(_p, encoding="utf-8") as _f:
         SRC_ALL.append(_f.read())
 src = "\n".join(SRC_ALL)
-handler_pat = re.compile(r'@filter\.regex\(r"([^"]+)"\)\s*\n\s*async def (\w+)')
+# v95.26：@filter.regex 与 async def 之间可能有多层业务装饰器（@require_player()/@no_prof_waiting()）；
+# 必须 4 空格缩进（方法级），排除 base.py docstring 里的 8 空格用法示例
+handler_pat = re.compile(r'^    @filter\.regex\(r"([^"]+)"\)(?:\s*\n\s*@[A-Za-z_]\w*(?:\([^)]*\))?)*\s*\n\s*async def (\w+)', re.M)
 handlers = [(m.group(1), m.group(2)) for m in handler_pat.finditer(src)]
 comps = [re.compile(p) for p, _ in handlers]
 CMD_PREFIX = r"^(?:\[At:\d+\]\s*)?"
@@ -120,7 +122,7 @@ async def main():
     from conftest import db as _db, Main as _Main
     _db.init_db()
     m = _Main(None)
-    ev = FakeEvent("g1", "m1", "注册 战士 移动者")
+    ev = FakeEvent("g1", "m1", "注册 战士 移动者 男")
     await run(m.register, ev)
     _db.update_player("g1", "m1", cur_map="oak_town")
     ev = FakeEvent("g1", "m1", "前往 2")

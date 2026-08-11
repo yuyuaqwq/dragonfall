@@ -18,7 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase, no_prof_waiting
+from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）
 _OBJ_PROGRESS_LINES = {
@@ -164,12 +164,10 @@ class WorldCmds(CommandBase):
         return f"home_{qq_id}"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?地契(?:[\s\S]*)$")
+    @require_player()
     async def deed_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v84 『地契 升级』→ 房屋升级
         raw_arg = self._strip_cmd(event, "地契").strip()
         if raw_arg.startswith("升级"):
@@ -201,12 +199,10 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$")
+    @require_player()
     async def deed_buy(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if player.get("deed"):
             yield event.plain_result("你已经有一张地契了！『地契』查看，『卖房』可以退契～")
             return
@@ -231,12 +227,10 @@ class WorldCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?卖房(?:[\s\S]*)$")
+    @require_player()
     async def deed_sell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         deed = player.get("deed", "") or ""
         if not deed or deed not in C.PROPERTIES:
             yield event.plain_result("你没有房产，卖不了～『地契』看看在售地皮！")
@@ -294,13 +288,11 @@ class WorldCmds(CommandBase):
             + (f"\n💡 满级宅邸解锁专属传送点(『回家』可直达)" if dlv + 1 >= C.HOUSE_MAX_LEVEL else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?回家(?:[\s\S]*)$")
+    @require_player()
     @no_prof_waiting()
     async def go_home(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not (player.get("deed") or ""):
             yield event.plain_result("你没有房产！『地契』看看在售地皮，『买房 <编号>』置业～")
             return
@@ -319,13 +311,11 @@ class WorldCmds(CommandBase):
             f"💚 恢复至 {new_hp}/{player.get('max_hp', 1)} HP ｜ 💙 {new_mp}/{player.get('max_mp', 1)} MP")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?出门(?:[\s\S]*)$")
+    @require_player()
     @no_prof_waiting()
     async def go_out(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = player.get("cur_map", "")
         if not cur.startswith("home_"):
             yield event.plain_result("你不在家里，不需要出门～")
@@ -340,13 +330,11 @@ class WorldCmds(CommandBase):
         yield event.plain_result(f"🚪 你走出家门，回到了{C.MAP_BY_ID.get(target, {}).get('name', '城镇')}。")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?拜访(?:[\s\S]*)$")
+    @require_player()
     @no_prof_waiting()
     async def visit_home(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "拜访").strip()
         if not raw:
             yield event.plain_result("格式：拜访 <玩家名>，去他家逛逛～(对方需要有房产)")
@@ -383,12 +371,10 @@ class WorldCmds(CommandBase):
         db.set_event_state(self._home_storage_key(group_id, qq_id), json.dumps(lst, ensure_ascii=False))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?仓库(?:[\s\S]*)$")
+    @require_player()
     async def home_storage(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not player.get("cur_map", "").startswith("home_"):
             yield event.plain_result("仓库在家里！先『回家』吧～")
             return
@@ -425,12 +411,10 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?取出(?:[\s\S]*)$")
+    @require_player()
     async def home_storage_take(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not player.get("cur_map", "").startswith("home_"):
             yield event.plain_result("仓库在家里！先『回家』吧～")
             return
@@ -449,13 +433,11 @@ class WorldCmds(CommandBase):
         yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置|周围)(?:\s*|$)")
+    @require_player()
 
     async def map_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = player["cur_map"]
         # v68 家地图：home_{qq_id} 不在 MAPS，定制展示
         if cur.startswith("home_"):
@@ -621,15 +603,13 @@ class WorldCmds(CommandBase):
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def move(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         dest = self._strip_cmd(event, "前往")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v87.13 对话中禁止移动：多轮对话进行时先『对话 0』结束
         if db.get_talk_state(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
@@ -980,6 +960,7 @@ class WorldCmds(CommandBase):
         return C.build_monster(random.choice(monsters), target_map)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def move_back(self, event: AstrMessageEvent):
@@ -988,9 +969,6 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         dest = self._strip_cmd(event, "返回").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if db.get_talk_state(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
             return
@@ -1045,13 +1023,11 @@ class WorldCmds(CommandBase):
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
+    @require_player()
 
     async def portal_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         portals = db.get_portals(qq_id)
         cur = player["cur_map"]
         lines = ["🌌 【旅者方碑】", "━━━━━━━━━━━━"]
@@ -1081,13 +1057,11 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:激活祭坛|激活)(?:\s*|$)")
+    @require_player()
 
     async def portal_activate(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = player["cur_map"]
         if cur not in C.PORTALS:
             yield event.plain_result("这里没有方碑……寻找大陆上古道上刻着符文的古老路标吧！")
@@ -1116,15 +1090,13 @@ class WorldCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?传送(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def portal_travel(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         dest = self._strip_cmd(event, "传送").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not dest:
             yield event.plain_result("传送到哪？『方碑』查看已激活方碑，『传送 <序号/名称>』直达～")
             return
@@ -1240,13 +1212,11 @@ class WorldCmds(CommandBase):
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:任务|主线)(?:\s*|$)")
+    @require_player()
 
     async def quest_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！守卫不让你靠近任务板……(等红名消退再来)")
             return
@@ -1338,15 +1308,13 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?接取(?:\s*|$)")
+    @require_player()
 
     async def quest_accept(self, event: AstrMessageEvent):
         """v95.7 #38：『接取任务』/『接取 <任务名>』——当前地图有发布 NPC 时直接接取，否则提示位置"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "接取").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         quests = db.get_quests(group_id, qq_id)
         # 主线（pending 可接）
         main_id = quests.get("main_quest")
@@ -1435,13 +1403,11 @@ class WorldCmds(CommandBase):
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?:\s*|$)")
+    @require_player()
 
     async def daily(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！悬赏板上的任务都被守卫收走了……(等红名消退再来)")
             return
@@ -1785,13 +1751,11 @@ class WorldCmds(CommandBase):
         return "，".join(labels) if labels else "随时可能出现"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?时间(?:指令)?(?:\s*|$)")
+    @require_player()
 
     async def time_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = player["cur_map"]
         summary = C.time_weather_summary(cur)
         cur_map = C.MAP_BY_ID.get(cur, {})
@@ -1811,13 +1775,11 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?见闻录(?:\s*|$)")
+    @require_player()
 
     async def wild_notes(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         met = C.met_wild(group_id, qq_id)
         if not met:
             yield event.plain_result(
@@ -1837,14 +1799,12 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?找(?:\s*|$)")
+    @require_player()
 
     async def find_npc(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         name_key = self._strip_cmd(event, "找")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！城里的 NPC 都躲着你走……(等红名消退再来)")
             return
@@ -1966,6 +1926,7 @@ class WorldCmds(CommandBase):
     # ---------------- v87.9 场景元素交互 ----------------
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?交互(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def interact_prop(self, event: AstrMessageEvent):
@@ -1973,9 +1934,6 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         name_key = self._strip_cmd(event, "交互").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！城里的元素都绕着你走……(等红名消退再来)")
             return
@@ -2362,12 +2320,10 @@ class WorldCmds(CommandBase):
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
+    @require_player()
     async def talk_choice(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         st = db.get_talk_state(group_id, qq_id)
         if not st:
             yield event.plain_result("你现在没有正在进行的对话。输入『找 <NPC名>』开始交谈～")
@@ -2515,13 +2471,11 @@ class WorldCmds(CommandBase):
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?交付任务(?:\s*|$)")
+    @require_player()
 
     async def turn_in(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         quests = db.get_quests(group_id, qq_id)
         # 主线可交
         main_id = quests.get("main_quest")
@@ -2655,13 +2609,11 @@ class WorldCmds(CommandBase):
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?休息(?:\s*|$)")
+    @require_player()
 
     async def rest_camp(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur_map = C.MAP_BY_ID.get(player["cur_map"], {})
         mid = cur_map.get("id", "")
         if mid not in C.CAMP_SPOTS:
@@ -2708,13 +2660,11 @@ class WorldCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?住宿(?:\s*|$)")
+    @require_player()
 
     async def rest(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！旅店老板不敢收留你……(等红名消退再来)")
             return
@@ -2750,13 +2700,11 @@ class WorldCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?声望(?:\s*|$)")
+    @require_player()
 
     async def reputation(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         rep = db.get_reputation(group_id, qq_id)
         lines = ["🏛️ 【六大势力 · 声望】", "━━━━━━━━━━━━"]
         for i, fid in enumerate(C.FACTION_ORDER, 1):
@@ -2769,13 +2717,11 @@ class WorldCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")
+    @require_player()
 
     async def chronicle(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         c = random.choice(C.CHRONICLES)
         yield event.plain_result(
             f"📖 【{c['title']}】\n"

@@ -178,9 +178,9 @@ async def main():
     print("【PVP：安全区/等级保护/红名】")
     m = Main(None)
     # 注册两个玩家
-    ev = FakeEvent("g1", "1001", "注册 战士 甲")
+    ev = FakeEvent("g1", "1001", "注册 战士 甲 男")
     await run(m.register, ev)
-    ev = FakeEvent("g1", "1002", "注册 法师 乙")
+    ev = FakeEvent("g1", "1002", "注册 法师 乙 男")
     await run(m.register, ev)
     # 城镇安全区禁止 PK
     ev = FakeEvent("g1", "1001", "攻击 1002")

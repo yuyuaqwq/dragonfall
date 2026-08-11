@@ -36,7 +36,7 @@ async def main():
     m = Main(None)
 
     print("【1. 新格式注册 → 见习冒险者】")
-    out = await cmd(m, "register", "g1", "w1", "注册 新手甲 精灵")
+    out = await cmd(m, "register", "g1", "w1", "注册 新手甲 精灵 男")
     check("注册成功", "欢迎来到奥兰迪亚大陆" in out, out[:200])
     check("职业为见习", "见习冒险者" in out, out[:200])
     p = db.get_player("g1", "w1")
@@ -50,7 +50,7 @@ async def main():
     check("见习无法学技能", "见习冒险者还没有职业技能" in out, out[:200])
 
     print("【3. 旧格式注册兼容】")
-    out = await cmd(m, "register", "g2", "w2", "注册 法师 旧人")
+    out = await cmd(m, "register", "g2", "w2", "注册 法师 旧人 男")
     check("旧格式仍可注册职业", "职业：🔮 法师" in out or "法师" in out, out[:200])
     p2 = db.get_player("g2", "w2")
     check("旧格式职业=cls_fa_shi", p2["class_name"] == "cls_fa_shi", p2.get("class_name", ""))
@@ -126,7 +126,7 @@ async def main():
     check("evolve_path=1(进攻)", p.get("evolve_path") == 1, str(p.get("evolve_path")))
 
     print("【11. 见习不可直接学其他职业技能（回归）】")
-    await cmd(m, "register", "g3", "w3", "注册 见习二号")
+    await cmd(m, "register", "g3", "w3", "注册 见习二号 男")
     p3 = db.get_player("g3", "w3")
     check("第三个号也是见习", p3["class_name"] == "cls_novice", p3.get("class_name", ""))
 

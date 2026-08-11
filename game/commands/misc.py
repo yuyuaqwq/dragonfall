@@ -18,7 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase
+from ..commands.base import CommandBase, require_player
 
 
 class MiscCmds(CommandBase):
@@ -52,7 +52,7 @@ class MiscCmds(CommandBase):
 
     CMD_HELP_CHAR = """⚔️ 【角色】指令
 ━━━━━━━━━━━━
-『注册 <职业> <名字>』 创建角色（可选 -r 种族）
+『注册 <名字> <性别> [种族]』 创建角色（性别必选；职业去行会就职）
 『角色』 角色面板（等级/属性/装备/位置）
 『属性』 属性明细（基础+加成来源）
 『加点 <属性> [次数]』 分配属性点
@@ -200,14 +200,12 @@ class MiscCmds(CommandBase):
             )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?签到(?:\s*|$)")
+    @require_player()
 
     async def signin(self, event: AstrMessageEvent):
         import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         today = datetime.date.today().isoformat()
         si = db.get_signin(group_id, qq_id)
         if si.get("last_date") == today:
@@ -265,13 +263,11 @@ class MiscCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?成就(?:\s*|$)")
+    @require_player()
 
     async def achievements(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "成就").strip()
         try:
             rows = db.get_achievements(qq_id)

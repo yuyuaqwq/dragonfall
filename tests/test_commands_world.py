@@ -35,7 +35,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
 
     print("【地图：地图列表】")
@@ -137,7 +137,7 @@ async def main():
     print("【v95.20 #103：指名接取进行中主线 → 明确提示而非支线列表】")
     clean_db()
     m2 = Main(None)
-    await cmd(m2, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m2, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=5, gold=1000, cur_map="oak_town")
     # 找到第一环主线（pending）并推进到进行中（active）
     mq0 = C.MAIN_QUESTS[0]
@@ -152,7 +152,7 @@ async def main():
     print("【v95.13 #126：kill_any 支线计数（护送商货）】")
     clean_db()
     m3 = Main(None)
-    await cmd(m3, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m3, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=10, gold=1000, cur_map="silver_wind_road")
     qs = db.get_quests("g1", "w1")
     qs["side"] = {"s_caravan_escort": {"status": "active", "progress": {}}}

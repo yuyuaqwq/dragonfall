@@ -17,19 +17,17 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase
+from ..commands.base import CommandBase, require_player
 
 
 class SocialCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?市场(?:\s*|$)")
+    @require_player()
 
     async def market(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         items = db.market_list(group_id)
         if not items:
             yield event.plain_result("🏪 市场空空如也。『上架 <物品> <价格>』寄售你的宝贝！")
@@ -50,13 +48,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?上架(?:\s*|$)")
+    @require_player()
 
     async def market_sell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "上架").rsplit(None, 1)
         if len(args) < 2 or not args[1].isdigit():
             yield event.plain_result("格式：上架 <物品名> <价格>，如『上架 铁剑 500』")
@@ -78,13 +74,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"📦 已上架【{data['name']}】，定价 {price} 金币！\n『市场』查看，『下架 <编号>』撤回")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?下架(?:\s*|$)")
+    @require_player()
 
     async def market_unsell(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "下架").split()
         if not args or not args[0].isdigit():
             yield event.plain_result("格式：下架 <编号>，『市场』查看编号")
@@ -103,13 +97,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"↩️ 已下架【{it['item_data'].get('name','?')}】，物品退回背包")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?购入(?:\s*|$)")
+    @require_player()
 
     async def market_buy(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "购入").split()
         if not args or not args[0].isdigit():
             yield event.plain_result("格式：购入 <编号>，『市场』查看编号")
@@ -148,12 +140,10 @@ class SocialCmds(CommandBase):
     # ---------------- v66 摆摊系统 ----------------
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?摆摊(?:[\s\S]*)$")
+    @require_player()
     async def stall(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "摆摊").rsplit(None, 1)
         if len(args) == 1:
             item_name, price = args[0], 0  # 不带价格 = 以物换物
@@ -197,12 +187,10 @@ class SocialCmds(CommandBase):
         yield event.plain_result(head + tail)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?收摊(?:[\s\S]*)$")
+    @require_player()
     async def stall_close(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         removed = db.market_remove_by_seller(group_id, qq_id)
         if not removed:
             yield event.plain_result("你现在没有摊位。『摆摊 <物品> <价格>』支起摊位～")
@@ -219,12 +207,10 @@ class SocialCmds(CommandBase):
         return f"{price} 金币" if price > 0 else "🔄 换"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?摊位(?:[\s\S]*)$")
+    @require_player()
     async def stall_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "摊位").strip()
         # 指定玩家 → 看他的摊位
         if raw:
@@ -262,13 +248,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?换(?:[\s\S]*)$")
+    @require_player()
     async def stall_exchange(self, event: AstrMessageEvent):
         """以物换物：『换 <摊位编号> <物品名>』——对方摆摊不带价格(换摊)时，用背包物品当面交换"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "换").split(None, 1)
         if len(args) < 2 or not args[0].isdigit():
             yield event.plain_result("格式：换 <摊位编号> <物品名>，如『换 3 狼皮』(对方摆摊不带价格 = 换摊)")
@@ -312,13 +296,11 @@ class SocialCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)")
+    @require_player()
 
     async def party(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         target = self._strip_cmd(event, "组队").strip()
         if target == "队伍":
             target = ""
@@ -372,27 +354,23 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")
+    @require_player()
 
     async def party_leave(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if db.party_leave(group_id, qq_id):
             yield event.plain_result("👋 你已退出队伍！(队长退队将解散队伍)")
         else:
             yield event.plain_result("你还没有队伍～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?创建公会(?:\s*|$)")
+    @require_player()
 
     async def guild_create_cmd(self, event: AstrMessageEvent):
         import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         name = self._strip_cmd(event, "创建公会").strip()[:10]
         if not name:
             yield event.plain_result("格式：创建公会 <名字>，如『创建公会 屠龙勇士』")
@@ -419,13 +397,11 @@ class SocialCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)")
+    @require_player()
 
     async def guild_join_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         name = self._strip_cmd(event, "加入公会").strip()
         if not name:
             yield event.plain_result("格式：加入公会 <公会名>，如『加入公会 屠龙勇士』")
@@ -441,13 +417,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n💡 『公会』查看信息，『公会签到』每日报到！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)")
+    @require_player()
 
     async def guild_leave_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你不在任何公会里～")
@@ -459,13 +433,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"👋 你已退出公会【{g['name']}】。江湖再见！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?解散公会(?:\s*|$)")
+    @require_player()
 
     async def guild_disband_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         g = db.guild_get_by_leader(qq_id)
         if not g:
             yield event.plain_result("只有会长才能解散公会！")
@@ -474,13 +446,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|排行|创建|加入|退出|解散)(?:\s*|$)")
+    @require_player()
 
     async def guild_info(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！『创建公会 <名字>』(20级＋5000金币)或『加入公会 <名字>』")
@@ -512,14 +482,12 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)")
+    @require_player()
 
     async def guild_sign(self, event: AstrMessageEvent):
         import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
@@ -539,14 +507,12 @@ class SocialCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会任务(?:\s*|$)")
+    @require_player()
 
     async def guild_task(self, event: AstrMessageEvent):
         import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         g = db.guild_get_by_member(qq_id)
         if not g:
             yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
@@ -577,13 +543,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物(?!改名)(?:\s*|$)")
+    @require_player()
 
     async def pet_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         pet = db.pet_get(qq_id)
         # 饱食度自然衰减（每小时 -1）先结算再展示
         pet = db.pet_decay_satiety(pet)
@@ -620,13 +584,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物改名(?:\s*|$)")
+    @require_player()
 
     async def pet_rename(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         pet = db.pet_get(qq_id)
         if not pet:
             yield event.plain_result("你还没有宠物！")
@@ -639,13 +601,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🐾 你的宠物改名为【{new_name}】！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?喂养(?:\s*|$)")
+    @require_player()
 
     async def pet_feed(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         pet = db.pet_get(qq_id)
         # 饱食度自然衰减先结算
         pet = db.pet_decay_satiety(pet)
@@ -691,13 +651,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🍖 你喂了【{pet['name']}】一份{target['data']['name']}！\n😋 饱食度 +30 ｜ 💕 亲密度 +5 ｜ ✨ 经验 +10{lv_str}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?放生(?:\s*|$)")
+    @require_player()
 
     async def pet_release(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         pet = db.pet_get(qq_id)
         if not pet:
             yield event.plain_result("你还没有宠物～")
@@ -707,13 +665,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result(f"🕊️ 你放生了【{pet['name']}】……它会记得你的。\n📖 图鉴记录已保留，之后还有机会遇到它！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:坐骑|骑乘|下马)(?:\s*|$)")
+    @require_player()
 
     async def mount_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "骑乘") if event.get_message_str().startswith(("骑乘", "[At:")) else ""
         cmd = event.get_message_str().strip()
         # 下马
@@ -806,13 +762,11 @@ class SocialCmds(CommandBase):
         return f"\n🌍 【世界事件】{evt['icon']} {evt['name']}！\n{evt['desc']}"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?事件(?:\s*|$)")
+    @require_player()
 
     async def world_event(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         notice = self._maybe_roll_event()
         # 新事件刚触发 → 广播到所有注册群（当前群已通过 yield 看到）
         if notice.strip():
@@ -843,13 +797,11 @@ class SocialCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?拍卖(?:\s*|$)")
+    @require_player()
 
     async def auction(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = db.get_world_event()
         now = int(time.time())
         if not cur:
@@ -917,13 +869,11 @@ class SocialCmds(CommandBase):
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?竞拍(?:\s*|$)")
+    @require_player()
 
     async def bid(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "竞拍").split()
         cur = db.get_world_event()
         now = int(time.time())

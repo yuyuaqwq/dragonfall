@@ -34,7 +34,7 @@ async def main():
     m = Main(None)
     clean_db()
     print("【commands 层：注册→角色→探索→攻击 全链路】")
-    out = await cmd(m, "register", "g1", "q1", "注册 战士 格温")
+    out = await cmd(m, "register", "g1", "q1", "注册 战士 格温 男")
     check("注册成功", "注册成功" in out or "战士" in out, out[:80])
     out = await cmd(m, "profile", "g1", "q1", "角色")
     check("角色显示", "格温" in out and "战士" in out, out[:80])

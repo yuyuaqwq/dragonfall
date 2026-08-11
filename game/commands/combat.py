@@ -18,7 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase, no_prof_waiting
+from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
@@ -27,14 +27,12 @@ _battle_locks = set()
 class CombatCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?探索(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def explore(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v87.2 副本地图化：副本地图模式（mode=map）→ 副本内探索
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row and inst_row["state"].get("mode") == "map":
@@ -276,14 +274,12 @@ class CombatCmds(CommandBase):
         return None
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?许愿(?:[\s\S]*)$")
+    @require_player()
 
     async def wish(self, event: AstrMessageEvent):
         """流星许愿(02 章 7.5 探索彩蛋)：三选一祝福"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         import json as _json, time as _time
         raw = db.get_event_state(f"wish_{group_id}_{qq_id}")
         if not raw:
@@ -603,13 +599,11 @@ class CombatCmds(CommandBase):
         return f"你检查了{pname}，没发现特别之处。"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)")
+    @require_player()
 
     async def attack(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # 带参 → PVP 发起（『攻击 @QQ』『攻击 QQ』『攻击 名字』）
         target_arg = self._strip_cmd(event, "攻击").strip()
         if target_arg:
@@ -675,14 +669,12 @@ class CombatCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能(?!详情|学习|升级|洗点|栏)(?:[\s\S]*)$")
+    @require_player()
 
     async def skill(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v52 Build 懒迁移：技能栏全空的老玩家，自动把已学技能装进前几格
         bar = db.get_skill_bar(qq_id)
         if not any(bar or []):
@@ -947,13 +939,11 @@ class CombatCmds(CommandBase):
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?防御(?:\s*|$)")
+    @require_player()
 
     async def defend(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         battle = db.get_battle(group_id, qq_id)
         if not battle:
             inst_row = self._instance_battle_for(group_id, qq_id)
@@ -993,13 +983,11 @@ class CombatCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?逃跑(?:\s*|$)")
+    @require_player()
 
     async def flee(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         battle = db.get_battle(group_id, qq_id)
         if not battle:
             inst_row = self._instance_battle_for(group_id, qq_id)
@@ -1570,14 +1558,12 @@ class CombatCmds(CommandBase):
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?讨伐(?:\s*|$)")
+    @require_player()
     @no_prof_waiting()
 
     async def hunt_boss(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cur = db.get_world_event()
         now = int(time.time())
         if not cur:
@@ -1791,13 +1777,11 @@ class CombatCmds(CommandBase):
     # ---------------- v84 荣誉商店（26 章 3.3；v99.4 数据化 → data/honor_shop.py） ----------------
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?荣誉(?:[\s\S]*)$")
+    @require_player()
     async def honor_shop(self, event: AstrMessageEvent):
         """荣誉商店：『荣誉』查看，『荣誉 兑换 <编号>』兑换"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "荣誉").strip()
         if raw.startswith("兑换"):
             num = raw[2:].strip()

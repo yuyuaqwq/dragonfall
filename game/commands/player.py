@@ -17,20 +17,18 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase
+from ..commands.base import CommandBase, require_player
 
 
 class PlayerCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$")
+    @require_player()
 
     async def shortcut(self, event: AstrMessageEvent):
         """快捷指令：绑定数字一键执行常用指令(如『快捷绑定 1 探索』，之后发『1』=探索)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("❌ 还没注册角色哦，先发『注册 <名字> <职业>』～")
-            return
         shortcuts = player.get("shortcuts") or {}
         args = self._strip_cmd(event, "快捷").strip()
         # 子命令：绑定/列表/删除/清除
@@ -154,9 +152,10 @@ class PlayerCmds(CommandBase):
                 f"💡 世界深处藏着它的线索(隐藏成就/隐藏区域)。可选职业：{avail}"
             )
             return
-        # v95.24 性别系统：注册可选性别（男/女），与种族一起从剩余参数中解析。
-        #   旧格式 注册 <职业> <名字> [种族] [性别]；新格式 注册 <名字> [种族] [性别]。
-        #   种族与性别可任意顺序、可省略（默认人类 + 未设置），如『注册 格温 精灵 女』『注册 格温 女』。
+        # v95.24 性别系统：注册必选性别（男/女），种族从剩余参数中解析。
+        #   旧格式 注册 <职业> <名字> [种族] <性别>；新格式 注册 <名字> <性别> [种族]。
+        #   种族与性别可任意顺序，种族可省略（默认人类），性别必选（v95.26 强制），
+        #   如『注册 格温 女 精灵』『注册 格温 女』『注册 战士 勇者 男』。
         GENDER_MAP = {"男": "male", "male": "male", "♂": "male", "m": "male",
                       "女": "female", "female": "female", "♀": "female", "f": "female"}
         race_id = "human"
@@ -185,12 +184,18 @@ class PlayerCmds(CommandBase):
             races_avail = "、".join(ri.get("name", rid) for rid, ri in C.RACES.items())
             yield event.plain_result(
                 f"未知种族或性别『{tok}』！可选种族：{races_avail}，性别：男/女\n"
-                f"格式：注册 <名字> [种族] [性别]，如『注册 格温 精灵 女』"
+                f"格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』"
             )
             return
         name = name.strip()[:12]
         if not name:
-            yield event.plain_result("名字不能为空！格式：注册 <名字> [种族]，如『注册 格温 精灵』")
+            yield event.plain_result("名字不能为空！格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』")
+            return
+        # v95.26 性别强制：注册必须选性别（男/女），无性别直接拒
+        if not gender_id:
+            yield event.plain_result(
+                "请选择性别！格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』（男/女）"
+            )
             return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
@@ -262,13 +267,11 @@ class PlayerCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:角色|我的角色)(?:\s*|$)")
+    @require_player()
 
     async def profile(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cls = C.CLASSES[player["class_name"]]
         # v55.2：属性也统一「总值(+加成)」格式，每项单独一行（与『属性』面板一致）
         st, sources = E.player_stats_detail(
@@ -348,7 +351,7 @@ class PlayerCmds(CommandBase):
             return
         tops = db.top_players(group_id, 10)
         if not tops:
-            yield event.plain_result("还没有人注册角色，快来当第一名！『注册 战士 名字』")
+            yield event.plain_result("还没有人注册角色，快来当第一名！『注册 <名字> <性别>』")
             return
         lines = ["🏆 【奥兰迪亚强者榜】 🏆", "━━━━━━━━━━━━"]
         medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
@@ -362,7 +365,7 @@ class PlayerCmds(CommandBase):
 
     async def races(self, event: AstrMessageEvent):
         """阶段九：种族一览(08 章，注册前查看 6 族天赋)"""
-        lines = ["🧬 【种族】6 大种族各有取舍(注册时选择：注册 <职业> <名字> <种族>)", "━━━━━━━━━━━━"]
+        lines = ["🧬 【种族】6 大种族各有取舍(注册时选择：注册 <名字> <性别> <种族>)", "━━━━━━━━━━━━"]
         for rid, r in C.RACES.items():
             t = r["talents"]
             tnames = r.get("talent_names", {})
@@ -380,13 +383,11 @@ class PlayerCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?:\s*|$)")
+    @require_player()
 
     async def evolve(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v83 22 章：隐藏职业·吟游诗人（『转职 吟游诗人』）
         _raw0 = self._strip_cmd(event, "转职").strip()
         if "吟游诗人" in _raw0 or _raw0 == "诗人":
@@ -565,13 +566,11 @@ class PlayerCmds(CommandBase):
         return f"{C.CLASSES.get(class_name, {}).get('icon', '')} {self._branch_title(class_name, tier, evolve_path)}"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?属性(?:\s*|$)")
+    @require_player()
 
     async def attributes(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v55.2：每个属性单独一行，格式「总值(+加成)」——加成为基础以外全部来源之和
         st, sources = E.player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
@@ -614,13 +613,11 @@ class PlayerCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加点(?:\s*|$)")
+    @require_player()
 
     async def add_attr(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         args = self._strip_cmd(event, "加点").split()
         if len(args) < 2 or not args[1].isdigit():
             yield event.plain_result("格式：加点 <力量/敏捷/智力/耐力> <点数>，如『加点 力量 5』")
@@ -646,14 +643,12 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(f"✅ 加点成功！{names[key]} +{n}，剩余属性点 {pts - n}\n『属性』查看效果～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能洗点(?:\s*|$)")
+    @require_player()
 
     async def reset_skill(self, event: AstrMessageEvent):
         """技能洗点(v27 独立指令)：花 500 金币返还全部已花费技能点(学习+升级)，清空已学技能与等级"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not player.get("learned_skills"):
             yield event.plain_result("你还没有学习过任何技能，无需洗点～")
             return
@@ -680,14 +675,12 @@ class PlayerCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$")
+    @require_player()
 
     async def evolve_reset(self, event: AstrMessageEvent):
         """转职重置(21 章 §8)：付费清空转职分支，保留等级，可重新选择分支"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         tier = player.get("class_tier", 0)
         if tier <= 0:
             yield event.plain_result("你还没有转职过，无需重置～『转职』查看路线。")
@@ -732,14 +725,12 @@ class PlayerCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?洗点(?:\s*|$)")
+    @require_player()
 
     async def reset_attr(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "洗点").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # v27：技能洗点已拆分为独立指令『技能洗点』，避免与属性洗点混淆
         if "技能" in raw:
             yield event.plain_result("技能洗点是独立指令：『技能洗点』(500金币返还技能点)～『洗点』只重置属性点。")
@@ -760,13 +751,11 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币)\n『加点』重新分配～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?战力(?:\s*|$)")
+    @require_player()
 
     async def power(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         st = E.player_final_stats(player["class_name"], player["level"], player["equipment"], player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
         pw = int(st["atk"] * 2 + st["matk"] * 2 + st["def"] * 1.5 + st["mdef"] * 1.5
                 + st["max_hp"] / 10 + st["max_mp"] / 10 + st["spd"] * 3)
@@ -781,13 +770,11 @@ class PlayerCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能详情(?:[\s\S]*)$")
+    @require_player()
 
     async def skill_detail(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         skill_name = self._strip_cmd(event, "技能详情").strip()
         if not skill_name:
             yield event.plain_result("格式：技能详情 <技能名/序号>，如『技能详情 火球术』或『技能详情 5』")
@@ -861,15 +848,13 @@ class PlayerCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能学习(?:[\s\S]*)$")
+    @require_player()
 
     async def skill_learn(self, event: AstrMessageEvent):
         """技能学习(v12)：等级门槛 + 消耗技能点学会，学会永久可用"""
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能学习")
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         yield event.plain_result(self._skill_learn_msg(group_id, player, skill_name))
 
     def _skill_learn_msg(self, group_id, player: dict, skill_name: str) -> str:
@@ -953,15 +938,13 @@ class PlayerCmds(CommandBase):
         return parts
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能升级(?:[\s\S]*)$")
+    @require_player()
 
     async def skill_upgrade(self, event: AstrMessageEvent):
         """技能升级(v27)：已学技能花技能点升级，攻击/治疗 power 提升、增益回合延长"""
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能升级").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         if not skill_name:
             yield event.plain_result("格式：技能升级 <技能名/序号>，如『技能升级 火球术』或『技能升级 3』")
             return
@@ -1015,13 +998,11 @@ class PlayerCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能栏(?:\s*|$)")
+    @require_player()
 
     async def skill_bar_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         bar = db.get_skill_bar(qq_id)
         lines = ["🎛️ 【技能栏】(战斗中『技能 <槽位>』快捷施放)", "━━━━━━━━━━━━"]
         for i in range(6):
@@ -1037,14 +1018,12 @@ class PlayerCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?设置技能(?:\s*|$)")
+    @require_player()
 
     async def skill_bar_set(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "设置技能").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         parts = raw.split(maxsplit=1)
         if len(parts) < 2 or not parts[0].isdigit():
             yield event.plain_result("格式：设置技能 <槽位1－6> <技能名>，如『设置技能 1 火球术』")
@@ -1069,15 +1048,13 @@ class PlayerCmds(CommandBase):
         yield event.plain_result(f"✅ 技能栏 {slot} 号位 → 『{sname}』！战斗中『技能 {slot}』即可施放～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$")
+    @require_player()
 
     async def build_view(self, event: AstrMessageEvent):
         """流派(v52 Build 系统)：查看本职业流派 / 一键配置技能栏"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "流派").strip()
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         cid = player["class_name"]
         builds = C.BUILDS.get(cid, {})
         if not builds:
@@ -1124,6 +1101,7 @@ class PlayerCmds(CommandBase):
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?注销(?:[\s\S]*)$")
+    @require_player()
 
     async def delete_account(self, event: AstrMessageEvent):
         """注销角色：删除全部数据，可重新注册（v62 群友想切职业）。
@@ -1133,9 +1111,6 @@ class PlayerCmds(CommandBase):
         """
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色，不用注销～输入『注册 战士 名字』创建吧！")
-            return
         arg = self._strip_cmd(event, "注销").strip()
         # 『注销 确认』：执行删除（10 分钟内有效）
         if arg == "确认":
@@ -1155,7 +1130,7 @@ class PlayerCmds(CommandBase):
             db.delete_event_state(key)
             yield event.plain_result(
                 f"🗡️ 冒险者 {player['name']} 的故事就此落幕……\n"
-                f"所有角色数据已删除，可以重新『注册 <职业> <名字>』开始新旅程！"
+                f"所有角色数据已删除，可以重新『注册 <名字> <性别>』开始新旅程！"
             )
             return
         # 发起注销：写确认状态（10 分钟有效）

@@ -17,7 +17,7 @@ from astrbot.api.event import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db
-from .base import CommandBase
+from .base import CommandBase, require_player
 
 
 class GmCmds(CommandBase):
@@ -513,6 +513,7 @@ class GmCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_副业位(?:[\s\S]*)$")
+    @require_player()
     async def gm_prof_slots(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -520,9 +521,6 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "gm_副业位").strip()
         cur = db.get_prof_slot_limit(qq_id)
         if not raw:
@@ -540,6 +538,7 @@ class GmCmds(CommandBase):
         yield event.plain_result(f"🧵 副业位上限已设为 {n} 条(原 {cur})！『副业』查看生效")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$")
+    @require_player()
     async def gm_boss_dmg(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
@@ -547,9 +546,6 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         raw = self._strip_cmd(event, "gm_伤害").strip()
         cur = db.get_boss_dmg_mult(qq_id)
         if not raw:

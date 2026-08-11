@@ -13,7 +13,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", cur_map="oak_plain", level=5, gold=999999)
     # v95.19：战斗内 max_hp/max_mp 由引擎实时重算（换装备一致），预设必须用引擎值
     p0 = db.get_player("g1", "w1")

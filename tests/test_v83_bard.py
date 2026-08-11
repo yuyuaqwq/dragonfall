@@ -42,12 +42,12 @@ async def main():
         check(f"SKILL_UP 有 {n}", n in E.C.SKILL_UP, "")
 
     # ---- 2. 注册拦截 ----
-    out = await cmd(m, "register", "g2", "w2", "注册 吟游诗人 小诗人")
+    out = await cmd(m, "register", "g2", "w2", "注册 吟游诗人 小诗人 男")
     check("隐藏职业不可注册", "隐藏职业" in out or "传说" in out, out[:150])
     check("未创建玩家", db.get_player("g2", "w2") is None, "")
 
     # ---- 3. 传承转职流程 ----
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=30, gold=5000)
     # 未解锁时被拦
     out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")

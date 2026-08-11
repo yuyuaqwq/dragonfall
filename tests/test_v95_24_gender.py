@@ -73,11 +73,11 @@ async def main():
     check("gender=female", p.get("gender") == "female", str(p.get("gender")))
     check("race 默认人类", p.get("race") == "human", str(p.get("race")))
 
-    print("【6. 无性别注册不设置】")
+    print("【6. 无性别注册被拒（v95.26 性别强制）】")
     out = await cmd(m, "register", "g1", "w6", "注册 路人甲")
+    check("报错含性别提示", "请选择性别" in out, out[:200])
     p = db.get_player("g1", "w6")
-    check("gender 为空", not p.get("gender"), str(p.get("gender")))
-    check("文案无性别行", "性别：" not in out, out[:300])
+    check("未建角色", p is None, "should be None")
 
     print("【7. 未知性别报错】")
     out = await cmd(m, "register", "g1", "w7", "注册 阿猫 猫")

@@ -38,7 +38,7 @@ async def enter_combat(m, gid, qid):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "i1", "注册 战士 队长")
+    await cmd(m, "register", "g1", "i1", "注册 战士 队长 男")
     db.update_player("g1", "i1", level=70, gold=100000, cur_map="dawn_city", hp=500, max_hp=500)
 
     print("【数据完整性】")
@@ -147,7 +147,7 @@ async def main():
 
     print("【海蚀洞窟：隐藏房间（secret cond，2 人队）】")
     # lv22 2-3人副本：L1 遗骸（藏宝图）→ L3 藏宝密室解锁（cond=corpse_1）
-    await cmd(m, "register", "g1", "i2", "注册 法师 队员")
+    await cmd(m, "register", "g1", "i2", "注册 法师 队员 男")
     db.update_player("g1", "i2", level=40, gold=100000, cur_map="dawn_city", hp=500, max_hp=500)
     await cmd(m, "party", "g1", "i1", "组队 队员")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 海蚀洞窟")

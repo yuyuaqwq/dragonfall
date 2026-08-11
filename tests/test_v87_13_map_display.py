@@ -21,7 +21,7 @@ async def main():
     m = Main(None)
 
     # 注册 + 初始在 oak_town
-    ev = FakeEvent("g1", "1001", "注册 战士 甲")
+    ev = FakeEvent("g1", "1001", "注册 战士 甲 男")
     await run(m.register, ev)
     p = db.get_player("g1", "1001")
     check("注册", p is not None)

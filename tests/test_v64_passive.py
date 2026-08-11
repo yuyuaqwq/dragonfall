@@ -125,7 +125,7 @@ async def test_cmd_cast():
     print("\n== 7. 命令层：施放被动提示 ==")
     clean_db()
     m = Main(None)
-    await run(m.register, FakeEvent("g1", "u1", "注册 战士 测试"))
+    await run(m.register, FakeEvent("g1", "u1", "注册 战士 测试 男"))
     pl = db.get_player("g1", "u1")
     pl["learned_skills"] = ["战意高涨"]
     db.update_player("g1", "u1", learned_skills=pl["learned_skills"], level=15)
@@ -140,7 +140,7 @@ async def test_cmd_learn():
     print("\n== 8. 被动学习成功提示 ==")
     clean_db()
     m = Main(None)
-    await run(m.register, FakeEvent("g1", "u1", "注册 法师 测试"))
+    await run(m.register, FakeEvent("g1", "u1", "注册 法师 测试 男"))
     db.update_player("g1", "u1", level=15, skill_points=20)
     msg = m._skill_learn_msg("g1", db.get_player("g1", "u1"), "烈焰亲和")
     check("被动学习提示", "被动" in msg and "自动生效" in msg, msg)
@@ -150,7 +150,7 @@ async def test_no_upgrade():
     print("\n== 9. 被动不可升级 ==")
     clean_db()
     m = Main(None)
-    await run(m.register, FakeEvent("g1", "u1", "注册 战士 测试"))
+    await run(m.register, FakeEvent("g1", "u1", "注册 战士 测试 男"))
     pl = db.get_player("g1", "u1")
     pl["learned_skills"] = ["战意高涨"]
     db.update_player("g1", "u1", level=15, skill_points=20, learned_skills=pl["learned_skills"])

@@ -55,7 +55,7 @@ async def test_unlock():
     m = Main(None)
     clean_db()
     # 注册 → 冒险者起步
-    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁")
+    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁 男")
     rows = db.get_achievements("g1", "q1")
     unlocked = {r["ach_key"] for r in rows}
     check("注册解锁初出茅庐", "ach_register" in unlocked, str(unlocked))
@@ -80,7 +80,7 @@ async def test_unlock():
     db.update_player("g1", "q1", exp=0)
     db.bump_stats("g1", "q1", kills=1)  # 初试锋芒 exp+100 已经解锁过（kills>=1 但 1 不够，需要看状态）
     # 重置检查：用新玩家验证 exp 奖励
-    await cmd(m, "register", "g1", "q2", "注册 法师 阿水")
+    await cmd(m, "register", "g1", "q2", "注册 法师 阿水 男")
     db.bump_stats("g1", "q2", kills=1)
     new4 = C.check_achievements("g1", "q2", db.get_player("g1", "q2"))
     p3 = db.get_player("g1", "q2")
@@ -95,7 +95,7 @@ async def test_titles():
     print("【3. 称号系统】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁")
+    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁 男")
     # 解锁一个成就称号（新手猎人）
     db.bump_stats("g1", "q1", kills=10)
     C.check_achievements("g1", "q1", db.get_player("g1", "q1"))
@@ -125,7 +125,7 @@ async def test_ach_cmd():
     print("【4. 成就命令】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁")
+    await cmd(m, "register", "g1", "q1", "注册 战士 阿铁 男")
     r = await cmd(m, "achievements", "g1", "q1", "成就")
     txt = r[-1]
     check("成就总览显示进度", "总进度" in txt and "成就点" in txt, txt[:120])

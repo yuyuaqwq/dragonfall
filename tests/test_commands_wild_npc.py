@@ -51,8 +51,8 @@ def clear_wild_meta(gid, qid):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
-    await cmd(m, "register", "g1", "w2", "注册 法师 新手")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
+    await cmd(m, "register", "g1", "w2", "注册 法师 新手 男")
     db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
     set_clock("day", "summer", "sunny")
     clear_wild_meta("g1", "w1")

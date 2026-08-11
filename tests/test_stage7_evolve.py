@@ -87,7 +87,7 @@ def test_evolve_flow():
     print("【转职：30 级一转（v95.23 找导师仪式）】")
     m = Main(None)
     clean_db()
-    await_cmd(m, "register", "注册 战士 勇者")
+    await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=30, gold=5000)
     out = await_cmd(m, "evolve", "转职 1")
     check("转职指令引导找导师", "可以转职" in out and "格里姆" in out, out[:200])
@@ -136,7 +136,7 @@ def test_branch_skill_gate():
     print("【分支技能：tier 检查（一转不能学二转技能）】")
     m = Main(None)
     clean_db()
-    await_cmd(m, "register", "注册 战士 勇者")
+    await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=35, gold=5000, skill_points=100, class_tier=1, evolve_path=1)
     # 一转后：能学 32 级分支技能 怒斩（tier1）
     out = await_cmd(m, "skill_learn", "技能学习 怒斩")
@@ -160,7 +160,7 @@ def test_branch_skill_gate():
 
     print("【分支技能：错误分支拦截】")
     clean_db()
-    await_cmd(m, "register", "注册 战士 勇者")
+    await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=30, gold=5000, skill_points=100, class_tier=1, evolve_path=2)  # 盾卫士
     out = await_cmd(m, "skill_learn", "技能学习 怒斩")
     check("盾卫士学狂战怒斩被拦", "学不了" in out, out[:200])
@@ -172,7 +172,7 @@ def test_evolve_reset():
     print("【转职重置：付费清分支技能】")
     m = Main(None)
     clean_db()
-    await_cmd(m, "register", "注册 战士 勇者")
+    await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=60, gold=5000, skill_points=100, class_tier=2, evolve_path=1,
                      learned_skills=["挥砍", "怒斩", "狂战之魂"])
     out = await_cmd(m, "evolve_reset", "转职重置")
@@ -187,7 +187,7 @@ def test_evolve_reset():
 
     print("【转职重置：金币不足拦截】")
     clean_db()
-    await_cmd(m, "register", "注册 战士 勇者")
+    await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=30, gold=100, class_tier=1, evolve_path=1)
     out = await_cmd(m, "evolve_reset", "转职重置")
     check("金币不足拦截", "金币" in out, out[:200])

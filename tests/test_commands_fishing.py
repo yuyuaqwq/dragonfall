@@ -60,7 +60,7 @@ def fish_dict(name, quality, ftype="鱼", price=12):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     # 激活垂钓 + 练到 Lv.5（蓝档 10%）
     await cmd(m, "fishing", "g1", "w1", "垂钓")
     db.add_prof_exp("g1", "w1", "fishing", 200)
@@ -76,7 +76,7 @@ async def main():
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("无水域提示", "这里没有水域" in out, out[:200])
     # 低级玩家（Lv.1）去高级水域 → 拦截
-    await cmd(m, "register", "g1", "w2", "注册 法师 新手")
+    await cmd(m, "register", "g1", "w2", "注册 法师 新手 男")
     await cmd(m, "fishing", "g1", "w2", "垂钓")
     db.update_player("g1", "w2", cur_map="harbor_docks", cur_subarea="harbor_docks_1")  # v87.17 垂钓点=码头栈桥
     db.update_player("g1", "w2", apprentices=["fishing"])  # v95.22 拜师模拟

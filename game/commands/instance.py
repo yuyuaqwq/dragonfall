@@ -19,7 +19,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase, no_prof_waiting
+from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 INSTANCE_TIMEOUT = 120  # 副本行动超时（秒）
 
@@ -27,14 +27,12 @@ INSTANCE_TIMEOUT = 120  # 副本行动超时（秒）
 class InstanceCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副本(?:[\s\S]*)$")
+    @require_player()
     @no_prof_waiting()
 
     async def instance_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         # 已在副本战斗中 → 显示状态
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row:
@@ -67,15 +65,13 @@ class InstanceCmds(CommandBase):
             yield _r
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?深入(?:第\s*(\d+)\s*层)?(?:[层进]\s*)?$")
+    @require_player()
     @no_prof_waiting()
 
     async def instance_advance(self, event: AstrMessageEvent):
         """v86.2 副本推进：清完当前层后『深入』进入下一层。"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
             yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
@@ -150,15 +146,13 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 副本地图（v87.2） ----------------
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副本地图\s*$")
+    @require_player()
     @no_prof_waiting()
 
     async def instance_map_view_cmd(self, event: AstrMessageEvent):
         """查看当前层小地图全景(29 章 13.5)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
             yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
@@ -171,15 +165,13 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 调查（v87.2） ----------------
     @filter.regex(r"^(?:\[At:\d+\]\s*)?调查\s*(\S+)\s*$")
+    @require_player()
     @no_prof_waiting()
 
     async def instance_investigate(self, event: AstrMessageEvent):
         """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱(29 章 13.5)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
             yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
@@ -214,15 +206,13 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 撤退（v87.2） ----------------
     @filter.regex(r"^(?:\[At:\d+\]\s*)?撤退\s*$")
+    @require_player()
     @no_prof_waiting()
 
     async def instance_retreat(self, event: AstrMessageEvent):
         """退出副本：解锁战斗，保留层进度与 POI 状态(29 章 13.6)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        if not player:
-            yield event.plain_result("你还没有角色！输入『注册 战士 名字』创建吧～")
-            return
         inst_row = self._instance_battle_for(group_id, qq_id)
         if not inst_row:
             yield event.plain_result("你当前不在副本中！")

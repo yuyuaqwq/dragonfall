@@ -78,6 +78,34 @@ def no_prof_waiting():
     return deco
 
 
+# v95.26 统一注册引导：所有"没角色"拦截只走这一处文案，改格式只动这里
+REGISTER_HINT = "你还没有角色！输入『注册 <名字> <性别>』创建吧～"
+
+
+def require_player():
+    """玩家存在性守卫：没注册角色时统一拦截并提示（文案 REGISTER_HINT 一处维护）。
+
+    用法（@filter.regex 的下方、其他业务装饰器上方）：
+        @filter.regex(r"...")
+        @require_player()
+        @no_prof_waiting()
+        async def move(self, event): ...
+    v95.26 重构：此前 110+ 个 handler 各自手写
+    `if not player: yield "你还没有角色！..."` 样板，统一收口到装饰器。
+    """
+    def deco(fn):
+        @functools.wraps(fn)
+        async def wrapper(self, event: AstrMessageEvent, *args, **kwargs):
+            group_id, qq_id = self._uid(event)
+            if not self._player(group_id, qq_id):
+                yield event.plain_result(REGISTER_HINT)
+                return
+            async for item in fn(self, event, *args, **kwargs):
+                yield item
+        return wrapper
+    return deco
+
+
 class CommandBase:
 
     # ---------- v96 GM 身份与停服状态 ----------

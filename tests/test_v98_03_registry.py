@@ -46,7 +46,7 @@ async def main():
     tctx2 = TC.TitleCtx("g1", "w1", {"level": 100}, {}, {}, {})
     check("title 注册表条件判定正确", TC.CONDITIONS["test_title_99"](tctx2) is True, "")
     # _earned_titles 走注册表（数据里没有 test_title_99，不崩 + 未知 id 安全降级 False）
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     earned = m.economy_cmds._earned_titles("g1", "w1", db.get_player("g1", "w1")) if hasattr(m, "economy_cmds") else None
     # Main 聚合后直接找方法
     if earned is None:

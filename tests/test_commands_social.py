@@ -33,8 +33,8 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "s1", "注册 战士 会长")
-    await cmd(m, "register", "g1", "s2", "注册 法师 会员")
+    await cmd(m, "register", "g1", "s1", "注册 战士 会长 男")
+    await cmd(m, "register", "g1", "s2", "注册 法师 会员 男")
     db.update_player("g1", "s1", level=25, gold=10000, cur_map="oak_town")
     db.update_player("g1", "s2", level=25, gold=10000, cur_map="oak_town")
 

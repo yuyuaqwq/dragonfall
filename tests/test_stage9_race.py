@@ -80,15 +80,15 @@ async def test_register_race():
     print("【2. 注册选种族】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 铁蛋 精灵")
+    await cmd(m, "register", "g1", "q1", "注册 战士 铁蛋 精灵 男")
     p = db.get_player("g1", "q1")
     check("注册精灵成功", p and p.get("race") == "elf", str(p and p.get("race")))
     # 缺省人类
-    await cmd(m, "register", "g1", "q2", "注册 法师 阿水")
+    await cmd(m, "register", "g1", "q2", "注册 法师 阿水 男")
     p2 = db.get_player("g1", "q2")
     check("缺省人类", p2 and p2.get("race") == "human", str(p2 and p2.get("race")))
     # 未知种族拦截
-    r = await cmd(m, "register", "g1", "q3", "注册 战士 阿三 外星人")
+    r = await cmd(m, "register", "g1", "q3", "注册 战士 阿三 外星人 男")
     txt = r[-1]
     check("未知种族拦截", "未知种族" in txt and db.get_player("g1", "q3") is None, txt)
     # 种族命令显示 6 族
@@ -192,7 +192,7 @@ async def test_command_talents():
     print("【5. 命令层天赋】")
     m = Main(None)
     clean_db()
-    await cmd(m, "register", "g1", "q1", "注册 战士 人类哥")
+    await cmd(m, "register", "g1", "q1", "注册 战士 人类哥 男")
     # 多才多艺：学习-8%（人类）——技能学习消耗
     p = db.get_player("g1", "q1")
     db.update_player("g1", "q1", skill_points=50, level=30)

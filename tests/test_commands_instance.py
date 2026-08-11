@@ -53,8 +53,8 @@ async def enter_combat(m, gid, qid):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "i1", "注册 战士 队长")
-    await cmd(m, "register", "g1", "i2", "注册 法师 队员")
+    await cmd(m, "register", "g1", "i1", "注册 战士 队长 男")
+    await cmd(m, "register", "g1", "i2", "注册 法师 队员 男")
     db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
     # v86.3 入场钥匙：旧王陵用例多，队长备 10 把王陵钥匙（每个用例开本消耗 1 把）
@@ -192,7 +192,7 @@ async def main():
     check("首通成就", found, str(achs)[:200])
 
     print("【副本：3 人队】")
-    await cmd(m, "register", "g1", "i3", "注册 游侠 第三人")
+    await cmd(m, "register", "g1", "i3", "注册 游侠 第三人 男")
     db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
     out = await cmd(m, "party", "g1", "i1", "组队 第三人")
     check("队长拉第三人", "加入" in out and "3" in out, out[:150])
@@ -387,7 +387,7 @@ async def main():
     battle = db.get_battle("g1", "i1")
     check("单人副本战斗清除", battle is None, "")
     # 4 人副本：3 人队伍被拦截
-    await cmd(m, "register", "g1", "i4", "注册 牧师 第四人")
+    await cmd(m, "register", "g1", "i4", "注册 牧师 第四人 男")
     # 全队提到 70 级（深海龙宫 Lv.70+）
     for q in ("i2", "i3", "i4"):
         db.update_player("g1", q, level=70, gold=10000, cur_map="dawn_city")

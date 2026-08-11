@@ -32,7 +32,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "k1", "注册 战士 勇者")
+    await cmd(m, "register", "g1", "k1", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=10, gold=5000, cur_map="oak_town")
 
     print("【属性：面板/加点】")

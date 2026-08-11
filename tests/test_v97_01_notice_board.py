@@ -32,7 +32,7 @@ async def cmd(m, handler_name, gid, qid, msg):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 委托猎人")
+    await cmd(m, "register", "g1", "w1", "注册 战士 委托猎人 男")
     # 橡木镇广场（有告示板）
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_1")
 

@@ -33,7 +33,7 @@ async def main():
     check("定位标签", "坦克" in label, label)
 
     print("【#8 帮助拆分】")
-    await cmd(m, "register", "g1", "f1", "注册 战士 测试员")
+    await cmd(m, "register", "g1", "f1", "注册 战士 测试员 男")
     out = await cmd(m, "help_cmd", "g1", "f1", "帮助")
     check("总览精简", "指令大全" in out and "帮助 <分类>" in out, out[:80])
     out = await cmd(m, "help_cmd", "g1", "f1", "帮助 技能")
@@ -51,7 +51,7 @@ async def main():
     check("物品分类", "背包" in out and "商店" in out, out[:80])
 
     print("【#4 移动撞怪】")
-    await cmd(m, "register", "g1", "f2", "注册 战士 低级玩家")
+    await cmd(m, "register", "g1", "f2", "注册 战士 低级玩家 男")
     db.update_player("g1", "f2", level=5, cur_map="oak_town")
     # 高级图：Lv.15 玩家去 Lv.30+ 图 → 必触发（diff>=5 概率 30%，多试几次）
     high_map = next(x for x in C.MAPS if x["id"] == "gold_plain")
@@ -69,7 +69,7 @@ async def main():
     check("城镇不撞怪", m._travel_ambush(db.get_player("g1", "f2"), town) is None)
 
     print("【#5 世界Boss指定地点】")
-    await cmd(m, "register", "g1", "f3", "注册 战士 讨伐者")
+    await cmd(m, "register", "g1", "f3", "注册 战士 讨伐者 男")
     db.update_player("g1", "f3", level=40, cur_map="oak_town")
     # 造一个 boss 事件：深渊魔王出现在深渊荒原
     db.save_world_event("boss", int(time.time()) + 3600, {
@@ -87,8 +87,8 @@ async def main():
     m._unlock_battle("g1", "f3")
 
     print("【#6 副本仇恨】")
-    await cmd(m, "register", "g1", "f4", "注册 战士 坦克甲")
-    await cmd(m, "register", "g1", "f5", "注册 法师 输出乙")
+    await cmd(m, "register", "g1", "f4", "注册 战士 坦克甲 男")
+    await cmd(m, "register", "g1", "f5", "注册 法师 输出乙 男")
     db.update_player("g1", "f4", level=40, gold=9999, cur_map="oak_town")
     db.update_player("g1", "f5", level=40, gold=9999, cur_map="oak_town")
     await cmd(m, "party", "g1", "f4", "组队 输出乙")
