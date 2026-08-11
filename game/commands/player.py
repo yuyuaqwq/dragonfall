@@ -20,6 +20,18 @@ from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 
 
+# v101.20 职业导师专属技能：职业 → (导师名, 所在城市)。TUTOR_SKILLS 技能只能导师教学学会，
+# 『技能学习』拦截提示（不进技能列表/不可技能点学）
+_TUTOR_MENTORS = {
+    "cls_zhan_shi": ("老兵·格里姆", "白鹿城"),
+    "cls_fa_shi": ("大法师·艾德琳", "白鹿城"),
+    "cls_you_xia": ("猎手·柯恩", "铁港城"),
+    "cls_mu_shi": ("圣殿执事·莉亚", "白鹿城"),
+    "cls_ci_ke": ("暗影渡鸦", "铁港城"),
+    "cls_wu_seng": ("船帮武师·老陈", "铁港城"),
+}
+
+
 class PlayerCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$")
@@ -897,6 +909,11 @@ class PlayerCmds(CommandBase):
         learned = player.get("learned_skills", [])
         if E.is_skill_learned(player["class_name"], player["level"], skill_name, learned):
             return f"『{display_name}』你已学会了，去战斗里试试吧～"
+        # v101.20 职业导师专属技能拦截：TUTOR_SKILLS 只能找导师学，技能点学不到
+        _sid = C.resolve("skills", skill_name)
+        if _sid in ((C.TUTOR_SKILLS or {}).get(player["class_name"], {}) or {}):
+            _mname, _mcity = _TUTOR_MENTORS.get(player["class_name"], ("职业导师", "各城"))
+            return f"『{display_name}』是 {_mname}({_mcity}) 的看家本领，普通学习学不到——去{_mcity}找{_mname}请教吧～"
         # v26 分支专属技能门槛：必须先转职到对应分支
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:

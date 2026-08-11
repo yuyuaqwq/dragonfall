@@ -830,6 +830,10 @@ class CombatCmds(CommandBase):
         cls_info = C.CLASSES.get(cls, {})
         total = len(E._sk_table(cls))
         learned = player.get("learned_skills", [])
+        # v101.20：已学导师专属技能计入总数（避免"已学>总数"怪相）
+        _tutor = (C.TUTOR_SKILLS or {}).get(cls, {}) or {}
+        _tutor_learned = sum(1 for _sid in _tutor if _sid in [C.resolve("skills", s) for s in learned if s])
+        total += _tutor_learned
         have = len(learned)
         pts = player.get("skill_points", 0)
         lines = [
@@ -880,6 +884,12 @@ class CombatCmds(CommandBase):
         else:
             table = dict(cls_skills)
         table.update(self._branch_skills_for(player))
+        # v101.20 职业导师专属技能：未学会不进列表（保持神秘感），学会后追加（序号稳定在尾部）
+        learned = player.get("learned_skills", [])
+        _tutor = (C.TUTOR_SKILLS or {}).get(player["class_name"], {}) or {}
+        for _sid, _info in _tutor.items():
+            if _sid in [C.resolve("skills", s) for s in learned if s]:
+                table[_sid] = _info
         return table
 
     # v56.3：技能功能标签（<kind><功能> 双标签，参考鱼鱼排版示例）

@@ -2961,18 +2961,6 @@ BRANCH_SKILLS = {
 # 格式与 PLAYER_SKILLS 技能一致（battle/engine 按名字查定义）
 TUTOR_SKILLS = {
     "cls_zhan_shi": {
-        "sk_po_jia_zhan": {
-            "lv": 6, "mp": 8, "power": 1.6, "kind": "物理",
-            "mech": "spd_down", "mech_chance": 0.3, "cd": 2,
-            "desc": "破甲斩！160% 物理伤害，30% 概率震慑目标(速度－20%)",
-            "name": "破甲斩",
-        },
-        "sk_zhan_hou": {
-            "lv": 10, "mp": 12, "power": 0, "kind": "增益",
-            "effect": "atk_up", "cd": 3,
-            "desc": "战吼！自身攻击＋30% 2 回合",
-            "name": "战吼",
-        },
     },
     "cls_fa_shi": {
         "sk_ao_shu_mai_chong": {
@@ -2981,26 +2969,8 @@ TUTOR_SKILLS = {
             "desc": "奥术脉冲！170% 魔法伤害，奥术之力涌动",
             "name": "奥术脉冲",
         },
-        "sk_bing_shuang_xin_xing": {
-            "lv": 10, "mp": 14, "power": 1.3, "kind": "魔法",
-            "mech": "freeze", "mech_chance": 0.25, "cd": 3,
-            "desc": "冰霜新星！130% 魔法伤害，25% 概率冰冻目标",
-            "name": "冰霜新星",
-        },
     },
     "cls_you_xia": {
-        "sk_san_lian_she": {
-            "lv": 6, "mp": 8, "power": 1.55, "kind": "物理",
-            "cd": 2,
-            "desc": "三连射！连续射出三支箭矢，155% 物理伤害",
-            "name": "三连射",
-        },
-        "sk_ying_yan": {
-            "lv": 10, "mp": 10, "power": 0, "kind": "增益",
-            "effect": "crit_up", "cd": 3,
-            "desc": "鹰眼！集中精神，暴击＋25% 2 回合",
-            "name": "鹰眼",
-        },
     },
     "cls_mu_shi": {
         "sk_sheng_guang_cheng_jie": {
@@ -3017,12 +2987,6 @@ TUTOR_SKILLS = {
         },
     },
     "cls_ci_ke": {
-        "sk_ying_xi": {
-            "lv": 6, "mp": 8, "power": 1.7, "kind": "物理",
-            "mech": "shadow", "cd": 2,
-            "desc": "影袭！170% 物理伤害，从阴影中出手",
-            "name": "影袭",
-        },
         "sk_cui_du_zhi_ren": {
             "lv": 10, "mp": 10, "power": 1.3, "kind": "物理",
             "mech": "poison", "mech_chance": 0.5, "cd": 3,

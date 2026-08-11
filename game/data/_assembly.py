@@ -16,7 +16,7 @@ from .subareas import SUBAREAS  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
 from .instance_stage_maps import INSTANCE_STAGE_MAPS, INSTANCE_STAGE_NPCS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
-from .skills import PLAYER_SKILLS, BRANCH_SKILLS  # noqa: F401
+from .skills import PLAYER_SKILLS, BRANCH_SKILLS, TUTOR_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401
 from .equipment import (  # noqa: F401
     EQUIP_SLOTS, QUALITY, QUALITY_ORDER, WEAPON_TYPES, WEAPON_NAME_SUFFIX,
@@ -104,6 +104,11 @@ for _cid, _cinfo in PLAYER_SKILLS.items():
     if isinstance(_cinfo, dict) and "skills" in _cinfo:
         _SKILL_FLAT.update(_cinfo["skills"])
     else:
+        _SKILL_FLAT.update(_cinfo)
+# v101.20 职业导师专属技能（TUTOR_SKILLS）并入扁平表 → 名字↔ID 索引可解析，
+# skill_info 查询链（基础→分支→导师）最后一环才生效；重名职业技能已在 TUTOR 表剔除
+for _cid, _cinfo in (TUTOR_SKILLS or {}).items():
+    if isinstance(_cinfo, dict):
         _SKILL_FLAT.update(_cinfo)
 
 # ---- 3. ID 索引（v48：key 已是 ID，一律传 name_field="name"）----
