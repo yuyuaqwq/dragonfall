@@ -166,6 +166,73 @@ SERIES_SETS = {
 }
 
 # 名册查询辅助：按名称索引（锻造/掉落/商店通用）
+# ================= 装备描述生成（v101.25g 鱼鱼：每个装备都要有描述） =================
+# 系列主题 × 部位/武器类型模板；手写 desc 优先保留
+_EQ_SERIES_THEME = {
+    "橡木": "橡木镇匠人的朴实手艺，耐用又可靠",
+    "白鹿": "白鹿之森猎人的精巧之作，轻便而灵动",
+    "银铃": "银铃河畔工匠的细心打磨，线条干净利落",
+    "翡翠": "翡翠森林的藤蔓缠绕纹样，带着自然的生机",
+    "迷雾": "迷雾沼泽中锻造的神秘器物，蒙着一层水汽",
+    "铁港": "铁港城船匠与铁匠的合作，透着海风的咸涩",
+    "圣光": "圣光教会赐福的制式装备，纹着金色的圣徽",
+    "月语": "月语精灵的月光工艺，优雅得不像凡物",
+    "霜狼": "北境霜狼氏族的手笔，粗犷中带着寒气",
+    "龙脊": "龙脊山脉矮人的重锤杰作，坚固得能扛住巨龙的吐息",
+    "海神": "海神信徒的祭祀器物，浸泡过潮汐的低语",
+    "地底": "地底矿脉深处出土的造物，沉静而厚重",
+    "苍穹": "苍穹之上流云般轻盈的工艺，似乎随时会乘风而起",
+    "星尘": "星尘降临之地的瑰丽造物，流转着点点星光",
+    "灰烬守卫": "灰烬守卫的制式装备，淬炼过烈焰的余温",
+}
+_EQ_SLOT_DESC = {
+    "weapon": {
+        "sword": "{series}风格的长剑，剑脊笔直，护手朴素",
+        "dagger": "{series}风格的短刃，轻巧锋利，适合贴身缠斗",
+        "staff": "{series}风格的法杖，杖身刻着细密的魔纹",
+        "bow": "{series}风格的长弓，弓臂弧度优美，弦声清越",
+        "mace": "{series}风格的战锤，锤头沉重，一击足以破盾",
+        "fist": "{series}风格的拳套，贴合拳面，攻防一体",
+        "shield": "{series}风格的盾牌，盾面厚实，能挡下大部分攻击",
+        "spear": "{series}风格的长枪，枪尖雪亮，横扫千军",
+        "axe": "{series}风格的战斧，斧刃开得极利，势大力沉",
+    },
+    "helm": "{series}风格的头盔，护住要害，通风透气",
+    "armor": "{series}风格的护甲，版型合体，活动自如",
+    "legs": "{series}风格的护腿，膝盖处加厚，耐磨耐打",
+    "boots": "{series}风格的靴子，鞋底防滑，走山路也稳当",
+    "ring": "{series}风格的戒指，戒面光滑，指节处恰到好处",
+    "necklace": "{series}风格的项链，链坠做工精细，贴身佩戴",
+}
+
+
+def _gen_eq_desc(e: dict) -> str:
+    series = e.get("series", "冒险者")
+    theme = _EQ_SERIES_THEME.get(series, f"{series}工匠的作品")
+    slot = e.get("slot", "armor")
+    if slot == "weapon":
+        wt = e.get("weapon_type", "sword")
+        sub = _EQ_SLOT_DESC["weapon"].get(wt, _EQ_SLOT_DESC["weapon"]["sword"])
+        base = sub.format(series=series)
+    else:
+        base = _EQ_SLOT_DESC.get(slot, _EQ_SLOT_DESC["armor"]).format(series=series)
+    extra = ""
+    if e.get("source") == "boss":
+        extra = "，据说是强者的战利品"
+    elif e.get("source") == "legend":
+        extra = "，传说中才有的名物"
+    elif e.get("quality") == "orange":
+        extra = "，绝非凡品"
+    elif e.get("quality") == "purple":
+        extra = "，做工考究"
+    return f"{base}。{theme}{extra}。"
+
+
+# ================= 装备 desc 注入（v101.25g，手写优先） =================
+for _rid, _r in EQUIP_ROSTER.items():
+    if not _r.get("desc"):
+        _r["desc"] = _gen_eq_desc(_r)
+
 EQUIP_ROSTER_BY_NAME = {}
 for _rid, _r in EQUIP_ROSTER.items():
     EQUIP_ROSTER_BY_NAME.setdefault(_r["name"], []).append(_rid)

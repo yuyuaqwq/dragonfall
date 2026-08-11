@@ -21,6 +21,7 @@ from .. import db
 from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, require_player
+from ..core.drops import _eq_random_desc
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
@@ -123,6 +124,11 @@ def _render_equip(d, lines, equipped):
         lines.append(f"强化：+{enh}" + (f"(属性 {int(info['mult'] * 100)}%)" if info else ""))
     if d.get("desc"):
         lines.append(f"描述：{d['desc']}")
+    else:
+        # v101.25g：存量背包装备可能无 desc 字段 → 名册兜底 / 按部位生成
+        rid_list = C.EQUIP_ROSTER_BY_NAME.get(d["name"], [])
+        rdesc = C.EQUIP_ROSTER[rid_list[0]].get("desc") if rid_list else None
+        lines.append(f"描述：{rdesc or _eq_random_desc(d['name'], d.get('slot', 'armor'), d.get('weapon_type'))}")
     lines.append("")
     lines.append(f"💡 『装备 {d['name']}』穿上它 ｜ 出售价 {d.get('price', 0)} 金币")
 
@@ -130,12 +136,16 @@ def _render_equip(d, lines, equipped):
 def _render_material(d, lines, equipped):
     """材料详情"""
     # ===== 材料 =====
+    # v101.25g：MATERIALS 的 key 是 mat_ ID，按名查必须用 MATERIALS_BY_NAME（原 MATERIALS.get 恒空）
+    mat = C.MATERIALS_BY_NAME.get(d["name"])
+    q = C.QUALITY.get((mat or {}).get("quality", "white"), {})
+    mtype = (mat or {}).get("type", "材料")
     lines.append(f"🧪 【{d['name']}】")
     lines.append("━━━━━━━━━━━━")
-    lines.append("类型：材料")
-    mat = C.MATERIALS.get(d["name"])
-    if mat and mat.get("desc"):
-        lines.append(f"描述：{mat['desc']}")
+    lines.append(f"类型：{mtype} ｜ 品质：{q.get('color', '')}{q.get('name', '普通')}")
+    desc = (mat or {}).get("desc") or d.get("desc")
+    if desc:
+        lines.append(f"描述：{desc}")
     lines.append("")
     lines.append(f"💡 出售价 {d.get('price', 0)} 金币 ｜ 『出售 {d['name']}』变现 ｜ 『喂养 {d['name']}』喂宠物")
 

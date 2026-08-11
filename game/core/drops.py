@@ -14,6 +14,32 @@ from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CLASS_SET_STAGES, CLASS_SET_
 
 """《剑与魔法》数据层 - drops.py"""
 
+
+def _eq_random_desc(name: str, slot: str, weapon_type: str | None = None) -> str:
+    """随机装备描述（v101.25g）：按部位/武器类型模板生成，避免与名册描述撞车"""
+    if slot == "weapon":
+        wt = weapon_type or "sword"
+        wt_map = {
+            "sword": "长剑", "dagger": "短刃", "staff": "法杖", "bow": "长弓",
+            "mace": "战锤", "fist": "拳套", "shield": "盾牌", "spear": "长枪", "axe": "战斧",
+        }
+        base = f"这是一件{wt_map.get(wt, '武器')}，刃口打磨精细，握感趁手"
+    elif slot == "helm":
+        base = "这是一顶头盔，护住要害，透气不闷"
+    elif slot == "armor":
+        base = "这是一件护甲，版型合体，活动自如"
+    elif slot == "legs":
+        base = "这是一副护腿，膝盖处加厚，耐磨耐打"
+    elif slot == "boots":
+        base = "这是一双靴子，鞋底防滑，走山路也稳当"
+    elif slot == "ring":
+        base = "这是一枚戒指，戒面光滑，做工精致"
+    elif slot == "necklace":
+        base = "这是一条项链，链坠做工精细，贴身佩戴"
+    else:
+        base = "这是一件装备，做工扎实"
+    return f"{base}。{name}——冒险途中得来，成色不错。"
+
 def make_blueprint(rid: str) -> dict:
     """按名册 ID 精确构造图纸物品（v94：商店『购买 图纸』用）。
 
@@ -156,6 +182,8 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
         equip["legendary"] = random.choice(list(LEGENDARY_EFFECTS.keys()))
     if set_name:
         equip["set"] = set_name
+    # v101.25g：随机装备描述（无名册 → 按部位/武器类型生成）
+    equip["desc"] = _eq_random_desc(name, slot, weapon_type)
     return equip
 
 
@@ -234,6 +262,9 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
     # 阶段八：蓝以上名册装备挂系列套装（白装新手过渡，不触发套装）
     if r["series"] in SERIES_SETS and quality != "white":
         equip["set"] = SERIES_SETS[r["series"]]
+    # v101.25g：名册装备描述（EQUIP_ROSTER 已注入 desc）
+    if r.get("desc"):
+        equip["desc"] = r["desc"]
     return equip
 
 def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
