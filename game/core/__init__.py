@@ -70,6 +70,6 @@ from .events import roll_explore_event, roll_explore_egg  # noqa: F401
 from .pois import subarea_pois, roll_poi, subarea_props, prop_entry  # noqa: F401
 from .maps import subarea_links, map_exit_subarea, map_entry_subarea  # noqa: F401
 from .pets import make_pet_egg, pet_exp_need, pet_skill_label, pet_quality_label, pet_line  # noqa: F401
-from .mounts import make_mount_rein, roll_mount_drop  # noqa: F401
+from .mounts import make_mount_rein, roll_mount_drop, mount_effects  # noqa: F401
 
 # 原 game/engine.py、game/battle.py 保持原位，由 game/__init__ 聚合

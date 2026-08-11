@@ -424,8 +424,17 @@ class EconomyCmds(CommandBase):
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, f"petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 咦？鱼肚子里藏着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
+        # v101.13 坐骑 fish_bonus：概率额外多一条（骑乘钓鱼类坐骑）
+        _mount_fish_line = ""
+        meff = C.mount_effects(player)
+        fb = float(meff.get("fish_bonus", 0) or 0)
+        if fb > 0 and random.random() < fb:
+            db.add_item(group_id, qq_id, mat_key,
+                        {"name": fname, "type": fish["type"], "stackable": True,
+                         "price": fish["price"], "quality": fq})
+            _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_pet_egg_line}")
+                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}")
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""
@@ -453,6 +462,18 @@ class EconomyCmds(CommandBase):
         lv_msg = f"\n🌟 采集等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "gather")
         lv_msg += _msg
+        # v101.13 坐骑 collect_bonus：概率额外采一份（骑乘采集类坐骑）
+        _mount_bonus_line = ""
+        meff = C.mount_effects(player)
+        cb = float(meff.get("collect_bonus", 0) or 0)
+        if cb > 0 and random.random() < cb:
+            extra = self._gather_roll(player["level"], prof, player.get("cur_map", ""))
+            if extra:
+                mat = extra[0]
+                mname = C.display("materials", mat)
+                db.add_item(group_id, qq_id, mat, {"name": mname, "type": "材料", "stackable": True, "price": C.MATERIALS[mat]["price"]})
+                got.append(f"{mname}x1")
+                _mount_bonus_line = f"\n🐾 坐骑帮你多叼回一份【{mname}】！"
         # 阶段九：采集次数 + 成就判定
         db.bump_stats(group_id, qq_id, gather_count=1)
         C.check_achievements(group_id, qq_id, player)
@@ -466,7 +487,7 @@ class EconomyCmds(CommandBase):
             _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：\n"
                 f"{'、'.join(got)}\n"
-                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_pet_egg_line}")
+                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}")
 
     def _settle_mining(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -2451,9 +2472,12 @@ class EconomyCmds(CommandBase):
         return None
 
     def _sell_one(self, group_id, qq_id, player, it, rate):
-        """出售单件物品（按回收价），返回 (名称, 数量, 金币) 或 None。"""
+        """出售单件物品（按回收价），返回 (名称, 数量, 金币) 或 None。
+        v101.13 坐骑 sell_bonus：骑乘驮兽类坐骑出售价格加成。"""
         d = it["data"]
-        price = int(d.get("price", 0) * rate)
+        meff = C.mount_effects(player)
+        sell_mult = 1.0 + float(meff.get("sell_bonus", 0) or 0)
+        price = int(d.get("price", 0) * rate * sell_mult)
         if price <= 0:
             return None
         db.update_player(group_id, qq_id, gold=player["gold"] + price * it["count"])

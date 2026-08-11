@@ -770,7 +770,7 @@ class WorldCmds(CommandBase):
                 if _s["id"] == want_sa:
                     first_sa = _s
                     break
-        # v94 体力：跨图移动扣 1；体力 0 拒绝（同图移动免费已在上方处理）
+        # v94 体力：跨图移动扣 1；体力 0 拒绝（同图移动免费已在上方处理）；v101.13 坐骑 stamina_reduce 概率免费
         if self._stamina(player) < 1:
             yield event.plain_result(
                 f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
@@ -779,7 +779,9 @@ class WorldCmds(CommandBase):
                 "💡 新手建议：野外活动前先在城镇『商店』买点食物（烤肉串等），体力 0 才不会困在野外～"
             )
             return
-        self._spend_stamina(group_id, qq_id, 1, player, "移动")
+        _mv_cost = 0 if random.random() < float(C.mount_effects(player).get("stamina_reduce", 0) or 0) else 1
+        if _mv_cost > 0:
+            self._spend_stamina(group_id, qq_id, _mv_cost, player, "移动")
         db.update_player(group_id, qq_id, cur_map=target["id"],
                          cur_subarea=first_sa["id"] if first_sa else "")
         # 记录到访（称号用）

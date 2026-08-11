@@ -89,11 +89,13 @@ class CombatCmds(CommandBase):
             return
         # v87 02 章 7.6：POI 探索点独立判定（15%）
         # v87.9 修复：放在随机事件之前——事件命中直接 return 会吞掉 POI 判定，导致挂载了却探索不到
-        # v94 体力：野外探索消耗 1 体力（偶遇 NPC 不消耗）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "探索")
-        if not _ok:
-            yield event.plain_result(_st)
-            return
+        # v94 体力：野外探索消耗 1 体力（偶遇 NPC 不消耗）；v101.13 坐骑 stamina_reduce 概率免费（流程照常，只免体力）
+        _stam_cost = 0 if random.random() < float(C.mount_effects(player).get("stamina_reduce", 0) or 0) else 1
+        if _stam_cost > 0:
+            _ok, _st = self._spend_stamina(group_id, qq_id, _stam_cost, player, "探索")
+            if not _ok:
+                yield event.plain_result(_st)
+                return
         cur_sa_id_poi = player.get("cur_subarea") or ""
         poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
         if poi_hit:
@@ -1183,6 +1185,13 @@ class CombatCmds(CommandBase):
             db.pet_update(qq_id, exp=p_exp, level=p_lv)
             if p_lvup:
                 pet_bonus.append(f"🎉 宠物升到 Lv.{p_lv}！(Lv.10 解锁宠物技能)" if p_lv >= 10 else f"🎉 宠物升到 Lv.{p_lv}！")
+        # v101.13 坐骑 exp_mult：骑乘加成类坐骑战斗经验加成（幽灵马/狮鹫/炎蹄战马）
+        mount_bonus = []
+        meff = C.mount_effects(player)
+        em = float(meff.get("exp_mult", 0) or 0)
+        if em > 0:
+            exp = int(exp * (1 + em))
+            mount_bonus.append(f"🐎 坐骑疾驰：经验 +{int(em*100)}%")
         # 世界事件加成：元素异象 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
         evt_bonus = []
         cur_evt = db.get_world_event()
@@ -1391,6 +1400,8 @@ class CombatCmds(CommandBase):
             lines += guild_bonus
         if pet_bonus:
             lines += pet_bonus
+        if mount_bonus:
+            lines += mount_bonus
         if evt_bonus:
             lines += evt_bonus
         # 公会任务推进（每日击杀 5 只；v43 修复：跨天重置而非跳过）
