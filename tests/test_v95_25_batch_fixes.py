@@ -39,7 +39,7 @@ async def main():
     m = Main(None)
 
     print("【1. #127 购买数量 + 全角括号】")
-    await cmd(m, "register", "g1", "w1", "注册 战士 买家")
+    await cmd(m, "register", "g1", "w1", "注册 战士 买家 男")
     db.update_player("g1", "w1", gold=50000, cur_map="ironharbor", cur_subarea="ironharbor_6")
     out = await cmd(m, "buy", "g1", "w1", "购买 治疗药水(中) 6")
     check("购买 6 瓶成功", "×6" in out, out[:200])
@@ -56,7 +56,7 @@ async def main():
     check("序号+数量可买", "×3" in out, out[:200])
 
     print("【2. #128 满血用药不消耗】")
-    await cmd(m, "register", "g1", "w2", "注册 战士 血牛")
+    await cmd(m, "register", "g1", "w2", "注册 战士 血牛 男")
     db.update_player("g1", "w2", hp=1000, max_hp=1000)
     db.add_item("g1", "w2", "pot_mid", {"name": "治疗药水(中)", "type": "消耗品", "stackable": True, "heal": 0.5, "price": 60})
     out = await cmd(m, "use", "g1", "w2", "使用 治疗药水(中)")
@@ -65,7 +65,7 @@ async def main():
     check("物品不消耗", sum(i["count"] for i in inv) == 1, str(inv))
 
     print("【3. #116 铁锚酒馆住宿】")
-    await cmd(m, "register", "g1", "w3", "注册 战士 住客")
+    await cmd(m, "register", "g1", "w3", "注册 战士 住客 男")
     db.update_player("g1", "w3", gold=500, hp=10, mp=10, cur_map="ironharbor", cur_subarea="ironharbor_5")
     out = await cmd(m, "rest", "g1", "w3", "住宿")
     check("铁锚酒馆可住宿", "美美地睡了一觉" in out, out[:200])
@@ -73,14 +73,14 @@ async def main():
     check("血蓝回满", p["hp"] == p["max_hp"] and p["mp"] == p["max_mp"], f"hp={p['hp']}/{p['max_hp']}")
 
     print("【4. #134 住宿示例动态化】")
-    await cmd(m, "register", "g1", "w4", "注册 战士 路人")
+    await cmd(m, "register", "g1", "w4", "注册 战士 路人 男")
     db.update_player("g1", "w4", gold=500, cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "rest", "g1", "w4", "住宿")
     check("提示当前城镇旅店", "铁锚酒馆" in out, out[:300])
     check("不再写死橡木镇", "橡木镇旅店" not in out, out[:300])
 
     print("【5. #138 主线等级建议】")
-    await cmd(m, "register", "g1", "w5", "注册 战士 勇者")
+    await cmd(m, "register", "g1", "w5", "注册 战士 勇者 男")
     # 直接构造 q3_3 pending 状态 + 人在铁港城（城主发布）
     quests = db.get_quests("g1", "w5")
     quests["main_quest"] = "q3_3"
@@ -96,7 +96,7 @@ async def main():
 
     print("【6. #140 死亡惩罚说明】")
     # 构造一场必败战斗（100 级怪）
-    await cmd(m, "register", "g1", "w6", "注册 战士 送头")
+    await cmd(m, "register", "g1", "w6", "注册 战士 送头 男")
     db.update_player("g1", "w6", gold=1000, level=1, cur_map="oak_plain", cur_subarea="oak_plain_1")
     from game import battle as BT
     b = BT.Battle("monster", {"name": "测试凶兽", "hp": 99999, "max_hp": 99999, "atk": 9999, "def": 9999, "spd": 999}, {}, db.get_player("g1", "w6"))
@@ -105,7 +105,7 @@ async def main():
     check("死亡提示含 10% 规则", "10% 金币" in out, out[:300])
 
     print("【7. #145 技能报错显示已学技能】")
-    await cmd(m, "register", "g1", "w7", "注册 战士 技能哥")
+    await cmd(m, "register", "g1", "w7", "注册 战士 技能哥 男")
     db.update_player("g1", "w7", learned_skills=["挥砍"])
     b2 = BT.Battle("monster", {"name": "测试史莱姆", "hp": 50, "max_hp": 50, "atk": 5, "def": 2, "spd": 3}, {}, db.get_player("g1", "w7"))
     db.save_battle("g1", "w7", b2.to_state())
@@ -119,7 +119,7 @@ async def main():
     check("给了稳定渠道", "草药柜" in sq["desc"], sq["desc"][:200])
 
     print("【9. #135 找 NPC 跨图前缀】")
-    await cmd(m, "register", "g1", "w8", "注册 战士 寻人")
+    await cmd(m, "register", "g1", "w8", "注册 战士 寻人 男")
     db.update_player("g1", "w8", cur_map="oak_town", cur_subarea="oak_town_1")
     out = await cmd(m, "find_npc", "g1", "w8", "找 老兵·格里姆")
     check("跨图提示明确", "你现在不在这里" in out, out[:300])
@@ -127,14 +127,14 @@ async def main():
     check("同图提示就在", "就在你所在的" in out, out[:300])
 
     print("【10. #133 非出口列表不列跨图】")
-    await cmd(m, "register", "g1", "w9", "注册 战士 逛街")
+    await cmd(m, "register", "g1", "w9", "注册 战士 逛街 男")
     db.update_player("g1", "w9", cur_map="ironharbor", cur_subarea="ironharbor_2")
     out = await cmd(m, "move", "g1", "w9", "前往 港口广场")
     check("非出口提示出城需先到城门", "出城需先到" in out, out[:300])
     check("不列跨图目的地", "橡木镇" not in out, out[:300])
 
     print("【11. #47b 主线交付提示】")
-    await cmd(m, "register", "g1", "w10", "注册 战士 交付")
+    await cmd(m, "register", "g1", "w10", "注册 战士 交付 男")
     quests = db.get_quests("g1", "w10")
     quests["main_quest"] = "q2_2"
     quests["main_status"] = "ready"
