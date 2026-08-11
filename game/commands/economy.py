@@ -2519,7 +2519,11 @@ class EconomyCmds(CommandBase):
         meta = IT.META.get(tpl_name, {"battle_ok": False})
         hooks = self._item_use_hooks(group_id, qq_id, target, player)
         inst_row = self._instance_battle_for(group_id, qq_id)
-        inst_battling = inst_row is not None and bool(inst_row["state"].get("boss"))
+        # v95r73 #352：inst_battling 只看是否在副本中，不能要求 boss 存在——
+        # 层肃清后(boss=None, mode=map)仍算在副本中，若此时 inst_battling=False 会走
+        # 普通战斗分支 BT.Battle.from_state + save_battle(b.to_state()) 把 leader 名下
+        # 完整副本上下文覆盖成战斗引擎残缺状态 → 『深入』报"没有分层结构" 全指令死锁
+        inst_battling = inst_row is not None
         if self._in_battle(group_id, qq_id) or inst_battling:
             # 副本战斗优先（v95r55 #269 补充：队员视角——副本 battle 存队长名下，
             # _instance_battle_for 先查自己再查队长，与 combat.py 攻击/技能分流一致）
