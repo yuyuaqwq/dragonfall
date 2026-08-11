@@ -175,7 +175,8 @@ class CombatCmds(CommandBase):
             if (player.get("stamina") or 0) < 20:
                 stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
         elif events:
-            monster = C.build_monster(random.choice(events)[1], cur_map)
+            # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
+            monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=1)
         else:
             # v95r38 兜底（上面空池+无 elite/boss 已提前 return，理论不可达）
             _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
@@ -996,6 +997,28 @@ class CombatCmds(CommandBase):
             tag_str = "".join(f"<{t}>" for t in tags)
             lines.append(f"{i}.{disp_name} [{lv_str}] {tag_str}")
             lines.append(f"「{info['desc']}」")
+            # v101.25c 技能列表消耗行：参考属性面板四维风格（· 前缀缩进），
+            # 展示 魔力/核心资源/CD——鱼鱼抓"看不到消耗，普攻没意义"
+            _cost = []
+            _mp = info.get("mp", 0)
+            if _mp:
+                _cost.append(f"{_mp} 魔力")
+            _rc = info.get("res_cost") or {}
+            _rd = E.core_resource_def(player["class_name"])
+            _rcn = _rd.get("name", "") if _rd else ""
+            for _k, _v in _rc.items():
+                _cn = _rcn or _k
+                _cost.append(f"{_cn} -{_v}")
+            _rg = info.get("res_gain") or 0
+            if _rg:
+                _cost.append(f"{_rcn or '资源'} +{_rg}")
+            _cd = info.get("cd") or 0
+            if _cd:
+                _cost.append(f"冷却 {_cd} 回合")
+            if _cost:
+                lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
+            else:
+                lines.append("  · 消耗：免费")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:

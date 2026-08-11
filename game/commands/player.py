@@ -959,7 +959,9 @@ class PlayerCmds(CommandBase):
         kind = info.get("kind", "")
         if info.get("power"):
             label = "治疗" if kind == "治疗" else "伤害"
-            parts.append(f"{label} {int(E.skill_power_mult(lv, info) * 100)}%")
+            # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——
+            # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）
+            parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
         if kind in ("增益", "嘲讽"):
             parts.append(f"持续 {E.skill_buff_turns(lv)} 回合")
         if info.get("cond"):

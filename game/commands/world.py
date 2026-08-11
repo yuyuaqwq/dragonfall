@@ -835,14 +835,16 @@ class WorldCmds(CommandBase):
         inter_msg = fac_msg + scene_msg
         # v49 意见#4：移动撞怪（生物趋避利害——低级闯高级区容易撞怪，高级玩家威慑低级区）
         ambush = self._travel_ambush(player, target)
+        # v101.25c 模板统一：跨图移动也走 _subarea_arrive 完整模板（NPC/可互动/设施/场景/可前往）
+        # 此前跨图是另一套精简拼接（fac_msg/scene_msg/nav），鱼鱼抓"前往不同区域提示模板不一样"
         if ambush:
             db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
             self._lock_battle(group_id, qq_id)
-            sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
-            # v87.13b 到达描述优先子区域 desc（与『地图』展示一致）
-            arrive_desc = (first_sa.get("desc") if first_sa else "") or target.get("desc", "")
+            arrive_txt = f"🚶 你来到了【{target['name']}】"
+            if target.get("type") == C.MAP_TYPE_TOWN and first_sa:
+                arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
             yield event.plain_result(
-                f"🚶 你来到了【{target['name']}】\n{arrive_desc}{sub_line}{lv_msg}{extra}{portal_msg}\n"
+                f"{arrive_txt}\n{(first_sa.get('desc') if first_sa else '') or target.get('desc', '')}{lv_msg}{extra}{portal_msg}\n"
                 f"━━━━━━━━━━━━\n"
                 f"🛡️ 还没站稳，{ambush['name']} 就拦住了去路！\n"
                 f"🐾【{ambush['name']}】Lv.{ambush['lv']} ❤️ {ambush['hp']}/{ambush['max_hp']}\n"
@@ -850,32 +852,25 @@ class WorldCmds(CommandBase):
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             )
             return
-        sub_line = f"\n📍 当前：{first_sa['name']}" if first_sa else ""
-        # v87.13b 到达描述优先子区域 desc（与『地图』展示一致）
-        arrive_desc = (first_sa.get("desc") if first_sa else "") or target.get("desc", "")
         # v87.3 必经之路：进入城镇时提示方向（从路图/野外进城）
         arrive_txt = f"🚶 你来到了【{target['name']}】"
         if target.get("type") == C.MAP_TYPE_TOWN and first_sa:
             arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
-            sub_line = ""
         # v97.5 行为彩蛋规则：进入新地图
         _rule_txt = self._rule_fire("move_enter", group_id, qq_id, player, target)
+        arrive_view = self._subarea_arrive(player, target, first_sa) if first_sa else \
+            f"🚶 你来到了【{target['name']}】\n{target.get('desc', '')}"
+        # 跨图特有信息插在主体前（等级提示/任务/方碑）
+        _head_extra = f"{lv_msg}{extra}{portal_msg}"
         yield event.plain_result(
-            f"{arrive_txt}\n{arrive_desc}{sub_line}{lv_msg}{extra}{portal_msg}{nav}{inter_msg}"
+            f"{arrive_view}{_head_extra}{nav}"
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
-    def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
-        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
-
-        v6 修复：与跨图移动一致，展示本子区域 PROPS/POI 场景元素
-        （鱼鱼验收：移动展示必须与『地图』面板一致）。
-        """
-        lines = [
-            f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
-            f"{sa.get('desc', '')}",
-            f"━━━━━━━━━━━━",
-        ]
+    def _subarea_body(self, player: dict, cur_map: dict, sa: dict) -> str:
+        """v101.25c 子区域主体展示（NPC/可互动/设施/场景/可前往）——跨图移动、
+        子区域切换、返回三处共用同一模板（鱼鱼抓"前往不同区域提示模板不一样"）。"""
+        lines = []
         # 本子区域 NPC
         npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS]
         if npcs:
@@ -940,6 +935,20 @@ class WorldCmds(CommandBase):
         lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)
 
+    def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
+        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
+
+        v6 修复：与跨图移动一致，展示本子区域 PROPS/POI 场景元素
+        （鱼鱼验收：移动展示必须与『地图』面板一致）。
+        v101.25c：主体复用 _subarea_body（与跨图移动/返回同模板）。
+        """
+        return "\n".join([
+            f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
+            f"{sa.get('desc', '')}",
+            f"━━━━━━━━━━━━",
+            self._subarea_body(player, cur_map, sa),
+        ])
+
     def _travel_ambush(self, player: dict, target_map: dict):
         """移动撞怪判定：返回撞到的怪物 dict 或 None。
 
@@ -976,7 +985,8 @@ class WorldCmds(CommandBase):
             chance = 0.08
         if random.random() >= chance:
             return None
-        return C.build_monster(random.choice(monsters), target_map)
+        # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
+        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:\s*|$)")
     @require_player()
@@ -1050,7 +1060,12 @@ class WorldCmds(CommandBase):
             pass
         quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
         extra = ("\n\n" + "\n".join(quest_lines)) if quest_lines else ""
-        yield event.plain_result(f"🧭 你一路疾行，回到了{target['name']}！(『地图』查看位置){extra}")
+        # v101.25c 模板统一：返回也走 _subarea_arrive 完整模板（此前只有一行精简文案）
+        if first_sa:
+            view = self._subarea_arrive(player, target, first_sa)
+        else:
+            view = f"🧭 你一路疾行，回到了{target['name']}！\n{target.get('desc', '')}"
+        yield event.plain_result(f"{view}{extra}")
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
@@ -1972,6 +1987,10 @@ class WorldCmds(CommandBase):
             self._stop_event_safe(event)
             return
         player = self._player(group_id, qq_id)
+        # v101.25c：快捷指令优先于 NPC 序号——玩家绑定了该数字快捷（『快捷绑定 1 探索』）
+        # 时发『1』应执行快捷，而不是触发找 NPC 1 对话（鱼鱼 2026-08-11 抓包）
+        if player and num in (player.get("shortcuts") or {}):
+            return  # 放行给 shortcut_trigger（priority 低，本 handler return 不 yield）
         if player and not str(player.get("cur_map", "")).startswith("home_"):
             npcs = self._current_npcs(player)
             if npcs and num.isdigit():
