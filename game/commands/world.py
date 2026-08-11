@@ -1827,7 +1827,8 @@ class WorldCmds(CommandBase):
         summary = C.time_weather_summary(cur)
         cur_map = C.MAP_BY_ID.get(cur, {})
         lines = [
-            f"🕰️ 【时间】{summary}",
+            "🕰️ 【时间】",
+            f"⏰ {summary}",
             f"📍 你在【{cur_map.get('name', '未知区域')}】",
             "━━━━━━━━━━━━",
         ]

@@ -95,9 +95,10 @@ def today_weather(map_id: str | None = None, now: datetime.date | None = None) -
 
 
 def time_weather_summary(map_id: str | None = None, now: datetime.datetime | None = None) -> str:
-    """『时间』指令面板：时间段/季节/天气"""
+    """『时间』指令面板：时刻/时间段/季节/天气（v95.30 加具体几点几分）"""
     now = now or datetime.datetime.now()
     return (
-        f"{PERIOD_CN[current_period(now)]} · {SEASON_CN[current_season(now)]} · "
+        f"{now.hour:02d}:{now.minute:02d} · {PERIOD_CN[current_period(now)]} · "
+        f"{SEASON_CN[current_season(now)]} · "
         f"{WEATHER_CN[today_weather(map_id, now.date())]}"
     )
