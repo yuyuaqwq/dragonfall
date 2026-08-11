@@ -106,6 +106,31 @@ def require_player():
     return deco
 
 
+def require_battle(hint=""):
+    """战斗中守卫：当前没有战斗（普通/副本）时拦截（v95.26 收口 combat.py 4 处样板）。
+
+    用法（@require_player() 下方）：
+        @filter.regex(r"...")
+        @require_player()
+        @require_battle()
+        async def attack(self, event): ...
+    hint: 追加到"你附近没有敌人"后的补充提示（如技能版『技能列表』查看技能）。
+    handler 内仍自行查询 battle（装饰器只做拦截判断，查询逻辑不重复收口——
+    攻击/技能等各自有副本兜底分支，battle 变量后续还要用）。
+    """
+    def deco(fn):
+        @functools.wraps(fn)
+        async def wrapper(self, event: AstrMessageEvent, *args, **kwargs):
+            group_id, qq_id = self._uid(event)
+            if not self._in_any_battle(group_id, qq_id):
+                yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～" + hint)
+                return
+            async for item in fn(self, event, *args, **kwargs):
+                yield item
+        return wrapper
+    return deco
+
+
 class CommandBase:
 
     # ---------- v96 GM 身份与停服状态 ----------
@@ -430,6 +455,19 @@ class CommandBase:
 
     def _player(self, group_id, qq_id):
         return db.get_player(group_id, qq_id)
+
+    def _in_any_battle(self, group_id, qq_id) -> bool:
+        """v95.26 是否存在战斗（普通战斗或副本战斗）——require_battle 守卫用。
+        _instance_battle_for 定义在 InstanceCmds，用 getattr 兼容 CommandBase 单独使用。"""
+        if db.get_battle(group_id, qq_id):
+            return True
+        f = getattr(self, "_instance_battle_for", None)
+        if f is not None:
+            try:
+                return bool(f(group_id, qq_id))
+            except Exception:
+                return False
+        return False
 
     # ---------- v94 体力系统 ----------
     def _stamina_max(self, player: dict) -> int:

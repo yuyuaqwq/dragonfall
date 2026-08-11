@@ -18,7 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
-from ..commands.base import CommandBase, no_prof_waiting, require_player
+from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
@@ -940,6 +940,7 @@ class CombatCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?防御(?:\s*|$)")
     @require_player()
+    @require_battle()
 
     async def defend(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -949,9 +950,6 @@ class CombatCmds(CommandBase):
             inst_row = self._instance_battle_for(group_id, qq_id)
             if inst_row:
                 battle = inst_row
-        if not battle:
-            yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～")
-            return
         if battle["state"].get("type") == "instance":
             async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "defend", None):
                 yield _r
@@ -984,6 +982,7 @@ class CombatCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?逃跑(?:\s*|$)")
     @require_player()
+    @require_battle()
 
     async def flee(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -993,9 +992,6 @@ class CombatCmds(CommandBase):
             inst_row = self._instance_battle_for(group_id, qq_id)
             if inst_row:
                 battle = inst_row
-        if not battle:
-            yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～")
-            return
         if battle["state"].get("type") == "instance":
             yield event.plain_result("🏰 副本 Boss 锁定了战场，无法逃跑！背水一战吧！")
             return
