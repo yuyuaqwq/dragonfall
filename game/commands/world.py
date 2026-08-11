@@ -1650,7 +1650,9 @@ class WorldCmds(CommandBase):
         return None
 
     def _npc_direction_hint(self, player, name_key):
-        """v95.8 #51：当前地图没找到 NPC 时，全局搜位置给方向提示；找不到返回 None"""
+        """v95.8 #51：当前地图没找到 NPC 时，全局搜位置给方向提示；找不到返回 None
+        v59.#51：同名 NPC 分散多城镇时，玩家所在地图有命中 → 只列当前地图位置（单一方向），
+        不再三城镇并列无方位（实测『找 城主』曾并列白鹿城/铁港城/珍珠城）"""
         cur = player["cur_map"]
         hits = []
         for nid, npc in C.NPCS.items():
@@ -1671,15 +1673,14 @@ class WorldCmds(CommandBase):
                 if nid in (sa.get("npcs") or []):
                     sa_name = sa.get("name", "")
                     break
-            if sa_name:
-                locs.append(f"{m_name}·{sa_name}")
-            else:
-                locs.append(m_name)
-        uniq = list(dict.fromkeys(locs))
-        in_here = cur in {npc.get("map") for _, npc in hits}
+            locs.append((m_id, f"{m_name}·{sa_name}" if sa_name else m_name))
+        in_here = cur in {m_id for m_id, _ in locs}
         # v95.25 #135：前缀明确"在/不在你所在的地图"，不再用误导性的"你所在的地图的…"
         if in_here:
-            return f"🧭 『{name_key}』就在你所在的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『对话』定位～"
+            # v59.#51 修复：所在地图有同名 NPC 时只列本图位置
+            here_uniq = list(dict.fromkeys(l for m_id, l in locs if m_id == cur))
+            return f"🧭 『{name_key}』就在你所在的「{'、'.join(here_uniq)}」一带。输入『地图』查看路线，到了地方用『对话』定位～"
+        uniq = list(dict.fromkeys(l for _, l in locs))
         return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『对话』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):

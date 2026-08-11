@@ -40,15 +40,15 @@ async def main():
 
     print("【v65 对话树：入口】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("找镇长进入对话树", "1. 野狗是怎么回事？" in out and "0. 结束对话" in out, out[:200])
+    check("找镇长进入对话树", "1. 史莱姆是怎么回事？" in out and "0. 结束对话" in out, out[:200])
     check("quest_pending 显示任务选项", "我需要任务。" in out, out[:200])
     check("对话树保留功能提示", "接任务" in out or "任务" in out, out[:200])
 
     print("【v65 对话树：推进】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("对话1推进到野狗分支", "那些畜生是入秋之后" in out, out[:200])
+    check("对话1推进到史莱姆分支", "黏糊糊的绿家伙" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("对话1推进到誓言", "好样的！镇子西边的路口" in out and "包在我身上！" in out, out[:200])
+    check("对话1推进到誓言", "好样的！镇子西边的草地" in out and "包在我身上！" in out, out[:200])
     # set_flag pledged 已写入（选"我这就去解决它们！"时触发）
     flags = db.get_talk_flags("g1", "w1", "npc_mayor")
     check("set_flag 写入", "pledged" in flags, str(flags))
@@ -59,18 +59,18 @@ async def main():
 
     print("【v101.16 对话改版：无会话时『对话 N』直接开始对话】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("无会话『对话 1』开始对话", "野狗是怎么回事" in out or "镇长" in out, out[:200])
+    check("无会话『对话 1』开始对话", "史莱姆是怎么回事" in out or "镇长" in out, out[:200])
 
     print("【v65 对话树：重复找重置】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("重新找回到 start", "1. 野狗是怎么回事？" in out, out[:200])
+    check("重新找回到 start", "1. 史莱姆是怎么回事？" in out, out[:200])
     # 镇长接取 q1 后（find_npc 自动接），quest_pending 选项隐藏
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 2")
     check("对话2到镇子近况", "镇子还算太平" in out, out[:200])
 
     print("【v65 对话树：分支与结束】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("town 分支可回野狗", "那些畜生是入秋之后" in out, out[:200])
+    check("town 分支可回史莱姆", "黏糊糊的绿家伙" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 0")
     check("对话0结束", "那就再会了" in out, out[:120])
     out = await cmd(m, "talk_choice", "g1", "w1", "再见")
@@ -99,7 +99,7 @@ async def main():
     db.save_quests("g1", "w1", {"main_quest": None, "main_status": "pending", "main_progress": {},
                                 "daily": {}, "completed_main": ["q1"], "side": {}})
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("主线完成后任务选项隐藏", "我需要任务" not in out and "1. 野狗是怎么回事？" in out, out[:200])
+    check("主线完成后任务选项隐藏", "我需要任务" not in out and "1. 史莱姆是怎么回事？" in out, out[:200])
 
     print("【v65 对话树：动作执行】")
     # 铁匠：open_shop 动作
@@ -206,6 +206,20 @@ async def main():
     check("矮人:进入任务对话", "交给我了" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("矮人:接取q8_3", "接取任务" in out and "铁砧要塞" in out, out[:250])
+
+    print("【v59.#51 找NPC方向提示：同名NPC只列当前地图位置】")
+    # 玩家在铁港城找『城主』：3 城都有城主（+珍珠城城主侍女也含"城主"）→ 只列铁港城单一方向
+    db.update_player("g1", "w1", cur_map="ironharbor", cur_subarea="ironharbor_1")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 城主")
+    check("#51:城主只列当前地图", "铁港城·城主府" in out and "白鹿城" not in out and "珍珠城" not in out, out[:250])
+    # 玩家在橡木镇（非镇长所在子区域）找『镇长』→ 只列橡木镇·镇长办公处
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_4")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
+    check("#51:镇长只列当前地图", "橡木镇·镇长办公处" in out and "铁盾镇" not in out and "极光镇" not in out, out[:250])
+    # 玩家所在地图无同名 NPC → 保留"你现在不在这里"+全列表（跨城镇导航）
+    db.update_player("g1", "w1", cur_map="ironharbor", cur_subarea="ironharbor_1")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
+    check("#51:跨地图保留全列表", "你现在不在这里" in out and "橡木镇·镇长办公处" in out and "铁盾镇·镇公所" in out, out[:250])
 
     print("【v65 引擎：数据完整性】")
     # 所有对话树节点引用合法：next 要么是 __end__ 要么是存在的节点
