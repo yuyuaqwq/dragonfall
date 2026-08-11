@@ -106,6 +106,16 @@ async def main():
     except Exception as e:
         check("无 stop_event 事件不抛异常", False, repr(e))
 
+    # ---- 9. v101.18 回归：裸数字 regex 必须匹配 1-9（曾用全角连字符 [0－9] 只匹配 0/9） ----
+    import re as _re2
+    num_re = _re2.compile(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$")
+    check("regex 匹配 1", bool(num_re.match("1")), "数字1匹配失败")
+    check("regex 匹配 2", bool(num_re.match("2")), "数字2匹配失败")
+    check("regex 匹配 8", bool(num_re.match("8")), "数字8匹配失败")
+    check("regex 匹配 12", bool(num_re.match("12")), "两位数字匹配失败")
+    check("regex 匹配全角３", bool(num_re.match("３")), "全角数字匹配失败")
+    check("regex 不匹配字母", not num_re.match("a"), "字母误匹配")
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

@@ -90,7 +90,7 @@ class PlayerCmds(CommandBase):
         lines.append("『快捷绑定 <数字> <指令>』新增，『快捷删除 <数字>』删除")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0－9]\d?$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
         """纯数字消息：查玩家的快捷绑定并转发执行"""

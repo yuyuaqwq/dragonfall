@@ -1907,7 +1907,7 @@ class WorldCmds(CommandBase):
             "『前往结束』退出移动模式，『对话 <NPC名>』照常交谈。"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0－9]\d?$", priority=100)
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$", priority=100)
     @require_player()
     async def npc_quick_dialog(self, event: AstrMessageEvent):
         """裸数字优先 NPC 对话：对话树选项 > NPC 列表序号 > 快捷指令兜底。
