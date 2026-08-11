@@ -1338,7 +1338,10 @@ class CombatCmds(CommandBase):
                 drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
         # 经验/金币（v93：只入经验，金币已折算成材料）
         # v95.19: 顺带同步 DB max_hp/max_mp 实时值（player 已由 Battle 刷新，防 get_player clamp 误伤）
-        db.update_player(group_id, qq_id, exp=player["exp"] + exp, max_hp=player["max_hp"], max_mp=player["max_mp"])
+        # #262: 先更新 player dict 再落库——此前直接写库导致进度条显示旧值、
+        #       _rule_fire 的 exp_gain 在旧基数上覆盖 DB（三连胜经验延迟到下一场才入账）
+        player["exp"] = int(player.get("exp", 0)) + exp
+        db.update_player(group_id, qq_id, exp=player["exp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         player = self._player(group_id, qq_id)
         # v95.19: 结算面板与战斗内口径一致（DB max_hp/max_mp 是注册/升级快照，换装备后过时）
         try:
@@ -1349,6 +1352,11 @@ class CombatCmds(CommandBase):
             player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception:
             pass
+        # #262: 行为规则(三连胜等)提前到进度条显示前触发——exp_gain 模板会同步 player["exp"]，
+        # 进度条与公告口径一致（此前公告在面板之后才写库，玩家感知为经验延迟到下一场）
+        _rule_txt = self._rule_fire("battle_win", group_id, qq_id, player,
+                                    C.MAP_BY_ID.get(player.get("cur_map"), {}),
+                                    {"event": "win", "enemy": monster})
         need = C.exp_to_next(player["level"])
         exp_pct = min(100, int(player["exp"] / need * 100)) if need else 0
         lines = [result, f"🎉 你击败了【{monster['name']}】！",
@@ -1417,10 +1425,7 @@ class CombatCmds(CommandBase):
             ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']})")
         if ach_lines:
             lines += [""] + ach_lines
-        # v97.5 行为彩蛋规则：战斗胜利后
-        _rule_txt = self._rule_fire("battle_win", group_id, qq_id, player,
-                                    C.MAP_BY_ID.get(player.get("cur_map"), {}),
-                                    {"event": "win", "enemy": monster})
+        # v97.5 行为彩蛋规则：战斗胜利后（#262：触发已提前到进度条生成前，这里只保留公告行位置）
         if _rule_txt:
             lines.append(_rule_txt)
         lines.append("━━━━━━━━━━━━")

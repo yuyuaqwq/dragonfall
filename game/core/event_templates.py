@@ -143,7 +143,10 @@ def tpl_exp_gain(ctx):
     C = ctx._C()
     E = ctx._E()
     exp_gain = ctx.param("min", 15) + ctx.lv * ctx.param("scale_lv", 3)
-    db.update_player(ctx.group_id, ctx.qq_id, exp=ctx.player["exp"] + exp_gain)
+    # #262: 同步 ctx.player 引用再写库——战斗结算进度条显示依赖同一 player dict，
+    # 此前只写 DB 不更新引用，规则经验在当次面板"隐形"、玩家感知延迟到下一场
+    ctx.player["exp"] = int(ctx.player.get("exp", 0)) + exp_gain
+    db.update_player(ctx.group_id, ctx.qq_id, exp=ctx.player["exp"])
     player = db.get_player(ctx.group_id, ctx.qq_id)
     player["_title_bonus"] = ctx.hooks.get("title_bonus", lambda q: None)(ctx.qq_id)
     lines = [ctx.param("header", "✨ 经验 +{exp}").replace("{name}", ctx.name).replace("{exp}", str(exp_gain))]
