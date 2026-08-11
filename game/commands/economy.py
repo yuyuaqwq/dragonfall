@@ -3101,7 +3101,8 @@ class EconomyCmds(CommandBase):
         # 找武器（按名称）
         for wname, wtype, wlv, wq in weapons:
             if item_name in wname:
-                price = int((8 + wlv * 6) * C.QUALITY[wq]["mult"] * discount)
+                # v95.34：价格与显示/序号购买同源（v101.25e _shop_equip_price），修 #414 名称购买走旧公式低价漏洞
+                price = int(self._shop_equip_price("weapon", wlv, wq, wtype) * discount)
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
                     return
@@ -3118,8 +3119,8 @@ class EconomyCmds(CommandBase):
         for rid in equip_items:
             r = C.EQUIP_ROSTER[rid]
             if item_name in r["name"]:
-                q = C.QUALITY[r["quality"]]
-                price = int((8 + r["lv"] * 6) * q["mult"] * discount)
+                # v95.34：价格与显示/序号购买同源（v101.25e _shop_equip_price），修 #414 名称购买走旧公式低价漏洞
+                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type")) * discount)
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
                     return
