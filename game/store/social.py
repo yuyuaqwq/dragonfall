@@ -255,8 +255,12 @@ def party_members(group_id, qq_id):
             if not row:
                 return []
             leader = row["leader"]
+            # v95.29 #270：必须 ORDER BY 队长自指行排第一——SQLite 无排序时返回顺序不保证，
+            # members[0] 被命令层当作队长（显示标记/拉人权限判断），顺序错乱会误拦真队长拉人
             rows = conn.execute(
-                "SELECT member FROM party WHERE group_id=? AND leader=?", (group_id, leader)
+                "SELECT member FROM party WHERE group_id=? AND leader=? "
+                "ORDER BY (member=leader) DESC, rowid",
+                (group_id, leader),
             ).fetchall()
             return [r["member"] for r in rows]
         finally:
