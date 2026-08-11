@@ -199,7 +199,9 @@ class PlayerCmds(CommandBase):
             return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
-        db.create_player(group_id, qq_id, name, cls_id, cls["base"], cls["base"]["hp"], cls["base"]["mp"], race_id, gender_id)
+        # v100.7 注册初始血量必须乘种族倍率（银月精灵月缺 HP-5% 等），否则初始当前生命 > 上限
+        st0, _ = E.player_stats_detail(cls_id, 1, {}, 0, None, 0, None, race_id)
+        db.create_player(group_id, qq_id, name, cls_id, cls["base"], st0["max_hp"], st0["max_mp"], race_id, gender_id)
         # v95 #47：注册送 1 技能点 → Lv.1 有 1 点、Lv.2 有 2 点正好学第一个技能（Lv.1/Lv.2 技能 cost=2），断层消除
         db.update_player(group_id, qq_id, skill_points=1)
         # v86 子区域：新手出生落中心广场
@@ -325,9 +327,9 @@ class PlayerCmds(CommandBase):
             final = st[fkey]
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
-                lines.append(f"{icon} {cname} {prefix}{int(final*100)}%(+{int(bonus*100)}%)")
+                lines.append(f"{icon} {cname} {prefix}{int(final*100)}%({int(bonus*100):+d}%)")
             else:
-                lines.append(f"{icon} {cname} {prefix}{final}(+{int(bonus)})")
+                lines.append(f"{icon} {cname} {prefix}{final}({int(bonus):+d})")
         # 资源块（金币/位置/技能点/EXP 独立成块，每项单独一行）
         lines.append("━━━━━━━━━━━━")
         lines.append(f"💰 金币：{player['gold']}")
