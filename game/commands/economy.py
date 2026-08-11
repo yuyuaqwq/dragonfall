@@ -2322,9 +2322,9 @@ class EconomyCmds(CommandBase):
                 diff = st[k] - old_stats[k]
                 if abs(diff) >= 1e-9:
                     if k in C.PCT_STATS:
-                        diff_parts.append(f"{label} {int(diff*100):+.0f}%")
+                        diff_parts.append(f"{label} {'+' if diff > 0 else '-'} {abs(int(diff*100))}%")
                     else:
-                        diff_parts.append(f"{label} {diff:+.0f}")
+                        diff_parts.append(f"{label} {'+' if diff > 0 else '-'} {abs(int(diff))}")
         # v101.21b 排版：每项一行 + 两侧空格，不显示当前属性
         lines = [f"✅ 你装备了 {q['color']}【{d['name']}】！", "📊 属性变化："]
         if diff_parts:
@@ -2381,9 +2381,9 @@ class EconomyCmds(CommandBase):
             diff = st[k] - old_stats[k]
             if abs(diff) >= 1e-9:
                 if k in C.PCT_STATS:
-                    diff_parts.append(f"{label} {int(diff*100):+.0f}%")
+                    diff_parts.append(f"{label} {'+' if diff > 0 else '-'} {abs(int(diff*100))}%")
                 else:
-                    diff_parts.append(f"{label} {diff:+.0f}")
+                    diff_parts.append(f"{label} {'+' if diff > 0 else '-'} {abs(int(diff))}")
         q = C.QUALITY[item["quality"]]
         enh = item.get("enhance", 0)
         enh_str = f" +{enh}" if enh > 0 else ""
