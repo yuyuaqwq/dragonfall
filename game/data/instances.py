@@ -19,7 +19,7 @@ INSTANCES = {
         "icon": "👺",
         "lv": 15,
         "min_players": 1,
-        "max_players": 1,
+        "max_players": 2,  # v101.24：1-2 人（鱼鱼拍板，双人小队可一起打）
         "desc": "商路旁的哥布林聚落，哥布林酋长·咕噜盘踞于此，靠抢劫商队为生。冒险者行会悬赏讨伐。(主线第 2 章)",
         "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20,
                  ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],

@@ -668,29 +668,34 @@ class InstanceCmds(CommandBase):
         inst = C.INSTANCES[kid]
         min_players = inst.get("min_players", 2)
         max_players = inst.get("max_players", 3)
-        # 单人副本：无需组队，直接以自己开本
-        if min_players <= 1:
+        # 纯单人副本：无需组队，直接以自己开本
+        if min_players <= 1 and max_players <= 1:
             members = [qq_id]
         else:
             members = db.party_members(group_id, qq_id)
             if not members:
-                yield event.plain_result(
-                    f"『{inst['name']}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～"
-                )
-                return
-            if str(members[0]) != str(qq_id):
-                yield event.plain_result("只有队长才能开启副本！让队长来『副本 <名字>』吧～")
-                return
-            if len(members) < min_players:
-                yield event.plain_result(
-                    f"『{inst['name']}』至少需要 {min_players} 人！还差 {min_players - len(members)} 个队友，让队长『组队 <名字>』拉人～"
-                )
-                return
-            if len(members) > max_players:
-                yield event.plain_result(
-                    f"『{inst['name']}』最多 {max_players} 人！当前 {len(members)} 人太多了～"
-                )
-                return
+                if min_players <= 1:
+                    # v101.24 弹性副本（如哥布林营地 1-2 人）：无队可单人进
+                    members = [qq_id]
+                else:
+                    yield event.plain_result(
+                        f"『{inst['name']}』需要 {min_players}-{max_players} 人组队！先『组队 <对方名字>』～"
+                    )
+                    return
+            else:
+                if str(members[0]) != str(qq_id):
+                    yield event.plain_result("只有队长才能开启副本！让队长来『副本 <名字>』吧～")
+                    return
+                if len(members) < min_players:
+                    yield event.plain_result(
+                        f"『{inst['name']}』至少需要 {min_players} 人！还差 {min_players - len(members)} 个队友，让队长『组队 <名字>』拉人～"
+                    )
+                    return
+                if len(members) > max_players:
+                    yield event.plain_result(
+                        f"『{inst['name']}』最多 {max_players} 人！当前 {len(members)} 人太多了～"
+                    )
+                    return
         # 全队等级 / 战斗检查
         for m in members:
             p = self._player(group_id, m)
