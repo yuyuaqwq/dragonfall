@@ -2844,7 +2844,7 @@ class EconomyCmds(CommandBase):
             else:
                 _mm = C.MATERIALS_BY_NAME.get(d.get("name", "")) or {}
                 _need = _MAT_FACILITY.get(_mm.get("type", "杂物"), "shop")
-                _hint_map = {"smith": "铁匠铺（矿石/兽材/木材/宝石）", "alchemy": "炼金工坊（草药/精华）", "shop": "商店（食材/织物/杂物）"}
+                _hint_map = {"smith": "铁匠铺（矿石/兽材/木材/宝石）", "alchemy": "草药铺/炼金工坊（草药/精华）", "shop": "商店（食材/织物/杂物）"}
                 yield event.plain_result(f"『{d['name']}』是材料，要到{_hint_map.get(_need, '对应店铺')}才能回收成金币～")
             return
         r = self._sell_one(group_id, qq_id, player, target, rate)
