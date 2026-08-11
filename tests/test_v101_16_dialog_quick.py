@@ -88,10 +88,13 @@ async def main():
     check("『对话』空参显示列表", "这里的 NPC" in r4 and "1." in r4, r4[:150])
 
     # ---- 7. 『对话 <序号>』无状态 → 找第 N 个 NPC ----
+    # v101.25 测试确定性：oak_town_1 酱油 NPC（卖糖人/新手/老人/顽童）有 roam/appear
+    # 随机性，深夜跑全量可能只剩小艾 → 移到 oak_town_2（镇长+文书墨点，墨点无随机配置）
+    db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_2")
     ev7 = FakeEvent("g1", "1001", "对话 2")
     r7 = "".join(str(x) for x in await run(m.talk_choice, ev7))
     print("  [对话 2]", r7[:100].replace("\n", " | "))
-    check("『对话 2』命中第 2 个 NPC", "卖糖人" in r7 or "蜜嘴" in r7, r7[:100])
+    check("『对话 2』命中第 2 个 NPC", "墨点" in r7, r7[:100])
 
     # ---- 8. 模拟 Loopback 事件（无 stop_event 方法）→ 不抛异常 ----
     class NoStopEvent(FakeEvent):
