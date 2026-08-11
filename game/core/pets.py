@@ -4,4 +4,5 @@
 24 章宠物系统：统一从数据层（game/data/pets.py）re-export。
 旧版（7 品种无技能）已随删档废弃，此处保留兼容路径。
 """
-from ..data.pets import PET_POOL, make_pet_egg, pet_exp_need, pet_skill_label  # noqa: F401
+from ..data.pets import PET_POOL, PET_EGG_ROLL, \
+    make_pet_egg, pet_exp_need, pet_skill_label, pet_quality_label, pet_line  # noqa: F401

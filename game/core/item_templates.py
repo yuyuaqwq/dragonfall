@@ -268,7 +268,7 @@ def tpl_pet_egg(ctx):
     dex_count = len(db.pet_dex_get(ctx.qq_id))
     return ItemResult(
         text=f"🥚 宠物蛋微微颤动……裂开了！\n"
-             f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！(图鉴 {dex_count}/4)\n"
+             f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！(图鉴 {dex_count}/{len(C.PET_POOL)})\n"
              f"💡 输入『宠物』查看，『喂养 <材料>』恢复饱食度，升到 Lv.10 解锁宠物技能！")
 
 

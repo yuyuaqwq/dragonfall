@@ -26,10 +26,11 @@ async def main():
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", cur_map="oak_plain")
 
-    # ---- 数据层：4 品种 + 技能定义 ----
-    check("PET_POOL 恰 4 品种", len(C.PET_POOL) == 4, str([p["key"] for p in C.PET_POOL]))
+    # ---- 数据层：14 品种（v101.11 扩容）+ 技能定义 ----
+    check("PET_POOL >= 10 品种", len(C.PET_POOL) >= 10, str([p["key"] for p in C.PET_POOL]))
     keys = {p["key"] for p in C.PET_POOL}
-    check("品种 key 齐", keys == {"pet_wolf", "pet_cat", "pet_drake", "pet_rabbit"}, str(keys))
+    check("旧 4 品种保留", {"pet_wolf", "pet_cat", "pet_drake", "pet_rabbit"} <= keys, str(keys))
+    check("新 10 品种加入", len(keys - {"pet_wolf", "pet_cat", "pet_drake", "pet_rabbit"}) >= 10, str(keys))
     for p in C.PET_POOL:
         check(f"{p['name']} 技能字段齐", p.get("skill_name") and p.get("skill_interval") and p.get("skill_type") and 0 < p.get("skill_value") < 1)
     check("宠物蛋构造", C.make_pet_egg("pet_rabbit")["name"] == "月光兔蛋")

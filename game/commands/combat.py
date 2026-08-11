@@ -1261,15 +1261,20 @@ class CombatCmds(CommandBase):
         # 材料掉落（v95.7 #45：v23 旧路径与 v93 折算路径重复掉落同一材料 → 删除旧路径，
         # 统一走下方 v93 折算（掉落池优先 + 数量按价值），修复『拾取材料X』+『拾取材料X ×N』双行）
         pet_egg_line = ""
-        pet_egg_roll = {
-            "pet_wolf":   (0.015, monster.get("role") == "dps" and any(k in monster.get("name", "") for k in ["狼", "狗", "野猪", "熊"])),
-            "pet_cat":    (0.065, monster.get("is_elite")),
-            "pet_drake":  (0.12, monster.get("is_boss")),
-        }
+        # v101.11 蛋掉落表数据化（data/pets.py PET_EGG_ROLL，加宠物/改概率不动代码）
         egg_key = None
-        for k, (rate, cond) in pet_egg_roll.items():
-            if cond and random.random() < rate:
-                egg_key = k
+        for rule in C.PET_EGG_ROLL:
+            ok = True
+            if rule.get("role") and monster.get("role") != rule["role"]:
+                ok = False
+            if ok and rule.get("is_elite") and not monster.get("is_elite"):
+                ok = False
+            if ok and rule.get("is_boss") and not monster.get("is_boss"):
+                ok = False
+            if ok and rule.get("name_kw") and not any(k in monster.get("name", "") for k in rule["name_kw"]):
+                ok = False
+            if ok and random.random() < rule.get("rate", 0):
+                egg_key = rule["key"]
                 break
         if egg_key:
             egg = C.make_pet_egg(egg_key)
