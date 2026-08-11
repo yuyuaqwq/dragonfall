@@ -1341,6 +1341,9 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         bp_name = self._strip_cmd(event, "学习").strip()
+        # v95r62 宽容『学习图纸 X』：玩家把"图纸"当命令词时剥掉前缀（物品名本身含"图纸"后缀）
+        if bp_name.startswith("图纸"):
+            bp_name = bp_name[2:].strip()
         if not bp_name:
             yield event.plain_result("格式：『学习 <图纸名>』，如『学习 铁皮图纸』！图纸由精英/Boss 掉落。")
             return
