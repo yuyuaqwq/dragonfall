@@ -55,10 +55,12 @@ async def main():
     check("重复接取提示已接", "已接取" in out, out[:200])
 
     print("【4. find 条件探索事件】")
-    # 错误地图不触发
-    db.update_player("g1", "w1", cur_map="oak_plain", cur_subarea="")
+    # 错误地图不触发（v101.19c 确定性修复：探索事件随机给金币/经验/战斗，前后重置消除污染）
+    db.update_player("g1", "w1", gold=50, exp=0, cur_map="oak_plain", cur_subarea="")
     handled, ev_text = m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), C.MAP_BY_ID["oak_plain"])
     check("错误地图不触发(正常事件)", handled is True and "虎斑" not in str(ev_text), str(ev_text)[:200])
+    _p0 = db.get_player("g1", "w1")
+    db.update_player("g1", "w1", gold=50, exp=0, hp=_p0["max_hp"], mp=_p0["max_mp"])
     qs = db.get_quests("g1", "w1")
     check("任务仍 active", qs["side"]["s_board_cat"]["status"] == "active", str(qs["side"]["s_board_cat"]))
     # 正确地图 + 强制命中（mock random.random → 0）
