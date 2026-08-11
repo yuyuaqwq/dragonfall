@@ -2678,9 +2678,10 @@ class EconomyCmds(CommandBase):
             if self._is_smith_shop(player):
                 return 1.0
             return None
-        if d.get("type", "") != "材料":
-            return 1.0
+        # v95.32 #397b：材料判定按名查表（data.type 可能是分类名如"精华/草药"，非"材料"）
         mm = C.MATERIALS_BY_NAME.get(d.get("name", "")) or {}
+        if not mm:
+            return 1.0
         mtype = mm.get("type", "杂物")
         need = _MAT_FACILITY.get(mtype, "shop")
         sa = self._cur_subarea(player)
@@ -2703,7 +2704,8 @@ class EconomyCmds(CommandBase):
         meff = C.mount_effects(player)
         sell_mult = 1.0 + float(meff.get("sell_bonus", 0) or 0)
         # v101.25e 装备回收价：掉落装备卖商店 = 推导价 × 0.3（装备掉落是锦上添花，不能成主要收入）
-        if "quality" in d:
+        # v95.32 #397b：判据用 slot 而非 quality——v101.25e 起材料也注入全服品质字段，材料被打 0.3 折是 bug
+        if d.get("slot"):
             rate = min(rate, 0.3)
         price = int(d.get("price", 0) * rate * sell_mult)
         if price <= 0:
