@@ -2312,7 +2312,8 @@ class EconomyCmds(CommandBase):
         db.remove_item(group_id, qq_id, target["key"])
         q = C.QUALITY[d["quality"]]
         st = E.player_final_stats(player["class_name"], player["level"], equipment, player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0), self._title_bonus(group_id, qq_id), player.get("race"))
-        # v16：属性变化对比（对比穿上前后的差值）
+        # v16：属性变化对比（对比穿上前后的差值——旧装备属性已含在穿前快照里，
+        # 即"卸下旧装备再穿上新装备"的净变化；空槽穿第一件=新装备全加成）
         diff_parts = []
         if old_stats is not None:
             keys = [("atk", "攻击"), ("def", "防御"), ("matk", "魔攻"), ("mdef", "魔防"),
@@ -2321,15 +2322,17 @@ class EconomyCmds(CommandBase):
                 diff = st[k] - old_stats[k]
                 if abs(diff) >= 1e-9:
                     if k in C.PCT_STATS:
-                        diff_parts.append(f"{label} {'+' if diff > 0 else ''}{int(diff*100)}%")
+                        diff_parts.append(f"{label} {int(diff*100):+.0f}%")
                     else:
-                        diff_parts.append(f"{label} {'+' if diff > 0 else ''}{diff}")
-        diff_str = "  ".join(diff_parts) if diff_parts else "(无变化)"
-        yield event.plain_result(
-            f"✅ 你装备了 {q['color']}【{d['name']}】！\n"
-            f"📊 属性变化：{diff_str}\n"
-            f"当前属性：攻击 {st['atk']} 防御 {st['def']} 魔攻 {st['matk']} 魔防 {st['mdef']}"
-        )
+                        diff_parts.append(f"{label} {diff:+.0f}")
+        # v101.21b 排版：每项一行 + 两侧空格，不显示当前属性
+        lines = [f"✅ 你装备了 {q['color']}【{d['name']}】！", "📊 属性变化："]
+        if diff_parts:
+            for p in diff_parts:
+                lines.append(f"  · {p}")
+        else:
+            lines.append("  · (无变化)")
+        yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?卸下(?:\s*|$)")
     @require_player()
@@ -2378,18 +2381,20 @@ class EconomyCmds(CommandBase):
             diff = st[k] - old_stats[k]
             if abs(diff) >= 1e-9:
                 if k in C.PCT_STATS:
-                    diff_parts.append(f"{label} {'+' if diff > 0 else ''}{int(diff*100)}%")
+                    diff_parts.append(f"{label} {int(diff*100):+.0f}%")
                 else:
-                    diff_parts.append(f"{label} {'+' if diff > 0 else ''}{diff}")
-        diff_str = "  ".join(diff_parts) if diff_parts else "(无变化)"
+                    diff_parts.append(f"{label} {diff:+.0f}")
         q = C.QUALITY[item["quality"]]
         enh = item.get("enhance", 0)
         enh_str = f" +{enh}" if enh > 0 else ""
-        yield event.plain_result(
-            f"✅ 你卸下了 {q['color']}【{item['name']}{enh_str}】({C.EQUIP_SLOTS[slot]})\n"
-            f"📊 属性变化：{diff_str}\n"
-            f"当前属性：攻击 {st['atk']} 防御 {st['def']} 魔攻 {st['matk']} 魔防 {st['mdef']}"
-        )
+        # v101.21b 排版：每项一行 + 两侧空格，不显示当前属性
+        lines = [f"✅ 你卸下了 {q['color']}【{item['name']}{enh_str}】({C.EQUIP_SLOTS[slot]})", "📊 属性变化："]
+        if diff_parts:
+            for p in diff_parts:
+                lines.append(f"  · {p}")
+        else:
+            lines.append("  · (无变化)")
+        yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?使用(?:\s*|$)")
     @require_player()
