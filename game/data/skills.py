@@ -24,7 +24,7 @@ PLAYER_SKILLS = {
 "sk_zhan_ge": {
                 "lv": 3, "mp": 10, "power": 0, "kind": "增益",
                 "effect": "atk_up", "team": "atk_all", "cd": 2,
-                "desc": "激昂战歌！全队攻＋25% 2 回合(副本广播，团队技能)",
+                "desc": "激昂战歌！全队攻＋25% 3 回合(副本广播，团队技能)",
                 "name": "战歌",
             },
 "sk_an_mian_qu": {
@@ -36,7 +36,7 @@ PLAYER_SKILLS = {
 "sk_gu_wu": {
                 "lv": 9, "mp": 10, "power": 0, "kind": "增益",
                 "effect": "crit_up", "team": "crit_all", "cd": 2,
-                "desc": "鼓舞士气！全队暴击＋20% 2 回合(副本广播，团队技能)",
+                "desc": "鼓舞士气！全队暴击＋20% 3 回合(副本广播，团队技能)",
                 "name": "鼓舞",
             },
 "sk_ai_ge": {
@@ -48,7 +48,7 @@ PLAYER_SKILLS = {
 "sk_jing_mo_zhi_ge": {
                 "lv": 18, "mp": 15, "power": 0, "kind": "增益",
                 "effect": "spd_up", "team": "spd_all", "cd": 2,
-                "desc": "轻快旋律！全队速度＋40% 2 回合(副本广播，团队技能)",
+                "desc": "轻快旋律！全队速度＋40% 3 回合(副本广播，团队技能)",
                 "name": "静默之歌",
             },
 "sk_ying_xiong_xu_shi_shi": {
@@ -60,7 +60,7 @@ PLAYER_SKILLS = {
 "sk_ao_shu_yong_tan_diao": {
                 "lv": 30, "mp": 20, "power": 0, "kind": "增益",
                 "effect": "matk_up", "team": "matk_all", "cd": 2,
-                "desc": "奥术咏叹调！全队魔攻＋35% 2 回合(副本广播，团队技能)",
+                "desc": "奥术咏叹调！全队魔攻＋35% 3 回合(副本广播，团队技能)",
                 "name": "奥术咏叹调",
             },
 "sk_li_ming_song_ge": {
@@ -140,7 +140,7 @@ PLAYER_SKILLS = {
                 "cd": 3,
                 "res_gain": 3,
                 "team": "atk_all",
-                "desc": "战吼！攻＋25% 2 回合，怒气＋3。组队时全队攻＋10%(团队技能)",
+                "desc": "战吼！攻＋25% 3 回合，怒气＋3。组队时全队攻＋10%(团队技能)",
                 "name": "战吼",
             },
     "sk_tie_bi": {
@@ -151,7 +151,7 @@ PLAYER_SKILLS = {
                 "effect": "def_up",
                 "cd": 3,
                 "res_gain": 2,
-                "desc": "铁壁！防＋40% 2 回合，怒气＋2",
+                "desc": "铁壁！防＋40% 3 回合，怒气＋2",
                 "name": "铁壁",
             },
     "sk_xu_shi": {
@@ -315,7 +315,7 @@ PLAYER_SKILLS = {
                 "kind": "增益",
                 "effect": "def_up",
                 "cd": 3,
-                "desc": "元素护盾！防＋40% 2 回合，按当前系减伤(CD 3)",
+                "desc": "元素护盾！防＋40% 3 回合，按当前系减伤(CD 3)",
                 "name": "元素护盾",
             },
     "sk_ao_shu_qiang_hua": {
@@ -325,7 +325,7 @@ PLAYER_SKILLS = {
                 "kind": "增益",
                 "effect": "matk_up",
                 "cd": 3,
-                "desc": "奥术强化！matk＋50% 2 回合(爆发前奏)",
+                "desc": "奥术强化！matk＋50% 3 回合(爆发前奏)",
                 "name": "奥术强化",
             },
     "sk_bing_shuang_xin_xing": {
@@ -450,7 +450,7 @@ PLAYER_SKILLS = {
                 "effect": "crit_up",
                 "cd": 2,
                 "res_cost": {"energy": 15},
-                "desc": "鹰眼锁定！暴击率＋20% 2 回合，消耗 15 精力",
+                "desc": "鹰眼锁定！暴击率＋20% 3 回合，消耗 15 精力",
                 "name": "鹰眼锁定",
             },
     "sk_feng_zhi_ji_zou": {
@@ -610,7 +610,7 @@ PLAYER_SKILLS = {
                 "effect": "def_up",
                 "cd": 3,
                 "res_gain": 1,
-                "desc": "圣光护盾！防＋40% 2 回合，信仰＋1(保命)",
+                "desc": "圣光护盾！防＋40% 3 回合，信仰＋1(保命)",
                 "name": "圣光护盾",
             },
     "sk_qun_ti_zhi_yu": {
