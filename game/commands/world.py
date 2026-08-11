@@ -1974,7 +1974,7 @@ class WorldCmds(CommandBase):
             return
         # v101.21 物品查看模式：开启时裸数字优先查物品（改消息转发 item_detail）
         if db.get_event_state(f"item_view_mode:{qq_id}"):
-            event.message_str = f"查看物品 {num}"
+            event.message_str = f"物品详情 {num}"
             async for r in self.item_detail(event):
                 yield r
             self._stop_event_safe(event)

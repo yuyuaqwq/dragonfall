@@ -1663,7 +1663,7 @@ class EconomyCmds(CommandBase):
                 f"属性附魔：{'、'.join(r['label'] for r in C.ENCHANT_RECIPES.values())}\n"
                 f"符文(MC 式，独特效果+等级)：{'、'.join(C.RUNES.keys())}\n"
                 "例：『附魔 烈焰之刃 攻击』『附魔 烈焰之刃 史诗符文·残忍 II』\n"
-                "💡 打怪掉落符文，『查看物品 <符文名>』查看效果"
+                "💡 打怪掉落符文，『物品详情 <符文名>』查看效果"
             )
             return
         item_name = parts[0]
@@ -2153,12 +2153,12 @@ class EconomyCmds(CommandBase):
         for i, it in enumerate(page_items, (page - 1) * 5 + 1):
             d = it["data"]
             if d.get("type") == "材料":
-                # v101.25e 材料品质色 + 类型标签（鱼鱼拍板：材料也要品质）
+                # v101.25e 材料品质色 + 类型标签（鱼鱼拍板：材料也要品质；v101.25f 去掉"可出售"尾巴）
                 _mm = C.MATERIALS_BY_NAME.get(d["name"])
                 if _mm and _mm.get("quality") in C.QUALITY:
-                    lines.append(f"{i:>2}. {C.QUALITY[_mm['quality']]['color']}{d['name']} ×{it['count']} ({_mm.get('type', '杂物')}，可出售)")
+                    lines.append(f"{i:>2}. {C.QUALITY[_mm['quality']]['color']}{d['name']} ×{it['count']} ({_mm.get('type', '杂物')})")
                 else:
-                    lines.append(f"{i:>2}. {d['name']} ×{it['count']} (材料，可出售)")
+                    lines.append(f"{i:>2}. {d['name']} ×{it['count']} (材料)")
             elif d.get("type") == "图纸":
                 # v101.25 #326：图纸标注补充"需解锁锻造副业"——玩家学完才能用，
                 # 副业未解锁时提前说明（playtest round67 小蓝抓包海风长弓图纸误导）
@@ -2175,17 +2175,14 @@ class EconomyCmds(CommandBase):
             lines.append(f"💡 『背包 {page+1}』看下一页；筛选+翻页：『背包 材料 2』(共 {pages} 页)")
         lines.append("💡 『背包 <类型>』筛选(装备/材料/消耗品/符文/宠物蛋/坐骑/图纸/鱼)，支持『背包材料』『背包材料2』『背包筛选 材料』")
         lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
-        lines.append("💡 『装备 <名称>』『使用 <名称>』『查看物品 <名称>』『出售 <名称>』")
+        lines.append("💡 『装备 <名称>』『使用 <名称>』『物品详情 <名称>』『出售 <名称>』")
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?查看物品(?:开始|结束)(?:\s*|$)", priority=50)
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)", priority=50)
     @require_player()
 
     async def item_view_mode_cmd(self, event: AstrMessageEvent):
-        """v101.21 物品查看模式开关：『查看物品开始』开启后裸数字=查看物品，『查看物品结束』退出。
-
-        状态存 event_state（key=item_view_mode:{qq_id}），npc_quick_dialog 裸数字优先消费。
-        """
+        """v101.21 物品查看模式开关：『物品详情开始』开启后裸数字=查看物品，『物品详情结束』退出。（v101.25f 主名改回『物品详情』，旧名已废弃）"""
         group_id, qq_id = self._uid(event)
         msg = event.get_message_str().strip()
         msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
@@ -2197,26 +2194,24 @@ class EconomyCmds(CommandBase):
         db.set_event_state(f"item_view_mode:{qq_id}", "1")
         yield event.plain_result(
             "🔍 物品查看模式已开启！直接回复背包序号即可查看物品详情；\n"
-            "『查看物品结束』退出，『查看物品 <名称>』照常使用。"
+            "『物品详情结束』退出，『物品详情 <名称>』照常使用。"
         )
         self._stop_event_safe(event)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:查看物品|物品详情)(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$")
     @require_player()
 
     async def item_detail(self, event: AstrMessageEvent):
-        """查看物品详细信息：装备属性/材料/消耗品/宠物蛋（v101.21 主名『查看物品』，旧名『物品详情』保留）"""
+        """查看物品详细信息：装备属性/材料/消耗品/宠物蛋（v101.25f 主名改回『物品详情』，旧名『查看物品』已废弃）"""
         group_id, qq_id = self._uid(event)
         msg = event.get_message_str().strip()
-        item_name = self._strip_cmd(event, "查看物品")
-        if item_name == msg:
-            item_name = self._strip_cmd(event, "物品详情")
+        item_name = self._strip_cmd(event, "物品详情")
         player = self._player(group_id, qq_id)
         item_name = item_name.strip()
         if not item_name:
             yield event.plain_result(
-                "格式：查看物品 <名称/序号>，如『查看物品 雷霆之锤』或『查看物品 1』\n"
-                "💡 也可以『查看物品开始』开启快捷模式，直接回复序号查看～"
+                "格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』\n"
+                "💡 也可以『物品详情开始』开启快捷模式，直接回复序号查看～"
             )
             return
         items = db.get_inventory(group_id, qq_id)
