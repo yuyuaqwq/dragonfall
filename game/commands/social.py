@@ -574,11 +574,18 @@ class SocialCmds(CommandBase):
             f"{icon} 【宠物 · {pdef['name'] if pdef else pet['name']}】",
             f"━━━━━━━━━━━━",
             f"名字：{pet['name']} | Lv.{pet['level']}",
-            f"❤️ 饱食度：{sat}/100",
-            f"✨ 经验加成：+{bonus}%(主人战斗经验)",
         ]
+        # v101.14 品质/出处展示
+        if pdef:
+            ql = C.pet_quality_label(pet["pet_key"])
+            if ql:
+                lines.append(f"📖 品质：{ql}")
+            if pdef.get("source"):
+                lines.append(f"📍 出处：{pdef['source']}")
         if skill_line:
-            lines.insert(4, skill_line)
+            lines.append(skill_line.lstrip("\n"))
+        lines.append(f"❤️ 饱食度：{sat}/100")
+        lines.append(f"✨ 经验加成：+{bonus}%(主人战斗经验)")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『喂养 <材料>』恢复饱食度，『宠物改名 <名字>』改名，『放生』告别")
         yield event.plain_result("\n".join(lines))
@@ -714,6 +721,10 @@ class SocialCmds(CommandBase):
         mounts = player.get("mounts") or {}
         owned = mounts.get("owned") or []
         active = mounts.get("active")
+        from ..data.equipment import QUALITY as _Q
+        def _q_label(m):
+            q = _Q.get(m.get("quality", "white"), {})
+            return f"{q.get('color', '⚪')}{q.get('name', '普通')}"
         lines = ["🐾 【坐骑】", "━━━━━━━━━━━━"]
         if not owned:
             lines.append("你还没有坐骑。去橡木镇商店『购买 老马』，或者打精英/Boss 碰碰运气！")
@@ -722,13 +733,13 @@ class SocialCmds(CommandBase):
             if not m:
                 continue
             mark = " 🟢 骑乘中" if active == mk else ""
-            lines.append(f"{m['icon']} {m['name']}{mark} — {m['desc']}")
+            lines.append(f"{_q_label(m)} {m['icon']} {m['name']}{mark} — {m['desc']}")
         if owned:
             lines.append("")
             lines.append("💡 『骑乘 <名称>』骑上坐骑，『下马』下来")
         else:
             lines.append("")
-            lines.append(f"💡 可获得的坐骑：{'、'.join(m['name'] for m in C.MOUNT_POOL)}")
+            lines.append("💡 可获得的坐骑：" + "、".join(f"{_q_label(m)}{m['name']}" for m in C.MOUNT_POOL))
         yield event.plain_result("\n".join(lines))
 
     def _maybe_roll_event(self) -> str:

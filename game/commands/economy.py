@@ -151,12 +151,34 @@ def _render_pet_egg(d, lines, equipped):
     lines.append("━━━━━━━━━━━━")
     pdef = next((p for p in C.PET_POOL if p["key"] == d.get("pet_key")), None)
     if pdef:
-        lines.append(f"可孵化：{pdef['icon']}{pdef['name']}（{pdef.get('source', '怪物掉落')}）")
+        # v101.14 品质标签
+        ql = C.pet_quality_label(pdef["key"])
+        lines.append(f"可孵化：{ql} {pdef['icon']}{pdef['name']}（{pdef.get('source', '怪物掉落')}）")
         lines.append(f"描述：{pdef['desc']}")
+        lines.append(f"🎯 技能：{C.pet_skill_label(pdef['key'])}")
     else:
         lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
     lines.append("")
     lines.append("💡 『使用 宠物蛋』孵化")
+
+
+def _render_mount(d, lines, equipped):
+    """坐骑缰绳详情（v101.14 品质+效果展示）"""
+    # ===== 坐骑 =====
+    lines.append(f"🐎 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    mk = d.get("mount_key")
+    mdef = C.MOUNT_BY_KEY.get(mk) if mk else None
+    if mdef:
+        from ..data.equipment import QUALITY as _Q
+        q = _Q.get(mdef.get("quality", "white"), {})
+        ql = f"{q.get('color', '⚪')}{q.get('name', '普通')}"
+        lines.append(f"坐骑：{ql} {mdef['icon']}{mdef['name']}（Lv.{mdef['lv']} 可骑乘）")
+        lines.append(f"效果：{mdef['desc']}")
+    else:
+        lines.append("缰绳上残留着野兽的气息……")
+    lines.append("")
+    lines.append("💡 『使用 <名称>』解锁坐骑，『坐骑』查看")
 
 
 def _render_consumable(d, lines, equipped):
@@ -193,6 +215,7 @@ _ITEM_DETAIL_RENDERERS = {
     "符文": _render_rune,
     "图纸": _render_blueprint,
     "宠物蛋": _render_pet_egg,
+    "坐骑": _render_mount,
     "__default__": _render_consumable,
 }
 
