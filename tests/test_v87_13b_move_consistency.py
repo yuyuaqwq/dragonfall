@@ -50,9 +50,17 @@ async def main():
     print("  [跨图移动7]", r1[:300].replace("\n", " | "))
     check("落点 oak_plain_1", p1["cur_map"] == "oak_plain" and p1["cur_subarea"] == "oak_plain_1",
           f"{p1['cur_map']}:{p1['cur_subarea']}")
-    check("移动展示含子区域描述", "草地边缘" in r1, r1[:150])
-    # 场景应显示 oak_plain_1 的元素（橡木平原界碑）
-    check("移动展示含目标场景元素", "界碑" in r1 or "橡木平原" in r1, r1[:300])
+    # v101.15 撞怪分支显式处理：移动撞怪时展示为战斗界面（无场景行，设计如此）。
+    # 曾依赖固定 seed 保证不撞怪，但新增随机调用（如坐骑 stamina_reduce 判定）会
+    # 打乱序列——测试不再依赖运气，撞怪时单独断言战斗界面并跳过场景对比。
+    ambushed = ("还没站稳" in r1) or ("拦住了去路" in r1)
+    if ambushed:
+        check("撞怪展示战斗界面", "你的行动" in r1 and "❤️" in r1, r1[:300])
+        print("  [撞怪分支] 移动撞怪，场景一致性跳过（战斗界面优先）")
+    else:
+        check("移动展示含子区域描述", "草地边缘" in r1, r1[:150])
+        # 场景应显示 oak_plain_1 的元素（橡木平原界碑）
+        check("移动展示含目标场景元素", "界碑" in r1 or "橡木平原" in r1, r1[:300])
 
     # 然后发『地图』对比
     ev = FakeEvent("g1", "1001", "地图")
@@ -81,7 +89,12 @@ async def main():
     s2 = scene_lines(r2)
     print(f"  移动场景行: {s1}")
     print(f"  地图场景行: {s2}")
-    check("移动与地图场景一致", set(s1) == set(s2), f"{s1} vs {s2}")
+    if ambushed:
+        # 撞怪分支：移动展示为战斗界面，无场景行；『地图』仍应正常展示场景
+        check("撞怪后地图仍展示场景", len(s2) >= 4, f"{s2}")
+        check("撞怪分支地图含界碑", any("界碑" in x for x in s2), f"{s2}")
+    else:
+        check("移动与地图场景一致", set(s1) == set(s2), f"{s1} vs {s2}")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
