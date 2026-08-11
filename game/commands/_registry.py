@@ -127,7 +127,6 @@ COMMAND_REGEX = {
     "races": r'^(?:\[At:\d+\]\s*)?种族(?:\s*|$)',
     "build_view": r'^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$',
     "delete_account": r'^(?:\[At:\d+\]\s*)?注销(?:[\s\S]*)$',
-    "move_back": r'^(?:\[At:\d+\]\s*)?返回(?:\s*|$)',
     "quest_accept": r'^(?:\[At:\d+\]\s*)?接取(?:\s*|$)',
     "interact_prop": r'^(?:\[At:\d+\]\s*)?交互(?:\s*|$)',
     "talk_choice": r'^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$',

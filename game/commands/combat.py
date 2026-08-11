@@ -1505,12 +1505,16 @@ class CombatCmds(CommandBase):
         player["_title_bonus"] = self._title_bonus(group_id, qq_id)
         lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
         if lv_logs:
-            lines += [""] + lv_logs
+            if lines:
+                lines.append("")
+            lines += lv_logs
             db.update_player(group_id, qq_id, level=player["level"], exp=player["exp"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
         # 任务进度
         quest_lines = self._update_quests(group_id, qq_id, monster)
         if quest_lines:
-            lines += [""] + quest_lines
+            if lines:
+                lines.append("")
+            lines += quest_lines
         # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
         ach_lines = []
         # v87：隐藏怪击杀累计（成就·传说猎人）

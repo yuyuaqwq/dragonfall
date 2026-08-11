@@ -989,85 +989,6 @@ class WorldCmds(CommandBase):
         # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
         return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:\s*|$)")
-    @require_player()
-    @no_prof_waiting()
-
-    async def move_back(self, event: AstrMessageEvent):
-        """v95.7 #31：『返回 <城镇名>』快捷回城——无视出口限制直接回城（消耗 1 体力），
-        解决野外残血回城被『需先到出口』卡住的问题(#35 配套)。"""
-        group_id, qq_id = self._uid(event)
-        dest = self._strip_cmd(event, "返回").strip()
-        player = self._player(group_id, qq_id)
-        if db.get_talk_state(group_id, qq_id):
-            yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
-            return
-        # v95.17 #146：战斗中禁止回城（与传送/移动一致）
-        if self._in_battle(group_id, qq_id):
-            yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说回城。")
-            return
-        target = None
-        if dest:
-            for m in C.MAPS:
-                if m.get("type") == C.MAP_TYPE_TOWN and dest in (m["name"], m["id"]):
-                    target = m
-                    break
-        if not target and dest:
-            # #240: 『返回 铁港城门』等子区域名 → 归属城镇（此前子区域名直接报"找不到城镇"）
-            for m in C.MAPS:
-                if m.get("type") != C.MAP_TYPE_TOWN:
-                    continue
-                if any(dest in (sa.get("name", ""), sa.get("id", "")) for sa in (m.get("subareas") or [])):
-                    target = m
-                    break
-        if not target:
-            towns = "、".join(m["name"] for m in C.MAPS if m.get("type") == C.MAP_TYPE_TOWN)
-            yield event.plain_result(f"找不到城镇『{dest}』！可返回：{towns}(例：『返回 橡木镇』)")
-            return
-        # v101.25 #308：『返回 <子区域名>』且已在目标城镇 → 直接移动到该子区域
-        # （此前走到 1008 行"已经在城镇"就拦截，实际没移动——playtest round65 小蓝抓包）
-        if dest:
-            cur_map_obj = C.MAP_BY_ID.get(player["cur_map"], {})
-            for sa in (cur_map_obj.get("subareas") or []):
-                if dest in (sa.get("name", ""), sa.get("id", "")):
-                    if sa["id"] == player.get("cur_subarea"):
-                        yield event.plain_result(f"你已经在这里了({cur_map_obj.get('name', '')}·{sa.get('name', '')})～")
-                        return
-                    db.update_player(group_id, qq_id, cur_subarea=sa["id"])
-                    yield event.plain_result(self._subarea_arrive(player, cur_map_obj, sa))
-                    return
-        if player["cur_map"] == target["id"]:
-            yield event.plain_result(f"你已经在{target['name']}了～")
-            return
-        if self._is_redname(qq_id):
-            yield event.plain_result("🛡️ 城门口的守卫拦住了你：\"你身上沾着血腥味！红名期间禁止进入城镇！\"\n(红名期间不能进入安全区，去野外避避风头吧)")
-            return
-        if self._stamina(player) < 1:
-            yield event.plain_result(
-                f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
-                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每10分钟+1)"
-            )
-            return
-        self._spend_stamina(group_id, qq_id, 1, player, "返回")
-        entry_sa_id = C.map_entry_subarea(target["id"])
-        target_sas = target.get("subareas") or []
-        first_sa = next((s for s in target_sas if s["id"] == entry_sa_id), None) or (target_sas[0] if target_sas else None)
-        db.update_player(group_id, qq_id, cur_map=target["id"],
-                         cur_subarea=first_sa["id"] if first_sa else "")
-        db.add_visited(group_id, qq_id, target["id"])
-        try:
-            C.check_achievements(group_id, qq_id, self._player(group_id, qq_id))
-        except Exception:
-            pass
-        quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
-        extra = ("\n\n" + "\n".join(quest_lines)) if quest_lines else ""
-        # v101.25c 模板统一：返回也走 _subarea_arrive 完整模板（此前只有一行精简文案）
-        if first_sa:
-            view = self._subarea_arrive(player, target, first_sa)
-        else:
-            view = f"🧭 你一路疾行，回到了{target['name']}！\n{target.get('desc', '')}"
-        yield event.plain_result(f"{view}{extra}")
-
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
     @require_player()
@@ -1804,7 +1725,8 @@ class WorldCmds(CommandBase):
             lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
             db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
             if lv_logs:
-                lines.append("")
+                if lines:
+                    lines.append("")
                 lines += lv_logs
             completed = list(quests.get("completed_main", []))
             completed.append(main_id)
