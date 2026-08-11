@@ -670,7 +670,7 @@ DIALOGUES = {
                 "options": [{"text": "这就去", "next": "master_check"}],
             },
             "master_pass": {
-                "text": "好，从今天起你就是我的学徒了。基础武器图纸拿去，别砸了我的招牌！",
+                "text": "好，从今天起你就是我的学徒了。这几块铁矿石拿去练练手，别砸了我的招牌！",
                 "options": [
                     {"text": "谢奥格师傅！", "next": "chat", "action": {"unlock_prof": "craft", "give_prof_exp": 50, "give_item": {"key": "铁矿石", "count": 3}}},
                     {"text": "告辞", "next": "__end__"},

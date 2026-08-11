@@ -2237,12 +2237,20 @@ class WorldCmds(CommandBase):
             db.update_player(group_id, qq_id, exp=(player.get("exp", 0) or 0) + exp)
             lines.append(f"✨ 获得经验 +{exp}")
         if "give_item" in action:
-            item = action["give_item"]
-            key = item.get("key", "")
-            count = int(item.get("count", 1))
-            if key:
-                db.add_item(group_id, qq_id, key, {}, count)
-                lines.append(f"🎒 获得 {key} ×{count}")
+            # #260: 拜师动作同时带 unlock_prof 时，副业位满则不发材料（此前 give_item 先于
+            # unlock_prof 执行，拦截后材料照发、与解锁不同步）
+            skip_give = False
+            _up = action.get("unlock_prof")
+            if _up:
+                _okp, _ = self._prof_active_check(group_id, qq_id, _up)
+                skip_give = not _okp
+            if not skip_give:
+                item = action["give_item"]
+                key = item.get("key", "")
+                count = int(item.get("count", 1))
+                if key:
+                    db.add_item(group_id, qq_id, key, {}, count)
+                    lines.append(f"🎒 获得 {key} ×{count}")
         if action.get("open_shop"):
             lines.append("🏪 输入『商店』可以买东西")
         if action.get("hint"):
@@ -2393,6 +2401,30 @@ class WorldCmds(CommandBase):
             # v81 导师进修：apprentice_check 判定（检查背包材料）
             if "apprentice_check" in action:
                 check = action["apprentice_check"]
+                # #255: 副业位满时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
+                # 位满则材料也不收，避免玩家交完材料才被拦白跑
+                prof_target = None
+                for _nid, _node in (dlg or {}).items():
+                    if not isinstance(_node, dict):
+                        continue  # 对话树部分节点为纯字符串（跳转别名）
+                    for _o in (_node.get("options") or []):
+                        _ua = (_o.get("action") or {}).get("unlock_prof")
+                        if _ua:
+                            prof_target = _ua
+                            break
+                    if prof_target:
+                        break
+                if prof_target:
+                    _okp, _msgp = self._prof_active_check(group_id, qq_id, prof_target)
+                    if not _okp:
+                        nxt = opt.get("fail_next", opt.get("next", "__end__"))
+                        notices = [_msgp + "（这次考验先不收材料，腾出副业位再来吧）"]
+                        db.set_talk_state(group_id, qq_id, npc_id, nxt)
+                        new_node = C.dialogue_node(dlg, nxt)
+                        ctx = self._talk_ctx(group_id, qq_id, npc_id)
+                        lines = notices + self._render_talk_node(npc, dlg, new_node, ctx)
+                        yield event.plain_result("\n".join(lines))
+                        return
                 have = db.count_item(group_id, qq_id, check.get("item", ""))
                 need = int(check.get("count", 1))
                 if have >= need:
