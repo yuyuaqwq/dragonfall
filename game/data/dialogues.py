@@ -28,6 +28,11 @@ DIALOGUES = {
         "start": "welcome",
         "nodes": {
             "welcome": {
+                # v101.23：texts 条件变体——q1_1 完成后不再念史莱姆开场白
+                "texts": [
+                    {"need": {"quest_done": "q1_1"},
+                     "text": "哦，是你啊，冒险者！麦田的事多亏了你，镇子总算清净了。最近有什么新鲜事吗？"},
+                ],
                 "text": "年轻人，你来得正是时候。最近镇子草地的史莱姆越来越猖狂，把我家麦田拱得不成样子。",
                 "options": [
                     {"text": "史莱姆是怎么回事？", "next": "dogs"},
@@ -69,6 +74,15 @@ DIALOGUES = {
                 ],
             },
             "quest_talk": {
+                # v101.23：接取台词按当前主线切换（镇长发的任务不止史莱姆）
+                "texts": [
+                    {"need": {"quest_pending": "q1_3"},
+                     "text": "正好！西边林子里的野猪越来越猖狂，把麦田拱得不成样子。帮我料理一下，镇子不会亏待你的。"},
+                    {"need": {"quest_pending": "q1_4"},
+                     "text": "白鹿城方向有伤兵逃回来，说哥布林在集结！帮我去溪谷查探一下，镇子不会亏待你的。"},
+                    {"need": {"quest_pending": "q1_6"},
+                     "text": "来来来，坐下陪老头子喝一杯！我年轻时也有过不少冒险故事，正好讲给你听。"},
+                ],
                 "text": "正好！镇子西边草地的史莱姆越来越猖狂，麦田都快保不住了。帮我解决这个麻烦，镇子不会亏待你的。",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
@@ -91,6 +105,15 @@ DIALOGUES = {
                 ],
             },
             "quest_done_talk": {
+                # v101.23：交付台词按当前主线切换
+                "texts": [
+                    {"need": {"quest_ready": "q1_3"},
+                     "text": "野猪料理干净了？哈哈哈，干得漂亮！林子里的庄稼汉总算能睡个安稳觉了。这是你应得的报酬！"},
+                    {"need": {"quest_ready": "q1_4"},
+                     "text": "溪谷那边的情况摸清了？好！有你这句话，镇上的人心就定了。这是你应得的报酬！"},
+                    {"need": {"quest_ready": "q1_6"},
+                     "text": "哈哈哈，麦酒管够！来，这是老头子的一点心意，收下吧！"},
+                ],
                 "text": "你回来了！麦田总算保住了，镇子欠你一个大人情。来吧，这是你应得的报酬！",
                 "options": [
                     {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
@@ -140,7 +163,7 @@ DIALOGUES = {
                 "options": [
                     {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "最近有奇怪的客人吗？", "next": "gossip"},
-                    {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"quest_pending": ""}, "action": {"quest_take": True}},
+                    {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
                     {"text": "✅ 任务办妥了！", "next": "__end__", "need": {"quest_ready": ""}, "action": {"quest_take": True}},
                     {"text": "✅ 有东西要交给你。", "next": "__end__", "need": {"side_ready": True}, "action": {"side_take": True}},
                     {"text": "告辞。", "next": "__end__"},

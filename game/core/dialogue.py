@@ -53,6 +53,15 @@ def visible_options(dlg, node, ctx: dict) -> list:
     return [opt for opt in node.get("options", []) if check_need(opt.get("need"), ctx)]
 
 
+def node_text(node, ctx: dict) -> str:
+    """节点台词：支持条件变体 texts=[{need, text}, ...]，取第一个满足 need 的；
+    否则用默认 text。v101.23：让 NPC 台词随主线进度切换（镇长做完史莱姆不再念史莱姆）。"""
+    for variant in node.get("texts") or []:
+        if check_need(variant.get("need"), ctx):
+            return variant["text"]
+    return node.get("text", "……")
+
+
 def is_end(node_id: str) -> bool:
     """__end__ 是结束对话的哨兵节点"""
     return node_id == "__end__"

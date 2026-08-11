@@ -31,6 +31,7 @@ from .constants import (  # noqa: F401
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401
     get_dialogue, dialogue_node, check_need, visible_options, is_end,
+    node_text,
 )
 from .stats import (  # noqa: F401
     monster_stats, equip_stats, exp_to_next, monster_exp, monster_gold,

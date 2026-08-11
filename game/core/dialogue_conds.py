@@ -100,6 +100,28 @@ def _c_side_ready(ctx, v):
     return False
 
 
+@register("side_available")
+def _c_side_available(ctx, v):
+    """该 NPC 名下存在未接取的支线（告示板委托除外——告示委托只能在告示板接取）
+
+    v95r65 #288：对话树『有活儿要交给我吗』类选项用它替代 quest_pending——
+    此前玛莎（非主线 giver）选项显示条件用 quest_pending(任意主线待接)，
+    点选后 quest_take 只处理主线 → 报"我现在没有任务交给你"误导文案。
+    """
+    if not v:
+        return True
+    quests = ctx.get("quests") or {}
+    side = quests.get("side") or {}
+    npc_id = ctx.get("npc_id") or ""
+    for sq in (ctx.get("side_quests") or []):
+        if sq.get("giver") != npc_id or sq.get("board"):
+            continue
+        if sq["id"] in side:
+            continue
+        return True
+    return False
+
+
 @register("main_done")
 def _c_main_done(ctx, v):
     """全部主线完成"""

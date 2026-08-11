@@ -1391,7 +1391,17 @@ class WorldCmds(CommandBase):
                     return
                 npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
                 if npc.get("map") == player["cur_map"]:
-                    lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
+                    # v95r65 #295：指名接取只接该任务（此前调 _offer_side_quests 按 giver 全接，
+                    # 会连带接取同 giver 的告示板委托——『接取 史莱姆果冻』顺带接走『寻猫·虎斑』）
+                    side = dict(quests.get("side", {}))
+                    side[sq["id"]] = {"status": "active", "progress": {}}
+                    quests["side"] = side
+                    db.save_quests(group_id, qq_id, quests)
+                    lines = [
+                        f"📜 【支线】『{sq['name']}』{sq['desc']}",
+                        f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}",
+                        f"  🎯 目标：{self._obj_text(sq['objective'])}",
+                    ]
                     yield event.plain_result("\n".join(lines))
                     return
                 giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
@@ -2055,6 +2065,8 @@ class WorldCmds(CommandBase):
                 for _sq in C.SIDE_QUESTS:
                     if _sq["giver"] != npc_id or _sq["id"] in _side:
                         continue
+                    if _sq.get("board"):  # v95r65 #288/#295：告示委托走告示板，不在对话提示
+                        continue
                     lines.append(f"📜 支线『{_sq['name']}』可接取——和{_ta}对话接下吧～")
                     break
                 for _sid, _sq in list(_side.items()):
@@ -2234,9 +2246,10 @@ class WorldCmds(CommandBase):
         }
 
     def _render_talk_node(self, npc, dlg, node, ctx) -> list:
-        """渲染一个对话节点：头像 + 台词 + 可见选项"""
+        """渲染一个对话节点：头像 + 台词 + 可见选项
+        v101.23：台词走 C.node_text——支持 texts 条件变体（随主线进度切换）"""
         lines = [f"{npc['icon']}【{npc['name']}】{npc['title']}",
-                 f"“{node.get('text', '……')}”"]
+                 f"“{C.node_text(node, ctx)}”"]
         opts = C.visible_options(dlg, node, ctx)
         if opts:
             lines.append("━━━━━━━━━━━━")
@@ -2414,6 +2427,12 @@ class WorldCmds(CommandBase):
                 elif sq.get("status") == "ready":
                     lines += self._complete_side_quest(group_id, qq_id, sid)
                     break
+        if action.get("side_offer"):
+            # v95r65 #288：支线接取入口（有对话树 NPC 的『有活儿要交给我吗』选项）。
+            # 走 _offer_side_quests 接该 NPC 名下未接支线（已过滤告示板委托 #295）
+            npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
+            if npc:
+                lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
         # ---- v81 导师进修动作 ----
         if "consume_item" in action:
             ci = action["consume_item"]
@@ -2620,6 +2639,8 @@ class WorldCmds(CommandBase):
         changed = False
         for sq in C.SIDE_QUESTS:
             if sq["giver"] != npc_id:
+                continue
+            if sq.get("board"):  # v95r65 #295：告示板委托只能在告示板接取，NPC 不自动发
                 continue
             if sq["id"] in side:
                 continue
