@@ -214,3 +214,63 @@ def nearby_hints(group_id: str, qq_id: str, player: dict, map_id: str) -> list:
             continue
         hints.append((nid, npc))
     return hints
+
+
+# ==================== v95.30 城镇 NPC 随机性引擎 ====================
+# 城镇酱油 NPC（funcs=[]）的活人随机：roam 游走 / appear 随机出现 / period 时段 / lines 随机台词
+# 铁律：功能 NPC（funcs 非空）永不参与随机——镇长/铁匠随机消失会毁任务链
+# 全服一致：一律日期哈希（同一天所有玩家看到同一世界），不用 random
+
+def town_npc_day_sa(npc_id: str, npc: dict, home_sa: str, now: datetime.date | None = None) -> str | None:
+    """城镇 NPC 今日所在子区域（B 游走）。
+
+    - 无 roam → 返回 home_sa（静态）
+    - 有 roam（同图子区域 id 列表）→ 日期哈希定位当天位置
+    返回 None 仅表示数据异常（roam 列表空），正常恒返回一个 sa id。
+    """
+    roam = npc.get("roam")
+    if not roam:
+        return home_sa
+    now = now or datetime.date.today()
+    return roam[_day_hash(now.toordinal(), npc_id) % len(roam)]
+
+
+def town_npc_visible(npc_id: str, npc: dict, sa_id: str, now: datetime.date | None = None) -> bool:
+    """城镇 NPC 当前是否在指定子区域可见（B 游走 + C 随机出现 + D 时段）。
+
+    - 功能 NPC（funcs 非空）恒可见（铁律）
+    - period 时段不符 → 不可见（『找』提示时段）
+    - appear 概率（日期哈希，如 0.7 = 7 成天数出现）→ 不可见（『找』提示没来）
+    - roam 当天位置 ≠ sa_id → 不可见（『找』提示去向）
+    """
+    if npc.get("funcs"):
+        return True
+    now = now or datetime.date.today()
+    # D 时段
+    per = npc.get("period")
+    if per:
+        if current_period() not in per:
+            return False
+    # C 随机出现（appear ∈ (0,1]，日期哈希全服一致）
+    app = npc.get("appear")
+    if app is not None and app < 1.0:
+        if _day_hash(now.toordinal(), npc_id + ":appear") % 100 >= int(app * 100):
+            return False
+    # B 游走：今天在这才可见
+    if town_npc_day_sa(npc_id, npc, sa_id, now) != sa_id:
+        return False
+    return True
+
+
+def town_npc_dialogue(npc_id: str, npc: dict, base: str, now: datetime.date | None = None) -> str:
+    """A 随机台词：funcs=[] 且配置了 lines（多条）→ 按日期哈希选一条（每天换台词，全服一致）。
+
+    功能 NPC / 未配置 lines / 配置了对话树（多轮）→ 返回原台词。
+    """
+    if npc.get("funcs"):
+        return base
+    lines = npc.get("lines")
+    if not lines or len(lines) < 2:
+        return base
+    now = now or datetime.date.today()
+    return lines[_day_hash(now.toordinal(), npc_id + ":line") % len(lines)]

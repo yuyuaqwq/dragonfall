@@ -49,6 +49,7 @@ from .time_weather import (  # noqa: F401
 from .wild import (  # noqa: F401
     ALL_WILD, npc_map_id, unlock_met, base_conditions_met,
     roll_wild_encounter, wild_npc_findable, met_wild, nearby_hints,
+    town_npc_day_sa, town_npc_visible, town_npc_dialogue,
 )
 from .achievements import (  # noqa: F401
     check_achievements, achievement_titles, achievement_points,

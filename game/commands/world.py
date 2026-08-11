@@ -521,14 +521,18 @@ class WorldCmds(CommandBase):
         npcs = []
         for nid in npc_ids:
             if nid in C.HIDDEN_NPCS:
-                npcs.append(C.HIDDEN_NPCS[nid])
+                npcs.append((nid, C.HIDDEN_NPCS[nid]))
             elif nid in C.NPCS:
-                npcs.append(C.NPCS[nid])
+                npcs.append((nid, C.NPCS[nid]))
+        # v95.30 城镇 NPC 随机性：酱油 NPC 按 游走(roam)/概率(appear)/时段(period) 过滤显示
+        # （功能 NPC 恒显示；隐藏 NPC 走副本层逻辑不参与；无子区域(地图级)不做过滤）
+        npcs = [(nid, n) for nid, n in npcs
+                if nid in C.HIDDEN_NPCS or not cur_sa or C.town_npc_visible(nid, n, cur_sa)]
         if npcs:
             if lines and lines[-1]:
                 lines.append("")
             lines.append("👥 这里的 NPC：")
-            for n in npcs:
+            for _, n in npcs:
                 lines.append(f"  {n['icon']}{n['name']}({n['title']})")
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
@@ -1515,35 +1519,81 @@ class WorldCmds(CommandBase):
         return "\n".join(lines)
 
     def _current_npcs(self, player):
-        """v86 子区域：当前所在位置可交互的 NPC 列表(子区域优先，回退地图级)。"""
+        """v86 子区域：当前所在位置可交互的 NPC 列表(子区域优先，回退地图级)。
+        v95.30 随机性：酱油 NPC 按 游走/概率/时段 过滤（功能 NPC 恒在）。"""
         cur_map = player["cur_map"]
         m = C.MAP_BY_ID.get(cur_map, {})
         sa_id = player.get("cur_subarea") or ""
         for sa in (m.get("subareas") or []):
             if sa["id"] == sa_id:
                 npc_ids = sa.get("npcs") or []
-                return [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS]
+                return [C.NPCS[nid] for nid in npc_ids if nid in C.NPCS
+                        and C.town_npc_visible(nid, C.NPCS[nid], sa_id)]
         return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
 
     def _find_npc_in_map(self, player, name_key):
-        """在当前地图找 NPC(子区域优先，回退地图级)，返回 (npc_id, npc_dict) 或 (None, None)"""
+        """在当前地图找 NPC(子区域优先，回退地图级)，返回 (npc_id, npc_dict) 或 (None, None)。
+
+        v95.30 随机性：酱油 NPC 名字匹配但今天不可见（游走别处/概率未出/时段不符）
+        → 仍返回 (nid, npc)（由调用方给"不在"提示），并置 player['_npc_absent'] 供提示。
+        """
         cur_map = player["cur_map"]
         m = C.MAP_BY_ID.get(cur_map, {})
         sa_id = player.get("cur_subarea") or ""
+        player.pop("_npc_absent", None)
         # 子区域 NPC 优先
         for sa in (m.get("subareas") or []):
             if sa["id"] == sa_id:
                 for nid in sa.get("npcs", []):
                     npc = C.NPCS.get(nid)
                     if npc and (name_key in npc["name"] or name_key in nid):
+                        if not C.town_npc_visible(nid, npc, sa_id):
+                            player["_npc_absent"] = (nid, npc, sa_id)
                         return nid, npc
                 break
         # 地图级 NPC（含其他子区域）
         for nid in m.get("npcs", []):
             npc = C.NPCS.get(nid)
             if npc and (name_key in npc["name"] or name_key in nid):
+                if not C.town_npc_visible(nid, npc, sa_id):
+                    player["_npc_absent"] = (nid, npc, sa_id)
                 return nid, npc
         return None, None
+
+    def _town_npc_absent_hint(self, nid, npc, sa_id):
+        """v95.30：酱油 NPC 名字命中但当前不可见 → 解释原因（游走去向 / 时段 / 概率未出）。
+        显示必须可触发铁律：『找』必须给出明确信息。"""
+        name = npc.get("name", "他")
+        # B 游走：今天在别的子区域 → 指路
+        today_sa = C.town_npc_day_sa(nid, npc, sa_id)
+        if today_sa != sa_id:
+            m = self._player_map_name(sa_id) or ""
+            sa_name = self._subarea_name(today_sa)
+            if sa_name:
+                return f"🧭 『{name}』今天不在这儿，在「{sa_name}」那边。过去找找看吧～"
+        # D 时段
+        per = npc.get("period")
+        if per:
+            period_cn = (C.PERIOD_CN.get(C.current_period(), "") or "").strip()
+            return f"🌙 『{name}』现在({period_cn})不在这里，换个时间再来吧～"
+        # C 概率未出
+        return f"🍃 『{name}』今天没来这边，改天再来看看吧～"
+
+    def _player_map_name(self, sa_id):
+        """按子区域 id 找所属地图名（用于游走提示）"""
+        for mid, m in C.MAP_BY_ID.items():
+            for sa in (m.get("subareas") or []):
+                if sa["id"] == sa_id:
+                    return m.get("name", "")
+        return ""
+
+    def _subarea_name(self, sa_id):
+        """按子区域 id 找显示名"""
+        for mid, m in C.MAP_BY_ID.items():
+            for sa in (m.get("subareas") or []):
+                if sa["id"] == sa_id:
+                    return sa.get("name", "")
+        return ""
 
     def _find_wild_npc(self, player, name_key, group_id, qq_id):
         """9.4：在当前地图找野外 NPC（含 roam 定位 + 出现条件判定）。
@@ -1612,8 +1662,12 @@ class WorldCmds(CommandBase):
         return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『找』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
-        """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)"""
+        """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)。
+        v95.30 A 随机台词：酱油 NPC 配置了 lines 多条 → 每天换一条（日期哈希全服一致）。"""
         base = npc.get("dialogue", "……")
+        # v95.30 酱油 NPC 随机台词（无功能 → 不参与主线逻辑）
+        if not npc.get("funcs"):
+            return C.town_npc_dialogue(npc_id, npc, base)
         # 只对发布主线的 NPC 动态化
         if "quest" not in npc.get("funcs", []):
             return base
@@ -1851,6 +1905,10 @@ class WorldCmds(CommandBase):
             npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
         else:
             npc_id, npc = self._find_npc_in_map(player, name_key)
+            if npc and player.get("_npc_absent"):
+                # v95.30 随机性：酱油 NPC 名字匹配但今天不在（游走/概率/时段）
+                yield event.plain_result(self._town_npc_absent_hint(*player["_npc_absent"]))
+                return
         if not npc:
             # v87.2 副本地图化：副本层内 NPC（HIDDEN_NPCS，按当前层 npcs 列表查）
             inst_row = self._instance_battle_for(group_id, qq_id)
