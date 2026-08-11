@@ -607,7 +607,7 @@ class WorldCmds(CommandBase):
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?!开始|结束)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -813,6 +813,9 @@ class WorldCmds(CommandBase):
                       for i, c in enumerate(neighbors, len(t_links) + 1)]
         if nav_items:
             nav = "\n\n📮 可前往：" + "  ".join(nav_items[:8])
+        # v101.17 移动模式提示（开启时回复序号直接赶路）
+        if db.get_event_state(f"move_mode:{qq_id}"):
+            nav += "\n🚶 移动模式中：回复序号直接赶路，『前往结束』退出"
         fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
         fac_msg = ""
         if fac:
@@ -1546,7 +1549,7 @@ class WorldCmds(CommandBase):
         lines = ["👥 这里的 NPC："]
         for i, n in enumerate(npcs, 1):
             lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-        lines.append("💡 输入『对话 <名字>』或『对话 <序号>』交谈")
+        lines.append("💡 回复序号直接交谈，或『对话 <名字>』")
         return lines
 
     def _find_npc_in_map(self, player, name_key):
@@ -1884,6 +1887,26 @@ class WorldCmds(CommandBase):
         lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
         yield event.plain_result("\n".join(lines))
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?:开始|结束)(?:\s*|$)", priority=50)
+    @require_player()
+    async def move_mode_cmd(self, event: AstrMessageEvent):
+        """v101.17 移动模式开关：『前往开始』开启后裸数字=赶路，『前往结束』退出。
+
+        状态存 event_state（key=move_mode:{qq_id}），npc_quick_dialog 裸数字优先消费。
+        """
+        group_id, qq_id = self._uid(event)
+        msg = event.get_message_str().strip()
+        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
+        if "结束" in msg:
+            db.set_event_state(f"move_mode:{qq_id}", "")
+            yield event.plain_result("🚶 移动模式已关闭，回复数字不再自动赶路～")
+            return
+        db.set_event_state(f"move_mode:{qq_id}", "1")
+        yield event.plain_result(
+            "🚶 移动模式已开启！直接回复序号即可赶路，每步都会更新可前往列表；\n"
+            "『前往结束』退出移动模式，『对话 <NPC名>』照常交谈。"
+        )
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?[0－9]\d?$", priority=100)
     @require_player()
     async def npc_quick_dialog(self, event: AstrMessageEvent):
@@ -1900,6 +1923,13 @@ class WorldCmds(CommandBase):
         if st:
             # 对话树选项选择（复用 talk_choice 有状态分支：『对话 1』同款）
             async for r in self.talk_choice(event):
+                yield r
+            event.stop_event()
+            return
+        # v101.17 移动模式：开启时裸数字优先赶路（改消息转发 move）
+        if db.get_event_state(f"move_mode:{qq_id}"):
+            event.message_str = f"前往 {num}"
+            async for r in self.move(event):
                 yield r
             event.stop_event()
             return
@@ -1940,7 +1970,7 @@ class WorldCmds(CommandBase):
                 lines = ["👥 这里的 NPC："]
                 for i, n in enumerate(npcs, 1):
                     lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-                lines.append("💡 输入『对话 <名字>』或『对话 <序号>』交谈")
+                lines.append("💡 回复序号直接交谈，或『对话 <名字>』")
                 yield event.plain_result("\n".join(lines))
             return
         # 序号找：『找 1』→ 当前地图第 1 个 NPC
@@ -2041,7 +2071,7 @@ class WorldCmds(CommandBase):
             ta = "她" if npc.get("gender") == "女" else "他"
             lines.append(f"🎻 {ta}给你讲了一个关于大陆的传说……(输入『任务』看看支线)")
         if "teach" in funcs:
-            lines.append("🗡️ 输入『对话 <序号>』继续交谈，这位前辈或许能指点你一二")
+            lines.append("🗡️ 直接回复序号继续交谈，这位前辈或许能指点你一二")
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识(镇长藏书)")
         yield event.plain_result("\n".join(lines))
@@ -2205,7 +2235,7 @@ class WorldCmds(CommandBase):
             for i, opt in enumerate(opts, 1):
                 lines.append(f"{i}. {opt['text']}")
             lines.append("0. 结束对话")
-            lines.append("💡 『对话 <序号>』继续交谈")
+            lines.append("💡 直接回复序号继续交谈")
         return lines
 
     def _talk_quest_progress(self, group_id, qq_id, npc_id) -> list:
@@ -2503,7 +2533,7 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"{npc['name']}：那就再会了，冒险者。")
                 return
             if idx < 1 or idx > len(opts):
-                yield event.plain_result(f"没有这个选项！输入『对话 1-{len(opts)}』选择，『对话 0』结束。")
+                yield event.plain_result(f"没有这个选项！回复 1-{len(opts)} 选择，回复 0 结束。")
                 return
             opt = opts[idx - 1]
             player = self._player(group_id, qq_id)
