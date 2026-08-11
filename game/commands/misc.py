@@ -262,18 +262,27 @@ class MiscCmds(CommandBase):
             lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?成就(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?成就(?:\s*(领取|列表)?(?:\s*([^\s]+))?\s*|$)")
     @require_player()
 
     async def achievements(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         raw = self._strip_cmd(event, "成就").strip()
+        # v101.22 成就奖励手动领取：『成就 领取』
+        if raw.startswith("领取"):
+            lines, err = C.claim_achievement_rewards(group_id, qq_id)
+            if err:
+                yield event.plain_result(f"🎁 {err}")
+            else:
+                yield event.plain_result("\n".join(lines))
+            return
         try:
-            rows = db.get_achievements(qq_id)
-            unlocked = {r[0] for r in rows}
+            rows = db.get_achievements(group_id, qq_id)
+            unlocked = {r["ach_key"] for r in rows}
+            claimed = {r["ach_key"] for r in rows if r.get("claimed")}
         except Exception:
-            unlocked = set()
+            unlocked, claimed = set(), set()
         # 分类筛选
         cats = ["战斗", "成长", "探索", "副业", "社交", "隐藏"]
         cat = raw if raw in cats else ""
@@ -285,12 +294,19 @@ class MiscCmds(CommandBase):
         total_all = len(C.ACHIEVEMENTS)
         got_all = len(unlocked)
         points = C.achievement_points(qq_id)
+        pending_cnt = len([a for a in C.ACHIEVEMENTS if a["id"] in unlocked and a["id"] not in claimed and a.get("reward")])
         lines = [title, "━━━━━━━━━━━━"]
+        if pending_cnt:
+            lines.append(f"🎁 {pending_cnt} 个成就奖励待领取！『成就 领取』一键领取")
         if cat:
             lines.append(f"解锁 {sum(1 for a in achs if a['id'] in unlocked)}/{len(achs)} 个")
             for a in achs:
                 mark = "✅" if a["id"] in unlocked else "⬜"
-                lines.append(f"{mark} {a['name']}：{a['desc']}")
+                rw = a.get("reward") or {}
+                rw_txt = f"（{'、'.join(f'{k}+{v}' for k, v in rw.items())}）" if rw else ""
+                if a["id"] in unlocked and a["id"] not in claimed and rw:
+                    mark = "🎁"
+                lines.append(f"{mark} {a['name']}：{a['desc']}{rw_txt}")
         else:
             lines.append(f"总进度：{got_all}/{total_all}　🏆 成就点：{points}")
             for c in cats:
@@ -298,7 +314,7 @@ class MiscCmds(CommandBase):
                 got_c = sum(1 for a in sub if a["id"] in unlocked)
                 lines.append(f"{'✅' if got_c == len(sub) else '⬜'} {c}：{got_c}/{len(sub)}(『成就 {c}』查看明细)")
         lines.append("")
-        lines.append("💡 达成条件自动解锁，称号自动获得；『称号』可佩戴展示")
+        lines.append("💡 达成条件自动解锁，称号自动获得；『成就 领取』领奖励，『称号』可佩戴展示")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?意见(?:[\s\S]*)$")

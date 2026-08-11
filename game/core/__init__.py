@@ -53,6 +53,7 @@ from .wild import (  # noqa: F401
 )
 from .achievements import (  # noqa: F401
     check_achievements, achievement_titles, achievement_points,
+    claim_achievement_rewards,
 )
 from .affix import (  # noqa: F401
     roll_affixes, fixed_affixes, stat_affix_stats, random_req,

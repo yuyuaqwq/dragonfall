@@ -75,16 +75,25 @@ async def test_unlock():
     new3 = C.check_achievements("g1", "q1", db.get_player("g1", "q1"))
     names3 = [a["name"] for a in new3]
     check("垂钓10次解锁", any("垂钓新手" in n for n in names3), str(names3))
-    # 奖励发放：初出茅庐无 reward，等级成就无 reward——验证经验奖励在战斗成就
-    p2 = db.get_player("g1", "q1")
-    db.update_player("g1", "q1", exp=0)
-    db.bump_stats("g1", "q1", kills=1)  # 初试锋芒 exp+100 已经解锁过（kills>=1 但 1 不够，需要看状态）
-    # 重置检查：用新玩家验证 exp 奖励
+    # v101.22 奖励待领取：解锁不再自动发经验，claimed=0；『成就 领取』才发
     await cmd(m, "register", "g1", "q2", "注册 法师 阿水 男")
     db.bump_stats("g1", "q2", kills=1)
     new4 = C.check_achievements("g1", "q2", db.get_player("g1", "q2"))
     p3 = db.get_player("g1", "q2")
-    check("首次战斗奖励经验", any("初试锋芒" in a["name"] for a in new4) and p3["exp"] >= 100, f"exp={p3['exp']}")
+    check("首次战斗奖励待领取(不自动发)", any("初试锋芒" in a["name"] for a in new4) and p3["exp"] == 0, f"exp={p3['exp']}")
+    ach_row = [r for r in db.get_achievements("g1", "q2") if r["ach_key"] == "ach_first_fight"]
+    check("首次战斗成就 claimed=0 待领取", ach_row and ach_row[0]["claimed"] == 0, str(ach_row))
+    # 『成就 领取』发放奖励
+    r_claim = await cmd(m, "achievements", "g1", "q2", "成就 领取")
+    txt_claim = r_claim[-1]
+    p4 = db.get_player("g1", "q2")
+    check("领取后经验到账", p4["exp"] >= 100, f"exp={p4['exp']}")
+    check("领取提示含奖励", "经验 +100" in txt_claim, txt_claim[:80])
+    ach_row2 = [r for r in db.get_achievements("g1", "q2") if r["ach_key"] == "ach_first_fight"]
+    check("领取后 claimed=1", ach_row2 and ach_row2[0]["claimed"] == 1, str(ach_row2))
+    # 重复领取幂等
+    r_claim2 = await cmd(m, "achievements", "g1", "q2", "成就 领取")
+    check("重复领取提示无奖励", "没有待领取" in r_claim2[-1], r_claim2[-1][:80])
     # 重复检查幂等
     new5 = C.check_achievements("g1", "q2", db.get_player("g1", "q2"))
     check("重复检查不重复解锁", not any(a["name"] == "初试锋芒" for a in new5), str([a["name"] for a in new5]))

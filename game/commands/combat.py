@@ -1457,7 +1457,8 @@ class CombatCmds(CommandBase):
             pass
         new_achs = C.check_achievements(group_id, qq_id, player, {"defeated_hidden_monsters": hm_defeated})
         for a in new_achs:
-            ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']})")
+            rw_txt = f"\n      🎁 {a['_reward_txt']}" if a.get("_reward_txt") else ""
+            ach_lines.append(f"🏆 成就解锁：{a['name']}！({a['desc']}){rw_txt}")
         if ach_lines:
             lines += [""] + ach_lines
         # v97.5 行为彩蛋规则：战斗胜利后（#262：触发已提前到进度条生成前，这里只保留公告行位置）

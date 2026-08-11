@@ -538,7 +538,7 @@ class CommandBase:
                         bonus[k] = bonus.get(k, 0) + v
             # 阶段九：成就称号 bonus（14 章 3.3，达成即生效）
             try:
-                unlocked_achs = {r[0] for r in db.get_achievements("", qq_id)}
+                unlocked_achs = {r["ach_key"] for r in db.get_achievements("", qq_id)}
             except Exception:
                 unlocked_achs = set()
             for a in C.ACHIEVEMENTS:
