@@ -2391,19 +2391,16 @@ class EconomyCmds(CommandBase):
         tpl_name = IT.infer_template(d)
         meta = IT.META.get(tpl_name, {"battle_ok": False})
         hooks = self._item_use_hooks(group_id, qq_id, target, player)
-        if self._in_battle(group_id, qq_id):
-            # 战斗中：只允许恢复类 + 战斗药水（模板 meta battle_ok），且算一回合（敌方会行动）
-            if not meta["battle_ok"]:
-                yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
-                return
-            battle = db.get_battle(group_id, qq_id)
-            if not battle:
-                yield event.plain_result("你不在战斗中！")
-                return
-            if battle["state"].get("type") == "pvp":
-                yield event.plain_result("PVP 战斗无法使用道具！")
-                return
-            if battle["state"].get("type") == "instance":
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        inst_battling = inst_row is not None and bool(inst_row["state"].get("boss"))
+        if self._in_battle(group_id, qq_id) or inst_battling:
+            # 副本战斗优先（v95r55 #269 补充：队员视角——副本 battle 存队长名下，
+            # _instance_battle_for 先查自己再查队长，与 combat.py 攻击/技能分流一致）
+            if inst_battling:
+                battle = inst_row
+                if battle["state"].get("type") != "instance":
+                    yield event.plain_result("你不在战斗中！")
+                    return
                 # 副本战斗：道具走副本轮流回合（v95.29 #269——此前漏掉 instance 分流，
                 # 走普通分支会 BT.Battle.from_state + save_battle 把 leader 名下的
                 # 副本上下文覆盖成战斗引擎状态，后续副本指令全 KeyError 软锁）
@@ -2416,6 +2413,17 @@ class EconomyCmds(CommandBase):
                 payload = r.payload if r.payload is not None else "0"
                 async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
+                return
+            # 战斗中：只允许恢复类 + 战斗药水（模板 meta battle_ok），且算一回合（敌方会行动）
+            if not meta["battle_ok"]:
+                yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
+                return
+            battle = db.get_battle(group_id, qq_id)
+            if not battle:
+                yield event.plain_result("你不在战斗中！")
+                return
+            if battle["state"].get("type") == "pvp":
+                yield event.plain_result("PVP 战斗无法使用道具！")
                 return
             b = BT.Battle.from_state(battle["state"])
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
