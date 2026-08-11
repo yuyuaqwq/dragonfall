@@ -328,8 +328,8 @@ NPCS = {
     },
     # ---- 副业导师（19 章第八章：找导师拜师进修解锁副业）----
     "npc_herb_master": {
-        'name': "草药师·艾琳",
-        'title': "草药师",
+        'name': "炼药师·艾琳",
+        'title': "炼药师",
         'map': "oak_town",
         'icon': "🌿",
         'funcs': ["apprentice"],

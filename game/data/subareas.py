@@ -86,9 +86,9 @@ SUBAREAS = {
         },
         {
             "id": "oak_town_5",
-            "name": "草药铺",
+            "name": "艾琳炼药铺",
             "icon": "🏘️",
-            "desc": "草药铺里弥漫着干燥草木的苦香，架子上摆满瓶瓶罐罐。草药师低头研磨，偶尔抬头招呼一声熟客。",
+            "desc": "艾琳炼药铺里弥漫着干燥草木的苦香，架子上摆满瓶瓶罐罐。炼药师低头研磨，偶尔抬头招呼一声熟客。",
             "type": "城镇",
             "lv": 1,
             "npcs": [
@@ -444,10 +444,10 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "lore"
+                "lore", "shop", "heal"
             ],
-            "shop": False,
-            "healer": False
+            "shop": True,
+            "healer": True
         },
         {
             "id": "white_deer_6",
@@ -2058,7 +2058,8 @@ SUBAREAS = {
             "boss": None,
             "funcs": [
                 "shop",
-                "craft"
+                "craft",
+                "alchemy"
             ],
             "shop": True,
             "healer": False
@@ -4497,10 +4498,10 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "lore"
+                "lore", "shop", "heal"
             ],
-            "shop": False,
-            "healer": False
+            "shop": True,
+            "healer": True
         },
         {
             "id": "frost_horn_4",

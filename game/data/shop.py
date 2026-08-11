@@ -92,6 +92,179 @@ SHOP_WILD_TRADE = [
     "i_treat_s", "i_mana_s", "i_bread", "i_ale", "i_meat_skewer", "i_scroll_escape",
 ]
 
+# ================= v101.25h 子区域独立配货（鱼鱼：草药铺不该卖吃的，按子区域配置） =================
+# key = 子区域 ID，value = 该店专属货物（物品 ID 列表）。
+# 未在此表配置的子区域回退到 SHOP_ITEMS（城镇级）——新子区域不配置也不会空店。
+# 设计分工：药剂店(herb)→药水/药剂；酒馆旅店(tavern)→食物/饮品；集市商行(general)→卷轴/杂物/护符；
+# 铁匠工坊(smith)→武器+锻造材料（is_smith 分支），可追加军需补给。
+SHOP_SUBAREA_ITEMS = {
+    # ---------- 橡木镇（新手村） ----------
+    "oak_town_5": [  # 艾琳炼药铺（炼药师·艾琳）
+        "i_treat_s", "i_mana_s", "i_herb_juice", "i_bandage",
+    ],
+    "oak_town_4": [  # 橡木桶旅店
+        "i_bread", "i_ale", "i_meat_skewer",
+    ],
+    "oak_town_3": [  # 老铁铁匠铺（smith 分支：武器+锻造材料）
+        "i_stone_upgrade",
+    ],
+    # ---------- 白鹿城（南境首府） ----------
+    "white_deer_6": [  # 医师馆
+        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage",
+    ],
+    "white_deer_5": [  # 白鹿与麦酒酒馆
+        "i_ale", "i_meat_skewer", "i_stew", "i_deer_burger", "i_deer_cheese",
+    ],
+    "white_deer_7": [  # 烹饪坊
+        "i_bread", "i_meat_skewer", "i_stew", "i_blessed_pastry",
+    ],
+    "white_deer_8": [  # 强化工坊（smith 分支 + 强化石）
+        "i_stone_upgrade", "i_stone_refine",
+    ],
+    "white_deer_3": [  # 鹿角铁匠铺（smith 分支）
+        "i_stone_upgrade",
+    ],
+    "white_deer_4": [  # 白鹿圣堂（heal + 圣物）
+        "i_holy_water", "i_holy_charm", "i_scroll_purify",
+    ],
+    # ---------- 铁港城（冒险者圣地） ----------
+    "ironharbor_5": [  # 铁锚酒馆
+        "i_ale", "i_dock_rum", "i_meat_skewer", "i_stew",
+    ],
+    "ironharbor_6": [  # 金齿轮商行
+        "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
+    ],
+    "ironharbor_8": [  # 渔人码头
+        "i_meat_skewer", "i_stew", "i_scroll_teleport",
+    ],
+    "ironharbor_4": [  # 金槌拍卖行
+        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
+    ],
+    "ironharbor_9": [  # 锻造坊（smith 分支）
+        "i_stone_upgrade", "i_stone_refine",
+    ],
+    # ---------- 银溪镇 ----------
+    "silver_brook_3": [  # 河畔旅店
+        "i_bread", "i_ale", "i_meat_skewer",
+    ],
+    "silver_brook_4": [  # 集市
+        "i_scroll_escape", "i_meat_skewer", "i_stew",
+    ],
+    "silver_brook_2": [  # 磨坊街
+        "i_bread", "i_ale", "i_apple_wine",
+    ],
+    # ---------- 枫橡村 ----------
+    "maple_village_4": [  # 枫叶旅店
+        "i_bread", "i_ale", "i_scroll_escape",
+    ],
+    # ---------- 晨曦城（王都） ----------
+    "dawn_city_3": [  # 圣光大教堂
+        "i_bread", "i_holy_water", "i_holy_charm", "i_scroll_purify",
+    ],
+    "dawn_city_5": [  # 炼金工坊（herb 优先 + craft）
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion",
+    ],
+    # ---------- 铁盾镇 ----------
+    "ironshield_town_3": [  # 军械铺（smith + 军需补给）
+        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion", "i_stone_upgrade",
+    ],
+    # ---------- 月冠隘口 ----------
+    "moon_gate_2": [  # 银月旅店
+        "i_bread", "i_ale", "i_elf_fruit",
+    ],
+    "moon_gate_3": [  # 哨塔集市
+        "i_scroll_escape", "i_meat_skewer", "i_elf_fruit",
+    ],
+    # ---------- 星歌镇 ----------
+    "star_song_2": [  # 星光集市
+        "i_scroll_escape", "i_elf_fruit", "i_stew",
+    ],
+    "star_song_3": [  # 星歌旅店
+        "i_bread", "i_ale", "i_elf_fruit",
+    ],
+    # ---------- 霜角堡 ----------
+    "frost_horn_3": [  # 霜角酒馆
+        "i_ale", "i_dwarf_liquor", "i_stew",
+    ],
+    "frost_horn_5": [  # 随军圣堂
+        "i_bread", "i_holy_water",
+    ],
+    # ---------- 铁砧要塞 ----------
+    "anvil_fort_3": [  # 符文工坊（smith + 烈酒）
+        "i_dwarf_liquor", "i_stone_upgrade", "i_stone_refine",
+    ],
+    # ---------- 寒脊营地 ----------
+    "cold_ridge_1": [  # 营地口（综合补给）
+        "i_treat_l", "i_mana_l", "i_bread", "i_ale", "i_scroll_escape",
+    ],
+    "cold_ridge_2": [  # 主帐篷
+        "i_bread", "i_stew",
+    ],
+    "cold_ridge_3": [  # 补给站
+        "i_treat_l", "i_mana_l", "i_scroll_escape", "i_stew",
+    ],
+    # ---------- 极光镇 ----------
+    "aurora_town_4": [  # 暖炉旅店
+        "i_bread", "i_ale", "i_scroll_escape",
+    ],
+    # ---------- 龙裔聚落 ----------
+    "dragon_kin_3": [  # 旅店
+        "i_bread", "i_ale", "i_meat_skewer",
+    ],
+    # ---------- 翡翠港 ----------
+    "jade_port_2": [  # 翡翠集市
+        "i_scroll_teleport", "i_meat_skewer", "i_stew",
+    ],
+    "jade_port_3": [  # 船坞旅店
+        "i_bread", "i_ale",
+    ],
+    # ---------- 贝壳镇 ----------
+    "shell_town_1": [  # 贝壳集市
+        "i_scroll_teleport", "i_meat_skewer", "i_stew",
+    ],
+    "shell_town_2": [  # 码头
+        "i_meat_skewer", "i_stew", "i_scroll_teleport",
+    ],
+    "shell_town_3": [  # 旅店
+        "i_bread", "i_ale",
+    ],
+    # ---------- 无名港 ----------
+    "nameless_harbor_3": [  # 远洋码头
+        "i_scroll_teleport", "i_meat_skewer", "i_stew", "i_dock_rum",
+    ],
+    # ---------- 珍珠城 ----------
+    "pearl_city_3": [  # 珊瑚拍卖行
+        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
+    ],
+    "pearl_city_4": [  # 商行
+        "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade",
+    ],
+    "pearl_city_5": [  # 渔港
+        "i_meat_skewer", "i_stew", "i_scroll_teleport",
+    ],
+    # ---------- 深岩隧道 ----------
+    "deep_tunnel_3": [  # 营地区
+        "i_bread", "i_ale",
+    ],
+    # ---------- 地底集市 ----------
+    "under_market_1": [  # 集市广场
+        "i_scroll_escape", "i_stew", "i_meat_skewer",
+    ],
+    "under_market_2": [  # 拍卖区
+        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
+    ],
+    "under_market_3": [  # 旅店
+        "i_bread", "i_ale",
+    ],
+    # ---------- 灰烬营地 ----------
+    "ember_camp_1": [  # 营地口（综合补给）
+        "i_treat_l", "i_mana_l", "i_bread", "i_scroll_escape",
+    ],
+    "ember_camp_4": [  # 补给站
+        "i_treat_l", "i_mana_l", "i_stew", "i_scroll_escape",
+    ],
+}
+
 SHOP_WEAPONS = {
     # 南境·橡木系列（10 章 4.1：白装新手武器）
     "oak_town": [

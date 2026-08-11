@@ -259,18 +259,49 @@ class CommandBase:
     def _at_shop(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
         """v87.17 当前子区域是否有商店（shop: true 或 funcs 含 shop）。
         设施子区域绑定铁律：商店命令只在有商店的子区域放行。
-        v95.4：野外行商（trade funcs）在场时也可交易。"""
+        v95.4：野外行商（trade funcs）在场时也可交易。
+        v101.25h：草药铺（alchemy）/ 酒馆旅店（heal）也是可交易子区域（按类型配货）。"""
         cur_map = player.get("cur_map", "")
         sa_id = player.get("cur_subarea") or ""
         if sa_id:
             cm = C.MAP_BY_ID.get(cur_map, {})
             for sa in (cm.get("subareas") or []):
                 if sa["id"] == sa_id:
-                    if sa.get("shop") or "shop" in (sa.get("funcs") or []):
+                    funcs = sa.get("funcs") or []
+                    if sa.get("shop") or "shop" in funcs or "alchemy" in funcs or "heal" in funcs:
                         return True
                     break  # v95.4：当前子区域不是商店 → 继续查野外行商
         # v95.4：不在城镇设施 → 看是否有野外行商在场
         return self._wild_trader_here(player, group_id, qq_id)
+
+    def _sa_shop_kind(self, player: dict) -> str | None:
+        """v101.25h 当前子区域商店类型（决定配货）：
+        smith（铁匠/锻造/军械/工坊/强化）→ 武器+材料+装备；
+        herb（草药/炼金）→ 只卖药剂；
+        tavern（酒馆/旅店/客栈）→ 只卖食物；
+        general（普通商店/集市/商行/码头）→ 卷轴/杂物+武器。
+        非商店子区域 → None。"""
+        cur_map = player.get("cur_map", "")
+        sa_id = player.get("cur_subarea") or ""
+        if not sa_id:
+            return None
+        cm = C.MAP_BY_ID.get(cur_map, {})
+        for sa in (cm.get("subareas") or []):
+            if sa["id"] != sa_id:
+                continue
+            name = sa.get("name", "")
+            funcs = sa.get("funcs") or []
+            # v101.25h：草药/炼金优先于 craft（炼金工坊既有 craft funcs 又卖药剂，按 herb 配货）
+            if "alchemy" in funcs or any(k in name for k in ("草药", "炼金")):
+                return "herb"
+            if "craft" in funcs or any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化")):
+                return "smith"
+            if sa.get("healer") or "heal" in funcs or any(k in name for k in ("酒馆", "旅店", "客栈")):
+                return "tavern"
+            if sa.get("shop") or "shop" in funcs:
+                return "general"
+            return None
+        return None
 
     def _wild_trader_here(self, player: dict, group_id: str = "", qq_id: str = "") -> str | None:
         """v95.4：当前地图是否有可交易的野外行商（funcs 含 trade 且出现条件满足）。

@@ -2671,6 +2671,31 @@ class EconomyCmds(CommandBase):
             return True
         return any(k in sa.get("name", "") for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
 
+    def _item_fits_shop(self, it: dict, sa_kind: str | None) -> bool:
+        """v101.25h 消耗品是否适合当前子区域类型出售：
+        herb（草药/炼金）→ 只卖药剂类；
+        tavern（酒馆/旅店）→ 只卖食物类；
+        general（普通商店/集市/商行）→ 卷轴/杂物类；
+        smith/None（行商货摊等）→ 全量。
+        """
+        if sa_kind not in ("herb", "tavern", "general"):
+            return True
+        name = it.get("name", "")
+        kind = "food"
+        # 食物判据：有 stamina 或典型食物词
+        if it.get("stamina") or any(k in name for k in ("面包", "肉", "酒", "果", "炖", "盛宴", "果冻", "汤", "饼")):
+            kind = "food"
+        elif any(k in name for k in ("药水", "药剂", "圣水", "草药", "绷带", "露", "泪", "卷轴", "护符")):
+            kind = "potion" if "卷轴" not in name and "护符" not in name else "scroll"
+        else:
+            kind = "misc"
+        if sa_kind == "herb":
+            return kind == "potion"
+        if sa_kind == "tavern":
+            return kind == "food"
+        # general：卷轴/杂物（+武器走独立分支）
+        return kind in ("scroll", "misc")
+
     def _pawn_rate(self, player: dict, d: dict):
         """v101.21 出售地点限制：装备→铁匠/工坊（原价）；材料→按类型分设施（v101.25e 鱼鱼拍板）：
         矿石/木材/兽材/宝石→铁匠铺(0.9)；草药/精华→炼金铺(0.9)；食材/织物/杂物→商店(0.8)；其他→无限制 1.0。"""
@@ -2881,7 +2906,12 @@ class EconomyCmds(CommandBase):
         lines = []
         entries = []
         if is_smith:
-            # 铁匠类商店：只卖武器 + 锻造材料 + 全套装备，不卖消耗品
+            # 铁匠类商店：武器 + 锻造材料 + 全套装备 + 图纸（v101.25h 追加子区域军需补给如强化石）
+            sa_id = player.get("cur_subarea") or ""
+            sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
+            for iid in sa_items or []:
+                it = C.ITEMS[iid]
+                entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
             materials = C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])
             for mid in materials:
                 mt = C.MATERIALS[mid]
@@ -2899,8 +2929,11 @@ class EconomyCmds(CommandBase):
                 q = C.QUALITY[wq]
                 entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         else:
-            # 普通商店：消耗品 + 武器
-            shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
+            # 普通商店：消耗品 + 武器（v101.25h 子区域独立配货，回退城镇 SHOP_ITEMS）
+            sa_kind = self._sa_shop_kind(player)
+            sa_id = player.get("cur_subarea") or ""
+            sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
+            shop_items = sa_items if sa_items is not None else (C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, []))
             trader = self._wild_trader_here(player, group_id, qq_id)
             if not shop_items and trader:
                 shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
@@ -2909,10 +2942,12 @@ class EconomyCmds(CommandBase):
             for iid in shop_items:
                 it = C.ITEMS[iid]
                 entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
-            weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
-            for wname, wtype, wlv, wq in weapons:
-                q = C.QUALITY[wq]
-                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+            # 武器：铁匠/锻造类 + 普通商店（集市/商行/码头）可卖；草药铺/酒馆不卖
+            if sa_kind in ("smith", "general"):
+                weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
+                for wname, wtype, wlv, wq in weapons:
+                    q = C.QUALITY[wq]
+                    entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)
@@ -2946,7 +2981,16 @@ class EconomyCmds(CommandBase):
             return
         area_id = cur_map.get("area", cur)
         is_smith = self._is_smith_shop(player)
-        shop_items = [] if is_smith else (C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, []))
+        sa_kind = self._sa_shop_kind(player)
+        sa_id = player.get("cur_subarea") or ""
+        sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
+        # v101.25h：子区域独立配货优先；smith 分支也吃子区域军需补给；无配置回退城镇
+        if sa_items is not None:
+            shop_items = sa_items
+        elif is_smith:
+            shop_items = []
+        else:
+            shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
         if not shop_items and not is_smith and self._wild_trader_here(player, group_id, qq_id):
             shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
@@ -2965,7 +3009,13 @@ class EconomyCmds(CommandBase):
         if cur_evt and cur_evt["etype"] == "merchant":
             discount = 0.8
         weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
+        # v101.25h：武器/名册装备只在 smith/general 卖（草药铺/酒馆不卖）
+        can_sell_weapons = sa_kind in ("smith", "general")
+        if not can_sell_weapons:
+            weapons = []
         equip_items = self._shop_equip_roster(player, C.SHOP_EQUIP.get(cur) or C.SHOP_EQUIP.get(area_id, []))
+        if not can_sell_weapons and not is_smith:
+            equip_items = []
         # 序号购买：『购买 3』→ 与商店列表一致的第 3 件商品（顺序：材料→装备→武器，与 shop 面板一致）
         if item_name.isdigit():
             entries = list(shop_items) + [f"m:{m}" for m in materials] + (["bp:rand"] if is_smith else []) + [f"e:{rid}" for rid in equip_items] + [f"w:{w[0]}" for w in weapons]
