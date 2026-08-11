@@ -648,7 +648,7 @@ SUBAREA_PROPS = {
     "ember_camp:ember_camp_1": [('campfire_remains', '灰烬营地火塘'), ('camp_flag', '灰烬营旗')],
     "ember_camp:ember_camp_2": [('tapestry', '营长挂毯'), ('weapon_rack', '营长兵器架')],
     "ember_camp:ember_camp_3": [('rune_pillar', '向导所符文柱'), ('minecart', '向导矿车')],
-    "ember_camp:ember_camp_4": [('goods_shelf', '补给货架'), ('miner_lamp', '补给站矿灯')],
+    "ember_camp:ember_camp_4": [('goods_shelf', '补给货架'), ('miner_lamp', '炬火补给站矿灯')],
     # ---- 风之城（云上） ----
     "wind_city:wind_city_1": [('clock_tower', '云顶钟楼'), ('highland_rock', '浮空观景台')],
     "wind_city:wind_city_2": [('throne', '云翼王座'), ('tapestry', '云海织锦')],

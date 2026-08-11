@@ -109,7 +109,7 @@ SHOP_SUBAREA_ITEMS = {
         "i_stone_upgrade",
     ],
     # ---------- 白鹿城（南境首府） ----------
-    "white_deer_6": [  # 医师馆
+    "white_deer_6": [  # 鹿鸣医馆
         "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage",
     ],
     "white_deer_5": [  # 白鹿与麦酒酒馆
@@ -134,13 +134,13 @@ SHOP_SUBAREA_ITEMS = {
     "ironharbor_6": [  # 金齿轮商行
         "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
     ],
-    "ironharbor_8": [  # 渔人码头
+    "ironharbor_8": [  # 渔火码头
         "i_meat_skewer", "i_stew", "i_scroll_teleport",
     ],
     "ironharbor_4": [  # 金槌拍卖行
         "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
     ],
-    "ironharbor_9": [  # 锻造坊（smith 分支）
+    "ironharbor_9": [  # 海风锻造坊（smith 分支）
         "i_stone_upgrade", "i_stone_refine",
     ],
     # ---------- 银溪镇 ----------
@@ -165,7 +165,7 @@ SHOP_SUBAREA_ITEMS = {
         "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion",
     ],
     # ---------- 铁盾镇 ----------
-    "ironshield_town_3": [  # 军械铺（smith + 军需补给）
+    "ironshield_town_3": [  # 坚盾军械铺（smith + 军需补给）
         "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion", "i_stone_upgrade",
     ],
     # ---------- 月冠隘口 ----------
@@ -186,7 +186,7 @@ SHOP_SUBAREA_ITEMS = {
     "frost_horn_3": [  # 霜角酒馆
         "i_ale", "i_dwarf_liquor", "i_stew",
     ],
-    "frost_horn_5": [  # 随军圣堂
+    "frost_horn_5": [  # 霜烛圣堂
         "i_bread", "i_holy_water",
     ],
     # ---------- 铁砧要塞 ----------

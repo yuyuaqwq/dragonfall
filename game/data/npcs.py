@@ -1855,7 +1855,7 @@ NPCS.update({
     },
     'npc_oak_herb_girl': {
         'name': '抓药学徒·小荷',
-        'title': '草药铺学徒',
+        'title': '艾琳炼药铺学徒',
         'map': 'oak_town',
         'icon': '🌿',
         'dialogue': '这个是薄荷，这个是鼠尾草……哎呀，师父说认错一味药会出大事，我可得仔细些！',
@@ -1918,7 +1918,7 @@ NPCS.update({
     },
     'npc_deer_nurse': {
         'name': '医助·艾草',
-        'title': '白鹿城医师馆助手',
+        'title': '白鹿城鹿鸣医馆助手',
         'map': 'white_deer',
         'icon': '💊',
         'dialogue': '温蒂医师交代了，伤口换药前不能沾水。……别嫌我啰嗦，上个月有个冒险者不听劝，伤口又裂了。',
@@ -2002,14 +2002,14 @@ NPCS.update({
     },
     'npc_harbor_fisher': {
         'name': '渔夫·潮生',
-        'title': '铁港城渔人码头渔夫',
+        'title': '铁港城渔火码头渔夫',
         'map': 'ironharbor',
         'icon': '🎣',
         'dialogue': '今天潮水不错，网里全是银光闪闪的鱼！要买新鲜的？给冒险者算便宜点！',
     },
     'npc_harbor_forge_app': {
         'name': '锻工·红脸',
-        'title': '铁港城锻造坊锻工',
+        'title': '铁港城海风锻造坊锻工',
         'map': 'ironharbor',
         'icon': '⚒️',
         'dialogue': '炉火旺着咧！这把剑再淬三遍水就能上架了。别靠太近，火星子不认人。',
@@ -2121,7 +2121,7 @@ NPCS.update({
     },
     'npc_shield_smith': {
         'name': '铁匠·厚掌',
-        'title': '铁盾镇军械铺铁匠',
+        'title': '铁盾镇坚盾军械铺铁匠',
         'map': 'ironshield_town',
         'icon': '🔨',
         'dialogue': '铁盾镇的盾，能挡下兽人的斧头！我打的盾，还能挡下兽人的酋长！……吹牛的，但差不太多。',
@@ -2497,7 +2497,7 @@ NPCS.update({
     },
     'npc_ember_storeman': {
         'name': '粮秣员·实秤',
-        'title': '灰烬营地补给站粮秣员',
+        'title': '灰烬营地炬火补给站粮秣员',
         'map': 'ember_camp',
         'icon': '⚖️',
         'dialogue': '干粮、火把、绳索、药膏……一样都不能少。去地底，多带一根绳子，就多一条命！',
