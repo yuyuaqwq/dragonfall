@@ -80,6 +80,7 @@ DIALOGUES = {
             },
             "quest_talk": {
                 # v101.23：接取台词按当前主线切换（镇长发的任务不止史莱姆）
+                # v101.23d：默认走 text_from story——无变体匹配时自动用当前主线 story 台词
                 "texts": [
                     {"need": {"quest_pending": "q1_3"},
                      "text": "正好！西边林子里的野猪越来越猖狂，把麦田拱得不成样子。帮我料理一下，镇子不会亏待你的。"},
@@ -88,7 +89,7 @@ DIALOGUES = {
                     {"need": {"quest_pending": "q1_6"},
                      "text": "来来来，坐下陪老头子喝一杯！我年轻时也有过不少冒险故事，正好讲给你听。"},
                 ],
-                "text": "正好！镇子西边草地的史莱姆越来越猖狂，麦田都快保不住了。帮我解决这个麻烦，镇子不会亏待你的。",
+                "text_from": "story",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
                     {"text": "再想想。", "next": "welcome"},
@@ -255,11 +256,12 @@ DIALOGUES = {
             },
             "quest_talk": {
                 # v101.23c：接取台词按当前主线切换（长老不止矿洞一个任务）
+                # v101.23d：默认走 text_from story——q8_3 时自动用铁砧会议 story
                 "texts": [
                     {"need": {"quest_pending": "q8_5"},
                      "text": "托尔丁那小子急得跳脚——祖传的酒桶被偷了！那是矮人的传世之宝，帮我找回来！"},
                 ],
-                "text": "哼，总算有人愿意搭把手！矿洞的事，就交给你了。",
+                "text_from": "story",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
                     {"text": "再想想。", "next": "welcome"},

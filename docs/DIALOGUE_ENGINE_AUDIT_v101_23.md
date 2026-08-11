@@ -84,8 +84,23 @@ store 层                 db.get/set/clear_talk_state、talk flags（会话状�
 
 ## 四、遗留项
 
-- [ ] A 级建议：quest_talk 任务数据回退（story/ending 自动生成台词）——需要设计数据格式，单独立项
-- [ ] B 级建议：动作注册表化 ACTIONS（与 CONDITIONS 对称）
-- [ ] C 级建议：audit_dialogue_stale.py 挂进测试作为静态检查
+- [x] ~~A 级建议：quest_talk 任务数据回退~~（**v101.23d 已实现**：node_text 支持 `text_from: "story"`，无变体匹配时自动从当前主线 story 生成台词，giver 校验防串台；镇长/长老 quest_talk 已切 text_from，以后加新任务零手写）
+- [x] ~~B 级建议：动作注册表化 ACTIONS~~（**v101.23d 已实现**：commands/talk_actions.py，14 个动作 register，_apply_talk_action 132 行 if-elif → 15 行查表；动作测试 50+16+53 全过）
+- [x] ~~C 级建议：陈旧台词静态检查~~（**v101.23d 已实现**：tests/test_dialogue_stale.py 四条规则——多任务 giver 必须变体/text_from、text_from 合法性、变体任务 id 存在性、接取/交付节点 giver 匹配；22 项全过，已并入全量回归）
 - [x] ~~复核 npc_monk_tutor.welcome"海"台词~~（2026-08-11 已确认：武僧背景意象"码头搬货的汉子，一拳能打碎海浪"，纯世界观，无风险）
 - [ ] q8_5 完成后（主线离开长老线）welcome 变体是否需要第三态（目前 q8_3 done 变体一直生效，q8_5 做完也显示"矿洞的事你功不可没"——可接受）
+
+---
+
+## 五、v101.23d 版本明细（A/B/C 三建议落地）
+
+| 项 | 内容 | 验收 |
+|---|---|---|
+| A | core/dialogue.py：`text_from: "story"` 自动台词——texts 变体优先 → 无匹配则从当前主线 story 剥离前缀/引号生成（`_story_to_line`，153 条 story 格式兼容：规整型『NPC：台词』/叙事型『老约翰交信：『…』』/纯叙事均降级可用）；giver 校验防串台。数据层：镇长/长老 quest_talk 默认 text → text_from | 验证 4 场景全过（q1_1 自动史莱姆台词/q8_3 自动铁砧台词/变体优先/giver 防串台）；对话测试 56 全过 |
+| B | commands/talk_actions.py：ACTIONS 注册表（与 CONDITIONS 对称），14 动作 register；world.py `_apply_talk_action` 132 行 → 15 行查表；注册顺序=执行顺序，一个选项多动作键全部执行；side_take 保持 break 语义 | 对话 56 + 学徒 50 + 导师 16 + 魔剑 53 全过（动作链路全覆盖） |
+| C | tests/test_dialogue_stale.py：R1 多任务 giver quest_talk 必须变体/text_from；R2 text_from 合法值；R3 变体任务 id 存在；R4 quest_talk/quest_done_talk 变体 giver 匹配（闲聊节点豁免——吟游诗人感知矿洞剧情属世界传闻，合理） | 22 项全过；误报案例修正 1 处（R4 规则过严） |
+
+**新扩展方式（v101.23d 后）**：
+- 给 NPC 加新主线任务：quests.py 加任务（写 story）→ quest_talk 台词自动跟走（text_from），**零对话数据改动**
+- 加新对话动作：talk_actions.py register 一个函数（~5-15 行），引擎零改动
+- 加新对话条件：dialogue_conds.py register 一个函数（~5 行）

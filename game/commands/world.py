@@ -2371,132 +2371,16 @@ class WorldCmds(CommandBase):
         return lines
 
     def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
-        """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行"""
+        """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行
+        v101.23d：动作注册表化——commands/talk_actions.py 的 ACTIONS（与 CONDITIONS
+        注册表对称），加新动作 = register 一个函数，本方法零改动。"""
         lines = []
         if not action:
             return lines
-        if "set_flag" in action:
-            db.set_talk_flag(group_id, qq_id, npc_id, action["set_flag"])
-        if "give_gold" in action:
-            gold = int(action["give_gold"])
-            db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) + gold)
-            lines.append(f"💰 获得金币 ×{gold}")
-        if "give_exp" in action:
-            exp = int(action["give_exp"])
-            db.update_player(group_id, qq_id, exp=(player.get("exp", 0) or 0) + exp)
-            lines.append(f"✨ 获得经验 +{exp}")
-        if "give_item" in action:
-            # #260: 拜师动作同时带 unlock_prof 时，副业位满则不发材料（此前 give_item 先于
-            # unlock_prof 执行，拦截后材料照发、与解锁不同步）
-            skip_give = False
-            _up = action.get("unlock_prof")
-            if _up:
-                _okp, _ = self._prof_active_check(group_id, qq_id, _up)
-                skip_give = not _okp
-            if not skip_give:
-                item = action["give_item"]
-                key = item.get("key", "")
-                count = int(item.get("count", 1))
-                if key:
-                    db.add_item(group_id, qq_id, key, {}, count)
-                    lines.append(f"🎒 获得 {key} ×{count}")
-        if action.get("open_shop"):
-            lines.append("🏪 输入『商店』可以买东西")
-        if action.get("hint"):
-            lines.append(action["hint"])
-        # ---- v95.9 对话式任务接取/交付（取代『交任务』『接取任务』指令的引导）----
-        if action.get("quest_take"):
-            # 主线：pending → 接取；ready → 交付领奖（_take_main_quest 自动分流）
-            npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
-            if npc:
-                lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
-        if action.get("side_take"):
-            # 支线：交付该 NPC 名下第一个可交支线
-            quests = db.get_quests(group_id, qq_id)
-            for sid, sq in list((quests.get("side") or {}).items()):
-                sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
-                if not sqd or sqd.get("giver") != npc_id:
-                    continue
-                if sq.get("status") == "done":  # v95.12：已交付支线不再提示/交付
-                    continue
-                obj = sqd.get("objective", {})
-                if obj.get("collect"):
-                    if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("count", 1):
-                        lines += self._complete_side_quest(group_id, qq_id, sid)
-                        break
-                elif sq.get("status") == "ready":
-                    lines += self._complete_side_quest(group_id, qq_id, sid)
-                    break
-        if action.get("side_offer"):
-            # v95r65 #288：支线接取入口（有对话树 NPC 的『有活儿要交给我吗』选项）。
-            # 走 _offer_side_quests 接该 NPC 名下未接支线（已过滤告示板委托 #295）
-            npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
-            if npc:
-                lines += self._offer_side_quests(group_id, qq_id, npc_id, npc)
-        # ---- v81 导师进修动作 ----
-        if "consume_item" in action:
-            ci = action["consume_item"]
-            key = ci.get("item", "")
-            count = int(ci.get("count", 1))
-            if key:
-                db.remove_item(group_id, qq_id, key, count)
-                lines.append(f"🎒 交出 {key} ×{count}")
-        if "unlock_prof" in action:
-            prof = action["unlock_prof"]
-            appr = list(player.get("apprentices", []))
-            if prof in appr:
-                lines.append(f"你已经拜过{db.PROF_FIELDS.get(prof, prof)}的导师了。")
-            else:
-                ok, act_msg = self._prof_active_check(group_id, qq_id, prof)
-                if not ok:
-                    lines.append(act_msg)
-                else:
-                    appr.append(prof)
-                    db.update_player(group_id, qq_id, apprentices=appr)
-                    # 入门礼：副业经验（unlock_prof 配套 give_prof_exp 时由命令层统一给）
-                    exp = action.get("give_prof_exp")
-                    if exp:
-                        lv, _ = db.add_prof_exp(group_id, qq_id, prof, int(exp))
-                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」(副业经验 +{exp})")
-                    else:
-                        lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
-                    lines.append("💡 『副业』查看你的生活职业面板")
-        # ---- v95.23 职业就职/进阶/转职动作 ----
-        if "unlock_class" in action:
-            # 行会就职：见习冒险者 → 基础职业（属性按新职业重算 + 初始技能）
-            new_cls = action["unlock_class"]
-            lines += self._do_join_class(group_id, qq_id, player, new_cls)
-        if "tutor_skill" in action:
-            # 导师进阶技能教学：等级门槛 + 金币学费 → 直接学会（不耗技能点）
-            ts = action["tutor_skill"]
-            sk_id = ts.get("skill", "")
-            cost = int(ts.get("cost", 0))
-            need_lv = int(ts.get("need_lv", 1))
-            info = E.skill_info(player.get("class_name", ""), sk_id)
-            if not info:
-                lines.append("这位导师似乎还没准备好教你……")
-            elif player.get("level", 0) < need_lv:
-                lines.append(f"导师摇摇头：这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。")
-            elif (player.get("gold", 0) or 0) < cost:
-                lines.append(f"导师伸出三根手指：学费 {cost} 金币，少一个子儿都不行。(你现在有 {player.get('gold', 0)} 金币)")
-            else:
-                learned = list(player.get("learned_skills", []))
-                sname = info.get("name", sk_id)
-                if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
-                    lines.append(f"『{sname}』你已经学会了，再多练练吧。")
-                else:
-                    db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) - cost,
-                                     learned_skills=learned + [sname])
-                    lines.append(f"💰 支付学费 {cost} 金币")
-                    lines.append(f"✨ 导师悉心传授，你学会了进阶技能『{sname}』！")
-                    lines.append(f"「{info['desc']}」")
-                    lines.append("💡 记得『设置技能 <槽位> <技能名>』放入技能栏～")
-        if "evolve_class" in action:
-            # 导师转职：Lv.30/60/90 找对应职业导师对话转职
-            ev = action["evolve_class"]
-            next_tier = int(ev.get("tier", 1))
-            path = int(ev.get("path", 1))
-            lines += self._do_evolve_via_npc(group_id, qq_id, player, next_tier, path)
+        from .talk_actions import ACTIONS
+        for key, fn in ACTIONS.items():
+            if action.get(key):
+                lines += fn(self, group_id, qq_id, player, npc_id, action)
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")

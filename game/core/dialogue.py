@@ -10,6 +10,7 @@
 动作 action 是声明式的，命令层用 apply_talk_action 统一落地，
 core 只负责判断与筛选，保证引擎可单测、可复用。
 """
+import re
 from .. import content as C
 
 
@@ -53,12 +54,41 @@ def visible_options(dlg, node, ctx: dict) -> list:
     return [opt for opt in node.get("options", []) if check_need(opt.get("need"), ctx)]
 
 
+_STORY_PREFIX = re.compile(r"^[^：:]{1,20}[：:]\s*")
+
+
+def _story_to_line(raw: str) -> str:
+    """任务 story/ending 文本 → NPC 台词（v101.23d A 级：text_from 自动生成）
+
+    格式多为『NPC名：台词』或『NPC名：『台词』』（少数叙事型『老约翰交给玩家一封信：『…』』）。
+    规则：剥 NPC 名前缀 → 取 『』/“” 引号内 → 都没有就原样降级（叙事型也能念）。
+    """
+    if not raw:
+        return ""
+    body = _STORY_PREFIX.sub("", raw.strip())
+    m = re.match(r"^[“『](.+)[”』]$", body.strip())
+    return m.group(1) if m else body
+
+
 def node_text(node, ctx: dict) -> str:
-    """节点台词：支持条件变体 texts=[{need, text}, ...]，取第一个满足 need 的；
-    否则用默认 text。v101.23：让 NPC 台词随主线进度切换（镇长做完史莱姆不再念史莱姆）。"""
+    """节点台词：texts 条件变体优先（need 满足的第一个），否则默认 text；
+    v101.23d：text_from 支持——节点写 {"text_from": "story"} 时，无变体匹配则
+    从『当前主线任务』的 story 字段自动生成接取台词（giver 校验，防串台）。
+    多任务 NPC 加新任务 = 纯数据，quest_talk 台词自动跟任务走，不用手写变体。"""
     for variant in node.get("texts") or []:
         if check_need(variant.get("need"), ctx):
             return variant["text"]
+    src = node.get("text_from")
+    if src in ("story",):
+        quests = ctx.get("quests") or {}
+        mid = quests.get("main_quest")
+        if mid:
+            from ..data import MAIN_QUESTS
+            mq = next((q for q in MAIN_QUESTS if q["id"] == mid), None)
+            if mq and (not mq.get("giver") or mq.get("giver") == ctx.get("npc_id")):
+                auto = _story_to_line(mq.get("story", ""))
+                if auto:
+                    return auto
     return node.get("text", "……")
 
 

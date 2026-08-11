@@ -822,6 +822,19 @@ class InstanceCmds(CommandBase):
     # ---------------- 行动核心 ----------------
     async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None):
         """副本回合行动(由攻击/技能/防御指令路由进来)"""
+        # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
+        # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
+        # 层内无敌人时直接引导『深入』推进，不进入战斗回合逻辑。
+        if not st.get("boss"):
+            nxt = ""
+            stages = st.get("inst_stages") or []
+            idx = st.get("stage_idx", 0)
+            if stages and idx < len(stages) - 1:
+                nxt = f"前方是【{stages[idx + 1]['name']}】……输入『深入』继续推进！"
+            else:
+                nxt = "这是最后一层，输入『深入』挑战 Boss！"
+            yield event.plain_result(f"当前区域的敌人已被肃清！\n{nxt}")
+            return
         members = st["members"]
         now = int(time.time())
         logs = []
