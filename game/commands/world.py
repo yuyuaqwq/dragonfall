@@ -2464,7 +2464,7 @@ class WorldCmds(CommandBase):
         # v101.25 #320：完整指令优先于菜单选项——对话菜单中发『对话 2』
         # 此前被当"选项 2.告辞"退出（playtest round68 小四抓包）。『对话 X』
         # 语义是"找 NPC X 交谈"，应路由到 find_npc 而不是菜单；纯数字才是菜单选项。
-        # v101.25b：『对话 0』是结束对话的标准指令，不能路由（否则报"没有第 0 位 NPC"）。
+        # 『对话 0』是结束对话的固定语义，保持走菜单分支。
         if msg.startswith("对话") and raw and raw != "0":
             _prev_msg = event.message_str
             event.message_str = "找 " + raw
