@@ -59,6 +59,13 @@ def _c_quest_done(ctx, v):
     return _quest_state(ctx.get("quests") or {}, v, "done", ctx)
 
 
+@register("not_quest_done")
+def _c_not_quest_done(ctx, v):
+    """该主线未完成（反向条件，用于隐藏已完成任务相关的旧话题/旧选项）"""
+    done = (ctx.get("quests") or {}).get("completed_main") or []
+    return v not in done
+
+
 @register("quest_active")
 def _c_quest_active(ctx, v):
     return _quest_state(ctx.get("quests") or {}, v, "active", ctx)

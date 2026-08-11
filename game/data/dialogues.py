@@ -35,7 +35,7 @@ DIALOGUES = {
                 ],
                 "text": "年轻人，你来得正是时候。最近镇子草地的史莱姆越来越猖狂，把我家麦田拱得不成样子。",
                 "options": [
-                    {"text": "史莱姆是怎么回事？", "next": "dogs"},
+                    {"text": "史莱姆是怎么回事？", "next": "dogs", "need": {"not_quest_done": "q1_1"}},
                     {"text": "镇长，镇子最近还好吗？", "next": "town"},
                     {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
@@ -45,6 +45,11 @@ DIALOGUES = {
                 ],
             },
             "dogs": {
+                # v101.23：台词变体——q1_1 完成后不再讲史莱姆（入口已隐藏，兜底防会话残留）
+                "texts": [
+                    {"need": {"quest_done": "q1_1"},
+                     "text": "史莱姆那事儿早就了结了，麦田也清净了。倒是你，最近有什么新鲜事吗？"},
+                ],
                 "text": "唉，那些黏糊糊的绿家伙是入秋之后从西边草地渗过来的，专拱麦田，越打越多。庄稼汉们试着清了几次，可它们怎么都除不尽。",
                 "options": [
                     {"text": "我这就去解决它们！", "next": "dogs_pledge", "action": {"set_flag": "pledged"}},
@@ -68,7 +73,7 @@ DIALOGUES = {
             "town": {
                 "text": "镇子还算太平，多亏了铁匠托尔那把好锤子，还有橡木桶旅店的麦酒——大伙儿晚上有个地方松快松快。对了，城门口那位吟游诗人莉莉，最近老念叨什么'隧洞之王'，你感兴趣可以去听听。",
                 "options": [
-                    {"text": "史莱姆是怎么回事？", "next": "dogs"},
+                    {"text": "史莱姆是怎么回事？", "next": "dogs", "need": {"not_quest_done": "q1_1"}},
                     {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q1"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
