@@ -2328,6 +2328,20 @@ class EconomyCmds(CommandBase):
             if battle["state"].get("type") == "pvp":
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
+            if battle["state"].get("type") == "instance":
+                # 副本战斗：道具走副本轮流回合（v95.29 #269——此前漏掉 instance 分流，
+                # 走普通分支会 BT.Battle.from_state + save_battle 把 leader 名下的
+                # 副本上下文覆盖成战斗引擎状态，后续副本指令全 KeyError 软锁）
+                ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
+                r = IT.TEMPLATES[tpl_name](ctx)
+                if r.consume:
+                    db.remove_item(group_id, qq_id, target["key"])
+                if d.get("stamina"):
+                    self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+                payload = r.payload if r.payload is not None else "0"
+                async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
+                    yield _r
+                return
             b = BT.Battle.from_state(battle["state"])
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
             r = IT.TEMPLATES[tpl_name](ctx)
