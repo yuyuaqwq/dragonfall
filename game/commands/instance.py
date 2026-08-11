@@ -830,6 +830,16 @@ class InstanceCmds(CommandBase):
         # 1. 超时推进：轮到的人 120 秒没动 → 自动防御并转到下一位（可能连续多人超时）
         # v55 轮：已退队的成员不再参与轮转（退队后不卡队友回合，否则每轮白等 120s 超时）
         party_now = [str(m) for m in db.party_members(group_id, st["leader"])]
+        # v55 轮（#281）：全灭/全退队预判——最后一个存活者被反击打死、其余成员倒下或退队时，
+        # 超时推进循环会无限空转卡死 worker（曾实测：小蓝+格温全倒、小芽退队 → 轮转死循环）。
+        # 无任何可行动成员 → 直接失败结算。
+        actionable = [i for i, m in enumerate(members)
+                      if (not party_now or str(m) in party_now) and st["alive"].get(str(m), True)]
+        if not actionable:
+            st["over"] = True
+            async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
+                yield _r
+            return
         while True:
             cur_idx = st["turn"]
             cur_key = str(members[cur_idx])
