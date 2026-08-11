@@ -282,6 +282,15 @@ class InstanceCmds(CommandBase):
     def _enter_stage_combat(self, group_id, st: dict, mon_def, stage: dict):
         """把层内怪物投入战斗（mode → battle，初始化战斗状态）
         若 mon_def 是层 Boss（role=boss）→ 应用血量缩放/mech/风神铭文"""
+        # v95r76 #383 补充：层间推进时用 DB 当前血量刷新快照——层肃清后战斗外行为
+        # （喝药/调查回血点等）只更新 DB 不更新快照，若不刷新，『深入』后玩家
+        # 以旧快照残血开战（格温实测：肃清后喝药 364→564，快照仍是 364 药白喝）
+        for m in st["members"]:
+            p = self._player(group_id, m)
+            if p:
+                snap = st["players"][str(m)]
+                snap["hp"] = min(int(p.get("hp", snap.get("hp", 0))), snap.get("max_hp", 1))
+                snap["mp"] = min(int(p.get("mp", snap.get("mp", 0))), snap.get("max_mp", 1))
         st["mode"] = "battle"
         st["boss"] = C.build_monster(mon_def, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
         if mon_def[2] == "boss":
