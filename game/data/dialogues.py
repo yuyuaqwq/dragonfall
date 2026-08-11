@@ -28,9 +28,9 @@ DIALOGUES = {
         "start": "welcome",
         "nodes": {
             "welcome": {
-                "text": "年轻人，你来得正是时候。最近镇子外围的野狗越来越猖狂，商队都不敢进城了。",
+                "text": "年轻人，你来得正是时候。最近镇子草地的史莱姆越来越猖狂，把我家麦田拱得不成样子。",
                 "options": [
-                    {"text": "野狗是怎么回事？", "next": "dogs"},
+                    {"text": "史莱姆是怎么回事？", "next": "dogs"},
                     {"text": "镇长，镇子最近还好吗？", "next": "town"},
                     {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
@@ -40,21 +40,21 @@ DIALOGUES = {
                 ],
             },
             "dogs": {
-                "text": "唉，那些畜生是入秋之后从西边荒地窜过来的，成群结队，见人就咬。猎户们试着清了几次，可它们越打越凶。",
+                "text": "唉，那些黏糊糊的绿家伙是入秋之后从西边草地渗过来的，专拱麦田，越打越多。庄稼汉们试着清了几次，可它们怎么都除不尽。",
                 "options": [
                     {"text": "我这就去解决它们！", "next": "dogs_pledge", "action": {"set_flag": "pledged"}},
-                    {"text": "商队损失大吗？", "next": "dogs_trade"},
+                    {"text": "麦田损失大吗？", "next": "dogs_trade"},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "dogs_pledge": {
-                "text": "好样的！镇子西边的路口就是它们的老窝。替我们把它们赶走，镇子不会亏待你的。",
+                "text": "好样的！镇子西边的草地就是它们的老窝。替我把它们清干净，镇子不会亏待你的。",
                 "options": [
                     {"text": "包在我身上！", "next": "quest_accept", "need": {"quest_pending": ""}, "action": {"quest_take": True}},
                 ],
             },
             "dogs_trade": {
-                "text": "上周一支药材商队被冲散了，两车草药丢在荒地里。再这么下去，入冬的物资怕是凑不齐了……",
+                "text": "我那两亩麦田眼瞅着要收成了，被拱得七零八落。再这么下去，入冬的口粮怕是凑不齐了……",
                 "options": [
                     {"text": "我这就去解决它们！", "next": "dogs_pledge", "action": {"set_flag": "pledged"}},
                     {"text": "告辞。", "next": "__end__"},
@@ -63,13 +63,13 @@ DIALOGUES = {
             "town": {
                 "text": "镇子还算太平，多亏了铁匠托尔那把好锤子，还有橡木桶旅店的麦酒——大伙儿晚上有个地方松快松快。对了，城门口那位吟游诗人莉莉，最近老念叨什么'隧洞之王'，你感兴趣可以去听听。",
                 "options": [
-                    {"text": "野狗是怎么回事？", "next": "dogs"},
+                    {"text": "史莱姆是怎么回事？", "next": "dogs"},
                     {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q1"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "quest_talk": {
-                "text": "正好！镇子西边路口那群野狗越来越猖狂，商队都不敢进城了。帮我解决这个麻烦，镇子不会亏待你的。",
+                "text": "正好！镇子西边草地的史莱姆越来越猖狂，麦田都快保不住了。帮我解决这个麻烦，镇子不会亏待你的。",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
                     {"text": "再想想。", "next": "welcome"},
@@ -91,7 +91,7 @@ DIALOGUES = {
                 ],
             },
             "quest_done_talk": {
-                "text": "你回来了！商队已经在准备进城了，镇子欠你一个大人情。来吧，这是你应得的报酬！",
+                "text": "你回来了！麦田总算保住了，镇子欠你一个大人情。来吧，这是你应得的报酬！",
                 "options": [
                     {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
                 ],
