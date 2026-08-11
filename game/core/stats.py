@@ -62,6 +62,16 @@ def equip_stats(slot: str, lv: int, quality: str) -> dict:
         stats["mdef"] += int(3 * mult)
     return stats
 
+
+# v101.25h3 装备属性价值权重（定价用）：HP/MP 是"量"不是"质"，1 点 HP 远不值 1 点攻击。
+# 曾导致权杖(hp_fix 60) Lv.2 白装卖 560 金币 vs 铁剑 80——HP 被当攻击等价计价。
+_EQUIP_VALUE_WEIGHT = {"hp": 0.1, "mp": 0.1}
+
+
+def equip_value(stats: dict) -> float:
+    """装备属性加权总值（定价/推导价用）：atk/matk/def/mdef/spd/crit/dodge 全价，HP/MP 按 0.1 折算"""
+    return sum(v * _EQUIP_VALUE_WEIGHT.get(k, 1.0) for k, v in stats.items())
+
 def exp_to_next(level: int) -> int:
     """升到下一级所需经验(v28 校准：系数 35→60，升级节奏放缓)"""
     return int(60 * level ** 1.45 + 50)

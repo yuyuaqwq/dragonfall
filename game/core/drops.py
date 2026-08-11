@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .stats import equip_stats, monster_exp, monster_gold, monster_stats
+from .stats import equip_stats, equip_value, monster_exp, monster_gold, monster_stats
 from .affix import (fixed_affixes, random_req, roll_affixes, stat_affix_stats)
 import random
 
@@ -169,7 +169,7 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
         "lv": lv,
         "weapon_type": weapon_type if slot == "weapon" else None,
         "stats": stats,
-        "price": int(sum(stats.values()) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
+        "price": int(equip_value(stats) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
         # 阶段八：属性需求（不锁职业，只锁力量/智力/敏捷/耐力）
         "req": random_req(slot, lv, weapon_type),
     }
@@ -249,7 +249,7 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
         "lv": lv,
         "weapon_type": weapon_type if slot == "weapon" else None,
         "stats": stats,
-        "price": int(sum(stats.values()) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
+        "price": int(equip_value(stats) * (3 + lv * 0.5) * QUALITY[quality]["mult"]),
         "req": dict(r.get("req") or {}),
         "series": r["series"],
     }

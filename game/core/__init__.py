@@ -34,7 +34,7 @@ from .dialogue import (  # noqa: F401
     node_text,
 )
 from .stats import (  # noqa: F401
-    monster_stats, equip_stats, exp_to_next, monster_exp, monster_gold,
+    monster_stats, equip_stats, equip_value, exp_to_next, monster_exp, monster_gold,
 )
 from .maps import _build_ency  # noqa: F401
 from .drops import (  # noqa: F401

@@ -25,9 +25,10 @@ from ..core.drops import _eq_random_desc
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
-# 推导价 = sum(基础属性) × (3+lv×0.5) × QUALITY mult；系数让装备有经济重量
-# （白装≈5~8只怪、蓝紫橙≈10~13只怪的金币收入，打怪/任务/商店三渠道价值统一）
-SHOP_EQUIP_PRICE_MULT = {"white": 2.0, "green": 1.7, "blue": 1.5, "purple": 1.3, "orange": 1.2}
+# v101.25h3 鱼鱼：品质价格差距调大——原白2.0/绿1.7/蓝1.5/紫1.3/橙1.2 递减系数把品质属性倍率抵消，
+# 最终橙/白价格只差 1.2 倍（橙装属性 2 倍但价格几乎没差）。改为递增系数：
+# 最终价格比（属性倍率×价格系数）：白2.0 / 绿3.12 / 蓝4.80 / 紫7.20 / 橙11.0（橙≈白 5.5 倍）
+SHOP_EQUIP_PRICE_MULT = {"white": 2.0, "green": 2.4, "blue": 3.0, "purple": 4.0, "orange": 5.5}
 
 # v101.25e 材料类型 → 回收设施（鱼鱼拍板：不同设施收不同材料）
 _MAT_FACILITY = {
@@ -2298,7 +2299,7 @@ class EconomyCmds(CommandBase):
                 stats["hp"] = stats.get("hp", 0) + int(fv)
             else:
                 stats[fk] = stats.get(fk, 0) + int(stats.get(fk, 0) * fv)
-        base = int(sum(stats.values()) * (3 + lv * 0.5) * C.QUALITY[quality]["mult"])
+        base = int(C.equip_value(stats) * (3 + lv * 0.5) * C.QUALITY[quality]["mult"])
         return int(base * SHOP_EQUIP_PRICE_MULT.get(quality, 1.5))
 
     def _shop_equip_roster(self, player: dict, equip_items: list) -> list:
