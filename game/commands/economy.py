@@ -2566,6 +2566,18 @@ class EconomyCmds(CommandBase):
                     db.remove_item(group_id, qq_id, target["key"])
                 if d.get("stamina"):
                     self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
+                # v101.26 #416：副本战斗 mana 药水效果同步——tpl_mana 战斗内只改 db 读出的
+                # player dict（普通战斗由 use() 末尾 db.update_player 落库），副本战斗血量
+                # 权威在 st["players"] 快照且该分支不落库 → 魔力药水效果被吞、道具白扣
+                # （影刃 Boss 战实测：魔力 7/165 用魔法药水(中)后仍 7，只播"💊 使用了战斗道具"）
+                if d.get("mana"):
+                    _snap = battle["state"]["players"].get(str(qq_id))
+                    if _snap:
+                        _mx = _snap.get("max_mp", 0) or 99999
+                        _mv = d["mana"]
+                        if _mv <= 1:
+                            _mv = int(_mx * _mv)
+                        _snap["mp"] = min(_mx, _snap.get("mp", 0) + _mv)
                 payload = r.payload if r.payload is not None else "0"
                 async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
