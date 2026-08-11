@@ -317,16 +317,11 @@ class PlayerCmds(CommandBase):
         eq_title = player.get("equipped_title") or ""
         if eq_title:
             lines[0] = f"⚔️ [{eq_title}] 【{player['name']}】"
+        # v100.10 角色面板瘦身：只保留生命/魔力（当前/上限状态）+ 4 项基础属性（纯数值），
+        # 战斗属性（攻击/防御/暴击等）详情去『属性』面板看，避免角色面板过于拥挤
         stat_rows = [
             ("❤️", "hp", "max_hp", "生命", f"{player['hp']}/"),
             ("💙", "mp", "max_mp", "魔力", f"{player['mp']}/"),
-            ("⚔️", "atk", "atk", "攻击", ""),
-            ("🛡️", "def", "def", "防御", ""),
-            ("🔥", "matk", "matk", "魔攻", ""),
-            ("🧪", "mdef", "mdef", "魔防", ""),
-            ("💨", "spd", "spd", "速度", ""),
-            ("💥", "crit", "crit", "暴击", ""),
-            ("🌀", "dodge", "dodge", "闪避", ""),
         ]
         for icon, skey, fkey, cname, prefix in stat_rows:
             final = st[fkey]
@@ -335,6 +330,20 @@ class PlayerCmds(CommandBase):
                 lines.append(f"{icon} {cname}：{prefix}{int(final*100)}%({int(bonus*100):+d}%)")
             else:
                 lines.append(f"{icon} {cname}：{prefix}{final}({int(bonus):+d})")
+        attr = player.get("attributes") or {}
+        if isinstance(attr, str):
+            try:
+                import json
+                attr = json.loads(attr) or {}
+            except Exception:
+                attr = {}
+        for icon, cname, key in (
+            ("💪", "力量", "str"),
+            ("🏃", "敏捷", "agi"),
+            ("🧠", "智力", "int"),
+            ("❤️‍🩹", "耐力", "vit"),
+        ):
+            lines.append(f"{icon} {cname}：{attr.get(key, 0)}")
         # 资源块（金币/位置/技能点/EXP 独立成块，每项单独一行）
         lines.append("━━━━━━━━━━━━")
         lines.append(f"💰 金币：{player['gold']}")
@@ -610,11 +619,11 @@ class PlayerCmds(CommandBase):
                 lines.append(f"{icon} {cname}：{final}({int(bonus):+d})")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"🎯 自由属性点：{player.get('attr_pts', 0)}")
-        # 加点分配（每项单独一行，说明换行缩进——v100.9 排版优化）
-        lines.append(f"💪 力量 {attr.get('str', 0)}\n   ·每点＋1.2 攻击")
-        lines.append(f"🏃 敏捷 {attr.get('agi', 0)}\n   ·每点＋0.8 速度 ＋ 0.4% 暴击")
-        lines.append(f"🧠 智力 {attr.get('int', 0)}\n   ·每点＋1.2 魔攻 ＋ 1.5 魔力")
-        lines.append(f"❤️‍🩹 耐力 {attr.get('vit', 0)}\n   ·每点＋8 生命")
+        # 加点分配（每项单独一行，说明换行缩进——v100.9 排版优化；v100.10 冒号统一）
+        lines.append(f"💪 力量：{attr.get('str', 0)}\n   ·每点＋1.2 攻击")
+        lines.append(f"🏃 敏捷：{attr.get('agi', 0)}\n   ·每点＋0.8 速度 ＋ 0.4% 暴击")
+        lines.append(f"🧠 智力：{attr.get('int', 0)}\n   ·每点＋1.2 魔攻 ＋ 1.5 魔力")
+        lines.append(f"❤️‍🩹 耐力：{attr.get('vit', 0)}\n   ·每点＋8 生命")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『加点 力量 <点数>』分配属性点，『洗点』重置(500金币)")
         yield event.plain_result("\n".join(lines))
