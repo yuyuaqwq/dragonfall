@@ -2093,6 +2093,7 @@ class EconomyCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"💡 『背包 {page+1}』看下一页；筛选+翻页：『背包 材料 2』(共 {pages} 页)")
         lines.append("💡 『背包 <类型>』筛选(装备/材料/消耗品/符文/宠物蛋/坐骑/图纸/鱼)，支持『背包材料』『背包材料2』『背包筛选 材料』")
+        lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
         lines.append("💡 『装备 <名称>』『使用 <名称>』『物品详情 <名称>』『出售 <名称>』")
         return "\n".join(lines)
 
