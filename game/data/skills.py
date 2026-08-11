@@ -92,7 +92,7 @@ PLAYER_SKILLS = {
             },
     "sk_meng_ji": {
                 "lv": 2,
-                "mp": 0,
+                "mp": 4,
                 "power": 1.2,
                 "kind": "物理",
                 "res_gain": 1,
@@ -101,7 +101,7 @@ PLAYER_SKILLS = {
             },
     "sk_po_jia_zhan": {
                 "lv": 8,
-                "mp": 0,
+                "mp": 6,
                 "power": 1.3,
                 "kind": "物理",
                 "pierce": True,
@@ -112,7 +112,7 @@ PLAYER_SKILLS = {
             },
     "sk_xuan_feng_zhan": {
                 "lv": 14,
-                "mp": 0,
+                "mp": 10,
                 "power": 1.1,
                 "kind": "物理",
                 "res_gain": 1,
@@ -122,7 +122,7 @@ PLAYER_SKILLS = {
             },
     "sk_lie_di_zhan": {
                 "lv": 20,
-                "mp": 0,
+                "mp": 8,
                 "power": 1.8,
                 "kind": "物理",
                 "pierce": True,
@@ -133,7 +133,7 @@ PLAYER_SKILLS = {
             },
     "sk_zhan_hou": {
                 "lv": 3,
-                "mp": 0,
+                "mp": 5,
                 "power": 0,
                 "kind": "增益",
                 "effect": "atk_up",
@@ -145,7 +145,7 @@ PLAYER_SKILLS = {
             },
     "sk_tie_bi": {
                 "lv": 6,
-                "mp": 0,
+                "mp": 5,
                 "power": 0,
                 "kind": "增益",
                 "effect": "def_up",
@@ -156,7 +156,7 @@ PLAYER_SKILLS = {
             },
     "sk_xu_shi": {
                 "lv": 11,
-                "mp": 0,
+                "mp": 3,
                 "power": 0,
                 "kind": "增益",
                 "effect": "atk_up",
@@ -167,7 +167,7 @@ PLAYER_SKILLS = {
             },
     "sk_dun_ji": {
                 "lv": 17,
-                "mp": 0,
+                "mp": 6,
                 "power": 1.3,
                 "kind": "物理",
                 "cd": 3,
@@ -179,7 +179,7 @@ PLAYER_SKILLS = {
             },
     "sk_zhan_zheng_jian_ta": {
                 "lv": 24,
-                "mp": 0,
+                "mp": 12,
                 "power": 0.8,
                 "kind": "物理",
                 "res_gain": 2,
@@ -189,7 +189,7 @@ PLAYER_SKILLS = {
             },
     "sk_wu_wei_chong_ji": {
                 "lv": 30,
-                "mp": 0,
+                "mp": 15,
                 "power": 2.5,
                 "kind": "物理",
                 "res_cost": {"rage": 10},
@@ -719,7 +719,7 @@ PLAYER_SKILLS = {
             },
     "sk_ge_lie": {
                 "lv": 2,
-                "mp": 0,
+                "mp": 4,
                 "power": 1.15,
                 "kind": "物理",
                 "res_gain": 1,
@@ -728,7 +728,7 @@ PLAYER_SKILLS = {
             },
     "sk_shuang_ren_luan_wu": {
                 "lv": 8,
-                "mp": 0,
+                "mp": 8,
                 "power": 0.9,
                 "kind": "物理",
                 "multi": 2,
@@ -739,7 +739,7 @@ PLAYER_SKILLS = {
             },
     "sk_cui_du": {
                 "lv": 14,
-                "mp": 0,
+                "mp": 6,
                 "power": 1.0,
                 "kind": "物理",
                 "mech": "poison",
@@ -750,7 +750,7 @@ PLAYER_SKILLS = {
             },
     "sk_an_sha": {
                 "lv": 20,
-                "mp": 0,
+                "mp": 12,
                 "power": 2.4,
                 "kind": "物理",
                 "res_cost": {"cp": 3},
@@ -760,7 +760,7 @@ PLAYER_SKILLS = {
             },
     "sk_qian_xing": {
                 "lv": 3,
-                "mp": 0,
+                "mp": 5,
                 "power": 0,
                 "kind": "增益",
                 "effect": "crit_up",
@@ -771,7 +771,7 @@ PLAYER_SKILLS = {
             },
     "sk_ji_ying": {
                 "lv": 6,
-                "mp": 0,
+                "mp": 3,
                 "power": 0,
                 "kind": "增益",
                 "effect": "spd_up",
@@ -781,7 +781,7 @@ PLAYER_SKILLS = {
             },
     "sk_ying_xi": {
                 "lv": 11,
-                "mp": 0,
+                "mp": 6,
                 "power": 1.2,
                 "kind": "物理",
                 "res_gain": 1,
@@ -792,7 +792,7 @@ PLAYER_SKILLS = {
             },
     "sk_si_wang_biao_ji": {
                 "lv": 17,
-                "mp": 0,
+                "mp": 6,
                 "power": 0,
                 "kind": "增益",
                 "effect": "mark",
@@ -804,7 +804,7 @@ PLAYER_SKILLS = {
             },
     "sk_du_wu": {
                 "lv": 24,
-                "mp": 0,
+                "mp": 10,
                 "power": 0.8,
                 "kind": "物理",
                 "cd": 3,
@@ -815,7 +815,7 @@ PLAYER_SKILLS = {
             },
     "sk_an_ying_chu_xing": {
                 "lv": 30,
-                "mp": 0,
+                "mp": 18,
                 "power": 3.0,
                 "kind": "物理",
                 "res_cost": {"cp": 5},
@@ -877,7 +877,7 @@ PLAYER_SKILLS = {
             },
     "sk_chong_quan": {
                 "lv": 2,
-                "mp": 0,
+                "mp": 3,
                 "power": 1.1,
                 "kind": "物理",
                 "res_gain": 1,
@@ -888,7 +888,7 @@ PLAYER_SKILLS = {
     "sk_beng_quan": {
         # v95.7 #39：崩拳 8→4 级并改为耗气技（3 气），解决武僧 Lv.2-7 气满无出口的空转
         "lv": 4,
-        "mp": 0,
+        "mp": 6,
         "power": 1.4,
         "kind": "物理",
         "combo": "拳",
@@ -900,7 +900,7 @@ PLAYER_SKILLS = {
     },
     "sk_hui_xuan_ti": {
                 "lv": 14,
-                "mp": 0,
+                "mp": 6,
                 "power": 1.2,
                 "kind": "物理",
                 "combo": "踢",
@@ -911,7 +911,7 @@ PLAYER_SKILLS = {
             },
     "sk_zhen_di_ji": {
                 "lv": 20,
-                "mp": 0,
+                "mp": 8,
                 "power": 1.3,
                 "kind": "物理",
                 "combo": "踢",
@@ -924,7 +924,7 @@ PLAYER_SKILLS = {
             },
     "sk_ce_ti": {
                 "lv": 3,
-                "mp": 0,
+                "mp": 4,
                 "power": 1.1,
                 "kind": "物理",
                 "combo": "踢",
@@ -934,7 +934,7 @@ PLAYER_SKILLS = {
             },
     "sk_tie_zhang": {
                 "lv": 6,
-                "mp": 0,
+                "mp": 5,
                 "power": 1.2,
                 "kind": "物理",
                 "combo": "掌",
@@ -944,7 +944,7 @@ PLAYER_SKILLS = {
             },
     "sk_qi_xi_tiao_xi": {
                 "lv": 11,
-                "mp": 0,
+                "mp": 5,
                 "power": 0.15,
                 "kind": "治疗",
                 "cd": 3,
@@ -954,7 +954,7 @@ PLAYER_SKILLS = {
             },
     "sk_tie_bi": {
                 "lv": 17,
-                "mp": 0,
+                "mp": 5,
                 "power": 0,
                 "kind": "增益",
                 "effect": "def_up",
@@ -966,7 +966,7 @@ PLAYER_SKILLS = {
             },
     "sk_lian_zhao_san_lian": {
                 "lv": 24,
-                "mp": 0,
+                "mp": 10,
                 "power": 1.5,
                 "kind": "物理",
                 "combo": "拳",
@@ -977,7 +977,7 @@ PLAYER_SKILLS = {
             },
     "sk_po_xiao_zhi_quan": {
                 "lv": 30,
-                "mp": 0,
+                "mp": 15,
                 "power": 3.0,
                 "kind": "物理",
                 "res_cost": {"chi": 10},
