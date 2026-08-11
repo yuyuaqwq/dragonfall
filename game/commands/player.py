@@ -610,11 +610,11 @@ class PlayerCmds(CommandBase):
                 lines.append(f"{icon} {cname}：{final}({int(bonus):+d})")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"🎯 自由属性点：{player.get('attr_pts', 0)}")
-        # 加点分配（每项单独一行）
-        lines.append(f"💪 力量 {attr.get('str', 0)}(每点＋1.2 攻击)")
-        lines.append(f"🏃 敏捷 {attr.get('agi', 0)}(每点＋0.8 速度 ＋ 0.4% 暴击)")
-        lines.append(f"🧠 智力 {attr.get('int', 0)}(每点＋1.2 魔攻 ＋ 1.5 魔力)")
-        lines.append(f"❤️‍🩹 耐力 {attr.get('vit', 0)}(每点＋8 生命)")
+        # 加点分配（每项单独一行，说明换行缩进——v100.9 排版优化）
+        lines.append(f"💪 力量 {attr.get('str', 0)}\n   ·每点＋1.2 攻击")
+        lines.append(f"🏃 敏捷 {attr.get('agi', 0)}\n   ·每点＋0.8 速度 ＋ 0.4% 暴击")
+        lines.append(f"🧠 智力 {attr.get('int', 0)}\n   ·每点＋1.2 魔攻 ＋ 1.5 魔力")
+        lines.append(f"❤️‍🩹 耐力 {attr.get('vit', 0)}\n   ·每点＋8 生命")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『加点 力量 <点数>』分配属性点，『洗点』重置(500金币)")
         yield event.plain_result("\n".join(lines))
