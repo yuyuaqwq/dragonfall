@@ -681,6 +681,12 @@ class WorldCmds(CommandBase):
             neighbors = C.MAP_CONNECTIONS.get(cur, [])
             idx = int(dest)
             offset = len(links)
+            # #263: 与地图显示口径一致——跨图连接只在出口子区域有效（v95.21 出城走城门铁律），
+            # 非出口子区域报错"可前往 N 处"此前无条件加邻居数（显示 1 处却报 5 处）
+            exit_sa_id = C.map_exit_subarea(cur)
+            at_exit = (not exit_sa_id) or (player.get("cur_subarea") == exit_sa_id)
+            if not at_exit:
+                neighbors = []
             if offset + 1 <= idx <= offset + len(neighbors):
                 target, want_sa = self._conn_target(neighbors[idx - offset - 1])
             else:
@@ -979,6 +985,14 @@ class WorldCmds(CommandBase):
         if dest:
             for m in C.MAPS:
                 if m.get("type") == C.MAP_TYPE_TOWN and dest in (m["name"], m["id"]):
+                    target = m
+                    break
+        if not target and dest:
+            # #240: 『返回 铁港城门』等子区域名 → 归属城镇（此前子区域名直接报"找不到城镇"）
+            for m in C.MAPS:
+                if m.get("type") != C.MAP_TYPE_TOWN:
+                    continue
+                if any(dest in (sa.get("name", ""), sa.get("id", "")) for sa in (m.get("subareas") or [])):
                     target = m
                     break
         if not target:
@@ -1283,7 +1297,7 @@ class WorldCmds(CommandBase):
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
                 if st == "ready":
                     lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
-            if pages > 1:
+            if pages > 1 and page < pages:
                 lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
         else:
             lines.append("")

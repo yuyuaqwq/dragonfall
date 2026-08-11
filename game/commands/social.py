@@ -44,7 +44,7 @@ class SocialCmds(CommandBase):
             d = it["item_data"]
             lines.append(f"{i:>2}. #{it['id']} {d.get('name','?')} ｜ {it['price']} 金币 ｜ 卖家 {sname}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『市场 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『购入 <编号>』购买，『上架 <物品> <价格>』寄售")
         yield event.plain_result("\n".join(lines))
@@ -506,7 +506,7 @@ class SocialCmds(CommandBase):
             name = p["name"] if p else m["qq_id"]
             lines.append(f"{i:>2}. {role} {name} Lv.{p['level'] if p else '?'} ｜ 贡献 {m['contribute']}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『公会签到』『公会任务』为公会赚经验！")
         yield event.plain_result("\n".join(lines))

@@ -1795,7 +1795,7 @@ class EconomyCmds(CommandBase):
         for i, r in enumerate(page_items, (page - 1) * 5 + 1):
             lines.append(f"{i:>2}. {r['monster']} ×{r['kills']}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『图鉴 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 击败新怪物会自动收录图鉴")
         yield event.plain_result("\n".join(lines))
@@ -1975,7 +1975,7 @@ class EconomyCmds(CommandBase):
             mark = "👑" if n == cur else "  "
             lines.append(f"{mark}{i:>2}. {n}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『称号 {page+1}』看下一页")
         lines.append(f"💡 『称号 装备 <名称>』佩戴展示(显示在角色名前)，『称号 卸下』取消")
         if not cur:
@@ -2090,7 +2090,7 @@ class EconomyCmds(CommandBase):
             else:
                 lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『背包 {page+1}』看下一页；筛选+翻页：『背包 材料 2』(共 {pages} 页)")
         lines.append("💡 『背包 <类型>』筛选(装备/材料/消耗品/符文/宠物蛋/坐骑/图纸/鱼)，支持『背包材料』『背包材料2』『背包筛选 材料』")
         lines.append("💡 『装备 <名称>』『使用 <名称>』『物品详情 <名称>』『出售 <名称>』")
@@ -2645,7 +2645,7 @@ class EconomyCmds(CommandBase):
         for i, (key, row) in enumerate(page_items, (page - 1) * 5 + 1):
             lines.append(f"{i:>2}. {row}")
         lines.append("")
-        if pages > 1:
+        if pages > 1 and page < pages:
             lines.append(f"💡 『商店 {page+1}』看下一页（共 {pages} 页）")
         lines.append(f"💰 你的金币：{player['gold']}")
         lines.append("💡 『购买 <名称>』或『购买 <序号>』")
@@ -2726,7 +2726,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                qty_str = f" ×{qty}" if qty > 1 else ""
+                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return
             if str(key).startswith("w:"):
@@ -2778,7 +2778,7 @@ class EconomyCmds(CommandBase):
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
                 db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                qty_str = f" ×{qty}" if qty > 1 else ""
+                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
         # 找补给品（按名称）
@@ -2794,7 +2794,7 @@ class EconomyCmds(CommandBase):
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
                 db.add_item(group_id, qq_id, iid, {"name": it["name"], "type": "消耗品", "stackable": True, "heal": it.get("heal", 0), "mana": it.get("mana", 0), "price": price, "effect": it.get("effect"), "stamina": it.get("stamina", 0), "desc": it.get("desc", "")}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                qty_str = f" ×{qty}" if qty > 1 else ""
+                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
         # 找材料（按名称）
@@ -2809,7 +2809,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 db.add_item(group_id, qq_id, mid, {"name": mt["name"], "type": "材料", "stackable": True, "price": price}, count=qty)
                 tip = "（商队集市 8 折！）" if discount < 1 else ""
-                qty_str = f" ×{qty}" if qty > 1 else ""
+                qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return
         # 找武器（按名称）
