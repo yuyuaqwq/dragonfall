@@ -98,7 +98,10 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                # v101.25 #350：草药铺收草药/精华类材料（v101.25e 分设施回收后新手村无 alchemy 设施，黏液等卖不掉）
+                "alchemy"
+            ],
             "shop": False,
             "healer": False
         },
@@ -461,7 +464,9 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "heal"
+                "heal",
+                # v101.25 #350：医师馆收草药/精华类材料（v101.25e 分设施回收后白鹿城无 alchemy 设施）
+                "alchemy"
             ],
             "shop": False,
             "healer": True

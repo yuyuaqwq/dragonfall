@@ -32,7 +32,7 @@ INSTANCE_STAGE_MAPS = {
             "pois": [
                 {"id": "chest_1", "type": "chest", "name": "贡品箱",
                  "hint": "箱子上捆着麻绳，里面可能是献给酋长的贡品",
-                 "loot": {"gold": 80, "materials": ["咕噜的皇冠"]}},
+                 "loot": {"gold": 80, "materials": ["哥布林铁片"]}},
                 {"id": "fire_2", "type": "campfire", "name": "暖火盆",
                  "hint": "火盆里的炭火正旺，能驱散夜战的疲惫"},
             ],

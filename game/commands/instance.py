@@ -219,7 +219,11 @@ class InstanceCmds(CommandBase):
             return
         st = inst_row["state"]
         if st.get("mode") != "map":
-            yield event.plain_result("战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！")
+            # v101.25 #346：非 Boss 战不念 Boss 文案（playtest round71 影刃抓包：打精英也念"Boss 锁定退路"）
+            if (st.get("enemy") or {}).get("is_boss"):
+                yield event.plain_result("战斗中无法撤退！Boss 锁定了你们的退路——打赢或战败！")
+            else:
+                yield event.plain_result("战斗中无法撤退！先击败眼前的敌人再说！")
             return
         st["retreated"] = True
         db.save_battle(group_id, st["leader"], st)
@@ -1164,6 +1168,12 @@ class InstanceCmds(CommandBase):
         st["e_buffs"] = b.e_buffs
         if st["p_defending"].get(tkey):
             dmg = max(1, int(dmg * 0.5))
+            # v101.25 #345：防御减伤后日志同步修正——玩家看到的伤害数字与实际扣血一致
+            # （round71 影刃抓包：日志显示 111/71/78/140，实际扣血 55/35/39/70 正好减半）
+            import re as _re
+            mlogs = [_re.sub(r"造成 (\d+) 点伤害",
+                             lambda m: f"造成 {max(1, int(int(m.group(1)) * 0.5))} 点伤害(格挡)",
+                             x) for x in mlogs]
             logs.append(f"🛡️ {tname} 举盾格挡！")
         logs += mlogs
         if dmg > 0:
@@ -1220,8 +1230,17 @@ class InstanceCmds(CommandBase):
             top_p = self._player(group_id, top_key)
             if top_p:
                 bp = C.roll_blueprint(boss["lv"])
-                db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
-                lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
+                # v101.25 #349：首功图纸奖励同规则——已学图纸折算为图纸残页
+                _learned = (top_p.get("learned_blueprints") or [])
+                if bp.get("blueprint_for") in _learned:
+                    _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(bp.get("quality", "white"), 1)
+                    db.add_item(group_id, top_key, "mat_tu_zhi_can_ye",
+                                {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                                count=_pages)
+                    lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}（已学会，化作 {_pages} 张图纸残页）")
+                else:
+                    db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
+                    lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
         # 首通记录（每人）+ 阶段九：副本次数 + 成就判定
         for m in st["members"]:
             if st["alive"].get(str(m), True):

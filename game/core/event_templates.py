@@ -27,6 +27,25 @@ def register(name):
     return deco
 
 
+# v101.25 #349：探索宝箱/宝匣图纸掉落与战斗同规则——已学图纸折算为图纸残页，未学整张入包
+# （playtest round72 小蓝抓包：宝箱掉『海风长弓图纸』已学仍整张入包，背包白占格子）
+_BP_PAGE_BY_QUALITY = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}
+
+
+def _add_bp_or_pages(ctx, db, bp):
+    """已学图纸 → 图纸残页入包；未学 → 整张图纸入包。返回 (is_learned, bp_name, pages)。"""
+    import uuid
+    _learned = ctx.player.get("learned_blueprints") or []
+    if bp.get("blueprint_for") in _learned:
+        _pages = _BP_PAGE_BY_QUALITY.get(bp.get("quality", "white"), 1)
+        db.add_item(ctx.group_id, ctx.qq_id, "mat_tu_zhi_can_ye",
+                    {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                    count=_pages)
+        return True, bp["name"], _pages
+    db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+    return False, bp["name"], 0
+
+
 class EventContext:
     """模板执行上下文。"""
 
@@ -94,8 +113,12 @@ def tpl_loot_materials(ctx):
     bp_chance = ctx.param("blueprint_chance", 0)
     if bp_chance and random.random() < bp_chance:
         bp = C.roll_blueprint(max(1, ctx.lv))
-        db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-        extra = ctx.param("bp_line", "\n📜 还翻出一张图纸：{bp}！").replace("{bp}", bp["name"])
+        _learned, _bpn, _pages = _add_bp_or_pages(ctx, db, bp)
+        if _learned:
+            extra = (f"\n📜 图纸『{_bpn}』你已经学会了，化作 {_pages} 张图纸残页"
+                     f"（『出售 图纸残页』变现）！")
+        else:
+            extra = ctx.param("bp_line", "\n📜 还翻出一张图纸：{bp}！").replace("{bp}", _bpn)
     header = ctx.param("header", "🎒 获得材料：{mats}！{extra}")
     return header.replace("{name}", ctx.name) \
                  .replace("{mats}", "、".join(got)) \
@@ -127,8 +150,12 @@ def tpl_loot_gold_mats(ctx):
         bp_chance = bp_chance + (0.10 if E.race_stats(ctx.player.get("race")).get("explore_item") else 0)
     if bp_chance and random.random() < bp_chance:
         bp = C.roll_blueprint(max(1, ctx.lv))
-        db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-        bp_line = ctx.param("bp_line", "\n📜 里面还有一张泛黄的图纸：{bp}！").replace("{bp}", bp["name"])
+        _learned, _bpn, _pages = _add_bp_or_pages(ctx, db, bp)
+        if _learned:
+            bp_line = (f"\n📜 里面有一张图纸『{_bpn}』——你已经学会了，化作 {_pages} 张图纸残页"
+                       f"（『出售 图纸残页』变现）！")
+        else:
+            bp_line = ctx.param("bp_line", "\n📜 里面还有一张泛黄的图纸：{bp}！").replace("{bp}", _bpn)
     header = ctx.param("header", "💰 获得 {gold} 金币！{mat_line}{bp_line}")
     return header.replace("{name}", ctx.name) \
                  .replace("{gold}", str(gold)) \
@@ -238,10 +265,15 @@ def tpl_mystery_chest(ctx):
                          "stackable": True, "price": C.MATERIALS[mid]["price"]})
             mat_line = f"\n🎒 还得到一份材料：{C.display('materials', mid)}！"
     bp = C.roll_blueprint(max(1, ctx.lv))
-    db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+    _learned, _bpn, _pages = _add_bp_or_pages(ctx, db, bp)
+    if _learned:
+        bp_txt = (f"📜 里面还有一张图纸『{_bpn}』——你已经学会了，化作 {_pages} 张图纸残页"
+                  f"（『出售 图纸残页』变现）！")
+    else:
+        bp_txt = f"📜 里面还有一张泛黄的图纸：{_bpn}！"
     return (f"📦 【神秘宝匣】你在{ctx.name}的角落发现一只埋藏千年的宝匣！\n"
             f"💰 打开：{gold} 金币！{mat_line}\n"
-            f"📜 里面还有一张泛黄的图纸：{bp['name']}！")
+            f"{bp_txt}")
 
 
 @register("merchant")
