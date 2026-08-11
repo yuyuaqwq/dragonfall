@@ -987,7 +987,8 @@ class WorldCmds(CommandBase):
         if random.random() >= chance:
             return None
         # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
-        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
+        # v101.25i3：±1→±2（鱼鱼：随机等级没效果）
+        return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
@@ -1217,14 +1218,14 @@ class WorldCmds(CommandBase):
                             break
         else:
             lines.append("【主线】已全部完成！🎊")
-        # 支线
+        # 支线（v101.25i3：已完成任务不进面板，鱼鱼：交了还显示）
         side = quests.get("side", {})
-        if side:
+        side_items = [(sid, sq) for sid, sq in side.items() if sq.get("status", "active") != "done"]
+        if side_items:
             lines.append("")
             lines.append("【支线】")
             raw = self._strip_cmd(event, "任务")
             page = self._parse_page(raw)
-            side_items = list(side.items())
             page_items, pages, page = self._page_items(side_items, page, per_page=5)
             for i, (sid, sq) in enumerate(page_items, (page - 1) * 5 + 1):
                 sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
