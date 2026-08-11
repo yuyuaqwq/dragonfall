@@ -1927,6 +1927,13 @@ class WorldCmds(CommandBase):
                 yield r
             self._stop_event_safe(event)
             return
+        # v101.21 物品查看模式：开启时裸数字优先查物品（改消息转发 item_detail）
+        if db.get_event_state(f"item_view_mode:{qq_id}"):
+            event.message_str = f"查看物品 {num}"
+            async for r in self.item_detail(event):
+                yield r
+            self._stop_event_safe(event)
+            return
         # v101.17 移动模式：开启时裸数字优先赶路（改消息转发 move）
         if db.get_event_state(f"move_mode:{qq_id}"):
             event.message_str = f"前往 {num}"
