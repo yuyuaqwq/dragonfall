@@ -582,6 +582,10 @@ class Battle:
                                   getattr(self, "title_bonus", None) or {},
                                   player.get("race"))
         st = self._apply_buffs(st, self.p_buffs)
+        # #245: 玩家减速生效（与 _enemy_stats 的 spd_down 处理对称）——此前 p_buffs["spd_down"]
+        # 只被挂载从未应用，减速玩家仍按原速度先手/触发速度优势
+        if "spd_down" in self.p_buffs:
+            st["spd"] = int(st.get("spd", 0) * SPD_DOWN_MULT)
         # v33/v34 符文属性：疾风(速度+) / 铁壁(防御+)
         effs = self._enchant_effects(player)
         if self._enchant_lvl(effs, "swift"):

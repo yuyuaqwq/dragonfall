@@ -1033,10 +1033,20 @@ class EconomyCmds(CommandBase):
             return
         text = raw.strip()
         # 『锻造列表 [N]』：列表指令（翻页），与『锻造 N』锻造序号分离
+        # #261: 支持『锻造列表 <职业>』按职业过滤（此前非数字参数被静默当页码吞掉）
         if text.startswith("列表"):
             t2 = text[2:].strip()
-            page = int(t2) if t2.isdigit() else 1
-            yield event.plain_result(self._craft_list_available(player, page))
+            if not t2:
+                yield event.plain_result(self._craft_list_available(player, 1))
+                return
+            if t2.isdigit():
+                yield event.plain_result(self._craft_list_available(player, int(t2)))
+                return
+            cls = C.resolve("classes", t2)
+            if cls in C.CLASSES:
+                yield event.plain_result(self._craft_list_class(player, cls, 1))
+                return
+            yield event.plain_result(f"未识别的职业『{t2}』！『锻造列表』或『锻造列表 <页码>』查看～")
             return
         # 『锻造 N』：锻造可锻造列表第 N 个配方（序号与列表显示一致，1-based）
         if text.isdigit():
