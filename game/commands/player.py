@@ -811,7 +811,7 @@ class PlayerCmds(CommandBase):
         is_learned = E.is_skill_learned(player["class_name"], player["level"], skill_name, learned)
         mx = E.skill_max_level(info)
         if is_learned:
-            slv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
+            slv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
             status = f"✅ 已学会 Lv.{slv}/{mx}"
         elif info["lv"] <= player["level"]:
             status = f"📖 可学习(Lv.{info['lv']})"
@@ -851,7 +851,7 @@ class PlayerCmds(CommandBase):
             cost = E.skill_learn_cost_for(player, info["lv"])
             lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会(当前 {player.get('skill_points',0)} 点)")
         elif is_learned:
-            slv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
+            slv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
             if slv < mx:
                 cost = E.skill_upgrade_cost(slv, info)
                 nxt = " · ".join(self._skill_upgrade_gains(info, slv + 1))
@@ -989,7 +989,7 @@ class PlayerCmds(CommandBase):
             )
             return
         levels = dict(player.get("skill_levels") or {})
-        cur_lv = int(levels.get(skill_name, 1) or 1)
+        cur_lv = E.skill_level_of(player, skill_name)  # #259：兼容 key 为中文名，升级判定/写入统一
         mx = E.skill_max_level(info)
         if cur_lv >= mx:
             yield event.plain_result(f"『{skill_name}』已经是满级 Lv.{mx} 啦，不能再升了～")
@@ -1001,7 +1001,7 @@ class PlayerCmds(CommandBase):
                 f"升级『{skill_name}』到 Lv.{cur_lv + 1} 需要 {cost} 技能点，你只有 {pts} 点——升级可获得技能点(每级＋1)～"
             )
             return
-        levels[skill_name] = cur_lv + 1
+        levels[C.resolve("skills", skill_name)] = cur_lv + 1  # #259：key 统一 ID（写库 resolve 幂等，防中文/ID 双 key）
         spent = player.get("skill_spent", 0) + cost
         db.update_player(group_id, player["qq_id"], skill_points=pts - cost,
                          skill_levels=levels, skill_spent=spent)

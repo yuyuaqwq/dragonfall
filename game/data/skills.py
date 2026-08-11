@@ -642,7 +642,7 @@ PLAYER_SKILLS = {
                 "kind": "增益",
                 "effect": "matk_up",
                 "cd": 3,
-                "desc": "神圣祷言！matk＋50% 2 回合(战斗牧师爆发前奏)",
+                "desc": "神圣祷言！matk＋50% 3 回合(战斗牧师爆发前奏)",
                 "name": "神圣祷言",
             },
     "sk_sheng_guang_qu_san": {

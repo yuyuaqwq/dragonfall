@@ -554,6 +554,20 @@ def skill_lifesteal_pct(info: dict | None, level: int) -> float:
     return 0.20 + _skill_up(info).get("l", 0) / 100 * (lv - 1)
 
 
+def skill_level_of(player: dict, skill_name: str) -> int:
+    """技能等级查询（v46+ 兼容）：store 读库后 skill_levels 的 key 是中文名（players.py:113 display 转换），
+    入参可能是 ID 或中文名——统一 resolve 后匹配，查不到按未升级 Lv.1。
+    修复 #259：技能列表/详情/战斗内此前用 ID 直接查 key 恒 fallback Lv.1（战斗内实际按 Lv.1 计算）。"""
+    levels = player.get("skill_levels") or {}
+    if not levels:
+        return 1
+    sid = C.resolve("skills", skill_name)
+    for k, v in levels.items():
+        if k and C.resolve("skills", k) == sid:
+            return int(v or 1)
+    return 1
+
+
 def skill_info(class_name: str, skill_name: str):
     """技能详情：先查基础职业技能表，再查分支专属技能表（v26），最后查导师进阶技能（v95.23）
     v48：skill_name 接受中文名或 ID，统一 resolve 为 ID 再查（表 key 已是 sk_xxx）"""

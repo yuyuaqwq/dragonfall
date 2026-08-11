@@ -41,7 +41,7 @@ BUFF_MULT = {
     "atk_up":         ("atk", 1.30),
     "atk_up_strong":  ("atk", 1.75),
     "echo_bless":     ("atk", 1.05),   # v97.4 回音洞穴祝福：本场攻击 +5%（一次性，探索事件写入）
-    "matk_up":        ("matk", 1.35),
+    "matk_up":        ("matk", 1.50),   # #244a：与技能描述 matk＋50% 对齐（原 1.35 与 desc 不符）
     "matk_up_strong": ("matk", 1.80),
     "matk_up_pot":    ("matk", 1.30),   # 9.3 鲛人之泪：本回合魔攻 +30%
     "def_up":         ("def", 1.45),
@@ -978,7 +978,7 @@ class Battle:
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
-        lv = int((player.get("skill_levels") or {}).get(skill_name, 1) or 1)
+        lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
         # v56：叠层随技能等级成长（每 2 级 +1 层）

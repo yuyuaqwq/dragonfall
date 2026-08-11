@@ -903,7 +903,7 @@ class CombatCmds(CommandBase):
             disp_name = info.get("name", sname) if isinstance(info, dict) else sname
             learned_now = E.is_skill_learned(player["class_name"], player["level"], sname, learned)
             if learned_now:
-                slv = int((player.get("skill_levels") or {}).get(sname, 1) or 1)
+                slv = E.skill_level_of(player, sname)  # #259：兼容 skill_levels key 为中文名（store 读库转换）
                 lv_str = f"Lv.{slv}/{E.skill_max_level(info)}"  # v56.4：每技能独立满级
             else:
                 slv = 0  # v56.3：未学显示 0 级
