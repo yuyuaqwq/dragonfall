@@ -25,7 +25,7 @@ PET_POOL = [
      "lines": ["嗷呜！", "汪！主人我上啦！", "（龇牙）交给我！"]},
     {"key": "pet_turtle", "name": "铁壳龟", "icon": "🐢", "quality": "white", "focus": "防守",
      "skill_name": "铁壁缩壳", "skill_interval": 4, "skill_type": "block", "skill_value": 0.15,
-     "source": "湖泊垂钓稀有产出/橡木镇新手任务",
+     "source": "垂钓稀有产出(blue 档)/橡木镇新手任务",
      "desc": "慢吞吞但硬邦邦，每 4 回合有 15% 概率替主人挡下一次攻击",
      "lines": ["……（缩头）", "壳！", "慢慢来，比较快。"]},
     # ---------- 🟢 优秀 ----------
@@ -41,7 +41,7 @@ PET_POOL = [
      "lines": ["（抖耳朵）月光在照耀！", "咕噜噜～", "别怕，我带着月亮的温柔。"]},
     {"key": "pet_dove",   "name": "圣光鸽", "icon": "🕊️", "quality": "green", "focus": "恢复",
      "skill_name": "圣光羽翼", "skill_interval": 4, "skill_type": "heal_pct", "skill_value": 0.12,
-     "source": "圣光教会声望商店兑换(声望 3 阶)",
+     "source": "垂钓稀有产出(blue 档)圣光鸽蛋",
      "desc": "教会的信使，每 4 回合为主人回复 12% 生命",
      "lines": ["咕咕！愿圣光护佑你！", "（羽翼洒下光尘）", "光明与你同在。"]},
     # ---------- 🔵 稀有 ----------
@@ -78,13 +78,13 @@ PET_POOL = [
      "lines": ["哼哧哼哧！", "（滚成球冲出去）", "岩石的力量！"]},
     {"key": "pet_thunderbird", "name": "雷羽鸟", "icon": "🦅", "quality": "purple", "focus": "元素",
      "skill_name": "雷鸣鼓舞", "skill_interval": 4, "skill_type": "buff_atk", "skill_value": 0.30,
-     "source": "高地 Boss 概率掉落/雷雨天气事件",
+     "source": "高地 Boss 概率掉落",
      "desc": "羽翼缠绕雷霆的战鸟，每 4 回合为主人加持 30% 攻击(2 回合)",
      "lines": ["嘎——！（雷光闪烁）", "雷霆之力，借给你！", "（羽毛噼啪作响）"]},
     # ---------- 🟠 传说 ----------
     {"key": "pet_griffin", "name": "幼年狮鹫", "icon": "🦁", "quality": "orange", "focus": "攻击",
      "skill_name": "狮鹫俯冲", "skill_interval": 3, "skill_type": "atk_pct", "skill_value": 0.70,
-     "source": "传说级 Boss 稀有掉落/隐藏任务『天空之子』",
+     "source": "传说级 Boss 极稀有掉落",
      "desc": "天空之王的后裔，每 3 回合俯冲造成 70% 攻击伤害",
      "lines": ["嗷——！（展翅）", "天空，是我的猎场！", "俯冲！"]},
     {"key": "pet_starbutterfly", "name": "星灵蝶", "icon": "🦋", "quality": "orange", "focus": "恢复",

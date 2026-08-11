@@ -29,7 +29,7 @@ MOUNT_POOL = [
     {"key": "mount_camel", "name": "铁港驼马", "icon": "🐫", "quality": "green", "lv": 20, "price": 0,
      "discount": 0.15, "elite_bonus": 0.0, "stamina_reduce": 0.0, "sell_bonus": 0.10,
      "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.0,
-     "desc": "铁港商队驯养的驮兽。传送费－15%，出售价格＋10%(铁港城声望 2 阶兑换)"},
+     "desc": "铁港商队驯养的驮兽。传送费－15%，出售价格＋10%(铁港城港口垂钓稀有产出『驼马缰绳』)"},
     # ---------- 🔵 稀有 ----------
     {"key": "mount_wolf", "name": "雪狼", "icon": "🐺", "quality": "blue", "lv": 30, "price": 0,
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.0, "sell_bonus": 0.0,
@@ -38,7 +38,7 @@ MOUNT_POOL = [
     {"key": "mount_reindeer", "name": "北境驯鹿", "icon": "🦌", "quality": "blue", "lv": 35, "price": 0,
      "discount": 0.25, "elite_bonus": 0.0, "stamina_reduce": 0.15, "sell_bonus": 0.0,
      "collect_bonus": 0.05, "fish_bonus": 0.0, "exp_mult": 0.0,
-     "desc": "踏雪无痕的北境驯鹿。传送费－25%，探索/移动 15% 概率不耗体力，采集产出＋5%(北境诸部声望 3 阶兑换)"},
+     "desc": "踏雪无痕的北境驯鹿。传送费－25%，探索/移动 15% 概率不耗体力，采集产出＋5%(北境采集稀有产出『驯鹿缰绳』)"},
     # ---------- 🟣 史诗 ----------
     {"key": "mount_ghost", "name": "幽灵马", "icon": "👻", "quality": "purple", "lv": 45, "price": 0,
      "discount": 0.40, "elite_bonus": 0.0, "stamina_reduce": 0.0, "sell_bonus": 0.0,
@@ -47,7 +47,7 @@ MOUNT_POOL = [
     {"key": "mount_unicorn", "name": "森林独角兽", "icon": "🦄", "quality": "purple", "lv": 45, "price": 0,
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.10, "sell_bonus": 0.0,
      "collect_bonus": 0.10, "fish_bonus": 0.0, "exp_mult": 0.0,
-     "desc": "银月林海的圣兽。传送费－30%，精英率＋5%，探索/移动 10% 概率不耗体力，采集产出＋10%(银月精灵声望 4 阶兑换)"},
+     "desc": "银月林海的圣兽。传送费－30%，精英率＋5%，探索/移动 10% 概率不耗体力，采集产出＋10%(传说级垂钓稀有产出『独角兽缰绳』)"},
     # ---------- 🟠 传说 ----------
     {"key": "mount_griffin", "name": "狮鹫", "icon": "🦅", "quality": "orange", "lv": 60, "price": 0,
      "discount": 0.40, "elite_bonus": 0.10, "stamina_reduce": 0.20, "sell_bonus": 0.10,

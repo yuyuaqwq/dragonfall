@@ -447,6 +447,31 @@ class EconomyCmds(CommandBase):
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, f"petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 咦？鱼肚子里藏着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
+        # v101.15 生活渠道：垂钓品质档特殊产出（稀缺品走生活渠道，不走战斗掉落）
+        _life_line = ""
+        if fq == "blue":
+            if random.random() < 0.08:  # 铁壳龟蛋
+                egg = C.make_pet_egg("pet_turtle")
+                db.add_item(group_id, qq_id, f"petegg_pet_turtle", egg)
+                _life_line += f"\n🥚 水草缠着一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
+            if random.random() < 0.05:  # 圣光鸽蛋
+                egg = C.make_pet_egg("pet_dove")
+                db.add_item(group_id, qq_id, f"petegg_pet_dove", egg)
+                _life_line += f"\n🥚 水面上漂来一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
+        elif fq == "purple":
+            if random.random() < 0.05:  # 铁港驼马缰绳
+                rein = C.make_mount_rein("mount_camel")
+                db.add_item(group_id, qq_id, f"mountrein_mount_camel", rein)
+                _life_line += f"\n🐫 鱼肚子里卷着一根【{rein['name']}】！『使用 缰绳』驯服！"
+        elif fq == "orange":
+            if random.random() < 0.08:  # 森林独角兽缰绳
+                rein = C.make_mount_rein("mount_unicorn")
+                db.add_item(group_id, qq_id, f"mountrein_mount_unicorn", rein)
+                _life_line += f"\n🦄 传说之鱼口中衔着【{rein['name']}】！『使用 缰绳』驯服！"
+            if random.random() < 0.08:  # 星灵蝶蛋
+                egg = C.make_pet_egg("pet_starbutterfly")
+                db.add_item(group_id, qq_id, f"petegg_pet_starbutterfly", egg)
+                _life_line += f"\n🥚 鱼肚子里泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
         # v101.13 坐骑 fish_bonus：概率额外多一条（骑乘钓鱼类坐骑）
         _mount_fish_line = ""
         meff = C.mount_effects(player)
@@ -457,7 +482,7 @@ class EconomyCmds(CommandBase):
                          "price": fish["price"], "quality": fq})
             _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}")
+                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}{_life_line}")
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""
@@ -508,9 +533,15 @@ class EconomyCmds(CommandBase):
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, "petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
+        # v101.15 生活渠道：北境采集稀有产出驯鹿缰绳 5%（稀缺品走生活渠道）
+        _life_line = ""
+        if rare_hit and random.random() < 0.05:
+            rein = C.make_mount_rein("mount_reindeer")
+            db.add_item(group_id, qq_id, "mountrein_mount_reindeer", rein)
+            _life_line = f"\n🦌 树根下缠着一根【{rein['name']}】！『使用 缰绳』驯服！"
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：\n"
                 f"{'、'.join(got)}\n"
-                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}")
+                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}")
 
     def _settle_mining(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -2848,26 +2879,29 @@ class EconomyCmds(CommandBase):
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")
                 return
-        # v39 坐骑：橡木镇马厩买老马（新世界 oak 区域，旧 vila 判断已随旧世界废弃）
-        if "老马" in item_name or "马" == item_name.strip():
-            if area_id != "oak" or cur != C.START_MAP:
-                yield event.plain_result("橡木镇的商人才能买到老马！去橡木镇『商店』看看～")
+        # v39/v101.15 坐骑：橡木镇马厩购买（老马/小毛驴等 price>0 的坐骑）
+        shop_mounts = [m for m in C.MOUNT_POOL if (m.get("price") or 0) > 0]
+        for mdef in shop_mounts:
+            if item_name in mdef["name"] or item_name.strip() == mdef["key"]:
+                if area_id != "oak" or cur != C.START_MAP:
+                    yield event.plain_result(f"橡木镇的商人才能买到{mdef['name']}！去橡木镇『商店』看看～")
+                    return
+                mounts = player.get("mounts") or {}
+                if mdef["key"] in (mounts.get("owned") or []):
+                    yield event.plain_result(f"你已经拥有{mdef['name']}了！")
+                    return
+                price = int(mdef["price"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！{mdef['name']}要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                mounts = dict(player.get("mounts") or {})
+                owned = list(mounts.get("owned") or [])
+                owned.append(mdef["key"])
+                mounts["owned"] = owned
+                db.update_player(group_id, qq_id, mounts=mounts)
+                yield event.plain_result(
+                    f"{mdef['icon']} 你买了{mdef['name']}！缰绳交到你手里，它打了个响鼻。\n"
+                    f"💡 『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
                 return
-            mdef = C.MOUNT_BY_KEY["mount_horse"]
-            mounts = player.get("mounts") or {}
-            if "mount_horse" in (mounts.get("owned") or []):
-                yield event.plain_result("你已经拥有老马了！")
-                return
-            price = int(mdef["price"] * discount)
-            if player["gold"] < price:
-                yield event.plain_result(f"金币不足！老马要 {price} 金币。")
-                return
-            db.update_player(group_id, qq_id, gold=player["gold"] - price)
-            mounts = dict(player.get("mounts") or {})
-            owned = list(mounts.get("owned") or [])
-            owned.append("mount_horse")
-            mounts["owned"] = owned
-            db.update_player(group_id, qq_id, mounts=mounts)
-            yield event.plain_result(f"🐴 你买了一匹老马！缰绳交到你手里，它打了个响鼻。\n💡 『骑乘 老马』骑上它，『坐骑』查看全部！")
-            return
         yield event.plain_result(f"商店里没有『{item_name}』！输入『商店』查看商品。")
