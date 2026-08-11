@@ -1349,30 +1349,43 @@ class WorldCmds(CommandBase):
         # 支线：必须指名道姓才接（v95.8 #47：无参数/『接取 任务』不再静默接支线）
         if raw and raw not in ("任务", "主线"):
             for sq in C.SIDE_QUESTS:
-                if sq["id"] in (quests.get("side") or {}):
+                if raw not in (sq["name"],):
                     continue
-                if raw in (sq["name"],):
-                    # v97.1 告示委托（board: true）：在告示板所在的子区域接取，不要求发布 NPC 在场
-                    if sq.get("board"):
-                        prop_ids = C.subarea_props(player["cur_map"], player.get("cur_subarea") or "")
-                        has_board = any(
-                            C.prop_entry(e)[0] == "notice_board" for e in prop_ids
-                        )
-                        if not has_board:
-                            yield event.plain_result(
-                                f"告示委托『{sq['name']}』要去告示板前才能接取！输入『交互 告示板』看看～")
-                            return
-                        lines = self._offer_side_quests(group_id, qq_id, sq["giver"], {"map": player["cur_map"], "gender": ""})
-                        yield event.plain_result("\n".join(lines))
-                        return
-                    npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
-                    if npc.get("map") == player["cur_map"]:
-                        lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
-                        yield event.plain_result("\n".join(lines))
-                        return
-                    giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
-                    yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
+                # v95.27：先判已接（此前 continue 跳过后 raw 落到底部无关列表，提示不明确）
+                if sq["id"] in (quests.get("side") or {}):
+                    yield event.plain_result(f"『{sq['name']}』已接取！输入『任务』查看进度～")
                     return
+                # v97.1 告示委托（board: true）：在告示板所在的子区域接取，不要求发布 NPC 在场
+                if sq.get("board"):
+                    prop_ids = C.subarea_props(player["cur_map"], player.get("cur_subarea") or "")
+                    has_board = any(
+                        C.prop_entry(e)[0] == "notice_board" for e in prop_ids
+                    )
+                    if not has_board:
+                        yield event.plain_result(
+                            f"告示委托『{sq['name']}』要去告示板前才能接取！输入『交互 告示板』看看～")
+                        return
+                    # v95.27 修复：告示板只接指定委托，不连带同 giver 的其他支线
+                    # （此前走 _offer_side_quests 按 giver 全接，寻猫·虎斑顺带接了史莱姆果冻）
+                    side = dict(quests.get("side", {}))
+                    side[sq["id"]] = {"status": "active", "progress": {}}
+                    quests["side"] = side
+                    db.save_quests(group_id, qq_id, quests)
+                    lines = [
+                        f"📜 【支线】『{sq['name']}』{sq['desc']}",
+                        f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}",
+                        f"  🎯 目标：{self._obj_text(sq['objective'])}",
+                    ]
+                    yield event.plain_result("\n".join(lines))
+                    return
+                npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
+                if npc.get("map") == player["cur_map"]:
+                    lines = self._offer_side_quests(group_id, qq_id, sq["giver"], npc)
+                    yield event.plain_result("\n".join(lines))
+                    return
+                giver_map = C.MAP_BY_ID.get(npc.get("map", ""), {}).get("name", "？")
+                yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
+                return
         # 无参数 → 列出当前地图可接任务（主线 pending + 未接支线）
         available = []
         if mq and quests.get("main_status") == "pending":
