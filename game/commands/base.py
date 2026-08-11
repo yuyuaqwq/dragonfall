@@ -312,6 +312,13 @@ class CommandBase:
             elif kind == "healer":
                 if sa.get("healer") or "heal" in (sa.get("funcs") or []):
                     names.append(sa.get("name", ""))
+            elif kind == "craft":
+                # v101.21 铁匠类场所（装备回收/锻造），炼金工坊除外
+                if "炼金" in sa.get("name", ""):
+                    continue
+                if "craft" in (sa.get("funcs") or []) or any(
+                        k in sa.get("name", "") for k in ("铁匠", "锻造", "军械", "工坊", "强化")):
+                    names.append(sa.get("name", ""))
         if not names:
             return ""
         uniq = []

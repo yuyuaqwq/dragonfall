@@ -52,22 +52,28 @@ def _render_equip(d, lines, equipped):
     for k, v in st.items():
         if v:
             label = stat_names.get(k, k)
-            stat_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
+            stat_lines.append(f"{label} + {int(v * 100)}%" if k in C.PCT_STATS else f"{label} + {v}")
     if stat_lines:
-        lines.append("属性：" + "  ".join(stat_lines))
+        # v101.21 排版：属性每项单独一行（鱼鱼：属性+两边空格+换行，别挤一行）
+        lines.append("属性：")
+        for s in stat_lines:
+            lines.append(f"  · {s}")
     # 阶段八：特效词条 v2（ID 列表 → 名称+描述）+ 传说专属
     aff_lines = []
     for af in d.get("affixes", []):
         if isinstance(af, dict):  # 旧结构兼容
             k, v = af.get("stat"), af.get("value", 0)
             label = stat_names.get(k, k)
-            aff_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
+            aff_lines.append(f"{label} + {int(v * 100)}%" if k in C.PCT_STATS else f"{label} + {v}")
             continue
         info = C.AFFIXES.get(af)
         if info:
-            aff_lines.append(f"{info['name']}({info['desc']})")
+            # v101.21 词条排版：『名称：描述』（类似属性面板的力量/智力每行一项）
+            aff_lines.append(f"{info['name']}：{info['desc']}" if info.get("desc") else info["name"])
     if aff_lines:
-        lines.append("✨ 词条：" + "  ".join(aff_lines))
+        lines.append("✨ 词条：")
+        for a in aff_lines:
+            lines.append(f"  · {a}")
     if d.get("legendary"):
         lg = C.LEGENDARY_EFFECTS.get(d["legendary"])
         if lg:
@@ -89,7 +95,7 @@ def _render_equip(d, lines, equipped):
         else:
             k, v = en.get("stat"), en.get("value", 0)
             label = stat_names.get(k, k)
-            ench_lines.append(f"{label} +{int(v * 100)}%" if k in C.PCT_STATS else f"{label} +{v}")
+            ench_lines.append(f"{label} + {int(v * 100)}%" if k in C.PCT_STATS else f"{label} + {v}")
     if ench_lines:
         lines.append("🔮 符文： " + "  ".join(ench_lines))
     # v10：套装归属
@@ -2546,7 +2552,11 @@ class EconomyCmds(CommandBase):
         return any(k in sa.get("name", "") for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
 
     def _pawn_rate(self, player: dict, d: dict):
-        """v93 材料回收价：铁匠/工坊 0.9（矿石金属）、炼金工坊 0.9（草药粉尘）、普通商店 0.8（杂货）；非设施 None（材料不可售）。"""
+        """v101.21 出售地点限制：装备→铁匠/工坊（原价）；材料→商店/铁匠/炼金（0.9/0.8）；其他→无限制 1.0。"""
+        if d.get("slot"):  # 装备必须去铁匠铺卖（回收装备是铁匠的活）
+            if self._is_smith_shop(player):
+                return 1.0
+            return None
         if d.get("type", "") != "材料":
             return 1.0
         sa = self._cur_subarea(player)
@@ -2613,7 +2623,7 @@ class EconomyCmds(CommandBase):
                     total += r[2]
                     player = self._player(group_id, qq_id)
             if not sold:
-                tip = "（材料要去城镇商店/铁匠铺/炼金工坊才能卖）" if blocked else ""
+                tip = "（装备要去铁匠铺、材料要去商店/铁匠/炼金才能卖）" if blocked else ""
                 yield event.plain_result(f"没有可出售的物品！{tip}")
                 return
             head = "全部" if mode == "all" else ("材料" if mode == "mat" else "装备")
@@ -2623,7 +2633,7 @@ class EconomyCmds(CommandBase):
             if len(sold) > 8:
                 lines.append(f"  · ……等 {len(sold)} 种")
             if blocked:
-                lines.append(f"💡 有 {blocked} 种材料需要到城镇商店/铁匠铺/炼金工坊出售～")
+                lines.append(f"💡 有 {blocked} 种物品要对应店铺出售（装备→铁匠铺、材料→商店/铁匠/炼金工坊）～")
             yield event.plain_result("\n".join(lines))
             return
         target = None
@@ -2646,7 +2656,14 @@ class EconomyCmds(CommandBase):
         d = target["data"]
         rate = self._pawn_rate(player, d)
         if rate is None:
-            yield event.plain_result(f"『{d['name']}』是材料，要到城镇的商店（杂货）/铁匠铺/炼金工坊才能回收成金币～")
+            if d.get("slot"):
+                hint = self._facility_hint(player, "craft")
+                yield event.plain_result(
+                    f"『{d['name']}』是装备，要到铁匠铺（锻造台）才能回收成金币～"
+                    + (f"({hint})" if hint else "")
+                )
+            else:
+                yield event.plain_result(f"『{d['name']}』是材料，要到城镇的商店（杂货）/铁匠铺/炼金工坊才能回收成金币～")
             return
         r = self._sell_one(group_id, qq_id, player, target, rate)
         if not r:
