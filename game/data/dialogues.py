@@ -50,7 +50,7 @@ DIALOGUES = {
             "dogs_pledge": {
                 "text": "好样的！镇子西边的路口就是它们的老窝。替我们把它们赶走，镇子不会亏待你的。",
                 "options": [
-                    {"text": "包在我身上！", "next": "__end__"},
+                    {"text": "包在我身上！", "next": "quest_accept", "need": {"quest_pending": ""}, "action": {"quest_take": True}},
                 ],
             },
             "dogs_trade": {
@@ -210,7 +210,28 @@ DIALOGUES = {
                     {"text": "矿洞里情况怎么样？", "next": "situation"},
                     {"text": "地精为什么要占矿洞？", "next": "why"},
                     {"text": "看看矮人的货。", "next": "shop", "action": {"open_shop": True}},
+                    {"text": "📜 我能帮上什么忙？", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    {"text": "✅ 任务办妥了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
                     {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "quest_talk": {
+                "text": "哼，总算有人愿意搭把手！矿洞的事，就交给你了。",
+                "options": [
+                    {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
+                    {"text": "再想想。", "next": "welcome"},
+                ],
+            },
+            "quest_accept": {
+                "text": "好样的！具体目标都在冒险日志里，办妥了回来找我就行。",
+                "options": [
+                    {"text": "出发！", "next": "__end__"},
+                ],
+            },
+            "quest_done_talk": {
+                "text": "哈哈哈！矮人从不亏待朋友，这是你应得的报酬！",
+                "options": [
+                    {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
                 ],
             },
             "situation": {
@@ -914,7 +935,28 @@ DIALOGUES = {
             "chat": {
                 "text": "行会每天都有新委托，冒险者的故事永远不会结束。要接委托就找镇长，想学本事就去各城寻访职业导师。",
                 "options": [
+                    {"text": "📜 行会有任务委托吗？", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    {"text": "✅ 任务办妥了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
                     {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "quest_talk": {
+                "text": "正好！行会刚贴出一份委托，报酬优厚。这趟差事，冒险者公会里就你最合适。",
+                "options": [
+                    {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
+                    {"text": "再想想。", "next": "chat"},
+                ],
+            },
+            "quest_accept": {
+                "text": "好样的！具体目标都在冒险日志里，办妥了回来找我就行。",
+                "options": [
+                    {"text": "出发！", "next": "__end__"},
+                ],
+            },
+            "quest_done_talk": {
+                "text": "干得漂亮！行会为你的名字记了一笔，这是你应得的报酬！",
+                "options": [
+                    {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
                 ],
             },
         },

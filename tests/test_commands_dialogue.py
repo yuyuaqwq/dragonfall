@@ -53,7 +53,9 @@ async def main():
     flags = db.get_talk_flags("g1", "w1", "npc_mayor")
     check("set_flag 写入", "pledged" in flags, str(flags))
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("包在我身上结束对话", "那就再会了" in out, out[:200])
+    check("包在我身上接取主线", "接取任务" in out and "冒险日志" in out, out[:300])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("出发结束对话", "那就再会了" in out, out[:200])
 
     print("【v101.16 对话改版：无会话时『对话 N』直接开始对话】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
@@ -171,6 +173,39 @@ async def main():
     _side = db.get_quests("g1", "w1").get("side") or {}
     check("D:支线提示不自动接", "可接取" in out and not any(sq.get("status") != "done" for sq in _side.values()),
           f"{out[:150]} | side={_side}")
+
+    print("【v101.19 对话树任务入口补全：dogs分支/行会接待员/矮人长老】")
+    # guild_clerks：q1_2 行会入门 pending → chat 分支对话接取（此前 chat 无任务选项=死路）
+    db.save_quests("g1", "w1", {"main_quest": "q1_2", "main_status": "pending", "main_progress": {},
+                                "daily": {}, "completed_main": ["q1_1"], "side": {}})
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_1")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 行会")
+    check("行会:找NPC进对话树", "新委托" in out or "就职" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("行会:进入chat分支", "新委托" in out, out[:250])
+    mm = re.search(r"(\d+)\. 📜 行会有任务委托吗", out)
+    check("行会:任务选项可见", mm is not None, out[:250])
+    opt = mm.group(1) if mm else "1"
+    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    check("行会:进入任务对话", "交给我了" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("行会:接取q1_2", "接取任务" in out and "行会入门" in out, out[:250])
+    check("行会:主线已接取", db.get_quests("g1", "w1").get("main_status") in ("active", "ready"),
+          str(db.get_quests("g1", "w1").get("main_status")))
+
+    # dwarf_elder：q8_3 铁砧要塞 pending → welcome 对话接取（此前只有闲聊=死路）
+    db.save_quests("g1", "w1", {"main_quest": "q8_3", "main_status": "pending", "main_progress": {},
+                                "daily": {}, "completed_main": ["q7_6"], "side": {}})
+    db.update_player("g1", "w1", cur_map="anvil_fort", cur_subarea="anvil_fort_2")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 托尔丁")
+    check("矮人:找NPC进对话树", "地精" in out, out[:250])
+    mm = re.search(r"(\d+)\. 📜 我能帮上什么忙", out)
+    check("矮人:任务选项可见", mm is not None, out[:250])
+    opt = mm.group(1) if mm else "1"
+    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
+    check("矮人:进入任务对话", "交给我了" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    check("矮人:接取q8_3", "接取任务" in out and "铁砧要塞" in out, out[:250])
 
     print("【v65 引擎：数据完整性】")
     # 所有对话树节点引用合法：next 要么是 __end__ 要么是存在的节点
