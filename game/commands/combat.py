@@ -995,10 +995,12 @@ class CombatCmds(CommandBase):
             if sname in branch_tags:
                 tags.append(branch_tags[sname])
             tag_str = "".join(f"<{t}>" for t in tags)
-            lines.append(f"{i}.{disp_name} [{lv_str}] {tag_str}")
-            lines.append(f"「{info['desc']}」")
-            # v101.25c 技能列表消耗行：参考属性面板四维风格（· 前缀缩进），
-            # 展示 魔力/核心资源/CD——鱼鱼抓"看不到消耗，普攻没意义"
+            # v101.25d 技能列表排版（鱼鱼拍板模板）：编号行 / 标签行 / 描述行 / 消耗行，
+            # 每条之间 ━━ 分隔线，参考属性面板四维的分区感
+            lines.append(f"{i}.{disp_name} [{lv_str}]")
+            if tag_str:
+                lines.append(f"  · {tag_str}")
+            lines.append(f"  · {info['desc']}")
             _cost = []
             _mp = info.get("mp", 0)
             if _mp:
@@ -1019,7 +1021,7 @@ class CombatCmds(CommandBase):
                 lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
             else:
                 lines.append("  · 消耗：免费")
-        lines.append("━━━━━━━━━━━━")
+            lines.append("━━━━━━━━━━━━")
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")

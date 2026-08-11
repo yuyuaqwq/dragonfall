@@ -82,7 +82,7 @@ PLAYER_SKILLS = {
         "skills": {
     "sk_hui_kan": {
                 "lv": 1,
-                "mp": 0,
+                "mp": 3,
                 "power": 1.0,
                 "kind": "物理",
                 "res_gain": 1,
