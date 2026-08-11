@@ -52,7 +52,7 @@ async def main():
     qs = db.get_quests("g1", "w1")
     check("任务状态 active", qs["side"].get("s_board_cat", {}).get("status") == "active", str(qs.get("side")))
     out = await cmd(m, "quest_accept", "g1", "w1", "接取 寻猫·虎斑")
-    check("重复接取不再展示委托", "寻猫" not in out, out[:200])
+    check("重复接取提示已接", "已接取" in out, out[:200])
 
     print("【4. find 条件探索事件】")
     # 错误地图不触发
