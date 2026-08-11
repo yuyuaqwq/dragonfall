@@ -832,6 +832,22 @@ class InstanceCmds(CommandBase):
             f"💡 按顺序轮流出手，超时 2 分钟自动防御；清光当前层怪物可『深入』下一层！"
         )
 
+    def _sync_players_db(self, group_id, st):
+        """v95r76 #383：副本快照血量/魔力同步回 DB。
+
+        副本战斗中玩家 hp/mp 只存在 st["players"] 快照，DB 保持开本时的值——
+        战斗外逻辑（治疗满血判定 tpl_heal、『角色』面板）读 DB 会拿到过时数据：
+        层肃清后『使用 治疗药水』误报"生命是满的"拒用、进 Boss 战残血开局
+        （格温实测：DB 1003/1003 满血拒药，Boss 战第一回合实际 197/1003）。
+        每个写回点（行动保存/切怪/层肃清）前调用，与普通战斗每回合 update_player 对齐。"""
+        for m in st["members"]:
+            snap = st["players"].get(str(m))
+            if not snap:
+                continue
+            db.update_player(group_id, m,
+                             hp=snap.get("hp", 0), mp=snap.get("mp", 0),
+                             max_hp=snap.get("max_hp", 100), max_mp=snap.get("max_mp", 100))
+
     # ---------------- 行动核心 ----------------
     async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None):
         """副本回合行动(由攻击/技能/防御指令路由进来)"""
@@ -976,6 +992,7 @@ class InstanceCmds(CommandBase):
                 st["turn"] = 0
                 st["acted"] = [False] * len(st["members"])
                 st["turn_time"] = now
+                self._sync_players_db(group_id, st)  # v95r76 #383：切怪前同步快照血量
                 db.save_battle(group_id, st["leader"], st)
                 yield event.plain_result(
                     "\n".join(logs) +
@@ -997,6 +1014,7 @@ class InstanceCmds(CommandBase):
                     st["enemy"] = None
                     for m in st["members"]:
                         self._unlock_battle(group_id, m)
+                    self._sync_players_db(group_id, st)  # v95r76 #383：层肃清后战斗外逻辑读 DB 须与快照一致
                     db.save_battle(group_id, st["leader"], st)
                     cur_name = stages[st["stage_idx"]]["name"]
                     nxt_name = stages[st["stage_idx"] + 1]["name"]
@@ -1040,6 +1058,7 @@ class InstanceCmds(CommandBase):
             st["turn_time"] = now
 
         # 7. 保存状态（存到队长名下）并展示
+        self._sync_players_db(group_id, st)  # v95r76 #383：每回合行动后同步快照血量（对齐普通战斗）
         db.save_battle(group_id, st["leader"], st)
         nxt_key = str(members[st["turn"]])
         nxt_p = self._player(group_id, nxt_key)
