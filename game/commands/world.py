@@ -816,14 +816,11 @@ class WorldCmds(CommandBase):
         t_shown = [(i, s) for i, s in t_shown if s]
         neighbors = C.MAP_CONNECTIONS.get(target["id"], [])
         nav = ""
-        nav_items = [f"{i}.{s['name']}" for i, s in t_shown]
-        nav_items += [f"{i}.{self._conn_target(c)[0]['name']}"
-                      for i, c in enumerate(neighbors, len(t_links) + 1)]
-        if nav_items:
-            nav = "\n\n📮 可前往：" + "  ".join(nav_items[:8])
+        # v101.25c 模板统一后：完整"可前往"列表已由 _subarea_body 输出，
+        # 此处不再拼紧凑版（否则跨图移动出现两行重复列表，playtest #405）
         # v101.17 移动模式提示（开启时回复序号直接赶路）
         if db.get_event_state(f"move_mode:{qq_id}"):
-            nav += "\n🚶 移动模式中：回复序号直接赶路，『前往结束』退出"
+            nav = "\n🚶 移动模式中：回复序号直接赶路，『前往结束』退出"
         fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
         fac_msg = ""
         if fac:
@@ -885,7 +882,8 @@ class WorldCmds(CommandBase):
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "铁匠",
                    "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
-                   "apprentice": "副业", "enhance": "强化", "portal": "方碑"}
+                   "apprentice": "副业", "enhance": "强化", "portal": "方碑",
+                   "alchemy": "炼金", "teach": "教学", "trade": "交易", "info": "咨询"}
         show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
         # v95.25 #137：可互动提示与实际设施一致——funcs 有 shop/heal 但布尔未开时过滤
         if "shop" in funcs and not sa.get("shop"):
