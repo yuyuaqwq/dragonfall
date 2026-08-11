@@ -144,7 +144,10 @@ def _file_loopback_start():
                 if inst is None:
                     _time.sleep(1.5)
                     continue
-                ev = _LoopbackEvent(cmd, _ident_of(out_file), "gm_test_group" if _ident_of(out_file) != _PLAYTEST_QQ else None)
+                # v55 轮（playtest）：main 通道也进统一测试群 gm_test_group——#47b 需要 2 真人组队打副本，
+                # main 在 private 群无法与 gm_test_group 的小蓝组队（party/副本按 group_id 隔离）。
+                # GM 权限不受影响：gm_ 前缀身份恒放行（gm.py _gm_auth），与群上下文无关。
+                ev = _LoopbackEvent(cmd, _ident_of(out_file), "gm_test_group")
                 asyncio.run(_collect(inst, ev, cmd, out_file))
                 return
             except Exception as e:

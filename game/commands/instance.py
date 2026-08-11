@@ -828,9 +828,16 @@ class InstanceCmds(CommandBase):
         acted = st.setdefault("acted", [False] * len(members))
 
         # 1. 超时推进：轮到的人 120 秒没动 → 自动防御并转到下一位（可能连续多人超时）
+        # v55 轮：已退队的成员不再参与轮转（退队后不卡队友回合，否则每轮白等 120s 超时）
+        party_now = [str(m) for m in db.party_members(group_id, st["leader"])]
         while True:
             cur_idx = st["turn"]
             cur_key = str(members[cur_idx])
+            if party_now and cur_key not in party_now:
+                acted[cur_idx] = True
+                st["turn"] = (cur_idx + 1) % len(members)
+                st["turn_time"] = now
+                continue
             if not st["alive"].get(cur_key, True):
                 acted[cur_idx] = True
                 st["turn"] = (cur_idx + 1) % len(members)
