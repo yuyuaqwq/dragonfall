@@ -145,7 +145,9 @@ async def main():
     db.save_quests("g1", "w1", q)
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
     check("B:选项✅任务完成了", "任务完成了" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 4")
+    mm = re.search(r"(\d+)\. ✅ 任务完成了", out)  # v101.24：动态定位（选项序号会随 side_available 等条件变化）
+    opt = mm.group(1) if mm else "4"
+    out = await cmd(m, "talk_choice", "g1", "w1", f"对话 {opt}")
     check("B:进入交付对话", "报酬" in out, out[:150])
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("B:交付成功", "任务完成" in out, out[:150])
