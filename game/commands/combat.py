@@ -1377,15 +1377,20 @@ class CombatCmds(CommandBase):
             db.add_item(group_id, qq_id, f"mountrein_{mk}", rein)
             mount_line = f"🐾 战利品里有【{rein['name']}】！『使用 缰绳』驯服坐骑！"
         # v34 符文掉落（精英/Boss 概率 x3，品质越高越稀有，等级随品质浮动）
+        # v101.25i5 分层：普通怪只掉稀有；史诗/传说仅精英/Boss（鱼鱼：低级怪爆传说 III 不合理）
         rune_line = ""
         roll = random.random()
         rune_quality = None
-        for rq, w in sorted(C.RUNE_DROP.items(), key=lambda x: -x[1]):
-            mult = 3 if monster.get("is_boss") or monster.get("is_elite") else 1
-            if roll < w * mult:
-                rune_quality = rq
-                break
-            roll -= w * mult
+        is_elite_boss = monster.get("is_boss") or monster.get("is_elite")
+        if is_elite_boss:
+            for rq, w in sorted(C.RUNE_DROP.items(), key=lambda x: -x[1]):
+                if roll < w * 3:
+                    rune_quality = rq
+                    break
+                roll -= w * 3
+        else:
+            if roll < C.RUNE_DROP["稀有"]:
+                rune_quality = "稀有"
         if rune_quality:
             cand_runes = [n for n, r in C.RUNES.items() if r["quality"] == rune_quality]
             if cand_runes:
