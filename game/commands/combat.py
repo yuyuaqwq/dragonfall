@@ -62,6 +62,18 @@ class CombatCmds(CommandBase):
                 f"🧭 前往『地图』查看周边可去的地方。"
             )
             return
+        # v95.26 #265：副本区域探索不触发普通战斗——副本怪按组队强度设计（如海蚀洞窟
+        # 入口子区域怪物池含 Lv.26 海盗精锐），单人遭遇必死；且探索打赢也不计入副本进度
+        # （#247 只修了 Boss 混池/精英判定，普通怪池仍会单人遭遇副本怪）。
+        # 副本入口应引导玩家走『副本 <名字>』开本流程（等级/人数校验 + 组队轮流 + 通关结算）。
+        if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
+            inst_name = cur_map.get("name", "这个副本")
+            yield event.plain_result(
+                f"🏰 【{inst_name}】是组队副本区域，这里的敌人按队伍强度设计！\n"
+                f"💡 组好队伍后输入『副本 {inst_name}』开本挑战——按顺序轮流出手，Boss 血量随人数上涨！\n"
+                f"（『副本』查看全部副本列表）"
+            )
+            return
         # 9.4：野外 NPC 偶遇（满足条件 → 偶遇提示，不消耗探索；30 分钟冷却防刷）
         wild = C.roll_wild_encounter(group_id, qq_id, player, cur)
         if wild:
