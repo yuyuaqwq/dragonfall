@@ -499,9 +499,9 @@ class CommandBase:
             player["stamina"] = new  # v95.16 #80：同步 player dict，st_msg 显示恢复后值而非旧值
         return new - cur
 
-    def _stamina_bar(self, player: dict) -> str:
-        """体力显示条：⚡ 82/102"""
-        return f"⚡ 体力 {self._stamina(player)}/{self._stamina_max(player)}"
+    def _stamina_bar(self, player: dict, sep: str = " ") -> str:
+        """体力显示条：⚡ 82/102（sep 可传『：』统一标签冒号格式）"""
+        return f"⚡ 体力{sep}{self._stamina(player)}/{self._stamina_max(player)}"
 
     # ---------- v97.5 行为彩蛋规则 ----------
     def _rule_fire(self, trigger: str, group_id, qq_id, player: dict, cur_map: dict, evt: dict = None) -> str:

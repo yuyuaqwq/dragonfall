@@ -301,12 +301,17 @@ class PlayerCmds(CommandBase):
         lines = [
             f"⚔️ 【{player['name']}】",
             f"🛡 Lv.{player['level']} {C.display('classes', player['class_name'])}",
-            f"🧬 {E.race_name(player.get('race'))}",
         ]
-        # v95.24 性别：角色面板显示（存量档未设置则隐藏）
+        # v95.24 性别 + v100.8 种族性别合并一行：🧬 银月精灵 · ♂男（存量档无性别则只显示种族）
         g = player.get("gender") or ""
-        if g:
-            lines.append(f"{'♂' if g == 'male' else '♀'} {'男' if g == 'male' else '女'}")
+        race_s = E.race_name(player.get('race'))
+        gender_s = f"{'♂' if g == 'male' else '♀'} {'男' if g == 'male' else '女'}" if g else ""
+        if race_s and gender_s:
+            lines.append(f"🧬 {race_s} · {gender_s}")
+        elif race_s:
+            lines.append(f"🧬 {race_s}")
+        elif gender_s:
+            lines.append(f"🧬 {gender_s}")
         lines.append("━━━━━━━━━━━━")
         # 阶段九：装备称号显示在角色名前（14 章 3.4）
         eq_title = player.get("equipped_title") or ""
@@ -327,14 +332,14 @@ class PlayerCmds(CommandBase):
             final = st[fkey]
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
-                lines.append(f"{icon} {cname} {prefix}{int(final*100)}%({int(bonus*100):+d}%)")
+                lines.append(f"{icon} {cname}：{prefix}{int(final*100)}%({int(bonus*100):+d}%)")
             else:
-                lines.append(f"{icon} {cname} {prefix}{final}({int(bonus):+d})")
+                lines.append(f"{icon} {cname}：{prefix}{final}({int(bonus):+d})")
         # 资源块（金币/位置/技能点/EXP 独立成块，每项单独一行）
         lines.append("━━━━━━━━━━━━")
         lines.append(f"💰 金币：{player['gold']}")
-        # v94 体力：角色面板显示体力
-        lines.append(self._stamina_bar(player))
+        # v94 体力：角色面板显示体力（v100.8 冒号格式与全面板统一）
+        lines.append(self._stamina_bar(player, sep="："))
         lines.append(f"📍 位置：{cur_map}")
         lines.append(f"💡 技能点：{player.get('skill_points', 0)}")
         lines.append(f"✨ EXP：{player['exp']}/{need} ({exp_pct}%)")
@@ -600,9 +605,9 @@ class PlayerCmds(CommandBase):
             final = st[fkey]
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
-                lines.append(f"{icon} {cname} {int(final*100)}%(+{int(bonus*100)}%)")
+                lines.append(f"{icon} {cname}：{int(final*100)}%({int(bonus*100):+d}%)")
             else:
-                lines.append(f"{icon} {cname} {final}(+{int(bonus)})")
+                lines.append(f"{icon} {cname}：{final}({int(bonus):+d})")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"🎯 自由属性点：{player.get('attr_pts', 0)}")
         # 加点分配（每项单独一行）
