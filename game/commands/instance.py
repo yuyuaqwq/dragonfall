@@ -990,6 +990,8 @@ class InstanceCmds(CommandBase):
             pending = st.get("stage_pending") or []
             if pending:
                 # 当前层还有怪 → 切下一只
+                # v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报）
+                kill_lines = self._instance_kill_reward(group_id, st)
                 nxt = pending.pop(0)
                 st["boss"] = C.build_monster(nxt, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
                 st["enemy"] = st["boss"]
@@ -1005,6 +1007,7 @@ class InstanceCmds(CommandBase):
                 db.save_battle(group_id, st["leader"], st)
                 yield event.plain_result(
                     "\n".join(logs) +
+                    (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
                     f"\n━━━━━━━━━━━━\n"
                     f"⚔️ 又一只怪物挡在面前！\n"
                     f"👹【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
@@ -1016,6 +1019,8 @@ class InstanceCmds(CommandBase):
                 last = st["stage_idx"] >= len(stages) - 1
                 if not last:
                     # 清完非末层 → 地图模式（可调查剩余 POI / 深入）
+                    # v95r77 #363：层肃清时最后一只怪的击杀奖励（须在 st["boss"] 置空前取）
+                    kill_lines = self._instance_kill_reward(group_id, st)
                     st["stage_cleared"] = True
                     st["over"] = False
                     st["mode"] = "map"
@@ -1030,6 +1035,7 @@ class InstanceCmds(CommandBase):
                     map_view = self._instance_map_view(st, group_id)
                     yield event.plain_result(
                         "\n".join(logs) +
+                        (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
                         f"\n━━━━━━━━━━━━\n"
                         f"✅ 【{cur_name}】的敌人被肃清了！\n"
                         f"{map_view}\n"
@@ -1215,6 +1221,73 @@ class InstanceCmds(CommandBase):
         return logs
 
     # ---------------- 结算 ----------------
+    def _instance_kill_reward(self, group_id, st):
+        """v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报——无经验/金币/掉落反馈）。
+
+        对照野外 _kill 的 v93 经济模式：经验入账 + 金币×1.5 折算成可卖材料
+        （怪物掉落池优先，通用池兜底；精英 2 种普通 1 种）。组队存活成员各一份。
+        Boss 击杀走 _instance_victory 通关奖励，不在此列。
+        注意：副本战斗内不做升级检查（check_player_level_up 会把 hp 回满，
+        会破坏战斗节奏），经验攒到出副本后野外击杀时统一结算。"""
+        mdef = st.get("boss")
+        if not mdef:
+            return []
+        lines = []
+        for _m in st["members"]:
+            if not st["alive"].get(str(_m), True):
+                continue
+            p = self._player(group_id, _m)
+            if not p:
+                continue
+            snap = st["players"].get(str(_m)) or {}
+            exp = mdef.get("exp", 0)
+            diff = mdef.get("lv", 0) - p.get("level", 0)
+            if diff > 5:
+                exp = int(exp * max(0.10, 1.0 - (diff - 5) * 0.15))
+            elif diff < -5:
+                exp = int(exp * max(0.10, 1.0 - (-diff - 5) * 0.20))
+            # v93 经济改革：金币不入账，折算成可卖材料
+            mats = []
+            mat_value = int(mdef.get("gold", 0) * 1.5)
+            if mat_value > 0:
+                drop_pool = [m for m in (mdef.get("drops") or []) if m]
+                if not drop_pool:
+                    drop_pool = ["兽肉", "狼皮", "蛇皮", "野猪牙"]
+                is_hi = mdef.get("is_elite") or mdef.get("is_boss")
+                # 测试确定性铁律（v103）：不在这里用 random.sample——新增随机数消耗
+                # 会打乱全量回归的战斗随机序列（两次跑失败点不同=随机性证据）。
+                # 掉落种类按掉落池顺序取前 N 种（确定性），数量仍按价值折算。
+                picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
+                per_val = mat_value / len(picks)
+                for mat_name in picks:
+                    mid = C.resolve("materials", mat_name)
+                    if mid not in C.MATERIALS:
+                        continue
+                    mprice = C.MATERIALS[mid].get("price", 0)
+                    if mprice <= 0:
+                        continue
+                    n = max(1, min(30, round(per_val / mprice)))
+                    db.add_item(group_id, _m, mid,
+                                {"name": C.display("materials", mid), "type": "材料",
+                                 "stackable": True, "price": mprice}, n)
+                    mats.append(f"{C.display('materials', mid)} ×{n}")
+            db.init_stats(group_id, _m)
+            db.bump_stats(group_id, _m, kills=1, day_kills=1)
+            if mdef.get("is_elite"):
+                db.bump_stats(group_id, _m, elite_kills=1)
+            elif mdef.get("is_boss"):
+                db.bump_stats(group_id, _m, boss_kills=1)
+            db.bump_bestiary(group_id, _m, mdef.get("name", ""))
+            db.update_player(group_id, _m, exp=p["exp"] + exp,
+                             hp=snap.get("hp", p.get("hp", 0)), mp=snap.get("mp", p.get("mp", 0)),
+                             max_hp=snap.get("max_hp", p.get("max_hp", 0)),
+                             max_mp=snap.get("max_mp", p.get("max_mp", 0)))
+            line = f"  {p['name']}：经验 +{exp}"
+            if mats:
+                line += f"，拾取材料 {'、'.join(mats)}"
+            lines.append(line)
+        return lines
+
     async def _instance_victory(self, event, group_id, qq_id, player, st, logs):
         inst = C.INSTANCES[st["inst_id"]]
         boss = st["boss"]
