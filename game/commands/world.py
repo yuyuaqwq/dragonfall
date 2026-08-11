@@ -987,8 +987,8 @@ class WorldCmds(CommandBase):
         if random.random() >= chance:
             return None
         # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
-        # v101.25i3：±1→±2（鱼鱼：随机等级没效果）
-        return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
+        # v101.25i3：曾试 ±2 被鱼鱼否（"加减2太多了"）→ 保持 ±1
+        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")

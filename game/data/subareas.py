@@ -1205,7 +1205,7 @@ SUBAREAS = {
                     "m_seagull",
                     "大海鸥",
                     "speedster",
-                    22,
+                    24,
                     [
                         "ms_fu_chong"
                     ],
@@ -2234,7 +2234,7 @@ SUBAREAS = {
                     "m_bandit",
                     "盗贼",
                     "speedster",
-                    32,
+                    33,
                     [
                         "ms_duan_jian",
                         "ms_tou_qie"
@@ -2265,7 +2265,7 @@ SUBAREAS = {
                     "m_steppe_wolf",
                     "草原狼",
                     "dps",
-                    34,
+                    38,
                     [
                         "ms_si_yao"
                     ],
@@ -2631,7 +2631,7 @@ SUBAREAS = {
                     "m_mermaid",
                     "鲛人",
                     "dps",
-                    22,
+                    23,
                     [
                         "ms_cha_ji",
                         "ms_shui_dan"
@@ -2674,7 +2674,7 @@ SUBAREAS = {
                     "m_river_dragon",
                     "河龙",
                     "tank",
-                    25,
+                    28,
                     [
                         "ms_shui_xi",
                         "ms_shuai_wei"
@@ -2852,7 +2852,7 @@ SUBAREAS = {
                     "m_knight_apprentice",
                     "见习骑士",
                     "dps",
-                    30,
+                    32,
                     [
                         "ms_jian_ji"
                     ],
@@ -2958,7 +2958,7 @@ SUBAREAS = {
                     "m_ancient_knight",
                     "古代骑士",
                     "tank",
-                    39,
+                    40,
                     [
                         "ms_jian_ji",
                         "ms_tie_bi"
@@ -3191,7 +3191,7 @@ SUBAREAS = {
                     "m_hill_vulture",
                     "秃鹫",
                     "speedster",
-                    32,
+                    34,
                     [
                         "ms_fu_chong"
                     ],
@@ -3297,7 +3297,7 @@ SUBAREAS = {
                     "m_war_golem",
                     "战争魔像(残)",
                     "tank",
-                    37,
+                    38,
                     [
                         "ms_zhong_ji",
                         "ms_tie_bi"
@@ -3590,7 +3590,7 @@ SUBAREAS = {
                     "m_giant_bass",
                     "巨鲈",
                     "tank",
-                    56,
+                    58,
                     [
                         "ms_zhuang_ji",
                         "ms_shui_dan"
@@ -4056,7 +4056,7 @@ SUBAREAS = {
                     "m_moon_spirit",
                     "月光精灵",
                     "healer",
-                    58,
+                    60,
                     [
                         "ms_yue_guang_zhan",
                         "ms_zhi_yu"
@@ -4163,7 +4163,7 @@ SUBAREAS = {
                     "m_green_stag",
                     "绿角雄鹿",
                     "tank",
-                    52,
+                    53,
                     [
                         "ms_ding_zhuang",
                         "ms_ying_hua"
@@ -4302,7 +4302,7 @@ SUBAREAS = {
                     "m_valley_eagle",
                     "谷地巨鹰",
                     "dps",
-                    54,
+                    56,
                     [
                         "ms_fu_chong",
                         "ms_zhao_ji"
@@ -4410,7 +4410,7 @@ SUBAREAS = {
                     "m_glow_fox",
                     "荧光狐",
                     "healer",
-                    58,
+                    60,
                     [
                         "ms_mei_huo",
                         "ms_ying_guang_shan"
@@ -4635,7 +4635,7 @@ SUBAREAS = {
                     "m_frost_troll",
                     "霜巨魔",
                     "dps",
-                    68,
+                    70,
                     [
                         "ms_zhong_ji",
                         "ms_zai_sheng",
@@ -4823,7 +4823,7 @@ SUBAREAS = {
                     "m_mining_demon",
                     "矿魔",
                     "dps",
-                    72,
+                    74,
                     [
                         "ms_gao_ji",
                         "ms_huo_yan"
@@ -4935,7 +4935,7 @@ SUBAREAS = {
                     "m_corrupt_beast",
                     "腐蚀兽",
                     "tank",
-                    78,
+                    80,
                     [
                         "ms_zhao_ji",
                         "ms_fu_shi"
@@ -5013,7 +5013,7 @@ SUBAREAS = {
                     "m_hellhound",
                     "地狱犬",
                     "dps",
-                    80,
+                    81,
                     [
                         "ms_si_yao",
                         "ms_di_yu_huo"
@@ -5044,7 +5044,7 @@ SUBAREAS = {
                     "m_demon_servant",
                     "深渊奴仆",
                     "tank",
-                    82,
+                    86,
                     [
                         "ms_zhong_ji",
                         "ms_an_ying_dan"
@@ -5316,7 +5316,7 @@ SUBAREAS = {
                     "m_glacier_rabbit",
                     "冰川雪兔",
                     "speedster",
-                    68,
+                    69,
                     [
                         "ms_ji_pao",
                         "ms_bing_dan"
@@ -5467,7 +5467,7 @@ SUBAREAS = {
                     "m_frozen_fish",
                     "冰封鱼怪",
                     "dps",
-                    72,
+                    73,
                     [
                         "ms_zhuang_ji",
                         "ms_shui_dan"
@@ -5498,7 +5498,7 @@ SUBAREAS = {
                     "m_lake_spirit",
                     "湖中水灵",
                     "healer",
-                    74,
+                    78,
                     [
                         "ms_shui_dan",
                         "ms_zhi_liao"
@@ -5703,7 +5703,7 @@ SUBAREAS = {
                     "m_ice_wolf",
                     "极地冰狼",
                     "dps",
-                    70,
+                    71,
                     [
                         "ms_si_yao",
                         "ms_bing_ya"
@@ -5734,7 +5734,7 @@ SUBAREAS = {
                     "m_aurora_fox",
                     "极光狐",
                     "speedster",
-                    72,
+                    76,
                     [
                         "ms_ji_chi",
                         "ms_ji_guang_shan"
@@ -5811,7 +5811,7 @@ SUBAREAS = {
                     "m_frost_cultist",
                     "霜语祭司",
                     "healer",
-                    74,
+                    75,
                     [
                         "ms_bing_dan",
                         "ms_bing_shuang_zhu_fu"
@@ -5842,7 +5842,7 @@ SUBAREAS = {
                     "m_frost_giant",
                     "霜语巨魔",
                     "tank",
-                    78,
+                    80,
                     [
                         "ms_zhong_ji",
                         "ms_bing_ji"
@@ -6100,7 +6100,7 @@ SUBAREAS = {
                     "m_adult_dragon",
                     "成年龙",
                     "tank",
-                    92,
+                    94,
                     [
                         "ms_long_xi",
                         "ms_long_wei_190",
@@ -6210,7 +6210,7 @@ SUBAREAS = {
                     "m_battle_remnant",
                     "百族残骸",
                     "tank",
-                    92,
+                    93,
                     [
                         "ms_zhong_ji",
                         "ms_fu_hua"
@@ -6453,7 +6453,7 @@ SUBAREAS = {
                     "m_bone_vulture",
                     "骨鹫",
                     "dps",
-                    88,
+                    90,
                     [
                         "ms_fu_chong",
                         "ms_gu_xi"
@@ -6561,7 +6561,7 @@ SUBAREAS = {
                     "m_wind_guardian",
                     "风之守卫",
                     "tank",
-                    90,
+                    92,
                     [
                         "ms_feng_ren",
                         "ms_ying_hua"
@@ -6701,7 +6701,7 @@ SUBAREAS = {
                     "m_red_wyvern",
                     "赤翼飞龙",
                     "dps",
-                    88,
+                    90,
                     [
                         "ms_fu_chong",
                         "ms_huo_dan"
@@ -6809,7 +6809,7 @@ SUBAREAS = {
                     "m_dragonscale_beast",
                     "龙鳞兽",
                     "dps",
-                    92,
+                    94,
                     [
                         "ms_si_yao",
                         "ms_long_lin_chong_ji"
@@ -7067,7 +7067,7 @@ SUBAREAS = {
                     "m_puffer",
                     "河豚怪",
                     "speedster",
-                    40,
+                    42,
                     [
                         "ms_du_ci",
                         "ms_peng_zhang"
@@ -7142,7 +7142,7 @@ SUBAREAS = {
                     "m_giant_iguana",
                     "巨型鬣蜥",
                     "speedster",
-                    44,
+                    45,
                     [
                         "ms_si_yao",
                         "ms_shuai_wei"
@@ -7173,7 +7173,7 @@ SUBAREAS = {
                     "m_parrot_demon",
                     "鹦鹉魔",
                     "healer",
-                    46,
+                    50,
                     [
                         "ms_jian_xiao",
                         "ms_feng_ren"
@@ -7250,7 +7250,7 @@ SUBAREAS = {
                     "m_whirlpool_spirit",
                     "漩涡精灵",
                     "healer",
-                    50,
+                    51,
                     [
                         "ms_shui_dan",
                         "ms_xuan_wo"
@@ -7281,7 +7281,7 @@ SUBAREAS = {
                     "m_sea_serpent",
                     "海蛇",
                     "tank",
-                    52,
+                    56,
                     [
                         "ms_jiao_sha",
                         "ms_shui_xi"
@@ -7819,7 +7819,7 @@ SUBAREAS = {
                     "m_mist_octopus",
                     "迷雾章鱼",
                     "tank",
-                    60,
+                    62,
                     [
                         "ms_chan_rao",
                         "ms_mo_zhi"
@@ -7927,7 +7927,7 @@ SUBAREAS = {
                     "m_sea_serpent",
                     "海蛇",
                     "speedster",
-                    64,
+                    66,
                     [
                         "ms_jiao_sha",
                         "ms_shui_xi"
@@ -8034,7 +8034,7 @@ SUBAREAS = {
                     "m_cursed_captain",
                     "受诅船长",
                     "healer",
-                    67,
+                    69,
                     [
                         "ms_zu_zhou",
                         "ms_zhi_hui"
@@ -8142,7 +8142,7 @@ SUBAREAS = {
                     "m_sea_titan",
                     "海巨人",
                     "tank",
-                    70,
+                    72,
                     [
                         "ms_ju_lang",
                         "ms_zhong_ji"
@@ -8540,7 +8540,7 @@ SUBAREAS = {
                     "m_fungus_beast",
                     "真菌兽",
                     "dps",
-                    68,
+                    69,
                     [
                         "ms_si_yao",
                         "ms_bao_zi_pen_she"
@@ -8571,7 +8571,7 @@ SUBAREAS = {
                     "m_glow_moth",
                     "荧光蛾",
                     "speedster",
-                    70,
+                    74,
                     [
                         "ms_lin_fen",
                         "ms_zhi_mang"
@@ -8677,7 +8677,7 @@ SUBAREAS = {
                     "m_lake_haunt",
                     "湖底怨灵",
                     "healer",
-                    78,
+                    80,
                     [
                         "ms_ai_hao",
                         "ms_an_ying_dan"
@@ -8755,7 +8755,7 @@ SUBAREAS = {
                     "m_under_imp",
                     "地底小恶魔",
                     "speedster",
-                    80,
+                    81,
                     [
                         "ms_huo_dan",
                         "ms_zhao_ji"
@@ -8786,7 +8786,7 @@ SUBAREAS = {
                     "m_obsidian_golem",
                     "黑曜石魔像",
                     "tank",
-                    82,
+                    86,
                     [
                         "ms_zhong_ji",
                         "ms_ying_hua"
@@ -9134,7 +9134,7 @@ SUBAREAS = {
                     "m_fire_bat",
                     "火蝠",
                     "speedster",
-                    90,
+                    92,
                     [
                         "ms_fu_chong",
                         "ms_huo_dan"
@@ -9242,7 +9242,7 @@ SUBAREAS = {
                     "m_abyss_demon",
                     "深渊恶魔",
                     "dps",
-                    92,
+                    94,
                     [
                         "ms_zhao_ji",
                         "ms_di_yu_huo"
@@ -9479,7 +9479,7 @@ SUBAREAS = {
                     "m_sky_hawk",
                     "天鹰",
                     "dps",
-                    90,
+                    92,
                     [
                         "ms_fu_chong",
                         "ms_zhao_ji"
@@ -9586,7 +9586,7 @@ SUBAREAS = {
                     "m_lightning_bird",
                     "雷鸟",
                     "speedster",
-                    94,
+                    96,
                     [
                         "ms_fu_chong",
                         "ms_lei_yu"
@@ -10167,7 +10167,7 @@ SUBAREAS = {
             "m_wild_dog",
             "野狗",
             "dps",
-            3,
+            4,
             [
               "ms_si_yao"
             ],
@@ -10381,7 +10381,7 @@ SUBAREAS = {
             "m_grave_ghost",
             "古墓幽灵",
             "speedster",
-            36,
+            37,
             [
               "ms_chuan_shen",
               "ms_ai_hao"
@@ -10413,7 +10413,7 @@ SUBAREAS = {
             "m_war_golem",
             "战争魔像(残)",
             "tank",
-            37,
+            40,
             [
               "ms_zhong_ji",
               "ms_tie_bi"
@@ -10534,7 +10534,7 @@ SUBAREAS = {
             "m_emerald_deer",
             "翠鹿",
             "speedster",
-            47,
+            48,
             [
               "ms_ji_chi",
               "ms_ding_zhuang"
@@ -10658,7 +10658,7 @@ SUBAREAS = {
             "m_mist_octopus",
             "迷雾章鱼",
             "tank",
-            60,
+            61,
             [
               "ms_chan_rao",
               "ms_mo_zhi"
@@ -10878,7 +10878,7 @@ SUBAREAS = {
             "m_frost_bear",
             "冰原巨熊",
             "tank",
-            68,
+            69,
             [
               "ms_xiong_zhang",
               "ms_bing_hou"
@@ -10943,7 +10943,7 @@ SUBAREAS = {
             "m_ancient_golem",
             "远古魔像",
             "tank",
-            62,
+            65,
             [
               "ms_zhong_ji",
               "ms_fu_wen_chong_ji"
@@ -11189,7 +11189,7 @@ SUBAREAS = {
             "m_demon_priest",
             "恶魔祭司",
             "healer",
-            82,
+            83,
             [
               "ms_an_ying_dan",
               "ms_hei_an_zhi_liao"
@@ -11220,7 +11220,7 @@ SUBAREAS = {
             "m_stone_dragon",
             "石龙",
             "tank",
-            85,
+            86,
             [
               "ms_shi_xi",
               "ms_zhong_ji"

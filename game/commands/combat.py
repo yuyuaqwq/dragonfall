@@ -176,8 +176,8 @@ class CombatCmds(CommandBase):
                 stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
         elif events:
             # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
-            # v101.25i3：±1→±2（鱼鱼：随机等级没效果，1 级图 clamp 后几乎全是 1 级）
-            monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=2)
+            # v101.25i3：曾试 ±2 被鱼鱼否（"加减2太多了"）→ 保持 ±1
+            monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=1)
         else:
             # v95r38 兜底（上面空池+无 elite/boss 已提前 return，理论不可达）
             _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
