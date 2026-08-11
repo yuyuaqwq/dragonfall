@@ -286,7 +286,9 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         item_src = {}
         for k, v in item.get("stats", {}).items():
             if k in STAT_NAMES:
-                item_src[k] = item_src.get(k, 0) + (int(v * mult) if k != "crit" else v)
+                # v101.21e 修复：PCT_STATS（crit/dodge）保留小数——原代码只特判 crit，
+                # dodge 0.05 被 int() 截断成 0，装备闪避加成全部丢失
+                item_src[k] = item_src.get(k, 0) + (int(v * mult) if k not in C.PCT_STATS else v)
         for af in item.get("affixes", []):
             # 阶段八：词条 v2 是 ID 列表（str），常驻属性已在生成时折算进 stats；
             # 旧结构 [{"stat","value"}] 兼容处理
