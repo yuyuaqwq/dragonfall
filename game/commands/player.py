@@ -773,9 +773,19 @@ class PlayerCmds(CommandBase):
             yield event.plain_result(f"洗点需要 {cost} 金币，你只有 {player['gold']} 金币。")
             return
         import json
+        attrs0 = {"str": 0, "agi": 0, "int": 0, "vit": 0}
+        # v95r76 #381b：洗点后当前 hp/mp 必须裁剪到新上限——attributes 清零 → max_hp 下降
+        # （如 956→796），当前值不裁剪会倒挂（小白实测『角色』面板"❤️ 生命：956/796"）。
+        # 用实时计算上限（DB max_hp 换装备后过时，面板也走 player_stats_detail 计算值）
+        _st0 = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+                                   player.get("class_tier", 0), attrs0,
+                                   player.get("evolve_path", 0), None, player.get("race"))
+        new_hp = min(int(player.get("hp", 0)), int(_st0.get("max_hp", player.get("max_hp", 100))))
+        new_mp = min(int(player.get("mp", 0)), int(_st0.get("max_mp", player.get("max_mp", 100))))
         db.update_player(group_id, qq_id, gold=player["gold"] - cost,
                          attr_pts=player.get("attr_pts", 0) + used,
-                         attributes=json.dumps({"str": 0, "agi": 0, "int": 0, "vit": 0}, ensure_ascii=False))
+                         attributes=json.dumps(attrs0, ensure_ascii=False),
+                         hp=new_hp, mp=new_mp)
         yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币)\n『加点』重新分配～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?战力(?:\s*|$)")
