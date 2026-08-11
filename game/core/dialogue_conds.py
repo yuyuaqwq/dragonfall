@@ -20,9 +20,12 @@ def register(key):
     return deco
 
 
-def _quest_state(quests, qid: str, status) -> bool:
+def _quest_state(quests, qid: str, status, ctx=None) -> bool:
     """主线状态判断：quests dict + qid + 期望状态
-    qid 为空字符串 → 按"当前主线"动态判断（对话树通用接取/交付选项用）"""
+    qid 为空字符串 → 按"当前主线"动态判断（对话树通用接取/交付选项用）
+    v101.23：动态判断时校验"当前主线发布者 == 对话中的 NPC"——
+    否则镇长会在主线已推进到其他 NPC 发布的任务时，仍显示接取/交付选项，
+    念的还是写死的旧任务台词（史莱姆）。"""
     if not quests:
         return False
     if status == "done":
@@ -32,6 +35,13 @@ def _quest_state(quests, qid: str, status) -> bool:
         return False  # 主线全完成/未设置时，无"当前主线"可言
     if quests.get("main_quest") != target:
         return False
+    # v101.23：动态"当前主线"场景 → 校验 giver == 当前 NPC
+    if not qid:
+        from ..data import MAIN_QUESTS
+        mq = next((q for q in MAIN_QUESTS if q["id"] == target), None)
+        npc_id = (ctx or {}).get("npc_id")
+        if mq and npc_id and mq.get("giver") != npc_id:
+            return False
     cur = quests.get("main_status", "pending")
     if status == "active":
         return cur in ("active", "ready")
@@ -46,22 +56,22 @@ def _quest_state(quests, qid: str, status) -> bool:
 
 @register("quest_done")
 def _c_quest_done(ctx, v):
-    return _quest_state(ctx.get("quests") or {}, v, "done")
+    return _quest_state(ctx.get("quests") or {}, v, "done", ctx)
 
 
 @register("quest_active")
 def _c_quest_active(ctx, v):
-    return _quest_state(ctx.get("quests") or {}, v, "active")
+    return _quest_state(ctx.get("quests") or {}, v, "active", ctx)
 
 
 @register("quest_pending")
 def _c_quest_pending(ctx, v):
-    return _quest_state(ctx.get("quests") or {}, v, "pending")
+    return _quest_state(ctx.get("quests") or {}, v, "pending", ctx)
 
 
 @register("quest_ready")
 def _c_quest_ready(ctx, v):
-    return _quest_state(ctx.get("quests") or {}, v, "ready")
+    return _quest_state(ctx.get("quests") or {}, v, "ready", ctx)
 
 
 @register("side_ready")
