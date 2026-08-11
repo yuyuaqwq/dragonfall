@@ -774,6 +774,10 @@ class InstanceCmds(CommandBase):
                 "evolve_path": p.get("evolve_path", 0),
                 "attributes": p.get("attributes"),
                 "title_bonus": self._title_bonus(group_id, m),
+                # v101.24 #303：快照必须存 race——Battle 战斗内 v95.19 实时刷新用 player.get("race")
+                # 重算 max_hp/max_mp，缺 race 会丢掉种族 hp 倍率（精灵月缺 ×0.95）→ 战斗内上限偏大
+                # 且战斗结束写回污染 DB（实测影刃 520→548）
+                "race": p.get("race"),
             }
         # v57：副本行动序按速度降序（快者先出手）。真人轮流节奏不变，只是顺序由速度决定
         st["members"] = sorted(st["members"], key=lambda m: st["players"][str(m)].get("spd", 0), reverse=True)
