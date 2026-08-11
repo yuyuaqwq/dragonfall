@@ -17,6 +17,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from .. import content as C
 from .. import db
 from .. import engine as E
+from ..core.stats import hp_stage_mult
 from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
@@ -2747,7 +2748,13 @@ class WorldCmds(CommandBase):
                 + (f"到有旅店的地方(如 {hint})输入『住宿』～" if hint else "到城镇旅店输入『住宿』恢复状态～")
             )
             return
-        cost = max(30, (player.get("level") or 1) * 5)
+        # v101.25i4 住宿费：Lv.≤15 保持 max(30, lv×5)（新手友好不动）；
+        # Lv.16+ 跟随怪物金币曲线(hp_stage_mult^0.5) 并向下取整到百（鱼鱼拍板：凑整，Lv.100=1000金）
+        lv = player.get("level") or 1
+        if lv <= 15:
+            cost = max(30, lv * 5)
+        else:
+            cost = max(100, int(lv * 5 * hp_stage_mult(lv) ** 0.5) // 100 * 100)
         if player["gold"] < cost:
             yield event.plain_result(f"住宿需要 {cost} 金币，你只有 {player['gold']} 金币。先去『探索』赚点钱吧～")
             return
