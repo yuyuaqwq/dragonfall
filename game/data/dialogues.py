@@ -170,6 +170,7 @@ DIALOGUES = {
                 "options": [
                     {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "最近有奇怪的客人吗？", "next": "gossip"},
+                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
                     {"text": "✅ 任务办妥了！", "next": "__end__", "need": {"quest_ready": ""}, "action": {"quest_take": True}},
                     {"text": "✅ 有东西要交给你。", "next": "__end__", "need": {"side_ready": True}, "action": {"side_take": True}},
@@ -188,6 +189,20 @@ DIALOGUES = {
                 "options": [
                     {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "quest_talk": {
+                # v101.25i：玛莎主线接取入口（q1_5 迷路的猫）——text_from story 自动取当前主线台词
+                "text_from": "story",
+                "options": [
+                    {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
+                    {"text": "再想想。", "next": "welcome"},
+                ],
+            },
+            "quest_accept": {
+                "text": "好样的！具体目标都在冒险日志里，办妥了回来找我就行。",
+                "options": [
+                    {"text": "出发！", "next": "__end__"},
                 ],
             },
         },
