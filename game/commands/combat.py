@@ -58,7 +58,7 @@ class CombatCmds(CommandBase):
                 return
             yield event.plain_result(
                 f"🏘️ 你在{cur_map['name']}里闲逛，这里是安全的城镇。\n"
-                f"👥 输入『找 <NPC名>』与这里的 NPC 交谈，『商店』购买补给。\n"
+                f"👥 输入『对话 <NPC名>』与这里的 NPC 交谈，『商店』购买补给。\n"
                 f"🧭 前往『地图』查看周边可去的地方。"
             )
             return
@@ -84,7 +84,7 @@ class CombatCmds(CommandBase):
                 f"　　{wnpc.get('desc', '')}\n"
                 f"“{wnpc.get('dialogue', '……')}”\n"
                 f"━━━━━━━━━━━━\n"
-                f"💡 『找 {wnpc['name']}』与{_ta}交谈——{_ta}今天在这里，错过就要等下次了！"
+                f"💡 『对话 {wnpc['name']}』与{_ta}交谈——{_ta}今天在这里，错过就要等下次了！"
             )
             return
         # v87 02 章 7.6：POI 探索点独立判定（15%）

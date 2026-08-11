@@ -55,9 +55,9 @@ async def main():
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
     check("包在我身上结束对话", "那就再会了" in out, out[:200])
 
-    print("【v65 对话树：无会话时】")
+    print("【v101.16 对话改版：无会话时『对话 N』直接开始对话】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")
-    check("无会话提示", "没有正在进行的对话" in out, out[:120])
+    check("无会话『对话 1』开始对话", "野狗是怎么回事" in out or "镇长" in out, out[:200])
 
     print("【v65 对话树：重复找重置】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")

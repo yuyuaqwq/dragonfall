@@ -532,8 +532,9 @@ class WorldCmds(CommandBase):
             if lines and lines[-1]:
                 lines.append("")
             lines.append("👥 这里的 NPC：")
-            for _, n in npcs:
-                lines.append(f"  {n['icon']}{n['name']}({n['title']})")
+            for i, (_, n) in enumerate(npcs, 1):
+                lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
+            lines.append("  💡 回复序号直接交谈")
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
@@ -571,7 +572,7 @@ class WorldCmds(CommandBase):
             lines.append(f"  👑 Boss：{boss[1]}")
         if lines and lines[-1]:
             lines.append("")
-        lines.append("输入『探索』遇怪，『前往 序号』前往他处，『找 <NPC名>』交谈")
+        lines.append("输入『探索』遇怪，『前往 序号』前往他处，『对话 <NPC名>』交谈")
         yield event.plain_result("\n".join(lines))
 
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
@@ -868,8 +869,9 @@ class WorldCmds(CommandBase):
         npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS]
         if npcs:
             lines.append("👥 这里的 NPC：")
-            for n in npcs:
-                lines.append(f"  {n['icon']}{n['name']}({n['title']})")
+            for i, n in enumerate(npcs, 1):
+                lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
+            lines.append("  💡 回复序号直接交谈")
         # 功能提示
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "铁匠",
@@ -888,7 +890,7 @@ class WorldCmds(CommandBase):
         ):
             show_funcs = [f for f in show_funcs if f != "听故事"]
         if show_funcs:
-            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『找 <NPC名>』等)")
+            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『对话 <NPC名>』等)")
         # v6：设施 + 场景（与『地图』面板一致）
         fac = self._map_facilities(cur_map, player, sa["id"])
         if fac:
@@ -1310,7 +1312,7 @@ class WorldCmds(CommandBase):
             lines.append("")
             lines.append("【每日】今日任务已完成，明天再来！")
         lines.append("")
-        lines.append("💡 输入『每日』领取今日任务，『找 <NPC名>』接取任务")
+        lines.append("💡 输入『每日』领取今日任务，『对话 <NPC名>』接取任务")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?接取(?:\s*|$)")
@@ -1533,6 +1535,20 @@ class WorldCmds(CommandBase):
                         and C.town_npc_visible(nid, C.NPCS[nid], sa_id)]
         return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
 
+    def _start_talk_list(self, group_id, qq_id) -> list:
+        """当前地图 NPC 列表（带序号，回复序号直接交谈）。『对话』空参共用。"""
+        player = self._player(group_id, qq_id)
+        if player and player["cur_map"].startswith("home_"):
+            return ["家里没有 NPC 可以交谈～『出门』去镇上找人吧！"]
+        npcs = self._current_npcs(player) if player else []
+        if not npcs:
+            return ["这里没有 NPC。输入『地图』看看哪里有 NPC～"]
+        lines = ["👥 这里的 NPC："]
+        for i, n in enumerate(npcs, 1):
+            lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
+        lines.append("💡 输入『对话 <名字>』或『对话 <序号>』交谈")
+        return lines
+
     def _find_npc_in_map(self, player, name_key):
         """在当前地图找 NPC(子区域优先，回退地图级)，返回 (npc_id, npc_dict) 或 (None, None)。
 
@@ -1660,8 +1676,8 @@ class WorldCmds(CommandBase):
         in_here = cur in {npc.get("map") for _, npc in hits}
         # v95.25 #135：前缀明确"在/不在你所在的地图"，不再用误导性的"你所在的地图的…"
         if in_here:
-            return f"🧭 『{name_key}』就在你所在的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『找』定位～"
-        return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『找』定位～"
+            return f"🧭 『{name_key}』就在你所在的「{'、'.join(uniq)}」一带。输入『地图』查看路线，到了地方用『对话』定位～"
+        return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『对话』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):
         """按主线进度返回 NPC 对话(主线完成后不再重复初始台词)。
@@ -1839,7 +1855,7 @@ class WorldCmds(CommandBase):
             lines.append("🍃 附近似乎有人影出没：")
             for nid, npc in hints[:5]:
                 lines.append(f"  {npc['icon']}{npc['name']}({self._wild_cond_label(npc)})")
-            lines.append("💡 『探索』碰碰运气，『找 <名字>』直接寻找")
+            lines.append("💡 『探索』碰碰运气，『对话 <名字>』直接寻找")
         else:
             lines.append("🍃 附近没有特别的气息……")
         yield event.plain_result("\n".join(lines))
@@ -1868,10 +1884,43 @@ class WorldCmds(CommandBase):
         lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
         yield event.plain_result("\n".join(lines))
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0－9]\d?$", priority=100)
+    @require_player()
+    async def npc_quick_dialog(self, event: AstrMessageEvent):
+        """裸数字优先 NPC 对话：对话树选项 > NPC 列表序号 > 快捷指令兜底。
+
+        v101.16：『对话』改版配套——地图/NPC 列表带序号，回复序号直接交谈。
+        priority=100 高于 shortcut_trigger(默认0)：命中即 stop_event 拦截快捷指令；
+        无 NPC 可对话时 return（不 yield）→ 放行给快捷指令。
+        """
+        group_id, qq_id = self._uid(event)
+        num = event.get_message_str().strip()
+        num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
+        st = db.get_talk_state(group_id, qq_id)
+        if st:
+            # 对话树选项选择（复用 talk_choice 有状态分支：『对话 1』同款）
+            async for r in self.talk_choice(event):
+                yield r
+            event.stop_event()
+            return
+        player = self._player(group_id, qq_id)
+        if player and not str(player.get("cur_map", "")).startswith("home_"):
+            npcs = self._current_npcs(player)
+            if npcs and num.isdigit():
+                idx = int(num)
+                if 1 <= idx <= len(npcs):
+                    # 裸数字无"找/对话"前缀 → find_npc 的 _strip_cmd 返回原消息 → 序号分支
+                    async for r in self.find_npc(event):
+                        yield r
+                    event.stop_event()
+                    return
+        return  # 无 NPC 可对话 → 放行（快捷指令 / 无响应）
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?找(?:\s*|$)")
     @require_player()
 
     async def find_npc(self, event: AstrMessageEvent):
+        """『找 <NPC名/序号>』：找 NPC 交谈（『对话』新名的别名入口，提示文案统一用『对话』）"""
         group_id, qq_id = self._uid(event)
         name_key = self._strip_cmd(event, "找")
         player = self._player(group_id, qq_id)
@@ -1891,7 +1940,7 @@ class WorldCmds(CommandBase):
                 lines = ["👥 这里的 NPC："]
                 for i, n in enumerate(npcs, 1):
                     lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-                lines.append("💡 输入『找 <名字>』或『找 <序号>』交谈")
+                lines.append("💡 输入『对话 <名字>』或『对话 <序号>』交谈")
                 yield event.plain_result("\n".join(lines))
             return
         # 序号找：『找 1』→ 当前地图第 1 个 NPC
@@ -1902,7 +1951,7 @@ class WorldCmds(CommandBase):
             npcs = self._current_npcs(player)
             idx = int(name_key)
             if idx < 1 or idx > len(npcs):
-                yield event.plain_result(f"这里没有第 {idx} 位 NPC(共 {len(npcs)} 位)！『找』查看列表～")
+                yield event.plain_result(f"这里没有第 {idx} 位 NPC(共 {len(npcs)} 位)！『对话』查看列表～")
                 return
             npc = npcs[idx - 1]
             npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
@@ -2400,7 +2449,21 @@ class WorldCmds(CommandBase):
         player = self._player(group_id, qq_id)
         st = db.get_talk_state(group_id, qq_id)
         if not st:
-            yield event.plain_result("你现在没有正在进行的对话。输入『找 <NPC名>』开始交谈～")
+            # v101.16 『找』→『对话』：无对话中时『对话 <名字/序号>』= 找 NPC 开始对话
+            msg0 = event.get_message_str().strip()
+            msg0 = re.sub(r"^\[At:[^\]]*\]\s*", "", msg0)
+            if msg0.startswith("对话"):
+                raw0 = msg0[len("对话"):].strip()
+                if raw0:
+                    # 复用 find_npc 查找/渲染链（改写消息为『找 X』）
+                    event.message_str = "找 " + raw0
+                    async for r in self.find_npc(event):
+                        yield r
+                    return
+                # 『对话』空参 = 显示当前 NPC 列表
+                yield event.plain_result("\n".join(self._start_talk_list(group_id, qq_id)))
+                return
+            yield event.plain_result("你现在没有正在进行的对话。输入『对话 <NPC名>』开始交谈～")
             return
         npc_id = st.get("npc", "")
         npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id)

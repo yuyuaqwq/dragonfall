@@ -881,7 +881,7 @@ class EconomyCmds(CommandBase):
                 tname, tmap = C.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
                 return False, (
                     f"🔒 副业「{db.PROF_FIELDS.get(key, key)}」还没解锁！\n"
-                    f"先去 {tmap} 找 {tname} 拜师学习吧～(『找 {tname}』)"
+                    f"先去 {tmap} 找 {tname} 拜师学习吧～(『对话 {tname}』)"
                 )
         db.activate_prof(group_id, qq_id, key)
         new_lst = db.get_activated_profs(group_id, qq_id)

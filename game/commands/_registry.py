@@ -93,6 +93,8 @@ COMMAND_REGEX = {
     "shop": r'^(?:\[At:\d+\]\s*)?商店(?:\s*|$)',
     "shortcut": r'^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$',
     "shortcut_trigger": r'^(?:\[At:\d+\]\s*)?[0－9]\d?$',
+    # v101.16 裸数字优先 NPC 对话（priority=100 高于快捷指令；同 pattern 双注册，gate 判定覆盖）
+    "npc_quick_dialog": r'^(?:\[At:\d+\]\s*)?[0－9]\d?$',
     "signin": r'^(?:\[At:\d+\]\s*)?签到(?:\s*|$)',
     "skill": r'^(?:\[At:\d+\]\s*)?技能(?!详情|学习|升级|洗点|栏)(?:[\s\S]*)$',
     "skill_bar_set": r'^(?:\[At:\d+\]\s*)?设置技能(?:\s*|$)',

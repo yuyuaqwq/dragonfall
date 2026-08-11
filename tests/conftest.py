@@ -49,6 +49,7 @@ class FakeEvent:
         self._g = group_id
         self._q = qq_id
         self.message_str = msg
+        self._stopped = False
 
     def get_group_id(self):
         return self._g
@@ -61,6 +62,10 @@ class FakeEvent:
 
     def plain_result(self, text):
         return text
+
+    def stop_event(self):
+        """v101.16：npc_quick_dialog 测试需要（拦截后续 handler 的标记）。"""
+        self._stopped = True
 
 
 async def run(handler, ev):
