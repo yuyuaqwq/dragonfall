@@ -143,6 +143,14 @@ EQUIP_ROSTER = {
     "eq_hui_jin_zhan_xue": {"name": "灰烬战靴", "slot": "boots", "quality": "orange", "lv": 85, "series": "灰烬守卫", "req": {"str": 78}, "legendary": "ember_ward", "source": "boss"},
     # ================= v87 隐藏线：传说·星陨之剑（隐藏线终点，Lv.100 橙·传说）=================
     "eq_starfall_sword": {"name": "星陨之剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 100, "series": "星尘", "req": {"str": 100, "int": 100}, "legendary": "starfall", "source": "legend"},
+    # ================= v101.25e 商店断层补档：锻造源中间档（Lv.18-26，银铃/翡翠/迷雾风格）=================
+    "eq_yin_ling_duan_ren": {"name": "银铃短刃", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    "eq_yin_ling_hu_tui": {"name": "银铃护腿", "slot": "legs", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    "eq_fei_cui_pi_jia": {"name": "翡翠皮甲", "slot": "armor", "quality": "blue", "lv": 20, "series": "翡翠", "req": {"agi": 18}, "source": "锻造"},
+    "eq_fei_cui_hu_tui": {"name": "翡翠护腿", "slot": "legs", "quality": "blue", "lv": 20, "series": "翡翠", "req": {"agi": 18}, "source": "锻造"},
+    "eq_mi_wu_hu_tui": {"name": "迷雾护腿", "slot": "legs", "quality": "blue", "lv": 22, "series": "迷雾", "req": {"vit": 20}, "source": "锻造"},
+    "eq_yin_ling_zhang": {"name": "银铃杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 24, "series": "银铃", "req": {"int": 22}, "source": "锻造"},
+    "eq_mi_wu_dou_mao": {"name": "迷雾兜帽", "slot": "helm", "quality": "blue", "lv": 26, "series": "迷雾", "req": {"int": 24}, "source": "锻造"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）
@@ -151,6 +159,8 @@ SERIES_SETS = {
     "霜狼": "霜狼套", "龙脊": "龙脊套", "海神": "海神套", "地底": "地底套", "苍穹": "苍穹套",
     # v93 商店装：白鹿绿装套
     "白鹿": "白鹿套",
+    # v101.25e 商店断层补档系列
+    "银铃": "银铃套", "翡翠": "翡翠套", "迷雾": "迷雾套",
     # v87 隐藏线
     "星尘": "星尘套", "灰烬守卫": "灰烬守卫套",
 }

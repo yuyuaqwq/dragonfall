@@ -346,6 +346,10 @@ SERIES_FIXED_AFFIX = {
     "龙鳞头盔": ["tenacity"], "龙鳞胸甲": ["block", "dmg_reduce"], "龙鳞护腿": ["dmg_reduce"],
     "龙爪手套": ["combo", "counter"], "龙眼项链": ["dragon_aw", "crit_up"],
     "龙语圣剑": ["dragon_aw", "execute"], "黎明之光": ["break_magic", "execute"],
+    # v101.25e 商店断层补档：银铃/翡翠/迷雾中间档（敏捷/闪避风格，蓝装）
+    "银铃短刃": ["combo", "swift"], "银铃护腿": ["swift"], "银铃杖": ["meditate"],
+    "翡翠皮甲": ["dodge"], "翡翠护腿": ["dodge"],
+    "迷雾护腿": ["swift"], "迷雾兜帽": ["swift"],
     # 海神
     "海神三叉戟": ["element_ice", "pierce"], "潮汐法杖": ["element_ice", "meditate"],
     "珍珠头冠": ["swift"], "龙鳞海甲": ["dodge", "dmg_reduce"], "海神长靴": ["swift"],

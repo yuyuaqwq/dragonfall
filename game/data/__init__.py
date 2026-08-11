@@ -30,7 +30,7 @@ from .affixes import (  # noqa: F401
 from .equip_roster import (  # noqa: F401
     EQUIP_ROSTER, EQUIP_ROSTER_BY_NAME, SERIES_SETS,
 )
-from .items import ITEMS, MATERIALS  # noqa: F401
+from .items import ITEMS, MATERIALS, MATERIALS_BY_NAME  # noqa: F401
 from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401

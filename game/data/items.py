@@ -2398,6 +2398,53 @@ CONSUMABLES = {
                     "desc": "云中圣殿的入场玉玺(星辉台精英掉落)"},
 }
 
+# ================= 材料分类与品质（v101.25e 鱼鱼拍板：按类型分设施出售 + 全服通用品质） =================
+# 类型关键词规则（顺序敏感：先匹配先得；越具体的词越靠前）
+_MAT_TYPE_RULES = [
+    ("宝石", ("宝石", "珍珠", "珠", "翡翠", "玛瑙", "水晶", "琥珀", "钻石", "玉髓")),
+    ("食材", ("鱼", "肉", "虾", "蟹", "贝", "蛋", "果", "菜", "蔬", "米", "麦", "蜜", "腕足", "乳")),
+    ("草药", ("草", "花", "根", "叶", "菇", "菌", "藤", "参", "芝", "芦")),
+    ("木材", ("木", "枝", "树", "柴", "板")),
+    ("织物", ("布", "丝", "棉", "麻", "绒", "绸", "线", "絮", "纱")),
+    ("矿石", ("矿", "铁", "铜", "银", "金", "玉", "岩", "石", "砂", "锡", "铅", "钢", "锭")),
+    ("兽材", ("皮", "毛", "牙", "角", "骨", "爪", "羽", "壳", "鳞", "蹄", "尾", "血", "鬃", "甲", "铠")),
+    ("精华", ("核", "粉", "液", "精华", "魂", "尘", "灰", "烬", "泪", "露", "晶", "髓", "涎", "浆", "息")),
+]
+_MAT_TYPE_FALLBACK = "杂物"
+
+
+def _mat_type(name: str) -> str:
+    """材料类型（按名字关键词；无命中 → 杂物）"""
+    for _t, _kws in _MAT_TYPE_RULES:
+        if any(_k in name for _k in _kws):
+            return _t
+    return _MAT_TYPE_FALLBACK
+
+
+def _mat_quality(price: int) -> str:
+    """材料品质（全服通用白绿蓝紫橙，按价格分档）"""
+    if price <= 12:
+        return "white"
+    if price <= 30:
+        return "green"
+    if price <= 60:
+        return "blue"
+    if price <= 120:
+        return "purple"
+    return "orange"
+
+
+for _mid, _m in MATERIALS.items():
+    # type：已有（收藏/传说/任务道具）保留；"材料"占位或无 → 按名规则重算
+    if not _m.get("type") or _m.get("type") == "材料":
+        _m["type"] = _mat_type(_m["name"])
+    # quality：已有（收藏品等）保留；无 → 按价格分档
+    if not _m.get("quality"):
+        _m["quality"] = _mat_quality(_m["price"])
+
+# 材料按名索引（背包显示/出售设施匹配用）
+MATERIALS_BY_NAME = {_m["name"]: _m for _m in MATERIALS.values()}
+
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料
 ITEMS = dict(MATERIALS)
 ITEMS.update(CONSUMABLES)

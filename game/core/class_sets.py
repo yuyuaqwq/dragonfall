@@ -78,6 +78,25 @@ _SERIES_SET_BONUS = {
         "bonus_4_stats": {"spd": 0.08},
         "bonus_5": {"crit": 0.03, "desc": "暴击＋3%"},
     },
+    # v101.25e 商店断层补档：银铃/翡翠/迷雾蓝装套（敏捷/闪避风格）
+    "银铃": {
+        "icon": "🔔", "quality": "blue",
+        "bonus_2": {"spd": 0.10},
+        "bonus_4_stats": {"atk": 0.08},
+        "bonus_5": {"dodge": 0.05, "desc": "闪避＋5%"},
+    },
+    "翡翠": {
+        "icon": "💎", "quality": "blue",
+        "bonus_2": {"dodge": 0.08},
+        "bonus_4_stats": {"spd": 0.10},
+        "bonus_5": {"crit": 0.05, "desc": "暴击＋5%"},
+    },
+    "迷雾": {
+        "icon": "🌫️", "quality": "blue",
+        "bonus_2": {"dodge": 0.08},
+        "bonus_4_stats": {"mdef": 0.08},
+        "bonus_5": {"desc": "迷雾增伤＋10%(待元素系统)"},
+    },
     # v87 隐藏线（10 章 10.1/10.2）
     "星尘": {
         "icon": "✨", "quality": "purple",
