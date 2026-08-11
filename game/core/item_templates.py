@@ -269,7 +269,7 @@ def tpl_pet_egg(ctx):
     return ItemResult(
         text=f"🥚 宠物蛋微微颤动……裂开了！\n"
              f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！(图鉴 {dex_count}/4)\n"
-             f"💡 输入『宠物』查看，『喂养 <食材>』恢复饱食度，升到 Lv.10 解锁宠物技能！")
+             f"💡 输入『宠物』查看，『喂养 <材料>』恢复饱食度，升到 Lv.10 解锁宠物技能！")
 
 
 @register("mount")

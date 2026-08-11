@@ -1098,7 +1098,7 @@ class WorldCmds(CommandBase):
         dest = self._strip_cmd(event, "传送").strip()
         player = self._player(group_id, qq_id)
         if not dest:
-            yield event.plain_result("传送到哪？『方碑』查看已激活方碑，『传送 <序号/名称>』直达～")
+            yield event.plain_result("传送到哪？『方碑』查看已激活方碑，『传送 <名称/序号>』直达～")
             return
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说传送。")
@@ -1953,7 +1953,7 @@ class WorldCmds(CommandBase):
                 if pp:
                     name = label or pp['name']
                     lines.append(f"{i}. {pp['icon']}{name}：{pp.get('desc', '')}")
-            lines.append("💡 输入『交互 <名称>』或『交互 <序号>』互动")
+            lines.append("💡 输入『交互 <名称/序号>』互动")
             yield event.plain_result("\n".join(lines))
             return
         # 序号交互：『交互 1』→ 当前子区域第 1 个元素

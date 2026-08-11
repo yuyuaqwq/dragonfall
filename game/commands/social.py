@@ -314,7 +314,7 @@ class SocialCmds(CommandBase):
                 lines.append("💡 组队打怪经验＋10%！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
                 yield event.plain_result("\n".join(lines))
             else:
-                yield event.plain_result("你还没有队伍。『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%")
+                yield event.plain_result("你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%")
             return
         # 找目标玩家
         all_players = db.get_group_players(group_id)
