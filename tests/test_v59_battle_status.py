@@ -29,9 +29,9 @@ def test_status_line():
     b.e_buffs = {"def_down": 2, "poison": 3, "mark": 2}
     s = mixin._status_line(player, b)
     check("玩家叠层显示", "狂暴×5" in s and "灼烧×3" in s, s)
-    check("玩家buff显示", "攻击↑×3" in s and "防御↑×2" in s, s)
+    check("玩家buff显示", "攻击↑(剩3回合)" in s and "防御↑(剩2回合)" in s, s)
     check("玩家护盾显示", "护盾150" in s, s)
-    check("敌方状态显示", "破甲×2" in s and "中毒×3" in s and "标记×2" in s, s)
+    check("敌方状态显示", "破甲(剩2回合)" in s and "中毒(剩3回合)" in s and "标记(剩2回合)" in s, s)
     check("格式有分隔", "🛡️你：" in s and "👹敌：" in s, s)
 
 def test_footer():
@@ -44,7 +44,7 @@ def test_footer():
     f = mixin._battle_footer(player, b, b.enemy)
     check("怪物血条", "山贼头目】❤️ 3000/4000" in f, f)
     check("玩家血蓝", "800/1000" in f and "120/300" in f, f)
-    check("状态行追加", "攻击↑×3" in f and "破甲×2" in f, f)
+    check("状态行追加", "攻击↑(剩3回合)" in f and "破甲(剩2回合)" in f, f)
 
 def test_no_status():
     print("【无状态不显示】")

@@ -690,6 +690,17 @@ class WorldCmds(CommandBase):
             if offset + 1 <= idx <= offset + len(neighbors):
                 target, want_sa = self._conn_target(neighbors[idx - offset - 1])
             else:
+                # #263 回归修复：不在出口子区域时序号命中邻居地图 → 引导去出口
+                # （此前清空 neighbors 后直接"序号无效"，丢了 v87.14 出城走城门的路线引导；
+                #   无效序号仍按实际可前往数量报错，保持 #263 口径一致）
+                if not at_exit and offset + 1 <= idx <= offset + len(C.MAP_CONNECTIONS.get(cur, [])):
+                    _exit_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == exit_sa_id), "出口")
+                    _cur_sa_name = next((s["name"] for s in (cur_map.get("subareas") or []) if s["id"] == player.get("cur_subarea")), player.get("cur_subarea", ""))
+                    yield event.plain_result(
+                        f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
+                        f"需要先到{_exit_name}(『前往 {_exit_name}』)才能出城/出图。"
+                    )
+                    return
                 total = len(links) + len(neighbors)
                 yield event.plain_result(f"序号无效！这里可前往 {total} 处，输入『地图』查看～")
                 return

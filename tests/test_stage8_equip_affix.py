@@ -59,7 +59,7 @@ def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
     check("专属 16", len(C.LEGENDARY_EFFECTS) == 16, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 112 件", len(C.EQUIP_ROSTER) == 112, str(len(C.EQUIP_ROSTER)))
+    check("名册 115 件", len(C.EQUIP_ROSTER) == 115, str(len(C.EQUIP_ROSTER)))
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
