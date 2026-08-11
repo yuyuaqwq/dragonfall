@@ -2504,11 +2504,18 @@ class EconomyCmds(CommandBase):
                 return
             target = items[idx - 1]
         else:
+            target = None
             for it in items:
                 d = it["data"]
                 if not d.get("slot") and (item_name in d["name"]):
-                    target = it
-                    break
+                    # v95r75 #380：同名材料/消耗品并存（如材料版『麦酒』mat_mai_jiu vs
+                    # 消耗品版 i_ale）——优先选有效果的消耗品，否则材料版劫持『使用』
+                    # 静默失效（格温 Boss 战实锤：显示"你使用了战斗道具！"但无效果不消耗）
+                    if d.get("heal") or d.get("mana") or d.get("stamina") is not None or d.get("effect"):
+                        target = it
+                        break
+                    if target is None:
+                        target = it
         if not target:
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
@@ -2531,6 +2538,23 @@ class EconomyCmds(CommandBase):
                 battle = inst_row
                 if battle["state"].get("type") != "instance":
                     yield event.plain_result("你不在战斗中！")
+                    return
+                # v95r75 #380：层肃清后(boss=None, 地图模式)使用道具走战斗外路径——
+                # 旧代码仍按战斗内处理：先执行模板+扣道具，再调 _instance_act 被
+                # "当前区域的敌人已被肃清"引导 return → 道具白扣且无效果播报
+                # （格温实测：治疗药水(中)×1 消失、炖菜×3→×2 均静默）
+                if not battle["state"].get("boss"):
+                    ctx = IT.ItemContext(group_id, qq_id, player, d, battle=None, hooks=hooks)
+                    r = IT.TEMPLATES[tpl_name](ctx)
+                    # 战斗外路径模板自行扣除（tpl_heal/mana 内 ctx.hook("remove_item")），
+                    # 与普通战斗外分支一致；consume=False（满血拦截等）则不扣
+                    yield event.plain_result(r.text)
+                    return
+                # v95r75 #380：副本战斗内道具必须 battle_ok（对齐普通战斗分支）——
+                # 旧代码漏检查，材料类道具（如材料版『麦酒』）被当战斗道具执行
+                # none 模板 → 显示"你使用了战斗道具！"但无效果不消耗，误导玩家
+                if not meta["battle_ok"]:
+                    yield event.plain_result("战斗中只能使用恢复类道具或战斗药水！战斗结束才能用其他物品～")
                     return
                 # 副本战斗：道具走副本轮流回合（v95.29 #269——此前漏掉 instance 分流，
                 # 走普通分支会 BT.Battle.from_state + save_battle 把 leader 名下的
