@@ -245,12 +245,19 @@ def town_npc_visible(npc_id: str, npc: dict, sa_id: str, now: datetime.date | No
     """
     if npc.get("funcs"):
         return True
-    now = now or datetime.date.today()
-    # D 时段
+    # D 时段（v95.30b 修复：period 判定必须确定性——now 未传（生产）用真实时钟，
+    # 传 date 对象（测试固定日期）→ 固定白天映射；传 datetime → 按该时间）
     per = npc.get("period")
     if per:
-        if current_period() not in per:
+        if now is None:
+            _cur = current_period()
+        elif isinstance(now, datetime.datetime):
+            _cur = current_period(now)
+        else:
+            _cur = "day"
+        if _cur not in per:
             return False
+    now = now or datetime.date.today()
     # C 随机出现（appear ∈ (0,1]，日期哈希全服一致）
     app = npc.get("appear")
     if app is not None and app < 1.0:

@@ -872,7 +872,10 @@ class WorldCmds(CommandBase):
         子区域切换、返回三处共用同一模板（鱼鱼抓"前往不同区域提示模板不一样"）。"""
         lines = []
         # 本子区域 NPC
-        npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS]
+        # v101.25c 统一模板遗漏修复（#391/#358/#382）：移动展示必须与『地图』/『对话』
+        # 一致——酱油 NPC 按 游走(roam)/概率(appear)/时段(period) 过滤（功能 NPC 恒在）
+        npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS
+                and C.town_npc_visible(nid, C.NPCS[nid], sa["id"])]
         if npcs:
             lines.append("👥 这里的 NPC：")
             for i, n in enumerate(npcs, 1):
