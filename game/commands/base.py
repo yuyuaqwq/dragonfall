@@ -192,6 +192,15 @@ class CommandBase:
             return
         # 开服：放行
         return
+    @staticmethod
+    def _stop_event_safe(event):
+        """v101.17 安全 stop_event：Loopback 事件无此方法（playtest 链路），getattr 保护。"""
+        stop = getattr(event, "stop_event", None)
+        if stop:
+            try:
+                stop()
+            except Exception:
+                pass
 
     def _strip_cmd(self, event: AstrMessageEvent, cmd: str) -> str:
         """从消息中剥离 At 前缀和指令名，返回剩余参数"""

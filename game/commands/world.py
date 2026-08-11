@@ -1924,14 +1924,14 @@ class WorldCmds(CommandBase):
             # 对话树选项选择（复用 talk_choice 有状态分支：『对话 1』同款）
             async for r in self.talk_choice(event):
                 yield r
-            event.stop_event()
+            self._stop_event_safe(event)
             return
         # v101.17 移动模式：开启时裸数字优先赶路（改消息转发 move）
         if db.get_event_state(f"move_mode:{qq_id}"):
             event.message_str = f"前往 {num}"
             async for r in self.move(event):
                 yield r
-            event.stop_event()
+            self._stop_event_safe(event)
             return
         player = self._player(group_id, qq_id)
         if player and not str(player.get("cur_map", "")).startswith("home_"):
@@ -1942,7 +1942,7 @@ class WorldCmds(CommandBase):
                     # 裸数字无"找/对话"前缀 → find_npc 的 _strip_cmd 返回原消息 → 序号分支
                     async for r in self.find_npc(event):
                         yield r
-                    event.stop_event()
+                    self._stop_event_safe(event)
                     return
         return  # 无 NPC 可对话 → 放行（快捷指令 / 无响应）
 

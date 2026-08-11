@@ -93,6 +93,19 @@ async def main():
     print("  [对话 2]", r7[:100].replace("\n", " | "))
     check("『对话 2』命中第 2 个 NPC", "卖糖人" in r7 or "蜜嘴" in r7, r7[:100])
 
+    # ---- 8. 模拟 Loopback 事件（无 stop_event 方法）→ 不抛异常 ----
+    class NoStopEvent(FakeEvent):
+        def stop_event(self):
+            raise AttributeError("_LoopbackEvent has no stop_event")  # 模拟缺失
+    ev8 = NoStopEvent("g1", "1001", "1")
+    db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
+    db.clear_talk_state("g1", "1001")
+    try:
+        r8 = "".join(str(x) for x in await run(m.npc_quick_dialog, ev8))
+        check("无 stop_event 事件不抛异常", bool(r8 and len(r8) > 15), r8[:100])
+    except Exception as e:
+        check("无 stop_event 事件不抛异常", False, repr(e))
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 
