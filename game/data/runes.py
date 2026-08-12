@@ -2,7 +2,7 @@
 """《剑与魔法》数据层 - runes.py(v48 key=effect ID)"""
 RUNES = {
     "rn_brutal": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "brutal",
         "lvl": {
             1: 0.3,
@@ -15,7 +15,7 @@ RUNES = {
         "name": "残忍"
     },
     "rn_armor_pierce": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "armor_pierce",
         "lvl": {
             1: 0.2,
@@ -28,7 +28,7 @@ RUNES = {
         "name": "破甲"
     },
     "rn_burn": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "burn",
         "lvl": {
             1: 1,
@@ -41,7 +41,7 @@ RUNES = {
         "name": "灼热"
     },
     "rn_freeze": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "freeze",
         "lvl": {
             1: 0.1,
@@ -54,7 +54,7 @@ RUNES = {
         "name": "冰霜"
     },
     "rn_chain": {
-        "quality": "传说",
+        "quality": "orange",
         "effect": "chain",
         "lvl": {
             1: [
@@ -76,7 +76,7 @@ RUNES = {
         "name": "连锁"
     },
     "rn_weaken": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "weaken",
         "lvl": {
             1: 0.1,
@@ -89,7 +89,7 @@ RUNES = {
         "name": "虚弱"
     },
     "rn_magic_break": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "magic_break",
         "lvl": {
             1: 0.1,
@@ -102,7 +102,7 @@ RUNES = {
         "name": "破魔"
     },
     "rn_lifesteal": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "lifesteal",
         "lvl": {
             1: 0.05,
@@ -115,7 +115,7 @@ RUNES = {
         "name": "吸血"
     },
     "rn_regen": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "regen",
         "lvl": {
             1: 0.01,
@@ -128,7 +128,7 @@ RUNES = {
         "name": "治愈"
     },
     "rn_barrier": {
-        "quality": "传说",
+        "quality": "orange",
         "effect": "barrier",
         "lvl": {
             1: [
@@ -150,7 +150,7 @@ RUNES = {
         "name": "壁垒"
     },
     "rn_thorns": {
-        "quality": "史诗",
+        "quality": "purple",
         "effect": "thorns",
         "lvl": {
             1: 0.1,
@@ -163,7 +163,7 @@ RUNES = {
         "name": "荆棘"
     },
     "rn_swift": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "swift",
         "lvl": {
             1: 0.08,
@@ -176,7 +176,7 @@ RUNES = {
         "name": "疾风"
     },
     "rn_ironwall": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "ironwall",
         "lvl": {
             1: 0.08,
@@ -189,7 +189,7 @@ RUNES = {
         "name": "铁壁"
     },
     "rn_mana_flow": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "mana_flow",
         "lvl": {
             1: 0.1,
@@ -202,7 +202,7 @@ RUNES = {
         "name": "聚能"
     },
     "rn_scavenger": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "scavenger",
         "lvl": {
             1: 0.15,
@@ -215,7 +215,7 @@ RUNES = {
         "name": "拾荒"
     },
     "rn_exp_bless": {
-        "quality": "稀有",
+        "quality": "blue",
         "effect": "exp_bless",
         "lvl": {
             1: 0.1,
@@ -245,9 +245,9 @@ RUNE_CONFLICTS = [
 ]
 
 RUNE_DROP = {
-    "稀有": 0.018,
-    "史诗": 0.008,
-    "传说": 0.0025
+    "blue": 0.018,
+    "purple": 0.008,
+    "orange": 0.0025
 }
 
 RUNE_EFFECT_NAMES = {

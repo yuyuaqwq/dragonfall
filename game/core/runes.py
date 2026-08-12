@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ..data import RUNES, RUNE_CONFLICTS, RUNE_LEVEL_ROMAN
+from ..data import RUNES, RUNE_CONFLICTS, RUNE_LEVEL_ROMAN, QUALITY
 
 
 """《剑与魔法》数据层 - runes.py"""
@@ -40,7 +40,7 @@ def rune_item(effect: str, lvl: int = 1) -> dict:
                 except Exception:
                     pass
             return {
-                "name": f"{r['quality']}符文·{r.get('name', name)} {roman}",
+                "name": f"{QUALITY[r['quality']]['name']}符文·{r.get('name', name)} {roman}",
                 "type": "符文",
                 "effect": effect,
                 "lvl": lv,

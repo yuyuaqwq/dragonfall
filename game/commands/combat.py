@@ -1389,17 +1389,17 @@ class CombatCmds(CommandBase):
                     break
                 roll -= w * 3
         else:
-            if roll < C.RUNE_DROP["稀有"]:
-                rune_quality = "稀有"
+            if roll < C.RUNE_DROP["blue"]:
+                rune_quality = "blue"
         if rune_quality:
             cand_runes = [n for n, r in C.RUNES.items() if r["quality"] == rune_quality]
             if cand_runes:
                 rname = random.choice(cand_runes)
                 r_def = C.RUNES[rname]
                 # 等级：稀有 1-2 级，史诗 1-3 级，传说 2-3 级（高等级更稀有）
-                if rune_quality == "稀有":
+                if rune_quality == "blue":
                     r_lvl = random.randint(1, 2)
-                elif rune_quality == "史诗":
+                elif rune_quality == "purple":
                     r_lvl = random.randint(1, 3)
                 else:
                     r_lvl = random.randint(2, 3)

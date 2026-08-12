@@ -409,7 +409,7 @@ class EconomyCmds(CommandBase):
         fname = fish["name"]
         fq = fish.get("quality", "white")
         # 品质标记：白档不显示，绿/蓝/紫/橙 ✦品质（16 章 1.1 定稿）
-        q_mark = "" if fq == "white" else f"✦{C.FISH_QUALITY_CN.get(fq, fq)}"
+        q_mark = "" if fq == "white" else f"✦{C.QUALITY.get(fq, {}).get('name', fq)}"
         q_name = f"{q_mark}·{fname}" if q_mark else fname
         # 垂钓经验：白 1 / 绿 1 / 蓝 2 / 紫 3 / 橙 5（16 章 2.6）
         f_exp = C.FISH_EXP.get(fq, 1)
@@ -1923,18 +1923,18 @@ class EconomyCmds(CommandBase):
             if stone_name:
                 st = C.RUNES[stone_name]
                 lines = [
-                    f"💎 【{st['quality']}符文·{stone_name}】",
+                    f"💎 【{C.QUALITY[st['quality']]['name']}符文·{stone_name}】",
                     "━━━━━━━━━━━━",
                     f"效果：{st['desc']}",
-                    f"品质：{st['quality']}",
+                    f"品质：{C.QUALITY[st['quality']]['name']}",
                     f"等级：I / II / III(等级越高效果越强，高等级更稀有)",
                     f"冲突：{'、'.join(C.RUNE_EFFECT_NAMES.get(x, x) for x, y in C.RUNE_CONFLICTS if y == st['effect'] or x == st['effect'])}(不能共存)" if any(y == st['effect'] or x == st['effect'] for x, y in C.RUNE_CONFLICTS) else "冲突：无",
                     f"获取：打怪概率掉落(精英/Boss 概率更高)",
-                    f"使用：『附魔 <装备名> {st['quality']}符文·{stone_name}』",
+                    f"使用：『附魔 <装备名> {C.QUALITY[st['quality']]['name']}符文·{stone_name}』",
                 ]
                 yield event.plain_result("\n".join(lines))
                 return
-            yield event.plain_result("没找到这颗符文！可用：\n" + "\n".join(f"  💎 {s['quality']}符文·{nm}({s['desc']})" for nm, s in C.RUNES.items()))
+            yield event.plain_result("没找到这颗符文！可用：\n" + "\n".join(f"  💎 {C.QUALITY[s['quality']]['name']}符文·{nm}({s['desc']})" for nm, s in C.RUNES.items()))
             return
         # 2. 材料查询（含词条材料来源）
         if raw in C.MATERIALS or any(kw in raw for kw in C.MATERIALS):

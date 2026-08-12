@@ -9,10 +9,10 @@ import random
 from ..data.fishing import (
     FISHING_SPOTS,
     FISH_POOL,
-    FISH_QUALITY_ORDER,
     FISH_QUALITY_WEIGHTS,
     FISH_COLLECT,
 )
+from ..data import FISH_QUALITY_ORDER  # v101.25i6 别名：= QUALITY_ORDER
 
 
 def _quality_weights(prof_lv: int) -> list:

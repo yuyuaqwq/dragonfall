@@ -53,9 +53,7 @@ FISHING_SPOTS = {
     },
 }
 
-# 品质档位顺序（与 FISH_QUALITY_WEIGHTS 行对应）
-FISH_QUALITY_ORDER = ["white", "green", "blue", "purple", "orange"]
-
+# 品质档位顺序：v101.25i6 统一引用 QUALITY_ORDER（见 data/__init__.py 别名）
 # 品质五档权重表：垂钓等级 Lv.1/3/5/7/9 查表（16 章 2.2，总和=100）
 # 中间等级（2/4/6/8）由 core/fishing.py 线性插值。
 # 单调性：白递减、绿/蓝/紫/橙递增（等级越高成长越高）。
@@ -67,12 +65,7 @@ FISH_QUALITY_WEIGHTS = {
     9: [41, 29, 20, 9, 1.0],
 }
 
-# 品质中文名（白档不显示 ✦ 标记）
-FISH_QUALITY_CN = {
-    "white": "普通", "green": "优良", "blue": "稀有",
-    "purple": "史诗", "orange": "传说",
-}
-
+# 品质中文名：v101.25i6 统一走 QUALITY[q]["name"]（白档不显示 ✦ 标记）
 # 垂钓经验：白 1 / 绿 1 / 蓝 2 / 紫 3 / 橙 5（16 章 2.6）
 FISH_EXP = {"white": 1, "green": 1, "blue": 2, "purple": 3, "orange": 5}
 
