@@ -2,90 +2,12 @@
 """奥兰迪亚·余烬纪年 数据层 - shop.py（阶段四重写，2026-08-06）
 
 商店体系（07 章 6.2 城镇特色 + 6.3 消耗品 + 13 章 2.1/2.2/3/4）：
-- SHOP_ITEMS：key = 城镇地图 ID（24 城镇，按等级递进补货）
+- SHOP_SUBAREA_ITEMS：key = 子区域 ID（v101.25h 鱼鱼拍板：商店配货只挂子区域，不挂城镇）
 - SHOP_WEAPONS：key = 城镇地图 ID，值 = (名字, 武器类型英文ID, 等级, 品质ID)
   武器名来自 10 章装备名册（商店可售的基础/进阶武器）
+- SHOP_ITEMS（城镇级）已于 v101.28g 删除——商店要么关联 NPC 要么关联子区域，
+  无"城镇级兜底配货"（鱼鱼拍板：这玩意直接删了）
 """
-SHOP_ITEMS = {
-    # ---- 南境（Lv.1-30） ----
-    "oak_town": [          # 橡木镇：基础补给
-        "i_treat_s", "i_mana_s", "i_bread", "i_ale", "i_scroll_escape",
-    ],
-    "maple_village": [     # 枫橡村
-        "i_treat_s", "i_mana_s", "i_bread", "i_ale",
-    ],
-    "white_deer": [        # 白鹿城 南境首府
-        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_meat_skewer", "i_ale",
-    ],
-    "ironharbor": [        # 铁港城 冒险者圣地：全种类
-        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_meat_skewer", "i_stew", "i_scroll_teleport",
-    ],
-    "silver_brook": [      # 银溪镇
-        "i_treat_m", "i_mana_m", "i_meat_skewer", "i_ale",
-    ],
-    # ---- 中域（Lv.25-55） ----
-    "dawn_city": [         # 晨曦城 王都：圣光/药剂
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_holy_water", "i_str_potion",
-        "i_def_potion", "i_spd_potion", "i_scroll_purify", "i_holy_charm",
-    ],
-    "ironshield_town": [   # 铁盾镇
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion",
-    ],
-    "jade_port": [         # 翡翠港（外域·群岛门户）
-        "i_treat_m", "i_mana_m", "i_meat_skewer", "i_ale", "i_scroll_teleport",
-    ],
-    "shell_town": [        # 贝壳镇
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_meat_skewer",
-    ],
-    "moon_gate": [         # 月冠隘口
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_elf_fruit",
-    ],
-    "star_song": [         # 星歌镇
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_elf_fruit",
-    ],
-    # ---- 西境/无尽海（Lv.45-78） ----
-    "moon_court": [        # 月冠王庭 精灵主城：月系
-        "i_treat_l", "i_mana_l", "i_elf_fruit", "i_full_potion", "i_moon_dew",
-    ],
-    "nameless_harbor": [   # 无名港
-        "i_treat_l", "i_mana_l", "i_meat_skewer", "i_stew", "i_scroll_teleport",
-    ],
-    "pearl_city": [        # 珍珠城
-        "i_treat_l", "i_mana_l", "i_full_potion", "i_scroll_teleport",
-    ],
-    # ---- 北境（Lv.60-95） ----
-    "frost_horn": [        # 霜角堡 北境主城：抗寒
-        "i_treat_l", "i_mana_l", "i_full_potion", "i_dwarf_liquor",
-    ],
-    "anvil_fort": [        # 铁砧要塞 矮人主城：符文/烈酒
-        "i_treat_l", "i_mana_l", "i_dwarf_liquor", "i_full_potion",
-    ],
-    "cold_ridge": [        # 寒脊营地
-        "i_treat_l", "i_mana_l", "i_stew",
-    ],
-    "aurora_town": [       # 极光镇
-        "i_treat_l", "i_mana_l", "i_ale",
-    ],
-    "deep_tunnel": [       # 深岩隧道（地底入口）
-        "i_treat_l", "i_mana_l", "i_bread",
-    ],
-    "under_market": [      # 地底集市
-        "i_treat_l", "i_mana_l", "i_full_potion",
-    ],
-    # ---- 东境/风翼群岛（Lv.80-100） ----
-    "dragon_pass": [       # 龙脊山口：龙裔
-        "i_treat_l", "i_mana_l", "i_full_potion", "i_battlecry_potion",
-    ],
-    "dragon_kin": [        # 龙裔聚落
-        "i_treat_l", "i_mana_l", "i_dragon_scale_potion",
-    ],
-    "ember_camp": [        # 灰烬营地
-        "i_treat_l", "i_mana_l", "i_battlecry_potion",
-    ],
-    "wind_city": [         # 风翼城
-        "i_treat_l", "i_mana_l", "i_holy_charm", "i_scroll_purify",
-    ],
-}
 
 # v95.4 野外行商货物（游商·老马等 trade 型野外 NPC 在场时可用）
 SHOP_WILD_TRADE = [
@@ -94,7 +16,7 @@ SHOP_WILD_TRADE = [
 
 # ================= v101.25h 子区域独立配货（鱼鱼：草药铺不该卖吃的，按子区域配置） =================
 # key = 子区域 ID，value = 该店专属货物（物品 ID 列表）。
-# 未在此表配置的子区域回退到 SHOP_ITEMS（城镇级）——新子区域不配置也不会空店。
+# v101.28g：无城镇级兜底——所有 _at_shop 放行的子区域必须在此显式配货（47 处全覆盖审计）。
 # 设计分工：药剂店(herb)→药水/药剂；酒馆旅店(tavern)→食物/饮品；集市商行(general)→卷轴/杂物/护符；
 # 铁匠工坊(smith)→武器+锻造材料（is_smith 分支），可追加军需补给。
 SHOP_SUBAREA_ITEMS = {

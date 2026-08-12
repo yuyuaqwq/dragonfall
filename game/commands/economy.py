@@ -2951,11 +2951,11 @@ class EconomyCmds(CommandBase):
                 q = C.QUALITY[wq]
                 entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         else:
-            # 普通商店：消耗品 + 武器（v101.25h 子区域独立配货，回退城镇 SHOP_ITEMS）
+            # 普通商店：消耗品 + 武器（v101.28g：只挂子区域配货，无城镇级兜底）
             sa_kind = self._sa_shop_kind(player)
             sa_id = player.get("cur_subarea") or ""
             sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
-            shop_items = sa_items if sa_items is not None else (C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, []))
+            shop_items = sa_items if sa_items is not None else []
             trader = self._wild_trader_here(player, group_id, qq_id)
             if not shop_items and trader:
                 shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
@@ -3006,13 +3006,11 @@ class EconomyCmds(CommandBase):
         sa_kind = self._sa_shop_kind(player)
         sa_id = player.get("cur_subarea") or ""
         sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
-        # v101.25h：子区域独立配货优先；smith 分支也吃子区域军需补给；无配置回退城镇
+        # v101.28g：子区域独立配货（无城镇级兜底）；smith 分支无配货则空
         if sa_items is not None:
             shop_items = sa_items
-        elif is_smith:
-            shop_items = []
         else:
-            shop_items = C.SHOP_ITEMS.get(cur) or C.SHOP_ITEMS.get(area_id, [])
+            shop_items = []
         if not shop_items and not is_smith and self._wild_trader_here(player, group_id, qq_id):
             shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
