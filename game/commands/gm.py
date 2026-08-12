@@ -61,6 +61,11 @@ def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
 
     每条节点 = 一个角色的聊天记录（nickname=角色名，uin=bot 自己），
     开头加一条总览节点。QQ 端显示为"聊天记录转发"，点开是角色轮流说话。
+
+    ⚠️ v101.28t 内容压缩（NapCat ARK 限制）：fromPacketMsg 会把每条消息的
+    完整文本 preview 塞进 ARK bytesData，总内容太大（实测 14K 字）→
+    retcode 1200 发送失败（55 字小内容成功）。故每节点 ≤300 字、
+    每角色 ≤3 段、总节点 ≤18——接近真实聊天记录的观感。
     """
     # 文件头标题（可选）："# Playtest 第 97 轮 · 角色交互实录" → 进总览节点
     m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
@@ -72,6 +77,8 @@ def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
             content=[Plain("📡 {}（6 角色战况，点开查看）".format(title))],
         )
     ]
+    MAX_NODE_CHARS = 300    # 单节点字数（ARK preview 安全值）
+    MAX_SEG_PER_ROLE = 3    # 每角色最多节点数（取最新）
     for sec in re.split(r"^## ", content, flags=re.M):
         sec = sec.strip()
         if not sec or sec.startswith("# "):
@@ -84,8 +91,18 @@ def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
         # 角色名清洗："🧵 格温 (main)" → "格温"
         name = re.sub(r"^[^\w\u4e00-\u9fff]+", "", role)
         name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or role
-        for chunk in _chunk_text(body, 3800):
-            nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
+        # 段落按 ▶ 指令切分（实录格式：▶ 『指令』\n回复体）
+        segs = re.split(r"(?=▶)", body)
+        segs = [s.strip() for s in segs if s.strip()][-MAX_SEG_PER_ROLE:]
+        for seg in segs:
+            for chunk in _chunk_text(seg, MAX_NODE_CHARS):
+                nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
+    # 总节点数兜底（ARK 资源上限）：超出截断，尾部提示完整版位置
+    if len(nodes) > 18:
+        nodes = nodes[:18]
+        nodes.append(
+            Node(uin=bot_qq, name="格温", content=[Plain("…(更多交互见插件目录 scripts/{})".format(label))])
+        )
     return nodes
 
 

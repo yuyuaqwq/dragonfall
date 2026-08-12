@@ -88,6 +88,11 @@ class _LoopbackEvent:
     def get_sender_id(self):
         return self._sender
 
+    def get_self_id(self):
+        # v101.28s：合并转发节点 uin 用（bot 自身 QQ = NapCat 3473145972，
+        # 前端显示为"格温"发送的聊天记录）
+        return "3473145972"
+
     def get_message_str(self):
         return self.message_str
 
