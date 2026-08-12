@@ -121,6 +121,42 @@ COOKING_RECIPES = {
         "cost": {"mat_you_long_lin": 1, "mat_mian_fen": 2, "mat_jiang_guo": 1},
         "product": {"i_dragon_egg_pancake": 1},
     },
+    # ---- v102.3 生活技能差异化：稀有食谱（限定材料链：采集→烹饪） ----
+    "cook_night_mushroom_soup": {
+        "name": "夜雾菇浓汤",
+        "desc": "月光下采的夜雾菇慢火煨成，汤面浮着微光",
+        "min_lv": 3,
+        "cost": {"mat_night_mushroom": 2},
+        "product": {"i_night_mushroom_soup": 1},
+    },
+    "cook_moon_tea": {
+        "name": "月光草茶",
+        "desc": "月光草焙干冲泡，茶汤清冽回甘，饮后神清气爽",
+        "min_lv": 3,
+        "cost": {"mat_yue_guang_cao": 2},
+        "product": {"i_moon_tea": 1},
+    },
+    "cook_aurora_honey": {
+        "name": "极光花蜜",
+        "desc": "极光花浸蜜封存，琥珀色的蜜里流转着极光",
+        "min_lv": 5,
+        "cost": {"mat_aurora_flower": 1, "mat_mian_fen": 1},
+        "product": {"i_aurora_honey": 1},
+    },
+    "cook_dragon_blood_hotpot": {
+        "name": "龙血火锅",
+        "desc": "龙血草打底的猛火火锅，辣得人热血沸腾",
+        "min_lv": 5,
+        "cost": {"mat_long_xue_cao": 1, "mat_shou_rou": 3},
+        "product": {"i_dragon_blood_hotpot": 1},
+    },
+    "cook_thunder_skewer": {
+        "name": "雷雨藤烤串",
+        "desc": "雷雨藤缠着兽肉烤得滋滋作响，入口有酥麻电光",
+        "min_lv": 4,
+        "cost": {"mat_thunder_vine": 2},
+        "product": {"i_thunder_skewer": 1},
+    },
 }
 
 COOKING_REQUIRED_LV = {
@@ -128,3 +164,4 @@ COOKING_REQUIRED_LV = {
     "cook_skewer": 1,
     "cook_gold_feast": 2,
 }
+

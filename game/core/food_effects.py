@@ -115,6 +115,14 @@ def _f_h_charge(battle, player, dmg, logs):
         logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
 
 
+@register(FOOD_HIT_EFFECTS, "static")
+def _f_h_static(battle, player, dmg, logs):
+    """雷雨藤烤串（v102.3）：静电麻痹——攻击 20% 令敌方减速（2 回合）"""
+    if random.random() < 0.20 and battle.enemy.get("hp", 0) > 0:
+        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
+        logs.append(f"⚡ 静电麻痹！【{battle.enemy.get('name', '敌人')}】速度下降！")
+
+
 # ================= 2. 受击效果（_food_on_taken） =================
 
 @register(FOOD_TAKEN_EFFECTS, "counter")
@@ -137,6 +145,15 @@ def _f_t_thorns(battle, player, ctx, logs):
         rd = int(ctx["dmg"] * 0.30)
         battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
         logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
+
+
+@register(FOOD_TAKEN_EFFECTS, "aurora_guard")
+def _f_t_aurora_guard(battle, player, ctx, logs):
+    """极光花蜜（v102.3）：极光庇护——本场战斗受击伤害 -15%（稳定减伤，改 ctx['out']）"""
+    if ctx.get("out", 0) > 0:
+        reduced = int(ctx["out"] * 0.15)
+        ctx["out"] = max(1, ctx["out"] - reduced)
+        logs.append(f"✨ 极光庇护！伤害减免 {reduced} 点！")
 
 
 # ================= 3. 回合开始效果（_food_turn_start） =================
@@ -175,4 +192,6 @@ FOOD_EFFECT_NAMES = {
     "element_ice": "元素·冰", "regen": "回春", "meditate": "冥想",
     "thorns": "反伤", "precise": "精准", "execute": "处决", "pierce": "贯穿",
     "element_fire": "元素·火", "charge": "蓄力", "dawn_crown": "晨曦祝福",
+    # v102.3 生活技能差异化新效果
+    "aurora_guard": "极光庇护", "static": "静电麻痹",
 }

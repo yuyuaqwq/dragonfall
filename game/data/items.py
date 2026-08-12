@@ -1881,6 +1881,13 @@ MATERIALS = {
     "mat_zuo_lang_quan_chi": {"price": 110, "name": "座狼犬齿", "desc": "狼王座下凶兽的犬齿，锋利得能划开铁甲"},
     "i_stone_upgrade": {"price": 200, "name": "强化石", "desc": "炼金提纯的魔力矿石，铁匠铺高价收购，强化装备的良材"},
     "i_stone_refine": {"price": 400, "name": "精炼强化石", "desc": "二次精炼的强化石，光泽内敛，价值不菲"},
+    # ---- v102.3 生活技能差异化：限定材料（采集时机限定 + 深矿专属） ----
+    "mat_night_mushroom": {"price": 120, "name": "夜雾菇", "desc": "只在月光下撑开伞盖的菌菇，伞面凝着细碎的夜露"},
+    "mat_aurora_flower": {"price": 300, "name": "极光花", "desc": "冬夜极光映照下才绽放的花，花瓣流光溢彩，转瞬即逝"},
+    "mat_thunder_vine": {"price": 250, "name": "雷雨藤", "desc": "雷雨过后藤蔓上残留电弧，触碰会微微发麻"},
+    "mat_moon_dew": {"price": 180, "name": "月露", "desc": "子夜草叶上凝结的露珠，盛在玉瓶里能存住月光"},
+    "mat_deep_crystal": {"price": 350, "name": "深渊水晶", "desc": "矿洞最深处才有的幽蓝水晶，内里仿佛有星光流转"},
+    "mat_star_iron": {"price": 600, "name": "星铁", "desc": "深隧里挖出的陨铁，锻打时溅出星星点点的火光"},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============
@@ -2418,6 +2425,31 @@ CONSUMABLES = {
                       "desc": "战斗中使用，暴击率＋20%(3 回合)"},
     "i_lucky_charm": {"name": "幸运护符", "price": 300, "effect": "lucky",
                       "desc": "提升打怪金币与材料掉落(10 分钟)"},
+    # ---- v102.3 生活技能差异化：稀有食谱产物（烹饪） ----
+    "i_night_mushroom_soup": {"name": "夜雾菇浓汤", "price": 50, "food_effect": "regen", "heal": 0.3, "stamina": 25,
+                              "desc": "回复 30% HP＋25 体力（月光珍馐）；战斗中吃下获得【回春】：每回合回复 8% 生命（3 回合）"},
+    "i_moon_tea": {"name": "月光草茶", "price": 45, "food_effect": "meditate", "mana": 0.25, "stamina": 15,
+                   "desc": "回复 25% MP＋15 体力（月下清茗）；战斗中喝下获得【冥想】：每回合回复 6% 魔力（3 回合）"},
+    "i_aurora_honey": {"name": "极光花蜜", "price": 90, "food_effect": "aurora_guard", "heal": 0.2, "stamina": 20,
+                       "desc": "回复 20% HP＋20 体力（极光珍酿）；战斗中吃下获得【极光庇护】：受击伤害－15%（本场战斗）"},
+    "i_dragon_blood_hotpot": {"name": "龙血火锅", "price": 110, "food_effect": "charge", "heal": 0.4, "stamina": 40,
+                              "desc": "回复 40% HP＋40 体力（猛火珍馐）；战斗中吃下获得【蓄力】：10% 追加 50% 伤害"},
+    "i_thunder_skewer": {"name": "雷雨藤烤串", "price": 60, "food_effect": "static", "heal": 0.15, "stamina": 20,
+                         "desc": "回复 15% HP＋20 体力（酥麻串烧）；战斗中吃下获得【静电麻痹】：攻击 20% 令敌减速"},
+    # ---- v102.3 生活技能差异化：稀有药水产物（炼金） ----
+    "i_moon_dew_essence": {"name": "月露精华", "price": 120, "effect": "next_atk_up",
+                           "desc": "战斗中使用，下一次攻击伤害＋50%（月华凝露）"},
+    "i_abyss_crystal_potion": {"name": "深渊药剂", "price": 200, "effect": "magic_resist",
+                               "desc": "战斗中使用，本场战斗魔法伤害减免（深渊幽蓝）"},
+    "i_star_iron_agent": {"name": "星铁强化剂", "price": 350, "effect": "enhance_boost",
+                          "desc": "使用后下一次强化装备必定成功（星火淬炼）"},
+    # ---- v102.3 生活技能差异化：鱼饵（烹饪/炼金产出，垂钓品质加权） ----
+    "it_glow_bait": {"name": "萤光鱼饵", "price": 60, "effect": "bait_glow",
+                     "desc": "炼金调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)"},
+    "it_dough_bait": {"name": "面团鱼饵", "price": 20, "effect": "bait_dough",
+                      "desc": "揉得松软的麦粉饵团——下次垂钓绿/蓝档概率提升(仅 1 次)"},
+    "it_blood_bait": {"name": "血饵", "price": 35, "effect": "bait_blood",
+                      "desc": "浸透兽血的饵团，凶猛的掠食鱼最爱的味道——下次垂钓稀有鱼种概率提升(仅 1 次)"},
 }
 
 # ================= 材料分类与品质（v101.25e 鱼鱼拍板：按类型分设施出售 + 全服通用品质） =================

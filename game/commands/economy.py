@@ -317,6 +317,10 @@ class EconomyCmds(CommandBase):
                         if m["price"] <= 20 + _map_lv * 12]
             if not cand:
                 cand = list(C.MATERIALS.keys())
+        # v102.3 限定采集物（时机钩子）：当前时段/季节/天气命中 → 低权重追加
+        special = self._gather_cond_roll(cur_map or "")
+        if special:
+            cand = cand + [special]
         # 副业等级加成：Lv.3+ 概率采到 2 份材料；Lv.6+ 概率 3 份
         n = _rnd.randint(1, 2)
         if prof_lv >= 3 and _rnd.random() < 0.3:
@@ -324,6 +328,38 @@ class EconomyCmds(CommandBase):
         if prof_lv >= 6 and _rnd.random() < 0.25:
             n += 1
         return [_rnd.choice(cand) for _ in range(n)]
+
+    def _gather_cond_roll(self, cur_map: str) -> str | None:
+        """v102.3 限定采集物判定：返回命中的材料 ID（未命中返回 None）。
+
+        条件：night=20:00-05:00 / morning=05:00-08:00 / winter=冬季 / rain=雨天；
+        组合条件用 '+'（如 "winter+night" 需全部命中）。命中后按权重随机选一个。
+        """
+        import random as _rnd
+        pool = getattr(C, "GATHER_COND_POOLS", {}).get(cur_map or "")
+        if not pool:
+            return None
+        period = C.current_period()
+        season = C.current_season()
+        weather = C.today_weather(cur_map or None)
+        hit = []
+        for mid, w, cond in pool:
+            parts = cond.split("+")
+            ok = True
+            for p in parts:
+                if p == "night" and period != "night":
+                    ok = False
+                elif p == "morning" and period != "morning":
+                    ok = False
+                elif p == "winter" and season != "winter":
+                    ok = False
+                elif p == "rain" and weather != "rain":
+                    ok = False
+            if ok:
+                hit.extend([mid] * w)
+        if not hit:
+            return None
+        return _rnd.choice(hit)
 
     # ---------------- 等待型副业（v55：垂钓/采集/挖掘） ----------------
     # 基准等待（秒）随机范围：fish/gather 45~75，mining 65~115；副业等级每级 -5%（上限 -50%），保底 10 秒
@@ -411,10 +447,24 @@ class EconomyCmds(CommandBase):
             return None
         prof_lv = db.get_prof_level(group_id, qq_id, "fishing")
         spot = st.get("spot", "水边")
+        # v102.3 鱼饵：使用鱼饵后本次垂钓品质/品种加权（一次性，结算后清除）
+        bait = None
+        bait_line = ""
+        _braw = db.get_event_state(f"bait_{qq_id}")
+        if _braw:
+            try:
+                _b = json.loads(_braw)
+                bait = _b.get("kind")
+            except (ValueError, TypeError):
+                bait = None
+            db.set_event_state(f"bait_{qq_id}", "")
+            if bait:
+                _bait_cn = {"glow": "萤光鱼饵", "dough": "面团鱼饵", "blood": "血饵"}
+                bait_line = f"\n✨ 鱼饵【{_bait_cn.get(bait, bait)}】生效了！"
         # v83 16 章 4.x：彩蛋收藏鱼（独立判定，纯收藏惊喜）
         _cf = C.roll_collect_fish(st.get("spot_map"), C.current_period() == "night")
-        # 9.3：钓点差异化（禁出档位 + 品种限定水域），roll_fish 按 16 章五档权重表
-        fish = C.roll_fish(prof_lv, st.get("spot_map"))
+        # 9.3：钓点差异化（禁出档位 + 品种限定水域），roll_fish 按 16 章五档权重表；v102.3 带鱼饵
+        fish = C.roll_fish(prof_lv, st.get("spot_map"), bait)
         db.bump_fishing(group_id, qq_id)
         fname = fish["name"]
         fq = fish.get("quality", "white")
@@ -523,7 +573,7 @@ class EconomyCmds(CommandBase):
                          "price": fish["price"], "quality": fq})
             _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}{_life_line}")
+                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}{_life_line}{bait_line}")
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""
@@ -591,21 +641,26 @@ class EconomyCmds(CommandBase):
         prof = db.get_prof_level(group_id, qq_id, "mining")
         _ORE_KW = ["矿石", "秘银", "精钢", "结晶", "核心", "碎片", "石", "精华"]
         cur_map = player.get("cur_map", "")
-        # v101.28k 地图矿石池优先：复用该地图采集池里的矿石类材料（矿场图=矿池，
-        # 植物图无矿则按地图等级价格区间兜底）→ 不同地图挖到不同档次的矿
-        pool = C.GATHER_MAP_POOLS.get(cur_map)
-        if pool:
-            ores = [m for m, _w in pool for _ in range(_w)
-                    if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in _ORE_KW)]
+        # v102.3 深矿池优先：矿洞类地图（山丘矿洞/深隧/海蚀洞窟）按权重出专属矿
+        deep = getattr(C, "MINING_DEEP_POOLS", {}).get(cur_map)
+        if deep:
+            ores = [m for m, _w in deep for _ in range(_w)]
         else:
-            ores = []
-        if not ores:
-            ores = [m for m, mm in C.MATERIALS.items()
-                    if any(k in mm.get("name", "") for k in _ORE_KW)]
-            _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
-            cand = [m for m in ores if 3 + _map_lv * 4 <= C.MATERIALS[m]["price"] <= 20 + _map_lv * 12]
-            if cand:
-                ores = cand
+            # v101.28k 地图矿石池优先：复用该地图采集池里的矿石类材料（矿场图=矿池，
+            # 植物图无矿则按地图等级价格区间兜底）→ 不同地图挖到不同档次的矿
+            pool = C.GATHER_MAP_POOLS.get(cur_map)
+            if pool:
+                ores = [m for m, _w in pool for _ in range(_w)
+                        if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in _ORE_KW)]
+            else:
+                ores = []
+            if not ores:
+                ores = [m for m, mm in C.MATERIALS.items()
+                        if any(k in mm.get("name", "") for k in _ORE_KW)]
+                _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
+                cand = [m for m in ores if 3 + _map_lv * 4 <= C.MATERIALS[m]["price"] <= 20 + _map_lv * 12]
+                if cand:
+                    ores = cand
         # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
         rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
         is_rare = False
@@ -1657,8 +1712,12 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"强化 +{cur_enh} → +{cur_enh+1} 需要 {info['cost']} 金币，你只有 {player['gold']}。")
             return
         db.update_player(group_id, qq_id, gold=player["gold"] - info["cost"])
+        # v102.3 星铁强化剂：使用后下一次强化必定成功（一次性，成功后清除）
+        _boost = db.get_event_state(f"enhance_boost_{qq_id}")
+        if _boost:
+            db.set_event_state(f"enhance_boost_{qq_id}", "")
         # 掷强化
-        if random.random() < info["rate"]:
+        if _boost or random.random() < info["rate"]:
             d["enhance"] = cur_enh + 1
             if target.get("_equipped"):
                 # v101.25 #329：已装备武器强化成功 → 写回装备槽位（属性实时生效）

@@ -192,4 +192,28 @@ ALCHEMY_RECIPES = {
         "desc": "战斗中使用，本回合攻击＋30%、防御＋20%",
         "name": "龙涎药剂"
     },
+
+    # ---- v102.3 生活技能差异化：稀有药水（限定材料链：采集/深矿→炼金） ----
+    "al_yue_lu_jing_hua": {
+        "cost": {"mat_moon_dew": 2, "mat_kong_ping": 1},
+        "product": {"i_moon_dew_essence": 1},
+        "need_prof_lv": 4,
+        "desc": "月露凝炼的精华，战斗中喝下后下一次攻击伤害大幅提升",
+        "name": "月露精华"
+    },
+    "al_shen_yuan_yao_ji": {
+        "cost": {"mat_deep_crystal": 1, "mat_kong_ping": 1},
+        "product": {"i_abyss_crystal_potion": 1},
+        "need_prof_lv": 5,
+        "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性",
+        "name": "深渊药剂"
+    },
+    "al_xing_tie_qiang_hua_ji": {
+        "cost": {"mat_star_iron": 1, "i_stone_upgrade": 1},
+        "product": {"i_star_iron_agent": 1},
+        "need_prof_lv": 6,
+        "desc": "星铁淬炼的强化剂，下一次强化装备必定成功",
+        "name": "星铁强化剂"
+    },
 }
+

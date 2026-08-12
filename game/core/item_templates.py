@@ -18,7 +18,9 @@
 - 加道具：data/items.py CONSUMABLES 加一条 dict（heal/mana/stamina/effect 组合即可，无需新代码）
 - 加新玩法：register 一个新模板函数（~15 行），之后全数据化
 """
+import json
 import random
+import time
 
 TEMPLATES = {}
 META = {}
@@ -314,6 +316,42 @@ def tpl_lucky(ctx):
     return ItemResult(
         text="🍀 幸运护符泛起微光，你的气息变得祥和……\n"
              "💡 10 分钟内打怪金币＋50%、材料掉落＋1！")
+
+
+# ---- v102.3 生活技能差异化：鱼饵（垂钓品质加权，仅 1 次） ----
+_BAIT_INFO = {
+    "bait_glow": ("萤光鱼饵", "下次垂钓紫/橙档概率大幅提升"),
+    "bait_dough": ("面团鱼饵", "下次垂钓绿/蓝档概率提升"),
+    "bait_blood": ("血饵", "下次垂钓稀有鱼种概率提升"),
+}
+
+
+def _make_bait_tpl(key):
+    def tpl_bait(ctx):
+        db = ctx._db()
+        if ctx.battle:
+            return ItemResult(text="鱼饵只能在水边使用，战斗结束后再挂饵吧～", consume=False)
+        name, tip = _BAIT_INFO[key]
+        ctx.hook("remove_item")
+        db.set_event_state(f"bait_{ctx.qq_id}", json.dumps({"kind": key.split("_")[1], "ts": int(time.time())}, ensure_ascii=False))
+        return ItemResult(text=f"🎣 你给鱼钩挂上了【{name}】——{tip}！(仅限下一次垂钓)")
+    return tpl_bait
+
+
+for _k in _BAIT_INFO:
+    TEMPLATES[_k] = _make_bait_tpl(_k)
+    META[_k] = {"battle_ok": False}
+
+
+@register("enhance_boost")
+def tpl_enhance_boost(ctx):
+    """星铁强化剂（v102.3）：下一次强化装备必定成功。"""
+    db = ctx._db()
+    if ctx.battle:
+        return ItemResult(text="强化剂要留着到铁匠铺用，战斗中用不上～", consume=False)
+    ctx.hook("remove_item")
+    db.set_event_state(f"enhance_boost_{ctx.qq_id}", "1")
+    return ItemResult(text="🔧 星铁强化剂渗入装备纹理，泛着星火微光……\n💡 下次『强化』必定成功！")
 
 
 @register("clear_red")

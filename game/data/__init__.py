@@ -77,6 +77,7 @@ from .races import RACES  # noqa: F401
 from .achievements import ACHIEVEMENTS  # noqa: F401
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401
 from .gather_pools import GATHER_MAP_POOLS  # noqa: F401
+from .gather_pools import GATHER_COND_POOLS, MINING_DEEP_POOLS  # noqa: F401 v102.3 限定采集/深矿
 from .poi_pools import WISH_POOL, CAMPFIRE_FOOD_POOL, HERB_POOL  # noqa: F401
 from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401

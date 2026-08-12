@@ -84,3 +84,27 @@ GATHER_MAP_POOLS = {
     "windvale": [("mat_feng_yu_jie_jing", 25), ("mat_feng_yu_lu_jiao", 20), ("mat_feng_zhi_yu", 20), ("mat_ying_guang_hu_wei", 15), ("mat_lin_yu_zhi_ye", 20)],
     "winter_lake": [("mat_hu_bing_he_xin", 25), ("mat_bing_jing", 20), ("mat_bing_she_lin", 20), ("mat_dong_yu_lin", 15), ("mat_bing_tong_zhi_zhu", 20)],
 }
+
+# ================= v102.3 生活技能差异化：限定采集物（时机限定） =================
+# 格式：地图ID → [(材料ID, 权重, 条件)]；条件字符串：
+#   night=20:00-05:00  morning=05:00-08:00  winter=冬季  rain=雨天（可组合 "winter+night"）
+# 结算时当前条件命中 → 从该池按权重额外追加一次产出（权重相对低，稀有感）
+GATHER_COND_POOLS = {
+    "silverwood": [("mat_night_mushroom", 8, "night"), ("mat_moon_dew", 6, "night")],
+    "misty_swamp": [("mat_night_mushroom", 10, "night")],
+    "white_deer_forest": [("mat_moon_dew", 8, "night")],
+    "permafrost_field": [("mat_aurora_flower", 6, "winter+night"), ("mat_bing_jing", 10, "winter")],
+    "emerald_forest": [("mat_thunder_vine", 8, "rain")],
+    "redridge_plateau": [("mat_thunder_vine", 8, "rain")],
+    "storm_plateau": [("mat_thunder_vine", 10, "rain")],
+    "starlight_terrace": [("mat_moon_dew", 6, "night")],
+}
+
+# ================= v102.3 深矿池（矿洞类地图专属高级矿） =================
+# 格式：地图ID → [(材料ID, 权重), ...]；挖掘结算时当前地图命中 → 只从深矿池产出
+#（替代价格区间兜底）。高级矿权重低：Lv.1 矿工多数挖到普通矿，深矿稀有矿要碰运气
+MINING_DEEP_POOLS = {
+    "hill_mine": [("mat_tie_kuang_shi", 40), ("mat_jing_tie", 30), ("mat_mi_yin", 20), ("mat_jing_jin", 8), ("mat_deep_crystal", 2)],
+    "deep_tunnel": [("mat_mi_yin", 30), ("mat_jing_jin", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 15)],
+    "sea_cave": [("mat_shui_jing", 35), ("mat_shan_hu_zhi", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 10)],
+}

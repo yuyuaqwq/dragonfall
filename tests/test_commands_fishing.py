@@ -45,7 +45,7 @@ def prof_exp(gid, qid):
 def set_roll_fish(m, fish):
     """monkeypatch C.roll_fish 返回固定渔获（垂钓结算品质化单测）"""
     m.roll_fish_orig = C.roll_fish
-    C.roll_fish = lambda lv, spot=None: fish
+    C.roll_fish = lambda lv, spot=None, bait=None: fish
 
 
 def restore_roll_fish(m):

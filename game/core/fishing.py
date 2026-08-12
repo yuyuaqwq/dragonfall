@@ -32,12 +32,13 @@ def _quality_weights(prof_lv: int) -> list:
     return list(FISH_QUALITY_WEIGHTS[keys[0]])
 
 
-def roll_fish(prof_lv: int = 1, spot_id: str | None = None):
+def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = None):
     """垂钓结果：返回 FISH_POOL 中的一项。
 
     prof_lv: 垂钓副业等级（1-9）
     spot_id: 钓点地图 ID（FISHING_SPOTS 的 key）；钓点禁出档位权重清零，
              品种限定水域（spots 字段）不满足时跳过。
+    bait: v102.3 鱼饵加成（glow=紫橙×2 / dough=绿蓝×1.5 / blood=稀有鱼种×3）
     """
     spot = FISHING_SPOTS.get(spot_id) if spot_id else None
     ban = set(spot.get("ban_quality", [])) if spot else set()
@@ -45,6 +46,15 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None):
     for i, q in enumerate(FISH_QUALITY_ORDER):
         if q in ban:
             weights[i] = 0.0
+    # v102.3 鱼饵品质加权（在禁出档位清零之后应用，ban 优先）
+    if bait == "glow":
+        for i, q in enumerate(FISH_QUALITY_ORDER):
+            if q in ("purple", "orange"):
+                weights[i] *= 2.0
+    elif bait == "dough":
+        for i, q in enumerate(FISH_QUALITY_ORDER):
+            if q in ("green", "blue"):
+                weights[i] *= 1.5
     quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
 
     def _match(f):
@@ -56,7 +66,12 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None):
     if not pool:
         # 防御性兜底：先去掉 spots 限定重试（如新钓点蓝档无全水域品种），再退全品质池
         pool = [f for f in FISH_POOL if f["quality"] == quality]
-    return random.choices(pool, weights=[f.get("weight", 1) for f in pool], k=1)[0]
+    # v102.3 血饵：稀有鱼种（权重 < 5）品种权重 ×3
+    if bait == "blood":
+        pool_w = [f.get("weight", 1) * (3 if f.get("weight", 1) < 5 else 1) for f in pool]
+    else:
+        pool_w = [f.get("weight", 1) for f in pool]
+    return random.choices(pool, weights=pool_w, k=1)[0]
 
 def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):
     """彩蛋收藏鱼判定（16 章 4.x）：五档之外独立判定。
