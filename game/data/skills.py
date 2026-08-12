@@ -1121,7 +1121,6 @@ BRANCH_SKILLS = {
                 "狂战士": {
                     "怒斩":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.4,
                         "kind": "物理",
                         "res_gain": 2,
@@ -1152,7 +1151,6 @@ BRANCH_SKILLS = {
 ,
                     "嗜血斩":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.6,
                         "kind": "物理",
                         "lifesteal": 0.25,
@@ -1189,7 +1187,6 @@ BRANCH_SKILLS = {
                 "盾卫士": {
                     "盾击·卫":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.3,
                         "kind": "物理",
                         "mech": "stun",
@@ -1261,7 +1258,6 @@ BRANCH_SKILLS = {
 ,
                     "乱舞":                     {
                         "lv": 62,
-                        "mp": 0,
                         "power": 1.2,
                         "kind": "物理",
                         "multi": 3,
@@ -1447,7 +1443,6 @@ BRANCH_SKILLS = {
                 "元素法师": {
                     "元素冲击":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.4,
                         "kind": "魔法",
                         "element": "current",
@@ -1478,7 +1473,6 @@ BRANCH_SKILLS = {
 ,
                     "双系连珠":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.3,
                         "kind": "魔法",
                         "multi": 2,
@@ -1498,7 +1492,6 @@ BRANCH_SKILLS = {
 ,
                     "元素引爆":                     {
                         "lv": 55,
-                        "mp": 0,
                         "power": 2.4,
                         "kind": "魔法",
                         "element": "current",
@@ -1519,7 +1512,6 @@ BRANCH_SKILLS = {
                 "奥术法师": {
                     "奥术弹幕":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.1,
                         "kind": "魔法",
                         "multi": 3,
@@ -1553,7 +1545,6 @@ BRANCH_SKILLS = {
 ,
                     "奥术爆破":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.5,
                         "kind": "魔法",
                         "multi": 2,
@@ -1574,7 +1565,6 @@ BRANCH_SKILLS = {
 ,
                     "奥术洪流":                     {
                         "lv": 55,
-                        "mp": 0,
                         "power": 2.5,
                         "kind": "魔法",
                         "mech": "arcane_burst",
@@ -1647,7 +1637,6 @@ BRANCH_SKILLS = {
 ,
                     "法术反制":                     {
                         "lv": 62,
-                        "mp": 0,
                         "power": 0.6,
                         "kind": "魔法",
                         "mech": "arcane",
@@ -1682,7 +1671,6 @@ BRANCH_SKILLS = {
                 "元素贤者": {
                     "万象风暴":                     {
                         "lv": 92,
-                        "mp": 0,
                         "power": 1.8,
                         "kind": "魔法",
                         "multi": 3,
@@ -1727,7 +1715,6 @@ BRANCH_SKILLS = {
                 "奥秘贤者": {
                     "大奥术":                     {
                         "lv": 92,
-                        "mp": 0,
                         "power": 2.0,
                         "kind": "魔法",
                         "multi": 2,
@@ -2099,7 +2086,6 @@ BRANCH_SKILLS = {
                 "圣武士": {
                     "圣光之刃":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.4,
                         "kind": "魔法",
                         "res_gain": 1,
@@ -2130,7 +2116,6 @@ BRANCH_SKILLS = {
 ,
                     "圣光连斩":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.2,
                         "kind": "魔法",
                         "multi": 2,
@@ -2170,7 +2155,6 @@ BRANCH_SKILLS = {
                 "神谕者": {
                     "圣言术":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 2.5,
                         "kind": "治疗",
                         "res_gain": 2,
@@ -2243,7 +2227,6 @@ BRANCH_SKILLS = {
 ,
                     "审判之剑":                     {
                         "lv": 62,
-                        "mp": 0,
                         "power": 1.8,
                         "kind": "魔法",
                         "pierce": True,
@@ -2400,7 +2383,6 @@ BRANCH_SKILLS = {
                 "影舞者": {
                     "影刃":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.3,
                         "kind": "物理",
                         "res_gain": 1,
@@ -2430,7 +2412,6 @@ BRANCH_SKILLS = {
 ,
                     "幻影连刺":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.0,
                         "kind": "物理",
                         "multi": 3,
@@ -2469,7 +2450,6 @@ BRANCH_SKILLS = {
                 "毒刃者": {
                     "毒刃":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.1,
                         "kind": "物理",
                         "mech": "poison",
@@ -2501,7 +2481,6 @@ BRANCH_SKILLS = {
 ,
                     "双毒刃":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.0,
                         "kind": "物理",
                         "multi": 2,
@@ -2520,7 +2499,6 @@ BRANCH_SKILLS = {
 ,
                     "毒爆":                     {
                         "lv": 55,
-                        "mp": 0,
                         "power": 2.0,
                         "kind": "物理",
                         "mech": "poison",
@@ -2571,7 +2549,6 @@ BRANCH_SKILLS = {
 ,
                     "死亡标记·影":                     {
                         "lv": 68,
-                        "mp": 0,
                         "power": 0,
                         "kind": "增益",
                         "mech": "mark",
@@ -2610,7 +2587,6 @@ BRANCH_SKILLS = {
 ,
                     "淬毒刺杀":                     {
                         "lv": 68,
-                        "mp": 0,
                         "power": 2.0,
                         "kind": "物理",
                         "mech": "poison",
@@ -2712,7 +2688,6 @@ BRANCH_SKILLS = {
                 "拳斗士": {
                     "疾风拳":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.2,
                         "kind": "物理",
                         "combo": "拳",
@@ -2744,7 +2719,6 @@ BRANCH_SKILLS = {
 ,
                     "旋风踢":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 1.3,
                         "kind": "物理",
                         "combo": "踢",
@@ -2781,7 +2755,6 @@ BRANCH_SKILLS = {
                 "磐石行者": {
                     "铁壁拳":                     {
                         "lv": 32,
-                        "mp": 0,
                         "power": 1.1,
                         "kind": "物理",
                         "combo": "拳",
@@ -2813,7 +2786,6 @@ BRANCH_SKILLS = {
 ,
                     "回气掌":                     {
                         "lv": 45,
-                        "mp": 0,
                         "power": 2.0,
                         "kind": "治疗",
                         "combo": "掌",
@@ -2875,7 +2847,6 @@ BRANCH_SKILLS = {
 ,
                     "连环拳":                     {
                         "lv": 62,
-                        "mp": 0,
                         "power": 1.1,
                         "kind": "物理",
                         "multi": 4,
@@ -2935,7 +2906,6 @@ BRANCH_SKILLS = {
                 "破晓者": {
                     "无影连打":                     {
                         "lv": 92,
-                        "mp": 0,
                         "power": 1.3,
                         "kind": "物理",
                         "multi": 5,

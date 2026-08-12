@@ -206,10 +206,10 @@ def _c_visited(player, stats, profs, extra, cond):
 def _c_hidden_area(player, stats, profs, extra, cond):
     """隐藏区域到访数（v105 M18 P1 修复：仅统计真实隐藏区域）
 
-    隐藏区域集合 = HIDDEN_MAP_UNLOCK 解锁表 key（7 个：dragon_sanctum/elf_opera/
-    mithril_hall/sea_altar/under_king_hall/lost_library/ember_corridor）∪ maps 中
+    隐藏区域集合 = HIDDEN_MAP_UNLOCK 解锁表 key（v104 P2 清理后 2 个：
+    lost_library/ember_corridor；旧 5 条死条目 dragon_sanctum 等已删）∪ maps 中
     hidden=True 或 type="隐藏区域" 的地图。旧实现与 visited 完全相同（到访普通区域
-    也计数）→ ach_hidden3 秘境猎手 3 个普通区域即解锁、ach_mythril 到访 1 个任意
+    也计数）→ 秘境猎手 3 个普通区域即解锁、ach_mythril 到访 1 个任意
     区域即送，隐藏成就贬值。修复后仅到访隐藏区域才计数。
     """
     from .. import content as C

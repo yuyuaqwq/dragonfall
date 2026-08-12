@@ -1277,16 +1277,21 @@ class WorldCmds(CommandBase):
                 if st == "done":
                     lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 已完成]")
                     continue
-                # 收集型：实时按背包材料判断
+                # 收集型：实时按背包材料判断（v104 补测：复合目标同时显示击杀进度防误导）
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
                     need = obj.get("collect_count", obj["count"])
+                    prog = sq.get("progress", {})
+                    kill_txt = ""
+                    if obj.get("kill"):
+                        kv = prog.get(obj["kill"], 0)
+                        kill_txt = f"｜击杀：{kv}/{obj.get('count', 0)}"
                     if have >= need:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交]")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]")
                         lines.append(f"    材料已齐！回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     else:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
-                        lines.append(f"    收集：{obj['collect']} {have}/{need}")
+                        lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
                     continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")

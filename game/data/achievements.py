@@ -95,7 +95,7 @@ ACHIEVEMENTS = [
     {"id": "ach_area_all", "cat": "探索", "name": "环游大陆", "title": "环游大陆",
      "desc": "到访全部 30 个区域", "cond": {"type": "visited", "value": 30}, "points": 1, "bonus": {"spd": 5}},
     {"id": "ach_hidden3", "cat": "探索", "name": "秘境猎手", "title": "秘境猎手",
-     "desc": "进入 3 个隐藏区域", "cond": {"type": "hidden_area", "value": 3}, "points": 1},
+     "desc": "进入 2 个隐藏区域", "cond": {"type": "hidden_area", "value": 2}, "points": 1},
     {"id": "ach_gather10", "cat": "探索", "name": "采集新手", "title": "采集新手",
      "desc": "采集 10 次", "cond": {"type": "prof_count", "key": "gather_count", "value": 10}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_gather100", "cat": "探索", "name": "采集达人", "title": "采集达人",

@@ -1796,7 +1796,9 @@ class CombatCmds(CommandBase):
                     lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
                 else:
                     lines.append(f"📜 支线『{sqd['name']}』：{prog['any']}/{obj['kill_any']}")
-            elif obj.get("kill") == monster["name"]:
+            elif obj.get("kill") and (obj["kill"] == monster["name"] or obj["kill"] in monster["name"]):
+                # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
+                # v104 补测发现：支线此前只精确 ==（杀精英变体不推进），现与主线同款 in 包含匹配
                 prog = dict(sq.get("progress", {}))
                 # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
                 prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1

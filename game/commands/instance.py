@@ -971,7 +971,8 @@ class InstanceCmds(CommandBase):
                 f"{map_view}\n"
                 f"━━━━━━━━━━━━\n"
                 f"{size_tip}"
-                f"💡 先『探索』看看有什么，或『调查』周围的交互点！"
+                f"💡 先『探索』看看有什么，或『调查』周围的交互点！\n"
+                f"⏳ 战斗轮到你时超时 60 秒自动防御！"
             )
             return
         stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""

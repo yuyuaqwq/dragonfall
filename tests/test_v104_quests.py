@@ -247,8 +247,8 @@ async def main():
     check("支线 kill 计数入 obj key", qq["side"]["s3"]["progress"] == {"森林狼": 1}, str(qq["side"]["s3"]["progress"]))
     m._update_quests("g9", "p10", {"name": "精英森林狼"})
     qq = get_q("g9", "p10")
-    check("支线精确名(精英变体不计入, 与主线 in 匹配不对称)", qq["side"]["s3"]["progress"] == {"森林狼": 1},
-          str(qq["side"]["s3"]["progress"]))
+    check("支线精英变体计入（v104 补测修复：与主线 in 包含匹配对齐）",
+          qq["side"]["s3"]["progress"] == {"森林狼": 2}, str(qq["side"]["s3"]["progress"]))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)

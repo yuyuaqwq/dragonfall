@@ -139,8 +139,8 @@ s4 = stats_of("g1", "q4")
 pr4 = profs_of("g1", "q4")
 for mid in ("oak_plain", "white_deer_forest", "emerald_forest"):  # 3 个普通区域
     db.add_visited("g1", "q4", mid)
-check("3 个普通区域 → ach_hidden3(value=3) 不计数",
-      cond_met(p4, s4, pr4, {}, {"type": "hidden_area", "value": 3}, "g1") is False)
+check("3 个普通区域 → ach_hidden3(value=2) 不计数",
+      cond_met(p4, s4, pr4, {}, {"type": "hidden_area", "value": 2}, "g1") is False)
 check("普通区域对 ach_mythril(value=1) 也不计数（旧实现误送）",
       cond_met(p4, s4, pr4, {}, {"type": "hidden_area", "value": 1}, "g1") is False)
 db.add_visited("g1", "q4", "lost_library")
@@ -149,14 +149,10 @@ check("到访 1 个隐藏区域 → value=1 True",
 db.add_visited("g1", "q4", "ember_corridor")
 check("到访 2 个隐藏区域 → value=2 True",
       cond_met(p4, s4, pr4, {}, {"type": "hidden_area", "value": 2}, "g1") is True)
-hidden_maps = set(getattr(C, "HIDDEN_MAP_UNLOCK", None) or {})
-hidden_maps |= {m["id"] for m in C.MAPS if m.get("hidden") or m.get("type") == "隐藏区域"}
-check(f"隐藏区域数据仅 {len(hidden_maps)} 个 → ach_hidden3(value=3) 现状不可达（见报告 ⚠️）",
-      cond_met(p4, s4, pr4, {}, {"type": "hidden_area", "value": 3}, "g1") is False)
 new4 = check_achievements("g1", "q4", db.get_player("g1", "q4"), {})
 ids4 = {a["id"] for a in new4}
 check("check_achievements 解锁 ach_mythril（秘银追寻者）", "ach_mythril" in ids4)
-check("check_achievements 不解锁 ach_hidden3（普通区域不计数）", "ach_hidden3" not in ids4)
+check("check_achievements 解锁 ach_hidden3（v104 补测修复：value 3→2，2 隐藏区域可达）", "ach_hidden3" in ids4)
 
 # ============ 5. 称号 bonus 单次 ============
 print("【5. 称号 bonus 单次（Lv.10 大师称号不双倍发放）】")
