@@ -142,11 +142,18 @@ class CtxFull:
 rf = IT.TEMPLATES["food"](CtxFull())
 check("满血纯治疗拦截不消耗", rf.consume is False and "满的" in rf.text, rf.text)
 
-# ---- 5. 全量食物数据完整性 ----
+# ---- 5. 数据完整性 ----
 print("== 5. 数据完整性 ==")
 food_keys = [k for k, v in C.ITEMS.items()
              if isinstance(v, dict) and v.get("hot_turns") is not None]
-check("食物总量 ≥ 50", len(food_keys) >= 50, str(len(food_keys)))
+buff_food_keys = [k for k, v in C.ITEMS.items()
+                  if isinstance(v, dict) and v.get("effect")
+                  and (v.get("heal") or v.get("mana") or v.get("stamina") is not None)]
+check("hot 食物总量 ≥ 45", len(food_keys) >= 45, str(len(food_keys)))
+check("战斗料理(增益) ≥ 5", len(buff_food_keys) >= 5, str(buff_food_keys))
+check("矮人烈酒 desc 修复(无'3 场战斗')", "3 场战斗" not in C.ITEMS.get("i_dwarf_liquor", {}).get("desc", ""))
+check("矮人烈酒走 food_buff", IT.infer_template(C.ITEMS["i_dwarf_liquor"]) == "food_buff")
+check("矮人烈酒非 buff_atk(原 30% 超模)", C.ITEMS["i_dwarf_liquor"].get("effect") != "buff_atk")
 bad = []
 for k in food_keys:
     v = C.ITEMS[k]
@@ -157,6 +164,40 @@ for k in food_keys:
     if h < 0 or h > 0.3 or hm < 0 or hm > 0.3:
         bad.append((k, "hot", (h, hm)))
 check("hot 数值全部合法", not bad, str(bad[:3]))
+
+# ---- 6. food_buff 模板 ----
+print("== 6. food_buff 战斗料理 ==")
+burger = C.ITEMS["i_deer_burger"]
+class BufCtx:
+    def __init__(self, battle):
+        self.battle = battle
+        self.data = burger
+        self.player = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
+        self.group_id = "g1"
+        self.qq_id = "q1"
+    def _db(self):
+        class D:
+            def update_player(self, *a, **k): pass
+        return D()
+    def hook(self, n, *a, **k):
+        if n == "stamina_msg":
+            return "⚡ 恢复 35 点体力(85/100)\n"
+        return 0
+
+rb = IT.TEMPLATES["food_buff"](BufCtx(battle=True))
+check("汉堡战斗内 payload=buff:food_def_up", rb.payload == "buff:food_def_up", rb.payload)
+ro = IT.TEMPLATES["food_buff"](BufCtx(battle=False))
+check("汉堡战斗外即时回血+体力", "恢复 30 点生命" in ro.text and "恢复 35 点体力" in ro.text, ro.text)
+
+# 战斗内吃料理播报（food_ 前缀 → 料理文案）
+b2 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {})
+p2 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
+      "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
+l2, _ = b2.player_turn("use_item", "buff:food_def_up", p2)
+check("料理播报(非'饮下战斗药水')", "吃下了料理" in "\n".join(l2), "\n".join(l2))
+check("food_def_up 生效 def×1.15",
+      b2._apply_buffs(b2._player_stats(p2), b2.p_buffs).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

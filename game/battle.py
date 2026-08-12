@@ -47,6 +47,12 @@ BUFF_MULT = {
     "def_up":         ("def", 1.45),
     "spd_up":         ("spd", 1.40),
     "crit_up":        ("crit", 0.20),      # 暴击率 +20%
+    # v101.28b 食物增益（战斗料理线：数值约为药水 1/3，价格低+带战斗外恢复）
+    "food_atk_up":    ("atk", 1.10),
+    "food_def_up":    ("def", 1.15),
+    "food_spd_up":    ("spd", 1.12),
+    "food_crit_up":   ("crit", 0.08),
+    "food_matk_up":   ("matk", 1.10),
     "mon_atk_up":     ("atk", 1.30),
     "mon_atk_up_strong": ("atk", 1.70),
     "mon_def_up":     ("def", 1.40),
@@ -426,10 +432,17 @@ class Battle:
             # 9.3：支持逗号分隔复合 buff（如龙涎药剂 buff:atk_up,def_up）
             kind = payload[5:]
             _cn = {"atk_up": "攻击", "def_up": "防御", "spd_up": "速度", "crit_up": "暴击",
-                   "matk_up_pot": "魔攻"}
+                   "matk_up_pot": "魔攻",
+                   "food_atk_up": "攻击", "food_def_up": "防御", "food_spd_up": "速度",
+                   "food_crit_up": "暴击", "food_matk_up": "魔攻"}
             for _k in kind.split(","):
                 self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
-            logs.append(f"🧪 你饮下战斗药水，{','.join(_cn.get(k, k) for k in kind.split(','))}大幅提升！(3 回合)")
+            _names = '、'.join(_cn.get(k, k) for k in kind.split(','))
+            # v101.28b 食物 buff（food_ 前缀键）播报区分：料理 vs 药水
+            if any(k.startswith("food_") for k in kind.split(",")):
+                logs.append(f"🍖 你吃下了料理，{_names}提升！(3 回合)")
+            else:
+                logs.append(f"🧪 你饮下战斗药水，{_names}大幅提升！(3 回合)")
         else:
             heal = int(payload or 0)  # 复用 skill_name 传恢复量
             # 阶段九：半身人灵巧双手——消耗品效果 +10%

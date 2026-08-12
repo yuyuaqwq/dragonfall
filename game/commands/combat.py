@@ -1131,6 +1131,8 @@ class CombatCmds(CommandBase):
         "atk_up": "⚔️攻击↑", "atk_up_strong": "⚔️攻击↑↑", "matk_up": "🔮魔攻↑",
         "matk_up_strong": "🔮魔攻↑↑", "def_up": "🛡️防御↑", "spd_up": "💨速度↑",
         "crit_up": "💥暴击↑", "counter": "🔄反击", "mon_atk_down": "😵敌攻↓",
+        "food_atk_up": "🍖攻↑", "food_def_up": "🍖防↑", "food_spd_up": "🍖速↑",
+        "food_crit_up": "🍖暴击↑", "food_matk_up": "🍖魔攻↑",
         "stun": "🌀眩晕", "freeze": "❄️冻结", "silence": "🤐沉默",
     }
     # 敌方状态 key → 显示名（v63 加 眩晕/沉默）

@@ -82,6 +82,12 @@ def infer_template(data):
         # v101.28 食物持续恢复：有 hot 字段 = 食物 → food 模板
         # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
         return "food"
+    if data.get("effect"):
+        # v101.28b 食物增益：effect + 恢复字段 = 战斗料理（战斗内 buff，战斗外恢复）
+        eff = data.get("effect")
+        if data.get("heal") or data.get("mana") or data.get("stamina") is not None:
+            return "food_buff"
+        return eff if eff in TEMPLATES else "none"
     if data.get("heal"):
         return "heal"
     if data.get("mana"):
@@ -179,7 +185,24 @@ def tpl_food(ctx):
         mana_pct = float(d.get("hot_mana") or 0)
         turns = int(d.get("hot_turns") or 3)
         return ItemResult(payload=f"hot:{heal_pct},{mana_pct},{turns}")
-    # 战斗外：即时回复 + 体力
+    return _food_out_battle(ctx)
+
+
+@register("food_buff", battle_ok=True)
+def tpl_food_buff(ctx):
+    """v101.28b 战斗料理（effect + 恢复字段）：战斗内=属性 buff（弱化版，3 回合），
+    战斗外=即时回复+体力（同 tpl_food 战斗外）。"""
+    d = ctx.data
+    if ctx.battle:
+        eff = d.get("effect", "")
+        key = _BUFF_KEYS.get(eff, eff)
+        return ItemResult(payload=f"buff:{key}")
+    return _food_out_battle(ctx)
+
+
+def _food_out_battle(ctx):
+    """食物战斗外公共逻辑：即时回复 + 体力（满血拦截）。"""
+    d = ctx.data
     db = ctx._db()
     st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
     msgs = []
@@ -210,7 +233,11 @@ def tpl_food(ctx):
 # ---- 战斗药水（6 种 effect → p_buffs key）----
 _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "buff_crit": "crit_up", "buff_matk": "matk_up_pot",
-              "buff_atk_def": "atk_up,def_up"}
+              "buff_atk_def": "atk_up,def_up",
+              # v101.28b 食物增益（弱化版 BUFF_MULT food_* 键，战斗中 3 回合）
+              "buff_atk_food": "food_atk_up", "buff_def_food": "food_def_up",
+              "buff_spd_food": "food_spd_up", "buff_crit_food": "food_crit_up",
+              "buff_matk_food": "food_matk_up"}
 
 
 def _make_buff_tpl(key):
