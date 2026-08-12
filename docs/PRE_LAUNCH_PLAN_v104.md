@@ -13,20 +13,56 @@
 | 4 | 上线前终检（删档确认 + 全量回归 + 边界抽查） | 终检报告 | 全部通过 |
 | 5 | **6 角色重练级**（新 playtest 循环，带持久记忆） | 新角色练级实录 | 6 角色从 1 级推进 |
 
-## 阶段 1：审计分工（6 子 agent 并行，max_concurrent_children=6）
+## 阶段 1：审计分工（4 轮 × 6 agent = 24 模块全覆盖）
 
-每个 agent 只读代码 + 跑脚本验证，**不改任何代码**，输出分级问题清单。
+> 鱼鱼拍板（2026-08-12）：**分多轮子 agent 审计**，一轮 6 个并行（max_concurrent_children=6），
+> 全部模块拆细列出，每个模块独立完整提示词（见 `docs/AUDIT_AGENTS_v104.md`）。
+> 每轮结束：主 agent 汇总报告 → 合入审计总表 → 再启动下一轮。4 轮全部完成后进入阶段 2 修复。
 
-### 模块划分
+### 轮次安排
 
-| # | Agent 名 | 负责模块 | 核心文件 |
-|---|---|---|---|
-| A1 | 战斗/组队/副本 | 战斗引擎、技能、组队、副本、Boss、状态持久化 | battle.py combat.py instance.py skills.py core_resources.py monster_mods.py hidden_monsters.py party/social 相关 |
-| A2 | 装备/道具/商店/经济 | 装备数据、词条、锻造、商店配货、价格、经济循环 | equipment.py equip_roster.py affixes.py craft.py shop 相关 economy.py honor_shop.py housing.py items.py |
-| A3 | 副业 | 8 副业全链路（特色/数值/升级/每日任务/材料链） | prof_config.py fishing.py gather.py gather_pools.py alchemy.py cooking.py enhance.py enchant.py runes.py store/professions.py |
-| A4 | 主线/支线/对话/NPC/地图 | 任务链完整性、对话树、NPC、地图连接、探索事件 | quests.py dialogues.py npcs.py maps.py world.py events.py pois.py poi_pools.py props.py portals.py instances.py(地图部分) |
-| A5 | 数值平衡/成长/掉落/宠物坐骑/成就 | 成长曲线、怪物强度、掉落表、宠物坐骑、成就称号 | engine.py stats.py monsters.py drops.py pets.py mounts.py achievements.py titles.py bestiary.py factions.py guild.py signin.py |
-| A6 | UI/文案/排版/命令/持久化/数据完整性 | 面板渲染、文案规范、命令矩阵、DB schema、迁移、数据一致性 | commands/*.py main.py _registry.py store/*.py db.py 全部数据文件交叉一致性 |
+**第 1 轮：玩家与战斗**
+- M01 玩家系统 | M02 战斗引擎 | M03 技能系统 | M04 组队系统 | M05 副本系统 | M06 野外怪物与掉落
+
+**第 2 轮：装备物品与经济**
+- M07 装备系统 | M08 物品与背包 | M09 商店与配货 | M10 锻造打造 | M11 强化附魔符文 | M12 经济与市场
+
+**第 3 轮：生活副业与内容**
+- M13 副业框架 | M14 采集挖掘 | M15 垂钓系统 | M16 烹饪炼金 | M17 宠物坐骑 | M18 成就称号公会
+
+**第 4 轮：世界叙事与框架**
+- M19 主线任务 | M20 支线任务 | M21 对话树与NPC | M22 地图移动 | M23 探索事件彩蛋 | M24 命令框架与持久化
+
+### 模块与文件对照（完整清单）
+
+| # | 模块 | 覆盖文件 |
+|---|---|---|
+| M01 | 玩家系统 | commands/player.py, data/classes.py, data/races.py, core/stats.py, core/race_talent_display.py, engine.py(属性/加点/升级部分), store/players.py |
+| M02 | 战斗引擎 | game/battle.py, core/battle_conds.py, core/battle_mech.py, core/constants.py, commands/combat.py(战斗部分) |
+| M03 | 技能系统 | data/skills.py, data/skill_up.py, data/core_resources.py, data/builds.py, combat.py(技能施放) |
+| M04 | 组队系统 | commands/social.py(组队), store/social.py, 队伍/邀请/共享逻辑 |
+| M05 | 副本系统 | commands/instance.py, data/instances.py, data/instance_stage_maps.py, store/battle_state.py, 副本战利品/停留/暗格 |
+| M06 | 野外怪物与掉落 | data/monsters.py, data/hidden_monsters.py, data/monster_mods.py, core/monsters.py, core/drops.py, 野外刷怪逻辑 |
+| M07 | 装备系统 | data/equipment.py, data/equip_roster.py, data/affixes.py, data/sets.py, data/stat_templates.py, core/affix.py, core/affix_effects.py, core/class_sets.py |
+| M08 | 物品与背包 | data/items.py, core/item_templates.py, store/inventory.py, 背包/物品详情/使用命令 |
+| M09 | 商店与配货 | data/shop.py, data/honor_shop.py, data/housing.py, economy.py(商店部分), 子区域配货 SHOP_SUBAREA_ITEMS |
+| M10 | 锻造打造 | data/craft.py, core/craft.py, 图纸/学习/打造命令 |
+| M11 | 强化附魔符文 | data/enhance.py, data/enchant.py, data/runes.py, core/enchant.py, core/runes.py, 强化/附魔/刻印命令 |
+| M12 | 经济与市场 | commands/economy.py(经济部分), store/connection.py, 摆摊/市场/价格链/回收/每日任务 |
+| M13 | 副业框架 | data/prof_config.py, store/professions.py, economy.py(副业命令), 8 副业激活/等级/每日任务/遗忘 |
+| M14 | 采集挖掘 | data/gather.py, data/gather_pools.py, 采集/挖掘/矿点/材料池 |
+| M15 | 垂钓系统 | data/fishing.py, core/fishing.py, 钓点/品质/收藏/饵料 |
+| M16 | 烹饪炼金 | data/cooking.py, data/alchemy.py, core/food_effects.py, 食物/药水/配方/hot/buff |
+| M17 | 宠物坐骑 | data/pets.py, data/mounts.py, core/pets.py, core/mounts.py, 宠物/蛋/技能/坐骑效果 |
+| M18 | 成就称号公会 | data/achievements.py, data/titles.py, data/guild.py, data/factions.py, core/achievements.py, core/achievement_conds.py, core/title_conds.py, core/factions.py, 签到/编年史 |
+| M19 | 主线任务 | data/quests.py(MAIN), store/quests.py, world.py(任务接取/交付/追踪) |
+| M20 | 支线任务 | data/quests.py(SIDE), 告示牌/支线接取/交付 |
+| M21 | 对话树与NPC | data/dialogues.py, data/npcs.py, data/wild_npcs.py, core/dialogue.py, core/dialogue_conds.py, core/hidden_cond.py, commands/talk_actions.py |
+| M22 | 地图移动 | data/maps.py, data/subareas.py, data/roads.py, data/portals.py, core/maps.py, core/portals.py, world.py(移动/前往/城门/住宿/传送) |
+| M23 | 探索事件彩蛋 | data/events.py, data/pois.py, data/poi_pools.py, data/props.py, data/rules.py, core/events.py, core/event_templates.py, core/world_event_templates.py, core/rule_engine.py, core/time_weather.py, core/wild.py, core/pois.py, store/props_use.py |
+| M24 | 命令框架与持久化 | main.py, db.py, content.py, engine.py(全), commands/base.py, commands/_registry.py, commands/gm.py, commands/misc.py, store/(connection/players/inventory/quests/battle_state/stats/social/world/feedback/professions/props_use), data/_assembly.py, data/index.py, core/index.py |
+
+> 完整 24 份独立提示词（公共框架 + 每模块定制审计点/边界场景/策划案对照）见 `docs/AUDIT_AGENTS_v104.md`。
 
 ### 审计维度（每个 agent 都要过）
 
