@@ -379,9 +379,22 @@ class GmCmds(CommandBase):
         if not mid:
             yield event.plain_result(f"❌ 找不到地图『{map_name}』～")
             return
-        db.update_player("", tgt, cur_map=mid, cur_subarea="")
+        # v101.28p：传送落点设默认子区域（优先广场），否则 cur_subarea 空=卡城镇总览无法进子区域
+        db.update_player("", tgt, cur_map=mid, cur_subarea=self._default_subarea(mid))
         p = db.get_player("", tgt)
         yield event.plain_result(f"🌀 已把 {p.get('name')} 传送到【{C.MAP_BY_ID[mid]['name']}】！")
+
+    def _default_subarea(self, mid: str) -> str:
+        """gm_传送落点：优先广场，其次第一个非出口子区域；无子区域 → 空。"""
+        m = C.MAP_BY_ID.get(mid, {})
+        subs = m.get("subareas") or []
+        for sa in subs:
+            if sa.get("type") != "城镇出口" and "广场" in sa.get("name", ""):
+                return sa["id"]
+        for sa in subs:
+            if sa.get("type") != "城镇出口":
+                return sa["id"]
+        return ""
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_体力(?:[\s\S]*)$")
     async def gm_stamina(self, event: AstrMessageEvent):
