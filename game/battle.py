@@ -78,6 +78,7 @@ class Battle:
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.p_food_affixes: list = []     # v101.28c 食物词条（战斗中吃料理获得的临时词条 ID，本场有效）
+        self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
         self.e_defending = False
@@ -85,7 +86,6 @@ class Battle:
         self.title_bonus = title_bonus or {}  # 副业大师称号属性加成
         self.team_effects: list = []         # v50 团队技能效果（副本全队广播用）
         self.mech_stacks: dict = {}          # v59 分支机制叠层（随战斗持久化，不再挂 player 避免每回合丢失）
-        self.shield: int = 0                     # v59 护盾值（随战斗持久化，player 无此列会每回合丢）
         # v2.0 核心资源（12 章 1.2：怒气/元素亲和/精力/信仰/连击点/气）
         # 随战斗序列化，同 mech_stacks 机制；阶段五引擎先挂载，技能数据落地后消费
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
@@ -113,9 +113,9 @@ class Battle:
                 except Exception:
                     pass
             self._init_resources(player)
-        # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾）
+        # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾，3 回合；v101.28d 盾 buff 化）
         if player and "shield" in self._equip_affix_ids(player):
-            self.shield = int(player.get("max_hp", 100) * 0.10)
+            self._add_shield("affix_shield", int(player.get("max_hp", 100) * 0.10), 3)
         # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
         self.p_progress: float = 0.0          # 玩家行动进度
         self.e_progress: float = 0.0          # 敌方行动进度
@@ -135,12 +135,12 @@ class Battle:
             "p_buffs": self.p_buffs,
             "p_hot": self.p_hot,
             "p_food_affixes": self.p_food_affixes,
+            "p_shields": self.p_shields,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
             "e_defending": self.e_defending,
             "title_bonus": self.title_bonus,
             "mech_stacks": self.mech_stacks,
-            "shield": self.shield,
             "resources": self.resources,
             "cooldown": self.cooldown,
             "combo_seq": self.combo_seq,
@@ -160,11 +160,14 @@ class Battle:
         b.p_buffs = st.get("p_buffs", {}) or {}
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_affixes = st.get("p_food_affixes", []) or []
+        b.p_shields = st.get("p_shields", {}) or {}
+        if not b.p_shields and st.get("shield"):
+            # v101.28d 旧格式兼容：旧 shield 数值 → 无期限护盾（与旧行为一致：破盾前一直有效）
+            b.p_shields = {"legacy": {"value": int(st["shield"]), "turns": 999}}
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
         b.mech_stacks = st.get("mech_stacks", {}) or {}
-        b.shield = int(st.get("shield", 0) or 0)
         b.resources = st.get("resources", {}) or {}
         b.cooldown = st.get("cooldown", {}) or {}
         b.combo_seq = st.get("combo_seq", []) or []
@@ -406,6 +409,17 @@ class Battle:
         self._end_round()
         return logs, self.result is not None
 
+    def _add_shield(self, key: str, value: int, turns: int = 3):
+        """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新回合（取 max），异源并存各计各的回合。"""
+        if value <= 0:
+            return
+        cur = self.p_shields.get(key)
+        if cur:
+            cur["value"] += value
+            cur["turns"] = max(cur["turns"], turns)
+        else:
+            self.p_shields[key] = {"value": value, "turns": turns}
+
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
@@ -415,10 +429,9 @@ class Battle:
             for a in aids:
                 if a not in self.p_food_affixes:
                     self.p_food_affixes.append(a)
-            # 护盾词条特判：词条效果是'战斗开始获得护盾'，战斗中吃立即给
+            # 护盾词条特判：词条效果是'战斗开始获得护盾'，战斗中吃立即给（3 回合）
             if "shield" in aids:
-                gain = int(player.get("max_hp", 100) * 0.10)
-                self.shield = max(self.shield, gain)
+                self._add_shield("food_shield", int(player.get("max_hp", 100) * 0.10), 3)
             names = [((C.AFFIXES.get(a) or C.LEGENDARY_EFFECTS.get(a) or {}).get("name") or a)
                      for a in aids]
             logs.append(f"🍲 你吃下了料理，获得【{'、'.join(names)}】效果！(本场战斗)")
@@ -993,7 +1006,7 @@ class Battle:
             overflow = player.get("hp", 0) - (player.get("max_hp", player["hp"]) - player.get("hp", 0))
             if overflow > 0:
                 shield_gain = int(overflow * 0.20)
-                self.shield = self.shield + shield_gain
+                self._add_shield("overflow", shield_gain, 2)
                 logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
         if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
             over = heal - (player["hp"] - (player.get("max_hp", player["hp"]) - player.get("hp", 0)))
@@ -1049,7 +1062,7 @@ class Battle:
             st2 = self._player_stats(player)
             if st2 and n:
                 shield = int(st2["matk"] * 0.08 * n)
-                self.shield = self.shield + shield
+                self._add_shield("bless", shield, 2)
                 logs.append(f"✨ 神恩护盾！{n} 层转化为 {shield} 点护盾")
             p_mech["bless"] = 0
         self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
@@ -1698,6 +1711,11 @@ class Battle:
                 tbl[k] -= 1
                 if tbl[k] <= 0:
                     del tbl[k]
+        # v101.28d 护盾回合递减：各来源独立计时，到 0 消失
+        for key in list(self.p_shields):
+            self.p_shields[key]["turns"] -= 1
+            if self.p_shields[key]["turns"] <= 0:
+                del self.p_shields[key]
         self._tick_cooldowns()
 
     def _damage_player(self, player: dict, dmg: int, logs: list):
@@ -1744,22 +1762,32 @@ class Battle:
             prob, pct = C.rune_value("barrier", barrier_lvl)
             if random.random() < prob:
                 shield_gain = int(player.get("max_hp", player.get("hp", 1)) * pct)
-                self.shield = self.shield + shield_gain
+                self._add_shield("rune_barrier", shield_gain, 2)
                 logs.append(f"🛡️ 符文壁垒：获得 {shield_gain} 点护盾！")
         thorns_lvl = self._enchant_lvl(effs, "thorns")
         if thorns_lvl and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * C.rune_value("thorns", thorns_lvl))
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
-        # v29 神恩护盾：优先吸收（v59：护盾存战斗状态）
-        shield = self.shield
-        if shield > 0:
-            absorb = min(shield, dmg)
-            dmg -= absorb
-            self.shield = shield - absorb
-            logs.append(f"✨ 护盾吸收 {absorb} 点伤害(剩余 {self.shield})")
-            if dmg <= 0:
-                return
+        # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
+        shields = self.p_shields
+        if shields:
+            absorb_total = 0
+            for key in list(shields):
+                s = shields[key]
+                absorb = min(s["value"], dmg)
+                s["value"] -= absorb
+                dmg -= absorb
+                absorb_total += absorb
+                if s["value"] <= 0:
+                    del shields[key]
+                if dmg <= 0:
+                    break
+            if absorb_total > 0:
+                left = sum(s["value"] for s in shields.values())
+                logs.append(f"✨ 护盾吸收 {absorb_total} 点伤害(剩余 {left})")
+                if dmg <= 0:
+                    return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = player.get("class_name", "")

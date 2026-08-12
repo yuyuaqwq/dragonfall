@@ -1022,9 +1022,9 @@ class InstanceCmds(CommandBase):
             "p_defending": st["p_defending"].get(cur_key, False),
             "e_defending": False,
             "title_bonus": snap.get("title_bonus") or {},
-            # v59：叠层/护盾随战斗持久化（副本按玩家存）
+            # v59：叠层/护盾随战斗持久化（副本按玩家存；v101.28d 盾 buff 化）
             "mech_stacks": st["mech_stacks"].get(cur_key, {}),
-            "shield": snap.get("shield", 0),
+            "p_shields": snap.get("p_shields", {}) or ({"legacy": {"value": int(snap.get("shield", 0)), "turns": 999}} if snap.get("shield") else {}),
         })
         boss_before = st["boss"]["hp"]
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False)
@@ -1037,7 +1037,7 @@ class InstanceCmds(CommandBase):
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
         st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
-        snap["shield"] = b.shield
+        snap["p_shields"] = b.p_shields
         dealt = max(0, boss_before - st["boss"]["hp"])
         if dealt > 0:
             st["contribution"][cur_key] = st["contribution"].get(cur_key, 0) + dealt
@@ -1239,14 +1239,20 @@ class InstanceCmds(CommandBase):
                 pb[be] = max(pb.get(be, 0), turns)
             logs.append("🛡️ 全队获得增益效果！")
             return logs
-        # 全队护盾（直接加 shield 值）
+        # 全队护盾（v101.28d 盾 buff 化：同源叠加 + 刷新 3 回合）
         if kind == "shield_all":
             src = st["players"][source_key]
             base = stats.get("matk") or stats.get("atk") or 0
             shield = int(base * 0.20)
             for k in alive:
                 p = st["players"][k]
-                p["shield"] = p.get("shield", 0) + shield
+                sh = p.setdefault("p_shields", {})
+                cur = sh.get("team_bless")
+                if cur:
+                    cur["value"] += shield
+                    cur["turns"] = max(cur.get("turns", 0), 3)
+                else:
+                    sh["team_bless"] = {"value": shield, "turns": 3}
                 logs.append(f"🛡️ {p.get('name', k)} 获得 {shield} 点护盾！")
             return logs
         # 全队武器淬毒：给每个存活成员 mech_stacks.poison（下回合攻击叠毒，v59 存副本状态）

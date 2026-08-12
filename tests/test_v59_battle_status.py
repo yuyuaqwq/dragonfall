@@ -24,7 +24,7 @@ def test_status_line():
     player = mk_player()
     b = BT.Battle("monster", {"name": "山贼头目", "hp": 3000, "max_hp": 4000})
     b.mech_stacks = {"rage": 5, "burn": 3, "bless": 2}  # v59 叠层存战斗状态
-    b.shield = 150
+    b.p_shields = {"legacy": {"value": 150, "turns": 999}}
     b.p_buffs = {"atk_up": 3, "def_up": 2}
     b.e_buffs = {"def_down": 2, "poison": 3, "mark": 2}
     s = mixin._status_line(player, b)

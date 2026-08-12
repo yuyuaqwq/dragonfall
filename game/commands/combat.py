@@ -1163,10 +1163,12 @@ class CombatCmds(CommandBase):
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
-        # 玩家护盾（v59：随战斗持久化）
-        shield = int(getattr(b, "shield", 0) or 0)
-        if shield > 0:
-            pbuf.append(f"✨护盾{shield}")
+        # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余回合）
+        shields = getattr(b, "p_shields", {}) or {}
+        for sname, s in shields.items():
+            if (s or {}).get("value", 0) > 0:
+                turns = s.get("turns", 0)
+                pbuf.append(f"✨护盾{s['value']}" + (f"({turns}回合)" if turns < 999 else ""))
         # 玩家金身减伤（iron 在 stacks 里已显示）
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
