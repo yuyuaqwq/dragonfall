@@ -1209,7 +1209,9 @@ class InstanceCmds(CommandBase):
         alive_idx = [i for i, m in enumerate(members) if st["alive"].get(str(m), True)]
         if alive_idx and all(acted[i] for i in alive_idx):
             logs += self._instance_boss_turn(st, group_id)
-            st["round"] += 1
+            # v101.30c #438 回归：round 不再在此 +1——玩家行动时 Battle 内部已 +1 并写回
+            # （1064 行 st["round"] = b.round），此处再 +1 造成一次完整回合 round +2
+            # （v101.28m 加状态写回时遗留的双重递增，全量回归 round=7 抓包）
             for i in alive_idx:
                 acted[i] = False
             # 全灭 → 失败（v101.27 鱼鱼拍板：失败=副本直接销毁，重进=全新开本）

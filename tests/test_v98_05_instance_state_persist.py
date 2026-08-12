@@ -55,6 +55,10 @@ async def main():
     st["e_minions"] = [{"name": "测试爪牙", "hp": 500, "max_hp": 500, "atk": 100, "matk": 0}]
     st["round"] = 5
     st["boss"]["hp"] = 999999  # 防测试期 Boss 被秒杀导致战斗结束
+    # v101.30c：注册角色 40 级默认仅 645 HP，Boss 阶段两轮即全灭销毁副本——
+    # 注入高血量，保证 e_minions/round/resources 持久化验证完整走完
+    st["players"]["i1"]["hp"] = 99999
+    st["players"]["i1"]["max_hp"] = 99999
     db.save_battle("g1", "i1", st)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
     check("援军挡刀日志", "挡下" in out, out[:200])
@@ -67,7 +71,9 @@ async def main():
     # ---------- 援军出手：Boss 行动回合援军攻击玩家 ----------
     out2 = await cmd(m, "attack", "g1", "i1", "攻击")  # 触发 Boss 反击（_instance_boss_one_turn）
     check("援军出手日志", "扑向" in out2, out2[:200])
-    st3 = db.get_battle("g1", "i1")["state"]
+    b3 = db.get_battle("g1", "i1")
+    check("Boss 行动后战斗仍在", b3 is not None, "战斗意外结束")
+    st3 = b3["state"] if b3 else {}
     check("Boss 行动后援军仍写回", st3.get("e_minions"), str(st3.get("e_minions"))[:120])
 
     # ---------- resources 持久化：注入精力 50 → 攻击后应保留且回复 ----------

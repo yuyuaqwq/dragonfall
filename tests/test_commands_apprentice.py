@@ -93,13 +93,21 @@ async def main():
     check("锻造导师对话树", "图纸+材料" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("答对进实践", "5 份铁矿石" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")  # practice_intro → practice_check
+    # v101.25 系列 #417 + v101.29：位置满检查优先于材料检查——第一次选
+    # "铁矿石齐了"即拦截（材料不扣），且直接结束对话（不再渲染 fail 节点台词，
+    # 避免"材料凑不齐"与"副业位满"归因矛盾，小红实测梅尔文交付被抓包）
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    db.add_item("g1", "w1", "铁矿石", {}, 5)
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    # v101.25 系列 #417 修复：位置满在实践关提前拦截（材料不扣），不再走到拜师礼才拦
     check("位置满实践拦截", "副业位已满" in out, out[:200])
+    check("拦截后结束对话", "再会了" in out, out[:200])
+    check("对话状态已清理", db.get_talk_state("g1", "w1") is None, str(db.get_talk_state("g1", "w1")))
+    # 补足材料后再拜一次：位置满依然先拦，且不扣材料（无材料可扣）
+    db.add_item("g1", "w1", "铁矿石", {}, 5)
+    out = await cmd(m, "find_npc", "g1", "w1", "找 奥格")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
+    check("补料后仍被位置满拦截", "副业位已满" in out, out[:200])
     inv_after = db.get_inventory("g1", "w1")
     ores = [i for i in inv_after if "铁矿石" in i["data"]["name"]]
     check("材料未扣(铁矿石仍在)", sum(i["count"] for i in ores) >= 5, str([(i["data"]["name"], i["count"]) for i in inv_after]))
