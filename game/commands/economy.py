@@ -242,7 +242,7 @@ def _render_consumable(d, lines, equipped):
             parts.append(f"恢复 {int(m * 100)}% 魔力" if m < 1 else f"恢复 {m} 点魔力")
         if d.get("stamina"):
             parts.append(f"{d['stamina']} 体力")
-        lines.append("效果：" + "＋".join(parts))
+        lines.append("效果：" + " + ".join(parts))
     lines.append("")
     if d.get("price"):
         lines.append(f"💡 出售价 {d['price']} 金币")
