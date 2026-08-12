@@ -40,7 +40,7 @@ async def main():
 
     print("【1. #127 购买数量 + 全角括号】")
     await cmd(m, "register", "g1", "w1", "注册 战士 买家 男")
-    db.update_player("g1", "w1", gold=50000, cur_map="ironharbor", cur_subarea="ironharbor_6")
+    db.update_player("g1", "w1", gold=50000, cur_map="white_deer", cur_subarea="white_deer_6")
     out = await cmd(m, "buy", "g1", "w1", "购买 治疗药水(中) 6")
     check("购买 6 瓶成功", "×6" in out, out[:200])
     inv = db.get_inventory("g1", "w1")

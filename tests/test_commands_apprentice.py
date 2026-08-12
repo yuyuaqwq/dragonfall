@@ -98,14 +98,13 @@ async def main():
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     db.add_item("g1", "w1", "铁矿石", {}, 5)
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("实践过关", "铁矿石" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("进入授业判定", "掂掂分量" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("授业通过进入拜师礼", "学徒" in out, out[:300])
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("位置满拦截拜师", "副业位已满" in out, out[:300])
+    # v101.25 系列 #417 修复：位置满在实践关提前拦截（材料不扣），不再走到拜师礼才拦
+    check("位置满实践拦截", "副业位已满" in out, out[:200])
+    inv_after = db.get_inventory("g1", "w1")
+    ores = [i for i in inv_after if "铁矿石" in i["data"]["name"]]
+    check("材料未扣(铁矿石仍在)", sum(i["count"] for i in ores) >= 5, str([(i["data"]["name"], i["count"]) for i in inv_after]))
     check("未激活锻造", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
+    player = db.get_player("g1", "w1")
     check("未记录学徒", "craft" not in player.get("apprentices", []), str(player.get("apprentices")))
 
     print("【v81 对话树数据完整性】")

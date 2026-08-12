@@ -193,10 +193,11 @@ async def test_req():
 # ============ 6. 战斗词条触发 ============
 def test_battle_affix():
     print("【6. 战斗词条触发】")
-    # 6.1 战斗开始护盾
+    # 6.1 战斗开始护盾（v101.28d 盾 buff 化：affix_shield 来源 3 回合）
     p = mk_player(["shield"])
     b = BT.Battle("monster", mk_enemy(), {}, p)
-    check("护盾词条战斗开始", b.shield == int(p["max_hp"] * 0.10), str(b.shield))
+    check("护盾词条战斗开始", b.p_shields.get("affix_shield", {}).get("value") == int(p["max_hp"] * 0.10)
+          and b.p_shields.get("affix_shield", {}).get("turns") == 3, str(b.p_shields))
     # 6.2 处决低血增伤（血 20% 触发）
     p2 = mk_player(["execute"])
     b2 = BT.Battle("monster", mk_enemy(hp=200, max_hp=1000), {}, p2)

@@ -94,7 +94,8 @@ async def main():
 
     print("【7. find 目标文案显示】")
     out = await cmd(m, "quest_view", "g1", "w1", "任务")
-    check("任务视图显示已完成", "寻猫" in out and "已完成" in out, out[:300])
+    # v101.25i3：任务面板过滤 done——已完成任务不再显示（鱼鱼拍板）
+    check("任务视图过滤已完成", "寻猫" not in out, out[:300])
 
     print(f"\n结果：{passed} 通过 / {failed} 失败")
     return 1 if failed else 0

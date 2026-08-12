@@ -41,7 +41,7 @@ async def main():
     # ---- 3. 关键新道具字段抽查 ----
     check("神愈药水 heal=1.0", consum["i_treat_divine"]["heal"] == 1.0, str(consum.get("i_treat_divine")))
     check("龙蛋煎饼 复合字段", consum["i_dragon_egg_pancake"].get("heal") == 0.4 and consum["i_dragon_egg_pancake"].get("stamina") == 45, "")
-    check("战圣药剂 buff_atk_def", consum["i_warsaint_pot"]["effect"] == "buff_atk_def", "")
+    check("战圣药剂 buff_atk_big_def", consum["i_warsaint_pot"]["effect"] == "buff_atk_big_def", "")
     check("国王赦书 clear_red", consum["i_king_pardon"]["effect"] == "clear_red", "")
     check("龙晶箱 open_chest", consum["i_chest_dragon"]["effect"] == "open_chest", "")
     check("龙裔蛋 pet_key", consum["i_egg_drake"]["pet_key"] == "pet_drake", "")
