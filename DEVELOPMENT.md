@@ -82,6 +82,15 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 - 迁移函数放 main.py + event_state 标记幂等；**改表结构检查 5 处**（CREATE/ALTER/update_player 白名单/get_player 解析/迁移 defaults）
 - 不要提交 playtest 产物、临时脚本输出（`.bak_*` 用完即删）
 
+### ⚠️ 策划案同步 = 与 git 提交同级别的铁律（2026-08-12 鱼鱼拍板）
+
+**任何涉及设计/数值/新内容的代码改动，提交 git 之前必须先同步 `C:\Users\yuyu\qqbot\design\new_world\` 对应章节（独立 git 仓库），与 git commit 同级必做，禁止只提交代码。**
+
+- 判定：改到数值（价格/概率/属性/成长）、新内容（物品/配方/地图/技能/怪物）、机制设计（规则/流程/解锁）→ 必同步；纯 bug 修复、纯文案错别字、纯重构不动设计 → 可不同步但拿不准就同步
+- 顺序：**先策划案 → 再代码 → 测试 → 双仓库分别提交**（代码仓库 + design/new_world 仓库）
+- 历史教训：v101.25h3 只更新 docs/NUMERIC_DESIGN.md 被鱼鱼抓包（"这种策划设计类的文档要放在策划案里，不要在代码文档里"）；docs/NUMERIC_DESIGN.md 只是实现记录，不承载设计意图
+- 本铁律四处常驻：本文件 §6 / dragonfall-game SKILL.md / Hermes MEMORY.md / playtest cron prompt
+
 ## 7. 高频工具坑（全部实战踩过）
 
 | 坑 | 规避 |
