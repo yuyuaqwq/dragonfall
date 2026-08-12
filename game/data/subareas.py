@@ -2086,7 +2086,7 @@ SUBAREAS = {
             "id": "dawn_cathedral_1",
             "name": "圣堂前庭",
             "icon": "🌲",
-            "desc": "大圣堂的前庭铺着白色石板，圣殿守卫如雕像般立在廊柱旁。虔诚者在此驻足，阳光把影子拉得很长。",
+            "desc": "大圣堂的前庭铺着白色石板，圣殿守卫如雕像般立在廊柱旁（守卫魔像 Lv.28，等级不足请勿深入）。虔诚者在此驻足，阳光把影子拉得很长。",
             "type": "野外",
             "lv": 28,
             "npcs": ["npc_cathedral_deacon"],
@@ -3048,7 +3048,7 @@ SUBAREAS = {
             "id": "ironshield_town_2",
             "name": "镇公所",
             "icon": "🏘️",
-            "desc": "镇公所是一栋结实的石头房子，镇长在案前翻看军报。镇上的每一件大事都从这里传达。",
+            "desc": "镇公所是一栋结实的石头房子，镇长在案前翻看军报。后院辟了几间招待所，供过往商旅落脚歇息。镇上的每一件大事都从这里传达。",
             "type": "城镇",
             "lv": 30,
             "npcs": [
@@ -3058,10 +3058,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # v101.30d #O49：铁盾镇无旅店修复（策划案 02 章：旅店挂镇公所）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "ironshield_town_3",

@@ -350,6 +350,11 @@ SERIES_FIXED_AFFIX = {
     "银铃短刃": ["combo", "swift"], "银铃护腿": ["swift"], "银铃杖": ["meditate"],
     "翡翠皮甲": ["dodge"], "翡翠护腿": ["dodge"],
     "迷雾护腿": ["swift"], "迷雾兜帽": ["swift"],
+    # v101.30d playtest O44/O45 补齐件数词条（与同套风格一致）
+    "银铃头盔": ["swift"], "银铃胸甲": ["swift", "dodge"], "银铃战靴": ["swift"], "银铃项链": ["swift"],
+    "翡翠头盔": ["dodge"], "翡翠战靴": ["dodge"], "翡翠项链": ["dodge"],
+    "迷雾胸甲": ["swift", "dodge"], "迷雾战靴": ["swift"], "迷雾项链": ["swift"],
+    "猎风长弓": ["precise", "swift"], "疾风长弓": ["precise", "pierce"],
     # 海神
     "海神三叉戟": ["element_ice", "pierce"], "潮汐法杖": ["element_ice", "meditate"],
     "珍珠头冠": ["swift"], "龙鳞海甲": ["dodge", "dmg_reduce"], "海神长靴": ["swift"],

@@ -21,7 +21,7 @@ from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
-INSTANCE_TIMEOUT = 120  # 副本行动超时（秒）
+INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
 
 
 class InstanceCmds(CommandBase):
@@ -825,7 +825,13 @@ class InstanceCmds(CommandBase):
                 )
                 return
             if self._in_battle(group_id, m):
-                yield event.plain_result(f"{p['name']} 正在战斗中，先打完再来！")
+                # v101.30d #O17：拦截时补队伍构成（playtest 影刃/小四：只报名字不知队伍现状）
+                roster = "、".join(
+                    (self._player(group_id, mm) or {}).get("name", mm) for mm in members
+                )
+                yield event.plain_result(
+                    f"{p['name']} 正在战斗中，先打完再来！\n👥 当前队伍：{roster}（队友打完即可开本）"
+                )
                 return
         # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
         key_item = inst.get("key_item")

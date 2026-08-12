@@ -89,6 +89,8 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "dawn_city_5": [  # 炼金工坊（herb 优先 + craft）
         "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion",
+        # v101.30d #O53：空瓶上架——梅尔文炼金考验(草药3+空瓶1)材料死锁修复
+        "mat_kong_ping",
     ],
     # ---------- 铁盾镇 ----------
     "ironshield_town_3": [  # 坚盾军械铺（smith + 军需补给）
@@ -218,6 +220,8 @@ SHOP_WEAPONS = {
         ["祈愿法杖", "staff", 18, "blue"],
         ["铁头战锤", "mace", 18, "blue"],
         ["厚皮拳套", "fist", 18, "blue"],
+        # v101.30d #O44：游侠弓档补录 Lv.24（Lv.18→32 断档）
+        ["猎风长弓", "bow", 24, "blue"],
     ],
     # 南境·铁港系列（10 章 4.2：海盗/水手风）
     "ironharbor": [
@@ -246,6 +250,8 @@ SHOP_WEAPONS = {
     "ironshield_town": [
         ["圣光长剑", "sword", 28, "blue"],
         ["晨曦法杖", "staff", 28, "blue"],
+        # v101.30d #O44：游侠弓档补录 Lv.28（Lv.18→32 断档）
+        ["疾风长弓", "bow", 28, "blue"],
     ],
     # 群岛（翡翠海）
     "jade_port": [
@@ -375,5 +381,29 @@ SHOP_EQUIP = {
         "eq_bai_lu_pi_xue",
         "eq_bai_lu_zhi_jie",
         "eq_bai_lu_diao_zhu",
+    ],
+    # v101.30d #O45：蓝装补档套商店上架（银铃/翡翠/迷雾，策划案 10 章 4.10）
+    "ironharbor": [         # 铁港城锻造坊：银铃套 6 件
+        "eq_yin_ling_duan_ren",
+        "eq_yin_ling_hu_tui",
+        "eq_yin_ling_zhang",
+        "eq_yin_ling_tou_kui",
+        "eq_yin_ling_xiong_jia",
+        "eq_yin_ling_zhan_xue",
+        "eq_yin_ling_xiang_lian",
+    ],
+    "jade_port": [          # 翡翠港·翡翠集市：翡翠套 5 件
+        "eq_fei_cui_pi_jia",
+        "eq_fei_cui_hu_tui",
+        "eq_fei_cui_tou_kui",
+        "eq_fei_cui_zhan_xue",
+        "eq_fei_cui_xiang_lian",
+    ],
+    "ironshield_town": [    # 铁盾镇军械铺：迷雾套 5 件
+        "eq_mi_wu_hu_tui",
+        "eq_mi_wu_dou_mao",
+        "eq_mi_wu_xiong_jia",
+        "eq_mi_wu_zhan_xue",
+        "eq_mi_wu_xiang_lian",
     ],
 }

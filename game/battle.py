@@ -1110,7 +1110,7 @@ class Battle:
         if hr:
             heal = max(1, int(heal * (1 + hr)))
             if hr > 0:
-                logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
+                logs.append(f"✨ 圣光亲和：治疗效果 ＋{int(hr*100)}%！")
             else:
                 logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
         over = 0
@@ -1717,10 +1717,10 @@ class Battle:
                 logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
         elif stype == "buff_atk":
             self.p_buffs["atk_up"] = max(int(self.p_buffs.get("atk_up", 0) or 0), 2)
-            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +30%，2 回合)" + (f"「{line}」" if line else ""))
+            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 ＋30%，2 回合)" + (f"「{line}」" if line else ""))
         elif stype == "crit_up":
             self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
-            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +20%，2 回合)" + (f"「{line}」" if line else ""))
+            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 ＋20%，2 回合)" + (f"「{line}」" if line else ""))
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:

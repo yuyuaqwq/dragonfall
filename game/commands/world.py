@@ -1015,13 +1015,24 @@ class WorldCmds(CommandBase):
             lines.append("你还没激活任何方碑……去大陆各处寻找方碑，『激活』解锁传送点吧！")
         else:
             lines.append("✨ 已激活方碑(『传送 <序号>』直达)：")
+            # v101.30d #O26：坐骑折扣在列表标注（playtest 格温：显示 175 实际扣 140）
+            mounts = player.get("mounts") or {}
+            active_mk = mounts.get("active")
+            disc = 0.0
+            if active_mk and active_mk in C.MOUNT_BY_KEY:
+                disc = float(C.MOUNT_BY_KEY[active_mk].get("discount", 0) or 0)
             for i, mid in enumerate(portals, 1):
                 m = C.MAP_BY_ID.get(mid, {})
                 p = C.PORTALS.get(mid, {})
                 cost = C.portal_cost(m)
+                shown = cost
+                tag = ""
+                if disc > 0:
+                    shown = max(1, int(cost * (1 - disc)))
+                    tag = f"（骑乘坐骑 {int(disc*100)}% 折扣）"
                 name = p.get("name", mid) if p else mid
                 icon = p.get("icon", "🌌") if p else "🌌"
-                lines.append(f" {i}. {icon}{name}({m.get('name', '?')} · {cost} 金币)")
+                lines.append(f" {i}. {icon}{name}({m.get('name', '?')} · {shown} 金币{tag})")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『传送 <名称/序号>』付费传送；到新地图发现方碑就『激活』吧～")
         yield event.plain_result("\n".join(lines))
@@ -1273,6 +1284,15 @@ class WorldCmds(CommandBase):
         else:
             lines.append("")
             lines.append("【每日】今日任务已完成，明天再来！")
+        # v101.30d #O1：师门考验追踪——对话树进行中时面板显示（playtest 小红：考验无面板条目）
+        _MASTER_IDS = ("npc_herb_master", "npc_mine_master", "npc_fish_master", "npc_cook_master",
+                       "npc_alchemy_master", "npc_craft_master", "npc_enhance_master", "npc_rune_master")
+        ts = db.get_talk_state(group_id, qq_id)
+        if ts and ts.get("npc") in _MASTER_IDS:
+            _tnpc = C.NPCS.get(ts["npc"]) or {}
+            lines.append("")
+            lines.append("【师门考验】")
+            lines.append(f"  ⏳ 正在接受【{_tnpc.get('name', '导师')}】的拜师考验，回复『继续』接着进行")
         lines.append("")
         lines.append("💡 输入『每日』领取今日任务，『对话 <NPC名>』接取任务")
         yield event.plain_result("\n".join(lines))
@@ -2533,6 +2553,13 @@ class WorldCmds(CommandBase):
             if sq.get("board"):  # v95r65 #295：告示板委托只能在告示板接取，NPC 不自动发
                 continue
             if sq["id"] in side:
+                continue
+            # v101.30d #O52：支线等级门槛（min_level 字段）——等级不够不自动接，
+            # 避免低等级玩家接了高危区域任务（如雾潮航道 Lv.45 区）
+            if sq.get("min_level") and player["level"] < sq["min_level"]:
+                lines.append(
+                    f"🛡️ {npc.get('name', '对方')}打量了你一眼：这活得有 Lv.{sq['min_level']}+ 的本事，你再去练练吧。"
+                )
                 continue
             side[sq["id"]] = {"status": "active", "progress": {}}
             changed = True

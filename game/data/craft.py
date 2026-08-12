@@ -1223,6 +1223,91 @@ CRAFT_RECIPES = {
         'roster_id': 'eq_zhen_zhu_xiang_lian',
         'blueprint': '珍珠项链图纸',
     },
+    # ================= v101.30d playtest O44/O45 补齐配方（策划案 10 章 4.10）=================
+    'rec_yin_ling_tou_kui': {
+        'slot': 'helm', 'quality': 'blue', 'lv': 18,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 1},
+        'gold': 150, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃头盔', 'roster_id': 'eq_yin_ling_tou_kui',
+    },
+    'rec_yin_ling_xiong_jia': {
+        'slot': 'armor', 'quality': 'blue', 'lv': 18,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 1},
+        'gold': 155, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃胸甲', 'roster_id': 'eq_yin_ling_xiong_jia',
+    },
+    'rec_yin_ling_zhan_xue': {
+        'slot': 'boots', 'quality': 'blue', 'lv': 18,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 1},
+        'gold': 150, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃战靴', 'roster_id': 'eq_yin_ling_zhan_xue',
+    },
+    'rec_yin_ling_xiang_lian': {
+        'slot': 'necklace', 'quality': 'blue', 'lv': 18,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 1},
+        'gold': 155, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃项链', 'roster_id': 'eq_yin_ling_xiang_lian',
+    },
+    'rec_fei_cui_pi_jia': {
+        'slot': 'armor', 'quality': 'blue', 'lv': 20,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 170, 'desc': '翡翠森林的藤蔓缠绕纹样，带着自然的生机',
+        'name': '翡翠皮甲', 'roster_id': 'eq_fei_cui_pi_jia',
+    },
+    'rec_fei_cui_hu_tui': {
+        'slot': 'legs', 'quality': 'blue', 'lv': 20,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 165, 'desc': '翡翠森林的藤蔓缠绕纹样，带着自然的生机',
+        'name': '翡翠护腿', 'roster_id': 'eq_fei_cui_hu_tui',
+    },
+    'rec_fei_cui_tou_kui': {
+        'slot': 'helm', 'quality': 'blue', 'lv': 20,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 165, 'desc': '翡翠森林的藤蔓缠绕纹样，带着自然的生机',
+        'name': '翡翠头盔', 'roster_id': 'eq_fei_cui_tou_kui',
+    },
+    'rec_fei_cui_zhan_xue': {
+        'slot': 'boots', 'quality': 'blue', 'lv': 20,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 165, 'desc': '翡翠森林的藤蔓缠绕纹样，带着自然的生机',
+        'name': '翡翠战靴', 'roster_id': 'eq_fei_cui_zhan_xue',
+    },
+    'rec_fei_cui_xiang_lian': {
+        'slot': 'necklace', 'quality': 'blue', 'lv': 20,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 175, 'desc': '翡翠森林的藤蔓缠绕纹样，带着自然的生机',
+        'name': '翡翠项链', 'roster_id': 'eq_fei_cui_xiang_lian',
+    },
+    'rec_mi_wu_xiong_jia': {
+        'slot': 'armor', 'quality': 'blue', 'lv': 22,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 185, 'desc': '迷雾沼泽中锻造的神秘器物，蒙着一层水汽',
+        'name': '迷雾胸甲', 'roster_id': 'eq_mi_wu_xiong_jia',
+    },
+    'rec_mi_wu_zhan_xue': {
+        'slot': 'boots', 'quality': 'blue', 'lv': 22,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 185, 'desc': '迷雾沼泽中锻造的神秘器物，蒙着一层水汽',
+        'name': '迷雾战靴', 'roster_id': 'eq_mi_wu_zhan_xue',
+    },
+    'rec_mi_wu_xiang_lian': {
+        'slot': 'necklace', 'quality': 'blue', 'lv': 24,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 2},
+        'gold': 200, 'desc': '迷雾沼泽中锻造的神秘器物，蒙着一层水汽',
+        'name': '迷雾项链', 'roster_id': 'eq_mi_wu_xiang_lian',
+    },
+    'rec_lie_feng_chang_gong': {
+        'slot': 'weapon', 'quality': 'blue', 'lv': 24, 'weapon_type': 'bow',
+        "mats": {'mat_ge_bu_lin_hui_ji': 3, 'mat_hai_yao_lin_pian': 2},
+        'gold': 230, 'desc': '银铃河畔工匠的细心打磨，风从弦上穿过',
+        'name': '猎风长弓', 'roster_id': 'eq_lie_feng_chang_gong',
+    },
+    'rec_ji_feng_chang_gong': {
+        'slot': 'weapon', 'quality': 'blue', 'lv': 28, 'weapon_type': 'bow',
+        "mats": {'mat_ge_bu_lin_hui_ji': 3, 'mat_hai_yao_lin_pian': 2},
+        'gold': 270, 'desc': '迷雾沼泽中锻造的神秘器物，弦响如疾风',
+        'name': '疾风长弓', 'roster_id': 'eq_ji_feng_chang_gong',
+    },
 }
 
 CRAFT_RECIPE_ALIASES = {

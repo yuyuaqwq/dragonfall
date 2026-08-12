@@ -1413,6 +1413,9 @@ SIDE_QUESTS = [
         "giver": "npc_old_sailor",
         "map": "mist_tide_passage",
         "desc": "点亮雾潮航道深处的无名灯塔，驱散海上迷雾",
+        # v101.30d #O52：接取等级门槛——雾潮航道区域怪 Lv.45（海妖斥候），
+        # 此前 Lv.22 可接，抵达即依赖逃跑流（playtest 影刃）
+        "min_level": 40,
         "objective": {"explore": "mist_tide_passage"},
         "reward_exp": 6000,
         "reward_gold": 15000,

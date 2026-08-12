@@ -94,11 +94,18 @@ def tpl_loot_gold(ctx):
 
 @register("loot_materials")
 def tpl_loot_materials(ctx):
-    """材料：从 mats 池随机 n 份入包，可带蓝图概率。params: mats/n/blueprint_chance/header"""
+    """材料：从 mats 池随机 n 份入包，可带蓝图概率。params: mats/n/blueprint_chance/header
+    v101.30d #O29：支持 cap_name/cap_count/fallback_mats——指定材料已有 cap_count 份时
+    改掉 fallback 池（防任务/准入材料重复拾取，如泛黄书页满 3 张不再出）"""
     import uuid
     db = ctx._db()
     C = ctx._C()
     mats_pool = ctx.param("mats", ["草药"])
+    cap_name = ctx.param("cap_name", "")
+    if cap_name:
+        have = db.count_item(ctx.group_id, ctx.qq_id, cap_name)
+        if have >= ctx.param("cap_count", 1):
+            mats_pool = ctx.param("fallback_mats", ["古木枝"])
     n = ctx.param("n", 1)
     got = []
     for _ in range(n):

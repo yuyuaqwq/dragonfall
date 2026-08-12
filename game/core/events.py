@@ -7,15 +7,23 @@ from ..data import EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE, EXPLORE
 
 
 """《剑与魔法》数据层 - events.py"""
-def roll_explore_event():
-    """掷一个随机事件，返回事件 dict"""
-    r = random.random() * EVENT_WEIGHT_SUM
+def roll_explore_event(exclude=()):
+    """掷一个随机事件，返回事件 dict
+
+    v101.30d #O22/O42：支持排除列表——同一玩家最近触发的常规事件不重复
+    （短间隔去重，策划案 02 章 7.6）。排除后按剩余事件权重重掷。
+    """
+    pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude]
+    if not pool:
+        pool = EXPLORE_EVENTS
+    total = sum(e["weight"] for e in pool)
+    r = random.random() * total
     acc = 0
-    for e in EXPLORE_EVENTS:
+    for e in pool:
         acc += e["weight"]
         if r <= acc:
             return e
-    return EXPLORE_EVENTS[0]
+    return pool[0]
 
 def roll_explore_egg(cur_map_id=None):
     """探索彩蛋判定(02 章 7.5)：常规事件之外独立判定，命中返回蛋事件 dict。

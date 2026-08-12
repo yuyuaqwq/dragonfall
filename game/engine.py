@@ -648,7 +648,9 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
             f"\n📌 属性点 +3、技能点 +1(『属性』加点 / 『技能学习 <名称>』学技能)"
         )
         if can_learn:
-            logs.append(f"📖 有 {len(can_learn)} 个新技能可学习！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")
+            # v101.30d #O54：提示语修正——可学的含 5 技能点被动（风行步/狩猎咆哮等），
+            # 不再叫"新技能"误导（playtest 小蓝：提示与"新技能"概念出入）
+            logs.append(f"📖 有 {len(can_learn)} 个技能可学习（含被动）！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")
         if player["level"] == C.EVOLVE_LEVELS[1]:
             logs.append(f"🌟 你已达到 {player['level']} 级，可以转职了！(输入『转职』查看)")
     return logs, player

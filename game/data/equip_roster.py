@@ -151,6 +151,23 @@ EQUIP_ROSTER = {
     "eq_mi_wu_hu_tui": {"name": "迷雾护腿", "slot": "legs", "quality": "blue", "lv": 22, "series": "迷雾", "req": {"vit": 20}, "source": "锻造"},
     "eq_yin_ling_zhang": {"name": "银铃杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 24, "series": "银铃", "req": {"int": 22}, "source": "锻造"},
     "eq_mi_wu_dou_mao": {"name": "迷雾兜帽", "slot": "helm", "quality": "blue", "lv": 26, "series": "迷雾", "req": {"int": 24}, "source": "锻造"},
+    # ================= v101.30d playtest O44/O45 补齐：补档套残缺件数 + 游侠弓档（策划案 10 章 4.10）=================
+    # 银铃套补 4 件（原有 短刃/护腿/杖 → 凑齐 6 件）
+    "eq_yin_ling_tou_kui": {"name": "银铃头盔", "slot": "helm", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    "eq_yin_ling_xiong_jia": {"name": "银铃胸甲", "slot": "armor", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    "eq_yin_ling_zhan_xue": {"name": "银铃战靴", "slot": "boots", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    "eq_yin_ling_xiang_lian": {"name": "银铃项链", "slot": "necklace", "quality": "blue", "lv": 18, "series": "银铃", "req": {"agi": 16}, "source": "锻造"},
+    # 翡翠套补 3 件（原有 皮甲/护腿 → 凑齐 5 件）
+    "eq_fei_cui_tou_kui": {"name": "翡翠头盔", "slot": "helm", "quality": "blue", "lv": 20, "series": "翡翠", "req": {"agi": 18}, "source": "锻造"},
+    "eq_fei_cui_zhan_xue": {"name": "翡翠战靴", "slot": "boots", "quality": "blue", "lv": 20, "series": "翡翠", "req": {"agi": 18}, "source": "锻造"},
+    "eq_fei_cui_xiang_lian": {"name": "翡翠项链", "slot": "necklace", "quality": "blue", "lv": 20, "series": "翡翠", "req": {"agi": 18}, "source": "锻造"},
+    # 迷雾套补 3 件（原有 护腿/兜帽 → 凑齐 5 件）
+    "eq_mi_wu_xiong_jia": {"name": "迷雾胸甲", "slot": "armor", "quality": "blue", "lv": 22, "series": "迷雾", "req": {"vit": 20}, "source": "锻造"},
+    "eq_mi_wu_zhan_xue": {"name": "迷雾战靴", "slot": "boots", "quality": "blue", "lv": 22, "series": "迷雾", "req": {"vit": 20}, "source": "锻造"},
+    "eq_mi_wu_xiang_lian": {"name": "迷雾项链", "slot": "necklace", "quality": "blue", "lv": 24, "series": "迷雾", "req": {"vit": 22}, "source": "锻造"},
+    # 游侠弓档补录（Lv.18→32 断档，playtest O44 实锤）
+    "eq_lie_feng_chang_gong": {"name": "猎风长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 24, "series": "银铃", "req": {"agi": 24}, "source": "锻造"},
+    "eq_ji_feng_chang_gong": {"name": "疾风长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 28, "series": "迷雾", "req": {"agi": 28}, "source": "锻造"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）

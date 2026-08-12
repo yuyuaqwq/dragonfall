@@ -2374,9 +2374,10 @@ class EconomyCmds(CommandBase):
                 else:
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']} (材料)")
             elif d.get("type") == "图纸":
-                # v101.25 #326：图纸标注补充"需解锁锻造副业"——玩家学完才能用，
-                # 副业未解锁时提前说明（playtest round67 小蓝抓包海风长弓图纸误导）
-                lines.append(f"{i:>2}. 📜 {d['name']} ×{it['count']} (锻造套装用·需解锁锻造副业)")
+                # v101.25 #326：图纸标注——玩家学完才能用（playtest round67 小蓝抓包海风长弓图纸误导）
+                # v101.30d #O47：措辞修正——"需解锁锻造副业"误导（实际学到即可在铁匠铺锻造，
+                # 小白实测珍珠项链图纸与行为矛盾），改为动作指引
+                lines.append(f"{i:>2}. 📜 {d['name']} ×{it['count']} (图纸：学习后到铁匠铺锻造)")
             elif d.get("slot"):
                 q = C.QUALITY[d["quality"]]
                 enh = d.get("enhance", 0)
@@ -3174,17 +3175,26 @@ class EconomyCmds(CommandBase):
         shop_title = (subarea.get("name") or cur_map.get("name") or cur)
         lines = []
         entries = []
+
+        # v101.30d #O41/O34：商店已拥有标注（playtest 5 角色复现重复购买）
+        def _owned(name):
+            n = db.count_item(group_id, qq_id, name)
+            for _d in (player.get("equipment") or {}).values():
+                if _d and _d.get("name") == name:
+                    n += 1
+            return f"（已拥有 ×{n}）" if n else ""
+
         if is_smith:
             # 铁匠类商店：武器 + 锻造材料 + 全套装备 + 图纸（v101.25h 追加子区域军需补给如强化石）
             sa_id = player.get("cur_subarea") or ""
             sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
             for iid in sa_items or []:
                 it = C.ITEMS[iid]
-                entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
+                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）"))
             materials = C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])
             for mid in materials:
                 mt = C.MATERIALS[mid]
-                entries.append((mid, f"{mt['name']} —— {mt['price']} 金币（锻造材料）"))
+                entries.append((mid, f"{mt['name']}{_owned(mt['name'])} —— {mt['price']} 金币（锻造材料）"))
             # v94 图纸经济：铁匠铺兜底卖图纸（随机一张，价格 = 图纸价×3 = (lv×3+20)×3）
             bp_price = int((max(1, player["level"]) * 3 + 20) * 3)
             entries.append(("bp:rand", f"📜 神秘锻造图纸（随机一张）—— {bp_price} 金币"))
@@ -3192,13 +3202,13 @@ class EconomyCmds(CommandBase):
             for rid in equip_items:
                 r = C.EQUIP_ROSTER[rid]
                 q = C.QUALITY[r["quality"]]
-                entries.append((f"e:{rid}", f"{q['color']}{r['name']}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'))} 金币"))
+                entries.append((f"e:{rid}", f"{q['color']}{r['name']}{_owned(r['name'])}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'))} 金币"))
             weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
             for wname, wtype, wlv, wq in weapons:
                 q = C.QUALITY[wq]
                 _ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
                 _r = C.EQUIP_ROSTER.get(_ids[0], {}) if _ids else {}
-                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         else:
             # 普通商店：消耗品 + 武器（v101.28g：只挂子区域配货，无城镇级兜底）
             sa_kind = self._sa_shop_kind(player)
@@ -3212,7 +3222,7 @@ class EconomyCmds(CommandBase):
                 shop_title = f"🧭 {tname}的货摊"  # #151：标题跟随实际在场的交易 NPC
             for iid in shop_items:
                 it = C.ITEMS[iid]
-                entries.append((iid, f"{it['name']} —— {it['price']} 金币（{it['desc']}）"))
+                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）"))
             # 武器：铁匠/锻造类 + 普通商店（集市/商行/码头）可卖；草药铺/酒馆不卖
             if sa_kind in ("smith", "general"):
                 weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
@@ -3220,7 +3230,7 @@ class EconomyCmds(CommandBase):
                     q = C.QUALITY[wq]
                     _ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
                     _r = C.EQUIP_ROSTER.get(_ids[0], {}) if _ids else {}
-                    entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                    entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)

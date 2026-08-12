@@ -399,14 +399,35 @@ class CombatCmds(CommandBase):
             text = execute_event_template(egg["template"], ctx)
             if text:
                 return True, text
-        ev = C.roll_explore_event()
+        ev = C.roll_explore_event(exclude=self._recent_explore_events(group_id, qq_id))
         ctx = EventContext(group_id, qq_id, player, cur_map,
                            params=ev.get("params", {}), name=name,
                            hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
         text = execute_event_template(ev["template"], ctx)
         if text:
+            self._remember_explore_event(group_id, qq_id, ev["id"])
             return True, text
         return False, ""
+
+    # ---------- v101.30d #O22/O42：探索事件短间隔去重（策划案 02 章 7.6）----------
+    _EXPLORE_RECENT_KEY = "explore_recent_{gid}_{qid}"
+    _EXPLORE_RECENT_MAX = 3
+
+    def _recent_explore_events(self, group_id, qq_id):
+        raw = db.get_event_state(self._EXPLORE_RECENT_KEY.format(gid=group_id, qq_id=qq_id))
+        if not raw:
+            return []
+        try:
+            lst = json.loads(raw)
+            return [x for x in lst if isinstance(x, str)][-self._EXPLORE_RECENT_MAX:]
+        except Exception:
+            return []
+
+    def _remember_explore_event(self, group_id, qq_id, eid):
+        recent = self._recent_explore_events(group_id, qq_id)
+        recent = [x for x in recent if x != eid] + [eid]
+        db.set_event_state(self._EXPLORE_RECENT_KEY.format(gid=group_id, qq_id=qq_id),
+                           json.dumps(recent[-self._EXPLORE_RECENT_MAX:]))
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
         """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。
