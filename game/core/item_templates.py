@@ -255,14 +255,30 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               # v101.28b 食物增益（弱化版 BUFF_MULT food_* 键，战斗中 3 回合）
               "buff_atk_food": "food_atk_up", "buff_def_food": "food_def_up",
               "buff_spd_food": "food_spd_up", "buff_crit_food": "food_crit_up",
-              "buff_matk_food": "food_matk_up"}
+              "buff_matk_food": "food_matk_up",
+              # v101.28f 药水强度分档（战吼/龙力/蛮力/风灵/致命/锐目/秘法/星辉/虚空/战圣）
+              "buff_atk_big": "atk_up_big", "buff_atk_small": "atk_up_small",
+              "buff_spd_small": "spd_up_small", "buff_crit_small": "crit_up_small",
+              "buff_crit_big": "crit_up_big",
+              "buff_matk_strong": "matk_up_strong", "buff_matk_crit": "matk_up_strong,crit_up_small",
+              "buff_atk_big_def": "atk_up_big,def_up",
+              # v101.28f 药水特殊效果（→ special: payload，_do_use_item 分发）
+              "next_atk_up": "special:next_atk_up", "heal_up": "special:heal_up",
+              "magic_resist": "special:magic_resist", "thorns_pot": "special:thorns_pot",
+              "dodge_pot": "special:dodge_pot", "cc_immune": "special:cc_immune",
+              "execute_pot": "special:execute_pot", "armor_break_pot": "special:def_down",
+              "rock_shield": "special:shield_small", "holy_shield": "special:shield_big"}
 
 
 def _make_buff_tpl(key):
     def tpl_buff(ctx):
         if not ctx.battle:
             return ItemResult(text="战斗药水只能在战斗中使用！(输入『攻击』进入战斗后使用)")
-        return ItemResult(payload=f"buff:{_BUFF_KEYS[key]}")
+        mapped = _BUFF_KEYS[key]
+        if mapped.startswith("special:"):
+            # v101.28f 药水特殊效果（护盾/反伤/处决/闪避/免疫等）→ special payload
+            return ItemResult(payload=mapped)
+        return ItemResult(payload=f"buff:{mapped}")
     return tpl_buff
 
 

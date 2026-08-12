@@ -47,6 +47,12 @@ BUFF_MULT = {
     "def_up":         ("def", 1.45),
     "spd_up":         ("spd", 1.40),
     "crit_up":        ("crit", 0.20),      # 暴击率 +20%
+    # v101.28f 药水强度分档（名字不同效果不同的真实落地：战吼/龙力 +40%、蛮力 +20%、风灵 +20%、致命 +30%、锐目 +15%）
+    "atk_up_big":     ("atk", 1.40),
+    "atk_up_small":   ("atk", 1.20),
+    "spd_up_small":   ("spd", 1.20),
+    "crit_up_small":  ("crit", 0.15),
+    "crit_up_big":    ("crit", 0.30),
     # v101.28b 食物增益（战斗料理线：数值约为药水 1/3，价格低+带战斗外恢复）
     "food_atk_up":    ("atk", 1.10),
     "food_def_up":    ("def", 1.15),
@@ -457,6 +463,10 @@ class Battle:
             player["mp"] = min(player.get("max_mp", player["mp"]), player["mp"] + mv)
             logs.append(f"💙 你使用了战斗道具，恢复 {player['mp'] - before} 点魔力！({player['mp']}/{player.get('max_mp', '?')})")
             return logs
+        if payload.startswith("special:"):
+            # v101.28f 药水特殊效果（next_atk_up/heal_up/magic_resist/thorns_pot/dodge_pot/cc_immune/execute_pot/def_down/shield）
+            kind = payload[8:]
+            return self._apply_potion_special(kind, player, logs)
         if payload.startswith("buff:"):
             # v54 战斗药水：effect → p_buffs 增益 3 回合
             # 9.3：支持逗号分隔复合 buff（如龙涎药剂 buff:atk_up,def_up）
@@ -464,7 +474,11 @@ class Battle:
             _cn = {"atk_up": "攻击", "def_up": "防御", "spd_up": "速度", "crit_up": "暴击",
                    "matk_up_pot": "魔攻",
                    "food_atk_up": "攻击", "food_def_up": "防御", "food_spd_up": "速度",
-                   "food_crit_up": "暴击", "food_matk_up": "魔攻"}
+                   "food_crit_up": "暴击", "food_matk_up": "魔攻",
+                   # v101.28f 药水强度分档
+                   "atk_up_big": "攻击", "atk_up_small": "攻击", "spd_up_small": "速度",
+                   "crit_up_small": "暴击", "crit_up_big": "暴击",
+                   "matk_up": "魔攻", "matk_up_strong": "魔攻"}
             for _k in kind.split(","):
                 self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
             _names = '、'.join(_cn.get(k, k) for k in kind.split(','))
@@ -485,6 +499,45 @@ class Battle:
                 logs.append(f"💊 你使用了战斗道具，恢复 {player['hp'] - before} 点生命！({player['hp']}/{player['max_hp']})")
             else:
                 logs.append("💊 你使用了战斗道具！")
+        return logs
+
+    def _apply_potion_special(self, kind: str, player: dict, logs: list) -> list:
+        """v101.28f 药水特殊效果分发（非属性 buff 类，3 回合制；next_atk_up 一次性）。"""
+        if kind == "next_atk_up":
+            self.p_buffs["next_atk_up"] = 1
+            logs.append("⚔️ 你蓄势待发！下一次攻击＋50%！")
+        elif kind == "heal_up":
+            self.p_buffs["heal_up"] = 3
+            logs.append("✨ 治疗增幅！治疗技能效果＋20%！(3 回合)")
+        elif kind == "magic_resist":
+            self.p_buffs["magic_resist"] = 3
+            logs.append("🛡️ 魔鳞护体！受到魔法伤害－15%！(3 回合)")
+        elif kind == "thorns_pot":
+            self.p_buffs["thorns_pot"] = 3
+            logs.append("🌵 荆棘附体！受击反弹 30% 伤害！(3 回合)")
+        elif kind == "dodge_pot":
+            self.p_buffs["dodge_pot"] = 3
+            logs.append("💨 身法飘忽！15% 概率闪避攻击！(3 回合)")
+        elif kind == "cc_immune":
+            self.p_buffs["cc_immune"] = 3
+            logs.append("🗿 不动如山！免疫眩晕/冻结/减速！(3 回合)")
+        elif kind == "execute_pot":
+            self.p_buffs["execute_pot"] = 3
+            logs.append("💀 死神凝视！对生命<30%的敌人＋30%伤害！(3 回合)")
+        elif kind == "def_down":
+            self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
+            self.e_buffs["_armor_break_pct"] = 0.15
+            logs.append("🛡️ 破甲！敌人防御下降 15%！(2 回合)")
+        elif kind == "shield_small":
+            gain = int(player.get("max_hp", 100) * 0.10)
+            self._add_shield("potion", gain, 3)
+            logs.append(f"🛡️ 岩盾护体！获得 {gain} 点护盾！(3 回合)")
+        elif kind == "shield_big":
+            gain = int(player.get("max_hp", 100) * 0.15)
+            self._add_shield("potion", gain, 3)
+            logs.append(f"🛡️ 圣盾护体！获得 {gain} 点护盾！(3 回合)")
+        else:
+            logs.append("🧪 你饮下了药剂！")
         return logs
 
     def _apply_hot(self, player: dict) -> list:
@@ -874,6 +927,8 @@ class Battle:
         tags = []
         s5names = "|".join(self._set_bonus_5(player))
         ename = self.enemy.get("name", "")
+        e = self.enemy
+        hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
         if "圣光" in s5names and any(k in ename for k in ("暗", "影", "亡", "鬼", "骨", "骷髅")):
             mult *= 1.10
             tags.append("✨圣光克暗")
@@ -884,9 +939,8 @@ class Battle:
             mult *= 1.10
             tags.append("🕳️深渊共鸣")
         if not ids:
-            return mult, tags
-        e = self.enemy
-        hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
+            # v101.28e/f：无词条时不能提前返回——食物/药水倍率（处决/精准/狂怒/死神）仍要结算
+            return self._extra_dmg_mult(hp_ratio, mult, tags)
         if "execute" in ids and hp_ratio < 0.30:
             mult *= 1.30
             tags.append("💀处决")
@@ -911,7 +965,19 @@ class Battle:
         if "precise" in ids:
             mult *= 1.10
             tags.append("🎯精准")
-        # v101.28e 食物效果倍率（处决/精准，独立于词条；龙语印记层数共用 mech_stacks 自动生效）
+        # v101.28e/f：食物+药水额外倍率（处决/精准/狂怒/死神），与词条是否为空无关
+        mult, tags = self._extra_dmg_mult(hp_ratio, mult, tags)
+        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
+        if dm:
+            mult *= 1 + 0.02 * dm
+        return mult, tags
+
+    def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
+        """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。
+
+        食物：处决（<30% +30%）/ 精准（+10%）；龙语印记层数共用 mech_stacks 由调用方结算。
+        药水：死神药剂（<30% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
+        """
         foods = getattr(self, "p_food_effects", []) or []
         if "execute" in foods and hp_ratio < 0.30:
             mult *= 1.30
@@ -919,9 +985,13 @@ class Battle:
         if "precise" in foods:
             mult *= 1.10
             tags.append("🎯精准")
-        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
-        if dm:
-            mult *= 1 + 0.02 * dm
+        if self.p_buffs.get("execute_pot") and hp_ratio < 0.30:
+            mult *= 1.30
+            tags.append("💀处决")
+        if self.p_buffs.get("next_atk_up"):
+            mult *= 1.50
+            del self.p_buffs["next_atk_up"]
+            tags.append("⚔️狂怒")
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -1032,6 +1102,9 @@ class Battle:
         # 阶段八：圣光套 2 件效果——治疗 +10%
         if E.has_set(player.get("equipment", {}), "圣光套"):
             heal = int(heal * 1.10)
+        # v101.28f 圣光药剂：治疗技能效果 +20%（3 回合）
+        if self.p_buffs.get("heal_up"):
+            heal = int(heal * 1.20)
         # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
         hr = self._race_bonus(player).get("heal_received", 0) or 0
         if hr:
@@ -1481,6 +1554,11 @@ class Battle:
                             logs.append(f"🐲 龙鳞抗魔，减免 {red} 点伤害！")
                         else:
                             logs.append(f"🔥 鲁莽之心，额外受到 {-red} 点伤害！")
+                    # v101.28f 龙鳞药剂：魔法伤害 -15%（3 回合）
+                    if self.p_buffs.get("magic_resist"):
+                        red = max(1, int(dmg * 0.15))
+                        dmg = max(1, dmg - red)
+                        logs.append(f"🛡️ 魔鳞护体，减免 {red} 点魔法伤害！")
                 # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（elem_resist 火/冰/雷 -8%、abyss_resist 暗影 -10%）
                 melem = sinfo.get("element", "")
                 if melem:
@@ -1765,6 +1843,10 @@ class Battle:
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
+        # v101.28f 影步药剂：15% 概率完全闪避（3 回合）
+        if self.p_buffs.get("dodge_pot") and random.random() < 0.15:
+            logs.append("💨 身法飘忽！你闪避了攻击！")
+            return
         # 24 章宠物技能·影袭：替主人挡一次攻击（拦截后直接结束本次伤害）
         dmg = self._pet_block_check(dmg, logs)
         if dmg <= 0:
@@ -1814,6 +1896,11 @@ class Battle:
             rd = int(dmg * C.rune_value("thorns", thorns_lvl))
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
+        # v101.28f 荆棘药剂：受击反弹 30% 伤害（3 回合，必触发）
+        if self.p_buffs.get("thorns_pot") and self.enemy.get("hp", 0) > 0:
+            rd = int(dmg * 0.30)
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
+            logs.append(f"🌵 荆棘附体：反弹 {rd} 点伤害！")
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
         shields = self.p_shields
         if shields:

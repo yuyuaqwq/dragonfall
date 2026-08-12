@@ -486,6 +486,9 @@ MON_CTRL_EFFECTS = {}
 @register(MON_CTRL_EFFECTS, "freeze")
 def _mc_freeze(battle, player, logs, mval):
     """冻结玩家（概率，1 回合）"""
+    if battle.p_buffs.get("cc_immune"):
+        logs.append("🗿 不动如山！免疫了冻结！")
+        return
     chance = min(0.75, 0.25 + mval * 0.15)
     if random.random() < chance:
         battle.p_buffs["freeze"] = 1
@@ -495,6 +498,9 @@ def _mc_freeze(battle, player, logs, mval):
 @register(MON_CTRL_EFFECTS, "stun")
 def _mc_stun(battle, player, logs, mval):
     """眩晕玩家（概率，1 回合）"""
+    if battle.p_buffs.get("cc_immune"):
+        logs.append("🗿 不动如山！免疫了眩晕！")
+        return
     chance = min(0.60, 0.20 + mval * 0.15)
     if random.random() < chance:
         battle.p_buffs["stun"] = 1
@@ -510,8 +516,10 @@ def _mc_silence(battle, player, logs, mval):
 
 @register(MON_CTRL_EFFECTS, "slow")
 def _mc_slow(battle, player, logs, mval):
-    """减速玩家（霜狼套 5 件免疫）"""
-    if "霜狼" in "|".join(battle._set_bonus_5(player)):
+    """减速玩家（霜狼套 5 件免疫；v101.28f 不动药剂免疫）"""
+    if battle.p_buffs.get("cc_immune"):
+        logs.append("🗿 不动如山！免疫了减速！")
+    elif "霜狼" in "|".join(battle._set_bonus_5(player)):
         logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
     else:
         battle.p_buffs["spd_down"] = max(battle.p_buffs.get("spd_down", 0), 2)

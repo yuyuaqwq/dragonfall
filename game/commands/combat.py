@@ -1133,6 +1133,12 @@ class CombatCmds(CommandBase):
         "crit_up": "💥暴击↑", "counter": "🔄反击", "mon_atk_down": "😵敌攻↓",
         "food_atk_up": "🍖攻↑", "food_def_up": "🍖防↑", "food_spd_up": "🍖速↑",
         "food_crit_up": "🍖暴击↑", "food_matk_up": "🍖魔攻↑",
+        # v101.28f 药水强度分档 + 特殊效果
+        "atk_up_big": "⚔️攻击↑↑", "atk_up_small": "⚔️攻击↑", "spd_up_small": "💨速度↑",
+        "crit_up_small": "💥暴击↑", "crit_up_big": "💥暴击↑↑",
+        "next_atk_up": "⚔️蓄力", "heal_up": "✨治疗↑", "magic_resist": "🛡️魔抗↑",
+        "thorns_pot": "🌵反伤", "dodge_pot": "💨闪避", "cc_immune": "🗿免疫控制",
+        "execute_pot": "💀处决",
         "stun": "🌀眩晕", "freeze": "❄️冻结", "silence": "🤐沉默",
     }
     # 敌方状态 key → 显示名（v63 加 眩晕/沉默）
