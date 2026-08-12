@@ -126,16 +126,16 @@ def tpl_heal(ctx):
 @register("mana", battle_ok=True)
 def tpl_mana(ctx):
     """魔力恢复。mana <= 1 百分比（1.0=100%），> 1 固定值。
-    战斗内：直接改 ctx.player['mp']（use() 最后统一落库），payload="0" 避免被
-    battle._do_use_item 当作 HP 恢复（历史行为：mana 药水战斗中只回蓝不回血）。"""
+    战斗内：payload=f"mana:{绝对恢复量}"（battle.player_turn 的 _do_use_item
+    识别 mana: 前缀回蓝并播报数字——v101.27 修"💊 你使用了战斗道具"无回复数值，
+    此前 payload="0" 只播报不回显；回蓝统一在 _do_use_item 应用，避免双份恢复）。"""
     d = ctx.data
     mana_v = d["mana"]
     # <=1 视为百分比（1.0=100% 完全回复），>1 固定值
     if mana_v <= 1:
         mana_v = int(ctx.player["max_mp"] * mana_v)
     if ctx.battle:
-        ctx.player["mp"] = min(ctx.player["max_mp"], ctx.player["mp"] + mana_v)
-        return ItemResult(payload="0")
+        return ItemResult(payload=f"mana:{mana_v}")
     db = ctx._db()
     st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
     new_mp = min(ctx.player["max_mp"], ctx.player["mp"] + mana_v)

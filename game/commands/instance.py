@@ -1163,9 +1163,12 @@ class InstanceCmds(CommandBase):
             st["round"] += 1
             for i in alive_idx:
                 acted[i] = False
-            # 全灭 → 失败
+            # 全灭 → 失败（v101.27 鱼鱼拍板：失败=副本直接销毁，重进=全新开本）
             if not [m for m in members if st["alive"].get(str(m), True)]:
                 st["over"] = True
+                # v101.27 同归于尽判定：Boss 也同时阵亡 → 提示"同归于尽"（仍按失败销毁）
+                if st["boss"].get("hp", 1) <= 0:
+                    logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
                 async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                     yield _r
                 return

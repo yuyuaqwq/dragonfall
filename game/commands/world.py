@@ -2541,6 +2541,16 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         quests = db.get_quests(group_id, qq_id)
+        # v101.27 #341：夜晚 NPC 不在场不能隔空交付——用官方出现条件判定
+        # （base_conditions_met 覆盖 period/condition.time/season/weather 等全部条件，
+        # 采药女·小荨 condition.time=['morning','day'] 夜晚交付实锤）
+        def _npc_absent(npc_id, npc):
+            if not npc:
+                return None
+            if not C.base_conditions_met(npc_id, npc, player, group_id, qq_id):
+                period_cn = (C.PERIOD_CN.get(C.current_period(), "") or "").strip()
+                return f"🌙 {npc.get('name', '他')}现在({period_cn})不在这里，换个时间再来交付吧～"
+            return None
         # 主线可交
         main_id = quests.get("main_quest")
         st = quests.get("main_status", "pending")
@@ -2549,6 +2559,10 @@ class WorldCmds(CommandBase):
             if mq:
                 npc = C.NPCS.get(mq["giver"])
                 if npc and npc["map"] == player["cur_map"]:
+                    absent = _npc_absent(mq["giver"], npc)
+                    if absent:
+                        yield event.plain_result(absent)
+                        return
                     lines = self._take_main_quest(group_id, qq_id, mq["giver"], npc)
                     yield event.plain_result("\n".join(lines))
                     return
@@ -2572,6 +2586,10 @@ class WorldCmds(CommandBase):
                 have = db.count_item(group_id, qq_id, obj["collect"])
                 if have >= obj["count"]:
                     if npc and npc["map"] == player["cur_map"]:
+                        absent = _npc_absent(sqd["giver"], npc)
+                        if absent:
+                            yield event.plain_result(absent)
+                            return
                         lines = self._complete_side_quest(group_id, qq_id, sid)
                         yield event.plain_result("\n".join(lines))
                         return
@@ -2586,6 +2604,10 @@ class WorldCmds(CommandBase):
             # 击杀/探索型：按 ready 状态
             if sq.get("status") == "ready":
                 if npc and npc["map"] == player["cur_map"]:
+                    absent = _npc_absent(sqd["giver"], npc)
+                    if absent:
+                        yield event.plain_result(absent)
+                        return
                     lines = self._complete_side_quest(group_id, qq_id, sid)
                     yield event.plain_result("\n".join(lines))
                     return

@@ -391,6 +391,13 @@ class Battle:
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
+        if payload.startswith("mana:"):
+            # v101.27：魔力药水战斗内回显数字（tpl_mana payload="mana:N"）
+            mv = int(payload[5:])
+            before = player["mp"]
+            player["mp"] = min(player.get("max_mp", player["mp"]), player["mp"] + mv)
+            logs.append(f"💙 你使用了战斗道具，恢复 {player['mp'] - before} 点魔力！({player['mp']}/{player.get('max_mp', '?')})")
+            return logs
         if payload.startswith("buff:"):
             # v54 战斗药水：effect → p_buffs 增益 3 回合
             # 9.3：支持逗号分隔复合 buff（如龙涎药剂 buff:atk_up,def_up）

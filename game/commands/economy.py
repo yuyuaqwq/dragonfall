@@ -2180,7 +2180,14 @@ class EconomyCmds(CommandBase):
                 enh_str = f" +{enh}" if enh > 0 else ""
                 lines.append(f"{i:>2}. {q['color']}【{d['name']}{enh_str}】({C.EQUIP_SLOTS[d['slot']]}) Lv.{d['lv']}")
             else:
-                lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
+                # v101.27：符文等带品质字段的物品也显示品质 emoji——v101.25i6 品质统一后
+                # 新符文 quality=blue/purple/orange，但存量背包符文是旧格式中文(稀有/史诗/传说)
+                _q = d.get("quality")
+                _q = {"稀有": "blue", "史诗": "purple", "传说": "orange"}.get(_q, _q)
+                if _q and _q in C.QUALITY and _q != "white":
+                    lines.append(f"{i:>2}. {C.QUALITY[_q]['color']}{d['name']} ×{it['count']}")
+                else:
+                    lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『背包 {page+1}』看下一页；筛选+翻页：『背包 材料 2』(共 {pages} 页)")
@@ -2576,18 +2583,8 @@ class EconomyCmds(CommandBase):
                     db.remove_item(group_id, qq_id, target["key"])
                 if d.get("stamina"):
                     self._add_stamina(group_id, qq_id, int(d["stamina"]), player)
-                # v101.26 #416：副本战斗 mana 药水效果同步——tpl_mana 战斗内只改 db 读出的
-                # player dict（普通战斗由 use() 末尾 db.update_player 落库），副本战斗血量
-                # 权威在 st["players"] 快照且该分支不落库 → 魔力药水效果被吞、道具白扣
-                # （影刃 Boss 战实测：魔力 7/165 用魔法药水(中)后仍 7，只播"💊 使用了战斗道具"）
-                if d.get("mana"):
-                    _snap = battle["state"]["players"].get(str(qq_id))
-                    if _snap:
-                        _mx = _snap.get("max_mp", 0) or 99999
-                        _mv = d["mana"]
-                        if _mv <= 1:
-                            _mv = int(_mx * _mv)
-                        _snap["mp"] = min(_mx, _snap.get("mp", 0) + _mv)
+                # v101.27 #416 延续：mana 药水回蓝统一由 _do_use_item 应用（payload="mana:N"，
+                # 快照 st[players] 即 player_turn 传入的 player），模板不再直接改快照
                 payload = r.payload if r.payload is not None else "0"
                 async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
@@ -2752,9 +2749,11 @@ class EconomyCmds(CommandBase):
         meff = C.mount_effects(player)
         sell_mult = 1.0 + float(meff.get("sell_bonus", 0) or 0)
         # v101.25e 装备回收价：掉落装备卖商店 = 推导价 × 0.3（装备掉落是锦上添花，不能成主要收入）
+        # v101.27 鱼鱼拍板上调：0.3 → 0.5（playtest 观察"回收≈买入价15%"，旧库存只回 3 金，
+        # 装备误购回收惨淡；0.5 仍低于买入价，不构成刷钱渠道）
         # v95.32 #397b：判据用 slot 而非 quality——v101.25e 起材料也注入全服品质字段，材料被打 0.3 折是 bug
         if d.get("slot"):
-            rate = min(rate, 0.3)
+            rate = min(rate, 0.5)
         price = int(d.get("price", 0) * rate * sell_mult)
         if price <= 0:
             return None
