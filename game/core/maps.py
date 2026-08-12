@@ -13,27 +13,32 @@ v87.14：空间连接规则——子区域相邻关系 + 城门出入。
 def _build_ency():
     for m in MAPS:
         mid = m["id"]
+        mname_cn = m["name"]  # 地图中文名（显示用）
         entries = []
         sas = SUBAREAS.get(mid, [])
         for sa in sas:
             for (mid_m, mname, role, lv, skills, drops) in (sa.get("monsters") or []):
-                ENCY_MONSTER_MAP.setdefault(mid_m, []).append((mid, "普通"))
+                # v101.29：key/显示统一用中文名——v48 ID 重构后百科查询端
+                # 用中文名查 ID-keyed 表恒失效（材料/怪物/地图查询全坏），
+                # 且掉落来源显示会泄漏 m_*/map_id 内部 ID
+                ENCY_MONSTER_MAP.setdefault(mname, []).append((mname_cn, "普通"))
                 for d in drops:
-                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mid, mid_m))
-                entries.append((mid_m, lv, "普通"))
+                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mname_cn, mname))
+                entries.append((mname, lv, "普通"))
             if sa.get("elite"):
                 (eid, estr, erole, elv, eskl, edrops) = sa["elite"]
-                ENCY_MONSTER_MAP.setdefault(eid, []).append((mid, "精英"))
+                ENCY_MONSTER_MAP.setdefault(estr, []).append((mname_cn, "精英"))
                 for d in edrops:
-                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mid, eid))
-                entries.append((eid, elv, "精英"))
+                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mname_cn, estr))
+                entries.append((estr, elv, "精英"))
             if sa.get("boss"):
                 (bid, bstr, brole, blv, bskl, bdrops) = sa["boss"]
-                ENCY_MONSTER_MAP.setdefault(bid, []).append((mid, "首领"))
+                ENCY_MONSTER_MAP.setdefault(bstr, []).append((mname_cn, "首领"))
                 for d in bdrops:
-                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mid, bid))
-                entries.append((bid, blv, "首领"))
+                    ENCY_MATERIAL_SOURCE.setdefault(d, []).append((mname_cn, bstr))
+                entries.append((bstr, blv, "首领"))
         ENCY_MAP_MONSTERS[mid] = entries
+        ENCY_MAP_MONSTERS[mname_cn] = entries  # v101.29 双 key：玩家输中文地图名也能查
 
 
 def subarea_links(map_id: str, subarea_id: str) -> list:

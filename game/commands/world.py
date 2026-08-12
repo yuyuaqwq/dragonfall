@@ -1630,6 +1630,18 @@ class WorldCmds(CommandBase):
         for nid, wnpc in C.ALL_WILD.items():
             if name_key in (wnpc.get("name") or "") or name_key in nid:
                 hits.append((nid, wnpc))
+        # v101.29：野外精英/Boss 名也纳入搜索（任务目标常是强敌而非 NPC，
+        # 如『找 铁牙』→ 丘陵狼王·铁牙在丘陵顶——旧代码只搜 NPC 表会命中同名
+        # "地下守卫·铁牙/卫兵·铁牙" 给出错误方向）。精英/Boss 元组格式
+        # (id, 显示名, role, lv, skills, drops)，伪 nid 用 "map:subarea" 便于定位。
+        for mid, m in C.MAP_BY_ID.items():
+            for sa in (m.get("subareas") or []):
+                for ent in (sa.get("elite"), sa.get("boss")):
+                    if not ent:
+                        continue
+                    ename = ent[1] if len(ent) > 1 else ""
+                    if ename and (name_key in ename or ename in name_key):
+                        hits.append((f"{mid}:{sa['id']}", {"name": ename, "map": mid}))
         if not hits:
             return None
         locs = []
@@ -1638,10 +1650,18 @@ class WorldCmds(CommandBase):
             m = C.MAP_BY_ID.get(m_id, {})
             m_name = m.get("name", m_id or "未知之地")
             sa_name = ""
-            for sa in (m.get("subareas") or []):
-                if nid in (sa.get("npcs") or []):
-                    sa_name = sa.get("name", "")
-                    break
+            if ":" in nid:
+                # v101.29 精英/Boss 条目：nid 格式 "map_id:subarea_id"
+                _said = nid.split(":", 1)[1]
+                for sa in (m.get("subareas") or []):
+                    if sa["id"] == _said:
+                        sa_name = sa.get("name", "")
+                        break
+            else:
+                for sa in (m.get("subareas") or []):
+                    if nid in (sa.get("npcs") or []):
+                        sa_name = sa.get("name", "")
+                        break
             locs.append((m_id, f"{m_name}·{sa_name}" if sa_name else m_name))
         in_here = cur in {m_id for m_id, _ in locs}
         # v95.25 #135：前缀明确"在/不在你所在的地图"，不再用误导性的"你所在的地图的…"
@@ -2454,12 +2474,12 @@ class WorldCmds(CommandBase):
                 if prof_target:
                     _okp, _msgp = self._prof_active_check(group_id, qq_id, prof_target)
                     if not _okp:
-                        nxt = opt.get("fail_next", opt.get("next", "__end__"))
+                        # v101.29：副业位满拦截直接结束对话（不再渲染 fail 节点）——
+                        # 旧代码跳 fail_next 会渲染"材料凑不齐"类台词，与"副业位满
+                        # 先不收材料"的拦截归因矛盾（小红实测梅尔文交付被抓包）
                         notices = [_msgp + "（这次考验先不收材料，腾出副业位再来吧）"]
-                        db.set_talk_state(group_id, qq_id, npc_id, nxt)
-                        new_node = C.dialogue_node(dlg, nxt)
-                        ctx = self._talk_ctx(group_id, qq_id, npc_id)
-                        lines = notices + self._render_talk_node(npc, dlg, new_node, ctx)
+                        db.clear_talk_state(group_id, qq_id)
+                        lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]
                         yield event.plain_result("\n".join(lines))
                         return
                 have = db.count_item(group_id, qq_id, check.get("item", ""))

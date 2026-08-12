@@ -2064,24 +2064,28 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("没找到这颗符文！可用：\n" + "\n".join(f"  💎 {C.QUALITY[s['quality']]['name']}符文·{nm}({s['desc']})" for nm, s in C.RUNES.items()))
             return
         # 2. 材料查询（含词条材料来源）
-        if raw in C.MATERIALS or any(kw in raw for kw in C.MATERIALS):
+        # v101.29：MATERIALS 的 key 是 mat_ ID（v48 后），按中文名查必须用 MATERIALS_BY_NAME
+        # （旧代码 raw in C.MATERIALS 恒 False → 所有材料百科查询全部失效）
+        mats_byname = C.MATERIALS_BY_NAME
+        if raw in mats_byname or any(kw in raw for kw in mats_byname):
             # 精确匹配优先
-            mat_key = raw if raw in C.MATERIALS else next((k for k in C.MATERIALS if k in raw), raw)
-            srcs = C.ENCY_MATERIAL_SOURCE.get(mat_key, [])
-            lines = [f"🧪 【{mat_key}】", "━━━━━━━━━━━━"]
-            mat = C.MATERIALS.get(mat_key)
-            if mat and mat.get("desc"):
-                lines.append(f"描述：{mat['desc']}")
-            if srcs:
-                lines.append("掉落来源：")
-                for mname, mstr in srcs:
-                    lines.append(f"  🗺️ {mname} → {mstr}")
-            else:
-                lines.append("掉落来源：暂无(可能是任务/NPC 奖励)")
-            lines.append("")
-            lines.append(f"💡 出售价 {mat['price']} 金币" if mat else "")
-            yield event.plain_result("\n".join(l for l in lines if l))
-            return
+            mat = mats_byname.get(raw) or next((m for k, m in mats_byname.items() if k in raw), None)
+            if mat:
+                mat_key = mat["name"]
+                srcs = C.ENCY_MATERIAL_SOURCE.get(mat_key, [])
+                lines = [f"🧪 【{mat_key}】", "━━━━━━━━━━━━"]
+                if mat.get("desc"):
+                    lines.append(f"描述：{mat['desc']}")
+                if srcs:
+                    lines.append("掉落来源：")
+                    for mname, mstr in srcs:
+                        lines.append(f"  🗺️ {mname} → {mstr}")
+                else:
+                    lines.append("掉落来源：暂无(可能是任务/NPC 奖励)")
+                lines.append("")
+                lines.append(f"💡 出售价 {mat['price']} 金币")
+                yield event.plain_result("\n".join(l for l in lines if l))
+                return
         # 3. 地图查询
         if raw in C.ENCY_MAP_MONSTERS:
             entries = C.ENCY_MAP_MONSTERS[raw]
