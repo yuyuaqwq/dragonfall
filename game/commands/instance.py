@@ -127,6 +127,7 @@ class InstanceCmds(CommandBase):
         st["enemy"] = st["boss"]
         st["e_buffs"] = {}
         st["round"] = 1
+        st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
         for m in st["members"]:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
@@ -381,6 +382,7 @@ class InstanceCmds(CommandBase):
         st["enemy"] = st["boss"]
         st["e_buffs"] = {}
         st["round"] = 1
+        st["e_minions"] = []  # v101.28m #438：新战斗开始清空旧援军（防止残留挡刀）
         for m in st["members"]:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
@@ -1041,6 +1043,14 @@ class InstanceCmds(CommandBase):
             # v59：叠层/护盾随战斗持久化（副本按玩家存；v101.28d 盾 buff 化）
             "mech_stacks": st["mech_stacks"].get(cur_key, {}),
             "p_shields": snap.get("p_shields", {}) or {},
+            # v101.28m #438 复测修复：副本战斗状态必须完整传递，否则召唤援军
+            # （e_minions）回合结束蒸发、核心资源（resources）不持久化导致耗资源
+            # 技能永不可用、round 恒 0 导致按回合 Boss 机制（召唤/回血）失序
+            "round": st.get("round", 0),
+            "e_minions": st.get("e_minions", []),
+            "resources": st.get("resources", {}).get(cur_key, {}),
+            "cooldown": st.get("cooldown", {}).get(cur_key, {}),
+            "combo_seq": st.get("combo_seq", {}).get(cur_key, []),
         })
         boss_before = st["boss"]["hp"]
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False)
@@ -1050,6 +1060,12 @@ class InstanceCmds(CommandBase):
         st.setdefault("p_food_effects", {})[cur_key] = b.p_food_effects
         st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.mech_stacks
+        # v101.28m #438 复测修复：战斗状态写回（援军/回合数/资源/冷却/连招持久化）
+        st["round"] = b.round
+        st["e_minions"] = b.e_minions
+        st.setdefault("resources", {})[cur_key] = b.resources
+        st.setdefault("cooldown", {})[cur_key] = b.cooldown
+        st.setdefault("combo_seq", {})[cur_key] = b.combo_seq
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
         st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
@@ -1341,9 +1357,23 @@ class InstanceCmds(CommandBase):
             "enemy": st["boss"],
             "p_buffs": st["p_buffs"].get(tkey, {}),
             "e_buffs": st["e_buffs"],
+            # v101.28m #438 复测修复：Boss 行动同样完整传递战斗状态——
+            # 不传 e_minions 则援军回合结束蒸发（不挡刀不出手）；不传 round
+            # 则 _boss_mech 的按回合机制（召唤/回血）永远失序
+            "round": st.get("round", 0),
+            "e_minions": st.get("e_minions", []),
+            "resources": st.get("resources", {}).get(tkey, {}),
+            "cooldown": st.get("cooldown", {}).get(tkey, {}),
+            "combo_seq": st.get("combo_seq", {}).get(tkey, []),
         })
         mlogs, dmg = b._enemy_turn(snap)
         st["e_buffs"] = b.e_buffs
+        # v101.28m #438 复测修复：Boss 行动后状态写回
+        st["round"] = b.round
+        st["e_minions"] = b.e_minions
+        st.setdefault("resources", {})[tkey] = b.resources
+        st.setdefault("cooldown", {})[tkey] = b.cooldown
+        st.setdefault("combo_seq", {})[tkey] = b.combo_seq
         if st["p_defending"].get(tkey):
             dmg = max(1, int(dmg * 0.5))
             # v101.25 #345：防御减伤后日志同步修正——玩家看到的伤害数字与实际扣血一致
