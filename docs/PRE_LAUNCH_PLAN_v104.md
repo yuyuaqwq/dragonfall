@@ -23,14 +23,14 @@
 
 ```yaml
 delegation:
-  max_iterations: 80            # 子 agent 工具调用上限（原 50，多次审计跑不完半途超时 → 调大）
+  max_iterations: 180           # 子 agent 工具调用上限（原 50 → 80 → 180，多次审计跑不完半途超时 → 调大）
   max_concurrent_children: 32    # 并行子 agent 数（原 6，一批批跑太慢 → 调大，一批跑完剩余模块）
-  child_timeout_seconds: 2400    # 子 agent 硬超时 40 分钟（原 600s → 1200s → 2400s，超时重跑更浪费时间和 token → 尽量调长）
+  child_timeout_seconds: 3600    # 子 agent 硬超时 1 小时（原 600s → 1200s → 2400s → 3600s，超时重跑更浪费时间和 token → 尽量调长）
 ```
 
 - 修改方式：`hermes config set delegation.<key> <value>`（直接改 config.yaml 会被安全保护拒绝）
 - 变更需重启 Hermes gateway 生效（鱼鱼 2026-08-12 重启）
-- 审计 agent 提示词内"40 分钟输出"的时间预算已按 40 分钟超时上限对齐（2026-08-12 二次调长 1200→2400）
+- 审计 agent 提示词内"40 分钟输出"的时间预算已按 1 小时超时上限放宽（2026-08-12 三次调长 1200→2400→3600）
 - 背景：600s 超时 + 50 次调用上限曾导致 M01/M03/M05 首轮超时、M06 无输出、M10 半途断——长任务宁可多等也不要重跑（重跑浪费时间和 token）
 
 ### 轮次安排
