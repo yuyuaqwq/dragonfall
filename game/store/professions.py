@@ -90,12 +90,12 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
 
 
 def prof_top(group_id, limit=10):
-    """副业总分排行(6 条副业等级之和)"""
+    """副业总分排行(8 条副业等级之和，v101.28i 补 enhance/enchant)"""
     with _lock:
         conn = _connect()
         try:
             rows = conn.execute(
-                "SELECT qq_id, gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv+cooking_lv AS total "
+                "SELECT qq_id, gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv+cooking_lv+enhance_lv+enchant_lv AS total "
                 "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
                 (limit,),
             ).fetchall()

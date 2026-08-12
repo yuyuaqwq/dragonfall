@@ -1632,6 +1632,13 @@ class EconomyCmds(CommandBase):
                 db.remove_item(group_id, qq_id, target["key"])
                 db.add_item(group_id, qq_id, target["key"], d, 1)
             lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！"]
+            # v101.28i 强化经验：成功 +1（失败不给，符合熟练度叙事；修复强化副业等级死锁）
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", 1)
+            if leveled:
+                lines.append(f"🌟 强化副业提升到 Lv.{new_lv}！")
+            _done, _msg = self._daily_prof_bump(group_id, qq_id, "enhance")
+            if _msg:
+                lines.append(_msg.strip())
             # 阶段九：强化次数 + 成就判定
             db.bump_stats(group_id, qq_id, enhance_count=1)
             C.check_achievements(group_id, qq_id, player)
@@ -1738,15 +1745,31 @@ class EconomyCmds(CommandBase):
             if rd.get("effect") in [e.get("effect") for e in enchanted]:
                 yield event.plain_result(f"【{d['name']}】已经有『{rd['name']}』的效果了！")
                 return
+            # v101.28i 符文等级解锁：附魔 Lv.2 刻 lvl.1、Lv.4 刻 lvl.2、Lv.6 刻 lvl.3（附魔等级不再是摆设）
+            _rune_lv = rd.get("lvl", 1)
+            _need_lv = {1: 2, 2: 4, 3: 6}.get(_rune_lv, 2)
+            if prof_lv < _need_lv:
+                yield event.plain_result(
+                    f"『{rd['name']}』是 {_rune_lv} 级符文，需要附魔副业 Lv.{_need_lv}(你 Lv.{prof_lv})！多附魔练练手艺吧～"
+                )
+                return
             # 消耗符文（无需金币，符文本身就是价值）
             db.remove_item(group_id, qq_id, rune["key"], 1)
             enchanted.append({"effect": rd["effect"], "lvl": rd.get("lvl", 1)})
             d["enchant"] = enchanted
             db.remove_item(group_id, qq_id, target["key"])
             db.add_item(group_id, qq_id, target["key"], d, 1)
+            # v101.28i 附魔经验：成功 +1（符文刻印与属性附魔同）
+            _lv_msg = ""
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enchant", 1)
+            if leveled:
+                _lv_msg = f"\n🌟 附魔副业提升到 Lv.{new_lv}！"
+            _done, _msg = self._daily_prof_bump(group_id, qq_id, "enchant")
+            if _msg:
+                _lv_msg += "\n" + _msg.strip()
             yield event.plain_result(
                 f"💎 符文刻印成功！【{d['name']}】获得『{rd['name']}』({rd['desc']})\n"
-                f"(已用 {len(enchanted)}/{slots} 槽)"
+                f"(已用 {len(enchanted)}/{slots} 槽){_lv_msg}"
             )
             return
         # ---- 原属性附魔路径（v10） ----
@@ -1808,9 +1831,17 @@ class EconomyCmds(CommandBase):
         # 阶段九：附魔次数 + 成就判定
         db.bump_stats(group_id, qq_id, enchant_count=1)
         C.check_achievements(group_id, qq_id, player)
+        # v101.28i 附魔经验：成功 +1
+        _lv_msg = ""
+        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enchant", 1)
+        if leveled:
+            _lv_msg = f"\n🌟 附魔副业提升到 Lv.{new_lv}！"
+        _done, _msg = self._daily_prof_bump(group_id, qq_id, "enchant")
+        if _msg:
+            _lv_msg += "\n" + _msg.strip()
         yield event.plain_result(
             f"🔮 附魔成功！【{d['name']}】获得 {sn.get(stat_key, stat_key)} {val_str}{big_str}\n"
-            f"(消耗 {mat_name} x1 + {rec['cost']} 金币；已用 {len(enchanted)}/{slots} 槽)"
+            f"(消耗 {mat_name} x1 + {rec['cost']} 金币；已用 {len(enchanted)}/{slots} 槽){_lv_msg}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?套装(?:\s*|$)")
