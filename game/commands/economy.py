@@ -2514,20 +2514,28 @@ class EconomyCmds(CommandBase):
             target = items[idx - 1]
         else:
             # 名字查找：收集所有同名/包含名字的装备，多个时提示用序号精确选择
+            # v101.29.1：支持『装备 <名称> <n>』——同名多件时按清单序号指定第 n 件
+            name_part, idx_part = item_name, None
+            m = re.match(r"^(?P<name>.+?)\s+(?P<idx>\d+)$", item_name)
+            if m and len(m.group("name")) >= 1:
+                name_part, idx_part = m.group("name"), int(m.group("idx"))
             matches = []
             for it in items:
                 d = it["data"]
-                if d.get("slot") and (item_name in d["name"]):
+                if d.get("slot") and (name_part in d["name"]):
                     matches.append(it)
-            if len(matches) > 1:
-                lines = [f"❓ 找到 {len(matches)} 件『{item_name}』，用序号指定穿哪件(『背包』看序号)："]
+            if len(matches) > 1 and idx_part is not None and 1 <= idx_part <= len(matches):
+                # 明确指定第 n 件同名装备
+                target = matches[idx_part - 1]
+            elif len(matches) > 1:
+                lines = [f"❓ 找到 {len(matches)} 件『{name_part}』，用序号指定穿哪件："]
                 for i, it in enumerate(matches, 1):
                     d = it["data"]
                     q = C.QUALITY[d["quality"]]
                     enh = d.get("enhance", 0)
                     enh_str = f" +{enh}" if enh > 0 else ""
                     lines.append(f"  {i}. {q['color']}【{d['name']}{enh_str}】({C.EQUIP_SLOTS[d['slot']]}) Lv.{d['lv']}")
-                lines.append(f"💡 『装备 <背包序号>』直接穿，如『装备 {matches[0]['data']['name']}』会优先穿第一件")
+                lines.append(f"💡 『装备 <名称> <序号>』穿指定那件（如『装备 {matches[0]['data']['name']} 1』），或『装备 <背包序号>』直接穿")
                 yield event.plain_result("\n".join(lines))
                 return
             if matches:
@@ -3015,21 +3023,28 @@ class EconomyCmds(CommandBase):
             # v101.25 #306：精确名优先——『出售 狼皮』不再被"星狼皮"抢跑
             # （playtest round68 抓包：模糊匹配先卖星狼皮）。精确名无 → 模糊收集
             # 候选，多个时列出让玩家精确选择。
+            # v101.29.1：支持『出售 <名称> <n>』——同名多件时按清单序号指定第 n 件
+            name_part, idx_part = item_name, None
+            m = re.match(r"^(?P<name>.+?)\s+(?P<idx>\d+)$", item_name)
+            if m and len(m.group("name")) >= 1:
+                name_part, idx_part = m.group("name"), int(m.group("idx"))
             for it in items:
                 d = it["data"]
-                if d["name"] == item_name:
+                if d["name"] == name_part:
                     target = it
                     break
             if not target:
-                fuzzy = [it for it in items if item_name in it["data"]["name"]]
-                if len(fuzzy) > 1:
-                    flines = [f"❓ 找到 {len(fuzzy)} 件名字含『{item_name}』的物品，用全名指定卖哪件："]
+                fuzzy = [it for it in items if name_part in it["data"]["name"]]
+                if len(fuzzy) > 1 and idx_part is not None and 1 <= idx_part <= len(fuzzy):
+                    target = fuzzy[idx_part - 1]
+                elif len(fuzzy) > 1:
+                    flines = [f"❓ 找到 {len(fuzzy)} 件名字含『{name_part}』的物品，用全名指定卖哪件："]
                     for i, it in enumerate(fuzzy, 1):
                         fd = it["data"]
                         fq = C.QUALITY[fd["quality"]] if fd.get("quality") and fd.get("slot") else None
                         fname_s = f"{fq['color']}【{fd['name']}】" if fq else fd["name"]
                         flines.append(f"  {i}. {fname_s} ×{it['count']}（出售价 {self._pawn_rate(player, fd) or '需对应店铺'}）")
-                    flines.append("💡 例如『出售 星狼皮』或『出售 <完整名>』～")
+                    flines.append("💡 同名多件用『出售 <名称> <序号>』指定（如『出售 迷雾兜帽 2』），或『出售 <完整名>』～")
                     yield event.plain_result("\n".join(flines))
                     return
                 if len(fuzzy) == 1:
