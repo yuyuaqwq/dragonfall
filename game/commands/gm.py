@@ -15,6 +15,7 @@ import os
 import re
 
 from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.core.message.components import Node, Nodes, Plain
 from astrbot.core.message.message_event_result import MessageChain
 
 from .. import content as C
@@ -52,6 +53,39 @@ def _chunk_text(text: str, size: int = 3800):
     if cur:
         chunks.append(cur)
     return chunks
+
+
+def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
+    """把实录 md 按角色分节转成合并转发节点列表。
+
+    每条节点 = 一个角色的聊天记录（nickname=角色名，uin=bot 自己），
+    开头加一条总览节点。QQ 端显示为"聊天记录转发"，点开是角色轮流说话。
+    """
+    # 文件头标题（可选）："# Playtest 第 97 轮 · 角色交互实录" → 进总览节点
+    m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
+    title = m.group(1).strip() if m else label
+    nodes = [
+        Node(
+            uin=bot_qq,
+            name="格温",
+            content=[Plain("📡 {}（6 角色战况，点开查看）".format(title))],
+        )
+    ]
+    for sec in re.split(r"^## ", content, flags=re.M):
+        sec = sec.strip()
+        if not sec or sec.startswith("# "):
+            continue
+        parts = sec.split("\n", 1)
+        role = parts[0].strip()
+        body = parts[1].strip() if len(parts) > 1 else ""
+        if not body:
+            continue
+        # 角色名清洗："🧵 格温 (main)" → "格温"
+        name = re.sub(r"^[^\w\u4e00-\u9fff]+", "", role)
+        name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or role
+        for chunk in _chunk_text(body, 3800):
+            nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
+    return nodes
 
 
 class GmCmds(CommandBase):
@@ -561,27 +595,25 @@ class GmCmds(CommandBase):
         if not content:
             yield event.plain_result("📡 实录文件是空的～")
             return
-        chunks = _chunk_text(content, 3800)
-        total = len(chunks)
         import logging
         _lg = logging.getLogger("astrbot")
-        for i, chunk in enumerate(chunks, 1):
-            head = "📡 【{}】({}/{})".format(os.path.basename(path), i, total) if total > 1 else "📡 【{}】".format(os.path.basename(path))
-            target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
-            try:
-                _lg.info("[dragonfall] gm_窥探 发送第 {}/{} 条（{} 字）→ {}".format(i, total, len(chunk), target))
-                _ret = await self.context.send_message(
-                    target,
-                    MessageChain().message(head + "\n" + chunk),
-                )
-                _lg.info("[dragonfall] gm_窥探 第 {}/{} 条 send_message 返回: {!r}".format(i, total, _ret))
-            except Exception as e:
-                _lg.warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
-                yield event.plain_result("❌ 投递第 {}/{} 条失败: {}".format(i, total, e))
-                return
+        # v101.28r：合并转发（聊天记录样式）——每条节点=一个角色，点开是角色轮流说话
+        nodes = _spy_to_forward_nodes(content, os.path.basename(path), event.get_self_id())
+        target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
+        try:
+            _lg.info("[dragonfall] gm_窥探 合并转发 {} 节点（{} 字）→ {}".format(len(nodes), len(content), target))
+            _ret = await self.context.send_message(
+                target,
+                MessageChain([Nodes(nodes)]),
+            )
+            _lg.info("[dragonfall] gm_窥探 合并转发 send_message 返回: {!r}".format(_ret))
+        except Exception as e:
+            _lg.warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
+            yield event.plain_result("❌ 投递失败: {}".format(e))
+            return
         yield event.plain_result(
-            "✅ 已把 {}（{} 字，{} 条）{}～".format(
-                os.path.basename(path), len(content), total,
+            "✅ 已把 {}（{} 字，{} 节点合并转发）{}～".format(
+                os.path.basename(path), len(content), len(nodes),
                 "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ",
             )
         )
