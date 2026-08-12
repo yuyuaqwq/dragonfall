@@ -2397,6 +2397,13 @@ class EconomyCmds(CommandBase):
         修 #298 商店装备等级断层：每个等级都有装备可买（Lv.30+ 防具走锻造/图纸/副本经济，不破坏专属掉落）。"""
         base = list(equip_items)
         exist = set(base)
+        # v101.28m #440：排除 SHOP_WEAPONS 已上架的武器名册（圣光长剑重复上架事件——
+        # 静态武器表与动态补档各加一次，同价 7998G 出现两行）
+        cur = player.get("cur_map", "")
+        _area_id = C.MAP_BY_ID.get(cur, {}).get("area", cur)
+        for wname, *_rest in (C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(_area_id, [])):
+            for _rid in C.EQUIP_ROSTER_BY_NAME.get(wname, []):
+                exist.add(_rid)
         plv = player["level"]
         cands = sorted(
             (rid for rid, r in C.EQUIP_ROSTER.items()
