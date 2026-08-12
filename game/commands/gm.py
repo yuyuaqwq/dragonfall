@@ -13,6 +13,7 @@ import glob
 import json
 import os
 import re
+import time
 
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.core.message.components import Node, Nodes, Plain
@@ -607,6 +608,15 @@ class GmCmds(CommandBase):
                 MessageChain([Nodes(nodes)]),
             )
             _lg.info("[dragonfall] gm_窥探 合并转发 send_message 返回: {!r}".format(_ret))
+            # v101.28s：发送成功 → 同步 .spy_forward_state.json（spy_forward cron 防重，
+            # 避免主循环轮末直发 + cron 10min 补发同一轮重复）
+            try:
+                _m = re.search(r"playtest_spy_round(\d+)\.md$", path)
+                if _m:
+                    with open(os.path.join(_SPY_DIR, ".spy_forward_state.json"), "w", encoding="utf-8") as _f:
+                        json.dump({"last_sent_round": int(_m.group(1)), "sent_at": int(time.time())}, _f, ensure_ascii=False)
+            except Exception as _e:
+                _lg.warning("[dragonfall] gm_窥探 state 同步失败: {}".format(_e))
         except Exception as e:
             _lg.warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
             yield event.plain_result("❌ 投递失败: {}".format(e))
