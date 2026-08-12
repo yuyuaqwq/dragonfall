@@ -604,6 +604,9 @@ def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False):
     if pierce:
         dmg = atk
     else:
+        # v104 M02 P2：atk+def_ 为 0 时直接返回伤害下限 1，防 ZeroDivisionError
+        if atk + def_ <= 0:
+            return 1
         # 非线性减伤：防御越高收益越低，但不会完全免疫
         dmg = atk * atk / (atk + def_)
     dmg = max(1, dmg)

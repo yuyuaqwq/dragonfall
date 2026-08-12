@@ -55,7 +55,9 @@ def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
         return True
     if unlock.startswith("flag:"):
         flag = unlock[5:]
-        return flag in db.get_talk_flags(group_id, qq_id, npc_id)
+        # v104 P1（M21）：扫全量 flag 桶——flag 可能由其他 NPC 对话设置（如 说书人·巴尔 →
+        # heard_owl_song），只查本 NPC 自己的桶会永久锁死。base_conditions_met 已有全桶扫描先例。
+        return any(flag in db.get_talk_flags(group_id, qq_id, nid) for nid in ALL_WILD)
     if unlock.startswith("item:"):
         item = unlock[5:]
         return db.count_item(group_id, qq_id, item) > 0
@@ -63,9 +65,23 @@ def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
         qid = unlock[6:]
         return _quest_known(db.get_quests(group_id, qq_id), qid)
     if unlock.startswith("quest_done:"):
-        # v87：已完成任务解锁（如 图书管理员·贝拉 需通关圣堂地窖）
+        # v87：已完成任务解锁（如 图书管理员·贝拉 需通关圣堂地窖/主线第11章）
         qid = unlock[11:]
-        return _quest_known(db.get_quests(group_id, qq_id), qid)
+        q = db.get_quests(group_id, qq_id)
+        if _quest_known(q, qid):
+            return True
+        # v104 P1（M21）：quest_done 兼容副本 id——battle_state 中该副本已通关(cleared)
+        # 也算达成（副本通关不写 quests 完成记录，battle_state 是唯一临时标记；
+        # 持久路径为 unlock 指向主线任务 id，如 q11_3）
+        try:
+            _row = db.get_battle(group_id, qq_id)
+            if _row:
+                _st = _row.get("state") or {}
+                if _st.get("cleared") and _st.get("inst_id") == qid:
+                    return True
+        except Exception:
+            pass
+        return False
     return True
 
 

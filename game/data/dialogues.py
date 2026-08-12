@@ -1173,7 +1173,7 @@ DIALOGUES = {
                 "text": "拳打千遍，其义自见。码头搬货的汉子，一拳能打碎海浪。",
                 "options": [
                     {"text": "请教『崩拳·裂』(Lv.6 · 800金)", "next": "teach_beng_quan", "need": {"class_any": ["cls_wu_seng"]}},
-                    {"text": "请教『金刚体』(Lv.10 · 1500金)", "next": "teach_jin_gang", "need": {"class_any": ["cls_wu_seng"]}},
+                    {"text": "请教『磐石之体』(Lv.10 · 1500金)", "next": "teach_jin_gang", "need": {"class_any": ["cls_wu_seng"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_wu_seng"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_wu_seng"], "evolve_ready": {"tier": 1, "level": 60}}},
                     {"text": "🌟 我想进行最终转职！", "next": "evolve_t3", "need": {"class_any": ["cls_wu_seng"], "evolve_ready": {"tier": 2, "level": 90}}},
@@ -1182,7 +1182,7 @@ DIALOGUES = {
                 ],
             },
             "teach_beng_quan": {"text": "崩拳·裂——以崩劲裂敌之防。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "崩拳·裂", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
-            "teach_jin_gang": {"text": "金刚体——身如金刚，万法不侵。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "金刚体", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
+            "teach_jin_gang": {"text": "磐石之体——身如磐石，万法不侵。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "磐石之体", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
             "evolve_t1": {"text": "Lv.30 的拳师：拳斗士以攻代守，磐石行者以守代攻。", "options": [{"text": "转职为拳斗士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为磐石行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
             "evolve_t2": {"text": "Lv.60！武斗师还是铁壁行者？", "options": [{"text": "转职为武斗师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为铁壁行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
             "evolve_t3": {"text": "Lv.90，拳师的极境：破晓者，或磐岩壁垒。", "options": [{"text": "转职为破晓者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为磐岩壁垒（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},

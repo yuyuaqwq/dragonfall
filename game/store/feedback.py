@@ -26,12 +26,12 @@ def get_feedback(status=None, limit=50):
         try:
             if status:
                 rows = conn.execute(
-                    "SELECT id, qq_id, group_id, content, created_at, status FROM feedback WHERE status=? ORDER BY id DESC LIMIT ?",
+                    "SELECT id, qq_id, group_id, content, reply, created_at, status FROM feedback WHERE status=? ORDER BY id DESC LIMIT ?",
                     (status, limit),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT id, qq_id, group_id, content, created_at, status FROM feedback ORDER BY id DESC LIMIT ?",
+                    "SELECT id, qq_id, group_id, content, reply, created_at, status FROM feedback ORDER BY id DESC LIMIT ?",
                     (limit,),
                 ).fetchall()
             return rows

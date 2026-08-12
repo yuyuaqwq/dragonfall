@@ -3,8 +3,7 @@
 ALCHEMY_RECIPES = {
     "al_zhi_liao_yao_shui": {
         "cost": {
-            "mat_lang_pi": 2,
-            "mat_yao_jing_zhi_chen": 1
+            "mat_lang_pi": 1
         },
         "product": {
             "i_treatment_potion": 1
@@ -15,8 +14,7 @@ ALCHEMY_RECIPES = {
     },
     "al_mo_li_yao_shui": {
         "cost": {
-            "mat_yao_jing_zhi_chen": 2,
-            "mat_zhi_zhu_du_nang": 1
+            "mat_shi_xi_lin": 1
         },
         "product": {
             "i_mana_potion": 1
@@ -39,7 +37,7 @@ ALCHEMY_RECIPES = {
     },
     "al_hui_cheng_juan_zhou": {
         "cost": {
-            "mat_gui_hun_jing_hua": 1,
+            "mat_gui_hun_jing_hua": 3,
             "mat_yao_jing_zhi_chen": 1
         },
         "product": {
@@ -51,8 +49,8 @@ ALCHEMY_RECIPES = {
     },
     "al_qiang_xiao_zhi_liao": {
         "cost": {
-            "mat_sheng_guang_yu_mao": 1,
-            "mat_yao_jing_zhi_chen": 2
+            "mat_sui_gu": 1,
+            "mat_lang_pi": 1
         },
         "product": {
             "i_great_treatment": 1
@@ -99,8 +97,8 @@ ALCHEMY_RECIPES = {
     },
     "al_gong_ji_yao_shui": {
         "cost": {
-            "mat_shou_ren_liao_ya": 2,
-            "mat_huo_yan_he_xin": 1
+            "mat_shou_ren_liao_ya": 1,
+            "mat_zhi_zhu_du_nang": 1
         },
         "product": {
             "i_atk_potion": 1

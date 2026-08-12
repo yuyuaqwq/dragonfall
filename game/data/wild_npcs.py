@@ -262,6 +262,7 @@ HIDDEN_NPCS = {
     "h_owl": {
         "name": "夜枭·啼月", "icon": "🦉", "map": "white_deer_forest",
         "condition": {"time": ["night"]}, "chance": 0.15,
+        # v104 P1（M21）：设置点=与 说书人·巴尔(w_lore_master, 银月河畔) 交谈（world.py find_npc 授予）
         "unlock": "flag:heard_owl_song",
         "desc": "月下的影子，唱着无人听过的歌",
         "funcs": ["lore"],
@@ -280,6 +281,7 @@ HIDDEN_NPCS = {
     "h_grave_king": {
         "name": "墓王·静语", "icon": "💀", "map": "old_battlefield",
         "condition": {"time": ["night"], "weather": "fog"}, "cycle": 3,
+        # v104 P1（M21）：设置点=与 老兵之魂(w_war_ghost, 旧战场夜雾) 交谈安抚亡魂（world.py find_npc 授予）
         "unlock": "flag:soothed_five_ghosts",
         "desc": "亡者之王，静默如坟",
         "funcs": ["lore", "teach"],
@@ -337,7 +339,9 @@ HIDDEN_NPCS = {
         "name": "时光旅人·刹那", "icon": "⏳", "map": None,
         "condition": {}, "cycle": 1,
         "roam": ["starlight_terrace", "silverwood", "permafrost_field", "dragon_ridge", "pearl_city"],
-        "unlock": "item:time_shard",
+        # v104 P1（M21）：原 unlock=item:time_shard 物品不存在→永久锁死；改 flag，
+        # 设置点=与 流浪诗人·弦歌(w_bard_roaming, 月之门) 交谈（world.py find_npc 授予）
+        "unlock": "flag:heard_timeless_tale",
         "desc": "不属于任何时代的人",
         "funcs": ["lore", "teach"],
         "dialogue": "……你来早了，也来晚了。时间对我而言，只是另一条路。",
@@ -356,7 +360,9 @@ HIDDEN_NPCS = {
         "name": "图书管理员·贝拉", "icon": "📖", "map": "dawn_cathedral",
         "condition": {}, "chance": 0.25,
         "gender": "女",  # v95 #141：代词跟随 NPC 性别
-        "unlock": "quest_done:inst_secret_crypt",  # 击败圣堂地窖 Boss 后出现（主线副本通关标记）
+        "unlock": "quest_done:q11_3",  # v104 P1（M21）：主线第11章『奥古斯都的真面目』通关后出现
+        # （原 quest_done:inst_secret_crypt 是副本 id 非任务 id，quests 完成记录从不写入→永久锁死；
+        #   副本通关的 battle_state 临时标记已被 core/wild.py unlock_met 兼容）
         "desc": "教会图书馆幸存的书记官",
         "funcs": ["quest", "trade"],
         "dialogue": "他们把真相锁进了地窖最深处。三百年了……我守着这些书，就是在等一个能读完它们的人。",

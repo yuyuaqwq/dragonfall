@@ -28,7 +28,8 @@ def get_quests(group_id, qq_id):
                 "SELECT * FROM quests WHERE qq_id=?", (qq_id,)
             ).fetchone()
             if not row:
-                return {"main_quest": "q1", "main_status": "pending", "main_progress": {}, "daily": {}, "completed_main": [], "side": {}}
+                # v104 M19：新档主线默认 q1_1（旧 "q1" 是已下线 id，quest_view 查不到会面板空白）
+                return {"main_quest": "q1_1", "main_status": "pending", "main_progress": {}, "daily": {}, "completed_main": [], "side": {}}
             q = dict(row)
             q["main_progress"] = json.loads(q["main_progress"] or "{}")
             q["daily"] = json.loads(q["daily"] or "{}")

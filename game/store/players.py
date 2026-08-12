@@ -326,11 +326,27 @@ def set_skill_bar(qq_id, bar: list):
 
 # B2 加固（2026-08-10）：注销角色时按 qq_id 清理的关联表白名单。
 # 新增表（且该表有 qq_id 列）时必须同步加进这里，否则注销会残留数据。
+# event_state 无 qq_id 列，按键后缀 {prefix}_{qq} / {prefix}:{qq} 存储，在 delete_player 内单独清理。
 DELETE_TABLES = (
     "inventory", "quests", "battle_state", "achievements", "stats",
     "reputation", "signin", "fishing", "bestiary", "visited",
     "player_groups", "professions", "pets", "props_use", "pet_dex",
 )
+
+def _delete_player_event_state(conn, qq_id):
+    """删除该玩家的全部 event_state 键（v104 修复：注销后模式/状态残留导致重注册串状态）。
+
+    键格式：{prefix}_{qq_id}（daily_fortune_{群}_{qq}/talk_{群}_{qq}/boss_dmg_{qq}/
+    del_confirm_{qq} 等）或 {prefix}:{qq_id}（move_mode:/item_view_mode:）。
+    全量取出后在 Python 侧精确后缀匹配（避免 SQL LIKE 的 _ 通配符误伤相邻 qq 键），
+    全局键（server_maintenance/gm_whitelist/last_event_end 等）不含该后缀，天然不受影响。
+    """
+    qid = str(qq_id)
+    suf_under, suf_colon = "_" + qid, ":" + qid
+    keys = [r["key"] for r in conn.execute("SELECT key FROM event_state").fetchall()]
+    for key in keys:
+        if key.endswith(suf_under) or key.endswith(suf_colon):
+            conn.execute("DELETE FROM event_state WHERE key=?", (key,))
 
 def delete_player(qq_id):
     """注销角色：删除玩家主记录 + 全部关联数据（v62 群友想切职业）。
@@ -338,7 +354,8 @@ def delete_player(qq_id):
     清理表：inventory / quests / battle_state / achievements / stats /
     reputation / signin / fishing / bestiary / visited / player_groups /
     professions / pets / props_use / pet_dex / market(卖出) / party(队长或队员)
-    / guild_members / feedback(保留历史意见，仅清空 qq 归属标记由 create 重建)。
+    / guild_members / feedback(保留历史意见，仅清空 qq 归属标记由 create 重建)
+    / event_state(按键后缀精确匹配，v104 补)。
     返回是否删除成功（False = 该 qq 无角色）。
     """
     with _lock:
@@ -349,6 +366,8 @@ def delete_player(qq_id):
                 return False
             for tbl in DELETE_TABLES:  # 白名单本身即约束：表名只能来自此常量
                 conn.execute(f"DELETE FROM {tbl} WHERE qq_id=?", (qq_id,))
+            # 事件状态：键后缀匹配清理（move_mode:/item_view_mode:/daily_fortune_/talk_ 等）
+            _delete_player_event_state(conn, qq_id)
             # 市场：下架该玩家挂的单
             conn.execute("DELETE FROM market WHERE seller=?", (qq_id,))
             # 队伍：删掉该玩家所在行（队长行也删，队自动散）

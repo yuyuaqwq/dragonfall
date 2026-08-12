@@ -6,10 +6,18 @@ import random
 
 from .. import content as C
 from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CLASS_SET_STAGES, CLASS_SET_THEMES,
+                    CRAFT_RECIPES,
                     EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,
                     EQUIP_PREFIX_FLAVOR, LEGENDARY_EFFECTS, QUALITY, SET_CHANCE, SET_THEMES,
                     SERIES_SETS, WEAPON_FLAVOR,
                     WEAPON_NAME_SUFFIX, WEAPON_TYPES)
+
+
+# v104 修复 P1（M07 审计）：图纸池只保留有 CRAFT_RECIPES 配方的名册装备，
+# 剔除星尘/灰烬守卫等无配方隐藏线装备（11 张废图纸不再混入随机池）。
+_BLUEPRINT_RECIPE_RIDS = frozenset(
+    rec.get("roster_id") for rec in CRAFT_RECIPES.values() if rec.get("roster_id")
+)
 
 
 """《剑与魔法》数据层 - drops.py"""
@@ -65,7 +73,9 @@ def roll_blueprint(monster_lv: int):
     """
     cands = []
     for rid, r in C.EQUIP_ROSTER.items():
-        if r["source"] in ("图纸", "boss"):
+        # v104 修复 P1：候选必须有名册配方（CRAFT_RECIPES 有对应 roster_id），
+        # 无配方的隐藏线装备（星尘/灰烬守卫）不出图纸
+        if r["source"] in ("图纸", "boss") and rid in _BLUEPRINT_RECIPE_RIDS:
             cands.append((rid, r))
     if not cands:
         return None
@@ -259,8 +269,9 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
         equip["affixes"] = affix_ids
     if r.get("legendary"):
         equip["legendary"] = r["legendary"]
-    # 阶段八：蓝以上名册装备挂系列套装（白装新手过渡，不触发套装）
-    if r["series"] in SERIES_SETS and quality != "white":
+    # 阶段八：名册装备挂系列套装（v104 修复 P1：白装成员同样挂 set——
+    # 橡木套 15 件中 11 件白装此前无 set，新手凑不齐 2 件效果）
+    if r["series"] in SERIES_SETS:
         equip["set"] = SERIES_SETS[r["series"]]
     # v101.25g：名册装备描述（EQUIP_ROSTER 已注入 desc）
     if r.get("desc"):

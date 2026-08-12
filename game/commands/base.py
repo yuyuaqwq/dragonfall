@@ -582,12 +582,15 @@ class CommandBase:
                     for k, v in t["bonus"].items():
                         bonus[k] = bonus.get(k, 0) + v
             # 阶段九：成就称号 bonus（14 章 3.3，达成即生效）
+            # M18 修复：跳过与 TITLES 同名且带 bonus 的成就（副业 Lv.10 大师称号已由上方 TITLES 段累加，
+            # 成就侧 ach_pro_*10 为同一称号的重复数据 → 跳过避免双倍发放）
+            title_bonus_names = {t["name"] for t in C.TITLES if t.get("bonus")}
             try:
                 unlocked_achs = {r["ach_key"] for r in db.get_achievements("", qq_id)}
             except Exception:
                 unlocked_achs = set()
             for a in C.ACHIEVEMENTS:
-                if a.get("bonus") and a["id"] in unlocked_achs:
+                if a.get("bonus") and a["id"] in unlocked_achs and a.get("name") not in title_bonus_names:
                     for k, v in a["bonus"].items():
                         if k != "atk" or v != 0:  # 占位字段跳过
                             bonus[k] = bonus.get(k, 0) + v

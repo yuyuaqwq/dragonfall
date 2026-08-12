@@ -34,10 +34,6 @@ MATERIALS = {
         'price': 15,
         'name': "亡影战徽",
     },
-    "mat_chuan_song_juan_zhou": {
-        'price': 15,
-        'name': "传送卷轴",
-    },
     "mat_guang_zhi_sheng_dian": {
         'price': 60,
         'name': "光之圣典",
@@ -117,10 +113,6 @@ MATERIALS = {
     "mat_qu_yu": {
         'price': 15,
         'name': "区域",
-    },
-    "mat_shuang_bei_jin_bi_fu": {
-        'price': 15,
-        'name': "双倍金币符",
     },
     "mat_gu_dai_wen_xian": {
         'price': 15,
@@ -241,10 +233,6 @@ MATERIALS = {
     "mat_duo_luo_jing_ling_hu_fu": {
         'price': 15,
         'name': "堕落精灵护符",
-    },
-    "mat_fu_huo_yu_mao": {
-        'price': 15,
-        'name': "复活羽毛",
     },
     "mat_ye_ge_zhi_yan": {
         'price': 80,
@@ -469,10 +457,6 @@ MATERIALS = {
     "mat_mo_luo_zhi_guan": {
         'price': 200,
         'name': "摩罗之冠",
-    },
-    "mat_gai_ming_ka": {
-        'price': 15,
-        'name': "改名卡",
     },
     "mat_ao_lan_zhi_zhu": {
         'price': 80,
@@ -994,10 +978,6 @@ MATERIALS = {
         'price': 15,
         'name': "红棘珊瑚",
     },
-    "mat_jing_yan_yao_shui": {
-        'price': 15,
-        'name': "经验药水",
-    },
     "mat_lv_lu_jiao": {
         'price': 15,
         'name': "绿鹿角",
@@ -1395,8 +1375,9 @@ MATERIALS = {
         'name': "骸王龙骨",
     },
     "mat_gao_ji_qiang_hua_shi": {
-        'price': 15,
+        'price': 80,
         'name': "高级强化石",
+        'desc': "高级强化石，淬火石精炼而成的高纯度矿石，是高级锻造的基石。",
     },
     "mat_lie_xi_pi": {
         'price': 15,
@@ -1888,6 +1869,24 @@ MATERIALS = {
     "mat_moon_dew": {"price": 180, "name": "月露", "desc": "子夜草叶上凝结的露珠，盛在玉瓶里能存住月光"},
     "mat_deep_crystal": {"price": 350, "name": "深渊水晶", "desc": "矿洞最深处才有的幽蓝水晶，内里仿佛有星光流转"},
     "mat_star_iron": {"price": 600, "name": "星铁", "desc": "深隧里挖出的陨铁，锻打时溅出星星点点的火光"},
+    # ---- v104 隐藏区域掉落材料补全（失落图书馆 lv55 / 灰烬回廊 lv85）----
+    # 原 subareas.py 掉落引用这 8 个名字但 MATERIALS 无定义 → combat resolve 失败整场掉落被吞
+    "mat_jiu_shu_can_ye": {"price": 60, "name": "旧书残页", "type": "杂物",
+                           "desc": "失落图书馆里泛黄的书页残片，字迹早已模糊，学者愿意收购"},
+    "mat_mo_shui_ping": {"price": 50, "name": "墨水瓶", "type": "杂物",
+                         "desc": "馆中遗留的空墨水瓶，瓶底凝着一圈干涸的墨渍"},
+    "mat_tui_se_mo_shui": {"price": 65, "name": "褪色墨水", "type": "精华",
+                           "desc": "书页精灵身上洒落的古墨水，颜色已褪却仍带着淡淡墨香"},
+    "mat_dang_an_shi_yao_shi": {"price": 80, "name": "档案室钥匙", "type": "任务道具",
+                                "desc": "档案馆长随身保管的铜钥匙，或许能打开馆内某扇尘封的门"},
+    "mat_yu_jin_jia_pian": {"price": 150, "name": "余烬甲片", "type": "兽材",
+                            "desc": "烬火守卫身上剥落的烧灼甲片，余温未散，铁匠铺高价收购"},
+    "mat_jin_lang_ya": {"price": 130, "name": "烬狼牙", "type": "兽材",
+                        "desc": "烬狼口中镶着火星的獠牙，磨成粉末是炼金的好料"},
+    "mat_shao_jiao_jian_ren": {"price": 160, "name": "烧焦剑刃", "type": "材料",
+                               "desc": "灰烬骑士断落的残剑，刃口焦黑卷曲，回炉重锻或能再用"},
+    "mat_yong_shi_yu_jin": {"price": 200, "name": "勇士余烬", "type": "精华",
+                            "desc": "灰烬勇士消散后留下的余烬，灼热不灭，蕴含战意精华"},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============
@@ -1952,6 +1951,12 @@ CONSUMABLES = {
                         "desc": "战斗内驱散全队负面"},
     "i_scroll_teleport": {"name": "传送卷轴", "price": 500, "effect": "return_vila",
                           "desc": "立即返回最近城镇"},
+    # ---- 消耗珍宝（v104：原 MATERIALS 材料壳修复——双倍金币符/复活羽毛实现效果；
+    #      改名卡/经验药水无对应模板支撑已删除占位） ----
+    "i_shuang_bei_jin_bi_fu": {"name": "双倍金币符", "price": 300, "effect": "lucky",
+                               "desc": "金色符箓，使用后 10 分钟内打怪金币＋50%、材料掉落＋1（一次消耗）"},
+    "i_fu_huo_yu_mao": {"name": "复活羽毛", "price": 200, "effect": "return_vila",
+                        "desc": "泛着微光的洁白羽毛，捏碎后化作光芒送你返回最近城镇（野外保命珍宝，一次消耗）"},
     "i_scroll_revive": {"name": "唤醒卷轴", "price": 1000,
                         "desc": "战斗内复活(回复 50% HP)"},
     "i_scroll_goblin": {"name": "召唤卷轴·哥布林", "price": 500,
@@ -2165,7 +2170,7 @@ CONSUMABLES = {
     "i_arcane_pot": {"name": "奥术药剂", "price": 120, "effect": "buff_matk",
                      "desc": "3 回合魔攻 + 30%"},
     "i_mystic_pot": {"name": "秘法药剂", "price": 180, "effect": "buff_matk_strong",
-                     "desc": "3 回合魔攻 + 50%"},
+                     "desc": "3 回合魔攻 + 80%"},
     "i_starfire_pot": {"name": "星辉药剂", "price": 220, "effect": "buff_matk_strong",
                        "desc": "3 回合魔攻 + 80%"},
     "i_void_pot": {"name": "虚空药剂", "price": 300, "effect": "buff_matk_crit",
@@ -2427,9 +2432,9 @@ CONSUMABLES = {
                       "desc": "提升打怪金币与材料掉落(10 分钟)"},
     # ---- v102.3 生活技能差异化：稀有食谱产物（烹饪） ----
     "i_night_mushroom_soup": {"name": "夜雾菇浓汤", "price": 50, "food_effect": "regen", "heal": 0.3, "stamina": 25,
-                              "desc": "回复 30% HP + 25 体力（月光珍馐）；战斗中吃下获得【回春】：每回合回复 8% 生命（3 回合）"},
+                              "desc": "回复 30% HP + 25 体力（月光珍馐）；战斗中吃下获得【回春】：每回合回复 1% 生命（本场）"},
     "i_moon_tea": {"name": "月光草茶", "price": 45, "food_effect": "meditate", "mana": 0.25, "stamina": 15,
-                   "desc": "回复 25% MP + 15 体力（月下清茗）；战斗中喝下获得【冥想】：每回合回复 6% 魔力（3 回合）"},
+                   "desc": "回复 25% MP + 15 体力（月下清茗）；战斗中喝下获得【冥想】：每回合回复 1% 魔力（本场）"},
     "i_aurora_honey": {"name": "极光花蜜", "price": 90, "food_effect": "aurora_guard", "heal": 0.2, "stamina": 20,
                        "desc": "回复 20% HP + 20 体力（极光珍酿）；战斗中吃下获得【极光庇护】：受击伤害－15%（本场战斗）"},
     "i_dragon_blood_hotpot": {"name": "龙血火锅", "price": 110, "food_effect": "charge", "heal": 0.4, "stamina": 40,

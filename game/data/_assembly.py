@@ -141,16 +141,28 @@ _INDEXES["weapon_types"]["id_to_name"] = dict(WT_CN)
 _INDEXES["weapon_types"]["name_to_id"] = {v: k for k, v in WT_CN.items()}
 
 # 怪物：v87.6 内容下沉子区域——从 SUBAREAS 的 monsters/elite/boss 收集 怪物名→id（地图级仅兜底）
+# v104 M24：INSTANCES stages 副本专属怪（试炼侍从/寒冰守卫/月骑士等 28 个）一并进索引，
+#           且同名冲突时实例怪优先（后写覆盖，参照 build_index 的 n2i 覆盖规则）
 _MONSTER_INDEX = {}
+_MONSTER_ID_NAMES = {}  # v104 M24：全量 id→名（含同名冲突落败方），旧 bestiary 已存 id 仍可 display
 
 
 def _collect_monster_entries(_slots_source, _slots):
-    """收集 (mid, mname) 对；兼容 str(单怪)与 list(多怪)。"""
+    """收集 (mid, mname) 对；兼容三种槽位形态：
+    - 条目列表（monsters 多怪）：[[mid, 名, role, lv, skills, drops], ...]
+    - 扁平单条目（elite/boss 6 元组）：[mid, 名, role, lv, skills, drops]
+    - str 单怪（理论兼容，直接跳过）
+    v104 M24：原实现把扁平单条目当条目列表逐元素迭代，
+    导致 elite/boss 的技能列表被误判为怪物条目（索引垃圾键 ms_* 的根源）。
+    """
     for _slot in _slots:
         _ent = _slots_source.get(_slot)
         if not _ent:
             continue
-        _lst = _ent if isinstance(_ent, list) else [_ent]
+        if isinstance(_ent, (tuple, list)) and _ent and isinstance(_ent[0], (tuple, list)):
+            _lst = _ent  # 条目列表
+        else:
+            _lst = [_ent]  # 扁平单条目（或 str）
         for _t in _lst:
             if isinstance(_t, (tuple, list)) and len(_t) >= 2:
                 yield _t[0], _t[1]
@@ -162,13 +174,25 @@ for _sas in SUBAREAS.values():
             # 同名怪物（多地图）→ 取第一个 id，保证反查稳定
             if _mname not in _MONSTER_INDEX:
                 _MONSTER_INDEX[_mname] = _mid
+            _MONSTER_ID_NAMES.setdefault(_mid, _mname)
 # 兜底：无子区域的地图级内容（当前全图都有子区域，此处为空）
 for _m in MAPS:
     for _mid, _mname in _collect_monster_entries(_m, ("monsters", "elite", "boss")):
         if _mname not in _MONSTER_INDEX:
             _MONSTER_INDEX[_mname] = _mid
+        _MONSTER_ID_NAMES.setdefault(_mid, _mname)
+# v104 M24：实例层副本专属怪进索引——同名冲突时实例怪优先（无条件覆盖，
+# 与 build_index 的 name_to_id 后写覆盖规则一致；实例内部 elite/boss 槽位排在 monsters 之后，
+# 同名时实例专属的 elite/boss 变体自然胜出，不再串到子区域同名怪）
+for _ins in INSTANCES.values():
+    for _st in (_ins.get("stages") or []):
+        if not isinstance(_st, dict):
+            continue
+        for _mid, _mname in _collect_monster_entries(_st, ("monsters", "elite", "boss")):
+            _MONSTER_INDEX[_mname] = _mid
+            _MONSTER_ID_NAMES.setdefault(_mid, _mname)
 _INDEXES["monsters"] = {"name_to_id": dict(_MONSTER_INDEX),
-                        "id_to_name": {v: k for k, v in _MONSTER_INDEX.items()}}
+                        "id_to_name": dict(_MONSTER_ID_NAMES)}
 
 # 鱼：FISH_POOL 是 list，手工建索引
 _FISH_INDEX = {}

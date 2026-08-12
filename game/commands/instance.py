@@ -26,7 +26,7 @@ INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60
 
 class InstanceCmds(CommandBase):
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?副本(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?副本(?!地图)(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
 

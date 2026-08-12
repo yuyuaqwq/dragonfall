@@ -90,15 +90,29 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
 
 
 def prof_top(group_id, limit=10):
-    """副业总分排行(8 条副业等级之和，v101.28i 补 enhance/enchant)"""
+    """副业总分排行(8 条副业等级之和，v101.28i 补 enhance/enchant)
+
+    v104 修复：按群过滤（JOIN player_groups，口径同 get_group_players）——
+    群 A 排行不再串入群 B 玩家；私聊(无群)退化为全服排行。
+    """
     with _lock:
         conn = _connect()
         try:
-            rows = conn.execute(
-                "SELECT qq_id, gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv+cooking_lv+enhance_lv+enchant_lv AS total "
-                "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
-                (limit,),
-            ).fetchall()
+            _sum = ("gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv"
+                    "+cooking_lv+enhance_lv+enchant_lv AS total")
+            if group_id and group_id != "private":
+                rows = conn.execute(
+                    "SELECT pr.qq_id, pr." + _sum + " "
+                    "FROM professions pr JOIN player_groups g ON pr.qq_id=g.qq_id "
+                    "WHERE g.group_id=? ORDER BY total DESC, pr.qq_id LIMIT ?",
+                    (group_id, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT qq_id, " + _sum + " "
+                    "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
+                    (limit,),
+                ).fetchall()
             return [dict(r) for r in rows]
         finally:
             conn.close()
@@ -152,7 +166,13 @@ def activate_prof(group_id, qq_id, key):
 
 
 def forget_prof(group_id, qq_id, key):
-    """遗忘副业：移除激活 + 等级/经验清零。返回旧等级"""
+    """遗忘副业：移除激活 + 等级/经验清零 + 清学徒资格(拜师记录)。
+
+    v104 P0 修复：遗忘后必须同时从 players.apprentices 移除该副业——
+    否则再激活免拜师，且 附魔 Lv.1 被 Lv.2 门槛拦截、唯一经验来源被堵，
+    永久卡 Lv.1 死锁。8 副业全路径生效（enhance/enchant 同表逻辑）。
+    返回旧等级
+    """
     if key not in PROF_FIELDS:  # B2 加固（2026-08-10）：动态列名前白名单校验
         return None
     lst = get_activated_profs(group_id, qq_id)
@@ -170,6 +190,25 @@ def forget_prof(group_id, qq_id, key):
                 f"UPDATE professions SET activated=?, {key}_lv=1, {key}_exp=0 WHERE qq_id=?",
                 (json.dumps(lst, ensure_ascii=False), qq_id),
             )
+            # v104 P0：同步清 players.apprentices 里的拜师资格（防附魔遗忘死锁）
+            try:
+                prow = conn.execute(
+                    "SELECT apprentices FROM players WHERE qq_id=?", (qq_id,)
+                ).fetchone()
+                appr = []
+                if prow and prow["apprentices"]:
+                    try:
+                        appr = json.loads(prow["apprentices"])
+                    except (ValueError, TypeError):
+                        appr = []
+                if key in appr:
+                    appr.remove(key)
+                    conn.execute(
+                        "UPDATE players SET apprentices=? WHERE qq_id=?",
+                        (json.dumps(appr, ensure_ascii=False), qq_id),
+                    )
+            except Exception:
+                pass  # 玩家表/列异常不阻断遗忘主流程（等级清零已生效）
             conn.commit()
             return old_lv
         finally:

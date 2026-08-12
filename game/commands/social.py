@@ -54,8 +54,8 @@ class SocialCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         args = self._strip_cmd(event, "上架").rsplit(None, 1)
-        if len(args) < 2 or not args[1].isdigit():
-            yield event.plain_result("格式：上架 <物品名> <价格>，如『上架 铁剑 500』")
+        if len(args) < 2 or not args[1].isdigit() or int(args[1]) < 1:
+            yield event.plain_result("格式：上架 <物品名> <价格>，如『上架 铁剑 500』；价格至少 1 金币")
             return
         item_name = args[0]
         price = int(args[1])
@@ -921,6 +921,10 @@ class SocialCmds(CommandBase):
             return
         if player["gold"] < amount:
             yield event.plain_result(f"你只有 {player['gold']} 金币，出不起 {amount}！")
+            return
+        # 自己重复出价：新价不能低于自己当前出价（防刷金币：先退旧价再扣新价 = 净赚差价）
+        if str(qq_id) in it["bids"] and amount < it["bids"][str(qq_id)]:
+            yield event.plain_result(f"不能低于自己当前出价 {it['bids'][str(qq_id)]} 金币！")
             return
         # 被超越 → 退还当前最高出价者（并移除其出价记录）
         if it["bids"]:

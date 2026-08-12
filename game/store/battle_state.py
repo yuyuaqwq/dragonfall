@@ -4,6 +4,10 @@ import time
 from .connection import _connect, _lock
 
 """《剑与魔法》存储层 - battle_state"""
+# v104 M02 P2：普通战斗 24h 无活动自动回收（battle_state 永久残留泄漏；PVP 另有 5 分钟超时在 combat.py）
+BATTLE_STALE_SEC = 24 * 3600
+
+
 def save_battle(group_id, qq_id, state: dict):
     """保存完整战斗上下文（v9：含 type/round/buffs/enemy 等）
 
@@ -50,6 +54,13 @@ def get_battle(group_id, qq_id):
                 (qq_id,),
             ).fetchone()
             if not row:
+                return None
+            # v104 M02 P2：超 24h 无活动的战斗记录回收（普通战斗此前永久保留；
+            # 表无 created_at 列，用 updated_at 判定更合理——战斗长时间无操作即视为废弃）
+            updated = row["updated_at"] or 0
+            if updated and time.time() - updated > BATTLE_STALE_SEC:
+                conn.execute("DELETE FROM battle_state WHERE qq_id=?", (qq_id,))
+                conn.commit()
                 return None
             state = json.loads(row["state"])
             # 兼容 v9 之前的旧数据（state 字段直接是裸怪物 dict）

@@ -22,7 +22,7 @@ from astrbot.core.message.message_event_result import MessageChain
 
 from .. import content as C
 from .. import db
-from .base import CommandBase, require_player
+from .base import CommandBase
 
 # 窥探投递目标：鱼鱼 QQ（1454832774，GM 白名单预置角色"鱼鱼"）
 GM_OWNER_QQ = "1454832774"
@@ -163,13 +163,14 @@ def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
 
 class GmCmds(CommandBase):
     def _gm_auth(self, event, group_id, qq_id):
-        """返回 (ok, 错误消息)。白名单命中(库∪env)或 gm_ 测试身份放行。"""
+        """返回 (ok, 错误消息)。白名单命中(库∪env)或 gm_ 测试身份放行。
+        v104.1 M24 修复：白名单为空(库∪env 均未配置)时默认拒绝一切 GM 指令，
+        不再回退私聊放行——防止任意私聊用户 gm_发金币/gm_设等级/gm_加GM 自举提权。"""
         if self._is_gm(qq_id):
             return True, ""
         if self._gm_whitelist():
             return False, "⛔ GM 指令仅限管理员使用～"
-        # 未配置任何白名单：回退旧行为——私聊放行(机器人私聊默认就是管理员自己)
-        return group_id == "private", "⛔ GM 指令仅限管理员使用～"
+        return False, "⛔ GM 未配置：请管理员先在环境变量 GWEN_GM_QQ 中配置 GM QQ～"
 
     # ---------- 目标解析 ----------
     def _resolve_target(self, raw: str):
@@ -751,14 +752,12 @@ class GmCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$")
-    @require_player()
     async def gm_boss_dmg(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         ok, err = self._gm_auth(event, group_id, qq_id)
         if not ok:
             yield event.plain_result(err)
             return
-        player = self._player(group_id, qq_id)
         raw = self._strip_cmd(event, "gm_伤害").strip()
         cur = db.get_boss_dmg_mult(qq_id)
         if not raw:

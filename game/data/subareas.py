@@ -3682,10 +3682,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：月冠王庭无旅店（策划案 02 章：旅店挂月影卫营客房）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "moon_court_4",
@@ -4708,10 +4710,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：铁砧要塞无旅店（策划案 02 章：旅店挂铁砧议会厅客房）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "anvil_fort_3",
@@ -5913,10 +5917,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：龙脊山口无旅店（策划案 02 章：旅店挂龙裔长老堂客房）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "dragon_pass_gate",
@@ -7590,10 +7596,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：无名港无旅店（策划案 02 章：旅店挂港务厅客栈）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "nameless_harbor_3",
@@ -7668,10 +7676,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：珍珠城无旅店（策划案 02 章：旅店挂城主府迎宾馆）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "pearl_city_3",
@@ -8384,9 +8394,11 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：深岩隧道缺商店（策划案 02 章：中央大厅=地底商摊）
+                "shop"
             ],
-            "shop": False,
+            "shop": True,
             "healer": False
         },
         {
@@ -9002,10 +9014,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：灰烬营地无旅店（策划案 02 章：旅店挂营长帐客房）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "ember_camp_3",
@@ -9386,10 +9400,12 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "quest"
+                "quest",
+                # M22 修复：风翼城无旅店（策划案 02 章：旅店挂云翼议会厅云馆）
+                "heal"
             ],
             "shop": False,
-            "healer": False
+            "healer": True
         },
         {
             "id": "wind_city_gate",

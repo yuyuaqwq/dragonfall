@@ -15,7 +15,8 @@ ENHANCE_TABLE = {
 
 MAX_ENHANCE = 9
 
-ENHANCE_FAIL_DROP = {5: 2}
+# v104 M11：策划 19 章"+5 起失败掉级"——+5 失败掉 2 级、+6~+8 失败掉 1 级、+1~+4 失败不掉级（economy 侧 get 默认 0）
+ENHANCE_FAIL_DROP = {5: 2, 6: 1, 7: 1, 8: 1}
 
 # v83：改为余烬纪元真实铁匠铺地图（旧版是已删旧世界地图，新世界玩家找不到铁匠铺）
 ENHANCE_SMITH_MAPS = ["oak_town", "white_deer", "ironharbor", "ironshield_town", "anvil_fort", "dawn_city"]

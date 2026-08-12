@@ -922,7 +922,7 @@ SIDE_QUESTS = [
         "name": "修道院的玫瑰",
         "giver": "npc_abbess",
         "map": "white_abbey",
-        "desc": "击败 5 只腐蚀修女，收集 3 朵染黑玫瑰",
+        "desc": "击败 5 只腐蚀修女，查明黑玫瑰的异变",
         "objective": {"kill": "腐蚀修女", "count": 5},
         "reward_exp": 800,
         "reward_gold": 2000,
@@ -937,12 +937,12 @@ SIDE_QUESTS = [
         "objective": {"explore": "old_king_tomb"},
         "reward_exp": 1000,
         "reward_gold": 2500,
-        "story": "宫廷学者·艾伯特：『陛下让我整理三百年前的档案，可关键几页都被「意外」烧毁了。帮我找找别的副本。』",
+        "story": "腓特烈三世：『三百年前的宫廷档案，关键几页被「意外」烧毁了。朕不信巧合——替朕找一份别的副本回来。』",
     },
     {
         "id": "s9",
         "name": "骑士的誓言",
-        "giver": "npc_knight_commander",
+        "giver": "npc_dawn_squire",
         "map": "dawn_city",
         "desc": "击败 5 只审判猎犬，证明自己",
         "objective": {"kill": "审判猎犬", "count": 5},
@@ -953,7 +953,7 @@ SIDE_QUESTS = [
     {
         "id": "s10",
         "name": "河神的诅咒",
-        "giver": "npc_saintess",
+        "giver": "npc_silver_fisher",
         "map": "silver_river",
         "desc": "击败河龙领主，取回河神祭品",
         "objective": {"kill": "河龙领主", "count": 1},
@@ -970,7 +970,7 @@ SIDE_QUESTS = [
         "objective": {"explore": "old_king_tomb"},
         "reward_exp": 2200,
         "reward_gold": 5500,
-        "story": "历史学家·诺拉：『壁画描绘了三百年前圣战的另一面——英雄王与「魔王」并肩而立。帮我拓下来。』",
+        "story": "腓特烈三世：『旧王陵的壁画，画着三百年前圣战的另一面。朕要亲眼看看——替朕拓下来。』",
     },
     {
         "id": "s12",
@@ -1113,6 +1113,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "野猪王·裂鬃", "count": 1},
         "reward_exp": 500,
         "reward_gold": 1250,
+        "reward_item": "裂鬃獠牙",
         "story": "灰羽：『野猪岭的裂鬃已经伤了三个人了。老猎人的弓都压不住它，冒险者，看你的了。』",
     },
     {
@@ -1124,6 +1125,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "丘陵狼王·铁牙", "count": 1},
         "reward_exp": 1500,
         "reward_gold": 3500,
+        "reward_item": "铁牙狼皮",
         "story": "巴托：『晨曦城的骑士老爷们不来管我们，但铁盾镇的狼我们自己打。冒险者，帮个忙，酒管够。』",
     },
     {
@@ -1146,6 +1148,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "海神祭司·澜歌", "count": 1},
         "reward_exp": 8000,
         "reward_gold": 20000,
+        "reward_item": "澜歌之泪",
         "story": "老舵：『海神祭司·澜歌已经很久没有回应祈祷了。神殿里出了什么事，没人知道……你敢去看看吗？』",
     },
     {
@@ -1179,6 +1182,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "风暴海龙·雷鸣", "count": 1},
         "reward_exp": 9000,
         "reward_gold": 22500,
+        "reward_item": "雷鸣龙鳞",
         "story": "赛琳娜：『风暴之海的浪比往年凶得多……珍珠城的占星师说，海底有东西在搅动海面。去看看吧。』",
     },
     {
@@ -1190,6 +1194,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "岩浆王·烬核", "count": 1},
         "reward_exp": 12000,
         "reward_gold": 30000,
+        "reward_item": "烬核之心",
         "story": "格罗姆：『熔岩河床的岩浆兽突然暴动，矿道都要塌了。矮人不怕火，但那玩意儿太邪门，得靠你。』",
     },
     {
@@ -1212,6 +1217,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "云中圣者·奥拉", "count": 1},
         "reward_exp": 20000,
         "reward_gold": 50000,
+        "reward_item": "奥拉圣印",
         "story": "大长老·云翼：『云中圣者·奥拉守护着天空的传承。三百年来，他是第一个愿意把传承交给外人的人……去接受试炼吧。』",
     },
     {
@@ -1344,6 +1350,7 @@ SIDE_QUESTS = [
         "objective": {"kill": "龙陨战魂·暮影", "count": 1},
         "reward_exp": 16000,
         "reward_gold": 40000,
+        "reward_item": "暮影龙魂",
         "story": "奥姆之子：『龙陨谷是古龙长眠之地。暮影是千年前陨落的龙王之魂，它还在等着一个能结束它守望的人。』",
     },
     # ---- v87 隐藏任务链（06 章七.5：H3/H4，通往隐藏区域）----

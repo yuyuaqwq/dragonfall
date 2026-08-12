@@ -12,9 +12,10 @@
 
 约定：
 - db 访问在函数内延迟 import（防 core→content→core 循环）
-- 原代码"受限返回 False"的类型（faction/event_all/goblin_trade）原样保留
-- quest_done/main_done 原代码引用了未定义变量（NameError→False 的历史行为），
-  注册表保持同款代码，行为零变化
+- v105 M18 P1 修复：main_done 补 group_id（原 TypeError 恒 False）；flag 改查 db
+  talk_flags（原 extra.flags 无调用方传参恒 False）；event_all 接 stats.world_events；
+  goblin_trade 无交易计数数据源 → 成就 ach_goblin_friend 改判 world_event（注册已删除）
+- quest_done/item_has/main_quest_done/branch_skills 依赖 extra._group_id（check_achievements 注入）
 """
 COND_CHECKS = {}
 
@@ -80,6 +81,31 @@ def _c_skill_has(player, stats, profs, extra, cond):
     from .. import content as C
     learned = [C.display("skills", s) for s in (player.get("learned_skills", []) or []) if s]
     return any(cond.get("keyword", "") in s for s in learned)
+
+
+@register("branch_skills")
+def _c_branch_skills(player, stats, profs, extra, cond):
+    """掌握分支技能数（v105 M18 P1-3 新增：原 ach_dragon_skill 查'龙语'技能，全库无 → 恒 False）
+    分支技能以中文名为 key（skills.py BRANCH_SKILLS），learned_skills 中分支技能存中文名
+    （_skill_learn_msg/_evolve_auto_skills 均追加 name），统计 learned ∩ 本职业分支技能名。"""
+    from .. import content as C
+    cls = player.get("class_name", "")
+    bt = C.BRANCH_SKILLS.get(cls, {})
+    if not isinstance(bt, dict):
+        return False
+    names = set()
+    for tier in (bt.get("branches") or {}).values():
+        for skills in tier.values():
+            if not isinstance(skills, dict):
+                continue
+            names.update(skills.keys())
+            for s in skills.values():
+                if isinstance(s, dict) and s.get("name"):
+                    names.add(s["name"])
+    if not names:
+        return False
+    learned = set(player.get("learned_skills", []) or [])
+    return len(learned & names) >= _value(cond)
 
 
 @register("hidden_class")
@@ -300,7 +326,9 @@ def _c_world_event(player, stats, profs, extra, cond):
 
 @register("event_all")
 def _c_event_all(player, stats, profs, extra, cond):
-    return False  # 世界事件全触发记录受限
+    """世界事件深度参与（v105 M18 P1-4 修复：原恒 False，现接 stats.world_events，
+    由 combat.py 世界事件期间战斗结算 bump，与 world_event 条件共用计数）"""
+    return stats.get("world_events", 0) >= _value(cond)
 
 
 @register("fish_king")
@@ -327,11 +355,6 @@ def _c_worldboss(player, stats, profs, extra, cond):
     return bool(extra.get("worldboss"))
 
 
-@register("goblin_trade")
-def _c_goblin_trade(player, stats, profs, extra, cond):
-    return False  # 地精商人交易记录受限
-
-
 # ================= 任务/剧情类 =================
 
 @register("quest_done")
@@ -350,14 +373,60 @@ def _c_quest_done(player, stats, profs, extra, cond):
 
 @register("main_done")
 def _c_main_done(player, stats, profs, extra, cond):
-    """主线完成"""
+    """主线完成（v105 M18 P1-1 修复：原 db.get_quests 缺 group_id → TypeError 被吞恒 False）
+    完成主线第 12 章 = q12_6『黎明之后』交付（completed_main 含 q12_6）。"""
+    gid = extra.get("_group_id")
+    if not gid:
+        return False  # 无群上下文时保持旧行为（恒 False）
     from .. import db
-    q = db.get_quests(player["qq_id"])
-    return bool(q and q.get("completed_main"))
+    try:
+        q = db.get_quests(gid, player["qq_id"])
+    except Exception:
+        return False
+    return "q12_6" in (q.get("completed_main") or [])
+
+
+@register("main_quest_done")
+def _c_main_quest_done(player, stats, profs, extra, cond):
+    """完成指定主线任务（v105 M18 P1-2 新增：completed_main 含任务 id）。
+    用于 ach_saint_save 圣女守护者（救下圣女 = q6_1 圣女的信任交付）。"""
+    gid = extra.get("_group_id")
+    if not gid:
+        return False
+    from .. import db
+    try:
+        q = db.get_quests(gid, player["qq_id"])
+    except Exception:
+        return False
+    return cond.get("key") in (q.get("completed_main") or [])
 
 
 @register("flag")
 def _c_flag(player, stats, profs, extra, cond):
-    """剧情标记（extra.flags）"""
+    """剧情标记（v105 M18 P1-2 修复：原只读 extra.flags，而 25 处 check_achievements
+    调用无一传 flags → 恒 False 死锁）。
+    判定顺序：① extra.flags（事件上下文，测试兼容）② db talk_flags（与对话系统共用，
+    event_state key = talkflags_{gid}_{qid}，跨 NPC 扁平查）。"""
+    flag = cond.get("flag")
     flags = extra.get("flags") or {}
-    return bool(flags.get(cond.get("flag")))
+    if flags.get(flag):
+        return True
+    gid = extra.get("_group_id")
+    if not gid:
+        return False
+    from .. import db
+    try:
+        raw = db.get_event_state(f"talkflags_{gid}_{player['qq_id']}")
+    except Exception:
+        return False
+    if not raw:
+        return False
+    try:
+        import json
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return False
+    for npc_flags in data.values():
+        if flag in (npc_flags or []):
+            return True
+    return False

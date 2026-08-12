@@ -292,18 +292,19 @@ async def test_shop_roster():
 # ============ 8. 锻造名册化 + 套装 ============
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
-    # 锻造配方 = 名册（101 个，无旧毕业套）
-    check("配方数 101", len(C.CRAFT_RECIPES) == 101, str(len(C.CRAFT_RECIPES)))
+    # 锻造配方 = 名册（114 个，v104 补 11 图纸配方+淬火石配方，无旧毕业套）
+    check("配方数 114", len(C.CRAFT_RECIPES) == 114, str(len(C.CRAFT_RECIPES)))
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
     check("锻造橙装名册生成", eq["name"] == "金钩弯刀" and eq.get("legendary") == "gold_hook", str(eq))
     check("锻造橙装套装", eq.get("set") == "海风套", str(eq.get("set")))
     eq2 = C.craft_recipe_make("rec_tie_jian")
-    check("锻造白装无套装", eq2.get("set") is None and eq2["req"] == {}, str(eq2))
-    # 需图纸配方（紫/橙）
+    # v104 修复：橡木系列白装也挂 set（新手可凑齐橡木套 2 件效果），铁剑=橡木系列 → 有套装
+    check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
+    # 需图纸配方（紫/橙）——v104 补 11 条图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 64, str(len(bp_recs)))
+    check("需图纸配方存在", len(bp_recs) == 75, str(len(bp_recs)))
     check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
     # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
     w = C.generate_roster_equip("eq_sheng_guang_chang_jian")
@@ -317,8 +318,8 @@ def test_craft_set():
     eq4set = {"weapon": w, "helm": h, "armor": a, "boots": b}
     b4 = E.set_bonus_2(eq4set)
     check("圣光套 4 件防御+8%", abs(b4.get("def", 0) - 0.08) < 1e-6, str(b4))
-    # 白装不触发套装
-    check("白装无套装字段", C.generate_roster_equip("eq_tie_jian").get("set") is None)
+    # v104 修复：橡木系列白装挂 set（新手福利），铁剑属于橡木系列 → 有套装
+    check("白装橡木套挂套装字段", C.generate_roster_equip("eq_tie_jian").get("set") == "橡木套")
     # 20 章 4.3 锻造词条倾向：元素倾向出元素词条
     random.seed(5)
     ea = C.craft_recipe_make("rec_wan_dao", "元素")

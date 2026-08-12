@@ -49,6 +49,16 @@ class CombatCmds(CommandBase):
         cur_map = C.MAP_BY_ID[cur]
         # 城镇区域（安全区）：可触发 POI，无怪
         if cur_map.get("type") == C.MAP_TYPE_TOWN:
+            # v104 M23：城镇探索零成本可无限刷 POI（篝火 30% 回血/烹饪食材、草药等）→ 60 秒冷却防刷
+            _town_cd_key = f"town_explore_cd_{group_id}_{qq_id}"
+            try:
+                _last_town = float(db.get_event_state(_town_cd_key) or 0)
+            except Exception:
+                _last_town = 0
+            if time.time() - _last_town < 60:
+                yield event.plain_result("🏘️ 城镇里此刻风平浪静，没什么新鲜事，过一会儿再来逛逛吧。")
+                return
+            db.set_event_state(_town_cd_key, str(time.time()))
             cur_sa_id_poi = player.get("cur_subarea") or ""
             poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
             if poi_hit:
@@ -104,7 +114,11 @@ class CombatCmds(CommandBase):
             yield event.plain_result(poi_text)
             return
         # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
-        if random.random() < C.ENCOUNTER_EVENT_CHANCE:
+        _ev_chance = C.ENCOUNTER_EVENT_CHANCE
+        if self._rain_boost(group_id, qq_id):
+            # v104 M23：『突如其来的雨』30 分钟窗口内探索遇怪率 +15%（事件概率让渡给遇怪）
+            _ev_chance = max(0.0, _ev_chance - 0.15)
+        if random.random() < _ev_chance:
             handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)
             if handled:
                 yield event.plain_result(ev_text)
@@ -150,6 +164,9 @@ class CombatCmds(CommandBase):
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
+            _pb = getattr(b, "poi_buff", None)
+            if _pb:
+                bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}＋10%！\n"
             yield event.plain_result(
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
@@ -208,6 +225,9 @@ class CombatCmds(CommandBase):
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
         bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
+        _pb = getattr(b, "poi_buff", None)
+        if _pb:
+            bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}＋10%！\n"
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
@@ -387,6 +407,24 @@ class CombatCmds(CommandBase):
             )
         return None
 
+    # ---------- v104 M23：雨事件消费（rain_{gid}_{qid} 只写不读修复）----------
+    _RAIN_WINDOW = 1800  # 30 分钟
+
+    def _rain_boost(self, group_id, qq_id) -> bool:
+        """读取『突如其来的雨』set_state 写入的 rain_{gid}_{qid}({"ts": float})，
+        30 分钟窗口内返回 True → 探索遇怪率 +15%（combat.py 探索分支消费）。"""
+        try:
+            raw = db.get_event_state(f"rain_{group_id}_{qq_id}")
+            if not raw:
+                return False
+            try:
+                ts = float(json.loads(raw).get("ts", 0))
+            except Exception:
+                ts = float(raw)  # 兼容裸时间戳旧值
+            return 0 <= time.time() - ts <= self._RAIN_WINDOW
+        except Exception:
+            return False
+
     def _handle_explore_event(self, group_id, qq_id, player, cur_map):
         """处理探索随机事件；返回 (handled, 文本)
         v97.3：事件全部走模板引擎（core/event_templates.py），数据在 data/events.py。"""
@@ -474,7 +512,11 @@ class CombatCmds(CommandBase):
         if eff == "buff":
             buffs = [("攻击", "atk"), ("防御", "def"), ("速度", "spd")]
             bname, bkey = random.choice(buffs)
-            db.set_event_state(f"poi_buff_{group_id}_{qq_id}", json.dumps({"stat": bkey, "mult": 1.10, "left": 5}))
+            # v104 M23 修复只写不读：battle.py 战斗开始时读取（玩家级键 poi_buff_{qq_id}——
+            # battle 无 group_id 上下文，与 echo_bless bless_{qq_id} 同款全局键），
+            # 应用 mult 并递减 left，用完删除 key
+            db.set_event_state(f"poi_buff_{qq_id}",
+                               json.dumps({"stat": bkey, "mult": 1.10, "left": 5, "name": bname}, ensure_ascii=False))
             return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
                     f"✨ 获得祝福：{bname}＋10%(持续 5 次战斗)！")
         # 草药丛：1-2 份炼金材料
@@ -525,9 +567,12 @@ class CombatCmds(CommandBase):
             db.set_talk_flag(group_id, qq_id, "poi_rune_read", "read_rune")
             return (f"{icon} 【{pname}】你伸手轻触{loc}的符文石，碑面泛起幽光。\n"
                     f"📖 {txt}")
-        # 鱼群聚集：免费垂钓次数
+        # 鱼群聚集：免费垂钓次数（v104 M23 消费契约——垂钓命令读取方：
+        # key poi_fish_{gid}_{qid}（保持原格式），value {"ts": float, "window": 1800}，
+        # ts 在 1800s 窗口内 → 免冷却/免体力垂钓一次并删除该 key）
         if eff == "fish":
-            db.set_event_state(f"poi_fish_{group_id}_{qq_id}", json.dumps({"ts": time.time()}))
+            db.set_event_state(f"poi_fish_{group_id}_{qq_id}",
+                               json.dumps({"ts": time.time(), "window": 1800}))
             return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
                     f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数(30 分钟内有效)！")
         # 神秘字条：隐藏线索
@@ -1319,6 +1364,13 @@ class CombatCmds(CommandBase):
         evt_bonus = []
         cur_evt = db.get_world_event()
         if cur_evt:
+            # v105 M18 P1-5：世界事件期间参与战斗 → world_events 统计
+            #（stats.world_events 原无任何写入点 → ach_event10 国战勇士/ach_event_all 死锁；现每次事件中战斗结算 +1）
+            try:
+                db.init_stats(group_id, qq_id)
+                db.bump_stats(group_id, qq_id, world_events=1)
+            except Exception:
+                pass
             if cur_evt["etype"] == "omen":
                 exp = int(exp * 1.5); gold = int(gold * 1.5)
                 evt_bonus.append("🌧️ 元素异象：收益 +50%")
@@ -1969,8 +2021,14 @@ class CombatCmds(CommandBase):
         if honor < item["cost"]:
             yield event.plain_result(f"荣誉不足！兑换【{item['name']}】需要 {item['cost']} 荣誉，你只有 {honor}。")
             return
-        db.set_event_state(f"honor_{qq_id}", str(honor - item["cost"]))
         reward = item.get("reward") or {}
+        # v104 M09 修复：item 类防重复兑换——背包已有同名物品则拦截（title 类保持可重复）
+        if reward.get("type") == "item":
+            _iname = (reward.get("item") or {}).get("name") or item["name"]
+            if db.count_item(group_id, qq_id, _iname) > 0:
+                yield event.plain_result(f"⚜️ 你已经拥有【{item['name']}】了！荣誉商店的珍品每人限兑一件。")
+                return
+        db.set_event_state(f"honor_{qq_id}", str(honor - item["cost"]))
         import uuid as _uuid
         if reward.get("type") == "title":
             db.set_event_state(f"honor_{reward['title_id']}_{qq_id}", "1")

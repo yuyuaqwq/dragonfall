@@ -82,6 +82,7 @@ class Battle:
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
+        self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
@@ -119,6 +120,29 @@ class Battle:
                         _db.set_event_state(_key, "")
                 except Exception:
                     pass
+            # v104 M23 神龛祝福（探索 POI 写入，玩家级键 poi_buff_{qq_id}——battle 无 group_id
+            # 上下文，与 echo_bless bless_{qq_id} 同款全局键）：战斗开始时读取 → 本场对应属性
+            # ×1.10，left-1；用完删除 key（flee 也算消耗 1 次，按文案「持续 5 次战斗」计）
+            if player.get("qq_id") and not getattr(self, "poi_buff", None):
+                try:
+                    import json as _json
+                    from . import db as _db
+                    _key = f"poi_buff_{player['qq_id']}"
+                    _raw = _db.get_event_state(_key)
+                    if _raw:
+                        _pb = _json.loads(_raw)
+                        if isinstance(_pb, dict) and _pb.get("stat") in ("atk", "def", "spd") \
+                                and int(_pb.get("left", 0) or 0) > 0:
+                            self.poi_buff = {"stat": _pb["stat"],
+                                             "mult": float(_pb.get("mult", 1.10)),
+                                             "name": _pb.get("name", _pb["stat"])}
+                            _pb["left"] = int(_pb["left"]) - 1
+                            if _pb["left"] <= 0:
+                                _db.delete_event_state(_key)
+                            else:
+                                _db.set_event_state(_key, _json.dumps(_pb, ensure_ascii=False))
+                except Exception:
+                    pass
             self._init_resources(player)
         # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾，3 回合；v101.28d 盾 buff 化）
         if player and "shield" in self._equip_affix_ids(player):
@@ -140,6 +164,7 @@ class Battle:
             "enemy": self.enemy,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
+            "poi_buff": getattr(self, "poi_buff", None),
             "p_hot": self.p_hot,
             "p_food_effects": self.p_food_effects,
             "p_shields": self.p_shields,
@@ -166,6 +191,7 @@ class Battle:
         b = cls(st.get("type", "monster"), st.get("enemy", {}), st.get("title_bonus") or {}, pet=st.get("pet") or {})
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
+        b.poi_buff = st.get("poi_buff")
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
@@ -725,7 +751,7 @@ class Battle:
         return int(effs.get(effect, 0) or 0)
 
     def _player_stats(self, player: dict) -> dict:
-        st = E.player_final_stats(player["class_name"], player["level"],
+        st = E.player_final_stats(player.get("class_name", "战士"), player.get("level", 1),
                                   player.get("equipment", {}),
                                   player.get("class_tier", 0),
                                   player.get("attributes"),
@@ -733,6 +759,10 @@ class Battle:
                                   getattr(self, "title_bonus", None) or {},
                                   player.get("race"))
         st = self._apply_buffs(st, self.p_buffs)
+        # v104 M23 神龛祝福：持久 buff（stat ×1.10，5 次战斗），战斗开始时已消费 1 次
+        _pb = getattr(self, "poi_buff", None)
+        if _pb and _pb.get("stat") in st:
+            st[_pb["stat"]] = int(st.get(_pb["stat"], 0) * float(_pb.get("mult", 1.10)))
         # #245: 玩家减速生效（与 _enemy_stats 的 spd_down 处理对称）——此前 p_buffs["spd_down"]
         # 只被挂载从未应用，减速玩家仍按原速度先手/触发速度优势
         if "spd_down" in self.p_buffs:
@@ -744,7 +774,7 @@ class Battle:
         if self._enchant_lvl(effs, "ironwall"):
             st["def"] = int(st.get("def", 0) * (1 + C.rune_value("ironwall", effs["ironwall"])))
         # v64 被动属性：魔力涌动/风行步/疾影/鹰眼（百分比属性被动）
-        pb = E.player_passive_stats(player["class_name"], player.get("learned_skills", []))
+        pb = E.player_passive_stats(player.get("class_name", "战士"), player.get("learned_skills", []))
         if pb.get("mp_mult", 1.0) != 1.0:
             st["max_mp"] = int(st.get("max_mp", 0) * pb["mp_mult"])
             st["mp"] = int(st.get("mp", 0) * pb["mp_mult"])
@@ -967,16 +997,15 @@ class Battle:
             tags.append("🎯精准")
         # v101.28e/f：食物+药水额外倍率（处决/精准/狂怒/死神），与词条是否为空无关
         mult, tags = self._extra_dmg_mult(hp_ratio, mult, tags)
-        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
-        if dm:
-            mult *= 1 + 0.02 * dm
         return mult, tags
 
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
         """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。
 
-        食物：处决（<30% +30%）/ 精准（+10%）；龙语印记层数共用 mech_stacks 由调用方结算。
+        食物：处决（<30% +30%）/ 精准（+10%）。
         药水：死神药剂（<30% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
+        龙语印记：每层 +2% 伤害（v104 移入此处——此前 _affix_dmg_mult 在无词条时提前
+        return 会漏结算该倍率，有词条路径在调用后单独结算，两路径行为不一致）。
         """
         foods = getattr(self, "p_food_effects", []) or []
         if "execute" in foods and hp_ratio < 0.30:
@@ -992,6 +1021,9 @@ class Battle:
             mult *= 1.50
             del self.p_buffs["next_atk_up"]
             tags.append("⚔️狂怒")
+        dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
+        if dm:
+            mult *= 1 + 0.02 * dm
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -1590,7 +1622,9 @@ class Battle:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
                 return logs, dmg + minion_dmg
-        dmg = E.calc_damage(est["atk"], pst["def"])
+        # v104 M02 P2：怪物普攻按 crit 属性判定暴击（此前完全忽略 est["crit"]，与玩家/PVP 同款逻辑）
+        is_crit = random.random() < est.get("crit", 0.05)
+        dmg = E.calc_damage(est["atk"], pst["def"], is_crit)
         # 阶段九：种族受击天赋（石肤 物理伤害-10%，普攻段）
         rt = self._race_bonus(player)
         pr = rt.get("phys_reduce", 0) or 0
@@ -1598,7 +1632,7 @@ class Battle:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 石肤护体，减免 {red} 点物理伤害！")
-        logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！")
+        logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg + minion_dmg
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
@@ -1885,24 +1919,46 @@ class Battle:
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
+        # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
+        dmg = self._pet_block_check(dmg, logs)
+        if dmg <= 0:
+            return
+        # v104 策划案 27 章：闪避率上限 40%——职业基础/装备词条/套装闪避此前只进面板零战斗消费
+        dodge = min(float(self._player_stats(player).get("dodge", 0) or 0), 0.40)
+        if dodge > 0 and random.random() < dodge:
+            logs.append("💨 你闪避了攻击！")
+            return
         # v101.28f 影步药剂：15% 概率完全闪避（3 回合）
         if self.p_buffs.get("dodge_pot") and random.random() < 0.15:
             logs.append("💨 身法飘忽！你闪避了攻击！")
-            return
-        # 24 章宠物技能·影袭：替主人挡一次攻击（拦截后直接结束本次伤害）
-        dmg = self._pet_block_check(dmg, logs)
-        if dmg <= 0:
             return
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
         dmg = self._affix_on_taken(player, dmg, logs)
         dmg = self._food_on_taken(player, dmg, logs)
-        # v64 被动·铁壁之心/磐石体：受到伤害时减伤 5%
-        pv = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
-        if "铁壁之心" in pv or "磐石体" in pv:
-            reduce = int(dmg * 0.05)
-            dmg = max(1, dmg - reduce)
-            logs.append(f"🛡️ 被动减伤 {reduce} 点(铁壁之心/磐石体)")
+        # v64/v104 被动 proc 结算（按 passive 字段查 learned_skills，替换名字硬匹配）：
+        #   dmg_taken → 减伤（铁壁之心/磐石体/磐石之心/磐石之躯/守护姿态）；reflect → 反伤（反震）
+        ps_names = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
+        reduce_total = 0
+        for ps_name in ps_names:
+            info = E.skill_info(player.get("class_name", ""), ps_name)
+            ps = (info or {}).get("passive") or {}
+            proc = ps.get("proc")
+            if proc == "dmg_taken":
+                rpct = float(ps.get("reduce") or 0)
+                if rpct <= 0:
+                    continue
+                if ps.get("cond") == "hp_low_30" and player.get("hp", 0) / max(1, player.get("max_hp", 1)) >= 0.30:
+                    continue
+                reduce_total += int(dmg * rpct)
+            elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
+                rd = int(dmg * float(ps.get("mult") or 0))
+                if rd > 0:
+                    self._damage_enemy(rd, logs)
+                    logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
+        if reduce_total:
+            dmg = max(1, dmg - reduce_total)
+            logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
@@ -1970,7 +2026,7 @@ class Battle:
             k = rd["key"]
             self.resources[k] = E.core_resource_gain(cls, self.resources, rd["on_hit"])
         # v64 被动·神圣坚韧：受击后 20% 概率回复 5% 生命
-        if player["hp"] > 0 and "神圣坚韧" in pv:
+        if player["hp"] > 0 and "神圣坚韧" in ps_names:
             if random.random() < C.HOLY_TENACITY_CHANCE:
                 heal = int(player.get("max_hp", player.get("hp", 1)) * 0.05)
                 player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)

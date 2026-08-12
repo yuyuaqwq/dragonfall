@@ -420,7 +420,7 @@ class PlayerCmds(CommandBase):
         lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿(净强度≈不变)，选取舍不选碾压！")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?转职(?!重置)(?:\s*|$)")
     @require_player()
 
     async def evolve(self, event: AstrMessageEvent):

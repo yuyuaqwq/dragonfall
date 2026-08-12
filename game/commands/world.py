@@ -616,13 +616,17 @@ class WorldCmds(CommandBase):
         return (f"🧭 你身处【{cur_name}】，不能直接去【{tgt_name}】——"
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?!开始|结束)(?:\s*|$)")
+    # v104 P2(M22): 『移动』=『前往』别名（23 章指令表主指令=『移动 <地名或序号>』），双名共存；
+    # (?!开始|结束) 负向断言保护 v101.17 移动模式开关『前往开始/结束』不被 move 抢
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
     async def move(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         dest = self._strip_cmd(event, "前往")
+        if dest.startswith("移动"):
+            dest = dest[2:].strip()  # v104 P2(M22): 『移动 <地名/序号>』别名参数剥离（双名共存）
         player = self._player(group_id, qq_id)
         # v87.13 对话中禁止移动：多轮对话进行时先『对话 0』结束
         if db.get_talk_state(group_id, qq_id):
@@ -1207,6 +1211,15 @@ class WorldCmds(CommandBase):
         main_id = quests.get("main_quest")
         if main_id:
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
+            # v104 M19：旧存档 main_quest 指向已下线 id（如 "q1"）→ 面板主线空白。
+            # 与 _take_main_quest 同样的存档容错：重置回主线起点并落库。
+            if not mq:
+                quests["main_quest"] = "q1_1"
+                quests["main_status"] = "pending"
+                quests["main_progress"] = {}
+                main_id = "q1_1"
+                mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
+                db.save_quests(group_id, qq_id, quests)
             if mq:
                 _ginfo = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
                 giver = _ginfo.get("name", "？")
@@ -1345,6 +1358,13 @@ class WorldCmds(CommandBase):
                 if sq["id"] in (quests.get("side") or {}):
                     yield event.plain_result(f"『{sq['name']}』已接取！输入『任务』查看进度～")
                     return
+                # v104 审计 P1-1：『接取』指令同样校验 min_level
+                # （此前只有 _offer_side_quests 自动接取路径校验，Lv.1 可直接接走 Lv.40 雾中灯塔）
+                if sq.get("min_level") and player["level"] < sq["min_level"]:
+                    yield event.plain_result(
+                        f"🛡️ 『{sq['name']}』需要 Lv.{sq['min_level']} 才能接取！（你当前 Lv.{player['level']}）"
+                    )
+                    return
                 # v97.1 告示委托（board: true）：在告示板所在的子区域接取，不要求发布 NPC 在场
                 if sq.get("board"):
                     prop_ids = C.subarea_props(player["cur_map"], player.get("cur_subarea") or "")
@@ -1397,7 +1417,9 @@ class WorldCmds(CommandBase):
                 continue
             npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
             if npc.get("map") == player["cur_map"]:
-                available.append(f"📜 支线『{sq['name']}』（{npc.get('name', '？')}发布）")
+                # v104 M19：接取列表显示支线等级门槛
+                _lv = f"Lv.{sq['min_level']}+ " if sq.get("min_level") else ""
+                available.append(f"📜 支线『{sq['name']}』{_lv}（{npc.get('name', '？')}发布）")
         if available:
             lines = ["📜 【可接取任务】", "━━━━━━━━━━━━"]
             lines += [f"{i:>2}. {a}" for i, a in enumerate(available, 1)]
@@ -2096,6 +2118,9 @@ class WorldCmds(CommandBase):
                         continue
                     if _sq.get("board"):  # v95r65 #288/#295：告示委托走告示板，不在对话提示
                         continue
+                    # v104 审计 P2：等级不足不提示"可接取"（否则点了对话就崩/直接接走）
+                    if _sq.get("min_level") and player["level"] < _sq["min_level"]:
+                        continue
                     lines.append(f"📜 支线『{_sq['name']}』可接取——和{_ta}对话接下吧～")
                     break
                 for _sid, _sq in list(_side.items()):
@@ -2131,7 +2156,37 @@ class WorldCmds(CommandBase):
             lines.append("🗡️ 直接回复序号继续交谈，这位前辈或许能指点你一二")
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识(镇长藏书)")
+        # v104 P1（M21）：隐藏 NPC 解锁 flag 设置点——与特定野外 NPC 交谈即授予（幂等）
+        _granted = self._grant_wild_unlock_flags(group_id, qq_id, npc_id)
+        if _granted:
+            lines.append(_granted)
         yield event.plain_result("\n".join(lines))
+
+    def _grant_wild_unlock_flags(self, group_id, qq_id, npc_id):
+        """v104 P1（M21 隐藏 NPC 永久锁死修复）：与特定野外 NPC 交谈 → 授予隐藏 NPC 解锁 flag。
+
+        设置点映射（flag 存任意 NPC 桶即可，unlock_met 已改全桶扫描）：
+          w_lore_master（说书人·巴尔）→ heard_owl_song         解锁 夜枭·啼月(h_owl)
+          w_bard_roaming（流浪诗人·弦歌）→ heard_timeless_tale   解锁 时光旅人·刹那(h_timeless)
+          w_war_ghost（老兵之魂）→ soothed_five_ghosts        解锁 墓王·静语(h_grave_king)
+        返回首次授予的提示行；无授予返回 None。
+        """
+        _unlock_map = {
+            "w_lore_master": ("heard_owl_song",
+                              "🦉 巴尔的故事里传来一声夜枭的长啼——那声音，仿佛来自白鹿林的深处……"),
+            "w_bard_roaming": ("heard_timeless_tale",
+                               "⏳ 弦歌拨动琴弦，唱起一位不属于任何时代的旅人——『时光旅人』的传说……"),
+            "w_war_ghost": ("soothed_five_ghosts",
+                            "👻 老兵之魂的执念渐渐平息——古战场深处，仿佛传来一声悠长的叹息……"),
+        }
+        entry = _unlock_map.get(npc_id)
+        if not entry:
+            return None
+        flag, notice = entry
+        if flag in db.get_talk_flags(group_id, qq_id, npc_id):
+            return None
+        db.set_talk_flag(group_id, qq_id, npc_id, flag)
+        return notice
 
     # ---------------- v87.9 场景元素交互 ----------------
 
@@ -2151,6 +2206,10 @@ class WorldCmds(CommandBase):
         cur_map = C.MAP_BY_ID.get(cur, {})
         sa_id = player.get("cur_subarea") or ""
         prop_ids = C.subarea_props(cur, sa_id)
+        # v104 M23 修复：过滤孤儿 prop（SUBAREA_PROPS 挂载了但 PROPS 未定义）。
+        # 显示列表与『交互 <序号>』按下标取条目必须同源，否则序号错位/取到空定义
+        # 会在 pp['icon']/pp['name'] 处 KeyError 崩溃。
+        prop_ids = [e for e in prop_ids if C.prop_entry(e)[0] in C.PROPS]
         if not name_key:
             # 无参：列出当前子区域的场景元素
             if not prop_ids:
@@ -2258,7 +2317,10 @@ class WorldCmds(CommandBase):
                         lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
                 elif etype == "heal":
                     pct = float(eff.get("pct", 0.1))
-                    heal = max(1, int((player.get("max_hp", 1) - player.get("hp", 0)) * pct))
+                    missing = player.get("max_hp", 1) - player.get("hp", 0)
+                    # v104 M23 修复：满血时旧逻辑 max(1, int(0*pct))=1 会误走恢复分支、
+                    # 白吞每日次数；改为满血只出氛围文案，不 mark_props_use
+                    heal = max(1, int(missing * pct)) if missing > 0 else 0
                     if heal <= 0:
                         lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～(明天再来也一样暖)")
                     else:
@@ -2584,6 +2646,9 @@ class WorldCmds(CommandBase):
 
     def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
         """NPC 有未接的支线任务时自动接取，返回通知行列表"""
+        # v104 审计 P0-1：O52 修复引入的 NameError——方法签名无 player 参数，
+        # 下方 min_level 门槛引用 player["level"] 必崩（对话 老水手·巴德/对话树 side_offer 全崩）
+        player = self._player(group_id, qq_id)
         lines = []
         quests = db.get_quests(group_id, qq_id)
         side = dict(quests.get("side", {}))
@@ -2673,8 +2738,12 @@ class WorldCmds(CommandBase):
             obj = sqd["objective"]
             # 收集型：实时检查背包材料（不依赖 ready 状态）
             if obj.get("collect"):
+                # v104 审计 P1-3：复合目标（魔剑士试炼 collect_count=2/count=3）门槛统一按
+                # collect_count 判定（此前用 obj["count"]=3 与 quest_view 的 2 不一致：
+                # 面板显示"✅ 可交"、交付却拒"还差 ×1(背包 2/3)"）
+                need = obj.get("collect_count", obj["count"])
                 have = db.count_item(group_id, qq_id, obj["collect"])
-                if have >= obj["count"]:
+                if have >= need:
                     if npc and npc["map"] == player["cur_map"]:
                         absent = _npc_absent(sqd["giver"], npc)
                         if absent:
@@ -2689,7 +2758,7 @@ class WorldCmds(CommandBase):
                         yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交付任务！")
                         return
                 else:
-                    collect_missing = (sqd["name"], obj["collect"], have, obj["count"])
+                    collect_missing = (sqd["name"], obj["collect"], have, need)
                 continue
             # 击杀/探索型：按 ready 状态
             if sq.get("status") == "ready":

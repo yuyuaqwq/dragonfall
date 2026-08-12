@@ -66,9 +66,11 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
     if not pool:
         # 防御性兜底：先去掉 spots 限定重试（如新钓点蓝档无全水域品种），再退全品质池
         pool = [f for f in FISH_POOL if f["quality"] == quality]
-    # v102.3 血饵：稀有鱼种（权重 < 5）品种权重 ×3
+    # v102.3 血饵：稀有鱼种（权重 ≤ 15）品种权重 ×3
+    # v104 M15 修复：原阈值 <5 高于 FISH_POOL 实际最低权重(10)，血饵永不生效（20 万竿采样零效果）；
+    # 改为 ≤15 覆盖盲鱼/云棉/深渊珍珠/彩虹露珠/风暴贝/鲸须草等稀有鱼种
     if bait == "blood":
-        pool_w = [f.get("weight", 1) * (3 if f.get("weight", 1) < 5 else 1) for f in pool]
+        pool_w = [f.get("weight", 1) * (3 if f.get("weight", 1) <= 15 else 1) for f in pool]
     else:
         pool_w = [f.get("weight", 1) for f in pool]
     return random.choices(pool, weights=pool_w, k=1)[0]

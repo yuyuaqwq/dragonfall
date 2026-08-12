@@ -56,7 +56,7 @@ def _m_shield_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """圣盾爆发：消耗层数转伤害"""
     n = p_mech.get("shield", 0)
     bonus = int(total * n * 0.12)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"🛡️ 圣盾爆发！{n} 层额外 {bonus} 伤害")
     p_mech["shield"] = 0
 
@@ -88,7 +88,7 @@ def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
     if st2 and n:
         d = int(st2["matk"] * 0.30 * n)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - d)
+        _burst_damage(battle, d, logs)
         logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害")
     p_mech["burn"] = 0
     battle.e_buffs.pop("burn", None)
@@ -103,6 +103,15 @@ def _m_freeze(battle, mval, p_mech, total, logs, skill_name, is_crit):
     if random.random() < chance:
         battle.e_buffs["freeze"] = 1
         logs.append("❄️ 敌人被冻结，跳过下回合！")
+
+
+@register(MECH_EFFECTS, "spd_down")
+def _m_spd_down(battle, mval, p_mech, total, logs, skill_name, is_crit):
+    """减速：敌方速度下降（battle._enemy_stats 按 SPD_DOWN_MULT 结算）"""
+    if not mval:
+        return
+    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), mval)
+    logs.append(f"🧊 敌人被减速 {mval} 回合，速度下降！")
 
 
 @register(MECH_EFFECTS, "stun")
@@ -158,7 +167,7 @@ def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """标记爆发：每层 +20%"""
     n = p_mech.get("mark", 0)
     bonus = int(total * n * 0.20)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"🎯 猎杀标记！{n} 层额外 {bonus} 伤害")
     p_mech["mark"] = 0
 
@@ -195,7 +204,7 @@ def _m_arcane_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     n = p_mech.get("arcane", 0)
     if n:
         bonus = int(total * n * 0.15)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+        _burst_damage(battle, bonus, logs)
         logs.append(f"📖 奥术共鸣！{n} 层充能额外 {bonus} 点伤害")
     p_mech["arcane"] = 0
 
@@ -230,7 +239,7 @@ def _m_spellblade_storm(battle, mval, p_mech, total, logs, skill_name, is_crit):
         st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
         if st2:
             bonus = int(st2["matk"] * 0.40)
-            battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+            _burst_damage(battle, bonus, logs)
             logs.append(f"🌪️ 剑刃风暴！消耗 3 层魔能，剑气横扫追加 {bonus} 点魔法伤害！")
     else:
         logs.append(f"⚔️ 魔能不足({n}/3)，剑刃风暴无法施展！")
@@ -242,7 +251,7 @@ def _m_spellblade_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     n = p_mech.get("spellblade", 0)
     if n >= 4:
         bonus = int(total * n * 0.25)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+        _burst_damage(battle, bonus, logs)
         logs.append(f"💥 魔能爆发！{n} 层魔能倾泻，额外 {bonus} 点伤害！")
         p_mech["spellblade"] = 0
     else:
@@ -277,7 +286,7 @@ def _m_judge_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """审判爆发"""
     n = p_mech.get("judge", 0)
     bonus = int(total * n * 0.15)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"⚖️ 审判裁决！{n} 层额外 {bonus} 伤害")
     p_mech["judge"] = 0
 
@@ -296,7 +305,7 @@ def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """影袭爆发"""
     n = p_mech.get("shadow", 0)
     bonus = int(total * n * 0.18)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"🌑 致命突袭！{n} 层额外 {bonus} 伤害")
     p_mech["shadow"] = 0
 
@@ -315,7 +324,7 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """毒爆：每层立即 15% 攻击"""
     n = p_mech.get("poison", 0)
     bonus = int(total * n * 0.15)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"☠️ 毒爆！{n} 层额外 {bonus} 伤害")
     p_mech["poison"] = 0
 
@@ -334,7 +343,7 @@ def _m_chi_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """气力爆发"""
     n = p_mech.get("chi", 0)
     bonus = int(total * n * 0.15)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"🌀 拳法奥义！{n} 点气力额外 {bonus} 伤害")
     p_mech["chi"] = 0
 
@@ -353,7 +362,7 @@ def _m_iron_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """金身爆发：层数转伤害"""
     n = p_mech.get("iron", 0)
     bonus = int(total * n * 0.12)
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+    _burst_damage(battle, bonus, logs)
     logs.append(f"🪷 不坏金身！{n} 层额外 {bonus} 伤害")
     p_mech["iron"] = 0
 
@@ -535,3 +544,18 @@ def _stack(battle, mech, p_mech, mval):
     """叠层（封顶逻辑 v59 在 engine.mech_stack_gain）"""
     from ..engine import mech_stack_gain
     return mech_stack_gain(mech, p_mech, mval)
+
+
+def _burst_damage(battle, bonus, logs):
+    """v104 M02 P2：burst 附加伤害统一走结算主路径（Boss 护盾减半 + 援军挡刀）。
+
+    此前 burst 类机制直接 battle.enemy["hp"] -= bonus，绕过 _boss_dmg_filter
+    （护盾受伤减半/反伤）与 _damage_enemy（e_minions 援军挡刀）→ 打盾 Boss 不减半、
+    有援军不挡刀。修复：参照普通伤害路径（battle.py _skill_use 的
+    `_boss_dmg_filter → _damage_enemy`）逐段结算，不双杀（total 主伤害已结算，本函数只结算附加段）。"""
+    if bonus <= 0:
+        return
+    player = getattr(battle, "_last_player", None)
+    if player is not None:
+        bonus = battle._boss_dmg_filter(bonus, player, logs)
+    battle._damage_enemy(bonus, logs)

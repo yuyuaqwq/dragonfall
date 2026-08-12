@@ -348,9 +348,10 @@ def tpl_return_vila(ctx):
     C = ctx._C()
     cur = ctx.player.get("cur_map", "")
     dest = ctx.hook("nearest_town", cur) or ctx._C().START_MAP
-    entry_sa = C.map_entry_subarea(dest) if dest else None
+    # v104 P2(M22): 城内直达（回城卷轴）落 subareas[0]（广场），与方碑传送/战败回城/出门一致
+    # （core/maps.py:115 注释明确"传送/回家等城内直达走广场不走城门"；原实现落 map_entry_subarea=城门）
     sas = C.MAP_BY_ID.get(dest, {}).get("subareas") or []
-    first_sa = next((s for s in sas if s["id"] == entry_sa), None) or (sas[0] if sas else None)
+    first_sa = sas[0] if sas else None
     db.update_player(ctx.group_id, ctx.qq_id,
                      cur_map=dest, cur_subarea=first_sa["id"] if first_sa else "")
     town_name = C.MAP_BY_ID.get(dest, {}).get("name", "城镇")
