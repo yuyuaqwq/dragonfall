@@ -350,11 +350,10 @@ SUBAREAS = {
             "id": "white_deer_1",
             "name": "白鹿广场",
             "icon": "🏘️",
-            "desc": "白鹿城的中心广场，白石铺地，中央矗立着一尊回眸的白鹿雕像。酒馆老板与导师们常在广场边招揽生意，人来人往。",
+            "desc": "白鹿城的中心广场，白石铺地，中央矗立着一尊回眸的白鹿雕像。导师们常在广场边招揽学徒，人来人往。",
             "type": "城镇",
             "lv": 5,
             "npcs": [
-                "npc_tavern_owner",
                 "npc_warrior_tutor",
                 "npc_mage_tutor",
                 "npc_priest_tutor",
@@ -438,6 +437,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 5,
             "npcs": [
+                "npc_tavern_owner",
                 "npc_deer_newsboy",
                 'npc_deer_drunk',
             ],            "monsters": [],
@@ -4451,7 +4451,6 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 60,
             "npcs": [
-                "npc_tavern_burnkettle",
                 "npc_garrison",
                 'npc_frost_leather',
             ],
@@ -4492,6 +4491,7 @@ SUBAREAS = {
             "type": "城镇",
             "lv": 60,
             "npcs": [
+                "npc_tavern_burnkettle",
                 "npc_frost_hunter",
                 'npc_frost_drinker',
             ],            "monsters": [],
