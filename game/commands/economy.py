@@ -579,16 +579,29 @@ class EconomyCmds(CommandBase):
         if not player:
             return None
         prof = db.get_prof_level(group_id, qq_id, "mining")
-        ores = [m for m, mm in C.MATERIALS.items()
-                if any(k in mm.get("name", "") for k in ["矿石", "秘银", "精钢", "结晶", "核心", "碎片", "石", "精华"])]
+        _ORE_KW = ["矿石", "秘银", "精钢", "结晶", "核心", "碎片", "石", "精华"]
+        cur_map = player.get("cur_map", "")
+        # v101.28k 地图矿石池优先：复用该地图采集池里的矿石类材料（矿场图=矿池，
+        # 植物图无矿则按地图等级价格区间兜底）→ 不同地图挖到不同档次的矿
+        pool = C.GATHER_MAP_POOLS.get(cur_map)
+        if pool:
+            ores = [m for m, _w in pool for _ in range(_w)
+                    if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in _ORE_KW)]
+        else:
+            ores = []
         if not ores:
-            ores = list(C.MATERIALS.keys())
-        if prof >= 4:
-            rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
-            if rare and random.random() < (0.15 if prof < 7 else 0.30):
-                ore = random.choice(rare)
-            else:
-                ore = random.choice(ores)
+            ores = [m for m, mm in C.MATERIALS.items()
+                    if any(k in mm.get("name", "") for k in _ORE_KW)]
+            _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
+            cand = [m for m in ores if 3 + _map_lv * 4 <= C.MATERIALS[m]["price"] <= 20 + _map_lv * 12]
+            if cand:
+                ores = cand
+        # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
+        rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
+        is_rare = False
+        if prof >= 4 and rare and random.random() < (0.15 if prof < 7 else 0.30):
+            ore = random.choice(rare)
+            is_rare = True
         else:
             ore = random.choice(ores)
         n = random.randint(1, 2)
@@ -603,7 +616,14 @@ class EconomyCmds(CommandBase):
         # 阶段九：挖掘次数 + 成就判定
         db.bump_stats(group_id, qq_id, mine_count=1)
         C.check_achievements(group_id, qq_id, player)
-        return f"⛏️ 矿脉敲开了！你获得了 {oname} x{n}！(『背包』查看){lv_msg}"
+        # v101.28k 挖掘演出：稀有矿脉 / 多份暴击 / 普通
+        if is_rare:
+            head = "💎 矿脉深处泛起宝光，一锤下去竟是稀有矿脉！"
+        elif n >= 3:
+            head = "⛏️ 这一锤又准又狠，矿脉整个崩开了！"
+        else:
+            head = "⛏️ 矿脉敲开了！"
+        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}"
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
         """等待型副业统一流程：进行中→提示剩余；到期→先结算再开新一轮；无→开新一轮。
