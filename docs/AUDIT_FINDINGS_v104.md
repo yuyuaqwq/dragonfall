@@ -1397,3 +1397,892 @@ All verification complete. Here is the final audit report:
 
 **最值得修的一件事**：4 组双 handler 前缀冲突——给短词指令（副业/转职/烹饪/副本）加负向断言或与长指令拉开 priority，一行改动同时修复 4 条高频指令的双回复/错误提示，且不引入新回归风险。
 
+## 第二轮审计（修复验证包，2026-08-13 执行，16 agent）
+
+> 验证结论：批次 1/2/3 修复 **106/106 全部生效无回归**；新发现问题 20+（P0×1 / P1×10 / P2×若干 / P3×若干）
+
+| 验证包 | 修复验证 | 关键新发现 |
+|---|---|---|
+| 战斗引擎 | 10/10 ✅ | 无 |
+| 副本系统 | 6/6 ✅ | 队长退队副本僵尸化+锁残留/清理未过滤退队者/中途拉人超员 |
+| 玩家转职 | 5/5 ✅ | 二转三转不更新max_hp/行会就职st[hp]漏网 |
+| 主线任务 | 7/7 ✅ | explore完成不重置main_status/击杀key旧档观感清零 |
+| 支线日常 | 5/5 ✅ | giver错位4处已修(仅s10 map字段P3) |
+| 商店经济 | 4/4 ✅ | 品质与名册失配6处(蓝价买紫装) |
+| 拍卖市场 | 4/4 ✅ | 成交装备等级写死30品质purple/出价提示误导 |
+| 副业框架 | 7/7 ✅ | 附魔体力先扣7条不一致/全知全能当次不加成 |
+| 强化附魔 | — | 附魔体力先扣(P2) |
+| 烹饪炼金 | 9/9 ✅ | 无 |
+| 垂钓系统 | 8/8 ✅ | 无(113断言全过) |
+| 成就称号 | 9/9 ✅ | ★P0『成就 领取』崩溃/ach_worldboss不可解锁 |
+| NPC对话 | 8/8 ✅ | 16个假功能NPC双重定义冲突/11个quest NPC无任务 |
+| 命令框架 | 8/8 ✅ | 注册表144键零差集/无新冲突/仅文档侧GM部署说明缺失 |
+| 探索事件 | 7/7 ✅ | 免费垂钓契约未实现/omen/festival desc不符 |
+| 地图移动 | 9/9 ✅ | 无(方碑/旅店/战败回城全验证) |
+
+---
+### 战斗引擎 验证包完整报告
+
+全部验证完成。输出最终审计报告。
+
+---
+
+# 🔍 第二轮审计·战斗引擎验证包 — 报告（v104）
+
+**范围**：`game/battle.py` / `game/core/battle_conds.py` / `game/core/battle_mech.py` / `game/core/item_templates.py`（战斗侧）｜**方式**：源码审查 + git diff 溯源 + 运行时实测（独立临时脚本，未改动插件任何文件）｜**时间**：2026-08-13
+
+---
+
+## 一、修复验证表（10/10 全部生效）
+
+| # | 修复项 | 结论 | 证据 |
+|---|--------|------|------|
+| 1 | `player_shield` 不再 AttributeError | ✅ | `battle_conds.py:126-132` 改判 `getattr(battle,"p_shields")` 盾值池；铁壁拳真实引用确认（skills.py 磐石行者分支）；`test_v98_04_battle_registry.py` 42/42 含 player_shield 命中断言 |
+| 2 | 元素风暴 `res_key=element` 不 TypeError | ✅ | `battle_conds.py:146-160` `isinstance(val,str)→bool(val)` 防御；skills.py:349 真实使用确认；**实测**：`element="fire"`→×1.5 命中，未设置→1.0 不炸 |
+| 3 | 闪避 40% 上限 + 影袭挡刀优先 | ✅ | `battle.py:1927` `_pet_block_check` 在闪避判定（1930-1934 `min(...,0.40)`）之前；引擎侧 4 处 cap（engine.py:312/326/346/359）；`test_dodge_effective`+`test_pet_block_before_dodge` 全过 |
+| 4 | proc 被动按 `learned_skills` 消费 | ✅ | `battle.py:1943-1965` 走 `E.passive_skills_learned`→`passive.proc` 分发（dmg_taken 减伤/reflect 反震）；engine.py:223-231 从 learned_skills 派生；**实测**：武僧学「反震」受击 100 反弹 30 ✅，未学不反弹 ✅ |
+| 5 | 龙语印记无词条也结算 | ✅ | `battle.py:973-975` 无词条路径 return 前转 `_extra_dmg_mult`（1026-1028 结算 dragon_mark 每层+2%）；`test_dragon_mark_no_affix` 通过 |
+| 6 | 满血药水不扣道具不送回合 | ✅ | `item_templates.py` tpl_heal 战斗内满血拦截 `consume=False`；economy.py:2960-2963/2988-2991 短路（敌方不动）；**实测**：满血→consume=False、残血→consume=True+正确 payload；test_v97_07 10/10 |
+| 7 | 神龛 buff 进战斗生效递减 | ✅ | `battle.py:124-143` `__init__` 读取 poi_buff→left-1→用完删 key；`_player_stats` 765-767 应用×1.10；`test_poi_buff` 全过（left 3→2、删 key、atk 48→52） |
+| 8 | burst 走 `_boss_dmg_filter`（护盾减半） | ✅ | `battle_mech.py:549-561` `_burst_damage`：`_boss_dmg_filter`→`_damage_enemy` 逐段结算，注释明确修复动机 |
+| 9 | 怪物普攻按 crit 判定暴击 | ✅ | `battle.py:1627-1629` `is_crit = random.random() < est.get("crit",0.05)`（此前完全忽略） |
+| 10 | `calc_damage` 分母 0 不炸 | ✅ | `engine.py:607-609` `atk+def_<=0 → return 1`；**实测** `calc_damage(0,0)=1`、`calc_damage(0,0,crit)=1` |
+
+回归面：`test_v104_battle_skills.py` 27/27、`test_v98_04_battle_registry.py` 42/42、`test_v97_07_quick_battle_use.py` 10/10 全绿，无回归。
+
+---
+
+## 二、新问题清单（扫描发现）
+
+| 级别 | 问题 | 位置 | 说明 |
+|------|------|------|------|
+| **P1** | **影步药剂（dodge_pot）绕过 40% 闪避上限** | battle.py:1935-1938 | 药水 15% 独立判定在基础闪避判定**之后**，两段互不约束。**实测**：基础 40% + 药水 → 总闪避 **49.7%**，突破策划案 27 章「闪避率上限 40%」。应合并为 `min(1-(1-0.40)(1-0.15), 0.40)` 或药水判定并入总 cap |
+| **P1** | **反伤类伤害绕过 `_boss_dmg_filter`（护盾不减半）** | battle.py:1958-1962（被动反震）/1975-1979（龙鳞套）/1996-2000（荆棘符文）/2001-2005（荆棘药水） | 四处反伤直接 `_damage_enemy` 直扣血。**实测**：盾 Boss（boss_shield=10000）受荆棘药水反伤 30，`boss_shield` 纹丝不动、反伤全额生效——与 v104 修复 8（burst 走 filter）同源问题，**修复不完整** |
+| **P2** | **反伤多来源并列双触发** | battle.py:1947-1962 + 1975 + 1996 + 2001 | 被动 reflect（**必触发**）+ 龙鳞套 25% + 荆棘符文（概率）+ 荆棘药水 30% 全部独立判定、互不互斥。全触发时一次受击反弹 ≥85% 伤害，且各来源均不消耗。需按策划案拍板是否允许叠加 |
+| **P2** | **被控/技能伤害仍可闪避** | battle.py:1923-1934（`_damage_player` 入口） | 玩家被眩晕/冻结（p_buffs stun/freeze）时敌方攻击**仍走闪避判定**；怪物**技能**伤害与普攻同走 `_damage_player`，同样可闪避。策划案 27 章仅定义 40% 上限、未定义被控/技能是否可闪避——**待策划确认**，若"被控不可闪避"则需在入口加 `stun/freeze` 检查 |
+| **P3** | DOT（灼烧/毒/流血）同样绕过 `_boss_dmg_filter` | battle.py:1794-1822（`_turn_start`） | 持续伤害直扣 `_damage_enemy`，盾 Boss 不减半。历史行为，与 burst 修复精神不一致，低危（可视为"持续伤害无视护盾"的设计） |
+| **P3** | 闪避成功不计入"本场受击"（`_player_hit` 不置位） | battle.py:1939 | 闪避后 `_player_hit=True` 被跳过，"未受击增伤"条件视闪避为未受击。语义上合理，但与格挡（受击但减伤）口径不同，建议确认设计意图 |
+
+**确定性检查** ✅：修复 3/9 新增的 `random.random()` 调用与既有随机模型（variance/暴击/技能概率）一致，无独立 seed 引入；测试已用 `random.seed(7)` 与 lambda 打桩固化（test_v104_battle_skills.py:120/217），**无测试外不稳定风险**。
+
+---
+
+## 三、总结
+
+- **完成内容**：10 项修复全部逐项验证（代码 + git diff + 运行时实测三路交叉），全部生效、无回归；新增 6 项扫描发现（P1×2 / P2×2 / P3×2）。
+- **最值得跟进**：① dodge_pot 超 40% 上限（数值铁律被绕过）；② 反伤绕过 boss 护盾（v104 刚修的 burst 同类问题，反伤四来源全漏）。
+- **文件**：未修改插件任何文件；临时验证脚本 `C:\Users\yuyu\AppData\Local\hermes\workspace\verify_battle_r2.py`（可复用）。
+- **遇到的问题**：`game.core` 包循环导入需按 conftest 的 `data.plugins.dragonfall` 包式导入；战士基础闪避非 0 导致首次反伤实测被闪避短路（已调整桩值复测）。
+
+### 副本系统 验证包完整报告
+
+验证完成，全部测试通过，工作区已还原干净。以下为审计报告。
+
+---
+
+# 第二轮审计·副本验证包报告（只查不改）
+
+**范围**：`game/commands/instance.py`(1734行) + `game/store/battle_state.py`(88行) + 联动 `combat.py`(2275行) / `social.py`(组队) / `battle_state.py`(锁残留)
+**验证方式**：代码级逐点核对 + 回归测试实测（`test_v104_instance_party_pet.py` **50/50**、`test_commands_instance.py` 61/61、`test_instance_map.py` 61/61 全过；测试副作用已还原，工作区干净）
+
+---
+
+## 一、修复验证表（v104 批次1+补测批次，6/6 通过）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 退队者不白拿击杀/通关奖励/首通成就 | ✅ | `instance.py:1459-1462` 击杀奖励按 `_instance_current_members` 过滤；`:1638-1640` 通关金币/经验/材料只发当前成员；`:1669-1670` 首功是退队者→top_key 置 None 图纸不发；`:1687-1693` 首通成就/`inst_clears`/`check_achievements` 全部 cur 过滤。回归测试第 1 项断言退队者金币/经验/材料/成就均不变，通过 |
+| 2 | 退队者不被 Boss 攻击 | ✅ | `instance.py:1353-1354`（`_instance_boss_turn`）与 `:1378-1379`（`_instance_boss_one_turn`）`alive = cur ∩ alive`；`:1386` 嘲讽目标 `taunt_key in cur` 才生效，退队嘲讽目标走仇恨选择。测试"Boss 回合只打当前队伍成员"通过 |
+| 3 | 全灭不误杀退队者 | ✅ | `instance.py:1725-1728` `_instance_defeat` 只对 cur 成员 hp=0+回城；回合轮转 `:1035-1036` actionable 只算当前队伍存活成员（全灭预判不漏判）。测试通过 |
+| 4 | retreated 恢复按当前队伍重校验 | ✅ | `instance.py:63-89`：`ok_members = 原成员 ∩ 当前队伍`，min/max 人数+等级重校验（与 `_instance_start` 同规则），不达标放弃旧进度走开本；达标才 `retreated=False, members=ok_members, turn=0` 并对 ok 成员重新上锁。测试"退队后恢复被拒"通过 |
+| 5 | 副本队员锁不被 `_in_battle` 自愈误清 | ✅ | `combat.py:265-271`：自愈清锁前先查 `_instance_battle_for`（内部经 `db.party_members` 找队长 + 队长有 type=instance 未 retreated 的 battle）→ 命中则保留锁。副作用符合预期：队员退队后锁在下一次 `_in_battle` 时自愈释放 |
+| 6 | 超时 60 秒文案（战斗+地图模式） | ✅ | `INSTANCE_TIMEOUT=60`（`instance.py:24`）；地图模式开本文案 `:975`（f480441 补的"⏳ 战斗轮到你时超时 60 秒自动防御！"）；战斗模式 `:989`。全仓无 120 秒/2 分钟残留（仅注释与 PVP 冷却提及）。测试 4 项断言全过 |
+
+**补充验证**：`battle_state.py` 24h 陈旧回收（M02）正常；副本 battle 只存队长名下（队员无 db 行属正常态）；成就 inst_clear 链（`achievement_conds.py:238-241`）与击杀统计（kills/day_kills/elite_kills/boss_kills/bestiary）均只记当前成员，无联动破坏。
+
+---
+
+## 二、新问题清单
+
+### 🔴 P1（2 项）
+
+**N1｜队长战斗中退队 → 队伍解散 → 副本僵尸化 + 队长锁残留最长 24h**
+`social.py:281-283`（`party_leave` 队长退队删除全队行）→ `instance.py:474-480` cur 返回 [] → Boss 不攻击、击杀/通关零奖励；队长自身 battle 行残留（type=instance 未 retreated）→ `combat.py:260-261` `_in_battle` 恒 True → 撤退被 `:266` 拦截、离开副本被 `:299` 拦截、重新开本被 `_instance_start:864` 拦截；队员侧 party 空 → `_instance_battle_for` 返回 None → 副本入口无声消失。唯一出路：队长独自单刷完 Boss（零奖励）或等 `battle_state.py:61` 24h 回收。**建议**：退队时若在副本战斗中，对队长 battle 行做 retreated/清理处理。
+
+**N2｜通关 30 分钟自动传出 与『离开副本』仍全量清 battle，未过滤退队者**
+`instance.py:41-46`（`for _m in _st["members"]: unlock + db.clear_battle`）与 `instance.py:303-305`（同上）——v104 P1 修了结算 5 处，**漏了这 2 处清理循环**。若退队者此刻正在野外战斗中，其 db 战斗记录被误删、内存锁被误清 → 野外战斗无声消失（白打/进度丢失）。触发条件：通关后 30 分钟内退队者在野外开战。
+
+### 🟠 P2（2 项）
+
+**N3｜副本进行中可中途拉人（超 max_players）→ 非成员获得副本"免费操作权"**
+`social.py:209` `party_add` 无战斗/副本状态检查（队伍上限 4 > 副本 max_players 3，开本时 `_instance_start:842` 拦得住、中途拦不住）。新人不在 `st["members"]`（拿不到奖励，安全），但 `combat.py:48-52` 探索路由把 map 模式副本战斗分发给同队任何人 → 新人可替全队触发遇怪/开 Boss 战/精英守卫/调查 POI/『深入』推进，却不参与战斗回合、不被锁、可同时在野外行动——可浪费队伍 Boss 遭遇、干扰副本节奏。
+
+**N4｜队长退队后副本处于"零收益僵尸态"无任何提示**
+承接 N1：`_instance_current_members` 返回 [] 时 Boss 停手（`:1354`）、奖励全无（`:1462/:1639`）、失败不结算（`:1727`），但队员仍能进战斗把 Boss 磨死，通关后奖励为 0 且锁要等 30 分钟自动传出才清。至少应给"队伍已解散，副本无法继续"的明确提示。
+
+### 🟡 P3（3 项）
+
+**N5｜单人副本中本人被拉入他人队伍 → 单人副本冻结**
+`instance.py:474-480`：无队伍才认单人（members==[leader]）；一旦本人加入别人队伍，party 非空 → cur=[] → 自己单人副本 Boss 不打人、零奖励，自身 battle 行锁残留 24h。罕见但无提示。
+
+**N6｜retreated 恢复重校验缺 hp>0 检查**
+`instance.py:66-74` 只查人数+等级（`_instance_start:859` 有 0 血拦截，恢复路径没有）→ 撤退后野外死回城的成员可带 0 血恢复进本，下轮被 Boss 一击即倒（`alive` 快照为旧 True）。
+
+**N7｜Boss 多动判定与治疗仇恨计入退队者的陈旧存活标记**
+`instance.py:1367`（`if not [m for m in members if alive...]` 全量判断）与 `:1076`（`hp_before` 治疗仇恨求和）未过滤退队者 → 数值微偏、多动判定可能多算一次空打，无实际伤害。
+
+---
+
+## 三、交付说明
+
+- **未修改任何文件**（测试运行改动的 `tests/data/cmd_config.json` 已 `git checkout` 还原；`test_game_data.db` 为未跟踪测试库，删除后由测试自动重建）。
+- 修复验证 6/6 通过，测试实测 172/172 断言通过。
+- 后续修复优先级建议：N2（v104 同源遗漏，改动最小）→ N1/N4（队长退队场景）→ N3（拉人校验）。
+
+### 玩家转职 验证包完整报告
+
+# 第二轮审计·玩家/转职验证包报告
+
+**范围**：game/commands/player.py、game/store/players.py、game/engine.py（属性结算）+ 转职关联入口 world.py
+**方法**：代码审查 + git diff（e78ac70 批次1）+ 独立测试库实测（15 项断言）+ 全表白名单核对。只查不改，无残留改动。
+
+---
+
+## 一、修复验证表（v104 批次 1/2）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 隐藏职业转职血量用 max_hp | ✅ | player.py:530/568 已改 `max_hp=st["max_hp"], hp=st["max_hp"]`。实测 60 级战士→吟游诗人：存档 max_hp=1031=player_final_stats 计算值 1031，且满血（hp=1031） |
+| 2 | 无空格旧格式注册 | ✅ | player.py:150 `name=first[len(cn):]` + :185 `extra` 含 rest。实测『注册 战士格温 女』→ 名字=格温/职业=战士/性别=female；『注册 战士格温 女 精灵』→ 种族=elf（银月精灵 ✓）；『注册 战士格温』→ 正确报"请选择性别" |
+| 3 | 注销清理 props_use/pet_dex/event_state | ✅ | players.py:330-334 DELETE_TABLES 已含 props_use/pet_dex；event_state 由 :336-349 `_delete_player_event_state` 后缀精确清理（批次2 b477bd8 引入）。tests/test_v104_commands_system.py test_delete_account_cleanup 全断言覆盖（6 种键格式 0 残留 + 全局键 server_maintenance 保留 + 重注册不串 move_mode/del_confirm） |
+| 4 | 纯空格名报"名字不能为空" | ✅ | player.py:213 `if not name or name.lower() in GENDER_MAP`。实测『注册   女 精灵』『注册 战士 女』均报"名字不能为空"（不再错位报性别） |
+| 5 | DELETE_TABLES 白名单完整 | ✅ | 与 connection.py 全部 23 张表逐一核对：14 张 qq_id 表全在白名单；market(seller)/party(leader/member)/guild_members/guilds/event_state 单独处理（players.py:370-383）；feedback 有意保留；world_event 无 qq_id 列无需清理。无遗漏 |
+
+---
+
+## 二、新问题清单
+
+### 🔴 P1（3 项，均实测复现）
+
+**P1-1 二转/三转不更新 max_hp/max_mp/hp/mp，血上限长期与存档脱节**
+- 位置：game/commands/world.py:2605-2607（`_do_evolve_via_npc` 中 fields 仅 `{"class_tier": next_tier}`）
+- 实测：60 级战士一→二转后，存档 max_hp=150（注册时 Lv.1 值）vs 计算值 2283（TIER_GROWTH 1.30），tier 已=2
+- 影响：战斗内 battle.py:104-108 实时重算掩盖问题，但**战斗外**休息/回家（world.py:310）、药水食物（world.py:2480）、治疗（world.py:3057）全按存档 max_hp 回血 → 转职后回不满新上限；面板显示"150/2283"式倒挂，直到下次升级（engine.py:637-640 校正）
+
+**P1-2 行会就职仍用 `st["hp"]`（v104 批次1 同款 bug 漏网）**
+- 位置：game/commands/world.py:2581（`_do_join_class`：`max_hp=st["hp"], hp=st["hp"]`）
+- 实测：60 级见习就职战士，写入 max_hp=1422=裸基础值，完整计算值 1902（缺装备/属性点/种族/套装/称号约 25%），且 hp 同步写成小值 → 就职瞬间血条暴跌。批次1 修了 player.py 两处，此第三处遗漏
+
+**P1-3 转职重置不重算上限、不裁剪 hp → 面板倒挂（v95r76 洗点同类问题漏修）**
+- 位置：game/commands/player.py:725-746（`evolve_reset` 只更新 gold/class_tier/evolve_path/技能，未更新 max_hp/max_mp/hp/mp）
+- 实测：90 级三转玩家（hp=3328, max=3828）重置后计算上限降至 2868 → **hp 3328 > 上限 2868 倒挂 460**，且存档 max 虚高 960 → 治疗按旧上限回满，面板持续"3328/2868"。对比 reset_attr（player.py:786-798）有专门裁剪逻辑，此处缺失
+
+### 🟡 P2（1 项）
+
+**P2-1 新格式注册：名字以职业名开头被吞前缀，生成错名存档**
+- 位置：game/commands/player.py:144-154（glued 分支无条件 `first.startswith(cn)`）
+- 实测：『注册 战士长 女』→ 名字="长"、职业=战士（预期：见习冒险者、名字"战士长"）。v104 修复前该输入会卡"请选择性别"注册失败；修复后能注册成功但名字错误，且无空格/有空格两种写法都无法规避（『注册 战士 长 女』同样被解析为职业+名字"长"）→ 玩家只能换名
+
+### 🟢 P3（3 项）
+
+**P3-1 event_state 清理后缀误伤相邻 QQ 号** — players.py:345-349：`endswith("_"+qid)` 在 qq 号互为前缀时误删（如注销 qq 1 会误删键 `xxx_11`，属于 qq 11 的状态）。低概率、无破坏性数据丢失（状态类键）
+
+**P3-2 属性结算对异常数据零容错** — engine.py:136-137（未知 class_name → KeyError 崩溃）、:262-267（attributes 值为字符串 → TypeError 崩溃，实测）；vit=99999 → max_hp=801440 无上限。存档损坏/GM 手改时角色面板/战力/战斗全崩
+
+**P3-3 注册解析边界宽松** — player.py:193 种族子串匹配（输入"精"即解析为银月精灵）；:209 名字[:12] 不限制字符集（可含换行注入面板多行）
+
+---
+
+## 三、扫描通过项（无问题）
+
+- 转职后**属性点/种族/称号保留** ✅：实测 bard 转职后 attributes/race/equipped_title 原样保留；evolve_reset 仅清分支技能
+- 注册性别强制、隐藏职业拦截、超长名[:12] 截断 ✅
+- 注册初始血量乘种族倍率（v100.7）✅
+- 读档 hp/mp clamp（players.py:119-128）✅
+
+**修复建议优先级**：P1-1/P1-2/P1-3 均只需在转职/就职/重置时补 `st["max_hp"]` 重算 + hp 裁剪（P1-2 直接对照批次1 的 player.py 修复模式），修复成本低、影响全量转职玩家。
+
+### 主线任务 验证包完整报告
+
+# 第二轮审计·主线验证包报告
+
+**范围**：quests.py（MAIN_QUESTS 70）/ world.py（任务段）/ combat.py（击杀推进段），只查不改。实测环境：临时库隔离（GWEN_GAME_DB→临时文件，未触碰生产/测试库），官方回归 `tests/test_v104_quests.py` 49/49 全绿 + 自研 32 断言全过。工作树干净（v105 三项已合入 f480441）。
+
+---
+
+## 一、修复验证表（7/7 ✅）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | q5_5 collect 可交付 | ✅ | world.py:1822-1830 材料实时判 ready（状态分发前）；:1857-1867 交付复核扣材料。实测：无材料接取→active；背包加圣光百合→一次对话直接交付（扣材料剩 0、发奖文本、推进 q5_6/pending，符合 v104 铁律#4）；材料不足→回 active 不扣不奖 |
+| 2 | q3_4→q3_5 链完整 | ✅ | 数据断言 q3_4.next=q3_5→q3_6→q4_1；全链遍历：70 任务全可达、next 链无环、无孤儿任务 |
+| 3 | explore 型主线 pending 不自动完成 | ✅ | world.py:1171-1173 仅 `main_status=="active"` 触发。实测 pending 到达 white_deer_forest 不完成不发奖 |
+| 4 | 同图 explore 接取即 ready | ✅ | world.py:1839-1842。实测在目标图接取→立即 ready（免出图重进）；非 giver 不接取 ✓ |
+| 5 | 击杀进度 key 统一 | ✅ | 写 key=读 key=obj['kill']：combat.py:1737（主线）/1804（支线）写 `prog[obj["kill"]]`，world.py:26 面板同 key，_complete_side_quest:2965 交付校验同 key。实测：杀精英森林狼→prog{"森林狼":1}，面板显示 1/10；杀满置 ready；支线精英变体同样计入 |
+| 6 | 任务面板新号不空白 | ✅ | store/quests.py:31-32 新档默认 q1_1/pending；world.py:1230-1236 旧 id 存档（如"q1"）面板容错重置 q1_1 并落库。实测双路径通过 |
+| 7 | 支线 min_level 显示/拦截 | ✅ | 拦截：接取指令 world.py:1383、自动接取 :2825、对话提示 :2195；显示：接取列表 :1441 `Lv.X+`。实测 Lv.1 被拒（雾中灯塔）、Lv.40 放行 |
+
+附带验证：q12_2 story 念白『』清理生效（台词=`……守……守护……我……要守住……`，前缀 18 字符可剥）；q1_2 reward_item 铁牌徽章未收录→走跳过+日志分支（world.py:1902-1903）不阻塞交付。
+
+---
+
+## 二、新问题清单
+
+**P2-1｜explore 主线完成不重置 main_status（world.py:1188）**
+完成 explore 任务只改 main_quest/main_progress，`main_status` 遗留 **"active"**（实测 q1_5 完成→q1_6 为 active）。后果：① 面板显示"已接取"而非"未接取"，引导丢失；② q1_5→q1_6（talk 型）对话树 quest_pending 入口不亮，玩家需随便选任意选项靠 world.py:2781 `_talk_quest_progress` 兜底 active→ready 才能交付——**能通但不自然、无提示**。基线 aa0f840 即存在（非 v105 回归）。修法：1188 行后补 `quests["main_status"]="pending"`（需回归 kill 型下一环接取语义）。
+
+**P2-2｜击杀 key 迁移：旧档进度观感清零（combat.py:1737/1804 + world.py:26）**
+实测旧档 `{"精英森林狼":4}` + 再杀 1 只 → prog={"精英森林狼":4,"森林狼":1}，**面板显示 1/10**（老 4 只"消失"），玩家需多杀数只才到 ready。v105-m19 文档明确"不做迁移，可接受"——已文档化，但无任何玩家侧提示/公告，上线后所有进行中 kill 任务集体"进度倒退"一次。可选：ready 判定时归并旧 key（`prog[obj.kill]+=prog.pop(怪名,0)`）或至少公告说明。
+
+**P3-1｜collect 交付扣材料无失败回滚（world.py:1866→1873 主线、:2971-2974→2980 支线）**
+先扣材料再发奖落库，中间 `update_player/check_player_level_up` 若抛异常则材料已扣、任务未完成（无事务）。支线还用了循环 `remove_item ×N`（低效）。概率低但模式不健壮，建议 try/finally 或先发奖后扣。
+
+**P3-2｜kill 包含匹配误伤（combat.py:1733/1799）**
+`obj["kill"] in monster["name"]` 子串匹配过粗：**q1_3 kill='野猪' 会被岛野猪/巨型野猪/野猪王·裂鬃/铁甲野猪/风车野猪误计**（独立亚种怪，非精英变体）；支线 s_tunnel_repair 杀霜巨魔王计霜巨魔。属 v95.7 #33"变体计入"设计的粗粒度延伸——任务只提前完成不卡死（P3）。可选优化：仅 `is_elite/is_boss` 变体计入或前缀规则。反向（杀普通怪推进王怪任务）实测无误伤。
+
+**P3-3｜对话树 giver 覆盖 4/21，无卡死路径**
+有树 4 个（npc_mayor/guild_clerks/innkeeper/dwarf_elder）的 quest_pending/quest_ready/quest_take 入口全齐（实测）；无树 17 个走 world.py:2206-2207 自动接取/交付 + turn_in:2881『交付任务』兜底，路径闭环。提示：CombatCmds 单类无 `_deliver_hint`（combat.py:1743 等 4 处），生产靠 `Main(WorldCmds, CombatCmds)` 多重继承解析，**非缺陷**（记录备查，防未来拆类踩坑）。
+
+---
+
+## 三、执行摘要
+- **做了什么**：读 3 个目标文件全部任务段代码；官方回归 49/49；自研隔离脚本 32 断言（链完整性/collect 交付与回滚/explore 三态/击杀 key 三端一致/旧档迁移/面板默认/min_level 双路径/对话树入口）；全库 324 怪名×70 任务 kill 目标包含匹配矩阵扫描。
+- **产出**：修复 7/7 全过；新发现 P2×2 + P3×3（无 P0/P1）；关键风险集中在 explore 完成后 main_status 遗留与击杀 key 迁移观感。
+- **文件**：临时验证脚本已删除，未改任何产品代码；未触碰生产库。
+- **遗留**：P2-1 与 P2-2 建议下批次处理（改动均为 1-2 行 + 回归）；P3 项可攒批。
+
+### 支线日常 验证包完整报告
+
+All verification complete (~25 min used). Here is the final report:
+
+---
+
+# 第二轮审计·支线/日常验证包报告
+
+**范围**：`quests.py`（SIDE_QUESTS/DAILY_QUESTS）、`world.py`（支线/告示板/每日）、`combat.py`（击杀结算）。只查不改。基于 HEAD `f480441`，动态验证脚本 3 个（workspace 下 `verify_side_daily.py` / `verify_kill_spawn.py` / `verify_daily_dead.py`，未触碰插件）。
+
+## 一、修复验证表（7 项）
+
+| # | 修复项 | 结论 | 证据（文件:行号 + 验证） |
+|---|---|---|---|
+| 1 | 巴德对话不 NameError（_offer_side_quests player 变量） | ✅ | world.py:2809-2811 方法首行补 `player = self._player(group_id, qq_id)`，min_level 门槛(2825)不再引用未定义变量；对话树 side_offer（talk_actions.py:130）与对话路径（world.py:2207）均经此方法，安全 |
+| 2 | 『接取』min_level 拦截 | ✅ | world.py:1381-1387 在 board/NPC 接取前校验（s_lighthouse min_level=40，Lv 不足拒绝并提示）；_offer_side_quests 自动接取路径(2825)原有校验保留；无参数列表(1441)显示 Lv 标签 |
+| 3 | 复合目标门槛一致（collect_count） | ✅ | 三处统一 `obj.get("collect_count", obj["count"])`：面板 world.py:1283、交付校验 2904、扣除 2958/2972；f480441 还补了复合目标面板击杀进度(1286-1288)。s_spellblade_trial（杀3+集2）全链路一致 |
+| 4 | 告示板按地图过滤 | ✅ | world.py:2410-2426 按 `sq["map"]`(发布地) 过滤当前地图，注释明确 find 型 obj.map(搜寻地)不参与过滤；接取端 1389-1397 要求当前子区域有 notice_board。全库仅 1 块板（oak_town_1, props.py:594）+ 1 条板委托（s_board_cat），无"永远不可见"委托 |
+| 5 | 日常委托补 2 项 | ✅⚠️ | 数据齐全：行会委托{complete_side:2}(quests.py:1512-1518)、采集任务{collect_any:5}(1519-1525)，面板需求提取已含(1315)。**消费端一半**：行会委托已接(_complete_side_quest:3005)；采集任务仅场景元素交互接线(2477)，主『采集』指令未接 → 见新问题 P1-2 |
+| 6 | 支线击杀精英变体计入（in 匹配） | ✅ | combat.py:1799 `obj["kill"] == monster["name"] or obj["kill"] in monster["name"]`，进度 key 统一 obj['kill'](1804) 与面板(1287)/交付校验(2965)一致；测试期望已更新（test_v104_quests.py:250-252 精英森林狼→progress=2）✅ |
+| 7 | s_wild_* 开发者名泄漏清理 | ✅⚠️ | 文案已清：28 条 story 全部改为 NPC 台词，`git log -S 格温` 证实 ef95d7f 清除，全库 quests.py 无格温。**但 28 条条目仍残留 DAILY_QUESTS 池** → 见新问题 P1-1 |
+
+**附：s8/s9/s10/s11 giver 错位现状**（全部已修）：
+- s8 王都的棋局：giver=npc_king(dawn_city)=quest.map ✅，story 已改为国王本人（腓特烈三世）口吻 ✅
+- s9 骑士的誓言：giver 已从罗兰·圣剑改为 npc_dawn_squire(骑士团新兵, dawn_city) ✅，story 自指矛盾消除 ✅
+- s10 河神的诅咒：giver 已改为 npc_silver_fisher(河边渔夫) ✅，story 一致 ✅；仅 quest.map=silver_river vs giver 在 silver_brook 仍错位（P3，字段无逻辑消费；boss 河龙领主确在 silver_river_3 elite 刷新，可完成）
+- s11 旧王陵的回响：giver=npc_king ✅ story 已改国王口吻 ✅
+
+**附带全量验证**：22 个支线击杀目标 100% 有刷新点（含 elite/boss 位：河龙领主/月狼王·银鬃/野猪王·裂鬃/丘陵狼王·铁牙/龙鲸王·涛声/风暴海龙·雷鸣/岩浆王·烬核/龙陨战魂·暮影 等）；find 型寻猫·虎斑有完整消费端（combat.py:386-422 探索概率触发→ready）；跨天 expire_daily（store/quests.py:8-20，world.py:1471+combat.py:1748 双挂点）、完成即删防重复发奖（combat.py:1775-1777）均 ✅。
+
+## 二、新问题清单
+
+| 级别 | 问题 | 位置 | 说明 |
+|---|---|---|---|
+| **P1** | 28 条 s_wild_* 微委托污染每日池→死日常 | quests.py:1527-1835 + combat.py:1756-1764 | objective 为 `{kill:怪名, count:N}`，每日进度引擎只认 kill_any/kill_elite/kill_boss/complete_side/collect_any。**动态证明**：Lv5 池子 50% 是 s_wild、Lv30 达 82%（verify_daily_dead.py）；领取『清剿白鹿之森的野狗』连杀 10 只野狗 progress 恒 0/99，当天废 1 个每日槽位（跨天只清空不补发）。且这些微委托不在 SIDE_QUESTS，野外 NPC 永不发布（_offer_side_quests 只扫 SIDE_QUESTS）→ 内容死数据。修法二选一：移入 SIDE_QUESTS（giver/map/story 已齐），或 combat.py 每日分支支持 plain kill（需配误伤防护） |
+| **P1** | 采集任务每日无法通过『采集』指令推进 | economy.py:611-624（_settle_gather 无接线）vs world.py:1511 注释"主采集动作在 economy.py，另行接线" | 实际未接：全库 collect_any 仅 world.py:2477 一处（场景元素交互，草药柜等）。玩家正常采集 5+ 份材料，『采集任务』进度恒 0/5。钓鱼/挖掘同理未接 |
+| **P2** | in 匹配误伤（本次修复的副作用面） | combat.py:1799 | s3 目标"森林狼"→ 命中"森林狼王"（emerald_forest boss）也会计入；s_wild 侧更甚：野猪→岛野猪/铁甲野猪/风车野猪、野牛→平原野牛、水精灵→水精灵战士（当前 s_wild 是死代码无实害，若按 P1-1 修成 plain kill 则误伤生效）。建议：in 匹配加长度下限或只认"精英/头目/王"变体白名单 |
+| **P2** | 无参数『接取』列表含告示委托，展示与可接性不一致 | world.py:1435-1442 | 按 giver 地图罗列，寻猫·虎斑（giver 玛莎在 oak_town）出现在列表，玩家不在板前接取才被拒(1389-1397)。建议列表排除 board 型 |
+| **P3** | find 型任务面板无进度展示 | world.py:1280-1297 | 寻猫·虎斑既非 collect 也非 kill，面板只显示 [⏳] 无目标指引（_obj_text 有文案但 quest_view 未用） |
+| **P3** | s10 quest.map 与 giver 地图仍错位 | quests.py:956-962 | giver/叙事已对齐，map 字段=silver_river vs giver=silver_brook（审计已知 13 条同类，字段无逻辑消费，纯数据矛盾，可顺手批量清理） |
+| **P3** | 告示板委托强依赖 notice_board prop | world.py:1389-1397 + props.py:594 | 全库仅 oak_town_1 一块板；未来他图加 board 委托若忘挂板 prop，委托将永久不可接（提示设计约束） |
+
+## 三、总结
+- **7 项修复全部落地**（5 项 ✅ 完整、2 项 ✅ 但留有尾巴：#5 采集任务接线一半、#7 文案清了但 28 条死数据留在每日池）。
+- **最严重新问题**：s_wild 微委托占每日池 50-82% 造成"当天必废一个每日槽"（P1，动态实证），且与 playtest-report.md:272 记载的旧 bug 同源未清；其次采集任务日常的主采集路径未接线（P1）。
+- 未修改任何插件文件；验证脚本留于 workspace 供复跑。
+
+**建议优先级**：P1-1（移池或补 plain-kill 分支）→ P1-2（economy 接线）→ P2 两处 → P3 数据清理。
+
+### 商店经济 验证包完整报告
+
+验证全部完成（数据层脚本交叉校验 + 代码逐行核对）。以下为最终报告。
+
+---
+
+# 🛒 第二轮审计·商店经济验证包报告（v104 批次 2/3）
+
+**范围**：`game/data/shop.py`、`game/commands/economy.py`（商店段 3158-3689）、`game/data/equip_roster.py`、`combat.py` 荣誉段、`items.py`/`drops.py`/`base.py` 关联代码。只查未改。HEAD=f480441，批次 2/3 修复均已提交（b477bd8/ef95d7f）。
+
+## 一、修复验证表（7/7 ✅）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | SHOP_WEAPONS 44 处等级对齐 | ✅ 0 失配 | 脚本交叉校验全部 73 条 vs 名册：等级失配 0。lv 全部与 EQUIP_ROSTER 一致 |
+| 2 | 购买写入 hot/food_effect（9 种食物） | ✅ | economy.py:3579/3610 改 `{**it, "type":"消耗品",...}` 全量拷贝；add_item 无白名单（inventory.py:43-65 全 JSON 落库）。实测店售 20 种含热食 11 种（黑面包/麦酒/烤肉串/炖菜/鹿肉汉堡/鹿奶干酪/祝福糕点/苹果酒/码头朗姆/精灵果/矮人烈酒），hot/food_effect/effect 字段 **0 丢失** |
+| 3 | 商店坐骑面板+序号购买 | ✅ | economy.py:3393-3400 面板挂载（仅橡木镇）；3472-3474 序号追加同序；3529-3549 mount 分支含已拥有拦截+折扣。序号价=名称价同源 `int(mdef["price"]*discount)`（3536 vs 3675） |
+| 4 | 镇公所（ironshield_town_2）配货 | ✅ | shop.py:99-101 配货 4 种；subareas.py:3062-3079 funcs=[quest,heal] → base.py:273 heal 放行 `_at_shop=True`；sa_kind=tavern 只卖配货不挂武器，买卖双侧一致 |
+| 5 | 材料购买写 quality | ✅ | items.py:2481-2487 加载时按价格五档注入 quality；economy.py:3504/3626 全量拷贝。商店可购 13 种材料 quality 全部存在 |
+| 6 | 非名册武器需求推导 | ✅（已做） | drops.py:184 `random_req(slot,lv,wtype)`；9 个非名册武器（精铁长剑等）走随机生成+改名+desc 重写（economy.py:2694-2699），实测 req 正常（精铁长剑→{str:8}） |
+| 7 | 荣誉商店重复兑换拦截 | ✅ 有，但可绕过 | combat.py:2100-2105 兑换前 `count_item>0` 拦截。**发现绕过路径见 P2-1** |
+
+## 二、新问题清单
+
+**P1-1｜SHOP_WEAPONS 品质与名册失配 6 处 → 蓝价买紫装 / 紫价买蓝装，面板颜色与实物不符**（shop.py）
+- `海风长弓` 4 店蓝档：ironharbor:262 / silver_brook:271 / jade_port:289 / shell_town:293（店 blue vs 名册 purple Lv.18）→ 实付 4032 蓝价，`_buy_weapon` 走名册精确生成 **purple**（值 6740），省 40% 得紫装；面板显示蓝色、背包实物紫色
+- `潮汐法杖` ironharbor:265（店 blue Lv.58 vs 名册 purple Lv.58）→ 实付 30879 得 52084 紫装
+- `弯刀` nameless_harbor:313（店 purple vs 名册 blue Lv.14）→ 反向：付 4320 紫价只得 2592 蓝装，坑玩家
+- 修复 1 只对齐了 lv（0 失配），**quality 未纳入对齐**；同品质档位名册源（图纸源武器上架）也值得策划复核
+
+**P2-1｜荣誉"每人限兑一件"可被消耗绕过**（combat.py:2100-2105）
+- 拦截判据=背包 count>0；荣誉药剂/红名清除券是 stackable 消耗品，**用完 count=0 后可再次兑换**，与文案"限兑一件"不符。建议改 event_state 永久标记
+
+**P2-2｜非名册武器面板不标属性需求，买后可能穿不上**（economy.py:3368-3370 / 3389-3392）
+- `_req_label` 对非名册名返回空（名册查无 → `_r={}`），但实物随机 req（实测精铁长剑需 str 8，可能 roll 更高）——v101.28l #443"货架标注需求"修复对 9 个非名册武器失效
+
+**P3-1｜购买数量 qty 对武器/装备/坐骑/图纸静默忽略**（economy.py:3446-3451 解析了 qty，但 w:/e:/mount:/bp:rand 分支均不处理也不提示，`购买 铁剑 5` 只买 1 把）
+
+**P3-2｜荣誉 title 类无重复拦截，重复兑换白扣荣誉**（combat.py:2108-2112，set_event_state 覆盖无提示）
+
+**P3-3｜空瓶身份不一致**：ITEMS[mat_kong_ping] type=杂物，购买时被覆盖为"消耗品"（economy.py:3579），与 MATERIALS 版"材料"身份不同，详情/出售分类显示可能不一致（炼金考验按名匹配不受影响）
+
+**P3-4（策划疑问）｜图纸源武器上架低级区**：海风长弓（图纸源）/潮汐法杖（海神系列 Lv.58）出现在南境铁港/银溪等 Lv.12-28 区，等级跨度大
+
+## 三、重点扫描项结论
+- **白名单字段完整性 ✅**：全部 4 条购买路径（消耗品/材料/武器/装备）均全量拷贝，add_item 无字段白名单；实测名册武器生成含 name/slot/quality/lv/stats/req/set/legendary/desc 全字段，**rarity/legendary/set 无丢失**
+- **坐骑序号 vs 名称价格一致性 ✅**：同公式同源，无差价
+- **wlv 对齐后价格联动 ✅**：价格随 `_shop_equip_price(wlv,...)` 联动，面板价=购买价同源；卖出=买入×0.25，无倒卖套利
+- **SHOP_SUBAREA_ITEMS 与面板一致性 ✅**：57 个子区域全部存在、配货条目全部在 ITEMS、序号购买条目顺序与面板逐项一致（含坐骑追加位）
+
+**工作产物**：验证脚本 `C:\Users\yuyu\AppData\Local\hermes\workspace\tmp_shop_econ_audit2.py`（只读校验，未改动插件任何文件）。
+
+### 拍卖市场 验证包完整报告
+
+✅ 审计完成，临时脚本已清理，未改动任何生产代码（git status 无本次新增改动）。以下为最终报告。
+
+---
+
+# 第二轮审计·拍卖/市场验证包报告（只查不改）
+
+**范围**：`game/commands/social.py` 拍卖/市场/摆摊段 + `game/store/social.py` + `game/core/world_event_templates.py` + `game/data/world.py`
+**方法**：代码走查 + git diff 溯源 + 实跑回归测试 + 现场构造验证脚本（已删除）
+
+## 一、修复验证表（v104 批次 2）
+
+| # | 修复项 | 结论 | 证据 |
+|---|--------|------|------|
+| 1 | 拍卖自己降价被拒（bid+一口价双路径） | ✅ | `social.py:989-992` 守卫位于一口价分支(1012)之前，双路径同一 `bid()` 函数覆盖；实跑 `test_v104_shop_auction_mount.py` 段3：`✅ 自己降价被拒` `✅ 金币无净收益(未被退旧扣新套利)`，该文件 29/29 通过 |
+| 2 | 上架 0 价格被拒 | ✅ | `social.py:57` `int(args[1]) < 1` 拦截；实跑段4：`✅ 上架 0 价被拒` `✅ 市场未入库` `✅ 狼皮仍在背包` |
+| 3 | 组队面板等级/职业显示 | ✅ | `social.py:313-318` `Lv.{level} {C.display('classes', ...)}`；实跑 `test_v104_instance_party_pet.py` 段5：`✅ 面板显示等级/职业/标队长` |
+| 4 | 免空格组队（组队甲） | ✅ | `social.py:298` 正则 `(?:组队\|队伍)(?:[\s\S]*)$` + `base.py:216-217` strip 后剩"甲"；实跑段6：`✅ 『组队甲』无空格拉人成功` `✅ 队伍 2 人` |
+
+**任务指定扫描点结论**：被超越退还与手续费 → **无手续费**，退还=全额、扣除=全额，守恒 ✅；一口价买家扣款=amount−自己旧价、其余竞拍者全退，守恒 ✅（无卖家，系统品）；摆摊与 0 价拦截 → 上架拒 0 价/摆摊无价=换摊/显式 0 拒/购入 0 价转换提示，且 `store/social.py:74-77` 群市场列表过滤 `map_id` 空，**摊位不进群市场，无冲突** ✅；拍卖过期未成交 → 系统生成品流拍无需退回 ✅（但见 P3-2）；竞拍中物品撤回 → 不适用（非玩家上架品）✅
+
+## 二、新问题清单
+
+### 🔴 P0-1 拍卖货不对板：展示 lv95 传说，成交发 lv30 紫装（实锤）
+- **位置**：`social.py:930`（结算）、`social.py:1019`（一口价）；`world_event_templates.py:100-105`；`data/world.py:23-34`
+- **问题**：结算/一口价调用 `generate_equip(it["slot"], 30, it.get("quality","purple"))`——**等级写死 30、品质永远 purple**。而拍卖品初始化时按 `AUCTION_POOL` 的 `lv`(15~95)/`quality`(含 7 件 orange) 生成，且 items dict **根本没存 quality/lv 字段**，`it.get("quality","purple")` 恒为默认值；交付时另一次随机 roll，词缀也不同。
+- **现场实测**：展示「传说·传承战弓」(lv95/orange/底价8万)，成交交付「虚空铁拳」(lv30/purple)。花 8 万金币买到 30 级紫装，对高等级玩家近乎废品。拍卖核心环节诚信崩塌，**建议改存完整 equip 并在结算直接发放**。
+
+### 🟠 P1-1 低于当前最高价的出价被接受，提示谎称"当前最高"，金币锁到结算（实锤）
+- **位置**：`social.py:994-1009`（仅 `top < amount` 才退最高者）、`social.py:1027`（无条件提示"当前最高！"）
+- **现场实测**：A 出 2000 后 B 出 1500 → 回复"💰 出价成功！…当前最高！"，实际 `bids={'e1':2000,'e2':1500}` 最高仍是 e1，B 的 1500 被扣锁定至结算才退。玩家被误导以为领先而放弃加价=丢装备；"被超越自动退还"承诺对从未登顶的出价不生效。
+- **建议**：`amount <= 当前最高`（非自己）时拒绝并回显当前最高价。
+
+### 🟡 P2-1 同价并列出价：不触发退还，胜负按 dict 插入序
+- **位置**：`social.py:996`（`<` 判定）、`social.py:905/926`（`max()` 平手取先插入者）
+- 后出价者同价=白锁钱到结算，且无明示规则。
+
+### 🟡 P2-2 过期拍卖双路径懒结算存在竞态窗口（理论可双发装备+双退款）
+- **位置**：`social.py:884-894`（拍卖路径）、`957-966`（竞拍路径）——`get(include_expired)→_settle→clear` 复合操作无原子保护（`store/connection.py:18` 的锁只保单条 SQL）。单 asyncio 循环下 settle 段无 await 不可触发；若消息处理走线程池则成立。建议 clear 先行或加结算标记。
+
+### 🟡 P2-3 家里铺面（home_<qq> 私有地图）的摊位货永远无法成交
+- **位置**：`world.py:167-168`（`home_{qq_id}` 每玩家私有）、`social.py:124-128`/`269-274`（购入/交换要求同图）
+- 他人 cur_map 不可能等于卖家 home_id → 铺面货永远买不了，但 `social.py:233/247` 面板仍提示"『购入 <编号>』(需在同一位置)"可买。若"铺面=挂机展示"是设计意图，应移除可购买引导。
+
+### ⚪ P3-1 "队伍"前缀带参数全部失效（仅裸"队伍"看面板可用）
+- **位置**：`social.py:304` + `base.py:216-224`——`_strip_cmd` 只认"组队"前缀，别名表无"队伍"；"队伍 甲/队伍甲"被原样当玩家名查询必失败。基线 `aa0f840` 起即如此，非本次回归。
+
+### ⚪ P3-2 懒结算：过期后无人发『拍卖/竞拍』则永不清算，出价金币无限期锁定
+- **位置**：`social.py:884-894/957-966`——仅命令触发结算，与 P1-1 叠加放大资金占用。
+
+### ⚪ P3-3 `tests/test_v104_instance_party_pet.py` 环境 flake（测试维护项）
+- 首跑段4/段8 失败+崩溃（旧王陵封印残留、注册态缺失），复跑 **50/50 全过** → 测试库残留状态未清理干净，非生产回归。
+
+**总体**：4 项修复全部真实生效（代码+实测双重证据）；新发现 P0×1、P1×1、P2×3、P3×3。最优先处理 **P0-1 拍卖货不对板**（社会.py 两处写死的 `30/purple` + 初始化未存装备本体）与 **P1-1 假"当前最高"**。
+
+### 副业框架 验证包完整报告
+
+全部验证完成。输出最终审计报告。
+
+---
+
+# 第二轮审计·副业框架验证包报告（v104 批次 2/3）
+
+**审计范围**：`game/store/professions.py`、`game/commands/economy.py`（副业段）、`game/data/prof_config.py` + 关联链（npcs/dialogues/talk_actions/world/achievements/connection）
+**验证方式**：静态代码全链追踪 + 独立临时 DB 行为实测（17/17 断言通过，`GWEN_GAME_DB` 隔离，未碰生产库）+ git 提交状态核对。测试脚本：`C:\Users\yuyu\AppData\Local\hermes\workspace\audit2_prof_verify.py`（未改插件任何文件）。
+
+## 一、修复验证表（7 项）
+
+| # | 修复项 | 结论 | 证据 |
+|---|--------|------|------|
+| 1 | 附魔遗忘清学徒（不死锁） | ✅ | professions.py:216-234 `forget_prof` 同步从 `players.apprentices` 移除该副业；实测：学徒 `['gather','fishing']` 遗忘 gather 后 → `['fishing']`（3b）；等级/经验/激活列表同步清零（3c）。死锁链解除：遗忘→重拜师（give_prof_exp=50 → 附魔直接 Lv.2，见下） |
+| 2 | 遗忘清等待条件化 | ✅ | economy.py:1193-1195 仅当 `wait_st.type == 被遗忘副业` 才清；实测：等待 mining 中遗忘 craft → mining 状态保留（6a）；遗忘 mining → 清（6b）。旧 bug（垂钓等待被误清）已消除 |
+| 3 | 排行群内过滤 | ✅ | professions.py:126-132 `JOIN player_groups`，qq_id 双 TEXT 类型一致（connection.py:135/211）；实测：群 g100 排行只含本群玩家（5a），私聊退化为全服（5b） |
+| 4 | 每日任务重 roll | ✅ | economy.py:1230-1236：未领奖 + 任务副业已不激活 + 有激活副业可抽 → 从激活列表重抽；已领奖保留（防重复发奖）；无激活副业时保留原任务（防每次查询抖动）。自愈链完整：遗忘→下次查任务/做副业动作时重 roll |
+| 5 | 满级面板无空条 | ✅ | economy.py:1151-1154 `lv>=10` 显示"已满级 ✅"跳过经验条；实测满级后 exp 恒 0 且不再累积（1b/1c），空条 0/200 场景不存在 |
+| 6 | 采集导师名字统一 | ✅ | npcs.py:331「草药师·艾琳」= prof_config.py:10「草药师·艾琳」= dialogues.py 对话树挂载；8 位导师 NPC 全齐（含 npc_rune_master 符文大师·吉姆利 npcs.py:273-277，funcs 含 apprentice）。dialogues.py:342 注释版"草药师艾琳"少"·"，仅注释无功能影响 |
+| 7 | 全知全能 +10% | ✅ | professions.py:79-83 `ceil(exp×1.1)` 纯整数 `(exp*11+9)//10`，_lock 外查成就防锁死；实测 10→11、单点 1→2（向上取整保证可见）；成就定义 achievements.py:127-128 `ach_apprentice8` 条件 8 学徒一致 |
+
+**修复提交状态**：game/ 工作区干净，全部已提交（b477bd8 批次2 含"附魔遗忘死锁"，+10% 勾子在提交内）。唯一未提交文件为 `tests/data/cmd_config.json`（测试期望，超出本范围）。
+
+## 二、新问题清单
+
+### P2（1 个，建议下批修复）
+
+**P2-1 附魔命令体力先扣，其余 7 条副业全不一致**
+`economy.py:1967-1970` 扣 10 体力 → `1972` 才做 `_prof_active_check`（激活/学徒校验）→ `1976-1981` 才查 Lv.2 门槛。
+未拜师 / 副业位满 / 附魔 Lv.1 的玩家每次『附魔』尝试**白扣 10 体力**。对照：强化 1868（v104 M11 刚修的"校验全通过后才扣"）、锻造 1489（注释明示）、炼金 894→917、采集 791→800、垂钓 1295→1327、烹饪 1001→1019 全部先校验后扣。
+**修复**：把 `_spend_stamina` 移到 1981 行 Lv.2 检查之后（对齐 M11 模式）。
+
+### P3（5 个，提示/加固级）
+
+**P3-1 全知全能达成当次不加成**：对话动作执行链（world.py:2772-2779 `_apply_talk_action`）后无 `check_achievements`，第 8 条拜师当次的 50 经验按无加成发放，成就延迟到下一次副业动作才解锁生效。一次性损失 ≤5 经验。可在对话动作后补一次成就判定。
+
+**P3-2 等待型副业重启后结算依赖惰性触发**：状态存 DB（event_state）重启不丢 ✅，但 `_prof_delayed_push`（economy.py:416-427）是进程内 task，重启后已到期结果**不会自动入包**，须玩家再做任意等待型动作才惰性结算（772-783）。设计内兜底、无数据丢失，提示级。
+
+**P3-3 store 层 `activate_prof` 不校验 MAX_ACTIVE_PROFS**：professions.py:170-188 实测第 3 条可写入；现全部调用点（economy.py:1116/1127）都在 `_prof_active_check` 位满拦截之后，无实际绕过。防御性加固建议（未来新调用点的坑）。
+
+**P3-4 附魔成长曲线全链最陡**：Lv.2→10 需累计 880 经验 = 880 次成功附魔（每次 10 体力+材料+金币），对比强化按段位 1-9 且 +0→+1 无门槛。与 professions.py:7-8 已标注"曲线与 19 章设计表脱节"同源，建议随设计表对齐一并处理（不硬改曲线）。
+
+**P3-5 附魔帮助文案无门槛提示**：economy.py:1956-1962 未提 Lv.2 门槛；因拜师即 Lv.2 实际无碍，纯文案补强。
+
+## 三、扫描重点结论（无问题项）
+
+- **附魔 Lv.2 门槛 vs 经验获取全链**：✅ 无死锁。拜师 give_prof_exp=50（8 位导师齐全，dialogues.py:407/489/560/631/702/777/848/920）→ `add_prof_exp(50)`：20 经验升 Lv.2 余 30 → 直接可附魔。8 条副业经验来源全覆盖（fishing 品质 1-5 四分支、gather/mining/alchemy/cooking +1、craft 按等级、enhance 段位 1-9、enchant +1×2 路径、每日任务 +50）。
+- **每日任务 bump 激活校验无误伤**：economy.py:1251 校验在所有 bump 调用点（含等待型结算 494/512/528/542/622/750）都位于动作成功且激活校验通过之后；等待期间遗忘由修复 2"条件化清等待"兜底，无残留状态触发误拦。
+- **双副业上限切换全流程闭环**：遗忘（清激活+等级+学徒）→ 位空 → 重拜师（位满拦截：world.py:2757-2767 提前拦考验、talk_actions.py:150-152 拦 unlock）→ 50 经验直上 Lv.2 → 动作解锁。实测 3a-3f/4a-4b 全过。
+- **等待型重启恢复**：finish 未到→提示剩余；已到→惰性结算（P3-2 的触发依赖除外）；损坏状态→直接覆盖开新一轮，不结算不崩溃。
+
+**总评**：7 项修复全部验证通过（代码证据+行为实测双确认），无 P0/P1 新问题；P2-1（附魔体力白扣）为唯一实质性新问题，建议与批次 3 同批修复。
+
+### 强化附魔 验证包完整报告
+
+所有验证完成。整理输出最终审计报告。
+
+---
+
+# 🔍 第二轮审计·强化附魔验证包报告
+
+**范围**：`game/data/enhance.py`、`game/commands/economy.py:1688-2130`（强化段 1807-1942 + 附魔段 1947-2129）、配套 `craft.py`/`enchant.py`/`professions.py`/`alchemy.py`/`factions.py`/`dialogues.py`
+**方法**：源码逐行核对 + 回归测试实跑（`tests/test_v104_prof_enhance.py`，24/24 通过）+ 期望成本解析递推 + 材料价格核算。**只查未改。**
+
+---
+
+## 一、修复验证表（v104 批次 2/3）
+
+| # | 修复项 | 结论 | 证据 |
+|---|--------|------|------|
+| 1 | 强化 +1~+4 失败不掉级（+5 起掉 2 级） | ✅ 已修复 | `enhance.py:19` `ENHANCE_FAIL_DROP={5:2,6:1,7:1,8:1}` + `economy.py:1920-1921` `get(cur_enh,0)`/`max(0,cur_enh-drop)`（旧代码默认 1 已改 0）。实测：测试【2】"+2→+3 失败不掉级"✅、"+5→+6 失败掉 2 级(+5→+3)"✅ |
+| 2 | 强化体力在金币/等级校验后扣 | ✅ 已修复 | `economy.py:1858-1873` 顺序：副业等级 → 金币 → 体力(1869) → 扣金(1873)。+1~+4 失败不掉级时强化石保护不消耗（1922 `new_enh!=cur_enh` 条件，✅ 无浪费） |
+| 3 | 附魔遗忘不死锁（配合 professions） | ✅ 已修复 | `professions.py:191-238` v104 P0：遗忘同时清 `players.apprentices`（216-234 行，异常不阻断）。实测测试【1】9 项全过：遗忘→学徒资格清空→未拜师再激活被拦→重新拜师(50 经验)→附魔成功拿经验，死锁路径已封 |
+| 4 | 死材料闭环 | ✅ 已修复（1 处冗余） | 淬火石→`craft.py:1428` 银铃短刃×8、`craft.py:1476` 迷雾兜帽×6（掉落源 `gather_pools.py:107` hill_mine 权重 20/120≈16.7%）；沉木→`enchant.py:33` matk 配方（**实质新增**，"沉"关键词此前无覆盖）；蝙蝠翼→`enchant.py:82` spd 配方（**冗余**，见新问题 P3-3） |
+| 5 | 高级强化石有掉落或使用 | ✅ 已修复 | 使用：`economy.py:1884-1888` 精炼+25%/`1922-1928` 失败保护；获取：`alchemy.py:26-37`(强化石 Lv.2)/`86-95`(精炼 Lv.4) 合成、`factions.py:57-58` 矮人声望 tier300/700 兑换、`shop.py` 多店上架 |
+
+**回归测试**：`tests/test_v104_prof_enhance.py` → **24 通过 / 0 失败**（含附魔遗忘死锁 9 项、强化掉级 4 项、每日任务重 roll、遗忘清等待条件化、排行群内过滤）。
+
+---
+
+## 二、新问题清单
+
+### 🔴 P1-1：附魔体力白扣——与 v104 M11 同型问题未修
+**位置**：`economy.py:1967-1970`
+附魔命令在解析参数后**立即**扣 10 体力，其后所有失败路径均白扣：副业等级不够(1977)、属性名无效(2062)、背包无目标装备(2002/2072)、槽满(2013/2084)、符文冲突(2022)、符文等级解锁不足(2031)、材料不足(2089)、金币不足(2094)。**对比强化段已修（1865-1873 校验后才扣），附魔段完全没动**。玩家打错一个字就丢 10 体力。
+**期望**：体力扣减移到最终消耗材料/金币前（与强化对齐）。
+
+### 🟠 P2-1：必成段位仍消耗精炼强化石（白耗）
+**位置**：`economy.py:1884-1887`
+精炼石在掷骰前无条件消耗，但三种情况下强化已 100% 必成：①+0→+1（基础成功率 100%）；②星铁强化剂 boost（1875-1877 已清标记，必成）；③宗师+5%+精炼+25% 叠加触顶。此时 `_rate=min(1.0,...)` 不变，精炼石（800 金）照扣——玩家白亏。
+**期望**：`if _boost or _rate >= 1.0` 时不消耗精炼石（或提示无效）。
+
+### 🟠 P2-2：淬火石锻造配方成本严重失衡（同序列 16 倍差）
+**位置**：`craft.py:1426-1431`（银铃短刃）、`craft.py:1474-1479`（迷雾兜帽）
+- 银铃短刃（Lv.18 蓝武）：淬火石×8(120金)+精铁×4(120金)=**240 金材料**+280 锻造费
+- 银铃头盔（同 Lv.18 蓝装）：徽记×2(10)+鳞片×1(5)=**15 金材料**+150 锻造费
+- **同等级同品质材料成本差 16 倍**；迷雾兜帽 180 金 vs 迷雾胸甲 20 金（9 倍）。淬火石配方材料成本占总量 88%+，玩家锻造武器性价比极差（直接卖淬火石反而更划算），"成本 40-90% 红线"同序列内部失衡。
+**期望**：淬火石消耗降至 2-3 个/件，或提高短刃/兜帽产出等级/品质匹配成本。
+
+### 🟠 P2-3：+5 掉 2 级无策划量化原文 + 高级段位期望成本爆炸
+**位置**：`enhance.py:19`、`economy.py:1920`
+策划原文（docs 引用）仅"+5 起失败掉级"未量化；+5 掉 2 级是旧代码 `{5:2}` 遗留值，v104 修复时保留。解析递推期望成本：
+| 段位 | 成功率 | 单次费 | 期望花费 | 无惩罚对比 |
+|---|---|---|---|---|
+| +4→+5 | 50% | 800 | 1,600 | 1,600 |
+| +5→+6 | 35% | 1300 | **7,971** | 3,714（2.1×）|
+| +6→+7 | 22% | 2000 | **37,353** | 9,091（4.1×）|
+| +7→+8 | 12% | 3200 | **300,590** | 26,667（11.3×）|
+| +8→+9 | 6% | 5000 | **4,792,584** | 83,333（57.5×）|
+
+0→+9 累计期望 **514 万金**。掉 1 级惩罚使 +7→+8/+8→+9 几乎不可达（不靠 400 金/个的强化石保护=变相强制消费）。**期望**：策划确认 +5 是否掉 2 级、+8 是否可改为不掉级或提高成功率，否则毕业强化形同虚设。
+
+### 🟡 P3-3：蝙蝠翼入附魔配方为冗余（无害）
+**位置**：`enchant.py:82` + `core/enchant.py:40`
+匹配为子串 OR 语义，spd 配方本就含"翼"，`"翼" in "蝙蝠翼"` 恒真——mat_bian_fu_yi 在加入前已可被消费。沉木才是实质新增消费点。建议仅保留注释说明（无需改动）。
+
+### 🟡 P3-4：附魔经验获取单一、肝度极高（信息性）
+**位置**：`economy.py:2044/2120`、`professions.py:99`、`dialogues.py:920`
+门槛无死锁：拜师礼 50 exp（PROF_EXP_BASE=20）直达 Lv.2 ✅。但 Lv.2→10 需 900 经验 = 900 次成功附魔（每次 10 体力+材料/金币），无失败无其他来源（每日任务只给金币）。Lv.8 传说工艺/9-10 大师门槛实际难以达成。建议策划评估增加附魔经验来源（如失败给 1 点、导师进修加成）。
+
+---
+
+## 三、附魔门槛·新手体验结论（扫描项）
+
+- **Lv.2 门槛**：✅ 拜师礼 50 exp → 附魔 Lv.2（剩 30/40），新手拜师后立即可用，无死锁（测试实证）。
+- **强化成功率曲线**：+1~+8 = 90/80/65/50/35/22/12/6%，段位费 120→5000 金，曲线本身平滑；问题集中在掉级惩罚（见 P2-3）。
+
+**总体**：5 项修复全部落地且有测试锁定；新发现 **P1×1 + P2×3 + P3×2**，最优先修附魔体力白扣（与已修强化的同型问题，一行顺序调整即可）。
+
+### 烹饪炼金 验证包完整报告
+
+所有验证完成。整理最终报告：
+
+---
+
+# 第二轮审计·烹饪炼金验证包报告（只查不改）
+
+**范围**：cooking.py / alchemy.py / food_effects.py / item_templates.py + 消费链路（economy.py / core/fishing.py / battle.py / items.py / store/inventory.py）
+
+## 一、修复验证表（9/9 通过）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 夜雾菇浓汤/月光草茶 desc 与实际一致（1% 本场） | ✅ | `items.py` i_night_mushroom_soup desc「每回合回复 1% 生命（本场）」+ food_effect=regen → `food_effects.py:161-167` 回 1% max_hp/回合；i_moon_tea「1% 魔力」→ meditate `food_effects.py:170-176`。**一致** |
+| 2 | 秘法药剂 desc +80% | ✅ | `items.py:2172` i_mystic_pot desc「3 回合魔攻 + 80%」effect=buff_matk_strong → BUFF_MULT matk_up_strong=**1.80**（battle.py:45）。同链星辉 +80%、虚空 +80%/15% 均一致 |
+| 3 | 回城卷轴成本/售价 >40%（不再印钞） | ✅ | `alchemy.py:38-49` 成本 300（鬼魂精华×3=255+妖精之尘×1=45），售价 500 → **成本占比 60%** > 40% |
+| 4 | 基础炼金 4 条倒挂调整 | ✅ | 治疗 5→10（50%）、魔力 5→10（50%）、强效治疗 20→30（67%）、攻击 135→150（90%），均 ≥40% |
+| 5 | 烹饪跨 key 少扣材料（remain 循环） | ✅ | `economy.py:1033-1055`：跨堆 remain 循环 + remove_item 返回值校验 + 不足整次回滚（注释注明 v104 P2-5） |
+| 6 | 净化卷轴可清除 debuff | ✅ | `item_templates.py:533-570` 模板 purify：清 p_buffs 负面键（stun/freeze/silence/spd_down/atk_down/def_down/matk_down/mdef_down），普通/副本双结构，无负面不消耗；`items.py:1950` i_scroll_purify effect=purify、商店有售（shop.py:50,88）；use() 战斗路径 r.consume→扣道具 ✅ |
+| 7 | 精灵果酱改为速度 buff | ✅ | `items.py` i_elf_jam effect=food_spd_up_small → BUFF_MULT（'spd', **1.10**）+10%；desc「速度+10%（本场）」一致；链路 infer_template→food_buff→buff:food_spd_up_small 全通 |
+| 8 | 鱼饵配方 3 条 | ✅ | 炼金 al_ying_guang_yu_er→it_glow_bait（alchemy.py:255）；烹饪 cook_dough_bait→it_dough_bait、cook_blood_bait→it_blood_bait（cooking.py:169-182）。**消费链路全通**：模板写 bait_qq 状态 → `economy.py:456-469` 读取清空 → `core/fishing.py:50-76` glow/dough/blood 加权（血饵阈值 ≤15 修复已生效） |
+| 9 | 铁壁/疾风/深渊 desc 对齐 | ✅ | 铁壁 i_def_potion「防御+45%」= def_up 1.45；疾风 i_spd_potion「速度+40%」= spd_up 1.40；深渊 i_abyss_crystal_potion「魔伤-15%」= battle.py:540-542 magic_resist 15%。配方/物品/实际三处一致 |
+
+**desc 全量核对（重点项）**：遍历全部 effect/food_effect/hot 消耗品 ~60 件，**无一不符**——hot/hot_mana/特殊药水（狂怒+50%、圣光+20%、龙鳞-15%、死神<30%+30%、护盾10%等）/词条料理（反伤10%/30%、处决<30%+30%、蓄力10%/150%、回春1%、晨曦2%、贯穿20%、流血20%/5%…）数字全部与实际实现吻合。
+
+## 二、新问题清单
+
+| 级别 | 问题 | 位置 |
+|------|------|------|
+| **P1** | **血饵死配方：材料兽血 mat_shou_xue 无任何产出源**——采集池、怪物掉落、商店、钓鱼全库检索无（唯一出现处是 items.py 材料定义 + cooking.py 配方）。玩家永远做不出血饵，v104「鱼饵配方落地」只落了 1/3 的可用性 | cooking.py:176-182；items.py:1587 |
+| **P2** | **炼金扣料无校验/无回滚（与烹饪不对称）**：炼金路径 remove_item 返回值不检查、remain 不递减也无防御分支（economy.py:929-939），旧档中文 key 行归一化后 remove_item 查不到时 remain>0 仍发产物 → 白嫖材料。烹饪已修（economy.py:1050-1055），炼金漏同款修复 | economy.py:929-939 |
+| **P2** | **深亏配方群（成本/售价 <40%）**：强效魔力 180→30（0.17）、防御药水 275→100（0.36）、超级治疗 370→100（0.27）、超级魔力 360→100（0.28）、月露精华 365→120、星铁强化剂 1000→350；稀有食谱：夜雾菇浓汤 240→50、月光草茶 160→45、极光花蜜 303→90、龙血火锅 436→110、雷雨藤烤串 500→60。制作即巨亏，配方实质死亡（若系「材料自用不卖」设计需策划确认） | alchemy.py:62-73,110-145,195-215；cooking.py:125-159 |
+| **P2** | **面团鱼饵印钞点**：成本 6（面粉×2）售价 20（售/成 3.33），每 5 体力净赚 14 金，为全配方最高利润率。目前仅采集产面粉（商店无售）限制强度，面粉采集量大后成金矿 | cooking.py:169-175；items.py:2439 |
+| **P3** | **6 件 v101.30 高级钓点物品定义在 ITEMS 补充区而非 CONSUMABLES**（items.py:2607-2621）：珍珠明目水/深渊回响/彩虹/雷晶/龙骨药剂/风暴贝汤。当前链路（display/add_item 效果字段复制）均正常，但两表分裂，未来只查 CONSUMABLES 的代码会漏 | items.py:2607-2621 |
+| **P3** | **净化卷轴 whitelist 含 atk_down/def_down/matk_down/mdef_down 等当前战斗引擎未见施加于玩家的键**（battle.py 玩家侧实际只有 spd_down 等），无碍正确性（白名单不误清正向 buff），但建议与引擎实际 debuff 键对齐 | item_templates.py:534-535 |
+| **P3** | 金鲤/蛇皮/溪鹿皮/麦酒/幼龙鳞等 5 种材料不在采集池（疑来自钓鱼/掉落，本次未逐一验证，待确认可达性） | cooking.py:24-29,33-38,68-73,103-108,117-122 |
+
+## 三、附注
+- **误清正向 buff 检查通过**：净化 whitelist 全为负面键，不含 atk_up 等任何 BUFF_MULT 正向键。
+- **count_item/remove_item 一致性通过**：`store/inventory.py:86-129` count_item 按 key+name 双匹配、remove_item 归一化 key，与烹饪扣料逻辑（economy.py:1045）口径一致。
+- 本轮未改任何文件；验证脚本存于 workspace：audit_cook_1.py / audit_cook_2.py。
+
+**结论**：9 项修复全部落地且链路闭环；desc 全量核对无造假残留；新问题 1×P1（兽血无来源）、4×P2、3×P3，其中 P1 建议在批次 3 收尾时优先处理（兽血可接怪物掉落或商店）。
+
+### 垂钓系统 验证包完整报告
+
+# 第二轮审计·垂钓验证包报告（只查不改）
+
+**范围**：game/data/fishing.py、game/core/fishing.py、game/commands/economy.py（垂钓 444-598/1183-1287/2895-3312）及关联（gather_pools/cooking/alchemy/subareas/items）
+**验证方式**：git diff 比对（b477bd8 批次2 + ef95d7f 批次3）+ 全量测试运行 + 针对性运行时脚本（血饵名单/子区域可达性/材料来源 grep）
+
+---
+
+## 一、修复验证表（9 项）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 血饵生效（阈值≤15 稀有鱼×3） | ✅ | `core/fishing.py:72-73` `weight<=15 ×3`（原 <5 永失效，已改）；test_v104_fishing 采样概率提升断言通过 |
+| 2 | 收藏鱼回收 1 金币 | ✅ | `economy.py:3143-3146` type=收藏→rate=1.0→`int(1×1.0×1.0)=1`；测试「按 1 金币回收（旧 bug 为 0 金卖不掉）」通过 |
+| 3 | 每日垂钓任务全分支推进 | ✅ | `economy.py:496-498`(鱼王)/`514-516`(宝物)/`530-532`(垃圾)/`544`(普通) 四分支均调 `_daily_prof_bump`；测试「垃圾×5→完成+发 50 金」通过 |
+| 4 | 渔获价格与 MATERIALS 一致（含夜光鲛） | ✅ | FISH_POOL 20 种渔获与 MATERIALS 全量交叉一致（鲛人泪120/深海水晶250/龙涎香180/夜光鲛35 均已对齐）；测试「全量交叉价格一致」通过 |
+| 5 | 鱼饵配方 3 条可制作 | ✅⚠️ | `alchemy.py:254-261` 萤光鱼饵(月光草+空瓶,炼金Lv3)、`cooking.py:169-175` 面团鱼饵(面粉×2)、`cooking.py:176-182` 血饵(兽血×2)；3 条制作测试全过。**但血饵材料兽血断源 → 见新问题 P1** |
+| 6 | 垂钓图鉴展示收藏鱼 | ✅ | `economy.py:2195-2231` `_collect_fish_bestiary`，空图鉴与非空图鉴均附加展示（已收藏 X/3+钓获计数）；测试 5 断言通过 |
+| 7 | 钓点子区域生效 | ✅ | `fishing.py:12-66` 11 钓点全带 subarea；`economy.py:1307-1318` 非绑定子区域拦截+『前往』引导；11 个 subarea id 在 `subareas.py` 全部存在；**实测 9/11 钓点=地图入口子区域（落地即钓），oak_plain_3 2 步、frost_horn_gate 1 步可达**；测试拦截/放行通过 |
+| 8 | 深海水晶/鲛人泪垂钓独占 | ✅ | `gather_pools.py` 已移除 4 处 `mat_shen_hai_shui_jing`（black_tide_strait/mermaid_bay/storm_sea/whale_domain）+1 处 `mat_jiao_ren_lei`（mermaid_bay）；全库 grep 确认无采集池/商店/掉落/POI 残留产出源；FISH_POOL 两鱼保留 |
+| 9 | 鱼饵提示全分支 | ✅ | `bait_line` 注入 4 分支：鱼王 `economy.py:506`、宝物 `526`、垃圾 `536`、普通渔获 `598` |
+
+**回归**：test_v104_fishing 43/43 ✅、test_data_fishing 42/42 ✅、test_commands_fishing 24/24 ✅、test_v83_collect_fish 4/4 ✅（共 113 断言全过）
+
+---
+
+## 二、新问题清单
+
+| 级别 | 问题 | 位置 | 说明 |
+|------|------|------|------|
+| **P1** | **血饵配方材料「兽血」(mat_shou_xue) 全库无产出源** | `game/data/cooking.py:180`（配方引用）；定义 `items.py:1587` | grep 全 game/ 目录：兽血仅出现在 cooking.py 配方和 items.py 定义，**无任何采集池/怪物掉落/商店/POI/任务来源** → 血饵配方名存实亡（自制路径死链，只能商店 35 金买）。与本次修复「夜光鲛无产出源」同类问题，建议补采集池/掉落 |
+| **P2** | 血饵在 6/11 钓点实际零效果，但结算仍提示「✨血饵生效了」 | `core/fishing.py:72-73`；`economy.py:469` | weight≤15 品种仅存在于 5 个钓点（迷雾沼泽/深渊湖/彩虹云谷/风暴之海/龙鲸海域）。橡木溪流/星语湖/铁港码头/银铃河/迷雾海沟/霜原冰湖 该品质池内无 ≤15 品种 → 血饵白扣且文案误导 |
+| **P3** | 垃圾渔获（水草/破旧的靴子）入库 key 为中文名，违反 v48 mat_ ID 规范 | `economy.py:538`（resolve 原样返回）+ `core/index.py:47-50` | MATERIALS 无「水草/破旧的靴子」条目 → `resolve` 原样返回中文 → 背包中文 key；且 `_pawn_rate`（economy.py:3113）查不到 → 垃圾按 1.0 全地点可卖（价格 1 金，无刷钱风险，规范性问题） |
+| **P3** | 出售收藏鱼文案「回收价 80%」与实际 1 金币全额回收不符 | `economy.py:3311`（tip 用传入 rate=0.8）vs `3143-3147`（内部覆盖 1.0） | 单件出售提示显示 80%，实际按 100% 收 1 金；结果正确、文案误导 |
+| **P3** | 收藏鱼入包缺 quality 字段 | `economy.py:604-605`（add_item 无 quality）；MATERIALS 定义有 quality（items.py:1730-1740） | 背包/展示缺品质色标，与 MATERIALS 定义不一致（纯展示层） |
+| **P3** | 旧档玩家 cur_subarea=NULL 且停留非入口子区域地图 → 垂钓被拦且『前往』链接空表（移动死锁需先任意动一次） | `economy.py:1309` + `world.py:650` | v87.6 起地图变更自动补子区域，影响面极小（仅 v87.6 前原地未动的老档）；钓点提示的『前往 X』在跨子区域时可能被空间连接拦截（有 `_move_blocked_msg` 兜底引导，可接受） |
+| **P3** | 萤光鱼饵自制成本倒挂：月光草(80)+空瓶(5)=85 金 > 商店售价 60 金 | `alchemy.py:256` vs `items.py:2437` | 炼金 Lv.3 自制反而亏 25 金（面团/血饵自制均便宜于商店，仅萤光倒挂）；采集党自给自足则无感 |
+| **P3（信息）** | 夜光鲛无任何配方消费方（纯出售材料） | `fishing.py:124-127` | 设计 13 章 line 134 仅要求产出源，已满足；提示后续策划若加配方注意价格联动 |
+
+---
+
+## 三、附：重点扫描项结论
+
+- **血饵阈值误伤**：weight≤15 共 7 种（鲸须草15/云棉10/盲鱼10/夜光鲛15/深渊珍珠15/彩虹露珠15/风暴贝15），**全部为鱼/材料，垃圾(水草25/靴子20)零误伤** ✅
+- **收藏鱼回收 vs 0.8 折扣路径**：批量「出售 全部」和单件出售均走 `_pawn_rate`(0.8)→`_sell_one` 覆盖 1.0，商店回收恰 1 金 ✅
+- **钓点 subarea 玩家体验**：9/11 钓点绑定入口子区域，落地即钓；橡木溪流 2 步、霜原冰湖 1 步可达，拦截提示含『前往』引导 ✅
+- **鱼饵材料获取难度**：月光草（8 个采集池，橡木镇 15%）、空瓶（商店 5 金）、面粉（风车平原 25%）、兽血（**无来源，P1**）
+
+**文件变更**：仅创建并已删除临时验证脚本 `tests/tmp_audit2_fishing_check.py`（运行时验证用，已清理）；未修改任何业务代码。
+
+**总结**：9 项修复全部落实（8 项完全通过 + 1 项配方存在但暴露血饵材料断源 P1），113 条相关断言全绿。新发现 1 个 P1（兽血断源）、1 个 P2（血饵 6 钓点零效果假提示）、5 个 P3 及 1 条信息项。
+
+### 成就称号 验证包完整报告
+
+# 第二轮审计·成就称号验证包报告
+
+**范围**：achievements.py / achievement_conds.py / core/achievements.py / titles.py / base.py(bonus) + 关联链路（combat/instance/economy/professions/maps/quests）
+**方法**：静态代码走查 + 隔离测试库实测（33/33 断言通过 + 14 项自写行为验证），未修改任何仓库文件
+
+---
+
+## 一、修复验证表（9 项）
+
+| # | 修复项 | 结果 | 证据 |
+|---|---|---|---|
+| 1 | main_done 传 group_id（ach_main12 可达） | ✅ | `achievement_conds.py:399-411` 用 `extra["_group_id"]` + 两参 `db.get_quests(gid, qid)`；`core/achievements.py:61-63` 注入；q12_6 存在（quests.py:841，next=None 终章）；实测 E2E 解锁 |
+| 2 | flag 成就查 talk_flags（4 个） | ✅ | `_c_flag`（429-457）①extra.flags ②`talkflags_{gid}_{qid}`；写入点三处齐备：dialogues.py:227(heard_song)、events.py:168(tablet_page)、events.py:320(saw_the_rift)，均走同一 `db.set_talk_flag`；ach_saint_save 改判 main_quest_done(q6_1 存在) |
+| 3 | 无怪物成就改条件（slime/goblin/dragon_skill） | ✅ | 全量 kills_type 关键词命中现有怪物（0 未命中；史莱姆×4/哥布林×7 经 subareas 索引）；ach_dragon_skill 改 `branch_skills` value=10（88-110 行），实测 9 个 False/10 个 True 并解锁；每职业 20 个分支技能名 |
+| 4 | event_all/goblin_trade 接实际统计 | ✅ | `_c_event_all`→stats.world_events（352-356）；ach_goblin_friend 改判 world_event value=20（goblin_trade 注册已删） |
+| 5 | world_events 写入（世界事件命令） | ✅ | combat.py:1385-1391 事件期间战斗胜利结算 bump；STAT_FIELDS 白名单含 world_events（stats.py:11）→ 不会被拒；无事件不 bump（实测） |
+| 6 | hidden_area 只统计真实隐藏区域 | ✅ | 205-235 行按 HIDDEN_MAP_UNLOCK∪MAPS hidden 过滤 visited；死条目已清理（maps.py:4190-4193）；实测 3 普通区域 False，+lost_library True，+ember_corridor value=2 True |
+| 7 | ach_hidden3 value=2 可达 | ✅ | achievements.py:98 value=2；两隐藏图 lost_library(Lv45)/ember_corridor(Lv80) 均在 MAPS 且连接可达（secret_crypt/cinder_mountain） |
+| 8 | 副业 Lv.10 称号 bonus 单次 | ✅ | base.py:589-595 按 TITLES bonus 名称集合跳过 6 孪生成就；实测 6 大师单次（hp30/atk8/crit0.02/mp30/def8/spd3），+铁匠宗师 atk=16、+ach_lv60 atk=24（非重复 bonus 正常）；pvp_hero 仅 TITLES 侧不受影响 |
+| 9 | 全知全能 +10% 副业经验 | ✅ | professions.py:79-83 `add_prof_exp` 判 `ach_apprentice8` → `(exp*11+9)//10`（ceil，锁外检查防死锁）；实测 exp 5→6、exp=0 不加成；面板跳过 prof_exp_mult 键 |
+
+> 修复质量整体合格：**33/33 回归断言 + 独立行为实测全过**；talk_flags 读写键格式、STAT_FIELDS 白名单、Lock 重入、副本/战斗结算位置等关键坑均处理正确。
+
+---
+
+## 二、新问题清单（第二轮扫描）
+
+### 🔴 P0（奖励闭环断裂，必改）
+**P0-1 『成就 领取』100% 崩溃 → 全部成就经验奖励无法领取**
+- 位置：`core/achievements.py:175`（`if a and X or Y` 优先级错误）
+- 机制：`inst_clear_*` 记录行（instance.py:1691 每次通关写入，claimed=0）不在 C.ACHIEVEMENTS 中 → `a=None`，但 `None and X or Y` 仍求值 `(a.get("reward") or {}).get("gold", 0)` → AttributeError 被吞 → 返回"领取失败"。v101.22 引入领取流程、v101.27 引入副本记录行，组合即炸。
+- 实测：仅含 inst_clear 行、或 inst_clear+真实奖励，两种场景均崩溃。**任何通关过副本的玩家，19 个带 exp 奖励的成就（含副本/转职 1000 经验）永远领不到**。修复：`if a and ((...) or (...))` 或提前判 None。
+
+### 🟠 P1（成就死锁·本轮新发现，首轮审计漏网）
+- **P1-1 ach_worldboss（世界 Boss 猎手）永不可解锁**：25 处 check_achievements 调用无一传 `worldboss` extra；`_worldboss_act`（combat.py:1896-1988）胜利结算不调成就判定（世界 Boss 击杀也不 bump kills）。
+- **P1-2 ach_flawless（完美主义者）永不可解锁**：全仓无 `flawless` extra 写入点；instance.py:1693 通关只传 inst_id。
+- **P1-3 ach_abyss_clear（传说终结者）死锁**：cond `inst:"inst_abyss"`（achievements.py:56），但 22 个副本实例实为 `inst_abyss_gate`/`inst_abyss_throne` 两段，inst_id 永不可能等于 inst_abyss。
+- **P1-4（P0 连带）**：`inst_clear_*` 行永久 claimed=0 悬挂；"无奖励成就直接标记已领取"分支（177-184）因先崩而永远走不到，P0 修复后需验证该分支可达。
+
+### 🟡 P2（性能/一致性）
+- **P2-1 成就判定每条件查库，无缓存**：实测新号一次 check_achievements = **31 次 DB 查询/71ms**，解锁 20 个后仍 20 次/13ms；挂载于战斗胜利/移动/转职等高频路径。最浪费：kills_type 每关键词一次全量 get_bestiary（ach_undead100 一次 4 次）、flag×3、quests×4、visited×3、hidden_area 直连×2、guild×3。建议单次调用内复用 bestiary/quests 结果。
+- **P2-2 世界 Boss 战不计 world_events**：bump 只挂 `_handle_victory`（combat.py:1385），`_worldboss_act` 无 → 国战勇士/见证者计数不含 Boss 事件，与 ach_worldboss 数据源割裂。
+- **P2-3 成就重名 3 组**：全知全能×2（ach_learn_all crit+3% / ach_apprentice8 副业+10%）、垂钓新手×2、神锻宗师×2——称号列表按名去重后只剩一个，『称号 装备 全知全能』只能命中第一枚。
+- **P2-4 desc 与实现不符**：ach_event10"参与 10 次国战事件"实为任意世界事件；ach_goblin_friend"商队集市与行商交易"实为世界事件计数；ach_truth"第 7 章后"实为夜间探索事件触发。
+
+### ⚪ P3（文案/口径）
+- P3-1 模块头注释过时：achievements.py:2、core/achievements.py:5 仍写"97 成就"（现状 109：97+12 扩充）；economy.py:2328 `_earned_titles` docstring 仍写返回元组（实为单列表）。
+- P3-2 ach_no_death：deaths==0 硬门槛，死 1 次永久锁死（无连杀概念），建议确认策划意图。
+- P3-3 `_title_bonus_plain`（领取快照）不过滤 prof_exp_mult，与 base.py 主路径口径不一致（当前无害）。
+- P3-4 `_monster_total` 用 `max(len,100)` 兜底：未来怪物数 <100 时 ach_bestiary_all 静默不可达（当前 299+ 无风险）。
+- P3-5 成就列表总数 109 与策划案 14 章 97 的差异仅在文件头注释标注，建议在成就面板或文档显式声明扩充来源。
+
+---
+
+## 三、结论
+- **9 项修复全部验证通过**（代码证据 + 回归 33/33 + 独立实测）。
+- **但发现 1 个 P0 新崩溃**（成就领取全断）、**3 个 P1 新死锁**（worldboss/flawless/abyss_clear——首轮"13 死锁"清单未覆盖），另有 P2×4、P3×5。P0-1 与 P1-3 修复成本极低（一行 + 数据 key 对齐），建议优先处理。
+- 全程只查未改；隔离测试环境已清理，仓库无新增改动。
+
+### NPC对话 验证包完整报告
+
+审计完成，所有证据链闭合。整理最终报告：
+
+---
+
+# 第二轮审计·NPC/对话验证包报告
+
+**范围**：npcs.py / dialogues.py / wild_npcs.py / core/dialogue.py / core/wild.py / world.py（对话/交互段）+ talk_actions.py / dialogue_conds.py
+**方法**：回归测试实跑（`tests/test_v104_npc_dialogue.py` → **63 断言 0 失败**）+ 2 个只读审计脚本（结构扫描 + 行为模拟，测试库隔离，未改插件任何文件）
+
+---
+
+## 一、修复验证表（v104 批次 2/3，8/8 ✅）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 4 隐藏 NPC 解锁路径可达 | ✅ | h_owl/h_grave_king/h_timeless 改 flag 类、设置点 NPC 存在（w_lore_master/w_war_ghost/w_bard_roaming），`_grant_wild_unlock_flags`（world.py:2243）交谈即授予；h_librarian 改 `quest_done:q11_3`（wild_npcs.py:363），q11_3 主线存在，副本 id 兼容 battle_state cleared（wild.py:76-83）。测试 1 段 15 断言全过 |
+| 2 | unlock_met 扫全量 flag 桶 | ✅ | wild.py:56-60 `any(flag in get_talk_flags(...) for nid in ALL_WILD)`，跨 NPC 桶 flag 实测解锁成功 |
+| 3 | 镇长 dogs 死路兜底 | ✅ | dialogues.py dogs_pledge 节点含 quest_active/quest_ready 兜底选项，q1_1 进行中/待交付均非空（测试 3 段 6 断言） |
+| 4 | 行会新人 welcome 接 q1_2 | ✅ | welcome 含 quest_pending + quest_take 选项，见习/已就职双态实测可达（测试 4 段 5 断言） |
+| 5 | 未知条件键告警 | ✅ | dialogue.py:45-56：测试库（GWEN_GAME_DB 含 test）抛 ValueError，生产 warning 放行 |
+| 6 | 酱油 NPC lines 补 40 个 | ✅ | 实测 92 个带 lines（2条×26 + 3条×66），无空串、无单条死档（抽查 10 个全过） |
+| 7 | teach 实装 | ✅ | `_TEACH_SKILL_MAP`（world.py:2271）3 NPC × 8 职业；`_teach_by_npc` 等级门槛+学费+learned_skills 落库，重复学/等级不足均有提示（测试 7 段 14 断言） |
+| 8 | 采集导师名统一 | ✅ | prof_config.PROF_TUTORS[gather] 与 npcs.py npc_herb_master 均为『草药师·艾琳』，带 apprentice func |
+
+---
+
+## 二、新问题清单
+
+**P1-1｜16 个"假功能 NPC"双重定义冲突，任务承诺断链 + 随机配置全失效**
+- 位置：`game/data/npcs.py:1137-1263`（前段定义，16 个 id）+ `npcs.py:2613+` 随机配置区（同 id 二次定义，128 个酱油 NPC 的标准合并模式，Python dict 后者覆盖）
+- 问题：这 16 个 NPC 前段带 `funcs=['quest']` 或 `['lore']`，后段又配了 roam/appear/lines：
+  - **funcs 非空 → 引擎铁律忽略随机配置**（wild.py:262 `if npc.get("funcs"): return True`、wild.py:293 `town_npc_dialogue` 同）→ 它们的 roam/appear/period/**lines 全部死数据**，v104 补的 40 条 lines 中约 16 个白补（测试 6 抽查 10 个里就有 4 个命中）；
+  - **11 个 `funcs=['quest']` 无任何任务可发**（SIDE_QUESTS/MAIN_QUESTS giver 均无）——但 dialogue 文案全是任务口吻（"帮我清一批野狗"/"帮我把水鬼赶走"），玩家对话会被 `_take_main_quest` 回"我现在没有任务交给你"（world.py:1817）误导。属 v101.30"内容断链修复"同类漏网。
+- 涉及：npc_boar_hunter、npc_border_quartermaster、npc_deer_forester、npc_dock_foreman、npc_gold_farmchief、npc_knight_instructor、npc_mine_miner、npc_river_ferryman、npc_windmill_miller（quest 假挂）；npc_oak_shepherd、npc_emerald_hunter、npc_swamp_fisher、npc_valley_fisher、npc_gorge_stonecutter、npc_kingroad_gravekeeper（lore 假挂，lore 字段有内容故仅随机失效）
+- 修法方向：二选一——去 funcs 回归纯酱油（随机生效），或去后段随机配置留功能 NPC；quest 口吻者补真实支线。
+
+**P2-1｜h_mystery_merchant day_of_week 顶层死键，周五限定失效**
+- 位置：`game/data/wild_npcs.py:275`（`"day_of_week": [5]` 在 condition 外）
+- `base_conditions_met` 只读 `cond.get("day_of_week")`（wild.py:131-133），顶层键永不判定 → 该 NPC `chance=None` + roam 5 图 → **每天都必现**，"周五集市"设定作废（v104 修 unlock 类死键时漏掉的同构数据位错）。
+
+**P3-1｜npc_abbess 功能 NPC 白补随机配置**
+- 位置：`game/data/npcs.py:204`（funcs=['quest','lore']，真发 q4_1~q4_5/s7）+ 随机区 lines=2
+- 引擎忽略其 lines/roam（funcs 非空）→ 死数据，仅数据卫生问题（不误导玩家）。
+
+**P3-2｜对话会话跨天/跨时段不过期**
+- 位置：`game/commands/world.py:2693`（talk_choice 惰性失效仅校验 `npc_map_id == cur_map`）
+- 城镇 NPC map 固定 → period=night 的 NPC（醉汉/巡夜人/更夫）白天仍可继续对话，roam 已游走的 NPC 对话不断。体验级，无崩溃/卡死（玩家可回复 0 退出）。
+
+---
+
+## 三、重点扫描项确认无问题 ✅
+
+- **对话树 quest_take 覆盖率（22 树）**：4 个主线 giver 树 × 9 条主线接取/交付链全部可达（welcome→quest_talk/quest_done_talk，pending/ready 双态实测）；5 个支线 giver 树 side_offer 全部可达
+- **对话树结构**：22 树 0 悬空 next、0 孤儿节点、0 自循环、0 未知 need 键（give_prof_exp 为 unlock_prof 子键，talk_actions.py:156 内部读取，合法）
+- **对话条件 flag 跨桶**：22 树 flag 条件引用为 0 → 不存在 unlock_met 同构问题（_talk_ctx 只查本 NPC 桶但无人跨桶引用）
+- **隐藏 NPC 保底（7 次必出）**：random 恒失败模拟 → 第 8 次调用必出（wild.py:169-172），计数/清计数正确
+- **日期哈希确定性**：同日期多次调用结果一致；92 个酱油 NPC 台词连续 7 天分布正常；roam 子区域归属全合法；period 值全部合法（morning/day/evening/night）
+- **隐藏 NPC unlock 全量引用**：flag:saw_the_rift 有事件授予点（events.py:320）；quest:s12/s15/s28/s34/q12_6 与 quest_done:q11_3 任务全存在；h_gravekeeper/h_librarian 的 quest 字段（s_hidden_ember/s_hidden_library）任务存在且 giver 对应
+
+**分级汇总**：P0 × 0 ｜ P1 × 1（16 NPC 假功能）｜ P2 × 1（day_of_week 死键）｜ P3 × 2。新增问题均与 8 项修复无冲突，修复本身无回归。
+
+**产物**：审计脚本 `C:\Users\yuyu\AppData\Local\hermes\workspace\audit_npc_dialogue_round2.py` / `_round2b.py`（只读，未修改插件任何文件）。
+
+### 命令框架 验证包完整报告
+
+# 第二轮审计·命令框架验证包报告（v104 批次 2/3）
+
+**审计方式**：git diff 比对（b477bd8/ef95d7f）+ 全量测试实测 + 独立 AST/正则扫描脚本（只读，未改插件任何文件）。测试 Python 实测：`test_v87_command_matrix.py` **180 通过 0 失败**；`test_v104_commands_system.py` **248 通过 0 失败**。
+
+---
+
+## 一、修复验证表（8 项）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 4 组双 handler 前缀冲突（副业任务/转职重置/烹饪列表/副本地图） | ✅ | 装饰器侧与注册表双侧同步收窄：`副业(?!任务)` economy.py:1131、`转职(?!重置)` player.py:423、`烹饪(?!列表)` economy.py:995、`副本(?!地图)` instance.py:29；独立扫描 138 个候选命令词 **0 个 >1 命中**（豁免组外）；矩阵测试『副业任务』『转职重置』『烹饪列表』『副本地图』均恰好 1 命中 |
+| 2 | GM 白名单默认拒绝（无配置时提权封堵） | ✅ | gm.py:165-173 `_gm_auth` 无白名单→`return False` + 提示配置 GWEN_GM_QQ，私聊回退分支已删除；测试 2（test_v104_commands_system.py:138-172）三场景实测：空白名单拒 / 库白名单放行 / env 放行，全部通过 |
+| 3 | gm_伤害 无 require_player | ✅ | gm.py:753 装饰器已移除（diff 确认）；测试 3（:176-191）无角色 GM 身份 `gm_伤害 10` 不被 REGISTER_HINT 拦且正常执行；另核查 **gm.py 全部 19 个 gm_ handler 均调用 `_gm_auth`**（20 次引用=定义+19 调用），无漏鉴权 |
+| 4 | 停服 gate 补全（物品/周围/离开副本） | ✅ | 注册表 `(?:背包\|物品)(?!详情\|筛选)`、`(?:地图\|位置\|周围)`、`instance_leave` 与装饰器同步（economy.py:2467、world.py:439、instance.py:287）；测试 5 实测『物品 2』『周围』『离开副本』被 gate 拦截并停传播、日常聊天不误拦、GM 放行、开服放行 |
+| 5 | 『移动』别名注册 | ✅ | world.py:624 `(?:前往\|移动)(?!开始\|结束)`；测试 4 实测『移动 1』与『前往 1』**回复逐字等价**、落点一致，『前往开始』不被 move 抢；矩阵 EXTRA_POSITIVE『移动』→ move ✅ |
+| 6 | 帮助补全（声望商店等） | ✅ | CMD_HELP_WORLD 有声望商店；主帮助补 转职重置/交互/荣誉/竞拍/接取/编年史/『副本内: 副本地图 调查 撤退』；新增『其他』分类（CMD_HELP_OTHER + _HELP_MAP:190）；关键词子串级确认：声望商店/转职重置/副业任务/烹饪列表/副本地图/移动/物品 全部在帮助中 |
+| 7 | _fix_handler_module_paths 不静默吞异常 | ✅ | main.py:54-60 matched==0 → **WARNING**；82-87 注册表漂移（missing/extra 差集）→ **WARNING**；88-92 异常 → **ERROR + exc_info**。三层均不再静默 |
+| 8 | 命令矩阵测试存在 | ✅ | tests/test_v87_command_matrix.py（281 行，A-F 六组断言：1:1 一致性/互斥矩阵/负面/正向/gate 覆盖/重复模式）；实测运行 **180/0 通过**，gate 覆盖 171 个矩阵样本 |
+
+---
+
+## 二、新问题清单
+
+| 级别 | 问题 | 位置 |
+|------|------|------|
+| **P2** | **GM 白名单默认拒绝后，正常部署路径文档缺失且旧文档矛盾**：修复后行为=未配置一律拒绝，但 DEVELOPMENT.md 全文 **0 处** GWEN_GM_QQ 说明（grep 确认），新部署管理员无从得知需设此环境变量（代码错误提示 gm.py:173 是唯一指引）；且 playtest-report.md:206 仍写"未配置时仅私聊放行（群聊拒绝）"——与 v104.1 新行为**直接矛盾**，运维按旧文档会误判 GM 通道可用 | playtest-report.md:206；DEVELOPMENT.md（缺失章节） |
+| **P3** | gm_status 文案失真：`GM 名单：(未配置，私聊可用)`——未配置时私聊**已不可用**，文案应改为提示配置 GWEN_GM_QQ | game/commands/gm.py:276 |
+| **P3** | 帮助缺失 3 个注册命令：『背包筛选』（CMD_HELP_ITEM）、『公会捐献』（CMD_HELP_SOCIAL 公会行）、『离开副本』（CMD_HELP_INSTANCE——主帮助只有"副本地图 调查 撤退"）。『离开副本』是副本内核心出口指令，缺失影响可发现性 | game/commands/misc.py:125-158 |
+| **P3** | 『移动开始/结束』0 命中：move 负前瞻排除 + 开关仅注册『前往开始/结束』（world.py:2021）。『移动』别名复活后此不对称更易踩中——玩家按主指令习惯输『移动开始』将无响应落入 LLM。v101.17 遗留，非本次回归 | game/commands/world.py:624 / 2021 |
+
+---
+
+## 三、重点扫描结论（无问题项）
+
+- **注册表一致性**：注册表 **144 键**（含 `_maint_gate`；公开键 143，与任务描述一致）↔ 装饰器 **144 方法**，独立 AST 扫描：**零差集、零模式漂移**（与矩阵测试 A 组互证）。
+- **前缀式冲突全量扫描**：138 个命令词 + 词前缀扩展实测，**豁免组外无任何 >1 命中**——4 组冲突修复未引入新冲突，批次 2/3 新增命令（rep_shop/guild_donate/instance_leave/移动别名）互斥干净。
+- **帮助幽灵词**：帮助『』提及词全部可命中注册命令，**无幽灵词**。
+- **GM 部署路径**：代码侧错误提示明确指向 GWEN_GM_QQ（可自发现），仅文档侧缺失（P2 如上）。
+
+**本次审计零改动**（仅在工作区生成 3 个审计脚本：audit2_cmd_check.py / audit2_cmd_check2.py / audit2_help_check.py，可复跑）。建议：P2 文档矛盾优先修（playtest-report.md:206 一句话 + DEVELOPMENT.md 补 GM 部署章节），P3 四项可随下批次顺手处理。
+
+### 探索事件 验证包完整报告
+
+# 第二轮审计·探索事件验证包（只查不改）
+
+**范围**：`game/commands/combat.py`（探索段 51-64/400-530）、`game/data/events.py`、`game/data/pois.py`、`game/data/props.py`、`game/core/events.py`（+消费侧 battle.py / economy.py / world.py）
+**方法**：git diff 追溯（b477bd8 批次2 / ef95d7f 批次3 / e78ac70 批次1）+ 静态审读 + 脚本一致性检查 + 回归测试实测（test_v104_battle_skills 27/27 PASS、test_v104_explore_map 68/68 PASS）。
+
+## 一、修复验证表（8 项）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 神龛 buff 只写不读→已消费 | ✅ | 写：combat.py:532-533（`poi_buff_{qq_id}`，含 stat/mult/left/name）；消费：battle.py:124-146（战斗开始读取→left-1→用完删 key）；生效：battle.py:764-767（_player_stats 对应属性×1.10）；战斗提示：combat.py:181-183。测试 test_v104_battle_skills.py:144-166 实测「读取/递减/加成 48→52/删键」全过 |
+| 2 | 鱼群聚集免费垂钓→消费侧 | ❌ **未实现** | 写：combat.py:588-589（`poi_fish_{gid}_{qid}`，{ts,window:1800}）；**消费方不存在**——economy.py 垂钓段（1292-1338）无任何 poi_fish 读取/删除，全库 grep 仅 combat.py 写点。玩家命中 POI 后垂钓无任何优惠，key 永久残留，「这次不消耗次数」文案落空 |
+| 3 | 雨事件遇怪率提升 | ✅ | 写：events.py:75-80（`rain_{gid}_{qid}`，tpl_set_state 占位符替换与读取键一致，event_templates.py:227）；读：combat.py:427-440 `_rain_boost`（1800s 窗口，兼容裸 ts）；让渡：combat.py:131-135（事件概率 0.35→0.20，等价遇怪率 65%→80%，+15pp 数学正确）。测试 test_v104_battle_skills.py:170-186 过 |
+| 4 | 4 孤儿 prop 已定义+交互不崩 | ✅ | 定义：props.py:534-586（stall/well/washing_line/haystack）；已挂载：props.py:911-916；材料池 ID 全部存在（脚本验证，无缺失）；交互兜底：world.py:2354-2357（显示列表与序号交互同源过滤，无 KeyError） |
+| 5 | 壁炉满血不吞次数 | ✅ | world.py:2478-2489：heal 分支 `missing<=0` 时只出氛围文案，**不调用 mark_props_use**（每日次数不吞） |
+| 6 | 7 处 POI 键覆盖（功能+风景共存） | ✅ | ef95d7f 合并 7 处：oak_plain_3/emerald_forest_3/starlake_3/frost_field_3/cinder_mountain_3/dragon_ridge_3/coral_reef_3（pois.py:81-104）；脚本验证 SUBAREA_POIS 现无任何重复键；POI 无序号交互（探索随机触发），显示列表 world.py:111-117 与触发同源 |
+| 7 | 城镇探索冷却（60s） | ✅ | combat.py:66-75：`town_explore_cd_{gid}_{qid}` 60s 拦截+文案，命中 POI 前先扣冷却 |
+| 8 | 探索去重 KeyError（{qq_id}） | ✅ | combat.py:473 占位符 `{qid}`→`{qq_id}`，.format(gid=,qq_id=) 调用一致（477/489）；全库无其他使用点 |
+
+## 二、新问题清单
+
+- **P1｜免费垂钓消费契约缺失（批次2声称修复但未实现）** — combat.py:584-591 注释写明「垂钓命令读取方」契约，但 economy.py:1292-1338 垂钓命令无实现；`poi_fish_*` 键只写不读。玩家被文案误导以为免费，实际垂钓照扣 5 体力+等待；键永久残留。需在 fishing() 入口读键（窗口内免体力/免等待一次并删键）或移除该 POI。
+- **P2｜festival 事件 desc 与效果不一致** — data/world.py:19-20 desc 承诺「教堂治疗免费，经验＋20%」，实际仅 combat.py:1398-1400 金币×1.5 + misc.py:255-256 签到×2；经验+20% 与教堂免费治疗均未实现。
+- **P2｜omen 事件 desc 与效果不一致** — data/world.py:15-16 desc「野外怪物变强，副本掉落大幅提升」未实现；实际 combat.py:1392-1394 为经验金币×1.5（展示层 world_event_templates.py:61 与效果一致，但与 POOL desc 自相矛盾）。建议统一三处文案。
+- **P3｜event_state 键无 TTL 永久滞留** — town_explore_cd（combat.py:67）、rain（events.py:78）、poi_fish（combat.py:588）、explore_recent（combat.py:473）均只写不删；注销时按 `_{qq}` 后缀可清（store/players.py:336-349），但活跃玩家跨天残留、表无限膨胀。**功能无影响**（时间戳自比较，跨天不误锁——已验证比较逻辑），属卫生问题，建议加过期清理。
+- **P3｜篝火 POI 满血文案误导** — combat.py:511-524 满血时仍显示「恢复 30% 生命」（实际 0，min 截断），与 v95.16 #76 食物文案修复同类问题，POI 版未修；因附送食材影响轻微。
+- **P3｜测试覆盖缺口** — 城镇探索冷却（60s）无任何测试断言；雨事件遇怪率提升仅有源码字符串静态断言（test_v104_battle_skills.py:182），无行为级验证。
+
+## 三、验证通过项（无问题）
+
+- 探索彩蛋：EXPLORE_EGG_CHANCE=0.005 与注释权重 249 一致（实际 EXPLORE_EGG_SUM=249 ✅），30 蛋事件 id 无重复，区域彩蛋 maps 引用 116 张地图全部有效（脚本验证）；许愿井彩蛋概率已独立常量 WISH_WELL_EGG_CHANCE=0.05（world.py:33）
+- 探索事件池：30 事件权重 189、id 无重复；spring→heal_full 满血满蓝与文案一致（event_templates.py:198-204）；omen 探索事件（exp_gain）无只写不读
+- 去重 exclude 逻辑与 30 事件池兼容
+
+**总结**：8 项修复中 7 项通过（代码+测试双重证据），**第 2 项（鱼群聚集免费垂钓）未通过——消费侧从未实现，属批次2遗留 P1**。新发现问题 6 个（P1×1、P2×2、P3×3），无 P0。全程只读，未修改任何文件；临时校验脚本已清理。
+
+### 地图移动 验证包完整报告
+
+验证完毕，全部证据收集完成。整理最终报告。
+
+---
+
+# 第二轮审计·地图移动验证包 — 验证报告
+
+**验证方法**：git 提交级 diff 核验（b477bd8 批次2 / ef95d7f 批次3 / f480441 补测）+ 数据脚本加载 maps/subareas/portals 全量分析 + 公式推算。只读，未改任何文件。测试脚本存于 workspace（`audit2_map_analysis.py` / `audit2_map_verify2.py`）。
+
+## 一、修复验证表（10 项）
+
+| # | 修复项 | 结果 | 证据 |
+|---|--------|------|------|
+| 1 | 7 城镇旅店补齐 | ✅ | `b477bd8` diff 确认 7 处 `healer: False→True`：moon_court_3 月影卫营 / anvil_fort_2 铁砧议会厅 / dragon_pass_2 龙裔长老堂 / nameless_harbor_2 港务厅 / pearl_city_2 城主府 / ember_camp_2 营长帐 / wind_city_2 云翼议会厅（subareas.py，各带 M22 注释）。实测 27 个城镇区域中 26 个有 healer 子区域 |
+| 2 | deep_tunnel 中央大厅商店 | ✅ | `deep_tunnel_2 中央大厅 shop=True funcs=['quest','shop']` |
+| 3 | HIDDEN_MAP_UNLOCK 死配置清理 | ✅ | maps.py:4190-4197 仅剩 2 条（lost_library/ember_corridor），与 maps 中 hidden 地图集合**完全一致**；消费方 achievement_conds.py:207-219 同步注释 |
+| 4 | 回城卷轴落广场 | ✅ | item_templates.py:351-356 落 `subareas[0]`（M22 注释，与方碑传送/战败回城落点对齐） |
+| 5 | 『移动』别名 | ✅ | _registry.py:84-86 `(?:前往\|移动)(?!开始\|结束)`；world.py:622-632 别名参数剥离 + 移动模式开关保护 |
+| 6 | 战斗中移动/探索拦截 | ✅ | world.py:638-641 移动、combat.py:56-58 探索（M24 P2）、world.py:1102-1104 传送；`使用`命令 economy.py:2975-2977 按 META battle_ok 拦截（回城卷轴无 battle_ok → 战斗中不可用） |
+| 7 | 街道链补晨曦/月冠 | ✅ | dawn_city_street 圣光大道+王都城门、moon_court_street 月华长街+月庭宫门均存在；subarea_links（core/maps.py:44-88）街道→[出口,广场]、出口→[街道] **双向连通**；MAP_CONNECTIONS 全量双向、无孤立图、无悬空引用 |
+| 8 | 撞怪优先入口子区域 | ✅ | world.py:980-994 `_travel_ambush` 优先取 `map_entry_subarea` 怪物池，入口无怪才按序扫描。实测 73 张野外图入口怪等级与地图 lv 偏差 ≤2，**无"入口无怪被深处高等级怪秒"场景** |
+| 9 | 战败回就近城镇 | ✅ | combat.py:1663-1682 BFS（d<6 截断）+ 1700-1707 落目标城 `subareas[0]` 广场并满血；实测 15 个特殊地图 1-4 跳内到达合理城镇（lost_library→晨曦城 3跳、abyss_throne→灰烬营地 3跳） |
+| 10 | 传送/回城卷轴区分 | ⚠️ 部分 | item_templates.py:362-401 传送卷轴=方碑锚定（战斗中拦截/无锚点提示/同城不消耗/落地清对话），与回城卷轴（最近城镇）已区分 ✅；但**"指定城镇传送"未实现**——只能传"最后激活的方碑"（369 行注释自述 cmd_use 不透传参数）。items.py:1953 desc 已如实说明，属已知限制 |
+
+## 二、新问题清单
+
+| 级别 | 问题 | 位置 |
+|------|------|------|
+| **P2** | **副本战败回城未走就近城镇**：`_instance_defeat` 固定送回 `C.START_MAP`（橡木镇）+ hp=0，与 M22 P3 刚修复的"战败回就近城镇"（combat.py:1700）不一致——Lv.60+ 玩家在高级副本团灭仍被送回 Lv.1 图，M22 P3 想根治的场景在副本路径原样存在 | instance.py:1733 |
+| **P2** | **传送卷轴无法指定城镇**：需求为"指定城镇传送"，实现为最后激活锚点（菜单式选城需命令层传参，未做）。玩家持有多个方碑时无法定向 | item_templates.py:368-369、economy.py cmd_use |
+| **P3** | **铁港城旅店 funcs 缺 heal**：ironharbor_5 铁锚酒馆 `healer=True` 但 `funcs=['lore']`——住宿命令可用，但『地图』"可互动"行按 funcs 过滤不显示"住宿"（world.py:901-902），且 lore 因无讲故事 NPC 被 #232 过滤 → 铁锚酒馆可互动行为空，与设施行"🏨 旅店"提示不一致 | subareas.py ironharbor_5、world.py:893-908 |
+| **P3** | **"贵族传送卷"命名误导**：i_scroll_noble（800金）effect=`return_vila`（回**最近**城镇），与 i_scroll_teleport"传送卷轴"（方碑锚定）语义相反，名字易误导玩家购买预期 | items.py:2187 |
+| **P3** | **回城卷轴家族性价比混乱**（纯数值观察）：复活羽毛 200 / 营地回城卷 200 / 公会回城卷 300 / 贵族传送卷 800，效果完全相同（return_vila），价差 4 倍无梯度理由 | items.py:1958/2183/2185/2187 |
+
+## 三、扫描结论（重点项均无问题）
+
+- ✅ 方碑激活校验充分：必须身处方碑图 + 首个子区域（world.py:1065-1076），传送卷轴使用时再过滤 MAP_BY_ID（item_templates.py:375）
+- ✅ 7 城旅店住宿费曲线：Lv.100 = `int(500×√hp_stage_mult(100)=4.6)//100×100 = 1000金` 公式成立（world.py:3095-3101）
+- ✅ 隐藏/特殊地图战败回城全部可达（BFS 1-4 跳，无超限回落橡木镇）
+- ✅ 传送落点（方碑/回城卷/战败）三处统一 subareas[0]
+
+**未修改任何文件**；如需修复 P2-1 可参照 combat.py `_nearest_town` 在 `_instance_defeat` 复用同款 BFS。
