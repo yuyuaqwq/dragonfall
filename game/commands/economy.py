@@ -858,10 +858,12 @@ class EconomyCmds(CommandBase):
                 if it["key"] == m or it["data"].get("name") == C.display("materials", m):
                     db.remove_item(group_id, qq_id, it["key"], cnt)
                     break
-        # 发料理（读 ITEMS 定义）
+        # 发料理（读 ITEMS 定义；v101.28i 修复：必须带全效果字段 food_effect/hot/hot_turns/hot_mana，
+        # 否则烹饪出的词条料理在战斗里没有特殊效果）
         pkey = next(iter(r["product"]))
         itdef = C.ITEMS.get(pkey, {})
-        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **({k: v for k, v in itdef.items() if k in ("heal", "mana", "effect", "stamina")})})
+        _fx_fields = ("heal", "mana", "effect", "stamina", "hot", "hot_turns", "hot_mana", "food_effect")
+        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **({k: v for k, v in itdef.items() if k in _fx_fields})})
         # 副业经验
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "cooking", 1)
         lv_msg = ""
