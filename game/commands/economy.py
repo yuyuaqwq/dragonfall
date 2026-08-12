@@ -1095,6 +1095,9 @@ class EconomyCmds(CommandBase):
         if old_lv is None:
             yield event.plain_result(f"{db.PROF_FIELDS[key]} 本来就没激活，不用遗忘～")
             return
+        # v103.0 修复（round103 小红抓包）：遗忘副业必须清等待状态——否则遗留的
+        # 挖掘/垂钓结算会在下次做其他等待型副业时串台（"采集"输出"矿脉敲开"）
+        self._prof_wait_clear(group_id, qq_id)
         yield event.plain_result(
             f"📦 你遗忘了「{db.PROF_FIELDS[key]}」(原 Lv.{old_lv}，已清零)！\n"
             f"副业位空出({len(db.get_activated_profs(group_id, qq_id))}/{db.MAX_ACTIVE_PROFS})，下次做副业时自动占位。"
@@ -2552,6 +2555,10 @@ class EconomyCmds(CommandBase):
             return C.generate_roster_equip(ids[0])
         eq = C.generate_equip("weapon", wlv, wq, wtype)
         eq["name"] = wname
+        # v103.0 修复（round103 小蓝抓包）：generate_equip 的 desc 用随机 roll 出的名字生成
+        # （如"烈焰长弓"），覆盖固定名后必须同步重写 desc，否则物品名与描述不符
+        # （硬木战弓 desc 曾写"烈焰长弓——冒险途中得来"）
+        eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
