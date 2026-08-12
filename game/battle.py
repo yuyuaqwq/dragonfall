@@ -77,7 +77,7 @@ class Battle:
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
-        self.p_food_affixes: list = []     # v101.28c 食物词条（战斗中吃料理获得的临时词条 ID，本场有效）
+        self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
@@ -134,7 +134,7 @@ class Battle:
             "pet": self.pet,
             "p_buffs": self.p_buffs,
             "p_hot": self.p_hot,
-            "p_food_affixes": self.p_food_affixes,
+            "p_food_effects": self.p_food_effects,
             "p_shields": self.p_shields,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
@@ -159,7 +159,7 @@ class Battle:
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
         b.p_hot = st.get("p_hot", {}) or {}
-        b.p_food_affixes = st.get("p_food_affixes", []) or []
+        b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
         if not b.p_shields and st.get("shield"):
             # v101.28d 旧格式兼容：旧 shield 数值 → 无期限护盾（与旧行为一致：破盾前一直有效）
@@ -423,17 +423,17 @@ class Battle:
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
-        if payload.startswith("affix:"):
-            # v101.28c 食物词条：affix:词条ID,词条ID（本场战斗有效）
-            aids = [a for a in payload[6:].split(",") if a]
+        if payload.startswith("foodfx:"):
+            # v101.28e 食物效果：foodfx:效果ID,效果ID（本场战斗有效，独立于装备词条）
+            aids = [a for a in payload[7:].split(",") if a]
             for a in aids:
-                if a not in self.p_food_affixes:
-                    self.p_food_affixes.append(a)
-            # 护盾词条特判：词条效果是'战斗开始获得护盾'，战斗中吃立即给（3 回合）
+                if a not in self.p_food_effects:
+                    self.p_food_effects.append(a)
+            # 护盾效果特判：立即获得 10% 生命护盾（3 回合）
             if "shield" in aids:
                 self._add_shield("food_shield", int(player.get("max_hp", 100) * 0.10), 3)
-            names = [((C.AFFIXES.get(a) or C.LEGENDARY_EFFECTS.get(a) or {}).get("name") or a)
-                     for a in aids]
+            from .core.food_effects import FOOD_EFFECT_NAMES
+            names = [FOOD_EFFECT_NAMES.get(a, a) for a in aids]
             logs.append(f"🍲 你吃下了料理，获得【{'、'.join(names)}】效果！(本场战斗)")
             return logs
         if payload.startswith("hot:"):
@@ -739,6 +739,7 @@ class Battle:
         self._apply_enchant_attack(effs, dmg, st, player, logs)
         # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
         self._affix_on_hit(player, dmg, logs)
+        self._food_on_hit(player, dmg, logs)
         self._set_attack_proc(player, dmg, logs)
         # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
         self._resource_on_attack(player)
@@ -825,8 +826,7 @@ class Battle:
             ids.extend(item.get("affixes", []) or [])
             if item.get("legendary"):
                 ids.append(item["legendary"])
-        # v101.28c 食物词条（战斗料理本场有效）
-        ids.extend(getattr(self, "p_food_affixes", []) or [])
+        # v101.28e 食物效果独立成体系，不再合并进装备词条（p_food_effects 由 food 挂点消费）
         return ids
 
     def _set_bonus_5(self, player: dict) -> list:
@@ -911,6 +911,14 @@ class Battle:
         if "precise" in ids:
             mult *= 1.10
             tags.append("🎯精准")
+        # v101.28e 食物效果倍率（处决/精准，独立于词条；龙语印记层数共用 mech_stacks 自动生效）
+        foods = getattr(self, "p_food_effects", []) or []
+        if "execute" in foods and hp_ratio < 0.30:
+            mult *= 1.30
+            tags.append("💀处决")
+        if "precise" in foods:
+            mult *= 1.10
+            tags.append("🎯精准")
         dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
         if dm:
             mult *= 1 + 0.02 * dm
@@ -971,6 +979,39 @@ class Battle:
         from .core.affix_effects import TURN_START_EFFECTS
         for fn in TURN_START_EFFECTS.values():
             fn(self, player, logs)
+
+    # ---------------- v101.28e 食物效果挂点（独立于装备词条） ----------------
+    def _food_on_hit(self, player: dict, dmg: int, logs: list):
+        """攻击命中后料理效果触发（吸血/流血/破甲/连击/龙语印记/元素/贯穿/蓄力）。"""
+        if not self.p_food_effects or self.enemy.get("hp", 0) <= 0:
+            return
+        from .core.food_effects import FOOD_HIT_EFFECTS
+        for key in self.p_food_effects:
+            fn = FOOD_HIT_EFFECTS.get(key)
+            if fn:
+                fn(self, player, dmg, logs)
+
+    def _food_on_taken(self, player: dict, dmg: int, logs: list) -> int:
+        """受击料理效果（反击/反伤）。返回结算后伤害（当前食物效果不改减伤，透传）。"""
+        if not self.p_food_effects:
+            return dmg
+        from .core.food_effects import FOOD_TAKEN_EFFECTS
+        ctx = {"dmg": dmg, "out": dmg}
+        for key in self.p_food_effects:
+            fn = FOOD_TAKEN_EFFECTS.get(key)
+            if fn:
+                fn(self, player, ctx, logs)
+        return ctx["out"]
+
+    def _food_turn_start(self, player: dict, logs: list):
+        """回合开始料理效果（回春/冥想/晨曦祝福）。"""
+        if not self.p_food_effects:
+            return
+        from .core.food_effects import FOOD_TURN_START_EFFECTS
+        for key in self.p_food_effects:
+            fn = FOOD_TURN_START_EFFECTS.get(key)
+            if fn:
+                fn(self, player, logs)
 
 
     def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
@@ -1257,6 +1298,8 @@ class Battle:
         self._apply_enchant_attack(effs, total, st, player, logs)
         # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
         self._affix_on_hit(player, total, logs)
+        # v101.28e 攻击命中后料理效果触发
+        self._food_on_hit(player, total, logs)
 
         # ---- 分支机制结算（v29） ----
         self._last_player = player
@@ -1658,6 +1701,7 @@ class Battle:
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(失血过多)")
         # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
+        self._food_turn_start(player, logs)
         # 圣光/永恒套：每回合开始回复生命
         for eff in E.set_bonus_4(player.get("equipment", {})):
             if eff in ("regen", "regen_strong") and player.get("hp", 0) < player.get("max_hp", 1):
@@ -1728,6 +1772,7 @@ class Battle:
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
         dmg = self._affix_on_taken(player, dmg, logs)
+        dmg = self._food_on_taken(player, dmg, logs)
         # v64 被动·铁壁之心/磐石体：受到伤害时减伤 5%
         pv = E.passive_skills_learned(player.get("class_name", ""), player.get("learned_skills", []))
         if "铁壁之心" in pv or "磐石体" in pv:
