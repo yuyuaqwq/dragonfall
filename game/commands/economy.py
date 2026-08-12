@@ -2820,6 +2820,10 @@ class EconomyCmds(CommandBase):
                     return
                 ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
                 r = IT.TEMPLATES[tpl_name](ctx)
+                if not r.consume:
+                    # v104 M02 P1-5：满血/满蓝拦截——不扣道具、不消耗回合（敌方不动）
+                    yield event.plain_result(r.text)
+                    return
                 if r.consume:
                     db.remove_item(group_id, qq_id, target["key"])
                 if d.get("stamina"):
@@ -2844,6 +2848,10 @@ class EconomyCmds(CommandBase):
             b = BT.Battle.from_state(battle["state"])
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
             r = IT.TEMPLATES[tpl_name](ctx)
+            if not r.consume:
+                # v104 M02 P1-5：满血/满蓝拦截——不扣道具、不消耗回合（敌方不动）
+                yield event.plain_result(r.text)
+                return
             if r.consume:
                 db.remove_item(group_id, qq_id, target["key"])
             # v94 体力：战斗中使用食物恢复体力（不占回合结算显示）

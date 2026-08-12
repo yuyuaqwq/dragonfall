@@ -329,7 +329,7 @@ def set_skill_bar(qq_id, bar: list):
 DELETE_TABLES = (
     "inventory", "quests", "battle_state", "achievements", "stats",
     "reputation", "signin", "fishing", "bestiary", "visited",
-    "player_groups", "professions", "pets",
+    "player_groups", "professions", "pets", "props_use", "pet_dex",
 )
 
 def delete_player(qq_id):
@@ -337,8 +337,8 @@ def delete_player(qq_id):
 
     清理表：inventory / quests / battle_state / achievements / stats /
     reputation / signin / fishing / bestiary / visited / player_groups /
-    professions / pets / market(卖出) / party(队长或队员) / guild_members /
-    feedback(保留历史意见，仅清空 qq 归属标记由 create 重建)。
+    professions / pets / props_use / pet_dex / market(卖出) / party(队长或队员)
+    / guild_members / feedback(保留历史意见，仅清空 qq 归属标记由 create 重建)。
     返回是否删除成功（False = 该 qq 无角色）。
     """
     with _lock:

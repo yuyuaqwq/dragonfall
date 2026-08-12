@@ -138,12 +138,17 @@ class PlayerCmds(CommandBase):
         cls_id = C.resolve("classes", first)
         class_name = first
         name = rest
+        glued = False
         if cls_id not in C.CLASSES:
             # 无空格注册兼容：职业名与角色名粘在一起（如"注册战士格温"）
             for cid, cinfo in C.CLASSES.items():
                 cn = cinfo.get("name", cid)
                 if first.startswith(cn):
-                    name = first[len(cn):] + (" " + rest if rest else "")
+                    # v104 P1：名字只取职业名之后部分，rest 保留给下方性别/种族解析。
+                    # 旧实现把 rest 拼进名字（"注册 战士格温 女" → 名字变"格温 女"），
+                    # 且非见习分支 extra 不含 rest → 性别丢失恒报"请选择性别"。
+                    name = first[len(cn):]
+                    glued = True
                     cls_id = cid
                     class_name = cn
                     break
@@ -175,7 +180,9 @@ class PlayerCmds(CommandBase):
         gender_id = ""
         _race_done = False
         # 新格式下 rest 可能是种族也可能是性别（如『注册 格温 男』）
-        extra = [rest, race_arg, gender_arg] if cls_id == C.CLASS_NOVICE else [race_arg, gender_arg]
+        # v104 P1：无空格旧格式（『注册 战士格温 女』）rest 是性别/种族词，必须参与解析；
+        # 带空格旧格式（『注册 战士 格温 女』）rest 是名字，种族/性别从 _args[2]/[3] 取。
+        extra = [rest, race_arg, gender_arg] if (cls_id == C.CLASS_NOVICE or glued) else [race_arg, gender_arg]
         for tok in extra:
             if not tok:
                 continue
@@ -200,7 +207,10 @@ class PlayerCmds(CommandBase):
             )
             return
         name = name.strip()[:12]
-        if not name:
+        # v104 P3：名字槽位是纯性别关键词（如『注册 男』『注册   女 精灵』）→ 视为没起名，
+        # 优先报"名字不能为空"而不是"请选择性别"（文案错位）。
+        # 注意：性别词永不可能成为合法名字槽（性别强制必选），故可安全拦截。
+        if not name or name.lower() in GENDER_MAP:
             yield event.plain_result("名字不能为空！格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』")
             return
         # v95.26 性别强制：注册必须选性别（男/女），无性别直接拒
@@ -517,7 +527,7 @@ class PlayerCmds(CommandBase):
             self._title_bonus(group_id, qq_id), player.get("race"))
         db.update_player(group_id, qq_id,
                          class_name="cls_bard", class_tier=0, evolve_path=0,
-                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=init_skills)
         player = self._player(group_id, qq_id)
         C.check_achievements(group_id, qq_id, player)
@@ -555,7 +565,7 @@ class PlayerCmds(CommandBase):
             self._title_bonus(group_id, qq_id), player.get("race"))
         db.update_player(group_id, qq_id,
                          class_name="cls_spellblade", class_tier=0, evolve_path=0,
-                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=init_skills)
         player = self._player(group_id, qq_id)
         C.check_achievements(group_id, qq_id, player)

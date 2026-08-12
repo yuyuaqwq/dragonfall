@@ -118,13 +118,25 @@ def infer_template(data):
 def tpl_heal(ctx):
     """生命恢复。heal <= 1 视为百分比（0.2=20%、1.0=100%），> 1 固定值（旧物品兼容）。
     战斗内：payload = 绝对恢复值（battle.player_turn 实际应用）。
-    战斗外：满血纯治疗拦截不消耗；复合物品（带 stamina/mana）满血仍可用。"""
+    战斗外：满血纯治疗拦截不消耗；复合物品（带 stamina/mana）满血仍可用。
+    v104 M02 P1-5：战斗内满血同款拦截（此前白扣道具+白送敌方一回合）。"""
     d = ctx.data
     heal_v = d["heal"]
     # <=1 视为百分比（0.2=20%；1.0=100% 完全回复），>1 固定值（旧式配方兼容）
     if heal_v <= 1:
         heal_v = int(ctx.player["max_hp"] * heal_v)
     if ctx.battle:
+        # v104 M02 P1-5：战斗内满血拦截（与战斗外同规则）——满血纯治疗不扣道具、
+        # 不消耗回合（consume=False 由 economy use() 短路，敌方不动）。
+        # 血量取权威来源：副本战斗读 st["players"] 快照（DB 可能过时，v95r76）；
+        # 普通战斗 hp 用 DB（每回合同步），上限用引擎实时值（DB max 换装/升级后
+        # 可能过时，对齐 battle.player_turn v95.19 刷新逻辑）。
+        if not d.get("stamina") and not d.get("mana"):
+            _hp, _max = _battle_cur_max(ctx, "hp", "max_hp")
+            if _hp >= _max:
+                return ItemResult(
+                    text=f"❤️ 你现在的生命是满的({_hp}/{_max})，用不着【{d['name']}】～",
+                    consume=False)
         return ItemResult(payload=str(heal_v))
     # 战斗外
     if ctx.player["hp"] >= ctx.player["max_hp"] and not d.get("stamina") and not d.get("mana"):
@@ -140,19 +152,59 @@ def tpl_heal(ctx):
         text=f"💊 你使用了【{d['name']}】，恢复 {heal_v} 点生命！\n❤️ {new_hp}/{ctx.player['max_hp']}{st_msg}")
 
 
+def _battle_cur_max(ctx, cur_key, max_key):
+    """战斗内当前值与上限的权威来源（v104 M02 P1-5 满血/满蓝判定用）：
+    - 副本战斗：st["players"][qq_id] 快照（引擎每回合刷新并写回，权威）
+    - 普通战斗：DB player（每回合 player_turn 后同步）；上限按引擎实时重算
+      （v95.19：DB max_hp/max_mp 换装/升级后可能过时，player_turn 开头也会刷新）"""
+    st = ctx.battle
+    if isinstance(st, dict):
+        snap = (st.get("players") or {}).get(str(ctx.qq_id))
+        if snap:
+            return snap.get(cur_key, 0), snap.get(max_key, 0)
+    from .. import engine as E  # 延迟导入（core 聚合链惯例）
+    try:
+        tb = (st or {}).get("title_bonus") or {}
+        real = E.player_final_stats(
+            ctx.player.get("class_name", ""),
+            ctx.player.get("level", 1),
+            ctx.player.get("equipment", {}),
+            ctx.player.get("class_tier", 0),
+            ctx.player.get("attributes"),
+            ctx.player.get("evolve_path", 0),
+            tb, ctx.player.get("race"))
+        return ctx.player.get(cur_key, 0), int(real.get(max_key, ctx.player.get(max_key, 0)))
+    except Exception:
+        return ctx.player.get(cur_key, 0), ctx.player.get(max_key, 0)
+
+
 @register("mana", battle_ok=True)
 def tpl_mana(ctx):
     """魔力恢复。mana <= 1 百分比（1.0=100%），> 1 固定值。
     战斗内：payload=f"mana:{绝对恢复量}"（battle.player_turn 的 _do_use_item
     识别 mana: 前缀回蓝并播报数字——v101.27 修"💊 你使用了战斗道具"无回复数值，
-    此前 payload="0" 只播报不回显；回蓝统一在 _do_use_item 应用，避免双份恢复）。"""
+    此前 payload="0" 只播报不回显；回蓝统一在 _do_use_item 应用，避免双份恢复）。
+    v104 M02 P1-5：战斗内/战斗外满蓝同款拦截（此前满蓝白扣道具）。"""
     d = ctx.data
     mana_v = d["mana"]
     # <=1 视为百分比（1.0=100% 完全回复），>1 固定值
     if mana_v <= 1:
         mana_v = int(ctx.player["max_mp"] * mana_v)
     if ctx.battle:
+        # v104 M02 P1-5：战斗内满蓝拦截（与 tpl_heal 同规则）——满蓝纯回蓝不扣
+        # 道具、不消耗回合；血量取权威来源（副本快照/引擎实时上限，见 _battle_cur_max）
+        if not d.get("stamina") and not d.get("heal"):
+            _mp, _max = _battle_cur_max(ctx, "mp", "max_mp")
+            if _mp >= _max:
+                return ItemResult(
+                    text=f"💙 你现在的魔力是满的({_mp}/{_max})，用不着【{d['name']}】～",
+                    consume=False)
         return ItemResult(payload=f"mana:{mana_v}")
+    # 战斗外：满蓝纯回蓝拦截不消耗（v104 M02 P1-5 补齐，此前满蓝也扣）
+    if ctx.player["mp"] >= ctx.player["max_mp"] and not d.get("stamina") and not d.get("heal"):
+        return ItemResult(
+            text=f"💙 你现在的魔力是满的({ctx.player['mp']}/{ctx.player['max_mp']})，用不着【{d['name']}】～",
+            consume=False)
     db = ctx._db()
     st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
     new_mp = min(ctx.player["max_mp"], ctx.player["mp"] + mana_v)

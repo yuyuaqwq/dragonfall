@@ -59,7 +59,7 @@ def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
     check("专属 16", len(C.LEGENDARY_EFFECTS) == 16, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 122 件", len(C.EQUIP_ROSTER) == 122, str(len(C.EQUIP_ROSTER)))
+    check("名册 134 件", len(C.EQUIP_ROSTER) == 134, str(len(C.EQUIP_ROSTER)))
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -292,8 +292,8 @@ async def test_shop_roster():
 # ============ 8. 锻造名册化 + 套装 ============
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
-    # 锻造配方 = 名册（87 个，无旧毕业套）
-    check("配方数 87", len(C.CRAFT_RECIPES) == 87, str(len(C.CRAFT_RECIPES)))
+    # 锻造配方 = 名册（101 个，无旧毕业套）
+    check("配方数 101", len(C.CRAFT_RECIPES) == 101, str(len(C.CRAFT_RECIPES)))
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")

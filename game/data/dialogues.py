@@ -9,9 +9,11 @@ NPC 多轮对话树（v65）。
 - 选项 = {"text": 选项文本, "next": 目标节点ID 或 "__end__",
           "need": 可选条件 dict, "action": 可选动作 dict}
 - 条件 need（全部满足才显示该选项）：
-    {"quest_done": "q1"}        主线 q1 已完成
-    {"quest_active": "q1"}      主线 q1 进行中（active/ready）
-    {"quest_pending": "q1"}     主线 q1 待接取
+-    {"quest_done": ""}        当前主线已完成（qid 为空 = 按“当前主线”动态判断）
+-    {"quest_pending": ""}     当前主线待接取（动态；且校验发布者 == 对话 NPC，见 core/dialogue_conds.py v101.23）
+-    {"quest_active": ""}      当前主线进行中（active/ready）
+-    {"quest_ready": ""}       当前主线待交付（ready）
+-    {"quest_done": "q1_1"}    指定主线 q1_1 已完成（静态 id 写法）
     {"main_done": True}         全部主线完成
     {"level": 10}               等级 ≥ 10
     {"flag": "xxx"}             该 NPC 对话 flag 已设置
@@ -75,7 +77,7 @@ DIALOGUES = {
                 "text": "镇子还算太平，多亏了铁匠托尔那把好锤子，还有橡木桶旅店的麦酒——大伙儿晚上有个地方松快松快。对了，城门口那位吟游诗人莉莉，最近老念叨什么'隧洞之王'，你感兴趣可以去听听。",
                 "options": [
                     {"text": "史莱姆是怎么回事？", "next": "dogs", "need": {"not_quest_done": "q1_1"}},
-                    {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q1"}},
+                    {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },

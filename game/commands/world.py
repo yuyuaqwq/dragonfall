@@ -1150,9 +1150,9 @@ class WorldCmds(CommandBase):
         lines = []
         quests = db.get_quests(group_id, qq_id)
         changed = False
-        # 主线 explore
+        # 主线 explore（v105：仅已接取(active)时触发——pending 未接取到达目标图不得自动完成+发奖）
         main_id = quests.get("main_quest")
-        if main_id:
+        if main_id and quests.get("main_status") == "active":
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
             if mq and mq["objective"].get("explore") == map_id:
                 player = self._player(group_id, qq_id)
@@ -1739,6 +1739,15 @@ class WorldCmds(CommandBase):
                 lines.append(f"📜 当前主线『{mq['name']}』由 {need_npc} 发布。")
             return lines
         st = quests.get("main_status", "pending")
+        # v105 P0：collect 型主线（q5_5 圣光百合）——背包材料足够即置 ready
+        # （对齐支线逻辑 talk_actions.py:111-113 实时数背包；交付时再扣材料）
+        # 放在状态分发前：pending 接取时材料已齐 → 直接可交付；active 回来找 NPC → 置 ready
+        obj0 = mq["objective"]
+        if obj0.get("collect") and st != "ready" and db.count_item(group_id, qq_id, obj0["collect"]) >= obj0.get("count", 1):
+            quests["main_status"] = "ready"
+            quests["main_progress"] = {obj0["collect"]: obj0.get("count", 1)}
+            db.save_quests(group_id, qq_id, quests)
+            st = "ready"
         if st == "pending":
             quests["main_status"] = "active"
             quests["main_progress"] = {}
@@ -1747,6 +1756,10 @@ class WorldCmds(CommandBase):
             if obj.get("talk") and obj["talk"] == npc_id:
                 quests["main_status"] = "ready"
                 quests["main_progress"] = {obj["talk"]: 1}
+            # v105 P2：explore 型主线接取时已在目标地图 → 直接置 ready（免出图重进）
+            if obj.get("explore") and player.get("cur_map") == obj["explore"]:
+                quests["main_status"] = "ready"
+                quests["main_progress"] = {obj["explore"]: 1}
             db.save_quests(group_id, qq_id, quests)
             lines.append(f"📜 【接取任务】『{mq['name']}』")
             if mq.get("story"):
@@ -1760,6 +1773,18 @@ class WorldCmds(CommandBase):
                 lines.append("  ✨ 交谈完成！再与这位 NPC 对话即可交付任务。")
         elif st == "ready":
             # 交任务领奖
+            obj = mq.get("objective") or {}
+            # v105 P0：collect 型主线交付时扣材料（先复核背包，材料被消耗则回到进行中）
+            if obj.get("collect"):
+                need = obj.get("count", 1)
+                if db.count_item(group_id, qq_id, obj["collect"]) < need:
+                    quests["main_status"] = "active"
+                    quests["main_progress"] = {}
+                    db.save_quests(group_id, qq_id, quests)
+                    lines.append(f"📜 交付『{mq['name']}』需要 {obj['collect']} ×{need}，你背包里不够了，先去凑齐吧～")
+                    return lines
+                db.remove_item(group_id, qq_id, obj["collect"], need)
+                lines.append(f"🎒 交出 {obj['collect']} ×{need}")
             player = self._player(group_id, qq_id)
             player["exp"] += mq["reward_exp"]
             player["gold"] += mq["reward_gold"]
@@ -2273,7 +2298,9 @@ class WorldCmds(CommandBase):
 
     def _talk_quest_progress(self, group_id, qq_id, npc_id) -> list:
         """v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready）。
-        覆盖 v95.9 对话化之前接取、或接取瞬间未置 ready 的存量档，返回通知行。"""
+        覆盖 v95.9 对话化之前接取、或接取瞬间未置 ready 的存量档，返回通知行。
+        v105 P0/P2：collect 型主线对话时实时数背包（材料足够 → ready）；
+        explore 型主线已在目标地图 → ready（免出图重进）。"""
         quests = db.get_quests(group_id, qq_id)
         if quests.get("main_status") != "active":
             return []
@@ -2284,12 +2311,26 @@ class WorldCmds(CommandBase):
         if not mq:
             return []
         obj = mq.get("objective", {})
-        if obj.get("talk") != npc_id:
-            return []
-        quests["main_status"] = "ready"
-        quests["main_progress"] = {npc_id: 1}
-        db.save_quests(group_id, qq_id, quests)
-        return ["✨ 交谈完成！再与这位 NPC 对话即可交付任务。"]
+        if obj.get("talk") == npc_id:
+            quests["main_status"] = "ready"
+            quests["main_progress"] = {npc_id: 1}
+            db.save_quests(group_id, qq_id, quests)
+            return ["✨ 交谈完成！再与这位 NPC 对话即可交付任务。"]
+        if obj.get("collect") and mq.get("giver") == npc_id:
+            need = obj.get("count", 1)
+            if db.count_item(group_id, qq_id, obj["collect"]) >= need:
+                quests["main_status"] = "ready"
+                quests["main_progress"] = {obj["collect"]: need}
+                db.save_quests(group_id, qq_id, quests)
+                return [f"✨ 材料已齐（{obj['collect']} ×{need}）！再与这位 NPC 对话即可交付任务。"]
+        if obj.get("explore") and mq.get("giver") == npc_id:
+            player = self._player(group_id, qq_id)
+            if player.get("cur_map") == obj["explore"]:
+                quests["main_status"] = "ready"
+                quests["main_progress"] = {obj["explore"]: 1}
+                db.save_quests(group_id, qq_id, quests)
+                return ["✨ 目标地点已到达！再与这位 NPC 对话即可交付任务。"]
+        return []
 
     # ---------------- v95.23 职业就职 / 导师转职 ----------------
 

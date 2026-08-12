@@ -54,6 +54,9 @@ def main():
     leak = []
     for mid, pool in pools.items():
         local_ids = {m for m, _w in pool}
+        # 条件池（GATHER_COND_POOLS，如 night 限定）也是本地材料，并入判定
+        cond_pool = C.GATHER_COND_POOLS.get(mid, [])
+        local_ids |= {m for m, *_ in cond_pool}
         for _ in range(30):
             mats = e._gather_roll(50, 6, mid)
             for m in mats:

@@ -126,7 +126,7 @@ async def main():
     random.seed(5)
     orig_roll = C.roll_explore_event
     # 强制命中 rain（set_state 模板）
-    C.roll_explore_event = lambda: next(e for e in C.EXPLORE_EVENTS if e["id"] == "rain")
+    C.roll_explore_event = lambda exclude=(): next(e for e in C.EXPLORE_EVENTS if e["id"] == "rain")
     try:
         handled, text = m2._handle_explore_event("g2", "q2", db.get_player("g2", "q2"), C.MAP_BY_ID["oak_plain"])
     finally:

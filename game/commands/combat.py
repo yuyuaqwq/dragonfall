@@ -229,6 +229,12 @@ class CombatCmds(CommandBase):
             db_in_battle = False
         key = str(qq_id)
         if not db_in_battle and key in _battle_locks:
+            # v104 修复 M04：副本 battle 只存队长名下（队员 db 无记录是正常态），
+            # 直接自愈清锁会让队员探索一次锁即消失，可双线野外战斗而 Boss 仍打他。
+            # 自愈前检查是否在副本队伍战斗中（_instance_battle_for 内部查
+            # db.party_members 找队长 + 队长有 type=instance 且未撤退的 battle）→ 保留锁。
+            if self._instance_battle_for(group_id, qq_id):
+                return True
             _battle_locks.discard(key)
             return False
         return key in _battle_locks or db_in_battle
@@ -410,7 +416,9 @@ class CombatCmds(CommandBase):
         return False, ""
 
     # ---------- v101.30d #O22/O42：探索事件短间隔去重（策划案 02 章 7.6）----------
-    _EXPLORE_RECENT_KEY = "explore_recent_{gid}_{qid}"
+    # v104 修复 M20：模板占位符 {qid} 与 .format(gid=..., qq_id=...) 不匹配 →
+    # _handle_explore_event 35% 探索事件路径必抛 KeyError 'qid'，改为 {qq_id}
+    _EXPLORE_RECENT_KEY = "explore_recent_{gid}_{qq_id}"
     _EXPLORE_RECENT_MAX = 3
 
     def _recent_explore_events(self, group_id, qq_id):

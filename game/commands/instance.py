@@ -52,23 +52,41 @@ class InstanceCmds(CommandBase):
             return
         # 队长开本：『副本 <名字>』
         # v87.2：若存在已撤退（retreated）的同副本记录 → 恢复进度继续
+        # v104 P1（M04/M05 同源）：恢复前按当前队伍重新校验——退队/换队后
+        # 只恢复仍在队伍中的成员，锁不再加给外人；人数/等级不达标则放弃旧进度
         old_row = self._instance_retreated_row(group_id, qq_id)
         if old_row:
             old_st = old_row["state"]
             if old_st.get("inst_id") and (old_st["inst_id"] == arg or
                                           C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
-                old_st["retreated"] = False
-                old_st["mode"] = "map"
-                for m in old_st["members"]:
-                    self._lock_battle(group_id, m)
-                db.save_battle(group_id, qq_id, old_st)
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
-                yield event.plain_result(
-                    f"{inst.get('icon', '🏰')} 【{inst.get('name', '')}】你回到了副本深处！\n"
-                    f"━━━━━━━━━━━━\n"
-                    f"{self._instance_map_view(old_st, group_id)}"
-                )
-                return
+                cur = self._instance_current_members(group_id, old_st)
+                ok_members = [m for m in old_st["members"] if str(m) in cur]
+                # 人数/等级重校验（与 _instance_start 同规则）
+                min_players = inst.get("min_players", 2)
+                max_players = inst.get("max_players", 3)
+                valid = len(ok_members) >= min_players and len(ok_members) <= max_players
+                if valid:
+                    for m in ok_members:
+                        p = self._player(group_id, m)
+                        if not p or p["level"] < inst.get("lv", 0):
+                            valid = False
+                            break
+                if valid:
+                    old_st["retreated"] = False
+                    old_st["mode"] = "map"
+                    old_st["members"] = ok_members
+                    old_st["acted"] = [False] * len(ok_members)
+                    old_st["turn"] = 0
+                    for m in ok_members:
+                        self._lock_battle(group_id, m)
+                    db.save_battle(group_id, qq_id, old_st)
+                    yield event.plain_result(
+                        f"{inst.get('icon', '🏰')} 【{inst.get('name', '')}】你回到了副本深处！\n"
+                        f"━━━━━━━━━━━━\n"
+                        f"{self._instance_map_view(old_st, group_id)}"
+                    )
+                    return
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
             yield _r
 
@@ -441,6 +459,20 @@ class InstanceCmds(CommandBase):
         if b and b["state"].get("type") == "instance" and b["state"].get("retreated"):
             return b
         return None
+
+    def _instance_current_members(self, group_id, st) -> list:
+        """v104 P1（M04/M05 同源）：当前仍在队伍中的副本成员（str 列表）。
+
+        结算（击杀奖励/通关奖励/失败回城）/ Boss 目标选择 / 进度恢复一律用
+        本方法过滤 st["members"]——退队成员不再白拿奖励、不被 Boss 攻击、
+        不被全灭误杀。单人副本（无队伍）视为本人仍在。"""
+        party = [str(m) for m in db.party_members(group_id, st["leader"])]
+        if party:
+            return [str(m) for m in st["members"] if str(m) in party]
+        members = st.get("members") or []
+        if len(members) == 1 and str(members[0]) == str(st["leader"]):
+            return [str(members[0])]
+        return []
 
     def _instance_list(self, player) -> str:
         lines = ["🏰 【组队副本】", "━━━━━━━━━━━━"]
@@ -1312,7 +1344,8 @@ class InstanceCmds(CommandBase):
         v57：速度机制——Boss 速度 ≥ 全队平均 ×1.5 时每轮多动 1 次、×2 时多动 2 次"""
         logs = []
         members = st["members"]
-        alive = [m for m in members if st["alive"].get(str(m), True)]
+        cur = self._instance_current_members(group_id, st)
+        alive = [m for m in members if str(m) in cur and st["alive"].get(str(m), True)]
         if not alive:
             return logs
         # v57：算 Boss 多动次数（基于存活队员平均速度）
@@ -1336,13 +1369,15 @@ class InstanceCmds(CommandBase):
         """Boss 单次行动：打仇恨最高(或嘲讽目标)的存活队员"""
         logs = []
         members = st["members"]
-        alive = [m for m in members if st["alive"].get(str(m), True)]
+        cur = self._instance_current_members(group_id, st)
+        alive = [m for m in members if str(m) in cur and st["alive"].get(str(m), True)]
         if not alive:
             return logs
         threat = st.setdefault("threat", {})
         # v51 嘲讽：Boss 优先攻击嘲讽目标（若存活），否则按仇恨最高
+        # v104 P1：嘲讽目标已退队 → 视为无效，走仇恨选择
         taunt_key = str(st.get("taunt_target", ""))
-        if taunt_key and st.get("taunt_turns", 0) > 0 and st["alive"].get(taunt_key, False):
+        if taunt_key and st.get("taunt_turns", 0) > 0 and st["alive"].get(taunt_key, False) and taunt_key in cur:
             target = next((m for m in alive if str(m) == taunt_key), None)
             if target is None:
                 target = taunt_key
@@ -1415,7 +1450,10 @@ class InstanceCmds(CommandBase):
         if not mdef:
             return []
         lines = []
+        cur = self._instance_current_members(group_id, st)
         for _m in st["members"]:
+            if str(_m) not in cur:
+                continue  # v104 P1：已退队成员不参与击杀奖励
             if not st["alive"].get(str(_m), True):
                 continue
             p = self._player(group_id, _m)
@@ -1584,10 +1622,16 @@ class InstanceCmds(CommandBase):
         # v101.27 #390：通关后允许停留搜刮（鱼鱼拍板）——不再 clear_battle，
         # 保留状态让玩家调查 Boss 房交互物/战利品堆/隐藏暗格，主动『离开副本』才清。
         # 解锁战斗锁（可自由行动），但 battle 记录保留供副本指令读取
+        # v104 P1：只解锁当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁
+        cur = self._instance_current_members(group_id, st)
         for m in st["members"]:
+            if str(m) not in cur:
+                continue
             self._unlock_battle(group_id, m)
         # 通关奖励
         for m in st["members"]:
+            if str(m) not in cur:
+                continue  # v104 P1：已退队成员不参与通关奖励
             if not st["alive"].get(str(m), True):
                 lines.append(f"  💀 {st['players'].get(str(m), {}).get('name', m)} 已阵亡，未能获得奖励")
                 continue
@@ -1616,22 +1660,27 @@ class InstanceCmds(CommandBase):
         # 贡献最高 → 职业图纸
         if inst.get("blueprint") and st.get("contribution"):
             top_key = max(st["contribution"], key=st["contribution"].get)
-            top_p = self._player(group_id, top_key)
-            if top_p:
-                bp = C.roll_blueprint(boss["lv"])
-                # v101.25 #349：首功图纸奖励同规则——已学图纸折算为图纸残页
-                _learned = (top_p.get("learned_blueprints") or [])
-                if bp.get("blueprint_for") in _learned:
-                    _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(bp.get("quality", "white"), 1)
-                    db.add_item(group_id, top_key, "mat_tu_zhi_can_ye",
-                                {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
-                                count=_pages)
-                    lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}（已学会，化作 {_pages} 张图纸残页）")
-                else:
-                    db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
-                    lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
+            if str(top_key) not in cur:
+                top_key = None  # v104 P1：首功是退队者 → 图纸不发（避免白拿）
+            if top_key:
+                top_p = self._player(group_id, top_key)
+                if top_p:
+                    bp = C.roll_blueprint(boss["lv"])
+                    # v101.25 #349：首功图纸奖励同规则——已学图纸折算为图纸残页
+                    _learned = (top_p.get("learned_blueprints") or [])
+                    if bp.get("blueprint_for") in _learned:
+                        _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(bp.get("quality", "white"), 1)
+                        db.add_item(group_id, top_key, "mat_tu_zhi_can_ye",
+                                    {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                                    count=_pages)
+                        lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}（已学会，化作 {_pages} 张图纸残页）")
+                    else:
+                        db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
+                        lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
         # 首通记录（每人）+ 阶段九：副本次数 + 成就判定
         for m in st["members"]:
+            if str(m) not in cur:
+                continue  # v104 P1：已退队成员不记录首通成就/副本次数
             if st["alive"].get(str(m), True):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
                 db.bump_stats(group_id, m, inst_clears=1)
@@ -1666,7 +1715,11 @@ class InstanceCmds(CommandBase):
         lines = [x for x in logs if "毒发身亡" not in x]
         lines.append("")
         lines.append("💀 队伍全灭……副本失败！冒险者们被送回了城镇。")
+        # v104 P1：只结算当前队伍成员——已退队者不受副本失败牵连（不误杀）
+        cur = self._instance_current_members(group_id, st)
         for m in st["members"]:
+            if str(m) not in cur:
+                continue
             self._unlock_battle(group_id, m)
             db.clear_battle(group_id, m)
             p = self._player(group_id, m)

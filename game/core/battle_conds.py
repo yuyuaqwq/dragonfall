@@ -125,8 +125,10 @@ def _c_element_marks(battle, player, cond):
 
 @register("player_shield", label=lambda c: "自身有护盾")
 def _c_player_shield(battle, player, cond):
-    """自身有护盾"""
-    return battle.shield > 0
+    """自身有护盾（v104 修复：v101.28d 护盾 buff 化后 battle.shield 已移除，
+    改判 p_shields（来源 → {"value": 盾值, "turns": 剩余回合}）任一项盾值 > 0）"""
+    shields = getattr(battle, "p_shields", None) or {}
+    return sum(s.get("value", 0) for s in shields.values()) > 0
 
 
 @register("player_spd_up", label=lambda c: "自身加速中")
@@ -143,9 +145,19 @@ def _c_player_chi_stacks(battle, player, cond):
 
 @register("player_res_stacks", label=lambda c: f"自身{c.get('res_key','')}≥{c.get('stacks',0)}")
 def _c_player_res_stacks(battle, player, cond):
-    """核心资源 ≥ stacks（v2.0：怒气≥5 / 连击点≥3 / 信仰≥5 / 气≥3）"""
+    """核心资源 ≥ stacks（v2.0：怒气≥5 / 连击点≥3 / 信仰≥5 / 气≥3）
+
+    v104 修复：res_key='element' 是 switch 字符串资源（battle.resources["element"]="fire"），
+    不能与 int stacks 做 >= 比较（TypeError）→ 字符串资源存在非空值即视为满足
+    （元素风暴「元素过载」stacks=1）；rage/cp/faith/chi/energy 等 int 叠层保持原逻辑。
+    """
     rk = cond.get("res_key", "rage")
-    return battle.resources.get(rk, 0) >= cond.get("stacks", 3)
+    val = battle.resources.get(rk, 0)
+    if isinstance(val, str):
+        return bool(val)
+    if not isinstance(val, (int, float)):
+        return False  # 未知类型防御（None 等）
+    return val >= cond.get("stacks", 3)
 
 
 @register("player_mech_stacks", label=lambda c: f"自身{c.get('mech','')}层≥{c.get('stacks',0)}")
