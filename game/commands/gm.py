@@ -639,7 +639,11 @@ class GmCmds(CommandBase):
             yield event.plain_result(err)
             return
         raw = self._strip_cmd(event, "gm_窥探").strip()
-        files = sorted(glob.glob(os.path.join(_SPY_DIR, "playtest_spy_round*.md")))
+        files = sorted(
+            glob.glob(os.path.join(_SPY_DIR, "playtest_spy_round*.md")),
+            # v101.29.1 #459：字符串排序在轮次≥100 失效（"round100"<"round99"），必须按轮次数字排
+            key=lambda p: int(re.search(r"round(\d+)\.md$", p).group(1)),
+        )
         if not files:
             yield event.plain_result("📡 暂无 playtest 交互实录（playtest_spy_round*.md 不存在）～")
             return
