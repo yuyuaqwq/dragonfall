@@ -149,11 +149,15 @@ food_keys = [k for k, v in C.ITEMS.items()
 buff_food_keys = [k for k, v in C.ITEMS.items()
                   if isinstance(v, dict) and v.get("effect")
                   and (v.get("heal") or v.get("mana") or v.get("stamina") is not None)]
-check("hot 食物总量 ≥ 45", len(food_keys) >= 45, str(len(food_keys)))
+check("hot 食物总量 ≥ 30", len(food_keys) >= 30, str(len(food_keys)))
 check("战斗料理(增益) ≥ 5", len(buff_food_keys) >= 5, str(buff_food_keys))
 check("矮人烈酒 desc 修复(无'3 场战斗')", "3 场战斗" not in C.ITEMS.get("i_dwarf_liquor", {}).get("desc", ""))
 check("矮人烈酒走 food_buff", IT.infer_template(C.ITEMS["i_dwarf_liquor"]) == "food_buff")
 check("矮人烈酒非 buff_atk(原 30% 超模)", C.ITEMS["i_dwarf_liquor"].get("effect") != "buff_atk")
+affix_food_keys = [k for k, v in C.ITEMS.items()
+                   if isinstance(v, dict) and v.get("affix")
+                   and (v.get("heal") or v.get("mana") or v.get("stamina") is not None)]
+check("词条料理(affix) ≥ 15", len(affix_food_keys) >= 15, str(len(affix_food_keys)))
 bad = []
 for k in food_keys:
     v = C.ITEMS[k]
@@ -198,6 +202,64 @@ l2, _ = b2.player_turn("use_item", "buff:food_def_up", p2)
 check("料理播报(非'饮下战斗药水')", "吃下了料理" in "\n".join(l2), "\n".join(l2))
 check("food_def_up 生效 def×1.15",
       b2._apply_buffs(b2._player_stats(p2), b2.p_buffs).get("def") == int(b2._player_stats(p2).get("def", 0) * 1.15))
+
+# ---- 7. food_affix 词条料理 ----
+print("== 7. food_affix 词条料理 ==")
+snake = C.ITEMS["i_snake_soup"]
+check("蛇羹 infer→food_affix", IT.infer_template(snake) == "food_affix", str(snake.get("affix")))
+check("蛇羹 desc 含【吸血】", "【吸血】" in snake.get("desc", ""), snake.get("desc", ""))
+class AffCtx:
+    def __init__(self, battle):
+        self.battle = battle
+        self.data = snake
+        self.player = {"hp": 50, "max_hp": 100, "mp": 50, "max_mp": 100}
+        self.group_id = "g1"
+        self.qq_id = "q1"
+    def _db(self):
+        class D:
+            def update_player(self, *a, **k): pass
+        return D()
+    def hook(self, n, *a, **k):
+        if n == "stamina_msg":
+            return "⚡ 恢复 25 点体力(85/100)\n"
+        return 0
+ra = IT.TEMPLATES["food_affix"](AffCtx(battle=True))
+check("蛇羹战斗内 payload=affix:lifesteal", ra.payload == "affix:lifesteal", ra.payload)
+ro2 = IT.TEMPLATES["food_affix"](AffCtx(battle=False))
+check("蛇羹战斗外恢复", "恢复 20 点生命" in ro2.text, ro2.text)
+
+# 战斗内吃蛇羹 → 获得吸血词条 + 攻击触发吸血
+b3 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {})
+p3 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
+      "level": 1, "learned_skills": [], "race": "human", "attributes": {},
+      "equipment": {}}
+l3, _ = b3.player_turn("use_item", "affix:lifesteal", p3)
+j3 = "\n".join(l3)
+check("吃下播报【吸血】", "获得【吸血】效果" in j3, j3)
+check("p_food_affixes 已设置", b3.p_food_affixes == ["lifesteal"], str(b3.p_food_affixes))
+check("_equip_affix_ids 合并食物词条", "lifesteal" in b3._equip_affix_ids(p3), str(b3._equip_affix_ids(p3)))
+
+# 护盾料理特判（直接调 _do_use_item 避开敌方行动消耗）
+bread = C.ITEMS["i_sacred_bread"]
+b4 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {})
+p4 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
+      "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
+b4._do_use_item("affix:shield", p4)
+check("护盾料理获得 10% 护盾", b4.shield == int(p4["max_hp"] * 0.10), f"shield={b4.shield} max_hp={p4['max_hp']}")
+
+# 回春料理：回合开始回血（regen 词条走 _affix_turn_start，直接调验证）
+b5 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "def": 0,
+                        "matk": 0, "mdef": 0, "spd": 1000}, {})
+p5 = {"hp": 80, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
+      "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
+b5.p_food_affixes = ["regen"]
+hp_before = p5["hp"]
+ts_logs = []
+b5._affix_turn_start(p5, ts_logs)
+check("回春回合开始回血(直接调)", p5["hp"] == hp_before + int(p5["max_hp"] * 0.01), f"{hp_before}→{p5['hp']}")
+check("回春播报", any("回春生效" in l for l in ts_logs), str(ts_logs))
 
 print(f"\n结果: {PASS} 通过, {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

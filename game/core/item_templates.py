@@ -88,6 +88,11 @@ def infer_template(data):
         if data.get("heal") or data.get("mana") or data.get("stamina") is not None:
             return "food_buff"
         return eff if eff in TEMPLATES else "none"
+    if data.get("affix"):
+        # v101.28c 食物词条：affix + 恢复字段 = 词条料理（战斗内获得临时词条，战斗外恢复）
+        if data.get("heal") or data.get("mana") or data.get("stamina") is not None:
+            return "food_affix"
+        return "none"
     if data.get("heal"):
         return "heal"
     if data.get("mana"):
@@ -197,6 +202,19 @@ def tpl_food_buff(ctx):
         eff = d.get("effect", "")
         key = _BUFF_KEYS.get(eff, eff)
         return ItemResult(payload=f"buff:{key}")
+    return _food_out_battle(ctx)
+
+
+@register("food_affix", battle_ok=True)
+def tpl_food_affix(ctx):
+    """v101.28c 词条料理（affix + 恢复字段）：战斗内=获得临时词条（本场有效），
+    战斗外=即时回复+体力（同 tpl_food 战斗外）。"""
+    d = ctx.data
+    if ctx.battle:
+        aids = d.get("affix", "")
+        if isinstance(aids, str):
+            aids = [a for a in aids.split(",") if a]
+        return ItemResult(payload=f"affix:{','.join(aids)}")
     return _food_out_battle(ctx)
 
 

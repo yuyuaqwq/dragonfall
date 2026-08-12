@@ -130,6 +130,7 @@ class InstanceCmds(CommandBase):
         for m in st["members"]:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
+            st["p_food_affixes"][m] = []
             st["p_defending"][m] = False
         st["turn"] = 0
         st["acted"] = [False] * len(st["members"])
@@ -367,6 +368,7 @@ class InstanceCmds(CommandBase):
         for m in st["members"]:
             st["p_buffs"][m] = {}
             st["p_hot"][m] = {}
+            st["p_food_affixes"][m] = []
             st["p_defending"][m] = False
         st["turn"] = 0
         st["acted"] = [False] * len(st["members"])
@@ -668,6 +670,7 @@ class InstanceCmds(CommandBase):
                     "acted": [False] * len(members),
                     "p_buffs": {str(m): {} for m in members},
                     "p_hot": {str(m): {} for m in members},
+                    "p_food_affixes": {str(m): [] for m in members},
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
@@ -703,6 +706,7 @@ class InstanceCmds(CommandBase):
                     "acted": [False] * len(members),
                     "p_buffs": {str(m): {} for m in members},
                     "p_hot": {str(m): {} for m in members},
+                    "p_food_affixes": {str(m): [] for m in members},
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
@@ -733,6 +737,7 @@ class InstanceCmds(CommandBase):
             "acted": [False] * len(members),
             "p_buffs": {str(m): {} for m in members},
             "p_hot": {str(m): {} for m in members},
+            "p_food_affixes": {str(m): [] for m in members},
             "e_buffs": {},
             "mech_stacks": {str(m): {} for m in members},  # v59 副本叠层（按玩家持久化）
             "p_defending": {str(m): False for m in members},
@@ -1012,6 +1017,7 @@ class InstanceCmds(CommandBase):
             "enemy": st["boss"],
             "p_buffs": st["p_buffs"].get(cur_key, {}),
             "p_hot": st.get("p_hot", {}).get(cur_key, {}),
+            "p_food_affixes": st.get("p_food_affixes", {}).get(cur_key, []),
             "e_buffs": st["e_buffs"],
             "p_defending": st["p_defending"].get(cur_key, False),
             "e_defending": False,
@@ -1025,6 +1031,7 @@ class InstanceCmds(CommandBase):
         st["players"][cur_key] = snap
         st["p_buffs"][cur_key] = b.p_buffs
         st.setdefault("p_hot", {})[cur_key] = b.p_hot
+        st.setdefault("p_food_affixes", {})[cur_key] = b.p_food_affixes
         st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.mech_stacks
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，

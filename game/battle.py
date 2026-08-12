@@ -77,6 +77,7 @@ class Battle:
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
+        self.p_food_affixes: list = []     # v101.28c 食物词条（战斗中吃料理获得的临时词条 ID，本场有效）
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
         self.e_defending = False
@@ -133,6 +134,7 @@ class Battle:
             "pet": self.pet,
             "p_buffs": self.p_buffs,
             "p_hot": self.p_hot,
+            "p_food_affixes": self.p_food_affixes,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
             "e_defending": self.e_defending,
@@ -157,6 +159,7 @@ class Battle:
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
         b.p_hot = st.get("p_hot", {}) or {}
+        b.p_food_affixes = st.get("p_food_affixes", []) or []
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
@@ -406,6 +409,20 @@ class Battle:
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
+        if payload.startswith("affix:"):
+            # v101.28c 食物词条：affix:词条ID,词条ID（本场战斗有效）
+            aids = [a for a in payload[6:].split(",") if a]
+            for a in aids:
+                if a not in self.p_food_affixes:
+                    self.p_food_affixes.append(a)
+            # 护盾词条特判：词条效果是'战斗开始获得护盾'，战斗中吃立即给
+            if "shield" in aids:
+                gain = int(player.get("max_hp", 100) * 0.10)
+                self.shield = max(self.shield, gain)
+            names = [((C.AFFIXES.get(a) or C.LEGENDARY_EFFECTS.get(a) or {}).get("name") or a)
+                     for a in aids]
+            logs.append(f"🍲 你吃下了料理，获得【{'、'.join(names)}】效果！(本场战斗)")
+            return logs
         if payload.startswith("hot:"):
             # v101.28 食物持续恢复：hot:回血比例,回蓝比例,回合数（模板 tpl_food 生成）
             _p = payload[4:].split(",")
@@ -795,6 +812,8 @@ class Battle:
             ids.extend(item.get("affixes", []) or [])
             if item.get("legendary"):
                 ids.append(item["legendary"])
+        # v101.28c 食物词条（战斗料理本场有效）
+        ids.extend(getattr(self, "p_food_affixes", []) or [])
         return ids
 
     def _set_bonus_5(self, player: dict) -> list:
