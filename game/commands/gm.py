@@ -7,7 +7,7 @@ gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时回退—�
   gm_帮助 / gm_停服 / gm_开服 / gm_状态 / gm_广播
   gm_玩家 / gm_查询 / gm_发金币 / gm_发物品 / gm_发经验 / gm_设等级
   gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM
-  gm_副业位 / gm_伤害 / gm_play（历史保留）
+  gm_伤害 / gm_play（历史保留）
 """
 import json
 import os
@@ -506,36 +506,10 @@ class GmCmds(CommandBase):
             "『gm_加GM <QQ>』『gm_删GM <QQ>』 管理 GM 白名单\n"
             "━━━━━━━━━━━━\n"
             "🧪 调试\n"
-            "『gm_副业位 [n]』 副业位上限(1-8)\n"
             "『gm_伤害 [倍率]』 世界 Boss 伤害倍率(0.1-100)\n"
             "『gm_play <指令>』 转发指令给引擎(真实链路体验)\n"
             "💡 目标可以是 QQ 号或角色名；白名单存数据库，重启不丢"
         )
-
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_副业位(?:[\s\S]*)$")
-    @require_player()
-    async def gm_prof_slots(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        ok, err = self._gm_auth(event, group_id, qq_id)
-        if not ok:
-            yield event.plain_result(err)
-            return
-        player = self._player(group_id, qq_id)
-        raw = self._strip_cmd(event, "gm_副业位").strip()
-        cur = db.get_prof_slot_limit(qq_id)
-        if not raw:
-            yield event.plain_result(f"🧵 你当前的副业位上限：{cur} 条(默认 2)\n『gm_副业位 <n>』修改(1－8)")
-            return
-        try:
-            n = int(raw)
-        except ValueError:
-            yield event.plain_result("格式：gm_副业位 <n>，n 为 1－8 的数字")
-            return
-        if not 1 <= n <= 8:
-            yield event.plain_result("范围 1－8！")
-            return
-        db.set_event_state(f"prof_slots_{qq_id}", n)
-        yield event.plain_result(f"🧵 副业位上限已设为 {n} 条(原 {cur})！『副业』查看生效")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$")
     @require_player()

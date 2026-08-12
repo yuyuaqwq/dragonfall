@@ -2560,6 +2560,16 @@ class EconomyCmds(CommandBase):
                 # 副本战斗：道具走副本轮流回合（v95.29 #269——此前漏掉 instance 分流，
                 # 走普通分支会 BT.Battle.from_state + save_battle 把 leader 名下的
                 # 副本上下文覆盖成战斗引擎状态，后续副本指令全 KeyError 软锁）
+                # #418: 非本回合使用道具 → 先校验回合（此前模板执行+扣道具后才进
+                # _instance_act 被发现回合不对，道具白扣——playtest 代码审查发现）
+                st0 = battle["state"]
+                _mk = st0.get("members") or []
+                _ti = st0.get("turn", 0)
+                _tk = str(_mk[_ti]) if _mk and _ti < len(_mk) else str(qq_id)
+                if str(qq_id) != _tk:
+                    _tn = (self._player(group_id, _tk) or {}).get("name", _tk)
+                    yield event.plain_result(f"⏳ 现在是 {_tn} 的回合，等待 TA 行动～")
+                    return
                 ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
                 r = IT.TEMPLATES[tpl_name](ctx)
                 if r.consume:

@@ -525,7 +525,14 @@ class InstanceCmds(CommandBase):
         el = vmap.get("elite")
         if st.get("stage_cleared"):
             lines.append("━━━━━━━━━━━━")
-            lines.append("✅ 本层敌人已肃清！可以『深入』下一层，或先『调查』剩余交互点。")
+            # #411: 肃清后明确列出剩余可调查交互物名（此前只说"调查剩余交互点"不列名，
+            # 玩家不知道调查什么——vmap.pois 已过滤已用项）
+            remain = [p for p in (vmap.get("pois") or []) if isinstance(p, dict) and p.get("name")]
+            if remain:
+                names = "、".join(p["name"] for p in remain[:5]) + ("…" if len(remain) > 5 else "")
+                lines.append(f"✅ 本层敌人已肃清！剩余可调查：{names}(『调查 <名称>』)；『深入』前往下一层。")
+            else:
+                lines.append("✅ 本层敌人已肃清！『深入』前往下一层。")
         elif vmap.get("boss"):
             lines.append("━━━━━━━━━━━━")
             lines.append(f"👑 Boss 就在前方：{vmap['boss'][1]}！『探索』进入战斗！")

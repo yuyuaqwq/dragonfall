@@ -2437,8 +2437,9 @@ class WorldCmds(CommandBase):
                 check = action["apprentice_check"]
                 # #255: 副业位满时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
                 # 位满则材料也不收，避免玩家交完材料才被拦白跑
+                # #417: 遍历层级 bug——dlg 顶层是 {start, nodes}，必须遍历 nodes 子表
                 prof_target = None
-                for _nid, _node in (dlg or {}).items():
+                for _nid, _node in ((dlg.get("nodes") or {}).items()):
                     if not isinstance(_node, dict):
                         continue  # 对话树部分节点为纯字符串（跳转别名）
                     for _o in (_node.get("options") or []):

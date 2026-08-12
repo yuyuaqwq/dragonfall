@@ -148,6 +148,5 @@ COMMAND_REGEX = {
     "gm_del_gm": r'^(?:\[At:\d+\]\s*)?gm_删GM(?:[\s\S]*)$',
     "gm_play": r'^(?:\[At:\d+\]\s*)?gm_play(?:[\s\S]*)$',
     "gm_help": r'^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$',
-    "gm_prof_slots": r'^(?:\[At:\d+\]\s*)?gm_副业位(?:[\s\S]*)$',
     "gm_boss_dmg": r'^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$',
 }
