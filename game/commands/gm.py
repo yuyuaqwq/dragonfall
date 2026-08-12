@@ -93,11 +93,14 @@ def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
         # 段落按 ▶ 指令切分（实录格式：▶ 『指令』\n回复体）——v101.29b 不再截断，整轮全收
         segs = re.split(r"(?=▶)", body)
         segs = [s.strip() for s in segs if s.strip()]
-        total_chars = 0
+        # v101.29.2 #463：按 UTF-8 字节累计（中文 3 字节/字）——8K 字符≈24KB 超 NapCat ARK
+        # bytesData 上限（round101 实测：6004字/42节点≈18KB 成功，6912字/41节点≈20.7KB retcode 1200 失败），
+        # 上限 17500 字节留余量，超限尾部截断并提示
+        total_bytes = 0
         for seg in segs:
             for chunk in _chunk_text(seg, 300):
-                total_chars += len(chunk)
-                if total_chars > 8000:
+                total_bytes += len(chunk.encode("utf-8"))
+                if total_bytes > 17500:
                     nodes.append(Node(uin=bot_qq, name=name, content=[Plain("…(后续交互见插件目录 scripts/{})".format(label))]))
                     break
                 nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
