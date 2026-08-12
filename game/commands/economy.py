@@ -3124,7 +3124,9 @@ class EconomyCmds(CommandBase):
             discount = 0.8
         weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
         # v101.25h：武器/名册装备只在 smith/general 卖（草药铺/酒馆不卖）
-        can_sell_weapons = sa_kind in ("smith", "general")
+        # v101.28o：is_smith 也放行——craft+alchemy 双职能店（如晨曦药剂坊 dawn_city_5）
+        #   面板 is_smith 分支会列出武器，购买侧若按 herb 过滤则"看得到买不到"（#445）
+        can_sell_weapons = is_smith or sa_kind in ("smith", "general")
         if not can_sell_weapons:
             weapons = []
         equip_items = self._shop_equip_roster(player, C.SHOP_EQUIP.get(cur) or C.SHOP_EQUIP.get(area_id, []))
