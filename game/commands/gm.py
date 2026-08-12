@@ -661,22 +661,34 @@ class GmCmds(CommandBase):
         _lg = logging.getLogger("astrbot")
         # v101.28u：每子 agent 一张合并转发卡（鱼鱼要求）——循环发送，间隔防风控
         cards = _spy_to_role_cards(content, os.path.basename(path), event.get_self_id())
-        target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
+        # v101.29a：私聊合并转发被 QQ 拦截（send_message True 但用户收不到，2026-08-12 实测）
+        # → 默认双发：私聊 + 游戏群 fallback，只要一处送达就算成功
+        targets = []
+        if to_group:
+            targets = ["{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP)]
+        else:
+            targets = [
+                "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ),
+                "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP),
+            ]
         sent_ok, sent_fail = 0, 0
         for _name, _nodes in cards:
-            try:
-                _lg.info("[dragonfall] gm_窥探 角色卡 {}（{} 节点）→ {}".format(_name, len(_nodes), target))
-                _ret = await self.context.send_message(
-                    target,
-                    MessageChain([Nodes(_nodes)]),
-                )
-                _lg.info("[dragonfall] gm_窥探 角色卡 {} send_message 返回: {!r}".format(_name, _ret))
-                if _ret is False:
-                    sent_fail += 1
-                else:
-                    sent_ok += 1
-            except Exception as _e:
-                _lg.warning("[dragonfall] gm_窥探 角色卡 {} 投递失败: {}".format(_name, _e))
+            _card_ok = False
+            for _tgt in targets:
+                try:
+                    _lg.info("[dragonfall] gm_窥探 角色卡 {}（{} 节点）→ {}".format(_name, len(_nodes), _tgt))
+                    _ret = await self.context.send_message(
+                        _tgt,
+                        MessageChain([Nodes(_nodes)]),
+                    )
+                    _lg.info("[dragonfall] gm_窥探 角色卡 {} send_message({}) 返回: {!r}".format(_name, _tgt, _ret))
+                    if _ret is not False:
+                        _card_ok = True
+                except Exception as _e:
+                    _lg.warning("[dragonfall] gm_窥探 角色卡 {} 投递 {} 失败: {}".format(_name, _tgt, _e))
+            if _card_ok:
+                sent_ok += 1
+            else:
                 sent_fail += 1
             await asyncio.sleep(1.2)  # 连续多卡间隔，防 QQ 频率风控
         # v101.28s：有成功发送 → 同步 .spy_forward_state.json（spy_forward cron 防重）
