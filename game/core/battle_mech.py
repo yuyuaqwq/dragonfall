@@ -387,11 +387,14 @@ def _b_enrage(battle, logs, e, r):
 
 @register(BOSS_MECHS, "summon")
 def _b_summon(battle, logs, e, r):
-    """召唤：每 3 回合召唤援军（攻击提升）"""
+    """召唤：每 3 回合召唤援军实体（v101.28l #438：真召唤，援军挡刀+出手）"""
     if r > 1 and r % 3 == 0 and e.get("summoned_round") != r:
         e["summoned_round"] = r
+        n = 2 if r % 6 == 0 else 1  # 每 6 回合召唤 2 只
+        mins = battle._summon_minions(n)
+        names = "、".join(f"【{m['name']}】" for m in mins)
         battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), 2)
-        logs.append(f"👥【{e['name']}】召唤了援军！攻击提升！")
+        logs.append(f"👥【{e['name']}】召唤了 {names}！它们挡在身前，攻击也提升了！")
 
 
 @register(BOSS_MECHS, "heal")
@@ -472,10 +475,10 @@ def _mb_heal_self(battle, logs, sname):
 
 @register(MON_BUFF_EFFECTS, "summon")
 def _mb_summon(battle, logs, sname):
-    """召唤援军"""
-    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
-    battle.e_buffs["summon"] = BUFF_TURNS
-    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，召唤了援军！")
+    """召唤援军（v101.28l #438：真召唤，生成援军实体）"""
+    mins = battle._summon_minions(1)
+    m = mins[0] if mins else {}
+    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，召唤了援军【{m.get('name', '爪牙')}】！")
 
 
 # ================= 4. 怪物控制机制（_enemy_turn 技能 mech） =================

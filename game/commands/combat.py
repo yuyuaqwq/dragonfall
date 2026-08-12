@@ -1186,6 +1186,10 @@ class CombatCmds(CommandBase):
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")
+        # v101.28l #438：敌方援军（真召唤实体）
+        mins = getattr(b, "e_minions", []) or []
+        if mins:
+            ebuf.append("👥" + " ".join(f"援军{m['name']}❤️{m['hp']}" for m in mins))
         if ebuf:
             parts.append(f"👹敌：「{' '.join(ebuf)}」")
         return "\n".join(parts)

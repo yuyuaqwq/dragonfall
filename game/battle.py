@@ -85,6 +85,7 @@ class Battle:
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
+        self.e_minions: list = []          # v101.28l #438 真召唤：敌方援军实体 [{name,hp,max_hp,atk,matk}]
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
         self.e_defending = False
@@ -142,6 +143,7 @@ class Battle:
             "p_hot": self.p_hot,
             "p_food_effects": self.p_food_effects,
             "p_shields": self.p_shields,
+            "e_minions": self.e_minions,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
             "e_defending": self.e_defending,
@@ -167,6 +169,7 @@ class Battle:
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
+        b.e_minions = st.get("e_minions", []) or []
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
@@ -780,7 +783,7 @@ class Battle:
             dmg = int(dmg * 1.20)
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
-        self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+        self._damage_enemy(dmg, logs)
         tag = " 💥暴击" if is_crit else ""
         if affix_tags:
             tag += " " + "·".join(affix_tags)
@@ -853,7 +856,7 @@ class Battle:
             prob, mult = C.rune_value("chain", chain_lvl)
             if random.random() < prob:
                 cd = int(st.get("atk", 0) * mult)
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - cd)
+                self._damage_enemy(cd, logs)
                 logs.append(f"⚡ 符文连锁：雷击造成 {cd} 点额外伤害！")
         # 虚弱：攻击使敌人攻击 -x%（3 回合）
         weak_lvl = self._enchant_lvl(effs, "weaken")
@@ -1159,7 +1162,7 @@ class Battle:
             st2 = self._player_stats(player)
             if st2 and n:
                 d = int(st2["matk"] * 0.30 * n * cond_mult)
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - d)
+                self._damage_enemy(d, logs)
                 logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
             p_mech["burn"] = 0
         elif eff == "rage_burst":
@@ -1269,7 +1272,7 @@ class Battle:
                 # 超载：额外全体伤害（对非当前目标模拟为追加单体伤害的 20%）
                 if r["extra"] == "aoe":
                     aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
-                    self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - aoe_dmg)
+                    self._damage_enemy(aoe_dmg, logs)
                     reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
                 # 冻结：目标冻结 1 回合
                 elif r["extra"] == "freeze":
@@ -1320,7 +1323,7 @@ class Battle:
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
         total = self._boss_dmg_filter(total, player, logs)
-        self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - total)
+        self._damage_enemy(total, logs)
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -1359,7 +1362,7 @@ class Battle:
             combo_full = self._combo_push(combo_tag)
             if combo_full:
                 combo_bonus = int(total * 0.30)
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - combo_bonus)
+                self._damage_enemy(combo_bonus, logs)
                 logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技＋20%)")
                 self.resources["combo_ready"] = 1
             else:
@@ -1518,6 +1521,14 @@ class Battle:
             logs.append("🌀 敌人被眩晕，无法行动！")
             self.e_buffs.pop("stun", None)
             return logs, 0
+        # v101.28l #438：援军出手（召唤的爪牙每回合攻击一次，独立于 Boss 行动）
+        minion_dmg = 0
+        if self.e_minions:
+            _pst0 = self._player_stats(player)
+            for m in list(self.e_minions):
+                md = E.calc_damage(int(m.get("atk", 0)), _pst0["def"])
+                minion_dmg += md
+                logs.append(f"👹 援军【{m['name']}】扑向你，造成 {md} 点伤害！")
         # 30% 概率使用技能（v63：沉默时只能普攻）
         skill = None
         silenced = "silence" in self.e_buffs
@@ -1533,7 +1544,7 @@ class Battle:
                     eff_fn = MON_BUFF_EFFECTS.get(eff)
                     if eff_fn:
                         eff_fn(self, logs, sname)
-                    return logs, 0
+                    return logs, minion_dmg
                 power = sinfo.get("power", 1.0)
                 is_crit = random.random() < C.MON_SKILL_CRIT
                 if kind == "物理":
@@ -1578,7 +1589,7 @@ class Battle:
                     if ctrl_fn:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
-                return logs, dmg
+                return logs, dmg + minion_dmg
         dmg = E.calc_damage(est["atk"], pst["def"])
         # 阶段九：种族受击天赋（石肤 物理伤害-10%，普攻段）
         rt = self._race_bonus(player)
@@ -1588,7 +1599,7 @@ class Battle:
             dmg = max(1, dmg - red)
             logs.append(f"🪨 石肤护体，减免 {red} 点物理伤害！")
         logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！")
-        return logs, dmg
+        return logs, dmg + minion_dmg
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
         """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)"""
@@ -1678,7 +1689,7 @@ class Battle:
             st = self._player_stats(player)
             est = self._enemy_stats()
             dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+            self._damage_enemy(dmg, logs)
             logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"({line})" if line else ""))
             if stype == "lifesteal":
                 heal = max(1, int(dmg * 0.5))
@@ -1694,7 +1705,7 @@ class Battle:
             st = self._player_stats(player)
             est = self._enemy_stats()
             dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+            self._damage_enemy(dmg, logs)
             logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"({line})" if line else ""))
             if self._enemy_dead():
                 self.result = "victory"
@@ -1743,7 +1754,7 @@ class Battle:
         burn_n = int(mech.get("burn", 0) or 0)
         if burn_n > 0:
             p = int(self.enemy.get("max_hp", 1) * 0.03 * burn_n)
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
+            self._damage_enemy(p, logs)
             logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
@@ -1753,14 +1764,14 @@ class Battle:
         poison_n = int(mech.get("poison", 0) or 0)
         if poison_n > 0:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n)
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
+            self._damage_enemy(p, logs)
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         elif "poison" in self.e_buffs:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT)
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
+            self._damage_enemy(p, logs)
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
@@ -1769,7 +1780,7 @@ class Battle:
         bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
         if bleed_n > 0:
             p = int(self.enemy.get("max_hp", 1) * 0.05)
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - p)
+            self._damage_enemy(p, logs)
             logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
@@ -1837,6 +1848,40 @@ class Battle:
                 del self.p_shields[key]
         self._tick_cooldowns()
 
+    def _damage_enemy(self, dmg: int, logs: list) -> int:
+        """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。
+        返回对 Boss 实际造成的伤害（援军吸收部分不计入）。"""
+        if not self.e_minions or dmg <= 0:
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+            return dmg
+        m = self.e_minions[0]
+        absorb = min(m["hp"], dmg)
+        m["hp"] -= absorb
+        rest = dmg - absorb
+        if rest > 0:
+            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rest)
+        logs.append(f"🛡️ 援军【{m['name']}】挡下了 {absorb} 点伤害！")
+        if m["hp"] <= 0:
+            self.e_minions.pop(0)
+            logs.append(f"💥 援军【{m['name']}】被击倒了！")
+        return rest
+
+    def _summon_minions(self, n: int = 1) -> list:
+        """v101.28l #438：生成援军实体（血量=Boss 20%、攻击=Boss 40%）"""
+        e = self.enemy or {}
+        created = []
+        for i in range(n):
+            m = {
+                "name": f"{e.get('name', '首领')}的爪牙",
+                "hp": int(e.get("max_hp", 1) * 0.20),
+                "max_hp": int(e.get("max_hp", 1) * 0.20),
+                "atk": int(e.get("atk", 0) * 0.40),
+                "matk": int(e.get("matk", 0) * 0.40),
+            }
+            self.e_minions.append(m)
+            created.append(m)
+        return created
+
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
@@ -1864,13 +1909,13 @@ class Battle:
                 pst2 = self._player_stats(player)
                 est2 = self._enemy_stats()
                 cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - cd)
+                self._damage_enemy(cd, logs)
                 logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
         # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
         if "reflect" in E.set_bonus_4(player.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
             if random.random() < C.REFLECT_CHANCE:
                 rd = int(dmg * 0.25)
-                self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
+                self._damage_enemy(rd, logs)
                 logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
         # v29 金身：每层减伤 4%
         mech = self.mech_stacks
@@ -1891,12 +1936,12 @@ class Battle:
         thorns_lvl = self._enchant_lvl(effs, "thorns")
         if thorns_lvl and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * C.rune_value("thorns", thorns_lvl))
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
+            self._damage_enemy(rd, logs)
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
         # v101.28f 荆棘药剂：受击反弹 30% 伤害（3 回合，必触发）
         if self.p_buffs.get("thorns_pot") and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * 0.30)
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rd)
+            self._damage_enemy(rd, logs)
             logs.append(f"🌵 荆棘附体：反弹 {rd} 点伤害！")
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
         shields = self.p_shields

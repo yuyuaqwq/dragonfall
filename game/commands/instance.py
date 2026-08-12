@@ -333,6 +333,19 @@ class InstanceCmds(CommandBase):
         # 无事
         yield event.plain_result("🍃 你仔细搜索了这片区域，除了风声什么也没有发现。")
 
+    def _instance_elite_scale(self, st: dict, mon: dict) -> dict:
+        """v101.28l #423：副本精英按队伍人数缩放强度（超出 min_players 每人 +50% 血/攻/魔攻）。
+        与 Boss 缩放（hp_mult + 0.65/人）同思路，幅度略低——精英不该比 Boss 还肉。"""
+        inst2 = C.INSTANCES.get(st.get("inst_id") or "", {})
+        n_extra = len(st.get("members") or []) - inst2.get("min_players", 1)
+        if n_extra > 0:
+            m = 1.0 + 0.5 * n_extra
+            mon["max_hp"] = int(mon.get("max_hp", 0) * m)
+            mon["hp"] = mon["max_hp"]
+            mon["atk"] = int(mon.get("atk", 0) * m)
+            mon["matk"] = int(mon.get("matk", 0) * m)
+        return mon
+
     def _enter_stage_combat(self, group_id, st: dict, mon_def, stage: dict):
         """把层内怪物投入战斗（mode → battle，初始化战斗状态）
         若 mon_def 是层 Boss（role=boss）→ 应用血量缩放/mech/风神铭文"""
@@ -362,6 +375,9 @@ class InstanceCmds(CommandBase):
                     pb = st["p_buffs"].setdefault(m, {})
                     pb["spd_up"] = max(pb.get("spd_up", 0), 2)
                 st["boss_buff_next"] = False
+        elif mon_def[2] == "elite":
+            # v101.28l #423：精英按人数缩放（此前不缩放，2 人档与单人一样难）
+            self._instance_elite_scale(st, st["boss"])
         st["enemy"] = st["boss"]
         st["e_buffs"] = {}
         st["round"] = 1
@@ -1104,6 +1120,9 @@ class InstanceCmds(CommandBase):
                 kill_lines = self._instance_kill_reward(group_id, st)
                 nxt = pending.pop(0)
                 st["boss"] = C.build_monster(nxt, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
+                if nxt[2] == "elite":
+                    # v101.28l #423：精英按人数缩放（切怪入口同样套用）
+                    self._instance_elite_scale(st, st["boss"])
                 st["enemy"] = st["boss"]
                 st["e_buffs"] = {}
                 st["round"] = 1
