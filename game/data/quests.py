@@ -1413,7 +1413,7 @@ SIDE_QUESTS = [
         "giver": "npc_old_sailor",
         "map": "mist_tide_passage",
         "desc": "点亮雾潮航道深处的无名灯塔，驱散海上迷雾",
-        "objective": {"explore": "无名灯塔"},
+        "objective": {"explore": "mist_tide_passage"},
         "reward_exp": 6000,
         "reward_gold": 15000,
         "story": "巴德：『哎……无名灯塔的灯火熄了三年，这片雾里多少船找不到归路。年轻人，你要是能点亮那座灯塔，雾里的幽魂也能安息了。』",

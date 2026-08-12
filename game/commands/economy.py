@@ -1285,7 +1285,7 @@ class EconomyCmds(CommandBase):
         rec_disp = C.display("recipes", rec_name)
         # 检查等级门槛（装备等级比玩家高太多不能锻造）
         if rec["lv"] > player["level"] + 6:
-            yield event.plain_result(f"【{rec_disp}】需要 Lv.{rec['lv']} 的锻造技艺，你才 Lv.{player['level']}，先练练级再来吧！")
+            yield event.plain_result(f"【{rec_disp}】是 Lv.{rec['lv']} 的装备，你才 Lv.{player['level']}，等级再高些才能驾驭！")
             return
         # v54 副业等级限制
         prof_lv = db.get_prof_level(group_id, qq_id, "craft")
@@ -1405,7 +1405,7 @@ class EconomyCmds(CommandBase):
         rec = C.CRAFT_RECIPES[rec_name]
         rec_disp = C.display("recipes", rec_name)
         if rec["lv"] > player["level"] + 6:
-            yield event.plain_result(f"【{rec_disp}】需要 Lv.{rec['lv']} 的锻造技艺，你才 Lv.{player['level']}，先练练级再来吧！")
+            yield event.plain_result(f"【{rec_disp}】是 Lv.{rec['lv']} 的装备，你才 Lv.{player['level']}，等级再高些才能驾驭！")
             return
         # 图纸检查（与锻造一致：需图纸配方必须已学习）
         if rec.get("blueprint"):
