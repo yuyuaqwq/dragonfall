@@ -669,7 +669,7 @@ DIALOGUES = {
                 ],
             },
             "practice_wait": {
-                "text": "梅尔文不耐：这点材料都凑不齐，还想当炼金术士？",
+                "text": "哼，这点材料都凑不齐，还想当炼金术士？",
                 "options": [{"text": "这就去", "next": "practice_check"}],
             },
             "master_intro": {

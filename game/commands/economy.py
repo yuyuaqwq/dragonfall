@@ -1023,7 +1023,7 @@ class EconomyCmds(CommandBase):
         profs = db.get_professions(group_id, qq_id)
         activated = db.get_activated_profs(group_id, qq_id)
         lines = [f"🧵 【副业面板】(已激活 {len(activated)}/{db.MAX_ACTIVE_PROFS})", "━━━━━━━━━━━━"]
-        icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳"}
+        icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳", "enhance": "⚒️", "enchant": "✨"}
         total = 0
         for key, p in profs.items():
             # v95.22 只显示已解锁（已拜师/已激活）副业，未解锁的去导师处学习
@@ -1775,7 +1775,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(
                 "附魔哪件装备？输入『附魔 <装备名> <属性/符文>』\n"
                 f"属性附魔：{'、'.join(r['label'] for r in C.ENCHANT_RECIPES.values())}\n"
-                f"符文(MC 式，独特效果+等级)：{'、'.join(C.RUNES.keys())}\n"
+                f"符文(MC 式，独特效果+等级)：{'、'.join(r.get('name', k) for k, r in C.RUNES.items())}\n"
                 "例：『附魔 烈焰之刃 攻击』『附魔 烈焰之刃 史诗符文·残忍 II』\n"
                 "💡 打怪掉落符文，『物品详情 <符文名>』查看效果"
             )
@@ -2492,6 +2492,9 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("战斗中不能更换装备！先解决眼前的敌人吧～")
             return
         item_name = item_name.strip()
+        if not item_name:
+            yield event.plain_result("要穿哪件？『装备 <名称>』或『装备 <背包序号>』（『背包』看序号）～")
+            return
         items = db.get_inventory(group_id, qq_id)
         # 找装备
         target = None
