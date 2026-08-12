@@ -17,10 +17,10 @@ def test_serialize_roundtrip():
     print("【序列化 round trip 保留叠层/护盾】")
     b = BT.Battle("monster", {"name": "靶", "hp": 100, "max_hp": 100})
     b.mech_stacks["rage"] = 3
-    b.p_shields = {"legacy": {"value": 50, "turns": 999}}
+    b.p_shields = {"test_shield": {"value": 50, "turns": 999}}
     b2 = BT.Battle.from_state(b.to_state())
     check("叠层保留", b2.mech_stacks.get("rage") == 3, str(b2.mech_stacks))
-    check("护盾保留", b2.p_shields.get("legacy", {}).get("value") == 50, str(b2.p_shields))
+    check("护盾保留", b2.p_shields.get("test_shield", {}).get("value") == 50, str(b2.p_shields))
     # 老存档无字段兼容
     b3 = BT.Battle.from_state({"type": "monster", "enemy": {}, "p_buffs": {}, "e_buffs": {}})
     check("老存档兼容", b3.mech_stacks == {} and b3.p_shields == {}, str((b3.mech_stacks, b3.p_shields)))
@@ -51,12 +51,12 @@ def test_shield_persist_and_absorb():
     enemy = {"name": "靶子", "lv": 10, "hp": 99999, "max_hp": 99999,
              "atk": 50, "def": 1, "matk": 1, "mdef": 1, "spd": 1}
     b = BT.Battle("monster", enemy)
-    b.p_shields = {"legacy": {"value": 100, "turns": 999}}
+    b.p_shields = {"test_shield": {"value": 100, "turns": 999}}
     b2 = BT.Battle.from_state(b.to_state())
-    check("护盾跨回合保留", b2.p_shields.get("legacy", {}).get("value") == 100, str(b2.p_shields))
+    check("护盾跨回合保留", b2.p_shields.get("test_shield", {}).get("value") == 100, str(b2.p_shields))
     logs = []
     b2._damage_player(player, 30, logs)
-    check("吸收后剩 70", b2.p_shields.get("legacy", {}).get("value") == 70, str(b2.p_shields))
+    check("吸收后剩 70", b2.p_shields.get("test_shield", {}).get("value") == 70, str(b2.p_shields))
     check("玩家未掉血", player["hp"] == 1000, str(player["hp"]))
 
 if __name__ == "__main__":

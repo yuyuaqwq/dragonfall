@@ -167,9 +167,6 @@ class Battle:
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
-        if not b.p_shields and st.get("shield"):
-            # v101.28d 旧格式兼容：旧 shield 数值 → 无期限护盾（与旧行为一致：破盾前一直有效）
-            b.p_shields = {"legacy": {"value": int(st["shield"]), "turns": 999}}
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)

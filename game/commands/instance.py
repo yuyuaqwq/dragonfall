@@ -1024,7 +1024,7 @@ class InstanceCmds(CommandBase):
             "title_bonus": snap.get("title_bonus") or {},
             # v59：叠层/护盾随战斗持久化（副本按玩家存；v101.28d 盾 buff 化）
             "mech_stacks": st["mech_stacks"].get(cur_key, {}),
-            "p_shields": snap.get("p_shields", {}) or ({"legacy": {"value": int(snap.get("shield", 0)), "turns": 999}} if snap.get("shield") else {}),
+            "p_shields": snap.get("p_shields", {}) or {},
         })
         boss_before = st["boss"]["hp"]
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False)
