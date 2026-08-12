@@ -275,12 +275,15 @@ class CommandBase:
         return self._wild_trader_here(player, group_id, qq_id)
 
     def _sa_shop_kind(self, player: dict) -> str | None:
-        """v101.25h 当前子区域商店类型（决定配货）：
+        """v101.28o 当前子区域商店类型（决定配货；2026-08-12 鱼鱼抓"鹿香灶坊卖装备"后收紧）：
         smith（铁匠/锻造/军械/工坊/强化）→ 武器+材料+装备；
         herb（草药/炼金）→ 只卖药剂；
         tavern（酒馆/旅店/客栈）→ 只卖食物；
-        general（普通商店/集市/商行/码头）→ 卷轴/杂物+武器。
-        非商店子区域 → None。"""
+        cook（灶坊/烹饪/食铺/磨坊）→ 只卖食物配货，不挂武器；
+        general（集市/商行/码头/商店/杂货/补给/营地）→ 卷轴/杂物+武器；
+        misc（其他 shop=True 无关键词，如拍卖行/渔港/强化坊）→ 只卖配货，不挂武器；
+        非商店子区域 → None。
+        ⚠️ 禁止把 shop=True 兜底成 general——否则灶坊/拍卖行全挂武器（#443 同源教训）。"""
         cur_map = player.get("cur_map", "")
         sa_id = player.get("cur_subarea") or ""
         if not sa_id:
@@ -294,12 +297,18 @@ class CommandBase:
             # v101.25h：草药/炼金优先于 craft（炼金工坊既有 craft funcs 又卖药剂，按 herb 配货）
             if "alchemy" in funcs or any(k in name for k in ("草药", "炼金")):
                 return "herb"
-            if "craft" in funcs or any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化")):
+            if "craft" in funcs or any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化", "锻室")):
                 return "smith"
             if sa.get("healer") or "heal" in funcs or any(k in name for k in ("酒馆", "旅店", "客栈")):
                 return "tavern"
-            if sa.get("shop") or "shop" in funcs:
+            # v101.28o 新增：食物店（灶坊/烹饪/食铺/磨坊）——只卖配货，不挂武器
+            if any(k in name for k in ("灶", "烹饪", "食铺", "磨坊", "膳房")):
+                return "cook"
+            # general 必须命中真实"杂货/集市/补给"语义，禁止无脑兜底
+            if any(k in name for k in ("集市", "商行", "码头", "商店", "杂货", "货栈", "商会", "补给", "营地")):
                 return "general"
+            if sa.get("shop") or "shop" in funcs:
+                return "misc"
             return None
         return None
 

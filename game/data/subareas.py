@@ -506,8 +506,9 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "shop",
-                "craft"
+                "shop"
+                # v101.28o：去掉误配的 craft——鹿角淬火坊是强化坊(强化导师+附魔)，不是铁匠铺；
+                # craft 会让 _is_smith_shop 判 True → 挂全套武器+装备（鱼鱼抓"鹿香灶坊卖装备"系列根因）
             ],
             "shop": True,
             "healer": False
