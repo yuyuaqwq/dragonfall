@@ -172,7 +172,10 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         claimable = []
         for r in pending:
             a = next((x for x in C.ACHIEVEMENTS if x["id"] == r["ach_key"]), None)
-            if a and (a.get("reward") or {}).get("exp", 0) or (a.get("reward") or {}).get("gold", 0):
+            # v105.xx P0 修复：原 `if a and X or Y` 优先级错误——a=None（如 inst_clear_* 记录
+            # 不在 C.ACHIEVEMENTS 中）时 `or` 右侧仍求值 a.get() → AttributeError 崩溃。
+            # 显式括号：a 为 None 时短路，不进入。
+            if a and (((a.get("reward") or {}).get("exp", 0)) or ((a.get("reward") or {}).get("gold", 0))):
                 claimable.append(a)
         if not claimable:
             # 没有奖励的成就直接标记已领取，避免永久挂起

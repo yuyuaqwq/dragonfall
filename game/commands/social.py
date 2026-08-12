@@ -364,7 +364,27 @@ class SocialCmds(CommandBase):
     async def party_leave(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
+        # v104 P1：副本进行中禁止退队——副本 battle 只存队长名下，队长退队会删光队伍行，
+        # 之后 _instance_current_members 返回 [] → Boss 不再攻击、击杀/通关零奖励（副本僵尸化）。
+        # 非队长（队员）不受限：v104 设计允许队员退队，结算自动剔除退队者。
+        b = db.get_battle(group_id, qq_id)
+        if b and b["state"].get("type") == "instance" and not b["state"].get("retreated") \
+                and str(b["state"].get("leader", qq_id)) == str(qq_id):
+            yield event.plain_result("⚔️ 副本进行中不能退队！先『撤退』保留进度，或通关/『离开副本』后再退队～")
+            return
+        # v104 P1：退队者若正挂在副本队伍中（战斗记录存队长名下）→ 退队后同步清其战斗锁
+        # （内存锁 + 可能残留的 battle 行），防 24h 锁残留（_in_battle 自愈只在下次交互才触发）
+        inst_member = False
+        members = db.party_members(group_id, qq_id)
+        if members and str(members[0]) != str(qq_id):
+            lb = db.get_battle(group_id, members[0])
+            if lb and lb["state"].get("type") == "instance" and not lb["state"].get("retreated") \
+                    and str(qq_id) in [str(m) for m in lb["state"].get("members", [])]:
+                inst_member = True
         if db.party_leave(group_id, qq_id):
+            if inst_member:
+                self._unlock_battle(group_id, qq_id)
+                db.clear_battle(group_id, qq_id)
             yield event.plain_result("👋 你已退出队伍！(队长退队将解散队伍)")
         else:
             yield event.plain_result("你还没有队伍～")
@@ -926,8 +946,10 @@ class SocialCmds(CommandBase):
                 top_qq = max(it["bids"], key=it["bids"].get)
                 amount = it["bids"][top_qq]
                 # 发放装备（v48：品质档英文 ID；key 用唯一 id 而非装备名）
+                # v104 P1：直接发放初始化时存好的完整 equip（展示什么发什么），
+                # 不再以 lv30/purple 重新生成；旧数据(无 equip)按存字段兜底
                 import uuid as _uuid
-                equip = C.generate_equip(it["slot"], 30, it.get("quality", "purple"))
+                equip = it.get("equip") or C.generate_equip(it["slot"], it.get("lv", 30), it.get("quality", "purple"))
                 db.add_item(group_id, top_qq, f"eq_{_uuid.uuid4().hex[:8]}", equip, count=1)
                 p = self._player(group_id, top_qq)
                 name = p["name"] if p else top_qq
@@ -1016,7 +1038,7 @@ class SocialCmds(CommandBase):
                     p2 = self._player(group_id, qq2)
                     if p2:
                         db.update_player(group_id, qq2, gold=p2["gold"] + amt2)
-            equip = C.generate_equip(it["slot"], 30, it.get("quality", "purple"))
+            equip = it.get("equip") or C.generate_equip(it["slot"], it.get("lv", 30), it.get("quality", "purple"))
             import uuid as _uuid2
             db.add_item(group_id, qq_id, f"eq_{_uuid2.uuid4().hex[:8]}", equip, count=1)
             it["bids"] = {str(qq_id): amount}
@@ -1024,4 +1046,12 @@ class SocialCmds(CommandBase):
             db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
             yield event.plain_result(f"💰 一口价成交！你以 {amount} 金币拍得【{it['name']}】！\n📦 装备已放入背包(『背包』查看)")
             return
-        yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n(若被超越将自动退还)")
+        # v104 P1：出价后如实提示——未超过当前最高(含同价被先到者压)则提示"当前最高仍是 X"，
+        # 不再无条件谎报"当前最高"
+        _top_qq = max(it["bids"], key=it["bids"].get)
+        if _top_qq == str(qq_id):
+            yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高！\n(若被超越将自动退还)")
+        else:
+            _tp = self._player(group_id, _top_qq)
+            _top_name = _tp["name"] if _tp else _top_qq
+            yield event.plain_result(f"💰 出价成功！你在【{it['name']}】上出价 {amount} 金币，当前最高仍是 {_top_name}({it['bids'][_top_qq]})。\n(若被超越将自动退还)")

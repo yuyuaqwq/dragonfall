@@ -39,7 +39,11 @@ class InstanceCmds(CommandBase):
             # v101.27 #390：通关停留超时（30 分钟）自动传出，防占位
             _st = inst_row["state"]
             if _st.get("cleared") and _st.get("cleared_time") and int(time.time()) - _st["cleared_time"] > 1800:
+                # v104 P1（第二轮）：只清当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁/battle
+                _cur = self._instance_current_members(group_id, _st)
                 for _m in _st["members"]:
+                    if str(_m) not in _cur:
+                        continue
                     self._unlock_battle(group_id, _m)
                     db.clear_battle(group_id, _m)
                 yield event.plain_result("⏳ 通关时间已过 30 分钟，你被自动传送出了副本。")
@@ -300,7 +304,11 @@ class InstanceCmds(CommandBase):
             yield event.plain_result("战斗中无法离开！先解决眼前的敌人再说！")
             return
         inst = C.INSTANCES.get(st["inst_id"], {})
+        # v104 P1（第二轮）：只清当前队伍成员——退队者可能已在别处战斗，不能动 TA 的锁/battle
+        cur = self._instance_current_members(group_id, st)
         for m in st["members"]:
+            if str(m) not in cur:
+                continue
             self._unlock_battle(group_id, m)
             db.clear_battle(group_id, m)
         yield event.plain_result(

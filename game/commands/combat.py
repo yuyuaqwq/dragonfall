@@ -1939,6 +1939,15 @@ class CombatCmds(CommandBase):
                         if _it:
                             item_txt += f" 🎁{_it}"
                 lines.append(f"  {p2['name']} 贡献 {d:,}({int(ratio*100)}%)→ 金币 +{g} 经验 +{e}{item_txt}")
+                # v105.xx P1 修复：世界 Boss 击杀结算触发参与成就（ach_worldboss）。
+                # 此前 check_achievements 25 处调用无一传 worldboss extra → 条件恒 False 永不解锁。
+                try:
+                    new_achs = C.check_achievements(group_id, qq2, p2, {"worldboss": 1})
+                    for a in new_achs:
+                        rw_txt = f"  🎁 {a['_reward_txt']}" if a.get("_reward_txt") else ""
+                        lines.append(f"    🏆 成就解锁：{a['name']}！({a['desc']}){rw_txt}")
+                except Exception:
+                    pass
             tp = self._player(group_id, top_qq) if top_qq else None
             if tp:
                 lines.append(f"👑 首功：{tp['name']}！")

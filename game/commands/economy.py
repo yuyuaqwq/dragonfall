@@ -1323,10 +1323,29 @@ class EconomyCmds(CommandBase):
         if prof_lv < need:
             yield event.plain_result(f"🌊 {spot}是高级水域(需垂钓 Lv.{need}，你 Lv.{prof_lv})……先在低阶水域练练吧！")
             return
-        # v94 体力：垂钓消耗 5 体力
-        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "垂钓")
-        if not _ok:
-            yield event.plain_result(_st)
+        # v104 M23 消费契约（combat.py 探索 POI「鱼群聚集」写入，key poi_fish_{gid}_{qid}，
+        # payload json {"ts": float, "window": 1800}）：ts 在 1800s 窗口内 →
+        # 免费垂钓一次（不扣体力/免冷却，立即结算入包）并删除该 key
+        free_cast = False
+        try:
+            _fraw = db.get_event_state(f"poi_fish_{group_id}_{qq_id}")
+            if _fraw:
+                _fst = json.loads(_fraw) if isinstance(_fraw, str) else _fraw
+                if isinstance(_fst, dict) and time.time() - float(_fst.get("ts", 0)) <= float(_fst.get("window", 1800)):
+                    free_cast = True
+        except (ValueError, TypeError):
+            free_cast = False
+        if not free_cast:
+            # v94 体力：垂钓消耗 5 体力
+            _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "垂钓")
+            if not _ok:
+                yield event.plain_result(_st)
+                return
+        if free_cast:
+            # 鱼群聚集：免体力/免冷却，直接结算一次并删除 key（不干扰进行中的等待副业）
+            db.delete_event_state(f"poi_fish_{group_id}_{qq_id}")
+            text = self._settle_fishing(group_id, qq_id, {"type": "fishing", "spot": spot, "spot_map": cur})
+            yield event.plain_result(act_msg + f"🐟 鱼群聚集！{text}")
             return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时；spot 存状态供结算消息用）
         # 9.3：extra 带 spot_map 供 roll_fish 钓点差异化（禁出档位 + 品种限定水域）
@@ -1963,11 +1982,8 @@ class EconomyCmds(CommandBase):
             return
         item_name = parts[0]
         stat_label = parts[1] if len(parts) > 1 else ""
-        # v94 体力：附魔消耗 10 体力
-        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
-        if not _ok:
-            yield event.plain_result(_st)
-            return
+        # v94 体力：附魔消耗 10 体力（v105 P1：扣体力移到所有校验通过、最终消耗前——
+        # 原实现在命令开头先扣，未拜师/位满/Lv.1/属性名无效/无装备/槽满/符文冲突/材料不足等失败路径白扣 10 体力）
         # v67 附魔归位炼金 → 导师进修后附魔为独立副业（19 章第八章）：附魔需要附魔副业 Lv.2
         ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant", require_apprentice=True)
         if not ok:
@@ -2033,6 +2049,11 @@ class EconomyCmds(CommandBase):
                     f"『{rd['name']}』是 {_rune_lv} 级符文，需要附魔副业 Lv.{_need_lv}(你 Lv.{prof_lv})！多附魔练练手艺吧～"
                 )
                 return
+            # v94 体力：附魔消耗 10 体力（v105 P1：移到此处——符文/装备/槽位/冲突/等级校验全过后才扣，防白扣）
+            _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
+            if not _ok:
+                yield event.plain_result(_st)
+                return
             # 消耗符文（无需金币，符文本身就是价值）
             db.remove_item(group_id, qq_id, rune["key"], 1)
             enchanted.append({"effect": rd["effect"], "lvl": rd.get("lvl", 1)})
@@ -2093,6 +2114,11 @@ class EconomyCmds(CommandBase):
             return
         if player["gold"] < rec["cost"]:
             yield event.plain_result(f"附魔需要 {rec['cost']} 金币，你只有 {player['gold']}。")
+            return
+        # v94 体力：附魔消耗 10 体力（v105 P1：移到此处——属性名/装备/槽位/材料/金币校验全过后才扣，防白扣）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
+        if not _ok:
+            yield event.plain_result(_st)
             return
         # 消耗材料 + 金币
         for it in items:

@@ -68,8 +68,8 @@ async def main():
     p = db.get_player("g1", "w1")
     check("class 变为战士", p["class_name"] == "cls_zhan_shi", p.get("class_name", ""))
     check("学会了初始技能", len(p.get("learned_skills") or []) >= 1, str(p.get("learned_skills")))
-    # 属性按战士重算（Lv.1 战士 hp 150）
-    check("属性重算为战士 base", p.get("max_hp", 0) >= 150, f"max_hp={p.get('max_hp')}")
+    # 属性按战士重算（v104 修复：用 max_hp 计算值，精灵月缺 ×0.95 → 142）
+    check("属性重算为战士 max_hp", p.get("max_hp", 0) >= 140, f"max_hp={p.get('max_hp')}")
 
     print("【5. 就职后技能学习正常】")
     out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 1")

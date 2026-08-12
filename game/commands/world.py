@@ -2578,7 +2578,7 @@ class WorldCmds(CommandBase):
             sk_table = sk_table["skills"]
         init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
         db.update_player(group_id, qq_id, class_name=new_cls,
-                         max_hp=st["hp"], max_mp=st["mp"], hp=st["hp"], mp=st["mp"],
+                         max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=init_skills)
         bar = list(init_skills[:6])
         while len(bar) < 6:
@@ -2612,7 +2612,17 @@ class WorldCmds(CommandBase):
         if path < 1 or path > len(branches):
             path = 1
         old_title = self._tier_title(player["class_name"], cur_tier, player.get("evolve_path", 0))
-        fields = {"class_tier": next_tier}
+        # v105 P1：转职同步重算属性并落库——TIER_GROWTH 成长加成随阶位跃升，
+        # 仅写 class_tier 会让存档 max_hp/max_mp 长期与计算值脱节（战斗外休息/回家/
+        # 药水/治疗全按存档上限回血，转职后回不满新上限）。参照 player.py 隐藏职业转职写法。
+        new_evolve_path = path or player.get("evolve_path", 0)
+        st = E.player_final_stats(
+            player["class_name"], player.get("level", 1), player.get("equipment", {}),
+            next_tier, player.get("attributes"), new_evolve_path,
+            self._title_bonus(group_id, qq_id), player.get("race"))
+        fields = {"class_tier": next_tier,
+                  "max_hp": st["max_hp"], "max_mp": st["max_mp"],
+                  "hp": st["max_hp"], "mp": st["max_mp"]}
         if path:
             fields["evolve_path"] = path
         db.update_player(group_id, qq_id, **fields)
@@ -2779,6 +2789,10 @@ class WorldCmds(CommandBase):
                 notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
             # v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready，修复主线卡死）
             notices += self._talk_quest_progress(group_id, qq_id, npc_id)
+            # v105 P3：对话动作链落地后补成就判定（拜师/转职/任务交付等动作改 DB 后立即解锁——
+            # 原实现无此调用，『拜师学艺/全知全能』等依赖学徒数的成就要等下次事件才判定，
+            # 全知全能(第 8 条拜师)的全副业经验 +10% 加成也因此延迟生效）
+            C.check_achievements(group_id, qq_id)
             if C.is_end(nxt):
                 db.clear_talk_state(group_id, qq_id)
                 lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]

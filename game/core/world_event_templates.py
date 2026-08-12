@@ -100,6 +100,8 @@ def _i_auction(rnd):
         items.append({
             "id": i, "name": equip["name"], "slot": ap["slot"],
             "stats": equip.get("stats", {}), "desc": equip.get("desc", ""),
+            # v104 P1：存完整 equip，结算/一口价直接发放（修复成交发 lv30 紫装与展示不符）
+            "equip": equip,
             "base": ap["base"], "buyout": ap["buyout"],
             "bids": {},  # qq -> amount
         })

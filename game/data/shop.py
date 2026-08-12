@@ -257,18 +257,18 @@ SHOP_WEAPONS = {
     "ironharbor": [
         ["弯刀", "sword", 14, "blue"],
         ["水手短刃", "dagger", 12, "blue"],
-        ["海风长弓", "bow", 18, "blue"],
+        ["海风长弓", "bow", 18, "purple"],
         ["铁指虎", "fist", 14, "blue"],  # #236: 拳师武器链
         # v101.28l #430：补 Lv.22 进阶蓝装（断档 Lv.17-27 上半段）
         ["水手弯刀", "sword", 22, "blue"],
         ["远洋长弓", "bow", 22, "blue"],
-        ["潮汐法杖", "staff", 58, "blue"],
+        ["潮汐法杖", "staff", 58, "purple"],
         ["铁锚战锤", "mace", 22, "blue"],
         ["铁链拳套", "fist", 22, "blue"],
     ],
     "silver_brook": [
         ["弯刀", "sword", 14, "blue"],
-        ["海风长弓", "bow", 18, "blue"],
+        ["海风长弓", "bow", 18, "purple"],
     ],
     # 中域·圣光系列（10 章 4.3：王国/教会风）
     "dawn_city": [
@@ -286,11 +286,11 @@ SHOP_WEAPONS = {
     # 群岛（翡翠海）
     "jade_port": [
         ["弯刀", "sword", 14, "blue"],
-        ["海风长弓", "bow", 18, "blue"],
+        ["海风长弓", "bow", 18, "purple"],
     ],
     "shell_town": [
         ["水手短刃", "dagger", 12, "blue"],
-        ["海风长弓", "bow", 18, "blue"],
+        ["海风长弓", "bow", 18, "purple"],
     ],
     # 西境·月语系列（10 章 4.4：精灵风）
     "moon_gate": [
@@ -310,7 +310,7 @@ SHOP_WEAPONS = {
     # 无尽海
     "nameless_harbor": [
         ["海风长弓", "bow", 18, "purple"],
-        ["弯刀", "sword", 14, "purple"],
+        ["弯刀", "sword", 14, "blue"],
     ],
     "pearl_city": [
         ["海风长弓", "bow", 18, "purple"],
