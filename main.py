@@ -148,7 +148,14 @@ def _file_loopback_start():
                 # main 在 private 群无法与 gm_test_group 的小蓝组队（party/副本按 group_id 隔离）。
                 # GM 权限不受影响：gm_ 前缀身份恒放行（gm.py _gm_auth），与群上下文无关。
                 ev = _LoopbackEvent(cmd, _ident_of(out_file), "gm_test_group")
-                asyncio.run(_collect(inst, ev, cmd, out_file))
+                # v101.28q：必须在主事件循环执行 handler——worker 线程 asyncio.run 的新 loop 里
+                # await Quart websocket（bot API 发送）会跨 loop 挂死。提交主 loop 等结果。
+                loop = getattr(inst, "_main_loop", None)
+                if loop is None or loop.is_closed():
+                    _append_out("❌ 未找到主事件循环（插件未初始化或重载中）", out_file)
+                    return
+                fut = asyncio.run_coroutine_threadsafe(_collect(inst, ev, cmd, out_file), loop)
+                fut.result(timeout=120)
                 return
             except Exception as e:
                 if _attempt == 2:
@@ -198,6 +205,12 @@ class Main(
 
     def __init__(self, context: star.Context) -> None:
         self.context = context
+        # v101.28q：记录主事件循环——loopback worker 线程里的 handler 执行必须提交到主 loop，
+        # 否则 await Quart websocket（aiocqhttp bot API）会跨 loop 挂死（gm_窥探 投递卡住的根因）
+        try:
+            self._main_loop = asyncio.get_event_loop()
+        except RuntimeError:
+            self._main_loop = None
         # v93 修复：仅真实 AstrBot 实例注册回环通道（测试脚本 Main(None) 会覆盖类变量 → 通道查 test 库）
         if context is not None:
             Main._loopback_instance = self  # v92: 文件转发通道拿当前实例

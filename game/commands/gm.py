@@ -23,6 +23,11 @@ from .base import CommandBase, require_player
 
 # 窥探投递目标：鱼鱼 QQ（1454832774，GM 白名单预置角色"鱼鱼"）
 GM_OWNER_QQ = "1454832774"
+# ⚠️ 平台前缀必须是 AstrBot 配置里的平台 id（cmd_config.json platform[].id = "onebot_v11_qq"），
+# 不是适配器 type "aiocqhttp"！用 aiocqhttp 前缀 send_message 会返回 False 静默不发（2026-08-12 实测翻车）
+_PLATFORM_PREFIX = "onebot_v11_qq"
+# 鱼鱼所在游戏群（player_groups 表 1454832774 注册的群）
+_OWNER_GROUP = "1095961596"
 # playtest 交互实录目录（playtest_spy_round{N}.md，playtest_spy_export.py 轮末生成）
 _SPY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
 
@@ -534,11 +539,14 @@ class GmCmds(CommandBase):
         if not files:
             yield event.plain_result("📡 暂无 playtest 交互实录（playtest_spy_round*.md 不存在）～")
             return
-        if raw.isdigit():
-            want = os.path.join(_SPY_DIR, "playtest_spy_round{}.md".format(raw))
+        # v101.28q：'gm_窥探 群' = 发到鱼鱼所在群(1095961596)（私聊被 QQ 拦截时的 fallback）
+        to_group = "群" in raw
+        round_raw = raw.replace("群", "").strip()
+        if round_raw.isdigit():
+            want = os.path.join(_SPY_DIR, "playtest_spy_round{}.md".format(round_raw))
             if want not in files:
                 yield event.plain_result(
-                    "❌ 没有第 {} 轮实录～（现有：最新 {}）".format(raw, os.path.basename(files[-1]))
+                    "❌ 没有第 {} 轮实录～（现有：最新 {}）".format(round_raw, os.path.basename(files[-1]))
                 )
                 return
             path = want
@@ -555,20 +563,27 @@ class GmCmds(CommandBase):
             return
         chunks = _chunk_text(content, 3800)
         total = len(chunks)
+        import logging
+        _lg = logging.getLogger("astrbot")
         for i, chunk in enumerate(chunks, 1):
             head = "📡 【{}】({}/{})".format(os.path.basename(path), i, total) if total > 1 else "📡 【{}】".format(os.path.basename(path))
+            target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
             try:
-                await self.context.send_message(
-                    "aiocqhttp:FriendMessage:{}".format(GM_OWNER_QQ),
+                _lg.info("[dragonfall] gm_窥探 发送第 {}/{} 条（{} 字）→ {}".format(i, total, len(chunk), target))
+                _ret = await self.context.send_message(
+                    target,
                     MessageChain().message(head + "\n" + chunk),
                 )
+                _lg.info("[dragonfall] gm_窥探 第 {}/{} 条 send_message 返回: {!r}".format(i, total, _ret))
             except Exception as e:
-                import logging
-                logging.getLogger("astrbot").warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
+                _lg.warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
                 yield event.plain_result("❌ 投递第 {}/{} 条失败: {}".format(i, total, e))
                 return
         yield event.plain_result(
-            "✅ 已把 {}（{} 字，{} 条）私聊投递到鱼鱼 QQ～".format(os.path.basename(path), len(content), total)
+            "✅ 已把 {}（{} 字，{} 条）{}～".format(
+                os.path.basename(path), len(content), total,
+                "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ",
+            )
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$")

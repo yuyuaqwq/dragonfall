@@ -499,8 +499,10 @@ class CommandBase:
             if exclude_group and str(gid) == str(exclude_group):
                 continue
             try:
+                # ⚠️ 平台前缀必须是配置里的平台 id "onebot_v11_qq"（不是 type "aiocqhttp"）——
+                # v101.28q 实测：aiocqhttp 前缀 send_message 返回 False 静默不发（广播从未生效）
                 await self.context.send_message(
-                    f"aiocqhttp:GroupMessage:{gid}", chain
+                    f"onebot_v11_qq:GroupMessage:{gid}", chain
                 )
             except Exception as e:
                 import logging
