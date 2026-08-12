@@ -9,6 +9,7 @@ gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时回退—�
   gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM
   gm_伤害 / gm_play（历史保留）
 """
+import asyncio
 import glob
 import json
 import os
@@ -54,6 +55,49 @@ def _chunk_text(text: str, size: int = 3800):
     if cur:
         chunks.append(cur)
     return chunks
+
+
+def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
+    """把实录 md 按角色拆成多组合并转发节点（v101.28u：每子 agent 一张卡）。
+
+    返回 [(角色名, [Node...]), ...]——每张卡片 = 一个角色的聊天记录：
+    开头 1 条角色名总览 + 该角色最近 N 段交互（▶ 指令+回复交替）。
+    鱼鱼要求：6 个子 agent 各自一张合并转发，方便逐人查看战况。
+
+    ⚠️ ARK 限制（v101.28t 实测）：fromPacketMsg 把每条消息完整文本塞进
+    bytesData，总量太大 → retcode 1200。单节点 ≤300 字、每角色 ≤8 段、
+    每卡 ≈2.5K 字以内，安全。
+    """
+    m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
+    title = m.group(1).strip() if m else label
+    cards = []
+    for sec in re.split(r"^## ", content, flags=re.M):
+        sec = sec.strip()
+        if not sec or sec.startswith("# "):
+            continue
+        parts = sec.split("\n", 1)
+        role = parts[0].strip()
+        body = parts[1].strip() if len(parts) > 1 else ""
+        if not body:
+            continue
+        # 角色名清洗："🧵 格温 (main)" → "格温"
+        name = re.sub(r"^[^\w\u4e00-\u9fff]+", "", role)
+        name = re.sub(r"\s*\(.*?\)\s*$", "", name).strip() or role
+        nodes = [
+            Node(
+                uin=bot_qq,
+                name=name,
+                content=[Plain("📡 {} · {}（点开看本轮战况）".format(name, title))],
+            )
+        ]
+        # 段落按 ▶ 指令切分（实录格式：▶ 『指令』\n回复体），每角色取最新 8 段
+        segs = re.split(r"(?=▶)", body)
+        segs = [s.strip() for s in segs if s.strip()][-8:]
+        for seg in segs:
+            for chunk in _chunk_text(seg, 300):
+                nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))
+        cards.append((name, nodes))
+    return cards
 
 
 def _spy_to_forward_nodes(content: str, label: str, bot_qq: str) -> list:
@@ -615,18 +659,28 @@ class GmCmds(CommandBase):
             return
         import logging
         _lg = logging.getLogger("astrbot")
-        # v101.28r：合并转发（聊天记录样式）——每条节点=一个角色，点开是角色轮流说话
-        nodes = _spy_to_forward_nodes(content, os.path.basename(path), event.get_self_id())
+        # v101.28u：每子 agent 一张合并转发卡（鱼鱼要求）——循环发送，间隔防风控
+        cards = _spy_to_role_cards(content, os.path.basename(path), event.get_self_id())
         target = "{}:GroupMessage:{}".format(_PLATFORM_PREFIX, _OWNER_GROUP) if to_group else "{}:FriendMessage:{}".format(_PLATFORM_PREFIX, GM_OWNER_QQ)
-        try:
-            _lg.info("[dragonfall] gm_窥探 合并转发 {} 节点（{} 字）→ {}".format(len(nodes), len(content), target))
-            _ret = await self.context.send_message(
-                target,
-                MessageChain([Nodes(nodes)]),
-            )
-            _lg.info("[dragonfall] gm_窥探 合并转发 send_message 返回: {!r}".format(_ret))
-            # v101.28s：发送成功 → 同步 .spy_forward_state.json（spy_forward cron 防重，
-            # 避免主循环轮末直发 + cron 10min 补发同一轮重复）
+        sent_ok, sent_fail = 0, 0
+        for _name, _nodes in cards:
+            try:
+                _lg.info("[dragonfall] gm_窥探 角色卡 {}（{} 节点）→ {}".format(_name, len(_nodes), target))
+                _ret = await self.context.send_message(
+                    target,
+                    MessageChain([Nodes(_nodes)]),
+                )
+                _lg.info("[dragonfall] gm_窥探 角色卡 {} send_message 返回: {!r}".format(_name, _ret))
+                if _ret is False:
+                    sent_fail += 1
+                else:
+                    sent_ok += 1
+            except Exception as _e:
+                _lg.warning("[dragonfall] gm_窥探 角色卡 {} 投递失败: {}".format(_name, _e))
+                sent_fail += 1
+            await asyncio.sleep(1.2)  # 连续多卡间隔，防 QQ 频率风控
+        # v101.28s：有成功发送 → 同步 .spy_forward_state.json（spy_forward cron 防重）
+        if sent_ok > 0:
             try:
                 _m = re.search(r"playtest_spy_round(\d+)\.md$", path)
                 if _m:
@@ -634,13 +688,12 @@ class GmCmds(CommandBase):
                         json.dump({"last_sent_round": int(_m.group(1)), "sent_at": int(time.time())}, _f, ensure_ascii=False)
             except Exception as _e:
                 _lg.warning("[dragonfall] gm_窥探 state 同步失败: {}".format(_e))
-        except Exception as e:
-            _lg.warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
-            yield event.plain_result("❌ 投递失败: {}".format(e))
+        if sent_ok == 0:
+            yield event.plain_result("❌ {} 张角色卡全部投递失败，详见 AstrBot 日志～".format(len(cards)))
             return
         yield event.plain_result(
-            "✅ 已把 {}（{} 字，{} 节点合并转发）{}～".format(
-                os.path.basename(path), len(content), len(nodes),
+            "✅ 已把 {} 拆成 {} 张角色卡合并转发（成功 {} / 失败 {}）{}～".format(
+                os.path.basename(path), len(cards), sent_ok, sent_fail,
                 "投递到游戏群 1095961596" if to_group else "私聊投递到鱼鱼 QQ",
             )
         )
