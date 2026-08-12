@@ -70,6 +70,7 @@ class Battle:
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
+        self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
         self.e_defending = False
@@ -125,6 +126,7 @@ class Battle:
             "enemy": self.enemy,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
+            "p_hot": self.p_hot,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
             "e_defending": self.e_defending,
@@ -148,6 +150,7 @@ class Battle:
         b = cls(st.get("type", "monster"), st.get("enemy", {}), st.get("title_bonus") or {}, pet=st.get("pet") or {})
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
+        b.p_hot = st.get("p_hot", {}) or {}
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
@@ -268,6 +271,9 @@ class Battle:
             self.p_extra_left = 0
             self.p_buffs.pop("stun", None)
             self.p_buffs.pop("freeze", None)
+            # v101.28 被控制回合 hot 照常结算（被动效果，正好救命）
+            if self.p_hot and self.p_hot.get("turns", 0) > 0:
+                logs += self._apply_hot(player)
             return self._enemy_phase(player, logs, enemy_act)
         # 额外行动阶段（上回合速度优势还没用完）：不结算新回合，直接自由出手
         if self.p_extra_left > 0 and action in ("attack", "skill", "use_item"):
@@ -299,6 +305,9 @@ class Battle:
         # ---- 正常回合开始 ----
         self.round += 1
         logs += self._turn_start(player)
+        # v101.28 食物持续恢复：正常回合开始结算 hot（每回合一次，含眩晕/冻结回合）
+        if self.p_hot and self.p_hot.get("turns", 0) > 0:
+            logs += self._apply_hot(player)
         # 24 章宠物技能：回合开始自动触发（宠物击杀直接胜利）
         if self.pet:
             logs = self._pet_skill_turn(player, logs)
@@ -391,6 +400,20 @@ class Battle:
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
+        if payload.startswith("hot:"):
+            # v101.28 食物持续恢复：hot:回血比例,回蓝比例,回合数（模板 tpl_food 生成）
+            _p = payload[4:].split(",")
+            hpct = float(_p[0]) if _p and _p[0] else 0.0
+            mpct = float(_p[1]) if len(_p) > 1 and _p[1] else 0.0
+            turns = int(_p[2]) if len(_p) > 2 and _p[2] else 3
+            self.p_hot = {"heal": hpct, "mana": mpct, "turns": turns}
+            _desc = []
+            if hpct > 0:
+                _desc.append(f"每回合恢复 {int(hpct * 100)}% 生命")
+            if mpct > 0:
+                _desc.append(f"每回合恢复 {int(mpct * 100)}% 魔力")
+            logs.append(f"🍲 你吃下了食物，{('、'.join(_desc))}！({turns} 回合)")
+            return logs
         if payload.startswith("mana:"):
             # v101.27：魔力药水战斗内回显数字（tpl_mana payload="mana:N"）
             mv = int(payload[5:])
@@ -419,6 +442,31 @@ class Battle:
                 logs.append(f"💊 你使用了战斗道具，恢复 {player['hp'] - before} 点生命！({player['hp']}/{player['max_hp']})")
             else:
                 logs.append("💊 你使用了战斗道具！")
+        return logs
+
+    def _apply_hot(self, player: dict) -> list:
+        """v101.28 食物持续恢复：每回合开始结算（回血/回蓝，回合数递减）。"""
+        h = self.p_hot
+        logs = []
+        max_hp = player.get("max_hp", player.get("hp", 100))
+        max_mp = player.get("max_mp", player.get("mp", 100))
+        if h.get("heal"):
+            gain = int(max_hp * h["heal"])
+            if gain > 0:
+                before = player.get("hp", 0)
+                player["hp"] = min(max_hp, before + gain)
+                logs.append(f"🍲 持续恢复生效，恢复 {player['hp'] - before} 点生命！({player['hp']}/{max_hp})")
+        if h.get("mana"):
+            gain = int(max_mp * h["mana"])
+            if gain > 0:
+                before = player.get("mp", 0)
+                player["mp"] = min(max_mp, before + gain)
+                logs.append(f"🍲 持续恢复生效，恢复 {player['mp'] - before} 点魔力！({player['mp']}/{max_mp})")
+        h["turns"] -= 1
+        if h["turns"] <= 0:
+            self.p_hot = {}
+        else:
+            logs.append(f"（剩余 {h['turns']} 回合）")
         return logs
 
     def _do_player_skill(self, skill_name: str, player: dict) -> list:

@@ -78,6 +78,10 @@ class ItemContext:
 def infer_template(data):
     """从道具数据推断模板名（use() 分发用）。"""
     from .. import content as C  # v102.2 延迟导入（core 聚合链惯例）
+    if data.get("hot"):
+        # v101.28 食物持续恢复：有 hot 字段 = 食物 → food 模板
+        # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
+        return "food"
     if data.get("heal"):
         return "heal"
     if data.get("mana"):
@@ -163,6 +167,44 @@ def tpl_stamina(ctx):
     ctx.hook("remove_item")
     return ItemResult(
         text=f"🍖 你吃下了【{d['name']}】！\n⚡ 恢复 {st_gain} 点体力({ctx.hook('stamina_cur', ctx.hook('get_player') or ctx.player)}/{ctx.hook('stamina_max', ctx.hook('get_player') or ctx.player)})")
+
+
+@register("food", battle_ok=True)
+def tpl_food(ctx):
+    """v101.28 食物（hot 字段标记）：战斗内=持续恢复（hot 每回合回血/回蓝），
+    战斗外=即时回复+体力（与 heal/mana 模板同效果，合并播报）。"""
+    d = ctx.data
+    if ctx.battle:
+        heal_pct = float(d.get("hot") or 0)
+        mana_pct = float(d.get("hot_mana") or 0)
+        turns = int(d.get("hot_turns") or 3)
+        return ItemResult(payload=f"hot:{heal_pct},{mana_pct},{turns}")
+    # 战斗外：即时回复 + 体力
+    db = ctx._db()
+    st_msg = ctx.hook("stamina_msg", ctx.group_id, ctx.qq_id, ctx.player) or ""
+    msgs = []
+    changed = False
+    if d.get("heal"):
+        hv = d["heal"] if d["heal"] > 1 else int(ctx.player["max_hp"] * d["heal"])
+        if ctx.player["hp"] < ctx.player["max_hp"] or d.get("mana") or d.get("stamina"):
+            new_hp = min(ctx.player["max_hp"], ctx.player["hp"] + hv)
+            db.update_player(ctx.group_id, ctx.qq_id, hp=new_hp)
+            msgs.append(f"恢复 {hv} 点生命")
+            changed = True
+    if d.get("mana"):
+        mv = d["mana"] if d["mana"] > 1 else int(ctx.player["max_mp"] * d["mana"])
+        if ctx.player["mp"] < ctx.player["max_mp"] or d.get("stamina"):
+            new_mp = min(ctx.player["max_mp"], ctx.player["mp"] + mv)
+            db.update_player(ctx.group_id, ctx.qq_id, mp=new_mp)
+            msgs.append(f"恢复 {mv} 点魔力")
+            changed = True
+    if not changed:
+        return ItemResult(
+            text=f"❤️ 你现在的状态是满的({ctx.player['hp']}/{ctx.player['max_hp']})，用不着【{d['name']}】～",
+            consume=False)
+    ctx.hook("remove_item")
+    return ItemResult(
+        text=f"🍖 你吃下了【{d['name']}】，{'、'.join(msgs)}！\n{st_msg}".rstrip("\n"))
 
 
 # ---- 战斗药水（6 种 effect → p_buffs key）----
