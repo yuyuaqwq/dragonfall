@@ -572,8 +572,15 @@ class EconomyCmds(CommandBase):
                         {"name": fname, "type": fish["type"], "stackable": True,
                          "price": fish["price"], "quality": fq})
             _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
+        # v101.30b Lv.10 深海渔神：一杆双鱼（15% 概率多一条同品质渔获）
+        _master_line = ""
+        if prof_lv >= 10 and random.random() < 0.15:
+            db.add_item(group_id, qq_id, mat_key,
+                        {"name": fname, "type": fish["type"], "stackable": True,
+                         "price": fish["price"], "quality": fq})
+            _master_line = f"\n🐟 渔神出手，一杆双鱼！又一条【{fname}】入网！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_pet_egg_line}{_life_line}{bait_line}")
+                f"📦 {fish['desc']}(可『出售 {fname}』，价值 {fish['price']} 金币){lv_msg}{_cf_line}{_mount_fish_line}{_master_line}{_pet_egg_line}{_life_line}{bait_line}")
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""
@@ -620,13 +627,17 @@ class EconomyCmds(CommandBase):
         # 24 章二：月光兔蛋特殊渠道——采集稀有产出 10% 概率（稀有材料判定参考 _gather_roll 的高价段）
         _pet_egg_line = ""
         rare_hit = any(C.MATERIALS[m].get("price", 0) >= 150 for m in mats)
-        if rare_hit and random.random() < C.RARE_MAT_CHANCE:
+        # v101.30b Lv.10 万物采集大师：稀有惊喜概率翻倍（兔蛋 10%→20%）
+        _rare_ch = 0.20 if prof >= 10 else C.RARE_MAT_CHANCE
+        if rare_hit and random.random() < _rare_ch:
             egg = C.make_pet_egg("pet_rabbit")
             db.add_item(group_id, qq_id, "petegg_pet_rabbit", egg)
             _pet_egg_line = f"\n🥚 草丛深处有一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
         # v101.15 生活渠道：北境采集稀有产出驯鹿缰绳 5%（稀缺品走生活渠道）
         _life_line = ""
-        if rare_hit and random.random() < 0.05:
+        # v101.30b Lv.10：驯鹿缰绳 5%→10%
+        _rein_ch = 0.10 if prof >= 10 else 0.05
+        if rare_hit and random.random() < _rein_ch:
             rein = C.make_mount_rein("mount_reindeer")
             db.add_item(group_id, qq_id, "mountrein_mount_reindeer", rein)
             _life_line = f"\n🦌 树根下缠着一根【{rein['name']}】！『使用 缰绳』驯服！"
@@ -662,9 +673,10 @@ class EconomyCmds(CommandBase):
                 if cand:
                     ores = cand
         # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
+        # v101.30b Lv.10 群山之王：稀有矿脉 50%
         rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
         is_rare = False
-        if prof >= 4 and rare and random.random() < (0.15 if prof < 7 else 0.30):
+        if prof >= 4 and rare and random.random() < (0.15 if prof < 7 else (0.50 if prof >= 10 else 0.30)):
             ore = random.choice(rare)
             is_rare = True
         else:
@@ -959,7 +971,15 @@ class EconomyCmds(CommandBase):
         pkey = next(iter(r["product"]))
         itdef = C.ITEMS.get(pkey, {})
         _fx_fields = ("heal", "mana", "effect", "stamina", "hot", "hot_turns", "hot_mana", "food_effect")
-        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **({k: v for k, v in itdef.items() if k in _fx_fields})})
+        _item_kwargs = {k: v for k, v in itdef.items() if k in _fx_fields}
+        # v101.30b Lv.10 食神：完美料理 10%（恢复/持续强度 ×1.5，效果类不变；时长不变）
+        _perfect_line = ""
+        if cook_lv >= 10 and random.random() < 0.10:
+            for _fk in ("heal", "mana", "hot", "hot_mana"):
+                if _fk in _item_kwargs:
+                    _item_kwargs[_fk] = round(_item_kwargs[_fk] * 1.5, 3)
+            _perfect_line = " ✨完美料理！效果提升 50%！"
+        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **_item_kwargs})
         # 副业经验
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "cooking", 1)
         lv_msg = ""
@@ -975,7 +995,7 @@ class EconomyCmds(CommandBase):
         _rule_txt = self._rule_fire("craft_done", group_id, qq_id, player,
                                     C.MAP_BY_ID.get(player["cur_map"], {}))
         yield event.plain_result(act_msg + f"🍳 灶火升腾，香气四溢……\n"
-            f"✅ 烹饪成功！【{itdef.get('name', pkey)}】({itdef.get('desc', '')})已放入背包！{lv_msg}"
+            f"✅ 烹饪成功！【{itdef.get('name', pkey)}】({itdef.get('desc', '')})已放入背包！{_perfect_line}{lv_msg}"
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
@@ -1346,6 +1366,9 @@ class EconomyCmds(CommandBase):
         gold_need = rec["gold"]
         if affinity:
             gold_need = int(gold_need * 1.5)
+        # v101.30b Lv.10 神锻宗师：锻造费用 9 折
+        if prof_lv >= 10:
+            gold_need = int(gold_need * 0.9)
         if player["gold"] < gold_need:
             yield event.plain_result(f"金币不足！锻造【{rec_disp}】需要 {gold_need} 金币，你只有 {player['gold']}。")
             return
@@ -1736,10 +1759,13 @@ class EconomyCmds(CommandBase):
         # v101.30 炼金强化材料接入：精炼强化石 = 成功率 +25%（自动消耗）；强化石 = 失败保护（失败不掉级）
         _rate = info["rate"]
         _stone_line = ""
+        if prof_lv >= 10:  # v101.30b Lv.10 铁匠宗师：成功率全段位 +5%
+            _rate = min(1.0, _rate + 0.05)
+            _stone_line = "\n🛠️ 铁匠宗师的手艺：成功率 +5%！"
         if db.count_item(group_id, qq_id, "i_stone_refine") >= 1:
             _rate = min(1.0, _rate + 0.25)
             db.remove_item(group_id, qq_id, "i_stone_refine", 1)
-            _stone_line = "\n✨ 精炼强化石淬入火中，成功率提升了！"
+            _stone_line += "\n✨ 精炼强化石淬入火中，成功率提升了！"
         _protect_have = db.count_item(group_id, qq_id, "i_stone_upgrade")
         # 掷强化
         if _boost or random.random() < _rate:
@@ -1858,8 +1884,8 @@ class EconomyCmds(CommandBase):
                 return
             d = target["data"]
             slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
-            # v101.30 Lv.8 传说工艺：橙装第 3 符文槽
-            if prof_lv >= 8 and d.get("quality") == "orange":
+            # v101.30/30b 附魔槽：Lv.7 史诗工艺（紫装 3 槽）/ Lv.8 传说工艺（橙装 3 槽）
+            if (prof_lv >= 7 and d.get("quality") == "purple") or (prof_lv >= 8 and d.get("quality") == "orange"):
                 slots += 1
             if slots <= 0:
                 yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有符文槽，只有蓝/紫/橙装备可以附魔！")
@@ -1929,8 +1955,8 @@ class EconomyCmds(CommandBase):
             return
         d = target["data"]
         slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
-        # v101.30 Lv.8 传说工艺：橙装第 3 符文槽
-        if prof_lv >= 8 and d.get("quality") == "orange":
+        # v101.30/30b 附魔槽：Lv.7 史诗工艺（紫装 3 槽）/ Lv.8 传说工艺（橙装 3 槽）
+        if (prof_lv >= 7 and d.get("quality") == "purple") or (prof_lv >= 8 and d.get("quality") == "orange"):
             slots += 1
         if slots <= 0:
             yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有附魔槽，只有蓝/紫/橙装备可以附魔！")
