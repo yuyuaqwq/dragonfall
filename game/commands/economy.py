@@ -882,23 +882,29 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg
                                  + (f"\n{_rule_txt}" if _rule_txt else ""))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:[\s\S]*)$")
     @require_player()
 
     async def cooking_list(self, event: AstrMessageEvent):
-        """烹饪配方列表(按烹饪等级解锁)"""
+        """烹饪配方列表(按烹饪等级解锁，v101.30 加翻页)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         cook_lv = db.get_prof_level(group_id, qq_id, "cooking")
+        raw = self._strip_cmd(event, "烹饪列表").strip()
+        page = int(raw) if raw.isdigit() else 1
+        recs = list(C.COOKING_RECIPES.items())
+        page_items, pages, page = self._page_items(recs, page, per_page=5)
         lines = ["🍳 【烹饪灶台】料理配方：", "━━━━━━━━━━━━"]
-        for i, (rkey, r) in enumerate(C.COOKING_RECIPES.items(), 1):
+        base = (page - 1) * 5
+        for i, (rkey, r) in enumerate(page_items, 1):
             lock = "" if cook_lv >= r["min_lv"] else " 🔒"
             def _mname(k):
                 return C.display("materials", k) if k.startswith("mat_") else C.display("fish", k)
             cost = " + ".join(f"{_mname(m)}×{c}" for m, c in r["cost"].items())
-            lines.append(f"{i:>2}. {r['name']}(烹饪Lv.{r['min_lv']}){lock}")
+            lines.append(f"{base + i:>2}. {r['name']}(烹饪Lv.{r['min_lv']}){lock}")
             lines.append(f"    {cost} → {C.display('items', next(iter(r['product'])))}")
         lines.append("")
+        lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『烹饪列表 {page + 1}』下一页" if page < pages else ""))
         lines.append(f"💡 你当前烹饪等级 Lv.{cook_lv}，『烹饪 <料理名>』制作(如：烹饪 鱼汤)")
         lines.append("💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验")
         yield event.plain_result("\n".join(lines))
@@ -925,6 +931,11 @@ class EconomyCmds(CommandBase):
         cook_lv = db.get_prof_level(group_id, qq_id, "cooking")
         if cook_lv < r["min_lv"]:
             yield event.plain_result(f"【{r['name']}】需要烹饪 Lv.{r['min_lv']}，你才 Lv.{cook_lv}。多做简单料理提升吧！")
+            return
+        # v101.30 体力：烹饪消耗 5 体力（制造副业半价，亲民入口；炼金/锻造/强化/附魔为 10）
+        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "烹饪")
+        if not _ok:
+            yield event.plain_result(_st)
             return
         # 检查材料（鱼 key 是 fish_<中文名>，材料是 mat_id）
         lack = []
@@ -1073,7 +1084,7 @@ class EconomyCmds(CommandBase):
         tops = db.prof_top(group_id, 10)
         if not tops:
             return "🏆 【副业排行】\n━━━━━━━━━━━━\n还没有人练副业，快来当第一名！"
-        lines = ["🏆 【副业排行】(总分 = 6 条副业等级之和)", "━━━━━━━━━━━━"]
+        lines = ["🏆 【副业排行】(总分 = 8 条副业等级之和)", "━━━━━━━━━━━━"]
         names = {}
         for t in tops:
             p = self._player(group_id, t["qq_id"])

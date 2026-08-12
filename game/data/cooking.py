@@ -159,9 +159,3 @@ COOKING_RECIPES = {
     },
 }
 
-COOKING_REQUIRED_LV = {
-    "cook_slime_jelly": 1,
-    "cook_skewer": 1,
-    "cook_gold_feast": 2,
-}
-
