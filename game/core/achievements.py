@@ -79,7 +79,11 @@ def achievement_titles(qq_id) -> list:
 
 
 def achievement_points(qq_id) -> int:
-    """成就点(普通 1 / 隐藏 2)"""
+    """成就点(普通 1 / 隐藏 2)。
+
+    ⚠️ 14 章四「成就等级体系（青铜→传奇）」待后续版本，未实装：当前只算点数，
+    无等级划分/等级称号/等级加成。（v105 M18 P2 标注，见 AUDIT_FINDINGS_v104 P2-8）
+    """
     from .. import content as C
     from .. import db
     try:

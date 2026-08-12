@@ -4188,11 +4188,9 @@ MAP_CONNECTIONS = {
 }
 
 HIDDEN_MAP_UNLOCK = {
-    "dragon_sanctum": {"level": 90, "quest": "dragon_reputation"},
-    "elf_opera": {"level": 55, "quest": "s_hidden_bard"},
-    "mithril_hall": {"level": 25, "quest": "q8"},
-    "sea_altar": {"level": 50, "quest": "diving_gear"},
-    "under_king_hall": {"level": 85, "quest": "under_runes"},
+    # v104 P2(M22): 清理 v83 旧世界 5 条死条目(dragon_sanctum/elf_opera/mithril_hall/
+    # sea_altar/under_king_hall——目标地图不在 MAPS，准入检查 world.py:719-740 永不触发；
+    # 对应隐藏图未恢复，若后续重新设计这些区域需连同地图/连接一起补)
     # v87 隐藏线：H6/H7 物品型准入
     "lost_library": {"level": 45, "item": {"泛黄书页": 3}},
     "ember_corridor": {"level": 80, "item": {"烬火信标": 1}},

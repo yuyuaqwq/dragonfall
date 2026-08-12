@@ -25,6 +25,50 @@ REPUTATION_TIERS = [
     (1500, "崇拜"),
 ]
 
+# v105 M18 P2-7 声望消费侧：势力声望商店（07 章三·声望系统 desc 承诺的"商店折扣/专属商品"最小落地）
+# 按声望等级解锁专属商品（声望只作门槛，金币购买）：声望不足 → 提示所需等级。
+#   item  = 物品 ID（C.ITEMS / C.MATERIALS 均有定义）
+#   tier  = 解锁所需声望阈值（对照 REPUTATION_TIERS：100 友好 / 300 尊敬 / 700 崇敬 / 1500 崇拜）
+#   price = 商店售价（金币；缺省用物品原价）
+# 命令入口：『声望商店』（game/commands/world.py rep_shop），高级委托/隐藏任务解锁随 11 章阵营体系后续扩展。
+FACTION_SHOP = {
+    "guild": [  # 冒险者行会：高级药水 + 行会传送特权
+        {"item": "i_treat_l", "tier": 100},
+        {"item": "i_mana_l", "tier": 100},
+        {"item": "i_scroll_teleport", "tier": 300, "price": 400},
+    ],
+    "kingdom": [  # 圣光王国：王都军需
+        {"item": "i_treat_l", "tier": 100},
+        {"item": "i_holy_water", "tier": 300},
+        {"item": "i_holy_charm", "tier": 300},
+    ],
+    "church": [  # 圣光教会：圣堂恩赐
+        {"item": "i_holy_water", "tier": 100},
+        {"item": "i_holy_potion", "tier": 300},
+        {"item": "i_scroll_purify", "tier": 700},
+    ],
+    "elves": [  # 银月精灵：月系珍品
+        {"item": "i_elf_fruit", "tier": 100},
+        {"item": "i_mana_l", "tier": 300},
+        {"item": "i_moon_dew", "tier": 700},
+    ],
+    "dwarves": [  # 矮人铁砧：锻造补给
+        {"item": "i_dwarf_liquor", "tier": 100},
+        {"item": "i_stone_upgrade", "tier": 300},
+        {"item": "i_stone_refine", "tier": 700},
+    ],
+    "north": [  # 北境诸部：霜原补给
+        {"item": "i_meat_skewer", "tier": 100},
+        {"item": "i_treat_l", "tier": 300},
+        {"item": "i_scroll_escape", "tier": 300},
+    ],
+    "dragons": [  # 龙裔：龙血传承
+        {"item": "i_dragon_scale_potion", "tier": 300},
+        {"item": "i_scroll_revive", "tier": 700},
+        {"item": "i_life_elixir", "tier": 1500},
+    ],
+}
+
 AREA_FACTION = {
     # 南境（圣光王国腹地）
     "oak": "kingdom", "white_deer": "kingdom", "emerald": "kingdom",

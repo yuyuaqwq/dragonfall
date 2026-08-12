@@ -295,7 +295,7 @@ class SocialCmds(CommandBase):
             f"对方的东西已放进你背包，你的【{give['data']['name']}】已送到对方背包～"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:[\s\S]*)$")
     @require_player()
 
     async def party(self, event: AstrMessageEvent):
@@ -310,7 +310,12 @@ class SocialCmds(CommandBase):
                 lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]
                 for i, m in enumerate(members, 1):
                     p = self._player(group_id, m)
-                    lines.append(f"{i}. {p['name'] if p else m}" + ("(队长)" if m == members[0] else ""))
+                    # v104 M04 P2：面板补 等级/职业（对齐『角色』面板写法 C.display('classes', ...)）
+                    cls_str = (
+                        f" Lv.{p.get('level', '?')} {C.display('classes', p.get('class_name') or C.CLASS_NOVICE)}"
+                        if p else ""
+                    )
+                    lines.append(f"{i}. {p['name'] if p else m}{cls_str}" + ("(队长)" if m == members[0] else ""))
                 lines.append("💡 组队打怪经验＋10%！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
                 yield event.plain_result("\n".join(lines))
             else:
@@ -371,7 +376,7 @@ class SocialCmds(CommandBase):
         import datetime
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        name = self._strip_cmd(event, "创建公会").strip()[:10]
+        name = self._strip_cmd(event, "创建公会").strip()[:8]  # 策划 11 章 3.1：公会名 1-8 字
         if not name:
             yield event.plain_result("格式：创建公会 <名字>，如『创建公会 屠龙勇士』")
             return
@@ -393,7 +398,7 @@ class SocialCmds(CommandBase):
         yield event.plain_result(
             f"🏰 【公会创建成功】『{name}』！\n"
             f"你成为了公会会长！\n"
-            f"💡 『公会』查看信息，『公会签到』『公会任务』为公会贡献力量！"
+            f"💡 『公会』查看信息，『公会签到』『公会任务』『公会捐献』为公会贡献力量！"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)")
@@ -445,7 +450,7 @@ class SocialCmds(CommandBase):
         db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|排行|创建|加入|退出|解散)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散)(?:\s*|$)")
     @require_player()
 
     async def guild_info(self, event: AstrMessageEvent):
@@ -453,7 +458,7 @@ class SocialCmds(CommandBase):
         player = self._player(group_id, qq_id)
         g = db.guild_get_by_member(qq_id)
         if not g:
-            yield event.plain_result("你还没有公会！『创建公会 <名字>』(20级＋5000金币)或『加入公会 <名字>』")
+            yield event.plain_result("你还没有公会！『创建公会 <名字>』(30级＋1000金币)或『加入公会 <名字>』")
             return
         members = db.guild_members(g["gid"])
         count = len(members)
@@ -478,7 +483,7 @@ class SocialCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
-        lines.append("💡 『公会签到』『公会任务』为公会赚经验！")
+        lines.append("💡 『公会签到』『公会任务』『公会捐献』为公会赚经验！")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)")
@@ -527,7 +532,56 @@ class SocialCmds(CommandBase):
             return
         yield event.plain_result(
             f"🎯 【公会任务】击杀 {need} 只怪物(当前 {tprog}/{need})\n"
-            f"💡 击杀怪物自动推进，完成后回来领取奖励！"
+            f"💡 击杀会自动结算奖励！"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会捐献(?:\s*|$)")
+    @require_player()
+
+    async def guild_donate_cmd(self, event: AstrMessageEvent):
+        """公会捐献：上交材料为公会做贡献，每日一次。
+
+        策划 11 章 4 种公会任务（讨伐/捐献/金币/副本）→ 简化落地：讨伐（击杀自动推进）+ 捐献（上交 3 份材料）。
+        进度用 event_state 单独记录（key=guild_donate:{gid}:{qq_id}，值=日期），不与击杀任务共用 task_progress。
+        """
+        import datetime
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
+            return
+        cfg = C.GUILD_CONFIG
+        need = cfg["donate_items"]
+        today = datetime.date.today().isoformat()
+        key = f"guild_donate:{g['gid']}:{qq_id}"
+        if db.get_event_state(key) == today:
+            yield event.plain_result("今天的公会捐献已完成！明天再来～")
+            return
+        # 材料 = 背包中 mat_ 前缀物品（v46 起材料统一存 mat_ 拼音/英文 id）
+        mats = [it for it in db.get_inventory(group_id, qq_id) if it["key"].startswith("mat_")]
+        total = sum(it["count"] for it in mats)
+        if total < need:
+            yield event.plain_result(
+                f"🎯 【公会捐献】需要上交 {need} 份材料(当前 {total}/{need})！\n"
+                f"💡 打怪掉落/采集可获得材料，凑齐后『公会捐献』再来～"
+            )
+            return
+        # 扣材料（从背包靠前的材料开始扣）
+        remain = need
+        for it in mats:
+            if remain <= 0:
+                break
+            take = min(it["count"], remain)
+            db.remove_item(group_id, qq_id, it["key"], take)
+            remain -= take
+        db.guild_add_exp(g["gid"], cfg["task_exp"], member_qq=qq_id, contribute=cfg["task_contribute"])
+        db.update_player(group_id, qq_id, gold=player["gold"] + cfg["task_gold"])
+        db.set_event_state(key, today)
+        yield event.plain_result(
+            f"🎁 【公会捐献完成】上交 {need} 份材料，为公会贡献力量！\n"
+            f"🏰 公会经验 +{cfg['task_exp']} ｜ 个人贡献 +{cfg['task_contribute']}\n"
+            f"💰 金币 +{cfg['task_gold']}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会排行(?:\s*|$)")
@@ -564,7 +618,11 @@ class SocialCmds(CommandBase):
         # 饱食度衰减持久化
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         sat = pet["satiety"]
-        bonus = int(min(pet["level"] / 10, 0.5) * 100)
+        # v104 M17 P2：面板加成按饱食度显示实际值（与战斗实算一致：饱食度=0 减半）
+        _pb = min(pet["level"] / 10, 0.5)
+        if sat <= 0:
+            _pb = _pb / 2
+        bonus = int(_pb * 100)
         skill_line = ""
         if pdef:
             skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}(Lv.10 解锁)"
@@ -585,7 +643,13 @@ class SocialCmds(CommandBase):
         if skill_line:
             lines.append(skill_line.lstrip("\n"))
         lines.append(f"❤️ 饱食度：{sat}/100")
-        lines.append(f"✨ 经验加成：+{bonus}%(主人战斗经验)")
+        # v104 M17 P3：亲密度展示（bond 原本只写不读）
+        bond = pet.get("bond", 0)
+        bond_line = f"💕 亲密度：{bond}/100"
+        if bond >= 50:
+            bond_line += "（羁绊生效：战斗经验 +5%）"
+        lines.append(bond_line)
+        lines.append(f"✨ 经验加成：+{bonus}%(主人战斗经验)" + ("(饱食度归零，加成减半)" if sat <= 0 else ""))
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『喂养 <材料>』恢复饱食度，『宠物改名 <名字>』改名，『放生』告别")
         yield event.plain_result("\n".join(lines))

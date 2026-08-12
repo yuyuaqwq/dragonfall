@@ -59,6 +59,7 @@ BUFF_MULT = {
     "food_spd_up":    ("spd", 1.12),
     "food_crit_up":   ("crit", 0.08),
     "food_matk_up":   ("matk", 1.10),
+    "food_spd_up_small": ("spd", 1.10),  # v105 M16 精灵果酱：战斗中本场速度+10%（策划 19:129）
     "mon_atk_up":     ("atk", 1.30),
     "mon_atk_up_strong": ("atk", 1.70),
     "mon_def_up":     ("def", 1.40),
@@ -500,6 +501,7 @@ class Battle:
             _cn = {"atk_up": "攻击", "def_up": "防御", "spd_up": "速度", "crit_up": "暴击",
                    "matk_up_pot": "魔攻",
                    "food_atk_up": "攻击", "food_def_up": "防御", "food_spd_up": "速度",
+                   "food_spd_up_small": "速度",
                    "food_crit_up": "暴击", "food_matk_up": "魔攻",
                    # v101.28f 药水强度分档
                    "atk_up_big": "攻击", "atk_up_small": "攻击", "spd_up_small": "速度",
@@ -1751,10 +1753,12 @@ class Battle:
                 logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
         elif stype == "buff_atk":
             self.p_buffs["atk_up"] = max(int(self.p_buffs.get("atk_up", 0) or 0), 2)
-            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 ＋30%，2 回合)" + (f"「{line}」" if line else ""))
+            # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 30%）
+            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         elif stype == "crit_up":
             self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
-            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 ＋20%，2 回合)" + (f"「{line}」" if line else ""))
+            # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 20%）
+            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:

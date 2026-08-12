@@ -359,6 +359,48 @@ def tpl_return_vila(ctx):
     return ItemResult(text=f"🧭 卷轴展开，光芒闪过——你回到了{town_name}！")
 
 
+@register("teleport_portal")
+def tpl_teleport_portal(ctx):
+    """传送卷轴（v104 P2(M22)：与回城卷轴区分）——方碑锚定传送：
+    传送到玩家最后激活的方碑所在城镇广场（复用方碑激活表 db.get_portals，
+    落点 subareas[0] 对齐"城内直达走广场"约定，同方碑传送/战败回城）。
+    回城卷轴=回最近城镇保命；传送卷轴=回已激活的方碑锚点（定点）。
+    说明：菜单式选城需命令层把『使用 卷轴 <目标>』参数透传给模板
+    （economy.py cmd_use 不传参，超本文件修改范围），故取最后激活锚点。"""
+    if ctx.battle:
+        return ItemResult(text="战斗中无法使用传送卷轴！先解决眼前的敌人吧～", consume=False)
+    db = ctx._db()
+    C = ctx._C()
+    cur = ctx.player.get("cur_map", "")
+    portals = [m for m in (db.get_portals(ctx.qq_id) or []) if C.MAP_BY_ID.get(m)]
+    if not portals:
+        return ItemResult(
+            text="🌀 传送卷轴泛起微光又暗淡下去——还没有可用的方碑锚点！\n"
+                 "💡 先去大陆上找到方碑『激活』它，之后就能用传送卷轴定向传送了～",
+            consume=False)
+    dest = portals[-1]  # 最后激活的方碑（add_portal 追加序）
+    if dest == cur:
+        return ItemResult(
+            text="你已经在这座方碑所在的城镇了！(传送卷轴没有消耗)",
+            consume=False)
+    tgt = C.MAP_BY_ID[dest]
+    sas = tgt.get("subareas") or []
+    first_sa = sas[0] if sas else None
+    db.update_player(ctx.group_id, ctx.qq_id,
+                     cur_map=dest, cur_subarea=first_sa["id"] if first_sa else "")
+    db.add_visited(ctx.group_id, ctx.qq_id, dest)
+    db.clear_talk_state(ctx.group_id, ctx.qq_id)  # v95 #142：传送落地清对话，防"还在交谈中"残留
+    ctx.hook("remove_item")
+    p = C.PORTALS.get(dest, {})
+    pname = p.get("name", "方碑") if p else "方碑"
+    picon = p.get("icon", "🌌") if p else "🌌"
+    anchors = "、".join(C.MAP_BY_ID[m].get("name", m) for m in portals)
+    return ItemResult(text=(
+        f"🌀 传送卷轴展开，星辉流转——你抵达了【{tgt.get('name', '城镇')}】({picon}{pname})！\n"
+        f"📍 当前方碑锚点：{anchors}\n"
+        "💡 想传送到其他城镇？先去那里的方碑『激活』，卷轴会锚定最新激活的一座～"))
+
+
 @register("lucky")
 def tpl_lucky(ctx):
     """幸运护符：10 分钟打怪金币 ×1.5、材料 +1。"""
@@ -486,6 +528,46 @@ def tpl_mount(ctx):
     return ItemResult(
         text=f"🐾 缰绳上的封印解开，{mdef['icon']}【{mdef['name']}】顺从地蹭了蹭你！\n"
              f"💡 输入『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
+
+
+# v104 P2-7 修复：净化卷轴死数据——战斗内清除玩家负面 buff（stun/freeze/silence/spd_down）
+_PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
+                       "atk_down", "def_down", "matk_down", "mdef_down")
+
+
+@register("purify", battle_ok=True)
+def tpl_purify(ctx):
+    """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
+
+    战斗内：清除 p_buffs 中的负面效果。普通战斗 p_buffs 为平铺 {buff: 回合}；
+    副本战斗为 {成员: {buff: 回合}}，按道具文案『驱散全队负面』清全部成员。
+    p_buffs 与战斗引擎 Battle 实例共享同一 dict 对象（battle.py from_state 直接引用
+    st["p_buffs"]），此处直接改状态即被 player_turn 感知并随 to_state 持久化；
+    payload="0" 走 _do_use_item 默认分支播报（不新增 battle.py 分支的约束下最简实现）。
+    战斗外/无负面可驱散：不消耗（与满血治疗拦截同款，M02 P1-5 模式）。"""
+    d = ctx.data
+    if not ctx.battle:
+        return ItemResult(
+            text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
+            consume=False)
+    st = ctx.battle
+    pb = st.get("p_buffs") if isinstance(st, dict) else getattr(st, "p_buffs", None)
+    removed = []
+    if isinstance(pb, dict):
+        # 副本结构 {成员: {buff:回合}}（全队驱散）；普通战斗平铺 {buff:回合}
+        nested = any(isinstance(v, dict) for v in pb.values())
+        for t in (list(pb.values()) if nested else [pb]):
+            if isinstance(t, dict):
+                for k in _PURIFY_DEBUFF_KEYS:
+                    if k in t:
+                        t.pop(k, None)
+                        removed.append(k)
+    removed = list(dict.fromkeys(removed))
+    if not removed:
+        return ItemResult(
+            text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
+            consume=False)
+    return ItemResult(payload="0")
 
 
 @register("none")

@@ -64,6 +64,10 @@ DIALOGUES = {
                 "text": "好样的！镇子西边的草地就是它们的老窝。替我把它们清干净，镇子不会亏待你的。",
                 "options": [
                     {"text": "包在我身上！", "next": "quest_accept", "need": {"quest_pending": ""}, "action": {"quest_take": True}},
+                    # v104 M21 P2：入口只需 not_quest_done:q1_1，q1_1 进行中/待交付时
+                    # 原唯一选项 quest_pending 不满足 → 无可视选项死路；补兜底选项
+                    {"text": "任务在身，先把委托办完再回来。", "next": "__end__", "need": {"quest_active": "q1_1"}},
+                    {"text": "任务办妥了，先去交付再回来。", "next": "__end__", "need": {"quest_ready": "q1_1"}},
                 ],
             },
             "dogs_trade": {
@@ -996,6 +1000,9 @@ DIALOGUES = {
                     {"text": "🗡️ 刺客——阴影中的利刃", "next": "confirm_cls_ci_ke", "need": {"is_novice": True}},
                     {"text": "🥋 拳师——以拳证道的武斗家", "next": "confirm_cls_wu_seng", "need": {"is_novice": True}},
                     {"text": "我已经就职过了，随便聊聊", "next": "chat", "need": {"not_novice": True}},
+                    # v104 M21 P2：见习玩家在就职前也能对话接取 q1_2（此前任务选项
+                    # 只在 chat 节点、需 not_novice，见习期=死路，只能先就职再接任务）
+                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },

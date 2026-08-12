@@ -44,8 +44,8 @@ async def main():
     check("战圣药剂 buff_atk_big_def", consum["i_warsaint_pot"]["effect"] == "buff_atk_big_def", "")
     check("国王赦书 clear_red", consum["i_king_pardon"]["effect"] == "clear_red", "")
     check("龙晶箱 open_chest", consum["i_chest_dragon"]["effect"] == "open_chest", "")
-    check("龙裔蛋 pet_key", consum["i_egg_drake"]["pet_key"] == "pet_drake", "")
-    check("雪狼缰绳 mount_key", consum["i_rein_wolf"]["mount_key"] == "mount_wolf", "")
+    check("龙裔蛋 pet_key", C.make_pet_egg("pet_drake")["pet_key"] == "pet_drake", "")
+    check("雪狼缰绳 mount_key", C.make_mount_rein("mount_wolf")["mount_key"] == "mount_wolf", "")
     check("余烬行者徽章 收藏品", consum["i_mem_emberwalker"]["type"] == "收藏品", "")
 
     # ---- 4. 新道具实际使用（战斗外）----

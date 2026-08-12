@@ -187,7 +187,7 @@ ALCHEMY_RECIPES = {
             "i_ambergris_draught": 1
         },
         "need_prof_lv": 5,
-        "desc": "战斗中使用，本回合攻击＋30%、防御＋20%",
+        "desc": "战斗中使用，3 回合攻击＋30%、防御＋45%",
         "name": "龙涎药剂"
     },
 
@@ -203,7 +203,7 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_deep_crystal": 1, "mat_kong_ping": 1},
         "product": {"i_abyss_crystal_potion": 1},
         "need_prof_lv": 5,
-        "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性",
+        "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性（3 回合魔法伤害减免 15%）",
         "name": "深渊药剂"
     },
     "al_xing_tie_qiang_hua_ji": {
@@ -249,6 +249,15 @@ ALCHEMY_RECIPES = {
         "need_prof_lv": 7,
         "desc": "上古鱼骨熬成的猛药，战斗中攻击 + 40%、防御 + 45%(3 回合)",
         "name": "龙骨药剂"
+    },
+
+    # ---- v104 M15 鱼饵配方落地（v102.3 规划：炼金 月光草+空瓶→萤光鱼饵）----
+    "al_ying_guang_yu_er": {
+        "cost": {"mat_yue_guang_cao": 1, "mat_kong_ping": 1},
+        "product": {"it_glow_bait": 1},
+        "need_prof_lv": 3,
+        "desc": "月光草调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)",
+        "name": "萤光鱼饵"
     },
 }
 

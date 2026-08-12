@@ -29,6 +29,9 @@ _OBJ_PROGRESS_LINES = {
     "talk":    lambda obj, prog: f"  交谈：与 {C.NPCS.get(obj['talk'], {}).get('name', '？')} 对话",
 }
 
+# v104 M23 修复：许愿井彩蛋概率独立常量（原先误用 MOVE_ENCOUNTER_CHANCE=0.25 移动撞怪概率，语义错用）
+WISH_WELL_EGG_CHANCE = 0.05
+
 
 class WorldCmds(CommandBase):
 
@@ -642,6 +645,8 @@ class WorldCmds(CommandBase):
         cur_map = C.MAP_BY_ID.get(cur, {})
         cur_sas = cur_map.get("subareas") or []
         # v86 子区域：『移动 <序号>』→ 同图可前往列表序号优先（v87.14 空间连接），再邻居地图序号
+        # v104 P3(M24) 确认：全角数字兼容——Python str.isdigit()/int() 原生接受全角 ０-９(U+FF10-FF19)，
+        # 『前往 １２』与『前往 12』等价（实测 2026-08-12：isdigit=True 且 int('１２')==12，无需 normalize）。
         links = C.subarea_links(cur, player.get("cur_subarea") or "")
         if dest.isdigit():
             idx = int(dest)
@@ -972,12 +977,21 @@ class WorldCmds(CommandBase):
         # 副本入口应显示地图信息，引导玩家走开本流程（'副本' 命令有完整校验）。
         if mtype == C.MAP_TYPE_INSTANCE:
             return None
-        # v87.6 内容下沉子区域：从目标图子区域取怪（优先落点首个子区域）
+        # v87.6 内容下沉子区域：优先取落点入口子区域的怪；入口无怪才找最近有怪子区域
+        # （M22 P3：原逻辑取"首个有怪子区域"，入口无怪时会抽到深处高等级怪，玩家刚进图就被深处怪秒）
+        _sas = target_map.get("subareas") or []
+        _entry_id = C.map_entry_subarea(target_map.get("id", ""))
         monsters = []
-        for sa in (target_map.get("subareas") or []):
-            if sa.get("monsters"):
+        for sa in _sas:
+            if sa["id"] == _entry_id and sa.get("monsters"):
                 monsters = sa["monsters"]
                 break
+        if not monsters:
+            # 入口无怪：线性图按列表顺序扫描即离入口由近及远
+            for sa in _sas:
+                if sa.get("monsters"):
+                    monsters = sa["monsters"]
+                    break
         if not monsters:
             return None
         diff = target_map.get("lv", 1) - player["level"]
@@ -1292,7 +1306,8 @@ class WorldCmds(CommandBase):
                 if dkey == "_date":  # v94 跨天字段，跳过
                     continue
                 dobj = dq["objective"]
-                need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("count", 99))))
+                # v104 M20：新日常目标类型（行会委托 complete_side / 采集任务 collect_any）纳入需求提取
+                need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("complete_side", dobj.get("collect_any", dobj.get("count", 99))))))
                 lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
         else:
             lines.append("")
@@ -1491,6 +1506,44 @@ class WorldCmds(CommandBase):
             if lv >= min_lv:
                 cap = c
         return exp <= cap
+
+    def _bump_daily_progress(self, group_id, qq_id, obj_key, lines=None):
+        """v104 M20 修复：非击杀类每日任务进度推进（行会委托=完成支线 / 采集任务=采集材料）。
+
+        与 combat.py 击杀分支（kill_any/kill_elite/kill_boss）互补：
+        匹配 objective[obj_key] 的每日任务 +1，达标即发奖并从今日列表移除。
+        调用点：_complete_side_quest（complete_side）、interact_prop 材料元素（collect_any）。
+        """
+        quests = db.get_quests(group_id, qq_id)
+        daily = dict(quests.get("daily", {}) or {})
+        if not daily:
+            return
+        changed = False
+        for dkey, dq in list(daily.items()):
+            if dkey == "_date":  # 跨天字段，不是任务
+                continue
+            dobj = dq.get("objective") or {}
+            need = dobj.get(obj_key)
+            if not need:
+                continue
+            dq["progress"] = int(dq.get("progress", 0)) + 1
+            changed = True
+            if dq["progress"] >= need:
+                player = self._player(group_id, qq_id)
+                player["exp"] += dq["reward_exp"]
+                player["gold"] += dq["reward_gold"]
+                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+                if lines is not None:
+                    lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+                    if lv_logs:
+                        lines.append("")
+                        lines += lv_logs
+                del daily[dkey]
+        if changed:
+            quests["daily"] = daily
+            db.save_quests(group_id, qq_id, quests)
 
     def _home_view(self, group_id, qq_id, cur_map_id):
         """v68 家地图展示：home_{owner} → 家的定制面板"""
@@ -1828,6 +1881,21 @@ class WorldCmds(CommandBase):
             if mq.get("ending"):
                 lines.append(f"  📖 {mq['ending']}")
             lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
+            # v105 M19 P3：主线奖励道具（reward_item）入包——物品存在则直接加，不存在则跳过并记录（不阻塞交付）
+            ri = mq.get("reward_item")
+            if ri:
+                _rid = C.resolve("items", ri)
+                _tbl, _reg = "items", C.ITEMS
+                if _rid not in C.ITEMS:
+                    _rid = C.resolve("materials", ri)
+                    _tbl, _reg = "materials", C.MATERIALS
+                if _rid in _reg:
+                    db.add_item(group_id, qq_id, _rid,
+                                {"name": C.display(_tbl, _rid), "type": "物品" if _tbl == "items" else "材料",
+                                 "stackable": True, "price": _reg[_rid].get("price", 0) if isinstance(_reg[_rid], dict) else 0})
+                    lines.append(f"  🎁 获得道具：{C.display(_tbl, _rid)}")
+                else:
+                    print(f"[dragonfall][v105] 主线『{mq['name']}』奖励道具缺失：{ri}（item_id 未收录），已跳过")
             rep_line = self._quest_reputation(group_id, qq_id, mq["giver"])
             if rep_line:
                 lines.append(f"  {rep_line}")
@@ -2153,7 +2221,12 @@ class WorldCmds(CommandBase):
                 lines.append(f"🎻 {ta}捋了捋胡子，说起一段大陆往事……(传说散落在各地，多去听听老人们的见闻吧)")
             lines.append("💡 『百科 <名称>』还能查询怪物/材料/地图的记载～")
         if "teach" in funcs:
-            lines.append("🗡️ 直接回复序号继续交谈，这位前辈或许能指点你一二")
+            # v104 P2（M21）teach 空挂修复：有对话树的教习 NPC 走对话树选项；
+            # 无对话树的教习 NPC（龙语者·古尔/上古守卫者/墓王·静语）→ 按职业直接传授对应技能
+            if dlg:
+                lines.append("🗡️ 直接回复序号继续交谈，这位前辈或许能指点你一二")
+            else:
+                lines.extend(self._teach_by_npc(group_id, qq_id, player, npc_id))
         if "ency" in funcs:
             lines.append("📚 输入『百科 <材料/怪物/地图名>』查询世界知识(镇长藏书)")
         # v104 P1（M21）：隐藏 NPC 解锁 flag 设置点——与特定野外 NPC 交谈即授予（幂等）
@@ -2187,6 +2260,73 @@ class WorldCmds(CommandBase):
             return None
         db.set_talk_flag(group_id, qq_id, npc_id, flag)
         return notice
+
+    # ---------------- v104 P2（M21）teach 空挂修复 ----------------
+
+    _TEACH_SKILL_MAP = {
+        # 龙语者·古尔（龙脊·黄昏）：传授龙语/龙之力
+        "w_dragon_whisper": {
+            "hint": "龙语者·古尔侧耳倾听片刻，缓缓开口：",
+            "skills": {
+                "cls_zhan_shi": "战争践踏", "cls_fa_shi": "元素爆发", "cls_you_xia": "唤兽契约",
+                "cls_mu_shi": "圣光惩击", "cls_ci_ke": "淬毒", "cls_wu_seng": "破晓之拳",
+                "cls_bard": "英雄叙事诗", "cls_spellblade": "魔能涌动",
+            },
+        },
+        # 上古守卫者（龙陨谷）：传授守护之道
+        "w_ancient_guardian": {
+            "hint": "上古守卫者的石瞳亮起微光，低沉的声音在你心中响起：",
+            "skills": {
+                "cls_zhan_shi": "铁壁之心", "cls_fa_shi": "元素护盾", "cls_you_xia": "风行步",
+                "cls_mu_shi": "神圣坚韧", "cls_ci_ke": "影袭", "cls_wu_seng": "磐石体",
+                "cls_bard": "静默之歌", "cls_spellblade": "符文护体",
+            },
+        },
+        # 墓王·静语（隐藏 NPC）：传授亡者之道
+        "h_grave_king": {
+            "hint": "墓王·静语睁开灰白的眼眸，亡者的低语在你耳畔回响：",
+            "skills": {
+                "cls_zhan_shi": "无畏冲击", "cls_fa_shi": "冰霜新星", "cls_you_xia": "狩猎终章",
+                "cls_mu_shi": "圣光驱散", "cls_ci_ke": "暗影处刑", "cls_wu_seng": "连招三连",
+                "cls_bard": "哀歌", "cls_spellblade": "魔能爆发",
+            },
+        },
+    }
+
+    def _teach_by_npc(self, group_id, qq_id, player, npc_id):
+        """v104 P2（M21）teach 空挂修复：无对话树的教习型 NPC（龙语者·古尔/上古守卫者/墓王·静语）
+        按职业传授对应技能。参照对话树 tutor_skill 写法：等级门槛 + 金币学费 → 直接学会（不耗技能点）。
+        返回提示行列表；NPC 不在映射表时返回空列表（保持原行为）。
+        """
+        cfg = self._TEACH_SKILL_MAP.get(npc_id)
+        if not cfg:
+            return []
+        cid = C.resolve("classes", player.get("class_name", ""))
+        sname = cfg["skills"].get(cid)
+        if not sname:
+            return [f"{cfg['hint']}他打量了你片刻，摇了摇头：你这身本事，不在我能指点的路数上。"]
+        info = E.skill_info(player.get("class_name", ""), sname)
+        if not info:
+            return []
+        sname_cn = info.get("name", sname)
+        need_lv = int(info.get("lv", 1))
+        cost = max(500, need_lv * 100)
+        if player.get("level", 0) < need_lv:
+            return [f"{cfg['hint']}这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。"]
+        if (player.get("gold", 0) or 0) < cost:
+            return [f"{cfg['hint']}想学？拿 {cost} 金币来，一分诚意一分本事。(你现在有 {player.get('gold', 0)} 金币)"]
+        learned = list(player.get("learned_skills", []))
+        if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
+            return [f"{cfg['hint']}『{sname_cn}』你早已掌握，不必再学。"]
+        db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) - cost,
+                         learned_skills=learned + [sname_cn])
+        return [
+            f"{cfg['hint']}",
+            f"💰 你献上 {cost} 金币作为谢礼",
+            f"✨ 前辈悉心传授，你学会了技能『{sname_cn}』！",
+            f"「{info['desc']}」",
+            "💡 记得『设置技能 <槽位> <技能名>』放入技能栏～",
+        ]
 
     # ---------------- v87.9 场景元素交互 ----------------
 
@@ -2262,13 +2402,25 @@ class WorldCmds(CommandBase):
         text = random.choice(texts) if texts else pp.get("desc", "……")
         lines = [f"{pp['icon']}【{name}】", f"“{text}”"]
         # v97.1 告示板：附加展示当前地图的告示委托（board 型支线，未接取时）
+        # v104 M20 修复：真正按当前地图过滤（原实现遍历全部 board 委托，注释与实现不符）——
+        # board 委托取顶层 map 字段（发布地）；没有则按 giver NPC 所在区域兜底。
+        # 注意：find 型委托的 objective.map 是搜寻地而非发布地，不可用于此过滤。
         if pid == "notice_board":
             quests = db.get_quests(group_id, qq_id)
             side = quests.get("side") or {}
-            board_lines = []
+            here_board = []
             for sq in C.SIDE_QUESTS:
                 if not sq.get("board"):
                     continue
+                qmap = sq.get("map")
+                if not qmap:
+                    _g = C.NPCS.get(sq.get("giver")) or C.ALL_WILD.get(sq.get("giver")) or {}
+                    qmap = _g.get("map")
+                if qmap and qmap != cur:
+                    continue
+                here_board.append(sq)
+            board_lines = []
+            for sq in here_board:
                 if sq["id"] in side:
                     continue
                 board_lines.append(f"  📜 {sq['name']}：{sq['desc']}")
@@ -2280,7 +2432,7 @@ class WorldCmds(CommandBase):
             else:
                 done = any(
                     side.get(sq["id"], {}).get("status") == "done"
-                    for sq in C.SIDE_QUESTS if sq.get("board")
+                    for sq in here_board
                 )
                 if done:
                     lines.append("(你已处理完这里的委托，告示板又恢复了平静。)")
@@ -2289,7 +2441,8 @@ class WorldCmds(CommandBase):
         import datetime as _dt
         eff = pp.get("effect")
         if eff == "wish":
-            if random.random() < C.MOVE_ENCOUNTER_CHANCE:
+            # v104 M23 修复：许愿井彩蛋概率用独立常量（原误用 MOVE_ENCOUNTER_CHANCE 移动撞怪概率）
+            if random.random() < WISH_WELL_EGG_CHANCE:
                 gold = random.randint(1, 5)
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
                 lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
@@ -2315,6 +2468,8 @@ class WorldCmds(CommandBase):
                         }, 1)
                         db.mark_props_use(group_id, qq_id, use_key, today)
                         lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
+                        # v104 M20：采集任务每日（collect_any）——场景元素获得材料 +1（主采集动作在 economy.py）
+                        self._bump_daily_progress(group_id, qq_id, "collect_any", lines)
                 elif etype == "heal":
                     pct = float(eff.get("pct", 0.1))
                     missing = player.get("max_hp", 1) - player.get("hp", 0)
@@ -2841,6 +2996,8 @@ class WorldCmds(CommandBase):
         # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接
         quests["side"][sid] = {"status": "done"}
         db.save_quests(group_id, qq_id, quests)
+        # v104 M20：行会委托每日（complete_side）——支线交付完成 +1，达标发奖
+        self._bump_daily_progress(group_id, qq_id, "complete_side", lines)
         lines.append(f"✅ 【支线完成】『{sqd['name']}』！")
         lines.append(f"  奖励：经验 +{sqd['reward_exp']} 金币 +{sqd['reward_gold']}")
         rep_line = self._quest_reputation(group_id, qq_id, sqd["giver"])
@@ -2950,7 +3107,7 @@ class WorldCmds(CommandBase):
             f"花费 {cost} 金币，当前余额：{player['gold'] - cost}"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?声望(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?声望(?!商店)(?:\s*|$)")
     @require_player()
 
     async def reputation(self, event: AstrMessageEvent):
@@ -2965,6 +3122,118 @@ class WorldCmds(CommandBase):
             lines.append(f"{i:>2}. {f['icon']} {f['name']}：{tier}({pts})")
         lines.append("")
         lines.append("💡 击杀各地怪物、完成当地任务可获得对应势力声望")
+        # v105 M18 P2-7：声望消费侧入口（声望商店按等级解锁专属商品）
+        lines.append("💡 『声望商店』：声望等级可解锁各势力专属商品（金币购买）")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?声望商店(?:\s+\S+)?$")
+    @require_player()
+
+    async def rep_shop(self, event: AstrMessageEvent):
+        """v105 M18 P2-7：势力声望商店——按声望等级解锁专属商品（声望只作门槛，金币购买）。
+
+        用法：
+          声望商店                       → 七势力总览（当前等级 + 可购商品数）
+          声望商店 <势力名/序号>          → 查看该势力专属商品（🔒=声望不足）
+          声望商店 <势力名/序号> 购买 <序号> → 购买商品（声望不足 → 提示所需等级）
+        """
+        from ..data.factions import FACTION_SHOP  # data/__init__ 未显式导出，局部导入避免动聚合层
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "声望商店").strip()
+        rep = db.get_reputation(group_id, qq_id)
+        player = self._player(group_id, qq_id)
+
+        def _tier_name(th):
+            for _t, _n in C.REPUTATION_TIERS:
+                if th <= _t:
+                    return _n
+            return "崇拜"
+
+        def _resolve_faction(arg):
+            if not arg:
+                return None
+            if arg.isdigit():
+                i = int(arg)
+                if 1 <= i <= len(C.FACTION_ORDER):
+                    return C.FACTION_ORDER[i - 1]
+                return None
+            for fid in C.FACTION_ORDER:
+                if arg in C.FACTIONS[fid]["name"]:
+                    return fid
+            return None
+
+        # 无参数：总览
+        if not raw:
+            lines = ["🏛️ 【势力声望商店】", "━━━━━━━━━━━━"]
+            for i, fid in enumerate(C.FACTION_ORDER, 1):
+                f = C.FACTIONS[fid]
+                pts = rep.get(fid, 0)
+                tier = C.faction_reputation_tier(pts)
+                goods = FACTION_SHOP.get(fid, [])
+                unlocked = sum(1 for g in goods if pts >= g["tier"])
+                lines.append(f"{i:>2}. {f['icon']} {f['name']}：{tier}({pts}) 可购 {unlocked}/{len(goods)}")
+            lines.append("")
+            lines.append("💡 『声望商店 <势力名/序号>』查看专属商品；声望等级解锁、金币购买")
+            yield event.plain_result("\n".join(lines))
+            return
+
+        parts = raw.split()
+        if parts[0] == "购买":
+            yield event.plain_result("格式：声望商店 <势力名/序号> 购买 <商品序号>（先『声望商店 <势力>』查看商品）")
+            return
+        fid = _resolve_faction(parts[0])
+        if not fid:
+            yield event.plain_result("没有这个势力！输入『声望商店』查看七个势力。")
+            return
+        f = C.FACTIONS[fid]
+        pts = rep.get(fid, 0)
+        tier = C.faction_reputation_tier(pts)
+        goods = FACTION_SHOP.get(fid, [])
+        if not goods:
+            yield event.plain_result(f"{f['icon']} {f['name']} 暂时没有专属商品。")
+            return
+        # 购买分支：声望商店 <势力> 购买 <序号>
+        if len(parts) >= 3 and parts[1] == "购买":
+            if not parts[2].isdigit():
+                yield event.plain_result("格式：声望商店 <势力名> 购买 <商品序号>")
+                return
+            idx = int(parts[2])
+            if idx < 1 or idx > len(goods):
+                yield event.plain_result(f"没有第 {idx} 号商品！『声望商店 {f['name']}』查看商品。")
+                return
+            g = goods[idx - 1]
+            # 声望门槛拦截：不足 → 提示所需等级
+            if pts < g["tier"]:
+                need_name = _tier_name(g["tier"])
+                yield event.plain_result(
+                    f"🏛️ 声望不足！需要 {f['name']} 声望达到『{need_name}』({g['tier']})，当前 {tier}({pts})。\n"
+                    f"💡 击杀当地怪物、完成当地任务可提升声望。"
+                )
+                return
+            it = C.ITEMS[g["item"]]
+            price = int(g.get("price", it["price"]))
+            if player["gold"] < price:
+                yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                return
+            db.update_player(group_id, qq_id, gold=player["gold"] - price)
+            itype = "材料" if g["item"] in C.MATERIALS else "消耗品"
+            # v104 M09-P0 教训：全量拷贝定义字段（hot/effect 等），防丢字段
+            db.add_item(group_id, qq_id, g["item"], {**it, "type": itype, "stackable": True, "price": price})
+            yield event.plain_result(f"✅ 你用 {f['name']} 声望买到了【{it['name']}】！（花费 {price} 金币）")
+            return
+        # 商品列表
+        lines = [f"🏛️ 【{f['icon']} {f['name']} · 声望商店】你的声望：{tier}({pts})", "━━━━━━━━━━━━"]
+        for i, g in enumerate(goods, 1):
+            it = C.ITEMS[g["item"]]
+            need_name = _tier_name(g["tier"])
+            price = int(g.get("price", it["price"]))
+            if pts >= g["tier"]:
+                mark, extra = "✅", f"—— {price} 金币"
+            else:
+                mark, extra = "🔒", f"—— 需『{need_name}』({g['tier']})"
+            lines.append(f"{i:>2}. {mark} {it['name']}（{it['desc']}）{extra}")
+        lines.append("")
+        lines.append(f"💡 『声望商店 {f['name']} 购买 <序号>』购买商品（金币支付）")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")

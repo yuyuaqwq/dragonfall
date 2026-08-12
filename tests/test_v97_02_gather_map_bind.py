@@ -70,7 +70,6 @@ def main():
         ("abyss_altar", "mat_hui_jin_zhi_he", "灰烬之核 1200"),
         ("starlight_terrace", "mat_star_hourglass", "星尘沙漏 800"),
         ("dragon_roost", "mat_long_xue_cao", "龙血草 400"),
-        ("mermaid_bay", "mat_shen_hai_shui_jing", "深海水晶 250"),
         ("storm_plateau", "mat_lei_he", "雷核 280"),
     ]
     for mid, mat_id, desc in rare_checks:

@@ -43,6 +43,16 @@ def check_need(need, ctx: dict) -> bool:
     for k, v in need.items():
         fn = CONDITIONS.get(k)
         if fn is None:
+            # v104 M21 P1：未注册条件键 → 生产放行但告警（防数据笔误静默变永远可见）；
+            # 测试环境（GWEN_GAME_DB 指向 test 库）直接 raise，让单测抓出笔误
+            import logging
+            import os
+            _db = os.environ.get("GWEN_GAME_DB", "")
+            _msg = (f"[dragonfall] 对话条件未注册键 need[{k!r}]={v!r}："
+                    f"数据笔误？已按'永远可见'放行，请检查 dialogues.py")
+            if "test" in os.path.basename(_db).lower():
+                raise ValueError(_msg)
+            logging.getLogger("astrbot").warning(_msg)
             continue  # 未知条件放行（向后兼容，旧数据不崩）
         if not fn(ctx, v):
             return False

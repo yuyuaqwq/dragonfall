@@ -4,6 +4,8 @@
 副业（采集/挖掘/垂钓/炼金/锻造/烹饪）独立成长线：
 - 每条副业 Lv.1~10，经验按 20*当前等级 升级（Lv1→2 需 20，Lv2→3 需 40……）
 - add_prof_exp 自动处理升级与封顶（Lv.10 满级不再累积）
+- ⚠️ 等级曲线（v104 审计 P2 标注，2026-08-12）：实现为 lv*20 简化曲线（累计 900 满级），
+  与 19 章 §4.1 设计表（100/300/…/5500）脱节；不硬改曲线以免影响存量，设计表待后续对齐
 """
 from .connection import _connect, _lock
 from .. import content as C
@@ -54,10 +56,31 @@ def get_prof_level(group_id, qq_id, key):
     return get_professions(group_id, qq_id)[key]["lv"]
 
 
+def _has_achievement(qq_id, ach_key):
+    """成就是否已解锁（achievements 表存在该行且 progress>=1，即"达成即生效"，
+    与 base.py _title_bonus 口径一致；已领取 claimed=1 是其子集）。
+
+    任何异常按未解锁处理，绝不阻断副业经验。
+    """
+    try:
+        from .stats import get_achievements  # 函数内导入，规避模块加载环
+        return any(
+            r.get("ach_key") == ach_key and r.get("progress", 0) >= 1
+            for r in get_achievements("", qq_id)
+        )
+    except Exception:
+        return False
+
+
 def add_prof_exp(group_id, qq_id, key, exp=1):
     """给副业加经验，自动升级。返回 (level, leveled_up)"""
     if key not in PROF_FIELDS:  # B2 加固（2026-08-10）：动态列名前白名单校验
         raise ValueError(f"add_prof_exp 非法副业: {key}（不在 PROF_FIELDS）")
+    # v104.2 M13 P2 实装（14 章 2.5）：全知全能（ach_apprentice8）→ 全副业经验 +10%
+    # 向上取整：现曲线单次经验仅 1~5，向下取整会让加成永远不可见；保证至少 +1
+    # 注意：必须在 _lock 外检查（get_achievements 会取同一把锁，Lock 不可重入）
+    if exp > 0 and _has_achievement(qq_id, "ach_apprentice8"):
+        exp = (exp * 11 + 9) // 10  # ceil(exp * 1.10)，纯整数运算
     with _lock:
         conn = _connect()
         try:

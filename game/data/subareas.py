@@ -2066,6 +2066,21 @@ SUBAREAS = {
             "healer": False
         },
         {
+            "id": "dawn_city_street",
+            "name": "圣光大道",
+            "icon": "🏘️",
+            "desc": "晨曦城最宽阔的主街，白玉石板铺就，两侧店铺与圣徽彩旗招展。沿街走到尽头，巍峨的王都城门在望。",
+            "type": "城镇街道",
+            "lv": 25,
+            "npcs": ["npc_dawn_guard"],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
+            "shop": False,
+            "healer": False
+        },
+        {
             "id": "dawn_city_gate",
             "name": "王都城门",
             "icon": "🏰",
@@ -3706,6 +3721,21 @@ SUBAREAS = {
                 "lore",
                 "quest"
             ],
+            "shop": False,
+            "healer": False
+        },
+        {
+            "id": "moon_court_street",
+            "name": "月华长街",
+            "icon": "🏘️",
+            "desc": "月冠王庭的长街铺着月光石，银木灯柱亮起柔和的辉光，精灵们穿行其间。长街尽头，月庭宫门静静伫立。",
+            "type": "城镇街道",
+            "lv": 55,
+            "npcs": ["npc_elf_poet2"],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [],
             "shop": False,
             "healer": False
         },
@@ -7197,7 +7227,7 @@ SUBAREAS = {
                 "e_island_tiger",
                 "落日岛虎·金焰",
                 "elite",
-                48,
+                50,
                 [
                     "ms_si_yao",
                     "ms_pu_ji",
@@ -10446,7 +10476,7 @@ SUBAREAS = {
             "e_knight_instructor",
             "骑士教官",
             "elite",
-            34,
+            40,
             [
               "ms_jian_ji",
               "ms_zhan_hou"
@@ -10460,7 +10490,7 @@ SUBAREAS = {
           "e_knight_instructor",
           "骑士教官",
           "elite",
-          34,
+          40,
           [
             "ms_jian_ji",
             "ms_zhan_hou"
@@ -10691,7 +10721,7 @@ SUBAREAS = {
             "e_lake_king",
             "星语湖王",
             "elite",
-            58,
+            61,
             [
               "ms_shui_dan",
               "ms_xuan_wo",
@@ -10706,7 +10736,7 @@ SUBAREAS = {
           "e_lake_king",
           "星语湖王",
           "elite",
-          58,
+          61,
           [
             "ms_shui_dan",
             "ms_xuan_wo",
@@ -11130,7 +11160,7 @@ SUBAREAS = {
             "e_glacier_wyrm",
             "冰川龙·霜牙",
             "elite",
-            82,
+            84,
             [
               "ms_bing_xi",
               "ms_long_zhao",
@@ -11145,7 +11175,7 @@ SUBAREAS = {
           "e_glacier_wyrm",
           "冰川龙·霜牙",
           "elite",
-          82,
+          84,
           [
             "ms_bing_xi",
             "ms_long_zhao",

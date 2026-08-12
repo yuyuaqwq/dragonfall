@@ -23,6 +23,17 @@ from ..commands.base import CommandBase, no_prof_waiting, require_player, requir
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
 
+# v104 M06 P2-3：世界 Boss 特殊物品掉落池（传说材料/坐骑缰绳，按 Boss 名配池）
+# 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
+WORLD_BOSS_DROPS = {
+    "巨史莱姆王·咕噜咕噜": ["mat_zhan_hun_zhi_chen", "mount_steed"],
+    "百族战魂·奥德里克残影": ["mat_xing_lang_pi", "mat_mu_ying_long_hun", "mount_steed", "mount_wolf"],
+    "海蛇王·深渊之鳞": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_wolf", "mount_ghost"],
+    "地底恶魔·黑炎": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_ghost", "mount_warhorse"],
+    "风暴龙王·裂空": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_warhorse", "mount_griffin"],
+    "古龙·奥姆之影": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mat_chen_xi_zhi_guan", "mount_warhorse", "mount_griffin"],
+}
+
 
 class CombatCmds(CommandBase):
 
@@ -39,6 +50,9 @@ class CombatCmds(CommandBase):
             async for _r in self._instance_explore(event, group_id, qq_id, inst_row):
                 yield _r
             return
+        # v104 M24 P2：战斗中禁止探索。_in_battle 内部查 db.get_battle（battle_state 按 qq 全局，
+        # 跨群/私聊同样命中）+ 内存锁 + 副本队员锁（_instance_battle_for，批次1 M04 加固）；
+        # 上方副本 map 模式分支先行放行属 v87.2 设计（副本内探索），普通/副本回合制战斗在此拦截。
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("你正在战斗中！先解决眼前的敌人(攻击/逃跑)")
             return
@@ -1339,6 +1353,10 @@ class CombatCmds(CommandBase):
                 exp = int(exp * (1 + pb))
                 ptag = "🐾 陪伴(饱食度归零，加成减半)" if pet["satiety"] <= 0 else "🐾 陪伴"
                 pet_bonus.append(f"{ptag}：经验 +{int(pb*100)}%")
+            # v104 M17 P3：亲密度≥50 → 战斗经验 +5%（bond 消费方，面板见 social.py pet_view）
+            if pet.get("bond", 0) >= 50:
+                exp = int(exp * 1.05)
+                pet_bonus.append("💕 羁绊(亲密度≥50)：经验 +5%")
             # 战斗消耗饱食度 -2（先自然衰减再扣战斗消耗）
             db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2), last_sat_time=pet["last_sat_time"])
             # 宠物分得经验（24 章四：击杀怪宠物分得经验，取怪物基础经验 20%）
@@ -1642,6 +1660,27 @@ class CombatCmds(CommandBase):
         lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         yield event.plain_result("\n".join(lines))
 
+    def _nearest_town(self, cur_map: str) -> str:
+        """BFS 找离当前地图最近的城镇（战败回城用；与回城卷轴 economy._nearest_town 同逻辑，M22 P3）。"""
+        from collections import deque
+        if cur_map in C.MAP_BY_ID and C.MAP_BY_ID[cur_map].get("type") == C.MAP_TYPE_TOWN:
+            return cur_map
+        q = deque([(cur_map, 0)])
+        seen = {cur_map}
+        while q:
+            m, d = q.popleft()
+            if d >= 6:
+                continue
+            for nxt in C.MAP_CONNECTIONS.get(m, []):
+                if nxt in seen:
+                    continue
+                seen.add(nxt)
+                mm = C.MAP_BY_ID.get(nxt, {})
+                if mm.get("type") == C.MAP_TYPE_TOWN:
+                    return nxt
+                q.append((nxt, d + 1))
+        return C.START_MAP
+
     def _handle_defeat(self, event, group_id, qq_id, player, monster, result):
         """战败：扣金币/回城"""
         self._unlock_battle(group_id, qq_id)
@@ -1658,11 +1697,17 @@ class CombatCmds(CommandBase):
             lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币(上限 2000)！")
         # 回城并满血（新手保护；v86 子区域：落中心广场）
         # v95.19: max_hp/max_mp 同步实时值（player 已由 Battle 刷新），DB 字段不再过时
+        # M22 P3 修复：战败回最近城镇（原固定回橡木镇 START_MAP——Lv.60+ 也被送回 Lv.1 图），
+        # 落该城中心广场（subareas[0]，与方碑传送/回城卷轴同款落点）
+        _town_id = self._nearest_town(player.get("cur_map", ""))
+        _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
+        _town_sa = _town_sas[0]["id"] if _town_sas else ""
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
                          max_hp=player["max_hp"], max_mp=player["max_mp"],
-                         cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
+                         cur_map=_town_id, cur_subarea=_town_sa)
+        _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
         lines.append(
-            f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了橡木镇中心广场。\n"
+            f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了{_town_name}中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
         # v97.5 行为彩蛋规则：战败（用于清零连胜等计数，不产出彩蛋）
@@ -1687,15 +1732,17 @@ class CombatCmds(CommandBase):
                 obj = mq["objective"]
                 if obj.get("kill") and (obj["kill"] == monster["name"] or obj["kill"] in monster["name"]):
                     # v95.7 #33：精英/头目变体名包含目标怪名（如『野猪』←『精英野猪』）也计入任务进度
-                    prog[monster["name"]] = prog.get(monster["name"], 0) + 1
+                    # v105 M19 P2：进度 key 统一记 obj['kill']（此前记 monster['name']，杀精英变体时
+                    # 计数入账但面板按 obj['kill'] 读 → 显示 0/N；现精英击杀也计入基础怪 key）
+                    prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
                     quests["main_progress"] = prog
                     changed = True
-                    if prog.get(monster["name"], 0) >= obj["count"]:
+                    if prog.get(obj["kill"], 0) >= obj["count"]:
                         quests["main_status"] = "ready"
                         _g = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
                         lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(mq['giver'])}吧～")
                     else:
-                        lines.append(f"📜 主线『{mq['name']}』：{prog[monster['name']]}/{obj['count']}")
+                        lines.append(f"📜 主线『{mq['name']}』：{prog[obj['kill']]}/{obj['count']}")
         # 每日
         # v94：先清跨天任务（daily 里 _date 不是今天 → 清空），避免旧任务残留
         if db.expire_daily(quests):
@@ -1751,15 +1798,16 @@ class CombatCmds(CommandBase):
                     lines.append(f"📜 支线『{sqd['name']}』：{prog['any']}/{obj['kill_any']}")
             elif obj.get("kill") == monster["name"]:
                 prog = dict(sq.get("progress", {}))
-                prog[monster["name"]] = prog.get(monster["name"], 0) + 1
+                # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
+                prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
                 sq["progress"] = prog
                 changed = True
-                if prog.get(monster["name"], 0) >= obj["count"]:
+                if prog.get(obj["kill"], 0) >= obj["count"]:
                     sq["status"] = "ready"
                     _g = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
                     lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
                 else:
-                    lines.append(f"📜 支线『{sqd['name']}』：{prog[monster['name']]}/{obj['count']}")
+                    lines.append(f"📜 支线『{sqd['name']}』：{prog[obj['kill']]}/{obj['count']}")
         if side:
             quests["side"] = side
         if changed:
@@ -1827,6 +1875,22 @@ class CombatCmds(CommandBase):
             f"💡 造成伤害计入讨伐贡献，Boss 倒下后按贡献分奖励！"
         )
 
+    def _grant_worldboss_drop(self, group_id, qq_id, key):
+        """v104 M06 P2-3：发放世界 Boss 特殊掉落（材料直接入库/缰绳生成坐骑道具）。返回物品中文名或 None"""
+        try:
+            if key.startswith("mount_"):
+                rein = C.make_mount_rein(key)
+                db.add_item(group_id, qq_id, f"mountrein_{key}", rein)
+                return rein["name"]
+            if key in C.MATERIALS:
+                db.add_item(group_id, qq_id, key,
+                            {"name": C.display("materials", key), "type": "材料",
+                             "stackable": True, "price": C.MATERIALS[key]["price"]})
+                return C.display("materials", key)
+        except Exception:
+            return None
+        return None
+
     async def _worldboss_act(self, event, group_id, qq_id, player, b, action, skill_name=None):
         """世界BOSS战斗行动（attack/skill/defend 共用）
         1. 同步全局 Boss 血量（其他玩家可能也打了）
@@ -1854,6 +1918,8 @@ class CombatCmds(CommandBase):
             lines.append("")
             lines.append(f"🎉 【{gboss['name']}】被击败了！")
             total = sum(contrib.values())
+            top_qq = max(contrib, key=contrib.get) if contrib else None
+            boss_pool = WORLD_BOSS_DROPS.get(gboss.get("name"), [])
             for qq2, d in sorted(contrib.items(), key=lambda x: -x[1]):
                 p2 = self._player(group_id, qq2)
                 if not p2:
@@ -1862,9 +1928,16 @@ class CombatCmds(CommandBase):
                 g = int(gboss["reward"]["gold"] * ratio * 3)
                 e = int(gboss["reward"]["exp"] * ratio * 3)
                 db.update_player(group_id, qq2, gold=p2["gold"] + g, exp=p2["exp"] + e)
-                lines.append(f"  {p2['name']} 贡献 {d:,}({int(ratio*100)}%)→ 金币 +{g} 经验 +{e}")
-            top_qq = max(contrib, key=contrib.get)
-            tp = self._player(group_id, top_qq)
+                # v104 M06 P2-3：世界 Boss 特殊物品掉落——参与 1 件，首功再加 1 件
+                item_txt = ""
+                if boss_pool:
+                    _cnt = 2 if qq2 == top_qq else 1
+                    for _ in range(_cnt):
+                        _it = self._grant_worldboss_drop(group_id, qq2, random.choice(boss_pool))
+                        if _it:
+                            item_txt += f" 🎁{_it}"
+                lines.append(f"  {p2['name']} 贡献 {d:,}({int(ratio*100)}%)→ 金币 +{g} 经验 +{e}{item_txt}")
+            tp = self._player(group_id, top_qq) if top_qq else None
             if tp:
                 lines.append(f"👑 首功：{tp['name']}！")
             db.clear_world_event()

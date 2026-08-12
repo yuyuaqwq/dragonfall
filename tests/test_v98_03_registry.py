@@ -24,6 +24,13 @@ async def main():
         if cond: ok += 1; print(f"  ✅ {name}")
         else: fail += 1; print(f"  ❌ {name} {detail}")
 
+    def _raises_valueerror(fn, *args):
+        try:
+            fn(*args)
+            return False
+        except ValueError:
+            return True
+
     from data.plugins.dragonfall.game.core import dialogue_conds as DC
     from data.plugins.dragonfall.game.core import title_conds as TC
     from data.plugins.dragonfall.game.core import race_talent_display as RTD
@@ -37,7 +44,7 @@ async def main():
     from data.plugins.dragonfall.game.core.dialogue import check_need
     check("check_need 走注册表(新条件 true 放行)", check_need({"always_true": 1}, {}), "")
     check("check_need 走注册表(新条件 false 拦截)", not check_need({"never_true": 1}, {}), "")
-    check("未知条件放行(向后兼容)", check_need({"future_key_xx": 1}, {}), "")
+    check("未知条件键测试环境告警(v104 改)", _raises_valueerror(check_need, {"future_key_xx": 1}, {}), "")
 
     # ---- 2. title_conds：注册新称号条件 ----
     TC.register("test_title_99")(lambda ctx: ctx.player.get("level", 0) >= 99)

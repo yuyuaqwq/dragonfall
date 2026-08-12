@@ -21,6 +21,7 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_guild_clerks"},
         "reward_exp": 100,
         "reward_gold": 150,
+        "reward_item": "铁牌徽章",
         "next": "q1_3",
         "story": "小艾：『欢迎加入冒险者行会！这是你的铁牌，从今天起你就是一名正式的冒险者了。要接委托吗？』",
         "ending": "铁牌挂在胸前，小艾微笑：『从今天起，你可以在行会接委托、赚酬劳了。祝你好运，冒险者。』",
@@ -797,7 +798,7 @@ MAIN_QUESTS = [
         "reward_exp": 40000,
         "reward_gold": 100000,
         "next": "q12_3",
-        "story": "蚀夜被深渊之怒侵蚀，失去了理智：『……守……守护……我……要守住……』它仍在挣扎，抵抗着深渊的意志。",
+        "story": "蚀夜被深渊之怒侵蚀，理智尽失仍在挣扎：『……守……守护……我……要守住……』",
         "ending": "金色身影终于倒下。深渊的意志不甘地咆哮——但守夜者已经守到了最后一刻。",
     },
     {
@@ -1505,6 +1506,23 @@ DAILY_QUESTS = [
         "reward_exp": 700,
         "reward_gold": 300,
     },
+    # v104 M20 修复：补全设计 6 项日常中的 2 项（行会委托=完成 2 条支线 / 采集任务=采集 5 份材料）
+    # 进度消费端：行会委托 → world.py _complete_side_quest 完成支线 +1；采集任务 → world.py
+    # _bump_daily_progress 的场景元素/材料获取点 +1（主采集动作在 economy.py，另行接线）
+    {
+        "name": "行会委托",
+        "desc": "完成 2 条支线任务",
+        "objective": {"complete_side": 2},
+        "reward_exp": 750,
+        "reward_gold": 300,
+    },
+    {
+        "name": "采集任务",
+        "desc": "采集 5 份材料",
+        "objective": {"collect_any": 5},
+        "reward_exp": 400,
+        "reward_gold": 150,
+    },
 
     {
         "id": "s_wild_white_deer_forest",
@@ -1515,7 +1533,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "野狗", "count": 5},
         "reward_exp": 75,
         "reward_gold": 30,
-        "story": "格温：『清剿白鹿之森的野狗』",
+        "story": "护林人·老樵：『白鹿之森的野狗最近成群结队，连幼鹿都遭了殃。帮我清一清，林子里也能清净些。』",
     },
     {
         "id": "s_wild_hill_mine",
@@ -1526,7 +1544,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "洞穴蝙蝠", "count": 5},
         "reward_exp": 450,
         "reward_gold": 180,
-        "story": "格温：『清理山丘矿洞的洞穴蝙蝠』",
+        "story": "老矿工·铁镐：『矿洞里的蝙蝠越聚越多，吵得人没法干活。替我把它们赶走，回头请你喝一壶！』",
     },
     {
         "id": "s_wild_harbor_docks",
@@ -1537,7 +1555,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "水鬼", "count": 3},
         "reward_exp": 500,
         "reward_gold": 200,
-        "story": "格温：『清剿铁港码头的水鬼』",
+        "story": "码头工头·老蟹：『码头的栈桥底下闹水鬼，搬货的伙计都不敢走夜路了。帮我们收拾干净！』",
     },
     {
         "id": "s_wild_windmill_plain",
@@ -1548,7 +1566,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "平原兔", "count": 5},
         "reward_exp": 350,
         "reward_gold": 140,
-        "story": "格温：『清剿风车原野的平原兔』",
+        "story": "磨坊主·麦丰：『风车原野的兔子成灾了，麦苗刚冒头就被啃个精光。帮我赶赶这些小家伙！』",
     },
     {
         "id": "s_wild_boar_ridge",
@@ -1559,7 +1577,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "野猪", "count": 5},
         "reward_exp": 150,
         "reward_gold": 60,
-        "story": "格温：『清剿野猪岭的野猪』",
+        "story": "猎户·裂弓：『野猪岭的猪群又下山糟蹋庄稼了。你身手要是还行，就替乡亲们出把力。』",
     },
     {
         "id": "s_wild_gold_plain",
@@ -1570,7 +1588,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "野牛", "count": 3},
         "reward_exp": 750,
         "reward_gold": 300,
-        "story": "格温：『驱赶金穗平原的野牛』",
+        "story": "农长·穗丰：『金穗平原的野牛群横冲直撞，眼看要收割了，麦田可经不起它们踩！』",
     },
     {
         "id": "s_wild_border_castle",
@@ -1581,7 +1599,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "兽人劫掠者", "count": 3},
         "reward_exp": 1000,
         "reward_gold": 400,
-        "story": "格温：『清剿边境堡外的兽人劫掠者』",
+        "story": "军需官·铁面：『边境堡外有兽人劫掠者出没，商队都不敢走了。替我们清剿一批，军部记你一功。』",
     },
     {
         "id": "s_wild_silver_river",
@@ -1592,7 +1610,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "水精灵", "count": 3},
         "reward_exp": 500,
         "reward_gold": 200,
-        "story": "格温：『清理银铃河的水精灵』",
+        "story": "艄公·老摆：『银铃河的水精灵最近总掀翻渡船，客人都不敢过河了。帮我把它们劝走！』",
     },
     {
         "id": "s_wild_knight_yard",
@@ -1603,7 +1621,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "训练魔像", "count": 3},
         "reward_exp": 650,
         "reward_gold": 260,
-        "story": "格温：『拆解圣骑士训练场的训练魔像』",
+        "story": "教官·铁拳：『训练场的魔像年久失修，动作越来越古怪，怕伤着见习骑士。帮我拆掉几台。』",
     },
     {
         "id": "s_wild_silverwood",
@@ -1614,7 +1632,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "精灵鹿", "count": 3},
         "reward_exp": 1150,
         "reward_gold": 460,
-        "story": "格温：『调查银月林海的盗猎陷阱』",
+        "story": "巡林者·夜歌：『银月林海里有人私设盗猎陷阱，精灵鹿死了一片。替我拆了它们，揪出盗猎者。』",
     },
     {
         "id": "s_wild_moonshadow_wood",
@@ -1625,7 +1643,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "影豹", "count": 3},
         "reward_exp": 1350,
         "reward_gold": 540,
-        "story": "格温：『猎取月影林的影豹』",
+        "story": "猎影者·夜刃：『月影林的影豹越来越大胆，都敢摸到营地边上了。猎几只，给它们长长记性。』",
     },
     {
         "id": "s_wild_frost_field",
@@ -1636,7 +1654,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "雪狼", "count": 5},
         "reward_exp": 1550,
         "reward_gold": 620,
-        "story": "格温：『清剿霜原的雪狼』",
+        "story": "猎人·雪刃：『霜原的雪狼成群结队，连商队的驯鹿都敢扑。帮我压一压它们的势头！』",
     },
     {
         "id": "s_wild_forge_valley",
@@ -1647,7 +1665,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "火蜥蜴", "count": 5},
         "reward_exp": 1650,
         "reward_gold": 660,
-        "story": "格温：『清剿熔炉谷的火蜥蜴』",
+        "story": "矮人矿工·火须：『熔炉谷的火蜥蜴老往矿道里钻，火星子溅得到处都是。帮我清理清理！』",
     },
     {
         "id": "s_wild_frost_fang",
@@ -1658,7 +1676,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "冰牙剑齿虎", "count": 3},
         "reward_exp": 1575,
         "reward_gold": 630,
-        "story": "格温：『猎取冰牙谷的剑齿虎』",
+        "story": "猎户·冰箭：『冰牙谷的剑齿虎盯上了采药的队伍，得有人治治它们。我信得过你的身手。』",
     },
     {
         "id": "s_wild_winter_lake",
@@ -1669,7 +1687,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "湖冰元素", "count": 3},
         "reward_exp": 1750,
         "reward_gold": 700,
-        "story": "格温：『清理永冬湖的湖冰元素』",
+        "story": "渔夫·冰钩：『永冬湖的湖冰元素冻裂了我的渔网，鱼都吓跑了。帮我把它们收拾了！』",
     },
     {
         "id": "s_wild_permafrost_field",
@@ -1680,7 +1698,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "冰原巨熊", "count": 3},
         "reward_exp": 1700,
         "reward_gold": 680,
-        "story": "格温：『驱赶永冻冰原的冰原巨熊』",
+        "story": "雪橇夫·白缰：『永冻冰原的巨熊把雪橇道都堵了，运货的弟兄们绕了老远的路。帮我赶走它们！』",
     },
     {
         "id": "s_wild_bone_wild",
@@ -1691,7 +1709,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "骨虫", "count": 5},
         "reward_exp": 2100,
         "reward_gold": 840,
-        "story": "格温：『清理龙骨荒野的骨虫』",
+        "story": "拾荒者·骨拾：『龙骨荒野的骨虫啃光了骨头堆，我连件像样的拾荒货都找不着了。帮我清一清！』",
     },
     {
         "id": "s_wild_storm_cliff",
@@ -1702,7 +1720,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "风暴猎鹰", "count": 3},
         "reward_exp": 2150,
         "reward_gold": 860,
-        "story": "格温：『收集风暴崖的风暴鹰羽』",
+        "story": "观风者·雷眼：『风暴崖的风暴猎鹰羽毛是上好的箭羽材料。替我猎几只，羽毛归我，其余的归你。』",
     },
     {
         "id": "s_wild_dragonsfall_valley",
@@ -1713,7 +1731,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "骨龙", "count": 3},
         "reward_exp": 2200,
         "reward_gold": 880,
-        "story": "格温：『调查龙陨谷的骨龙』",
+        "story": "龙裔学者·卷鳞：『龙陨谷的骨龙最近活动频繁，我想知道它们在找什么。替我调查清楚。』",
     },
     {
         "id": "s_wild_coral_reef",
@@ -1724,7 +1742,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "巨钳海蟹", "count": 5},
         "reward_exp": 900,
         "reward_gold": 360,
-        "story": "格温：『清理珊瑚礁的巨钳海蟹』",
+        "story": "采珠人·浅潜：『珊瑚礁的巨钳海蟹霸占了珠床，潜水采珠的伙计都不敢下去了。帮帮忙！』",
     },
     {
         "id": "s_wild_sunset_isle",
@@ -1735,7 +1753,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "岛野猪", "count": 5},
         "reward_exp": 1050,
         "reward_gold": 420,
-        "story": "格温：『清剿落日岛的岛野猪』",
+        "story": "岛民·礁石：『落日岛的野猪把椰林拱得乱七八糟，屋后的菜地也遭了殃。替我收拾它们！』",
     },
     {
         "id": "s_wild_mist_trench",
@@ -1746,7 +1764,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "深渊水母", "count": 3},
         "reward_exp": 1400,
         "reward_gold": 560,
-        "story": "格温：『采集迷雾海沟的水母凝胶』",
+        "story": "深潜者·雾潜：『迷雾海沟的深渊水母凝胶是稀罕的炼金材料，帮我采一些上来，报酬好说！』",
     },
     {
         "id": "s_wild_shipwreck_graveyard",
@@ -1757,7 +1775,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "溺亡水手", "count": 5},
         "reward_exp": 1575,
         "reward_gold": 630,
-        "story": "格温：『清理沉船墓地的溺亡水手』",
+        "story": "打捞者·铁钩：『沉船墓地的溺亡水手越来越多，打捞的船都不敢靠近。帮我清一清航道！』",
     },
     {
         "id": "s_wild_fungus_forest",
@@ -1768,7 +1786,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "孢子史莱姆", "count": 5},
         "reward_exp": 1650,
         "reward_gold": 660,
-        "story": "格温：『清理真菌森林的孢子史莱姆』",
+        "story": "菌农·孢子：『真菌森林的孢子史莱姆把我种的菌床啃了个精光。帮我把它们清理干净！』",
     },
     {
         "id": "s_wild_molten_abyss",
@@ -1779,7 +1797,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "熔岩蠕虫", "count": 5},
         "reward_exp": 1950,
         "reward_gold": 780,
-        "story": "格温：『清剿熔火深渊的熔岩蠕虫』",
+        "story": "斥候·焦痕：『熔火深渊的熔岩蠕虫把侦察路线都堵死了。帮我清出一条路来！』",
     },
     {
         "id": "s_wild_lava_bed",
@@ -1790,7 +1808,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "岩浆蠕虫", "count": 5},
         "reward_exp": 2150,
         "reward_gold": 860,
-        "story": "格温：『清剿熔岩河床的岩浆蠕虫』",
+        "story": "地底矿工·燃须：『熔岩河床的岩浆蠕虫快把矿脉啃穿了。帮我清剿一批，保住这条矿道！』",
     },
     {
         "id": "s_wild_cloud_sea",
@@ -1801,7 +1819,7 @@ DAILY_QUESTS = [
         "objective": {"kill": "云兽", "count": 5},
         "reward_exp": 2150,
         "reward_gold": 860,
-        "story": "格温：『清理云海的云兽』",
+        "story": "云舟手·浮槎：『云海的云兽撞坏了我两艘云舟了！帮我清理清理，船费给你免单。』",
     },
     {
         "id": "s_wild_rainbow_cloud",
@@ -1812,6 +1830,6 @@ DAILY_QUESTS = [
         "objective": {"kill": "彩虹小仙灵", "count": 3},
         "reward_exp": 2250,
         "reward_gold": 900,
-        "story": "格温：『安抚彩虹云谷的彩虹小仙灵』",
+        "story": "云牧者·彩：『彩虹云谷的小仙灵不知为何受了惊，四处乱撞。帮我安抚它们，别让它们伤着自己。』",
     },
 ]

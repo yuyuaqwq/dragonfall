@@ -63,4 +63,4 @@ MOUNT_BY_KEY = {m["key"]: m for m in MOUNT_POOL}
 
 # v39 缰绳掉落表（精英/Boss 独立表，可继续加）
 MOUNT_DROP_ELITE = {"mount_steed": 0.06}
-MOUNT_DROP_BOSS = {"mount_wolf": 0.10, "mount_ghost": 0.04, "mount_warhorse": 0.02}
+MOUNT_DROP_BOSS = {"mount_wolf": 0.10, "mount_ghost": 0.04, "mount_warhorse": 0.02, "mount_griffin": 0.01}

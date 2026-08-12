@@ -113,13 +113,17 @@ PET_EGG_ROLL = [
 # 垂钓/采集特殊渠道概率定义在 core/constants.py（PET_EGG_ORANGE_CHANCE / RARE_MAT_CHANCE），单一来源。
 
 
+# 宠物蛋按品质定价（v104 M17 P3：传说蛋与白蛋同价 200 → 参照 13 章物品价值分档）
+_PET_EGG_PRICE = {"white": 100, "green": 150, "blue": 200, "purple": 300, "orange": 500}
+
+
 def make_pet_egg(pet_key):
     """构造宠物蛋物品(入包用)。pet_key 不存在时兜底为狼崽蛋。"""
     p = next((x for x in PET_POOL if x["key"] == pet_key), PET_POOL[0])
     q = p.get("quality", "white")
     qname = _quality_name(q)
     return {"name": f"{p['name']}蛋", "type": "宠物蛋", "pet_key": p["key"], "stackable": True,
-            "price": 200, "quality": q,
+            "price": _PET_EGG_PRICE.get(q, 100), "quality": q,
             "desc": f"{qname}宠物蛋，使用后可孵化出『{p['name']}』"}
 
 

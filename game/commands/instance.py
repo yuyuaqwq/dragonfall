@@ -4,7 +4,7 @@
 2 人组队轮流回合 Boss 战：
 - 队长『副本 <名字>』开本（需已组队），队员自动参战
 - 轮流出手：队员A行动 → 队员B行动 → Boss行动 → 下一轮
-- 超时自动防御（事件驱动惰性检测，非定时器）：轮到的人 120 秒不动，
+- 超时自动防御（事件驱动惰性检测，非定时器）：轮到的人 60 秒不动，
   任何人再发指令时自动把 TA 的回合带过去
 - 战斗中不能逃跑（Boss 锁定）；副本失败全队回城
 """
@@ -378,6 +378,11 @@ class InstanceCmds(CommandBase):
                 snap["hp"] = min(int(p.get("hp", snap.get("hp", 0))), snap.get("max_hp", 1))
                 snap["mp"] = min(int(p.get("mp", snap.get("mp", 0))), snap.get("max_mp", 1))
         st["mode"] = "battle"
+        # v104 M17 P2（设计取舍确认）：副本战斗不携带宠物——宠物技能/经验加成/饱食度
+        # 消耗均不参与副本。副本奖励走 _instance_kill_reward/通关奖励链路，不经过
+        # combat._handle_victory 的宠物结算（宠物不参战 ⇒ 饱食度不扣、宠物不分经验），
+        # 与 _instance_act 中 Battle.from_state 不传 pet 一致。若未来开放宠物参战，
+        # 需同步：①副本怪物平衡（hp_mult/atk_mult/mech 均按无宠物调参）②宠物经验/饱食度结算。
         st["boss"] = C.build_monster(mon_def, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
         if mon_def[2] == "boss":
             inst2 = C.INSTANCES[st["inst_id"]]
@@ -980,7 +985,7 @@ class InstanceCmds(CommandBase):
             f"{size_tip}"
             f"⚡ 行动顺序(按速度)：{' → '.join(st['players'][m].get('name', m) for m in st['members'])}\n"
             f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』\n"
-            f"💡 按顺序轮流出手，超时 2 分钟自动防御；清光当前层怪物可『深入』下一层！"
+            f"💡 按顺序轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！"
         )
 
     def _sync_players_db(self, group_id, st):
@@ -1020,8 +1025,8 @@ class InstanceCmds(CommandBase):
         logs = []
         acted = st.setdefault("acted", [False] * len(members))
 
-        # 1. 超时推进：轮到的人 120 秒没动 → 自动防御并转到下一位（可能连续多人超时）
-        # v55 轮：已退队的成员不再参与轮转（退队后不卡队友回合，否则每轮白等 120s 超时）
+        # 1. 超时推进：轮到的人 60 秒没动 → 自动防御并转到下一位（可能连续多人超时）
+        # v55 轮：已退队的成员不再参与轮转（退队后不卡队友回合，否则每轮白等 60s 超时）
         party_now = [str(m) for m in db.party_members(group_id, st["leader"])]
         # v55 轮（#281）：全灭/全退队预判——最后一个存活者被反击打死、其余成员倒下或退队时，
         # 超时推进循环会无限空转卡死 worker（曾实测：小蓝+格温全倒、小芽退队 → 轮转死循环）。

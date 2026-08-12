@@ -7,48 +7,61 @@
 - 钓点差异化：FISHING_SPOTS 的 ban_quality 禁出档位 + 品种 spots 限定水域
 """
 FISHING_SPOTS = {
+    # v104 M15 修复：补 subarea 字段（v87.17 子区域绑定原为死代码——11 钓点全无绑定，任意子区域可钓）。
+    # 子区域 id 均取自 data/subareas.py 实际定义（测试 test_commands_fishing 已按同款落点设置）。
     "oak_plain": {
         "name": "橡木溪流", "min_lv": 1, "ban_quality": ["purple", "orange"],
+        "subarea": "oak_plain_3",  # 溪边草地（浅溪从草地间流过）
         "desc": "新手区，白绿为主",
     },
     "starlake": {
         "name": "星语湖", "min_lv": 1, "ban_quality": ["purple", "orange"],
+        "subarea": "starlake_1",  # 湖畔
         "desc": "湖珍珠(附魔)/鲛人泪的传说水域",
     },
     "harbor_docks": {
         "name": "铁港码头", "min_lv": 3, "ban_quality": [],
+        "subarea": "harbor_docks_1",  # 码头栈桥
         "desc": "深水鱼王栖息地，全档位",
     },
     "gold_plain": {
         "name": "银铃河", "min_lv": 5, "ban_quality": ["orange"],
+        "subarea": "gold_plain_1",  # 平原边缘（河流沿岸）
         "desc": "银鳞鱼群聚，稀有+",
     },
     "misty_swamp": {
         "name": "迷雾沼泽", "min_lv": 4, "ban_quality": ["orange"],
+        "subarea": "misty_swamp_1",  # 沼泽边缘（渔人蹲守的岸边）
         "desc": "神秘鳞片/鲛人泪，紫·宝箱",
     },
     "frost_horn": {
         "name": "霜原冰湖", "min_lv": 6, "ban_quality": ["orange"],
+        "subarea": "frost_horn_gate",  # 寒角堡城门（冰湖在堡外霜原一侧）
         "desc": "深海水晶/龙涎香",
     },
     "mist_trench": {
         "name": "迷雾海沟", "min_lv": 6, "ban_quality": ["orange"],
+        "subarea": "mist_trench_1",  # 海沟口
         "desc": "海藻/珍珠贝，蓝·稀有为主",
     },
     "whale_domain": {
         "name": "龙鲸海域", "min_lv": 7, "ban_quality": ["purple", "orange"],
+        "subarea": "whale_domain_1",  # 海域边缘（幼年龙鲸出没处）
         "desc": "鲸须草摇曳的外海，绿蓝为主",
     },
     "storm_sea": {
         "name": "风暴之海", "min_lv": 8, "ban_quality": ["orange"],
+        "subarea": "storm_sea_1",  # 海缘
         "desc": "雷晶砂/风暴贝",
     },
     "deep_lake": {
         "name": "深渊湖", "min_lv": 7, "ban_quality": ["orange"],
+        "subarea": "deep_lake_1",  # 湖岸（渔人点灯垂钓处）
         "desc": "盲鱼/深渊珍珠，地底特色",
     },
     "rainbow_cloud": {
         "name": "彩虹云谷", "min_lv": 9, "ban_quality": ["orange"],
+        "subarea": "rainbow_cloud_1",  # 云谷口（彩虹桥横亘入口）
         "desc": "云棉/彩虹露珠，天空特色",
     },
 }
@@ -108,6 +121,10 @@ FISH_POOL = [
     {"name": "神秘鳞片", "quality": "blue", "type": "材料", "price": 30,
      "spots": ["misty_swamp", "harbor_docks", "frost_horn"],
      "weight": 25, "desc": "不知名生物留下的鳞片，铁匠会感兴趣"},
+    # v104 M15 修复：夜光鲛无产出源（设计 13 章 line 134「垂钓(深夜/沼泽钓点)」）
+    {"name": "夜光鲛", "quality": "blue", "type": "材料", "price": 35,
+     "spots": ["misty_swamp"],
+     "weight": 15, "desc": "深夜出没于沼泽的鲛鱼，鳞片泛着幽幽荧光，炼金师视若珍宝"},
     {"name": "珍珠贝", "quality": "blue", "type": "材料", "price": 35,
      "spots": ["mist_trench", "whale_domain"],
      "weight": 20, "desc": "海沟里的珍珠贝，偶尔藏着珍宝"},

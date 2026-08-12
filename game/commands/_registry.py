@@ -1,19 +1,31 @@
 # -*- coding: utf-8 -*-
-"""命令正则静态注册表（自动生成，勿手改）。
+"""命令正则静态注册表（半自动维护：静态表 + 装饰器需同步）。
 
-方法名 → @filter.regex 正则。真实 AstrBot 运行以全局注册表为准，
-此表供测试环境/注册表缺失时快捷指令校验与转发回退。
+本表原由脚本自动生成，现为人工维护的静态表（方法名 → @filter.regex 正则）。
+用途：测试环境/注册表缺失时的快捷指令校验、_GameCmdFilter 停服 gate 拦截、
+快捷转发回退（base.py _static_handlers）。
+
+⚠️ 半自动维护铁律：新增/修改/删除任何 @filter.regex 命令（含别名），
+必须同步本表，否则 gate 拦截与回退会失真。同步检查：
+  1. 启动校验：插件加载时 main.py 自动对比「已注册公开 handler 名」与
+     本表键集，漂移以 WARNING 日志输出（见 main.py _fix_handler_module_paths）。
+  2. 强校验：python tests/test_v87_command_matrix.py（表与装饰器 1:1 逐条相等 + 互斥矩阵）
+  3. 解析回归：python tests/test_command_parse.py（命令矩阵互斥/免空格/序号）
+
+真实 AstrBot 运行以全局注册表（star_handlers_registry）为准，本表仅供上述回退场景。
 """
 
 COMMAND_REGEX = {
-    "achievements": r'^(?:\[At:\d+\]\s*)?成就(?:\s*|$)',
+    # v104 审计后由 M24 命令互斥矩阵测试（tests/test_v87_command_matrix.py）强校验：
+    # 静态表必须与 game/commands/*.py 的 @filter.regex 装饰器 1:1 一致（键集合+模式逐条相等）。
+    "achievements": r'^(?:\[At:\d+\]\s*)?成就(?:\s*(领取|列表)?(?:\s*([^\s]+))?\s*|$)',
     "add_attr": r'^(?:\[At:\d+\]\s*)?加点(?:\s*|$)',
-    "alchemy": r'^(?:\[At:\d+\]\s*)?炼金(?:\s*|$)',
+    "alchemy": r'^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$',
     "alchemy_craft": r'^(?:\[At:\d+\]\s*)?合成(?:\s*|$)',
     "attack": r'^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)',
     "attributes": r'^(?:\[At:\d+\]\s*)?属性(?:\s*|$)',
     "auction": r'^(?:\[At:\d+\]\s*)?拍卖(?:\s*|$)',
-    "bag_filter": r'^(?:\[At:\d+\]\s*)?(?:背包筛选|筛选)(?:[\s\S]*)$',
+    "bag_filter": r'^(?:\[At:\d+\]\s*)?背包筛选(?:[\s\S]*)$',
     "bestiary": r'^(?:\[At:\d+\]\s*)?图鉴(?:\s*|$)',
     "bid": r'^(?:\[At:\d+\]\s*)?竞拍(?:\s*|$)',
     "buy": r'^(?:\[At:\d+\]\s*)?购买(?:\s*|$)',
@@ -37,18 +49,19 @@ COMMAND_REGEX = {
     "gather": r'^(?:\[At:\d+\]\s*)?采集(?:\s*|$)',
     "guild_create_cmd": r'^(?:\[At:\d+\]\s*)?创建公会(?:\s*|$)',
     "guild_disband_cmd": r'^(?:\[At:\d+\]\s*)?解散公会(?:\s*|$)',
-    "guild_info": r'^(?:\[At:\d+\]\s*)?公会(?!签到|任务|排行|创建|加入|退出|解散)(?:\s*|$)',
+    "guild_info": r'^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散)(?:\s*|$)',
     "guild_join_cmd": r'^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)',
     "guild_leave_cmd": r'^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)',
     "guild_rank": r'^(?:\[At:\d+\]\s*)?公会排行(?:\s*|$)',
     "guild_sign": r'^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)',
     "guild_task": r'^(?:\[At:\d+\]\s*)?公会任务(?:\s*|$)',
+    "guild_donate_cmd": r'^(?:\[At:\d+\]\s*)?公会捐献(?:\s*|$)',
     "help_cmd": r'^(?:\[At:\d+\]\s*)?(?:帮助|help)(?:\s*|$)',
     "hunt_boss": r'^(?:\[At:\d+\]\s*)?讨伐(?:\s*|$)',
     "inventory": r'^(?:\[At:\d+\]\s*)?(?:背包|物品)(?!详情|筛选)(?:\s*.*)?$',
     "item_detail": r'^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$',
     "item_view_mode_cmd": r'^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)',
-    "leaderboard": r'^(?:\[At:\d+\]\s*)?排行(?:\s*|$)',
+    "leaderboard": r'^(?:\[At:\d+\]\s*)?排行(?:[\s\S]*)$',
     "map_view": r'^(?:\[At:\d+\]\s*)?(?:地图|位置|周围)(?:\s*|$)',
     "deed_view": r'^(?:\[At:\d+\]\s*)?地契(?:[\s\S]*)$',
     "deed_buy": r'^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$',
@@ -73,7 +86,7 @@ COMMAND_REGEX = {
     "move": r'^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)',
     # v101.17 移动模式开关（『前往开始/结束』，不被 move 抢）
     "move_mode_cmd": r'^(?:\[At:\d+\]\s*)?前往(?:开始|结束)(?:\s*|$)',
-    "party": r'^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:\s*|$)',
+    "party": r'^(?:\[At:\d+\]\s*)?(?:组队|队伍)(?:[\s\S]*)$',
     "party_leave": r'^(?:\[At:\d+\]\s*)?退队(?:\s*|$)',
     "pet_feed": r'^(?:\[At:\d+\]\s*)?喂养(?:\s*|$)',
     "pet_release": r'^(?:\[At:\d+\]\s*)?放生(?:\s*|$)',
@@ -83,11 +96,12 @@ COMMAND_REGEX = {
     "portal_travel": r'^(?:\[At:\d+\]\s*)?传送(?:\s*|$)',
     "portal_view": r'^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)',
     "power": r'^(?:\[At:\d+\]\s*)?战力(?:\s*|$)',
-    "profile": r'^(?:\[At:\d+\]\s*)?(?:角色|我的角色|查看状态)(?:\s*|$)',
-    "quest_view": r'^(?:\[At:\d+\]\s*)?(?:任务|主线|查看任务)(?:\s*|$)',
+    "profile": r'^(?:\[At:\d+\]\s*)?(?:角色|我的角色)(?:\s*|$)',
+    "quest_view": r'^(?:\[At:\d+\]\s*)?(?:任务|主线)(?:\s*|$)',
     "recipe_list": r'^(?:\[At:\d+\]\s*)?配方(?:\s*|$)',
     "register": r'^(?:\[At:\d+\]\s*)?注册(?:\s*|$)',
-    "reputation": r'^(?:\[At:\d+\]\s*)?声望(?:\s*|$)',
+    "reputation": r'^(?:\[At:\d+\]\s*)?声望(?!商店)(?:\s*|$)',
+    "rep_shop": r'^(?:\[At:\d+\]\s*)?声望商店(?:\s+\S+)?$',
     "reset_attr": r'^(?:\[At:\d+\]\s*)?洗点(?:\s*|$)',
     "reset_skill": r'^(?:\[At:\d+\]\s*)?技能洗点(?:\s*|$)',
     "evolve_reset": r'^(?:\[At:\d+\]\s*)?转职重置(?:[\s\S]*)$',
@@ -106,14 +120,14 @@ COMMAND_REGEX = {
     "skill_bar_view": r'^(?:\[At:\d+\]\s*)?技能栏(?:\s*|$)',
     "skill_detail": r'^(?:\[At:\d+\]\s*)?技能详情(?:[\s\S]*)$',
     "skill_learn": r'^(?:\[At:\d+\]\s*)?技能学习(?:[\s\S]*)$',
-    "skill_upgrade": r'^(?:\[At:\d+\]\s*)?技能升级(?:\s*|$)',
+    "skill_upgrade": r'^(?:\[At:\d+\]\s*)?技能升级(?:[\s\S]*)$',
     "titles": r'^(?:\[At:\d+\]\s*)?称号(?:\s*|$)',
-    "turn_in": r'^(?:\[At:\d+\]\s*)?(?:交任务|交付)(?:\s*|$)',
+    "turn_in": r'^(?:\[At:\d+\]\s*)?交付任务(?:\s*|$)',
     "unequip": r'^(?:\[At:\d+\]\s*)?卸下(?:\s*|$)',
     "use": r'^(?:\[At:\d+\]\s*)?使用(?:\s*|$)',
     "world_event": r'^(?:\[At:\d+\]\s*)?事件(?:\s*|$)',
     "cooking": r'^(?:\[At:\d+\]\s*)?烹饪(?!列表)(?:\s*|$)',
-    "cooking_list": r'^(?:\[At:\d+\]\s*)?烹饪列表(?:\s*|$)',
+    "cooking_list": r'^(?:\[At:\d+\]\s*)?烹饪列表(?:[\s\S]*)$',
     "profession_view": r'^(?:\[At:\d+\]\s*)?副业(?!任务)(?:[\s\S]*)$',
     "prof_forget": r'^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$',
     "daily_prof": r'^(?:\[At:\d+\]\s*)?副业任务(?:\s*|$)',
@@ -153,4 +167,7 @@ COMMAND_REGEX = {
     "gm_help": r'^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$',
     "gm_boss_dmg": r'^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$',
     "gm_spy": r'^(?:\[At:\d+\]\s*)?gm_窥探(?:[\s\S]*)$',
+    # v96 停服全局 gate（base.py _maint_gate）：匹配空串/At/引用消息前缀，拦截所有游戏指令；
+    # 不参与指令互斥矩阵（不匹配任何指令正文），表内保留以与装饰器 1:1 对齐。
+    "_maint_gate": r'^(?:\[At:\d+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?',
 }

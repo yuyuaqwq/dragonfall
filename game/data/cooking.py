@@ -165,5 +165,20 @@ COOKING_RECIPES = {
         "cost": {"mat_feng_bao_bei": 2},
         "product": {"i_storm_chowder": 1},
     },
+    # ---- v104 M15 鱼饵配方落地（v102.3 规划 3 条：烹饪 2 条，炼金 1 条见 alchemy.py）----
+    "cook_dough_bait": {
+        "name": "面团鱼饵",
+        "desc": "揉得松软的麦粉饵团，下次垂钓绿/蓝档概率提升(仅 1 次)",
+        "min_lv": 1,
+        "cost": {"mat_mian_fen": 2},
+        "product": {"it_dough_bait": 1},
+    },
+    "cook_blood_bait": {
+        "name": "血饵",
+        "desc": "浸透兽血的饵团，凶猛的掠食鱼最爱的味道，下次垂钓稀有鱼种概率提升(仅 1 次)",
+        "min_lv": 2,
+        "cost": {"mat_shou_xue": 2},
+        "product": {"it_blood_bait": 1},
+    },
 }
 

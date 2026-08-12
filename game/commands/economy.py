@@ -38,6 +38,12 @@ _MAT_FACILITY = {
     "收藏": "shop", "传说": "shop", "任务道具": "shop",
 }
 
+# v105 M14 评估实现（19 章 §2.2 挖掘疲劳值）：连续挖掘 N 次进入疲劳，
+# 疲劳期间稀有矿脉概率减半；10 分钟不挖掘自动恢复（与体力自然恢复节奏一致）。
+# 存储用 event_state（mining_fatigue_{qq_id}），无 schema 变更。
+MINING_FATIGUE_THRESHOLD = 5    # 连续挖掘 5 次进入疲劳
+MINING_FATIGUE_RECOVER = 600    # 距上次挖掘超过 600s（10 分钟）计数重置
+
 
 # ================= 物品详情渲染器（v101.6） =================
 # 原 item_detail 内 6 分支 if-elif 硬编码：加新物品类型 = 注册一个渲染函数
@@ -497,7 +503,7 @@ class EconomyCmds(CommandBase):
             return (f"🐉 天啊！你在{spot}钓上了【{q_name}】！！\n"
                     f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
                     f"💰 获得 {gold} 金币的赏金！{lv_msg}\n"
-                    f"📜 你的图鉴记下了这传说的一笔……{_cf_line}")
+                    f"📜 你的图鉴记下了这传说的一笔……{_cf_line}{bait_line}")
         # 宝物宝箱：立即开
         if fish["type"] == "宝物":
             import uuid
@@ -517,7 +523,7 @@ class EconomyCmds(CommandBase):
                 extra = f"\n📜 宝箱里还有：{bp['name']}！"
             _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
             return (f"{catch_pre}🎣 你在{spot}钓上来了一个【{q_name}】！\n"
-                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}{_cf_line}")
+                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}{_cf_line}{bait_line}")
         if fish["type"] == "垃圾":
             new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
             lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
@@ -527,7 +533,7 @@ class EconomyCmds(CommandBase):
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
             _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
-            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}{_cf_line}"
+            return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}{_cf_line}{bait_line}"
         # 鱼/材料入背包（9.3：mat_ ID 入包 + quality 字段，16 章 2.7 禁动态中文 key）
         mat_key = C.resolve("materials", fname)
         db.add_item(group_id, qq_id, mat_key,
@@ -646,13 +652,54 @@ class EconomyCmds(CommandBase):
         _life_line = ""
         # v101.30b Lv.10：驯鹿缰绳 5%→10%
         _rein_ch = 0.10 if prof >= 10 else 0.05
-        if rare_hit and random.random() < _rein_ch:
+        # v104 M17 P2：驯鹿缰绳仅限北境区域采集稀有产出（desc「北境采集稀有产出『驯鹿缰绳』」）
+        # 非北境地图（region 不以"北境"开头）即使采到稀有材料也不出驯鹿缰绳
+        _is_north = str(cur_map.get("region", "")).startswith("北境")
+        if rare_hit and _is_north and random.random() < _rein_ch:
             rein = C.make_mount_rein("mount_reindeer")
             db.add_item(group_id, qq_id, "mountrein_mount_reindeer", rein)
             _life_line = f"\n🦌 树根下缠着一根【{rein['name']}】！『使用 缰绳』驯服！"
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：\n"
                 f"{'、'.join(got)}\n"
                 f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}")
+
+    # ---------- v105 挖掘疲劳值（19 章 §2.2；M14 P2-4 最小实现） ----------
+    # 连续挖掘计数存 event_state（mining_fatigue_{qq_id}），无 schema 变更；
+    # 疲劳效果：稀有矿脉概率减半；恢复：10 分钟不挖掘自动清零（食物解除待后续版本）。
+
+    def _mining_fatigue_state(self, group_id, qq_id):
+        """读取疲劳状态 {cnt, ts}；无/损坏返回 None"""
+        raw = db.get_event_state(f"mining_fatigue_{qq_id}")
+        if not raw:
+            return None
+        try:
+            st = json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+        if not isinstance(st, dict) or "cnt" not in st or "ts" not in st:
+            return None
+        return st
+
+    def _mining_fatigue_tick(self, group_id, qq_id):
+        """发起一轮挖掘时计数：距上次挖掘超过恢复窗口则重置为 1，否则 +1。
+        返回 (cnt, fatigued)。"""
+        now = int(time.time())
+        st = self._mining_fatigue_state(group_id, qq_id)
+        if st and now - st.get("ts", 0) <= MINING_FATIGUE_RECOVER:
+            cnt = st.get("cnt", 0) + 1
+        else:
+            cnt = 1
+        db.set_event_state(f"mining_fatigue_{qq_id}",
+                           json.dumps({"cnt": cnt, "ts": now}, ensure_ascii=False))
+        return cnt, cnt >= MINING_FATIGUE_THRESHOLD
+
+    def _mining_fatigued(self, group_id, qq_id):
+        """结算时判定是否处于疲劳：连续挖掘 ≥ 阈值且距上次挖掘在恢复窗口内"""
+        st = self._mining_fatigue_state(group_id, qq_id)
+        if not st:
+            return False
+        return (st.get("cnt", 0) >= MINING_FATIGUE_THRESHOLD
+                and int(time.time()) - st.get("ts", 0) <= MINING_FATIGUE_RECOVER)
 
     def _settle_mining(self, group_id, qq_id, st):
         player = db.get_player(group_id, qq_id)
@@ -683,9 +730,14 @@ class EconomyCmds(CommandBase):
                     ores = cand
         # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
         # v101.30b Lv.10 群山之王：稀有矿脉 50%
+        # v105 疲劳值（19 章 §2.2）：疲劳期间稀有矿脉概率减半
         rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
         is_rare = False
-        if prof >= 4 and rare and random.random() < (0.15 if prof < 7 else (0.50 if prof >= 10 else 0.30)):
+        fatigued = self._mining_fatigued(group_id, qq_id)
+        _rare_ch = 0.15 if prof < 7 else (0.50 if prof >= 10 else 0.30)
+        if fatigued:
+            _rare_ch *= 0.5
+        if prof >= 4 and rare and random.random() < _rare_ch:
             ore = random.choice(rare)
             is_rare = True
         else:
@@ -709,7 +761,10 @@ class EconomyCmds(CommandBase):
             head = "⛏️ 这一锤又准又狠，矿脉整个崩开了！"
         else:
             head = "⛏️ 矿脉敲开了！"
-        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}"
+        # v105 疲劳值：结算附疲劳提示（疲劳只降稀有概率，不影响正常产出）
+        _fat_line = ("\n💤 连续挖掘让你手臂发酸，稀有矿脉更难挖到了……休息 10 分钟（不挖掘）疲劳自会消退！"
+                     if fatigued else "")
+        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}{_fat_line}"
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
         """等待型副业统一流程：进行中→提示剩余；到期→先结算再开新一轮；无→开新一轮。
@@ -792,6 +847,13 @@ class EconomyCmds(CommandBase):
             event, group_id, qq_id, "mining",
             begin_text=f"⛏️ 你举起镐子凿向【{cur_map.get('name', '？')}】的矿脉……预计 ",
         )
+        # v105 疲劳值（19 章 §2.2）：确认开启新轮才计数（等待中重复指令不误计）；
+        # 连续 5 次进入疲劳 → 结算时稀有矿脉概率减半，10 分钟不挖自动恢复
+        if _ok:
+            _fc, _ff = self._mining_fatigue_tick(group_id, qq_id)
+            if _ff:
+                text += ("\n💤 连续挖掘让你手臂发酸……疲劳时稀有矿脉更难挖到了，"
+                         "休息 10 分钟（不挖掘）或吃点食物恢复吧！")
         yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$")
@@ -968,13 +1030,29 @@ class EconomyCmds(CommandBase):
         if lack:
             yield event.plain_result(f"食材不足！做【{r['name']}】还缺：{'、'.join(lack)}。垂钓/采集收集食材～")
             return
-        # 扣食材
+        # 扣食材：v104 P2-5 修复——对齐炼金用 remain 循环跨堆扣取。
+        # 旧逻辑只扣第一匹配堆（count<=需求时 remove_item 整行 DELETE 且剩余不扣），
+        # 同种材料跨 key/重复堆存在时白嫖材料；remove_item 失败（如旧档中文 key 行
+        # 归一化后查不到）不计数，最后不足则整次制作失败并回滚已扣。
+        items = db.get_inventory(group_id, qq_id)
+        deducted = []
         for m, cnt in r["cost"].items():
-            items = db.get_inventory(group_id, qq_id)
+            mname = C.display("materials", m) if m.startswith("mat_") else C.display("fish", m)
+            remain = cnt
             for it in items:
-                if it["key"] == m or it["data"].get("name") == C.display("materials", m):
-                    db.remove_item(group_id, qq_id, it["key"], cnt)
+                if remain <= 0:
                     break
+                if it["key"] == m or it["data"].get("name") == mname:
+                    take = min(it["count"], remain)
+                    if db.remove_item(group_id, qq_id, it["key"], take):
+                        deducted.append((it["key"], it["data"], take))
+                        remain -= take
+            if remain > 0:
+                # 防御分支（正常不可达：上方 count_item 已校验总量）：回滚已扣，整次失败
+                for rkey, rdata, rcnt in deducted:
+                    db.add_item(group_id, qq_id, rkey, rdata, count=rcnt)
+                yield event.plain_result(f"食材不足！做【{r['name']}】还缺：{mname}×{remain}，已回滚扣除。垂钓/采集收集食材～")
+                return
         # 发料理（读 ITEMS 定义；v101.28i 修复：必须带全效果字段 food_effect/hot/hot_turns/hot_mana，
         # 否则烹饪出的词条料理在战斗里没有特殊效果）
         pkey = next(iter(r["product"]))
@@ -1070,6 +1148,10 @@ class EconomyCmds(CommandBase):
             if key not in activated:
                 continue
             total += p["lv"]
+            if p["lv"] >= 10:
+                # v104 P2 修复：满级不画经验条（lv>=10 时 exp 恒 0，旧版显示空条 0/200）
+                lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']} 已满级 ✅")
+                continue
             need = p["lv"] * C.PROF_EXP_BASE
             bar_len = min(10, p["exp"] // (need // 10 + 1))
             bar = "█" * bar_len + "░" * (10 - bar_len)
@@ -1144,7 +1226,14 @@ class EconomyCmds(CommandBase):
         if raw:
             parts = raw.split("|")
             if len(parts) >= 5:
-                return parts[0], parts[1], int(parts[2]), int(parts[3]), int(parts[4]), parts[5] == "1"
+                claimed = len(parts) >= 6 and parts[5] == "1"
+                activated = db.get_activated_profs(group_id, qq_id)
+                # v104 P1 修复：锁定任务对应副业已不激活（如遗忘副业）且未领奖 →
+                # 从当前激活副业重新抽取，否则任务永久废掉；已领奖任务保留（防重复发奖）；
+                # 完全没有激活副业时保留原任务（无重抽对象，避免每次查询任务都变）
+                if (claimed or parts[0] in activated
+                        or not any(k in activated for k in C.DAILY_PROF_TASKS)):
+                    return parts[0], parts[1], int(parts[2]), int(parts[3]), int(parts[4]), claimed
         # v101.30: 从已激活副业里随机（未激活任何副业才全随机）——任务必须做得了，
         # 旧版 8 选 1 全随机，玩家只有 2 个副业位，抽到没拜师的 = 当日任务废掉
         import random as _rnd
@@ -1157,6 +1246,10 @@ class EconomyCmds(CommandBase):
 
     def _daily_prof_bump(self, group_id, qq_id, tkey):
         """副业动作推进每日任务，返回 (完成了吗, 消息)"""
+        # v104 P1 修复：bump 前校验激活——任务对应副业已遗忘时不推进不发奖（防御加固，
+        # 玩家下次查『副业任务』会重 roll 到新任务，旧任务自然作废）
+        if tkey not in db.get_activated_profs(group_id, qq_id):
+            return False, ""
         tkey2, name, need, gold, cnt, claimed = self._daily_prof_state(group_id, qq_id)
         if tkey2 != tkey or claimed:
             return False, ""
@@ -2102,7 +2195,9 @@ class EconomyCmds(CommandBase):
         page = self._parse_page(raw)
         rows = db.get_bestiary(group_id, qq_id)
         if not rows:
-            yield event.plain_result("📖 图鉴还是空的……去『探索』击败怪物收集吧！")
+            # v104 M15 修复：图鉴为空也展示彩蛋收藏鱼进度（原 catch_collect 计数无处可见）
+            yield event.plain_result("📖 图鉴还是空的……去『探索』击败怪物收集吧！"
+                                     + self._collect_fish_bestiary(group_id, qq_id))
             return
         total = sum(r["kills"] for r in rows)
         page_items, pages, page = self._page_items(rows, page, per_page=5)
@@ -2113,7 +2208,26 @@ class EconomyCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"💡 『图鉴 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 击败新怪物会自动收录图鉴")
-        yield event.plain_result("\n".join(lines))
+        # v104 M15 修复：垂钓彩蛋收藏鱼收集展示（13 章 4.3 / 16 章 4.x）
+        yield event.plain_result("\n".join(lines) + self._collect_fish_bestiary(group_id, qq_id))
+
+    def _collect_fish_bestiary(self, group_id, qq_id):
+        """v104 M15 修复：彩蛋收藏鱼收集进度展示（已收藏 X/3 + 各鱼钓获次数 + catch_collect 累计计数）"""
+        inv = {it["key"]: it["count"] for it in db.get_inventory(group_id, qq_id)}
+        owned = [cf for cf in C.FISH_COLLECT if cf["id"] in inv]
+        _stats = db.get_stats(group_id, qq_id) or {}
+        _total = int(_stats.get("catch_collect", 0) or 0)
+        lines = ["", "🌈 【彩蛋收藏鱼】已收藏 {}/{} · 累计钓获 {} 次".format(
+            len(owned), len(C.FISH_COLLECT), _total), "━━━━━━━━━━━━"]
+        for cf in C.FISH_COLLECT:
+            if cf["id"] in inv:
+                lines.append(f"  ✅ {cf['name']} ×{inv[cf['id']]}")
+            elif cf.get("time") == "night":
+                lines.append("  ❌ ??? （夜晚垂钓有极低概率邂逅）")
+            else:
+                lines.append("  ❌ ??? （垂钓时有极低概率邂逅）")
+        lines.append("💡 彩蛋收藏鱼钓到自动收进图鉴；对应成就见『成就 隐藏』")
+        return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?百科(?:\s*|$)")
     @require_player()
@@ -3276,6 +3390,14 @@ class EconomyCmds(CommandBase):
                     _ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
                     _r = C.EQUIP_ROSTER.get(_ids[0], {}) if _ids else {}
                     entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+        # v104 修 M17-P2：橡木镇（新手村）商店面板列出可购坐骑（price>0 的老马/小毛驴），并入序号购买
+        if area_id == "oak" and cur == C.START_MAP:
+            _mount_owned = set((player.get("mounts") or {}).get("owned") or [])
+            for mdef in C.MOUNT_POOL:
+                if (mdef.get("price") or 0) > 0:
+                    _mo = "（已拥有）" if mdef["key"] in _mount_owned else ""
+                    entries.append((f"mount:{mdef['key']}",
+                                    f"{mdef['icon']}{mdef['name']}{_mo}（坐骑 Lv.{mdef['lv']} 商店直购）—— {mdef['price']} 金币"))
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)
@@ -3347,6 +3469,9 @@ class EconomyCmds(CommandBase):
         # 序号购买：『购买 3』→ 与商店列表一致的第 3 件商品（顺序：材料→装备→武器，与 shop 面板一致）
         if item_name.isdigit():
             entries = list(shop_items) + [f"m:{m}" for m in materials] + (["bp:rand"] if is_smith else []) + [f"e:{rid}" for rid in equip_items] + [f"w:{w[0]}" for w in weapons]
+            # v104 修 M17-P2：橡木镇序号购买含坐骑（与商店面板顺序一致，追加在末尾）
+            if area_id == "oak" and cur == C.START_MAP:
+                entries += [f"mount:{m['key']}" for m in C.MOUNT_POOL if (m.get("price") or 0) > 0]
             idx = int(item_name)
             if idx < 1 or idx > len(entries):
                 yield event.plain_result(f"没有第 {idx} 号商品！『商店』查看商品列表。")
@@ -3400,6 +3525,27 @@ class EconomyCmds(CommandBase):
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
+                return
+            if str(key).startswith("mount:"):
+                # v104 修 M17-P2：序号购买坐骑（老马/小毛驴，与面板序号一致，仅橡木镇可买）
+                mdef = C.MOUNT_BY_KEY[str(key)[6:]]
+                mounts = player.get("mounts") or {}
+                if mdef["key"] in (mounts.get("owned") or []):
+                    yield event.plain_result(f"你已经拥有{mdef['name']}了！")
+                    return
+                price = int(mdef["price"] * discount)
+                if player["gold"] < price:
+                    yield event.plain_result(f"金币不足！{mdef['name']}要 {price} 金币。")
+                    return
+                db.update_player(group_id, qq_id, gold=player["gold"] - price)
+                mounts = dict(player.get("mounts") or {})
+                owned = list(mounts.get("owned") or [])
+                owned.append(mdef["key"])
+                mounts["owned"] = owned
+                db.update_player(group_id, qq_id, mounts=mounts)
+                yield event.plain_result(
+                    f"{mdef['icon']} 你买了{mdef['name']}！缰绳交到你手里，它打了个响鼻。\n"
+                    f"💡 『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
                 return
             if str(key).startswith("e:"):
                 # 名册装备购买（铁匠铺全套装备）

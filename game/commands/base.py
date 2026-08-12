@@ -42,7 +42,9 @@ class _GameCmdFilter(CustomFilter):
         text = event.get_message_str().strip()
         for pat in self._patterns():
             try:
-                if pat.search(text):
+                m = pat.search(text)
+                # v104：跳过空匹配正则（_maint_gate 等仅挂载用），否则日常聊天全命中
+                if m and m.group(0):
                     return True
             except re.error:
                 continue
@@ -592,6 +594,8 @@ class CommandBase:
             for a in C.ACHIEVEMENTS:
                 if a.get("bonus") and a["id"] in unlocked_achs and a.get("name") not in title_bonus_names:
                     for k, v in a["bonus"].items():
+                        if k == "prof_exp_mult":
+                            continue  # v104.2 M13：全知全能副业经验倍率由 add_prof_exp 结算，非面板属性
                         if k != "atk" or v != 0:  # 占位字段跳过
                             bonus[k] = bonus.get(k, 0) + v
         except Exception:

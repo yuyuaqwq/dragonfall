@@ -14,7 +14,9 @@
 - db 访问在函数内延迟 import（防 core→content→core 循环）
 - v105 M18 P1 修复：main_done 补 group_id（原 TypeError 恒 False）；flag 改查 db
   talk_flags（原 extra.flags 无调用方传参恒 False）；event_all 接 stats.world_events；
-  goblin_trade 无交易计数数据源 → 成就 ach_goblin_friend 改判 world_event（注册已删除）
+  goblin_trade 无交易计数数据源 → 成就 ach_goblin_friend 改判 world_event（注册已删除）；
+  hidden_area 改统计真实隐藏区域（HIDDEN_MAP_UNLOCK∪hidden 标记地图），普通区域到访不再计数
+  （原与 visited 实现完全相同，ach_mythril/ach_hidden3 被普通区域误解锁）
 - quest_done/item_has/main_quest_done/branch_skills 依赖 extra._group_id（check_achievements 注入）
 """
 COND_CHECKS = {}
@@ -202,12 +204,35 @@ def _c_visited(player, stats, profs, extra, cond):
 
 @register("hidden_area")
 def _c_hidden_area(player, stats, profs, extra, cond):
-    """隐藏区域数（并入到访计数，数据源受限）"""
+    """隐藏区域到访数（v105 M18 P1 修复：仅统计真实隐藏区域）
+
+    隐藏区域集合 = HIDDEN_MAP_UNLOCK 解锁表 key（7 个：dragon_sanctum/elf_opera/
+    mithril_hall/sea_altar/under_king_hall/lost_library/ember_corridor）∪ maps 中
+    hidden=True 或 type="隐藏区域" 的地图。旧实现与 visited 完全相同（到访普通区域
+    也计数）→ ach_hidden3 秘境猎手 3 个普通区域即解锁、ach_mythril 到访 1 个任意
+    区域即送，隐藏成就贬值。修复后仅到访隐藏区域才计数。
+    """
+    from .. import content as C
     from .. import db
+    hidden = set(getattr(C, "HIDDEN_MAP_UNLOCK", None) or {})
+    for m in (C.MAPS or []):
+        if m.get("hidden") or m.get("type") == "隐藏区域":
+            hidden.add(m["id"])
+    if not hidden:
+        return False
     try:
-        return db.get_visited_count("", player["qq_id"]) >= _value(cond)
+        with db._lock:
+            conn = db._connect()
+            try:
+                rows = conn.execute(
+                    "SELECT DISTINCT map_id FROM visited WHERE qq_id=?", (player["qq_id"],)
+                ).fetchall()
+            finally:
+                conn.close()
+        cnt = sum(1 for r in rows if r[0] in hidden)
+        return cnt >= _value(cond)
     except Exception:
-        return stats.get("visited_areas", 0) >= _value(cond)
+        return False
 
 
 @register("inst_clear")

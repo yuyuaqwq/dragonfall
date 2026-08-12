@@ -71,7 +71,7 @@ def main():
 
     print("【data·垂钓：品种池 FISH_POOL】")
     pool = C.FISH_POOL
-    check("23 个品种", len(pool) == 23, str(len(pool)))
+    check("24 个品种", len(pool) == 24, str(len(pool)))
     q_set = set(f["quality"] for f in pool)
     check("品质值全合法", q_set <= {"white", "green", "blue", "purple", "orange"}, str(q_set))
     # 每档至少 1 个全水域兜底（spots is None）；orange 例外：传说只在铁港码头（16 章 2.4 设定）

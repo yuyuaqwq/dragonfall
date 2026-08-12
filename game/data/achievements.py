@@ -7,6 +7,10 @@
 - title 字段：成就解锁即获得的称号名（显示在称号列表）
 - bonus 字段：属性称号加成（与 titles.py TITLES 合并）
 - 隐藏成就 points=2，其余 1
+
+⚠️ 14 章四「成就等级体系（青铜→传奇）」：**待后续版本，未实装**。
+当前 achievement_points（core/achievements.py）只算点数（普通 1 / 隐藏 2），
+无等级划分/等级称号/等级加成。（v105 M18 P2 标注，见 AUDIT_FINDINGS_v104 P2-8）
 """
 ACHIEVEMENTS = [
     # ---- 战斗（20） ----
@@ -121,7 +125,7 @@ ACHIEVEMENTS = [
     {"id": "ach_apprentice4", "cat": "副业", "name": "博采众长", "title": "博采众长",
      "desc": "完成 4 位导师的拜师进修", "cond": {"type": "apprentice", "value": 4}, "points": 1},
     {"id": "ach_apprentice8", "cat": "副业", "name": "全知全能", "title": "全知全能",
-     "desc": "完成全部 8 位导师的拜师进修", "cond": {"type": "apprentice", "value": 8}, "points": 1, "bonus": {"atk": 0}},  # 全副业经验 +10%（battle 不结算，占位）
+     "desc": "完成全部 8 位导师的拜师进修", "cond": {"type": "apprentice", "value": 8}, "points": 1, "bonus": {"prof_exp_mult": 1.10}},  # v104.2 M13 P2 实装：全副业经验 +10%（add_prof_exp 结算，非面板属性，不进战斗）
     {"id": "ach_pro_gather3", "cat": "副业", "name": "采药人", "title": "采药人",
      "desc": "采集达到 Lv.3", "cond": {"type": "prof_lv", "key": "gather", "value": 3}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_pro_gather6", "cat": "副业", "name": "草药专家", "title": "草药专家",
@@ -184,6 +188,8 @@ ACHIEVEMENTS = [
      "desc": "公会达到 3 级", "cond": {"type": "guild_lv", "value": 3}, "points": 1},
     {"id": "ach_guild5", "cat": "社交", "name": "公会栋梁", "title": "公会栋梁",
      "desc": "公会达到 5 级", "cond": {"type": "guild_lv", "value": 5}, "points": 1, "bonus": {"hp": 20}},
+    # v105 M18 P2 显式声明：11 章阵营体系未落地（策划案 14 章落地说明同步标注），
+    # 「选择阵营/阵营先锋/大陆之柱」3 个阵营成就暂不可解锁（判定恒 False，随 11 章阵营系统一并实装）
     {"id": "ach_faction1", "cat": "社交", "name": "选择阵营", "title": "选择阵营",
      "desc": "加入 1 个阵营", "cond": {"type": "faction", "value": 1}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_faction_top", "cat": "社交", "name": "阵营先锋", "title": "阵营先锋",

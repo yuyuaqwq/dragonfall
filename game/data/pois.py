@@ -78,9 +78,9 @@ SUBAREA_POIS = {
     # ==== 月冠王庭 ====
     "moon_court:moon_court_1": ["shrine", "rune_stone"],  # 王庭广场
     # ==== 野外·南境 ====
-    "oak_plain:oak_plain_3": ["campfire", "herb_patch"],
+    "oak_plain:oak_plain_3": ["campfire", "herb_patch", "scenic_view"],  # 草地尽头：远眺丘陵
     "white_deer_forest:white_deer_forest_3": ["campfire", "note"],
-    "emerald_forest:emerald_forest_3": ["rune_stone", "herb_patch"],
+    "emerald_forest:emerald_forest_3": ["rune_stone", "herb_patch", "ancient_tree_sight"],  # 翡翠森林深处：古木参天
     "misty_swamp:misty_swamp_3": ["loot_pile", "note"],
     "hill_mine:hill_mine_3": ["rune_stone", "loot_pile"],
     # ==== 野外·中域 ====
@@ -90,17 +90,17 @@ SUBAREA_POIS = {
     "dawn_cathedral:dawn_cathedral_3": ["rune_stone", "note"],
     # ==== 野外·西境 ====
     "silverwood:silverwood_3": ["shrine", "herb_patch"],
-    "starlake:starlake_3": ["fishing_spot", "rune_stone"],
+    "starlake:starlake_3": ["fishing_spot", "rune_stone", "star_gazing"],  # 星湖：星空倒映
     "ancient_tree:ancient_tree_3": ["rune_stone", "note"],
     # ==== 野外·北境 ====
-    "frost_field:frost_field_3": ["campfire", "loot_pile"],
-    "cinder_mountain:cinder_mountain_3": ["rune_stone", "note"],
+    "frost_field:frost_field_3": ["campfire", "loot_pile", "scenic_view"],  # 霜原：雪线远眺
+    "cinder_mountain:cinder_mountain_3": ["rune_stone", "note", "star_gazing"],  # 烬山：夜观星火
     "black_forest:black_forest_3": ["loot_pile", "note"],
     # ==== 野外·东境 ====
-    "dragon_ridge:dragon_ridge_3": ["rune_stone"],
+    "dragon_ridge:dragon_ridge_3": ["rune_stone", "scenic_view"],  # 龙脊：群山之巅
     "ancient_battlefield:ancient_battlefield_3": ["rune_stone", "note"],
     # ==== 外域 ====
-    "coral_reef:coral_reef_3": ["fishing_spot", "loot_pile"],
+    "coral_reef:coral_reef_3": ["fishing_spot", "loot_pile", "scenic_view"],  # 珊瑚礁：海天一线
     "storm_sea:storm_sea_3": ["rune_stone", "note"],
     "molten_abyss:molten_abyss_3": ["rune_stone", "loot_pile"],
     "abyss_altar:abyss_altar_3": ["rune_stone", "note"],
@@ -116,14 +116,7 @@ SUBAREA_POIS = {
     "dragon_ridge_old_road:dragon_ridge_old_road_2": ["note"], # 古道龙纹：龙战字条
     "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
     # ==== v87.9 风景 POI（探索触发，纯氛围）====
-    "oak_plain:oak_plain_3": ["scenic_view"],            # 草地尽头：远眺丘陵
-    "emerald_forest:emerald_forest_3": ["ancient_tree_sight"],  # 翡翠森林深处：古木参天
     "gold_plain:gold_plain_3": ["star_gazing"],            # 金穗平原：旷野星野
-    "starlake:starlake_3": ["star_gazing"],                # 星湖：星空倒映
-    "frost_field:frost_field_3": ["scenic_view"],          # 霜原：雪线远眺
-    "dragon_ridge:dragon_ridge_3": ["scenic_view"],        # 龙脊：群山之巅
-    "cinder_mountain:cinder_mountain_3": ["star_gazing"],  # 烬山：夜观星火
-    "coral_reef:coral_reef_3": ["scenic_view"],            # 珊瑚礁：海天一线
     "sky_ladder_path:sky_ladder_path_1": ["star_gazing"],  # 天梯云径：云端星空
     "dragon_ridge_old_road:dragon_ridge_old_road_3": ["scenic_view"],  # 龙脊古道尽头
     "west_ridge_wilds:west_ridge_wilds_3": ["scenic_view"],  # 西岭荒原深处

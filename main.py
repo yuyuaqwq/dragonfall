@@ -21,25 +21,75 @@ from .game.commands import (
 
 
 def _fix_handler_module_paths():
-    """修复 Mixin 重构后 handler 模块路径问题。
+    """修复 Mixin 重构后 handler 模块路径问题（必须保留的 hack，勿删）。
 
-    AstrBot 通过 handler.handler_module_path 在 star_map 中查找插件实例，
-    而 Mixin 拆分后 handler 注册为 game.commands.* 子模块路径，与
-    Main 类所在的 main 模块不匹配，导致全部指令 handler 被过滤、
+    AstrBot 通过 handler.handler_module_path 在 star_map 中精确查找插件实例
+    （star_manager: star_map[path]=metadata，path=插件主模块；分发时
+    star_map.get(handler.handler_module_path) 精确匹配），而 Mixin 拆分后
+    handler 注册为 game.commands.* 子模块路径（注册时取 handler.__module__），
+    与 Main 类所在的 main 模块不匹配，导致全部指令 handler 被过滤、
     消息全部落入 LLM 回复。
+
+    官方机制仅有 LLM tools 的子模块重映射（star_manager 加载插件时对
+    llm_tools 执行 ft.handler_module_path = metadata.module_path），对指令
+    handler 无子模块→主模块映射，故本 hack 无法移除；若未来 AstrBot
+    改为前缀匹配/官方支持子模块映射，可删除本函数（届时下方
+    matched==0 告警会提示）。
 
     这里在插件加载完成后，把本插件所有 handler 的模块路径统一改写到
     main 模块（__name__），保证 star_map 能正确关联到 Main 实例。
+    失败绝不静默：输出 ERROR 日志（后果=全部指令落入 LLM），并附带
+    注册表同步校验（P3）差集日志。
     """
+    _LOGGER = logging.getLogger(__name__)
     try:
         from astrbot.core.star.star_handler import star_handlers_registry
 
-        pkg = __name__.rsplit(".", 1)[0]  # plugins.dragonfall
+        pkg = __name__.rsplit(".", 1)[0]  # data.plugins.dragonfall
+        matched = 0
         for h in star_handlers_registry._handlers:
             if h.handler_module_path and h.handler_module_path.startswith(pkg + "."):
                 h.handler_module_path = __name__
+                matched += 1
+        if matched == 0:
+            # 注册机制若变化导致 0 命中，必须大声告警而非静默失效
+            _LOGGER.warning(
+                "handler 模块路径改写命中 0 个 handler：Mixin 子模块 handler 将无法"
+                "关联 Main 实例，指令会全部落入 LLM 回复。请检查 AstrBot 版本兼容性；"
+                "若官方已支持子模块映射，可删除本 hack。"
+            )
+        else:
+            _LOGGER.info("已改写 %d 个 handler 模块路径 -> %s", matched, __name__)
+
+        # ---- P3 注册表同步校验：已注册公开 handler 名 vs _registry 静态表键 ----
+        from .game.commands._registry import COMMAND_REGEX
+
+        # 私有 handler（_ 前缀，如 _maint_gate）按 base.py v96 设计不进静态表，
+        # 两侧统一排除，只校验公开指令名
+        table_keys = {k for k in COMMAND_REGEX if not k.startswith("_")}
+        registered = {
+            h.handler_name
+            for h in star_handlers_registry._handlers
+            if h.handler_module_path == __name__ and not h.handler_name.startswith("_")
+        }
+        missing = sorted(table_keys - registered)  # 表有、实际未注册
+        extra = sorted(registered - table_keys)    # 实际注册、表里没有
+        if not missing and not extra:
+            _LOGGER.info(
+                "注册表同步校验通过：%d 静态键 ↔ %d 已注册公开 handler",
+                len(table_keys), len(registered),
+            )
+        else:
+            _LOGGER.warning(
+                "注册表同步校验发现漂移：表缺 %d 键 %s；表多 %d 键 %s。"
+                "请同步 game/commands/_registry.py（半自动维护，见该文件头注释）。",
+                len(missing), missing, len(extra), extra,
+            )
     except Exception:
-        logging.getLogger(__name__).exception("fix handler module paths failed")
+        _LOGGER.error(
+            "handler 模块路径改写/注册表校验失败——指令将全部落入 LLM 回复，"
+            "请立即检查 AstrBot 版本兼容性", exc_info=True
+        )
 
 _fix_handler_module_paths()
 
