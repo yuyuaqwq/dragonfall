@@ -1879,8 +1879,8 @@ MATERIALS = {
     "mat_ling_hun_sui_pian": {"price": 180, "name": "灵魂碎片", "desc": "怨灵不灭的执念碎片，幽光里隐约有低语"},
     "mat_shou_ren_liao_ya": {"price": 100, "name": "兽人獠牙", "desc": "兽人劫掠者的獠牙，粗粝弯曲，带着凶性"},
     "mat_zuo_lang_quan_chi": {"price": 110, "name": "座狼犬齿", "desc": "狼王座下凶兽的犬齿，锋利得能划开铁甲"},
-    "i_stone_upgrade": {"price": 200, "name": "强化石", "desc": "炼金提纯的魔力矿石，铁匠铺高价收购，强化装备的良材"},
-    "i_stone_refine": {"price": 400, "name": "精炼强化石", "desc": "二次精炼的强化石，光泽内敛，价值不菲"},
+    "i_stone_upgrade": {"price": 400, "name": "强化石", "desc": "炼金提纯的魔力矿石，强化装备失败时自动护住不掉级（消耗品）"},
+    "i_stone_refine": {"price": 800, "name": "精炼强化石", "desc": "二次精炼的强化石，强化时消耗可提升成功率 +25%"},
     # ---- v102.3 生活技能差异化：限定材料（采集时机限定 + 深矿专属） ----
     "mat_night_mushroom": {"price": 120, "name": "夜雾菇", "desc": "只在月光下撑开伞盖的菌菇，伞面凝着细碎的夜露"},
     "mat_aurora_flower": {"price": 300, "name": "极光花", "desc": "冬夜极光映照下才绽放的花，花瓣流光溢彩，转瞬即逝"},

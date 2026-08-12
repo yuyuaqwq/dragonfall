@@ -1733,8 +1733,16 @@ class EconomyCmds(CommandBase):
         _boost = db.get_event_state(f"enhance_boost_{qq_id}")
         if _boost:
             db.set_event_state(f"enhance_boost_{qq_id}", "")
+        # v101.30 炼金强化材料接入：精炼强化石 = 成功率 +25%（自动消耗）；强化石 = 失败保护（失败不掉级）
+        _rate = info["rate"]
+        _stone_line = ""
+        if db.count_item(group_id, qq_id, "i_stone_refine") >= 1:
+            _rate = min(1.0, _rate + 0.25)
+            db.remove_item(group_id, qq_id, "i_stone_refine", 1)
+            _stone_line = "\n✨ 精炼强化石淬入火中，成功率提升了！"
+        _protect_have = db.count_item(group_id, qq_id, "i_stone_upgrade")
         # 掷强化
-        if _boost or random.random() < info["rate"]:
+        if _boost or random.random() < _rate:
             d["enhance"] = cur_enh + 1
             if target.get("_equipped"):
                 # v101.25 #329：已装备武器强化成功 → 写回装备槽位（属性实时生效）
@@ -1745,8 +1753,9 @@ class EconomyCmds(CommandBase):
                 db.remove_item(group_id, qq_id, target["key"])
                 db.add_item(group_id, qq_id, target["key"], d, 1)
             lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！"]
-            # v101.28i 强化经验：成功 +1（失败不给，符合熟练度叙事；修复强化副业等级死锁）
-            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", 1)
+            # v101.30 强化经验按段位：+0→+1 给 1 …… +8→+9 给 9（高段强化是升级主路径，
+            # 刷必成的 +0→+1 只能拿 1 经验/50 金，成长极慢——赌得越高练得越快）
+            new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", cur_enh + 1)
             if leveled:
                 lines.append(f"🌟 强化副业提升到 Lv.{new_lv}！")
             _done, _msg = self._daily_prof_bump(group_id, qq_id, "enhance")
@@ -1759,10 +1768,20 @@ class EconomyCmds(CommandBase):
                 lines.append("⚡ 装备绽放出耀眼的光芒！")
             elif cur_enh + 1 == 9:
                 lines.append("🌟 传说级的光芒冲天而起！你听见了铁匠们的惊叹！")
+            if _stone_line:
+                lines.append(_stone_line)
             yield event.plain_result("\n".join(lines))
         else:
             drop = C.ENHANCE_FAIL_DROP.get(cur_enh, 1)
             new_enh = max(0, cur_enh - drop)
+            if _protect_have >= 1 and new_enh != cur_enh:
+                # v101.30 强化石失败保护：消耗 1 个，不掉级
+                db.remove_item(group_id, qq_id, "i_stone_upgrade", 1)
+                yield event.plain_result(
+                    f"💥 强化失败！但强化石轰然炸开挡住了冲击，【{d['name']}】保住了等级(+{cur_enh})！\n"
+                    f"(消耗强化石×1{_stone_line})"
+                )
+                return
             if new_enh != cur_enh:
                 d["enhance"] = new_enh
                 if target.get("_equipped"):
@@ -1839,6 +1858,9 @@ class EconomyCmds(CommandBase):
                 return
             d = target["data"]
             slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
+            # v101.30 Lv.8 传说工艺：橙装第 3 符文槽
+            if prof_lv >= 8 and d.get("quality") == "orange":
+                slots += 1
             if slots <= 0:
                 yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有符文槽，只有蓝/紫/橙装备可以附魔！")
                 return
@@ -1907,6 +1929,9 @@ class EconomyCmds(CommandBase):
             return
         d = target["data"]
         slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
+        # v101.30 Lv.8 传说工艺：橙装第 3 符文槽
+        if prof_lv >= 8 and d.get("quality") == "orange":
+            slots += 1
         if slots <= 0:
             yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有附魔槽，只有蓝/紫/橙装备可以附魔！")
             return
@@ -1931,8 +1956,9 @@ class EconomyCmds(CommandBase):
                 db.remove_item(group_id, qq_id, it["key"], 1)
                 break
         db.update_player(group_id, qq_id, gold=player["gold"] - rec["cost"])
-        # 附魔：5% 大成功 1.5x
-        big = random.random() < C.ENCHANT_CRIT_CHANCE
+        # 附魔：5% 大成功 1.5x（v101.30 Lv.10 大师手艺 → 10%）
+        _crit = 0.10 if prof_lv >= 10 else C.ENCHANT_CRIT_CHANCE
+        big = random.random() < _crit
         v = C.enchant_value(d["slot"], d["lv"], stat_key, big=big)
         enchanted.append({"stat": stat_key, "value": v})
         d["enchant"] = enchanted
