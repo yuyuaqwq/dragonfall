@@ -166,9 +166,19 @@ def _render_rune(d, lines, equipped):
 def _render_blueprint(d, lines, equipped):
     """图纸详情"""
     # ===== 图纸（v41 毕业套锻造材料） =====
+    # v101.28l #434：原模板抄的"阶段/职业"字段图纸根本没有（空显示），改用名册真实字段
+    q = C.QUALITY.get(d.get("quality", ""), {})
+    r = C.EQUIP_ROSTER.get(d.get("roster_id", ""), {}) if d.get("roster_id") else {}
+    slot_cn = C.EQUIP_SLOTS.get(r.get("slot", ""), "") if r else ""
+    series = r.get("series", "") if r else ""
+    _parts = [f"类型：图纸", f"品质：{q.get('name', '')}"]
+    if series:
+        _parts.append(f"系列：{series}")
+    if slot_cn:
+        _parts.append(f"部位：{slot_cn}")
     lines.append(f"📜 【{d['name']}】")
     lines.append("━━━━━━━━━━━━")
-    lines.append(f"类型：图纸 ｜ 阶段：{d.get('stage', '')} ｜ 职业：{d.get('class', '')}")
+    lines.append(" ｜ ".join(_parts))
     if d.get("desc"):
         lines.append(f"描述：{d['desc']}")
     lines.append("")
@@ -918,9 +928,14 @@ class EconomyCmds(CommandBase):
         # 位置满：有等级也拦截（严格双副业上限，玩家自己遗忘取舍）
         if len(lst) >= db.MAX_ACTIVE_PROFS:
             names = "、".join(db.PROF_FIELDS[k] for k in lst)
+            # v101.28l #421：强化/附魔也是副业——位满时明确说明，避免玩家不知道要占副业位
+            _extra = ""
+            if key in ("enhance", "enchant"):
+                _extra = (f"\n💡 「{db.PROF_FIELDS.get(key, key)}」也是一条副业，"
+                          f"需要占用副业位——先『遗忘副业 <名称>』腾位置吧～")
             return False, (
                 f"你的副业位已满({len(lst)}/{db.MAX_ACTIVE_PROFS}：{names})！"
-                f"想发展新副业，先『遗忘副业 <名称>』放弃一条吧～"
+                f"想发展新副业，先『遗忘副业 <名称>』放弃一条吧～{_extra}"
             )
         # 老玩家兼容：位置有空 + 已有等级（>1）未激活 → 自动激活无感迁移
         lv = db.get_prof_level(group_id, qq_id, key)
@@ -1487,7 +1502,7 @@ class EconomyCmds(CommandBase):
             if rec["lv"] > player["level"] + 6:
                 marks.append("🔒等级")
             if self._craft_prof_need(rec["lv"]) > prof_lv:
-                marks.append("🛠️锻造Lv")
+                marks.append(f"🛠️锻造Lv.{self._craft_prof_need(rec['lv'])}")  # v101.28l #425：补缺的数字
             if not self._rec_learned(player, rec):
                 marks.append("📜未学")
             recs.append((rk, rec, marks))
@@ -2296,11 +2311,18 @@ class EconomyCmds(CommandBase):
                 return
             target = items[idx - 1]
         else:
+            # v101.28l #420：名称查找装备优先于图纸（同名图纸不再抢占命中）
             for it in items:
                 d = it["data"]
-                if item_name in d["name"]:
+                if item_name in d["name"] and d.get("type") != "图纸":
                     target = it
                     break
+            if not target:
+                for it in items:
+                    d = it["data"]
+                    if item_name in d["name"]:
+                        target = it
+                        break
         # 背包没有 → 查已装备的（仅名称查找时）
         if not target and not item_name.isdigit():
             for slot, item in (player.get("equipment") or {}).items():
@@ -2342,6 +2364,14 @@ class EconomyCmds(CommandBase):
             req_str = "、".join(f"{names.get(k, k)} {v}" for k, v in req.items())
             return False, f"需求：{req_str}(你当前 {'、'.join(missing)})", missing_keys
         return True, "", []
+
+    def _req_label(self, r: dict) -> str:
+        """v101.28l #443：货架标注属性需求（防买了穿不上，船长帽事件）"""
+        req = r.get("req") or {}
+        if not req:
+            return ""
+        names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+        return "需" + "、".join(f"{names.get(k, k)}{v}" for k, v in req.items())
 
     def _shop_equip_price(self, slot: str, lv: int, quality: str, weapon_type: str | None = None) -> int:
         """v101.25e 商店装备价：确定性基础推导价（含武器类型风味，不含随机词条）× 品质系数。
@@ -2998,11 +3028,13 @@ class EconomyCmds(CommandBase):
             for rid in equip_items:
                 r = C.EQUIP_ROSTER[rid]
                 q = C.QUALITY[r["quality"]]
-                entries.append((f"e:{rid}", f"{q['color']}{r['name']}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'))} 金币"))
+                entries.append((f"e:{rid}", f"{q['color']}{r['name']}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'))} 金币"))
             weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
             for wname, wtype, wlv, wq in weapons:
                 q = C.QUALITY[wq]
-                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                _ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
+                _r = C.EQUIP_ROSTER.get(_ids[0], {}) if _ids else {}
+                entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         else:
             # 普通商店：消耗品 + 武器（v101.28g：只挂子区域配货，无城镇级兜底）
             sa_kind = self._sa_shop_kind(player)
@@ -3022,7 +3054,9 @@ class EconomyCmds(CommandBase):
                 weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
                 for wname, wtype, wlv, wq in weapons:
                     q = C.QUALITY[wq]
-                    entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                    _ids = C.EQUIP_ROSTER_BY_NAME.get(wname, [])
+                    _r = C.EQUIP_ROSTER.get(_ids[0], {}) if _ids else {}
+                    entries.append((f"w:{wname}", f"{q['color']}{wname}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)

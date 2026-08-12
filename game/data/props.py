@@ -811,7 +811,7 @@ SUBAREA_PROPS = {
     'shipwreck_graveyard:shipwreck_graveyard_1': [('stone_altar_ruin', '沉船墓地祭台残迹'), ('ruined_wagon', '沉船墓地遗物')],
     'shipwreck_graveyard:shipwreck_graveyard_2': [('stone_altar_ruin', '沉船墓地祭台残迹'), ('ruined_wagon', '沉船墓地遗物')],
     'shipwreck_graveyard:shipwreck_graveyard_3': [('stone_altar_ruin', '沉船墓地祭台残迹'), ('ruined_wagon', '沉船墓地遗物')],
-    'silver_river:silver_river_3': [('mountain_spring', '银溪河泉'), ('birch_grove', '银溪河白桦林')],
+    'silver_river:silver_river_3': [('mountain_spring', '银铃河泉'), ('birch_grove', '银铃河白桦林')],
     'silver_valley:silver_valley_1': [('boundary_stone', '银溪谷界碑')],
     'silver_valley:silver_valley_2': [('mountain_spring', '银溪谷泉'), ('birch_grove', '银溪谷白桦林')],
     'silver_valley:silver_valley_3': [('highland_rock', '银溪谷观景岩'), ('wild_flowers', '银溪谷野花丛')],

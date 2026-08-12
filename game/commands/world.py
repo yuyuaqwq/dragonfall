@@ -881,7 +881,7 @@ class WorldCmds(CommandBase):
             lines.append("  💡 回复序号直接交谈")
         # 功能提示
         funcs = sa.get("funcs") or []
-        func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "铁匠",
+        func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "锻造",
                    "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
                    "apprentice": "副业", "enhance": "强化", "portal": "方碑",
                    "alchemy": "炼金", "teach": "教学", "trade": "交易", "info": "咨询"}
@@ -2427,7 +2427,9 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"{npc['name']}：那就再会了，冒险者。")
                 return
             if idx < 1 or idx > len(opts):
-                yield event.plain_result(f"没有这个选项！回复 1-{len(opts)} 选择，回复 0 结束。")
+                # v101.28l #426：单选项时不再显示"1-1"（越界文案）
+                _sel_hint = "回复 1 选择" if len(opts) == 1 else f"回复 1-{len(opts)} 选择"
+                yield event.plain_result(f"没有这个选项！{_sel_hint}，回复 0 结束。")
                 return
             opt = opts[idx - 1]
             player = self._player(group_id, qq_id)

@@ -877,10 +877,13 @@ class PlayerCmds(CommandBase):
             lines.append(f"💡 『技能学习 {display_name}』消耗 {cost} 技能点学会(当前 {player.get('skill_points',0)} 点)")
         elif is_learned:
             slv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名
-            if slv < mx:
+            # v101.28l #439：被动技能详情不再提示升级（与『技能升级』的"无需升级"一致）+ 括号闭合
+            if info.get("kind") == "被动":
+                lines.append("⚙️ 被动技能，无需升级——学会后战斗自动生效")
+            elif slv < mx:
                 cost = E.skill_upgrade_cost(slv, info)
                 nxt = " · ".join(self._skill_upgrade_gains(info, slv + 1))
-                lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}({nxt}，当前 {player.get('skill_points',0)} 点)")
+                lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}（{nxt}，当前 {player.get('skill_points',0)} 点）")
             else:
                 lines.append("✨ 已满级！")
         yield event.plain_result("\n".join(lines))

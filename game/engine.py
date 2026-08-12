@@ -624,6 +624,9 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         player["level"] += 1
         tier = player.get("class_tier", 0)
         prev_base = player_base_stats(player["class_name"], player["level"] - 1, tier)
+        # v101.28l #419：升级横幅差值必须同口径裸装对比（此前新级最终属性−旧级裸装，
+        # 装备/属性点/称号加成全被算进"升级成长"→ playtest 实锤虚高 50 倍/40 倍）
+        new_base = player_base_stats(player["class_name"], player["level"], tier)
         # v94 #41：升级重算必须传全 7 参数（race/evolve_path/title_bonus 漏传 → 写入值与面板/战斗重算不一致）
         st = player_final_stats(player["class_name"], player["level"], player.get("equipment", {}), tier, player.get("attributes"), player.get("evolve_path", 0), player.get("_title_bonus", {}) or {}, player.get("race"))
         player["attr_pts"] = player.get("attr_pts", 0) + 3  # 每级 +3 自由属性点
@@ -641,7 +644,7 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         can_learn = [s for s in available if s not in learned_now]
         logs.append(
             f"🎉 恭喜升级！现在 {player['level']} 级！"
-            f"(生命上限 +{st['max_hp'] - prev_base['hp']}, 攻击 +{st['atk'] - prev_base['atk']})"
+            f"(生命上限 +{new_base['hp'] - prev_base['hp']}, 攻击 +{new_base['atk'] - prev_base['atk']})"
             f"\n📌 属性点 +3、技能点 +1(『属性』加点 / 『技能学习 <名称>』学技能)"
         )
         if can_learn:
