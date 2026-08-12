@@ -65,8 +65,8 @@ def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
     鱼鱼要求：6 个子 agent 各自一张合并转发、整轮完整，方便逐人查看战况。
 
     ⚠️ ARK 限制（v101.28t 实测）：fromPacketMsg 把每条消息完整文本塞进
-    bytesData，总量太大 → retcode 1200。单节点 ≤300 字、每卡 ≤5K 字以内安全。
-    每角色完整记录实测 1.1K-2.7K 字（round98），单卡可容纳；超 5K 兜底截断。
+    bytesData，总量太大 → retcode 1200。单节点 ≤300 字、每卡 ≤8K 字以内安全。
+    每角色完整记录实测 1.1K-2.7K 字（round98），单卡可容纳；超 8K 兜底截断。
     """
     m = re.match(r"^#\s+(.+?)\s*$", content, flags=re.M)
     title = m.group(1).strip() if m else label
@@ -97,7 +97,7 @@ def _spy_to_role_cards(content: str, label: str, bot_qq: str) -> list:
         for seg in segs:
             for chunk in _chunk_text(seg, 300):
                 total_chars += len(chunk)
-                if total_chars > 5000:
+                if total_chars > 8000:
                     nodes.append(Node(uin=bot_qq, name=name, content=[Plain("…(后续交互见插件目录 scripts/{})".format(label))]))
                     break
                 nodes.append(Node(uin=bot_qq, name=name, content=[Plain(chunk)]))

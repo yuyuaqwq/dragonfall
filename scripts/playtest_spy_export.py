@@ -30,7 +30,8 @@ GITIGNORE = os.path.join(os.path.dirname(SCRIPTS), ".gitignore")
 
 OUT_TMPL = os.path.join(SCRIPTS, "playtest_spy_round{}.md")
 
-MAX_SEG_PER_ROLE = 12      # 每角色最多保留多少段（取最新）
+MAX_SEG_PER_ROLE = 30      # 每角色最多保留多少段（取最新）。v101.29c：原 12 太保守，
+                           # 一轮实际交互 8-30+ 段，12 会截掉大半；gm_窥探 端有 5000 字/卡兜底防 ARK
 MAX_CHARS_PER_SEG = 350    # 每段回复最多保留多少字
 HEADER_FOOTER = 300        # 前后文保留长度（识别指令段用）
 
