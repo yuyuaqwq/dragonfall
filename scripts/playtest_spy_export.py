@@ -16,6 +16,13 @@ import os
 import re
 import sys
 
+# ⚠️ Windows 非 UTF-8 终端下 emoji 输出会 UnicodeEncodeError（同 forward 脚本坑），强制 UTF-8
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 SCRIPTS = os.path.dirname(os.path.abspath(__file__))
 STATE_FILE = os.path.join(SCRIPTS, "playtest_loop_state.json")
 EXPORT_STATE = os.path.join(SCRIPTS, ".spy_export_state.json")

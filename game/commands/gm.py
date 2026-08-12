@@ -9,15 +9,44 @@ gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时回退—�
   gm_传送 / gm_体力 / gm_改名 / gm_加GM / gm_删GM
   gm_伤害 / gm_play（历史保留）
 """
+import glob
 import json
 import os
 import re
 
 from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.core.message.message_event_result import MessageChain
 
 from .. import content as C
 from .. import db
 from .base import CommandBase, require_player
+
+# 窥探投递目标：鱼鱼 QQ（1454832774，GM 白名单预置角色"鱼鱼"）
+GM_OWNER_QQ = "1454832774"
+# playtest 交互实录目录（playtest_spy_round{N}.md，playtest_spy_export.py 轮末生成）
+_SPY_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "scripts")
+
+
+def _chunk_text(text: str, size: int = 3800):
+    """按段落分片（QQ 消息安全长度），超长段落内部硬切。返回 str 列表。"""
+    chunks = []
+    cur = ""
+    for para in text.split("\n\n"):
+        if len(para) > size:
+            if cur:
+                chunks.append(cur)
+                cur = ""
+            for i in range(0, len(para), size):
+                chunks.append(para[i:i + size])
+            continue
+        if cur and len(cur) + len(para) + 2 > size:
+            chunks.append(cur)
+            cur = para
+        else:
+            cur = (cur + "\n\n" + para) if cur else para
+    if cur:
+        chunks.append(cur)
+    return chunks
 
 
 class GmCmds(CommandBase):
@@ -474,6 +503,60 @@ class GmCmds(CommandBase):
             return
         async for r in self._run_shortcut(event, raw):
             yield r
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_窥探(?:[\s\S]*)$")
+    async def gm_spy(self, event: AstrMessageEvent):
+        """v101.28o 窥探：把 playtest 角色交互实录(playtest_spy_round{N}.md)私聊投递到鱼鱼 QQ。
+
+        无参数 = 最新一轮；『gm_窥探 <轮次>』= 指定轮次。内容按段落分片发送，
+        每条带「第 X/N 条」标记。playtest 轮末由主循环自动触发（loopback 发 gm_窥探）。
+        """
+        group_id, qq_id = self._uid(event)
+        ok, err = self._gm_auth(event, group_id, qq_id)
+        if not ok:
+            yield event.plain_result(err)
+            return
+        raw = self._strip_cmd(event, "gm_窥探").strip()
+        files = sorted(glob.glob(os.path.join(_SPY_DIR, "playtest_spy_round*.md")))
+        if not files:
+            yield event.plain_result("📡 暂无 playtest 交互实录（playtest_spy_round*.md 不存在）～")
+            return
+        if raw.isdigit():
+            want = os.path.join(_SPY_DIR, "playtest_spy_round{}.md".format(raw))
+            if want not in files:
+                yield event.plain_result(
+                    "❌ 没有第 {} 轮实录～（现有：最新 {}）".format(raw, os.path.basename(files[-1]))
+                )
+                return
+            path = want
+        else:
+            path = files[-1]
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+        except OSError as e:
+            yield event.plain_result("❌ 读取 {} 失败: {}".format(os.path.basename(path), e))
+            return
+        if not content:
+            yield event.plain_result("📡 实录文件是空的～")
+            return
+        chunks = _chunk_text(content, 3800)
+        total = len(chunks)
+        for i, chunk in enumerate(chunks, 1):
+            head = "📡 【{}】({}/{})".format(os.path.basename(path), i, total) if total > 1 else "📡 【{}】".format(os.path.basename(path))
+            try:
+                await self.context.send_message(
+                    "aiocqhttp:FriendMessage:{}".format(GM_OWNER_QQ),
+                    MessageChain().message(head + "\n" + chunk),
+                )
+            except Exception as e:
+                import logging
+                logging.getLogger("astrbot").warning("[dragonfall] gm_窥探 投递失败: {}".format(e))
+                yield event.plain_result("❌ 投递第 {}/{} 条失败: {}".format(i, total, e))
+                return
+        yield event.plain_result(
+            "✅ 已把 {}（{} 字，{} 条）私聊投递到鱼鱼 QQ～".format(os.path.basename(path), len(content), total)
+        )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$")
     async def gm_help(self, event: AstrMessageEvent):
