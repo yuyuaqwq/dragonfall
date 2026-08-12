@@ -96,6 +96,8 @@ async def main():
     print("【v81 强化独立副业（原 v67 归位锻造）】")
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3", gold=5000, apprentices=["enhance"])  # v95.22 拜师模拟
+    # v101.30 每日任务奖励 50 副业经验：+1 强化会完成今日任务直接抬到 Lv.2，先标记任务已领清干扰
+    db.set_event_state(f"prof_daily_g1_w1_{time.strftime('%Y-%m-%d')}", "enhance|强化装备|1|50|1|1")
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
     check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])

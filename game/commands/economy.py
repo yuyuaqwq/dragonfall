@@ -1109,9 +1109,12 @@ class EconomyCmds(CommandBase):
             parts = raw.split("|")
             if len(parts) >= 5:
                 return parts[0], parts[1], int(parts[2]), int(parts[3]), int(parts[4]), parts[5] == "1"
-        # 随机选一个任务
+        # v101.30: 从已激活副业里随机（未激活任何副业才全随机）——任务必须做得了，
+        # 旧版 8 选 1 全随机，玩家只有 2 个副业位，抽到没拜师的 = 当日任务废掉
         import random as _rnd
-        tkey = _rnd.choice(list(C.DAILY_PROF_TASKS.keys()))
+        activated = db.get_activated_profs(group_id, qq_id)
+        cand = [k for k in C.DAILY_PROF_TASKS if k in activated] or list(C.DAILY_PROF_TASKS.keys())
+        tkey = _rnd.choice(cand)
         name, need, gold = C.DAILY_PROF_TASKS[tkey]
         db.set_event_state(self._daily_prof_key(group_id, qq_id), f"{tkey}|{name}|{need}|{gold}|0|0")
         return tkey, name, need, gold, 0, False
@@ -1128,7 +1131,10 @@ class EconomyCmds(CommandBase):
             player = self._player(group_id, qq_id)
             if player:
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-            return True, f"\n🎯 今日副业任务完成！【{name}×{need}】奖励 {gold} 金币！"
+            # v101.30: 副业经验奖励（主奖励，练级加速；金币为成本零头补贴）
+            _nl, _lvl2 = db.add_prof_exp(group_id, qq_id, tkey2, 50)
+            _lvl2_msg = f"→ Lv.{_nl}！" if _lvl2 else ""
+            return True, f"\n🎯 今日副业任务完成！【{name}×{need}】奖励 {gold} 金币 + 50 副业经验{_lvl2_msg}！"
         return False, ""
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副业任务(?:\s*|$)")
@@ -1143,7 +1149,7 @@ class EconomyCmds(CommandBase):
             "🎯 【今日副业任务】",
             "━━━━━━━━━━━━",
             f"目标：{name} ×{need} {mark}",
-            f"奖励：{gold} 金币",
+            f"奖励：{gold} 金币 + 50 副业经验",
             "",
             "💡 完成对应副业动作自动推进，明天刷新新任务！",
         ]
