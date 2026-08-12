@@ -36,6 +36,14 @@ class InstanceCmds(CommandBase):
         # 已在副本战斗中 → 显示状态
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row:
+            # v101.27 #390：通关停留超时（30 分钟）自动传出，防占位
+            _st = inst_row["state"]
+            if _st.get("cleared") and _st.get("cleared_time") and int(time.time()) - _st["cleared_time"] > 1800:
+                for _m in _st["members"]:
+                    self._unlock_battle(group_id, _m)
+                    db.clear_battle(group_id, _m)
+                yield event.plain_result("⏳ 通关时间已过 30 分钟，你被自动传送出了副本。")
+                return
             yield event.plain_result(self._instance_status(group_id, qq_id, inst_row))
             return
         arg = self._strip_cmd(event, "副本").strip()
@@ -77,6 +85,10 @@ class InstanceCmds(CommandBase):
             yield event.plain_result("你当前不在副本中！输入『副本』查看副本列表～")
             return
         st = inst_row["state"]
+        # v101.27 #390：通关后不能深入（副本已通关，只剩搜刮）
+        if st.get("cleared"):
+            yield event.plain_result("副本已通关！搜刮完用『离开副本』传出吧～")
+            return
         stages = st.get("inst_stages") or []
         if not stages:
             yield event.plain_result("这个副本没有分层结构，直接挑战 Boss 吧～")
@@ -184,6 +196,18 @@ class InstanceCmds(CommandBase):
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
         stage = stages[sidx] if sidx < len(stages) else {}
+        # v101.27 #390：通关后特殊搜刮 POI 优先（战利品堆/墙砖/密室宝箱），
+        # 避免『调查 宝箱』误命中 Boss 房静态"陪葬宝箱"等 stage POI
+        if st.get("cleared"):
+            if name in ("战利品堆", "战利品") and st.get("loot_pile"):
+                yield event.plain_result(self._instance_loot_pile(group_id, qq_id, player, st))
+                return
+            if name in ("墙砖", "松动的墙砖", "裂痕", "暗格") and st.get("secret_crack"):
+                yield event.plain_result(self._instance_secret_crack(group_id, qq_id, player, st))
+                return
+            if name in ("宝箱", "暗格宝箱", "神秘宝箱") and st.get("secret_chest"):
+                yield event.plain_result(self._instance_secret_chest(group_id, qq_id, player, st))
+                return
         poi = self._find_stage_poi(stage, name)
         # 隐藏房间 POI 也算
         secret = stage.get("secret")
@@ -238,10 +262,38 @@ class InstanceCmds(CommandBase):
             f"📌 下次『副本 {inst.get('name', '')}』将从【第 {sidx + 1} 层 · {sname}】继续！"
         )
 
+    # ---------------- 离开副本（v101.27 #390） ----------------
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?离开副本\s*$")
+    @require_player()
+    @no_prof_waiting()
+
+    async def instance_leave(self, event: AstrMessageEvent):
+        """通关后主动传出副本：清 battle 状态（玩家本就在副本入口外，无需传送）"""
+        group_id, qq_id = self._uid(event)
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row:
+            yield event.plain_result("你当前不在副本中！")
+            return
+        st = inst_row["state"]
+        if st.get("mode") != "map":
+            yield event.plain_result("战斗中无法离开！先解决眼前的敌人再说！")
+            return
+        inst = C.INSTANCES.get(st["inst_id"], {})
+        for m in st["members"]:
+            self._unlock_battle(group_id, m)
+            db.clear_battle(group_id, m)
+        yield event.plain_result(
+            f"🏳️ 你带着战利品离开了{inst.get('name', '副本')}。冒险者的旅途还在继续～"
+        )
+
     # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
     async def _instance_explore(self, event, group_id, qq_id, inst_row):
         """副本内探索：优先遇怪(进入战斗)，未触发陷阱概率踩中，否则无事。"""
         st = inst_row["state"]
+        # v101.27 #390：通关后探索无意义（已无敌人），引导搜刮/离开
+        if st.get("cleared"):
+            yield event.plain_result("副本已通关，没有敌人可探索了！『副本地图』看看战利品堆，或『离开副本』传出～")
+            return
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
         stage = stages[sidx] if sidx < len(stages) else {}
@@ -520,29 +572,40 @@ class InstanceCmds(CommandBase):
             lines.append("━━━━━━━━━━━━")
             lines.append("✨ 场景：")
             lines.extend(f"  {l}" for l in inter)
-        # 怪物
-        mons = vmap.get("monsters") or []
-        el = vmap.get("elite")
-        if st.get("stage_cleared"):
+        # v101.27 #390 通关后特殊搜刮 POI 显示（战利品堆必出 / 暗格墙砖概率 / 密室宝箱）
+        if st.get("cleared"):
             lines.append("━━━━━━━━━━━━")
-            # #411: 肃清后明确列出剩余可调查交互物名（此前只说"调查剩余交互点"不列名，
-            # 玩家不知道调查什么——vmap.pois 已过滤已用项）
-            remain = [p for p in (vmap.get("pois") or []) if isinstance(p, dict) and p.get("name")]
-            if remain:
-                names = "、".join(p["name"] for p in remain[:5]) + ("…" if len(remain) > 5 else "")
-                lines.append(f"✅ 本层敌人已肃清！剩余可调查：{names}(『调查 <名称>』)；『深入』前往下一层。")
-            else:
-                lines.append("✅ 本层敌人已肃清！『深入』前往下一层。")
-        elif vmap.get("boss"):
-            lines.append("━━━━━━━━━━━━")
-            lines.append(f"👑 Boss 就在前方：{vmap['boss'][1]}！『探索』进入战斗！")
+            if st.get("loot_pile"):
+                lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
+            if st.get("secret_crack"):
+                lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
+            if st.get("secret_chest"):
+                lines.append("🔐 神秘宝箱：密室深处泛着微光（『调查 宝箱』）")
+            lines.append("💡 搜刮完毕用『离开副本』传出～")
         else:
-            lines.append("━━━━━━━━━━━━")
-            mstr = "、".join(m[1] for m in mons) + (f" ⭐精英·{el[1]}" if el else "")
-            if mstr:
-                lines.append(f"🐾 敌人：{mstr}(『探索』遇怪)")
+            # 怪物
+            mons = vmap.get("monsters") or []
+            el = vmap.get("elite")
+            if st.get("stage_cleared"):
+                lines.append("━━━━━━━━━━━━")
+                # #411: 肃清后明确列出剩余可调查交互物名（此前只说"调查剩余交互点"不列名，
+                # 玩家不知道调查什么——vmap.pois 已过滤已用项）
+                remain = [p for p in (vmap.get("pois") or []) if isinstance(p, dict) and p.get("name")]
+                if remain:
+                    names = "、".join(p["name"] for p in remain[:5]) + ("…" if len(remain) > 5 else "")
+                    lines.append(f"✅ 本层敌人已肃清！剩余可调查：{names}(『调查 <名称>』)；『深入』前往下一层。")
+                else:
+                    lines.append("✅ 本层敌人已肃清！『深入』前往下一层。")
+            elif vmap.get("boss"):
+                lines.append("━━━━━━━━━━━━")
+                lines.append(f"👑 Boss 就在前方：{vmap['boss'][1]}！『探索』进入战斗！")
             else:
-                lines.append("🐾 这里暂时没有敌人。")
+                lines.append("━━━━━━━━━━━━")
+                mstr = "、".join(m[1] for m in mons) + (f" ⭐精英·{el[1]}" if el else "")
+                if mstr:
+                    lines.append(f"🐾 敌人：{mstr}(『探索』遇怪)")
+                else:
+                    lines.append("🐾 这里暂时没有敌人。")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『探索』遇怪 · 『调查 <名称>』互动 · 『深入』推进 · 『副本地图』查看全景 · 『撤退』离开")
         return "\n".join(lines)
@@ -725,6 +788,12 @@ class InstanceCmds(CommandBase):
             if p["level"] < inst["lv"]:
                 yield event.plain_result(
                     f"{p['name']} 才 Lv.{p['level']}，副本需要全队 Lv.{inst['lv']}+！"
+                )
+                return
+            # v101.27 #393：0 血进本拦截——0 血被碰即倒体验极差，先恢复再来
+            if int(p.get("hp", 0)) <= 0:
+                yield event.plain_result(
+                    f"💀 {p['name']} 生命值为 0！先去住宿或用药恢复，别拿命闯副本～"
                 )
                 return
             if self._in_battle(group_id, m):
@@ -993,6 +1062,26 @@ class InstanceCmds(CommandBase):
 
         # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
         if st["boss"]["hp"] <= 0:
+            # v101.27 #390 暗格守卫击杀：走精英击杀奖励 → 密室宝箱出现（不是通关）
+            if st.get("secret_guard_pending"):
+                st["secret_guard_pending"] = False
+                kill_lines = self._instance_kill_reward(group_id, st)
+                st["secret_chest"] = True
+                st["mode"] = "map"
+                st["boss"] = None
+                st["enemy"] = None
+                for m in st["members"]:
+                    self._unlock_battle(group_id, m)
+                self._sync_players_db(group_id, st)
+                db.save_battle(group_id, st["leader"], st)
+                yield event.plain_result(
+                    "\n".join(logs) +
+                    (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
+                    "\n━━━━━━━━━━━━\n"
+                    "✅ 精英守卫被击败了！密室深处露出一口【神秘宝箱】……\n"
+                    "🔐 『调查 宝箱』看看里面藏着什么！"
+                )
+                return
             stages = st.get("inst_stages") or []
             pending = st.get("stage_pending") or []
             if pending:
@@ -1052,6 +1141,12 @@ class InstanceCmds(CommandBase):
                     return
             # 最后一层 / 无 stages → 通关
             st["over"] = True
+            # v101.27 #390 首通判断：必须在 _instance_victory 内 set_achievement 前判断，
+            # 首通暗格概率 50%（复刷回落 20%）
+            st["first_clear"] = not any(
+                a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1
+                for a in (db.get_achievements(group_id, st["members"][0]) or [])
+            )
             async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
                 yield _r
             return
@@ -1295,17 +1390,123 @@ class InstanceCmds(CommandBase):
             lines.append(line)
         return lines
 
+    # ---------------- 通关后搜刮（v101.27 #390） ----------------
+    def _instance_loot_pile(self, group_id, qq_id, player, st) -> str:
+        """战利品堆（必出，保底搜刮）：金币 = 通关奖金×30% + 专属材料×1
+        通胀核算：Lv.25 怪金≈253，海蚀洞窟 gold=220 → 66 金 ≈ 0.26 只怪/人，
+        远低于普通刷怪收益，仅作通关仪式感，不构成金币水源。"""
+        inst = C.INSTANCES[st["inst_id"]]
+        gold = max(10, int(inst.get("gold", 100) * 0.30))
+        db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+        lines = [f"🎁 你搜刮了战利品堆：金币 +{gold}"]
+        mats = inst.get("materials", [])
+        if mats:
+            mat = random.choice(mats)
+            mat_id = C.resolve("materials", mat) if mat else None
+            if mat_id and mat_id in C.MATERIALS:
+                mname = C.display("materials", mat_id)
+                db.add_item(group_id, qq_id, mat_id, {
+                    "name": mname, "type": "材料", "stackable": True,
+                    "price": C.MATERIALS[mat_id]["price"],
+                })
+                lines.append(f"🎒 拾取：{mname} ×1")
+        st["loot_pile"] = False
+        db.save_battle(group_id, st["leader"], st)
+        return "\n".join(lines)
+
+    def _instance_secret_crack(self, group_id, qq_id, player, st) -> str:
+        """隐藏暗格：墙砖松动 → 精英守卫镇守的密室。触发守卫战。"""
+        stages = st.get("inst_stages") or []
+        sidx = st["stage_idx"]
+        stage = stages[sidx] if sidx < len(stages) else {}
+        # 守卫 = 当前层 elite（无则取第一只普通怪升格）；Boss 房通常只有 Boss，
+        # 跨层兜底找全副本第一只 elite/普通怪
+        guard = stage.get("elite")
+        if not guard and stage.get("monsters"):
+            guard = stage["monsters"][0]
+        if not guard:
+            for _s in stages:
+                if _s.get("elite"):
+                    guard = _s["elite"]
+                    break
+                if _s.get("monsters"):
+                    guard = _s["monsters"][0]
+                    break
+        if not guard:
+            st["secret_crack"] = False
+            db.save_battle(group_id, st["leader"], st)
+            return "🧱 墙砖松动了，但后面只有一堵死墙……（暗格消失了）"
+        st["secret_crack"] = False
+        st["secret_guard"] = guard  # 标记守卫战（击杀走宝箱分支不通关）
+        st["secret_guard_pending"] = True
+        self._enter_stage_combat(group_id, st, guard, stage)
+        # 守卫精英化：补 is_elite 标记（掉落/播报走精英逻辑）
+        st["boss"]["is_elite"] = True
+        db.save_battle(group_id, st["leader"], st)
+        gname = st["boss"]["name"]
+        return (
+            "🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n"
+            "一个魁梧的身影挡在密室前……\n"
+            "━━━━━━━━━━━━\n"
+            f"⭐ 精英守卫【{gname}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+            "━━━━━━━━━━━━\n"
+            f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』"
+        )
+
+    def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
+        """暗格宝箱：图纸残页 50% / 稀有符文 30% / 专属材料 20%（稀缺品低概率，防通胀）"""
+        roll = random.random()
+        inst = C.INSTANCES[st["inst_id"]]
+        if roll < 0.50:
+            pages = random.randint(2, 4)
+            db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                        {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                        count=pages)
+            text = f"📜 宝箱里是泛黄的纸张——图纸残页 ×{pages}！"
+        elif roll < 0.80:
+            # 稀有符文池（blue 品质符文，v101.25i6 品质统一后 quality=blue）
+            blue_runes = [k for k, r in C.RUNES.items() if (r.get("quality") or "") == "blue"]
+            if blue_runes:
+                rk = random.choice(blue_runes)
+                rune = C.RUNES[rk]
+                db.add_item(group_id, qq_id, rk, {
+                    "name": rune.get("name", rk), "type": "符文",
+                    "stackable": True, "price": rune.get("price", 50),
+                    "quality": "blue", "desc": rune.get("desc", ""),
+                })
+                text = f"✨ 宝箱里泛起微光——符文【{rune.get('name', rk)}】！"
+            else:
+                mat = random.choice(inst.get("materials", ["兽肉"]))
+                mat_id = C.resolve("materials", mat)
+                db.add_item(group_id, qq_id, mat_id, {
+                    "name": C.display("materials", mat_id), "type": "材料",
+                    "stackable": True, "price": C.MATERIALS[mat_id]["price"],
+                }, count=2)
+                text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
+        else:
+            mat = random.choice(inst.get("materials", ["兽肉"]))
+            mat_id = C.resolve("materials", mat)
+            db.add_item(group_id, qq_id, mat_id, {
+                "name": C.display("materials", mat_id), "type": "材料",
+                "stackable": True, "price": C.MATERIALS[mat_id]["price"],
+            }, count=2)
+            text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
+        st["secret_chest"] = None
+        db.save_battle(group_id, st["leader"], st)
+        return "🔐 你打开了密室宝箱！\n" + text
+
     async def _instance_victory(self, event, group_id, qq_id, player, st, logs):
         inst = C.INSTANCES[st["inst_id"]]
         boss = st["boss"]
         lines = [x for x in logs if "你击败了" not in x]
         lines.append("")
         lines.append(f"🎉 【{boss['name']}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
-        # 解锁全队 + 清战斗
+        # v101.27 #390：通关后允许停留搜刮（鱼鱼拍板）——不再 clear_battle，
+        # 保留状态让玩家调查 Boss 房交互物/战利品堆/隐藏暗格，主动『离开副本』才清。
+        # 解锁战斗锁（可自由行动），但 battle 记录保留供副本指令读取
         for m in st["members"]:
             self._unlock_battle(group_id, m)
-            db.clear_battle(group_id, m)
-        # 存活者奖励
+        # 通关奖励
         for m in st["members"]:
             if not st["alive"].get(str(m), True):
                 lines.append(f"  💀 {st['players'].get(str(m), {}).get('name', m)} 已阵亡，未能获得奖励")
@@ -1355,7 +1556,30 @@ class InstanceCmds(CommandBase):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
                 db.bump_stats(group_id, m, inst_clears=1)
                 C.check_achievements(group_id, m, None, {"inst_id": st["inst_id"]})
-        lines.append("\n💡 副本通关！『副本』可再次挑战，首通成就已记录～")
+        # v101.27 #390 隐藏奖励：通关后停留搜刮
+        # ① 战利品堆（必出，保底搜刮体验）：金币=通关奖金×30% + 专属材料×1
+        # ② 隐藏暗格（概率出）：20%（首通 50%）→ 墙上的裂痕 → 精英守卫 → 宝箱
+        #    宝箱内容分层：图纸残页 50% / 稀有符文 30% / 专属材料 20%（稀缺品走低概率，防通胀）
+        st["cleared"] = True
+        st["cleared_time"] = int(time.time())
+        st["loot_pile"] = True
+        # 隐藏暗格概率：首通 50%，复刷 20%（鱼鱼拍板：Boss 好刷→概率低，防通胀）
+        _crack_rate = 0.50 if st.get("first_clear") else 0.20
+        st["secret_crack"] = (random.random() < _crack_rate)
+        st["secret_guard"] = None  # 暗格精英守卫（未触发）
+        st["secret_chest"] = None  # 暗格宝箱奖励（守卫击败后生成）
+        lines.append("")
+        lines.append("🏆 副本已通关！你可以在副本内停留搜刮：")
+        lines.append("  · 🎁 【战利品堆】—— 首领的遗物，搜刮一次（『调查 战利品堆』）")
+        if st["secret_crack"]:
+            lines.append("  · 🧱 墙上似乎有【松动的墙砖】……（『调查 墙砖』）")
+        lines.append("搜刮完毕用『离开副本』传出～")
+        lines.append("")
+        lines.append("💡 『副本』可再次挑战，首通成就已记录～")
+        st["mode"] = "map"
+        st["boss"] = None
+        st["enemy"] = None
+        db.save_battle(group_id, st["leader"], st)
         yield event.plain_result("\n".join(lines))
 
     async def _instance_defeat(self, event, group_id, qq_id, player, st, logs):

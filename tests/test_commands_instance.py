@@ -186,6 +186,11 @@ async def main():
     check("金币奖励", "+200" in out or "金币" in out, out[:300])
     check("材料奖励", "古王剑" in out, out[:300])
     battle = db.get_battle("g1", "i1")
+    # v101.27 #390：通关后不再立即清战斗——保留状态供停留搜刮（cleared=True），『离开副本』才清
+    check("通关后停留搜刮", battle is not None and battle["state"].get("cleared"), str(battle)[:200])
+    out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")
+    check("离开副本传出", "离开" in out, out[:150])
+    battle = db.get_battle("g1", "i1")
     check("战斗已清除", battle is None, "")
     achs = db.get_achievements("g1", "i1") or []
     found = any(a.get("ach_key") == "inst_clear_inst_old_king_tomb" and a.get("progress", 0) >= 1 for a in achs)
@@ -384,13 +389,18 @@ async def main():
     out = await cmd(m, "attack", "g1", "i1", "攻击")
     check("单人副本通关", "通关" in out or "击败" in out, out[:300])
     check("单人掉落咕噜的皇冠", "咕噜的皇冠" in out, out[:300])
+    # v101.27 #390：通关后停留搜刮状态保留，主动『离开副本』清战斗
+    out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")
+    check("单人离开副本", "离开" in out, out[:150])
     battle = db.get_battle("g1", "i1")
     check("单人副本战斗清除", battle is None, "")
     # 4 人副本：3 人队伍被拦截
     await cmd(m, "register", "g1", "i4", "注册 牧师 第四人 男")
-    # 全队提到 70 级（深海龙宫 Lv.70+）
-    for q in ("i2", "i3", "i4"):
-        db.update_player("g1", q, level=70, gold=10000, cur_map="dawn_city")
+    # 全队提到 70 级（深海龙宫 Lv.70+）+ 恢复满血（v101.27 #393：0 血进本被拦截）
+    for q in ("i1", "i2", "i3", "i4"):
+        p = db.get_player("g1", q)
+        db.update_player("g1", q, level=70, gold=10000, cur_map="dawn_city",
+                         hp=p.get("max_hp", 100) if p else 100)
     await cmd(m, "party", "g1", "i1", "组队 队员")
     await cmd(m, "party", "g1", "i1", "组队 第三人")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 深海龙宫")
@@ -526,6 +536,9 @@ async def main():
     cur = stk3["members"][stk3["turn"]]
     out = await cmd(m, "attack", "g1", cur, "攻击")
     check("首通完成", "通关" in out or "击败" in out, out[:300])
+    # v101.27 #390：通关后停留状态保留，先『离开副本』再验证免钥匙开本
+    out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")
+    check("鹿角离开副本", "离开" in out, out[:150])
     # 首通后再开本 → 免钥匙直接进
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
     check("首通后免钥匙开本", "副本开启" in out, out[:200])

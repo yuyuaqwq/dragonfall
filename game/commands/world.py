@@ -2405,11 +2405,11 @@ class WorldCmds(CommandBase):
             if msg.startswith(cmd):
                 raw = msg[len(cmd):].strip()
                 break
-        # v101.25 #320：完整指令优先于菜单选项——对话菜单中发『对话 2』
-        # 此前被当"选项 2.告辞"退出（playtest round68 小四抓包）。『对话 X』
-        # 语义是"找 NPC X 交谈"，应路由到 find_npc 而不是菜单；纯数字才是菜单选项。
-        # 『对话 0』是结束对话的固定语义，保持走菜单分支。
-        if msg.startswith("对话") and raw and raw != "0":
+        # v101.27 #412：对话菜单中『对话 N』优先匹配菜单选项（鱼鱼拍板：菜单选项 > NPC 路由）
+        # 此前 v101.25 #320 曾改为 NPC 优先——playtest 四角色复现玩家困惑：
+        # 菜单开着发『对话 2』被当成"找场景 NPC#2"而不是选第 2 项。
+        # 现规则：『对话 <数字>』→ 菜单选项；『对话 <名字>』→ 找 NPC（非数字仍走 find_npc）
+        if msg.startswith("对话") and raw and raw != "0" and not raw.isdigit():
             _prev_msg = event.message_str
             event.message_str = "找 " + raw
             async for r in self.find_npc(event):
