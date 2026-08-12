@@ -412,7 +412,7 @@ MATERIALS = {
     },
     "mat_qiang_hua_shi": {
         'price': 15,
-        'name': "强化石",
+        'name': "淬火石",
     },
     "mat_cai_hong_yun_gu": {
         'price': 15,
@@ -1645,7 +1645,7 @@ MATERIALS = {
         "quality": "purple"
     },
     "mat_gu_dai_yu_gu": {
-        "price": 350,
+        "price": 200,
         "name": "古代鱼骨",
         "quality": "orange"
     },
@@ -2613,3 +2613,19 @@ MATERIALS_BY_NAME = {_m["name"]: _m for _m in MATERIALS.values()}
 # 其余 ITEMS（消耗品/装备材料等）后续阶段补充，当前仅材料
 ITEMS = dict(MATERIALS)
 ITEMS.update(CONSUMABLES)
+
+# ================= v101.30 阶段四：高级钓点材料药水/料理（炼金/烹饪配方消费点，全部复用已有 effect 键） =================
+ITEMS.update({
+    "i_pearl_tonic": {"name": "珍珠明目水", "price": 100, "effect": "buff_crit_small",
+                      "desc": "战斗中使用，暴击率 + 15%(3 回合)，湖珍珠磨粉调制的灵水"},
+    "i_abyss_echo": {"name": "深渊回响药剂", "price": 120, "effect": "buff_matk",
+                     "desc": "战斗中使用，魔攻 + 30%(3 回合)，深渊珍珠研磨的暗色药水"},
+    "i_rainbow_elixir": {"name": "彩虹药剂", "price": 120, "effect": "next_atk_up",
+                         "desc": "战斗中使用，下一次攻击伤害 + 50%，映着七色光的梦幻药剂"},
+    "i_storm_chowder": {"name": "风暴贝汤", "price": 100, "hot": 0.08, "hot_turns": 3, "heal": 0.2,
+                        "desc": "风暴贝熬的鲜汤，喝下后每场战斗回复 8% 生命(持续 3 场)"},
+    "i_thunder_elixir": {"name": "雷晶药剂", "price": 200, "effect": "buff_atk_big",
+                         "desc": "战斗中使用，攻击力 + 40%(3 回合)，雷晶砂淬炼的噼啪药剂"},
+    "i_dragonbone_elixir": {"name": "龙骨药剂", "price": 400, "effect": "buff_atk_big_def",
+                            "desc": "战斗中使用，攻击 + 40%、防御 + 45%(3 回合)，上古鱼骨熬成的猛药"},
+})

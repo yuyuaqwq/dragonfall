@@ -215,5 +215,42 @@ ALCHEMY_RECIPES = {
         "desc": "星铁淬炼的强化剂，下一次强化装备必定成功",
         "name": "星铁强化剂"
     },
+
+    # ---- v101.30 阶段四：高级钓点材料消费点（垂钓独占材料 → 炼金，材料成本×2~2.5 = 售价，复用已有 effect 键） ----
+    "al_zhen_zhu_ming_mu": {
+        "cost": {"mat_hu_zhen_zhu": 1, "mat_kong_ping": 1},
+        "product": {"i_pearl_tonic": 1},
+        "need_prof_lv": 3,
+        "desc": "湖珍珠磨粉调制的灵水，战斗中暴击率 + 15%(3 回合)",
+        "name": "珍珠明目水"
+    },
+    "al_shen_yuan_hui_xiang": {
+        "cost": {"mat_shen_yuan_zhen_zhu": 1, "mat_kong_ping": 1},
+        "product": {"i_abyss_echo": 1},
+        "need_prof_lv": 5,
+        "desc": "深渊珍珠研磨的暗色药水，战斗中魔攻 + 30%(3 回合)",
+        "name": "深渊回响药剂"
+    },
+    "al_cai_hong_yao_ji": {
+        "cost": {"mat_cai_hong_lu_zhu": 1, "mat_kong_ping": 1},
+        "product": {"i_rainbow_elixir": 1},
+        "need_prof_lv": 6,
+        "desc": "彩虹露珠调制的梦幻药剂，下一次攻击伤害 + 50%",
+        "name": "彩虹药剂"
+    },
+    "al_lei_jing_yao_ji": {
+        "cost": {"mat_lei_jing_sha": 1, "mat_kong_ping": 1},
+        "product": {"i_thunder_elixir": 1},
+        "need_prof_lv": 6,
+        "desc": "雷晶砂淬炼的药剂，战斗中攻击力 + 40%(3 回合)",
+        "name": "雷晶药剂"
+    },
+    "al_long_gu_yao_ji": {
+        "cost": {"mat_gu_dai_yu_gu": 1, "mat_kong_ping": 1},
+        "product": {"i_dragonbone_elixir": 1},
+        "need_prof_lv": 7,
+        "desc": "上古鱼骨熬成的猛药，战斗中攻击 + 40%、防御 + 45%(3 回合)",
+        "name": "龙骨药剂"
+    },
 }
 

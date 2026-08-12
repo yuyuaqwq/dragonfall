@@ -55,6 +55,8 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "ironharbor_6": [  # 金齿轮商行
         "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
+        # v101.30 鱼饵上架（垂钓大本营，老渔夫马库斯在铁港城）
+        "it_glow_bait", "it_dough_bait", "it_blood_bait",
     ],
     "ironharbor_8": [  # 渔火码头
         "i_meat_skewer", "i_stew", "i_scroll_teleport",
@@ -71,6 +73,8 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "silver_brook_4": [  # 集市
         "i_scroll_escape", "i_meat_skewer", "i_stew",
+        # v101.30 鱼饵上架（集市杂货，银铃河钓点旁）
+        "it_glow_bait", "it_dough_bait", "it_blood_bait",
     ],
     "silver_brook_2": [  # 磨坊街
         "i_bread", "i_ale", "i_apple_wine",

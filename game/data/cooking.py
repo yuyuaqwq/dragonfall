@@ -157,5 +157,13 @@ COOKING_RECIPES = {
         "cost": {"mat_thunder_vine": 2},
         "product": {"i_thunder_skewer": 1},
     },
+    # ---- v101.30 阶段四：高级钓点材料消费点（垂钓独占 → 烹饪） ----
+    "cook_storm_chowder": {
+        "name": "风暴贝汤",
+        "desc": "风暴贝熬的鲜汤，喝下后每场战斗回复 8% 生命(持续 3 场)",
+        "min_lv": 4,
+        "cost": {"mat_feng_bao_bei": 2},
+        "product": {"i_storm_chowder": 1},
+    },
 }
 

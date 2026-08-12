@@ -104,7 +104,7 @@ GATHER_COND_POOLS = {
 # 格式：地图ID → [(材料ID, 权重), ...]；挖掘结算时当前地图命中 → 只从深矿池产出
 #（替代价格区间兜底）。高级矿权重低：Lv.1 矿工多数挖到普通矿，深矿稀有矿要碰运气
 MINING_DEEP_POOLS = {
-    "hill_mine": [("mat_tie_kuang_shi", 40), ("mat_jing_tie", 30), ("mat_mi_yin", 20), ("mat_jing_jin", 8), ("mat_deep_crystal", 2)],
+    "hill_mine": [("mat_tie_kuang_shi", 40), ("mat_qiang_hua_shi", 20), ("mat_jing_tie", 30), ("mat_mi_yin", 20), ("mat_jing_jin", 8), ("mat_deep_crystal", 2)],
     "deep_tunnel": [("mat_mi_yin", 30), ("mat_jing_jin", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 15)],
     "sea_cave": [("mat_shui_jing", 35), ("mat_shan_hu_zhi", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 10)],
 }
