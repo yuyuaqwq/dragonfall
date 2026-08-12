@@ -27,7 +27,8 @@ def main():
 
     if only:
         files = [only] if only.endswith(".py") else [only + ".py"]
-        files = [os.path.join(TESTS_DIR, f) if not os.path.isabs(f) else f for f in files]
+        # 兼容两种传法：--file=test_xxx.py 或 --file=tests/test_xxx.py（避免重复 join）
+        files = [os.path.join(TESTS_DIR, os.path.basename(f)) if not os.path.isabs(f) else f for f in files]
     else:
         files = sorted(
             f for f in os.listdir(TESTS_DIR)
