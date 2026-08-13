@@ -101,6 +101,7 @@ class Battle:
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
         self.e_minions: list = []          # v101.28l #438 真召唤：敌方援军实体 [{name,hp,max_hp,atk,matk}]
+        self.summons: list = []            # v107 召唤物：玩家侧独立实体 [{tid,name,icon,hp,max_hp,atk,def,dmg_type}]
         self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
         self.e_defending = False
@@ -183,6 +184,7 @@ class Battle:
             "p_food_effects": self.p_food_effects,
             "p_shields": self.p_shields,
             "e_minions": self.e_minions,
+            "summons": self.summons,
             "e_buffs": self.e_buffs,
             "p_defending": self.p_defending,
             "e_defending": self.e_defending,
@@ -214,6 +216,7 @@ class Battle:
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
         b.e_minions = st.get("e_minions", []) or []
+        b.summons = st.get("summons", []) or []
         b.e_buffs = st.get("e_buffs", {}) or {}
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
@@ -453,6 +456,14 @@ class Battle:
         if self.p_extra_left > 0:
             logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
             return logs, False
+
+        # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每回合一次，额外行动不触发）
+        if self.summons:
+            logs = self._summons_act(player, logs)
+            if self._enemy_dead():
+                self.result = "victory"
+                self._end_round()
+                return logs, True
 
         # 玩家无额外行动 → 敌方行动
         return self._enemy_phase(player, logs, enemy_act)
@@ -1470,6 +1481,9 @@ class Battle:
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
+        # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
+        if info.get("summon"):
+            self._summon_entity(info["summon"], player, logs)
         # v56：叠层随技能等级成长（每 2 级 +1 层）
         mval = E.skill_mech_val(info, lv)
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
@@ -2395,11 +2409,87 @@ class Battle:
             created.append(m)
         return created
 
+    # ---------------- v107 召唤物系统 ----------------
+    def _summon_entity(self, tid: str, player: dict, logs: list) -> bool:
+        """v107 召唤：按模板生成召唤物实体（属性按玩家实时属性比例缩放，吃 summon_power）。
+        同类型达到 limit 上限时不重复召唤（骷髅海可叠 3，单宠 1）。"""
+        try:
+            from .data.summons import SUMMONS
+        except Exception:
+            return False
+        tmpl = SUMMONS.get(tid)
+        if not tmpl:
+            return False
+        cur = [s for s in self.summons if s.get("tid") == tid]
+        if len(cur) >= int(tmpl.get("limit", 3)):
+            logs.append(f"⛔ 已有 {len(cur)} 个{tmpl['name']}（上限 {tmpl['limit']}）！")
+            return False
+        st = self._player_stats(player)
+        sp = float(st.get("summon_power", 0) or 0)  # 隐藏职业专属强化（亡灵/兽王）
+        hp = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
+        atk = max(5, int(st.get("atk", 50) * float(tmpl["atk_ratio"]) * (1 + sp)))
+        df = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
+        self.summons.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
+                             "hp": hp, "max_hp": hp, "atk": atk, "def": df,
+                             "dmg_type": tmpl.get("dmg_type", "phys")})
+        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk})")
+        return True
+
+    def _summons_act(self, player: dict, logs: list) -> list:
+        """v107 召唤物自动攻击：每个存活召唤物攻击一次（玩家行动后、敌方行动前）。
+        真伤召唤物（影狼）走 dmg_type=true 绕过全减伤。"""
+        if not self.summons:
+            return logs
+        for s in list(self.summons):
+            if s.get("hp", 0) <= 0 or self._enemy_dead():
+                continue
+            if s["dmg_type"] == "true":
+                dmg = max(1, int(s["atk"] * (1 + random.uniform(-0.15, 0.15))))
+            else:
+                est = self._enemy_stats()
+                dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type="phys")
+            dmg = max(1, dmg)
+            self._damage_enemy(dmg, logs)
+            logs.append(f"{s.get('icon', '')} {s['name']} 攻击，造成 {dmg} 点伤害！")
+        # 清理死亡召唤物
+        for s in list(self.summons):
+            if s.get("hp", 0) <= 0:
+                logs.append(f"💀 {s['name']} 倒下了！")
+                self.summons.remove(s)
+        return logs
+
+    def _summon_block_check(self, player: dict, dmg: int, logs: list) -> int:
+        """v107 召唤物挡刀：敌人攻击时按模板 bodyguard 概率由随机存活召唤物承受全额伤害。
+        触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。"""
+        alive = [s for s in self.summons if s.get("hp", 0) > 0]
+        if not alive:
+            return dmg
+        try:
+            from .data.summons import SUMMONS
+        except Exception:
+            return dmg
+        s = random.choice(alive)
+        tmpl = SUMMONS.get(s.get("tid", ""), {})
+        chance = float(tmpl.get("bodyguard", 0.40))
+        if random.random() >= chance:
+            return dmg
+        taken = max(1, int(dmg))
+        s["hp"] -= taken
+        logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
+        if s["hp"] <= 0:
+            logs.append(f"💀 {s['name']} 在保护你时倒下了！")
+            self.summons.remove(s)
+        return 0
+
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
         # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
         dmg = self._pet_block_check(dmg, logs)
+        if dmg <= 0:
+            return
+        # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
+        dmg = self._summon_block_check(player, dmg, logs)
         if dmg <= 0:
             return
         # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
@@ -2514,12 +2604,8 @@ class Battle:
             rd = self._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
             self._damage_enemy(rd, logs)
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
-        # v101.28f 荆棘药剂：受击反弹 30% 伤害（3 回合，必触发）
-        if self.p_buffs.get("thorns_pot") and self.enemy.get("hp", 0) > 0:
-            rd = int(dmg * 0.30)
-            rd = self._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
-            self._damage_enemy(rd, logs)
-            logs.append(f"🌵 荆棘附体：反弹 {rd} 点伤害！")
+        # v106.4 反伤属性统一结算在 _damage_player 段（thorns_pot 已乘算并入 thorns，
+        # 此段删除 v101.28f 旧独立反弹——否则双重结算，2026-08-13 回归抓包）
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
         shields = self.p_shields
         if shields:

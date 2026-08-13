@@ -271,7 +271,8 @@ STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", 
               "heal_power": "治疗强度", "shield_power": "护盾强度",
               "lifesteal": "吸血", "crit_dmg": "暴击伤害", "block": "格挡",
               "thorns": "反伤", "phys_reduce": "物免", "magic_reduce": "魔免",
-              "lifesteal_phys": "物吸", "lifesteal_magi": "法吸"}  # v106.3/v106.4
+              "lifesteal_phys": "物吸", "lifesteal_magi": "法吸",
+              "summon_power": "召唤强化"}  # v106.3/v106.4 + v107 召唤
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:

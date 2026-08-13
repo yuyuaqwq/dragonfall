@@ -738,6 +738,7 @@ class PlayerCmds(CommandBase):
             ("🛡️", "magic_reduce", "magic_reduce", "魔法免伤"),
             ("🩸", "lifesteal_phys", "lifesteal_phys", "物理吸血"),
             ("🔮", "lifesteal_magi", "lifesteal_magi", "法术吸血"),
+            ("🧙", "summon_power", "summon_power", "召唤强化"),  # v107 召唤物系统
         ]
         for icon, skey, fkey, cname in stat_rows:
             final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）

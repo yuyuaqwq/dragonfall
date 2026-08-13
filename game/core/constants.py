@@ -67,7 +67,8 @@ PCT_STATS = ("crit", "dodge", "precise", "pene_phys", "pene_magi", "tenacity", "
              "cdr", "elem_res", "abyss_res", "exp_bonus", "gold_bonus",
              "heal_power", "shield_power",    # v106.2 治疗/护盾强度
              "lifesteal", "crit_dmg", "block",  # v106.3 吸血/暴击伤害/格挡（面板化，2026-08-13 鱼鱼拍板）
-             "thorns", "phys_reduce", "magic_reduce", "lifesteal_phys", "lifesteal_magi")  # v106.4 反伤/物魔免/物法吸
+             "thorns", "phys_reduce", "magic_reduce", "lifesteal_phys", "lifesteal_magi",
+             "summon_power")  # v106.4 反伤/物魔免/物法吸 + v107 召唤强化
 
 # v106：百分比属性上限表（面板聚合 cap 用；crit 0.5 / dodge 0.4 / 其余 0.6 的旧三目表达式统一收敛）
 PCT_CAPS = {"crit": 0.5, "dodge": 0.4, "precise": 0.6, "pene_phys": 0.6, "pene_magi": 0.6,
@@ -76,11 +77,12 @@ PCT_CAPS = {"crit": 0.5, "dodge": 0.4, "precise": 0.6, "pene_phys": 0.6, "pene_m
             "heal_power": 0.5, "shield_power": 0.5,
             "lifesteal": 0.3, "crit_dmg": 1.0, "block": 0.4,
             "thorns": 0.5, "phys_reduce": 0.4, "magic_reduce": 0.4,
-            "lifesteal_phys": 0.3, "lifesteal_magi": 0.3}  # v106.3/v106.4 吸血30/暴伤100/格挡40/反伤50/物魔免40/物法吸30
+            "lifesteal_phys": 0.3, "lifesteal_magi": 0.3,
+            "summon_power": 0.5}  # v106.3/v106.4 吸血30/暴伤100/格挡40/反伤50/物魔免40/物法吸30 + v107 召唤50
 
 # v106.4：特殊属性——面板 0 时不显示，有加成才显示（防面板爆炸，鱼鱼拍板）
 OPTIONAL_STATS = ("lifesteal", "crit_dmg", "block", "thorns", "phys_reduce", "magic_reduce",
-                  "lifesteal_phys", "lifesteal_magi")
+                  "lifesteal_phys", "lifesteal_magi", "summon_power")  # v107 召唤强化
 
 # v106：百分比穿透属性（多来源乘算合成 1-Π(1-pᵢ)，不加法）
 PENE_PCT_STATS = ("pene_phys", "pene_magi")
