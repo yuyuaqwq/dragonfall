@@ -3117,8 +3117,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_ying_ji": {
                 "lv": 40, "mp": 15, "power": 1.3, "kind": "物理",
                 "mech": "shadow", "mech_val": 1, "cd": 2,
-                "desc": "影袭！130% 物理伤害，满血目标必暴击",
-                "name": "影袭",
+                "desc": "幽影袭！130% 物理伤害，满血目标必暴击",
+                "name": "幽影袭",
             },
             "sk_can_xue_zhui_lie": {
                 "lv": 45, "mp": 0, "power": 0, "kind": "被动",
@@ -3142,8 +3142,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_ying_ren": {
                 "lv": 75, "mp": 35, "power": 2.0, "kind": "物理",
                 "mech": "shadow", "mech_val": 1, "cd": 4,
-                "desc": "影刃！200% 物理伤害，满血目标必暴击",
-                "name": "影刃",
+                "desc": "幽影刃！200% 物理伤害，满血目标必暴击",
+                "name": "幽影刃",
             },
         },
     },
@@ -3266,8 +3266,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_du_bao": {
                 "lv": 55, "mp": 25, "power": 0.6, "kind": "魔法",
                 "mech": "poison_burst", "mech_val": 1, "cd": 3,
-                "desc": "毒爆！60% 魔法伤害，毒层≥3 引爆(每层 15% 魔攻魔法伤害)",
-                "name": "毒爆",
+                "desc": "毒爆术！60% 魔法伤害，毒层≥3 引爆(每层 15% 魔攻魔法伤害)",
+                "name": "毒爆术",
             },
             "sk_ju_du_zhi_xin": {
                 "lv": 60, "mp": 0, "power": 0, "kind": "被动",
@@ -3288,8 +3288,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_sheng_dun": {
                 "lv": 40, "mp": 15, "power": 0, "kind": "增益",
                 "effect": "shield_all", "cd": 4,
-                "desc": "圣盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
-                "name": "圣盾",
+                "desc": "圣御之盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
+                "name": "圣御之盾",
             },
             "sk_sheng_guang_shen_pan": {
                 "lv": 48, "mp": 25, "power": 1.4, "kind": "魔法",
@@ -3312,8 +3312,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_sheng_guang_bi_lei": {
                 "lv": 75, "mp": 30, "power": 0, "kind": "增益",
                 "effect": "def_up", "cd": 4,
-                "desc": "圣光壁垒！防御＋45% 3 回合",
-                "name": "圣光壁垒",
+                "desc": "圣光之壁！防御＋45% 3 回合",
+                "name": "圣光之壁",
             },
         },
     },

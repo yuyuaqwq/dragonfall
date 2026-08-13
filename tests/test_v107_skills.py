@@ -80,10 +80,10 @@ async def main():
 
     # 4. 影武者：斩杀被动
     print("\n— 影武者 —")
-    p = mk_player("cls_shadow_blade", ["影袭", "残血追猎", "收割"])
+    p = mk_player("cls_shadow_blade", ["幽影袭", "残血追猎", "收割"])
     b = BT.Battle("怪物", mk_enemy(hp=50000), {}, p)
     b.enemy["hp"] = 8000  # 16% 血
-    logs = cast(b, p, "影袭")
+    logs = cast(b, p, "幽影袭")
     check("残血影袭斩杀加成", any("斩杀" in l for l in logs), str([l for l in logs if "斩杀" in l]))
     b2 = BT.Battle("怪物", mk_enemy(hp=50000), {}, p)
     logs2 = cast(b2, p, "收割")
@@ -113,22 +113,22 @@ async def main():
 
     # 7. 丛林猎手：毒→爆
     print("\n— 丛林猎手 —")
-    p = mk_player("cls_jungle_hunter", ["毒箭", "藤蔓缠绕", "毒爆", "剧毒之心"])
+    p = mk_player("cls_jungle_hunter", ["毒箭", "藤蔓缠绕", "毒爆术", "剧毒之心"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     cast(b, p, "毒箭")
     cast(b, p, "藤蔓缠绕")
     cast(b, p, "藤蔓缠绕")
     check("毒层叠加", b.mech_stacks.get("poison", 0) >= 3, str(b.mech_stacks.get("poison")))
     hp0 = b.enemy["hp"]
-    logs = cast(b, p, "毒爆")
+    logs = cast(b, p, "毒爆术")
     check("毒爆引爆", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
     check("毒层清空", b.mech_stacks.get("poison", 0) == 0, str(b.mech_stacks.get("poison")))
 
-    # 8. 圣殿骑士：圣盾
+    # 8. 圣殿骑士：圣御之盾
     print("\n— 圣殿骑士 —")
-    p = mk_player("cls_templar", ["圣盾", "圣光审判"])
+    p = mk_player("cls_templar", ["圣御之盾", "圣光审判"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "圣盾")
+    logs = cast(b, p, "圣御之盾")
     check("圣盾获得", len(b.p_shields) > 0, str(b.p_shields))
     logs2 = cast(b, p, "圣光审判")
     check("圣光审判输出", any("伤害" in l for l in logs2), str(logs2))
