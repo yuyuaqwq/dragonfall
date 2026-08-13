@@ -1211,10 +1211,10 @@ class Battle:
         if not ids:
             # v101.28e/f：无词条时不能提前返回——食物/药水倍率（处决/精准/狂怒/死神）仍要结算
             return self._extra_dmg_mult(hp_ratio, mult, tags)
-        if "execute" in ids and hp_ratio < 0.30:
+        if "execute" in ids and hp_ratio < 0.35:
             mult *= 1.30
             tags.append("💀处决")
-        if "jack_hook" in ids and hp_ratio < 0.30:
+        if "jack_hook" in ids and hp_ratio < 0.35:
             mult *= 1.80
             tags.append("💀处决狂潮")
         if "ancient_king" in ids and hp_ratio < 0.35:
@@ -1242,19 +1242,19 @@ class Battle:
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
         """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。
 
-        食物：处决（<30% +30%）/ 精准（+10%）。
-        药水：死神药剂（<30% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
+        食物：处决（<35% +30%）/ 精准（+10%）。
+        药水：死神药剂（<35% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
         龙语印记：每层 +2% 伤害（v104 移入此处——此前 _affix_dmg_mult 在无词条时提前
         return 会漏结算该倍率，有词条路径在调用后单独结算，两路径行为不一致）。
         """
         foods = getattr(self, "p_food_effects", []) or []
-        if "execute" in foods and hp_ratio < 0.30:
+        if "execute" in foods and hp_ratio < 0.35:
             mult *= 1.30
             tags.append("💀处决")
         if "precise" in foods:
             mult *= 1.10
             tags.append("🎯精准")
-        if self.p_buffs.get("execute_pot") and hp_ratio < 0.30:
+        if self.p_buffs.get("execute_pot") and hp_ratio < 0.35:
             mult *= 1.30
             tags.append("💀处决")
         if self.p_buffs.get("next_atk_up"):

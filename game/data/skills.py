@@ -178,9 +178,7 @@ PLAYER_SKILLS = {
                 "kind": "物理",
                 "cd": 3,
                 "cc": "stun",
-                "mech": "stun",
-                "mech_val": 1,
-                "desc": "盾击！130% 伤害 + 眩晕 1 回合(强控·单体，CD 3)",
+                "desc": "盾击！130% 伤害 + 35% 概率眩晕 1 回合(强控·单体，CD 3)",
                 "name": "盾击",
             },
     "sk_zhan_zheng_jian_ta": {
@@ -944,9 +942,7 @@ PLAYER_SKILLS = {
                 "combo": "踢",
                 "res_gain": 1,
                 "cc": "stun",
-                "mech": "stun",
-                "mech_val": 1,
-                "desc": "震地击！130% 全体伤害(对单体等效)＋30% 概率眩晕，气＋1，连招【踢】",
+                "desc": "震地击！130% 全体伤害(对单体等效)＋35% 概率眩晕，气＋1，连招【踢】",
                 "name": "震地击",
             },
     "sk_ce_ti": {
@@ -3003,7 +2999,7 @@ BRANCH_SKILLS = {
                         },
                         "team": "atk_all",
                         "cd": 5,
-                        "desc": "终极技，500% 气力天地，消耗 10 气 + 全队攻击强化(终极斗气)",
+                        "desc": "终极技，500% 气力天地，消耗 10 气 + 全队攻击强化(终极气力)",
                         "name": "气力天地"
                     }
 ,
@@ -3123,7 +3119,7 @@ _ADD_HIDDEN_SKILLS = {
             "sk_can_xue_zhui_lie": {
                 "lv": 45, "mp": 0, "power": 0, "kind": "被动",
                 "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.35},
-                "desc": "被动：残血追猎，目标生命低于 30% 时伤害＋40%",
+                "desc": "被动：残血追猎，目标生命低于 35% 时伤害＋40%",
                 "name": "残血追猎",
             },
             "sk_an_ying_bu": {
@@ -3192,13 +3188,13 @@ _ADD_HIDDEN_SKILLS = {
             "sk_xu_kong_jian": {
                 "lv": 40, "mp": 15, "power": 1.35, "kind": "魔法",
                 "mp_steal": 0.15, "cd": 1,
-                "desc": "虚空箭！120% 魔法伤害，回复 15% 伤害值的魔力",
+                "desc": "虚空箭！135% 魔法伤害，回复 15% 伤害值的魔力",
                 "name": "虚空箭",
             },
             "sk_shen_yuan_ning_shi": {
                 "lv": 48, "mp": 20, "power": 1.25, "kind": "魔法",
                 "mech": "spd_down", "mech_chance": 0.5, "cd": 3,
-                "desc": "深渊凝视！110% 魔法伤害，50% 概率减速目标 2 回合",
+                "desc": "深渊凝视！125% 魔法伤害，50% 概率减速目标 2 回合",
                 "name": "深渊凝视",
             },
             "sk_xu_kong_xing_zou": {
@@ -3210,13 +3206,13 @@ _ADD_HIDDEN_SKILLS = {
             "sk_an_ying_chong_ji": {
                 "lv": 65, "mp": 25, "power": 1.7, "kind": "魔法",
                 "mech": "shadow", "mech_val": 1, "mp_steal": 0.15, "cd": 3,
-                "desc": "暗影冲击！150% 魔法伤害，满血目标必暴击，回复魔力",
+                "desc": "暗影冲击！170% 魔法伤害，满血目标必暴击，回复魔力",
                 "name": "暗影冲击",
             },
             "sk_xu_kong_bao_po": {
                 "lv": 78, "mp": 40, "power": 2.2, "kind": "魔法",
                 "mp_steal": 0.20, "cd": 4,
-                "desc": "虚空爆破！200% 魔法伤害，回复 20% 伤害值的魔力",
+                "desc": "虚空爆破！220% 魔法伤害，回复 20% 伤害值的魔力",
                 "name": "虚空爆破",
             },
         },

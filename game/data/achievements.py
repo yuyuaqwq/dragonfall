@@ -116,7 +116,7 @@ ACHIEVEMENTS = [
      "desc": "炼金 10 次", "cond": {"type": "prof_count", "key": "alchemy_count", "value": 10}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_craft10", "cat": "探索", "name": "锻造初心", "title": "锻造初心",
      "desc": "锻造 10 件装备", "cond": {"type": "prof_count", "key": "craft_count", "value": 10}, "points": 1},
-    {"id": "ach_craft100", "cat": "探索", "name": "神锻宗师", "title": "神锻宗师",
+    {"id": "ach_craft100", "cat": "探索", "name": "神锻名家", "title": "神锻名家",
      "desc": "锻造 100 件装备", "cond": {"type": "prof_count", "key": "craft_count", "value": 100}, "points": 1},
 
     # ---- 副业（27） ----
@@ -154,7 +154,7 @@ ACHIEVEMENTS = [
      "desc": "锻造达到 Lv.3", "cond": {"type": "prof_lv", "key": "craft", "value": 3}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_pro_craft6", "cat": "副业", "name": "锻造师", "title": "锻造师",
      "desc": "锻造达到 Lv.6", "cond": {"type": "prof_lv", "key": "craft", "value": 6}, "points": 1},
-    {"id": "ach_pro_craft10", "cat": "副业", "name": "神锻宗师", "title": "神锻宗师",
+    {"id": "ach_pro_craft10", "cat": "副业", "name": "神锻名家", "title": "神锻名家",
      "desc": "锻造达到 Lv.10", "cond": {"type": "prof_lv", "key": "craft", "value": 10}, "points": 1, "bonus": {"def": 8}},
     {"id": "ach_pro_cooking3", "cat": "副业", "name": "厨房新手", "title": "厨房新手",
      "desc": "烹饪达到 Lv.3", "cond": {"type": "prof_lv", "key": "cooking", "value": 3}, "points": 1, "reward": {"exp": 100}},
@@ -166,7 +166,7 @@ ACHIEVEMENTS = [
      "desc": "强化达到 Lv.3", "cond": {"type": "prof_lv", "key": "enhance", "value": 3}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_pro_enhance6", "cat": "副业", "name": "装备精工", "title": "装备精工",
      "desc": "强化达到 Lv.6", "cond": {"type": "prof_lv", "key": "enhance", "value": 6}, "points": 1},
-    {"id": "ach_pro_enhance10", "cat": "副业", "name": "铁匠宗师", "title": "铁匠宗师",
+    {"id": "ach_pro_enhance10", "cat": "副业", "name": "铁匠名家", "title": "铁匠名家",
      "desc": "强化达到 Lv.10", "cond": {"type": "prof_lv", "key": "enhance", "value": 10}, "points": 1, "bonus": {"atk": 8}},
     # v105 M11 P2：19 章 322-323 次数称号——『强化大师(强化 50 次)』此前缺失；
     # 『附魔师』原实现挂在 Lv.6 等级成就上，与设计(附魔 30 次)不符，改为次数条件

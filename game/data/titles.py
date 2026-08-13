@@ -36,7 +36,7 @@ TITLES = [
     {"id": "pro_alchemy10", "name": "贤者之石",   "desc": "炼金达到 Lv.10(魔力＋30)", "bonus": {"mp": 30}},
     {"id": "pro_craft3", "name": "铁匠学徒",   "desc": "锻造达到 Lv.3"},
     {"id": "pro_craft6", "name": "锻造师",     "desc": "锻造达到 Lv.6"},
-    {"id": "pro_craft10", "name": "神锻宗师",   "desc": "锻造达到 Lv.10(防御＋8)", "bonus": {"def": 8}},
+    {"id": "pro_craft10", "name": "神锻名家",   "desc": "锻造达到 Lv.10(防御＋8)", "bonus": {"def": 8}},
     {"id": "pro_cooking3", "name": "厨房新手",   "desc": "烹饪达到 Lv.3"},
     {"id": "pro_cooking6", "name": "料理人",     "desc": "烹饪达到 Lv.6"},
     {"id": "pro_cooking10", "name": "食神",       "desc": "烹饪达到 Lv.10(速度＋3)", "bonus": {"spd": 3}},

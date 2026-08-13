@@ -87,7 +87,8 @@ OPTIONAL_STATS = ("lifesteal", "crit_dmg", "block", "thorns", "phys_reduce", "ma
                   # v109.2 P1-5：0 值隐藏推广到全部特殊属性（防面板 13 行 0 值爆炸）
                   "pene_phys", "pene_magi", "tenacity", "luck", "cdr",
                   "elem_res", "abyss_res", "exp_bonus", "gold_bonus",
-                  "heal_power", "shield_power")
+                  "heal_power", "shield_power",
+                  "precise")  # v110 P2：精准 0 值隐藏收尾（与 P1-5 同规则）
 
 # v106：百分比穿透属性（多来源乘算合成 1-Π(1-pᵢ)，不加法）
 PENE_PCT_STATS = ("pene_phys", "pene_magi")

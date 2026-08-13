@@ -312,11 +312,11 @@ def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 @register(MECH_EFFECTS, "poison")
 def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit):
-    """毒层：叠层（每层每回合 3% 生命）"""
+    """毒层：叠层（每层每回合 5% 生命，v110 与 POISON_PCT 对齐）"""
     if not mval:
         return
     p_mech["poison"] = _stack(battle, "poison", p_mech, mval)
-    logs.append(f"☠️ 毒层 {p_mech['poison']}(每回合 {p_mech['poison'] * 3}% 生命)")
+    logs.append(f"☠️ 毒层 {p_mech['poison']}(每回合 {p_mech['poison'] * 5}% 生命)")
 
 
 @register(MECH_EFFECTS, "poison_burst")
