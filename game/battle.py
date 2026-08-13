@@ -94,6 +94,7 @@ class Battle:
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
         self.round = 0
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
+        self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
@@ -905,19 +906,21 @@ class Battle:
             dmg = int(dmg * 1.20)
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
-        self._damage_enemy(dmg, logs)
-        tag = " 💥暴击" if is_crit else ""
-        if affix_tags:
-            tag += " " + "·".join(affix_tags)
-        logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
-        # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
-        self._apply_enchant_attack(effs, dmg, st, player, logs)
-        # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
-        self._affix_on_hit(player, dmg, logs)
-        self._food_on_hit(player, dmg, logs)
-        self._set_attack_proc(player, dmg, logs)
-        # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
-        self._resource_on_attack(player)
+        # v105 怪物闪避：闪避成功跳过本次伤害结算/符文特效/词条触发/资源获取
+        if not self._monster_dodge_check(logs):
+            self._damage_enemy(dmg, logs)
+            tag = " 💥暴击" if is_crit else ""
+            if affix_tags:
+                tag += " " + "·".join(affix_tags)
+            logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
+            # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
+            self._apply_enchant_attack(effs, dmg, st, player, logs)
+            # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
+            self._affix_on_hit(player, dmg, logs)
+            self._food_on_hit(player, dmg, logs)
+            self._set_attack_proc(player, dmg, logs)
+            # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
+            self._resource_on_attack(player)
         return logs
 
     def _resource_on_attack(self, player: dict):
@@ -1551,7 +1554,11 @@ class Battle:
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
         total = self._boss_dmg_filter(total, player, logs)
-        self._damage_enemy(total, logs)
+        # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
+        if self._monster_dodge_check(logs):
+            total = 0
+        else:
+            self._damage_enemy(total, logs)
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -2145,6 +2152,37 @@ class Battle:
                 del self.p_shields[key]
         self._tick_cooldowns()
 
+    def _attacker_precise(self) -> float:
+        """攻击方精准（v105 精准体系）：PVP 时攻击方是对方玩家快照（用 _player_stats 计算装备/词条精准），
+        PVE 怪物无精准=0（玩家闪避不被削减）。任何异常按 0 处理。"""
+        try:
+            en = self.enemy or {}
+            if self.mode == "pvp" and en.get("equipment"):
+                return float(self._player_stats(en).get("precise", 0) or 0)
+            return float(en.get("precise", 0) or 0)
+        except Exception:
+            return 0.0
+
+    def _monster_dodge_check(self, logs: list) -> bool:
+        """v105 怪物闪避判定：怪物闪避率 × (1 - 我方精准)（精准上限 60%），闪避率上限 30%。
+        命中判定成功追加闪避日志并返回 True（调用方跳过本次伤害结算）。"""
+        try:
+            mon_dodge = min(float((self.enemy or {}).get("dodge", 0) or 0), 0.30)
+            if mon_dodge <= 0:
+                return False
+            my_hit = 0.0
+            try:
+                my_hit = min(float(self._player_stats(self.player).get("precise", 0) or 0), 0.60)
+            except Exception:
+                my_hit = 0.0
+            eff = mon_dodge * (1 - my_hit)
+            if eff > 0 and random.random() < eff:
+                logs.append(f"💨 {self.enemy.get('name', '怪物')} 闪避了攻击！")
+                return True
+        except Exception:
+            pass
+        return False
+
     def _damage_enemy(self, dmg: int, logs: list) -> int:
         """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。
         返回对 Boss 实际造成的伤害（援军吸收部分不计入）。"""
@@ -2186,20 +2224,25 @@ class Battle:
         dmg = self._pet_block_check(dmg, logs)
         if dmg <= 0:
             return
-        # v104 策划案 27 章：闪避率上限 40%——职业基础/装备词条/套装闪避此前只进面板零战斗消费
+        # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
+        # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
         dodge = min(float(self._player_stats(player).get("dodge", 0) or 0), 0.40)
-        # v104 R3 P1-9：伪装帷幕（effect=dodge_up）闪避率 +40%，并入 40% 总上限（策划 27 章:43）
+        # 伪装帷幕（effect=dodge_up 闪避率 +40%）：乘算并入
         if self.p_buffs.get("dodge_up"):
-            dodge = min(dodge + 0.40, 0.40)
-        # v104 R3 P1-1：无声被动——被攻击概率降低 30%（并入 40% 总上限）
+            dodge = 1 - (1 - dodge) * (1 - 0.40)
+        # 无声被动——被攻击概率降低 30%：乘算并入
         for _pn, _ps in self._passive_map(player)["proc"].get("dodge_up", []):
-            dodge = min(dodge + float(_ps.get("mult", 0.3)), 0.40)
+            dodge = 1 - (1 - dodge) * (1 - float(_ps.get("mult", 0.3)))
+        # 影步药剂 15%：并入乘算（不再独立判定——旧实现独立判定绕过 40% 上限，基础 40%+药水可达 49.7%）
+        if self.p_buffs.get("dodge_pot"):
+            dodge = 1 - (1 - dodge) * (1 - 0.15)
+        # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
+        atk_hit = self._attacker_precise()
+        if atk_hit > 0:
+            dodge = dodge * (1 - min(atk_hit, 0.60))
+        dodge = min(dodge, 0.40)
         if dodge > 0 and random.random() < dodge:
             logs.append("💨 你闪避了攻击！")
-            return
-        # v101.28f 影步药剂：15% 概率完全闪避（3 回合）
-        if self.p_buffs.get("dodge_pot") and random.random() < 0.15:
-            logs.append("💨 身法飘忽！你闪避了攻击！")
             return
         # v104 R3 P1-1：圣盾被动——10% 概率格挡（减伤 50%，同防御姿态）
         for _pn, _ps in self._passive_map(player)["stat"]:

@@ -243,7 +243,7 @@ def is_passive_learned(class_name: str, passive_name: str, learned_skills: list 
 
 # 属性中文名（面板/来源展示用）
 STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", "matk": "魔攻",
-              "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
+              "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避", "precise": "精准"}
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
@@ -316,7 +316,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             continue
         for k, v in src["stats"].items():
             if k in C.PCT_STATS:
-                st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
+                st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
             elif k == "hp":
                 st["max_hp"] += v
             elif k == "mp":
@@ -330,7 +330,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         for k, v in sb2.items():
             if k in C.PCT_STATS:
                 src2[k] = v
-                st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
+                st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
             elif k == "hp":
                 src2["hp"] = v
                 st["max_hp"] = int(st["max_hp"] * (1 + v))
@@ -363,7 +363,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         if tb:
             for k, v in tb.items():
                 if k in C.PCT_STATS:
-                    st[k] = min(st[k] + v, 0.5 if k == "crit" else 0.4)
+                    st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
                 elif k == "hp":
                     st["max_hp"] += int(v)
                 elif k == "mp":

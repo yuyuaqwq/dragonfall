@@ -37,7 +37,11 @@ def monster_stats(lv: int, role: str) -> dict:
     growth = MONSTER_ROLE_GROWTH[role]
     stats = {}
     for k in base:
-        stats[k] = int(base[k] + growth[k] * (lv - 1))
+        # v105：dodge（闪避）为百分比属性，round 保留小数（int 会截断成 0）
+        if k == "dodge":
+            stats[k] = round(base[k] + growth[k] * (lv - 1), 3)
+        else:
+            stats[k] = int(base[k] + growth[k] * (lv - 1))
     # 首领/精英血量系数按等级段放大，保证后期 Boss 有压迫感
     if role == "boss":
         stats["hp"] = int(stats["hp"] * (1 + lv * 0.06))

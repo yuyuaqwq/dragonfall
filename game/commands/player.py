@@ -711,9 +711,10 @@ class PlayerCmds(CommandBase):
             ("💨", "spd", "spd", "速度"),
             ("💥", "crit", "crit", "暴击"),
             ("🌀", "dodge", "dodge", "闪避"),
+            ("🎯", "precise", "precise", "精准"),
         ]
         for icon, skey, fkey, cname in stat_rows:
-            final = st[fkey]
+            final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
                 lines.append(f"{icon} {cname}：{int(final*100)}%({int(bonus*100):+d}%)")
