@@ -84,7 +84,7 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 
 ### ⚠️ 策划案同步 = 与 git 提交同级别的铁律（2026-08-12 鱼鱼拍板）
 
-**任何涉及设计/数值/新内容的代码改动，提交 git 之前必须先同步 `C:\Users\yuyu\qqbot\design\new_world\` 对应章节（独立 git 仓库），与 git commit 同级必做，禁止只提交代码。**
+**任何涉及设计/数值/新内容的代码改动，提交 git 之前必须先同步 `design/new_world/` 对应章节（独立 git 仓库，位于插件目录 `C:\Users\yuyu\qqbot\data\plugins\dragonfall\design\new_world`，代码仓 .gitignore 已排除，勿让代码仓跟踪），与 git commit 同级必做，禁止只提交代码。**
 
 - 判定：改到数值（价格/概率/属性/成长）、新内容（物品/配方/地图/技能/怪物）、机制设计（规则/流程/解锁）→ 必同步；纯 bug 修复、纯文案错别字、纯重构不动设计 → 可不同步但拿不准就同步
 - 顺序：**先策划案 → 再代码 → 测试 → 双仓库分别提交**（代码仓库 + design/new_world 仓库）
