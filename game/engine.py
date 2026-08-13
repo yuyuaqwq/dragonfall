@@ -676,10 +676,14 @@ def branch_skill_owner(class_name: str, skill_name: str):
 # ============================================================
 # 战斗
 # ============================================================
-def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False, pene_pct=0.0, pene_flat=0):
+def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False, pene_pct=0.0, pene_flat=0, dmg_type="phys"):
     """伤害公式(v22 非线性减伤)：dmg = atk²/(atk+def)，防御收益递减，杜绝物理免疫
-    v106 穿透：有效防御 = max(0, int(def × (1-pene_pct)) - pene_flat)（先百分比后固定，下限 0）"""
-    if pierce:
+    v106 穿透：有效防御 = max(0, int(def × (1-pene_pct)) - pene_flat)（先百分比后固定，下限 0）
+    v107 伤害类型四层架构（鱼鱼拍板）：dmg_type = phys/magi/true
+    - true 真伤：绕过全部减伤（无防御公式，dmg = atk 直伤），与 pierce 语义区分——
+      pierce 仅无视防御公式、调用方仍可能叠加免伤段；true 为纯真伤（不吸/不反/全无视）
+    - 真伤同样吃波动与暴击（暴击倍率由调用方 crit_dmg 段统一追加）"""
+    if dmg_type == "true" or pierce:
         dmg = atk
     else:
         # v106：穿透削减有效防御（百分比上限 0.6 由聚合层 cap，这里兜底防脏值）

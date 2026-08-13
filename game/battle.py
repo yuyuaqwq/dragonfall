@@ -945,7 +945,8 @@ class Battle:
         is_crit = random.random() < st["crit"]
         # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
         _pp, _pf = self._pene_vals(st)
-        dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        # v107 伤害类型四层架构：普攻显式声明 phys（物理段，吃 def/物免/格挡/物吸）
+        dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
@@ -985,14 +986,15 @@ class Battle:
             self._resource_on_attack(player)
         return logs
 
-    def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False):
+    def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False, dmg_type: str = "phys"):
         """v106.3 吸血统一结算（属性面板化）：heal = dmg × 吸血率
 
         来源全部汇聚到 st["lifesteal"]（通用，词条吸血/种族/被动/药水），
         v106.4 细分：物理吸血 lifesteal_phys（物理攻击段）、法术吸血 lifesteal_magi（魔法攻击段）
         与通用吸血乘算合成 1-(1-a)(1-b)；药水 buff 乘算并入，cap 30%。
+        v107 真伤不吸血（纯真伤语义，鱼鱼拍板）：dmg_type == "true" 直接跳过。
         """
-        if dmg <= 0:
+        if dmg <= 0 or dmg_type == "true":
             return
         st = self._player_stats(player)
         rate = float(st.get("lifesteal", 0) or 0)
@@ -1627,24 +1629,28 @@ class Battle:
         _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
         for _ in range(multi):
-            if kind == "物理":
+            # v107 伤害类型四层架构：物理→phys / 魔法→magi / 真伤→true（新增，绕过全减伤）
+            if kind == "真伤":
+                dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, dmg_type="true")
+            elif kind == "物理":
                 if info.get("pierce"):
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True)
+                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True,
+                                          dmg_type="phys")
                 else:
                     dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], is_crit,
-                                          pene_pct=_pp_phys, pene_flat=_pf_phys)
+                                          pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
                 # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
                 if info.get("magic_add"):
                     dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit,
-                                          pene_pct=_pp_magi, pene_flat=_pf_magi)
+                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                     dmg_i += dmg_m
             else:
                 dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit,
-                                      pene_pct=_pp_magi, pene_flat=_pf_magi)
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
             if self.p_buffs.get("spellblade_surge"):
                 surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit,
-                                          pene_pct=_pp_magi, pene_flat=_pf_magi)
+                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                 dmg_i += surge_dmg
                 del self.p_buffs["spellblade_surge"]
             # v34 残忍：暴击伤害 +x%（按等级，符文特效）
@@ -1667,7 +1673,9 @@ class Battle:
             self._damage_enemy(total, logs)
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
-            self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"))
+            # v107：真伤不吸血（dmg_type="true" 直接跳过）
+            self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"),
+                                   dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -1927,7 +1935,8 @@ class Battle:
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 if kind == "物理":
                     _pp, _pf = self._pene_vals(est)
-                    dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+                    dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
+                                        dmg_type="phys")
                     # v106.4 物理免伤统一属性结算（物理技能段与普攻同口径）
                     _pst_pr = self._player_stats(player)
                     pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
@@ -1937,7 +1946,8 @@ class Battle:
                         logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
                 else:
                     _pp, _pf = self._pene_vals(est, magic=True)
-                    dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf)
+                    dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
+                                        dmg_type="magi")
                 # v106.4 魔法免伤统一属性结算（种族龙鳞/鲁莽之心 + 词条魔抗 + 被动 → st["magic_reduce"]）
                 if kind != "物理":
                     _pst_mr = self._player_stats(player)
