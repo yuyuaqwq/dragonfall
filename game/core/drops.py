@@ -87,7 +87,7 @@ def roll_blueprint(monster_lv: int):
     rid, _r = random.choice(near)
     return make_blueprint(rid)
 
-def roll_drop(monster_lv: int, role: str):
+def roll_drop(monster_lv: int, role: str, luck: float = 0.0):
     """怪物死亡掉落（v94 图纸经济改革，2026-08-09）：返回 (装备 or None, 图纸 or None, 金币, 经验)
 
     v93 改革（鱼鱼拍板）：怪物**永不掉装备**——装备走铁匠铺购买 + 图纸锻造进阶；
@@ -95,9 +95,11 @@ def roll_drop(monster_lv: int, role: str):
     图纸改走探索宝箱/垂钓宝物/商店购买；仅 Boss 保留 5% 惊喜掉率。
     材料掉落由消费端 _handle_victory 按 monster['drops'] 处理。
     消费端（_handle_victory）只入包图纸，装备位恒为 None。
+    v106 幸运：Boss 图纸惊喜掉率 5% × (1+幸运)（幸运上限 50% → 最高 7.5%）
     """
     if role == "boss":
-        if random.random() < C.BOSS_BP_DROP_CHANCE:  # v101.5 常量
+        chance = C.BOSS_BP_DROP_CHANCE * (1.0 + min(max(float(luck), 0.0), 0.5))
+        if random.random() < chance:  # v101.5 常量
             return None, roll_blueprint(monster_lv), 0, 0
         return None, None, 0, 0
     # 普通怪 / 精英：不掉图纸（v94）

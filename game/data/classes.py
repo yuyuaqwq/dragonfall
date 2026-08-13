@@ -81,7 +81,8 @@ CLASSES = {
             "mdef": 10,
             "spd": 10,
             "crit": 0.05,
-            "dodge": 0.03
+            "dodge": 0.03,
+            "pene_phys": 0.05,
         },
         "growth": {
             "hp": 22,
@@ -114,7 +115,8 @@ CLASSES = {
             "mdef": 14,
             "spd": 12,
             "crit": 0.08,
-            "dodge": 0.05
+            "dodge": 0.05,
+            "pene_magi": 0.10,
         },
         "growth": {
             "hp": 10,
@@ -147,7 +149,8 @@ CLASSES = {
             "mdef": 9,
             "spd": 16,
             "crit": 0.15,
-            "dodge": 0.12
+            "dodge": 0.12,
+            "pene_phys": 0.05,
         },
         "growth": {
             "hp": 14,
@@ -180,7 +183,8 @@ CLASSES = {
             "mdef": 16,
             "spd": 11,
             "crit": 0.06,
-            "dodge": 0.06
+            "dodge": 0.06,
+            "pene_magi": 0.05,
         },
         "growth": {
             "hp": 12,
@@ -213,7 +217,8 @@ CLASSES = {
             "mdef": 8,
             "spd": 19,
             "crit": 0.2,
-            "dodge": 0.18
+            "dodge": 0.18,
+            "pene_phys": 0.10,
         },
         "growth": {
             "hp": 12,
@@ -246,7 +251,8 @@ CLASSES = {
             "mdef": 11,
             "spd": 14,
             "crit": 0.1,
-            "dodge": 0.12
+            "dodge": 0.12,
+            "pene_phys": 0.05,
         },
         "growth": {
             "hp": 18,
@@ -279,7 +285,9 @@ CLASSES = {
             "mdef": 10,
             "spd": 12,
             "crit": 0.08,
-            "dodge": 0.04
+            "dodge": 0.04,
+            "pene_phys": 0.05,
+            "pene_magi": 0.05,
         },
         "growth": {
             "hp": 19,

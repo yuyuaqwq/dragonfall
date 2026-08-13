@@ -63,7 +63,14 @@ CLASS_NOVICE = "cls_novice"      # 见习冒险者（行会就职判定/隐藏�
 
 # ================= v102.6 属性集合常量 =================
 # （19 处裸写 ("crit","dodge") 判断"百分比显示属性"，收敛后改显示规则只动这里）
-PCT_STATS = ("crit", "dodge", "precise")    # 以百分比展示的属性（暴击/闪避/精准 v105）
+PCT_STATS = ("crit", "dodge", "precise", "pene_phys", "pene_magi", "tenacity", "luck")    # 以百分比展示的属性（暴击/闪避/精准 v105 + 穿透/韧性/幸运 v106）
+
+# v106：百分比属性上限表（面板聚合 cap 用；crit 0.5 / dodge 0.4 / 其余 0.6 的旧三目表达式统一收敛）
+PCT_CAPS = {"crit": 0.5, "dodge": 0.4, "precise": 0.6, "pene_phys": 0.6, "pene_magi": 0.6,
+            "tenacity": 0.5, "luck": 0.5}
+
+# v106：百分比穿透属性（多来源乘算合成 1-Π(1-pᵢ)，不加法）
+PENE_PCT_STATS = ("pene_phys", "pene_magi")
 
 # ================= v103.3 B3 整数魔法数字 =================
 # （第三轮审计 B3：等级阈值/容量/奖励量裸数字，收敛后改数值只动这里）

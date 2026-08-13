@@ -82,6 +82,26 @@ AFFIXES = {
         "effect": {"pierce": 1.0},
         "desc": "攻击 20% 无视防御",
     },
+    "pene_phys": {
+        "name": "穿甲", "kind": "attack", "trigger": "stat",
+        "effect": {"pene_phys": 0.05},
+        "desc": "物穿＋5%（无视物理防御，v106）",
+    },
+    "pene_magi": {
+        "name": "法穿", "kind": "attack", "trigger": "stat",
+        "effect": {"pene_magi": 0.05},
+        "desc": "法穿＋5%（无视魔法防御，v106）",
+    },
+    "pene_flat": {
+        "name": "破甲刃", "kind": "attack", "trigger": "stat",
+        "effect": {"pene_flat": 0.5},
+        "desc": "固定物穿 2+装备等级×0.5 点（v106）",
+    },
+    "pene_mflat": {
+        "name": "破法刃", "kind": "attack", "trigger": "stat",
+        "effect": {"pene_mflat": 0.5},
+        "desc": "固定法穿 2+装备等级×0.5 点（v106）",
+    },
     "hunt": {
         "name": "追猎", "kind": "attack", "trigger": "passive",
         "effect": {"marked_dmg": 0.20},
@@ -176,6 +196,16 @@ AFFIXES = {
         "effect": {"hp_pct": 0.05},
         "desc": "最大生命＋5%",
     },
+    "tenacity": {
+        "name": "韧性", "kind": "defense", "trigger": "stat",
+        "effect": {"tenacity": 0.05},
+        "desc": "被暴击率－5%（v106）",
+    },
+    "luck": {
+        "name": "幸运", "kind": "defense", "trigger": "stat",
+        "effect": {"luck": 0.05},
+        "desc": "掉落收益＋5%（v106）",
+    },
 }
 
 # 随机词条池按品质（20 章 4.2：蓝 → 攻击 7 + 防具 7；紫 → 攻击 17 + 防具 9；橙 → 全部）
@@ -188,8 +218,9 @@ AFFIX_POOL_BY_QUALITY = {
         "bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up", "crit_dmg",
         "element_fire", "element_ice", "element_thunder", "precise", "pierce", "hunt", "charge",
         "counter", "break_magic", "purify",
+        "pene_phys", "pene_magi", "pene_flat", "pene_mflat",  # v106 穿透词条
         "block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity", "regen", "meditate",
-        "swift",
+        "swift", "luck",  # v106 韧性/幸运
     ],
     "orange": sorted(AFFIXES.keys()),
 }
@@ -201,9 +232,9 @@ AFFIX_KIND = {"attack": "武器", "defense": "防具"}
 AFFIX_AFFINITY_POOLS = {
     "攻击": ["bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up",
              "crit_dmg", "precise", "charge", "pierce", "hunt", "break_magic",
-             "purify", "dragon_aw"],
+             "purify", "dragon_aw", "pene_phys", "pene_magi", "pene_flat", "pene_mflat"],  # v106 穿透词条进攻击倾向
     "防御": ["block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity",
-             "regen", "meditate", "swift", "hp_up", "elem_resist", "abyss_resist"],
+             "regen", "meditate", "swift", "hp_up", "elem_resist", "abyss_resist", "luck"],  # v106 韧性/幸运进防御倾向
     "元素": ["element_fire", "element_ice", "element_thunder", "elem_resist"],
     "机动": ["swift", "precise", "combo", "charge", "pierce", "hunt", "dodge"],
 }
@@ -212,6 +243,7 @@ AFFIX_AFFINITY_CN = {  # 玩家输入别名
     "防御": "防御", "防": "防御", "生存": "防御",
     "元素": "元素", "元素伤害": "元素",
     "机动": "机动", "速度": "机动", "灵活": "机动",
+    "穿透": "攻击", "破甲": "攻击",  # v106 别名：穿透/破甲归攻击倾向
 }
 
 # 传说专属效果（20 章 2.3：每件传说 1 个专属。20 章已配 + 名册补齐）

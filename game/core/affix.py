@@ -36,12 +36,20 @@ _REQ_STAT_BY_SLOT = {
 }
 
 # 常驻属性词条 → 折算方式（生成时并入装备 stats）
-# crit/dodge 为小数概率直接加；hp/spd 按装备基础值百分比折算
+# crit/dodge/precise/pene_phys/pene_magi/tenacity/luck 为小数概率直接加；hp/spd 按装备基础值百分比折算
+# v106：pene_flat/pene_mflat 固定穿透按装备等级线性折算（lv_flat 系数 + min_flat 保底）
 _STAT_AFFIX_FX = {
     "crit_up": {"stat": "crit", "pct": None, "flat": 0.05},
     "dodge": {"stat": "dodge", "pct": None, "flat": 0.05},
     "hp_up": {"stat": "hp", "pct": 0.05},
     "swift": {"stat": "spd", "pct": 0.05},
+    # v106 穿透/韧性/幸运词条折算
+    "pene_phys": {"stat": "pene_phys", "pct": None, "flat": 0.05},
+    "pene_magi": {"stat": "pene_magi", "pct": None, "flat": 0.05},
+    "tenacity": {"stat": "tenacity", "pct": None, "flat": 0.05},
+    "luck": {"stat": "luck", "pct": None, "flat": 0.05},
+    "pene_flat": {"stat": "pene_flat", "lv_flat": 0.5, "min_flat": 2},
+    "pene_mflat": {"stat": "pene_mflat", "lv_flat": 0.5, "min_flat": 2},
 }
 
 
@@ -85,7 +93,11 @@ def stat_affix_stats(affix_ids: list, slot: str, lv: int) -> dict:
         if not fx:
             continue
         stat = fx["stat"]
-        if fx.get("flat") is not None:
+        if fx.get("lv_flat") is not None:
+            # v106：固定穿透按装备等级折算 max(min_flat, int(lv × lv_flat))，直接相加
+            add = max(fx.get("min_flat", 2), int(lv * fx["lv_flat"]))
+            out[stat] = out.get(stat, 0) + add
+        elif fx.get("flat") is not None:
             out[stat] = round(out.get(stat, 0) + fx["flat"], 4)
         else:
             # 按装备基础值百分比折算（生成时已拿到 equip_stats 基础）

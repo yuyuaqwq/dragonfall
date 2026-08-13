@@ -1557,7 +1557,16 @@ class CombatCmds(CommandBase):
             if rep_gain > 1:
                 rep_lines.append(f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +{rep_gain}")
         # 掉落（v93 经济改革：怪物永不掉装备——装备走铁匠铺购买 + 图纸锻造）
-        drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"])
+        # v106 幸运：Boss 图纸惊喜掉率 ×(1+luck)（luck 上限 50%，roll_drop 内部 cap）
+        _luck_bp = 0.0
+        try:
+            _lst_bp = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+                                           player.get("class_tier", 0), player.get("attributes"),
+                                           player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
+            _luck_bp = min(float(_lst_bp.get("luck", 0) or 0), 0.5)
+        except Exception:
+            _luck_bp = 0.0
+        drop_equip, drop_bp, _drop_gold, _drop_exp = C.roll_drop(monster["lv"], monster["role"], _luck_bp)
         # 阶段九：半身人幸运儿——金币掉落 +15%
         if E.race_stats(player.get("race")).get("gold_bonus"):
             gold = int(gold * (1 + E.race_stats(player.get("race"))["gold_bonus"]))
@@ -1655,7 +1664,18 @@ class CombatCmds(CommandBase):
             gold = int(gold * 1.5)
             lucky_line = "\n🍀 幸运护符生效：掉落价值 +50%！"
         # v93 经济改革：金币不再入账，按 原金币×1.5 折算成 1-2 种可卖材料（怪物掉落池优先，通用池兜底）
-        mat_value = int(gold * 1.5)
+        # v106 幸运属性：掉落收益 ×(1+luck)（上限 50%），与幸运护符（+50%）独立叠加
+        _luck = 0.0
+        try:
+            _lst = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+                                        player.get("class_tier", 0), player.get("attributes"),
+                                        player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
+            _luck = min(float(_lst.get("luck", 0) or 0), 0.5)
+        except Exception:
+            _luck = 0.0
+        mat_value = int(gold * 1.5 * (1 + _luck))
+        if _luck > 0 and not lucky_line:
+            lucky_line = f"\n🍀 幸运属性：掉落收益 +{int(_luck*100)}%！"
         if mat_value > 0:
             drop_pool = [m for m in (monster.get("drops") or []) if m and "图纸" not in str(m)]
             if not drop_pool:

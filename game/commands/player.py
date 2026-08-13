@@ -712,6 +712,13 @@ class PlayerCmds(CommandBase):
             ("💥", "crit", "crit", "暴击"),
             ("🌀", "dodge", "dodge", "闪避"),
             ("🎯", "precise", "precise", "精准"),
+            # v106 穿透/韧性/幸运
+            ("🗡️", "pene_phys", "pene_phys", "物穿"),
+            ("🔮", "pene_magi", "pene_magi", "法穿"),
+            ("🪓", "pene_flat", "pene_flat", "固定物穿"),
+            ("🪄", "pene_mflat", "pene_mflat", "固定法穿"),
+            ("🧱", "tenacity", "tenacity", "韧性"),
+            ("🍀", "luck", "luck", "幸运"),
         ]
         for icon, skey, fkey, cname in stat_rows:
             final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）

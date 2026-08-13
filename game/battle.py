@@ -888,7 +888,9 @@ class Battle:
             est = dict(est)
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
         is_crit = random.random() < st["crit"]
-        dmg = E.calc_damage(st["atk"], est["def"], is_crit)
+        # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
+        _pp, _pf = self._pene_vals(st)
+        dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
@@ -1527,21 +1529,28 @@ class Battle:
             affix_tags = list(affix_tags) + race_tags
         pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult
                  * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult)
+        # v106 穿透：物理技能用物穿/固定物穿，魔法技能用法穿/固定法穿
+        _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
+        _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
         for _ in range(multi):
             if kind == "物理":
                 if info.get("pierce"):
                     dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True)
                 else:
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], is_crit)
+                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], is_crit,
+                                          pene_pct=_pp_phys, pene_flat=_pf_phys)
                 # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
                 if info.get("magic_add"):
-                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit)
+                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit,
+                                          pene_pct=_pp_magi, pene_flat=_pf_magi)
                     dmg_i += dmg_m
             else:
-                dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit)
+                dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit,
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi)
             # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
             if self.p_buffs.get("spellblade_surge"):
-                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit)
+                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit,
+                                          pene_pct=_pp_magi, pene_flat=_pf_magi)
                 dmg_i += surge_dmg
                 del self.p_buffs["spellblade_surge"]
             # v34 残忍：暴击伤害 +x%（按等级）
@@ -1814,11 +1823,14 @@ class Battle:
                     return logs, minion_dmg
                 power = sinfo.get("power", 1.0)
                 # v104 M02 P2-10：怪物技能暴击按自身 crit 判定（此前固定 MON_SKILL_CRIT 0.1，高 crit 怪技能不暴击）
-                is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT)
+                # v106 韧性：被暴击率 × (1 - 玩家韧性)
+                is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 if kind == "物理":
-                    dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit)
+                    _pp, _pf = self._pene_vals(est)
+                    dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
                 else:
-                    dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit)
+                    _pp, _pf = self._pene_vals(est, magic=True)
+                    dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf)
                 # 阶段九：种族受击天赋（龙鳞 魔伤-10% / 鲁莽之心 魔伤+5%，魔法技能段）
                 if kind != "物理":
                     rt = self._race_bonus(player)
@@ -1859,8 +1871,10 @@ class Battle:
                         ctrl_fn(self, player, logs, mval)
                 return logs, dmg + minion_dmg
         # v104 M02 P2：怪物普攻按 crit 属性判定暴击（此前完全忽略 est["crit"]，与玩家/PVP 同款逻辑）
-        is_crit = random.random() < est.get("crit", 0.05)
-        dmg = E.calc_damage(est["atk"], pst["def"], is_crit)
+        # v106 韧性：被暴击率 × (1 - 玩家韧性)；穿透：怪物物穿削减玩家防御
+        is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
+        _pp, _pf = self._pene_vals(est)
+        dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
         # 阶段九：种族受击天赋（石肤 物理伤害-10%，普攻段）
         rt = self._race_bonus(player)
         pr = rt.get("phys_reduce", 0) or 0
@@ -1876,8 +1890,10 @@ class Battle:
         est = self._enemy_stats()
         pst = self._player_stats(player)
         logs = []
-        is_crit = random.random() < est.get("crit", 0.05)
-        dmg = E.calc_damage(est["atk"], pst["def"], is_crit)
+        # v106 韧性：被暴击率 × (1 - 玩家韧性)；穿透：PVP 敌方玩家快照的物穿生效（双向）
+        is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
+        _pp, _pf = self._pene_vals(est)
+        dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
         logs.append(f"【{self.enemy['name']}】向你发起攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg
 
@@ -2162,6 +2178,26 @@ class Battle:
             return float(en.get("precise", 0) or 0)
         except Exception:
             return 0.0
+
+    def _pene_vals(self, st: dict, magic: bool = False) -> tuple:
+        """v106 穿透取值：返回 (百分比穿透, 固定穿透)。
+        magic=True 取法穿对 mdef，否则取物穿对 def。百分比 cap 0.6（聚合层已 cap，这里兜底防脏值）。"""
+        try:
+            if magic:
+                return (min(float(st.get("pene_magi", 0) or 0), 0.6),
+                        max(int(st.get("pene_mflat", 0) or 0), 0))
+            return (min(float(st.get("pene_phys", 0) or 0), 0.6),
+                    max(int(st.get("pene_flat", 0) or 0), 0))
+        except Exception:
+            return (0.0, 0)
+
+    @staticmethod
+    def _tenacity_mult(pst: dict) -> float:
+        """v106 韧性：被暴击率 × (1 - 韧性)，韧性 cap 50%"""
+        try:
+            return 1.0 - min(float(pst.get("tenacity", 0) or 0), 0.5)
+        except Exception:
+            return 1.0
 
     def _monster_dodge_check(self, logs: list) -> bool:
         """v105 怪物闪避判定：怪物闪避率 × (1 - 我方精准)（精准上限 60%），闪避率上限 30%。

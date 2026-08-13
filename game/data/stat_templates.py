@@ -8,12 +8,13 @@
 # base = 1 级基础值；growth = 每级成长
 MONSTER_ROLE_BASE = {
     # v105 闪避体系：speedster/dps 高闪（精准属性对抗目标），tank 不闪，Boss 低闪（不破坏战斗节奏）
+    # v106 穿透体系：dps/caster/elite 带穿透（玩家防御受威胁，双向克制闭环）
     "tank":       {"hp": 60,  "atk": 8,  "def": 7,  "matk": 3,  "mdef": 6,  "spd": 6,  "dodge": 0.0},
-    "dps":        {"hp": 45,  "atk": 12, "def": 4,  "matk": 4,  "mdef": 4,  "spd": 10, "dodge": 0.05},
-    "caster":     {"hp": 40,  "atk": 5,  "def": 3,  "matk": 14, "mdef": 8,  "spd": 9,  "dodge": 0.03},
+    "dps":        {"hp": 45,  "atk": 12, "def": 4,  "matk": 4,  "mdef": 4,  "spd": 10, "dodge": 0.05, "pene_phys": 0.05},
+    "caster":     {"hp": 40,  "atk": 5,  "def": 3,  "matk": 14, "mdef": 8,  "spd": 9,  "dodge": 0.03, "pene_magi": 0.05},
     "speedster":  {"hp": 35,  "atk": 9,  "def": 3,  "matk": 5,  "mdef": 4,  "spd": 16, "dodge": 0.08},
     "healer":     {"hp": 38,  "atk": 4,  "def": 3,  "matk": 12, "mdef": 8,  "spd": 8,  "dodge": 0.02},  # v86.2 治疗型（副本小怪）
-    "elite":      {"hp": 95,  "atk": 14, "def": 8,  "matk": 10, "mdef": 8,  "spd": 11, "dodge": 0.05},
+    "elite":      {"hp": 95,  "atk": 14, "def": 8,  "matk": 10, "mdef": 8,  "spd": 11, "dodge": 0.05, "pene_phys": 0.03, "pene_magi": 0.03},
     "boss":       {"hp": 160, "atk": 16, "def": 10, "matk": 12, "mdef": 10, "spd": 10, "dodge": 0.03},
 }
 MONSTER_ROLE_GROWTH = {

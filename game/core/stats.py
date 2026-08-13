@@ -37,9 +37,10 @@ def monster_stats(lv: int, role: str) -> dict:
     growth = MONSTER_ROLE_GROWTH[role]
     stats = {}
     for k in base:
-        # v105：dodge（闪避）为百分比属性，round 保留小数（int 会截断成 0）
-        if k == "dodge":
-            stats[k] = round(base[k] + growth[k] * (lv - 1), 3)
+        # v105：dodge 为百分比属性，round 保留小数（int 会截断成 0）
+        # v106：pene_phys/pene_magi 同为百分比属性，同样保留小数
+        if k in ("dodge", "pene_phys", "pene_magi"):
+            stats[k] = round(base[k] + growth.get(k, 0) * (lv - 1), 3)
         else:
             stats[k] = int(base[k] + growth[k] * (lv - 1))
     # 首领/精英血量系数按等级段放大，保证后期 Boss 有压迫感
@@ -47,6 +48,13 @@ def monster_stats(lv: int, role: str) -> dict:
         stats["hp"] = int(stats["hp"] * (1 + lv * 0.06))
     if role == "elite":
         stats["hp"] = int(stats["hp"] * (1 + lv * 0.04))
+    # v106 穿透体系：Boss 重甲/精英精锐——防御 ×1.25/×1.15（穿透属性的需求端）
+    if role == "boss":
+        stats["def"] = int(stats["def"] * 1.25)
+        stats["mdef"] = int(stats["mdef"] * 1.25)
+    if role == "elite":
+        stats["def"] = int(stats["def"] * 1.15)
+        stats["mdef"] = int(stats["mdef"] * 1.15)
     # v56.2：全角色模板吃等级段曲线
     stats["hp"] = int(stats["hp"] * hp_stage_mult(lv))
     stats["atk"] = int(stats["atk"] * atk_stage_mult(lv))

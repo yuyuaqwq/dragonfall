@@ -243,7 +243,9 @@ def is_passive_learned(class_name: str, passive_name: str, learned_skills: list 
 
 # 属性中文名（面板/来源展示用）
 STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", "matk": "魔攻",
-              "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避", "precise": "精准"}
+              "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避", "precise": "精准",
+              "pene_phys": "物穿", "pene_magi": "法穿", "pene_flat": "固定物穿", "pene_mflat": "固定法穿",
+              "tenacity": "韧性", "luck": "幸运"}  # v106 穿透/韧性/幸运
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
@@ -261,6 +263,13 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     # v55.1：暴击/闪避基础值也进来源（属性面板显示完整构成）
     base_src["crit"] = st.get("crit", 0)
     base_src["dodge"] = st.get("dodge", 0)
+    # v106：穿透/韧性/幸运基础值也进来源（职业天生特色如刺客 10% 物穿）
+    base_src["pene_phys"] = st.get("pene_phys", 0)
+    base_src["pene_magi"] = st.get("pene_magi", 0)
+    base_src["pene_flat"] = st.get("pene_flat", 0)
+    base_src["pene_mflat"] = st.get("pene_mflat", 0)
+    base_src["tenacity"] = st.get("tenacity", 0)
+    base_src["luck"] = st.get("luck", 0)
     sources.append({"name": "基础", "stats": base_src})
     # 2. 自由属性点：力量→攻击 敏捷→速度/暴击 智力→魔攻/魔力 耐力→生命
     # v105 P1(M01#7)：attributes 可能是字符串/'null'（脏档）→ 非 dict 一律按空处理
@@ -315,8 +324,11 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         if src["name"] in ("基础", "自由属性点"):
             continue
         for k, v in src["stats"].items():
-            if k in C.PCT_STATS:
-                st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
+            if k in C.PENE_PCT_STATS:
+                # v106：百分比穿透乘算合成 1-(1-a)(1-b)，不加法（职业/词条/被动多来源）
+                st[k] = min(1 - (1 - st.get(k, 0)) * (1 - v), C.PCT_CAPS.get(k, 0.6))
+            elif k in C.PCT_STATS:
+                st[k] = min(st.get(k, 0) + v, C.PCT_CAPS.get(k, 0.6))
             elif k == "hp":
                 st["max_hp"] += v
             elif k == "mp":
@@ -328,9 +340,12 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     if sb2:
         src2 = {}
         for k, v in sb2.items():
-            if k in C.PCT_STATS:
+            if k in C.PENE_PCT_STATS:
                 src2[k] = v
-                st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
+                st[k] = min(1 - (1 - st.get(k, 0)) * (1 - v), C.PCT_CAPS.get(k, 0.6))
+            elif k in C.PCT_STATS:
+                src2[k] = v
+                st[k] = min(st.get(k, 0) + v, C.PCT_CAPS.get(k, 0.6))
             elif k == "hp":
                 src2["hp"] = v
                 st["max_hp"] = int(st["max_hp"] * (1 + v))
@@ -362,8 +377,10 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         tb = {k: v for k, v in title_bonus.items() if k in STAT_NAMES and v}
         if tb:
             for k, v in tb.items():
-                if k in C.PCT_STATS:
-                    st[k] = min(st.get(k, 0) + v, 0.5 if k == "crit" else (0.4 if k == "dodge" else 0.6))
+                if k in C.PENE_PCT_STATS:
+                    st[k] = min(1 - (1 - st.get(k, 0)) * (1 - v), C.PCT_CAPS.get(k, 0.6))
+                elif k in C.PCT_STATS:
+                    st[k] = min(st.get(k, 0) + v, C.PCT_CAPS.get(k, 0.6))
                 elif k == "hp":
                     st["max_hp"] += int(v)
                 elif k == "mp":
@@ -609,16 +626,26 @@ def branch_skill_owner(class_name: str, skill_name: str):
 # ============================================================
 # 战斗
 # ============================================================
-def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False):
-    """伤害公式(v22 非线性减伤)：dmg = atk²/(atk+def)，防御收益递减，杜绝物理免疫"""
+def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False, pene_pct=0.0, pene_flat=0):
+    """伤害公式(v22 非线性减伤)：dmg = atk²/(atk+def)，防御收益递减，杜绝物理免疫
+    v106 穿透：有效防御 = max(0, int(def × (1-pene_pct)) - pene_flat)（先百分比后固定，下限 0）"""
     if pierce:
         dmg = atk
     else:
+        # v106：穿透削减有效防御（百分比上限 0.6 由聚合层 cap，这里兜底防脏值）
+        eff_def = def_
+        try:
+            pct = min(max(float(pene_pct), 0.0), 0.6)
+            flat = max(int(pene_flat), 0)
+            if pct > 0 or flat > 0:
+                eff_def = max(0, int(def_ * (1 - pct)) - flat)
+        except Exception:
+            eff_def = def_
         # v104 M02 P2：atk+def_ 为 0 时直接返回伤害下限 1，防 ZeroDivisionError
-        if atk + def_ <= 0:
+        if atk + eff_def <= 0:
             return 1
         # 非线性减伤：防御越高收益越低，但不会完全免疫
-        dmg = atk * atk / (atk + def_)
+        dmg = atk * atk / (atk + eff_def)
     dmg = max(1, dmg)
     dmg = int(dmg * (1 + random.uniform(-variance, variance)))
     if is_crit:

@@ -57,7 +57,7 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 # ============ 1. 数据完整性 ============
 def test_data():
     print("【1. 数据完整性】")
-    check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
+    check("35 种词条（30 基准 + v106 穿甲/法穿/破甲刃/破法刃/韧性/幸运）", len(C.AFFIXES) == 35, str(len(C.AFFIXES)))
     check("专属 20", len(C.LEGENDARY_EFFECTS) == 20, str(len(C.LEGENDARY_EFFECTS)))  # v104 M20 P2: +烬核余温/龙魂低吟
     check("名册 159 件", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))  # v104 M20 P2: +5 支线图纸装备
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
