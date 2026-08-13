@@ -180,5 +180,5 @@ def pet_line(pet_key):
 
 
 def pet_exp_need(level):
-    """升级所需经验：level * 50(1→10 累计 2250)。"""
+    """升级所需经验：level * 50(1→10 累计 2750，50×55)。"""
     return level * 50

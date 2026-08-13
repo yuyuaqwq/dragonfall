@@ -1014,7 +1014,13 @@ class Battle:
                 tag += " " + "·".join(affix_tags)
             logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
-            self._settle_lifesteal(player, dmg, logs)
+            # v110 审计修复：普攻魔涌（魔能涌动附魔）魔段拆分结算——物段走物吸、魔段走法吸，
+            # 与 v109 P2-4 技能端分账（_player_skill）同款，补普攻端漏网
+            _phys_part = dmg - _magi_part
+            if _phys_part > 0:
+                self._settle_lifesteal(player, _phys_part, logs)
+            if _magi_part > 0:
+                self._settle_lifesteal(player, _magi_part, logs, magic=True)
             # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
             self._apply_enchant_attack(effs, dmg, st, player, logs)
             # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
@@ -2254,7 +2260,9 @@ class Battle:
             magi -= red
             reduced += red
         if element and E.ELEMENT_MARKS.get(element):
-            er = min(float(est.get("elem_res", 0) or 0), 0.4)
+            # v110 审计修复：cap 0.4 → 0.5（对齐防御端 _enemy_turn / PCT_CAPS["elem_res"]=0.5 /
+            # 设计 §三「元素抗上限 50%」；此前 PVP 敌方元素抗 40%~50% 段在玩家攻击端被截断）
+            er = min(float(est.get("elem_res", 0) or 0), 0.5)
             if er > 0 and magi > 0:
                 red = max(1, int(magi * er))
                 magi -= red

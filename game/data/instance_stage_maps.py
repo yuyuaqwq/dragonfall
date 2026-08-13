@@ -649,7 +649,7 @@ INSTANCE_STAGE_NPCS = {
     "npc_tide_priest": {
         "name": "潮汐祭司",
         "icon": "🌊",
-        "map": "sea_god_temple",
+        "map": "inst_sea_god_temple",
         "funcs": ["lore", "quest"],
         "quest": "s_tide_shells",
         "dialogue": "『海神注视着你。潮汐回廊的贝壳，是海神散落的鳞片——集齐 3 片，我为你祝福。』",
@@ -664,7 +664,7 @@ INSTANCE_STAGE_NPCS = {
     "npc_abyss_seer": {
         "name": "深渊先知",
         "icon": "🔮",
-        "map": "abyss_throne",
+        "map": "inst_abyss_throne",
         "funcs": ["lore"],
         "dialogue": "『摩罗不是王，是深渊的胃。别碰魔像走廊的机关，那是它消化的方式。』",
     },

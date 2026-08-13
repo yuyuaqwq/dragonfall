@@ -247,7 +247,9 @@ ACHIEVEMENTS = [
     {"id": "ach_h4_library", "cat": "隐藏", "name": "图书馆的书记官", "title": "图书馆的书记官",
      "desc": "完成隐藏任务 H4·失落的图书馆", "cond": {"type": "quest_done", "key": "s_hidden_library"}, "points": 2},
     {"id": "ach_stardust_set", "cat": "隐藏", "name": "星尘守望者", "title": "星尘守望者",
-     "desc": "获得星尘套 4 件套", "cond": {"type": "set_has", "key": "set_xing_chen_tao", "value": 4}, "points": 2},
+     # v110 审计修复：装备 set 字段存中文套装名（equip_roster.py:226 星尘→星尘套），
+     # 原 key "set_xing_chen_tao"（错 key+错拼写）与 _c_set_has 比较永不匹配 → 成就永不可达
+     "desc": "获得星尘套 4 件套", "cond": {"type": "set_has", "key": "星尘套", "value": 4}, "points": 2},
     {"id": "ach_hidden_hunter", "cat": "隐藏", "name": "传说猎人", "title": "传说猎人",
      "desc": "击败全部 25 种隐藏怪物", "cond": {"type": "hidden_monsters_all"}, "points": 2},
     {"id": "ach_starfall_sword", "cat": "隐藏", "name": "星陨之剑主", "title": "星陨之剑主",

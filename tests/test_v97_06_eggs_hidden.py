@@ -63,12 +63,17 @@ async def main():
         if egg and egg.get("maps"):
             check(f"oak_plain 触发区域彩蛋 {egg['id']} 属于橡木区", egg["id"] in ("egg_oak_whisper",), egg["id"])
     # 非 oak 图不触发 egg_oak_whisper
+    # v110 审计修复：原实现 300 次无命中时无任何失败断言、循环后无条件 check(True)
+    # 恒真掩膜——改为显式失败标志（反例验证必须真的抽不到才绿）
+    bad_oak = False
     for _ in range(300):
         random.seed(random.randint(0, 999999))
         egg = roll_explore_egg("emerald_forest")
         if egg and egg["id"] == "egg_oak_whisper":
+            bad_oak = True
             check("emerald_forest 不触发老橡树", False, egg["id"])
-    check("emerald_forest 不触发老橡树（300 次抽样）", True)
+            break
+    check("emerald_forest 300 次抽样不触发老橡树", not bad_oak)
     # 无地图参数 = 老行为（全局池）
     for _ in range(200):
         random.seed(random.randint(0, 999999))
@@ -115,7 +120,8 @@ async def main():
         check(f"misty_swamp 命中隐藏怪 {hit['id']}", hit["id"] in
               ("e_swamp_croc", "e_glimmer_fish", "e_gold_slime", "e_fortune_fox"), hit["id"])
     else:
-        check("misty_swamp 3000 次抽样命中隐藏怪", True)
+        # v110 审计修复：原 else 恒记绿掩膜（隐藏怪被删/条件断裂时假绿）——改为失败断言
+        check("misty_swamp 3000 次抽样命中隐藏怪", False, "未命中（隐藏怪缺失或条件断裂）")
     # oak_town（城镇）不出隐藏怪
     town_map = C.MAP_BY_ID["oak_town"]
     r = m._roll_hidden_monster("g1", "q1", db.get_player("g1", "q1"), town_map)

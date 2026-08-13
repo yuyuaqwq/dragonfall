@@ -17,6 +17,14 @@ import time
 # P1-1：子进程强制 UTF-8（否则测试打印 ✅/中文在 GBK 控制台崩溃（UnicodeEncodeError）
 # → 假红）。先 setdefault 再在 subprocess 环境里也显式传递，双保险。
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+# v110 审计修复：父进程 stdout 同样强制 UTF-8——此前仅子进程侧生效，父进程首个 ✅ 打印
+# 在 GBK(CP936) 控制台即 UnicodeEncodeError 崩溃（实测首发必现，吞掉全量结果）
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 TEST_TIMEOUT = 300  # P2：单测超时秒数（默认 None 即不限）
 

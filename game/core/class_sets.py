@@ -32,7 +32,11 @@ _SERIES_SET_BONUS = {
     },
     "圣光": {
         "icon": "✨", "quality": "blue",
-        "bonus_2": {"heal": 0.10},   # 治疗 +10%（battle 治疗段消费）
+        # v110 审计修复：bonus_2 键原为 "heal"（heal ∉ STAT_NAMES）→ engine 属性结算
+        # KeyError 崩溃（穿 2 件圣光套必现）。heal_power ∈ PCT_STATS（cap 0.5）且
+        # battle.py 治疗段消费（×（1+heal_power））——"治疗+10%"设计经属性体系达成，
+        # 与旧 CLASS_SET 圣徽圣愈/晨光圣愈（sets.py 均用 heal_power）同构。
+        "bonus_2": {"heal_power": 0.10},
         "bonus_4_stats": {"def": 0.08},
         "bonus_5": {"desc": "圣光增伤＋10%（对暗影/亡灵系敌人）"},
     },

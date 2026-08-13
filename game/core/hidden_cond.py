@@ -11,7 +11,11 @@
 # 地图 ID 关键词 → 环境分类（历史实现直接写在 combat.py，v98.3 数据化）
 ENV_KEYWORDS = {
     "forest": ("forest", "wood", "glade"),
-    "water": ("river", "lake", "sea", "reef", "dock", "swamp", "brook"),
+    # v110 审计修复：补 "trench"——深海鮟鱇 e_deep_angler 限定图 mist_trench（迷雾海沟）
+    # 原无任何 water 关键词命中 → cond="water" 恒 False，该隐藏怪永刷不出（"击败全部
+    # 25 种隐藏怪"成就与荧光鳞掉落不可达）；deep_dragon_palace/shipwreck_graveyard 为
+    # 深海/沉船语义但 id 无关键词，仍由 mist_trench 命中补全可刷性
+    "water": ("river", "lake", "sea", "reef", "dock", "swamp", "brook", "trench"),
     "ruin": ("ruin", "mine", "abyss", "battlefield", "altar", "tunnel", "crypt"),
 }
 

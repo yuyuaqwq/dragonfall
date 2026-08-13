@@ -1677,7 +1677,7 @@ class EconomyCmds(CommandBase):
         gold_need = rec["gold"]
         if affinity:
             gold_need = int(gold_need * 1.5)
-        # v101.30b Lv.10 神锻宗师：锻造费用 9 折
+        # v101.30b Lv.10 神锻名家：锻造费用 9 折（v110.2 更名，原"神锻宗师"）
         if prof_lv >= 10:
             gold_need = int(gold_need * 0.9)
         if player["gold"] < gold_need:

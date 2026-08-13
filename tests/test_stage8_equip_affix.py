@@ -315,8 +315,17 @@ def test_craft_set():
     b = C.generate_roster_equip("eq_qi_shi_chang_xue")
     eq2set = {"weapon": w, "helm": h}
     b2 = E.set_bonus_2(eq2set)
-    check("圣光套 2 件治疗+10%", abs(b2.get("heal", 0) - 0.10) < 1e-6, str(b2))
+    # v110 审计修复：圣光套 2 件原为 bonus_2.heal（heal ∉ STAT_NAMES）→ engine 属性结算
+    # KeyError 崩溃；改 heal_power（∈ PCT_STATS，battle 治疗段消费）——断言同步更新
+    check("圣光套 2 件治疗+10%（heal_power）", abs(b2.get("heal_power", 0) - 0.10) < 1e-6, str(b2))
     check("圣光套 has_set", E.has_set(eq2set, "圣光套"))
+    # v110 审计修复回归：穿 2 件圣光套 player_final_stats 必须不崩溃（旧版此处 KeyError，
+    # 384 断言全绿仍漏——本行防再漏）
+    try:
+        _st_sg = E.player_final_stats("cls_zhan_shi", 30, eq2set, 1, {"str": 5}, 1, {}, "human")
+        check("穿 2 件圣光套 player_final_stats 不崩溃", True, "")
+    except Exception as _ex:
+        check("穿 2 件圣光套 player_final_stats 不崩溃", False, repr(_ex))
     eq4set = {"weapon": w, "helm": h, "armor": a, "boots": b}
     b4 = E.set_bonus_2(eq4set)
     check("圣光套 4 件防御+8%", abs(b4.get("def", 0) - 0.08) < 1e-6, str(b4))

@@ -184,9 +184,11 @@ def tpl_exp_gain(ctx):
     C = ctx._C()
     E = ctx._E()
     exp_gain = ctx.param("min", 15) + ctx.lv * ctx.param("scale_lv", 3)
-    # #262: 同步 ctx.player 引用再写库——战斗结算进度条显示依赖同一 player dict，
-    # 此前只写 DB 不更新引用，规则经验在当次面板"隐形"、玩家感知延迟到下一场
-    ctx.player["exp"] = int(ctx.player.get("exp", 0)) + exp_gain
+    # v110 审计修复：从 DB 读最新 exp 再累加（防 ctx.player 陈旧 dict 覆盖吞经验——
+    # 与 v109.3 loot_gold 同型），并回写 ctx.player 引用（#262：战斗结算进度条
+    # 显示依赖同一 player dict，保持引用同步）
+    cur_exp = int(db.get_player(ctx.group_id, ctx.qq_id).get("exp", 0))
+    ctx.player["exp"] = cur_exp + exp_gain
     db.update_player(ctx.group_id, ctx.qq_id, exp=ctx.player["exp"])
     player = db.get_player(ctx.group_id, ctx.qq_id)
     player["_title_bonus"] = ctx.hooks.get("title_bonus", lambda q: None)(ctx.qq_id)
@@ -267,7 +269,10 @@ def tpl_mystery_chest(ctx):
     db = ctx._db()
     C = ctx._C()
     gold = random.randint(50, 120) + ctx.lv * 5
-    db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
+    # v110 审计修复：与 tpl_loot_gold 同型——读 DB 最新 gold 再累加，防 ctx.player
+    # 陈旧 dict 覆盖吞金币（v109.3 P0 同类事故的漏网模板）
+    cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     mat_line = ""
     # v105 M23 P1-4：材料源改当前子区域怪物掉落池（与 combat.py 探索遇怪同源）——
     # v87.6 后怪物全部下沉子区域，地图级 monsters 0/116 全空，原宝匣材料行静默失效（只掉金币+图纸）

@@ -60,7 +60,10 @@ ALCHEMY_RECIPES = {
         },
         "min_lv": 3,
         "desc": "用圣光羽毛炼制的强效恢复药水",
-        "name": "强效治疗药水"
+        # v110 审计修复：配方名与产物 i_great_treatment 对齐（v110.11 产物已改名
+        # 「高效治疗药水」40% 档；商店另有 i_treat_strong「强效治疗药水」50% 档——
+        # 原配方名沿用旧名造成"做出高效却显示强效"的误导）
+        "name": "高效治疗药水"
     },
     "al_qiang_xiao_mo_li": {
         "cost": {

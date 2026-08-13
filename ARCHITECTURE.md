@@ -1,5 +1,12 @@
 # 《剑与魔法》重构架构设计（v46 → 分层架构）
 
+> ⚠️ **v110 审计现状注记（2026-08-14）**：本文档为 v46/v47 重构初稿，细节已与现状脱节，仅分层总览与依赖方向仍准确：
+> - 测试：原述"19 文件/227 断言"，现状 `tests/` 下 `test_*.py` 共 **124 个**（另 conftest + 3 个审计脚本），全量回归 `scripts/run_all_tests.py`（约 9 分钟）；
+> - 命令层：原述 9 文件，现状 **12 个**（新增 gm.py / instance.py / talk_actions.py）；
+> - core 层：原清单缺 ~20 个现行模块（battle_mech / battle_conds / affix_effects / achievement_conds / dialogue_conds / world_event_templates / time_weather / class_sets / food_effects / event_templates / race_talent_display / title_bonus / title_conds / hidden_cond / enchant / runes / factions / mounts / pets / wild 等）；
+> - services/ 目录已不存在（编排职责并入 commands 层）。
+> 详细分层/依赖以 `DEVELOPMENT.md`（开发规范总纲）与代码为准，本文档待重写。
+
 > 目标：高内聚低耦合、可扩展、每层可独立单元测试。
 > 前提：**删档**，移除全部迁移/兼容代码与一次性脚本。
 

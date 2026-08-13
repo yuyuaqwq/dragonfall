@@ -184,10 +184,13 @@ class CombatCmds(CommandBase):
         if mon_src is None:
             mon_src = cur_map.get("monsters", [])
         # v105 M19 P0：副本类地图若挂载当前主线击杀目标（Boss/精英），放行其遭遇判定
+        # v110 审计修复：放宽到全部图型——q11_3 击杀目标「枢机主教·奥古斯都」只挂载于
+        # 野外图 dawn_cathedral_3 的 monsters 池（role=boss），原仅 INSTANCE 图计算
+        # main_target → 该 Boss 被普通池排除后无任何遭遇路径，主线第 11 章卡死
+        #（实测 400 次探索 0 遭遇；v104 记录的"被 Lv94 秒杀"为旧版行为，v105 M19 后反转为永不出）
         main_target = None
         boss_target = None
-        if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
-            main_target = self._main_kill_target_on_map(group_id, qq_id, cur_map)
+        main_target = self._main_kill_target_on_map(group_id, qq_id, cur_map)
         for mid, name, role, lv, skills, drops in mon_src:
             # v95.23 #247：role=boss 条目不进普通怪池（boss 字段有独立判定 SA_BOSS_CHANCE），
             # 否则副本入口等区域探索 random.choice 会抽中 Boss → 无法逃跑被秒杀

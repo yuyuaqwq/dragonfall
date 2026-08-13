@@ -443,7 +443,10 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                 st["max_mp"] = int(st["max_mp"] * (1 + v))
             else:
                 src2[k] = v
-                st[k] = int(st[k] * (1 + v))
+                # v110 审计修复：非 STAT 键（如旧圣光套 bonus_2.heal）不参与属性倍率，
+                # 静默跳过防 KeyError 崩溃（特殊键由各自消费段读取）
+                if k in st:
+                    st[k] = int(st[k] * (1 + v))
         names2 = [s for s, c in active_sets(equipment).items() if c >= 2]
         sources.append({"name": f"套装2件({'/'.join(names2)})", "stats": src2, "pct": True})
     # 5. 套装 4 件属性型特效（常驻属性）

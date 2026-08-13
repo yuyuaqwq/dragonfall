@@ -975,7 +975,7 @@ PLAYER_SKILLS = {
                 "desc": "冥想！回复 15% HP，气＋2(续航)",
                 "name": "冥想",
             },
-    "sk_tie_bi": {
+    "sk_tong_qiang": {
                 "lv": 17,
                 "mp": 5,
                 "power": 0,

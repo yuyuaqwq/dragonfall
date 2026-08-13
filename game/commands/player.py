@@ -725,6 +725,15 @@ class PlayerCmds(CommandBase):
             if cur_tier != tgt_tier - 1:
                 yield event.plain_result("时机未到，先巩固当前境界吧。")
                 return
+        # v110 审计修复：跨职业（基础→隐藏）转职补降档守卫——同职业块有
+        # `cur_tier != tgt_tier-1` 拦截，跨职业路径此前无任何守卫：已达 T2 的战士
+        # 用 T1 全名『转职 龙血战士』会被静默降成 T1（分支技能整体清空），而别名
+        # 路由（按等级继承档位）会拒绝——全名/别名行为不一致，高阶位阶进度可意外回退
+        elif cur_tier > tgt_tier:
+            yield event.plain_result(
+                f"{icon} {cname}的传承位阶（{tgt_tier} 阶）低于你当前的境界（{cur_tier} 阶）——"
+                f"传承无法倒退，请以与之相称的位阶再续传承。")
+            return
         # 技能继承：lv <= 当前等级全部（v109：同职业升档保留已学+只补未学——已付费技能不因
         # 升档重复发放，消除"早转白亏技能点"；跨职业转入清空旧职业技能后传承全部）
         # v110.4 X2 P1-1：grant 为技能 ID(sk_table key)、kept 为显示名(get_player 已 C.display)——

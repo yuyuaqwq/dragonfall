@@ -125,7 +125,8 @@ async def main():
     # 防御者仇恨应提升（高于或接近最高）
     top_before = max(threat4.get(k, 0) for k in st4["alive"] if st4["alive"][k])
     check("防御拉高仇恨", threat4.get("f5", 0) > 0, str(threat4))
-    check("仇恨制 Boss 打最高", True)  # 目标选择逻辑在 _instance_boss_turn，间接验证
+    # v110 审计修复：原 `check("仇恨制 Boss 打最高", True)` 为恒真占位断言（注释自称
+    # "间接验证"但无断言动作，Boss 目标选择实际未覆盖）——删除假绿占位，避免掩盖缺口
     # 清理
     for q in ("f4", "f5"):
         m._unlock_battle("g1", q)

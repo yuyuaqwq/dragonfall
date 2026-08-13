@@ -55,6 +55,13 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
                     "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
                     (count, qq_id, item_key),
                 )
+            elif row:
+                # v110 审计修复：同 key 已存在且不可堆叠（如重复 uuid 场景）——
+                # 原裸 INSERT 撞主键抛 sqlite3.IntegrityError，公共函数应设防，退化累加
+                conn.execute(
+                    "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
+                    (count, qq_id, item_key),
+                )
             else:
                 conn.execute(
                     "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",

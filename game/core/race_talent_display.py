@@ -113,6 +113,33 @@ def _d_gold_bonus(v, name):
     return f"{name} 金币+{int(v*100)}%"
 
 
+# v110 审计修复：补 v106.2/3 新增 5 条正面天赋的展示注册（此前缺注册 →
+# format_talent 返 None → 『种族』命令静默不显示，仅 stderr 告警）
+@register("exp_bonus")
+def _d_exp_bonus(v, name):
+    return f"{name} 经验+{int(v*100)}%"
+
+
+@register("crit_dmg")
+def _d_crit_dmg(v, name):
+    return f"{name} 暴伤+{int(v*100)}%"
+
+
+@register("block")
+def _d_block(v, name):
+    return f"{name} 格挡+{int(v*100)}%"
+
+
+@register("lifesteal")
+def _d_lifesteal(v, name):
+    return f"{name} 吸血+{int(v*100)}%"
+
+
+@register("luck")
+def _d_luck(v, name):
+    return f"{name} 幸运+{int(v*100)}%"
+
+
 @register("item_effect")
 def _d_item_effect(v, name):
     return f"{name} 消耗品+{int(v*100)}%"

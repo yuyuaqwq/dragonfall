@@ -784,7 +784,6 @@ INSTANCES = {
                 "name": "破败城门",
                 "monsters": [
                     ["m_fort_guard", "要塞守卫", "dps", 18, ["ms_lian_zhan"], ["要塞残片"]],
-                    ["m_fort_guard", "要塞守卫", "dps", 18, ["ms_lian_zhan"], ["要塞残片"]],
                 ],
                 "elite": None,
                 "boss": None,
@@ -806,8 +805,11 @@ INSTANCES = {
                          ["要塞残片"]],
             },
         ],
-                "key_item": "鹿角军旗",
-        "key_source": "鹿角要塞地图探索掉落",
+                "key_item": "军旗碎片",
+        # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名——材料
+        # items.py:1565 desc 明示"可作钥匙进入鹿角要塞"，采集池 ancient/old_battlefield
+        # 产 mat_jun_qi_sui_pian；改后入口按名校验与背包材料匹配，钥匙链恢复）
+        "key_source": "古战场/旧战场遗迹采集",
 "mech": "enrage,summon",
         "hp_mult": 1.6,
         "atk_mult": 1.0,
@@ -831,7 +833,6 @@ INSTANCES = {
             {
                 "name": "试炼之门",
                 "monsters": [
-                    ["m_trial_squire", "试炼侍从", "dps", 36, ["ms_lian_zhan"], ["试炼徽记"]],
                     ["m_trial_squire", "试炼侍从", "dps", 36, ["ms_lian_zhan"], ["试炼徽记"]],
                 ],
                 "elite": None,
@@ -880,7 +881,6 @@ INSTANCES = {
                 "name": "月门",
                 "monsters": [
                     ["m_moon_priest", "月神侍僧", "dps", 60, ["ms_yue_guang_zhan"], ["月辉碎片"]],
-                    ["m_moon_priest", "月神侍僧", "dps", 60, ["ms_yue_guang_zhan"], ["月辉碎片"]],
                 ],
                 "elite": None,
                 "boss": None,
@@ -928,7 +928,6 @@ INSTANCES = {
                 "name": "冰封入口",
                 "monsters": [
                     ["m_frost_guard", "寒冰守卫", "dps", 74, ["ms_bing_xi"], ["永冻之核"]],
-                    ["m_frost_guard", "寒冰守卫", "dps", 74, ["ms_bing_xi"], ["永冻之核"]],
                 ],
                 "elite": None,
                 "boss": None,
@@ -975,7 +974,6 @@ INSTANCES = {
             {
                 "name": "风暴之门",
                 "monsters": [
-                    ["m_storm_guard", "雷暴守卫", "dps", 90, ["ms_lei_bao"], ["风暴之核"]],
                     ["m_storm_guard", "雷暴守卫", "dps", 90, ["ms_lei_bao"], ["风暴之核"]],
                 ],
                 "elite": None,
@@ -1065,7 +1063,7 @@ INSTANCES = {
                         "ms_wan_dao"
                     ],
                     [
-                        "沉船湾船票"
+                        "幽灵船票"
                     ]
                 ]
             },
@@ -1087,8 +1085,10 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "沉船湾船票",
-        "key_source": "铁港码头精英·海盗精锐掉落",
+        "key_item": "幽灵船票",
+        # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名——采集池
+        # shipwreck_graveyard 产 mat_you_ling_chuan_piao，材料 desc 明示"可作钥匙进入沉船湾"）
+        "key_source": "沉船湾墓地采集",
 "mech": "summon,heal",
         "hp_mult": 1.8,
         "atk_mult": 1.1,
@@ -1277,7 +1277,8 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "海神殿祷文",
+        "key_item": "海神祷文",
+        # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "无名港灯塔任务奖励",
 "mech": "shield,phase",
         "hp_mult": 2.5,
@@ -1357,7 +1358,7 @@ INSTANCES = {
                         "ms_du_ya"
                     ],
                     [
-                        "龙宫宝珠"
+                        "龙宫珠"
                     ]
                 ]
             },
@@ -1379,7 +1380,8 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "龙宫宝珠",
+        "key_item": "龙宫珠",
+        # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "龙鲸海域精英·龙鲸掉落",
 "mech": "reflect,stacks",
         "hp_mult": 2.7,

@@ -7,12 +7,14 @@ lv 用相对值（如 +2 = 地图等级+2），combat 展开时换算。
 """
 
 # 隐藏怪物表：key = id，value = dict
-# cond 出现条件（combat 判定）：
-#   forest  森林类地图（type 或 id 含 forest/wood/glade）
-#   water   水域类地图（river/lake/sea/reef/dock）
-#   ruin    遗迹/地底（ruin/mine/abyss/battlefield/altar/underground）
-#   night   仅夜间（时间系统时段为夜晚）
-#   any     任意野外
+# cond 出现条件（combat 判定，见 core/hidden_cond.py ENV_KEYWORDS/CONDITIONS）：
+#   forest      森林类地图（id 含 forest/wood/glade）
+#   water       水域类地图（id 含 river/lake/sea/reef/dock/swamp/brook/trench，v110 补 trench）
+#   ruin        遗迹/地底（id 含 ruin/mine/abyss/battlefield/altar/tunnel/crypt）
+#   forest_night 森林且夜间
+#   night_any   仅夜间（时间系统时段为夜晚）
+#   any         任意野外
+# （v110 审计：docstring 原写 night/underground 与实际键不符，已对齐）
 HIDDEN_MONSTERS = {
     "e_gold_slime": {
         "id": "e_gold_slime", "name": "黄金史莱姆", "role": "elite",

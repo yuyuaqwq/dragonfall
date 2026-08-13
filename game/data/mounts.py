@@ -43,7 +43,7 @@ MOUNT_POOL = [
     {"key": "mount_ghost", "name": "幽灵马", "icon": "👻", "quality": "purple", "lv": 45, "price": 0,
      "discount": 0.40, "elite_bonus": 0.0, "stamina_reduce": 0.0, "sell_bonus": 0.0,
      "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.05,
-     "desc": "午夜马厩里走出的幻影。传送费－40%，战斗经验＋5%(幽灵谷地 Boss 稀有掉落『幽灵缰绳』)"},
+     "desc": "午夜马厩里走出的幻影。传送费－40%，战斗经验＋5%(Boss 稀有掉落『幽灵缰绳』)"},
     {"key": "mount_unicorn", "name": "森林独角兽", "icon": "🦄", "quality": "purple", "lv": 45, "price": 0,
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.10, "sell_bonus": 0.0,
      "collect_bonus": 0.10, "fish_bonus": 0.0, "exp_mult": 0.0,
@@ -52,11 +52,11 @@ MOUNT_POOL = [
     {"key": "mount_griffin", "name": "狮鹫", "icon": "🦅", "quality": "orange", "lv": 60, "price": 0,
      "discount": 0.40, "elite_bonus": 0.10, "stamina_reduce": 0.20, "sell_bonus": 0.10,
      "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.10,
-     "desc": "翱翔天际的传说坐骑。传送费－40%，精英率＋10%，探索/移动 20% 概率不耗体力，出售＋10%，经验＋10%(传说 Boss 极稀有掉落『狮鹫缰绳』)"},
+     "desc": "翱翔天际的传说坐骑。传送费－40%，精英率＋10%，探索/移动 20% 概率不耗体力，出售＋10%，经验＋10%(Boss 极稀有掉落『狮鹫缰绳』)"},
     {"key": "mount_warhorse", "name": "炎蹄战马", "icon": "🔥", "quality": "orange", "lv": 55, "price": 0,
      "discount": 0.35, "elite_bonus": 0.05, "stamina_reduce": 0.10, "sell_bonus": 0.0,
      "collect_bonus": 0.0, "fish_bonus": 0.10, "exp_mult": 0.05,
-     "desc": "蹄下燃着烈焰的战争坐骑。传送费－35%，精英率＋5%，探索/移动 10% 概率不耗体力，钓鱼产出＋10%，经验＋5%(传说 Boss 极稀有掉落『炎蹄缰绳』)"},
+     "desc": "蹄下燃着烈焰的战争坐骑。传送费－35%，精英率＋5%，探索/移动 10% 概率不耗体力，钓鱼产出＋10%，经验＋5%(Boss 极稀有掉落『炎蹄缰绳』)"},
 ]
 
 MOUNT_BY_KEY = {m["key"]: m for m in MOUNT_POOL}

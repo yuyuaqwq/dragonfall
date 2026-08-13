@@ -90,7 +90,8 @@ async def main():
     out = await cmd(m, "quest_accept", "g1", "w5", "接取 海盗王·独眼杰克")
     check("接取提示建议等级", "建议等级 Lv.25" in out, out[:400])
     p = db.get_player("g1", "w5")
-    check("仍然接取成功", p.get("class_tier") is not None and True, "")
+    # v110 审计修复：原 `is not None and True` 恒真（左侧判定被 and True 架空）
+    check("仍然接取成功", p.get("class_tier") is not None, str(p.get("class_tier")))
     qs = db.get_quests("g1", "w5")
     check("主线已激活", qs.get("main_status") == "active", str(qs.get("main_status")))
 

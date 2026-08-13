@@ -50,8 +50,10 @@ def _c_level(player, stats, profs, extra, cond):
 
 @register("evolve")
 def _c_evolve(player, stats, profs, extra, cond):
-    """转职阶数"""
-    return player.get("evolve_path", 0) >= _value(cond)
+    """转职阶数（v110 审计修复：原判 evolve_path——该字段只存分支序号(1/2)，
+    导致 ach_evolve3 永不可达、ach_evolve2 被 30 级一转防御分支误解锁；
+    改判 class_tier 档位（1/2/3 = 一/二/三转），隐藏线 60/75/90 档同步成立）"""
+    return player.get("class_tier", 0) >= _value(cond)
 
 
 @register("learned")

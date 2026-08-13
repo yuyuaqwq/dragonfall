@@ -237,6 +237,9 @@ def update_player(group_id, qq_id, **fields):
                         v = [C.resolve("skills", s) if s else s for s in v]
                     elif k == "skill_levels" and isinstance(v, dict):
                         v = {C.resolve("skills", kk) if kk else kk: vv for kk, vv in v.items()}
+                    # 注意（v110 审计）：attributes/portals 也在 PLAYER_FIELDS 白名单但不在本
+                    # 自动序列化分支——调用方必须先 json.dumps 预序列化，传原始 dict/list 会
+                    # 撞 SQLite 绑定报错（现全部调用方均预序列化，此处仅为陷阱提示）
                     v = json.dumps(v, ensure_ascii=False)
                 sets.append(f"{k}=?")
                 vals.append(v)
@@ -349,6 +352,8 @@ def set_skill_bar(qq_id, bar: list):
 # B2 加固（2026-08-10）：注销角色时按 qq_id 清理的关联表白名单。
 # 新增表（且该表有 qq_id 列）时必须同步加进这里，否则注销会残留数据。
 # event_state 无 qq_id 列，按键后缀 {prefix}_{qq} / {prefix}:{qq} 存储，在 delete_player 内单独清理。
+# 注（v110 审计）：guild_members/feedback 亦有 qq_id 列但不在常量——guild_members 由
+# delete_player 内手动处理（退会/解散），feedback 有意保留历史（含原 qq 绑定，不清理）。
 DELETE_TABLES = (
     "inventory", "quests", "battle_state", "achievements", "stats",
     "reputation", "signin", "fishing", "bestiary", "visited",
@@ -376,7 +381,7 @@ def delete_player(qq_id):
     清理表：inventory / quests / battle_state / achievements / stats /
     reputation / signin / fishing / bestiary / visited / player_groups /
     professions / pets / props_use / pet_dex / market(卖出) / party(队长或队员)
-    / guild_members / feedback(保留历史意见，仅清空 qq 归属标记由 create 重建)
+    / guild_members(退会；会长则解散公会) / feedback(历史意见保留、不清理)
     / event_state(按键后缀精确匹配，v104 补)。
     返回是否删除成功（False = 该 qq 无角色）。
     """
