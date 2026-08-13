@@ -170,6 +170,7 @@ class Battle:
         self.e_first: bool = False            # 敌方是否先手（速度更快）
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
         self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
+        self._death_pact_used: bool = False   # v107 死亡契约（亡灵术士）：每场 1 次标记
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
@@ -200,6 +201,7 @@ class Battle:
             "e_first": self.e_first,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
+            "death_pact_used": getattr(self, "_death_pact_used", False),
             # v104 M02 P2-9：断线恢复后 burst 机制（灼烧引爆/剑刃风暴/神恩护盾）与
             # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
             "last_player": getattr(self, "_last_player", None),
@@ -233,6 +235,7 @@ class Battle:
         b.e_first = bool(st.get("e_first", False))
         b._player_hit = bool(st.get("player_hit", False))
         b.first_attack_done = bool(st.get("first_attack_done", False))
+        b._death_pact_used = bool(st.get("death_pact_used", False))
         # v104 M02 P2-9：恢复 _last_player/_shifted_element；_last_player 为空保持
         # 未设置（hasattr=False，避免 battle_mech 对 None 调 _player_stats 崩溃）
         _lp = st.get("last_player")
@@ -1484,6 +1487,13 @@ class Battle:
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         if info.get("summon"):
             self._summon_entity(info["summon"], player, logs)
+        # v107 血魔法（血法师）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
+        self._hp_cost_bonus = 0.0
+        if info.get("hp_cost") and player.get("hp", 0) > 0:
+            cost = max(1, int(player["hp"] * float(info["hp_cost"])))
+            player["hp"] = max(1, player.get("hp", 0) - cost)
+            logs.append(f"🧛 血之代价：消耗 {cost} 点生命换取力量！")
+            self._hp_cost_bonus = 0.30
         # v56：叠层随技能等级成长（每 2 级 +1 层）
         mval = E.skill_mech_val(info, lv)
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
@@ -1596,6 +1606,18 @@ class Battle:
             for _pn, _ps in _procs.get("counter", []):
                 passive_bonus *= float(_ps.get("mult", 1.3))
             del self.p_buffs["revenge_atk"]
+        # v107 斩杀（影武者）：目标 HP<30% 时伤害加成（cond_hp 斩杀线 / mult 加成）
+        _execute_tag = ""
+        if self.enemy.get("hp", 0) > 0 and self.enemy.get("max_hp", 1) > 0:
+            _hp_ratio = self.enemy["hp"] / self.enemy["max_hp"]
+            for _pn, _ps in _procs.get("execute", []):
+                if _hp_ratio < float(_ps.get("cond_hp", 0.30)):
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.40)))
+                    _execute_tag = f"⚔️斩杀x{round(1 + float(_ps.get('mult', 0.40)), 2)}"
+                    break
+        # v107 血魔法（血法师）：hp_cost 换 +30% 伤害
+        if self._hp_cost_bonus:
+            passive_bonus *= (1 + self._hp_cost_bonus)
         # 元素反应增伤（元素共鸣：触发反应时 +15%）
         for _pn, _ps in _procs.get("reaction", []):
             self._elem_reaction_boost = float(_ps.get("mult", 1.15))
@@ -1694,6 +1716,13 @@ class Battle:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
             logs.append(f"你施展【{skill_name}】，造成 {total} 点伤害！")
+        # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
+        if info.get("mp_steal") and total > 0:
+            gain = int(total * float(info["mp_steal"]))
+            if gain > 0:
+                player["mp"] = min(player.get("max_mp", C.DEFAULT_MAX_MP),
+                                   player.get("mp", 0) + gain)
+                logs.append(f"🌑 虚空汲取：回复 {gain} 点魔力！")
         # 特效合并成紧凑标签（避免一行堆满长后缀）
         tags = []
         if is_crit:
@@ -1711,6 +1740,12 @@ class Battle:
             tags.append(f"⚔️{cond_label}")
         if mb_lvl:
             tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
+        # v107 斩杀标签（影武者）
+        if _execute_tag:
+            tags.append(_execute_tag)
+        # v107 血魔法标签（血法师）
+        if self._hp_cost_bonus:
+            tags.append("🧛血祭x1.3")
         # 阶段八：词条伤害标签（处决/追猎/精准等）
         if affix_tags:
             tags.extend(affix_tags)
@@ -1778,6 +1813,9 @@ class Battle:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
         # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         self._resource_on_skill(player, info)
+        # v107 单宠进化（兽王）：summon_evolve 字段升级当前狼宠形态（1幼狼→2狼王→3影狼）
+        if info.get("summon_evolve"):
+            self._summon_evolve(int(info["summon_evolve"]), player, logs)
         # ---- v10 套装攻击特效 ----
         if total > 0:
             self._set_attack_proc(player, total, logs)
@@ -2481,6 +2519,36 @@ class Battle:
             self.summons.remove(s)
         return 0
 
+    def _summon_evolve(self, stage: int, player: dict, logs: list) -> bool:
+        """v107 单宠进化（兽王）：升级当前狼宠形态（1 幼狼 → 2 狼王 → 3 影狼真伤）。
+        无狼宠时提示先召唤；进化后属性按新模板重算并回满血。"""
+        try:
+            from .data.summons import SUMMONS
+        except Exception:
+            return False
+        cur = [s for s in self.summons if str(s.get("tid", "")).startswith("wolf")]
+        if not cur:
+            logs.append("🐺 没有可进化的伙伴！先召唤幼狼吧。")
+            return False
+        stage_map = {1: "wolf_cub", 2: "wolf_king", 3: "shadow_wolf"}
+        target = stage_map.get(stage)
+        tmpl = SUMMONS.get(target) if target else None
+        if not tmpl:
+            return False
+        s = cur[0]
+        st = self._player_stats(player)
+        sp = float(st.get("summon_power", 0) or 0)
+        s["tid"] = target
+        s["name"] = tmpl["name"]
+        s["icon"] = tmpl.get("icon", "")
+        s["max_hp"] = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
+        s["atk"] = max(5, int(st.get("atk", 50) * float(tmpl["atk_ratio"]) * (1 + sp)))
+        s["def"] = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
+        s["dmg_type"] = tmpl.get("dmg_type", "phys")
+        s["hp"] = s["max_hp"]  # 进化回满
+        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 进化了！(HP {s['max_hp']} / 攻击 {s['atk']})")
+        return True
+
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
             return
@@ -2522,6 +2590,14 @@ class Battle:
             block_reduce = max(1, int(dmg * 0.5))
             dmg = max(1, dmg - block_reduce)
             logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
+            # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
+            for _pn, _ps in self._passive_map(player)["proc"].get("block_counter", []):
+                if self.enemy.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
+                    rd = max(1, int(dmg * float(_ps.get("mult", 0.5))))
+                    rd = self._boss_dmg_filter(rd, player, logs)
+                    self._damage_enemy(rd, logs)
+                    logs.append(f"🛡️ 格挡反击！反弹 {rd} 点伤害！")
+                break
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
         for _pn, _ps in self._passive_map(player)["proc"].get("counter", []):
@@ -2567,6 +2643,20 @@ class Battle:
                 rd = self._boss_dmg_filter(rd, player, logs)
                 self._damage_enemy(rd, logs)
                 logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
+        # v107 反击（武圣）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
+        if self.enemy.get("hp", 0) > 0:
+            for _pn, _ps in self._passive_map(player)["proc"].get("counter_attack", []):
+                if random.random() < float(_ps.get("chance", 0.20)):
+                    _st_ca = self._player_stats(player)
+                    _est_ca = self._enemy_stats()
+                    _ca_crit = random.random() < float(_st_ca.get("crit", 0) or 0)
+                    ca_dmg = E.calc_damage(_st_ca["atk"], _est_ca.get("def", 0), _ca_crit,
+                                           dmg_type="phys")
+                    ca_dmg = self._boss_dmg_filter(ca_dmg, player, logs)
+                    self._damage_enemy(ca_dmg, logs)
+                    logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
+                                + (" 💥暴击" if _ca_crit else ""))
+                break
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
@@ -2626,6 +2716,14 @@ class Battle:
                 if dmg <= 0:
                     return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
+        # v107 死亡契约（亡灵术士）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
+        if player["hp"] <= 0 and self.summons and not self._death_pact_used:
+            for _pn, _ps in self._passive_map(player)["proc"].get("death_pact", []):
+                self._death_pact_used = True
+                fallen = self.summons.pop()
+                player["hp"] = max(1, int(player.get("max_hp", player["hp"]) * 0.20))
+                logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {player['hp']} HP 站起！")
+                break
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)

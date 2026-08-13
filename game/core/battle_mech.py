@@ -321,12 +321,21 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 @register(MECH_EFFECTS, "poison_burst")
 def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
-    """毒爆：每层立即 15% 攻击"""
+    """v107 毒爆（丛林猎手）：poison 层数≥3 可引爆——每层 15% 魔攻魔法伤害（毒=魔法段，
+    吃 mdef/魔免/元素抗？毒非元素不吃元素抗；v107 伤害类型 dmg_type="magi"），清层。"""
     n = p_mech.get("poison", 0)
-    bonus = int(total * n * 0.15)
-    _burst_damage(battle, bonus, logs)
-    logs.append(f"☠️ 毒爆！{n} 层额外 {bonus} 伤害")
+    if n < 3:
+        logs.append(f"☠️ 毒层 {n}（≥3 层可引爆）")
+        return
+    st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
+    if st2 and n:
+        from ..engine import calc_damage as _calc  # v107 局部导入防循环依赖
+        est = battle._enemy_stats()
+        d = _calc(int(st2["matk"] * 0.15 * n), est.get("mdef", 0), dmg_type="magi")
+        _burst_damage(battle, d, logs)
+        logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点魔法伤害")
     p_mech["poison"] = 0
+    battle.e_buffs.pop("poison", None)
 
 
 @register(MECH_EFFECTS, "chi")
