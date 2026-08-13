@@ -3073,6 +3073,389 @@ BRANCH_SKILLS = {
     },
 }
 
+# ================= v107 隐藏职业技能（11 职业，2026-08-13 鱼鱼拍板设计） =================
+# 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五 + 12 章 12.5
+# 机制字段：true_dmg(真伤)/mp_steal(吸MP)/hp_cost(血魔法)/summon(召唤)/summon_evolve(进化)
+# proc：execute(斩杀)/block_counter(格挡反击)/counter_attack(反击)/death_pact(死亡契约)
+_ADD_HIDDEN_SKILLS = {
+    "cls_arcanist": {
+        "skills": {
+            "sk_ao_shu_fei_dan": {
+                "lv": 40, "mp": 15, "power": 1.0, "kind": "魔法",
+                "mech": "arcane", "mech_val": 1, "cd": 1,
+                "desc": "奥术飞弹！100% 魔法伤害，命中叠 1 层奥术印记(可爆发)",
+                "name": "奥术飞弹",
+            },
+            "sk_ao_shu_mai_chong": {
+                "lv": 48, "mp": 25, "power": 1.6, "kind": "魔法",
+                "mech": "arcane_burst", "mech_val": 0, "cd": 3,
+                "desc": "奥术脉冲！160% 魔法伤害，引爆全部奥术印记(每层追加伤害)",
+                "name": "奥术脉冲",
+            },
+            "sk_mi_fa_hu_dun": {
+                "lv": 56, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "shield_all", "cd": 4,
+                "desc": "秘法护盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
+                "name": "秘法护盾",
+            },
+            "sk_ao_shu_he_xin": {
+                "lv": 60, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "arcane_dmg", "mult": 0.15},
+                "desc": "被动：奥术核心，奥术系伤害＋15%",
+                "name": "奥术核心",
+            },
+            "sk_ao_shu_bao_fa": {
+                "lv": 72, "mp": 40, "power": 2.2, "kind": "魔法",
+                "mech": "arcane_burst", "mech_val": 0, "cd": 4,
+                "desc": "奥术爆发！220% 魔法伤害，引爆全部奥术印记",
+                "name": "奥术爆发",
+            },
+        },
+    },
+    "cls_shadow_blade": {
+        "skills": {
+            "sk_ying_ji": {
+                "lv": 40, "mp": 15, "power": 1.3, "kind": "物理",
+                "mech": "shadow", "mech_val": 1, "cd": 2,
+                "desc": "影袭！130% 物理伤害，满血目标必暴击",
+                "name": "影袭",
+            },
+            "sk_can_xue_zhui_lie": {
+                "lv": 45, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.30},
+                "desc": "被动：残血追猎，目标生命低于 30% 时伤害＋40%",
+                "name": "残血追猎",
+            },
+            "sk_an_ying_bu": {
+                "lv": 52, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "stealth", "cd": 4,
+                "desc": "暗影步！进入潜行，下次攻击必定暴击",
+                "name": "暗影步",
+            },
+            "sk_shou_ge": {
+                "lv": 60, "mp": 25, "power": 1.5, "kind": "物理",
+                "cond": {"type": "enemy_hp_low", "hp_pct": 0.5, "mult": 1.3, "label": "收割"},
+                "cd": 3,
+                "desc": "收割！150% 物理伤害，目标生命低于 50% 时伤害＋30%",
+                "name": "收割",
+            },
+            "sk_ying_ren": {
+                "lv": 75, "mp": 35, "power": 2.0, "kind": "物理",
+                "mech": "shadow", "mech_val": 1, "cd": 4,
+                "desc": "影刃！200% 物理伤害，满血目标必暴击",
+                "name": "影刃",
+            },
+        },
+    },
+    "cls_dragon_warrior": {
+        "skills": {
+            "sk_long_xi": {
+                "lv": 40, "mp": 20, "power": 0.7, "kind": "真伤",
+                "mech": "burn", "mech_val": 1, "cd": 2,
+                "desc": "龙息！70% 真伤(无视全部防御)，附带灼烧 1 层",
+                "name": "龙息",
+            },
+            "sk_long_lin": {
+                "lv": 46, "mp": 15, "power": 0, "kind": "增益",
+                "effect": "def_up", "cd": 3,
+                "desc": "龙鳞！防御＋45% 2 回合",
+                "name": "龙鳞",
+            },
+            "sk_long_wei": {
+                "lv": 54, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "mon_atk_down", "cd": 4,
+                "desc": "龙威！敌方攻击－30% 3 回合",
+                "name": "龙威",
+            },
+            "sk_long_hun": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "elem_res", "add": 0.05},
+                "desc": "被动：龙魂，元素抗性＋5%",
+                "name": "龙魂",
+            },
+            "sk_long_xi_zhi_nu": {
+                "lv": 75, "mp": 35, "power": 0.9, "kind": "真伤",
+                "mech": "burn", "mech_val": 2, "cd": 4,
+                "desc": "龙息之怒！90% 真伤(无视全部防御)，附带灼烧 2 层",
+                "name": "龙息之怒",
+            },
+        },
+    },
+    "cls_void_walker": {
+        "skills": {
+            "sk_xu_kong_jian": {
+                "lv": 40, "mp": 15, "power": 1.2, "kind": "魔法",
+                "mp_steal": 0.15, "cd": 1,
+                "desc": "虚空箭！120% 魔法伤害，回复 15% 伤害值的魔力",
+                "name": "虚空箭",
+            },
+            "sk_shen_yuan_ning_shi": {
+                "lv": 48, "mp": 20, "power": 1.1, "kind": "魔法",
+                "mech": "spd_down", "mech_chance": 0.5, "cd": 3,
+                "desc": "深渊凝视！110% 魔法伤害，50% 概率减速目标 2 回合",
+                "name": "深渊凝视",
+            },
+            "sk_xu_kong_xing_zou": {
+                "lv": 56, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "dodge_up", "cd": 4,
+                "desc": "虚空行走！闪避＋40% 3 回合",
+                "name": "虚空行走",
+            },
+            "sk_an_ying_chong_ji": {
+                "lv": 65, "mp": 25, "power": 1.5, "kind": "魔法",
+                "mech": "shadow", "mech_val": 1, "mp_steal": 0.15, "cd": 3,
+                "desc": "暗影冲击！150% 魔法伤害，满血目标必暴击，回复魔力",
+                "name": "暗影冲击",
+            },
+            "sk_xu_kong_bao_po": {
+                "lv": 78, "mp": 40, "power": 2.0, "kind": "魔法",
+                "mp_steal": 0.20, "cd": 4,
+                "desc": "虚空爆破！200% 魔法伤害，回复 20% 伤害值的魔力",
+                "name": "虚空爆破",
+            },
+        },
+    },
+    "cls_astrologer": {
+        "skills": {
+            "sk_xing_yun": {
+                "lv": 40, "mp": 15, "power": 1.25, "kind": "物理",
+                "mech": "wind", "mech_val": 1, "cd": 2,
+                "desc": "星陨！125% 物理伤害，风印叠层(连击加速)",
+                "name": "星陨",
+            },
+            "sk_zhan_bu": {
+                "lv": 46, "mp": 15, "power": 0, "kind": "增益",
+                "effect": "crit_up", "cd": 3,
+                "desc": "占卜！暴击＋20% 3 回合",
+                "name": "占卜",
+            },
+            "sk_ming_yun_zhi_lun": {
+                "lv": 55, "mp": 30, "power": 1.0, "kind": "魔法",
+                "multi": 3, "cd": 4,
+                "desc": "命运之轮！100% 魔法伤害连击 3 次(命运多段)",
+                "name": "命运之轮",
+            },
+            "sk_xing_chen_zhi_li": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "luck", "add": 0.05},
+                "desc": "被动：星辰之力，幸运＋5%",
+                "name": "星辰之力",
+            },
+            "sk_xing_ji": {
+                "lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
+                "mech": "wind", "mech_val": 1, "cd": 4,
+                "desc": "星祭！180% 物理伤害，风印叠层",
+                "name": "星祭",
+            },
+        },
+    },
+    "cls_jungle_hunter": {
+        "skills": {
+            "sk_du_jian": {
+                "lv": 40, "mp": 12, "power": 1.0, "kind": "物理",
+                "mech": "poison", "mech_val": 1, "cd": 1,
+                "desc": "毒箭！100% 物理伤害，叠 1 层毒(每回合 3% 生命)",
+                "name": "毒箭",
+            },
+            "sk_teng_man_chan_rao": {
+                "lv": 46, "mp": 18, "power": 0.8, "kind": "魔法",
+                "mech": "poison", "mech_val": 2, "cd": 2,
+                "desc": "藤蔓缠绕！80% 魔法伤害，叠 2 层毒",
+                "name": "藤蔓缠绕",
+            },
+            "sk_du_bao": {
+                "lv": 55, "mp": 25, "power": 0.6, "kind": "魔法",
+                "mech": "poison_burst", "mech_val": 1, "cd": 3,
+                "desc": "毒爆！60% 魔法伤害，毒层≥3 引爆(每层 15% 魔攻魔法伤害)",
+                "name": "毒爆",
+            },
+            "sk_ju_du_zhi_xin": {
+                "lv": 60, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "poison_dmg", "mult": 0.20},
+                "desc": "被动：剧毒之心，毒系技能伤害＋20%",
+                "name": "剧毒之心",
+            },
+            "sk_wan_du_jian": {
+                "lv": 75, "mp": 30, "power": 1.5, "kind": "物理",
+                "mech": "poison", "mech_val": 3, "cd": 3,
+                "desc": "万毒箭！150% 物理伤害，叠 3 层毒",
+                "name": "万毒箭",
+            },
+        },
+    },
+    "cls_templar": {
+        "skills": {
+            "sk_sheng_dun": {
+                "lv": 40, "mp": 15, "power": 0, "kind": "增益",
+                "effect": "shield_all", "cd": 4,
+                "desc": "圣盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
+                "name": "圣盾",
+            },
+            "sk_sheng_guang_shen_pan": {
+                "lv": 48, "mp": 25, "power": 1.4, "kind": "魔法",
+                "cd": 2,
+                "desc": "圣光审判！140% 魔法伤害",
+                "name": "圣光审判",
+            },
+            "sk_bi_lei": {
+                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "block", "add": 0.05},
+                "desc": "被动：壁垒，格挡＋5%",
+                "name": "壁垒",
+            },
+            "sk_sheng_qi_shou_hu": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "block_counter", "chance": 0.5, "mult": 0.5},
+                "desc": "被动：圣骑守护，格挡成功后 50% 概率反弹 50% 伤害",
+                "name": "圣骑守护",
+            },
+            "sk_sheng_guang_bi_lei": {
+                "lv": 75, "mp": 30, "power": 0, "kind": "增益",
+                "effect": "def_up", "cd": 4,
+                "desc": "圣光壁垒！防御＋45% 3 回合",
+                "name": "圣光壁垒",
+            },
+        },
+    },
+    "cls_wu_sheng": {
+        "skills": {
+            "sk_tie_shan_kao": {
+                "lv": 40, "mp": 12, "power": 1.3, "kind": "物理",
+                "mech": "chi", "mech_val": 1, "cd": 1,
+                "desc": "铁山靠！130% 物理伤害，气＋1",
+                "name": "铁山靠",
+            },
+            "sk_yi_shou_wei_gong": {
+                "lv": 45, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "counter_attack", "chance": 0.20},
+                "desc": "被动：以守为攻，受击 20% 概率立即普攻反击",
+                "name": "以守为攻",
+            },
+            "sk_qi_jin_lian_da": {
+                "lv": 55, "mp": 20, "power": 1.4, "kind": "物理",
+                "combo": "拳", "cd": 2,
+                "desc": "气劲连打！140% 物理伤害，拳连招(拳-踢-掌三连追加)",
+                "name": "气劲连打",
+            },
+            "sk_fan_ji_zhi_wang": {
+                "lv": 70, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "counter_attack", "chance": 0.30},
+                "desc": "被动：反击之王，受击 30% 概率立即普攻反击",
+                "name": "反击之王",
+            },
+            "sk_qi_bao": {
+                "lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
+                "mech": "chi_burst", "mech_val": 0, "cd": 4,
+                "desc": "气爆！180% 物理伤害，引爆全部气力(每点＋12%)",
+                "name": "气爆",
+            },
+        },
+    },
+    "cls_blood_mage": {
+        "skills": {
+            "sk_xue_zhi_qi_yue": {
+                "lv": 40, "mp": 20, "power": 1.5, "kind": "魔法",
+                "hp_cost": 0.10, "cd": 2,
+                "desc": "血之契约！消耗 10% 当前生命，150% 魔法伤害(血祭＋30%)",
+                "name": "血之契约",
+            },
+            "sk_xing_hong_ji_qu": {
+                "lv": 46, "mp": 15, "power": 1.2, "kind": "魔法",
+                "lifesteal": 0.20, "cd": 2,
+                "desc": "猩红汲取！120% 魔法伤害，汲取 20% 伤害值的生命",
+                "name": "猩红汲取",
+            },
+            "sk_xue_dun": {
+                "lv": 55, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "shield_all", "cd": 4,
+                "desc": "血盾！获得 20% 魔攻护盾 3 回合",
+                "name": "血盾",
+            },
+            "sk_xue_ji_zhi_li": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "lifesteal_magi", "add": 0.05},
+                "desc": "被动：血祭之力，法术吸血＋5%",
+                "name": "血祭之力",
+            },
+            "sk_xue_bao": {
+                "lv": 75, "mp": 40, "power": 2.2, "kind": "魔法",
+                "hp_cost": 0.15, "cd": 4,
+                "desc": "血爆！消耗 15% 当前生命，220% 魔法伤害(血祭＋30%)",
+                "name": "血爆",
+            },
+        },
+    },
+    "cls_necromancer": {
+        "skills": {
+            "sk_zhao_huan_ku_lou": {
+                "lv": 40, "mp": 20, "power": 0, "kind": "增益",
+                "summon": "skeleton", "cd": 3,
+                "desc": "召唤骷髅！召唤骷髅兵加入战斗(上限 3，自动攻击＋挡刀)",
+                "name": "召唤骷髅",
+            },
+            "sk_wang_ling_kuang_bao": {
+                "lv": 48, "mp": 20, "power": 0, "kind": "增益",
+                "effect": "atk_up", "cd": 3,
+                "desc": "亡灵狂暴！攻击＋30% 3 回合",
+                "name": "亡灵狂暴",
+            },
+            "sk_si_wang_qi_yue": {
+                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "death_pact"},
+                "desc": "被动：死亡契约，致命伤害由召唤物代受(以 20% 生命存活，每场 1 次)",
+                "name": "死亡契约",
+            },
+            "sk_mu_xue_hu_jia": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "phys_reduce", "add": 0.05},
+                "desc": "被动：墓穴护甲，物理免伤＋5%",
+                "name": "墓穴护甲",
+            },
+            "sk_ku_lou_hai": {
+                "lv": 70, "mp": 30, "power": 0, "kind": "增益",
+                "summon": "skeleton", "effect": "atk_up", "cd": 5,
+                "desc": "骷髅海！召唤骷髅兵并攻击＋30% 3 回合",
+                "name": "骷髅海",
+            },
+        },
+    },
+    "cls_beast_king": {
+        "skills": {
+            "sk_xun_shou_zhao_huan": {
+                "lv": 40, "mp": 20, "power": 0, "kind": "增益",
+                "summon": "wolf_cub", "cd": 3,
+                "desc": "驯兽召唤！召唤幼狼加入战斗(自动攻击＋挡刀)",
+                "name": "驯兽召唤",
+            },
+            "sk_lang_qun_zhi_ling": {
+                "lv": 48, "mp": 25, "power": 0, "kind": "增益",
+                "summon_evolve": 2, "effect": "atk_up", "cd": 4,
+                "desc": "狼群指令！狼宠进化为狼王，攻击＋30% 3 回合",
+                "name": "狼群指令",
+            },
+            "sk_ye_xing_hu_huan": {
+                "lv": 56, "mp": 30, "power": 0, "kind": "增益",
+                "summon_evolve": 3, "effect": "atk_up", "cd": 5,
+                "desc": "野性呼唤！狼宠进化为影狼(真伤)，攻击＋30% 3 回合",
+                "name": "野性呼唤",
+            },
+            "sk_wan_shou_zhi_li": {
+                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "summon_power", "add": 0.10},
+                "desc": "被动：万兽之力，召唤强化＋10%",
+                "name": "万兽之力",
+            },
+            "sk_ying_lang_zhi_ren": {
+                "lv": 75, "mp": 25, "power": 1.3, "kind": "物理",
+                "cd": 2,
+                "desc": "影狼之刃！130% 物理伤害(人宠协同)",
+                "name": "影狼之刃",
+            },
+        },
+    },
+}
+PLAYER_SKILLS.update(_ADD_HIDDEN_SKILLS)
+
 # v95.23 职业导师进阶技能：各城导师专属，普通『技能学习』学不到，需找导师对话学习
 # 格式与 PLAYER_SKILLS 技能一致（battle/engine 按名字查定义）
 TUTOR_SKILLS = {

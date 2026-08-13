@@ -1487,6 +1487,10 @@ class Battle:
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         if info.get("summon"):
             self._summon_entity(info["summon"], player, logs)
+        # v107 单宠进化（兽王）：summon_evolve 字段升级当前狼宠形态（1幼狼→2狼王→3影狼）
+        # 必须在入口处理（增益分支提前 return，末尾挂点不达）
+        if info.get("summon_evolve"):
+            self._summon_evolve(int(info["summon_evolve"]), player, logs)
         # v107 血魔法（血法师）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
         self._hp_cost_bonus = 0.0
         if info.get("hp_cost") and player.get("hp", 0) > 0:
@@ -1813,9 +1817,6 @@ class Battle:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
         # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         self._resource_on_skill(player, info)
-        # v107 单宠进化（兽王）：summon_evolve 字段升级当前狼宠形态（1幼狼→2狼王→3影狼）
-        if info.get("summon_evolve"):
-            self._summon_evolve(int(info["summon_evolve"]), player, logs)
         # ---- v10 套装攻击特效 ----
         if total > 0:
             self._set_attack_proc(player, total, logs)

@@ -205,6 +205,13 @@ _PASSIVE_STAT_APPLY = {
     "magic_reduce": ("magic_reduce_add", "add", False),
     "lifesteal_phys": ("lifesteal_phys_add", "add", False),
     "lifesteal_magi": ("lifesteal_magi_add", "add", False),
+    # v107 隐藏职业专属属性被动支持（面板结算 + 战斗内消费）
+    "heal_power": ("heal_power_add", "add", False),
+    "shield_power": ("shield_power_add", "add", False),
+    "elem_res": ("elem_res_add", "add", False),
+    "abyss_res": ("abyss_res_add", "add", False),
+    "luck": ("luck_add", "add", False),
+    "summon_power": ("summon_power_add", "add", False),
 }
 
 
@@ -225,7 +232,9 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
              "pene_phys_add": 0.0, "pene_magi_add": 0.0,  # v106.2 穿透被动
              "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0,  # v106.3 吸血/暴伤/格挡被动
              "thorns_add": 0.0, "phys_reduce_add": 0.0, "magic_reduce_add": 0.0,
-             "lifesteal_phys_add": 0.0, "lifesteal_magi_add": 0.0}  # v106.4 反伤/物魔免/物法吸被动
+             "lifesteal_phys_add": 0.0, "lifesteal_magi_add": 0.0,
+             "heal_power_add": 0.0, "shield_power_add": 0.0, "elem_res_add": 0.0,
+             "abyss_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0}  # v106.4 + v107 专属属性被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
