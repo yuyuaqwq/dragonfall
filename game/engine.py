@@ -273,7 +273,8 @@ def apply_passive_to_stats(st: dict, class_name: str, learned_skills: list | Non
     if pb.get("spd_mult", 1.0) != 1.0:
         st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
     if pb.get("crit_add", 0.0):
-        st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
+        # v110 §三：暴击率上限统一 0.5（PCT_CAPS 权威；原 0.6 与 buff 1.0 不一致）
+        st["crit"] = min(st.get("crit", 0) + pb["crit_add"], C.PCT_CAPS.get("crit", 0.5))
     if pb.get("cdr_add", 0.0):
         st["cdr"] = min(st.get("cdr", 0) + pb["cdr_add"], 0.4)
     if pb.get("pene_phys_add", 0.0):

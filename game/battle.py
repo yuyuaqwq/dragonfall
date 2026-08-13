@@ -890,7 +890,8 @@ class Battle:
         if pb.get("spd_mult", 1.0) != 1.0:
             st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
         if pb.get("crit_add", 0.0):
-            st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
+            # v110 §三：暴击率上限统一 0.5（PCT_CAPS 权威；原 0.6 与 buff 1.0 不一致）
+            st["crit"] = min(st.get("crit", 0) + pb["crit_add"], C.PCT_CAPS.get("crit", 0.5))
         # v106.1 冷却缩减被动（cdr_add → st["cdr"]，cap 40%）
         if pb.get("cdr_add", 0.0):
             st["cdr"] = min(st.get("cdr", 0) + pb["cdr_add"], 0.4)
@@ -1756,7 +1757,7 @@ class Battle:
             total += dmg_i
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
-        total = self._boss_dmg_filter(total, player, logs)
+        total = self._boss_dmg_filter(total, player, logs, dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
@@ -1948,9 +1949,10 @@ class Battle:
                 fn(self, player, dmg, logs)
 
     # ---------------- 敌方回合 ----------------
-    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list) -> int:
+    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys") -> int:
         """v83 04 章 2.5：Boss 护盾/反伤过滤（挂在玩家伤害结算主路径）。
         shield：护盾存在期间受伤 -50%，先扣盾再扣血（破盾提示）。
+        v110：真伤豁免 -50%（四层架构"真伤绕过全部减伤"），但护盾 HP 层仍吸收（仅护盾可吸收）。
         reflect：血量 <25% 反弹 15% 伤害给玩家。
         v93：worldboss 应用 GM 伤害倍率（gm_伤害 设置）。"""
         if self.btype == "worldboss" and self.dmg_mult != 1.0:
@@ -1965,13 +1967,20 @@ class Battle:
         if "shield" in mechs:
             sh = e.get("boss_shield", 0)
             if sh > 0:
-                real = int(dmg * 0.5)
-                absorbed = min(sh, real)
-                e["boss_shield"] = sh - absorbed
-                if e["boss_shield"] <= 0:
-                    e.pop("boss_shield", None)
-                    logs.append("💥 护盾破碎！")
-                dmg = real
+                if dmg_type == "true":
+                    absorbed = min(sh, dmg)  # 真伤不 -50%，护盾层仍吸收
+                    e["boss_shield"] = sh - absorbed
+                    if e["boss_shield"] <= 0:
+                        e.pop("boss_shield", None)
+                        logs.append("💥 护盾破碎！")
+                else:
+                    real = int(dmg * 0.5)
+                    absorbed = min(sh, real)
+                    e["boss_shield"] = sh - absorbed
+                    if e["boss_shield"] <= 0:
+                        e.pop("boss_shield", None)
+                        logs.append("💥 护盾破碎！")
+                    dmg = real
         if "reflect" in mechs:
             ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
             if ratio < 0.25:
@@ -2165,7 +2174,8 @@ class Battle:
                     if _pv is not None:
                         val = 1.0 + _pv if attr == "atk" else _pv
                 if attr == "crit":
-                    st["crit"] = min(1.0, st.get("crit", 0) + val)
+                    # v110 §三：暴击率上限统一 0.5（原 min(1.0) 可到 100%，与设计 50% 上限不符）
+                    st["crit"] = min(C.PCT_CAPS.get("crit", 0.5), st.get("crit", 0) + val)
                 else:
                     st[attr] = int(st.get(attr, 0) * val)
         return st
@@ -2211,10 +2221,12 @@ class Battle:
             est["matk"] = int(est["matk"] * (1 - wv))
         return est
 
-    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理") -> tuple:
+    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理",
+                        dot: bool = False) -> tuple:
         """v110 P1-3：玩家攻击端消费敌方防守属性（与 _pvp_enemy_turn 玩家受击口径对称）。
         物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
-        真伤绕过全部减伤（四层架构）；PVE 标准怪无这些键(=0) → 伤害不变。
+        真伤绕过全部减伤（四层架构）；dot=True 时跳过格挡 roll（持续伤害不触发格挡事件）。
+        PVE 标准怪无这些键(=0) → 伤害不变。
         返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
         if kind == "真伤":
             return dmg, magi_part
@@ -2229,12 +2241,13 @@ class Battle:
             red = max(1, int(phys * pr))
             phys -= red
             reduced += red
-        bc = min(float(est.get("block", 0) or 0), 0.4)
-        if bc > 0 and phys > 0 and random.random() < bc:
-            red = max(1, int(phys * 0.5))
-            phys -= red
-            reduced += red
-            logs.append("🛡️ 敌人格挡了攻击！")
+        if not dot:
+            bc = min(float(est.get("block", 0) or 0), 0.4)
+            if bc > 0 and phys > 0 and random.random() < bc:
+                red = max(1, int(phys * 0.5))
+                phys -= red
+                reduced += red
+                logs.append("🛡️ 敌人格挡了攻击！")
         mr = min(float(est.get("magic_reduce", 0) or 0), 0.4)
         if mr > 0 and magi > 0:
             red = max(1, int(magi * mr))
@@ -2361,6 +2374,8 @@ class Battle:
             _burn_mult *= float(_ps.get("mult", 1.2))
         if burn_n > 0:
             p = int(self.enemy.get("max_hp", 1) * 0.03 * burn_n * _burn_mult)
+            # v110 §10.2：灼烧 dot=magi，吃敌方魔免+元素抗（火系）；PVE 怪无键=0 无感
+            p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
             self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！" + ("(火之亲和)" if _burn_mult > 1.0 else ""))
             if self._enemy_dead():
@@ -2375,6 +2390,8 @@ class Battle:
             _poison_mult *= float(_ps.get("mult", 1.2))
         if poison_n > 0:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n * _poison_mult)
+            # v110 §10.2：毒 dot=magi，吃敌方魔免、不吃元素抗（毒非元素）
+            p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
             self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
@@ -2382,6 +2399,8 @@ class Battle:
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         elif "poison" in self.e_buffs:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT * _poison_mult)
+            # v110 §10.2：毒 dot=magi，吃敌方魔免（老毒箭布尔兼容路径同口径）
+            p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
             self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
@@ -2391,6 +2410,8 @@ class Battle:
         bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
         if bleed_n > 0:
             p = int(self.enemy.get("max_hp", 1) * 0.05)
+            # v110 §10.2：流血跟随主伤害（物理词条来源）→ 吃敌方物免
+            p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
             self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
             if self._enemy_dead():
