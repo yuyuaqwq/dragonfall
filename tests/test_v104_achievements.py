@@ -158,7 +158,7 @@ check("check_achievements 解锁 ach_hidden3（v104 补测修复：value 3→2�
 print("【5. 称号 bonus 单次（Lv.10 大师称号不双倍发放）】")
 clean_db()
 make_player("g1", "q5", "测试戊", "战士", level=1)
-db.add_prof_exp("g1", "q5", "gather", 1000)          # 采集 → Lv.10
+db.add_prof_exp("g1", "q5", "gather", 2200)          # 采集 → Lv.10（v105 曲线累计 2100）
 db.set_achievement("g1", "q5", "ach_pro_gather10", 1, 0)  # 同名成就『万物采集大师』也解锁
 m5 = Main(None)
 b5 = m5._title_bonus("g1", "q5")

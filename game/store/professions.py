@@ -96,8 +96,8 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
                 return lv, False
             cur += exp
             leveled = False
-            while lv < 10 and cur >= lv * C.PROF_EXP_BASE:
-                cur -= lv * C.PROF_EXP_BASE
+            while lv < 10 and cur >= C.prof_exp_need(lv):
+                cur -= C.prof_exp_need(lv)
                 lv += 1
                 leveled = True
             if lv >= 10:

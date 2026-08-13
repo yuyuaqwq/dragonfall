@@ -1641,6 +1641,43 @@ CRAFT_RECIPES = {
         'gold': 270, 'desc': '迷雾沼泽中锻造的神秘器物，弦响如疾风',
         'name': '疾风长弓', 'roster_id': 'eq_ji_feng_chang_gong',
     },
+    # ================= v104 M20 P2：7 张支线奖励图纸装备配方（s24/s25/s30/s31/s35 新增；s27/s33 复用 rec_lan_ge_zhi_lei/rec_ao_la_sheng_yin）=================
+    # 材料 = 对应 Boss 材料×2 + 常规矿/皮；成本（材料价+锻造费）控制在产物价 40-90%
+    'rec_lie_zong_liao_ya': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 30, 'weapon_type': 'dagger',
+        "mats": {'mat_lie_zong_liao_ya': 2, 'mat_tie_kuang_shi': 4},
+        'gold': 1650, 'desc': '野猪王裂鬃的獠牙磨成的短刃，凶蛮而迅捷',
+        'name': '裂鬃獠牙', 'roster_id': 'eq_lie_zong_liao_ya',
+        'blueprint': '裂鬃獠牙图纸',
+    },
+    'rec_tie_ya_lang_pi_jia': {
+        'slot': 'armor', 'quality': 'blue', 'lv': 15,
+        "mats": {'mat_tie_ya_lang_pi': 2, 'mat_qiu_ling_lang_pi': 2},
+        'gold': 330, 'desc': '丘陵狼王铁牙的皮毛鞣制的护甲，轻便耐寒',
+        'name': '铁牙狼皮', 'roster_id': 'eq_tie_ya_lang_pi_jia',
+        'blueprint': '铁牙狼皮图纸',
+    },
+    'rec_lei_ming_long_lin_dun': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 58, 'weapon_type': 'shield',
+        "mats": {'mat_lei_ming_long_lin': 2, 'mat_jing_tie': 4},
+        'gold': 5200, 'desc': '风暴海龙雷鸣的鳞片铸成的盾牌，隐隐带电',
+        'name': '雷鸣龙鳞', 'roster_id': 'eq_lei_ming_long_lin_dun',
+        'blueprint': '雷鸣龙鳞图纸',
+    },
+    'rec_jin_he_zhi_xin_zhang': {
+        'slot': 'weapon', 'quality': 'orange', 'lv': 86, 'weapon_type': 'staff',
+        "mats": {'mat_jin_he_zhi_xin': 2, 'mat_mi_yin': 4},
+        'gold': 14000, 'desc': '岩浆王烬核的核心熔铸的法杖，灼热难当',
+        'name': '烬核之心', 'roster_id': 'eq_jin_he_zhi_xin_zhang',
+        'blueprint': '烬核之心图纸',
+    },
+    'rec_mu_ying_long_hun_jian': {
+        'slot': 'weapon', 'quality': 'orange', 'lv': 88, 'weapon_type': 'sword',
+        "mats": {'mat_mu_ying_long_hun': 2, 'mat_jing_jin': 2},
+        'gold': 14000, 'desc': '龙陨战魂暮影的残响凝成的大剑，仿佛有龙吟',
+        'name': '暮影龙魂', 'roster_id': 'eq_mu_ying_long_hun_jian',
+        'blueprint': '暮影龙魂图纸',
+    },
 }
 
 CRAFT_RECIPE_ALIASES = {

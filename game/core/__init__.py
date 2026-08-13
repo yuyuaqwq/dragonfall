@@ -26,7 +26,7 @@ from .constants import (  # noqa: F401
     PCT_STATS,
     # v103.3 B3 整数魔法数字
     EVOLVE_LEVELS, EVOLVE_FEES, RESET_SKILL_COST,
-    DEFAULT_MAX_MP, PVP_TIMEOUT_SEC, GUILD_EXP_BASE, PROF_EXP_BASE,
+    DEFAULT_MAX_MP, PVP_TIMEOUT_SEC, GUILD_EXP_BASE, PROF_EXP_BASE, prof_exp_need,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

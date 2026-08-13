@@ -6,6 +6,44 @@ MATERIALS = {
         'price': 10,
         'name': "图纸残页",
     },
+    # ================= v104 M20 P2：7 张支线奖励图纸（静态物品，s24/s25/s27/s30/s31/s33/s35）=================
+    # 支线交付按名字 resolve("materials") 发放 → 必须挂在 MATERIALS；type=图纸 可被『学习』识别
+    # price 与 make_blueprint 公式 int(lv×3+20) 一致（s27/s33 复用现有名册装备 lv）
+    "mat_bp_lie_zong_liao_ya": {
+        'price': 110, 'name': "裂鬃獠牙图纸", 'type': "图纸",
+        'blueprint_for': "裂鬃獠牙", 'roster_id': "eq_lie_zong_liao_ya",
+        'desc': "野猪王·裂鬃的锻造图纸，学习后可锻造【裂鬃獠牙】(Lv.30 匕首)",
+    },
+    "mat_bp_tie_ya_lang_pi": {
+        'price': 65, 'name': "铁牙狼皮图纸", 'type': "图纸",
+        'blueprint_for': "铁牙狼皮", 'roster_id': "eq_tie_ya_lang_pi_jia",
+        'desc': "丘陵狼王·铁牙的锻造图纸，学习后可锻造【铁牙狼皮】(Lv.15 护甲)",
+    },
+    "mat_bp_lan_ge_zhi_lei": {
+        'price': 224, 'name': "澜歌之泪图纸", 'type': "图纸",
+        'blueprint_for': "澜歌之泪", 'roster_id': "eq_lang_ge_zhi_lei",
+        'desc': "海神祭司·澜歌的锻造图纸，学习后可锻造【澜歌之泪】(Lv.68 项链)",
+    },
+    "mat_bp_lei_ming_long_lin": {
+        'price': 194, 'name': "雷鸣龙鳞图纸", 'type': "图纸",
+        'blueprint_for': "雷鸣龙鳞", 'roster_id': "eq_lei_ming_long_lin_dun",
+        'desc': "风暴海龙·雷鸣的锻造图纸，学习后可锻造【雷鸣龙鳞】(Lv.58 盾牌)",
+    },
+    "mat_bp_jin_he_zhi_xin": {
+        'price': 278, 'name': "烬核之心图纸", 'type': "图纸",
+        'blueprint_for': "烬核之心", 'roster_id': "eq_jin_he_zhi_xin_zhang",
+        'desc': "岩浆王·烬核的锻造图纸，学习后可锻造【烬核之心】(Lv.86 法杖)",
+    },
+    "mat_bp_ao_la_sheng_yin": {
+        'price': 305, 'name': "奥拉圣印图纸", 'type': "图纸",
+        'blueprint_for': "奥拉圣印", 'roster_id': "eq_ao_la_sheng_yin",
+        'desc': "云中圣者·奥拉的锻造图纸，学习后可锻造【奥拉圣印】(Lv.95 项链)",
+    },
+    "mat_bp_mu_ying_long_hun": {
+        'price': 284, 'name': "暮影龙魂图纸", 'type': "图纸",
+        'blueprint_for': "暮影龙魂", 'roster_id': "eq_mu_ying_long_hun_jian",
+        'desc': "龙陨战魂·暮影的锻造图纸，学习后可锻造【暮影龙魂】(Lv.88 大剑)",
+    },
     "mat_qiu_ling_lang_pi": {
         'price': 5,
         'name': "丘陵狼皮",

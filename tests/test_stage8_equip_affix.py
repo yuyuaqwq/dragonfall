@@ -58,8 +58,8 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
-    check("专属 18", len(C.LEGENDARY_EFFECTS) == 18, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 154 件", len(C.EQUIP_ROSTER) == 154, str(len(C.EQUIP_ROSTER)))
+    check("专属 20", len(C.LEGENDARY_EFFECTS) == 20, str(len(C.LEGENDARY_EFFECTS)))  # v104 M20 P2: +烬核余温/龙魂低吟
+    check("名册 159 件", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))  # v104 M20 P2: +5 支线图纸装备
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -81,10 +81,10 @@ def test_data():
     bad_pool = [a for pool in C.AFFIX_POOL_BY_QUALITY.values() for a in pool
                 if a not in C.AFFIXES]
     check("随机池 ID 有效", not bad_pool, str(bad_pool))
-    # 每个系列有 5 件套（含护腿）
+    # 每个套装系列有 5 件套（含护腿）；v104 M20 P2：支线单件主题系列（裂鬃/铁牙/雷鸣/烬核/暮影）非套装，豁免
     series_ok = all(len([r for r in C.EQUIP_ROSTER.values() if r["series"] == s and r["slot"] == "legs"]) >= 1
-                    for s in set(r["series"] for r in C.EQUIP_ROSTER.values()))
-    check("11 系列各有护腿", series_ok)
+                    for s in C.SERIES_SETS)
+    check("15 套装系列各有护腿", series_ok)
 
 
 # ============ 2. 名册生成 ============
@@ -107,11 +107,13 @@ def test_roster_gen():
     # 苍穹之枪武器类型
     e4 = C.generate_roster_equip("eq_cang_qiong_zhi_qiang")
     check("苍穹之枪类型枪", e4.get("weapon_type") == "spear")
-    # 名册系列全部映射套装（蓝以上）
+    # 名册系列全部映射套装（蓝以上）；v104 M20 P2：支线单件图纸装备（裂鬃/铁牙/雷鸣/烬核/暮影）非套装系列，豁免
     random.seed(11)
+    _single_series = {"裂鬃", "铁牙", "雷鸣", "烬核", "暮影"}
     no_set = [rid for rid, r in C.EQUIP_ROSTER.items()
-              if r["quality"] != "white"
-              and not C.generate_roster_equip(rid).get("set")]
+            if r["quality"] != "white"
+            and r["series"] not in _single_series
+            and not C.generate_roster_equip(rid).get("set")]
     check("蓝紫橙名册全部有套装归属", not no_set, str(no_set[:5]))
 
 
@@ -293,7 +295,7 @@ async def test_shop_roster():
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（114 个，v104 补 11 图纸配方+淬火石配方，无旧毕业套）
-    check("配方数 124", len(C.CRAFT_RECIPES) == 124, str(len(C.CRAFT_RECIPES)))
+    check("配方数 129", len(C.CRAFT_RECIPES) == 129, str(len(C.CRAFT_RECIPES)))  # v104 M20 P2: +5 支线图纸配方
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -304,7 +306,7 @@ def test_craft_set():
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）——v104 补 11 条图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 77, str(len(bp_recs)))
+    check("需图纸配方存在", len(bp_recs) == 82, str(len(bp_recs)))  # v104 M20 P2: +5 支线图纸配方
     check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
     # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
     w = C.generate_roster_equip("eq_sheng_guang_chang_jian")

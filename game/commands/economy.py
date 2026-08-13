@@ -1246,7 +1246,7 @@ class EconomyCmds(CommandBase):
                 # v104 P2 修复：满级不画经验条（lv>=10 时 exp 恒 0，旧版显示空条 0/200）
                 lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']} 已满级 ✅")
                 continue
-            need = p["lv"] * C.PROF_EXP_BASE
+            need = C.prof_exp_need(p["lv"])
             bar_len = min(10, p["exp"] // (need // 10 + 1))
             bar = "█" * bar_len + "░" * (10 - bar_len)
             lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']}  {bar} {p['exp']}/{need} 经验 ✅")

@@ -127,7 +127,7 @@ async def main():
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", apprentices=["gather"])
     db.activate_prof("g1", "w1", "gather")
-    db.add_prof_exp("g1", "w1", "gather", 1000)  # 满级 Lv.10
+    db.add_prof_exp("g1", "w1", "gather", 2200)  # v105 新曲线：累计 2100 满级 Lv.10（原 1000 按旧线性曲线）
     out = await cmd(m, "profession_view", "g1", "w1", "副业")
     check("Lv.10 显示「已满级」", "已满级" in out, out[:200])
     check("无空经验条(不再 0/200) 且显示 Lv.10", "0/200" not in out and "Lv.10" in out, out[:200])

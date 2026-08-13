@@ -73,4 +73,18 @@ RESET_SKILL_COST = 500                     # 技能洗点费用（player.py:660/
 DEFAULT_MAX_MP = 50                        # 面板/战斗 max_mp 兜底（battle.py:92/262、combat.py:1329、instance.py:764/765）
 PVP_TIMEOUT_SEC = 300                      # PVP 超时秒：5 分钟无行动自动解除（combat.py:1731）
 GUILD_EXP_BASE = 300                       # 公会升级经验 = 等级 * 300（social.py:490、store/social.py:394/395）
-PROF_EXP_BASE = 20                         # 副业升级经验 = 当前等级 * 20（professions.py:75/76、economy.py:849）
+PROF_EXP_BASE = 20                         # 遗留常量（v105 起由 prof_exp_need 二次曲线取代，保留兼容外部引用）
+
+
+def prof_exp_need(lv):
+    """副业升级经验需求（v105 平衡曲线）：need(lv) = 5*lv² + 15*lv
+
+    设计意图（2026-08-13 鱼鱼拍板"无脑 x20 不合适"）：
+    - 累计 2100 满级（原线性累计 900，无脑 x20 前期过快后期无爬升感）
+    - 前期快：Lv.1→2 仅 20（新手第一天解锁基础配方），拜师礼 50 可跳 Lv.2
+    - 中段平滑爬升：Lv.2→3=50 / Lv.3→4=90 / Lv.4→5=140 / Lv.5→6=200 / Lv.6→7=270
+    - 后期冲刺感：Lv.7→8=350 / Lv.8→9=440 / Lv.9→10=540（史诗→传说配方门槛）
+    - 满级周期估算：等待型（可挂机）约 1 个月，制造型（体力限制）约 2-3 个月
+    - 存量玩家兼容：exp 按级内进度存储，曲线变更只影响后续升级需求，已满级不受影响
+    """
+    return 5 * lv * lv + 15 * lv

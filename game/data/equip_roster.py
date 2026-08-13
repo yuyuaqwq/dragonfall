@@ -200,6 +200,17 @@ EQUIP_ROSTER = {
     "eq_yuan_yang_chang_gong": {"name": "远洋长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 22, "series": "铁港", "req": {"agi": 20}, "source": "商店"},
     "eq_tie_mao_zhan_chui": {"name": "铁锚战锤", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 22, "series": "铁港", "req": {"str": 20}, "source": "商店"},
     "eq_tie_lian_quan_tao": {"name": "铁链拳套", "slot": "weapon", "weapon_type": "fist", "quality": "blue", "lv": 22, "series": "铁港", "req": {"str": 20}, "source": "商店"},
+    # ================= v104 M20 P2：7 张支线奖励图纸装备（s24/s25/s30/s31/s35 新增；s27/s33 复用澜歌之泪/奥拉圣印）=================
+    # s24 裂鬃之患→裂鬃獠牙（野猪王·裂鬃，boar_ridge Lv.30 匕首，连击/破甲）
+    "eq_lie_zong_liao_ya": {"name": "裂鬃獠牙", "slot": "weapon", "weapon_type": "dagger", "quality": "purple", "lv": 30, "series": "裂鬃", "req": {"agi": 24}, "source": "图纸"},
+    # s25 铁盾镇的狼群→铁牙狼皮（丘陵狼王·铁牙，ironshield Lv.15 护甲，闪避/敏捷）
+    "eq_tie_ya_lang_pi_jia": {"name": "铁牙狼皮", "slot": "armor", "quality": "blue", "lv": 15, "series": "铁牙", "req": {"agi": 12}, "source": "图纸"},
+    # s30 风暴之心的低语→雷鸣龙鳞（风暴海龙·雷鸣，storm_sea Lv.58 盾牌，反伤/格挡）
+    "eq_lei_ming_long_lin_dun": {"name": "雷鸣龙鳞", "slot": "weapon", "weapon_type": "shield", "quality": "purple", "lv": 58, "series": "雷鸣", "req": {"str": 46}, "source": "图纸"},
+    # s31 地底的火焰→烬核之心（岩浆王·烬核，lava_bed Lv.86 法杖，灼烧/连击）
+    "eq_jin_he_zhi_xin_zhang": {"name": "烬核之心", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 86, "series": "烬核", "req": {"int": 68}, "legendary": "jin_he_heart", "source": "图纸"},
+    # s35 龙陨谷的守望→暮影龙魂（龙陨战魂·暮影，dragonsfall_valley Lv.88 大剑，吸血/连击）
+    "eq_mu_ying_long_hun_jian": {"name": "暮影龙魂", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 88, "series": "暮影", "req": {"str": 70}, "legendary": "mu_ying_soul", "source": "图纸"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）
@@ -233,6 +244,12 @@ _EQ_SERIES_THEME = {
     "苍穹": "苍穹之上流云般轻盈的工艺，似乎随时会乘风而起",
     "星尘": "星尘降临之地的瑰丽造物，流转着点点星光",
     "灰烬守卫": "灰烬守卫的制式装备，淬炼过烈焰的余温",
+    # v104 M20 P2：支线奖励图纸装备系列（Boss 主题）
+    "裂鬃": "野猪王裂鬃的凶蛮之力，獠牙磨得雪亮",
+    "铁牙": "丘陵狼王铁牙的皮毛，坚韧又保暖",
+    "雷鸣": "风暴海龙雷鸣的鳞甲，隐隐有雷光游走",
+    "烬核": "岩浆王烬核的余温，靠近就能感到灼热",
+    "暮影": "龙陨战魂暮影的残响，仿佛还带着古龙的叹息",
 }
 _EQ_SLOT_DESC = {
     "weapon": {

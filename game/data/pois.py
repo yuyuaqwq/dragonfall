@@ -33,6 +33,9 @@ POIS = {
         "desc": "一块刻满符文的古老石碑，符文中似乎蕴含着知识。",
         "effect": "rune",  # 读符文：随机知识（图鉴补全 / 隐藏成就线索）
     },
+    # v105 M23 线索类 POI 治理：rune_stone 挂载收敛至 4 个（策划案 02 章种族分布原则，
+    # 矮人/龙裔/地底/遗迹 各留代表性 1-2 个）——dragon_ridge_3（龙裔，测试必需）、
+    # dwarf_long_gallery_2（矮人）、dragonborn_valley_trail_3（龙裔）、hill_mine_3（地底）。
     "fishing_spot": {
         "name": "鱼群聚集", "icon": "🐟",
         "desc": "水面泛起细密的涟漪，一大群鱼正聚在水面下。",
@@ -43,6 +46,9 @@ POIS = {
         "desc": "一张钉在树干上的字条，墨迹已经有些褪色。",
         "effect": "note",  # 收集线索（H6 书页/H7 信标前置）
     },
+    # v105 M23 线索类 POI 治理：note 挂载收敛至 4 个（策划案 02 章种族分布原则）——
+    # cinder_mountain_3（H7 灰烬回廊前置链功能保留，老守墓人·灰须在烬山）、
+    # old_battlefield_3 / dawn_cathedral_3（遗迹）、abyss_altar_3（地底·深渊）。
     # ---- v87.9 风景 POI（探索触发，纯氛围）----
     "scenic_view": {
         "name": "观景台", "icon": "🏞️",
@@ -63,57 +69,56 @@ POIS = {
 
 # 子区域 → POI 分配（key = "地图id:子区域id"，value = poi id 列表）
 # 子区域 ID 为 map_N 数字格式（map_1=入口/广场，map_3=深处）
+# v105 M23 线索类 POI 治理（61→8，策划案 02 章限 8 个·种族分布原则）：
+#   note/rune_stone 仅保留 8 个挂载——矮人/龙裔/地底/遗迹 各 1-2 个代表性 + 功能必需项：
+#   矮人: dwarf_long_gallery_2(rune) | 龙裔: dragon_ridge_3(rune,必需)/dragonborn_valley_trail_3(rune)
+#   地底: hill_mine_3(rune)/abyss_altar_3(note) | 遗迹: old_battlefield_3(note)/dawn_cathedral_3(note)
+#   功能必需: cinder_mountain_3(note, H7 灰烬回廊线索链) + dragon_ridge_3（7 重点子区域共存测试）
 SUBAREA_POIS = {
     # ==== 绿野·橡木镇 ====
-    "oak_town:oak_town_1": ["shrine", "campfire", "note"],   # 冒险者广场（含西巷字条）
+    "oak_town:oak_town_1": ["shrine", "campfire"],   # 冒险者广场
     # ==== 白鹿城 ====
     "white_deer:white_deer_1": ["shrine"],            # 白鹿广场
     "white_deer:white_deer_5": ["herb_patch", "loot_pile"],  # 南市
     # ==== 铁港城 ====
     "ironharbor:ironharbor_1": ["fishing_spot", "loot_pile"],  # 港口广场
-    "ironharbor:ironharbor_5": ["fishing_spot", "note"],       # 东码头
+    "ironharbor:ironharbor_5": ["fishing_spot"],       # 东码头
     # ==== 晨曦城 ====
-    "dawn_city:dawn_city_3": ["shrine", "note"],      # 圣光大教堂
+    "dawn_city:dawn_city_3": ["shrine"],      # 圣光大教堂
     "dawn_city:dawn_city_1": ["loot_pile"],           # 王都广场（南门遗物）
     # ==== 月冠王庭 ====
-    "moon_court:moon_court_1": ["shrine", "rune_stone"],  # 王庭广场
+    "moon_court:moon_court_1": ["shrine"],  # 王庭广场
     # ==== 野外·南境 ====
     "oak_plain:oak_plain_3": ["campfire", "herb_patch", "scenic_view"],  # 草地尽头：远眺丘陵
-    "white_deer_forest:white_deer_forest_3": ["campfire", "note"],
-    "emerald_forest:emerald_forest_3": ["rune_stone", "herb_patch", "ancient_tree_sight"],  # 翡翠森林深处：古木参天
-    "misty_swamp:misty_swamp_3": ["loot_pile", "note"],
+    "white_deer_forest:white_deer_forest_3": ["campfire"],
+    "emerald_forest:emerald_forest_3": ["herb_patch", "ancient_tree_sight"],  # 翡翠森林深处：古木参天
+    "misty_swamp:misty_swamp_3": ["loot_pile"],
     "hill_mine:hill_mine_3": ["rune_stone", "loot_pile"],
     # ==== 野外·中域 ====
     "gold_plain:gold_plain_2": ["campfire", "herb_patch"],
     "silver_river:silver_river_2": ["fishing_spot", "campfire"],
-    "old_battlefield:old_battlefield_3": ["rune_stone", "note"],
-    "dawn_cathedral:dawn_cathedral_3": ["rune_stone", "note"],
+    "old_battlefield:old_battlefield_3": ["note"],
+    "dawn_cathedral:dawn_cathedral_3": ["note"],
     # ==== 野外·西境 ====
     "silverwood:silverwood_3": ["shrine", "herb_patch"],
-    "starlake:starlake_3": ["fishing_spot", "rune_stone", "star_gazing"],  # 星湖：星空倒映
-    "ancient_tree:ancient_tree_3": ["rune_stone", "note"],
+    "starlake:starlake_3": ["fishing_spot", "star_gazing"],  # 星湖：星空倒映
     # ==== 野外·北境 ====
     "frost_field:frost_field_3": ["campfire", "loot_pile", "scenic_view"],  # 霜原：雪线远眺
-    "cinder_mountain:cinder_mountain_3": ["rune_stone", "note", "star_gazing"],  # 烬山：夜观星火
-    "black_forest:black_forest_3": ["loot_pile", "note"],
+    "cinder_mountain:cinder_mountain_3": ["note", "star_gazing"],  # 烬山：夜观星火（H7 灰烬回廊线索）
+    "black_forest:black_forest_3": ["loot_pile"],
     # ==== 野外·东境 ====
     "dragon_ridge:dragon_ridge_3": ["rune_stone", "scenic_view"],  # 龙脊：群山之巅
-    "ancient_battlefield:ancient_battlefield_3": ["rune_stone", "note"],
     # ==== 外域 ====
     "coral_reef:coral_reef_3": ["fishing_spot", "loot_pile", "scenic_view"],  # 珊瑚礁：海天一线
-    "storm_sea:storm_sea_3": ["rune_stone", "note"],
-    "molten_abyss:molten_abyss_3": ["rune_stone", "loot_pile"],
-    "abyss_altar:abyss_altar_3": ["rune_stone", "note"],
+    "molten_abyss:molten_abyss_3": ["loot_pile"],
+    "abyss_altar:abyss_altar_3": ["note"],
     # ==== v87.7 城镇间新图（02 章 13.4.6 通路自然化）====
     "silver_wind_road:silver_wind_road_1": ["loot_pile"],      # 银风道口：被遗落的货箱
-    "silver_wind_road:silver_wind_road_2": ["campfire", "note"],  # 银风驿站：商队营地
+    "silver_wind_road:silver_wind_road_2": ["campfire"],  # 银风驿站：商队营地
     "west_ridge_wilds:west_ridge_wilds_1": ["herb_patch"],     # 西岭口：荒原药草
-    "dusk_ridge_road:dusk_ridge_road_2": ["rune_stone"],       # 半山烽台：残破符文碑
     "mist_tide_passage:mist_tide_passage_2": ["loot_pile"],    # 雾潮中段：漂流残骸
-    "black_tide_strait:black_tide_strait_3": ["rune_stone"],   # 珍珠湾：海底符文
     "dwarf_long_gallery:dwarf_long_gallery_2": ["rune_stone"], # 长廊中段：矮人符文
     "cold_spine_snow_trail:cold_spine_snow_trail_1": ["shrine"],  # 铁砧北门：冰封神龛
-    "dragon_ridge_old_road:dragon_ridge_old_road_2": ["note"], # 古道龙纹：龙战字条
     "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
     # ==== v87.9 风景 POI（探索触发，纯氛围）====
     "gold_plain:gold_plain_3": ["star_gazing"],            # 金穗平原：旷野星野
@@ -129,8 +134,8 @@ SUBAREA_POIS = {
     'emerald_forest:emerald_forest_2': ['herb_patch', 'campfire'],
     'misty_swamp:misty_swamp_1': ['herb_patch', 'loot_pile', 'campfire'],
     'misty_swamp:misty_swamp_2': ['herb_patch', 'fishing_spot'],
-    'hill_mine:hill_mine_1': ['rune_stone', 'loot_pile', 'campfire'],
-    'hill_mine:hill_mine_2': ['rune_stone', 'loot_pile'],
+    'hill_mine:hill_mine_1': ['loot_pile', 'campfire'],
+    'hill_mine:hill_mine_2': ['loot_pile'],
     'harbor_docks:harbor_docks_1': ['fishing_spot', 'loot_pile'],
     'harbor_docks:harbor_docks_2': ['campfire', 'loot_pile'],
     'harbor_docks:harbor_docks_3': ['fishing_spot', 'loot_pile'],
@@ -143,8 +148,8 @@ SUBAREA_POIS = {
     'rockfall_gorge:rockfall_gorge_1': ['herb_patch', 'campfire'],
     'rockfall_gorge:rockfall_gorge_2': ['herb_patch', 'campfire'],
     'rockfall_gorge:rockfall_gorge_3': ['herb_patch', 'campfire'],
-    'boar_ridge:boar_ridge_1': ['rune_stone', 'campfire'],
-    'boar_ridge:boar_ridge_2': ['rune_stone', 'campfire'],
+    'boar_ridge:boar_ridge_1': ['campfire'],
+    'boar_ridge:boar_ridge_2': ['campfire'],
     'boar_ridge:boar_ridge_3': ['campfire', 'loot_pile'],
     'dawn_cathedral:dawn_cathedral_1': ['shrine', 'campfire'],
     'dawn_cathedral:dawn_cathedral_2': ['campfire', 'loot_pile'],
@@ -162,17 +167,17 @@ SUBAREA_POIS = {
     'knight_yard:knight_yard_3': ['campfire', 'loot_pile'],
     'king_road:king_road_1': ['campfire', 'loot_pile'],
     'king_road:king_road_2': ['campfire', 'loot_pile'],
-    'king_road:king_road_3': ['rune_stone', 'shrine'],
-    'ironshield_hills:ironshield_hills_1': ['rune_stone', 'shrine', 'campfire'],
-    'ironshield_hills:ironshield_hills_2': ['rune_stone', 'shrine'],
-    'ironshield_hills:ironshield_hills_3': ['rune_stone', 'shrine'],
-    'old_battlefield:old_battlefield_1': ['rune_stone', 'loot_pile'],
+    'king_road:king_road_3': ['shrine'],
+    'ironshield_hills:ironshield_hills_1': ['shrine', 'campfire'],
+    'ironshield_hills:ironshield_hills_2': ['shrine'],
+    'ironshield_hills:ironshield_hills_3': ['shrine'],
+    'old_battlefield:old_battlefield_1': ['loot_pile'],
     'old_battlefield:old_battlefield_2': ['campfire', 'loot_pile'],
     'silverwood:silverwood_1': ['fishing_spot', 'loot_pile', 'campfire'],
     'silverwood:silverwood_2': ['fishing_spot', 'loot_pile'],
     'starlake:starlake_1': ['fishing_spot', 'shrine', 'campfire'],
     'starlake:starlake_2': ['fishing_spot', 'shrine'],
-    'ancient_tree:ancient_tree_1': ['rune_stone', 'campfire'],
+    'ancient_tree:ancient_tree_1': ['campfire'],
     'ancient_tree:ancient_tree_2': ['herb_patch', 'campfire'],
     'moon_glade:moon_glade_1': ['herb_patch', 'campfire'],
     'moon_glade:moon_glade_2': ['campfire', 'loot_pile'],
@@ -193,8 +198,8 @@ SUBAREA_POIS = {
     'forge_valley:forge_valley_3': ['campfire', 'loot_pile'],
     'black_forest:black_forest_1': ['herb_patch', 'campfire'],
     'black_forest:black_forest_2': ['herb_patch', 'campfire'],
-    'cinder_mountain:cinder_mountain_1': ['rune_stone', 'campfire'],
-    'cinder_mountain:cinder_mountain_2': ['rune_stone', 'campfire'],
+    'cinder_mountain:cinder_mountain_1': ['campfire'],
+    'cinder_mountain:cinder_mountain_2': ['campfire'],
     'frost_fang:frost_fang_1': ['herb_patch', 'campfire'],
     'frost_fang:frost_fang_2': ['campfire', 'shrine'],
     'frost_fang:frost_fang_3': ['campfire', 'shrine'],
@@ -207,22 +212,22 @@ SUBAREA_POIS = {
     'frostwhisper_canyon:frostwhisper_canyon_1': ['herb_patch', 'campfire'],
     'frostwhisper_canyon:frostwhisper_canyon_2': ['herb_patch', 'campfire'],
     'frostwhisper_canyon:frostwhisper_canyon_3': ['campfire', 'shrine'],
-    'dragon_ridge:dragon_ridge_1': ['rune_stone', 'campfire'],
-    'dragon_ridge:dragon_ridge_2': ['rune_stone', 'campfire'],
+    'dragon_ridge:dragon_ridge_1': ['campfire'],
+    'dragon_ridge:dragon_ridge_2': ['campfire'],
     'dragon_roost:dragon_roost_1': ['campfire', 'loot_pile'],
     'dragon_roost:dragon_roost_2': ['campfire', 'loot_pile'],
     'dragon_roost:dragon_roost_3': ['campfire', 'loot_pile'],
-    'ancient_battlefield:ancient_battlefield_1': ['rune_stone', 'loot_pile', 'campfire'],
-    'ancient_battlefield:ancient_battlefield_2': ['rune_stone', 'loot_pile'],
+    'ancient_battlefield:ancient_battlefield_1': ['loot_pile', 'campfire'],
+    'ancient_battlefield:ancient_battlefield_2': ['loot_pile'],
     'bone_wild:bone_wild_1': ['campfire', 'loot_pile'],
     'bone_wild:bone_wild_2': ['campfire', 'loot_pile'],
     'bone_wild:bone_wild_3': ['campfire', 'loot_pile'],
     'storm_cliff:storm_cliff_1': ['scenic_view', 'campfire'],
     'storm_cliff:storm_cliff_2': ['scenic_view', 'campfire'],
     'storm_cliff:storm_cliff_3': ['scenic_view', 'campfire'],
-    'redridge_plateau:redridge_plateau_1': ['scenic_view', 'rune_stone'],
+    'redridge_plateau:redridge_plateau_1': ['scenic_view'],
     'redridge_plateau:redridge_plateau_2': ['campfire', 'loot_pile'],
-    'redridge_plateau:redridge_plateau_3': ['scenic_view', 'rune_stone'],
+    'redridge_plateau:redridge_plateau_3': ['scenic_view'],
     'dragonsfall_valley:dragonsfall_valley_1': ['herb_patch', 'campfire'],
     'dragonsfall_valley:dragonsfall_valley_2': ['campfire', 'loot_pile'],
     'dragonsfall_valley:dragonsfall_valley_3': ['herb_patch', 'campfire'],
@@ -243,9 +248,9 @@ SUBAREA_POIS = {
     'whale_domain:whale_domain_1': ['fishing_spot', 'loot_pile'],
     'whale_domain:whale_domain_2': ['campfire', 'loot_pile'],
     'whale_domain:whale_domain_3': ['fishing_spot', 'loot_pile'],
-    'shipwreck_graveyard:shipwreck_graveyard_1': ['rune_stone', 'shrine'],
+    'shipwreck_graveyard:shipwreck_graveyard_1': ['shrine'],
     'shipwreck_graveyard:shipwreck_graveyard_2': ['campfire', 'loot_pile'],
-    'shipwreck_graveyard:shipwreck_graveyard_3': ['rune_stone', 'shrine'],
+    'shipwreck_graveyard:shipwreck_graveyard_3': ['shrine'],
     'storm_sea:storm_sea_1': ['fishing_spot', 'loot_pile'],
     'storm_sea:storm_sea_2': ['scenic_view', 'campfire'],
     'fungus_forest:fungus_forest_1': ['herb_patch', 'campfire'],
@@ -254,27 +259,27 @@ SUBAREA_POIS = {
     'deep_lake:deep_lake_1': ['fishing_spot', 'shrine', 'campfire'],
     'deep_lake:deep_lake_2': ['fishing_spot', 'shrine'],
     'deep_lake:deep_lake_3': ['fishing_spot', 'shrine'],
-    'molten_abyss:molten_abyss_1': ['rune_stone', 'loot_pile', 'campfire'],
-    'molten_abyss:molten_abyss_2': ['rune_stone', 'loot_pile'],
+    'molten_abyss:molten_abyss_1': ['loot_pile', 'campfire'],
+    'molten_abyss:molten_abyss_2': ['loot_pile'],
     'lava_bed:lava_bed_1': ['fishing_spot', 'herb_patch', 'campfire'],
     'lava_bed:lava_bed_2': ['fishing_spot', 'loot_pile'],
     'lava_bed:lava_bed_3': ['fishing_spot', 'herb_patch'],
-    'abyss_altar:abyss_altar_1': ['shrine', 'rune_stone', 'campfire'],
-    'abyss_altar:abyss_altar_2': ['shrine', 'rune_stone'],
+    'abyss_altar:abyss_altar_1': ['shrine', 'campfire'],
+    'abyss_altar:abyss_altar_2': ['shrine'],
     'cloud_sea:cloud_sea_1': ['fishing_spot', 'loot_pile', 'campfire'],
     'cloud_sea:cloud_sea_2': ['star_gazing', 'scenic_view'],
     'cloud_sea:cloud_sea_3': ['fishing_spot', 'loot_pile'],
-    'storm_plateau:storm_plateau_1': ['scenic_view', 'rune_stone', 'campfire'],
-    'storm_plateau:storm_plateau_2': ['rune_stone', 'scenic_view'],
-    'storm_plateau:storm_plateau_3': ['scenic_view', 'rune_stone'],
+    'storm_plateau:storm_plateau_1': ['scenic_view', 'campfire'],
+    'storm_plateau:storm_plateau_2': ['scenic_view'],
+    'storm_plateau:storm_plateau_3': ['scenic_view'],
     'rainbow_cloud:rainbow_cloud_1': ['herb_patch', 'campfire'],
     'rainbow_cloud:rainbow_cloud_2': ['star_gazing', 'scenic_view'],
     'rainbow_cloud:rainbow_cloud_3': ['herb_patch', 'campfire'],
-    'starlight_terrace:starlight_terrace_1': ['scenic_view', 'rune_stone', 'campfire'],
+    'starlight_terrace:starlight_terrace_1': ['scenic_view', 'campfire'],
     'starlight_terrace:starlight_terrace_2': ['star_gazing', 'scenic_view'],
     'starlight_terrace:starlight_terrace_3': ['star_gazing', 'scenic_view'],
     'west_ridge_wilds:west_ridge_wilds_2': ['campfire', 'loot_pile'],
-    'dusk_ridge_road:dusk_ridge_road_1': ['rune_stone', 'campfire'],
+    'dusk_ridge_road:dusk_ridge_road_1': ['campfire'],
     'dusk_ridge_road:dusk_ridge_road_3': ['campfire', 'loot_pile'],
     'mist_tide_passage:mist_tide_passage_1': ['fishing_spot', 'loot_pile'],
     'mist_tide_passage:mist_tide_passage_3': ['campfire', 'loot_pile'],

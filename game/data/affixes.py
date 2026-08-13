@@ -310,6 +310,16 @@ LEGENDARY_EFFECTS = {
         "effect": {"crit": 0.08},
         "desc": "暴击率＋8%",
     },
+    "jin_he_heart": {  # v104 M20 P2：烬核之心（岩浆王·烬核）——核心熔铸的灼热法杖
+        "name": "烬核余温", "kind": "attack", "trigger": "stat",
+        "effect": {"crit_dmg": 0.25},
+        "desc": "暴击伤害＋25%",
+    },
+    "mu_ying_soul": {  # v104 M20 P2：暮影龙魂（龙陨战魂·暮影）——古龙残魂凝成的大剑
+        "name": "龙魂低吟", "kind": "attack", "trigger": "stat",
+        "effect": {"crit": 0.08},
+        "desc": "暴击率＋8%",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -397,6 +407,12 @@ SERIES_FIXED_AFFIX = {
     "苍穹项链": ["element_thunder", "crit_up"], "奥拉圣印": ["element_thunder", "crit_up"],
     # v104 修复（M06 P1-4）：暮影之刃（暮影龙魂图纸装备，匕首风格）
     "暮影之刃": ["crit_up", "combo"],
+    # v104 M20 P2：7 张支线奖励图纸装备固定词条（Boss 主题，s27/s33 复用现有澜歌之泪/奥拉圣印词条）
+    "裂鬃獠牙": ["combo", "armor_break"],      # 连击/破甲（野猪王·裂鬃）
+    "铁牙狼皮": ["dodge", "swift"],            # 闪避/敏捷（丘陵狼王·铁牙）
+    "雷鸣龙鳞": ["thorns", "block"],           # 反伤/格挡（风暴海龙·雷鸣）
+    "烬核之心": ["element_fire", "combo"],     # 灼烧/连击（岩浆王·烬核）
+    "暮影龙魂": ["lifesteal", "combo"],        # 吸血/连击（龙陨战魂·暮影）
     # v87 隐藏线：星尘（法系星空）
     "星尘法杖": ["element_thunder", "meditate"], "星尘长袍": ["dodge", "meditate"],
     "星尘之戒": ["crit_up", "element_thunder"], "星尘坠饰": ["crit_dmg", "meditate"],
