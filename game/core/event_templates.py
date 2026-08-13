@@ -145,7 +145,9 @@ def tpl_loot_gold_mats(ctx):
     C = ctx._C()
     E = ctx._E()
     gold = random.randint(ctx.param("min", 50), ctx.param("max", 120)) + ctx.lv * ctx.param("scale_lv", 5)
-    db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
+    # v110 P0-1：与 tpl_loot_gold 同型修复——读 DB 最新 gold 再累加，防陈旧 dict 覆盖吞金币
+    cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     mat_line = ""
     mats_pool = ctx.param("mats", [])
     if mats_pool:

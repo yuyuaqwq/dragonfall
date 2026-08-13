@@ -1094,7 +1094,7 @@ DIALOGUES = {
             "welcome": {
                 "text": "魔法不是念咒，是理解世界的语言。想学，先学会倾听。",
                 "options": [
-                    {"text": "请教『奥术脉冲』(Lv.6 · 800金)", "next": "teach_ao_shu", "need": {"class_any": ["cls_fa_shi"]}},
+                    {"text": "请教『魔力脉冲』(Lv.6 · 800金)", "next": "teach_ao_shu", "need": {"class_any": ["cls_fa_shi"]}},
                     {"text": "请教『冰霜新星』(Lv.24 · 1500金)", "next": "teach_bing_shuang", "need": {"class_any": ["cls_fa_shi"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_fa_shi"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_fa_shi"], "evolve_ready": {"tier": 1, "level": 60}}},
@@ -1103,7 +1103,7 @@ DIALOGUES = {
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
-            "teach_ao_shu": {"text": "奥术脉冲——把魔力压缩成一束光。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "奥术脉冲", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
+            "teach_ao_shu": {"text": "魔力脉冲——把魔力压缩成一束光。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "魔力脉冲", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
             "teach_bing_shuang": {"text": "冰霜新星——让时间在寒意中凝固。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "冰霜新星", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
             "evolve_t1": {"text": "Lv.30 的法师，元素之道与秘法之道，你选哪一条？", "options": [{"text": "转职为元素法师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为秘法法师（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
             "evolve_t2": {"text": "Lv.60！元素术士还是秘法术士？", "options": [{"text": "转职为元素术士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为秘法术士（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
