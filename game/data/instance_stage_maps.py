@@ -635,14 +635,14 @@ INSTANCE_STAGE_NPCS = {
     "npc_trial_veteran": {
         "name": "试炼老兵",
         "icon": "🛡️",
-        "map": "trial_ground",
+        "map": "inst_holy_trial",
         "funcs": ["lore"],
         "dialogue": "『当年我也像你一样站在这里。记住：冠军的剑从不犹豫。』",
     },
     "npc_ghost_sailor": {
         "name": "幽灵水手",
         "icon": "👻",
-        "map": "sunken_bay",
+        "map": "inst_sunken_ship",
         "funcs": ["lore"],
         "dialogue": "『那晚的风暴……不是风暴。是克罗把船驶进了海妖的歌声里。』",
     },
@@ -657,7 +657,7 @@ INSTANCE_STAGE_NPCS = {
     "npc_dwarf_prisoner": {
         "name": "灰矮人囚犯",
         "icon": "⛓️",
-        "map": "dwarf_fort",
+        "map": "inst_gray_dwarf",
         "funcs": ["lore"],
         "dialogue": "『放我出去？呵，钥匙在队长腰带上——就是兵工厂里那个铁疙瘩队长。』",
     },
@@ -671,7 +671,7 @@ INSTANCE_STAGE_NPCS = {
     "npc_cloud_guardian": {
         "name": "云中守卫",
         "icon": "☁️",
-        "map": "cloud_temple",
+        "map": "inst_cloud_sanctum",
         "funcs": ["lore"],
         "dialogue": "『圣殿千年不坠，因星门常闭。你若有缘，星石自会回应你。』",
     },

@@ -301,7 +301,7 @@ CLASSES = {
         "growth": {
             "hp": 19,
             "mp": 6,
-            "atk": 2.6,
+            "atk": 2.5,
             "def": 1.8,
             "matk": 2.2,
             "mdef": 1.4,

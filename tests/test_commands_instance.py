@@ -411,7 +411,7 @@ async def main():
     members4 = db.party_members("g1", "i1")
     check("队伍 4 人", len(members4) == 4, str(members4))
     # v86.3 入场钥匙：深海龙宫需要龙宫珠
-    db.add_item("g1", "i1", "i_key_dragon_palace", {"name": "龙宫珠", "type": "钥匙", "stackable": True, "price": 2500})
+    db.add_item("g1", "i1", "i_key_dragon_palace", {"name": "龙宫宝珠", "type": "钥匙", "stackable": True, "price": 2500})
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 深海龙宫")
     check("4 人副本开本成功", "副本开启" in out, out[:200])
     stm = db.get_battle("g1", "i1")["state"]
@@ -471,15 +471,15 @@ async def main():
         db.clear_battle("g1", q)
 
     print("【副本：入场钥匙（v86.3）】")
-    # 单人副本鹿角要塞需要军旗碎片
+    # 单人副本鹿角要塞需要鹿角军旗
     await cmd(m, "party_leave", "g1", "i1", "退队")
     db.update_player("g1", "i1", level=20, gold=10000, cur_map="dawn_city", hp=500)
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
-    check("无钥匙被拦截", "军旗碎片" in out and "封印" in out, out[:200])
+    check("无钥匙被拦截", "鹿角军旗" in out and "封印" in out, out[:200])
     battle = db.get_battle("g1", "i1")
     check("拦截后未开本", battle is None, "")
     # 给钥匙 → 开本成功 → 钥匙消耗
-    db.add_item("g1", "i1", "i_key_deer_fort", {"name": "军旗碎片", "type": "钥匙", "stackable": True, "price": 200})
+    db.add_item("g1", "i1", "i_key_deer_fort", {"name": "鹿角军旗", "type": "钥匙", "stackable": True, "price": 200})
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
     check("有钥匙开本成功", "副本开启" in out, out[:200])
     inv = db.get_inventory("g1", "i1")

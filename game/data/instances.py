@@ -806,7 +806,7 @@ INSTANCES = {
                          ["要塞残片"]],
             },
         ],
-                "key_item": "军旗碎片",
+                "key_item": "鹿角军旗",
         "key_source": "鹿角要塞地图探索掉落",
 "mech": "enrage,summon",
         "hp_mult": 1.6,
@@ -1065,7 +1065,7 @@ INSTANCES = {
                         "ms_wan_dao"
                     ],
                     [
-                        "幽灵船票"
+                        "沉船湾船票"
                     ]
                 ]
             },
@@ -1087,7 +1087,7 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "幽灵船票",
+        "key_item": "沉船湾船票",
         "key_source": "铁港码头精英·海盗精锐掉落",
 "mech": "summon,heal",
         "hp_mult": 1.8,
@@ -1277,7 +1277,7 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "海神祷文",
+        "key_item": "海神殿祷文",
         "key_source": "无名港灯塔任务奖励",
 "mech": "shield,phase",
         "hp_mult": 2.5,
@@ -1357,7 +1357,7 @@ INSTANCES = {
                         "ms_du_ya"
                     ],
                     [
-                        "龙宫珠"
+                        "龙宫宝珠"
                     ]
                 ]
             },
@@ -1379,7 +1379,7 @@ INSTANCES = {
                 ]
             }
         ],
-        "key_item": "龙宫珠",
+        "key_item": "龙宫宝珠",
         "key_source": "龙鲸海域精英·龙鲸掉落",
 "mech": "reflect,stacks",
         "hp_mult": 2.7,

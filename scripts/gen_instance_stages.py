@@ -53,7 +53,7 @@ ELITE_NAMES = {
     "inst_moon_temple": ("e_moon_guard", "月神守卫", "elite", 62, ["ms_yue_guang", "ms_sheng_guang"], ["月光碎片"]),
     "inst_frost_throne": ("e_frost_lord", "冰霜领主护卫", "elite", 78, ["ms_bing_shuang", "ms_han_qi"], ["寒冰碎片"]),
     "inst_storm_throne": ("e_storm_guard", "风暴守卫", "elite", 94, ["ms_feng_bao", "ms_lei_ji"], ["风暴核心"]),
-    "inst_sunken_ship": ("e_ghost_captain", "幽灵大副", "elite", 42, ["ms_you_ling", "ms_wan_dao"], ["幽灵船票"]),
+    "inst_sunken_ship": ("e_ghost_captain", "幽灵大副", "elite", 42, ["ms_you_ling", "ms_wan_dao"], ["沉船湾船票"]),
     "inst_siren_nest": ("e_siren_guard", "海妖守卫", "elite", 55, ["ms_hai_yao", "ms_du_ya"], ["海妖鳞片"]),
     "inst_sea_god_temple": ("e_sea_priest", "海神护卫", "elite", 68, ["ms_hai_yao", "ms_sheng_guang"], ["海神印记"]),
     "inst_deep_dragon_palace": ("e_dragon_guard", "龙宫守卫", "elite", 74, ["ms_long_xi", "ms_du_ya"], ["龙宫鳞片"]),
