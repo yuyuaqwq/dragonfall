@@ -14,7 +14,7 @@ SUMMONS = {
     # 暗影祭司·骷髅海（数量流：可叠 3，自动攻击 + 高挡刀）
     "skeleton": {
         "name": "骷髅兵", "icon": "💀",
-        "atk_ratio": 0.55, "hp_ratio": 0.35, "def_ratio": 0.40,
+        "atk_ratio": 0.50, "hp_ratio": 0.35, "def_ratio": 0.40,
         "dmg_type": "phys", "limit": 3, "bodyguard": 0.40,
     },
     # 兽王·单宠进化（质量流：1 宠，宠强人弱；形态随技能等级进化）

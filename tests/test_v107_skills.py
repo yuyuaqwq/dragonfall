@@ -135,10 +135,10 @@ async def main():
 
     # 9. 苦修士：气连击
     print("\n— 苦修士 —")
-    p = mk_player("cls_wu_sheng", ["铁山靠", "气劲连打", "气爆"])
+    p = mk_player("cls_wu_sheng", ["裂岩冲", "气力连打", "气爆"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "铁山靠")
-    check("铁山靠攒气", b.mech_stacks.get("chi", 0) >= 1, str(b.mech_stacks))
+    logs = cast(b, p, "裂岩冲")
+    check("裂岩冲攒气", b.mech_stacks.get("chi", 0) >= 1, str(b.mech_stacks))
     hp0 = b.enemy["hp"]
     logs2 = cast(b, p, "气爆")
     check("气爆输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")

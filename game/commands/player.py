@@ -703,9 +703,18 @@ class PlayerCmds(CommandBase):
             if cur_tier != tgt_tier - 1:
                 yield event.plain_result("时机未到，先巩固当前境界吧。")
                 return
-        # 技能继承：lv <= 当前等级全部（跨职业转入覆盖；同职业升档为超集）
+        # 技能继承：lv <= 当前等级全部（v109：同职业升档保留已学+只补未学——已付费技能不因
+        # 升档重复发放，消除"早转白亏技能点"；跨职业转入清空旧职业技能后传承全部）
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {})
-        init_skills = [s for s, info in sk_table.items() if info["lv"] <= player.get("level", 1)]
+        grant = [s for s, info in sk_table.items() if info["lv"] <= player.get("level", 1)]
+        _same_class = (player.get("class_name") == cls_id)
+        if _same_class:
+            kept = [s for s in player.get("learned_skills", []) if s]
+            init_skills = sorted(set(kept) | set(grant))
+            new_grant = [s for s in grant if s not in kept]
+        else:
+            init_skills = grant
+            new_grant = grant
         st = E.player_final_stats(
             cls_id, player["level"], player.get("equipment", {}), tgt_tier,
             player.get("attributes"), 1,
@@ -716,13 +725,17 @@ class PlayerCmds(CommandBase):
                          learned_skills=init_skills)
         player = self._player(group_id, qq_id)
         C.check_achievements(group_id, qq_id, player)
-        learned = [C.display('skills', sk) for sk in init_skills]
+        learned = [C.display('skills', sk) for sk in new_grant]
         title = self._branch_title(cls_id, tgt_tier, 1)
         lore = self._HIDDEN_LORE.get(cls_id, "")
         lines = [f"{icon} 传承完成！你成为了【{icon}{title}】！", "━━━━━━━━━━━━"]
         if lore:
             lines.append(lore)
-        lines.append(f"🌟 领悟：{'、'.join(learned) if learned else '（进阶技能请找导师学习）'}")
+        lines.append(f"🌟 领悟：{'、'.join(learned) if learned else '（本次无新技能）'}")
+        if not _same_class and player.get("learned_skills"):
+            lines.append("♻️ 旧职业技能已随传承清空，可『技能洗点』返还技能点")
+        if _same_class and kept:
+            lines.append(f"🔒 已学技能保留 {len(kept)} 个（含此前『技能学习』习得，不重复发放）")
         if cls_id == "cls_bard":
             lines.append("💡 你的歌声将成为队伍的力量(辅助定位，副本中尤为闪耀)！")
         elif cls_id == "cls_spellblade":

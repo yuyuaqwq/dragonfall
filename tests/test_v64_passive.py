@@ -4,7 +4,7 @@
 新增：被动技能 kind="被动"，学到即永久生效，无需施放、不耗 MP、不进技能栏。
 每职业 4 个被动（Lv.12/25/38/55）：
 - 属性型：魔力涌动(mp+15%)、风行步/疾影(spd+8%)、鹰眼(crit+3%)
-- 触发型：铁壁之心/磐石体(受击减伤5%)、神圣坚韧(受击20%回5%)、气息调和(每回合回2%)
+- 触发型：铁壁之心/磐石体(受击减伤5%)、神圣坚韧(受击20%回5%)、气力调和(每回合回2%)
 - 增伤型：破甲本能(破防技能+10%)、烈焰亲和(火系魔法+10%)、神恩(治疗+10%)
 - 展示：技能列表<被动>标签、施放提示无需施放、不可升级
 
@@ -14,7 +14,7 @@
   3. engine.passive_skills_learned 被动识别
   4. battle._player_stats 叠加被动属性
   5. 受击减伤被动生效
-  6. 气息调和每回合回血
+  6. 气力调和每回合回血
   7. 施放被动提示无需施放（命令层）
   8. 被动学习成功提示
   9. 被动不可升级
@@ -109,18 +109,18 @@ def test_dmg_reduce():
     check("受击减伤5% (100→95)", pl["hp"] == before - 95, f"hp={pl['hp']} before={before}")
     check("减伤日志出现", any("被动减伤" in lg for lg in logs), str(logs))
 
-# ---------- 6. 气息调和每回合回血 ----------
+# ---------- 6. 气力调和每回合回血 ----------
 def test_turn_heal():
-    print("\n== 6. 气息调和每回合回血 ==")
+    print("\n== 6. 气力调和每回合回血 ==")
     pl = make_player(cls="拳师", level=40)
     pl["class_name"] = "cls_wu_seng"
-    pl["learned_skills"] = ["气息调和"]
+    pl["learned_skills"] = ["气力调和"]
     pl["hp"] = 200
     pl["max_hp"] = 400
     b = BT.Battle("monster", {"name": "测试怪", "hp": 500, "max_hp": 500, "atk": 30, "def": 10, "matk": 10, "mdef": 5, "spd": 10, "lv": 5, "role": "dps"})
     logs = b._turn_start(pl)
     check("每回合回 2% (400*2%=8)", pl["hp"] == 208, f"hp={pl['hp']}")
-    check("回血日志出现", any("气息调和" in lg for lg in logs), str(logs))
+    check("回血日志出现", any("气力调和" in lg for lg in logs), str(logs))
 
 # ---------- 7. 命令层：施放被动提示 ----------
 async def test_cmd_cast():

@@ -474,7 +474,7 @@ CLASSES = {
             "shield_power": 0.15, "block": 0.10,
         },
         "growth": {
-            "hp": 18, "mp": 7, "atk": 1.4, "def": 2.4, "matk": 2.2,
+            "hp": 20, "mp": 7, "atk": 1.6, "def": 2.4, "matk": 2.5,
             "mdef": 2.4, "spd": 0.6
         },
         "weapon_type": "mace",

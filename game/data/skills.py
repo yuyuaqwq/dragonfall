@@ -913,7 +913,7 @@ PLAYER_SKILLS = {
                 "name": "冲拳",
             },
     "sk_beng_quan": {
-        # v95.7 #39：崩拳 8→4 级并改为耗气技（3 气），解决武僧 Lv.2-7 气满无出口的空转
+        # v95.7 #39：碎骨拳 8→4 级并改为耗气技（3 气），解决武僧 Lv.2-7 气满无出口的空转
         "lv": 4,
         "mp": 6,
         "power": 1.4,
@@ -922,8 +922,8 @@ PLAYER_SKILLS = {
         "pierce": True,
         "res_cost": {"chi": 3},
         "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.3, "label": "崩山之势"},
-        "desc": "崩拳！140% 破防伤害，消耗 3 气，连招【拳】。目标 HP>70% 时＋30%",
-        "name": "崩拳",
+        "desc": "碎骨拳！140% 破防伤害，消耗 3 气，连招【拳】。目标 HP>70% 时＋30%",
+        "name": "碎骨拳",
     },
     "sk_hui_xuan_ti": {
                 "lv": 14,
@@ -966,8 +966,8 @@ PLAYER_SKILLS = {
                 "kind": "物理",
                 "combo": "掌",
                 "res_gain": 1,
-                "desc": "铁掌！120% 伤害，气＋1，连招【掌】(三连准备)",
-                "name": "铁掌",
+                "desc": "钢拳！120% 伤害，气＋1，连招【掌】(三连准备)",
+                "name": "钢拳",
             },
     "sk_qi_xi_tiao_xi": {
                 "lv": 11,
@@ -976,8 +976,8 @@ PLAYER_SKILLS = {
                 "kind": "治疗",
                 "cd": 3,
                 "res_gain": 2,
-                "desc": "气息调息！回复 15% HP，气＋2(续航)",
-                "name": "气息调息",
+                "desc": "冥想！回复 15% HP，气＋2(续航)",
+                "name": "冥想",
             },
     "sk_tie_bi": {
                 "lv": 17,
@@ -1038,7 +1038,7 @@ PLAYER_SKILLS = {
                 "kind": "被动",
                 "passive": {"proc": "turn_heal", "pct": 0.02},
                 "desc": "触发被动：每回合回复2%生命",
-                "name": "气息调和",
+                "name": "气力调和",
             },
     "sk_p_dou_qi_ning_ju": {
                 "lv": 55,
@@ -1047,7 +1047,7 @@ PLAYER_SKILLS = {
                 "kind": "被动",
                 "passive": {"stat": "chi_gain", "mult": 1},
                 "desc": "属性被动：气获取＋1",
-                "name": "斗气凝聚",
+                "name": "气力凝聚",
             },
         },
     },
@@ -2774,7 +2774,7 @@ BRANCH_SKILLS = {
                         "name": "疾风拳"
                     }
 ,
-                    "武技":                     {
+                    "格斗术":                     {
                         "lv": 38,
                         "mp": 0,
                         "power": 0,
@@ -2784,7 +2784,7 @@ BRANCH_SKILLS = {
                             "mult": 0.05
                         },
                         "desc": "触发被动：连招期间伤害＋5%(连招强化)",
-                        "name": "武技"
+                        "name": "格斗术"
                     }
 ,
                     "旋风踢":                     {
@@ -2803,7 +2803,7 @@ BRANCH_SKILLS = {
                         "name": "旋风踢"
                     }
 ,
-                    "斗气爆发":                     {
+                    "气力爆发":                     {
                         "lv": 55,
                         "mp": 0,
                         "power": 2.8,
@@ -2817,8 +2817,8 @@ BRANCH_SKILLS = {
                             "mult": 1.3,
                             "label": "斗气护体"
                         },
-                        "desc": "280% 斗气爆发，消耗 5 气。自身 HP<40% 时伤害＋30%(残血爆发)",
-                        "name": "斗气爆发"
+                        "desc": "280% 气力爆发，消耗 5 气。自身 HP<40% 时伤害＋30%(残血爆发)",
+                        "name": "气力爆发"
                     }
 ,
                 },
@@ -2854,7 +2854,7 @@ BRANCH_SKILLS = {
                         "name": "厚土"
                     }
 ,
-                    "回气掌":                     {
+                    "气力回涌":                     {
                         "lv": 45,
                         "power": 2.0,
                         "kind": "治疗",
@@ -2869,7 +2869,7 @@ BRANCH_SKILLS = {
                         "mp": 8,
                         "desc": "治疗 200%(自愈)，气＋3。自身 HP<40% 时治疗量＋50%(残血自愈)",
                         "cd": 2,
-                        "name": "回气掌"
+                        "name": "气力回涌"
                     }
 ,
                     "反震":                     {
@@ -2903,7 +2903,7 @@ BRANCH_SKILLS = {
             },
             2: {
                 "武斗师": {
-                    "斗气之心":                     {
+                    "气力之心":                     {
                         "lv": 60,
                         "mp": 0,
                         "power": 0,
@@ -2912,7 +2912,7 @@ BRANCH_SKILLS = {
                             "res_gain_bonus": 1
                         },
                         "desc": "二转被动：气获取＋1(连招强化)",
-                        "name": "斗气之心"
+                        "name": "气力之心"
                     }
 ,
                     "连环拳":                     {
@@ -2928,7 +2928,7 @@ BRANCH_SKILLS = {
                         "name": "连环拳"
                     }
 ,
-                    "斗气裂空":                     {
+                    "气力裂空":                     {
                         "lv": 68,
                         "mp": 0,
                         "power": 2.6,
@@ -2937,8 +2937,8 @@ BRANCH_SKILLS = {
                         "res_cost": {
                             "chi": 4
                         },
-                        "desc": "260% 破防斗气裂空，消耗 4 气",
-                        "name": "斗气裂空"
+                        "desc": "260% 破防气力裂空，消耗 4 气",
+                        "name": "气力裂空"
                     }
 ,
                 },
@@ -2956,7 +2956,7 @@ BRANCH_SKILLS = {
                         "name": "磐石之心"
                     }
 ,
-                    "斗气守御":                     {
+                    "气力守御":                     {
                         "lv": 68,
                         "mp": 0,
                         "power": 0,
@@ -2967,7 +2967,7 @@ BRANCH_SKILLS = {
                             "chi": 4
                         },
                         "desc": "全队护盾 20% HP，消耗 4 气(团队盾)",
-                        "name": "斗气守御"
+                        "name": "气力守御"
                     }
 ,
                 },
@@ -2993,7 +2993,7 @@ BRANCH_SKILLS = {
                         "name": "无影连打"
                     }
 ,
-                    "斗气天地":                     {
+                    "气力天地":                     {
                         "lv": 98,
                         "mp": 0,
                         "power": 5.0,
@@ -3003,11 +3003,11 @@ BRANCH_SKILLS = {
                         },
                         "team": "atk_all",
                         "cd": 5,
-                        "desc": "终极技，500% 斗气天地，消耗 10 气 + 全队攻击强化(终极斗气)",
-                        "name": "斗气天地"
+                        "desc": "终极技，500% 气力天地，消耗 10 气 + 全队攻击强化(终极斗气)",
+                        "name": "气力天地"
                     }
 ,
-                    "斗气通天":                     {
+                    "气力通天":                     {
                         "lv": 90,
                         "mp": 0,
                         "power": 0,
@@ -3018,7 +3018,7 @@ BRANCH_SKILLS = {
                             "chi": 8
                         },
                         "desc": "三转奥义，3 回合内每次攻击大幅增伤，消耗 8 气(连招极限)",
-                        "name": "斗气通天"
+                        "name": "气力通天"
                     }
 ,
                 },
@@ -3037,7 +3037,7 @@ BRANCH_SKILLS = {
                         "name": "磐石之躯"
                     }
 ,
-                    "斗气万法":                     {
+                    "气力万法":                     {
                         "lv": 98,
                         "mp": 0,
                         "power": 0,
@@ -3049,7 +3049,7 @@ BRANCH_SKILLS = {
                         },
                         "cd": 5,
                         "desc": "终极技，全队减伤 30% 3 回合，消耗 10 气(终极团队技)",
-                        "name": "斗气万法"
+                        "name": "气力万法"
                     }
 ,
                     "大地守护":                     {
@@ -3122,7 +3122,7 @@ _ADD_HIDDEN_SKILLS = {
             },
             "sk_can_xue_zhui_lie": {
                 "lv": 45, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.30},
+                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.35},
                 "desc": "被动：残血追猎，目标生命低于 30% 时伤害＋40%",
                 "name": "残血追猎",
             },
@@ -3174,9 +3174,9 @@ _ADD_HIDDEN_SKILLS = {
                 "name": "龙魂",
             },
             "sk_long_xi_zhi_nu": {
-                "lv": 75, "mp": 35, "power": 0.9, "kind": "真伤",
+                "lv": 75, "mp": 35, "power": 0.8, "kind": "真伤",
                 "mech": "burn", "mech_val": 2, "cd": 4,
-                "desc": "龙息之怒！90% 真伤(无视全部防御)，附带灼烧 2 层",
+                "desc": "龙息之怒！80% 真伤(无视全部防御)，附带灼烧 2 层",
                 "name": "龙息之怒",
             },
         },
@@ -3184,13 +3184,13 @@ _ADD_HIDDEN_SKILLS = {
     "cls_void_walker": {
         "skills": {
             "sk_xu_kong_jian": {
-                "lv": 40, "mp": 15, "power": 1.2, "kind": "魔法",
+                "lv": 40, "mp": 15, "power": 1.35, "kind": "魔法",
                 "mp_steal": 0.15, "cd": 1,
                 "desc": "虚空箭！120% 魔法伤害，回复 15% 伤害值的魔力",
                 "name": "虚空箭",
             },
             "sk_shen_yuan_ning_shi": {
-                "lv": 48, "mp": 20, "power": 1.1, "kind": "魔法",
+                "lv": 48, "mp": 20, "power": 1.25, "kind": "魔法",
                 "mech": "spd_down", "mech_chance": 0.5, "cd": 3,
                 "desc": "深渊凝视！110% 魔法伤害，50% 概率减速目标 2 回合",
                 "name": "深渊凝视",
@@ -3202,13 +3202,13 @@ _ADD_HIDDEN_SKILLS = {
                 "name": "虚空行走",
             },
             "sk_an_ying_chong_ji": {
-                "lv": 65, "mp": 25, "power": 1.5, "kind": "魔法",
+                "lv": 65, "mp": 25, "power": 1.7, "kind": "魔法",
                 "mech": "shadow", "mech_val": 1, "mp_steal": 0.15, "cd": 3,
                 "desc": "暗影冲击！150% 魔法伤害，满血目标必暴击，回复魔力",
                 "name": "暗影冲击",
             },
             "sk_xu_kong_bao_po": {
-                "lv": 78, "mp": 40, "power": 2.0, "kind": "魔法",
+                "lv": 78, "mp": 40, "power": 2.2, "kind": "魔法",
                 "mp_steal": 0.20, "cd": 4,
                 "desc": "虚空爆破！200% 魔法伤害，回复 20% 伤害值的魔力",
                 "name": "虚空爆破",
@@ -3322,8 +3322,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_tie_shan_kao": {
                 "lv": 40, "mp": 12, "power": 1.3, "kind": "物理",
                 "mech": "chi", "mech_val": 1, "cd": 1,
-                "desc": "铁山靠！130% 物理伤害，气＋1",
-                "name": "铁山靠",
+                "desc": "裂岩冲！130% 物理伤害，气＋1",
+                "name": "裂岩冲",
             },
             "sk_yi_shou_wei_gong": {
                 "lv": 45, "mp": 0, "power": 0, "kind": "被动",
@@ -3334,8 +3334,8 @@ _ADD_HIDDEN_SKILLS = {
             "sk_qi_jin_lian_da": {
                 "lv": 55, "mp": 20, "power": 1.4, "kind": "物理",
                 "combo": "拳", "cd": 2,
-                "desc": "气劲连打！140% 物理伤害，拳连招(拳-踢-掌三连追加)",
-                "name": "气劲连打",
+                "desc": "气力连打！140% 物理伤害，拳连招(拳-踢-掌三连追加)",
+                "name": "气力连打",
             },
             "sk_fan_ji_zhi_wang": {
                 "lv": 70, "mp": 0, "power": 0, "kind": "被动",
@@ -3497,8 +3497,8 @@ TUTOR_SKILLS = {
         "sk_beng_quan_lie": {
             "lv": 6, "mp": 8, "power": 1.6, "kind": "物理",
             "mech": "stun", "mech_chance": 0.2, "cd": 2,
-            "desc": "崩拳·裂！160% 物理伤害，20% 概率击晕目标",
-            "name": "崩拳·裂",
+            "desc": "裂骨击！160% 物理伤害，20% 概率击晕目标",
+            "name": "裂骨击",
         },
         "sk_jin_gang_ti": {
             "lv": 10, "mp": 12, "power": 0, "kind": "增益",

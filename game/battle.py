@@ -912,6 +912,12 @@ class Battle:
                          ("lifesteal_magi_add", "lifesteal_magi")):
             if pb.get(_pk, 0.0):
                 st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+        # v109 P0-2：隐藏职业被动并入补全（龙魂/星辰之力/万兽之力等 lv62 被动此前完全无效）
+        for _pk, _pv in (("heal_power_add", "heal_power"), ("shield_power_add", "shield_power"),
+                         ("elem_res_add", "elem_res"), ("abyss_res_add", "abyss_res"),
+                         ("luck_add", "luck"), ("summon_power_add", "summon_power")):
+            if pb.get(_pk, 0.0):
+                st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
         # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
         pm = self._passive_map(player)
@@ -2303,12 +2309,12 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * C.rune_value("regen", regen_lvl))
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"✨ 符文治愈生效，你回复了 {heal} 点生命！")
-        # v64 被动·气息调和：每回合回复 2% 生命
-        if "气息调和" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])) \
+        # v64 被动·气力调和（原名气息调和）：每回合回复 2% 生命（v109 改名同步硬编码引用）
+        if "气力调和" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])) \
                 and player.get("hp", 0) < player.get("max_hp", 1):
             heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-            logs.append(f"🍃 气息调和生效，你回复了 {heal} 点生命！")
+            logs.append(f"🍃 气力调和生效，你回复了 {heal} 点生命！")
         # v104 R3 P1-1：生命之泉——全队每回合回血 5%（单人战斗=自身，副本由 instance 广播）
         for _pn, _ps in self._passive_map(player)["proc"].get("team_regen", []):
             if player.get("hp", 0) < player.get("max_hp", 1):
@@ -2645,6 +2651,8 @@ class Battle:
                 self._damage_enemy(rd, logs)
                 logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
         # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
+        # v109 P0-3：多个反击被动（以守为攻+反击之王）逐个独立 roll，命中即停；此前 break 在
+        # for 末尾无条件退出，只 roll 第一个被动 → 反击之王(lv70)被废
         if self.enemy.get("hp", 0) > 0:
             for _pn, _ps in self._passive_map(player)["proc"].get("counter_attack", []):
                 if random.random() < float(_ps.get("chance", 0.20)):
@@ -2657,7 +2665,7 @@ class Battle:
                     self._damage_enemy(ca_dmg, logs)
                     logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
                                 + (" 💥暴击" if _ca_crit else ""))
-                break
+                    break  # 命中即停（一次受击最多一次反击）
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:
