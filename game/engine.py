@@ -631,7 +631,7 @@ def skill_mech_val(info: dict, level: int) -> int:
     """机制叠层随等级成长。info 配了 m 时按该技能间隔，否则默认每 2 级＋1 层"""
     base = int(info.get("mech_val", 0) or 0)
     lv = max(1, min(level, skill_max_level(info)))
-    m = _skill_up(info).get("m", 2)
+    m = max(1, int(_skill_up(info).get("m", 2) or 0))  # v109.2 防御：m≤0 时按默认 2（防除零）
     return base + (lv - 1) // m
 
 

@@ -29,8 +29,8 @@ PLAYER_SKILLS = {
             },
 "sk_an_mian_qu": {
                 "lv": 6, "mp": 10, "power": 0, "kind": "增益",
-                "effect": "mon_atk_down", "cd": 3,
-                "desc": "安眠曲！敌方攻击－30% 3 回合",
+                "effect": "sleep", "cd": 3,
+                "desc": "安眠曲！使敌人陷入沉睡 2 回合（受击解除，对首领只持续 1 回合）",
                 "name": "安眠曲",
             },
 "sk_gu_wu": {
@@ -999,7 +999,7 @@ PLAYER_SKILLS = {
                 "combo": "拳",
                 "multi": 3,
                 "res_gain": 3,
-                "desc": "连招·三连！150%×3，气＋3(连招核心，三连完成时斗气技＋30%)",
+                "desc": "连招·三连！150%×3，气＋3(连招核心，三连完成时气力技＋30%)",
                 "name": "连招三连",
             },
     "sk_po_xiao_zhi_quan": {
@@ -1019,7 +1019,7 @@ PLAYER_SKILLS = {
                 "power": 0,
                 "kind": "被动",
                 "passive": {"proc": "combo_boost"},
-                "desc": "触发被动：连招(拳踢掌)触发率提升",
+                "desc": "触发被动：三连击破追加伤害提升至 50%（v109.2 武圣连击强化）",
                 "name": "连招精通",
             },
     "sk_p_pan_shi_ti": {
@@ -2815,7 +2815,7 @@ BRANCH_SKILLS = {
                             "type": "player_hp_low",
                             "hp_pct": 0.4,
                             "mult": 1.3,
-                            "label": "斗气护体"
+                            "label": "气力护体"
                         },
                         "desc": "280% 气力爆发，消耗 5 气。自身 HP<40% 时伤害＋30%(残血爆发)",
                         "name": "气力爆发"
@@ -3172,6 +3172,12 @@ _ADD_HIDDEN_SKILLS = {
                 "passive": {"stat": "elem_res", "add": 0.05},
                 "desc": "被动：龙魂，元素抗性＋5%",
                 "name": "龙魂",
+            },
+            "sk_huo_zhi_qin_he": {
+                "lv": 70, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "burn_amp", "mult": 1.2},
+                "desc": "被动：火之亲和，灼烧伤害＋20%",
+                "name": "火之亲和",
             },
             "sk_long_xi_zhi_nu": {
                 "lv": 75, "mp": 35, "power": 0.8, "kind": "真伤",

@@ -2200,7 +2200,9 @@ class CombatCmds(CommandBase):
             return 0
 
     def _pvp_snapshot(self, p: dict, group_id: str = "", qq_id: str = "") -> dict:
-        """玩家快照(PVP 战斗状态用)"""
+        """玩家快照(PVP 战斗状态用)
+        v109.2 P0 修复：补全战斗结算属性（此前缺 atk/def/mdef/tenacity 等 → PVP 中防御/韧性全失效，
+        玩家攻击打敌方 0 防御、暴击不受敌方韧性削减——审计 P1-7 快照不消费根源）。"""
         st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
         return {
             "qq_id": str(p["qq_id"]), "name": p["name"],
@@ -2209,6 +2211,16 @@ class CombatCmds(CommandBase):
             "equipment": p.get("equipment", {}), "class_tier": p.get("class_tier", 0),
             "attributes": p.get("attributes", {}),
             "evolve_path": p.get("evolve_path", 0), "race": p.get("race"),
+            # v109.2 战斗结算属性（_enemy_stats/_pvp_enemy_turn 消费）
+            "atk": st.get("atk", 0), "def": st.get("def", 0),
+            "matk": st.get("matk", 0), "mdef": st.get("mdef", 0),
+            "spd": st.get("spd", 0), "crit": st.get("crit", 0.05),
+            "tenacity": st.get("tenacity", 0) or 0, "luck": st.get("luck", 0) or 0,
+            "pene_phys": st.get("pene_phys", 0) or 0, "pene_magi": st.get("pene_magi", 0) or 0,
+            "pene_flat": st.get("pene_flat", 0) or 0, "pene_mflat": st.get("pene_mflat", 0) or 0,
+            "phys_reduce": st.get("phys_reduce", 0) or 0, "magic_reduce": st.get("magic_reduce", 0) or 0,
+            "block": st.get("block", 0) or 0, "dodge": st.get("dodge", 0) or 0,
+            "elem_res": st.get("elem_res", 0) or 0, "abyss_res": st.get("abyss_res", 0) or 0,
         }
 
     def _pvp_handle_timeout(self, battle, group_id, qq_id) -> bool:

@@ -38,7 +38,7 @@ CORE_RESOURCES = {
     },
     "cls_wu_seng": {
         "key": "chi", "name": "气", "max": 10, "regen": 0,
-        "desc": "连招/受击＋1，终结技/斗气消耗",
+        "desc": "连招/受击＋1，终结技/气力消耗",
         "on_attack": 1, "on_hit": 1, "on_skill": 1,
     },
 }

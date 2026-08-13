@@ -266,3 +266,37 @@
 - 三套门槛：校验按职业各自表，60 级吟游 T2/魔剑 T1 均正确 ✅；75 门槛与 TIER_GROWTH 无冲突 ✅
 - 技能获取：升级提示+『技能学习』全路径可学，无断层 ✅（13 隐藏均不在 BRANCH/TUTOR 拦截表）
 - 39 档位名+11 别名路由：全名 39/39 零冲突 ✅；别名强制 tier=1 为 P3-8
+
+---
+
+## 九、v109.2 实施记录（2026-08-14 鱼鱼授权"继续"）
+
+### 已落地（战斗机制 6 项 + 潜伏雷修复）
+| 项 | 状态 | 实现 |
+|----|------|------|
+| P1-1 占星运势 | ✅ | luck→暴击补充（×0.3 cap 12%）+ 暴击后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）；普攻/技能双端 |
+| P1-2 武圣连击 0.50 | ✅ | battle.py combo_boost 0.45→0.50；连招精通 desc 同步（拳师线共享受益） |
+| P1-2 龙血火系强化 | ✅ | 新增 lv70 被动「火之亲和」（burn_amp×1.2），灼烧 dot 结算消费（仿毒系 poison proc）；日志标注 |
+| P1-3 吟游安眠曲→睡眠 | ✅ | effect=sleep：2 回合（受击解除）/ 世界 Boss 1 回合；主动攻击/反伤打醒（_damage_enemy wake_sleep），dot 不打醒（防每回合必断） |
+| P1-6 pierce 魔法分支 | ✅ | 技能端魔法分支补 pierce 消费（审判之剑等无视 mdef） |
+| PVP 韧性对称 | ✅ | _enemy_stats 补 tenacity 聚合；玩家攻击端暴击率 ×(1-敌韧)（敌方端本就对称） |
+
+### 顺手修复：v83 潜伏雷（m:0 除零）
+- skill_up.py 11 处 `"m": 0` → `m: 2`（战歌/安眠曲/鼓舞/静默之歌/奥术咏叹调/终章·黎明颂歌/伴奏/快板节奏/破甲精通/穿甲箭/魔力贯穿）
+- 吟游增益技能（战歌/安眠曲等）施放必 ZeroDivisionError（skill_mech_val `(lv-1)//m`），v83 上线即存在、被战斗层 try 吞掉从未暴露——现实测修复
+- engine.skill_mech_val 加 `max(1, m)` 防御（防未来数据配错）
+
+### 文案残留清理
+- 斗气→气力 4 处（battle.py 注释+combo 日志、skills.py 连招三连 desc+气力护体 label、core_resources.py 气资源 desc）
+
+### 验证
+- tests/test_v109_2_combat_mech.py（正式回归，27 断言）：pierce 魔法/睡眠完整语义/灼烧×1.2/luck 联动（统计+日志）/combo 0.30vs0.50/PVP 韧性对称 全绿
+- 相关既有测试：test_v107_dmg_type 21/21、test_v108_class_tree 36/36、test_v104_battle_skills 27/27、test_v97_07_quick_battle_use 10/10
+- 策划案同步：09 章（安眠曲已实装标注）、12 章（连招精通 0.50、火之亲和新增）
+
+### v109.2 追加：PVP 快照 P0 修复（顺带挖出）
+- **_pvp_snapshot 缺战斗结算属性**：快照仅含 hp/mp 基础字段，无 atk/def/matk/mdef/spd/crit/tenacity/luck/穿透/免伤/格挡/闪避/元素抗
+  → PVP 中敌方防御=0（玩家打对方无视防御）、韧性=0（暴击不受削减）、穿透/免伤/格挡全不消费（审计 P1-7 根源）
+- 修复：_pvp_snapshot 补 18 项战斗属性（combat.py，player_final_stats 已全量聚合）
+- 连带：_enemy_stats 补 tenacity 聚合（battle.py），玩家攻击端暴击 ×(1-敌韧) 真实生效
+- 验证：test_v109_2_combat_mech 6a 快照路径（tenacity 0.5 → 暴击率减半 ±0.05）+ test_v85_pvp_honor 22/22

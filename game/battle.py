@@ -962,11 +962,17 @@ class Battle:
         if ap_lvl:
             est = dict(est)
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-        is_crit = random.random() < st["crit"]
+        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)) * self._tenacity_mult(est)
+        # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击）
+        lucky = is_crit and random.random() < 0.30
         # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
         _pp, _pf = self._pene_vals(st)
         # v107 伤害类型四层架构：普攻显式声明 phys（物理段，吃 def/物免/格挡/物吸）
         dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
+        if lucky:
+            dmg = int(dmg * 1.5)
+            logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
@@ -1042,7 +1048,7 @@ class Battle:
             return
         k = rd["key"]
         gain = rd.get("on_attack", 0)
-        # v104 R3 P1-1：斗气凝聚（气获取+1）/ 狂战之魂·斗气之心（资源获取+1）被动加成
+        # v104 R3 P1-1：气力凝聚（气获取+1）/ 狂战之魂·气力之心（资源获取+1）被动加成
         pm = self._passive_map(player)
         for _pn, _ps in pm["stat"]:
             if _ps.get("stat") == "chi_gain" and k == "chi":
@@ -1433,6 +1439,9 @@ class Battle:
             elif eff == "mark":
                 # v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）
                 self.e_buffs["mark"] = E.skill_buff_turns(lv)
+            elif eff == "sleep":
+                # v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 回合）
+                self.e_buffs["sleep"] = 1 if self.btype == "worldboss" else 2
             elif eff == "shield_all":
                 # v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
                 st2 = self._player_stats(player)
@@ -1523,7 +1532,8 @@ class Battle:
             return logs
 
         est = self._enemy_stats()
-        is_crit = random.random() < st["crit"]
+        # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)) * self._tenacity_mult(est)
         # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
         if "mark" in self.e_buffs:
             for _pn, _ps in self._passive_map(player)["stat"]:
@@ -1544,6 +1554,8 @@ class Battle:
         # 机制：影袭（满血必暴）
         if mech == "shadow" and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
             is_crit = True
+        # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
+        lucky = is_crit and random.random() < 0.30
         # 机制：冰霜（冻结目标碎冰增伤）
         frozen_bonus = 1.5 if (mech == "freeze" and "freeze" in self.e_buffs) else 1.0
         # 机制：圣光/毒/影/气/审判/狂暴 层数加成
@@ -1691,8 +1703,13 @@ class Battle:
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                     dmg_i += dmg_m
             else:
-                dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit,
-                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+                # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
+                if info.get("pierce"):
+                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), 0, is_crit, pierce=True,
+                                          dmg_type="magi")
+                else:
+                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit,
+                                          pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
             if self.p_buffs.get("spellblade_surge"):
                 surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit,
@@ -1709,8 +1726,13 @@ class Battle:
                 cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
             if is_crit and cdmg > 0:
                 dmg_i = int(dmg_i * (1 + cdmg))
+            # v109.2 P1-1 运势：幸运一击——暴击后 30% 概率追加 50% 伤害
+            if lucky:
+                dmg_i = int(dmg_i * 1.5)
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
+        if lucky:
+            logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         total = self._boss_dmg_filter(total, player, logs)
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         if self._monster_dodge_check(logs):
@@ -1786,12 +1808,12 @@ class Battle:
             combo_full = self._combo_push(combo_tag)
             if combo_full:
                 combo_bonus = int(total * 0.30)
-                # v104 R3 P1-1：连招精通——三连击破追加伤害提升 50%（0.30 → 0.45）
+                # v109.2 P1-2：连招精通——三连击破追加伤害提升至 50%（0.30 → 0.50，武圣连击强化设计落地）
                 for _pn, _ps in _procs.get("combo_boost", []):
-                    combo_bonus = int(total * 0.45)
+                    combo_bonus = int(total * 0.50)
                     break
                 self._damage_enemy(combo_bonus, logs)
-                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技+20%)")
+                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次气力技+20%)")
                 self.resources["combo_ready"] = 1
             else:
                 logs.append(f"🥊 连招 {self._combo_label()}")
@@ -1964,6 +1986,13 @@ class Battle:
             logs.append("🌀 敌人被眩晕，无法行动！")
             self.e_buffs.pop("stun", None)
             return logs, 0
+        # v109.2 P1-3：睡眠——跳过敌方回合（安眠曲；受击解除，睡多回合时按回合递减）
+        if "sleep" in self.e_buffs:
+            logs.append("💤 敌人陷入沉睡，无法行动！")
+            self.e_buffs["sleep"] -= 1
+            if self.e_buffs["sleep"] <= 0:
+                del self.e_buffs["sleep"]
+            return logs, 0
         # v101.28l #438：援军出手（召唤的爪牙每回合攻击一次，独立于 Boss 行动）
         minion_dmg = 0
         if self.e_minions:
@@ -2116,6 +2145,8 @@ class Battle:
             "atk": e.get("atk", 0), "def": e.get("def", 0),
             "matk": e.get("matk", 0), "mdef": e.get("mdef", 0),
             "spd": e.get("spd", 0), "crit": e.get("crit", 0.05),
+            # v109.2 PVP 韧性对称：敌方玩家快照 tenacity 传入 est（玩家攻击端暴击率 ×(1-敌韧)）
+            "tenacity": e.get("tenacity", 0) or 0,
         }
         est = self._apply_buffs(est, self.e_buffs)
         # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%
@@ -2248,10 +2279,14 @@ class Battle:
         # v29 灼烧：每层 3% 生命（层数存战斗 mech_stacks）
         mech = self.mech_stacks
         burn_n = int(mech.get("burn", 0) or 0)
+        # v109.2 P1-2：火之亲和——灼烧伤害 +20%（龙血战士火系强化，仿毒系 poison proc）
+        _burn_mult = 1.0
+        for _pn, _ps in self._passive_map(player)["proc"].get("burn_amp", []):
+            _burn_mult *= float(_ps.get("mult", 1.2))
         if burn_n > 0:
-            p = int(self.enemy.get("max_hp", 1) * 0.03 * burn_n)
-            self._damage_enemy(p, logs)
-            logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！")
+            p = int(self.enemy.get("max_hp", 1) * 0.03 * burn_n * _burn_mult)
+            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
+            logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！" + ("(火之亲和)" if _burn_mult > 1.0 else ""))
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(灼烧致死)")
@@ -2264,14 +2299,14 @@ class Battle:
             _poison_mult *= float(_ps.get("mult", 1.2))
         if poison_n > 0:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n * _poison_mult)
-            self._damage_enemy(p, logs)
+            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         elif "poison" in self.e_buffs:
             p = int(self.enemy.get("max_hp", 1) * POISON_PCT * _poison_mult)
-            self._damage_enemy(p, logs)
+            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
@@ -2280,7 +2315,7 @@ class Battle:
         bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
         if bleed_n > 0:
             p = int(self.enemy.get("max_hp", 1) * 0.05)
-            self._damage_enemy(p, logs)
+            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
             logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
@@ -2420,9 +2455,13 @@ class Battle:
             pass
         return False
 
-    def _damage_enemy(self, dmg: int, logs: list) -> int:
+    def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True) -> int:
         """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。
-        返回对 Boss 实际造成的伤害（援军吸收部分不计入）。"""
+        返回对 Boss 实际造成的伤害（援军吸收部分不计入）。
+        v109.2 P1-3：wake_sleep——主动攻击/反伤打醒睡眠（dot 传 False，防止睡眠每回合必被持续伤害打断）。"""
+        if wake_sleep and dmg > 0 and "sleep" in self.e_buffs:
+            self.e_buffs.pop("sleep", None)
+            logs.append("💥 敌人被攻击惊醒！")
         if not self.e_minions or dmg <= 0:
             self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
             return dmg
