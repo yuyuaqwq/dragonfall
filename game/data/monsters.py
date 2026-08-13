@@ -58,7 +58,7 @@ MONSTER_SKILLS = {
     "ms_bao_zi_du": {
         "kind": "魔法",
         "power": 1.5,
-        "desc": "孢子毒，释放毒孢子使敌人中毒",
+        "desc": "孢子毒，释放毒孢子攻击敌人",
         "name": "孢子毒",
     },
     "ms_bao_zi_pen_she": {
@@ -149,7 +149,7 @@ MONSTER_SKILLS = {
     "ms_chan_rao": {
         "kind": "魔法",
         "power": 1.2,
-        "desc": "缠绕，束缚敌人使其无法行动",
+        "desc": "缠绕，用藤蔓缠绕攻击敌人",
         "name": "缠绕",
     },
     "ms_chong_zhuang": {
@@ -186,13 +186,13 @@ MONSTER_SKILLS = {
     "ms_dong_jie": {
         "kind": "魔法",
         "power": 1.4,
-        "desc": "冻结，冰冻敌人使其无法行动",
+        "desc": "冻结，凝聚寒气攻击敌人",
         "name": "冻结",
     },
     "ms_du_ci": {
         "kind": "魔法",
         "power": 1.4,
-        "desc": "毒刺，毒刺扎伤敌人使其中毒",
+        "desc": "毒刺，掷出毒刺攻击敌人",
         "name": "毒刺",
     },
     "ms_du_wu": {
@@ -285,7 +285,7 @@ MONSTER_SKILLS = {
     "ms_fu_shi_shu": {
         "kind": "魔法",
         "power": 1.5,
-        "desc": "腐蚀术，腐蚀敌人使其持续掉血",
+        "desc": "腐蚀术，释放腐蚀能量攻击敌人",
         "name": "腐蚀术",
         "element": "dark",
     },
@@ -298,7 +298,7 @@ MONSTER_SKILLS = {
     "ms_gan_ran": {
         "kind": "魔法",
         "power": 1.3,
-        "desc": "感染，使敌人持续受到伤害",
+        "desc": "感染，释放感染能量攻击敌人",
         "name": "感染",
     },
     "ms_gao_ji": {
@@ -316,7 +316,7 @@ MONSTER_SKILLS = {
     "ms_gen_xu_chan_rao": {
         "kind": "魔法",
         "power": 1.2,
-        "desc": "根须缠绕，对敌人造成伤害并附加控制",
+        "desc": "根须缠绕，用根须攻击敌人",
         "name": "根须缠绕",
     },
     "ms_gu_long_wei_ya": {
@@ -462,7 +462,7 @@ MONSTER_SKILLS = {
     "ms_jing_ji_chan_rao": {
         "kind": "魔法",
         "power": 1.3,
-        "desc": "荆棘缠绕，束缚并刺伤敌人",
+        "desc": "荆棘缠绕，用荆棘攻击敌人",
         "name": "荆棘缠绕",
     },
     "ms_jing_ling_jian_shu": {
@@ -595,13 +595,13 @@ MONSTER_SKILLS = {
     "ms_ni_jiang": {
         "kind": "魔法",
         "power": 1.2,
-        "desc": "泥浆，对敌人造成伤害并附加控制",
+        "desc": "泥浆，泼洒泥浆攻击敌人",
         "name": "泥浆",
     },
     "ms_nian_ye": {
         "kind": "魔法",
         "power": 1.2,
-        "desc": "黏液，对敌人造成伤害并附加控制",
+        "desc": "黏液，喷吐黏液攻击敌人",
         "name": "黏液",
     },
     "ms_nu_hou": {
@@ -1170,7 +1170,7 @@ MONSTER_SKILLS = {
     "ms_zhi_wang": {
         "kind": "魔法",
         "power": 1.2,
-        "desc": "织网，束缚敌人",
+        "desc": "织网，吐出蛛网攻击敌人",
         "name": "织网",
     },
     "ms_zhi_yu": {

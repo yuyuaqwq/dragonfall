@@ -20,9 +20,20 @@ def register(key):
 
 
 def format_talent(k, v, name):
-    """返回天赋展示文本；未知 key 返回 None（不显示，与原 elif 链无 else 一致）。"""
+    """返回天赋展示文本；未知 key 返回 None（不显示，与原 elif 链无 else 一致）。
+
+    v105 P3(M01)：未知 key 打告警日志（原静默缺失）——races.py 新增天赋忘记
+    注册展示文案时日志可见，防无声缺失。
+    """
     fn = DISPLAY.get(k)
-    return fn(v, name) if fn else None
+    if fn is None:
+        import logging
+        logging.getLogger("astrbot").warning(
+            f"[dragonfall] 种族天赋无展示注册: {k}（data/races.py 新增天赋需在 "
+            "race_talent_display.py 注册 format 函数）"
+        )
+        return None
+    return fn(v, name)
 
 
 # ================= 格式化实现（文案与原实现逐字一致） =================
@@ -73,14 +84,18 @@ def _d_heal_received(v, name):
 
 @register("berserk_hp")
 def _d_berserk_hp(v, name):
-    # 注：文案硬编码 20%（历史实现未用 v，模板化保持原样）
-    return f"{name} 残血攻＋20%"
+    # v105 P3(M01)：倍率取自 battle.RACE_BERSERK_MULT（原硬编码 +20%，调 battle 倍率会文案失配）
+    from ..battle import RACE_BERSERK_MULT
+    pct = round((RACE_BERSERK_MULT - 1) * 100)
+    return f"{name} 残血攻＋{pct}%"
 
 
 @register("timid_hp")
 def _d_timid_hp(v, name):
-    # 注：文案硬编码 10%（历史实现未用 v，模板化保持原样）
-    return f"🔻{name} 残血攻－10%"
+    # v105 P3(M01)：倍率取自 battle.RACE_TIMID_MULT（原硬编码 -10%，调 battle 倍率会文案失配）
+    from ..battle import RACE_TIMID_MULT
+    pct = round((1 - RACE_TIMID_MULT) * 100)
+    return f"🔻{name} 残血攻－{pct}%"
 
 
 @register("first_hit")

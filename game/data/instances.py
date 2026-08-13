@@ -1751,7 +1751,7 @@ INSTANCES = {
         "desc": "风翼群岛之巅的云中圣殿，云中圣者·奥拉守护着天空的传承。圣光与风暴在此交织——最后的试炼，留给最强的冒险者。(天空支线)",
         "boss": ["b_ola", "云中圣者·奥拉", "boss", 100,
                  ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"],
-                 ["奥拉圣印"]],
+                 ["奥拉圣印碎片"]],
                 "stages":         [
             {
                 "name": "云门",
@@ -1814,7 +1814,7 @@ INSTANCES = {
                         "ms_zhao_huan_yun_wei"
                     ],
                     [
-                        "奥拉圣印"
+                        "奥拉圣印碎片"
                     ]
                 ]
             }
@@ -1826,7 +1826,7 @@ INSTANCES = {
         "atk_mult": 1.35,
         "gold": 3200,
         "exp": 4200,
-        "materials": ["奥拉圣印"],
+        "materials": ["奥拉圣印碎片"],
         "mat_count": 5,
         "blueprint": True,
     },

@@ -326,12 +326,30 @@ class SocialCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         target = self._strip_cmd(event, "组队").strip()
-        if target == "队伍":
-            target = ""
+        # v104 M04 P2：『队伍甲』免空格拉人失效——正则同时接受 组队|队伍 前缀，
+        # 但 _strip_cmd 只剥"组队"，"队伍甲" 被当玩家名查找报"找不到玩家"。
+        # 与『组队甲』同规则：剥掉"队伍"前缀（『队伍』= 查看面板，空参同义）。
+        if target.startswith("队伍"):
+            target = target[2:].strip()
         members = db.party_members(group_id, qq_id)
         if not target:
             if members:
                 lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]
+                # v104 M04 P2：面板补"位置"（模块卡审计点 7：成员/等级/职业/位置）——
+                # 副本内按速度降序决定出手顺序（instance.py:956），面板标注每人行动位次，
+                # 让玩家知道下副本时谁先出手（出手位≠入队序号，速度排序）
+                _order = []
+                for _m in members:
+                    _p = self._player(group_id, _m)
+                    _spd = 0
+                    if _p:
+                        _spd = E.player_final_stats(
+                            _p["class_name"], _p["level"], _p.get("equipment", {}),
+                            _p.get("class_tier", 0), _p.get("attributes"),
+                            _p.get("evolve_path", 0), None, _p.get("race")
+                        ).get("spd", 0) or 0
+                    _order.append((_spd, str(_m)))
+                _rank = {mid: i + 1 for i, (_s, mid) in enumerate(sorted(_order, key=lambda x: -x[0]))}
                 for i, m in enumerate(members, 1):
                     p = self._player(group_id, m)
                     # v104 M04 P2：面板补 等级/职业（对齐『角色』面板写法 C.display('classes', ...)）
@@ -339,11 +357,12 @@ class SocialCmds(CommandBase):
                         f" Lv.{p.get('level', '?')} {C.display('classes', p.get('class_name') or C.CLASS_NOVICE)}"
                         if p else ""
                     )
-                    lines.append(f"{i}. {p['name'] if p else m}{cls_str}" + ("(队长)" if m == members[0] else ""))
-                lines.append("💡 组队打怪经验＋10%！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
+                    pos_str = f" · 出手位{_rank.get(str(m), '?')}" if len(members) > 1 else ""
+                    lines.append(f"{i}. {p['name'] if p else m}{cls_str}{pos_str}" + ("(队长)" if m == members[0] else ""))
+                lines.append("💡 组队打怪经验＋10%（野外各自为战，仅经验加成；副本内才并肩作战）！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
                 yield event.plain_result("\n".join(lines))
             else:
-                yield event.plain_result("你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%")
+                yield event.plain_result("你还没有队伍～『组队 <对方名字>』邀请同群玩家组队！\n💡 组队打怪经验＋10%（野外各自为战，仅经验加成，副本内才并肩作战）")
             return
         # 找目标玩家
         all_players = db.get_group_players(group_id)
@@ -393,7 +412,8 @@ class SocialCmds(CommandBase):
                     f"🔔 {tname_str}：{my_name['name'] if my_name else qq_id} 将你拉入了队伍！"
                 )
             else:
-                yield event.plain_result(f"无法拉入 {tname_str}：TA 可能已在队伍中，或队伍已满(4 人)～")
+                # v104 M04 P2：P1-1 吞并修复后此文案名副其实——party_add 拒绝=目标已在队伍/别队/满员
+                yield event.plain_result(f"无法拉入 {tname_str}：TA 已在队伍中(含其他队伍)，或队伍已满(4 人)～")
             return
         if not db.party_create(group_id, qq_id, target_qq):
             yield event.plain_result(f"无法与 {tname_str} 组队：TA 已有队伍，或正在战斗中～")
@@ -432,6 +452,12 @@ class SocialCmds(CommandBase):
             if inst_member:
                 self._unlock_battle(group_id, qq_id)
                 db.clear_battle(group_id, qq_id)
+            # v104 M04 P2：队长退队=队伍解散，其名下撤退保留的副本进度行一并清理
+            # （队伍已散，进度无法恢复；此前该行驻留到被新开本覆盖，长期占一行数据）
+            if not db.party_members(group_id, qq_id):
+                _lb = db.get_battle(group_id, qq_id)
+                if _lb and _lb["state"].get("type") == "instance" and _lb["state"].get("retreated"):
+                    db.clear_battle(group_id, qq_id)
             yield event.plain_result("👋 你已退出队伍！(队长退队将解散队伍)")
         else:
             yield event.plain_result("你还没有队伍～")
@@ -786,7 +812,8 @@ class SocialCmds(CommandBase):
         # 喂食：饱食度 +30（24 章四），亲密度 +5，经验 +10
         db.remove_item(group_id, qq_id, target["key"])
         sat = min(100, pet["satiety"] + 30)
-        bond = pet["bond"] + 5
+        # v105 M17 P3-6：亲密度封顶 100（面板显示 x/100，此前 99→104 显示 104/100）
+        bond = min(100, pet["bond"] + 5)
         exp = pet["exp"] + 10
         lv = pet["level"]
         while exp >= C.pet_exp_need(lv):
@@ -845,7 +872,17 @@ class SocialCmds(CommandBase):
                     # 未拥有的坐骑 → 提示
                     for m in C.MOUNT_POOL:
                         if name in (m["name"], m["key"]):
-                            yield event.plain_result(f"你还没有『{m['name']}』！{'去商店『购买 老马』' if m['key'] == 'mount_horse' else '打精英/Boss 掉缰绳后用『使用 缰绳』解锁'}～")
+                            # v105 M17 P3-4：提示按真实渠道（商店直购/desc 括号渠道），
+                            # 此前驼马/驯鹿/独角兽等生活渠道坐骑也提示打精英/Boss，误导玩家
+                            if (m.get("price") or 0) > 0:
+                                _tip = f"去商店『购买 {m['name']}』"
+                            else:
+                                _d = m.get("desc", "")
+                                _ch = _d[_d.rindex("(") + 1:] if "(" in _d else ""
+                                if "『" in _ch:
+                                    _ch = _ch.split("『")[0]
+                                _tip = f"{_ch or '打精英/Boss 掉缰绳'}后用『使用 缰绳』解锁"
+                            yield event.plain_result(f"你还没有『{m['name']}』！{_tip}～")
                             return
                     yield event.plain_result(f"没有叫『{name}』的坐骑～『坐骑』查看全部")
                     return

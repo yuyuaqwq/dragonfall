@@ -333,8 +333,10 @@ def tpl_wandering(ctx):
                         {"name": C.display("materials", mid), "type": "材料",
                          "stackable": True, "price": C.MATERIALS[mid]["price"]})
     db.update_player(ctx.group_id, ctx.qq_id, explore_wandering=1)
+    # v105 M23 P3-2：rw 为 key（i_scroll_escape）时原样输出会泄漏内部 ID，改显示中文名
+    rw_disp = "回城卷轴" if rw == "i_scroll_escape" else rw
     return (f"🧭 【迷路的旅人】一位旅人感激你的指路，硬塞给你一件谢礼！\n"
-            f"🎒 获得：{rw}")
+            f"🎒 获得：{rw_disp}")
 
 
 @register("combo")

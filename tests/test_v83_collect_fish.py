@@ -6,7 +6,8 @@ QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 sys.path.insert(0, os.path.join(PLUGIN_DIR, "tests"))
-os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
+# v105 R3 修复：原路径计算错误（多拼一层 data/），且 conftest 已 setdefault 正确 TEST_DB，这里不再手动设置
+# os.environ["GWEN_GAME_DB"] = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 from conftest import clean_db, make_player  # noqa: E402
 from data.plugins.dragonfall.game import content as C, db  # noqa: E402

@@ -10,7 +10,10 @@ ENHANCE_TABLE = {
     6: {"rate": 0.22, "cost": 2000, "mult": 1.90},
     7: {"rate": 0.12, "cost": 3200, "mult": 2.12},
     8: {"rate": 0.06, "cost": 5000, "mult": 2.36},
-    9: {"rate": 0.03, "cost": 8000, "mult": 2.62},
+    # v104R3 M11 P3-12：+9 已是极限（MAX_ENHANCE=9），强化流程 cur_enh∈[0,8]（economy.py:2033
+    # 用 cur_enh 查表，+8→+9 取第 8 行 cost/rate），本行 rate/cost 零消费端；
+    # mult 被 engine.py 属性结算与装备详情显示读取，故仅保留 mult
+    9: {"mult": 2.62},
 }
 
 MAX_ENHANCE = 9

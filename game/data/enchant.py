@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from .runes import RUNES, RUNE_EFFECT_NAMES
 """《剑与魔法》数据层 - enchant.py(v48 ENCHANT_SLOTS 品质英文 ID)"""
 ENCHANT_SLOTS = {
     "blue": 1,
@@ -99,11 +98,8 @@ ENCHANT_RECIPES = {
 
 ENCHANT_CRIT_CHANCE = 0.05
 
+# v104R3 M11 P3-10：dodge 无任何附魔配方（死数据）已删；crit 保留为安全上限——
+# 当前配方 ratio 0.02 × 1.5 大成功 = 0.03 < 0.04 永不触发，防止未来配方上调时失控
 ENCHANT_MAX_VALUE = {
     "crit": 0.04,
-    "dodge": 0.03
 }
-
-ENCHANT_STONES = RUNES
-
-ENCHANT_EFFECT_NAMES = RUNE_EFFECT_NAMES

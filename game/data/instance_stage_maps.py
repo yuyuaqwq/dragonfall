@@ -30,7 +30,7 @@ INSTANCE_STAGE_MAPS = {
         1: {
             "desc": "营地中央的大帐篷：兽骨装饰的门帘，酒桶堆在角落，酋长的宝座垫着兽皮。",
             "pois": [
-                {"id": "chest_1", "type": "chest", "name": "贡品箱",
+                {"id": "chest_2", "type": "chest", "name": "贡品箱",
                  "hint": "箱子上捆着麻绳，里面可能是献给酋长的贡品",
                  "loot": {"gold": 80, "materials": ["哥布林铁片"]}},
                 {"id": "fire_2", "type": "campfire", "name": "暖火盆",
@@ -92,10 +92,13 @@ INSTANCE_STAGE_MAPS = {
         1: {
             "desc": "巨大的石棺立在中央，棺盖上刻着古王的生平浮雕。",
             "pois": [
-                {"id": "rune_1", "type": "rune_stone", "name": "古王铭文",
+                {"id": "rune_2", "type": "rune_stone", "name": "古王铭文",
                  "hint": "棺盖边缘刻着一行小字",
                  "lore": "『王座之下，机关常鸣。知吾者，可免一劫。』",
-                 "effect": {"unlock": "mechanism_king_throne"}},
+                 # R3 P2-4：POI id 实例内唯一化（原 rune_1 与 L0 墓志铭石碑撞 id，
+                 # _any_poi_used/poi_unlocks 跨层语义依赖 id 巧合）——铭文本身即机关
+                 # 启示：effect.unlock 指向 rune_1，读任一石碑均解锁王座机关（行为不变）
+                 "effect": {"unlock": "rune_1"}},
             ],
         },
         2: {

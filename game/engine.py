@@ -484,14 +484,15 @@ def is_skill_learned(class_name: str, level: int, skill_name: str, learned_skill
     return sid in [C.resolve("skills", s) for s in (learned_skills or []) if s]
 
 
-def skill_learn_cost(level: int, need_lv: int) -> int:
-    """学习技能消耗的技能点(v12：按技能等级定价，等级越高越贵)"""
+def skill_learn_cost(need_lv: int) -> int:
+    """学习技能消耗的技能点(v12：按技能等级定价，等级越高越贵)
+    v104 R3 P2-17：删除未使用的 level 死参数（原签名 level, need_lv 但成本只与 need_lv 挂钩）"""
     return need_lv // 6 + 2
 
 
 def skill_learn_cost_for(player: dict, need_lv: int) -> int:
     """v95.7 #36：最终学习成本（含种族折扣）——技能列表/学习提示/扣点必须同源，避免显示不一致"""
-    cost = skill_learn_cost(player.get("level", 1), need_lv)
+    cost = skill_learn_cost(need_lv)
     disc = race_stats(player.get("race")).get("learn_discount")
     if disc:
         cost = max(1, int(cost * (1 - disc)))

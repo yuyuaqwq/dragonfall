@@ -904,6 +904,9 @@ SIDE_QUESTS = [
         "objective": {"collect": "野猪牙", "count": 5},
         "reward_exp": 350,
         "reward_gold": 900,
+        # v104 M20 P3：补设计承诺奖励（06 章 S4「白鹿与麦酒」奖励含 麦酒（回复道具））；
+        # 发放端 world.py 支线奖励已改 items 优先 → 解析为消耗品 i_ale（非烹饪材料 mat_mai_jiu）
+        "reward_item": "麦酒",
         "story": "胖托尼：『我家的野猪烤肉可是白鹿城一绝！帮我弄点野猪牙熬汤，我请你喝一杯！』",
     },
     {
@@ -933,8 +936,10 @@ SIDE_QUESTS = [
         "name": "修道院的玫瑰",
         "giver": "npc_abbess",
         "map": "white_abbey",
-        "desc": "击败 5 只腐蚀修女，查明黑玫瑰的异变",
-        "objective": {"kill": "腐蚀修女", "count": 5},
+        "desc": "击败 5 只腐蚀修女，收集 3 朵染黑玫瑰，查明黑玫瑰的异变",
+        # v104 M20 P3：补设计目标（06 章 S7「击败 5 只腐蚀修女 + 收集 3 朵染黑玫瑰」）；
+        # 染黑玫瑰由腐蚀修女掉落（white_abbey_1），collect_count 与面板/交付/对话树口径一致
+        "objective": {"kill": "腐蚀修女", "count": 5, "collect": "染黑玫瑰", "collect_count": 3},
         "reward_exp": 800,
         "reward_gold": 2000,
         "story": "玛格丽特：『这些黑玫瑰是圣女走前留下的。她说——「如果花开了，就说明还有希望。」帮我看看。』",
@@ -1141,8 +1146,10 @@ SIDE_QUESTS = [
         "name": "铁盾镇的狼群",
         "giver": "npc_ironshield_mayor",
         "map": "ironshield_town",
-        "desc": "击败丘陵狼王·铁牙，为铁盾镇除害",
-        "objective": {"kill": "丘陵狼王·铁牙", "count": 1},
+        "desc": "击败 10 只丘陵狼与丘陵狼王·铁牙，为铁盾镇除害",
+        # v104 M20 P3：补设计目标（06 章 S25「击败 10 只丘陵狼与丘陵狼王·铁牙」）；
+        # 目标记基础怪「丘陵狼」（丘陵脚/丘陵腰刷新，铁牙王为丘陵顶精英，交战顺路遭遇）
+        "objective": {"kill": "丘陵狼", "count": 10},
         "reward_exp": 1500,
         "reward_gold": 3500,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【铁牙狼皮】；铁牙狼皮材料保留为配方材料）
@@ -1282,7 +1289,7 @@ SIDE_QUESTS = [
         "objective": {"explore": "white_deer"},
         "reward_exp": 800,
         "reward_gold": 2000,
-        "story": "迷路的骑士：『白鹿城……是往这个方向吧？请务必帮我指路！』",
+        "story": "城主·巴伦男爵：『有个外乡来的骑士在翡翠森林里迷了路，看着像是晨曦城那边的人。帮我把人平安带回白鹿城，别让骑士老爷在我们地界上出事。』",
     },
     {
         "id": "s38",
@@ -1566,14 +1573,16 @@ DAILY_QUESTS = [
         "name": "行会委托",
         "desc": "完成 2 条支线任务",
         "objective": {"complete_side": 2},
-        "reward_exp": 750,
+        # v104 M20 P3：数值对齐设计（06 章八「行会委托」700 经验/300 金币）
+        "reward_exp": 700,
         "reward_gold": 300,
     },
     {
         "name": "采集任务",
         "desc": "采集 5 份材料",
         "objective": {"collect_any": 5},
-        "reward_exp": 400,
+        # v104 M20 P3：数值对齐设计（06 章八「采集任务」300 经验/150 金币）
+        "reward_exp": 300,
         "reward_gold": 150,
     },
 

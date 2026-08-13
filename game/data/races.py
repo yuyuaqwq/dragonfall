@@ -26,7 +26,6 @@ RACES = {
     "human": {
         "name": "人类", "icon": "🧑",
         "desc": "均衡·多面手。没有天赋就是最好的天赋——什么都能学。",
-        "race_neg": True,
         "talents": {
             "heal_received": 0.10,     # 圣光亲和：受疗 +10%
             "learn_discount": 0.08,    # 多才多艺：学习技能点 -8%
@@ -37,7 +36,6 @@ RACES = {
     "elf": {
         "name": "银月精灵", "icon": "🧝",
         "desc": "敏捷·魔法。月光照过的箭矢，永远比风更快。",
-        "race_neg": True,
         "talents": {
             "crit_add": 0.08,          # 月之优雅：暴击 +8%
             "explore_item": 0.10,      # 森林之友：探索物品 +10%
@@ -48,7 +46,6 @@ RACES = {
     "dwarf": {
         "name": "矮人", "icon": "⛏️",
         "desc": "力量·体质。岩石般的脊梁，比岩石更硬的脾气。",
-        "race_neg": True,
         "talents": {
             "phys_reduce": 0.10,       # 石肤：受物理伤害 -10%
             "craft_bonus": 0.10,       # 熔炉之心：锻造经验 +10%（向上取整，基础 1 点 → 2 点）
@@ -59,7 +56,6 @@ RACES = {
     "orc": {
         "name": "兽人", "icon": "👹",
         "desc": "力量·耐力。活着就是战斗，战斗就是荣耀。",
-        "race_neg": True,
         "talents": {
             "berserk_hp": 0.30,        # 无畏：HP<30% 攻击 +20%
             "hp_mult": 1.08,           # 坚韧体魄：最大 HP +8%
@@ -70,7 +66,6 @@ RACES = {
     "halfling": {
         "name": "半身人", "icon": "🍀",
         "desc": "敏捷·幸运。锅里有热汤，兜里有金币，就是最富足的人。",
-        "race_neg": True,
         "talents": {
             "gold_bonus": 0.15,        # 幸运儿：金币掉落 +15%
             "item_effect": 0.10,       # 灵巧双手：消耗品效果 +10%
@@ -81,7 +76,6 @@ RACES = {
     "dragonborn": {
         "name": "龙裔", "icon": "🐉",
         "desc": "力量·魔法抗性。龙骨山脉记得一切，我们记得。",
-        "race_neg": True,
         "talents": {
             "magic_reduce": 0.10,      # 龙鳞：受魔法伤害 -10%
             "first_hit": 0.15,         # 龙之吐息：每场首击 +15%

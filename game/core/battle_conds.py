@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """《剑与魔法》核心层 - battle_conds.py（v98.4：战斗伤害条件注册表）
 
-消灭 game/battle.py Battle._cond_mult() 里的 if-elif 硬编码（23 分支）：
+消灭 game/battle.py Battle._cond_mult() 里的 if-elif 硬编码（22 分支）：
 技能数据只声明 cond={"type": "...", ...}，战场判定统一走本模块注册表。
 
 扩展方式：

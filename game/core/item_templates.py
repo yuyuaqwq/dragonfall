@@ -454,7 +454,7 @@ def tpl_lucky(ctx):
 # ---- v102.3 生活技能差异化：鱼饵（垂钓品质加权，仅 1 次） ----
 _BAIT_INFO = {
     "bait_glow": ("萤光鱼饵", "下次垂钓紫/橙档概率大幅提升"),
-    "bait_dough": ("面团鱼饵", "下次垂钓绿/蓝档概率提升"),
+    "bait_dough": ("面团鱼饵", "下次垂钓绿/蓝档品质权重提升"),
     "bait_blood": ("血饵", "下次垂钓稀有鱼种概率提升"),
 }
 
@@ -464,6 +464,13 @@ def _make_bait_tpl(key):
         db = ctx._db()
         if ctx.battle:
             return ItemResult(text="鱼饵只能在水边使用，战斗结束后再挂饵吧～", consume=False)
+        # v104 R3 M15 P3-4：非战斗也校验水域——desc 承诺"只能在水边使用"，
+        # 原实现仅拦战斗（ctx.battle），任意地点可用；与垂钓命令同源判定：
+        # 当前地图无 FISHING_SPOTS 钓点（城镇/野外）拒绝挂饵
+        _C = ctx._C()
+        _cur = (ctx.player or {}).get("cur_map", "")
+        if _cur and not _C.FISHING_SPOTS.get(_cur):
+            return ItemResult(text="鱼饵只能在水边使用——这里没有水域，到有钓点的地方再挂饵吧～", consume=False)
         name, tip = _BAIT_INFO[key]
         ctx.hook("remove_item")
         db.set_event_state(f"bait_{ctx.qq_id}", json.dumps({"kind": key.split("_")[1], "ts": int(time.time())}, ensure_ascii=False))

@@ -117,9 +117,14 @@ def base_conditions_met(npc_id: str, npc: dict, player: dict, group_id: str, qq_
     if qd and not all(_quest_known(q, x) for x in qd):
         return False
     # 任务进行中
+    # v105 M23 P2-7：原只查 side（支线），主线进行中（main_status=active 且 main_quest 命中）
+    # 也会被误判不满足——补主线查询。当前数据层无 quest_active 使用者（潜伏），语义对齐无行为变化
     qa = cond.get("quest_active")
-    if qa and not any(x in q.get("side", {}) for x in qa):
-        return False
+    if qa:
+        _side = q.get("side", {})
+        _main_hit = q.get("main_status") == "active" and q.get("main_quest") in qa
+        if not _main_hit and not any(x in _side for x in qa):
+            return False
     # 对话 flag（任意 NPC 的 flag 都算——talkflags 按 NPC 分组，这里扫全部）
     if cond.get("flag"):
         if not any(cond["flag"] in db.get_talk_flags(group_id, qq_id, nid) for nid in ALL_WILD):

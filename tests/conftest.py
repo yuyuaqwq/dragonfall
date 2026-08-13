@@ -18,7 +18,10 @@ QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))  # dra
 TEST_DB = os.path.join(PLUGIN_DIR, "test_game_data.db")
 
 # 必须在 import 插件前设置（db.py 模块级读取 DB_PATH）
-os.environ["GWEN_GAME_DB"] = TEST_DB
+# R3 P3-4：setdefault 尊重测试脚本预置的独立私有库（test_v95_76/77 等用
+# 各自 test_<名>.db），不再强制覆盖——消除共享 test_game_data.db 顺序执行
+# 残留导致的偶发红（v95_77 曾在 line 48 因残留 battle 为 None 崩）
+os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 

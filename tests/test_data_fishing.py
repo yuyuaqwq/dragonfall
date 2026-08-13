@@ -123,7 +123,7 @@ def main():
         ok = ok and pkey in C.ITEMS
         check(f"炼金配方 {rn} 成本/产物闭环", bool(ok), str(r)[:100] if r else "配方不存在")
     # 烹饪：史莱姆果冻 / 烤肉串 / 金鲤盛宴
-    for rn, mat in (("史莱姆果冻", "史莱姆黏液"), ("烤肉串（自制）", "兽肉"), ("金鲤盛宴", "金鲤")):
+    for rn, mat in (("史莱姆果冻", "史莱姆黏液"), ("烤肉串(自制)", "兽肉"), ("金鲤盛宴", "金鲤")):
         rkey = C.resolve("cooking", rn)
         r = C.COOKING_RECIPES.get(rkey)
         ok = r and C.resolve("materials", mat) in r["cost"] and r["product"]

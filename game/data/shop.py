@@ -40,7 +40,7 @@ SHOP_SUBAREA_ITEMS = {
     "white_deer_7": [  # 烹饪坊
         "i_bread", "i_meat_skewer", "i_stew", "i_blessed_pastry",
     ],
-    "white_deer_8": [  # 强化工坊（smith 分支 + 强化石）
+    "white_deer_8": [  # 鹿角淬火坊（强化/附魔坊：v101.28o 拍板非 smith 分支，仅配强化石）
         "i_stone_upgrade", "i_stone_refine",
     ],
     "white_deer_3": [  # 鹿角铁匠铺（smith 分支）
@@ -371,7 +371,9 @@ SHOP_WEAPONS = {
     ],
 }
 
-# v92 铁匠类商店材料：craft 场所（铁匠铺/锻造坊/军械/符文工坊等）只卖武器+锻造材料+全套装备，不卖消耗品
+# v92 铁匠类商店材料：craft 场所（铁匠铺/锻造坊/军械/符文工坊等）卖武器+锻造材料+全套装备；
+# v105 M09 P3-6：配货已 v101.25h 起挂子区域 SHOP_SUBAREA_ITEMS，军械铺可追加消耗品军需
+#   （如坚盾军械铺 ironshield_town_3 配 6 种药水+炖菜，不再"不卖消耗品"）
 # key = 城镇地图 ID（cur or area_id 回退），值 = 材料 ID 列表（MATERIALS 表）
 SHOP_SMITH_MATERIALS = {
     # 南境（Lv.1-30）：橡木镇/白鹿城/铁港
@@ -424,7 +426,7 @@ SHOP_EQUIP = {
         "eq_bai_lu_diao_zhu",
     ],
     # v101.30d #O45：蓝装补档套商店上架（银铃/翡翠/迷雾，策划案 10 章 4.10）
-    "ironharbor": [         # 铁港城锻造坊：银铃套 6 件
+    "ironharbor": [         # 铁港城锻造坊：银铃套 7 件（含银铃项链）
         "eq_yin_ling_duan_ren",
         "eq_yin_ling_hu_tui",
         "eq_yin_ling_zhang",

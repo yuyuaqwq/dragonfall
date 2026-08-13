@@ -23,7 +23,8 @@ EQUIP_ROSTER = {
     "eq_xiang_mu_dun":    {"name": "橡木盾", "slot": "weapon", "weapon_type": "shield", "quality": "blue", "lv": 6, "series": "橡木", "req": {"str": 8}, "source": "锻造"},
     "eq_lie_lu_gong":     {"name": "猎鹿弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 6, "series": "橡木", "req": {"agi": 8}, "source": "锻造"},
     "eq_xue_tu_zhi_zhang": {"name": "学徒之杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 6, "series": "橡木", "req": {"int": 8}, "source": "锻造"},
-    "eq_bai_lu_pi_jia":   {"name": "白鹿皮甲", "slot": "armor", "quality": "blue", "lv": 8, "series": "橡木", "req": {"agi": 8}, "source": "锻造"},
+    # v105 M07 P3-5：原名「白鹿皮甲」与 series=橡木 冲突（详情显示橡木套易误导）→ 改名橡木皮甲
+    "eq_bai_lu_pi_jia":   {"name": "橡木皮甲", "slot": "armor", "quality": "blue", "lv": 8, "series": "橡木", "req": {"agi": 8}, "source": "锻造"},
     "eq_xiang_mu_hu_tui": {"name": "橡木护腿", "slot": "legs", "quality": "white", "lv": 3, "series": "橡木", "req": {"vit": 3}, "source": "商店"},
     # v93 商店装：毛皮帽 + 白装饰品（v95 去属性需求，新手期不卡职业）
     "eq_mao_pi_mao":      {"name": "毛皮帽", "slot": "helm", "quality": "white", "lv": 3, "series": "橡木", "source": "商店"},

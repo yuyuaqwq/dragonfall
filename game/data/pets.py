@@ -11,8 +11,8 @@
   heal_pct  每 N 回合为主人回复 max_hp × value 生命
   block     每 N 回合 value 概率替主人挡一次攻击（敌方行动时触发）
   lifesteal 每 N 回合造成 攻击 × value 伤害，并回复伤害 50% 生命（v101.11 新增）
-  pierce    每 N 回合造成 攻击 × value 伤害，并破防（敌方防御 -value×100%，持续 2 回合）（v101.11 新增）
-  buff_atk  每 N 回合为主人加 攻击 × value buff（持续 2 回合）（v101.11 新增）
+  pierce    每 N 回合造成 攻击 × value 伤害，并破防（敌方防御减半，持续 2 回合）（v101.11 新增）
+  buff_atk  每 N 回合为主人加 攻击 ×(1+value) 攻击 buff（持续 2 回合）（v101.11 新增）
   crit_up   每 N 回合为主人加暴击 +value（持续 2 回合）（v101.11 新增）
 """
 
@@ -25,7 +25,7 @@ PET_POOL = [
      "lines": ["嗷呜！", "汪！主人我上啦！", "（龇牙）交给我！"]},
     {"key": "pet_turtle", "name": "铁壳龟", "icon": "🐢", "quality": "white", "focus": "防守",
      "skill_name": "铁壁缩壳", "skill_interval": 4, "skill_type": "block", "skill_value": 0.15,
-     "source": "垂钓稀有产出(blue 档)/橡木镇新手任务",
+     "source": "垂钓稀有产出(blue 档)",  # v105 M17 P2-3：橡木镇新手任务渠道未实装（24 章无此设计），文案与实现对齐
      "desc": "慢吞吞但硬邦邦，每 4 回合有 15% 概率替主人挡下一次攻击",
      "lines": ["……（缩头）", "壳！", "慢慢来，比较快。"]},
     # ---------- 🟢 优秀 ----------

@@ -168,7 +168,8 @@ EXPLORE_EVENTS = [
                              "params": {"flag": "h_lost_library", "key": "tablet_page",
                                         "header": "🪦 【神秘石碑】碑文的笔迹竟与藏宝图上的如出一辙——你读懂了一段失落图书馆的记载！\n📖 一段隐秘的知识流入脑海(隐藏线索已记入见闻)。"}},
                             {"template": "loot_materials",
-                             # v101.30d #O29：泛黄书页满 3 张（任务/准入上限）后改出石碑拓片，不再重复拾取
+                             # v101.30d #O29：泛黄书页满 3 张（任务/准入上限）后 fallback 改出材料
+                             # （古木枝/林语之叶，不再重复拾取书页）——v105 M23 P3-5 注释与实现对齐
                              "params": {"mats": ["泛黄书页"], "n": 1, "bp_line": "",
                                         "cap_name": "泛黄书页", "cap_count": 3,
                                         "fallback_mats": ["古木枝", "林语之叶"],

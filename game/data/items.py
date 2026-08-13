@@ -88,10 +88,6 @@ MATERIALS = {
         'price': 5,
         'name': "兔皮",
     },
-    "mat_quan_xiao_yao_shui": {
-        'price': 15,
-        'name': "全效药水",
-    },
     "mat_shou_ren_zhan_hui": {
         'price': 15,
         'name': "兽人战徽",
@@ -120,17 +116,9 @@ MATERIALS = {
         'price': 35,
         'name': "冰蛇鳞",
     },
-    "mat_bing_zhui_juan_zhou": {
-        'price': 15,
-        'name': "冰锥卷轴",
-    },
     "mat_dong_yu_lin": {
         'price': 35,
         'name': "冻鱼鳞",
-    },
-    "mat_jing_hua_juan_zhou": {
-        'price': 15,
-        'name': "净化卷轴",
     },
     "mat_jian_chi_hu_ya": {
         'price': 35,
@@ -140,17 +128,9 @@ MATERIALS = {
         'price': 5,
         'name': "副官勋章",
     },
-    "mat_li_liang_yao_ji": {
-        'price': 15,
-        'name': "力量药剂",
-    },
     "mat_jie_lve_zhe_hui_ji": {
         'price': 5,
         'name': "劫掠者徽记",
-    },
-    "mat_qu_yu": {
-        'price': 15,
-        'name': "区域",
     },
     "mat_gu_dai_wen_xian": {
         'price': 15,
@@ -180,10 +160,6 @@ MATERIALS = {
         'price': 15,
         'name': "史莱姆徽章",
     },
-    "mat_shi_lai_mu_guo_dong": {
-        'price': 15,
-        'name': "史莱姆果冻",
-    },
     "mat_shi_lai_mu_nian_ye": {
         'price': 5,
         'name': "史莱姆黏液",
@@ -203,22 +179,13 @@ MATERIALS = {
     "mat_ge_bu_lin_er_duo": {
         'price': 5,
         'name': "哥布林耳朵",
+        # v104 R3 M08 P3-1：手写 type/desc（规则把"哥布林"里的"布"误判为织物）
+        'type': "兽材",
+        'desc': "哥布林毛茸茸的尖耳朵，猎人们的战利品，据说晒干磨粉可以入药。",
     },
     "mat_ge_bu_lin_tie_pian": {
         'price': 5,
         'name': "哥布林铁片",
-    },
-    "mat_huan_xing_juan_zhou": {
-        'price': 15,
-        'name': "唤醒卷轴",
-    },
-    "mat_shang_dian": {
-        'price': 15,
-        'name': "商店",
-    },
-    "mat_hui_cheng_juan_zhou": {
-        'price': 15,
-        'name': "回城卷轴",
     },
     "mat_sheng_guang_sheng_hui": {
         'price': 15,
@@ -227,18 +194,6 @@ MATERIALS = {
     "mat_sheng_guang_jie_jing": {
         'price': 15,
         'name': "圣光结晶",
-    },
-    "mat_sheng_guang_yao_ji": {
-        'price': 15,
-        'name': "圣光药剂",
-    },
-    "mat_sheng_nv_de_xin": {
-        'price': 15,
-        'name': "圣女的信",
-    },
-    "mat_sheng_nv_de_shou_gao": {
-        'price': 15,
-        'name': "圣女的手稿",
     },
     "mat_sheng_dian_tie_kuai": {
         'price': 5,
@@ -260,10 +215,6 @@ MATERIALS = {
         'price': 35,
         'name': "地狱犬牙",
     },
-    "mat_chui_diao": {
-        'price': 15,
-        'name': "垂钓",
-    },
     "mat_duo_luo_jing_ling_hu_fu": {
         'price': 15,
         'name': "堕落精灵护符",
@@ -276,10 +227,6 @@ MATERIALS = {
         'price': 5,
         'name': "大史莱姆核",
     },
-    "mat_da_lei": {
-        'price': 15,
-        'name': "大类",
-    },
     "mat_tian_kong_zhan_ren": {
         'price': 60,
         'name': "天空战刃",
@@ -290,9 +237,10 @@ MATERIALS = {
     },
     "mat_ao_la_sheng_yin": {
         'price': 60,
-        'name': "奥拉圣印",
+        'name': "奥拉圣印碎片",
         # v104 M20 P1：原自动 desc 承诺「别小看它」，但全配方零消费——改纯收藏语义
-        'desc': "云中圣者·奥拉的圣印，天空试炼的见证(纯收藏，无配方用途)",
+        # v105 M06 P3-2：材料改名「奥拉圣印碎片」——与 Lv.95 橙项链装备「奥拉圣印」区分（拾取/图鉴防混淆）
+        'desc': "云中圣者·奥拉的圣印碎片，天空试炼的见证(纯收藏，无配方用途)",
     },
     "mat_nu_pu_suo_lian": {
         'price': 35,
@@ -314,10 +262,6 @@ MATERIALS = {
         'price': 80,
         'name': "守护者碎片",
     },
-    "mat_ding_qing_xin_wu": {
-        'price': 15,
-        'name': "定情信物",
-    },
     "mat_shen_pan_guan_zhi_lian": {
         'price': 15,
         'name': "审判官之链",
@@ -325,10 +269,6 @@ MATERIALS = {
     "mat_xiao_e_mo_jiao": {
         'price': 35,
         'name': "小恶魔角",
-    },
-    "mat_shan_qiu_kuang_dong": {
-        'price': 15,
-        'name': "山丘矿洞",
     },
     "mat_shan_yang_jiao": {
         'price': 5,
@@ -402,10 +342,6 @@ MATERIALS = {
         'price': 80,
         'name': "巫师法杖碎片",
     },
-    "mat_xing_yun_yao_ji": {
-        'price': 15,
-        'name': "幸运药剂",
-    },
     "mat_you_long_lin": {
         'price': 60,
         'name': "幼龙鳞",
@@ -418,10 +354,6 @@ MATERIALS = {
         'price': 35,
         'name': "幽灵帆布",
     },
-    "mat_you_ling_yan": {
-        'price': 15,
-        'name': "幽灵盐",
-    },
     "mat_you_hun_chen": {
         'price': 15,
         'name': "幽魂尘",
@@ -430,17 +362,9 @@ MATERIALS = {
         'price': 80,
         'name': "弯刀碎片",
     },
-    "mat_qiang_hua": {
-        'price': 15,
-        'name': "强化",
-    },
     "mat_qiang_hua_shi": {
         'price': 15,
         'name': "淬火石",
-    },
-    "mat_cai_hong_yun_gu": {
-        'price': 15,
-        'name': "彩虹云谷",
     },
     "mat_cai_hong_lu": {
         'price': 60,
@@ -474,21 +398,9 @@ MATERIALS = {
         'price': 15,
         'name': "战争机器零件",
     },
-    "mat_zhan_hou_yao_ji": {
-        'price': 15,
-        'name': "战吼药剂",
-    },
     "mat_zhan_hun_zhi_chen": {
         'price': 60,
         'name': "战魂之尘",
-    },
-    "mat_da_zao": {
-        'price': 15,
-        'name': "锻造",
-    },
-    "mat_kuo_bei_bao": {
-        'price': 15,
-        'name': "扩背包",
     },
     "mat_mo_luo_zhi_guan": {
         'price': 200,
@@ -502,21 +414,9 @@ MATERIALS = {
         'price': 15,
         'name': "教官之剑",
     },
-    "mat_jiu_zhan_chang_yi_zhi": {
-        'price': 15,
-        'name': "旧战场遗址",
-    },
     "mat_xing_lang_pi": {
         'price': 60,
         'name': "星狼皮",
-    },
-    "mat_xing_yu_hu": {
-        'price': 15,
-        'name': "星语湖",
-    },
-    "mat_xing_hui_tai": {
-        'price': 15,
-        'name': "星辉台",
     },
     "mat_xing_hui_chen": {
         'price': 60,
@@ -547,10 +447,6 @@ MATERIALS = {
     "mat_yue_ying_zhi_zhao": {
         'price': 15,
         'name': "月影之爪",
-    },
-    "mat_yue_ying_lin": {
-        'price': 15,
-        'name': "月影林",
     },
     "mat_yue_xiong_pi": {
         'price': 15,
@@ -604,13 +500,11 @@ MATERIALS = {
         'price': 15,
         'name': "染黑圣铃",
     },
-    "mat_xiang_mu_xi_liu": {
-        'price': 15,
-        'name': "橡木溪流",
-    },
-    "mat_xiang_mu_cao_di": {
-        'price': 15,
-        'name': "橡木平原",
+    # v104 M20 P3：s7 修道院的玫瑰设计目标（06 章 S7「收集 3 朵染黑玫瑰」）补全——腐蚀修女掉落
+    "mat_ran_hei_mei_gui": {
+        'price': 20,
+        'name': "染黑玫瑰",
+        'desc': "被黑气浸染的玫瑰，花瓣边缘泛着不详的暗光。",
     },
     "mat_can_hai_he_xin": {
         'price': 60,
@@ -644,21 +538,9 @@ MATERIALS = {
         'price': 80,
         'name': "水鬼之泪",
     },
-    "mat_yong_dong_bing_yuan": {
-        'price': 15,
-        'name': "永冻冰原",
-    },
     "mat_chen_mu": {
         'price': 15,
         'name': "沉木",
-    },
-    "mat_chen_chuan_mu_di": {
-        'price': 15,
-        'name': "沉船墓地",
-    },
-    "mat_he_shen_ji_pin": {
-        'price': 15,
-        'name': "河神祭品",
     },
     "mat_he_tun_du_su": {
         'price': 15,
@@ -671,14 +553,6 @@ MATERIALS = {
     "mat_he_long_lin": {
         'price': 15,
         'name': "河龙鳞",
-    },
-    "mat_zhi_yu_juan_zhou": {
-        'price': 15,
-        'name': "治愈卷轴",
-    },
-    "mat_zhi_liao_yao_shui": {
-        'price': 15,
-        'name': "治疗药水",
     },
     "mat_hai_yao_zhi_yu": {
         'price': 15,
@@ -748,10 +622,6 @@ MATERIALS = {
         'price': 60,
         'name': "深渊犬牙",
     },
-    "mat_shen_yuan_ji_tan": {
-        'price': 15,
-        'name': "深渊祭坛",
-    },
     "mat_shen_yuan_qi_shi_kui_jia_sui_pian": {
         'price': 200,
         'name': "深渊骑士盔甲碎片",
@@ -815,10 +685,6 @@ MATERIALS = {
         # v104 M20 P1：原自动 desc 承诺「炼金师视若珍宝」，但全配方零消费——改纯收藏语义
         'desc': "海神祭司·澜歌的泪滴结晶，海神试炼的见证(纯收藏，无配方用途)",
     },
-    "mat_huo_qiu_juan_zhou": {
-        'price': 15,
-        'name': "火球卷轴",
-    },
     "mat_huo_xi_yi_lin": {
         'price': 35,
         'name': "火蜥蜴鳞",
@@ -835,18 +701,6 @@ MATERIALS = {
         'price': 35,
         'name': "灰矮人徽记",
     },
-    "mat_dun_cai": {
-        'price': 15,
-        'name': "炖菜",
-    },
-    "mat_lian_jin": {
-        'price': 15,
-        'name': "炼金",
-    },
-    "mat_kao_rou_chuan": {
-        'price': 15,
-        'name': "烤肉串",
-    },
     "mat_jin_he": {
         'price': 60,
         'name': "烬核",
@@ -861,10 +715,6 @@ MATERIALS = {
         'price': 60,
         'name': "烬翼龙鳞",
     },
-    "mat_peng_ren": {
-        'price': 15,
-        'name': "烹饪",
-    },
     "mat_yan_yi_long_lin": {
         'price': 60,
         'name': "焰翼龙鳞",
@@ -872,10 +722,6 @@ MATERIALS = {
     "mat_rong_yan_he_xin": {
         'price': 35,
         'name': "熔岩核心",
-    },
-    "mat_rong_yan_he_chuang": {
-        'price': 15,
-        'name': "熔岩河床",
     },
     "mat_rong_yan_jia_ke": {
         'price': 60,
@@ -889,17 +735,9 @@ MATERIALS = {
         'price': 35,
         'name': "熔岩领主核",
     },
-    "mat_rong_lu_gu": {
-        'price': 15,
-        'name': "熔炉谷",
-    },
     "mat_niu_jiao": {
         'price': 15,
         'name': "牛角",
-    },
-    "mat_te_shu_dao_ju": {
-        'price': 15,
-        'name': "特殊道具",
     },
     "mat_kuang_zhan_shi_yao_dai": {
         'price': 5,
@@ -917,10 +755,6 @@ MATERIALS = {
         'price': 5,
         'name': "狼皮",
     },
-    "mat_lang_rou_bao": {
-        'price': 15,
-        'name': "狼肉煲",
-    },
     "mat_lie_quan_xiang_quan": {
         'price': 15,
         'name': "猎犬项圈",
@@ -937,10 +771,6 @@ MATERIALS = {
         'price': 35,
         'name': "甲壳残片",
     },
-    "mat_ji_feng_yao_ji": {
-        'price': 15,
-        'name': "疾风药剂",
-    },
     "mat_bai_zu_hui_zhang": {
         'price': 15,
         'name': "百族徽章",
@@ -956,10 +786,6 @@ MATERIALS = {
     "mat_zhen_jun_rou": {
         'price': 35,
         'name': "真菌肉",
-    },
-    "mat_ai_ren_lie_jiu": {
-        'price': 15,
-        'name': "矮人烈酒",
     },
     "mat_shi_lu_zhi_chui": {
         'price': 35,
@@ -1001,17 +827,9 @@ MATERIALS = {
         'price': 15,
         'name': "符文石",
     },
-    "mat_jing_ling_shi_shu_tuo_ben": {
-        'price': 15,
-        'name': "精灵史书拓本",
-    },
     "mat_jing_ling_guo": {
         'price': 15,
         'name': "精灵果",
-    },
-    "mat_jing_ling_guo_jiang": {
-        'price': 15,
-        'name': "精灵果酱",
     },
     "mat_jing_ling_lu_jiao": {
         'price': 15,
@@ -1020,10 +838,6 @@ MATERIALS = {
     "mat_jing_rui_pei_jian": {
         'price': 5,
         'name': "精锐佩剑",
-    },
-    "mat_xi_tong": {
-        'price': 15,
-        'name': "系统",
     },
     "mat_hong_ji_shan_hu": {
         'price': 15,
@@ -1040,10 +854,6 @@ MATERIALS = {
     "mat_fei_cui_sen_lin": {
         'price': 15,
         'name': "翡翠森林",
-    },
-    "mat_bei_bao": {
-        'price': 15,
-        'name': "背包",
     },
     "mat_fu_guan_jun": {
         'price': 35,
@@ -1069,10 +879,6 @@ MATERIALS = {
         'price': 35,
         'name': "船长罗盘",
     },
-    "mat_ying_xiong_wang_xin_wu": {
-        'price': 15,
-        'name': "英雄王信物",
-    },
     "mat_cao_yuan_lang_pi": {
         'price': 15,
         'name': "草原狼皮",
@@ -1088,10 +894,6 @@ MATERIALS = {
     "mat_sa_man_tu_teng": {
         'price': 5,
         'name': "萨满图腾",
-    },
-    "mat_luo_shi_xia_gu": {
-        'price': 15,
-        'name': "落石峡谷",
     },
     "mat_lan_ge_zhi_guan": {
         'price': 80,
@@ -1143,10 +945,6 @@ MATERIALS = {
         'price': 60,
         'name': "赤翼羽",
     },
-    "mat_chi_ji_gao_yuan": {
-        'price': 15,
-        'name': "赤脊高原",
-    },
     "mat_he_er_jia_de_ji_qi": {
         'price': 60,
         'name': "赫尔加的祭器",
@@ -1163,30 +961,6 @@ MATERIALS = {
         'price': 35,
         'name': "远古符文石",
     },
-    "mat_mi_wu_zhao_ze": {
-        'price': 15,
-        'name': "迷雾沼泽",
-    },
-    "mat_mi_wu_hai_gou": {
-        'price': 15,
-        'name': "迷雾海沟",
-    },
-    "mat_dao_ju": {
-        'price': 15,
-        'name': "道具",
-    },
-    "mat_cai_ji": {
-        'price': 15,
-        'name': "采集",
-    },
-    "mat_cai_ji_wu": {
-        'price': 15,
-        'name': "采集物",
-    },
-    "mat_ye_zhu_ling": {
-        'price': 15,
-        'name': "野猪岭",
-    },
     "mat_ye_zhu_ya": {
         'price': 5,
         'name': "野猪牙",
@@ -1194,22 +968,6 @@ MATERIALS = {
     "mat_jin_yan_hu_pi": {
         'price': 15,
         'name': "金焰虎皮",
-    },
-    "mat_jin_sui_ping_yuan": {
-        'price': 15,
-        'name': "金穗平原",
-    },
-    "mat_tie_jiang_de_chuan_jia_bao": {
-        'price': 15,
-        'name': "铁匠的传家宝",
-    },
-    "mat_tie_bi_yao_ji": {
-        'price': 15,
-        'name': "铁壁药剂",
-    },
-    "mat_tie_gang_ma_tou": {
-        'price': 15,
-        'name': "铁港码头",
     },
     "mat_tie_ya_lang_pi": {
         'price': 15,
@@ -1221,21 +979,9 @@ MATERIALS = {
         'price': 15,
         'name': "铁甲猪皮",
     },
-    "mat_tie_dun_qiu_ling": {
-        'price': 15,
-        'name': "铁盾丘陵",
-    },
-    "mat_yin_yue_lin_hai": {
-        'price': 15,
-        'name': "银月林海",
-    },
     "mat_yin_hui_yue_shi": {
         'price': 35,
         'name': "银辉月石",
-    },
-    "mat_yin_ling_he": {
-        'price': 15,
-        'name': "银铃河",
     },
     "mat_yin_zong_lang_pi": {
         'price': 15,
@@ -1248,10 +994,6 @@ MATERIALS = {
     "mat_xiu_jia_sui_pian": {
         'price': 80,
         'name': "锈甲碎片",
-    },
-    "mat_fu_mo": {
-        'price': 15,
-        'name': "附魔",
     },
     "mat_fu_mo_fen_chen": {
         'price': 15,
@@ -1307,10 +1049,6 @@ MATERIALS = {
         'price': 60,
         'name': "雾冠晶",
     },
-    "mat_shuang_yuan_bing_hu": {
-        'price': 15,
-        'name': "霜原冰湖",
-    },
     "mat_shuang_ju_mo_wang_jiao": {
         'price': 35,
         'name': "霜巨魔王角",
@@ -1330,10 +1068,6 @@ MATERIALS = {
     "mat_shuang_yu_sheng_dian": {
         'price': 35,
         'name': "霜语圣典",
-    },
-    "mat_shuang_yu_xia_gu": {
-        'price': 15,
-        'name': "霜语峡谷",
     },
     "mat_shuang_yu_ju_mo_xue": {
         'price': 35,
@@ -1359,10 +1093,6 @@ MATERIALS = {
         'price': 60,
         'name': "风之羽",
     },
-    "mat_feng_bao_zhi_hai": {
-        'price': 15,
-        'name': "风暴之海",
-    },
     "mat_feng_bao_zhi_ling_chen": {
         'price': 35,
         'name': "风暴之灵尘",
@@ -1382,10 +1112,6 @@ MATERIALS = {
     "mat_feng_yu_jie_jing": {
         'price': 15,
         'name': "风语结晶",
-    },
-    "mat_feng_yu_gu": {
-        'price': 15,
-        'name': "风语谷",
     },
     "mat_feng_yu_lu_jiao": {
         'price': 15,
@@ -1440,17 +1166,9 @@ MATERIALS = {
         'price': 15,
         'name': "魔像残核",
     },
-    "mat_mo_fa_yao_shui": {
-        'price': 15,
-        'name': "魔法药水",
-    },
     "mat_mo_yan_zhi_he": {
         'price': 200,
         'name': "魔眼之核",
-    },
-    "mat_mo_neng_jie_jing": {
-        'price': 15,
-        'name': "魔能结晶",
     },
     "mat_jiao_ren_lin": {
         'price': 15,
@@ -1471,6 +1189,8 @@ MATERIALS = {
     "mat_mai_jiu": {
         'price': 15,
         'name': "麦酒",
+        # v104 R3 M08 P3-1：手写 desc（规则按"麦"生成谷物描述，实为酒）
+        'desc': "麦芽酿成的麦酒，酒香醇厚，烹饪去腥增香的绝佳调料。",
     },
     "mat_li_ming_zhi_guang": {
         'price': 80,
@@ -1492,10 +1212,6 @@ MATERIALS = {
         'price': 200,
         'name': "黑渊之眼",
     },
-    "mat_hei_mian_bao": {
-        'price': 15,
-        'name': "黑面包",
-    },
     "mat_hei_ya_pi_feng": {
         'price': 15,
         'name': "黑鸦披风",
@@ -1503,14 +1219,6 @@ MATERIALS = {
     "mat_long_zai_zhao": {
         'price': 60,
         'name': "龙崽爪",
-    },
-    "mat_long_xi_dun_guo": {
-        'price': 15,
-        'name': "龙息炖锅",
-    },
-    "mat_long_ji_shan_mai": {
-        'price': 15,
-        'name': "龙脊山脉",
     },
     "mat_long_xia_ke": {
         'price': 35,
@@ -1524,17 +1232,9 @@ MATERIALS = {
         'price': 200,
         'name': "龙语传承",
     },
-    "mat_long_yun_gu": {
-        'price': 15,
-        'name': "龙陨谷",
-    },
     "mat_long_hun_sui_pian": {
         'price': 200,
         'name': "龙魂碎片",
-    },
-    "mat_long_jing_hai_yu": {
-        'price': 15,
-        'name': "龙鲸海域",
     },
     "mat_long_jing_zhi": {
         'price': 35,
@@ -1551,10 +1251,6 @@ MATERIALS = {
     "mat_long_lin_sui_pian": {
         'price': 80,
         'name': "龙鳞碎片",
-    },
-    "mat_long_lin_yao_ji": {
-        'price': 15,
-        'name': "龙鳞药剂",
     },
     "mat_sheng_guang_bai_he": {
         "price": 30,
@@ -1653,6 +1349,20 @@ MATERIALS = {
     "mat_jin_li": {
         "price": 25,
         "name": "金鲤",
+        "quality": "green",
+        # v104 R3 M08 P3-1：手写 type/desc（规则按"金"误判为矿石，实为鱼）
+        "type": "食材",
+        "desc": "通体金红的鲤鱼，鳞片泛着贵气光泽，据说能带来好运。"
+    },
+    # v104 R3 M08 P2-6 回滚：帝王鲑/盲鱼是 fishing.py FISH_POOL 垂钓鱼（按名 resolve→mat_ 键），不可删
+    "mat_di_wang_gui": {
+        "price": 45,
+        "name": "帝王鲑",
+        "quality": "green"
+    },
+    "mat_mang_yu": {
+        "price": 18,
+        "name": "盲鱼",
         "quality": "green"
     },
     "mat_ye_guang_jiao": {
@@ -1706,11 +1416,6 @@ MATERIALS = {
         "name": "月光鱼",
         "quality": "blue"
     },
-    "mat_di_wang_gui": {
-        "price": 45,
-        "name": "帝王鲑",
-        "quality": "green"
-    },
     "mat_shen_mi_lin_pian": {
         "price": 30,
         "name": "神秘鳞片",
@@ -1746,11 +1451,6 @@ MATERIALS = {
         "name": "风暴贝",
         "quality": "blue"
     },
-    "mat_mang_yu": {
-        "price": 18,
-        "name": "盲鱼",
-        "quality": "green"
-    },
     "mat_shen_yuan_zhen_zhu": {
         "price": 45,
         "name": "深渊珍珠",
@@ -1767,14 +1467,6 @@ MATERIALS = {
         "quality": "blue"
     },
     # ---- 烹饪材料（13 章 2.3 烹饪表）----
-    "mat_lang_rou": {
-        "price": 25,
-        "name": "狼肉"
-    },
-    "mat_long_rou": {
-        "price": 60,
-        "name": "龙肉"
-    },
     # ---- v83 彩蛋收藏鱼（16 章 4.x，纯收藏：不入配方、回收 1 金币）----
     "mat_rainbow_kite": {
         "price": 1,
@@ -2132,7 +1824,8 @@ CONSUMABLES = {
                        "desc": "回复 20 体力（月门城甜品）；战斗中每回合回复 6% 生命（3 回合）"},
     "i_sacred_bread": {"name": "圣餐面包", "price": 26, "food_effect": "shield", "heal": 0.3, "stamina": 30,
                        "desc": "回复 30% HP + 30 体力（圣堂赐福）；战斗中吃下获得【护盾】：获得 10% 生命护盾（3 回合）"},
-    "i_holy_water_drink": {"name": "圣水", "price": 12, "hot_turns": 3, "hot_mana": 0.06, "mana": 0.15, "stamina": 15,
+    "i_holy_water_drink": {"name": "圣堂净水", "price": 12, "hot_turns": 3, "hot_mana": 0.06, "mana": 0.15, "stamina": 15,
+                           # v104 R3 M08 P2-3：改名消除三名"圣水"歧义（材料 mat_sheng_shui / 药水 i_holy_water / 本品）
                            "desc": "回复 15% MP + 15 体力（圣堂净水）；战斗中每回合回复 6% 魔力（3 回合）"},
     "i_blessed_pastry": {"name": "祝福糕点", "price": 20, "hot": 0.06, "hot_turns": 3, "heal": 0.2, "stamina": 25,
                          "desc": "回复 20% HP + 25 体力（圣堂烘焙）；战斗中每回合回复 6% 生命（3 回合）"},
@@ -2155,7 +1848,9 @@ CONSUMABLES = {
     "i_royal_soup": {"name": "御膳汤", "price": 50, "food_effect": "dawn_crown", "heal": 0.3, "mana": 0.2, "stamina": 40,
                      "desc": "回复 30% HP + 20% MP + 40 体力（王都名厨）；战斗中吃下获得【晨曦祝福】：每回合回复 2% 生命"},
     "i_elf_jam": {"name": "精灵果酱", "price": 35, "effect": "food_spd_up_small", "heal": 0.3, "stamina": 25,
-                  "desc": "回复 30% HP + 25 体力（精灵森林）；战斗中速度+10%（本场）"},
+                  # v105R3 M16 P2-8：实现为 3 回合 buff（battle.py BUFF_MULT food_spd_up_small），
+                  # desc 不再写「本场」（策划口径 2 场待拍板，先与实现统一）
+                  "desc": "回复 30% HP + 25 体力（精灵森林）；战斗中速度+10%（3 回合）"},
     "i_nectar_wine": {"name": "花蜜酒", "price": 30, "effect": "buff_matk_food", "mana": 0.3, "stamina": 20,
                       "desc": "回复 30% MP + 20 体力（精灵花房）；战斗中魔攻+10%（3 回合）"},
     "i_tree_honey": {"name": "树蜜糖", "price": 20, "food_effect": "regen", "heal": 0.2, "stamina": 15,
@@ -2166,7 +1861,8 @@ CONSUMABLES = {
                      "desc": "回复 30% HP + 35 体力（矮人矿场）；战斗中每回合回复 8% 生命（3 回合）"},
     "i_stone_ale": {"name": "石酿麦酒", "price": 18, "hot_turns": 3, "hot_mana": 0.08, "mana": 0.2, "stamina": 20,
                     "desc": "回复 20% MP + 20 体力（矮人酒窖）；战斗中每回合回复 8% 魔力（3 回合）"},
-    "i_snowwolf_steak": {"name": "雪狼肉排", "price": 38, "food_effect": "pierce", "heal": 0.35, "stamina": 40,
+    # v105R3 M16 P2-1：雪狼皮×1=35 成本，38 售价 ratio=0.92 超 90% 上限 → 40（0.875）
+    "i_snowwolf_steak": {"name": "雪狼肉排", "price": 40, "food_effect": "pierce", "heal": 0.35, "stamina": 40,
                          "desc": "回复 35% HP + 40 体力（霜原猎手）；战斗中吃下获得【贯穿】：攻击 20% 无视防御"},
     "i_frost_berry": {"name": "冰霜浆果", "price": 20, "food_effect": "element_ice", "mana": 0.2, "stamina": 25,
                       "desc": "回复 20% MP + 25 体力（霜原冰果）；战斗中吃下获得【元素·冰】：攻击附加 5% 冰伤 + 减速"},
@@ -2280,132 +1976,8 @@ CONSUMABLES = {
     "i_chest_abyss": {"name": "深渊宝箱", "price": 2500, "effect": "open_chest",
                       "desc": "打开获得金币，概率开出图纸（深渊气息）"},
     # ---- G. 收藏品（纪念/图鉴向，不能使用）----
-    "i_badge_oak": {"name": "橡木镇徽章", "price": 100, "type": "收藏品",
-                    "desc": "橡木镇颁发的纪念徽章"},
-    "i_badge_deer": {"name": "白鹿城徽章", "price": 100, "type": "收藏品",
-                     "desc": "白鹿城颁发的纪念徽章"},
-    "i_badge_iron": {"name": "铁港城徽章", "price": 100, "type": "收藏品",
-                     "desc": "铁港城颁发的纪念徽章"},
-    "i_badge_moon": {"name": "月门城徽章", "price": 100, "type": "收藏品",
-                     "desc": "月门城颁发的纪念徽章"},
-    "i_badge_temple": {"name": "圣堂徽章", "price": 100, "type": "收藏品",
-                       "desc": "圣堂颁发的纪念徽章"},
-    "i_badge_harbor": {"name": "无名港徽章", "price": 100, "type": "收藏品",
-                       "desc": "无名港颁发的纪念徽章"},
-    "i_badge_ash": {"name": "灰烬城徽章", "price": 100, "type": "收藏品",
-                    "desc": "灰烬城颁发的纪念徽章"},
-    "i_badge_capital": {"name": "王都徽章", "price": 100, "type": "收藏品",
-                        "desc": "王都颁发的纪念徽章"},
-    "i_badge_elf": {"name": "精灵徽章", "price": 150, "type": "收藏品",
-                    "desc": "精灵森林颁发的纪念徽章"},
-    "i_badge_dwarf": {"name": "矮人徽章", "price": 150, "type": "收藏品",
-                      "desc": "矮人山颁发的纪念徽章"},
-    "i_badge_frost": {"name": "霜原徽章", "price": 150, "type": "收藏品",
-                      "desc": "霜原颁发的纪念徽章"},
-    "i_badge_dragon": {"name": "龙脊徽章", "price": 150, "type": "收藏品",
-                       "desc": "龙脊颁发的纪念徽章"},
     "i_badge_iron_rank": {"name": "铁牌徽章", "price": 50, "type": "收藏品",
                           "desc": "冒险者行会颁发的铁牌，冒险生涯的起点（主线 q1_2 行会入门奖励）"},
-    "i_fest_spring": {"name": "新春灯笼", "price": 50, "type": "收藏品",
-                      "desc": "节庆纪念：新春灯笼"},
-    "i_fest_summer": {"name": "仲夏花环", "price": 50, "type": "收藏品",
-                      "desc": "节庆纪念：仲夏花环"},
-    "i_fest_harvest": {"name": "丰收稻草人", "price": 50, "type": "收藏品",
-                       "desc": "节庆纪念：丰收稻草人"},
-    "i_fest_winter": {"name": "冬夜烛台", "price": 50, "type": "收藏品",
-                      "desc": "节庆纪念：冬夜烛台"},
-    "i_fest_coin": {"name": "新年铜钱", "price": 50, "type": "收藏品",
-                    "desc": "节庆纪念：新年铜钱"},
-    "i_fest_mooncake": {"name": "中秋月饼", "price": 50, "type": "收藏品",
-                        "desc": "节庆纪念：中秋月饼"},
-    "i_fest_dragonboat": {"name": "端午香囊", "price": 50, "type": "收藏品",
-                          "desc": "节庆纪念：端午香囊"},
-    "i_fest_valentine": {"name": "七夕红线", "price": 50, "type": "收藏品",
-                         "desc": "节庆纪念：七夕红线"},
-    "i_rare_dragonscale": {"name": "龙鳞残片", "price": 300, "type": "收藏品",
-                           "desc": "稀有收藏：龙鳞残片"},
-    "i_rare_phoenixfeather": {"name": "凤凰羽", "price": 300, "type": "收藏品",
-                              "desc": "稀有收藏：凤凰羽"},
-    "i_rare_unicornhorn": {"name": "独角兽角", "price": 300, "type": "收藏品",
-                           "desc": "稀有收藏：独角兽角"},
-    "i_rare_mermaidhair": {"name": "美人鱼发丝", "price": 300, "type": "收藏品",
-                           "desc": "稀有收藏：美人鱼发丝"},
-    "i_rare_giantfinger": {"name": "巨人之指", "price": 300, "type": "收藏品",
-                           "desc": "稀有收藏：巨人之指"},
-    "i_rare_titanheart": {"name": "泰坦心脏", "price": 500, "type": "收藏品",
-                          "desc": "稀有收藏：泰坦心脏"},
-    "i_rare_stardust": {"name": "星界尘埃", "price": 500, "type": "收藏品",
-                        "desc": "稀有收藏：星界尘埃"},
-    "i_rare_hourglass": {"name": "时间沙漏", "price": 500, "type": "收藏品",
-                         "desc": "稀有收藏：时间沙漏"},
-    "i_rare_fatecoin": {"name": "命运硬币", "price": 500, "type": "收藏品",
-                        "desc": "稀有收藏：命运硬币"},
-    "i_rare_philosopher": {"name": "贤者之石", "price": 800, "type": "收藏品",
-                           "desc": "稀有收藏：贤者之石"},
-    "i_rare_voidshard": {"name": "虚空碎片", "price": 800, "type": "收藏品",
-                         "desc": "稀有收藏：虚空碎片"},
-    "i_rare_tablet": {"name": "上古石板", "price": 800, "type": "收藏品",
-                      "desc": "稀有收藏：上古石板"},
-    "i_rare_dragoncrystal": {"name": "龙晶", "price": 800, "type": "收藏品",
-                             "desc": "稀有收藏：龙晶"},
-    "i_rare_fairysilver": {"name": "妖精银币", "price": 400, "type": "收藏品",
-                           "desc": "稀有收藏：妖精银币"},
-    "i_rare_dwarfrunes": {"name": "矮人符文石", "price": 400, "type": "收藏品",
-                          "desc": "稀有收藏：矮人符文石"},
-    "i_rare_elvenbook": {"name": "精灵古书", "price": 600, "type": "收藏品",
-                         "desc": "稀有收藏：精灵古书"},
-    "i_rare_relic": {"name": "圣物遗骸", "price": 600, "type": "收藏品",
-                     "desc": "稀有收藏：圣物遗骸"},
-    "i_rare_piratecrown": {"name": "海盗王冠", "price": 600, "type": "收藏品",
-                           "desc": "稀有收藏：海盗王冠"},
-    "i_rare_abysseye": {"name": "深渊之眼", "price": 1000, "type": "收藏品",
-                        "desc": "稀有收藏：深渊之眼"},
-    "i_rare_worldleaf": {"name": "世界树之叶", "price": 1000, "type": "收藏品",
-                         "desc": "稀有收藏：世界树之叶"},
-    "i_mem_novice": {"name": "新手徽章", "price": 10, "type": "收藏品",
-                     "desc": "冒险纪念：新手徽章"},
-    "i_mem_hundred": {"name": "百战勋章", "price": 50, "type": "收藏品",
-                      "desc": "冒险纪念：百战勋章"},
-    "i_mem_thousand": {"name": "千杀令牌", "price": 100, "type": "收藏品",
-                       "desc": "冒险纪念：千杀令牌"},
-    "i_mem_ledger": {"name": "万金账本", "price": 100, "type": "收藏品",
-                     "desc": "冒险纪念：万金账本"},
-    "i_mem_adventurer": {"name": "冒险者徽章", "price": 30, "type": "收藏品",
-                         "desc": "冒险纪念：冒险者徽章"},
-    "i_mem_traveler": {"name": "旅人之印", "price": 30, "type": "收藏品",
-                       "desc": "冒险纪念：旅人之印"},
-    "i_mem_compass": {"name": "探索者罗盘", "price": 40, "type": "收藏品",
-                      "desc": "冒险纪念：探索者罗盘"},
-    "i_mem_gatherer": {"name": "采集者手套", "price": 40, "type": "收藏品",
-                       "desc": "冒险纪念：采集者手套"},
-    "i_mem_smith": {"name": "锻造者之锤", "price": 40, "type": "收藏品",
-                    "desc": "冒险纪念：锻造者之锤"},
-    "i_mem_alchemist": {"name": "炼金者之瓶", "price": 40, "type": "收藏品",
-                        "desc": "冒险纪念：炼金者之瓶"},
-    "i_mem_cook": {"name": "烹饪者之勺", "price": 40, "type": "收藏品",
-                   "desc": "冒险纪念：烹饪者之勺"},
-    "i_mem_angler": {"name": "钓鱼者之竿", "price": 40, "type": "收藏品",
-                     "desc": "冒险纪念：钓鱼者之竿"},
-    "i_mem_beast": {"name": "驯兽师之鞭", "price": 40, "type": "收藏品",
-                    "desc": "冒险纪念：驯兽师之鞭"},
-    "i_mem_bard": {"name": "吟游诗人之琴", "price": 40, "type": "收藏品",
-                   "desc": "冒险纪念：吟游诗人之琴"},
-    "i_mem_scholar": {"name": "学者之书", "price": 40, "type": "收藏品",
-                      "desc": "冒险纪念：学者之书"},
-    "i_mem_merchant": {"name": "商人之算盘", "price": 40, "type": "收藏品",
-                       "desc": "冒险纪念：商人之算盘"},
-    "i_mem_mercenary": {"name": "佣兵之剑", "price": 60, "type": "收藏品",
-                        "desc": "冒险纪念：佣兵之剑"},
-    "i_mem_bounty": {"name": "赏金猎人之枪", "price": 60, "type": "收藏品",
-                     "desc": "冒险纪念：赏金猎人之枪"},
-    "i_mem_archaeo": {"name": "考古学家之铲", "price": 60, "type": "收藏品",
-                      "desc": "冒险纪念：考古学家之铲"},
-    "i_mem_naturalist": {"name": "博物学家之册", "price": 60, "type": "收藏品",
-                         "desc": "冒险纪念：博物学家之册"},
-    "i_mem_champion": {"name": "冒险王桂冠", "price": 200, "type": "收藏品",
-                       "desc": "冒险纪念：冒险王桂冠"},
-    "i_mem_hero": {"name": "无名英雄碑", "price": 200, "type": "收藏品",
-                   "desc": "冒险纪念：无名英雄碑"},
     "i_mem_emberwalker": {"name": "余烬行者徽章", "price": 300, "type": "收藏品",
                           "desc": "冒险纪念：余烬行者徽章"},
     # ---- 旧 ID 别名（兼容旧测试/旧数据引用，内容对齐新世界） ----
@@ -2493,7 +2065,7 @@ CONSUMABLES = {
     "it_glow_bait": {"name": "萤光鱼饵", "price": 110, "effect": "bait_glow",
                      "desc": "炼金调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)"},
     "it_dough_bait": {"name": "面团鱼饵", "price": 20, "effect": "bait_dough",
-                      "desc": "揉得松软的麦粉饵团——下次垂钓绿/蓝档概率提升(仅 1 次)"},
+                      "desc": "揉得松软的麦粉饵团——下次垂钓绿/蓝档品质权重提升(仅 1 次)"},
     "it_blood_bait": {"name": "血饵", "price": 35, "effect": "bait_blood",
                       "desc": "浸透兽血的饵团，凶猛的掠食鱼最爱的味道——下次垂钓稀有鱼种概率提升(仅 1 次)"},
 }

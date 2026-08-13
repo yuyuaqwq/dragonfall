@@ -288,25 +288,8 @@ AFFIX_COUNT = {
     ]
 }
 
-AFFIX_RATIO = {
-    "green": 0.25,
-    "blue": 0.25,
-    "purple": 0.3,
-    "orange": 0.3
-}
-
-AFFIX_POOL = [
-    "atk",
-    "def",
-    "matk",
-    "mdef",
-    "hp",
-    "mp",
-    "spd",
-    "crit",
-    "dodge"
-]
-
+# v105 M07 P2-8：AFFIX_RATIO/AFFIX_POOL 旧属性词条时代死配置已删除
+# （词条 v2 用 AFFIX_POOL_BY_QUALITY + AFFIX_COUNT，橙装 20% 概率 4 词条已接入）
 AFFIX_FALLBACK = {
     "atk": [
         2,

@@ -231,7 +231,7 @@ class CombatCmds(CommandBase):
             bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
             _pb = getattr(b, "poi_buff", None)
             if _pb:
-                bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}＋10%！\n"
+                bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
             yield event.plain_result(
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
@@ -260,12 +260,8 @@ class CombatCmds(CommandBase):
             # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
             # v101.25i3：曾试 ±2 被鱼鱼否（"加减2太多了"）→ 保持 ±1
             monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=1)
-        else:
-            # v95r38 兜底（上面空池+无 elite/boss 已提前 return，理论不可达）
-            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
-            yield event.plain_result("你四处搜寻，什么也没发现……"
-                                     + (f"\n{_rule_txt}" if _rule_txt else ""))
-            return
+        # v105 M23 P3-9：删除原 else 兜底死代码——空池+无 elite/boss 已在上方提前 return；
+        # 纯精英/Boss 房（events 空）由上方 sa_elite/sa_boss 的 `or not events` 保底必命中，else 理论不可达
         # 遇普通怪但此地有精英/Boss → 提示气息（刷精英的方向感）
         hint = ""
         if not tag:
@@ -292,7 +288,7 @@ class CombatCmds(CommandBase):
         bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
         _pb = getattr(b, "poi_buff", None)
         if _pb:
-            bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}＋10%！\n"
+            bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         # v104 修复（M06 P2-2）：展示 MONSTER_MODS 个体特色文案（此前只有数值生效，玩家看不到）
         mod_line = f"📜 {monster['mod']}\n" if monster.get("mod") else ""
@@ -385,10 +381,12 @@ class CombatCmds(CommandBase):
         """
         mid = cur_map.get("id", "")
         # 时间系统时段（night 判定：用 time_weather.current_period）
+        # v105 M23 P3-1：time_weather 只返回 morning/day/evening/night，原 ("night","深夜","夜晚")
+        # 中后两个值永不可能（死代码），收敛为 == "night"
         is_night = False
         try:
             from ..core.time_weather import current_period
-            is_night = current_period() in ("night", "深夜", "夜晚")
+            is_night = current_period() == "night"
         except Exception:
             pass
         # 地图环境分类（v98.3：数据化 → core/hidden_cond.py ENV_KEYWORDS）
@@ -580,10 +578,10 @@ class CombatCmds(CommandBase):
         """
         import datetime as _dt
         key = f"{cur}:{sa_id}:{poi_id}"
-        used = db.get_props_use(group_id, qq_id)
+        used = db.get_props_use(qq_id)
         if used.get(key) == _dt.date.today().isoformat():
             return True
-        db.mark_props_use(group_id, qq_id, key, _dt.date.today().isoformat())
+        db.mark_props_use(qq_id, key, _dt.date.today().isoformat())
         return False
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
@@ -629,7 +627,7 @@ class CombatCmds(CommandBase):
             db.set_event_state(f"poi_buff_{qq_id}",
                                json.dumps({"stat": bkey, "mult": 1.10, "left": 5, "name": bname}, ensure_ascii=False))
             return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
-                    f"✨ 获得祝福：{bname}＋10%(持续 5 次战斗)！")
+                    f"✨ 获得祝福：{bname}+10%(持续 5 次战斗)！")
         # 草药丛：1-2 份炼金材料
         if eff == "herb":
             # v101.4：草药丛材料池数据化 → data/poi_pools.py HERB_POOL
@@ -685,7 +683,7 @@ class CombatCmds(CommandBase):
             db.set_event_state(f"poi_fish_{group_id}_{qq_id}",
                                json.dumps({"ts": time.time(), "window": 1800}))
             return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
-                    f"🎣 你赶紧甩杆——『垂钓』吧，这次不消耗次数(30 分钟内有效)！")
+                    f"🎣 你赶紧甩杆——『垂钓』吧，这次垂钓不消耗体力(30 分钟内有效)！")
         # 神秘字条：隐藏线索
         if eff == "note":
             from ..data.pois import NOTE_POOL
@@ -747,7 +745,10 @@ class CombatCmds(CommandBase):
                     continue
                 snap = st["players"].get(str(m), {})
                 if snap.get("hp") is not None:
-                    heal = max(1, int(snap.get("max_hp", snap["hp"]) * 0.2))
+                    # R3 P3-3：heal_pct 消费 POI effect 配置（instance_stage_maps.py
+                    # 篝火 heal_pct: 0.2 此前是死配置，硬编码 0.2 未来调参会脱钩）
+                    _pct = (poi.get("effect") or {}).get("heal_pct", 0.2)
+                    heal = max(1, int(snap.get("max_hp", snap["hp"]) * _pct))
                     snap["hp"] = min(snap.get("max_hp", snap["hp"]), snap["hp"] + heal)
                     logs.append(f"🔥 {snap.get('name', m)} 在{pname}旁烤火，恢复 {heal} 点生命！")
             self._mark_poi_used(st, sidx, pid)
@@ -911,7 +912,7 @@ class CombatCmds(CommandBase):
         if first == "学习" and len(parts) >= 2:
             yield event.plain_result(self._skill_learn_msg(group_id, player, "".join(parts[1:])))
             return
-        # 『技能 列表 <页>』→ 技能列表（翻页，每页10带序号），支持免空格『技能列表2』
+        # 『技能 列表 <页>』→ 技能列表（翻页，每页5带序号），支持免空格『技能列表2』
         if first.startswith("列表") or first.startswith("list"):
             rest = first[2:] if first.startswith("列表") else first[4:]
             page = 1
@@ -1082,13 +1083,13 @@ class CombatCmds(CommandBase):
         lines = [
             f"⚔️ 【技能系统】 {cls_info.get('icon','')}{C.display('classes', cls)} Lv.{player['level']}",
             "━━━━━━━━━━━━",
-            f"💡 技能点：{pts}(每升 1 级＋1)",
+            f"💡 技能点：{pts}(每升 1 级+1)",
             f"✅ 已学：{have}/{total} ｜ 🔒 未学：{total - have}",
             "━━━━━━━━━━━━",
             "『技能列表』查看全部技能(可翻页)",
             "『技能详情 <名称/序号>』查看单个技能",
             "『技能学习 <名称>』消耗技能点学会技能",
-            "『技能升级 <名称>』消耗技能点升级(满级 Lv.5)",
+            "『技能升级 <名称>』消耗技能点升级(满级依技能 3~5)",
             "『技能栏』查看 / 『设置技能 <槽位> <技能名>』配置快捷栏",
             "『技能洗点』重置技能(500金币返还技能点)",
             "战斗中『技能 <槽位>』或『技能 <技能名>』施放",
@@ -1160,7 +1161,9 @@ class CombatCmds(CommandBase):
         return ""
 
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
-        """技能列表翻页(每页 5 条带序号，序号与『技能 N』释放一致；未学显示 Lv.0)"""
+        """技能列表翻页(每页 5 条带序号，未学显示 Lv.0)。
+        v104 R3 P2-22：序号仅用于『技能详情/学习/升级 <序号>』定位列表项；
+        战斗中『技能 <槽位>』按技能栏槽位(1-6)施放，两者语义不同，不再混称一致。"""
         skills = self._player_skill_table(player)
         skill_items = list(skills.items())
         learned = player.get("learned_skills", [])
@@ -1224,7 +1227,7 @@ class CombatCmds(CommandBase):
             if _cost:
                 lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
             else:
-                lines.append("  · 消耗：免费")
+                lines.append("  · 消耗：无")  # v104 R3 P3-1：零消耗技能如实显示"无"（原"免费"易误解为有价免费）
             lines.append("━━━━━━━━━━━━")
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
@@ -1470,6 +1473,8 @@ class CombatCmds(CommandBase):
                 exp = int(exp * 1.05)
                 pet_bonus.append("💕 羁绊(亲密度≥50)：经验 +5%")
             # 战斗消耗饱食度 -2（先自然衰减再扣战斗消耗）
+            # v105 M17 P3-5 设计说明：仅胜利路径扣除。24 章四"每场战斗 -2"字面含败北/逃跑，
+            # 但当前为对玩家的宽容设计——败北已有金币惩罚+回城，逃跑无惩罚，不再叠加扣粮；改动需策划拍板
             db.pet_update(qq_id, satiety=max(0, pet["satiety"] - 2), last_sat_time=pet["last_sat_time"])
             # 宠物分得经验（24 章四：击杀怪宠物分得经验，取怪物基础经验 20%）
             p_gain = max(1, int(monster["exp"] * 0.2))
@@ -1490,7 +1495,7 @@ class CombatCmds(CommandBase):
         if em > 0:
             exp = int(exp * (1 + em))
             mount_bonus.append(f"🐎 坐骑疾驰：经验 +{int(em*100)}%")
-        # 世界事件加成：元素异象 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
+        # 世界事件加成：深渊涌动 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
         evt_bonus = []
         cur_evt = db.get_world_event()
         if cur_evt:
@@ -1503,7 +1508,8 @@ class CombatCmds(CommandBase):
                 pass
             if cur_evt["etype"] == "omen":
                 exp = int(exp * 1.5); gold = int(gold * 1.5)
-                evt_bonus.append("🌧️ 元素异象：收益 +50%")
+                # v105 M23 P3-3：术语与 data/world.py 事件名统一（omen=深渊涌动，原写「元素异象」）
+                evt_bonus.append(f"{cur_evt.get('icon', '🌋')} {cur_evt.get('name', '深渊涌动')}：收益 +50%")
             elif cur_evt["etype"] == "swarm":
                 exp = int(exp * 1.3)
                 evt_bonus.append("⚔️ 兽潮：经验 +30%")
@@ -1798,7 +1804,7 @@ class CombatCmds(CommandBase):
         return C.START_MAP
 
     def _handle_defeat(self, event, group_id, qq_id, player, monster, result):
-        """战败：扣金币/回城"""
+        """战败：扣金币/回城（不扣宠物饱食度——宽容设计，见胜利路径 1475 注释）"""
         self._unlock_battle(group_id, qq_id)
         db.clear_battle(group_id, qq_id)
         db.init_stats(group_id, qq_id)
@@ -2211,7 +2217,7 @@ class CombatCmds(CommandBase):
             lines.append(f"{i}. {item['name']} ｜ {item['cost']} 荣誉")
             lines.append(f"   {item['desc']}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 荣誉获取：击杀红名玩家＋50；『荣誉 兑换 <编号>』兑换")
+        lines.append("💡 荣誉获取：击杀红名玩家+50；『荣誉 兑换 <编号>』兑换")
         if self._is_redname(qq_id):
             lines.append(f"☠️ 你当前红名中(剩余 {max(0, self._red_until(qq_id) - int(time.time())) // 60} 分钟)！")
         yield event.plain_result("\n".join(lines))
@@ -2228,10 +2234,16 @@ class CombatCmds(CommandBase):
             return
         reward = item.get("reward") or {}
         # v104 M09 修复：item 类防重复兑换——背包已有同名物品则拦截（title 类保持可重复）
+        # v105 M09 P2-1：消耗品用完(count=0)可再次兑换，拦截文案按类型区分——
+        #   消耗品提示"用完再来"，外观珍品保留"每人限兑一件"（原文案与可再兑行为矛盾）
         if reward.get("type") == "item":
             _iname = (reward.get("item") or {}).get("name") or item["name"]
             if db.count_item(group_id, qq_id, _iname) > 0:
-                yield event.plain_result(f"⚜️ 你已经拥有【{item['name']}】了！荣誉商店的珍品每人限兑一件。")
+                _ritem = reward.get("item") or {}
+                if _ritem.get("stackable") or _ritem.get("type") == "消耗品":
+                    yield event.plain_result(f"⚜️ 你背包里已有【{item['name']}】！用完后可以再来兑换～")
+                else:
+                    yield event.plain_result(f"⚜️ 你已经拥有【{item['name']}】了！荣誉商店的珍品每人限兑一件。")
                 return
         # v104 M09 P2 修复：title 类重复兑换拦截（此前无 honor_{title_id}_{qq} 检查，连兑 2 次白扣荣誉）
         if reward.get("type") == "title" and db.get_event_state(f"honor_{reward['title_id']}_{qq_id}"):
@@ -2406,7 +2418,7 @@ class CombatCmds(CommandBase):
         if self._is_redname(loser_qq):
             honor = self._get_honor(winner_qq) + 50
             db.set_event_state(f"honor_{winner_qq}", str(honor))
-            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉＋50(当前 {honor})")
+            lines.append(f"⚜️ 你讨伐了红名玩家！荣誉+50(当前 {honor})")
         else:
             if str(winner_qq) == str(attacker_qq):
                 red_until = self._red_until(winner_qq)

@@ -10,8 +10,9 @@ import json
 from .connection import _connect, _lock
 
 
-def get_props_use(group_id, qq_id):
-    """返回该玩家的 {元素key: 日期} 使用记录(无则 {})。"""
+def get_props_use(qq_id):
+    """返回该玩家的 {元素key: 日期} 使用记录(无则 {})。
+    v105 M23 P3-8：记录按 qq_id 全局（玩家数据全局化），原 group_id 参数完全未用，已移除。"""
     with _lock:
         conn = _connect()
         try:
@@ -25,9 +26,9 @@ def get_props_use(group_id, qq_id):
             conn.close()
 
 
-def mark_props_use(group_id, qq_id, key, date):
+def mark_props_use(qq_id, key, date):
     """记录该元素今天已使用。"""
-    used = get_props_use(group_id, qq_id)
+    used = get_props_use(qq_id)
     used[key] = date
     with _lock:
         conn = _connect()

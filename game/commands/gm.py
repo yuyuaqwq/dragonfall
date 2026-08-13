@@ -2,7 +2,7 @@
 """《剑与魔法》命令层 - gm(GM 调试/运营指令，v96)
 
 权限：数据库 gm_whitelist(JSON) ∪ 环境变量 GWEN_GM_QQ(逗号分隔) 白名单；
-gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时回退——私聊放行、群聊拒绝。
+gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时默认拒绝一切 GM 指令（v104.1 收紧，私聊不再放行）。
 指令(gm_ 前缀防玩家误触)：
   gm_帮助 / gm_停服 / gm_开服 / gm_状态 / gm_广播
   gm_玩家 / gm_查询 / gm_发金币 / gm_发物品 / gm_发经验 / gm_设等级
@@ -274,7 +274,7 @@ class GmCmds(CommandBase):
             f"公告：{msg}" if msg else None,
             f"玩家数：{len(players)} 人",
             f"最高等级：{players[0]['name']} Lv.{players[0]['level']}" if players else None,
-            f"GM 名单：{'、'.join(gm_names) if gm_names else '(未配置，私聊可用)'}",
+            f"GM 名单：{'、'.join(gm_names) if gm_names else '(未配置，默认拒绝)'}",
         ]
         yield event.plain_result("\n".join(x for x in lines if x))
 

@@ -321,11 +321,12 @@ def _sp_thunder(battle, player, dmg, logs):
 
 @register(SET_PROC_EFFECTS, "pierce")
 def _sp_pierce(battle, player, dmg, logs):
-    """诸神之力：30% 破甲"""
+    """破甲之力：30% 破甲"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
     if random.random() < _set_chance("pierce", 0.30):
         battle.e_buffs["def_down"] = DEBUFF_TURNS
-        logs.append("👑 诸神之力！敌人护甲破碎！")
+        # v105 M07 P3-7：旧世界「诸神」套文案 → 破甲之力（与套装 desc「攻击 30% 概率破甲」一致）
+        logs.append("⚔️ 破甲之力！敌人护甲破碎！")
 
 
 @register(SET_PROC_EFFECTS, "lifesteal_set")

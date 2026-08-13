@@ -199,7 +199,7 @@ ACHIEVEMENTS = [
     {"id": "ach_faction_top", "cat": "社交", "name": "阵营先锋", "title": "阵营先锋",
      "desc": "阵营贡献前 10", "cond": {"type": "faction_top"}, "points": 1, "bonus": {"atk": 8}},
     {"id": "ach_event10", "cat": "社交", "name": "国战勇士", "title": "国战勇士",
-     "desc": "参与 10 次国战事件", "cond": {"type": "world_event", "value": 10}, "points": 1},
+     "desc": "参与 10 次世界事件", "cond": {"type": "world_event", "value": 10}, "points": 1},
     {"id": "ach_faction_rank1", "cat": "社交", "name": "大陆之柱", "title": "大陆之柱",
      "desc": "所属阵营国战排名第 1", "cond": {"type": "faction_rank1"}, "points": 1, "bonus": {"atk": 8, "def": 8, "matk": 8, "mdef": 8, "spd": 8}},
 
@@ -215,7 +215,7 @@ ACHIEVEMENTS = [
     {"id": "ach_mythril", "cat": "隐藏", "name": "秘银追寻者", "title": "秘银追寻者",
      "desc": "进入隐藏地图", "cond": {"type": "hidden_area", "value": 1}, "points": 2},
     {"id": "ach_goblin_friend", "cat": "隐藏", "name": "地精挚友", "title": "地精挚友",
-     "desc": "参与 20 次世界事件（商队集市与行商交易）", "cond": {"type": "world_event", "value": 20}, "points": 2},
+     "desc": "参与 20 次世界事件", "cond": {"type": "world_event", "value": 20}, "points": 2},
     {"id": "ach_dragon_skill", "cat": "隐藏", "name": "龙语学徒", "title": "龙语学徒",
      "desc": "掌握 10 个分支技能", "cond": {"type": "branch_skills", "value": 10}, "points": 2},
     {"id": "ach_lore_all", "cat": "隐藏", "name": "历史学家", "title": "历史学家",
@@ -237,7 +237,7 @@ ACHIEVEMENTS = [
     {"id": "ach_collect_moon", "cat": "隐藏", "name": "夜钓月华", "title": "月夜守望者",
      "desc": "夜晚钓到收藏鱼月华水母", "cond": {"type": "collect_fish", "key": "mat_moon_jelly"}, "points": 2},
     {"id": "ach_collect_star", "cat": "隐藏", "name": "星海遗民", "title": "星海旅人",
-     "desc": "无尽海钓到收藏鱼星骸遗鳞", "cond": {"type": "collect_fish", "key": "mat_star_remnant"}, "points": 2},
+     "desc": "在迷雾海沟/龙鲸海域/风暴之海钓到收藏鱼星骸遗鳞", "cond": {"type": "collect_fish", "key": "mat_star_remnant"}, "points": 2},
 
     # ---- v87 隐藏线成就（14 章 2.7 扩充 +6）----
     {"id": "ach_spellblade_unlock", "cat": "隐藏", "name": "剑与书的誓约", "title": "剑与书的誓约",
@@ -249,7 +249,7 @@ ACHIEVEMENTS = [
     {"id": "ach_stardust_set", "cat": "隐藏", "name": "星尘守望者", "title": "星尘守望者",
      "desc": "获得星尘套 4 件套", "cond": {"type": "set_has", "key": "set_xing_chen_tao", "value": 4}, "points": 2},
     {"id": "ach_hidden_hunter", "cat": "隐藏", "name": "传说猎人", "title": "传说猎人",
-     "desc": "击败全部 6 种隐藏怪物", "cond": {"type": "hidden_monsters_all"}, "points": 2},
+     "desc": "击败全部 25 种隐藏怪物", "cond": {"type": "hidden_monsters_all"}, "points": 2},
     {"id": "ach_starfall_sword", "cat": "隐藏", "name": "星陨之剑主", "title": "星陨之剑主",
      "desc": "获得传说武器·星陨之剑", "cond": {"type": "item_has", "key": "eq_starfall_sword"}, "points": 2},
 

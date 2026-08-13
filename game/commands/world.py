@@ -99,7 +99,8 @@ class WorldCmds(CommandBase):
             if not (_cp_sa and (sa_obj is None or sa_obj.get("id") != _cp_sa)):
                 _cp_name = _cp.get("name", "营地") if isinstance(_cp, dict) else str(_cp)
                 lines.append(f"🔥 篝火营地·{_cp_name}(『休息』恢复一半生命)")
-        if mid in C.MINE_SPOTS:
+        # v105R3 M14 P3-3：城镇地图不显示矿脉（『挖掘』已被城镇拦截，防"⛏️ 矿脉"与"城镇安全区"观感冲突）
+        if mid in C.MINE_SPOTS and cur_map.get("type") != "城镇区域":
             _mi = C.MINE_SPOTS[mid]
             _mi_sa = _mi.get("subarea", "") if isinstance(_mi, dict) else ""
             if not (_mi_sa and (sa_obj is None or sa_obj.get("id") != _mi_sa)):
@@ -662,7 +663,7 @@ class WorldCmds(CommandBase):
         if not dest:
             yield event.plain_result("前往哪？输入『地图』查看～")
             return
-        # v94 体力：同图子区域移动免费（城内溜达不算赶路）；跨图移动扣 2、体力不足拒绝
+        # v94 体力：同图子区域移动免费（城内溜达不算赶路）；跨图移动扣 1、体力不足拒绝
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
         cur_sas = cur_map.get("subareas") or []
@@ -2578,13 +2579,13 @@ class WorldCmds(CommandBase):
             # 原实现零成本无限刷（5%×1-5 金币无冷却无每日次数），现按 props_use 每日计数
             today = _dt.date.today().isoformat()
             use_key = f"{cur}:{sa_id}:{pid}"
-            used = db.get_props_use(group_id, qq_id)
+            used = db.get_props_use(qq_id)
             if used.get(use_key) == today:
                 lines.append("⏳ 井水今天已经应过一次愿了……明日再来试试吧。")
             elif random.random() < WISH_WELL_EGG_CHANCE:
                 gold = random.randint(1, 5)
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                db.mark_props_use(group_id, qq_id, use_key, today)
+                db.mark_props_use(qq_id, use_key, today)
                 lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
         elif eff == "refresh":
             lines.append("💧 泉水入喉，神清气爽。旅途的疲惫仿佛也被这淙淙水声冲淡了一些。")
@@ -2592,7 +2593,7 @@ class WorldCmds(CommandBase):
             # 每日 1 次（按元素实例：地图:子区域:prop_id 独立计数，防刷）
             today = _dt.date.today().isoformat()
             use_key = f"{cur}:{sa_id}:{pid}"
-            used = db.get_props_use(group_id, qq_id)
+            used = db.get_props_use(qq_id)
             if used.get(use_key) == today:
                 lines.append("⏳ 今天已经在这里翻找过了……明天再来碰碰运气吧。")
             else:
@@ -2606,7 +2607,7 @@ class WorldCmds(CommandBase):
                             "name": mname, "type": "材料", "stackable": True,
                             "price": C.MATERIALS[mid]["price"],
                         }, 1)
-                        db.mark_props_use(group_id, qq_id, use_key, today)
+                        db.mark_props_use(qq_id, use_key, today)
                         lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
                         # v104 M20：采集任务每日（collect_any）——场景元素获得材料 +1（主采集动作在 economy.py）
                         self._bump_daily_progress(group_id, qq_id, "collect_any", lines)
@@ -2620,7 +2621,7 @@ class WorldCmds(CommandBase):
                         lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～(明天再来也一样暖)")
                     else:
                         db.update_player(group_id, qq_id, hp=player["hp"] + heal)
-                        db.mark_props_use(group_id, qq_id, use_key, today)
+                        db.mark_props_use(qq_id, use_key, today)
                         lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命({player['hp'] + heal}/{player.get('max_hp', 1)})！")
         yield event.plain_result("\n".join(lines))
 
@@ -3150,16 +3151,25 @@ class WorldCmds(CommandBase):
                 else:
                     print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励装备缺失：{eq_name}（名册未收录），已跳过")
             else:
-                rimid = C.resolve("materials", ri)
-                if rimid in C.MATERIALS:
-                    db.add_item(group_id, qq_id, rimid,
-                                {"name": C.display("materials", rimid),
-                                 "type": C.MATERIALS[rimid].get("type", "材料"),
-                                 "stackable": True, "price": C.MATERIALS[rimid]["price"]})
+                # v104 M20 P3：先 items 后 materials（与主线 world.py:2005-2009 同款顺序）——
+                # 支线奖励此前只查 materials，同名跨表实体（如 s4「麦酒」=消耗品 i_ale 回复道具，
+                # 材料表另有 mat_mai_jiu 烹饪调料）会发错实体
+                _iid = C.resolve("items", ri)
+                if _iid in C.ITEMS:
+                    _idata = C.ITEMS[_iid]
+                    db.add_item(group_id, qq_id, _iid, _idata)
                     lines.append(f"  🎁 获得特殊道具：{ri}")
                 else:
-                    # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
-                    print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励道具缺失：{ri}（未收录），已跳过")
+                    rimid = C.resolve("materials", ri)
+                    if rimid in C.MATERIALS:
+                        db.add_item(group_id, qq_id, rimid,
+                                    {"name": C.display("materials", rimid),
+                                     "type": C.MATERIALS[rimid].get("type", "材料"),
+                                     "stackable": True, "price": C.MATERIALS[rimid]["price"]})
+                        lines.append(f"  🎁 获得特殊道具：{ri}")
+                    else:
+                        # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
+                        print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励道具缺失：{ri}（未收录），已跳过")
         # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
         uc = sqd.get("unlock_class")
         if uc:
@@ -3247,7 +3257,6 @@ class WorldCmds(CommandBase):
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！旅店老板不敢收留你……(等红名消退再来)")
             return
-        cur_map = C.MAP_BY_ID.get(player["cur_map"])
         # v87.17 子区域化旅店：_at_healer 检查当前子区域，不在旅店给设施提示
         if not self._at_healer(player):
             hint = self._facility_hint(player, "healer")
@@ -3291,7 +3300,7 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         rep = db.get_reputation(group_id, qq_id)
-        lines = ["🏛️ 【六大势力 · 声望】", "━━━━━━━━━━━━"]
+        lines = ["🏛️ 【七大势力 · 声望】", "━━━━━━━━━━━━"]
         for i, fid in enumerate(C.FACTION_ORDER, 1):
             f = C.FACTIONS[fid]
             pts = rep.get(fid, 0)
@@ -3425,5 +3434,5 @@ class WorldCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"{c['text']}\n"
             f"━━━━━━━━━━━━\n"
-            f"(奥兰迪亚编年史 · 输入『传说』再听一段)"
+            f"(奥兰迪亚编年史 · 输入『编年史』再听一段)"
         )

@@ -73,7 +73,7 @@ async def main():
     set_pos(m, "g1", "q1", "oak_town", "oak_town_4")  # 橡木镇旅店
     use_key = "oak_town:oak_town_4:fireplace"
     out = await cmd(m, "interact_prop", "g1", "q1", "交互 旅店壁炉")
-    used = db.get_props_use("g1", "q1")
+    used = db.get_props_use("q1")
     check("满血交互→氛围文案(不恢复)", "暖意融融" in out, out[:120])
     check("满血交互→不 mark_props_use", use_key not in used, used)
     # 扣血后交互 → 正常恢复 + 记录
@@ -83,7 +83,7 @@ async def main():
     hp0 = p["hp"]
     out = await cmd(m, "interact_prop", "g1", "q1", "交互 旅店壁炉")
     p = db.get_player("g1", "q1")
-    used = db.get_props_use("g1", "q1")
+    used = db.get_props_use("q1")
     check("伤血交互→回血", p["hp"] > hp0, (hp0, p["hp"]))
     check("伤血交互→记录每日次数", use_key in used, used)
     # 当日再交互 → 每日限额

@@ -15,7 +15,7 @@ COOKING_RECIPES = {
         "product": {"it_slime_jelly": 1},
     },
     "cook_skewer": {
-        "name": "烤肉串（自制）",
+        "name": "烤肉串(自制)",
         "desc": "新鲜兽肉串烤，滋滋冒油",
         "min_lv": 1,
         "cost": {"mat_shou_rou": 2},
@@ -176,7 +176,7 @@ COOKING_RECIPES = {
     # ---- v104 M15 鱼饵配方落地（v102.3 规划 3 条：烹饪 2 条，炼金 1 条见 alchemy.py）----
     "cook_dough_bait": {
         "name": "面团鱼饵",
-        "desc": "揉得松软的麦粉饵团，下次垂钓绿/蓝档概率提升(仅 1 次)",
+        "desc": "揉得松软的麦粉饵团，下次垂钓绿/蓝档品质权重提升(仅 1 次)",
         "min_lv": 1,
         # v104R3 M16 P2-5：成本 6/20=0.30 低于 40% 下限 → 面粉×3+浆果×1=14/20=0.70
         "cost": {"mat_mian_fen": 3, "mat_jiang_guo": 1},

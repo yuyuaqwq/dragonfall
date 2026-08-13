@@ -13,10 +13,7 @@ NPC 多轮对话树（v65）。
 -    {"quest_pending": ""}     当前主线待接取（动态；且校验发布者 == 对话 NPC，见 core/dialogue_conds.py v101.23）
 -    {"quest_active": ""}      当前主线进行中（active/ready）
 -    {"quest_ready": ""}       当前主线待交付（ready）
--    {"quest_done": "q1_1"}    指定主线 q1_1 已完成（静态 id 写法）
-    {"main_done": True}         全部主线完成
-    {"level": 10}               等级 ≥ 10
-    {"flag": "xxx"}             该 NPC 对话 flag 已设置
+{"quest_done": "q1_1"}    指定主线 q1_1 已完成（静态 id 写法）
 - 动作 action（选中后执行，返回通知行）：
     {"set_flag": "xxx"}         设置对话 flag（持久，彩蛋解锁用）
     {"give_gold": 50}           给金币
@@ -178,7 +175,7 @@ DIALOGUES = {
                     {"text": "最近有奇怪的客人吗？", "next": "gossip"},
                     {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
                     {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
-                    {"text": "✅ 任务办妥了！", "next": "__end__", "need": {"quest_ready": ""}, "action": {"quest_take": True}},
+                    {"text": "✅ 任务办妥了！", "next": "quest_done", "need": {"quest_ready": ""}},
                     {"text": "✅ 有东西要交给你。", "next": "__end__", "need": {"side_ready": True}, "action": {"side_take": True}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
@@ -209,6 +206,14 @@ DIALOGUES = {
                 "text": "好样的！具体目标都在冒险日志里，办妥了回来找我就行。",
                 "options": [
                     {"text": "出发！", "next": "__end__"},
+                ],
+            },
+            # v105 M19 P3：q1_5 迷路的猫交付台词节点——此前 quest_ready 直接 __end__+quest_take，
+            # 交付零 NPC 台词（只回奖励行），现与其他主线 giver（quest_done_talk）对齐
+            "quest_done": {
+                "text": "『麦酒』！你可算把它找回来了！来，鱼汤炖上了，趁热喝！",
+                "options": [
+                    {"text": "收下报酬！", "next": "__end__", "action": {"quest_take": True}},
                 ],
             },
         },
@@ -346,7 +351,7 @@ DIALOGUES = {
             "ask": {
                 "text": "小姑娘别怕，采药不是力气活。想拜师学采集，先回答我——哪种草能治伤口？",
                 "options": [
-                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro", "answer": True},
+                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro"},
                     {"text": "毒蘑菇", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
                     {"text": "荆棘叶", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "gather"}},
@@ -356,9 +361,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "艾琳笑着摇头：再想想，采错药可是要出人命的。哪种草能治伤口？",
                 "options": [
-                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro", "answer": True},
+                    {"text": "止血草", "need": {"not_apprentice": "gather"}, "next": "practice_intro"},
                     {"text": "毒蘑菇", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
                     {"text": "荆棘叶", "need": {"not_apprentice": "gather"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -402,7 +408,7 @@ DIALOGUES = {
                 ],
             },
             "master_pass": {
-                "text": "好！从今天起你就是我的学徒了。这把小铲送给你，好好学！",
+                "text": "好！从今天起你就是我的学徒了。这几份草药送给你，好好学！",
                 "options": [
                     {"text": "谢谢艾琳婆婆！", "next": "chat", "action": {"unlock_prof": "gather", "give_prof_exp": 50, "give_item": {"key": "草药", "count": 3}}},
                     {"text": "告辞", "next": "__end__"},
@@ -427,7 +433,7 @@ DIALOGUES = {
                     {"need": {}, "text": "挖矿跟喝酒一样，讲究一个痛快！想拜师学挖掘，先回答我——什么矿石最坚硬？"},
                 ],
                 "options": [
-                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro", "answer": True},
+                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro"},
                     {"text": "铁矿石", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
                     {"text": "秘银", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "mining"}},
@@ -437,9 +443,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "巴尔金灌了口烈酒：哈哈哈，再想想！越往地下走，好东西越硬！",
                 "options": [
-                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro", "answer": True},
+                    {"text": "源质", "need": {"not_apprentice": "mining"}, "next": "practice_intro"},
                     {"text": "铁矿石", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
                     {"text": "秘银", "need": {"not_apprentice": "mining"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -484,7 +491,7 @@ DIALOGUES = {
                 "options": [{"text": "这就去", "next": "master_check"}],
             },
             "master_pass": {
-                "text": "好小子！从今天起你就是矿工行会的人了。这把鹤嘴锄拿好，别丢矿工的脸！",
+                "text": "好小子！从今天起你就是矿工行会的人了。这几块铁矿石拿好，别丢矿工的脸！",
                 "options": [
                     {"text": "谢巴尔金大哥！", "next": "chat", "action": {"unlock_prof": "mining", "give_prof_exp": 50, "give_item": {"key": "铁矿石", "count": 3}}},
                     {"text": "告辞", "next": "__end__"},
@@ -503,7 +510,7 @@ DIALOGUES = {
             "ask": {
                 "text": "……夜里的海，有鱼。想拜师学垂钓，先回答我——哪种鱼只在深夜出没？",
                 "options": [
-                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro", "answer": True},
+                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro"},
                     {"text": "银鳞鱼", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
                     {"text": "金鲤", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "fishing"}},
@@ -513,9 +520,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "马库斯望着海面，轻声说：夜里才出来的鱼，身上带着光……再想想。",
                 "options": [
-                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro", "answer": True},
+                    {"text": "夜光鲛", "need": {"not_apprentice": "fishing"}, "next": "practice_intro"},
                     {"text": "银鳞鱼", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
                     {"text": "金鲤", "need": {"not_apprentice": "fishing"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -555,7 +563,7 @@ DIALOGUES = {
                 "options": [{"text": "这就去", "next": "master_check"}],
             },
             "master_pass": {
-                "text": "……行，你过关了。这根鱼竿送你。以后潮起潮落，鱼都在那里等你。",
+                "text": "……行，你过关了。这两条银鳞鱼送你。以后潮起潮落，鱼都在那里等你。",
                 "options": [
                     {"text": "谢谢马库斯爷爷！", "next": "chat", "action": {"unlock_prof": "fishing", "give_prof_exp": 50, "give_item": {"key": "银鳞鱼", "count": 2}}},
                     {"text": "告辞", "next": "__end__"},
@@ -574,7 +582,7 @@ DIALOGUES = {
             "ask": {
                 "text": "年轻人会做饭吗？不会？没关系！先回答我——烤肉串的主料是啥？",
                 "options": [
-                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro", "answer": True},
+                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro"},
                     {"text": "草药", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
                     {"text": "面粉", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "cooking"}},
@@ -584,13 +592,14 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "罗莎叉腰大笑：哈哈哈，那玩意儿能烤吗！再想想！",
                 "options": [
-                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro", "answer": True},
+                    {"text": "兽肉", "need": {"not_apprentice": "cooking"}, "next": "practice_intro"},
                     {"text": "草药", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
                     {"text": "面粉", "need": {"not_apprentice": "cooking"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
-                "text": "有悟性！给我收集 2 份兽肉和 1 份草药来，当今天的食材。",
+                "text": "有悟性！给我收集 2 份兽肉来，当今天的食材。",
                 "options": [
                     {"text": "这就去", "next": "practice_check"},
                     {"text": "先告辞", "next": "__end__"},
@@ -626,7 +635,7 @@ DIALOGUES = {
                 "options": [{"text": "这就去", "next": "master_check"}],
             },
             "master_pass": {
-                "text": "行，收你当徒弟！这本基础菜谱送你，好好练手艺！",
+                "text": "行，收你当徒弟！这两份兽肉送你，好好练手艺！",
                 "options": [
                     {"text": "谢谢罗莎大厨！", "next": "chat", "action": {"unlock_prof": "cooking", "give_prof_exp": 50, "give_item": {"key": "兽肉", "count": 2}}},
                     {"text": "告辞", "next": "__end__"},
@@ -645,7 +654,7 @@ DIALOGUES = {
             "ask": {
                 "text": "外行总以为炼金是玩火。哼，治疗药水的主料是什么？答不上来就滚。",
                 "options": [
-                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro", "answer": True},
+                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro"},
                     {"text": "矿石", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
                     {"text": "羽毛", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "alchemy"}},
@@ -655,13 +664,14 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "梅尔文冷笑：啧，连这都不知道，还想碰烧瓶？再想想。",
                 "options": [
-                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro", "answer": True},
+                    {"text": "草药", "need": {"not_apprentice": "alchemy"}, "next": "practice_intro"},
                     {"text": "矿石", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
                     {"text": "羽毛", "need": {"not_apprentice": "alchemy"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
-                "text": "哼，勉强算你答对了。去收集 3 份草药和 1 个空瓶来，我要看看你的材料鉴别能力。\n（草药：野外『探索』遇『🌿 草药丛』可采，橡木平原/白鹿森林/银铃河一带常有；空瓶：本工坊商店有售）",
+                "text": "哼，勉强算你答对了。去收集 3 份草药来，我要看看你的材料鉴别能力。\n（草药：野外『探索』遇『🌿 草药丛』可采，橡木平原/白鹿森林/银铃河一带常有）",
                 "options": [
                     {"text": "这就去", "next": "practice_check"},
                     {"text": "先告辞", "next": "__end__"},
@@ -697,7 +707,7 @@ DIALOGUES = {
                 "options": [{"text": "这就去", "next": "master_check"}],
             },
             "master_pass": {
-                "text": "……行，收你了。这本基础炼金配方拿去，别炸了我的工房。",
+                "text": "……行，收你了。这两个空瓶拿去，别炸了我的工房。",
                 "options": [
                     {"text": "谢谢梅尔文先生！", "next": "chat", "action": {"unlock_prof": "alchemy", "give_prof_exp": 50, "give_item": {"key": "空瓶", "count": 2}}},
                     {"text": "告辞", "next": "__end__"},
@@ -720,7 +730,7 @@ DIALOGUES = {
                     {"need": {}, "text": "打铁，凭的是手和心。想拜师学锻造，先回答我——锻造装备需要什么？"},
                 ],
                 "options": [
-                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
+                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro"},
                     {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
                     {"text": "只有金币", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "craft"}},
@@ -730,9 +740,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "奥格敲了敲铁砧：没有图纸，材料就是废铁！再想想。",
                 "options": [
-                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro", "answer": True},
+                    {"text": "图纸+材料", "need": {"not_apprentice": "craft"}, "next": "practice_intro"},
                     {"text": "只有材料", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
                     {"text": "只有金币", "need": {"not_apprentice": "craft"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -791,7 +802,7 @@ DIALOGUES = {
             "ask": {
                 "text": "强化是门生意，也是门赌术。想拜师学强化，先回答我——＋6 以上强化失败会怎样？",
                 "options": [
-                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
+                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro"},
                     {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
                     {"text": "装备消失", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "enhance"}},
@@ -801,9 +812,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "克拉拉拨着算盘：高风险高回报，＋6 以上失败可不止掉一级。再想想。",
                 "options": [
-                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro", "answer": True},
+                    {"text": "降 2 级", "need": {"not_apprentice": "enhance"}, "next": "practice_intro"},
                     {"text": "降 1 级", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
                     {"text": "装备消失", "need": {"not_apprentice": "enhance"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -862,7 +874,7 @@ DIALOGUES = {
             "ask": {
                 "text": "符文不是刻上去的花纹，是大地母神的语言。想拜师学附魔，先回答我——法师最适合附魔什么属性？",
                 "options": [
-                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro", "answer": True},
+                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro"},
                     {"text": "攻击", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
                     {"text": "速度", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
                     {"text": "随便聊聊", "next": "chat", "need": {"apprentice": "enchant"}},
@@ -873,9 +885,10 @@ DIALOGUES = {
             "ask_wrong": {
                 "text": "吉姆利敲着符文石：法师靠魔力吃饭，附魔也得顺着力量走。再想想。",
                 "options": [
-                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro", "answer": True},
+                    {"text": "魔攻", "need": {"not_apprentice": "enchant"}, "next": "practice_intro"},
                     {"text": "攻击", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
                     {"text": "速度", "need": {"not_apprentice": "enchant"}, "next": "ask_wrong"},
+                    {"text": "告辞。", "next": "__end__"},
                 ],
             },
             "practice_intro": {
@@ -917,7 +930,7 @@ DIALOGUES = {
             "master_pass": {
                 "text": "好，从今往后你就是符文塔的学徒了。这颗符文石送你，记住符文之心。",
                 "options": [
-                    {"text": "谢吉姆利大师！", "next": "chat", "action": {"unlock_prof": "enchant", "give_prof_exp": 50, "give_item": {"key": "魔法粉尘", "count": 2}}},
+                    {"text": "谢吉姆利大师！", "next": "chat", "action": {"unlock_prof": "enchant", "give_prof_exp": 50, "give_item": {"key": "符文石", "count": 1}}},
                     {"text": "告辞", "next": "__end__"},
                 ],
             },
@@ -1027,7 +1040,9 @@ DIALOGUES = {
                 ],
             },
             "quest_talk": {
-                "text": "正好！行会刚贴出一份委托，报酬优厚。这趟差事，冒险者公会里就你最合适。",
+                # v105 M19 P3：接取台词跟随当前主线 story（q1_2 行会入门：铁牌欢迎词），
+                # 与镇长/玛莎/矮人长老一致——此前写死"行会刚贴出一份委托"与 q1_2 story 冲突
+                "text_from": "story",
                 "options": [
                     {"text": "交给我了！", "next": "quest_accept", "action": {"set_flag": "quest_hint", "quest_take": True}},
                     {"text": "再想想。", "next": "chat"},

@@ -32,6 +32,12 @@ _ATK_VERB = {
 }
 
 
+# v105 P3(M01)：种族残血攻倍率常量——battle 结算与 race_talent_display 展示共用，
+# 调数值只改这里（此前两处各自硬编码 1.20/0.90，调值会文案失配）
+RACE_BERSERK_MULT = 1.20   # 无畏：HP 低于 berserk_hp 阈值时攻击 ×1.20（展示文案 +20%）
+RACE_TIMID_MULT = 0.90     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90（展示文案 -10%）
+
+
 def _basic_attack_verb(player: dict) -> str:
     """普攻动作文案（按职业；未知职业 fallback 挥剑攻击）"""
     return _ATK_VERB.get(player.get("class_name", ""), "挥剑攻击")
@@ -42,7 +48,7 @@ BUFF_MULT = {
     "atk_up":         ("atk", 1.30),
     "atk_up_strong":  ("atk", 1.75),
     "echo_bless":     ("atk", 1.05),   # v97.4 回音洞穴祝福：本场攻击 +5%（一次性，探索事件写入）
-    "matk_up":        ("matk", 1.50),   # #244a：与技能描述 matk＋50% 对齐（原 1.35 与 desc 不符）
+    "matk_up":        ("matk", 1.50),   # #244a：与技能描述 matk+50% 对齐（原 1.35 与 desc 不符）
     "matk_up_strong": ("matk", 1.80),
     "matk_up_pot":    ("matk", 1.30),   # 9.3 鲛人之泪：本回合魔攻 +30%
     "def_up":         ("def", 1.45),
@@ -569,10 +575,10 @@ class Battle:
         """v101.28f 药水特殊效果分发（非属性 buff 类，3 回合制；next_atk_up 一次性）。"""
         if kind == "next_atk_up":
             self.p_buffs["next_atk_up"] = 1
-            logs.append("⚔️ 你蓄势待发！下一次攻击＋50%！")
+            logs.append("⚔️ 你蓄势待发！下一次攻击+50%！")
         elif kind == "heal_up":
             self.p_buffs["heal_up"] = 3
-            logs.append("✨ 治疗增幅！治疗技能效果＋20%！(3 回合)")
+            logs.append("✨ 治疗增幅！治疗技能效果+20%！(3 回合)")
         elif kind == "magic_resist":
             self.p_buffs["magic_resist"] = 3
             logs.append("🛡️ 魔鳞护体！受到魔法伤害－15%！(3 回合)")
@@ -587,7 +593,7 @@ class Battle:
             logs.append("🗿 不动如山！免疫眩晕/冻结/减速！(3 回合)")
         elif kind == "execute_pot":
             self.p_buffs["execute_pot"] = 3
-            logs.append("💀 死神凝视！对生命<30%的敌人＋30%伤害！(3 回合)")
+            logs.append("💀 死神凝视！对生命<30%的敌人+30%伤害！(3 回合)")
         elif kind == "def_down":
             self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
             self.e_buffs["_armor_break_pct"] = 0.15
@@ -1030,11 +1036,11 @@ class Battle:
         ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
         bz = rt.get("berserk_hp")
         if bz and ratio < bz:
-            mult *= 1.20
+            mult *= RACE_BERSERK_MULT
             tags.append("🔥无畏")
         tm = rt.get("timid_hp")
         if tm and ratio < tm:
-            mult *= 0.90
+            mult *= RACE_TIMID_MULT
             tags.append("😰怯战")
         fh = rt.get("first_hit")
         if fh and not self.first_attack_done:
@@ -1226,7 +1232,8 @@ class Battle:
         """治疗分支（v103.6 从 _player_skill 拆出）"""
         # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
         cond_mult = self._cond_mult(info, player, lv)
-        cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
+        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技，如符文护体"魔能≥3"）
+        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
         # v95r38：power<1 的治疗技能按 max_hp 百分比结算（如拳师气息调息 15% HP），
         # power>=1 保持原有"魔攻×power"模式（治愈术 200% 等），与消耗品 heal<1 百分比语义一致
         if info.get("power", 0) < 1:
@@ -1257,7 +1264,7 @@ class Battle:
         if hr:
             heal = max(1, int(heal * (1 + hr)))
             if hr > 0:
-                logs.append(f"✨ 圣光亲和：治疗效果 ＋{int(hr*100)}%！")
+                logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
             else:
                 logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
         hp_before = player.get("hp", 0)
@@ -1317,7 +1324,8 @@ class Battle:
                 self.p_buffs[key] = max(self.p_buffs.get(key, 0), E.skill_buff_turns(lv))
         # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
         cond_mult = self._cond_mult(info, player, lv)
-        cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
+        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
+        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
         # v29：effect 型机制（引爆/转化类增益技能）
         if eff == "burn_burst":
             n = p_mech.get("burn", 0)
@@ -1344,7 +1352,7 @@ class Battle:
         self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
         logs.append(f"你施展【{skill_name}】！")
         if eff == "element_shift" and getattr(self, "_shifted_element", None):
-            logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害＋20%)")
+            logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害+20%)")
             self._shifted_element = None
         # v50 团队增益：记录全队效果（副本广播）
         team = info.get("team")
@@ -1407,9 +1415,8 @@ class Battle:
         stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
         # v30 条件转化：按战场状态变形态（残血斩杀/背水一战）
         cond_mult = self._cond_mult(info, player, lv)
-        cond_label = ""
-        if cond_mult > 1.0:
-            cond_label = info.get("cond", {}).get("label", "")
+        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
+        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
         multi = info.get("multi", 1)
         # 机制：风印 → 连击次数增加
         if mech == "wind":
@@ -1561,6 +1568,9 @@ class Battle:
             tags.append(f"⚡增幅x{round(stack_bonus, 2)}")
         if cond_mult > 1.0 and cond_label:
             tags.append(f"⚔️{cond_label}x{round(cond_mult, 1)}")
+        elif cond_mult == 1.0 and cond_label:
+            # v104 R3 P2-18：mult=1.0 的纯条件技（如符文护体"魔能≥3"）条件满足时也提示
+            tags.append(f"⚔️{cond_label}")
         if mb_lvl:
             tags.append(f"🔮破魔x{round(magic_bonus, 2)}")
         # 阶段八：词条伤害标签（处决/追猎/精准等）
@@ -1598,7 +1608,7 @@ class Battle:
                     combo_bonus = int(total * 0.45)
                     break
                 self._damage_enemy(combo_bonus, logs)
-                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技＋20%)")
+                logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技+20%)")
                 self.resources["combo_ready"] = 1
             else:
                 logs.append(f"🥊 连招 {self._combo_label()}")
@@ -1653,7 +1663,7 @@ class Battle:
         cond 结构：{"type": "...", "hp_pct": 0.4, "mult": 1.6, "label": "处决狙击"}
         倍率随技能等级成长（v56）：每级 +0.05，lv 默认 1 保持向后兼容。
         v98.4：判定逻辑数据化 → core/battle_conds.py COND_CHECKS 注册表
-        （23 种条件类型；未知 type 安全降级 1.0，与旧 elif 链兜底一致）
+        （22 种条件类型；未知 type 安全降级 1.0，与旧 elif 链兜底一致）
         """
         cond = info.get("cond")
         if not cond:
@@ -1663,6 +1673,17 @@ class Battle:
         if check and check(self, player, cond):
             return E.skill_cond_mult(cond, lv, info)
         return 1.0
+
+    def _cond_active(self, info: dict, player: dict) -> bool:
+        """v104 R3 P2-18：条件是否当前满足（与 _cond_mult 同判定，不关心倍率数值）。
+        用于条件标签显示——mult=1.0 的纯条件技（如符文护体"魔能≥3"）此前因
+        cond_mult>1.0 判定永不显示标签，玩家看不到条件存在。"""
+        cond = info.get("cond")
+        if not cond:
+            return False
+        from .core.battle_conds import COND_CHECKS
+        check = COND_CHECKS.get(cond.get("type"))
+        return bool(check and check(self, player, cond))
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
         """增益类技能叠层(v59：封顶)"""
@@ -1970,7 +1991,7 @@ class Battle:
             _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
             self._pet_buff_vals = _pbv
             # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 30%）
-            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
+            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         elif stype == "crit_up":
             self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
             # v104 M17 P2-5：同上——暴击加成实读 skill_value（覆盖常量 0.20）
@@ -1978,7 +1999,7 @@ class Battle:
             _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
             self._pet_buff_vals = _pbv
             # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 20%）
-            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
+            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
@@ -2087,11 +2108,11 @@ class Battle:
         # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（奥术法师自动蓄能）
         if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
-            logs.append(f"📖 奥术直觉：充能自动＋1(当前 {self.mech_stacks['arcane']} 层)")
+            logs.append(f"📖 奥术直觉：充能自动+1(当前 {self.mech_stacks['arcane']} 层)")
         # v87 被动·符文刻印：魔剑士每回合自动获得 1 层魔能（上限 5）
         if "符文刻印" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
-            logs.append(f"⚔️ 符文刻印：魔能自动＋1(当前 {self.mech_stacks['spellblade']} 层)")
+            logs.append(f"⚔️ 符文刻印：魔能自动+1(当前 {self.mech_stacks['spellblade']} 层)")
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)

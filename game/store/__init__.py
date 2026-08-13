@@ -27,7 +27,7 @@ from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
 )
 from .quests import get_quests, save_quests, expire_daily  # noqa: F401
-from .battle_state import save_battle, get_battle, clear_battle  # noqa: F401
+from .battle_state import save_battle, get_battle, get_battle_raw, clear_battle  # noqa: F401
 from .stats import (  # noqa: F401
     init_stats, bump_stats, get_stats, set_achievement, get_achievements,
 )

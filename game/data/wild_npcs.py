@@ -331,7 +331,12 @@ HIDDEN_NPCS = {
     "h_abyss_whisper": {
         "name": "深渊低语者", "icon": "🌑", "map": "abyss_altar",
         "condition": {"time": ["night"]}, "chance": 0.08,
-        "unlock": "flag:saw_the_rift",
+        # v104 M20 P2/P3：设计条件「主线第 10 章后 + flag:saw_the_rift」（03 章 5.5.1）。
+        # 原 unlock=flag:saw_the_rift 仅来自全图探索彩蛋 night_visitor（权重 10/249 ×
+        # EXPLORE_EGG_CHANCE 0.005 ≈ 0.02%/次，近乎锁死）；unlock 引擎仅支持单条件，
+        # 取主线门槛为准：第 10 章最终章 q10_6 完成后解锁（night_visitor 彩蛋 flag 保留，
+        # 作为叙事伏笔不再阻塞解锁）
+        "unlock": "quest_done:q10_6",
         "desc": "裂缝中的声音，不是人也不是魔",
         "funcs": ["lore"],
         "dialogue": "……你看见了裂缝。现在，你还能假装什么都没发生吗？",

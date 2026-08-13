@@ -33,8 +33,8 @@ def check_need(need, ctx: dict) -> bool:
 
     v98.3：条件判定全数据化 → core/dialogue_conds.py CONDITIONS 注册表。
     need 支持的键（quest_done/quest_active/quest_pending/quest_ready/side_ready/
-    main_done/level/flag/quest_any_active/apprentice/not_apprentice/is_novice/
-    not_novice/class_any/class_tier/evolve_ready）见该文件；
+    quest_any_active/apprentice/not_apprentice/is_novice/not_novice/class_any/
+    evolve_ready）见该文件；
     加新条件类型 = register 一个函数（~5 行），本文件零改动。
     """
     if not need:

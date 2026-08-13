@@ -76,8 +76,13 @@ def get_inventory(group_id, qq_id):
             for r in rows:
                 d = json.loads(r["item_data"])
                 # v46：补显示名（旧档 name 可能缺失，用 id 反查或 key）
+                # v104R3 M11 P2-9：兜底不再只认 mat_ 前缀——i_stone_upgrade 等非 mat_ 材料
+                # 缺 name 时此前直接显示英文 key（黑名单 i_stone 泄漏）；按 materials→items 顺序
+                # 反查，查不到才退回 key（display 未命中时原样返回）
                 if not d.get("name"):
-                    d["name"] = C.display("materials", r["item_key"]) if r["item_key"].startswith("mat_") else r["item_key"]
+                    d["name"] = C.display("materials", r["item_key"])
+                    if d["name"] == r["item_key"]:
+                        d["name"] = C.display("items", r["item_key"])
                 out.append({"key": r["item_key"], "data": d, "count": r["count"]})
             return out
         finally:

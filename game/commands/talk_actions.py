@@ -132,7 +132,9 @@ def action_side_take(world, group_id, qq_id, player, npc_id, action):
             continue
         obj = sqd.get("objective", {})
         if obj.get("collect"):
-            if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("count", 1):
+            # v104 M20 P2：收集门槛统一 collect_count 优先（与 world.py 面板/交付一致；
+            # 复合目标如魔剑士试炼 collect_count=2/count=3，旧口径 count=3 会拒收背包 2/3 的玩家）
+            if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("collect_count", obj.get("count", 1)):
                 lines += world._complete_side_quest(group_id, qq_id, sid)
                 # 交付后标记本地快照，防同一轮重复交付（_complete_side_quest 已重读 DB 保存）
                 sq["status"] = "done"

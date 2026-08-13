@@ -73,7 +73,7 @@ class MiscCmds(CommandBase):
 『休息』 野外露营（恢复部分状态）
 『住宿』 城镇旅店（全额恢复）
 『时间』 当前时间/季节/天气
-『许愿』 许愿井（每日一次彩蛋）
+『许愿 <经验/金币/材料>』 向流星许愿（探索偶遇流星后限时；许愿井彩蛋走『交互 许愿井』，每日一次）——v105 M23 P2-2 帮助文案与实现对齐
 『见闻录』 野外 NPC 见闻收集
 💡 移动可能撞怪：等级低于地图容易被拦路，高级玩家威慑低级怪"""
 
@@ -96,7 +96,7 @@ class MiscCmds(CommandBase):
 『技能列表』 全部技能（可翻页『技能列表 2』）
 『技能详情 <名称>』 查看单个技能
 『技能学习 <名称>』 消耗技能点学会技能
-『技能升级 <名称>』 消耗技能点升级（满级 Lv.5，每级增益增强）
+『技能升级 <名称>』 消耗技能点升级（满级依技能 3~5，每级增益增强）
 『技能洗点』 500 金币重置技能点
 『技能栏』 查看快捷栏（6 格）
 『设置技能 <槽位> <技能名>』 配置快捷栏
@@ -116,8 +116,8 @@ class MiscCmds(CommandBase):
 『代工 <装备名>』 铁匠代工（图纸+材料+3倍金币，不用锻造等级）
 『学习 <图纸名>』 消耗图纸永久解锁套装配方
 『配方 <装备名>』 详情
-『强化 <装备>』 强化装备（要锻造副业 Lv.N 才能强化 +N）
-『附魔 <装备> <符文名>』 给装备打符文（要炼金副业 Lv.2）
+『强化 <装备>』 强化装备（要强化副业 Lv.N 才能强化 +N）
+『附魔 <装备> <属性/符文名>』 附魔装备（要附魔副业 Lv.2，属性附魔或打符文）
 『套装』 套装查看
 💡 每人只能发展 2 条副业！练满再选新的需『遗忘副业』（等级清零）
 💡 副业 Lv.3/6/10 有成就和专属称号（大师称号有属性加成）"""
@@ -134,7 +134,8 @@ class MiscCmds(CommandBase):
 『摆摊 <物品> [价格]』 摆摊（不带价格=换摊；家里摆摊=铺面挂机）
 『收摊』 『摊位』 『换 <编号> <物品>』
 『拍卖』 神秘拍卖行 『竞拍 <编号> <金币>』
-💡 背包翻页：『背包 2』『背包 材料』『背包 装备 2』"""
+💡 背包翻页：『背包 2』『背包 材料』『背包 装备 2』
+💡 购买容错：『购买 治疗药水（中）』全角括号自动转半角，照常买到"""
 
     CMD_HELP_INSTANCE = """🏰 【组队副本】指令
 ━━━━━━━━━━━━
@@ -147,11 +148,11 @@ class MiscCmds(CommandBase):
 💡 部分高难/外域副本需要钥匙/信物才能进（『副本 <名字>』可看获取途径；已通关免钥匙）
 💡 轮流出手：队员A行动 → 队员B行动 → Boss行动 → 下一轮
 💡 Boss 有仇恨：打伤害/奶人会拉仇恨，『防御』嘲讽拉怪并减伤
-💡 超时 2 分钟自动防御；Boss 锁定无法逃跑；通关有材料/图纸/成就"""
+💡 超时 60 秒自动防御；Boss 锁定无法逃跑；通关有材料/图纸/成就"""
 
     CMD_HELP_SOCIAL = """🤝 【社交】指令
 ━━━━━━━━━━━━
-【公会】公会 创建公会 加入公会 退出公会 解散公会 公会签到 公会任务 公会排行
+【公会】公会 创建公会 加入公会 退出公会 解散公会 公会签到 公会任务 公会捐献 公会排行
 【宠物】宠物 宠物改名 喂养 放生（宠物蛋打怪掉落）
 【坐骑】坐骑 骑乘 <名称> 下马（精英/Boss 掉缰绳解锁，传送省钱）
 【快捷】快捷 快捷绑定 <数字> <指令> 快捷删除 <数字> 快捷清除（发数字即触发）
@@ -190,7 +191,8 @@ class MiscCmds(CommandBase):
         "其他": CMD_HELP_OTHER,
     }
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:帮助|help)(?:\s*|$)")
+    # v105 M24 P3-2：『帮助中心』前缀误触 → 负向断言收窄
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:帮助|help)(?!中心)(?:\s*|$)")
 
     async def help_cmd(self, event: AstrMessageEvent):
         msg = event.get_message_str().strip()
@@ -211,7 +213,8 @@ class MiscCmds(CommandBase):
                 f"没有『{arg}』帮助主题～可用：角色 冒险 战斗 技能 副业 物品 社交 世界 其他\n\n" + MiscCmds.CMD_HELP
             )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?签到(?:\s*|$)")
+    # v105 M24 P3-2：『签到机』前缀误触 → 负向断言收窄
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?签到(?!机)(?:\s*|$)")
     @require_player()
 
     async def signin(self, event: AstrMessageEvent):
@@ -315,7 +318,9 @@ class MiscCmds(CommandBase):
             for a in achs:
                 mark = "✅" if a["id"] in unlocked else "⬜"
                 rw = a.get("reward") or {}
-                rw_txt = f"（{'、'.join(f'{k}+{v}' for k, v in rw.items())}）" if rw else ""
+                # v105 M18 P3：奖励 key 显示中文（经验/金币），对齐解锁提示 _reward_txt
+                _RW_CN = {"exp": "经验", "gold": "金币"}
+                rw_txt = f"（{'、'.join(f'{_RW_CN.get(k, k)}+{v}' for k, v in rw.items())}）" if rw else ""
                 if a["id"] in unlocked and a["id"] not in claimed and rw:
                     mark = "🎁"
                 lines.append(f"{mark} {a['name']}：{a['desc']}{rw_txt}")
@@ -369,10 +374,9 @@ class MiscCmds(CommandBase):
                 "HERMES_WEBHOOK_URL",
                 "http://localhost:8644/webhooks/dragonfall-bridge",
             )
-            secret = os.environ.get(
-                "HERMES_WEBHOOK_SECRET",
-                "MLS6me_1R1PvCCnPHCcv_lzH7KONlyv－1Mz3OorGIYg",
-            )
+            # v105 M24 P2-9：secret 不再内置明文默认值（曾泄漏在源码），强制由环境变量提供；
+            # 未配置时跳过签名（webhook 桥默认停用，需 HERMES_WEBHOOK_URL 才启用）
+            secret = os.environ.get("HERMES_WEBHOOK_SECRET")
             payload = _json.dumps(
                 {
                     "group_id": str(group_id),

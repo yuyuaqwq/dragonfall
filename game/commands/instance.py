@@ -46,13 +46,17 @@ class InstanceCmds(CommandBase):
                         continue
                     self._unlock_battle(group_id, _m)
                     db.clear_battle(group_id, _m)
-                yield event.plain_result("⏳ 通关时间已过 30 分钟，你被自动传送出了副本。")
+                # R3 P3-1：文案与行为对齐——开本不占地图位置，超时只解除战斗锁/
+                # 清 battle（v101.27 #390），玩家从未被\"传送\"；沿用『离开副本』口径
+                yield event.plain_result("⏳ 通关时间已过 30 分钟，你已自动离开副本。")
                 return
             yield event.plain_result(self._instance_status(group_id, qq_id, inst_row))
             return
         arg = self._strip_cmd(event, "副本").strip()
         if not arg:
-            yield event.plain_result(self._instance_list(player))
+            # v104 M04 P2：副本超 24h 无行动被回收 → 不再静默消失，先给过期提示
+            _hint = self._instance_expired_hint(group_id, qq_id)
+            yield event.plain_result((_hint + "\n" if _hint else "") + self._instance_list(player))
             return
         # 队长开本：『副本 <名字>』
         # v87.2：若存在已撤退（retreated）的同副本记录 → 恢复进度继续
@@ -108,7 +112,7 @@ class InstanceCmds(CommandBase):
         async for _r in self._instance_start(event, group_id, qq_id, player, arg):
             yield _r
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?深入(?:第\s*(\d+)\s*层)?(?:[层进]\s*)?$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?深入(?:(?:第\s*)?(\d+)\s*层)?(?:[层进]\s*)?$")
     @require_player()
     @no_prof_waiting()
 
@@ -499,6 +503,25 @@ class InstanceCmds(CommandBase):
         if b and b["state"].get("type") == "instance" and b["state"].get("retreated"):
             return b
         return None
+
+    def _instance_expired_hint(self, group_id, qq_id) -> str:
+        """v104 M04 P2：副本超 24h 无行动被回收后给玩家过期提示（此前静默消失）。
+
+        battle_state.get_battle 对过期副本行不再静默删除，而是打 _expired 标记保留，
+        由本方法检出、清理并返回提示文案；队员的副本行存队长名下，故先查队伍队长。
+        """
+        leader = str(qq_id)
+        members = db.party_members(group_id, qq_id)
+        if members:
+            leader = str(members[0])
+        row = db.get_battle_raw(group_id, leader)
+        if not row:
+            return ""
+        st = row["state"]
+        if st.get("type") == "instance" and st.get("_expired"):
+            db.clear_battle(group_id, leader)
+            return "⌛ 你之前的副本因超过 24 小时无人行动，已自动过期消失～"
+        return ""
 
     def _instance_current_members(self, group_id, st) -> list:
         """v104 P1（M04/M05 同源）：当前仍在队伍中的副本成员（str 列表）。

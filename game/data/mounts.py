@@ -29,7 +29,7 @@ MOUNT_POOL = [
     {"key": "mount_camel", "name": "铁港驼马", "icon": "🐫", "quality": "green", "lv": 20, "price": 0,
      "discount": 0.15, "elite_bonus": 0.0, "stamina_reduce": 0.0, "sell_bonus": 0.10,
      "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.0,
-     "desc": "铁港商队驯养的驮兽。传送费－15%，出售价格＋10%(铁港城港口垂钓稀有产出『驼马缰绳』)"},
+     "desc": "铁港商队驯养的驮兽。传送费－15%，出售价格＋10%(稀有级垂钓产出『驼马缰绳』)"},
     # ---------- 🔵 稀有 ----------
     {"key": "mount_wolf", "name": "雪狼", "icon": "🐺", "quality": "blue", "lv": 30, "price": 0,
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.0, "sell_bonus": 0.0,

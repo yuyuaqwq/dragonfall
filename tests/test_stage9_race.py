@@ -201,7 +201,7 @@ async def test_command_talents():
     cost_ok = True
     p2 = db.get_player("g1", "q1")
     # 破甲斩 Lv.10 成本 vs 默认
-    base_cost = E.skill_learn_cost(30, 10)
+    base_cost = E.skill_learn_cost(10)  # v104 R3 P2-17：签名删死参数 level
     check("多才多艺学习-8%", p2["skill_points"] == 50 - max(1, int(base_cost * 0.92)), f"{p2['skill_points']} (base {base_cost})")
     # 灵巧双手：战斗药水 +10%
     random.seed(1)

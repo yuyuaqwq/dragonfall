@@ -219,8 +219,8 @@ SUBAREAS = {
                     [
                         "野猪牙"
                     ]
-                ],
-                ],
+                ]
+            ],
             "elite": [
                 "e_great_boar",
                 "巨型野猪",
@@ -799,20 +799,6 @@ SUBAREAS = {
                     [
                         "狂战士腰带"
                     ]
-                ],
-                [
-                    "b_goblin_chief",
-                    "哥布林酋长·咕噜",
-                    "boss",
-                    20,
-                    [
-                        "ms_lian_zhan",
-                        "ms_nu_hou",
-                        "ms_zhao_huan"
-                    ],
-                    [
-                        "咕噜的皇冠"
-                    ]
                 ]
             ],
             "elite": None,
@@ -1289,20 +1275,6 @@ SUBAREAS = {
                     ],
                     [
                         "精锐佩剑"
-                    ]
-                ],
-                [
-                    "b_jack_pirate",
-                    "海盗王·独眼杰克",
-                    "boss",
-                    28,
-                    [
-                        "ms_wan_dao",
-                        "ms_huo_qiang",
-                        "ms_zhao_huan_shui_gui"
-                    ],
-                    [
-                        "杰克的金钩"
                     ]
                 ]
             ],
@@ -2340,7 +2312,9 @@ SUBAREAS = {
                         "ms_fu_shi_shu"
                     ],
                     [
-                        "染黑圣铃"
+                        "染黑圣铃",
+                        # v104 M20 P3：s7 修道院的玫瑰 设计目标补全（收集 3 朵染黑玫瑰）
+                        "染黑玫瑰"
                     ]
                 ]
             ],
@@ -2461,20 +2435,6 @@ SUBAREAS = {
                     [
                         "幽灵之尘",
                         "鬼魂精华",
-                    ]
-                ],
-                [
-                    "b_king_odric",
-                    "古王·奥德里克",
-                    "boss",
-                    45,
-                    [
-                        "ms_jian_ji",
-                        "ms_wang_wei",
-                        "ms_zhao_huan_ku_lou"
-                    ],
-                    [
-                        "古王剑"
                     ]
                 ]
             ],
@@ -2761,20 +2721,6 @@ SUBAREAS = {
                     ],
                     [
                         "猎犬项圈"
-                    ]
-                ],
-                [
-                    "b_marcus",
-                    "审判长·马尔库斯",
-                    "boss",
-                    52,
-                    [
-                        "ms_an_ying_dan",
-                        "ms_suo_lian",
-                        "ms_shen_pan_zhi_yan"
-                    ],
-                    [
-                        "马尔库斯的法冠"
                     ]
                 ]
             ],
@@ -3799,20 +3745,6 @@ SUBAREAS = {
                     ],
                     [
                         "远古符文石"
-                    ]
-                ],
-                [
-                    "b_dawn_elf",
-                    "远古精灵王·晨曦",
-                    "boss",
-                    66,
-                    [
-                        "ms_yue_guang_zhan",
-                        "ms_zhao_huan_shu_ren",
-                        "ms_zhi_yu"
-                    ],
-                    [
-                        "晨曦之冠"
                     ]
                 ]
             ],
@@ -5160,20 +5092,6 @@ SUBAREAS = {
                     [
                         "碎裂封印石"
                     ]
-                ],
-                [
-                    "b_helga",
-                    "恶魔祭司·赫尔加",
-                    "boss",
-                    92,
-                    [
-                        "ms_an_ying_dan",
-                        "ms_zhao_huan_e_mo",
-                        "ms_hei_an_yi_shi"
-                    ],
-                    [
-                        "赫尔加的祭器"
-                    ]
                 ]
             ],
             "elite": None,
@@ -5248,20 +5166,6 @@ SUBAREAS = {
                     ],
                     [
                         "深渊法师杖"
-                    ]
-                ],
-                [
-                    "b_eter",
-                    "蚀夜(真相形态)",
-                    "boss",
-                    100,
-                    [
-                        "ms_an_ying_zhan",
-                        "ms_shen_yuan_zhi_nu",
-                        "ms_zhao_huan_shen_yuan"
-                    ],
-                    [
-                        "黎明之光碎片"
                     ]
                 ]
             ],
@@ -6315,20 +6219,6 @@ SUBAREAS = {
                     ],
                     [
                         "古龙鳞"
-                    ]
-                ],
-                [
-                    "b_om_shadow",
-                    "古龙·奥姆之影",
-                    "boss",
-                    100,
-                    [
-                        "ms_long_xi",
-                        "ms_long_zhao",
-                        "ms_gu_long_wei_ya"
-                    ],
-                    [
-                        "龙语传承"
                     ]
                 ]
             ],
@@ -7491,20 +7381,6 @@ SUBAREAS = {
                     [
                         "海藻缠绕"
                     ]
-                ],
-                [
-                    "b_ghost_captain",
-                    "幽灵船长·克罗",
-                    "boss",
-                    48,
-                    [
-                        "ms_wan_dao",
-                        "ms_zhao_huan_you_ling",
-                        "ms_zu_zhou"
-                    ],
-                    [
-                        "克罗的罗盘"
-                    ]
                 ]
             ],
             "elite": None,
@@ -7563,20 +7439,6 @@ SUBAREAS = {
                     ],
                     [
                         "触手皮"
-                    ]
-                ],
-                [
-                    "b_siren_queen",
-                    "海妖女王·蓝歌",
-                    "boss",
-                    60,
-                    [
-                        "ms_mei_huo_zhi_ge",
-                        "ms_ju_lang",
-                        "ms_zhao_huan_chu_shou"
-                    ],
-                    [
-                        "蓝歌之冠"
                     ]
                 ]
             ],
@@ -8277,20 +8139,6 @@ SUBAREAS = {
                     [
                         "甲壳残片"
                     ]
-                ],
-                [
-                    "b_lange",
-                    "海神祭司·澜歌",
-                    "boss",
-                    72,
-                    [
-                        "ms_hai_chao",
-                        "ms_zhao_huan_sha_yu",
-                        "ms_jing_hua_zhi_chao"
-                    ],
-                    [
-                        "澜歌之泪"
-                    ]
                 ]
             ],
             "elite": None,
@@ -8362,20 +8210,6 @@ SUBAREAS = {
                     ],
                     [
                         "龙虾壳"
-                    ]
-                ],
-                [
-                    "b_aolan",
-                    "深海龙王·敖澜",
-                    "boss",
-                    78,
-                    [
-                        "ms_shui_xi",
-                        "ms_long_wei",
-                        "ms_zhao_huan_hai_shou"
-                    ],
-                    [
-                        "敖澜之珠"
                     ]
                 ]
             ],
@@ -8909,19 +8743,6 @@ SUBAREAS = {
                     [
                         "机械零件"
                     ]
-                ],
-                [
-                    "b_gray_lord",
-                    "灰矮人领主·石炉",
-                    "boss",
-                    84,
-                    [
-                        "ms_zhan_chui",
-                        "ms_zhao_huan_gong_cheng_shou"
-                    ],
-                    [
-                        "石炉之锤"
-                    ]
                 ]
             ],
             "elite": None,
@@ -8979,20 +8800,6 @@ SUBAREAS = {
                     ],
                     [
                         "古龙裔甲"
-                    ]
-                ],
-                [
-                    "b_under_dragon",
-                    "地底古龙·黑渊",
-                    "boss",
-                    92,
-                    [
-                        "ms_suan_xi",
-                        "ms_tun_shi",
-                        "ms_zhao_huan_you_long"
-                    ],
-                    [
-                        "黑渊之眼"
                     ]
                 ]
             ],
@@ -9368,20 +9175,6 @@ SUBAREAS = {
                     [
                         "术士法杖"
                     ]
-                ],
-                [
-                    "b_moro",
-                    "深渊领主·摩罗",
-                    "boss",
-                    98,
-                    [
-                        "ms_shen_yuan_zhi_nu",
-                        "ms_zhao_huan_e_mo",
-                        "ms_fu_shi_ling_yu"
-                    ],
-                    [
-                        "摩罗之冠"
-                    ]
                 ]
             ],
             "elite": None,
@@ -9713,20 +9506,6 @@ SUBAREAS = {
                     [
                         "天空战刃"
                     ]
-                ],
-                [
-                    "b_storm_master",
-                    "风暴之主·云怒",
-                    "boss",
-                    100,
-                    [
-                        "ms_lei_bao",
-                        "ms_feng_bao_zhi_yan",
-                        "ms_zhao_huan_lei_niao"
-                    ],
-                    [
-                        "云怒之核"
-                    ]
                 ]
             ],
             "elite": None,
@@ -10002,20 +9781,6 @@ SUBAREAS = {
                     [
                         "光之圣典"
                     ]
-                ],
-                [
-                    "b_ola",
-                    "云中圣者·奥拉",
-                    "boss",
-                    100,
-                    [
-                        "ms_sheng_guang",
-                        "ms_feng_bao",
-                        "ms_zhao_huan_yun_wei"
-                    ],
-                    [
-                        "奥拉圣印"
-                    ]
                 ]
             ],
             "elite": None,
@@ -10030,7 +9795,7 @@ SUBAREAS = {
                     "ms_zhao_huan_yun_wei"
                 ],
                 [
-                    "奥拉圣印"
+                    "奥拉圣印碎片"
                 ]
             ],
             "funcs": [

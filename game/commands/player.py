@@ -130,7 +130,8 @@ class PlayerCmds(CommandBase):
         async for r in self._run_shortcut(event, cmd_text):
             yield r
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?注册(?:\s*|$)")
+    # v105 M24 P3-2：『注册表』前缀误触（(?:\s*|$) 空匹配语义）→ 负向断言收窄
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?注册(?!表)(?:\s*|$)")
 
     async def register(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
@@ -333,7 +334,8 @@ class PlayerCmds(CommandBase):
             f"冒险者，你的故事开始了！"
         )
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:角色|我的角色)(?:\s*|$)")
+    # v105 M24 P3-2：『角色扮演』前缀误触 → 负向断言收窄（同源修复：角色卡/角色图等不误触）
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:角色|我的角色)(?!扮演)(?:\s*|$)")
     @require_player()
 
     async def profile(self, event: AstrMessageEvent):
@@ -385,16 +387,18 @@ class PlayerCmds(CommandBase):
         # v100.10 角色面板瘦身：只保留生命/魔力（当前/上限状态）+ 4 项基础属性（纯数值），
         # 战斗属性（攻击/防御/暴击等）详情去『属性』面板看，避免角色面板过于拥挤
         stat_rows = [
-            ("❤️", "hp", "max_hp", "生命", f"{player['hp']}/"),
-            ("💙", "mp", "max_mp", "魔力", f"{player['mp']}/"),
+            ("❤️", "hp", "max_hp", "生命"),
+            ("💙", "mp", "max_mp", "魔力"),
         ]
-        for icon, skey, fkey, cname, prefix in stat_rows:
+        for icon, skey, fkey, cname in stat_rows:
             final = st[fkey]
             bonus = final - base.get(skey, 0)
+            # v105 P3(M01)：当前值双保险 clamp（get_player 已裁上限；此处防负数/脏档超限）
+            cur = min(max(int(player.get(skey, 0) or 0), 0), int(final))
             if skey in C.PCT_STATS:
-                lines.append(f"{icon} {cname}：{prefix}{int(final*100)}%({int(bonus*100):+d}%)")
+                lines.append(f"{icon} {cname}：{cur}/{int(final*100)}%({int(bonus*100):+d}%)")
             else:
-                lines.append(f"{icon} {cname}：{prefix}{final}({int(bonus):+d})")
+                lines.append(f"{icon} {cname}：{cur}/{final}({int(bonus):+d})")
         attr = player.get("attributes") or {}
         if isinstance(attr, str):
             try:
@@ -950,7 +954,7 @@ class PlayerCmds(CommandBase):
         for _rk, _rv in (info.get("res_cost") or {}).items():
             _rname = {"rage": "怒气", "energy": "精力", "faith": "信仰", "cp": "连击点", "chi": "气"}.get(_rk, _rk)
             _costs.append(f"{_rv} {_rname}")
-        _cost_txt = " + ".join(_costs) if _costs else "免费"
+        _cost_txt = " + ".join(_costs) if _costs else "无"  # v104 R3 P3-1：零消耗显示"无"（与技能列表口径一致）
         lines = [
             f"📜 【{display_name}】｜{status}",
             f"━━━━━━━━━━━━",
@@ -1090,7 +1094,9 @@ class PlayerCmds(CommandBase):
             parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
             parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
-        if info.get("effect") == "lifesteal":
+        # v104 R3 P2-10：吸血成长预览同 battle 口径——按 lifesteal 数据字段判定
+        # （原只认 effect=="lifesteal"，全表无技能带此 effect → 嗜血斩升级预览漏显示吸血）
+        if info.get("lifesteal"):
             parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
         return parts
 

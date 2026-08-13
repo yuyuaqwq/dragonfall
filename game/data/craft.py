@@ -45,7 +45,7 @@ CRAFT_RECIPES = {
         },
         'gold': 84,
         'desc': '南境橡木镇的基础工艺，结实耐用',
-        'name': '白鹿皮甲',
+        'name': '橡木皮甲',  # v105 M07 P3-5：与名册改名同步（白鹿皮甲 → 橡木皮甲）
         'roster_id': 'eq_bai_lu_pi_jia',
     },
     'rec_bei_feng_zhang_gong': {

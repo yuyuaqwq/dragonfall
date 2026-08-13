@@ -60,7 +60,7 @@ PLAYER_SKILLS = {
 "sk_ao_shu_yong_tan_diao": {
                 "lv": 30, "mp": 20, "power": 0, "kind": "增益",
                 "effect": "matk_up", "team": "matk_all", "cd": 2,
-                "desc": "奥术咏叹调！全队魔攻＋35% 3 回合(副本广播，团队技能)",
+                "desc": "奥术咏叹调！魔攻＋50% 3 回合，组队时全队魔攻强化(副本广播，团队技能)",
                 "name": "奥术咏叹调",
             },
 "sk_li_ming_song_ge": {
@@ -140,7 +140,7 @@ PLAYER_SKILLS = {
                 "cd": 3,
                 "res_gain": 3,
                 "team": "atk_all",
-                "desc": "战吼！攻＋25% 3 回合，怒气＋3。组队时全队攻＋10%(团队技能)",
+                "desc": "战吼！攻＋30% 3 回合，怒气＋3。组队时全队攻＋30%(团队技能)",
                 "name": "战吼",
             },
     "sk_tie_bi": {
@@ -297,7 +297,7 @@ PLAYER_SKILLS = {
                 "effect": "matk_up",
                 "cd": 2,
                 "team": "matk_all",
-                "desc": "元素流转！切换任意系，下个技能＋20%(控场核心)",
+                "desc": "元素流转！魔攻＋50% 3 回合，组队时全队魔攻强化(爆发前奏)",
                 "name": "元素流转",
             },
     "sk_ao_shu_fei_dan": {
@@ -316,7 +316,7 @@ PLAYER_SKILLS = {
                 "kind": "增益",
                 "effect": "def_up",
                 "cd": 3,
-                "desc": "元素护盾！防＋45% 3 回合，按当前系减伤(CD 3)",
+                "desc": "元素护盾！防＋45% 3 回合(CD 3)",
                 "name": "元素护盾",
             },
     "sk_ao_shu_qiang_hua": {
@@ -462,7 +462,7 @@ PLAYER_SKILLS = {
                 "effect": "spd_up",
                 "cd": 2,
                 "res_cost": {"energy": 20},
-                "desc": "风之疾走！速度＋40% 2 回合，消耗 20 精力(机动)",
+                "desc": "风之疾走！速度＋40% 3 回合，消耗 20 精力(机动)",
                 "name": "风之疾走",
             },
     "sk_cui_du_jian_shi": {
@@ -633,7 +633,7 @@ PLAYER_SKILLS = {
                 "effect": "matk_up",
                 "cd": 3,
                 "res_gain": 2,
-                "desc": "信仰祈祷！matk＋30% 2 回合，信仰＋2(增幅)",
+                "desc": "信仰祈祷！matk＋50% 3 回合，信仰＋2(增幅)",
                 "name": "信仰祈祷",
             },
     "sk_shen_sheng_dao_yan": {
@@ -665,7 +665,7 @@ PLAYER_SKILLS = {
                 "consume_all": {"key": "faith", "per": 0.08},
                 "team": "heal_all",
                 "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "自我牺牲"},
-                "desc": "神恩降临！全队治疗 180%，消耗全部信仰(每点＋8%)。自身 HP<30% 时治疗量＋50%(牧师殉道)",
+                "desc": "神恩降临！全队治疗 180%，消耗全部信仰(每点＋8%)。自身 HP<30% 时治疗量＋50%(低血救场)",
                 "name": "神恩降临",
             },
     "sk_p_bi_hu_zhi_guang": {
@@ -1050,7 +1050,7 @@ PLAYER_SKILLS = {
                 "effect": "atk_up",
                 "cd": 3,
                 "cond": {"type": "player_mech_stacks", "mech": "spellblade", "stacks": 3, "mult": 1.0, "label": "魔能护体"},
-                "desc": "符文护体！魔能≥3 时：全属性＋10% 3 回合(魔能不足则无加成)",
+                "desc": "符文护体！攻＋30% 3 回合(魔能≥3 时触发魔能护体)",
                 "name": "符文护体",
             },
     "sk_mo_li_yong_dong": {
@@ -1243,7 +1243,7 @@ BRANCH_SKILLS = {
                         "res_cost": {
                             "rage": 3
                         },
-                        "desc": "嘲讽，消耗 3 怒气，CD3，强制怪物攻击自己 2 回合，怒气＋4(拉怪核心)",
+                        "desc": "嘲讽，消耗 3 怒气，CD3，强制怪物攻击自己 2 回合(拉怪核心)",
                         "name": "嘲讽"
                     }
 ,
@@ -3087,7 +3087,7 @@ TUTOR_SKILLS = {
         "sk_jin_gang_ti": {
             "lv": 10, "mp": 12, "power": 0, "kind": "增益",
             "effect": "def_up", "cd": 3,
-            "desc": "磐石之体！运气于身，防御＋40% 2 回合",
+            "desc": "磐石之体！运气于身，防御＋45% 2 回合",
             "name": "磐石之体",
         },
     },

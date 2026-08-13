@@ -1869,7 +1869,7 @@ NPCS.update({
         'dialogue': '镇长又下乡了。你要是想见他，午后准在。……别问我是怎么知道这么多镇里的事，这是文书的直觉。',
     },
     'npc_oak_apprentice_smith': {
-        'name': '铁匠学徒·炭头',
+        'name': '铁匠学徒·风箱',
         'title': '老铁铁匠铺学徒',
         'map': 'oak_town',
         'icon': '🔥',
@@ -2497,7 +2497,7 @@ NPCS.update({
         'dialogue': '地底没有白天黑夜，我们的钟点全靠菌灯的明暗。累了就睡，醒了就干，自由得很！',
     },
     'npc_under_farmer': {
-        'name': '菌农·孢子',
+        'name': '菌农·灯菇',
         'title': '地底集市菌农',
         'map': 'under_market',
         'icon': '🌱',

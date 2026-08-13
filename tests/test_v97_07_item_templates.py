@@ -27,7 +27,7 @@ async def main():
     items_all = C.ITEMS
     consum = {k: v for k, v in items_all.items() if k.startswith("i_")}
     n_cons = len(consum)
-    check("消耗品总数 ≥ 245 (55→250 目标)", n_cons >= 245, f"实际 {n_cons}")
+    check("消耗品总数 ≥ 195 (v105 清扫清理死数据后)", n_cons >= 195, f"实际 {n_cons}")
     print(f"    消耗品总数: {n_cons}")
 
     # ---- 2. 模板分派完整性：所有道具都能 infer 出模板 ----

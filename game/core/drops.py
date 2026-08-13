@@ -5,8 +5,7 @@ from .affix import (fixed_affixes, random_req, roll_affixes, stat_affix_stats)
 import random
 
 from .. import content as C
-from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CLASS_SET_STAGES, CLASS_SET_THEMES,
-                    CRAFT_RECIPES,
+from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CRAFT_RECIPES,
                     EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,
                     EQUIP_PREFIX_FLAVOR, LEGENDARY_EFFECTS, QUALITY, SET_CHANCE, SET_THEMES,
                     SERIES_SETS, WEAPON_FLAVOR,

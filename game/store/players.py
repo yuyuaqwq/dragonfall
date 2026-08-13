@@ -82,7 +82,9 @@ def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp,
             conn.execute(
                 "INSERT INTO players (qq_id, name, class_name, level, exp, gold, hp, mp, max_hp, max_mp, cur_map, class_tier, attr_pts, attributes, created_at, last_active, race, gender, stamina, stamina_ts) "
                 "VALUES (?,?,?,1,0,?,?,?,?,?,?,0,?,'{\"str\":0,\"agi\":0,\"int\":0,\"vit\":0}',?,?,?,?,?,?) "
-                "ON CONFLICT(qq_id) DO UPDATE SET name=excluded.name, class_name=excluded.class_name, last_active=excluded.last_active, race=excluded.race, gender=excluded.gender",
+                # v105 M24 P2-7：ON CONFLICT 分支不更新 name/class_name/race/gender——并发/异常路径
+                # 重复 create 不得覆盖既有角色职业名（正常路径 player.py register 已拦截，冲突只可能来自并发）
+                "ON CONFLICT(qq_id) DO UPDATE SET last_active=excluded.last_active",
                 (qq_id, name, class_name, DEFAULT_GOLD, max_hp, max_mp, max_hp, max_mp,
                  START_MAP, DEFAULT_ATTR_PTS, now, now, race, gender, DEFAULT_STAMINA, now),
             )

@@ -929,7 +929,4 @@ SUBAREA_PROPS = {
     'shell_town:shell_town_beach': [('anchor', '贝壳镇老锚'), ('fishing_boats', '渔港渔船'), 'camp_flag'],
     'nameless_harbor:nameless_harbor_anchorage': [('lighthouse', '无名港雾灯'), ('anchor', '无名港旧锚'), 'camp_flag'],
     'pearl_city:pearl_city_gate': [('anchor', '珍珠城锚饰'), ('lighthouse', '珍珠城灯台'), 'camp_flag'],
-    'deep_tunnel:deep_tunnel_gate': [('rune_pillar', '深隧矮人符文柱'), ('minecart', '深隧闸前矿车'), 'camp_flag'],
-    'under_market:under_market_gate': [('rune_pillar', '地底集市闸柱'), ('boundary_stone', '地底集市界碑'), 'camp_flag'],
-    'ember_camp:ember_camp_gate': [('boundary_stone', '灰烬营界碑'), ('campfire_remains', '营门余烬火'), 'camp_flag'],
     'wind_city:wind_city_gate': [('elf_carving', '云门风纹'), ('boundary_stone', '风翼城云碑'), 'camp_flag'],}

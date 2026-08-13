@@ -5,17 +5,18 @@
 - bonus_2：2 件属性百分比（引擎 set_bonus_2 消费）
 - bonus_4_stats：4 件属性百分比（engine.set_bonus_2 叠加，>=4 件生效）
 - bonus_4.effect：4 件特效（战斗触发型，保留旧结构兼容）
-- bonus_5：5 件效果（数据先行；元素/抗性系统完善后战斗落地）
+- bonus_5：5 件效果（v104 起战斗落地：battle 对敌增伤/元素增伤、battle_mech 抗寒）
 - 治疗加成（圣光套 2 件）由 battle 治疗段消费（bonus_2.heal 字段）
 
 ⚠️ 旧世界毕业套（CLASS_SET_THEMES 6 职业×5 阶段）已废弃：不再动态合并进 CRAFT_RECIPES，
-锻造配方 = 10 章名册（craft.py）。旧 SETS 注册由 _assembly 调本函数重建。
+锻造配方 = 10 章名册（craft.py）。旧 SETS 42 条仍残留在 data/sets.py（兼容旧档 set 字段，
+待确认后清理）；名册套装由 _assembly 调 _build_class_sets 注册/覆盖同名 key，不删除旧数据。
 """
 
 from ..data import CRAFT_RECIPES, SERIES_SETS, SETS, WT_CN
 from ..core.index import pinyin_id
 
-# 10 章五节套装效果表（5 件特效暂存数据，战斗落地待元素系统）
+# 10 章五节套装效果表（5 件特效 v104 起战斗落地：battle.py 对敌/元素增伤、battle_mech.py 抗寒）
 _SERIES_SET_BONUS = {
     "橡木": {
         "icon": "🌳", "quality": "white",

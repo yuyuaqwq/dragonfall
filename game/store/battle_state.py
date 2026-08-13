@@ -59,11 +59,46 @@ def get_battle(group_id, qq_id):
             # 表无 created_at 列，用 updated_at 判定更合理——战斗长时间无操作即视为废弃）
             updated = row["updated_at"] or 0
             if updated and time.time() - updated > BATTLE_STALE_SEC:
+                state = json.loads(row["state"])
+                # v104 M04 P2：副本战斗行不静默删除——保留行并打 _expired 标记，
+                # 由命令层（instance.py _instance_expired_hint）给出"副本已过期"提示后清理；
+                # 本函数仍返回 None，战斗路由（_in_battle 等）不会把过期副本当战斗中。
+                # 普通战斗维持原行为：直接回收。
+                if state.get("type") == "instance":
+                    state["_expired"] = True
+                    conn.execute(
+                        "UPDATE battle_state SET state=? WHERE qq_id=?",
+                        (json.dumps(state, ensure_ascii=False), qq_id),
+                    )
+                    conn.commit()
+                    return None
                 conn.execute("DELETE FROM battle_state WHERE qq_id=?", (qq_id,))
                 conn.commit()
                 return None
             state = json.loads(row["state"])
             # 兼容 v9 之前的旧数据（state 字段直接是裸怪物 dict）
+            if "type" not in state:
+                state = {
+                    "type": "monster", "round": 0,
+                    "enemy": state, "p_buffs": {}, "e_buffs": {},
+                    "p_defending": False, "e_defending": False,
+                }
+            return {"state": state, "monster": state.get("enemy", {}), "name": row["monster"], "updated_at": row["updated_at"]}
+        finally:
+            conn.close()
+
+def get_battle_raw(group_id, qq_id):
+    """读取 battle 行原始状态（不做 24h 过期回收/打标），供过期提示检测用。"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT monster, state, updated_at FROM battle_state WHERE qq_id=?",
+                (qq_id,),
+            ).fetchone()
+            if not row:
+                return None
+            state = json.loads(row["state"])
             if "type" not in state:
                 state = {
                     "type": "monster", "round": 0,

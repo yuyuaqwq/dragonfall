@@ -77,7 +77,7 @@ def main():
     print("【data·物品族：炼金/附魔】")
     check("ALCHEMY_RECIPES 非空", len(C.ALCHEMY_RECIPES) > 0, str(len(C.ALCHEMY_RECIPES)))
     check("ENCHANT_RECIPES 非空", len(C.ENCHANT_RECIPES) > 0, str(len(C.ENCHANT_RECIPES)))
-    check("ENCHANT_STONES 非空", len(C.ENCHANT_STONES) > 0, str(len(C.ENCHANT_STONES)))
+    check("RUNES 非空", len(C.RUNES) > 0, str(len(C.RUNES)))
 
     print("\n结果: %d 通过, %d 失败" % (passed, failed))
     return failed == 0

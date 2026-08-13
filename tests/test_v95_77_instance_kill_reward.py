@@ -8,6 +8,11 @@
 """
 import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# R3 P3-4：独立私有测试库——不与 v95_76 及并行 agent 测试共享 test_game_data.db
+# （共享库顺序执行残留数据曾致 v95_77 开本后 get_battle 为 None 崩）；conftest
+# 已改 setdefault 尊重此预置
+os.environ["GWEN_GAME_DB"] = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                          "test_game_data_v95_77.db")
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 
 def _fake_spend(self, gid, qid, cost, player, action="行动"):

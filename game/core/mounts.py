@@ -26,7 +26,7 @@ _MOUNT_EFFECT_KEYS = ("discount", "elite_bonus", "stamina_reduce", "sell_bonus",
                       "collect_bonus", "fish_bonus", "exp_mult")
 
 def mount_effects(player: dict) -> dict:
-    """活跃坐骑效果汇总：{discount, elite_bonus, stamina_reduce, bag_slots,
+    """活跃坐骑效果汇总：{discount, elite_bonus, stamina_reduce, sell_bonus,
     collect_bonus, fish_bonus, exp_mult}。未骑乘/未知坐骑返回空 dict。"""
     mounts = (player or {}).get("mounts") or {}
     active_mk = mounts.get("active")

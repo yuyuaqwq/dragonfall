@@ -100,7 +100,9 @@ def _c_side_ready(ctx, v):
         obj = sqd.get("objective", {})
         if obj.get("collect"):
             have = ctx.get("item_counts") or {}
-            if have.get(obj["collect"], 0) >= obj.get("count", 1):
+            # v104 M20 P2：收集门槛统一 collect_count 优先（与 world.py 面板/交付一致；
+            # 复合目标如魔剑士试炼 collect_count=2/count=3，旧口径 count 会要求 3 份才显示可交）
+            if have.get(obj["collect"], 0) >= obj.get("collect_count", obj.get("count", 1)):
                 return True
         elif sq.get("status") == "ready":
             return True
@@ -127,31 +129,6 @@ def _c_side_available(ctx, v):
             continue
         return True
     return False
-
-
-@register("main_done")
-def _c_main_done(ctx, v):
-    """全部主线完成"""
-    if not v:
-        return True
-    quests = ctx.get("quests") or {}
-    if quests.get("main_quest") or not (quests.get("completed_main") or []):
-        return False
-    return True
-
-
-@register("level")
-def _c_level(ctx, v):
-    """等级下限"""
-    player = ctx.get("player") or {}
-    return int(player.get("level", 0) or 0) >= int(v)
-
-
-@register("flag")
-def _c_flag(ctx, v):
-    """该 NPC 对话 flag 已设置"""
-    return v in (ctx.get("flags") or [])
-
 
 @register("quest_any_active")
 def _c_quest_any_active(ctx, v):
@@ -193,14 +170,6 @@ def _c_class_any(ctx, v):
     """玩家职业在列表中才可见（导师对话按职业过滤）"""
     player = ctx.get("player") or {}
     return player.get("class_name") in v
-
-
-@register("class_tier")
-def _c_class_tier(ctx, v):
-    """转职阶数匹配"""
-    player = ctx.get("player") or {}
-    return player.get("class_tier", 0) == int(v)
-
 
 @register("evolve_ready")
 def _c_evolve_ready(ctx, v):
