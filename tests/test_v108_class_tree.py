@@ -155,9 +155,9 @@ async def main():
     check("30 级吟游诗人 = T1", p["class_name"] == "cls_bard" and p["class_tier"] == 1,
           str((p["class_name"], p["class_tier"])))
     db.update_player("g1", "p7", level=60)
-    out = await cmd(m, "evolve", "g1", "p7", "转职 灵魂颂唱者")
+    out = await cmd(m, "evolve", "g1", "p7", "转职 灵魂歌者")
     p = db.get_player("g1", "p7")
-    check("60 级游吟歌者 = T2", p["class_tier"] == 2 and "灵魂颂唱者" in out, str((p["class_tier"], out[:80])))
+    check("60 级游吟歌者 = T2", p["class_tier"] == 2 and "灵魂歌者" in out, str((p["class_tier"], out[:80])))
     make_player("g1", "p8", "剑修", "战士", level=60)
     db.update_player("g1", "p8", hidden_class_unlock=["cls_spellblade"])
     out = await cmd(m, "evolve", "g1", "p8", "转职 魔剑士")
