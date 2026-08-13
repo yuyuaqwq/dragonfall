@@ -978,8 +978,11 @@ class Battle:
             surge_dmg = E.calc_damage(int(st["matk"] * 0.80), est["mdef"], is_crit,
                                       pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             dmg += surge_dmg
+            _magi_part = surge_dmg  # v110 P1-3：魔涌魔段记入（敌方魔免消费用）
             del self.p_buffs["spellblade_surge"]
             logs.append(f"🔮 魔能涌动：普攻附带 {surge_dmg} 点魔法伤害！")
+        else:
+            _magi_part = 0
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
@@ -1000,6 +1003,8 @@ class Battle:
             dmg = int(dmg * (1 + cdmg))
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
+        # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
+        dmg, _magi_part = self._enemy_mitigate(dmg, _magi_part, None, logs, kind="物理")
         # v105 怪物闪避：闪避成功跳过本次伤害结算/符文特效/词条触发/资源获取
         if not self._monster_dodge_check(logs):
             self._damage_enemy(dmg, logs)
@@ -1752,6 +1757,8 @@ class Battle:
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         total = self._boss_dmg_filter(total, player, logs)
+        # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
+        total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
         if self._monster_dodge_check(logs):
             total = 0
@@ -2172,6 +2179,11 @@ class Battle:
             "spd": e.get("spd", 0), "crit": e.get("crit", 0.05),
             # v109.2 PVP 韧性对称：敌方玩家快照 tenacity 传入 est（玩家攻击端暴击率 ×(1-敌韧)）
             "tenacity": e.get("tenacity", 0) or 0,
+            # v110 P1-3：敌方防守属性聚合（PVP 玩家攻击端消费；PVE 怪无这些键=0 无感）
+            "block": e.get("block", 0) or 0, "dodge": e.get("dodge", 0) or 0,
+            "phys_reduce": e.get("phys_reduce", 0) or 0, "magic_reduce": e.get("magic_reduce", 0) or 0,
+            "elem_res": e.get("elem_res", 0) or 0, "abyss_res": e.get("abyss_res", 0) or 0,
+            "precise": e.get("precise", 0) or 0,
         }
         est = self._apply_buffs(est, self.e_buffs)
         # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%
@@ -2198,6 +2210,45 @@ class Battle:
             est["atk"] = int(est["atk"] * (1 - wv))
             est["matk"] = int(est["matk"] * (1 - wv))
         return est
+
+    def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理") -> tuple:
+        """v110 P1-3：玩家攻击端消费敌方防守属性（与 _pvp_enemy_turn 玩家受击口径对称）。
+        物理段吃敌方物免(≤40%)+格挡(≤40%，命中物段减半)；魔法段吃敌方魔免(≤40%)+元素抗(≤40%，按元素)。
+        真伤绕过全部减伤（四层架构）；PVE 标准怪无这些键(=0) → 伤害不变。
+        返回 (削减后伤害, 削减后魔段)（魔段回传供吸血分账）。"""
+        if kind == "真伤":
+            return dmg, magi_part
+        est = self._enemy_stats()
+        if kind == "魔法":
+            phys, magi = 0, dmg
+        else:
+            phys, magi = max(0, dmg - magi_part), magi_part
+        reduced = 0
+        pr = min(float(est.get("phys_reduce", 0) or 0), 0.4)
+        if pr > 0 and phys > 0:
+            red = max(1, int(phys * pr))
+            phys -= red
+            reduced += red
+        bc = min(float(est.get("block", 0) or 0), 0.4)
+        if bc > 0 and phys > 0 and random.random() < bc:
+            red = max(1, int(phys * 0.5))
+            phys -= red
+            reduced += red
+            logs.append("🛡️ 敌人格挡了攻击！")
+        mr = min(float(est.get("magic_reduce", 0) or 0), 0.4)
+        if mr > 0 and magi > 0:
+            red = max(1, int(magi * mr))
+            magi -= red
+            reduced += red
+        if element and E.ELEMENT_MARKS.get(element):
+            er = min(float(est.get("elem_res", 0) or 0), 0.4)
+            if er > 0 and magi > 0:
+                red = max(1, int(magi * er))
+                magi -= red
+                reduced += red
+        if reduced > 0:
+            logs.append(f"🛡️ 敌方防守削减 {reduced} 点伤害！")
+        return max(0, phys + magi), magi
 
     def _apply_mark(self, dmg: int) -> int:
         if "mark" in self.e_buffs:

@@ -2221,6 +2221,7 @@ class CombatCmds(CommandBase):
             "phys_reduce": st.get("phys_reduce", 0) or 0, "magic_reduce": st.get("magic_reduce", 0) or 0,
             "block": st.get("block", 0) or 0, "dodge": st.get("dodge", 0) or 0,
             "elem_res": st.get("elem_res", 0) or 0, "abyss_res": st.get("abyss_res", 0) or 0,
+            "precise": st.get("precise", 0) or 0,  # v110 P1-3：快照补导出（防守方精准/攻击端读 _enemy_stats）
         }
 
     def _pvp_handle_timeout(self, battle, group_id, qq_id) -> bool:
