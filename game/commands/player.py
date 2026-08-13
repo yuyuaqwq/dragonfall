@@ -552,7 +552,8 @@ class PlayerCmds(CommandBase):
                 f"{line} 的进化之路：\n"
                 f"━━━━━━━━━━━━\n"
                 f"{chr(10).join(evo_lines)}\n\n"
-                f"🔒 达到 {need_lv} 级可转职，当前 Lv.{player['level']}，继续加油！"
+                f"🔒 达到 {need_lv} 级可转职，当前 Lv.{player['level']}，继续加油！\n"
+                f"🍃 传闻大陆深处还藏着古老传承，若有缘自会相遇……"
             )
             return
         # 可以转职：v95.23 改为找职业导师 NPC 转职（不再直接指令转职）
@@ -571,7 +572,8 @@ class PlayerCmds(CommandBase):
             f"━━━━━━━━━━━━\n"
             f"🔀 可选路线：{branch_names}\n\n"
             f"🧭 去 {tloc} 找 {tname}，由导师为你举行转职仪式吧！\n"
-            f"(『对话 {tname}』→ 对话选择转职路线)"
+            f"(『对话 {tname}』→ 对话选择转职路线)\n"
+            f"🍃 传闻大陆深处还藏着古老传承，若有缘自会相遇……"
         )
         return
 
