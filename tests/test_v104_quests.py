@@ -216,7 +216,8 @@ async def main():
     gold0 = db.get_player("g8", "p9")["gold"]
     out = m._complete_side_quest("g8", "p9", "s1")
     check("完成支线触发行会委托达标", any("行会委托" in l and "完成" in l for l in out), str(out))
-    check("行会委托奖励入账+移除", db.get_player("g8", "p9")["gold"] == gold0 + 600 and "d0" not in get_q("g8", "p9")["daily"],
+    # v97.5 quest_deliver 彩蛋（30% 随机 10-25 金币）可能让金币多出——断言用 >=（彩蛋只加不减）
+    check("行会委托奖励入账+移除", db.get_player("g8", "p9")["gold"] >= gold0 + 600 and "d0" not in get_q("g8", "p9")["daily"],
           f"gold+{db.get_player('g8','p9')['gold']-gold0} daily={get_q('g8','p9')['daily']}")
     # 消费端：采集材料 → 采集任务 +1
     daily2 = {"_date": today, "d0": {"name": "采集任务", "desc": "采集 5 份材料",

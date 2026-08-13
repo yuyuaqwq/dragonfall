@@ -3179,7 +3179,10 @@ class WorldCmds(CommandBase):
                 unlocks.append(uc)
                 db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
                 lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
-                lines.append("  💡 达到 60 级后输入『转职 魔剑士』接受传承！")
+                # v107 通用提示：按职业等级需求（魔剑士 60 / 吟游诗人 30 / v107 隐藏 40）
+                _need = 60 if uc == "cls_spellblade" else (30 if uc == "cls_bard" else 40)
+                _cname = C.CLASSES.get(uc, {}).get("name", uc)
+                lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
         # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接
         quests["side"][sid] = {"status": "done"}
         db.save_quests(group_id, qq_id, quests)
