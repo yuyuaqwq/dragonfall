@@ -66,18 +66,18 @@ async def main():
     check("已是提示", "你已是兽王" in out, out[:200])
 
     print("【5. 注册拦截】")
-    out = await cmd(m, "register", "g1", "w2", "注册 亡灵术士 巫妖 男")
+    out = await cmd(m, "register", "g1", "w2", "注册 暗影祭司 巫妖 男")
     check("隐藏职业不可注册", "隐藏职业" in out, out[:200])
     await cmd(m, "register", "g1", "w6", "注册 战士 路人 男")
-    out2 = await cmd(m, "register", "g1", "w7", "注册 血法师 血影 女")
-    check("血法师也不可注册", "隐藏职业" in out2, out2[:200])
+    out2 = await cmd(m, "register", "g1", "w7", "注册 猩红学者 血影 女")
+    check("猩红学者也不可注册", "隐藏职业" in out2, out2[:200])
 
     print("【6. 通用路由 + 别名】")
     # 亡灵术士全流程（w3 先注册普通职业）
     await cmd(m, "register", "g1", "w3", "注册 牧师 巫妖 男")
     db.update_player("g1", "w3", level=40, hidden_class_unlock=["cls_necromancer"])
-    out = await cmd(m, "evolve", "g1", "w3", "转职 亡灵术士")
-    check("亡灵术士转职", "传承完成" in out and "亡灵术士" in out, out[:200])
+    out = await cmd(m, "evolve", "g1", "w3", "转职 暗影祭司")
+    check("暗影祭司转职", "传承完成" in out and "暗影祭司" in out, out[:200])
     p3 = db.get_player("g1", "w3")
     check("亡灵职业切换", p3["class_name"] == "cls_necromancer", str(p3["class_name"]))
     check("召唤骷髅已学", "召唤骷髅" in [C.display("skills", s) for s in p3.get("learned_skills", [])],
@@ -89,7 +89,7 @@ async def main():
     check("别名『龙血』路由", "传承完成" in out and "龙血战士" in out, out[:200])
     # 别名：『转职 亡灵』
     out = await cmd(m, "evolve", "g1", "w3", "转职 亡灵")
-    check("别名『亡灵』路由到已是", "你已是亡灵术士" in out, out[:200])
+    check("别名『亡灵』路由到已是", "你已是暗影祭司" in out, out[:200])
     # 未知职业名不误伤
     await cmd(m, "register", "g1", "w5", "注册 战士 无名 男")
     db.update_player("g1", "w5", level=40)

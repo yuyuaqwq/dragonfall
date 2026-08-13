@@ -34,8 +34,8 @@ async def main():
         ("cls_arcanist", "奥术师"), ("cls_shadow_blade", "影武者"),
         ("cls_dragon_warrior", "龙血战士"), ("cls_void_walker", "虚空行者"),
         ("cls_astrologer", "占星者"), ("cls_jungle_hunter", "丛林猎手"),
-        ("cls_templar", "圣殿骑士"), ("cls_wu_sheng", "武圣"),
-        ("cls_blood_mage", "血法师"), ("cls_necromancer", "亡灵术士"),
+        ("cls_templar", "圣殿骑士"), ("cls_wu_sheng", "苦修士"),
+        ("cls_blood_mage", "猩红学者"), ("cls_necromancer", "暗影祭司"),
         ("cls_beast_king", "兽王"),
     ]
     print("— 注册与字段 —")

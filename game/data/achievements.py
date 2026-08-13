@@ -176,7 +176,7 @@ ACHIEVEMENTS = [
      "desc": "附魔达到 Lv.3", "cond": {"type": "prof_lv", "key": "enchant", "value": 3}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_pro_enchant6", "cat": "副业", "name": "附魔师", "title": "附魔师",
      "desc": "附魔 30 件装备", "cond": {"type": "prof_count", "key": "enchant_count", "value": 30}, "points": 1},
-    {"id": "ach_pro_enchant10", "cat": "副业", "name": "奥术大师", "title": "奥术大师",
+    {"id": "ach_pro_enchant10", "cat": "副业", "name": "附魔巨匠", "title": "附魔巨匠",
      "desc": "附魔达到 Lv.10", "cond": {"type": "prof_lv", "key": "enchant", "value": 10}, "points": 1, "bonus": {"matk": 8}},
 
     # ---- 社交（10） ----

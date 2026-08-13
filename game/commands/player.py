@@ -666,7 +666,7 @@ class PlayerCmds(CommandBase):
     async def _evolve_hidden_generic(self, event, group_id, qq_id, player, cls_id, tgt_tier):
         """v108 职业树：隐藏职业通用传承转职（修为继承）。
         校验：解锁 + 等级 >= 目标档门槛 + 档位状态合法（同职业只能逐阶升）。
-        修为继承：目标档位由命令名决定、等级门槛校验——60 级『转职 奥术大师』= 直接 T2。
+        修为继承：目标档位由命令名决定、等级门槛校验——60 级『转职 奥法大师』= 直接 T2。
         技能继承：该职业 PLAYER_SKILLS 中 lv <= 当前等级的全部技能。"""
         cls = C.CLASSES[cls_id]
         cname = cls["name"]

@@ -329,7 +329,7 @@ INSTANCES = {
                 "monsters": [
                     [
                         "m_shadow_priest",
-                        "暗影祭司",
+                        "血祭祭司",
                         "healer",
                         42,
                         [

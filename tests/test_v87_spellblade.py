@@ -8,7 +8,7 @@
 4. 准入条件：HIDDEN_MAP_UNLOCK 物品型准入（泛黄书页×3 / 烬火信标）
 5. 地图连接：crypt↔lost_library、cinder↔ember_corridor 双向
 6. 隐藏 NPC：魔剑士残魂 + 试炼任务 s_spellblade_trial（unlock_class）
-7. 任务道具：剑圣残页/泛黄书页/烬火信标/星尘沙漏/灰烬之核 材料注册
+7. 任务道具：咒刃残页/泛黄书页/烬火信标/星尘沙漏/灰烬之核 材料注册
 8. 转职链路：_evolve_spellblade 方法存在 + evolve 路由
 9. 成就 ach_spellblade_unlock
 10. 对话：残魂对话树存在
@@ -122,13 +122,13 @@ def main():
           f"实际 {qt.get('unlock_class') if qt else None}")
     check("试炼目标 图书馆守卫×3", qt and qt.get("objective", {}).get("kill") == "图书馆守卫"
           and qt.get("objective", {}).get("count") == 3, f"实际 {qt.get('objective') if qt else None}")
-    check("试炼收集 剑圣残页×2", qt and qt.get("objective", {}).get("collect") == "剑圣残页"
+    check("试炼收集 咒刃残页×2", qt and qt.get("objective", {}).get("collect") == "咒刃残页"
           and qt.get("objective", {}).get("collect_count") == 2,
           f"实际 {qt.get('objective') if qt else None}")
 
     # ===== 7. 任务道具 =====
     print("  · 任务道具")
-    for n in ["剑圣残页", "泛黄书页", "烬火信标", "星尘沙漏", "灰烬之核"]:
+    for n in ["咒刃残页", "泛黄书页", "烬火信标", "星尘沙漏", "灰烬之核"]:
         mid = C.resolve("materials", n)
         check(f"材料 {n} 已注册", mid in C.MATERIALS, f"resolve={mid}")
 
@@ -140,12 +140,12 @@ def main():
     check("_hidden_class_routes 方法存在", hasattr(inst, "_hidden_class_routes"))
     # 魔剑士档位全名（60/75/90）入路由表
     routes = inst._hidden_class_routes()
-    check("路由表含 魔剑士/魔剑宗师/剑圣",
-          "魔剑士" in routes and "魔剑宗师" in routes and "剑圣" in routes,
-          f"缺: {[n for n in ['魔剑士', '魔剑宗师', '剑圣'] if n not in routes]}")
+    check("路由表含 魔剑士/符文骑士/咒刃领主",
+          "魔剑士" in routes and "符文骑士" in routes and "咒刃领主" in routes,
+          f"缺: {[n for n in ['魔剑士', '符文骑士', '咒刃领主'] if n not in routes]}")
     check("魔剑士档位路由正确", routes.get("魔剑士") == ("cls_spellblade", 1)
-          and routes.get("魔剑宗师") == ("cls_spellblade", 2)
-          and routes.get("剑圣") == ("cls_spellblade", 3), str(routes.get("魔剑士")))
+          and routes.get("符文骑士") == ("cls_spellblade", 2)
+          and routes.get("咒刃领主") == ("cls_spellblade", 3), str(routes.get("魔剑士")))
     # 特色档位门槛 60/75/90
     tlv = inst._hidden_tier_levels("cls_spellblade")
     check("魔剑士档位门槛 60/75/90", tlv == {1: 60, 2: 75, 3: 90}, str(tlv))

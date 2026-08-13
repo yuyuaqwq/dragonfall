@@ -57,8 +57,8 @@ async def main():
     check("龙息真伤无视 def=5000", dealt > 100, f"dealt {dealt}")
     check("龙息附灼烧", any("灼烧" in l for l in logs), str(logs[:2]))
 
-    # 2. 亡灵术士：召唤骷髅
-    print("\n— 亡灵术士 —")
+    # 2. 暗影祭司：召唤骷髅
+    print("\n— 暗影祭司 —")
     p = mk_player("cls_necromancer", ["召唤骷髅", "骷髅海"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     logs = cast(b, p, "召唤骷髅")
@@ -89,8 +89,8 @@ async def main():
     logs2 = cast(b2, p, "收割")
     check("收割低血条件生效", any("收割" in l for l in logs2), str([l for l in logs2 if "收割" in l]))
 
-    # 5. 血法师：血之契约
-    print("\n— 血法师 —")
+    # 5. 猩红学者：血之契约
+    print("\n— 猩红学者 —")
     p = mk_player("cls_blood_mage", ["血之契约", "猩红汲取", "血爆"], hp=800)
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     hp0 = p["hp"]
@@ -133,8 +133,8 @@ async def main():
     logs2 = cast(b, p, "圣光审判")
     check("圣光审判输出", any("伤害" in l for l in logs2), str(logs2))
 
-    # 9. 武圣：气连击
-    print("\n— 武圣 —")
+    # 9. 苦修士：气连击
+    print("\n— 苦修士 —")
     p = mk_player("cls_wu_sheng", ["铁山靠", "气劲连打", "气爆"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     logs = cast(b, p, "铁山靠")

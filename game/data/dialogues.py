@@ -954,7 +954,7 @@ DIALOGUES = {
                 ],
             },
             "trial": {
-                "text": "『剑与书的誓约：击败 3 只图书馆守卫，取回 2 片剑圣残页。去吧，图书馆的守卫会阻挡你，但残页会指引你。』",
+                "text": "『剑与书的誓约：击败 3 只图书馆守卫，取回 2 片咒刃残页。去吧，图书馆的守卫会阻挡你，但残页会指引你。』",
                 "options": [
                     {"text": "我会做到的。", "next": "trial_accept"},
                     {"text": "告辞。", "next": "__end__"},
@@ -1105,9 +1105,9 @@ DIALOGUES = {
             },
             "teach_ao_shu": {"text": "奥术脉冲——把魔力压缩成一束光。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "奥术脉冲", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
             "teach_bing_shuang": {"text": "冰霜新星——让时间在寒意中凝固。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "冰霜新星", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
-            "evolve_t1": {"text": "Lv.30 的法师，元素之道与奥术之道，你选哪一条？", "options": [{"text": "转职为元素法师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为奥术法师（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
-            "evolve_t2": {"text": "Lv.60！元素术士还是奥术术士？", "options": [{"text": "转职为元素术士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为奥术术士（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
-            "evolve_t3": {"text": "Lv.90，法师的终章：元素贤者，或奥秘贤者。", "options": [{"text": "转职为元素贤者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为奥秘贤者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
+            "evolve_t1": {"text": "Lv.30 的法师，元素之道与秘法之道，你选哪一条？", "options": [{"text": "转职为元素法师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为秘法法师（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
+            "evolve_t2": {"text": "Lv.60！元素术士还是秘法术士？", "options": [{"text": "转职为元素术士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为秘法术士（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
+            "evolve_t3": {"text": "Lv.90，法师的终章：元素贤者，或秘法贤者。", "options": [{"text": "转职为元素贤者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为秘法贤者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
             "evolved": {"text": "魔法的尽头是世界的真相。继续走吧，法师。", "options": [{"text": "多谢导师！", "next": "__end__"}]},
             "taught": {"text": "回去好好参悟，魔力不会辜负勤勉的人。", "options": [{"text": "告辞。", "next": "__end__"}]},
             "chat": {"text": "白鹿城法师塔的星光，比王都还亮。", "options": [{"text": "告辞。", "next": "__end__"}]},

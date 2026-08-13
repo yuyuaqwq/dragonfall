@@ -47,44 +47,44 @@ async def main():
 
     print("【1. 未学会专属技能不进技能列表】")
     out = await cmd(m, "skill", "g1", "w1", "技能 列表")
-    check("第1页不含奥术脉冲", "奥术脉冲" not in out, out[:200])
+    check("第1页不含魔力脉冲", "魔力脉冲" not in out, out[:200])
     out4 = await cmd(m, "skill", "g1", "w1", "技能 列表 4")
-    check("末页也不含", "奥术脉冲" not in out4, out4[:200])
+    check("末页也不含", "魔力脉冲" not in out4, out4[:200])
 
     print("【2. 『技能学习』拦截导师专属】")
     db.update_player("g1", "w1", level=6, skill_points=10)
-    out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 奥术脉冲")
+    out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 魔力脉冲")
     check("拦截提示导师", "大法师·艾德琳" in out and "白鹿城" in out, out[:200])
     p = db.get_player("g1", "w1")
-    check("未学会", "奥术脉冲" not in p["learned_skills"], str(p["learned_skills"]))
+    check("未学会", "魔力脉冲" not in p["learned_skills"], str(p["learned_skills"]))
     check("技能点未扣", p["skill_points"] == 10, str(p["skill_points"]))
 
     print("【3. 导师教学学会】")
     db.update_player("g1", "w1", gold=5000, level=6)
     notices = m._apply_talk_action("g1", "w1", db.get_player("g1", "w1"), "npc_mage_tutor",
-                                   {"tutor_skill": {"skill": "奥术脉冲", "cost": 800, "need_lv": 6}})
+                                   {"tutor_skill": {"skill": "魔力脉冲", "cost": 800, "need_lv": 6}})
     check("支付学费提示", any("支付学费 800" in n for n in notices), str(notices)[:200])
-    check("学会提示", any("学会了进阶技能『奥术脉冲』" in n for n in notices), str(notices)[:200])
+    check("学会提示", any("学会了进阶技能『魔力脉冲』" in n for n in notices), str(notices)[:200])
     p = db.get_player("g1", "w1")
-    check("learned 写入", "奥术脉冲" in p["learned_skills"], str(p["learned_skills"]))
+    check("learned 写入", "魔力脉冲" in p["learned_skills"], str(p["learned_skills"]))
     check("金币扣除", p["gold"] == 5000 - 800, str(p["gold"]))
 
     print("【4. 学会后技能列表可见】")
     out4 = await cmd(m, "skill", "g1", "w1", "技能 列表 4")
-    check("末页显示奥术脉冲", "奥术脉冲" in out4 and "Lv.1/5" in out4, out4[:250])
+    check("末页显示魔力脉冲", "魔力脉冲" in out4 and "Lv.1/5" in out4, out4[:250])
     # 面板统计：已学 2/16（15 职业技能 + 1 专属）
     out = await cmd(m, "skill", "g1", "w1", "技能")
     check("面板统计含专属", "2/16" in out, out[:200])
 
     print("【5. 技能升级 + 战斗施放】")
-    out = await cmd(m, "skill_upgrade", "g1", "w1", "技能升级 奥术脉冲")
+    out = await cmd(m, "skill_upgrade", "g1", "w1", "技能升级 魔力脉冲")
     check("升级成功", "Lv.2" in out, out[:150])
     from game.battle import Battle
     bp = db.get_player("g1", "w1")
     bp["hp"] = bp["max_hp"]; bp["mp"] = 50
     enemy = {"name": "测试木桩", "hp": 200, "max_hp": 200, "atk": 10, "def": 5, "matk": 10, "mdef": 5, "spd": 5, "lv": 5}
     b = Battle("monster", enemy, title_bonus=None, player=bp)
-    logs = b._do_player_skill("奥术脉冲", bp)
+    logs = b._do_player_skill("魔力脉冲", bp)
     check("战斗施放有伤害", any("伤害" in str(l) for l in logs), str(logs)[:200])
 
     print("【6. 职业技能不受影响】")

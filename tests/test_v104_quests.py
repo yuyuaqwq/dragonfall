@@ -139,7 +139,7 @@ async def main():
           str(st["objective"]))
     make_player("g5", "p6", "剑心", "战士", level=60)
     db.update_player("g5", "p6", cur_map="lost_library")
-    db.add_item("g5", "p6", "剑圣残页", {"name": "剑圣残页", "type": "材料", "stackable": True, "price": 100}, 2)
+    db.add_item("g5", "p6", "咒刃残页", {"name": "咒刃残页", "type": "材料", "stackable": True, "price": 100}, 2)
     db.save_quests("g5", "p6", qdata(None, "pending", side={"s_spellblade_trial": {"status": "active", "progress": {}}}))
     out = await cmd(m, "quest_view", "g5", "p6", "任务")
     check("quest_view 2/2 残页显示可交", "可交" in out, out[out.find("支线"):out.find("支线")+300] if "支线" in out else out[:200])
@@ -152,7 +152,7 @@ async def main():
     qq = get_q("g5", "p6")
     check("击杀+残页齐 → 完整交付", "支线完成" in out, out[:160])
     check("交付后 done", qq["side"]["s_spellblade_trial"]["status"] == "done", str(qq["side"]["s_spellblade_trial"]))
-    check("残页扣除", db.count_item("g5", "p6", "剑圣残页") == 0, str(db.count_item("g5", "p6", "剑圣残页")))
+    check("残页扣除", db.count_item("g5", "p6", "咒刃残页") == 0, str(db.count_item("g5", "p6", "咒刃残页")))
 
     # ============ 6. 巴德对话不崩（NameError 回归） ============
     print("\n[6] 对话 老水手·巴德 不崩")

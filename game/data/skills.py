@@ -315,14 +315,14 @@ PLAYER_SKILLS = {
                 "desc": "元素流转！魔攻＋50% 3 回合，组队时全队魔攻强化(爆发前奏)",
                 "name": "元素流转",
             },
-    "sk_ao_shu_fei_dan": {
+    "sk_yuan_su_dan_mu": {
                 "lv": 6,
                 "mp": 12,
                 "power": 1.0,
                 "kind": "魔法",
                 "multi": 2,
-                "desc": "奥术飞弹！100%×2，当前系增伤(低耗填充)",
-                "name": "奥术飞弹",
+                "desc": "元素弹幕！100%×2，当前系增伤(低耗填充)",
+                "name": "元素弹幕",
             },
     "sk_yuan_su_hu_dun": {
                 "lv": 11,
@@ -1253,7 +1253,7 @@ BRANCH_SKILLS = {
                         "name": "守护姿态"
                     }
 ,
-                    "圣光壁垒":                     {
+                    "坚盾壁垒":                     {
                         "lv": 45,
                         "mp": 0,
                         "power": 0,
@@ -1262,7 +1262,7 @@ BRANCH_SKILLS = {
                         "team": "def_all",
                         "res_cost": {"rage": 3},
                         "desc": "全队防御强化(组队时广播)，消耗 3 怒气。坦克核心",
-                        "name": "圣光壁垒"
+                        "name": "坚盾壁垒"
                     }
 ,
                     "嘲讽":                     {
@@ -1549,7 +1549,7 @@ BRANCH_SKILLS = {
                     }
 ,
                 },
-                "奥术法师": {
+                "秘法法师": {
                     "奥术弹幕":                     {
                         "lv": 32,
                         "power": 1.1,
@@ -1661,7 +1661,7 @@ BRANCH_SKILLS = {
                     }
 ,
                 },
-                "奥术术士": {
+                "秘法术士": {
                     "奥术之心":                     {
                         "lv": 60,
                         "mp": 0,
@@ -1701,7 +1701,7 @@ BRANCH_SKILLS = {
                         "kind": "增益",
                         "effect": "def_up",
                         "cd": 3,
-                        "desc": "防御强化(法力护盾，奥术法师不脆)",
+                        "desc": "防御强化(法力护盾，秘法法师不脆)",
                         "name": "法力护盾"
                     }
 ,
@@ -1752,7 +1752,7 @@ BRANCH_SKILLS = {
                     }
 ,
                 },
-                "奥秘贤者": {
+                "秘法贤者": {
                     "大奥术":                     {
                         "lv": 92,
                         "power": 2.0,
@@ -3462,11 +3462,11 @@ TUTOR_SKILLS = {
     "cls_zhan_shi": {
     },
     "cls_fa_shi": {
-        "sk_ao_shu_mai_chong": {
+        "sk_mo_li_mai_chong": {
             "lv": 6, "mp": 10, "power": 1.7, "kind": "魔法",
             "mech": "arcane", "cd": 2,
-            "desc": "奥术脉冲！170% 魔法伤害，奥术之力涌动",
-            "name": "奥术脉冲",
+            "desc": "魔力脉冲！170% 魔法伤害，奥术之力涌动",
+            "name": "魔力脉冲",
         },
     },
     "cls_you_xia": {

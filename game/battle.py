@@ -170,7 +170,7 @@ class Battle:
         self.e_first: bool = False            # 敌方是否先手（速度更快）
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
         self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
-        self._death_pact_used: bool = False   # v107 死亡契约（亡灵术士）：每场 1 次标记
+        self._death_pact_used: bool = False   # v107 死亡契约（暗影祭司）：每场 1 次标记
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
@@ -1491,7 +1491,7 @@ class Battle:
         # 必须在入口处理（增益分支提前 return，末尾挂点不达）
         if info.get("summon_evolve"):
             self._summon_evolve(int(info["summon_evolve"]), player, logs)
-        # v107 血魔法（血法师）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
+        # v107 血魔法（猩红学者）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
         self._hp_cost_bonus = 0.0
         if info.get("hp_cost") and player.get("hp", 0) > 0:
             cost = max(1, int(player["hp"] * float(info["hp_cost"])))
@@ -1619,7 +1619,7 @@ class Battle:
                     passive_bonus *= (1 + float(_ps.get("mult", 0.40)))
                     _execute_tag = f"⚔️斩杀x{round(1 + float(_ps.get('mult', 0.40)), 2)}"
                     break
-        # v107 血魔法（血法师）：hp_cost 换 +30% 伤害
+        # v107 血魔法（猩红学者）：hp_cost 换 +30% 伤害
         if self._hp_cost_bonus:
             passive_bonus *= (1 + self._hp_cost_bonus)
         # 元素反应增伤（元素共鸣：触发反应时 +15%）
@@ -1747,7 +1747,7 @@ class Battle:
         # v107 斩杀标签（影武者）
         if _execute_tag:
             tags.append(_execute_tag)
-        # v107 血魔法标签（血法师）
+        # v107 血魔法标签（猩红学者）
         if self._hp_cost_bonus:
             tags.append("🧛血祭x1.3")
         # 阶段八：词条伤害标签（处决/追猎/精准等）
@@ -2316,7 +2316,7 @@ class Battle:
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
                 logs.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
             break
-        # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（奥术法师自动蓄能）
+        # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（秘法法师自动蓄能）
         if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
             logs.append(f"📖 奥术直觉：充能自动+1(当前 {self.mech_stacks['arcane']} 层)")
@@ -2644,7 +2644,7 @@ class Battle:
                 rd = self._boss_dmg_filter(rd, player, logs)
                 self._damage_enemy(rd, logs)
                 logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
-        # v107 反击（武圣）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
+        # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
         if self.enemy.get("hp", 0) > 0:
             for _pn, _ps in self._passive_map(player)["proc"].get("counter_attack", []):
                 if random.random() < float(_ps.get("chance", 0.20)):
@@ -2717,7 +2717,7 @@ class Battle:
                 if dmg <= 0:
                     return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
-        # v107 死亡契约（亡灵术士）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
+        # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
         if player["hp"] <= 0 and self.summons and not self._death_pact_used:
             for _pn, _ps in self._passive_map(player)["proc"].get("death_pact", []):
                 self._death_pact_used = True

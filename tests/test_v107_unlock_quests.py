@@ -42,7 +42,7 @@ EXPECT = [
     ("cls_jungle_hunter", "s_jungle_hunter_trial", "npc_jungle_hunter",   "emerald_valley",   "谷地仙灵",   3),
     ("cls_templar",       "s_templar_trial",       "npc_templar_knight",  "holy_trial",       "试炼骑士长", 1),
     ("cls_wu_sheng",      "s_wu_sheng_trial",      "npc_wusheng_monk",    "border_castle",    "兽人劫掠者", 3),
-    ("cls_blood_mage",    "s_blood_mage_trial",    "npc_blood_priest",    "secret_crypt",     "暗影祭司",   3),
+    ("cls_blood_mage",    "s_blood_mage_trial",    "npc_blood_priest",    "secret_crypt",     "血祭祭司",   3),
     ("cls_necromancer",   "s_necromancer_trial",   "npc_grave_watcher",   "old_king_tomb",    "骷髅兵",     3),
     ("cls_beast_king",    "s_beast_king_trial",    "npc_beast_tamer",     "silverwood",       "月狼",       3),
 ]
