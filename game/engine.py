@@ -185,7 +185,8 @@ def player_final_stats(class_name: str, level: int, equipment: dict, tier: int =
 # ---------------- 被动技能（v64） ----------------
 # 属性型被动：stat -> 修正属性；返回 dict 与 player_final_stats 相同键（max_hp/max_mp/atk/...）
 # 被动 stat → (bonus_key, 操作, 需 cond is None)
-# 不在表内的 stat：条件型(rage>=5/battle_start/dual_stat) 与战斗内机制(fire/chi_gain/proc 型) 由 battle.py 结算，面板不处理
+# 不在表内的 stat：条件型(rage>=5/battle_start/dual_stat) 与战斗内机制(chi_gain/proc 型) 由 battle.py 结算，面板不处理
+# （v109.2：dual_stat 双修精通在 battle.py:1582 按 cond 查，fire 已改 proc fire_bonus）
 _PASSIVE_STAT_APPLY = {
     "mp":   ("mp_mult", "mul", True),   # 原代码特判：mp 仅在无 cond 时结算
     "spd":  ("spd_mult", "mul", False),
@@ -206,10 +207,9 @@ _PASSIVE_STAT_APPLY = {
     "lifesteal_phys": ("lifesteal_phys_add", "add", False),
     "lifesteal_magi": ("lifesteal_magi_add", "add", False),
     # v107 隐藏职业专属属性被动支持（面板结算 + 战斗内消费）
-    "heal_power": ("heal_power_add", "add", False),
-    "shield_power": ("shield_power_add", "add", False),
+    # v109.2 清理：heal_power/shield_power/abyss_res 无对应被动技能（skills.py 零使用），
+    # 保留 elem_res/luck/summon_power（龙魂/星辰之力/万兽之力，P0-2 已实装）
     "elem_res": ("elem_res_add", "add", False),
-    "abyss_res": ("abyss_res_add", "add", False),
     "luck": ("luck_add", "add", False),
     "summon_power": ("summon_power_add", "add", False),
 }

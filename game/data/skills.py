@@ -371,7 +371,7 @@ PLAYER_SKILLS = {
                 "mp": 0,
                 "power": 0,
                 "kind": "被动",
-                "passive": {"stat": "fire", "mult": 0.1},
+                "passive": {"proc": "fire_bonus", "mult": 0.10},
                 "desc": "属性被动：火系技能伤害＋10%",
                 "name": "烈焰亲和",
             },
@@ -3075,7 +3075,7 @@ BRANCH_SKILLS = {
 
 # ================= v107 隐藏职业技能（11 职业，2026-08-13 鱼鱼拍板设计） =================
 # 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五 + 12 章 12.5
-# 机制字段：true_dmg(真伤)/mp_steal(吸MP)/hp_cost(血魔法)/summon(召唤)/summon_evolve(进化)
+# 机制字段：kind=="真伤"(结算按类型)/mp_steal(吸MP)/hp_cost(血魔法)/summon(召唤)/summon_evolve(进化)
 # proc：execute(斩杀)/block_counter(格挡反击)/counter_attack(反击)/death_pact(死亡契约)
 _ADD_HIDDEN_SKILLS = {
     "cls_arcanist": {
@@ -3260,7 +3260,7 @@ _ADD_HIDDEN_SKILLS = {
             "sk_du_jian": {
                 "lv": 40, "mp": 12, "power": 1.0, "kind": "物理",
                 "mech": "poison", "mech_val": 1, "cd": 1,
-                "desc": "毒箭！100% 物理伤害，叠 1 层毒(每回合 3% 生命)",
+                "desc": "毒箭！100% 物理伤害，叠 1 层毒(每回合 5% 生命)",
                 "name": "毒箭",
             },
             "sk_teng_man_chan_rao": {

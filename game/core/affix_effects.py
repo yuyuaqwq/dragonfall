@@ -80,7 +80,7 @@ def _h_combo(battle, player, dmg, logs):
     """连击：15% 追加一次 50% 伤害"""
     if "combo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("combo", 0.15):
         cd = int(dmg * 0.50)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+        battle._damage_enemy(cd, logs)
         logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
 
 
@@ -89,7 +89,7 @@ def _h_element_fire(battle, player, dmg, logs):
     """元素附加·火：5% 属性伤害"""
     if "element_fire" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * 0.05))
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - ed)
+        battle._damage_enemy(ed, logs)
         logs.append(f"🔥 fire属性附加 {ed} 点伤害！")
 
 
@@ -98,7 +98,7 @@ def _h_element_ice(battle, player, dmg, logs):
     """元素附加·冰：5% 属性伤害 + 减速"""
     if "element_ice" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * 0.05))
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - ed)
+        battle._damage_enemy(ed, logs)
         logs.append(f"❄️ ice属性附加 {ed} 点伤害！")
         battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
         logs.append("❄️ 减速！")
@@ -109,7 +109,7 @@ def _h_element_thunder(battle, player, dmg, logs):
     """元素附加·雷：5% 属性伤害"""
     if "element_thunder" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * 0.05))
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - ed)
+        battle._damage_enemy(ed, logs)
         logs.append(f"⚡ thunder属性附加 {ed} 点伤害！")
 
 
@@ -121,7 +121,7 @@ def _h_pierce(battle, player, dmg, logs):
         pst = battle._player_stats(player)
         pd = calc_damage(int(pst.get("atk", 0) * 0.6), 0)
         if pd > 0:
-            battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - pd)
+            battle._damage_enemy(pd, logs)
             logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
 
 
@@ -130,7 +130,7 @@ def _h_charge(battle, player, dmg, logs):
     """蓄力：10% 造成 150% 伤害（追加 50%）"""
     if "charge" in battle._equip_affix_ids(player) and random.random() < _affix_chance("charge", 0.10):
         cd = int(dmg * 0.50)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+        battle._damage_enemy(cd, logs)
         logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
 
 
@@ -205,7 +205,7 @@ def _t_counter(battle, player, ctx, logs):
         est2 = battle._enemy_stats()
         cd = calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
         if cd > 0:
-            battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+            battle._damage_enemy(cd, logs)
             logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
 
 
@@ -214,7 +214,7 @@ def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""
     if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * 0.50)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
+        battle._damage_enemy(rd, logs)
         logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
 
 
@@ -288,7 +288,7 @@ def _sp_thunder(battle, player, dmg, logs):
         pst = battle._player_stats(player)
         est = battle._enemy_stats()
         tdmg = calc_damage(int(pst["atk"] * 0.6), est["def"])
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - tdmg)
+        battle._damage_enemy(tdmg, logs)
         logs.append(f"⚡ 雷霆一击！追加 {tdmg} 点伤害！")
 
 
@@ -317,5 +317,5 @@ def _sp_execute(battle, player, dmg, logs):
     ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
     if ratio < 0.30:
         bonus = int(dmg * 0.25)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - bonus)
+        battle._damage_enemy(bonus, logs)
         logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")

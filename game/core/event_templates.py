@@ -84,10 +84,15 @@ class EventContext:
 
 @register("loot_gold")
 def tpl_loot_gold(ctx):
-    """金币：gold = randint(min,max) + lv*scale_lv。params: min/max/scale_lv/header"""
+    """金币：gold = randint(min,max) + lv*scale_lv。params: min/max/scale_lv/header
+    v109.3 P0 修复：基数从 DB 读最新 gold（原用 ctx.player 陈旧对象——调用方在
+    _rule_fire 前可能已通过其他路径加过金币（如 _complete_side_quest 的行会委托
+    在 _bump_daily_progress 落库），旧 dict 覆盖会吞掉金币——combat.py:1779 同型
+    问题 v105 M18 已修，quest 路径漏网导致 test_v104_quests 30% 偶发失败）"""
     db = ctx._db()
     gold = random.randint(ctx.param("min", 10), ctx.param("max", 40)) + ctx.lv * ctx.param("scale_lv", 1)
-    db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
+    cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     header = ctx.param("header", "💰 你捡到了一些金币！")
     return header.replace("{name}", ctx.name).replace("{gold}", str(gold))
 

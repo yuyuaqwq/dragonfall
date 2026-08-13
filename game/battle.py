@@ -973,6 +973,14 @@ class Battle:
         if lucky:
             dmg = int(dmg * 1.5)
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
+        # v109.2 P3-4：魔能涌动对普攻生效（魔剑士附魔普攻→magi 段；原只在技能端消费，普攻浪费 buff）
+        if self.p_buffs.get("spellblade_surge"):
+            _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
+            surge_dmg = E.calc_damage(int(st["matk"] * 0.80), est["mdef"], is_crit,
+                                      pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+            dmg += surge_dmg
+            del self.p_buffs["spellblade_surge"]
+            logs.append(f"🔮 魔能涌动：普攻附带 {surge_dmg} 点魔法伤害！")
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
@@ -1571,26 +1579,31 @@ class Battle:
         # v34 破魔：魔法伤害 +x%
         mb_lvl = self._enchant_lvl(effs, "magic_break")
         magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == "魔法" else 1.0
-        # v64 被动：破甲本能（破防技能伤害+10%）/ 烈焰亲和（火系伤害+10%）
-        pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
+        # v109.2 P2-9：半死字段数据驱动化（原按技能名硬编码，改名即失效）——
+        # 破甲本能(proc pierce)/烈焰亲和(proc fire_bonus)/双修精通(stat cond=dual_stat)
+        _pm = self._passive_map(player)
+        _procs = _pm["proc"]
         passive_bonus = 1.0
-        if "破甲本能" in pv and info.get("pierce"):
-            passive_bonus *= 1.10
-        if "烈焰亲和" in pv and "火" in (skill_name or "") and kind == "魔法":
-            passive_bonus *= 1.10
-        # v87 被动·双修精通：力量/智力同时增加时，额外 +5% 攻击（魔剑士专属）
-        if "双修精通" in pv:
-            st_full = self._player_stats(player)
-            if st_full.get("atk") and st_full.get("matk"):
-                passive_bonus *= 1.05
         # 技能元素（"current"=当前元素亲和系）——提前解析供 proc 型被动判定
         element = info.get("element", "")
         if element == "current":
             element = self.resources.get("element", "fire")
+        # 破甲本能：破防技能伤害 +10%（proc pierce，原硬编码技能名）
+        for _pn, _ps in _procs.get("pierce", []):
+            if info.get("pierce"):
+                passive_bonus *= float(_ps.get("mult", 1.1))
+        # 烈焰亲和：火系魔法伤害 +10%（proc fire_bonus，原 stat=fire+技能名硬编码；mult 为增量语义）
+        for _pn, _ps in _procs.get("fire_bonus", []):
+            if element == "fire" and kind == "魔法":
+                passive_bonus *= (1 + float(_ps.get("mult", 0.10)))
+        # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，原技能名硬编码）
+        for _pn, _ps in _pm["stat"]:
+            if _ps.get("cond") == "dual_stat":
+                st_full = self._player_stats(player)
+                if st_full.get("atk") and st_full.get("matk"):
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.05)))
         # v104 R3 P1-1：分支/基础 proc 型被动伤害挂点（数据驱动：万象亲和/元素之心/毒师/淬毒之心/
         # 追猎者/猎魔之眼/奥术之心/武技/疾驰/审判之心/暗影之心/暗影之舞/元素共鸣）
-        _pm = self._passive_map(player)
-        _procs = _pm["proc"]
         # 元素伤害类（元素系技能）
         for _pn, _ps in _procs.get("element_dmg", []):
             if element and E.ELEMENT_MARKS.get(element):
@@ -1674,6 +1687,7 @@ class Battle:
                     for mk in E.ELEMENT_MARKS.values():
                         self.e_buffs.pop(mk, None)
         total = 0
+        _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         elem_mult = self._affix_element_dmg(player, element)
@@ -1702,6 +1716,7 @@ class Battle:
                     dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                     dmg_i += dmg_m
+                    _magi_part += dmg_m
             else:
                 # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
                 if info.get("pierce"):
@@ -1715,6 +1730,7 @@ class Battle:
                 surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                 dmg_i += surge_dmg
+                _magi_part += surge_dmg
                 del self.p_buffs["spellblade_surge"]
             # v34 残忍：暴击伤害 +x%（按等级，符文特效）
             brutal_lvl = self._enchant_lvl(effs, "brutal")
@@ -1742,8 +1758,15 @@ class Battle:
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
             # v107：真伤不吸血（dmg_type="true" 直接跳过）
-            self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"),
-                                   dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
+            # v109.2 P2-4：混合段分账——物理技能带魔法段（魔能斩/魔能涌动）时，
+            # 物段走物理吸血、魔段走法术吸血（原整体按 phys 结算）
+            if _magi_part > 0:
+                if total - _magi_part > 0:
+                    self._settle_lifesteal(player, total - _magi_part, logs, magic=False, dmg_type="phys")
+                self._settle_lifesteal(player, _magi_part, logs, magic=True, dmg_type="magi")
+            else:
+                self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"),
+                                       dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -2344,12 +2367,13 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * C.rune_value("regen", regen_lvl))
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"✨ 符文治愈生效，你回复了 {heal} 点生命！")
-        # v64 被动·气力调和（原名气息调和）：每回合回复 2% 生命（v109 改名同步硬编码引用）
-        if "气力调和" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])) \
-                and player.get("hp", 0) < player.get("max_hp", 1):
-            heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
-            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-            logs.append(f"🍃 气力调和生效，你回复了 {heal} 点生命！")
+        # v109.2 P2-9：气力调和每回合回血 2%（proc turn_heal，原按技能名硬编码——v109.1 改名即断链事故源）
+        for _pn, _ps in self._passive_map(player)["proc"].get("turn_heal", []):
+            if player.get("hp", 0) < player.get("max_hp", 1):
+                heal = int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("pct", 0.02)))
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+                logs.append(f"🍃 {_pn}生效，你回复了 {heal} 点生命！")
+            break
         # v104 R3 P1-1：生命之泉——全队每回合回血 5%（单人战斗=自身，副本由 instance 广播）
         for _pn, _ps in self._passive_map(player)["proc"].get("team_regen", []):
             if player.get("hp", 0) < player.get("max_hp", 1):
@@ -2357,14 +2381,17 @@ class Battle:
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
                 logs.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
             break
-        # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（秘法法师自动蓄能）
-        if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
+        # v109.2 P2-9：奥术直觉/符文刻印 每回合自动充能（proc arcane_regen / stat spellblade_regen，
+        # 原按技能名硬编码——改名即失效风险同款）
+        for _pn, _ps in self._passive_map(player)["proc"].get("arcane_regen", []):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
-            logs.append(f"📖 奥术直觉：充能自动+1(当前 {self.mech_stacks['arcane']} 层)")
-        # v87 被动·符文刻印：魔剑士每回合自动获得 1 层魔能（上限 5）
-        if "符文刻印" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
-            self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
-            logs.append(f"⚔️ 符文刻印：魔能自动+1(当前 {self.mech_stacks['spellblade']} 层)")
+            logs.append(f"📖 {_pn}：充能自动+1(当前 {self.mech_stacks['arcane']} 层)")
+            break
+        for _pn, _ps in self._passive_map(player)["stat"]:
+            if _ps.get("stat") == "spellblade_regen":
+                self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
+                logs.append(f"⚔️ {_pn}：魔能自动+1(当前 {self.mech_stacks['spellblade']} 层)")
+                break
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
@@ -2543,7 +2570,9 @@ class Battle:
         return logs
 
     def _summon_block_check(self, player: dict, dmg: int, logs: list) -> int:
-        """v107 召唤物挡刀：敌人攻击时按模板 bodyguard 概率由随机存活召唤物承受全额伤害。
+        """v107 召唤物挡刀：敌人攻击时按模板 bodyguard 概率由随机存活召唤物承受伤害。
+        v109.2 P2-1：伤害按召唤物 def 结算（原全额转移——皮厚召唤物挡刀更久）；
+        P2-2：summon_power 强化挡刀率（×1+sp，上限 85%）。
         触发后本次伤害不再结算到玩家（拦截优先于闪避/格挡）。"""
         alive = [s for s in self.summons if s.get("hp", 0) > 0]
         if not alive:
@@ -2554,10 +2583,17 @@ class Battle:
             return dmg
         s = random.choice(alive)
         tmpl = SUMMONS.get(s.get("tid", ""), {})
-        chance = float(tmpl.get("bodyguard", 0.40))
+        sp = float(self._player_stats(player).get("summon_power", 0) or 0)
+        chance = min(float(tmpl.get("bodyguard", 0.40)) * (1 + sp), 0.85)
         if random.random() >= chance:
             return dmg
-        taken = max(1, int(dmg))
+        # P2-1：按召唤物 def 结算——从对玩家伤害反推攻击方等效 atk，再套召唤物防御公式
+        try:
+            _pdef = max(0, int(self._player_stats(player).get("def", 0) or 0))
+            _atk = (dmg + int((dmg * dmg + 4 * dmg * _pdef) ** 0.5)) // 2
+            taken = max(1, int(E.calc_damage(_atk, max(0, int(s.get("def", 0) or 0)), variance=0)))
+        except Exception:
+            taken = max(1, int(dmg))
         s["hp"] -= taken
         logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
         if s["hp"] <= 0:

@@ -516,8 +516,22 @@ class PlayerCmds(CommandBase):
             return
         alias = self._HIDDEN_ALIASES.get(_raw0)
         if alias:
-            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, alias, 1):
+            # v109.2 P3-8：别名按等级继承档位（90 级『转职 龙血』=T3，不再强制 T1）
+            _tlv = self._hidden_tier_levels(alias)
+            _cur = player.get("class_tier", 0)
+            _tgt = _cur + 1
+            while _tgt <= 3 and player["level"] >= _tlv.get(_tgt, 99999):
+                _tgt += 1
+            _tgt -= 1
+            if _tgt <= _cur:
+                _tgt = _cur + 1  # 下一阶都不够 → 交给 generic 报等级不足
+            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, alias, _tgt):
                 yield r
+            return
+        # v109.2 P2-6：隐藏职业玩家『转职 <未识别名>』拦截——防落基础路径错门槛/导师断链
+        if _raw0 and C.CLASSES.get(player["class_name"], {}).get("hidden"):
+            yield event.plain_result(
+                f"⚠️ 未识别『{_raw0}』！你已踏上传承之路，『转职』可查看下一阶传承。")
             return
         # 隐藏职业玩家『转职』(无参数)：显示传承之路（下一阶/已满）
         if not _raw0 and C.CLASSES.get(player["class_name"], {}).get("hidden"):
@@ -681,9 +695,16 @@ class PlayerCmds(CommandBase):
         src = cls.get("src_base", "")
         if player["class_name"] != cls_id and player["class_name"] != src:
             src_name = C.CLASSES.get(src, {}).get("name", "对应职业")
-            yield event.plain_result(
-                f"{icon} {cname}的传承只向{src_name}一脉的传人敞开……\n"
-                f"💡 先以{src_name}的身份历练，再寻访这份传承。")
+            # v109.2 P3-7：同源隐藏玩家拒绝文案区分（魔剑→龙血 不再说"先以战士身份历练"误导）
+            if C.CLASSES.get(player["class_name"], {}).get("hidden"):
+                cur_name = C.CLASSES.get(player["class_name"], {}).get("name", "当前职业")
+                yield event.plain_result(
+                    f"{icon} {cname}的传承与你的血脉有所共鸣，但一脉相承不可兼得……\n"
+                    f"💡 你已踏上【{cur_name}】之路，若想改换门庭可『转职重置』回到{src_name}一脉再传承。")
+            else:
+                yield event.plain_result(
+                    f"{icon} {cname}的传承只向{src_name}一脉的传人敞开……\n"
+                    f"💡 先以{src_name}的身份历练，再寻访这份传承。")
             return
         tlv = self._hidden_tier_levels(cls_id)
         need_lv = tlv.get(tgt_tier)
@@ -942,7 +963,8 @@ class PlayerCmds(CommandBase):
                              class_name=src, class_tier=0, evolve_path=0,
                              max_hp=st["max_hp"], max_mp=st["max_mp"],
                              hp=st["max_hp"], mp=st["max_mp"],
-                             learned_skills=init_skills)
+                             learned_skills=init_skills,
+                             skill_levels={})  # v109.2 P2-7：重置一并清技能等级（防再转回白拿旧升级）
             try:
                 bar = db.get_skill_bar(qq_id) or []
                 nbar = [b if (b is None or b in init_skills) else None for b in bar]
@@ -950,12 +972,13 @@ class PlayerCmds(CommandBase):
             except Exception:
                 pass
             old_title = self._tier_title(cls, tier, player.get("evolve_path", 0))
+            cname = cls_meta.get("name", cls)
             yield event.plain_result(
                 f"🔄 转职重置成功！(花费 {cost} 金币)\n"
                 f"━━━━━━━━━━━━\n"
                 f"{old_title} → 回到根基职业【{src_cls.get('icon', '')} {src_cls.get('name', src)}】\n"
                 f"✨ 等级保留，{cls_meta.get('name', cls)} 的传承已散去\n"
-                f"💡 完成试炼可再次『转职 <隐藏职业>』重新传承！"
+                f"💡 已解锁的传承仍在：『转职 {cname}』可再次接受传承！"
             )
             return
         learned = list(player.get("learned_skills", []))

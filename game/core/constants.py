@@ -82,7 +82,12 @@ PCT_CAPS = {"crit": 0.5, "dodge": 0.4, "precise": 0.6, "pene_phys": 0.6, "pene_m
 
 # v106.4：特殊属性——面板 0 时不显示，有加成才显示（防面板爆炸，鱼鱼拍板）
 OPTIONAL_STATS = ("lifesteal", "crit_dmg", "block", "thorns", "phys_reduce", "magic_reduce",
-                  "lifesteal_phys", "lifesteal_magi", "summon_power")  # v107 召唤强化
+                  "lifesteal_phys", "lifesteal_magi", "summon_power",
+                  "pene_flat", "pene_mflat",  # v109.2 固定穿透 0 隐藏
+                  # v109.2 P1-5：0 值隐藏推广到全部特殊属性（防面板 13 行 0 值爆炸）
+                  "pene_phys", "pene_magi", "tenacity", "luck", "cdr",
+                  "elem_res", "abyss_res", "exp_bonus", "gold_bonus",
+                  "heal_power", "shield_power")
 
 # v106：百分比穿透属性（多来源乘算合成 1-Π(1-pᵢ)，不加法）
 PENE_PCT_STATS = ("pene_phys", "pene_magi")

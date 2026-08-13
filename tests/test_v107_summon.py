@@ -32,6 +32,7 @@ async def main():
     clean_db()
     from data.plugins.dragonfall.game import battle as BT
     from data.plugins.dragonfall.game.data.summons import SUMMONS
+    from data.plugins.dragonfall.game import engine as EG  # v109.2 P2-1 挡刀按 def 结算期望
 
     print("===== v107 召唤物系统 =====\n")
 
@@ -136,7 +137,13 @@ async def main():
         if any("挡下" in l for l in logs5):
             found = True
             check(f"挡刀生效（seed {seed}）", p5["hp"] == hp5, f"player hp {p5['hp']}")
-            check("召唤物扣血", b5.summons[0]["hp"] == 400, f"summon hp {b5.summons[0]['hp']}")
+            # v109.2 P2-1：挡刀按召唤物 def 结算（原全额转移）——从对玩家伤害反推等效 atk 再套召唤物防御
+            _pdef = max(0, int(b5._player_stats(p5).get("def", 0) or 0))
+            _atk = (100 + int((100 * 100 + 4 * 100 * _pdef) ** 0.5)) // 2
+            _sdef = max(0, int(b5.summons[0].get("def", 0) or 0))
+            _taken = max(1, int(EG.calc_damage(_atk, _sdef, variance=0)))
+            check(f"召唤物扣血按 def 结算（{_taken}）", b5.summons[0]["hp"] == 500 - _taken,
+                  f"summon hp {b5.summons[0]['hp']}")
             break
     check("挡刀可触发", found)
 

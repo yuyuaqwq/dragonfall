@@ -89,7 +89,7 @@ async def main():
     check("别名『龙血』路由", "传承完成" in out and "龙血战士" in out, out[:200])
     # 别名：『转职 亡灵』
     out = await cmd(m, "evolve", "g1", "w3", "转职 亡灵")
-    check("别名『亡灵』路由到已是", "你已是暗影祭司" in out, out[:200])
+    check("别名『亡灵』路由到下一阶校验（P3-8 按档位推进）", "需要 Lv.60" in out, out[:200])
     # 未知职业名不误伤
     await cmd(m, "register", "g1", "w5", "注册 战士 无名 男")
     db.update_player("g1", "w5", level=40)

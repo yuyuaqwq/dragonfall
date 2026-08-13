@@ -300,3 +300,38 @@
 - 修复：_pvp_snapshot 补 18 项战斗属性（combat.py，player_final_stats 已全量聚合）
 - 连带：_enemy_stats 补 tenacity 聚合（battle.py），玩家攻击端暴击 ×(1-敌韧) 真实生效
 - 验证：test_v109_2_combat_mech 6a 快照路径（tenacity 0.5 → 暴击率减半 ±0.05）+ test_v85_pvp_honor 22/22
+
+## 十、v109.3 实施记录（2026-08-14 鱼鱼"都解决了"全量清尾）
+
+### P1
+- **P1-5 面板 0 值隐藏推广** ✅：OPTIONAL_STATS 扩展至 21 项（补 pene_phys/pene_magi/tenacity/luck/cdr/elem_res/abyss_res/exp_bonus/gold_bonus/heal_power/shield_power + pene_flat/pene_mflat），13 行 0 值不再刷屏
+
+### P2（7 项全清）
+- **P2-1 挡刀按召唤物 def 结算** ✅：_summon_block_check 从对玩家伤害反推等效 atk（二次方程闭式解），再套召唤物防御公式；def=0 时退回≈全额；test_v107_summon 断言同步
+- **P2-2 summon_power 强化挡刀率** ✅：bodyguard ×(1+summon_power)，上限 85%（兽王堆召唤强度收益闭环）
+- **P2-3 毒 dot 文案对齐** ✅：毒箭 desc 3%→5%（对齐 POISON_PCT 实扣）
+- **P2-4 魔剑混合段吸血分账** ✅：magic_add/魔能涌动魔段累计 _magi_part，物段走 lifesteal_phys、魔段走 lifesteal_magi（原整体 phys）
+- **P2-6 『转职 未识别名』隐藏拦截** ✅：隐藏玩家未识别名 → "『转职』查看下一阶"（防落基础路径 Lv.30 错门槛/导师断链）
+- **P2-7 隐藏重置清 skill_levels** ✅：转职重置 db.update_player 补 skill_levels={}（防再转回白拿旧升级等级）
+- **P2-9 半死字段数据驱动化** ✅：烈焰亲和 stat=fire→proc fire_bonus（battle 按 element 判定，不再"火"字匹配技能名）；破甲本能/双修精通/气力调和/奥术直觉/符文刻印 全部迁入 _passive_map 数据驱动——battle.py 技能名硬编码 6 处清零（v109.1 气息调和断链事故同型根除）
+
+### P3（9 项全清）
+- P3-2 true_dmg 注释修正（kind=="真伤" 为准）✅
+- P3-3 词条附加伤害 10 处直扣 → _damage_enemy 统一出口（睡醒/援军挡刀/未来免伤全走对）✅
+- P3-4 普攻消费魔能涌动 ✅（魔剑士附魔普攻→magi 段实装，设计点补齐）
+- P3-6 兜底文案随 P2-6 拦截不可达消解 ✅
+- P3-7 血缘拒绝文案区分：同源隐藏玩家（魔剑→龙血）→"一脉相承不可兼得+重置指引"，不再"先以战士身份历练"误导 ✅
+- P3-8 别名转职按等级继承档位 ✅（90 级『转职 龙血』=T3；逐阶校验保留）
+- P3-9 『转职重置』回执占位符填充职业名 + 文案修正（unlock 保留可直转）✅
+- P3-10 engine.py:188 dual_stat 注释修正 ✅
+- P3-11 _PASSIVE_STAT_APPLY 删 heal_power/shield_power/abyss_res 冗余注册（skills.py 无对应被动）✅
+- P3-12 pene_flat/pene_mflat 进 OPTIONAL_STATS（0 隐藏白名单）✅
+
+### 文档
+- HIDDEN_CLASSES_V107_DESIGN.md 4 处过时归属修正（圣殿→战士/虚空→法师/血缘表拆线）+ P3-4 普攻附魔已实装标注 ✅
+- CLASS_TREE_V108_DESIGN.md 圣辉骑士为旧名→新名对照记录，保留 ✅
+
+### 验证
+- 新增 tests/test_v109_2_passive_datadrive.py（10 断言：火系×1.1/pierce×1.1/双修×1.05/气力调和 2%/奥术直觉/符文刻印）
+- 更新 test_v107_summon 挡刀断言（按 def 结算动态期望）
+- 相关回归：combat_mech 30/30、passive_datadrive 10/10、summon 28/28、hidden_jobs 101/101、class_tree 36/36、unlock_quests 134/134、stage7 117/117、stage5_combo 16/16、equip_affix 384/384、spellblade 57/57、pvp_honor 22/22
