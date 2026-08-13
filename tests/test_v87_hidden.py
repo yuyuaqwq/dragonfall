@@ -10,7 +10,7 @@
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import C, db
+from conftest import C, db, clean_db
 
 passed = failed = 0
 
@@ -141,13 +141,16 @@ def main():
     # ===== 9. 每日运势（签到逻辑：直接验证 event_state 写入函数路径）=====
     print("  · 每日运势")
     import datetime
+    # v110.5 X3：写 event_state 前先清理，防旧 key 残留污染其他测试/重复运行假通过
+    clean_db("event_state")
     db.set_event_state(f"daily_fortune_test", '{"date": "' + datetime.date.today().isoformat() + '", "fortune": "大吉"}')
     st = db.get_event_state("daily_fortune_test")
     check("运势 state 可写读", st is not None and "大吉" in st)
+    clean_db("event_state")  # 测试末尾清理，避免 key 残留
 
     # ===== 10. 隐藏装备/套装 =====
     print("  · 隐藏装备")
-    check("EQUIP_ROSTER 154 件（v101.25e 补档 + v104 补充 + v105 支线 5 件）", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))
+    check("EQUIP_ROSTER 159 件（v101.25e 补档 + v104 补充 + v105 支线 5 件）", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))
     for n in ["星尘法杖", "星尘长袍", "星尘之戒", "星尘坠饰", "星尘护腿",
               "灰烬长剑", "灰烬铠甲", "灰烬之盔", "灰烬之盾", "灰烬护腿", "灰烬战靴", "星陨之剑"]:
         check(f"隐藏装备 {n}", bool(C.EQUIP_ROSTER_BY_NAME.get(n)))

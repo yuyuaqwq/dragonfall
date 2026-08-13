@@ -106,7 +106,31 @@ async def main():
 
     print("【8. 非本职业导师不显示教学】")
     out = await cmd(m, "find_npc", "g1", "w1", "找 艾德琳")
-    check("法师导师无战士教学选项", "奥术脉冲" not in out or True, out[:300])
+    # v110.5 X3：恒真断言替换——战士(非法师)拜访法师导师，输出不得泄漏法师专属技能；
+    # 旧名『奥术脉冲』v110.1 已改『魔力脉冲』，若输出仍含旧名即红。
+    check("法师导师无战士教学选项", "奥术脉冲" not in out, out[:300])
+    check("战士邀导师不展示法师专属『魔力脉冲』", "魔力脉冲" not in out, out[:300])
+    # 正向对照（数据级）：法师(cls_fa_shi)拜访 npc_mage_tutor 的 welcome 节点，
+    # 『魔力脉冲』教学选项必须可见（保证新旧命名一致、对话树仍在配置）。
+    _mdlg = C.get_dialogue("npc_mage_tutor")
+    _ctx = {"player": {"class_name": "cls_fa_shi", "level": 30, "gold": 99999},
+            "quests": {"main_quest": None, "main_status": "pending",
+                       "completed_main": [], "side": {}},
+            "flags": [], "npc_id": "npc_mage_tutor"}
+    _opts = C.visible_options(_mdlg, _mdlg["nodes"]["welcome"], _ctx)
+    check("法师导师教学菜单含『魔力脉冲』(新名,next=teach_ao_shu)",
+          any("魔力脉冲" in o["text"] and o.get("next") == "teach_ao_shu" for o in _opts),
+          str([o["text"] for o in _opts]))
+    # 反向：战士语境下该选项必须被过滤掉（可见选项过滤有效）
+    _opts_war = C.visible_options(
+        _mdlg, _mdlg["nodes"]["welcome"],
+        {"player": {"class_name": "cls_zhan_shi", "level": 30, "gold": 99999},
+         "quests": {"main_quest": None, "main_status": "pending",
+                    "completed_main": [], "side": {}},
+         "flags": [], "npc_id": "npc_mage_tutor"})
+    check("战士语境法师教学选项被过滤（无『魔力脉冲』）",
+          all("魔力脉冲" not in o["text"] for o in _opts_war),
+          str([o["text"] for o in _opts_war]))
 
     print("【9. 转职指令引导找导师】")
     db.update_player("g1", "w1", level=30)

@@ -58,9 +58,25 @@ def test_engine():
     check("无 lines 用原台词", C.town_npc_dialogue("npc_p", plain, "PLAIN", D0) == "PLAIN")
     # 7. 无随机字段 → 恒可见
     check("无字段恒可见", C.town_npc_visible("npc_p", plain, "sa_x", D0))
-    # 8. period 过滤
+    # 8. period 过滤（v110.5 X3：恒真断言→真断言。传 date → 固定 'day' 时段；传
+    # datetime → 按时刻；两分支均可确定性验证，不依赖真实时钟）
+    from game.core.time_weather import current_period
     per_npc = dict(TEST_NPC, roam=None, appear=None, period=["night"])
-    check("period 不符不可见", C.town_npc_visible("npc_n", per_npc, "sa_x", D0) is False or True)  # 时段依赖当前时间，只验不崩
+    # 分支 a：传 date(2026-08-11) → town_npc_visible 固定 'day' 时段 → period=['night'] 不符 → 不可见
+    check("period=night 传 day 时段(date)不可见",
+          C.town_npc_visible("npc_n", per_npc, "sa_x", D0) is False,
+          str(C.town_npc_visible("npc_n", per_npc, "sa_x", D0)))
+    # 分支 b：传 datetime → 按时刻判定 → 深夜(00:00)匹配可见 / 正午(12:00)不符不可见
+    _night_dt = datetime.datetime(2026, 8, 11, 0, 0)   # 00:00 → night
+    _day_dt = datetime.datetime(2026, 8, 11, 12, 0)    # 12:00 → day
+    check("current_period(00:00)==night", current_period(_night_dt) == "night", current_period(_night_dt))
+    check("current_period(12:00)==day", current_period(_day_dt) == "day", current_period(_day_dt))
+    check("period=night 传 night 时段(datetime)可见",
+          C.town_npc_visible("npc_n", per_npc, "sa_x", _night_dt) is True,
+          str(C.town_npc_visible("npc_n", per_npc, "sa_x", _night_dt)))
+    check("period=night 传 day 时段(datetime)不可见",
+          C.town_npc_visible("npc_n", per_npc, "sa_x", _day_dt) is False,
+          str(C.town_npc_visible("npc_n", per_npc, "sa_x", _day_dt)))
     # 9. appear 概率区间
     app_npc = dict(TEST_NPC, roam=None, period=None, appear=0.0)
     check("appear=0 恒不可见", C.town_npc_visible("npc_z", app_npc, "sa_x", D0) is False)
@@ -82,9 +98,14 @@ async def test_map_display():
     # 所有显示的酱油 NPC 必须能找到（显示必须可触发）
     ev2 = FakeEvent("g1", "1001", "找")
     r2 = "".join(str(x) for x in await run(m.find_npc, ev2))
-    for line in r2.split("\n"):
-        if "(" in line and "】" not in line and line.strip()[:1].isdigit():
-            pass  # 列表本身
+    # 所有显示的酱油 NPC 必须能找到（显示必须可触发）：列表每行形如 『 1. 😺小艾(职位)』
+    import re as _re_n
+    list_lines = [l for l in r2.split("\n") if _re_n.match(r"^\s*\d+\.\s+", l)]
+    check("『找』无参数给出 NPC 列表（≥1 条可触发项）", len(list_lines) >= 1, f"空列表！r2={r2[:200]}")
+    check("NPC 列表行含名称与职位（可触发）",
+          all(("(" in l and ")" in l) for l in list_lines), str(list_lines[:3]))
+    check("功能 NPC 小艾在列表（恒显示铁律）", any("小艾" in l for l in list_lines),
+          str(list_lines[:3]))
     # 找不存在的 → 有方向提示或提示文案
     ev3 = FakeEvent("g1", "1001", "找 蜜嘴")
     r3 = "".join(str(x) for x in await run(m.find_npc, ev3))

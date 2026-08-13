@@ -50,7 +50,12 @@ def check_need(need, ctx: dict) -> bool:
             _db = os.environ.get("GWEN_GAME_DB", "")
             _msg = (f"[dragonfall] 对话条件未注册键 need[{k!r}]={v!r}："
                     f"数据笔误？已按'永远可见'放行，请检查 dialogues.py")
-            if "test" in os.path.basename(_db).lower():
+            # v110.5 X3：显式判定测试环境——既看私有库名含 "test"（旧约定兼容），
+            # 也认 GWEN_TEST_MODE=1（本轮私有库名不含 "test" 时测试行为漂移的根因）。
+            _db = os.environ.get("GWEN_GAME_DB", "")
+            _test = ("test" in os.path.basename(_db).lower()
+                     or os.environ.get("GWEN_TEST_MODE") == "1")
+            if _test:
                 raise ValueError(_msg)
             logging.getLogger("astrbot").warning(_msg)
             continue  # 未知条件放行（向后兼容，旧数据不崩）

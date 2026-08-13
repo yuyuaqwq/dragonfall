@@ -197,13 +197,19 @@ async def main():
     b4c = BT.Battle("怪物", mk_enemy(def_=0, hp=10**9), {}, p4c)
     st4c = b4c._player_stats(p4c)
     got_lucky = False
+    lucky_dealt = 0
     for _ in range(50):
         logs, dealt, is_crit, is_lucky = attack_once(b4c, st4c, p4c, 3000 + _)
         if is_lucky:
             got_lucky = True
+            lucky_dealt = dealt
             print(f"  (幸运一击伤害 {dealt}，非幸运暴击区间 127-173)")
             break
-    check("幸运一击伤害 > 190（= 暴击×1.5）", got_lucky)
+    # v110.5 X3：恒真断言替换——got_lucky 为 True 时断言实际伤害 > 190（= 暴击×1.5，a=125 下限）。
+    # 若幸运一击未触发到或伤害未达暴击×1.5（192.5 起）则必红。
+    check("幸运一击伤害 > 190（= 暴击×1.5）",
+          got_lucky and lucky_dealt > 190,
+          f"lucky={got_lucky}, dealt={lucky_dealt}")
 
     print("\n===== 5. 武圣连击 0.50（P1-2）=====\n")
     def combo_play(with_passive):
@@ -229,8 +235,19 @@ async def main():
     check(f"三连触发（日志含『三连击破』）", any("三连击破" in x for x in logs_b), str(logs_b))
     check(f"无被动：追加 = 主伤×0.30（{exp_a}）", (total_b - total_a) == exp_b - exp_a,
           f"差值 {total_b-total_a} vs 期望 {exp_b-exp_a}")
-    check(f"有被动：追加 = 主伤×0.50（{exp_b}）", "三连击破" in next(x for x in logs_b if "三连击破" in x),
-          "")
+    # v110.5 X3：恒真断言替换——从 logs_b 解析『三连击破』行的实际追加数值，
+    # 断言 == int(主伤×0.50)。若被动未生效（追加仍走 0.30）或日志格式变动则必红。
+    _re_bonus = _re.search(r"三连击破.*?追加 (\d+) 点伤害", next(x for x in logs_b if "三连击破" in x))
+    got_bonus = int(_re_bonus.group(1)) if _re_bonus else None
+    check(f"有被动：追加 = 主伤×0.50（{exp_b}）",
+          got_bonus is not None and got_bonus == exp_b,
+          f"got {got_bonus} vs 期望 {exp_b}（主伤 {main_b}）")
+    # 对照：无被动组合（logs_a 也必有三连，追加走 0.30）同样可解析出 0.30
+    _re_bonus_a = _re.search(r"三连击破.*?追加 (\d+) 点伤害", next(x for x in logs_a if "三连击破" in x))
+    got_bonus_a = int(_re_bonus_a.group(1)) if _re_bonus_a else None
+    check(f"无被动对照：追加 = 主伤×0.30（{exp_a}）",
+          got_bonus_a is not None and got_bonus_a == exp_a,
+          f"got {got_bonus_a} vs 期望 {exp_a}（主伤 {main_b}）")
     check("日志无『斗气』残留", not any("斗气" in x for x in logs_a + logs_b),
           str([x for x in logs_a + logs_b if "斗气" in x]))
 

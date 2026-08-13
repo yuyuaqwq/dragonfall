@@ -58,7 +58,10 @@ async def main():
     conn.close()
     check("catch_collect 计数", r and r[0] >= 1, str(r))
 
-    # 概率路径：未命中时无彩蛋文案
+    # 概率路径：未命中时无彩蛋文案（v110.5 X3：真实 roll_collect_fish 为随机 → 必须固定
+    # seed 才稳定。oak_plain 仅虹彩龙鲤(spots=None, chance=0.0005) 可判定，seed(1) 首个
+    # random()≈0.134 恒≥0.0005 → 必 miss）
+    random.seed(1)
     out2 = m._settle_fishing("g1", "w1", st)
     check("未命中无彩蛋", out2 and "彩蛋收藏品" not in out2, str(out2)[:200])
 

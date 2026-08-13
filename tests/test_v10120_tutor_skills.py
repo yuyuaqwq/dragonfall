@@ -69,6 +69,30 @@ async def main():
     check("learned 写入", "魔力脉冲" in p["learned_skills"], str(p["learned_skills"]))
     check("金币扣除", p["gold"] == 5000 - 800, str(p["gold"]))
 
+    print("【3b. 走对话树 teach_ao_shu 教学（P0-2 回归）】")
+    # 完整对话树驱动：注册法师 → 就职 → 白鹿城找法师导师 → 选『魔力脉冲』→ 选『请教我！』
+    # → teach_ao_shu 节点 action tutor_skill 执行后技能学会（非直调 _apply_talk_action）
+    await cmd(m, "register", "g1", "w2", "注册 法师 树徒 女")
+    db.update_player("g1", "w2", cur_map="oak_town", cur_subarea="oak_town_1")
+    await cmd(m, "find_npc", "g1", "w2", "找 行会")
+    await cmd(m, "talk_choice", "g1", "w2", "对话 2")  # 法师
+    await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # 确定
+    _p2 = db.get_player("g1", "w2")
+    check("对话树法师就职", _p2["class_name"] == "cls_fa_shi", _p2.get("class_name"))
+    db.update_player("g1", "w2", cur_map="white_deer", cur_subarea="white_deer_1",
+                     level=30, gold=5000)
+    out = await cmd(m, "find_npc", "g1", "w2", "找 大法师·艾德琳")
+    check("对话树进入法师导师 welcome（含魔力脉冲菜单）",
+          "魔法不是念咒" in out and "魔力脉冲" in out, out[:300])
+    out = await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # → teach_ao_shu
+    check("对话树进入 teach_ao_shu 节点", "魔力脉冲——把魔力压缩成一束光" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # 『请教我！』→ action tutor_skill
+    check("对话树教学学会魔力脉冲", "学会了进阶技能『魔力脉冲』" in out, out[:300])
+    _p2 = db.get_player("g1", "w2")
+    check("对话树技能写入 learned_skills", "魔力脉冲" in _p2["learned_skills"],
+          str(_p2["learned_skills"]))
+    check("对话树扣学费", _p2["gold"] == 5000 - 800, f"gold={_p2['gold']}")
+
     print("【4. 学会后技能列表可见】")
     out4 = await cmd(m, "skill", "g1", "w1", "技能 列表 4")
     check("末页显示魔力脉冲", "魔力脉冲" in out4 and "Lv.1/5" in out4, out4[:250])

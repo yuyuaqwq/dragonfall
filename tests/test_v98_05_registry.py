@@ -236,7 +236,12 @@ set4_effs = set(re.findall(r'"bonus_4"\s*:\s*\{[^}]*"effect"\s*:\s*"([^"]+)"', s
 # 旧代码只实现 6 种攻击特效（其余如 crit_up_set/reflect/regen 走别的系统，原 elif 链无分支 → 无操作）
 implemented = {"frost", "burn", "thunder", "pierce", "lifesteal_set", "execute"}
 check("套装特效 6 种全部注册", implemented <= set(AFX.SET_PROC_EFFECTS.keys()))
-check("未实现 eff 与旧代码一致（不注册=无操作）", set4_effs - implemented == set() or not (set4_effs - implemented - set(AFX.SET_PROC_EFFECTS.keys())) or True)
+# v110.5 X3：恒真断言替换——其余 non_attack 特效（mdef_up_set/reflect/crit_up_set/regen/
+# regen_strong/dodge_set）走其他系统（属性/受击/回合开始），不得误注册为『攻击特效』。
+# 若有人把非攻击类特效加进 SET_PROC_EFFECTS 则必红。
+non_attack = set4_effs - implemented
+bad_reg = non_attack & set(AFX.SET_PROC_EFFECTS.keys())
+check("非攻击类套装特效不注册为攻击特效（由其他系统处理）", bad_reg == set())
 
 # 词条 id 覆盖：触发型词条全部在对应注册表
 # v106.3 属性化：lifesteal/block 已从触发特效改 stat 折算（affix.py _STAT_AFFIX_FX），不再走 HIT/TAKEN 注册表

@@ -22,6 +22,10 @@ TEST_DB = os.path.join(PLUGIN_DIR, "test_game_data.db")
 # 各自 test_<名>.db），不再强制覆盖——消除共享 test_game_data.db 顺序执行
 # 残留导致的偶发红（v95_77 曾在 line 48 因残留 battle 为 None 崩）
 os.environ.setdefault("GWEN_GAME_DB", TEST_DB)
+# v110.5 X3：显式测试模式标记——dialogue.check_need 据 GWEN_TEST_MODE=1 在测试环境
+# 对未知条件键直接 raise（与库名含 "test" 的旧约定双保险，消除私有库名不含 "test"
+# 时测试行为漂移导致的假失败）。
+os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 

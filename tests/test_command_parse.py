@@ -128,6 +128,7 @@ async def main():
     # 移动 2：从 oak_town 的邻居（橡木平原, ...）取第 2 个
     from conftest import db as _db, Main as _Main
     _db.init_db()
+    clean_db()  # v110.5 X3：建号前清库，防其他测试/重复运行的玩家残留影响移动判定
     m = _Main(None)
     ev = FakeEvent("g1", "m1", "注册 战士 移动者 男")
     await run(m.register, ev)
