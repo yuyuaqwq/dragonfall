@@ -84,15 +84,6 @@ def _h_combo(battle, player, dmg, logs):
         logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
 
 
-@register(HIT_EFFECTS, "lifesteal")
-def _h_lifesteal(battle, player, dmg, logs):
-    """吸血：伤害的 8% 转化为生命"""
-    if "lifesteal" in battle._equip_affix_ids(player) and dmg > 0:
-        heal = int(dmg * 0.08)
-        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-        logs.append(f"🩸 吸血：回复 {heal} 点生命！")
-
-
 @register(HIT_EFFECTS, "element_fire")
 def _h_element_fire(battle, player, dmg, logs):
     """元素附加·火：5% 属性伤害"""
@@ -193,15 +184,6 @@ def _t_reduce(battle, player, ctx, logs):
         dmg_before = ctx["out"]
         ctx["out"] = max(1, int(ctx["out"] * (1 - reduce_pct)))
         logs.append(f"🛡️ 减伤 {dmg_before - ctx['out']} 点")
-
-
-@register(TAKEN_EFFECTS, "block")
-def _t_block(battle, player, ctx, logs):
-    """格挡：15% 减伤 50%（基于结算中伤害）"""
-    if "block" in battle._equip_affix_ids(player) and random.random() < _affix_chance("block", 0.15):
-        blocked = int(ctx["out"] * 0.50)
-        ctx["out"] = max(1, ctx["out"] - blocked)
-        logs.append(f"🛡️ 格挡！减伤 {blocked} 点")
 
 
 @register(TAKEN_EFFECTS, "tenacity")

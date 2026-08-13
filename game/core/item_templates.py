@@ -359,6 +359,9 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "magic_resist": "special:magic_resist", "thorns_pot": "special:thorns_pot",
               "dodge_pot": "special:dodge_pot", "cc_immune": "special:cc_immune",
               "execute_pot": "special:execute_pot", "armor_break_pot": "special:def_down",
+              "lifesteal_pot": "special:lifesteal_pot",  # v106.3 嗜血药剂
+              "crit_dmg_pot": "special:crit_dmg_pot",    # v106.3 狂暴药剂
+              "block_pot": "special:block_pot",          # v106.3 岩壁药剂
               "rock_shield": "special:shield_small", "holy_shield": "special:shield_big"}
 
 

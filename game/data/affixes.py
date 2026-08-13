@@ -39,10 +39,9 @@ AFFIXES = {
         "desc": "对生命 <30% 的目标＋30% 伤害",
     },
     "lifesteal": {
-        "name": "吸血", "kind": "attack", "trigger": "on_hit",
-    "chance": 1.0,
+        "name": "吸血", "kind": "attack", "trigger": "stat",
         "effect": {"lifesteal": 0.08},
-        "desc": "攻击伤害的 8% 转化为生命",
+        "desc": "吸血 +8%（v106.3 属性化：伤害回血，面板可见）",
     },
     "crit_up": {
         "name": "暴击强化", "kind": "attack", "trigger": "stat",
@@ -134,9 +133,9 @@ AFFIXES = {
     },
     # ================= 防具防御词条（12） =================
     "block": {
-        "name": "格挡", "kind": "defense", "trigger": "on_taken", "chance": 0.15,
-        "effect": {"block": 0.50},
-        "desc": "受击 15% 减伤 50%",
+        "name": "格挡", "kind": "defense", "trigger": "stat",
+        "effect": {"block": 0.15},
+        "desc": "格挡率 +15%（格挡时减伤 50%，v106.3 属性化）",
     },
     "thorns": {
         "name": "反伤", "kind": "defense", "trigger": "on_taken", "chance": 0.10,

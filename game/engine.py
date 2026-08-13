@@ -195,6 +195,10 @@ _PASSIVE_STAT_APPLY = {
     # v106.2：穿透被动支持（战斗内乘算合成，职业特色渠道）
     "pene_phys": ("pene_phys_add", "add", False),
     "pene_magi": ("pene_magi_add", "add", False),
+    # v106.3：吸血/暴击伤害/格挡被动支持（面板结算 + 战斗内消费）
+    "lifesteal": ("lifesteal_add", "add", False),
+    "crit_dmg": ("crit_dmg_add", "add", False),
+    "block": ("block_add", "add", False),
 }
 
 
@@ -212,7 +216,8 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
     bonus = {"hp_mult": 1.0, "mp_mult": 1.0, "atk_mult": 1.0, "def_mult": 1.0,
              "matk_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.0, "crit_add": 0.0,
              "cdr_add": 0.0,  # v106.1 cdr 被动
-             "pene_phys_add": 0.0, "pene_magi_add": 0.0}  # v106.2 穿透被动
+             "pene_phys_add": 0.0, "pene_magi_add": 0.0,  # v106.2 穿透被动
+             "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0}  # v106.3 吸血/暴伤/格挡被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -255,7 +260,8 @@ STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", 
               "tenacity": "韧性", "luck": "幸运",  # v106 穿透/韧性/幸运
               "cdr": "冷却缩减", "elem_res": "元素抗性", "abyss_res": "深渊抗性",
               "exp_bonus": "经验加成", "gold_bonus": "金币加成",  # v106.1 冷却/抗性/成长
-              "heal_power": "治疗强度", "shield_power": "护盾强度"}  # v106.2 治疗/护盾
+              "heal_power": "治疗强度", "shield_power": "护盾强度",
+              "lifesteal": "吸血", "crit_dmg": "暴击伤害", "block": "格挡"}  # v106.3 吸血/暴伤/格挡
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
@@ -422,6 +428,11 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             st["crit"] = min(st["crit"] + rt["crit_add"], 0.5)
         # v106.2：新属性种族天赋（exp_bonus/luck/elem_res/abyss_res/cdr 加法属性）
         for _rk in ("exp_bonus", "luck", "elem_res", "abyss_res", "cdr"):
+            if rt.get(_rk):
+                race_src[_rk] = rt[_rk]
+                st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))
+        # v106.3：吸血/暴击伤害/格挡种族天赋（矮人岩壁格挡/精灵月华暴伤/兽人嗜血）
+        for _rk in ("lifesteal", "crit_dmg", "block"):
             if rt.get(_rk):
                 race_src[_rk] = rt[_rk]
                 st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))

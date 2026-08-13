@@ -728,6 +728,10 @@ class PlayerCmds(CommandBase):
             # v106.2 治疗/护盾强度
             ("💚", "heal_power", "heal_power", "治疗强度"),
             ("🛡️", "shield_power", "shield_power", "护盾强度"),
+            # v106.3 吸血/暴击伤害/格挡
+            ("🩸", "lifesteal", "lifesteal", "吸血"),
+            ("💢", "crit_dmg", "crit_dmg", "暴击伤害"),
+            ("🧱", "block", "block", "格挡"),
         ]
         for icon, skey, fkey, cname in stat_rows:
             final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）

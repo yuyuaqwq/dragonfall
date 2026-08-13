@@ -622,6 +622,18 @@ class Battle:
             # v106.2 破法药剂：法穿 +15%（3 回合，与属性乘算）
             self.p_buffs["pene_magi_pot"] = 3
             logs.append("🔮 破法附魔！法穿 +15%！(3 回合)")
+        elif kind == "lifesteal_pot":
+            # v106.3 嗜血药剂：吸血 +15%（3 回合，乘算并入 _settle_lifesteal）
+            self.p_buffs["lifesteal_pot"] = 3
+            logs.append("🩸 嗜血药剂！吸血 +15%！(3 回合)")
+        elif kind == "crit_dmg_pot":
+            # v106.3 狂暴药剂：暴击伤害 +25%（3 回合，乘算并入暴击结算）
+            self.p_buffs["crit_dmg_pot"] = 3
+            logs.append("💥 狂暴药剂！暴击伤害 +25%！(3 回合)")
+        elif kind == "block_pot":
+            # v106.3 岩壁药剂：格挡 +15%（3 回合，乘算并入受击格挡）
+            self.p_buffs["block_pot"] = 3
+            logs.append("🛡️ 岩壁药剂！格挡 +15%！(3 回合)")
         elif kind == "shield_small":
             gain = int(player.get("max_hp", 100) * 0.10)
             self._add_shield("potion", gain, 3)
@@ -874,6 +886,11 @@ class Battle:
             st["pene_phys"] = min(1 - (1 - st.get("pene_phys", 0)) * (1 - pb["pene_phys_add"]), 0.6)
         if pb.get("pene_magi_add", 0.0):
             st["pene_magi"] = min(1 - (1 - st.get("pene_magi", 0)) * (1 - pb["pene_magi_add"]), 0.6)
+        # v106.3 吸血/暴击伤害/格挡被动（加法并入属性，cap 由聚合层）
+        for _pk, _pv in (("lifesteal_add", "lifesteal"), ("crit_dmg_add", "crit_dmg"),
+                         ("block_add", "block")):
+            if pb.get(_pk, 0.0):
+                st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
         # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
         pm = self._passive_map(player)
@@ -930,13 +947,16 @@ class Battle:
         dmg = int(dmg * race_mult)
         if race_tags:
             affix_tags = list(affix_tags) + race_tags
-        # v34 残忍：暴击伤害 +x%（按等级）
+        # v34 残忍：暴击伤害 +x%（按等级，符文特效）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and is_crit:
             dmg = int(dmg * (1 + C.rune_value("brutal", brutal_lvl)))
-        # 阶段八：暴击伤害词条（crit_dmg +20%）
-        if "crit_dmg" in self._equip_affix_ids(player) and is_crit:
-            dmg = int(dmg * 1.20)
+        # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
+        cdmg = float(st.get("crit_dmg", 0) or 0)
+        if self.p_buffs.get("crit_dmg_pot"):
+            cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
+        if is_crit and cdmg > 0:
+            dmg = int(dmg * (1 + cdmg))
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
         # v105 怪物闪避：闪避成功跳过本次伤害结算/符文特效/词条触发/资源获取
@@ -946,6 +966,8 @@ class Battle:
             if affix_tags:
                 tag += " " + "·".join(affix_tags)
             logs.append(f"你{_basic_attack_verb(player)}，造成 {dmg} 点伤害！{tag}")
+            # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
+            self._settle_lifesteal(player, dmg, logs)
             # v34 符文攻击特效（灼烧/冻结/吸血/连锁/虚弱/破魔）
             self._apply_enchant_attack(effs, dmg, st, player, logs)
             # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
@@ -955,6 +977,27 @@ class Battle:
             # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
             self._resource_on_attack(player)
         return logs
+
+    def _settle_lifesteal(self, player: dict, dmg: int, logs: list):
+        """v106.3 吸血统一结算（属性面板化）：heal = dmg × 吸血率
+
+        来源全部汇聚到 st["lifesteal"]（词条折算/种族天赋/被动加成），
+        药水 buff 乘算并入，cap 30% 由聚合层保证——这里只负责消费。
+        """
+        if dmg <= 0:
+            return
+        st = self._player_stats(player)
+        rate = float(st.get("lifesteal", 0) or 0)
+        if self.p_buffs.get("lifesteal_pot"):
+            rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
+        rate = min(rate, 0.30)
+        if rate <= 0:
+            return
+        heal = int(dmg * rate)
+        if heal <= 0:
+            return
+        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
+        logs.append(f"🩸 吸血：回复 {heal} 点生命！")
 
     def _resource_on_attack(self, player: dict):
         """v2.0 核心资源：普攻/技能命中自动获取(on_attack/on_skill)。"""
@@ -1591,13 +1634,16 @@ class Battle:
                                           pene_pct=_pp_magi, pene_flat=_pf_magi)
                 dmg_i += surge_dmg
                 del self.p_buffs["spellblade_surge"]
-            # v34 残忍：暴击伤害 +x%（按等级）
+            # v34 残忍：暴击伤害 +x%（按等级，符文特效）
             brutal_lvl = self._enchant_lvl(effs, "brutal")
             if brutal_lvl and is_crit:
                 dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
-            # 阶段八：暴击伤害词条（crit_dmg +20%）
-            if "crit_dmg" in self._equip_affix_ids(player) and is_crit:
-                dmg_i = int(dmg_i * 1.20)
+            # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
+            cdmg = float(st.get("crit_dmg", 0) or 0)
+            if self.p_buffs.get("crit_dmg_pot"):
+                cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
+            if is_crit and cdmg > 0:
+                dmg_i = int(dmg_i * (1 + cdmg))
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
         total = self._boss_dmg_filter(total, player, logs)
@@ -1606,6 +1652,8 @@ class Battle:
             total = 0
         else:
             self._damage_enemy(total, logs)
+            # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
+            self._settle_lifesteal(player, total, logs)
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -2336,12 +2384,16 @@ class Battle:
         if dodge > 0 and random.random() < dodge:
             logs.append("💨 你闪避了攻击！")
             return
-        # v104 R3 P1-1：圣盾被动——10% 概率格挡（减伤 50%，同防御姿态）
-        for _pn, _ps in self._passive_map(player)["stat"]:
-            if _ps.get("stat") == "block" and random.random() < float(_ps.get("mult", 0.1)):
-                block_reduce = max(1, int(dmg * 0.5))
-                dmg = max(1, dmg - block_reduce)
-                logs.append(f"🛡️ 圣盾格挡！减免 {block_reduce} 点伤害！")
+        # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
+        # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
+        block_chance = float(self._player_stats(player).get("block", 0) or 0)
+        if self.p_buffs.get("block_pot"):
+            block_chance = 1 - (1 - block_chance) * (1 - 0.15)  # 岩壁药剂 +15% 格挡（乘算并入）
+        block_chance = min(block_chance, 0.40)
+        if block_chance > 0 and random.random() < block_chance:
+            block_reduce = max(1, int(dmg * 0.5))
+            dmg = max(1, dmg - block_reduce)
+            logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
         for _pn, _ps in self._passive_map(player)["proc"].get("counter", []):

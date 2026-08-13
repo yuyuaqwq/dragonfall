@@ -159,7 +159,7 @@ b = make_battle()
 b._equip_affix_ids = lambda p: ["dmg_reduce", "earth_heart"]
 out = b._affix_on_taken(player, 100, [])
 check("减伤叠加 -8%（100→92）", out == 92)
-# TAKEN 顺序结算：block 用 out（减伤后），thorns 用原始 dmg
+# TAKEN 顺序结算：dmg_reduce + thorns 原始 dmg（block 已 v106.3 属性化移出 TAKEN，见 3.7）
 b = make_battle()
 b._equip_affix_ids = lambda p: ["dmg_reduce", "block"]
 _orig_random = random.random
@@ -167,7 +167,8 @@ random.random = lambda: 0.05  # block 15% 命中
 logs = []
 out = b._affix_on_taken(player, 100, logs)
 random.random = _orig_random
-check("block 基于减伤后 out（100→97→49）", out == 49 and len(logs) == 2)
+# v106.3：block 已属性化（格挡率进 st["block"]，受击结算走 _damage_player），不再作为 TAKEN 特效
+check("block 已移出 TAKEN（仅 dmg_reduce 生效 100→97）", out == 97 and "block" not in AFX.TAKEN_EFFECTS)
 b = make_battle()
 b._equip_affix_ids = lambda p: ["thorns"]
 _orig_random = random.random
@@ -237,13 +238,14 @@ check("套装特效 6 种全部注册", implemented <= set(AFX.SET_PROC_EFFECTS.
 check("未实现 eff 与旧代码一致（不注册=无操作）", set4_effs - implemented == set() or not (set4_effs - implemented - set(AFX.SET_PROC_EFFECTS.keys())) or True)
 
 # 词条 id 覆盖：触发型词条全部在对应注册表
+# v106.3 属性化：lifesteal/block 已从触发特效改 stat 折算（affix.py _STAT_AFFIX_FX），不再走 HIT/TAKEN 注册表
 trigger_ids = {
-    "bleed", "armor_break", "combo", "lifesteal", "element_fire", "element_ice",
+    "bleed", "armor_break", "combo", "element_fire", "element_ice",
     "element_thunder", "pierce", "charge", "purify", "judgment_chain", "dragon_tongue",
 }
 hit_covered = set(AFX.HIT_EFFECTS.keys()) - {"purify"} | {"purify", "judgment_chain"}
 check(f"命中词条全覆盖（数据 {len(trigger_ids)} 个）", trigger_ids <= hit_covered)
-taken_ids = {"dmg_reduce", "earth_heart", "block", "tenacity", "counter", "thorns", "ember_ward", "moro_crown"}
+taken_ids = {"dmg_reduce", "earth_heart", "tenacity", "counter", "thorns", "ember_ward", "moro_crown"}
 check("受击词条全覆盖", taken_ids <= set(AFX.TAKEN_EFFECTS.keys()) | {"dmg_reduce", "earth_heart"})
 turn_ids = {"regen", "dawn_crown", "meditate"}
 check("回合开始词条全覆盖", turn_ids <= set(AFX.TURN_START_EFFECTS.keys()) | {"regen", "dawn_crown"})

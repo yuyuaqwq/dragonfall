@@ -38,30 +38,33 @@ RACES = {
         "desc": "敏捷·魔法。月光照过的箭矢，永远比风更快。",
         "talents": {
             "crit_add": 0.08,          # 月之优雅：暴击 +8%
+            "crit_dmg": 0.10,          # v106.3 月华利刃：暴击伤害 +10%（月光既准且狠）
             "explore_item": 0.10,      # 森林之友：探索物品 +10%
             "hp_mult": 0.95,           # 🔻 月缺：最大 HP -5%
         },
-        "talent_names": {"crit_add": "月之优雅", "explore_item": "森林之友", "hp_mult": "月缺"},
+        "talent_names": {"crit_add": "月之优雅", "crit_dmg": "月华利刃", "explore_item": "森林之友", "hp_mult": "月缺"},
     },
     "dwarf": {
         "name": "矮人", "icon": "⛏️",
         "desc": "力量·体质。岩石般的脊梁，比岩石更硬的脾气。",
         "talents": {
             "phys_reduce": 0.10,       # 石肤：受物理伤害 -10%
+            "block": 0.05,             # v106.3 岩壁格挡：格挡率 +5%（铁壁血统，配合石肤双防）
             "craft_bonus": 0.10,       # 熔炉之心：锻造经验 +10%（向上取整，基础 1 点 → 2 点）
             "spd_mult": 0.95,          # 🔻 磐石步履：先手 -5%
         },
-        "talent_names": {"phys_reduce": "石肤", "craft_bonus": "熔炉之心", "spd_mult": "磐石步履"},
+        "talent_names": {"phys_reduce": "石肤", "block": "岩壁格挡", "craft_bonus": "熔炉之心", "spd_mult": "磐石步履"},
     },
     "orc": {
         "name": "兽人", "icon": "👹",
         "desc": "力量·耐力。活着就是战斗，战斗就是荣耀。",
         "talents": {
             "berserk_hp": 0.30,        # 无畏：HP<30% 攻击 +20%
+            "lifesteal": 0.05,         # v106.3 嗜血本能：吸血 +5%（战血即食粮）
             "hp_mult": 1.08,           # 坚韧体魄：最大 HP +8%
             "magic_reduce": -0.05,     # 🔻 鲁莽之心：受魔法伤害 +5%
         },
-        "talent_names": {"berserk_hp": "无畏", "hp_mult": "坚韧体魄", "magic_reduce": "鲁莽之心"},
+        "talent_names": {"berserk_hp": "无畏", "lifesteal": "嗜血本能", "hp_mult": "坚韧体魄", "magic_reduce": "鲁莽之心"},
     },
     "halfling": {
         "name": "半身人", "icon": "🍀",

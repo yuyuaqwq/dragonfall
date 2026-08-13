@@ -59,6 +59,10 @@ _STAT_AFFIX_FX = {
     # v106.2：治疗强度/护盾强度词条
     "heal_power": {"stat": "heal_power", "pct": None, "flat": 0.05},
     "shield_power": {"stat": "shield_power", "pct": None, "flat": 0.05},
+    # v106.3：吸血/暴击伤害/格挡词条折算（lifesteal/block 由触发特效改属性，crit_dmg 补折算）
+    "lifesteal": {"stat": "lifesteal", "pct": None, "flat": 0.08},
+    "crit_dmg": {"stat": "crit_dmg", "pct": None, "flat": 0.20},
+    "block": {"stat": "block", "pct": None, "flat": 0.15},
 }
 
 

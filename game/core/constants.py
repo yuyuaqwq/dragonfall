@@ -65,13 +65,15 @@ CLASS_NOVICE = "cls_novice"      # 见习冒险者（行会就职判定/隐藏�
 # （19 处裸写 ("crit","dodge") 判断"百分比显示属性"，收敛后改显示规则只动这里）
 PCT_STATS = ("crit", "dodge", "precise", "pene_phys", "pene_magi", "tenacity", "luck",
              "cdr", "elem_res", "abyss_res", "exp_bonus", "gold_bonus",
-             "heal_power", "shield_power")    # 以百分比展示的属性（暴击/闪避/精准 v105 + 穿透/韧性/幸运 v106 + 冷却/抗性/成长 v106.1 + 治疗/护盾强度 v106.2）
+             "heal_power", "shield_power",    # v106.2 治疗/护盾强度
+             "lifesteal", "crit_dmg", "block")  # v106.3 吸血/暴击伤害/格挡（面板化，2026-08-13 鱼鱼拍板）
 
 # v106：百分比属性上限表（面板聚合 cap 用；crit 0.5 / dodge 0.4 / 其余 0.6 的旧三目表达式统一收敛）
 PCT_CAPS = {"crit": 0.5, "dodge": 0.4, "precise": 0.6, "pene_phys": 0.6, "pene_magi": 0.6,
             "tenacity": 0.5, "luck": 0.5,
             "cdr": 0.4, "elem_res": 0.5, "abyss_res": 0.5, "exp_bonus": 0.5, "gold_bonus": 0.5,
-            "heal_power": 0.5, "shield_power": 0.5}  # v106.1/v106.2
+            "heal_power": 0.5, "shield_power": 0.5,
+            "lifesteal": 0.3, "crit_dmg": 1.0, "block": 0.4}  # v106.3 吸血30/暴伤100/格挡40
 
 # v106：百分比穿透属性（多来源乘算合成 1-Π(1-pᵢ)，不加法）
 PENE_PCT_STATS = ("pene_phys", "pene_magi")

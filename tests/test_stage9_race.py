@@ -55,10 +55,10 @@ def mk_enemy(name="测试怪", skills=None, matk=10):
 def test_data():
     print("【1. 数据完整性】")
     check("6 种族", len(C.RACES) == 6, str(len(C.RACES)))
-    # 每族 3 条天赋（2 正 1 负，负字段带负系数）
+    # 每族 3-4 条天赋（2-3 正 1 负，负字段带负系数；v106.3 精灵/矮人/兽人新增第 3 正面天赋）
     for rid, r in C.RACES.items():
         t = r["talents"]
-        check(f"{r['name']} 3 天赋", len(t) == 3, str(t))
+        check(f"{r['name']} ≥3 天赋", len(t) >= 3, str(t))
         neg = [k for k, v in t.items() if k in ("hp_mult", "growth_mult", "spd_mult") and v < 1
                or k in ("magic_reduce", "heal_received") and v < 0
                or k == "timid_hp"]
