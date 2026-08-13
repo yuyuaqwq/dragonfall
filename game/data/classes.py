@@ -309,5 +309,259 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "魔剑士",
         "hidden": True,
+    },
+    # ================= v107 隐藏职业扩展（11 个，2026-08-13 鱼鱼拍板设计） =================
+    # 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五
+    # 解锁统一：Lv.40+ 专属任务链（阶段⑥实现，仿 _evolve_bard/_evolve_spellblade 传承式）
+    "cls_arcanist": {
+        "desc": "奥术之巅的法师——法穿 15% + 奥术印记叠层爆发。隐藏职业，需完成奥术回响任务链解锁(40 级)。",
+        "icon": "🔮",
+        "role": "输出",
+        "evolve": ["奥术师(40)", "奥术大师(60)", "奥秘主宰(90)"],
+        "evolve_branches": {
+            1: ["奥术师"],
+            2: ["奥术大师"],
+            3: ["奥秘主宰"],
+        },
+        "base": {
+            "hp": 95, "mp": 130, "atk": 8, "def": 7, "matk": 24, "mdef": 15,
+            "spd": 12, "crit": 0.08, "dodge": 0.05,
+            "pene_magi": 0.15,
+        },
+        "growth": {
+            "hp": 10, "mp": 11, "atk": 0.8, "def": 1.0, "matk": 4.2,
+            "mdef": 1.8, "spd": 0.8
+        },
+        "weapon_type": "staff",
+        "name": "奥术师",
+        "hidden": True,
+    },
+    "cls_shadow_blade": {
+        "desc": "暗影中的收割者——物穿 15% + 暴伤 20%，对残血目标斩杀。隐藏职业，需完成暗影试炼任务链解锁(40 级)。",
+        "icon": "🗡️",
+        "role": "输出",
+        "evolve": ["影武者(40)", "影刃宗师(60)", "无影剑圣(90)"],
+        "evolve_branches": {
+            1: ["影武者"],
+            2: ["影刃宗师"],
+            3: ["无影剑圣"],
+        },
+        "base": {
+            "hp": 100, "mp": 75, "atk": 19, "def": 9, "matk": 7, "mdef": 8,
+            "spd": 20, "crit": 0.22, "dodge": 0.18,
+            "pene_phys": 0.15, "crit_dmg": 0.20,
+        },
+        "growth": {
+            "hp": 13, "mp": 5, "atk": 3.4, "def": 1.3, "matk": 0.6,
+            "mdef": 0.9, "spd": 2.4
+        },
+        "weapon_type": "dagger",
+        "name": "影武者",
+        "hidden": True,
+    },
+    "cls_dragon_warrior": {
+        "desc": "龙血淬体的战士——元素抗 15% + 龙息真伤(绕过全减伤)。隐藏职业，需完成龙骨之血任务链解锁(40 级)。",
+        "icon": "🐉",
+        "role": "坦克",
+        "evolve": ["龙血战士(40)", "龙裔斗士(60)", "龙魂战将(90)"],
+        "evolve_branches": {
+            1: ["龙血战士"],
+            2: ["龙裔斗士"],
+            3: ["龙魂战将"],
+        },
+        "base": {
+            "hp": 160, "mp": 45, "atk": 19, "def": 15, "matk": 6, "mdef": 11,
+            "spd": 10, "crit": 0.05, "dodge": 0.03,
+            "elem_res": 0.15,
+        },
+        "growth": {
+            "hp": 24, "mp": 3, "atk": 3.5, "def": 2.8, "matk": 0.5,
+            "mdef": 1.3, "spd": 0.6
+        },
+        "weapon_type": "sword",
+        "name": "龙血战士",
+        "hidden": True,
+    },
+    "cls_void_walker": {
+        "desc": "行走于深渊的暗影法师——深渊抗 15% + 吸MP(伤害回蓝)。隐藏职业，需完成深渊之门任务链解锁(40 级)。",
+        "icon": "🌑",
+        "role": "输出",
+        "evolve": ["虚空行者(40)", "虚空漫步者(60)", "虚空主宰(90)"],
+        "evolve_branches": {
+            1: ["虚空行者"],
+            2: ["虚空漫步者"],
+            3: ["虚空主宰"],
+        },
+        "base": {
+            "hp": 110, "mp": 110, "atk": 12, "def": 9, "matk": 18, "mdef": 13,
+            "spd": 13, "crit": 0.08, "dodge": 0.06,
+            "abyss_res": 0.15,
+        },
+        "growth": {
+            "hp": 14, "mp": 8, "atk": 1.6, "def": 1.3, "matk": 3.0,
+            "mdef": 1.8, "spd": 1.0
+        },
+        "weapon_type": "staff",
+        "name": "虚空行者",
+        "hidden": True,
+    },
+    "cls_astrologer": {
+        "desc": "仰望星空的射手——幸运 15%，运势联动暴击追加。隐藏职业，需完成占星试炼任务链解锁(40 级)。",
+        "icon": "⭐",
+        "role": "输出",
+        "evolve": ["占星者(40)", "星术师(60)", "命运编织者(90)"],
+        "evolve_branches": {
+            1: ["占星者"],
+            2: ["星术师"],
+            3: ["命运编织者"],
+        },
+        "base": {
+            "hp": 115, "mp": 65, "atk": 16, "def": 10, "matk": 8, "mdef": 9,
+            "spd": 16, "crit": 0.16, "dodge": 0.12,
+            "luck": 0.15,
+        },
+        "growth": {
+            "hp": 15, "mp": 5, "atk": 2.8, "def": 1.6, "matk": 0.8,
+            "mdef": 1.0, "spd": 1.8
+        },
+        "weapon_type": "bow",
+        "name": "占星者",
+        "hidden": True,
+    },
+    "cls_jungle_hunter": {
+        "desc": "生于丛林的猎手——毒系强化，毒层引爆(毒爆)。隐藏职业，需完成丛林试炼任务链解锁(40 级)。",
+        "icon": "🌿",
+        "role": "输出",
+        "evolve": ["丛林猎手(40)", "荒野游侠(60)", "森林之王(90)"],
+        "evolve_branches": {
+            1: ["丛林猎手"],
+            2: ["荒野游侠"],
+            3: ["森林之王"],
+        },
+        "base": {
+            "hp": 115, "mp": 70, "atk": 15, "def": 10, "matk": 9, "mdef": 10,
+            "spd": 17, "crit": 0.14, "dodge": 0.13,
+        },
+        "growth": {
+            "hp": 15, "mp": 6, "atk": 2.7, "def": 1.6, "matk": 1.0,
+            "mdef": 1.1, "spd": 1.9
+        },
+        "weapon_type": "bow",
+        "name": "丛林猎手",
+        "hidden": True,
+    },
+    "cls_templar": {
+        "desc": "圣光的铁壁——护盾强度 15% + 格挡 10%，格挡后反击。隐藏职业，需完成圣光誓约任务链解锁(40 级)。",
+        "icon": "🛡️",
+        "role": "坦克",
+        "evolve": ["圣殿骑士(40)", "圣辉守卫(60)", "圣光壁垒(90)"],
+        "evolve_branches": {
+            1: ["圣殿骑士"],
+            2: ["圣辉守卫"],
+            3: ["圣光壁垒"],
+        },
+        "base": {
+            "hp": 130, "mp": 100, "atk": 12, "def": 15, "matk": 14, "mdef": 16,
+            "spd": 10, "crit": 0.05, "dodge": 0.05,
+            "shield_power": 0.15, "block": 0.10,
+        },
+        "growth": {
+            "hp": 18, "mp": 7, "atk": 1.4, "def": 2.4, "matk": 2.2,
+            "mdef": 2.4, "spd": 0.6
+        },
+        "weapon_type": "mace",
+        "name": "圣殿骑士",
+        "hidden": True,
+    },
+    "cls_wu_sheng": {
+        "desc": "以武证道的拳师——连击强化(三连 0.50)，受击反击。隐藏职业，需完成武圣试炼任务链解锁(40 级)。",
+        "icon": "🥊",
+        "role": "输出",
+        "evolve": ["武圣(40)", "武尊(60)", "武神(90)"],
+        "evolve_branches": {
+            1: ["武圣"],
+            2: ["武尊"],
+            3: ["武神"],
+        },
+        "base": {
+            "hp": 140, "mp": 60, "atk": 16, "def": 12, "matk": 6, "mdef": 11,
+            "spd": 14, "crit": 0.10, "dodge": 0.12,
+        },
+        "growth": {
+            "hp": 19, "mp": 4, "atk": 3.0, "def": 2.1, "matk": 0.5,
+            "mdef": 1.6, "spd": 1.5
+        },
+        "weapon_type": "fist",
+        "name": "武圣",
+        "hidden": True,
+    },
+    "cls_blood_mage": {
+        "desc": "以血换伤的法师——法吸 15% + 血魔法(消耗HP换高伤)。隐藏职业，需完成血之契约任务链解锁(40 级)。",
+        "icon": "🧛",
+        "role": "输出",
+        "evolve": ["血法师(40)", "猩红术士(60)", "血之君主(90)"],
+        "evolve_branches": {
+            1: ["血法师"],
+            2: ["猩红术士"],
+            3: ["血之君主"],
+        },
+        "base": {
+            "hp": 100, "mp": 120, "atk": 8, "def": 7, "matk": 23, "mdef": 14,
+            "spd": 12, "crit": 0.08, "dodge": 0.05,
+            "lifesteal_magi": 0.15,
+        },
+        "growth": {
+            "hp": 12, "mp": 10, "atk": 0.8, "def": 1.0, "matk": 4.0,
+            "mdef": 1.8, "spd": 0.8
+        },
+        "weapon_type": "staff",
+        "name": "血法师",
+        "hidden": True,
+    },
+    "cls_necromancer": {
+        "desc": "执掌亡灵的术士——召唤强化 20%，骷髅海(数量流) + 死亡契约。隐藏职业，需完成亡者低语任务链解锁(40 级)。",
+        "icon": "💀",
+        "role": "输出",
+        "evolve": ["亡灵术士(40)", "亡魂导师(60)", "死亡领主(90)"],
+        "evolve_branches": {
+            1: ["亡灵术士"],
+            2: ["亡魂导师"],
+            3: ["死亡领主"],
+        },
+        "base": {
+            "hp": 115, "mp": 115, "atk": 10, "def": 12, "matk": 17, "mdef": 15,
+            "spd": 10, "crit": 0.05, "dodge": 0.05,
+            "summon_power": 0.20,
+        },
+        "growth": {
+            "hp": 15, "mp": 8, "atk": 1.2, "def": 1.9, "matk": 2.8,
+            "mdef": 2.2, "spd": 0.7
+        },
+        "weapon_type": "mace",
+        "name": "亡灵术士",
+        "hidden": True,
+    },
+    "cls_beast_king": {
+        "desc": "与兽同行的驭兽师——召唤强化 30%，单宠进化(质量流)，宠强人弱。隐藏职业，需完成万兽之约任务链解锁(40 级)。",
+        "icon": "🐺",
+        "role": "输出",
+        "evolve": ["兽王(40)", "万兽之王(60)", "荒野之主(90)"],
+        "evolve_branches": {
+            1: ["兽王"],
+            2: ["万兽之王"],
+            3: ["荒野之主"],
+        },
+        "base": {
+            "hp": 120, "mp": 65, "atk": 15, "def": 11, "matk": 7, "mdef": 9,
+            "spd": 17, "crit": 0.13, "dodge": 0.12,
+            "summon_power": 0.30,
+        },
+        "growth": {
+            "hp": 16, "mp": 5, "atk": 2.6, "def": 1.7, "matk": 0.6,
+            "mdef": 1.0, "spd": 2.0
+        },
+        "weapon_type": "bow",
+        "name": "兽王",
+        "hidden": True,
     }
 }
