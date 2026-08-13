@@ -21,7 +21,6 @@ MON_SKILL_CHANCE = 0.3         # battle.py:1294 怪物技能使用概率
 MON_SKILL_CRIT = 0.1           # battle.py:1308 怪物技能暴击率
 SHIELD_COUNTER_CHANCE = 0.6    # battle.py:1597 v51 盾牌反击概率（反击 120% 伤害）
 REFLECT_CHANCE = 0.25          # battle.py:1605 龙鳞套反弹概率（反弹 25% 伤害）
-HOLY_TENACITY_CHANCE = 0.20    # battle.py:1648 v64 神圣坚韧受击回复概率
 ENCOUNTER_EVENT_CHANCE = 0.35  # combat.py:95 探索随机事件概率（野外/外郊/核心区）
 SA_BOSS_CHANCE = 0.05          # combat.py:125/202 子区域 Boss 出现概率
 ENCOUNTER_LOW_CHANCE = 0.5     # combat.py:144 普通怪低概率（新手保护）
