@@ -58,7 +58,7 @@ async def main():
     check("传承成功", "吟游诗人" in out and "传承完成" in out, out[:250])
     p = db.get_player("g1", "w1")
     check("职业已切换", p["class_name"] == "cls_bard", str(p["class_name"]))
-    check("转职清零", p.get("class_tier") == 0 and p.get("evolve_path") == 0, str((p.get("class_tier"), p.get("evolve_path"))))
+    check("转职清零", p.get("class_tier") == 1 and p.get("evolve_path") == 1, str((p.get("class_tier"), p.get("evolve_path"))))
     check("学到初始技能", "即兴弹唱" in p["learned_skills"], str(p["learned_skills"]))
     check("HP 按诗人重算", p["max_hp"] == p["hp"] and p["max_hp"] > 0, str(p["max_hp"]))
     # 再转提示已是诗人
@@ -67,7 +67,7 @@ async def main():
     # 等级不足
     db.update_player("g1", "w1", class_name="cls_zhan_shi", hidden_class_unlock=["cls_bard"], level=10)
     out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
-    check("等级不足拦截", "30 级" in out, out[:150])
+    check("等级不足拦截", "Lv.30" in out, out[:150])
 
     # ---- 4. 成就 cond ----
     from data.plugins.dragonfall.game.core.achievements import cond_met

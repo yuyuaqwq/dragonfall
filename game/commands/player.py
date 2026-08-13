@@ -506,21 +506,22 @@ class PlayerCmds(CommandBase):
     async def evolve(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        # v83 22 章：隐藏职业·吟游诗人（『转职 吟游诗人』）
         _raw0 = self._strip_cmd(event, "转职").strip()
-        if "吟游诗人" in _raw0 or _raw0 == "诗人":
-            async for r in self._evolve_bard(event, group_id, qq_id, player):
+        # v108 职业树：隐藏职业统一路由（『转职 <档位名>』T1/T2/T3 全名 + 短别名）
+        routes = self._hidden_class_routes()
+        if _raw0 in routes:
+            cls_id, tgt_tier = routes[_raw0]
+            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, cls_id, tgt_tier):
                 yield r
             return
-        # v87 09 章九：隐藏职业·魔剑士（『转职 魔剑士』）
-        if "魔剑士" in _raw0 or _raw0 == "剑士":
-            async for r in self._evolve_spellblade(event, group_id, qq_id, player):
+        alias = self._HIDDEN_ALIASES.get(_raw0)
+        if alias:
+            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, alias, 1):
                 yield r
             return
-        # v107 隐藏职业 11 个（『转职 <职业名>』，Lv.40+ 传承式解锁）
-        _v107_cls = self._V107_HIDDEN_MAP.get(_raw0)
-        if _v107_cls:
-            async for r in self._evolve_hidden_v107(_v107_cls, event, group_id, qq_id, player):
+        # 隐藏职业玩家『转职』(无参数)：显示传承之路（下一阶/已满）
+        if not _raw0 and C.CLASSES.get(player["class_name"], {}).get("hidden"):
+            async for r in self._evolve_hidden_status(event, group_id, qq_id, player):
                 yield r
             return
         cls = C.CLASSES[player["class_name"]]
@@ -588,139 +589,135 @@ class PlayerCmds(CommandBase):
             return evolve[tier - 1].split("(")[0]
         return C.display("classes", class_name) if isinstance(class_name, str) else class_name
 
-    async def _evolve_bard(self, event, group_id, qq_id, player):
-        """v83 22 章：隐藏职业·吟游诗人传承转职(30 级 + 已解锁 + 非诗人)"""
-        unlocks = player.get("hidden_class_unlock", [])
-        if "cls_bard" not in unlocks:
-            yield event.plain_result(
-                "🎻 吟游诗人的传承还未向你敞开……\n"
-                "💡 线索：听完 3 位诗人的全部歌谣(成就「史诗聆听者」)，再到精灵歌剧院寻找传承。"
-            )
-            return
-        if player["level"] < 30:
-            yield event.plain_result(
-                f"🎻 传承需要 30 级历练，当前 Lv.{player['level']}，先游历四方吧。")
-            return
-        if player["class_name"] == "cls_bard":
-            yield event.plain_result("🎻 你已是吟游诗人了。")
-            return
-        cls = C.CLASSES["cls_bard"]
-        sk_table = C.PLAYER_SKILLS.get("cls_bard", {}).get("skills", {})
-        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 1]
-        st = E.player_final_stats(
-            "cls_bard", player["level"], player.get("equipment", {}), 0,
-            player.get("attributes"), 0,
-            self._title_bonus(group_id, qq_id), player.get("race"))
-        db.update_player(group_id, qq_id,
-                         class_name="cls_bard", class_tier=0, evolve_path=0,
-                         max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
-                         learned_skills=init_skills)
-        player = self._player(group_id, qq_id)
-        C.check_achievements(group_id, qq_id, player)
-        yield event.plain_result(
-            f"🎻 传承完成！你成为了【{cls['icon']}吟游诗人】！\n"
-            f"━━━━━━━━━━━━\n"
-            f"琴弦轻拨，古老的歌谣在血脉中苏醒……\n"
-            f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
-            f"💡 你的歌声将成为队伍的力量(辅助定位，副本中尤为闪耀)！"
-        )
-        return
-
-    # v107 隐藏职业表（『转职 <职业名>』路由）：中文名 → cls_id
-    _V107_HIDDEN_MAP = {
-        "奥术师": "cls_arcanist", "奥术": "cls_arcanist",
-        "影武者": "cls_shadow_blade", "影武": "cls_shadow_blade",
-        "龙血战士": "cls_dragon_warrior", "龙血": "cls_dragon_warrior",
-        "虚空行者": "cls_void_walker", "虚空": "cls_void_walker",
-        "占星者": "cls_astrologer", "占星": "cls_astrologer",
-        "丛林猎手": "cls_jungle_hunter", "丛林": "cls_jungle_hunter",
-        "圣殿骑士": "cls_templar", "圣殿": "cls_templar",
-        "武圣": "cls_wu_sheng",
-        "血法师": "cls_blood_mage", "血法": "cls_blood_mage",
-        "亡灵术士": "cls_necromancer", "亡灵": "cls_necromancer",
-        "兽王": "cls_beast_king",
+    # ==================== v108 职业树：隐藏职业统一路由（修为继承） ====================
+    # 短别名（『转职 奥术』等）→ cls_id；档位全名由 _hidden_class_routes 动态反查
+    _HIDDEN_ALIASES = {
+        "奥术": "cls_arcanist", "影武": "cls_shadow_blade", "龙血": "cls_dragon_warrior",
+        "虚空": "cls_void_walker", "占星": "cls_astrologer", "丛林": "cls_jungle_hunter",
+        "圣殿": "cls_templar", "血法": "cls_blood_mage", "亡灵": "cls_necromancer",
+        "诗人": "cls_bard", "剑士": "cls_spellblade",
+    }
+    # v108 隐藏线档位门槛（修为继承用；未配置的 v107 默认 40/60/90）
+    _HIDDEN_TIER_LEVELS = {
+        "cls_bard": {1: 30, 2: 60, 3: 90},
+        "cls_spellblade": {1: 60, 2: 75, 3: 90},
+    }
+    _DEFAULT_HIDDEN_TIER_LEVELS = {1: 40, 2: 60, 3: 90}
+    # 未解锁时的专属线索文案（v107 用 desc 兜底）
+    _HIDDEN_UNLOCK_HINTS = {
+        "cls_bard": "🎻 线索：听完 3 位诗人的全部歌谣(成就「史诗聆听者」)，再到精灵歌剧院寻找传承。",
+        "cls_spellblade": "⚔️ 线索：击败符文魔像收集符文碎片，集齐 3 张泛黄书页进入 H6 失落图书馆，找魔剑士残魂接受试炼「剑与书的誓约」。",
+    }
+    # 血缘叙事（v108 职业树：转职文案，渊源根基的传承感）
+    _HIDDEN_LORE = {
+        "cls_dragon_warrior": "狂战士血脉中的龙血悄然觉醒……",
+        "cls_templar": "盾卫士之道沐浴圣光，誓约成盾……",
+        "cls_arcanist": "元素之道走向奥术之巅……",
+        "cls_void_walker": "奥术之道的深渊变奏在耳边低语……",
+        "cls_blood_mage": "元素之道的禁忌堕落，血即魔力……",
+        "cls_astrologer": "猎魔人之路仰望星象，命运在弦上……",
+        "cls_jungle_hunter": "风行者之路回归自然，丛林即猎场……",
+        "cls_beast_king": "猎魔人之路与兽同行，万兽听令……",
+        "cls_necromancer": "神谕者之路坠入黑暗，亡者低语……",
+        "cls_shadow_blade": "影舞者之道的极致，暗影即身……",
+        "cls_wu_sheng": "拳斗士之道的终点，以武证道……",
+        "cls_bard": "琴弦轻拨，古老的歌谣在血脉中苏醒……",
+        "cls_spellblade": "剑与书在血脉中共鸣，尘封的魔能重新流转……",
     }
 
-    async def _evolve_hidden_v107(self, cls_id, event, group_id, qq_id, player):
-        """v107 隐藏职业通用传承转职（Lv.40+ 已解锁 + 非当前职业）。
-        11 职业共用一套流程，文案从 CLASSES desc 提取（仿 _evolve_bard/_evolve_spellblade）。"""
+    def _hidden_class_routes(self) -> dict:
+        """动态构建：隐藏职业档位全名 → (cls_id, tier)（evolve_branches 反查）"""
+        routes = {}
+        for cls_id, cls in C.CLASSES.items():
+            if not cls.get("hidden"):
+                continue
+            for tier, names in (cls.get("evolve_branches") or {}).items():
+                for n in names:
+                    routes[n] = (cls_id, int(tier))
+        return routes
+
+    def _hidden_tier_levels(self, cls_id: str) -> dict:
+        """隐藏线档位门槛：配置优先，v107 默认 40/60/90"""
+        return self._HIDDEN_TIER_LEVELS.get(cls_id, self._DEFAULT_HIDDEN_TIER_LEVELS)
+
+    async def _evolve_hidden_status(self, event, group_id, qq_id, player):
+        """隐藏职业玩家『转职』(无参数)：显示传承之路（下一阶/已满）"""
+        cls_id = player["class_name"]
+        cls = C.CLASSES[cls_id]
+        tier = player.get("class_tier", 0)
+        tlv = self._hidden_tier_levels(cls_id)
+        next_tier = tier + 1
+        need_lv = tlv.get(next_tier)
+        if not need_lv:
+            yield event.plain_result(f"👑 你已完成全部传承！{self._tier_title(cls_id, tier, 1)}")
+            return
+        names = cls.get("evolve_branches", {}).get(next_tier, [])
+        nname = names[0] if names else "下一阶"
+        if player["level"] < need_lv:
+            yield event.plain_result(
+                f"{cls['icon']} 传承之路：下一阶【{nname}】需要 Lv.{need_lv}，当前 Lv.{player['level']}。")
+            return
+        yield event.plain_result(
+            f"{cls['icon']} 传承之路：下一阶【{nname}】(Lv.{need_lv})已就绪！\n"
+            f"『转职 {nname}』接受传承。")
+
+    async def _evolve_hidden_generic(self, event, group_id, qq_id, player, cls_id, tgt_tier):
+        """v108 职业树：隐藏职业通用传承转职（修为继承）。
+        校验：解锁 + 等级 >= 目标档门槛 + 档位状态合法（同职业只能逐阶升）。
+        修为继承：目标档位由命令名决定、等级门槛校验——60 级『转职 奥术大师』= 直接 T2。
+        技能继承：该职业 PLAYER_SKILLS 中 lv <= 当前等级的全部技能。"""
         cls = C.CLASSES[cls_id]
         cname = cls["name"]
         icon = cls.get("icon", "✨")
-        # 解锁检查：hidden_class_unlock 需含 cls_id（任务链 NPC 交付时写入，world.py 同款机制）
         unlocks = player.get("hidden_class_unlock", [])
         if cls_id not in unlocks:
-            yield event.plain_result(
-                f"{icon} {cname}的传承还未向你敞开……\n"
-                f"💡 {cls.get('desc', '').split('。')[0]}。\n"
-                f"🔍 前往对应导师处完成试炼即可解锁传承（Lv.40+）。"
-            )
+            hint = self._HIDDEN_UNLOCK_HINTS.get(
+                cls_id, f"💡 {cls.get('desc', '').split('。')[0]}。\n🔍 前往对应导师处完成试炼即可解锁传承。")
+            yield event.plain_result(f"{icon} {cname}的传承还未向你敞开……\n{hint}")
             return
-        if player["level"] < 40:
-            yield event.plain_result(
-                f"{icon} 传承需要 40 级历练，当前 Lv.{player['level']}，先游历四方吧。")
+        tlv = self._hidden_tier_levels(cls_id)
+        need_lv = tlv.get(tgt_tier)
+        if not need_lv:
+            yield event.plain_result(f"{icon} {cname}的传承之路已到尽头。")
             return
+        if player["level"] < need_lv:
+            yield event.plain_result(
+                f"{icon} 这一阶传承需要 Lv.{need_lv} 历练，当前 Lv.{player['level']}，先游历四方吧。")
+            return
+        cur_tier = player.get("class_tier", 0)
         if player["class_name"] == cls_id:
-            yield event.plain_result(f"{icon} 你已是{cname}了。")
-            return
+            if cur_tier >= tgt_tier:
+                yield event.plain_result(
+                    f"{icon} 你已是{cname}（{self._branch_title(cls_id, cur_tier, 1)}）。")
+                return
+            if cur_tier != tgt_tier - 1:
+                yield event.plain_result("时机未到，先巩固当前境界吧。")
+                return
+        # 技能继承：lv <= 当前等级全部（跨职业转入覆盖；同职业升档为超集）
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {})
-        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 40]
+        init_skills = [s for s, info in sk_table.items() if info["lv"] <= player.get("level", 1)]
         st = E.player_final_stats(
-            cls_id, player["level"], player.get("equipment", {}), 0,
-            player.get("attributes"), 0,
+            cls_id, player["level"], player.get("equipment", {}), tgt_tier,
+            player.get("attributes"), 1,
             self._title_bonus(group_id, qq_id), player.get("race"))
         db.update_player(group_id, qq_id,
-                         class_name=cls_id, class_tier=0, evolve_path=0,
+                         class_name=cls_id, class_tier=tgt_tier, evolve_path=1,
                          max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=init_skills)
         player = self._player(group_id, qq_id)
         C.check_achievements(group_id, qq_id, player)
         learned = [C.display('skills', sk) for sk in init_skills]
-        yield event.plain_result(
-            f"{icon} 传承完成！你成为了【{icon}{cname}】！\n"
-            f"━━━━━━━━━━━━\n"
-            f"{cls.get('desc', '').split('。')[0]}。\n"
-            f"🌟 领悟：{'、'.join(learned) if learned else '（进阶技能请找导师学习）'}"
-        )
-        return
-
-    async def _evolve_spellblade(self, event, group_id, qq_id, player):
-        """v87 09 章九：隐藏职业·魔剑士传承转职(60 级 + 已解锁 + 非魔剑士)"""
-        unlocks = player.get("hidden_class_unlock", [])
-        if "cls_spellblade" not in unlocks:
-            yield event.plain_result(
-                "⚔️ 魔剑士的传承还未向你敞开……\n"
-                "💡 线索：击败符文魔像收集符文碎片，集齐 3 张泛黄书页进入 H6 失落图书馆，找魔剑士残魂接受试炼「剑与书的誓约」。"
-            )
-            return
-        if player["level"] < 60:
-            yield event.plain_result(
-                f"⚔️ 传承需要 60 级历练，当前 Lv.{player['level']}，先锤炼剑术与魔法吧。")
-            return
-        if player["class_name"] == "cls_spellblade":
-            yield event.plain_result("⚔️ 你已是魔剑士了。")
-            return
-        cls = C.CLASSES["cls_spellblade"]
-        sk_table = C.PLAYER_SKILLS.get("cls_spellblade", {}).get("skills", {})
-        init_skills = [s for s, info in sk_table.items() if info["lv"] <= 60]
-        st = E.player_final_stats(
-            "cls_spellblade", player["level"], player.get("equipment", {}), 0,
-            player.get("attributes"), 0,
-            self._title_bonus(group_id, qq_id), player.get("race"))
-        db.update_player(group_id, qq_id,
-                         class_name="cls_spellblade", class_tier=0, evolve_path=0,
-                         max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
-                         learned_skills=init_skills)
-        player = self._player(group_id, qq_id)
-        C.check_achievements(group_id, qq_id, player)
-        yield event.plain_result(
-            f"⚔️ 传承完成！你成为了【{cls['icon']}魔剑士】！\n"
-            f"━━━━━━━━━━━━\n"
-            f"剑与书在血脉中共鸣，尘封的魔能重新流转……\n"
-            f"🌟 领悟：{'、'.join(C.display('skills', sk) for sk in init_skills)}\n"
-            f"💡 魔能斩命中叠魔能，符文刻印每回合充能——叠层→爆发，打出你的节奏！"
-        )
-        return
+        title = self._branch_title(cls_id, tgt_tier, 1)
+        lore = self._HIDDEN_LORE.get(cls_id, "")
+        lines = [f"{icon} 传承完成！你成为了【{icon}{title}】！", "━━━━━━━━━━━━"]
+        if lore:
+            lines.append(lore)
+        lines.append(f"🌟 领悟：{'、'.join(learned) if learned else '（进阶技能请找导师学习）'}")
+        if cls_id == "cls_bard":
+            lines.append("💡 你的歌声将成为队伍的力量(辅助定位，副本中尤为闪耀)！")
+        elif cls_id == "cls_spellblade":
+            lines.append("💡 魔能斩命中叠魔能，符文刻印每回合充能——叠层→爆发，打出你的节奏！")
+        yield event.plain_result("\n".join(lines))
 
     def _evolve_auto_skills(self, player: dict, next_tier: int) -> list:
         """转职自动获得的技能(二转被动 60 级 / 三转奥义 90 级)"""
@@ -904,6 +901,40 @@ class PlayerCmds(CommandBase):
             return
         # 清除分支技能（learned_skills 中属于分支的）+ 分支技能等级
         cls = player["class_name"]
+        cls_meta = C.CLASSES.get(cls, {})
+        if cls_meta.get("hidden"):
+            # v108 职业树：隐藏职业重置 = 回到渊源根基职业（付费反悔通道）
+            src = cls_meta.get("src_base", "cls_zhan_shi")
+            src_cls = C.CLASSES.get(src, {})
+            src_table = C.PLAYER_SKILLS.get(src, {})
+            if isinstance(src_table, dict) and "skills" in src_table:
+                src_table = src_table["skills"]
+            init_skills = [s for s, info in src_table.items() if info["lv"] <= 1]
+            st = E.player_final_stats(
+                src, player["level"], player.get("equipment", {}), 0,
+                player.get("attributes"), 0,
+                self._title_bonus(group_id, qq_id), player.get("race"))
+            db.update_player(group_id, qq_id,
+                             gold=player["gold"] - cost,
+                             class_name=src, class_tier=0, evolve_path=0,
+                             max_hp=st["max_hp"], max_mp=st["max_mp"],
+                             hp=st["max_hp"], mp=st["max_mp"],
+                             learned_skills=init_skills)
+            try:
+                bar = db.get_skill_bar(qq_id) or []
+                nbar = [b if (b is None or b in init_skills) else None for b in bar]
+                db.set_skill_bar(qq_id, nbar)
+            except Exception:
+                pass
+            old_title = self._tier_title(cls, tier, player.get("evolve_path", 0))
+            yield event.plain_result(
+                f"🔄 转职重置成功！(花费 {cost} 金币)\n"
+                f"━━━━━━━━━━━━\n"
+                f"{old_title} → 回到根基职业【{src_cls.get('icon', '')} {src_cls.get('name', src)}】\n"
+                f"✨ 等级保留，{cls_meta.get('name', cls)} 的传承已散去\n"
+                f"💡 完成试炼可再次『转职 <隐藏职业>』重新传承！"
+            )
+            return
         learned = list(player.get("learned_skills", []))
         keep = []
         removed = []

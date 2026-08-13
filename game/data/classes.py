@@ -63,6 +63,7 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "吟游诗人",
         "hidden": True,
+        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基（重置回退兜底，全系奇遇线）
     },
     "cls_zhan_shi": {
         "desc": "身穿重甲、手持巨剑的钢铁壁垒，正面硬刚一切敌人。",
@@ -70,10 +71,10 @@ CLASSES = {
         "role": "坦克",
         "evolve": ["狂战士(30)", "狂战统领(60)", "战争领主(90)"],
                 "evolve_branches": {
-            1: ["狂战士", "盾卫士"],
-            2: ["狂战统领", "圣殿骑士"],
-            3: ["战争领主", "圣辉骑士"],
-        },
+                    1: ["狂战士", "盾卫士"],
+                    2: ["狂战统领", "坚盾卫士"],
+                    3: ["战争领主", "坚城统帅"],
+                },
         "base": {
             "hp": 150,
             "mp": 40,
@@ -309,10 +310,11 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "魔剑士",
         "hidden": True,
+        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基
     },
     # ================= v107 隐藏职业扩展（11 个，2026-08-13 鱼鱼拍板设计） =================
     # 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五
-    # 解锁统一：Lv.40+ 专属任务链（阶段⑥实现，仿 _evolve_bard/_evolve_spellblade 传承式）
+    # 解锁统一：Lv.40+ 专属任务链（阶段⑥实现；v108 职业树起统一走 _evolve_hidden_generic 修为继承转职）
     "cls_arcanist": {
         "desc": "奥术之巅的法师——法穿 15% + 奥术印记叠层爆发。隐藏职业，需完成奥术回响任务链解锁(40 级)。",
         "icon": "🔮",
@@ -335,6 +337,7 @@ CLASSES = {
         "weapon_type": "staff",
         "name": "奥术师",
         "hidden": True,
+        "src_base": "cls_fa_shi",  # v108 职业树：渊源根基
     },
     "cls_shadow_blade": {
         "desc": "暗影中的收割者——物穿 15% + 暴伤 20%，对残血目标斩杀。隐藏职业，需完成暗影试炼任务链解锁(40 级)。",
@@ -358,6 +361,7 @@ CLASSES = {
         "weapon_type": "dagger",
         "name": "影武者",
         "hidden": True,
+        "src_base": "cls_ci_ke",  # v108 职业树：渊源根基
     },
     "cls_dragon_warrior": {
         "desc": "龙血淬体的战士——元素抗 15% + 龙息真伤(绕过全减伤)。隐藏职业，需完成龙骨之血任务链解锁(40 级)。",
@@ -381,6 +385,7 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "龙血战士",
         "hidden": True,
+        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基
     },
     "cls_void_walker": {
         "desc": "行走于深渊的暗影法师——深渊抗 15% + 吸MP(伤害回蓝)。隐藏职业，需完成深渊之门任务链解锁(40 级)。",
@@ -404,6 +409,7 @@ CLASSES = {
         "weapon_type": "staff",
         "name": "虚空行者",
         "hidden": True,
+        "src_base": "cls_fa_shi",  # v108 职业树：渊源根基
     },
     "cls_astrologer": {
         "desc": "仰望星空的射手——幸运 15%，运势联动暴击追加。隐藏职业，需完成占星试炼任务链解锁(40 级)。",
@@ -427,6 +433,7 @@ CLASSES = {
         "weapon_type": "bow",
         "name": "占星者",
         "hidden": True,
+        "src_base": "cls_you_xia",  # v108 职业树：渊源根基
     },
     "cls_jungle_hunter": {
         "desc": "生于丛林的猎手——毒系强化，毒层引爆(毒爆)。隐藏职业，需完成丛林试炼任务链解锁(40 级)。",
@@ -449,6 +456,7 @@ CLASSES = {
         "weapon_type": "bow",
         "name": "丛林猎手",
         "hidden": True,
+        "src_base": "cls_you_xia",  # v108 职业树：渊源根基
     },
     "cls_templar": {
         "desc": "圣光的铁壁——护盾强度 15% + 格挡 10%，格挡后反击。隐藏职业，需完成圣光誓约任务链解锁(40 级)。",
@@ -472,6 +480,7 @@ CLASSES = {
         "weapon_type": "mace",
         "name": "圣殿骑士",
         "hidden": True,
+        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基
     },
     "cls_wu_sheng": {
         "desc": "以武证道的拳师——连击强化(三连 0.50)，受击反击。隐藏职业，需完成武圣试炼任务链解锁(40 级)。",
@@ -494,6 +503,7 @@ CLASSES = {
         "weapon_type": "fist",
         "name": "武圣",
         "hidden": True,
+        "src_base": "cls_wu_seng",  # v108 职业树：渊源根基
     },
     "cls_blood_mage": {
         "desc": "以血换伤的法师——法吸 15% + 血魔法(消耗HP换高伤)。隐藏职业，需完成血之契约任务链解锁(40 级)。",
@@ -517,6 +527,7 @@ CLASSES = {
         "weapon_type": "staff",
         "name": "血法师",
         "hidden": True,
+        "src_base": "cls_fa_shi",  # v108 职业树：渊源根基
     },
     "cls_necromancer": {
         "desc": "执掌亡灵的术士——召唤强化 20%，骷髅海(数量流) + 死亡契约。隐藏职业，需完成亡者低语任务链解锁(40 级)。",
@@ -540,6 +551,7 @@ CLASSES = {
         "weapon_type": "mace",
         "name": "亡灵术士",
         "hidden": True,
+        "src_base": "cls_mu_shi",  # v108 职业树：渊源根基
     },
     "cls_beast_king": {
         "desc": "与兽同行的驭兽师——召唤强化 30%，单宠进化(质量流)，宠强人弱。隐藏职业，需完成万兽之约任务链解锁(40 级)。",
@@ -563,5 +575,6 @@ CLASSES = {
         "weapon_type": "bow",
         "name": "兽王",
         "hidden": True,
+        "src_base": "cls_you_xia",  # v108 职业树：渊源根基
     }
 }

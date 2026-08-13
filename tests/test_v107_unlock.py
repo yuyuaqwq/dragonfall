@@ -47,7 +47,7 @@ async def main():
     print("【2. 已解锁但等级不足】")
     db.update_player("g1", "w1", hidden_class_unlock=["cls_beast_king"])
     out = await cmd(m, "evolve", "g1", "w1", "转职 兽王")
-    check("等级不足提示", "40 级" in out, out[:200])
+    check("等级不足提示", "Lv.40" in out, out[:200])
 
     print("【3. 40 级转职成功】")
     db.update_player("g1", "w1", level=40)

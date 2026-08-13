@@ -132,19 +132,31 @@ def main():
         mid = C.resolve("materials", n)
         check(f"材料 {n} 已注册", mid in C.MATERIALS, f"resolve={mid}")
 
-    # ===== 8. 转职链路 =====
+    # ===== 8. 转职链路（v108 职业树：统一 _evolve_hidden_generic 路由） =====
     print("  · 转职链路")
     from data.plugins.dragonfall.main import Main
     inst = Main.__new__(Main)
-    check("_evolve_spellblade 方法存在", hasattr(inst, "_evolve_spellblade"))
-    # evolve 路由：检查 player.py 源码里 转职 分发包含 cls_spellblade
+    check("_evolve_hidden_generic 方法存在", hasattr(inst, "_evolve_hidden_generic"))
+    check("_hidden_class_routes 方法存在", hasattr(inst, "_hidden_class_routes"))
+    # 魔剑士档位全名（60/75/90）入路由表
+    routes = inst._hidden_class_routes()
+    check("路由表含 魔剑士/魔剑宗师/剑圣",
+          "魔剑士" in routes and "魔剑宗师" in routes and "剑圣" in routes,
+          f"缺: {[n for n in ['魔剑士', '魔剑宗师', '剑圣'] if n not in routes]}")
+    check("魔剑士档位路由正确", routes.get("魔剑士") == ("cls_spellblade", 1)
+          and routes.get("魔剑宗师") == ("cls_spellblade", 2)
+          and routes.get("剑圣") == ("cls_spellblade", 3), str(routes.get("魔剑士")))
+    # 特色档位门槛 60/75/90
+    tlv = inst._hidden_tier_levels("cls_spellblade")
+    check("魔剑士档位门槛 60/75/90", tlv == {1: 60, 2: 75, 3: 90}, str(tlv))
+    # evolve 路由：检查 player.py 源码里 转职 分发含 _hidden_class_routes
     import inspect
     try:
         src = inspect.getsource(type(inst).evolve) if hasattr(inst, "evolve") else ""
-        routed = "cls_spellblade" in src or "_evolve_spellblade" in src
-        check("evolve 路由含魔剑士", routed)
+        routed = "_hidden_class_routes" in src and "_evolve_hidden_generic" in src
+        check("evolve 路由含魔剑士(统一路由)", routed)
     except Exception:
-        check("evolve 路由含魔剑士", False, "无法检查源码")
+        check("evolve 路由含魔剑士(统一路由)", False, "无法检查源码")
 
     # ===== 9. 成就 =====
     print("  · 成就")
