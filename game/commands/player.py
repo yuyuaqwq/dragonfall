@@ -623,8 +623,8 @@ class PlayerCmds(CommandBase):
         "cls_necromancer": "神谕者之路坠入黑暗，亡者低语……",
         "cls_shadow_blade": "影舞者之道的极致，暗影即身……",
         "cls_wu_sheng": "拳斗士之道的终点，以武证道……",
-        "cls_bard": "琴弦轻拨，古老的歌谣在血脉中苏醒……",
-        "cls_spellblade": "剑与书在血脉中共鸣，尘封的魔能重新流转……",
+        "cls_bard": "神谕者以祈祷治愈，你以歌谣治愈——圣歌在琴弦上苏醒……",
+        "cls_spellblade": "狂战士的血脉与书页共鸣，剑与法在手中合一……",
     }
 
     def _hidden_class_routes(self) -> dict:
@@ -676,6 +676,14 @@ class PlayerCmds(CommandBase):
             hint = self._HIDDEN_UNLOCK_HINTS.get(
                 cls_id, f"💡 {cls.get('desc', '').split('。')[0]}。\n🔍 前往对应导师处完成试炼即可解锁传承。")
             yield event.plain_result(f"{icon} {cname}的传承还未向你敞开……\n{hint}")
+            return
+        # v108.2 血缘限制：只有渊源根基职业（含其分支线）可传承，杜绝"全系奇遇"
+        src = cls.get("src_base", "")
+        if player["class_name"] != cls_id and player["class_name"] != src:
+            src_name = C.CLASSES.get(src, {}).get("name", "对应职业")
+            yield event.plain_result(
+                f"{icon} {cname}的传承只向{src_name}一脉的传人敞开……\n"
+                f"💡 先以{src_name}的身份历练，再寻访这份传承。")
             return
         tlv = self._hidden_tier_levels(cls_id)
         need_lv = tlv.get(tgt_tier)

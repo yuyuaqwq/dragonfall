@@ -47,7 +47,7 @@ async def main():
     check("未创建玩家", db.get_player("g2", "w2") is None, "")
 
     # ---- 3. 传承转职流程 ----
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
+    await cmd(m, "register", "g1", "w1", "注册 牧师 旅人 男")
     db.update_player("g1", "w1", level=30, gold=5000)
     # 未解锁时被拦
     out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
@@ -65,7 +65,7 @@ async def main():
     out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
     check("已是诗人提示", "已是吟游诗人" in out, out[:150])
     # 等级不足
-    db.update_player("g1", "w1", class_name="cls_zhan_shi", hidden_class_unlock=["cls_bard"], level=10)
+    db.update_player("g1", "w1", class_name="cls_mu_shi", hidden_class_unlock=["cls_bard"], level=10)
     out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
     check("等级不足拦截", "Lv.30" in out, out[:150])
 

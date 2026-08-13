@@ -148,7 +148,7 @@ async def main():
     check("重置文案回根基", "根基职业" in out and "法师" in out, out[:150])
 
     print("[7] 吟游诗人/魔剑士特色档位")
-    make_player("g1", "p7", "吟游", "战士", level=30)
+    make_player("g1", "p7", "吟游", "牧师", level=30)
     db.update_player("g1", "p7", hidden_class_unlock=["cls_bard"])
     out = await cmd(m, "evolve", "g1", "p7", "转职 吟游诗人")
     p = db.get_player("g1", "p7")
@@ -170,6 +170,35 @@ async def main():
     out = await cmd(m, "evolve", "g1", "p8", "转职 魔剑宗师")
     p = db.get_player("g1", "p8")
     check("75 级魔剑宗师 = T2", p["class_tier"] == 2, str(p["class_tier"]))
+
+    print("[8] 血缘限制（非渊源职业被拒）")
+    # 战士（已解锁奥术师）转奥术师 → 被拒（渊源=法师）
+    make_player("g1", "p9", "修九", "战士", level=50)
+    db.update_player("g1", "p9", hidden_class_unlock=["cls_arcanist"])
+    out = await cmd(m, "evolve", "g1", "p9", "转职 奥术师")
+    check("战士转奥术师被拒", "只向法师一脉" in out, out[:150])
+    p = db.get_player("g1", "p9")
+    check("职业未切换", p["class_name"] == "cls_zhan_shi", str(p["class_name"]))
+    # 游侠转龙血战士 → 被拒（渊源=战士）
+    make_player("g1", "p10", "修十", "游侠", level=50)
+    db.update_player("g1", "p10", hidden_class_unlock=["cls_dragon_warrior"])
+    out = await cmd(m, "evolve", "g1", "p10", "转职 龙血战士")
+    check("游侠转龙血被拒", "只向战士一脉" in out, out[:150])
+    # 法师转吟游诗人 → 被拒（渊源=牧师）
+    make_player("g1", "p11", "修十一", "法师", level=40)
+    db.update_player("g1", "p11", hidden_class_unlock=["cls_bard"])
+    out = await cmd(m, "evolve", "g1", "p11", "转职 吟游诗人")
+    check("法师转诗人被拒", "只向牧师一脉" in out, out[:150])
+    # 渊源职业转职正常（战士→魔剑士 60 级）
+    make_player("g1", "p12", "修十二", "战士", level=60)
+    db.update_player("g1", "p12", hidden_class_unlock=["cls_spellblade"])
+    out = await cmd(m, "evolve", "g1", "p12", "转职 魔剑士")
+    p = db.get_player("g1", "p12")
+    check("战士转魔剑士成功(渊源)", p["class_name"] == "cls_spellblade" and p["class_tier"] == 1,
+          str((p["class_name"], p["class_tier"])))
+    # 已转隐藏职业后升档不受血缘限制（同职业）
+    out = await cmd(m, "evolve", "g1", "p12", "转职 魔剑宗师")
+    check("隐藏职业内升档不查血缘", "Lv.75" in out, out[:150])
 
     print(f"\n===== v108 职业树测试: {passed} passed, {failed} failed =====")
     sys.exit(1 if failed else 0)

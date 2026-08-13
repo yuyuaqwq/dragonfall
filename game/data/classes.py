@@ -63,7 +63,7 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "吟游诗人",
         "hidden": True,
-        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基（重置回退兜底，全系奇遇线）
+        "src_base": "cls_mu_shi",  # v108 职业树：渊源根基（牧师·神谕者线，圣歌=世俗治愈变奏）
     },
     "cls_zhan_shi": {
         "desc": "身穿重甲、手持巨剑的钢铁壁垒，正面硬刚一切敌人。",
@@ -310,7 +310,7 @@ CLASSES = {
         "weapon_type": "sword",
         "name": "魔剑士",
         "hidden": True,
-        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基
+        "src_base": "cls_zhan_shi",  # v108 职业树：渊源根基（战士·狂战士线，力智双修）
     },
     # ================= v107 隐藏职业扩展（11 个，2026-08-13 鱼鱼拍板设计） =================
     # 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五

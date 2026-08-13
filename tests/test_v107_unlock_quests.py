@@ -97,7 +97,7 @@ async def main():
     check("Lv.30 未接取支线", "s_arcanist_trial" not in (db.get_quests("g2", "p1").get("side") or {}), str(db.get_quests("g2", "p1").get("side")))
 
     print("[4] 击杀达标 → 交付 → 解锁写入")
-    make_player("g2", "p2", "学徒", "战士", level=45)
+    make_player("g2", "p2", "学徒", "法师", level=45)
     db.update_player("g2", "p2", cur_map="secret_crypt")
     # 直接接取（模拟 Lv.45 对话自动接）
     m._offer_side_quests("g2", "p2", "npc_arcanist_warden", C.NPCS["npc_arcanist_warden"])
