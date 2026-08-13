@@ -891,6 +891,13 @@ class Battle:
                          ("block_add", "block")):
             if pb.get(_pk, 0.0):
                 st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+        # v106.4 反伤/物魔免/物法吸被动（加法并入属性）
+        for _pk, _pv in (("thorns_add", "thorns"), ("phys_reduce_add", "phys_reduce"),
+                         ("magic_reduce_add", "magic_reduce"),
+                         ("lifesteal_phys_add", "lifesteal_phys"),
+                         ("lifesteal_magi_add", "lifesteal_magi")):
+            if pb.get(_pk, 0.0):
+                st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
         # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
         pm = self._passive_map(player)
@@ -978,16 +985,22 @@ class Battle:
             self._resource_on_attack(player)
         return logs
 
-    def _settle_lifesteal(self, player: dict, dmg: int, logs: list):
+    def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False):
         """v106.3 吸血统一结算（属性面板化）：heal = dmg × 吸血率
 
-        来源全部汇聚到 st["lifesteal"]（词条折算/种族天赋/被动加成），
-        药水 buff 乘算并入，cap 30% 由聚合层保证——这里只负责消费。
+        来源全部汇聚到 st["lifesteal"]（通用，词条吸血/种族/被动/药水），
+        v106.4 细分：物理吸血 lifesteal_phys（物理攻击段）、法术吸血 lifesteal_magi（魔法攻击段）
+        与通用吸血乘算合成 1-(1-a)(1-b)；药水 buff 乘算并入，cap 30%。
         """
         if dmg <= 0:
             return
         st = self._player_stats(player)
         rate = float(st.get("lifesteal", 0) or 0)
+        # v106.4：按伤害类型叠加细分吸血（乘算合成，不双算）
+        sub_key = "lifesteal_magi" if magic else "lifesteal_phys"
+        sub = float(st.get(sub_key, 0) or 0)
+        if sub > 0:
+            rate = 1 - (1 - rate) * (1 - sub)
         if self.p_buffs.get("lifesteal_pot"):
             rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
         rate = min(rate, 0.30)
@@ -1653,7 +1666,8 @@ class Battle:
         else:
             self._damage_enemy(total, logs)
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
-            self._settle_lifesteal(player, total, logs)
+            # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
+            self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"))
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
@@ -1914,25 +1928,31 @@ class Battle:
                 if kind == "物理":
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+                    # v106.4 物理免伤统一属性结算（物理技能段与普攻同口径）
+                    _pst_pr = self._player_stats(player)
+                    pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
+                    if pr > 0:
+                        red = max(1, int(dmg * pr))
+                        dmg = max(1, dmg - red)
+                        logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
                 else:
                     _pp, _pf = self._pene_vals(est, magic=True)
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf)
-                # 阶段九：种族受击天赋（龙鳞 魔伤-10% / 鲁莽之心 魔伤+5%，魔法技能段）
+                # v106.4 魔法免伤统一属性结算（种族龙鳞/鲁莽之心 + 词条魔抗 + 被动 → st["magic_reduce"]）
                 if kind != "物理":
-                    rt = self._race_bonus(player)
-                    mr = rt.get("magic_reduce", 0) or 0
-                    if mr:
+                    _pst_mr = self._player_stats(player)
+                    mr = float(_pst_mr.get("magic_reduce", 0) or 0)
+                    if self.p_buffs.get("magic_resist"):
+                        mr = 1 - (1 - mr) * (1 - 0.15)  # 龙鳞药剂/魔鳞药剂 +15% 魔免（乘算并入）
+                    mr = min(mr, 0.4)
+                    if mr > 0:
                         red = max(1, int(dmg * mr))
                         dmg = max(1, dmg - red)
-                        if mr > 0:
-                            logs.append(f"🐲 龙鳞抗魔，减免 {red} 点伤害！")
-                        else:
-                            logs.append(f"🔥 鲁莽之心，额外受到 {-red} 点伤害！")
-                    # v101.28f 龙鳞药剂：魔法伤害 -15%（3 回合）
-                    if self.p_buffs.get("magic_resist"):
-                        red = max(1, int(dmg * 0.15))
-                        dmg = max(1, dmg - red)
-                        logs.append(f"🛡️ 魔鳞护体，减免 {red} 点魔法伤害！")
+                        logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
+                    elif mr < 0:
+                        red = max(1, int(dmg * -mr))
+                        dmg = dmg + red
+                        logs.append(f"🔥 鲁莽之心，额外受到 {red} 点伤害！")
                 # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（v106.1 面板化：属性 elem_res/abyss_res 为主，
                 # 旧装备词条 ID 未折算时补差；职业/词条/套装多来源聚合）
                 melem = sinfo.get("element", "")
@@ -1972,13 +1992,14 @@ class Battle:
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
-        # 阶段九：种族受击天赋（石肤 物理伤害-10%，普攻段）
-        rt = self._race_bonus(player)
-        pr = rt.get("phys_reduce", 0) or 0
-        if pr:
+        # v106.4 物理免伤统一属性结算（种族石肤 + 词条铁壁 + 被动 → st["phys_reduce"]）
+        _pst_pr = self._player_stats(player)
+        pr = float(_pst_pr.get("phys_reduce", 0) or 0)
+        pr = min(pr, 0.4)
+        if pr > 0:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
-            logs.append(f"🪨 石肤护体，减免 {red} 点物理伤害！")
+            logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
         logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg + minion_dmg
 
@@ -1991,6 +2012,13 @@ class Battle:
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
+        # v106.4 物理免伤统一属性结算（PVP 同口径）
+        _pst_pr = self._player_stats(player)
+        pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
+        if pr > 0:
+            red = max(1, int(dmg * pr))
+            dmg = max(1, dmg - red)
+            logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
         logs.append(f"【{self.enemy['name']}】向你发起攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg
 
@@ -2427,6 +2455,18 @@ class Battle:
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
+        # v106.4 反伤属性统一结算（词条折算/种族/被动/药水 → st["thorns"]）
+        _pst_th = self._player_stats(player)
+        th = float(_pst_th.get("thorns", 0) or 0)
+        if self.p_buffs.get("thorns_pot"):
+            th = 1 - (1 - th) * (1 - 0.30)  # 荆棘药剂 +30% 反伤（乘算并入）
+        th = min(th, 0.5)
+        if th > 0 and self.enemy.get("hp", 0) > 0:
+            rd = int(dmg * th)
+            if rd > 0:
+                rd = self._boss_dmg_filter(rd, player, logs)
+                self._damage_enemy(rd, logs)
+                logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:
             if random.random() < C.SHIELD_COUNTER_CHANCE:

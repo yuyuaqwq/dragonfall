@@ -732,9 +732,18 @@ class PlayerCmds(CommandBase):
             ("🩸", "lifesteal", "lifesteal", "吸血"),
             ("💢", "crit_dmg", "crit_dmg", "暴击伤害"),
             ("🧱", "block", "block", "格挡"),
+            # v106.4 反伤/物魔免/物法吸
+            ("🌵", "thorns", "thorns", "反伤"),
+            ("🪨", "phys_reduce", "phys_reduce", "物理免伤"),
+            ("🛡️", "magic_reduce", "magic_reduce", "魔法免伤"),
+            ("🩸", "lifesteal_phys", "lifesteal_phys", "物理吸血"),
+            ("🔮", "lifesteal_magi", "lifesteal_magi", "法术吸血"),
         ]
         for icon, skey, fkey, cname in stat_rows:
             final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）
+            # v106.4：特殊属性 0 时不显示（有加成才显示，防面板爆炸）
+            if skey in C.OPTIONAL_STATS and not final:
+                continue
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
                 lines.append(f"{icon} {cname}：{int(final*100)}%({int(bonus*100):+d}%)")

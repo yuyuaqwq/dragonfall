@@ -138,15 +138,35 @@ AFFIXES = {
         "desc": "格挡率 +15%（格挡时减伤 50%，v106.3 属性化）",
     },
     "thorns": {
-        "name": "反伤", "kind": "defense", "trigger": "on_taken", "chance": 0.10,
-        "effect": {"thorns": 0.30},
-        "desc": "受击 10% 反弹 30% 伤害",
+        "name": "反伤", "kind": "defense", "trigger": "stat",
+        "effect": {"thorns": 0.10},
+        "desc": "反伤 +10%（v106.4 属性化：受击反弹伤害，面板可见）",
     },
     "dmg_reduce": {
         "name": "减伤", "kind": "defense", "trigger": "stat",
     "chance": 1.0,
         "effect": {"dmg_reduce": 0.03},
         "desc": "受击伤害－3%",
+    },
+    "phys_ward": {
+        "name": "铁壁", "kind": "defense", "trigger": "stat",
+        "effect": {"phys_reduce": 0.05},
+        "desc": "物理免伤 +5%（v106.4）",
+    },
+    "magic_ward": {
+        "name": "魔抗", "kind": "defense", "trigger": "stat",
+        "effect": {"magic_reduce": 0.05},
+        "desc": "魔法免伤 +5%（v106.4）",
+    },
+    "thirst_phys": {
+        "name": "渴血", "kind": "attack", "trigger": "stat",
+        "effect": {"lifesteal_phys": 0.08},
+        "desc": "物理吸血 +8%（v106.4：仅物理攻击回血）",
+    },
+    "thirst_magi": {
+        "name": "吸魂", "kind": "attack", "trigger": "stat",
+        "effect": {"lifesteal_magi": 0.08},
+        "desc": "法术吸血 +8%（v106.4：仅魔法攻击回血）",
     },
     "shield": {
         "name": "护盾", "kind": "defense", "trigger": "battle_start",
@@ -249,6 +269,7 @@ AFFIX_POOL_BY_QUALITY = {
         "swift", "luck",  # v106 韧性/幸运
         "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
         "heal_power", "shield_power",  # v106.2 圣愈/坚盾
+        "phys_ward", "magic_ward", "thirst_phys", "thirst_magi",  # v106.4 铁壁/魔抗/渴血/吸魂
     ],
     "orange": sorted(AFFIXES.keys()),
 }

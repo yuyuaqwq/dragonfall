@@ -169,6 +169,7 @@ out = b._affix_on_taken(player, 100, logs)
 random.random = _orig_random
 # v106.3：block 已属性化（格挡率进 st["block"]，受击结算走 _damage_player），不再作为 TAKEN 特效
 check("block 已移出 TAKEN（仅 dmg_reduce 生效 100→97）", out == 97 and "block" not in AFX.TAKEN_EFFECTS)
+# v106.4：thorns 已属性化（反伤率进 st["thorns"]，受击结算走 _damage_player），不再作为 TAKEN 特效
 b = make_battle()
 b._equip_affix_ids = lambda p: ["thorns"]
 _orig_random = random.random
@@ -176,7 +177,7 @@ random.random = lambda: 0.05  # thorns 10% 命中
 logs = []
 out = b._affix_on_taken(player, 100, logs)
 random.random = _orig_random
-check("thorns 用原始 dmg（反弹 30）", b.enemy["hp"] == 70 and out == 100)
+check("thorns 已移出 TAKEN（out 不变 100）", out == 100 and "thorns" not in AFX.TAKEN_EFFECTS)
 # 回合开始：regen + dawn_crown = 3% 生命
 b = make_battle()
 b._equip_affix_ids = lambda p: ["regen", "dawn_crown"]
@@ -245,7 +246,8 @@ trigger_ids = {
 }
 hit_covered = set(AFX.HIT_EFFECTS.keys()) - {"purify"} | {"purify", "judgment_chain"}
 check(f"命中词条全覆盖（数据 {len(trigger_ids)} 个）", trigger_ids <= hit_covered)
-taken_ids = {"dmg_reduce", "earth_heart", "tenacity", "counter", "thorns", "ember_ward", "moro_crown"}
+# v106.3/v106.4 属性化：block/thorns 已从触发特效改 stat 折算（affix.py _STAT_AFFIX_FX），不再走 HIT/TAKEN 注册表
+taken_ids = {"dmg_reduce", "earth_heart", "tenacity", "counter", "ember_ward", "moro_crown"}
 check("受击词条全覆盖", taken_ids <= set(AFX.TAKEN_EFFECTS.keys()) | {"dmg_reduce", "earth_heart"})
 turn_ids = {"regen", "dawn_crown", "meditate"}
 check("回合开始词条全覆盖", turn_ids <= set(AFX.TURN_START_EFFECTS.keys()) | {"regen", "dawn_crown"})

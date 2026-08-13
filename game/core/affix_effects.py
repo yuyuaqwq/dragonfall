@@ -209,15 +209,6 @@ def _t_counter(battle, player, ctx, logs):
             logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
 
 
-@register(TAKEN_EFFECTS, "thorns")
-def _t_thorns(battle, player, ctx, logs):
-    """反伤：10% 反弹 30% 伤害（基于原始 dmg）"""
-    if "thorns" in battle._equip_affix_ids(player) and random.random() < _affix_chance("thorns", 0.10) and battle.enemy.get("hp", 0) > 0:
-        rd = int(ctx["dmg"] * 0.30)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
-        logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
-
-
 @register(TAKEN_EFFECTS, "ember_ward")
 def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""

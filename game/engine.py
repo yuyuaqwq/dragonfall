@@ -199,6 +199,12 @@ _PASSIVE_STAT_APPLY = {
     "lifesteal": ("lifesteal_add", "add", False),
     "crit_dmg": ("crit_dmg_add", "add", False),
     "block": ("block_add", "add", False),
+    # v106.4：反伤/物魔免/物法吸被动支持
+    "thorns": ("thorns_add", "add", False),
+    "phys_reduce": ("phys_reduce_add", "add", False),
+    "magic_reduce": ("magic_reduce_add", "add", False),
+    "lifesteal_phys": ("lifesteal_phys_add", "add", False),
+    "lifesteal_magi": ("lifesteal_magi_add", "add", False),
 }
 
 
@@ -217,7 +223,9 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
              "matk_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.0, "crit_add": 0.0,
              "cdr_add": 0.0,  # v106.1 cdr 被动
              "pene_phys_add": 0.0, "pene_magi_add": 0.0,  # v106.2 穿透被动
-             "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0}  # v106.3 吸血/暴伤/格挡被动
+             "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0,  # v106.3 吸血/暴伤/格挡被动
+             "thorns_add": 0.0, "phys_reduce_add": 0.0, "magic_reduce_add": 0.0,
+             "lifesteal_phys_add": 0.0, "lifesteal_magi_add": 0.0}  # v106.4 反伤/物魔免/物法吸被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -261,7 +269,9 @@ STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", 
               "cdr": "冷却缩减", "elem_res": "元素抗性", "abyss_res": "深渊抗性",
               "exp_bonus": "经验加成", "gold_bonus": "金币加成",  # v106.1 冷却/抗性/成长
               "heal_power": "治疗强度", "shield_power": "护盾强度",
-              "lifesteal": "吸血", "crit_dmg": "暴击伤害", "block": "格挡"}  # v106.3 吸血/暴伤/格挡
+              "lifesteal": "吸血", "crit_dmg": "暴击伤害", "block": "格挡",
+              "thorns": "反伤", "phys_reduce": "物免", "magic_reduce": "魔免",
+              "lifesteal_phys": "物吸", "lifesteal_magi": "法吸"}  # v106.3/v106.4
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
@@ -433,6 +443,11 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                 st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))
         # v106.3：吸血/暴击伤害/格挡种族天赋（矮人岩壁格挡/精灵月华暴伤/兽人嗜血）
         for _rk in ("lifesteal", "crit_dmg", "block"):
+            if rt.get(_rk):
+                race_src[_rk] = rt[_rk]
+                st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))
+        # v106.4：反伤/物魔免种族天赋（石肤物免/龙鳞魔免/兽人鲁莽魔免负值已存在，统一聚合）
+        for _rk in ("thorns", "phys_reduce", "magic_reduce", "lifesteal_phys", "lifesteal_magi"):
             if rt.get(_rk):
                 race_src[_rk] = rt[_rk]
                 st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))

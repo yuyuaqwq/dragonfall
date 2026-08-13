@@ -26,6 +26,8 @@ from .constants import (  # noqa: F401
     PCT_STATS,
     # v106 穿透/韧性/幸运：百分比上限表 + 乘算穿透集合
     PCT_CAPS, PENE_PCT_STATS,
+    # v106.4 特殊属性：面板 0 时不显示
+    OPTIONAL_STATS,
     # v103.3 B3 整数魔法数字
     EVOLVE_LEVELS, EVOLVE_FEES, RESET_SKILL_COST,
     DEFAULT_MAX_MP, PVP_TIMEOUT_SEC, GUILD_EXP_BASE, PROF_EXP_BASE, prof_exp_need,

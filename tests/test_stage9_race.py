@@ -129,19 +129,19 @@ def test_engine_stats():
 # ============ 4. 战斗天赋 ============
 def test_battle_talents():
     print("【4. 战斗天赋】")
-    # 石肤：矮人普攻物理减伤
+    # 石肤：矮人普攻物理减伤（v106.4 文案统一"物理免伤"）
     p_dw = mk_player("dwarf")
     b = BT.Battle("monster", mk_enemy(), {}, p_dw)
     logs, dmg = b._enemy_turn(p_dw)
-    check("石肤物理减伤", "石肤" in "".join(logs) or dmg <= 30, f"{logs} dmg={dmg}")
-    # 龙鳞：龙裔魔法技能减伤
+    check("石肤物理减伤", "物理免伤" in "".join(logs) or dmg <= 30, f"{logs} dmg={dmg}")
+    # 龙鳞：龙裔魔法技能减伤（v106.4 文案统一"魔法免伤"）
     p_db = mk_player("dragonborn")
     enemy = mk_enemy("暗影法师", skills=["ms_an_ying_dan"], matk=50)
     b2 = BT.Battle("monster", enemy, {}, p_db)
     found = False
     for _ in range(30):  # 敌人 30% 概率用技能：30 次全普攻概率≈0.002%，消除偶发
         logs2, _ = b2._enemy_turn(p_db)
-        if "龙鳞" in "".join(logs2):
+        if "魔法免伤" in "".join(logs2):
             found = True
             break
     check("龙鳞魔伤减免", found)

@@ -63,6 +63,12 @@ _STAT_AFFIX_FX = {
     "lifesteal": {"stat": "lifesteal", "pct": None, "flat": 0.08},
     "crit_dmg": {"stat": "crit_dmg", "pct": None, "flat": 0.20},
     "block": {"stat": "block", "pct": None, "flat": 0.15},
+    # v106.4：反伤/物魔免/物法吸词条折算（thorns 由触发特效改属性）
+    "thorns": {"stat": "thorns", "pct": None, "flat": 0.10},
+    "phys_ward": {"stat": "phys_reduce", "pct": None, "flat": 0.05},
+    "magic_ward": {"stat": "magic_reduce", "pct": None, "flat": 0.05},
+    "thirst_phys": {"stat": "lifesteal_phys", "pct": None, "flat": 0.08},
+    "thirst_magi": {"stat": "lifesteal_magi", "pct": None, "flat": 0.08},
 }
 
 
