@@ -53,7 +53,7 @@ ACHIEVEMENTS = [
     {"id": "ach_worldboss", "cat": "战斗", "name": "世界 Boss 猎手", "title": "世界 Boss 猎手",
      "desc": "参与讨伐世界 Boss", "cond": {"type": "worldboss"}, "points": 1},
     {"id": "ach_abyss_clear", "cat": "战斗", "name": "传说终结者", "title": "传说终结者",
-     "desc": "通关深渊裂隙副本", "cond": {"type": "inst_id", "inst": "inst_abyss"}, "points": 1},
+     "desc": "通关深渊裂隙副本", "cond": {"type": "inst_id", "inst": "inst_abyss_gate"}, "points": 1},
 
     # ---- 成长（15） ----
     {"id": "ach_register", "cat": "成长", "name": "初出茅庐", "title": "初出茅庐",
@@ -168,10 +168,14 @@ ACHIEVEMENTS = [
      "desc": "强化达到 Lv.6", "cond": {"type": "prof_lv", "key": "enhance", "value": 6}, "points": 1},
     {"id": "ach_pro_enhance10", "cat": "副业", "name": "铁匠宗师", "title": "铁匠宗师",
      "desc": "强化达到 Lv.10", "cond": {"type": "prof_lv", "key": "enhance", "value": 10}, "points": 1, "bonus": {"atk": 8}},
+    # v105 M11 P2：19 章 322-323 次数称号——『强化大师(强化 50 次)』此前缺失；
+    # 『附魔师』原实现挂在 Lv.6 等级成就上，与设计(附魔 30 次)不符，改为次数条件
+    {"id": "ach_pro_enhance50", "cat": "副业", "name": "强化大师", "title": "强化大师",
+     "desc": "强化 50 次装备", "cond": {"type": "prof_count", "key": "enhance_count", "value": 50}, "points": 1},
     {"id": "ach_pro_enchant3", "cat": "副业", "name": "符文学徒", "title": "符文学徒",
      "desc": "附魔达到 Lv.3", "cond": {"type": "prof_lv", "key": "enchant", "value": 3}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_pro_enchant6", "cat": "副业", "name": "附魔师", "title": "附魔师",
-     "desc": "附魔达到 Lv.6", "cond": {"type": "prof_lv", "key": "enchant", "value": 6}, "points": 1},
+     "desc": "附魔 30 件装备", "cond": {"type": "prof_count", "key": "enchant_count", "value": 30}, "points": 1},
     {"id": "ach_pro_enchant10", "cat": "副业", "name": "奥术大师", "title": "奥术大师",
      "desc": "附魔达到 Lv.10", "cond": {"type": "prof_lv", "key": "enchant", "value": 10}, "points": 1, "bonus": {"matk": 8}},
 

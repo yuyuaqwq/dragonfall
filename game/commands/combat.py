@@ -27,7 +27,8 @@ _battle_locks = set()
 # 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
 WORLD_BOSS_DROPS = {
     "巨史莱姆王·咕噜咕噜": ["mat_zhan_hun_zhi_chen", "mount_steed"],
-    "百族战魂·奥德里克残影": ["mat_xing_lang_pi", "mat_mu_ying_long_hun", "mount_steed", "mount_wolf"],
+    "百族战魂·奥德里克残影": ["mat_xing_lang_pi", "mat_mu_ying_long_hun", "mount_steed", "mount_wolf",
+                            "mat_bai_zu_hui_zhang"],  # v104 M08 P1-7：百族徽章（策划案 7.3"国战参与"——世界 Boss 讨伐=国战玩法）
     "海蛇王·深渊之鳞": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_wolf", "mount_ghost"],
     "地底恶魔·黑炎": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_ghost", "mount_warhorse"],
     "风暴龙王·裂空": ["mat_ao_lan_zhi_zhu", "mat_mo_luo_zhi_guan", "mount_warhorse", "mount_griffin"],
@@ -63,8 +64,9 @@ class CombatCmds(CommandBase):
         cur_map = C.MAP_BY_ID[cur]
         # 城镇区域（安全区）：可触发 POI，无怪
         if cur_map.get("type") == C.MAP_TYPE_TOWN:
-            # v104 M23：城镇探索零成本可无限刷 POI（篝火 30% 回血/烹饪食材、草药等）→ 60 秒冷却防刷
-            _town_cd_key = f"town_explore_cd_{group_id}_{qq_id}"
+            # v105 M23 P2-1：冷却 key 去掉 group_id——玩家数据全局化（battle 按 qq 全局），
+            # 原 key 含群号可跨群绕过：A 群刷完 B 群立刻再刷，城镇 POI 每小时可白嫖约 9 次
+            _town_cd_key = f"town_explore_cd_{qq_id}"
             try:
                 _last_town = float(db.get_event_state(_town_cd_key) or 0)
             except Exception:
@@ -77,9 +79,13 @@ class CombatCmds(CommandBase):
             poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
             if poi_hit:
                 poi_id, poi = poi_hit
-                poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
-                yield event.plain_result(poi_text)
-                return
+                # v105 M23 P2-3：POI 每日重置（策划案 02 章 7.6 阶段 D）——本日已触发则本次不再触发
+                if self._poi_daily_used(group_id, qq_id, cur, cur_sa_id_poi, poi_id):
+                    poi_hit = None
+                else:
+                    poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
+                    yield event.plain_result(poi_text)
+                    return
             yield event.plain_result(
                 f"🏘️ 你在{cur_map['name']}里闲逛，这里是安全的城镇。\n"
                 f"👥 输入『对话 <NPC名>』与这里的 NPC 交谈，『商店』购买补给。\n"
@@ -90,7 +96,10 @@ class CombatCmds(CommandBase):
         # 入口子区域怪物池含 Lv.26 海盗精锐），单人遭遇必死；且探索打赢也不计入副本进度
         # （#247 只修了 Boss 混池/精英判定，普通怪池仍会单人遭遇副本怪）。
         # 副本入口应引导玩家走『副本 <名字>』开本流程（等级/人数校验 + 组队轮流 + 通关结算）。
-        if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
+        # v105 M19 P0：主线击杀目标只挂载在副本类地图（q3_3/q6_2/q9_4/q10_1/q12_1/q12_2）
+        # 时，探索放行——主线目标 Boss/精英走下方 SA_BOSS_CHANCE 独立判定，保证主线可单人推进
+        # （否则第 3 章 q3_3 起主线击杀任务永远卡死）。
+        if cur_map.get("type") == C.MAP_TYPE_INSTANCE and not self._main_kill_target_on_map(group_id, qq_id, cur_map):
             inst_name = cur_map.get("name", "这个副本")
             yield event.plain_result(
                 f"🏰 【{inst_name}】是组队副本区域，这里的敌人按队伍强度设计！\n"
@@ -124,9 +133,26 @@ class CombatCmds(CommandBase):
         poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
         if poi_hit:
             poi_id, poi = poi_hit
-            poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
-            yield event.plain_result(poi_text)
-            return
+            # v105 M23 P2-3：POI 每日重置——本日已触发则该 POI 本次不触发，继续后续事件/遇怪流程
+            if self._poi_daily_used(group_id, qq_id, cur, cur_sa_id_poi, poi_id):
+                poi_hit = None
+            else:
+                poi_text = self._handle_poi(group_id, qq_id, player, cur_map, poi_id, poi)
+                yield event.plain_result(poi_text)
+                return
+        # v105 M23 P1-1：探索彩蛋独立判定（02 章 7.5『总概率 0.5%』）——原实现嵌在
+        # _handle_explore_event 的 35% 事件窗口内（实际 0.35×0.005=0.175%），移出到
+        # 遇怪/事件/彩蛋三路并列，命中直接返回，恢复策划案 ~0.5% 总概率
+        egg = C.roll_explore_egg(cur_map.get("id"))
+        if egg:
+            from ..core.event_templates import EventContext, execute_event_template
+            egg_ctx = EventContext(group_id, qq_id, player, cur_map,
+                                   params=egg.get("params", {}), name=cur_map.get("name", "此地"),
+                                   hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
+            egg_text = execute_event_template(egg["template"], egg_ctx)
+            if egg_text:
+                yield event.plain_result(egg_text)
+                return
         # 探索随机事件（野外/外郊/核心区 35% 概率，事件优先于遇怪）
         _ev_chance = C.ENCOUNTER_EVENT_CHANCE
         if self._rain_boost(group_id, qq_id):
@@ -137,6 +163,15 @@ class CombatCmds(CommandBase):
             if handled:
                 yield event.plain_result(ev_text)
                 return
+        # v105 M23 P1-3：空探索作为独立结果类型进入流程——事件窗口未命中后 25% 空手而归并
+        # fire explore_done 规则。原 4 条 explore_done 规则（luck/ghost/scenery/coin）挂在
+        # 下方『无 events 且无 elite/boss』死分支（v95r38 空池保护接管后 203 个野外子区域
+        # 全有怪 → 分支不可达，规则 100% 死规则），现经此路径复活。
+        if random.random() < 0.25:
+            _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
+            yield event.plain_result("你四处搜寻，什么也没发现……"
+                                     + (f"\n{_rule_txt}" if _rule_txt else ""))
+            return
         # 探索事件池（v86 子区域：用当前子区域的怪物，无则回退地图级）
         cur_sa = None
         cur_sa_id = player.get("cur_subarea") or ""
@@ -148,10 +183,19 @@ class CombatCmds(CommandBase):
         mon_src = (cur_sa.get("monsters") if cur_sa else None)
         if mon_src is None:
             mon_src = cur_map.get("monsters", [])
+        # v105 M19 P0：副本类地图若挂载当前主线击杀目标（Boss/精英），放行其遭遇判定
+        main_target = None
+        boss_target = None
+        if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
+            main_target = self._main_kill_target_on_map(group_id, qq_id, cur_map)
         for mid, name, role, lv, skills, drops in mon_src:
             # v95.23 #247：role=boss 条目不进普通怪池（boss 字段有独立判定 SA_BOSS_CHANCE），
             # 否则副本入口等区域探索 random.choice 会抽中 Boss → 无法逃跑被秒杀
             if role == "boss":
+                # v105 M19 P0：主线目标 Boss（如 q3_3 海盗王·独眼杰克）单独走
+                # SA_BOSS_CHANCE 判定，不混普通池
+                if main_target and name == main_target[1]:
+                    boss_target = (mid, name, role, lv, skills, drops)
                 continue
             events.append(("monster", (mid, name, role, lv, skills, drops)))
         # 精英/Boss：子区域优先，回退地图级
@@ -159,9 +203,16 @@ class CombatCmds(CommandBase):
         sa_boss = (cur_sa.get("boss") if cur_sa else None) or cur_map.get("boss")
         # v95.23 #247：副本区域探索不触发精英/Boss 独立判定——副本 Boss 只能走『副本 <名字>』
         # 开本流程（有等级/人数校验和通关结算），探索撞 Boss 打赢也不计入副本进度，纯坑玩家
+        # v105 M19 P0：但主线击杀目标只挂副本时放行——否则主线 q3_3 起 6 个击杀任务永远卡死
         if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
-            sa_elite = None
-            sa_boss = None
+            if main_target:
+                if main_target[2] == "boss":
+                    sa_boss = boss_target or sa_boss
+                elif main_target[2] == "elite":
+                    sa_elite = main_target
+            else:
+                sa_elite = None
+                sa_boss = None
         # v102.1 移除：'城镇外郊' 类型不存在于数据（maps.py 仅 城镇区域/副本/野外/隐藏区域），
         # 该分支恒 False 从未执行（历史遗留自 82abbde 红名系统，数据层重写后成孤儿）
         # v95r38 空池保护：纯精英/Boss 房（如野猪王巢）探索不报"什么也没发现"，由下方必遇逻辑接管
@@ -243,15 +294,54 @@ class CombatCmds(CommandBase):
         if _pb:
             bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}＋10%！\n"
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
+        # v104 修复（M06 P2-2）：展示 MONSTER_MODS 个体特色文案（此前只有数值生效，玩家看不到）
+        mod_line = f"📜 {monster['mod']}\n" if monster.get("mod") else ""
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
+            f"{mod_line}"
             f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
             + f"{bless_note}━━━━━━━━━━━━\n"
             f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
             f"{hint}{stam_warn}"
         )
+
+    def _main_kill_target_on_map(self, group_id, qq_id, cur_map):
+        """v105 M19 P0：当前 active 主线击杀目标怪是否挂载于本副本地图。
+
+        副本类地图『探索』默认拦截、移动撞怪默认跳过（组队强度设计，v95.23/26），
+        但主线击杀目标（q3_3 海盗王·独眼杰克 / q6_2 古王·奥德里克 / q9_4 恶魔祭司·赫尔加 /
+        q10_1 封印守卫(腐蚀) / q12_1 深渊猎犬 / q12_2 蚀夜(真相形态)）只挂载在
+        type=副本 的地图上——不放行则主线第 3 章即断。命中返回怪物条目（扁平 6 元组），
+        未命中返回 None（维持原有拦截/跳过）。
+        """
+        try:
+            quests = db.get_quests(group_id, qq_id)
+        except Exception:
+            return None
+        if not quests or quests.get("main_status") != "active":
+            return None
+        mid = quests.get("main_quest")
+        mq = next((q for q in C.MAIN_QUESTS if q["id"] == mid), None) if mid else None
+        if not mq:
+            return None
+        target = (mq.get("objective") or {}).get("kill")
+        if not target:
+            return None
+        for sa in (cur_map.get("subareas") or []):
+            for ent in (sa.get("monsters") or []):
+                if ent and len(ent) >= 2 and ent[1] == target:
+                    return ent
+            for _f in ("elite", "boss"):
+                ent = sa.get(_f)
+                if not ent:
+                    continue
+                # elite/boss 字段为扁平 6 元组；兼容历史嵌套写法
+                _e = ent[0] if isinstance(ent[0], (list, tuple)) else ent
+                if _e and len(_e) >= 2 and _e[1] == target:
+                    return _e
+        return None
 
     def _in_battle(self, group_id, qq_id):
         # v28：锁按 qq_id 全局维度（玩家数据已全局化，群/临时会话共用同一角色）。
@@ -448,15 +538,8 @@ class CombatCmds(CommandBase):
             return True, find_lines
         name = cur_map.get("name", "此地")
         from ..core.event_templates import EventContext, execute_event_template
-        # v83 02 章 7.5：探索彩蛋（独立判定，不占常规权重；v97.6 区域彩蛋按地图过滤）
-        egg = C.roll_explore_egg(cur_map.get("id"))
-        if egg:
-            ctx = EventContext(group_id, qq_id, player, cur_map,
-                               params=egg.get("params", {}), name=name,
-                               hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
-            text = execute_event_template(egg["template"], ctx)
-            if text:
-                return True, text
+        # v105 M23 P1-1：探索彩蛋已移出本函数（explore() 事件窗口外独立判定，见 combat.py 探索入口），
+        # 此处不再 roll 彩蛋——避免彩蛋再次被 35% 事件窗口吞掉导致实际概率只剩 0.175%
         ev = C.roll_explore_event(exclude=self._recent_explore_events(group_id, qq_id))
         ctx = EventContext(group_id, qq_id, player, cur_map,
                            params=ev.get("params", {}), name=name,
@@ -488,6 +571,20 @@ class CombatCmds(CommandBase):
         recent = [x for x in recent if x != eid] + [eid]
         db.set_event_state(self._EXPLORE_RECENT_KEY.format(gid=group_id, qq_id=qq_id),
                            json.dumps(recent[-self._EXPLORE_RECENT_MAX:]))
+
+    def _poi_daily_used(self, group_id, qq_id, cur, sa_id, poi_id) -> bool:
+        """v105 M23 P2-3：POI 每日重置（策划案 02 章 7.6 阶段 D『探索 15% 触发 POI + 每日重置』）。
+
+        同一 POI 实例（地图:子区域:poi_id）同一天只触发一次：本日已用过返回 True（本次不触发）；
+        首次触发则登记后返回 False（放行）。篝火 30% 回血/草药/鱼群等无法再高频重复刷。
+        """
+        import datetime as _dt
+        key = f"{cur}:{sa_id}:{poi_id}"
+        used = db.get_props_use(group_id, qq_id)
+        if used.get(key) == _dt.date.today().isoformat():
+            return True
+        db.mark_props_use(group_id, qq_id, key, _dt.date.today().isoformat())
+        return False
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
         """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。
@@ -661,6 +758,10 @@ class CombatCmds(CommandBase):
             logs.append(f"🗿 你阅读{pname}：")
             logs.append(f"  “{lore}”")
             eff = poi.get("effect") or {}
+            # R3 P1-1：读取石碑即记录自身 poi id——need.poi_read 机关（旧王陵王座机关
+            # /龙之墓暗门机关）依赖此标记解锁；此前只写 effect.unlock，无 unlock 的
+            # 石碑（如墓志铭石碑）永远无法解锁 poi_read 机关
+            st.setdefault("poi_unlocks", {})[pid] = True
             if eff.get("unlock"):
                 st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
                 logs.append("✨ 碑文的内容似乎触发了什么……(某个机关被解锁了！)")
@@ -844,6 +945,14 @@ class CombatCmds(CommandBase):
             if info and info.get("kind") == "治疗" and E.is_skill_learned(
                 player["class_name"], player["level"], skill_name, player.get("learned_skills", [])
             ):
+                # v104 R3 P1-3 修复：脱战治疗必须校验核心资源——res_cost 技能（神恩降临 faith10/
+                # 大治愈术 faith3）此前脱战 0 信仰可无限刷，改拦截（核心资源仅战斗内存在，脱战无法攒取）；
+                # CD 为战斗内状态，脱战无 battle 实例无法校验，带 cd 的无资源技能保持可脱战施放
+                if info.get("res_cost"):
+                    yield event.plain_result(
+                        f"『{info.get('name', skill_name)}』需要战斗内核心资源才能施放（消耗 {', '.join(str(k) + str(v) for k, v in info['res_cost'].items())}），脱战中无法使用～"
+                    )
+                    return
                 if player["mp"] < info["mp"]:
                     yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
                     return
@@ -855,10 +964,13 @@ class CombatCmds(CommandBase):
                                           player.get("attributes"), player.get("evolve_path", 0),
                                           self._title_bonus(group_id, qq_id), player.get("race"))
                 # 与 battle.py _skill_heal 同款结算：power<1 按 max_hp 百分比，power>=1 按魔攻×power
+                # v104 R3 P2-2：倍率按技能等级（skill_level_of）而非玩家等级——此前 Lv.30 玩家
+                # 技能 Lv.1 脱战治疗 +60%（1.60x vs 战斗内 1.00x），数值口径分裂
+                _slv = E.skill_level_of(player, skill_name)
                 if info.get("power", 0) < 1:
-                    heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(player["level"], info))
+                    heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(_slv, info))
                 else:
-                    heal = int(st["matk"] * info["power"] * E.skill_power_mult(player["level"], info))
+                    heal = int(st["matk"] * info["power"] * E.skill_power_mult(_slv, info))
                 pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
                 if "神恩" in pv:
                     heal = int(heal * 1.10)
@@ -1616,6 +1728,10 @@ class CombatCmds(CommandBase):
                 if tprog >= C.GUILD_CONFIG["kill_task"]:
                     cfg = C.GUILD_CONFIG
                     db.guild_add_exp(g2["gid"], cfg["task_exp"], member_qq=qq_id, contribute=cfg["task_contribute"])
+                    # v105 M18 P2：先刷新 player 再写金币——player dict 在战斗结算中段刷新后，
+                    # _rule_fire("battle_win")（Boss 巢穴私藏金币等 loot_gold 彩蛋）可能已落库加金币，
+                    # 直接用旧 dict 值覆盖会丢掉同场彩蛋金币
+                    player = self._player(group_id, qq_id)
                     db.update_player(group_id, qq_id, gold=player["gold"] + cfg["task_gold"])
                     lines.append(f"🎯 【公会任务完成】击杀 {cfg['kill_task']} 只达成！公会经验 +{cfg['task_exp']} 贡献 +{cfg['task_contribute']} 金币 +{cfg['task_gold']}")
                 else:
@@ -1730,10 +1846,13 @@ class CombatCmds(CommandBase):
             if mq and quests.get("main_status") == "active":
                 prog = dict(quests.get("main_progress", {}))
                 obj = mq["objective"]
-                if obj.get("kill") and (obj["kill"] == monster["name"] or obj["kill"] in monster["name"]):
-                    # v95.7 #33：精英/头目变体名包含目标怪名（如『野猪』←『精英野猪』）也计入任务进度
+                if obj.get("kill") and (monster["name"] == obj["kill"] or monster["name"].startswith(obj["kill"] + "·")):
+                    # v95.7 #33：精英/头目变体名包含目标怪名（如『野猪』←『野猪·首领』）也计入任务进度
                     # v105 M19 P2：进度 key 统一记 obj['kill']（此前记 monster['name']，杀精英变体时
                     # 计数入账但面板按 obj['kill'] 读 → 显示 0/N；现精英击杀也计入基础怪 key）
+                    # v104 M20 P2：in 后缀包含误伤面过大（『野猪』命中巨型野猪/风车野猪/铁甲野猪/
+                    # 岛野猪，『霜巨魔』顶 3 只霜巨魔王），改前缀精确：== 或 「目标·」开头，仅命中
+                    # 同名怪与「·」后缀精英/Boss 变体
                     prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
                     quests["main_progress"] = prog
                     changed = True
@@ -1796,9 +1915,11 @@ class CombatCmds(CommandBase):
                     lines.append(f"📜 支线『{sqd['name']}』目标达成！回去找 {_g.get('name', '？')} {self._deliver_hint(sqd['giver'])}吧～")
                 else:
                     lines.append(f"📜 支线『{sqd['name']}』：{prog['any']}/{obj['kill_any']}")
-            elif obj.get("kill") and (obj["kill"] == monster["name"] or obj["kill"] in monster["name"]):
+            elif obj.get("kill") and (monster["name"] == obj["kill"] or monster["name"].startswith(obj["kill"] + "·")):
                 # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
-                # v104 补测发现：支线此前只精确 ==（杀精英变体不推进），现与主线同款 in 包含匹配
+                # v104 补测发现：支线此前只精确 ==（杀精英变体不推进），现与主线同款前缀精确匹配
+                # v104 M20 P2：in 后缀包含误伤面过大（『盗贼』命中盗贼头目·黑鸦、『霜巨魔』顶 3 只
+                # 霜巨魔王、『月狼』命中月狼王·银鬃），改前缀精确：== 或 「目标·」开头
                 prog = dict(sq.get("progress", {}))
                 # v105 M19 P2：进度 key 统一记 obj['kill']（与主线一致、与面板/交付校验读取一致）
                 prog[obj["kill"]] = prog.get(obj["kill"], 0) + 1
@@ -2112,6 +2233,10 @@ class CombatCmds(CommandBase):
             if db.count_item(group_id, qq_id, _iname) > 0:
                 yield event.plain_result(f"⚜️ 你已经拥有【{item['name']}】了！荣誉商店的珍品每人限兑一件。")
                 return
+        # v104 M09 P2 修复：title 类重复兑换拦截（此前无 honor_{title_id}_{qq} 检查，连兑 2 次白扣荣誉）
+        if reward.get("type") == "title" and db.get_event_state(f"honor_{reward['title_id']}_{qq_id}"):
+            yield event.plain_result(f"⚜️ 你已经拥有【{reward['label']}】称号了！")
+            return
         db.set_event_state(f"honor_{qq_id}", str(honor - item["cost"]))
         import uuid as _uuid
         if reward.get("type") == "title":
@@ -2261,7 +2386,13 @@ class CombatCmds(CommandBase):
         winner = db.get_player(group_id, winner_qq)
         lost = int(loser["gold"] * 0.1)
         db.update_player(group_id, winner_qq, gold=winner["gold"] + lost)
-        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1, cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
+        # v104 P2(M22)：PVP 战败与打怪战败(_handle_defeat)一致——回最近城镇（原固定回橡木镇
+        # START_MAP，Lv.60+ 败者也回 Lv.1 新手图），落该城中心广场 subareas[0]；HP=1 惩罚保留
+        _town_id = self._nearest_town(loser.get("cur_map", ""))
+        _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
+        _town_sa = _town_sas[0]["id"] if _town_sas else ""
+        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1,
+                         cur_map=_town_id, cur_subarea=_town_sa)
         db.init_stats(group_id, loser_qq)
         db.bump_stats(group_id, loser_qq, deaths=1)
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）
@@ -2270,7 +2401,8 @@ class CombatCmds(CommandBase):
         lines = [log_body, "", f"💀 【{loser['name']}】被击败了！"]
         if lost > 0:
             lines.append(f"💰 你夺走了 {lost} 金币！")
-        lines.append(f"🏥 对方被送回橡木镇疗养(HP 1)。")
+        _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
+        lines.append(f"🏥 对方被送回{_town_name}疗养(HP 1)。")
         if self._is_redname(loser_qq):
             honor = self._get_honor(winner_qq) + 50
             db.set_event_state(f"honor_{winner_qq}", str(honor))

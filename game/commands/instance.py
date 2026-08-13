@@ -66,6 +66,10 @@ class InstanceCmds(CommandBase):
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
                 cur = self._instance_current_members(group_id, old_st)
                 ok_members = [m for m in old_st["members"] if str(m) in cur]
+                # R3 P2-5（上轮 N6 遗留）：0 血成员不得随队恢复进本——
+                # 阵亡者应等治疗/复活后再归队，避免 0 血开本直接踩陷阱/遇怪即倒
+                ok_members = [m for m in ok_members
+                              if (self._player(group_id, m) or {}).get("hp", 0) > 0]
                 # 人数/等级重校验（与 _instance_start 同规则）
                 min_players = inst.get("min_players", 2)
                 max_players = inst.get("max_players", 3)
@@ -74,6 +78,16 @@ class InstanceCmds(CommandBase):
                     for m in ok_members:
                         p = self._player(group_id, m)
                         if not p or p["level"] < inst.get("lv", 0):
+                            valid = False
+                            break
+                        # v104 M04 P1（N6 复验缺项）：恢复路径补 0 血/战斗检查，
+                        # 与 _instance_start 同规则——0 血恢复会进入地图模式后碰怪即倒；
+                        # 成员在野外战斗中会被加锁进本（双线战斗）。不通过则放弃旧进度，
+                        # 落到 _instance_start 输出对应拦截提示。
+                        if int(p.get("hp", 0)) <= 0:
+                            valid = False
+                            break
+                        if self._in_battle(group_id, m):
                             valid = False
                             break
                 if valid:
@@ -172,11 +186,14 @@ class InstanceCmds(CommandBase):
             )
             return
         role = "👑 BOSS" if next_stage.get("boss") else ("⭐ 精英" if next_stage.get("elite") and not s_mons else "🐾")
+        # R3 P2-7：非 map 分支空层防御（stage_cleared 仅 map 模式置位，当前不可达；
+        # 防未来改动后 st['boss'] 为 None 时裸崩 TypeError）
+        _b = st.get("boss") or {}
         yield event.plain_result(
             f"🧭 你继续深入……\n"
             f"━━━━━━━━━━━━\n"
             f"🚪 第 {st['stage_idx'] + 1} 层 · {next_stage['name']}\n"
-            f"{role}【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+            f"{role}【{_b.get('name', '未知敌人')}】Lv.{_b.get('lv', '?')} ❤️ {_b.get('hp', 0):,}\n"
             f"━━━━━━━━━━━━\n"
             f"⏳ 轮到 {st['players'][st['members'][0]].get('name', st['members'][0])} 行动！『攻击』『技能 <名称>』『防御』"
         )
@@ -201,7 +218,8 @@ class InstanceCmds(CommandBase):
         yield event.plain_result(self._instance_map_view(st, group_id))
 
     # ---------------- 调查（v87.2） ----------------
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?调查\s*(\S+)\s*$")
+    # v104 M24 P2-4：空参数也命中（help 写『调查』），handler 内给格式提示
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?调查(?:\s+(\S+))?\s*$")
     @require_player()
     @no_prof_waiting()
 
@@ -218,6 +236,10 @@ class InstanceCmds(CommandBase):
             yield event.plain_result("战斗进行中！先解决眼前的敌人～")
             return
         name = self._strip_cmd(event, "调查").strip()
+        # v104 M24 P2-4：『调查』空参数无响应（help 写『调查』）→ 给格式提示
+        if not name:
+            yield event.plain_result("格式：『调查 <目标>』，如『调查 宝箱』『调查 篝火』～（『副本地图』查看当前层可调查目标）")
+            return
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
         stage = stages[sidx] if sidx < len(stages) else {}
@@ -250,6 +272,9 @@ class InstanceCmds(CommandBase):
         # v87.2 复用世界地图 POI 处理（_handle_poi → _handle_inst_poi）
         text = self._handle_poi(group_id, qq_id, player, stage, poi.get("id", ""), poi, st=st)
         self._check_stage_secret_cond(st)
+        # R3 P1-2：篝火回血/陷阱扣血只改 st 快照，须同步 DB——否则下次 _enter_stage_combat
+        # 快照刷新从 DB 读旧值覆盖（回血丢失/伤害回滚），且『使用 治疗药水』满血误判复发
+        self._sync_players_db(group_id, st)
         db.save_battle(group_id, st["leader"], st)
         yield event.plain_result(text)
 
@@ -353,6 +378,8 @@ class InstanceCmds(CommandBase):
                 if random.random() < C.INST_EVENT_CHANCE:
                     text = self._handle_poi(group_id, qq_id, player, stage, p.get("id", ""), p, st=st)
                     self._check_stage_secret_cond(st)
+                    # R3 P1-2：陷阱扣血同步 DB（同调查路径，防快照刷新覆盖回滚）
+                    self._sync_players_db(group_id, st)
                     db.save_battle(group_id, st["leader"], st)
                     yield event.plain_result("🍃 你小心翼翼地探索……\n" + text)
                     return
@@ -531,7 +558,11 @@ class InstanceCmds(CommandBase):
             "━━━━━━━━━━━━",
             f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}({pct}%)",
         ]
-        for m in st["members"]:
+        # v104 M04 P2：状态视图按当前队伍过滤——退队者不显示血量行，
+        # 且退队者不再是"轮到 TA 行动"（原地等 TA 行动会让全队干等）
+        _cur = self._instance_current_members(group_id, st)
+        shown = [m for m in st["members"] if str(m) in _cur] or st["members"]
+        for m in shown:
             p = self._player(group_id, m)
             pname = p["name"] if p else m
             snap = st["players"].get(str(m), {})
@@ -542,7 +573,13 @@ class InstanceCmds(CommandBase):
                 f"{mark} {pname}({cls_label})：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} "
                 f"💙 {snap.get('mp', 0)}/{snap.get('max_mp', 1)}"
             )
-        cur_key = str(st["members"][st["turn"]])
+        turn_idx = st["turn"]
+        if _cur:
+            for _ in range(len(st["members"])):
+                if str(st["members"][turn_idx]) in _cur:
+                    break
+                turn_idx = (turn_idx + 1) % len(st["members"])
+        cur_key = str(st["members"][turn_idx])
         cur_p = self._player(group_id, cur_key)
         lines.append("━━━━━━━━━━━━")
         lines.append(f"⏳ 轮到 {cur_p['name'] if cur_p else cur_key} 行动！『攻击』『技能 <名称>』『防御』")
@@ -876,6 +913,17 @@ class InstanceCmds(CommandBase):
                 )
                 yield event.plain_result(
                     f"{p['name']} 正在战斗中，先打完再来！\n👥 当前队伍：{roster}（队友打完即可开本）"
+                )
+                return
+            # v104 M04 P2：队员等待型副业（垂钓/采集/挖掘）中开本——此前无任何提示，
+            # 队员被拉进副本锁战斗，等待结束物品照常入包（无死锁但体验突兀）。与
+            # no_prof_waiting 对发起者的拦截同规则，对全队生效。
+            _pw = self._prof_wait_state(group_id, m)
+            if _pw and int(_pw.get("finish", 0)) > int(time.time()):
+                _left = int(_pw["finish"]) - int(time.time())
+                _pt = C.PROF_WAIT_BASE.get(_pw.get("type"), (0, 0, "副业"))[2]
+                yield event.plain_result(
+                    f"⏳ {p['name']} 还在{_pt}呢，再有 {_left} 秒完成！等 TA 忙完再开本吧～"
                 )
                 return
         # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
@@ -1244,9 +1292,14 @@ class InstanceCmds(CommandBase):
             st["over"] = True
             # v101.27 #390 首通判断：必须在 _instance_victory 内 set_achievement 前判断，
             # 首通暗格概率 50%（复刷回落 20%）
+            # v104 M04 P2：原用 st["members"][0]——该列表按速度降序(instance.py:956)不是队长，
+            # 且未过滤退队者；成员[0] 是退队者时首通判定基于其成就记录。改按"任一当前成员"
+            # 判定：当前成员有人通关过 → 非首通（防退队者成就误判暗格概率）。
+            _fc_cur = self._instance_current_members(group_id, st) or [str(st["leader"])]
             st["first_clear"] = not any(
                 a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1
-                for a in (db.get_achievements(group_id, st["members"][0]) or [])
+                for m in _fc_cur
+                for a in (db.get_achievements(group_id, m) or [])
             )
             async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
                 yield _r
@@ -1443,6 +1496,7 @@ class InstanceCmds(CommandBase):
         logs += mlogs
         if dmg > 0:
             snap["hp"] = max(0, snap["hp"] - dmg)
+            snap["took_dmg"] = True  # v105 M18 P1：无伤通关(ach_flawless)受损标记，随 battle 状态持久化
             logs.append(f"❤️ {tname} 剩余 {snap['hp']}/{snap['max_hp']}")
         if snap["hp"] <= 0:
             st["alive"][tkey] = False
@@ -1520,6 +1574,48 @@ class InstanceCmds(CommandBase):
             if mats:
                 line += f"，拾取材料 {'、'.join(mats)}"
             lines.append(line)
+            # v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）——主线击杀目标
+            # 只挂副本时，组队通关副本的击杀必须计入，否则副本路线玩家主线卡死
+            _ql = self._instance_main_kill_progress(group_id, _m, mdef.get("name", ""))
+            if _ql:
+                lines.append(f"  {p['name']}：{'；'.join(_ql)}")
+        return lines
+
+    def _instance_main_kill_progress(self, group_id, qq_id, monster_name):
+        """v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）。
+
+        主线击杀目标只挂副本（q3_3 海盗王·独眼杰克 / q6_2 古王·奥德里克 / q9_4 恶魔祭司·赫尔加 /
+        q10_1 封印守卫(腐蚀) / q12_1 深渊猎犬 / q12_2 蚀夜(真相形态)）时，副本内击杀/通关
+        必须计入主线，否则组队玩家路线主线永远卡死。匹配规则与 combat._update_quests
+        一致（精确匹配 / 目标名+"精英"后缀变体）。返回提示行列表（无匹配返回空）。"""
+        try:
+            quests = db.get_quests(group_id, qq_id)
+        except Exception:
+            return []
+        if not quests or quests.get("main_status") != "active":
+            return []
+        mid = quests.get("main_quest")
+        mq = next((q for q in C.MAIN_QUESTS if q["id"] == mid), None) if mid else None
+        if not mq:
+            return []
+        obj = mq.get("objective") or {}
+        target = obj.get("kill")
+        if not target:
+            return []
+        # 匹配规则与 combat._update_quests 一致（v104 M20 P2 前缀精确：== 或 「目标·」开头）
+        if monster_name != target and not monster_name.startswith(target + "·"):
+            return []
+        prog = dict(quests.get("main_progress", {}))
+        prog[target] = prog.get(target, 0) + 1
+        quests["main_progress"] = prog
+        lines = []
+        if prog[target] >= obj.get("count", 1):
+            quests["main_status"] = "ready"
+            _g = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
+            lines.append(f"📜 主线『{mq['name']}』目标达成！回去找 {_g.get('name', '？')} 对话交付吧～")
+        else:
+            lines.append(f"📜 主线『{mq['name']}』：{prog[target]}/{obj.get('count', 1)}")
+        db.save_quests(group_id, qq_id, quests)
         return lines
 
     # ---------------- 通关后搜刮（v101.27 #390） ----------------
@@ -1538,7 +1634,7 @@ class InstanceCmds(CommandBase):
             if mat_id and mat_id in C.MATERIALS:
                 mname = C.display("materials", mat_id)
                 db.add_item(group_id, qq_id, mat_id, {
-                    "name": mname, "type": "材料", "stackable": True,
+                    "name": mname, "type": C.MATERIALS[mat_id].get("type", "材料"), "stackable": True,
                     "price": C.MATERIALS[mat_id]["price"],
                 })
                 lines.append(f"🎒 拾取：{mname} ×1")
@@ -1586,10 +1682,15 @@ class InstanceCmds(CommandBase):
         )
 
     def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
-        """暗格宝箱：图纸残页 50% / 稀有符文 30% / 专属材料 20%（稀缺品低概率，防通胀）"""
+        """暗格宝箱：星灵蝶蛋 5% / 图纸残页 45% / 稀有符文 30% / 专属材料 20%（稀缺品低概率，防通胀）"""
         roll = random.random()
         inst = C.INSTANCES[st["inst_id"]]
-        if roll < 0.50:
+        # v104 M17 P2-4：实装星灵蝶蛋渠道（pets.py source『传说级垂钓稀有产出/神秘宝箱』后半句）
+        if roll >= 0.95:
+            egg = C.make_pet_egg("pet_starbutterfly")
+            db.add_item(group_id, qq_id, "petegg_pet_starbutterfly", egg)
+            text = f"🦋 宝箱深处泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
+        elif roll < 0.50:
             pages = random.randint(2, 4)
             db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
                         {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
@@ -1599,14 +1700,25 @@ class InstanceCmds(CommandBase):
             # 稀有符文池（blue 品质符文，v101.25i6 品质统一后 quality=blue）
             blue_runes = [k for k, r in C.RUNES.items() if (r.get("quality") or "") == "blue"]
             if blue_runes:
+                # v105 M11 P1：改用 C.rune_item 构造——补 effect/lvl 字段（否则背包
+                # 『附魔』刻印时 economy.py:2035/2059 读 rd["effect"] 必 KeyError 崩溃），
+                # 顺带修复 desc 带字面 {v} 占位符 / 售价恒 50（战斗掉落版 cost//2=400）/
+                # 名字无品质前缀与等级（掉落版"稀有符文·灼热 I"）三个倒挂
                 rk = random.choice(blue_runes)
-                rune = C.RUNES[rk]
-                db.add_item(group_id, qq_id, rk, {
-                    "name": rune.get("name", rk), "type": "符文",
-                    "stackable": True, "price": rune.get("price", 50),
-                    "quality": "blue", "desc": rune.get("desc", ""),
-                })
-                text = f"✨ 宝箱里泛起微光——符文【{rune.get('name', rk)}】！"
+                r_def = C.RUNES[rk]
+                rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
+                if rune_data:
+                    # key 与战斗掉落一致（rune_<effect>_<lvl>，同键可叠加）
+                    db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
+                    text = f"✨ 宝箱里泛起微光——符文【{rune_data['name']}】！"
+                else:
+                    mat = random.choice(inst.get("materials", ["兽肉"]))
+                    mat_id = C.resolve("materials", mat)
+                    db.add_item(group_id, qq_id, mat_id, {
+                        "name": C.display("materials", mat_id), "type": "材料",
+                        "stackable": True, "price": C.MATERIALS[mat_id]["price"],
+                    }, count=2)
+                    text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
             else:
                 mat = random.choice(inst.get("materials", ["兽肉"]))
                 mat_id = C.resolve("materials", mat)
@@ -1659,6 +1771,11 @@ class InstanceCmds(CommandBase):
                              hp=snap["hp"], mp=snap["mp"],
                              max_hp=snap["max_hp"], max_mp=snap["max_mp"])
             lines.append(f"  {p['name']}：金币 +{gold} 经验 +{exp}")
+            # v105 M19 P0：副本 Boss 击杀同步推进主线进度（组队玩家路线，
+            # 与 _instance_kill_reward 内小怪/精英击杀同款接入）
+            _ql = self._instance_main_kill_progress(group_id, m, boss.get("name", ""))
+            if _ql:
+                lines.append(f"  {p['name']}：{'；'.join(_ql)}")
             # 专属材料
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):
@@ -1692,13 +1809,23 @@ class InstanceCmds(CommandBase):
                         db.add_item(group_id, top_key, f"bp_{uuid.uuid4().hex[:8]}", bp)
                         lines.append(f"👑 首功 {top_p['name']} 额外获得图纸：{bp['name']}")
         # 首通记录（每人）+ 阶段九：副本次数 + 成就判定
+        # v105 M18 P1：结算统计「全队未受伤」→ ach_flawless「完美主义者」解锁
+        # （此前全仓 check_achievements 无一传 flawless，条件恒 False 永不可解锁）
+        _flawless = all(
+            st["alive"].get(str(m2), True)
+            and not (st["players"].get(str(m2), {}) or {}).get("took_dmg")
+            for m2 in st["members"] if str(m2) in cur
+        )
         for m in st["members"]:
             if str(m) not in cur:
                 continue  # v104 P1：已退队成员不记录首通成就/副本次数
             if st["alive"].get(str(m), True):
                 db.set_achievement(group_id, m, f"inst_clear_{st['inst_id']}", 1)
                 db.bump_stats(group_id, m, inst_clears=1)
-                C.check_achievements(group_id, m, None, {"inst_id": st["inst_id"]})
+                _extra = {"inst_id": st["inst_id"]}
+                if _flawless:
+                    _extra["flawless"] = True
+                C.check_achievements(group_id, m, None, _extra)
         # v101.27 #390 隐藏奖励：通关后停留搜刮
         # ① 战利品堆（必出，保底搜刮体验）：金币=通关奖金×30% + 专属材料×1
         # ② 隐藏暗格（概率出）：20%（首通 50%）→ 墙上的裂痕 → 精英守卫 → 宝箱

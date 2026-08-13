@@ -22,13 +22,37 @@ async def cmd(m, handler_name, gid, qid, msg):
     return results[-1] if results else ""
 
 
+# v105 M23：探索彩蛋判定已从 _handle_explore_event(35% 事件窗口内) 移到 explore() 主入口
+# 独立判定（遇怪/事件/彩蛋三路并列，彩蛋最先命中直接返回，恢复策划案 ~0.5% 总概率）。
+# 直接调 _handle_explore_event 不再触发彩蛋 → 测试改走『探索』主命令路径：
+# monkeypatch 野外偶遇/POI 概率为 0（防提前 return），只留 roll_explore_egg 返回指定彩蛋。
+SHOOTING_STAR = {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state",
+                 "params": {"key": "wish_{gid}_{qid}", "value": "ts",
+                            "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
+MYSTERY_CHEST = {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣",
+                 "template": "mystery_chest", "params": {}}
+NIGHT_VISITOR = {"id": "night_visitor", "weight": 10, "name": "神秘访客", "template": "set_flag",
+                 "params": {"flag": "h_abyss_whisper", "key": "saw_the_rift",
+                            "header": "🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n“深渊的裂隙……正在低语……去找它。”\n身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"}}
+
+
+async def explore_egg(m, egg):
+    """跑一次『探索』并强制命中指定彩蛋，返回探索输出文本。"""
+    _w, _p, _e = C.roll_wild_encounter, C.roll_poi, C.roll_explore_egg
+    C.roll_wild_encounter = lambda *a, **k: None
+    C.roll_poi = lambda *a, **k: None
+    C.roll_explore_egg = lambda cur_map_id=None: egg
+    try:
+        return await cmd(m, "explore", "g1", "w1", "探索")
+    finally:
+        C.roll_wild_encounter, C.roll_poi, C.roll_explore_egg = _w, _p, _e
+
+
 async def main():
     clean_db()
     m = Main(None)
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", cur_map="oak_plain")
-    player = db.get_player("g1", "w1")
-    cur_map = C.MAP_BY_ID["oak_plain"]
 
     # ---- 概率采样（固定 seed 量级）----
     import random
@@ -38,61 +62,36 @@ async def main():
     check("彩蛋总概率≈0.5%", 0.002 < hits / n < 0.01, f"{hits/n:.4f}")
 
     # ---- 流星许愿：触发 + 三选一 ----
-    orig_egg = C.roll_explore_egg
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
-    try:
-        handled, text = m._handle_explore_event("g1", "w1", player, cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
-    check("流星触发提示选项", handled and "许愿 经验" in text and "许愿 金币" in text, text[:200])
+    text = await explore_egg(m, SHOOTING_STAR)
+    check("流星触发提示选项", "许愿 经验" in text and "许愿 金币" in text, text[:200])
     # 许愿 经验
     gold0 = db.get_player("g1", "w1")["gold"]
     out = await cmd(m, "wish", "g1", "w1", "许愿 经验")
     check("许愿经验成功", "经验 +" in out, out[:200])
     # 许愿 金币（重新触发）
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
-    try:
-        m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
+    await explore_egg(m, SHOOTING_STAR)
     out = await cmd(m, "wish", "g1", "w1", "许愿 金币")
     check("许愿金币成功", "金币 +" in out, out[:200])
     check("金币增加", db.get_player("g1", "w1")["gold"] > gold0, "")
     # 许愿 材料（重新触发）
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
-    try:
-        m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
+    await explore_egg(m, SHOOTING_STAR)
     out = await cmd(m, "wish", "g1", "w1", "许愿 材料")
     check("许愿材料成功", "获得材料" in out, out[:200])
     # 无状态许愿被拦
     out = await cmd(m, "wish", "g1", "w1", "许愿 经验")
     check("无流星被拦", "没有流星" in out, out[:200])
     # 非法选项
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "shooting_star", "weight": 60, "name": "流星许愿", "template": "set_state", "params": {"key": "wish_{gid}_{qid}", "value": "ts", "header": "🌠 流星划过{name}夜空！\n『许愿 经验』『许愿 金币』『许愿 材料』"}}
-    try:
-        m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
+    await explore_egg(m, SHOOTING_STAR)
     out = await cmd(m, "wish", "g1", "w1", "许愿 随便")
     check("非法选项提示三选一", "三选一" in out or "快选" in out, out[:200])
 
     # ---- 神秘宝匣 ----
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "mystery_chest", "weight": 30, "name": "神秘宝匣", "template": "mystery_chest", "params": {}}
-    try:
-        handled, text = m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
-    check("宝匣给金币+图纸", handled and "神秘宝匣" in text and "金币" in text and "图纸" in text, text[:200])
+    text = await explore_egg(m, MYSTERY_CHEST)
+    check("宝匣给金币+图纸", "神秘宝匣" in text and "金币" in text and "图纸" in text, text[:200])
 
     # ---- 神秘访客：设置隐藏 NPC flag ----
-    C.roll_explore_egg = lambda cur_map_id=None: {"id": "night_visitor", "weight": 10, "name": "神秘访客", "template": "set_flag", "params": {"flag": "h_abyss_whisper", "key": "saw_the_rift", "header": "🌫️ 【神秘访客】雾气突然涌起，一道模糊的身影拦住了你。\n“深渊的裂隙……正在低语……去找它。”\n身影说完便消散在雾中，你隐约感到，某个秘密被揭开了(隐藏线索已记入见闻)。"}}
-    try:
-        handled, text = m._handle_explore_event("g1", "w1", db.get_player("g1", "w1"), cur_map)
-    finally:
-        C.roll_explore_egg = orig_egg
-    check("访客提示线索", handled and "神秘访客" in text and "裂隙" in text, text[:200])
+    text = await explore_egg(m, NIGHT_VISITOR)
+    check("访客提示线索", "神秘访客" in text and "裂隙" in text, text[:200])
     check("h_abyss_whisper flag 已设", "saw_the_rift" in db.get_talk_flags("g1", "w1", "h_abyss_whisper"), str(db.get_talk_flags("g1", "w1", "h_abyss_whisper")))
 
     # ---- 成就 cond ----

@@ -59,6 +59,10 @@ class SocialCmds(CommandBase):
             return
         item_name = args[0]
         price = int(args[1])
+        # v104R3 P2：上架价格上限——防止 999999999 恶意占坑/诱导高价（上限远超任何物品价值）
+        if price > 999999:
+            yield event.plain_result("价格太高啦！上架价最多 999999 金币～")
+            return
         inv = db.get_inventory(group_id, qq_id)
         found = None
         for it in inv:
@@ -152,6 +156,10 @@ class SocialCmds(CommandBase):
             if price < 1:
                 yield event.plain_result("价格至少 1 金币！")
                 return
+            # v104R3 P2：摆摊价格上限（与『上架』一致，防恶意占坑/诱导）
+            if price > 999999:
+                yield event.plain_result("价格太高啦！摆摊价最多 999999 金币～")
+                return
         else:
             yield event.plain_result("格式：摆摊 <物品名> [价格]，不带价格 = 以物换物，如『摆摊 铁剑』或『摆摊 铁剑 500』")
             return
@@ -170,14 +178,30 @@ class SocialCmds(CommandBase):
             map_name = "家里"
         else:
             map_name = map_obj.get("name", cur_map)
-        # 已有摊位 → 自动收旧摊（物品退回）
+        # 已有摊位 → 自动收旧摊（物品退回；仅公共地图单摊语义）
         old = [s for s in db.market_list_by_seller(group_id, qq_id) if s.get("map_id")]
-        for s in old:
-            db.market_remove(s["id"])
-            db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
+        # v104R3 P2：家里摆摊 = 铺面，受房屋等级挂机位限制（25 章房产案：
+        # 木屋 0 位 / 石屋 1 位 / 庄园 2 位 / 宅邸 3 位——此前恒 1 摊且不校验；
+        # 铺面多摊并存：位未满时不再自动收旧摊）
+        _home_stall = cur_map.startswith("home_")
+        if _home_stall:
+            dlv = int(player.get("deed_lv", 1) or 1)
+            hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
+            slots = hl.get("stall_slots", 0)
+            if slots <= 0:
+                yield event.plain_result("🏠 木屋没有铺面挂机位！『地契 升级』到石屋解锁 1 个挂机位～")
+                return
+            if len(old) >= slots:
+                yield event.plain_result(
+                    f"🏪 铺面挂机位已满({len(old)}/{slots})！先『收摊』腾位置，或升级房屋获得更多挂机位～")
+                return
+        if not _home_stall:
+            for s in old:
+                db.market_remove(s["id"])
+                db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
         db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
         db.remove_item(group_id, qq_id, found["key"], count=1)
-        tip = f"(旧摊位已收摊，{len(old)} 件物品退回背包)" if old else ""
+        tip = f"(旧摊位已收摊，{len(old)} 件物品退回背包)" if (old and not _home_stall) else ""
         if price > 0:
             head = f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
             tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
@@ -334,29 +358,52 @@ class SocialCmds(CommandBase):
         if str(target_qq) == str(qq_id):
             yield event.plain_result("不能和自己组队！")
             return
+        tname = self._player(group_id, target_qq)
+        tname_str = tname["name"] if tname else target
+        # v104 M04 P1：战斗/副本中禁止组队/拉人——防把副本队长/队员拉走（原队伍解散→副本僵尸化）、
+        # 战斗中拉新人（新人未上锁可双线野外战斗）。队员的副本 battle 行存队长名下，
+        # 须用 _instance_battle_for 查副本归属；retreated（撤退保留进度）不算战斗中。
+        _lb = db.get_battle(group_id, qq_id)
+        _tb = db.get_battle(group_id, target_qq)
+        if _lb and not (_lb["state"].get("type") == "instance" and _lb["state"].get("retreated")):
+            yield event.plain_result("⚔️ 你正在战斗中！先打完再组队吧～")
+            return
+        if _tb and not (_tb["state"].get("type") == "instance" and _tb["state"].get("retreated")):
+            yield event.plain_result(f"⚔️ {tname_str} 正在战斗中！等 TA 打完再组队吧～")
+            return
+        if self._instance_battle_for(group_id, target_qq):
+            yield event.plain_result(f"⚔️ {tname_str} 正在副本战斗中！等 TA 打完再组队吧～")
+            return
         # v49：已有队伍时，队长用『组队 <名字>』拉新人（上限 3 人）
         if members:
             if str(members[0]) != str(qq_id):
                 yield event.plain_result("你已在队伍中，让队长『组队 <名字>』拉人吧～")
                 return
-            tname = self._player(group_id, target_qq)
-            tname_str = tname["name"] if tname else target
             if db.party_add(group_id, qq_id, target_qq):
+                # v104 M04 P2：拉人同样记组队次数（设计 29 章 2.1「组队成功双方各记
+                # party_count」）——此前只 party_create 计数，常玩 3-4 人队成就进度慢
+                db.bump_stats(group_id, qq_id, party_count=1)
+                db.bump_stats(group_id, target_qq, party_count=1)
+                C.check_achievements(group_id, qq_id)
+                C.check_achievements(group_id, target_qq)
+                my_name = self._player(group_id, qq_id)
                 yield event.plain_result(
                     f"🤝 {tname_str} 加入了你的队伍！(当前 {len(db.party_members(group_id, qq_id))} 人，上限 4 人)\n"
-                    f"💡 组队打怪经验＋10%！"
+                    f"💡 组队打怪经验＋10%！\n"
+                    f"🔔 {tname_str}：{my_name['name'] if my_name else qq_id} 将你拉入了队伍！"
                 )
             else:
                 yield event.plain_result(f"无法拉入 {tname_str}：TA 可能已在队伍中，或队伍已满(4 人)～")
             return
-        db.party_create(group_id, qq_id, target_qq)
-        tname = self._player(group_id, target_qq)
+        if not db.party_create(group_id, qq_id, target_qq):
+            yield event.plain_result(f"无法与 {tname_str} 组队：TA 已有队伍，或正在战斗中～")
+            return
         # 阶段九：组队次数 + 成就判定（双方）
         db.bump_stats(group_id, qq_id, party_count=1)
         db.bump_stats(group_id, target_qq, party_count=1)
         C.check_achievements(group_id, qq_id)
         C.check_achievements(group_id, target_qq)
-        yield event.plain_result(f"🤝 组队成功！你和 {tname['name'] if tname else target} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
+        yield event.plain_result(f"🤝 组队成功！你和 {tname_str} 成为队友\n💡 组队打怪经验＋10%！『组队 <名字>』可再拉人(上限 4 人)")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退队(?:\s*|$)")
     @require_player()
@@ -415,6 +462,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result(f"公会『{name}』已存在！换个名字吧～")
             return
         db.update_player(group_id, qq_id, gold=player["gold"] - cfg["create_cost"])
+        # v105 M18 P2：创建公会立即判定成就（ach_guild1「加入公会」无需等下次事件）
+        C.check_achievements(group_id, qq_id)
         yield event.plain_result(
             f"🏰 【公会创建成功】『{name}』！\n"
             f"你成为了公会会长！\n"
@@ -439,6 +488,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result(f"找不到公会『{name}』！输入『公会排行』看看有哪些公会～")
             return
         db.guild_join(g["gid"], qq_id)
+        # v105 M18 P2：加入公会立即判定成就（ach_guild1「加入公会」无需等下次事件）
+        C.check_achievements(group_id, qq_id)
         yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n💡 『公会』查看信息，『公会签到』每日报到！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)")
@@ -452,7 +503,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你不在任何公会里～")
             return
         if g["leader"] == qq_id:
-            yield event.plain_result("你是会长！『解散公会』或先转让会长吧～")
+            # v105 M18 P2：全仓无『转让会长』命令，提示只指向真实命令，避免误导
+            yield event.plain_result("你是会长！会长不能直接退会，请『解散公会』（公会随之解散）～")
             return
         db.guild_leave(g["gid"], qq_id)
         yield event.plain_result(f"👋 你已退出公会【{g['name']}】。江湖再见！")
@@ -470,7 +522,7 @@ class SocialCmds(CommandBase):
         db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散)(?:\s*.*|$)")
     @require_player()
 
     async def guild_info(self, event: AstrMessageEvent):
@@ -579,7 +631,10 @@ class SocialCmds(CommandBase):
             yield event.plain_result("今天的公会捐献已完成！明天再来～")
             return
         # 材料 = 背包中 mat_ 前缀物品（v46 起材料统一存 mat_ 拼音/英文 id）
-        mats = [it for it in db.get_inventory(group_id, qq_id) if it["key"].startswith("mat_")]
+        # v104R3 P1-3：排除任务道具——隐藏线/主线交付物（烬火信标/星尘沙漏/灰烬之核等）
+        # 也是 mat_ 前缀，误捐后无再获取途径 → 隐藏线断链（与批量出售保护 economy.py 对齐）
+        mats = [it for it in db.get_inventory(group_id, qq_id)
+                if it["key"].startswith("mat_") and it["data"].get("type") != "任务道具"]
         total = sum(it["count"] for it in mats)
         if total < need:
             yield event.plain_result(
@@ -826,13 +881,21 @@ class SocialCmds(CommandBase):
             lines.append("💡 可获得的坐骑：" + "、".join(f"{_q_label(m)}{m['name']}" for m in C.MOUNT_POOL))
         yield event.plain_result("\n".join(lines))
 
-    def _maybe_roll_event(self) -> str:
+    async def _maybe_roll_event(self, group_id: str) -> str:
         """惰性事件调度：无事件且冷却到期 → 概率触发新事件。返回公告文本(无则空串)"""
         import random as _rnd
         cur = db.get_world_event(include_expired=True)
         now = int(time.time())
-        # 当前事件过期 → 清除（拍卖/Boss 结算由各自指令处理）
+        # 当前事件过期 → 清除（v104R3 P1-1：过期拍卖必须先走 _settle_auction 结算——
+        # 否则出价金币随 bids 记录一起销毁，永久丢失；Boss 事件由各自指令处理）
         if cur and now >= cur["ends_at"]:
+            if cur["etype"] == "auction":
+                try:
+                    _lines = self._settle_auction(cur, group_id)
+                    if _lines:
+                        await self._broadcast(f"🏪 【拍卖行 · 落槌结算】\n{_lines}")
+                except Exception as _e:
+                    pass
             db.clear_world_event()
             cur = None
         if cur:
@@ -862,7 +925,7 @@ class SocialCmds(CommandBase):
     async def world_event(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        notice = self._maybe_roll_event()
+        notice = await self._maybe_roll_event(group_id)
         # 新事件刚触发 → 广播到所有注册群（当前群已通过 yield 看到）
         if notice.strip():
             try:
@@ -963,6 +1026,9 @@ class SocialCmds(CommandBase):
                             lines.append(f"↩️ 退还 {p2['name']} {amt2} 金币")
             else:
                 lines.append(f"💤 【{it['name']}】无人出价，流拍。")
+        # v104R3 P2：落槌价去向说明（复验点12：赢家金币为系统回收，无文案说明）
+        if any(it.get("bids") for it in items):
+            lines.append("💰 落槌价已由拍卖行收讫(系统回收)，未成交者的出价已全额退还。")
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?竞拍(?:\s*|$)")
@@ -1012,6 +1078,16 @@ class SocialCmds(CommandBase):
         if str(qq_id) in it["bids"] and amount < it["bids"][str(qq_id)]:
             yield event.plain_result(f"不能低于自己当前出价 {it['bids'][str(qq_id)]} 金币！")
             return
+        # v104R3 P2：新出价必须严格超过当前最高价（同价出价无意义且锁金币到结算——先到者胜，
+        # 后到者金币被冻结直到结算/被超越；直接拒绝，复验点5）
+        if it["bids"] and str(qq_id) not in it["bids"]:
+            _top_qq = max(it["bids"], key=it["bids"].get)
+            if it["bids"][_top_qq] >= amount:
+                _tp = self._player(group_id, _top_qq)
+                _top_name = _tp["name"] if _tp else _top_qq
+                yield event.plain_result(
+                    f"当前最高出价是 {_top_name} 的 {it['bids'][_top_qq]} 金币——出价必须超过最高价！")
+                return
         # 被超越 → 退还当前最高出价者（并移除其出价记录）
         if it["bids"]:
             top_qq = max(it["bids"], key=it["bids"].get)

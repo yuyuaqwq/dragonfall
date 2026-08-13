@@ -99,8 +99,12 @@ PET_POOL = [
 #   加新掉落渠道 = 加一行；条件语义：role=怪物定位 / is_elite / is_boss / name_kw=名字含任一关键词
 PET_EGG_ROLL = [
     {"key": "pet_wolf",        "rate": 0.015, "role": "dps", "name_kw": ["狼", "狗", "野猪", "熊"]},
-    {"key": "pet_salamander",  "rate": 0.015, "role": "dps", "name_kw": ["蜥", "火蛇", "蛇"]},
-    {"key": "pet_fox",         "rate": 0.015, "role": "dps", "name_kw": ["狐", "貂", "雪兽", "鹿"]},
+    {"key": "pet_salamander",  "rate": 0.015, "name_kw": ["蜥", "火蛇", "蛇"]},
+    # v104 M17 P1-1/P2-2 修复：冰晶狐/火尾蜥蛋掉落去掉 role=dps 限制——
+    #   全库无 dps 且名字含 狐/貂/雪兽 的怪物（荧光狐/极光狐为 healer/speedster），
+    #   导致冰晶狐蛋永不掉落（图鉴 13/14 绝版）；火尾蜥同理仅雷蜥命中。
+    #   现放宽为任意角色、名字含关键词即按 rate 掷蛋（source 文案与实现一致）。
+    {"key": "pet_fox",         "rate": 0.015, "name_kw": ["狐", "貂", "雪兽", "鹿"]},
     {"key": "pet_cat",         "rate": 0.065, "is_elite": True},
     {"key": "pet_panther",     "rate": 0.035, "is_elite": True},
     {"key": "pet_bat",         "rate": 0.030, "is_elite": True},

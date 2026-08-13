@@ -80,9 +80,12 @@ class ItemContext:
 def infer_template(data):
     """从道具数据推断模板名（use() 分发用）。"""
     from .. import content as C  # v102.2 延迟导入（core 聚合链惯例）
-    if data.get("hot"):
+    if data.get("hot") or data.get("hot_mana"):
         # v101.28 食物持续恢复：有 hot 字段 = 食物 → food 模板
         # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
+        # v104 M08 P1-4：hot_mana 且无 hot 也是食物（苹果酒/蜂蜜茶/码头朗姆等 8 种
+        # 只有 hot_mana/hot_turns 无 hot，此前被 infer 判为 mana 药水——战斗内变
+        # 即时回蓝，desc 却写"每回合回复魔力"，实机与文案不符）
         return "food"
     if data.get("effect"):
         # v101.28b 食物增益：effect + 恢复字段 = 战斗料理（战斗内 buff，战斗外恢复）
@@ -95,6 +98,11 @@ def infer_template(data):
         if data.get("heal") or data.get("mana") or data.get("stamina") is not None:
             return "food_effect"
         return "none"
+    if data.get("heal") and data.get("mana"):
+        # v104R3 M16 P2-3：heal+mana 复合药水（全效药水/月之露/高级·超级全效等）——
+        # 原 infer 命中 heal 模板战斗外只回血不回蓝（desc 承诺双回复落空），
+        # 复合模板战斗内外双恢复（须在 food_buff/food_effect 判定之后、heal 之前）
+        return "heal_mana"
     if data.get("heal"):
         return "heal"
     if data.get("mana"):
@@ -214,6 +222,33 @@ def tpl_mana(ctx):
         text=f"💙 你使用了【{d['name']}】，恢复 {mana_v} 点魔力！\n💙 {new_mp}/{ctx.player['max_mp']}{st_msg}")
 
 
+@register("heal_mana", battle_ok=True)
+def tpl_heal_mana(ctx):
+    """v104R3 M16 P2-3：heal+mana 复合药水（全效药水/月之露等）。
+    战斗外：复用 _food_out_battle 即时双恢复（回血回蓝+体力，满状态拦截不消耗）。
+    战斗内：payload=f"hm:{hp},{mp}"（battle._do_use_item 的 hm: 分支双恢复）；
+    全满拦截不消耗（对齐 tpl_heal/tpl_mana 的 M02 P1-5 满状态规则）。"""
+    d = ctx.data
+    if ctx.battle:
+        _hp, _max_hp = _battle_cur_max(ctx, "hp", "max_hp")
+        _mp, _max_mp = _battle_cur_max(ctx, "mp", "max_mp")
+        if _hp >= _max_hp and _mp >= _max_mp:
+            return ItemResult(
+                text=f"❤️💙 你的生命和魔力都是满的({_hp}/{_max_hp} · {_mp}/{_max_mp})，用不着【{d['name']}】～",
+                consume=False)
+        hv = d["heal"] if d["heal"] > 1 else int(ctx.player["max_hp"] * d["heal"])
+        mv = d["mana"] if d["mana"] > 1 else int(ctx.player["max_mp"] * d["mana"])
+        return ItemResult(payload=f"hm:{hv},{mv}")
+    # 战斗外：全满拦截（_food_out_battle 对带 mana 物品无全满拦截，此处补）
+    if (ctx.player["hp"] >= ctx.player["max_hp"]
+            and ctx.player["mp"] >= ctx.player["max_mp"]
+            and not d.get("stamina")):
+        return ItemResult(
+            text=f"❤️💙 你的生命和魔力都是满的({ctx.player['hp']}/{ctx.player['max_hp']} · {ctx.player['mp']}/{ctx.player['max_mp']})，用不着【{d['name']}】～",
+            consume=False)
+    return _food_out_battle(ctx)
+
+
 @register("stamina", battle_ok=True)
 def tpl_stamina(ctx):
     """体力恢复（纯体力食物）。体力满时拦截不消耗。
@@ -310,6 +345,9 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "buff_atk_food": "food_atk_up", "buff_def_food": "food_def_up",
               "buff_spd_food": "food_spd_up", "buff_crit_food": "food_crit_up",
               "buff_matk_food": "food_matk_up",
+              # v104 M08 P2-12：精灵果酱 food_spd_up_small（v105 M16 已在 battle.py BUFF_MULT
+              # 实现 spd+10% 本场，键不在本映射表易误导维护——补进注释对齐）
+              "food_spd_up_small": "food_spd_up_small",
               # v101.28f 药水强度分档（战吼/龙力/蛮力/风灵/致命/锐目/秘法/星辉/虚空/战圣）
               "buff_atk_big": "atk_up_big", "buff_atk_small": "atk_up_small",
               "buff_spd_small": "spd_up_small", "buff_crit_small": "crit_up_small",

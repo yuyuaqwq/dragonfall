@@ -300,6 +300,16 @@ LEGENDARY_EFFECTS = {
         "effect": {"reflect_pct": 0.50},
         "desc": "受击 20% 概率触发灰烬壁垒：反弹 50% 伤害",
     },
+    "goblin_crown": {  # v104 修复（M06 P2-7）：咕噜的皇冠——哥布林王的威仪
+        "name": "咕噜王的威仪", "kind": "defense", "trigger": "stat",
+        "effect": {"hp_pct": 0.06},
+        "desc": "最大生命＋6%",
+    },
+    "mu_ying_blade": {  # v104 修复（M06 P1-4）：暮影之刃——暮色中取人性命
+        "name": "暮影", "kind": "attack", "trigger": "stat",
+        "effect": {"crit": 0.08},
+        "desc": "暴击率＋8%",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -322,12 +332,18 @@ SERIES_FIXED_AFFIX = {
     "水手护腿": ["swift"],
     "珍珠项链": ["crit_up", "swift"], "锚形戒指": ["lifesteal", "crit_dmg"],
     "金钩弯刀": ["crit_up", "lifesteal"], "杰克的金钩": ["execute", "lifesteal"],
+    # v104 修复（M06 P2-7）：咕噜的皇冠（哥布林酋长传说图纸装备）
+    "咕噜的皇冠": ["tenacity"],
     # 圣光
     "圣光长剑": ["armor_break"], "晨曦法杖": ["meditate"],
     "王都长弓": ["pierce", "precise"], "圣殿战锤": ["charge", "execute"],
     "骑士头盔": ["dmg_reduce"], "圣光胸甲": ["shield"], "骑士长靴": ["tenacity"],
     "圣光护腿": ["dmg_reduce"],
     "圣光护符": ["purify", "meditate"], "王国徽戒": ["crit_up", "break_magic"],
+    # v104 M07 修复 P1：Lv.35-49 断档补档（圣光系列锻造蓝装，词条与 28-34 级圣光同主题）
+    "圣光战盔": ["dmg_reduce"], "圣光重甲": ["shield"], "圣光重靴": ["tenacity"],
+    "圣光战腿": ["dmg_reduce"], "圣裁长剑": ["armor_break"], "圣光法杖": ["meditate"],
+    "圣光猎弓": ["precise"], "圣光战锤": ["charge"],
     "古王剑": ["execute"], "审判之链": ["purify"],
     # 月语
     "月语长弓": ["hunt", "precise"], "银叶法杖": ["element_ice", "meditate"],
@@ -355,6 +371,14 @@ SERIES_FIXED_AFFIX = {
     "翡翠头盔": ["dodge"], "翡翠战靴": ["dodge"], "翡翠项链": ["dodge"],
     "迷雾胸甲": ["swift", "dodge"], "迷雾战靴": ["swift"], "迷雾项链": ["swift"],
     "猎风长弓": ["precise", "swift"], "疾风长弓": ["precise", "pierce"],
+    # v104 M08 P1-5：SHOP_WEAPONS 9 件补录名册的固定词条（对齐同系列/同武器类型风格：
+    # 白鹿=敏捷闪避风、铁港=海风暴击风；蓝装 1 词条）
+    "精铁长剑": ["crit_up"], "硬木战弓": ["precise"], "祈愿法杖": ["meditate"],
+    "铁头战锤": ["charge"], "厚皮拳套": ["combo"],
+    "水手弯刀": ["crit_up"], "远洋长弓": ["precise"], "铁锚战锤": ["charge"],
+    "铁链拳套": ["combo"],
+    # v104 M20 P1：支线奖励「汉斯的手工武器」（白鹿蓝装剑，对齐精铁长剑风格）
+    "汉斯的手工武器": ["crit_up"],
     # 海神
     "海神三叉戟": ["element_ice", "pierce"], "潮汐法杖": ["element_ice", "meditate"],
     "珍珠头冠": ["swift"], "龙鳞海甲": ["dodge", "dmg_reduce"], "海神长靴": ["swift"],
@@ -371,6 +395,8 @@ SERIES_FIXED_AFFIX = {
     "苍穹头盔": ["swift"], "云纹胸甲": ["dodge", "swift"], "星辉长靴": ["swift"],
     "苍穹护腿": ["swift"],
     "苍穹项链": ["element_thunder", "crit_up"], "奥拉圣印": ["element_thunder", "crit_up"],
+    # v104 修复（M06 P1-4）：暮影之刃（暮影龙魂图纸装备，匕首风格）
+    "暮影之刃": ["crit_up", "combo"],
     # v87 隐藏线：星尘（法系星空）
     "星尘法杖": ["element_thunder", "meditate"], "星尘长袍": ["dodge", "meditate"],
     "星尘之戒": ["crit_up", "element_thunder"], "星尘坠饰": ["crit_dmg", "meditate"],

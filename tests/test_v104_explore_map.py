@@ -121,7 +121,7 @@ async def main():
     check("城镇首次探索正常", len(out1) > 0 and "过一会儿再来" not in out1, out1[:80])
     out2 = await cmd(m, "explore", "g1", "q1", "探索")
     check("连续探索→60s 冷却拦截", "过一会儿再来" in out2, out2[:120])
-    cd = db.get_event_state("town_explore_cd_g1_q1")
+    cd = db.get_event_state("town_explore_cd_q1")  # v105 M23 P2-1：冷却 key 全局化（只含 qq_id，防跨群绕过）
     check("冷却 key 已写入 event_state", bool(cd), cd)
 
     print("\n【5. 世界 Boss 掉落：结算出物品】")

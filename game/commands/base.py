@@ -270,7 +270,9 @@ class CommandBase:
             for sa in (cm.get("subareas") or []):
                 if sa["id"] == sa_id:
                     funcs = sa.get("funcs") or []
-                    if sa.get("shop") or "shop" in funcs or "alchemy" in funcs or "heal" in funcs:
+                    if sa.get("shop") or "shop" in funcs or "alchemy" in funcs or "heal" in funcs or sa.get("healer"):
+                        # v104 M09 P1 修复：补 healer key——铁锚酒馆(ironharbor_5, shop=False, healer=True)
+                        #   有配货却因 _at_shop 不查 healer 而『商店』报"这里没有商店"（_sa_shop_kind 已判 tavern）
                         return True
                     break  # v95.4：当前子区域不是商店 → 继续查野外行商
         # v95.4：不在城镇设施 → 看是否有野外行商在场
@@ -575,29 +577,7 @@ class CommandBase:
 
 
     def _title_bonus(self, group_id, qq_id) -> dict:
-        """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)"""
-        bonus = {}
-        try:
-            earned = self._earned_titles(group_id, qq_id, self._player(group_id, qq_id) or {})
-            for i, t in enumerate(C.TITLES):
-                if earned[i] and t.get("bonus"):
-                    for k, v in t["bonus"].items():
-                        bonus[k] = bonus.get(k, 0) + v
-            # 阶段九：成就称号 bonus（14 章 3.3，达成即生效）
-            # M18 修复：跳过与 TITLES 同名且带 bonus 的成就（副业 Lv.10 大师称号已由上方 TITLES 段累加，
-            # 成就侧 ach_pro_*10 为同一称号的重复数据 → 跳过避免双倍发放）
-            title_bonus_names = {t["name"] for t in C.TITLES if t.get("bonus")}
-            try:
-                unlocked_achs = {r["ach_key"] for r in db.get_achievements("", qq_id)}
-            except Exception:
-                unlocked_achs = set()
-            for a in C.ACHIEVEMENTS:
-                if a.get("bonus") and a["id"] in unlocked_achs and a.get("name") not in title_bonus_names:
-                    for k, v in a["bonus"].items():
-                        if k == "prof_exp_mult":
-                            continue  # v104.2 M13：全知全能副业经验倍率由 add_prof_exp 结算，非面板属性
-                        if k != "atk" or v != 0:  # 占位字段跳过
-                            bonus[k] = bonus.get(k, 0) + v
-        except Exception:
-            pass
-        return bonus
+        """副业大师称号的属性加成汇总(Lv.10 称号 bonus 叠加 + 阶段九成就称号 bonus)
+        v105 M01#11：逻辑下沉 core/title_bonus.py（命令层与 store 惰性升级共用同一实现）"""
+        from ..core.title_bonus import title_bonus
+        return title_bonus(group_id, qq_id, self._player(group_id, qq_id) or {})

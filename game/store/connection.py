@@ -15,7 +15,9 @@ DB_PATH = os.environ.get(
 
 C_MAP_IDS = set(C.MAP_BY_ID.keys())
 
-_lock = threading.Lock()
+# v105 P1(M01#11)：RLock——get_player 读档惰性升级前需在锁内计算称号加成（title_bonus
+# 会再调 get_stats/get_quests/get_inventory 等 store 函数），Lock 不可重入会死锁。
+_lock = threading.RLock()
 
 
 def _connect():

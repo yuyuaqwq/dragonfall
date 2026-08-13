@@ -44,9 +44,20 @@ def action_give_gold(world, group_id, qq_id, player, npc_id, action):
 
 @register("give_exp")
 def action_give_exp(world, group_id, qq_id, player, npc_id, action):
+    # v105 M21 P2：补升级结算——此前只写 exp 不触发 check_player_level_up，
+    # 数据一旦使用会跳过升级（潜在雷）；与成就奖励领取同源结算（achievements.py:195-203）
     exp = int(action["give_exp"])
-    db.update_player(group_id, qq_id, exp=(player.get("exp", 0) or 0) + exp)
-    return [f"✨ 获得经验 +{exp}"]
+    p = dict(player)
+    p["exp"] = (p.get("exp", 0) or 0) + exp
+    lv_logs, p = E.check_player_level_up(group_id, qq_id, p)
+    db.update_player(group_id, qq_id,
+                     exp=p["exp"], level=p["level"], hp=p["hp"], mp=p["mp"],
+                     max_hp=p["max_hp"], max_mp=p["max_mp"], skills=p["skills"],
+                     attr_pts=p.get("attr_pts", 0), skill_points=p.get("skill_points", 0),
+                     learned_skills=p.get("learned_skills", []))
+    lines = [f"✨ 获得经验 +{exp}"]
+    lines += lv_logs
+    return lines
 
 
 @register("give_item")
@@ -65,8 +76,19 @@ def action_give_item(world, group_id, qq_id, player, npc_id, action):
     count = int(item.get("count", 1))
     if not key:
         return []
-    db.add_item(group_id, qq_id, key, {}, count)
-    return [f"🎒 获得 {key} ×{count}"]
+    # v105 M11 P2：赠礼补全物品 data（此前空 {} → get_inventory 名字兜底只认 mat_ 前缀，
+    # i_stone_upgrade 等直接显示英文 key，克拉拉入门礼强化石在背包显示为 i_stone_upgrade）
+    data = {"name": key, "type": "材料", "stackable": True}
+    try:
+        mid = C.resolve("materials", key)
+        if mid in C.MATERIALS:
+            m = C.MATERIALS[mid]
+            data = {"name": m.get("name", key), "type": m.get("type", "材料"),
+                    "stackable": True, "price": m.get("price", 0), "desc": m.get("desc", "")}
+    except Exception:
+        pass
+    db.add_item(group_id, qq_id, key, data, count)
+    return [f"🎒 获得 {data['name']} ×{count}"]
 
 
 @register("open_shop")
@@ -96,7 +118,8 @@ def action_quest_take(world, group_id, qq_id, player, npc_id, action):
 
 @register("side_take")
 def action_side_take(world, group_id, qq_id, player, npc_id, action):
-    # 支线：交付该 NPC 名下第一个可交支线
+    # 支线：交付该 NPC 名下所有可交支线（v104 M20 P2：原只交第一条即 break，
+    # 玛莎同挂 s1 与 s_board_cat 时寻猫 ready 需重复进对话；现循环交付全部可交）
     if not action.get("side_take"):
         return []
     quests = db.get_quests(group_id, qq_id)
@@ -111,10 +134,11 @@ def action_side_take(world, group_id, qq_id, player, npc_id, action):
         if obj.get("collect"):
             if db.count_item(group_id, qq_id, obj["collect"]) >= obj.get("count", 1):
                 lines += world._complete_side_quest(group_id, qq_id, sid)
-                break
+                # 交付后标记本地快照，防同一轮重复交付（_complete_side_quest 已重读 DB 保存）
+                sq["status"] = "done"
         elif sq.get("status") == "ready":
             lines += world._complete_side_quest(group_id, qq_id, sid)
-            break
+            sq["status"] = "done"
     return lines
 
 
@@ -174,15 +198,30 @@ def action_unlock_class(world, group_id, qq_id, player, npc_id, action):
 @register("tutor_skill")
 def action_tutor_skill(world, group_id, qq_id, player, npc_id, action):
     # 导师进阶技能教学：等级门槛 + 金币学费 → 直接学会（不耗技能点）
+    # v104 R3 P1-5 修复：对话树写死的 need_lv 可被绕过（实测 Lv.6 学 45 级三连射），
+    # 改以 E.skill_info 真实 lv + branch_skill_owner 转职校验（与 player.py _skill_learn_msg 同源）
     ts = action["tutor_skill"]
     sk_id = ts.get("skill", "")
     cost = int(ts.get("cost", 0))
-    need_lv = int(ts.get("need_lv", 1))
     info = E.skill_info(player.get("class_name", ""), sk_id)
     if not info:
         return ["这位导师似乎还没准备好教你……"]
+    need_lv = int(info.get("lv", ts.get("need_lv", 1)))
     if player.get("level", 0) < need_lv:
         return [f"导师摇摇头：这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。"]
+    # v26 分支专属技能门槛：必须先转职到对应分支（与技能点学习同源）
+    owner = E.branch_skill_owner(player.get("class_name", ""), sk_id)
+    if owner:
+        need_tier, bname = owner
+        my_tier = player.get("class_tier", 0)
+        my_path = player.get("evolve_path", 0)
+        if my_tier < need_tier or not my_path:
+            return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！(Lv.30/60/90 可转职)"]
+        branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
+        idx = 0 if my_path == 1 else 1
+        my_branch = branches[idx] if idx < len(branches) else ""
+        if my_branch != bname:
+            return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"]
     if (player.get("gold", 0) or 0) < cost:
         return [f"导师伸出三根手指：学费 {cost} 金币，少一个子儿都不行。(你现在有 {player.get('gold', 0)} 金币)"]
     learned = list(player.get("learned_skills", []))

@@ -86,7 +86,8 @@ HIDDEN_MONSTERS = {
         "lv_off": 5, "skills": ["ms_an_ying_dan"],
         "drops": ["圣水"], "gold_mult": 35,
         "cond": "any", "chance": 0.003, "tag": "✨ 隐藏",
-        "maps": ["dawn_city", "dawn_cathedral", "white_abbey"],
+        # v104 修复（M06 P2-4）：移除 dawn_city（城镇探索直接 return None，永不触发）
+        "maps": ["dawn_cathedral", "white_abbey"],
         "flavor": "一个光头武僧双手合十拦住你：“施主，陪贫僧过两招。”——说完一拳已经招呼过来了！",
     },
     "e_royal_guard": {
@@ -94,7 +95,8 @@ HIDDEN_MONSTERS = {
         "lv_off": 6, "skills": ["ms_chong_zhuang"],
         "drops": ["副官勋章"], "gold_mult": 40,
         "cond": "any", "chance": 0.002, "tag": "✨ 隐藏",
-        "maps": ["dawn_city", "king_road", "holy_trial"],
+        # v104 修复（M06 P2-4）：移除 dawn_city（城镇探索直接 return None，永不触发）
+        "maps": ["king_road", "holy_trial"],
         "flavor": "一队巡逻的禁卫停下脚步，队长打量你片刻：“可疑人物，例行检查！”",
     },
     "e_moon_wolf": {
@@ -163,7 +165,9 @@ HIDDEN_MONSTERS = {
     },
     "e_deep_angler": {
         "id": "e_deep_angler", "name": "深海鮟鱇", "role": "elite",
-        "lv_off": 7, "skills": ["ms_an_ying_dan"],
+        # v104 修复（M06 P2-5）：lv_off 7→6，最高图 Lv.94+6=100 不超 100 级曲线
+        #（此前可达 Lv.101，经验受等级差惩罚衰减到 10%）
+        "lv_off": 6, "skills": ["ms_an_ying_dan"],
         "drops": ["荧光鳞"], "gold_mult": 45,
         "cond": "water", "chance": 0.003, "tag": "✨ 隐藏",
         "maps": ["deep_dragon_palace", "mist_trench", "shipwreck_graveyard"],

@@ -97,7 +97,8 @@ async def main():
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_3", gold=5000, apprentices=["enhance"])  # v95.22 拜师模拟
     # v101.30 每日任务奖励 50 副业经验：+1 强化会完成今日任务直接抬到 Lv.2，先标记任务已领清干扰
-    db.set_event_state(f"prof_daily_g1_w1_{time.strftime('%Y-%m-%d')}", "enhance|强化装备|1|50|1|1")
+    # v105R3 M13 P2-1：每日任务 key 已去 group_id（玩家级），预设同步新格式
+    db.set_event_state(f"prof_daily_w1_{time.strftime('%Y-%m-%d')}", "enhance|强化装备|1|50|1|1")
     add_equip("g1", "w1", "试炼剑")
     out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
     check("+1 强化成功（强化自动激活Lv.1）", "强化成功" in out and "+1" in out, out[:200])
@@ -123,9 +124,10 @@ async def main():
     db.update_player("g1", "w1", gold=5000)
     add_mats("g1", "w1", count=2)  # 铁剑 mats = 史莱姆黏液×2：第一次代工消耗 2，剩 0 → 第二次拦
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
-    check("代工成功", "代工完成" in out and "铁剑" in out and "108 金币" in out, out[:200])
+    # M10 P1-3 新手白装锻造费归 0（成本10 ≤ 卖店回收20，不再倒挂）→ 代工费 0×3=0
+    check("代工成功", "代工完成" in out and "铁剑" in out and "0 金币" in out, out[:200])
     check("锻造未激活", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
-    check("金币扣3倍", db.get_player("g1", "w1")["gold"] == 4892, str(db.get_player("g1", "w1")["gold"]))
+    check("金币扣3倍(0×3)", db.get_player("g1", "w1")["gold"] == 5000, str(db.get_player("g1", "w1")["gold"]))
     check("装备入包", db.count_item("g1", "w1", "铁剑") >= 1, "")
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
     check("材料不足拦截", "材料不足" in out, out[:200])

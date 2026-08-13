@@ -41,14 +41,17 @@ WILD_NPCS = {
         "name": "隐士·莱德", "icon": "🗡️", "map": "white_deer_forest",
         "condition": {"time": ["evening", "night"], "season": ["summer", "autumn"]},
         "desc": "退役剑客，隐居避世",
-        "funcs": ["teach", "info"],
+        # v105 M21 P2：teach 空转修复——有对话树但树内无教学选项（world.py 对带树
+        # 的 teach NPC 只提示"或许能指点你一二"），删死 func 与树内纯指点台词一致
+        "funcs": ["info"],
         "dialogue": "(头也不抬)……这里不是观光的林子。你是迷路了，还是专程来找我的？",
     },
     "w_lost_knight": {
         "name": "迷路的骑士", "icon": "🛡️", "map": "emerald_forest",
         "condition": {"weather": "rain"},
         "desc": "北方来的骑士，迷路了",
-        "funcs": ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func（台词为问路，非任务承诺）
+        "funcs": [],
         "dialogue": "这位旅人！请问白鹿城往哪个方向走？这该死的雨把路标都冲没了。",
     },
     "w_gravekeeper": {
@@ -98,7 +101,8 @@ WILD_NPCS = {
         "name": "老兵之魂", "icon": "👻", "map": "old_battlefield",
         "condition": {"time": ["night"], "weather": "fog"},
         "desc": "百族战争的老兵亡灵",
-        "funcs": ["lore", "quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func（保留 lore）
+        "funcs": ["lore"],
         "dialogue": "……生者？多少年了，终于又有人踏进这片焦土。",
     },
     # ---- 2.3 西境·银月林海（Lv.45-75）----
@@ -135,7 +139,8 @@ WILD_NPCS = {
         "name": "精灵诗人·夜歌", "icon": "🌙", "map": "starlake",
         "condition": {"time": ["night"], "weather": "sunny"},
         "desc": "为湖心亭写诗的精灵诗人",
-        "funcs": ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        "funcs": [],
         "dialogue": "湖心亭的月色是最好的墨。可惜……我一个人写不出两行诗。",
     },
     # ---- 2.4 北境·霜原（Lv.60-95）----
@@ -178,15 +183,17 @@ WILD_NPCS = {
         "name": "北境猎手·铁弓", "icon": "🏹", "map": "black_forest",
         "condition": {"time": ["day"]},
         "desc": "弟弟被腐牙兽人掳走的猎人",
-        "funcs": ["quest"],
-        "dialogue": "你见过腐牙兽人吗？它们……它们把我弟弟抓走了。帮帮我，求你。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        "funcs": [],
+        "dialogue": "你见过腐牙兽人吗？它们……它们把我弟弟抓走了。这些年来，我一直在北境找它们的踪迹。",
     },
     "w_pilgrim": {
         "name": "老朝圣者·灰袍", "icon": "🧎", "map": "cinder_mountain",
         "condition": {"time": ["day"]},
         "desc": "替爷爷来看英雄王的世界",
-        "funcs": ["quest"],
-        "dialogue": "爷爷说，烬山上有英雄王留下的光……我老了，走不动了，你替我去看看好吗？",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        "funcs": [],
+        "dialogue": "爷爷说，烬山上有英雄王留下的光……我老了，走不动了，只能望着那座山叹气。",
     },
     # ---- 2.5 东境·龙脊（Lv.80-100）----
     "w_dragon_whisper": {
@@ -207,8 +214,9 @@ WILD_NPCS = {
         "name": "亡灵学者·骨语", "icon": "📚", "map": "ancient_battlefield",
         "condition": {"time": ["night"]},
         "desc": "研究百族战争亡魂的学者",
-        "funcs": ["quest", "lore"],
-        "dialogue": "亡魂们还在重演那场战争……你愿意帮我记录他们的故事吗？",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func（保留 lore），台词同步（删任务承诺）
+        "funcs": ["lore"],
+        "dialogue": "亡魂们还在重演那场战争……我日复一日地记录他们的故事，可永远记不完。",
     },
     "w_storm_chaser": {
         "name": "追风者·岚", "icon": "🌪️", "map": "storm_cliff",
@@ -270,9 +278,10 @@ HIDDEN_NPCS = {
     },
     "h_mystery_merchant": {
         "name": "神秘商人·无面", "icon": "🎭", "map": None,
-        "condition": {}, "chance": None,
+        # v104 M20 P1：day_of_week 必须放 condition 内——引擎只读 condition.day_of_week
+        # （wild.py base_conditions_met），顶层字段不生效导致「每周六出现」约束失效
+        "condition": {"day_of_week": [5]}, "chance": None,
         "roam": ["oak_town", "white_deer", "harbor_docks", "pearl_city", "dawn_city"],
-        "day_of_week": [5],
         "unlock": None,
         "desc": "不露脸的商人，拿秘密换货物",
         "funcs": ["trade"],

@@ -64,6 +64,13 @@ def tokens(pat):
                 continue
             if re.fullmatch(r"[\s.*+?$^|()\\\[\]]+", part):
                 continue
+            # v105 M23：通用正则片段（\s*.*、\s*.+ 等纯元字符组合，如 guild_info/inventory
+            # 共享的尾部通配）——不含任何字面命令词、命中一切文本，不参与互斥判定
+            # （否则同一通用片段必然被多个 handler 共享而误报冲突）
+            _lit = re.sub(r"\\[\s\S]", "", part)  # 剥掉 \s \d 等转义序列
+            _lit = re.sub(r"[\s.*+?$^|()\[\]]", "", _lit)
+            if not _lit:
+                continue
             if len(part) >= 2:
                 out.append(part)
     return out

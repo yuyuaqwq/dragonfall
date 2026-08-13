@@ -120,7 +120,8 @@ async def main():
     check("收藏鱼已从背包移除", db.count_item("g1", "w1", "mat_rainbow_kite") == 0)
 
     print("【3 每日垂钓任务漏计修复（鱼王/宝物/垃圾分支推进）】")
-    key = m._daily_prof_key("g1", "w1")
+    # v105R3 M13 P2-1：key 已去 group_id，测试同步新签名
+    key = m._daily_prof_key("w1")
     # 3a. 连钓 5 次垃圾 → 进度 5 + 领奖
     db.set_event_state(key, "fishing|垂钓|5|50|0|0")
     g0 = gold_of("g1", "w1")
@@ -197,7 +198,9 @@ async def main():
     out = await cmd(m, "bestiary", "g1", "w1", "图鉴")
     check("图鉴展示彩蛋收藏鱼区块", "彩蛋收藏鱼" in out, out[:400])
     check("图鉴展示已收藏鱼名", "月华水母" in out, out[:400])
-    check("图鉴展示已收藏进度 1/3", "已收藏 1/3" in out, out[:400])
+    # v104 R3 M15 P2-3：收藏状态永久化——第 2 节钓获的虹彩龙鲤已解锁隐藏成就（出售后仍在），
+    # 加上背包里的月华水母 = 2/3（旧语义按背包判定只算 1/3，出售后图鉴会回退）
+    check("图鉴展示已收藏进度 2/3", "已收藏 2/3" in out, out[:400])
     check("图鉴展示累计钓获计数", "累计钓获 1 次" in out, out[:400])
     st = db.get_stats("g1", "w1") or {}
     check("catch_collect 统计落库", int(st.get("catch_collect", 0) or 0) == 1, str(st))

@@ -139,10 +139,10 @@ async def main():
     db.activate_prof("g1", "w1", "enchant")
     today = time.strftime("%Y-%m-%d")
     # 锁定一个指向已遗忘/未激活副业（锻造）的任务
-    db.set_event_state(f"prof_daily_g1_w1_{today}", "craft|锻造装备|1|50|0|0")
+    db.set_event_state(f"prof_daily_w1_{today}", "craft|锻造装备|1|50|0|0")
     out = await cmd(m, "daily_prof", "g1", "w1", "副业任务")
     check("任务重抽为已激活副业(附魔)", "锻造" not in out and "附魔" in out, out[:200])
-    raw = db.get_event_state(f"prof_daily_g1_w1_{today}")
+    raw = db.get_event_state(f"prof_daily_w1_{today}")
     check("重抽已落库(enchant)", bool(raw) and raw.startswith("enchant|"), str(raw))
 
     # ============ 5. 遗忘清等待条件化（v104 P1） ============

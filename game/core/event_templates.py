@@ -262,7 +262,17 @@ def tpl_mystery_chest(ctx):
     gold = random.randint(50, 120) + ctx.lv * 5
     db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
     mat_line = ""
-    pool = [m[5] for m in ctx.cur_map.get("monsters", [])]
+    # v105 M23 P1-4：材料源改当前子区域怪物掉落池（与 combat.py 探索遇怪同源）——
+    # v87.6 后怪物全部下沉子区域，地图级 monsters 0/116 全空，原宝匣材料行静默失效（只掉金币+图纸）
+    cur_sa_id = ctx.player.get("cur_subarea") or ""
+    mon_src = None
+    for _sa in (ctx.cur_map.get("subareas") or []):
+        if _sa["id"] == cur_sa_id:
+            mon_src = _sa.get("monsters")
+            break
+    if mon_src is None:
+        mon_src = ctx.cur_map.get("monsters", [])
+    pool = [m[5] for m in mon_src]
     mats = [x for sub in pool for x in sub if x and "图纸" not in x]
     if mats:
         mid = C.resolve("materials", random.choice(mats))

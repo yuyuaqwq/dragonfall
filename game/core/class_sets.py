@@ -33,43 +33,43 @@ _SERIES_SET_BONUS = {
         "icon": "✨", "quality": "blue",
         "bonus_2": {"heal": 0.10},   # 治疗 +10%（battle 治疗段消费）
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "圣光增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "圣光增伤＋10%（对暗影/亡灵系敌人）"},
     },
     "月语": {
         "icon": "🌙", "quality": "purple",
         "bonus_2": {"crit": 0.08},
         "bonus_4_stats": {"spd": 0.10},   # 敏捷 +10% ≈ 速度 +10%
-        "bonus_5": {"desc": "月系增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）"},
     },
     "霜狼": {
         "icon": "🐺", "quality": "purple",
         "bonus_2": {"def": 0.10},
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "抗寒：免疫减速(待元素系统)"},
+        "bonus_5": {"desc": "抗寒：免疫减速"},
     },
     "龙脊": {
         "icon": "🐉", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "龙息增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "龙息增伤＋10%（对龙系敌人）"},
     },
     "海神": {
         "icon": "🌊", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 水抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
-        "bonus_5": {"desc": "海系增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "冰系增伤＋10%（月语/海神套，冰系技能）"},
     },
     "地底": {
         "icon": "🕳️", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 暗抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "深渊增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "深渊增伤＋10%（对深渊系敌人）"},
     },
     "苍穹": {
         "icon": "☁️", "quality": "purple",
         "bonus_2": {"mdef": 0.10},   # 风抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"crit": 0.08},
-        "bonus_5": {"desc": "雷系增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "雷系增伤＋10%（雷系技能）"},
     },
     # v93 商店装：白鹿绿装套（敏捷/闪避风格）
     "白鹿": {
@@ -95,20 +95,20 @@ _SERIES_SET_BONUS = {
         "icon": "🌫️", "quality": "blue",
         "bonus_2": {"dodge": 0.08},
         "bonus_4_stats": {"mdef": 0.08},
-        "bonus_5": {"desc": "迷雾增伤＋10%(待元素系统)"},
+        "bonus_5": {"desc": "迷雾增伤＋10%（对沼泽/毒腐系敌人）"},
     },
     # v87 隐藏线（10 章 10.1/10.2）
     "星尘": {
         "icon": "✨", "quality": "purple",
         "bonus_2": {"atk": 0.05, "matk": 0.05, "def": 0.05, "spd": 0.05},
         "bonus_4_stats": {"matk": 0.08},
-        "bonus_5": {"desc": "星尘祝福：夜间每回合回蓝 5%(battle 消费)"},
+        "bonus_5": {"desc": "星尘祝福：夜间(19:00-06:00)每回合回蓝 5%"},
     },
     "灰烬守卫": {
         "icon": "🔥", "quality": "orange",
         "bonus_2": {"mdef": 0.10},
         "bonus_4_stats": {"def": 0.08},
-        "bonus_5": {"desc": "灰烬祝福：生命低于 30% 攻击＋20%(battle 消费)"},
+        "bonus_5": {"desc": "灰烬祝福：生命低于 30% 时攻击＋20%"},
     },
 }
 

@@ -22,8 +22,18 @@ from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 # 任务目标类型 → 进度展示行（v101.3：加新目标类型 = 加一行，quest_view 零改动）
+def _kill_prog_count(obj, prog):
+    """v105 M19 P2：击杀进度聚合读——兼容旧存档老 key（v95.7 之前进度记
+    monster['name'] 而非 obj['kill']，如『精英森林狼』），面板不再显示 0/N 孤儿计数。
+    目标 key 有值用目标 key；为 0 时汇总其余包含目标名的历史 key。"""
+    v = prog.get(obj["kill"], 0)
+    if v == 0:
+        v = sum(c for k, c in prog.items() if k != obj["kill"] and obj["kill"] in k)
+    return v
+
+
 _OBJ_PROGRESS_LINES = {
-    "kill":    lambda obj, prog: f"  进度：{prog.get(obj['kill'], 0)}/{obj['count']}",
+    "kill":    lambda obj, prog: f"  进度：{_kill_prog_count(obj, prog)}/{obj['count']}",
     "collect": lambda obj, prog: f"  收集：{prog.get(obj['collect'], 0)}/{obj['count']}",
     "explore": lambda obj, prog: f"  前往：{C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}",
     "talk":    lambda obj, prog: f"  交谈：与 {C.NPCS.get(obj['talk'], {}).get('name', '？')} 对话",
@@ -224,7 +234,13 @@ class WorldCmds(CommandBase):
         if player["gold"] < price:
             yield event.plain_result(f"买【{prop['name']}】需要 {price} 金币，你只有 {player['gold']}。攒够钱再来吧！")
             return
+        # v104 M09 P1 修复：房产全服唯一·先到先得（25 章承诺）——买时登记房主，他人已持有则拦截
+        _owner = db.get_event_state(f"deed_owner_{pid}")
+        if _owner and str(_owner) != str(qq_id):
+            yield event.plain_result(f"🏠 【{prop['name']}】已经被其他冒险者买下了！先到先得，看看其他地皮吧～")
+            return
         db.update_player(group_id, qq_id, gold=player["gold"] - price, deed=pid)
+        db.set_event_state(f"deed_owner_{pid}", str(qq_id))  # v104 M09 P1：登记房主（卖房时释放）
         yield event.plain_result(
             f"🏠 恭喜置业！你买下了【{prop['name']}】(花费 {price} 金币)\n"
             f"『回家』入住，『地契』查看详情，『仓库』管理家当～"
@@ -244,6 +260,7 @@ class WorldCmds(CommandBase):
         refund_pct = C.HOUSE_REFUND.get(dlv, 0.5)
         refund = int(prop["price"] * refund_pct)
         db.update_player(group_id, qq_id, gold=player["gold"] + refund, deed="", deed_lv=1)
+        db.set_event_state(f"deed_owner_{deed}", "")  # v104 M09 P1：卖房释放产权（先到先得）
         yield event.plain_result(f"🏠 你卖掉了【{prop['name']}】({C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])['name']} Lv.{dlv})，退还 {refund} 金币({int(refund_pct * 100)}%)。")
 
     async def _deed_upgrade(self, event, group_id, qq_id, player):
@@ -640,6 +657,11 @@ class WorldCmds(CommandBase):
             yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说移动。")
             return
         dest = dest.strip()
+        # v104 P1(M22)：空参数『前往』/『移动』不再静默移动——"" 是任意非空串的子串，
+        # 此前会命中 area_name 首个非空地图静默跨图并扣体力，直接提示输入目标
+        if not dest:
+            yield event.plain_result("前往哪？输入『地图』查看～")
+            return
         # v94 体力：同图子区域移动免费（城内溜达不算赶路）；跨图移动扣 2、体力不足拒绝
         cur = player["cur_map"]
         cur_map = C.MAP_BY_ID.get(cur, {})
@@ -751,6 +773,11 @@ class WorldCmds(CommandBase):
         cur = player["cur_map"]
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
         nids = [c[0] if isinstance(c, tuple) else c for c in neighbors]
+        # v104 P1(M22)：目标==当前图（输入本图地图名/区域名）→ 提示已在，不再原地白走扣体力
+        # （同图子区域名分支 :676-678 已有同款提示，跨图路径此前漏了）
+        if target["id"] == cur:
+            yield event.plain_result(f"你已经在这里了！(当前：{cur_map.get('name', '此地')})")
+            return
         if target["id"] != cur and target["id"] not in nids:
             yield event.plain_result(f"无法直接前往{target['name']}！需要先到相邻地图。看看『地图』～")
             return
@@ -841,7 +868,7 @@ class WorldCmds(CommandBase):
             scene_msg = "\n\n✨ 场景：\n  " + "\n  ".join(scene)
         inter_msg = fac_msg + scene_msg
         # v49 意见#4：移动撞怪（生物趋避利害——低级闯高级区容易撞怪，高级玩家威慑低级区）
-        ambush = self._travel_ambush(player, target)
+        ambush = self._travel_ambush(player, target, group_id, qq_id)
         # v101.25c 模板统一：跨图移动也走 _subarea_arrive 完整模板（NPC/可互动/设施/场景/可前往）
         # 此前跨图是另一套精简拼接（fac_msg/scene_msg/nav），鱼鱼抓"前往不同区域提示模板不一样"
         if ambush:
@@ -941,7 +968,15 @@ class WorldCmds(CommandBase):
                     lines.append(f"  {i}. {nm['name']}")
             else:
                 _exit_sa_name = next((s["name"] for s in sas if s["id"] == _exit_sa_id), "出口")
-                lines.append(f"🧭 出城需先到『{_exit_sa_name}』")
+                # v104 P2(M22)：街道链城镇在广场时提示必经之路（广场→圣光大道→城门），
+                # 不直接跳城门——提示必须与真实空间连接一致（_move_blocked_msg 同口径）
+                _hint = _exit_sa_name
+                _center = sas[0] if sas else {}
+                if _center.get("type") == C.SUB_TYPE_TOWN and sa["id"] == _center.get("id", ""):
+                    _chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
+                    if _chain and _chain[0]["id"] != _exit_sa_id:
+                        _hint = _chain[0]["name"]
+                lines.append(f"🧭 出城需先到『{_hint}』")
         lines.append("")
         lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)
@@ -960,7 +995,7 @@ class WorldCmds(CommandBase):
             self._subarea_body(player, cur_map, sa),
         ])
 
-    def _travel_ambush(self, player: dict, target_map: dict):
+    def _travel_ambush(self, player: dict, target_map: dict, group_id=None, qq_id=None):
         """移动撞怪判定：返回撞到的怪物 dict 或 None。
 
         生物趋避利害：
@@ -975,8 +1010,29 @@ class WorldCmds(CommandBase):
         # v95.23 #247：副本区域不参与移动撞怪——副本 Boss 在入口子区域 monsters 池里，
         # 撞怪会绕过『副本 <名字>』开本流程的等级/人数校验，低等级玩家进副本入口被 Boss 秒杀。
         # 副本入口应显示地图信息，引导玩家走开本流程（'副本' 命令有完整校验）。
+        # v105 M19 P0：主线击杀目标只挂副本时放行——撞怪池仅保留主线目标怪
+        # （走下方统一概率判定，Boss 按等级差概率撞，不绕过任何校验之外的新增风险面）。
         if mtype == C.MAP_TYPE_INSTANCE:
-            return None
+            # v105 M19 P0：主线击杀目标只挂副本时放行——撞怪池仅保留主线目标怪
+            # （走下方统一概率判定；group_id/qq_id 为空=既有测试直调场景，维持原跳过）
+            _main_ent = None
+            if group_id and qq_id:
+                _main_ent = self._main_kill_target_on_map(group_id, qq_id, target_map)
+            if not _main_ent:
+                return None
+            monsters = [_main_ent]
+            diff = target_map.get("lv", 1) - player["level"]
+            if diff <= -5:
+                return None
+            if diff >= 5:
+                chance = 0.30
+            elif diff >= 0:
+                chance = 0.18
+            else:
+                chance = 0.08
+            if random.random() >= chance:
+                return None
+            return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
         # v87.6 内容下沉子区域：优先取落点入口子区域的怪；入口无怪才找最近有怪子区域
         # （M22 P3：原逻辑取"首个有怪子区域"，入口无怪时会抽到深处高等级怪，玩家刚进图就被深处怪秒）
         _sas = target_map.get("subareas") or []
@@ -1186,9 +1242,34 @@ class WorldCmds(CommandBase):
                 completed.append(main_id)
                 quests["completed_main"] = completed
                 quests["main_quest"] = mq["next"]
+                # v105 M19 P1：explore 自动完成必须重置 main_status=pending（与 _take_main_quest
+                # 交付分支一致）——此前遗留 "active" 导致任务面板显示"进行中"而非"未接取"、
+                # 对话树 quest_pending 接取入口不亮（q1_5 完成后 q1_6 需 3-4 轮对话才兜底接取）
+                quests["main_status"] = "pending"
                 quests["main_progress"] = {}
                 changed = True
                 lines.append(f"📜 主线『{mq['name']}』达成！奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
+                # v105 M19 P2：explore 自动完成补发 reward_item/声望——与 _take_main_quest
+                # 交付分支（world.py:1902-1921）对齐，避免奖励不一致隐患
+                ri = mq.get("reward_item")
+                if ri:
+                    _rid = C.resolve("items", ri)
+                    _tbl, _reg = "items", C.ITEMS
+                    if _rid not in C.ITEMS:
+                        _rid = C.resolve("materials", ri)
+                        _tbl, _reg = "materials", C.MATERIALS
+                    if _rid in _reg:
+                        _d = _reg[_rid] if isinstance(_reg[_rid], dict) else {}
+                        db.add_item(group_id, qq_id, _rid,
+                                    {"name": C.display(_tbl, _rid),
+                                     "type": _d.get("type", "物品" if _tbl == "items" else "材料"),
+                                     "stackable": True, "price": _d.get("price", 0)})
+                        lines.append(f"  🎁 获得道具：{C.display(_tbl, _rid)}")
+                    else:
+                        print(f"[dragonfall][v105] 主线『{mq['name']}』奖励道具缺失：{ri}（item_id 未收录），已跳过")
+                _rep = self._quest_reputation(group_id, qq_id, mq["giver"])
+                if _rep:
+                    lines.append(f"  {_rep}")
                 if mq["next"]:
                     nq = next((q for q in C.MAIN_QUESTS if q["id"] == mq["next"]), None)
                     if nq:
@@ -1284,7 +1365,7 @@ class WorldCmds(CommandBase):
                     prog = sq.get("progress", {})
                     kill_txt = ""
                     if obj.get("kill"):
-                        kv = prog.get(obj["kill"], 0)
+                        kv = _kill_prog_count(obj, prog)  # v105 M19 P2：兼容旧档老 key 聚合
                         kill_txt = f"｜击杀：{kv}/{obj.get('count', 0)}"
                     if have >= need:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]")
@@ -1292,6 +1373,14 @@ class WorldCmds(CommandBase):
                     else:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
+                    continue
+                # v104 M20 P2：find 型（告示委托等）面板提示机制——在 XX 探索有概率遇到
+                # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
+                if obj.get("find"):
+                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"    {self._obj_text(obj)}")
+                    if st == "ready":
+                        lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
@@ -1435,6 +1524,10 @@ class WorldCmds(CommandBase):
         for sq in C.SIDE_QUESTS:
             if sq["id"] in (quests.get("side") or {}):
                 continue
+            # v104 M20 P2：告示委托（board: true）只在告示板子区域指名接取，
+            # 列入普通列表会误导玩家（点名接取被 world.py 告示板拦截逻辑挡下）
+            if sq.get("board"):
+                continue
             npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
             if npc.get("map") == player["cur_map"]:
                 # v104 M19：接取列表显示支线等级门槛
@@ -1457,7 +1550,8 @@ class WorldCmds(CommandBase):
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?:\s*|$)")
+    # v104 M24 P2-1：『每日副业』前缀误触『每日』面板——负向断言收窄（别名注册到 daily_prof）
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?!副业)(?:\s*|$)")
     @require_player()
 
     async def daily(self, event: AstrMessageEvent):
@@ -1581,7 +1675,13 @@ class WorldCmds(CommandBase):
                 lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {self._stall_label(s)} ｜ {sname}")
             lines.append("💡 『购入 <编号>』买下，标 🔄 的用『换 <编号> <物品名>』交换")
         else:
-            lines.append("🏪 铺面空着——房主可以『摆摊 <物品> [价格]』开张(不带价格 = 换摊)！")
+            # v104R3 P2：木屋(0 挂机位)不提示摆摊开张——与铺面挂机位实现对齐(25 章房产案)
+            _odlv = int(owner.get("deed_lv", 1) or 1)
+            _oslots = C.HOUSE_LEVELS.get(_odlv, C.HOUSE_LEVELS[1]).get("stall_slots", 0)
+            if _oslots > 0:
+                lines.append("🏪 铺面空着——房主可以『摆摊 <物品> [价格]』开张(不带价格 = 换摊)！")
+            else:
+                lines.append("🏪 铺面空着——房主升级房屋(『地契 升级』)可解锁铺面挂机位。")
         # 仓库（自己的家）
         if is_mine:
             storage = self._home_storage_load(group_id, qq_id)
@@ -1884,7 +1984,19 @@ class WorldCmds(CommandBase):
             db.save_quests(group_id, qq_id, quests)
             lines.append(f"✅ 【任务完成】『{mq['name']}』！")
             if mq.get("ending"):
-                lines.append(f"  📖 {mq['ending']}")
+                # v105 M19 P1：主线抉择结局变体——q10_5 等任务按对话树选择的 flag 输出不同结尾
+                _ending = mq["ending"]
+                _endings = mq.get("endings") or {}
+                if _endings:
+                    try:
+                        _flags = db.get_talk_flags(group_id, qq_id, mq["giver"]) or []
+                    except Exception:
+                        _flags = []
+                    for _fk, _fv in _endings.items():
+                        if _fk in _flags:
+                            _ending = _fv
+                            break
+                lines.append(f"  📖 {_ending}")
             lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
             # v105 M19 P3：主线奖励道具（reward_item）入包——物品存在则直接加，不存在则跳过并记录（不阻塞交付）
             ri = mq.get("reward_item")
@@ -1895,12 +2007,20 @@ class WorldCmds(CommandBase):
                     _rid = C.resolve("materials", ri)
                     _tbl, _reg = "materials", C.MATERIALS
                 if _rid in _reg:
+                    _d = _reg[_rid] if isinstance(_reg[_rid], dict) else {}
                     db.add_item(group_id, qq_id, _rid,
-                                {"name": C.display(_tbl, _rid), "type": "物品" if _tbl == "items" else "材料",
-                                 "stackable": True, "price": _reg[_rid].get("price", 0) if isinstance(_reg[_rid], dict) else 0})
+                                {"name": C.display(_tbl, _rid),
+                                 "type": _d.get("type", "物品" if _tbl == "items" else "材料"),
+                                 "stackable": True, "price": _d.get("price", 0)})
                     lines.append(f"  🎁 获得道具：{C.display(_tbl, _rid)}")
                 else:
                     print(f"[dragonfall][v105] 主线『{mq['name']}』奖励道具缺失：{ri}（item_id 未收录），已跳过")
+            # v104 M17 P2-3：主线奖励宠物蛋（reward_pet，如橡木镇新手任务铁壳龟蛋）入包
+            rp = mq.get("reward_pet")
+            if rp:
+                _egg = C.make_pet_egg(rp)
+                db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
+                lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
             rep_line = self._quest_reputation(group_id, qq_id, mq["giver"])
             if rep_line:
                 lines.append(f"  {rep_line}")
@@ -2018,16 +2138,24 @@ class WorldCmds(CommandBase):
         lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?前往(?:开始|结束)(?:\s*|$)", priority=50)
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?:开始|结束)(?:\s*|$)", priority=50)
     @require_player()
     async def move_mode_cmd(self, event: AstrMessageEvent):
-        """v101.17 移动模式开关：『前往开始』开启后裸数字=赶路，『前往结束』退出。
+        """v101.17 移动模式开关：『前往开始』/『移动开始』开启后裸数字=赶路，『前往结束』/『移动结束』退出。
 
         状态存 event_state（key=move_mode:{qq_id}），npc_quick_dialog 裸数字优先消费。
+        v104 P2(M22)：正则扩为 (?:前往|移动)(?:开始|结束)——23 章指令表『移动开始/结束』
+        仍为移动模式开关（v104 修复说明原话），此前『移动开始』对 move（负向断言拦截）与
+        move_mode（只认前往）双不命中完全无响应。
         """
         group_id, qq_id = self._uid(event)
         msg = event.get_message_str().strip()
         msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
+        # v104 P2(M22)：『前往开始 2』等尾参此前被 (?:\s*|$) 前缀匹配静默忽略 → 报格式错误
+        _rest = re.sub(r"^(?:前往|移动)(?:开始|结束)", "", msg).strip()
+        if _rest:
+            yield event.plain_result("格式错误：『前往开始』/『前往结束』不接受额外参数～")
+            return
         if "结束" in msg:
             db.set_event_state(f"move_mode:{qq_id}", "")
             yield event.plain_result("🚶 移动模式已关闭，回复数字不再自动赶路～")
@@ -2446,10 +2574,17 @@ class WorldCmds(CommandBase):
         import datetime as _dt
         eff = pp.get("effect")
         if eff == "wish":
-            # v104 M23 修复：许愿井彩蛋概率用独立常量（原误用 MOVE_ENCOUNTER_CHANCE 移动撞怪概率）
-            if random.random() < WISH_WELL_EGG_CHANCE:
+            # v105 M23 P2-2：许愿井每日 1 次（策划案 23 章『许愿井（每日一次彩蛋）』）——
+            # 原实现零成本无限刷（5%×1-5 金币无冷却无每日次数），现按 props_use 每日计数
+            today = _dt.date.today().isoformat()
+            use_key = f"{cur}:{sa_id}:{pid}"
+            used = db.get_props_use(group_id, qq_id)
+            if used.get(use_key) == today:
+                lines.append("⏳ 井水今天已经应过一次愿了……明日再来试试吧。")
+            elif random.random() < WISH_WELL_EGG_CHANCE:
                 gold = random.randint(1, 5)
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                db.mark_props_use(group_id, qq_id, use_key, today)
                 lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
         elif eff == "refresh":
             lines.append("💧 泉水入喉，神清气爽。旅途的疲惫仿佛也被这淙淙水声冲淡了一些。")
@@ -2863,7 +2998,8 @@ class WorldCmds(CommandBase):
                 break
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?交付任务(?:\s*|$)")
+    # v104 M24 P2-2：『交任务』无命中（策划案 23 章:182 主指令）→ 补别名
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:交付任务|交任务)(?:\s*|$)")
     @require_player()
 
     async def turn_in(self, event: AstrMessageEvent):
@@ -2908,7 +3044,7 @@ class WorldCmds(CommandBase):
                 continue
             if sq.get("status") == "done":  # v95.12：已交付支线不重复接取/交付
                 continue
-            npc = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"])
+            npc = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"])  # R3 P1-4：副本内 NPC（潮汐祭司）交付解析
             obj = sqd["objective"]
             # 收集型：实时检查背包材料（不依赖 ready 状态）
             if obj.get("collect"):
@@ -2927,8 +3063,8 @@ class WorldCmds(CommandBase):
                         yield event.plain_result("\n".join(lines))
                         return
                     else:
-                        giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
-                        giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
+                        giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("name", "？")  # R3 P1-4
+                        giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
                         yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交付任务！")
                         return
                 else:
@@ -2945,8 +3081,8 @@ class WorldCmds(CommandBase):
                     yield event.plain_result("\n".join(lines))
                     return
                 else:
-                    giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("name", "？")
-                    giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
+                    giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("name", "？")  # R3 P1-4
+                    giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
                     yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver}(在{giver_map}) 交付任务！")
                     return
         if collect_missing:
@@ -2996,12 +3132,34 @@ class WorldCmds(CommandBase):
             lines.append("")
             lines += lv_logs
         # v87 隐藏任务：奖励道具（reward_item）入包
+        # v104 M08 P0-1：type 从 MATERIALS 定义取（老守墓人发烬火信标 type=任务道具，
+        # 此前写死"材料"导致批量出售保护判据 d.type=="任务道具" 恒不命中 → H7 准入丢失）
         ri = sqd.get("reward_item")
         if ri:
-            rimid = C.resolve("materials", ri)
-            if rimid in C.MATERIALS:
-                db.add_item(group_id, qq_id, rimid, {"name": C.display("materials", rimid), "type": "材料", "stackable": True, "price": C.MATERIALS[rimid]["price"]})
-                lines.append(f"  🎁 获得特殊道具：{ri}")
+            # v104 M20 P1：列表型奖励（如 s17 随机符文）→ 随机抽一个发放
+            if isinstance(ri, list):
+                ri = random.choice(ri)
+            # v104 M20 P1：eq: 前缀 = 装备奖励（s3 汉斯的手工武器）——名册精确生成入包
+            if isinstance(ri, str) and ri.startswith("eq:"):
+                eq_name = ri[3:]
+                eq_ids = C.EQUIP_ROSTER_BY_NAME.get(eq_name, [])
+                if eq_ids:
+                    eq = C.generate_roster_equip(eq_ids[0])
+                    db.add_item(group_id, qq_id, eq_ids[0], eq)
+                    lines.append(f"  🎁 获得装备：{eq.get('name', eq_name)}")
+                else:
+                    print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励装备缺失：{eq_name}（名册未收录），已跳过")
+            else:
+                rimid = C.resolve("materials", ri)
+                if rimid in C.MATERIALS:
+                    db.add_item(group_id, qq_id, rimid,
+                                {"name": C.display("materials", rimid),
+                                 "type": C.MATERIALS[rimid].get("type", "材料"),
+                                 "stackable": True, "price": C.MATERIALS[rimid]["price"]})
+                    lines.append(f"  🎁 获得特殊道具：{ri}")
+                else:
+                    # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
+                    print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励道具缺失：{ri}（未收录），已跳过")
         # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
         uc = sqd.get("unlock_class")
         if uc:

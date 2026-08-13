@@ -134,7 +134,13 @@ def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: i
     """职业基础 + 等级成长（含转职成长加成 + v25 分支属性倾向）
     阶段九：race 种族天赋（凡人之躯 growth_mult 只影响基础成长）"""
     class_name = C.resolve("classes", class_name)  # v48：中文或 ID → ID
-    cls = C.CLASSES[class_name]
+    cls = C.CLASSES.get(class_name)
+    if cls is None:
+        # v105 P1(M01#6)：未知/脏 class_name 兜底——脏档/职业迁移改名后全属性链路不崩
+        # （原先直接 KeyError，player_base_stats 是面板/战斗/升级的公共入口）
+        cls = C.CLASSES.get(C.CLASS_NOVICE)
+        if cls is None:
+            raise ValueError(f"未知职业 class_name={class_name!r}，且见习兜底职业缺失")
     base = dict(cls["base"])
     growth = cls["growth"]
     mult = TIER_GROWTH.get(tier, 1.0)
@@ -257,7 +263,8 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     base_src["dodge"] = st.get("dodge", 0)
     sources.append({"name": "基础", "stats": base_src})
     # 2. 自由属性点：力量→攻击 敏捷→速度/暴击 智力→魔攻/魔力 耐力→生命
-    attr = attributes or {}
+    # v105 P1(M01#7)：attributes 可能是字符串/'null'（脏档）→ 非 dict 一律按空处理
+    attr = attributes if isinstance(attributes, dict) else {}
     attr_src = {}
     attr_src["atk"] = int(attr.get("str", 0) * 1.2)
     attr_src["matk"] = int(attr.get("int", 0) * 1.2)
@@ -551,9 +558,11 @@ def skill_mech_val(info: dict, level: int) -> int:
 
 
 def skill_lifesteal_pct(info: dict | None, level: int) -> float:
-    """吸血比例随等级成长：基础 20%，配了 l 时每级＋2%"""
+    """吸血比例随等级成长：基础读技能 lifesteal 字段（如嗜血斩 0.25），未配置默认 20%；配了 l 时每级＋2%
+    v104 R3 P2-10 修复：原固定 0.20 基础不读 lifesteal 字段 → 嗜血斩 desc 承诺 25% 实机 20%"""
     lv = max(1, min(level, skill_max_level(info)))
-    return 0.20 + _skill_up(info).get("l", 0) / 100 * (lv - 1)
+    base = float((info or {}).get("lifesteal", 0) or 0) or 0.20
+    return base + _skill_up(info).get("l", 0) / 100 * (lv - 1)
 
 
 def skill_level_of(player: dict, skill_name: str) -> int:

@@ -231,12 +231,16 @@ async def main():
     print("\n[9] 击杀 key 统一")
     make_player("g9", "p10", "猎手", "战士")
     db.save_quests("g9", "p10", qdata("q1_3", "active"))
-    lines = m._update_quests("g9", "p10", {"name": "精英野猪"})
+    # v104 M20 P2：击杀匹配改前缀精确（== 或 「目标·」开头）——「·」后缀精英变体计入，
+    # 前缀式命名（精英野猪/巨型野猪/霜巨魔王等）不再误伤
+    lines = m._update_quests("g9", "p10", {"name": "野猪·精英"})
     qq = get_q("g9", "p10")
-    check("杀精英野猪计数入 obj key", qq["main_progress"] == {"野猪": 1}, str(qq["main_progress"]))
+    check("杀『野猪·精英』计数入 obj key", qq["main_progress"] == {"野猪": 1}, str(qq["main_progress"]))
     check("面板进度显示 1/5", any("1/5" in l for l in lines), str(lines))
     out = await cmd(m, "quest_view", "g9", "p10", "任务")
     check("quest_view 进度 1/5", "1/5" in out, out[:200])
+    lines = m._update_quests("g9", "p10", {"name": "巨型野猪"})
+    check("前缀式『巨型野猪』不误伤", get_q("g9", "p10")["main_progress"] == {"野猪": 1}, str(get_q("g9", "p10")["main_progress"]))
     for _ in range(4):
         m._update_quests("g9", "p10", {"name": "野猪"})
     check("5 只后置 ready", get_q("g9", "p10")["main_status"] == "ready", get_q("g9", "p10")["main_status"])
@@ -245,9 +249,13 @@ async def main():
     m._update_quests("g9", "p10", {"name": "森林狼"})
     qq = get_q("g9", "p10")
     check("支线 kill 计数入 obj key", qq["side"]["s3"]["progress"] == {"森林狼": 1}, str(qq["side"]["s3"]["progress"]))
+    m._update_quests("g9", "p10", {"name": "森林狼·头狼"})
+    qq = get_q("g9", "p10")
+    check("支线『·』变体计入（前缀精确）",
+          qq["side"]["s3"]["progress"] == {"森林狼": 2}, str(qq["side"]["s3"]["progress"]))
     m._update_quests("g9", "p10", {"name": "精英森林狼"})
     qq = get_q("g9", "p10")
-    check("支线精英变体计入（v104 补测修复：与主线 in 包含匹配对齐）",
+    check("支线前缀式『精英森林狼』不误伤",
           qq["side"]["s3"]["progress"] == {"森林狼": 2}, str(qq["side"]["s3"]["progress"]))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")

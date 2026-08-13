@@ -91,6 +91,18 @@ def create_player(group_id, qq_id, name, class_name, base_stats, max_hp, max_mp,
             conn.close()
     record_player_group(qq_id, group_id)
 
+def _jload(raw, default):
+    """JSON 字段安全解析（v105 M01#8）：空串/None/'null'/损坏内容/类型不符 → 默认值。
+    旧代码 `json.loads(x or default)` 挡不住字符串 'null'（解析出 None 后下游 .items()/.values() 全崩）。"""
+    if not raw:
+        return default
+    try:
+        v = json.loads(raw)
+    except Exception:
+        return default
+    return v if isinstance(v, type(default)) else default
+
+
 def get_player(group_id, qq_id):
     with _lock:
         conn = _connect()
@@ -101,21 +113,21 @@ def get_player(group_id, qq_id):
             if not row:
                 return None
             p = dict(row)
-            p["equipment"] = json.loads(p["equipment"] or "{}")
-            p["skills"] = json.loads(p["skills"] or "[]")
-            p["attributes"] = json.loads(p.get("attributes") or '{"str":0,"agi":0,"int":0,"vit":0}')
-            p["learned_skills"] = json.loads(p.get("learned_skills") or "[]")
+            p["equipment"] = _jload(p["equipment"], {})
+            p["skills"] = _jload(p["skills"], [])
+            p["attributes"] = _jload(p.get("attributes"), {"str": 0, "agi": 0, "int": 0, "vit": 0})
+            p["learned_skills"] = _jload(p.get("learned_skills"), [])
             # v46：learned_skills 存档为技能 ID，读入内存转回技能名（battle 层用名字查定义）
             p["learned_skills"] = [C.display("skills", s) if s else s for s in p["learned_skills"]]
-            p["shortcuts"] = json.loads(p.get("shortcuts") or "{}")
-            p["skill_levels"] = json.loads(p.get("skill_levels") or "{}")
+            p["shortcuts"] = _jload(p.get("shortcuts"), {})
+            p["skill_levels"] = _jload(p.get("skill_levels"), {})
             # v46：skill_levels 键名同样转回技能名
             p["skill_levels"] = {C.display("skills", k) if k else k: v for k, v in p["skill_levels"].items()}
-            p["mounts"] = json.loads(p.get("mounts") or "{}")
-            p["learned_blueprints"] = json.loads(p.get("learned_blueprints") or "[]")
+            p["mounts"] = _jload(p.get("mounts"), {})
+            p["learned_blueprints"] = _jload(p.get("learned_blueprints"), [])
             # v81 导师进修：apprentices 已拜师副业列表（JSON 数组）
-            p["apprentices"] = json.loads(p.get("apprentices") or "[]")
-            p["hidden_class_unlock"] = json.loads(p.get("hidden_class_unlock") or "[]")
+            p["apprentices"] = _jload(p.get("apprentices"), [])
+            p["hidden_class_unlock"] = _jload(p.get("hidden_class_unlock"), [])
             # v94 #41：读取时 clamp 存量档 hp/mp 超上限（升级漏传 race 导致 max 差 1 的遗留档）
             try:
                 mx_hp = p.get("max_hp") or 0
@@ -160,6 +172,14 @@ def get_player(group_id, qq_id):
                 _lv0 = p.get("level", 1)
                 if p.get("exp", 0) >= C.exp_to_next(_lv0):
                     from ..engine import check_player_level_up  # 延迟导入避免初始化顺序问题
+                    # v105 P1(M01#11)：惰性升级前注入称号加成——升级重算 max_hp/max_mp 缺
+                    # 称号加成会写低上限（存档 861 vs 面板 891，回血回不满永久复发）。
+                    # 全 store 共用 connection._lock（已改 RLock），此处可安全调用 store 函数。
+                    try:
+                        from ..core.title_bonus import title_bonus
+                        p["_title_bonus"] = title_bonus(group_id, qq_id, p)
+                    except Exception:
+                        p["_title_bonus"] = {}
                     _logs, _p2 = check_player_level_up(group_id, qq_id, p)
                     if _p2.get("level", 1) > _lv0:
                         conn.execute(

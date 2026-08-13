@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from .drops import generate_equip, generate_roster_equip
-from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES
+from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES, MATERIALS
 from ..core.index import resolve, display as _display
 
 
@@ -14,18 +14,26 @@ def craft_recipe_make(name: str, affinity: str | None = None) -> dict | None:
     if not rec:
         return None
     if rec.get("roster_id"):
-        return generate_roster_equip(rec["roster_id"], affinity)
-    # 兜底（无 roster_id 的旧配方）：随机生成 + 覆盖名
-    equip = generate_equip(rec["slot"], rec["lv"], rec["quality"],
-                           rec.get("weapon_type"))
-    equip["name"] = _display("recipes", name)  # v48：配方名转中文（背包/存档显示用中文名）
+        equip = generate_roster_equip(rec["roster_id"], affinity)
+    else:
+        # 兜底（无 roster_id 的旧配方）：随机生成 + 覆盖名
+        equip = generate_equip(rec["slot"], rec["lv"], rec["quality"],
+                               rec.get("weapon_type"))
+        equip["name"] = _display("recipes", name)  # v48：配方名转中文（背包/存档显示用中文名）
     # v41：毕业套配方强制带套装归属（set 字段），生成时写入装备
     if rec.get("set"):
         equip["set"] = rec["set"]
+    # M10 P1-2 锻造→卖店印钞修复：记录锻造成本（材料价+锻造费），
+    # 卖店回收按此封顶（≤ 成本，杜绝 材料→锻造→卖店 金币永动机）
+    equip["craft_cost"] = sum(MATERIALS.get(m, {}).get("price", 0) * n for m, n in rec["mats"].items()) + rec.get("gold", 0)
     return equip
 
 def craft_recipe_search(text: str):
-    """模糊查找配方：精确名 > 别名 > 包含匹配(v48：输入中文/ID 都 resolve)"""
+    """模糊查找配方：精确名 > 别名 > 包含匹配(v48：输入中文/ID 都 resolve)
+    M10 P2 空参防御：空串/纯空白返回 None（否则空串包含匹配恒 True 误中第一个配方）"""
+    text = (text or "").strip()
+    if not text:
+        return None
     rid = resolve("recipes", text)
     if rid in CRAFT_RECIPES:
         return rid

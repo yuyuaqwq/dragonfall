@@ -79,10 +79,13 @@ def roll_blueprint(monster_lv: int):
             cands.append((rid, r))
     if not cands:
         return None
-    # 等级就近：优先 |lv - monster_lv| <= 15，再放宽
+    # 等级就近：优先 |lv - monster_lv| <= 15；
+    # v104 修复 P1：就近为空时按等级距离取最近 3 张（此前回退全池随机——
+    # Lv.1-17 的怪会掉 60-90 级用不上的图纸，占图纸池 60%+）
     near = [c for c in cands if abs(c[1]["lv"] - monster_lv) <= 15]
-    pool = near or cands
-    rid, _r = random.choice(pool)
+    if not near:
+        near = sorted(cands, key=lambda c: abs(c[1]["lv"] - monster_lv))[:3]
+    rid, _r = random.choice(near)
     return make_blueprint(rid)
 
 def roll_drop(monster_lv: int, role: str):
@@ -232,6 +235,9 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
     # 词条：系列固定 + 随机补足到品质标准数（蓝 2 / 紫 3 / 橙 3）
     fixed = fixed_affixes(r["name"])
     target_n = {"blue": 2, "purple": 3, "orange": 3}.get(quality, 0)
+    # v104 M07 修复 P2：橙装 20% 概率 4 词条（与 roll_affixes 一致，兑现 AFFIX_COUNT.orange=[3,4]）
+    if quality == "orange" and random.random() < 0.20:
+        target_n = 4
     random_n = max(0, target_n - len(fixed))
     pool = [a for a in AFFIX_POOL_BY_QUALITY.get(quality, AFFIX_POOL_BY_QUALITY["orange"])
             if a not in fixed]

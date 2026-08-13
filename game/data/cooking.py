@@ -165,12 +165,21 @@ COOKING_RECIPES = {
         "cost": {"mat_feng_bao_bei": 2},
         "product": {"i_storm_chowder": 1},
     },
+    # ---- v104 R3 M15 P2-2：夜光鲛消费点落地（13 章 line 134「烹饪/炼金」用途；迷雾沼泽钓点独占材料→烹饪）----
+    "cook_glow_shark_soup": {
+        "name": "夜光鲛汤",
+        "desc": "夜光鲛熬成的鲜汤，汤面泛着幽幽荧光，喝下后每场战斗回复 8% 生命(持续 3 场)",
+        "min_lv": 4,
+        "cost": {"mat_ye_guang_jiao": 2},
+        "product": {"i_glow_shark_soup": 1},
+    },
     # ---- v104 M15 鱼饵配方落地（v102.3 规划 3 条：烹饪 2 条，炼金 1 条见 alchemy.py）----
     "cook_dough_bait": {
         "name": "面团鱼饵",
         "desc": "揉得松软的麦粉饵团，下次垂钓绿/蓝档概率提升(仅 1 次)",
         "min_lv": 1,
-        "cost": {"mat_mian_fen": 2},
+        # v104R3 M16 P2-5：成本 6/20=0.30 低于 40% 下限 → 面粉×3+浆果×1=14/20=0.70
+        "cost": {"mat_mian_fen": 3, "mat_jiang_guo": 1},
         "product": {"it_dough_bait": 1},
     },
     "cook_blood_bait": {

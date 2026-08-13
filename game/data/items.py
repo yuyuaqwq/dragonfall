@@ -138,10 +138,6 @@ MATERIALS = {
         'price': 60,
         'name': "古龙鳞",
     },
-    "mat_zhao_huan_juan_zhou_ge_bu_lin": {
-        'price': 15,
-        'name': "召唤卷轴·哥布林",
-    },
     "mat_shi_lai_mu_hui_zhang": {
         'price': 15,
         'name': "史莱姆徽章",
@@ -257,6 +253,8 @@ MATERIALS = {
     "mat_ao_la_sheng_yin": {
         'price': 60,
         'name': "奥拉圣印",
+        # v104 M20 P1：原自动 desc 承诺「别小看它」，但全配方零消费——改纯收藏语义
+        'desc': "云中圣者·奥拉的圣印，天空试炼的见证(纯收藏，无配方用途)",
     },
     "mat_nu_pu_suo_lian": {
         'price': 35,
@@ -501,6 +499,8 @@ MATERIALS = {
     "mat_mu_ying_long_hun": {
         'price': 60,
         'name': "暮影龙魂",
+        # v104 M20 P1：原自动 desc 承诺「高级炼金的核心材料」，但全配方零消费——改纯收藏语义
+        'desc': "龙陨战魂·暮影的龙魂余烬，龙陨谷守望的见证(纯收藏，无配方用途)",
     },
     "mat_yue_guang_jing_hua": {
         'price': 15,
@@ -762,9 +762,20 @@ MATERIALS = {
         'price': 80,
         'name': "潮汐碎片",
     },
+    # R3 P1-4：潮汐祭司支线素材（29 章 13.4：收集 3 片贝壳换潮汐护符）
+    "mat_chao_xi_bei_ke": {
+        'price': 30,
+        'name': "潮汐贝壳",
+    },
+    "mat_chao_xi_hu_fu": {
+        'price': 200,
+        'name': "潮汐护符",
+    },
     "mat_lan_ge_zhi_lei": {
         'price': 80,
         'name': "澜歌之泪",
+        # v104 M20 P1：原自动 desc 承诺「炼金师视若珍宝」，但全配方零消费——改纯收藏语义
+        'desc': "海神祭司·澜歌的泪滴结晶，海神试炼的见证(纯收藏，无配方用途)",
     },
     "mat_huo_qiu_juan_zhou": {
         'price': 15,
@@ -805,6 +816,8 @@ MATERIALS = {
     "mat_jin_he_zhi_xin": {
         'price': 200,
         'name': "烬核之心",
+        # v104 M20 P1：原自动 desc 承诺「魔导器运转的燃料」，但全配方零消费——改纯收藏语义
+        'desc': "岩浆王·烬核的核心，地底火焰暴动的见证(纯收藏，无配方用途)",
     },
     "mat_jin_yi_long_lin": {
         'price': 60,
@@ -1077,6 +1090,8 @@ MATERIALS = {
     "mat_lie_zong_liao_ya": {
         'price': 5,
         'name': "裂鬃獠牙",
+        # v104 M20 P1：原自动 desc 承诺「可打磨成武器配件」，但全配方零消费——改纯收藏语义
+        'desc': "野猪王·裂鬃的獠牙，灰羽猎人的战利品纪念(纯收藏，无配方用途)",
     },
     "mat_chu_shou_pi": {
         'price': 15,
@@ -1161,6 +1176,8 @@ MATERIALS = {
     "mat_tie_ya_lang_pi": {
         'price': 15,
         'name': "铁牙狼皮",
+        # v104 M20 P1：原自动 desc 承诺「打造武器的骨干」，但全配方零消费——改纯收藏语义
+        'desc': "丘陵狼王·铁牙的皮毛，铁盾镇除害的见证(纯收藏，无配方用途)",
     },
     "mat_tie_jia_zhu_pi": {
         'price': 15,
@@ -1222,10 +1239,6 @@ MATERIALS = {
         'price': 60,
         'name': "雷晶",
     },
-    "mat_lei_jing_sha": {
-        'price': 15,
-        'name': "雷晶砂",
-    },
     "mat_lei_xi_pi": {
         'price': 60,
         'name': "雷蜥皮",
@@ -1249,6 +1262,8 @@ MATERIALS = {
     "mat_lei_ming_long_lin": {
         'price': 35,
         'name': "雷鸣龙鳞",
+        # v104 M20 P1：原自动 desc 承诺「水火不侵的天然护材」，但全配方零消费——改纯收藏语义
+        'desc': "风暴海龙·雷鸣的鳞片，风暴之海异变的见证(纯收藏，无配方用途)",
     },
     "mat_wu_guan_jing": {
         'price': 60,
@@ -1321,10 +1336,6 @@ MATERIALS = {
     "mat_feng_bao_he_xin": {
         'price': 15,
         'name': "风暴核心",
-    },
-    "mat_feng_bao_bei": {
-        'price': 15,
-        'name': "风暴贝",
     },
     "mat_feng_bao_ying_yu": {
         'price': 60,
@@ -1861,7 +1872,7 @@ MATERIALS = {
     "mat_shou_ren_liao_ya": {"price": 100, "name": "兽人獠牙", "desc": "兽人劫掠者的獠牙，粗粝弯曲，带着凶性"},
     "mat_zuo_lang_quan_chi": {"price": 110, "name": "座狼犬齿", "desc": "狼王座下凶兽的犬齿，锋利得能划开铁甲"},
     "i_stone_upgrade": {"price": 400, "name": "强化石", "desc": "炼金提纯的魔力矿石，强化装备失败时自动护住不掉级（消耗品）"},
-    "i_stone_refine": {"price": 800, "name": "精炼强化石", "desc": "二次精炼的强化石，强化时消耗可提升成功率 +25%"},
+    "i_stone_refine": {"price": 1100, "name": "精炼强化石", "desc": "二次精炼的强化石，强化时消耗可提升成功率 +25%"},
     # ---- v102.3 生活技能差异化：限定材料（采集时机限定 + 深矿专属） ----
     "mat_night_mushroom": {"price": 120, "name": "夜雾菇", "desc": "只在月光下撑开伞盖的菌菇，伞面凝着细碎的夜露"},
     "mat_aurora_flower": {"price": 300, "name": "极光花", "desc": "冬夜极光映照下才绽放的花，花瓣流光溢彩，转瞬即逝"},
@@ -1887,6 +1898,19 @@ MATERIALS = {
                                "desc": "灰烬骑士断落的残剑，刃口焦黑卷曲，回炉重锻或能再用"},
     "mat_yong_shi_yu_jin": {"price": 200, "name": "勇士余烬", "type": "精华",
                             "desc": "灰烬勇士消散后留下的余烬，灼热不灭，蕴含战意精华"},
+    # ---- v104 M20 P1：支线缺失奖励实体（06 章承诺：S9 徽章 / S17 随机符文 / S20 传说锻造材料 / S22 笔记）----
+    "mat_qi_shi_tuan_hui_zhang": {"price": 600, "name": "骑士团徽章", "type": "收藏",
+                                  "desc": "圣光骑士团授予的银质徽章，见证你在晨曦城证明了自己的勇气(纯收藏，无配方用途)"},
+    "mat_lie_yan_fu_wen": {"price": 300, "name": "烈焰符文", "type": "收藏",
+                           "desc": "矮人符文大师吉姆利传授的符文之一，刻着古老的火焰铭文(随机符文奖励，纯收藏)"},
+    "mat_han_shuang_fu_wen": {"price": 300, "name": "寒霜符文", "type": "收藏",
+                              "desc": "矮人符文大师吉姆利传授的符文之一，刻着古老的冰霜铭文(随机符文奖励，纯收藏)"},
+    "mat_lei_ji_fu_wen": {"price": 300, "name": "雷击符文", "type": "收藏",
+                          "desc": "矮人符文大师吉姆利传授的符文之一，刻着古老的雷霆铭文(随机符文奖励，纯收藏)"},
+    "mat_chuan_shuo_duan_zao_cai_liao": {"price": 1500, "name": "传说锻造材料", "type": "传说",
+                                         "desc": "托尔丁·铁锤为传奇冒险者准备的传说级附魔胚料(纯收藏，无配方用途)"},
+    "mat_li_shi_xue_jia_bi_ji": {"price": 800, "name": "历史学家笔记", "type": "收藏",
+                                 "desc": "亡灵学者·骨语的亲笔笔记，记录着百族战争鲜为人知的细节(背景故事收藏)"},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============
@@ -1909,7 +1933,7 @@ CONSUMABLES = {
     "i_full_potion": {"name": "全效药水", "price": 50, "heal": 0.3, "mana": 0.3,
                       "desc": "回复 30% HP + 30% MP"},
     "i_holy_water": {"name": "圣水", "price": 80, "heal": 0.25,
-                     "desc": "回复 25% HP 并驱散 1 层负面"},
+                     "desc": "回复 25% HP（圣堂祝福的净水）"},
     # ---- 2.2 食物（非战斗回复 + 持续 buff） ----
     "i_bread": {"name": "黑面包", "price": 5, "hot": 0.03, "hot_turns": 3, "heal": 0.3, "stamina": 20,
                 "desc": "回复 30% HP + 20 体力；战斗中每回合回复 3% 生命（3 回合）"},
@@ -1926,7 +1950,7 @@ CONSUMABLES = {
     # ---- 3 药剂（战斗中瞬时 buff） ----
     "i_str_potion": {"name": "力量药剂", "price": 100, "effect": "buff_atk",
                      "desc": "3 回合攻击 + 30%"},
-    "i_def_potion": {"name": "铁壁药剂", "price": 100, "effect": "buff_def",
+    "i_def_potion": {"name": "铁壁药剂", "price": 350, "effect": "buff_def",
                      "desc": "3 回合防御 + 45%"},
     "i_spd_potion": {"name": "疾风药剂", "price": 100, "effect": "buff_spd",
                      "desc": "3 回合速度 + 40%"},
@@ -1941,10 +1965,6 @@ CONSUMABLES = {
     "i_lucky_potion": {"name": "幸运药剂", "price": 200, "effect": "buff_crit",
                        "desc": "3 回合暴击率 + 20%"},
     # ---- 4 卷轴（一次性法术） ----
-    "i_scroll_fireball": {"name": "火球卷轴", "price": 200,
-                          "desc": "战斗内 120% 单体火系"},
-    "i_scroll_ice": {"name": "冰锥卷轴", "price": 200,
-                     "desc": "战斗内 100% 单体 + 减速"},
     "i_scroll_heal": {"name": "治愈卷轴", "price": 200, "heal": 0.4,
                       "desc": "战斗内回复 40% HP"},
     "i_scroll_purify": {"name": "净化卷轴", "price": 300, "effect": "purify",
@@ -1957,12 +1977,8 @@ CONSUMABLES = {
                                "desc": "金色符箓，使用后 10 分钟内打怪金币＋50%、材料掉落＋1（一次消耗）"},
     "i_fu_huo_yu_mao": {"name": "复活羽毛", "price": 200, "effect": "return_vila",
                         "desc": "泛着微光的洁白羽毛，捏碎后化作光芒送你返回最近城镇（野外保命珍宝，一次消耗）"},
-    "i_scroll_revive": {"name": "唤醒卷轴", "price": 1000,
-                        "desc": "战斗内复活(回复 50% HP)"},
-    "i_scroll_goblin": {"name": "召唤卷轴·哥布林", "price": 500,
-                        "desc": "召唤 1 只哥布林助战"},
     # ---- 07 章 6.3 ----
-    "i_holy_charm": {"name": "圣光护符", "price": 100,
+    "i_holy_charm": {"name": "圣光护符", "price": 100, "effect": "purify",
                      "desc": "驱散一次负面状态"},
     "i_moon_dew": {"name": "月之露", "price": 50, "heal": 0.5, "mana": 0.5,
                    "desc": "战斗外回复 50% HP/MP"},
@@ -2120,7 +2136,7 @@ CONSUMABLES = {
                          "desc": "回复 25% HP + 30 体力（霜原风干）；战斗中每回合回复 8% 生命（3 回合）"},
     "i_dragon_pepper": {"name": "龙息辣椒", "price": 16, "effect": "buff_crit_food", "heal": 0.15, "stamina": 20,
                         "desc": "回复 15% HP + 20 体力（龙脊山民）；战斗中暴击+8%（3 回合）"},
-    "i_dragon_egg_pancake": {"name": "龙蛋煎饼", "price": 60, "food_effect": "dragon_tongue", "heal": 0.4, "mana": 0.2, "stamina": 45,
+    "i_dragon_egg_pancake": {"name": "龙蛋煎饼", "price": 90, "food_effect": "dragon_tongue", "heal": 0.4, "mana": 0.2, "stamina": 45,
                              "desc": "回复 40% HP + 20% MP + 45 体力（龙脊盛宴）；战斗中吃下获得【龙语印记】：攻击叠印记（每层 + 2%伤害，上限 5 层）"},
     "i_wolf_jerky": {"name": "狼肉干", "price": 14, "food_effect": "counter", "heal": 0.25, "stamina": 30,
                      "desc": "回复 25% HP + 30 体力（野外干粮）；战斗中吃下获得【反击】：受击 20% 反击 60% 伤害"},
@@ -2250,6 +2266,8 @@ CONSUMABLES = {
                       "desc": "霜原颁发的纪念徽章"},
     "i_badge_dragon": {"name": "龙脊徽章", "price": 150, "type": "收藏品",
                        "desc": "龙脊颁发的纪念徽章"},
+    "i_badge_iron_rank": {"name": "铁牌徽章", "price": 50, "type": "收藏品",
+                          "desc": "冒险者行会颁发的铁牌，冒险生涯的起点（主线 q1_2 行会入门奖励）"},
     "i_fest_spring": {"name": "新春灯笼", "price": 50, "type": "收藏品",
                       "desc": "节庆纪念：新春灯笼"},
     "i_fest_summer": {"name": "仲夏花环", "price": 50, "type": "收藏品",
@@ -2359,11 +2377,11 @@ CONSUMABLES = {
                       "desc": "回复 20% MP"},
     "i_great_treatment": {"name": "强效治疗药水", "price": 30, "heal": 0.4,
                           "desc": "回复 40% HP"},
-    "i_great_mana": {"name": "强效魔法药水", "price": 30, "mana": 0.4,
+    "i_great_mana": {"name": "强效魔法药水", "price": 200, "mana": 0.4,
                      "desc": "回复 40% MP"},
-    "i_super_treatment": {"name": "超级治疗药水", "price": 100, "heal": 0.6,
+    "i_super_treatment": {"name": "超级治疗药水", "price": 450, "heal": 0.6,
                           "desc": "回复 60% HP"},
-    "i_super_mana": {"name": "超级魔法药水", "price": 100, "mana": 0.6,
+    "i_super_mana": {"name": "超级魔法药水", "price": 450, "mana": 0.6,
                      "desc": "回复 60% MP"},
     "i_scroll_escape": {"name": "回城卷轴", "price": 500, "effect": "return_vila",
                         "desc": "立即返回最近城镇"},
@@ -2416,25 +2434,25 @@ CONSUMABLES = {
     "i_lucky_charm": {"name": "幸运护符", "price": 300, "effect": "lucky",
                       "desc": "提升打怪金币与材料掉落(10 分钟)"},
     # ---- v102.3 生活技能差异化：稀有食谱产物（烹饪） ----
-    "i_night_mushroom_soup": {"name": "夜雾菇浓汤", "price": 50, "food_effect": "regen", "heal": 0.3, "stamina": 25,
+    "i_night_mushroom_soup": {"name": "夜雾菇浓汤", "price": 300, "food_effect": "regen", "heal": 0.3, "stamina": 25,
                               "desc": "回复 30% HP + 25 体力（月光珍馐）；战斗中吃下获得【回春】：每回合回复 1% 生命（本场）"},
-    "i_moon_tea": {"name": "月光草茶", "price": 45, "food_effect": "meditate", "mana": 0.25, "stamina": 15,
+    "i_moon_tea": {"name": "月光草茶", "price": 200, "food_effect": "meditate", "mana": 0.25, "stamina": 15,
                    "desc": "回复 25% MP + 15 体力（月下清茗）；战斗中喝下获得【冥想】：每回合回复 1% 魔力（本场）"},
-    "i_aurora_honey": {"name": "极光花蜜", "price": 90, "food_effect": "aurora_guard", "heal": 0.2, "stamina": 20,
+    "i_aurora_honey": {"name": "极光花蜜", "price": 380, "food_effect": "aurora_guard", "heal": 0.2, "stamina": 20,
                        "desc": "回复 20% HP + 20 体力（极光珍酿）；战斗中吃下获得【极光庇护】：受击伤害－15%（本场战斗）"},
-    "i_dragon_blood_hotpot": {"name": "龙血火锅", "price": 110, "food_effect": "charge", "heal": 0.4, "stamina": 40,
+    "i_dragon_blood_hotpot": {"name": "龙血火锅", "price": 550, "food_effect": "charge", "heal": 0.4, "stamina": 40,
                               "desc": "回复 40% HP + 40 体力（猛火珍馐）；战斗中吃下获得【蓄力】：10% 追加 50% 伤害"},
-    "i_thunder_skewer": {"name": "雷雨藤烤串", "price": 60, "food_effect": "static", "heal": 0.15, "stamina": 20,
+    "i_thunder_skewer": {"name": "雷雨藤烤串", "price": 600, "food_effect": "static", "heal": 0.15, "stamina": 20,
                          "desc": "回复 15% HP + 20 体力（酥麻串烧）；战斗中吃下获得【静电麻痹】：攻击 20% 令敌减速"},
     # ---- v102.3 生活技能差异化：稀有药水产物（炼金） ----
-    "i_moon_dew_essence": {"name": "月露精华", "price": 120, "effect": "next_atk_up",
+    "i_moon_dew_essence": {"name": "月露精华", "price": 450, "effect": "next_atk_up",
                            "desc": "战斗中使用，下一次攻击伤害 + 50%（月华凝露）"},
-    "i_abyss_crystal_potion": {"name": "深渊药剂", "price": 200, "effect": "magic_resist",
+    "i_abyss_crystal_potion": {"name": "深渊药剂", "price": 440, "effect": "magic_resist",
                                "desc": "战斗中使用，3 回合受到魔法伤害－15%（深渊幽蓝）"},
-    "i_star_iron_agent": {"name": "星铁强化剂", "price": 350, "effect": "enhance_boost",
+    "i_star_iron_agent": {"name": "星铁强化剂", "price": 1200, "effect": "enhance_boost",
                           "desc": "使用后下一次强化装备必定成功（星火淬炼）"},
     # ---- v102.3 生活技能差异化：鱼饵（烹饪/炼金产出，垂钓品质加权） ----
-    "it_glow_bait": {"name": "萤光鱼饵", "price": 60, "effect": "bait_glow",
+    "it_glow_bait": {"name": "萤光鱼饵", "price": 110, "effect": "bait_glow",
                      "desc": "炼金调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)"},
     "it_dough_bait": {"name": "面团鱼饵", "price": 20, "effect": "bait_dough",
                       "desc": "揉得松软的麦粉饵团——下次垂钓绿/蓝档概率提升(仅 1 次)"},
@@ -2613,7 +2631,10 @@ ITEMS.update({
     "i_rainbow_elixir": {"name": "彩虹药剂", "price": 120, "effect": "next_atk_up",
                          "desc": "战斗中使用，下一次攻击伤害 + 50%，映着七色光的梦幻药剂"},
     "i_storm_chowder": {"name": "风暴贝汤", "price": 100, "hot": 0.08, "hot_turns": 3, "heal": 0.2,
-                        "desc": "风暴贝熬的鲜汤，喝下后每场战斗回复 8% 生命(持续 3 场)"},
+                        "desc": "风暴贝熬的鲜汤，战斗中每回合回复 8% 生命（3 回合）"},
+    # v104 R3 M15 P2-2：夜光鲛消费点（13 章 line 134 烹饪/炼金用途落地——垂钓独占材料→烹饪）
+    "i_glow_shark_soup": {"name": "夜光鲛汤", "price": 100, "hot": 0.08, "hot_turns": 3, "heal": 0.2,
+                          "desc": "夜光鲛熬成的鲜汤，汤面泛着幽幽荧光，战斗中每回合回复 8% 生命（3 回合）"},
     "i_thunder_elixir": {"name": "雷晶药剂", "price": 200, "effect": "buff_atk_big",
                          "desc": "战斗中使用，攻击力 + 40%(3 回合)，雷晶砂淬炼的噼啪药剂"},
     "i_dragonbone_elixir": {"name": "龙骨药剂", "price": 400, "effect": "buff_atk_big_def",

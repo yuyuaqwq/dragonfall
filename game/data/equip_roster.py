@@ -38,6 +38,8 @@ EQUIP_ROSTER = {
     "eq_bai_lu_pi_xue":   {"name": "白鹿皮靴", "slot": "boots", "quality": "green", "lv": 6, "series": "白鹿", "source": "商店"},
     "eq_bai_lu_zhi_jie":  {"name": "白鹿之戒", "slot": "ring", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
     "eq_bai_lu_diao_zhu": {"name": "白鹿吊坠", "slot": "necklace", "quality": "green", "lv": 8, "series": "白鹿", "source": "商店"},
+    # v104 M20 P1：s3 支线「铁匠的传家宝」奖励（06 章 S3「汉斯的手工武器」，白鹿城铁匠汉斯亲手打造）
+    "eq_han_si_shou_gong_wu_qi": {"name": "汉斯的手工武器", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 8, "series": "白鹿", "req": {"str": 8}, "source": "支线"},
     "eq_pi_ge_quan_tao": {"name": "皮革拳套", "slot": "weapon", "weapon_type": "fist", "quality": "green", "lv": 6, "series": "白鹿", "req": {"str": 6}, "source": "商店"},  # #236: 拳师武器链
     # ================= 南境·铁港系列（Lv.12-28，海盗/水手风） =================
     "eq_wan_dao":         {"name": "弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 14, "series": "铁港", "req": {"agi": 12}, "source": "锻造"},
@@ -52,6 +54,9 @@ EQUIP_ROSTER = {
     "eq_tie_zhi_hu":      {"name": "铁指虎", "slot": "weapon", "weapon_type": "fist", "quality": "blue", "lv": 14, "series": "铁港", "req": {"str": 12}, "source": "商店"},  # #236: 拳师武器链
     "eq_jin_gou_wan_dao": {"name": "金钩弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 26, "series": "铁港", "req": {"agi": 25}, "legendary": "gold_hook", "source": "boss"},
     "eq_jie_ke_jin_gou":  {"name": "杰克的金钩", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 28, "series": "铁港", "req": {"agi": 28}, "legendary": "jack_hook", "source": "legend"},
+    # v104 修复（M06 P1/P2-7）：策划案 10 章 226 行『17 个 Boss 传说图纸装备』含咕噜的皇冠
+    # （04 章 128 行 哥布林酋长·咕噜 传说图纸）此前名册+配方全无，此处补齐落地
+    "eq_gu_lu_de_huang_guan": {"name": "咕噜的皇冠", "slot": "helm", "quality": "orange", "lv": 20, "series": "橡木", "req": {"str": 20}, "legendary": "goblin_crown", "source": "图纸"},
     # ================= 中域·圣光系列（Lv.25-55，王国/教会风） =================
     "eq_sheng_guang_chang_jian": {"name": "圣光长剑", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 28, "series": "圣光", "req": {"str": 25}, "source": "锻造"},
     "eq_chen_xi_fa_zhang": {"name": "晨曦法杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 28, "series": "圣光", "req": {"int": 25}, "source": "锻造"},
@@ -65,6 +70,16 @@ EQUIP_ROSTER = {
     "eq_wang_guo_hui_jie": {"name": "王国徽戒", "slot": "ring", "quality": "purple", "lv": 34, "series": "圣光", "req": {"int": 28, "str": 28}, "source": "图纸"},
     "eq_gu_wang_jian":    {"name": "古王剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 42, "series": "圣光", "req": {"str": 45}, "legendary": "ancient_king", "source": "boss"},
     "eq_shen_pan_zhi_lian": {"name": "审判之链", "slot": "necklace", "quality": "orange", "lv": 40, "series": "圣光", "req": {"int": 38}, "legendary": "judgment_chain", "source": "boss"},
+    # ================= v104 M07 修复 P1：中段补档（Lv.35-49 名册/商店/锻造三断，策划案 10 章 4.10 消除断档）=================
+    # 圣光系列（中域 Lv.25-55）补 Lv.36-44 锻造蓝装：覆盖 armor 31-54/helm 29-49/boots 29-49/legs 31-51/武器 35-49 断档
+    "eq_sheng_guang_zhan_kui": {"name": "圣光战盔", "slot": "helm", "quality": "blue", "lv": 38, "series": "圣光", "req": {"str": 32}, "source": "锻造"},
+    "eq_sheng_guang_zhong_jia": {"name": "圣光重甲", "slot": "armor", "quality": "blue", "lv": 40, "series": "圣光", "req": {"str": 34}, "source": "锻造"},
+    "eq_sheng_guang_zhong_xue": {"name": "圣光重靴", "slot": "boots", "quality": "blue", "lv": 38, "series": "圣光", "req": {"str": 30}, "source": "锻造"},
+    "eq_sheng_guang_zhan_tui": {"name": "圣光战腿", "slot": "legs", "quality": "blue", "lv": 40, "series": "圣光", "req": {"str": 34}, "source": "锻造"},
+    "eq_sheng_cai_chang_jian": {"name": "圣裁长剑", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 42, "series": "圣光", "req": {"str": 38}, "source": "锻造"},
+    "eq_sheng_guang_fa_zhang": {"name": "圣光法杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 40, "series": "圣光", "req": {"int": 36}, "source": "锻造"},
+    "eq_sheng_guang_lie_gong": {"name": "圣光猎弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 38, "series": "圣光", "req": {"agi": 34}, "source": "锻造"},
+    "eq_sheng_guang_zhan_chui": {"name": "圣光战锤", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 44, "series": "圣光", "req": {"str": 40}, "source": "锻造"},
     # ================= 西境·月语系列（Lv.45-75，精灵风） =================
     "eq_yue_yu_chang_gong": {"name": "月语长弓", "slot": "weapon", "weapon_type": "bow", "quality": "purple", "lv": 52, "series": "月语", "req": {"agi": 55}, "source": "图纸"},
     "eq_yin_ye_fa_zhang": {"name": "银叶法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 52, "series": "月语", "req": {"int": 55}, "source": "图纸"},
@@ -128,6 +143,9 @@ EQUIP_ROSTER = {
     "eq_cang_qiong_hu_tui": {"name": "苍穹护腿", "slot": "legs", "quality": "purple", "lv": 86, "series": "苍穹", "req": {"agi": 86}, "source": "图纸"},
     "eq_cang_qiong_xiang_lian": {"name": "苍穹项链", "slot": "necklace", "quality": "purple", "lv": 88, "series": "苍穹", "req": {"int": 88}, "source": "图纸"},
     "eq_ao_la_sheng_yin": {"name": "奥拉圣印", "slot": "necklace", "quality": "orange", "lv": 95, "series": "苍穹", "req": {"int": 95}, "legendary": "aura_seal", "source": "boss"},
+    # v104 修复（M06 P1-4）：暮影龙魂（世界 Boss/龙陨战魂·暮影掉落）此前无消费端，
+    # 策划案 13 章 5.6『暮影龙魂→图纸·暮影之刃』，此处补齐装备+配方闭环
+    "eq_mu_ying_zhi_ren": {"name": "暮影之刃", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 96, "series": "龙脊", "req": {"agi": 96}, "legendary": "mu_ying_blade", "source": "图纸"},
     # ================= v87 隐藏线：星尘套（H6 失落图书馆，Lv.55 紫）=================
     "eq_xing_chen_fa_zhang": {"name": "星尘法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 60}, "source": "图纸"},
     "eq_xing_chen_chang_pao": {"name": "星尘长袍", "slot": "armor", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 55}, "source": "图纸"},
@@ -168,6 +186,20 @@ EQUIP_ROSTER = {
     # 游侠弓档补录（Lv.18→32 断档，playtest O44 实锤）
     "eq_lie_feng_chang_gong": {"name": "猎风长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 24, "series": "银铃", "req": {"agi": 24}, "source": "锻造"},
     "eq_ji_feng_chang_gong": {"name": "疾风长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 28, "series": "迷雾", "req": {"agi": 28}, "source": "锻造"},
+    # ================= v104 M08 P1-5：SHOP_WEAPONS 9 件武器名补名册 =================
+    # v101.28l #430 声称"补 Lv.18 进阶蓝装"但只改了 shop.py 没进名册 → 购买走随机兜底
+    # generate_equip+覆盖名（economy.py _buy_weapon），属性需求随机、无固定词条。
+    # 现补名册：req 对齐同级蓝装（银铃短刃 Lv.18 agi16 / 弯刀 Lv.14 agi12 递推），
+    # source=商店（与 SHOP_WEAPONS 上架一致，不产图纸）。
+    "eq_jing_tie_chang_jian": {"name": "精铁长剑", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 18, "series": "白鹿", "req": {"str": 16}, "source": "商店"},
+    "eq_ying_mu_zhan_gong": {"name": "硬木战弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 18, "series": "白鹿", "req": {"agi": 16}, "source": "商店"},
+    "eq_qi_yuan_fa_zhang": {"name": "祈愿法杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 18, "series": "白鹿", "req": {"int": 16}, "source": "商店"},
+    "eq_tie_tou_zhan_chui": {"name": "铁头战锤", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 18, "series": "白鹿", "req": {"str": 16}, "source": "商店"},
+    "eq_hou_pi_quan_tao": {"name": "厚皮拳套", "slot": "weapon", "weapon_type": "fist", "quality": "blue", "lv": 18, "series": "白鹿", "req": {"str": 16}, "source": "商店"},
+    "eq_shui_shou_wan_dao": {"name": "水手弯刀", "slot": "weapon", "weapon_type": "sword", "quality": "blue", "lv": 22, "series": "铁港", "req": {"agi": 20}, "source": "商店"},
+    "eq_yuan_yang_chang_gong": {"name": "远洋长弓", "slot": "weapon", "weapon_type": "bow", "quality": "blue", "lv": 22, "series": "铁港", "req": {"agi": 20}, "source": "商店"},
+    "eq_tie_mao_zhan_chui": {"name": "铁锚战锤", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 22, "series": "铁港", "req": {"str": 20}, "source": "商店"},
+    "eq_tie_lian_quan_tao": {"name": "铁链拳套", "slot": "weapon", "weapon_type": "fist", "quality": "blue", "lv": 22, "series": "铁港", "req": {"str": 20}, "source": "商店"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）

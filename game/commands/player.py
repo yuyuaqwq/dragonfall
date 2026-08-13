@@ -5,6 +5,7 @@
 """
 import functools
 import inspect
+import json
 import random
 import re
 import time
@@ -56,7 +57,12 @@ class PlayerCmds(CommandBase):
             if len(parts) < 2 or not parts[0].isdigit():
                 yield event.plain_result("📎 用法：『快捷绑定 <数字> <指令>』，如『快捷绑定 1 探索』\n发对应数字即可一键执行。")
                 return
-            num = parts[0]
+            # v105 P1(M01#4)：全角数字归一（『１２』→'12'，与触发侧同 key）；
+            # 限 1-2 位——触发正则只匹配 1-2 位数字，≥100 绑定成功也永远无法触发（死绑定）
+            num = str(int(parts[0]))
+            if len(num) > 2:
+                yield event.plain_result("❌ 快捷数字限 1-2 位（0-99）～（3 位以上消息触发不了快捷）")
+                return
             cmd_text = parts[1].strip()
             if len(cmd_text) > 30:
                 yield event.plain_result("❌ 指令太长啦(≤30 字)～")
@@ -102,7 +108,9 @@ class PlayerCmds(CommandBase):
         lines.append("『快捷绑定 <数字> <指令>』新增，『快捷删除 <数字>』删除")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$")
+    # v105 P1(M01#4)+P2(M01)：触发放宽到任意位数字（复活历史 ≥100 死绑定）+
+    # 允许尾随空格（『1 』此前静默无反应）；全角数字在 handler 内归一后查表
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d*\s*$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
         """纯数字消息：查玩家的快捷绑定并转发执行"""
@@ -113,6 +121,9 @@ class PlayerCmds(CommandBase):
         shortcuts = player.get("shortcuts") or {}
         num = event.get_message_str().strip()
         num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
+        # v105：全角数字归一（绑『１２』发『12』也能触发，反之亦然）
+        if num.isdigit():
+            num = str(int(num))
         if num not in shortcuts:
             return
         cmd_text = shortcuts[num]
@@ -135,6 +146,12 @@ class PlayerCmds(CommandBase):
         # v95.23 双格式注册：
         #   旧格式 注册 <职业> <名字> [种族] —— 兼容保留（直接带职业）
         #   新格式 注册 <名字> [种族] —— 见习冒险者，去行会/导师处就职职业
+        # v95.24 性别系统：注册必选性别（男/女），种族从剩余参数中解析。
+        #   旧格式 注册 <职业> <名字> [种族] <性别>；新格式 注册 <名字> <性别> [种族]。
+        #   种族与性别可任意顺序，种族可省略（默认人类），性别必选（v95.26 强制），
+        #   如『注册 格温 女 精灵』『注册 格温 女』『注册 战士 勇者 男』。
+        GENDER_MAP = {"男": "male", "male": "male", "♂": "male", "m": "male",
+                      "女": "female", "female": "female", "♀": "female", "f": "female"}
         cls_id = C.resolve("classes", first)
         class_name = first
         name = rest
@@ -143,7 +160,11 @@ class PlayerCmds(CommandBase):
             # 无空格注册兼容：职业名与角色名粘在一起（如"注册战士格温"）
             for cid, cinfo in C.CLASSES.items():
                 cn = cinfo.get("name", cid)
-                if first.startswith(cn):
+                if first.startswith(cn) and len(first) > len(cn) + 1:
+                    # v105 P1(M01#3)：粘连剩余段必须 ≥2 字才算旧格式粘连——
+                    # 『注册 战士格温 女』→ 名字"格温"；『注册 战士长 女』『注册 法师塔 男』
+                    # 剩余 1 字是名字尾巴（用户本意新格式见习+名字"战士长/法师塔"），
+                    # 按新格式处理（下方 v105 P2 分支把 1 字剩余解除粘连）。
                     # v104 P1：名字只取职业名之后部分，rest 保留给下方性别/种族解析。
                     # 旧实现把 rest 拼进名字（"注册 战士格温 女" → 名字变"格温 女"），
                     # 且非见习分支 extra 不含 rest → 性别丢失恒报"请选择性别"。
@@ -154,6 +175,22 @@ class PlayerCmds(CommandBase):
                     break
             else:
                 # v95.23 新格式：名字 [种族] → 见习冒险者（剩余参数统一在下方解析种族/性别）
+                cls_id = C.CLASS_NOVICE
+                class_name = ""
+                name = first
+        # v105 P1(M01#3)：粘连剩余段仅 1 字 → 解除粘连，整词按新格式名字处理
+        # （『注册 战士长 女』名字=战士长/见习；『注册 法师塔 男』名字=法师塔/见习）
+        if glued and len(name) < 2:
+            glued = False
+            cls_id = C.CLASS_NOVICE
+            class_name = ""
+            name = first
+        # v105 P2(M01)：角色名恰等于职业名（『注册 战士 女』）——名字槽是性别词/空时
+        # 旧格式解析必失败（"名字不能为空"），按新格式处理：名字=职业名，职业转见习。
+        # 注：性别词永不可能成为合法名字槽（性别强制必选），故可安全拦截。
+        if not glued and cls_id in C.CLASSES and cls_id != C.CLASS_NOVICE:
+            _nm = (name or "").strip()
+            if not _nm or _nm.lower() in GENDER_MAP:
                 cls_id = C.CLASS_NOVICE
                 class_name = ""
                 name = first
@@ -173,8 +210,7 @@ class PlayerCmds(CommandBase):
         #   旧格式 注册 <职业> <名字> [种族] <性别>；新格式 注册 <名字> <性别> [种族]。
         #   种族与性别可任意顺序，种族可省略（默认人类），性别必选（v95.26 强制），
         #   如『注册 格温 女 精灵』『注册 格温 女』『注册 战士 勇者 男』。
-        GENDER_MAP = {"男": "male", "male": "male", "♂": "male", "m": "male",
-                      "女": "female", "female": "female", "♀": "female", "f": "female"}
+        #   （GENDER_MAP 定义见上方解析段，v105 上移供旧格式名字槽判定复用）
         race_id = "human"
         race_display = ""
         gender_id = ""
@@ -206,7 +242,14 @@ class PlayerCmds(CommandBase):
                 f"格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』"
             )
             return
-        name = name.strip()[:12]
+        # v105 P2(M01)：名字超 12 字静默截断 → 显式提示（原实现截断无任何提示）
+        _name_raw = name.strip()
+        trunc_hint = ""
+        if len(_name_raw) > 12:
+            name = _name_raw[:12]
+            trunc_hint = f"⚠️ 名字超过 12 字，已截断为『{name}』\n\n"
+        else:
+            name = _name_raw
         # v104 P3：名字槽位是纯性别关键词（如『注册 男』『注册   女 精灵』）→ 视为没起名，
         # 优先报"名字不能为空"而不是"请选择性别"（文案错位）。
         # 注意：性别词永不可能成为合法名字槽（性别强制必选），故可安全拦截。
@@ -249,7 +292,7 @@ class PlayerCmds(CommandBase):
         if cls_id == C.CLASS_NOVICE:
             # v95.23 见习冒险者：无职业技能，引导去行会/导师就职
             yield event.plain_result(
-                f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
+                trunc_hint + f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
                 f"职业：🧭 见习冒险者\n"
                 f"{race_line}{gender_line}"
                 f"你还没有正式职业，先四处走走、熟悉一下这个世界吧。\n"
@@ -270,7 +313,7 @@ class PlayerCmds(CommandBase):
             )
             return
         yield event.plain_result(
-            f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
+            trunc_hint + f"✨ 欢迎来到奥兰迪亚大陆，{name}！\n"
             f"职业：{cls['icon']} {cls_display}\n"
             f"{race_line}{gender_line}"
             f"『{cls['desc']}』\n"
@@ -296,7 +339,7 @@ class PlayerCmds(CommandBase):
     async def profile(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        cls = C.CLASSES[player["class_name"]]
+        cls = C.CLASSES.get(player["class_name"], {})  # v105 P1(M01#10)：脏 class_name 兜底
         # v55.2：属性也统一「总值(+加成)」格式，每项单独一行（与『属性』面板一致）
         st, sources = E.player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
@@ -383,18 +426,51 @@ class PlayerCmds(CommandBase):
     async def leaderboard(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "排行").strip()
+        medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
         # v83.1：『排行 副业』→ 副业排行（原『副业 排行』参数保留兼容）
         if "副业" in raw:
             yield event.plain_result(self._prof_rank_text(group_id))
+            return
+        # v104R3 P2：『排行 战力』→ 战力榜（原实现静默落等级榜，与帮助文案「等级/战力/副业」不符）
+        if "战力" in raw:
+            rows = db.all_players(group_id)
+            if not rows:
+                yield event.plain_result("还没有人注册角色，快来当第一名！『注册 <名字> <性别>』")
+                return
+
+            def _pw(p):
+                try:
+                    eq = json.loads(p.get("equipment") or "{}")
+                    attrs = json.loads(p.get("attributes") or '{"str":0,"agi":0,"int":0,"vit":0}')
+                except (ValueError, TypeError):
+                    eq, attrs = {}, {"str": 0, "agi": 0, "int": 0, "vit": 0}
+                try:
+                    st = E.player_final_stats(p["class_name"], p["level"], eq,
+                                              p.get("class_tier", 0), attrs,
+                                              p.get("evolve_path", 0), None, p.get("race"))
+                    return int(st["atk"] * 2 + st["matk"] * 2 + st["def"] * 1.5
+                               + st["mdef"] * 1.5 + st["max_hp"] / 10
+                               + st["max_mp"] / 10 + st["spd"] * 3)
+                except Exception:
+                    return 0
+
+            ranked = sorted(rows, key=_pw, reverse=True)[:10]
+            lines = ["🏆 【奥兰迪亚战力榜】 🏆", "━━━━━━━━━━━━"]
+            for i, p in enumerate(ranked):
+                lines.append(f"{medals[i]} {_pw(p):,} 战力 Lv.{p['level']} "
+                             f"{C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")
+            lines.append("")
+            lines.append("💡 『排行』看等级榜，『排行 副业』看副业等级榜")
+            yield event.plain_result("\n".join(lines))
             return
         tops = db.top_players(group_id, 10)
         if not tops:
             yield event.plain_result("还没有人注册角色，快来当第一名！『注册 <名字> <性别>』")
             return
         lines = ["🏆 【奥兰迪亚强者榜】 🏆", "━━━━━━━━━━━━"]
-        medals = ["🥇", "🥈", "🥉", "4.", "5.", "6.", "7.", "8.", "9.", "10."]
         for i, p in enumerate(tops):
-            lines.append(f"{medals[i]} Lv.{p['level']} {C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")
+            _ci = C.CLASSES.get(p['class_name'], {})  # v105 P1(M01#10)：脏 class_name 兜底
+            lines.append(f"{medals[i]} Lv.{p['level']} {_ci.get('icon', '❓')}{p['name']} ({C.display('classes', p['class_name'])})")
         lines.append("")
         lines.append("💡 『排行 副业』看副业等级榜")
         yield event.plain_result("\n".join(lines))
@@ -616,7 +692,7 @@ class PlayerCmds(CommandBase):
             self._title_bonus(group_id, qq_id), player.get("race"),
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
-        attr = player.get("attributes", {})
+        attr = player.get("attributes") or {}  # v105 P1(M01#9)：attributes=None 脏档兜底
         lines = [
             f"📊 【{player['name']} 属性面板】 Lv.{player['level']}",
             "━━━━━━━━━━━━",
@@ -673,7 +749,7 @@ class PlayerCmds(CommandBase):
         if n > pts:
             yield event.plain_result(f"属性点不足！你只有 {pts} 点，需要 {n} 点。")
             return
-        attr = dict(player.get("attributes", {}))
+        attr = dict(player.get("attributes") or {})  # v105 P1(M01#9)：attributes=None 脏档兜底
         attr[key] = attr.get(key, 0) + n
         import json
         db.update_player(group_id, qq_id, attr_pts=pts - n, attributes=json.dumps(attr, ensure_ascii=False))
@@ -740,10 +816,20 @@ class PlayerCmds(CommandBase):
         slv = dict(player.get("skill_levels", {}) or {})
         for s in removed:
             slv.pop(s, None)
+        # v105 P1(M01#1)：转职重置后重算上限并落库——TIER_GROWTH 随阶位归零，
+        # 不重算会让存档 max_hp/max_mp 高于计算上限 → 面板倒挂（❤️ 1941/1331）
+        # 且住宿/回家/药水按存档旧上限回血，倒挂永久复发。
+        # 参照 world.py:_do_evolve_via_npc 同款写法（重算+满血）。
+        st = E.player_final_stats(
+            cls, player["level"], player.get("equipment", {}), 0,
+            player.get("attributes"), 0,
+            self._title_bonus(group_id, qq_id), player.get("race"))
         db.update_player(group_id, qq_id,
                          gold=player["gold"] - cost,
                          class_tier=0,
                          evolve_path=0,
+                         max_hp=st["max_hp"], max_mp=st["max_mp"],
+                         hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=keep,
                          skill_levels=slv)
         # 技能栏清除被移除的分支技能
@@ -773,7 +859,7 @@ class PlayerCmds(CommandBase):
         if "技能" in raw:
             yield event.plain_result("技能洗点是独立指令：『技能洗点』(500金币返还技能点)～『洗点』只重置属性点。")
             return
-        attr = player.get("attributes", {})
+        attr = player.get("attributes") or {}  # v105 P1(M01#9)：attributes=None 脏档兜底
         used = sum(attr.values())
         if used == 0:
             yield event.plain_result("你还没有分配过属性点，无需洗点～")
@@ -787,14 +873,19 @@ class PlayerCmds(CommandBase):
         # v95r76 #381b：洗点后当前 hp/mp 必须裁剪到新上限——attributes 清零 → max_hp 下降
         # （如 956→796），当前值不裁剪会倒挂（小白实测『角色』面板"❤️ 生命：956/796"）。
         # 用实时计算上限（DB max_hp 换装备后过时，面板也走 player_stats_detail 计算值）
+        # v105 P1(M01#2)：新上限一并落库——v95r76 只裁剪 hp/mp 不同步 max_hp，
+        # 住宿(world.py 按存档 max_hp 全回)/回家(回至存档 max×50%)/药水(按存档 max 比例)
+        # 任一都会把 hp 抬回旧上限 → 倒挂复发；称号加成与面板同口径。
         _st0 = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                    player.get("class_tier", 0), attrs0,
-                                   player.get("evolve_path", 0), None, player.get("race"))
+                                   player.get("evolve_path", 0), self._title_bonus(group_id, qq_id),
+                                   player.get("race"))
         new_hp = min(int(player.get("hp", 0)), int(_st0.get("max_hp", player.get("max_hp", 100))))
         new_mp = min(int(player.get("mp", 0)), int(_st0.get("max_mp", player.get("max_mp", 100))))
         db.update_player(group_id, qq_id, gold=player["gold"] - cost,
                          attr_pts=player.get("attr_pts", 0) + used,
                          attributes=json.dumps(attrs0, ensure_ascii=False),
+                         max_hp=_st0["max_hp"], max_mp=_st0["max_mp"],
                          hp=new_hp, mp=new_mp)
         yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币)\n『加点』重新分配～")
 
@@ -852,10 +943,18 @@ class PlayerCmds(CommandBase):
             status = f"📖 可学习(Lv.{info['lv']})"
         else:
             status = f"🔒 未学会(Lv.{info['lv']} 解锁)"
+        # v104 R3 P2-3：消耗行同源展示（mp + res_cost + 精力），与 combat.py 技能列表口径一致
+        _costs = []
+        if info.get("mp"):
+            _costs.append(f"{info['mp']} 魔力")
+        for _rk, _rv in (info.get("res_cost") or {}).items():
+            _rname = {"rage": "怒气", "energy": "精力", "faith": "信仰", "cp": "连击点", "chi": "气"}.get(_rk, _rk)
+            _costs.append(f"{_rv} {_rname}")
+        _cost_txt = " + ".join(_costs) if _costs else "免费"
         lines = [
             f"📜 【{display_name}】｜{status}",
             f"━━━━━━━━━━━━",
-            f"类型：{info.get('kind','')} ｜ 需求等级：Lv.{info['lv']} ｜ 消耗：{info['mp']} 魔力",
+            f"类型：{info.get('kind','')} ｜ 需求等级：Lv.{info['lv']} ｜ 消耗：{_cost_txt}",
             f"效果：{info['desc']}",
         ]
         owner = E.branch_skill_owner(player["class_name"], skill_name)

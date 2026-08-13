@@ -1054,8 +1054,8 @@ DIALOGUES = {
             "welcome": {
                 "text": "战场上的每一步都是用血换来的。想学真本事，先接我三板斧。",
                 "options": [
-                    {"text": "请教『破甲斩』(Lv.6 · 800金)", "next": "teach_po_jia", "need": {"class_any": ["cls_zhan_shi"]}},
-                    {"text": "请教『战吼』(Lv.10 · 1500金)", "next": "teach_zhan_hou", "need": {"class_any": ["cls_zhan_shi"]}},
+                    {"text": "请教『破甲斩』(Lv.8 · 800金)", "next": "teach_po_jia", "need": {"class_any": ["cls_zhan_shi"]}},
+                    {"text": "请教『战吼』(Lv.3 · 1500金)", "next": "teach_zhan_hou", "need": {"class_any": ["cls_zhan_shi"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_zhan_shi"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_zhan_shi"], "evolve_ready": {"tier": 1, "level": 60}}},
                     {"text": "🌟 我想进行最终转职！", "next": "evolve_t3", "need": {"class_any": ["cls_zhan_shi"], "evolve_ready": {"tier": 2, "level": 90}}},
@@ -1080,7 +1080,7 @@ DIALOGUES = {
                 "text": "魔法不是念咒，是理解世界的语言。想学，先学会倾听。",
                 "options": [
                     {"text": "请教『奥术脉冲』(Lv.6 · 800金)", "next": "teach_ao_shu", "need": {"class_any": ["cls_fa_shi"]}},
-                    {"text": "请教『冰霜新星』(Lv.10 · 1500金)", "next": "teach_bing_shuang", "need": {"class_any": ["cls_fa_shi"]}},
+                    {"text": "请教『冰霜新星』(Lv.24 · 1500金)", "next": "teach_bing_shuang", "need": {"class_any": ["cls_fa_shi"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_fa_shi"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_fa_shi"], "evolve_ready": {"tier": 1, "level": 60}}},
                     {"text": "🌟 我想进行最终转职！", "next": "evolve_t3", "need": {"class_any": ["cls_fa_shi"], "evolve_ready": {"tier": 2, "level": 90}}},
@@ -1104,8 +1104,8 @@ DIALOGUES = {
             "welcome": {
                 "text": "箭离弦之前，先学会看风。港口的风最会骗人。",
                 "options": [
-                    {"text": "请教『三连射』(Lv.6 · 800金)", "next": "teach_san_lian", "need": {"class_any": ["cls_you_xia"]}},
-                    {"text": "请教『鹰眼』(Lv.10 · 1500金)", "next": "teach_ying_yan", "need": {"class_any": ["cls_you_xia"]}},
+                    {"text": "请教『三连射』(Lv.45 · 800金)", "next": "teach_san_lian", "need": {"class_any": ["cls_you_xia"]}},
+                    {"text": "请教『鹰眼』(Lv.38 · 1500金)", "next": "teach_ying_yan", "need": {"class_any": ["cls_you_xia"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_you_xia"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_you_xia"], "evolve_ready": {"tier": 1, "level": 60}}},
                     {"text": "🌟 我想进行最终转职！", "next": "evolve_t3", "need": {"class_any": ["cls_you_xia"], "evolve_ready": {"tier": 2, "level": 90}}},
@@ -1154,7 +1154,7 @@ DIALOGUES = {
             "welcome": {
                 "text": "……你听到的只是风声。想学杀人技，先学会不被人看见。",
                 "options": [
-                    {"text": "请教『影袭』(Lv.6 · 800金)", "next": "teach_ying_xi", "need": {"class_any": ["cls_ci_ke"]}},
+                    {"text": "请教『影袭』(Lv.11 · 800金)", "next": "teach_ying_xi", "need": {"class_any": ["cls_ci_ke"]}},
                     {"text": "请教『淬毒之刃』(Lv.10 · 1500金)", "next": "teach_cui_du", "need": {"class_any": ["cls_ci_ke"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_ci_ke"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_ci_ke"], "evolve_ready": {"tier": 1, "level": 60}}},
@@ -1196,6 +1196,49 @@ DIALOGUES = {
             "evolved": {"text": "拳即是心，心即是拳。走吧，拳师。", "options": [{"text": "多谢导师！", "next": "__end__"}]},
             "taught": {"text": "回去把桩功练扎实，功夫不会骗人。", "options": [{"text": "告辞。", "next": "__end__"}]},
             "chat": {"text": "码头的活儿，练的就是一口气。", "options": [{"text": "告辞。", "next": "__end__"}]},
+        },
+    },
+    # v105 M19 P1：主线 flag/抉择体系落地——q10_5 黎明之光·对话抉择（3 分支）
+    "npc_eter": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "text": "蚀夜的低语在封印之核中回荡：『……你来了。裂痕在扩大，而我……快要撑不住了。』",
+                "options": [
+                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
+                    {"text": "✅ 任务完成了。", "next": "quest_done_talk", "need": {"quest_ready": ""}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "quest_talk": {
+                # v105 M19 P1：q10_5 接取即抉择——3 个分支各 set_flag + quest_take
+                # （talk 型任务接取即 ready，flag 在交付时决定结局台词变体）
+                "text_from": "story",
+                "text": "艾德里克的残魂在金光中凝实，向你伸出手。",
+                "options": [
+                    {"text": "✨ 我愿意，成为新的黎明。", "next": "__end__", "need": {"quest_pending": ""},
+                     "action": {"set_flag": "chose_inheritor", "quest_take": True}},
+                    {"text": "🤔 这份力量……我真的配得上吗？", "next": "__end__", "need": {"quest_pending": ""},
+                     "action": {"set_flag": "chose_doubt", "quest_take": True}},
+                    {"text": "🕯️ 除了传承，真的没有别的办法了吗？", "next": "__end__", "need": {"quest_pending": ""},
+                     "action": {"set_flag": "chose_alternative", "quest_take": True}},
+                ],
+            },
+            "quest_status": {
+                "text": "『圣光不在于血统，而在于心中是否愿意守护。』",
+                "options": [
+                    {"text": "✅ 任务完成了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
+                    {"text": "📜 我要接新任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "quest_done_talk": {
+                "text": "金色的守护者注视着你，眼中是三百年的疲惫与欣慰：『去吧……你守护的黎明，会比我更长久。』",
+                "options": [
+                    {"text": "收下传承！", "next": "__end__", "action": {"quest_take": True}},
+                ],
+            },
         },
     },
 }

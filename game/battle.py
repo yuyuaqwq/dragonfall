@@ -14,6 +14,7 @@ btype:
   - pvp       : 玩家对战（v9.2 启用，不可逃跑，enemy 为对方玩家快照）
 """
 import random
+import time
 
 from . import content as C
 from . import engine as E
@@ -64,6 +65,11 @@ BUFF_MULT = {
     "mon_atk_up_strong": ("atk", 1.70),
     "mon_def_up":     ("def", 1.40),
     "mon_atk_down":   ("atk", 0.70),   # v51 挫志怒吼：敌方攻击 -30%
+}
+# v104 M02 P1-4：团队增益 effect=xx_all → 施放者自身有效 buff 键（与 instance.py buff_effects 同口径）
+TEAM_BUFF_KEYS = {
+    "def_all": "def_up", "reduce_all": "def_up", "atk_all": "atk_up",
+    "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
 }
 # 负面效果
 DEF_DOWN_MULT = 0.5   # 破甲斩：敌方防御减半
@@ -185,6 +191,10 @@ class Battle:
             "e_first": self.e_first,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
+            # v104 M02 P2-9：断线恢复后 burst 机制（灼烧引爆/剑刃风暴/神恩护盾）与
+            # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
+            "last_player": getattr(self, "_last_player", None),
+            "shifted_element": getattr(self, "_shifted_element", None),
         }
 
     @classmethod
@@ -213,6 +223,12 @@ class Battle:
         b.e_first = bool(st.get("e_first", False))
         b._player_hit = bool(st.get("player_hit", False))
         b.first_attack_done = bool(st.get("first_attack_done", False))
+        # v104 M02 P2-9：恢复 _last_player/_shifted_element；_last_player 为空保持
+        # 未设置（hasattr=False，避免 battle_mech 对 None 调 _player_stats 崩溃）
+        _lp = st.get("last_player")
+        if _lp:
+            b._last_player = _lp
+        b._shifted_element = st.get("shifted_element")
         return b
 
     # ---------------- 核心资源（v2.0） ----------------
@@ -230,6 +246,10 @@ class Battle:
             self.resources[k] = rd.get("max", 100)
         else:
             self.resources[k] = 0
+        # v104 R3 P1-1：致命预谋被动——战斗开始 +1 连击点（刺客爆发前置）
+        if k == "cp" and "致命预谋" in E.passive_skills_learned(
+                player.get("class_name", ""), player.get("learned_skills", [])):
+            self.resources[k] = 1
 
     def _resource_label(self, player: dict) -> str:
         """战斗状态栏显示核心资源(如 ⚡ 怒气 3/10)。"""
@@ -490,6 +510,22 @@ class Battle:
             player["mp"] = min(player.get("max_mp", player["mp"]), player["mp"] + mv)
             logs.append(f"💙 你使用了战斗道具，恢复 {player['mp'] - before} 点魔力！({player['mp']}/{player.get('max_mp', '?')})")
             return logs
+        if payload.startswith("hm:"):
+            # v104R3 M16 P2-3：复合药水（heal+mana）战斗内双恢复（tpl_heal_mana payload="hm:hp,mp"）
+            _p = payload[3:].split(",")
+            hv = int(_p[0]) if _p and _p[0] else 0
+            mv = int(_p[1]) if len(_p) > 1 and _p[1] else 0
+            msgs = []
+            if hv > 0:
+                before = player["hp"]
+                player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + hv)
+                msgs.append(f"恢复 {player['hp'] - before} 点生命")
+            if mv > 0:
+                before = player["mp"]
+                player["mp"] = min(player.get("max_mp", player["mp"]), player["mp"] + mv)
+                msgs.append(f"恢复 {player['mp'] - before} 点魔力")
+            logs.append(f"💊 你使用了战斗道具，{'、'.join(msgs)}！")
+            return logs
         if payload.startswith("special:"):
             # v101.28f 药水特殊效果（next_atk_up/heal_up/magic_resist/thorns_pot/dodge_pot/cc_immune/execute_pot/def_down/shield）
             kind = payload[8:]
@@ -611,18 +647,34 @@ class Battle:
             logs.append(f"⏳【{skill_name}】还在冷却中(剩余 {left} 回合)！")
             return logs
         # v2.0 核心资源：技能消耗检查（res_cost，如怒气/连击点/信仰/气）
-        res_cost = info.get("res_cost") or {}
-        if res_cost:
-            for rk, rv in res_cost.items():
-                if not E.core_resource_spend(player["class_name"], self.resources, rv, key=rk):
-                    rd = E.core_resource_def(player["class_name"])
-                    rname = rd.get("name", rk)
-                    cur = self.resources.get(rk, 0)
-                    logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
-                    return logs
+        # v104 R3 P1-4 修复：先验蓝再扣资源（原实现先扣 res_cost 后查 mp，蓝不足时怒气/连击点白扣）
         if player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
             return logs
+        # v104 R3 P1-6 修复：『消耗全部』终结技（consume_all）动态结算——资源不满也可施放，
+        # 按剩余资源算倍率（power = 1 + per×当前值，满资源恰等于数据表 power），并扣光该资源
+        consume_all = info.get("consume_all") or {}
+        if consume_all:
+            ck = consume_all.get("key", "")
+            cur = self.resources.get(ck, 0)
+            if cur < 1:
+                rd = E.core_resource_def(player["class_name"])
+                rname = rd.get("name", ck)
+                logs.append(f"⚡ {rname}不足！需要至少 1 点，当前 0(『攻击』攒资源)")
+                return logs
+            info = dict(info)
+            info["power"] = round(1.0 + float(consume_all.get("per", 0.0)) * cur, 3)
+            self.resources[ck] = 0
+        else:
+            res_cost = info.get("res_cost") or {}
+            if res_cost:
+                for rk, rv in res_cost.items():
+                    if not E.core_resource_spend(player["class_name"], self.resources, rv, key=rk):
+                        rd = E.core_resource_def(player["class_name"])
+                        rname = rd.get("name", rk)
+                        cur = self.resources.get(rk, 0)
+                        logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
+                        return logs
         # v34 符文·聚能：MP 消耗 -x%
         mana_lvl = self._enchant_lvl(self._enchant_effects(player), "mana_flow")
         mp_cost = info["mp"]
@@ -784,7 +836,39 @@ class Battle:
             st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
         if pb.get("crit_add", 0.0):
             st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
+        # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
+        # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
+        pm = self._passive_map(player)
+        _hp_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
+        for _pn, _ps in pm.get("stat", []):
+            _st = _ps.get("stat")
+            _cond = _ps.get("cond")
+            _ok = False
+            if _cond == "rage>=5":
+                _ok = (self.resources.get("rage", 0) or 0) >= 5
+            elif _cond == "hp_low_50":
+                _ok = _hp_ratio < 0.5
+            elif _cond == "hp_high_70":
+                _ok = _hp_ratio >= 0.7
+            elif _cond == "battle_start":
+                _ok = getattr(self, "round", 1) <= 1
+            if _ok and _st in ("atk", "def", "matk", "mdef"):
+                st[_st] = int(st.get(_st, 0) * (1 + float(_ps.get("mult", 0))))
         return st
+
+    def _passive_map(self, player: dict) -> dict:
+        """v104 R3 P1-1：已学被动按 proc/stat 聚合（数据驱动，替代名字硬匹配）。
+        返回 {\"proc\": {proc名: [(被动名, passive字段), ...]}, \"stat\": [(被动名, passive字段), ...]}"""
+        out = {"proc": {}, "stat": []}
+        cls = player.get("class_name", "")
+        for ps_name in E.passive_skills_learned(cls, player.get("learned_skills", [])):
+            info = E.skill_info(cls, ps_name)
+            ps = (info or {}).get("passive") or {}
+            if ps.get("proc"):
+                out["proc"].setdefault(ps["proc"], []).append((ps_name, ps))
+            elif ps.get("stat"):
+                out["stat"].append((ps_name, ps))
+        return out
 
     def _player_attack(self, st: dict, player: dict) -> list:
         """普攻(含标记加成 + v10 套装攻击特效 + v34 符文效果)"""
@@ -838,6 +922,18 @@ class Battle:
             return
         k = rd["key"]
         gain = rd.get("on_attack", 0)
+        # v104 R3 P1-1：斗气凝聚（气获取+1）/ 狂战之魂·斗气之心（资源获取+1）被动加成
+        pm = self._passive_map(player)
+        for _pn, _ps in pm["stat"]:
+            if _ps.get("stat") == "chi_gain" and k == "chi":
+                gain += int(_ps.get("mult", 1))
+        for _pn, _ps in pm["proc"].get("res_gain_bonus", []):
+            if k in ("rage", "chi", "cp", "faith"):
+                gain += 1
+        # v104 R3 P1-1：神圣狂热——攻击获得信仰 +2（牧师攻击型分支）
+        for _pn, _ps in pm["proc"].get("attack_res", []):
+            if k == _ps.get("res", "faith") and _ps.get("gain"):
+                gain += int(_ps.get("gain", 0))
         if gain:
             self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
 
@@ -970,6 +1066,14 @@ class Battle:
         if "地底" in s5names and "深渊" in ename:
             mult *= 1.10
             tags.append("🕳️深渊共鸣")
+        # v104 M07 修复 P1/P2：灰烬守卫（残血增攻）与迷雾（沼泽/毒腐系增伤）5 件效果
+        p_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
+        if "灰烬守卫" in s5names and p_ratio < 0.30:
+            mult *= 1.20
+            tags.append("🔥灰烬之怒")
+        if "迷雾" in s5names and any(k in ename for k in ("沼泽", "毒", "腐", "瘴")):
+            mult *= 1.10
+            tags.append("🌫️迷雾侵染")
         if not ids:
             # v101.28e/f：无词条时不能提前返回——食物/药水倍率（处决/精准/狂怒/死神）仍要结算
             return self._extra_dmg_mult(hp_ratio, mult, tags)
@@ -1133,6 +1237,15 @@ class Battle:
         pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
         if "神恩" in pv:
             heal = int(heal * 1.10)
+        # v104 R3 P1-1：神圣恩典（治疗+10%）/ 圣祷（20% 概率治疗+30%）
+        _pm = self._passive_map(player)
+        for _pn, _ps in _pm["stat"]:
+            if _ps.get("stat") == "heal":
+                heal = int(heal * (1 + float(_ps.get("mult", 0))))
+        for _pn, _ps in _pm["proc"].get("heal_crit", []):
+            if random.random() < float(_ps.get("chance", 0.2)):
+                heal = int(heal * (1 + float(_ps.get("mult", 0))))
+                logs.append(f"✨ {_pn}：治疗暴击！治疗量提升！")
         # 阶段八：圣光套 2 件效果——治疗 +10%
         if E.has_set(player.get("equipment", {}), "圣光套"):
             heal = int(heal * 1.10)
@@ -1147,17 +1260,17 @@ class Battle:
                 logs.append(f"✨ 圣光亲和：治疗效果 ＋{int(hr*100)}%！")
             else:
                 logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
-        over = 0
-        player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
-        # v64 被动·庇护之光：治疗溢出 20% 转为护盾
-        if "庇护之光" in pv and player.get("hp", 0) >= player.get("max_hp", player["hp"]):
-            overflow = player.get("hp", 0) - (player.get("max_hp", player["hp"]) - player.get("hp", 0))
+        hp_before = player.get("hp", 0)
+        player["hp"] = min(player.get("max_hp", player["hp"]), hp_before + heal)
+        # v104 M02 P2-4：庇护之光按“真实治疗溢出量”结算（此前 clamp 后按
+        # hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾）
+        if "庇护之光" in pv:
+            overflow = hp_before + heal - player.get("max_hp", player["hp"])
             if overflow > 0:
                 shield_gain = int(overflow * 0.20)
                 self._add_shield("overflow", shield_gain, 2)
                 logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
         if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
-            over = heal - (player["hp"] - (player.get("max_hp", player["hp"]) - player.get("hp", 0)))
             p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
         logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
         if mech == "bless":
@@ -1185,8 +1298,23 @@ class Battle:
                 self.resources["element"] = nxt
                 self.p_buffs["matk_up"] = E.skill_buff_turns(lv)
                 self._shifted_element = nxt
+            elif eff == "stealth":
+                # v104 R3 P1-10：潜行状态实装——下次攻击必暴（desc 对齐），暴击率 +20% 持续回合
+                self.p_buffs["stealth"] = 1
+                self.p_buffs["crit_up"] = E.skill_buff_turns(lv)
+            elif eff == "mark":
+                # v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）
+                self.e_buffs["mark"] = E.skill_buff_turns(lv)
+            elif eff == "shield_all":
+                # v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
+                st2 = self._player_stats(player)
+                base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
+                self._add_shield("team_bless", int(base * 0.20), 3)
             else:
-                self.p_buffs[eff] = E.skill_buff_turns(lv)
+                # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
+                key = TEAM_BUFF_KEYS.get(eff, eff)
+                # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
+                self.p_buffs[key] = max(self.p_buffs.get(key, 0), E.skill_buff_turns(lv))
         # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
         cond_mult = self._cond_mult(info, player, lv)
         cond_label = info.get("cond", {}).get("label", "") if cond_mult > 1.0 else ""
@@ -1253,6 +1381,16 @@ class Battle:
 
         est = self._enemy_stats()
         is_crit = random.random() < st["crit"]
+        # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
+        if "mark" in self.e_buffs:
+            for _pn, _ps in self._passive_map(player)["stat"]:
+                if _ps.get("stat") == "crit_mark" and random.random() < float(_ps.get("mult", 0.1)):
+                    is_crit = True
+        # v104 R3 P1-10：潜行状态（stealth）——下次攻击必暴，攻击后消耗
+        if self.p_buffs.get("stealth"):
+            is_crit = True
+            del self.p_buffs["stealth"]
+            logs.append("🌙 潜行生效！本次攻击必定暴击！")
         # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
         effs = self._enchant_effects(player)
         ap_lvl = self._enchant_lvl(effs, "armor_pierce")
@@ -1291,10 +1429,55 @@ class Battle:
             st_full = self._player_stats(player)
             if st_full.get("atk") and st_full.get("matk"):
                 passive_bonus *= 1.05
-        # v2.0 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
+        # 技能元素（"current"=当前元素亲和系）——提前解析供 proc 型被动判定
         element = info.get("element", "")
         if element == "current":
             element = self.resources.get("element", "fire")
+        # v104 R3 P1-1：分支/基础 proc 型被动伤害挂点（数据驱动：万象亲和/元素之心/毒师/淬毒之心/
+        # 追猎者/猎魔之眼/奥术之心/武技/疾驰/审判之心/暗影之心/暗影之舞/元素共鸣）
+        _pm = self._passive_map(player)
+        _procs = _pm["proc"]
+        # 元素伤害类（元素系技能）
+        for _pn, _ps in _procs.get("element_dmg", []):
+            if element and E.ELEMENT_MARKS.get(element):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 毒系技能伤害（毒刃/毒爆等 mech=poison 或名字含毒）
+        for _pn, _ps in _procs.get("poison_dmg", []):
+            if mech == "poison" or "毒" in (skill_name or ""):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
+        for _pn, _ps in _procs.get("mark_dmg", []):
+            if "mark" in self.e_buffs:
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 奥术系伤害（奥术之心）
+        for _pn, _ps in _procs.get("arcane_dmg", []):
+            if mech == "arcane":
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 连招技能伤害（武技）
+        for _pn, _ps in _procs.get("combo_dmg", []):
+            if info.get("combo"):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 速度优势增伤（疾驰）
+        for _pn, _ps in _procs.get("speed_dmg", []):
+            if st.get("spd", 0) > est.get("spd", 0):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # 机制型 stat 被动（审判之心 judge / 暗影之心 shadow）：对应 mech 技能伤害加成
+        for _pn, _ps in _pm["stat"]:
+            if _ps.get("stat") == "judge" and mech == "judge":
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+            elif _ps.get("stat") == "shadow" and mech == "shadow":
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+            elif _ps.get("stat") == "stealth_crit_dmg" and self.p_buffs.get("stealth"):
+                passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # v104 R3 P1-1：复仇被动消费——受击后下次攻击 +30%（挨打反打，一次后清除）
+        if self.p_buffs.get("revenge_atk"):
+            for _pn, _ps in _procs.get("counter", []):
+                passive_bonus *= float(_ps.get("mult", 1.3))
+            del self.p_buffs["revenge_atk"]
+        # 元素反应增伤（元素共鸣：触发反应时 +15%）
+        for _pn, _ps in _procs.get("reaction", []):
+            self._elem_reaction_boost = float(_ps.get("mult", 1.15))
+        # 元素反应：当前系 × 目标印记（技能带 element 字段时判定；"current"=当前元素亲和系）
         reaction_mult = 1.0
         reaction_log = ""
         if element and E.ELEMENT_MARKS.get(element):
@@ -1302,6 +1485,10 @@ class Battle:
             r = E.element_reaction(element, marks)
             if r:
                 reaction_mult = r["mult"]
+                # v104 R3 P1-1：元素共鸣被动——元素反应伤害 +15%（在基础反应倍率上叠加）
+                if getattr(self, "_elem_reaction_boost", 1.0) > 1.0:
+                    reaction_mult *= self._elem_reaction_boost
+                    self._elem_reaction_boost = 1.0
                 reaction_log = f"💥{r['name']}！"
                 # 超载：额外全体伤害（对非当前目标模拟为追加单体伤害的 20%）
                 if r["extra"] == "aoe":
@@ -1387,7 +1574,17 @@ class Battle:
             logs.append(reaction_log)
         # v2.0 元素印记：施放带 element 的技能后给目标挂印记 + 法师切换当前系
         if element and E.ELEMENT_MARKS.get(element):
-            E.element_mark_apply(self.e_buffs, element, 1)
+            extra_layers = 1
+            # v104 R3 P1-1：追踪印记——30% 概率额外叠 1 印记（游侠基础被动）
+            for _pn, _ps in _procs.get("mark_extra", []):
+                if random.random() < float(_ps.get("chance", 0.3)):
+                    extra_layers += 1
+            E.element_mark_apply(self.e_buffs, element, extra_layers)
+            # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 回合
+            if element == "ice":
+                for _pn, _ps in _procs.get("ice_slow", []):
+                    self.e_buffs["spd_down"] = max(self.e_buffs.get("spd_down", 0), 2)
+                    logs.append("❄️ 寒霜亲和：敌人被减速！")
             if self.resources.get("element") is not None:
                 self.resources["element"] = element
         # v2.0 连招序列：拳师 combo 字段推进（拳→踢→掌 三连触发额外效果）
@@ -1396,6 +1593,10 @@ class Battle:
             combo_full = self._combo_push(combo_tag)
             if combo_full:
                 combo_bonus = int(total * 0.30)
+                # v104 R3 P1-1：连招精通——三连击破追加伤害提升 50%（0.30 → 0.45）
+                for _pn, _ps in _procs.get("combo_boost", []):
+                    combo_bonus = int(total * 0.45)
+                    break
                 self._damage_enemy(combo_bonus, logs)
                 logs.append(f"🥊 三连击破！拳-踢-掌完美连招，追加 {combo_bonus} 点伤害！(下次斗气技＋20%)")
                 self.resources["combo_ready"] = 1
@@ -1418,7 +1619,9 @@ class Battle:
 
         # ---- 技能特效（v9 落地）----
         # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
-        if info.get("effect") == "lifesteal":
+        # v104 R3 P2-10 修复：吸血改按 lifesteal 数据字段触发（原只认 effect=="lifesteal"，
+        # 全表无技能带此 effect → 嗜血斩 lifesteal:0.25 实机 0 吸血）；数值由 skill_lifesteal_pct 读字段
+        if info.get("lifesteal"):
             heal = int(total * E.skill_lifesteal_pct(info, lv))
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
@@ -1516,6 +1719,8 @@ class Battle:
             if ratio < 0.25:
                 rb = int(dmg * 0.15)
                 if rb > 0:
+                    # R3 P2-3：反伤保底 1 HP（永不致死）——设计取舍：反伤是"代价"不是
+                    # "处决"，避免残血玩家被反弹伤害补刀造成挫败；04 章机制表仅写"反弹 15%"
                     player["hp"] = max(1, player.get("hp", 1) - rb)
                     logs.append(f"🩸【{e['name']}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
         return dmg
@@ -1580,7 +1785,8 @@ class Battle:
                         eff_fn(self, logs, sname)
                     return logs, minion_dmg
                 power = sinfo.get("power", 1.0)
-                is_crit = random.random() < C.MON_SKILL_CRIT
+                # v104 M02 P2-10：怪物技能暴击按自身 crit 判定（此前固定 MON_SKILL_CRIT 0.1，高 crit 怪技能不暴击）
+                is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT)
                 if kind == "物理":
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit)
                 else:
@@ -1653,6 +1859,12 @@ class Battle:
         for eff, turns in buffs.items():
             if eff in BUFF_MULT:
                 attr, val = BUFF_MULT[eff]
+                # v104 M17 P2-5：宠物 buff（buff_atk/crit_up）实读 PET_POOL skill_value，
+                # 覆盖 BUFF_MULT 常量（此前日志 25% 实际 30%，数据层承诺"加宠物=加一行"失效）
+                if attr in ("atk", "crit"):
+                    _pv = getattr(self, "_pet_buff_vals", {}).get(attr)
+                    if _pv is not None:
+                        val = 1.0 + _pv if attr == "atk" else _pv
                 if attr == "crit":
                     st["crit"] = min(1.0, st.get("crit", 0) + val)
                 else:
@@ -1753,10 +1965,18 @@ class Battle:
                 logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
         elif stype == "buff_atk":
             self.p_buffs["atk_up"] = max(int(self.p_buffs.get("atk_up", 0) or 0), 2)
+            # v104 M17 P2-5：buff 数值实读 PET_POOL skill_value（_apply_buffs 用 _pet_buff_vals 覆盖常量 1.30）
+            _pbv = getattr(self, "_pet_buff_vals", {})
+            _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
+            self._pet_buff_vals = _pbv
             # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 30%）
             logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         elif stype == "crit_up":
             self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
+            # v104 M17 P2-5：同上——暴击加成实读 skill_value（覆盖常量 0.20）
+            _pbv = getattr(self, "_pet_buff_vals", {})
+            _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
+            self._pet_buff_vals = _pbv
             # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 20%）
             logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 ＋{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
         return logs
@@ -1800,15 +2020,19 @@ class Battle:
         # v29 毒层：每层 3% 生命（优先战斗层数；老毒箭仍用 e_buffs 布尔标记）
         mech = self.mech_stacks
         poison_n = int(mech.get("poison", 0) or 0)
+        # v104 R3 P1-1：剧毒亲和——毒层每层伤害 +20%
+        _poison_mult = 1.0
+        for _pn, _ps in self._passive_map(player)["proc"].get("poison", []):
+            _poison_mult *= float(_ps.get("mult", 1.2))
         if poison_n > 0:
-            p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n)
+            p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n * _poison_mult)
             self._damage_enemy(p, logs)
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
                 self.result = "victory"
                 logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
         elif "poison" in self.e_buffs:
-            p = int(self.enemy.get("max_hp", 1) * POISON_PCT)
+            p = int(self.enemy.get("max_hp", 1) * POISON_PCT * _poison_mult)
             self._damage_enemy(p, logs)
             logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
             if self._enemy_dead():
@@ -1834,6 +2058,13 @@ class Battle:
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
                 logs.append(f"✨ 套装祝福生效，你回复了 {heal} 点生命！")
                 break
+        # v104 M07 修复 P1：星尘套 5 件——夜间每回合回蓝 5%（10 章五节；夜间 = 19:00-06:00 服务器本地时间）
+        if "星尘" in "|".join(self._set_bonus_5(player)) and player.get("mp", 0) < player.get("max_mp", 1):
+            _hour = time.localtime().tm_hour
+            if _hour >= 19 or _hour < 6:
+                gain = int(player.get("max_mp", player.get("mp", 1)) * 0.05)
+                player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + gain)
+                logs.append(f"🌙 星尘祝福：夜风拂过，你回复了 {gain} 点魔力！({player['mp']}/{player.get('max_mp', '?')})")
         # v34 符文·治愈：每回合回复 x% 生命
         regen_lvl = self._enchant_lvl(self._enchant_effects(player), "regen")
         if regen_lvl and player.get("hp", 0) < player.get("max_hp", 1):
@@ -1846,6 +2077,13 @@ class Battle:
             heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
             player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
             logs.append(f"🍃 气息调和生效，你回复了 {heal} 点生命！")
+        # v104 R3 P1-1：生命之泉——全队每回合回血 5%（单人战斗=自身，副本由 instance 广播）
+        for _pn, _ps in self._passive_map(player)["proc"].get("team_regen", []):
+            if player.get("hp", 0) < player.get("max_hp", 1):
+                heal = int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("mult", 0.05)))
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+                logs.append(f"💧 {_pn}：生命之泉涌动，你回复了 {heal} 点生命！")
+            break
         # v2.1 被动·奥术直觉：每回合开始奥术充能 +1（奥术法师自动蓄能）
         if "奥术直觉" in E.passive_skills_learned(player["class_name"], player.get("learned_skills", [])):
             self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
@@ -1929,6 +2167,12 @@ class Battle:
             return
         # v104 策划案 27 章：闪避率上限 40%——职业基础/装备词条/套装闪避此前只进面板零战斗消费
         dodge = min(float(self._player_stats(player).get("dodge", 0) or 0), 0.40)
+        # v104 R3 P1-9：伪装帷幕（effect=dodge_up）闪避率 +40%，并入 40% 总上限（策划 27 章:43）
+        if self.p_buffs.get("dodge_up"):
+            dodge = min(dodge + 0.40, 0.40)
+        # v104 R3 P1-1：无声被动——被攻击概率降低 30%（并入 40% 总上限）
+        for _pn, _ps in self._passive_map(player)["proc"].get("dodge_up", []):
+            dodge = min(dodge + float(_ps.get("mult", 0.3)), 0.40)
         if dodge > 0 and random.random() < dodge:
             logs.append("💨 你闪避了攻击！")
             return
@@ -1936,7 +2180,17 @@ class Battle:
         if self.p_buffs.get("dodge_pot") and random.random() < 0.15:
             logs.append("💨 身法飘忽！你闪避了攻击！")
             return
+        # v104 R3 P1-1：圣盾被动——10% 概率格挡（减伤 50%，同防御姿态）
+        for _pn, _ps in self._passive_map(player)["stat"]:
+            if _ps.get("stat") == "block" and random.random() < float(_ps.get("mult", 0.1)):
+                block_reduce = max(1, int(dmg * 0.5))
+                dmg = max(1, dmg - block_reduce)
+                logs.append(f"🛡️ 圣盾格挡！减免 {block_reduce} 点伤害！")
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
+        # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
+        for _pn, _ps in self._passive_map(player)["proc"].get("counter", []):
+            self.p_buffs["revenge_atk"] = max(self.p_buffs.get("revenge_atk", 0), 1)
+            break
         # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
         dmg = self._affix_on_taken(player, dmg, logs)
         dmg = self._food_on_taken(player, dmg, logs)
@@ -1958,6 +2212,8 @@ class Battle:
             elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
                 rd = int(dmg * float(ps.get("mult") or 0))
                 if rd > 0:
+                    # v104 M02 P1-5：反伤走 Boss 护盾过滤（扣盾减半/反伤），再结算援军挡刀
+                    rd = self._boss_dmg_filter(rd, player, logs)
                     self._damage_enemy(rd, logs)
                     logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
         if reduce_total:
@@ -1975,6 +2231,7 @@ class Battle:
         if "reflect" in E.set_bonus_4(player.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
             if random.random() < C.REFLECT_CHANCE:
                 rd = int(dmg * 0.25)
+                rd = self._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
                 self._damage_enemy(rd, logs)
                 logs.append(f"🐉 龙鳞反震！反弹 {rd} 点伤害！")
         # v29 金身：每层减伤 4%
@@ -1996,11 +2253,13 @@ class Battle:
         thorns_lvl = self._enchant_lvl(effs, "thorns")
         if thorns_lvl and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * C.rune_value("thorns", thorns_lvl))
+            rd = self._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
             self._damage_enemy(rd, logs)
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
         # v101.28f 荆棘药剂：受击反弹 30% 伤害（3 回合，必触发）
         if self.p_buffs.get("thorns_pot") and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * 0.30)
+            rd = self._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走 Boss 护盾过滤
             self._damage_enemy(rd, logs)
             logs.append(f"🌵 荆棘附体：反弹 {rd} 点伤害！")
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）

@@ -5,14 +5,14 @@ PLAYER_SKILLS = {
         "name": "吟游诗人",
         "skills": {
 "sk_ji_xing_tan_chang": {
-                "lv": 1, "mp": 0, "power": 1.0, "kind": "物理",
+                "lv": 1, "mp": 3, "power": 1.0, "kind": "物理",
                 "mech": "poison", "mech_val": 1,
                 "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒",
                 "name": "即兴弹唱",
             },
     "sk_qin_xian": {
                 "lv": 2,
-                "mp": 0,
+                "mp": 3,
                 "power": 1.1,
                 "kind": "物理",
                 "res_gain": 1,
@@ -24,7 +24,7 @@ PLAYER_SKILLS = {
 "sk_zhan_ge": {
                 "lv": 3, "mp": 10, "power": 0, "kind": "增益",
                 "effect": "atk_up", "team": "atk_all", "cd": 2,
-                "desc": "激昂战歌！全队攻＋25% 3 回合(副本广播，团队技能)",
+                "desc": "激昂战歌！全队攻＋30% 3 回合(副本广播，团队技能)",
                 "name": "战歌",
             },
 "sk_an_mian_qu": {
@@ -151,7 +151,7 @@ PLAYER_SKILLS = {
                 "effect": "def_up",
                 "cd": 3,
                 "res_gain": 2,
-                "desc": "铁壁！防＋40% 3 回合，怒气＋2",
+                "desc": "铁壁！防＋45% 3 回合，怒气＋2",
                 "name": "铁壁",
             },
     "sk_xu_shi": {
@@ -162,7 +162,7 @@ PLAYER_SKILLS = {
                 "effect": "atk_up",
                 "cd": 2,
                 "res_gain": 4,
-                "desc": "蓄势！下回合攻击＋50%，怒气＋4(终结技前奏)",
+                "desc": "蓄势！攻击＋30% 3 回合，怒气＋4(终结技前奏)",
                 "name": "蓄势",
             },
     "sk_dun_ji": {
@@ -193,6 +193,7 @@ PLAYER_SKILLS = {
                 "power": 2.5,
                 "kind": "物理",
                 "res_cost": {"rage": 10},
+                "consume_all": {"key": "rage", "per": 0.15},
                 "pierce": True,
                 "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "背水一战"},
                 "desc": "无畏冲击！消耗全部怒气，每点怒气＋15% 伤害(满怒 = 250%)。自身 HP<30% 时＋50%(决死反扑)",
@@ -284,13 +285,13 @@ PLAYER_SKILLS = {
                 "mp": 30,
                 "power": 1.6,
                 "kind": "魔法",
-                "element": "thunder",
+                "element": "current",
                 "desc": "元素爆发！当前系 160% 伤害 + 触发一次元素反应(蒸发/超载/冻结/感电)",
                 "name": "元素爆发",
             },
     "sk_yuan_su_liu_zhuan": {
                 "lv": 3,
-                "mp": 0,
+                "mp": 5,
                 "power": 0,
                 "kind": "增益",
                 "effect": "matk_up",
@@ -315,7 +316,7 @@ PLAYER_SKILLS = {
                 "kind": "增益",
                 "effect": "def_up",
                 "cd": 3,
-                "desc": "元素护盾！防＋40% 3 回合，按当前系减伤(CD 3)",
+                "desc": "元素护盾！防＋45% 3 回合，按当前系减伤(CD 3)",
                 "name": "元素护盾",
             },
     "sk_ao_shu_qiang_hua": {
@@ -345,9 +346,9 @@ PLAYER_SKILLS = {
                 "mp": 60,
                 "power": 2.0,
                 "kind": "魔法",
-                "element": "thunder",
-                "cond": {"type": "player_res_stacks", "res_key": "element", "stacks": 1, "mult": 1.5, "label": "元素过载"},
-                "desc": "元素风暴！当前系 200% 全体伤害(对单体等效)。目标有印记时＋50%(元素过载)",
+                "element": "current",
+                "cond": {"type": "element_marks", "element": "any", "stacks": 1, "mult": 1.5, "label": "元素过载"},
+                "desc": "元素风暴！当前系 200% 全体伤害(对单体等效)。目标有元素印记时＋50%(元素过载)",
                 "name": "元素风暴",
             },
     "sk_p_lie_yan_qin_he": {
@@ -404,7 +405,7 @@ PLAYER_SKILLS = {
     "sk_miao_zhun": {
                 "lv": 2,
                 "mp": 0,
-                "energy": 10,
+                "res_cost": {"energy": 10},
                 "power": 1.4,
                 "kind": "物理",
                 "desc": "屏息瞄准，140% 物理伤害，消耗 10 精力。",
@@ -483,7 +484,7 @@ PLAYER_SKILLS = {
                 "effect": "dodge_up",
                 "cd": 3,
                 "res_cost": {"energy": 30},
-                "desc": "伪装帷幕！闪避率＋40% 2 回合，消耗 30 精力(隐形求生)",
+                "desc": "伪装帷幕！闪避率＋40% 3 回合，消耗 30 精力(隐形求生)",
                 "name": "伪装帷幕",
             },
     "sk_shou_lie_pao_xiao": {
@@ -495,7 +496,7 @@ PLAYER_SKILLS = {
                 "cd": 3,
                 "res_cost": {"energy": 40},
                 "team": "atk_all",
-                "desc": "狩猎咆哮！攻＋25% 3 回合，消耗 40 精力(标记爆发前奏)",
+                "desc": "狩猎咆哮！攻＋30% 3 回合，消耗 40 精力(标记爆发前奏)",
                 "name": "狩猎咆哮",
             },
     "sk_shou_lie_zhong_zhang": {
@@ -610,7 +611,7 @@ PLAYER_SKILLS = {
                 "effect": "def_up",
                 "cd": 3,
                 "res_gain": 1,
-                "desc": "圣光护盾！防＋40% 3 回合，信仰＋1(保命)",
+                "desc": "圣光护盾！防＋45% 3 回合，信仰＋1(保命)",
                 "name": "圣光护盾",
             },
     "sk_qun_ti_zhi_yu": {
@@ -661,9 +662,10 @@ PLAYER_SKILLS = {
                 "power": 1.8,
                 "kind": "治疗",
                 "res_cost": {"faith": 10},
+                "consume_all": {"key": "faith", "per": 0.08},
                 "team": "heal_all",
                 "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "自我牺牲"},
-                "desc": "神恩降临！全队治疗 180%，消耗全部信仰。自身 HP<30% 时治疗量＋50%(牧师殉道)",
+                "desc": "神恩降临！全队治疗 180%，消耗全部信仰(每点＋8%)。自身 HP<30% 时治疗量＋50%(牧师殉道)",
                 "name": "神恩降临",
             },
     "sk_p_bi_hu_zhi_guang": {
@@ -709,7 +711,7 @@ PLAYER_SKILLS = {
         "skills": {
     "sk_ci_ji": {
                 "lv": 1,
-                "mp": 0,
+                "mp": 3,
                 "power": 1.0,
                 "kind": "物理",
                 "res_gain": 1,
@@ -763,10 +765,10 @@ PLAYER_SKILLS = {
                 "mp": 5,
                 "power": 0,
                 "kind": "增益",
-                "effect": "crit_up",
+                "effect": "stealth",
                 "cd": 3,
                 "res_gain": 1,
-                "desc": "潜行！暴击率＋30% 2 回合(下回合必暴)，连击点＋1(爆发核心)",
+                "desc": "潜行！暴击率＋20% 3 回合，下次攻击必暴，连击点＋1(爆发核心)",
                 "name": "潜行",
             },
     "sk_ji_ying": {
@@ -819,8 +821,9 @@ PLAYER_SKILLS = {
                 "power": 3.0,
                 "kind": "物理",
                 "res_cost": {"cp": 5},
+                "consume_all": {"key": "cp", "per": 0.4},
                 "cond": {"type": "enemy_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "死亡边缘"},
-                "desc": "暗影处刑！300% 致命一击，消耗全部连击点。目标 HP<30% 时＋50%(一击必杀)",
+                "desc": "暗影处刑！300% 致命一击，消耗全部连击点(每点＋40%)。目标 HP<30% 时＋50%(一击必杀)",
                 "name": "暗影处刑",
             },
     "sk_p_an_ying_zhi_wu": {
@@ -866,7 +869,7 @@ PLAYER_SKILLS = {
         "skills": {
     "sk_zhi_quan": {
                 "lv": 1,
-                "mp": 0,
+                "mp": 3,
                 "power": 1.0,
                 "kind": "物理",
                 "combo": "拳",
@@ -961,8 +964,8 @@ PLAYER_SKILLS = {
                 "cd": 3,
                 "res_gain": 2,
                 "team": "def_all",
-                "desc": "铁壁！防＋40% 2 回合，气＋2(磐石流铺垫)",
-                "name": "铁壁",
+                "desc": "铜墙！防＋45% 2 回合，气＋2(磐石流铺垫)",
+                "name": "铜墙",
             },
     "sk_lian_zhao_san_lian": {
                 "lv": 24,
@@ -981,8 +984,9 @@ PLAYER_SKILLS = {
                 "power": 3.0,
                 "kind": "物理",
                 "res_cost": {"chi": 10},
+                "consume_all": {"key": "chi", "per": 0.2},
                 "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "磐石之心"},
-                "desc": "破晓之拳！300% 致命一击，消耗全部气。自身 HP<30% 时先回复 20% 生命再发动(残血反杀)",
+                "desc": "破晓之拳！300% 致命一击，消耗全部气(每点＋20%)。自身 HP<30% 时先回复 20% 生命再发动(残血反杀)",
                 "name": "破晓之拳",
             },
     "sk_p_lian_zhao_jing_tong": {
@@ -1121,7 +1125,7 @@ BRANCH_SKILLS = {
                 "狂战士": {
                     "怒斩":                     {
                         "lv": 32,
-                        "power": 1.4,
+                        "power": 2.38,
                         "kind": "物理",
                         "res_gain": 2,
                         "cond": {
@@ -1131,7 +1135,7 @@ BRANCH_SKILLS = {
                             "label": "狂战血统"
                         },
                         "mp": 5,
-                        "desc": "140% 斩击，怒气＋2。自身 HP<50% 时伤害＋25%(残血狂战)",
+                        "desc": "238% 斩击，怒气＋2。自身 HP<50% 时伤害＋25%(残血狂战)",
                         "name": "怒斩"
                     }
 ,
@@ -1187,7 +1191,7 @@ BRANCH_SKILLS = {
                 "盾卫士": {
                     "盾击·卫":                     {
                         "lv": 32,
-                        "power": 1.3,
+                        "power": 2.38,
                         "kind": "物理",
                         "mech": "stun",
                         "mech_val": 1,
@@ -1197,7 +1201,7 @@ BRANCH_SKILLS = {
                             "label": "盾击连打"
                         },
                         "mp": 5,
-                        "desc": "130% 盾击，概率眩晕 1 回合。目标被眩晕时追加 50% 伤害(控制链)",
+                        "desc": "238% 盾击，概率眩晕 1 回合。目标被眩晕时追加 50% 伤害(控制链)",
                         "cd": 3,
                         "name": "盾击·卫"
                     }
@@ -1236,7 +1240,10 @@ BRANCH_SKILLS = {
                         "cd": 3,
                         "team": "taunt",
                         "res_gain": 4,
-                        "desc": "嘲讽，CD3，强制怪物攻击自己 2 回合，怒气＋4(拉怪核心)",
+                        "res_cost": {
+                            "rage": 3
+                        },
+                        "desc": "嘲讽，消耗 3 怒气，CD3，强制怪物攻击自己 2 回合，怒气＋4(拉怪核心)",
                         "name": "嘲讽"
                     }
 ,
@@ -1443,7 +1450,7 @@ BRANCH_SKILLS = {
                 "元素法师": {
                     "元素冲击":                     {
                         "lv": 32,
-                        "power": 1.4,
+                        "power": 1.9,
                         "kind": "魔法",
                         "element": "current",
                         "cond": {
@@ -1454,7 +1461,7 @@ BRANCH_SKILLS = {
                             "label": "万象共鸣"
                         },
                         "mp": 15,
-                        "desc": "当前系 140% 单体，挂元素印记。目标已有印记时伤害＋20%(反应前奏)",
+                        "desc": "当前系 190% 单体，挂元素印记。目标已有印记时伤害＋20%(反应前奏)",
                         "name": "元素冲击"
                     }
 ,
@@ -1600,7 +1607,7 @@ BRANCH_SKILLS = {
 ,
                     "元素跃迁":                     {
                         "lv": 62,
-                        "mp": 0,
+                        "mp": 25,
                         "power": 0,
                         "kind": "增益",
                         "effect": "element_shift",
@@ -1611,7 +1618,7 @@ BRANCH_SKILLS = {
 ,
                     "元素壁垒":                     {
                         "lv": 68,
-                        "mp": 0,
+                        "mp": 30,
                         "power": 0,
                         "kind": "增益",
                         "effect": "def_up",
@@ -1656,7 +1663,7 @@ BRANCH_SKILLS = {
 ,
                     "法力护盾":                     {
                         "lv": 68,
-                        "mp": 0,
+                        "mp": 30,
                         "power": 0,
                         "kind": "增益",
                         "effect": "def_up",
@@ -1690,7 +1697,7 @@ BRANCH_SKILLS = {
 ,
                     "万象天雷":                     {
                         "lv": 98,
-                        "mp": 0,
+                        "mp": 120,
                         "power": 4.5,
                         "kind": "魔法",
                         "element": "thunder",
@@ -1702,7 +1709,7 @@ BRANCH_SKILLS = {
 ,
                     "元素裁决":                     {
                         "lv": 90,
-                        "mp": 0,
+                        "mp": 100,
                         "power": 4.0,
                         "kind": "魔法",
                         "element": "current",
@@ -1735,7 +1742,7 @@ BRANCH_SKILLS = {
 ,
                     "奥术主宰":                     {
                         "lv": 98,
-                        "mp": 0,
+                        "mp": 120,
                         "power": 4.5,
                         "kind": "魔法",
                         "cond": {
@@ -1752,7 +1759,7 @@ BRANCH_SKILLS = {
 ,
                     "奥术领域":                     {
                         "lv": 90,
-                        "mp": 0,
+                        "mp": 100,
                         "power": 4.0,
                         "kind": "魔法",
                         "team": "shield_all",
@@ -1773,7 +1780,7 @@ BRANCH_SKILLS = {
                     "追猎":                     {
                         "lv": 32,
                         "mp": 0,
-                        "power": 1.2,
+                        "power": 1.9,
                         "kind": "物理",
                         "cond": {
                             "type": "enemy_marked",
@@ -1781,7 +1788,7 @@ BRANCH_SKILLS = {
                             "label": "猎杀本能"
                         },
                         "res_cost": {"energy": 20},
-                        "desc": "120% 狙击，目标被标记时伤害＋30%(标记特攻)，消耗 20 精力",
+                        "desc": "190% 狙击，目标被标记时伤害＋30%(标记特攻)，消耗 20 精力",
                         "name": "追猎"
                     }
 ,
@@ -1838,7 +1845,7 @@ BRANCH_SKILLS = {
                     "疾风射击":                     {
                         "lv": 32,
                         "mp": 0,
-                        "power": 1.2,
+                        "power": 1.9,
                         "kind": "物理",
                         "cond": {
                             "type": "speed_ratio",
@@ -1847,7 +1854,7 @@ BRANCH_SKILLS = {
                             "label": "疾风连击"
                         },
                         "res_cost": {"energy": 20},
-                        "desc": "120% 疾风射击，速度比≥1.5x 时伤害＋50%(速度压制)，消耗 20 精力",
+                        "desc": "190% 疾风射击，速度比≥1.5x 时伤害＋50%(速度压制)，消耗 20 精力",
                         "name": "疾风射击"
                     }
 ,
@@ -2086,7 +2093,7 @@ BRANCH_SKILLS = {
                 "圣武士": {
                     "圣光之刃":                     {
                         "lv": 32,
-                        "power": 1.4,
+                        "power": 1.71,
                         "kind": "魔法",
                         "res_gain": 1,
                         "cond": {
@@ -2096,7 +2103,7 @@ BRANCH_SKILLS = {
                             "label": "圣战之心"
                         },
                         "mp": 8,
-                        "desc": "140% 圣光之刃，信仰＋1。自身 HP>70% 时伤害＋15%(满血战斗)",
+                        "desc": "171% 圣光之刃，信仰＋1。自身 HP>70% 时伤害＋15%(满血战斗)",
                         "name": "圣光之刃"
                     }
 ,
@@ -2186,7 +2193,7 @@ BRANCH_SKILLS = {
 ,
                     "净化术":                     {
                         "lv": 45,
-                        "mp": 0,
+                        "mp": 20,
                         "power": 0,
                         "kind": "增益",
                         "effect": "def_up",
@@ -2289,7 +2296,10 @@ BRANCH_SKILLS = {
                         "effect": "shield_all",
                         "team": "shield_all",
                         "cd": 4,
-                        "desc": "全队护盾，CD4(持续保护)",
+                        "res_cost": {
+                            "faith": 5
+                        },
+                        "desc": "全队护盾，消耗 5 信仰，CD4(持续保护)",
                         "name": "神圣庇护"
                     }
 ,
@@ -2331,7 +2341,10 @@ BRANCH_SKILLS = {
                         "kind": "增益",
                         "effect": "atk_up_strong",
                         "cd": 6,
-                        "desc": "三转奥义，3 回合内攻击附带圣光(每次攻击大幅增伤)",
+                        "res_cost": {
+                            "faith": 8
+                        },
+                        "desc": "三转奥义，3 回合内攻击附带圣光(每次攻击大幅增伤)，消耗 8 信仰",
                         "name": "圣光化身"
                     }
 ,
@@ -2357,7 +2370,10 @@ BRANCH_SKILLS = {
                         "kind": "治疗",
                         "team": "heal_all",
                         "cd": 5,
-                        "desc": "终极技，全队满血治疗(团队终极技)",
+                        "res_cost": {
+                            "faith": 10
+                        },
+                        "desc": "终极技，全队满血治疗，消耗 10 信仰(团队终极技)",
                         "name": "神迹·重生"
                     }
 ,
@@ -2368,7 +2384,10 @@ BRANCH_SKILLS = {
                         "kind": "治疗",
                         "team": "heal_all",
                         "cd": 6,
-                        "desc": "三转奥义，全队满血 + 减伤(终极救场)",
+                        "res_cost": {
+                            "faith": 6
+                        },
+                        "desc": "三转奥义，全队满血 + 减伤，消耗 6 信仰(终极救场)",
                         "name": "生命圣域"
                     }
 ,
@@ -2383,7 +2402,7 @@ BRANCH_SKILLS = {
                 "影舞者": {
                     "影刃":                     {
                         "lv": 32,
-                        "power": 1.3,
+                        "power": 2.85,
                         "kind": "物理",
                         "res_gain": 1,
                         "cond": {
@@ -2393,7 +2412,7 @@ BRANCH_SKILLS = {
                             "label": "暗影亲和"
                         },
                         "mp": 6,
-                        "desc": "130% 影刃，连击点＋1。目标 HP>70% 时伤害＋20%(满血刺杀)",
+                        "desc": "285% 影刃，连击点＋1。目标 HP>70% 时伤害＋20%(满血刺杀)",
                         "name": "影刃"
                     }
 ,
@@ -2450,7 +2469,7 @@ BRANCH_SKILLS = {
                 "毒刃者": {
                     "毒刃":                     {
                         "lv": 32,
-                        "power": 1.1,
+                        "power": 2.85,
                         "kind": "物理",
                         "mech": "poison",
                         "mech_val": 2,
@@ -2462,7 +2481,7 @@ BRANCH_SKILLS = {
                             "label": "毒刃蔓延"
                         },
                         "mp": 6,
-                        "desc": "110% 毒刃，叠 2 层毒，连击点＋1。目标已中毒时伤害＋15%(叠毒加速)",
+                        "desc": "285% 毒刃，叠 2 层毒，连击点＋1。目标已中毒时伤害＋15%(叠毒加速)",
                         "name": "毒刃"
                     }
 ,
@@ -2538,12 +2557,15 @@ BRANCH_SKILLS = {
                         "power": 1.6,
                         "kind": "物理",
                         "cd": 2,
+                        "res_cost": {
+                            "cp": 3
+                        },
                         "cond": {
                             "type": "player_untouched",
                             "mult": 1.2,
                             "label": "暗影突袭"
                         },
-                        "desc": "160% 暗影突袭，CD2。自身未受击时伤害＋20%",
+                        "desc": "160% 暗影突袭，消耗 3 连击点，CD2。自身未受击时伤害＋20%",
                         "name": "暗影突袭"
                     }
 ,
@@ -2581,7 +2603,10 @@ BRANCH_SKILLS = {
                         "mech": "poison",
                         "mech_val": 2,
                         "cd": 3,
-                        "desc": "80% 毒雾(全体)，叠 2 层毒，CD3(AOE 叠毒)",
+                        "res_cost": {
+                            "cp": 3
+                        },
+                        "desc": "80% 毒雾(全体)，叠 2 层毒，消耗 3 连击点，CD3(AOE 叠毒)",
                         "name": "毒雾·淬"
                     }
 ,
@@ -2608,7 +2633,10 @@ BRANCH_SKILLS = {
                         "kind": "物理",
                         "multi": 5,
                         "cd": 4,
-                        "desc": "100%×5 幻影舞(终极连击)",
+                        "res_cost": {
+                            "cp": 4
+                        },
+                        "desc": "100%×5 幻影舞，消耗 4 连击点(终极连击)",
                         "name": "幻影舞"
                     }
 ,
@@ -2632,7 +2660,10 @@ BRANCH_SKILLS = {
                         "kind": "增益",
                         "effect": "spd_up",
                         "cd": 6,
-                        "desc": "三转奥义，进入暗影国度 3 回合(每回合高暴击)",
+                        "res_cost": {
+                            "cp": 4
+                        },
+                        "desc": "三转奥义，进入暗影国度 3 回合，消耗 4 连击点(每回合高暴击)",
                         "name": "影之国度"
                     }
 ,
@@ -2646,7 +2677,10 @@ BRANCH_SKILLS = {
                         "mech": "poison",
                         "mech_val": 4,
                         "cd": 4,
-                        "desc": "150% 剧毒风暴(全体)，叠 4 层毒，CD4(群体毒爆)",
+                        "res_cost": {
+                            "cp": 4
+                        },
+                        "desc": "150% 剧毒风暴(全体)，叠 4 层毒，消耗 4 连击点，CD4(群体毒爆)",
                         "name": "剧毒风暴"
                     }
 ,
@@ -2673,7 +2707,10 @@ BRANCH_SKILLS = {
                         "mech": "poison",
                         "mech_val": 5,
                         "cd": 6,
-                        "desc": "三转奥义，全体剧毒爆发(毒爆核弹)",
+                        "res_cost": {
+                            "cp": 5
+                        },
+                        "desc": "三转奥义，全体剧毒爆发，消耗 5 连击点(毒爆核弹)",
                         "name": "万毒归宗"
                     }
 ,
@@ -2688,7 +2725,7 @@ BRANCH_SKILLS = {
                 "拳斗士": {
                     "疾风拳":                     {
                         "lv": 32,
-                        "power": 1.2,
+                        "power": 2.85,
                         "kind": "物理",
                         "combo": "拳",
                         "res_gain": 2,
@@ -2700,7 +2737,7 @@ BRANCH_SKILLS = {
                             "label": "疾风连打"
                         },
                         "mp": 6,
-                        "desc": "120% 疾风拳，气＋2。气≥5 时伤害＋50%(气力滚雪球)",
+                        "desc": "285% 疾风拳，气＋2。气≥5 时伤害＋50%(气力滚雪球)",
                         "name": "疾风拳"
                     }
 ,
@@ -2755,7 +2792,7 @@ BRANCH_SKILLS = {
                 "磐石行者": {
                     "铁壁拳":                     {
                         "lv": 32,
-                        "power": 1.1,
+                        "power": 2.85,
                         "kind": "物理",
                         "combo": "拳",
                         "res_gain": 1,
@@ -2766,7 +2803,7 @@ BRANCH_SKILLS = {
                             "label": "铁壁连拳"
                         },
                         "mp": 6,
-                        "desc": "110% 铁壁拳，防御强化，气＋1。自身有护盾时伤害＋15%(护盾强化)",
+                        "desc": "285% 铁壁拳，防御强化，气＋1。自身有护盾时伤害＋15%(护盾强化)",
                         "name": "铁壁拳"
                     }
 ,
@@ -2944,7 +2981,10 @@ BRANCH_SKILLS = {
                         "kind": "增益",
                         "effect": "atk_up_strong",
                         "cd": 6,
-                        "desc": "三转奥义，3 回合内每次攻击大幅增伤(连招极限)",
+                        "res_cost": {
+                            "chi": 8
+                        },
+                        "desc": "三转奥义，3 回合内每次攻击大幅增伤，消耗 8 气(连招极限)",
                         "name": "斗气通天"
                     }
 ,
@@ -2987,7 +3027,10 @@ BRANCH_SKILLS = {
                         "effect": "reduce_all",
                         "team": "reduce_all",
                         "cd": 6,
-                        "desc": "三转奥义，全队减伤 50% 3 回合(终极坦克)",
+                        "res_cost": {
+                            "chi": 8
+                        },
+                        "desc": "三转奥义，全队减伤 50% 3 回合，消耗 8 气(终极坦克)",
                         "name": "大地守护"
                     }
 ,

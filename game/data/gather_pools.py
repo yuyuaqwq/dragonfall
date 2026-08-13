@@ -70,7 +70,8 @@ GATHER_MAP_POOLS = {
     "silver_valley": [("mat_yin_lin_yu", 25), ("mat_gu_di_lu_shui", 25), ("mat_cao_yao", 20), ("mat_xi_xi_lin", 15), ("mat_jiang_guo", 15)],
     "silver_wind_road": [("mat_cao_yao", 25), ("mat_jiang_guo", 20), ("mat_lin_yu_zhi_ye", 20), ("mat_tu_mao", 15), ("mat_gu_mu_zhi", 20)],
     "sky_ladder_path": [("mat_yun_mian", 25), ("mat_tian_ying_yu", 20), ("mat_yun_xu", 20), ("mat_feng_zhi_yu", 20), ("mat_yun_xiong_mao", 15)],
-    "starlake": [("mat_hu_zhen_zhu", 25), ("mat_shui_jing_ling_lin", 20), ("mat_hu_ling_lei", 15), ("mat_star_remnant", 20), ("mat_shen_mi_lin_pian", 20)],
+    # v104 R3 M15 P1-1：移除 mat_star_remnant（星骸遗鳞为垂钓彩蛋收藏鱼，垂钓独占；采集池 20% 权重破坏 0.02% 稀有度且采集版 type 与钓获版堆叠冲突）
+    "starlake": [("mat_hu_zhen_zhu", 25), ("mat_shui_jing_ling_lin", 20), ("mat_hu_ling_lei", 15), ("mat_shen_mi_lin_pian", 20)],
     "starlight_terrace": [("mat_xing_hui_chen", 25), ("mat_xing_hui_shi", 20), ("mat_xing_lang_pi", 15), ("mat_yue_guang_shi", 15), ("mat_star_hourglass", 3)],
     "storm_cliff": [("mat_feng_bao_ying_yu", 25), ("mat_feng_long_yu", 20), ("mat_lei_niao_yu", 20), ("mat_feng_bao_he_xin", 15), ("mat_lei_ming_zhi_yi", 20)],
     "storm_plateau": [("mat_lei_jing", 25), ("mat_lei_niao_yu", 20), ("mat_lei_xi_pi", 20), ("mat_lei_man_pi", 15), ("mat_lei_ting_zhi_xin", 5), ("mat_lei_he", 3)],
@@ -107,4 +108,6 @@ MINING_DEEP_POOLS = {
     "hill_mine": [("mat_tie_kuang_shi", 40), ("mat_qiang_hua_shi", 20), ("mat_jing_tie", 30), ("mat_mi_yin", 20), ("mat_jing_jin", 8), ("mat_deep_crystal", 2)],
     "deep_tunnel": [("mat_mi_yin", 30), ("mat_jing_jin", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 15)],
     "sea_cave": [("mat_shui_jing", 35), ("mat_shan_hu_zhi", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 10)],
+    # v104 R3 M14 P2-4：精金=挖掘(熔炉谷)（策划 19:223），forge_valley 深矿池补精金
+    "forge_valley": [("mat_tie_kuang_shi", 40), ("mat_jing_tie", 30), ("mat_rong_yan_he_xin", 25), ("mat_jing_jin", 20), ("mat_deep_crystal", 5)],
 }

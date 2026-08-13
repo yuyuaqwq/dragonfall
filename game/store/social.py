@@ -183,10 +183,57 @@ def market_remove(mid):
             conn.close()
 
 
+def _in_battle_state(conn, group_id, qq_id) -> bool:
+    """qq_id 是否处于战斗/副本中（含作为队员挂在队长名下的副本 battle）。
+
+    v104 M04 P1：组队/拉人与战斗互斥的两道闸之一（另一道在命令层提示文案）。
+    v87.2：撤退保留进度（retreated）不算战斗中，玩家可自由行动/被拉入队。
+    """
+    row = conn.execute(
+        "SELECT state FROM battle_state WHERE qq_id=?", (qq_id,)
+    ).fetchone()
+    if row:
+        try:
+            st = json.loads(row["state"] or "{}")
+        except (ValueError, TypeError):
+            st = {}
+        if not (st.get("type") == "instance" and st.get("retreated")):
+            return True
+    # 副本队员的 battle 行只存队长名下 → 查其队长 battle 行
+    lr = conn.execute(
+        "SELECT leader FROM party WHERE group_id=? AND member=?", (group_id, qq_id)
+    ).fetchone()
+    if lr:
+        lrow = conn.execute(
+            "SELECT state FROM battle_state WHERE qq_id=?", (lr["leader"],)
+        ).fetchone()
+        if lrow:
+            try:
+                lst = json.loads(lrow["state"] or "{}")
+            except (ValueError, TypeError):
+                lst = {}
+            if lst.get("type") == "instance" and not lst.get("retreated"):
+                return True
+    return False
+
+
 def party_create(group_id, leader, member):
+    """创建 2 人队伍。成功返回 True；目标已有队伍/任一方在战斗或副本中返回 False。
+
+    v104 M04 P1：原实现静默 DELETE 目标旧队伍行再插入（拉人吞并，可强拆他人队伍），
+    且战斗中可组队（把副本队长/队员拉走 → 副本僵尸化）。现与 party_add 同一套闸。
+    """
     with _lock:
         conn = _connect()
         try:
+            if _in_battle_state(conn, group_id, leader) or _in_battle_state(conn, group_id, member):
+                return False
+            in_other = conn.execute(
+                "SELECT 1 FROM party WHERE group_id=? AND member=? AND leader!=?",
+                (group_id, member, leader),
+            ).fetchone()
+            if in_other:
+                return False
             conn.execute("DELETE FROM party WHERE group_id=? AND leader=?", (group_id, leader))
             conn.execute("DELETE FROM party WHERE group_id=? AND member=?", (group_id, leader))
             conn.execute(
@@ -203,6 +250,7 @@ def party_create(group_id, leader, member):
                     (group_id, leader, member, int(time.time())),
                 )
             conn.commit()
+            return True
         finally:
             conn.close()
 
@@ -224,6 +272,18 @@ def party_add(group_id, leader, new_member, max_size=4):
                 (group_id, leader, new_member),
             ).fetchone()
             if dup:
+                return False
+            # v104 M04 P1：目标已在别队 → 拒绝（设计 29 章 2.1「目标已在队伍则失败」，
+            # 原实现直接 DELETE 目标旧队伍行=静默夺人，可强拆他人队伍）
+            in_other = conn.execute(
+                "SELECT 1 FROM party WHERE group_id=? AND member=? AND leader!=?",
+                (group_id, new_member, leader),
+            ).fetchone()
+            if in_other:
+                return False
+            # v104 M04 P1：战斗/副本进行中禁止拉人——含把副本队长/队员拉走
+            # （原队伍解散 → 副本僵尸化）与战斗中拉新人（新人未上锁可双线野外战斗）
+            if _in_battle_state(conn, group_id, leader) or _in_battle_state(conn, group_id, new_member):
                 return False
             # 人数上限
             cnt = conn.execute(

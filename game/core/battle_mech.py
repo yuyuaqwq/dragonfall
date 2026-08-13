@@ -372,10 +372,10 @@ def _m_bless_shield(battle, mval, p_mech, total, logs, skill_name, is_crit):
     """神恩护盾：层数转护盾"""
     n = p_mech.get("bless", 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
-    player = battle._last_player
-    if st2 and n and player is not None:
+    if st2 and n:
         shield = int(st2["matk"] * 0.08 * n)
-        battle.shield = battle.shield + shield
+        # v104 M02 P2-3：护盾已 buff 化（v101.28d p_shields），旧 battle.shield 直写必 AttributeError
+        battle._add_shield("bless", shield, 2)
         logs.append(f"✨ 神恩护盾！{n} 层转化为 {shield} 点护盾")
     p_mech["bless"] = 0
 

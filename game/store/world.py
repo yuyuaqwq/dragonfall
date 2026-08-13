@@ -234,3 +234,54 @@ def get_boss_dmg_mult(qq_id) -> float:
         return 1.0
 
 
+# v104 M24 P2-5：流失玩家残留 event_state 键的全局过期清理。
+# 键内嵌 qq_id 的后缀键（每日运势/对话会话/移动模式/物品查看模式/Boss 伤害倍率）
+# 只随注销路径清理，流失玩家（>N 天未活跃）的键永久残留 → 启动时统一清扫。
+# 注意：talkflags_（跨会话彩蛋解锁，持久保留）、prof_daily_（按天键，短生命周期）等
+# 不在清理名单内；无玩家关联的键（deed_owner_ 等）也不动。
+_EVENT_STATE_PLAYER_PREFIXES = (
+    "daily_fortune_",  # daily_fortune_{gid}_{qid}
+    "talk_",           # talk_{gid}_{qid}（talkflags_ 不以 "talk_" 开头，天然豁免）
+    "boss_dmg_",       # boss_dmg_{qid}
+    "move_mode:",      # move_mode:{qid}
+    "item_view_mode:", # item_view_mode:{qid}
+)
+
+def _event_state_key_qq(key: str):
+    """从上述五类后缀键中提取内嵌 qq_id；无法识别返回 None。"""
+    if key.startswith("move_mode:") or key.startswith("item_view_mode:"):
+        return key.split(":", 1)[1]
+    if key.startswith("boss_dmg_"):
+        return key.split("_", 2)[2]
+    if key.startswith("daily_fortune_"):
+        return key.split("_", 3)[3]
+    if key.startswith("talk_"):
+        return key.split("_", 2)[2]
+    return None
+
+def cleanup_stale_event_state(max_age_days: int = 30) -> int:
+    """清理 >max_age_days 天未活跃玩家的五类残留 event_state 键。
+    幂等；返回删除的键数（0 = 无可清理/无表）。"""
+    cutoff = int(time.time()) - max_age_days * 86400
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT qq_id FROM players WHERE last_active < ?", (cutoff,)
+            ).fetchall()
+            if not rows:
+                return 0
+            inactive = {r["qq_id"] for r in rows}
+            keys = [
+                r["key"] for r in conn.execute("SELECT key FROM event_state").fetchall()
+                if r["key"].startswith(_EVENT_STATE_PLAYER_PREFIXES)
+            ]
+            doomed = [k for k in keys if _event_state_key_qq(k) in inactive]
+            if doomed:
+                conn.executemany("DELETE FROM event_state WHERE key=?", [(k,) for k in doomed])
+                conn.commit()
+            return len(doomed)
+        finally:
+            conn.close()
+
+

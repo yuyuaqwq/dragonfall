@@ -17,7 +17,7 @@
     first_hit     每场战斗首次攻击 +x（龙之吐息 0.15）
 - 命令层（economy/player/combat 结算）：
     learn_discount 学习技能消耗技能点 -x（多才多艺 0.08）
-    craft_bonus    锻造成功率 +x（熔炉之心 0.10）
+    craft_bonus    锻造经验 +x（熔炉之心 0.10，向上取整至少 +1）
     gold_bonus     金币掉落 +x（幸运儿 0.15）
     item_effect    消耗品效果 +x（灵巧双手 0.10）
     explore_item   探索获得物品概率 +x（森林之友 0.10）
@@ -51,7 +51,7 @@ RACES = {
         "race_neg": True,
         "talents": {
             "phys_reduce": 0.10,       # 石肤：受物理伤害 -10%
-            "craft_bonus": 0.10,       # 熔炉之心：锻造成功率 +10%
+            "craft_bonus": 0.10,       # 熔炉之心：锻造经验 +10%（向上取整，基础 1 点 → 2 点）
             "spd_mult": 0.95,          # 🔻 磐石步履：先手 -5%
         },
         "talent_names": {"phys_reduce": "石肤", "craft_bonus": "熔炉之心", "spd_mult": "磐石步履"},

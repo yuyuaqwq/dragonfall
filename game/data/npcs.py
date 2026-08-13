@@ -90,7 +90,9 @@ NPCS = {
         'title': "铁港城城主",
         'map': "ironharbor",
         'icon': "👑",
-        'funcs': ["quest", "shop"],
+        # v105 M21 P2：城主府无 shop 设施（subareas ironharbor_2 shop=False）→ 删死 func，
+        # 否则『对话』提示商店、『商店』却不可用（显示=可触发断链）
+        'funcs': ["quest"],
         'dialogue': "铁港城不效忠任何王国，只效忠自由与贸易。你想在这里立足，凭本事说话。",
     },
     "npc_auctioneer": {
@@ -116,8 +118,9 @@ NPCS = {
         'title': "枫橡村村长",
         'map': "maple_village",
         'icon': "\u2694\ufe0f",
-        'funcs': ["quest"],
-        'dialogue': "年轻人，听说橡木镇出了个了不得的冒险者？我们村虽小，也有几件值得跑腿的差事。",
+        # v105 M21 P1-5：ef4a029 删 s_wild 死任务后未同步 funcs → 删 quest 死 func（无任何任务 giver）
+        'funcs': [],
+        'dialogue': "年轻人，听说橡木镇出了个了不得的冒险者？我们村虽小，日子倒也过得踏实。",
     },
     "npc_hunter_gray": {
         'name': "猎人·灰羽",
@@ -217,7 +220,8 @@ NPCS = {
         'map': "moon_court",
         'icon': "👑",
         'gender': "女",
-        'funcs': ["quest", "heal"],
+        # v105 M21 P2：月辉王宫无 healer 设施（subareas moon_court_2 healer=False）→ 删死 func
+        'funcs': ["quest"],
         'dialogue': "人类，你的勇气可嘉。但你要明白，有些真相，教会用三百年掩埋——我们精灵，用三百年铭记。",
     },
     "npc_elf_guardian": {
@@ -242,7 +246,8 @@ NPCS = {
         'title': "北境诸部大酋长",
         'map': "frost_horn",
         'icon': "👑",
-        'funcs': ["quest", "shop"],
+        # v105 M21 P2：酋长大厅无 shop 设施（subareas frost_horn_2 shop=False）→ 删死 func
+        'funcs': ["quest"],
         'dialogue': "南方的老爷们忘了我们，但我们没忘自己的责任。深渊魔物？来一个杀一个，来一对杀一双！",
     },
     "npc_garrison": {
@@ -250,8 +255,9 @@ NPCS = {
         'title': "霜角堡守备官",
         'map': "frost_horn",
         'icon': "\u2694\ufe0f",
-        'funcs': ["quest", "daily"],
-        'dialogue': "北境的冬天很冷，但深渊的威胁更冷。年轻人，既然来了，就帮忙守几天城吧。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func（保留 daily 每日悬赏）
+        'funcs': ["daily"],
+        'dialogue': "北境的冬天很冷，但深渊的威胁更冷。年轻人，既然来了，就在城里好好歇歇脚。",
     },
     "npc_field_priest": {
         'name': "随军牧师·布丽塔",
@@ -396,7 +402,8 @@ NPCS = {
         'title': "极光镇猎手队长",
         'map': "aurora_town",
         'icon': "\u2694\ufe0f",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "永冻冰原上的猛犸不是好惹的，但它们的獠牙值大价钱。跟紧我，别掉队。",
     },
     "npc_warm_stove": {
@@ -438,7 +445,8 @@ NPCS = {
         'title': "珍珠城城主",
         'map': "pearl_city",
         'icon': "👑",
-        'funcs': ["quest", "shop"],
+        # v105 M21 P2：珍珠城城主府无 shop 设施（subareas pearl_city_2 shop=False）→ 删死 func
+        'funcs': ["quest"],
         'dialogue': "珍珠城是海上的贸易明珠。冒险者，你有本事，这里就有你的位置。",
     },
     "npc_coral_auctioneer": {
@@ -506,7 +514,8 @@ NPCS = {
         'title': "腐牙兽人部落首领",
         'map': "black_forest",
         'icon': "\u2694\ufe0f",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "我……曾经是霜原的猎手……现在……我只听见深渊在耳边低语……杀了我！",
     },
     "npc_demon_priestess": {
@@ -514,7 +523,8 @@ NPCS = {
         'title': "烬山祭坛的恶魔祭司",
         'map': "ash_temple",
         'icon': "\u26ea",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "封印松动是必然的。你们的教会用谎言维持了三百年，也该到还债的时候了。",
     },
 
@@ -1292,8 +1302,9 @@ NPCS = {
         'title': "银月林海巡林者",
         'map': "silverwood",
         'icon': "🌙",
-        'funcs': ["quest"],
-        'dialogue': "银月林海是精灵的家。最近精灵鹿频繁被猎杀，猎人的陷阱布得到处都是——帮我把它们拆了。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "银月林海是精灵的家。最近精灵鹿频繁被猎杀，猎人的陷阱布得到处都是——林海的日子不太平了。",
     },
     "npc_moonglade_moonpriest": {
         'name': "月语者·银辉",
@@ -1327,23 +1338,26 @@ NPCS = {
         'title': "月影林猎影者",
         'map': "moonshadow_wood",
         'icon': "🗡️",
-        'funcs': ["quest"],
-        'dialogue': "影豹是月光下最危险的猎手。它们连精灵都敢袭击——王庭悬赏影豹皮，你要接吗？",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
+        'dialogue': "影豹是月光下最危险的猎手。它们连精灵都敢袭击——王庭为影豹皮开过悬赏，可至今没人能带回一张。",
     },
     "npc_frostfield_hunter": {
         'name': "猎人·雪刃",
         'title': "霜原猎人",
         'map': "frost_field",
         'icon': "🏹",
-        'funcs': ["quest"],
-        'dialogue': "霜原的雪狼专挑暴风雪天出没。猎户队今天要去狼窝，你要不要搭把手？",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
+        'dialogue': "霜原的雪狼专挑暴风雪天出没。猎户队今天又去狼窝了，但愿他们平安回来。",
     },
     "npc_forge_miner": {
         'name': "矮人矿工·火须",
         'title': "熔炉谷矮人矿工",
         'map': "forge_valley",
         'icon': "🔥",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "熔炉谷的矿石是最好的，就是火蜥蜴太多。铁砧要塞的订单堆成山，就缺矿了。",
     },
     "npc_frostfang_hunter": {
@@ -1351,7 +1365,8 @@ NPCS = {
         'title': "冰牙谷猎户",
         'map': "frost_fang",
         'icon': "🏹",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "冰牙剑齿虎的牙能卖大价钱，可它连熊都敢咬。你看着办。",
     },
     "npc_winterlake_fisher": {
@@ -1359,16 +1374,18 @@ NPCS = {
         'title': "永冬湖渔夫",
         'map': "winter_lake",
         'icon': "🎣",
-        'funcs': ["quest"],
-        'dialogue': "永冬湖的冰有三尺厚，湖冰元素会打碎冰面。你帮我凿冰眼，我教你冰钓。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "永冬湖的冰有三尺厚，湖冰元素把冰面打得稀碎，鱼都躲到深水去了。",
     },
     "npc_permafrost_sledder": {
         'name': "雪橇夫·白缰",
         'title': "永冻冰原雪橇夫",
         'map': "permafrost_field",
         'icon': "🛷",
-        'funcs': ["quest"],
-        'dialogue': "冰原巨熊把雪橇路给占了，极光镇的货送不出去。你帮我开路，我带你一段。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "冰原巨熊把雪橇路给占了，极光镇的货已经断了好些天。",
     },
     "npc_frostwhisper_mountaineer": {
         'name': "山民·霜哨",
@@ -1402,16 +1419,18 @@ NPCS = {
         'title': "龙骨荒野拾荒者",
         'map': "bone_wild",
         'icon': "🦴",
-        'funcs': ["quest"],
-        'dialogue': "龙骨荒野遍地是龙骨，可骨虫把骨头啃得比粉还细。你帮我护一片骨场，我给你挑根好骨。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "龙骨荒野遍地是龙骨，可骨虫把骨头啃得比粉还细，好骨越来越难找了。",
     },
     "npc_stormcliff_watcher": {
         'name': "观风者·雷眼",
         'title': "风暴崖观风者",
         'map': "storm_cliff",
         'icon': "🌩️",
-        'funcs': ["quest"],
-        'dialogue': "风暴崖的风每年这个时候最狂，风暴猎鹰专挑这时筑巢。你帮我取几根风暴鹰羽——观测用的。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "风暴崖的风每年这个时候最狂，风暴猎鹰专挑这时筑巢。风暴鹰羽是观测风暴的好材料，可惜巢都建在风眼里，没人够得着。",
     },
     "npc_redridge_dragonherd": {
         'name': "牧龙人·赤鬃",
@@ -1427,7 +1446,8 @@ NPCS = {
         'title': "龙陨谷龙裔学者",
         'map': "dragonsfall_valley",
         'icon': "📜",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "龙陨谷的骨龙是研究龙族历史的关键。可骨龙守卫着谷底，学者们进不去。",
     },
     "npc_coral_pearldiver": {
@@ -1435,7 +1455,8 @@ NPCS = {
         'title': "珊瑚礁采珠人",
         'map': "coral_reef",
         'icon': "🦪",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "珊瑚礁的珍珠是大海的眼泪。可巨钳海蟹把蚌床占了，我们三个月没采到一颗好珠。",
     },
     "npc_sunset_islander": {
@@ -1443,8 +1464,9 @@ NPCS = {
         'title': "落日岛岛民",
         'map': "sunset_isle",
         'icon': "🏝️",
-        'funcs': ["quest"],
-        'dialogue': "落日岛的岛野猪糟蹋了椰林，我们靠椰子过活的。你帮我们治治它们？",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "落日岛的岛野猪把椰林糟蹋得不成样子，我们靠椰子过活的，日子越来越难。",
     },
     "npc_stormstrait_navigator": {
         'name': "领航员·礁灯",
@@ -1469,8 +1491,9 @@ NPCS = {
         'title': "迷雾海沟深潜者",
         'map': "mist_trench",
         'icon': "🤿",
-        'funcs': ["quest"],
-        'dialogue': "迷雾海沟的深渊水母会发光，海底最亮的地方就是它们。帮我采几朵水母凝胶，那是上好的灯油料。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "迷雾海沟的深渊水母会发光，海底最亮的地方就是它们。水母凝胶是上好的灯油料，可惜都在海沟最深处。",
     },
     "npc_whale_watcher": {
         'name': "观鲸人·长须",
@@ -1486,7 +1509,8 @@ NPCS = {
         'title': "沉船墓地打捞者",
         'map': "shipwreck_graveyard",
         'icon': "🪝",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "沉船墓地的溺亡水手会拖活人下水。你要打捞沉船，得先让他们安息。",
     },
     "npc_stormsea_observer": {
@@ -1503,8 +1527,9 @@ NPCS = {
         'title': "真菌森林菌农",
         'map': "fungus_forest",
         'icon': "🍄",
-        'funcs': ["quest"],
-        'dialogue': "真菌森林的孢子史莱姆会吃掉我们的菌田。帮我赶走它们，我给你最亮的荧光菇。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "真菌森林的孢子史莱姆隔三差五就来啃菌田，菌农们愁得睡不着。",
     },
     "npc_deeplake_fisher": {
         'name': "渔者·幽鳞",
@@ -1520,7 +1545,8 @@ NPCS = {
         'title': "熔火深渊斥候",
         'map': "molten_abyss",
         'icon': "🔥",
-        'funcs': ["quest"],
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func
+        'funcs': [],
         'dialogue': "熔火深渊的熔岩蠕虫把哨站的路啃断了，灰烬营地的补给送不过来。",
     },
     "npc_lavabed_miner": {
@@ -1528,8 +1554,9 @@ NPCS = {
         'title': "熔岩河床地底矿工",
         'map': "lava_bed",
         'icon': "🌋",
-        'funcs': ["quest"],
-        'dialogue': "岩浆蠕虫会偷吃我们的火晶矿石。你帮我清理矿场，我教你认火晶。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "岩浆蠕虫偷吃火晶矿石，矿场的火晶越来越少了。",
     },
     "npc_abyssaltar_whisperer": {
         'name': "暗语者·默",
@@ -1545,8 +1572,9 @@ NPCS = {
         'title': "云海云舟手",
         'map': "cloud_sea",
         'icon': "☁️",
-        'funcs': ["quest"],
-        'dialogue': "云海的云兽会撞翻云舟。你帮我护一次航，我带你穿过云海去雷暴高原。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "云兽撞翻过三艘云舟，如今敢穿云海的船夫没几个了。",
     },
     "npc_stormplateau_lightning": {
         'name': "雷语者·闪",
@@ -1562,8 +1590,9 @@ NPCS = {
         'title': "彩虹云谷云牧者",
         'map': "rainbow_cloud",
         'icon': "🌈",
-        'funcs': ["quest"],
-        'dialogue': "彩虹小仙灵是云谷的信使，可最近它们总是乱跑，云桥都快断了。帮我安抚它们。",
+        # v105 M21 P1-5：无任务 giver → 删 quest 死 func，台词同步（删任务承诺）
+        'funcs': [],
+        'dialogue': "彩虹小仙灵是云谷的信使，可最近它们总是乱跑，云桥一断，云谷的日子就跟着乱。",
     },
     "npc_starlight_stargazer": {
         'name': "观星者·望舒",
@@ -2628,7 +2657,7 @@ for _nid, _patch in {
     'npc_deer_enchanter': {'appear': 0.9},
     'npc_deer_gatekeeper': {'roam': ['white_deer_gate', 'white_deer_1'], 'appear': 0.95},
     'npc_harbor_sailor': {'roam': ['ironharbor_1', 'ironharbor_5'], 'lines': ['小兄弟，想听海上的故事？我这辈子见过比房子还大的鲸鱼、比旗杆还高的浪！……当然，有一半是我编的。', '船靠岸了，先来杯酒润润嗓子！海上三个月，嘴里全是咸味。', '听说雾潮航道最近不太平……水手们都在传。你走海路的话，多留个心眼。']},
-    'npc_harbor_bartender': {'period': ['day', 'night'], 'lines': ['本店规矩：先付钱，后喝酒；吹牛可以，打架出去打。客官，来杯铁锚特调？保证你喝一口想家。', '水手们喝多了就爱吹牛，我听着听着也信了三分。铁锚酒馆的故事，比海还深！', '打烊前最后一轮！要续杯的赶紧——明天还得早起卸货呢。']},
+    'npc_harbor_bartender': {'period': ['day', 'evening', 'night'], 'lines': ['本店规矩：先付钱，后喝酒；吹牛可以，打架出去打。客官，来杯铁锚特调？保证你喝一口想家。', '水手们喝多了就爱吹牛，我听着听着也信了三分。铁锚酒馆的故事，比海还深！', '打烊前最后一轮！要续杯的赶紧——明天还得早起卸货呢。']},
     'npc_harbor_watchman': {'period': ['night'], 'lines': ['天干物燥——小心火烛！铁港的夜，交给我守着。', '三更天了，港口还亮着灯。都是赶夜路的辛苦人哪。', '（敲梆子）夜半风声紧，门窗要关严！老铜我巡街，保大家安眠！']},
     'npc_harbor_fisher': {'period': ['day'], 'roam': ['ironharbor_8', 'ironharbor_1'], 'lines': ['今天潮水不错，网里全是银光闪闪的鱼！要买新鲜的？给冒险者算便宜点！', '清晨的鱼最肥！这会儿都快卖完了，就剩这几条倔的。', '等退潮了还要再下一网。海里的活计，看天吃饭！']},
     'npc_harbor_mule': {'appear': 0.85, 'lines': ['一箱、两箱……嘿哟！铁港的货，就没有我扛不动的。冒险者，要不要来比试比试？', '今天卸了三条船的货，肩膀都麻了。但工钱结得爽快，值！', '码头的活干完，去酒馆喝一杯。日子嘛，累是累了点，踏实！']},
@@ -2687,7 +2716,6 @@ for _nid, _patch in {
     'npc_windmill_miller': {'lines': ['风车一转，日子就往前走了。这原野上的风，是最好的磨坊工！', '麦子熟了就得赶紧收，风一吹全洒地里。忙起来饭都顾不上吃！']},
     'npc_boar_hunter': {'lines': ['野猪岭的野猪，皮糙肉厚。射箭要瞄眼睛和脖子，别的地方都是白费！', '上回差点被野猪王追下山……咳，那是它运气好。']},
     'npc_gold_farmchief': {'lines': ['金穗平原的麦子，是王国最好的！就是盗贼也眼馋得很，害我们得轮流守夜。', '收麦子的时候，最怕天变脸。老天爷赏饭吃，我们就得赶着吃！']},
-    'npc_abbess': {'lines': ['白石的墙，白石的心。修道院的门，为迷路的人敞开。', '最近总有些奇怪的声响从地窖传来……大概是老鼠吧。一定是老鼠。']},
     'npc_border_quartermaster': {'lines': ['军需官的账本，比城墙还厚！每一捆箭、每一袋粮，都要对上数。', '兽人又在前线集结了。边境堡的兵，随时准备打仗。']},
     'npc_river_ferryman': {'lines': ['银铃河的水，看着平静，底下暗流多。坐我的船，稳当！', '渡河五文钱，童叟无欺。……你说河里有歌声？那是水妖，别理它。']},
     'npc_knight_instructor': {'lines': ['骑士的剑，要稳；骑士的心，要正。训练场上流的汗，战场上就是命！', '这批见习骑士不错，就是还欠点火候。再来三百个俯卧撑！']},

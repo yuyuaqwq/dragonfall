@@ -87,7 +87,8 @@ async def main():
     # 新玩家 Lv.1 仓库满 20 拦截
     await cmd(m, "register", "g1", "w2", "注册 法师 米娅 男")
     db.update_player("g1", "w2", level=5, gold=50000, cur_map="oak_town")
-    await cmd(m, "deed_buy", "g1", "w2", "买房 1")
+    # v104 M09：房产全服唯一·先到先得——橡木小屋已被 w1 持有，w2 改买 2 号地皮（白鹿公寓）
+    await cmd(m, "deed_buy", "g1", "w2", "买房 2")
     await cmd(m, "go_home", "g1", "w2", "回家")
     for i in range(20):
         db.add_item("g1", "w2", f"mat_fill_{i}", {"name": f"填满{i}", "type": "材料", "stackable": True}, 1)
@@ -116,7 +117,8 @@ async def main():
     check("Lv.4 卖房返还 20%", "退还 1000 金币" in out and "20%" in out, out[:200])
     await cmd(m, "go_out", "g1", "w2", "出门")
     out = await cmd(m, "deed_sell", "g1", "w2", "卖房")
-    check("Lv.1 卖房返还 50%", "退还 2500 金币" in out and "50%" in out, out[:200])
+    # w2 持有白鹿公寓（20000 金币）× Lv.1 返还 50% = 10000
+    check("Lv.1 卖房返还 50%", "退还 10000 金币" in out and "50%" in out, out[:200])
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

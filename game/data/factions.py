@@ -64,7 +64,6 @@ FACTION_SHOP = {
     ],
     "dragons": [  # 龙裔：龙血传承
         {"item": "i_dragon_scale_potion", "tier": 300},
-        {"item": "i_scroll_revive", "tier": 700},
         {"item": "i_life_elixir", "tier": 1500},
     ],
 }

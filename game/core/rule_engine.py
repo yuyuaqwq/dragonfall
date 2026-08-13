@@ -67,9 +67,11 @@ def _is_time(span: str) -> bool:
     import datetime
     h = datetime.datetime.now().hour
     if span == "day":
-        return 6 <= h < 18
+        # v105 M23 P2-6：与 time_weather.py 口径对齐（白天 08-18 + 清晨 05-08 + 黄昏 18-20，
+        # 即非夜晚时段；night = 20:00-5:00）。原 day 6-18 与 night 18-6 与『时间』面板观感冲突
+        return 5 <= h < 20
     if span == "night":
-        return h >= 18 or h < 6
+        return h >= 20 or h < 5
     if span == "deep_night":
         return h >= 23 or h < 5
     return True

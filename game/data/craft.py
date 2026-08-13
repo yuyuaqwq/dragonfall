@@ -26,6 +26,7 @@ CRAFT_RECIPES = {
         'quality': 'orange',
         'lv': 72,
         "mats": {
+            'mat_ao_lan_zhi_zhu': 1,
             'mat_shen_hai_shui_jing': 4,
             'mat_hai_yan_jie_jing': 3,
         },
@@ -153,6 +154,7 @@ CRAFT_RECIPES = {
         'quality': 'orange',
         'lv': 62,
         "mats": {
+            'mat_chen_xi_zhi_guan': 1,
             'mat_jing_ling_lu_jiao': 4,
             'mat_yue_lang_mao_pi': 3,
         },
@@ -174,6 +176,21 @@ CRAFT_RECIPES = {
         'desc': '铁港城工匠的手艺，带着海风的咸味',
         'name': '船长帽',
         'roster_id': 'eq_chuan_zhang_mao',
+    },
+    # v104 修复（M06 P2-7）：策划案 10 章 226 行『咕噜的皇冠』传说图纸装备落地
+    'rec_gu_lu_de_huang_guan': {
+        'slot': 'helm',
+        'quality': 'orange',
+        'lv': 20,
+        "mats": {
+            'mat_gu_lu_de_huang_guan': 1,
+            'mat_ge_bu_lin_hui_ji': 3,
+        },
+        'gold': 168,
+        'desc': '哥布林酋长·咕噜的战利品，粗犷却透着王者的威仪',
+        'name': '咕噜的皇冠',
+        'roster_id': 'eq_gu_lu_de_huang_guan',
+        'blueprint': '咕噜的皇冠图纸',
     },
     'rec_di_di_zhang_xue': {
         'slot': 'boots',
@@ -365,6 +382,7 @@ CRAFT_RECIPES = {
         'lv': 26,
         'weapon_type': 'sword',
         "mats": {
+            'mat_jie_ke_de_jin_gou': 1,
             'mat_ge_bu_lin_hui_ji': 3,
             'mat_hai_yao_lin_pian': 2,
         },
@@ -395,7 +413,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 44,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收11）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '旧皮靴',
         'roster_id': 'eq_jiu_pi_xue',
@@ -422,7 +440,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 36,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收28）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '猎弓',
         'roster_id': 'eq_lie_gong',
@@ -589,6 +607,7 @@ CRAFT_RECIPES = {
         'quality': 'orange',
         'lv': 85,
         "mats": {
+            'mat_mo_luo_zhi_guan': 1,
             'mat_shen_yuan_quan_ya': 5,
             'mat_shen_yuan_e_mo_jiao': 4,
         },
@@ -598,6 +617,23 @@ CRAFT_RECIPES = {
         'roster_id': 'eq_mo_luo_zhi_guan',
         'blueprint': '摩罗之冠图纸',
     },
+    # v104 修复（M06 P1-4）：暮影龙魂（世界 Boss/龙陨战魂·暮影）→ 图纸·暮影之刃（策划案 13 章 5.6）
+    'rec_mu_ying_zhi_ren': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 96,
+        'weapon_type': 'dagger',
+        "mats": {
+            'mat_mu_ying_long_hun': 1,
+            'mat_gu_long_can_hai': 2,
+            'mat_long_yi_can_hun': 2,
+        },
+        'gold': 790,
+        'desc': '龙陨谷的黑暗锻造术，刀身隐没在暮色里',
+        'name': '暮影之刃',
+        'roster_id': 'eq_mu_ying_zhi_ren',
+        'blueprint': '暮影之刃图纸',
+    },
     'rec_pi_jia': {
         'slot': 'armor',
         'quality': 'white',
@@ -605,7 +641,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 44,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收20）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '皮甲',
         'roster_id': 'eq_pi_jia',
@@ -791,6 +827,115 @@ CRAFT_RECIPES = {
         'name': '圣光长剑',
         'roster_id': 'eq_sheng_guang_chang_jian',
     },
+    # v104 M07 修复 P1：Lv.35-49 断档补档配方（圣光系列锻造蓝装，材料与 28-30 级圣光蓝装同源）
+    'rec_sheng_cai_chang_jian': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 42,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 370,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣裁长剑',
+        'roster_id': 'eq_sheng_cai_chang_jian',
+    },
+    'rec_sheng_guang_fa_zhang': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 40,
+        'weapon_type': 'staff',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 350,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光法杖',
+        'roster_id': 'eq_sheng_guang_fa_zhang',
+    },
+    'rec_sheng_guang_lie_gong': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 38,
+        'weapon_type': 'bow',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 330,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光猎弓',
+        'roster_id': 'eq_sheng_guang_lie_gong',
+    },
+    'rec_sheng_guang_zhan_chui': {
+        'slot': 'weapon',
+        'quality': 'blue',
+        'lv': 44,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 390,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光战锤',
+        'roster_id': 'eq_sheng_guang_zhan_chui',
+    },
+    'rec_sheng_guang_zhan_kui': {
+        'slot': 'helm',
+        'quality': 'blue',
+        'lv': 38,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 330,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光战盔',
+        'roster_id': 'eq_sheng_guang_zhan_kui',
+    },
+    'rec_sheng_guang_zhan_tui': {
+        'slot': 'legs',
+        'quality': 'blue',
+        'lv': 40,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 350,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光战腿',
+        'roster_id': 'eq_sheng_guang_zhan_tui',
+    },
+    'rec_sheng_guang_zhong_jia': {
+        'slot': 'armor',
+        'quality': 'blue',
+        'lv': 40,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 350,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光重甲',
+        'roster_id': 'eq_sheng_guang_zhong_jia',
+    },
+    'rec_sheng_guang_zhong_xue': {
+        'slot': 'boots',
+        'quality': 'blue',
+        'lv': 38,
+        "mats": {
+            'mat_sheng_guang_jie_jing': 3,
+            'mat_sheng_dian_tie_kuai': 2,
+        },
+        'gold': 330,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣光重靴',
+        'roster_id': 'eq_sheng_guang_zhong_xue',
+    },
     'rec_shuang_lang_hu_tui': {
         'slot': 'legs',
         'quality': 'purple',
@@ -896,7 +1041,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 36,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收20）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '铁剑',
         'roster_id': 'eq_tie_jian',
@@ -981,7 +1126,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 36,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收32）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '橡木短棍',
         'roster_id': 'eq_xiang_mu_duan_gun',
@@ -1006,7 +1151,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 44,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收13）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '橡木护腿',
         'roster_id': 'eq_xiang_mu_hu_tui',
@@ -1237,7 +1382,7 @@ CRAFT_RECIPES = {
         "mats": {
             'mat_shi_lai_mu_nian_ye': 2,
         },
-        'gold': 36,
+        'gold': 0,  # M10 P1-3 新手配方倒挂修复：白装锻造费归 0（成本10 ≤ 卖店回收20）
         'desc': '南境橡木镇的基础工艺，结实耐用',
         'name': '学徒法杖',
         'roster_id': 'eq_xue_tu_fa_zhang',
@@ -1361,6 +1506,7 @@ CRAFT_RECIPES = {
         'quality': 'purple',
         'lv': 88,
         "mats": {
+            'mat_xing_lang_pi': 1,
             'mat_feng_zhi_yu': 5,
             'mat_xing_hui_chen': 4,
         },

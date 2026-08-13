@@ -65,7 +65,9 @@ def _f_h_combo(battle, player, dmg, logs):
     """鹰蛋：15% 追加一次 50% 伤害"""
     if random.random() < 0.15:
         cd = int(dmg * 0.50)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+        # v104 M02 P1-5：食物附加伤害统一走 Boss 护盾过滤 → 援军挡刀结算
+        cd = battle._boss_dmg_filter(cd, player, logs)
+        battle._damage_enemy(cd, logs)
         logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
 
 
@@ -80,7 +82,8 @@ def _f_h_dragon_tongue(battle, player, dmg, logs):
 def _f_h_element_fire(battle, player, dmg, logs):
     """灰烬烤饼：攻击附加 5% 火属性伤害"""
     ed = max(1, int(dmg * 0.05))
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - ed)
+    ed = battle._boss_dmg_filter(ed, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
+    battle._damage_enemy(ed, logs)
     logs.append(f"🔥 火焰附加 {ed} 点伤害！")
 
 
@@ -88,7 +91,8 @@ def _f_h_element_fire(battle, player, dmg, logs):
 def _f_h_element_ice(battle, player, dmg, logs):
     """冰霜浆果：攻击附加 5% 冰属性伤害 + 减速"""
     ed = max(1, int(dmg * 0.05))
-    battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - ed)
+    ed = battle._boss_dmg_filter(ed, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
+    battle._damage_enemy(ed, logs)
     logs.append(f"❄️ 冰霜附加 {ed} 点伤害！")
     battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
     logs.append("❄️ 减速！")
@@ -102,7 +106,8 @@ def _f_h_pierce(battle, player, dmg, logs):
         pst = battle._player_stats(player)
         pd = calc_damage(int(pst.get("atk", 0) * 0.6), 0)
         if pd > 0:
-            battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - pd)
+            pd = battle._boss_dmg_filter(pd, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
+            battle._damage_enemy(pd, logs)
             logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
 
 
@@ -111,7 +116,8 @@ def _f_h_charge(battle, player, dmg, logs):
     """皇家烤肉：10% 造成 150% 伤害（追加 50%）"""
     if random.random() < 0.10:
         cd = int(dmg * 0.50)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+        cd = battle._boss_dmg_filter(cd, player, logs)  # v104 M02 P1-5：附加伤害走主结算路径
+        battle._damage_enemy(cd, logs)
         logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
 
 
@@ -134,7 +140,8 @@ def _f_t_counter(battle, player, ctx, logs):
         est2 = battle._enemy_stats()
         cd = calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
         if cd > 0:
-            battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - cd)
+            cd = battle._boss_dmg_filter(cd, player, logs)  # v104 M02 P1-5：反伤走主结算路径
+            battle._damage_enemy(cd, logs)
             logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
 
 
@@ -143,7 +150,8 @@ def _f_t_thorns(battle, player, ctx, logs):
     """鹿奶干酪：10% 反弹 30% 伤害（基于原始 dmg）"""
     if random.random() < 0.10 and battle.enemy.get("hp", 0) > 0:
         rd = int(ctx["dmg"] * 0.30)
-        battle.enemy["hp"] = max(0, battle.enemy.get("hp", 0) - rd)
+        rd = battle._boss_dmg_filter(rd, player, logs)  # v104 M02 P1-5：反伤走主结算路径
+        battle._damage_enemy(rd, logs)
         logs.append(f"🌵 反伤！反弹 {rd} 点伤害！")
 
 

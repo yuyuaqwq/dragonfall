@@ -260,7 +260,7 @@ INSTANCES = {
                         "m_ghost",
                         "幽灵",
                         "speedster",
-                        40,
+                        37,
                         [
                             "ms_chuan_shen",
                             "ms_ai_hao"
@@ -710,7 +710,7 @@ INSTANCES = {
                         "m_ancient_dragon",
                         "古龙",
                         "tank",
-                        95,
+                        92,
                         [
                             "ms_long_xi",
                             "ms_long_wei_190",

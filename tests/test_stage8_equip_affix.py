@@ -58,8 +58,8 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("30 种词条", len(C.AFFIXES) == 30, str(len(C.AFFIXES)))
-    check("专属 16", len(C.LEGENDARY_EFFECTS) == 16, str(len(C.LEGENDARY_EFFECTS)))
-    check("名册 134 件", len(C.EQUIP_ROSTER) == 134, str(len(C.EQUIP_ROSTER)))
+    check("专属 18", len(C.LEGENDARY_EFFECTS) == 18, str(len(C.LEGENDARY_EFFECTS)))
+    check("名册 154 件", len(C.EQUIP_ROSTER) == 154, str(len(C.EQUIP_ROSTER)))
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -96,7 +96,7 @@ def test_roster_gen():
     check("铁剑白装 0 词条", e.get("affixes") is None, str(e.get("affixes")))
     check("铁剑新手无需求", e["req"] == {}, str(e["req"]))
     e2 = C.generate_roster_equip("eq_jin_gou_wan_dao")
-    check("金钩弯刀橙装 3 词条", len(e2.get("affixes", [])) == 3, str(e2.get("affixes")))
+    check("金钩弯刀橙装 3-4 词条", len(e2.get("affixes", [])) in (3, 4), str(e2.get("affixes")))  # v104 M07 P2: 橙装 20% 概率 4 词条
     check("金钩弯刀固定词条在列", "crit_up" in e2["affixes"] and "lifesteal" in e2["affixes"], str(e2["affixes"]))
     check("金钩弯刀专属", e2.get("legendary") == "gold_hook")
     check("金钩弯刀套装", e2.get("set") == "海风套", str(e2.get("set")))
@@ -293,7 +293,7 @@ async def test_shop_roster():
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（114 个，v104 补 11 图纸配方+淬火石配方，无旧毕业套）
-    check("配方数 114", len(C.CRAFT_RECIPES) == 114, str(len(C.CRAFT_RECIPES)))
+    check("配方数 124", len(C.CRAFT_RECIPES) == 124, str(len(C.CRAFT_RECIPES)))
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -304,7 +304,7 @@ def test_craft_set():
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）——v104 补 11 条图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 75, str(len(bp_recs)))
+    check("需图纸配方存在", len(bp_recs) == 77, str(len(bp_recs)))
     check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
     # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
     w = C.generate_roster_equip("eq_sheng_guang_chang_jian")

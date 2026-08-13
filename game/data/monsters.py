@@ -1251,4 +1251,47 @@ MONSTER_SKILLS = {
         "element": "ice",
         "mech": "freeze",
     },
+    # v104 修复（M06 P1）：instances.py 16 处精英引用的 6 个技能 ID 此前缺失，
+    # 副本精英技能静默失效（battle.py 查表 None 后跳过）。此处补齐定义，
+    # 语义与使用怪匹配（哥布林狂战士/审判猎犬/灰矮人守卫/幽灵系/魔像系/海妖系等）。
+    "ms_kuang_bao": {
+        "kind": "增益",
+        "effect": "atk_up",
+        "desc": "狂暴，陷入狂暴提升自身攻击",
+        "name": "狂暴",
+    },
+    "ms_you_ling": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "幽灵之触，幽魂之力侵蚀敌人",
+        "name": "幽灵之触",
+        "element": "dark",
+    },
+    "ms_zhen_ji": {
+        "kind": "物理",
+        "power": 1.6,
+        "desc": "震击，重拳震荡攻击敌人",
+        "name": "震击",
+    },
+    "ms_an_ying": {
+        "kind": "魔法",
+        "power": 1.6,
+        "desc": "暗影噬，暗影之力吞噬敌人",
+        "name": "暗影噬",
+        "element": "dark",
+    },
+    "ms_xu_kong": {
+        "kind": "魔法",
+        "power": 2.0,
+        "desc": "虚空裂隙，撕裂空间攻击敌人",
+        "name": "虚空裂隙",
+        "element": "dark",
+    },
+    "ms_hai_yao": {
+        "kind": "魔法",
+        "power": 1.8,
+        "desc": "海妖之歌，摄魂歌声攻击敌人",
+        "name": "海妖之歌",
+        "element": "ice",
+    },
 }

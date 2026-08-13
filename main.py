@@ -245,6 +245,23 @@ def _file_loopback_start():
     t.start()
 
 
+def _event_state_cleanup_once():
+    """v104 M24 P2-5：启动时清理流失玩家残留的 event_state 键（>30 天未活跃）。
+    幂等（多实例/热重载只跑一次）；仅清五类后缀键，talkflags_ 等持久键不动。"""
+    if getattr(_event_state_cleanup_once, "_started", False):
+        return
+    _event_state_cleanup_once._started = True
+    try:
+        from .game.store.world import cleanup_stale_event_state
+        n = cleanup_stale_event_state()
+        if n:
+            logging.getLogger(__name__).info("已清理 %d 个流失玩家残留 event_state 键", n)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "event_state 残留键清理跳过（DB 未就绪或异常，不影响启动）", exc_info=True
+        )
+
+
 class Main(
     star.Star,
     PlayerCmds,
@@ -270,6 +287,8 @@ class Main(
         if context is not None:
             Main._loopback_instance = self  # v92: 文件转发通道拿当前实例
         db.init_db()
+        # v104 M24 P2-5：启动时清理流失玩家残留 event_state 键（幂等，见 _event_state_cleanup_once）
+        _event_state_cleanup_once()
         # v92: 文件转发体验通道——后台线程监控命令文件，
         # 在 AstrBot 进程内把命令转发给游戏引擎（真实 handler 链路），结果写回文件。
         # 用途：格温（Hermes）写 playthrough_cmd.txt → 进程内执行 → playthrough_out.txt 读结果，

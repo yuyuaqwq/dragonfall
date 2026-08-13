@@ -84,18 +84,18 @@ async def main():
     db.update_player("g1", "w1", cur_map="white_deer", cur_subarea="white_deer_1", level=5, gold=1000)
     out = await cmd(m, "find_npc", "g1", "w1", "找 格里姆")
     check("战士导师对话", "破甲斩" in out or "三板斧" in out, out[:400])
-    # 等级 5 < 6 → 等级拦截
+    # 等级 5 < 8 → 等级拦截（v104 R3 修复门槛倒挂：以 skills.py 真实技能等级为准，破甲斩 Lv.8）
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("等级不足拦截", "Lv.6" in out and "学得动" in out, out[:400])
-    # 升到 6 级、金币不足
-    db.update_player("g1", "w1", level=6, gold=100)
+    check("等级不足拦截", "Lv.8" in out and "学得动" in out, out[:400])
+    # 升到 8 级、金币不足
+    db.update_player("g1", "w1", level=8, gold=100)
     out = await cmd(m, "find_npc", "g1", "w1", "找 格里姆")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("金币不足拦截", "学费 800 金币" in out, out[:400])
     # 金币够 → 学会
-    db.update_player("g1", "w1", gold=5000)
+    db.update_player("g1", "w1", level=8, gold=5000)
     out = await cmd(m, "find_npc", "g1", "w1", "找 格里姆")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")

@@ -54,6 +54,7 @@ from .world import (  # noqa: F401
     clear_world_event, get_event_state, set_event_state, delete_event_state,
     get_talk_state, set_talk_state, clear_talk_state,
     get_talk_flags, set_talk_flag, get_boss_dmg_mult,
+    cleanup_stale_event_state,
 )
 from .feedback import (  # noqa: F401
     add_feedback, get_feedback,

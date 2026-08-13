@@ -57,6 +57,9 @@ SHOP_SUBAREA_ITEMS = {
         "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
         # v101.30 鱼饵上架（垂钓大本营，老渔夫马库斯在铁港城）
         "it_glow_bait", "it_dough_bait", "it_blood_bait",
+        # v104 M08 P1-6：双倍金币符/复活羽毛上架（v104 实装效果后全库零获取，
+        # 策划案 7.2 标"活动/商店"——金齿轮商行=冒险者杂货，珍宝类商品）
+        "i_shuang_bei_jin_bi_fu", "i_fu_huo_yu_mao",
     ],
     "ironharbor_8": [  # 渔火码头
         "i_meat_skewer", "i_stew", "i_scroll_teleport",
@@ -262,7 +265,8 @@ SHOP_WEAPONS = {
         # v101.28l #430：补 Lv.22 进阶蓝装（断档 Lv.17-27 上半段）
         ["水手弯刀", "sword", 22, "blue"],
         ["远洋长弓", "bow", 22, "blue"],
-        ["潮汐法杖", "staff", 58, "purple"],
+        # v104 M07 修复 P2：潮汐法杖(海神系列 Lv.58) 移出南境铁港(Lv.12-28) → 银铃杖 Lv.24 补杖档（铁港锻造坊配套银铃套）
+        ["银铃杖", "staff", 24, "blue"],
         ["铁锚战锤", "mace", 22, "blue"],
         ["铁链拳套", "fist", 22, "blue"],
     ],
@@ -285,12 +289,17 @@ SHOP_WEAPONS = {
     ],
     # 群岛（翡翠海）
     "jade_port": [
-        ["弯刀", "sword", 14, "blue"],
-        ["海风长弓", "bow", 18, "purple"],
+        # v104 M07 修复 P2：14-18 级南境武器错位进 Lv.35 翡翠港 → 换圣光系列 Lv.28-44（中域 Lv.25-55 段）
+        ["圣光长剑", "sword", 28, "blue"],
+        ["晨曦法杖", "staff", 28, "blue"],
+        ["圣光猎弓", "bow", 38, "blue"],
+        ["圣光战锤", "mace", 44, "blue"],
     ],
     "shell_town": [
-        ["水手短刃", "dagger", 12, "blue"],
-        ["海风长弓", "bow", 18, "purple"],
+        # v104 M07 修复 P2：12-18 级南境武器错位进 Lv.40 贝壳镇 → 换圣光系列 Lv.28-42（中域段）
+        ["圣光长剑", "sword", 28, "blue"],
+        ["圣光法杖", "staff", 40, "blue"],
+        ["圣裁长剑", "sword", 42, "blue"],
     ],
     # 西境·月语系列（10 章 4.4：精灵风）
     "moon_gate": [
@@ -309,11 +318,13 @@ SHOP_WEAPONS = {
     ],
     # 无尽海
     "nameless_harbor": [
-        ["海风长弓", "bow", 18, "purple"],
-        ["弯刀", "sword", 14, "blue"],
+        # v104 M07 修复 P2：14-18 级南境武器错位进 Lv.55 无名港 → 换海神系列 Lv.58（无尽海 Lv.55-78 段）
+        ["潮汐法杖", "staff", 58, "purple"],
+        ["海神三叉戟", "mace", 58, "purple"],
     ],
     "pearl_city": [
-        ["海风长弓", "bow", 18, "purple"],
+        # v104 M07 修复 P2：18 级南境武器错位进 Lv.62 珍珠城 → 换海神三叉戟 Lv.58（无尽海段）
+        ["海神三叉戟", "mace", 58, "purple"],
         ["银叶法杖", "staff", 52, "purple"],
     ],
     # 北境·霜狼系列（10 章 4.5：北境/矮人风）

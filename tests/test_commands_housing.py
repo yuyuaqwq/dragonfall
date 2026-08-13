@@ -106,9 +106,14 @@ async def main():
     print("【v68 铺面（家里摆摊）】")
     db.add_item("g1", "w1", "eq_home_sword", {"name": "家传铁剑", "type": "武器", "slot": "weapon",
                                               "quality": "blue", "lv": 5, "atk": 20, "stackable": False}, 1)
+    # v104R3 P2：铺面挂机位按房屋等级（木屋 0/石屋 1/庄园 2/宅邸 3）——木屋摆摊应被拦截，
+    # 先验证拦截，再升级到石屋(Lv.2)验证摆摊成功（25 章房产案对齐）
     await cmd(m, "go_home", "g1", "w1", "回家")
     out = await cmd(m, "stall", "g1", "w1", "摆摊 家传铁剑 800")
-    check("家里摆摊成功", "『家里』" in out and "800" in out, out[:200])
+    check("木屋无挂机位摆摊被拦截", "没有铺面挂机位" in out, out[:200])
+    db.update_player("g1", "w1", deed_lv=2)
+    out = await cmd(m, "stall", "g1", "w1", "摆摊 家传铁剑 800")
+    check("石屋摆摊成功", "『家里』" in out and "800" in out, out[:200])
     out = await cmd(m, "map_view", "g1", "w1", "地图")
     check("家面板显示铺面", "铺面摊位" in out and "家传铁剑" in out, out[:300])
     # 当面买（w2 拜访 → 购入）
@@ -125,6 +130,7 @@ async def main():
     out = await cmd(m, "deed_sell", "g1", "w2", "卖房")
     check("无房卖房拦截", "没有房产" in out, out[:120])
     await cmd(m, "go_out", "g1", "w1", "出门")
+    db.update_player("g1", "w1", deed_lv=1)  # v104R3 P2：铺面测试升过石屋，卖房返还按木屋 50% 校验
     out = await cmd(m, "deed_sell", "g1", "w1", "卖房")
     check("卖房按等级返还", "退还 2500 金币" in out, out[:120])
     check("deed 清空", db.get_player("g1", "w1").get("deed") == "", str(db.get_player("g1", "w1").get("deed")))

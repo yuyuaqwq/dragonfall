@@ -11,7 +11,7 @@
 
 import random
 
-from ..data import (AFFIXES, AFFIX_FALLBACK, AFFIX_POOL_BY_QUALITY,
+from ..data import (AFFIXES, AFFIX_FALLBACK, AFFIX_COUNT, AFFIX_POOL_BY_QUALITY,
                     LEGENDARY_EFFECTS, SERIES_FIXED_AFFIX)
 
 # 词条触发时机分组（battle 挂点用）
@@ -48,10 +48,16 @@ _STAT_AFFIX_FX = {
 def roll_affixes(slot: str, lv: int, quality: str) -> list:
     """按品质生成随机词条（20 章 4.2 随机池 + 部位过滤）。
 
-    返回词条 ID 列表；白色 0 条、绿色 1 条、蓝色 2 条、紫色 3 条、橙色 3 条。
+    返回词条 ID 列表；白色 0 条、绿色 1 条、蓝色 2 条、紫色 3 条、
+    橙色 3 条（20% 概率 4 条，兑现 AFFIX_COUNT.orange=[3,4]）。
     （名册固定词条不在随机池，由 fixed_affixes 提供。）
     """
-    n = {"green": 1, "blue": 2, "purple": 3, "orange": 3}.get(quality, 0)
+    cfg = AFFIX_COUNT.get(quality, 0)
+    if isinstance(cfg, list):
+        # v104 M07 修复 P2：橙装 20% 概率 4 词条（死配置 AFFIX_COUNT 接入）
+        n = cfg[1] if random.random() < 0.20 else cfg[0]
+    else:
+        n = cfg
     if not n:
         return []
     pool = AFFIX_POOL_BY_QUALITY.get(quality, AFFIX_POOL_BY_QUALITY["orange"])

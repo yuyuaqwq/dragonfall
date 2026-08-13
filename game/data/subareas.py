@@ -155,7 +155,9 @@ SUBAREAS = {
                         "ms_zhuang_ji"
                     ],
                     [
-                        "史莱姆黏液"
+                        "史莱姆黏液",
+                        # v104 M08 P1-7：史莱姆徽章掉落（策划案 7.3"收集 100 只"徽章承诺落地）
+                        "史莱姆徽章"
                     ]
                 ]
             ],
@@ -319,7 +321,9 @@ SUBAREAS = {
                         "ms_duan_dao"
                     ],
                     [
-                        "哥布林耳朵"
+                        "哥布林耳朵",
+                        # v104 M08 P1-7：哥布林耳坠掉落（策划案 7.3"怪物掉落"承诺落地）
+                        "哥布林耳坠"
                     ]
                 ],
                 [
@@ -332,7 +336,9 @@ SUBAREAS = {
                         "ms_tou_shi"
                     ],
                     [
-                        "劫掠者徽记"
+                        "劫掠者徽记",
+                        # v104 M08 P1-7：怪物图鉴碎片精英掉落（策划案 7.3"怪物掉落"承诺落地）
+                        "怪物图鉴碎片"
                     ]
                 ]
             ],
@@ -2447,7 +2453,7 @@ SUBAREAS = {
                     "m_ghost",
                     "幽灵",
                     "speedster",
-                    40,
+                    37,
                     [
                         "ms_chuan_shen",
                         "ms_ai_hao"
@@ -3046,8 +3052,9 @@ SUBAREAS = {
             "desc": "铁盾镇的广场中央立着一面巨大的铁盾雕塑，铁匠铺的锤声是全城的心跳。这里的日子硬朗而踏实。",
             "type": "城镇",
             "lv": 30,
+            # v105 M21 P1-4：功能铁匠 奥托(shop/craft/enhance) 归位到「坚盾军械铺」(ironshield_town_3，
+            # shop=True)——此前挂广场(无 shop/craft 设施)，显示=可触发断链；广场留镇民
             "npcs": [
-                "npc_ironshield_smith",
                 'npc_shield_townfolk',
             ],
             "monsters": [],
@@ -3087,9 +3094,11 @@ SUBAREAS = {
             "desc": "坚盾军械铺的墙上挂满盾牌与兵刃，铁锈与机油的气味混在一起。店主擦拭着一面崭新的铁盾。",
             "type": "城镇",
             "lv": 30,
+            # v105 M21 P1-4：功能铁匠 奥托 归位（老板在自家店铁律）；厚掌留店做帮手
             "npcs": [
                 "npc_shield_watch",
                 'npc_shield_smith',
+                "npc_ironshield_smith",
             ],            "monsters": [],
             "elite": None,
             "boss": None,
@@ -5989,7 +5998,9 @@ SUBAREAS = {
                         "ms_long_jian_shu"
                     ],
                     [
-                        "龙鳞碎片"
+                        "龙鳞碎片",
+                        # v104 M08 P1-7：龙鳞收藏掉落（策划案 7.3"龙裔掉落"承诺落地）
+                        "龙鳞收藏"
                     ]
                 ]
             ],
@@ -6296,7 +6307,7 @@ SUBAREAS = {
                     "m_ancient_dragon",
                     "古龙",
                     "tank",
-                    95,
+                    92,
                     [
                         "ms_long_xi",
                         "ms_long_wei_190",
@@ -10107,12 +10118,13 @@ SUBAREAS = {
                     "ms_zhao_huan_yun_wei"
                 ],
                 [
-                    "星尘沙漏"
+                    "星尘沙漏",
+                    "高级强化石"
                 ]
             ],
-            "funcs": [
-                "instance"
-            ],
+            # R3 P2-6：死入口清理——INSTANCES 无对应副本数据（失落图书馆是隐藏探索区，
+            # 走地图探索而非副本系统），funcs 里 "instance" 会导致『副本 失落图书馆』报"没有这个副本"
+            "funcs": [],
             "shop": False,
             "healer": False
         }
@@ -10195,9 +10207,9 @@ SUBAREAS = {
                     "灰烬之核"
                 ]
             ],
-            "funcs": [
-                "instance"
-            ],
+            # R3 P2-6：死入口清理——INSTANCES 无对应副本数据（灰烬回廊是隐藏探索区，
+            # 走地图探索而非副本系统），funcs 里 "instance" 会导致『副本 灰烬回廊』报"没有这个副本"
+            "funcs": [],
             "shop": False,
             "healer": False
         }

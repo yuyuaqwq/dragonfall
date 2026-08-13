@@ -456,7 +456,15 @@ INSTANCE_STAGE_MAPS = {
         },
         1: {
             "desc": "回廊的潮水随节奏涨落，贝壳在墙壁上嵌成花纹，一名祭司在礁石上祈祷。",
-            "pois": [],
+            "pois": [
+                # R3 P1-4：潮汐祭司支线素材（29 章 13.4：集齐 3 片潮汐贝壳换潮汐护符）
+                {"id": "shell_1", "type": "supply", "name": "嵌贝壁龛",
+                 "hint": "墙壁上嵌成花纹的贝壳，泛着海神的微光",
+                 "loot": {"materials": ["潮汐贝壳"]}},
+                {"id": "shell_2", "type": "supply", "name": "散落的贝壳",
+                 "hint": "礁石旁散落的贝壳，潮水刚退",
+                 "loot": {"materials": ["潮汐贝壳"]}},
+            ],
             "npcs": ["npc_tide_priest"],
         },
         2: {
