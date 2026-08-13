@@ -10,7 +10,7 @@
   6. 世界事件：讨伐/拍卖
   7. 垂钓/采集/挖掘
 """
-import sys, os, sqlite3, time, json
+import sys, os, sqlite3, time, json, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 
@@ -116,8 +116,15 @@ async def main():
     # v55 等待制：等级越高等待越短 + 保底 10 秒
     db.add_prof_exp("g1", "w1", "fishing", 900)
     lv = db.get_prof_level("g1", "w1", "fishing")
-    wait_hi = m._prof_wait_duration("fishing", lv)
-    wait_lo = m._prof_wait_duration("fishing", 1)
+    # v110：固定 randint 取区间上界——_prof_wait_duration 未 seed 随机(基准±25%抖动)，
+    # 高等级抽高值/低等级抽低值会翻转断言（run_all 内曾实测 47s>46s 假失败）
+    _orig_randint = random.randint
+    random.randint = lambda a, b: b
+    try:
+        wait_hi = m._prof_wait_duration("fishing", lv)
+        wait_lo = m._prof_wait_duration("fishing", 1)
+    finally:
+        random.randint = _orig_randint
     check("等待随等级缩短", wait_hi <= wait_lo and wait_hi >= 10, f"Lv{lv}={wait_hi}s Lv1={wait_lo}s")
     # v55 装饰器统一互斥：垂钓等待中 移动/传送/探索/副本/讨伐 全被拦
     m._prof_wait_clear("g1", "w1")  # 先清掉前面测试残留的采集等待
