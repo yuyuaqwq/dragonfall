@@ -259,9 +259,8 @@ class Battle:
             self.resources[k] = rd.get("max", 100)
         else:
             self.resources[k] = 0
-        # v104 R3 P1-1：致命预谋被动——战斗开始 +1 连击点（刺客爆发前置）
-        if k == "cp" and "致命预谋" in E.passive_skills_learned(
-                player.get("class_name", ""), player.get("learned_skills", [])):
+        # v110.3 P1-11：致命预谋被动——战斗开始 +1 连击点（数据驱动 battle_start_cp，替代名字硬匹配）
+        if k == "cp" and self._passive_map(player)["proc"].get("battle_start_cp", []):
             self.resources[k] = 1
 
     def _resource_label(self, player: dict) -> str:
@@ -1368,10 +1367,13 @@ class Battle:
             heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
         else:
             heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
-        # v64 被动·神恩：治疗技能效果 +10%
-        pv = E.passive_skills_learned(player["class_name"], player.get("learned_skills", []))
-        if "神恩" in pv:
-            heal = int(heal * 1.10)
+        # v110.3 P2-9：被动·神恩——治疗技能效果 +X%（数据驱动 proc="heal"，替代名字硬匹配）。
+        #              注意与下方 stat=="heal" 的神圣恩典为不同触发源，勿合并。
+        #              ⚠ mult 为"完整倍率"语义（skills.py:725 神恩 mult=1.1 = 治疗×1.10，+10%）；
+        #              故用 heal*=mult 而非 (1+mult)，保证两被动同学时 ×1.21（1.1×1.1）为现状保持。
+        _pm_heal = self._passive_map(player)["proc"].get("heal", [])
+        for _pn, _ps in _pm_heal:
+            heal = int(heal * float(_ps.get("mult", 1.0)))
         # v104 R3 P1-1：神圣恩典（治疗+10%）/ 圣祷（20% 概率治疗+30%）
         _pm = self._passive_map(player)
         for _pn, _ps in _pm["stat"]:
@@ -1404,14 +1406,14 @@ class Battle:
                 logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
         hp_before = player.get("hp", 0)
         player["hp"] = min(player.get("max_hp", player["hp"]), hp_before + heal)
-        # v104 M02 P2-4：庇护之光按“真实治疗溢出量”结算（此前 clamp 后按
-        # hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾）
-        if "庇护之光" in pv:
+        # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
+        # 此前 clamp 后按 hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾
+        for _pn, _ps in self._passive_map(player)["proc"].get("heal_shield", []):
             overflow = hp_before + heal - player.get("max_hp", player["hp"])
             if overflow > 0:
-                shield_gain = int(overflow * 0.20)
+                shield_gain = int(overflow * float(_ps.get("pct", 0.2)))
                 self._add_shield("overflow", shield_gain, 2)
-                logs.append(f"🛡️ 庇护之光：治疗溢出转化为 {shield_gain} 点护盾！")
+                logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
         if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
             p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
         logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
@@ -1608,9 +1610,9 @@ class Battle:
         for _pn, _ps in _procs.get("element_dmg", []):
             if element and E.ELEMENT_MARKS.get(element):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 毒系技能伤害（毒刃/毒爆等 mech=poison 或名字含毒）
+        # v110.3 P2-9：毒系技能伤害（mech 判定，废弃"名字含毒"子串；毒爆术 mech=poison_burst 一并覆盖）
         for _pn, _ps in _procs.get("poison_dmg", []):
-            if mech == "poison" or "毒" in (skill_name or ""):
+            if mech in ("poison", "poison_burst"):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
         for _pn, _ps in _procs.get("mark_dmg", []):
@@ -2673,13 +2675,14 @@ class Battle:
             dmg = max(1, dmg - block_reduce)
             logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
             # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
+            # v110.3 P2-1：多个格挡反击被动逐个独立 roll，命中即停；此前 break 在 for 末尾无条件退出，只 roll 第一个被动
             for _pn, _ps in self._passive_map(player)["proc"].get("block_counter", []):
                 if self.enemy.get("hp", 0) > 0 and random.random() < float(_ps.get("chance", 0.5)):
                     rd = max(1, int(dmg * float(_ps.get("mult", 0.5))))
                     rd = self._boss_dmg_filter(rd, player, logs)
                     self._damage_enemy(rd, logs)
-                    logs.append(f"🛡️ 格挡反击！反弹 {rd} 点伤害！")
-                break
+                    logs.append(f"🛡️ {_pn}：格挡反击！反弹 {rd} 点伤害！")
+                    break  # 命中即停（一次格挡最多一次反击）
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
         # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
         for _pn, _ps in self._passive_map(player)["proc"].get("counter", []):
@@ -2814,12 +2817,13 @@ class Battle:
         if rd and rd.get("on_hit"):
             k = rd["key"]
             self.resources[k] = E.core_resource_gain(cls, self.resources, rd["on_hit"])
-        # v64 被动·神圣坚韧：受击后 20% 概率回复 5% 生命
-        if player["hp"] > 0 and "神圣坚韧" in ps_names:
-            if random.random() < C.HOLY_TENACITY_CHANCE:
-                heal = int(player.get("max_hp", player.get("hp", 1)) * 0.05)
-                player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
-                logs.append(f"✨ 神圣坚韧：回复 {heal} 点生命！")
+        # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
+        if player["hp"] > 0:
+            for _pn, _ps in self._passive_map(player)["proc"].get("dmg_taken_heal", []):
+                if random.random() < float(_ps.get("chance", 0.2)):
+                    heal = int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("pct", 0.05)))
+                    player["hp"] = min(player.get("max_hp", player["hp"]), player["hp"] + heal)
+                    logs.append(f"✨ {_pn}：回复 {heal} 点生命！")
 
     def _enemy_dead(self) -> bool:
         return self.enemy.get("hp", 1) <= 0
