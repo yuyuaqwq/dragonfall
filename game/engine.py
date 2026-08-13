@@ -190,6 +190,11 @@ _PASSIVE_STAT_APPLY = {
     "mp":   ("mp_mult", "mul", True),   # 原代码特判：mp 仅在无 cond 时结算
     "spd":  ("spd_mult", "mul", False),
     "crit": ("crit_add", "add", False),
+    # v106.1：冷却缩减被动支持（面板结算 + 战斗内 _set_skill_cd 消费）
+    "cdr":  ("cdr_add", "add", False),
+    # v106.2：穿透被动支持（战斗内乘算合成，职业特色渠道）
+    "pene_phys": ("pene_phys_add", "add", False),
+    "pene_magi": ("pene_magi_add", "add", False),
 }
 
 
@@ -205,7 +210,9 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
     返回属性加成 dict（百分比已转成系数 1+mult 形式，由调用方决定如何乘）。
     """
     bonus = {"hp_mult": 1.0, "mp_mult": 1.0, "atk_mult": 1.0, "def_mult": 1.0,
-             "matk_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.0, "crit_add": 0.0}
+             "matk_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.0, "crit_add": 0.0,
+             "cdr_add": 0.0,  # v106.1 cdr 被动
+             "pene_phys_add": 0.0, "pene_magi_add": 0.0}  # v106.2 穿透被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -218,10 +225,10 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
         key, op, need_cond_none = rule
         if need_cond_none and ps.get("cond") is not None:
             continue
-        mult = float(ps.get("mult", 0))
+        mult = float(ps.get("add", ps.get("mult", 0)))
         if op == "mul":
             bonus[key] *= (1 + mult)
-        else:  # add（crit）
+        else:  # add（crit/cdr）
             bonus[key] += mult
     return bonus
 
@@ -245,7 +252,10 @@ def is_passive_learned(class_name: str, passive_name: str, learned_skills: list 
 STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", "matk": "魔攻",
               "mdef": "魔防", "spd": "速度", "crit": "暴击", "dodge": "闪避", "precise": "精准",
               "pene_phys": "物穿", "pene_magi": "法穿", "pene_flat": "固定物穿", "pene_mflat": "固定法穿",
-              "tenacity": "韧性", "luck": "幸运"}  # v106 穿透/韧性/幸运
+              "tenacity": "韧性", "luck": "幸运",  # v106 穿透/韧性/幸运
+              "cdr": "冷却缩减", "elem_res": "元素抗性", "abyss_res": "深渊抗性",
+              "exp_bonus": "经验加成", "gold_bonus": "金币加成",  # v106.1 冷却/抗性/成长
+              "heal_power": "治疗强度", "shield_power": "护盾强度"}  # v106.2 治疗/护盾
 
 
 def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
@@ -270,6 +280,15 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     base_src["pene_mflat"] = st.get("pene_mflat", 0)
     base_src["tenacity"] = st.get("tenacity", 0)
     base_src["luck"] = st.get("luck", 0)
+    # v106.1：冷却缩减/元素抗性/深渊抗性/经验金币加成基础值也进来源（职业天生特色）
+    base_src["cdr"] = st.get("cdr", 0)
+    base_src["elem_res"] = st.get("elem_res", 0)
+    base_src["abyss_res"] = st.get("abyss_res", 0)
+    base_src["exp_bonus"] = st.get("exp_bonus", 0)
+    base_src["gold_bonus"] = st.get("gold_bonus", 0)
+    # v106.2：治疗强度/护盾强度基础值也进来源（职业天生特色）
+    base_src["heal_power"] = st.get("heal_power", 0)
+    base_src["shield_power"] = st.get("shield_power", 0)
     sources.append({"name": "基础", "stats": base_src})
     # 2. 自由属性点：力量→攻击 敏捷→速度/暴击 智力→魔攻/魔力 耐力→生命
     # v105 P1(M01#7)：attributes 可能是字符串/'null'（脏档）→ 非 dict 一律按空处理
@@ -401,6 +420,11 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
         if rt.get("crit_add"):
             race_src["crit"] = rt["crit_add"]
             st["crit"] = min(st["crit"] + rt["crit_add"], 0.5)
+        # v106.2：新属性种族天赋（exp_bonus/luck/elem_res/abyss_res/cdr 加法属性）
+        for _rk in ("exp_bonus", "luck", "elem_res", "abyss_res", "cdr"):
+            if rt.get(_rk):
+                race_src[_rk] = rt[_rk]
+                st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))
         if race_src:
             sources.append({"name": "种族天赋", "stats": race_src, "pct": True})
     return st, sources

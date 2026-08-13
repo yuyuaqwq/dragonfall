@@ -72,10 +72,19 @@ async def main():
         "helm": None, "boots": None, "ring": None, "necklace": None},
         "attributes": None}
     st, _ = E.player_stats_detail(p["class_name"], p["level"], p["equipment"])
-    # 战士基础 0.05 + 两词条各 0.05 乘算：1-(0.95×0.95×0.95)=0.142625
-    expect = 1 - 0.95**3
-    check(f"战士5%+词条5%+词条5% 乘算={expect:.4f}", abs(st.get("pene_phys", 0) - expect) < 1e-6,
+    # v106.2 战士无天生穿透：两词条乘算 = 1-(0.95×0.95)=0.0975
+    expect = 1 - 0.95**2
+    check(f"战士 两词条5%+5% 乘算={expect:.4f}", abs(st.get("pene_phys", 0) - expect) < 1e-6,
           f"got {st.get('pene_phys')}")
+    # 词条与职业不同来源也乘算（刺客 10% 基础 + 词条 5% = 1-0.9×0.95=0.145）
+    p_ass = {"class_name": "cls_ci_ke", "level": 30, "equipment": {
+        "weapon": {"name": "测试剑", "stats": w_stats, "affixes": ["pene_phys"]},
+        "armor": None, "helm": None, "boots": None, "ring": None, "necklace": None},
+        "attributes": None}
+    st_ass2, _ = E.player_stats_detail(p_ass["class_name"], p_ass["level"], p_ass["equipment"])
+    expect_ass = 1 - 0.9 * 0.95
+    check(f"刺客10%+词条5% 乘算={expect_ass:.4f}", abs(st_ass2.get("pene_phys", 0) - expect_ass) < 1e-6,
+          f"got {st_ass2.get('pene_phys')}")
     # 词条与职业不同来源也乘算（不是 0.05+0.05=0.10）
     check("乘算 ≠ 加法（0.0975 ≠ 0.10）", abs((1 - 0.95**2) - 0.10) > 0.002)
 
@@ -95,24 +104,39 @@ async def main():
     check("PCT_CAPS 韧性 0.5", C.PCT_CAPS.get("tenacity") == 0.5)
     check("PCT_CAPS 幸运 0.5", C.PCT_CAPS.get("luck") == 0.5)
 
-    # ============ 4. 职业特色 ============
+    # ============ 4. 职业特色（v106.2 收敛：只保留刺客/法师天生穿透，其余走被动/词条/套装/药水渠道） ============
     print("【4. 职业特色】")
     from data.plugins.dragonfall.game.data.classes import CLASSES
     def base_pene(cid):
         b = CLASSES[cid]["base"]
         return b.get("pene_phys", 0), b.get("pene_magi", 0)
-    check("刺客 物穿10%", base_pene("cls_ci_ke") == (0.10, 0))
-    check("法师 法穿10%", base_pene("cls_fa_shi") == (0, 0.10))
-    check("魔剑士 双穿5%+5%", base_pene("cls_spellblade") == (0.05, 0.05))
-    check("战士 物穿5%", base_pene("cls_zhan_shi") == (0.05, 0))
-    check("游侠 物穿5%", base_pene("cls_you_xia") == (0.05, 0))
-    check("拳师 物穿5%", base_pene("cls_wu_seng") == (0.05, 0))
-    check("牧师 法穿5%", base_pene("cls_mu_shi") == (0, 0.05))
+    check("刺客 物穿10%（特色保留）", base_pene("cls_ci_ke") == (0.10, 0))
+    check("法师 法穿10%（特色保留）", base_pene("cls_fa_shi") == (0, 0.10))
+    check("魔剑士 无天生穿透（被动魔力贯穿补偿）", base_pene("cls_spellblade") == (0, 0))
+    check("战士 无天生穿透（被动破甲精通补偿）", base_pene("cls_zhan_shi") == (0, 0))
+    check("游侠 无天生穿透（被动穿甲箭补偿）", base_pene("cls_you_xia") == (0, 0))
+    check("拳师 无天生穿透", base_pene("cls_wu_seng") == (0, 0))
+    check("牧师 无天生穿透", base_pene("cls_mu_shi") == (0, 0))
     check("吟游诗人 无穿透", base_pene("cls_bard") == (0, 0))
     check("见习 无穿透", base_pene("cls_novice") == (0, 0))
     # 面板聚合：刺客 Lv.30 裸装物穿 = 10%
     st_ass, _ = E.player_stats_detail("cls_ci_ke", 30, {})
     check("刺客 Lv.30 面板物穿 10%", abs(st_ass.get("pene_phys", 0) - 0.10) < 1e-6, str(st_ass.get("pene_phys")))
+    # v106.2 补偿被动生效（战斗内乘算）
+    from data.plugins.dragonfall.game import battle as BT
+    p_w = {"qq_id": "w1", "name": "测试", "level": 60, "class_name": "cls_zhan_shi",
+           "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
+           "equipment": {}, "attributes": {}, "learned_skills": ["破甲精通"]}
+    enemy = {"name": "T", "hp": 1000, "max_hp": 1000, "atk": 30, "def": 10, "matk": 5, "mdef": 5, "spd": 5, "crit": 0.05}
+    b = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_w, pet=None)
+    st_w = b._player_stats(p_w)
+    check("战士 破甲精通被动 → 物穿 5%（战斗内）", abs(st_w.get("pene_phys", 0) - 0.05) < 1e-6, str(st_w.get("pene_phys")))
+    p_r = {"qq_id": "w2", "name": "测试", "level": 55, "class_name": "cls_you_xia",
+           "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
+           "equipment": {}, "attributes": {}, "learned_skills": ["穿甲箭"]}
+    b2 = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_r, pet=None)
+    st_r = b2._player_stats(p_r)
+    check("游侠 穿甲箭被动 → 物穿 5%（战斗内）", abs(st_r.get("pene_phys", 0) - 0.05) < 1e-6, str(st_r.get("pene_phys")))
 
     # ============ 5. 装备词条折算 ============
     print("【5. 装备词条】")
@@ -202,7 +226,7 @@ async def main():
     player = {"qq_id": "w1", "name": "测试", "level": 30, "class_name": "cls_ci_ke",
               "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
               "equipment": {}, "attributes": {}}
-    b = BT.Battle("wild", enemy=enemy, title_bonus=lambda q: None, player=player, pet=None)
+    b = BT.Battle("wild", enemy=enemy, title_bonus=None, player=player, pet=None)
     pv, pf = b._pene_vals({"pene_phys": 0.10, "pene_flat": 5})
     check("玩家物穿取值 (10%, 5)", (pv, pf) == (0.10, 5), f"{(pv, pf)}")
     mv, mf = b._pene_vals({"pene_phys": 0.05}, magic=False)

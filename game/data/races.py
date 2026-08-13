@@ -27,11 +27,11 @@ RACES = {
         "name": "人类", "icon": "🧑",
         "desc": "均衡·多面手。没有天赋就是最好的天赋——什么都能学。",
         "talents": {
-            "heal_received": 0.10,     # 圣光亲和：受疗 +10%
             "learn_discount": 0.08,    # 多才多艺：学习技能点 -8%
+            "exp_bonus": 0.05,         # v106.2 勤学：战斗经验 +5%（替换原受疗+10%，贴合多面手成长设定）
             "growth_mult": 0.98,       # 🔻 凡人之躯：全属性成长 -2%
         },
-        "talent_names": {"heal_received": "圣光亲和", "learn_discount": "多才多艺", "growth_mult": "凡人之躯"},
+        "talent_names": {"learn_discount": "多才多艺", "exp_bonus": "勤学", "growth_mult": "凡人之躯"},
     },
     "elf": {
         "name": "银月精灵", "icon": "🧝",
@@ -67,11 +67,11 @@ RACES = {
         "name": "半身人", "icon": "🍀",
         "desc": "敏捷·幸运。锅里有热汤，兜里有金币，就是最富足的人。",
         "talents": {
-            "gold_bonus": 0.15,        # 幸运儿：金币掉落 +15%
+            "luck": 0.10,              # v106.2 幸运儿：掉落收益 +10%（替换原金币+15%，幸运覆盖面更广）
             "item_effect": 0.10,       # 灵巧双手：消耗品效果 +10%
             "timid_hp": 0.30,          # 🔻 怯战：HP<30% 攻击 -10%
         },
-        "talent_names": {"gold_bonus": "幸运儿", "item_effect": "灵巧双手", "timid_hp": "怯战"},
+        "talent_names": {"luck": "幸运儿", "item_effect": "灵巧双手", "timid_hp": "怯战"},
     },
     "dragonborn": {
         "name": "龙裔", "icon": "🐉",

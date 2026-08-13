@@ -40,9 +40,11 @@ def test_defs():
                        ("cls_mu_shi", "牧师"), ("cls_ci_ke", "刺客"), ("cls_wu_seng", "拳师")]:
         tbl = C.PLAYER_SKILLS[cls]["skills"]
         passives = [v for v in tbl.values() if v.get("kind") == "被动"]
-        check(f"{cname} 被动数量=4", len(passives) == 4, f"实际 {len(passives)}")
+        # v106.2：战士/游侠新增穿透被动 → 被动数 5，其余职业 4
+        expect_n = 5 if cls in ("cls_zhan_shi", "cls_you_xia") else 4
+        check(f"{cname} 被动数量={expect_n}", len(passives) == expect_n, f"实际 {len(passives)}")
         for v in passives:
-            check(f"  {v['name']} lv={v['lv']} mp=0", v.get("mp") == 0 and v.get("lv") in (12, 25, 38, 55),
+            check(f"  {v['name']} lv={v['lv']} mp=0", v.get("mp") == 0 and v.get("lv") in (12, 25, 38, 55, 45, 48),
                   f"mp={v.get('mp')} lv={v.get('lv')}")
     # 抽查代表性被动
     zs = C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]
@@ -162,8 +164,9 @@ async def test_no_upgrade():
 def test_data_integrity():
     print("\n== 10. 数据完整性：被动不污染主动技能表 ==")
     # 阶段六：新世界每职业 10 主动 + 4 被动 = 14；v95 补 Lv.2 过渡技能 +1 → 15
-    for cls, cname, expect in [("cls_zhan_shi", "战士", 15), ("cls_fa_shi", "法师", 15),
-                               ("cls_you_xia", "游侠", 15), ("cls_mu_shi", "牧师", 15),
+    # v106.2：战士/游侠 +穿透被动 → 16
+    for cls, cname, expect in [("cls_zhan_shi", "战士", 16), ("cls_fa_shi", "法师", 15),
+                               ("cls_you_xia", "游侠", 16), ("cls_mu_shi", "牧师", 15),
                                ("cls_ci_ke", "刺客", 15), ("cls_wu_seng", "拳师", 15)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
         check(f"{cname} 技能总数 {n} (10基础+4被动)", n == expect, f"实际 {n}")

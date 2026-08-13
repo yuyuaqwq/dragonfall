@@ -94,7 +94,8 @@ SETS = {
         "quality": "purple",
         "icon": "✨",
         "bonus_2": {
-            "matk": 0.18
+            "matk": 0.18,
+            "pene_magi": 0.05  # v106.1 月影法穿：法系穿透
         },
         "bonus_4": {
             "effect": "crit_up_set",
@@ -106,7 +107,8 @@ SETS = {
         "quality": "purple",
         "icon": "🌑",
         "bonus_2": {
-            "atk": 0.18
+            "atk": 0.18,
+            "pene_phys": 0.05  # v106.1 黑沼穿甲：暗杀者破甲
         },
         "bonus_4": {
             "effect": "lifesteal_set", "chance": 0.3,
@@ -119,7 +121,9 @@ SETS = {
         "icon": "☀️",
         "bonus_2": {
             "mdef": 0.2,
-            "hp": 0.1
+            "hp": 0.1,
+            "abyss_res": 0.05,   # v106.1 圣徽庇护：深渊抗性
+            "heal_power": 0.05   # v106.2 圣徽圣愈：治疗强度
         },
         "bonus_4": {
             "effect": "regen",
@@ -156,7 +160,8 @@ SETS = {
         "quality": "orange",
         "icon": "⏳",
         "bonus_2": {
-            "hp": 0.25
+            "hp": 0.25,
+            "heal_power": 0.05  # v106.2 晨光圣愈：治疗强度
         },
         "bonus_4": {
             "effect": "regen_strong",
@@ -169,7 +174,8 @@ SETS = {
         "icon": "🎲",
         "bonus_2": {
             "spd": 0.2,
-            "dodge": 0.05
+            "dodge": 0.05,
+            "cdr": 0.05  # v106.1 旅人经验：冷却缩减
         },
         "bonus_4": {
             "effect": "dodge_set",

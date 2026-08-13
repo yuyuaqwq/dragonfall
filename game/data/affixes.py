@@ -206,6 +206,31 @@ AFFIXES = {
         "effect": {"luck": 0.05},
         "desc": "掉落收益＋5%（v106）",
     },
+    "cdr": {
+        "name": "轻灵", "kind": "defense", "trigger": "stat",
+        "effect": {"cdr": 0.05},
+        "desc": "冷却缩减＋5%（v106.1）",
+    },
+    "exp_bonus": {
+        "name": "求知", "kind": "defense", "trigger": "stat",
+        "effect": {"exp_bonus": 0.05},
+        "desc": "战斗经验＋5%（v106.1）",
+    },
+    "gold_bonus": {
+        "name": "聚宝", "kind": "defense", "trigger": "stat",
+        "effect": {"gold_bonus": 0.05},
+        "desc": "金币收益＋5%（v106.1）",
+    },
+    "heal_power": {
+        "name": "圣愈", "kind": "defense", "trigger": "stat",
+        "effect": {"heal_power": 0.05},
+        "desc": "治疗强度＋5%（v106.2）",
+    },
+    "shield_power": {
+        "name": "坚盾", "kind": "defense", "trigger": "stat",
+        "effect": {"shield_power": 0.05},
+        "desc": "护盾强度＋5%（v106.2）",
+    },
 }
 
 # 随机词条池按品质（20 章 4.2：蓝 → 攻击 7 + 防具 7；紫 → 攻击 17 + 防具 9；橙 → 全部）
@@ -213,6 +238,8 @@ AFFIX_POOL_BY_QUALITY = {
     "blue": [
         "bleed", "armor_break", "combo", "crit_up", "precise", "charge", "counter", "meditate",
         "block", "dodge", "dmg_reduce", "swift", "hp_up", "regen",
+        "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
+        "heal_power", "shield_power",  # v106.2 圣愈/坚盾
     ],
     "purple": [
         "bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up", "crit_dmg",
@@ -221,6 +248,8 @@ AFFIX_POOL_BY_QUALITY = {
         "pene_phys", "pene_magi", "pene_flat", "pene_mflat",  # v106 穿透词条
         "block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity", "regen", "meditate",
         "swift", "luck",  # v106 韧性/幸运
+        "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
+        "heal_power", "shield_power",  # v106.2 圣愈/坚盾
     ],
     "orange": sorted(AFFIXES.keys()),
 }
@@ -234,7 +263,9 @@ AFFIX_AFFINITY_POOLS = {
              "crit_dmg", "precise", "charge", "pierce", "hunt", "break_magic",
              "purify", "dragon_aw", "pene_phys", "pene_magi", "pene_flat", "pene_mflat"],  # v106 穿透词条进攻击倾向
     "防御": ["block", "thorns", "dmg_reduce", "shield", "dodge", "tenacity",
-             "regen", "meditate", "swift", "hp_up", "elem_resist", "abyss_resist", "luck"],  # v106 韧性/幸运进防御倾向
+             "regen", "meditate", "swift", "hp_up", "elem_resist", "abyss_resist", "luck",
+             "cdr", "exp_bonus", "gold_bonus",
+             "heal_power", "shield_power"],  # v106 韧性/幸运 + v106.1 轻灵/求知/聚宝 + v106.2 圣愈/坚盾
     "元素": ["element_fire", "element_ice", "element_thunder", "elem_resist"],
     "机动": ["swift", "precise", "combo", "charge", "pierce", "hunt", "dodge"],
 }

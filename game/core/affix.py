@@ -50,6 +50,15 @@ _STAT_AFFIX_FX = {
     "luck": {"stat": "luck", "pct": None, "flat": 0.05},
     "pene_flat": {"stat": "pene_flat", "lv_flat": 0.5, "min_flat": 2},
     "pene_mflat": {"stat": "pene_mflat", "lv_flat": 0.5, "min_flat": 2},
+    # v106.1：冷却缩减/成长属性词条 + 元素抗性面板化（旧词条 ID 保留，折算成属性）
+    "cdr": {"stat": "cdr", "pct": None, "flat": 0.05},
+    "exp_bonus": {"stat": "exp_bonus", "pct": None, "flat": 0.05},
+    "gold_bonus": {"stat": "gold_bonus", "pct": None, "flat": 0.05},
+    "elem_resist": {"stat": "elem_res", "pct": None, "flat": 0.08},
+    "abyss_resist": {"stat": "abyss_res", "pct": None, "flat": 0.10},
+    # v106.2：治疗强度/护盾强度词条
+    "heal_power": {"stat": "heal_power", "pct": None, "flat": 0.05},
+    "shield_power": {"stat": "shield_power", "pct": None, "flat": 0.05},
 }
 
 

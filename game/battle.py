@@ -279,8 +279,16 @@ class Battle:
         return self._skill_cd_left(skill_name) > 0
 
     def _set_skill_cd(self, skill_name: str, cd: int):
-        """设置技能冷却(cd 回合，1 表示下一回合即可用)。"""
+        """设置技能冷却(cd 回合，1 表示下一回合即可用)。
+        v106.1 冷却缩减：cd ×(1-cdr)（cap 40%），保底 1（cd=1 的技能不受影响）。"""
         if cd > 0:
+            cdr = 0.0
+            try:
+                cdr = min(float(self._player_stats(self.player).get("cdr", 0) or 0), 0.4)
+            except Exception:
+                cdr = 0.0
+            if cdr > 0 and cd > 1:
+                cd = max(1, int(cd * (1 - cdr)))
             self.cooldown[skill_name] = cd
 
     def _tick_cooldowns(self):
@@ -470,9 +478,16 @@ class Battle:
         return logs, self.result is not None
 
     def _add_shield(self, key: str, value: int, turns: int = 3):
-        """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新回合（取 max），异源并存各计各的回合。"""
+        """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新回合（取 max），异源并存各计各的回合。
+        v106.2 护盾强度：shield_power 属性 ×(1+shield_power)（cap 50%）"""
         if value <= 0:
             return
+        try:
+            _spv = min(float(self._player_stats(self.player).get("shield_power", 0) or 0), 0.5)
+            if _spv > 0:
+                value = int(value * (1 + _spv))
+        except Exception:
+            pass
         cur = self.p_shields.get(key)
         if cur:
             cur["value"] += value
@@ -599,6 +614,14 @@ class Battle:
             self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
             self.e_buffs["_armor_break_pct"] = 0.15
             logs.append("🛡️ 破甲！敌人防御下降 15%！(2 回合)")
+        elif kind == "pene_pot":
+            # v106.2 穿甲药剂：物穿 +15%（3 回合，与属性乘算）
+            self.p_buffs["pene_pot"] = 3
+            logs.append("🗡️ 穿甲附刃！物穿 +15%！(3 回合)")
+        elif kind == "pene_magi_pot":
+            # v106.2 破法药剂：法穿 +15%（3 回合，与属性乘算）
+            self.p_buffs["pene_magi_pot"] = 3
+            logs.append("🔮 破法附魔！法穿 +15%！(3 回合)")
         elif kind == "shield_small":
             gain = int(player.get("max_hp", 100) * 0.10)
             self._add_shield("potion", gain, 3)
@@ -843,6 +866,14 @@ class Battle:
             st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
         if pb.get("crit_add", 0.0):
             st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
+        # v106.1 冷却缩减被动（cdr_add → st["cdr"]，cap 40%）
+        if pb.get("cdr_add", 0.0):
+            st["cdr"] = min(st.get("cdr", 0) + pb["cdr_add"], 0.4)
+        # v106.2 穿透被动（pene_phys_add/pene_magi_add → 乘算合成，与词条一致）
+        if pb.get("pene_phys_add", 0.0):
+            st["pene_phys"] = min(1 - (1 - st.get("pene_phys", 0)) * (1 - pb["pene_phys_add"]), 0.6)
+        if pb.get("pene_magi_add", 0.0):
+            st["pene_magi"] = min(1 - (1 - st.get("pene_magi", 0)) * (1 - pb["pene_magi_add"]), 0.6)
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
         # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
         pm = self._passive_map(player)
@@ -1264,6 +1295,13 @@ class Battle:
         # v101.28f 圣光药剂：治疗技能效果 +20%（3 回合）
         if self.p_buffs.get("heal_up"):
             heal = int(heal * 1.20)
+        # v106.2 治疗强度：heal_power 属性 ×(1+heal_power)（cap 50%，职业/词条/套装多来源）
+        try:
+            _hpv = min(float(self._player_stats(player).get("heal_power", 0) or 0), 0.5)
+            if _hpv > 0:
+                heal = int(heal * (1 + _hpv))
+        except Exception:
+            pass
         # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
         hr = self._race_bonus(player).get("heal_received", 0) or 0
         if hr:
@@ -1847,15 +1885,26 @@ class Battle:
                         red = max(1, int(dmg * 0.15))
                         dmg = max(1, dmg - red)
                         logs.append(f"🛡️ 魔鳞护体，减免 {red} 点魔法伤害！")
-                # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（elem_resist 火/冰/雷 -8%、abyss_resist 暗影 -10%）
+                # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（v106.1 面板化：属性 elem_res/abyss_res 为主，
+                # 旧装备词条 ID 未折算时补差；职业/词条/套装多来源聚合）
                 melem = sinfo.get("element", "")
                 if melem:
                     resist = 0.0
                     pids = self._equip_affix_ids(player)
-                    if melem in ("fire", "ice", "thunder") and "elem_resist" in pids:
-                        resist += 0.08
-                    elif melem == "dark" and "abyss_resist" in pids:
-                        resist += 0.10
+                    try:
+                        _pst_el = self._player_stats(player)
+                        elem_attr = min(float(_pst_el.get("elem_res", 0) or 0), 0.5)
+                        abyss_attr = min(float(_pst_el.get("abyss_res", 0) or 0), 0.5)
+                    except Exception:
+                        elem_attr = abyss_attr = 0.0
+                    if melem in ("fire", "ice", "thunder"):
+                        resist = elem_attr
+                        if "elem_resist" in pids and elem_attr < 0.08:
+                            resist += 0.08 - elem_attr  # 旧装备（未折算）补差
+                    elif melem == "dark":
+                        resist = abyss_attr
+                        if "abyss_resist" in pids and abyss_attr < 0.10:
+                            resist += 0.10 - abyss_attr
                     if resist > 0:
                         red = max(1, int(dmg * resist))
                         dmg = max(1, dmg - red)
@@ -2181,13 +2230,20 @@ class Battle:
 
     def _pene_vals(self, st: dict, magic: bool = False) -> tuple:
         """v106 穿透取值：返回 (百分比穿透, 固定穿透)。
-        magic=True 取法穿对 mdef，否则取物穿对 def。百分比 cap 0.6（聚合层已 cap，这里兜底防脏值）。"""
+        magic=True 取法穿对 mdef，否则取物穿对 def。百分比 cap 0.6（聚合层已 cap，这里兜底防脏值）。
+        v106.2 穿透药水：pene_pot（物穿+15%）/ pene_magi_pot（法穿+15%）与属性乘算合成。"""
         try:
             if magic:
-                return (min(float(st.get("pene_magi", 0) or 0), 0.6),
-                        max(int(st.get("pene_mflat", 0) or 0), 0))
-            return (min(float(st.get("pene_phys", 0) or 0), 0.6),
-                    max(int(st.get("pene_flat", 0) or 0), 0))
+                pct = min(float(st.get("pene_magi", 0) or 0), 0.6)
+                flat = max(int(st.get("pene_mflat", 0) or 0), 0)
+                if self.p_buffs.get("pene_magi_pot"):
+                    pct = min(1 - (1 - pct) * 0.85, 0.6)
+                return pct, flat
+            pct = min(float(st.get("pene_phys", 0) or 0), 0.6)
+            flat = max(int(st.get("pene_flat", 0) or 0), 0)
+            if self.p_buffs.get("pene_pot"):
+                pct = min(1 - (1 - pct) * 0.85, 0.6)
+            return pct, flat
         except Exception:
             return (0.0, 0)
 

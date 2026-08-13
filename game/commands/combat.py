@@ -1665,17 +1665,23 @@ class CombatCmds(CommandBase):
             lucky_line = "\n🍀 幸运护符生效：掉落价值 +50%！"
         # v93 经济改革：金币不再入账，按 原金币×1.5 折算成 1-2 种可卖材料（怪物掉落池优先，通用池兜底）
         # v106 幸运属性：掉落收益 ×(1+luck)（上限 50%），与幸运护符（+50%）独立叠加
+        # v106.1 聚宝属性：金币收益 ×(1+gold_bonus)（上限 50%），与幸运独立叠加
         _luck = 0.0
+        _gold_bonus = 0.0
         try:
             _lst = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
                                         player.get("class_tier", 0), player.get("attributes"),
                                         player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
             _luck = min(float(_lst.get("luck", 0) or 0), 0.5)
+            _gold_bonus = min(float(_lst.get("gold_bonus", 0) or 0), 0.5)
         except Exception:
             _luck = 0.0
-        mat_value = int(gold * 1.5 * (1 + _luck))
+            _gold_bonus = 0.0
+        mat_value = int(gold * 1.5 * (1 + _luck) * (1 + _gold_bonus))
         if _luck > 0 and not lucky_line:
             lucky_line = f"\n🍀 幸运属性：掉落收益 +{int(_luck*100)}%！"
+        if _gold_bonus > 0:
+            lucky_line = (lucky_line or "") + f"\n💰 聚宝属性：金币收益 +{int(_gold_bonus*100)}%！"
         if mat_value > 0:
             drop_pool = [m for m in (monster.get("drops") or []) if m and "图纸" not in str(m)]
             if not drop_pool:
@@ -1696,6 +1702,19 @@ class CombatCmds(CommandBase):
                              "stackable": True, "price": mprice}, n)
                 drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
         # 经验/金币（v93：只入经验，金币已折算成材料）
+        # v106.1 求知属性：战斗经验 ×(1+exp_bonus)（上限 50%），叠加在全部既有加成之后
+        try:
+            _lst_exp = E.player_final_stats(player["class_name"], player["level"], player.get("equipment", {}),
+                                            player.get("class_tier", 0), player.get("attributes"),
+                                            player.get("evolve_path", 0), player.get("_title_bonus") or {}, player.get("race"))
+            _exp_bonus = min(float(_lst_exp.get("exp_bonus", 0) or 0), 0.5)
+        except Exception:
+            _exp_bonus = 0.0
+        if _exp_bonus > 0:
+            exp = int(exp * (1 + _exp_bonus))
+            exp_bonus_line = f"\n📚 求知属性：经验 +{int(_exp_bonus*100)}%！"
+        else:
+            exp_bonus_line = ""
         # v95.19: 顺带同步 DB max_hp/max_mp 实时值（player 已由 Battle 刷新，防 get_player clamp 误伤）
         # #262: 先更新 player dict 再落库——此前直接写库导致进度条显示旧值、
         #       _rule_fire 的 exp_gain 在旧基数上覆盖 DB（三连胜经验延迟到下一场才入账）
@@ -1723,6 +1742,8 @@ class CombatCmds(CommandBase):
                  f"📈 经验进度 {player['exp']}/{need} ({exp_pct}%)"]
         if lucky_line:
             lines.append(lucky_line.strip())
+        if exp_bonus_line:
+            lines.append(exp_bonus_line.strip())
         lines += drop_lines
         if rune_line:
             lines.append(rune_line)

@@ -719,6 +719,15 @@ class PlayerCmds(CommandBase):
             ("🪄", "pene_mflat", "pene_mflat", "固定法穿"),
             ("🧱", "tenacity", "tenacity", "韧性"),
             ("🍀", "luck", "luck", "幸运"),
+            # v106.1 冷却/抗性/成长
+            ("⏱️", "cdr", "cdr", "冷却缩减"),
+            ("🌡️", "elem_res", "elem_res", "元素抗性"),
+            ("🌑", "abyss_res", "abyss_res", "深渊抗性"),
+            ("📚", "exp_bonus", "exp_bonus", "经验加成"),
+            ("💰", "gold_bonus", "gold_bonus", "金币加成"),
+            # v106.2 治疗/护盾强度
+            ("💚", "heal_power", "heal_power", "治疗强度"),
+            ("🛡️", "shield_power", "shield_power", "护盾强度"),
         ]
         for icon, skey, fkey, cname in stat_rows:
             final = st.get(fkey, 0)  # v105：precise 无来源时 st 无键，.get 兜底（防 KeyError）

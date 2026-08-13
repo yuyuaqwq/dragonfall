@@ -43,7 +43,7 @@ def main():
     # ===== 2. 技能表 =====
     print("  · 技能表（8 技能 60-90 级）")
     sk_table = C.PLAYER_SKILLS.get("cls_spellblade", {}).get("skills", {})
-    check("PLAYER_SKILLS 魔剑士技能表 8 个", len(sk_table) == 8, f"实际 {len(sk_table)}")
+    check("PLAYER_SKILLS 魔剑士技能表 9 个", len(sk_table) == 9, f"实际 {len(sk_table)}")  # v106.2 +魔力贯穿
     want_names = ["魔能斩", "符文护体", "魔能涌动", "剑刃风暴",
                   "魔能爆发", "符文刻印", "双修精通", "星陨斩"]
     have_names = [s.get("name") for s in sk_table.values()]
@@ -51,7 +51,7 @@ def main():
         check(f"技能 {n} 存在", n in have_names, f"实际 {have_names}")
     # 等级序列
     lvs = sorted(s["lv"] for s in sk_table.values())
-    check("技能等级序列 60-90", lvs == [60, 64, 68, 72, 76, 80, 85, 90], f"实际 {lvs}")
+    check("技能等级序列 60-90", lvs == [60, 64, 68, 72, 76, 80, 85, 88, 90], f"实际 {lvs}")  # v106.2 +魔力贯穿88
     # 魔能机制
     mechs = [s.get("mech") for s in sk_table.values() if s.get("mech")]
     for m in ["spellblade", "spellblade_surge", "spellblade_storm",
