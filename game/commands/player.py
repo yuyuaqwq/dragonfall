@@ -347,6 +347,7 @@ class PlayerCmds(CommandBase):
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
             self._title_bonus(group_id, qq_id), player.get("race"),
+            player.get("learned_skills", []),  # v110.4 X2 P1-2：面板接入已学属性被动
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
         cur_map = (C.MAP_BY_ID.get(player["cur_map"]) or C.MAP_BY_ID.get(C.START_MAP, {}))
@@ -726,11 +727,15 @@ class PlayerCmds(CommandBase):
                 return
         # 技能继承：lv <= 当前等级全部（v109：同职业升档保留已学+只补未学——已付费技能不因
         # 升档重复发放，消除"早转白亏技能点"；跨职业转入清空旧职业技能后传承全部）
+        # v110.4 X2 P1-1：grant 为技能 ID(sk_table key)、kept 为显示名(get_player 已 C.display)——
+        # 先把 kept 统一 resolve 为 ID 再求并/差，避免同职业升档 ID/显示名混型致重复条目
+        #（实测 60 龙血 T1→T2 得 learned=[龙鳞,龙威,龙息,龙息]）；解析失败保留原值防断链
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {})
         grant = [s for s, info in sk_table.items() if info["lv"] <= player.get("level", 1)]
         _same_class = (player.get("class_name") == cls_id)
         if _same_class:
-            kept = [s for s in player.get("learned_skills", []) if s]
+            kept = [C.resolve("skills", s) for s in player.get("learned_skills", []) if s]
+            kept = [s for s in kept if s]
             init_skills = sorted(set(kept) | set(grant))
             new_grant = [s for s in grant if s not in kept]
         else:
@@ -799,6 +804,7 @@ class PlayerCmds(CommandBase):
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
             self._title_bonus(group_id, qq_id), player.get("race"),
+            player.get("learned_skills", []),  # v110.4 X2 P1-2：面板接入已学属性被动
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
         attr = player.get("attributes") or {}  # v105 P1(M01#9)：attributes=None 脏档兜底

@@ -176,9 +176,11 @@ def race_name(race: str | None) -> str:
     return (C.RACES.get(race) or {}).get("name", "")
 
 
-def player_final_stats(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> dict:
-    """基础属性 + 装备加成(含强化增幅)+ 自由属性点加成 + 称号加成 + 种族天赋"""
-    st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus, race)
+def player_final_stats(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None, learned_skills: list | None = None) -> dict:
+    """基础属性 + 装备加成(含强化增幅)+ 自由属性点加成 + 称号加成 + 种族天赋 + 已学属性被动(v110.4 X2)
+    传 learned_skills 时并入属性被动(面板)；battle.py _player_stats 不传 → 不含 passive，由战斗侧自理
+    """
+    st, _ = player_stats_detail(class_name, level, equipment, tier, attributes, evolve_path, title_bonus, race, learned_skills)
     return st
 
 
@@ -233,8 +235,9 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
              "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0,  # v106.3 吸血/暴伤/格挡被动
              "thorns_add": 0.0, "phys_reduce_add": 0.0, "magic_reduce_add": 0.0,
              "lifesteal_phys_add": 0.0, "lifesteal_magi_add": 0.0,
-             "heal_power_add": 0.0, "shield_power_add": 0.0, "elem_res_add": 0.0,
-             "abyss_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0}  # v106.4 + v107 专属属性被动
+             # v110.4 X2 P1-2：heal_power/shield_power/abyss_res 无对应被动技能(skills.py 零使用)，
+             # 恒 0 死键删除——battle.py:916-918 的读 pb.get(...,0.0) 恒 0 死循环由 X1 处理
+             "elem_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0}  # v106.4 + v107 专属属性被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -253,6 +256,46 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
         else:  # add（crit/cdr）
             bonus[key] += mult
     return bonus
+
+
+def apply_passive_to_stats(st: dict, class_name: str, learned_skills: list | None) -> dict:
+    """v110.4 X2 P1-2：把已学属性被动结算进属性 dict。
+
+    与 battle.py:886-920 完全同键同 cap（mp/spd 乘算、crit 加算 cap0.6、
+    cdr 加算 cap0.4、穿透乘算 cap0.6、其余加法并入 cap= C.PCT_CAPS），
+    保证面板(player_stats_detail) == 战斗(_player_stats) 单一来源。
+    条件型被动（cond rage>=5/hp_low_50 等）战斗内动态结算，此处不处理。
+    """
+    pb = player_passive_stats(class_name, learned_skills)
+    if pb.get("mp_mult", 1.0) != 1.0:
+        st["max_mp"] = int(st.get("max_mp", 0) * pb["mp_mult"])
+        st["mp"] = int(st.get("mp", 0) * pb["mp_mult"])
+    if pb.get("spd_mult", 1.0) != 1.0:
+        st["spd"] = int(st.get("spd", 0) * pb["spd_mult"])
+    if pb.get("crit_add", 0.0):
+        st["crit"] = min(st.get("crit", 0) + pb["crit_add"], 0.6)
+    if pb.get("cdr_add", 0.0):
+        st["cdr"] = min(st.get("cdr", 0) + pb["cdr_add"], 0.4)
+    if pb.get("pene_phys_add", 0.0):
+        st["pene_phys"] = min(1 - (1 - st.get("pene_phys", 0)) * (1 - pb["pene_phys_add"]), 0.6)
+    if pb.get("pene_magi_add", 0.0):
+        st["pene_magi"] = min(1 - (1 - st.get("pene_magi", 0)) * (1 - pb["pene_magi_add"]), 0.6)
+    for _pk, _pv in (("lifesteal_add", "lifesteal"), ("crit_dmg_add", "crit_dmg"),
+                     ("block_add", "block")):
+        if pb.get(_pk, 0.0):
+            st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+    for _pk, _pv in (("thorns_add", "thorns"), ("phys_reduce_add", "phys_reduce"),
+                     ("magic_reduce_add", "magic_reduce"),
+                     ("lifesteal_phys_add", "lifesteal_phys"),
+                     ("lifesteal_magi_add", "lifesteal_magi")):
+        if pb.get(_pk, 0.0):
+            st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+    # v107 隐藏职业专属属性被动（龙魂/星辰之力/万兽之力——heal_power/shield_power/abyss_res 无技能，已删）
+    for _pk, _pv in (("elem_res_add", "elem_res"), ("luck_add", "luck"),
+                     ("summon_power_add", "summon_power")):
+        if pb.get(_pk, 0.0):
+            st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+    return st
 
 
 def passive_skills_learned(class_name: str, learned_skills: list | None = None) -> list:
@@ -284,7 +327,7 @@ STAT_NAMES = {"hp": "生命", "mp": "魔力", "atk": "攻击", "def": "防御", 
               "summon_power": "召唤强化"}  # v106.3/v106.4 + v107 召唤
 
 
-def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None) -> tuple:
+def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int = 0, attributes: dict = None, evolve_path: int = 0, title_bonus: dict = None, race: str = None, learned_skills: list | None = None) -> tuple:
     """拆解属性来源。返回 (最终属性 dict, 来源明细 list)。
 
     来源明细每项: {"name": 来源名, "stats": {属性: 加值}}。
@@ -463,6 +506,25 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                 st[_rk] = min(st.get(_rk, 0) + rt[_rk], C.PCT_CAPS.get(_rk, 0.6))
         if race_src:
             sources.append({"name": "种族天赋", "stats": race_src, "pct": True})
+    # 8. 已学属性被动（v110.4 X2 P1-2：面板接入永久被动，与 battle.py:886-920 同键同 cap）
+    # 条件型被动（cond rage>=5/hp_low_50/battle_start 等）战斗内动态结算，面板不处理
+    if learned_skills:
+        _before = dict(st)
+        apply_passive_to_stats(st, class_name, learned_skills)
+        ps = player_passive_stats(class_name, learned_skills)
+        p_src = {}
+        # mul 型（mp/spd）：以乘数形式进入来源；add 型：记录最终并入值
+        if ps.get("mp_mult", 1.0) != 1.0:
+            p_src["mp"] = ps["mp_mult"]
+        if ps.get("spd_mult", 1.0) != 1.0:
+            p_src["spd"] = ps["spd_mult"]
+        for st_key in ("crit", "cdr", "pene_phys", "pene_magi", "lifesteal", "crit_dmg",
+                       "block", "thorns", "phys_reduce", "magic_reduce", "lifesteal_phys",
+                       "lifesteal_magi", "elem_res", "luck", "summon_power"):
+            if st.get(st_key, 0) != _before.get(st_key, 0):  # 被动并入或 cap 收敛导致变化 → 记为来源
+                p_src[st_key] = st.get(st_key, 0) - _before.get(st_key, 0)
+        if p_src:
+            sources.append({"name": "被动技能", "stats": p_src, "pct": True})
     return st, sources
 
 
