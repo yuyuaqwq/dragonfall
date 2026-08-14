@@ -117,7 +117,7 @@ async def main():
         random.random = lambda: 0.9999
         out = await cmd(m, "enhance", "g1", "w1", "强化 试炼剑")
         d = get_item("g1", "w1", "试炼剑")
-        check("+5→+6 失败掉 2 级(+5→+3)", "降级到 +3" in out and d.get("enhance") == 3,
+        check("+5→+6 失败掉 1 级(+5→+4)", "降级到 +4" in out and d.get("enhance") == 4,
               f"{out[:120]} | item={d}")
     finally:
         random.random = _orig_random

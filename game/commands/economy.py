@@ -2129,14 +2129,21 @@ class EconomyCmds(CommandBase):
         # v101.30 炼金强化材料接入：精炼强化石 = 成功率 +25%（自动消耗）；强化石 = 失败保护（失败不掉级）
         _rate = info["rate"]
         _stone_line = ""
-        if prof_lv >= 10:  # v101.30b Lv.10 铁匠名家：成功率全段位 +5%
-            _rate = min(1.0, _rate + 0.05)
-            _stone_line = "\n🛠️ 铁匠名家的手艺：成功率 +5%！"
+        # v113.3 副业渐进加成：强化师每级 +0.5%（Lv.10 = +5%，原仅 Lv.10 一档）
+        _rate_bonus = min(prof_lv, 10) * 0.005
+        if _rate_bonus > 0:
+            _rate = min(1.0, _rate + _rate_bonus)
+            _stone_line = f"\n🛠️ 强化师 Lv.{prof_lv} 的手艺：成功率 +{_rate_bonus*100:.1f}%！"
         # v105 M11 P2：星铁必成(_boost)或成功率已 100% 时不再消耗精炼强化石（+25% 纯浪费）
         if not _boost and _rate < 1.0 and db.count_item(group_id, qq_id, "i_stone_refine") >= 1:
             _rate = min(1.0, _rate + 0.25)
             db.remove_item(group_id, qq_id, "i_stone_refine", 1)
             _stone_line += "\n✨ 精炼强化石淬入火中，成功率提升了！"
+        # v113.3 祝福符石：成功率 +15%（自动消耗，与精炼石叠加，上限 100%）
+        if not _boost and _rate < 1.0 and db.count_item(group_id, qq_id, "i_stone_blessed") >= 1:
+            _rate = min(1.0, _rate + 0.15)
+            db.remove_item(group_id, qq_id, "i_stone_blessed", 1)
+            _stone_line += "\n✨ 祝福符石泛起微光，成功率提升了！"
         _protect_have = db.count_item(group_id, qq_id, "i_stone_upgrade")
         # 掷强化
         if _boost or random.random() < _rate:

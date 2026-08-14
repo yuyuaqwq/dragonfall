@@ -57,6 +57,8 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "ironharbor_6": [  # 金齿轮商行
         "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
+        # v113.3 祝福符石上架（幸运向强化材料，与精炼石同柜台）
+        "i_stone_blessed",
         # v101.30 鱼饵上架（垂钓大本营，老渔夫马库斯在铁港城）
         "it_glow_bait", "it_dough_bait", "it_blood_bait",
         # v104 M08 P1-6：双倍金币符/复活羽毛上架（v104 实装效果后全库零获取，
@@ -74,7 +76,7 @@ SHOP_SUBAREA_ITEMS = {
         "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
     ],
     "ironharbor_9": [  # 海风锻造坊（smith 分支）
-        "i_stone_upgrade", "i_stone_refine",
+        "i_stone_upgrade", "i_stone_refine", "i_stone_blessed",
     ],
     # ---------- 银溪镇 ----------
     "silver_brook_3": [  # 河畔旅店
@@ -144,7 +146,7 @@ SHOP_SUBAREA_ITEMS = {
         "i_bread", "i_ale", "i_dwarf_liquor", "i_treat_m",
     ],
     "anvil_fort_3": [  # 符文工坊（smith + 烈酒）
-        "i_dwarf_liquor", "i_stone_upgrade", "i_stone_refine",
+        "i_dwarf_liquor", "i_stone_upgrade", "i_stone_refine", "i_stone_blessed",
     ],
     # ---------- 寒脊营地 ----------
     "cold_ridge_1": [  # 营地口（综合补给）

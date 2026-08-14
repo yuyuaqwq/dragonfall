@@ -1604,6 +1604,8 @@ MATERIALS = {
     "mat_zuo_lang_quan_chi": {"price": 110, "name": "座狼犬齿", "desc": "狼王座下凶兽的犬齿，锋利得能划开铁甲"},
     "i_stone_upgrade": {"price": 400, "name": "强化石", "desc": "炼金提纯的魔力矿石，强化装备失败时自动护住不掉级（消耗品）"},
     "i_stone_refine": {"price": 1100, "name": "精炼强化石", "desc": "二次精炼的强化石，强化时消耗可提升成功率 +25%"},
+    "i_stone_blessed": {"price": 1500, "name": "祝福符石",
+                        "desc": "铁匠大师祝福过的符石，强化时自动消耗提升成功率 +15%（可叠加精炼强化石）"},
     # ---- v102.3 生活技能差异化：限定材料（采集时机限定 + 深矿专属） ----
     "mat_night_mushroom": {"price": 120, "name": "夜雾菇", "desc": "只在月光下撑开伞盖的菌菇，伞面凝着细碎的夜露"},
     "mat_aurora_flower": {"price": 300, "name": "极光花", "desc": "冬夜极光映照下才绽放的花，花瓣流光溢彩，转瞬即逝"},
