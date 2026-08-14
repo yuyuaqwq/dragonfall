@@ -2827,6 +2827,11 @@ class WorldCmds(CommandBase):
             if msg0.startswith("对话"):
                 raw0 = msg0[len("对话"):].strip()
                 if raw0:
+                    # v105 O64：『对话 0』在无对话状态时明确提示（原实现被 find_npc 当 NPC 序号 0，
+                    # 报"这里没有第 0 位 NPC"——玩家在单层 NPC 闲聊后想结束对话却得不到退出反馈）
+                    if raw0 == "0":
+                        yield event.plain_result("你现在没有正在进行的对话。输入『对话 <NPC名>』开始交谈～")
+                        return
                     # 复用 find_npc 查找/渲染链（改写消息为『找 X』）
                     event.message_str = "找 " + raw0
                     async for r in self.find_npc(event):

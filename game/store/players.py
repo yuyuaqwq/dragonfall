@@ -145,7 +145,9 @@ def get_player(group_id, qq_id):
             try:
                 _max_st = 100 + (p.get("level") or 1) * 2
                 _st = p.get("stamina")
-                if _st is None:
+                if _st is None or not isinstance(_st, (int, float)) or isinstance(_st, bool):
+                    # v105 O60：脏数据防御——stamina 空串/非法类型（E1 列错位事件曾写入 ''）
+                    # 只处理 None 挡不住 ''（'' < int 抛 TypeError 被吞，体力恢复静默失效）
                     _st = 100
                     p["stamina"] = 100
                 _ts = p.get("stamina_ts") or 0
@@ -164,6 +166,16 @@ def get_player(group_id, qq_id):
                             (_new, _now, qq_id),
                         )
                         conn.commit()
+            except Exception:
+                pass
+            # v105 O60：读档 cur_subarea 兜底——脏数据（如 E1 事件的 '{}'）回退当前地图首个子区域，
+            # 否则位置渲染"你身处【{}】"+ 移动/探索全链路异常（home_ 等无子区域图保持原值）
+            try:
+                _sa0 = p.get("cur_subarea")
+                _cur0 = p.get("cur_map", "")
+                _sas0 = C.SUBAREAS.get(_cur0) or []
+                if _sas0 and (_sa0 not in [s["id"] for s in _sas0]):
+                    p["cur_subarea"] = _sas0[0]["id"]
             except Exception:
                 pass
             # v95.7 #26：读档惰性结算经验溢出（面板曾出现 100% 不升级，要打一场才结算）

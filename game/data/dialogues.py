@@ -1004,6 +1004,10 @@ DIALOGUES = {
                     {"text": "🗡️ 刺客——阴影中的利刃", "next": "confirm_cls_ci_ke", "need": {"is_novice": True}},
                     {"text": "🥋 拳师——以拳证道的武斗家", "next": "confirm_cls_wu_seng", "need": {"is_novice": True}},
                     {"text": "我已经就职过了，随便聊聊", "next": "chat", "need": {"not_novice": True}},
+                    # v105 O61：welcome 首屏直达交付选项——此前交付入口在 chat 二级菜单，
+                    # 功能提示行"✅ 主线达成！和他对话交付领奖～"引导玩家点『我已经就职过了』
+                    # 才能看到交付选项，易误判卡死（round104 B8 误报根因）
+                    {"text": "✅ 任务办妥了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
                     # v104 M21 P2：见习玩家在就职前也能对话接取 q1_2（此前任务选项
                     # 只在 chat 节点、需 not_novice，见习期=死路，只能先就职再接任务）
                     {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
