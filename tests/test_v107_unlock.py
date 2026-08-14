@@ -40,19 +40,19 @@ async def main():
     db.update_player("g1", "w1", level=35, gold=1000, cur_map="oak_town", cur_subarea="oak_town_5")
 
     print("【1. 未解锁拦截】")
-    out = await cmd(m, "evolve", "g1", "w1", "转职 兽王")
+    out = await cmd(m, "evolve", "g1", "w1", "转职 兽语者")
     check("未解锁提示传承未敞开", "传承还未向你敞开" in out, out[:200])
-    check("未解锁含职业线索", "兽王" in out or "万兽" in out, out[:200])
+    check("未解锁含职业线索", "兽语者" in out or "万兽" in out, out[:200])
 
     print("【2. 已解锁但等级不足】")
     db.update_player("g1", "w1", hidden_class_unlock=["cls_beast_king"])
-    out = await cmd(m, "evolve", "g1", "w1", "转职 兽王")
+    out = await cmd(m, "evolve", "g1", "w1", "转职 兽语者")
     check("等级不足提示", "Lv.40" in out, out[:200])
 
     print("【3. 40 级转职成功】")
     db.update_player("g1", "w1", level=40)
-    out = await cmd(m, "evolve", "g1", "w1", "转职 兽王")
-    check("转职成功文案", "传承完成" in out and "兽王" in out, out[:300])
+    out = await cmd(m, "evolve", "g1", "w1", "转职 兽语者")
+    check("转职成功文案", "传承完成" in out and "兽语者" in out, out[:300])
     p = db.get_player("g1", "w1")
     check("职业切换", p["class_name"] == "cls_beast_king", str(p["class_name"]))
     check("技能初始化", len(p.get("learned_skills", [])) >= 1,
@@ -62,8 +62,8 @@ async def main():
     check("属性重算", p.get("max_hp", 0) > 100, str(p.get("max_hp")))
 
     print("【4. 已是该职业】")
-    out = await cmd(m, "evolve", "g1", "w1", "转职 兽王")
-    check("已是提示", "你已是兽王" in out, out[:200])
+    out = await cmd(m, "evolve", "g1", "w1", "转职 兽语者")
+    check("已是提示", "你已是兽语者" in out, out[:200])
 
     print("【5. 注册拦截】")
     out = await cmd(m, "register", "g1", "w2", "注册 暗影祭司 巫妖 男")

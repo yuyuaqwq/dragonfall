@@ -31,12 +31,12 @@ async def main():
 
     HIDDEN = [
         ("cls_bard", "吟游诗人"), ("cls_spellblade", "魔剑士"),
-        ("cls_arcanist", "奥术师"), ("cls_shadow_blade", "影武者"),
+        ("cls_arcanist", "奥术师"), ("cls_shadow_blade", "暮影行者"),
         ("cls_dragon_warrior", "龙血战士"), ("cls_void_walker", "虚空行者"),
-        ("cls_astrologer", "占星者"), ("cls_jungle_hunter", "丛林猎手"),
+        ("cls_astrologer", "星辰猎手"), ("cls_jungle_hunter", "丛林猎手"),
         ("cls_templar", "圣殿骑士"), ("cls_wu_sheng", "苦修士"),
         ("cls_blood_mage", "猩红学者"), ("cls_necromancer", "暗影祭司"),
-        ("cls_beast_king", "兽王"),
+        ("cls_beast_king", "兽语者"),
     ]
     print("— 注册与字段 —")
     check("隐藏职业共 13 个", len([1 for c in C.CLASSES.values() if c.get("hidden")]) == 13)

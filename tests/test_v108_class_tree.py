@@ -164,10 +164,10 @@ async def main():
     p = db.get_player("g1", "p8")
     check("60 级魔剑士 = T1", p["class_name"] == "cls_spellblade" and p["class_tier"] == 1,
           str((p["class_name"], p["class_tier"])))
-    out = await cmd(m, "evolve", "g1", "p8", "转职 符文骑士")
+    out = await cmd(m, "evolve", "g1", "p8", "转职 符文剑士")
     check("60 级魔剑宗师(T2)被拒", "Lv.75" in out, out[:150])
     db.update_player("g1", "p8", level=75)
-    out = await cmd(m, "evolve", "g1", "p8", "转职 符文骑士")
+    out = await cmd(m, "evolve", "g1", "p8", "转职 符文剑士")
     p = db.get_player("g1", "p8")
     check("75 级魔剑宗师 = T2", p["class_tier"] == 2, str(p["class_tier"]))
 
@@ -197,7 +197,7 @@ async def main():
     check("战士转魔剑士成功(渊源)", p["class_name"] == "cls_spellblade" and p["class_tier"] == 1,
           str((p["class_name"], p["class_tier"])))
     # 已转隐藏职业后升档不受血缘限制（同职业）
-    out = await cmd(m, "evolve", "g1", "p12", "转职 符文骑士")
+    out = await cmd(m, "evolve", "g1", "p12", "转职 符文剑士")
     check("隐藏职业内升档不查血缘", "Lv.75" in out, out[:150])
 
     print(f"\n===== v108 职业树测试: {passed} passed, {failed} failed =====")

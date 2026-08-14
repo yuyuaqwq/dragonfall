@@ -140,12 +140,12 @@ def main():
     check("_hidden_class_routes 方法存在", hasattr(inst, "_hidden_class_routes"))
     # 魔剑士档位全名（60/75/90）入路由表
     routes = inst._hidden_class_routes()
-    check("路由表含 魔剑士/符文骑士/咒刃领主",
-          "魔剑士" in routes and "符文骑士" in routes and "咒刃领主" in routes,
-          f"缺: {[n for n in ['魔剑士', '符文骑士', '咒刃领主'] if n not in routes]}")
+    check("路由表含 魔剑士/符文剑士/咒刃君王",
+          "魔剑士" in routes and "符文剑士" in routes and "咒刃君王" in routes,
+          f"缺: {[n for n in ['魔剑士', '符文剑士', '咒刃君王'] if n not in routes]}")
     check("魔剑士档位路由正确", routes.get("魔剑士") == ("cls_spellblade", 1)
-          and routes.get("符文骑士") == ("cls_spellblade", 2)
-          and routes.get("咒刃领主") == ("cls_spellblade", 3), str(routes.get("魔剑士")))
+          and routes.get("符文剑士") == ("cls_spellblade", 2)
+          and routes.get("咒刃君王") == ("cls_spellblade", 3), str(routes.get("魔剑士")))
     # 特色档位门槛 60/75/90
     tlv = inst._hidden_tier_levels("cls_spellblade")
     check("魔剑士档位门槛 60/75/90", tlv == {1: 60, 2: 75, 3: 90}, str(tlv))
