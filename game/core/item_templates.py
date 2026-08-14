@@ -503,6 +503,9 @@ def tpl_clear_red(ctx):
     db = ctx._db()
     if not ctx.hook("is_redname", ctx.qq_id):
         return ItemResult(text="你现在不是红名，用不着这张券～(留着防身吧)", consume=False)
+    # v110 审计修复：26 章 §3.3「红名清除券（不可 PVP 时使用）」——战斗中禁止使用
+    if db.get_battle(ctx.group_id, ctx.qq_id):
+        return ItemResult(text="你正在战斗中，无法使用清除券！", consume=False)
     ctx.hook("remove_item")
     db.set_event_state(f"red_{ctx.qq_id}", "0")
     return ItemResult(text="🎫 券面符文亮起，笼罩你的杀气消散了！你不再是红名了。")

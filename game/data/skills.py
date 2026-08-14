@@ -45,11 +45,14 @@ PLAYER_SKILLS = {
                 "desc": "哀歌！160% 魔法伤害，50% 概率沉默目标 2 回合",
                 "name": "哀歌",
             },
-"sk_jing_mo_zhi_ge": {
+"sk_qing_feng_yong_tan": {
                 "lv": 18, "mp": 15, "power": 0, "kind": "增益",
                 "effect": "spd_up", "team": "spd_all", "cd": 2,
+                # v110 审计修复（世界观命名）：原名「静默之歌」名不副实（实为全队加速，
+                # 与 v104 记录的"设计沉默"意图长期不符，安眠曲已改睡眠而此技能未同步）——
+                # 改名「轻风咏叹」贴合速度增益语义，效果不变
                 "desc": "轻快旋律！全队速度＋40% 3 回合(副本广播，团队技能)",
-                "name": "静默之歌",
+                "name": "轻风咏叹",
             },
 "sk_ying_xiong_xu_shi_shi": {
                 "lv": 24, "mp": 20, "power": 1.5, "kind": "治疗",
@@ -3118,8 +3121,9 @@ _ADD_HIDDEN_SKILLS = {
             },
             "sk_can_xue_zhui_lie": {
                 "lv": 45, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.35},
-                "desc": "被动：残血追猎，目标生命低于 35% 时伤害＋40%",
+                # v110 审计修复：cond_hp 0.35 → 0.30（v109 拍板斩杀线统一 30%）
+                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.30},
+                "desc": "被动：残血追猎，目标生命低于 30% 时伤害＋40%",
                 "name": "残血追猎",
             },
             "sk_an_ying_bu": {

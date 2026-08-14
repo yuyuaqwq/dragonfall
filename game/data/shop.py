@@ -45,6 +45,8 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "white_deer_3": [  # 鹿角铁匠铺（smith 分支）
         "i_stone_upgrade",
+        # v110 审计修复：29 章钥匙发放补全——王陵钥匙（29 章 key_source"白鹿城铁匠铺购买"）
+        "i_key_old_king",
     ],
     "white_deer_4": [  # 白鹿圣堂（heal + 圣物）
         "i_holy_water", "i_holy_charm", "i_scroll_purify",
@@ -89,6 +91,8 @@ SHOP_SUBAREA_ITEMS = {
     # ---------- 晨曦城（王都） ----------
     "dawn_city_3": [  # 圣光大教堂
         "i_bread", "i_holy_water", "i_holy_charm", "i_scroll_purify",
+        # v110 审计修复：29 章钥匙发放补全——圣堂信物（原"任务奖励"无对应任务，改大教堂出售）
+        "i_key_crypt",
     ],
     "dawn_city_5": [  # 炼金工坊（herb 优先 + craft）
         "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion",
@@ -98,6 +102,8 @@ SHOP_SUBAREA_ITEMS = {
     # ---------- 铁盾镇 ----------
     "ironshield_town_3": [  # 坚盾军械铺（smith + 军需补给）
         "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion", "i_stone_upgrade",
+        # v110 审计修复：29 章钥匙发放补全——试炼令（原"兵营任务奖励"无对应任务，改军械铺出售）
+        "i_key_trial",
     ],
     "ironshield_town_2": [  # 镇公所（v104 M09 修复空商店：后院招待所供商旅歇脚，配少量药水+食物）
         "i_treat_s", "i_mana_s", "i_bread", "i_ale",
@@ -112,6 +118,8 @@ SHOP_SUBAREA_ITEMS = {
     # ---------- 月冠王庭 ----------
     "moon_court_3": [  # 月影卫营（M22 补旅店：卫营设客房，精灵果+药水）
         "i_bread", "i_ale", "i_elf_fruit", "i_treat_m", "i_mana_m",
+        # v110 审计修复：29 章钥匙发放补全——月辉钥匙（key_source"月冠王庭月市购买"）
+        "i_key_moon",
     ],
     # ---------- 星歌镇 ----------
     "star_song_2": [  # 星光集市
@@ -176,6 +184,9 @@ SHOP_SUBAREA_ITEMS = {
     # ---------- 无名港 ----------
     "nameless_harbor_2": [  # 港务厅（M22 补旅店：客栈，码头朗姆+炖菜）
         "i_bread", "i_dock_rum", "i_stew", "i_treat_m",
+        # v110 审计修复：29 章钥匙发放补全——海神祷文（材料即钥匙；原"灯塔任务奖励"无对应任务，
+        # 改港务厅出售，弥补该钥匙仅副本层内 POI 可得的死锁）
+        "mat_hai_shen_dao_wen",
     ],
     "nameless_harbor_3": [  # 远洋码头
         "i_scroll_teleport", "i_meat_skewer", "i_stew", "i_dock_rum",
@@ -203,6 +214,8 @@ SHOP_SUBAREA_ITEMS = {
     # ---------- 地底集市 ----------
     "under_market_1": [  # 集市广场
         "i_scroll_escape", "i_stew", "i_meat_skewer",
+        # v110 审计修复：29 章钥匙发放补全——灰矮人通行令（原"矿工区任务奖励"无对应任务，改集市出售）
+        "i_key_gray_dwarf",
     ],
     "under_market_2": [  # 拍卖区
         "i_scroll_teleport", "i_holy_charm", "i_stone_refine",

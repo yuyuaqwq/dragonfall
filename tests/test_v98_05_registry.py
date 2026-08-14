@@ -252,7 +252,8 @@ trigger_ids = {
 hit_covered = set(AFX.HIT_EFFECTS.keys()) - {"purify"} | {"purify", "judgment_chain"}
 check(f"命中词条全覆盖（数据 {len(trigger_ids)} 个）", trigger_ids <= hit_covered)
 # v106.3/v106.4 属性化：block/thorns 已从触发特效改 stat 折算（affix.py _STAT_AFFIX_FX），不再走 HIT/TAKEN 注册表
-taken_ids = {"dmg_reduce", "earth_heart", "tenacity", "counter", "ember_ward", "moro_crown"}
+# v110 审计：tenacity 词条拆分——「坚韧」CC 免疫键改 tenacity_cc（原键被 v106 韧性 stat 词条占用）
+taken_ids = {"dmg_reduce", "earth_heart", "tenacity_cc", "counter", "ember_ward", "moro_crown"}
 check("受击词条全覆盖", taken_ids <= set(AFX.TAKEN_EFFECTS.keys()) | {"dmg_reduce", "earth_heart"})
 turn_ids = {"regen", "dawn_crown", "meditate"}
 check("回合开始词条全覆盖", turn_ids <= set(AFX.TURN_START_EFFECTS.keys()) | {"regen", "dawn_crown"})

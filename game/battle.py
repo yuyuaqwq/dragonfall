@@ -530,7 +530,12 @@ class Battle:
             hpct = float(_p[0]) if _p and _p[0] else 0.0
             mpct = float(_p[1]) if len(_p) > 1 and _p[1] else 0.0
             turns = int(_p[2]) if len(_p) > 2 and _p[2] else 3
-            self.p_hot = {"heal": hpct, "mana": mpct, "turns": turns}
+            # v110 审计修复：hot 重复食用改「不叠加取高」（原后写覆盖——低值食物
+            # 会顶掉高值恢复，与设计「不叠加取高」不符）
+            _cur_hot = self.p_hot or {}
+            self.p_hot = {"heal": max(hpct, float(_cur_hot.get("heal", 0) or 0)),
+                          "mana": max(mpct, float(_cur_hot.get("mana", 0) or 0)),
+                          "turns": max(turns, int(_cur_hot.get("turns", 0) or 0))}
             _desc = []
             if hpct > 0:
                 _desc.append(f"每回合恢复 {int(hpct * 100)}% 生命")
@@ -1222,13 +1227,14 @@ class Battle:
         if not ids:
             # v101.28e/f：无词条时不能提前返回——食物/药水倍率（处决/精准/狂怒/死神）仍要结算
             return self._extra_dmg_mult(hp_ratio, mult, tags)
-        if "execute" in ids and hp_ratio < 0.35:
+        # v110 审计修复：词条处决阈值 0.35 → 0.30（斩杀线统一 30%，v109 拍板）
+        if "execute" in ids and hp_ratio < 0.30:
             mult *= 1.30
             tags.append("💀处决")
-        if "jack_hook" in ids and hp_ratio < 0.35:
+        if "jack_hook" in ids and hp_ratio < 0.30:
             mult *= 1.80
             tags.append("💀处决狂潮")
-        if "ancient_king" in ids and hp_ratio < 0.35:
+        if "ancient_king" in ids and hp_ratio < 0.30:
             mult *= 1.35
             tags.append("👑王权处决")
         if "hunt" in ids and "mark" in self.e_buffs:
@@ -1253,19 +1259,21 @@ class Battle:
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
         """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。
 
-        食物：处决（<35% +30%）/ 精准（+10%）。
-        药水：死神药剂（<35% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
+        食物：处决（<30% +30%）/ 精准（+10%）。
+        药水：死神药剂（<30% +30%）/ 狂怒药剂（下次攻击 +50%，一次性消耗）。
         龙语印记：每层 +2% 伤害（v104 移入此处——此前 _affix_dmg_mult 在无词条时提前
         return 会漏结算该倍率，有词条路径在调用后单独结算，两路径行为不一致）。
         """
         foods = getattr(self, "p_food_effects", []) or []
-        if "execute" in foods and hp_ratio < 0.35:
+        # v110 审计修复：处决阈值 0.35 → 0.30（v109 拍板「斩杀线以 30% 为准」，
+        # 与文案/设计 <30% 及 execute 被动 cond_hp=0.30 统一）
+        if "execute" in foods and hp_ratio < 0.30:
             mult *= 1.30
             tags.append("💀处决")
         if "precise" in foods:
             mult *= 1.10
             tags.append("🎯精准")
-        if self.p_buffs.get("execute_pot") and hp_ratio < 0.35:
+        if self.p_buffs.get("execute_pot") and hp_ratio < 0.30:
             mult *= 1.30
             tags.append("💀处决")
         if self.p_buffs.get("next_atk_up"):
@@ -2149,7 +2157,12 @@ class Battle:
         return logs, dmg + minion_dmg
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
-        """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)"""
+        """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)。
+
+        ⚠️ v110 审计标注（D20）：真实 PVP 中不可达——PVP 战斗 `enemy_act` 恒 False
+        （battle 回合由双方玩家轮流操作，无 AI 回合），本函数仅经 _enemy_turn 的
+        `if enemy_act:` 分支挂接，属僵尸分支（保留以防未来 PVP 挂机 AI 使用）。
+        """
         est = self._enemy_stats()
         pst = self._player_stats(player)
         logs = []

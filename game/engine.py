@@ -789,7 +789,9 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
     # v95.12 #143：消费读档惰性升级暂存的提示（get_player 已静默升级写回，这里补回提示）
     if player.get("_lv_logs"):
         logs = player.pop("_lv_logs")
-    while player["exp"] >= C.exp_to_next(player["level"]):
+    # v110 审计修复：100 级硬顶（07 章"以 100 为终极等级"，成就"达到100级"为里程碑）——
+    # 原实现可无限升级为空成长；达 100 级后经验不再消费
+    while player["level"] < 100 and player["exp"] >= C.exp_to_next(player["level"]):
         player["exp"] -= C.exp_to_next(player["level"])
         player["level"] += 1
         tier = player.get("class_tier", 0)
@@ -824,3 +826,18 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
         if player["level"] == C.EVOLVE_LEVELS[1]:
             logs.append(f"🌟 你已达到 {player['level']} 级，可以转职了！(输入『转职』查看)")
     return logs, player
+
+
+def resolve_drop(name: str):
+    """v110 审计修复：掉落名解析——材料优先，其次 ITEMS（消耗品/副本钥匙 i_key_* 等）。
+
+    战斗/副本掉落结算原先只认 MATERIALS，钥匙类消耗品（29 章入场钥匙）结构上发不出
+    （D11 P0-2：设计 29:505「遗骸搜出龙宫宝珠」在当前架构不可实现）。返回 item ID。
+    """
+    mid = C.resolve("materials", name)
+    if mid in C.MATERIALS:
+        return mid
+    for _k, _v in C.ITEMS.items():
+        if _v.get("name") == name:
+            return _k
+    return None

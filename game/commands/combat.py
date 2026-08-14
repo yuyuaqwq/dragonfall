@@ -1693,17 +1693,25 @@ class CombatCmds(CommandBase):
             picks = random.sample(drop_pool, min(2 if is_hi else 1, len(drop_pool)))
             per_val = mat_value / len(picks)
             for mat_name in picks:
-                mid = C.resolve("materials", mat_name)
-                if mid not in C.MATERIALS:
+                mid = E.resolve_drop(mat_name)
+                if mid is None:
                     continue
-                mprice = C.MATERIALS[mid].get("price", 0)
-                if mprice <= 0:
-                    continue
-                n = max(1, min(30, round(per_val / mprice)))
-                db.add_item(group_id, qq_id, mid,
-                            {"name": C.display("materials", mid), "type": "材料",
-                             "stackable": True, "price": mprice}, n)
-                drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
+                if mid in C.MATERIALS:
+                    mprice = C.MATERIALS[mid].get("price", 0)
+                    if mprice <= 0:
+                        continue
+                    n = max(1, min(99, round(per_val / mprice)))
+                    db.add_item(group_id, qq_id, mid,
+                                {"name": C.display("materials", mid), "type": "材料",
+                                 "stackable": True, "price": mprice}, n)
+                    drop_lines.append(f"🎒 拾取材料：{C.display('materials', mid)} ×{n}（可到城镇商店/铁匠铺出售）")
+                else:
+                    # v110 审计修复：掉落结算支持消耗品（副本钥匙 i_key_* 等，29 章发放链补全）
+                    _it = C.ITEMS.get(mid, {})
+                    db.add_item(group_id, qq_id, mid,
+                                {"name": _it.get("name", mat_name), "type": _it.get("type", "消耗品"),
+                                 "stackable": True, "price": _it.get("price", 0)}, 1)
+                    drop_lines.append(f"🎒 拾取：{_it.get('name', mat_name)}×1（副本入场钥匙）")
         # 经验/金币（v93：只入经验，金币已折算成材料）
         # v106.1 求知属性：战斗经验 ×(1+exp_bonus)（上限 50%），叠加在全部既有加成之后
         try:
@@ -2356,6 +2364,10 @@ class CombatCmds(CommandBase):
         if cur_map.get("type") == C.MAP_TYPE_TOWN or tgt_map.get("type") == C.MAP_TYPE_TOWN:
             yield event.plain_result("🏘️ 这里是安全区，禁止攻击玩家！去野外地图才能 PK。")
             return
+        # v110 审计修复：26 章 §二「发起：野外同地图」——原实现可跨任意地图按名远程袭击
+        if player["cur_map"] != target_player["cur_map"]:
+            yield event.plain_result(f"你与【{target_player['name']}】不在同一张地图，无法袭击！(PVP 需同地图)")
+            return
         # 等级保护：等级差 > 10 不能主动攻击
         if abs(player["level"] - target_player["level"]) > 10:
             yield event.plain_result(f"等级差超过 10 级，无法发起攻击！(你 {player['level']} 级 vs 对方 {target_player['level']} 级)")
@@ -2453,14 +2465,19 @@ class CombatCmds(CommandBase):
         """PVP 结算：败者掉 10% 金币给胜者 + 回城 HP=1；红名/荣誉"""
         loser = db.get_player(group_id, loser_qq)
         winner = db.get_player(group_id, winner_qq)
-        lost = int(loser["gold"] * 0.1)
+        # v110 审计修复：战败掉金对齐 26 章 §3.2 第二档——10% 上限 2000；
+        # 红名者战败额外再掉 10%（上限 2000，惩罚消失不入胜者）
+        lost = min(int(loser["gold"] * 0.1), 2000)
+        extra = 0
+        if self._is_redname(loser_qq):
+            extra = min(int(loser["gold"] * 0.1), 2000)
         db.update_player(group_id, winner_qq, gold=winner["gold"] + lost)
         # v104 P2(M22)：PVP 战败与打怪战败(_handle_defeat)一致——回最近城镇（原固定回橡木镇
         # START_MAP，Lv.60+ 败者也回 Lv.1 新手图），落该城中心广场 subareas[0]；HP=1 惩罚保留
         _town_id = self._nearest_town(loser.get("cur_map", ""))
         _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
         _town_sa = _town_sas[0]["id"] if _town_sas else ""
-        db.update_player(group_id, loser_qq, gold=loser["gold"] - lost, hp=1,
+        db.update_player(group_id, loser_qq, gold=max(0, loser["gold"] - lost - extra), hp=1,
                          cur_map=_town_id, cur_subarea=_town_sa)
         db.init_stats(group_id, loser_qq)
         db.bump_stats(group_id, loser_qq, deaths=1)
@@ -2470,6 +2487,8 @@ class CombatCmds(CommandBase):
         lines = [log_body, "", f"💀 【{loser['name']}】被击败了！"]
         if lost > 0:
             lines.append(f"💰 你夺走了 {lost} 金币！")
+        if extra > 0:
+            lines.append(f"☠️ 红名期间战败：额外损失 {extra} 金币(上限 2000)！")
         _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
         lines.append(f"🏥 对方被送回{_town_name}疗养(HP 1)。")
         if self._is_redname(loser_qq):
@@ -2477,9 +2496,19 @@ class CombatCmds(CommandBase):
             db.set_event_state(f"honor_{winner_qq}", str(honor))
             lines.append(f"⚜️ 你讨伐了红名玩家！荣誉+50(当前 {honor})")
         else:
+            # v110 审计修复：26 章 §3.3「PVP 胜利 +10」补全（原仅击杀红名 +50）
+            honor = self._get_honor(winner_qq) + 10
+            db.set_event_state(f"honor_{winner_qq}", str(honor))
+            lines.append(f"⚜️ PVP 胜利！荣誉+10(当前 {honor})")
             if str(winner_qq) == str(attacker_qq):
                 red_until = self._red_until(winner_qq)
-                new_red = max(red_until, now) + 1800
+                # v110 审计修复：26 章 §3.1——击杀红名 30 分钟基础，红名期间每多击杀
+                # 叠加 10 分钟，上限 120 分钟（原固定 +30 分钟无叠加无上限）
+                if red_until > now:
+                    new_red = min(red_until + 600, now + 7200)
+                    lines.append("☠️ 你击杀了玩家，红名叠加 10 分钟(上限 120 分钟)！(红名期间无法进入安全区)")
+                else:
+                    new_red = now + 1800
+                    lines.append("☠️ 你击杀了玩家，红名 30 分钟！(红名期间无法进入安全区)")
                 db.set_event_state(f"red_{winner_qq}", str(new_red))
-                lines.append("☠️ 你击杀了玩家，红名 30 分钟！(红名期间无法进入安全区)")
         yield event.plain_result("\n".join(lines))

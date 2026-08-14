@@ -637,11 +637,13 @@ class EconomyCmds(CommandBase):
                 egg = C.make_pet_egg("pet_dove")
                 db.add_item(group_id, qq_id, f"petegg_pet_dove", egg)
                 _life_line += f"\n🥚 水面上漂来一枚【{egg['name']}】！『使用 宠物蛋』孵化！"
-        elif fq == "purple":
+            # v110 审计修复：驼马缰绳档位对齐 31 章设计（稀有级 blue 垂钓 5%）——
+            # 原实现错标 purple 档（史诗档出绿色坐骑缰绳，档位与坐骑品质倒挂）
             if random.random() < 0.05:  # 铁港驼马缰绳
                 rein = C.make_mount_rein("mount_camel")
                 db.add_item(group_id, qq_id, f"mountrein_mount_camel", rein)
                 _life_line += f"\n🐫 鱼肚子里卷着一根【{rein['name']}】！『使用 缰绳』驯服！"
+        # v110 审计修复：purple 档原驼马条目已移入 blue 档（档位对齐 31 章设计），此档暂空
         elif fq == "orange":
             if random.random() < 0.08:  # 森林独角兽缰绳
                 rein = C.make_mount_rein("mount_unicorn")

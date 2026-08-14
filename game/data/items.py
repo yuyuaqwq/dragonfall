@@ -1358,6 +1358,7 @@ MATERIALS = {
     "mat_di_wang_gui": {
         "price": 45,
         "name": "帝王鲑",
+        # 垂钓材料品质以 FISH_POOL 品种档为权威（16 章 1.1），非价档——保持 green
         "quality": "green"
     },
     "mat_mang_yu": {
@@ -1503,7 +1504,7 @@ MATERIALS = {
     "mat_ying_guang_lin": {
         "price": 66,
         "name": "荧光鳞",
-        "quality": "blue",
+        "quality": "purple",
         "desc": "荧光鱼群的鳞片，在暗处散发幽光(炼金稀有材料)。"
     },
     "mat_fu_wen_sui_pian": {
@@ -1521,7 +1522,7 @@ MATERIALS = {
     "mat_xing_yun_fu": {
         "price": 50,
         "name": "幸运符",
-        "quality": "green",
+        "quality": "blue",
         "desc": "幸运灵狐赠与的护符，使用后当日运势提升(签到运势 + 1 档)。"
     },
     # ---- v87 隐藏线任务道具（06 章七.5：H3/H4，collect 目标走 resolve("materials")）----

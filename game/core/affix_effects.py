@@ -186,10 +186,11 @@ def _t_reduce(battle, player, ctx, logs):
         logs.append(f"🛡️ 减伤 {dmg_before - ctx['out']} 点")
 
 
-@register(TAKEN_EFFECTS, "tenacity")
+@register(TAKEN_EFFECTS, "tenacity_cc")
 def _t_tenacity(battle, player, ctx, logs):
-    """坚韧：20% 免疫/清除自身负面（减速/降攻）"""
-    if "tenacity" in battle._equip_affix_ids(player) and random.random() < _affix_chance("tenacity", 0.20):
+    """坚韧：20% 免疫/清除自身负面（减速/降攻）——v110 审计修复：注册键随数据层拆分
+    由 tenacity → tenacity_cc（原键被 v106「韧性」stat 词条占用，双机制隐性叠加）"""
+    if "tenacity_cc" in battle._equip_affix_ids(player) and random.random() < _affix_chance("tenacity_cc", 0.20):
         neg = [k for k in battle.p_buffs if k in ("spd_down", "atk_down", "def_down")]
         if neg:
             del battle.p_buffs[random.choice(neg)]

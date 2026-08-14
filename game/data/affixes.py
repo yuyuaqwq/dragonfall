@@ -178,7 +178,10 @@ AFFIXES = {
         "effect": {"dodge": 0.05},
         "desc": "闪避率＋5%",
     },
-    "tenacity": {
+    # v110 审计修复：原键 "tenacity" 与下方 v106「韧性」stat 词条冲突（dict 后键覆盖前键，
+    # 12 件固定词条装备隐性双吃 CC 免疫+韧性 stat）——拆分 key：本词条改名 tenacity_cc
+    #（受击 20% 免疫控制，仅由 affix_effects._t_tenacity_cc 消费）
+    "tenacity_cc": {
         "name": "坚韧", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
         "effect": {"immune_cc": 1},
         "desc": "受击 20% 免疫眩晕/减速",

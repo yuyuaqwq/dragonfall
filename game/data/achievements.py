@@ -93,7 +93,9 @@ ACHIEVEMENTS = [
     {"id": "ach_area10", "cat": "探索", "name": "大陆探险家", "title": "大陆探险家",
      "desc": "到访 10 个不同子区域", "cond": {"type": "visited", "value": 10}, "points": 1},
     {"id": "ach_area_all", "cat": "探索", "name": "环游大陆", "title": "环游大陆",
-     "desc": "到访全部 30 个区域", "cond": {"type": "visited", "value": 30}, "points": 1, "bonus": {"spd": 5}},
+     # v110 审计修复：desc 原写"全部 30 个区域"——实现为"到访≥30 张地图"（visited>=30），
+     # 非地图全集语义，措辞修正避免误导
+     "desc": "到访 30 张地图", "cond": {"type": "visited", "value": 30}, "points": 1, "bonus": {"spd": 5}},
     {"id": "ach_hidden3", "cat": "探索", "name": "秘境猎手", "title": "秘境猎手",
      "desc": "进入 2 个隐藏区域", "cond": {"type": "hidden_area", "value": 2}, "points": 1},
     {"id": "ach_gather10", "cat": "探索", "name": "采集新手", "title": "采集新手",

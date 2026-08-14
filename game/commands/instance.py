@@ -1571,17 +1571,25 @@ class InstanceCmds(CommandBase):
                 picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
                 per_val = mat_value / len(picks)
                 for mat_name in picks:
-                    mid = C.resolve("materials", mat_name)
-                    if mid not in C.MATERIALS:
+                    mid = E.resolve_drop(mat_name)
+                    if mid is None:
                         continue
-                    mprice = C.MATERIALS[mid].get("price", 0)
-                    if mprice <= 0:
-                        continue
-                    n = max(1, min(30, round(per_val / mprice)))
-                    db.add_item(group_id, _m, mid,
-                                {"name": C.display("materials", mid), "type": "材料",
-                                 "stackable": True, "price": mprice}, n)
-                    mats.append(f"{C.display('materials', mid)} ×{n}")
+                    if mid in C.MATERIALS:
+                        mprice = C.MATERIALS[mid].get("price", 0)
+                        if mprice <= 0:
+                            continue
+                        n = max(1, min(99, round(per_val / mprice)))
+                        db.add_item(group_id, _m, mid,
+                                    {"name": C.display("materials", mid), "type": "材料",
+                                     "stackable": True, "price": mprice}, n)
+                        mats.append(f"{C.display('materials', mid)} ×{n}")
+                    else:
+                        # v110 审计修复：副本掉落支持消耗品钥匙（i_key_* 发放链补全）
+                        _it = C.ITEMS.get(mid, {})
+                        db.add_item(group_id, _m, mid,
+                                    {"name": _it.get("name", mat_name), "type": _it.get("type", "消耗品"),
+                                     "stackable": True, "price": _it.get("price", 0)}, 1)
+                        mats.append(f"{_it.get('name', mat_name)} ×1")
             db.init_stats(group_id, _m)
             db.bump_stats(group_id, _m, kills=1, day_kills=1)
             if mdef.get("is_elite"):

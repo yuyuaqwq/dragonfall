@@ -2413,7 +2413,7 @@ class WorldCmds(CommandBase):
             "skills": {
                 "cls_zhan_shi": "铁壁之心", "cls_fa_shi": "元素护盾", "cls_you_xia": "风行步",
                 "cls_mu_shi": "神圣坚韧", "cls_ci_ke": "影袭", "cls_wu_seng": "磐石体",
-                "cls_bard": "静默之歌", "cls_spellblade": "符文护体",
+                "cls_bard": "轻风咏叹", "cls_spellblade": "符文护体",
             },
         },
         # 墓王·静语（隐藏 NPC）：传授亡者之道
