@@ -1475,6 +1475,18 @@ class WorldCmds(CommandBase):
                         f"🛡️ 『{sq['name']}』需要 Lv.{sq['min_level']} 才能接取！（你当前 Lv.{player['level']}）"
                     )
                     return
+                # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族拒绝接取
+                if sq.get("require_race"):
+                    _rr = sq["require_race"]
+                    _cur = player.get("race") or "human"
+                    if _cur != _rr:
+                        _rcn = (C.RACES.get(_rr) or {}).get("name", "对应血脉")
+                        _ccn = (C.RACES.get(_cur) or {}).get("name", "未知血脉")
+                        yield event.plain_result(
+                            f"⛔ 『{sq['name']}』需要{_rcn}的血脉才能接下——"
+                            f"你身为{_ccn}，与这份传承无缘。"
+                        )
+                        return
                 # v97.1 告示委托（board: true）：在告示板所在的子区域接取，不要求发布 NPC 在场
                 if sq.get("board"):
                     prop_ids = C.subarea_props(player["cur_map"], player.get("cur_subarea") or "")
@@ -2396,49 +2408,26 @@ class WorldCmds(CommandBase):
         return notice
 
     # ---------------- v104 P2（M21）teach 空挂修复 ----------------
-
-    _TEACH_SKILL_MAP = {
-        # 龙语者·古尔（龙脊·黄昏）：传授龙语/龙之力
-        "w_dragon_whisper": {
-            "hint": "龙语者·古尔侧耳倾听片刻，缓缓开口：",
-            "skills": {
-                "cls_zhan_shi": "战争践踏", "cls_fa_shi": "元素爆发", "cls_you_xia": "唤兽契约",
-                "cls_mu_shi": "圣光惩击", "cls_ci_ke": "淬毒", "cls_wu_seng": "破晓之拳",
-                "cls_bard": "英雄叙事诗", "cls_spellblade": "魔能涌动",
-            },
-        },
-        # 上古守卫者（龙陨谷）：传授守护之道
-        "w_ancient_guardian": {
-            "hint": "上古守卫者的石瞳亮起微光，低沉的声音在你心中响起：",
-            "skills": {
-                "cls_zhan_shi": "铁壁之心", "cls_fa_shi": "元素护盾", "cls_you_xia": "风行步",
-                "cls_mu_shi": "神圣坚韧", "cls_ci_ke": "影袭", "cls_wu_seng": "磐石体",
-                "cls_bard": "轻风咏叹", "cls_spellblade": "符文护体",
-            },
-        },
-        # 墓王·静语（隐藏 NPC）：传授亡者之道
-        "h_grave_king": {
-            "hint": "墓王·静语睁开灰白的眼眸，亡者的低语在你耳畔回响：",
-            "skills": {
-                "cls_zhan_shi": "无畏冲击", "cls_fa_shi": "冰霜新星", "cls_you_xia": "狩猎终章",
-                "cls_mu_shi": "圣光驱散", "cls_ci_ke": "暗影处刑", "cls_wu_seng": "连招三连",
-                "cls_bard": "哀歌", "cls_spellblade": "魔能爆发",
-            },
-        },
-    }
+    # v112 D6：教习技能表下沉 wild_npcs.py NPC 定义（teach_skills/teach_hint），
+    # 逻辑层只读数据——新增教习 NPC/职业 = 纯数据操作
 
     def _teach_by_npc(self, group_id, qq_id, player, npc_id):
         """v104 P2（M21）teach 空挂修复：无对话树的教习型 NPC（龙语者·古尔/上古守卫者/墓王·静语）
         按职业传授对应技能。参照对话树 tutor_skill 写法：等级门槛 + 金币学费 → 直接学会（不耗技能点）。
         返回提示行列表；NPC 不在映射表时返回空列表（保持原行为）。
+        v112：配置读 NPC 数据（teach_skills/teach_hint），无配置返回空列表。
         """
-        cfg = self._TEACH_SKILL_MAP.get(npc_id)
-        if not cfg:
+        npc = (C.ALL_WILD or {}).get(npc_id, {})
+        if not isinstance(npc, dict):
+            npc = {}
+        cfg_skills = npc.get("teach_skills") or {}
+        hint = npc.get("teach_hint") or ""
+        if not cfg_skills:
             return []
         cid = C.resolve("classes", player.get("class_name", ""))
-        sname = cfg["skills"].get(cid)
+        sname = cfg_skills.get(cid)
         if not sname:
-            return [f"{cfg['hint']}他打量了你片刻，摇了摇头：你这身本事，不在我能指点的路数上。"]
+            return [f"{hint}他打量了你片刻，摇了摇头：你这身本事，不在我能指点的路数上。"]
         info = E.skill_info(player.get("class_name", ""), sname)
         if not info:
             return []
@@ -2446,16 +2435,16 @@ class WorldCmds(CommandBase):
         need_lv = int(info.get("lv", 1))
         cost = max(500, need_lv * 100)
         if player.get("level", 0) < need_lv:
-            return [f"{cfg['hint']}这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。"]
+            return [f"{hint}这套本事要 Lv.{need_lv} 才学得动，你才 Lv.{player.get('level', 1)}，先练练基本功。"]
         if (player.get("gold", 0) or 0) < cost:
-            return [f"{cfg['hint']}想学？拿 {cost} 金币来，一分诚意一分本事。(你现在有 {player.get('gold', 0)} 金币)"]
+            return [f"{hint}想学？拿 {cost} 金币来，一分诚意一分本事。(你现在有 {player.get('gold', 0)} 金币)"]
         learned = list(player.get("learned_skills", []))
         if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
-            return [f"{cfg['hint']}『{sname_cn}』你早已掌握，不必再学。"]
+            return [f"{hint}『{sname_cn}』你早已掌握，不必再学。"]
         db.update_player(group_id, qq_id, gold=(player.get("gold", 0) or 0) - cost,
                          learned_skills=learned + [sname_cn])
         return [
-            f"{cfg['hint']}",
+            f"{hint}",
             f"💰 你献上 {cost} 金币作为谢礼",
             f"✨ 前辈悉心传授，你学会了技能『{sname_cn}』！",
             f"「{info['desc']}」",
@@ -2791,17 +2780,38 @@ class WorldCmds(CommandBase):
         lines.append("👑 已达成最终转职（Lv.90 三转）！" if next_tier >= 3 else "💪 继续历练，下一次转职在 Lv.60/90")
         return lines
 
-    def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
-        """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行
-        v101.23d：动作注册表化——commands/talk_actions.py 的 ACTIONS（与 CONDITIONS
-        注册表对称），加新动作 = register 一个函数，本方法零改动。"""
+    async def _apply_talk_action_async(self, group_id, qq_id, player, npc_id, action) -> list:
+        """异步版对话动作执行（v113：支持 hidden_evolve 等 async 动作）——talk_choice 调用本方法"""
         lines = []
         if not action:
             return lines
+        import inspect
         from .talk_actions import ACTIONS
         for key, fn in ACTIONS.items():
             if action.get(key):
-                lines += fn(self, group_id, qq_id, player, npc_id, action)
+                r = fn(self, group_id, qq_id, player, npc_id, action)
+                if inspect.isawaitable(r):
+                    r = await r
+                lines += r
+        return lines
+
+    def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
+        """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行
+        v101.23d：动作注册表化——commands/talk_actions.py 的 ACTIONS（与 CONDITIONS
+        注册表对称），加新动作 = register 一个函数，本方法零改动。
+        同步版：仅执行同步动作（测试/旧调用用）；对话主链路走 _apply_talk_action_async。
+        v113：hidden_evolve 为异步动作，同步版会跳过它（返回空）——对话内转职走 async 版。"""
+        lines = []
+        if not action:
+            return lines
+        import inspect
+        from .talk_actions import ACTIONS
+        for key, fn in ACTIONS.items():
+            if action.get(key):
+                r = fn(self, group_id, qq_id, player, npc_id, action)
+                if inspect.isawaitable(r):
+                    continue  # 异步动作（hidden_evolve）同步版跳过
+                lines += r
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
@@ -2915,14 +2925,14 @@ class WorldCmds(CommandBase):
                 need = int(check.get("count", 1))
                 if have >= need:
                     nxt = opt.get("next", "__end__")
-                    notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
+                    notices = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
                     notices.append(f"✅ {npc['name']}满意地点了点头。")
                 else:
                     nxt = opt.get("fail_next", opt.get("next", "__end__"))
                     notices = [f"{npc['name']}摇头：还差 {need-have} 份{check.get('item', '材料')}，备齐了再来。"]
             else:
                 nxt = opt.get("next", "__end__")
-                notices = self._apply_talk_action(group_id, qq_id, player, npc_id, action)
+                notices = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
             # v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready，修复主线卡死）
             notices += self._talk_quest_progress(group_id, qq_id, npc_id)
             # v105 P3：对话动作链落地后补成就判定（拜师/转职/任务交付等动作改 DB 后立即解锁——
@@ -2977,6 +2987,17 @@ class WorldCmds(CommandBase):
                     f"🛡️ {npc.get('name', '对方')}打量了你一眼：这活得有 Lv.{sq['min_level']}+ 的本事，你再去练练吧。"
                 )
                 continue
+            # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族导师直接拒绝
+            if sq.get("require_race"):
+                _rr = sq["require_race"]
+                _cur = player.get("race") or "human"
+                if _cur != _rr:
+                    _rcn = (C.RACES.get(_rr) or {}).get("name", "对应血脉")
+                    lines.append(
+                        f"⛔ {npc.get('name', '对方')}凝视着你，缓缓摇头：『这份传承只属于{_rcn}的血脉。"
+                        f"你体内流淌的{(C.RACES.get(_cur) or {}).get('name', '血脉')}之血，与它无缘。』"
+                    )
+                    continue
             side[sq["id"]] = {"status": "active", "progress": {}}
             changed = True
             lines.append(f"📜 【支线】『{sq['name']}』{sq['desc']}")
@@ -3179,8 +3200,8 @@ class WorldCmds(CommandBase):
                 unlocks.append(uc)
                 db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
                 lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
-                # v107 通用提示：按职业等级需求（魔剑士 60 / 吟游诗人 30 / v107 隐藏 40）
-                _need = 60 if uc == "cls_spellblade" else (30 if uc == "cls_bard" else 40)
+                # v112：档位门槛统一读 CLASSES["tier_levels"]（缺省 T1=40），删除 60/30 特例
+                _need = (C.CLASSES.get(uc, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90})[1]
                 _cname = C.CLASSES.get(uc, {}).get("name", uc)
                 lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
         # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接

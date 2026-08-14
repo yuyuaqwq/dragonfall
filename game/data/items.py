@@ -2261,3 +2261,32 @@ ITEMS.update({
     "i_dragonbone_elixir": {"name": "龙骨药剂", "price": 400, "effect": "buff_atk_big_def",
                             "desc": "战斗中使用，攻击 + 40%、防御 + 45%(3 回合)，上古鱼骨熬成的猛药"},
 })
+
+# ================= v112 隐藏技能书（P1：横向扩展，跨流派稀有技） =================
+# 设计文档：design/new_world/09_职业体系.md §6
+# 字段：learn_skill=学会的技能名；require_class=源流限定（隐藏线 cls_id，可空=全职业）
+# 『使用 技能书』→ 校验源流与等级 → 技能进 learned_skills（复用学习管线）→ 消耗道具
+# 铁律：未来新特殊技能统一走技能书，不再开新职业线
+ITEMS.update({
+    "i_tome_long_xi_zhi_nu": {"name": "龙息之怒技能书", "price": 5000, "type": "消耗品",
+                              "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi",
+                              "desc": "记载着龙息之怒的古卷——战士一脉皆可参悟，习得真伤绝技"},
+    "i_tome_xu_kong_bao_po": {"name": "虚空爆破技能书", "price": 6000, "type": "消耗品",
+                              "learn_skill": "虚空爆破", "require_class": "cls_fa_shi",
+                              "desc": "记录着虚空回响的残卷——法师一脉皆可参悟，吸蓝爆破"},
+    "i_tome_du_bao": {"name": "毒爆术技能书", "price": 4500, "type": "消耗品",
+                      "learn_skill": "毒爆术", "require_class": "cls_you_xia",
+                      "desc": "浸着草汁的旧册——游侠一脉皆可参悟，毒层引爆"},
+    "i_tome_ku_lou_hai": {"name": "骷髅海技能书", "price": 5000, "type": "消耗品",
+                          "learn_skill": "骷髅海", "require_class": "cls_hymn",
+                          "desc": "缝着骨片的祷文卷——暗影一脉皆可参悟，不选暗影流派也能召唤骷髅海"},
+    "i_tome_an_mian_qu": {"name": "安眠曲技能书", "price": 4500, "type": "消耗品",
+                          "learn_skill": "安眠曲", "require_class": "cls_mu_shi",
+                          "desc": "记着古老摇篮曲的乐谱——牧师一脉皆可参悟，歌声使人安眠"},
+    "i_tome_shou_ge": {"name": "收割技能书", "price": 5000, "type": "消耗品",
+                       "learn_skill": "收割", "require_class": "cls_ci_ke",
+                       "desc": "染着暗红墨迹的薄册——刺客一脉皆可参悟，斩杀残血"},
+    "i_tome_qi_bao": {"name": "气爆技能书", "price": 5000, "type": "消耗品",
+                      "learn_skill": "气爆", "require_class": "cls_wu_sheng",
+                      "desc": "拳谱残页——苦修一脉皆可参悟，引爆气力"},
+})

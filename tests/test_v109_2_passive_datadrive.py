@@ -67,7 +67,7 @@ async def main():
     print("\n— 双修精通（cond dual_stat）—")
     phys_skill = {"name": "斩击测试", "kind": "物理", "power": 1.0, "lv": 40, "cd": 1}
     random.seed(7)
-    p3 = mk_player(cls="魔剑士", skills=["双修精通"])
+    p3 = mk_player(cls="龙裔誓约", skills=["双修精通"])
     b3 = BT.Battle("怪物", mk_enemy(def_=0), {}, p3)
     st3 = b3._player_stats(p3)
     base3 = int(st3["atk"] * 1.0)
@@ -88,7 +88,7 @@ async def main():
           p4["hp"] == 200 + int(real_max * 0.02), f"hp={p4['hp']}")
     check("日志含『气力调和』", any("气力调和" in x for x in logs4), str(logs4))
 
-    # 5. 奥术直觉：回合开始 arcane+1
+    # 5. 奥术直觉：回合开始 arcane+1（v112.4：属法师守线秘法族）
     print("\n— 奥术直觉（proc arcane_regen）—")
     p5 = mk_player(cls="法师", skills=["奥术直觉"])
     b5 = BT.Battle("怪物", mk_enemy(), {}, p5)
@@ -96,13 +96,13 @@ async def main():
     check("arcane 层 = 1", b5.mech_stacks.get("arcane") == 1, str(b5.mech_stacks))
     check("日志含『充能』", any("充能" in x for x in logs5), str(logs5))
 
-    # 6. 符文刻印：回合开始 spellblade+1
-    print("\n— 符文刻印（stat spellblade_regen）—")
-    p6 = mk_player(cls="魔剑士", skills=["符文刻印"])
+    # 6. 符文刻印（stat spellblade_regen）已随 v113 魔剑士流派删除——应无 spellblade 回合充能
+    print("\n— 魔剑士被动已删（符文刻印 spellblade_regen 移除）—")
+    p6 = mk_player(cls="龙裔誓约", skills=[])  # no 符文刻印
     b6 = BT.Battle("怪物", mk_enemy(), {}, p6)
     logs6 = b6._turn_start(p6)
-    check("spellblade 层 = 1", b6.mech_stacks.get("spellblade") == 1, str(b6.mech_stacks))
-    check("日志含『魔能』", any("魔能" in x for x in logs6), str(logs6))
+    check("无魔剑士被动不再充能 spellblade", b6.mech_stacks.get("spellblade") is None, str(b6.mech_stacks))
+    check("无『魔能』日志", not any("魔能" in x for x in logs6), str(logs6))
 
     print(f"\n===== 结果: {passed} passed, {failed} failed =====")
     return failed == 0

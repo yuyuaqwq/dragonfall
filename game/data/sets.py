@@ -532,7 +532,7 @@ SETS = {
             "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
-        "name": "铁手"
+        "name": "石拳"
     },
     "set_hu_xiao": {
         "quality": "purple",
@@ -545,7 +545,7 @@ SETS = {
             "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
-        "name": "虎啸"
+        "name": "壁槌"
     },
     "set_pan_shi": {
         "quality": "purple",
@@ -560,7 +560,7 @@ SETS = {
         },
         "name": "磐石"
     },
-    "set_jin_shen": {
+    "set_anvil_guard": {
         "quality": "orange",
         "icon": "🥋",
         "bonus_2": {
@@ -571,7 +571,7 @@ SETS = {
             "effect": "lifesteal_set", "chance": 0.3,
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
-        "name": "金身"
+        "name": "铁砧拳套"
     }
 }
 
@@ -802,21 +802,21 @@ CLASS_SET_THEMES = {
     "cls_wu_seng": {
         "stages": [
             "行者",
-            "铁手",
-            "虎啸",
+            "石拳",
+            "壁槌",
             "磐石",
-            "金身"
+            "磐岩"
         ],
         "weapons": [
             "行者拳套",
-            "铁手拳套",
-            "虎啸拳套",
+            "石拳拳套",
+            "壁槌拳套",
             "磐石拳套",
-            "金身拳套"
+            "磐岩拳套"
         ],
         "parts": [
-            "头带",
-            "僧袍",
+            "束发带",
+            "武斗袍",
             "护腿",
             "布靴"
         ],

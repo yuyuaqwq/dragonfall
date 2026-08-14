@@ -419,12 +419,13 @@ SUBAREAS = {
             "id": "white_deer_4",
             "name": "白鹿圣堂",
             "icon": "🏘️",
-            "desc": "圣堂的穹顶画着白鹿衔枝的壁画，烛火在圣像前长明。牧师在圣坛前低声诵念，为来者抚平伤痛。",
+            "desc": "圣堂的穹顶画着白鹿衔枝的壁画，烛火在圣像前长明。牧师在圣坛前低声诵念，为来者抚平伤痛。回廊尽头，时计贤者对着古老日晷沉思。",
             "type": "城镇",
             "lv": 5,
             "npcs": [
                 "npc_priest",
                 'npc_deer_nun',
+                "npc_chrono_warden",
             ],
             "monsters": [],
             "elite": None,
@@ -2397,7 +2398,7 @@ SUBAREAS = {
             "desc": "旧王陵入口：石门半掩在荒草间，门前的石狮已风化得面目模糊。王陵深处的黑暗仿佛在等待什么。",
             "type": "副本",
             "lv": 35,
-            "npcs": ["npc_grave_watcher"],
+            "npcs": [],
             "monsters": [
                 [
                     "m_skeleton",
@@ -2466,10 +2467,10 @@ SUBAREAS = {
             "id": "border_castle_1",
             "name": "堡外荒野",
             "icon": "🌲",
-            "desc": "边境堡外的荒野风沙弥漫，枯草伏地。军需官在营帐前清点辎重，远处传来兽人劫掠者的号角。",
+            "desc": "边境堡外的荒野风沙弥漫，枯草伏地。军需官在营帐前清点辎重，远处传来兽人劫掠者的号角。守墓人·枯骨在乱葬岗边坐着，听风里的亡魂说话。",
             "type": "野外",
             "lv": 40,
-            "npcs": ["npc_border_quartermaster", "npc_wusheng_monk"],
+            "npcs": ["npc_border_quartermaster", "npc_grave_watcher"],
             "monsters": [
                 [
                     "m_orc_raider",
@@ -2697,7 +2698,7 @@ SUBAREAS = {
             "desc": "圣堂地窖入口：大圣堂深处的暗门，石阶盘旋向下。烛台的余烬还冒着轻烟，空气里混着蜡与尘土的味道。",
             "type": "副本",
             "lv": 42,
-            "npcs": ["npc_arcanist_warden", "npc_blood_priest"],
+            "npcs": ["npc_chrono_warden", "npc_blood_priest"],
             "monsters": [
                 [
                     "m_shadow_priest",
@@ -4713,10 +4714,10 @@ SUBAREAS = {
             "id": "anvil_fort_gate",
             "name": "铁砧堡闸门",
             "icon": "🏰",
-            "desc": "铁砧堡的矮人闸门是整块精铁浇铸，门闩粗如树桩，凿着符文。",
+            "desc": "铁砧堡的矮人闸门是整块精铁浇铸，门闩粗如树桩，凿着符文。武僧·铁山在门边扎着马步，见你走近，咧嘴一笑。",
             "type": "城镇出口",
             "lv": 1,
-            "npcs": ["npc_anvil_fort_gate_guard", 'npc_anvil_mule'],
+            "npcs": ["npc_anvil_fort_gate_guard", 'npc_anvil_mule', "npc_wusheng_monk"],
             "monsters": [],
             "elite": None,
             "boss": None,
@@ -6793,12 +6794,13 @@ SUBAREAS = {
             "id": "jade_port_1",
             "name": "港口广场",
             "icon": "🏘️",
-            "desc": "翡翠港的广场堆着木箱与绳缆，卸货工的号子声此起彼伏。港务官拿着账本，清点着到港的船只。",
+            "desc": "翡翠港的广场堆着木箱与绳缆，卸货工的号子声此起彼伏。港务官拿着账本，清点着到港的船只。半身人商贩在阴影里兜售「新到的货」——没人看清货是从哪条船上下来的。",
             "type": "城镇",
             "lv": 35,
             "npcs": [
                 "npc_jade_docker",
                 'npc_jade_sailor',
+                "npc_shadow_master",
             ],            "monsters": [],
             "elite": None,
             "boss": None,

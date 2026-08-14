@@ -109,6 +109,7 @@ NPCS = {
         'map': "ironharbor",
         'icon': "📖",
         'gender': "女",
+        # v112.3：诗人回归牧师攻线（不再有独立职业与解锁任务），莎拉恢复纯 lore 角色
         'funcs': ["lore"],
         'lore': '我唱过英雄王艾德里克的故事，也唱过另一版：三百年前封印蚀夜的，不是国王的军队，是一个没人记住名字的守护者。教会付钱让我别唱第二版——我收下了，但还在唱。',
         'dialogue': "想听英雄王艾德里克的故事吗？还是……想听点教会不愿意讲的故事？",
@@ -610,10 +611,10 @@ NPCS = {
         'title': "失落图书馆的守护者之魂",
         'map': "lost_library",
         'icon': "⚔️",
-        'funcs': ["quest", "lore"],
-        'lore': '这把剑的主人曾是教会的首席魔剑士，他发现了真相，然后名字就被抹去了。剑记得一切——拿起它，就是接住一个被掩埋的誓言。',
-        'quest': "s_spellblade_trial",
-        'dialogue': "尘封三百年的剑与书……终于有人集齐了信物。来吧，握住这把剑，让魔能重新流转。",
+        # v113：魔剑士流派已舍弃，此处仅存背景 lore
+        'funcs': ["lore"],
+        'lore': '这把剑的主人曾是教会的首席魔剑士，他发现了真相，然后名字就被抹去了。剑记得一切——它记得的，已经与今人的道路无关了。',
+        'dialogue': "尘封三百年的剑与书……魔剑已成往事。后人啊，去走你自己的路吧。",
     },
 
     # v87.7 城镇间新图 NPC（13.4.6 通路自然化）
@@ -1829,26 +1830,30 @@ NPCS = {
         'dialogue': "风翼城在天上，规矩也在天上：不敬天空者，云桥自会断。",
     },
 
-    # ================= v107 隐藏职业导师 11（2026-08-13 鱼鱼拍板，解锁任务链 giver） =================
+    # ================= v112 隐藏线导师 6（原 v107 11 导师合并，解锁任务链 giver） =================
     # 均带 quest func + quest 字段 → 对话可接解锁支线；试炼目标怪为所在图已有怪。
-    "npc_arcanist_warden": {
-        'name': "秘典守卫·艾瑟拉",
-        'title': "圣堂地窖秘典守卫",
-        'map': "secret_crypt",
-        'icon': "🔮",
-        'funcs': ["quest", "lore"],
-        'quest': "s_arcanist_trial",
-        'lore': '教会把奥术典籍埋进地窖，以为埋得够深，回响就传不上来。可三百年来，地窖深处每晚都有低语——那不是鬼，是还没死透的知识。',
-        'dialogue': "你听得见吗？地窖深处，奥术的回响……不是每个人都有资格听的。",
+    # 被合并线导师（虚空守望者/老猎手/圣骑士长/血契修士/驯兽大师）已随线并入删除。
+    "npc_chrono_warden": {
+        # v112.5：时咒法师导师（自原奥秘线导师改造）
+        # v113 血脉氛围：人类血脉导师入驻人类主城白鹿城·白鹿圣堂（圣堂地窖试炼仍在地窖深处）
+        'name': "时计贤者·艾瑟拉",
+        'title': "白鹿圣堂时计贤者",
+        'map': "white_deer",
+        'icon': "⏳",
+        'funcs': ["quest", "lore", "dialogue"],
+        'quest': "s_chronomancer_trial",
+        'lore': '晨曦大圣堂地窖深处那座古老日晷，从不在正午指向太阳——它每走一步，都在纠正某段被篡改的时间。三百年来它只错了一次，而那一次，错得刚刚好。',
+        'dialogue': "你听见了吗？日晷的低语……不是每个人都有资格让时间慢下来的。",
     },
     "npc_shadow_master": {
+        # v113 血脉氛围：半身人血脉导师入驻翡翠港（海港商镇，半身人行商聚集地）
         'name': "影刃宗师·夜枭",
-        'title': "月影林暗影导师",
-        'map': "moonshadow_wood",
+        'title': "翡翠港暗影导师",
+        'map': "jade_port",
         'icon': "🗡️",
-        'funcs': ["quest", "lore"],
+        'funcs': ["quest", "lore", "dialogue"],
         'quest': "s_shadow_blade_trial",
-        'lore': '影豹从不出现在有月光的空地。它们只在自己选中的影子里现身——就像真正的刺客，只出现在你转身之后。',
+        'lore': '翡翠港的影豹从不出现在有月光的空地。它们只在自己选中的影子里现身——就像真正的刺客，只出现在你转身之后。',
         'dialogue': "想学影子里的功夫？先追上影豹再说。追不上，就趁早回头。",
     },
     "npc_dragon_veteran": {
@@ -1856,92 +1861,44 @@ NPCS = {
         'title': "暮岭古道守陵人",
         'map': "dusk_ridge_road",
         'icon': "🐉",
-        'funcs': ["quest", "lore"],
+        'funcs': ["quest", "lore", "dialogue"],
         'quest': "s_dragon_warrior_trial",
         'lore': '暮岭古道曾是屠龙者的凯旋路。龙血渗进石板缝里，三百年不干——老辈人说，那不是血，是龙的余怒。',
         'dialogue': "龙血不是谁都能受的。小子，想试试自己的斤两？",
     },
-    "npc_void_watcher": {
-        'name': "虚空守望者·渊歌",
-        'title': "风暴海峡守望者",
-        'map': "storm_strait",
-        'icon': "🌑",
-        'funcs': ["quest", "lore"],
-        'quest': "s_void_walker_trial",
-        'lore': '风暴海峡底下有一条裂缝，深得连海都填不满。老水手说那是深渊的嘴——它吸气的时候，海面就起风暴。',
-        'dialogue': "风暴里有声音。不是风声，是深渊在问：你敢不敢看它一眼？",
-    },
-    "npc_astrologer": {
+        "npc_astrologer": {
         'name': "观星台主·星澜",
         'title': "星语湖观星台主",
         'map': "starlake",
         'icon': "⭐",
-        'funcs': ["quest", "lore"],
+        'funcs': ["quest", "lore", "dialogue"],
         'quest': "s_astrologer_trial",
         'lore': '星语湖的湖面映着同一片天。老观星人说，湖里的星星比天上的多——多出来的那些，是溺水者的命运，还没找到主人。',
         'dialogue': "湖面脏了，星星就照不进来。你愿意替我把湖面擦干净吗？",
     },
-    "npc_jungle_hunter": {
-        'name': "老猎手·林啸",
-        'title': "翠谷猎手",
-        'map': "emerald_valley",
-        'icon': "🌿",
-        'funcs': ["quest", "lore"],
-        'quest': "s_jungle_hunter_trial",
-        'lore': '翠谷的仙灵本来是守林子的。毒雾来的时候，它们最先遭殃——被毒透的仙灵，反过来开始毒林子。猎人的规矩：该除的害，一箭不少。',
-        'dialogue': "林子病了。病根是那些被毒腐的仙灵——你箭法如何？",
-    },
-    "npc_templar_knight": {
-        'name': "圣骑士长·罗兰",
-        'title': "圣光试炼场骑士长",
-        'map': "holy_trial",
-        'icon': "🛡️",
-        'funcs': ["quest", "lore"],
-        'quest': "s_templar_trial",
-        'lore': '试炼场的石碑上刻着历代圣骑士的名字。罗兰说，碑上每一道剑痕都是一次抉择——盾举起来，人就站住了。',
-        'dialogue': "圣光不考验力量，考验的是：你敢不敢把盾立在别人前面。",
-    },
-    "npc_wusheng_monk": {
+            "npc_wusheng_monk": {
+        # v113 血脉氛围：矮人血脉导师入驻矮人主城铁砧要塞·铁砧堡闸门
         'name': "武僧·铁山",
-        'title': "边境堡武僧",
-        'map': "border_castle",
+        'title': "铁砧要塞武僧",
+        'map': "anvil_fort",
         'icon': "🥊",
-        'funcs': ["quest", "lore"],
+        'funcs': ["quest", "lore", "dialogue"],
         'quest': "s_wu_sheng_trial",
         'lore': '铁山的拳谱只有三页：一页写拳，一页写步，一页写心。他说后两页是同一页——步子乱了，心就乱了。',
-        'dialogue': "拳不是打给别人看的。想学真拳？先去堡外打三只兽人试试手。",
+        'dialogue': "拳不是打给别人看的。想学真拳？先去外面打三只兽人试试手。",
     },
-    "npc_blood_priest": {
-        'name': "血契修士·卡恩",
-        'title': "圣堂地窖血契修士",
-        'map': "secret_crypt",
-        'icon': "🧛",
-        'funcs': ["quest", "lore"],
-        'quest': "s_blood_mage_trial",
-        'lore': '血祭之书被血祭祭司偷走的那晚，卡恩失去了一只手。他说那不是偷，是明抢——书认得血，而血认得主人。',
-        'dialogue': "血是生命，也是代价。不懂代价的人，不配用血换力量。",
-    },
-    "npc_grave_watcher": {
+        "npc_grave_watcher": {
+        # v113 血脉氛围：兽人血脉导师入驻边境堡（兽人战场前线）
         'name': "守墓人·枯骨",
-        'title': "旧王陵守墓人",
-        'map': "old_king_tomb",
+        'title': "边境堡守墓人",
+        'map': "border_castle",
         'icon': "💀",
-        'funcs': ["quest", "lore"],
+        'funcs': ["quest", "lore", "dialogue"],
         'quest': "s_necromancer_trial",
-        'lore': '枯骨在旧王陵守了四十年墓。他说王陵里的骨头自己会动，是因为有人忘了怎么送别——亡者放不下，才会爬起来。',
+        'lore': '枯骨在边境堡外的乱葬岗守了四十年墓。他说战场上的骨头自己会动，是因为有人忘了怎么送别——亡者放不下，才会爬起来。',
         'dialogue': "你能听见亡者的低语吗？听不见也没关系——打完这场，你就听得见了。",
     },
-    "npc_beast_tamer": {
-        'name': "驯兽大师·狼嚎",
-        'title': "银月林海驯兽大师",
-        'map': "silverwood",
-        'icon': "🐺",
-        'funcs': ["quest", "lore"],
-        'quest': "s_beast_king_trial",
-        'lore': '狼嚎年轻时被狼群养过三年。他说狼不认拳头，认心——你心里有没有兽性，月狼一闻就知道。',
-        'dialogue': "野兽认的不是拳头，是心。想赢得月狼的认可？去林海里走一遭。",
-    },
-}
+    }
 
 
 # ===== v95.29 城镇活人计划（酱油 NPC）=====

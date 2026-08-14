@@ -6,9 +6,9 @@
 
 输出：每个副本 Boss 在 蓝装(主线可达) / 蓝装+9 / 紫装+9 三档位下的战斗轮数，
 以及 Boss:普通怪 倍数。改数值（怪物模板/装备公式/强化表/hp_mult）后必跑，
-对照 docs/NUMERIC_DESIGN.md 的舒适区（15-30 轮、Boss 4-8 倍普通怪）。
+对照数值设计舒适区（15-30 轮、Boss 4-8 倍普通怪）。
 
-数值链路（详见 docs/NUMERIC_DESIGN.md）：
+数值链路：
   monster_stats(lv, role) = base+growth×(lv-1) × boss系数(1+lv×0.06) × hp_stage_mult
   Boss HP(副本) = build_monster × [hp_mult + 0.65×(人数-min_players)]
   伤害 = atk²/(atk+def)，技能轮换 ×1.5，队伍人数 = min_players
@@ -84,7 +84,7 @@ def main():
 
     print()
     print(f"异常副本: {len(bad)}/{len(C.INSTANCES)}（目标 0，舒适区 = 蓝装 30-60 轮内 / 蓝+9 ≤40 轮）")
-    print("校准锚点（docs/NUMERIC_DESIGN.md）：Boss 战 15-30 轮 = 舒适；Boss:普通怪 4-8 倍 = 合理")
+    print("校准锚点：Boss 战 15-30 轮 = 舒适；Boss:普通怪 4-8 倍 = 合理")
     return 1 if bad else 0
 
 

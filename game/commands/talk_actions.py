@@ -10,6 +10,9 @@ register 一个函数（~5 行），_apply_talk_action 零改动，纯内容扩�
 
 注意：注册顺序 = 执行顺序（dict 保序），与 v101.23d 之前的 if 链顺序一致；
 一个选项可带多个动作键（如 set_flag + quest_take），全部执行。
+
+v113：新增异步动作支持（hidden_evolve 等需要 await async generator 的动作）——
+异步动作函数用 async def 声明，world._apply_talk_action 会检测并 await。
 """
 from .. import content as C  # noqa: F401
 from .. import db
@@ -220,7 +223,8 @@ def action_tutor_skill(world, group_id, qq_id, player, npc_id, action):
         if my_tier < need_tier or not my_path:
             return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！(Lv.30/60/90 可转职)"]
         branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
-        idx = 0 if my_path == 1 else 1
+        # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
+        idx = max(0, int(my_path or 0) - 1)
         my_branch = branches[idx] if idx < len(branches) else ""
         if my_branch != bname:
             return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"]
@@ -247,3 +251,38 @@ def action_evolve_class(world, group_id, qq_id, player, npc_id, action):
     next_tier = int(ev.get("tier", 1))
     path = int(ev.get("path", 1))
     return world._do_evolve_via_npc(group_id, qq_id, player, next_tier, path)
+
+
+@register("hidden_evolve")
+async def action_hidden_evolve(world, group_id, qq_id, player, npc_id, action):
+    # v113 血脉传承：隐藏线导师对话『接受传承』——复用 _evolve_hidden_generic（异步 generator）
+    # 种族校验由对话树 need（race_is）前置 + _evolve_hidden_generic 内 src_race 双保险
+    # tier 语义：>0 显式指定档位；0/缺省 = 按等级修为继承（40→T1 / 60→T2 / 90→T3）
+    ev = action["hidden_evolve"]
+    cls_id = ev.get("cls", "")
+    tier = int(ev.get("tier", 0) or 0)
+    path = int(ev.get("path", 1))
+    if tier <= 0:
+        # 修为继承：与『转职 别名』同源——当前阶 +1 起，逐档看等级门槛
+        _tlv = world._hidden_tier_levels(cls_id)
+        _cur = player.get("class_tier", 0)
+        _tgt = _cur + 1
+        while _tgt <= 3 and player["level"] >= _tlv.get(_tgt, 99999):
+            _tgt += 1
+        _tgt -= 1
+        if _tgt <= _cur:
+            _tgt = _cur + 1  # 下一阶都不够 → 交给 generic 报等级不足
+        tier = _tgt
+
+    class _Sink:
+        """收集 _evolve_hidden_generic 的 plain_result 文本（event 只用于输出）"""
+        def __init__(self):
+            self.lines = []
+        def plain_result(self, text):
+            self.lines.append(text)
+            return text
+
+    sink = _Sink()
+    async for _ in world._evolve_hidden_generic(sink, group_id, qq_id, player, cls_id, tier, path):
+        pass
+    return sink.lines

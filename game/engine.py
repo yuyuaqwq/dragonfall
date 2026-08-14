@@ -209,11 +209,15 @@ _PASSIVE_STAT_APPLY = {
     "lifesteal_phys": ("lifesteal_phys_add", "add", False),
     "lifesteal_magi": ("lifesteal_magi_add", "add", False),
     # v107 隐藏职业专属属性被动支持（面板结算 + 战斗内消费）
-    # v109.2 清理：heal_power/shield_power/abyss_res 无对应被动技能（skills.py 零使用），
+    # v109.2 清理：shield_power/abyss_res 无对应被动技能（skills.py 零使用），
     # 保留 elem_res/luck/summon_power（龙魂/星辰之力/万兽之力，P0-2 已实装）
     "elem_res": ("elem_res_add", "add", False),
     "luck": ("luck_add", "add", False),
     "summon_power": ("summon_power_add", "add", False),
+    # v113.1 修复：时咒线依赖的 heal_power（牧师一转觉醒被动「圣光祝福」）与
+    # dodge（游侠一转觉醒被动「风之加护」）此前无映射 → 觉醒被动完全无效。
+    "heal_power": ("heal_power_add", "add", False),
+    "dodge": ("dodge_add", "add", False),
 }
 
 
@@ -235,9 +239,11 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
              "lifesteal_add": 0.0, "crit_dmg_add": 0.0, "block_add": 0.0,  # v106.3 吸血/暴伤/格挡被动
              "thorns_add": 0.0, "phys_reduce_add": 0.0, "magic_reduce_add": 0.0,
              "lifesteal_phys_add": 0.0, "lifesteal_magi_add": 0.0,
-             # v110.4 X2 P1-2：heal_power/shield_power/abyss_res 无对应被动技能(skills.py 零使用)，
-             # 恒 0 死键删除——battle.py:916-918 的读 pb.get(...,0.0) 恒 0 死循环由 X1 处理
-             "elem_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0}  # v106.4 + v107 专属属性被动
+             # v110.4 X2 P1-2：shield_power/abyss_res 无对应被动技能(skills.py 零使用)，
+             # 恒 0 死键删除——battle.py:916-918 的读 pb.get(...,0.0) 恒 0 死循环由 X1 处理。
+             # v113.1：恢复 heal_power_add/dodge_add（圣光祝福/风之加护 觉醒被动消费）
+             "elem_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0,
+             "heal_power_add": 0.0, "dodge_add": 0.0}  # v106.4 + v107 专属属性被动 + v113.1 觉醒被动
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -291,9 +297,14 @@ def apply_passive_to_stats(st: dict, class_name: str, learned_skills: list | Non
                      ("lifesteal_magi_add", "lifesteal_magi")):
         if pb.get(_pk, 0.0):
             st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
-    # v107 隐藏职业专属属性被动（龙魂/星辰之力/万兽之力——heal_power/shield_power/abyss_res 无技能，已删）
+    # v107 隐藏职业专属属性被动（龙魂/星辰之力/万兽之力；shield_power/abyss_res 无技能，已删）
     for _pk, _pv in (("elem_res_add", "elem_res"), ("luck_add", "luck"),
                      ("summon_power_add", "summon_power")):
+        if pb.get(_pk, 0.0):
+            st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
+    # v113.1 觉醒被动：heal_power（圣光祝福 /+）与 dodge（风之加护 /+）加法并入，
+    # 同 cap 权威（heal_power 0.5，dodge 0.4 见 core/constants.py PCT_CAPS）
+    for _pk, _pv in (("heal_power_add", "heal_power"), ("dodge_add", "dodge")):
         if pb.get(_pk, 0.0):
             st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
     return st

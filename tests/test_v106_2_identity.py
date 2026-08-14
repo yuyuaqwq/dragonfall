@@ -6,7 +6,7 @@
 2. 补偿被动：破甲精通/穿甲箭/魔力贯穿 战斗内生效（乘算）
 3. 穿透药水：穿甲药剂/破法药剂 +15% 乘算合成
 4. 种族天赋调整：人类勤学 exp_bonus 5%、半身人幸运儿 luck 10%（引擎结算支持新属性）
-5. 治疗强度 heal_power：牧师 10%/吟游诗人 5%、词条/套装、_skill_heal 消费
+5. 治疗强度 heal_power：牧师 10%（v112.3：吟游诗人回归牧师攻线，无独立职业）、词条/套装、_skill_heal 消费
 6. 护盾强度 shield_power：战士 5%、词条/套装、_add_shield 消费
 """
 import sys, os, random
@@ -34,8 +34,12 @@ async def main():
         return b.get("pene_phys", 0), b.get("pene_magi", 0)
     check("刺客 10% 物穿（唯一物理特色）", base_pene("cls_ci_ke") == (0.10, 0))
     check("法师 10% 法穿（唯一法系特色）", base_pene("cls_fa_shi") == (0, 0.10))
-    for cid in ("cls_zhan_shi", "cls_you_xia", "cls_mu_shi", "cls_wu_seng", "cls_spellblade", "cls_bard", "cls_novice"):
+    # v112.5：隐藏线中时咒(法穿15%)/暮影(物穿15%)为穿透职业，其余线无天生穿透
+    for cid in ("cls_zhan_shi", "cls_you_xia", "cls_mu_shi", "cls_wu_seng",
+                "cls_dragon_oath", "cls_wild_hunter", "cls_hymn", "cls_wu_sheng", "cls_novice"):
         check(f"{CLASSES[cid]['name']} 无天生穿透", base_pene(cid) == (0, 0))
+    check("时咒法师 15% 法穿（隐藏线特色）", base_pene("cls_chronomancer") == (0, 0.15))
+    check("暮影行者 15% 物穿（隐藏线特色）", base_pene("cls_shadow_blade") == (0.15, 0))
 
     # ============ 2. 补偿被动 ============
     print("【2. 补偿被动】")
@@ -50,8 +54,12 @@ async def main():
           str(b._player_stats(p).get("pene_phys")))
     b, p = btl("cls_you_xia", ["穿甲箭"])
     check("穿甲箭 → 物穿 5%", abs(b._player_stats(p).get("pene_phys", 0) - 0.05) < 1e-6)
-    b, p = btl("cls_spellblade", ["魔力贯穿"])
-    check("魔力贯穿 → 法穿 5%", abs(b._player_stats(p).get("pene_magi", 0) - 0.05) < 1e-6)
+    # v112.5：魔力贯穿为时咒线级基础，与线级基础法穿 15% 乘算
+    b, p = btl("cls_chronomancer", ["魔力贯穿"])
+    expect_arc = 1 - 0.85 * 0.95
+    check(f"魔力贯穿+基础法穿 → 乘算 {expect_arc:.4f}",
+          abs(b._player_stats(p).get("pene_magi", 0) - expect_arc) < 1e-6,
+          str(b._player_stats(p).get("pene_magi")))
     b, p = btl("cls_zhan_shi", [])
     check("无被动 → 物穿 0", abs(b._player_stats(p).get("pene_phys", 0) - 0.0) < 1e-6)
     # 被动+词条乘算：刺客 10% + 词条 5% + 无被动
@@ -59,8 +67,8 @@ async def main():
     check("战士技能树含 破甲精通", "破甲精通" in names)
     names2 = {s.get("name") for s in PLAYER_SKILLS["cls_you_xia"]["skills"].values()}
     check("游侠技能树含 穿甲箭", "穿甲箭" in names2)
-    names3 = {s.get("name") for s in PLAYER_SKILLS["cls_spellblade"]["skills"].values()}
-    check("魔剑士技能树含 魔力贯穿", "魔力贯穿" in names3)
+    names3 = {s.get("name") for s in PLAYER_SKILLS["cls_chronomancer"]["skills"].values()}
+    check("时咒线级基础含 魔力贯穿", "魔力贯穿" in names3)
 
     # ============ 3. 穿透药水 ============
     print("【3. 穿透药水】")
@@ -95,7 +103,7 @@ async def main():
     # ============ 5. 治疗强度 ============
     print("【5. 治疗强度】")
     check("牧师 base heal_power 10%", abs(CLASSES["cls_mu_shi"]["base"].get("heal_power", 0) - 0.10) < 1e-9)
-    check("吟游诗人 base heal_power 5%", abs(CLASSES["cls_bard"]["base"].get("heal_power", 0) - 0.05) < 1e-9)
+    check("无独立诗人职业（v112.3 回归牧师攻线）", "cls_bard" not in CLASSES)
     s = stat_affix_stats(["heal_power"], "armor", 30)
     check("圣愈词条 +5%", abs(s.get("heal_power", 0) - 0.05) < 1e-6)
     from game.data.sets import SETS

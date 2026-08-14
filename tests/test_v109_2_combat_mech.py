@@ -87,11 +87,11 @@ async def main():
           dealt_magi < dealt_pierce * 0.5, f"{dealt_magi} vs {dealt_pierce}")
 
     print("\n===== 2. 安眠曲改睡眠（P1-3）=====\n")
-    info_sleep = EG.skill_info("吟游诗人", "安眠曲")
+    info_sleep = EG.skill_info("cls_mu_shi", "安眠曲")  # v112.3：安眠曲归入牧师攻线 T1 吟游诗人分支
     check("安眠曲 effect=sleep", info_sleep and info_sleep.get("effect") == "sleep",
           str(info_sleep))
     random.seed(5)
-    p2 = mk_player(cls="吟游诗人", skills=["安眠曲"])
+    p2 = mk_player(cls="cls_mu_shi", skills=["安眠曲"])
     b2 = BT.Battle("怪物", mk_enemy(), {}, p2)
     logs2 = b2._player_skill(b2._player_stats(p2), "安眠曲", info_sleep, p2)
     check("施放后 e_buffs['sleep']=2（普通怪）", b2.e_buffs.get("sleep") == 2, str(b2.e_buffs))
@@ -110,12 +110,12 @@ async def main():
     b2._player_attack(st2, p2)
     check("普攻打醒睡眠（受击解除）", "sleep" not in b2.e_buffs, str(b2.e_buffs))
     # 世界 Boss 只睡 1 回合
-    p2b = mk_player(cls="吟游诗人", skills=["安眠曲"])
+    p2b = mk_player(cls="cls_mu_shi", skills=["安眠曲"])
     b2b = BT.Battle("worldboss", mk_enemy(), {}, p2b)
     b2b._player_skill(b2b._player_stats(p2b), "安眠曲", info_sleep, p2b)
     check("世界 Boss 只睡 1 回合", b2b.e_buffs.get("sleep") == 1, str(b2b.e_buffs))
     # dot 不打醒：灼烧结算后 sleep 保留
-    p2c = mk_player(cls="吟游诗人", skills=["安眠曲"])
+    p2c = mk_player(cls="cls_mu_shi", skills=["安眠曲"])
     b2c = BT.Battle("怪物", mk_enemy(), {}, p2c)
     b2c._player_skill(b2c._player_stats(p2c), "安眠曲", info_sleep, p2c)
     b2c.mech_stacks["burn"] = 1
@@ -123,13 +123,13 @@ async def main():
     check("灼烧 dot 不打醒睡眠", "sleep" in b2c.e_buffs, str(b2c.e_buffs))
 
     print("\n===== 3. 火之亲和（龙血灼烧 +20%）=====\n")
-    info_hz = EG.skill_info("龙血战士", "火之亲和")
+    info_hz = EG.skill_info("龙裔誓约", "火之亲和")
     check("火之亲和技能存在", info_hz is not None, str(info_hz))
     check("火之亲和 passive=burn_amp×1.2",
           info_hz and info_hz.get("passive") == {"proc": "burn_amp", "mult": 1.2},
           str(info_hz and info_hz.get("passive")))
     random.seed(7)
-    p3 = mk_player(cls="龙血战士", skills=["火之亲和"])
+    p3 = mk_player(cls="龙裔誓约", skills=["火之亲和"])
     b3 = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3)
     b3.mech_stacks["burn"] = 1
     logs3 = b3._turn_start(p3)
@@ -138,7 +138,7 @@ async def main():
     check(f"灼烧伤害 = max_hp×3%×1.2（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
     check("日志含『火之亲和』", any("火之亲和" in x for x in logs3), str(logs3))
     random.seed(7)
-    p3b = mk_player(cls="龙血战士")
+    p3b = mk_player(cls="龙裔誓约")
     b3b = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3b)
     b3b.mech_stacks["burn"] = 1
     b3b._turn_start(p3b)

@@ -118,8 +118,9 @@ async def main():
     check("守卫标记已清", st.get("secret_guard_pending") is False, "")
 
     # 开宝箱（确定性：不依赖随机——直接验证任意结果都在合法集）
+    # 合法集（instance.py _instance_secret_chest）：星灵蝶蛋 5% / 图纸残页 45% / 稀有符文 30% / 专属材料 20%
     out = await cmd(m, "instance_investigate", "g1", "i1", "调查 宝箱")
-    check("宝箱打开", ("图纸残页" in out) or ("符文" in out) or ("材料" in out), out[:300])
+    check("宝箱打开", ("图纸残页" in out) or ("符文" in out) or ("材料" in out) or ("星灵蝶蛋" in out), out[:300])
     st = db.get_battle("g1", "i1")["state"]
     check("宝箱已清", st.get("secret_chest") is None, "")
 

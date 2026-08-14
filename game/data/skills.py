@@ -1,91 +1,6 @@
 # -*- coding: utf-8 -*-
 """《剑与魔法》数据层 - skills.py(阶段六：基础技能 v2.0，12 章)"""
 PLAYER_SKILLS = {
-    "cls_bard": {
-        "name": "吟游诗人",
-        "skills": {
-"sk_ji_xing_tan_chang": {
-                "lv": 1, "mp": 3, "power": 1.0, "kind": "物理",
-                "mech": "poison", "mech_val": 1,
-                "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒",
-                "name": "即兴弹唱",
-            },
-    "sk_qin_xian": {
-                "lv": 2,
-                "mp": 3,
-                "power": 1.1,
-                "kind": "物理",
-                "res_gain": 1,
-                "mech": "poison",
-                "mech_chance": 0.1,
-                "desc": "轻快拨弦，110% 物理伤害，10% 附加中毒。吟游诗人的热身曲。",
-                "name": "轻快拨弦",
-            },
-"sk_zhan_ge": {
-                "lv": 3, "mp": 10, "power": 0, "kind": "增益",
-                "effect": "atk_up", "team": "atk_all", "cd": 2,
-                "desc": "激昂战歌！全队攻＋30% 3 回合(副本广播，团队技能)",
-                "name": "战歌",
-            },
-"sk_an_mian_qu": {
-                "lv": 6, "mp": 10, "power": 0, "kind": "增益",
-                "effect": "sleep", "cd": 3,
-                "desc": "安眠曲！使敌人陷入沉睡 2 回合（受击解除，对首领只持续 1 回合）",
-                "name": "安眠曲",
-            },
-"sk_gu_wu": {
-                "lv": 9, "mp": 10, "power": 0, "kind": "增益",
-                "effect": "crit_up", "team": "crit_all", "cd": 2,
-                "desc": "鼓舞士气！全队暴击＋20% 3 回合(副本广播，团队技能)",
-                "name": "鼓舞",
-            },
-"sk_ai_ge": {
-                "lv": 14, "mp": 15, "power": 1.6, "kind": "魔法",
-                "cc": "silence", "cd": 3,
-                "desc": "哀歌！160% 魔法伤害，50% 概率沉默目标 2 回合",
-                "name": "哀歌",
-            },
-"sk_qing_feng_yong_tan": {
-                "lv": 18, "mp": 15, "power": 0, "kind": "增益",
-                "effect": "spd_up", "team": "spd_all", "cd": 2,
-                # v110 审计修复（世界观命名）：原名「静默之歌」名不副实（实为全队加速，
-                # 与 v104 记录的"设计沉默"意图长期不符，安眠曲已改睡眠而此技能未同步）——
-                # 改名「轻风咏叹」贴合速度增益语义，效果不变
-                "desc": "轻快旋律！全队速度＋40% 3 回合(副本广播，团队技能)",
-                "name": "轻风咏叹",
-            },
-"sk_ying_xiong_xu_shi_shi": {
-                "lv": 24, "mp": 20, "power": 1.5, "kind": "治疗",
-                "cd": 2, "team": "heal_all",
-                "desc": "英雄叙事诗！治疗全队 150% 生命(副本广播，团队技能)",
-                "name": "英雄叙事诗",
-            },
-"sk_ao_shu_yong_tan_diao": {
-                "lv": 30, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "matk_up", "team": "matk_all", "cd": 2,
-                "desc": "奥术咏叹调！魔攻＋50% 3 回合，组队时全队魔攻强化(副本广播，团队技能)",
-                "name": "奥术咏叹调",
-            },
-"sk_li_ming_song_ge": {
-                "lv": 40, "mp": 35, "power": 0, "kind": "增益",
-                "effect": "atk_up_strong", "team": "atk_all", "cd": 5,
-                "desc": "终章·黎明颂歌！全队攻＋75% 3 回合(副本广播，团队技能)",
-                "name": "终章·黎明颂歌",
-            },
-"sk_ban_zou": {
-                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "crit", "add": 0.08},
-                "desc": "属性被动：伴奏之魂，暴击＋8%",
-                "name": "伴奏",
-            },
-"sk_kuai_ban": {
-                "lv": 60, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "cdr", "add": 0.08},
-                "desc": "属性被动：快板节奏，冷却缩减＋8%（v106.1）",
-                "name": "快板节奏",
-            },
-        }
-    },
     "cls_zhan_shi": {
         "name": "战士",
         "skills": {
@@ -223,6 +138,16 @@ PLAYER_SKILLS = {
                 "passive": {"proc": "dmg_taken", "reduce": 0.05},
                 "desc": "触发被动：受到伤害时减伤5%",
                 "name": "铁壁之心",
+            },
+    # v112 一转觉醒被动（Lv.30）：基础职业与隐藏线线级被动对齐的仪式感节点
+    "sk_p_gang_tie_bi_lei": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "def", "cond": "hp_high_70", "mult": 0.10},
+                "desc": "属性被动：生命高于70%时防御＋10%(一转觉醒·钢铁壁垒)",
+                "name": "钢铁壁垒",
             },
     "sk_p_po_jia_ben_neng": {
                 "lv": 38,
@@ -385,6 +310,15 @@ PLAYER_SKILLS = {
                 "desc": "触发被动：冰系技能附带减速",
                 "name": "寒霜亲和",
             },
+    "sk_p_mo_li_peng_pai": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "matk", "cond": "hp_high_70", "mult": 0.08},
+                "desc": "属性被动：生命高于70%时魔攻＋8%(一转觉醒·魔力澎湃)",
+                "name": "魔力澎湃",
+            },
     "sk_p_mo_li_yong_dong": {
                 "lv": 38,
                 "mp": 0,
@@ -454,10 +388,12 @@ PLAYER_SKILLS = {
                 "power": 1.5,
                 "kind": "物理",
                 "res_cost": {"energy": 40},
+                # v113.1 数值：林语印记带消耗也带命中回能（res_gain 指向本职业 energy）
+                "res_gain": {"energy": 10},
                 "mech": "mark",
                 "mech_val": 1,
-                "desc": "唤兽契约！150% 暗影伤害 + 猎杀标记，消耗 40 精力(双生协战)",
-                "name": "唤兽契约",
+                "desc": "林语印记！150% 自然伤害 + 猎杀标记，消耗 40 精力，命中回复 10 点精力(自然印记·标记核心)",
+                "name": "林语印记",
             },
     "sk_ying_yan_suo_ding": {
                 "lv": 3,
@@ -543,6 +479,15 @@ PLAYER_SKILLS = {
                 "passive": {"stat": "spd", "mult": 0.08},
                 "desc": "属性被动：速度＋8%",
                 "name": "风行步",
+            },
+    "sk_p_feng_zhi_jia_hu": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "dodge", "mult": 0.05},
+                "desc": "属性被动：闪避率＋5%(一转觉醒·风之加护)",
+                "name": "风之加护",
             },
     "sk_p_ying_yan": {
                 "lv": 38,
@@ -711,6 +656,15 @@ PLAYER_SKILLS = {
                 "desc": "触发被动：受击后20%概率回复5%生命",
                 "name": "神圣坚韧",
             },
+    "sk_p_sheng_guang_zhu_fu": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "heal_power", "add": 0.05},
+                "desc": "属性被动：治疗强度＋5%(一转觉醒·圣光祝福)",
+                "name": "圣光祝福",
+            },
     "sk_p_xin_yang_jian_ding": {
                 "lv": 38,
                 "mp": 0,
@@ -868,6 +822,15 @@ PLAYER_SKILLS = {
                 "passive": {"stat": "spd", "mult": 0.08},
                 "desc": "属性被动：速度＋8%(疾影术)",
                 "name": "疾影术",
+            },
+    "sk_p_ying_ren_jing_tong": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "crit_dmg", "add": 0.10},
+                "desc": "属性被动：暴击伤害＋10%(一转觉醒·影刃精通)",
+                "name": "影刃精通",
             },
     "sk_p_ju_du_qin_he": {
                 "lv": 38,
@@ -1030,6 +993,15 @@ PLAYER_SKILLS = {
                 "desc": "触发被动：受击减伤5%，受击时气＋1",
                 "name": "磐石体",
             },
+    "sk_p_qi_shou_shi": {
+                "lv": 30,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                "passive": {"stat": "atk", "cond": "battle_start", "mult": 0.08},
+                "desc": "属性被动：战斗开始时攻击＋8%(一转觉醒·起手式)",
+                "name": "起手式",
+            },
     "sk_p_qi_xi_tiao_he": {
                 "lv": 38,
                 "mp": 0,
@@ -1051,102 +1023,6 @@ PLAYER_SKILLS = {
         },
     },
     # ================= v87 隐藏职业：魔剑士（09 章九.2，Lv.60 解锁）=================
-    "cls_spellblade": {
-        "name": "魔剑士",
-        "skills": {
-    "sk_mo_neng_zhan": {
-                "lv": 60,
-                "mp": 20,
-                "power": 1.3,
-                "kind": "物理",
-                "magic_add": 0.3,
-                "mech": "spellblade",
-                "mech_val": 1,
-                "desc": "魔能斩！130% 物理＋30% 魔法混合伤害，命中叠 1 层魔能",
-                "name": "魔能斩",
-            },
-    "sk_fu_wen_hu_ti": {
-                "lv": 64,
-                "mp": 25,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up",
-                "cd": 3,
-                "cond": {"type": "player_mech_stacks", "mech": "spellblade", "stacks": 3, "mult": 1.0, "label": "魔能护体"},
-                "desc": "符文护体！攻＋30% 3 回合(魔能≥3 时触发魔能护体)",
-                "name": "符文护体",
-            },
-    "sk_mo_li_yong_dong": {
-                "lv": 68,
-                "mp": 20,
-                "power": 1.0,
-                "kind": "物理",
-                "mech": "spellblade_surge",
-                "mech_val": 0,
-                "desc": "魔能涌动！消耗 2 层魔能，下次攻击额外＋80% 魔法伤害",
-                "name": "魔能涌动",
-            },
-    "sk_jian_ren_feng_bao": {
-                "lv": 72,
-                "mp": 35,
-                "power": 1.2,
-                "kind": "物理",
-                "magic_add": 0.4,
-                "mech": "spellblade_storm",
-                "mech_val": 0,
-                "desc": "剑刃风暴！消耗 3 层魔能：全体 120% 物理＋40% 魔法",
-                "name": "剑刃风暴",
-            },
-    "sk_mo_neng_bao_fa": {
-                "lv": 76,
-                "mp": 40,
-                "power": 2.0,
-                "kind": "物理",
-                "mech": "spellblade_burst",
-                "mech_val": 0,
-                "desc": "魔能爆发！消耗全部魔能(≥4)：每层＋25% 伤害，最高 200%",
-                "name": "魔能爆发",
-            },
-    "sk_fu_wen_ke_yin": {
-                "lv": 80,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "spellblade_regen", "mult": 1},
-                "desc": "被动：符文刻印，每回合自动获得 1 层魔能(上限 5 层)",
-                "name": "符文刻印",
-            },
-    "sk_shuang_xiu_jing_tong": {
-                "lv": 85,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "atk", "cond": "dual_stat", "mult": 0.05},
-                "desc": "被动：双修精通，力量/智力同时增加时额外＋5% 攻击",
-                "name": "双修精通",
-            },
-    "sk_mo_...guan": {
-                "lv": 88,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "pene_magi", "add": 0.05},
-                "desc": "属性被动：魔力贯穿，法穿＋5%（无视魔法防御，v106.2 职业特色渠道）",
-                "name": "魔力贯穿",
-            },
-    "sk_xing_yun_zhan": {
-                "lv": 90,
-                "mp": 60,
-                "power": 4.0,
-                "kind": "物理",
-                "magic_add": 0.4,
-                "mech": "spellblade_meteor",
-                "mech_val": 0,
-                "desc": "奥义·星陨斩！消耗 5 层魔能：400% 混合伤害＋20% 概率眩晕",
-                "name": "星陨斩",
-            },
-        }
-    },
 }
 
 BRANCH_SKILLS = {
@@ -1217,6 +1093,20 @@ BRANCH_SKILLS = {
                         },
                         "desc": "终结技，240% 斩击，消耗 5 怒气。自身 HP<30% 时伤害＋40%(背水一战)",
                         "name": "狂怒爆发"
+                    }
+,
+                    # v113：真伤机制下放——龙息之怒(原龙裔线 T3)降为战士攻线 Lv.55 进阶技
+                    "龙息之怒":                     {
+                        "lv": 55,
+                        "mp": 30,
+                        "power": 1.0,
+                        "kind": "真伤",
+                        "mech": "burn",
+                        "mech_val": 2,
+                        "cd": 4,
+                        "res_gain": 2,
+                        "desc": "龙息之怒！100% 真伤(无视全部防御)＋2 层灼烧，怒气＋2(屠龙之技·下放自龙裔线)",
+                        "name": "龙息之怒"
                     }
 ,
                 },
@@ -1547,79 +1437,55 @@ BRANCH_SKILLS = {
                         "name": "元素引爆"
                     }
 ,
-                },
-                "秘法法师": {
-                    "奥术弹幕":                     {
-                        "lv": 32,
-                        "power": 1.1,
-                        "kind": "魔法",
-                        "multi": 3,
-                        "mech": "arcane",
-                        "mech_val": 1,
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 2,
-                            "mult": 1.15,
-                            "label": "蓄势待发"
-                        },
-                        "mp": 15,
-                        "desc": "奥术 110%×3，奥术充能＋1。充能≥2 层时伤害＋15%(蓄能强化)",
-                        "cd": 2,
-                        "name": "奥术弹幕"
-                    }
-,
-                    "奥术直觉":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "arcane_regen",
-                            "mult": 1
-                        },
-                        "desc": "触发被动：每回合开始奥术充能＋1(自动蓄能)",
-                        "name": "奥术直觉"
-                    }
-,
-                    "奥术爆破":                     {
-                        "lv": 45,
-                        "power": 1.5,
-                        "kind": "魔法",
-                        "multi": 2,
-                        "mech": "arcane",
-                        "mech_val": 2,
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 4,
-                            "mult": 1.25,
-                            "label": "共鸣输出"
-                        },
-                        "mp": 20,
-                        "desc": "奥术 150%×2，奥术充能＋2。充能≥4 层时伤害＋25%(共鸣输出)",
-                        "cd": 2,
-                        "name": "奥术爆破"
-                    }
-,
-                    "奥术洪流":                     {
+                    # v113：吸蓝机制下放——虚空爆破(原时咒线虚空流)降为基础法师攻线 Lv.55 进阶技
+                    "虚空爆破":                     {
                         "lv": 55,
-                        "power": 2.5,
+                        "mp": 40,
+                        "power": 1.8,
                         "kind": "魔法",
-                        "mech": "arcane_burst",
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 5,
-                            "mult": 1.4,
-                            "label": "共鸣巅峰"
-                        },
-                        "mp": 30,
-                        "desc": "奥术 250%，消耗全部充能每层＋15%。充能≥5 层时伤害＋40%(爆发窗口)",
-                        "cd": 3,
-                        "name": "奥术洪流"
+                        "mp_steal": 0.20,
+                        "cd": 4,
+                        "desc": "虚空爆破！180% 魔法伤害，回复 20% 伤害值的魔力(吸蓝爆破·下放自时咒线)",
+                        "name": "虚空爆破"
                     }
 ,
+                },
+                # v112.5：奥秘守线 = 奥术师（印记系）+ 秘法族（充能系）合并体，自原隐藏奥秘线降级
+                "奥秘法师": {
+                    "奥术弹幕": {"lv": 32, "mp": 15, "power": 1.1, "kind": "魔法",
+                                 "multi": 3, "mech": "arcane", "mech_val": 1,
+                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.15, "label": "蓄势待发"},
+                                 "cd": 2,
+                                 "desc": "奥术 110%×3，奥术充能＋1。充能≥2 层时伤害＋15%(蓄能强化)",
+                                 "name": "奥术弹幕"},
+                    "奥术直觉": {"lv": 38, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"proc": "arcane_regen", "mult": 1},
+                                 "desc": "触发被动：每回合开始奥术充能＋1(自动蓄能)",
+                                 "name": "奥术直觉"},
+                    "奥术飞弹": {"lv": 40, "mp": 15, "power": 1.0, "kind": "魔法",
+                                 "mech": "arcane", "mech_val": 1, "cd": 1,
+                                 "desc": "奥术飞弹！100% 魔法伤害，命中叠 1 层奥术印记(可爆发)",
+                                 "name": "奥术飞弹"},
+                    "奥术爆破": {"lv": 45, "mp": 20, "power": 1.5, "kind": "魔法",
+                                 "multi": 2, "mech": "arcane", "mech_val": 2,
+                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 4, "mult": 1.25, "label": "共鸣输出"},
+                                 "cd": 2,
+                                 "desc": "奥术 150%×2，奥术充能＋2。充能≥4 层时伤害＋25%(共鸣输出)",
+                                 "name": "奥术爆破"},
+                    "奥术脉冲": {"lv": 48, "mp": 25, "power": 1.6, "kind": "魔法",
+                                 "mech": "arcane_burst", "mech_val": 0, "cd": 3,
+                                 "desc": "奥术脉冲！160% 魔法伤害，引爆全部奥术印记(每层追加伤害)",
+                                 "name": "奥术脉冲"},
+                    "秘法护盾": {"lv": 55, "mp": 20, "power": 0, "kind": "增益",
+                                 "effect": "shield_all", "cd": 4,
+                                 "desc": "秘法护盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
+                                 "name": "秘法护盾"},
+                    "奥术洪流": {"lv": 55, "mp": 30, "power": 2.5, "kind": "魔法",
+                                 "mech": "arcane_burst",
+                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4, "label": "共鸣巅峰"},
+                                 "cd": 3,
+                                 "desc": "奥术 250%，消耗全部充能每层＋15%。充能≥5 层时伤害＋40%(爆发窗口)",
+                                 "name": "奥术洪流"},
                 },
             },
             2: {
@@ -1660,50 +1526,24 @@ BRANCH_SKILLS = {
                     }
 ,
                 },
-                "秘法术士": {
-                    "奥术之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "arcane_dmg",
-                            "mult": 0.1
-                        },
-                        "desc": "二转被动：奥术技能伤害＋10%(奥术强化)",
-                        "name": "奥术之心"
-                    }
-,
-                    "法术反制":                     {
-                        "lv": 62,
-                        "power": 0.6,
-                        "kind": "魔法",
-                        "mech": "arcane",
-                        "mech_val": 2,
-                        "cc": "silence",
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 2,
-                            "mult": 1.2,
-                            "label": "反制强化"
-                        },
-                        "mp": 15,
-                        "desc": "60% 反制，沉默敌人 + 奥术充能＋2。充能≥2 层时伤害＋20%(控制向)",
-                        "name": "法术反制"
-                    }
-,
-                    "法力护盾":                     {
-                        "lv": 68,
-                        "mp": 30,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "def_up",
-                        "cd": 3,
-                        "desc": "防御强化(法力护盾，秘法法师不脆)",
-                        "name": "法力护盾"
-                    }
-,
+                "奥秘术士": {
+                    "奥术核心": {"lv": 60, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"proc": "arcane_dmg", "mult": 0.15},
+                                 "desc": "被动：奥术核心，奥术系伤害＋15%",
+                                 "name": "奥术核心"},
+                    "奥术之心": {"lv": 60, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"proc": "arcane_dmg", "mult": 0.1},
+                                 "desc": "二转被动：奥术技能伤害＋10%(奥术强化，承自秘法守线)",
+                                 "name": "奥术之心"},
+                    "法术反制": {"lv": 62, "mp": 15, "power": 0.6, "kind": "魔法",
+                                 "mech": "arcane", "mech_val": 2, "cc": "silence",
+                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.2, "label": "反制强化"},
+                                 "desc": "60% 反制，沉默敌人 + 奥术充能＋2。充能≥2 层时伤害＋20%(控制向)",
+                                 "name": "法术反制"},
+                    "法力护盾": {"lv": 68, "mp": 30, "power": 0, "kind": "增益",
+                                 "effect": "def_up", "cd": 3,
+                                 "desc": "防御强化(法力护盾，承自秘法守线)",
+                                 "name": "法力护盾"},
                 },
             },
             3: {
@@ -1751,55 +1591,26 @@ BRANCH_SKILLS = {
                     }
 ,
                 },
-                "秘法贤者": {
-                    "大奥术":                     {
-                        "lv": 92,
-                        "power": 2.0,
-                        "kind": "魔法",
-                        "multi": 2,
-                        "mech": "arcane",
-                        "mech_val": 2,
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 6,
-                            "mult": 1.3,
-                            "label": "大奥术回响"
-                        },
-                        "mp": 30,
-                        "desc": "奥术 200%×2 全体，奥术充能＋2。充能≥6 层时伤害＋30%(群体共鸣)",
-                        "cd": 3,
-                        "name": "大奥术"
-                    }
-,
-                    "奥术主宰":                     {
-                        "lv": 98,
-                        "mp": 120,
-                        "power": 4.5,
-                        "kind": "魔法",
-                        "cond": {
-                            "type": "player_mech_stacks",
-                            "mech": "arcane",
-                            "stacks": 5,
-                            "mult": 1.5,
-                            "label": "奥术主宰"
-                        },
-                        "cd": 5,
-                        "desc": "终极技，奥术 450% 单体。充能≥5 层时伤害＋50%(终极奥术爆发)",
-                        "name": "奥术主宰"
-                    }
-,
-                    "奥术领域":                     {
-                        "lv": 90,
-                        "mp": 100,
-                        "power": 4.0,
-                        "kind": "魔法",
-                        "team": "shield_all",
-                        "cd": 6,
-                        "desc": "三转奥义，奥术 400% 全体 + 全队护盾(终极领域)",
-                        "name": "奥术领域"
-                    }
-,
+                "奥秘贤者": {
+                    "奥术爆发": {"lv": 90, "mp": 40, "power": 2.2, "kind": "魔法",
+                                 "mech": "arcane_burst", "mech_val": 0, "cd": 4,
+                                 "desc": "奥术爆发！220% 魔法伤害，引爆全部奥术印记",
+                                 "name": "奥术爆发"},
+                    "奥术领域": {"lv": 90, "mp": 100, "power": 4.0, "kind": "魔法",
+                                 "team": "shield_all", "cd": 6,
+                                 "desc": "三转奥义，奥术 400% 全体 + 全队护盾(终极领域)",
+                                 "name": "奥术领域"},
+                    "大奥术": {"lv": 92, "mp": 30, "power": 2.0, "kind": "魔法",
+                               "multi": 2, "mech": "arcane", "mech_val": 2,
+                               "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 6, "mult": 1.3, "label": "大奥术回响"},
+                               "cd": 3,
+                               "desc": "奥术 200%×2 全体，奥术充能＋2。充能≥6 层时伤害＋30%(群体共鸣)",
+                               "name": "大奥术"},
+                    "奥术主宰": {"lv": 98, "mp": 120, "power": 4.5, "kind": "魔法",
+                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.5, "label": "奥术主宰"},
+                                 "cd": 5,
+                                 "desc": "终极技，奥术 450% 单体。充能≥5 层时伤害＋50%(终极奥术爆发)",
+                                 "name": "奥术主宰"},
                 },
             },
         },
@@ -1808,7 +1619,8 @@ BRANCH_SKILLS = {
         "name": "游侠",
         "branches": {
             1: {
-                "猎魔人": {
+                # v113（鱼鱼拍板）：攻线改"林语者"自然系——狩猎印记保留 + 自然毒藤（下放）+ 植物召唤（下放）
+                "林语者": {
                     "追猎":                     {
                         "lv": 32,
                         "mp": 0,
@@ -1837,39 +1649,47 @@ BRANCH_SKILLS = {
                         "name": "追猎者"
                     }
 ,
-                    "三连射":                     {
+                    "藤蔓缠绕":                     {
                         "lv": 45,
-                        "mp": 0,
-                        "power": 1.1,
+                        "mp": 18,
+                        "power": 0.8,
+                        # v113 修复：原 kind=魔法以游侠极低 matk 结算（伤害 2-3 点近废技），
+                        # 改物理以 atk 结算（battle_mech 仍叠 poison/poison_burst，机制不受影响）
                         "kind": "物理",
-                        "multi": 3,
-                        "cond": {
-                            "type": "player_res_stacks",
-                            "res_key": "energy",
-                            "stacks": 50,
-                            "mult": 1.15,
-                            "label": "猎手专注"
-                        },
+                        "mech": "poison",
+                        "mech_val": 2,
+                        "cd": 2,
                         "res_cost": {"energy": 25},
-                        "desc": "110%×3 三连射。精力>50 时伤害＋15%(满精力精准)，消耗 25 精力",
-                        "name": "三连射"
+                        "desc": "藤蔓缠绕！自然之力缠绕，80% 物理伤害，叠 2 层毒(自然毒藤·下放自隐藏线自然流)",
+                        "name": "藤蔓缠绕"
                     }
 ,
-                    "夺命一击":                     {
+                    "召唤藤蔓守卫":                     {
+                        "lv": 48,
+                        "mp": 20,
+                        "power": 0,
+                        "kind": "增益",
+                        "summon": "vine_guard",
+                        "cd": 3,
+                        "res_cost": {"energy": 30},
+                        "desc": "召唤藤蔓守卫！召唤植物伙伴加入战斗(数量流·可叠 2，自动攻击＋挡刀)",
+                        "name": "召唤藤蔓守卫"
+                    }
+,
+                    "毒爆术":                     {
                         "lv": 55,
-                        "mp": 0,
-                        "power": 3.0,
+                        "mp": 25,
+                        "power": 0.6,
+                        # v113 修复：原 kind=魔法以游侠极低 matk 结算近废技，改物理以 atk 结算。
+                        # 毒爆引爆段(poison_burst)伤害由 battle_mech 按 matk 魔法段结算，
+                        # 已由战斗层修复为按 atk，无需在本文件改动。
                         "kind": "物理",
-                        "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.3,
-                            "mult": 1.5,
-                            "label": "绝杀"
-                        },
+                        "mech": "poison_burst",
+                        "mech_val": 1,
+                        "cd": 3,
                         "res_cost": {"energy": 35},
-                        "desc": "300% 夺命一击，目标 HP<30% 时伤害＋50%(处决残血)，消耗 35 精力",
-                        "cd": 2,
-                        "name": "夺命一击"
+                        "desc": "毒爆术！自然之力引爆，60% 物理伤害，毒层≥3 引爆(每层 15% 攻击物理伤害·下放自隐藏线自然流)",
+                        "name": "毒爆术"
                     }
 ,
                 },
@@ -1941,8 +1761,8 @@ BRANCH_SKILLS = {
                 },
             },
             2: {
-                "暗夜猎手": {
-                    "猎魔之眼":                     {
+                "自然行者": {
+                    "自然之眼":                     {
                         "lv": 60,
                         "mp": 0,
                         "power": 0,
@@ -1952,7 +1772,7 @@ BRANCH_SKILLS = {
                             "mult": 0.1
                         },
                         "desc": "二转被动：对标记目标伤害＋10%(标记强化)",
-                        "name": "猎魔之眼"
+                        "name": "自然之眼"
                     }
 ,
                     "狩猎盛宴":                     {
@@ -1966,6 +1786,19 @@ BRANCH_SKILLS = {
                         "res_cost": {"energy": 30},
                         "desc": "全队暴击强化 3 回合(团队技能)，消耗 30 精力",
                         "name": "狩猎盛宴"
+                    }
+,
+                    "剧毒之心":                     {
+                        "lv": 64,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "poison_dmg",
+                            "mult": 0.20
+                        },
+                        "desc": "被动：剧毒之心，毒系技能伤害＋20%(下放自隐藏线自然流)",
+                        "name": "剧毒之心"
                     }
 ,
                     "穿心箭":                     {
@@ -2030,7 +1863,7 @@ BRANCH_SKILLS = {
                 },
             },
             3: {
-                "猎魔先驱": {
+                "万木之灵": {
                     "致命连射":                     {
                         "lv": 92,
                         "mp": 0,
@@ -2040,6 +1873,19 @@ BRANCH_SKILLS = {
                         "res_cost": {"energy": 35},
                         "desc": "140%×4 致命连射(叠印爆发)，消耗 35 精力",
                         "name": "致命连射"
+                    }
+,
+                    "召唤古树守卫":                     {
+                        "lv": 94,
+                        "mp": 30,
+                        "power": 0,
+                        "kind": "增益",
+                        "summon": "treant",
+                        "effect": "atk_up",
+                        "cd": 5,
+                        "res_cost": {"energy": 40},
+                        "desc": "召唤古树守卫！召唤古树伙伴(单只重装·挡刀率高)并攻击＋30% 3 回合",
+                        "name": "召唤古树守卫"
                     }
 ,
                     "死神之箭":                     {
@@ -2122,76 +1968,24 @@ BRANCH_SKILLS = {
         "name": "牧师",
         "branches": {
             1: {
-                "圣武士": {
-                    "圣光之刃":                     {
-                        "lv": 32,
-                        "power": 1.71,
-                        "kind": "魔法",
-                        "res_gain": 1,
-                        "cond": {
-                            "type": "player_hp_high",
-                            "hp_pct": 0.7,
-                            "mult": 1.15,
-                            "label": "圣战之心"
-                        },
-                        "mp": 8,
-                        "desc": "171% 圣光之刃，信仰＋1。自身 HP>70% 时伤害＋15%(满血战斗)",
-                        "name": "圣光之刃"
-                    }
-,
-                    "神圣狂热":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "attack_res",
-                            "res": "faith",
-                            "gain": 2
-                        },
-                        "desc": "触发被动：攻击时信仰＋2(战斗攒信)",
-                        "name": "神圣狂热"
-                    }
-,
-                    "圣光连斩":                     {
-                        "lv": 45,
-                        "power": 1.2,
-                        "kind": "魔法",
-                        "multi": 2,
-                        "res_gain": 2,
-                        "cond": {
-                            "type": "player_buffed",
-                            "mult": 1.15,
-                            "label": "神圣狂热"
-                        },
-                        "mp": 12,
-                        "desc": "120%×2 圣光连斩，信仰＋2。自身有增益时伤害＋15%",
-                        "cd": 2,
-                        "name": "圣光连斩"
-                    }
-,
-                    "圣裁":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 2.6,
-                        "kind": "魔法",
-                        "res_cost": {
-                            "faith": 4
-                        },
-                        "mech": "stun",
-                        "mech_val": 1,
-                        "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.4,
-                            "mult": 1.4,
-                            "label": "审判日"
-                        },
-                        "desc": "260% 圣裁 + 概率眩晕，消耗 4 信仰。目标 HP<40% 时伤害＋40%(斩杀)",
-                        "name": "圣裁"
-                    }
-,
-                },
-                "神谕者": {
+                "吟游诗人": {
+                    "即兴弹唱": {"lv": 32, "mp": 3, "power": 1.0, "kind": "物理",
+                                 "mech": "poison", "mech_val": 1,
+                                 "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒(琴弦如刃)",
+                                 "name": "即兴弹唱"},
+                    "轻快拨弦": {"lv": 35, "mp": 3, "power": 1.1, "kind": "物理",
+                                 "res_gain": 1, "mech": "poison", "mech_chance": 0.1,
+                                 "desc": "轻快拨弦，110% 物理伤害，10% 附加中毒。吟游诗人的热身曲。",
+                                 "name": "轻快拨弦"},
+                    "战歌": {"lv": 38, "mp": 10, "power": 0, "kind": "增益",
+                             "effect": "atk_up", "team": "atk_all", "cd": 2,
+                             "desc": "激昂战歌！全队攻＋30% 3 回合(副本广播，团队技能)",
+                             "name": "战歌"},
+                    "安眠曲": {"lv": 45, "mp": 10, "power": 0, "kind": "增益",
+                               "effect": "sleep", "cd": 3,
+                               "desc": "安眠曲！使敌人陷入沉睡 2 回合（受击解除，对首领只持续 1 回合）",
+                               "name": "安眠曲"},
+                },                "神谕者": {
                     "圣言术":                     {
                         "lv": 32,
                         "power": 2.5,
@@ -2250,50 +2044,24 @@ BRANCH_SKILLS = {
                 },
             },
             2: {
-                "审判骑士": {
-                    "审判之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "judge",
-                            "mult": 0.1
-                        },
-                        "desc": "二转被动：圣光技能伤害＋10%(战斗牧师强化)",
-                        "name": "审判之心"
-                    }
-,
-                    "审判之剑":                     {
-                        "lv": 62,
-                        "power": 1.8,
-                        "kind": "魔法",
-                        "pierce": True,
-                        "res_gain": 2,
-                        "mp": 15,
-                        "desc": "180% 破防审判之剑，信仰＋2",
-                        "name": "审判之剑"
-                    }
-,
-                    "圣光风暴":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 2.2,
-                        "kind": "魔法",
-                        "res_cost": {
-                            "faith": 4
-                        },
-                        "cond": {
-                            "type": "enemy_debuff",
-                            "mult": 1.4,
-                            "label": "圣光扩散"
-                        },
-                        "desc": "220% 圣光风暴，消耗 4 信仰。目标有减益时伤害＋40%(净化增伤)",
-                        "name": "圣光风暴"
-                    }
-,
-                },
-                "大主教": {
+                "灵魂歌者": {
+                    "鼓舞": {"lv": 60, "mp": 10, "power": 0, "kind": "增益",
+                             "effect": "crit_up", "team": "crit_all", "cd": 2,
+                             "desc": "鼓舞士气！全队暴击＋20% 3 回合(副本广播，团队技能)",
+                             "name": "鼓舞"},
+                    "哀歌": {"lv": 62, "mp": 15, "power": 1.6, "kind": "魔法",
+                             "cc": "silence", "cd": 3,
+                             "desc": "哀歌！160% 魔法伤害，50% 概率沉默目标 2 回合",
+                             "name": "哀歌"},
+                    "伴奏": {"lv": 65, "mp": 0, "power": 0, "kind": "被动",
+                             "passive": {"stat": "crit", "add": 0.08},
+                             "desc": "属性被动：伴奏之魂，暴击＋8%",
+                             "name": "伴奏"},
+                    "轻风咏叹": {"lv": 68, "mp": 15, "power": 0, "kind": "增益",
+                                 "effect": "spd_up", "team": "spd_all", "cd": 2,
+                                 "desc": "轻快旋律！全队速度＋40% 3 回合(副本广播，团队技能)",
+                                 "name": "轻风咏叹"},
+                },                "大主教": {
                     "神圣恩典":                     {
                         "lv": 60,
                         "mp": 0,
@@ -2338,50 +2106,24 @@ BRANCH_SKILLS = {
                 },
             },
             3: {
-                "裁决骑士": {
-                    "天使之怒":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 3.0,
-                        "kind": "魔法",
-                        "res_cost": {
-                            "faith": 5
-                        },
-                        "desc": "300% 天使之怒，消耗 5 信仰(能打能奶)",
-                        "cd": 3,
-                        "name": "天使之怒"
-                    }
-,
-                    "圣裁之光":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 4.5,
-                        "kind": "魔法",
-                        "res_cost": {
-                            "faith": 10
-                        },
-                        "team": "shield_all",
-                        "cd": 5,
-                        "desc": "终极技，450% 圣裁之光，消耗 10 信仰 + 全队护盾(终极神迹)",
-                        "name": "圣裁之光"
-                    }
-,
-                    "圣光化身":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "atk_up_strong",
-                        "cd": 6,
-                        "res_cost": {
-                            "faith": 8
-                        },
-                        "desc": "三转奥义，3 回合内攻击附带圣光(每次攻击大幅增伤)，消耗 8 信仰",
-                        "name": "圣光化身"
-                    }
-,
-                },
-                "圣光先知": {
+                "黎明颂者": {
+                    "英雄叙事诗": {"lv": 90, "mp": 20, "power": 1.5, "kind": "治疗",
+                                   "cd": 2, "team": "heal_all",
+                                   "desc": "英雄叙事诗！治疗全队 150% 生命(副本广播，团队技能)",
+                                   "name": "英雄叙事诗"},
+                    "奥术咏叹调": {"lv": 92, "mp": 20, "power": 0, "kind": "增益",
+                                   "effect": "matk_up", "team": "matk_all", "cd": 2,
+                                   "desc": "奥术咏叹调！魔攻＋50% 3 回合，组队时全队魔攻强化(副本广播，团队技能)",
+                                   "name": "奥术咏叹调"},
+                    "快板节奏": {"lv": 95, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"stat": "cdr", "add": 0.08},
+                                 "desc": "属性被动：快板节奏，冷却缩减＋8%",
+                                 "name": "快板节奏"},
+                    "终章·黎明颂歌": {"lv": 98, "mp": 35, "power": 0, "kind": "增益",
+                                       "effect": "atk_up_strong", "team": "atk_all", "cd": 5,
+                                       "desc": "终章·黎明颂歌！全队攻＋75% 3 回合(副本广播，团队技能)",
+                                       "name": "终章·黎明颂歌"},
+                },                "圣光先知": {
                     "圣光赞歌":                     {
                         "lv": 92,
                         "mp": 0,
@@ -2612,6 +2354,23 @@ BRANCH_SKILLS = {
                         "name": "死亡标记·影"
                     }
 ,
+                    # v113：斩杀机制下放——收割(原暮影线收割流)降为基础刺客攻线 T2 进阶技
+                    "收割":                     {
+                        "lv": 62,
+                        "mp": 25,
+                        "power": 1.9,
+                        "kind": "物理",
+                        "cond": {
+                            "type": "enemy_hp_low",
+                            "hp_pct": 0.5,
+                            "mult": 1.3,
+                            "label": "收割"
+                        },
+                        "cd": 3,
+                        "desc": "收割！190% 物理伤害，目标生命低于 50% 时伤害＋30%(斩杀·下放自暮影线)",
+                        "name": "收割"
+                    }
+,
                 },
                 "淬毒师": {
                     "淬毒之心":                     {
@@ -2754,7 +2513,7 @@ BRANCH_SKILLS = {
         "name": "拳师",
         "branches": {
             1: {
-                "拳斗士": {
+                "格斗士": {
                     "疾风拳":                     {
                         "lv": 32,
                         "power": 2.85,
@@ -2878,10 +2637,25 @@ BRANCH_SKILLS = {
                         "kind": "被动",
                         "passive": {
                             "proc": "reflect",
-                            "mult": 0.3
+                            "mult": 0.3,
+                            "chance": 0.30
                         },
-                        "desc": "触发被动：受击后 30% 反伤(挨打反打)",
+                        "desc": "触发被动：受击时 30% 概率反弹 30% 伤害(挨打反打)",
                         "name": "反震"
+                    }
+,
+                    # v113：反击机制下放——以守为攻(原苦修线大地流)入基础拳师守线
+                    "以守为攻":                     {
+                        "lv": 48,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "counter_attack",
+                            "chance": 0.20
+                        },
+                        "desc": "被动：以守为攻，受击 20% 概率立即普攻反击(下放自苦修线)",
+                        "name": "以守为攻"
                     }
 ,
                     "磐石护壁":                     {
@@ -2901,7 +2675,7 @@ BRANCH_SKILLS = {
                 },
             },
             2: {
-                "武斗师": {
+                "拳术师": {
                     "气力之心":                     {
                         "lv": 60,
                         "mp": 0,
@@ -2953,6 +2727,20 @@ BRANCH_SKILLS = {
                         },
                         "desc": "二转被动：受击减伤＋5%(坦克强化)",
                         "name": "磐石之心"
+                    }
+,
+                    # v113：反击机制下放——反击之王(原苦修线大地流)入基础拳师守线
+                    "反击之王":                     {
+                        "lv": 62,
+                        "mp": 0,
+                        "power": 0,
+                        "kind": "被动",
+                        "passive": {
+                            "proc": "counter_attack",
+                            "chance": 0.30
+                        },
+                        "desc": "被动：反击之王，受击 30% 概率立即普攻反击(下放自苦修线)",
+                        "name": "反击之王"
                     }
 ,
                     "气力守御":                     {
@@ -3070,392 +2858,324 @@ BRANCH_SKILLS = {
             },
         },
     },
+    # ================= v112 隐藏线流派技能（主题线制，6 线，机制零删除） =================
+    # 设计文档：design/new_world/09_职业体系.md §3/§4
+    # 结构：branches[1] = 流派技能（觉醒选流派后按 skill_up 学习，传承按 lv<=level 授予），
+    #       branches[2]/[3] = 各流派 T2/T3 深化技能；分支 key 用中文名（与基础职业一致）
+    # 旧 13 隐藏职业技能全部保留，只改归属；秘法守线（P0-2a）并入奥秘线元素流
+    "cls_dragon_oath": {
+        # v113（鱼鱼拍板）：隐藏线收敛——只留「龙血」流派（真伤+灼烧），
+        # 魔剑士（魔能物魔混合）与圣殿骑士（护盾格挡）流派舍弃
+        "name": "龙裔誓约",
+        "branches": {
+            1: {
+                "龙血战士": {
+                    "龙息": {"lv": 40, "mp": 20, "power": 0.9, "kind": "真伤",
+                             "mech": "burn", "mech_val": 1, "cd": 2,
+                             "desc": "龙息！90% 真伤(无视全部防御)，附带灼烧 1 层",
+                             "name": "龙息"},
+                    "龙鳞": {"lv": 46, "mp": 15, "power": 0, "kind": "增益",
+                             "effect": "def_up", "cd": 3,
+                             "desc": "龙鳞！防御＋45% 2 回合",
+                             "name": "龙鳞"},
+                    "龙威": {"lv": 54, "mp": 20, "power": 0, "kind": "增益",
+                             "effect": "mon_atk_down", "cd": 4,
+                             "desc": "龙威！敌方攻击－30% 3 回合",
+                             "name": "龙威"},
+                },
+            },
+            2: {
+                "龙裔斗士": {
+                    # v113 修复：原 T2 分支空表，60 级升档无新技能；补 1 主动 + 1 被动（龙血主题）
+                    # 主动参考龙息(真伤灼烧)同型，被动参考火之亲和(burn_amp)同型
+                    "龙爪": {"lv": 64, "mp": 18, "power": 1.6, "kind": "物理",
+                             "mech": "burn", "mech_val": 1, "cd": 2,
+                             "desc": "龙爪！160% 物理伤害，附带灼烧 1 层(龙血近战)",
+                             "name": "龙爪"},
+                    "龙脉沸腾": {"lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                                  "passive": {"proc": "burn_amp", "mult": 1.15},
+                                  "desc": "被动：龙脉沸腾，灼烧伤害＋15%",
+                                  "name": "龙脉沸腾"},
+                },
+            },
+            3: {
+                "龙魂战将": {
+                    # v113：龙息之怒(真伤)下放基础战士攻线（技能书改挂 cls_zhan_shi），本线补同名机制新技
+                    "龙焰吐息": {"lv": 75, "mp": 35, "power": 0.8, "kind": "真伤",
+                                 "mech": "burn", "mech_val": 2, "cd": 4,
+                                 "res_cost": {"dragon_might": 5},
+                                 "desc": "龙焰吐息！80% 真伤(无视全部防御)，附带灼烧 2 层，消耗 5 点龙力",
+                                 "name": "龙焰吐息"},
+                },
+            },
+        },
+    },
+    "cls_chronomancer": {
+        # v113（鱼鱼拍板）：隐藏线收敛——只留「时停」流派（时间控制），
+        # 虚空流（吸蓝）下放基础法师攻线，血咒流（血魔法）舍弃
+        "name": "时咒法师",
+        "branches": {
+            1: {
+                "时停": {
+                    "时滞术": {"lv": 40, "mp": 15, "power": 1.6, "kind": "魔法",
+                               "mech": "spd_down", "mech_chance": 0.5, "cd": 1,
+                               "desc": "时滞术！160% 魔法伤害，50% 概率减速目标 2 回合(时间凝滞)",
+                               "name": "时滞术"},
+                    "时间裂隙": {"lv": 48, "mp": 20, "power": 1.3, "kind": "魔法",
+                                 "multi": 2, "mech": "spd_down", "mech_chance": 0.4, "cd": 2,
+                                 "desc": "时间裂隙！130%×2 魔法伤害，40% 概率减速(时空裂缝)",
+                                 "name": "时间裂隙"},
+                    "凝时锁": {"lv": 55, "mp": 20, "power": 1.4, "kind": "魔法",
+                               "mech": "stun", "mech_chance": 0.35, "cd": 3,
+                               "desc": "凝时锁！140% 魔法伤害，35% 概率眩晕 1 回合(时间凝固)",
+                               "name": "凝时锁"},
+                },
+            },
+            2: {
+                "时律术士": {
+                    "时间静止": {"lv": 62, "mp": 20, "power": 0, "kind": "增益",
+                                 "effect": "sleep", "cd": 3,
+                                 "desc": "时间静止！使目标陷入停滞 2 回合(受击解除，首领 1 回合)",
+                                 "name": "时间静止"},
+                },
+            },
+            3: {
+                "时间领主": {
+                    "时停领域": {"lv": 90, "mp": 100, "power": 3.0, "kind": "魔法",
+                                 "mech": "stun", "mech_chance": 1.0, "cd": 6,
+                                 "res_cost": {"time_sand": 3},
+                                 "desc": "三转奥义，时停领域！300% 魔法伤害，必定眩晕 1 回合(时间停滞)，消耗 3 点时之沙",
+                                 "name": "时停领域"},
+                },
+            },
+        },
+    },
+    "cls_wild_hunter": {
+        # v113（鱼鱼拍板）：隐藏线更名"星语者"——只留星运流（占星/命运），
+        # 自然流（毒藤/毒爆）与兽群流（召唤进化）机制下放基础游侠攻线（林语者）
+        "name": "星语者",
+        "branches": {
+            1: {
+                "星语者": {
+                    "星陨": {"lv": 40, "mp": 15, "power": 1.65, "kind": "物理",
+                             "mech": "mark", "mech_val": 1, "cd": 2,
+                             "desc": "星陨！165% 物理伤害，叠 1 层猎杀标记",
+                             "name": "星陨"},
+                    "占卜": {"lv": 46, "mp": 15, "power": 0, "kind": "增益",
+                             "effect": "crit_up", "cd": 3,
+                             "desc": "占卜！暴击＋20% 3 回合",
+                             "name": "占卜"},
+                    "命运之轮": {"lv": 55, "mp": 30, "power": 1.2, "kind": "魔法",
+                                 "multi": 3, "cd": 4,
+                                 "desc": "命运之轮！120% 魔法伤害连击 3 次(命运多段)",
+                                 "name": "命运之轮"},
+                },
+            },
+            2: {
+                "星相师": {
+                    "星辰之力": {"lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"stat": "luck", "add": 0.05},
+                                 "desc": "被动：星辰之力，幸运＋5%",
+                                 "name": "星辰之力"},
+                },
+            },
+            3: {
+                "命运编织者": {
+                    "星祭": {"lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
+                             "mech": "mark", "mech_val": 2, "cd": 4,
+                             "res_cost": {"hunt_mark": 3},
+                             "desc": "星祭！180% 物理伤害，叠 2 层猎杀标记，消耗 3 点猎印",
+                             "name": "星祭"},
+                },
+            },
+        },
+    },
+    "cls_hymn": {
+        # v112.1：圣歌流派拆出为独立中立线（cls_bard 吟游诗人），本线改名暗影神谕（单流派）
+        "name": "暗影神谕",
+        "branches": {
+            1: {
+                "暗影祭司": {
+                    "召唤骷髅": {"lv": 40, "mp": 20, "power": 0, "kind": "增益",
+                                 "summon": "skeleton", "cd": 3,
+                                 "desc": "召唤骷髅！召唤骷髅兵加入战斗(上限 3，自动攻击＋挡刀)",
+                                 "name": "召唤骷髅"},
+                    "亡灵狂暴": {"lv": 48, "mp": 20, "power": 0, "kind": "增益",
+                                 "effect": "atk_up", "cd": 3,
+                                 "desc": "亡灵狂暴！攻击＋30% 3 回合",
+                                 "name": "亡灵狂暴"},
+                },
+            },
+            2: {
+                "亡魂引渡者": {
+                    "死亡契约": {"lv": 62, "mp": 0, "power": 0, "kind": "被动",
+                                 "passive": {"proc": "death_pact"},
+                                 "desc": "被动：死亡契约，致命伤害由召唤物代受(以 20% 生命存活，每场 1 次)",
+                                 "name": "死亡契约"},
+                },
+            },
+            3: {
+                "黯灵主教": {
+                    "骷髅海": {"lv": 70, "mp": 30, "power": 0, "kind": "增益",
+                               "summon": "skeleton", "effect": "atk_up", "cd": 5,
+                               "res_cost": {"canticle": 5},
+                               "desc": "骷髅海！召唤骷髅兵并攻击＋30% 3 回合，消耗 5 点悼咏",
+                               "name": "骷髅海"},
+                },
+            },
+        },
+    },
+    "cls_shadow_blade": {
+        # v113（鱼鱼拍板）：隐藏线收敛——只留「暗杀」流派（影步+潜行爆发），
+        # 收割流派（残血追猎/收割）机制下放基础刺客攻线
+        "name": "暮影行者",
+        "branches": {
+            1: {
+                "暗杀": {
+                    "幽影袭": {"lv": 40, "mp": 15, "power": 1.3, "kind": "物理",
+                               "mech": "shadow", "mech_val": 1, "cd": 2,
+                               "desc": "幽影袭！130% 物理伤害，满血目标必暴击",
+                               "name": "幽影袭"},
+                    "暗影步": {"lv": 52, "mp": 20, "power": 0, "kind": "增益",
+                               "effect": "stealth", "cd": 4,
+                               "desc": "暗影步！进入潜行，下次攻击必定暴击",
+                               "name": "暗影步"},
+                },
+            },
+            2: {
+                "暮刃大师": {
+                    "幽影连刺": {"lv": 62, "mp": 25, "power": 1.2, "kind": "物理",
+                                 "multi": 2, "mech": "shadow", "mech_val": 1, "cd": 2,
+                                 "desc": "幽影连刺！120%×2 物理伤害，满血目标必暴击(暗杀深化)",
+                                 "name": "幽影连刺"},
+                },
+            },
+            3: {
+                "暮影收割者": {
+                    "幽影刃": {"lv": 75, "mp": 35, "power": 2.0, "kind": "物理",
+                               "mech": "shadow", "mech_val": 1, "cd": 4,
+                               "res_cost": {"shadow_step": 3},
+                               "desc": "幽影刃！200% 物理伤害，满血目标必暴击，消耗 3 点影步",
+                               "name": "幽影刃"},
+                },
+            },
+        },
+    },
+    "cls_wu_sheng": {
+        # v113（鱼鱼拍板）：隐藏线收敛——只留「武僧」流派（禅意+连击），
+        # 大地流派（以守为攻/反击之王）机制下放基础拳师守线
+        "name": "苦修士",
+        "branches": {
+            1: {
+                "武僧": {
+                    "裂岩冲": {"lv": 40, "mp": 12, "power": 1.3, "kind": "物理",
+                               "mech": "chi", "mech_val": 1, "cd": 1,
+                               "desc": "裂岩冲！130% 物理伤害，气＋1",
+                               "name": "裂岩冲"},
+                    "气力连打": {"lv": 55, "mp": 20, "power": 1.4, "kind": "物理",
+                                 "combo": "拳", "cd": 2,
+                                 "desc": "气力连打！140% 物理伤害，拳连招(拳-踢-掌三连追加)",
+                                 "name": "气力连打"},
+                },
+            },
+            2: {
+                "大地武僧": {
+                    # v113：反击机制下放基础拳师守线后，本档补连击深化技
+                    "禅意连打": {"lv": 62, "mp": 18, "power": 1.2, "kind": "物理",
+                                 "combo": "拳", "multi": 2, "cd": 2,
+                                 "desc": "禅意连打！120%×2 物理伤害，拳连招(连击深化)",
+                                 "name": "禅意连打"},
+                },
+            },
+            3: {
+                "撼岳者": {
+                    "气爆": {"lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
+                             "mech": "chi_burst", "mech_val": 0, "cd": 4,
+                             "res_cost": {"zen": 5},
+                             "desc": "气爆！180% 物理伤害，引爆全部气力(每点＋12%)，消耗 5 点禅意",
+                             "name": "气爆"},
+                },
+            },
+        },
+    },
 }
 
-# ================= v107 隐藏职业技能（11 职业，2026-08-13 鱼鱼拍板设计） =================
-# 设计文档：docs/HIDDEN_CLASSES_V107_DESIGN.md / 策划案 09 章五 + 12 章 12.5
-# 机制字段：kind=="真伤"(结算按类型)/mp_steal(吸MP)/hp_cost(血魔法)/summon(召唤)/summon_evolve(进化)
-# proc：execute(斩杀)/block_counter(格挡反击)/counter_attack(反击)/death_pact(死亡契约)
+# ================= v112 隐藏线基础技能（线级被动，觉醒即得） =================
+# 设计文档：design/new_world/09_职业体系.md §3 —— 每条线 1 主题 1 核心资源 1 线级被动
+# 传承/升档按 lv<=level 授予（见 commands/player.py _evolve_hidden_generic）
+# 注：猎手本能/暗影之舞/气力调和复用基础职业同名被动（同 ID 共享，技能名唯一铁律不破）
 _ADD_HIDDEN_SKILLS = {
-    "cls_arcanist": {
+    "cls_dragon_oath": {
         "skills": {
-            "sk_ao_shu_fei_dan": {
-                "lv": 40, "mp": 15, "power": 1.0, "kind": "魔法",
-                "mech": "arcane", "mech_val": 1, "cd": 1,
-                "desc": "奥术飞弹！100% 魔法伤害，命中叠 1 层奥术印记(可爆发)",
-                "name": "奥术飞弹",
+            "sk_long_hun": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "elem_res", "add": 0.05},
+                "desc": "被动：龙魂，元素抗性＋5%（龙裔线觉醒即得）",
+                "name": "龙魂",
             },
-            "sk_ao_shu_mai_chong": {
-                "lv": 48, "mp": 25, "power": 1.6, "kind": "魔法",
-                "mech": "arcane_burst", "mech_val": 0, "cd": 3,
-                "desc": "奥术脉冲！160% 魔法伤害，引爆全部奥术印记(每层追加伤害)",
-                "name": "奥术脉冲",
+            "sk_huo_zhi_qin_he": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "burn_amp", "mult": 1.2},
+                "desc": "被动：火之亲和，灼烧伤害＋20%（龙裔线觉醒即得）",
+                "name": "火之亲和",
             },
-            "sk_mi_fa_hu_dun": {
-                "lv": 56, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "shield_all", "cd": 4,
-                "desc": "秘法护盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
-                "name": "秘法护盾",
+        },
+    },
+    "cls_chronomancer": {
+        "skills": {
+            # v112.5：时咒线级基础——魔力贯穿（承自原奥秘线）+ 时间感知（新）
+            "sk_mo_li_guan_chuan": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "pene_magi", "add": 0.05},
+                "desc": "属性被动：魔力贯穿，法穿＋5%（时咒线觉醒即得）",
+                "name": "魔力贯穿",
             },
-            "sk_ao_shu_he_xin": {
-                "lv": 60, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "arcane_dmg", "mult": 0.15},
-                "desc": "被动：奥术核心，奥术系伤害＋15%",
-                "name": "奥术核心",
+            "sk_shi_jian_gan_zhi": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "cdr", "add": 0.05},
+                "desc": "属性被动：时间感知，冷却缩减＋5%（时咒线觉醒即得）",
+                "name": "时间感知",
             },
-            "sk_ao_shu_bao_fa": {
-                "lv": 72, "mp": 40, "power": 2.2, "kind": "魔法",
-                "mech": "arcane_burst", "mech_val": 0, "cd": 4,
-                "desc": "奥术爆发！220% 魔法伤害，引爆全部奥术印记",
-                "name": "奥术爆发",
+        },
+    },
+    "cls_wild_hunter": {
+        "skills": {
+            "sk_p_lie_shou_ben_neng": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "crit_mark", "mult": 0.1},
+                "desc": "属性被动：对标记目标暴击＋10%（星语线觉醒即得）",
+                "name": "猎手本能",
+            },
+        },
+    },
+    "cls_hymn": {
+        "skills": {
+            # v112.1：诗人拆为独立中立线后，暗影神谕线级基础 = 墓穴护甲（觉醒即得）
+            "sk_mu_xue_hu_jia": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "phys_reduce", "add": 0.05},
+                "desc": "被动：墓穴护甲，物理免伤＋5%（暗影神谕线觉醒即得）",
+                "name": "墓穴护甲",
             },
         },
     },
     "cls_shadow_blade": {
         "skills": {
-            "sk_ying_ji": {
-                "lv": 40, "mp": 15, "power": 1.3, "kind": "物理",
-                "mech": "shadow", "mech_val": 1, "cd": 2,
-                "desc": "幽影袭！130% 物理伤害，满血目标必暴击",
-                "name": "幽影袭",
-            },
-            "sk_can_xue_zhui_lie": {
-                "lv": 45, "mp": 0, "power": 0, "kind": "被动",
-                # v110 审计修复：cond_hp 0.35 → 0.30（v109 拍板斩杀线统一 30%）
-                "passive": {"proc": "execute", "mult": 0.40, "cond_hp": 0.30},
-                "desc": "被动：残血追猎，目标生命低于 30% 时伤害＋40%",
-                "name": "残血追猎",
-            },
-            "sk_an_ying_bu": {
-                "lv": 52, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "stealth", "cd": 4,
-                "desc": "暗影步！进入潜行，下次攻击必定暴击",
-                "name": "暗影步",
-            },
-            "sk_shou_ge": {
-                "lv": 60, "mp": 25, "power": 1.5, "kind": "物理",
-                "cond": {"type": "enemy_hp_low", "hp_pct": 0.5, "mult": 1.3, "label": "收割"},
-                "cd": 3,
-                "desc": "收割！150% 物理伤害，目标生命低于 50% 时伤害＋30%",
-                "name": "收割",
-            },
-            "sk_ying_ren": {
-                "lv": 75, "mp": 35, "power": 2.0, "kind": "物理",
-                "mech": "shadow", "mech_val": 1, "cd": 4,
-                "desc": "幽影刃！200% 物理伤害，满血目标必暴击",
-                "name": "幽影刃",
-            },
-        },
-    },
-    "cls_dragon_warrior": {
-        "skills": {
-            "sk_long_xi": {
-                "lv": 40, "mp": 20, "power": 0.7, "kind": "真伤",
-                "mech": "burn", "mech_val": 1, "cd": 2,
-                "desc": "龙息！70% 真伤(无视全部防御)，附带灼烧 1 层",
-                "name": "龙息",
-            },
-            "sk_long_lin": {
-                "lv": 46, "mp": 15, "power": 0, "kind": "增益",
-                "effect": "def_up", "cd": 3,
-                "desc": "龙鳞！防御＋45% 2 回合",
-                "name": "龙鳞",
-            },
-            "sk_long_wei": {
-                "lv": 54, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "mon_atk_down", "cd": 4,
-                "desc": "龙威！敌方攻击－30% 3 回合",
-                "name": "龙威",
-            },
-            "sk_long_hun": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "elem_res", "add": 0.05},
-                "desc": "被动：龙魂，元素抗性＋5%",
-                "name": "龙魂",
-            },
-            "sk_huo_zhi_qin_he": {
-                "lv": 70, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "burn_amp", "mult": 1.2},
-                "desc": "被动：火之亲和，灼烧伤害＋20%",
-                "name": "火之亲和",
-            },
-            "sk_long_xi_zhi_nu": {
-                "lv": 75, "mp": 35, "power": 0.8, "kind": "真伤",
-                "mech": "burn", "mech_val": 2, "cd": 4,
-                "desc": "龙息之怒！80% 真伤(无视全部防御)，附带灼烧 2 层",
-                "name": "龙息之怒",
-            },
-        },
-    },
-    "cls_void_walker": {
-        "skills": {
-            "sk_xu_kong_jian": {
-                "lv": 40, "mp": 15, "power": 1.35, "kind": "魔法",
-                "mp_steal": 0.15, "cd": 1,
-                "desc": "虚空箭！135% 魔法伤害，回复 15% 伤害值的魔力",
-                "name": "虚空箭",
-            },
-            "sk_shen_yuan_ning_shi": {
-                "lv": 48, "mp": 20, "power": 1.25, "kind": "魔法",
-                "mech": "spd_down", "mech_chance": 0.5, "cd": 3,
-                "desc": "深渊凝视！125% 魔法伤害，50% 概率减速目标 2 回合",
-                "name": "深渊凝视",
-            },
-            "sk_xu_kong_xing_zou": {
-                "lv": 56, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "dodge_up", "cd": 4,
-                "desc": "虚空行走！闪避＋40% 3 回合",
-                "name": "虚空行走",
-            },
-            "sk_an_ying_chong_ji": {
-                "lv": 65, "mp": 25, "power": 1.7, "kind": "魔法",
-                "mech": "shadow", "mech_val": 1, "mp_steal": 0.15, "cd": 3,
-                "desc": "暗影冲击！170% 魔法伤害，满血目标必暴击，回复魔力",
-                "name": "暗影冲击",
-            },
-            "sk_xu_kong_bao_po": {
-                "lv": 78, "mp": 40, "power": 2.2, "kind": "魔法",
-                "mp_steal": 0.20, "cd": 4,
-                "desc": "虚空爆破！220% 魔法伤害，回复 20% 伤害值的魔力",
-                "name": "虚空爆破",
-            },
-        },
-    },
-    "cls_astrologer": {
-        "skills": {
-            "sk_xing_yun": {
-                "lv": 40, "mp": 15, "power": 1.25, "kind": "物理",
-                "mech": "wind", "mech_val": 1, "cd": 2,
-                "desc": "星陨！125% 物理伤害，风印叠层(连击加速)",
-                "name": "星陨",
-            },
-            "sk_zhan_bu": {
-                "lv": 46, "mp": 15, "power": 0, "kind": "增益",
-                "effect": "crit_up", "cd": 3,
-                "desc": "占卜！暴击＋20% 3 回合",
-                "name": "占卜",
-            },
-            "sk_ming_yun_zhi_lun": {
-                "lv": 55, "mp": 30, "power": 1.0, "kind": "魔法",
-                "multi": 3, "cd": 4,
-                "desc": "命运之轮！100% 魔法伤害连击 3 次(命运多段)",
-                "name": "命运之轮",
-            },
-            "sk_xing_chen_zhi_li": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "luck", "add": 0.05},
-                "desc": "被动：星辰之力，幸运＋5%",
-                "name": "星辰之力",
-            },
-            "sk_xing_ji": {
-                "lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
-                "mech": "wind", "mech_val": 1, "cd": 4,
-                "desc": "星祭！180% 物理伤害，风印叠层",
-                "name": "星祭",
-            },
-        },
-    },
-    "cls_jungle_hunter": {
-        "skills": {
-            "sk_du_jian": {
-                "lv": 40, "mp": 12, "power": 1.0, "kind": "物理",
-                "mech": "poison", "mech_val": 1, "cd": 1,
-                "desc": "毒箭！100% 物理伤害，叠 1 层毒(每回合 5% 生命)",
-                "name": "毒箭",
-            },
-            "sk_teng_man_chan_rao": {
-                "lv": 46, "mp": 18, "power": 0.8, "kind": "魔法",
-                "mech": "poison", "mech_val": 2, "cd": 2,
-                "desc": "藤蔓缠绕！80% 魔法伤害，叠 2 层毒",
-                "name": "藤蔓缠绕",
-            },
-            "sk_du_bao": {
-                "lv": 55, "mp": 25, "power": 0.6, "kind": "魔法",
-                "mech": "poison_burst", "mech_val": 1, "cd": 3,
-                "desc": "毒爆术！60% 魔法伤害，毒层≥3 引爆(每层 15% 魔攻魔法伤害)",
-                "name": "毒爆术",
-            },
-            "sk_ju_du_zhi_xin": {
-                "lv": 60, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "poison_dmg", "mult": 0.20},
-                "desc": "被动：剧毒之心，毒系技能伤害＋20%",
-                "name": "剧毒之心",
-            },
-            "sk_wan_du_jian": {
-                "lv": 75, "mp": 30, "power": 1.5, "kind": "物理",
-                "mech": "poison", "mech_val": 3, "cd": 3,
-                "desc": "万毒箭！150% 物理伤害，叠 3 层毒",
-                "name": "万毒箭",
-            },
-        },
-    },
-    "cls_templar": {
-        "skills": {
-            "sk_sheng_dun": {
-                "lv": 40, "mp": 15, "power": 0, "kind": "增益",
-                "effect": "shield_all", "cd": 4,
-                "desc": "圣御之盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
-                "name": "圣御之盾",
-            },
-            "sk_sheng_guang_shen_pan": {
-                "lv": 48, "mp": 25, "power": 1.4, "kind": "魔法",
-                "cd": 2,
-                "desc": "圣光审判！140% 魔法伤害",
-                "name": "圣光审判",
-            },
-            "sk_bi_lei": {
-                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "block", "add": 0.05},
-                "desc": "被动：壁垒，格挡＋5%",
-                "name": "壁垒",
-            },
-            "sk_sheng_qi_shou_hu": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "block_counter", "chance": 0.5, "mult": 0.5},
-                "desc": "被动：圣骑守护，格挡成功后 50% 概率反弹 50% 伤害",
-                "name": "圣骑守护",
-            },
-            "sk_sheng_guang_bi_lei": {
-                "lv": 75, "mp": 30, "power": 0, "kind": "增益",
-                "effect": "def_up", "cd": 4,
-                "desc": "圣光之壁！防御＋45% 3 回合",
-                "name": "圣光之壁",
+            "sk_p_an_ying_zhi_wu": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"stat": "stealth_crit_dmg", "mult": 0.3},
+                "desc": "属性被动：潜行状态暴击伤害＋30%（暮影线觉醒即得）",
+                "name": "暗影之舞",
             },
         },
     },
     "cls_wu_sheng": {
         "skills": {
-            "sk_tie_shan_kao": {
-                "lv": 40, "mp": 12, "power": 1.3, "kind": "物理",
-                "mech": "chi", "mech_val": 1, "cd": 1,
-                "desc": "裂岩冲！130% 物理伤害，气＋1",
-                "name": "裂岩冲",
-            },
-            "sk_yi_shou_wei_gong": {
-                "lv": 45, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "counter_attack", "chance": 0.20},
-                "desc": "被动：以守为攻，受击 20% 概率立即普攻反击",
-                "name": "以守为攻",
-            },
-            "sk_qi_jin_lian_da": {
-                "lv": 55, "mp": 20, "power": 1.4, "kind": "物理",
-                "combo": "拳", "cd": 2,
-                "desc": "气力连打！140% 物理伤害，拳连招(拳-踢-掌三连追加)",
-                "name": "气力连打",
-            },
-            "sk_fan_ji_zhi_wang": {
-                "lv": 70, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "counter_attack", "chance": 0.30},
-                "desc": "被动：反击之王，受击 30% 概率立即普攻反击",
-                "name": "反击之王",
-            },
-            "sk_qi_bao": {
-                "lv": 75, "mp": 35, "power": 1.8, "kind": "物理",
-                "mech": "chi_burst", "mech_val": 0, "cd": 4,
-                "desc": "气爆！180% 物理伤害，引爆全部气力(每点＋12%)",
-                "name": "气爆",
-            },
-        },
-    },
-    "cls_blood_mage": {
-        "skills": {
-            "sk_xue_zhi_qi_yue": {
-                "lv": 40, "mp": 20, "power": 1.5, "kind": "魔法",
-                "hp_cost": 0.10, "cd": 2,
-                "desc": "血之契约！消耗 10% 当前生命，150% 魔法伤害(血祭＋30%)",
-                "name": "血之契约",
-            },
-            "sk_xing_hong_ji_qu": {
-                "lv": 46, "mp": 15, "power": 1.2, "kind": "魔法",
-                "lifesteal": 0.20, "cd": 2,
-                "desc": "猩红汲取！120% 魔法伤害，汲取 20% 伤害值的生命",
-                "name": "猩红汲取",
-            },
-            "sk_xue_dun": {
-                "lv": 55, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "shield_all", "cd": 4,
-                "desc": "血盾！获得 20% 魔攻护盾 3 回合",
-                "name": "血盾",
-            },
-            "sk_xue_ji_zhi_li": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "lifesteal_magi", "add": 0.05},
-                "desc": "被动：血祭之力，法术吸血＋5%",
-                "name": "血祭之力",
-            },
-            "sk_xue_bao": {
-                "lv": 75, "mp": 40, "power": 2.2, "kind": "魔法",
-                "hp_cost": 0.15, "cd": 4,
-                "desc": "血爆！消耗 15% 当前生命，220% 魔法伤害(血祭＋30%)",
-                "name": "血爆",
-            },
-        },
-    },
-    "cls_necromancer": {
-        "skills": {
-            "sk_zhao_huan_ku_lou": {
-                "lv": 40, "mp": 20, "power": 0, "kind": "增益",
-                "summon": "skeleton", "cd": 3,
-                "desc": "召唤骷髅！召唤骷髅兵加入战斗(上限 3，自动攻击＋挡刀)",
-                "name": "召唤骷髅",
-            },
-            "sk_wang_ling_kuang_bao": {
-                "lv": 48, "mp": 20, "power": 0, "kind": "增益",
-                "effect": "atk_up", "cd": 3,
-                "desc": "亡灵狂暴！攻击＋30% 3 回合",
-                "name": "亡灵狂暴",
-            },
-            "sk_si_wang_qi_yue": {
-                "lv": 55, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"proc": "death_pact"},
-                "desc": "被动：死亡契约，致命伤害由召唤物代受(以 20% 生命存活，每场 1 次)",
-                "name": "死亡契约",
-            },
-            "sk_mu_xue_hu_jia": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "phys_reduce", "add": 0.05},
-                "desc": "被动：墓穴护甲，物理免伤＋5%",
-                "name": "墓穴护甲",
-            },
-            "sk_ku_lou_hai": {
-                "lv": 70, "mp": 30, "power": 0, "kind": "增益",
-                "summon": "skeleton", "effect": "atk_up", "cd": 5,
-                "desc": "骷髅海！召唤骷髅兵并攻击＋30% 3 回合",
-                "name": "骷髅海",
-            },
-        },
-    },
-    "cls_beast_king": {
-        "skills": {
-            "sk_xun_shou_zhao_huan": {
-                "lv": 40, "mp": 20, "power": 0, "kind": "增益",
-                "summon": "wolf_cub", "cd": 3,
-                "desc": "驯兽召唤！召唤幼狼加入战斗(自动攻击＋挡刀)",
-                "name": "驯兽召唤",
-            },
-            "sk_lang_qun_zhi_ling": {
-                "lv": 48, "mp": 25, "power": 0, "kind": "增益",
-                "summon_evolve": 2, "effect": "atk_up", "cd": 4,
-                "desc": "狼群指令！狼宠进化为狼王，攻击＋30% 3 回合",
-                "name": "狼群指令",
-            },
-            "sk_ye_xing_hu_huan": {
-                "lv": 56, "mp": 30, "power": 0, "kind": "增益",
-                "summon_evolve": 3, "effect": "atk_up", "cd": 5,
-                "desc": "野性呼唤！狼宠进化为影狼(真伤)，攻击＋30% 3 回合",
-                "name": "野性呼唤",
-            },
-            "sk_wan_shou_zhi_li": {
-                "lv": 62, "mp": 0, "power": 0, "kind": "被动",
-                "passive": {"stat": "summon_power", "add": 0.10},
-                "desc": "被动：万兽之力，召唤强化＋10%",
-                "name": "万兽之力",
-            },
-            "sk_ying_lang_zhi_ren": {
-                "lv": 75, "mp": 25, "power": 1.3, "kind": "物理",
-                "cd": 2,
-                "desc": "影狼之刃！130% 物理伤害(人宠协同)",
-                "name": "影狼之刃",
+            "sk_p_qi_xi_tiao_he": {
+                "lv": 40, "mp": 0, "power": 0, "kind": "被动",
+                "passive": {"proc": "turn_heal", "pct": 0.02},
+                "desc": "触发被动：每回合回复2%生命（苦修线觉醒即得）",
+                "name": "气力调和",
             },
         },
     },
@@ -3509,7 +3229,7 @@ TUTOR_SKILLS = {
         "sk_jin_gang_ti": {
             "lv": 10, "mp": 12, "power": 0, "kind": "增益",
             "effect": "def_up", "cd": 3,
-            "desc": "磐石之体！运气于身，防御＋45% 2 回合",
+            "desc": "磐石之体！如磐石般挺立，防御＋45% 2 回合",
             "name": "磐石之体",
         },
     },

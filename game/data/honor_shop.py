@@ -49,4 +49,27 @@ HONOR_SHOP = {
             "msg": "🎫 『使用 红名清除券』立即洗白～",
         },
     },
+    # v112 P1：隐藏技能书（横向扩展保底渠道）
+    5: {
+        "name": "龙息之怒技能书", "cost": 800,
+        "desc": "学会隐藏技能「龙息之怒」(战士一脉，不选狂战分支也能学)",
+        "reward": {
+            "type": "item", "item_prefix": "tome_",
+            "item": {"name": "龙息之怒技能书", "type": "消耗品", "stackable": True,
+                     "price": 0, "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi",
+                     "desc": "记载着龙息之怒的古卷——战士一脉皆可参悟"},
+            "msg": "📖 『使用 龙息之怒技能书』学会真伤绝技！",
+        },
+    },
+    6: {
+        "name": "虚空爆破技能书", "cost": 800,
+        "desc": "学会隐藏技能「虚空爆破」(法师一脉，吸蓝爆破)",
+        "reward": {
+            "type": "item", "item_prefix": "tome_",
+            "item": {"name": "虚空爆破技能书", "type": "消耗品", "stackable": True,
+                     "price": 0, "learn_skill": "虚空爆破", "require_class": "cls_fa_shi",
+                     "desc": "记录着虚空回响的残卷——法师一脉皆可参悟"},
+            "msg": "📖 『使用 虚空爆破技能书』学会吸蓝爆破！",
+        },
+    },
 }

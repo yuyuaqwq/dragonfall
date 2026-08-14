@@ -159,9 +159,9 @@ async def main():
             break
     check("反击可触发", found5)
 
-    # 6. 血魔法
-    print("\n— 血魔法 —")
-    hm_info = {"name": "血之契约", "kind": "魔法", "power": 1.0, "lv": 30, "cd": 1,
+    # 6. 血魔法（hp_cost 机制层；v113 血咒流技能已删，此处直接构造技能 dict 验证机制仍在）
+    print("\n— 血魔法（hp_cost 机制）—")
+    hm_info = {"name": "血咒", "kind": "魔法", "power": 1.0, "lv": 30, "cd": 1,
                "hp_cost": 0.10}
     p6 = mk_player(cls="cls_fa_shi", hp=500)
     b6 = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p6)
@@ -170,7 +170,6 @@ async def main():
     logs6 = b6._player_skill(st6, "血之契约", hm_info, p6)
     check("血魔法扣血 10%", p6["hp"] <= 450, f"hp {p6['hp']}")
     check("血魔法日志", any("血之代价" in l for l in logs6), str(logs6))
-    check("血祭标签", any("血祭" in l for l in logs6), str(logs6))
     # 对照：无 hp_cost 不扣血
     p6b = mk_player(cls="cls_fa_shi", hp=500)
     b6b = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, p6b)
@@ -196,28 +195,21 @@ async def main():
     check("契约每场仅 1 次", p7["hp"] == 0, f"hp {p7['hp']}")
     check("第二次无契约日志", not any("死亡契约" in l for l in logs7b), str(logs7b))
 
-    # 8. 单宠进化
-    print("\n— 单宠进化 —")
-    evo1 = {"name": "驯兽召唤", "kind": "增益", "power": 0, "lv": 30, "cd": 1, "summon": "wolf_cub"}
-    evo2 = {"name": "狼群指令", "kind": "增益", "power": 0, "lv": 30, "cd": 1, "summon_evolve": 2}
-    evo3 = {"name": "野性呼唤", "kind": "增益", "power": 0, "lv": 30, "cd": 1, "summon_evolve": 3}
-    p8 = mk_player(cls="cls_beast_king")
+    # 8. 植物召唤（v113 兽群进化链已删，召唤下放基础游侠攻线·林语者）
+    print("\n— 植物召唤 —")
+    evo1 = {"name": "召唤藤蔓守卫", "kind": "增益", "power": 0, "lv": 40, "cd": 3,
+            "summon": "vine_guard"}
+    p8 = mk_player(cls="cls_you_xia")
     b8 = BT.Battle("怪物", mk_enemy(), {}, p8)
-    b8._player_skill(b8._player_stats(p8), "驯兽召唤", evo1, p8)
-    check("召唤幼狼", len(b8.summons) == 1 and b8.summons[0]["tid"] == "wolf_cub",
+    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    check("召唤藤蔓守卫", len(b8.summons) == 1 and b8.summons[0]["tid"] == "vine_guard",
           str([s.get("tid") for s in b8.summons]))
-    logs8 = []
-    b8._summon_evolve(2, p8, logs8)
-    check("进化狼王", b8.summons[0]["tid"] == "wolf_king", str(b8.summons[0]["tid"]))
-    check("进化日志", any("进化" in l for l in logs8), str(logs8))
-    b8._summon_evolve(3, p8, logs8)
-    check("进化影狼", b8.summons[0]["tid"] == "shadow_wolf", str(b8.summons[0]["tid"]))
-    check("影狼真伤类型", b8.summons[0]["dmg_type"] == "true", str(b8.summons[0]["dmg_type"]))
-    # 无狼宠时进化提示
-    b8c = BT.Battle("怪物", mk_enemy(), {}, p8)
-    logs8c = []
-    b8c._summon_evolve(2, p8, logs8c)
-    check("无宠进化提示", any("先召唤" in l for l in logs8c), str(logs8c))
+    # 数量流：藤蔓守卫可叠 2（limit 2）
+    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    check("藤蔓守卫可叠 2", len(b8.summons) == 2, str([s.get("tid") for s in b8.summons]))
+    # 再招第 3 只 → 达上限提示（不重复召唤）
+    b8._player_skill(b8._player_stats(p8), "召唤藤蔓守卫", evo1, p8)
+    check("藤蔓守卫达上限", len(b8.summons) == 2, str([s.get("tid") for s in b8.summons]))
 
     # 清理注入
     del PLAYER_SKILLS["cls_mech_test"]

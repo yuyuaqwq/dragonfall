@@ -182,9 +182,12 @@ def main():
         check(f"{tid} 有 teach func", "teach" in (C.ALL_WILD[tid].get("funcs") or []),
               str(C.ALL_WILD[tid].get("funcs")))
         check(f"{tid} 无对话树(走 _teach_by_npc)", tid not in C.DIALOGUES, "→ 有树则应走对话选项")
-    check("teach 映射表覆盖 3 个教习 NPC",
-          all(tid in m._TEACH_SKILL_MAP for tid in ("w_dragon_whisper", "w_ancient_guardian", "h_grave_king")),
-          str(list(m._TEACH_SKILL_MAP.keys())))
+    # v112 D6：教习技能表下沉 NPC 数据（teach_skills，ALL_WILD 合并 WILD+HIDDEN）
+    check("teach 配置覆盖 3 个教习 NPC(v112 数据驱动)",
+          all((C.ALL_WILD.get(tid) or {}).get("teach_skills") for tid in
+              ("w_dragon_whisper", "w_ancient_guardian", "h_grave_king")),
+          str([tid for tid in ("w_dragon_whisper", "w_ancient_guardian", "h_grave_king")
+               if not (C.ALL_WILD.get(tid) or {}).get("teach_skills")]))
     # 战士 Lv.50 找 龙语者·古尔 → 学会 战争践踏
     db.create_player(GID, QID, "测试", "cls_zhan_shi", {}, 100, 100)
     db.update_player(GID, QID, level=50, gold=999999, cur_map="dragon_ridge", cur_subarea="dragon_ridge_1")

@@ -20,16 +20,7 @@ from . import content as C
 from . import engine as E
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
-_ATK_VERB = {
-    "cls_zhan_shi": "挥剑斩击",
-    "cls_fa_shi": "凝聚魔力轰出法球",
-    "cls_you_xia": "弯弓搭箭",
-    "cls_mu_shi": "圣光冲击",
-    "cls_ci_ke": "匕首突刺",
-    "cls_wu_seng": "挥拳轰击",
-    "cls_bard": "拨弦激荡音波",
-    "cls_spellblade": "魔能斩击",
-}
+# v112 数据驱动收敛（D5）：文案下沉 CLASSES[职业]["attack_text"]，逻辑层只读数据
 
 
 # v105 P3(M01)：种族残血攻倍率常量——battle 结算与 race_talent_display 展示共用，
@@ -40,7 +31,7 @@ RACE_TIMID_MULT = 0.90     # 怯战：HP 低于 timid_hp 阈值时攻击 ×0.90�
 
 def _basic_attack_verb(player: dict) -> str:
     """普攻动作文案（按职业；未知职业 fallback 挥剑攻击）"""
-    return _ATK_VERB.get(player.get("class_name", ""), "挥剑攻击")
+    return C.CLASSES.get(player.get("class_name", ""), {}).get("attack_text", "挥剑攻击")
 
 
 # 增益倍率映射：effect -> (修正属性, 倍率/加成)
@@ -74,8 +65,20 @@ BUFF_MULT = {
 }
 # v104 M02 P1-4：团队增益 effect=xx_all → 施放者自身有效 buff 键（与 instance.py buff_effects 同口径）
 TEAM_BUFF_KEYS = {
-    "def_all": "def_up", "reduce_all": "def_up", "atk_all": "atk_up",
+    "def_all": "def_up", "atk_all": "atk_up",
     "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
+}
+# v113.1：团队技能 reduce_all 真·百分比减伤（此前被 TEAM_BUFF_KEYS 误映射为 def_up 防御提升，
+# 玩家看到"减伤 x%"实际是防御+45%）。reduce_all 是团队减伤 effect，不走 TEAM_BUFF_KEYS，
+# 在 _skill_buff 单独处理成 p_buffs["reduce_all"]=减伤百分比。
+# 百分比取自各技能 desc（skills.py 无独立数字字段，另一 agent 在改 skills.py，此处按策划 desc 收敛）。
+# 副本广播侧（instance.py team_effects["reduce_all"]）保持既有口径，本文只修 battle.py 单机侧。
+REDUCE_ALL_PCT = {
+    "磐石护壁": 0.15,   # desc：全队减伤 15% 2 回合
+    "不破壁垒": 0.25,   # desc：全队减伤 25% 3 回合
+    "守护圣域": 0.50,   # desc：全队无敌屏障（按三转奥义档，收敛 50%）
+    "气力万法": 0.30,   # desc：全队减伤 30% 3 回合
+    "大地守护": 0.50,   # desc：全队减伤 50% 3 回合
 }
 # 负面效果
 DEF_DOWN_MULT = 0.5   # 破甲斩：敌方防御减半
@@ -96,6 +99,7 @@ class Battle:
         self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
+        self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余回合（百分比存 p_buffs["reduce_all"]）
         self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
@@ -920,7 +924,8 @@ class Battle:
         # v109 P0-2：隐藏职业被动并入补全（龙魂/星辰之力/万兽之力等 lv62 被动此前完全无效）
         for _pk, _pv in (("heal_power_add", "heal_power"), ("shield_power_add", "shield_power"),
                          ("elem_res_add", "elem_res"), ("abyss_res_add", "abyss_res"),
-                         ("luck_add", "luck"), ("summon_power_add", "summon_power")):
+                         ("luck_add", "luck"), ("summon_power_add", "summon_power"),
+                         ("dodge_add", "dodge")):  # v113.1：游侠觉醒被动「风之加护」闪避并入
             if pb.get(_pk, 0.0):
                 st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
@@ -1089,19 +1094,28 @@ class Battle:
 
     def _resource_on_skill(self, player: dict, info: dict = None):
         """v2.0 核心资源：技能命中获取（on_skill 或技能 res_gain 覆盖）。
-        牧师治疗获取信仰（on_heal）。有 res_cost 的终结技不获取（消耗型）。"""
+        牧师治疗获取信仰（on_heal）。有 res_cost 的终结技不获取（消耗型）。
+        v113.1 修复：终结技 res_cost 与命中 res_gain 可并存——若技能自带 res_gain
+        （如林语印记 res_cost 40 精力 / res_gain {"energy": 10}，消耗与获取并存），
+        即使带 res_cost 也结算 res_gain；仅当 res_gain 缺省时才按现状对 res_cost
+        终结技短路不获取。res_gain 支持 int 或 dict（按本职业核心资源 key 取值）。"""
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
         if not rd:
             return
         k = rd["key"]
-        # 终结技（有 res_cost）不获取资源
-        if info and info.get("res_cost"):
+        # 终结技（有 res_cost）默认不获取资源——除非技能自带 res_gain（消耗与获取并存）
+        if info and info.get("res_cost") and info.get("res_gain") is None:
             return
-        # 技能自带 res_gain 覆盖默认（如终结技 0 获取）
+        # 技能自带 res_gain 覆盖默认（如终结技 0 获取）。
+        # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {"energy": 10}）。
         gain = 0
         if info and info.get("res_gain") is not None:
-            gain = info["res_gain"]
+            rg = info["res_gain"]
+            if isinstance(rg, dict):
+                gain = int(rg.get(k, 0) or 0)
+            else:
+                gain = int(rg)
         elif rd.get("on_skill"):
             gain = rd["on_skill"]
         if gain:
@@ -1477,6 +1491,14 @@ class Battle:
                 st2 = self._player_stats(player)
                 base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
                 self._add_shield("team_bless", int(base * 0.20), 3)
+            elif eff == "reduce_all":
+                # v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
+                # p_buffs["reduce_all"] 存减伤百分比；回合数记 self._reduce_all_left（_end_round 单独递减）。
+                pct = float((info or {}).get("reduce_all", REDUCE_ALL_PCT.get(info.get("name", ""), 0)) or 0)
+                turns = E.skill_buff_turns(lv)
+                self.p_buffs["reduce_all"] = pct
+                self._reduce_all_left = max(getattr(self, "_reduce_all_left", 0), turns)
+                logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {self._reduce_all_left} 回合）")
             else:
                 # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
                 key = TEAM_BUFF_KEYS.get(eff, eff)
@@ -1873,11 +1895,11 @@ class Battle:
 
         # ---- 分支机制结算（v29） ----
         self._last_player = player
-        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit)
+        self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
         # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
         cc = info.get("cc")
         if cc and cc in ("stun", "silence", "cleanse"):
-            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit)
+            self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
 
         # ---- 技能特效（v9 落地）----
         # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
@@ -1942,12 +1964,13 @@ class Battle:
         if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade"):
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
-    def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False):
-        """攻击技能施放后的机制结算（v98.4：数据化 → core/battle_mech.py MECH_EFFECTS）"""
+    def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False, info: dict | None = None):
+        """攻击技能施放后的机制结算（v98.4：数据化 → core/battle_mech.py MECH_EFFECTS）
+        v113.1：info（技能 dict）下传，handler 可读技能自带 mech_chance 固定概率。"""
         from .core.battle_mech import MECH_EFFECTS
         handler = MECH_EFFECTS.get(mech)
         if handler:
-            handler(self, mval, p_mech, total, logs, skill_name, is_crit)
+            handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
 
     # ---------------- v10 套装攻击特效 ----------------
     def _set_attack_proc(self, player: dict, dmg: int, logs: list):
@@ -2509,9 +2532,18 @@ class Battle:
                 # 敌方先手 e_extra_left=0、敌方施放眩晕给玩家）会被直接吞掉，眩晕永远不生效。
                 if k in ("stun", "freeze"):
                     continue
+                # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
+                # 需单独递减（数值递减会让百分比被 -1 污染）。
+                if k == "reduce_all":
+                    continue
                 tbl[k] -= 1
                 if tbl[k] <= 0:
                     del tbl[k]
+        # v113.1：团队减伤 buff 独立计时
+        if self.p_buffs.get("reduce_all") is not None:
+            self._reduce_all_left = int(getattr(self, "_reduce_all_left", 1) or 1) - 1
+            if self._reduce_all_left <= 0:
+                self.p_buffs.pop("reduce_all", None)
         # v101.28d 护盾回合递减：各来源独立计时，到 0 消失
         for key in list(self.p_shields):
             self.p_shields[key]["turns"] -= 1
@@ -2757,6 +2789,15 @@ class Battle:
         if dodge > 0 and random.random() < dodge:
             logs.append("💨 你闪避了攻击！")
             return
+        # v113.1：团队技能 reduce_all 真·百分比减伤（此前误映射 def_up 防御提升）——
+        # p_buffs["reduce_all"] 存减伤百分比，回合数由 self._reduce_all_left 单独计时。
+        # 单机侧在此按比例减伤；副本广播侧（instance.py 消费 team_effects["reduce_all"]）另口径。
+        _rd_pct = float(self.p_buffs.get("reduce_all") or 0)
+        if _rd_pct > 0:
+            _rd = int(dmg * min(_rd_pct, 0.9))
+            if _rd > 0:
+                dmg = max(1, dmg - _rd)
+                logs.append(f"🕸️ 团队屏障减伤 {_rd} 点！")
         # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
         # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
         block_chance = float(self._player_stats(player).get("block", 0) or 0)
@@ -2799,7 +2840,20 @@ class Battle:
                 if ps.get("cond") == "hp_low_30" and player.get("hp", 0) / max(1, player.get("max_hp", 1)) >= 0.30:
                     continue
                 reduce_total += int(dmg * rpct)
+                # v113.1：守护姿态 passive 带 res_gain（受击怒气+2 承诺）——此前本分支只减伤
+                # 不结算 res_gain，承诺落空。消费到职业核心资源（战士怒气等）。
+                _rg = int(ps.get("res_gain") or 0)
+                if _rg > 0:
+                    _rcls = player.get("class_name", "")
+                    _rdef = E.core_resource_def(_rcls)
+                    if _rdef:
+                        _rk = _rdef["key"]
+                        self.resources[_rk] = E.core_resource_gain(_rcls, self.resources, _rg)
+                        logs.append(f"⚡ {ps_name}：受击获取 {_rg} 点资源（{_rk} {self.resources[_rk]}）")
             elif proc == "reflect" and self.enemy.get("hp", 0) > 0:
+                # v113.1：反震——按 chance 概率反伤（缺省 100%：无条件反伤，保持旧行为）
+                if "chance" in ps and random.random() >= float(ps.get("chance") or 0):
+                    continue
                 rd = int(dmg * float(ps.get("mult") or 0))
                 if rd > 0:
                     # v104 M02 P1-5：反伤走 Boss 护盾过滤（扣盾减半/反伤），再结算援军挡刀

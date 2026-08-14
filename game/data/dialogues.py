@@ -941,34 +941,22 @@ DIALOGUES = {
         },
     },
     # ==================== v87 隐藏职业：魔剑士残魂（H6 失落图书馆）====================
+    # v113：魔剑士流派已舍弃，此处仅存背景 lore
     "npc_spellblade_ghost": {
         "start": "welcome",
         "nodes": {
             "welcome": {
-                "text": "虚影凝实，一柄锈剑缓缓抬起——『三百年了……终于有人带着信物走进这里。想继承魔剑士之名吗？』",
+                "text": "虚影凝实，一柄锈剑缓缓抬起——『三百年了……终于有人带着信物走进这里。你想听这段往事吗？』",
                 "options": [
-                    {"text": "我想接受试炼！", "next": "trial", "action": {"set_flag": "spellblade_met"}},
                     {"text": "📜 有活儿要交给我吗？", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
                     {"text": "魔剑士是什么？", "next": "lore"},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
-            "trial": {
-                "text": "『剑与书的誓约：击败 3 只图书馆守卫，取回 2 片咒刃残页。去吧，图书馆的守卫会阻挡你，但残页会指引你。』",
-                "options": [
-                    {"text": "我会做到的。", "next": "trial_accept"},
-                    {"text": "告辞。", "next": "__end__"},
-                ],
-            },
-            "trial_accept": {
-                "text": "『记住：魔能是剑与法的共鸣，不是蛮力。当你学会让它流转，你就真正入门了。』",
-                "options": [{"text": "告辞。", "next": "__end__"}],
-            },
             "lore": {
-                "text": "『三百年前，我以剑与魔法同魔龙一战。剑术斩其躯，魔法破其鳞——这就是魔剑士的荣光。可惜传承断绝，如今只剩我这残魂守着这份奥义。』",
+                "text": "『三百年前，我以剑与魔法同魔龙一战。那是我一个人的道路——如今剑仍在，路已断。后辈啊，去走你自己的路吧。』",
                 "options": [
-                    {"text": "我想接受试炼！", "next": "trial"},
-                    {"text": "告辞。", "next": "__end__"},
+                    {"text": "受教了。", "next": "__end__"},
                 ],
             },
         },
@@ -1119,7 +1107,6 @@ DIALOGUES = {
             "welcome": {
                 "text": "箭离弦之前，先学会看风。港口的风最会骗人。",
                 "options": [
-                    {"text": "请教『三连射』(Lv.45 · 800金)", "next": "teach_san_lian", "need": {"class_any": ["cls_you_xia"]}},
                     {"text": "请教『鹰眼』(Lv.38 · 1500金)", "next": "teach_ying_yan", "need": {"class_any": ["cls_you_xia"]}},
                     {"text": "🌟 我想转职！", "next": "evolve_t1", "need": {"class_any": ["cls_you_xia"], "evolve_ready": {"tier": 0, "level": 30}}},
                     {"text": "🌟 我想继续转职！", "next": "evolve_t2", "need": {"class_any": ["cls_you_xia"], "evolve_ready": {"tier": 1, "level": 60}}},
@@ -1128,11 +1115,10 @@ DIALOGUES = {
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },
-            "teach_san_lian": {"text": "三连射——三支箭，一个呼吸。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "三连射", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
             "teach_ying_yan": {"text": "鹰眼——看穿风的轨迹。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "鹰眼", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
-            "evolve_t1": {"text": "Lv.30 的游侠：猎魔人追猎黑暗，风行者追逐自由。", "options": [{"text": "转职为猎魔人（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为风行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
-            "evolve_t2": {"text": "Lv.60！暗夜猎手还是疾风射手？", "options": [{"text": "转职为暗夜猎手（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为疾风射手（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
-            "evolve_t3": {"text": "Lv.90，游侠的巅峰：猎魔先驱，或疾风猎手。", "options": [{"text": "转职为猎魔先驱（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为疾风猎手（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
+            "evolve_t1": {"text": "Lv.30 的游侠：林语者聆听万木，风行者追逐自由。", "options": [{"text": "转职为林语者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为风行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
+            "evolve_t2": {"text": "Lv.60！自然行者还是疾风射手？", "options": [{"text": "转职为自然行者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为疾风射手（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
+            "evolve_t3": {"text": "Lv.90，游侠的巅峰：万木之灵，或疾风猎手。", "options": [{"text": "转职为万木之灵（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为疾风猎手（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
             "evolved": {"text": "风会记住你的名字，游侠。", "options": [{"text": "多谢导师！", "next": "__end__"}]},
             "taught": {"text": "回去多练，箭无虚发是练出来的。", "options": [{"text": "告辞。", "next": "__end__"}]},
             "chat": {"text": "铁港城的风，吹得人清醒。", "options": [{"text": "告辞。", "next": "__end__"}]},
@@ -1155,9 +1141,9 @@ DIALOGUES = {
             },
             "teach_sheng_guang": {"text": "圣光惩戒——以光为刃，斩断污秽。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "圣光惩戒", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
             "teach_jiu_shu": {"text": "救赎之光——让光治愈每一道伤口。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "救赎之光", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
-            "evolve_t1": {"text": "Lv.30 的牧师：圣武士以剑护道，神谕者以言传道。", "options": [{"text": "转职为圣武士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为神谕者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
-            "evolve_t2": {"text": "Lv.60！审判骑士还是大主教？", "options": [{"text": "转职为审判骑士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为大主教（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
-            "evolve_t3": {"text": "Lv.90，牧师的终点：裁决骑士，或圣光先知。", "options": [{"text": "转职为裁决骑士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为圣光先知（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
+            "evolve_t1": {"text": "Lv.30 的牧师：吟游诗人以歌开路，神谕者以言传道。", "options": [{"text": "转职为吟游诗人（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为神谕者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
+            "evolve_t2": {"text": "Lv.60！灵魂歌者还是大主教？", "options": [{"text": "转职为灵魂歌者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为大主教（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
+            "evolve_t3": {"text": "Lv.90，牧师的终点：黎明颂者，或圣光先知。", "options": [{"text": "转职为黎明颂者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为圣光先知（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
             "evolved": {"text": "愿圣光与你同行，牧师。", "options": [{"text": "多谢导师！", "next": "__end__"}]},
             "taught": {"text": "回去默祷，光会回应你的虔诚。", "options": [{"text": "告辞。", "next": "__end__"}]},
             "chat": {"text": "白鹿城的圣殿，晨钟暮鼓从不间断。", "options": [{"text": "告辞。", "next": "__end__"}]},
@@ -1205,8 +1191,8 @@ DIALOGUES = {
             },
             "teach_beng_quan": {"text": "裂骨击——以裂骨劲碎敌之防。学费 800 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "裂骨击", "cost": 800, "need_lv": 6}}}, {"text": "下次再说", "next": "welcome"}]},
             "teach_jin_gang": {"text": "磐石之体——身如磐石，万法不侵。学费 1500 金币。", "options": [{"text": "请教我！", "next": "taught", "action": {"tutor_skill": {"skill": "磐石之体", "cost": 1500, "need_lv": 10}}}, {"text": "下次再说", "next": "welcome"}]},
-            "evolve_t1": {"text": "Lv.30 的拳师：拳斗士以攻代守，磐石行者以守代攻。", "options": [{"text": "转职为拳斗士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为磐石行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
-            "evolve_t2": {"text": "Lv.60！武斗师还是铁壁行者？", "options": [{"text": "转职为武斗师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为铁壁行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
+            "evolve_t1": {"text": "Lv.30 的拳师：格斗士以攻代守，磐石行者以守代攻。", "options": [{"text": "转职为格斗士（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 1}}}, {"text": "转职为磐石行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 1, "path": 2}}}]},
+            "evolve_t2": {"text": "Lv.60！拳术师还是铁壁行者？", "options": [{"text": "转职为拳术师（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 1}}}, {"text": "转职为铁壁行者（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 2, "path": 2}}}]},
             "evolve_t3": {"text": "Lv.90，拳师的极境：破晓者，或磐岩壁垒。", "options": [{"text": "转职为破晓者（⚔️ 进攻）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 1}}}, {"text": "转职为磐岩壁垒（🛡️ 防御）", "next": "evolved", "action": {"evolve_class": {"tier": 3, "path": 2}}}]},
             "evolved": {"text": "拳即是心，心即是拳。走吧，拳师。", "options": [{"text": "多谢导师！", "next": "__end__"}]},
             "taught": {"text": "回去把桩功练扎实，功夫不会骗人。", "options": [{"text": "告辞。", "next": "__end__"}]},
@@ -1253,6 +1239,226 @@ DIALOGUES = {
                 "options": [
                     {"text": "收下传承！", "next": "__end__", "action": {"quest_take": True}},
                 ],
+            },
+        },
+    },
+    # ================= v113 隐藏线血脉传承对话树 6（种族限制：非对应血脉导师直接拒绝） =================
+    # 设计：血脉不符 → 拒绝台词（无传承选项）；血脉符合 + 未解锁 → 试炼引导；
+    #       血脉符合 + 已解锁 → 『接受传承』（hidden_evolve 动作，异步转职）。
+    # 种族前置：dialogue_conds 的 race_is 条件；接取任务另有 require_race 双保险。
+    "npc_dragon_veteran": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "dragonborn"},
+                     "text": "龙裔老兵·铁鳞的目光落在你身上，微微一凝：『龙血的味道……你体内流着龙骨山脉的血。过来，小子。』"},
+                ],
+                "text": "龙裔老兵·铁鳞上下打量你，缓缓摇头：『龙血不是谁都能受的。你的血脉里，没有龙骨山脉的印记。』",
+                "options": [
+                    {"text": "🐉 我渴望龙血之力！", "next": "trial", "need": {"race_is": "dragonborn"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "dragonborn"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_dragon_oath", "not_hidden_current": "cls_dragon_oath"},
+                     "text": "铁鳞颔首：『试炼已成，龙血已在你的血管里苏醒。坐下来，接受龙裔的传承吧。』"},
+                ],
+                "text": "铁鳞：『暮岭古道的战争魔像守着最后的龙血矿脉。砸碎它们，让龙血在你血管里醒过来。』",
+                "options": [
+                    {"text": "🔥 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_dragon_oath", "not_hidden_current": "cls_dragon_oath"}, "action": {"hidden_evolve": {"cls": "cls_dragon_oath", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "铁鳞：『去暮岭古道找那两具战争魔像。砸碎它们，龙血矿脉就会为你敞开。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "铁鳞：『龙魂已与你同在。去闯出你的传说吧，龙裔。』",
+                "options": [{"text": "多谢老兵！", "next": "__end__"}],
+            },
+        },
+    },
+    "npc_chrono_warden": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "human"},
+                     "text": "时计贤者·艾瑟拉推了推单片眼镜，镜片后的目光亮了一下：『人类的求知欲……时间会偏爱这样的灵魂。』"},
+                ],
+                "text": "时计贤者·艾瑟拉打量着你：『时间只向求道者低语。你的血脉里，还没有那份执念。』",
+                "options": [
+                    {"text": "⏳ 我想聆听时间之语！", "next": "trial", "need": {"race_is": "human"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "human"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_chronomancer", "not_hidden_current": "cls_chronomancer"},
+                     "text": "艾瑟拉：『试炼已成，日晷的指针为你停顿了一瞬。来吧，翻开时间的那一页。』"},
+                ],
+                "text": "艾瑟拉：『晨曦大圣堂地窖的审判猎犬守候着时间之痕。击败它们，证明你能在时间的洪流中站稳。』",
+                "options": [
+                    {"text": "⏳ 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_chronomancer", "not_hidden_current": "cls_chronomancer"}, "action": {"hidden_evolve": {"cls": "cls_chronomancer", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "艾瑟拉：『晨曦大圣堂的古老日晷从不在正午指向太阳。找到大圣堂地窖里的审判猎犬，让时间为你停顿。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "艾瑟拉：『时间已与你同行。去吧，让世界为你停驻片刻。』",
+                "options": [{"text": "多谢贤者！", "next": "__end__"}],
+            },
+        },
+    },
+    "npc_astrologer": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "elf"},
+                     "text": "观星台主·星澜抬头望向你，眼中映着星辉：『银月精灵……星语湖的星星，认得你的血脉。』"},
+                ],
+                "text": "观星台主·星澜轻声叹息：『湖面映着的星星，只向精灵的血脉吐露真名。你的命运，还藏在湖底。』",
+                "options": [
+                    {"text": "⭐ 我想与星辰对话！", "next": "trial", "need": {"race_is": "elf"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "elf"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_wild_hunter", "not_hidden_current": "cls_wild_hunter"},
+                     "text": "星澜：『湖面已清，星星照了进来——命运正在为你转动。接受星辰的传承吧。』"},
+                ],
+                "text": "星澜：『星语湖被湖妖搅浑了。驱散它们，让星辉重新映照湖面——能看见星星的人，命运才会为你转动。』",
+                "options": [
+                    {"text": "⭐ 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_wild_hunter", "not_hidden_current": "cls_wild_hunter"}, "action": {"hidden_evolve": {"cls": "cls_wild_hunter", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "星澜：『去星语湖驱散湖妖。湖水清了，星星就会为你指路。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "星澜：『星辰已认你为主。去吧，命运会为你转动。』",
+                "options": [{"text": "多谢星澜！", "next": "__end__"}],
+            },
+        },
+    },
+    "npc_grave_watcher": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "orc"},
+                     "text": "守墓人·枯骨抬起浑浊的眼睛：『兽人……边境堡外的骨头，认得出战血的味道。』"},
+                ],
+                "text": "守墓人·枯骨嘶哑地笑了笑：『亡者只听血脉的呼唤。你身上没有那份战血。』",
+                "options": [
+                    {"text": "💀 我想聆听亡者之语！", "next": "trial", "need": {"race_is": "orc"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "orc"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_hymn", "not_hidden_current": "cls_hymn"},
+                     "text": "枯骨：『骨头已安息，低语已清晰。来，接下亡者的权柄。』"},
+                ],
+                "text": "枯骨：『边境堡外的兽人劫掠者躁动不安。让战场上的亡魂安息——能听懂亡者低语的人，才有资格执掌亡者。』",
+                "options": [
+                    {"text": "💀 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_hymn", "not_hidden_current": "cls_hymn"}, "action": {"hidden_evolve": {"cls": "cls_hymn", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "枯骨：『去边境堡外，让躁动的兽人劫掠者安息。打完这场，你就听得见亡者的低语了。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "枯骨：『亡者已认你为主。去吧，让它们安息。』",
+                "options": [{"text": "多谢枯骨！", "next": "__end__"}],
+            },
+        },
+    },
+    "npc_shadow_master": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "halfling"},
+                     "text": "影刃宗师·夜枭从货箱的阴影里探出身：『半身人……灵巧的血脉，影子喜欢这样的同伴。』"},
+                ],
+                "text": "影刃宗师·夜枭隐在货箱的阴影中：『影豹只追随影子里的猎手。你的身法，还缺那一点暗影的血。』",
+                "options": [
+                    {"text": "🗡️ 我想成为影子！", "next": "trial", "need": {"race_is": "halfling"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "halfling"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_shadow_blade", "not_hidden_current": "cls_shadow_blade"},
+                     "text": "夜枭：『影豹已败，影子已认主。来吧，接下暗影的传承。』"},
+                ],
+                "text": "夜枭：『月影林的影豹快过月光。去追上它们、击败它们——那时候你就不再是追影子的人，你就是影子本身。』",
+                "options": [
+                    {"text": "🗡️ 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_shadow_blade", "not_hidden_current": "cls_shadow_blade"}, "action": {"hidden_evolve": {"cls": "cls_shadow_blade", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "夜枭：『去月影林猎影豹。快过月光，你就成了影子。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "夜枭：『影子已与你同行。去吧，暗影即吾身。』",
+                "options": [{"text": "多谢宗师！", "next": "__end__"}],
+            },
+        },
+    },
+    "npc_wusheng_monk": {
+        "start": "welcome",
+        "nodes": {
+            "welcome": {
+                "texts": [
+                    {"need": {"race_is": "dwarf"},
+                     "text": "武僧·铁山拍了拍你的肩膀，咧嘴一笑：『矮人的筋骨，天生就是练拳的好料子！』"},
+                ],
+                "text": "武僧·铁山打量着你：『铁砧要塞的拳谱，只传筋骨如铁的血脉。你……还差些火候。』",
+                "options": [
+                    {"text": "🥊 我想学真拳！", "next": "trial", "need": {"race_is": "dwarf"}},
+                    {"text": "🧭 我该如何证明自己？", "next": "hint", "need": {"race_is": "dwarf"}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "trial": {
+                "texts": [
+                    {"need": {"hidden_unlocked": "cls_wu_sheng", "not_hidden_current": "cls_wu_sheng"},
+                     "text": "铁山：『三只兽人没白打！来吧，我教你真正的拳。』"},
+                ],
+                "text": "铁山：『边境堡外的兽人劫掠者猖狂。以一敌三，打完了回来，我教你真正的拳。』",
+                "options": [
+                    {"text": "🥊 我准备好了，接受传承！", "next": "inherit_ok", "need": {"hidden_unlocked": "cls_wu_sheng", "not_hidden_current": "cls_wu_sheng"}, "action": {"hidden_evolve": {"cls": "cls_wu_sheng", "tier": 0, "path": 1}}},{"text": "📜 接下试炼！", "next": "__end__", "need": {"side_available": True}, "action": {"side_offer": True}},
+                    {"text": "告辞。", "next": "__end__"},
+                ],
+            },
+            "hint": {
+                "text": "铁山：『去边境堡外，三拳一个，打三只兽人劫掠者回来见我。』",
+                "options": [{"text": "明白了。", "next": "welcome"}],
+            },
+            "inherit_ok": {
+                "text": "铁山：『拳即是心。去吧，以武证道。』",
+                "options": [{"text": "多谢铁山！", "next": "__end__"}],
             },
         },
     },

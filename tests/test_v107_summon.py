@@ -38,11 +38,13 @@ async def main():
 
     # 0. 数据完整性
     print("— 数据 —")
-    check("模板含骷髅/狼三形态", all(k in SUMMONS for k in
-                                     ("skeleton", "wolf_cub", "wolf_king", "shadow_wolf")))
+    check("模板含骷髅/藤蔓守卫/古树守卫", all(k in SUMMONS for k in
+                                          ("skeleton", "vine_guard", "treant")))
     check("骷髅 limit=3（数量流）", SUMMONS["skeleton"]["limit"] == 3)
-    check("兽王单宠 limit=1（质量流）", SUMMONS["wolf_cub"]["limit"] == 1)
-    check("影狼真伤类型", SUMMONS["shadow_wolf"]["dmg_type"] == "true")
+    check("藤蔓守卫 limit=2（数量流）", SUMMONS["vine_guard"]["limit"] == 2)
+    check("古树守卫 limit=1（重装）", SUMMONS["treant"]["limit"] == 1)
+    check("v113 兽群进出（狼三形态已删）", not any(k in SUMMONS for k in
+                                                 ("wolf_cub", "wolf_king", "shadow_wolf")))
 
     def mk_player(extra=None, cls="牧师", hp=500):
         p = {
@@ -101,17 +103,17 @@ async def main():
     check("召唤物攻击造成伤害", dealt3 > 0, f"dealt {dealt3}")
     check("日志有攻击文案", any("攻击" in l for l in logs3), str(logs3))
 
-    # 4. 真伤召唤物（影狼）绕过防御
+    # 4. 真伤召唤物（合成 true-dmg 召唤，验证真伤绕过防御；v113 狼系真伤模板已删）
     print("\n— 真伤召唤物 —")
     p4 = mk_player()
     b4 = BT.Battle("怪物", mk_enemy(def_=5000, hp=50000), {}, p4)
-    b4._summon_entity("shadow_wolf", p4, [])
-    st4 = b4._player_stats(p4)
-    b4.summons[0]["atk"] = 100  # 固定 atk 便于断言
+    b4.summons.append({"tid": "synthetic_true", "name": "真伤灵", "icon": "✨",
+                       "hp": 500, "max_hp": 500, "atk": 100, "def": 0,
+                       "dmg_type": "true"})
     hp4 = b4.enemy["hp"]
     logs4 = b4._summons_act(p4, [])
     dealt4 = hp4 - b4.enemy["hp"]
-    check("影狼真伤无视 def=5000", 80 <= dealt4 <= 120, f"dealt {dealt4}")
+    check("真伤召唤物无视 def=5000", 80 <= dealt4 <= 120, f"dealt {dealt4}")
     # 对照：物理召唤物（骷髅）被高防大幅削减
     p4b = mk_player()
     b4b = BT.Battle("怪物", mk_enemy(def_=5000, hp=50000), {}, p4b)

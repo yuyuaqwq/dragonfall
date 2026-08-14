@@ -49,7 +49,7 @@ async def main():
 
     # 1. 龙血战士：龙息真伤
     print("— 龙血战士 —")
-    p = mk_player("cls_dragon_warrior", ["龙息", "龙息之怒"])
+    p = mk_player("cls_dragon_oath", ["龙息", "龙息之怒"])
     b = BT.Battle("怪物", mk_enemy(def_=5000, hp=50000), {}, p)
     hp0 = b.enemy["hp"]
     logs = cast(b, p, "龙息")
@@ -59,7 +59,7 @@ async def main():
 
     # 2. 暗影祭司：召唤骷髅
     print("\n— 暗影祭司 —")
-    p = mk_player("cls_necromancer", ["召唤骷髅", "骷髅海"])
+    p = mk_player("cls_hymn", ["召唤骷髅", "骷髅海"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     logs = cast(b, p, "召唤骷髅")
     check("召唤骷髅生成", len(b.summons) == 1, str(b.summons))
@@ -67,55 +67,40 @@ async def main():
     check("骷髅海再召唤", len(b.summons) == 2, str(len(b.summons)))
     check("骷髅海带攻击buff", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
 
-    # 3. 兽王：进化链
-    print("\n— 兽王 —")
-    p = mk_player("cls_beast_king", ["驯兽召唤", "狼群指令", "野性呼唤"])
+    # 3. 植物召唤（v113 兽群进化链已删，召唤下放基础游侠攻线·林语者）
+    print("\n— 林语者：植物召唤 —")
+    p = mk_player("cls_you_xia", ["召唤藤蔓守卫", "召唤古树守卫"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    cast(b, p, "驯兽召唤")
-    check("驯兽召唤幼狼", b.summons[0]["tid"] == "wolf_cub")
-    cast(b, p, "狼群指令")
-    check("狼群指令→狼王", b.summons[0]["tid"] == "wolf_king")
-    cast(b, p, "野性呼唤")
-    check("野性呼唤→影狼真伤", b.summons[0]["tid"] == "shadow_wolf" and b.summons[0]["dmg_type"] == "true")
+    cast(b, p, "召唤藤蔓守卫")
+    check("召唤藤蔓守卫", b.summons[0]["tid"] == "vine_guard", str([s.get("tid") for s in b.summons]))
+    cast(b, p, "召唤古树守卫")
+    check("再召古树守卫", any(s["tid"] == "treant" for s in b.summons),
+          str([s.get("tid") for s in b.summons]))
 
-    # 4. 影武者：斩杀被动
-    print("\n— 影武者 —")
-    p = mk_player("cls_shadow_blade", ["幽影袭", "残血追猎", "收割"])
+    # 4. 暮影行者（暗杀流）：幽影连刺多段（v113 收割流派已下放基础刺客）
+    print("\n— 暮影行者（暗杀流）—")
+    p = mk_player("cls_shadow_blade", ["幽影袭", "幽影连刺", "幽影刃"])
     b = BT.Battle("怪物", mk_enemy(hp=50000), {}, p)
-    b.enemy["hp"] = 8000  # 16% 血
-    logs = cast(b, p, "幽影袭")
-    check("残血影袭斩杀加成", any("斩杀" in l for l in logs), str([l for l in logs if "斩杀" in l]))
-    b2 = BT.Battle("怪物", mk_enemy(hp=50000), {}, p)
-    logs2 = cast(b2, p, "收割")
-    check("收割低血条件生效", any("收割" in l for l in logs2), str([l for l in logs2 if "收割" in l]))
+    hp0 = b.enemy["hp"]
+    logs = cast(b, p, "幽影连刺")
+    check("幽影连刺多段输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
+    logs2 = cast(b, p, "幽影连刺")
+    check("幽影连刺日志", any("幽影连刺" in l for l in logs + logs2),
+          str([l for l in logs + logs2 if "幽影连刺" in l]))
 
-    # 5. 猩红学者：血之契约
-    print("\n— 猩红学者 —")
-    p = mk_player("cls_blood_mage", ["血之契约", "猩红汲取", "血爆"], hp=800)
+    # 5. 虚空爆破（v113 从时咒线虚空流下放基础法师攻线）：吸MP
+    print("\n— 法师·虚空爆破（吸蓝）—")
+    p = mk_player("cls_fa_shi", ["虚空爆破"], mp=20)
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    hp0 = p["hp"]
-    logs = cast(b, p, "血之契约")
-    check("血之契约扣血", p["hp"] < hp0, f"{hp0}→{p['hp']}")
-    check("血祭标签", any("血祭" in l for l in logs), str([l for l in logs if "血祭" in l]))
-    # 猩红汲取吸血
-    b2 = BT.Battle("怪物", mk_enemy(), {}, p)
-    p["hp"] = 100
-    logs2 = cast(b2, p, "猩红汲取")
-    check("猩红汲取回血", p["hp"] > 100, f"hp {p['hp']}")
+    logs = cast(b, p, "虚空爆破")
+    check("虚空爆破回蓝", p["mp"] > 20, f"mp {p['mp']}")
+    check("虚空汲取日志", any("虚空汲取" in l for l in logs), str([l for l in logs if "虚空汲取" in l]))
 
-    # 6. 虚空行者：吸MP
-    print("\n— 虚空行者 —")
-    p = mk_player("cls_void_walker", ["虚空箭", "虚空爆破"], mp=20)
+    # 6. 游侠·林语者（v113 自然毒藤下放基础攻线）：毒→爆
+    print("\n— 游侠·毒爆流 —")
+    p = mk_player("cls_you_xia", ["淬毒箭矢", "藤蔓缠绕", "毒爆术", "剧毒之心"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "虚空箭")
-    check("虚空箭回蓝", p["mp"] > 20, f"mp {p['mp']}")
-    check("虚空汲取日志", any("虚空汲取" in l for l in logs), str(logs))
-
-    # 7. 丛林猎手：毒→爆
-    print("\n— 丛林猎手 —")
-    p = mk_player("cls_jungle_hunter", ["毒箭", "藤蔓缠绕", "毒爆术", "剧毒之心"])
-    b = BT.Battle("怪物", mk_enemy(), {}, p)
-    cast(b, p, "毒箭")
+    cast(b, p, "淬毒箭矢")
     cast(b, p, "藤蔓缠绕")
     cast(b, p, "藤蔓缠绕")
     check("毒层叠加", b.mech_stacks.get("poison", 0) >= 3, str(b.mech_stacks.get("poison")))
@@ -124,16 +109,18 @@ async def main():
     check("毒爆引爆", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
     check("毒层清空", b.mech_stacks.get("poison", 0) == 0, str(b.mech_stacks.get("poison")))
 
-    # 8. 圣殿骑士：圣御之盾
-    print("\n— 圣殿骑士 —")
-    p = mk_player("cls_templar", ["圣御之盾", "圣光审判"])
+    # 7. 龙裔誓约（龙血流）：龙焰吐息真伤（v113 本线只留龙血流派）
+    print("\n— 龙裔誓约（龙血流）—")
+    p = mk_player("cls_dragon_oath", ["龙息", "龙鳞", "龙威", "龙焰吐息"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "圣御之盾")
-    check("圣盾获得", len(b.p_shields) > 0, str(b.p_shields))
-    logs2 = cast(b, p, "圣光审判")
-    check("圣光审判输出", any("伤害" in l for l in logs2), str(logs2))
+    hp0 = b.enemy["hp"]
+    logs = cast(b, p, "龙焰吐息")
+    check("龙焰吐息真伤", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
+    check("龙焰吐息附灼烧", any("灼烧" in l for l in logs), str([l for l in logs if "灼烧" in l]))
+    logs_c = cast(b, p, "龙鳞")
+    check("龙鳞防御增益", any("龙鳞" in l for l in logs_c), str([l for l in logs_c if "龙鳞" in l]))
 
-    # 9. 苦修士：气连击
+    # 8. 苦修士：气连击
     print("\n— 苦修士 —")
     p = mk_player("cls_wu_sheng", ["裂岩冲", "气力连打", "气爆"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
@@ -143,9 +130,9 @@ async def main():
     logs2 = cast(b, p, "气爆")
     check("气爆输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
-    # 10. 奥术师：飞弹→脉冲
-    print("\n— 奥术师 —")
-    p = mk_player("cls_arcanist", ["奥术飞弹", "奥术脉冲"])
+    # 9. 奥秘守线（基础法师）：飞弹→脉冲
+    print("\n— 奥秘守线 —")
+    p = mk_player("cls_fa_shi", ["奥术飞弹", "奥术脉冲"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     cast(b, p, "奥术飞弹")
     cast(b, p, "奥术飞弹")
@@ -154,9 +141,9 @@ async def main():
     logs = cast(b, p, "奥术脉冲")
     check("奥术脉冲输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
-    # 11. 占星者：命运之轮多段
-    print("\n— 占星者 —")
-    p = mk_player("cls_astrologer", ["星陨", "命运之轮"])
+    # 10. 星语者（原占星者，cls_wild_hunter 不变）：命运之轮多段
+    print("\n— 星语者 —")
+    p = mk_player("cls_wild_hunter", ["星陨", "命运之轮"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     hp0 = b.enemy["hp"]
     logs = cast(b, p, "命运之轮")

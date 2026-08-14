@@ -96,9 +96,9 @@ async def main():
     print("【4. 学会后技能列表可见】")
     out4 = await cmd(m, "skill", "g1", "w1", "技能 列表 4")
     check("末页显示魔力脉冲", "魔力脉冲" in out4 and "Lv.1/5" in out4, out4[:250])
-    # 面板统计：已学 2/16（15 职业技能 + 1 专属）
+    # 面板统计：已学 2/17（15 职业技能 + 1 一转觉醒被动 + 1 专属）
     out = await cmd(m, "skill", "g1", "w1", "技能")
-    check("面板统计含专属", "2/16" in out, out[:200])
+    check("面板统计含专属", "2/17" in out, out[:200])
 
     print("【5. 技能升级 + 战斗施放】")
     out = await cmd(m, "skill_upgrade", "g1", "w1", "技能升级 魔力脉冲")

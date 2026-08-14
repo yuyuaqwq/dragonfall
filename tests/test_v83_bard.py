@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""v83 隐藏职业·吟游诗人（22 章）：注册拦截 / 传承转职 / 成就 / 数据完整性"""
+"""v112.3 牧师攻线·吟游诗人路线（原 v83 独立诗人职业，v112.3 回归牧师攻线）
+
+v83 诗人是独立隐藏职业；v112 并入圣歌线；v112.1 拆出为第 7 线；v112.3 鱼鱼拍板：
+诗人整体替换牧师攻线"圣武士"路线（吟游诗人→灵魂歌者→黎明颂者），独立职业删除。
+覆盖：数据归属 / 导师转职流程 / 技能组 / SKILL_UP / 成就无独立诗人条目。
+"""
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, E, BT, Main, FakeEvent, run, clean_db, make_player
@@ -26,64 +31,85 @@ async def main():
     clean_db()
     m = Main(None)
 
-    # ---- 1. 数据完整性 ----
-    bard = C.CLASSES.get("cls_bard")
-    check("cls_bard 存在", bool(bard), "")
-    check("cls_bard 标记隐藏", bard and bard.get("hidden") is True, str(bard and bard.get("hidden")))
-    check("cls_bard 辅助定位", bard and bard.get("role") == "辅助", str(bard and bard.get("role")))
-    sk = C.PLAYER_SKILLS.get("cls_bard", {}).get("skills", {})
-    check("吟游诗人 12 技能", len(sk) == 12, str(len(sk)))  # v95 补 Lv.2 轻快拨弦 + v106.1 快板节奏
-    names = [v.get("name") for v in sk.values()]
-    check("技能名齐全", "即兴弹唱" in names and "战歌" in names and "终章·黎明颂歌" in names, str(names))
-    team_cnt = sum(1 for v in sk.values() if v.get("team"))
+    # ---- 1. 数据归属 ----
+    print("【1. 诗人技能归属牧师攻线】")
+    check("cls_bard 独立职业已删除", "cls_bard" not in C.CLASSES, "")
+    mu = C.CLASSES.get("cls_mu_shi")
+    check("牧师攻线 T1 = 吟游诗人", mu["evolve_branches"][1] == ["吟游诗人", "神谕者"],
+          str(mu["evolve_branches"][1]))
+    check("牧师攻线 T2 = 灵魂歌者", mu["evolve_branches"][2] == ["灵魂歌者", "大主教"], "")
+    check("牧师攻线 T3 = 黎明颂者", mu["evolve_branches"][3] == ["黎明颂者", "圣光先知"], "")
+    br = C.BRANCH_SKILLS["cls_mu_shi"]["branches"]
+    t1_names = [v.get("name") for v in br[1]["吟游诗人"].values()]
+    check("T1 吟游诗人技能组", "战歌" in t1_names and "安眠曲" in t1_names
+          and "即兴弹唱" in t1_names and "轻快拨弦" in t1_names, str(t1_names))
+    t2_names = [v.get("name") for v in br[2]["灵魂歌者"].values()]
+    check("T2 灵魂歌者技能组", "鼓舞" in t2_names and "哀歌" in t2_names
+          and "轻风咏叹" in t2_names and "伴奏" in t2_names, str(t2_names))
+    t3_names = [v.get("name") for v in br[3]["黎明颂者"].values()]
+    check("T3 黎明颂者技能组", "英雄叙事诗" in t3_names and "奥术咏叹调" in t3_names
+          and "快板节奏" in t3_names and "终章·黎明颂歌" in t3_names, str(t3_names))
+    team_cnt = sum(1 for t in (1, 2, 3) for bn in br[t] for v in br[t][bn].values() if v.get("team"))
     check("团队技能>=5", team_cnt >= 5, str(team_cnt))
-    # SKILL_UP 覆盖（v102.4 下沉 data/skill_up.py，经 C 访问）
-    for n in names:
+    all_names = t1_names + t2_names + t3_names
+    for n in all_names:
         check(f"SKILL_UP 有 {n}", n in E.C.SKILL_UP, "")
 
-    # ---- 2. 注册拦截 ----
-    out = await cmd(m, "register", "g2", "w2", "注册 吟游诗人 小诗人 男")
-    check("隐藏职业不可注册", "隐藏职业" in out or "传说" in out, out[:150])
-    check("未创建玩家", db.get_player("g2", "w2") is None, "")
-
-    # ---- 3. 传承转职流程 ----
+    # ---- 2. 导师转职流程 ----
+    print("【2. 牧师导师转职吟游诗人路线】")
     await cmd(m, "register", "g1", "w1", "注册 牧师 旅人 男")
-    db.update_player("g1", "w1", level=30, gold=5000)
-    # 未解锁时被拦
-    out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
-    check("未解锁被拦", "传承" in out and "还未" in out, out[:200])
-    # 手动解锁（模拟试炼完成）
-    db.update_player("g1", "w1", hidden_class_unlock=["cls_bard"])
-    out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
-    check("传承成功", "吟游诗人" in out and "传承完成" in out, out[:250])
+    db.update_player("g1", "w1", level=30, gold=5000, cur_map="white_deer", cur_subarea="white_deer_1")
+    out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
+    check("导师对话含转职入口", "我想转职" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想转职 → 一转菜单
+    check("一转菜单含吟游诗人/神谕者", "吟游诗人" in out and "神谕者" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 转职为吟游诗人（进攻）
+    check("一转成功含吟游诗人", "转职成功" in out and "吟游诗人" in out, out[:200])
     p = db.get_player("g1", "w1")
-    check("职业已切换", p["class_name"] == "cls_bard", str(p["class_name"]))
-    check("转职清零", p.get("class_tier") == 1 and p.get("evolve_path") == 1, str((p.get("class_tier"), p.get("evolve_path"))))
-    check("学到初始技能", "即兴弹唱" in p["learned_skills"], str(p["learned_skills"]))
-    check("HP 按诗人重算", p["max_hp"] == p["hp"] and p["max_hp"] > 0, str(p["max_hp"]))
-    # 再转提示已是诗人
-    out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
-    check("已是诗人提示", "已是吟游诗人" in out, out[:150])
-    # 等级不足
-    db.update_player("g1", "w1", class_name="cls_mu_shi", hidden_class_unlock=["cls_bard"], level=10)
-    out = await cmd(m, "evolve", "g1", "w1", "转职 吟游诗人")
-    check("等级不足拦截", "Lv.30" in out, out[:150])
+    check("class_tier=1 path=1", p.get("class_tier") == 1 and p.get("evolve_path") == 1,
+          str((p.get("class_tier"), p.get("evolve_path"))))
+    db.update_player("g1", "w1", level=60)
+    out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想继续转职 → 二转菜单
+    check("二转菜单含灵魂歌者/大主教", "灵魂歌者" in out and "大主教" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 灵魂歌者
+    check("二转成功含灵魂歌者", "转职成功" in out and "灵魂歌者" in out, out[:200])
+    db.update_player("g1", "w1", level=90)
+    out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想进行最终转职 → 三转菜单
+    check("三转菜单含黎明颂者/圣光先知", "黎明颂者" in out and "圣光先知" in out, out[:250])
+    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 黎明颂者
+    check("三转成功含黎明颂者", "转职成功" in out and "黎明颂者" in out, out[:200])
+    p = db.get_player("g1", "w1")
+    check("class_tier=3", p.get("class_tier") == 3, str(p.get("class_tier")))
+    check("三转自动领悟 90 级奥义英雄叙事诗", "英雄叙事诗" in (p.get("learned_skills") or []),
+          str(p.get("learned_skills")))
+    # 终章·黎明颂歌 Lv.98 需手动学（分支门槛：黎明颂者 path=1）
+    db.update_player("g1", "w1", level=98, skill_points=100)
+    out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 终章·黎明颂歌")
+    check("Lv.98 可学终章·黎明颂歌", "已学会" in out or "学会" in out, out[:200])
 
-    # ---- 4. 成就 cond ----
-    from data.plugins.dragonfall.game.core.achievements import cond_met
-    p = db.get_player("g1", "w1")
-    check("hidden_class cond 命中", cond_met(p, {}, {}, {}, {"type": "hidden_class", "key": "cls_bard"}), "")
-    p2 = dict(p); p2["hidden_class_unlock"] = []
-    check("hidden_class cond 不命中", not cond_met(p2, {}, {}, {}, {"type": "hidden_class", "key": "cls_bard"}), "")
-    p3 = dict(p); p3["class_name"] = "cls_bard"; p3["level"] = 90
-    check("hidden_class_lv cond 命中", cond_met(p3, {}, {}, {}, {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}), "")
-    p4 = dict(p3); p4["level"] = 89
-    check("hidden_class_lv cond 不命中", not cond_met(p4, {}, {}, {}, {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}), "")
-    # 成就总数 110（v87 隐藏线 +6）
-    check("成就总数 110", len(C.ACHIEVEMENTS) == 110, str(len(C.ACHIEVEMENTS)))
-    ach_names = [a["name"] for a in C.ACHIEVEMENTS]
-    for n in ("虹彩邂逅", "夜钓月华", "星海遗民", "流星祈愿者", "诗人传承", "黎明颂者"):
-        check(f"成就含 {n}", n in ach_names, "")
+    # ---- 3. 分支技能学习门槛 ----
+    print("【3. 分支技能门槛】")
+    make_player("g2", "w2", "歌者", "牧师", level=40)
+    db.update_player("g2", "w2", skill_points=100, class_tier=1, evolve_path=1)
+    out = await cmd(m, "skill_learn", "g2", "w2", "技能学习 战歌")
+    check("一转可学战歌(t1)", "已学会" in out or "学会" in out, out[:200])
+    out = await cmd(m, "skill_learn", "g2", "w2", "技能学习 鼓舞")
+    check("一转学鼓舞(t2)被拦", "先转职" in out or "学不了" in out, out[:200])
+    db.update_player("g2", "w2", level=62, class_tier=2)
+    out = await cmd(m, "skill_learn", "g2", "w2", "技能学习 鼓舞")
+    check("二转可学鼓舞(t2)", "已学会" in out or "学会" in out, out[:200])
+    # 守线牧师不能学攻线技能
+    db.update_player("g2", "w2", evolve_path=2)
+    out = await cmd(m, "skill_learn", "g2", "w2", "技能学习 英雄叙事诗")
+    check("神谕者学攻线技能被拦", "学不了" in out or "先转职" in out, out[:200])
+
+    # ---- 4. 旧圣武士路线已退役 ----
+    print("【4. 旧圣武士路线退役】")
+    check("圣武士档位名已删除", "圣武士" not in mu["evolve_branches"][1], "")
+    aid = [a["id"] for a in C.ACHIEVEMENTS]
+    check("无独立诗人成就", "ach_bard_unlock" not in aid and "ach_bard_master" not in aid, "")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

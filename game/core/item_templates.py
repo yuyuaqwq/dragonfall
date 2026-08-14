@@ -80,6 +80,9 @@ class ItemContext:
 def infer_template(data):
     """从道具数据推断模板名（use() 分发用）。"""
     from .. import content as C  # v102.2 延迟导入（core 聚合链惯例）
+    if data.get("learn_skill"):
+        # v112 P1：隐藏技能书（learn_skill + require_class 数据驱动，优先于通用 effect）
+        return "skill_tome"
     if data.get("hot") or data.get("hot_mana"):
         # v101.28 食物持续恢复：有 hot 字段 = 食物 → food 模板
         # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
@@ -589,7 +592,6 @@ _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
 @register("purify", battle_ok=True)
 def tpl_purify(ctx):
     """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
-
     战斗内：清除 p_buffs 中的负面效果。普通战斗 p_buffs 为平铺 {buff: 回合}；
     副本战斗为 {成员: {buff: 回合}}，按道具文案『驱散全队负面』清全部成员。
     p_buffs 与战斗引擎 Battle 实例共享同一 dict 对象（battle.py from_state 直接引用
@@ -619,6 +621,49 @@ def tpl_purify(ctx):
             text=f"✨ 你展开【{d['name']}】，但此刻你身上没有需要净化的负面状态～",
             consume=False)
     return ItemResult(payload="0")
+
+
+@register("skill_tome")
+def tpl_skill_tome(ctx):
+    """v112 P1 隐藏技能书：一次性学会隐藏技能（learn_skill + require_class 数据驱动）。
+
+    校验链：源流（require_class，可空=全职业）→ 等级 → 已学拦截 → learned_skills 追加。
+    战斗内不可使用（battle_ok=False，走 use() 战斗外分支）。
+    跨流派学习是设计使然：技能书 = 横向扩展，不选对应流派也能学（§6 铁律）。
+    """
+    from .. import content as C
+    from .. import engine as E
+    d = ctx.data
+    learn = d.get("learn_skill", "")
+    req = d.get("require_class", "") or ""
+    # 技能定义按源流职业查（技能书 = 跨流派稀有技，技能属于隐藏线表；玩家职业只用于源流校验）
+    info = E.skill_info(req, learn) if req else E.skill_info(ctx.player.get("class_name", ""), learn)
+    if not info:
+        return ItemResult(text=f"你翻开【{d.get('name', '技能书')}】，但其中的技艺晦涩难解……(技能数据缺失)", consume=False)
+    if req:
+        req_id = C.resolve("classes", req)
+        cls_id = C.resolve("classes", ctx.player.get("class_name", ""))
+        if cls_id != req_id:
+            src_name = C.CLASSES.get(req_id, {}).get("name", req)
+            return ItemResult(
+                text=f"书页上流转着【{src_name}】一脉的印记，与你的力量不合……", consume=False)
+    need_lv = int(info.get("lv", 1))
+    if ctx.player.get("level", 0) < need_lv:
+        return ItemResult(
+            text=f"书中的技艺需要 Lv.{need_lv} 才能参悟，你才 Lv.{ctx.player.get('level', 0)}。", consume=False)
+    learned = list(ctx.player.get("learned_skills", []))
+    sname = info.get("name", learn)
+    if C.resolve("skills", sname) in [C.resolve("skills", s) for s in learned if s]:
+        return ItemResult(text=f"『{sname}』你早已掌握，这本书对你没有用了。", consume=False)
+    self_db = ctx._db()
+    self_db.update_player(ctx.group_id, ctx.qq_id, learned_skills=learned + [sname])
+    try:
+        C.check_achievements(ctx.group_id, ctx.qq_id, ctx.player)
+    except Exception:
+        pass
+    ctx.hook("remove_item")  # 战斗外路径模板自行扣除（与 tpl_heal 同款）
+    return ItemResult(
+        text=f"📖 你参悟了技能书，学会了隐藏技能『{sname}』！\n「{info['desc']}」")
 
 
 @register("none")

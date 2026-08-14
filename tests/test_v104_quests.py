@@ -132,27 +132,27 @@ async def main():
     check("Lv.1 接取被拒", "Lv.40" in out, out[:120])
     check("未入 side", "s_lighthouse" not in (get_q("g4", "p5").get("side") or {}), str(get_q("g4", "p5").get("side")))
 
-    # ============ 5. 复合目标门槛一致（魔剑士试炼） ============
+    # ============ 5. 复合目标门槛一致（v112：原魔剑士试炼并入龙裔线，改用 s7 修道院的玫瑰） ============
     print("\n[5] 复合目标 collect_count 门槛一致")
-    st = next(q for q in C.SIDE_QUESTS if q["id"] == "s_spellblade_trial")
-    check("试炼数据 kill3+collect2", st["objective"].get("count") == 3 and st["objective"].get("collect_count") == 2,
+    st = next(q for q in C.SIDE_QUESTS if q["id"] == "s7")
+    check("试炼数据 kill5+collect3", st["objective"].get("count") == 5 and st["objective"].get("collect_count") == 3,
           str(st["objective"]))
     make_player("g5", "p6", "剑心", "战士", level=60)
-    db.update_player("g5", "p6", cur_map="lost_library")
-    db.add_item("g5", "p6", "咒刃残页", {"name": "咒刃残页", "type": "材料", "stackable": True, "price": 100}, 2)
-    db.save_quests("g5", "p6", qdata(None, "pending", side={"s_spellblade_trial": {"status": "active", "progress": {}}}))
+    db.update_player("g5", "p6", cur_map="white_abbey")
+    db.add_item("g5", "p6", "染黑玫瑰", {"name": "染黑玫瑰", "type": "材料", "stackable": True, "price": 100}, 3)
+    db.save_quests("g5", "p6", qdata(None, "pending", side={"s7": {"status": "active", "progress": {}}}))
     out = await cmd(m, "quest_view", "g5", "p6", "任务")
-    check("quest_view 2/2 残页显示可交", "可交" in out, out[out.find("支线"):out.find("支线")+300] if "支线" in out else out[:200])
+    check("quest_view 3/3 玫瑰显示可交", "可交" in out, out[out.find("支线"):out.find("支线")+300] if "支线" in out else out[:200])
     out = await cmd(m, "turn_in", "g5", "p6", "交付任务")
-    check("turn_in 材料门槛放行(卡击杀)", "图书馆守卫" in out and "还差" not in out, out[:160])
+    check("turn_in 材料门槛放行(卡击杀)", "腐蚀修女" in out and "还差" not in out, out[:160])
     # 击杀齐 → 可完整交付
     db.save_quests("g5", "p6", qdata(None, "pending",
-                                     side={"s_spellblade_trial": {"status": "active", "progress": {"图书馆守卫": 3}}}))
+                                     side={"s7": {"status": "active", "progress": {"腐蚀修女": 5}}}))
     out = await cmd(m, "turn_in", "g5", "p6", "交付任务")
     qq = get_q("g5", "p6")
-    check("击杀+残页齐 → 完整交付", "支线完成" in out, out[:160])
-    check("交付后 done", qq["side"]["s_spellblade_trial"]["status"] == "done", str(qq["side"]["s_spellblade_trial"]))
-    check("残页扣除", db.count_item("g5", "p6", "咒刃残页") == 0, str(db.count_item("g5", "p6", "咒刃残页")))
+    check("击杀+玫瑰齐 → 完整交付", "支线完成" in out, out[:160])
+    check("交付后 done", qq["side"]["s7"]["status"] == "done", str(qq["side"]["s7"]))
+    check("玫瑰扣除", db.count_item("g5", "p6", "染黑玫瑰") == 0, str(db.count_item("g5", "p6", "染黑玫瑰")))
 
     # ============ 6. 巴德对话不崩（NameError 回归） ============
     print("\n[6] 对话 老水手·巴德 不崩")

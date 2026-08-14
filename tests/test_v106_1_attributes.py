@@ -3,7 +3,7 @@
 
 覆盖：
 1. 属性定义：PCT_STATS/PCT_CAPS/STAT_NAMES
-2. 职业特色：吟游诗人 cdr 10%、牧师/战士 elem_res 5%、法师 abyss_res 5%、刺客/魔剑士 cdr 5%
+2. 职业特色：牧师 heal_power 10%/elem_res 5%、战士 elem_res 5%、法师 abyss_res 5%、刺客/龙裔 cdr 5%
 3. 词条折算：轻灵/求知/聚宝 + 元素抗性面板化（elem_resist→elem_res 8%、abyss_resist→abyss_res 10%）
 4. 套装融入：月影法穿/黑沼物穿/圣徽深渊抗性/旅人cdr（bonus_2 聚合）
 5. CDR 公式：_set_skill_cd ×(1-cdr) 保底 1，cap 40%
@@ -40,15 +40,12 @@ async def main():
     from data.plugins.dragonfall.game.data.classes import CLASSES
     def base_attr(cid, k):
         return CLASSES[cid]["base"].get(k, 0)
-    check("吟游诗人 cdr 10%", abs(base_attr("cls_bard", "cdr") - 0.10) < 1e-9)
     check("刺客 cdr 5%", abs(base_attr("cls_ci_ke", "cdr") - 0.05) < 1e-9)
-    check("魔剑士 cdr 5%", abs(base_attr("cls_spellblade", "cdr") - 0.05) < 1e-9)
+    check("龙裔誓约 cdr 5%", abs(base_attr("cls_dragon_oath", "cdr") - 0.05) < 1e-9)
     check("牧师 elem_res 5%", abs(base_attr("cls_mu_shi", "elem_res") - 0.05) < 1e-9)
     check("战士 elem_res 5%", abs(base_attr("cls_zhan_shi", "elem_res") - 0.05) < 1e-9)
     check("法师 abyss_res 5%", abs(base_attr("cls_fa_shi", "abyss_res") - 0.05) < 1e-9)
     # 面板聚合
-    st_bard, _ = E.player_stats_detail("cls_bard", 30, {})
-    check("吟游诗人面板 cdr 10%", abs(st_bard.get("cdr", 0) - 0.10) < 1e-6, str(st_bard.get("cdr")))
     st_priest, _ = E.player_stats_detail("cls_mu_shi", 30, {})
     check("牧师面板 elem_res 5%", abs(st_priest.get("elem_res", 0) - 0.05) < 1e-6)
 
@@ -93,7 +90,7 @@ async def main():
     # ============ 5. CDR 公式 ============
     print("【5. CDR 公式】")
     from data.plugins.dragonfall.game import battle as BT
-    player = {"qq_id": "w1", "name": "测试", "level": 30, "class_name": "cls_bard",
+    player = {"qq_id": "w1", "name": "测试", "level": 30, "class_name": "cls_mu_shi",
               "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
               "equipment": {}, "attributes": {}}
     enemy = {"name": "T", "hp": 1000, "max_hp": 1000, "atk": 30, "def": 10, "matk": 5, "mdef": 5, "spd": 5, "crit": 0.05}
@@ -144,15 +141,16 @@ async def main():
 
     # ============ 7. 被动系统 ============
     print("【7. 被动系统】")
-    pb = E.player_passive_stats("cls_bard", ["伴奏", "快板节奏"])
+    # v112.3：伴奏/快板节奏已归入牧师攻线分支（灵魂歌者/黎明颂者），按分支查技能
+    pb = E.player_passive_stats("cls_mu_shi", ["伴奏", "快板节奏"])
     check("伴奏 crit +8%（add bug 修复）", abs(pb.get("crit_add", 0) - 0.08) < 1e-9, str(pb.get("crit_add")))
     check("快板节奏 cdr +8%", abs(pb.get("cdr_add", 0) - 0.08) < 1e-9, str(pb.get("cdr_add")))
-    # 技能数据存在
-    from game.data.skills import PLAYER_SKILLS
-    bard_skills = PLAYER_SKILLS["cls_bard"]["skills"]
-    names = [s.get("name") for s in bard_skills.values()]
-    check("吟游诗人技能树含 快板节奏", "快板节奏" in names)
-    check("吟游诗人技能树含 伴奏", "伴奏" in names)
+    # 技能数据存在（走牧师攻线分支表）
+    from game.engine import skill_info
+    info_ac = skill_info("cls_mu_shi", "伴奏")
+    info_kb = skill_info("cls_mu_shi", "快板节奏")
+    check("伴奏 为被动技能", bool(info_ac) and info_ac.get("kind") == "被动", str(info_ac))
+    check("快板节奏 为被动技能", bool(info_kb) and info_kb.get("kind") == "被动", str(info_kb))
 
     # ============ 8. 经验/金币加成聚合 ============
     print("【8. 经验/金币加成】")

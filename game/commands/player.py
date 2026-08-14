@@ -21,16 +21,16 @@ from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 
 
-# v101.20 职业导师专属技能：职业 → (导师名, 所在城市)。TUTOR_SKILLS 技能只能导师教学学会，
+# v101.20 职业导师专属技能：TUTOR_SKILLS 只能导师教学学会，
 # 『技能学习』拦截提示（不进技能列表/不可技能点学）
-_TUTOR_MENTORS = {
-    "cls_zhan_shi": ("老兵·格里姆", "白鹿城"),
-    "cls_fa_shi": ("大法师·艾德琳", "白鹿城"),
-    "cls_you_xia": ("猎手·柯恩", "铁港城"),
-    "cls_mu_shi": ("圣殿执事·莉亚", "白鹿城"),
-    "cls_ci_ke": ("暗影渡鸦", "铁港城"),
-    "cls_wu_seng": ("船帮武师·老陈", "铁港城"),
-}
+# v112 数据驱动收敛（D4）：导师名/地点下沉 CLASSES[职业]["tutor"]，逻辑层只读数据
+def _tutor_mentor(cls_id: str):
+    """职业导师 (导师名, 所在城市)。未配置兜底通用文案。"""
+    return C.CLASSES.get(cls_id, {}).get("tutor", ("职业导师", "各城"))
+
+
+# v112：核心资源 key → 中文名（skill 消耗展示用，数据源 CORE_RESOURCES，新增资源只改数据）
+_RES_CN = {rd["key"]: rd["name"] for rd in C.CORE_RESOURCES.values()}
 
 
 class PlayerCmds(CommandBase):
@@ -509,16 +509,18 @@ class PlayerCmds(CommandBase):
         player = self._player(group_id, qq_id)
         _raw0 = self._strip_cmd(event, "转职").strip()
         # v108 职业树：隐藏职业统一路由（『转职 <档位名>』T1/T2/T3 全名 + 短别名）
+        # v112 主题线制：路由带流派索引（档位名 → (cls_id, tier, path)）
         routes = self._hidden_class_routes()
         if _raw0 in routes:
-            cls_id, tgt_tier = routes[_raw0]
-            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, cls_id, tgt_tier):
+            cls_id, tgt_tier, _path = routes[_raw0]
+            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, cls_id, tgt_tier, _path):
                 yield r
             return
-        alias = self._HIDDEN_ALIASES.get(_raw0)
+        alias = self._hidden_alias_map().get(_raw0)
         if alias:
+            alias_cls, alias_path = alias
             # v109.2 P3-8：别名按等级继承档位（90 级『转职 龙血』=T3，不再强制 T1）
-            _tlv = self._hidden_tier_levels(alias)
+            _tlv = self._hidden_tier_levels(alias_cls)
             _cur = player.get("class_tier", 0)
             _tgt = _cur + 1
             while _tgt <= 3 and player["level"] >= _tlv.get(_tgt, 99999):
@@ -526,7 +528,7 @@ class PlayerCmds(CommandBase):
             _tgt -= 1
             if _tgt <= _cur:
                 _tgt = _cur + 1  # 下一阶都不够 → 交给 generic 报等级不足
-            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, alias, _tgt):
+            async for r in self._evolve_hidden_generic(event, group_id, qq_id, player, alias_cls, _tgt, alias_path):
                 yield r
             return
         # v109.2 P2-6：隐藏职业玩家『转职 <未识别名>』拦截——防落基础路径错门槛/导师断链
@@ -572,15 +574,8 @@ class PlayerCmds(CommandBase):
             )
             return
         # 可以转职：v95.23 改为找职业导师 NPC 转职（不再直接指令转职）
-        tutor_map = {
-            "cls_zhan_shi": ("老兵·格里姆", "白鹿城·白鹿广场"),
-            "cls_fa_shi": ("大法师·艾德琳", "白鹿城·白鹿广场"),
-            "cls_mu_shi": ("圣殿执事·莉亚", "白鹿城·白鹿广场"),
-            "cls_you_xia": ("猎手·柯恩", "铁港城·港口广场"),
-            "cls_ci_ke": ("暗影渡鸦", "铁港城·港口广场"),
-            "cls_wu_seng": ("船帮武师·老陈", "铁港城·港口广场"),
-        }
-        tname, tloc = tutor_map.get(player["class_name"], ("职业导师", "对应城市"))
+        # v112 D4：导师表下沉 CLASSES[职业]["tutor"]
+        tname, tloc = C.CLASSES.get(player["class_name"], {}).get("tutor", ("职业导师", "对应城市"))
         branch_names = " / ".join(branches) if branches else "对应分支"
         yield event.plain_result(
             f"🌟 {cls['icon']}{C.display('classes', player['class_name'])} 达到了 {need_lv} 级，可以转职！\n"
@@ -597,7 +592,8 @@ class PlayerCmds(CommandBase):
         cls = C.CLASSES.get(class_name, {})
         branches = cls.get("evolve_branches", {})
         if tier > 0 and tier in branches and branches[tier]:
-            idx = 0 if evolve_path in (0, 1) else 1
+            # v112：多分支索引通用化（基础攻/守 path=1/2；隐藏流派 path=1/2/3）
+            idx = max(0, int(evolve_path or 0) - 1)
             lst = branches[tier]
             if 0 <= idx < len(lst):
                 return lst[idx]
@@ -607,55 +603,33 @@ class PlayerCmds(CommandBase):
         return C.display("classes", class_name) if isinstance(class_name, str) else class_name
 
     # ==================== v108 职业树：隐藏职业统一路由（修为继承） ====================
-    # 短别名（『转职 奥术』等）→ cls_id；档位全名由 _hidden_class_routes 动态反查
-    _HIDDEN_ALIASES = {
-        "奥术": "cls_arcanist", "影武": "cls_shadow_blade", "龙血": "cls_dragon_warrior",
-        "虚空": "cls_void_walker", "占星": "cls_astrologer", "丛林": "cls_jungle_hunter",
-        "圣殿": "cls_templar", "血法": "cls_blood_mage", "亡灵": "cls_necromancer",
-        "诗人": "cls_bard", "剑士": "cls_spellblade",
-    }
-    # v108 隐藏线档位门槛（修为继承用；未配置的 v107 默认 40/60/90）
-    _HIDDEN_TIER_LEVELS = {
-        "cls_bard": {1: 30, 2: 60, 3: 90},
-        "cls_spellblade": {1: 60, 2: 75, 3: 90},
-    }
-    _DEFAULT_HIDDEN_TIER_LEVELS = {1: 40, 2: 60, 3: 90}
-    # 未解锁时的专属线索文案（v107 用 desc 兜底）
-    _HIDDEN_UNLOCK_HINTS = {
-        "cls_bard": "🎻 线索：听完 3 位诗人的全部歌谣(成就「史诗聆听者」)，再到精灵歌剧院寻找传承。",
-        "cls_spellblade": "⚔️ 线索：击败符文魔像收集符文碎片，集齐 3 张泛黄书页进入 H6 失落图书馆，找魔剑士残魂接受试炼「剑与书的誓约」。",
-    }
-    # 血缘叙事（v108 职业树：转职文案，渊源根基的传承感）
-    _HIDDEN_LORE = {
-        "cls_dragon_warrior": "狂战士血脉中的龙血悄然觉醒……",
-        "cls_templar": "盾卫士之道沐浴圣光，誓约成盾……",
-        "cls_arcanist": "元素之道走向奥术之巅……",
-        "cls_void_walker": "奥术之道的深渊变奏在耳边低语……",
-        "cls_blood_mage": "元素之道的禁忌堕落，血即魔力……",
-        "cls_astrologer": "猎魔人之路仰望星象，命运在弦上……",
-        "cls_jungle_hunter": "风行者之路回归自然，丛林即猎场……",
-        "cls_beast_king": "猎魔人之路与兽同行，万兽听令……",
-        "cls_necromancer": "神谕者之路坠入黑暗，亡者低语……",
-        "cls_shadow_blade": "影舞者之道的极致，暗影即身……",
-        "cls_wu_sheng": "拳斗士之道的终点，以武证道……",
-        "cls_bard": "神谕者以祈祷治愈，你以歌谣治愈——圣歌在琴弦上苏醒……",
-        "cls_spellblade": "狂战士的血脉与书页共鸣，剑与法在手中合一……",
-    }
+    # v112 数据驱动收敛（D1-D3）：短别名/血缘文案/未解锁线索/档位门槛全部下沉
+    # CLASSES[线] 字段（aliases/lore/hint/tier_levels），逻辑层只读数据——
+    # 增删职业 = 纯数据操作，此处不再有任何硬编码职业名。
+
+    def _hidden_alias_map(self) -> dict:
+        """全局短别名表：短别名 → (cls_id, 流派索引)。数据源 CLASSES[线]["aliases"]"""
+        out = {}
+        for cid, cinfo in C.CLASSES.items():
+            for alias, path in (cinfo.get("aliases") or {}).items():
+                out[alias] = (cid, int(path))
+        return out
 
     def _hidden_class_routes(self) -> dict:
-        """动态构建：隐藏职业档位全名 → (cls_id, tier)（evolve_branches 反查）"""
+        """动态构建：隐藏职业档位全名 → (cls_id, tier, 流派索引)（evolve_branches 反查）
+        v112：档位名按流派对齐，索引即流派（『转职 符文剑士』→ 龙裔线 T2 龙咒流派）"""
         routes = {}
         for cls_id, cls in C.CLASSES.items():
             if not cls.get("hidden"):
                 continue
             for tier, names in (cls.get("evolve_branches") or {}).items():
-                for n in names:
-                    routes[n] = (cls_id, int(tier))
+                for i, n in enumerate(names):
+                    routes[n] = (cls_id, int(tier), i + 1)
         return routes
 
     def _hidden_tier_levels(self, cls_id: str) -> dict:
-        """隐藏线档位门槛：配置优先，v107 默认 40/60/90"""
-        return self._HIDDEN_TIER_LEVELS.get(cls_id, self._DEFAULT_HIDDEN_TIER_LEVELS)
+        """隐藏线档位门槛：CLASSES["tier_levels"] 配置优先，缺省 40/60/90"""
+        return C.CLASSES.get(cls_id, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90}
 
     async def _evolve_hidden_status(self, event, group_id, qq_id, player):
         """隐藏职业玩家『转职』(无参数)：显示传承之路（下一阶/已满）"""
@@ -669,7 +643,9 @@ class PlayerCmds(CommandBase):
             yield event.plain_result(f"👑 你已完成全部传承！{self._tier_title(cls_id, tier, 1)}")
             return
         names = cls.get("evolve_branches", {}).get(next_tier, [])
-        nname = names[0] if names else "下一阶"
+        # v112：按玩家当前流派显示下一阶（3 流派线 T2/T3 名称按流派对齐）
+        _p = max(0, int(player.get("evolve_path", 1) or 1) - 1)
+        nname = names[_p] if _p < len(names) else (names[0] if names else "下一阶")
         if player["level"] < need_lv:
             yield event.plain_result(
                 f"{cls['icon']} 传承之路：下一阶【{nname}】需要 Lv.{need_lv}，当前 Lv.{player['level']}。")
@@ -678,23 +654,24 @@ class PlayerCmds(CommandBase):
             f"{cls['icon']} 传承之路：下一阶【{nname}】(Lv.{need_lv})已就绪！\n"
             f"『转职 {nname}』接受传承。")
 
-    async def _evolve_hidden_generic(self, event, group_id, qq_id, player, cls_id, tgt_tier):
+    async def _evolve_hidden_generic(self, event, group_id, qq_id, player, cls_id, tgt_tier, req_path=1):
         """v108 职业树：隐藏职业通用传承转职（修为继承）。
         校验：解锁 + 等级 >= 目标档门槛 + 档位状态合法（同职业只能逐阶升）。
         修为继承：目标档位由命令名决定、等级门槛校验——60 级『转职 奥法大师』= 直接 T2。
-        技能继承：该职业 PLAYER_SKILLS 中 lv <= 当前等级的全部技能。"""
+        技能继承：线级基础 + 本流派分支技能中 lv <= 当前等级的全部（v112 主题线制：
+        流派 = evolve_path 1/2/3，传承按所选流派授予，其余流派技能不可习得）。"""
         cls = C.CLASSES[cls_id]
         cname = cls["name"]
         icon = cls.get("icon", "✨")
         unlocks = player.get("hidden_class_unlock", [])
         if cls_id not in unlocks:
-            hint = self._HIDDEN_UNLOCK_HINTS.get(
-                cls_id, f"💡 {cls.get('desc', '').split('。')[0]}。\n🔍 前往对应导师处完成试炼即可解锁传承。")
+            hint = cls.get("hint") or f"💡 {cls.get('desc', '').split('。')[0]}。\n🔍 前往对应导师处完成试炼即可解锁传承。"
             yield event.plain_result(f"{icon} {cname}的传承还未向你敞开……\n{hint}")
             return
         # v108.2 血缘限制：只有渊源根基职业（含其分支线）可传承，杜绝"全系奇遇"
+        # v112.1：src_base 为空的"中立线"跳过血缘检查（当前无中立线，预留通用性）
         src = cls.get("src_base", "")
-        if player["class_name"] != cls_id and player["class_name"] != src:
+        if src and player["class_name"] != cls_id and player["class_name"] != src:
             src_name = C.CLASSES.get(src, {}).get("name", "对应职业")
             # v109.2 P3-7：同源隐藏玩家拒绝文案区分（魔剑→龙血 不再说"先以战士身份历练"误导）
             if C.CLASSES.get(player["class_name"], {}).get("hidden"):
@@ -707,6 +684,17 @@ class PlayerCmds(CommandBase):
                     f"{icon} {cname}的传承只向{src_name}一脉的传人敞开……\n"
                     f"💡 先以{src_name}的身份历练，再寻访这份传承。")
             return
+        # v113 种族限制：src_race 指定了血脉种族（如龙裔誓约 = 龙裔）——非该种族拒绝传承
+        src_race = cls.get("src_race", "")
+        if src_race:
+            cur_race = player.get("race") or "human"
+            if cur_race != src_race:
+                need_cn = (C.RACES.get(src_race) or {}).get("name", "对应种族")
+                cur_cn = (C.RACES.get(cur_race) or {}).get("name", "未知种族")
+                yield event.plain_result(
+                    f"{icon} {cname}的传承需要{need_cn}的血脉才能唤醒……\n"
+                    f"💡 你身为{cur_cn}，与这份力量格格不入。")
+                return
         tlv = self._hidden_tier_levels(cls_id)
         need_lv = tlv.get(tgt_tier)
         if not need_lv:
@@ -717,31 +705,42 @@ class PlayerCmds(CommandBase):
                 f"{icon} 这一阶传承需要 Lv.{need_lv} 历练，当前 Lv.{player['level']}，先游历四方吧。")
             return
         cur_tier = player.get("class_tier", 0)
-        if player["class_name"] == cls_id:
+        _same_class = (player.get("class_name") == cls_id)
+        if _same_class:
+            # v112 流派：同职业升档流派不变（改流派 = 『转职重置』后重新传承，P0-4a 两步走）
+            path = max(1, int(player.get("evolve_path", 1) or 1))
             if cur_tier >= tgt_tier:
                 yield event.plain_result(
-                    f"{icon} 你已是{cname}（{self._branch_title(cls_id, cur_tier, 1)}）。")
+                    f"{icon} 你已是{cname}（{self._branch_title(cls_id, cur_tier, path)}）。")
                 return
             if cur_tier != tgt_tier - 1:
                 yield event.plain_result("时机未到，先巩固当前境界吧。")
                 return
-        # v110 审计修复：跨职业（基础→隐藏）转职补降档守卫——同职业块有
-        # `cur_tier != tgt_tier-1` 拦截，跨职业路径此前无任何守卫：已达 T2 的战士
-        # 用 T1 全名『转职 龙血战士』会被静默降成 T1（分支技能整体清空），而别名
-        # 路由（按等级继承档位）会拒绝——全名/别名行为不一致，高阶位阶进度可意外回退
-        elif cur_tier > tgt_tier:
-            yield event.plain_result(
-                f"{icon} {cname}的传承位阶（{tgt_tier} 阶）低于你当前的境界（{cur_tier} 阶）——"
-                f"传承无法倒退，请以与之相称的位阶再续传承。")
-            return
-        # 技能继承：lv <= 当前等级全部（v109：同职业升档保留已学+只补未学——已付费技能不因
-        # 升档重复发放，消除"早转白亏技能点"；跨职业转入清空旧职业技能后传承全部）
-        # v110.4 X2 P1-1：grant 为技能 ID(sk_table key)、kept 为显示名(get_player 已 C.display)——
-        # 先把 kept 统一 resolve 为 ID 再求并/差，避免同职业升档 ID/显示名混型致重复条目
-        #（实测 60 龙血 T1→T2 得 learned=[龙鳞,龙威,龙息,龙息]）；解析失败保留原值防断链
+        else:
+            path = max(1, int(req_path or 1))  # 跨职业进入：按所选档位名定流派
+            # v110 审计修复：跨职业（基础→隐藏）转职补降档守卫——同职业块有
+            # `cur_tier != tgt_tier-1` 拦截，跨职业路径此前无任何守卫：已达 T2 的战士
+            # 用 T1 全名『转职 龙血战士』会被静默降成 T1（分支技能整体清空），而别名
+            # 路由（按等级继承档位）会拒绝——全名/别名行为不一致，高阶位阶进度可意外回退
+            if cur_tier > tgt_tier:
+                yield event.plain_result(
+                    f"{icon} {cname}的传承位阶（{tgt_tier} 阶）低于你当前的境界（{cur_tier} 阶）——"
+                    f"传承无法倒退，请以与之相称的位阶再续传承。")
+                return
+        # 技能继承：线级基础 + 本流派分支（v112）中 lv <= 当前等级的全部。
+        # v109：同职业升档保留已学+只补未学——已付费技能不因升档重复发放
+        # v110.4 X2 P1-1：grant 为技能 key（基础表 sk_ ID、分支表中文名）、kept 为显示名
+        # （get_player 已 C.display）——先把 kept 统一 resolve 再求并/差，避免混型致重复条目
         sk_table = C.PLAYER_SKILLS.get(cls_id, {}).get("skills", {})
         grant = [s for s, info in sk_table.items() if info["lv"] <= player.get("level", 1)]
-        _same_class = (player.get("class_name") == cls_id)
+        _eb = cls.get("evolve_branches", {})
+        _br = C.BRANCH_SKILLS.get(cls_id, {}).get("branches", {})
+        for _t in range(1, tgt_tier + 1):
+            _names = _eb.get(_t, [])
+            if path - 1 < len(_names):
+                _bname = _names[path - 1]
+                _bskills = (_br.get(_t, {}) or {}).get(_bname, {})
+                grant += [s for s, info in _bskills.items() if info["lv"] <= player.get("level", 1)]
         if _same_class:
             kept = [C.resolve("skills", s) for s in player.get("learned_skills", []) if s]
             kept = [s for s in kept if s]
@@ -752,17 +751,17 @@ class PlayerCmds(CommandBase):
             new_grant = grant
         st = E.player_final_stats(
             cls_id, player["level"], player.get("equipment", {}), tgt_tier,
-            player.get("attributes"), 1,
+            player.get("attributes"), path,
             self._title_bonus(group_id, qq_id), player.get("race"))
         db.update_player(group_id, qq_id,
-                         class_name=cls_id, class_tier=tgt_tier, evolve_path=1,
+                         class_name=cls_id, class_tier=tgt_tier, evolve_path=path,
                          max_hp=st["max_hp"], max_mp=st["max_mp"], hp=st["max_hp"], mp=st["max_mp"],
                          learned_skills=init_skills)
         player = self._player(group_id, qq_id)
         C.check_achievements(group_id, qq_id, player)
         learned = [C.display('skills', sk) for sk in new_grant]
-        title = self._branch_title(cls_id, tgt_tier, 1)
-        lore = self._HIDDEN_LORE.get(cls_id, "")
+        title = self._branch_title(cls_id, tgt_tier, path)
+        lore = cls.get("lore", "")
         lines = [f"{icon} 传承完成！你成为了【{icon}{title}】！", "━━━━━━━━━━━━"]
         if lore:
             lines.append(lore)
@@ -771,10 +770,8 @@ class PlayerCmds(CommandBase):
             lines.append("♻️ 旧职业技能已随传承清空，可『技能洗点』返还技能点")
         if _same_class and kept:
             lines.append(f"🔒 已学技能保留 {len(kept)} 个（含此前『技能学习』习得，不重复发放）")
-        if cls_id == "cls_bard":
-            lines.append("💡 你的歌声将成为队伍的力量(辅助定位，副本中尤为闪耀)！")
-        elif cls_id == "cls_spellblade":
-            lines.append("💡 魔能斩命中叠魔能，符文刻印每回合充能——叠层→爆发，打出你的节奏！")
+        if _same_class:
+            lines.append(f"💡 流派【{self._branch_title(cls_id, 1, path)}】已定，改选流派可『转职重置』回根基职业后重新传承")
         yield event.plain_result("\n".join(lines))
 
     def _evolve_auto_skills(self, player: dict, next_tier: int) -> list:
@@ -788,7 +785,8 @@ class PlayerCmds(CommandBase):
         names = list(tier_branches.keys())
         if not names:
             return []
-        idx = 0 if path == 1 else 1
+        # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
+        idx = max(0, int(path or 0) - 1)
         if idx >= len(names):
             return []
         target_lv = 60 if next_tier == 2 else 90
@@ -1135,12 +1133,12 @@ class PlayerCmds(CommandBase):
         else:
             status = f"🔒 未学会(Lv.{info['lv']} 解锁)"
         # v104 R3 P2-3：消耗行同源展示（mp + res_cost + 精力），与 combat.py 技能列表口径一致
+        # v112：资源中文名数据驱动（CORE_RESOURCES，新增资源只改数据）
         _costs = []
         if info.get("mp"):
             _costs.append(f"{info['mp']} 魔力")
         for _rk, _rv in (info.get("res_cost") or {}).items():
-            _rname = {"rage": "怒气", "energy": "精力", "faith": "信仰", "cp": "连击点", "chi": "气"}.get(_rk, _rk)
-            _costs.append(f"{_rv} {_rname}")
+            _costs.append(f"{_rv} {_RES_CN.get(_rk, _rk)}")
         _cost_txt = " + ".join(_costs) if _costs else "无"  # v104 R3 P3-1：零消耗显示"无"（与技能列表口径一致）
         lines = [
             f"📜 【{display_name}】｜{status}",
@@ -1225,7 +1223,7 @@ class PlayerCmds(CommandBase):
         # v101.20 职业导师专属技能拦截：TUTOR_SKILLS 只能找导师学，技能点学不到
         _sid = C.resolve("skills", skill_name)
         if _sid in ((C.TUTOR_SKILLS or {}).get(player["class_name"], {}) or {}):
-            _mname, _mcity = _TUTOR_MENTORS.get(player["class_name"], ("职业导师", "各城"))
+            _mname, _mcity = _tutor_mentor(player["class_name"])
             return f"『{display_name}』是 {_mname}({_mcity}) 的看家本领，普通学习学不到——去{_mcity}找{_mname}请教吧～"
         # v26 分支专属技能门槛：必须先转职到对应分支
         owner = E.branch_skill_owner(player["class_name"], skill_name)
@@ -1236,7 +1234,8 @@ class PlayerCmds(CommandBase):
             if my_tier < need_tier or not my_path:
                 return f"『{display_name}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！(Lv.30/60/90 可转职)"
             branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
-            idx = 0 if my_path == 1 else 1
+            # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
+            idx = max(0, int(my_path or 0) - 1)
             my_branch = branches[idx] if idx < len(branches) else ""
             if my_branch != bname:
                 return f"『{display_name}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"

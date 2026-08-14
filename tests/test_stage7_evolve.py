@@ -44,42 +44,47 @@ def make_battle(player, enemy=None):
 
 def test_data():
     print("【数据：分支名对照 21 章】")
+    # v113：游侠攻线改"林语者"自然系（猎魔人/暗夜猎手/猎魔先驱 → 林语者/自然行者/万木之灵）；守线风行者不变
     expect = {
         "cls_zhan_shi": {1: ["狂战士", "盾卫士"], 2: ["狂战统领", "坚盾卫士"], 3: ["战争领主", "坚城统帅"]},
-        "cls_fa_shi": {1: ["元素法师", "秘法法师"], 2: ["元素术士", "秘法术士"], 3: ["元素贤者", "秘法贤者"]},
-        "cls_you_xia": {1: ["猎魔人", "风行者"], 2: ["暗夜猎手", "疾风射手"], 3: ["猎魔先驱", "疾风猎手"]},
-        "cls_mu_shi": {1: ["圣武士", "神谕者"], 2: ["审判骑士", "大主教"], 3: ["裁决骑士", "圣光先知"]},
+        "cls_fa_shi": {1: ["元素法师", "奥秘法师"], 2: ["元素术士", "奥秘术士"], 3: ["元素贤者", "奥秘贤者"]},
+        "cls_you_xia": {1: ["林语者", "风行者"], 2: ["自然行者", "疾风射手"], 3: ["万木之灵", "疾风猎手"]},
+        "cls_mu_shi": {1: ["吟游诗人", "神谕者"], 2: ["灵魂歌者", "大主教"], 3: ["黎明颂者", "圣光先知"]},
         "cls_ci_ke": {1: ["影舞者", "毒刃者"], 2: ["暗影之刃", "淬毒师"], 3: ["无影之刃", "蚀骨者"]},
-        "cls_wu_seng": {1: ["拳斗士", "磐石行者"], 2: ["武斗师", "铁壁行者"], 3: ["破晓者", "磐岩壁垒"]},
+        "cls_wu_seng": {1: ["格斗士", "磐石行者"], 2: ["拳术师", "铁壁行者"], 3: ["破晓者", "磐岩壁垒"]},
     }
     for cid, tmap in expect.items():
         for t, names in tmap.items():
             actual = list(C.BRANCH_SKILLS[cid]["branches"][t].keys())
             check(f"{cid} t{t} 分支名", actual == names, str(actual))
 
-    print("【数据：每分支 10 技能（8 + 二转被动 + 三转奥义）】")
+    print("【数据：每分支技能数（基础 2-10 / 隐藏 0-8，v112 允许空档）】")
     total = 0
     for cid, cinfo in C.BRANCH_SKILLS.items():
         for t, branches in cinfo["branches"].items():
             for bname, skills in branches.items():
                 n = len(skills)
                 total += n
-                check(f"{bname} {n} 技能", n in (2, 3, 4, 5, 10), f"{bname}={n}")
-    check("分支总技能 120", total == 120, str(total))
+                check(f"{bname} {n} 技能", n in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10), f"{bname}={n}")
+    # v113：隐藏线收敛单流派 + 技能下放基础职业后，分支总技能 = 161
+    #   （战士攻线+龙息之怒、法师攻线+虚空爆破、游侠攻线+毒爆/召唤/剧毒之心、
+    #     刺客攻线+收割、拳师守线+以守为攻/反击之王；隐藏线仅留星陨/占卜等单流派技能）
+    check("分支总技能 161", total == 161, str(total))
 
-    print("【数据：tier 划分（t1≤55 / t2≤68 / t3≥90）】")
+    print("【数据：tier 划分（基础严格：t1≤55 / t2 56-68 / t3≥90；隐藏线宽松：t1≤56 / t2 20-68 / t3≥70）】")
     bad = []
     for cid, cinfo in C.BRANCH_SKILLS.items():
+        hidden = bool(C.CLASSES.get(cid, {}).get("hidden"))
         for t, branches in cinfo["branches"].items():
             for bname, skills in branches.items():
                 for sname, info in skills.items():
                     lv = info["lv"]
-                    if t == 1 and lv > 55:
-                        bad.append(f"{bname}.{sname} lv{lv} 应在 t1")
-                    if t == 2 and not (56 <= lv <= 68):
-                        bad.append(f"{bname}.{sname} lv{lv} 应在 t2")
-                    if t == 3 and lv < 90:
-                        bad.append(f"{bname}.{sname} lv{lv} 应在 t3")
+                    if t == 1 and lv > (56 if hidden else 55):
+                        bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t1")
+                    if t == 2 and not (56 <= lv <= 68) and not (hidden and 20 <= lv <= 68):
+                        bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t2")
+                    if t == 3 and lv < (70 if hidden else 90):
+                        bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t3")
     check("tier 划分正确", not bad, str(bad[:5]))
 
 
@@ -254,7 +259,8 @@ def await_cmd(m, name, msg):
 
 
 def test_mage_mechanics():
-    print("【元素/奥术机制：奥术充能叠层 + 爆发】")
+    print("【元素/奥术机制：奥术充能叠层 + 爆发（v112.4：奥术系技能属法师守线秘法族）】")
+    # 奥术弹幕/爆破/洪流/直觉 = 法师守线秘法族（v112.4 从奥秘线元素流拆回）；元素系技能仍在法师攻线
     p = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
     b = make_battle(p, {"name": "木桩", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 10, "spd": 5})
     info = E.skill_info("法师", "奥术弹幕")
@@ -273,13 +279,14 @@ def test_mage_mechanics():
         check("奥术洪流消耗充能追加伤害", b.enemy["hp"] == hp_before - int(100 * 3 * 0.15), f"{hp_before}->{b.enemy['hp']}")
         check("充能清空", b.mech_stacks.get("arcane") == 0, str(b.mech_stacks.get("arcane")))
 
-    print("【元素/奥术机制：元素跃迁切系（element_shift）】")
-    b2 = make_battle(p)
+    print("【元素/奥术机制：元素跃迁切系（element_shift，法师系）】")
+    pf = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
+    b2 = make_battle(pf)
     check("初始火系", b2.resources.get("element") == "fire", str(b2.resources.get("element")))
     info2 = E.skill_info("法师", "元素跃迁")
     check("元素跃迁可查到", bool(info2), str(info2))
     if info2:
-        logs = b2._player_skill(b2._player_stats(p), "元素跃迁", info2, dict(p))
+        logs = b2._player_skill(b2._player_stats(pf), "元素跃迁", info2, dict(pf))
         check("切到冰系", b2.resources.get("element") == "ice", str(b2.resources.get("element")))
         check("切系日志", any("元素跃迁" in lg for lg in logs), str(logs))
 
@@ -287,12 +294,12 @@ def test_mage_mechanics():
     info3 = E.skill_info("法师", "元素冲击")
     check("元素冲击 element=current", bool(info3) and info3.get("element") == "current", str(info3))
     if info3:
-        b3 = make_battle(p)
+        b3 = make_battle(pf)
         b3.resources["element"] = "thunder"
-        logs = b3._player_skill(b3._player_stats(p), "元素冲击", info3, dict(p))
+        logs = b3._player_skill(b3._player_stats(pf), "元素冲击", info3, dict(pf))
         check("current 系按雷系挂雷印", b3.e_buffs.get("thunder_mark", 0) >= 1, str(b3.e_buffs))
 
-    print("【元素/奥术机制：奥术直觉被动回合充能】")
+    print("【元素/奥术机制：奥术直觉被动回合充能（法师守线）】")
     b4 = make_battle(p)
     b4.mech_stacks["arcane"] = 1
     p4 = dict(p)

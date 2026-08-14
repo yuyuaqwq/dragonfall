@@ -8,7 +8,8 @@
 
 扩展方式：
 - 加机制：register 一个函数（~5 行），之后技能/怪物数据直接可用
-- MECH_EFFECTS 签名：fn(battle, mval, p_mech, total, logs, skill_name, is_crit) -> None
+- MECH_EFFECTS 签名：fn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None) -> None
+  （info=技能 dict，v113.1 增加：handler 可读技能自带 mech_chance 固定概率）
 - BOSS_MECHS 签名：fn(battle, logs, e, r) -> None（e=enemy dict, r=round）
 - MON_BUFF_EFFECTS 签名：fn(battle, logs, sname) -> None（怪物增益技效果）
 - MON_CTRL_EFFECTS 签名：fn(battle, player, logs, mval) -> None（怪物控制技）
@@ -28,13 +29,23 @@ def register(registry, key):
     return deco
 
 
+def _mech_chance(info, default_chance):
+    """v113.1：技能自带 mech_chance（固定触发概率 0~1）消费。
+    返回 (使用了 mech_chance?, 最终触发概率)。
+    - mech_chance 存在 → 用技能自带的固定概率（不依赖 skill_mech_val 成长，Lv.1 也可触发）
+    - mech_chance 不存在 → 保持 handler 内部原有概率逻辑（default_chance）"""
+    if info is not None and info.get("mech_chance") is not None:
+        return True, float(info["mech_chance"])
+    return False, default_chance
+
+
 # ================= 1. 玩家攻击技能机制（_apply_mech_effect） =================
 
 MECH_EFFECTS = {}
 
 
 @register(MECH_EFFECTS, "rage")
-def _m_rage(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_rage(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """狂暴：叠层（每层＋12% 伤害）"""
     if not mval:
         return
@@ -43,7 +54,7 @@ def _m_rage(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "shield")
-def _m_shield(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_shield(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """圣盾：叠层（每层减伤）"""
     if not mval:
         return
@@ -52,7 +63,7 @@ def _m_shield(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "shield_burst")
-def _m_shield_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_shield_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """圣盾爆发：消耗层数转伤害"""
     n = p_mech.get("shield", 0)
     bonus = int(total * n * 0.12)
@@ -62,7 +73,7 @@ def _m_shield_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "rage_burst")
-def _m_rage_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_rage_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """狂暴爆发：消耗层数加攻击 buff"""
     from ..engine import skill_buff_turns
     n = p_mech.get("rage", 0)
@@ -73,7 +84,7 @@ def _m_rage_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "burn")
-def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """灼烧：叠层（每层每回合掉 3% 生命）"""
     if not mval:
         return
@@ -82,7 +93,7 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "burn_burst")
-def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """灼烧引爆：每层立即 30% 魔攻"""
     n = p_mech.get("burn", 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
@@ -95,38 +106,43 @@ def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "freeze")
-def _m_freeze(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_freeze(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """冻结：概率冻结 1 回合"""
-    if not mval:
+    use_mc, chance = _mech_chance(info, min(0.75, 0.25 + mval * 0.15))
+    if not mval and not use_mc:
         return
-    chance = min(0.75, 0.25 + mval * 0.15)
     if random.random() < chance:
         battle.e_buffs["freeze"] = 1
         logs.append("❄️ 敌人被冻结，跳过下回合！")
 
 
 @register(MECH_EFFECTS, "spd_down")
-def _m_spd_down(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spd_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """减速：敌方速度下降（battle._enemy_stats 按 SPD_DOWN_MULT 结算）"""
-    if not mval:
+    use_mc, chance = _mech_chance(info, 1.0)  # 原逻辑：命中即减速（无概率）
+    if not mval and not use_mc:
         return
-    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), mval)
-    logs.append(f"🧊 敌人被减速 {mval} 回合，速度下降！")
+    if use_mc and random.random() >= chance:
+        return
+    dur = max(int(mval or 0), 1)  # v113.1：mech_chance 技能不依赖 mval 成长，保证至少 1 回合
+    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), dur)
+    logs.append(f"🧊 敌人被减速 {dur} 回合，速度下降！")
 
 
 @register(MECH_EFFECTS, "stun")
-def _m_stun(battle, mval, p_mech, total, logs, skill_name, is_crit):
-    """眩晕：概率眩晕 1 回合（v63 物理系控制）"""
-    if not mval:
+def _m_stun(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """眩晕：概率眩晕 1 回合（v63 物理系控制）
+    v113.1：技能自带 mech_chance（如时停领域 1.0）时用它覆写内部概率，Lv.1 也可触发。"""
+    use_mc, chance = _mech_chance(info, min(0.60, 0.20 + mval * 0.15))
+    if not mval and not use_mc:
         return
-    chance = min(0.60, 0.20 + mval * 0.15)
     if random.random() < chance:
         battle.e_buffs["stun"] = 1
         logs.append("🌀 敌人被眩晕，跳过下回合！")
 
 
 @register(MECH_EFFECTS, "silence")
-def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """沉默：稳定沉默 2 回合（v63 禁技能）"""
     if not mval:
         return
@@ -135,7 +151,7 @@ def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "cleanse")
-def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """净化：清除敌方增益（v63 mon_atk_up/mon_def_up/狂暴/召唤）"""
     if not mval:
         return
@@ -152,7 +168,7 @@ def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "mark")
-def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
     if not mval:
@@ -163,7 +179,7 @@ def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "mark_burst")
-def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """标记爆发：每层 +20%"""
     n = p_mech.get("mark", 0)
     bonus = int(total * n * 0.20)
@@ -173,7 +189,7 @@ def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "wind")
-def _m_wind(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_wind(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """风印：叠层（连击次数 +1/层，已在伤害循环处理）"""
     if not mval:
         return
@@ -182,7 +198,7 @@ def _m_wind(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "wind_burst")
-def _m_wind_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_wind_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """风印爆发：层数转连击"""
     n = p_mech.get("wind", 0)
     logs.append(f"💨 风印爆发！{n} 层转化为连击")
@@ -190,7 +206,7 @@ def _m_wind_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "arcane")
-def _m_arcane(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_arcane(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """奥术充能：叠层（供 player_mech_stacks 条件 + arcane_burst 消费）"""
     if not mval:
         return
@@ -199,7 +215,7 @@ def _m_arcane(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "arcane_burst")
-def _m_arcane_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_arcane_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """奥术充能爆发：消耗全部充能，每层 +15% 伤害（奥术洪流）"""
     n = p_mech.get("arcane", 0)
     if n:
@@ -210,7 +226,7 @@ def _m_arcane_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "spellblade")
-def _m_spellblade(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spellblade(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """魔剑士·魔能：叠层（每层 +8% 伤害，上限 5）"""
     if not mval:
         return
@@ -219,7 +235,7 @@ def _m_spellblade(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "spellblade_surge")
-def _m_spellblade_surge(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spellblade_surge(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """魔力涌动：消耗 2 层魔能，下次攻击额外 80% 魔法伤害"""
     n = p_mech.get("spellblade", 0)
     if n >= 2:
@@ -231,7 +247,7 @@ def _m_spellblade_surge(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "spellblade_storm")
-def _m_spellblade_storm(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spellblade_storm(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """剑刃风暴：消耗 3 层魔能，全体 120% 物理 + 40% 魔法（对单体等效）"""
     n = p_mech.get("spellblade", 0)
     if n >= 3:
@@ -246,7 +262,7 @@ def _m_spellblade_storm(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "spellblade_burst")
-def _m_spellblade_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spellblade_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """魔能爆发：消耗全部魔能（≥4），每层 +25% 伤害，最高 200%"""
     n = p_mech.get("spellblade", 0)
     if n >= 4:
@@ -259,7 +275,7 @@ def _m_spellblade_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "spellblade_meteor")
-def _m_spellblade_meteor(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_spellblade_meteor(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """星陨斩：消耗 5 层魔能，400% 混合伤害 + 20% 概率眩晕"""
     n = p_mech.get("spellblade", 0)
     if n >= 5:
@@ -273,7 +289,7 @@ def _m_spellblade_meteor(battle, mval, p_mech, total, logs, skill_name, is_crit)
 
 
 @register(MECH_EFFECTS, "judge")
-def _m_judge(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_judge(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """审判：暴击时叠层（每层＋15%）"""
     if not mval or not is_crit:
         return
@@ -282,7 +298,7 @@ def _m_judge(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "judge_burst")
-def _m_judge_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_judge_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """审判爆发"""
     n = p_mech.get("judge", 0)
     bonus = int(total * n * 0.15)
@@ -292,7 +308,7 @@ def _m_judge_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "shadow")
-def _m_shadow(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_shadow(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """影袭：叠层（每层＋12%）"""
     if not mval:
         return
@@ -301,7 +317,7 @@ def _m_shadow(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "shadow_burst")
-def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """影袭爆发"""
     n = p_mech.get("shadow", 0)
     bonus = int(total * n * 0.18)
@@ -311,16 +327,20 @@ def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "poison")
-def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit):
-    """毒层：叠层（每层每回合 5% 生命，v110 与 POISON_PCT 对齐）"""
-    if not mval:
+def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """毒层：叠层（每层每回合 5% 生命，v110 与 POISON_PCT 对齐）
+    v113.1：技能自带 mech_chance（如轻快拨弦 0.1 / 淬毒之刃 0.5）时作为施毒概率。"""
+    use_mc, chance = _mech_chance(info, 1.0)  # 原逻辑：命中即叠毒
+    if not mval and not use_mc:
+        return
+    if use_mc and random.random() >= chance:
         return
     p_mech["poison"] = _stack(battle, "poison", p_mech, mval)
     logs.append(f"☠️ 毒层 {p_mech['poison']}(每回合 {p_mech['poison'] * 5}% 生命)")
 
 
 @register(MECH_EFFECTS, "poison_burst")
-def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v107 毒爆（丛林猎手）：poison 层数≥3 可引爆——每层 15% 魔攻魔法伤害（毒=魔法段，
     吃 mdef/魔免/元素抗？毒非元素不吃元素抗；v107 伤害类型 dmg_type="magi"），清层。"""
     n = p_mech.get("poison", 0)
@@ -339,7 +359,7 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "chi")
-def _m_chi(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_chi(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """气力：攒层（每点＋12%）"""
     if not mval:
         return
@@ -348,7 +368,7 @@ def _m_chi(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "chi_burst")
-def _m_chi_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_chi_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """气力爆发"""
     n = p_mech.get("chi", 0)
     bonus = int(total * n * 0.15)
@@ -358,7 +378,7 @@ def _m_chi_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "iron")
-def _m_iron(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_iron(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """金身：叠层（减伤，在 _damage_player 生效）"""
     if not mval:
         return
@@ -367,7 +387,7 @@ def _m_iron(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "iron_burst")
-def _m_iron_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_iron_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """金身爆发：层数转伤害"""
     n = p_mech.get("iron", 0)
     bonus = int(total * n * 0.12)
@@ -377,7 +397,7 @@ def _m_iron_burst(battle, mval, p_mech, total, logs, skill_name, is_crit):
 
 
 @register(MECH_EFFECTS, "bless_shield")
-def _m_bless_shield(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_bless_shield(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """神恩护盾：层数转护盾"""
     n = p_mech.get("bless", 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None

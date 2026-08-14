@@ -10,7 +10,7 @@
 
 ⚠️ 14 章四「成就等级体系（青铜→传奇）」：**待后续版本，未实装**。
 当前 achievement_points（core/achievements.py）只算点数（普通 1 / 隐藏 2），
-无等级划分/等级称号/等级加成。（v105 M18 P2 标注，见 AUDIT_FINDINGS_v104 P2-8）
+无等级划分/等级称号/等级加成。（v105 M18 P2 标注）
 """
 ACHIEVEMENTS = [
     # ---- 战斗（20） ----
@@ -230,10 +230,33 @@ ACHIEVEMENTS = [
      "desc": "钓到传说收藏鱼虹彩龙鲤", "cond": {"type": "collect_fish", "key": "mat_rainbow_kite"}, "points": 2},
     {"id": "ach_wish_met", "cat": "隐藏", "name": "流星祈愿者", "title": "流星祈愿者",
      "desc": "触发流星许愿并选择任一祝福", "cond": {"type": "wish_met"}, "points": 2},
-    {"id": "ach_bard_unlock", "cat": "隐藏", "name": "诗人传承", "title": "诗人传承",
-     "desc": "解锁隐藏职业「吟游诗人」", "cond": {"type": "hidden_class", "key": "cls_bard"}, "points": 2},
-    {"id": "ach_bard_master", "cat": "隐藏", "name": "黎明颂者", "title": "黎明颂者",
-     "desc": "隐藏职业吟游诗人达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_bard", "value": 90}, "points": 2},
+    # v112 职业体系重构：隐藏职业成就改 6 新线（原 吟游诗人/魔剑士 成就随线合并）
+    # v112.3：诗人回归牧师攻线，删除诗人独立成就；v112.5：奥秘线降为基础守线，成就换时咒法师
+    {"id": "ach_dragon_unlock", "cat": "隐藏", "name": "龙裔誓约", "title": "龙裔誓约",
+     "desc": "解锁隐藏职业「龙裔誓约」", "cond": {"type": "hidden_class", "key": "cls_dragon_oath"}, "points": 2},
+    {"id": "ach_chrono_unlock", "cat": "隐藏", "name": "时咒法师", "title": "时咒法师",
+     "desc": "解锁隐藏职业「时咒法师」", "cond": {"type": "hidden_class", "key": "cls_chronomancer"}, "points": 2},
+    {"id": "ach_wild_unlock", "cat": "隐藏", "name": "星语者", "title": "星语者",
+     "desc": "解锁隐藏职业「星语者」", "cond": {"type": "hidden_class", "key": "cls_wild_hunter"}, "points": 2},
+    {"id": "ach_shadow_unlock", "cat": "隐藏", "name": "暗影神谕", "title": "暗影神谕",
+     "desc": "解锁隐藏职业「暗影神谕」", "cond": {"type": "hidden_class", "key": "cls_hymn"}, "points": 2},
+    {"id": "ach_shadow_blade_unlock", "cat": "隐藏", "name": "暮影行者", "title": "暮影行者",
+     "desc": "解锁隐藏职业「暮影行者」", "cond": {"type": "hidden_class", "key": "cls_shadow_blade"}, "points": 2},
+    {"id": "ach_wu_sheng_unlock", "cat": "隐藏", "name": "苦修士", "title": "苦修士",
+     "desc": "解锁隐藏职业「苦修士」", "cond": {"type": "hidden_class", "key": "cls_wu_sheng"}, "points": 2},
+    # v113：补齐 5 条隐藏线的 90 级满级成就（暗影神谕 ach_shadow_master 不重复）
+    {"id": "ach_dragon_master", "cat": "隐藏", "name": "龙魂战将", "title": "龙魂战将",
+     "desc": "隐藏职业龙裔誓约达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_dragon_oath", "value": 90}, "points": 2},
+    {"id": "ach_chrono_master", "cat": "隐藏", "name": "时间领主", "title": "时间领主",
+     "desc": "隐藏职业时咒法师达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_chronomancer", "value": 90}, "points": 2},
+    {"id": "ach_wild_master", "cat": "隐藏", "name": "命运编织者", "title": "命运编织者",
+     "desc": "隐藏职业星语者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wild_hunter", "value": 90}, "points": 2},
+    {"id": "ach_shadow_blade_master", "cat": "隐藏", "name": "暮影收割者", "title": "暮影收割者",
+     "desc": "隐藏职业暮影行者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_shadow_blade", "value": 90}, "points": 2},
+    {"id": "ach_wu_sheng_master", "cat": "隐藏", "name": "撼岳者", "title": "撼岳者",
+     "desc": "隐藏职业苦修士达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wu_sheng", "value": 90}, "points": 2},
+    {"id": "ach_shadow_master", "cat": "隐藏", "name": "黯灵主教", "title": "黯灵主教",
+     "desc": "隐藏职业暗影神谕达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_hymn", "value": 90}, "points": 2},
 
 
     {"id": "ach_collect_moon", "cat": "隐藏", "name": "夜钓月华", "title": "月夜守望者",
@@ -242,8 +265,7 @@ ACHIEVEMENTS = [
      "desc": "在迷雾海沟/龙鲸海域/风暴之海钓到收藏鱼星骸遗鳞", "cond": {"type": "collect_fish", "key": "mat_star_remnant"}, "points": 2},
 
     # ---- v87 隐藏线成就（14 章 2.7 扩充 +6）----
-    {"id": "ach_spellblade_unlock", "cat": "隐藏", "name": "剑与书的誓约", "title": "剑与书的誓约",
-     "desc": "解锁隐藏职业「魔剑士」", "cond": {"type": "hidden_class", "key": "cls_spellblade"}, "points": 2},
+    # v112：魔剑士成就并入龙裔线（原 ach_spellblade_unlock → ach_dragon_unlock）
     {"id": "ach_h3_ember", "cat": "隐藏", "name": "灰烬守墓人", "title": "灰烬守墓人",
      "desc": "完成隐藏任务 H3·烬火的余温", "cond": {"type": "quest_done", "key": "s_hidden_ember"}, "points": 2},
     {"id": "ach_h4_library", "cat": "隐藏", "name": "图书馆的书记官", "title": "图书馆的书记官",

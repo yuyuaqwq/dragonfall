@@ -129,6 +129,10 @@ print("【BUILDS 流派引用】")
 bad = []
 for cls_id, builds in C.BUILDS.items():
     sk_names = {v.get("name") for v in C.PLAYER_SKILLS[cls_id]["skills"].values()}
+    # v112：隐藏线推荐方案引用流派分支技能（BRANCH_SKILLS），一并校验
+    for _t, _br in (C.BRANCH_SKILLS.get(cls_id, {}).get("branches", {}) or {}).items():
+        for _bn, _skills in _br.items():
+            sk_names |= {v.get("name") for v in _skills.values()}
     for bname, b in builds.items():
         for s in b["skills"]:
             if s not in sk_names:

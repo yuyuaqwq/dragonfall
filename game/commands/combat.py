@@ -1115,7 +1115,8 @@ class CombatCmds(CommandBase):
                 continue
             branches = cls[t]
             names = list(branches.keys())
-            idx = 0 if path == 1 else 1
+            # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
+            idx = max(0, int(path or 0) - 1)
             if idx < len(names):
                 out.update(branches[names[idx]])
         return out
@@ -1143,9 +1144,7 @@ class CombatCmds(CommandBase):
     _MECH_CN = {"rage": "狂暴", "burn": "灼烧", "freeze": "冰冻", "poison": "中毒", "mark": "标记",
                 "shadow": "影袭", "chi": "气力", "wind": "风印", "judge": "审判", "bless": "神恩",
                 "iron": "铁壁", "shield": "圣盾", "arcane": "奥术", "cleanse": "净化", "stun": "眩晕",
-                "spd_down": "减速", "mark_burst": "引爆", "arcane_burst": "奥爆",
-                "spellblade": "魔刃", "spellblade_burst": "魔爆", "spellblade_meteor": "陨星",
-                "spellblade_storm": "风暴", "spellblade_surge": "魔涌"}
+                "spd_down": "减速", "mark_burst": "引爆", "arcane_burst": "奥爆"}
     _EFFECT_CN = {"atk_up": "攻击", "def_up": "防御", "matk_up": "魔攻", "spd_up": "速度", "crit_up": "暴击",
                   "atk_up_strong": "强攻", "matk_up_strong": "强魔攻", "mon_atk_down": "威压", "lifesteal": "吸血",
                   "counter": "反击", "rage_burst": "爆发", "burn_burst": "引爆", "bless_shield": "护盾"}
@@ -1359,7 +1358,7 @@ class CombatCmds(CommandBase):
     _STACK_NAMES = {
         "burn": "🔥灼烧", "poison": "☠️毒层", "rage": "🔥狂暴", "shadow": "🌑影袭",
         "chi": "🌀气力", "judge": "⚖️审判", "mark": "🎯标记", "wind": "💨风印",
-        "iron": "🪷金身", "shield": "🛡️圣盾", "bless": "✨神恩",
+        "iron": "🪨铁壁", "shield": "🛡️圣盾", "bless": "✨神恩",
     }
 
     def _status_line(self, player: dict, b) -> str:

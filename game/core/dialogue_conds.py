@@ -171,6 +171,35 @@ def _c_class_any(ctx, v):
     player = ctx.get("player") or {}
     return player.get("class_name") in v
 
+
+@register("race_is")
+def _c_race_is(ctx, v):
+    """v113 种族限制：玩家种族 == 指定种族（隐藏线导师·血脉传承对话）"""
+    player = ctx.get("player") or {}
+    return (player.get("race") or "human") == v
+
+
+@register("hidden_unlocked")
+def _c_hidden_unlocked(ctx, v):
+    """v113：已解锁指定隐藏线（hidden_class_unlock 含 cls_id）——导师对话『接受传承』门槛"""
+    player = ctx.get("player") or {}
+    return v in (player.get("hidden_class_unlock") or [])
+
+
+@register("hidden_current")
+def _c_hidden_current(ctx, v):
+    """v113：当前职业已是该隐藏线（传承完成后的闲聊分支/提示满阶）"""
+    player = ctx.get("player") or {}
+    return player.get("class_name") == v
+
+
+@register("not_hidden_current")
+def _c_not_hidden_current(ctx, v):
+    """v113：当前职业尚未是该隐藏线（『接受传承』选项只在未传承时显示；
+    已传承玩家再点会走 _evolve_hidden_generic 的"你已是X"分支，双保险）"""
+    player = ctx.get("player") or {}
+    return player.get("class_name") != v
+
 @register("evolve_ready")
 def _c_evolve_ready(ctx, v):
     """到达转职等级门槛（{tier: 目标阶, level: 需要等级}）"""
