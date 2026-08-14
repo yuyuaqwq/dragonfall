@@ -966,8 +966,8 @@ INSTANCES = {
         "lv": 90,
         "min_players": 3,
         "max_players": 4,
-        "desc": "龙脊山脉之巅的风暴王座，风暴龙王统御着雷云。雷霆为冠，狂风为座——能坐上去的，只有风暴本身。(支线)",
-        "boss": ["b_storm_king", "风暴龙王", "boss", 98,
+        "desc": "龙脊山脉之巅的风暴王座，雷霆君主统御着雷云。雷霆为冠，狂风为座——能坐上去的，只有风暴本身。(支线)",
+        "boss": ["b_storm_king", "雷霆君主", "boss", 98,
                  ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
                  ["风暴之核"]],
         "stages": [
@@ -991,7 +991,7 @@ INSTANCES = {
                 "name": "风暴王座",
                 "monsters": [],
                 "elite": None,
-                "boss": ["b_storm_king", "风暴龙王", "boss", 98,
+                "boss": ["b_storm_king", "雷霆君主", "boss", 98,
                          ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
                          ["风暴之核"]],
             },
@@ -1382,7 +1382,8 @@ INSTANCES = {
         ],
         "key_item": "龙宫珠",
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
-        "key_source": "龙鲸海域精英·龙鲸掉落",
+        # F3 P1-1 修复：掉落源补全——龙鲸海域精英·龙鲸王·涛声掉落（原仅副本内掉落=死锁）
+        "key_source": "龙鲸海域精英·龙鲸王·涛声掉落",
 "mech": "reflect,stacks",
         "hp_mult": 2.7,
         "atk_mult": 1.25,

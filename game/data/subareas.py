@@ -4522,9 +4522,9 @@ SUBAREAS = {
         },
         {
             "id": "frost_horn_gate",
-            "name": "寒角堡城门",
+            "name": "霜角堡城门",
             "icon": "🏰",
-            "desc": "寒角堡的兽骨城门裹着铁皮，门缝里透出北地的寒气。",
+            "desc": "霜角堡的兽骨城门裹着铁皮，门缝里透出北地的寒气。",
             "type": "城镇出口",
             "lv": 1,
             "npcs": ["npc_frost_horn_gate_guard"],
@@ -6554,8 +6554,8 @@ SUBAREAS = {
             "elite": None,
             "boss": [
                 "b_storm_king",
-                "风暴龙王",
-                "boss",
+                                "雷霆君主",
+                                "boss",
                 98,
                 [
                     "ms_lei_bao",
@@ -7874,7 +7874,10 @@ SUBAREAS = {
                     "ms_zhao_huan_you_jing"
                 ],
                 [
-                    "涛声鲸角"
+                    "涛声鲸角",
+                    # F3 P1-1 修复：深海龙宫钥匙『龙宫珠』补副本外掉落源（原仅副本内
+                    # 珊瑚长廊龙宫守卫掉落=进本死锁；key_source 文案即"龙鲸海域精英掉落"）
+                    "龙宫珠"
                 ]
             ],
             "boss": None,

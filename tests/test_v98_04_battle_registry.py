@@ -104,7 +104,7 @@ BEFORE_M = set(BM.MECH_EFFECTS.keys())
 
 
 @BM.register(BM.MECH_EFFECTS, "test_fake_mech")
-def _m_test_fake(battle, mval, p_mech, total, logs, skill_name, is_crit):
+def _m_test_fake(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     p_mech["test_flag"] = mval
     logs.append("测试机制触发")
 

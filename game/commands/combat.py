@@ -2421,6 +2421,16 @@ class CombatCmds(CommandBase):
             if player["mp"] < info["mp"]:
                 yield event.plain_result("💙 魔力不足！")
                 return
+        # F1 P1-4（report_09）：PVP『防御』生效——对手防御姿态中时，本次行动对其造成的
+        # 伤害减半（b.e_defending → _damage_enemy 统一消费，普攻/技能/召唤物全路径覆盖）
+        if str(state.get("defending_qq", "")) == str(opp["qq_id"]):
+            b.e_defending = True
+        if action == "defend":
+            # 防御姿态：持续到对方下一次行动（对方攻击/技能均按防御减半结算）
+            state["defending_qq"] = str(qq_id)
+        else:
+            # 非防御行动：对方此前的防御姿态被本次行动消耗
+            state.pop("defending_qq", None)
         logs, ended = b.player_turn(action, skill_name, player, enemy_act=False)
         # 同步快照与 buffs
         opp["hp"] = b.enemy["hp"]
@@ -2483,11 +2493,23 @@ class CombatCmds(CommandBase):
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）
         self._set_pvp_cd(str(attacker_qq))
         now = int(time.time())
+        # F1 P1-5（report_09）：灰名只写不读修复——结算处消费灰名标记。
+        # 查证：26 章策划案(design/new_world/26_PVP与红名系统.md)无灰名设计、v110.14 提交说明
+        # 无灰名惩罚 → 惩罚数值不明确，按 FIX-F1 ⚠️ 保守默认：灰名期间主动袭击者被反杀
+        # 不掉额外惩罚（与普通战败同规则 10% 上限 2000），仅提示灰名状态；
+        # 掉金翻倍/荣誉惩罚候选方案待鱼鱼拍板。
+        _grey_st = db.get_event_state(f"grey_{loser_qq}")
+        try:
+            grey_active = bool(_grey_st) and int(_grey_st) > now
+        except Exception:
+            grey_active = False
         lines = [log_body, "", f"💀 【{loser['name']}】被击败了！"]
         if lost > 0:
             lines.append(f"💰 你夺走了 {lost} 金币！")
         if extra > 0:
             lines.append(f"☠️ 红名期间战败：额外损失 {extra} 金币(上限 2000)！")
+        if grey_active:
+            lines.append(f"⚪ 【{loser['name']}】灰名期间被击败（主动袭击标记；本次战败按普通规则结算）。")
         _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
         lines.append(f"🏥 对方被送回{_town_name}疗养(HP 1)。")
         if self._is_redname(loser_qq):

@@ -1450,7 +1450,7 @@ class Battle:
                 logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
         if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
             p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
-        logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
+        logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
         if mech == "bless":
             logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层(下次『神圣之光』转化护盾)")
         # v50 团队治疗：记录全队效果（副本广播）
@@ -1515,7 +1515,7 @@ class Battle:
             if st2 and n:
                 d = int(st2["matk"] * 0.30 * n * cond_mult)
                 self._damage_enemy(d, logs)
-                logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 1)}！" if cond_label else ""))
+                logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
             p_mech["burn"] = 0
         elif eff == "rage_burst":
             n = p_mech.get("rage", 0)
@@ -1835,7 +1835,7 @@ class Battle:
         if stack_bonus > 1.0:
             tags.append(f"⚡增幅x{round(stack_bonus, 2)}")
         if cond_mult > 1.0 and cond_label:
-            tags.append(f"⚔️{cond_label}x{round(cond_mult, 1)}")
+            tags.append(f"⚔️{cond_label}x{round(cond_mult, 2)}")
         elif cond_mult == 1.0 and cond_label:
             # v104 R3 P2-18：mult=1.0 的纯条件技（如符文护体"魔能≥3"）条件满足时也提示
             tags.append(f"⚔️{cond_label}")
@@ -2612,7 +2612,12 @@ class Battle:
     def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True) -> int:
         """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。
         返回对 Boss 实际造成的伤害（援军吸收部分不计入）。
-        v109.2 P1-3：wake_sleep——主动攻击/反伤打醒睡眠（dot 传 False，防止睡眠每回合必被持续伤害打断）。"""
+        v109.2 P1-3：wake_sleep——主动攻击/反伤打醒睡眠（dot 传 False，防止睡眠每回合必被持续伤害打断）。
+        F1 P1-4（report_09）：PVP 防御生效——敌方快照防御中(e_defending)时伤害减半，
+        与 PVE 防御(_enemy_phase/_do_defend)同规则 DEFEND_REDUCE；PVE 怪 e_defending 恒 False 无感。"""
+        if self.e_defending and dmg > 0:
+            dmg = max(1, int(dmg * DEFEND_REDUCE))
+            logs.append(f"(格挡后 {dmg} 点伤害)")
         if wake_sleep and dmg > 0 and "sleep" in self.e_buffs:
             self.e_buffs.pop("sleep", None)
             logs.append("💥 敌人被攻击惊醒！")

@@ -34,7 +34,10 @@ def enchant_match_material(stat: str, items: list) -> str | None:
         return None
     for it in items:
         d = it.get("data", {})
-        if d.get("type") != "材料":
+        # F2-3：材料判定放宽——gm/部分发放路径材料入包缺 type 字段（或 type=兽材，
+        #   如余烬甲片），原按 type==\"材料\" 过滤导致背包有材料却报\"没有材料\"（report_11 P1-1）。
+        #   改按材料 key 规范 mat_ 前缀兜底（全库材料 key 均 mat_ 开头，v48 ID 规范）。
+        if d.get("type") != "材料" and not str(it.get("key", "")).startswith("mat_"):
             continue
         name = d.get("name", "")
         if any(kw in name for kw in rec["mats"]):

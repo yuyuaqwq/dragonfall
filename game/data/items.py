@@ -1342,12 +1342,12 @@ MATERIALS = {
         "name": "魔法粉尘"
     },
     "mat_yin_lin_yu": {
-        "price": 12,
+        "price": 6,
         "name": "银鳞鱼",
         "quality": "white"
     },
     "mat_jin_li": {
-        "price": 25,
+        "price": 12,
         "name": "金鲤",
         "quality": "green",
         # v104 R3 M08 P3-1：手写 type/desc（规则按"金"误判为矿石，实为鱼）
@@ -1356,13 +1356,13 @@ MATERIALS = {
     },
     # v104 R3 M08 P2-6 回滚：帝王鲑/盲鱼是 fishing.py FISH_POOL 垂钓鱼（按名 resolve→mat_ 键），不可删
     "mat_di_wang_gui": {
-        "price": 45,
+        "price": 22,
         "name": "帝王鲑",
         # 垂钓材料品质以 FISH_POOL 品种档为权威（16 章 1.1），非价档——保持 green
         "quality": "green"
     },
     "mat_mang_yu": {
-        "price": 18,
+        "price": 9,
         "name": "盲鱼",
         "quality": "green"
     },
@@ -1413,7 +1413,7 @@ MATERIALS = {
     },
     # ---- 渔获材料（16 章品质垂钓：垂钓唯一/主要来源，quality 对齐五档）----
     "mat_yue_guang_yu": {
-        "price": 55,
+        "price": 27,
         "name": "月光鱼",
         "quality": "blue"
     },
@@ -2019,8 +2019,10 @@ CONSUMABLES = {
                     "desc": "深渊裂隙的入场钥匙(深渊骑士掉落)"},
     "i_key_dragon_tomb": {"name": "龙牙信物", "price": 2000, "key_item": True,
                           "desc": "龙之墓的入场信物(龙脊山脉精英掉落)"},
-    "i_key_deer_fort": {"name": "鹿角军旗", "price": 200, "key_item": True,
-                        "desc": "鹿角要塞的入场碎片(要塞地图探索掉落)"},
+    # F3 P1-2 修复：删除 4 把死数据钥匙（i_key_deer_fort 鹿角军旗/i_key_sunken 沉船湾船票/
+    # i_key_sea_god 海神殿祷文/i_key_dragon_palace 龙宫宝珠）——v110.11 消歧改名后副本
+    # key_item 回退材料名（军旗碎片/幽灵船票/海神祷文/龙宫珠），这 4 把 i_key 无发放源、
+    # 无副本引用，纯死数据；钥匙体系以材料名为准（29 章 P0 闭环）
     "i_key_trial": {"name": "试炼令", "price": 400, "key_item": True,
                     "desc": "圣光试炼场的入场令牌(铁盾镇兵营任务奖励)"},
     "i_key_moon": {"name": "月辉钥匙", "price": 3000, "key_item": True,
@@ -2029,14 +2031,8 @@ CONSUMABLES = {
                     "desc": "冰霜王座的入场令牌(永冻冰原精英掉落)"},
     "i_key_storm_throne": {"name": "雷光令", "price": 4000, "key_item": True,
                            "desc": "风暴王座的入场令牌(风暴崖精英掉落)"},
-    "i_key_sunken": {"name": "沉船湾船票", "price": 600, "key_item": True,
-                     "desc": "沉船湾的入场船票(铁港码头精英掉落)"},
     "i_key_siren": {"name": "海妖鳞片信物", "price": 1200, "key_item": True,
                     "desc": "海妖巢穴的入场信物(海妖湾精英掉落)"},
-    "i_key_sea_god": {"name": "海神殿祷文", "price": 1800, "key_item": True,
-                      "desc": "海神神殿的入场祷文(无名港灯塔任务奖励)"},
-    "i_key_dragon_palace": {"name": "龙宫宝珠", "price": 2500, "key_item": True,
-                            "desc": "深海龙宫的入场宝珠(龙鲸海域精英掉落)"},
     "i_key_gray_dwarf": {"name": "灰矮人通行令", "price": 2800, "key_item": True,
                          "desc": "灰矮人要塞的通行令(地底集市任务奖励)"},
     "i_key_under_dragon": {"name": "龙鳞钥匙", "price": 3000, "key_item": True,

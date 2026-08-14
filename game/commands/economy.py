@@ -3870,6 +3870,13 @@ class EconomyCmds(CommandBase):
             shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
         item_name = item_name.strip()
+        # F2-2：『购买 』空参静默买第一件（空串是任意名称的子串恒 True，report_18 P1-1）
+        #   ——显式格式提示（与『加点 』空参提示风格一致），不执行购买
+        if not item_name:
+            yield event.plain_result(
+                "格式：购买 <商品名/序号> [数量]，如『购买 治疗药水(小) 5』；『商店』查看商品列表～"
+            )
+            return
         # v95.25 #127：支持『购买 <名称/序号> <数量>』（如『购买 治疗药水(中) 6』、『购买 2 8』）
         qty = 1
         _parts = item_name.split()

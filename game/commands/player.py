@@ -590,6 +590,9 @@ class PlayerCmds(CommandBase):
     def _branch_title(self, class_name: str, tier: int, evolve_path: int = 0) -> str:
         """分支称号：优先返回所选分支的名字，否则默认第一条"""
         cls = C.CLASSES.get(class_name, {})
+        # F1 P1-1（report_02）：未转职(tier=0)时显示基础职业名，不再取 evolve[-1] 最高阶称号
+        if int(tier or 0) <= 0:
+            return C.display("classes", class_name) if isinstance(class_name, str) else class_name
         branches = cls.get("evolve_branches", {})
         if tier > 0 and tier in branches and branches[tier]:
             # v112：多分支索引通用化（基础攻/守 path=1/2；隐藏流派 path=1/2/3）

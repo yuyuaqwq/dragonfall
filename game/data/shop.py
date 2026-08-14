@@ -65,6 +65,10 @@ SHOP_SUBAREA_ITEMS = {
     ],
     "ironharbor_8": [  # 渔火码头
         "i_meat_skewer", "i_stew", "i_scroll_teleport",
+        # F4 P1-1：银鳞鱼/金鲤上架——垂钓拜师考验(3 银鳞鱼+1 金鲤)材料死锁修复：
+        # 垂钓未解锁时『垂钓』恒被 require_apprentice 拦截，钓不到考验鱼；
+        # 与 v101.25 #319 铁矿石 / v101.30d #O53 空瓶 同款方案（渔夫·潮生 NPC 台词即卖鱼）
+        "mat_yin_lin_yu", "mat_jin_li",
     ],
     "ironharbor_4": [  # 金槌拍卖行
         "i_scroll_teleport", "i_holy_charm", "i_stone_refine",

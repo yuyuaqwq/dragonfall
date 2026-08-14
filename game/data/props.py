@@ -644,7 +644,7 @@ SUBAREA_PROPS = {
     "moon_court:moon_court_2": [('throne', '月辉王座'), ('tapestry', '月桂织锦')],
     "moon_court:moon_court_3": [('armor_stand', '月影卫甲胄'), ('weapon_rack', '月影卫兵器架')],
     "moon_court:moon_court_4": [('goods_shelf', '贤者书架'), 'candle_stand'],
-    # ---- 寒角堡（北境·霜角） ----
+    # ---- 霜角堡（北境·霜原） ----
     "frost_horn:frost_horn_1": [('ice_sculpture', '霜角冰雕'), ('campfire_remains', '广场火塘')],
     "frost_horn:frost_horn_2": [('throne', '酋长王座'), ('tapestry', '霜角战史挂毯')],
     "frost_horn:frost_horn_3": [('bar_counter', '霜角吧台'), ('ale_barrel', '北地烈酒桶'), ('fireplace', '酒馆壁炉')],
@@ -919,7 +919,7 @@ SUBAREA_PROPS = {
     'moon_gate:moon_gate_gate': [('elf_carving', '月门精灵纹'), ('boundary_stone', '月冠隘口碑'), 'camp_flag'],
     'moon_court:moon_court_gate': [('elf_carving', '月庭银叶纹'), ('statue', '月神持弓像'), 'camp_flag'],
     'star_song:star_song_path': [('elf_carving', '星歌藤纹'), ('boundary_stone', '星歌镇界碑'), 'camp_flag'],
-    'frost_horn:frost_horn_gate': [('ice_sculpture', '霜角堡冰狼像'), ('boundary_stone', '寒角堡界碑'), 'camp_flag'],
+    'frost_horn:frost_horn_gate': [('ice_sculpture', '霜角堡冰狼像'), ('boundary_stone', '霜角堡界碑'), 'camp_flag'],
     'anvil_fort:anvil_fort_gate': [('rune_pillar', '铁砧堡符文柱'), ('minecart', '堡门矿车'), 'camp_flag'],
     'cold_ridge:cold_ridge_sentry': [('boundary_stone', '寒脊营界碑'), ('campfire_remains', '哨卡篝火'), 'camp_flag'],
     'aurora_town:aurora_town_path': [('ice_sculpture', '极光镇冰鹿像'), ('boundary_stone', '极光镇界碑'), 'camp_flag'],

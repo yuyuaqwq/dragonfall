@@ -74,7 +74,7 @@ check("疾风连射耗 20 精力", b5.resources.get("energy", 0) == 80, str(b5.r
 check("游侠不耗魔", p["mp"] == 500, str(p["mp"]))
 # 精力不足拦截（回合开始回 25：5→30 < 35）
 b6 = BT.Battle("monster", mkmon(), player=p)
-b6.resources["energy"] = 5
+b6.resources["energy"] = 4
 logs6 = cast(b6, p, "致命狙击")
 check("精力不足拦截", any("不足" in x for x in logs6), str(logs6)[:120])
 

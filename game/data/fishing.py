@@ -36,7 +36,7 @@ FISHING_SPOTS = {
     },
     "frost_horn": {
         "name": "霜原冰湖", "min_lv": 6, "ban_quality": ["orange"],
-        "subarea": "frost_horn_gate",  # 寒角堡城门（冰湖在堡外霜原一侧）
+        "subarea": "frost_horn_gate",  # 霜角堡城门（冰湖在堡外霜原一侧）
         "desc": "深海水晶/龙涎香",
     },
     "mist_trench": {
@@ -86,16 +86,16 @@ FISH_EXP = {"white": 1, "green": 1, "blue": 2, "purple": 3, "orange": 5}
 # spots: None = 全部水域；列表 = 仅限这些钓点产出（FISHING_SPOTS 的 map_id）
 FISH_POOL = [
     # ---- 白·普通 ----
-    {"name": "银鳞鱼", "quality": "white", "type": "鱼", "price": 12, "spots": None,
+    {"name": "银鳞鱼", "quality": "white", "type": "鱼", "price": 6, "spots": None,
      "weight": 55, "desc": "常见的淡水鱼，肉质鲜美"},
     {"name": "水草", "quality": "white", "type": "垃圾", "price": 1, "spots": None,
      "weight": 25, "desc": "缠成一团的水草，什么也没有"},
     {"name": "破旧的靴子", "quality": "white", "type": "垃圾", "price": 1, "spots": None,
      "weight": 20, "desc": "不知道谁扔进水里的，毫无用处"},
     # ---- 绿·优良 ----
-    {"name": "金鲤", "quality": "green", "type": "鱼", "price": 25, "spots": None,
+    {"name": "金鲤", "quality": "green", "type": "鱼", "price": 12, "spots": None,
      "weight": 40, "desc": "鳞片泛着金光的鲤鱼，酒楼抢着收"},
-    {"name": "帝王鲑", "quality": "green", "type": "鱼", "price": 45, "spots": None,
+    {"name": "帝王鲑", "quality": "green", "type": "鱼", "price": 22, "spots": None,
      "weight": 25, "desc": "罕见的大鱼，据说吃了能增强体质"},
     {"name": "海藻", "quality": "green", "type": "材料", "price": 15,
      "spots": ["mist_trench", "whale_domain", "storm_sea"],
@@ -106,11 +106,11 @@ FISH_POOL = [
     {"name": "云棉", "quality": "green", "type": "材料", "price": 22,
      "spots": ["rainbow_cloud"],
      "weight": 10, "desc": "云朵凝成的棉絮，轻盈温暖"},
-    {"name": "盲鱼", "quality": "green", "type": "鱼", "price": 18,
+    {"name": "盲鱼", "quality": "green", "type": "鱼", "price": 9,
      "spots": ["deep_lake"],
      "weight": 10, "desc": "地下湖的盲眼鱼，肉质细腻"},
     # ---- 蓝·稀有 ----
-    {"name": "月光鱼", "quality": "blue", "type": "鱼", "price": 55, "spots": None,
+    {"name": "月光鱼", "quality": "blue", "type": "鱼", "price": 27, "spots": None,
      "weight": 20, "desc": "月光下泛着银蓝光泽的鱼，稀有"},
     {"name": "湖珍珠", "quality": "blue", "type": "材料", "price": 40,
      "spots": ["starlake", "harbor_docks", "gold_plain", "misty_swamp"],
@@ -150,7 +150,7 @@ FISH_POOL = [
      "spots": ["storm_sea"],
      "weight": 20, "desc": "雷暴淬炼过的晶砂，滋滋作响"},
     # ---- 橙·传说 ----
-    {"name": "鱼王·翡翠巨龙", "quality": "orange", "type": "鱼王", "price": 500,
+    {"name": "鱼王·翡翠巨龙", "quality": "orange", "type": "鱼王", "price": 245,
      "spots": ["harbor_docks"],
      "weight": 60, "desc": "传说沉眠在深水中的鱼王！全服为之震动"},
     {"name": "古代鱼骨", "quality": "orange", "type": "材料", "price": 200,

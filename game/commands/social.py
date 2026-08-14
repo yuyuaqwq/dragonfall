@@ -36,11 +36,14 @@ class SocialCmds(CommandBase):
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(items, page, per_page=5)
         lines = [f"🏪 【群友市场】(第 {page}/{pages} 页 · 共 {len(items)} 件)", "━━━━━━━━━━━━"]
-        for i, it in enumerate(page_items, (page - 1) * 5 + 1):
+        for it in page_items:
             seller = self._player(group_id, it["seller"])
             sname = seller["name"] if seller else it["seller"]
             d = it["item_data"]
-            lines.append(f"{i:>2}. #{it['id']} {d.get('name','?')} ｜ {it['price']} 金币 ｜ 卖家 {sname}")
+            # F2-1：行首编号直接用 DB id（与『购入 <编号>』『下架 <编号>』解析同基准，
+            #   风格与摊位列表 #id 统一）。不再显示位置序号——原双编号在
+            #   有过删除/翻页后必然错位（report_12 P1-1：『购入 1』买不到第 1 行）。
+            lines.append(f"#{it['id']} {d.get('name','?')} ｜ {it['price']} 金币 ｜ 卖家 {sname}")
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『市场 {page+1}』看下一页(共 {pages} 页)")

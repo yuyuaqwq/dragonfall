@@ -201,6 +201,12 @@ def tpl_exp_gain(ctx):
                          max_mp=player["max_mp"], skills=player["skills"],
                          attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0),
                          learned_skills=player.get("learned_skills", []))
+        # F1 P1-2（report_02）：升级后把最新 level/exp 等同步回调用方 player dict
+        # （ctx.player 与调用方同引用）——否则战斗胜利主流程随后再次 check_player_level_up
+        # 会用陈旧 level/exp 重复升级 → 升级公告双打印
+        for _k in ("level", "exp", "hp", "mp", "max_hp", "max_mp", "skills",
+                   "attr_pts", "skill_points", "learned_skills"):
+            ctx.player[_k] = player.get(_k, ctx.player.get(_k))
     return "\n".join(lines)
 
 

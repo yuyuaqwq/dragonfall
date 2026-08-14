@@ -469,8 +469,12 @@ class GmCmds(CommandBase):
         except Exception:
             yield event.plain_result("⚠️ 属性重算失败，等级未修改～")
             return
+        # v113.2 QA 修复：GM 造号补属性点/技能点（对齐升级链 每级+3属性点/每级+1技能点），
+        # 取 max 保留玩家已用/已有点数，避免"等级到了但没点数"的测试污染
         db.update_player("", tgt, level=n, exp=0, max_hp=st["max_hp"], max_mp=st["max_mp"],
-                         hp=st["max_hp"], mp=st["max_mp"])
+                         hp=st["max_hp"], mp=st["max_mp"],
+                         attr_pts=max(p.get("attr_pts", 0), (n - 1) * 3),
+                         skill_points=max(p.get("skill_points", 0), n - 1))
         yield event.plain_result(f"⬆️ 已把 {p.get('name')} 设为 Lv.{n}(HP/MP 已按新等级重算回满)！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?gm_传送(?:[\s\S]*)$")

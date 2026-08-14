@@ -57,14 +57,14 @@ py2 = mk('游侠')
 by2 = BT.Battle('monster', mkmon(), player=py2)
 by2.resources['energy'] = 50
 logs = by2._turn_start(py2)
-check("精力每回合 +25", by2.resources.get('energy') == 75, str(by2.resources))
+check("精力每回合 +30", by2.resources.get('energy') == 80, str(by2.resources))
 check("回复日志", any("精力回复" in x for x in logs), str(logs))
 
 print("【核心资源：消耗】")
 assert E.core_resource_spend('游侠', by2.resources, 20) is True
-check("消耗 20 精力", by2.resources.get('energy') == 55, str(by2.resources))
+check("消耗 20 精力", by2.resources.get('energy') == 60, str(by2.resources))
 assert E.core_resource_spend('游侠', by2.resources, 999) is False
-check("不足不扣", by2.resources.get('energy') == 55, str(by2.resources))
+check("不足不扣", by2.resources.get('energy') == 60, str(by2.resources))
 
 print("【核心资源：显示标签】")
 check("战士标签", "怒气" in b._resource_label(p), b._resource_label(p))
