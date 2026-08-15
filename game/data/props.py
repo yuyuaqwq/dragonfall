@@ -620,6 +620,8 @@ SUBAREA_PROPS = {
     "ironharbor:ironharbor_7": [('miner_lamp', '工会矿灯'), ('minecart', '工会矿车')],
     "ironharbor:ironharbor_8": [('fishing_net', '渔人晒网'), ('fish_drying_rack', '码头晒鱼架'), 'oar'],
     "ironharbor:ironharbor_9": [('forge_table', '锻坊主台'), ('anvil', '锻坊大铁砧'), 'bellows'],
+    # O85 修复：潮汐药铺配套药柜（与橡木镇草药柜/白鹿城医师药柜同款，每日交互可得草药/月光草）
+    "ironharbor:ironharbor_10": [('medicine_cabinet', '潮汐药柜'), 'mortar_pestle'],
     # ---- 晨曦城（王都·圣光） ----
     "dawn_city:dawn_city_1": [('fountain', '圣光喷泉'), ('statue', '初代圣王像'), ('clock_tower', '王都钟楼')],
     "dawn_city:dawn_city_2": [('throne', '圣光王座'), ('tapestry', '开国战役织锦'), ('armor_stand', '御前甲胄')],

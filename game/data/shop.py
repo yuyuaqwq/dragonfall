@@ -78,6 +78,9 @@ SHOP_SUBAREA_ITEMS = {
     "ironharbor_9": [  # 海风锻造坊（smith 分支）
         "i_stone_upgrade", "i_stone_refine", "i_stone_blessed",
     ],
+    "ironharbor_10": [  # 潮汐药铺（herb 分支；O85 修复补炼金设施——药剂配货与白鹿城鹿鸣医馆同款）
+        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage",
+    ],
     # ---------- 银溪镇 ----------
     "silver_brook_3": [  # 河畔旅店
         "i_bread", "i_ale", "i_meat_skewer",

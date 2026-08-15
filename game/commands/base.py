@@ -254,6 +254,11 @@ class CommandBase:
             if sa["id"] == sa_id:
                 name = sa.get("name", "")
                 funcs = sa.get("funcs") or []
+                # O94 修复：白鹿城鹿角淬火坊(white_deer_8)是强化/附魔坊（强化师·克拉拉+附魔师），
+                # 名字含"淬火"不命中旧关键词（铁匠/锻造/军械/工坊/强化）→ 强化/附魔误报
+                # "需要到铁匠铺/锻造坊"；此处显式补入强化可用区域 id
+                if sa_id == "white_deer_8":
+                    return True
                 if "craft" in funcs:
                     return True
                 return any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))

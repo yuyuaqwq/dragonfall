@@ -71,7 +71,9 @@ class WorldCmds(CommandBase):
         if mid in C.ENHANCE_SMITH_MAPS:
             _sa_name = sa_obj.get("name", "") if sa_obj else ""
             _sa_funcs = (sa_obj.get("funcs") or []) if sa_obj else []
-            _smith = "craft" in _sa_funcs or any(k in _sa_name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+            # O94 修复：与 base._at_smith 同源——鹿角淬火坊(white_deer_8)补入强化可用区域，
+            # 地图设施清单同步显示铁匠铺入口（否则设施显示与『强化』可用性矛盾）
+            _smith = "craft" in _sa_funcs or sa_id == "white_deer_8" or any(k in _sa_name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
             if _smith:
                 lines.append("🔨 铁匠铺(『强化』『附魔』)")
         # 旅者方碑（只在中心广场/首个子区域提示）

@@ -1111,6 +1111,28 @@ SUBAREAS = {
             "healer": False
         },
         {
+            # O85 修复：铁港城补炼金/草药设施——此前全城无 alchemy 子区域，
+            # 水鬼之泪等精华/草药类材料（_MAT_FACILITY→alchemy）无处回收变现
+            "id": "ironharbor_10",
+            "name": "潮汐药铺",
+            "icon": "🏘️",
+            "desc": "潮汐药铺里晒着成捆的海草与草药，药架上码着一排排药剂瓶。药师翻着泛黄的药典，念叨着只有海雾里才采得到的药材。",
+            "type": "城镇",
+            "lv": 10,
+            "npcs": [
+                "npc_harbor_alchemist",
+            ],
+            "monsters": [],
+            "elite": None,
+            "boss": None,
+            "funcs": [
+                "shop",
+                "alchemy"
+            ],
+            "shop": True,
+            "healer": False
+        },
+        {
             "id": "ironharbor_gate",
             "name": "铁港城门",
             "icon": "🏰",
