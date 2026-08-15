@@ -1229,10 +1229,14 @@ class EconomyCmds(CommandBase):
         if len(lst) >= db.MAX_ACTIVE_PROFS:
             names = "、".join(db.PROF_FIELDS[k] for k in lst)
             # v101.28l #421：强化/附魔也是副业——位满时明确说明，避免玩家不知道要占副业位
+            # O112 修复：引导补全——没学过怎么学（拜师）+ 位满怎么腾（遗忘副业），
+            # 对齐『遗忘副业 <名称>』提示文案风格
             _extra = ""
             if key in ("enhance", "enchant"):
-                _extra = (f"\n💡 「{db.PROF_FIELDS.get(key, key)}」也是一条副业，"
-                          f"需要占用副业位——先『遗忘副业 <名称>』腾位置吧～")
+                tname, tmap = C.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
+                _extra = (f"\n💡 「{db.PROF_FIELDS.get(key, key)}」也是一条副业："
+                          f"没学过先到 {tmap} 找 {tname} 拜师（『对话 {tname}』），"
+                          f"位子满了先『遗忘副业 <名称>』腾一个吧～")
             return False, (
                 f"你的副业位已满({len(lst)}/{db.MAX_ACTIVE_PROFS}：{names})！"
                 f"想发展新副业，先『遗忘副业 <名称>』放弃一条吧～{_extra}"
@@ -2131,9 +2135,12 @@ class EconomyCmds(CommandBase):
         _stone_line = ""
         # v113.3 副业渐进加成：强化师每级 +0.5%（Lv.10 = +5%，原仅 Lv.10 一档）
         _rate_bonus = min(prof_lv, 10) * 0.005
+        # O108 修复：手艺加成行单独存（_craft_line），升级当次用新等级重算后再拼回
+        _craft_line = ""
         if _rate_bonus > 0:
             _rate = min(1.0, _rate + _rate_bonus)
-            _stone_line = f"\n🛠️ 强化师 Lv.{prof_lv} 的手艺：成功率 +{_rate_bonus*100:.1f}%！"
+            _craft_line = f"\n🛠️ 强化师 Lv.{prof_lv} 的手艺：成功率 +{_rate_bonus*100:.1f}%！"
+        _stone_line = _craft_line
         # v105 M11 P2：星铁必成(_boost)或成功率已 100% 时不再消耗精炼强化石（+25% 纯浪费）
         if not _boost and _rate < 1.0 and db.count_item(group_id, qq_id, "i_stone_refine") >= 1:
             _rate = min(1.0, _rate + 0.25)
@@ -2156,12 +2163,19 @@ class EconomyCmds(CommandBase):
             else:
                 db.remove_item(group_id, qq_id, target["key"])
                 db.add_item(group_id, qq_id, target["key"], d, 1)
-            lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！"]
+            # O93 修复：成功文案补金币消耗显示（实际扣款在上方 db.update_player(gold=...)）
+            lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！(消耗 {info['cost']} 金币)"]
             # v101.30 强化经验按段位：+0→+1 给 1 …… +8→+9 给 9（高段强化是升级主路径，
             # 刷必成的 +0→+1 只能拿 1 经验/50 金，成长极慢——赌得越高练得越快）
             new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", cur_enh + 1)
             if leveled:
                 lines.append(f"🌟 强化副业提升到 Lv.{new_lv}！")
+                # O108 修复：升级当次即按新等级重算手艺加成（原 _stone_line 仍用升级前旧等级，
+                # 导致当次提示 Lv.3 +1.5%、下次才 Lv.4 +2.0%）
+                if _craft_line:
+                    _new_bonus = min(new_lv, 10) * 0.005
+                    _new_craft = f"\n🛠️ 强化师 Lv.{new_lv} 的手艺：成功率 +{_new_bonus*100:.1f}%！"
+                    _stone_line = _stone_line.replace(_craft_line, _new_craft)
             _done, _msg = self._daily_prof_bump(group_id, qq_id, "enhance")
             if _msg:
                 lines.append(_msg.strip())
@@ -2183,7 +2197,8 @@ class EconomyCmds(CommandBase):
                 db.remove_item(group_id, qq_id, "i_stone_upgrade", 1)
                 yield event.plain_result(
                     f"💥 强化失败！但强化石轰然炸开挡住了冲击，【{d['name']}】保住了等级(+{cur_enh})！\n"
-                    f"(消耗强化石×1{_stone_line})"
+                    # O93 修复：失败文案补金币消耗显示（强化石×1 之外同时列出金币）
+                    f"(消耗强化石×1 + {info['cost']} 金币{_stone_line})"
                 )
                 return
             if new_enh != cur_enh:
@@ -2196,9 +2211,11 @@ class EconomyCmds(CommandBase):
                 else:
                     db.remove_item(group_id, qq_id, target["key"])
                     db.add_item(group_id, qq_id, target["key"], d, 1)
-                yield event.plain_result(f"💥 强化失败！【{d['name']}】降级到 +{new_enh}。铁匠摇摇头：『下次一定行！』")
+                # O93 修复：失败(降级)文案补金币消耗显示
+                yield event.plain_result(f"💥 强化失败！【{d['name']}】降级到 +{new_enh}。铁匠摇摇头：『下次一定行！』(消耗 {info['cost']} 金币)")
             else:
-                yield event.plain_result(f"💥 强化失败！好在【{d['name']}】保住了等级(+{new_enh})。再试一次？")
+                # O93 修复：失败(保级)文案补金币消耗显示
+                yield event.plain_result(f"💥 强化失败！好在【{d['name']}】保住了等级(+{new_enh})。再试一次？(消耗 {info['cost']} 金币)")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?附魔(?:\s*|$)")
     @require_player()
