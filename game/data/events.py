@@ -21,6 +21,8 @@ EXPLORE_EVENTS = [
      "template": "merchant", "params": {}},
     {"id": "spring", "weight": 14, "name": "神秘泉水",
      "desc": "一汪冒着微光的泉水，喝下后感觉浑身的疲惫都被涤荡干净了。",
+     # v116 季节渗透：春季偏好（春水最旺，春季权重 ×1.5）
+     "season_boost": "spring",
      "template": "heal_full",
      "params": {"header": "💧 【神秘泉水】你发现一汪泛着微光的泉水，饮下后浑身舒畅！\n❤️ 生命全满！💙 魔力全满！"}},
     {"id": "trap", "weight": 10, "name": "隐蔽的陷阱",
@@ -35,6 +37,8 @@ EXPLORE_EVENTS = [
                 "header": "🏛️ 【古老遗迹】你在废墟中发现一段古老符文，隐约蕴含着知识的力量！\n✨ 经验 +{exp}"}},
     {"id": "herb", "weight": 12, "name": "草药丛",
      "desc": "一片长势喜人的野生草药，炼金师会为它们出个好价钱。",
+     # v116 季节渗透：春季偏好（草药春发最盛，春季权重 ×1.5）
+     "season_boost": "spring",
      "template": "loot_materials",
      "params": {"mats": ["草药", "林语之叶", "谷地露水", "浆果"], "n": 1,
                 "header": "🌿 【草药丛】你发现一片野生草药，采摘了一些！\n🎒 获得材料：{mats}！{extra}",
@@ -81,6 +85,8 @@ EXPLORE_EVENTS = [
     # ============ v97.4 探索事件扩容 12→30（策划案阶段二 + 3 个补充） ============
     {"id": "firefly", "weight": 7, "name": "萤火虫小径",
      "desc": "夜色里，成群的萤火虫在{name}的林间起舞，仿佛一片流动的星河。",
+     # v116 季节渗透：夏季偏好（萤火虫盛夏最多，夏季权重 ×1.5）
+     "season_boost": "summer",
      "template": "random_choice",
      "params": {"chance": 0.35,
                 "hit": {"template": "loot_materials",
@@ -216,6 +222,8 @@ EXPLORE_EVENTS = [
                                     "header": "🕸️ 【巨型蛛网】你刚碰到蛛网，一只毛茸茸的巨蛛就从网心扑来，狠狠咬了你一口！\n你逃出几步，损失 {dmg} 点生命(当前 ❤️ {hp}/{max_hp})"}}}},
     {"id": "frost_flower", "weight": 3, "name": "霜花",
      "desc": "背阴的石缝里凝着几朵晶莹的霜花，在晨光里闪着细碎的光。",
+     # v116 季节渗透：冬季硬限定（霜花只在寒季凝成）
+     "season": "winter",
      "template": "random_choice",
      "params": {"chance": 0.6,
                 "hit": {"template": "loot_materials",
@@ -345,6 +353,8 @@ EXPLORE_EVENTS = [
                 "header": "🗿 【王陵石像低语】你驻足倾听，石像似乎在你耳边道出半句遗失的古史。那段文字在你脑中盘旋良久——✨ 经验 +{exp} ！（古老知识的馈赠）"}},
     {"id": "mid_holy_butterfly", "weight": 5, "name": "圣光蝶群",
      "desc": "一群体型硕大的蝴蝶在圣光里翩跹，鳞粉如金粉般洒落。",
+     # v116 季节渗透：春季偏好（蝶群随春繁洄游，春季权重 ×1.5）
+     "season_boost": "spring",
      "maps": ["gold_plain", "dawn_cathedral", "white_abbey"],
      "template": "random_choice",
      "params": {"chance": 0.5,
@@ -395,12 +405,16 @@ EXPLORE_EVENTS = [
     # ---- 北境 3 条（极光/冰洞/狼嚎）----
     {"id": "north_aurora_shard", "weight": 4, "name": "极光碎片",
      "desc": "极光在天边翻涌，一片微光从空中打着旋儿落下。",
+     # v116 季节渗透：冬季专属（极光只在寒夜出现，非冬不触发）
+     "season": "winter",
      "maps": ["frost_field", "permafrost_field", "frostwhisper_canyon"],
      "template": "loot_materials",
      "params": {"mats": ["霜花"], "n": 2, "bp_line": "",
                 "header": "🌌 【极光碎片】你伸手去接那片微光，它落进掌心凝成两朵剔透的霜花——像是极光冻成的冰晶。\n🎒 获得：{mats}！{extra}"}},
     {"id": "north_frozen_cave", "weight": 4, "name": "冻湖冰洞",
      "desc": "湖面结着厚厚的冰，岸边的礁石下裂出一个幽蓝的冰洞。",
+     # v116 季节渗透：冬季硬限定（冻湖/冰洞只在寒季封冻成形）
+     "season": "winter",
      "maps": ["winter_lake", "frost_fang", "cold_spine_snow_trail"],
      "template": "random_choice",
      "params": {"chance": 0.5,
@@ -412,6 +426,8 @@ EXPLORE_EVENTS = [
                                     "header": "❄️ 【冻湖冰洞】你探头往里张望，脚下一滑，整条腿踩进了冰窟窿里！冰水刺骨，你连滚带爬地挣出来。\n损失 {dmg} 点生命(当前 ❤️ {hp}/{max_hp})"}}}},
     {"id": "north_wolf_howl", "weight": 5, "name": "雪原狼嚎",
      "desc": "寒风卷着雪粒扑来，远方传来一声悠长的狼嚎。",
+     # v116 季节渗透：冬季硬限定（雪原狼群冬季最活跃）
+     "season": "winter",
      "maps": ["frost_field", "black_forest", "ancient_tree"],
      "template": "dialog",
      "params": {"texts": [
