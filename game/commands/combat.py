@@ -1326,7 +1326,13 @@ class CombatCmds(CommandBase):
                 _cost.append(f"{_cn} -{_v}")
             _rg = info.get("res_gain") or 0
             if _rg:
-                _cost.append(f"{_rcn or '资源'} +{_rg}")
+                # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {"energy": 10}）
+                if isinstance(_rg, dict):
+                    for _k, _v in _rg.items():
+                        _cn = _rcn or _k
+                        _cost.append(f"{_cn} +{_v}")
+                else:
+                    _cost.append(f"{_rcn or '资源'} +{_rg}")
             _cd = info.get("cd") or 0
             if _cd:
                 _cost.append(f"冷却 {_cd} 回合")
