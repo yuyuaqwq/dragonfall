@@ -556,31 +556,20 @@ class WorldCmds(CommandBase):
         shown = [(i + 1, next((s for s in sas if s["id"] == lid), None))
                  for i, lid in enumerate(_v_links)]
         shown = [(i, s) for i, s in shown if s]
-        # 深度标记（A 提供 subarea_depth，缺失则回退普通显示）
+        # 深度标记（A 提供 subarea_depth）——v114.3 精简：深度色圈（🟢🟡🟠🔴）对玩家决策无增益（Lv. 已示危险度），
+        # 只保留尽头标记 🔚（死胡同连接数==1 且非入口，提示此路到头需回头）
         _depth = getattr(C, "subarea_depth", None)
         _entry_id = C.map_entry_subarea(cur)
         def _sa_mark(sa):
             if _depth is None:
                 return ""
-            try:
-                d = _depth(cur, sa["id"])
-            except Exception:
-                return ""
-            if d <= 0:
-                m = "🟢"
-            elif d <= 2:
-                m = "🟡"
-            elif d <= 4:
-                m = "🟠"
-            else:
-                m = "🔴"
-            # 死胡同（连接数==1 且非入口）——v114.3 🔚 表示尽头（原 💀 易误读为危险/死亡）
+            # 死胡同（连接数==1 且非入口）
             try:
                 if sa["id"] != _entry_id and len(C.subarea_links(cur, sa["id"])) == 1:
-                    m += "🔚"
+                    return "🔚"
             except Exception:
                 pass
-            return m
+            return ""
         if shown or neighbors:
             if sa_now:
                 lines.append(f"📍 当前位置：{sa_now}")
@@ -604,9 +593,9 @@ class WorldCmds(CommandBase):
                     sa_lbl = self._conn_subarea_name(nm, want_sa)
                     lock = " (🔒隐藏)" if nm.get("hidden") else ""
                     lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
-            # v114.3 深度标记图例（🟢近→🔴深，🔚=尽头），有深度数据才显示
+            # v114.3 尽头标记图例（有深度数据才显示）
             if _depth is not None:
-                lines.append("  💡 🟢近·🟡浅·🟠中·🔴深，🔚=尽头")
+                lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
