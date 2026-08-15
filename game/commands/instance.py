@@ -1441,6 +1441,9 @@ class InstanceCmds(CommandBase):
             # δ副本层：dot 结算闸门透传（A 在 Battle.from_state 读 st["dot_pending"]；
             # 全队共享敌减益，每轮只结算一次，行动后自动置 False 并写回）
             "dot_pending": st.get("dot_pending", True),
+            # v122 治疗指定队友：存活成员快照引用（Battle 内改 hp 直接反映到 st["players"]）
+            "allies": [st["players"][str(m)] for m in st.get("members", [])
+                       if st.get("alive", {}).get(str(m), True)],
         })
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100

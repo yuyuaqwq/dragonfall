@@ -1369,6 +1369,27 @@ class CombatCmds(CommandBase):
             return label[:2] if label else ""
         return ""
 
+    def _skill_range_label(self, info: dict) -> str:
+        """v122 技能范围标签：range 字段优先，其次 aoe 推导，默认单体。
+        single→单体 / front→前排 / all→全体 / rankN→第N层"""
+        r = info.get("range")
+        if not r:
+            aoe = info.get("aoe")
+            r = aoe if isinstance(aoe, str) else None
+        if r == "front":
+            return "前排"
+        if r == "all":
+            return "全体"
+        # v122 兜底：团队广播技能（heal_all/shield_all/matk_all/...）→ 全体（防漏配 range/aoe）
+        if str(info.get("team") or "").endswith("_all"):
+            return "全体"
+        if str(r).startswith("rank"):
+            try:
+                return f"第{int(str(r)[4:])}层"
+            except (ValueError, TypeError):
+                return "前排"
+        return "单体"
+
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
         """技能列表翻页(每页 5 条带序号，未学显示 Lv.0)。
         v104 R3 P2-22：序号仅用于『技能详情/学习/升级 <序号>』定位列表项；
@@ -1403,6 +1424,7 @@ class CombatCmds(CommandBase):
                 else:
                     lv_str = f"未学(Lv.{need_lv}解锁)"  # v95.4：标注解锁等级
             tags = [info.get("kind", "")]
+            tags.append(self._skill_range_label(info))  # v122 范围标签：kind 后、机制前
             ftag = self._skill_tag(info)
             if ftag and ftag != info.get("kind", ""):
                 tags.append(ftag)
@@ -1447,7 +1469,7 @@ class CombatCmds(CommandBase):
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")
-        lines.append("『技能学习 <名称>』消耗技能点学会；战斗中『技能 <槽位>』或『技能 <名称>』施放")
+        lines.append("『技能学习 <名称>』消耗技能点学会；战斗中『技能 <槽位>』或『技能 <名称>』施放；副本中治疗可『技能 <名称> <队友名>』指定目标")
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?防御(?:\s*|$)")

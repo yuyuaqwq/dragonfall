@@ -98,7 +98,7 @@ SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp
         self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
@@ -124,7 +124,7 @@ class Battle:
         else:
             # 单怪兼容包装（§3.2）
             self.enemies = [self._wrap_enemy_unit(self._enemies_raw, 0)]
-        self.allies: list = []             # 我方阵列单位（单机由命令层填充 [player]）
+        self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余回合（百分比存 p_buffs["reduce_all"]）
@@ -332,6 +332,7 @@ class Battle:
                 merged.update(main.get("buffs") or {})
                 main["buffs"] = merged
         b.round = st.get("round", 0)
+        b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
         b.p_buffs = st.get("p_buffs", {}) or {}
         b._reduce_all_left = int(st.get("reduce_all_left", 0) or 0)  # v113.1 恢复减伤剩余回合
         b.poi_buff = st.get("poi_buff")
@@ -544,6 +545,18 @@ class Battle:
         self._active_target = picked
         return picked
 
+    def _resolve_ally_target(self, target) -> dict | None:
+        """v122 治疗指定队友：uid 精确或名字前缀匹配（存活）。
+        allies 为空（单人战斗）或找不到 → None。"""
+        if not target or not self.allies:
+            return None
+        for u in self.allies:
+            if u.get("hp", 0) > 0 and (
+                    str(u.get("uid", "")) == str(target)
+                    or str(u.get("name", "")).startswith(str(target))):
+                return u
+        return None
+
     def _player_charge_release(self, player: dict, logs: list) -> bool:
         """蓄力回合开始结算：left 递增计时，归零自动释放技能。返回是否已释放。"""
         if not self.charging or not self.charging.get("skill"):
@@ -671,12 +684,20 @@ class Battle:
 
         # v2 目标解析（攻击/技能指定的目标；其余行动重置为主目标）
         if action in ("attack", "skill"):
-            self._target_out_of_range = False
-            self._resolve_player_target(player, target)
-            if getattr(self, "_target_out_of_range", False):
-                # 射程校验拒绝（审计 P1 修复）：不消耗回合，玩家可重新选择
-                logs.append(f"⛔ 【{target}】在你的攻击范围之外，够不着！(近战只可及前排)")
-                return logs, False
+            # v122 治疗类技能：目标=队友（由 _do_player_skill 解析），不解析敌人目标
+            _is_heal = False
+            if action == "skill" and skill_name:
+                _info0 = E.skill_info(player.get("class_name", ""), skill_name)
+                _is_heal = bool(_info0 and _info0.get("kind") == "治疗")
+            if _is_heal:
+                self._active_target = None
+            else:
+                self._target_out_of_range = False
+                self._resolve_player_target(player, target)
+                if getattr(self, "_target_out_of_range", False):
+                    # 射程校验拒绝（审计 P1 修复）：不消耗回合，玩家可重新选择
+                    logs.append(f"⛔ 【{target}】在你的攻击范围之外，够不着！(近战只可及前排)")
+                    return logs, False
         else:
             self._active_target = None
 
@@ -697,7 +718,7 @@ class Battle:
 
         st = self._player_stats(player)
         if action == "skill":
-            logs += self._do_player_skill(skill_name, player)
+            logs += self._do_player_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
             # v116.1 pv_broken：记录玩家本回合用了技能，敌方 _boss_mech 据此决定反扑
             self._player_recent_skill = True
         else:
@@ -1000,7 +1021,7 @@ class Battle:
                 return logs, True
         return logs, False
 
-    def _do_player_skill(self, skill_name: str, player: dict) -> list:
+    def _do_player_skill(self, skill_name: str, player: dict, target=None) -> list:
         """玩家施放技能(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
         st = self._player_stats(player)
@@ -1047,6 +1068,12 @@ class Battle:
                         cur = self.resources.get(rk, 0)
                         logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
                         return logs
+        # v122 治疗指定队友：指定的队友不存在 → 拦截（不扣资源、不消耗回合）；
+        # 单人战斗（无 allies）忽略目标，按治疗自己处理
+        if info.get("kind") == "治疗" and target and self.allies:
+            if self._resolve_ally_target(target) is None:
+                logs.append(f"队伍里没有『{target}』～(副本中『技能 <名称> <队友名>』可指定治疗目标)")
+                return logs
         # v34 符文·聚能：MP 消耗 -x%
         mana_lvl = self._enchant_lvl(self._enchant_effects(player), "mana_flow")
         mp_cost = info["mp"]
@@ -1065,7 +1092,7 @@ class Battle:
             if cd:
                 self._set_skill_cd(skill_name, cd)
             return logs
-        logs += self._player_skill(st, skill_name, info, player)
+        logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
         # v2.0 冷却：技能表 cd 字段（回合），施放后进入冷却
         cd = info.get("cd", 0)
         if cd:
@@ -1661,8 +1688,10 @@ class Battle:
                 fn(self, player, logs)
 
 
-    def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
-        """治疗分支（v103.6 从 _player_skill 拆出）"""
+    def _skill_heal(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=None):
+        """治疗分支（v103.6 从 _player_skill 拆出；v122 支持指定队友目标 target_ally）"""
+        # v122 治疗目标单位：指定队友 → 队友快照（引用）；None → 施法者自己
+        target_unit = target_ally if target_ally is not None else player
         # v32 条件转化：治疗技能也吃战场状态（如神谕者自身低血时治疗量提升）
         cond_mult = self._cond_mult(info, player, lv)
         # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技，如符文护体"魔能≥3"）
@@ -1703,23 +1732,38 @@ class Battle:
         except Exception:
             pass
         # 阶段九：种族受疗天赋（目前仅龙裔孤傲之血 -10%；人类 v106.2 已移除圣光亲和改 exp_bonus）
-        hr = self._race_bonus(player).get("heal_received", 0) or 0
+        # v122：受疗天赋按被治疗者结算（奶队友时队友是龙裔同样 -10%）
+        hr = self._race_bonus(target_unit).get("heal_received", 0) or 0
         if hr:
             heal = max(1, int(heal * (1 + hr)))
             logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
-        hp_before = player.get("hp", 0)
-        player["hp"] = min(player.get("max_hp", player["hp"]), hp_before + heal)
+        hp_before = target_unit.get("hp", 0)
+        target_unit["hp"] = min(target_unit.get("max_hp", target_unit.get("hp", 0)), hp_before + heal)
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
         # 此前 clamp 后按 hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾
+        # v122：治疗队友时溢出护盾加给被治疗者（队友快照 p_shields；自己场景保持 self._add_shield）
         for _pn, _ps in self._passive_map(player)["proc"].get("heal_shield", []):
-            overflow = hp_before + heal - player.get("max_hp", player["hp"])
+            overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
             if overflow > 0:
                 shield_gain = int(overflow * float(_ps.get("pct", 0.2)))
-                self._add_shield("overflow", shield_gain, 2)
-                logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
-        if player.get("hp", 0) >= player.get("max_hp", player["hp"]) and mech == "bless":
+                if target_ally is not None:
+                    _sh = target_unit.setdefault("p_shields", {})
+                    _cur = _sh.get("overflow")
+                    if _cur:
+                        _cur["value"] = _cur.get("value", 0) + shield_gain
+                        _cur["turns"] = max(_cur.get("turns", 0), 2)
+                    else:
+                        _sh["overflow"] = {"value": shield_gain, "turns": 2}
+                    logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
+                else:
+                    self._add_shield("overflow", shield_gain, 2)
+                    logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
+        if target_unit.get("hp", 0) >= target_unit.get("max_hp", target_unit.get("hp", 0)) and mech == "bless":
             p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
-        logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
+        if target_ally is not None:
+            logs.append(f"你施展【{skill_name}】，圣光治愈了 {target_unit.get('name', '队友')} {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
+        else:
+            logs.append(f"你施展【{skill_name}】，圣光治愈了你 {heal} 点生命！" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
         if mech == "bless":
             logs.append(f"✨ 神恩凝聚：{p_mech.get('bless', 0)} 层(下次『神圣之光』转化护盾)")
         # v50 团队治疗：记录全队效果（副本广播）
@@ -1817,12 +1861,14 @@ class Battle:
         # v2.0 核心资源：增益技能获取（如战吼怒气+3）
         self._resource_on_skill(player, info)
         return logs
-    def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict) -> list:
+    def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
         logs = []
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
+        # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
+        target_ally = self._resolve_ally_target(target) if kind == "治疗" else None
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         if info.get("summon"):
             self._summon_entity(info["summon"], player, logs)
@@ -1838,7 +1884,7 @@ class Battle:
         # 分支专属状态层（玩家侧：狂暴/圣盾/风印/影袭/气力/神恩/毒层）
         p_mech = self.mech_stacks
         if kind == "治疗":
-            return self._skill_heal(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
+            return self._skill_heal(st, skill_name, info, player, lv, mech, mval, p_mech, logs, target_ally=target_ally)
         if kind == "增益":
             return self._skill_buff(st, skill_name, info, player, lv, mech, mval, p_mech, logs)
         if kind == "嘲讽":
