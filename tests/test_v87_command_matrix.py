@@ -124,9 +124,17 @@ REPRESENTATIVES = {
     "guild_join_cmd": "加入公会", "guild_leave_cmd": "退出公会", "guild_disband_cmd": "解散公会",
     "guild_info": "公会", "guild_sign": "公会签到", "guild_task": "公会任务",
     "guild_donate_cmd": "公会捐献",
+    # v116 公会成长纵深：商店/技能/任命/免职（代表输入）
+    "guild_shop": "公会商店",
+    "guild_skill_view": "公会技能",
+    "guild_appoint": "公会任命 精英 副会长",
+    "guild_demote": "公会免职 精英",
     "guild_rank": "公会排行", "pet_view": "宠物", "pet_rename": "宠物改名",
     "pet_feed": "喂养", "pet_release": "放生", "mount_cmd": "坐骑", "world_event": "事件",
     "auction": "拍卖", "bid": "竞拍",
+    # v116 阵营国战：加入阵营/任务/商店/排行（代表输入）
+    "camp_join": "加入阵营 1", "camp_task": "阵营任务", "camp_shop": "阵营商店 1",
+    "camp_rank": "阵营排行",
     # combat.py
     "explore": "探索", "wish": "许愿", "attack": "攻击", "skill": "技能", "defend": "防御",
     # v115：探索进度指令（commands/exploration.py）

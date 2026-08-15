@@ -17,6 +17,7 @@ PLAYER_FIELDS = {
     "learned_blueprints", "lucky_until", "deed", "apprentices", "race",
     "equipped_title", "hidden_class_unlock", "deed_lv", "cur_subarea",
     "stamina", "stamina_ts", "explore_wandering", "gender",
+    "faction",
 }
 
 

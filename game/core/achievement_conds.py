@@ -330,17 +330,45 @@ def _c_guild_lv(player, stats, profs, extra, cond):
 
 @register("faction")
 def _c_faction(player, stats, profs, extra, cond):
-    return False  # 国战延迟（11 章）
+    """v116 解锁（原国战延迟恒 False）：已加入某可选阵营（players.faction 非空）。
+    加入阵营命令『加入阵营 <编号>』写 players.faction（见 world.py camp_join）。"""
+    return bool((player or {}).get("faction"))
+
+
+def _faction_contribute(player, extra):
+    """读取玩家累计阵营贡献。阵营贡献结算数据存 event_state 键 faction_camp_{gid}_{qq} 的
+    JSON（contrib=贡献 / tasks=今日任务 / done_total=历史完成数），由命令层 camp_join/camp_task 维护。"""
+    gid = extra.get("_group_id")
+    if not gid:
+        return 0
+    from .. import db
+    try:
+        raw = db.get_event_state(f"faction_camp_{gid}_{player['qq_id']}")
+    except Exception:
+        return 0
+    if not raw:
+        return 0
+    try:
+        import json
+        data = json.loads(raw)
+    except (ValueError, TypeError):
+        return 0
+    return int(data.get("contrib", 0) or 0)
 
 
 @register("faction_top")
 def _c_faction_top(player, stats, profs, extra, cond):
-    return False  # 国战延迟（11 章）
+    """v116 解锁（原国战延迟恒 False）：阵营先锋——阵营贡献 ≥ 100。
+    阈值沿用现有成就风格（ach_faction_top 无 value，取缺省 100）。"""
+    return _faction_contribute(player, extra) >= int(cond.get("value", 100))
 
 
 @register("faction_rank1")
 def _c_faction_rank1(player, stats, profs, extra, cond):
-    return False  # 国战延迟（11 章）
+    """v116 解锁（原国战延迟恒 False）：大陆之柱——阵营贡献 ≥ 500。
+    简化判定：原策划「所属阵营国战排名第 1」依赖周结算排名（二期未实装），
+    此处以贡献阈值近似（大陆之柱≈对阵营的深厚贡献）。"""
+    return _faction_contribute(player, extra) >= int(cond.get("value", 500))
 
 
 # ================= 世界事件/活动类 =================

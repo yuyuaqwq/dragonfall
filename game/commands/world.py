@@ -3852,6 +3852,315 @@ class WorldCmds(CommandBase):
         lines.append(f"💡 『声望商店 {f['name']} 购买 <序号>』购买商品（金币支付）")
         yield event.plain_result("\n".join(lines))
 
+    # ================= v116 阵营国战最小闭环：四阵营选择/每日任务/贡献/商店/排行 =================
+    # 数据在 game/data/factions.py（FACTION_CAMPS/FACTION_CAMP_SHOP/FACTION_CAMP_DAILY_TASKS）。
+    # 玩家阵营存 players.faction；贡献/每日任务状态存 event_state 键 faction_camp_{gid}_{qq}
+    # （JSON：contrib/tasks/done_today/done_total/join_ts），供成就判定（achievement_conds
+    # 的 _faction_contribute 同款读法）与排行共用。全部在命令层闭环，不依赖 combat 击杀挂钩。
+    def _camp_ctx(self, group_id, qq_id) -> dict:
+        """读取玩家阵营数据（贡献 + 每日任务）。首次/无记录返回默认结构。"""
+        raw = db.get_event_state(f"faction_camp_{group_id}_{qq_id}")
+        data = {}
+        if raw:
+            try:
+                data = json.loads(raw) if isinstance(raw, str) else {}
+            except (ValueError, TypeError):
+                data = {}
+        data.setdefault("contrib", 0)
+        data.setdefault("tasks", [])
+        data.setdefault("done_today", 0)
+        data.setdefault("done_total", 0)
+        data.setdefault("join_ts", 0)
+        data.setdefault("date", "")
+        return data
+
+    def _camp_save(self, group_id, qq_id, data: dict):
+        db.set_event_state(f"faction_camp_{group_id}_{qq_id}", json.dumps(data, ensure_ascii=False))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?加入阵营(?:\s+\S+)?$")
+    @require_player()
+
+    async def camp_join(self, event: AstrMessageEvent):
+        """v116：加入四大可选阵营（Lv.20 开放；可切换，缺省 7 天冷却（FACTION_CAMP_SWITCH_COOLDOWN））。
+
+        用法：
+          加入阵营           → 查看四大阵营列表 + 当前状态
+          加入阵营 <编号>     → 加入对应阵营（如『加入阵营 1』）
+        """
+        from ..data.factions import FACTION_CAMPS, FACTION_CAMP_OPEN_LV, FACTION_CAMP_SWITCH_COOLDOWN
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        raw = self._strip_cmd(event, "加入阵营").strip()
+        cur = (player.get("faction") or "").strip()
+        camp_order = list(FACTION_CAMPS.keys())
+
+        def _camp_line(i, cid):
+            c = FACTION_CAMPS[cid]
+            mark = "✅ 你在此" if cur == cid else ""
+            return f"{i:>2}. {c['icon']} {c['name']}：{c['desc']}{mark and '　' + mark or ''}"
+
+        # 列表/查看当前
+        if not raw or raw == "查看":
+            lines = ["🏛️ 【四大阵营 · 国战阵营选择】", "━━━━━━━━━━━━"]
+            for i, cid in enumerate(camp_order, 1):
+                lines.append(_camp_line(i, cid))
+            lines.append("")
+            if cur:
+                ccur = FACTION_CAMPS[cur]
+                lines.append(f"📛 你当前隶属：{ccur['icon']} {ccur['name']}")
+                lines.append(f"💡 想改弦易辙？输入『加入阵营 <其他编号>』（切换有冷却 {FACTION_CAMP_SWITCH_COOLDOWN // 86400} 天）")
+            else:
+                lines.append(f"💡 Lv.{FACTION_CAMP_OPEN_LV} 起可选择阵营：『加入阵营 <编号>』")
+                lines.append("   加入后解锁每日阵营任务与阵营商店。")
+            yield event.plain_result("\n".join(lines))
+            return
+
+        # 加入指定阵营
+        if not raw.isdigit():
+            yield event.plain_result("格式：『加入阵营 <编号>』（输入『加入阵营』查看四大阵营列表）")
+            return
+        idx = int(raw)
+        if idx < 1 or idx > len(camp_order):
+            yield event.plain_result(f"没有第 {idx} 号阵营！输入『加入阵营』查看列表。")
+            return
+        target = camp_order[idx - 1]
+        # 等级门槛
+        lv = player.get("level") or 1
+        if lv < FACTION_CAMP_OPEN_LV:
+            yield event.plain_result(
+                f"⚜️ 你需要达到 Lv.{FACTION_CAMP_OPEN_LV} 才能加入阵营！当前 Lv.{lv}。\n"
+                f"💡 继续历练，国战之门终将为你敞开～")
+            return
+        # 已加入判定
+        if cur == target:
+            c = FACTION_CAMPS[target]
+            yield event.plain_result(f"你已是 {c['icon']} {c['name']} 的成员，无需重复加入。")
+            return
+        # 切换冷却判定（有当前阵营时）
+        if cur:
+            data = self._camp_ctx(group_id, qq_id)
+            spent = int(time.time()) - int(data.get("join_ts", 0))
+            if spent < FACTION_CAMP_SWITCH_COOLDOWN:
+                left = FACTION_CAMP_SWITCH_COOLDOWN - spent
+                ccur = FACTION_CAMPS[cur]
+                yield event.plain_result(
+                    f"⏳ 你在 {ccur['icon']} {ccur['name']} 的军籍新立，还需 {left // 86400} 天才能换阵。\n"
+                    f"💡 阵营切换冷却缺省 7 天（FACTION_CAMP_SWITCH_COOLDOWN 可配）。")
+                return
+        # 写入阵营
+        db.update_player(group_id, qq_id, faction=target)
+        data = self._camp_ctx(group_id, qq_id)
+        data["join_ts"] = int(time.time())
+        self._camp_save(group_id, qq_id, data)
+        c = FACTION_CAMPS[target]
+        # 成就判定：选择阵营（faction 非空）等
+        C.check_achievements(group_id, qq_id)
+        yield event.plain_result(
+            f"⚔️ 你宣誓效忠【{c['icon']} {c['name']}】！({c['desc']})\n"
+            f"━━━━━━━━━━━━\n"
+            f"📜 现在可以『阵营任务』接取今日重任、『阵营商店』兑换军需物资！\n"
+            f"{c['buff_text']}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营任务(?:\s+\S+)?$")
+    @require_player()
+
+    async def camp_task(self, event: AstrMessageEvent):
+        """v116：每日阵营任务（收集型·主动交付闭环）。跨天自动重发，交付扣背包材料加贡献。
+
+        用法：
+          阵营任务           → 查看今日任务（跨天自动刷新分配）
+          阵营任务 <序号>     → 交付对应任务（需背包有足够材料）
+        说明：完成上限 FACTION_CAMP_DAILY_LIMIT（缺省 2）；击杀/Boss 型待 combat 挂钩二期。
+        """
+        from ..data.factions import FACTION_CAMPS, FACTION_CAMP_DAILY_TASKS, FACTION_CAMP_DAILY_LIMIT
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        cur = (player.get("faction") or "").strip()
+        if not cur:
+            yield event.plain_result("你还未加入任何阵营！先『加入阵营 <编号>』选择归宿，方能领受国战任务。")
+            return
+        c = FACTION_CAMPS[cur]
+        raw = self._strip_cmd(event, "阵营任务").strip()
+
+        # 取数据，跨天重置任务列表
+        data = self._camp_ctx(group_id, qq_id)
+        today = time.strftime("%Y-%m-%d")
+        if data.get("date") != today:
+            random.shuffle(FACTION_CAMP_DAILY_TASKS)
+            data["tasks"] = [
+                {"item": t["item"], "count": t["count"], "name": t["name"], "reward": t["reward"], "delivered": 0}
+                for t in FACTION_CAMP_DAILY_TASKS[:FACTION_CAMP_DAILY_LIMIT]
+            ]
+            data["date"] = today
+            data["done_today"] = 0
+            self._camp_save(group_id, qq_id, data)
+
+        tasks = data.get("tasks", [])
+        # 查看
+        if not raw:
+            lines = [f"⚔️ 【{c['icon']} {c['name']} · 今日阵营任务】", "━━━━━━━━━━━━"]
+            if not tasks:
+                lines.append("今日暂无阵营任务。")
+            else:
+                for i, t in enumerate(tasks, 1):
+                    have = db.count_item(group_id, qq_id, t["item"])
+                    mark = "✅" if t["delivered"] >= t["count"] else "⏳"
+                    need = t["count"]
+                    lines.append(f"{i:>2}. {mark} {t['name']}：交付 {t['item']} ×{need} → 贡献 +{t['reward']}（背包 {have}）")
+                lines.append(f"    本日已完成交付：{data.get('done_today', 0)}/{FACTION_CAMP_DAILY_LIMIT}")
+            lines.append("")
+            lines.append(f"ℹ️ 当前贡献：{data.get('contrib', 0)}　累计完成任务：{data.get('done_total', 0)} 次")
+            lines.append(f"💡 『阵营任务 <序号>』交付对应任务！(上限 {FACTION_CAMP_DAILY_LIMIT} 个/天)")
+            yield event.plain_result("\n".join(lines))
+            return
+
+        # 交付
+        if not raw.isdigit():
+            yield event.plain_result("格式：『阵营任务 <序号>』交付；『阵营任务』查看今日任务。")
+            return
+        idx = int(raw)
+        if idx < 1 or idx > len(tasks):
+            yield event.plain_result(f"没有第 {idx} 号任务！『阵营任务』查看今日任务。")
+            return
+        t = tasks[idx - 1]
+        if t["delivered"] >= t["count"]:
+            yield event.plain_result(f"『{t['name']}』今日已完成！试试其他任务或『阵营任务』查看。")
+            return
+        # 每日完成上限
+        if data.get("done_today", 0) >= FACTION_CAMP_DAILY_LIMIT:
+            yield event.plain_result(
+                f"📛 今日阵营任务完成数已达上限（{FACTION_CAMP_DAILY_LIMIT} 个），明天再来为国征战！")
+            return
+        # 扣背包材料（按收集型交付模式）
+        have = db.count_item(group_id, qq_id, t["item"])
+        if have < t["count"]:
+            yield event.plain_result(
+                f"📦 材料不足！『{t['name']}』需要 {t['item']} ×{t['count']}，你只有 {have} 个。\n"
+                f"💡 去野外『探索/采集』获取材料后再来交付。")
+            return
+        db.remove_item(group_id, qq_id, t["item"], t["count"])
+        t["delivered"] = t["count"]
+        data["contrib"] = int(data.get("contrib", 0)) + t["reward"]
+        data["done_today"] = int(data.get("done_today", 0)) + 1
+        data["done_total"] = int(data.get("done_total", 0)) + 1
+        self._camp_save(group_id, qq_id, data)
+        # 成就判定：阵营贡献≥100/500（阵营先锋/大陆之柱）在此推进
+        C.check_achievements(group_id, qq_id)
+        yield event.plain_result(
+            f"📜 你交付了『{t['name']}』（{t['item']} ×{t['count']}）！\n"
+            f"🏅 阵营贡献 +{t['reward']}（当前 {data['contrib']}）\n"
+            f"🎖️ 本日完成 {data['done_today']}/{FACTION_CAMP_DAILY_LIMIT}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营商店(?:\s+\S+)?$")
+    @require_player()
+
+    async def camp_shop(self, event: AstrMessageEvent):
+        """v116：阵营商店——用阵营贡献兑换军需物资（不花金币）。
+
+        用法：
+          阵营商店                 → 列出全部商品（贡献门槛）
+          阵营商店 <序号>           → 购买对应商品（扣贡献，物品入包）
+        """
+        from ..data.factions import FACTION_CAMPS, FACTION_CAMP_SHOP
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        cur = (player.get("faction") or "").strip()
+        raw = self._strip_cmd(event, "阵营商店").strip()
+        data = self._camp_ctx(group_id, qq_id)
+        contrib = int(data.get("contrib", 0))
+        head = "🏛️ 【阵营商店 · 军需物资】"
+        if cur:
+            c = FACTION_CAMPS[cur]
+            head = f"🏛️ 【{c['icon']} {c['name']} · 阵营商店】你的贡献：{contrib}"
+        curf = FACTION_CAMPS.get(cur) if cur else None
+        if not cur:
+            curf = None
+
+        # 列表
+        if not raw:
+            lines = [head, "━━━━━━━━━━━━"]
+            for i, g in enumerate(FACTION_CAMP_SHOP, 1):
+                if contrib >= g["cost"]:
+                    mark, extra = "✅", f"—— 花 {g['cost']} 贡献"
+                else:
+                    mark, extra = "🔒", f"—— 需 {g['cost']} 贡献"
+                lines.append(f"{i:>2}. {mark} {g['name']} {extra}")
+            lines.append("")
+            if not cur:
+                lines.append("💡 加入阵营后可购买（『加入阵营 <编号>』）")
+            else:
+                lines.append("💡 『阵营商店 <序号>』购买（消耗阵营贡献）")
+            yield event.plain_result("\n".join(lines))
+            return
+
+        # 购买
+        if not cur:
+            yield event.plain_result("你还未加入任何阵营！先『加入阵营 <编号>』再兑换军需。")
+            return
+        if not raw.isdigit():
+            yield event.plain_result("格式：『阵营商店 <序号>』购买；『阵营商店』查看列表。")
+            return
+        idx = int(raw)
+        if idx < 1 or idx > len(FACTION_CAMP_SHOP):
+            yield event.plain_result(f"没有第 {idx} 号商品！『阵营商店』查看列表。")
+            return
+        g = FACTION_CAMP_SHOP[idx - 1]
+        if contrib < g["cost"]:
+            yield event.plain_result(
+                f"🏛️ 贡献不足！需 {g['cost']} 贡献，当前 {contrib}。\n"
+                f"💡 完成『阵营任务』获取贡献。")
+            return
+        # 扣贡献 + 发物品
+        data["contrib"] = contrib - g["cost"]
+        self._camp_save(group_id, qq_id, data)
+        it = C.ITEMS.get(g["item"]) or {"name": g["name"], "price": 0, "desc": ""}
+        itype = "材料" if g["item"] in C.MATERIALS else "消耗品"
+        db.add_item(group_id, qq_id, g["item"], {**it, "type": itype, "stackable": True, "price": it.get("price", 0)})
+        yield event.plain_result(
+            f"🎁 你用 {g['cost']} 阵营贡献兑换了【{it.get('name', g['name'])}】！\n"
+            f"📦 已收入背包，剩余贡献：{data['contrib']}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?阵营排行(?:\s*|$)")
+    @require_player()
+
+    async def camp_rank(self, event: AstrMessageEvent):
+        """v116：阵营排行——按阵营统计成员数与总贡献（从 players.faction + event_state contrib 聚合）。
+
+        用法：阵营排行
+        """
+        from ..data.factions import FACTION_CAMPS
+        group_id, qq_id = self._uid(event)
+        # 全服玩家（players 全局，跨群共用；group_id 仅作贡献键前缀用）
+        players = db.all_players(group_id)
+        camp_contrib = {cid: 0 for cid in FACTION_CAMPS}
+        camp_count = {cid: 0 for cid in FACTION_CAMPS}
+        for p in players or []:
+            fid = (p.get("faction") or "").strip()
+            if not fid or fid not in FACTION_CAMPS:
+                continue
+            camp_count[fid] = camp_count.get(fid, 0) + 1
+            try:
+                raw = db.get_event_state(f"faction_camp_{group_id}_{p['qq_id']}")
+                if raw:
+                    d = json.loads(raw) if isinstance(raw, str) else {}
+                    camp_contrib[fid] += int(d.get("contrib", 0) or 0)
+            except (ValueError, TypeError):
+                pass
+        ranked = sorted(FACTION_CAMPS.keys(),
+                        key=lambda cid: (camp_count.get(cid, 0), camp_contrib.get(cid, 0)),
+                        reverse=True)
+        lines = ["🏆 【阵营国战 · 排行】", "━━━━━━━━━━━━"]
+        for i, cid in enumerate(ranked, 1):
+            c = FACTION_CAMPS[cid]
+            lines.append(
+                f"{i}. {c['icon']} {c['name']}：成员 {camp_count.get(cid, 0)} 人 · 总贡献 {camp_contrib.get(cid, 0)}")
+        lines.append("")
+        lines.append("💡 壮大阵营：『加入阵营』+『阵营任务』攒贡献！")
+        yield event.plain_result("\n".join(lines))
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")
     @require_player()
 

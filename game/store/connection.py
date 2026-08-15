@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS players (
                 created_at INTEGER,
                 last_active INTEGER,
                 race TEXT DEFAULT 'human',
-                gender TEXT DEFAULT ''
+                gender TEXT DEFAULT '',
+                faction TEXT DEFAULT ''
             );CREATE TABLE IF NOT EXISTS inventory (
                 qq_id TEXT NOT NULL,
                 item_key TEXT NOT NULL,
@@ -345,4 +346,10 @@ def _ensure_legacy_columns(conn):
     petcols = [r[1] for r in conn.execute("PRAGMA table_info(pets)").fetchall()]
     if "last_sat_time" not in petcols:
         conn.execute("ALTER TABLE pets ADD COLUMN last_sat_time INTEGER DEFAULT 0")
+    # v116 阵营国战最小闭环：players 表补 faction 列（玩家可选入籍的四阵营，空串=未加入）。
+    # 老库自愈：新建库在 _SQL_CORE_TABLES 已知该列（见 players CREATE），此处仅补存量库。
+    pcols_f = [r[1] for r in conn.execute("PRAGMA table_info(players)").fetchall()]
+    if "faction" not in pcols_f:
+        conn.execute("ALTER TABLE players ADD COLUMN faction TEXT DEFAULT ''")
+
 

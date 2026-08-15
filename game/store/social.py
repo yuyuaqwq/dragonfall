@@ -402,15 +402,63 @@ def guild_get_by_name(name):
             conn.close()
 
 def guild_members(gid):
-    """返回 (gid, qq_id, role, joined_at, contribute) 列表，按贡献排序"""
+    """返回 (gid, qq_id, role, joined_at, contribute) 列表，按职位/贡献排序。
+    v116 职位体系：leader > vice_leader > elite > member，各职内按贡献降序"""
     with _lock:
         conn = _connect()
         try:
             rows = conn.execute(
-                "SELECT * FROM guild_members WHERE gid=? ORDER BY role='leader' DESC, contribute DESC",
+                "SELECT * FROM guild_members WHERE gid=? "
+                "ORDER BY CASE role WHEN 'leader' THEN 0 WHEN 'vice_leader' THEN 1 "
+                "WHEN 'elite' THEN 2 ELSE 3 END, contribute DESC",
                 (gid,),
             ).fetchall()
             return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+def guild_get_member(gid, qq_id):
+    """取单个成员行（含 role/contribute）；非成员返回 None"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT * FROM guild_members WHERE gid=? AND qq_id=?", (gid, qq_id)
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+def guild_set_role(gid, qq_id, role):
+    """设置成员职位（v116：leader/vice_leader/elite/member）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE guild_members SET role=? WHERE gid=? AND qq_id=?", (role, gid, qq_id)
+            )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+def guild_spend_contribute(gid, qq_id, cost):
+    """公会商店消费：扣成员贡献积分。
+    返回 True 表示扣减成功（贡献充足）；不足返回 False（不扣减）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT contribute FROM guild_members WHERE gid=? AND qq_id=?", (gid, qq_id)
+            ).fetchone()
+            if not row or row["contribute"] < cost:
+                return False
+            conn.execute(
+                "UPDATE guild_members SET contribute=contribute-? WHERE gid=? AND qq_id=?",
+                (cost, gid, qq_id),
+            )
+            conn.commit()
+            return True
         finally:
             conn.close()
 

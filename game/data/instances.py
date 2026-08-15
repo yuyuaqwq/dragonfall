@@ -673,6 +673,13 @@ INSTANCES = {
         "key_item": "深渊钥匙",
         "key_source": "深渊骑士掉落",
 "mech": "phase,phase,phase",
+        # v116.1 剧本化示范：三阶段换招（追加技能）/演出文案/阈值预告（可选字段，不配置则旧行为）
+        "phases": [
+            {"min": 60, "add_skills": ["ms_zhao_huan_shen_yuan"],
+             "script": {"name": "深渊裂隙张开", "icon": "🌑"}},
+            {"min": 30, "add_skills": ["ms_shen_yuan_zhi_nu"],
+             "script": {"name": "深渊之怒倾泻", "icon": "💀"}},
+        ],
         "hp_mult": 3.0,
         "atk_mult": 1.35,
         "gold": 3000,

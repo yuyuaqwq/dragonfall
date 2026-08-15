@@ -195,12 +195,22 @@ MONSTER_MODS = {
     },
     "b_moro": {  # 旧 b_dark_lord 魔王·阿兹莫丹
         "hp_mult": 1.25, "atk_mult": 1.10,
-        "mech": "enrage",
+        "mech": "enrage,phase_open",
+        # v116.1 剧本化示范：开场咆哮 + 三阶段换招/演出/预告（数据可选字段，不配置则行为不变）
+        "opening": {"name": "深渊咆哮", "effect": "atk_up", "power": 2},
+        "phases": [
+            {"min": 60, "add_skills": ["ms_zhao_huan_e_mo"],
+             "script": {"name": "深渊之躯浮现", "icon": "🌑"}},
+            {"min": 30, "add_skills": ["ms_shen_yuan_zhi_nu"],
+             "script": {"name": "魔核迸裂", "icon": "💀"}},
+        ],
         "desc": "深渊领主·摩罗：深渊之门的主宰，濒死时爆发出最后的暴怒",
     },
     "b_om_shadow": {  # 旧 b_dragon_king 古龙·奥瑞斯
         "hp_mult": 1.35, "atk_mult": 1.20,
-        "mech": "summon",
+        "mech": "summon,player_low",
+        # v116.1 低血追击示范（玩家 HP<30% 时追击，cooldown=3 防刷屏）
+        "triggers": {"player_low": {"hp": 0.30, "cooldown": 3}},
         "desc": "古龙·奥姆之影：龙威浩荡，会召唤雏龙护卫",
     },
     "b_cardinal": {  # 旧 b_abyss_pope 大祭司·克劳斯

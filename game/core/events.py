@@ -4,6 +4,13 @@ import random
 
 from ..data import EVENT_WEIGHT_SUM, EXPLORE_EVENTS, EXPLORE_EGG_CHANCE, EXPLORE_EGG_EVENTS, EXPLORE_EGG_SUM
 
+# v116 季节渗透：探索事件随季节变化（借鉴垂钓，见 core/fishing.py）
+# - 事件 season 硬限定：非当季不触发；season_boost 偏好：当季权重 ×1.5
+# - 季节码与 time_weather.current_season 对齐（spring/summer/autumn/winter）
+from .time_weather import current_season
+
+# v116 季节感前缀：命中限定/偏好事件时附加给返回事件（浅拷贝，不污染数据池）
+_SEASON_PREFIX = {"spring": "🌸", "summer": "☀️", "autumn": "🍂", "winter": "❄️"}
 
 
 """《剑与魔法》数据层 - events.py"""
@@ -12,16 +19,39 @@ def roll_explore_event(exclude=()):
 
     v101.30d #O22/O42：支持排除列表——同一玩家最近触发的常规事件不重复
     （短间隔去重，策划案 02 章 7.6）。排除后按剩余事件权重重掷。
+    v116 季节渗透：season 硬限定（非当季剔除）、season_boost（当季权重 ×1.5）；
+    若当前季节把池子过滤空则放宽季节限制重试，避免探索无事件。
     """
-    pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude]
+    # v116 当前季节
+    season = current_season()
+
+    def _season_ok(e):
+        # 硬限定事件仅当季节匹配才触发；无 season 字段 = 全年可触发
+        return not e.get("season") or e["season"] == season
+
+    # 第一步：排除列表 + 季节硬限定 双重过滤
+    if exclude:
+        pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude and _season_ok(e)]
+    else:
+        pool = [e for e in EXPLORE_EVENTS if _season_ok(e)]
     if not pool:
-        pool = EXPLORE_EVENTS
-    total = sum(e["weight"] for e in pool)
+        # 兜底：排除列表导致的例外，或当季硬限定事件占满池子 → 放宽季节限制重试
+        pool = [e for e in EXPLORE_EVENTS if e["id"] not in exclude] if exclude else list(EXPLORE_EVENTS)
+    if not pool:
+        pool = list(EXPLORE_EVENTS)
+    # v116 季节偏好：season_boost 匹配当前季节的事件权重 ×1.5（非限定，仅概率上升）
+    total = sum(e["weight"] * (1.5 if e.get("season_boost") == season else 1) for e in pool)
     r = random.random() * total
     acc = 0
     for e in pool:
-        acc += e["weight"]
+        w = e["weight"] * (1.5 if e.get("season_boost") == season else 1)
+        acc += w
         if r <= acc:
+            # v116 季节感输出：命中限定/偏好事件时附加前缀标记（浅拷贝，不污染数据池）
+            if e.get("season") == season or e.get("season_boost") == season:
+                pick = dict(e)
+                pick["_season_prefix"] = _SEASON_PREFIX[season]
+                return pick
             return e
     return pool[0]
 

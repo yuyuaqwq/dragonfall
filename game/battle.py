@@ -614,6 +614,8 @@ class Battle:
 
         # ---- 正常回合开始 ----
         self.round += 1
+        # v116.1 pv_broken：玩家本回合是否用过技能（供敌方 _boss_mech 反扑判定）——回合开始复位
+        self._player_recent_skill = False
         # v2 蓄力：回合开始结算——归零自动释放技能（§6.2）
         self._player_charge_release(player, logs)
         logs += self._turn_start(player)
@@ -686,6 +688,8 @@ class Battle:
                 return logs, True
         if action == "skill":
             logs += self._do_player_skill(skill_name, player)
+            # v116.1 pv_broken：记录玩家本回合用了技能，敌方 _boss_mech 据此决定反扑
+            self._player_recent_skill = True
         else:
             logs += self._player_attack(st, player)
 
@@ -2372,7 +2376,9 @@ class Battle:
         """v58/v83 Boss 专属机制（04 章 2.5）：enrage/summon/heal/shield/phase/stacks/reflect
         支持逗号分隔多机制（如 "enrage,summon"）。状态存 enemy dict（随战斗序列化持久化）
         v98.4：机制实现数据化 → core/battle_mech.py BOSS_MECHS（reflect 仍是被动，在 _boss_dmg_filter）
-        v2：unit 参数（多怪场景逐个单位触发自身 mech；缺省=主目标）。"""
+        v2：unit 参数（多怪场景逐个单位触发自身 mech；缺省=主目标）。
+        v116.1：新增条件反制机制开开场技(phase_open)/低血追击(player_low)/反扑(pv_broken)，
+        phases 剧本化交给 _b_phase（换招/演出回合/阈值预告）。"""
         e = unit or self.enemy
         mech = e.get("mech")
         if not mech or self.btype == "pvp":
@@ -2384,6 +2390,48 @@ class Battle:
             handler = BOSS_MECHS.get(m)
             if handler:
                 handler(self, logs, e, r)
+
+    def _boss_cfg(self, e: dict) -> dict:
+        """v116.1：按 enemy id 从数据层解析 Boss 条件/剧本配置。
+        优先取 enemy dict 自带的 scripts（数据层已直写），否则按 id 在 INSTANCES /
+        MONSTER_MODS 找条目读 opening/triggers/phases/chains 字段。返回含缺省 key 的 dict。"""
+        if not e:
+            return {"opening": None, "triggers": {}, "phases": [], "chains": []}
+        cfg = dict(e.get("scripts") or {})
+        if not cfg:
+            mid = (e.get("id") or "").strip()
+            if mid:
+                try:
+                    from .data.monster_mods import MONSTER_MODS
+                    from .data.instances import INSTANCES
+                    src = INSTANCES.get(mid) or MONSTER_MODS.get(mid) or {}
+                    for k in ("opening", "triggers", "phases", "chains"):
+                        if src.get(k) is not None and (e.get("mech") or ""):
+                            cfg[k] = src[k]
+                except Exception:
+                    cfg = {}
+        cfg.setdefault("opening", None)
+        cfg.setdefault("triggers", {})
+        cfg.setdefault("phases", [])
+        cfg.setdefault("chains", [])
+        return cfg
+
+    def _clear_reactive_flags(self, e: dict):
+        """v116.1：清空反制/追击瞬态标记（敌方每回合开头调用，仅触发当回合生效）。"""
+        if e is None:
+            return
+        e.pop("_low_hp_active", None)
+        e.pop("_pv_broken_active", None)
+
+    def _reactive_extra_attack(self, e: dict, pst: dict, logs: list) -> int:
+        """v116.1 pv_broken 反扑：本回合追加一次普攻（趁你破绽）。返回追加伤害。"""
+        if not e.get("_pv_broken_active"):
+            return 0
+        est = self._enemy_stats(e)
+        xtra = E.calc_damage(est.get("atk", 0), pst.get("def", 0), False)
+        logs.append(f"💢【{e['name']}】反扑的一击，追加 {xtra} 点伤害！")
+        self._pending_dmg_lines.append(f"【{e['name']}】追加攻击，造成 {xtra} 点伤害！")
+        return xtra
 
     def _enemy_turn(self, player: dict, unit=None) -> tuple:
         """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
@@ -2397,7 +2445,15 @@ class Battle:
         # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
         # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
         self._active_target = e
+        # v116.1 反制/追击瞬态标记：每回合开头清空，仅本回合触发的回合生效
+        self._clear_reactive_flags(e)
         self._boss_mech(logs, e)
+        # v116.1 阶段演出回合：_b_phase 触发进入新阶段时设 battle._phase_skip_act，
+        # 本回合 Boss 不行动（给玩家呼吸点），消费后立即复位避免影响后续回合/单位。
+        if getattr(self, "_phase_skip_act", False):
+            self._phase_skip_act = False
+            logs.append(f"🎬 【{ename}】正在蜕变，尚未行动！")
+            return logs, 0
         pst = self._player_stats(player)
         dmg = 0
         # v29 冻结：跳过敌方回合
@@ -2511,6 +2567,7 @@ class Battle:
                     if ctrl_fn:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
+                dmg += self._reactive_extra_attack(e, pst, logs)
                 return logs, dmg
         # 怪物普攻
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
@@ -2524,6 +2581,7 @@ class Battle:
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
         self._pending_dmg_lines.append(
             f"【{ename}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        dmg += self._reactive_extra_attack(e, pst, logs)
         return logs, dmg
 
     def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str) -> tuple:
@@ -2645,6 +2703,13 @@ class Battle:
             pm = 1 + 0.20 * e["phase_count"]
             est["atk"] = int(est["atk"] * pm)
             est["matk"] = int(est["matk"] * pm)
+        # v116.1 条件触发反制：玩家低血追击(+25%) / 玩家大招反扑(+30%)——仅受击当回合生效
+        if e.get("_low_hp_active"):
+            est["atk"] = int(est["atk"] * 1.25)
+            est["matk"] = int(est["matk"] * 1.25)
+        if e.get("_pv_broken_active"):
+            est["atk"] = int(est["atk"] * 1.30)
+            est["matk"] = int(est["matk"] * 1.30)
         if e.get("mech_stacks_n"):
             sm = 1 + 0.08 * e["mech_stacks_n"]
             est["atk"] = int(est["atk"] * sm)

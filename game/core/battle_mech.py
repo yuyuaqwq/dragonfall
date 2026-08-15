@@ -3,7 +3,8 @@
 
 消灭 game/battle.py 里的 if-elif 硬编码：
 1. Battle._apply_mech_effect() 的 32 个 mech 分支（攻击技能机制结算）
-2. Battle._boss_mech() 的 7 个 boss 专属机制
+2. Battle._boss_mech() 的 10 个 boss 专属机制（enrage/summon/heal/shield/phase/stacks/
+   reflect + v116.1 条件反制 phase_open/player_low/pv_broken）
 3. Battle._enemy_turn() 的怪物增益效果（5 个）+ 控制机制（4 个）
 
 扩展方式：
@@ -455,13 +456,52 @@ def _b_shield(battle, logs, e, r):
 
 @register(BOSS_MECHS, "phase")
 def _b_phase(battle, logs, e, r):
-    """阶段：每掉一半血进入下一阶段（最多 3 次）"""
+    """阶段：每掉一半血进入下一阶段（最多 3 次）
+    v116.1 剧本化（BOSS 战编排 §一）：e 的 phases=[{"min":60,"add_skills":[..],"script":{..}},..]
+    - 阶段演出回合：进入新阶段该回合不行动（battle._phase_skip_act=True）
+    - 换招表：进入第 N 阶段追加 phases[N-1].add_skills（幂等）
+    - 阈值预告：阶段 2/3 起，血量接近下一阈值(+3%)提前输出预警
+    无 phases 配置 → 完全维持旧行为（纯增伤 atk/matk +20%/阶段）。"""
     pc = e.get("phase_count", 0)
     target = 0.5 ** (pc + 1)
     ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
+    cfg = battle._boss_cfg(e) if hasattr(battle, "_boss_cfg") else {}
+    phases = cfg.get("phases") or []
+    # ---- 阈值预告（阶段 2/3 起）：接近下一阈值 +3% 内提前 2 回合口径输出 ----
+    if pc > 0:
+        nxt = 0.5 ** (pc + 1)  # 下一阶段阈值
+        within = 0.03
+        if nxt <= ratio <= nxt + within:
+            warned = e.get("_phase_warned") or set()
+            if (pc + 1) not in warned:
+                warned.add(pc + 1)
+                e["_phase_warned"] = warned
+                logs.append(f"⚠️ 【{e['name']}】的气息开始紊乱……似乎要进入更凶猛的阶段了！")
     if ratio < target and pc < 3:
-        e["phase_count"] = pc + 1
-        logs.append(f"🔥【{e['name']}】进入第 {pc + 2} 阶段！力量再度攀升！")
+        npc = pc + 1
+        e["phase_count"] = npc
+        if not isinstance(e.get("_phase_warned"), set):
+            e["_phase_warned"] = set()
+        e["_phase_warned"].add(npc)
+        # ---- 换招表：第 npc 阶段对应 phases[npc-1]，追加阶段专属技能（幂等）----
+        if phases and npc - 1 < len(phases):
+            for s in (phases[npc - 1].get("add_skills") or []):
+                if s and s not in e["skills"]:
+                    e["skills"] = list(e["skills"]) + [s]
+        # ---- 旧行为保留（阶段攻击+20%）----
+        logs.append(f"🔥【{e['name']}】进入第 {npc + 1} 阶段！力量再度攀升！")
+        # ---- 剧本演出文案（phases 配置了 script 时追加）----
+        script = {}
+        if phases and npc - 1 < len(phases):
+            script = (phases[npc - 1].get("script") or {})
+        sname = script.get("name")
+        if sname:
+            icon = script.get("icon", "🔥")
+            logs.append(f"{icon}【{e['name']}】{sname}！")
+        else:
+            logs.append(f"🔥【{e['name']}】的鳞片泛起暗红……【狂暴】！")
+        # ---- 阶段演出回合：本回合不行动（给玩家呼吸点）----
+        battle._phase_skip_act = True
 
 
 @register(BOSS_MECHS, "stacks")
@@ -472,6 +512,99 @@ def _b_stacks(battle, logs, e, r):
         if cur < 5:
             e["mech_stacks_n"] = cur + 1
             logs.append(f"⚔️【{e['name']}】气势攀升，攻击叠层＋1({cur + 1}/5)")
+
+
+# ================= 2.1 条件触发反制（v116.1 怪物行动 AI §二 条件行动子集） =================
+# 三类触发器：开场技 / 玩家低血追击 / 玩家大招后反扑（破防反扑无 PV 体系 → 改为大招反扑）。
+# 数据驱动：配置从 battle._boss_cfg(e) 读取（monster_mods/instances 的 boss 条目加
+# "opening"/"triggers"/"phases" 字段，battle.py 按 enemy id 解析）。无配置则用内置兜底默认值。
+# 触发频率用附着在 e 上的计数器字段（_open_played/_low_hp_cd/_pv_broken_cd/_phase_warned）
+# 约束防刷屏（once / 每 N 回合）。战斗实例级瞬态标记 battle._phase_skip_act 用于阶段演出回合。
+
+
+@register(BOSS_MECHS, "phase_open")
+def _b_opening(battle, logs, e, r):
+    """开场技：战斗第一回合必放一次（once）。默认『咆哮』：演出行 + mon_atk_up 增益 2 回合。
+    数据：e 的 opening 可配技能名 / {"name","effect","power"}。"""
+    if r != 1 or e.get("_open_played"):
+        return
+    e["_open_played"] = True
+    cfg = battle._boss_cfg(e) if hasattr(battle, "_boss_cfg") else {}
+    op = cfg.get("opening") or {"name": "咆哮"}
+    if isinstance(op, str):
+        op = {"name": op}
+    name = op.get("name", "咆哮")
+    logs.append(f"🌪️【{e['name']}】发出震天【{name}】！气势瞬间拉满！")
+    effect = (op.get("effect") or "atk_up").lower()
+    power = float(op.get("power", 2.0) or 2.0)
+    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    if effect == "atk_up":
+        battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), int(power))
+        logs.append(f"⚡【{e['name']}】的{name}让攻击力提升了！")
+    elif effect == "atk_up_strong":
+        battle.e_buffs["mon_atk_up_strong"] = max(
+            battle.e_buffs.get("mon_atk_up_strong", 0), int(power))
+        logs.append(f"⚡【{e['name']}】的{name}让攻击力大幅提升了！")
+    elif effect == "mon_atk_down":  # 低吼削弱玩家（可选）
+        battle.p_buffs["atk_down"] = max(battle.p_buffs.get("atk_down", 0), int(power))
+        logs.append(f"🫁【{e['name']}】的{name}压制了你，攻击下降！")
+    # 其他 effect 安全忽略（无副作用），保持"必放一次演出"性质
+
+
+@register(BOSS_MECHS, "player_low")
+def _b_player_low(battle, logs, e, r):
+    """玩家低血追击：玩家 HP<30% 时 Boss 输出杀意文案并本回合攻击加成（25%）。
+    触发频率：默认 once；或配置 triggers.player_low.cooldown=N 后每 N 回合一次。"""
+    p = getattr(battle, "player", None) or {}
+    mh = p.get("max_hp") or 0
+    if mh <= 0:
+        return
+    cd = e.get("_low_hp_cd", 0)
+    if cd > 0:
+        e["_low_hp_cd"] = cd - 1
+        return
+    ratio = p.get("hp", mh) / mh
+    cfg = battle._boss_cfg(e) if hasattr(battle, "_boss_cfg") else {}
+    thresh = float((cfg.get("triggers") or {}).get("player_low", {}).get("hp", 0.30) or 0.30)
+    if ratio >= thresh:
+        return
+    if e.get("_low_hp_fired"):
+        # 若配了 cooldown 才允许重复触发
+        cooldown = int((cfg.get("triggers") or {}).get("player_low", {}).get("cooldown", 0) or 0)
+        if cooldown <= 0:
+            return
+        e["_low_hp_cd"] = cooldown
+        logs.append(f"☠️ 【{e['name']}】盯上了重伤的你，狞笑着扑来！(追击)")
+        e["_low_hp_active"] = True
+        return
+    e["_low_hp_fired"] = True
+    cooldown = int((cfg.get("triggers") or {}).get("player_low", {}).get("cooldown", 0) or 0)
+    if cooldown > 0:
+        e["_low_hp_cd"] = cooldown
+    logs.append(f"☠️ 【{e['name']}】盯上了重伤的你……本回合攻击大幅提升！")
+    e["_low_hp_active"] = True
+
+
+@register(BOSS_MECHS, "pv_broken")
+def _b_pv_broken(battle, logs, e, r):
+    """玩家大招后反扑（原"破防反扑"，游戏无 PV/防护体系 → 改为玩家刚放技能后 Boss 反击）：
+    玩家上一回合使用技能（battle._player_recent_skill）时触发一次反击演出 + 本回合攻击加成
+    （30% / 额外一次攻击）。频率：once + cooldown 可选。"""
+    if not getattr(battle, "_player_recent_skill", False):
+        return
+    if e.get("_pv_broken_fired"):
+        cd = e.get("_pv_broken_cd", 0)
+        if cd <= 0:
+            return
+        e["_pv_broken_cd"] = cd - 1
+        return
+    e["_pv_broken_fired"] = True
+    cfg = battle._boss_cfg(e) if hasattr(battle, "_boss_cfg") else {}
+    cooldown = int((cfg.get("triggers") or {}).get("pv_broken", {}).get("cooldown", 0) or 0)
+    if cooldown > 0:
+        e["_pv_broken_cd"] = cooldown
+    logs.append(f"💥 防护崩溃！【{e['name']}】愤怒反扑！(本回合追加攻击)")
+    e["_pv_broken_active"] = True
 
 
 # ================= 3. 怪物增益效果（_enemy_turn 增益技能） =================

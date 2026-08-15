@@ -18,6 +18,12 @@ from .. import db
 from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, require_player
+# v116 公会成长纵深：新数据表/存取函数不经 __init__ 聚合导出，
+# 直接本地 import，避免改动 data/__init__、store/__init__（与并行改动的 agent 冲突）。
+from ..data import guild as _G
+from ..store.social import (
+    guild_get_member, guild_set_role, guild_spend_contribute,
+)  # noqa: F401
 
 
 class SocialCmds(CommandBase):
@@ -551,7 +557,7 @@ class SocialCmds(CommandBase):
         db.guild_leave(g["gid"], qq_id)  # leader 离开即解散
         yield event.plain_result(f"🏚️ 公会【{g['name']}】已解散……")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散)(?:\s*.*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会(?!签到|任务|捐献|排行|创建|加入|退出|解散|商店|技能|任命|免职)(?:\s*.*|$)")
     @require_player()
 
     async def guild_info(self, event: AstrMessageEvent):
@@ -578,9 +584,9 @@ class SocialCmds(CommandBase):
         ]
         for i, m in enumerate(page_items, (page - 1) * 5 + 1):
             p = self._player(group_id, m["qq_id"])
-            role = "👑" if m["role"] == "leader" else "⚔️"
+            _label, _icon = _G.GUILD_ROLES.get(m["role"], ("成员", "⚔️"))
             name = p["name"] if p else m["qq_id"]
-            lines.append(f"{i:>2}. {role} {name} Lv.{p['level'] if p else '?'} ｜ 贡献 {m['contribute']}")
+            lines.append(f"{i:>2}. {_icon} {name}({_label}) Lv.{p['level'] if p else '?'} ｜ 贡献 {m['contribute']}")
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
@@ -699,6 +705,180 @@ class SocialCmds(CommandBase):
         for i, g in enumerate(tops, 1):
             lines.append(f"{i}. {g['icon']} {g['name']} Lv.{g['level']}({g['members']}人)")
         yield event.plain_result("\n".join(lines))
+
+    # ---------------- v116 公会成长纵深：公会商店 / 公会技能 / 职位体系 ----------------
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会商店(?:\s*.*|$)")
+    @require_player()
+
+    async def guild_shop(self, event: AstrMessageEvent):
+        """公会商店：『公会商店』查看，『公会商店 <编号>』用公会积分购买。
+        v116 公会成长纵深：积分 = 成员贡献（guild_members.contribute），
+        由『公会签到』『公会捐献』获得。"""
+        group_id, qq_id = self._uid(event)
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
+            return
+        member = guild_get_member(g["gid"], qq_id)
+        raw = self._strip_cmd(event, "公会商店").strip()
+        # 带编号 → 购买
+        if raw.isdigit():
+            num = int(raw)
+            async for _r in self._guild_shop_buy(event, group_id, qq_id, g, member, num):
+                yield _r
+            return
+        if not member:
+            yield event.plain_result("你不是公会正式成员～")
+            return
+        contribute = member.get("contribute", 0)
+        lines = [f"🛒 【公会商店】Lv.{g['level']} ｜ 公会积分：{contribute}", "━━━━━━━━━━━━"]
+        for i, it in _G.GUILD_SHOP_ITEMS.items():
+            locked = g["level"] < it["min_level"]
+            tag = "🔒" if locked else f"{it['cost']} 积分"
+            lines.append(f"{i}. {it['name']} ｜ {tag}")
+            limit = f"每日限购 {it['daily_limit']}" if it.get("daily_limit") else "不限购"
+            lines.append(f"   {it['item_data'].get('desc', '')} ｜ 需公会 Lv.{it['min_level']} ｜ {limit}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 积分获取：『公会签到』+10『公会捐献』+20；『公会商店 <编号>』购买")
+        yield event.plain_result("\n".join(lines))
+
+    async def _guild_shop_buy(self, event, group_id, qq_id, g, member, num):
+        """公会商店购买：扣成员贡献积分 → 发包件物品。"""
+        import uuid as _uuid
+        import datetime as _dt
+        it = _G.GUILD_SHOP_ITEMS.get(num)
+        if not it:
+            yield event.plain_result(f"没有第 {num} 件商品！『公会商店』查看～")
+            return
+        if not member:
+            yield event.plain_result("你不是公会正式成员～")
+            return
+        if g["level"] < it["min_level"]:
+            yield event.plain_result(f"【{it['name']}】需要公会 Lv.{it['min_level']}！本公会才 Lv.{g['level']}～")
+            return
+        contribute = member.get("contribute", 0)
+        if contribute < it["cost"]:
+            yield event.plain_result(f"公会积分不足！购买【{it['name']}】需要 {it['cost']} 积分，你只有 {contribute}。")
+            return
+        # 每日限购（用 event_state 记录 key，非 schema 改动）
+        if it.get("daily_limit"):
+            today = _dt.date.today().isoformat()
+            key = f"guild_shop:{g['gid']}:{qq_id}:{num}"
+            if db.get_event_state(key) == today:
+                yield event.plain_result(f"今天【{it['name']}】已买满(每日限购 {it['daily_limit']})！明天再来～")
+                return
+        # 正式扣积分（贡献充足性在事务内复核）
+        if not guild_spend_contribute(g["gid"], qq_id, it["cost"]):
+            yield event.plain_result("积分扣除失败！可能积分变动，请重试～")
+            return
+        item_key = f"{it.get('item_key', 'gs_')}{_uuid.uuid4().hex[:8]}"
+        db.add_item(group_id, qq_id, item_key, it["item_data"], count=1)
+        if it.get("daily_limit"):
+            db.set_event_state(f"guild_shop:{g['gid']}:{qq_id}:{num}", _dt.date.today().isoformat())
+        yield event.plain_result(
+            f"🛒 购买成功！【{it['name']}】(花费 {it['cost']} 公会积分)\n"
+            f"{it.get('msg', '')}"
+        )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会技能(?:\s*.*|$)")
+    @require_player()
+
+    async def guild_skill_view(self, event: AstrMessageEvent):
+        """公会技能：查看技能列表与等级门槛/积分价目。
+        v116 说明：技能购买记录无处可靠持久化（guild_members 无通用 JSON 列，
+        且本轮禁改 connection.py 表结构），故本轮只做【展示 + 数据】，购买落地留待下轮。
+        战斗加成挂接同样延后（需在战斗结算统一钩取成员已学技能）。"""
+        group_id, qq_id = self._uid(event)
+        g = db.guild_get_by_member(qq_id)
+        if not g:
+            yield event.plain_result("你还没有公会！先『加入公会 <名字>』吧～")
+            return
+        lines = [f"📖 【公会技能】Lv.{g['level']}", "━━━━━━━━━━━━"]
+        for key, sk in _G.GUILD_SKILLS.items():
+            lines.append(f"💡 {sk['name']}：{sk['desc']}/级(最高 {sk['max_level']} 级)")
+            costs = " → ".join(str(c) for c in sk["level_costs"][1:])
+            requires = " → ".join(f"Lv.{l}" for l in sk["level_guild_lv"][1:])
+            lines.append(f"   积分需求：{costs} ｜ 公会等级：{requires}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 技能经会长安排后逐步开放；战斗加成的挂接正在开发中～")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会任命(?:\s*.*|$)")
+    @require_player()
+
+    async def guild_appoint(self, event: AstrMessageEvent):
+        """公会任命：会长任命成员为 副会长/精英。
+        用法：『公会任命 <成员名> <职位>』；职位可选 副会长/精英。
+        门槛：副会长需公会 Lv.3（GUILD_CONFIG.vice_leader_level），精英无门槛。"""
+        group_id, qq_id = self._uid(event)
+        g = db.guild_get_by_leader(qq_id)
+        if not g:
+            yield event.plain_result("只有会长才能任命职位！")
+            return
+        raw = self._strip_cmd(event, "公会任命").strip()
+        parts = raw.rsplit(None, 1)
+        if len(parts) < 2:
+            yield event.plain_result("格式：公会任命 <成员名> <职位>，职位=副会长/精英")
+            return
+        name_arg, role_arg = parts
+        role_map = {"副会长": "vice_leader", "精英": "elite"}
+        role = role_map.get(role_arg)
+        if not role:
+            yield event.plain_result("可任命职位：副会长、精英。成员是默认职，不需任命～")
+            return
+        cfg = C.GUILD_CONFIG
+        if role == "vice_leader" and g["level"] < cfg.get("vice_leader_level", 3):
+            yield event.plain_result(f"任命副会长需要公会 Lv.{cfg.get('vice_leader_level', 3)}！本公会才 Lv.{g['level']}～")
+            return
+        target = db.find_player_by_name(name_arg)
+        if not target:
+            yield event.plain_result(f"没找到玩家『{name_arg}』！")
+            return
+        target_id = target["qq_id"]
+        tm = guild_get_member(g["gid"], target_id)
+        if not tm:
+            yield event.plain_result(f"『{target['name']}』不在本公会里～")
+            return
+        if target_id == qq_id:
+            yield event.plain_result("会长不需要任命自己～")
+            return
+        if tm["role"] == role:
+            yield event.plain_result(f"『{target['name']}』已经是{role_arg}了～")
+            return
+        guild_set_role(g["gid"], target_id, role)
+        _label, _icon = _G.GUILD_ROLES[role]
+        yield event.plain_result(f"{_icon} 任命成功！『{target['name']}』已晋升为公会【{_label}】！")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?公会免职(?:\s*.*|$)")
+    @require_player()
+
+    async def guild_demote(self, event: AstrMessageEvent):
+        """公会免职：会长将 副会长/精英 降回成员。
+        用法：『公会免职 <成员名>』"""
+        group_id, qq_id = self._uid(event)
+        g = db.guild_get_by_leader(qq_id)
+        if not g:
+            yield event.plain_result("只有会长才能免职！")
+            return
+        name_arg = self._strip_cmd(event, "公会免职").strip()
+        if not name_arg:
+            yield event.plain_result("格式：公会免职 <成员名>")
+            return
+        target = db.find_player_by_name(name_arg)
+        if not target:
+            yield event.plain_result(f"没找到玩家『{name_arg}』！")
+            return
+        target_id = target["qq_id"]
+        tm = guild_get_member(g["gid"], target_id)
+        if not tm:
+            yield event.plain_result(f"『{target['name']}』不在本公会里～")
+            return
+        if tm["role"] not in ("vice_leader", "elite"):
+            yield event.plain_result(f"『{target['name']}』是成员，无需免职～")
+            return
+        guild_set_role(g["gid"], target_id, "member")
+        yield event.plain_result(f"📉 已免去『{target['name']}』的职位，降回普通成员～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物(?!改名)(?:\s*|$)")
     @require_player()

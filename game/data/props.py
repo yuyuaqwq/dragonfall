@@ -27,7 +27,10 @@ PROPS = {
             "你仰头打量这尊雕像——是传说中那位斩龙英雄。石像的剑锋上停着一只鸽子。",
             "铭文已被风雨磨得看不清，但你能认出几个字：『……愿勇气与你同在。』",
         ],
-        "effect": None,
+        "effect": {
+            "type": "heal", "daily": True, "pct": 0.10,
+            "found_text": "石像的目光凝望着你，一缕底气从心底涌起",
+        },
     },
     "notice_board": {
         "name": "告示板", "icon": "📋",
@@ -342,7 +345,11 @@ PROPS = {
             "你拍了拍酒桶，里面传来沉甸甸的回响——装得满满当当。",
             "酒桶上贴着标签：『橡木镇特酿·三年陈』，闻着就有一股麦香。",
         ],
-        "effect": None,
+        "effect": {
+            "type": "material", "daily": True,
+            "pool": ["mat_jiang_guo", "mat_shou_rou", "mat_mian_fen", "mat_kong_ping"],
+            "found_text": "你在酒桶边的小篮子摸到",
+        },
     },
     "fireplace": {
         "name": "壁炉", "icon": "🔥",
@@ -394,7 +401,10 @@ PROPS = {
             "你站在圣像前，不知为何，心里那些毛躁的念头悄悄平复了下来。",
             "圣像的基座上刻着一行小字：『愿光指引迷途者。』",
         ],
-        "effect": None,
+        "effect": {
+            "type": "heal", "daily": True, "pct": 0.10,
+            "found_text": "圣像投下一片柔和的光，暖意顺着心口缓缓漾开",
+        },
     },
     "throne": {
         "name": "王座", "icon": "👑",
@@ -529,7 +539,11 @@ PROPS = {
             "你顺着货架看过去——从针头线脑到上好的精铁锭，一应俱全。商行的底气都在这排架子上。",
             "货架最上层放着一只落灰的木箱，标签写着『特殊订货，勿动』。",
         ],
-        "effect": None,
+        "effect": {
+            "type": "material", "daily": True,
+            "pool": ["mat_tu_mao", "mat_mian_fen", "mat_jiang_guo", "mat_shou_rou"],
+            "found_text": "你在货架缝隙的边角料里翻到",
+        },
     },
     # ---- v104 M23 补全：4 个孤儿 prop（SUBAREA_PROPS 已挂载但 PROPS 缺失，
     #      导致『交互』按列表取 pp['icon'] 触发 KeyError 崩溃）----
