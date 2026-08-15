@@ -83,7 +83,10 @@ REDUCE_ALL_PCT = {
 # 负面效果
 DEF_DOWN_MULT = 0.5   # 破甲斩：敌方防御减半
 SPD_DOWN_MULT = 0.5   # 寒冰箭：敌方速度减半（暂不影响结算，留接口）
-POISON_PCT = 0.05     # 毒箭：每回合扣敌方 max_hp 5%
+# DOT 重构常量集中（契约 §2.4）：每层每回合 % 敌方最大生命
+POISON_PCT = 0.05     # 毒：每层每回合 5% 敌方最大生命（保留旧名兼容外部引用）
+BURN_PCT = 0.03       # 灼烧：每层每回合 3% 敌方最大生命
+BLEED_PCT = 0.05      # 流血：每回合 5% 敌方最大生命（词条 2~3 回合）
 MARK_EXTRA = 0.30     # 标记猎杀：敌方受击伤害 +30%
 DEFEND_REDUCE = 0.5   # 防御：敌方伤害减半
 BUFF_TURNS = 3        # 增益默认持续回合
@@ -205,6 +208,9 @@ class Battle:
         self._pending_dmg_lines: list = []
         # v2 受击伤害来源（打断判定用）：最近一次对敌方造成伤害的来源名（默认玩家）
         self._last_hitter: str = "你"
+        # DOT 重构（契约 §2.1）：持续减益结算闸门——单机每玩家行动结算一次（现状频率）；
+        # 副本由 instance 层 set False；世界 Boss 由 combat 层 force=True 触发
+        self._dot_pending: bool = True
 
     # ---------------- v2 阵列兼容代理（§3.2） ----------------
     @staticmethod
@@ -305,6 +311,8 @@ class Battle:
             # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
             "last_player": getattr(self, "_last_player", None),
             "shifted_element": getattr(self, "_shifted_element", None),
+            # DOT 重构（契约 §2.1）：持续减益结算闸门状态随战斗序列化
+            "dot_pending": getattr(self, "_dot_pending", True),
         }
 
     @classmethod
@@ -354,6 +362,22 @@ class Battle:
         if _lp:
             b._last_player = _lp
         b._shifted_element = st.get("shifted_element")
+        # DOT 重构（契约 §2.1）：恢复持续减益结算闸门（老档案缺失默认 True=每玩家行动结算一次）
+        b._dot_pending = bool(st.get("dot_pending", True))
+        # DOT 重构（契约 §2.3）：老档案迁移——敌方持续减益迁为目标级 enemy["debuffs"]。
+        # 旧档 mech_stacks 里的 poison/burn/mark（敌方减益）迁移为 debuffs 结构后清键；
+        # 玩家侧键（dragon_mark/rage/shadow/chi 等）与 e_buffs 标记不受影响。
+        if not b.enemy.get("debuffs"):
+            _old_m = st.get("mech_stacks") or {}
+            _new_deb = {}
+            for _k in ("poison", "burn", "mark"):
+                if _k in _old_m:
+                    _v = int(_old_m[_k] or 0)
+                    if _v > 0:
+                        _new_deb[_k] = {"n": _v, "mult": 1.0}
+                    b.mech_stacks.pop(_k, None)
+            if _new_deb:
+                b.enemy["debuffs"] = _new_deb
         return b
 
     # ---------------- 核心资源（v2.0） ----------------
@@ -1354,11 +1378,16 @@ class Battle:
         if not effs:
             return
         p_mech = self.mech_stacks
-        # 灼热：攻击附带灼烧 n 层
+        # 灼热：攻击附带灼烧 n 层（DOT 重构：敌方灼烧为目标级 enemy["debuffs"]，不再写 p_mech）
         burn_lvl = self._enchant_lvl(effs, "burn")
         if burn_lvl:
-            p_mech["burn"] = E.mech_stack_gain("burn", p_mech, int(C.rune_value("burn", burn_lvl)))
-            logs.append(f"🔥 符文灼热：敌人灼烧层数 {p_mech['burn']}")
+            _enemy = self.enemy or {}
+            _blv = int(C.rune_value("burn", burn_lvl))
+            _deb = _enemy.setdefault("debuffs", {})
+            _cur = _deb.get("burn") or {"n": 0, "mult": 1.0}
+            _cur["n"] = min(5, int(_cur.get("n", 0) or 0) + _blv)
+            _deb["burn"] = _cur
+            logs.append(f"🔥 符文灼热：敌人灼烧层数 {_cur['n']}")
         # 冰霜：x% 概率冻结 1 回合
         freeze_lvl = self._enchant_lvl(effs, "freeze")
         if freeze_lvl and random.random() < C.rune_value("freeze", freeze_lvl):
@@ -1748,13 +1777,15 @@ class Battle:
         cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
         # v29：effect 型机制（引爆/转化类增益技能）
         if eff == "burn_burst":
-            n = p_mech.get("burn", 0)
+            # DOT 重构：敌方灼烧层迁为目标级 debuffs（契约 §3.1 与 _m_burn_burst 同口径）
+            n = int(((self.enemy.get("debuffs") or {}).get("burn") or {"n": 0}).get("n", 0) or 0)
             st2 = self._player_stats(player)
             if st2 and n:
                 d = int(st2["matk"] * 0.30 * n * cond_mult)
                 self._damage_enemy(d, logs)
                 logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
-            p_mech["burn"] = 0
+            (self.enemy.get("debuffs") or {}).pop("burn", None)
+            self.e_buffs.pop("burn", None)
         elif eff == "rage_burst":
             n = p_mech.get("rage", 0)
             if n:
@@ -2657,6 +2688,13 @@ class Battle:
             _base = max(0, int(e.get(_k, 0) or 0))
             if _base > 0:
                 est[_k] = min(est[_k], _base * 3)
+        # v1.1 毒蚀（契约 §10.1）：每层毒使目标防御/魔防 -4%（上限 20%），
+        # 层数衰减时自动恢复（动态计算，不改 enemy dict 本体）
+        _poison_n = int((e.get("debuffs") or {}).get("poison", {}).get("n", 0) or 0)
+        if _poison_n > 0:
+            _erode = min(0.20, _poison_n * 0.04)
+            est["def"] = int(est["def"] * (1 - _erode))
+            est["mdef"] = int(est["mdef"] * (1 - _erode))
         return est
 
     def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理",
@@ -2704,8 +2742,11 @@ class Battle:
         return max(0, phys + magi), magi
 
     def _apply_mark(self, dmg: int) -> int:
-        if "mark" in self.e_buffs:
-            return int(dmg * (1 + MARK_EXTRA))
+        """标记易伤（v1.1 按层，契约 §10.1）：每层 +20%（5 层 +100%，对齐设计 27章:305）。
+        e_buffs["mark"] 计时窗口保留（由 _m_mark 写入），层数在 enemy.debuffs 随回合衰减。"""
+        n = int((self.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) or 0)
+        if n > 0:
+            return int(dmg * (1 + 0.20 * n))
         return dmg
 
     def _pet_skill_turn(self, player: dict, logs: list) -> list:
@@ -2802,61 +2843,119 @@ class Battle:
             return 0
         return dmg
 
+    def _tick_dots(self, player: dict, logs: list, force: bool = False) -> list:
+        """DOT 重构（契约 §2.2 + §10.1 + §11.1）：敌方持续减益（毒/灼烧/流血）统一结算。
+
+        每次结算（每层每回合混合公式）：
+          poison = (atk×0.5 + max_hp×1.5%) × n × mult
+          burn   = (matk×0.4 + max_hp×1.0%) × n × mult
+          bleed  = (atk×0.6 + max_hp×1.5%) × n × mult（目标当前生命 <30% 时 ×2，放血）
+        随后经 敌方防守削减(_enemy_mitigate) → Boss 护盾过滤(_boss_dmg_filter)；
+        结算后层数 n-1，归零消散。总抗 = min(0.95, dot_res + 适应adapt[k])；
+        poison/burn 最近 2 回合未再叠层时适应 -4%（耐受消退）。
+        免疫列表 immune_dots 命中类型直接移除不结算。
+
+        - 伤害类型：毒/灼烧=magi，流血=phys
+        - 灼烧走 fire 元素抗、毒不吃元素抗、流血吃物理物免
+        - 结算频率：单机每玩家行动一次（_dot_pending 闸门）；副本/世界 Boss 由命令层控制
+        - force=True（世界 Boss 全局多行动一次）时跳过闸门
+        文案按类型区分：毒发身亡 / 灼烧致死 / 失血过多；死亡后 break。
+        """
+        if not force:
+            if not getattr(self, "_dot_pending", True):
+                return logs
+            self._dot_pending = False
+        e = self.enemy or {}
+        deb = e.get("debuffs") or {}
+        if not deb:
+            return logs
+        max_hp = int(e.get("max_hp", 1) or 1)
+        immune = e.get("immune_dots") or []
+        # v1.1 混合公式：施放者攻击快照（防御性取数，失败按 0 处理只留生命部分）
+        try:
+            _st = self._player_stats(player)
+            _atk = max(0, int(_st.get("atk", 0) or 0))
+            _matk = max(0, int(_st.get("matk", 0) or 0))
+        except Exception:
+            _atk = _matk = 0
+        # 每层每回合混合公式：poison=atk×0.5+max_hp×1.5% / burn=matk×0.4+max_hp×1% / bleed=atk×0.6+max_hp×1.5%
+        _atk_parts = {"poison": 0.5, "burn": 0.0, "bleed": 0.6}
+        _matk_parts = {"poison": 0.0, "burn": 0.4, "bleed": 0.0}
+        _hp_parts = {"poison": 0.015, "burn": 0.01, "bleed": 0.015}
+        for k, pct in (("poison", POISON_PCT), ("burn", BURN_PCT), ("bleed", BLEED_PCT)):
+            d = deb.get(k)
+            if not d:
+                continue
+            n = int(d.get("n", 0) or 0)
+            if n <= 0:
+                deb.pop(k, None)
+                continue
+            # 免疫：命中该类型时直接移除该层并提示免疫，不结算伤害
+            if k in immune:
+                deb.pop(k, None)
+                logs.append(f"🛡️ 【{e.get('name', '敌人')}】免疫{('中毒' if k == 'poison' else '灼烧' if k == 'burn' else '流血')}，减益消散了！")
+                continue
+            mult = float(d.get("mult", 1.0) or 1.0)
+            # v1.2 总抗：基础抗性 + 减益适应（cap 0.95）
+            base_res = float(e.get("dot_res", 0) or 0)
+            adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
+            res = min(0.95, base_res + adapt_v)
+            # v1.1 混合公式：每层 = (攻击系数 + 最大生命小百分比) × 层数 × 被动倍率 × (1 - 总抗)
+            atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
+            hp_part = max_hp * _hp_parts[k]
+            p = int((atk_part + hp_part) * n * mult * (1 - res))
+            # 伤害段：灼烧=magi 走火元素抗；毒=magi 不吃元素抗；流血=phys 吃物理物免
+            if k == "burn":
+                dt = "magi"
+                p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
+            elif k == "poison":
+                dt = "magi"
+                p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
+            else:
+                dt = "phys"
+                p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
+            # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）
+            p = self._boss_dmg_filter(p, player, logs, dmg_type=dt)
+            # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
+            _bleed_tag = ""
+            if k == "bleed" and e.get("hp", 0) < max_hp * 0.30:
+                p *= 2
+                _bleed_tag = "(放血)"
+            if p > 0:
+                self._damage_enemy(p, logs, wake_sleep=False)  # dot 不打醒睡眠、不打断蓄力
+            kname = "毒" if k == "poison" else "灼烧" if k == "burn" else "流血"
+            logs.append(f"{'☠️' if k == 'poison' else '🔥' if k == 'burn' else '🩸'} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_bleed_tag}")
+            n -= 1
+            if n <= 0:
+                deb.pop(k, None)
+                logs.append(f"💨 【{e.get('name', '敌人')}】的{kname}消散了！")
+            else:
+                d["n"] = n
+            # v1.2 适应回落：poison/burn 最近 2 回合未再叠层 → 该类型适应 -4%（耐受消退）
+            if k in ("poison", "burn"):
+                _last = int(d.get("last_round", 0) or 0)
+                if _last > 0 and self.round - _last >= 2:
+                    _am = e.setdefault("adapt", {})
+                    _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - 0.04)
+            if self._enemy_dead():
+                self.result = "victory"
+                death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn" else "失血过多")
+                logs.append(f"🎉 你击败了【{e.get('name', '敌人')}】！({death_text})")
+                break
+        return logs
+
     def _turn_start(self, player: dict) -> list:
         """回合开始：持续伤害结算 + v10 套装每回合回复"""
         logs = []
-        # v29 灼烧：每层 3% 生命（层数存战斗 mech_stacks）
-        mech = self.mech_stacks
-        burn_n = int(mech.get("burn", 0) or 0)
-        # v109.2 P1-2：火之亲和——灼烧伤害 +20%（龙血战士火系强化，仿毒系 poison proc）
-        _burn_mult = 1.0
-        for _pn, _ps in self._passive_map(player)["proc"].get("burn_amp", []):
-            _burn_mult *= float(_ps.get("mult", 1.2))
-        if burn_n > 0:
-            p = int(self.enemy.get("max_hp", 1) * 0.03 * burn_n * _burn_mult)
-            # v110 §10.2：灼烧 dot=magi，吃敌方魔免+元素抗（火系）；PVE 怪无键=0 无感
-            p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
-            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
-            logs.append(f"🔥 【{self.enemy['name']}】被灼烧，损失 {p} 点生命！" + ("(火之亲和)" if _burn_mult > 1.0 else ""))
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(灼烧致死)")
-        # v29 毒层：每层 3% 生命（优先战斗层数；老毒箭仍用 e_buffs 布尔标记）
-        mech = self.mech_stacks
-        poison_n = int(mech.get("poison", 0) or 0)
-        # v104 R3 P1-1：剧毒亲和——毒层每层伤害 +20%
-        _poison_mult = 1.0
-        for _pn, _ps in self._passive_map(player)["proc"].get("poison", []):
-            _poison_mult *= float(_ps.get("mult", 1.2))
-        if poison_n > 0:
-            p = int(self.enemy.get("max_hp", 1) * POISON_PCT * poison_n * _poison_mult)
-            # v110 §10.2：毒 dot=magi，吃敌方魔免、不吃元素抗（毒非元素）
-            p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
-            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
-            logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
-        elif "poison" in self.e_buffs:
-            p = int(self.enemy.get("max_hp", 1) * POISON_PCT * _poison_mult)
-            # v110 §10.2：毒 dot=magi，吃敌方魔免（老毒箭布尔兼容路径同口径）
-            p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
-            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
-            logs.append(f"☠️ 【{self.enemy['name']}】中毒发作，损失 {p} 点生命！")
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(毒发身亡)")
-        # 阶段八：流血词条（每回合 5% 生命，e_buffs["bleed"] = 剩余回合数，回合递减交给 _end_round）
-        bleed_n = int(self.e_buffs.get("bleed", 0) or 0)
-        if bleed_n > 0:
-            p = int(self.enemy.get("max_hp", 1) * 0.05)
-            # v110 §10.2：流血跟随主伤害（物理词条来源）→ 吃敌方物免
-            p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
-            self._damage_enemy(p, logs, wake_sleep=False)  # v109.2 dot 不打醒睡眠
-            logs.append(f"🩸 【{self.enemy['name']}】流血不止，损失 {p} 点生命！")
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy['name']}】！(失血过多)")
+        # DOT 重构（契约 §2.1/§2.2）：敌方持续减益（毒/灼烧/流血）统一由 _tick_dots 结算。
+        # _tick_dots 内部持有 _dot_pending 闸门——单机探索怪（btype=monster）每次玩家行动=一回合，
+        # 回合开始复位闸门 → 每行动结算一次（与现状频率一致）；副本（instance）每轮结算一次的
+        # 闸门由 from_state 按 st["dot_pending"] 恢复，世界 Boss（worldboss）由 combat 层 force 结算，
+        # 故此两模式不在此复位。
+        if self.btype == "monster":
+            self._dot_pending = True
+        # 原地追加（_tick_dots 向传入 logs 追加文案并返回同一列表，勿用 += 以免二次自拼接）
+        self._tick_dots(player, logs)
         # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
         self._food_turn_start(player, logs)

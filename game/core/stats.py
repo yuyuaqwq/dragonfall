@@ -61,6 +61,12 @@ def monster_stats(lv: int, role: str) -> dict:
     # v56.2：全角色模板吃等级段曲线
     stats["hp"] = int(stats["hp"] * hp_stage_mult(lv))
     stats["atk"] = int(stats["atk"] * atk_stage_mult(lv))
+    # 重构图契约 §4.1：dot_res 异常抗性（结算时乘 (1-dot_res)）——
+    # boss/elite 设置抗性，普通怪不设键（缺失=0）。cap 0.95 由结算端约束。
+    if role == "boss":
+        stats["dot_res"] = 0.9
+    elif role == "elite":
+        stats["dot_res"] = 0.8
     return stats
 
 def equip_stats(slot: str, lv: int, quality: str) -> dict:

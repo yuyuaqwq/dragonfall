@@ -977,6 +977,8 @@ class InstanceCmds(CommandBase):
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
+                    "round_acted": [],            # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
+                    "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
                 }
@@ -1012,6 +1014,8 @@ class InstanceCmds(CommandBase):
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
+                    "round_acted": [],            # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
+                    "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
                 }
@@ -1041,6 +1045,8 @@ class InstanceCmds(CommandBase):
             "p_food_effects": {str(m): [] for m in members},
             "e_buffs": {},
             "mech_stacks": {str(m): {} for m in members},  # v59 副本叠层（按玩家持久化）
+            "round_acted": [],               # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
+            "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
             "p_defending": {str(m): False for m in members},
             "turn_time": now,
             "contribution": {},
@@ -1433,6 +1439,9 @@ class InstanceCmds(CommandBase):
             # v121 CTB：透传玩家快照 ct（行动后 Battle 内部 _after_actor_ct("p") 推进并随写回转存）
             "p_ct": snap.get("ct", 0.0),
             "player_hit": st.get("player_hit", {}).get(cur_key, False),
+            # δ副本层：dot 结算闸门透传（A 在 Battle.from_state 读 st["dot_pending"]；
+            # 全队共享敌减益，每轮只结算一次，行动后自动置 False 并写回）
+            "dot_pending": st.get("dot_pending", True),
         })
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
@@ -1444,6 +1453,23 @@ class InstanceCmds(CommandBase):
         st.setdefault("p_food_effects", {})[cur_key] = b.p_food_effects
         st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.mech_stacks
+        # δ副本层：本轮已结算——本行动者是本轮第一个（或唯一）动作，Boss 敌减益只在此结算
+        # 一次；后续同一轮其他行动者 from_state 读到 dot_pending=False 不再 tick（Battle._dot_pending）
+        st["dot_pending"] = False
+        # δ副本层轮次推进：记录本玩家本轮已行动，全部存活成员都行动过 → 新一轮开始。
+        # 顺序保证：先置 False（行动者已结算）→ 再判轮满 → 轮满则清集合并置 True（下一轮
+        # 下一行动者 from_state 读取时恢复结算）。round_acted 用列表存放（battle_state 存 JSON，
+        # set 会被转成 list，统一用 list 免得类型错乱）；老存档无该键用 setdefault 兜底。
+        acted = st.setdefault("round_acted", [])
+        if not isinstance(acted, list):
+            acted = list(acted)          # 兼容老存档 set → 列表
+            st["round_acted"] = acted
+        if cur_key not in acted:
+            acted.append(str(cur_key))
+        _alive_keys = [str(m) for m in members if st.get("alive", {}).get(str(m), True)]
+        if _alive_keys and set(acted) >= set(_alive_keys):
+            st["round_acted"] = []
+            st["dot_pending"] = True
         # v101.28m #438 复测修复：战斗状态写回（援军/回合数/资源/冷却/连招持久化）
         st["round"] = b.round
         st["e_minions"] = b.e_minions
@@ -1575,6 +1601,13 @@ class InstanceCmds(CommandBase):
                 # v121 审计修复：切怪后玩家 ct 与敌方同规则重置（-spd 播种对称）
                 self._instance_reset_player_cts(st)
                 st["e_buffs"] = {}
+                # δ副本层：切怪/换 Boss 清层——新怪无减益、新回合重新允许结算、
+                # 玩家资源（叠层/护盾）不跨怪残留、轮次行动记录重置
+                st["dot_pending"] = True
+                st["boss"].pop("debuffs", None)                    # 新怪无减益
+                st["boss"].pop("adapt", None)                      # δv1.2 §11.1：新怪无适应状态（与 debuffs 一起清）
+                st["mech_stacks"] = {str(m): {} for m in st["members"]}   # 玩家资源不跨怪
+                st["round_acted"] = []                              # 新一轮行动记录重置
                 st["round"] = 1
                 for i in st["members"]:
                     st["p_buffs"][i] = {}
@@ -1728,12 +1761,15 @@ class InstanceCmds(CommandBase):
                     sh["team_bless"] = {"value": shield, "turns": 3}
                 logs.append(f"🛡️ {p.get('name', k)} 获得 {shield} 点护盾！")
             return logs
-        # 全队武器淬毒：给每个存活成员 mech_stacks.poison（下回合攻击叠毒，v59 存副本状态）
+        # δ副本层：全队武器淬毒→对共享 Boss 挂毒（目标级 debuffs，每轮结算一次）
         if kind == "poison_all":
-            for k in alive:
-                ms = st["mech_stacks"].setdefault(k, {})
-                ms["poison"] = E.mech_stack_gain("poison", ms, 2)
-            logs.append("☠️ 全队武器淬毒！")
+            boss = st.get("boss")
+            if boss:
+                deb = boss.setdefault("debuffs", {})
+                cur = deb.get("poison") or {"n": 0, "mult": 1.0}
+                cur["n"] = min(5, cur["n"] + 2)
+                deb["poison"] = cur
+                logs.append("☠️ 全队武器淬毒！(毒层共享，每回合结算一次)")
             return logs
         return logs
 

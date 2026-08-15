@@ -274,10 +274,14 @@ def _sp_frost(battle, player, dmg, logs):
 
 @register(SET_PROC_EFFECTS, "burn")
 def _sp_burn(battle, player, dmg, logs):
-    """烈焰之力：30% 灼烧"""
-    from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
+    """烈焰之力：30% 灼烧
+    契约 §4.2 修复：原误写 e_buffs["poison"] 为 bug——改为对 enemy 挂灼烧层
+    enemy["debuffs"]["burn"]（目标级减益，副本/世界Boss 全局共享，mult 1.0）。"""
     if random.random() < _set_chance("burn", 0.30):
-        battle.e_buffs["poison"] = DEBUFF_TURNS
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        deb["burn"] = cur
         logs.append("🔥 烈焰之力！敌人被灼烧！")
 
 

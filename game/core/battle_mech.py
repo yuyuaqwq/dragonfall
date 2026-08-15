@@ -86,23 +86,53 @@ def _m_rage_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=N
 
 @register(MECH_EFFECTS, "burn")
 def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """灼烧：叠层（每层每回合掉 3% 生命）"""
+    """灼烧：叠层（每层每回合掉 3% 生命）
+    重构图契约 §3.1：敌方灼烧迁为 enemy["debuffs"]["burn"]（副本/世界Boss 全局共享）。"""
     if not mval:
         return
-    p_mech["burn"] = _stack(battle, "burn", p_mech, mval)
-    logs.append(f"🔥 灼烧层数 {p_mech['burn']}(每回合 {p_mech['burn'] * 3}% 生命)")
+    enemy = battle.enemy or {}
+    # 免疫检查：enemy["immune_dots"] 含 "burn" 时完全免疫，不叠层
+    if "burn" in (enemy.get("immune_dots") or []):
+        logs.append("🛡️ 敌人免疫灼烧！")
+        return
+    deb = enemy.setdefault("debuffs", {})
+    cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+    # 无灼烧类被动（契约：无被动 mult 则 1.0），保留现值
+    cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
+    deb["burn"] = cur
+    n = cur["n"]
+    base_log = f"🔥 灼烧层数 {n}(每回合 {n * 3}% 生命)"
+    # v1.1 易燃预备：层数≥3 时灼爆引爆伤害 +{10*(n-2)}%（3层+10%/4层+20%/5层+30%）
+    if n >= 3:
+        base_log += f" 🔥 易燃预备：引爆伤害 +{10 * (n - 2)}%"
+    # v1.2 减益适应（契约 §11.1）：灼烧叠层成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
+    adapt = enemy.setdefault("adapt", {})
+    adapt["burn"] = min(0.20, float(adapt.get("burn", 0.0) or 0.0) + 0.04)
+    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    deb["burn"] = cur
+    base_log += f" 🦠 目标对灼烧产生了适应！抗性 +4%（当前 +{int(adapt['burn'] * 100)}%）"
+    logs.append(base_log)
 
 
 @register(MECH_EFFECTS, "burn_burst")
 def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """灼烧引爆：每层立即 30% 魔攻"""
-    n = p_mech.get("burn", 0)
+    """灼烧引爆：每层立即 30% 魔攻
+    重构图契约 §3.1：读/清 enemy["debuffs"]["burn"]（敌方灼烧层迁为目标级状态）。
+    重构图契约 §10.1 易燃乘区：灼爆时 n≥3 → 伤害 ×(1+0.10×(n-2))（3层+10%/4层+20%/5层+30%），
+    日志标注「🔥 易燃！」；公式主体仍为 matk×0.30×n 魔法段。"""
+    enemy = battle.enemy or {}
+    n = int(((enemy.get("debuffs") or {}).get("burn") or {"n": 0}).get("n", 0) or 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
     if st2 and n:
         d = int(st2["matk"] * 0.30 * n)
+        # 易燃乘区：n≥3 时引爆伤害提升（3层+10%/4层+20%/5层+30%）
+        if n >= 3:
+            flammable = 1.0 + 0.10 * (n - 2)
+            d = int(d * flammable)
+            logs.append(f"🔥 易燃！灼烧层数 {n} 触发易燃，引爆伤害 ×{flammable:.1f}！")
         _burst_damage(battle, d, logs)
         logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害")
-    p_mech["burn"] = 0
+    enemy.get("debuffs", {}).pop("burn", None)
     battle.e_buffs.pop("burn", None)
 
 
@@ -153,7 +183,8 @@ def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
 
 @register(MECH_EFFECTS, "cleanse")
 def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """净化：清除敌方增益（v63 mon_atk_up/mon_def_up/狂暴/召唤）"""
+    """净化：清除敌方增益（v63 mon_atk_up/mon_def_up/狂暴/召唤）
+    重构图契约 §3.1 扩展：新增清空敌方持续减益 enemy["debuffs"]（毒/灼烧/标记/流血）。"""
     if not mval:
         return
     removed = []
@@ -162,31 +193,51 @@ def _m_cleanse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None
             battle.e_buffs.pop(k, None)
             battle.enemy["enraged"] = False
             removed.append(k)
-    if removed:
+    # 新增：净化敌方持续减益（目标级 enemy["debuffs"]，pop 全部键）
+    enemy = battle.enemy or {}
+    deb = enemy.get("debuffs") or {}
+    had_debuffs = bool(deb)
+    for _k in list(deb):
+        deb.pop(_k, None)
+    # 文案：增益与减益的净化提示各自独立
+    if removed and had_debuffs:
+        logs.append("✨ 净化！敌人的增益被驱散，中毒/灼烧/标记也被一并清除！")
+    elif removed:
         logs.append("✨ 圣光净化！敌人的增益被驱散！")
+    elif had_debuffs:
+        logs.append("✨ 净化！敌人的中毒/灼烧/标记被驱散！")
     else:
         logs.append("✨ 圣光净化，敌人没有增益可驱散。")
 
 
 @register(MECH_EFFECTS, "mark")
 def _m_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）"""
+    """标记：叠层（层数供 mark_burst 消费，同时挂 e_buffs 供 _apply_mark 增伤）
+    重构图契约 §3.1：敌方标记迁为 enemy["debuffs"]["mark"]（cap 5），
+    并**保留** battle.e_buffs["mark"]=DEBUFF_TURNS（+30% 易伤计时不变）。"""
     from ..battle import DEBUFF_TURNS  # 延迟引用，避免模块循环
     if not mval:
         return
-    p_mech["mark"] = _stack(battle, "mark", p_mech, mval)
-    battle.e_buffs["mark"] = DEBUFF_TURNS
-    logs.append(f"🎯 目标被标记！标记层数 {p_mech['mark']}")
+    enemy = battle.enemy or {}
+    deb = enemy.setdefault("debuffs", {})
+    cur = deb.get("mark") or {"n": 0, "mult": 1.0}
+    cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
+    deb["mark"] = cur
+    battle.e_buffs["mark"] = DEBUFF_TURNS  # +30% 易伤计时保留
+    n = cur["n"]
+    logs.append(f"🎯 目标被标记！标记层数 {n}")
 
 
 @register(MECH_EFFECTS, "mark_burst")
 def _m_mark_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """标记爆发：每层 +20%"""
-    n = p_mech.get("mark", 0)
+    """标记爆发：每层 +20%
+    重构图契约 §3.1：读/清 enemy["debuffs"]["mark"]（敌方标记层迁为目标级状态）。"""
+    enemy = battle.enemy or {}
+    n = int(((enemy.get("debuffs") or {}).get("mark") or {"n": 0}).get("n", 0) or 0)
     bonus = int(total * n * 0.20)
     _burst_damage(battle, bonus, logs)
     logs.append(f"🎯 猎杀标记！{n} 层额外 {bonus} 伤害")
-    p_mech["mark"] = 0
+    enemy.get("debuffs", {}).pop("mark", None)
 
 
 @register(MECH_EFFECTS, "wind")
@@ -330,21 +381,48 @@ def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
 @register(MECH_EFFECTS, "poison")
 def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """毒层：叠层（每层每回合 5% 生命，v110 与 POISON_PCT 对齐）
+    重构图契约 §3.1：敌方持续减益迁为 enemy["debuffs"]（副本/世界Boss 全局共享单份），
+    不再写 p_mech（玩家 mech_stacks）——敌方毒层为目标级共享状态。
     v113.1：技能自带 mech_chance（如轻快拨弦 0.1 / 淬毒之刃 0.5）时作为施毒概率。"""
     use_mc, chance = _mech_chance(info, 1.0)  # 原逻辑：命中即叠毒
     if not mval and not use_mc:
         return
     if use_mc and random.random() >= chance:
         return
-    p_mech["poison"] = _stack(battle, "poison", p_mech, mval)
-    logs.append(f"☠️ 毒层 {p_mech['poison']}(每回合 {p_mech['poison'] * 5}% 生命)")
+    enemy = battle.enemy or {}
+    # 免疫检查：enemy["immune_dots"] 含 "poison" 时完全免疫，不叠层
+    if "poison" in (enemy.get("immune_dots") or []):
+        logs.append("🛡️ 敌人免疫中毒！")
+        return
+    deb = enemy.setdefault("debuffs", {})
+    cur = deb.get("poison") or {"n": 0, "mult": 1.0}
+    # 叠毒者被动倍率：乘算（默认 1.0），刷新取 max(旧, 新)
+    new_mult = 1.0
+    for _pn, _ps in battle._passive_map(battle._last_player)["proc"].get("poison", []):
+        new_mult *= float(_ps.get("mult", 1.2))
+    cur["mult"] = max(float(cur.get("mult", 1.0) or 1.0), new_mult)
+    cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
+    deb["poison"] = cur
+    n = cur["n"]
+    # v1.1 毒蚀：每层使目标防御 -4%（上限 -20%），随层数衰减自动恢复；日志与毒层合并输出
+    base_log = f"☠️ 毒层 {n}(每回合 {n * 5}% 生命，{n} 回合后消散) 🛡️ 毒蚀：目标防御 -{4 * n}%（上限20%）"
+    # v1.2 减益适应（契约 §11.1）：毒层叠成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
+    adapt = enemy.setdefault("adapt", {})
+    adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
+    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    deb["poison"] = cur
+    base_log += f" 🦠 目标对毒产生了适应！抗性 +4%（当前 +{int(adapt['poison'] * 100)}%）"
+    logs.append(base_log)
 
 
 @register(MECH_EFFECTS, "poison_burst")
 def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """v107 毒爆（丛林猎手）：poison 层数≥3 可引爆——每层 15% 魔攻魔法伤害（毒=魔法段，
-    吃 mdef/魔免/元素抗？毒非元素不吃元素抗；v107 伤害类型 dmg_type="magi"），清层。"""
-    n = p_mech.get("poison", 0)
+    """v107 毒爆（丛林猎手）：poison 层数≥3 可引爆——清层。
+    重构图契约 §3.1：读/清 enemy["debuffs"]["poison"]（敌方毒层迁为目标级共享状态）。
+    重构图契约 §10.1 v1.1 修正：伤害 = atk×0.15×n，**物理段吃 def**（dmg_type="phys"，
+    与毒 dot 的 atk 口径一致，修复 skills.py 注释"按 atk"的矛盾）；仍不吃 dot_res（爆发直伤）。"""
+    enemy = battle.enemy or {}
+    n = int(((enemy.get("debuffs") or {}).get("poison") or {"n": 0}).get("n", 0) or 0)
     if n < 3:
         logs.append(f"☠️ 毒层 {n}（≥3 层可引爆）")
         return
@@ -352,10 +430,10 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     if st2 and n:
         from ..engine import calc_damage as _calc  # v107 局部导入防循环依赖
         est = battle._enemy_stats()
-        d = _calc(int(st2["matk"] * 0.15 * n), est.get("mdef", 0), dmg_type="magi")
+        d = _calc(int(st2["atk"] * 0.15 * n), est.get("def", 0), dmg_type="phys")
         _burst_damage(battle, d, logs)
-        logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点魔法伤害")
-    p_mech["poison"] = 0
+        logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点物理伤害")
+    enemy.get("debuffs", {}).pop("poison", None)
     battle.e_buffs.pop("poison", None)
 
 
@@ -492,6 +570,11 @@ def _b_phase(battle, logs, e, r):
     if ratio < target and pc < 3:
         npc = pc + 1
         e["phase_count"] = npc
+        # v1.2 Boss phase 转换清异常（契约 §11.2）：清空敌方持续减益与适应状态
+        had_debuffs = e.pop("debuffs", None) is not None
+        had_adapt = e.pop("adapt", None) is not None
+        if had_debuffs or had_adapt:
+            logs.append("🌀 Boss 转换阶段，净化了身上的异常状态！")
         if not isinstance(e.get("_phase_warned"), list):
             e["_phase_warned"] = []
         e["_phase_warned"].append(npc)

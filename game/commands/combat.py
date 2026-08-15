@@ -34,6 +34,10 @@ def _daily_repeat_pct(repeat):
     f = _DAILY_REPEAT_FACTORS[repeat] if repeat < len(_DAILY_REPEAT_FACTORS) else _DAILY_REPEAT_FACTORS[-1]
     return int(round(f * 100))
 
+# DOT/减益重构（契约 §6）：世界 Boss 全局每 4 次玩家行动结算一次 dot，
+# 模拟"一队一轮"（毒/灼烧/流血共享叠加层，多玩家并发不再各算各的导致毒伤无限累加）。
+WORLD_BOSS_DOT_INTERVAL = 4
+
 # v104 M06 P2-3：世界 Boss 特殊物品掉落池（传说材料/坐骑缰绳，按 Boss 名配池）
 # 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
 WORLD_BOSS_DROPS = {
@@ -1572,10 +1576,14 @@ class CombatCmds(CommandBase):
         "chi": "🌀气力", "judge": "⚖️审判", "mark": "🎯标记", "wind": "💨风印",
         "iron": "🪨铁壁", "shield": "🛡️圣盾", "bless": "✨神恩",
     }
-    # O96 修复：施加给敌方的减益叠层（灼烧/毒层/标记是敌方身上的 dot/易伤），
-    # 与玩家侧叠层共用 mech_stacks dict——显示时必须归到敌方状态栏，
-    # 否则敌人被灼烧后玩家状态栏误显『🛡️你：「🔥灼烧×2」』
-    _ENEMY_MECH_STACKS = ("burn", "poison", "mark")
+    # DOT/减益重构（契约 §7）：敌方持续减益（毒/灼烧/标记/流血）已从玩家侧 mech_stacks
+    # 迁为敌方目标级状态 enemy["debuffs"]（层数=剩余结算次数），玩家状态栏不再显示它们，
+    # 敌方状态栏改读 enemy["debuffs"]。此集合仅用于从玩家叠层中排除旧残留键（向前兼容）。
+    _ENEMY_MECH_STACKS = ("burn", "poison", "mark", "bleed")
+    # 敌方 debuffs 层 key → 显示名（契约 §7：☠️毒/🔥灼烧/🎯标记/🩸流血）
+    _DEBUFF_NAMES = {
+        "poison": "☠️毒", "burn": "🔥灼烧", "mark": "🎯标记", "bleed": "🩸流血",
+    }
 
     def _status_line(self, player: dict, b) -> str:
         """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。"""
@@ -1618,11 +1626,18 @@ class CombatCmds(CommandBase):
             for _nm, _ms in _grp.items():
                 parts.append(f"👥 援军：{_nm}×{len(_ms)}（HP " + "、".join(
                     f"{_m.get('hp', 0)}/{_m.get('max_hp', 1)}" for _m in _ms) + "）")
-        # O96：敌方减益叠层（灼烧/毒层/标记——dot/易伤目标在 mech_stacks 里）
-        # 与玩家侧叠层共用 dict，展示时归入敌方状态栏
-        for k, v in stacks.items():
-            if v and v > 0 and k in self._ENEMY_MECH_STACKS and k in self._STACK_NAMES:
-                ebuf.append(f"{self._STACK_NAMES[k]}×{v}")
+        # DOT/减益重构（契约 §7）：敌方持续减益（毒/灼烧/标记/流血）读 enemy["debuffs"]，
+        # 层数=剩余结算次数（不是 mech_stacks）；有层才显示。
+        deb = b.enemy.get("debuffs") or {}
+        for k, d in deb.items():
+            if k in self._DEBUFF_NAMES:
+                _n = int((d or {}).get("n", 0) or 0)
+                if _n > 0:
+                    ebuf.append(f"{self._DEBUFF_NAMES[k]}×{_n}")
+        # 异常抗性（毒/灼烧/流血统一减伤，dot_res>0 才显示——普通怪不设键=0）
+        _dres = float(b.enemy.get("dot_res", 0) or 0)
+        if _dres > 0:
+            ebuf.append(f"🛡️异常抗性{int(_dres * 100)}%")
         if ebuf:
             parts.append(f"👹敌：「{' '.join(ebuf)}」")
         return "\n".join(parts)
@@ -2385,8 +2400,24 @@ class CombatCmds(CommandBase):
         b["is_elite"] = False
         b.setdefault("buffs", {}); b.setdefault("stacks", {})
         b["defending"] = False; b["charging"] = None
+        # DOT/减益重构（契约 §6）：世界 Boss 全局共享减益层/dot 结算计数/抗性（事件数据可覆写）。
+        # 老世界 Boss 存档无这些键 → setdefault 兜底，保证向前兼容。
+        b.setdefault("debuffs", {})
+        b.setdefault("dot_act", 0)
+        b.setdefault("dot_res", 0.9)
+        b.setdefault("immune_dots", [])
+        # v1.2（契约 §11）：减益适应（毒/灼烧叠加抗性）全局共享；老存档无键 → setdefault 兜底。
+        b.setdefault("adapt", {"poison": 0.0, "burn": 0.0})
         # 世界 Boss：scale_main=False（数值由事件配置，不把主怪 ×0.7；多对多才缩主怪）
         _boss_grp = C.build_monster_group(b, wmap, player, scale_main=False)
+        # DOT/减益重构（契约 §6/§11）：确保敌方阵列每个单位带 debuffs/dot_res/immune_dots/adapt。
+        # 主目标从全局 b 拷入；爪牙经 _scale_monster=dict(m) 浅拷贝已带上 b 的键，这里再逐个兜底。
+        _gdebuff = {k: dict(v) for k, v in (b.get("debuffs") or {}).items()}
+        for _u in _boss_grp:
+            _u.setdefault("debuffs", {k: dict(v) for k, v in _gdebuff.items()})
+            _u.setdefault("dot_res", b.get("dot_res", 0.9))
+            _u.setdefault("immune_dots", list(b.get("immune_dots") or []))
+            _u.setdefault("adapt", dict(b.get("adapt") or {"poison": 0.0, "burn": 0.0}))
         _main = _boss_grp[0]
         # 已有全局 enemies（他人已打过）：新构建的爪牙按 uid 从既有全局阵列同步 hp，避免重置
         _existing = b.get("enemies")
@@ -2455,14 +2486,30 @@ class CombatCmds(CommandBase):
                     u["hp"] = _gu.get("hp", u.get("hp", 0))
         else:
             b.enemy["hp"] = gboss.get("hp", b.enemy.get("hp", 0))
+        # DOT/减益重构（契约 §6）：行动前把全局共享 debuffs 同步到本地主目标（逐键浅拷贝，
+        # 世界 Boss 毒/灼烧/流血为全局单份，多玩家并发时各行动叠加层、每 N 次行动统一结算）。
+        # 主目标即 enemy（dot 只挂主目标，爪牙不挂 dot）。
+        b.enemy["debuffs"] = {k: dict(v) for k, v in (gboss.get("debuffs") or {}).items()}
+        # v1.2（契约 §11.3）：行动前把全局共享减益适应同步到本地主目标（与 debuffs 同步同处）。
+        b.enemy["adapt"] = dict(gboss.get("adapt") or {"poison": 0.0, "burn": 0.0})
         before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
         logs, ended = b.player_turn(action, skill_name, player, target=target)
+        # DOT/减益重构（契约 §6）：行动后累加全局 dot 结算计数，每 WORLD_BOSS_DOT_INTERVAL
+        # 次玩家行动强制结算一次 dot（force=True 直接扣 b.enemies hp，忽略 _dot_pending 闸门，
+        # 模拟"一队一轮"）。结算必须在 after/dealt 计算**之前**调用，这样 dealt 已含 dot 伤害、
+        # 后续 hp 写回全局也一并包含。
+        gboss["dot_act"] = int(gboss.get("dot_act", 0) or 0) + 1
+        if int(gboss["dot_act"]) % WORLD_BOSS_DOT_INTERVAL == 0:
+            # 契约 §2.2 实际实现：_tick_dots 原地向传入的 logs 追加文案并返回合并后同一列表，
+            # 故用 logs = 覆盖而非 logs +=，避免同一列表二次自拼接导致 dot 行重复显示。
+            logs = b._tick_dots(player, logs, force=True)  # force 结算的 dot 文案并入
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         after = sum(max(0, u.get("hp", 0)) for u in b.enemies)
         dealt = max(0, before - after)  # 全阵列伤害合计
         contrib = gboss.setdefault("contrib", {})
         contrib[str(qq_id)] = contrib.get(str(qq_id), 0) + dealt
-        lines = [x for x in logs if "你击败了" not in x and "毒发身亡" not in x]
+        # 保留"你击败了"过滤（胜利文案由结算逻辑输出）；恢复"毒发身亡"文案（dot 结算击杀的展示）
+        lines = [x for x in logs if "你击败了" not in x]
 
         # 行动后：本地 b.enemies → 全局阵列（逐 uid 同步 hp）+ 主目标汇总
         if genemies:
@@ -2478,6 +2525,11 @@ class CombatCmds(CommandBase):
                 gboss["max_hp"] = _main_now.get("max_hp", _main_now.get("hp", 1))
         else:
             gboss["hp"] = b.enemy["hp"]
+        # DOT/减益重构（契约 §6）：行动后把本地结算后的 debuffs 写回全局（毒/灼烧/流血全局共享单份，
+        # 供其他玩家下一步行动同步；与 hp 写回同处）。
+        gboss["debuffs"] = {k: dict(v) for k, v in (b.enemy.get("debuffs") or {}).items()}
+        # v1.2（契约 §11.3）：行动后把本地减益适应写回全局（与 debuffs 写回同处）。
+        gboss["adapt"] = dict(b.enemy.get("adapt") or {"poison": 0.0, "burn": 0.0})
 
         if ended and b.result == "victory":
             # Boss 死亡结算（全阵列无存活；先于玩家死亡判断）
