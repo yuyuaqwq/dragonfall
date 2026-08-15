@@ -70,7 +70,7 @@ check("战斗内 payload=hot:0.05,0.06,3", r.payload == "hot:0.05,0.06,3", r.pay
 
 # ---- 3. Battle hot 全链路 ----
 print("== 3. 战斗内 hot 全链路 ==")
-enemy = {"name": "野狗", "hp": 50, "max_hp": 50, "atk": 5, "def": 0, "matk": 0, "mdef": 0, "spd": 1000}
+enemy = {"name": "野狗", "hp": 50, "max_hp": 50, "atk": 5, "def": 0, "matk": 0, "mdef": 0, "spd": 25}
 b = Battle("monster", enemy, {})
 player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_zhan_shi",
           "level": 1, "learned_skills": [], "race": "human", "attributes": {}}

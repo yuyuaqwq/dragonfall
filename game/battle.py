@@ -89,6 +89,10 @@ DEFEND_REDUCE = 0.5   # 防御：敌方伤害减半
 BUFF_TURNS = 3        # 增益默认持续回合
 DEBUFF_TURNS = 2      # 减益默认持续回合
 
+# v121 CTB 行动时间轴：全局行动消耗常量
+BASE_DELAY = 100.0    # 行动消耗基数（待 Agent D 模拟标定）
+SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
+
 
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None):
@@ -101,6 +105,10 @@ class Battle:
         self._enemies_raw = enemy or {}    # 主目标 dict（单怪时整个敌方单位）
         if enemies is not None:
             self.enemies = [dict(u) for u in enemies]
+            # v121 CTB：敌方单位 ct 缺省 -spd（快者先手）；随 enemies 阵列持久化
+            for u in self.enemies:
+                if "ct" not in u:
+                    u["ct"] = -float(u.get("spd", 0) or 0)
             if not any(u.get("rank") for u in self.enemies):
                 for i, u in enumerate(self.enemies):
                     u.setdefault("uid", f"e_{i}")
@@ -182,12 +190,13 @@ class Battle:
         # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾，3 回合；v101.28d 盾 buff 化）
         if player and "shield" in self._equip_affix_ids(player):
             self._add_shield("affix_shield", int(player.get("max_hp", 100) * 0.10), 3)
-        # v61 进度条速度机制：每回合双方进度 + 各自速度，差距攒够慢方速度 → 快方额外行动
-        self.p_progress: float = 0.0          # 玩家行动进度
-        self.e_progress: float = 0.0          # 敌方行动进度
-        self.p_extra_left: int = 0            # 玩家本回合剩余额外行动次数（自由选择出手）
-        self.e_extra_left: int = 0            # 敌方本回合剩余额外行动次数
-        self.e_first: bool = False            # 敌方是否先手（速度更快）
+        # v121 CTB 行动时间轴：玩家 ct（越小越先行动），开局 = -spd（快者先手）
+        self.p_ct: float = 0.0
+        try:
+            if player:
+                self.p_ct = -float(self._player_stats(player).get("spd", 0) or 0)
+        except Exception:
+            self.p_ct = -float(player.get("spd", 0) or 0) if player else 0.0
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
         self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
         self._death_pact_used: bool = False   # v107 死亡契约（暗影祭司）：每场 1 次标记
@@ -209,6 +218,7 @@ class Battle:
         u.setdefault("stacks", u.get("stacks") or {})
         u.setdefault("defending", False)
         u.setdefault("charging", None)
+        u.setdefault("ct", -float(u.get("spd", 0) or 0))  # v121 CTB 缺省 -spd
         return u
 
     @property
@@ -287,11 +297,7 @@ class Battle:
             "resources": self.resources,
             "cooldown": self.cooldown,
             "combo_seq": self.combo_seq,
-            "p_progress": self.p_progress,
-            "e_progress": self.e_progress,
-            "p_extra_left": self.p_extra_left,
-            "e_extra_left": self.e_extra_left,
-            "e_first": self.e_first,
+            "p_ct": self.p_ct,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
             "death_pact_used": getattr(self, "_death_pact_used", False),
@@ -334,12 +340,11 @@ class Battle:
         b.cooldown = st.get("cooldown", {}) or {}
         b.combo_seq = st.get("combo_seq", []) or []
         b.team_effects = []
-        # v61 进度条字段（老存档用 .get 兜底为 0）
-        b.p_progress = float(st.get("p_progress", 0) or 0)
-        b.e_progress = float(st.get("e_progress", 0) or 0)
-        b.p_extra_left = int(st.get("p_extra_left", 0) or 0)
-        b.e_extra_left = int(st.get("e_extra_left", 0) or 0)
-        b.e_first = bool(st.get("e_first", False))
+        # v121 CTB：玩家 ct 读取（老存档兜底 0）；敌方单位 ct 兜底 -spd
+        b.p_ct = float(st.get("p_ct", getattr(b, "p_ct", 0.0)) or 0.0)
+        for _u in b.enemies:
+            if "ct" not in _u:
+                _u["ct"] = -float(_u.get("spd", 0) or 0)
         b._player_hit = bool(st.get("player_hit", False))
         b.first_attack_done = bool(st.get("first_attack_done", False))
         b._death_pact_used = bool(st.get("death_pact_used", False))
@@ -439,17 +444,44 @@ class Battle:
             parts.append("_")
         return "→".join(parts)
 
-    def _speed_advice(self, n: int) -> str:
-        """O110 修复：速度优势剩余次数提示文案。
+    def _ct_cost(self, spd) -> float:
+        """v121 CTB：行动消耗 cost = BASE_DELAY / max(1, min(spd, SPD_CT_CAP))。"""
+        try:
+            eff = min(float(spd or 0), SPD_CT_CAP)
+        except Exception:
+            eff = 0.0
+        return BASE_DELAY / max(1.0, eff)
 
-        副本（instance）是回合制轮流——玩家行动后回合立即移交队友，额外行动在
-        "自己的回合"才生效（O102 已透传持久化）。原文案"你还可以行动 N 次"在
-        队友回合看到会误以为当前可出手，『攻击』却被拒"现在是 XX 的回合"
-        （playtest O110 洛洛+阿甘实测）。普通战斗额外行动当回合即可连击，保持原文案。
-        """
-        if self.btype == "instance":
-            return f"⚡ 速度优势！轮到你的回合时还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
-        return f"⚡ 速度优势！你还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
+    def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None):
+        """v121 CTB：行动者 ct += cost；其余所有存活单位 ct -= cost。
+        side="p"：玩家行动完（用传入 player 的速度；from_state 恢复/副本构造无 self.player，
+        必须传 player 否则 spd 视为 0 导致 p_ct 每次 +BASE_DELAY 卡死玩家）；
+        side="e"：指定敌方单位行动完（该单位 cost 广播给玩家和其他敌）。
+        敌方单位无 get("ct") 时兜底 setdefault(-spd)。"""
+        if side == "p":
+            _p = player or self.player or {}
+            p_cost = self._ct_cost(self._player_stats(_p).get("spd", 0) if _p else 0)
+            self.p_ct += p_cost
+            for u in self.enemies:
+                u.setdefault("ct", -float(u.get("spd", 0) or 0))
+                if u.get("hp", 0) > 0:
+                    u["ct"] = float(u.get("ct", 0) or 0) - p_cost
+        else:
+            u = unit or {}
+            u.setdefault("ct", -float(u.get("spd", 0) or 0))
+            # v121 审计修复：敌方 cost 用 buffed spd（_enemy_stats 应用 spd_down ×0.5 等），
+            # 否则敌方减速/增益不影响其行动频率（与玩家侧 _player_stats 对称）
+            e_cost = self._ct_cost(self._enemy_stats(u).get("spd", 0))
+            u["ct"] = float(u.get("ct", 0) or 0) + e_cost
+            # 玩家侧时间流逝
+            self.p_ct -= e_cost
+            # 其他存活敌方单位时间流逝
+            for other in self.enemies:
+                if other is u:
+                    continue
+                other.setdefault("ct", -float(other.get("spd", 0) or 0))
+                if other.get("hp", 0) > 0:
+                    other["ct"] = float(other.get("ct", 0) or 0) - e_cost
 
     # ---------------- v2 目标选择 / 蓄力（§3.2、§6） ----------------
     def _player_attacker(self, player: dict) -> dict:
@@ -547,8 +579,9 @@ class Battle:
         player: 玩家 dict（战斗内会修改 hp/mp，由调用方负责存库）
         enemy_act: 是否在玩家行动后立即结算敌方回合（PVP 传 False，由对方真人操作）
         target: v2 指定目标（uid 或名字前缀，None=自动选择）
-        v61：进度条速度机制——双方进度各+速度，攒够慢方速度获得额外行动。
-        玩家额外行动可自由选择出手方式（攻击/技能/道具），不再自动普攻。
+        v121：CTB 行动时间轴——玩家正常行动 +1 回合；行动后玩家 ct += cost，
+        其余敌方单位 ct -= cost，随后进入敌方行动段（敌方连动由 _enemy_phase 判定）。
+        不再有额外行动 / 先手概念，快 = 更频繁轮到行动。
         """
         logs = []
         # v95.19: 战斗内上限统一实时值——覆盖 from_state 恢复的战斗（恢复时不传 player，
@@ -559,49 +592,6 @@ class Battle:
             player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception:
             pass
-        # v63 额外行动阶段被控：眩晕/冻结跳过（消耗额外行动但不执行动作）
-        if self.p_extra_left > 0 and ("stun" in self.p_buffs or "freeze" in self.p_buffs):
-            logs.append("🌀 你被控制，无法出手！")
-            self.p_extra_left = 0
-            self.p_buffs.pop("stun", None)
-            self.p_buffs.pop("freeze", None)
-            # v101.28 被控制回合 hot 照常结算（被动效果，正好救命）
-            if self.p_hot and self.p_hot.get("turns", 0) > 0:
-                logs += self._apply_hot(player)
-            return self._enemy_phase(player, logs, enemy_act)
-        # 额外行动阶段（上回合速度优势还没用完）：不结算新回合，直接自由出手
-        if self.p_extra_left > 0 and action in ("attack", "skill", "use_item"):
-            # O118 技能施放失败保护：额外行动阶段同样先校验，失败不消耗额外行动
-            if action == "skill":
-                _fl, _blocked = self._skill_cast_blocked(skill_name, player)
-                if _blocked:
-                    _fl.append("技能施放失败！可选择其他行动")
-                    return logs + _fl, False
-            self.p_extra_left -= 1
-            if action == "use_item":
-                logs += self._do_use_item(skill_name or "", player)
-            elif action == "skill":
-                logs += self._do_player_skill(skill_name, player)
-            else:
-                logs += self._player_attack(self._player_stats(player), player)
-            if self._enemy_dead():
-                self.result = "victory"
-                self._end_round()
-                return logs, True
-            if self.p_extra_left > 0:
-                logs.append(self._speed_advice(self.p_extra_left))
-                return logs, False
-            # 额外行动用完 → 敌方行动
-            return self._enemy_phase(player, logs, enemy_act)
-        # 额外行动阶段选择防御/逃跑：放弃剩余速度优势，直接进入防御/逃跑（不开新回合）
-        if self.p_extra_left > 0 and action in ("defend", "flee"):
-            self.p_extra_left = 0
-            if action == "defend":
-                logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
-                self.p_defending = True
-                return self._enemy_phase(player, logs, enemy_act, defend=True)
-            return self._do_flee(player, logs, self.e_extra_left)
-
         # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
         # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
         if "silence" in self.p_buffs and action == "skill":
@@ -632,25 +622,27 @@ class Battle:
             if self.result == "victory":
                 self._end_round()
                 return logs, True
-        # v61 进度条速度机制（PVP 保持真人轮流，不介入）
-        p_extra = e_extra = 0
-        e_first = False
-        if self.btype != "pvp":
-            p_extra, e_extra, e_first = self._speed_plan(player)
-        # v63 玩家被控：眩晕/冻结 → 跳过本回合行动（敌方照常行动）
+        # v63 玩家被控：眩晕/冻结 → 跳过本回合行动（CTB 下行动浪费，玩家 ct 照走，随后敌方行动段）
+        # v121 审计修复：统一走 _after_actor_ct("p")——被控也是"玩家行动消耗"，
+        # 敌方应同步时间流逝（与蓄力等待/防御等路径一致），避免被控方反而配速占优
         if "stun" in self.p_buffs:
             logs.append("🌀 你被眩晕，无法行动！")
             self.p_buffs.pop("stun", None)
+            if self.btype != "pvp":
+                self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act)
         if "freeze" in self.p_buffs:
             logs.append("❄️ 你被冻结，无法行动！")
             self.p_buffs.pop("freeze", None)
+            if self.btype != "pvp":
+                self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act)
 
         # v2 蓄力期间：普攻/技能被拦截（可防御/道具），敌方照常行动
         if self._player_charging_blocked(logs, action):
-            if self.p_extra_left > 0:
-                self.p_extra_left = 0
+            # v121 CTB：蓄力等待也是玩家行动 → 玩家 ct 照走（PVP 不介入）
+            if self.btype != "pvp":
+                self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act, defend=(action == "defend"))
 
         # v2 目标解析（攻击/技能指定的目标；其余行动重置为主目标）
@@ -665,31 +657,21 @@ class Battle:
             self._active_target = None
 
         if action == "defend":
-            return self._do_defend(player, logs, enemy_act, e_extra)
+            return self._do_defend(player, logs, enemy_act)
         if action == "flee":
-            return self._do_flee(player, logs, e_extra)
+            return self._do_flee(player, logs)
         if action == "use_item":
             logs += self._do_use_item(skill_name or "", player)
             if self._enemy_dead():
                 self.result = "victory"
                 self._end_round()
                 return logs, True
-            # 用道具后速度优势仍在 → 留给玩家自由选择
-            if self.p_extra_left > 0:
-                logs.append(self._speed_advice(self.p_extra_left))
-                return logs, False
+            # v121 CTB：使用道具也是玩家行动 → 玩家 ct 照走（PVP 不介入）
+            if self.btype != "pvp":
+                self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, enemy_act)
 
         st = self._player_stats(player)
-        # v61：敌方先手 → 先挨一下再行动
-        if e_first and enemy_act:
-            mlogs, dmg = self._enemy_turn(player)
-            logs += mlogs
-            self._damage_player(player, dmg, logs)
-            if self._player_dead(player):
-                self.result = "defeat"
-                self._end_round()
-                return logs, True
         if action == "skill":
             logs += self._do_player_skill(skill_name, player)
             # v116.1 pv_broken：记录玩家本回合用了技能，敌方 _boss_mech 据此决定反扑
@@ -702,17 +684,11 @@ class Battle:
             self._end_round()
             return logs, True
 
-        # v61：玩家速度优势 → 额外行动留给玩家自由选择（不再自动普攻）
-        if self.p_extra_left > 0:
-            # O110 修复：副本（instance）行动后回合移交队友，额外行动在自己回合才生效——
-            # 文案同步改为"轮到你的回合时…"（playtest O110 洛洛+阿甘实测）
-            if self.btype == "instance":
-                logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，轮到你的回合时可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
-            else:
-                logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
-            return logs, False
+        # v121 CTB：玩家行动完 → 玩家 ct += cost、其余敌方单位 ct -= cost（PVP 不介入）
+        if self.btype != "pvp":
+            self._after_actor_ct("p", player=player)
 
-        # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每回合一次，额外行动不触发）
+        # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每回合一次）
         if self.summons:
             logs = self._summons_act(player, logs)
             if self._enemy_dead():
@@ -720,31 +696,26 @@ class Battle:
                 self._end_round()
                 return logs, True
 
-        # 玩家无额外行动 → 敌方行动
+        # 敌方行动段
         return self._enemy_phase(player, logs, enemy_act)
 
     def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
-        """v2 敌方行动阶段：每个存活敌方单位依次行动一次（rank升序→spd降序，§3.2）。
-        + 速度优势额外批次（e_extra_left 整轮再加打）。defend=True 时敌方伤害减半。
-        e_first 时主目标已在 player_turn 先手一击打过，这里跳过主目标避免重复。"""
-        if enemy_act:
+        """v121 CTB 敌方行动段：while 敌方存活单位中最小 ct < 玩家 ct → 该单位行动一次，
+        行动后结算其 ct（自身 +cost、其余含玩家 -cost）；死亡单位即时移出候选（存活判定沿用 alive）。
+        被控（stun/freeze）跳过的敌方单位行动后仍照常结算其 ct（行动被浪费）。
+        defend=True 时敌方伤害减半。硬上限：单次玩家行动后敌方最多连动 8 次，超限 break。
+        PVP（btype=="pvp"，或 enemy_act=False 由对方真人操作）不介入。"""
+        if enemy_act and self.btype != "pvp":
             from .core.formation import alive_units
-            # 敌方行动顺序：rank 升序 → spd 降序
-            units = sorted(alive_units(self.enemies),
-                           key=lambda u: (int(u.get("rank", 1) or 1), -int(u.get("spd", 0) or 0)))
-            if self.e_first:
-                # 主目标先手已打
-                main = self.enemy
-                units = [u for u in units if u is not main]
-            batches = units
-            if self.e_extra_left:
-                batches = list(units) * (1 + self.e_extra_left)
-            self.e_extra_left = 0
-            for unit in batches:
-                if self._player_dead(player):
+            _guard = 0  # 敌方连动硬上限（防极端配速死循环）
+            while _guard < 8:
+                alive = alive_units(self.enemies)
+                if not alive or self._player_dead(player):
                     break
-                if unit.get("hp", 0) <= 0:
-                    continue
+                min_e_ct = min(float(u.get("ct", 0) or 0) for u in alive)
+                if min_e_ct >= self.p_ct:
+                    break
+                unit = min(alive, key=lambda u: float(u.get("ct", 0) or 0))
                 mlogs, dmg = self._enemy_turn(player, unit)
                 logs += mlogs
                 if defend and dmg > 0:
@@ -752,8 +723,11 @@ class Battle:
                     # O116 与伤害文案一起延迟输出（闪避时不显示）
                     self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                 self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
+                # 行动后结算该单位 ct（被控跳过同样结算 —— 行动被浪费）
+                self._after_actor_ct("e", unit)
                 if self._player_dead(player):
                     self.result = "defeat"
+                _guard += 1
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
         self._end_round()
         return logs, self.result is not None
@@ -1075,105 +1049,35 @@ class Battle:
         return logs
 
     # ---------------- 防御 / 逃跑 ----------------
-    def _speed_plan(self, player: dict) -> tuple:
-        """v61 进度条速度机制：每回合双方进度 + 各自速度，
-        进度差攒够「慢方速度」→ 快方获得 1 次额外行动（余数保留，无阈值跳跃）。
-        返回 (玩家额外次数, 敌方额外次数, 敌方是否先手)。PVP 不介入。
-        例：10速 vs 11速 → 每回合差 1 点，第 10 回合敌方进度超 10 → 敌方 +1 行动。
-        """
-        if self.btype == "pvp":
-            return 0, 0, False
-        pst = self._player_stats(player)
-        est = self._enemy_stats()
-        p_spd = max(1, pst.get("spd", 0) or 1)
-        e_spd = max(1, est.get("spd", 0) or 1)
-        # 进度条累计
-        self.p_progress = float(self.p_progress or 0) + p_spd
-        self.e_progress = float(self.e_progress or 0) + e_spd
-        # 玩家领先 → 玩家获得额外行动（每攒够敌方速度 1 次；余数保留）
-        # 每回合封顶 2 次额外（最多 3 次行动/回合），防速度碾压连击爆炸（v61 平衡）
-        while self.p_progress - self.e_progress >= e_spd and self.p_extra_left < 2:
-            self.p_extra_left += 1
-            self.p_progress -= e_spd
-        # 敌方领先 → 敌方获得额外行动（每攒够玩家速度 1 次；余数保留）
-        while self.e_progress - self.p_progress >= p_spd and self.e_extra_left < 2:
-            self.e_extra_left += 1
-            self.e_progress -= p_spd
-        # 先手：速度快者先，同速玩家先（保底）
-        e_first = e_spd > p_spd
-        self.e_first = e_first
-        return self.p_extra_left, self.e_extra_left, e_first
-
-    def _do_defend(self, player: dict, logs: list, enemy_act: bool = True, e_extra: int = 0) -> tuple:
+    def _do_defend(self, player: dict, logs: list, enemy_act: bool = True) -> tuple:
         logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
         self.p_defending = True
-        if enemy_act:
-            mlogs, dmg = self._enemy_turn(player)
-            logs += mlogs
-            if dmg > 0:
-                dmg = max(1, int(dmg * DEFEND_REDUCE))
-                # O116 与伤害文案一起延迟输出（闪避时不显示）
-                self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-            self._damage_player(player, dmg, logs)
-            if self._player_dead(player):
-                self.result = "defeat"
-            # v57：敌方速度优势 → 连续追击（防御姿态同样减半）
-            for _ in range(e_extra):
-                if self._player_dead(player):
-                    break
-                mlogs, dmg = self._enemy_turn(player)
-                logs += mlogs
-                if dmg > 0:
-                    dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    # O116 与伤害文案一起延迟输出（闪避时不显示）
-                    self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-                self._damage_player(player, dmg, logs)
-                if self._player_dead(player):
-                    self.result = "defeat"
+        # v121 CTB：防御也是玩家行动 → 玩家 ct 照走；敌方段统一走 _enemy_phase 的 ct 判定
+        # （defend=True 时 _enemy_phase 内每个敌方单位伤害减半），PVP 不介入
+        if enemy_act and self.btype != "pvp":
+            self._after_actor_ct("p", player=player)
+            return self._enemy_phase(player, logs, enemy_act, defend=True)
         self._end_round()
         return logs, self.result is not None
 
-    def _do_flee(self, player: dict, logs: list, e_extra: int = 0) -> tuple:
+    def _do_flee(self, player: dict, logs: list) -> tuple:
         if self.btype in ("worldboss", "pvp"):
             logs.append("💨 这里无法逃跑！背水一战吧！")
             if self.btype == "pvp":
                 # PVP：不触发 AI 反击，等对方真人行动
                 return logs, False
-            mlogs, dmg = self._enemy_turn(player)
-            logs += mlogs
-            self._damage_player(player, dmg, logs)
-            if self._player_dead(player):
-                self.result = "defeat"
-            for _ in range(e_extra):
-                if self._player_dead(player):
-                    break
-                mlogs, dmg = self._enemy_turn(player)
-                logs += mlogs
-                self._damage_player(player, dmg, logs)
-                if self._player_dead(player):
-                    self.result = "defeat"
-            self._end_round()
-            return logs, self.result is not None
+            # v121 CTB：逃跑失败也被敌方追击 → 玩家 ct 照走，敌方段按 ct 判定
+            self._after_actor_ct("p", player=player)
+            return self._enemy_phase(player, logs, True)
         if random.random() < C.FLEE_CHANCE:
             logs.append("💨 你成功脱离了战斗！")
             self.result = "fled"
             return logs, True
         logs.append("💨 逃跑失败！被追上了！(可以再『逃跑』，或『防御』『用药』撑住)" )
-        mlogs, dmg = self._enemy_turn(player)
-        logs += mlogs
-        self._damage_player(player, dmg, logs)
-        if self._player_dead(player):
-            self.result = "defeat"
-        for _ in range(e_extra):
-            if self._player_dead(player):
-                break
-            mlogs, dmg = self._enemy_turn(player)
-            logs += mlogs
-            self._damage_player(player, dmg, logs)
-            if self._player_dead(player):
-                self.result = "defeat"
-        self._end_round()
-        return logs, self.result is not None
+        # v121 CTB：逃跑也是玩家行动 → 玩家 ct 照走（PVP 不介入），敌方段按 ct 判定
+        if self.btype != "pvp":
+            self._after_actor_ct("p", player=player)
+        return self._enemy_phase(player, logs, True)
 
     # ---------------- 玩家行动结算 ----------------
     def _enchant_effects(self, player: dict) -> dict:
@@ -2489,11 +2393,10 @@ class Battle:
             eb.pop("stun", None)
             return logs, 0
         # v109.2 P1-3：睡眠（受击解除，按回合递减）
+        # v121 审计修复：回合递减只由 _end_round 统一执行（每玩家行动 1 次）——
+        # 此分支此前每次被选中行动都 -1，CTB 连动下睡眠一回合被多重递减直接清零
         if "sleep" in eb:
             logs.append(f"💤 【{ename}】陷入沉睡，无法行动！")
-            eb["sleep"] -= 1
-            if eb["sleep"] <= 0:
-                del eb["sleep"]
             return logs, 0
         est = self._enemy_stats()
         # v2 敌方蓄力单位：left-1；归零自动释放技能（结算效果，不普攻）
@@ -3019,11 +2922,17 @@ class Battle:
         """回合结束：buff 剩余回合递减 + v2.0 技能冷却递减"""
         for tbl in (self.p_buffs, self.e_buffs):
             for k in list(tbl):
-                # v95.24 #252: 控制类 buff（stun/freeze）是"行动级"控制——由行动消费点
-                # （_enemy_turn 1295-1303 / player_turn 314-321 / 额外行动 265-271）负责 pop，
-                # 不能在回合结束时递减：否则施放当回合若敌方无行动（副本 enemy_act=False、
-                # 敌方先手 e_extra_left=0、敌方施放眩晕给玩家）会被直接吞掉，眩晕永远不生效。
+                # v95.24 #252 / v121 CTB：控制类 buff（stun/freeze）是"行动级"控制——
+                # 由行动消费点（_enemy_turn 被控跳过 / player_turn 被控跳过）负责 pop，
+                # 不能在回合结束时递减：否则施放当回合若敌方尚未轮到行动（副本 enemy_act=False、
+                # CTB 下敌方该轮未行动、敌方施放眩晕给玩家）会被直接吞掉，眩晕永远不生效。
                 if k in ("stun", "freeze"):
+                    continue
+                # v121 CTB：元素印记（fire/ice/thunder_mark）是层数标记而非回合 buff——
+                # 旧 v61 靠"速度优势回合不结束回合（_end_round 推迟）"掩盖了这里的误递减；
+                # CTB 下每回合都正常结束，印记施放当回合就被清掉，元素反应（挂印→异系触发）
+                # 体系整体失效。印记生命周期 = 触发反应清除（clear=True）或战斗结束。
+                if k in ("fire_mark", "ice_mark", "thunder_mark"):
                     continue
                 # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
                 # 需单独递减（数值递减会让百分比被 -1 污染）。
@@ -3197,6 +3106,9 @@ class Battle:
                 "def": int(e.get("def", 0) * 0.40),
                 "mdef": int(e.get("mdef", 0) * 0.40),
                 "spd": int(e.get("spd", 0) or 1),
+                # v121 审计修复：援军必须带 ct（-spd 与其余构造路径一致），
+                # 否则缺省按 0.0 兜底会在战斗中期近乎立即行动并连动，破坏 CTB 节奏
+                "ct": -float(int(e.get("spd", 0) or 1)),
                 "crit": e.get("crit", 0.05),
                 "buffs": {},
                 "stacks": {},

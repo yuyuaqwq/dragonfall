@@ -1032,6 +1032,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
+        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
         # v2 指定目标：『攻击 <名字>』解析为目标名传给引擎（引擎会校验射程/存活）；无参→None 自动
         _target = target_arg or None
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
@@ -1234,6 +1235,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
+        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1462,6 +1464,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
+        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
         if battle["state"].get("type") == "pvp":
             if self._pvp_handle_timeout(battle, group_id, qq_id):
                 yield event.plain_result("⏰ PVP 战斗超过 5 分钟无人行动，自动解除！")
@@ -1518,6 +1521,7 @@ class CombatCmds(CommandBase):
             yield event.plain_result("👑 Boss 锁定了你，无法逃跑！背水一战吧！")
             return
         b = BT.Battle.from_state(battle["state"])
+        b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
         logs, ended = b.player_turn("flee", None, player)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
@@ -1691,9 +1695,6 @@ class CombatCmds(CommandBase):
             lines.append(rl)
         if status:
             lines.append(status)
-        # v61：玩家还有剩余额外行动时提示自由出手
-        if getattr(b, "p_extra_left", 0) > 0:
-            lines.append(f"⚡ 速度优势！你还可以行动 {b.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
         return "\n".join(lines)
 
     def _handle_victory(self, event, group_id, qq_id, player, monster, result):

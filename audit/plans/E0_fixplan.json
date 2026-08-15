@@ -1,0 +1,147 @@
+{
+  "domain": "E0",
+  "findings": [
+    {
+      "id": "B2",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "region 简写（南境/中域/天空/地底…）与全称（南境·绿野/中域·圣光之心/风翼群岛/幽暗地域…）两套口径无法直接 join",
+      "files": ["design/new_world/.gen/instances.json"],
+      "fix_summary": "将 design/new_world/.gen/instances.json 各条目 region 字段从简写（南境/中域/西境/北境/东境/群岛/地底/天空/无尽海）同步为与 game/data/maps.py 全称枚举一致的写法（南境·绿野/中域·圣光之心/西境·银月林海/北境·霜原/东境·龙脊/翡翠海群岛/幽暗地域/风翼群岛/无尽海）。该 .gen 为设计快照，非运行时数据，改动仅为文档口径对齐。",
+      "risk": "low",
+      "test_impact": "无；若本仓库存在 .gen 再生成脚本需随其口径重跑，否则手工对齐即可。"
+    },
+    {
+      "id": "B1",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "01 章「大陆五域」未给外域 4 区（翡翠海群岛/无尽海/幽暗地域/风翼群岛）配势力/气候/等级",
+      "files": ["design/new_world/01_世界观与背景.md"],
+      "fix_summary": "在 design/new_world/01_世界观与背景.md §一 大陆五域表格后补充或单列外域 4 区设定（翡翠海群岛/无尽海/幽暗地域/风翼群岛 的势力、气候、冒险者等级参考，可指回 02 章地图文档），消除实现已铺满而文档空窗。纯文档补写。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "B5",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "03 §八 功能分布表仍标 quest/战斗：老橡(npc_oak_elder)/猎手·霜刃(npc_frost_blade)/守备官·艾德温(npc_garrison)/裂颅(npc_fallen_chief) 实机 quest 已删",
+      "files": ["design/new_world/03_NPC群像.md"],
+      "fix_summary": "按 game/data/npcs.py 现状更新 design/new_world/03_NPC群像.md §八（Lv.448/454/456）：艾德温由 quest/daily 改为 daily，老橡/猎手·霜刃/裂颅的 quest 标注删除（分别对应 funcs=[\"daily\"] 与 funcs=[]），与实现一致。纯文档同步。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "B8",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "04 章 §八 与 §十四 重复列外域世界Boss；§八 保留未实装行且 mech 文字与 world.py 不符",
+      "files": ["design/new_world/04_怪物图鉴.md"],
+      "fix_summary": "合并 design/new_world/04_怪物图鉴.md §八(Lv.576-583) 与 §十四(Lv.858-860) 为单一世界Boss表；移除或改标「暂缓」未实装的 腐牙兽人酋长·裂颅/恶魔将军·贝利尔 两行；将 §八 末行 古龙·奥姆之影「全属性大幅提升」改为与 game/data/world.py:40 mech=\"enrage\" 一致的描述（狂暴/攻击强化）。纯文档收敛。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "B9",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "wild_npcs.py docstring 「28 个野外 NPC」过时（实际 WILD_NPCS 为 32 个）",
+      "files": ["game/data/wild_npcs.py"],
+      "fix_summary": "将 game/data/wild_npcs.py:4 docstring 中的「28 个野外 NPC」改为「32 个野外 NPC」（核实 WILD_NPCS 段落 w_* 共 32 条，与 03 §二 一致）。纯注释修正。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "B14",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "29 个数据文件 docstring 游戏名《剑与魔法》与统一名「奥兰迪亚·余烬纪年」并存",
+      "files": ["game/data/classes.py", "game/data/skills.py", "game/data/equipment.py", "game/data/dialogues.py", "game/data/_assembly.py"],
+      "fix_summary": "批量将 game/data/ 下 29 个文件行 2 的 `\"\"\"《剑与魔法》数据层` 统一替换为 `\"\"\"奥兰迪亚·余烬纪年 数据层`（与本仓库重建文件/设计名一致）。涉及：classes/core_resources/dialogues/enchant/enhance/equipment/gather/gather_pools/guild/honor_shop/housing/index/monster_mods/mounts/pets/poi_pools/portals/prof_config/rules/runes/sets/stat_templates/skills/skill_up/summons/titles/_assembly/__init__/alchemy。纯 docstring 批量改名，零行为影响。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "C1",
+      "sev": "C",
+      "verdict": "confirmed",
+      "title": "dialogues.py:78 「出了了不得的东西」双「了」拗口",
+      "files": ["game/data/dialogues.py"],
+      "fix_summary": "将 game/data/dialogues.py:78 旅店老板娘台词中的「石拳丘陵的矿洞里出了了不得的东西」改为「……出了件了不得的东西」。注：该台词整句同时属 A5 隧洞之王文案失配范畴（此处仅做纯字面错别字修正，不改承诺内容）。",
+      "risk": "low",
+      "test_impact": "无；现有对话回归用例不受影响。"
+    },
+    {
+      "id": "C2",
+      "sev": "C",
+      "verdict": "confirmed",
+      "title": "skills.py:1236 半角「CD3」与本文件其余技能「CD 3」格式不一致",
+      "files": ["game/data/skills.py"],
+      "fix_summary": "将 game/data/skills.py:1236 「嘲讽」desc 中的「CD3」改为「CD 3」，与本文件其余技能格式统一。纯格式修整，不改数值。",
+      "risk": "low",
+      "test_impact": "无。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A1",
+      "sev": "A",
+      "title": "maps.py chapter 字段（开图/区域章：海蚀=1、旧王陵=4、烬山=8、深渊=8、龙之墓=10）与 instances.json quest=主线章（3/6/9/12）语义系统性错位",
+      "options": "(a) 明确 chapter 为「开图区域章」并在代码/设计补注释说明，与 instances quest（主线章）双字段并存；(b) 增补/拆分 quest（主线任务章）为独立字段并让副本开放节奏按主线章驱动；(c) 全量统一三处口径并再生成 .gen。属字段语义/解锁节奏设计决策，跨 maps.py+instances.json+消费方，压 risky。"
+    },
+    {
+      "id": "A2",
+      "sev": "A",
+      "title": "圣堂地窖（quest=第11章、Boss 审判长·马尔库斯）与龙之墓（quest=第10章、Boss 古龙·奥姆之影）被标为主线章副本，但 05 章 10/11 章主线=烬山祭坛深处/晨曦城·大圣堂，二者均不在主线剧本（龙之墓实为东境区域/世界Boss图）",
+      "options": "(a) 将二副本改标「支线/区域副本」（实例数据 + 05 章归属注释）；(b) 为 05 章 10/11 章补对应承接任务使归属成立；(c) 复核「审判长·马尔库斯」是否在 NPC/图鉴有正式定义，若无则补档。属主线叙事归属设计决策，压 risky。"
+    },
+    {
+      "id": "A3",
+      "sev": "A",
+      "title": "怪物 ID `e_abbey_guardian` 一 ID 二怪：隐藏怪圣堂武僧(hidden_monsters.py:86) vs 普通精英修道院守护者(mesh_rooms_south.py:828)；设计 04 §16/§4.3 自身也撞车",
+      "options": "(a) 隐藏怪改用独立命名空间 `h_` 前缀并拆分 ID（同步修 hidden_monsters.py、mesh_rooms_south.py、subareas.py 引用与设计 04 两节）；(b) 定统一 ID 命名规则文档允许地图内联复用，显式声明该 ID 归属普通精英并给隐藏怪新 ID。需总编定 ID 命名策略，压 risky。"
+    },
+    {
+      "id": "A4",
+      "sev": "A",
+      "title": "怪物 ID `m_sea_serpent`/`m_magma_worm` 在 monsters_final.json 跨区域双档案：同一 ID 被定义两档（海蛇 tank52/speedster64、熔岩虫 dps78/dps86）",
+      "options": "(a) 同 ID 只保留权威档案，跨区域等级递进用 `lv_off`/别名 ID 表达；(b) 接受地图内联复用现状，但收敛 .gen 快照与设计 04 的多档矛盾，明确数据模型为「按地图内联」非「按 ID 唯一」。属数据建模/生成策略，压 risky。"
+    },
+    {
+      "id": "A5",
+      "sev": "A",
+      "title": "「隧洞之王」过期文案：dialogues.py 旅店老板娘/吟游诗人反复承诺石拳丘陵矿洞深处传说Boss「隧洞之王」，但该 Boss 已改名「哥布林酋长·咕噜」实装到哥布林营地；「石拳丘陵」无此图（实为山丘矿洞）；lore 描述与实装完全不符",
+      "options": "(a) 改写 tunnel_king 分支指向「哥布林酋长·咕噜/哥布林营地」，全库将「石拳丘陵」统一为「山丘矿洞」；(b) 保留「隧洞之王」为独立传说 Boss 并在 hill_mine 补实装；(c) 理清 B13 矿洞/哥布林营地/隧洞之王三角措辞。牵涉 dialogues.py/monster_mods 注释/地图文案，需定文案处置方向，压 risky。"
+    },
+    {
+      "id": "B10",
+      "sev": "B",
+      "title": "01 §八黑名单禁「虚空」被系统性违反：虚空猎犬/犬牙/裂隙/爆破/行者/药剂/武器系 广布实装（honor_shop/equipment/items/monsters/monster_mods/mesh_rooms/skills/skill_up/subareas）",
+      "options": "(a) 总编承认虚空系已定型为「深渊/归墟系」并更新 01 黑名单与本仓库规范；或 (b) 按命名铁律将实装虚空命名回流改名。属世界观命名铁律裁决，改面广（10+ 文件），压 risky。"
+    },
+    {
+      "id": "B11",
+      "sev": "B",
+      "title": "新手图 oak_plain 双名：地图显示名「橡木平原」，别名表(LEGACY_MAP_ALIAS)保留「橡木草地」，材料拼音 caodi，命名未统一",
+      "options": "(a) 以「橡木平原」为唯一公开名，清理别名「橡木草地」；(b) 以「橡木草地」回改显示名（改动大）。功能上别名能将「橡木草地」解析到 oak_plain，玩家无断链，仅命名一致性取舍，压 risky。"
+    },
+    {
+      "id": "B12",
+      "sev": "B",
+      "title": "第四章 白石修道院等级偏差：05 章标 Lv.18-25，实装 maps.py white_abbey lv32（中域）",
+      "options": "(a) 以实装为准更新 05 章为 Lv.32；(b) 调整地图与主线等级梯度回 Lv.18-25。属数值/梯度设计取舍，压 risky。"
+    },
+    {
+      "id": "B13",
+      "sev": "B",
+      "title": "矿洞/哥布林营地/隧洞之王 三角关系文案不自洽：山丘矿洞(野外)与哥布林营地(副本)均被描述为「哥布林盘踞/矿洞被占」，叠加 A5 隧洞之王",
+      "options": "(a) 与 A5 一并理清矿洞 vs 营地副本 vs 隧洞之王 方位与归属措辞，统一为「哥布林营地副本盘踞 // 矿洞是地点 // 传说指被占的地精王」；(b) 在数据层将隧洞之王明确挂到某 Boss，消除反复铺垫无对应内容的语义陷阱。压 risky。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [
+    "B3:maps.py MAPS/MAP_BY_ID 双份数据重复（运行时 risk 已消：game/data/_assembly.py:114-117 用 MAPS 重建 MAP_BY_ID，手写 MAP_BY_ID 块被覆盖，改一漏一风险不存在；冗余 MAP_BY_ID 块(L.2095-3960)可作死数据择机清理但非缺陷）",
+    "B7:多处 NPC 多出 quest func（npc_innkeeper/npc_doctor/npc_auctioneer/npc_blacksmith2 均有 quest giver：quests.py:58/119/205/866/888/1503，funcs 中 quest 非悬空，E2 B3 结论为误报）"
+  ],
+  "no_action_count": 12
+}

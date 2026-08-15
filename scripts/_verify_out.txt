@@ -1,0 +1,17 @@
+﻿=== 01_��¹����.md | ���� 994 | BOM �� ===
+=== 02_��Լ����.md | ���� 644 | BOM �� ===
+=== 03_�������޵�Ժ��.md | ���� 1048 | BOM �� ===
+=== 04_������̻���.md | ���� 978 | BOM �� ===
+=== 05_ʥŮ�뾫����.md | ���� 1715 | BOM �� ===
+=== 06_������.md | ���� 535 | BOM �� ===
+
+python : Traceback (most recent call last):
+At line:1 char:129
++ ... g]::new($false); python scripts\_verify_planning_docs.py 2>&1 | Out-F ...
++                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\yuyu\qqbot\data\plugins\dragonfall\scripts\_verify_planning_docs.py", line 75, in <module>
+    print('���񸲸ǣ�ȫ�� 63 ��������ἰ \u2705')
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2705' in position 18: illegal multibyte sequence

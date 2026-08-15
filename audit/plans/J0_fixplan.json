@@ -1,0 +1,116 @@
+{
+  "domain": "J0",
+  "findings": [
+    {
+      "id": "B1",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "professions.py 文件头过时注记（副业经验曲线现与设计对齐）",
+      "files": ["game/store/professions.py"],
+      "fix_summary": "删除或改写 L8 行的 '⚠️ 19 章 §4.1 设计表（100/300/…/5500）数值仍滞后，待文档对齐' 注记——design/new_world/19 L266-268 现已是 v105 二次曲线 need(lv)=5lv²+15lv（累计 2100 满级），与实现（constants.prof_exp_need、L5-7 注释）一致，旧注记已过期误导。",
+      "risk": "low",
+      "test_impact": "无（纯注释清理）"
+    },
+    {
+      "id": "B3",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "采集挂坐骑 bonus 重新掷池，可产出与本次非同类材料",
+      "files": ["game/commands/economy.py"],
+      "fix_summary": "_settle_gather L711 collect_bonus 分支改为从本次 mats 中取样（如 random.choice(mats)），而非重新调用 _gather_roll 取 extra[0]；使 '🐾 坐骑帮你多叼回一份【X】' 文案与实际入包同物一致。",
+      "risk": "low",
+      "test_impact": "无（现有 test_v104/test_v1023 覆盖采集主链路，本轮不新增）"
+    },
+    {
+      "id": "B4",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "采集/挖掘池对 MATERIALS 引用缺运行时防御（数据迭代单点 KeyError）",
+      "files": ["game/data/gather_pools.py", "game/data/__init__.py"],
+      "fix_summary": "在数据层加载点（建议 game/data/__init__.py）加启动校验：遍历 GATHER_MAP_POOLS / GATHER_COND_POOLS / MINING_DEEP_POOLS 所有引用 id，断言其 ∈ MATERIALS，任一遗漏即启动报错；把 _settle_gather L699 的 C.MATERIALS[mat][\"price\"] KeyError 风险从测试守卫前置为启动校验。",
+      "risk": "low",
+      "test_impact": "复用/扩展 tests/test_v97_02_gather_map_bind.py 增加一条池 id 完整性校验断言"
+    },
+    {
+      "id": "B6",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "铁壳龟获取渠道注释与 source 文案过期（新手任务已实装）",
+      "files": ["game/data/pets.py"],
+      "fix_summary": "pets.py L28 注释由 '橡木镇新手任务渠道未实装（24 章无此设计）' 改为 '已实装'，并补 source 文案为 '新手任务(主线 reward_pet) + 蓝档垂钓稀有产出'——主线 gift 已接 world.py L2408-2413 reward_pet、quests.py L13，垂钓 blue 档 economy.py L632-634 实装；顺带解决 C7 图鉴出处信息不全。",
+      "risk": "low",
+      "test_impact": "无（数据文案/注释调整）"
+    },
+    {
+      "id": "B7",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "饱食度'仅胜利扣 2 点'与设计文档'每场战斗 -2'不符",
+      "files": ["design/new_world/24_宠物与伙伴系统.md"],
+      "fix_summary": "design/new_world/24_宠物与伙伴系统.md L52 '每场战斗 -2' 改为 '胜利时 -2'，并注明 v105 M17 P3-5 决定的宽容理由（败北已有金币惩罚+回城、逃跑无惩罚，不再叠加扣粮）。代码（game/commands/combat.py L1748-1750）为当前事实，不改代码只改文档。",
+      "risk": "low",
+      "test_impact": "无"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A2",
+      "sev": "A",
+      "title": "满级采集/挖掘彩蛋在低等级/普通图恒 0%（稀有产出绑定 price≥150）",
+      "options": "① 为低区/新手图注入少量价格≥150 稀有材料，使 Lv.10 万物采集大师/群山之王彩蛋在新手图也可达（涉及经济调整、需评估对低区玩家产出冲击）；② 仅加强面板/结算提示，明示'稀有产出需在含 150+ 材料地图'（零经济影响）；③ 维持高区迁移设计现状。"
+    },
+    {
+      "id": "A3",
+      "sev": "A",
+      "title": "宠物 buff 可能覆盖更强 atk/crit buff（_pet_buff_vals 无条件覆盖 BUFF_MULT，且不重置）",
+      "options": "① 宠物仅覆盖其自身 buff key，_pet_skill_turn 结束清空 _pet_buff_vals（本域+战斗域小改）；② 改为各 atk/crit 类 buff 独立存值、取 max 而非无条件覆盖（改动面更大）；③ 交由 A1 战斗结算域统一在 _apply_buffs 框架修复（跨域协同）。"
+    },
+    {
+      "id": "A4",
+      "sev": "A",
+      "title": "卖房返还基于基础价×比例，忽略累计升级金（满级房卖出近亏 99%）",
+      "options": "① 确认 '投入' 含累计升级金币，改按 (基础价+累计升级金)×HOUSE_REFUND[dlv] 返还（需同步修订 design/25 L37 措辞与 tests/test_v85_housing_upgrade.py L114-117 固化基线）；② 确认投入仅指基础价，维持代码，仅更新 design/25 L37 措辞与返还说明；③ 维持现状。"
+    },
+    {
+      "id": "A5",
+      "sev": "A",
+      "title": "roll_fish 兜底二'再退全品质池'放空品种限定水域约束（潜在规则失效）",
+      "options": "① 将 game/core/fishing.py L79-81 兜底二改为仅用'明确允许该档位'钓点的非限定品种（保留 _spots_ok 约束过滤）+ 补一条正相关测试锁死；② 保持现状但补注释标注潜在边界，仅在数据迭代时再约束。"
+    },
+    {
+      "id": "B5",
+      "sev": "B",
+      "title": "宠物经验(≤50%)+羁绊(+5%)+坐骑 exp_mult(+10%) 叠加可超 70%，与 design/24 '经验≤50%'字面冲突",
+      "options": "① 仅做文档澄清：design/new_world/24 L13/L60 补 '50% 仅限宠物等级加成，各系统叠加无总上限'（零经济影响、推荐）；② 加总经验加成总上限 ≤50%（数值改动，需调整 combat.py L1725-1769 叠加逻辑）。"
+    },
+    {
+      "id": "B8",
+      "sev": "B",
+      "title": "宠物面板 '✨经验加成' 只显示等级加成，未含羁绊+5% 与坐骑 exp_mult+10%（与战斗实算不符）",
+      "options": "① 宠物面板按坐骑/羁绊状态拼接完整加成明细与合计（与 combat.py L1731-1769 实算一致的展示逻辑改动）；② 仅补面板说明文字注明含坐骑/羁绊，不改数值展示。"
+    },
+    {
+      "id": "B10",
+      "sev": "B",
+      "title": "垂钓 _season_prefix 为死代码（roll_fish 写入但结算层未读取，v116 季节标记未落地）",
+      "options": "① 在 economy.py _settle_fishing 输出行拼接 _season_prefix（落地 v116 季节标记功能）；② 删除 core/fishing.py L93-98 死分支（当前 season_prefix 仅 explore 事件在 events.py:53 消费，垂钓侧确无消费方）。"
+    },
+    {
+      "id": "B11",
+      "sev": "B",
+      "title": "卖房仅清 deed/deed_lv，不清 home_storage；降级后仓库存量超上限且不可恢复（半锁定）",
+      "options": "① 卖房前将 home_storage 全部物品返回背包（或提示玩家先取出）并处理溢出；② 对降级超量存储提供明确清仓/回收路径；③ 保持现状（设备计为'家当随房走'）。"
+    },
+    {
+      "id": "B13",
+      "sev": "B",
+      "title": "_deed_upgrade 按物品展示名 inv_map[name] 匹配扣材料（非 item_key），极端撞名下误扣/漏扣",
+      "options": "① 改用材料 item_key 精确匹配扣除（改动 inventory 匹配逻辑，回归面中等）；② 保持现状（当前无实际撞名），仅补注释说明按名匹配的假设。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [
+    "A1:稀有矿分支'等权抽取忽略深矿池权重'——经核验 game/commands/economy.py L802 先将深矿池按权重展开为重复列表(ores)，L824 rare 从该重复列表过滤 price≥150 后仍保留重复项，L831 random.choice(rare) 实际按权重分布(如 hill_mine 精金8/深晶2)，并非等权；J1/组长报告对 L831 '确实等权'的验证有误"
+  ],
+  "no_action_count": 15
+}

@@ -1,0 +1,112 @@
+{
+  "domain": "C0",
+  "findings": [
+    {
+      "id": "B7-oak_plain_3-campfire",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "SUBAREA_POIS 重复 key：oak_plain:oak_plain_3 两处定义（L128 与 L337），v115 块后写覆盖，静默丢掉 campfire 篝火 POI",
+      "files": ["game/data/pois.py", "tests/test_v104_explore_map.py"],
+      "fix_summary": "在 game/data/pois.py L337 的 v115 块中，将 oak_plain:oak_plain_3 由 [\"merchant_camp\",\"herb_patch\",\"scenic_view\"] 改为两处定义取并集 [\"merchant_camp\",\"herb_patch\",\"scenic_view\",\"campfire\"]，恢复被后块覆盖丢失的 campfire（或删除 L128 基础块的同 key 条目，避免重复语义）。同时在 tests/test_v104_explore_map.py 第 3 节 POI 共存断言中，为 oak_plain_3 显式断言 campfire 在列（当前仅判 功能+风景 共存，无法捕获 campfire 丢失）。",
+      "risk": "low",
+      "test_impact": "需补回归测试：在 tests/test_v104_explore_map.py 第 3 节（L96-108）对 oak_plain_3 增加 'campfire in ids' 的显式断言，防止该子区域篝火 POI 再次被静默覆盖。"
+    },
+    {
+      "id": "B5-area_entry-dead",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "MAP_AREAS={} 空 dict + AREA_ENTRY 别名表无任何消费方，属遗留死内容",
+      "files": ["game/data/maps.py", "game/data/_assembly.py", "game/data/__init__.py", "ARCHITECTURE.md"],
+      "fix_summary": "game/data/maps.py 中 MAP_AREAS 为空 dict、AREA_ENTRY（L3972 起，约 96 条目）在 game/core 与 game/commands 全树无引用，仅被 _assembly.py 与 __init__.py 搬运导出。删除 maps.py 中的 MAP_AREAS = {} 与 AREA_ENTRY 整体，并在 game/data/_assembly.py L13 与 game/data/__init__.py L13 的 import/导出列表移除这两个名字；同步更新 ARCHITECTURE.md L42 数据清单中对该两符号的引用。属纯死代码清理，无功能消费者。",
+      "risk": "low",
+      "test_impact": "无功能回归测试改动（无消费方）；用 grep 校验删除后全树无 AREA_ENTRY/MAP_AREAS 引用即可。"
+    },
+    {
+      "id": "B3-mesh-docstring-vs-impl",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "mesh_rooms_east_abyss.py docstring 约定 _6↔_1（隐藏密室由入口揭示），实现全部为 _6↔_2，内部文档与代码不一致",
+      "files": ["game/data/mesh_rooms_east_abyss.py", "design/new_world/02_地图系统_余烬纪元合并版.md"],
+      "fix_summary": "代码为当前事实（_6 全部只连 _2，见 1941/1949/1957/1964 等行），docstring L37 写 'hidden 密室 _6 ↔ _1' 属滞后/失误。将 mesh_rooms_east_abyss.py 头部拓扑约定注释 L37 改为 '_6 ↔ _2（隐藏密室：reveal 后由 _2 岔路揭示）' 使文档对齐实现。注意：若后续采纳 B1/B4 的拓扑改造让 _6 改连 _1，则本注释随改。",
+      "risk": "low",
+      "test_impact": "纯注释同步，无运行/测试影响。"
+    },
+    {
+      "id": "B12-gen_props-doc",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "design/new_world/13_场景氛围元素.md L72 引用已不存在的 scripts/gen_props.py 生成路径",
+      "files": ["design/new_world/13_场景氛围元素.md"],
+      "fix_summary": "glob 确认 scripts/gen_props.py 已不存在；场景元素现手写于 game/data/props.py。将该节（阶段一生成路径说明）更新为『PLACE_RULES/SUBAREA_PROPS 现手写维护于 game/data/props.py，gen_props.py 生成脚本已归档废弃』，保留文件顶部的待归档标注，避免后续按脚本路径误找。",
+      "risk": "low",
+      "test_impact": "纯文档更新，无测试影响。"
+    },
+    {
+      "id": "C5-town-cd-comment",
+      "sev": "C",
+      "verdict": "doc_only",
+      "title": "game/commands/combat.py:82 注释『每小时可白嫖约 9 次』与实际 60s 冷却（约 60 次/时）不符",
+      "files": ["game/commands/combat.py"],
+      "fix_summary": "combat.py L88 冷却判定为 time.time()-_last_town<60（60 秒），注释 L82 却写『每小时可白嫖约 9 次』。将注释数值改为『约 60 次/时』以与实现一致，消除误导。",
+      "risk": "low",
+      "test_impact": "纯注释修正，无测试影响。"
+    },
+    {
+      "id": "C6-poi-count-doc",
+      "sev": "C",
+      "verdict": "doc_only",
+      "title": "design/new_world/02_地图系统_余烬纪元合并版.md §10(L888)『每野外子区域 1-2 个 POI』与实现（部分子区挂 3-4 个，如 misty_swamp_1=4 个）不符",
+      "files": ["design/new_world/02_地图系统_余烬纪元合并版.md"],
+      "fix_summary": "该文档 L888 同时已含 v115 补充『每个新房间 ≥1 个 POI、死胡同/隐藏房挂高价值 POI』的说明，说明实现放宽属于 v115 有意设计。将『每野外子区域 1-2 个 POI』补充为『基准 1-2 个，v115 起新房间/死胡同/隐藏房及重点子区域允许 3-4 个』，使文档与数据对齐。",
+      "risk": "low",
+      "test_impact": "纯文档同步，无测试影响。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "B1-deadend-rule",
+      "sev": "B",
+      "title": "『每图 ≤1 死胡同』铁律被 37/70 张网状图突破（_5 与 _6 均仅 1 连接），设计 02:968/988 与 33:65 只允许 1 个",
+      "options": "（A）接受为数据层有意简化：批量修订设计 02 与 33 文档，说明『死胡同 ≤1 仅约束非隐藏房，隐藏密室可作另一 1-连接』（最低成本，纯文档）。\n（B）要求回归规则：批量把每个多死胡同图的 _6 改挂 _2+_4 或给隐藏房 _6 另接 1 房，使隐藏房非断点且每图真死胡同数=1（涉及 east 全部 30 图 + 部分 south/west 拓扑改动，改动面大）。\n（C）维持现状，仅在总评/文档注明『2 死胡同』是有意迭代。"
+    },
+    {
+      "id": "B4-hidden-deadend",
+      "sev": "B",
+      "title": "隐藏房揭示后成 1-连接断点，违反设计 02:967『揭示后不得是断点』",
+      "options": "（A）确认『隐藏=死胡同奖励房』为特例并更新设计文档规则 967。\n（B）把隐藏房 _6 改造为至少 2 连接（_6↔_2+_4），与 B1 方案 B 合并实施。\n（C）维持现状并注释说明。"
+    },
+    {
+      "id": "B6-ironharbor-jadeport",
+      "sev": "B",
+      "title": "ironharbor(Lv10)⟷jade_port(Lv35) 相邻等级差 25>15，超标『相邻两图等级差≤15』铁律，但为 ⛵ 坐船跨域水路",
+      "options": "（A）确认该跨域坐船线路豁免『≤15』铁律，并在 MAP_CONNECTIONS 对应边（game/data/maps.py L4126/L4129）注释或设计文档明示豁免理由。\n（B）若不许豁免，则需策划调整 jade_port 或铁港城等级/拓扑（数值改动，涉及经济与推进）。\n（C）维持现状，仅留档。"
+    },
+    {
+      "id": "B8-subarea-keys-dedup",
+      "sev": "B",
+      "title": "SUBAREA_POIS 存在 16+ 组重复 key（基础块 + v115 块重复定义），靠『后块为超集』的人眼保证极脆弱",
+      "options": "（A）全覆盖去重：每个子区域在 SUBAREA_POIS 只保留一条定义，合并逻辑改为装配端（_assembly.py）对基础块与 v115 块/MESH_POI_MOUNTS 用 extend+集合去重合并（工程量较大，改动 pois.py 多个数据条目 + _assembly.py）。\n（B）最小修复：本次仅修 oak_plain_3（B7），重复 key 模式留档并加注释『后块覆盖、需保证超集』，暂不整改。\n（C）加一个幂等去重校验脚本（audit_mesh.py 或新测试）在 CI 断言 SUBAREA_POIS 无重复 key，防静默回归后按报错逐条清理。"
+    },
+    {
+      "id": "B9-ember-region",
+      "sev": "B",
+      "title": "隐藏图 ember_corridor region=『北境·烬原』，全项目仅此一处，其余烬山/北境图均为『北境·霜原』，导致探索进度面板多渲染一行",
+      "options": "（A）统一为『北境·霜原』：改 game/data/maps.py L1900 的 region 字段，使其与 cinder_mountain(890)/ash_temple(906) 等北境图一致（改动 1 字段）。\n（B）确认为独立子域『烬原』：需同步把 cinder_mountain/ash_temple 等也标为烬原，破坏现有北境统一。\n（C）维持现状。倾向方案 A，但涉及世界观命名与 E1 一致性，需总编确认。"
+    },
+    {
+      "id": "B10-hidden-progress",
+      "sev": "B",
+      "title": "两处隐藏区域图（lost_library/ember_corridor）地图级 hidden=True 未下沉到子区域，region_progress/overall_progress 将其子区域计入常规 total，需解锁隐藏图才达 100%",
+      "options": "（A）视为设计意图（隐藏内容算完成度一部分）：不改，面板维持现状。\n（B）视为口径陷阱：将隐藏图子区域补 hidden=True（subareas.py 两图入口子区域），使 region_progress 将其计入 hidden_total 而非 total，探索进度 100% 不卡隐藏图（涉及约 2+ 子区域字段 + 面板逻辑核对）。\n（C）在『探索进度』面板给提示文案（还需逛隐藏地图 X 处），不改去重口径。"
+    },
+    {
+      "id": "B11-mats-pool-tier",
+      "sev": "B",
+      "title": "隐藏房首访材料池 _FIRST_VISIT_MAT_POOL 固定 5 种基础材料，不随区域等级变化，顶层隐藏房掉新手材料",
+      "options": "（A）按区域/地图等级分档材料池：移植 rare_find 区域池，为高等级隐藏房配置高级材料（数值/内容设计改动）。\n（B）维持现状，固定池为有意简化。\n（C）先只做低/中/高三档映射表，数据按图归属配置。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [],
+  "no_action_count": 11
+}

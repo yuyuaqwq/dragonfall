@@ -98,12 +98,16 @@ async def main():
     check("狂暴后攻击提升", est["atk"] > boss["atk"], f"{est['atk']} vs {boss['atk']}")
 
     # summon：第 3 回合召唤援军
+    # v121 CTB：敌方速度快时会连动多次，共享的 p 在上一段 enrage 已被击杀(敌连动清空血量)。
+    # 这里起全新满血玩家并给足血上限，避免 CTB 敌方连动把玩家秒掉导致敌方段不结算、召唤回合失序。
     random.seed(13)
+    p_s = dict(p)
+    p_s["max_hp"] = 1000000; p_s["hp"] = 1000000; p_s["max_mp"] = 9999; p_s["mp"] = 9999
     boss2 = mk_monster("b_decay_lord", "腐朽领主", "boss", 14)
     boss2["mech"] = "summon"
     boss2["hp"] = 99999; boss2["max_hp"] = 99999; boss2["atk"] = 1
     b2 = BT.Battle("monster", boss2)
-    p2 = dict(p)
+    p2 = dict(p_s)
     b2.player_turn("attack", None, p2)  # 回合 1
     b2.player_turn("attack", None, p2)  # 回合 2
     logs3, _ = b2.player_turn("attack", None, p2)  # 回合 3 → 召唤
@@ -111,11 +115,13 @@ async def main():
 
     # heal：第 4 回合自愈
     random.seed(17)
+    p_h = dict(p)
+    p_h["max_hp"] = 1000000; p_h["hp"] = 1000000; p_h["max_mp"] = 9999; p_h["mp"] = 9999
     boss3 = mk_monster("b_ancient_elk", "远古圣鹿", "boss", 8)
     boss3["mech"] = "heal"
     boss3["max_hp"] = 1000
     b3 = BT.Battle("monster", boss3)
-    p3 = dict(p)
+    p3 = dict(p_h)
     for _ in range(3):
         b3.player_turn("attack", None, p3)
     hp_before = boss3["hp"]

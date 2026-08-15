@@ -50,6 +50,17 @@ async def enter_combat(m, gid, qid):
     return out
 
 
+def _next_player_key(st):
+    """v121 CTB：下一行动者 = 存活玩家中 ct 最小者（与 instance._instance_next_actor 同口径）。
+
+    旧固定轮次断言（turn==1/2/0）在 CTB 下失效——速度快的玩家行动后可能连动
+    （ct 仍最小），下一行动者完全由 ct 决定。用此辅助验证 CTB 核心语义。"""
+    cts = {str(m): float(st["players"][str(m)].get("ct", 0) or 0)
+           for m in st["members"]
+           if st.get("alive", {}).get(str(m), True)}
+    return min(cts, key=cts.get) if cts else None
+
+
 async def main():
     clean_db()
     m = Main(None)
@@ -57,6 +68,13 @@ async def main():
     await cmd(m, "register", "g1", "i2", "注册 法师 队员 男")
     db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
     db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
+    # v121 CTB：注册角色当前 hp 是 1 级初始值（150/90），level 提升不回满血；
+    # CTB 下敌方按 ct 连动，残血前排会在首回合暴毙 → 首通成就（alive 条件）丢失、
+    # 后续开本被"生命值为 0"拦截。补满血专注测副本流程（旧固定轮次下怪每回合
+    # 只动一次碰巧撑住，CTB 如实呈现连动）。
+    for _m in ("i1", "i2"):
+        _p = db.get_player("g1", _m)
+        db.update_player("g1", _m, hp=_p["max_hp"], max_hp=_p["max_hp"], mp=_p["max_mp"], max_mp=_p["max_mp"])
     # v86.3 入场钥匙：旧王陵用例多，队长备 10 把王陵钥匙（每个用例开本消耗 1 把）
     for _ in range(10):
         db.add_item("g1", "i1", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})
@@ -97,6 +115,14 @@ async def main():
     check("战斗模式 mode=battle", st.get("mode") == "battle", f"mode={st.get('mode')}")
 
     print("【副本：轮流回合】")
+    # v121 CTB：先调低首怪攻击——骷髅兵默认 atk 在 CTB 连动（8 动上限）下
+    # 伤害波动/暴击可秒杀满血前排（990 血临界），干扰轮转测试（偶发首通成就丢失）
+    st["boss"]["atk"] = 5
+    st["boss"]["matk"] = 5
+    for _eu in (st.get("enemies") or []):
+        _eu["atk"] = 5
+        _eu["matk"] = 5
+    db.save_battle("g1", "i1", st)
     first_m = st["members"][0]
     second_m = st["members"][1]
     out = await cmd(m, "attack", "g1", second_m, "攻击")
@@ -104,13 +130,20 @@ async def main():
     out = await cmd(m, "attack", "g1", first_m, "攻击")
     check("当前行动者有返回", "骷髅兵" in out or "轮到" in out or "僵尸" in out, out[:200])
     st2 = db.get_battle("g1", "i1")["state"]
-    check("轮到下一位", st2["turn"] == 1, f"turn={st2['turn']}")
+    # v121 CTB：下一行动者 = 存活玩家中 ct 最小者（快者可能连动，非固定顺序 +1）
+    check("轮到下一位(ct 判定)", str(st2["members"][st2["turn"]]) == _next_player_key(st2),
+          f"turn={st2['turn']}")
 
     print("【副本：超时自动防御】")
     st3 = db.get_battle("g1", "i1")["state"]
     # v57：Boss 速度可能触发多动秒人，调低攻击专注测轮转逻辑
+    # v121 CTB：敌方阵列单位是实际结算对象（st["boss"] 为 JSON 往返后的兼容副本，
+    # 改它不生效）——阵列 atk 不调低时 CTB 连动（8 动上限）会秒杀满血前排，必须一并调低
     st3["boss"]["atk"] = 5
     st3["boss"]["matk"] = 5
+    for _eu in (st3.get("enemies") or []):
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     st3["turn"] = 0  # 把回合拨回首位
     st3["turn_time"] = int(time.time()) - 200  # 模拟首位超时 200s
     db.save_battle("g1", "i1", st3)
@@ -183,17 +216,26 @@ async def main():
     stboss = db.get_battle("g1", "i1")["state"]
     check("Boss 血量 2.5 倍", abs(stboss["boss"]["max_hp"] - expect) <= 1, f"{stboss['boss']['max_hp']} vs {expect}")
     # 击杀 Boss → 通关
-    stboss["boss"]["hp"] = 1
-    stboss["boss"]["atk"] = 5
-    stboss["boss"]["matk"] = 5
-    for _eu in (stboss.get("enemies") or []):  # v2：兼容键同步到阵列单位
-        _eu["hp"] = 1
-        _eu["atk"] = 5
-        _eu["matk"] = 5
-    stboss["turn_time"] = int(time.time())
-    db.save_battle("g1", "i1", stboss)
-    cur = stboss["members"][stboss["turn"]]
-    out = await cmd(m, "attack", "g1", cur, "攻击")
+    # v121 CTB：Boss 速度碾压时连动多次，召唤爪牙（新召唤满血）挡前排会挡住玩家
+    # 一击——改为循环攻击，每轮把全阵列（含新召唤爪牙）hp 压 1，直到真正通关
+    for _ in range(6):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stboss = battle["state"]
+        stboss["boss"]["hp"] = 1
+        stboss["boss"]["atk"] = 5
+        stboss["boss"]["matk"] = 5
+        for _eu in (stboss.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
+        stboss["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stboss)
+        cur = stboss["members"][stboss["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "通关" in out or "击败" in out:
+            break
     check("通关结算", "通关" in out or "击败" in out, out[:300])
     check("金币奖励", "+200" in out or "金币" in out, out[:300])
     check("材料奖励", "古王剑" in out, out[:300])
@@ -230,16 +272,20 @@ async def main():
     st6["boss"]["matk"] = 5
     db.save_battle("g1", "i1", st6)
     # v57：行动序按速度排序（快者 index 0）。i1/i2/i3 中速度最高者先动
-    order3 = st6["members"]
-    out = await cmd(m, "attack", "g1", order3[0], "攻击")
-    st7 = db.get_battle("g1", "i1")["state"]
-    check("轮到第二人", st7["turn"] == 1, f"turn={st7['turn']}")
-    out = await cmd(m, "attack", "g1", order3[1], "攻击")
-    st8 = db.get_battle("g1", "i1")["state"]
-    check("轮到第三人", st8["turn"] == 2, f"turn={st8['turn']}")
-    out = await cmd(m, "attack", "g1", order3[2], "攻击")
-    st9 = db.get_battle("g1", "i1")["state"]
-    check("三人后转回首人", st9["turn"] == 0, f"turn={st9['turn']}")
+    # v121 CTB：行动序由 ct 判定（快者可连动），每次用当前 turn 的行动者攻击，
+    # 行动后验证下一行动者 = 存活玩家中 ct 最小者
+    for _ in range(4):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        cur = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        stn = db.get_battle("g1", "i1")["state"]
+        if stn.get("over"):
+            break
+        check("轮流 ct 判定", str(stn["members"][stn["turn"]]) == _next_player_key(stn),
+              f"turn={stn['turn']}")
     # 清理 3 人测试战斗，避免影响后续用例
     for q in ("i1", "i2", "i3"):
         m._unlock_battle("g1", q)
@@ -275,8 +321,11 @@ async def main():
         stt["players"][key]["max_hp"] = 500
     stt["boss"]["atk"] = 1
     stt["boss"]["matk"] = 1
-    # v57：行动序按速度排序，分别把回合拨到施放者
-    stt["turn"] = stt["members"].index("i1")
+    # v121 CTB：行动者由 ct 判定（手动拨 turn 无效）——把施放者 i1 的 ct 设为全场最小
+    for key in stt["players"]:
+        stt["players"][key]["ct"] = -100.0 if key == "i1" else 0.0
+    for _eu in (stt.get("enemies") or []):
+        _eu["ct"] = 0.0
     stt["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stt)
     # 队长（战士）施放团队增益【战吼】(atk_all → 全队 atk_up)
@@ -285,7 +334,10 @@ async def main():
     check("战吼广播全队 buff", all(stt2["p_buffs"].get(k, {}).get("atk_up", 0) > 0 for k in stt2["players"]),
           str(stt2["p_buffs"]))
     # 法师（队员2）施放团队增益【元素流转】(matk_all → 全队 matk_up)
-    stt2["turn"] = stt2["members"].index("i2")
+    for key in stt2["players"]:
+        stt2["players"][key]["ct"] = -100.0 if key == "i2" else 0.0
+    for _eu in (stt2.get("enemies") or []):
+        _eu["ct"] = 0.0
     stt2["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stt2)
     out = await cmd(m, "skill", "g1", "i2", "技能 元素流转")
@@ -306,8 +358,18 @@ async def main():
     st5 = db.get_battle("g1", "i1")["state"]
     for key in st5["players"]:
         st5["players"][key]["hp"] = 1
+        # v121 CTB + 站位：Boss reach=1 只打前排，后排玩家打不到会导致僵持（不全灭）。
+        # 全员压到前排 + Boss reach=3，保证秒杀可达
+        st5["players"][key]["rank"] = 1
     st5["boss"]["atk"] = 99999   # Boss 秒杀，保证每轮杀一人
     st5["boss"]["matk"] = 99999
+    for _eu in (st5.get("enemies") or []):  # v2：阵列单位才是结算对象（兼容键为副本）
+        _eu["atk"] = 99999
+        _eu["matk"] = 99999
+        _eu["reach"] = 3
+        # v121 CTB：骷髅兵 spd 低会被玩家连动压制 15 轮不动（僵持）——拉满速度先手秒杀
+        _eu["spd"] = 999
+        _eu["ct"] = -999
     st5["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", st5)
     # 轮流攻击直到战斗结束（Boss 一轮杀一人，3 人队最多 3 轮全灭）
@@ -578,18 +640,25 @@ async def main():
     out = await cmd(m, "instance_advance", "g1", "i1", "深入")
     # v87.2 地图化：Boss 房探索触发 Boss 战
     await enter_combat(m, "g1", "i1")
-    stk3 = db.get_battle("g1", "i1")["state"]
-    stk3["boss"]["hp"] = 1
-    stk3["boss"]["atk"] = 5
-    stk3["boss"]["matk"] = 5
-    for _eu in (stk3.get("enemies") or []):  # v2：兼容键同步到阵列单位
-        _eu["hp"] = 1
-        _eu["atk"] = 5
-        _eu["matk"] = 5
-    stk3["turn_time"] = int(time.time())
-    db.save_battle("g1", "i1", stk3)
-    cur = stk3["members"][stk3["turn"]]
-    out = await cmd(m, "attack", "g1", cur, "攻击")
+    # v121 CTB：Boss 狂暴后连动+召唤挡刀会挡住一击——循环攻击（每轮全阵列 hp 压 1）直到通关
+    for _ in range(6):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stk3 = battle["state"]
+        stk3["boss"]["hp"] = 1
+        stk3["boss"]["atk"] = 5
+        stk3["boss"]["matk"] = 5
+        for _eu in (stk3.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
+        stk3["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stk3)
+        cur = stk3["members"][stk3["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "通关" in out or "击败" in out:
+            break
     check("首通完成", "通关" in out or "击败" in out, out[:300])
     # v101.27 #390：通关后停留状态保留，先『离开副本』再验证免钥匙开本
     out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")

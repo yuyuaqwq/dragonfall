@@ -103,6 +103,13 @@ async def main():
     # 输出乙攻击（拉伤害仇恨）
     st["boss"]["atk"] = 5
     st["boss"]["matk"] = 5
+    # v121 CTB：法师 f5 比战士 f4 快（members 按 spd 排序 f5 在前）——CTB 下 f5 先手
+    # 且可能连动，队长 f4 的攻击会被拦（仇恨拉不到）。把队长 ct 设为全场最小确保先手，
+    # 维持测试意图（输出乙抢回合被拦 → 队长攻击拉仇恨）
+    st["players"]["f4"]["ct"] = -100.0
+    st["players"]["f5"]["ct"] = 0.0
+    for _eu in (st.get("enemies") or []):
+        _eu["ct"] = 0.0
     st["turn_time"] = int(time.time())
     db.save_battle("g1", "f4", st)
     await cmd(m, "attack", "g1", "f5", "攻击")  # 抢回合被拦（轮到队长 f4）
@@ -113,9 +120,12 @@ async def main():
     # 输出乙攻击 → 仇恨可能超过队长
     await cmd(m, "attack", "g1", "f5", "攻击")
     st3 = db.get_battle("g1", "f4")["state"]
-    # 输出乙防御 → 嘲讽拉仇恨（v57：行动序按速度排序，拨到输出乙实际所在索引）
-    f5_idx = st3["members"].index("f5")
-    st3["turn"] = f5_idx
+    # 输出乙防御 → 嘲讽拉仇恨（v121 CTB：手动拨 turn 无效，行动者由 ct 判定——
+    # 把 f5 的 ct 设为全场最小确保轮到它防御）
+    st3["players"]["f4"]["ct"] = 0.0
+    st3["players"]["f5"]["ct"] = -100.0
+    for _eu in (st3.get("enemies") or []):
+        _eu["ct"] = 0.0
     st3["turn_time"] = int(time.time())
     db.save_battle("g1", "f4", st3)
     out = await cmd(m, "defend", "g1", "f5", "防御")

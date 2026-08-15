@@ -96,11 +96,13 @@ async def main():
     logs2 = b2._player_skill(b2._player_stats(p2), "安眠曲", info_sleep, p2)
     check("施放后 e_buffs['sleep']=2（普通怪）", b2.e_buffs.get("sleep") == 2, str(b2.e_buffs))
     l2, d2 = b2._enemy_turn(p2)
+    b2._end_round()  # v121 审计修复：睡眠回合递减统一在 _end_round（每玩家行动 1 次）
     check("敌方回合被跳过（伤害 0）", d2 == 0, f"dmg {d2}")
     check("日志含『沉睡』", any("沉睡" in x for x in l2), str(l2))
     check("跳过一回合后 sleep 剩 1", b2.e_buffs.get("sleep") == 1, str(b2.e_buffs))
     # 再睡一回合后消耗完
     l2b, d2b = b2._enemy_turn(p2)
+    b2._end_round()  # v121 审计修复：同上
     check("第二回合再跳过", d2b == 0, f"dmg {d2b}")
     check("sleep 已耗尽", "sleep" not in b2.e_buffs, str(b2.e_buffs))
     # 受击解除：再挂睡眠后普攻打醒

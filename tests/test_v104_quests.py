@@ -2,7 +2,7 @@
 """v104 任务系统 9 项修复回归（test_v104_quests.py）
 
 覆盖：
- 1. q5_5 collect 交付：接取→背包凑齐圣光百合→对话/『交付任务』→完成推进（e78ac70 P0）
+ 1. q5_5 collect 交付：接取→背包凑齐圣光百合→对话树交付/『交付任务』→完成推进（e78ac70 P0；v1.2 国王有对话树后走对话交付）
  2. q3_4 链修复：q3_4.next=q3_5→q3_6→q4_1（数据断言 + 模拟链推进）（e78ac70 P1）
  3. 主线 explore 未接取不自动完成：pending 到达目标图→不完成不发奖（e78ac70）
  4. 支线接取 min_level：Lv.1 接取 Lv.40 雾中灯塔→被拒（b477bd8 P1-1）
@@ -58,13 +58,20 @@ async def main():
     check("q5_5 数据: collect 圣光百合×1", q5["objective"] == {"collect": "圣光百合", "count": 1}, str(q5["objective"]))
     gold0 = db.get_player("g1", "p1")["gold"]
     db.save_quests("g1", "p1", qdata("q5_5", "active"))
-    # 背包没有花时对话 → 不崩、不交付（q5_5 giver=国王·腓特烈三世 F2 修正）
+    # 背包没有花时对话 → 进入对话树，不自动交付（国王有树后走对话交付，world.py _deliver_hint）
     out = await cmd(m, "talk_choice", "g1", "p1", "对话 国王")
-    check("无花对话不交付", "已接取" in out, out[:120])
+    check("无花对话不交付", "任务完成" not in out, out[:120])
     check("状态仍 active", get_q("g1", "p1")["main_status"] == "active", get_q("g1", "p1")["main_status"])
-    # 凑齐圣光百合 → 对话 → 置 ready 并交付
+    # 凑齐圣光百合 → 对话树交付：首屏不显示交付（active 未 ready）→ 选『我手头的王命』
+    # 触发 _talk_quest_progress 收集检测（材料已齐→ready）→ 交付选项出现 → 收下赏赐
     db.add_item("g1", "p1", "mat_sheng_guang_bai_he", {"name": "圣光百合", "type": "材料", "stackable": True, "price": 30}, 1)
     out = await cmd(m, "talk_choice", "g1", "p1", "对话 国王")
+    check("凑齐后首屏不交付", "王命完成了" not in out and "任务完成" not in out, out[:120])
+    out = await cmd(m, "talk_choice", "g1", "p1", "1")
+    check("选王命触发收集检测", "材料已齐" in out and "王命完成了" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "p1", "1")
+    check("交付节点台词", "深渊的腥味" in out, out[:200])
+    out = await cmd(m, "talk_choice", "g1", "p1", "1")
     qq = get_q("g1", "p1")
     check("凑齐后对话完成推进", "任务完成" in out, out[:160])
     check("推进到 q5_6", qq["main_quest"] == "q5_6", str(qq["main_quest"]))

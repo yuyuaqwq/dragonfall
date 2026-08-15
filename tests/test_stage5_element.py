@@ -100,7 +100,9 @@ p["learned_skills"] = [name]
 logs4, done4 = b4.player_turn("skill", name, p, enemy_act=False)
 check("感电日志", any("感电" in x for x in logs4), str(logs4)[:200])
 check("感电连击 +1", any("连击 2" in x for x in logs4), str(logs4)[:200])
-# 感电保留旧印记(2)，但施放本身又挂 1 层 → 3
+# 感电保留旧印记(2)，施放又挂 1 层 → 3；印记为层数标记不受 _end_round 回合递减
+# （v121 CTB：旧 v61 靠速度优势回合推迟 _end_round 掩盖了印记误递减，CTB 下印记
+#  已豁免回合递减——生命周期 = 触发反应清除或战斗结束）
 check("感电保留雷印", b4.e_buffs.get("thunder_mark") == 3, str(b4.e_buffs))
 
 print("【元素反应：法师切换当前系】")

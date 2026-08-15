@@ -1,0 +1,32 @@
+{
+  "domain": "P0",
+  "findings": [
+    {
+      "id": "B1",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "5 处子区域 npcs 列表引用已删除 NPC（孤儿引用）",
+      "files": ["game/data/subareas.py"],
+      "fix_summary": "subareas.py:2723,2993,3413,4099,7187 五个子区域的 npcs 列表仍引用 v112 已从 npcs.py 删除的 npc_blood_priest / npc_templar_knight / npc_beast_tamer / npc_jungle_hunter / npc_void_watcher（全库 0 定义，world.py 因 nid in C.NPCS 安全跳过，静默不刷出）。改法：从 5 行左侧删除孤儿 id——2723 行改为 [\"npc_chrono_warden\"]；2993 行改为 []；3413 行改为 [\"npc_silverwood_ranger\"]；4099 行改为 [\"npc_emeraldvalley_deerherd\"]；7187 行改为 [\"npc_stormstrait_navigator\"]。此清理与 v112 删除脚本 v112_npc_surgery.py:10-11 的合并线导师意图一致；若产品希望保留这些导师功能，则属另一设计决策（补回等价 NPC）",
+      "risk": "low",
+      "test_impact": "建议在引用完整性回归中补一条断言：遍历所有 SUBAREAS npcs 列表，其每个 npc id 均存在于 C.NPCS（可复用 test_v107_unlock_quests.py 中对 subarea npcs 的核验模式，或新增 test_subarea_npc_refs 测试）；现有 test_v63_control.py 等不受影响"
+    }
+  ],
+  "risky": [
+    {
+      "id": "C1",
+      "sev": "C",
+      "title": "3 条怪技能定义了但未被任何怪分配（ms_xuan_yun_zhong_ji / ms_chen_mo_jian_xiao / ms_han_bing_tu_xi）",
+      "options": "选项A：保留为设计储备技能（train_v63_control.py:107-110 明确校验其存在及 mech=stun/silence/freeze，说明是受测的预留控制技能），维持现状并加注释标注'待分配'；选项B：删除（需同步删 tests/test_v63_control.py:107-110 对这三条的断言，涉及战斗测试改动）；选项C：补进对应强度怪（眩晕重击→近战/重击怪、沉默剑啸→法师系怪、寒冰吐息→龙/冰系怪），属数值与设计取舍"
+    },
+    {
+      "id": "C2",
+      "sev": "C",
+      "title": "sets.py CLASS_SET_THEMES 旧世界毕业套死内容清扫时机",
+      "options": "core/class_sets.py:11-13 已明确注释'旧 CLASS_SET_THEMES 已废弃，不再并入 CRAFT_RECIPES，兼容旧档 set 字段待确认后清理'，且 __init__.py:51/_assembly.py:53 仍导出。选项A：维持保留不动（兼容旧档 set 字段，风险最低，加注释即可）；选项B：标注 legacy 标记后由 P2 清理批次移除（需确认无任何旧档 set 字段消费方，涉及跨模块面较大）；选项C：仅清理其中不在 EQUIP_ROSTER 的 52 个装备名，保留阶段/素材结构（半清理，仍待验证旧档兼容）"
+    }
+  ],
+  "uncertain": [],
+  "stale": [],
+  "no_action_count": 4
+}

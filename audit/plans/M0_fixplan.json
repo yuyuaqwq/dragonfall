@@ -1,0 +1,140 @@
+{
+  "domain": "M0",
+  "findings": [
+    {
+      "id": "B-2",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "weapon_types 索引 build_index 后立即被 WT_CN 整体覆盖（死工作）",
+      "files": ["game/data/_assembly.py"],
+      "fix_summary": "删除 _assembly.py 第 174 行 `build_index(\"weapon_types\", WEAPON_TYPES)`。该行刚构建的 n2i/i2n 在第 175-176 行被 WT_CN 派生映射整体覆盖；已核实 WEAPON_TYPES 全部 8 个 key（sword/staff/bow/mace/dagger/fist/spear/shield）均在 WT_CN（equipment.py:330-334）中，删除后索引归属唯一保留为 WT_CN 中文映射，行为零变化。",
+      "risk": "low",
+      "test_impact": "无需新增测试；可跑 test_data_registry.py / test_core_index.py 确认 weapon_types 正反向索引仍可 resolve/display 武器类型。"
+    },
+    {
+      "id": "B-11",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "注销 event_state 清理 N+1（players.py:_delete_player_event_state）",
+      "files": ["game/store/players.py"],
+      "fix_summary": "在 _delete_player_event_state（players.py:376-389）中，先用 `SELECT key FROM event_state` 收拢匹配后缀的 key 列表（保留现有 Python 后缀匹配逻辑，避免 SQL LIKE 的 _ 通配误伤），再将逐条 `conn.execute(\"DELETE FROM event_state WHERE key=?\", (key,))` 改为单次 `conn.executemany(\"DELETE FROM event_state WHERE key=?\", [(k,) for k in matched])`。仍在同一连接/事务内，行为一致，消除 N 次 execute 往返。",
+      "risk": "low",
+      "test_impact": "现有注销/删除流程无需改动；如 tests 含注销事件状态清理断言可补充覆盖（test_store_players.py 或对应命令测试）。"
+    },
+    {
+      "id": "C-6",
+      "sev": "C",
+      "verdict": "confirmed",
+      "title": "content.py:8 未使用死 import random",
+      "files": ["game/content.py"],
+      "fix_summary": "删除 content.py 第 8 行 `import random  # noqa: F401`（该 13 行薄聚合模块内未实际使用 random）。",
+      "risk": "low",
+      "test_impact": "无。仅死代码清理，模块聚合符号无变化。"
+    },
+    {
+      "id": "B-5",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "professions.py:8 过时注释称设计表仍滞后，实已按 v105 对齐",
+      "files": ["game/store/professions.py"],
+      "fix_summary": "更新 professions.py 模块 docstring 第 8 行。该注释称「19 章 §4.1 设计表（100/300/…/5500）数值仍滞后，待文档对齐」，但实现曲线已是 5lv²+15lv（累计 2100），且 design/new_world/19_副业体系详案.md §4.1（第 266-268 行）已按同一 v105 曲线更新，与 constants.prof_exp_need 及代码一致。删除/改写该过时「待对齐」注释为已对齐说明。",
+      "risk": "low",
+      "test_impact": "无（纯 docstring 文案同步）。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A-1",
+      "sev": "A",
+      "title": "core 层函数内直接 from .. import db 与文档矛盾（ARCHITECTURE.md vs DEVELOPMENT.md）",
+      "options": "方案a（文档合法化）：按现有事实更新 ARCHITECTURE.md 分层描述，明确「core 允许函数内延迟导入 db」并与 DEVELOPMENT.md:25 表述对齐（最小改动，低风险）。方案b（恢复 core 无IO）：把 12+ 个 core 模块 40+ 处 db 直读全部改经 store 延迟注入（大重构、高风险）。需用户拍板选定方向后再定文档归属。"
+    },
+    {
+      "id": "A-2",
+      "sev": "A",
+      "title": "data 层反向依赖 core（_assembly.py 引 core.index/maps/class_sets）",
+      "options": "方案a：把 data/_assembly.py 正式定名为「装配面（assembly seam）」，在 DEVELOPMENT.md 记录容忍的 data→core 方向，避免新人踩循环导入雷（低风险文档化）。方案b：把索引构建/百科/职业套派生真正下沉回 data 层（重构，中高风险）。建议先 a 收敛语义，b 远期评估。"
+    },
+    {
+      "id": "A-3",
+      "sev": "A",
+      "title": "data/index.py 空壳 + 索引归属二义（build_index 等仅存在于 core/index.py）",
+      "options": "方案a（低风险）：仅删除 data/index.py 中 5 个死空 dict（_SKILL_FLAT/_MONSTER_INDEX/_FISH_INDEX/_NPC_INDEX/_SHOP_W_INDEX，均在 _assembly.py 重新声明），并修正 ARCHITECTURE.md:40 关于 index 归属的描述。方案b（重构）：把活容器 _INDEXES（core/index.py:5 与 _assembly.py:8 均 import）迁入 core/index.py 后删除 data/index.py，需同步 2 处 import。注意 _INDEXES 是活共享容器，不能整体当死代码删。"
+    },
+    {
+      "id": "A-4",
+      "sev": "A",
+      "title": "资金/经验读-改-写非原子（~69 处 update_player(gold=player[gold]±n)）",
+      "options": "方案a：把资金/经验增减统一改为 DB 侧原子（atomic() 内 SET col=col+?），跨约 69 个调用点（commands/{economy,combat,social,world,instance,player,misc,talk_actions,gm} 及 core event/item_templates）——改动面大。方案b：接受单事件循环+RLock 串行现状（需确认线上是否跑战斗后台 tick/多实例）。需结合部署事实由用户裁决。"
+    },
+    {
+      "id": "A-5",
+      "sev": "A",
+      "title": "副业经验 add_prof_exp 校验与写入锁粒度不一致（_has_achievement 锁外查成就）",
+      "options": "方案a：把 add_prof_exp 的读-判-写（professions.py:84-110）整体包进 atomic() 单事务，消除双请求各写一次的非原子覆盖。方案b：改 DB 侧原子 `SET {k}_exp={k}_exp+?` + Lv.10 封顶 WHERE 条件（曲线升级需在 SQL/事务内完成）。方案c：接受单进程 RLock 串行现状。需结合并发模型决定。"
+    },
+    {
+      "id": "A-6",
+      "sev": "A",
+      "title": "连接粒度过细：单次击杀 8~12 次独立 connect+commit",
+      "options": "方案a：对一个待办请求引入请求级连接复用（contextvars/线程局部）或随命令用一次 atomic() 包击杀结算（参照 world.py 已有先例）。方案b：引入 sqlite 连接池。方案c：小并发规模下接受现状。需权衡 RLock 语义依赖与部署规模（M0 §7 待裁决项）。"
+    },
+    {
+      "id": "B-1",
+      "sev": "B",
+      "title": "core/index.py:41-42 索引冲突 id 用 len(i2n)+1 序数后缀，稳定性依赖 dict 迭代序",
+      "options": "方案a：冲突后缀改确定性派生（如基于名字 hash），并对冲突写日志。方案b：因涉及「ID 永稳」铁律（跨切面/存档稳定），转交由 M 数节点协同裁决。属条件触发（版本间表迭代序变化才漂移），当前为推断性风险。"
+    },
+    {
+      "id": "B-3",
+      "sev": "B",
+      "title": "_assembly.py:163-172 quality 域 v48 前兼容分支驻留",
+      "options": "方案a：核实 QUALITY 全部 key 已 ID 化（v48 完成）后删除 else 死分支，只保留 ID-keyed 一条路径。方案b：保留该防御性 guard 不动（数据形状变化时仍安全）。建议先确认 equipment.py QUALITY 数据形态再删。"
+    },
+    {
+      "id": "B-6",
+      "sev": "B",
+      "title": "注销清理靠手写 DELETE_TABLES 表白名单，无版本化迁移；SQLite foreign_keys=OFF",
+      "options": "方案a：在 init_db 建表集中处加「表→注销清理清单」自动一致性校验（凡带 qq_id 列的表必须出现在 DELETE_TABLES，否则启动报错），防新增表漏登记残孤儿数据。方案b：引入 schema_version 版本化迁移（运维投入较大）。"
+    },
+    {
+      "id": "B-7",
+      "sev": "B",
+      "title": "connection.py 未设 WAL/synchronous/foreign_keys，无 VACUUM/备份出口",
+      "options": "方案a：_connect 显式 `PRAGMA journal_mode=WAL` + `foreign_keys=ON`（先行核对现有 schema/外键无断裂，防止 FK 约束破坏存量流程）。方案b：补备份/导出接口位（scripts 或 store 层工具）。属运维投入决策（M0 §7）。"
+    },
+    {
+      "id": "B-8",
+      "sev": "B",
+      "title": "get_player 读路径内含写副作用（体力惰性恢复/惰性升级/cur_subarea 兜底）且 BaseException 吞异常",
+      "options": "方案a：迁移副作用出读取路径（重构，get_player 被所有命令消费，改动面大）。方案b（低风险起步）：先只把 players.py:170/181/209 等 `except: pass` 改为 `logger.warning(..., exc_info=True)`，区分脏数据兜底与真实故障，副作用迁移单独排期。建议先 b 后 a。"
+    },
+    {
+      "id": "B-9",
+      "sev": "B",
+      "title": "attributes/portals 未纳入 update_player 自动序列化分支（需调用方预序列化陷阱）",
+      "options": "方案a：把 attributes/portals 加入 update_player 自动序列化分支（players.py:247 的 json 序列化集合），并同步改掉所有预序列化调用方，消除两套约定（跨模块）。方案b：保留现状陷阱，在 DEVELOPMENT.md 显式记录该约定。"
+    },
+    {
+      "id": "B-10",
+      "sev": "B",
+      "title": "engine.py resolve_drop 对 C.ITEMS 全表线性扫名定位消耗品 O(ITEMS)",
+      "options": "方案a：为 ITEMS 建 name→key 缓存（模块级一次构建）替代遍历。方案b：复用已存在的 build_index 的 name_to_id（需确认 ITEMS 已建 items 索引并加 name 反向表）。慢路径优化，非战斗热核。"
+    },
+    {
+      "id": "B-12",
+      "sev": "B",
+      "title": "base.py:589 _title_bonus 二次 _player + 再读 stats/quests/inventory",
+      "options": "方案a：命令首次 _player 后把 title_bonus 缓存进 player dict，_title_bonus（含 _rule_fire hook:582）在本请求内复用，避免重复热读冷档。"
+    },
+    {
+      "id": "B-13",
+      "sev": "B",
+      "title": "PET_POOL（14 条）在 battle.py:2795/2864 与 pets.py:126/142/165/175 线性 next() 扫描",
+      "options": "方案a：仿 mounts.py 建 `PET_BY_KEY={p['key']:p for p in PET_POOL}` 一次索引，替换 6 处线性扫描（pets.py 建索引、battle.py 消费），与 MOUNT_BY_KEY 一致。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [],
+  "no_action_count": 13
+}

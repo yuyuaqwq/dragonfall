@@ -75,9 +75,7 @@ async def main():
     b = BT.Battle("monster", m)
     b.player_turn("skill", "战吼", p)
     check("p_buffs 有 atk_up", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
-    # v61：速度优势回合不立即结束——防御结束本回合行动（不打怪），回合才递减
-    while b.p_extra_left > 0:
-        b.player_turn("defend", None, p)
+    # v121 CTB：一次玩家行动后 _end_round 递减一次（无额外行动阶段）
     check("回合结束递减", b.p_buffs.get("atk_up", 0) == 2, str(b.p_buffs))
     check("怒吼无伤害", m["hp"] == 100000)
     # buff 效果对比
@@ -117,9 +115,7 @@ async def main():
     logs, ended = b.player_turn("attack", None, p)
     # poison 扣 5% max_hp = 50，加上普攻伤害
     check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒50)")
-    # v61：速度优势回合不立即结束——防御结束本回合行动，毒才递减
-    while b.p_extra_left > 0:
-        b.player_turn("defend", None, p)
+    # v121 CTB：一次玩家行动后 _end_round 递减（无额外行动阶段）
     check("毒回合递减", b.e_buffs.get("poison", 0) == 1, str(b.e_buffs))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")

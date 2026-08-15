@@ -1,0 +1,104 @@
+{
+  "domain": "L0",
+  "findings": [
+    {
+      "id": "A3",
+      "sev": "A",
+      "verdict": "confirmed",
+      "title": "根目录 _regex_map.json / _regex_map2.json 两个零引用孤儿正则表，内容过期且与活体 _registry 冲突",
+      "files": ["_regex_map.json", "_regex_map2.json"],
+      "fix_summary": "删除两个孤儿 JSON。grep 全仓(_regex_map|regex_map2) 对 *.py 零命中，代码零引用；内容与活体 _registry.py 冲突（map2 mining=采矿↔live=挖掘、fishing=钓鱼↔live=垂钓、flee=(?:逃跑|撤退)↔live=逃跑、chronicle=(?:传说|编年史)↔live=编年史、shortcut_trigger=[0-9]\\d? 缺负向断言等），_regex_map.json:15-17 _parse_target_qq 条目存的是中文描述串而非正则。删除后指令权威只留 _registry.py+装饰器，已被 test_v87_command_matrix 1:1 锁定。属死代码删除、零风险。",
+      "risk": "low",
+      "test_impact": "无需补回归测试（两文件零被引用，v87 矩阵与 test_command_parse 均不依赖它们）"
+    },
+    {
+      "id": "B2a",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "gm_give_gold / gm_give_exp 对数量/经验负值无下限钳制，负数可写坏存档",
+      "files": ["game/commands/gm.py"],
+      "fix_summary": "在 gm.py:375-381(gm_give_gold) 与 :429-434(gm_give_exp) 解析出整数 n/int 后、落库前加 `if n < 0: yield \"数量/经验值不能为负\" 并 return`（对齐 gm_give_item 已有的 max(1, count) 钳制）。只加最小保护，不改数值手感。",
+      "risk": "low",
+      "test_impact": "可在 tests/test_v96_gm_system.py 补一条负值拒绝用例（发给 GM 的 n<0 应被拒、gold 不变）"
+    },
+    {
+      "id": "B7",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "combat.py _parse_target_qq 正则冗余字符类 + 纯 @昵称 无法命中（设计 26 声明支持 攻击 @玩家/名字）",
+      "files": ["game/commands/combat.py", "tests/test_command_parse.py"],
+      "fix_summary": "改写 combat.py:2584 的 `r\"^@?[^()()]*[((](\\d+)[))]$\"` 为 `r\"^@?[^()]*\\((\\d+)\\)$\"`（去冗余字符类）；在 :2587 `db.find_player_by_name(t)` 前对 t 剥前导 `@`（`t = t.lstrip(\"@\")`），使纯 `@昵称` 按名字查到玩家。低风险，不改变既有正常分支。",
+      "risk": "low",
+      "test_impact": "在 tests/test_command_parse.py 补单测：`名字(123)`、`@名字(123)`、`@昵称`(剥@后查到) 均命中；不含括号的纯 `@昵称` 走 find 兜底"
+    },
+    {
+      "id": "C8",
+      "sev": "C",
+      "verdict": "confirmed",
+      "title": "misc.py signin 无方法级 try：signin_claim 原子认领后下游 generate_equip 抛错则玩家已领签到但零回执",
+      "files": ["game/commands/misc.py"],
+      "fix_summary": "在 misc.py:230 db.signin_claim 认领成功之后、:261 回执构建前，把结果构建/落库段（:261-281 的 fortune 计算已前置，重点 :260 db.update_player gold 与 :274-280 每7天 generate_equip/db.add_item）包一层 try/except；若下游异常则 yield 最小成功提示「✅ 已签到（奖励发放异常，请联系管理）」，避免静默零回执。认领为前置原子步骤，不动。",
+      "risk": "medium",
+      "test_impact": "无需新测试（异常路径极低频，正常路径行为不变）；可选在 test_v59/misc 相关测试确认正常签到文案仍含『签到成功』"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A1",
+      "sev": "A",
+      "title": "cmd_config.json 为 AstrBot 平台配置非游戏指令配置，repo 内 4 份漂移副本并明文含 dashboard 密码",
+      "options": "① 清除 game/data、scripts/data、tests/data 三份副本仅保留根 data/（真实 AstrBot 所在地），admin 密码视为已泄露按流程轮换（转 L7 协调）；② 四份副本归一为占位模板、密码空置；③ 整体移出插件仓库并由总编/L7 专项裁决。涉及仓库文件删除+安全决策，需用户/总编拍板。"
+    },
+    {
+      "id": "B1",
+      "sev": "B",
+      "title": "_strip_cmd 别名兜底仅硬编码 我的角色/位置/主线/help，遗漏前往|移动/物品/副业任务等多别名，多别名 handler 需手改补剥",
+      "options": "① 抽出统一的已注册别名常量表（对齐 _registry），供 _strip_cmd 与 help 共用，自动剥离全部已注册别名；② 维持现状，只在新增别名时沿用 hander 内补剥模式（如 world.py:839 dest=dest[2:]）。选①属小重构但需定别名表位置与口径，选②保守。"
+    },
+    {
+      "id": "B2",
+      "sev": "B",
+      "title": "_is_gm 对任意 gm_ 前缀 qq_id 无条件授予 GM，非纯数字 sender 平台(Discord/终端)可能存在误判面；_resolve_target 允许按名字命中任意跨群玩家",
+      "options": "① _is_gm 收紧：gm_ 前缀仍需同时在白名单/受限 QQ 或数字 QQ 命中方放行（需确认测试回环标识是否受影响）；② 维持现状（gm_ 主要面向测试/main 回环），仅在 base.py:163 加注释说明；③ 对 _resolve_target 按群校验。属安全/设计取舍，需用户拍板。"
+    },
+    {
+      "id": "B3",
+      "sev": "B",
+      "title": "双注册依赖 priority+负向断言维持；use↔revive_confirm（『使用复活羽毛』）优先级悬置未补 priority",
+      "options": "① 在 combat.py revive_confirm 的 @filter.regex 补 priority（高于 use/economy.py:3282）以消除悬置，需与 O119 侧协调；② 收窄 use 正则或给『使用复活羽毛』加负向断言排除；③ 维持现状（test_v87 已登记豁免注释，近期无新增高优前缀）。跨 combat/economy/_registry 多个模块，需用户确认改法。"
+    },
+    {
+      "id": "B4",
+      "sev": "B",
+      "title": "快捷绑定侧仍限 1-2 位且报与事实相反文案，触发侧已放宽任意位 → 绑定/触发行不一致",
+      "options": "① 放宽 player.py:63 校验到任意位（与触发侧 player.py:113 对齐，避免旧 ≥100 绑定只能触发不能绑定）；② 保留 2 位限制并改正错误文案与 :61/:112 矛盾注释。倾向前者但涉及真玩家旧绑定兼容，需用户/鱼鱼确认。"
+    },
+    {
+      "id": "B5",
+      "sev": "B",
+      "title": "玩家全局按 qq_id 但代码统一 (group_id,qq_id) 签名；可未活跃群游玩却不上榜、注销确认不回显发起群",
+      "options": "① 确认文案明示删除面向全局角色并在注销流程回显发起群；② 一致化『能游玩』与『是否上榜』按 player_groups 活跃群判定；③ 两者都按全局。属群适配语义设计取舍，需拍板。"
+    },
+    {
+      "id": "B6",
+      "sev": "B",
+      "title": "意见无频率限制，仅 200 字上限 + 异步 webhook 通知（默认关），项目文档称『只收集不回复』而实现即时回执",
+      "options": "① 加简单频率限制（如 1 条/30 秒/人，防反馈表灌水），这是体验/反刷决策需鱼鱼/组长确认；② 仅把 23 章:200,323 文档标注『回执已实现』（doc_only，已单独立为 B6a）；③ 两者都做。"
+    },
+    {
+      "id": "B8",
+      "sev": "B",
+      "title": "_registry 静态表与装饰器同步的启动漂移校验仅 WARNING 非硬失败，真正兜底靠 test_v87 手动触发",
+      "options": "① 启动漂移（missing/extra 非空）升级为 ERROR/硬失败（牵涉 main.py 注册表校验段，需防干扰正常启动）；② 纳入 CI 硬门禁自动跑 test_v87；③ 维持现状并强调矩阵测试必跑。涉 main.py 行为+CI，需用户确认。"
+    },
+    {
+      "id": "C6",
+      "sev": "C",
+      "title": "main.py/base.py 多处裸 except:pass 无日志（GM 白名单/维护状态/loopback 锁）；loopback worker fut.result(timeout=120) 硬阻塞最长 120s；_gm_whitelist 每次调用重读全表",
+      "options": "① 细分：只给各处 except 补 logging.debug/warning 留痕 + `_dispatch` 抛错写回 ❌，改动集中在 main.py/base.py 少量行，低风险；② 进一步把 loopback 120s 阻塞改为可中断 asyncio.wait+超时回调（较大改动）；③ 白名单/维护状态加短缓存。改动面跨 main.py 与 base.py（>2 模块），需确认做①②③的哪档。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [],
+  "no_action_count": 5
+}

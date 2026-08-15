@@ -1,0 +1,138 @@
+{
+  "domain": "K0",
+  "findings": [
+    {
+      "id": "K0-A1",
+      "sev": "A",
+      "verdict": "confirmed",
+      "title": "成就领取路径 _title_bonus_plain 缺 M18 同名去重，与统一 title_bonus() 双实现并存（Lv.10 副业加成双算隐患）",
+      "files": ["game/core/achievements.py"],
+      "fix_summary": "claim_achievement_rewards (achievements.py:192) 目前把 player[\"_title_bonus\"] 设为 _title_bonus_plain()（achievements.py:218-232，只读 ACHIEVEMENTS、无 M18 同名去重、无 TITLES 侧 bonus）。应改调 `from .title_bonus import title_bonus` 复用统一单点 `title_bonus(group_id, qq_id, player)` 并删除 _title_bonus_plain。删除前确认无 import 环（title_bonus.py 顶层仅 import content，不 import achievements，可安全延迟导入）。这样 Lv.10 副业成就 ach_pro_*10（神锻名家/群山之王/深海渔神等）不再被当作第二份双算进 check_player_level_up（engine.py:814 player_final_stats）。若坚持保留轻量版，则至少补上 `a.get(\"name\") not in {t[\"name\"] for t in C.TITLES if t.get(\"bonus\")}` 去重。",
+      "risk": "medium",
+      "test_impact": "需补回归测试：在 achievements 领取测试中构造已达成 TITLES pro_craft10(def+8) 且领取 ach_pro_craft10 后升级，断言 max_hp/max_mp/def 不出现双倍加成。改动现有 tests/test_v99_05_achievement_conds.py 或同类验收测试。"
+    },
+    {
+      "id": "K0-B8",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "misc.py _notify_hermes 使用全角连字符编码名 'utf－8'（U+FF0D），启用 webhook 时首封即抛 LookupError",
+      "files": ["game/commands/misc.py"],
+      "fix_summary": "把 misc.py:391 payload.encode(\"utf－8\") 与 misc.py:394 secret.encode(\"utf－8\") 中的全角连字符 U+FF0D 改为 ASCII 连字符 \"utf-8\"。此改动与注释/触发条件无关，纯字面量替换，零行为风险；修复后 _notify_hermes 在 HERMES_WEBHOOK_URL 启用时不再因 unknown encoding 抛错，且 try 内不再误报『意见保存失败』（意见实际已 add_feedback 成功）。",
+      "risk": "low",
+      "test_impact": "不建议新测试（webhook 默认停用、需真实网络）。可在现有反馈测试中加一条对 _notify_hermes 的静态 import 断言确认无 U+FF0D，无需改动生产行为断言。"
+    },
+    {
+      "id": "K0-B10",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "title_bonus()/成就列表 try/except 静默清空且不记日志，DB 异常时难排查",
+      "files": ["game/core/title_bonus.py", "game/core/achievements.py"],
+      "fix_summary": "title_bonus.py:97-98（except 静默 pass）、achievements.py:153-154（except 静默 return []）、achievements.py:231-232（except 静默 return {}）在降级返回 {} / [] 前补一行 `logging.getLogger(\"astrbot\").warning(...)`，其余逻辑不动。属纯增量日志，不改变任何返回值与判定语义。",
+      "risk": "low",
+      "test_impact": "无回归风险；可用 capfd 断言异常分支产生 warning，属可选。"
+    },
+    {
+      "id": "K0-B4",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "成就总数文档四处不一致：数据 119 / 模块 docstring 97 / 设计 2.1 112 / 落地 109，隐藏成就实际 31 超设计 24",
+      "files": ["game/data/achievements.py", "design/new_world/14_成就与称号.md"],
+      "fix_summary": "已用 grep 验证 `\"id\":\"ach_` 共 119 条、`\"cat\":\"隐藏\"` 31 条，数据层为当前事实。改 game/data/achievements.py:2 docstring『97 成就』→『119 成就』；把 design/new_world/14_成就与称号.md §2.1 第32行隐藏『24→31』、第33行合计『112→119』、第310行落地说明『109 项→119 项』。仅改文档，不碰代码。",
+      "risk": "low",
+      "test_impact": "无代码回归。可选在数据一致性测试中增加『docstring 计数=len(ACHIEVEMENTS)』断言，防止再漂移。"
+    },
+    {
+      "id": "K0-B6",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "地精挚友 ach_goblin_friend 设计文档写『交易 20 次』，代码已按 world_event≥20 实装",
+      "files": ["design/new_world/14_成就与称号.md"],
+      "fix_summary": "achievement_conds.py:16-17 已注明「goblin_trade 无交易计数数据源 → 改判 world_event」，数据层 achievements.py:219-220 desc『参与 20 次世界事件』与实现一致，仅设计文档 14.md:189 滞后。把该行『与地精商人交易 20 次』改为『参与 20 次世界事件』并加注 v105/v115 变更。",
+      "risk": "low",
+      "test_impact": "无代码回归。"
+    },
+    {
+      "id": "K0-B9",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "传说猎人 ach_hidden_hunter 设计文档写『6 种隐藏怪物』，代码已达 25 种",
+      "files": ["design/new_world/14_成就与称号.md"],
+      "fix_summary": "data/hidden_monsters.py HIDDEN_MONSTERS 实际 25 条、数据层 achievements.py:277-278 desc『击败全部 25 种隐藏怪物』与实现（achievement_conds.py:300-305 按 dict 长度判全解锁）一致，仅设计文档 14.md:213 滞后。把该行『6 种』改为『25 种』。",
+      "risk": "low",
+      "test_impact": "无代码回归。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "K0-B1",
+      "sev": "B",
+      "title": "_monster_total 图鉴全收集阈值写死 max(去重地图怪数,100)/兜底150，与真实怪池脱钩",
+      "options": "方案A：数据层导出权威 distinct 怪数常量替代 max 兜底（含 SUBAREAS+instances 可击杀怪池）；方案B：将 _monster_total 改为统计 SUBAREAS 未去重怪数；方案C：保持现状，仅加注释说明阈值为保守常数。A/B 涉及计数口径决策，需内容审计确认真实可刷怪数后再定。"
+    },
+    {
+      "id": "K0-B2",
+      "sev": "B",
+      "title": "阵营系 3 成就（选择阵营/阵营先锋/大陆之柱）设计文档仍写『恒 False』，v116 已改判 players.faction/贡献阈值",
+      "options": "方案A：确认 v116 有意实装，仅把设计文档 14.md:315 更新为 v116 现行判定；（文档与实现对齐）；方案B：保留『大陆之柱=国战排名』原始语义，改回恒 False 等国战系统后实装（需回退成就数据）。决策点在是否保留排名语义。"
+    },
+    {
+      "id": "K0-B5",
+      "sev": "A",
+      "title": "属性称号『装备制 vs 叠加制』设计文档 3.2 与实现（无条件叠加）不符，装备选择失策略深度",
+      "options": "方案A：维持叠加制，改写设计文档 14.md §3.2 为『叠加制』；方案B：改为『可佩戴 1 个生效称号』恢复选择深度（需改 title_bonus/bonus 结算链路，改动面大）。属玩法决策，需编号拍板。"
+    },
+    {
+      "id": "K0-B3",
+      "sev": "A",
+      "title": "TITLES 与成就双源同名分裂：3 组同名不同条件（垂钓大师/秘银追寻者/传说终结者）+ 去重按 name 字符串脆",
+      "options": "方案A：确立成就侧为主、TITLES 仅保留无成就覆盖的展示称号，合并 3 组同名条件交由总编裁决；方案B：bonus 去重改按物理 id 归属而非 name 相等（title_bonus.py:85-96）；方案C：维持现状仅加注释。涉及 K1/K2 协同，需跨域裁决。"
+    },
+    {
+      "id": "K0-B7",
+      "sev": "B",
+      "title": "stats 表 day_kills/day_date 字段名带『每日』语义却是永久累计、无每日重置、无 reader",
+      "options": "方案A：按 day_date 实现每日归零（补写入与重置逻辑）；方案B：重命名/注释为累计值去除误导；方案C：保持现状（当前无消费方，无害）。影响埋点语义，需定是否要『每日击杀』口径。"
+    },
+    {
+      "id": "K0-R1",
+      "sev": "B",
+      "title": "encounter_rate 实现仅在空手分支 max(0.05,0.25-encounter_rate) 扣减，与设计『遇怪率直加』偏离",
+      "options": "方案A：按设计改为遇怪率直加意外窗（combat.py 探索判定处 chance+encounter_rate）；方案B：确认为有意迭代，补行内注释说明『仅影响空手率』并同步设计文档。决策点在是否改变数值手感。"
+    },
+    {
+      "id": "K0-R2",
+      "sev": "B",
+      "title": "get_feedback 仓库内无生产消费者，反馈读取出口依赖仓库外 Hermes/cron，无法确认运营触达",
+      "options": "方案A：补 GM 查看意见指令/脚本入口使仓库内可读；方案B：确认外部 cron 真实消费后维持现状；方案C：保持现状。需运维侧确认外部通道是否存在。"
+    },
+    {
+      "id": "K0-R3",
+      "sev": "B",
+      "title": "core title_bonus._has_enhanced 只查背包，economy._has_enhanced 已含已装备槽，两套实现不一致",
+      "options": "方案A：core 版同步查装备槽（title_bonus.py:27-46），与 economy 对齐；方案B：复用单一函数并收口连接方式（顺带解决 C3 新建 sqlite 连接问题）；方案C：维持现状（当前 enhance5/9 无 bonus，零影响）。"
+    },
+    {
+      "id": "K0-C2",
+      "sev": "C",
+      "title": "_c_learned_all total=0 恒 False：隐藏职业不在 PLAYER_SKILLS 时『全知全能』永不可达",
+      "options": "方案A：显式处理隐藏职业技能全集使其可判；方案B：把 ach_learn_all 限定为常规职业；方案C：保持现状（隐藏职业少数玩家）。属设计取舍。"
+    },
+    {
+      "id": "K0-C3",
+      "sev": "C",
+      "title": "_c_inst_all8『任意 distinct 副本≥8』比设计『指定 8 大主线副本』宽松",
+      "options": "方案A：按设计改为指定 8 个主线 inst id 集合；方案B：维持『任意 8 副本』语义并同步设计；方案C：保持现状。需确认设计意图。"
+    },
+    {
+      "id": "K0-C5",
+      "sev": "C",
+      "title": "flag/quest_done/item_has 等条件依赖当前判定群 _group_id，跨群时可能查不到状态",
+      "options": "方案A：跨 NPC/跨群扁平化存储或按 qq 全局查；方案B：与 D0 确认 quests/talk_flags 存储群键语义后按需兜底；方案C：维持现状（多群同角色罕见）。需跨域确认。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [
+    "K1-B5 候选 S「图鉴全收集 bestiary_all 不可达」:组长已复核全域可击杀 distinct 怪池远超 100，len(get_bestiary)≥100 实际可达，不构成规则性失效，已降级为 B1(阈值/数据脱钩)。"
+  ],
+  "no_action_count": 9
+}

@@ -1,0 +1,146 @@
+{
+  "domain": "H0",
+  "findings": [
+    {
+      "id": "A0-A1",
+      "sev": "A",
+      "verdict": "confirmed",
+      "title": "公会商店购买用随机 uuid 后缀拼 item_key，导致 stackable 物品永不合并",
+      "files": ["game/commands/social.py", "game/store/inventory.py", "tests/test_v116_guild_shop.py"],
+      "fix_summary": "game/commands/social.py:775 改为 item_key = it.get('item_key')（即 gs_* 稳定 id，guaranteed 非空），去掉 _uuid.uuid4().hex[:8] 后缀，使 add_item（store/inventory.py:52-67）按 item_key 合并堆叠。若担心同 key 冲突仅对非 stackable 商品（如回血药剂按需）加后缀；当前 GUILD_SHOP_ITEMS 全部 item_key 唯一，直接使用即可。",
+      "risk": "low",
+      "test_impact": "补/改 tests/test_v116_guild_shop.py：购买 2 次『公会商店 1』后，断言背包淬火石 count 合并为单条（len(inv)==1）而非 2 行。"
+    },
+    {
+      "id": "A0-B12",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "tests/test_commands_economy.py:108 假上架测试未走 market_sell 入口",
+      "files": ["tests/test_commands_economy.py"],
+      "fix_summary": "第 108 行 cmd(m,'market','g1','e1','上架 1 100') 传入的是市场面板 handler，'上架 1 100' 只被当分页参数，未真正测试上架分支。改为 cmd(m,'market_sell','g1','e1','上架 <背包物品名> 100')（参照 tests/test_commands_stall.py:118 与 test_v104_shop_auction_mount.py:99/105 的正确写法），断言返回含『已上架』且背包/市场状态符合。",
+      "risk": "low",
+      "test_impact": "仅改本测试文件，无需新增；修正后覆盖上架入口实路径。"
+    },
+    {
+      "id": "A0-B2-help",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "帮助文案错误：misc.py 阵营『Lv.30 起开启』与实现 Lv.20 不符",
+      "files": ["game/commands/misc.py", "game/data/factions.py"],
+      "fix_summary": "game/commands/misc.py:155 CMD_HELP_SOCIAL 中『（Lv.30 起选四大阵营；任务/商店/排行）』改为『(Lv.20 起…)』，对齐 game/data/factions.py:88 FACTION_CAMP_OPEN_LV=20。纯文案修正，不动逻辑。",
+      "risk": "low",
+      "test_impact": "无回归需要；如 test_v87_command_matrix.py 有对帮助文案的断言则顺带校准。"
+    },
+    {
+      "id": "A0-C5",
+      "sev": "C",
+      "verdict": "confirmed",
+      "title": "factions.py FACTION_CAMP_SHOP 注释字段名错误 + level 为死字段",
+      "files": ["game/data/factions.py"],
+      "fix_summary": "game/data/factions.py:97 注释改为『item=物品 ID（C.ITEMS / C.MATERIALS）』；同时删除注释中『level=可选等级门槛』（无任何条目含 level，camp_shop 也不读该字段），并把数据条目（101-107 列表）确认为仅由 item/cost/name 组成。纯注释/文档修正，零行为影响。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "A0-B3",
+      "sev": "B",
+      "verdict": "doc_only",
+      "title": "红名『双倍荣誉』vs『+50』数值矛盾 + 掉落归属未实装未标注",
+      "files": ["design/new_world/26_PVP与红名系统.md"],
+      "fix_summary": "design/new_world/26_PVP与红名系统.md §3.2 第三档写『击杀红名者获得双倍荣誉』，与 §3.3/§二『击杀红名 +50』以及实现 combat.py:2923 的固定 +50 矛盾（普通胜利 +10 则+50 非双倍）。改 §3.2 第三档为『+50』消除矛盾；并把同句『掉落归属』按 §3.2 其余未实装项的标准格式标注『⚠️ 未实装（审计 2026-08）』。纯文档修正，零行为影响。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "A0-C7",
+      "sev": "C",
+      "verdict": "doc_only",
+      "title": "11 章落地映射表与实现细节不符（faction/shop/guild_tasks）",
+      "files": ["design/new_world/11_国战与公会.md"],
+      "fix_summary": "design/new_world/11_国战与公会.md:183-192 落地映射列与实现不一致：faction_shop 实际在 world.py 而非 shop.py、无 guild_tasks 表（用 guild_members.task_* 列）、阵营任务实现为收集型非矩阵所列表格。更新该行到实际实现（并标注走备选方案之处）。纯文档同步。",
+      "risk": "low",
+      "test_impact": "无。"
+    },
+    {
+      "id": "A0-C8",
+      "sev": "C",
+      "verdict": "doc_only",
+      "title": "core/factions.py docstring 误标『数据层』易与 data/factions.py 混淆",
+      "files": ["game/core/factions.py"],
+      "fix_summary": "game/core/factions.py:6 docstring 现为『《剑与魔法》数据层 - factions.py』，实为 core 逻辑层，与 game/data/factions.py 同名易混淆。改为反映 core 归属（如『...核心逻辑层 - factions 声望 tier』）。纯注释修正。",
+      "risk": "low",
+      "test_impact": "无。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A0-S1",
+      "sev": "S",
+      "title": "荣誉可无限对刷：PVP 袭击 CD 仅挂攻击方，防守方无 CD",
+      "options": "combat.py:2901 _set_pvp_cd 只写 attacker，:2733 也只查发起方 → 两账号同图±10级交替攻击既可各吃 +10 及互相击杀兑现 +50。候选：(1) victim 对称 CD——_pvp_finish 时对 loser 也 _set_pvp_cd；(2) 荣誉来源加每日/每人上限（event_state 记录当日荣誉）；(3) 仅击杀红名计 +50、普通胜利荣誉降频或不设高额。需总编在『防刷强度 vs PVP 激励』拍板，补 CD 后仍建议叠加次数上限。"
+    },
+    {
+      "id": "A0-A2",
+      "sev": "A",
+      "title": "上架（market_sell）为两步独立 commit，非原子，是防刷体系唯一非原子开口",
+      "options": "social.py:85-86 先 db.market_add 后 db.remove_item，两次独立 commit，中途崩溃可致物品复制/少货得金。候选：(1) 在 store/social.py 新增 market_sell_atomic(group_id,qq_id,item_key,item_data,price)，仿 market_buy_atomic:259-285 用 atomic() 单事务完成『读包→INSERT market→扣包』，命令层改调它；(2) 维持现状并接受（当前依赖进程不中途崩，防刷口径将『复制』判为 S 时升级为 S 补修）。改动面=store/social.py + commands/social.py 两模块。"
+    },
+    {
+      "id": "A0-A4",
+      "sev": "A",
+      "title": "market_sync_stall 把摆摊全部条目 map_id 漂移到玩家当前地图，软化『位置=当面交易』语义",
+      "options": "store/social.py:163-176 UPDATE 无 map 限定、仅排除空 map_id；social.py:256 查看他人摊位时即同步 → 玩家移动后真实摊位被无声迁移。候选：(1) 漂移前校验，仅同步当前驻地/当前一条；(2) 保留惰性跟随但展示提示『摊位随玩家移动』；(3) 维持现状并明确写入设计为故意行为。需总编确认目标体验。"
+    },
+    {
+      "id": "A0-B2-gold",
+      "sev": "B",
+      "title": "打怪死亡掉金无 2000 上限，与 PVP 战败 min(10%,2000) 及设计 26§3.2 不一致",
+      "options": "combat.py:2133 _handle_defeat lost=int(gold*0.1) 无上限；:2886 _pvp_finish 为 min(10%,2000)。设计 26§第二档要求两者均上限 2000。候选：(1) 将 :2133 改为 min(int(gold*0.1),2000) 对齐设计，并同步改 tests/test_v85_pvp_honor.py:125（红名 w2 gold=50000：base 2000+extra 2000=4000 → 期望 46000）；(2) 维持打怪无上限并同步更新设计文档。数值手感会变（>20000 金玩家打怪死损失下降），需总编定夺。"
+    },
+    {
+      "id": "A0-B5",
+      "sev": "B",
+      "title": "四阵营商店共用同一商品池，无阵营专属差异",
+      "options": "factions.py:101-107 FACTION_CAMP_SHOP 单池 5 件；设计 11 章 §2.8(行86-95) 承诺阵营专属披风/坐骑等。候选：(1) 每阵营加 1-2 件专属差异化商品（需内容设计，属新功能）；(2) 在 11 章标注该公共池为占位/二期。改动涉及数据与内容设计决策。"
+    },
+    {
+      "id": "A0-B6",
+      "sev": "B",
+      "title": "公会等级无上限：guild_add_exp 无 max_level，可超设计 6 级",
+      "options": "store/social.py:658-661 while 无条件升级；设计 11 章 §3.3 定义 1-6 级。经验加成已封顶 20%（guild.py:15）故无数值崩溃，但等级展示/排行语义可超档。候选：(1) 加 max_guild_level（如 6），升级后封顶、经验停攒；(2) 维持无限并同步设计文档口径；(3) 确认设计意图后再定。另：11 章行126『实机口径 6 级体系未落地』注释与实际已能升级不符，需一并更新。"
+    },
+    {
+      "id": "A0-B7",
+      "sev": "B",
+      "title": "收摊删除该玩家全部摊位而非当前摊位，家铺面多摊会被一刀清空",
+      "options": "social.py:226 调 market_remove_by_seller（store/social.py:178-197 WHERE seller=? 且 map_id 非空）删除全部摊位；home 铺面允许多摊(v104R3 P2)。候选：(1) 收摊加位置限定（仅当前 map）；(2) 多摊时二次确认提示『将收回全部摊位』；(3) 保持并注明设计意图。需总编确认。"
+    },
+    {
+      "id": "A0-B8",
+      "sev": "B",
+      "title": "AUCTION_POOL 含 lv95 橙武等高等级拍品，成交无 req 穿戴校验",
+      "options": "data/world.py:23-34 含 weapon lv95(行33) 等；world_event_templates.py:92-108 抽 3 件生成，未校验 winner level 能否穿戴。候选：(1) 结算/展示时按 winner level 校验 req 并提示/过滤；(2) 视为设计允许（拍到养到等级再用）并写入设计；(3) 与数值子Agent核对 lv95 装备存在性后定。"
+    },
+    {
+      "id": "A0-B10",
+      "sev": "B",
+      "title": "红名只拦商店购买/查看，不拦出售（卖 NPC 店）",
+      "options": "economy.py _is_redname 仅 shop:3792 / buy:3910 拦截，sell:3639 无拦截；P2P 市场按设定放开。候选：(1) 在 sell 加与购买对称的红名闸；(2) 明确写入设定『只拦购买、允许出售清货』。需总编裁决。"
+    },
+    {
+      "id": "A0-B11",
+      "sev": "B",
+      "title": "阵营贡献键不区分阵营：切阵营不重置贡献，旧贡献被计入新阵营排行",
+      "options": "world.py:3879 贡献存 event_state faction_camp_{gid}_{qq}（不绑阵营）；camp_join:3967-3971 切阵营不重置；camp_rank:4157-4168 按当前 p.faction 聚合。受 7 天冷却限制但长期累积偏颇。候选：(1) 切阵营时重置 contrib；(2) 贡献键绑定阵营 id（如 faction_camp_{gid}_{fid}_{qq}）；(3) 保留并注明设计意图。"
+    },
+    {
+      "id": "A0-C6",
+      "sev": "C",
+      "title": "公会商店 gs_* 物品或用独立 key，疑似与同名市场/强化材料中断链（死商品风险）",
+      "options": "guild.py 的 gs_qch_stone(淬火石,价15) 与 items.py mat_qiang_hua_shi(淬火石,价15，craft.py/gather_pools.py 消费) 为不同 key；gs_gao_ji_stone(高级强化石,价400) 与强化系统消费的 i_stone_upgrade(强化石,价400) 也不是同一 key。需跨域(G0/G3)核对强化/锻造消费的是 mat_*/i_* 还是 gs_*；若 gs_* 无消费来源，将公会商店 item_key/消耗映射到既有 mat_*/i_* 或补消耗入口；并统一 price 口径到 items.py 市场价。涉及数据设计，需与 G 域协同。"
+    }
+  ],
+  "uncertain": [],
+  "stale": [],
+  "no_action_count": 11
+}

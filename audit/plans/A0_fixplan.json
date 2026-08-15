@@ -1,0 +1,115 @@
+{
+  "domain": "A0",
+  "findings": [
+    {
+      "id": "A0-A1",
+      "sev": "S",
+      "verdict": "confirmed",
+      "title": "phase BOSS 存档崩溃：`_phase_warned` 存 Python set 致 json.dumps 抛 TypeError",
+      "files": ["game/core/battle_mech.py", "game/store/battle_state.py", "tests/test_v116_boss_trigger_phase.py"],
+      "fix_summary": "game/core/battle_mech.py::_b_phase（L475/478/483-485）`_phase_warned` 从 set 改为 list：L475 `warned = e.get(\"_phase_warned\") or []`、L476 判 `(pc+1) not in warned`、L478 `.append(pc+1)`、L483-484 改为 `if not isinstance(..., list): e[\"_phase_warned\"] = []`、L485 `.append(npc)`。同时 game/store/battle_state.py::save_battle（L42 前）对 state 的 enemies/enemy 嵌套递归做 set→list 兜底清洗（新增 `_json_ready(obj)` helper 深转），兼容已有旧档中可能遗留的 set。补回归测试：phase BOSS（mech 含 phase + phases 配置）进入第 2 阶段后调用 save_battle 不抛异常。",
+      "risk": "low",
+      "test_impact": "需补测试：tests/test_v116_boss_trigger_phase.py 增加『phase BOSS 战斗中 save_battle 序列化不崩溃』用例（先 _b_phase 触发存入第2阶段，再 json.dumps(to_state) 断言通过）。"
+    },
+    {
+      "id": "A0-A2",
+      "sev": "B",
+      "verdict": "confirmed",
+      "title": "团队减伤 `_reduce_all_left` 未入 to_state/from_state，存档恢复后首回合即被清",
+      "files": ["game/battle.py"],
+      "fix_summary": "game/battle.py::to_state（L262-299）新增键 `\"reduce_all_left\": self._reduce_all_left`；from_state（L302-348）恢复 `b._reduce_all_left = int(st.get(\"reduce_all_left\", 0) or 0)`。使 `_end_round`（L3010-3013）恢复后按剩余回合正常递减，而不是恢复后 __init__=0 被下回合立即弹掉 reduce_all。补回归测试：施放团队减伤→to_state/from_state→下一回合确认 _reduce_all_left 正确递减而非归零。",
+      "risk": "low",
+      "test_impact": "tests/test_v59_stack_persist.py 或 tests/test_aoe_status_persist.py 增加『reduce_all 剩余回合随 state 往返不丢失』断言。"
+    }
+  ],
+  "risky": [
+    {
+      "id": "A0-R1",
+      "sev": "A",
+      "title": "PVP 精准对抗死代码：`_attacker_precise` 读不存在的 self.mode",
+      "options": "A) 确定为修复（推荐）：battle.py:3026 `self.mode == \"pvp\"` 改 `self.btype == \"pvp\"`，启用 PVP 攻击方精准削减受击侧闪避（design 27:110），并同步 test_v105_dodge_precise.py:105 改 `btype=\"pvp\"`，补充真实双人 PVP 精准断言；此改动会改变现存 PVP 平衡（闪避方不再被全额无减）。B) 若本期 PVP 精准对抗非目标：加 TODO 注释 + `# pragma: no cover` 防误读，标注为有意留白。"
+    },
+    {
+      "id": "A0-R2",
+      "sev": "A",
+      "title": "标记 mark 增伤固定 +30% 与设计多层口径（27:280『5层=+100%』/27:304『每层+20%』/12:291『每层+10%』）三处不一致",
+      "options": "A) 落地『每层 x%』数量型增长（改 battle.py `_apply_mark` 按 p_mech[\"mark\"] 层数乘算，统一 27/12 两章口径为一个值）。B) 收敛为固定 +30%（保留 battle.py:87 MARK_EXTRA，仅改 design 27:280/304 与 12:291 为固定+30% 文案）。涉及游侠核心狩猎循环实机收益与多份设计文档，需用户拍板语义。"
+    },
+    {
+      "id": "A0-R3",
+      "sev": "A",
+      "title": "BOSS 编排核心未落地：连招链/换区/多行动/教学映射 zero 引用",
+      "options": "A) 排期补齐（优先连招链 chains 消费 + 阶段换招表 + P3 双行动）——战斗.py `_enemy_turn`（L2484-2488 仅 30%随机/70%普攻）与 `_boss_cfg` 已解析 chains 但不消费。B) v1 收敛为『7 机制+条件反制子集』，在 design 参考/*.md 标注实现态『以 7 机制为准』防未来误报。"
+    },
+    {
+      "id": "A0-R4",
+      "sev": "A",
+      "title": "阶段触发阈值硬编码 0.5**(pc+1)（50%/25%），phases[].min（60/30）不消费",
+      "options": "A) 改 `_b_phase`（battle_mech.py:466）读 `phases[pc].min` 作为下一阶段阈值（缺省退回 0.5^n），同步更新 test_v83/test_v116 阈值断言与 design 预告(BOSS编排§1.3)。B) 维持实现 50/25，统一 design 与 phases.min 数据（min 改位位置索引）。A) 会改变 BOSS 阶段节奏/玩家血线预期。"
+    },
+    {
+      "id": "A0-R5",
+      "sev": "A",
+      "title": "BOSS 无控制免疫/霸体，时停流可稳定连控",
+      "options": "A) 给 is_boss 加控制抗性/霸体（如眩晕/冻结/沉默时长减半或阶段硬直免疫，落地 battle_mech.py `_enemy_turn` 无条件跳回合处 L2463-2472）。B) 维持现状，接受高难端靠玩家练度，仅加安全说明。A) 为新增机制改平衡。"
+    },
+    {
+      "id": "A0-R6",
+      "sev": "A",
+      "title": "审判 judge 叠层在 _mech_stack_bonus 无被动增伤（rage/shadow/chi/spellblade 有，judge 恒 1.0）",
+      "options": "A) 将 judge 纳入 `_mech_stack_bonus`（battle.py:2265-2275）按层数被动增伤（每层对应值需定，与 27 章§八/日志口径统一）。B) 维持纯爆发前置，改日志与文档口径为『每层+15% 爆发』。涉及审判心被动实机收益。"
+    },
+    {
+      "id": "A0-R7",
+      "sev": "B",
+      "title": "净化 _m_cleanse 对 summon 仅 pop 标志位不删援军实体、且重置 enraged 可让 Boss 再狂暴",
+      "options": "A) 净化同步删除 self.enemies 中 summon 援军实体，并保留 enraged 不被驱散（或驱逐后狂暴 CD 保护）杜绝『清后可再狂暴』钻空。B) 收缩 desc 文案『净化仅驱散增益、不驱召唤实体』。改动战斗战术语义，需定夺。"
+    },
+    {
+      "id": "A0-R8",
+      "sev": "B",
+      "title": "_enemy_stats 敌方攻击强化全乘式叠加无总帽（enrage×1.35 · phase×1.2n · stacks×1.08n · low×1.25 · pv_broken×1.30 · mon_atk_up）",
+      "options": "A) 在 _enemy_stats（battle.py:2682-2731）末尾对 atk/matk 加总帽 clamp（如 ≤3.0× 基础，参数可配），防满配置 BOSS 一击秒杀。B) 维持现状记录为设计上限，交由 B0 数值统一定 4-5× 是否可接受。A) 改变高难数值曲线。"
+    },
+    {
+      "id": "A0-R9",
+      "sev": "B",
+      "title": "射程外目标攻击被拒却已 round+=1 且推进回合开始结算（HOT/毒/蓄力计时）——半回合窗口",
+      "options": "A) 把 `_target_out_of_range` 拒绝判定提前到 `self.round += 1`（battle.py:616）与回合开始结算（L620-621）之前判定返回（实现 design 27§2.2『被拒不消耗回合』），需把 L656 的射程拒绝逻辑前移（目标解析 L653-655 是否依赖 round 态需评估）。B) 维持『消耗半回合』现状并改代码注释与 design 文档一致。A) 涉及回合推进语义，改动面波及攻击/技能被拒路径。"
+    }
+  ],
+  "uncertain": [
+    {
+      "id": "A0-U1",
+      "sev": "A",
+      "title": "instances.py phase,phase / phase,phase,phase 多阶段编码",
+      "reason": "instances.py L675/L1010/L1660 的 `\"mech\": \"phase,phase\"` 处于 0 缩进（与同字典 key_item 的 8 空格缩进不一致、且 boss 怪物元组内无 mech 字段），疑为错位残数据而非可运行的多阶段 token；只读约束下无法确认该文件能否 import、运行时 `_boss_mech` 是否真的逐 token 连跳触发 _b_phase。需运行验证或人工核对 JSON 结构后再定改法。"
+    },
+    {
+      "id": "A0-U2",
+      "sev": "B",
+      "title": "速度额外行动 p_extra_left 跨回合结转（本回合不消耗下回合照用）",
+      "reason": "_speed_plan（battle.py:1074-1101）以进度条累积器增量 p_extra_left 且回合间不重置，属『进度差换行动』的自然累加；报告视为与『当回合自由出手』语义偏差，但可能即为 v61 设计本意。未确认是否确为缺陷，需设计口径拍板跨回合结转与否。"
+    },
+    {
+      "id": "A0-U3",
+      "sev": "B",
+      "title": "save_battle 对 state 原地补包 + 直接 json.dumps 未深拷贝，调用方复用嵌套引用",
+      "reason": "battle_state.py:11-46 确未 deepcopy，但当前命令层调用点多在结算后才 save，无已证实的中途改库路径触发；属潜在风险而非确认活跃 bug。建议低成本加固（save_battle 内 deepcopy + set→list 清洗，可与 S-A0-1 兜底合并），但标注为潜在。"
+    },
+    {
+      "id": "A0-U4",
+      "sev": "A",
+      "title": "世界Boss 击杀结算 gboss[\"name\"] 被存活单位覆盖致掉落池查空",
+      "reason": "combat.py:2479 用 `_main_now`（首个存活单位或 enemies[0]）覆盖 gboss[\"name\"]，随后 L2491 以该名查 WORLD_BOSS_DROPS；主Boss先死而爪牙存活时可能查空少发特殊掉落。但需核实 world event cur_evt[\"data\"][\"boss\"] 的初始 name/enemies 是否恒含原 Boss，且 victory 时 enemies 全灭 `_main_now` 退化为 enemies[0] 通常即主目标——触发条件未能只读确认。"
+    },
+    {
+      "id": "A0-U5",
+      "sev": "B",
+      "title": "AOE 逆推公式 _atk=(dmg+√(dmg²+4·dmg·def))/2 对真伤/魔法 dmg_type 目标防御>0 时会被无谓重算削减",
+      "reason": "_aoe_damage（battle.py:3104-3110）只要目标 def>0 即走物理逆推，不区分 dmg_type；真伤/魔法 AOE 段可能被当作物理含 def 公式重算而减伤（报告标注为『推断』）。需确认是否存在真伤/魔法型 AOE 技能实际触发该路径才能坐实；当前参数化测试仅覆盖物理段。"
+    }
+  ],
+  "stale": [],
+  "no_action_count": 12
+}

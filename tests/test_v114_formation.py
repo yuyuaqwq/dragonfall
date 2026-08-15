@@ -4,7 +4,7 @@
 覆盖 27d 审计验收清单 A3-A8 / 27b §11：
   - A3 目标选择：近战 reach1 只打前排；远程 reach2 可指定打后排；指定目标超出射程被拒
   - A3 阵型压缩：formation.compact 纯函数 rank 重编号；战斗内前排死亡即时压缩后排前移
-  - A4 多怪回合：enemies 每怪每轮行动一次；全灭=胜利
+  - A4 多怪回合：敌人按 CTB ct 时间轴行动（v121 起非"每轮固定各行动一次"，见 test_multi_enemy_turns）；全灭=胜利
   - A5 AOE：scope=front 只打前排 / scope=all 打全阵 / falloff 衰减（rank>1 减伤）
   - A6 蓄力：施放扣MP → 蓄力中禁普攻 → 回合开始自动释放；受击打断返还50% MP；控制打断；DOT 不打断
   - A7 召唤/援军：_summon_entity 召唤物带 rank/reach 进前排；_summon_minions 援军入 enemies
@@ -177,6 +177,9 @@ def test_multi_enemy_turns():
                            mk_unit("怪丙", hp=10 ** 9, atk=30, spd=10)])
     hp0 = p["hp"]
     random.seed(4)
+    # v121 CTB：敌方行动段按 ct 调度（不再"每怪每轮固定行动一次"）。把玩家 ct 置高
+    # （玩家行动后处于时间轴后方），使三个敌方单位均在当段轮到行动，验证多怪可各自命中玩家。
+    b.p_ct = 5.0
     logs, _ = b._enemy_phase(p, [], True)
     check("多怪每怪各行动一次（玩家受击）", p["hp"] < hp0, f"loss={hp0 - p['hp']}")
     hit = set()

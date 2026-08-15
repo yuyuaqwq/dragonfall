@@ -62,7 +62,9 @@ async def main():
     out = await cmd(m, "use", "g1", "w1", "使用 魔法药水(中)")
     p = db.get_player("g1", "w1")
     check("战斗内mana回蓝", p["mp"] > p_mp0 - 50, f"mp={p['mp']} vs {p_mp0 - 50}")
-    check("战斗内mana不回血", p["hp"] == p_hp0, f"hp={p['hp']} vs {p_hp0}")
+    # v121 CTB：mana 药水本身不加血；旧 v61"速度优势回合敌方不行动"使本断言成立，
+    # CTB 下玩家行动后敌方按 ct 正常行动（怪 spd 5 开局排第 2 位），hp 减少来自怪攻击。
+    check("战斗内mana不回血", p["hp"] <= p_hp0, f"hp={p['hp']} vs {p_hp0}")
 
     # 4. 战斗中卷轴拦截
     db.add_item("g1", "w1", "pot_test4", {"name": "传送卷轴", "type": "消耗品",

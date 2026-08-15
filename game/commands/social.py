@@ -349,8 +349,8 @@ class SocialCmds(CommandBase):
             if members:
                 lines = [f"🤝 【队伍】({len(members)}人)", "━━━━━━━━━━━━"]
                 # v104 M04 P2：面板补"位置"（模块卡审计点 7：成员/等级/职业/位置）——
-                # 副本内按速度降序决定出手顺序（instance.py:956），面板标注每人行动位次，
-                # 让玩家知道下副本时谁先出手（出手位≠入队序号，速度排序）
+                # v121 CTB 审计修复：CTB 下行动顺序由 ct 动态决定（无固定"出手位"），
+                # 静态"出手位N"排名具有误导性——改为展示速度值（快者 CTB 开局先手、行动更频繁）
                 _order = []
                 for _m in members:
                     _p = self._player(group_id, _m)
@@ -362,7 +362,7 @@ class SocialCmds(CommandBase):
                             _p.get("evolve_path", 0), None, _p.get("race")
                         ).get("spd", 0) or 0
                     _order.append((_spd, str(_m)))
-                _rank = {mid: i + 1 for i, (_s, mid) in enumerate(sorted(_order, key=lambda x: -x[0]))}
+                _spdmap = dict(_order)
                 for i, m in enumerate(members, 1):
                     p = self._player(group_id, m)
                     # v104 M04 P2：面板补 等级/职业（对齐『角色』面板写法 C.display('classes', ...)）
@@ -370,7 +370,7 @@ class SocialCmds(CommandBase):
                         f" Lv.{p.get('level', '?')} {C.display('classes', p.get('class_name') or C.CLASS_NOVICE)}"
                         if p else ""
                     )
-                    pos_str = f" · 出手位{_rank.get(str(m), '?')}" if len(members) > 1 else ""
+                    pos_str = f" · 💨速{_spdmap.get(str(m), '?')}" if len(members) > 1 else ""
                     lines.append(f"{i}. {p['name'] if p else m}{cls_str}{pos_str}" + ("(队长)" if m == members[0] else ""))
                 lines.append("💡 组队打怪经验＋10%（野外各自为战，仅经验加成；副本内才并肩作战）！队长『组队 <名字>』可再拉人(上限 4 人)；『退队』离开")
                 yield event.plain_result("\n".join(lines))

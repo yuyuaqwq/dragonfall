@@ -3430,6 +3430,7 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result("PVP 战斗无法使用道具！")
                 return
             b = BT.Battle.from_state(battle["state"])
+            b.player = player  # v121 审计修复：恢复路径补齐 self.player（盾强度/冷却缩减/精准减免读它）
             ctx = IT.ItemContext(group_id, qq_id, player, d, battle=battle["state"], hooks=hooks)
             r = IT.TEMPLATES[tpl_name](ctx)
             if not r.consume:
