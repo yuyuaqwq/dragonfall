@@ -60,7 +60,9 @@ async def main():
 
     print("【commands 层：帮助含各 Mixin】")
     out = await cmd(m, "help_cmd", "g1", "q1", "帮助")
-    for section in ("冒险", "战斗", "背包", "公会", "快捷", "炼金"):
+    # v114.6 帮助主面板只排系统标题，不展开详细指令
+    for section in ("角色系统", "冒险系统", "战斗系统", "技能系统", "副业系统",
+                    "物品系统", "社交系统", "世界系统"):
         check(f"帮助含『{section}』", section in out, out[:200])
 
     print("【commands 层：快捷指令静态表回退】")

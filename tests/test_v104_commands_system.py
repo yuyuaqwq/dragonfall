@@ -294,6 +294,7 @@ async def test_help(m):
         MiscCmds.CMD_HELP_ITEM, MiscCmds.CMD_HELP_INSTANCE, MiscCmds.CMD_HELP_SOCIAL,
         MiscCmds.CMD_HELP_WORLD, MiscCmds.CMD_HELP_OTHER,
     ])
+    # v114.6 帮助精简：主面板只排系统标题；副本内指令/接取/转职重置收录在对应分类子面板
     for kw in ["编年史", "移动", "转职重置", "副本地图", "荣誉", "交互",
                "接取", "调查", "撤退", "竞拍", "帮助"]:
         check(f"帮助文案含『{kw}』", kw in all_help, "")
