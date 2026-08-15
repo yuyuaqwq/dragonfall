@@ -75,7 +75,7 @@ DIALOGUES = {
                 ],
             },
             "town": {
-                "text": "镇子还算太平，多亏了铁匠托尔那把好锤子，还有橡木桶旅店的麦酒——大伙儿晚上有个地方松快松快。对了，城门口那位吟游诗人莉莉，最近老念叨什么'隧洞之王'，你感兴趣可以去听听。",
+                "text": "镇子还算太平，多亏了铁匠老铁那把好锤子，还有橡木桶旅店的麦酒——大伙儿晚上有个地方松快松快。对了，镇子里最近总有人传'隧洞之王'的传闻，说石拳丘陵的矿洞里出了了不得的东西。你若有兴趣，可以去打听打听。",
                 "options": [
                     {"text": "史莱姆是怎么回事？", "next": "dogs", "need": {"not_quest_done": "q1_1"}},
                     {"text": "我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
@@ -188,7 +188,7 @@ DIALOGUES = {
                 ],
             },
             "gossip": {
-                "text": "哎哟，可别说——前几天住了个矮人商人，喝多了吹牛说石拳丘陵的矿洞里藏着宝贝。还有那个吟游诗人莉莉，天天在广场上弹琴，唱什么'隧洞之王'，把小孩子都吓哭了！",
+                "text": "哎哟，可别说——前几天住了个矮人商人，喝多了吹牛说石拳丘陵的矿洞里藏着宝贝。还有那'隧洞之王'的传闻，传得满镇都是，把小孩子都吓哭了！",
                 "options": [
                     {"text": "住一晚。", "next": "stay", "action": {"hint": "输入『住宿』恢复满血(需要金币)"}},
                     {"text": "告辞。", "next": "__end__"},
@@ -671,7 +671,7 @@ DIALOGUES = {
                 ],
             },
             "practice_intro": {
-                "text": "哼，勉强算你答对了。去收集 3 份草药来，我要看看你的材料鉴别能力。\n（草药：野外『探索』遇『🌿 草药丛』可采，橡木平原/白鹿森林/银铃河一带常有）",
+                "text": "哼，勉强算你答对了。去收集 3 份草药来，我要看看你的材料鉴别能力。\n（草药：野外『探索』遇『🌿 草药丛』可采，橡木平原/白鹿之森/银铃河一带常有）",
                 "options": [
                     {"text": "这就去", "next": "practice_check"},
                     {"text": "先告辞", "next": "__end__"},
@@ -1213,7 +1213,9 @@ DIALOGUES = {
             "welcome": {
                 "text": "蚀夜的低语在封印之核中回荡：『……你来了。裂痕在扩大，而我……快要撑不住了。』",
                 "options": [
-                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    # F2 P1：quest_pending 绑定 q10_5——传承抉择仅在该任务 pending 时提供，
+                    # 否则第 10 章 q10_2~q10_6 任意 pending 点『我需要任务』都会误入 q10_5 专属抉择
+                    {"text": "📜 我需要任务。", "next": "quest_talk", "need": {"quest_pending": "q10_5"}},
                     {"text": "我手头的任务……", "next": "quest_status", "need": {"quest_any_active": True}},
                     {"text": "✅ 任务完成了。", "next": "quest_done_talk", "need": {"quest_ready": ""}},
                     {"text": "告辞。", "next": "__end__"},
@@ -1225,11 +1227,11 @@ DIALOGUES = {
                 "text_from": "story",
                 "text": "艾德里克的残魂在金光中凝实，向你伸出手。",
                 "options": [
-                    {"text": "✨ 我愿意，成为新的黎明。", "next": "__end__", "need": {"quest_pending": ""},
+                    {"text": "✨ 我愿意，成为新的黎明。", "next": "__end__", "need": {"quest_pending": "q10_5"},
                      "action": {"set_flag": "chose_inheritor", "quest_take": True}},
-                    {"text": "🤔 这份力量……我真的配得上吗？", "next": "__end__", "need": {"quest_pending": ""},
+                    {"text": "🤔 这份力量……我真的配得上吗？", "next": "__end__", "need": {"quest_pending": "q10_5"},
                      "action": {"set_flag": "chose_doubt", "quest_take": True}},
-                    {"text": "🕯️ 除了传承，真的没有别的办法了吗？", "next": "__end__", "need": {"quest_pending": ""},
+                    {"text": "🕯️ 除了传承，真的没有别的办法了吗？", "next": "__end__", "need": {"quest_pending": "q10_5"},
                      "action": {"set_flag": "chose_alternative", "quest_take": True}},
                 ],
             },
@@ -1237,7 +1239,7 @@ DIALOGUES = {
                 "text": "『圣光不在于血统，而在于心中是否愿意守护。』",
                 "options": [
                     {"text": "✅ 任务完成了！", "next": "quest_done_talk", "need": {"quest_ready": ""}},
-                    {"text": "📜 我要接新任务。", "next": "quest_talk", "need": {"quest_pending": ""}},
+                    {"text": "📜 我要接新任务。", "next": "quest_talk", "need": {"quest_pending": "q10_5"}},
                     {"text": "告辞。", "next": "__end__"},
                 ],
             },

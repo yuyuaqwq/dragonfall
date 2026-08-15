@@ -53,18 +53,18 @@ async def main():
     # ============ 1. q5_5 collect 交付（接了能交） ============
     print("\n[1] q5_5 collect 交付")
     make_player("g1", "p1", "格温", "战士")
-    db.update_player("g1", "p1", cur_map="dawn_city", cur_subarea="dawn_city_3")
+    db.update_player("g1", "p1", cur_map="dawn_city", cur_subarea="dawn_city_2")
     q5 = next(q for q in C.MAIN_QUESTS if q["id"] == "q5_5")
     check("q5_5 数据: collect 圣光百合×1", q5["objective"] == {"collect": "圣光百合", "count": 1}, str(q5["objective"]))
     gold0 = db.get_player("g1", "p1")["gold"]
     db.save_quests("g1", "p1", qdata("q5_5", "active"))
-    # 背包没有花时对话 → 不崩、不交付
-    out = await cmd(m, "talk_choice", "g1", "p1", "对话 枢机主教")
+    # 背包没有花时对话 → 不崩、不交付（q5_5 giver=国王·腓特烈三世 F2 修正）
+    out = await cmd(m, "talk_choice", "g1", "p1", "对话 国王")
     check("无花对话不交付", "已接取" in out, out[:120])
     check("状态仍 active", get_q("g1", "p1")["main_status"] == "active", get_q("g1", "p1")["main_status"])
     # 凑齐圣光百合 → 对话 → 置 ready 并交付
     db.add_item("g1", "p1", "mat_sheng_guang_bai_he", {"name": "圣光百合", "type": "材料", "stackable": True, "price": 30}, 1)
-    out = await cmd(m, "talk_choice", "g1", "p1", "对话 枢机主教")
+    out = await cmd(m, "talk_choice", "g1", "p1", "对话 国王")
     qq = get_q("g1", "p1")
     check("凑齐后对话完成推进", "任务完成" in out, out[:160])
     check("推进到 q5_6", qq["main_quest"] == "q5_6", str(qq["main_quest"]))
