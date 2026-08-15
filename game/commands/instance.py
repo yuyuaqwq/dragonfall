@@ -13,8 +13,7 @@ import re
 import time
 import uuid
 
-from astrbot.api import star
-from astrbot.api.event import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db

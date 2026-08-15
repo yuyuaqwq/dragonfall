@@ -10,9 +10,7 @@ import random
 import re
 import time
 
-from astrbot.api import star
-from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.core.message.message_event_result import MessageChain
+from ._platform import AstrMessageEvent, filter, MessageChain
 
 from .. import content as C
 from .. import db

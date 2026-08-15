@@ -9,9 +9,7 @@ import glob
 import threading
 import logging
 
-from astrbot.api import star
-from astrbot.api.event import AstrMessageEvent
-from astrbot.core.message.message_event_result import MessageChain
+from astrbot.api import star  # 仅 AstrMain 壳需要（生产命中真实 astrbot；测试命中 tests/shim_astrbot）
 
 from .game import db
 from .game.commands import (
@@ -269,7 +267,6 @@ def _event_state_cleanup_once():
 
 
 class Main(
-    star.Star,
     PlayerCmds,
     WorldCmds,
     CombatCmds,
@@ -280,9 +277,14 @@ class Main(
     GmCmds,
     ExplorationCmds,  # v115 探索进度指令
 ):
-    """奥兰迪亚·余烬纪年西幻文字RPG——在QQ群里冒险吧！"""
+    """奥兰迪亚·余烬纪年核心游戏类（v117.5 起平台无关，不再继承 astrbot star.Star）。
 
-    def __init__(self, context: star.Context) -> None:
+    astrbot 接入由文件末尾 AstrMain 壳完成（命令装饰器经 game/commands/_platform
+    双注册进 astrbot 注册表；本类零 astrbot 依赖）。迁移到其他平台：
+    把 game/ 包 + 本类搬走，另写目标平台的薄壳即可。
+    """
+
+    def __init__(self, context=None) -> None:
         self.context = context
         # v101.28q：记录主事件循环——loopback worker 线程里的 handler 执行必须提交到主 loop，
         # 否则 await Quart websocket（aiocqhttp bot API）会跨 loop 挂死（gm_窥探 投递卡住的根因）
@@ -305,3 +307,75 @@ class Main(
         if context is not None:
             _file_loopback_start()
         # v36: 广播任务已停用（意见改为 cron 汇总报告给鱼鱼，不回复玩家）
+
+
+# ================= astrbot 插件壳（v117.5 解耦后薄层） =================
+# 命令装饰器已由 game/commands/_platform 双注册进 astrbot 注册表；
+# 本壳只做两件事：① 提供 class X(star.Star) 让 astrbot 发现插件（main.py 是固定入口）；
+# ② context 翻译——核心回复数据类（MessageChain/Plain/Node/Nodes）→ astrbot 类型。
+# 核心 Main 本身零 astrbot 依赖，测试直接 import Main（不走壳）。
+
+from .game.commands import _platform as _pf  # noqa: E402
+
+
+def _to_astrbot_node(node):
+    """核心 Node → astrbot Node（OneBot 合并转发节点）。"""
+    from astrbot.core.message.components import Node as ANode
+    from astrbot.core.message.components import Nodes as ANodes
+    from astrbot.core.message.components import Plain as APlain
+
+    content = []
+    for comp in node.content:
+        if isinstance(comp, _pf.Plain):
+            content.append(APlain(comp.text))
+        elif isinstance(comp, _pf.Node):
+            content.append(_to_astrbot_node(comp))
+        elif isinstance(comp, _pf.Nodes):
+            content.append(ANodes([_to_astrbot_node(n) for n in comp.nodes]))
+        else:
+            content.append(comp)
+    return ANode(uin=node.uin, name=node.name, content=content)
+
+
+def _to_astrbot_chain(chain):
+    """核心 MessageChain → astrbot MessageChain。"""
+    from astrbot.core.message.components import Nodes as ANodes
+    from astrbot.core.message.components import Plain as APlain
+    from astrbot.core.message.message_event_result import MessageChain as AChain
+
+    out = []
+    for comp in chain.chain:
+        if isinstance(comp, _pf.Plain):
+            out.append(APlain(comp.text))
+        elif isinstance(comp, _pf.Node):
+            out.append(_to_astrbot_node(comp))
+        elif isinstance(comp, _pf.Nodes):
+            out.append(ANodes([_to_astrbot_node(n) for n in comp.nodes]))
+        else:
+            out.append(comp)
+    return AChain(out)
+
+
+class _ContextProxy:
+    """把核心 MessageChain 翻译成 astrbot MessageChain 后转发（其余属性透传）。"""
+
+    def __init__(self, real):
+        self._real = real
+
+    def send_message(self, target, chain):
+        return self._real.send_message(target, _to_astrbot_chain(chain))
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+class AstrMain(star.Star, Main):
+    """astrbot 插件壳：继承核心 Main，注入 context 翻译代理。
+
+    装饰器（@filter.regex 等）已在 game/commands/_platform 双注册时同步进
+    astrbot 注册表，handler 路径改写由上方 _fix_handler_module_paths 完成。
+    """
+
+    def __init__(self, context=None, **kwargs):
+        proxy = _ContextProxy(context) if context is not None else None
+        Main.__init__(self, proxy)

@@ -16,9 +16,9 @@ import os
 import re
 import time
 
-from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.core.message.components import Node, Nodes, Plain
-from astrbot.core.message.message_event_result import MessageChain
+from ._platform import AstrMessageEvent, filter
+from ._platform import Node, Nodes, Plain
+from ._platform import MessageChain
 
 from .. import content as C
 from .. import db

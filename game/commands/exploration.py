@@ -4,8 +4,7 @@
 『探索进度』：按地图 region 聚合展示每域子区域探索进度 + 全大陆探索度。
 由 Main 继承本 Mixin 使用；核心计算在 game/core/exploration.py（region_progress/overall_progress）。
 """
-from astrbot.api import star
-from astrbot.api.event import AstrMessageEvent, filter
+from ._platform import AstrMessageEvent, filter
 
 from .. import content as C
 from .. import db

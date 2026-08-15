@@ -68,12 +68,28 @@ data（纯数据 dict） ← core（纯逻辑，无 IO 不碰 DB/QQ） ← store
 ## 5. 测试规范
 
 - 单测：`"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe" tests/test_xxx.py`（AstrBot uv python，系统 python 无 pypinyin）
-- 全量：`python scripts/run_all_tests.py`（逐个直跑，~9 分钟）；**不要用 pytest 跑**（旧式脚本 sys.exit 会 INTERNALERROR）
+- 全量：`python scripts/run_all_tests.py`（v117.5 起默认并行 + shim astrbot 替身：按核数自适应 4~16 路、每文件独立私有库 `tests/.run_all_workers/`、注入 `tests/shim_astrbot/` 行为等价替身；实测 149 文件 **~27s**，详见 `docs/TEST_SPEEDUP.md`）；`--serial` 恢复旧的纯串行共享库行为；`--skip=test_xxx.py` 跳过已知坏测试（重构过渡期用）；`--real-astrbot`/`GWEN_NO_SHIMMED_ASTRBOT=1` 退回真实 astrbot（对照验证 shim 用）；**不要用 pytest 跑**（旧式脚本 sys.exit 会 INTERNALERROR）
+- 硬编码共享 `test_game_data.db` 的文件（如 test_v101_28_food_hot.py）自动进「串行槽」先跑，新测试**禁止直接赋值 `GWEN_GAME_DB` 指向共享库**（要用隔离库就 setdefault 自己的私有库，或直接用 conftest 默认）
 - **测试必须确定性**：
   - 概率/随机逻辑必须 `random.seed()` 固定（撞怪/彩蛋/掉落）
   - **禁止真实时钟依赖**：规则引擎 `_is_time` 会读真实时间（v103.2 教训：深夜跑全量触发 deep_night 幽灵彩蛋 → 误判失败）——测试里 patch 固定时段
   - 玩家等级要提到威慑线（`_travel_ambush` diff≤-5 永不撞怪），否则跨图 move 18% 概率撞怪随机失败（v103.4 教训）
 - 断言数字（成就数/NPC 数/表数）改数据后必须同步 grep 检查硬编码计数
+
+### 5.5 平台解耦架构（v117.5 起，新增代码必须遵守）
+
+游戏核心已独立于 astrbot（详见 `docs/TEST_SPEEDUP.md` §2.5）：
+
+- **命令装饰器一律从 `game/commands/_platform.py` import**（`from ._platform import filter`，
+  语法仍是 `@filter.regex(...)`）——**禁止** `from astrbot.api.event import filter`。
+  `_platform` 装饰器自动双注册（核心注册表 + 真实 astrbot 注册表），生产行为不变。
+- **回复构造用核心数据类**：`MessageChain / Plain / Node / Nodes` 从 `._platform` import；
+  生产环境由 `main.py` 的 `AstrMain` 壳 context 翻译代理转成 astrbot 类型。
+- **只有 `main.py` 允许 import astrbot**（壳 `AstrMain(star.Star, Main)`，astrbot 固定
+  入口模块）；game/ 与 tests/ 禁止 import astrbot（测试命中 `tests/shim_astrbot/` 替身）。
+- **迁移到其他平台** = 把 `game/` + `main.Main` 搬走，照 `AstrMain` 写目标平台薄壳：
+  提供事件协议（get_message_str/sender_id/group_id/plain_result/stop_event/send）、
+  把核心注册表（`_platform.star_handlers_registry`）翻译成目标平台命令系统。
 
 ## 6. Git 规范
 

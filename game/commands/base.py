@@ -11,12 +11,11 @@ import random
 import re
 import time
 
-from astrbot.api import star
-from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.core.message.message_event_result import MessageChain
-from astrbot.core.star.filter.custom_filter import CustomFilter
-from astrbot.core.star.filter.regex import RegexFilter
-from astrbot.core.star.star_handler import EventType, star_handlers_registry
+from ._platform import AstrMessageEvent, filter  # noqa: F401（filter 供 @filter.regex 装饰器）
+from ._platform import MessageChain
+from ._platform import CustomFilter
+from ._platform import RegexFilter
+from ._platform import EventType, star_handlers_registry
 
 from .. import content as C
 from .. import db
