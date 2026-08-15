@@ -84,6 +84,10 @@ FISH_EXP = {"white": 1, "green": 1, "blue": 2, "purple": 3, "orange": 5}
 
 # 渔获品种池（16 章 2.3 + 2.4 特色列，按品质档位组织）
 # spots: None = 全部水域；列表 = 仅限这些钓点产出（FISHING_SPOTS 的 map_id）
+# v116 垂钓季节限定（全部可选，向后兼容）：
+#   season: 限定季节(spring/summer/autumn/winter，与 time_weather.current_season 对齐)
+#           非限定季节该鱼不产出；若整档/整点被季节过滤则可放宽（见 core/fishing.py roll_fish）
+#   season_boost: 季节偏好(同 season 值码)——非硬限定，仅该季节权重 ×1.5（概率上升）
 FISH_POOL = [
     # ---- 白·普通 ----
     {"name": "银鳞鱼", "quality": "white", "type": "鱼", "price": 6, "spots": None,
@@ -99,18 +103,22 @@ FISH_POOL = [
      "weight": 25, "desc": "罕见的大鱼，据说吃了能增强体质"},
     {"name": "海藻", "quality": "green", "type": "材料", "price": 15,
      "spots": ["mist_trench", "whale_domain", "storm_sea"],
+     "season": "summer",  # v116 夏季限定：暖水海域海藻繁茂，其它季节难觅
      "weight": 20, "desc": "墨绿色的海藻，炼金师会感兴趣"},
     {"name": "鲸须草", "quality": "green", "type": "材料", "price": 20,
      "spots": ["whale_domain", "storm_sea"],
+     "season": "summer",  # v116 夏季限定：龙鲸夏季洄游才落下的须草
      "weight": 15, "desc": "龙鲸身上落下的须草，柔韧异常"},
     {"name": "云棉", "quality": "green", "type": "材料", "price": 22,
      "spots": ["rainbow_cloud"],
+     "season_boost": "spring",  # v116 春季偏好：春云蓬松，云棉更易凝成
      "weight": 10, "desc": "云朵凝成的棉絮，轻盈温暖"},
     {"name": "盲鱼", "quality": "green", "type": "鱼", "price": 9,
      "spots": ["deep_lake"],
      "weight": 10, "desc": "地下湖的盲眼鱼，肉质细腻"},
     # ---- 蓝·稀有 ----
     {"name": "月光鱼", "quality": "blue", "type": "鱼", "price": 27, "spots": None,
+     "season_boost": "autumn",  # v116 秋季偏好：秋夜清明，月光鱼更易浮出
      "weight": 20, "desc": "月光下泛着银蓝光泽的鱼，稀有"},
     {"name": "湖珍珠", "quality": "blue", "type": "材料", "price": 40,
      "spots": ["starlake", "harbor_docks", "silver_river", "misty_swamp"],
@@ -124,6 +132,7 @@ FISH_POOL = [
     # v104 M15 修复：夜光鲛无产出源（设计 13 章 line 134「垂钓(深夜/沼泽钓点)」）
     {"name": "夜光鲛", "quality": "blue", "type": "材料", "price": 35,
      "spots": ["misty_swamp"],
+     "season_boost": "summer",  # v116 夏季偏好：夏夜沼泽荧光更盛（非限定，仅概率上升）
      "weight": 15, "desc": "深夜出没于沼泽的鲛鱼，鳞片泛着幽幽荧光，炼金师视若珍宝"},
     {"name": "珍珠贝", "quality": "blue", "type": "材料", "price": 35,
      "spots": ["mist_trench", "whale_domain"],
@@ -142,9 +151,11 @@ FISH_POOL = [
      "weight": 30, "desc": "水底的宝箱！打开看看有什么好东西"},
     {"name": "深海水晶", "quality": "purple", "type": "材料", "price": 250,
      "spots": ["harbor_docks", "frost_horn"],
+     "season": "winter",  # v116 冬季限定：深海寒流凝结的水晶（霜原冰湖正处霜原冰层之下）
      "weight": 35, "desc": "深海凝结的水晶，锻造珍品"},
     {"name": "龙涎香", "quality": "purple", "type": "材料", "price": 180,
      "spots": ["harbor_docks", "frost_horn"],
+     "season": "winter",  # v116 冬季限定：冬季龙鲸北上洄游才分泌
      "weight": 25, "desc": "龙涎凝成的香料，炼金珍品"},
     {"name": "雷晶砂", "quality": "purple", "type": "材料", "price": 80,
      "spots": ["storm_sea"],

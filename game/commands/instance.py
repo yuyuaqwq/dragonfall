@@ -1113,7 +1113,10 @@ class InstanceCmds(CommandBase):
                 )
                 return
         # v86.3 入场钥匙检查（29 章 11 节）：队长持有 key_item 才能开本
+        # v116 副本已通关免钥匙：已通关副本(首通记录 inst_clear_* )再进不扣钥匙、不拦门，
+        # 并给出明确提示。判定复用存档成就体系（db.get_achievements），非凭空造存储。
         key_item = inst.get("key_item")
+        key_free_note = ""  # 已通关免钥匙提示（有钥匙要求的副本通关过则显示）
         if key_item:
             inv = db.get_inventory(group_id, qq_id)
             # 找到匹配的钥匙（按物品名匹配）
@@ -1134,9 +1137,11 @@ class InstanceCmds(CommandBase):
                     f"📜 获取途径：{src}"
                 )
                 return
-            # 消耗钥匙（首通前）
+            # 消耗钥匙（首通前）：已通关副本免钥匙，首通后才不扣
             if has_key and not cleared_before:
                 db.remove_item(group_id, qq_id, key_entry["key"])
+            else:
+                key_free_note = "✅ 已通关副本，免钥匙入场！\n"
         # v94 体力：开本消耗 20 体力（全队队长扣）
         _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
         if not _ok:
@@ -1220,6 +1225,7 @@ class InstanceCmds(CommandBase):
             map_view = self._instance_map_view(st, group_id)
             yield event.plain_result(
                 f"{inst['icon']} 【{inst['name']}】副本开启！你踏入了这片区域。\n"
+                f"{key_free_note}"
                 f"━━━━━━━━━━━━\n"
                 f"{map_view}\n"
                 f"━━━━━━━━━━━━\n"
@@ -1231,6 +1237,7 @@ class InstanceCmds(CommandBase):
         stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""
         yield event.plain_result(
             f"{inst['icon']} 【{inst['name']}】副本开启！\n"
+            f"{key_free_note}"
             f"━━━━━━━━━━━━\n"
             f"{stage_line}"
             f"👹【{boss['name']}】Lv.{boss['lv']} ❤️ {boss['max_hp']:,}\n"

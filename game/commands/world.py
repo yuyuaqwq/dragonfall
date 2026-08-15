@@ -43,6 +43,21 @@ _OBJ_PROGRESS_LINES = {
 # v104 M23 修复：许愿井彩蛋概率独立常量（原先误用 MOVE_ENCOUNTER_CHANCE=0.25 移动撞怪概率，语义错用）
 WISH_WELL_EGG_CHANCE = 0.05
 
+# v116 任务系统定稿 §3.4：每日任务单日完成上限（防刷）——达到后『每日』不再抽新任务
+DAILY_LIMIT = 10
+# v116 每日任务重复衰减档位：第 N 次完成同任务 → 奖励乘数
+# （0 = 首刷 100%，1 = 第 2 次 60%，2 = 第 3 次 30%，≥3 = 第 4 次起 10%）
+_DAILY_REPEAT_FACTORS = (1.0, 0.6, 0.3, 0.1)
+# daily 字典内保留元数据键（跨天字段/完成计数/重复计数），任务面板与抽取逻辑一律跳过
+_DAILY_META_KEYS = ("_date", "_completed", "_repeat")
+
+
+def _daily_repeat_pct(repeat):
+    """重复完成同日常任务 → 衰减后的发奖比例（百分比）。repeat = 今日已完成的次数。
+    第 1 次 100%、第 2 次 60%、第 3 次 30%、第 4 次起 10%（§3.4 板规则）。"""
+    f = _DAILY_REPEAT_FACTORS[repeat] if repeat < len(_DAILY_REPEAT_FACTORS) else _DAILY_REPEAT_FACTORS[-1]
+    return int(round(f * 100))
+
 
 class WorldCmds(CommandBase):
 
@@ -1599,6 +1614,10 @@ class WorldCmds(CommandBase):
                 if st == "done":
                     lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 已完成]")
                     continue
+                # v116 §3.4：进行中支线可放弃（主线不可弃），面板行尾给序号提示。
+                # 全局序号（跨侧支线/每日连续，与 quest_abandon 的解析一致、不随翻页变化）
+                _aband_g = side_items.index((sid, sq)) + 1
+                _aband = f"｜🗑️ 放弃请发：放弃 {_aband_g}"
                 # 收集型：实时按背包材料判断（v104 补测：复合目标同时显示击杀进度防误导）
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
@@ -1609,22 +1628,22 @@ class WorldCmds(CommandBase):
                         kv = _kill_prog_count(obj, prog)  # v105 M19 P2：兼容旧档老 key 聚合
                         kill_txt = f"｜击杀：{kv}/{obj.get('count', 0)}"
                     if have >= need:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]{_aband}")
                         lines.append(f"    材料已齐！回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     else:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]{_aband}")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
                     continue
                 # v104 M20 P2：find 型（告示委托等）面板提示机制——在 XX 探索有概率遇到
                 # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
                 if obj.get("find"):
-                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]{_aband}")
                     lines.append(f"    {self._obj_text(obj)}")
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
-                lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
+                lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]{_aband}")
                 if st == "ready":
                     lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
             if pages > 1 and page < pages:
@@ -1633,20 +1652,31 @@ class WorldCmds(CommandBase):
             lines.append("")
             lines.append("【支线】暂无——找镇上的 NPC 聊聊可能有意外收获")
         # 每日
+        # v116 §3.4：daily 含 _completed/_repeat 元数据（active 任务清空后仍在）——
+        # 只剩元数据 = 今日全部完成，按"已完成"分支展示；_completed 超额时给出计数。
         daily = quests.get("daily", {})
-        if daily:
+        active_keys = [k for k in daily if k not in _DAILY_META_KEYS]
+        if active_keys:
             lines.append("")
             lines.append("【每日】")
+            _daily_n = 0  # v116 每日任务序号（仅计实际任务，跨元数据）
             for i, (dkey, dq) in enumerate(daily.items(), 1):
-                if dkey == "_date":  # v94 跨天字段，跳过
+                if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，跳过
                     continue
+                _daily_n += 1
+                # 全局放弃序号 = 侧支线全部 + 每日任务序（与 quest_abandon 解析一致）
+                _aband_g = len(side_items) + _daily_n
                 dobj = dq["objective"]
                 # v104 M20：新日常目标类型（行会委托 complete_side / 采集任务 collect_any）纳入需求提取
                 need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("complete_side", dobj.get("collect_any", dobj.get("count", 99))))))
-                lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
+                lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})｜🗑️ 放弃请发：放弃 {_aband_g}")
         else:
             lines.append("")
-            lines.append("【每日】今日任务已完成，明天再来！")
+            _done = int(daily.get("_completed", 0) or 0)
+            if _done >= DAILY_LIMIT:
+                lines.append(f"【每日】今日已完成 {_done}/{DAILY_LIMIT} 个每日任务，明天再来！")
+            else:
+                lines.append("【每日】今日任务已完成，明天再来！")
         # v101.30d #O1：师门考验追踪——对话树进行中时面板显示（playtest 小红：考验无面板条目）
         _MASTER_IDS = ("npc_herb_master", "npc_mine_master", "npc_fish_master", "npc_cook_master",
                        "npc_alchemy_master", "npc_craft_master", "npc_enhance_master", "npc_rune_master")
@@ -1803,6 +1833,60 @@ class WorldCmds(CommandBase):
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
 
+    # v116 §3.4：放弃进行中的支线/每日任务（释放接取位）。主线不可放弃。
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?放弃(?:\s*(\d+))?\s*$")
+
+    async def quest_abandon(self, event: AstrMessageEvent):
+        """『放弃 <序号>』——放弃进行中的支线/每日任务；主线走『任务』面板提示不可弃。
+
+        序号与任务面板（quest_view）全局编号一致：侧支线 1..S，每日 S+1..S+D。
+        已完成任务/序号越界/无任务 → 给明确提示。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "放弃").strip()
+        quests = db.get_quests(group_id, qq_id)
+        # 侧支线（按 dict 顺序，与面板一致；done 不算可放弃位）
+        side = dict(quests.get("side", {}) or {})
+        side_items = [(sid, sq) for sid, sq in side.items()
+                      if sq.get("status", "active") != "done"]
+        # 每日（剔除元数据键）
+        daily = dict(quests.get("daily", {}) or {})
+        daily_items = [(dk, dq) for dk, dq in daily.items() if dk not in _DAILY_META_KEYS]
+        total = len(side_items) + len(daily_items)
+        index_able = raw and raw.isdigit()
+        if not index_able:
+            # v116 §3.4：主线不可放弃——指名主线/『主线』字样给明确拒绝提示
+            main_id = quests.get("main_quest")
+            mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None) if main_id else None
+            if raw in ("主线", "main") or (mq and raw == mq["name"]):
+                yield event.plain_result("主线任务无法放弃！主线是奥兰迪亚之王赐下的使命～")
+                return
+            if total == 0:
+                yield event.plain_result("🗑️ 当前没有可放弃的任务（进行中的支线或每日任务）～")
+                return
+            yield event.plain_result(f"🗑️ 请指定要放弃的任务序号（1-{total}），发『放弃 <序号>』～")
+            return
+        idx = int(raw)
+        if not (1 <= idx <= total):
+            yield event.plain_result(f"🗑️ 序号 {idx} 不存在！请输入 1-{total} 之间的序号～")
+            return
+        # 主线不可放弃：序号全部落在侧支线/每日，主线本来就不参与编号；单独拦截侧支线里的"主线位"不存在
+        if 1 <= idx <= len(side_items):
+            sid, sq = side_items[idx - 1]
+            del side[sid]
+            quests["side"] = side
+            qname = next((q["name"] for q in C.SIDE_QUESTS if q["id"] == sid), "该支线")
+            db.save_quests(group_id, qq_id, quests)
+            yield event.plain_result(f"🗑️ 已放弃任务：『{qname}』")
+            return
+        # 每日任务
+        dk, dq = daily_items[idx - len(side_items) - 1]
+        del daily[dk]
+        quests["daily"] = daily
+        db.save_quests(group_id, qq_id, quests)
+        yield event.plain_result(f"🗑️ 已放弃任务：『{dq.get('name', '该每日任务')}』")
+
+
     # v104 M24 P2-1：『每日副业』前缀误触『每日』面板——负向断言收窄（别名注册到 daily_prof）
     @filter.regex(r"^(?:\[At:\d+\]\s*)?每日(?!副业)(?:\s*|$)")
     @require_player()
@@ -1817,24 +1901,48 @@ class WorldCmds(CommandBase):
         # v94 跨天清理：昨天的任务过期，先清空再判断（旧存档无 _date 视为过期）
         if db.expire_daily(quests):
             db.save_quests(group_id, qq_id, quests)
-        if quests.get("daily"):
+        daily = quests.get("daily") or {}
+        # v116 §3.4 每日防刷：已完成任务（_completed 计数）≥ 上限 → 不再抽新任务
+        completed = int(daily.get("_completed", 0) or 0)
+        if completed >= DAILY_LIMIT:
+            yield event.plain_result(
+                f"⚠️ 今日已完成 {completed}/{DAILY_LIMIT} 个每日任务，明天再来吧！"
+            )
+            return
+        if any(k not in _DAILY_META_KEYS for k in daily):
             yield event.plain_result("你已经有每日任务了！输入『任务』查看～")
             return
+        # v116 保留今日已完成/重复计数（active 任务清空后重新抽取时不可归零，防刷衰减判定持续有效）
+        base_completed = completed
+        repeat = dict(daily.get("_repeat", {}) or {})
         # v94 随机抽 2 个每日任务（按等级过滤：低等级不抽打不到的任务）
         pool = [dq for dq in C.DAILY_QUESTS if self._daily_pool(player, dq)]
         chosen = random.sample(pool, min(2, len(pool)))
         import datetime as _dt
-        daily = {"_date": _dt.date.today().isoformat()}
+        daily = {"_date": _dt.date.today().isoformat(),
+                 "_completed": base_completed, "_repeat": repeat}
         for i, dq in enumerate(chosen):
-            daily[f"d{i}"] = {"name": dq["name"], "desc": dq["desc"], "objective": dq["objective"], "reward_exp": dq["reward_exp"], "reward_gold": dq["reward_gold"], "progress": 0}
+            rpt = int(repeat.get(dq["name"], 0) or 0)  # 今日已完成的同任务次数 → 衰减档
+            factor = _DAILY_REPEAT_FACTORS[rpt] if rpt < len(_DAILY_REPEAT_FACTORS) else _DAILY_REPEAT_FACTORS[-1]
+            daily[f"d{i}"] = {"name": dq["name"], "desc": dq["desc"], "objective": dq["objective"],
+                              "reward_exp": int(dq["reward_exp"] * factor),
+                              "reward_gold": int(dq["reward_gold"] * factor),
+                              "repeat": rpt, "progress": 0}
         quests["daily"] = daily
         db.save_quests(group_id, qq_id, quests)
         lines = ["📜 今日任务已发布！", "━━━━━━━━━━━━"]
         for i, (dkey, dq) in enumerate(daily.items(), 1):
-            if dkey == "_date":
+            if dkey in _DAILY_META_KEYS:
                 continue
+            _dec = dq.get("repeat", 0)
             lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']}")
-            lines.append(f"    奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            if _dec:
+                _pct = _daily_repeat_pct(_dec)
+                lines.append(f"    ⚠️ 重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+            else:
+                lines.append(f"    奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+        if base_completed:
+            lines.append(f"📌 今日已完成 {base_completed}/{DAILY_LIMIT} 个每日任务")
         yield event.plain_result("\n".join(lines))
 
     def _daily_pool(self, player, dq):
@@ -1872,7 +1980,7 @@ class WorldCmds(CommandBase):
             return
         changed = False
         for dkey, dq in list(daily.items()):
-            if dkey == "_date":  # 跨天字段，不是任务
+            if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
                 continue
             dobj = dq.get("objective") or {}
             need = dobj.get(obj_key)
@@ -1881,6 +1989,12 @@ class WorldCmds(CommandBase):
             dq["progress"] = int(dq.get("progress", 0)) + 1
             changed = True
             if dq["progress"] >= need:
+                # v116 §3.4 每日完成计数：_completed（当日总完成数）/ _repeat（同任务重复次数）
+                daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
+                rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
+                _rep = dict(daily.get("_repeat", {}) or {})
+                _rep[dq["name"]] = rpt + 1
+                daily["_repeat"] = _rep
                 player = self._player(group_id, qq_id)
                 player["exp"] += dq["reward_exp"]
                 player["gold"] += dq["reward_gold"]
@@ -1888,12 +2002,18 @@ class WorldCmds(CommandBase):
                 lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
                 db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
                 if lines is not None:
-                    lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+                    _dec = dq.get("repeat", 0)
+                    if _dec:
+                        _pct = _daily_repeat_pct(_dec)
+                        lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+                    else:
+                        lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
                     if lv_logs:
                         lines.append("")
                         lines += lv_logs
                 del daily[dkey]
         if changed:
+            # 保留 _date/_completed/_repeat（active 任务清空后仍须持续生效防刷/衰减计数）
             quests["daily"] = daily
             db.save_quests(group_id, qq_id, quests)
 

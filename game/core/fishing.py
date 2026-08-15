@@ -13,6 +13,7 @@ from ..data.fishing import (
     FISH_COLLECT,
 )
 from ..data import FISH_QUALITY_ORDER  # v101.25i6 别名：= QUALITY_ORDER
+from .time_weather import current_season  # v116 季节限定：垂钓随季节变化
 
 
 def _quality_weights(prof_lv: int) -> list:
@@ -39,6 +40,8 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
     spot_id: 钓点地图 ID（FISHING_SPOTS 的 key）；钓点禁出档位权重清零，
              品种限定水域（spots 字段）不满足时跳过。
     bait: v102.3 鱼饵加成（glow=紫橙×2 / dough=绿蓝×1.5 / blood=稀有鱼种×3）
+    v116 季节限定：season 硬限定鱼的季节不匹配时跳过；season_boost 偏好的季节权重 ×1.5。
+           若某档位在当前季节被硬限定过滤空，则放宽为「不限定季节」重试，避免钓空。
     """
     spot = FISHING_SPOTS.get(spot_id) if spot_id else None
     ban = set(spot.get("ban_quality", [])) if spot else set()
@@ -57,14 +60,24 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
                 weights[i] *= 1.5
     quality = random.choices(FISH_QUALITY_ORDER, weights=weights, k=1)[0]
 
-    def _match(f):
-        return f["quality"] == quality and (
-            not f.get("spots") or (spot_id and spot_id in f["spots"])
-        )
+    # v116 当前季节（spring/summer/autumn/winter，与 time_weather.current_season 对齐）
+    season = current_season()
 
-    pool = [f for f in FISH_POOL if _match(f)]
+    def _spots_ok(f):
+        return not f.get("spots") or (spot_id and spot_id in f["spots"])
+
+    def _season_ok(f):
+        # 硬限定鱼仅当季节匹配才产出；无 season 字段 = 全年可钓
+        return not f.get("season") or f["season"] == season
+
+    # 第一步：档位 + 水域 + 季节 三重过滤（季节限定生效）
+    pool = [f for f in FISH_POOL
+            if f["quality"] == quality and _spots_ok(f) and _season_ok(f)]
     if not pool:
-        # 防御性兜底：先去掉 spots 限定重试（如新钓点蓝档无全水域品种），再退全品质池
+        # 兜底一：本档位在当前季节被限定鱼占满 → 放宽季节限制（仍守水域，避免越界钓点）
+        pool = [f for f in FISH_POOL if f["quality"] == quality and _spots_ok(f)]
+    if not pool:
+        # 防御性兜底二：再退全品质池（原有逻辑，如新钓点蓝档无全水域品种）
         pool = [f for f in FISH_POOL if f["quality"] == quality]
     # v102.3 血饵：稀有鱼种（权重 ≤ 15）品种权重 ×3
     # v104 M15 修复：原阈值 <5 高于 FISH_POOL 实际最低权重(10)，血饵永不生效（20 万竿采样零效果）；
@@ -73,7 +86,17 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
         pool_w = [f.get("weight", 1) * (3 if f.get("weight", 1) <= 15 else 1) for f in pool]
     else:
         pool_w = [f.get("weight", 1) for f in pool]
-    return random.choices(pool, weights=pool_w, k=1)[0]
+    # v116 季节偏好：season_boost 匹配当前季节的鱼权重 ×1.5（非限定，仅概率上升）
+    pool_w = [w * 1.5 if f.get("season_boost") == season else w
+              for f, w in zip(pool, pool_w)]
+    pick = random.choices(pool, weights=pool_w, k=1)[0]
+    # v116 季节感输出标记：命中限定/偏好鱼时，在浅拷贝上附加季节前缀供展示层读取
+    # （不直接在共享 FISH_POOL 上写字段，避免污染数据）
+    if pick.get("season") == season or pick.get("season_boost") == season:
+        pick = dict(pick)
+        pick["_season_prefix"] = {"spring": "🌸限定", "summer": "☀️限定",
+                                  "autumn": "🍂限定", "winter": "❄️限定"}[season]
+    return pick
 
 def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):
     """彩蛋收藏鱼判定（16 章 4.x）：五档之外独立判定。

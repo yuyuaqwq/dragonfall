@@ -124,6 +124,46 @@ ALCHEMY_RECIPES = {
         "desc": "淬火石精炼而成的高纯度矿石，高级锻造的基石",
         "name": "高级强化石"
     },
+    # ---- v116 通用材料提纯（19 章 2.5『转的乐趣』：3 份同档低质材料 → 1 份高一档材料） ----
+    # 提纯 = 消耗冗余绿/蓝材料的出口；产物价 ≤ 材料成本价×0.9（防刷金，与淬火石精炼同口径）。
+    # 档位对齐 MATERIALS quality 五档：绿→蓝 / 蓝→紫，垂钓水产材料同族提炼。
+    # 生态：『合成 <配方名>』照常可用，或『炼金 提纯』仅列出提纯配方。
+    "al_purify_jing_xu_cao": {
+        "cost": {
+            "mat_jing_xu_cao": 3
+        },
+        "product": {
+            "mat_zhen_zhu_bei": 1
+        },
+        "min_lv": 2,
+        "purify": True,
+        "desc": "鲸须草浓缩提纯为珍珠贝（绿→蓝），消耗冗余绿材料的出口",
+        "name": "鲸须草提纯"
+    },
+    "al_purify_hai_zao": {
+        "cost": {
+            "mat_hai_zao": 3
+        },
+        "product": {
+            "mat_shen_mi_lin_pian": 1
+        },
+        "min_lv": 2,
+        "purify": True,
+        "desc": "海藻浓缩提纯为神秘鳞片（绿→蓝），消耗冗余绿材料的出口",
+        "name": "海藻提纯"
+    },
+    "al_purify_zhen_zhu_bei": {
+        "cost": {
+            "mat_zhen_zhu_bei": 3
+        },
+        "product": {
+            "mat_lei_jing_sha": 1
+        },
+        "min_lv": 5,
+        "purify": True,
+        "desc": "珍珠贝浓缩提纯为雷晶砂（蓝→紫），消耗冗余蓝材料的出口",
+        "name": "珍珠贝提纯"
+    },
     "al_gong_ji_yao_shui": {
         "cost": {
             "mat_shou_ren_liao_ya": 1,

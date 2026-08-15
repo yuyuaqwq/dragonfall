@@ -961,12 +961,19 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         raw = self._strip_cmd(event, "炼金").strip()
+        # v116 提纯分支：『炼金 提纯 [页]』仅列出提纯配方（purify=True，3 份低档 → 1 份高档）
+        purify_only = "提纯" in raw
+        if purify_only:
+            raw = raw.replace("提纯", "").strip()
         page = int(raw) if raw.isdigit() else 1
         prof_lv = db.get_prof_level(group_id, qq_id, "alchemy")
-        recs = [(k, r) for k, r in C.ALCHEMY_RECIPES.items()]
+        # purify_only False → 只列普通配方；True → 只列提纯配方
+        recs = [(k, r) for k, r in C.ALCHEMY_RECIPES.items()
+                if (r.get("purify") is True) == purify_only]
         recs.sort(key=lambda x: x[1].get("min_lv", 1))
         page_items, pages, page = self._page_items(recs, page, per_page=5)
-        lines = [f"🧪 【炼金工坊】(炼金 Lv.{prof_lv})材料合成配方：", "━━━━━━━━━━━━"]
+        title = "🧪 【炼金工坊·提纯】(3 份低档 → 1 份高档)材料提纯配方：" if purify_only else f"🧪 【炼金工坊】(炼金 Lv.{prof_lv})材料合成配方："
+        lines = [title, "━━━━━━━━━━━━"]
         base = (page - 1) * 5
         for i, (rname, r) in enumerate(page_items, 1):
             def _mname(k):
@@ -979,8 +986,11 @@ class EconomyCmds(CommandBase):
             lines.append(f"{base + i:>2}. {mark} {C.display('alchemy', rname)}：{cost} → {pname2}  [炼金Lv.{need}]")
             lines.append(f"    {r['desc']}")
         lines.append("━━━━━━━━━━━━")
-        lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『炼金 {page + 1}』下一页" if page < pages else ""))
-        lines.append("💡 『合成 <配方名>』，如『合成 治疗药水』；🔒 = 炼金等级不够")
+        nxt = ""
+        if page < pages:
+            nxt = f"｜『炼金 提纯 {page + 1}』下一页" if purify_only else f"｜『炼金 {page + 1}』下一页"
+        lines.append(f"📄 第 {page}/{pages} 页{nxt}")
+        lines.append("💡 『合成 <提纯配方名>』提纯，如『合成 珍珠贝提纯』；🔒 = 炼金等级不够")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?合成(?:\s*|$)")
@@ -1067,7 +1077,14 @@ class EconomyCmds(CommandBase):
         # v97.5 行为彩蛋规则：炼金成功后
         _rule_txt = self._rule_fire("craft_done", group_id, qq_id, player,
                                     C.MAP_BY_ID.get(player["cur_map"], {}))
-        yield event.plain_result(act_msg + f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！\n" + "\n".join(lines) + lv_msg
+        # v116 提纯：purify 配方用『提纯成功』专属提示（凑 3 份低档 → 1 份高档）
+        if r.get("purify"):
+            _cost_txt = " + ".join(f"{C.display('materials', cm)}×{cc}" for cm, cc in r["cost"].items())
+            _prod_txt = " + ".join(f"{C.display('materials', pm)}×{pc}" for pm, pc in r["product"].items())
+            success_head = f"🧪 提纯成功！{_cost_txt} → {_prod_txt}【{C.display('alchemy', rkey)}】"
+        else:
+            success_head = f"🧪 【炼金成功】合成了【{C.display('alchemy', rkey)}】！"
+        yield event.plain_result(act_msg + success_head + "\n" + "\n".join(lines) + lv_msg
                                  + (f"\n{_rule_txt}" if _rule_txt else ""))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?烹饪列表(?:[\s\S]*)$")

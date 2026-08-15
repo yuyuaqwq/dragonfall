@@ -2430,6 +2430,15 @@ class Battle:
             if sinfo:
                 sname = sinfo.get("name", skill)  # 显示中文名
                 kind = sinfo.get("kind")
+                # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
+                # （本回合不结算伤害，先给意图预告，之后回合由 _enemy_charge_tick 结算）
+                charge_n = int(sinfo.get("charge", 0) or 0)
+                if charge_n > 0 and not e.get("charging"):
+                    e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
+                    logs.append(
+                        f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下回合将造成大伤害——"
+                        f"可『防御』减半或『打断技』赌它读条失败！")
+                    return logs, 0
                 if kind == "增益":
                     from .core.battle_mech import MON_BUFF_EFFECTS
                     eff = sinfo.get("effect")
@@ -2526,10 +2535,12 @@ class Battle:
             ch["left"] = max(0, left - 1)
             e["charging"] = ch if ch["left"] > 0 else None
             if ch["left"] == 0:
+                # 蓄力完成释放：意图预告（释放回合）+ 立即结算（传技能 key 供查表）
                 logs.append(f"✨ 【{ename}】的【{cname}】蓄力完成，轰然落下！")
                 # 释放 = 结算一次该单位的技能效果（无目标次要：对玩家造成伤害）
-                return self._enemy_release_charge(e, cname, pst, est, logs, ename)
-            logs.append(f"⏳ 【{ename}】正在蓄力【{cname}】(剩 {ch['left']} 回合)！")
+                return self._enemy_release_charge(e, ch.get("skill") or cname, pst, est, logs, ename)
+            # 蓄力持续回合：精简意图预告（剩 N）
+            logs.append(f"⚠️ 【意图】{ename} 蓄力中(剩 {ch['left']})！")
             return logs, 0
         return logs, 0
 

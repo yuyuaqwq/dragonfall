@@ -168,6 +168,8 @@ COMMAND_REGEX = {
     "build_view": r'^(?:\[At:\d+\]\s*)?流派(?:[\s\S]*)$',
     "delete_account": r'^(?:\[At:\d+\]\s*)?注销(?:[\s\S]*)$',
     "quest_accept": r'^(?:\[At:\d+\]\s*)?接取(?:\s*|$)',
+    # v116：放弃进行中的支线/每日任务（主线不可放弃）
+    "quest_abandon": r'^(?:\[At:\d+\]\s*)?放弃(?:\s*(\d+))?\s*$',
     "interact_prop": r'^(?:\[At:\d+\]\s*)?交互(?:\s*|$)',
     "talk_choice": r'^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$',
     # v96 GM 指令（gm_ 前缀，不进 gate 过滤）

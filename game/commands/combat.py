@@ -24,6 +24,16 @@ from ..commands.base import CommandBase, no_prof_waiting, require_player, requir
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
 
+# v116 任务系统定稿 §3.4：每日任务重复衰减档位（与 world.py 一致）
+# 第 N 次完成同任务 → 奖励乘数（0=首刷 100%，1=第 2 次 60%，2=第 3 次 30%，≥3=第 4 次起 10%）
+_DAILY_REPEAT_FACTORS = (1.0, 0.6, 0.3, 0.1)
+
+
+def _daily_repeat_pct(repeat):
+    """重复完成同日常任务 → 衰减后的发奖比例（百分比）。repeat = 今日已完成的次数。"""
+    f = _DAILY_REPEAT_FACTORS[repeat] if repeat < len(_DAILY_REPEAT_FACTORS) else _DAILY_REPEAT_FACTORS[-1]
+    return int(round(f * 100))
+
 # v104 M06 P2-3：世界 Boss 特殊物品掉落池（传说材料/坐骑缰绳，按 Boss 名配池）
 # 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
 WORLD_BOSS_DROPS = {
@@ -2231,7 +2241,19 @@ class CombatCmds(CommandBase):
             dq["progress"] = prog
             changed = True
             if prog >= dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99))):
-                lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+                # v116 §3.4 每日完成计数：_completed（当日总完成数）/ _repeat（同任务重复次数）
+                # 与 world.py _bump_daily_progress 同口径（击杀型每日在此接线，防刷上限/衰减对击杀型也生效）
+                daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
+                rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
+                _rep = dict(daily.get("_repeat", {}) or {})
+                _rep[dq["name"]] = rpt + 1
+                daily["_repeat"] = _rep
+                _dec = dq.get("repeat", 0)
+                if _dec:
+                    _pct = _daily_repeat_pct(_dec)
+                    lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+                else:
+                    lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
                 player = self._player(group_id, qq_id)
                 player["exp"] += dq["reward_exp"]
                 player["gold"] += dq["reward_gold"]
