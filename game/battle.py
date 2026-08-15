@@ -1414,6 +1414,15 @@ class Battle:
         from .core.affix_effects import HIT_EFFECTS
         for fn in HIT_EFFECTS.values():
             fn(self, player, dmg, logs)
+        # v114 星陨（星陨之剑专属，effect aoe:True）：攻击 10% 概率全屏星陨 → 真 AOE
+        # （Boss+全部援军各吃全额 200%，不走挡刀；chance/mult 读数据，数据缺失用 0.10/2.0 兜底）
+        for aid in ids:
+            _ai = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid) or {}
+            _ae = _ai.get("effect") or {}
+            if _ae.get("aoe") and random.random() < float(_ai.get("chance", 0.10)):
+                ad = int(dmg * float(_ae.get("mult", 2.0)))
+                self._aoe_damage_enemy(ad, logs)
+                logs.append(f"☄️ {_ai.get('name', '星陨')}！全体造成 {ad} 点伤害！")
 
     def _affix_on_taken(self, player: dict, dmg: int, logs: list) -> int:
         """受击词条：减伤/格挡/坚韧/反击/反伤/深渊腐蚀。返回结算后的伤害。
@@ -1795,10 +1804,10 @@ class Battle:
                     reaction_mult *= self._elem_reaction_boost
                     self._elem_reaction_boost = 1.0
                 reaction_log = f"💥{r['name']}！"
-                # 超载：额外全体伤害（对非当前目标模拟为追加单体伤害的 20%）
+                # 超载：额外全体伤害（v114 真 AOE：Boss+全部援军各吃全额，不走挡刀）
                 if r["extra"] == "aoe":
                     aoe_dmg = int(st["matk"] * 1.2 * reaction_mult)
-                    self._damage_enemy(aoe_dmg, logs)
+                    self._aoe_damage_enemy(aoe_dmg, logs)
                     reaction_log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
                 # 冻结：目标冻结 1 回合
                 elif r["extra"] == "freeze":
@@ -1882,18 +1891,23 @@ class Battle:
         if self._monster_dodge_check(logs):
             total = 0
         else:
-            self._damage_enemy(total, logs)
+            if info.get("aoe"):
+                # v114 AOE 多目标：Boss+全部援军各吃全额（不走挡刀），吸血按对 Boss 实伤段
+                _boss_dmg = self._aoe_damage_enemy(total, logs)
+            else:
+                self._damage_enemy(total, logs)
+                _boss_dmg = total
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
             # v107：真伤不吸血（dmg_type="true" 直接跳过）
             # v109.2 P2-4：混合段分账——物理技能带魔法段（魔能斩/魔能涌动）时，
             # 物段走物理吸血、魔段走法术吸血（原整体按 phys 结算）
             if _magi_part > 0:
-                if total - _magi_part > 0:
-                    self._settle_lifesteal(player, total - _magi_part, logs, magic=False, dmg_type="phys")
+                if _boss_dmg - _magi_part > 0:
+                    self._settle_lifesteal(player, _boss_dmg - _magi_part, logs, magic=False, dmg_type="phys")
                 self._settle_lifesteal(player, _magi_part, logs, magic=True, dmg_type="magi")
             else:
-                self._settle_lifesteal(player, total, logs, magic=(kind == "魔法"),
+                self._settle_lifesteal(player, _boss_dmg, logs, magic=(kind == "魔法"),
                                        dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
@@ -2697,6 +2711,30 @@ class Battle:
         except Exception:
             pass
         return False
+
+    def _aoe_damage_enemy(self, dmg: int, logs: list) -> int:
+        """v114 AOE 多目标结算：Boss 与全部援军各吃全额伤害（不走挡刀，援军无防御/免伤）。
+        每援军输出一行『💥 对【XX的爪牙】造成 N 点伤害！』，死亡 pop 并输出击倒文案。
+        返回对 Boss 实际造成的伤害（吸血按 Boss 段计，援军段不吸血）。
+        PVP（btype=pvp）e_minions 恒空 → 等价单体，无需特判。"""
+        if self.e_defending and dmg > 0:
+            dmg = max(1, int(dmg * DEFEND_REDUCE))
+            logs.append(f"(格挡后 {dmg} 点伤害)")
+        if dmg > 0 and "sleep" in self.e_buffs:
+            self.e_buffs.pop("sleep", None)
+            logs.append("💥 敌人被攻击惊醒！")
+        if dmg <= 0:
+            return 0
+        boss_dmg = min(dmg, self.enemy.get("hp", 0))
+        self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
+        if self.e_minions:
+            for m in list(self.e_minions):
+                m["hp"] -= dmg
+                logs.append(f"💥 对【{m['name']}】造成 {dmg} 点伤害！")
+                if m["hp"] <= 0:
+                    self.e_minions.remove(m)
+                    logs.append(f"💥 援军【{m['name']}】被击倒了！")
+        return boss_dmg
 
     def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True) -> int:
         """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。

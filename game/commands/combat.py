@@ -1506,10 +1506,16 @@ class CombatCmds(CommandBase):
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")
-        # v101.28l #438：敌方援军（真召唤实体）
+        # v114：敌方援军（真召唤实体）——独立行『👥 援军：爪牙×2（HP 320/320、300/300）』
+        # 名字×数量 + HP 当前/最大逗号分隔（在 Boss HP 行下方），无援军不显示
         mins = getattr(b, "e_minions", []) or []
         if mins:
-            ebuf.append("👥" + " ".join(f"援军{m['name']}❤️{m['hp']}" for m in mins))
+            _grp = {}
+            for _m in mins:
+                _grp.setdefault(_m.get("name", "爪牙"), []).append(_m)
+            for _nm, _ms in _grp.items():
+                parts.append(f"👥 援军：{_nm}×{len(_ms)}（HP " + "、".join(
+                    f"{_m.get('hp', 0)}/{_m.get('max_hp', 1)}" for _m in _ms) + "）")
         # O96：敌方减益叠层（灼烧/毒层/标记——dot/易伤目标在 mech_stacks 里）
         # 与玩家侧叠层共用 dict，展示时归入敌方状态栏
         for k, v in stacks.items():
