@@ -175,6 +175,9 @@ class Battle:
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
         self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
         self._death_pact_used: bool = False   # v107 死亡契约（暗影祭司）：每场 1 次标记
+        # O116 受击伤害日志延迟输出：_enemy_turn 只计算伤害并暂存"造成 X 点伤害"文案，
+        # 由 _damage_player 在闪避判定后决定是否输出（闪避时不再同时报伤害）
+        self._pending_dmg_lines: list = []
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
@@ -366,6 +369,12 @@ class Battle:
             return self._enemy_phase(player, logs, enemy_act)
         # 额外行动阶段（上回合速度优势还没用完）：不结算新回合，直接自由出手
         if self.p_extra_left > 0 and action in ("attack", "skill", "use_item"):
+            # O118 技能施放失败保护：额外行动阶段同样先校验，失败不消耗额外行动
+            if action == "skill":
+                _fl, _blocked = self._skill_cast_blocked(skill_name, player)
+                if _blocked:
+                    _fl.append("技能施放失败！可选择其他行动")
+                    return logs + _fl, False
             self.p_extra_left -= 1
             if action == "use_item":
                 logs += self._do_use_item(skill_name or "", player)
@@ -390,6 +399,14 @@ class Battle:
                 self.p_defending = True
                 return self._enemy_phase(player, logs, enemy_act, defend=True)
             return self._do_flee(player, logs, self.e_extra_left)
+
+        # O118 技能施放失败保护：正常回合开始前先校验（技能不存在/未学习/冷却/蓝/
+        # 核心资源不足），失败不消耗回合、不结算敌方行动，玩家可重新选择其他行动
+        if action == "skill":
+            _fl, _blocked = self._skill_cast_blocked(skill_name, player)
+            if _blocked:
+                _fl.append("技能施放失败！可选择其他行动")
+                return logs + _fl, False
 
         # ---- 正常回合开始 ----
         self.round += 1
@@ -487,7 +504,8 @@ class Battle:
                 logs += mlogs
                 if defend and dmg > 0:
                     dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    logs.append(f"(格挡后 {dmg} 点伤害)")
+                    # O116 与伤害文案一起延迟输出（闪避时不显示）
+                    self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                 self._damage_player(player, dmg, logs)
                 if self._player_dead(player):
                     self.result = "defeat"
@@ -693,6 +711,51 @@ class Battle:
             logs.append(f"（剩余 {h['turns']} 回合）")
         return logs
 
+    def _skill_cast_blocked(self, skill_name: str, player: dict) -> tuple:
+        """O118 技能施放前置校验（无副作用，不扣资源/蓝）：技能不存在/未学习/冷却中/
+        蓝不足/核心资源不足 → 返回 (日志列表, True)。
+        拦截时玩家回合不开始、敌方不行动，玩家可重新选择其他行动。
+        与 _do_player_skill 的校验口径保持一致（那里负责真正扣除消耗）。"""
+        logs = []
+        info = E.skill_info(player["class_name"], skill_name)
+        if not info:
+            logs.append(f"没有技能『{skill_name}』！")
+            return logs, True
+        if not E.is_skill_learned(player["class_name"], player["level"], skill_name,
+                                  player.get("learned_skills", [])):
+            logs.append(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}(或『技能学习 {skill_name}』提前学习)")
+            return logs, True
+        # v2.0 冷却：CD 未结束拦截（强控/终结技等）
+        if self._skill_on_cd(skill_name):
+            left = self._skill_cd_left(skill_name)
+            logs.append(f"⏳【{skill_name}】还在冷却中(剩余 {left} 回合)！")
+            return logs, True
+        if player["mp"] < info["mp"]:
+            logs.append("💙 魔力不足！")
+            return logs, True
+        # v2.0 核心资源：『消耗全部』终结技（consume_all）至少需 1 点
+        consume_all = info.get("consume_all") or {}
+        if consume_all:
+            ck = consume_all.get("key", "")
+            if self.resources.get(ck, 0) < 1:
+                rd = E.core_resource_def(player["class_name"])
+                rname = rd.get("name", ck)
+                logs.append(f"⚡ {rname}不足！需要至少 1 点，当前 0(『攻击』攒资源)")
+                return logs, True
+        # 普通 res_cost：逐资源校验（纯检查，不扣除）
+        res_cost = info.get("res_cost") or {}
+        for rk, rv in res_cost.items():
+            rd = E.core_resource_def(player["class_name"])
+            if not rd:
+                continue
+            k = rk or rd["key"]
+            if self.resources.get(k, 0) < rv:
+                rname = rd.get("name", rk)
+                cur = self.resources.get(k, 0)
+                logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
+                return logs, True
+        return logs, False
+
     def _do_player_skill(self, skill_name: str, player: dict) -> list:
         """玩家施放技能(v61 抽公共，普通回合与额外行动共用)"""
         logs = []
@@ -790,7 +853,8 @@ class Battle:
             logs += mlogs
             if dmg > 0:
                 dmg = max(1, int(dmg * DEFEND_REDUCE))
-                logs.append(f"(格挡后 {dmg} 点伤害)")
+                # O116 与伤害文案一起延迟输出（闪避时不显示）
+                self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
             self._damage_player(player, dmg, logs)
             if self._player_dead(player):
                 self.result = "defeat"
@@ -802,7 +866,8 @@ class Battle:
                 logs += mlogs
                 if dmg > 0:
                     dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    logs.append(f"(格挡后 {dmg} 点伤害)")
+                    # O116 与伤害文案一起延迟输出（闪避时不显示）
+                    self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                 self._damage_player(player, dmg, logs)
                 if self._player_dead(player):
                     self.result = "defeat"
@@ -2078,7 +2143,8 @@ class Battle:
             for m in list(self.e_minions):
                 md = E.calc_damage(int(m.get("atk", 0)), _pst0["def"])
                 minion_dmg += md
-                logs.append(f"👹 援军【{m['name']}】扑向你，造成 {md} 点伤害！")
+                # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
+                self._pending_dmg_lines.append(f"👹 援军【{m['name']}】扑向你，造成 {md} 点伤害！")
         # 30% 概率使用技能（v63：沉默时只能普攻）
         skill = None
         silenced = "silence" in self.e_buffs
@@ -2153,7 +2219,9 @@ class Battle:
                         red = max(1, int(dmg * resist))
                         dmg = max(1, dmg - red)
                         logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
-                logs.append(f"【{self.enemy['name']}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+                # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
+                self._pending_dmg_lines.append(
+                    f"【{self.enemy['name']}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
                 # v63 怪物技能机制：眩晕/沉默/冻结 等控制（v98.4：数据化 → core/battle_mech.py MON_CTRL_EFFECTS）
                 mmech = sinfo.get("mech")
                 if mmech:
@@ -2176,7 +2244,9 @@ class Battle:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
-        logs.append(f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
+        self._pending_dmg_lines.append(
+            f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg + minion_dmg
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
@@ -2200,7 +2270,9 @@ class Battle:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
-        logs.append(f"【{self.enemy['name']}】向你发起攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
+        self._pending_dmg_lines.append(
+            f"【{self.enemy['name']}】向你发起攻击，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         return logs, dmg
 
     # ---------------- 状态修正 ----------------
@@ -2763,16 +2835,31 @@ class Battle:
         logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 进化了！(HP {s['max_hp']} / 攻击 {s['atk']})")
         return True
 
+    def _drain_pending_dmg(self) -> list:
+        """O116：取出并清空延迟的受击伤害日志（命中后由 _damage_player 输出）。"""
+        lines = list(getattr(self, "_pending_dmg_lines", None) or [])
+        self._pending_dmg_lines = []
+        return lines
+
     def _damage_player(self, player: dict, dmg: int, logs: list):
         if dmg <= 0:
+            self._pending_dmg_lines = []
             return
         # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
         dmg = self._pet_block_check(dmg, logs)
         if dmg <= 0:
+            # O116 还原原顺序：先报攻击伤害，再报挡刀
+            _pl = self._drain_pending_dmg()
+            if _pl:
+                logs[:] = _pl + logs
             return
         # v107 召唤物挡刀：概率由召唤物承受（拦截优先于玩家闪避/格挡）
         dmg = self._summon_block_check(player, dmg, logs)
         if dmg <= 0:
+            # O116 还原原顺序：先报攻击伤害，再报挡刀
+            _pl = self._drain_pending_dmg()
+            if _pl:
+                logs[:] = _pl + logs
             return
         # v105 闪避体系（鱼鱼拍板"闪避改乘算"）：全部来源乘算合成 1-Π(1-dᵢ)，统一 40% 总上限
         # 攻击方精准削减：有效闪避 = 闪避 × (1 - 攻击方精准)，精准上限 60%（PVP 互殴生效，PVE 怪物无精准）
@@ -2792,8 +2879,12 @@ class Battle:
             dodge = dodge * (1 - min(atk_hit, 0.60))
         dodge = min(dodge, 0.40)
         if dodge > 0 and random.random() < dodge:
+            # O116 闪避成功：丢弃延迟的伤害日志，只报闪避（命中/闪避二选一）
+            self._pending_dmg_lines = []
             logs.append("💨 你闪避了攻击！")
             return
+        # O116 命中：此刻才输出"造成 X 点伤害"日志（此前由 _enemy_turn 延迟暂存）
+        logs += self._drain_pending_dmg()
         # v113.1：团队技能 reduce_all 真·百分比减伤（此前误映射 def_up 防御提升）——
         # p_buffs["reduce_all"] 存减伤百分比，回合数由 self._reduce_all_left 单独计时。
         # 单机侧在此按比例减伤；副本广播侧（instance.py 消费 team_effects["reduce_all"]）另口径。
