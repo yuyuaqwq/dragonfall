@@ -9,7 +9,7 @@
   5. 食物恢复体力（黑面包 +20）
   6. 住宿满恢复 + 费用等级挂钩
   7. 营地休息 +50
-  8. 自然恢复（10 分钟 +1）
+  8. 自然恢复（5 分钟 +1）
   9. 角色面板显示体力
 """
 import sys, os, time
@@ -97,10 +97,10 @@ async def main():
     out = await cmd(m, "rest_camp", "g1", "q1", "休息")
     check("营地恢复体力", "体力" in out, out[:100])
 
-    print("【8. 自然恢复（10分钟+1）】")
+    print("【8. 自然恢复（5分钟+1）】")
     db.update_player("g1", "q1", stamina=50, stamina_ts=int(time.time()) - 3600)  # 1小时前
     p = db.get_player("g1", "q1")
-    check("自然恢复 50+6=56（封顶102）", p["stamina"] == 56, f"st={p['stamina']}")
+    check("自然恢复 50+12=62（封顶102）", p["stamina"] == 62, f"st={p['stamina']}")
     db.update_player("g1", "q1", stamina=100, stamina_ts=int(time.time()) - 99999)
     p = db.get_player("g1", "q1")
     check("自然恢复封顶上限", p["stamina"] == 102, f"st={p['stamina']}")

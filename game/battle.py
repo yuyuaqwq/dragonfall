@@ -2070,6 +2070,10 @@ class Battle:
             affix_tags = list(affix_tags) + race_tags
         pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult
                  * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult)
+        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×叠层×条件×魔法×被动×反应×词缀×元素×种族）
+        # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
+        if pmult > C.SKILL_PMULT_CAP:
+            pmult = C.SKILL_PMULT_CAP
         # v106 穿透：物理技能用物穿/固定物穿，魔法技能用法穿/固定法穿
         _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)

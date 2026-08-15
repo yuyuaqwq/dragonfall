@@ -31,6 +31,8 @@ from .constants import (  # noqa: F401
     # v103.3 B3 整数魔法数字
     EVOLVE_LEVELS, EVOLVE_FEES, RESET_SKILL_COST,
     DEFAULT_MAX_MP, PVP_TIMEOUT_SEC, GUILD_EXP_BASE, PROF_EXP_BASE, prof_exp_need,
+    # vF3 体验与战斗数值调整常量
+    STAMINA_RECOVER_INTERVAL, SKILL_PMULT_CAP,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

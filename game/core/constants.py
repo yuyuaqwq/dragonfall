@@ -102,6 +102,13 @@ PVP_TIMEOUT_SEC = 300                      # PVP 超时秒：5 分钟无行动�
 GUILD_EXP_BASE = 300                       # 公会升级经验 = 等级 * 300（social.py:490、store/social.py:394/395）
 PROF_EXP_BASE = 20                         # 遗留常量（v105 起由 prof_exp_need 二次曲线取代，保留兼容外部引用）
 
+# ================= vF3 体验调整常量 =================
+# （F3 修复 Agent：体验与战斗数值修复（除 Boss 血量）新增的平衡/封顶常量）
+STAMINA_RECOVER_INTERVAL = 300             # 体力自然恢复间隔：300s（5 分钟）+1（原 600s，vF3 P2 加速）
+                                           # 消费点：store/players.py 惰性恢复（:158/:161 已同步使用本常量）
+SKILL_PMULT_CAP = 6.0                      # 技能伤害倍率连乘上限（battle.py 阶段七 pmult 封顶，防高倍率配置失控；
+                                           # 仅 clamp 技能伤害倍率，不影响暴击/暴伤/幸运一击独立乘区）
+
 
 def prof_exp_need(lv):
     """副业升级经验需求（v105 平衡曲线）：need(lv) = 5*lv² + 15*lv
