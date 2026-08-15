@@ -24,9 +24,9 @@ FISHING_SPOTS = {
         "subarea": "harbor_docks_1",  # 码头栈桥
         "desc": "深水鱼王栖息地，全档位",
     },
-    "gold_plain": {
+    "silver_river": {
         "name": "银铃河", "min_lv": 5, "ban_quality": ["orange"],
-        "subarea": "gold_plain_1",  # 平原边缘（河流沿岸）
+        "subarea": "silver_river_1",  # 河岸（摆渡人旁，真正的水域；旧版误挂 gold_plain 麦田图）
         "desc": "银鳞鱼群聚，稀有+",
     },
     "misty_swamp": {
@@ -113,7 +113,7 @@ FISH_POOL = [
     {"name": "月光鱼", "quality": "blue", "type": "鱼", "price": 27, "spots": None,
      "weight": 20, "desc": "月光下泛着银蓝光泽的鱼，稀有"},
     {"name": "湖珍珠", "quality": "blue", "type": "材料", "price": 40,
-     "spots": ["starlake", "harbor_docks", "gold_plain", "misty_swamp"],
+     "spots": ["starlake", "harbor_docks", "silver_river", "misty_swamp"],
      "weight": 35, "desc": "贝中孕育的珍宝，附魔师抢着收"},
     {"name": "鲛人泪", "quality": "blue", "type": "材料", "price": 120,
      "spots": ["starlake", "misty_swamp"],
