@@ -1527,14 +1527,19 @@ class EconomyCmds(CommandBase):
             return
         yield event.plain_result(act_msg + text)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?锻造(?:[\s\S]*)$")
+    # O80 修复：v82『打造』改名『锻造』后旧指令无别名 → 零回复（playtest 洛洛/血牙复现）。
+    # 注册『打造』为『锻造』别名（23 章指令表兼容旧称呼），handler 内双前缀剥离
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:锻造|打造)(?:[\s\S]*)$")
     @require_player()
 
     async def craft(self, event: AstrMessageEvent):
         """锻造装备：消耗材料 + 金币 → 获得指定装备（铁匠铺）
-        v41：按职业分组展示；套装图纸 Boss 掉落/宝箱/垂钓/商店获得"""
+        v41：按职业分组展示；套装图纸 Boss 掉落/宝箱/垂钓/商店获得
+        O80：『打造』=『锻造』别名（v82 改名前的旧指令）"""
         group_id, qq_id = self._uid(event)
         raw = self._strip_cmd(event, "锻造")
+        if raw.startswith("打造"):  # O80：旧指令『打造 <参数>』剥离别名（_strip_cmd 只认『锻造』）
+            raw = raw[len("打造"):].strip()
         player = self._player(group_id, qq_id)
         ok, act_msg = self._prof_active_check(group_id, qq_id, "craft", require_apprentice=True)
         if not ok:

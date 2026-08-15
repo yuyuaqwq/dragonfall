@@ -651,6 +651,86 @@ class WorldCmds(CommandBase):
 
     # v104 P2(M22): 『移动』=『前往』别名（23 章指令表主指令=『移动 <地名或序号>』），双名共存；
     # (?!开始|结束) 负向断言保护 v101.17 移动模式开关『前往开始/结束』不被 move 抢
+    # O74 『返回 <地名>』空回复修复（playtest 第 7 次复现，v101.25i 已删 move_back 但旧指令
+    # 仍被玩家使用 → 注册提示 handler，不再只回标题零回复）：指引改用『前往』/『传送』
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:[\s\S]*)$")
+    @require_player()
+    async def back_cmd(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        dest = self._strip_cmd(event, "返回").strip()
+        if dest:
+            yield event.plain_result(
+                f"🧭 『返回 {dest}』已停用，请使用『前往 {dest}』赶路"
+                f"(或『传送 <名称>』用已激活的方碑直达)～")
+        else:
+            yield event.plain_result("🧭 『返回』指令已停用，请使用『前往 <地名>』赶路～")
+
+    # O115 『问路 <地名>』空回复修复：只回标题零内容（格温/血牙实测复现）——
+    # 补路线指引：同图子区域直达提示 / 跨图按 MAP_CONNECTIONS 算最短路径
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?问路(?:[\s\S]*)$")
+    @require_player()
+    async def ask_way(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        raw = self._strip_cmd(event, "问路").strip()
+        if not raw:
+            yield event.plain_result("格式：问路 <地名>！比如『问路 海蚀洞窟』～")
+            return
+        cur = player.get("cur_map", "")
+        cur_map = C.MAP_BY_ID.get(cur, {})
+        # 1) 同图子区域名：直接给『前往』指引
+        for sa in (cur_map.get("subareas") or []):
+            if raw in (sa.get("name", ""), sa.get("id", "")):
+                if sa.get("id") == player.get("cur_subarea"):
+                    yield event.plain_result(f"你已经在【{cur_map.get('name', '')}·{sa.get('name', '')}】了～")
+                else:
+                    yield event.plain_result(
+                        f"🧭 【{sa.get('name', '')}】就在{cur_map.get('name', '')}里，"
+                        f"输入『前往 {sa.get('name', '')}』即可到达～")
+                return
+        # 2) 跨图目标：地图名/id/区域名/旧别名（与『前往』同口径）
+        target = None
+        for m in C.MAPS:
+            if raw in (m["name"], m["id"]):
+                target = m
+                break
+        if not target and raw in C.LEGACY_MAP_ALIAS:
+            target = C.MAP_BY_ID.get(C.LEGACY_MAP_ALIAS[raw])
+        if not target:
+            for m in C.MAPS:
+                if raw in m.get("area_name", ""):
+                    target = m
+                    break
+        if not target:
+            yield event.plain_result(f"没找到『{raw}』这个地方。输入『地图』看看周围，或『百科 地图』查询全大陆～")
+            return
+        if target["id"] == cur:
+            yield event.plain_result(f"你已经在【{target['name']}】了～")
+            return
+        # 3) BFS 最短路径（MAP_CONNECTIONS 无向图）
+        from collections import deque
+        _conns = C.MAP_CONNECTIONS
+        q = deque([(cur, [cur])])
+        seen = {cur}
+        route = None
+        while q:
+            _c, _path = q.popleft()
+            if _c == target["id"]:
+                route = _path
+                break
+            for _conn in _conns.get(_c, []):
+                _nid = _conn[0] if isinstance(_conn, tuple) else _conn
+                if _nid not in seen:
+                    seen.add(_nid)
+                    q.append((_nid, _path + [_nid]))
+        if not route:
+            yield event.plain_result(f"🧭 【{target['name']}】暂时没有通路抵达，去『地图』看看附近的路吧～")
+            return
+        names = [C.MAP_BY_ID.get(_i, {}).get("name", _i) for _i in route]
+        yield event.plain_result(
+            f"🧭 【{target['name']}】的路线：{' → '.join(names)}（{len(route) - 1} 段路程）。\n"
+            f"💡 输入『前往 <地名>』逐段赶路；方碑已激活的地区可用『传送 <名称>』直达～")
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
@@ -662,7 +742,8 @@ class WorldCmds(CommandBase):
             dest = dest[2:].strip()  # v104 P2(M22): 『移动 <地名/序号>』别名参数剥离（双名共存）
         player = self._player(group_id, qq_id)
         # v87.13 对话中禁止移动：多轮对话进行时先『对话 0』结束
-        if db.get_talk_state(group_id, qq_id):
+        # O99 修复：统一对话状态判定（_talk_active 会清除损坏残留键，防判定漂移）
+        if self._talk_active(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
             return
         # v95.17 #146：战斗中禁止移动（与传送/回家/拜访一致，防战斗挂起跨图/被撞怪覆盖）
@@ -1869,15 +1950,17 @@ class WorldCmds(CommandBase):
                         hits.append((f"{mid}:{sa['id']}", {"name": ename, "map": mid}))
         if not hits:
             return None
-        locs = []
+        locs = []  # (map_id, subarea_id 或 None, 显示位置)
         for nid, npc in hits:
             m_id = npc.get("map") or ""
             m = C.MAP_BY_ID.get(m_id, {})
             m_name = m.get("name", m_id or "未知之地")
             sa_name = ""
+            sa_id = None
             if ":" in nid:
                 # v101.29 精英/Boss 条目：nid 格式 "map_id:subarea_id"
                 _said = nid.split(":", 1)[1]
+                sa_id = _said
                 for sa in (m.get("subareas") or []):
                     if sa["id"] == _said:
                         sa_name = sa.get("name", "")
@@ -2210,7 +2293,8 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         num = event.get_message_str().strip()
         num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
-        st = db.get_talk_state(group_id, qq_id)
+        # O99 修复：与 talk_choice/move 同源判定（_talk_active 清除损坏残留键）
+        st = self._talk_active(group_id, qq_id)
         if st:
             # 对话树选项选择（复用 talk_choice 有状态分支：『对话 1』同款）
             async for r in self.talk_choice(event):
@@ -2635,6 +2719,23 @@ class WorldCmds(CommandBase):
 
     # ---------------- v65 NPC 多轮对话 ----------------
 
+    def _talk_active(self, group_id, qq_id):
+        """统一对话状态读取（O99 修复：统一对话结束状态判定）。
+
+        对话结束判定（『对话 0』/移动拦截/副业材料保护）必须同源同判定：
+        键存在但 JSON 损坏/非 dict（历史脏数据）时视为"无对话"并顺手清除残留键，
+        杜绝『对话 0』提示"没有正在进行的对话"而移动仍被残留状态拦截的判定漂移。
+        """
+        st = db.get_talk_state(group_id, qq_id)
+        if st is not None and not isinstance(st, dict):
+            db.clear_talk_state(group_id, qq_id)
+            return None
+        if st is None:
+            raw = db.get_event_state(db.talk_state_key(group_id, qq_id))
+            if raw:
+                db.clear_talk_state(group_id, qq_id)  # 损坏/无法解析的残留键 → 清除
+        return st
+
     def _talk_ctx(self, group_id, qq_id, npc_id):
         """对话引擎上下文：player + quests + 该 NPC 已设 flag + 已拜师副业"""
         player = self._player(group_id, qq_id) or {}
@@ -2838,7 +2939,9 @@ class WorldCmds(CommandBase):
     async def talk_choice(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        st = db.get_talk_state(group_id, qq_id)
+        # O99 修复：统一对话状态判定（损坏残留键在 _talk_active 内清除，
+        # 『对话 0』与移动拦截同源同判定，不再出现"提示无对话但树仍在"的漂移）
+        st = self._talk_active(group_id, qq_id)
         if not st:
             # v101.16 『找』→『对话』：无对话中时『对话 <名字/序号>』= 找 NPC 开始对话
             msg0 = event.get_message_str().strip()
@@ -2848,7 +2951,8 @@ class WorldCmds(CommandBase):
                 if raw0:
                     # v105 O64：『对话 0』在无对话状态时明确提示（原实现被 find_npc 当 NPC 序号 0，
                     # 报"这里没有第 0 位 NPC"——玩家在单层 NPC 闲聊后想结束对话却得不到退出反馈）
-                    if raw0 == "0":
+                    # O99 修复：全角 ０ 与 ASCII 0 同判（此前全角 ０ 落入 find_npc 报"没有第 0 位"）
+                    if raw0 in ("0", "０"):
                         yield event.plain_result("你现在没有正在进行的对话。输入『对话 <NPC名>』开始交谈～")
                         return
                     # 复用 find_npc 查找/渲染链（改写消息为『找 X』）
@@ -3083,7 +3187,12 @@ class WorldCmds(CommandBase):
                     yield event.plain_result(f"你需要到 {C.MAP_BY_ID.get(giver_map, {}).get('name', '？')} 找 {giver} 交付任务！")
                     return
         # 支线可交
+        # O100 修复：『交付任务』按当前 NPC/地图过滤——此前遍历 dict 顺序取第一个 ready
+        # 支线，在城主处可能先命中"护送商货(需找老赵)"而忽略当场可交的"码头的猫"。
+        # 现逻辑：① 当前地图有交付 NPC → 当场交付（过滤优先）；② 无当场可交但别处有
+        # ready 支线 → 一次性列出全部可交付任务与位置（不再只报第一条误导玩家）。
         collect_missing = None  # 收集型材料还差的信息（用于最后提示）
+        waiting = []  # O100：已达成但交付 NPC 不在当前地图的支线 [(任务名, NPC名, 地图名)]
         for sid, sq in list(quests.get("side", {}).items()):
             sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
             if not sqd:
@@ -3111,8 +3220,7 @@ class WorldCmds(CommandBase):
                     else:
                         giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("name", "？")  # R3 P1-4
                         giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
-                        yield event.plain_result(f"支线『{sqd['name']}』材料齐了！需要找 {giver}(在{giver_map}) 交付任务！")
-                        return
+                        waiting.append((sqd["name"], giver, giver_map))
                 else:
                     collect_missing = (sqd["name"], obj["collect"], have, need)
                 continue
@@ -3129,8 +3237,15 @@ class WorldCmds(CommandBase):
                 else:
                     giver = (C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("name", "？")  # R3 P1-4
                     giver_map = C.MAP_BY_ID.get((C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or C.HIDDEN_NPCS.get(sqd["giver"]) or {}).get("map", ""), {}).get("name", "？")
-                    yield event.plain_result(f"支线『{sqd['name']}』已达成，需要找 {giver}(在{giver_map}) 交付任务！")
-                    return
+                    waiting.append((sqd["name"], giver, giver_map))
+        # O100：无当场可交付时，列出全部"已达成待交付"任务（带位置），不再只报第一条
+        if waiting:
+            lines = ["📜 可交付任务："]
+            for i, (qname, giver, giver_map) in enumerate(waiting, 1):
+                lines.append(f"{i:>2}. 『{qname}』→ 找 {giver}(在{giver_map})")
+            lines.append("💡 到对应 NPC 所在地区后输入『交付任务』即可交付～")
+            yield event.plain_result("\n".join(lines))
+            return
         if collect_missing:
             name, mat, have, need = collect_missing
             yield event.plain_result(f"支线『{name}』还差 {mat} ×{need - have}(背包 {have}/{need})！")

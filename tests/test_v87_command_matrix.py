@@ -109,6 +109,8 @@ REPRESENTATIVES = {
     "map_view": "地图", "move": "前往", "portal_view": "祭坛", "portal_activate": "激活祭坛",
     "portal_travel": "传送", "quest_view": "任务", "quest_accept": "接取", "daily": "每日",
     "time_cmd": "时间", "wild_notes": "见闻录", "move_mode_cmd": "前往开始",
+    # O74 『返回 <地名>』提示 handler / O115 『问路 <地名>』路线指引 handler
+    "back_cmd": "返回 橡木镇", "ask_way": "问路 海蚀洞窟",
     "npc_quick_dialog": "5", "find_npc": "找", "interact_prop": "交互", "talk_choice": "对话",
     "turn_in": "交付任务", "rest_camp": "休息", "rest": "住宿", "reputation": "声望",
     "rep_shop": "声望商店",
