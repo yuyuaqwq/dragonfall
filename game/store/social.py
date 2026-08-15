@@ -2,7 +2,7 @@
 import json
 import sqlite3
 import time
-from .connection import _connect, _lock
+from .connection import _connect, _lock, atomic
 from .. import content as C
 
 """《剑与魔法》存储层 - social"""
@@ -61,6 +61,35 @@ def save_signin(group_id, qq_id, last_date, streak, total):
             conn.commit()
         finally:
             conn.close()
+
+
+def signin_claim(group_id, qq_id, today, yesterday):
+    """F1 P1-4：原子签到认领（防并发重领）。
+
+    单事务内以条件 UPDATE 判定本次是否首次成功（WHERE last_date<>today）。并发双请求
+    经 BEGIN IMMEDIATE 串行化：首个 rowcount=1（认领成功），后者事务内重读 last_date
+    已等于 today → rowcount=0 → 返回 claimed=False。比命令层「读判断→发金子→再 save」非原子。
+    返回 (claimed, streak, total)；claimed=False 时 streak/total 为 None。
+    行为零变化：认领成功后的奖励发放仍由命令层执行。
+    """
+    with atomic() as conn:
+        # 确保行存在（老档无 signin 行也自愈），再条件更新
+        conn.execute(
+            "INSERT OR IGNORE INTO signin (qq_id, last_date, streak, total) VALUES (?,?,?,0)",
+            (qq_id, "", 0),
+        )
+        cur = conn.execute(
+            "UPDATE signin SET "
+            "last_date=?, "
+            "streak=CASE WHEN last_date=? THEN streak+1 ELSE 1 END, "
+            "total=total+1 "
+            "WHERE qq_id=? AND last_date<>?",
+            (today, yesterday, qq_id, today),
+        )
+        if cur.rowcount == 0:
+            return False, None, None
+        row = conn.execute("SELECT streak, total FROM signin WHERE qq_id=?", (qq_id,)).fetchone()
+        return True, row["streak"], row["total"]
 
 
 def market_list(group_id, map_id=None):
@@ -181,6 +210,125 @@ def market_remove(mid):
             return None
         finally:
             conn.close()
+
+
+# ==================== F1 P0-2 原子组合（单连接单事务） ====================
+# 市场购买 / 摆摊上架 / 换摊 原为命令层多次独立 commit 写入，中途崩溃会留下
+# 半成品状态（扣了钱没发货 / 删了单没加钱 / 摊顶了物没退回）。改为在 store 层
+# 以 atomic() 事务完成读-判-写，命令层只做前期 UI 校验并调用组合函数。
+# 所有内部 SQL 直接对单一 conn 执行（不回调 store 层其它连接函数，避免开新事务）。
+
+def _inv_upsert(conn, group_id, qq_id, item_key, item_data, count):
+    """在给定事务连接上向 inventory 加/累计一格。item_key 须已归一化（uuid 或 id）。"""
+    item_data = dict(item_data or {})
+    row = conn.execute(
+        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        (qq_id, item_key),
+    ).fetchone()
+    data_json = json.dumps(item_data, ensure_ascii=False)
+    if row:
+        # 同 key 已存在：优先非堆叠裸 UPDATE 累加 count（与 inventory.add_item 退化一致）
+        conn.execute(
+            "UPDATE inventory SET item_data=?, count=count+? WHERE qq_id=? AND item_key=?",
+            (data_json, count, qq_id, item_key),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
+            (qq_id, item_key, data_json, count),
+        )
+
+
+def _inv_remove_conn(conn, qq_id, item_key, count=1):
+    """在给定事务连接上从 inventory 扣减 count；不足/不存在返回 False。"""
+    row = conn.execute(
+        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        (qq_id, item_key),
+    ).fetchone()
+    if not row:
+        return False
+    if row["count"] <= count:
+        conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?",
+                     (qq_id, item_key))
+    else:
+        conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                     (count, qq_id, item_key))
+    return True
+
+
+def market_buy_atomic(group_id, qq_id, mid):
+    """原子购入：单事务内 校验存在→校验买家金币→扣买家→加卖家→删单→发货。
+
+    返回 (ok, msg, item_name)。并发双请求进入后，BEGIN IMMEDIATE 串行化，
+    后者在事务内重新读到该单已删→返回"已被买走"，只有首个请求真正扣款发货。
+    """
+    from .inventory import _key_to_id
+    with atomic() as conn:
+        row = conn.execute("SELECT * FROM market WHERE id=?", (mid,)).fetchone()
+        if not row:
+            return False, "没有这个物品！可能已被买走。", None
+        item_data = json.loads(row["item_data"] or "{}")
+        item_name = item_data.get("name", "?")
+        if str(row["seller"]) == str(qq_id):
+            return False, "不能买自己的物品！", item_name
+        price = int(row["price"] or 0)
+        if price <= 0:
+            return False, f"【{item_name}】是换摊(只换不卖)——用『换 {mid} <物品名>』提出交换！", item_name
+        b = conn.execute("SELECT gold FROM players WHERE qq_id=?", (qq_id,)).fetchone()
+        if not b or b["gold"] < price:
+            return False, "金币不足！", item_name
+        s = conn.execute("SELECT gold FROM players WHERE qq_id=?", (row["seller"],)).fetchone()
+        conn.execute("UPDATE players SET gold=gold-? WHERE qq_id=?", (price, qq_id))
+        conn.execute("UPDATE players SET gold=gold+? WHERE qq_id=?", (price, row["seller"]))
+        conn.execute("DELETE FROM market WHERE id=?", (mid,))
+        _inv_upsert(conn, group_id, qq_id, _key_to_id(row["item_key"], item_data), item_data, 1)
+    return True, None, item_name
+
+
+def market_stall_sell_atomic(group_id, qq_id, found_key, found_data, price, map_id, old_stall_items):
+    """原子摆摊上架：单事务内 旧摊物品全部退包→写入新摊位→从背包扣掉新货。
+
+    old_stall_items: 命令层已解析的旧摊条目列表 [{"item_key","item_data"}]（不含 map_id 过滤逻辑，
+    该判断仍留在命令层，本函数只负责在事务内完成 退回+上新+扣货）。
+    返回 True。所有 key 已由命令层按 get_inventory 语义解析（uuid/id 均可）。
+    """
+    from .inventory import _key_to_id
+    with atomic() as conn:
+        for s in old_stall_items:
+            _inv_upsert(conn, group_id, qq_id,
+                        _key_to_id(s["item_key"], s["item_data"]), s["item_data"], 1)
+            conn.execute("DELETE FROM market WHERE id=? AND seller=?", (s["id"], qq_id))
+        conn.execute(
+            "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
+            (group_id, qq_id, _key_to_id(found_key, found_data),
+             json.dumps(found_data, ensure_ascii=False), int(price), int(time.time()), map_id or ""),
+        )
+        _inv_remove_conn(conn, qq_id, _key_to_id(found_key, found_data), 1)
+    return True
+
+
+def market_exchange_atomic(group_id, qq_id, mid, give_key, give_data):
+    """原子换摊：单事务内 删摊主的单→摊主货给买家→扣买家的给物→买家给物送摊主。
+    返回 (ok, msg)。给物 give_key/give_data 已由命令层从背包解析。
+    """
+    from .inventory import _key_to_id
+    with atomic() as conn:
+        row = conn.execute("SELECT * FROM market WHERE id=?", (mid,)).fetchone()
+        if not row:
+            return False, f"没有编号 {mid} 的摊位！『摊位』看看～"
+        item_data = json.loads(row["item_data"] or "{}")
+        item_name = item_data.get("name", "?")
+        if str(row["seller"]) == str(qq_id):
+            return False, "不能和自己交换！"
+        # 扣买家的给物（不足则整单回滚，另一请求也拿不到 → 各自 Message 一致）
+        if not _inv_remove_conn(conn, qq_id, give_key, 1):
+            return False, "背包里没有这个交换物！"
+        # 删摊主单并交付
+        conn.execute("DELETE FROM market WHERE id=?", (mid,))
+        tgt_group = row["group_id"] or group_id
+        _inv_upsert(conn, tgt_group, qq_id, _key_to_id(row["item_key"], item_data), item_data, 1)
+        _inv_upsert(conn, tgt_group, str(row["seller"]), give_key, give_data, 1)
+    return True, item_name
 
 
 def _in_battle_state(conn, group_id, qq_id) -> bool:

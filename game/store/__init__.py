@@ -15,7 +15,7 @@
 聚合导出全部函数，保持 `db.xxx` 调用兼容。
 """
 from .connection import (  # noqa: F401
-    DB_PATH, C_MAP_IDS, _connect, _lock, init_db,
+    DB_PATH, C_MAP_IDS, _connect, _lock, init_db, atomic,
 )
 from .players import (  # noqa: F401
     record_player_group, get_player_groups, get_group_players,
@@ -25,6 +25,7 @@ from .players import (  # noqa: F401
 )
 from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
+    update_item_data, sell_item_atomic,
 )
 from .quests import get_quests, save_quests, expire_daily  # noqa: F401
 from .battle_state import save_battle, get_battle, get_battle_raw, clear_battle  # noqa: F401
@@ -37,9 +38,10 @@ from .professions import (  # noqa: F401
     MAX_ACTIVE_PROFS, get_activated_profs, activate_prof, forget_prof,
 )
 from .social import (  # noqa: F401
-    add_reputation, get_reputation, get_signin, save_signin,
+    add_reputation, get_reputation, get_signin, save_signin, signin_claim,
     market_list, market_add, market_remove,
     market_list_by_seller, market_get, market_sync_stall, market_remove_by_seller,
+    market_buy_atomic, market_stall_sell_atomic, market_exchange_atomic,
     party_create, party_add, party_members, party_leave,
     guild_create, guild_get_by_leader, guild_get_by_member,
     guild_get_by_name, guild_members, guild_join, guild_leave,
@@ -55,6 +57,7 @@ from .world import (  # noqa: F401
     get_talk_state, set_talk_state, clear_talk_state, talk_state_key,
     get_talk_flags, set_talk_flag, get_boss_dmg_mult,
     cleanup_stale_event_state,
+    home_storage_deposit_atomic, home_storage_take_atomic,
     # v115 探索见闻：子区域级到访
     add_visited_subarea, get_visited_subareas, count_visited_subareas,
 )
@@ -62,5 +65,5 @@ from .feedback import (  # noqa: F401
     add_feedback, get_feedback,
 )
 from .props_use import (  # noqa: F401
-    get_props_use, mark_props_use,
+    get_props_use, mark_props_use, props_use_claim_atomic,
 )

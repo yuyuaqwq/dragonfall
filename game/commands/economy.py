@@ -2193,8 +2193,8 @@ class EconomyCmds(CommandBase):
                 eq[target["_equipped"]] = d
                 db.update_player(group_id, qq_id, equipment=eq)
             else:
-                db.remove_item(group_id, qq_id, target["key"])
-                db.add_item(group_id, qq_id, target["key"], d, 1)
+                # F1 P0-1：背包格原子写回（替代 remove+add 两步非原子替换）
+                db.update_item_data(group_id, qq_id, target["key"], d)
             # O93 修复：成功文案补金币消耗显示（实际扣款在上方 db.update_player(gold=...)）
             lines = [f"🔨 强化成功！【{d['name']}】+{cur_enh} → +{cur_enh+1}！(消耗 {info['cost']} 金币)"]
             # v101.30 强化经验按段位：+0→+1 给 1 …… +8→+9 给 9（高段强化是升级主路径，
@@ -2241,8 +2241,8 @@ class EconomyCmds(CommandBase):
                     eq[target["_equipped"]] = d
                     db.update_player(group_id, qq_id, equipment=eq)
                 else:
-                    db.remove_item(group_id, qq_id, target["key"])
-                    db.add_item(group_id, qq_id, target["key"], d, 1)
+                    # F1 P0-1：背包格原子写回（替代 remove+add 两步非原子替换）
+                    db.update_item_data(group_id, qq_id, target["key"], d)
                 # O93 修复：失败(降级)文案补金币消耗显示
                 yield event.plain_result(f"💥 强化失败！【{d['name']}】降级到 +{new_enh}。铁匠摇摇头：『下次一定行！』(消耗 {info['cost']} 金币)")
             else:
@@ -2366,8 +2366,8 @@ class EconomyCmds(CommandBase):
                 eq[target["_equipped"]] = d
                 db.update_player(group_id, qq_id, equipment=eq)
             else:
-                db.remove_item(group_id, qq_id, target["key"])
-                db.add_item(group_id, qq_id, target["key"], d, 1)
+                # F1 P0-1：背包格原子写回（替代 remove+add 两步非原子替换）
+                db.update_item_data(group_id, qq_id, target["key"], d)
             # v105 M11 P2：符文刻印补次数统计 + 成就判定（与属性附魔路径一致——
             # 此前 enchant_count 无符文路径消费端，『附魔师』等次数成就永远不可解锁）
             db.bump_stats(group_id, qq_id, enchant_count=1)
@@ -2468,8 +2468,8 @@ class EconomyCmds(CommandBase):
             eq[target["_equipped"]] = d
             db.update_player(group_id, qq_id, equipment=eq)
         else:
-            db.remove_item(group_id, qq_id, target["key"])
-            db.add_item(group_id, qq_id, target["key"], d, 1)
+            # F1 P0-1：背包格原子写回（替代 remove+add 两步非原子替换）
+            db.update_item_data(group_id, qq_id, target["key"], d)
         sn = {"atk": "攻击", "matk": "魔攻", "def": "防御", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击"}
         val_str = f"+{int(v * 100)}%" if stat_key in C.PCT_STATS else f"+{v}"
         big_str = "🌟 大成功！" if big else ""
@@ -3026,8 +3026,8 @@ class EconomyCmds(CommandBase):
         """阶段八：装备属性需求检查。返回 (通过, 提示文本, 缺失属性名列表)。
 
         v101.21g 鱼鱼拍板：不豁免任何装备（无兼容包袱）——名册已去需求的
-        旧存量快照由数据修正清理 req 字段（scripts/fix_legacy_req.py），
-        代码层不搞特例。
+        旧存量快照由数据修正清理 req 字段（见 game/data/equip_roster.py:30-32，
+        商店新手装不再写 req），代码层不搞特例。
         v101.25 #321：返回缺失属性名列表，调用方按实际缺失属性生成加点引导
         （不再写死『加点 力量 N』）。
         """
@@ -3532,7 +3532,9 @@ class EconomyCmds(CommandBase):
 
     def _pawn_rate(self, player: dict, d: dict):
         """v101.21 出售地点限制：装备→铁匠/工坊（原价）；材料→按类型分设施（v101.25e 鱼鱼拍板）：
-        矿石/木材/兽材/宝石→铁匠铺(0.9)；草药/精华→炼金铺(0.9)；食材/织物/杂物→商店(0.8)；其他→无限制 1.0。"""
+        矿石/木材/兽材/宝石→铁匠铺(0.9)；草药/精华→炼金铺(0.9)；食材/织物/杂物→商店(0.8)；其他→1.0。
+        F1 P1-5：无 slot 消耗品（药水/食物/卷轴/炼金/烹饪产物）回收由 1.0 全价下调到 0.85——
+        原回落 1.0 与材料 0.8~0.9 明显倒挂，白送金币（与造物成本封顶互补，_sell_one 还有 craft_cost 封顶兜底）。"""
         if d.get("slot"):  # 装备必须去铁匠铺卖（回收装备是铁匠的活）
             if self._is_smith_shop(player):
                 return 1.0
@@ -3544,7 +3546,9 @@ class EconomyCmds(CommandBase):
         # v95.32 #397b：材料判定按名查表（data.type 可能是分类名如"精华/草药"，非"材料"）
         mm = C.MATERIALS_BY_NAME.get(d.get("name", "")) or {}
         if not mm:
-            return 1.0
+            # F1 P1-5：非材料、非装备（药水/食物/卷轴/炼金/烹饪产物等消耗品）回收 0.85，
+            # 与材料档对齐，避免白送金币（收藏鱼等特殊物在 _sell_one 单独置回 1.0）
+            return 0.85
         mtype = mm.get("type", "杂物")
         need = _MAT_FACILITY.get(mtype, "shop")
         sa = self._cur_subarea(player)
@@ -3584,11 +3588,13 @@ class EconomyCmds(CommandBase):
         # v95.32 #397b：判据用 slot 而非 quality——v101.25e 起材料也注入全服品质字段，材料被打 0.3 折是 bug
         if d.get("slot"):
             rate = min(rate, 0.5)
-            # M10 P1-2 锻造→卖店印钞修复：锻造产物（craft_cost=材料价+锻造费）卖店最多回本，
-            # 杜绝 材料→锻造→卖店 金币永动机（104/114 配方净赚，最高 +1234%）
-            cc = d.get("craft_cost")
-            if cc and d.get("price"):
-                rate = min(rate, cc / d["price"])
+        # M10 P1-2 锻造→卖店印钞修复：锻造产物（craft_cost=材料价+锻造费）卖店最多回本，
+        # 杜绝 材料→锻造→卖店 金币永动机（104/114 配方净赚，最高 +1234%）。
+        # F1 P1-5：原仅覆盖装备分支持有 craft_cost 的造物，现扩展到炼金/烹饪等带 craft_cost 的
+        # 消耗品造物——与 _pawn_rate 0.85 档互补，杜绝「低材→高值消耗品→卖店」利润通道。
+        cc = d.get("craft_cost")
+        if cc and d.get("price"):
+            rate = min(rate, cc / d["price"])
         # v104 M15 修复：彩蛋收藏鱼（type=收藏）跳过 0.8 折扣按 1 金币原价回收
         # （原 int(1×0.8)=0 返回 None，收藏鱼永久占包无法回收）
         # v104 R3 M15 P1-1：双判据按名兜底——v98.1 采集池可采出星骸遗鳞时期入包的
@@ -3598,8 +3604,8 @@ class EconomyCmds(CommandBase):
         price = int(d.get("price", 0) * rate * sell_mult)
         if price <= 0:
             return None
-        db.update_player(group_id, qq_id, gold=player["gold"] + price * it["count"])
-        db.remove_item(group_id, qq_id, it["key"], it["count"])
+        # F1 P0-2：原子出售（单事务：校验货存→加金币→扣包），替代原两步独立 commit
+        db.sell_item_atomic(group_id, qq_id, it["key"], it["count"], price * it["count"])
         return (d["name"], it["count"], price * it["count"])
 
     def _apprentice_protect_mats(self, group_id, qq_id) -> dict:

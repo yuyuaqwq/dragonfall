@@ -32,7 +32,7 @@ class MiscCmds(CommandBase):
 
 🧑🤝🧑 角色系统        🌍 冒险系统
 注册 角色 属性 加点    地图 移动 探索 休息
-洗点 转职 转职重置 战力 排行    住宿 时间 许愿 交互 见闻录 编年史
+洗点 转职 转职重置 战力 排行    住宿 时间 许愿 交互 见闻录 编年史 探索进度
 
 ⚔️ 战斗系统          ✨ 技能系统
 攻击 技能 防御 逃跑    技能 技能列表 技能详情
@@ -152,6 +152,7 @@ class MiscCmds(CommandBase):
 
     CMD_HELP_SOCIAL = """🤝 【社交】指令
 ━━━━━━━━━━━━
+【阵营】加入阵营 <编号> 阵营任务 阵营商店 阵营排行（Lv.30 起选四大阵营；任务/商店/排行）
 【公会】公会 创建公会 加入公会 退出公会 解散公会 公会签到 公会任务 公会捐献 公会排行
 【宠物】宠物 宠物改名 喂养 放生（宠物蛋打怪掉落）
 【坐骑】坐骑 骑乘 <名称> 下马（精英/Boss 掉缰绳解锁，传送省钱）
@@ -160,7 +161,8 @@ class MiscCmds(CommandBase):
 
     CMD_HELP_WORLD = """🗺️ 【世界】指令
 ━━━━━━━━━━━━
-【地图】地图 移动 <名称/序号> 探索 休息 住宿
+【地图】地图 移动 <名称/序号> 探索 休息 住宿 探索进度（查看全大陆探索度）
+【见闻】见闻录（野外 NPC 见闻收集） 编年史
 【传送】方碑（查看激活列表） 激活（解锁传送点） 传送 <名称/序号>（付费直达）
 【任务】任务 主线 每日 找 <NPC> 交付任务
 【事件】事件（查看当前世界事件） 讨伐（世界 Boss，需到达指定地点）
@@ -222,8 +224,11 @@ class MiscCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         today = datetime.date.today().isoformat()
-        si = db.get_signin(group_id, qq_id)
-        if si.get("last_date") == today:
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        # F1 P1-4：原子签到认领（并发双请求只首个成功）。成功后 streak/total 已算出，
+        # 替代原「读 last_date→判断→发奖励→再 save」非原子（并发可重领）。
+        _claimed, streak, total = db.signin_claim(group_id, qq_id, today, yesterday)
+        if not _claimed:
             yield event.plain_result("今天已经签过到啦！明天再来～")
             return
         # v87 02 章 7.6：每日运势（签到随机三档：大吉/平/小凶；幸运符可+1 档）
@@ -246,12 +251,7 @@ class MiscCmds(CommandBase):
                 db.remove_item(group_id, qq_id, luck_mat)
                 fortune = "大吉"
         db.set_event_state(f"daily_fortune_{group_id}_{qq_id}", _json.dumps({"date": today, "fortune": fortune}))
-        # 连续签到
-        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
-        streak = si.get("streak", 0) + 1 if si.get("last_date") == yesterday else 1
-        total = si.get("total", 0) + 1
-        db.save_signin(group_id, qq_id, today, streak, total)
-        # 奖励：基础金币 + 连续加成 + 幸运宝箱
+        # 连续签到（streak/total 已由 signin_claim 原子算好）
         gold = 20 + streak * 5
         # 节日庆典：签到奖励翻倍
         cur_evt = db.get_world_event()
@@ -266,6 +266,9 @@ class MiscCmds(CommandBase):
         fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
         fortune_desc = {"大吉": "今日经验＋10%", "平": "今日平平无奇", "小凶": "今日金币－10%"}.get(fortune, "")
         lines.append(f"{fortune_icon} 今日运势：{fortune}({fortune_desc})")
+        if fortune == "小凶":
+            # vF3：小凶无预警提示——金币 -10% 早知道（概率/数值不变），可用幸运符消解或明日重roll
+            lines.append("💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～")
         if cur_evt and cur_evt["etype"] == "festival":
             lines.append("🎉 节日庆典：签到奖励翻倍！")
         # 每 7 天额外奖励

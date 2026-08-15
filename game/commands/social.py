@@ -142,13 +142,12 @@ class SocialCmds(CommandBase):
         if player["gold"] < it["price"]:
             yield event.plain_result(f"金币不足！需要 {it['price']} 金币。")
             return
-        db.update_player(group_id, qq_id, gold=player["gold"] - it["price"])
-        seller = self._player(group_id, it["seller"])
-        if seller:
-            db.update_player(group_id, it["seller"], gold=seller["gold"] + it["price"])
-        db.market_remove(mid)
-        db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
-        yield event.plain_result(f"🛒 购入成功！【{it['item_data'].get('name','?')}】已放入背包(花费 {it['price']} 金币)")
+        # F1 P0-2：原子购入（事务内 校验→扣款→删单→发货），替代原 4 次独立 commit
+        ok, err, item_name = db.market_buy_atomic(group_id, qq_id, mid)
+        if not ok:
+            yield event.plain_result(err)
+            return
+        yield event.plain_result(f"🛒 购入成功！【{item_name}】已放入背包(花费 {it['price']} 金币)")
 
     # ---------------- v66 摆摊系统 ----------------
 
@@ -204,12 +203,12 @@ class SocialCmds(CommandBase):
                 yield event.plain_result(
                     f"🏪 铺面挂机位已满({len(old)}/{slots})！先『收摊』腾位置，或升级房屋获得更多挂机位～")
                 return
-        if not _home_stall:
-            for s in old:
-                db.market_remove(s["id"])
-                db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
-        db.market_add(group_id, qq_id, found["key"], found["data"], price, map_id=cur_map)
-        db.remove_item(group_id, qq_id, found["key"], count=1)
+        # F1 P0-2：摆摊上新原子化（单事务：旧摊退包(仅公共地图)→写新摊→扣包内新货）。
+        # 铺面(home)多摊并存，不退回旧摊，仅事务内写新摊+扣货。
+        _old_items = [] if _home_stall else [s for s in old]
+        db.market_stall_sell_atomic(
+            group_id, qq_id, found["key"], found["data"], price, cur_map, _old_items
+        )
         tip = f"(旧摊位已收摊，{len(old)} 件物品退回背包)" if (old and not _home_stall) else ""
         if price > 0:
             head = f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
@@ -318,11 +317,12 @@ class SocialCmds(CommandBase):
         if not give:
             yield event.plain_result(f"背包里没有『{give_name}』！『背包』查看～")
             return
-        # 成交：摊主的货给买家，买家的货送到摊主背包
-        db.market_remove(mid)
-        db.add_item(it.get("group_id") or group_id, qq_id, it["item_key"], it["item_data"], count=1)
-        db.remove_item(group_id, qq_id, give["key"], count=1)
-        db.add_item(it.get("group_id") or group_id, str(it["seller"]), give["key"], give["data"], count=1)
+        # F1 P0-2：原子换摊（单事务：删摊主单→摊主货给买家→扣买家给物→给物送摊主），
+        # 替代原 4 次独立 commit（并发双请求只首个成交）
+        ok, _ename = db.market_exchange_atomic(group_id, qq_id, mid, give["key"], give["data"])
+        if not ok:
+            yield event.plain_result(_ename)
+            return
         yield event.plain_result(
             f"🔄 交换成功！你用【{give['data']['name']}】换到了【{it['item_data'].get('name','?')}】！\n"
             f"对方的东西已放进你背包，你的【{give['data']['name']}】已送到对方背包～"

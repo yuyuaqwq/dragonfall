@@ -4,6 +4,7 @@
 import os
 import sqlite3
 import threading
+from contextlib import contextmanager
 
 from .. import content as C
 
@@ -24,6 +25,30 @@ def _connect():
     conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+@contextmanager
+def atomic():
+    """F1 P0-2：单连接 + 单事务的原子写上下文。
+
+    同一进程内经由 _lock 串行化（与其它 store 函数一致），并对并发写加
+    BEGIN IMMEDIATE（拿写锁）保证跨连接场景的单事务原子性。
+    用法：
+        with atomic() as conn:
+            conn.execute(...); conn.execute(...)
+    块内抛异常 → rollback；正常退出 → commit。返回连接对象供 execute。
+    """
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            yield conn
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
 
 # ================= v103.5 B1-1 建表 SQL 按域拆分 =================

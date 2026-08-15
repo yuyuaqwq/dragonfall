@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from .connection import _connect, _lock
+from .connection import _connect, _lock, atomic
 from .. import content as C
 
 """《剑与魔法》存储层 - inventory"""
@@ -42,6 +42,9 @@ def _key_to_id(item_key, item_data=None):
 
 def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
     """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储"""
+    if not isinstance(count, int) or isinstance(count, bool) or count <= 0 or count > 9999999:
+        # F1 P1-3：数量非法（<=0 / 超大）直接拒绝，防负资产/内存膨胀
+        return False
     item_key = _key_to_id(item_key, item_data)
     with _lock:
         conn = _connect()
@@ -115,6 +118,9 @@ def count_item(group_id, qq_id, name):
             conn.close()
 
 def remove_item(group_id, qq_id, item_key, count=1):
+    if not isinstance(count, int) or isinstance(count, bool) or count <= 0 or count > 9999999:
+        # F1 P1-3：非法数量直接拒绝（<=0 会误删整堆或增库存；超大 count 有溢出/DoS 面）
+        return False
     item_key = _key_to_id(item_key)
     with _lock:
         conn = _connect()
@@ -139,5 +145,50 @@ def remove_item(group_id, qq_id, item_key, count=1):
             return True
         finally:
             conn.close()
+
+
+def update_item_data(group_id, qq_id, item_key, new_data: dict):
+    """F1 P0-1：单条原子 UPDATE 覆盖某格 item_data（强化/附魔写回装备用）。
+
+    比 remove_item+add_item 两步非原子替换更安全（后者中途崩会丢格/建重复格），
+    且保留原格 count 与 rowid。装备所在格 key 为 uuid（get_inventory 原样返回），
+    此处经 _key_to_id 归一化后仍命中同一格——key 语义与 remove/add 一致。
+    命中返回 True，否则 False（该格不存在，不做写入）。
+    """
+    item_key = _key_to_id(item_key, new_data)
+    with _lock:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE inventory SET item_data=? WHERE qq_id=? AND item_key=?",
+                (json.dumps(new_data, ensure_ascii=False), qq_id, item_key),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def sell_item_atomic(group_id, qq_id, item_key, count, gold_gain):
+    """F1 P0-2：原子出售单件（单事务：校验货存→加金币→扣包），替代 _sell_one 的两步独立 commit。
+
+    返回 True 表示扣款发货成功；False 表示该格不存在/不足（命令层已有 rate/价格校验，
+    此处仅防护并发 sold-out 造成的重复加钱）。item_key 由命令层按 get_inventory 语义给出。
+    """
+    item_key = _key_to_id(item_key)
+    with atomic() as conn:
+        row = conn.execute(
+            "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+            (qq_id, item_key),
+        ).fetchone()
+        if not row:
+            return False
+        if row["count"] <= count:
+            conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?", (qq_id, item_key))
+        else:
+            conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                         (count, qq_id, item_key))
+        conn.execute("UPDATE players SET gold=gold+? WHERE qq_id=?", (gold_gain, qq_id))
+    return True
 
 

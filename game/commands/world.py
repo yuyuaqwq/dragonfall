@@ -458,10 +458,17 @@ class WorldCmds(CommandBase):
             if not found:
                 yield event.plain_result(f"背包里没有『{raw}』！")
                 return
-            lst.append({"key": found["key"], "data": found["data"], "count": 1})
-            self._home_storage_save(group_id, qq_id, lst)
-            db.remove_item(group_id, qq_id, found["key"], 1)
-            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】({len(lst)}/{hl['storage']})")
+            # F1 P0-2：原子存仓（同事务：读-判容量→append→写回→扣背包），
+            # 并发双请求只有首个成功（另一请求事务内重读 storage 已满 → 提示仓库满）
+            _ok, _n = db.home_storage_deposit_atomic(
+                group_id, qq_id, self._home_storage_key(group_id, qq_id),
+                found["key"], found["data"], hl["storage"],
+            )
+            if not _ok:
+                yield event.plain_result(
+                    f"📦 仓库满了({_n}/{hl['storage']} 格)！升级房屋扩容(『地契 升级』)")
+                return
+            yield event.plain_result(f"📦 已存入仓库：【{found['data'].get('name', raw)}】({_n}/{hl['storage']})")
             return
         # 查看
         lst = self._home_storage_load(group_id, qq_id)
@@ -487,13 +494,14 @@ class WorldCmds(CommandBase):
             yield event.plain_result("格式：取出 <编号>！『仓库』查看～")
             return
         idx = int(raw)
-        lst = self._home_storage_load(group_id, qq_id)
-        if idx < 1 or idx > len(lst):
+        # F1 P0-2：原子取出（单事务：读→pop→写回→加背包），并发双请求只有首个取出
+        _ok, it = db.home_storage_take_atomic(
+            group_id, qq_id, self._home_storage_key(group_id, qq_id), idx
+        )
+        if not _ok:
+            lst = self._home_storage_load(group_id, qq_id)
             yield event.plain_result(f"仓库里没有第 {idx} 件(共 {len(lst)} 件)！")
             return
-        it = lst.pop(idx - 1)
-        self._home_storage_save(group_id, qq_id, lst)
-        db.add_item(group_id, qq_id, it["key"], it["data"], it.get("count", 1))
         yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置|周围)(?:\s*|$)")
@@ -1027,7 +1035,7 @@ class WorldCmds(CommandBase):
         if self._stamina(player) < 1:
             yield event.plain_result(
                 f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
-                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每10分钟+1)\n"
+                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每5分钟+1)\n"
                 "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～\n"
                 "💡 新手建议：野外活动前先在城镇『商店』买点食物（烤肉串等），体力 0 才不会困在野外～"
             )
@@ -2943,9 +2951,12 @@ class WorldCmds(CommandBase):
                 lines.append("⏳ 井水今天已经应过一次愿了……明日再来试试吧。")
             elif random.random() < WISH_WELL_EGG_CHANCE:
                 gold = random.randint(1, 5)
-                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                db.mark_props_use(qq_id, use_key, today)
-                lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
+                # F1 P1-4：原子认领——并发双请求只有首个真正占下并发放（后手见"已应过一次愿"）
+                if db.props_use_claim_atomic(qq_id, use_key, today):
+                    db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                    lines.append(f"💰 井底传来一声轻响——你低头一看，水面上漂着 {gold} 枚铜币，像是井的谢礼。")
+                else:
+                    lines.append("⏳ 井水今天已经应过一次愿了……明日再来试试吧。")
         elif eff == "refresh":
             lines.append("💧 泉水入喉，神清气爽。旅途的疲惫仿佛也被这淙淙水声冲淡了一些。")
         elif isinstance(eff, dict) and eff.get("daily"):
@@ -2960,16 +2971,19 @@ class WorldCmds(CommandBase):
                 if etype == "material":
                     pool = eff.get("pool") or []
                     if pool:
-                        mid = random.choice(pool)
-                        mname = C.display("materials", mid)
-                        db.add_item(group_id, qq_id, mid, {
-                            "name": mname, "type": "材料", "stackable": True,
-                            "price": C.MATERIALS[mid]["price"],
-                        }, 1)
-                        db.mark_props_use(qq_id, use_key, today)
-                        lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
-                        # v104 M20：采集任务每日（collect_any）——场景元素获得材料 +1（主采集动作在 economy.py）
-                        self._bump_daily_progress(group_id, qq_id, "collect_any", lines)
+                        # F1 P1-4：原子认领——并发双请求只有首个发放（后手提示已翻找过）
+                        if not db.props_use_claim_atomic(qq_id, use_key, today):
+                            lines.append("⏳ 今天已经在这里翻找过了……明天再来碰碰运气吧。")
+                        else:
+                            mid = random.choice(pool)
+                            mname = C.display("materials", mid)
+                            db.add_item(group_id, qq_id, mid, {
+                                "name": mname, "type": "材料", "stackable": True,
+                                "price": C.MATERIALS[mid]["price"],
+                            }, 1)
+                            lines.append(f"🎒 {eff.get('found_text', '你发现')}【{mname}】×1！")
+                            # v104 M20：采集任务每日（collect_any）——场景元素获得材料 +1（主采集动作在 economy.py）
+                            self._bump_daily_progress(group_id, qq_id, "collect_any", lines)
                 elif etype == "heal":
                     pct = float(eff.get("pct", 0.1))
                     missing = player.get("max_hp", 1) - player.get("hp", 0)
@@ -2979,9 +2993,12 @@ class WorldCmds(CommandBase):
                     if heal <= 0:
                         lines.append("🔥 暖意融融，但你精神饱满，用不上这份治愈～(明天再来也一样暖)")
                     else:
-                        db.update_player(group_id, qq_id, hp=player["hp"] + heal)
-                        db.mark_props_use(qq_id, use_key, today)
-                        lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命({player['hp'] + heal}/{player.get('max_hp', 1)})！")
+                        # F1 P1-4：原子认领——并发双请求只有首个恢复（后手提示今日已翻找过）
+                        if not db.props_use_claim_atomic(qq_id, use_key, today):
+                            lines.append("⏳ 今天已经在这里翻找过了……明天再来碰碰运气吧。")
+                        else:
+                            db.update_player(group_id, qq_id, hp=player["hp"] + heal)
+                            lines.append(f"🔥 {eff.get('found_text', '暖意袭来')}——恢复 ❤️ {heal} 点生命({player['hp'] + heal}/{player.get('max_hp', 1)})！")
         yield event.plain_result("\n".join(lines))
 
     # ---------------- v65 NPC 多轮对话 ----------------

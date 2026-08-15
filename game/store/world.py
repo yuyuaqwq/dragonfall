@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import time
-from .connection import _connect, _lock
+from .connection import _connect, _lock, atomic
 from .. import content as C
 
 """《剑与魔法》存储层 - world"""
@@ -326,5 +326,99 @@ def cleanup_stale_event_state(max_age_days: int = 30) -> int:
             return len(doomed)
         finally:
             conn.close()
+
+
+# ==================== F1 P0-2 家具仓库原子存取 ====================
+# 仓库状态存 event_state JSON（命令层 _home_storage_load/save），原命令层写成
+# 读改写 + db.remove_item/add_item 分两次提交——并发双请求会互踩（各读到旧 list
+# 都 append/pop，后者覆盖前者）。改为 store 层单事务：同一事务内 读当前 storage
+# JSON → 校验/改列表 → 写回 event_state → 扣/加背包。item_key 已由命令层归一化。
+
+def _storage_upsert(conn, qq_id, item_key, item_data, count):
+    """事务连接上的背包加/累计一格（语义对齐 inventory.add_item 退化累加）。"""
+    item_data = dict(item_data or {})
+    data_json = json.dumps(item_data, ensure_ascii=False)
+    row = conn.execute(
+        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        (qq_id, item_key),
+    ).fetchone()
+    if row:
+        conn.execute(
+            "UPDATE inventory SET item_data=?, count=count+? WHERE qq_id=? AND item_key=?",
+            (data_json, count, qq_id, item_key),
+        )
+    else:
+        conn.execute(
+            "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
+            (qq_id, item_key, data_json, count),
+        )
+
+
+def _storage_remove(conn, qq_id, item_key, count=1):
+    """事务连接上的背包扣减；不足/不存在返回 False（计入回滚条件）。"""
+    row = conn.execute(
+        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        (qq_id, item_key),
+    ).fetchone()
+    if not row:
+        return False
+    if row["count"] <= count:
+        conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?", (qq_id, item_key))
+    else:
+        conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                     (count, qq_id, item_key))
+    return True
+
+
+def home_storage_deposit_atomic(group_id, qq_id, storage_key, item_key, item_data, max_slots):
+    """原子存仓：单事务内 读当前 storage→容量校验→append→写回→扣背包。
+    返回 (ok, storage_len)。超容量返回 (False, -1)。"""
+    with atomic() as conn:
+        raw = conn.execute("SELECT value FROM event_state WHERE key=?", (storage_key,)).fetchone()
+        lst = []
+        if raw and raw["value"]:
+            try:
+                lst = json.loads(raw["value"])
+                if not isinstance(lst, list):
+                    lst = []
+            except (ValueError, TypeError):
+                lst = []
+        if len(lst) >= max_slots:
+            return False, -1
+        lst.append({"key": item_key, "data": dict(item_data or {}), "count": 1})
+        conn.execute(
+            "INSERT INTO event_state (key, value) VALUES (?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (storage_key, json.dumps(lst, ensure_ascii=False)),
+        )
+        if not _storage_remove(conn, qq_id, item_key, 1):
+            # 背包货不存在：回滚（不污染 storage），命令层按原语义提示
+            raise ValueError("deposit item missing")
+    return True, len(lst)
+
+
+def home_storage_take_atomic(group_id, qq_id, storage_key, idx):
+    """原子取出：单事务内 读 storage→pop 第 idx 格→写回→加背包。
+    返回 (ok, item_dict) 或 (False, None)。"""
+    with atomic() as conn:
+        raw = conn.execute("SELECT value FROM event_state WHERE key=?", (storage_key,)).fetchone()
+        lst = []
+        if raw and raw["value"]:
+            try:
+                lst = json.loads(raw["value"])
+                if not isinstance(lst, list):
+                    lst = []
+            except (ValueError, TypeError):
+                lst = []
+        if idx < 1 or idx > len(lst):
+            return False, None
+        it = lst.pop(idx - 1)
+        conn.execute(
+            "INSERT INTO event_state (key, value) VALUES (?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (storage_key, json.dumps(lst, ensure_ascii=False)),
+        )
+        _storage_upsert(conn, qq_id, it.get("key"), it.get("data"), int(it.get("count", 1)))
+    return True, it
 
 
