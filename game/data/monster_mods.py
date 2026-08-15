@@ -208,15 +208,19 @@ MONSTER_MODS = {
     },
     "b_om_shadow": {  # 旧 b_dragon_king 古龙·奥瑞斯
         "hp_mult": 1.35, "atk_mult": 1.20,
-        "mech": "summon,player_low",
+        "mech": "summon,phase_open,player_low",
         # v116.1 低血追击示范（玩家 HP<30% 时追击，cooldown=3 防刷屏）
         "triggers": {"player_low": {"hp": 0.30, "cooldown": 3}},
-        "desc": "古龙·奥姆之影：龙威浩荡，会召唤雏龙护卫",
+        # v1.3 重创开场：玩家吸血/治疗偷取减半（2 回合）——反制吸血站撸 Boss
+        "opening": {"name": "龙威·重创", "effect": "mortal_wound", "power": 2},
+        "desc": "古龙·奥姆之影：龙威浩荡，会召唤雏龙护卫，开场龙威重创挑战者",
     },
     "b_cardinal": {  # 旧 b_abyss_pope 大祭司·克劳斯
         "hp_mult": 1.30, "matk_mult": 1.20,
-        "mech": "heal",
-        "desc": "枢机主教·奥古斯都：借用旧神之力回复自身",
+        "mech": "heal,phase_open",
+        # v1.3 神罚·重创开场：玩家吸血/治疗偷取减半（2 回合）——回血 Boss 反制吸血站撸
+        "opening": {"name": "神罚·重创", "effect": "mortal_wound", "power": 2},
+        "desc": "枢机主教·奥古斯都：借用旧神之力回复自身，开场神罚重创挑战者",
     },
     "b_king_odric": {  # 旧 b_silent_king 白骨君王
         "hp_mult": 1.35, "atk_mult": 1.15,

@@ -1560,6 +1560,7 @@ class CombatCmds(CommandBase):
         "thorns_pot": "🌵反伤", "dodge_pot": "💨闪避", "cc_immune": "🗿免疫控制",
         "execute_pot": "💀处决",
         "stun": "🌀眩晕", "freeze": "❄️冻结", "silence": "🤐沉默",
+        "mortal_wound": "🤕重伤",
     }
     # 敌方状态 key → 显示名（v63 加 眩晕/沉默）
     _E_BUFF_NAMES = {
@@ -1567,7 +1568,7 @@ class CombatCmds(CommandBase):
         "mon_atk_down": "😵攻↓", "mon_atk_up": "⚔️攻↑",
         "mon_atk_up_strong": "⚔️攻↑↑", "mon_def_up": "🛡️防↑", "def_down": "💔破甲",
         "spd_down": "💨减速", "poison": "☠️中毒", "mark": "🎯标记", "burn": "🔥灼烧",
-        "summon": "👥召唤",
+        "summon": "👥召唤", "mortal_wound": "🤕重伤",
     }
     # 玩家叠层 key → 显示名
     _STACK_NAMES = {

@@ -225,13 +225,13 @@ async def test_downstream_skills_combat(m):
     b2._player_skill(b2._player_stats(p), "淬毒箭矢", E.skill_info("cls_you_xia", "淬毒箭矢"), p)
     for _ in range(2):
         b2._player_skill(b2._player_stats(p), "藤蔓缠绕", E.skill_info("cls_you_xia", "藤蔓缠绕"), p)
-    poison_before = b2.mech_stacks.get("poison", 0)
+    poison_before = (b2.enemy.get("debuffs") or {}).get("poison", {}).get("n", 0)
     check("游侠·叠毒达标", poison_before >= 3, f"poison {poison_before}")
     hp0 = b2.enemy["hp"]
     logs, dealt = cast_skill(b2, p, "毒爆术")
     check("游侠·毒爆术 引爆伤害", b2.enemy["hp"] < hp0, f"{hp0}→{b2.enemy['hp']}")
-    check("游侠·毒爆术 清空毒层", b2.mech_stacks.get("poison", 0) == 0,
-          str(b2.mech_stacks.get("poison")))
+    check("游侠·毒爆术 清空毒层", "poison" not in (b2.enemy.get("debuffs") or {}),
+          str(b2.enemy.get("debuffs")))
 
     # 3.5 拳师守线学会以守为攻 → 受击触发反击（被动）
     p = mk_bp("cls_wu_seng", ["以守为攻"], level=60)

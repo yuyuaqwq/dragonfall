@@ -103,11 +103,12 @@ async def main():
     cast(b, p, "淬毒箭矢")
     cast(b, p, "藤蔓缠绕")
     cast(b, p, "藤蔓缠绕")
-    check("毒层叠加", b.mech_stacks.get("poison", 0) >= 3, str(b.mech_stacks.get("poison")))
+    check("毒层叠加", (b.enemy.get("debuffs") or {}).get("poison", {}).get("n", 0) >= 3,
+          str(b.enemy.get("debuffs")))
     hp0 = b.enemy["hp"]
     logs = cast(b, p, "毒爆术")
     check("毒爆引爆", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
-    check("毒层清空", b.mech_stacks.get("poison", 0) == 0, str(b.mech_stacks.get("poison")))
+    check("毒层清空", "poison" not in (b.enemy.get("debuffs") or {}), str(b.enemy.get("debuffs")))
 
     # 7. 龙裔誓约（龙血流）：龙焰吐息真伤（v113 本线只留龙血流派）
     print("\n— 龙裔誓约（龙血流）—")

@@ -97,7 +97,16 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
         return
     deb = enemy.setdefault("debuffs", {})
     cur = deb.get("burn") or {"n": 0, "mult": 1.0}
-    # 无灼烧类被动（契约：无被动 mult 则 1.0），保留现值
+    # v1.1 火之亲和（burn_amp 被动）乘算：mult 取 max(旧, 新)，无被动=1.0（对齐 _m_poison 模式）
+    new_mult = 1.0
+    try:
+        _lp = getattr(battle, "_last_player", None)
+        if _lp is not None:
+            for _pn, _ps in battle._passive_map(_lp)["proc"].get("burn_amp", []):
+                new_mult *= float(_ps.get("mult", 1.2))
+    except Exception:
+        new_mult = 1.0
+    cur["mult"] = max(float(cur.get("mult", 1.0) or 1.0), new_mult)
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
     deb["burn"] = cur
     n = cur["n"]
@@ -432,6 +441,12 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         est = battle._enemy_stats()
         d = _calc(int(st2["atk"] * 0.15 * n), est.get("def", 0), dmg_type="phys")
         _burst_damage(battle, d, logs)
+        # v1.3 毒爆特色（与灼爆"易燃更痛"区分）：毒爆余毒虚弱——敌方攻击 -5%×n（3层-15%…5层-25%）2 回合。
+        # 提前引爆（3层）即可拿虚弱压制，等满层则更高伤害+更强虚弱——"提前爆发的价值"成立。
+        _wv = 0.05 * n
+        battle.e_buffs["mon_atk_down"] = max(int(battle.e_buffs.get("mon_atk_down", 0) or 0), 2)
+        battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), _wv)
+        logs.append(f"😵 毒爆余毒侵蚀！敌方攻击 -{int(_wv * 100)}%（2 回合）")
         logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点物理伤害")
     enemy.get("debuffs", {}).pop("poison", None)
     battle.e_buffs.pop("poison", None)
@@ -643,6 +658,9 @@ def _b_opening(battle, logs, e, r):
     elif effect == "mon_atk_down":  # 低吼削弱玩家（可选）
         battle.p_buffs["atk_down"] = max(battle.p_buffs.get("atk_down", 0), int(power))
         logs.append(f"🫁【{e['name']}】的{name}压制了你，攻击下降！")
+    elif effect == "mortal_wound":  # v1.3 重创：玩家吸血/治疗偷取减半（2 回合）——反制吸血站撸
+        battle.p_buffs["mortal_wound"] = max(int(battle.p_buffs.get("mortal_wound", 0) or 0), int(power))
+        logs.append(f"🤕【{e['name']}】的{name}重创了你！吸血效果减半（{int(power)} 回合）！")
     # 其他 effect 安全忽略（无副作用），保持"必放一次演出"性质
 
 

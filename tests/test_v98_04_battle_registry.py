@@ -148,12 +148,13 @@ logs = []
 p_mech = {}
 b._apply_mech_effect("judge", 1, p_mech, 100, logs, "审判", True)
 check("judge 暴击叠层", p_mech.get("judge", 0) >= 1)
-# mark 挂 e_buffs
+# mark 挂 e_buffs（重构图：层数迁 enemy debuffs，e_buffs 保留易伤计时）
 b = make_battle()
 logs = []
 p_mech = {}
 b._apply_mech_effect("mark", 1, p_mech, 100, logs, "猎杀标记")
-check("mark 挂 e_buffs", "mark" in b.e_buffs and p_mech.get("mark", 0) >= 1)
+check("mark 挂 e_buffs", "mark" in b.e_buffs
+      and (b.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) >= 1)
 # shield_burst 扣血 + 清零
 b = make_battle()
 logs = []

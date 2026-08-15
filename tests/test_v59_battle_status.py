@@ -23,15 +23,17 @@ def test_status_line():
     print("【战斗状态展示】")
     player = mk_player()
     b = BT.Battle("monster", {"name": "山贼头目", "hp": 3000, "max_hp": 4000})
-    b.mech_stacks = {"rage": 5, "burn": 3, "bless": 2}  # v59 叠层存战斗状态
+    b.mech_stacks = {"rage": 5, "bless": 2}  # 重构图：burn/poison/mark 已迁敌方 debuffs
     b.p_shields = {"test_shield": {"value": 150, "turns": 999}}
     b.p_buffs = {"atk_up": 3, "def_up": 2}
-    b.e_buffs = {"def_down": 2, "poison": 3, "mark": 2}
+    b.e_buffs = {"def_down": 2}
+    b.enemy["debuffs"] = {"burn": {"n": 3}, "poison": {"n": 3}, "mark": {"n": 2}}
     s = mixin._status_line(player, b)
-    check("玩家叠层显示", "狂暴×5" in s and "灼烧×3" in s, s)
+    check("玩家叠层显示", "狂暴×5" in s and "神恩×2" in s, s)
     check("玩家buff显示", "攻击↑(剩3回合)" in s and "防御↑(剩2回合)" in s, s)
     check("玩家护盾显示", "护盾150" in s, s)
-    check("敌方状态显示", "破甲(剩2回合)" in s and "中毒(剩3回合)" in s and "标记(剩2回合)" in s, s)
+    check("敌方状态显示", "破甲(剩2回合)" in s and "🔥灼烧×3" in s
+          and "☠️毒×3" in s and "🎯标记×2" in s, s)
     check("格式有分隔", "🛡️你：" in s and "👹敌：" in s, s)
 
 def test_footer():

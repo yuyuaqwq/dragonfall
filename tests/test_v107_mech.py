@@ -110,18 +110,18 @@ async def main():
     print("\n— 毒爆 —")
     b3 = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, mk_player(cls="cls_fa_shi"))
     b3._last_player = mk_player(cls="cls_fa_shi")
-    b3.mech_stacks["poison"] = 3
+    b3.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     e_hp3 = b3.enemy["hp"]
     logs3 = []
     BM.MECH_EFFECTS["poison_burst"](b3, 1, b3.mech_stacks, 100, logs3, "毒爆术", False)
     check("毒爆造成伤害", b3.enemy["hp"] < e_hp3, f"{e_hp3}→{b3.enemy['hp']}")
-    check("毒爆清层", b3.mech_stacks.get("poison", 0) == 0, str(b3.mech_stacks))
-    check("毒爆魔法段日志", any("魔法伤害" in l for l in logs3), str(logs3))
+    check("毒爆清层", "poison" not in b3.enemy.get("debuffs", {}), str(b3.enemy.get("debuffs")))
+    check("毒爆物理段日志", any("物理伤害" in l for l in logs3), str(logs3))
     b3b = BT.Battle("怪物", mk_enemy(def_=10, hp=10000), {}, mk_player(cls="cls_fa_shi"))
-    b3b.mech_stacks["poison"] = 2
+    b3b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0}
     logs3b = []
     BM.MECH_EFFECTS["poison_burst"](b3b, 1, b3b.mech_stacks, 100, logs3b, "毒爆术", False)
-    check("毒层<3 不引爆", b3b.mech_stacks.get("poison", 0) == 2, str(b3b.mech_stacks))
+    check("毒层<3 不引爆", b3b.enemy["debuffs"]["poison"]["n"] == 2, str(b3b.enemy.get("debuffs")))
     check("毒层<3 提示", any("≥3" in l for l in logs3b), str(logs3b))
 
     # 4. 格挡反击

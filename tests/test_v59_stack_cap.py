@@ -53,7 +53,9 @@ def test_battle_cap():
     check("狂暴叠 7 次封顶 5", p_mech.get("rage") == 5, str(p_mech.get("rage")))
     for _ in range(6):
         b._apply_mech_effect("burn", 1, p_mech, 100, [], "灼烧")
-    check("灼烧叠 6 次封顶 5", p_mech.get("burn") == 5, str(p_mech.get("burn")))
+    # 重构图：敌方灼烧层迁至 enemy.debuffs（目标级共享），cap 5 语义不变
+    check("灼烧叠 6 次封顶 5", (b.enemy.get("debuffs") or {}).get("burn", {}).get("n") == 5,
+          str(b.enemy.get("debuffs")))
     for _ in range(4):
         b._apply_mech_effect("wind", 1, p_mech, 100, [], "风印")
     check("风印叠 4 次封顶 3", p_mech.get("wind") == 3, str(p_mech.get("wind")))

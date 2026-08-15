@@ -120,7 +120,7 @@ async def main():
     p2c = mk_player(cls="cls_mu_shi", skills=["安眠曲"])
     b2c = BT.Battle("怪物", mk_enemy(), {}, p2c)
     b2c._player_skill(b2c._player_stats(p2c), "安眠曲", info_sleep, p2c)
-    b2c.mech_stacks["burn"] = 1
+    b2c.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
     b2c._turn_start(p2c)
     check("灼烧 dot 不打醒睡眠", "sleep" in b2c.e_buffs, str(b2c.e_buffs))
 
@@ -133,19 +133,20 @@ async def main():
     random.seed(7)
     p3 = mk_player(cls="龙裔誓约", skills=["火之亲和"])
     b3 = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3)
-    b3.mech_stacks["burn"] = 1
+    # 重构图 v1.1：灼烧混合公式（matk×0.4 + max_hp×1%）× 层 × mult；火之亲和 mult=1.2
+    b3.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.2}
     logs3 = b3._turn_start(p3)
     hp_loss3 = 10000 - b3.enemy["hp"]
-    expect3 = int(10000 * 0.03 * 1.2)
-    check(f"灼烧伤害 = max_hp×3%×1.2（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
-    check("日志含『火之亲和』", any("火之亲和" in x for x in logs3), str(logs3))
+    expect3 = int((154 * 0.4 + 10000 * 0.01) * 1.2)  # matk=154（龙裔誓约30级）→ 193
+    check(f"灼烧伤害 = (matk×40%+max_hp×1%)×1.2（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
+    check("日志含强化标注×1.2", any("强化×1.2" in x for x in logs3), str(logs3))
     random.seed(7)
     p3b = mk_player(cls="龙裔誓约")
     b3b = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3b)
-    b3b.mech_stacks["burn"] = 1
+    b3b.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
     b3b._turn_start(p3b)
     hp_loss3b = 10000 - b3b.enemy["hp"]
-    check("无火之亲和：灼烧 = max_hp×3%", hp_loss3b == 300, f"got {hp_loss3b}")
+    check("无火之亲和：灼烧 = matk×40%+max_hp×1%", hp_loss3b == 161, f"got {hp_loss3b}")
 
     print("\n===== 4. 运势 luck 暴击联动（P1-1）=====\n")
     n = 900

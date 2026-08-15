@@ -102,7 +102,7 @@ async def main():
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "淬毒", make_player("刺客", 15, mp=100))
-    check("淬毒挂毒层", b.mech_stacks.get("poison", 0) > 0, str(b.mech_stacks))
+    check("淬毒挂毒层", (b.enemy.get("debuffs") or {}).get("poison", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
@@ -111,12 +111,12 @@ async def main():
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)
     b = BT.Battle("monster", make_monster(hp=1000))
-    b.e_buffs["poison"] = 2
+    b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0}
     logs, ended = b.player_turn("attack", None, p)
-    # poison 扣 5% max_hp = 50，加上普攻伤害
-    check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒50)")
-    # v121 CTB：一次玩家行动后 _end_round 递减（无额外行动阶段）
-    check("毒回合递减", b.e_buffs.get("poison", 0) == 1, str(b.e_buffs))
+    # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
+    check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
+    # 层数=剩余回合：结算后 2→1（衰减）
+    check("毒层结算后衰减", b.enemy["debuffs"]["poison"]["n"] == 1, str(b.enemy["debuffs"]))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
     for cls, base_lv30 in [("法师", "元素风暴"), ("战士", "无畏冲击"), ("游侠", "狩猎终章"),

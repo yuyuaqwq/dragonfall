@@ -1313,6 +1313,9 @@ class Battle:
         if self.p_buffs.get("lifesteal_pot"):
             rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
         rate = min(rate, 0.30)
+        # v1.3 重伤（mortal_wound）：目标被重创后吸血效果减半（Boss『重创』类技能施加）
+        if self.p_buffs.get("mortal_wound"):
+            rate *= 0.5
         if rate <= 0:
             return
         heal = int(dmg * rate)
@@ -2185,6 +2188,8 @@ class Battle:
         # 全表无技能带此 effect → 嗜血斩 lifesteal:0.25 实机 0 吸血）；数值由 skill_lifesteal_pct 读字段
         if info.get("lifesteal"):
             heal = int(total * E.skill_lifesteal_pct(info, lv))
+            if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：技能吸血减半
+                heal = int(heal * 0.5)
             player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
             logs.append(f"💉 『{skill_name}』汲取了 {heal} 点生命！")
         # v2.0 破防（pierce 数据字段）：直接给敌方降防
@@ -2780,6 +2785,8 @@ class Battle:
             logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"「{line}」" if line else ""))
             if stype == "lifesteal":
                 heal = max(1, int(dmg * 0.5))
+                if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
+                    heal = int(heal * 0.5)
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
                 logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
             elif stype == "pierce":
@@ -2924,7 +2931,8 @@ class Battle:
             if p > 0:
                 self._damage_enemy(p, logs, wake_sleep=False)  # dot 不打醒睡眠、不打断蓄力
             kname = "毒" if k == "poison" else "灼烧" if k == "burn" else "流血"
-            logs.append(f"{'☠️' if k == 'poison' else '🔥' if k == 'burn' else '🩸'} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_bleed_tag}")
+            _mult_tag = f"(强化×{mult:.1f})" if mult != 1.0 else ""
+            logs.append(f"{'☠️' if k == 'poison' else '🔥' if k == 'burn' else '🩸'} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_mult_tag}{_bleed_tag}")
             n -= 1
             if n <= 0:
                 deb.pop(k, None)
