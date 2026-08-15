@@ -300,7 +300,9 @@ async def test_help(m):
     # 行为：『帮助』主面板 / 『帮助 世界』分类
     out, hits = await dispatch(m, "g1", "p1", "帮助")
     check("『帮助』命中 help_cmd 且单条", hits == ["help_cmd"] and len(out) == 1, str(hits))
-    check("『帮助』回复含 编年史/移动", out and "编年史" in out[0] and "移动" in out[0], str(out)[:120])
+    # v114.6 鱼鱼拍板：帮助主面板只排系统标题，不展开详细指令
+    check("『帮助』主面板只排系统标题", out and "角色系统" in out[0] and "冒险系统" in out[0]
+          and "编年史" not in out[0] and "移动" not in out[0], str(out)[:120])
     out, _ = await dispatch(m, "g1", "p1", "帮助 世界")
     check("『帮助 世界』分类回复正常", out and "移动" in out[0], str(out)[:120])
     if "声望商店" not in all_help:
