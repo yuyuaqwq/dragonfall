@@ -350,8 +350,14 @@ class PlayerCmds(CommandBase):
             player.get("learned_skills", []),  # v110.4 X2 P1-2：面板接入已学属性被动
         )
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
-        cur_map = (C.MAP_BY_ID.get(player["cur_map"]) or C.MAP_BY_ID.get(C.START_MAP, {}))
-        cur_map = cur_map.get("name", "橡木镇")
+        # O114 修复：副本战斗中『角色』位置与副本状态同步——显示"副本战斗中"而非旧地点
+        # （playtest O114 洛洛实测：移动中被拉入副本，位置仍显示原城镇）
+        _inst_row = self._instance_battle_for(group_id, qq_id)
+        if _inst_row:
+            cur_map = "副本战斗中"
+        else:
+            cur_map = (C.MAP_BY_ID.get(player["cur_map"]) or C.MAP_BY_ID.get(C.START_MAP, {}))
+            cur_map = cur_map.get("name", "橡木镇")
         # 装备展示（v33：固定部位顺序，空位显示 —）
         eq_lines = []
         for slot in ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"]:

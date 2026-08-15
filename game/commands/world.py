@@ -462,6 +462,16 @@ class WorldCmds(CommandBase):
     async def map_view(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
+        # O114 修复：副本战斗中『地图』与副本状态同步——显示"副本战斗中"而非旧地点
+        # （与『角色』位置显示同源，playtest O114 洛洛实测）
+        _inst_row = self._instance_battle_for(group_id, qq_id)
+        if _inst_row:
+            yield event.plain_result(
+                "🗺️ 【副本战斗中】\n"
+                "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"
+                "💡 『副本』可查看当前战斗状态，『角色』查看队伍信息。"
+            )
+            return
         cur = player["cur_map"]
         # v68 家地图：home_{qq_id} 不在 MAPS，定制展示
         if cur.startswith("home_"):

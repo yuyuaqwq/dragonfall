@@ -339,6 +339,18 @@ class Battle:
             parts.append("_")
         return "→".join(parts)
 
+    def _speed_advice(self, n: int) -> str:
+        """O110 修复：速度优势剩余次数提示文案。
+
+        副本（instance）是回合制轮流——玩家行动后回合立即移交队友，额外行动在
+        "自己的回合"才生效（O102 已透传持久化）。原文案"你还可以行动 N 次"在
+        队友回合看到会误以为当前可出手，『攻击』却被拒"现在是 XX 的回合"
+        （playtest O110 洛洛+阿甘实测）。普通战斗额外行动当回合即可连击，保持原文案。
+        """
+        if self.btype == "instance":
+            return f"⚡ 速度优势！轮到你的回合时还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
+        return f"⚡ 速度优势！你还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
+
     # ---------------- 玩家行动入口 ----------------
     def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True) -> tuple:
         """执行玩家行动。返回 (日志列表, 是否结束)
@@ -387,7 +399,7 @@ class Battle:
                 self._end_round()
                 return logs, True
             if self.p_extra_left > 0:
-                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
+                logs.append(self._speed_advice(self.p_extra_left))
                 return logs, False
             # 额外行动用完 → 敌方行动
             return self._enemy_phase(player, logs, enemy_act)
@@ -451,7 +463,7 @@ class Battle:
                 return logs, True
             # 用道具后速度优势仍在 → 留给玩家自由选择
             if self.p_extra_left > 0:
-                logs.append(f"⚡ 速度优势！你还可以行动 {self.p_extra_left} 次(『攻击』『技能 <名称>』『使用 <道具>』)")
+                logs.append(self._speed_advice(self.p_extra_left))
                 return logs, False
             return self._enemy_phase(player, logs, enemy_act)
 
@@ -477,7 +489,12 @@ class Battle:
 
         # v61：玩家速度优势 → 额外行动留给玩家自由选择（不再自动普攻）
         if self.p_extra_left > 0:
-            logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
+            # O110 修复：副本（instance）行动后回合移交队友，额外行动在自己回合才生效——
+            # 文案同步改为"轮到你的回合时…"（playtest O110 洛洛+阿甘实测）
+            if self.btype == "instance":
+                logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，轮到你的回合时可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
+            else:
+                logs.append(f"⚡ 速度优势！你获得了 {self.p_extra_left} 次额外行动，可自由出手(『攻击』『技能 <名称>』『使用 <道具>』)")
             return logs, False
 
         # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每回合一次，额外行动不触发）

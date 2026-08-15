@@ -134,7 +134,13 @@ class InstanceCmds(CommandBase):
             yield event.plain_result("这个副本没有分层结构，直接挑战 Boss 吧～")
             return
         if not st.get("stage_cleared"):
-            yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
+            # O111 修复：与 _instance_act 的肃清提示统一口径——层内还有未遭遇怪物
+            # （stage_pending 非空）时引导『探索』（此前只说"先打完"，玩家不知道
+            # 该发什么指令，且与"已被肃清"提示矛盾，playtest O111 阿甘实测）
+            if st.get("stage_pending"):
+                yield event.plain_result("当前层的敌人还没肃清！『探索』找到它们～")
+            else:
+                yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
             return
         if st["stage_idx"] >= len(stages) - 1:
             yield event.plain_result("已经是最深层了，击败面前的 Boss 就通关了！")
@@ -1091,6 +1097,15 @@ class InstanceCmds(CommandBase):
         # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
         # 层内无敌人时直接引导『深入』推进，不进入战斗回合逻辑。
         if not st.get("boss"):
+            # O111 修复：肃清提示与『深入』判定统一——层内还有未遭遇的怪物
+            # （stage_pending 非空，如『深入』刚进入的新层）时不能说"已被肃清"，
+            # 否则同层先提示"敌人已被肃清"又提示"还没肃清"（playtest O111 阿甘实测）。
+            # 有 pending → 引导『探索』；无 pending 才是真肃清 → 引导『深入』。
+            if st.get("stage_pending"):
+                yield event.plain_result(
+                    "当前区域还有敌人潜伏！『探索』找到它们～"
+                )
+                return
             nxt = ""
             stages = st.get("inst_stages") or []
             idx = st.get("stage_idx", 0)
@@ -1233,6 +1248,22 @@ class InstanceCmds(CommandBase):
                 logs.append(f"🛡️ 你大声挑衅，【{_e_name}】的注意力被你吸引过来！(仇恨飙升)")
         logs += act_logs
 
+        # O105 修复：玩家自身行动后 HP≤0（反伤/自伤/毒发等）→ 标记倒地并明确提示
+        # "你已倒下，等待队友…"——此前 st["alive"] 不更新，轮转把 0 血玩家当行动者，
+        # 一直显示"轮到 XX 行动"空等（playtest O105 洛洛 HP0 实测）
+        if snap.get("hp", 0) <= 0 and st["alive"].get(cur_key, True):
+            st["alive"][cur_key] = False
+            threat[cur_key] = 0
+            logs.append(f"💀 {snap.get('name', cur_key)} 倒下了！你已倒下，等待队友…")
+            # 全员倒地（含同归于尽）→ 直接失败结算
+            if not [mm for mm in members if st["alive"].get(str(mm), True)]:
+                st["over"] = True
+                if st["boss"].get("hp", 1) <= 0:
+                    logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
+                async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
+                    yield _r
+                return
+
         # v50 团队技能：广播到全队（治疗/增益/护盾/减伤/暴击/魔攻/速度）
         team_effects = getattr(b, "team_effects", None) or []
         for te in team_effects:
@@ -1347,7 +1378,13 @@ class InstanceCmds(CommandBase):
 
         # 5. 标记本轮已行动，推进
         acted[cur_idx] = True
+        # O105 修复：轮转跳过已倒地成员——玩家 HP0 后不再显示"轮到 XX 行动"空等
+        # （playtest O105 洛洛 HP0 实测：倒地后一直显示队友回合等待）
         st["turn"] = (cur_idx + 1) % len(members)
+        for _k in range(len(members)):
+            if st["alive"].get(str(members[st["turn"]]), True):
+                break
+            st["turn"] = (st["turn"] + 1) % len(members)
         st["turn_time"] = now
 
         # 6. 本轮所有存活者都行动过 → Boss 行动
@@ -1555,8 +1592,10 @@ class InstanceCmds(CommandBase):
             logs.append(f"❤️ {tname} 剩余 {snap['hp']}/{snap['max_hp']}")
         if snap["hp"] <= 0:
             st["alive"][tkey] = False
-            threat[tkey] = 0  # 死亡清仇恨
-            logs.append(f"💀 {tname} 倒下了！")
+            threat[tkey] = 0
+            # O105 修复：Boss 行动后死亡同样明确提示"你已倒下，等待队友…"，
+            # 与玩家自身行动倒地提示口径统一（playtest O105 洛洛 HP0 无提示）
+            logs.append(f"💀 {tname} 倒下了！你已倒下，等待队友…")
         st["p_defending"][tkey] = False  # 防御只挡一次
         return logs
 
@@ -1918,7 +1957,7 @@ class InstanceCmds(CommandBase):
     async def _instance_defeat(self, event, group_id, qq_id, player, st, logs):
         lines = [x for x in logs if "毒发身亡" not in x]
         lines.append("")
-        lines.append("💀 队伍全灭……副本失败！冒险者们被送回了城镇。")
+        lines.append("💀 队伍全灭……副本失败！冒险者们被送回了最近的城镇。")
         # v104 P1：只结算当前队伍成员——已退队者不受副本失败牵连（不误杀）
         cur = self._instance_current_members(group_id, st)
         for m in st["members"]:
@@ -1928,5 +1967,15 @@ class InstanceCmds(CommandBase):
             db.clear_battle(group_id, m)
             p = self._player(group_id, m)
             if p:
-                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0), cur_map=C.START_MAP, cur_subarea=C.START_SUBAREA)
+                # O104 修复：副本失败回城点=副本入口最近城镇（原固定回橡木镇 START_MAP——
+                # 铁港城开本全灭也被送回 Lv.1 图，playtest O104 阿甘实测）。开本不占地图位置
+                # （cur_map 仍是开本前所在图），按该图 BFS 最近城镇，落中心广场 subareas[0]，
+                # 与野外战败 combat._handle_defeat(M22 P3) 同规则。
+                _town_id = self._nearest_town(p.get("cur_map", ""))
+                _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
+                _town_sa = _town_sas[0]["id"] if _town_sas else ""
+                _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
+                db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0),
+                                 cur_map=_town_id, cur_subarea=_town_sa)
+                lines.append(f"📍 {p['name']} 被送回了【{_town_name}】中心广场（HP 0，先休息恢复吧）")
         yield event.plain_result("\n".join(lines))
