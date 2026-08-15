@@ -247,6 +247,35 @@ atk 部分保证前期 dot 不废（固定值对低血怪有存在感）、后�
 - **B（battle_mech.py）**：毒爆改 atk 物理段（修复 M4）；灼爆加易燃乘区（n≥3）；叠毒日志加毒蚀提示。
 - **C/D**：无公式相关改动。
 
+## 11. v1.2 增补：减益适应机制 + Boss phase 清减益（用户拍板）
+
+用户反馈：**组队副本场景下，前排扛伤让后排可以无脑每回合叠毒维持满层，dot 变成零成本稳定输出**。共享层架构解决了"5 人各自叠毒=125% 血"的放大，但没解决"无脑维持"——需要让反复施加同类减益产生边际递减。
+
+### 11.1 减益适应（对 poison/burn 生效）
+
+- 数据结构：`enemy["adapt"] = {"poison": 0.0, "burn": 0.0}`（缺失=0；随 enemy dict 持久化；世界 Boss 存 gboss 全局共享）。
+- **叠层触发**：poison/burn 叠层**成功**（含刷新）时：`adapt[k] = min(0.20, adapt[k] + 0.04)`，日志 `🦠 目标对{毒/灼烧}产生了适应！{类型}抗性 +4%（当前 +X%）`。
+- **回落**：`_tick_dots` 结算时，若 `battle.round - debuffs[k].get("last_round", 0) >= 2`（即最近 2 回合内没再叠该类型）→ `adapt[k] = max(0.0, adapt[k] - 0.04)`。`debuffs[k]["last_round"]` 由叠层 handler 在叠层时写入 `battle.round`。
+- **结算**：`res = min(0.95, base_dot_res + adapt[k])`（覆盖 §2.2/§10.1 中 `res = min(dot_res, 0.95)` 的计算）。
+- bleed/mark **不参与适应**（物理伤口与易伤无"耐受"概念）。
+- **效果（已计算）**：
+  - 无脑每回合叠毒维持满层：约 5 次叠层后适应 +20% → 精英总抗 80%+20%=100%→cap 95%，dot 伤害 ×0.05 近乎失效 → **被迫停手 2~3 回合等回落，或转直伤/毒爆**
+  - 正常节奏（叠 2~3 次、停 1~2 回合穿插直伤）：适应维持 8~12%，dot 收益略降但持续——**节奏博弈成立**
+  - 单机玩家本就无法无脑叠（自己要扛伤），适应机制主要约束组队场景，正好命中用户关切
+  - Boss 90% 抗下 dot 本来就低（0.77%/回合），适应后趋零 → 毒系对 Boss 的主输出转为**毒爆**（不吃抗性）——叠毒铺垫 + 毒爆爆发 + 等适应回落的循环
+
+### 11.2 Boss phase 转换清减益（修复审计 M10）
+
+- `_b_phase`（battle_mech.py BOSS_MECHS）阶段转换时：清空 `battle.enemy["debuffs"]` 与 `battle.enemy["adapt"]`，日志 `🌀 Boss 转换阶段，净化了身上的异常状态！`。
+- 世界 Boss 无 phase 机制（不适用）。
+
+### 11.3 职责更新（叠加在 §9/§10.4 上）
+
+- **A（battle.py）**：`_tick_dots` 总抗计算 `min(0.95, base + adapt[k])` + 适应回落逻辑（last_round ≥2 回合未叠则 -0.04）。
+- **B（battle_mech.py）**：`_m_poison`/`_m_burn` 叠层成功时写 `adapt`（+0.04 cap 0.20）与 `debuffs[k]["last_round"]=battle.round` + 适应日志；`_b_phase` 清 debuffs/adapt。
+- **C（instance.py）**：切怪/换 Boss 清层处追加 `st["boss"].pop("adapt", None)`（与 debuffs 一起清）。
+- **D（combat.py）**：世界 Boss 初始化 `b.setdefault("adapt", {"poison": 0.0, "burn": 0.0})`；行动前同步 `gboss["adapt"]` → 本地 enemy；行动后写回；boss 数据同步处一并处理。
+
 ## 9. 文件职责划分（实施 agent 只改自己的文件）
 
 | Agent | 文件 |
