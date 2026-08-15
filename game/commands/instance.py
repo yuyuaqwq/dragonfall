@@ -1174,6 +1174,16 @@ class InstanceCmds(CommandBase):
             "resources": st.get("resources", {}).get(cur_key, {}),
             "cooldown": st.get("cooldown", {}).get(cur_key, {}),
             "combo_seq": st.get("combo_seq", {}).get(cur_key, []),
+            # v112 O102 修复：副本战斗透传 v61 速度优势字段（与 #438 同源——手写
+            # from_state 漏字段）。不传则：①p_extra_left 获得额外行动后回合移交队友，
+            # 轮回时被清零永远打不出（阿甘 round111 实测）；②_player_hit 恒 False，
+            # 副本里"未受击增伤"条件挨打后仍生效；③e_first 丢失 Boss 先手判定失真
+            "p_progress": st.get("p_progress", {}).get(cur_key, 0.0),
+            "p_extra_left": st.get("p_extra_left", {}).get(cur_key, 0),
+            "e_progress": st.get("e_progress", 0.0),
+            "e_extra_left": st.get("e_extra_left", 0),
+            "e_first": st.get("e_first", False),
+            "player_hit": st.get("player_hit", {}).get(cur_key, False),
         })
         boss_before = st["boss"]["hp"]
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False)
@@ -1189,6 +1199,13 @@ class InstanceCmds(CommandBase):
         st.setdefault("resources", {})[cur_key] = b.resources
         st.setdefault("cooldown", {})[cur_key] = b.cooldown
         st.setdefault("combo_seq", {})[cur_key] = b.combo_seq
+        # v112 O102 修复：v61 速度优势字段写回（与 from_state 透传配对，否则下回合清零）
+        st.setdefault("p_progress", {})[cur_key] = b.p_progress
+        st.setdefault("p_extra_left", {})[cur_key] = b.p_extra_left
+        st["e_progress"] = b.e_progress
+        st["e_extra_left"] = b.e_extra_left
+        st["e_first"] = b.e_first
+        st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
         st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
@@ -1498,6 +1515,14 @@ class InstanceCmds(CommandBase):
             "resources": st.get("resources", {}).get(tkey, {}),
             "cooldown": st.get("cooldown", {}).get(tkey, {}),
             "combo_seq": st.get("combo_seq", {}).get(tkey, []),
+            # v112 O102 修复：Boss 行动同样透传 v61 速度优势字段（e_extra_left 连击/
+            # e_first 先手/玩家侧进度与受击标记；与 _instance_act 玩家侧配对）
+            "p_progress": st.get("p_progress", {}).get(tkey, 0.0),
+            "p_extra_left": st.get("p_extra_left", {}).get(tkey, 0),
+            "e_progress": st.get("e_progress", 0.0),
+            "e_extra_left": st.get("e_extra_left", 0),
+            "e_first": st.get("e_first", False),
+            "player_hit": st.get("player_hit", {}).get(tkey, False),
         })
         mlogs, dmg = b._enemy_turn(snap)
         st["e_buffs"] = b.e_buffs
@@ -1507,6 +1532,13 @@ class InstanceCmds(CommandBase):
         st.setdefault("resources", {})[tkey] = b.resources
         st.setdefault("cooldown", {})[tkey] = b.cooldown
         st.setdefault("combo_seq", {})[tkey] = b.combo_seq
+        # v112 O102 修复：Boss 行动后 v61 速度优势字段写回（与透传配对）
+        st.setdefault("p_progress", {})[tkey] = b.p_progress
+        st.setdefault("p_extra_left", {})[tkey] = b.p_extra_left
+        st["e_progress"] = b.e_progress
+        st["e_extra_left"] = b.e_extra_left
+        st["e_first"] = b.e_first
+        st.setdefault("player_hit", {})[tkey] = b._player_hit
         if st["p_defending"].get(tkey):
             dmg = max(1, int(dmg * 0.5))
             # v101.25 #345：防御减伤后日志同步修正——玩家看到的伤害数字与实际扣血一致
