@@ -1443,7 +1443,6 @@ class CombatCmds(CommandBase):
                 lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
             else:
                 lines.append("  · 消耗：无")  # v104 R3 P3-1：零消耗技能如实显示"无"（原"免费"易误解为有价免费）
-            lines.append("━━━━━━━━━━━━")
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")
@@ -2860,9 +2859,18 @@ class CombatCmds(CommandBase):
         # PVP 战斗中血量/蓝量以快照为准（战斗内扣血不写回 db，避免被重置）
         player["hp"] = state[my_key].get("hp", player["hp"])
         player["mp"] = state[my_key].get("mp", player["mp"])
+        # 目标级减益/适应持久化：从对手快照深拷贝 debuffs/adapt 带入本次 Battle
+        #（dict(opp) 仅浅拷贝，嵌套 dict 需显式复制，防止写回与读入共享引用）
+        opp_debuffs = {k: dict(v) for k, v in (opp.get("debuffs") or {}).items()}
+        opp_adapt = dict(opp.get("adapt") or {})
+        _opp_extra = {}
+        if opp_debuffs:
+            _opp_extra["debuffs"] = opp_debuffs
+        if opp_adapt:
+            _opp_extra["adapt"] = opp_adapt
         # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）。
         # v2 多对多：per 快照已含 rank/reach/buffs/stacks/defending/charging 站位字段 → enemies=[快照]
-        b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp)])
+        b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp, **_opp_extra)])
         b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
         # PVP 蓄力持久化：跨回合恢复玩家侧 charging（蓄力技 PVP 中跨回合生效）
@@ -2892,6 +2900,16 @@ class CombatCmds(CommandBase):
         # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
         opp["hp"] = b.enemy.get("hp", 0)
         opp["mp"] = b.enemy.get("mp", opp.get("mp", 0))
+        # 目标级减益/适应持久化：把本回合 enemy 上的 debuffs/adapt 深拷贝写回对手快照
+        #（需显式逐层复制，避免与后续 Battle 读入共享容器引用）
+        if b.enemy.get("debuffs"):
+            opp["debuffs"] = {k: dict(v) for k, v in b.enemy["debuffs"].items()}
+        elif "debuffs" in opp:
+            opp.pop("debuffs", None)
+        if b.enemy.get("adapt"):
+            opp["adapt"] = {k: float(v) for k, v in b.enemy["adapt"].items()}
+        elif "adapt" in opp:
+            opp.pop("adapt", None)
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
         state[f"{my_key[0]}_buffs"] = b.p_buffs
