@@ -334,5 +334,100 @@ ALCHEMY_RECIPES = {
         "desc": "月光草调制的荧光饵料，幽光引鱼——下次垂钓紫/橙档概率大幅提升(仅 1 次)",
         "name": "萤光鱼饵"
     },
+
+    # ---- v117 副本材料·炼金配方（方案 C）----
+    # 18 种完全闲置的副本材料（只能卖钱）接入炼金：补强强化石链 + 高阶/低阶药剂。
+    # 防刷金铁律（与 v116 提纯同口径）：产物售价 ≤ 材料成本价合计 ×0.9；
+    # min_lv 与主材料稀有度匹配（橙 6-8 / 紫 4-6 / 蓝 3-5 / 绿 1-3）。
+    "al_jin_he_qiang_hua": {
+        "cost": {"mat_jin_he": 4, "mat_shen_yuan_zhen_zhu": 5},
+        "product": {"i_stone_upgrade": 1},
+        "min_lv": 4,
+        "desc": "烬核与深渊珍珠淬炼的强化石，强化装备失败不掉级（副本材料补链）",
+        "name": "烬核强化石"
+    },
+    "al_long_gong_jing_lian": {
+        "cost": {
+            "mat_long_gong_zhu": 1,
+            "mat_hei_yuan_zhi_yan": 1,
+            "mat_long_yu_chuan_cheng": 1,
+            "mat_yong_dong_zhi_he": 1,
+            "mat_shen_yuan_zhen_zhu": 8,
+        },
+        "product": {"i_stone_refine": 1},
+        "min_lv": 6,
+        "desc": "龙宫珠与黑渊之眼等珍材精炼而成的高品质强化石，强化成功率更高",
+        "name": "龙宫精炼强化石"
+    },
+    "al_feng_bao_lei_yao": {
+        "cost": {"mat_feng_bao_zhi_he": 1},
+        "product": {"i_thunder_elixir": 1},
+        "min_lv": 6,
+        "desc": "风暴之核淬炼的雷晶药剂，战斗中攻击力 + 40%(3 回合)",
+        "name": "风暴雷晶药剂"
+    },
+    "al_yun_nu_bao_ji": {
+        "cost": {"mat_yun_nu_zhi_he": 1, "mat_shen_yuan_zhen_zhu": 2},
+        "product": {"i_crit_potion": 1},
+        "min_lv": 6,
+        "desc": "云怒之核调制，战斗中暴击率 + 20%(3 回合)",
+        "name": "云怒暴击药水"
+    },
+    "al_long_lin_tie_bi": {
+        "cost": {"mat_di_di_long_lin": 10, "mat_shen_yuan_zhen_zhu": 1},
+        "product": {"i_def_potion": 1},
+        "min_lv": 5,
+        "desc": "地底龙鳞炼就的铁壁药剂，战斗中防御力 + 45%(3 回合)",
+        "name": "龙鳞铁壁药剂"
+    },
+    "al_ji_qi_shen_yuan": {
+        "cost": {"mat_he_er_jia_de_ji_qi": 8, "mat_sheng_guang_sheng_hui": 1},
+        "product": {"i_abyss_crystal_potion": 1},
+        "min_lv": 5,
+        "desc": "赫尔加祭器研磨入药，战斗中魔法伤害减免 15%(3 回合)",
+        "name": "祭器深渊药剂"
+    },
+    "al_shi_lu_qiang_hua": {
+        "cost": {
+            "mat_shi_lu_zhi_chui": 4,
+            "mat_yao_sai_can_pian": 3,
+            "mat_hui_ai_ren_hui_ji": 2,
+            "mat_you_ling_chuan_piao": 1,
+        },
+        "product": {"i_stone_upgrade": 1},
+        "min_lv": 5,
+        "desc": "石炉之锤与要塞残片捶打淬炼的强化石，强化失败不掉级",
+        "name": "石炉强化石"
+    },
+    "al_shi_lian_ji_feng": {
+        "cost": {"mat_shi_lian_hui_ji": 1, "mat_ke_luo_de_luo_pan": 1, "mat_ma_er_ku_si_de_fa_guan": 1},
+        "product": {"i_spd_potion": 1},
+        "min_lv": 4,
+        "desc": "试炼徽记与古贤遗物调制的疾风药剂，战斗中速度 + 40%(3 回合)",
+        "name": "试炼疾风药剂"
+    },
+    "al_lan_ge_ming_mu": {
+        "cost": {"mat_lan_ge_zhi_guan": 1, "mat_shen_yuan_zhen_zhu": 1},
+        "product": {"i_pearl_tonic": 1},
+        "min_lv": 4,
+        "desc": "蓝歌之冠磨粉调制的灵水，战斗中暴击率 + 15%(3 回合)",
+        "name": "蓝歌明目水"
+    },
+
+    # ---- v117 副本材料·符文匣配方（方案 D：副本材料 → 符文，配合 item_templates.open_rune_chest）----
+    "al_hei_yuan_fu_wen_xiang": {
+        "cost": {"mat_hei_yuan_zhi_yan": 1, "mat_shen_yuan_zhen_zhu": 3},
+        "product": {"i_hei_yuan_fu_wen_xiang": 1},
+        "min_lv": 6,
+        "desc": "黑渊之眼封存的符文匣，打开获得随机稀有符文",
+        "name": "黑渊符文匣"
+    },
+    "al_long_gong_fu_wen_xiang": {
+        "cost": {"mat_long_gong_zhu": 1, "mat_shen_yuan_zhen_zhu": 1},
+        "product": {"i_long_gong_fu_wen_xiang": 1},
+        "min_lv": 7,
+        "desc": "龙宫珠封存的符文匣，打开获得随机稀有符文",
+        "name": "龙宫符文匣"
+    },
 }
 

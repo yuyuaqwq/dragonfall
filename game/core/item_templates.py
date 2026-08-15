@@ -531,6 +531,42 @@ def tpl_open_chest(ctx):
     return ItemResult(text="\n".join(lines))
 
 
+@register("open_rune_chest")
+def tpl_open_rune_chest(ctx):
+    """符文匣（v117 副本材料联动·方案D）：开出一枚随机稀有/紫色符文（blue+purple 品质池）。
+
+    副本闲置材料（黑渊之眼/龙宫珠 等）经炼金配方合成符文匣 → 『使用』联动符文系统。
+    入包写法与暗格宝箱一致（instance.py _instance_secret_chest）：key 取
+    rune_<effect>_<lvl>（同键可叠加），data 由 C.rune_item(effect, lvl) 构造——含
+    name/effect/lvl/quality/price/desc，供『附魔』刻印读取（economy.py 读 rd["effect"]，
+    缺字段会 KeyError 崩溃）。紫色符文加权（40%），等级 1–2。
+    物品消耗走 ctx.hook("remove_item")（战斗外模板自行扣除，与 tpl_heal 同款）。"""
+    db = ctx._db()
+    C = ctx._C()
+    pool = [k for k, r in C.RUNES.items() if (r.get("quality") or "") in ("blue", "purple")]
+    if not pool:
+        return ItemResult(text="符文匣里空空如也……(符文数据缺失)", consume=False)
+    # 紫色加权：40% 紫 / 60% 蓝（"稀有/紫色符文"描述下的防通胀平衡）
+    purple = [k for k in pool if (C.RUNES[k].get("quality") or "") == "purple"]
+    blue = [k for k in pool if (C.RUNES[k].get("quality") or "") == "blue"]
+    if random.random() < 0.4 and purple:
+        rk = random.choice(purple)
+    else:
+        rk = random.choice(blue) if blue else random.choice(purple)
+    r_def = C.RUNES[rk]
+    rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
+    if not rune_data:
+        return ItemResult(text="符文匣里空空如也……(符文数据缺失)", consume=False)
+    db.add_item(ctx.group_id, ctx.qq_id,
+                f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
+    ctx.hook("remove_item")
+    return ItemResult(
+        text=f"📦 你打开了【{ctx.item_name()}】！\n"
+             f"✨ 匣中泛起微光——符文【{rune_data['name']}】！\n"
+             f"💡 输入『附魔』可将符文刻印到装备上～")
+
+
+
 @register("pet_egg")
 def tpl_pet_egg(ctx):
     """宠物蛋：孵化宠物（已有宠物/同品种拦截）。"""

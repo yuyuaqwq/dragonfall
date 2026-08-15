@@ -2077,6 +2077,17 @@ CONSUMABLES = {
                       "desc": "揉得松软的麦粉饵团——下次垂钓绿/蓝档品质权重提升(仅 1 次)"},
     "it_blood_bait": {"name": "血饵", "price": 35, "effect": "bait_blood",
                       "desc": "浸透兽血的饵团，凶猛的掠食鱼最爱的味道——下次垂钓稀有鱼种概率提升(仅 1 次)"},
+    # ============ v117 副本材料联动·方案D：符文匣（炼金配方原料：副本闲置材料） ============
+    # 副本闲置材料（黑渊之眼/龙宫珠 等）经炼金配方合成符文匣 → 『使用』开出随机稀有/紫色符文，
+    # 联动符文系统（open_rune_chest 模板，见 core/item_templates.py）。
+    "i_hei_yuan_fu_wen_xiang": {"name": "黑渊符文匣", "price": 300, "type": "消耗品",
+                                "effect": "open_rune_chest",
+                                "rune_pool": "blue_purple",
+                                "desc": "黑渊之眼封存的符文匣，匣缝溢出深渊的幽光——使用后随机获得一枚稀有/紫色符文"},
+    "i_long_gong_fu_wen_xiang": {"name": "龙宫符文匣", "price": 300, "type": "消耗品",
+                                 "effect": "open_rune_chest",
+                                 "rune_pool": "blue_purple",
+                                 "desc": "龙宫珠封存的符文匣，珠辉流转如水波——使用后随机获得一枚稀有/紫色符文"},
 }
 
 # ================= 材料分类与品质（v101.25e 鱼鱼拍板：按类型分设施出售 + 全服通用品质） =================

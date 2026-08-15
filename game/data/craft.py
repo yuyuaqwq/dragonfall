@@ -1678,6 +1678,116 @@ CRAFT_RECIPES = {
         'name': '暮影龙魂', 'roster_id': 'eq_mu_ying_long_hun_jian',
         'blueprint': '暮影龙魂图纸',
     },
+    # ================= v117 副本材料联动·方案 A 锻造配方 =================
+    # 22 副本专属材料中 18 种完全闲置（无配方/任务用途，只能卖钱）全部接入锻造，
+    # 另补 2 种已附魔材料（澜歌之泪/古王剑）的同名锻造配方，共 20 种全部被消费。
+    # 3 条「同名配方」延续 材料→同名橙装 惯例（赫尔加的祭器/澜歌之泪/古王剑）。
+    # 系列配方产出引用 EQUIP_ROSTER 现有高阶模板（lv 55-88 紫/橙，主题对应）。
+    # 防刷金：材料成本+锻造费 ≈ 产物回收参考价(price×0.5)×0.7 以上，对齐灰烬/支线高阶配方比例。
+    # 【同名配方 1/3】赫尔加的祭器（霜狼 boss，lv72 橙项链）
+    'rec_he_er_jia_jing_zhu': {
+        'slot': 'necklace', 'quality': 'orange', 'lv': 72,
+        "mats": {'mat_he_er_jia_de_ji_qi': 1, 'mat_shen_hai_shui_jing': 3, 'mat_mi_yin': 3},
+        'gold': 2700, 'desc': '赫尔加的祭器与深海精华熔铸的圣物，寒气内敛',
+        'name': '赫尔加的祭器', 'roster_id': 'eq_he_er_jia_de_ji_qi',
+        'blueprint': '赫尔加的祭器图纸',
+    },
+    # 【同名配方 2/3】澜歌之泪（海神 boss，lv68 橙项链）
+    'rec_lan_ge_lei_zheng': {
+        'slot': 'necklace', 'quality': 'orange', 'lv': 68,
+        "mats": {'mat_lan_ge_zhi_lei': 1, 'mat_shen_hai_shui_jing': 3, 'mat_mi_yin': 3},
+        'gold': 2300, 'desc': '澜歌的泪滴凝成的链坠，浸着潮汐的低语',
+        'name': '澜歌之泪', 'roster_id': 'eq_lang_ge_zhi_lei',
+        'blueprint': '澜歌之泪图纸',
+    },
+    # 【同名配方 3/3】古王剑（圣光 boss，lv42 橙剑）
+    'rec_gu_wang_jian_zhen': {
+        'slot': 'weapon', 'quality': 'orange', 'lv': 42, 'weapon_type': 'sword',
+        "mats": {'mat_gu_wang_jian': 1, 'mat_sheng_guang_jie_jing': 3, 'mat_sheng_dian_tie_kuai': 3},
+        'gold': 3100, 'desc': '古王剑投入炉火重铸，圣徽纹路熠熠生辉',
+        'name': '古王剑', 'roster_id': 'eq_gu_wang_jian',
+        'blueprint': '古王剑图纸',
+    },
+    # 【系列配方 v117-01】云怒之核 → 雷鸣龙鳞盾（风暴海龙·雷鸣，lv58 紫盾）
+    'rec_lei_ming_jin_shou': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 58, 'weapon_type': 'shield',
+        "mats": {'mat_yun_nu_zhi_he': 2, 'mat_mi_yin': 4, 'mat_feng_bao_zhi_ling_chen': 3},
+        'gold': 3800, 'desc': '云怒之核淬进雷鸣龙鳞盾坯，盾面隐隐滚着闷雷',
+        'name': '雷鸣龙鳞', 'roster_id': 'eq_lei_ming_long_lin_dun',
+        'blueprint': '雷鸣龙鳞图纸',
+    },
+    # 【系列配方 v117-02】风暴之核 → 苍穹之枪（风翼群岛·天空系，lv88 紫枪）
+    'rec_feng_bao_cang_qiong': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 88, 'weapon_type': 'spear',
+        "mats": {'mat_feng_bao_zhi_he': 2, 'mat_xing_hui_shi': 3, 'mat_feng_zhi_yu': 5},
+        'gold': 8700, 'desc': '风暴之核驱动的苍穹之枪，枪尖割裂流云',
+        'name': '苍穹之枪', 'roster_id': 'eq_cang_qiong_zhi_qiang',
+        'blueprint': '苍穹之枪图纸',
+    },
+    # 【系列配方 v117-03】永冻之核 → 霜狼护腿（北境霜狼系，lv62 紫护腿）
+    'rec_yong_dong_shuang_hui': {
+        'slot': 'legs', 'quality': 'purple', 'lv': 62,
+        "mats": {'mat_yong_dong_zhi_he': 1, 'mat_shuang_ju_mo_xue': 5, 'mat_jing_tie': 4},
+        'gold': 2300, 'desc': '永冻之核融进霜狼护腿，寒气凝成甲缝间的霜纹',
+        'name': '霜狼护腿', 'roster_id': 'eq_shuang_lang_hu_tui',
+        'blueprint': '霜狼护腿图纸',
+    },
+    # 【系列配方 v117-04】灰矮人徽记 + 石炉之锤 → 铁砧战锤（北境矮人·铁砧系，lv68 紫锤）
+    'rec_hui_ai_tie_zhen': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 68, 'weapon_type': 'mace',
+        "mats": {'mat_hui_ai_ren_hui_ji': 2, 'mat_shi_lu_zhi_chui': 2, 'mat_jing_tie': 6},
+        'gold': 6200, 'desc': '灰矮人的徽记与石炉之锤同炉，锻出沉重的铁砧战锤',
+        'name': '铁砧战锤', 'roster_id': 'eq_tie_zhen_zhan_chui',
+        'blueprint': '铁砧战锤图纸',
+    },
+    # 【系列配方 v117-05】黑渊之眼 + 地底龙鳞 + 烬核 → 深渊战刃（幽暗地域·地底系，lv75 紫剑）
+    'rec_hei_yuan_zhan_ren': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 75, 'weapon_type': 'sword',
+        "mats": {'mat_hei_yuan_zhi_yan': 1, 'mat_di_di_long_lin': 2, 'mat_jin_he': 1, 'mat_jing_jin': 2},
+        'gold': 6600, 'desc': '黑渊之眼凝视过的剑刃，浸着地底龙鳞的暗光',
+        'name': '深渊战刃', 'roster_id': 'eq_shen_yuan_zhan_ren',
+        'blueprint': '深渊战刃图纸',
+    },
+    # 【系列配方 v117-06】龙宫珠 → 深渊项链（幽暗地域·地底系，lv75 紫项链）
+    'rec_long_gong_yuan_xiang': {
+        'slot': 'necklace', 'quality': 'purple', 'lv': 75,
+        "mats": {'mat_long_gong_zhu': 1, 'mat_mi_yin': 4, 'mat_shen_yuan_quan_ya': 3},
+        'gold': 2500, 'desc': '龙宫珠沉入深渊熔炉，化作一串幽碧的项链',
+        'name': '深渊项链', 'roster_id': 'eq_shen_yuan_xiang_lian',
+        'blueprint': '深渊项链图纸',
+    },
+    # 【系列配方 v117-07】圣光圣徽 + 试炼徽记 + 马尔库斯的法冠 → 精灵链甲（西境·月语系，lv55 紫甲）
+    'rec_sheng_guang_yue_jia': {
+        'slot': 'armor', 'quality': 'purple', 'lv': 55,
+        "mats": {'mat_sheng_guang_sheng_hui': 2, 'mat_shi_lian_hui_ji': 1, 'mat_ma_er_ku_si_de_fa_guan': 1, 'mat_jing_ling_lu_jiao': 4},
+        'gold': 3000, 'desc': '圣徽与法冠同炼，月光精灵的链甲泛着柔和圣辉',
+        'name': '精灵链甲', 'roster_id': 'eq_jing_ling_lian_jia',
+        'blueprint': '精灵链甲图纸',
+    },
+    # 【系列配方 v117-08】蓝歌之冠 + 幽灵船票 + 克罗的罗盘 → 海神项链（外域无尽海·海神系，lv58 紫项链）
+    'rec_lan_ge_hai_xiang': {
+        'slot': 'necklace', 'quality': 'purple', 'lv': 58,
+        "mats": {'mat_lan_ge_zhi_guan': 1, 'mat_you_ling_chuan_piao': 1, 'mat_ke_luo_de_luo_pan': 2, 'mat_hai_yan_jie_jing': 5},
+        'gold': 1900, 'desc': '沉船湾的船票与蓝歌之冠入海，链坠泛着幽蓝磷光',
+        'name': '海神项链', 'roster_id': 'eq_hai_shen_xiang_lian',
+        'blueprint': '海神项链图纸',
+    },
+    # 【系列配方 v117-09】要塞残片 → 北风长弓（北境霜狼·御寒系，lv65 紫弓）
+    'rec_yao_sai_bei_feng': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 65, 'weapon_type': 'bow',
+        "mats": {'mat_yao_sai_can_pian': 2, 'mat_shuang_ju_mo_xue': 4, 'mat_jing_tie': 4},
+        'gold': 5400, 'desc': '要塞残片磨成弓脊，北风在弦上呼啸',
+        'name': '北风长弓', 'roster_id': 'eq_bei_feng_chang_gong',
+        'blueprint': '北风长弓图纸',
+    },
+    # 【系列配方 v117-10】龙语传承 → 龙脊大剑（东境·龙脊系，lv85 紫剑）
+    'rec_long_yu_chuan_jian': {
+        'slot': 'weapon', 'quality': 'purple', 'lv': 85, 'weapon_type': 'sword',
+        "mats": {'mat_long_yu_chuan_cheng': 2, 'mat_long_lin_sui_pian': 4, 'mat_jing_jin': 2},
+        'gold': 8300, 'desc': '龙语传承刻进剑脊，古龙的低吟随剑鸣回荡',
+        'name': '龙脊大剑', 'roster_id': 'eq_long_ji_da_jian',
+        'blueprint': '龙脊大剑图纸',
+    },
 }
 
 CRAFT_RECIPE_ALIASES = {
