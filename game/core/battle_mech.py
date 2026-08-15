@@ -125,15 +125,15 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
 
 @register(MECH_EFFECTS, "burn_burst")
 def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """灼烧引爆：每层立即 30% 魔攻
+    """灼烧引爆：每层立即 40% 魔攻
     重构图契约 §3.1：读/清 enemy["debuffs"]["burn"]（敌方灼烧层迁为目标级状态）。
     重构图契约 §10.1 易燃乘区：灼爆时 n≥3 → 伤害 ×(1+0.10×(n-2))（3层+10%/4层+20%/5层+30%），
-    日志标注「🔥 易燃！」；公式主体仍为 matk×0.30×n 魔法段。"""
+    日志标注「🔥 易燃！」；公式主体仍为 matk×0.40×n 魔法段。"""
     enemy = battle.enemy or {}
     n = int(((enemy.get("debuffs") or {}).get("burn") or {"n": 0}).get("n", 0) or 0)
     st2 = battle._player_stats(battle._last_player) if hasattr(battle, "_last_player") else None
     if st2 and n:
-        d = int(st2["matk"] * 0.30 * n)
+        d = int(st2["matk"] * 0.40 * n)
         # 易燃乘区：n≥3 时引爆伤害提升（3层+10%/4层+20%/5层+30%）
         if n >= 3:
             flammable = 1.0 + 0.10 * (n - 2)
@@ -405,16 +405,21 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
         return
     deb = enemy.setdefault("debuffs", {})
     cur = deb.get("poison") or {"n": 0, "mult": 1.0}
-    # 叠毒者被动倍率：乘算（默认 1.0），刷新取 max(旧, 新)
+    # 叠毒者被动倍率：乘算（默认 1.0），刷新取 max(旧, 新)，getattr 保护对齐 _m_burn 风格
     new_mult = 1.0
-    for _pn, _ps in battle._passive_map(battle._last_player)["proc"].get("poison", []):
-        new_mult *= float(_ps.get("mult", 1.2))
+    try:
+        _lp = getattr(battle, "_last_player", None)
+        if _lp is not None:
+            for _pn, _ps in battle._passive_map(_lp)["proc"].get("poison", []):
+                new_mult *= float(_ps.get("mult", 1.2))
+    except Exception:
+        new_mult = 1.0
     cur["mult"] = max(float(cur.get("mult", 1.0) or 1.0), new_mult)
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
     deb["poison"] = cur
     n = cur["n"]
     # v1.1 毒蚀：每层使目标防御 -4%（上限 -20%），随层数衰减自动恢复；日志与毒层合并输出
-    base_log = f"☠️ 毒层 {n}(每回合 {n * 5}% 生命，{n} 回合后消散) 🛡️ 毒蚀：目标防御 -{4 * n}%（上限20%）"
+    base_log = f"☠️ 毒层 {n}(每层 50%攻击+1.5%生命，{n} 回合后消散) 🛡️ 毒蚀：目标防御 -{4 * n}%（上限20%）"
     # v1.2 减益适应（契约 §11.1）：毒层叠成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
     adapt = enemy.setdefault("adapt", {})
     adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
@@ -428,8 +433,9 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
 def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """v107 毒爆（丛林猎手）：poison 层数≥3 可引爆——清层。
     重构图契约 §3.1：读/清 enemy["debuffs"]["poison"]（敌方毒层迁为目标级共享状态）。
-    重构图契约 §10.1 v1.1 修正：伤害 = atk×0.15×n，**物理段吃 def**（dmg_type="phys"，
-    与毒 dot 的 atk 口径一致，修复 skills.py 注释"按 atk"的矛盾）；仍不吃 dot_res（爆发直伤）。"""
+    重构图契约 §10.1 v1.1 修正：伤害 = atk×0.30×n，**物理段吃 def**（dmg_type="phys"，
+    与毒 dot 的 atk 口径一致，修复 skills.py 注释"按 atk"的矛盾）；仍不吃 dot_res（爆发直伤）。
+    v1.3（审计 R1）：毒爆系数 0.15 → 0.30，5 层从 1%→2%+ Boss 血，成为可观收尾。"""
     enemy = battle.enemy or {}
     n = int(((enemy.get("debuffs") or {}).get("poison") or {"n": 0}).get("n", 0) or 0)
     if n < 3:
@@ -439,7 +445,7 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     if st2 and n:
         from ..engine import calc_damage as _calc  # v107 局部导入防循环依赖
         est = battle._enemy_stats()
-        d = _calc(int(st2["atk"] * 0.15 * n), est.get("def", 0), dmg_type="phys")
+        d = _calc(int(st2["atk"] * 0.30 * n), est.get("def", 0), dmg_type="phys")
         _burst_damage(battle, d, logs)
         # v1.3 毒爆特色（与灼爆"易燃更痛"区分）：毒爆余毒虚弱——敌方攻击 -5%×n（3层-15%…5层-25%）2 回合。
         # 提前引爆（3层）即可拿虚弱压制，等满层则更高伤害+更强虚弱——"提前爆发的价值"成立。

@@ -47,7 +47,11 @@ def _f_h_lifesteal(battle, player, dmg, logs):
 def _f_h_bleed(battle, player, dmg, logs):
     """烬火辣椒：20% 使目标流血（每回合 5% 生命，3 回合）"""
     if random.random() < 0.20:
-        battle.e_buffs["bleed"] = max(battle.e_buffs.get("bleed", 0), 3)
+        # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 3)  # 烬火辣椒 3 层
+        deb["bleed"] = cur
         logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
 
 

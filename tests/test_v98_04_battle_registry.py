@@ -87,8 +87,12 @@ b = make_battle(e_buffs={"freeze": 1})
 check("enemy_frozen 命中", b._cond_mult({"cond": {"type": "enemy_frozen", "mult": 1.5}}, player, 1) == 1.5)
 b = make_battle()
 check("enemy_frozen 未冻结不命中", b._cond_mult({"cond": {"type": "enemy_frozen", "mult": 1.5}}, player, 1) == 1.0)
-b = make_battle(mech_stacks={"poison": 5})
+b = make_battle(enemy={"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10,
+                       "debuffs": {"poison": {"n": 5, "mult": 1.0}}})
 check("enemy_poison_stacks（5≥3）命中", b._cond_mult({"cond": {"type": "enemy_poison_stacks", "mult": 1.4}}, player, 1) == 1.4)
+b = make_battle(enemy={"name": "野狼", "hp": 100, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10,
+                       "debuffs": {"poison": {"n": 2, "mult": 1.0}}})
+check("enemy_poison_stacks（2<3）不命中", b._cond_mult({"cond": {"type": "enemy_poison_stacks", "mult": 1.4}}, player, 1) == 1.0)
 b = make_battle(shield=10, p_shields={"shield_test": {"value": 10, "turns": 3}})
 check("player_shield 命中", b._cond_mult({"cond": {"type": "player_shield", "mult": 1.3}}, player, 1) == 1.3)
 b = make_battle(resources={"rage": 5})

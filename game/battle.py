@@ -84,10 +84,10 @@ REDUCE_ALL_PCT = {
 DEF_DOWN_MULT = 0.5   # 破甲斩：敌方防御减半
 SPD_DOWN_MULT = 0.5   # 寒冰箭：敌方速度减半（暂不影响结算，留接口）
 # DOT 重构常量集中（契约 §2.4）：每层每回合 % 敌方最大生命
+# 历史常量，dot 已改混合公式（_tick_dots 用 _atk_parts/_matk_parts/_hp_parts，不再读这些）；保留定义兼容外部引用
 POISON_PCT = 0.05     # 毒：每层每回合 5% 敌方最大生命（保留旧名兼容外部引用）
 BURN_PCT = 0.03       # 灼烧：每层每回合 3% 敌方最大生命
 BLEED_PCT = 0.05      # 流血：每回合 5% 敌方最大生命（词条 2~3 回合）
-MARK_EXTRA = 0.30     # 标记猎杀：敌方受击伤害 +30%
 DEFEND_REDUCE = 0.5   # 防御：敌方伤害减半
 BUFF_TURNS = 3        # 增益默认持续回合
 DEBUFF_TURNS = 2      # 减益默认持续回合
@@ -2291,7 +2291,7 @@ class Battle:
                 fn(self, player, dmg, logs)
 
     # ---------------- 敌方回合 ----------------
-    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys") -> int:
+    def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys", dot: bool = False) -> int:
         """v83 04 章 2.5：Boss 护盾/反伤过滤（挂在玩家伤害结算主路径）。
         shield：护盾存在期间受伤 -50%，先扣盾再扣血（破盾提示）。
         v110：真伤豁免 -50%（四层架构"真伤绕过全部减伤"），但护盾 HP 层仍吸收（仅护盾可吸收）。
@@ -2324,14 +2324,15 @@ class Battle:
                         logs.append("💥 护盾破碎！")
                     dmg = real
         if "reflect" in mechs:
-            ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
-            if ratio < 0.25:
-                rb = int(dmg * 0.15)
-                if rb > 0:
-                    # R3 P2-3：反伤保底 1 HP（永不致死）——设计取舍：反伤是"代价"不是
-                    # "处决"，避免残血玩家被反弹伤害补刀造成挫败；04 章机制表仅写"反弹 15%"
-                    player["hp"] = max(1, player.get("hp", 1) - rb)
-                    logs.append(f"🩸【{e['name']}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
+            if not dot:  # v1.3 dot 只走护盾减半/吸收，不触发反射反伤
+                ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
+                if ratio < 0.25:
+                    rb = int(dmg * 0.15)
+                    if rb > 0:
+                        # R3 P2-3：反伤保底 1 HP（永不致死）——设计取舍：反伤是"代价"不是
+                        # "处决"，避免残血玩家被反弹伤害补刀造成挫败；04 章机制表仅写"反弹 15%"
+                        player["hp"] = max(1, player.get("hp", 1) - rb)
+                        logs.append(f"🩸【{e['name']}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
         return dmg
 
     def _boss_mech(self, logs: list, unit=None):
@@ -2889,7 +2890,7 @@ class Battle:
         _atk_parts = {"poison": 0.5, "burn": 0.0, "bleed": 0.6}
         _matk_parts = {"poison": 0.0, "burn": 0.4, "bleed": 0.0}
         _hp_parts = {"poison": 0.015, "burn": 0.01, "bleed": 0.015}
-        for k, pct in (("poison", POISON_PCT), ("burn", BURN_PCT), ("bleed", BLEED_PCT)):
+        for k in ("poison", "burn", "bleed"):
             d = deb.get(k)
             if not d:
                 continue
@@ -2921,15 +2922,15 @@ class Battle:
             else:
                 dt = "phys"
                 p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
-            # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）
-            p = self._boss_dmg_filter(p, player, logs, dmg_type=dt)
+            # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
+            p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
             # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
             _bleed_tag = ""
             if k == "bleed" and e.get("hp", 0) < max_hp * 0.30:
                 p *= 2
                 _bleed_tag = "(放血)"
             if p > 0:
-                self._damage_enemy(p, logs, wake_sleep=False)  # dot 不打醒睡眠、不打断蓄力
+                self._damage_enemy(p, logs, wake_sleep=False, target=e)  # dot 不打醒睡眠、不打断蓄力
             kname = "毒" if k == "poison" else "灼烧" if k == "burn" else "流血"
             _mult_tag = f"(强化×{mult:.1f})" if mult != 1.0 else ""
             logs.append(f"{'☠️' if k == 'poison' else '🔥' if k == 'burn' else '🩸'} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_mult_tag}{_bleed_tag}")
@@ -2950,17 +2951,25 @@ class Battle:
                 death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn" else "失血过多")
                 logs.append(f"🎉 你击败了【{e.get('name', '敌人')}】！({death_text})")
                 break
+        # v1.3 标记层与 dot 同生命周期：每回合结算后 n-1，归零移除（与 e_buffs["mark"] 2 回合计时同步）
+        _mk = deb.get("mark")
+        if _mk:
+            _mn = int(_mk.get("n", 0) or 0) - 1
+            if _mn <= 0:
+                deb.pop("mark", None)
+            else:
+                _mk["n"] = _mn
         return logs
 
     def _turn_start(self, player: dict) -> list:
         """回合开始：持续伤害结算 + v10 套装每回合回复"""
         logs = []
         # DOT 重构（契约 §2.1/§2.2）：敌方持续减益（毒/灼烧/流血）统一由 _tick_dots 结算。
-        # _tick_dots 内部持有 _dot_pending 闸门——单机探索怪（btype=monster）每次玩家行动=一回合，
+        # _tick_dots 内部持有 _dot_pending 闸门——单机探索怪（btype=monster）与 PVP 每次玩家行动=一回合，
         # 回合开始复位闸门 → 每行动结算一次（与现状频率一致）；副本（instance）每轮结算一次的
         # 闸门由 from_state 按 st["dot_pending"] 恢复，世界 Boss（worldboss）由 combat 层 force 结算，
         # 故此两模式不在此复位。
-        if self.btype == "monster":
+        if self.btype in ("monster", "pvp"):
             self._dot_pending = True
         # 原地追加（_tick_dots 向传入 logs 追加文案并返回同一列表，勿用 += 以免二次自拼接）
         self._tick_dots(player, logs)

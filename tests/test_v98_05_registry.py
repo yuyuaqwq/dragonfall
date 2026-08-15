@@ -140,7 +140,8 @@ random.random = lambda: 0.05
 logs = []
 b._affix_on_hit(player, 100, logs)
 random.random = _orig_random
-check("bleed 触发挂 e_buffs", "bleed" in b.e_buffs and len(logs) == 1)
+check("bleed 触发挂目标 debuffs", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n") == 3
+      and len(logs) == 1)
 # 元素附加（单独 ice）
 b = make_battle()
 b._equip_affix_ids = lambda p: ["element_ice"]
@@ -213,7 +214,7 @@ b = make_battle()
 b._equip_affix_ids = lambda p: ["bleed"]
 logs = []
 b._affix_on_hit(player, 100, logs)
-check("bleed chance=1.0 必触发", "bleed" in b.e_buffs)
+check("bleed chance=1.0 必触发", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n") == 3)
 C.AFFIXES["bleed"]["chance"] = orig_bleed_chance
 b = make_battle()
 b._equip_affix_ids = lambda p: ["bleed"]
@@ -222,7 +223,7 @@ random.random = lambda: 0.99  # >20% 保证不触发
 logs = []
 b._affix_on_hit(player, 100, logs)
 random.random = _orig_random
-check("chance 恢复后非必触发（20% 不中）", "bleed" not in b.e_buffs)
+check("chance 恢复后非必触发（20% 不中）", "bleed" not in (b.enemy.get("debuffs") or {}))
 
 # ============ 3.6 荣誉商店数据化（v99.4） ============
 print("【3.6 荣誉商店数据化】")

@@ -1443,6 +1443,7 @@ class CombatCmds(CommandBase):
                 lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
             else:
                 lines.append("  · 消耗：无")  # v104 R3 P3-1：零消耗技能如实显示"无"（原"免费"易误解为有价免费）
+        lines.append("━━━━━━━━━━━━")  # v114.6：页数上方分隔线加回（v114.5 删每条间隔线时误伤）
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")

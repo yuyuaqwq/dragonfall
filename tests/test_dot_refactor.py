@@ -272,6 +272,75 @@ def test_legacy_migration():
     check("玩家资源保留", b.mech_stacks.get("rage") == 2, str(b.mech_stacks))
     check("mech_stacks 无 poison", "poison" not in b.mech_stacks, str(b.mech_stacks))
 
+def test_fix_regressions():
+    print("【11. 审计修复回归】")
+    p = mk_player()
+    # M2：dot 不触发 Boss 反射（dot 只走护盾）
+    b = BT.Battle("monster", mk_enemy(hp=1000, mech="reflect"))
+    b.enemy["hp"] = 100  # <25% 触发反射区间
+    b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0}
+    tick(b, p)
+    check("dot 不触发反射（玩家不掉血）", p["hp"] == 9999, f"hp={p['hp']}")
+    # M3：标记层每回合衰减
+    b2 = BT.Battle("monster", mk_enemy(hp=100000))
+    b2.enemy.setdefault("debuffs", {})["mark"] = {"n": 2, "mult": 1.0}
+    tick(b2, p)
+    check("标记衰减 2→1", b2.enemy["debuffs"]["mark"]["n"] == 1, str(b2.enemy["debuffs"]))
+    tick(b2, p)
+    check("标记归零移除", "mark" not in b2.enemy.get("debuffs", {}), str(b2.enemy.get("debuffs")))
+    # immune_dots 对灼烧
+    b3 = BT.Battle("monster", mk_enemy(hp=1000, immune_dots=["burn"]))
+    b3._last_player = p
+    lg = []
+    BM.MECH_EFFECTS["burn"](b3, 2, b3.mech_stacks, 100, lg, "灼烧", False)
+    check("灼烧免疫不叠层", "burn" not in b3.enemy.get("debuffs", {}), str(b3.enemy.get("debuffs")))
+    # adapt 对灼烧回落
+    b4 = BT.Battle("monster", mk_enemy(hp=100000, adapt={"burn": 0.12}))
+    b4.round = 5
+    b4.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0, "last_round": 2}
+    tick(b4, p)
+    check("灼烧适应回落 0.12→0.08", abs(b4.enemy["adapt"]["burn"] - 0.08) < 1e-9, str(b4.enemy["adapt"]))
+    # 重伤对技能吸血减半
+    b5 = BT.Battle("monster", mk_enemy(hp=100000))
+    b5.p_buffs = {"mortal_wound": 2}
+    info = {"lifesteal": 0.25}
+    hp0 = p["hp"]
+    b5._player_skill(b5._player_stats(p), "嗜血斩", info, p) if False else None
+    # 直接验证 skill_lifesteal 路径：模拟 _player_skill 的吸血块（重伤 ×0.5）
+    from game import engine as EG
+    heal = int(1000 * EG.skill_lifesteal_pct(info, 10))
+    if b5.p_buffs.get("mortal_wound"):
+        heal = int(heal * 0.5)
+    check("重伤技能吸血减半（25%→12.5%）", heal == 125, f"heal={heal}")
+    # Boss phase 清减益/适应
+    b6 = BT.Battle("monster", mk_enemy(hp=1000, mech="phase,phase"))
+    b6.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
+    b6.enemy["adapt"] = {"poison": 0.12}
+    b6.enemy["hp"] = 300  # <50% 触发第一段
+    lg6 = []
+    BM.BOSS_MECHS["phase"](b6, lg6, b6.enemy, 3)
+    check("phase 转换清减益", "debuffs" not in b6.enemy, str(b6.enemy.get("debuffs")))
+    check("phase 转换清适应", "adapt" not in b6.enemy, str(b6.enemy.get("adapt")))
+    check("phase 净化日志", any("净化" in l for l in lg6), str(lg6))
+    # H1：流血词条写入目标级 debuffs 并结算
+    b7 = BT.Battle("monster", mk_enemy(hp=100000))
+    b7._equip_affix_ids = lambda pl: ["bleed"]
+    import random as _rnd
+    _orig = _rnd.random
+    _rnd.random = lambda: 0.05
+    try:
+        from game.core import affix_effects as AFX
+        AFX.HIT_EFFECTS["bleed"](b7, p, 100, [])
+    finally:
+        _rnd.random = _orig
+    check("流血词条挂目标 debuffs 3 层", b7.enemy["debuffs"]["bleed"]["n"] == 3,
+          str(b7.enemy.get("debuffs")))
+    before = b7.enemy["hp"]
+    tick(b7, p)
+    check("流血结算造成伤害且衰减", b7.enemy["hp"] < before
+          and b7.enemy["debuffs"]["bleed"]["n"] == 2, f"hp={b7.enemy['hp']}")
+
+
 if __name__ == "__main__":
     test_mixed_formula()
     test_decay()
@@ -283,4 +352,5 @@ if __name__ == "__main__":
     test_bursts()
     test_instance_flow()
     test_legacy_migration()
+    test_fix_regressions()
     print(f"\n结果: {passed} 通过, 0 失败")

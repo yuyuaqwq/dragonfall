@@ -62,7 +62,11 @@ HIT_EFFECTS = {}
 def _h_bleed(battle, player, dmg, logs):
     """流血：20% 使目标流血（每回合 5% 生命，3 回合）"""
     if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
-        battle.e_buffs["bleed"] = max(battle.e_buffs.get("bleed", 0), 3)
+        # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 3)  # 词条 3 层
+        deb["bleed"] = cur
         logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
 
 
@@ -281,7 +285,11 @@ def _sp_burn(battle, player, dmg, logs):
         deb = battle.enemy.setdefault("debuffs", {})
         cur = deb.get("burn") or {"n": 0, "mult": 1.0}
         cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        cur["last_round"] = getattr(battle, "round", 0) or 0  # 记录叠层回合
         deb["burn"] = cur
+        # 适应机制：目标记忆灼烧，叠层成功 +0.04（cap 0.20），回落由结算侧按回合判定
+        adapt = battle.enemy.setdefault("adapt", {})
+        adapt["burn"] = min(0.20, float(adapt.get("burn", 0.0) or 0.0) + 0.04)
         logs.append("🔥 烈焰之力！敌人被灼烧！")
 
 

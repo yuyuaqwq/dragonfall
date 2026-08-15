@@ -1767,7 +1767,11 @@ class InstanceCmds(CommandBase):
                 deb = boss.setdefault("debuffs", {})
                 cur = deb.get("poison") or {"n": 0, "mult": 1.0}
                 cur["n"] = min(5, cur["n"] + 2)
+                cur["last_round"] = st.get("round", 0) or 0  # 记录叠层回合
                 deb["poison"] = cur
+                # 适应机制：团队淬毒为持续施加，+0.04（cap 0.20），回落由结算侧按回合判定
+                adapt = boss.setdefault("adapt", {})
+                adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
                 logs.append("☠️ 全队武器淬毒！(毒层共享，每回合结算一次)")
             return logs
         return logs

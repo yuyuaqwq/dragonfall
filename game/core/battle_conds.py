@@ -83,24 +83,27 @@ def _c_enemy_silenced(battle, player, cond):
 
 @register("enemy_poison_stacks", label=lambda c: f"敌方中毒≥{c.get('stacks', 0)}层")
 def _c_enemy_poison_stacks(battle, player, cond):
-    """敌方中毒层数 ≥ stacks（默认 3）"""
-    return battle.mech_stacks.get("poison", 0) >= cond.get("stacks", 3)
+    """敌方中毒层数 ≥ stacks（默认 3）；毒层已迁到目标级 enemy["debuffs"]["poison"]"""
+    return (int(((battle.enemy.get("debuffs") or {}).get("poison", {}) or {}).get("n", 0) or 0)
+            >= cond.get("stacks", 3))
 
 
 @register("enemy_marked", label=lambda c: "敌方被标记")
 def _c_enemy_marked(battle, player, cond):
-    """敌方被标记（e_buffs 或机制层数任一）"""
-    return "mark" in battle.e_buffs or battle.mech_stacks.get("mark", 0) > 0
+    """敌方被标记（e_buffs 或目标级 debuffs 机制层任一）"""
+    return "mark" in battle.e_buffs or int(((battle.enemy.get("debuffs") or {}).get("mark", {}) or {}).get("n", 0) or 0) > 0
 
 
 @register("enemy_debuff", label=lambda c: "敌方有减益")
 def _c_enemy_debuff(battle, player, cond):
-    """敌方有减益（负面 buff 或毒/灼烧/标记层）"""
+    """敌方有减益（e_buffs 控制/属性降或目标级毒/灼烧/印记层）"""
     debuff_keys = ("def_down", "spd_down", "mon_atk_down", "atk_down",
-                   "stun", "freeze", "silence", "poison", "burn", "mark")
+                   "stun", "freeze", "silence")
     if any(k in battle.e_buffs for k in debuff_keys):
         return True
-    return any(k in battle.mech_stacks for k in ("poison", "burn", "mark"))
+    debuffs = battle.enemy.get("debuffs") or {}
+    return any(int((debuffs.get(k) or {}).get("n", 0) or 0) > 0
+               for k in ("poison", "burn", "mark", "bleed"))
 
 
 @register("enemy_slowed", label=lambda c: "敌方减速中")
