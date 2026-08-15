@@ -41,19 +41,22 @@ def format_talent(k, v, name):
 @register("hp_mult")
 def _d_hp_mult(v, name):
     pct = int((v - 1) * 100)
-    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+    # v113.6 描述补全：明确"最大生命"（此前只有 ±% 看不出是血量）
+    return f"{'🔻' if v < 1 else ''}{name} 最大生命{pct:+d}%"
 
 
 @register("growth_mult")
 def _d_growth_mult(v, name):
     pct = int((v - 1) * 100)
-    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+    # v113.6 描述补全：明确"全属性成长"
+    return f"{'🔻' if v < 1 else ''}{name} 全属性成长{pct:+d}%"
 
 
 @register("spd_mult")
 def _d_spd_mult(v, name):
     pct = int((v - 1) * 100)
-    return f"{'🔻' if v < 1 else ''}{name} {pct:+d}%"
+    # v113.6 描述补全：明确"先手速度"
+    return f"{'🔻' if v < 1 else ''}{name} 先手速度{pct:+d}%"
 
 
 @register("crit_add")
@@ -64,15 +67,17 @@ def _d_crit_add(v, name):
 @register("phys_reduce")
 def _d_phys_reduce(v, name):
     if v > 0:
-        return f"{name} -{int(v*100)}%"
-    return f"🔻{name} +{int(-v*100)}%"
+        # v113.6 描述补全：明确"受物理伤害"
+        return f"{name} 受物理伤害-{int(v*100)}%"
+    return f"🔻{name} 受物理伤害+{int(-v*100)}%"
 
 
 @register("magic_reduce")
 def _d_magic_reduce(v, name):
     if v > 0:
-        return f"{name} -{int(v*100)}%"
-    return f"🔻{name} +{int(-v*100)}%"
+        # v113.6 描述补全：明确"受魔法伤害"
+        return f"{name} 受魔法伤害-{int(v*100)}%"
+    return f"🔻{name} 受魔法伤害+{int(-v*100)}%"
 
 
 @register("heal_received")

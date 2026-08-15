@@ -1284,12 +1284,12 @@ class EconomyCmds(CommandBase):
         icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳", "enhance": "⚒️", "enchant": "✨"}
         total = 0
         for key, p in profs.items():
-            total += p["lv"]
             if key not in activated:
                 # v105R3 M13 P3-4 修订（v113.5 T1）：按鱼鱼要求，副业面板不显示未激活副业——
                 # 原设计"显示：已激活/未激活/等级"(19 章 §4.2)取消，面板只列已解锁副业，
                 # 未激活副业静默跳过（不再打印 🔒未激活 行）
                 continue
+            total += p["lv"]  # v113.6：总分只计已激活副业（未激活不计分，与排行同口径）
             if p["lv"] >= 10:
                 # v104 P2 修复：满级不画经验条（lv>=10 时 exp 恒 0，旧版显示空条 0/200）
                 lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']} 已满级 ✅")
@@ -1301,9 +1301,9 @@ class EconomyCmds(CommandBase):
         if not activated:
             lines.append("还没有解锁任何副业！去城里找对应导师拜师学习吧～")
         lines.append("")
-        # v105R3 M13 P3-3：副业总分统一为 8 条等级之和（与『副业 排行』prof_top 同口径）——
-        # 旧版面板只计已激活 2 条、排行计 8 条，同名不同值误导
-        lines.append(f"📊 副业总分：{total}(8 条副业等级之和，与『副业 排行』同口径)")
+        # v113.6：副业总分只计已激活副业（与『副业 排行』prof_top 同口径，未激活不计分）——
+        # v113.5 曾统一为 8 条之和，但未激活也是 Lv.1 导致人人默认 8 分，鱼鱼拍板不计分
+        lines.append(f"📊 副业总分：{total}(已激活副业等级之和，与『副业 排行』同口径)")
         lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』(等级清零)")
         lines.append("💡 新副业需先找对应导师拜师学习才解锁（如 铁港城·老渔夫·马库斯 教垂钓）")
         lines.append("💡 『副业 排行』看群友等级，『烹饪列表』看料理配方～")
@@ -1357,7 +1357,7 @@ class EconomyCmds(CommandBase):
         tops = db.prof_top(group_id, 10)
         if not tops:
             return "🏆 【副业排行】\n━━━━━━━━━━━━\n还没有人练副业，快来当第一名！"
-        lines = ["🏆 【副业排行】(总分 = 8 条副业等级之和)", "━━━━━━━━━━━━"]
+        lines = ["🏆 【副业排行】(总分 = 已激活副业等级之和)", "━━━━━━━━━━━━"]
         names = {}
         for t in tops:
             p = self._player(group_id, t["qq_id"])

@@ -113,23 +113,35 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
 
 
 def prof_top(group_id, limit=10):
-    """副业总分排行(8 条副业等级之和，v101.28i 补 enhance/enchant)
+    """副业总分排行(仅已激活副业等级之和，v113.6 鱼鱼拍板)
 
     v113.5 T1 修复：全服排行(跨群)——玩家副业数据全局，与等级榜 top_players
     同口径（其注释明确"玩家数据全局，排行不按群过滤"），group_id 仅作兼容参数
     不再过滤；旧 v104 按群 JOIN player_groups 导致跨群玩家互相看不到。
+    v113.6 修复：未激活副业不计分——此前 8 条全加，未激活也是 Lv.1 → 人人默认
+    8 分，排行失去意义。改为 Python 侧解析 activated 只加已激活副业等级。
     """
     with _lock:
         conn = _connect()
         try:
-            _sum = ("gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv"
-                    "+cooking_lv+enhance_lv+enchant_lv AS total")
+            _cols = ("gather_lv,mining_lv,fishing_lv,alchemy_lv,craft_lv,"
+                     "cooking_lv,enhance_lv,enchant_lv,activated")
             rows = conn.execute(
-                "SELECT qq_id, " + _sum + " "
-                "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
-                (limit,),
+                "SELECT qq_id, " + _cols + " FROM professions"
             ).fetchall()
-            return [dict(r) for r in rows]
+            items = []
+            for r in rows:
+                d = dict(r)
+                raw = d.pop("activated", "") or "[]"
+                try:
+                    act = json.loads(raw)
+                    act = [k for k in act if k in PROF_FIELDS] if isinstance(act, list) else []
+                except (ValueError, TypeError):
+                    act = []
+                total = sum(d.get(f"{k}_lv", 0) for k in act)
+                items.append({"qq_id": d["qq_id"], "total": total})
+            items.sort(key=lambda x: (-x["total"], x["qq_id"]))
+            return items[:limit]
         finally:
             conn.close()
 

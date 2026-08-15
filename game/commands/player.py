@@ -496,13 +496,14 @@ class PlayerCmds(CommandBase):
             tnames = r.get("talent_names", {})
             # v98.3：展示格式化全数据化 → core/race_talent_display.py
             from ..core.race_talent_display import format_talent
-            parts = []
+            # v113.6 排版优化：种族描述一行 + 每个天赋独立一行（此前 '，'.join 全挤一行）
+            lines.append(f"{r['icon']} {r['name']}：{r['desc']}")
             for k, v in t.items():
                 nm = tnames.get(k, k)
                 text = format_talent(k, v, nm)
                 if text is not None:
-                    parts.append(text)
-            lines.append(f"{r['icon']} {r['name']}：{'，'.join(parts)}")
+                    lines.append(f"  · {text}")
+            lines.append("")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 种族天赋 = 有得有失，负面已配正面补偿(净强度≈不变)，选取舍不选碾压！")
         yield event.plain_result("\n".join(lines))
