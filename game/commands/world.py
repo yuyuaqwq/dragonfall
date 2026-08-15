@@ -574,10 +574,10 @@ class WorldCmds(CommandBase):
                 m = "🟠"
             else:
                 m = "🔴"
-            # 死胡同（连接数==1 且非入口）
+            # 死胡同（连接数==1 且非入口）——v114.3 🔚 表示尽头（原 💀 易误读为危险/死亡）
             try:
                 if sa["id"] != _entry_id and len(C.subarea_links(cur, sa["id"])) == 1:
-                    m += "💀"
+                    m += "🔚"
             except Exception:
                 pass
             return m
@@ -604,6 +604,9 @@ class WorldCmds(CommandBase):
                     sa_lbl = self._conn_subarea_name(nm, want_sa)
                     lock = " (🔒隐藏)" if nm.get("hidden") else ""
                     lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+            # v114.3 深度标记图例（🟢近→🔴深，🔚=尽头），有深度数据才显示
+            if _depth is not None:
+                lines.append("  💡 🟢近·🟡浅·🟠中·🔴深，🔚=尽头")
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
