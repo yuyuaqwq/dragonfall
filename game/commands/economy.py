@@ -1116,7 +1116,16 @@ class EconomyCmds(CommandBase):
         rkey = C.resolve("cooking", raw)
         r = C.COOKING_RECIPES.get(rkey)
         if not r:
-            yield event.plain_result(f"没有『{raw}』这道料理！『烹饪列表』查看全部～")
+            # v113.5 O86：自制料理带"(自制)"后缀（如『烤肉串(自制)』），输入基础名
+            # 『烹饪 烤肉串』解析不到——失败提示列出带后缀的完整名，引导正确指令
+            full = list(dict.fromkeys(
+                rec["name"] for rec in C.COOKING_RECIPES.values()
+                if rec.get("name") == raw + "(自制)" or rec.get("name", "").startswith(raw + "(")))
+            if full:
+                yield event.plain_result(
+                    f"没有『{raw}』这道料理！你是不是想烹饪『{full[0]}』？发『烹饪 {full[0]}』试试～")
+            else:
+                yield event.plain_result(f"没有『{raw}』这道料理！『烹饪列表』查看全部～")
             return
         cook_lv = db.get_prof_level(group_id, qq_id, "cooking")
         if cook_lv < r["min_lv"]:
@@ -1757,7 +1766,8 @@ class EconomyCmds(CommandBase):
         yield event.plain_result(act_msg + f"🔨 铁匠挥锤敲打，火星四溅……\n"
             f"✅ 锻造成功！{q['color']}【{equip['name']}】({C.EQUIP_SLOTS[equip['slot']]}) Lv.{equip['lv']} {affinity_str}"
             f"{af_str}{set_str}\n"
-            f"💰 消耗 {gold_need} 金币，装备已放入背包！{lv_msg}"
+            # v113.5 O120：成功提示补副业经验反馈（原只报装备入包，玩家看不到经验增长）
+            f"💰 消耗 {gold_need} 金币，装备已放入背包！(副业经验 +{prof_gain}){lv_msg}"
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 

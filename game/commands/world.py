@@ -1886,15 +1886,22 @@ class WorldCmds(CommandBase):
                 for sa in (m.get("subareas") or []):
                     if nid in (sa.get("npcs") or []):
                         sa_name = sa.get("name", "")
+                        sa_id = sa["id"]
                         break
-            locs.append((m_id, f"{m_name}·{sa_name}" if sa_name else m_name))
-        in_here = cur in {m_id for m_id, _ in locs}
+            locs.append((m_id, sa_id, f"{m_name}·{sa_name}" if sa_name else m_name))
+        cur_sa = player.get("cur_subarea") or ""
+        in_here = cur in {m_id for m_id, _, _ in locs}
         # v95.25 #135：前缀明确"在/不在你所在的地图"，不再用误导性的"你所在的地图的…"
+        # v113.5 O90：同图但目标在别的子区域时，原文案说"就在你所在的「目标子区域」一带"
+        # 把目标位置说成玩家所在（误导定位）——同图不同子区域统一走"（你现在不在这里）"样式
+        # （对齐地精商人版文案）；子区域未知的 NPC 按旧行为视为同处
         if in_here:
-            # v59.#51 修复：所在地图有同名 NPC 时只列本图位置
-            here_uniq = list(dict.fromkeys(l for m_id, l in locs if m_id == cur))
-            return f"🧭 『{name_key}』就在你所在的「{'、'.join(here_uniq)}」一带。输入『地图』查看路线，到了地方用『对话』定位～"
-        uniq = list(dict.fromkeys(l for _, l in locs))
+            same_sa = [l for m_id, sa_id, l in locs
+                       if m_id == cur and (not sa_id or not cur_sa or sa_id == cur_sa)]
+            if same_sa:
+                here_uniq = list(dict.fromkeys(same_sa))
+                return f"🧭 『{name_key}』就在你所在的「{'、'.join(here_uniq)}」一带。输入『地图』查看路线，到了地方用『对话』定位～"
+        uniq = list(dict.fromkeys(l for _, _, l in locs))
         return f"🧭 『{name_key}』在「{'、'.join(uniq)}」一带（你现在不在这里）。输入『地图』查看路线，到了地方用『对话』定位～"
 
     def _npc_dialogue(self, group_id, qq_id, npc_id, npc):

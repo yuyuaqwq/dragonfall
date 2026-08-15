@@ -668,5 +668,11 @@ def tpl_skill_tome(ctx):
 
 @register("none")
 def tpl_none(ctx):
-    """兜底：不能使用的物品（含未实现的战斗卷轴等占位数据）。"""
+    """兜底：不能使用的物品（含未实现的战斗卷轴等占位数据）。
+    v113.5 O117：『使用 风干肉』等材料无引导 → 按类型补副业用途说明。"""
+    # v113.5 O117：材料类（食材/矿材）不可直接使用，提示可走副业加工（烹饪/锻造/炼金）
+    if (ctx.data or {}).get("type") == "材料":
+        return ItemResult(
+            text=f"『{ctx.item_name()}』不能直接使用——这是材料，可『烹饪』『锻造』『炼金』等副业加工成成品～",
+            consume=False)
     return ItemResult(text=f"『{ctx.item_name()}』不能使用。", consume=False)

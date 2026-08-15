@@ -124,8 +124,17 @@ async def main():
     db.update_player("g1", "w8", cur_map="oak_town", cur_subarea="oak_town_1")
     out = await cmd(m, "find_npc", "g1", "w8", "找 老兵·格里姆")
     check("跨图提示明确", "你现在不在这里" in out, out[:300])
+    # v113.5 O90：同图但不同子区域（镇长在 oak_town_2，玩家在 oak_town_1）——
+    # 不再说"就在你所在的"（把目标位置说成玩家所在），统一"（你现在不在这里）"样式
     out = await cmd(m, "find_npc", "g1", "w8", "找 镇长")
-    check("同图提示就在", "就在你所在的" in out, out[:300])
+    check("同图不同子区域提示不在", "你现在不在这里" in out, out[:300])
+    # 同子区域（巨型野猪精英在 oak_plain_3）：保留"就在你所在的"
+    db.update_player("g1", "w8", cur_map="oak_plain", cur_subarea="oak_plain_3")
+    out = await cmd(m, "find_npc", "g1", "w8", "找 巨型野猪")
+    check("同子区域提示就在", "就在你所在的" in out, out[:300])
+    db.update_player("g1", "w8", cur_subarea="oak_plain_1")
+    out = await cmd(m, "find_npc", "g1", "w8", "找 巨型野猪")
+    check("同图异子区域精英提示不在", "你现在不在这里" in out, out[:300])
 
     print("【10. #133 非出口列表不列跨图】")
     await cmd(m, "register", "g1", "w9", "注册 战士 逛街 男")

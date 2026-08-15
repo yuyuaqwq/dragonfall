@@ -126,6 +126,11 @@ REPRESENTATIVES = {
     # combat.py
     "explore": "探索", "wish": "许愿", "attack": "攻击", "skill": "技能", "defend": "防御",
     "flee": "逃跑", "hunt_boss": "讨伐", "honor_shop": "荣誉",
+    # v113.5 O71：流浪商人强卖确认/拒绝（探索事件挂起报价后的二段回复）
+    "trader_confirm": "确认购买",
+    # O119：战败结算复活羽毛二段回复（消耗羽毛免扣金币 / 放弃复活损失金币）
+    # 代表输入用『放弃复活』：『使用复活羽毛』会被 use 前缀正则同时命中（待 O119 侧加 priority）
+    "revive_confirm": "放弃复活",
     # player.py
     "shortcut": "快捷", "shortcut_trigger": "5", "register": "注册", "profile": "角色",
     "leaderboard": "排行", "races": "种族", "evolve": "转职", "attributes": "属性",
@@ -194,6 +199,8 @@ EXTRA_POSITIVE = [
     ("物品", {"inventory"}),
     ("时间指令", {"time_cmd"}),
     ("深入第3层", {"instance_advance"}),
+    # v113.5 O71：『拒绝』别名（与『确认购买』同 handler，按消息内容分流）
+    ("拒绝", {"trader_confirm"}),
     # v105 M24 同步：instance_advance 放宽『深入3层』（不带"第"，并行任务 M04/M19 改动）
     ("深入3层", {"instance_advance"}),
     ("组队列表", {"party"}),   # v104 party 宽化（支持参数），『组队列表』=组队面板

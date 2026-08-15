@@ -313,7 +313,9 @@ def tpl_mystery_chest(ctx):
 
 @register("merchant")
 def tpl_merchant(ctx):
-    """流浪商人：低价装备（可拒绝）。沿用原 merchant 逻辑。"""
+    """流浪商人：低价装备（可拒绝）。沿用原 merchant 逻辑。
+    v113.5 O71 修复：探索强卖无确认直接扣钱 → 改为挂起报价（set_event_state），
+    玩家回复『确认购买/拒绝』由 combat.py trader_confirm 命令消费。"""
     import uuid
     db = ctx._db()
     C = ctx._C()
@@ -321,10 +323,16 @@ def tpl_merchant(ctx):
     equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
     price = int(equip["price"] * 0.6)
     if ctx.player["gold"] >= price and random.random() < C.TRADER_DEAL_CHANCE:  # v101.5 常量
-        db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] - price)
-        db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
+        # v113.5 O71：原逻辑直接扣金币入包（强卖无确认）——先挂起报价等玩家答复
+        import json as _json, time as _time
+        db.set_event_state(f"trader_{ctx.group_id}_{ctx.qq_id}", _json.dumps({
+            "ts": _time.time(),
+            "price": price,
+            "equip": equip,
+        }))
         return (f"🛒 【流浪商人】一个商人拉住你：“勇士，看货！便宜卖你了！”\n"
-                f"你花 {price} 金币买下了 {C.QUALITY[equip['quality']]['color']}【{equip['name']}】")
+                f"{C.QUALITY[equip['quality']]['color']}【{equip['name']}】只要 {price} 金币！\n"
+                f"是否购买？回复 确认购买/拒绝")
     return (f"🛒 【流浪商人】一个商人向你兜售 {C.QUALITY[equip['quality']]['color']}【{equip['name']}】，"
             f"只要 {price} 金币……你摇了摇头：不买不买。商人悻悻地走了。")
 
