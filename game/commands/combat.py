@@ -55,7 +55,10 @@ class CombatCmds(CommandBase):
         # 跨群/私聊同样命中）+ 内存锁 + 副本队员锁（_instance_battle_for，批次1 M04 加固）；
         # 上方副本 map 模式分支先行放行属 v87.2 设计（副本内探索），普通/副本回合制战斗在此拦截。
         if self._in_battle(group_id, qq_id):
-            yield event.plain_result("你正在战斗中！先解决眼前的敌人(攻击/逃跑)")
+            # O121 Boss 战不提示『逃跑』（无法逃跑，防误导）
+            _bt = db.get_battle(group_id, qq_id) or {}
+            _is_boss = bool((_bt.get("state") or {}).get("enemy", {}).get("is_boss"))
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人" + ("" if _is_boss else "(攻击/逃跑)"))
             return
         cur = player["cur_map"]
         if cur.startswith("home_"):
@@ -235,6 +238,8 @@ class CombatCmds(CommandBase):
             _pb = getattr(b, "poi_buff", None)
             if _pb:
                 bless_note += f"🛕 神龛祝福生效：{_pb.get('name', _pb['stat'])}+10%！\n"
+            # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
+            _acts = "『攻击』『技能 <名称>』『防御』" + ("" if monster.get("is_boss") else "『逃跑』")
             yield event.plain_result(
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
@@ -242,7 +247,7 @@ class CombatCmds(CommandBase):
                 f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
                 + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
                 + f"{bless_note}━━━━━━━━━━━━\n"
-                f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
+                f"你的行动：{_acts}"
             )
             return
         # 随机遇怪：精英/首领独立保底判定（不混进普通怪池子玄学抽）
@@ -295,6 +300,8 @@ class CombatCmds(CommandBase):
         role_mark = tag or ("👑 BOSS" if monster["is_boss"] else ("⭐ 精英" if monster["is_elite"] else "🐾"))
         # v104 修复（M06 P2-2）：展示 MONSTER_MODS 个体特色文案（此前只有数值生效，玩家看不到）
         mod_line = f"📜 {monster['mod']}\n" if monster.get("mod") else ""
+        # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
+        _acts = "『攻击』『技能 <名称>』『防御』" + ("" if monster.get("is_boss") else "『逃跑』")
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
@@ -302,7 +309,7 @@ class CombatCmds(CommandBase):
             f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
             + f"{bless_note}━━━━━━━━━━━━\n"
-            f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
+            f"你的行动：{_acts}"
             f"{hint}{stam_warn}"
         )
 
@@ -473,6 +480,103 @@ class CombatCmds(CommandBase):
             msg = f"🎒 流星回应了你的愿望！获得材料：{C.display('materials', mid)}"
         C.check_achievements(group_id, qq_id, player, {"wish_met": True})
         yield event.plain_result(f"🌠 【许愿成真】{msg}")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:确认购买|拒绝)(?:\s*|$)")
+    @require_player()
+
+    async def trader_confirm(self, event: AstrMessageEvent):
+        """v113.5 O71：流浪商人强卖确认/拒绝——探索遇商人挂起报价
+        （event_templates.tpl_merchant 写 trader_{gid}_{qid}）后，
+        回复『确认购买』成交（扣金币+装备入包）或『拒绝』离开。"""
+        import json as _json, time as _time, uuid
+        group_id, qq_id = self._uid(event)
+        raw = db.get_event_state(f"trader_{group_id}_{qq_id}")
+        if not raw:
+            yield event.plain_result("没有商人在等你答复……(野外『探索』偶遇流浪商人时才会向你兜售)")
+            return
+        try:
+            st = _json.loads(raw)
+        except Exception:
+            st = {"ts": 0}
+        if not isinstance(st, dict):
+            # 对齐 wish 的旧值兜底：非 dict 一律按过期处理
+            st = {"ts": 0}
+        if _time.time() - st.get("ts", 0) > 120:
+            db.set_event_state(f"trader_{group_id}_{qq_id}", "")
+            yield event.plain_result("商人等得不耐烦，收起货摊走了……(下次探索再碰碰运气)")
+            return
+        # v113.5 O71 实测修正：『确认购买』剥离指令后为空串，不能用剥离结果判分支——
+        # 直接看原始消息（正则已限定只有 确认购买/拒绝 两种输入）
+        opt = "确认购买" if "确认购买" in (event.get_message_str() or "") else "拒绝"
+        db.set_event_state(f"trader_{group_id}_{qq_id}", "")
+        if opt == "拒绝":
+            yield event.plain_result("🛒 你摇了摇头：不买不买。商人悻悻地走了。")
+            return
+        equip = st.get("equip") or {}
+        price = int(st.get("price", 0))
+        player = self._player(group_id, qq_id)
+        if player["gold"] < price:
+            yield event.plain_result(f"🛒 你摸了摸口袋，只有 {player['gold']} 金币，买不起这件装备……商人悻悻地走了。")
+            return
+        db.update_player(group_id, qq_id, gold=player["gold"] - price)
+        db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
+        q = C.QUALITY.get(equip.get("quality", "white"), {})
+        qtxt = q.get("color", "")
+        yield event.plain_result(f"🛒 你花 {price} 金币买下了 {qtxt}【{equip.get('name', '装备')}】")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:使用复活羽毛|放弃复活)(?:\s*|$)")
+    @require_player()
+
+    async def revive_confirm(self, event: AstrMessageEvent):
+        """O119 战败结算二段回复：消耗复活羽毛免扣金币 / 放弃复活损失金币。
+
+        _handle_defeat 检测到背包有复活羽毛时，写 revive_choice_{gid}_{qid}
+        （挂起金币扣款，先回城满血），玩家回复『使用复活羽毛』消耗 1 根免扣，
+        『放弃复活』按原损失结算；超时 5 分钟按损失金币兜底（防白嫖免罚）。"""
+        import json as _json
+        import time as _time
+        group_id, qq_id = self._uid(event)
+        key = f"revive_choice_{group_id}_{qq_id}"
+        raw = db.get_event_state(key)
+        if not raw:
+            yield event.plain_result("没有待处理的复活选择……(战败且背包有复活羽毛时才会出现)")
+            return
+        try:
+            st = _json.loads(raw) if isinstance(raw, str) and raw else {}
+        except Exception:
+            st = {}
+        if not isinstance(st, dict) or not st:
+            db.set_event_state(key, "")
+            yield event.plain_result("复活选择已失效……")
+            return
+        lost = int(st.get("lost", 0) or 0)
+        extra = int(st.get("extra", 0) or 0)
+        if _time.time() - st.get("ts", 0) > 300:
+            # 超时未答复：按损失金币兜底结算（不能白嫖免罚）
+            db.set_event_state(key, "")
+            player = self._player(group_id, qq_id)
+            db.update_player(group_id, qq_id, gold=max(0, player["gold"] - lost - extra))
+            yield event.plain_result(f"⏰ 复活羽毛的光芒黯淡了……你损失了 {lost + extra} 金币。")
+            return
+        # 直接看原始消息（正则已限定只有 使用复活羽毛/放弃复活 两种输入）
+        opt = "使用复活羽毛" if "复活羽毛" in (event.get_message_str() or "") else "放弃复活"
+        db.set_event_state(key, "")
+        player = self._player(group_id, qq_id)
+        if opt == "使用复活羽毛":
+            try:
+                cnt = int(db.count_item(group_id, qq_id, "i_fu_huo_yu_mao") or 0)
+            except Exception:
+                cnt = 0
+            if cnt <= 0:
+                # 背包里已没有羽毛（可能被其他途径消耗）→ 按损失金币兜底
+                db.update_player(group_id, qq_id, gold=max(0, player["gold"] - lost - extra))
+                yield event.plain_result(f"🪶 复活羽毛不见了……你损失了 {lost + extra} 金币。")
+                return
+            db.remove_item(group_id, qq_id, "i_fu_huo_yu_mao", 1)
+            yield event.plain_result(f"🪶 你捏碎复活羽毛，光芒环绕周身——免于损失 {lost + extra} 金币！")
+            return
+        db.update_player(group_id, qq_id, gold=max(0, player["gold"] - lost - extra))
+        yield event.plain_result(f"💸 你选择了放弃复活，损失 {lost + extra} 金币……")
 
     def _roll_find_quest_events(self, group_id, qq_id, player, cur_map):
         """v97.1 条件探索事件：进行中的 find 型任务，在指定地图探索按 chance 触发。
@@ -1360,6 +1464,10 @@ class CombatCmds(CommandBase):
         "chi": "🌀气力", "judge": "⚖️审判", "mark": "🎯标记", "wind": "💨风印",
         "iron": "🪨铁壁", "shield": "🛡️圣盾", "bless": "✨神恩",
     }
+    # O96 修复：施加给敌方的减益叠层（灼烧/毒层/标记是敌方身上的 dot/易伤），
+    # 与玩家侧叠层共用 mech_stacks dict——显示时必须归到敌方状态栏，
+    # 否则敌人被灼烧后玩家状态栏误显『🛡️你：「🔥灼烧×2」』
+    _ENEMY_MECH_STACKS = ("burn", "poison", "mark")
 
     def _status_line(self, player: dict, b) -> str:
         """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。"""
@@ -1370,9 +1478,10 @@ class CombatCmds(CommandBase):
             if v and v > 0 and k in self._P_BUFF_NAMES:
                 pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: ×N 是回合数，标注避免误读倍率
         # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
+        # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
         stacks = (b.mech_stacks or {})
         for k, v in stacks.items():
-            if v and v > 0 and k in self._STACK_NAMES:
+            if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
         # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余回合）
         shields = getattr(b, "p_shields", {}) or {}
@@ -1395,6 +1504,11 @@ class CombatCmds(CommandBase):
         mins = getattr(b, "e_minions", []) or []
         if mins:
             ebuf.append("👥" + " ".join(f"援军{m['name']}❤️{m['hp']}" for m in mins))
+        # O96：敌方减益叠层（灼烧/毒层/标记——dot/易伤目标在 mech_stacks 里）
+        # 与玩家侧叠层共用 dict，展示时归入敌方状态栏
+        for k, v in stacks.items():
+            if v and v > 0 and k in self._ENEMY_MECH_STACKS and k in self._STACK_NAMES:
+                ebuf.append(f"{self._STACK_NAMES[k]}×{v}")
         if ebuf:
             parts.append(f"👹敌：「{' '.join(ebuf)}」")
         return "\n".join(parts)
@@ -1610,7 +1724,7 @@ class CombatCmds(CommandBase):
         if egg_key:
             egg = C.make_pet_egg(egg_key)
             db.add_item(group_id, qq_id, f"petegg_{egg_key}", egg)
-            pet_egg_line = f"🥚 咦？【{egg['name']}】从怪物身上掉下来了！『使用 宠物蛋』孵化！"
+            pet_egg_line = f"🥚 【{egg['name']}】从怪物身上掉下来了！『使用 宠物蛋』孵化！"  # v113.5 O97：去掉调试感"咦？"，改正式掉落文案
         # v39 坐骑缰绳掉落（精英/Boss 概率，背包『使用』解锁坐骑）
         mount_line = ""
         mk = C.roll_mount_drop(monster.get("role", ""))
@@ -1864,10 +1978,10 @@ class CombatCmds(CommandBase):
         new_gold = max(0, player["gold"] - lost)
         lines = [f"{result}", f"💀 你倒下了……被【{monster['name']}】击败。"]
         # v84 红名死亡惩罚（26 章三 第二档）：红名期间死亡额外掉 10%（上限 2000）
+        extra = 0
         if self._is_redname(qq_id):
             extra = min(int(player["gold"] * 0.1), 2000)
             new_gold = max(0, new_gold - extra)
-            lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币(上限 2000)！")
         # 回城并满血（新手保护；v86 子区域：落中心广场）
         # v95.19: max_hp/max_mp 同步实时值（player 已由 Battle 刷新），DB 字段不再过时
         # M22 P3 修复：战败回最近城镇（原固定回橡木镇 START_MAP——Lv.60+ 也被送回 Lv.1 图），
@@ -1875,10 +1989,43 @@ class CombatCmds(CommandBase):
         _town_id = self._nearest_town(player.get("cur_map", ""))
         _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
         _town_sa = _town_sas[0]["id"] if _town_sas else ""
+        _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
+        # O119 复活羽毛：背包有复活羽毛 → 战败结算提示『消耗复活羽毛？或损失金币』。
+        # 先回城满血（玩家已阵亡不能滞留），金币扣款挂起到 revive_confirm 二段回复
+        # （回复『使用复活羽毛』免扣，『放弃复活』按原损失结算；超时按损失兜底）。
+        feather_n = 0
+        try:
+            feather_n = int(db.count_item(group_id, qq_id, "i_fu_huo_yu_mao") or 0)
+        except Exception:
+            feather_n = 0
+        if feather_n > 0:
+            import json as _json
+            import time as _time
+            db.set_event_state(f"revive_choice_{group_id}_{qq_id}", _json.dumps({
+                "ts": _time.time(),
+                "lost": lost,
+                "extra": extra,
+                "monster": monster.get("name", "?"),
+            }, ensure_ascii=False))
+            db.update_player(group_id, qq_id, hp=player["max_hp"], mp=player["max_mp"],
+                             max_hp=player["max_hp"], max_mp=player["max_mp"],
+                             cur_map=_town_id, cur_subarea=_town_sa)
+            _pen = f"{lost} 金币" + (f"(红名额外 {extra})" if extra else "")
+            lines.append(
+                f"🪶 背包里的复活羽毛泛起微光！回复『使用复活羽毛』消耗 1 根，免于损失 {_pen}；"
+                f"或回复『放弃复活』损失 {_pen}。\n"
+                f"你已被送回{_town_name}中心广场，休息后满血复活。"
+            )
+            self._rule_fire("battle_win", group_id, qq_id, player,
+                            C.MAP_BY_ID.get(player.get("cur_map"), {}),
+                            {"event": "lose"})
+            yield event.plain_result("\n".join(lines))
+            return
+        if extra:
+            lines.append(f"☠️ 红名期间死亡：额外损失 {extra} 金币(上限 2000)！")
         db.update_player(group_id, qq_id, gold=new_gold, hp=player["max_hp"], mp=player["max_mp"],
                          max_hp=player["max_hp"], max_mp=player["max_mp"],
                          cur_map=_town_id, cur_subarea=_town_sa)
-        _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
         lines.append(
             f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了{_town_name}中心广场。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
