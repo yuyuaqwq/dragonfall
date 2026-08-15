@@ -868,7 +868,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 份史莱姆黏液，给玛莎做果冻",
         "objective": {"collect": "史莱姆黏液", "count": 5},
         "reward_exp": 150,
-        "reward_gold": 300,
+        "reward_gold": 60,
         "story": "玛莎：『史莱姆黏液做的果冻可好吃了，镇上孩子们都馋。帮我弄点来？』",
     },
     {
@@ -879,7 +879,7 @@ SIDE_QUESTS = [
         "desc": "探索白鹿之森，找到失踪的商人",
         "objective": {"explore": "white_deer_forest"},
         "reward_exp": 300,
-        "reward_gold": 750,
+        "reward_gold": 150,
         "story": "商人被哥布林劫持，救出后得知哥布林最近在大量囤积武器——为谁囤的？",
     },
     {
@@ -890,7 +890,7 @@ SIDE_QUESTS = [
         "desc": "击败翡翠森林的森林狼，取回被叼走的铁匠锤",
         "objective": {"kill": "森林狼", "count": 5},
         "reward_exp": 400,
-        "reward_gold": 1000,
+        "reward_gold": 200,
         # v104 M20 P1：补设计承诺奖励（06 章 S3「汉斯的手工武器」）——eq: 前缀=名册装备
         "reward_item": "eq:汉斯的手工武器",
         "story": "汉斯：『那把锤子是我爹留给我的，被狼叼走三年了。帮我找回来，我免费给你打件装备。』",
@@ -917,7 +917,7 @@ SIDE_QUESTS = [
         "desc": "找到码头失窃的货物",
         "objective": {"kill": "水鬼", "count": 3},
         "reward_exp": 500,
-        "reward_gold": 1250,
+        "reward_gold": 250,
         "story": "货物被水鬼拖进了海里——打捞时发现水鬼身上有圣光教会的印记。",
     },
     {
@@ -928,7 +928,7 @@ SIDE_QUESTS = [
         "desc": "深入山丘矿洞，调查古代石板遗迹",
         "objective": {"explore": "hill_mine"},
         "reward_exp": 600,
-        "reward_gold": 1500,
+        "reward_gold": 300,
         "story": "行会会长·老约翰·铁砧：『老学者布鲁姆托我传个话——矿洞里挖出了些奇怪的石板，上面的符文……和古籍里记载的深渊封印有关。你去山丘矿洞取回来，报酬从行会账上出。』",
     },
     {
@@ -941,7 +941,7 @@ SIDE_QUESTS = [
         # 染黑玫瑰由腐蚀修女掉落（white_abbey_1），collect_count 与面板/交付/对话树口径一致
         "objective": {"kill": "腐蚀修女", "count": 5, "collect": "染黑玫瑰", "collect_count": 3},
         "reward_exp": 800,
-        "reward_gold": 2000,
+        "reward_gold": 400,
         "story": "玛格丽特：『这些黑玫瑰是圣女走前留下的。她说——「如果花开了，就说明还有希望。」帮我看看。』",
     },
     {
@@ -952,7 +952,7 @@ SIDE_QUESTS = [
         "desc": "为宫廷图书馆收集 3 份古代文献",
         "objective": {"explore": "old_king_tomb"},
         "reward_exp": 1000,
-        "reward_gold": 2500,
+        "reward_gold": 500,
         "story": "腓特烈三世：『三百年前的宫廷档案，关键几页被「意外」烧毁了。朕不信巧合——替朕找一份别的副本回来。』",
     },
     {
@@ -963,7 +963,7 @@ SIDE_QUESTS = [
         "desc": "击败 5 只审判猎犬，证明自己",
         "objective": {"kill": "审判猎犬", "count": 5},
         "reward_exp": 1200,
-        "reward_gold": 3000,
+        "reward_gold": 600,
         # v104 M20 P1：补设计承诺奖励（06 章 S9「骑士团徽章」）
         "reward_item": "骑士团徽章",
         "story": "骑士团新兵：『罗兰团长被教会派去追捕圣女了……我不信圣女是坏人。你能帮我调查吗？』",
@@ -976,7 +976,7 @@ SIDE_QUESTS = [
         "desc": "击败河龙领主，取回河神祭品",
         "objective": {"kill": "河龙领主", "count": 1},
         "reward_exp": 2000,
-        "reward_gold": 5000,
+        "reward_gold": 1000,
         "story": "河边渔夫：『河神发怒了！其实……是我打渔时偷了河底的祭品……求你把祭品还回去。』",
     },
     {
@@ -987,7 +987,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 块古王陵壁画拓片",
         "objective": {"explore": "old_king_tomb"},
         "reward_exp": 2200,
-        "reward_gold": 5500,
+        "reward_gold": 1100,
         "story": "腓特烈三世：『旧王陵的壁画，画着三百年前圣战的另一面。朕要亲眼看看——替朕拓下来。』",
     },
     {
@@ -998,7 +998,7 @@ SIDE_QUESTS = [
         "desc": "击败月狼王·银鬃，调查月狼狂暴的原因",
         "objective": {"kill": "月狼王·银鬃", "count": 1},
         "reward_exp": 2500,
-        "reward_gold": 6000,
+        "reward_gold": 1200,
         "story": "瑟兰：『月狼是月之母的孩子，本不该狂暴。查清真相——若是有人在森林里动了手脚，精灵不会善罢甘休。』",
     },
     {
@@ -1009,7 +1009,7 @@ SIDE_QUESTS = [
         "desc": "击败暗影精灵，取回被夺走的古籍",
         "objective": {"kill": "暗影精灵", "count": 5},
         "reward_exp": 2800,
-        "reward_gold": 7000,
+        "reward_gold": 1400,
         "story": "伊露恩：『那些叛逃的暗影精灵拿走了半部《月之史诗》。那是精灵的记忆，不能丢。』",
     },
     {
@@ -1020,7 +1020,7 @@ SIDE_QUESTS = [
         "desc": "探索星语湖，找回沉入湖心的定情信物",
         "objective": {"explore": "starlake"},
         "reward_exp": 3000,
-        "reward_gold": 7500,
+        "reward_gold": 1500,
         "story": "精灵诗人·夜歌：『三百年前，一个人类骑士在这里向精灵姑娘求婚……戒指掉进了湖里。帮我找回来，这是他们唯一的孩子托付的。』",
     },
     {
@@ -1031,7 +1031,7 @@ SIDE_QUESTS = [
         "desc": "击败古树领主，获得三百年前的情报",
         "objective": {"kill": "古树领主", "count": 1},
         "reward_exp": 3500,
-        "reward_gold": 9000,
+        "reward_gold": 1800,
         "story": "老德鲁伊·橡心：『古树记得三百年前的一切：我看见了……人类骑士和金色的守夜者……他们一起走向烬山……』",
     },
     {
@@ -1042,7 +1042,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 份雪狼皮，给守城兄弟做皮袄",
         "objective": {"collect": "雪狼皮", "count": 5},
         "reward_exp": 4000,
-        "reward_gold": 10000,
+        "reward_gold": 2000,
         "story": "酒馆老板·烧壶：『北境的冬天能冻死龙。帮我弄点雪狼皮，给守城的兄弟们做皮袄。』",
     },
     {
@@ -1053,7 +1053,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 块熔岩核心，换取矮人符文",
         "objective": {"collect": "熔岩核心", "count": 3},
         "reward_exp": 4500,
-        "reward_gold": 11000,
+        "reward_gold": 2200,
         # v104 M20 P1：补设计承诺奖励（06 章 S17「随机符文」）——列表型奖励随机抽一个发放
         "reward_item": ["烈焰符文", "寒霜符文", "雷击符文"],
         "story": "吉姆利：『熔炉谷的火焰元素最近躁动，核心是最好的燃料。帮我弄几块来，我教你一个符文。』",
@@ -1066,7 +1066,7 @@ SIDE_QUESTS = [
         "desc": "击败腐牙兽人，救回被掳走的族人",
         "objective": {"kill": "腐牙兽人", "count": 10},
         "reward_exp": 5000,
-        "reward_gold": 12500,
+        "reward_gold": 2500,
         "story": "北境猎手·铁弓：『我弟弟……被腐牙兽人抓去了。他可能已经……但如果还有一丝希望，求你救救他。』(隐藏选择：救回后可能已被腐蚀，任务有黑暗结局)",
     },
     {
@@ -1077,7 +1077,7 @@ SIDE_QUESTS = [
         "desc": "护送老朝圣者到烬山祭坛外围",
         "objective": {"explore": "ash_temple"},
         "reward_exp": 6000,
-        "reward_gold": 15000,
+        "reward_gold": 3000,
         "story": "老朝圣者·灰袍：『三百年前，我爷爷在这里亲眼看见英雄王走进封印。我来替他看看——看看那个他为之献身的世界，还值不值得。』",
     },
     {
@@ -1088,7 +1088,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 块深渊犬牙(深渊裂隙外围)",
         "objective": {"collect": "深渊犬牙", "count": 5},
         "reward_exp": 8000,
-        "reward_gold": 20000,
+        "reward_gold": 4000,
         # v104 M20 P1：补设计承诺奖励（06 章 S20「传说锻造材料」）
         "reward_item": "传说锻造材料",
         "story": "托尔丁·铁锤：『深渊犬牙是最好的附魔材料。等封印结束……我要给传奇冒险者打一把真正的武器。』",
@@ -1101,7 +1101,7 @@ SIDE_QUESTS = [
         "desc": "击败 5 只龙裔战士，通过龙脊试炼",
         "objective": {"kill": "龙裔战士", "count": 5},
         "reward_exp": 9000,
-        "reward_gold": 22500,
+        "reward_gold": 4500,
         "story": "奥姆之子：『龙裔不轻易认可外人。想听龙骨山脉的秘密？先证明你的实力。』",
     },
     {
@@ -1112,7 +1112,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 份战魂之尘，安抚古战场英魂",
         "objective": {"collect": "战魂之尘", "count": 3},
         "reward_exp": 10000,
-        "reward_gold": 25000,
+        "reward_gold": 5000,
         # v104 M20 P1：补设计承诺奖励（06 章 S22「历史学家笔记」背景故事收藏）
         "reward_item": "历史学家笔记",
         "story": "亡灵学者·骨语：『百族战争的亡魂还在游荡。他们不是怪物，是三百年前战死的英魂——让他们安息吧。』",
@@ -1125,7 +1125,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 份岩羊毛，织成冬衣给过路的商人",
         "objective": {"collect": "岩羊毛", "count": 3},
         "reward_exp": 300,
-        "reward_gold": 750,
+        "reward_gold": 150,
         "story": "苔丝：『过路的商人冻坏了，村里的羊毛又不够。年轻人，去落石峡谷帮我弄点岩羊毛来？』",
     },
     {
@@ -1136,7 +1136,7 @@ SIDE_QUESTS = [
         "desc": "击败精英·野猪王裂鬃",
         "objective": {"kill": "野猪王·裂鬃", "count": 1},
         "reward_exp": 500,
-        "reward_gold": 1250,
+        "reward_gold": 250,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【裂鬃獠牙】；裂鬃獠牙材料保留为配方材料）
         "reward_item": "裂鬃獠牙图纸",
         "story": "灰羽：『野猪岭的裂鬃已经伤了三个人了。老猎人的弓都压不住它，冒险者，看你的了。』",
@@ -1151,7 +1151,7 @@ SIDE_QUESTS = [
         # 目标记基础怪「丘陵狼」（丘陵脚/丘陵腰刷新，铁牙王为丘陵顶精英，交战顺路遭遇）
         "objective": {"kill": "丘陵狼", "count": 10},
         "reward_exp": 1500,
-        "reward_gold": 3500,
+        "reward_gold": 700,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【铁牙狼皮】；铁牙狼皮材料保留为配方材料）
         "reward_item": "铁牙狼皮图纸",
         "story": "巴托：『晨曦城的骑士老爷们不来管我们，但铁盾镇的狼我们自己打。冒险者，帮个忙，酒管够。』",
@@ -1164,7 +1164,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 份幽魂尘，交给晨曦城的学者",
         "objective": {"collect": "幽魂尘", "count": 5},
         "reward_exp": 1800,
-        "reward_gold": 4500,
+        "reward_gold": 900,
         "story": "白鸦：『旧战场遗址的亡魂越来越多……我怀疑有什么东西在唤醒它们。帮我查清楚。』",
     },
     {
@@ -1175,7 +1175,7 @@ SIDE_QUESTS = [
         "desc": "击败海神祭司·澜歌，查明神殿异常",
         "objective": {"kill": "海神祭司·澜歌", "count": 1},
         "reward_exp": 8000,
-        "reward_gold": 20000,
+        "reward_gold": 4000,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【澜歌之泪】；澜歌之泪材料保留为配方材料）
         "reward_item": "澜歌之泪图纸",
         "story": "老舵：『海神祭司·澜歌已经很久没有回应祈祷了。神殿里出了什么事，没人知道……你敢去看看吗？』",
@@ -1188,7 +1188,7 @@ SIDE_QUESTS = [
         "desc": "击败龙鲸王·涛声，取回鲸角",
         "objective": {"kill": "龙鲸王·涛声", "count": 1},
         "reward_exp": 7500,
-        "reward_gold": 19000,
+        "reward_gold": 3800,
         "story": "玛莲：『龙鲸群在迷雾中迷了路，再不引导它们离开暗礁区，整群龙鲸都会搁浅。帮我找到鲸王。』",
     },
     {
@@ -1199,7 +1199,7 @@ SIDE_QUESTS = [
         "desc": "探索沉船墓地，取回被诅咒的船长金币",
         "objective": {"explore": "shipwreck_graveyard"},
         "reward_exp": 8500,
-        "reward_gold": 21000,
+        "reward_gold": 4200,
         "story": "老鲸：『那批金币是当年遇难商船的……被沉船领主诅咒了。取回来，我找教堂净化它，让亡魂安息。』",
     },
     {
@@ -1210,7 +1210,7 @@ SIDE_QUESTS = [
         "desc": "击败风暴海龙·雷鸣，调查风暴之海的异常",
         "objective": {"kill": "风暴海龙·雷鸣", "count": 1},
         "reward_exp": 9000,
-        "reward_gold": 22500,
+        "reward_gold": 4500,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【雷鸣龙鳞】；雷鸣龙鳞材料保留为配方材料）
         "reward_item": "雷鸣龙鳞图纸",
         "story": "赛琳娜：『风暴之海的浪比往年凶得多……珍珠城的占星师说，海底有东西在搅动海面。去看看吧。』",
@@ -1223,7 +1223,7 @@ SIDE_QUESTS = [
         "desc": "击败岩浆王·烬核",
         "objective": {"kill": "岩浆王·烬核", "count": 1},
         "reward_exp": 12000,
-        "reward_gold": 30000,
+        "reward_gold": 6000,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【烬核之心】；烬核之心材料保留为配方材料）
         "reward_item": "烬核之心图纸",
         # v104 M20 P2：高危区域门槛——熔岩河床地图怪 Lv.86，低等级指名接取后长途奔赴只能逃跑流
@@ -1238,7 +1238,7 @@ SIDE_QUESTS = [
         "desc": "探索深渊祭坛，取回祭坛密文",
         "objective": {"explore": "abyss_altar"},
         "reward_exp": 14000,
-        "reward_gold": 35000,
+        "reward_gold": 7000,
         # v104 M20 P2：高危区域门槛——深渊祭坛地图怪 Lv.88
         "min_level": 88,
         "story": "微光：『深渊祭坛的符文在发生变化……那不是我认识的任何语言。把密文带回来，我要研究它。』",
@@ -1251,7 +1251,7 @@ SIDE_QUESTS = [
         "desc": "击败云中圣者·奥拉，接受天空的试炼",
         "objective": {"kill": "云中圣者·奥拉", "count": 1},
         "reward_exp": 20000,
-        "reward_gold": 50000,
+        "reward_gold": 10000,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【奥拉圣印】；奥拉圣印材料保留为配方材料）
         "reward_item": "奥拉圣印图纸",
         # v104 M20 P2：高危区域门槛——云中圣殿地图怪 Lv.94
@@ -1266,7 +1266,7 @@ SIDE_QUESTS = [
         "desc": "击败冰川龙·霜牙，取回被抢走的极光石",
         "objective": {"kill": "冰川龙·霜牙", "count": 1},
         "reward_exp": 9500,
-        "reward_gold": 24000,
+        "reward_gold": 4800,
         "story": "艾拉：『冰川龙偷走了镇上的极光石——那是极光镇百年传承的圣物。没有它，极光会黯淡，镇子会失去庇护。』",
     },
     {
@@ -1277,7 +1277,7 @@ SIDE_QUESTS = [
         "desc": "采集 10 份月光草（『采集』需先拜师学『采集』副业——副业位已满可『遗忘副业 <名称>』腾位；学会后去橡木平原/白鹿之森等新手区草丛有概率采到；不想学采集也可去橡木镇艾琳炼药铺『草药柜』/白鹿城『医师药柜』/铁港城『潮汐药柜』每日交互获取），帮采药女·小荨完成药包",
         "objective": {"collect": "月光草", "count": 10},
         "reward_exp": 500,
-        "reward_gold": 1250,
+        "reward_gold": 250,
         "story": "小荨：『月光草只在夜里发光……我采不够，你帮我凑 10 份好吗？』",
     },
     {
@@ -1288,7 +1288,7 @@ SIDE_QUESTS = [
         "desc": "护送迷路的骑士回到白鹿城，向城主复命",
         "objective": {"explore": "white_deer"},
         "reward_exp": 800,
-        "reward_gold": 2000,
+        "reward_gold": 400,
         "story": "城主·巴伦男爵：『有个外乡来的骑士在翡翠森林里迷了路，看着像是晨曦城那边的人。帮我把人平安带回白鹿城，别让骑士老爷在我们地界上出事。』",
     },
     {
@@ -1299,7 +1299,7 @@ SIDE_QUESTS = [
         "desc": "去旧战场遗址调查圣骑士·奥利被除名的真相",
         "objective": {"explore": "old_battlefield"},
         "reward_exp": 1500,
-        "reward_gold": 3750,
+        "reward_gold": 750,
         "story": "奥利：『他们说我在战场上渎职……可那天夜里，我亲眼看见了不该看见的东西。』",
     },
     {
@@ -1310,7 +1310,7 @@ SIDE_QUESTS = [
         "desc": "帮盗墓贼·鼠仔击败骷髅兵，取回被抢走的护身符",
         "objective": {"kill": "骷髅兵", "count": 3},
         "reward_exp": 1800,
-        "reward_gold": 4500,
+        "reward_gold": 900,
         "story": "鼠仔：『骷髅兵把我祖传的护身符抢走了！帮我抢回来，分你一成！』",
     },
     {
@@ -1321,7 +1321,7 @@ SIDE_QUESTS = [
         "desc": "击败影豹，取回被抢的月弓",
         "objective": {"kill": "影豹", "count": 5},
         "reward_exp": 2500,
-        "reward_gold": 6000,
+        "reward_gold": 1200,
         "story": "薇拉：『月弓被影豹拖进了林子深处……没有它，我永远回不了王庭。』",
     },
     {
@@ -1332,7 +1332,7 @@ SIDE_QUESTS = [
         "desc": "击败腐牙兽人，救出被掳的猎人",
         "objective": {"kill": "腐牙兽人", "count": 5},
         "reward_exp": 6000,
-        "reward_gold": 15000,
+        "reward_gold": 3000,
         "story": "灰狼：『腐牙兽人把我的兄弟抓进林子深处了……帮帮我！』",
     },
     {
@@ -1343,7 +1343,7 @@ SIDE_QUESTS = [
         "desc": "在暴风雨中守护无名港的灯塔",
         "objective": {"explore": "nameless_harbor"},
         "reward_exp": 8000,
-        "reward_gold": 20000,
+        "reward_gold": 4000,
         # v104 M20 P2：高危区域门槛——无名港地图怪 Lv.55（与 s_lighthouse 同区同规格）
         "min_level": 55,
         "story": "光柄：『灯不能灭。可这暴风雨……年轻人，你能陪我守到天亮吗？』",
@@ -1356,7 +1356,7 @@ SIDE_QUESTS = [
         "desc": "把船长的信送回珍珠城",
         "objective": {"explore": "pearl_city"},
         "reward_exp": 9000,
-        "reward_gold": 22500,
+        "reward_gold": 4500,
         "story": "船长的亡灵：『这封信……帮我送到珍珠城，交给我女儿。拜托了。』",
     },
     {
@@ -1367,7 +1367,7 @@ SIDE_QUESTS = [
         "desc": "收集 5 份雷晶砂，帮追风者·岚完成风暴样本",
         "objective": {"collect": "雷晶砂", "count": 5},
         "reward_exp": 12000,
-        "reward_gold": 30000,
+        "reward_gold": 6000,
         # v104 M20 P2：高危区域门槛——风暴峭壁地图怪 Lv.86
         "min_level": 86,
         "story": "岚：『风暴的结晶！帮我收集一些，我要研究它为什么这么美！』",
@@ -1380,7 +1380,7 @@ SIDE_QUESTS = [
         "desc": "前往龙脊山脉深处，通过龙语试炼",
         "objective": {"explore": "dragon_ridge"},
         "reward_exp": 15000,
-        "reward_gold": 30000,
+        "reward_gold": 6000,
         # v104 M20 P2：高危区域门槛——龙脊山脉地图怪 Lv.82
         "min_level": 82,
         "story": "古尔：『龙说，只有通过试炼的人，才配听懂它们的话。你愿意试试吗？』",
@@ -1393,7 +1393,7 @@ SIDE_QUESTS = [
         "desc": "击败龙陨战魂·暮影，安抚龙之亡魂",
         "objective": {"kill": "龙陨战魂·暮影", "count": 1},
         "reward_exp": 16000,
-        "reward_gold": 40000,
+        "reward_gold": 8000,
         # v104 M20 P2：支线奖励改为图纸（学习后可锻造【暮影龙魂】；暮影龙魂材料保留为配方材料）
         "reward_item": "暮影龙魂图纸",
         # v104 M20 P2：高危区域门槛——龙陨谷地图怪 Lv.88
@@ -1409,7 +1409,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 块烬火余烬，交给老守墓人·灰须",
         "objective": {"collect": "烬火余烬", "count": 3},
         "reward_exp": 18000,
-        "reward_gold": 45000,
+        "reward_gold": 9000,
         "story": "灰须：『圣战结束那天，活下来的只有我爷爷和一把烧红的剑。那剑还在烬山深处等着它的主人。替我取来烬火余烬，我带你去见它。』",
         "reward_item": "烬火信标",
     },
@@ -1421,7 +1421,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 张泛黄书页，交给图书管理员·贝拉",
         "objective": {"collect": "泛黄书页", "count": 3},
         "reward_exp": 9000,
-        "reward_gold": 20000,
+        "reward_gold": 4000,
         "story": "贝拉：『他们把真相锁进了地窖最深处。三百年了……我守着这些书，就是在等一个能读完它们的人。帮我找回散落的三页旧纸吧。』",
         "reward_item": "星尘沙漏",
     },
@@ -1435,7 +1435,7 @@ SIDE_QUESTS = [
         "desc": "清剿银风商道上 5 只野狗或森林狼，护送商队安全抵达铁港城",
         "objective": {"kill_any": 5},
         "reward_exp": 300,
-        "reward_gold": 750,
+        "reward_gold": 150,
         "story": "老赵：『小兄弟，搭把手！这趟货从白鹿城拉到铁港城，路上野狗和狼崽子越来越凶了。帮我把它们赶走，到了铁港城请你喝最好的麦酒！』",
     },
     {
@@ -1446,7 +1446,7 @@ SIDE_QUESTS = [
         "desc": "在西岭荒原击败 3 名盗贼，为官道除患",
         "objective": {"kill": "盗贼", "count": 3},
         "reward_exp": 2500,
-        "reward_gold": 6000,
+        "reward_gold": 1200,
         "story": "科尔：『晨曦城到铁盾镇这条官道，最近被一伙盗贼搅得不得安宁。商队都不敢走了。你既然敢来西岭，帮我们剿了这帮杂碎如何？』",
     },
     {
@@ -1460,7 +1460,7 @@ SIDE_QUESTS = [
         "min_level": 40,
         "objective": {"explore": "mist_tide_passage"},
         "reward_exp": 6000,
-        "reward_gold": 15000,
+        "reward_gold": 3000,
         "story": "巴德：『哎……无名灯塔的灯火熄了三年，这片雾里多少船找不到归路。年轻人，你要是能点亮那座灯塔，雾里的幽魂也能安息了。』",
     },
     {
@@ -1471,7 +1471,7 @@ SIDE_QUESTS = [
         "desc": "清理矮人长廊深处塌方处的 3 只霜巨魔，恢复隧道通行",
         "objective": {"kill": "霜巨魔", "count": 3},
         "reward_exp": 12000,
-        "reward_gold": 30000,
+        "reward_gold": 6000,
         "story": "杜林：『隧道前头塌方了，霜巨魔钻了进来，把我们的符文灯全砸了！帮我收拾掉它们，我分你一块祖传的符文石！』",
     },
     {
@@ -1482,7 +1482,7 @@ SIDE_QUESTS = [
         "desc": "调查龙脊崖脚的龙骨异动，击败熔岩元素与古树领主",
         "objective": {"kill": "熔岩元素", "count": 3},
         "reward_exp": 13000,
-        "reward_gold": 32500,
+        "reward_gold": 6500,
         "story": "孤鸦：『龙脊崖脚的龙骨在夜里会发光、会动……三百年前的龙战不该留下这样的遗响。去看看吧，查清龙骨异动的真相。』",
     },
     {
@@ -1493,7 +1493,7 @@ SIDE_QUESTS = [
         "desc": "击败冰川龙·霜牙，取回龙血证明勇气",
         "objective": {"kill": "冰川龙·霜牙", "count": 1},
         "reward_exp": 30000,
-        "reward_gold": 75000,
+        "reward_gold": 15000,
         "story": "烬鳞：『年轻的旅人，你身上的气息……龙神在注视你。冰川龙·霜牙盘踞在山口，它挡了所有龙裔朝圣的路。击败它，取回它的龙血，你将被龙裔视为兄弟。』",
     },
     # ============ v97.1 告示委托（board: true，告示板接取，find 型条件探索事件） ============
@@ -1506,7 +1506,7 @@ SIDE_QUESTS = [
         "desc": "告示板上的寻猫启事：白鹿之森走丢的虎斑猫『虎斑』，找到它交给玛莎",
         "objective": {"find": "虎斑猫", "map": "white_deer_forest", "chance": 0.12},
         "reward_exp": 150,
-        "reward_gold": 300,
+        "reward_gold": 60,
         "story": "告示板贴着一张皱巴巴的寻猫启事：『寻猫启事：我家虎斑(白猫，黄褐斑纹)在白鹿之森走丢了，它胆子小，看到人会跑。提供线索者酬谢三枚铜板！——橡木镇旅店·玛莎』",
     },
     # R3 P1-4：潮汐祭司支线（29 章 13.4/13.8：潮汐回廊收集 3 片贝壳换潮汐护符；
@@ -1519,7 +1519,7 @@ SIDE_QUESTS = [
         "desc": "收集 3 片潮汐贝壳，换取海神的祝福·潮汐护符",
         "objective": {"collect": "潮汐贝壳", "count": 3},
         "reward_exp": 20000,
-        "reward_gold": 50000,
+        "reward_gold": 10000,
         "reward_item": "潮汐护符",
         "story": "潮汐祭司：『海神注视着你。潮汐回廊的贝壳，是海神散落的鳞片——集齐 3 片，我为你祝福。』",
     },
@@ -1538,7 +1538,7 @@ SIDE_QUESTS = [
         "desc": "前往晨曦大圣堂的地窖，击败 3 只审判猎犬，证明你能在时间的洪流中站稳",
         "objective": {"kill": "审判猎犬", "count": 3},
         "reward_exp": 20000,
-        "reward_gold": 45000,
+        "reward_gold": 9000,
         "unlock_class": "cls_chronomancer",
         "story": "艾瑟拉：『晨曦大圣堂的古老日晷从不在正午指向太阳——时间在这里留下了伤痕。去大圣堂的地窖与守卫谈谈，只有能听见时间低语的人，才配翻开那一页。』",
     },
@@ -1553,7 +1553,7 @@ SIDE_QUESTS = [
         "desc": "前往月影林，击败 3 只影豹，在月影中证明你的身法",
         "objective": {"kill": "影豹", "count": 3},
         "reward_exp": 22000,
-        "reward_gold": 48000,
+        "reward_gold": 9600,
         "unlock_class": "cls_shadow_blade",
         "story": "夜枭：『月影林的影豹快过月光。去追上它们、击败它们——那时候你就不再是追影子的人，你就是影子本身。』",
     },
@@ -1567,7 +1567,7 @@ SIDE_QUESTS = [
         "desc": "击败 2 台残破的战争魔像，向龙血证明你的战意",
         "objective": {"kill": "战争魔像(残)", "count": 2},
         "reward_exp": 20000,
-        "reward_gold": 45000,
+        "reward_gold": 9000,
         # v112 P1：解锁龙裔线并附赠跨流派技能书（不选龙血流派也能学龙息之怒）
         "reward_item": "龙息之怒技能书",
         "unlock_class": "cls_dragon_oath",
@@ -1583,7 +1583,7 @@ SIDE_QUESTS = [
         "desc": "击败 3 只湖妖，让星辉重新映照湖面",
         "objective": {"kill": "湖妖", "count": 3},
         "reward_exp": 22000,
-        "reward_gold": 48000,
+        "reward_gold": 9600,
         "unlock_class": "cls_wild_hunter",
         "story": "星澜：『星语湖是天空的镜子。湖妖搅浑了水，星星就再也照不进来。驱散它们——能看见星星的人，命运才会为你转动。』",
     },
@@ -1598,7 +1598,7 @@ SIDE_QUESTS = [
         "desc": "在边境堡外以一敌三，击败 3 名兽人劫掠者",
         "objective": {"kill": "兽人劫掠者", "count": 3},
         "reward_exp": 20000,
-        "reward_gold": 45000,
+        "reward_gold": 9000,
         "unlock_class": "cls_wu_sheng",
         "story": "铁山：『拳不练千遍，打不赢一个贼。边境堡外兽人劫掠者猖狂——去吧，三拳一个，打完了回来，我教你真正的拳。』",
     },
@@ -1613,7 +1613,7 @@ SIDE_QUESTS = [
         "desc": "击败 3 名兽人劫掠者，让战场上的亡魂安息",
         "objective": {"kill": "兽人劫掠者", "count": 3},
         "reward_exp": 20000,
-        "reward_gold": 45000,
+        "reward_gold": 9000,
         "unlock_class": "cls_hymn",
         "story": "枯骨：『边境堡外的骨头不该爬起来。它们爬起来，是因为有人忘了该怎么送别。去让它们安息——能听懂亡者低语的人，才有资格执掌亡者。』",
     },
