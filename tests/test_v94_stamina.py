@@ -12,7 +12,7 @@
   8. 自然恢复（5 分钟 +1）
   9. 角色面板显示体力
 """
-import sys, os, time
+import sys, os, time, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run, make_player, new_main
 from data.plugins.dragonfall.game.core import wild as W
@@ -37,6 +37,7 @@ def stamina(gid, qid):
     return db.get_player(gid, qid).get("stamina", 0)
 
 async def main():
+    random.seed(42)  # v117 测试确定性：探索/事件随机分支固定（偶发采集类事件额外扣体力导致假红）
     m = new_main()
     make_player("g1", "q1", level=1)
     # v95.15：固定非雨天，防 emerald_forest 雨天限定的『迷路的骑士』偶遇干扰探索扣体力断言

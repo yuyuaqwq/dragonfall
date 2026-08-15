@@ -29,6 +29,14 @@ os.environ.setdefault("GWEN_TEST_MODE", "1")
 sys.path.insert(0, QQBOT_DIR)
 sys.path.insert(0, PLUGIN_DIR)
 
+# v117.5 测试提速：shim astrbot（平台适配层替身，行为等价，省 ~3s/进程 import）。
+# 游戏命令层用到的 astrbot 符号都是注册副作用装饰器+类型标注+简单数据类，
+# 见 tests/shim_astrbot/README.md。设 GWEN_NO_SHIMMED_ASTRBOT=1 退回真实 astrbot（对照验证用）。
+if os.environ.get("GWEN_NO_SHIMMED_ASTRBOT") != "1":
+    _SHIM_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shim_astrbot")
+    if os.path.isdir(_SHIM_DIR) and _SHIM_DIR not in sys.path:
+        sys.path.insert(0, _SHIM_DIR)
+
 from data.plugins.dragonfall.game import content as C, db, engine as E  # noqa: E402
 from data.plugins.dragonfall.game import battle as BT  # noqa: E402
 from data.plugins.dragonfall.main import Main  # noqa: E402

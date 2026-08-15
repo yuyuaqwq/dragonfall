@@ -2,17 +2,32 @@
 """全量回归：逐个直接执行 tests/test_*.py（旧式脚本 + pytest 风格均可独立运行）。
 
 用法：
-  python scripts/run_all_tests.py [--file tests/test_xxx.py] [--fail-fast]
+  python scripts/run_all_tests.py [--file tests/test_xxx.py] [--fail-fast] [--jobs=N] [--serial] [--skip=test_xxx.py[,test_yyy.py]] [--real-astrbot]
+
+v117 全量提速（默认并行 + shim astrbot）：
+  - 每个测试文件 = 独立子进程 + 独立 GWEN_GAME_DB 私有库（tests/.run_all_workers/ 下）
+  - 每轮跑先 init_db 建一次空白 schema 模板，各文件复制一份 → 表结构齐全且零残留，
+    文件间互不污染（conftest 的 setdefault 尊重外层 env）
+  - 默认 --jobs 按核数自适应（4~16），24 核机器即 16 路并行；--serial 恢复旧的纯串行
+    共享库行为（~9 分钟）；--skip= 跳过已知坏测试（如重构期间未同步的旧断言测试）
+  - v117.5：默认注入 tests/shim_astrbot（行为等价的 astrbot 替身，省 ~3s/进程 import，
+    全量 ~105s → ~27s）；--real-astrbot 退回真实 astrbot（对照验证用）
+  - 硬编码共享 test_game_data.db 的文件自动进「串行槽」先跑（目前：test_v101_28_food_hot.py）
+  - 单文件 --file= 仍走旧逻辑（共享 test_game_data.db），行为不变
 
 注意：
   - 必须用 AstrBot 的 uv python（带 pypinyin）：C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe
-  - 所有测试共用 test_game_data.db，顺序执行没问题；但全量跑完前不要并行跑单测（会互相 clean_db 污染）
   - 跑全量期间不要改动任何源文件（避免中间态误判）
+  - 并行文件用独立私有库，不再互相 clean_db 污染；串行槽文件仍用共享库，
+    因此全量跑完前不要手动并行跑单测（串行槽文件会与手动单测共用 test_game_data.db）
 """
 import os
+import re
+import shutil
 import subprocess
 import sys
 import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 
 # P1-1：子进程强制 UTF-8（否则测试打印 ✅/中文在 GBK 控制台崩溃（UnicodeEncodeError）
 # → 假红）。先 setdefault 再在 subprocess 环境里也显式传递，双保险。
@@ -30,74 +45,214 @@ TEST_TIMEOUT = 300  # P2：单测超时秒数（默认 None 即不限）
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS_DIR = os.path.join(PLUGIN_DIR, "tests")
+QQBOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(PLUGIN_DIR)))  # dragonfall/→plugins/→data/→qqbot/
 PYTHON = r"C:/Users/yuyu/AppData/Roaming/uv/tools/astrbot/Scripts/python.exe"
+# v117.5：shim astrbot（行为等价替身，省 ~3s/进程 import，详见 tests/shim_astrbot/README.md）。
+# 默认注入子进程 PYTHONPATH；--real-astrbot 关闭（对照验证用）。
+SHIM_DIR = os.path.join(TESTS_DIR, "shim_astrbot")
 
-def main():
-    fail_fast = "--fail-fast" in sys.argv
+# 串行槽：直接赋值 os.environ["GWEN_GAME_DB"] 指向共享 test_game_data.db 的文件
+# （不认外层 env，无法用私有库隔离）→ 必须与并行主体错开，保持旧行为先跑。
+SERIAL_SLOT = {"test_v101_28_food_hot.py"}
+
+# 探测未来新增的同款硬编码共享库文件（忽略注释行），命中自动进串行槽
+_SHARED_DB_RE = re.compile(
+    r'os\.environ\[["\']GWEN_GAME_DB["\']\]\s*=\s*[^\n]*test_game_data\.db'
+)
+
+# 并行 worker 库的空白 schema 模板初始化（每轮跑只执行一次，init_db 全表 + 老库自愈）。
+# 与旧共享库等价：表结构齐全；且每个文件拿到的是零残留新库（项目本就往私有库方向走）。
+_TPL_INIT = (
+    "import os,sys;"
+    "os.environ['GWEN_GAME_DB']=sys.argv[1];"
+    "sys.path.insert(0,sys.argv[2]);"
+    "from data.plugins.dragonfall.game.store import init_db;"
+    "init_db()"
+)
+
+
+def _parse_args(argv):
+    fail_fast = "--fail-fast" in argv
+    serial = "--serial" in argv
+    real_astrbot = "--real-astrbot" in argv
+    jobs = max(4, min(16, os.cpu_count() or 8))  # 默认按核数自适应（4~16）
     only = None
-    for a in sys.argv[1:]:
+    skips = []
+    for a in argv:
         if a.startswith("--file="):
             only = a.split("=", 1)[1]
+        elif a.startswith("--jobs="):
+            jobs = int(a.split("=", 1)[1])
+        elif a.startswith("--skip="):
+            for s in a.split("=", 1)[1].split(","):
+                s = s.strip()
+                if s:
+                    skips.append(s if s.endswith(".py") else s + ".py")
+    return fail_fast, serial, real_astrbot, jobs, only, skips
 
+
+def _collect_files(only, skips):
+    """返回 (串行槽文件列表, 并行文件列表)。--file= 模式整体走串行槽（旧行为）。"""
     if only:
-        files = [only] if only.endswith(".py") else [only + ".py"]
-        # 兼容两种传法：--file=test_xxx.py 或 --file=tests/test_xxx.py（避免重复 join）
-        files = [os.path.join(TESTS_DIR, os.path.basename(f)) if not os.path.isabs(f) else f for f in files]
-    else:
-        files = sorted(
-            f for f in os.listdir(TESTS_DIR)
-            if f.startswith("test_") and f.endswith(".py")
-        )
-        files = [os.path.join(TESTS_DIR, f) for f in files]
+        f = only if only.endswith(".py") else only + ".py"
+        if not os.path.isabs(f):
+            f = os.path.join(TESTS_DIR, os.path.basename(f))
+        return [f], []
 
-    results = []
-    t0 = time.time()
-    for f in files:
-        name = os.path.basename(f)
-        ts = time.time()
-        env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    def _want(name):
+        return name not in skips
+
+    serial, parallel = [], []
+    for name in sorted(
+        f for f in os.listdir(TESTS_DIR)
+        if f.startswith("test_") and f.endswith(".py")
+    ):
+        if not _want(name):
+            continue
+        if name in SERIAL_SLOT:
+            serial.append(os.path.join(TESTS_DIR, name))
+            continue
         try:
-            proc = subprocess.run(
-                [PYTHON, f], capture_output=True, text=True, encoding="utf-8",
-                errors="replace", env=env, timeout=TEST_TIMEOUT,
-            )
-            timed_out = False
-        except subprocess.TimeoutExpired as _te:
-            # P2：超时记录（stdout/stderr 可能为 bytes，text 模式下可能部分丢失）
-            timed_out = True
-            proc = _te
-        dt = time.time() - ts
-        if timed_out:
-            ok = False
-        else:
-            ok = proc.returncode == 0
-        results.append((name, ok, proc, dt))
-        flag = "✅" if ok else ("⏱️" if timed_out else "❌")
-        print(f"{flag} {name} ({dt:.1f}s, exit={'TIMEOUT' if timed_out else proc.returncode})", flush=True)
-        if not ok:
-            # P1-2：失败分支同时补打 stdout + stderr 尾（各 30 行），便于定位子进程崩溃/报错
-            out_lines = (proc.stdout or "").strip().splitlines() if hasattr(proc, "stdout") else []
-            err_lines = (proc.stderr or "").strip().splitlines() if hasattr(proc, "stderr") else []
-            for label, lines in (("stdout:", out_lines), ("--- stderr ---", err_lines)):
-                tail = lines[-30:] if lines else []
-                if tail:
-                    print(label, flush=True)
-                    print("\n".join(tail), flush=True)
-            print("-" * 60, flush=True)
-            if fail_fast:
-                break
+            with open(os.path.join(TESTS_DIR, name), encoding="utf-8") as fh:
+                code_lines = [ln for ln in fh.read().splitlines()
+                              if not ln.lstrip().startswith("#")]
+                if _SHARED_DB_RE.search("\n".join(code_lines)):
+                    serial.append(os.path.join(TESTS_DIR, name))
+                    continue
+        except OSError:
+            pass
+        parallel.append(os.path.join(TESTS_DIR, name))
+    return serial, parallel
 
-    # 汇总
+
+def _run_one(f, env, seed_db=None):
+    if seed_db is not None:
+        # 给本文件复制一份空白 schema 模板库（复制远快于重新建表 + 重新 import）
+        shutil.copy2(seed_db, env["GWEN_GAME_DB"])
+    ts = time.time()
+    try:
+        proc = subprocess.run(
+            [PYTHON, f], capture_output=True, text=True, encoding="utf-8",
+            errors="replace", env=env, timeout=TEST_TIMEOUT,
+        )
+        timed_out, ok = False, proc.returncode == 0
+    except subprocess.TimeoutExpired as te:  # P2：超时记录
+        proc, timed_out, ok = te, True, False
+    return os.path.basename(f), ok, proc, time.time() - ts, timed_out
+
+
+def _report(name, ok, proc, dt, timed_out):
+    flag = "✅" if ok else ("⏱️" if timed_out else "❌")
+    print(f"{flag} {name} ({dt:.1f}s, exit={'TIMEOUT' if timed_out else proc.returncode})", flush=True)
+    if not ok:
+        # P1-2：失败分支同时补打 stdout + stderr 尾（各 30 行），便于定位子进程崩溃/报错
+        out_lines = (proc.stdout or "").strip().splitlines() if hasattr(proc, "stdout") else []
+        err_lines = (proc.stderr or "").strip().splitlines() if hasattr(proc, "stderr") else []
+        for label, lines in (("stdout:", out_lines), ("--- stderr ---", err_lines)):
+            tail = lines[-30:] if lines else []
+            if tail:
+                print(label, flush=True)
+                print("\n".join(tail), flush=True)
+        print("-" * 60, flush=True)
+
+
+def _summary(results, t0):
     print("\n" + "=" * 60)
     passed = [r for r in results if r[1]]
     failed = [r for r in results if not r[1]]
     print(f"文件: {len(results)} 个，通过 {len(passed)}，失败 {len(failed)}，总耗时 {time.time()-t0:.0f}s")
     if failed:
         print("失败文件:")
-        for name, _, proc, _ in failed:
-            timed = isinstance(proc, subprocess.TimeoutExpired)
-            print(f"  {'⏱️' if timed else '❌'} {name}{'（超时）' if timed else ''}")
+        for name, _ in failed:
+            print(f"  ❌ {name}")
     return 1 if failed else 0
+
+
+def main():
+    fail_fast, serial_mode, real_astrbot, jobs, only, skips = _parse_args(sys.argv[1:])
+    serial_files, parallel_files = _collect_files(only, skips)
+    if serial_mode:
+        parallel_files, serial_files = [], serial_files + parallel_files
+    if skips:
+        print(f"跳过 {len(skips)} 个文件: {', '.join(skips)}", flush=True)
+    if real_astrbot:
+        print("使用真实 astrbot（对照模式，较慢）", flush=True)
+
+    worker_dir = os.path.join(TESTS_DIR, ".run_all_workers")
+    tpl_db = None
+    if parallel_files:
+        shutil.rmtree(worker_dir, ignore_errors=True)
+        os.makedirs(worker_dir, exist_ok=True)
+        # 每轮跑只建一次空白 schema 模板（只 import game.store，~0.3s），
+        # 之后每个文件复制一份即可，不重复吃建表开销
+        tpl_db = os.path.join(worker_dir, "template.db")
+        try:
+            subprocess.run(
+                [PYTHON, "-B", "-c", _TPL_INIT, tpl_db, QQBOT_DIR],
+                check=True, timeout=120, capture_output=True,
+                text=True, encoding="utf-8", errors="replace",
+            )
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as _e:
+            print(f"❌ worker 模板库初始化失败: {_e}", flush=True)
+            shutil.rmtree(worker_dir, ignore_errors=True)
+            return 1
+
+    results = []
+    t0 = time.time()
+    base_env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+    if not real_astrbot and os.path.isdir(SHIM_DIR):
+        # shim astrbot 注入：放 PYTHONPATH 最前（优先于 site-packages 的真实 astrbot）
+        _pp = base_env.get("PYTHONPATH", "")
+        base_env["PYTHONPATH"] = SHIM_DIR + (os.pathsep + _pp if _pp else "")
+
+    # 1) 串行槽（硬编码共享库的文件，保持旧行为：共享 test_game_data.db）
+    for f in serial_files:
+        name, ok, proc, dt, timed_out = _run_one(f, base_env)
+        results.append((name, ok))
+        _report(name, ok, proc, dt, timed_out)
+        if fail_fast and not ok:
+            break
+
+    # 2) 并行主体（每文件独立私有库，互不污染）
+    if parallel_files:
+        def make_env(i):
+            return {**base_env, "GWEN_GAME_DB": os.path.join(worker_dir, f"test_game_data_w{i}.db")}
+
+        jobs = max(1, min(jobs, len(parallel_files)))
+        queue = iter(enumerate(parallel_files))
+        executor = ThreadPoolExecutor(max_workers=jobs)
+        pending = {}
+        fail_seen = False
+
+        def submit_next():
+            nonlocal fail_seen
+            if fail_fast and fail_seen:
+                return False
+            try:
+                i, f = next(queue)
+            except StopIteration:
+                return False
+            pending[executor.submit(_run_one, f, make_env(i), tpl_db)] = f
+            return True
+
+        for _ in range(jobs):
+            if not submit_next():
+                break
+        while pending:
+            done, _ = wait(pending, return_when=FIRST_COMPLETED)
+            for fut in done:
+                f = pending.pop(fut)
+                name, ok, proc, dt, timed_out = fut.result()
+                results.append((name, ok))
+                _report(name, ok, proc, dt, timed_out)
+                if not ok:
+                    fail_seen = True
+                submit_next()
+        executor.shutdown(wait=True)
+
+    shutil.rmtree(worker_dir, ignore_errors=True)
+    return _summary(results, t0)
+
 
 if __name__ == "__main__":
     sys.exit(main())
