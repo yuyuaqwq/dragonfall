@@ -8,7 +8,7 @@
   3. 满级面板（P2）：Lv.10 显示"已满级"且无空经验条（不再 0/200）
   4. 每日任务重 roll（P1）：锁定任务副业已遗忘→查看任务→重新抽取
   5. 遗忘清等待条件化（P1）：垂钓等待中遗忘炼金→垂钓状态保留（不被误清）
-  6. 排行群内过滤（P1）：群 A 高等级玩家不串入群 B 排行
+  6. 排行全服(跨群)（v113.5 T1 修订 v104 P1 群内过滤）：群 A 高等级玩家在全服榜中可见（与等级榜 top_players 同口径）
 
 运行：python tests/test_v104_prof_enhance.py（exit=0 全过）
 """
@@ -164,14 +164,14 @@ async def main():
           str(db.get_activated_profs("g1", "w1")))
     m._prof_wait_clear("g1", "w1")
 
-    # ============ 6. 排行群内过滤（v104 修复） ============
-    print("【6. 排行群内过滤（v104 修复）】")
+    # ============ 6. 排行全服(跨群)（v113.5 T1 修订 v104 群内过滤） ============
+    print("【6. 排行全服(跨群)：他群玩家可见（v113.5 T1）】")
     await cmd(m, "register", "gA", "qA", "注册 战士 群A大佬 男")
     await cmd(m, "register", "gB", "qB", "注册 战士 群B萌新 男")
-    db.add_prof_exp("gA", "qA", "gather", 1000)  # 群A：Lv.10（总分 10）
-    db.add_prof_exp("gB", "qB", "gather", 20)    # 群B：Lv.2（总分 2）
+    db.add_prof_exp("gA", "qA", "gather", 1000)  # 群A：Lv.7（总分 14）
+    db.add_prof_exp("gB", "qB", "gather", 20)    # 群B：Lv.2（总分 9）
     out = await cmd(m, "profession_view", "gB", "qB", "副业 排行")
-    check("群B排行不出现群A玩家", "群A大佬" not in out, out[:200])
+    check("群B排行出现群A玩家(全服榜，与等级榜 top_players 同口径)", "群A大佬" in out, out[:200])
     check("群B排行含本群玩家", "群B萌新" in out, out[:200])
     out = await cmd(m, "profession_view", "gA", "qA", "副业 排行")
     check("群A排行含群A玩家", "群A大佬" in out, out[:200])

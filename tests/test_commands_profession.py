@@ -53,10 +53,10 @@ async def main():
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
     db.update_player("g1", "w1", level=20, gold=5000, cur_map="oak_plain")
 
-    print("【v67 双副业：面板（v105R3 M13 P3-4 未激活副业也列出 🔒）】")
+    print("【v113.5 T1 副业面板：按鱼鱼要求不显示未激活副业（修订 v105R3 M13 P3-4）】")
     out = await cmd(m, "profession_view", "g1", "w1", "副业")
     check("面板显示已激活 0/2", "0/2" in out, out[:120])
-    check("未解锁副业显示🔒+拜师引导", "🔒未激活" in out and "还没有解锁" in out, out[:200])
+    check("不显示未激活副业🔒行(按鱼鱼要求)", "🔒未激活" not in out and "还没有解锁" in out, out[:200])
 
     print("【v67 双副业：自动激活（v95.22 需先拜师）】")
     db.update_player("g1", "w1", apprentices=["gather"])  # v95.22 拜师模拟

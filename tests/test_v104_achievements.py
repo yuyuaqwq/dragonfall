@@ -11,7 +11,7 @@ commands/combat.py、data/achievements.py、data/maps.py）：
 4. hidden_area 语义：普通区域到访不计数，隐藏区域才计数（ach_mythril/ach_hidden3）
 5. 称号 bonus 单次：采集 Lv.10 称号 hp 加成只加一次（不双倍发放）
 6. 全知全能：ach_apprentice8 解锁 → add_prof_exp 经验 ×1.10（ceil）
-7. 副业排行群内：prof_top(group_id) 只返回本群玩家
+7. 副业排行全服(跨群)：prof_top(group_id) 包含他群玩家（v113.5 T1）
 8. world_events 写入：世界事件期间战斗结算 → stats.world_events 递增
 
 独立运行：python tests/test_v104_achievements.py
@@ -179,22 +179,23 @@ db.add_prof_exp("g1", "q7", "gather", 1)
 check("ach_apprentice8 解锁：exp +2（ceil(1×1.10)，保底 +1）",
       profs_of("g1", "q7")["gather"]["exp"] == 2)
 
-# ============ 7. 副业排行群内 ============
-print("【7. 副业排行 prof_top 只返回本群玩家】")
+# ============ 7. 副业排行全服(跨群) ============
+print("【7. 副业排行 prof_top 全服(跨群，v113.5 T1)】")
 clean_db()
 make_player("g1", "q8", "测试辛", "战士", level=1)
 make_player("g1", "q9", "测试壬", "战士", level=1)
 make_player("g2", "q10", "测试癸", "战士", level=1)
-db.add_prof_exp("g1", "q8", "gather", 1000)   # q8 总分高
+db.add_prof_exp("g1", "q8", "gather", 1200)   # q8 总分高(1200→Lv.8，严格高于 q10 的 Lv.7)
 db.add_prof_exp("g1", "q9", "mining", 300)    # q9 总分低
-db.add_prof_exp("g2", "q10", "gather", 1000)  # 他群高总分，不得串入
+db.add_prof_exp("g2", "q10", "gather", 1000)  # 他群高总分，全服榜应计入（与等级榜 top_players 同口径）
 tops7 = db.prof_top("g1", 10)
 ids7 = {r["qq_id"] for r in tops7}
-check("prof_top(g1) 只含本群 q8/q9", ids7 == {"q8", "q9"})
-check("他群高排名 q10 不串入", "q10" not in ids7)
-check("本群第一名 q8", bool(tops7) and tops7[0]["qq_id"] == "q8")
+check("prof_top(g1) 全服含 q8/q9/q10", ids7 == {"q8", "q9", "q10"})
+check("他群玩家 q10 计入全服榜", "q10" in ids7)
+check("全服第一名 q8", bool(tops7) and tops7[0]["qq_id"] == "q8")
 check("总分排序（q8 total > q9 total）",
-      bool(tops7) and tops7[0]["total"] > tops7[1]["total"])
+      bool(tops7) and next(r["total"] for r in tops7 if r["qq_id"] == "q8")
+      > next(r["total"] for r in tops7 if r["qq_id"] == "q9"))
 
 # ============ 8. world_events 写入 ============
 print("【8. 世界事件期间战斗 → stats.world_events 递增】")

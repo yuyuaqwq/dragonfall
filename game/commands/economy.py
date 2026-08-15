@@ -1273,9 +1273,9 @@ class EconomyCmds(CommandBase):
         for key, p in profs.items():
             total += p["lv"]
             if key not in activated:
-                # v105R3 M13 P3-4：面板列出未激活副业（19 章 §4.2 设计"显示：已激活/未激活/等级"），
-                # 未激活显示 🔒 + 拜师引导；v95.22 曾只列已激活，新玩家看不到副业全貌
-                lines.append(f"{icons.get(key, '·')} {p['name']}：Lv.{p['lv']} 🔒未激活(找导师拜师解锁)")
+                # v105R3 M13 P3-4 修订（v113.5 T1）：按鱼鱼要求，副业面板不显示未激活副业——
+                # 原设计"显示：已激活/未激活/等级"(19 章 §4.2)取消，面板只列已解锁副业，
+                # 未激活副业静默跳过（不再打印 🔒未激活 行）
                 continue
             if p["lv"] >= 10:
                 # v104 P2 修复：满级不画经验条（lv>=10 时 exp 恒 0，旧版显示空条 0/200）

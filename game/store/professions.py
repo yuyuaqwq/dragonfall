@@ -115,27 +115,20 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
 def prof_top(group_id, limit=10):
     """副业总分排行(8 条副业等级之和，v101.28i 补 enhance/enchant)
 
-    v104 修复：按群过滤（JOIN player_groups，口径同 get_group_players）——
-    群 A 排行不再串入群 B 玩家；私聊(无群)退化为全服排行。
+    v113.5 T1 修复：全服排行(跨群)——玩家副业数据全局，与等级榜 top_players
+    同口径（其注释明确"玩家数据全局，排行不按群过滤"），group_id 仅作兼容参数
+    不再过滤；旧 v104 按群 JOIN player_groups 导致跨群玩家互相看不到。
     """
     with _lock:
         conn = _connect()
         try:
             _sum = ("gather_lv+mining_lv+fishing_lv+alchemy_lv+craft_lv"
                     "+cooking_lv+enhance_lv+enchant_lv AS total")
-            if group_id and group_id != "private":
-                rows = conn.execute(
-                    "SELECT pr.qq_id, pr." + _sum + " "
-                    "FROM professions pr JOIN player_groups g ON pr.qq_id=g.qq_id "
-                    "WHERE g.group_id=? ORDER BY total DESC, pr.qq_id LIMIT ?",
-                    (group_id, limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT qq_id, " + _sum + " "
-                    "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
-                    (limit,),
-                ).fetchall()
+            rows = conn.execute(
+                "SELECT qq_id, " + _sum + " "
+                "FROM professions ORDER BY total DESC, qq_id LIMIT ?",
+                (limit,),
+            ).fetchall()
             return [dict(r) for r in rows]
         finally:
             conn.close()
