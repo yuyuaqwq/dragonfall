@@ -294,8 +294,8 @@ async def test_shop_roster():
 # ============ 8. 锻造名册化 + 套装 ============
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
-    # 锻造配方 = 名册（114 个，v104 补 11 图纸配方+淬火石配方，无旧毕业套）
-    check("配方数 129", len(C.CRAFT_RECIPES) == 129, str(len(C.CRAFT_RECIPES)))  # v104 M20 P2: +5 支线图纸配方
+    # 锻造配方 = 名册（142 个，v104 补 11 图纸配方+淬火石配方 + v117 副本材料联动 +13 图纸配方，无旧毕业套）
+    check("配方数 142", len(C.CRAFT_RECIPES) == 142, str(len(C.CRAFT_RECIPES)))  # v117: 副本材料联动 +13 图纸配方
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -304,9 +304,9 @@ def test_craft_set():
     eq2 = C.craft_recipe_make("rec_tie_jian")
     # v104 修复：橡木系列白装也挂 set（新手可凑齐橡木套 2 件效果），铁剑=橡木系列 → 有套装
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
-    # 需图纸配方（紫/橙）——v104 补 11 条图纸配方
+    # 需图纸配方（紫/橙）——v104 补 11 条图纸配方 + v117 副本材料联动 +13 图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 82, str(len(bp_recs)))  # v104 M20 P2: +5 支线图纸配方
+    check("需图纸配方存在", len(bp_recs) == 95, str(len(bp_recs)))  # v117: 副本材料联动 +13 图纸配方
     check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
     # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
     w = C.generate_roster_equip("eq_sheng_guang_chang_jian")

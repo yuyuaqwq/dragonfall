@@ -61,7 +61,13 @@ async def main():
     for _eu in (st.get("enemies") or []):  # v2：兼容键同步（boss/enemies 深拷贝后脱节）
         if _eu.get("uid") != "e_test_minion":  # 测试爪牙保持 500 血验证被攻击扣血
             _eu["hp"] = 999999
+            # 测试爪牙设为唯一前排（Boss 移后排 rank2）：formation.select_target 对同 rank
+            # 目标随机选择（§4.1），Boss 与爪牙同 rank1 时玩家攻击 50% 打 Boss → 断言随机红。
+            # rank2 后排 + 玩家 reach2 → 攻击必命中前排爪牙，验证"援军在前排被攻击"确定性。
+            _eu["rank"] = 2
         _eu["spd"] = 999  # 敌方高速：玩家无额外行动，每次攻击都是正常回合（regen 生效）
+        # v116 敌方蓄力接线后：技能池固定普攻（[]），排除"抽中蓄力技→本回合不行动"的随机性
+        _eu["skills"] = []
     # v101.30c：注册角色 40 级默认仅 645 HP，Boss 阶段两轮即全灭销毁副本——
     # 注入高血量，保证 enemies/round/resources 持久化验证完整走完
     st["players"]["i1"]["hp"] = 99999
