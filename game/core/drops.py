@@ -303,11 +303,22 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
                 stats[k] = max(1, int(stats[k] * mod[mult]))
     is_boss = role == "boss"
     is_elite = role == "elite"
+    # v27b 多对多站位引擎：按 role 推导站位层/射程（§9.3 数据层规格）
+    # v2 审计（P2）：boss 也计入后排——caster/healer/boss → rank 2，其余（普通/精英物理近战）→ 1
+    rank = 2 if role in ("caster", "healer", "boss") else 1
+    reach = rank
     return {
         "id": mid,
+        "uid": "e_{}-{}".format(mid, lv),  # 确定性 uid（名字+序号，不引入随机）
         "name": name,
         "lv": lv,
         "role": role,
+        "rank": rank,             # v27b 站位层（caster/healer/boss → 2，其余 → 1）
+        "reach": reach,           # v27b 攻击范围（同 rank）
+        "buffs": {},              # v27b 单位增益/减益
+        "stacks": {},             # v27b 单位叠层
+        "defending": False,       # v27b 本回合防御
+        "charging": None,         # v27b 蓄力状态
         "hp": stats["hp"],
         "max_hp": stats["hp"],
         "atk": stats["atk"],
@@ -326,4 +337,93 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "mech": mod.get("mech", ""),
         "mod": mod.get("desc", ""),
     }
+
+# ============ v27b 多对多站位引擎 —— 怪物队伍构建（§8.1 / §9.3 数据层）============
+# 说明：本函数不在函数内调用 random.random()——多怪与否的随机分支（60/40）
+# 由命令层调用方在已 roll 完成后通过 `double` 参数传入（见契约 §8.1 优先方案）。
+# 只做确定性派生，不改变既有 random 调用顺序，不破坏存量测试。
+
+
+def _scale_monster(m: dict, mult: float, uid: str, name: str, rank: int, reach: int):
+    """按倍率复制主怪的战斗属性，生成一只站位独立的新单位（沿用 skills/drops）。"""
+    copy = dict(m)
+    for k in ("hp", "max_hp", "atk", "def", "matk", "mdef", "spd"):
+        if isinstance(copy.get(k), (int, float)):
+            copy[k] = max(0, int(copy[k] * mult))
+    copy["uid"] = uid
+    copy["name"] = name
+    copy["rank"] = rank
+    copy["reach"] = reach
+    copy["buffs"] = {}
+    copy["stacks"] = {}
+    copy["defending"] = False
+    copy["charging"] = None
+    # 爪牙/幼崽不属于首领/精英本体（身份/奖励判定走主怪）
+    copy["is_boss"] = False
+    copy["is_elite"] = False
+    return copy
+
+
+def build_monster_group(monster: dict, map_obj: dict, player: dict = None,
+                        double: bool = False, scale_main: bool = True) -> list:
+    """将单只怪物构建为敌方阵列（v27b §8.1）。
+
+    参数:
+      monster : build_monster 产出的单怪 dict（含 rank/reach/uid/buffs/stacks/defending/charging）
+      map_obj : 地图对象（透传，仅用于产物一致）
+      player  : 玩家 dict（透传，预留；当前不参与派生）
+      double  : 仅对普通怪生效的分支开关——True 生成"主怪 + 幼崽"双只，False 单只。
+                （60/40 随机由命令层 roll 完后再传入；本函数不引入随机）
+      scale_main : 多怪场景（双只/精英爪牙/Boss 爪牙）是否把主怪战斗属性 ×0.7（契约 §8.1
+                "每只=原单怪×0.7，副怪相对主怪×0.6"，否则主怪×1.0 总强度达 1.5-2.0 倍）。
+                仅多怪分支生效，单只场景不缩放。世界 Boss 由事件配置数值 → 调用方传 False。
+
+    返回: list[dict] 敌方阵列单位列表（按站位可含多只）。
+    """
+    is_boss = monster.get("is_boss", False)
+    is_elite = monster.get("is_elite", False)
+    base_uid = monster.get("uid", "e_0")
+    base_name = monster.get("name", "怪物")
+
+    # scale_main 时主怪战斗属性 ×0.7（新 dict，不改动传入 monster 的 uid/name/rank 等身份字段）
+    main = monster
+    if scale_main:
+        main = _scale_main_copy(monster, 0.7)
+
+    # 普通怪：单只 或 命令层传入 double=True → 主怪(rank1) + 副怪幼崽(rank2，×0.6)
+    if not is_elite and not is_boss:
+        if double:
+            cub_uid = "{}-cub".format(base_uid)
+            cub = _scale_monster(main, 0.6, cub_uid,
+                                 "{}{}".format(base_name, "·幼崽"), 2, 2)
+            return [main, cub]
+        return [monster]
+
+    # 精英：精英(rank1) + 1 爪牙(rank1，×0.5)
+    if is_elite and not is_boss:
+        claw_uid = "{}-minion".format(base_uid)
+        claw = _scale_monster(main, 0.5, claw_uid,
+                              "{}的爪牙".format(base_name), 1, 1)
+        return [main, claw]
+
+    # Boss：Boss(rank 按 build_monster 已由 role 推导，caster/healer/boss → 2 其余 → 1) + 2 爪牙(rank1，×0.5)
+    minions = []
+    for i in (1, 2):
+        min_uid = "{}-minion{}".format(base_uid, i)
+        minions.append(_scale_monster(main, 0.5, min_uid,
+                                      "{}的爪牙{}".format(base_name, i), 1, 1))
+    return [main] + minions
+
+
+def _scale_main_copy(m: dict, mult: float) -> dict:
+    """复制主怪并把战斗属性 ×mult（保持 uid/name/rank/reach/身份/技能/掉落不变，仅改数值）。
+
+    用于多怪场景（双只/精英/Boss 爪牙）下主怪 ×0.7（契约 §8.1），不原地修改调用方传入的
+    monster dict，避免命令层引用不一致。数值属性仅当为 int/float 时缩放。"""
+    copy = dict(m)
+    for k in ("hp", "max_hp", "atk", "def", "matk", "mdef", "spd"):
+        if isinstance(copy.get(k), (int, float)):
+            copy[k] = max(0, int(copy[k] * mult))
+    return copy
+
 

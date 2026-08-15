@@ -18,6 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from ..core.stats import hp_stage_mult
+from ..core.formation import formation_view, alive_units  # v2 多对多站位图文案行
 from .. import battle as BT
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
@@ -144,6 +145,30 @@ class WorldCmds(CommandBase):
                 lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}(『调查 {_p['name']}』)")
         # v87.4 NPC 不再进场景（由地图面板「👥 这里的 NPC」统一显示，避免重复）
         return lines
+
+    def _visible_sas(self, player: dict, cur_map: dict, group_id: str, qq_id: str) -> list:
+        """v115 当前位置地图中**可见**的子区域列表（供面板/移动统一使用）。
+
+        隐藏房间（A 提供 is_hidden_room）未揭示（C.reveal_met）→ 不可见（不列出）。
+        若 A 尚未装好网状/hidden 接口，用 getattr 兜底：is_hidden_room 缺失时全部可见。
+        """
+        sas = cur_map.get("subareas") or []
+        map_id = cur_map.get("id", "")
+        is_hidden = getattr(C, "is_hidden_room", None)
+        reveal_met = getattr(C, "reveal_met", None)
+        visible = []
+        for sa in sas:
+            sa_id = sa.get("id", "")
+            if is_hidden is None or reveal_met is None:
+                visible.append(sa)
+                continue
+            try:
+                if is_hidden(map_id, sa_id) and not reveal_met(sa.get("reveal"), group_id, qq_id, map_id):
+                    continue  # 隐藏未揭示 → 跳过
+            except Exception:
+                pass
+            visible.append(sa)
+        return visible
 
     @staticmethod
     def _conn_target(conn) -> tuple:
@@ -499,12 +524,40 @@ class WorldCmds(CommandBase):
         lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
         # v87.4 合并显示：子区域 + 相邻地图统一连续编号（『移动 <序号>』直接可用）
         # v87.16 空间连接：只列相邻可达子区域（subarea_links），序号与 move 解析一致
+        # v115 网状：links 用 _visible_sas 过滤（隐藏未揭示不在编号列表），隐藏房单列 🔒？？？
         sas = cur_map.get("subareas") or []
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
         links = C.subarea_links(cur, cur_sa)
+        _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
+        _v_links = [lid for lid in links if lid in _v_ids]
         shown = [(i + 1, next((s for s in sas if s["id"] == lid), None))
-                 for i, lid in enumerate(links)]
+                 for i, lid in enumerate(_v_links)]
         shown = [(i, s) for i, s in shown if s]
+        # 深度标记（A 提供 subarea_depth，缺失则回退普通显示）
+        _depth = getattr(C, "subarea_depth", None)
+        _entry_id = C.map_entry_subarea(cur)
+        def _sa_mark(sa):
+            if _depth is None:
+                return ""
+            try:
+                d = _depth(cur, sa["id"])
+            except Exception:
+                return ""
+            if d <= 0:
+                m = "🟢"
+            elif d <= 2:
+                m = "🟡"
+            elif d <= 4:
+                m = "🟠"
+            else:
+                m = "🔴"
+            # 死胡同（连接数==1 且非入口）
+            try:
+                if sa["id"] != _entry_id and len(C.subarea_links(cur, sa["id"])) == 1:
+                    m += "💀"
+            except Exception:
+                pass
+            return m
         if shown or neighbors:
             if sa_now:
                 lines.append(f"📍 当前位置：{sa_now}")
@@ -512,17 +565,39 @@ class WorldCmds(CommandBase):
             for i, sa in shown:
                 mark = " (你在这里)" if sa["id"] == cur_sa else ""
                 lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
-                lines.append(f"  {i}. {sa['name']}{lv_mark}{mark}")
+                lines.append(f"  {i}. {_sa_mark(sa)}{sa['name']}{lv_mark}{mark}")
+            # 隐藏未揭示房：显示 🔒？？？ 不编号（不可直接前往）
+            _hidden_sas = [s for s in sas if s["id"] in links and s["id"] not in _v_ids]
+            if _hidden_sas:
+                for _hs in _hidden_sas:
+                    lines.append(f"  🔒？？？(隐藏角落)")
             exit_sa_id = C.map_exit_subarea(cur)
             at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
             # v95.21 跨图连接只在出口子区域列出：普通场所（镇长办公处等）不显示野外/他镇目的地，
             # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
             if at_exit:
-                for i, nid in enumerate(neighbors, len(links) + 1):
+                for i, nid in enumerate(neighbors, len(_v_links) + 1):
                     nm, want_sa = self._conn_target(nid)
                     sa_lbl = self._conn_subarea_name(nm, want_sa)
                     lock = " (🔒隐藏)" if nm.get("hidden") else ""
                     lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+        # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
+        _today_ev_fn = getattr(C, "today_map_event", None)
+        if _today_ev_fn is not None:
+            try:
+                _ev = _today_ev_fn(cur)
+                if _ev and _ev.get("name"):
+                    _ev_fx = (_ev.get("effects") or {})
+                    _ev_note = ""
+                    if _ev_fx.get("encounter_rate", 0) > 0:
+                        _ev_note = "(遇怪率↑)"
+                    elif _ev_fx.get("event_chance", 0) > 0:
+                        _ev_note = "(事件率↑)"
+                    elif _ev_fx.get("loot_mult", 1.0) > 1.0:
+                        _ev_note = f"(掉落×{_ev_fx.get('loot_mult', 1.0)})"
+                    lines.append(f"🌤 今日奇遇：{_ev['name']}——{_ev.get('desc', '')}{_ev_note}")
+            except Exception:
+                pass
         # v87.4 区块间统一空行分隔（不再叠分隔线）
         if lines and lines[-1]:
             lines.append("")
@@ -763,7 +838,10 @@ class WorldCmds(CommandBase):
         # v86 子区域：『移动 <序号>』→ 同图可前往列表序号优先（v87.14 空间连接），再邻居地图序号
         # v104 P3(M24) 确认：全角数字兼容——Python str.isdigit()/int() 原生接受全角 ０-９(U+FF10-FF19)，
         # 『前往 １２』与『前往 12』等价（实测 2026-08-12：isdigit=True 且 int('１２')==12，无需 normalize）。
-        links = C.subarea_links(cur, player.get("cur_subarea") or "")
+        # v115 网状：visible_links 用 _visible_sas 过滤（隐藏未揭示不可前往），与『地图』面板编号一致
+        _raw_links = C.subarea_links(cur, player.get("cur_subarea") or "")
+        _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
+        links = [lid for lid in _raw_links if lid in _v_ids]
         if dest.isdigit():
             idx = int(dest)
             if 1 <= idx <= len(links):
@@ -776,7 +854,7 @@ class WorldCmds(CommandBase):
                     yield event.plain_result(f"你已经在这里了({cur_map['name']}·{sa['name']})～")
                     return
                 db.update_player(group_id, qq_id, cur_subarea=sa["id"])
-                yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
+                yield event.plain_result(self._subarea_arrive(player, cur_map, sa, group_id, qq_id))
                 return
         # v86 子区域：『移动 <子区域名>』→ 同图子区域（免费切换）
         if dest:
@@ -786,12 +864,32 @@ class WorldCmds(CommandBase):
                         yield event.plain_result(f"你已经在这里了({cur_map['name']}·{sa['name']})～")
                         return
                     # v87.14 空间连接：同图只能移动到相邻子区域
-                    links = C.subarea_links(cur, player.get("cur_subarea") or "")
-                    if sa["id"] not in links:
+                    # v115：隐藏未揭示房不能直接前往（提示需先探索揭开）
+                    _is_hidden_fn = getattr(C, "is_hidden_room", None)
+                    _reveal_met_fn = getattr(C, "reveal_met", None)
+                    if _is_hidden_fn is not None and _reveal_met_fn is not None:
+                        try:
+                            if _is_hidden_fn(cur, sa["id"]) and not _reveal_met_fn(sa.get("reveal"), group_id, qq_id, cur):
+                                _reveal_pr = getattr(C, "reveal_progress", None)
+                                _progress_txt = ""
+                                if _reveal_pr is not None:
+                                    try:
+                                        _ck, _nk = _reveal_pr(group_id, qq_id, cur)
+                                        if _nk is not None:
+                                            _progress_txt = f"（还差 {_nk - _ck} 次探索）"
+                                    except Exception:
+                                        pass
+                                yield event.plain_result(
+                                    f"🔒 这里似乎被什么遮挡着……（在本图继续『探索』可揭开它的面纱）{_progress_txt}")
+                                return
+                        except Exception:
+                            pass
+                    links2 = C.subarea_links(cur, player.get("cur_subarea") or "")
+                    if sa["id"] not in links2:
                         yield event.plain_result(self._move_blocked_msg(cur_map, player, sa))
                         return
                     db.update_player(group_id, qq_id, cur_subarea=sa["id"])
-                    yield event.plain_result(self._subarea_arrive(player, cur_map, sa))
+                    yield event.plain_result(self._subarea_arrive(player, cur_map, sa, group_id, qq_id))
                     return
         # 查找目标地图：优先序号（相对当前地图邻居列表），其次地图名/ID/旧区域别名
         target = None
@@ -966,15 +1064,28 @@ class WorldCmds(CommandBase):
         # v101.25c 模板统一：跨图移动也走 _subarea_arrive 完整模板（NPC/可互动/设施/场景/可前往）
         # 此前跨图是另一套精简拼接（fac_msg/scene_msg/nav），鱼鱼抓"前往不同区域提示模板不一样"
         if ambush:
-            db.save_battle(group_id, qq_id, BT.Battle("monster", ambush, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id)).to_state())
+            # v2 多对多：撞怪经 build_monster_group 生成敌方阵列（单只即可，伏击不引入随机双怪）
+            _grp = C.build_monster_group(ambush, target, player)
+            _nb = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=_grp)
+            db.save_battle(group_id, qq_id, _nb.to_state())
             self._lock_battle(group_id, qq_id)
             arrive_txt = f"🚶 你来到了【{target['name']}】"
             if target.get("type") == C.MAP_TYPE_TOWN and first_sa:
                 arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
+            # 我方站位单机 = 玩家单位
+            _cls = C.CLASSES.get(player.get("class_name", ""), {}) or {}
+            _self_unit = {
+                "uid": "p_self", "rank": int(_cls.get("default_rank", 2) or 2),
+                "reach": int(_cls.get("reach", 2) or 2), "name": player.get("name", "你"),
+                "hp": player.get("hp", 0), "max_hp": player.get("max_hp", 0),
+            }
+            _enemy_rows = formation_view(alive_units(_grp))
+            _ally_rows = formation_view(alive_units([_self_unit]))
             yield event.plain_result(
                 f"{arrive_txt}\n{(first_sa.get('desc') if first_sa else '') or target.get('desc', '')}{lv_msg}{extra}{portal_msg}\n"
                 f"━━━━━━━━━━━━\n"
                 f"🛡️ 还没站稳，{ambush['name']} 就拦住了去路！\n"
+                f"── 敌方 ──\n" + "\n".join(_enemy_rows) + "\n── 我方 ──\n" + "\n".join(_ally_rows) + "\n"
                 f"🐾【{ambush['name']}】Lv.{ambush['lv']} ❤️ {ambush['hp']}/{ambush['max_hp']}\n"
                 f"━━━━━━━━━━━━\n"
                 f"你的行动：『攻击』『技能 <名称>』『防御』『逃跑』"
@@ -986,7 +1097,7 @@ class WorldCmds(CommandBase):
             arrive_txt = f"🚶 你从野外方向来到了【{target['name']}】{first_sa['name']}"
         # v97.5 行为彩蛋规则：进入新地图
         _rule_txt = self._rule_fire("move_enter", group_id, qq_id, player, target)
-        arrive_view = self._subarea_arrive(player, target, first_sa) if first_sa else \
+        arrive_view = self._subarea_arrive(player, target, first_sa, group_id, qq_id) if first_sa else \
             f"🚶 你来到了【{target['name']}】\n{target.get('desc', '')}"
         # 跨图特有信息插在主体前（等级提示/任务/方碑）
         _head_extra = f"{lv_msg}{extra}{portal_msg}"
@@ -995,7 +1106,7 @@ class WorldCmds(CommandBase):
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
-    def _subarea_body(self, player: dict, cur_map: dict, sa: dict) -> str:
+    def _subarea_body(self, player: dict, cur_map: dict, sa: dict, group_id=None, qq_id=None) -> str:
         """v101.25c 子区域主体展示（NPC/可互动/设施/场景/可前往）——跨图移动、
         子区域切换、返回三处共用同一模板（鱼鱼抓"前往不同区域提示模板不一样"）。"""
         lines = []
@@ -1039,8 +1150,14 @@ class WorldCmds(CommandBase):
             lines.append("✨ 场景：")
             lines.append("  " + "  ".join(scene))
         # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板/move 一致）
+        # v115 网状：links 用 _visible_sas 过滤（隐藏未揭示不可前往），与『地图』/move 编号一致
         sas = cur_map.get("subareas") or []
-        links = C.subarea_links(cur_map.get("id", ""), sa["id"])
+        _raw_links = C.subarea_links(cur_map.get("id", ""), sa["id"])
+        if group_id is not None and qq_id is not None:
+            _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
+            links = [lid for lid in _raw_links if lid in _v_ids]
+        else:
+            links = _raw_links
         others = [(i + 1, next((x for x in sas if x["id"] == lid), None))
                   for i, lid in enumerate(links)]
         others = [(i, x) for i, x in others if x]
@@ -1075,19 +1192,37 @@ class WorldCmds(CommandBase):
         lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
         return "\n".join(lines)
 
-    def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict) -> str:
+    def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict, group_id=None, qq_id=None) -> str:
         """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
 
         v6 修复：与跨图移动一致，展示本子区域 PROPS/POI 场景元素
         （鱼鱼验收：移动展示必须与『地图』面板一致）。
         v101.25c：主体复用 _subarea_body（与跨图移动/返回同模板）。
+        v115：H 提供 exploration_record_visit 时，到达即记录 + 首访奖励文本追加。
         """
-        return "\n".join([
+        out = "\n".join([
             f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
             f"{sa.get('desc', '')}",
             f"━━━━━━━━━━━━",
-            self._subarea_body(player, cur_map, sa),
+            self._subarea_body(player, cur_map, sa, group_id, qq_id),
         ])
+        # v115 探索见闻：到达子区域记录 + 首访奖励（H 提供，getattr 兜底）
+        _rec = getattr(C, "exploration_record_visit", None)
+        if _rec is not None and group_id is not None and qq_id is not None:
+            try:
+                _rv = _rec(group_id, qq_id, cur_map.get("id", ""), sa.get("id", ""))
+            except Exception:
+                _rv = None
+            if _rv:
+                if _rv.get("first"):
+                    _rw = _rv.get("reward") or ""
+                    if _rw:
+                        out += f"\n🎉 {_rw}"
+                else:
+                    _rw = _rv.get("reward") or ""
+                    if _rw:
+                        out += f"\n{_rw}"
+        return out
 
     def _travel_ambush(self, player: dict, target_map: dict, group_id=None, qq_id=None):
         """移动撞怪判定：返回撞到的怪物 dict 或 None。
@@ -1298,6 +1433,18 @@ class WorldCmds(CommandBase):
         db.update_player(group_id, qq_id, gold=player["gold"] - cost, cur_map=target["id"],
                          cur_subarea=first_sa["id"] if first_sa else "")
         db.add_visited(group_id, qq_id, target["id"])
+        # v115 探索见闻：传送到达也记录子区域到访（H 提供，getattr 兜底）
+        _rec_txt = ""
+        _rec = getattr(C, "exploration_record_visit", None)
+        if _rec is not None and first_sa is not None:
+            try:
+                _rv = _rec(group_id, qq_id, target["id"], first_sa.get("id", ""))
+                if _rv:
+                    _rwt = _rv.get("reward") or ""
+                    if _rwt:
+                        _rec_txt = f"\n🎉 {_rwt}"
+            except Exception:
+                _rec_txt = ""
         # v95 #142：传送落地后清除对话会话（否则对话状态跨图残留，『前往』被"还在交谈中"拦截）
         db.clear_talk_state(group_id, qq_id)
         quest_lines = self._update_explore_quests(group_id, qq_id, target["id"])
@@ -1310,7 +1457,7 @@ class WorldCmds(CommandBase):
         yield event.plain_result(
             f"🌌 星辉流转，你踏入了传送通道……\n"
             f"✨ 你抵达了【{target['name']}】({picon}{pname}，花费 {cost} 金币)\n"
-            f"{target['desc']}{extra}"
+            f"{target['desc']}{extra}{_rec_txt}"
         )
 
     def _update_explore_quests(self, group_id, qq_id, map_id):

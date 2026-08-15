@@ -7,7 +7,17 @@ from .constants import SUB_TYPE_GATE, SUB_TYPE_STREET, SUB_TYPE_TOWN  # v102.1 �
 """《剑与魔法》数据层 - maps.py（v48：派生表 key 用 ID，value 存 ID）
 v87.6：内容下沉子区域，百科表从 SUBAREAS 构建（地图级字段已清空）。
 v87.14：空间连接规则——子区域相邻关系 + 城门出入。
+v115：网状子区域核心——subarea_links 切到 SUBAREA_LINKS_INDEX（显式网状，
+      含隐藏房间不过滤，可见性由命令层过滤）；新增 subarea_depth /
+      is_hidden_room / reveal_met / reveal_progress / bump_explore_count。
 """
+
+
+def _subarea_links_index():
+    """延迟取网状拓扑表（防 data/_assembly 装配期循环导入时机问题，
+    与 `from .. import db` 同模式）。无显式定义返回空 dict。"""
+    from ..data import SUBAREA_LINKS_INDEX
+    return SUBAREA_LINKS_INDEX or {}
 
 
 def _build_ency():
@@ -42,13 +52,20 @@ def _build_ency():
 
 
 def subarea_links(map_id: str, subarea_id: str) -> list:
-    """同图内可直达的子区域 id 列表（v87.14 空间连接 + v87.16 街道链）。
+    """同图内可直达的子区域 id 列表（v87.14 空间连接 + v87.16 街道链 + v115 网状）。
+
+    v115：若 SUBAREA_LINKS_INDEX 有该图的显式网状定义 → 返回该子区域的显式
+    连接列表（**包含隐藏房间，不过滤**——隐藏房间的可见性由命令层过滤，这是
+    与 G agent 的契约）；否则回退旧逻辑（城镇星形/野外线性）完全不变。
 
     - 城镇区域：星形拓扑——中心广场（首个子区域）连所有场所 + 街道链首；
       普通场所只连广场；城镇街道（如东大街）连 广场 + 城镇出口；
       城镇出口（如镇郊）连城镇街道。
     - 野外/副本：线性拓扑——按列表顺序相邻（i ↔ i+1），入口 _1 是图内枢纽
     """
+    mesh = _subarea_links_index().get(map_id)
+    if mesh is not None:
+        return list(mesh.get(subarea_id, []))
     sas = SUBAREAS.get(map_id, [])
     if not sas:
         return []
@@ -125,3 +142,93 @@ def map_entry_subarea(map_id: str) -> str:
             if s["id"].endswith("_gate"):
                 return s["id"]
     return sas[0]["id"]
+
+
+# ---- v115 网状子区域核心 ----
+
+def _explore_count(group_id: str, qq_id: str, map_id: str) -> int:
+    """当前探索计数：event_state key = reveal_{map_id}_{qq_id}。
+    db 函数内延迟导入（见 wild.py 注释：core 模块用 db 必须 from .. import db）。"""
+    from .. import db  # noqa: E402
+    raw = db.get_event_state("reveal_{}_{}".format(map_id, qq_id))
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+def subarea_depth(map_id: str, sa_id: str) -> int:
+    """从该图首个子区域（入口）BFS 的深度（入口=0）。
+
+    - SUBAREA_LINKS_INDEX 有该图定义 → BFS 展平深度
+    - 否则回退列表索引深度（线性，即 subareas 列表中位置）
+    """
+    sas = SUBAREAS.get(map_id, [])
+    if not sas:
+        return 0
+    mesh = _subarea_links_index().get(map_id)
+    if mesh is not None:
+        entry = sas[0]["id"]
+        dist = {entry: 0}
+        queue = [entry]
+        while queue:
+            cur = queue.pop(0)
+            for nxt in mesh.get(cur, ()):
+                if nxt not in dist:
+                    dist[nxt] = dist[cur] + 1
+                    queue.append(nxt)
+        return dist.get(sa_id, len(sas))
+    idx = next((i for i, s in enumerate(sas) if s["id"] == sa_id), 0)
+    return idx
+
+
+def is_hidden_room(map_id: str, sa_id: str) -> bool:
+    """查 SUBAREAS 中该子区域 dict 的 hidden 字段（默认 False）。"""
+    for s in SUBAREAS.get(map_id, []):
+        if s.get("id") == sa_id:
+            return bool(s.get("hidden"))
+    return False
+
+
+def reveal_met(cond, group_id: str, qq_id: str, map_id: str) -> bool:
+    """reveal 条件是否满足。cond 形如：
+    - "explore:N"：event_state key=reveal_{map}_{qq} 的探索次数 ≥ N
+    - "item:道具名"：db.count_item > 0
+    无 cond / 未知格式化 → True（开放）。db 函数内延迟导入防循环。"""
+    if not cond:
+        return True
+    if cond.startswith("explore:"):
+        try:
+            need = int(cond.split(":", 1)[1])
+        except (TypeError, ValueError):
+            return False
+        return _explore_count(group_id, qq_id, map_id) >= need
+    if cond.startswith("item:"):
+        from .. import db  # noqa: E402
+        item = cond.split(":", 1)[1]
+        return db.count_item(group_id, qq_id, item) > 0
+    return True
+
+
+def reveal_progress(group_id: str, qq_id: str, map_id: str):
+    """返回 (cur, need)——当前探索计数 与 本图需探索次数的最大值。
+    本图无 explore: 型 reveal 房间 → 返回 (0, 0)。"""
+    needs = []
+    for s in SUBAREAS.get(map_id, []):
+        cond = s.get("reveal")
+        if cond and cond.startswith("explore:"):
+            try:
+                needs.append(int(cond.split(":", 1)[1]))
+            except (TypeError, ValueError):
+                pass
+    if not needs:
+        return (0, 0)
+    return _explore_count(group_id, qq_id, map_id), max(needs)
+
+
+def bump_explore_count(group_id: str, qq_id: str, map_id: str):
+    """探索计数 +1（G agent 会在每次野外探索时调用）。
+    event_state key = reveal_{map_id}_{qq_id}。"""
+    from .. import db  # noqa: E402
+    key = "reveal_{}_{}".format(map_id, qq_id)
+    db.set_event_state(key, _explore_count(group_id, qq_id, map_id) + 1)

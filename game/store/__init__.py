@@ -55,6 +55,8 @@ from .world import (  # noqa: F401
     get_talk_state, set_talk_state, clear_talk_state, talk_state_key,
     get_talk_flags, set_talk_flag, get_boss_dmg_mult,
     cleanup_stale_event_state,
+    # v115 探索见闻：子区域级到访
+    add_visited_subarea, get_visited_subareas, count_visited_subareas,
 )
 from .feedback import (  # noqa: F401
     add_feedback, get_feedback,

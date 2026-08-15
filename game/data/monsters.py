@@ -10,7 +10,8 @@ MONSTER_SKILLS = {
     "ms_an_ying_dan": {
         "kind": "魔法",
         "power": 1.6,
-        "desc": "暗影弹，暗影能量弹攻击敌人",
+        "interrupt": True,
+        "desc": "暗影弹，暗影能量弹攻击敌人，命中打断目标蓄力",
         "name": "暗影弹",
         "element": "dark",
     },
@@ -173,7 +174,8 @@ MONSTER_SKILLS = {
     "ms_di_yu_huo": {
         "kind": "魔法",
         "power": 2.2,
-        "desc": "地狱火，地狱烈焰灼烧敌人",
+        "aoe": "all",
+        "desc": "地狱火，地狱烈焰灼烧全场敌人",
         "name": "地狱火",
         "element": "fire",
     },
@@ -388,7 +390,8 @@ MONSTER_SKILLS = {
     "ms_huo_pao": {
         "kind": "魔法",
         "power": 1.8,
-        "desc": "火炮，轰击敌人",
+        "aoe": "all",
+        "desc": "火炮，轰击全场敌人",
         "name": "火炮",
         "element": "fire",
     },
@@ -401,7 +404,8 @@ MONSTER_SKILLS = {
     "ms_huo_yan": {
         "kind": "魔法",
         "power": 1.8,
-        "desc": "火焰，烈焰灼烧敌人",
+        "aoe": "all",
+        "desc": "火焰，烈焰灼烧全场敌人",
         "name": "火焰",
         "element": "fire",
     },
@@ -438,7 +442,8 @@ MONSTER_SKILLS = {
     "ms_jian_ta": {
         "kind": "物理",
         "power": 1.4,
-        "desc": "践踏，攻击敌人",
+        "charge": 1,
+        "desc": "践踏，蓄力 1 回合后猛然踏地，命中结算(蓄力期间受击会被打断)",
         "name": "践踏",
     },
     "ms_jian_xiao": {
@@ -1270,7 +1275,8 @@ MONSTER_SKILLS = {
     "ms_zhen_ji": {
         "kind": "物理",
         "power": 1.6,
-        "desc": "震击，重拳震荡攻击敌人",
+        "charge": 1,
+        "desc": "震击，蓄力 1 回合后重拳震荡攻击敌人(蓄力期间受击会被打断)",
         "name": "震击",
     },
     "ms_an_ying": {

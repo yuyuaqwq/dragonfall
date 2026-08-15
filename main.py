@@ -16,7 +16,7 @@ from astrbot.core.message.message_event_result import MessageChain
 from .game import db
 from .game.commands import (
     PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds,
-    InstanceCmds, GmCmds,
+    InstanceCmds, GmCmds, ExplorationCmds,  # v115 探索进度指令
 )
 
 
@@ -272,6 +272,7 @@ class Main(
     MiscCmds,
     InstanceCmds,
     GmCmds,
+    ExplorationCmds,  # v115 探索进度指令
 ):
     """《剑与魔法》西幻文字RPG——在QQ群里冒险吧！"""
 

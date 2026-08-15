@@ -201,6 +201,10 @@ async def test_move_alias(m):
     sa0 = C.MAP_BY_ID["oak_town"]["subareas"][0]["id"]
     db.update_player("g1", "q4", cur_map="oak_town", cur_subarea=sa0)
 
+    # v115 探索见闻：首次到达 oak_town_2 会附加首访奖励文本，使先执行的那次『前往 1』
+    # 与复位后『移动 1』回复不一致（前者首访、后者非首访）。预写 visited_subareas 让
+    # 两次 alias 调用均为非首访（回复等价），保留"别名回复等价"断言意图。
+    C.exploration_record_visit("g1", "q4", "oak_town", "oak_town_2")
     out1, hits1 = await dispatch(m, "g1", "q4", "前往 1")
     check("『前往 1』命中 move", hits1 == ["move"], str(hits1))
     db.update_player("g1", "q4", cur_subarea=sa0)  # 复位起点，保证同条件对比

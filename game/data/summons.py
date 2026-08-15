@@ -20,17 +20,20 @@ SUMMONS = {
         "name": "骷髅兵", "icon": "💀",
         "atk_ratio": 0.50, "hp_ratio": 0.35, "def_ratio": 0.40,
         "dmg_type": "phys", "limit": 3, "bodyguard": 0.40,
+        "rank": 1, "reach": 1,   # v27b：肉盾/近战召唤物 → 前排 rank1，近战 reach1
     },
     # 林语者·藤蔓守卫（基础攻线召唤，数量流：可叠 2，自动攻击 + 挡刀）
     "vine_guard": {
         "name": "藤蔓守卫", "icon": "🌿",
         "atk_ratio": 0.45, "hp_ratio": 0.30, "def_ratio": 0.35,
         "dmg_type": "phys", "limit": 2, "bodyguard": 0.35,
+        "rank": 1, "reach": 1,   # v27b：肉盾/近战召唤物 → 前排 rank1，近战 reach1
     },
     # 万木之灵·古树守卫（T3 强化召唤，单只重装，挡刀率高）
     "treant": {
         "name": "古树守卫", "icon": "🌳",
         "atk_ratio": 0.75, "hp_ratio": 0.55, "def_ratio": 0.60,
         "dmg_type": "phys", "limit": 1, "bodyguard": 0.50,
+        "rank": 1, "reach": 1,   # v27b：重装/近战召唤物 → 前排 rank1，近战 reach1
     },
 }

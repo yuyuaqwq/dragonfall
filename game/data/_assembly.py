@@ -13,6 +13,23 @@ from .maps import (
     MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
+from .pois import SUBAREA_POIS  # noqa: F401
+# v115 网状子区域：三个区域文件（地理拆分，并行填充；stub 阶段为空 dict）
+from .mesh_rooms_south import (  # noqa: F401
+    EXTRA_SUBAREAS as _EXTRA_SOUTH,
+    SUBAREA_LINKS as _LINKS_SOUTH,
+    MESH_POI_MOUNTS as _POI_SOUTH,
+)
+from .mesh_rooms_west_north import (  # noqa: F401
+    EXTRA_SUBAREAS as _EXTRA_WEST_NORTH,
+    SUBAREA_LINKS as _LINKS_WEST_NORTH,
+    MESH_POI_MOUNTS as _POI_WEST_NORTH,
+)
+from .mesh_rooms_east_abyss import (  # noqa: F401
+    EXTRA_SUBAREAS as _EXTRA_EAST_ABYSS,
+    SUBAREA_LINKS as _LINKS_EAST_ABYSS,
+    MESH_POI_MOUNTS as _POI_EAST_ABYSS,
+)
 from .instances import INSTANCES  # noqa: F401
 from .instance_stage_maps import INSTANCE_STAGE_MAPS, INSTANCE_STAGE_NPCS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
@@ -56,6 +73,25 @@ from .races import RACES  # noqa: F401
 
 from ..core.maps import _build_ency  # noqa: F401
 from ..core.class_sets import _build_class_sets  # noqa: F401
+
+# ---- 0.9 v115 网状子区域装配（须在任何消费 SUBAREAS 的循环/派生表之前）----
+# 1) 合并 EXTRA_SUBAREAS 进 SUBAREAS（新房间 id 以 _4 起，不与旧房间冲突）
+_EXTRA_ALL = {**_EXTRA_SOUTH, **_EXTRA_WEST_NORTH, **_EXTRA_EAST_ABYSS}
+for _mid, _rooms in _EXTRA_ALL.items():
+    SUBAREAS.setdefault(_mid, []).extend(_rooms)
+
+# 2) 合并 SUBAREA_LINKS → SUBAREA_LINKS_INDEX（模块级名，供 core/maps 导入）
+#    只含显式定义该图的网状连接；未定义图回退旧逻辑（城镇星形/野外线性）
+SUBAREA_LINKS_INDEX = {}
+for _links in (_LINKS_SOUTH, _LINKS_WEST_NORTH, _LINKS_EAST_ABYSS):
+    for _mid, _graph in _links.items():
+        _target = SUBAREA_LINKS_INDEX.setdefault(_mid, {})
+        _target.update(_graph)
+
+# 3) 合并 MESH_POI_MOUNTS 进 SUBAREA_POIS（追加挂载，不覆盖既有挂载）
+for _mkmounts in (_POI_SOUTH, _POI_WEST_NORTH, _POI_EAST_ABYSS):
+    for _k, _v in _mkmounts.items():
+        SUBAREA_POIS.setdefault(_k, []).extend(_v)
 
 # ---- 1. 派生表 ----
 _build_ency()

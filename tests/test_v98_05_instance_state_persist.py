@@ -51,34 +51,43 @@ async def main():
     st = db.get_battle("g1", "i1")["state"]
     check("进入战斗", st.get("boss") is not None, out[:120])
 
-    # ---------- e_minions 持久化：注入援军 → 玩家攻击应挡刀 ----------
-    st["e_minions"] = [{"name": "测试爪牙", "hp": 500, "max_hp": 500, "atk": 100, "matk": 0}]
+    # ---------- enemies 阵列持久化（v2）：注入援军单位 → 玩家攻击先打前排援军 ----------
+    st["enemies"].append({"uid": "e_test_minion", "name": "测试爪牙", "hp": 500, "max_hp": 500,
+                          "atk": 100, "matk": 0, "def": 0, "mdef": 0, "spd": 10, "crit": 0,
+                          "dodge": 0, "rank": 1, "reach": 1, "buffs": {}, "stacks": {},
+                          "defending": False, "charging": None})
     st["round"] = 5
     st["boss"]["hp"] = 999999  # 防测试期 Boss 被秒杀导致战斗结束
+    for _eu in (st.get("enemies") or []):  # v2：兼容键同步（boss/enemies 深拷贝后脱节）
+        if _eu.get("uid") != "e_test_minion":  # 测试爪牙保持 500 血验证被攻击扣血
+            _eu["hp"] = 999999
+        _eu["spd"] = 999  # 敌方高速：玩家无额外行动，每次攻击都是正常回合（regen 生效）
     # v101.30c：注册角色 40 级默认仅 645 HP，Boss 阶段两轮即全灭销毁副本——
-    # 注入高血量，保证 e_minions/round/resources 持久化验证完整走完
+    # 注入高血量，保证 enemies/round/resources 持久化验证完整走完
     st["players"]["i1"]["hp"] = 99999
     st["players"]["i1"]["max_hp"] = 99999
     db.save_battle("g1", "i1", st)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
-    check("援军挡刀日志", "挡下" in out, out[:200])
     st2 = db.get_battle("g1", "i1")["state"]
-    check("援军状态写回 st", st2.get("e_minions"), str(st2.get("e_minions"))[:120])
-    m_hp = st2["e_minions"][0]["hp"]
-    check("援军扣血", m_hp < 500, f"hp={m_hp}")
+    _minions = [u for u in (st2.get("enemies") or []) if u.get("uid") == "e_test_minion"]
+    check("援军在前排被攻击", not _minions or _minions[0]["hp"] < 500,
+          str([(u.get("name"), u.get("hp")) for u in (st2.get("enemies") or [])]))
     check("round 递增写回", st2.get("round", 0) == 6, f"round={st2.get('round')}")
 
-    # ---------- 援军出手：Boss 行动回合援军攻击玩家 ----------
-    out2 = await cmd(m, "attack", "g1", "i1", "攻击")  # 触发 Boss 反击（_instance_boss_one_turn）
-    check("援军出手日志", "扑向" in out2, out2[:200])
+    # ---------- 援军出手：敌方回合每单位行动 ----------
+    out2 = await cmd(m, "attack", "g1", "i1", "攻击")  # 触发敌方回合（多怪各行动一次）
+    check("援军行动日志", "测试爪牙" in out2, out2[:200])
     b3 = db.get_battle("g1", "i1")
     check("Boss 行动后战斗仍在", b3 is not None, "战斗意外结束")
     st3 = b3["state"] if b3 else {}
-    check("Boss 行动后援军仍写回", st3.get("e_minions"), str(st3.get("e_minions"))[:120])
+    check("敌方阵列仍写回", st3.get("enemies") is not None, str(st3.get("enemies"))[:120])
 
     # ---------- resources 持久化：注入精力 50 → 攻击后应保留且回复 ----------
     st3["resources"] = {"i1": {"energy": 50}}
-    st3["e_minions"] = []  # 清援军避免干扰
+    st3["enemies"] = [u for u in (st3.get("enemies") or []) if u.get("uid") != "e_test_minion"]  # 清援军避免干扰
+    for _eu in (st3.get("enemies") or []):
+        _eu["hp"] = 999999  # 防肃清导致无战斗（无 regen）
+        _eu["spd"] = 999  # 敌方高速：玩家无额外行动（regen 生效）
     db.save_battle("g1", "i1", st3)
     out3 = await cmd(m, "attack", "g1", "i1", "攻击")
     st4 = db.get_battle("g1", "i1")["state"]

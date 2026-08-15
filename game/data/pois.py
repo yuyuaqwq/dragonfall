@@ -65,6 +65,42 @@ POIS = {
         "desc": "夜空澄澈如洗，繁星低垂，仿佛伸手就能摘下。",
         "effect": "sight",
     },
+    # ---- v115 探索体验扩容：新 POI +7（33 号文档 §5.1）----
+    "merchant_camp": {
+        "name": "行商营地", "icon": "🧺",
+        "desc": "一处支着布棚的行商营地，货物还热乎着。",
+        "effect": "merchant",  # 触发一次流浪商人式优惠购买（金币/图纸，不强卖）——由 _handle_poi 结算
+    },
+    "ancient_altar": {
+        "name": "古老祭坛", "icon": "🗿",
+        "desc": "一座爬满藤蔓的古老祭坛，石台上残留着香火痕迹。",
+        "effect": "buff",  # 随机 buff（同 shrine：+10% 持续 5 战）
+    },
+    "bird_nest": {
+        "name": "高悬鸟巢", "icon": "🪺",
+        "desc": "树杈间挂着一只精巧的鸟巢，几片绒羽随风飘落。",
+        "effect": "herb",  # 随机 1-2 份材料（羽毛/蛋/草药）
+    },
+    "ice_sculpture": {
+        "name": "天然冰雕", "icon": "🧊",
+        "desc": "寒风把冰雪雕琢成奇形怪状的雕塑，在暮色里泛着幽蓝的光。",
+        "effect": "sight",  # 北境风景 POI（纯 flavor）
+    },
+    "dragon_bone": {
+        "name": "远古龙骸", "icon": "🦴",
+        "desc": "半埋在山岩里的巨大龙骨，肋骨间卡着什么东西在发光。",
+        "effect": "loot",  # 东境专属：随机金币/龙系材料
+    },
+    "shipwreck": {
+        "name": "沉船残骸", "icon": "⛵",
+        "desc": "一艘搁浅的旧船斜插在礁石间，舱门半开。",
+        "effect": "loot",  # 海域专属：金币/航海材料
+    },
+    "traveler_grave": {
+        "name": "旅者之墓", "icon": "🪦",
+        "desc": "一座无名墓碑，碑前放着半枯的花环。",
+        "effect": "note",  # 见闻 flag：grave_{map}，第一次触发记 flag（低概率 lore）——_handle_poi 区分
+    },
 }
 
 # 子区域 → POI 分配（key = "地图id:子区域id"，value = poi id 列表）
@@ -293,7 +329,34 @@ SUBAREA_POIS = {
     'dragonborn_valley_trail:dragonborn_valley_trail_1': ['campfire', 'loot_pile'],
     'dragonborn_valley_trail:dragonborn_valley_trail_2': ['herb_patch', 'campfire'],
     'dragonborn_valley_trail:dragonborn_valley_trail_3': ['rune_stone', 'campfire'],
-    'sky_ladder_path:sky_ladder_path_2': ['star_gazing', 'scenic_view'],}
+    'sky_ladder_path:sky_ladder_path_2': ['star_gazing', 'scenic_view'],
+    # ==== v115 探索体验扩容：新 POI 挂载（33 号文档 §5.2）====
+    # 线索治理延续既有原则：traveler_grave 为见闻 flag 型 note（非线索收集），此处为地底/荒野见闻，未纳入 8 个线索挂载配额。
+    # ---- merchant_camp：南境 2-3 处 + 中域 1 处 ----
+    "oak_plain:oak_plain_2": ["merchant_camp", "herb_patch", "campfire"],   # 橡木平原深处旁：行商路边营地
+    "oak_plain:oak_plain_3": ["merchant_camp", "herb_patch", "scenic_view"],  # 草地尽头：行商歇脚
+    "gold_plain:gold_plain_3": ["merchant_camp", "star_gazing"],          # 中域金穗平原：旷野市集
+    # ---- ancient_altar：中域 1-2 处 + 地底 1 处 ----
+    "gold_plain:gold_plain_2": ["ancient_altar", "campfire", "herb_patch"],  # 金穗平原中段：古祭坛
+    "deep_lake:deep_lake_2": ["ancient_altar", "fishing_spot", "shrine"],  # 地底深湖：水畔古祭坛
+    # ---- bird_nest：西境 2 处 + 南境森林 1 处 ----
+    "silverwood:silverwood_2": ["bird_nest", "fishing_spot", "loot_pile"],  # 银木林深处：高枝鸟巢
+    "starlake:starlake_2": ["bird_nest", "fishing_spot", "shrine"],      # 星湖：林缘鸟巢
+    "emerald_forest:emerald_forest_2": ["bird_nest", "herb_patch", "campfire"],  # 翡翠森林中段：鸟巢
+    # ---- ice_sculpture：北境 3 处 ----
+    "frost_field:frost_field_1": ["ice_sculpture", "campfire", "shrine"],  # 霜原入口：冰雕奇观
+    "frost_field:frost_field_2": ["ice_sculpture", "campfire", "shrine"],  # 霜原中段：天然冰雕
+    "permafrost_field:permafrost_field_2": ["ice_sculpture", "campfire", "shrine"],  # 永冻原：暮色冰雕
+    # ---- dragon_bone：东境 2 处 ----
+    "dragon_ridge:dragon_ridge_1": ["dragon_bone", "campfire"],          # 龙脊入口：半埋龙骨
+    "bone_wild:bone_wild_2": ["dragon_bone", "campfire", "loot_pile"],   # 骨野：巨大龙骸
+    # ---- shipwreck：海域 2 处 ----
+    "coral_reef:coral_reef_1": ["shipwreck", "fishing_spot", "loot_pile"],  # 珊瑚礁：搁浅旧船
+    "storm_sea:storm_sea_2": ["shipwreck", "scenic_view", "campfire"],  # 风暴海：斜插礁石的沉船
+    # ---- traveler_grave：地底/荒野 2 处 ----
+    "misty_swamp:misty_swamp_1": ["traveler_grave", "herb_patch", "loot_pile", "campfire"],  # 迷雾沼泽入口：无名墓碑
+    "molten_abyss:molten_abyss_1": ["traveler_grave", "loot_pile", "campfire"],  # 熔渊入口：荒原孤墓
+}
 
 # 随机线索 POI 文案池（note 效果：线索收集）
 NOTE_POOL = [

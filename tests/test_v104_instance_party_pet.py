@@ -100,6 +100,7 @@ def jump_to_final_boss(st):
     st["mode"] = "battle"
     st["boss"] = boss
     st["enemy"] = boss
+    st["enemies"] = [dict(boss)]  # v2：敌方阵列（boss/enemy 为兼容键）
     st["alive"] = {str(m): True for m in st["members"]}
     st["turn"] = st["members"].index("i1")
     st["turn_time"] = int(time.time())
@@ -198,7 +199,8 @@ async def main():
     check("全灭失败结算", "全灭" in out, out[:200])
     p1 = db.get_player("g1", "i1")
     p2 = db.get_player("g1", "i2")
-    check("队长回城 0 血", p1["hp"] == 0 and p1["cur_map"] == C.START_MAP, f"hp={p1['hp']} map={p1['cur_map']}")
+    # O104：失败回城点=副本入口最近城镇（开本前 cur_map=dawn_city → 回 dawn_city）
+    check("队长回城 0 血", p1["hp"] == 0 and p1["cur_map"] == "dawn_city", f"hp={p1['hp']} map={p1['cur_map']}")
     check("退队者满血留原地", p2["hp"] == hp_i2_db and p2["cur_map"] == map_i2,
           f"hp {p2['hp']} vs {hp_i2_db}, map {p2['cur_map']} vs {map_i2}")
     check("退队者魔力未动", p2["mp"] == mp_i2_db, f"{p2['mp']} vs {mp_i2_db}")

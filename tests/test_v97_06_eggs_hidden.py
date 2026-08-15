@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v97.6 彩蛋事件 5→30 + 隐藏怪物 6→25 验证。
+"""v97.6 彩蛋事件 5→30 (+v115 再扩)→36 + 隐藏怪物 25 验证。
 
 覆盖：
-1. 30 个彩蛋数据完整（id 唯一 / template 注册 / mats 可解析 / maps 全部是有效地图）
+1. 36 个彩蛋数据完整（id 唯一 / template 注册 / mats 可解析 / maps 全部是有效地图）
 2. roll_explore_egg 区域过滤：指定地图只触发该地图彩蛋 + 全局彩蛋，不触发别区彩蛋
 3. 25 个隐藏怪物数据完整（cond 合法 / maps 有效 / drops 可解析 / 技能 id 存在）
 4. _roll_hidden_monster maps 区域限定生效
@@ -50,9 +50,9 @@ async def main():
         # maps 有效
         for mid in (e.get("maps") or []):
             check(f"彩蛋 {e['id']} maps[{mid}]有效", mid in map_ids, mid)
-    check("彩蛋总数 = 30", len(EXPLORE_EGG_EVENTS) == 30, len(EXPLORE_EGG_EVENTS))
+    check("彩蛋总数 = 36", len(EXPLORE_EGG_EVENTS) == 36, len(EXPLORE_EGG_EVENTS))
     region_cnt = sum(1 for e in EXPLORE_EGG_EVENTS if e.get("maps"))
-    check("区域彩蛋 15 个", region_cnt == 15, region_cnt)
+    check("区域彩蛋 19 个", region_cnt == 19, region_cnt)
 
     print("\n【2. roll_explore_egg 区域过滤】")
     clean_db()
@@ -61,7 +61,8 @@ async def main():
         random.seed(random.randint(0, 999999))
         egg = roll_explore_egg("oak_plain")
         if egg and egg.get("maps"):
-            check(f"oak_plain 触发区域彩蛋 {egg['id']} 属于橡木区", egg["id"] in ("egg_oak_whisper",), egg["id"])
+            # v115：橡木平原新增区域彩蛋 稻草人，橡木区合法命中集=2
+            check(f"oak_plain 触发区域彩蛋 {egg['id']} 属于橡木区", egg["id"] in ("egg_oak_whisper", "egg_jumping_scarecrow"), egg["id"])
     # 非 oak 图不触发 egg_oak_whisper
     # v110 审计修复：原实现 300 次无命中时无任何失败断言、循环后无条件 check(True)
     # 恒真掩膜——改为显式失败标志（反例验证必须真的抽不到才绿）

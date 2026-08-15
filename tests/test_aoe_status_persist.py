@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
-"""v114 AOE 多目标机制正式回归测试（展示 & 持久化侧）。
+"""v114 AOE 多目标机制回归测试（展示 & 持久化侧，v2 站位语义重写版）。
 
-覆盖：
-8. 援军状态显示：_status_line 有援军时含『👥 援军：名字×数量（HP 当前/最大、...）』且格式正确；
-   无援军时不显示该行
-10. 战斗状态持久化：aoe 结算后 e_minions/round 经 to_state/from_state 与 db 快照正确写回/读取，
-    恢复后的战斗可继续结算
+历史：本文件原依赖 v1 的 `e_minions` 独立字段（援军展示/持久化）。v2 已改为多对多
+站位：敌方单位统一存在于 `enemies` 阵列（单位级 buffs/stacks/defending/charging），
+`to_state` 不再把 `e_minions` 序列化为独立语义键（`enemies` 才是权威阵列）。
+
+本版按 v2 语义重写，保持原测试意图不变：
+- 站位/阵列展示辅助：enemies 每单位带站位字段且可序列化
+- AOE 结算后阵列多目标状态（各自 hp/rank/单位级 buffs）正确
+- 战斗状态持久化：enemies/round/单位级字段经 to_state/from_state 与 db 快照正确写回/读取，
+  恢复后的战斗可继续 AOE 结算
 
 环境铁律：私有库 test_aoe_status_persist.db；不改任何源码。
 """
@@ -19,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main  # noqa: E402
 from data.plugins.dragonfall.game import engine as E  # noqa: E402
 from data.plugins.dragonfall.game import battle as BT  # noqa: E402
-from data.plugins.dragonfall.game.core.affix import stat_affix_stats  # noqa: E402
+from data.plugins.dragonfall.game.core import formation as FM  # noqa: E402
 
 passed = failed = 0
 
@@ -34,10 +38,10 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
-def mk_player(hp=5000):
+def mk_player(hp=5000, reach=3):
     return {
         "class_name": "cls_zhan_shi", "level": 30, "hp": hp, "max_hp": hp,
-        "mp": 100, "max_mp": 100,
+        "mp": 100, "max_mp": 100, "reach": reach,
         "equipment": {"weapon": {"name": "测试剑", "stats": {"atk": 1000, "matk": 1000},
                                  "affixes": [], "enhance": 0}},
         "attributes": {"str": 10, "int": 10},
@@ -45,82 +49,95 @@ def mk_player(hp=5000):
     }
 
 
-def mk_enemy(hp=10 ** 9):
-    return {"name": "测试怪", "hp": hp, "max_hp": hp, "atk": 0,
-            "def": 0, "mdef": 0, "spd": 10}
-
-
-def mk_minion(hp, name="测试怪爪牙"):
-    return {"name": name, "hp": hp, "max_hp": hp, "atk": 100, "matk": 0}
+def mk_enemy(name, rank=1, hp=10 ** 9, def_=0, mdef=0, buffs=None, stacks=None, charging=None):
+    return {"uid": name, "name": name, "side": "enemy", "rank": rank, "reach": 2,
+            "hp": hp, "max_hp": hp, "atk": 10, "matk": 10, "def": def_, "mdef": mdef,
+            "spd": 10, "crit": 0.0,
+            "buffs": buffs or {}, "stacks": stacks or {},
+            "defending": False, "charging": charging}
 
 
 def main():
     clean_db()
     m = Main(None)
     info_xf = E.skill_info("cls_zhan_shi", "旋风斩")
-    check("数据：旋风斩带 aoe=True", bool(info_xf and info_xf.get("aoe")), str(info_xf))
+    info_all = dict(info_xf)
+    info_all["aoe"] = "all"   # 测试 AOE 打全阵的持久化
+    info_all["aoe_falloff"] = 1.0
 
-    # ============ 8. 援军状态显示 ============
-    print("\n===== 8. 援军状态显示：_status_line =====\n")
-    p = mk_player()
-    b = BT.Battle("monster", mk_enemy(), {}, p)
-    b.e_minions = [mk_minion(500, "测试的爪牙"), mk_minion(300, "测试的爪牙")]
-    line = m._status_line(p, b)
-    expect_line = "👥 援军：测试的爪牙×2（HP 500/500、300/400）"
-    # 第二只 hp=300 max_hp=400 → 验证『当前/最大』各自展示
-    b.e_minions[1]["max_hp"] = 400
-    line = m._status_line(p, b)
-    check("有援军时包含援军行", "👥 援军：" in line, repr(line))
-    check("格式：名字×数量（HP 当前/最大、...）", expect_line in line, f"{expect_line!r} not in {line!r}")
-    # 同名分组：换一只不同名 → 两行
-    b.e_minions[1]["name"] = "别的爪牙"
-    line2 = m._status_line(p, b)
-    check("不同名分组：两行各自 ×1",
-          "👥 援军：测试的爪牙×1（HP 500/500）" in line2
-          and "👥 援军：别的爪牙×1（HP 300/400）" in line2, repr(line2))
-    # 无援军 → 不含该行
-    b.e_minions = []
-    line3 = m._status_line(p, b)
-    check("无援军时不显示援军行", "援军" not in line3, repr(line3))
+    # ============ 8. 阵列单位站位字段 ============
+    print("\n===== 8. 阵列单位站位字段（rank/reach/buffs/stacks/defending/charging）=====\n")
+    e1 = mk_enemy("爪牙甲", rank=1, hp=500)
+    e2 = mk_enemy("爪牙乙", rank=2, hp=400, buffs={"atk_up": 2}, charging={"skill": "聚气", "left": 1, "name": "聚气"})
+    b = BT.Battle("monster", None, {}, mk_player(), enemies=[e1, e2])
+    check("enemies 每单位含站位字段",
+          all(k in b.enemies[i] for i in range(2)
+              for k in ("rank", "reach", "uid", "buffs", "stacks", "defending", "charging")),
+          str([{k: u.get(k) for k in ("rank", "reach", "uid")} for u in b.enemies]))
+    check("rank/reach 正确", [u["rank"] for u in b.enemies] == [1, 2]
+          and [u["reach"] for u in b.enemies] == [2, 2], str([(u["rank"], u["reach"]) for u in b.enemies]))
+    check("单位级 buffs/charging 保留", b.enemies[1]["buffs"].get("atk_up") == 2
+          and b.enemies[1]["charging"]["left"] == 1, str(b.enemies[1]))
+    # 兼容代理：主目标 = 最前排存活
+    check("enemy property 指向最前排存活", b.enemy["name"] == "爪牙甲", str(b.enemy["name"]))
 
-    # ============ 10. 战斗状态持久化 ============
-    print("\n===== 10. 战斗状态持久化：e_minions / round 写回与读取 =====\n")
+    # ============ 9. AOE 结算后阵列多目标状态 ============
+    print("\n===== 9. AOE（scope=all）结算后阵列多目标各自扣血 =====\n")
     random.seed(31)
-    p10 = mk_player()
-    b10 = BT.Battle("monster", mk_enemy(), {}, p10)
-    b10.round = 5
-    b10.e_minions = [mk_minion(12345), mk_minion(9999, "二号爪牙")]
-    st10 = b10._player_stats(p10)
+    p = mk_player(reach=3, hp=5000)
+    p["learned_skills"] = ["旋风斩"]
+    b9 = BT.Battle("monster", None, {}, p,
+                   enemies=[mk_enemy("A", rank=1, hp=10 ** 9), mk_enemy("B", rank=2, hp=10 ** 9)])
+    b9.round = 5
+    st9 = b9._player_stats(p)
     random.seed(31)
-    logs10 = b10._player_skill(st10, "旋风斩", info_xf, p10)
-    m0 = [x["hp"] for x in b10.e_minions]
-    check("aoe 结算后 e_minions 存活", len(b10.e_minions) == 2 and all(h > 0 for h in m0),
-          str(b10.e_minions))
-    st = b10.to_state()
-    check("to_state 含 e_minions 与 round", st.get("e_minions") and st.get("round") == 5,
-          str({k: st.get(k) for k in ("e_minions", "round")}))
+    logs9 = b9._player_skill(st9, "旋风斩", info_all, p)
+    a_hp, b_hp = [u["hp"] for u in b9.enemies]
+    check("A 掉血且存活", a_hp < 10 ** 9 and a_hp > 0, f"hp={a_hp}")
+    check("B 掉血且存活", b_hp < 10 ** 9 and b_hp > 0, f"hp={b_hp}")
+    check("A/B 同掉血（aoe_falloff=1.0 前排/后排均全额）",
+          (10 ** 9 - a_hp) == (10 ** 9 - b_hp) and a_hp < 10 ** 9,
+          f"A={a_hp} B={b_hp}")
+
+    # ============ 10. 战斗状态持久化：enemies/round/单位级字段 与 db 快照往返 ============
+    print("\n===== 10. 战斗状态持久化：enemies/round/单位级字段 写回与读取 =====\n")
+    st = b9.to_state()
+    check("to_state 含完整 enemies 阵列与 round", st.get("enemies") and st.get("round") == 5,
+          str({k: st.get(k) for k in ("enemies", "round")}))
+    check("to_state enemies 保留单位级 buffs/stacks/charging",
+          all(u.get("buffs") is not None and u.get("stacks") is not None
+              and "charging" in u for u in st.get("enemies", [])),
+          str([{k: u.get(k) for k in ("name", "rank", "buffs", "charging")} for u in st.get("enemies", [])]))
     b11 = BT.Battle.from_state(st)
-    check("from_state 恢复 e_minions 一致", b11.e_minions == b10.e_minions,
-          f"{b11.e_minions} vs {b10.e_minions}")
-    check("from_state 恢复 round 一致", b11.round == b10.round == 5,
-          f"round={b11.round}")
+    check("from_state 恢复 enemies 阵列一致", b11.enemies == b9.enemies,
+          f"{b11.enemies} vs {b9.enemies}")
+    check("from_state 恢复 round 一致", b11.round == b9.round == 5, f"round={b11.round}")
+    check("from_state 恢复单位级字段（B buffs/charging）",
+          b11.enemies[1]["buffs"] == b9.enemies[1]["buffs"]
+          and b11.enemies[1]["charging"] == b9.enemies[1]["charging"],
+          str(b11.enemies[1]))
     # db 快照往返（instance/战斗持久化同款 db.save_battle / db.get_battle）
     db.save_battle("g10", "q10", st)
     st_rt = db.get_battle("g10", "q10")["state"]
-    check("db 快照写回 e_minions 一致", st_rt.get("e_minions") == st.get("e_minions"),
-          str(st_rt.get("e_minions")))
+    check("db 快照写回 enemies 一致", st_rt.get("enemies") == st.get("enemies"),
+          str(st_rt.get("enemies")))
     check("db 快照写回 round 一致", st_rt.get("round") == 5, f"round={st_rt.get('round')}")
-    # 恢复后的战斗可继续 aoe 结算（援军继续扣血）
+    # 旧存档容错：只有 enemy（单怪）+ 旧 e_buffs 时 from_state 并入主单位 buffs
+    legacy_st = {"type": "monster", "enemy": mk_enemy("旧怪", rank=1, hp=999),
+                 "e_buffs": {"atk_up": 3}}
+    b_legacy = BT.Battle.from_state(legacy_st)
+    check("旧存档 e_buffs 并入主单位 buffs",
+          b_legacy.enemy["buffs"].get("atk_up") == 3, str(b_legacy.enemy["buffs"]))
+    # 恢复后的战斗可继续 aoe（阵列各单位继续扣血）
     random.seed(32)
-    hp_before = b11.e_minions[0]["hp"]
-    boss_hp_before = b11.enemy["hp"]
-    logs11 = b11._player_skill(b11._player_stats(p10), "旋风斩", info_xf, p10)
-    loss = hp_before - b11.e_minions[0]["hp"]
-    boss_loss = boss_hp_before - b11.enemy["hp"]
-    check("恢复后继续 aoe：援军扣血 == Boss 实损（全额）", loss == boss_loss and boss_loss > 0,
-          f"loss={loss} boss={boss_loss}")
-    check("恢复后继续 aoe：援军文案行存在",
-          any("对【测试怪爪牙】造成" in x for x in logs11), str(logs11[:3]))
+    before = {u["name"]: u["hp"] for u in b11.enemies}
+    logs11 = b11._player_skill(b11._player_stats(p), "旋风斩", info_all, p)
+    loss = {u["name"]: before[u["name"]] - u["hp"] for u in b11.enemies
+            if u["hp"] < before[u["name"]]}
+    check("恢复后继续 aoe：A/B 都继续扣血", loss.get("A", 0) > 0 and loss.get("B", 0) > 0,
+          f"loss={loss}")
+    check("恢复后 aoe 文案逐目标行存在",
+          all(any(f"对【{n}】造成" in x for x in logs11) for n in ("A", "B")), str(logs11))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)

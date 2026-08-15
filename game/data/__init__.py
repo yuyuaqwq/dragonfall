@@ -96,5 +96,5 @@ from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
 # 让 build_index 产生的派生表也可见（_SKILL_FLAT/_MONSTER_INDEX 等）
 from ._assembly import (  # noqa: F401
     _SKILL_FLAT, _MONSTER_INDEX, _FISH_INDEX, _NPC_INDEX, _SHOP_W_INDEX,
-    SUBAREA_INDEX, SUBAREA_BY_MAP,
+    SUBAREA_INDEX, SUBAREA_BY_MAP, SUBAREA_LINKS_INDEX,
 )

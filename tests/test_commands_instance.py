@@ -137,6 +137,10 @@ async def main():
         stt4["boss"]["hp"] = 1
         stt4["boss"]["atk"] = 5
         stt4["boss"]["matk"] = 5
+        for _eu in (stt4.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt4["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt4)
         cur = stt4["members"][stt4["turn"]]
@@ -158,6 +162,10 @@ async def main():
         stt4["boss"]["hp"] = 1
         stt4["boss"]["atk"] = 5
         stt4["boss"]["matk"] = 5
+        for _eu in (stt4.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt4["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt4)
         cur = stt4["members"][stt4["turn"]]
@@ -178,6 +186,10 @@ async def main():
     stboss["boss"]["hp"] = 1
     stboss["boss"]["atk"] = 5
     stboss["boss"]["matk"] = 5
+    for _eu in (stboss.get("enemies") or []):  # v2：兼容键同步到阵列单位
+        _eu["hp"] = 1
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     stboss["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stboss)
     cur = stboss["members"][stboss["turn"]]
@@ -239,9 +251,9 @@ async def main():
     await cmd(m, "party_leave", "g1", "i1", "退队")
     await cmd(m, "party_leave", "g1", "i2", "退队")
     await cmd(m, "party_leave", "g1", "i3", "退队")
-    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city")
-    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city")
-    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city")
+    db.update_player("g1", "i1", level=40, gold=10000, cur_map="dawn_city", hp=990, mp=990)
+    db.update_player("g1", "i2", level=40, gold=10000, cur_map="dawn_city", hp=990, mp=990)
+    db.update_player("g1", "i3", level=40, gold=10000, cur_map="dawn_city", hp=990, mp=990)
     # 注入学会的团队技能（learned_skills 存中文名，update_player 内部转 ID 存档）
     db.update_player("g1", "i1", learned_skills=["战吼", "铁壁"], skill_points=50)
     db.update_player("g1", "i2", learned_skills=["元素流转", "奥术强化"], skill_points=50)
@@ -351,6 +363,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", "i1", "攻击")
@@ -367,6 +383,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", "i1", "攻击")
@@ -380,13 +400,24 @@ async def main():
     base_g = C.build_monster(C.INSTANCES["inst_goblin_camp"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
     expect_g = int(base_g * 1.6)  # min_players=1 → hp_mult 不缩放
     check("单人 Boss 血量 = 1.6 倍", abs(stg3["boss"]["max_hp"] - expect_g) <= 1, f"{stg3['boss']['max_hp']} vs {expect_g}")
-    # 单人副本直接通关
-    stg3["boss"]["hp"] = 1
-    stg3["boss"]["atk"] = 5
-    stg3["boss"]["matk"] = 5
-    stg3["turn_time"] = int(time.time())
-    db.save_battle("g1", "i1", stg3)
-    out = await cmd(m, "attack", "g1", "i1", "攻击")
+    # 单人副本直接通关（v2：Boss rank2 + 2 爪牙 rank1——先清爪牙，Boss 前移后才可及，需多次攻击）
+    for _ in range(12):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stg3 = battle["state"]
+        stg3["boss"]["hp"] = 1
+        stg3["boss"]["atk"] = 5
+        stg3["boss"]["matk"] = 5
+        for _eu in (stg3.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
+        stg3["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stg3)
+        out = await cmd(m, "attack", "g1", "i1", "攻击")
+        if "通关" in out or "击败" in out:
+            break
     check("单人副本通关", "通关" in out or "击败" in out, out[:300])
     check("单人掉落咕噜的皇冠", "咕噜的皇冠" in out, out[:300])
     # v101.27 #390：通关后停留搜刮状态保留，主动『离开副本』清战斗
@@ -429,6 +460,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         curm = stt["members"][stt["turn"]]
@@ -446,6 +481,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         curm = stt["members"][stt["turn"]]
@@ -491,6 +530,10 @@ async def main():
     stk["boss"]["hp"] = 1
     stk["boss"]["atk"] = 5
     stk["boss"]["matk"] = 5
+    for _eu in (stk.get("enemies") or []):  # v2：兼容键同步到阵列单位
+        _eu["hp"] = 1
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     stk["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stk)
     for _ in range(10):
@@ -501,6 +544,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         cur = stt["members"][stt["turn"]]
@@ -518,6 +565,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         cur = stt["members"][stt["turn"]]
@@ -531,6 +582,10 @@ async def main():
     stk3["boss"]["hp"] = 1
     stk3["boss"]["atk"] = 5
     stk3["boss"]["matk"] = 5
+    for _eu in (stk3.get("enemies") or []):  # v2：兼容键同步到阵列单位
+        _eu["hp"] = 1
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     stk3["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", stk3)
     cur = stk3["members"][stk3["turn"]]

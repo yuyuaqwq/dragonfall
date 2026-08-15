@@ -127,6 +127,8 @@ REPRESENTATIVES = {
     "auction": "拍卖", "bid": "竞拍",
     # combat.py
     "explore": "探索", "wish": "许愿", "attack": "攻击", "skill": "技能", "defend": "防御",
+    # v115：探索进度指令（commands/exploration.py）
+    "explore_progress": "探索进度",
     "flee": "逃跑", "hunt_boss": "讨伐", "honor_shop": "荣誉",
     # v113.5 O71：流浪商人强卖确认/拒绝（探索事件挂起报价后的二段回复）
     "trader_confirm": "确认购买",

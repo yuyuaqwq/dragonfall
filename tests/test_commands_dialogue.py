@@ -211,14 +211,15 @@ async def main():
     check("矮人:接取q8_3", "接取任务" in out and "铁砧要塞" in out, out[:250])
 
     print("【v59.#51 找NPC方向提示：同名NPC只列当前地图位置】")
-    # 玩家在铁港城找『城主』：3 城都有城主（+珍珠城城主侍女也含"城主"）→ 只列铁港城单一方向
+    # 玩家在铁港城找『城主』：3 城都有城主（+珍珠城城主侍女也含"城主"）
+    # v113.5 O90：同图但目标在别的子区域 → 统一"（你现在不在这里）"样式，全列表保留
     db.update_player("g1", "w1", cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "find_npc", "g1", "w1", "找 城主")
-    check("#51:城主只列当前地图", "铁港城·城主府" in out and "白鹿城" not in out and "珍珠城" not in out, out[:250])
-    # 玩家在橡木镇（非镇长所在子区域）找『镇长』→ 只列橡木镇·镇长办公处
+    check("#51:城主只列当前地图", "铁港城·城主府" in out and "你现在不在这里" in out, out[:250])
+    # 玩家在橡木镇（非镇长所在子区域）找『镇长』→ 同样按 O90 样式
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_4")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")
-    check("#51:镇长只列当前地图", "橡木镇·镇长办公处" in out and "铁盾镇" not in out and "极光镇" not in out, out[:250])
+    check("#51:镇长只列当前地图", "橡木镇·镇长办公处" in out and "你现在不在这里" in out, out[:250])
     # 玩家所在地图无同名 NPC → 保留"你现在不在这里"+全列表（跨城镇导航）
     db.update_player("g1", "w1", cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "find_npc", "g1", "w1", "找 镇长")

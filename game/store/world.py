@@ -90,6 +90,49 @@ def get_visited_count(group_id, qq_id):
             conn.close()
 
 
+# ==================== v115 探索见闻：子区域级到访 visited_subareas ====================
+# 与 visited 表（地图级）同构但按"地图:子区域"粒度记录；group_id 仅作兼容保留（同 add_visited）。
+
+def add_visited_subarea(group_id, qq_id, map_id, sa_id):
+    """记录子区域到访（INSERT OR IGNORE：幂等，不重复计数）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO visited_subareas (qq_id, map_id, sa_id, first_at) VALUES (?,?,?,?)",
+                (qq_id, map_id, sa_id, int(time.time())),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+def get_visited_subareas(qq_id) -> set:
+    """返回该玩家已到访问的子区域集合 {"map_id:sa_id", ...}。"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT map_id, sa_id FROM visited_subareas WHERE qq_id=?",
+                (qq_id,),
+            ).fetchall()
+            return {f"{r['map_id']}:{r['sa_id']}" for r in rows}
+        finally:
+            conn.close()
+
+def count_visited_subareas(qq_id) -> int:
+    """子区域到访总数（全大陆 visited_subareas 记录条数）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) AS c FROM visited_subareas WHERE qq_id=?",
+                (qq_id,),
+            ).fetchone()
+            return row["c"] if row else 0
+        finally:
+            conn.close()
+
+
 def get_world_event(include_expired: bool = False):
     """返回当前活动事件(未过期)，无则 None；include_expired=True 时返回最近一条(含过期)"""
     with _lock:

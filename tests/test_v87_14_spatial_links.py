@@ -3,7 +3,7 @@
 import sys, os, asyncio
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, Main, db, make_player
+from conftest import FakeEvent, run, clean_db, Main, db, make_player, C
 
 passed = failed = 0
 def check(name, ok, detail=""):
@@ -72,22 +72,47 @@ async def main():
     r = await move("2")  # 镇郊 → 橡木平原（邻居序号 = 1+1 = 2）
     check("镇郊→橡木平原", pos() == "oak_plain:oak_plain_1", f"{pos()} | {r[:120]}")
 
-    # ===== 野外线性 =====
-    print("· 野外线性（相邻顺序）")
-    r = await move("1")  # 草地边缘(入口) → 草地深处
+    # ===== 野外网状（v115：oak_plain 由线性 3 房升级为 6 房网状）=====
+    print("· 野外网状（SUBAREA_LINKS_INDEX 连接，非线性相邻）")
+    # 1) 结构验证：subarea_links 返回显式网状连接（与 SUBAREA_LINKS_INDEX 一致，含新增房）
+    from data.plugins.dragonfall.game.data import SUBAREA_LINKS_INDEX as _LINKS_IDX
+    _mesh = _LINKS_IDX.get("oak_plain") or {}
+    check("oak_plain 定义了网状拓扑", bool(_mesh))
+    _expect_mesh = {
+        "oak_plain_1": ("oak_plain_2", "oak_plain_4"),
+        "oak_plain_2": ("oak_plain_1", "oak_plain_3", "oak_plain_5"),
+        "oak_plain_3": ("oak_plain_2", "oak_plain_5"),
+        "oak_plain_4": ("oak_plain_1", "oak_plain_5", "oak_plain_6"),
+        "oak_plain_5": ("oak_plain_2", "oak_plain_3", "oak_plain_4"),
+        "oak_plain_6": ("oak_plain_4",),
+    }
+    for _sa, _nbrs in _expect_mesh.items():
+        check(f"{_sa} 网状连接={list(_nbrs)}", list(C.subarea_links("oak_plain", _sa)) == list(_nbrs),
+              list(C.subarea_links("oak_plain", _sa)))
+
+    # 2) 行为验证：入口(草地边缘) 连接 草地深处 + 乱石岗（网状分支，非仅 i→i+1）
+    r = await move("2")  # 草地边缘 → 乱石岗（索引 2 = 网状新增房）
+    check("草地边缘→乱石岗", pos() == "oak_plain:oak_plain_4", f"{pos()} | {r[:80]}")
+    # 乱石岗 → 野猪泥潭（深网房间可直达）
+    r = await move("3")  # 乱石岗 → 野猪泥潭
+    check("乱石岗→野猪泥潭", pos() == "oak_plain:oak_plain_6", f"{pos()} | {r[:80]}")
+    # 野猪泥潭是死胡同（仅连乱石岗）→ 非入口不能出图
+    r = await move("橡木镇")  # 从非入口房尝试跨图：被拦，位置不变
+    check("野猪泥潭直接出图被拦", pos() == "oak_plain:oak_plain_6", f"{pos()} | {r[:80]}")
+    r = await move("1")  # 野猪泥潭 → 乱石岗
+    check("野猪泥潭→乱石岗", pos() == "oak_plain:oak_plain_4", pos())
+    r = await move("1")  # 乱石岗 → 草地边缘（回入口）
+    check("乱石岗→草地边缘", pos() == "oak_plain:oak_plain_1", pos())
+    # 入口(草地边缘) 仍可从 草地深处 方向走
+    r = await move("1")  # 草地边缘 → 草地深处
     check("草地边缘→草地深处", pos() == "oak_plain:oak_plain_2", pos())
-    r = await move("2")  # 草地深处 → 溪边草地
-    check("草地深处→溪边草地", pos() == "oak_plain:oak_plain_3", pos())
-    r = await move("2")  # 溪边草地 → 邻居（橡木镇）：非入口被拦
-    check("溪边草地直接出图被拦", "草地边缘" in r, r[:120])
-    check("位置未变", pos() == "oak_plain:oak_plain_3", pos())
+    r = await move("1")  # 草地深处 → 草地边缘（回入口）
+    check("草地深处→草地边缘", pos() == "oak_plain:oak_plain_1", pos())
 
     # ===== 进城落出口 =====
     print("· 进城落出口（镇郊）")
-    r = await move("1")  # 溪边草地 → 草地深处
-    r = await move("1")  # 草地深处 → 草地边缘
-    check("回到草地边缘", pos() == "oak_plain:oak_plain_1", pos())
-    r = await move("2")  # 草地边缘 → 橡木镇（邻居序号 = 1+1 = 2）
+    # 入口(草地边缘)相邻=2 个子区域 + 2 个邻居地图：橡木镇=索引 3
+    r = await move("3")  # 草地边缘 → 橡木镇（邻居序号 = 2 links + 1 = 3）
     check("进城落镇郊", pos() == "oak_town:oak_town_outskirts", f"{pos()} | {r[:120]}")
     r = await move("1")  # 镇郊 → 东大街
     check("镇郊→东大街", pos() == "oak_town:oak_town_street", pos())

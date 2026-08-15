@@ -9,6 +9,7 @@
 - 战斗中不能逃跑（Boss 锁定）；副本失败全队回城
 """
 import random
+import re
 import time
 import uuid
 
@@ -167,6 +168,7 @@ class InstanceCmds(CommandBase):
                 st["stage_pending"].append(next_stage["boss"])
             st["boss"] = None
             st["enemy"] = None
+            st["enemies"] = []
             st["stage_secret_found"] = False
             st["stage_secret_cleared"] = False
             self._check_stage_secret_cond(st)  # 新层 secret cond 检查（如海蚀洞窟 L3 藏宝密室）
@@ -469,6 +471,146 @@ class InstanceCmds(CommandBase):
                 pb = st["p_buffs"].setdefault(m, {})
                 pb["spd_up"] = max(pb.get("spd_up", 0), 2)
             st["boss_buff_next"] = False
+        # v2 多对多：战斗开始由 st["boss"] 构建敌方阵列 st["enemies"]（Boss+配置爪牙）
+        st["enemies"] = self._instance_build_enemy_array(st, st["boss"])
+
+    # ---------------- v2 多对多阵列 helpers（§2.2 / §8.2） ----------------
+    def _scale_enemy_copy(self, m: dict, mult: float, uid: str, name: str,
+                          rank: int, reach: int) -> dict:
+        """按倍率复制主怪战斗属性派生一只站位独立的新单位（沿用 skills/drops/地图）。
+        等价 drops._scale_monster 的确定性派生（不引入随机）。"""
+        copy = dict(m)
+        for k in ("hp", "max_hp", "atk", "def", "matk", "mdef", "spd"):
+            if isinstance(copy.get(k), (int, float)):
+                copy[k] = max(0, int(copy[k] * mult))
+        copy["uid"] = uid
+        copy["name"] = name
+        copy["rank"] = rank
+        copy["reach"] = reach
+        copy["buffs"] = {}
+        copy["stacks"] = {}
+        copy["defending"] = False
+        copy["charging"] = None
+        # 爪牙不属于首领/精英本体（身份/奖励判定走主怪）
+        copy["is_boss"] = False
+        copy["is_elite"] = False
+        copy["is_minion"] = True
+        # 爪牙不携带主怪专属机制（防逐单位 _boss_mech 多怪多次召唤/回血）
+        copy["mech"] = ""
+        copy["mod"] = ""
+        return copy
+
+    def _instance_build_enemy_array(self, st: dict, boss: dict) -> list:
+        """v2：由主怪 st["boss"] 构建敌方阵列 st["enemies"]。
+        Boss 主单位 = build_monster 产物（含 rank/reach/uid/buffs/stacks/defending/charging）；
+        配置 minions 展开为 rank1 的爪牙（属性 ×0.5、名字"XX的{minion名}"、uid 唯一、is_boss/is_elite False）。
+        精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。"""
+        boss = boss or {}
+        if not boss:
+            return []
+        if not boss.get("is_boss"):
+            return [boss]
+        enemies = [boss]
+        inst = C.INSTANCES.get(st.get("inst_id") or "", {})
+        mcfg = inst.get("minions") or []
+        base_name = boss.get("name", "BOSS")
+        base_uid = boss.get("uid", "e_0")
+        for mi, cfg in enumerate(mcfg):
+            cnt = int(cfg.get("count", 1) or 1)
+            role = cfg.get("role", "dps")
+            mrank = 1  # 契约 §2.2：爪牙 rank1
+            mreach = 2 if role in ("caster", "healer") else 1
+            mname = cfg.get("name", "爪牙")
+            for j in range(cnt):
+                sub = self._scale_enemy_copy(
+                    boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
+                    "{}的{}".format(base_name, mname), mrank, mreach)
+                enemies.append(sub)
+        return enemies
+
+    def _instance_enemies_alive(self, st: dict) -> bool:
+        """v2：敌方阵列是否还有存活单位（hp>0）。单怪同 st["boss"].hp>0。"""
+        return any(u.get("hp", 0) > 0 for u in (st.get("enemies") or []))
+
+    def _instance_enemy_units(self, st: dict) -> list:
+        """v2：敌方阵列存活单位列表。"""
+        return [u for u in (st.get("enemies") or []) if u.get("hp", 0) > 0]
+
+    def _instance_enemies_compact(self, st: dict) -> list:
+        """v2：敌方阵列死亡单位移除 + 阵型压缩（formation.compact）。
+        返回被移除（死亡）的单位列表，供击杀奖励/任务统计逐单位结算。
+        st["boss"]/st["enemy"] 兼容键 → 存活首单位；若原 Boss 已死被移除则保留原 dict 引用
+        （供胜利显示/多动按 is_boss 或 uid 判断——_instance_boss_turn 多动按 uid 在存活阵列
+        中定位主 Boss，不依赖 st["boss"] 对象同一性）。"""
+        from ..core import formation as FM
+        enemies = st.setdefault("enemies", [])
+        removed = FM.compact(enemies)
+        st["_last_killed"] = removed  # 记录本回合死亡单位（击杀奖励/任务统计按单位结算）
+        # 兼容主目标：仅当原 Boss（按 uid 识别）仍在存活阵列中时，才把 st["boss"]/st["enemy"]
+        # 更新为活着的首单位；若原 Boss 已死/被移除（爪牙存活），保留原 dict 引用，避免
+        # "Boss 先死、爪牙存活"时 st["boss"] 被错误重指向爪牙。
+        if enemies:
+            _orig_uid = (st.get("boss") or {}).get("uid")
+            if _orig_uid and any(u.get("uid") == _orig_uid for u in enemies):
+                st["boss"] = enemies[0]
+                st["enemy"] = enemies[0]
+        else:
+            st.setdefault("boss", st.get("enemy"))
+            st.setdefault("enemy", st.get("boss"))
+        return removed
+
+    def _instance_ensure_player_fields(self, st: dict) -> None:
+        """v2：确保每玩家快照含站位字段（rank/reach/uid/buffs/stacks/defending/charging），
+        老存档恢复时补缺。"""
+        for key, snap in (st.get("players") or {}).items():
+            cls = snap.get("class_name", "")
+            cinfo = C.CLASSES.get(cls, {})
+            snap.setdefault("rank", cinfo.get("default_rank", 2))
+            snap.setdefault("reach", cinfo.get("reach", cinfo.get("default_rank", 2)))
+            snap.setdefault("uid", "p_{}".format(key))
+            snap.setdefault("buffs", {})
+            snap.setdefault("stacks", {})
+            snap.setdefault("defending", False)
+            snap.setdefault("charging", None)
+
+    def _instance_player_units(self, st: dict) -> list:
+        """v2：我方阵列存活玩家单位列表（仅供参考 name/rank/reach）。"""
+        self._instance_ensure_player_fields(st)
+        return [snap for key, snap in (st.get("players") or {}).items()
+                if st.get("alive", {}).get(str(key), True)]
+
+    def _instance_extract_target(self, event, action: str, skill_name: str = None) -> str or None:
+        """v2：从事件消息解析指定目标名（『攻击 <名字>』/『技能 <名> <目标名>』）。
+        无法可靠解析 → 返回 None（引擎自动选择目标）。"""
+        try:
+            msg = event.get_message_str().strip()
+            msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
+            msg = re.sub(r"^\[At:全体成员\]\s*", "", msg)
+            msg = re.sub(r"^\[引用消息[^\]]*\]\s*", "", msg)
+        except Exception:
+            return None
+        if action == "attack":
+            if msg.startswith("攻击"):
+                rest = msg[len("攻击"):].strip()
+                if not rest or "@" in rest or rest.isdigit():
+                    return None
+                return rest
+            return None
+        if action == "skill" and skill_name:
+            # 『技能 <名> [目标名]』：去掉"技能"再尽可能去掉技能名，剩余即目标
+            if not msg.startswith("技能"):
+                return None
+            rest = msg[len("技能"):].strip()
+            # 去掉（前缀匹配的）技能名
+            if rest.startswith(skill_name):
+                rest = rest[len(skill_name):].strip()
+            else:
+                # 技能名未精确前缀命中 → 无法可靠剥离目标，交自动选择
+                return None
+            if not rest or "@" in rest or rest.isdigit():
+                return None
+            return rest
+        return None
 
 
     def _class_role_label(self, class_name) -> str:
@@ -574,8 +716,9 @@ class InstanceCmds(CommandBase):
         if st.get("mode") == "map":
             return self._instance_map_view(st, group_id)
         inst = C.INSTANCES.get(st["inst_id"], {})
-        boss = st["boss"]
-        pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
+        self._instance_ensure_player_fields(st)
+        boss = st.get("boss") or (st["enemies"][0] if st.get("enemies") else {})
+        pct = max(0, int((boss or {}).get("hp", 0) / max(1, (boss or {}).get("max_hp", 1)) * 100))
         stages = st.get("inst_stages") or []
         stage_line = ""
         if stages:
@@ -585,8 +728,20 @@ class InstanceCmds(CommandBase):
         lines = [
             f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮{stage_line}",
             "━━━━━━━━━━━━",
-            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}({pct}%)",
+            f"👹【{(boss or {}).get('name', '怪物')}】❤️ {max(0, (boss or {}).get('hp', 0)):,} / {(boss or {}).get('max_hp', 0):,}({pct}%)",
         ]
+        # v2 站位图（§4）：敌方阵列 + 我方存活玩家阵列，蓄力单位带标记
+        from ..core import formation as FM
+        enemy_view = FM.formation_view(st.get("enemies") or [])
+        player_units = [snap for key, snap in (st.get("players") or {}).items()
+                        if st.get("alive", {}).get(str(key), True)]
+        ally_view = FM.formation_view(player_units)
+        if enemy_view:
+            lines.append("── 敌方 ──")
+            lines.extend(f"  {l}" for l in enemy_view)
+        if ally_view:
+            lines.append("── 我方 ──")
+            lines.extend(f"  {l}" for l in ally_view)
         # v104 M04 P2：状态视图按当前队伍过滤——退队者不显示血量行，
         # 且退队者不再是"轮到 TA 行动"（原地等 TA 行动会让全队干等）
         _cur = self._instance_current_members(group_id, st)
@@ -875,6 +1030,8 @@ class InstanceCmds(CommandBase):
             "threat": {str(m): 0 for m in members},
             "over": False,
         }
+        # v2：由主怪构建敌方阵列 st["enemies"]（Boss+配置爪牙；怪区 map 模式 boss=None→空）
+        st["enemies"] = self._instance_build_enemy_array(st, st.get("boss"))
         return st
 
 
@@ -1028,7 +1185,18 @@ class InstanceCmds(CommandBase):
                 # 重算 max_hp/max_mp，缺 race 会丢掉种族 hp 倍率（精灵月缺 ×0.95）→ 战斗内上限偏大
                 # 且战斗结束写回污染 DB（实测影刃 520→548）
                 "race": p.get("race"),
+                # v2 多对多站位：玩家单位站位/射程/唯一 uid/单位级 buff 字段（§2.2 / §8.2）
+                "rank": C.CLASSES.get(p["class_name"], {}).get("default_rank", 2),
+                "reach": C.CLASSES.get(p["class_name"], {}).get("reach",
+                                 C.CLASSES.get(p["class_name"], {}).get("default_rank", 2)),
+                "uid": "p_{}".format(str(m)),
+                "buffs": {},
+                "stacks": {},
+                "defending": False,
+                "charging": None,
             }
+        # v2：全员站位归一（老存档恢复或字段缺省时补齐）
+        self._instance_ensure_player_fields(st)
         # v57：副本行动序按速度降序（快者先出手）。真人轮流节奏不变，只是顺序由速度决定
         st["members"] = sorted(st["members"], key=lambda m: st["players"][str(m)].get("spd", 0), reverse=True)
         st["acted"] = [False] * len(st["members"])
@@ -1096,7 +1264,9 @@ class InstanceCmds(CommandBase):
         # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
         # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
         # 层内无敌人时直接引导『深入』推进，不进入战斗回合逻辑。
-        if not st.get("boss"):
+        # v2 修复：判定基于 enemies 阵列存活（兼容键 st["boss"] 在阵列清空后保留引用，
+        # 不能再用 not st.get("boss") 判断地图模式——否则肃清后攻击会进入空阵列战斗路径）。
+        if not self._instance_enemies_alive(st) or not st.get("enemies"):
             # O111 修复：肃清提示与『深入』判定统一——层内还有未遭遇的怪物
             # （stage_pending 非空，如『深入』刚进入的新层）时不能说"已被肃清"，
             # 否则同层先提示"敌人已被肃清"又提示"还没肃清"（playtest O111 阿甘实测）。
@@ -1166,11 +1336,27 @@ class InstanceCmds(CommandBase):
 
         # 3. 玩家行动（enemy_act=False，Boss 不立即反击）
         snap = st["players"][cur_key]
+        # v2 目标指定：从消息『攻击 <名字>』/『技能 <名> <目标名>』解析（None=自动）
+        target = self._instance_extract_target(event, action, skill_name)
+        # v2 敌我阵列归一（老存档恢复时补 enemies/站位字段）
+        self._instance_ensure_player_fields(st)
+        enemies = st["enemies"] if st.get("enemies") else [st["boss"]] if st.get("boss") else []
+        if not enemies:
+            # 无存活敌人（理论上不可达：入口已拦截 boss=None），防御兜底
+            st["turn"] = (st["turn"] + 1) % len(members)
+            st["turn_time"] = now
+            self._sync_players_db(group_id, st)
+            db.save_battle(group_id, st["leader"], st)
+            yield event.plain_result("眼前已经没有敌人了！")
+            return
         # v49 意见#6 仇恨：行动前记录全队血量（用于计算治疗仇恨）
         hp_before = sum(st["players"][m]["hp"] for m in members if st["alive"].get(str(m), True))
+        # v2 行动前记录敌方阵列各单位血量（用于计算 dealt 贡献/仇恨）
+        enemies_before = {str(u.get("uid")): int(u.get("hp", 0) or 0) for u in enemies}
         b = BT.Battle.from_state({
             "type": "instance",
-            "enemy": st["boss"],
+            "enemy": st["boss"] or (enemies[0] if enemies else {}),
+            "enemies": enemies,
             "p_buffs": st["p_buffs"].get(cur_key, {}),
             "p_hot": st.get("p_hot", {}).get(cur_key, {}),
             "p_food_effects": st.get("p_food_effects", {}).get(cur_key, []) or st.get("p_food_affixes", {}).get(cur_key, []),
@@ -1189,6 +1375,8 @@ class InstanceCmds(CommandBase):
             "resources": st.get("resources", {}).get(cur_key, {}),
             "cooldown": st.get("cooldown", {}).get(cur_key, {}),
             "combo_seq": st.get("combo_seq", {}).get(cur_key, []),
+            # v2 副本玩家蓄力持久化：跨回合恢复（蓄力技副本中跨回合生效）
+            "charging": st.get("charging", {}).get(cur_key),
             # v112 O102 修复：副本战斗透传 v61 速度优势字段（与 #438 同源——手写
             # from_state 漏字段）。不传则：①p_extra_left 获得额外行动后回合移交队友，
             # 轮回时被清零永远打不出（阿甘 round111 实测）；②_player_hit 恒 False，
@@ -1200,8 +1388,7 @@ class InstanceCmds(CommandBase):
             "e_first": st.get("e_first", False),
             "player_hit": st.get("player_hit", {}).get(cur_key, False),
         })
-        boss_before = st["boss"]["hp"]
-        act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False)
+        act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False, target=target)
         st["players"][cur_key] = snap
         st["p_buffs"][cur_key] = b.p_buffs
         st.setdefault("p_hot", {})[cur_key] = b.p_hot
@@ -1224,8 +1411,22 @@ class InstanceCmds(CommandBase):
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
         st["p_defending"][cur_key] = bool(getattr(b, "p_defending", False))
+        # v2 副本玩家蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
+        st.setdefault("charging", {})[cur_key] = b.charging
         snap["p_shields"] = b.p_shields
-        dealt = max(0, boss_before - st["boss"]["hp"])
+        # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
+        st["enemies"] = b.enemies
+        self._instance_enemies_compact(st)
+        # v2 dealt = 全阵列 hp 减少总和（含爪牙，贡献/仇恨/击杀按单位）
+        dealt_enemy = 0
+        for _uid, _bh in enemies_before.items():
+            cur = next((u for u in st["enemies"] if str(u.get("uid")) == _uid), None)
+            if cur is not None:
+                dealt_enemy += max(0, _bh - int(cur.get("hp", 0) or 0))
+            else:
+                # 单位已死并被压缩移除 → 原 hp 全部计入
+                dealt_enemy += _bh
+        dealt = dealt_enemy
         if dealt > 0:
             st["contribution"][cur_key] = st["contribution"].get(cur_key, 0) + dealt
         # v49 意见#6 仇恨：伤害/治疗积累仇恨，防御嘲讽拉仇恨
@@ -1258,7 +1459,7 @@ class InstanceCmds(CommandBase):
             # 全员倒地（含同归于尽）→ 直接失败结算
             if not [mm for mm in members if st["alive"].get(str(mm), True)]:
                 st["over"] = True
-                if st["boss"].get("hp", 1) <= 0:
+                if not self._instance_enemies_alive(st):
                     logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
                 async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                     yield _r
@@ -1278,7 +1479,7 @@ class InstanceCmds(CommandBase):
                 logs += self._apply_team_effect(st, cur_key, te)
 
         # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
-        if st["boss"]["hp"] <= 0:
+        if not self._instance_enemies_alive(st):
             # v101.27 #390 暗格守卫击杀：走精英击杀奖励 → 密室宝箱出现（不是通关）
             if st.get("secret_guard_pending"):
                 st["secret_guard_pending"] = False
@@ -1287,6 +1488,7 @@ class InstanceCmds(CommandBase):
                 st["mode"] = "map"
                 st["boss"] = None
                 st["enemy"] = None
+                st["enemies"] = []
                 for m in st["members"]:
                     self._unlock_battle(group_id, m)
                 self._sync_players_db(group_id, st)
@@ -1311,6 +1513,8 @@ class InstanceCmds(CommandBase):
                     # v101.28l #423：精英按人数缩放（切怪入口同样套用）
                     self._instance_elite_scale(st, st["boss"])
                 st["enemy"] = st["boss"]
+                # v2：重建敌方阵列（普通/精英 → 单怪阵列）
+                st["enemies"] = self._instance_build_enemy_array(st, st["boss"])
                 st["e_buffs"] = {}
                 st["round"] = 1
                 for i in st["members"]:
@@ -1342,6 +1546,7 @@ class InstanceCmds(CommandBase):
                     st["mode"] = "map"
                     st["boss"] = None
                     st["enemy"] = None
+                    st["enemies"] = []
                     for m in st["members"]:
                         self._unlock_battle(group_id, m)
                     self._sync_players_db(group_id, st)  # v95r76 #383：层肃清后战斗外逻辑读 DB 须与快照一致
@@ -1399,8 +1604,8 @@ class InstanceCmds(CommandBase):
             # 全灭 → 失败（v101.27 鱼鱼拍板：失败=副本直接销毁，重进=全新开本）
             if not [m for m in members if st["alive"].get(str(m), True)]:
                 st["over"] = True
-                # v101.27 同归于尽判定：Boss 也同时阵亡 → 提示"同归于尽"（仍按失败销毁）
-                if st["boss"].get("hp", 1) <= 0:
+                # v101.27 同归于尽判定：敌方全灭 → 提示"同归于尽"（仍按失败销毁）
+                if not self._instance_enemies_alive(st):
                     logs.append("⚔️ 同归于尽！你与敌人同时倒下了……")
                 async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                     yield _r
@@ -1415,12 +1620,12 @@ class InstanceCmds(CommandBase):
         db.save_battle(group_id, st["leader"], st)
         nxt_key = str(members[st["turn"]])
         nxt_p = self._player(group_id, nxt_key)
-        boss = st["boss"]
-        pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
+        boss = st["boss"] or (st["enemies"][0] if st.get("enemies") else {})
+        pct = max(0, int(boss.get("hp", 0) / max(1, boss.get("max_hp", 1)) * 100))
         yield event.plain_result(
             "\n".join(logs) +
             f"\n━━━━━━━━━━━━\n"
-            f"👹【{boss['name']}】❤️ {max(0, boss['hp']):,} / {boss['max_hp']:,}({pct}%)\n"
+            f"👹【{boss.get('name', '怪物')}】❤️ {max(0, boss.get('hp', 0)):,} / {boss.get('max_hp', 0):,}({pct}%)\n"
             f"⏳ 轮到 {nxt_p['name'] if nxt_p else nxt_key} 行动！"
         )
 
@@ -1484,76 +1689,112 @@ class InstanceCmds(CommandBase):
         return logs
 
     def _instance_boss_turn(self, st: dict, group_id: int) -> list:
-        """Boss 行动（v49 意见#6 仇恨制）：打仇恨最高的存活队员；防御者仇恨已拉高优先被选中（伤害减半）
-        v57：速度机制——Boss 速度 ≥ 全队平均 ×1.5 时每轮多动 1 次、×2 时多动 2 次"""
+        """Boss 回合（v2 多对多 §8.2）：敌方阵列每个存活单位依次行动一次
+        （rank 升序 → 同层 spd 降序），目标 = 射程内前排 + 仇恨/嘲讽。
+        主 Boss 多动（速度 ≥1.5×/2× 均速）保留：仅主 Boss 单位额外补刀。"""
         logs = []
         members = st["members"]
         cur = self._instance_current_members(group_id, st)
         alive = [m for m in members if str(m) in cur and st["alive"].get(str(m), True)]
         if not alive:
             return logs
-        # v57：算 Boss 多动次数（基于存活队员平均速度）
+        self._instance_ensure_player_fields(st)
+        enemies = self._instance_enemy_units(st)
+        if not enemies:
+            return logs
+        # 行动顺序：rank 升序 → 同层 spd 降序（契约 §3.2）
+        enemies = sorted(enemies, key=lambda u: (int(u.get("rank", 1) or 1),
+                                                 -float(u.get("spd", 0) or 0)))
+        main = st.get("boss") or (enemies[0] if enemies else None)
+        # v57：主 Boss 多动（基于存活队员平均速度）
         avg_spd = sum(st["players"][str(m)].get("spd", 0) for m in alive) / max(1, len(alive))
-        boss_spd = max(1, st["boss"].get("spd", 0) or 1)
+        boss_spd = max(1, (main or {}).get("spd", 0) or 1)
         extra = 0
-        if boss_spd >= avg_spd * 2.0 and avg_spd > 0:
+        if avg_spd > 0 and boss_spd >= avg_spd * 2.0:
             extra = 2
-        elif boss_spd >= avg_spd * 1.5 and avg_spd > 0:
+        elif avg_spd > 0 and boss_spd >= avg_spd * 1.5:
             extra = 1
-        boss_acts = 1 + extra
-        for _ in range(boss_acts):
-            if not [m for m in members if st["alive"].get(str(m), True)]:
+        # 每个存活单位各行动一次（rank 升序 → 同层 spd 降序）
+        for u in list(enemies):
+            if not [mm for mm in members if st["alive"].get(str(mm), True)]:
                 break
-            logs += self._instance_boss_one_turn(st, group_id)
-            if extra and st["boss"].get("hp", 1) > 0:
-                logs.append(f"⚡【{st['boss'].get('name', 'Boss')}】速度惊人，再次出手！")
+            if u.get("hp", 0) <= 0:
+                continue
+            logs += self._instance_enemy_one_act(st, group_id, u)
+        # 主 Boss 多动（仅主 Boss 额外补刀）
+        if extra and main:
+            mkey = str(main.get("uid"))
+            for i in range(extra):
+                if not [mm for mm in members if st["alive"].get(str(mm), True)]:
+                    break
+                mp = next((u for u in st.get("enemies") or [] if str(u.get("uid")) == mkey
+                           and u.get("hp", 0) > 0), None)
+                if mp is None:
+                    break
+                logs += self._instance_enemy_one_act(st, group_id, mp)
+                logs.append(f"⚡【{main.get('name', 'Boss')}】速度惊人，再次出手！")
+        # 敌方单位可能因反伤/机制死亡 → 压缩
+        self._instance_enemies_compact(st)
         return logs
 
-    def _instance_boss_one_turn(self, st: dict, group_id: int) -> list:
-        """Boss 单次行动：打仇恨最高(或嘲讽目标)的存活队员"""
+    def _instance_enemy_one_act(self, st: dict, group_id: int, unit: dict) -> list:
+        """v2：敌方阵列单个单位行动一次（目标 = 射程内前排 + 仇恨/嘲讽）。
+        防御/格挡/闪避/减伤对目标玩家逐次结算（沿用旧 _instance_boss_one_turn 骨架）。"""
+        from ..core import formation as FM
         logs = []
         members = st["members"]
         cur = self._instance_current_members(group_id, st)
         alive = [m for m in members if str(m) in cur and st["alive"].get(str(m), True)]
-        if not alive:
+        if not alive or unit.get("hp", 0) <= 0:
             return logs
-        threat = st.setdefault("threat", {})
-        # v51 嘲讽：Boss 优先攻击嘲讽目标（若存活），否则按仇恨最高
-        # v104 P1：嘲讽目标已退队 → 视为无效，走仇恨选择
+        ename = unit.get("name", "怪物")
+        # 敌方单位蓄力由引擎处理：_enemy_turn(player, unit) 内部 left-1 / 归零释放（§6）
+        # 我方存活玩家阵列（含站位字段）
+        self._instance_ensure_player_fields(st)
+        player_units = [snap for key, snap in (st["players"] or {}).items()
+                        if st.get("alive", {}).get(str(key), True)]
+        threat_by_uid = {}
+        for snap in player_units:
+            _q = str(snap.get("qq_id") or snap.get("uid", ""))
+            threat_by_uid[str(snap.get("uid", ""))] = st.get("threat", {}).get(_q, 0)
+        # 嘲讽优先：嘲讽目标存活且在射程内 → 强制选它（否则正常仇恨/射程选择）
         taunt_key = str(st.get("taunt_target", ""))
-        if taunt_key and st.get("taunt_turns", 0) > 0 and st["alive"].get(taunt_key, False) and taunt_key in cur:
-            target = next((m for m in alive if str(m) == taunt_key), None)
-            if target is None:
-                target = taunt_key
-            st["taunt_turns"] = max(0, int(st.get("taunt_turns", 0)) - 1)
-            logs.append(f"📢 嘲讽生效！Boss 怒视着 {st['players'][taunt_key].get('name', target)}！")
-            if st["taunt_turns"] <= 0:
-                st.pop("taunt_target", None)
-        else:
-            if taunt_key:
-                st.pop("taunt_target", None)
-            # 仇恨最高者（同仇恨随机）
-            top = max(threat.get(str(m), 0) for m in alive)
-            candidates = [m for m in alive if threat.get(str(m), 0) == top]
-            target = random.choice(candidates) if len(candidates) > 1 else candidates[0]
-        tkey = str(target)
-        snap = st["players"][tkey]
-        tname = snap.get("name", target)
+        target = None
+        if taunt_key and st.get("taunt_turns", 0) > 0 and st["alive"].get(taunt_key, False) \
+                and taunt_key in cur:
+            for snap in player_units:
+                if str(snap.get("qq_id")) == taunt_key \
+                        and int(snap.get("rank", 1) or 1) <= int(unit.get("reach", 1) or 1):
+                    target = snap
+                    break
+            if target is not None:
+                st["taunt_turns"] = max(0, int(st.get("taunt_turns", 0)) - 1)
+                logs.append(f"📢 嘲讽生效！{ename} 怒视着 {target.get('name', taunt_key)}！")
+                if st["taunt_turns"] <= 0:
+                    st.pop("taunt_target", None)
+            else:
+                # 嘲讽目标已死/不在射程 → 视为无效，走正常选择
+                if taunt_key:
+                    st.pop("taunt_target", None)
+        if target is None:
+            target = FM.select_target(unit, player_units, threat=threat_by_uid)
+        if target is None:
+            return logs
+        tkey = str(target.get("qq_id") or target.get("uid", ""))
+        snap = st["players"].get(tkey) or target
+        tname = snap.get("name", tkey)
+        # 构造单怪 Battle：enemies=[该单位]（自身含 buffs/stacks/defending/charging）
         b = BT.Battle.from_state({
             "type": "instance",
-            "enemy": st["boss"],
+            "enemy": unit,
+            "enemies": [unit],
             "p_buffs": st["p_buffs"].get(tkey, {}),
-            "e_buffs": st["e_buffs"],
-            # v101.28m #438 复测修复：Boss 行动同样完整传递战斗状态——
-            # 不传 e_minions 则援军回合结束蒸发（不挡刀不出手）；不传 round
-            # 则 _boss_mech 的按回合机制（召唤/回血）永远失序
+            "e_buffs": unit.get("buffs") or {},
             "round": st.get("round", 0),
             "e_minions": st.get("e_minions", []),
             "resources": st.get("resources", {}).get(tkey, {}),
             "cooldown": st.get("cooldown", {}).get(tkey, {}),
             "combo_seq": st.get("combo_seq", {}).get(tkey, []),
-            # v112 O102 修复：Boss 行动同样透传 v61 速度优势字段（e_extra_left 连击/
-            # e_first 先手/玩家侧进度与受击标记；与 _instance_act 玩家侧配对）
             "p_progress": st.get("p_progress", {}).get(tkey, 0.0),
             "p_extra_left": st.get("p_extra_left", {}).get(tkey, 0),
             "e_progress": st.get("e_progress", 0.0),
@@ -1561,15 +1802,29 @@ class InstanceCmds(CommandBase):
             "e_first": st.get("e_first", False),
             "player_hit": st.get("player_hit", {}).get(tkey, False),
         })
-        mlogs, dmg = b._enemy_turn(snap)
-        st["e_buffs"] = b.e_buffs
-        # v101.28m #438 复测修复：Boss 行动后状态写回
+        mlogs, dmg = b._enemy_turn(snap, unit)
+        # O116：受击伤害文案暂存 pending，本层不走 _damage_player 需手动取出拼进日志
+        try:
+            _pend = b._drain_pending_dmg()
+            if _pend:
+                mlogs = mlogs + _pend
+        except Exception:
+            pass
+        # 敌方单位状态写回 st["enemies"]（按 uid 定位原单位；unit 本身即 st 对象，兜底同步）
+        self._sync_enemy_unit(st, unit)
+        st["e_buffs"] = unit.get("buffs") or {}
         st["round"] = b.round
-        st["e_minions"] = b.e_minions
+        # 引擎可能召唤援军入 b.enemies（多怪整体 Battle 才生效；单怪 Battle 不产生）
+        if b.enemies and any(str(u2.get("uid")) != str(unit.get("uid")) for u2 in b.enemies):
+            exist = {str(u2.get("uid")) for u2 in st.get("enemies") or []}
+            for u2 in b.enemies:
+                if str(u2.get("uid")) != str(unit.get("uid")) and str(u2.get("uid")) not in exist:
+                    st.setdefault("enemies", []).append(u2)
+        # 敌方援军镜像同步（旧兼容字段 e_minions 并入 enemies 后保留 is_minion 引用）
+        st["e_minions"] = [u for u in st.get("enemies") or [] if u.get("is_minion")]
         st.setdefault("resources", {})[tkey] = b.resources
         st.setdefault("cooldown", {})[tkey] = b.cooldown
         st.setdefault("combo_seq", {})[tkey] = b.combo_seq
-        # v112 O102 修复：Boss 行动后 v61 速度优势字段写回（与透传配对）
         st.setdefault("p_progress", {})[tkey] = b.p_progress
         st.setdefault("p_extra_left", {})[tkey] = b.p_extra_left
         st["e_progress"] = b.e_progress
@@ -1578,8 +1833,7 @@ class InstanceCmds(CommandBase):
         st.setdefault("player_hit", {})[tkey] = b._player_hit
         if st["p_defending"].get(tkey):
             dmg = max(1, int(dmg * 0.5))
-            # v101.25 #345：防御减伤后日志同步修正——玩家看到的伤害数字与实际扣血一致
-            # （round71 影刃抓包：日志显示 111/71/78/140，实际扣血 55/35/39/70 正好减半）
+            # v101.25 #345：防御减伤后日志同步修正（伤害数字与实际扣血一致）
             import re as _re
             mlogs = [_re.sub(r"造成 (\d+) 点伤害",
                              lambda m: f"造成 {max(1, int(int(m.group(1)) * 0.5))} 点伤害(格挡)",
@@ -1588,31 +1842,46 @@ class InstanceCmds(CommandBase):
         logs += mlogs
         if dmg > 0:
             snap["hp"] = max(0, snap["hp"] - dmg)
-            snap["took_dmg"] = True  # v105 M18 P1：无伤通关(ach_flawless)受损标记，随 battle 状态持久化
+            snap["took_dmg"] = True  # v105 M18 P1：无伤通关(ach_flawless)受损标记
             logs.append(f"❤️ {tname} 剩余 {snap['hp']}/{snap['max_hp']}")
         if snap["hp"] <= 0:
             st["alive"][tkey] = False
-            threat[tkey] = 0
-            # O105 修复：Boss 行动后死亡同样明确提示"你已倒下，等待队友…"，
-            # 与玩家自身行动倒地提示口径统一（playtest O105 洛洛 HP0 无提示）
+            st.setdefault("threat", {})[tkey] = 0
+            # O105：Boss 行动后死亡同样明确提示"你已倒下，等待队友…"
             logs.append(f"💀 {tname} 倒下了！你已倒下，等待队友…")
         st["p_defending"][tkey] = False  # 防御只挡一次
         return logs
 
+    def _sync_enemy_unit(self, st: dict, unit: dict) -> None:
+        """v2：把单怪 Battle 结算后的单位状态写回 st["enemies"] 原单位（按 uid 定位）。
+        覆盖 hp/max_hp/buffs/stacks/defending/charging（引擎 _enemy_turn 可能改 buffs/stacks）。"""
+        uid = str(unit.get("uid"))
+        for u in st.get("enemies") or []:
+            if str(u.get("uid")) == uid:
+                for k in ("hp", "max_hp", "buffs", "stacks", "defending", "charging"):
+                    if k in unit:
+                        u[k] = unit[k]
+                return
+
     # ---------------- 结算 ----------------
     def _instance_kill_reward(self, group_id, st):
         """v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报——无经验/金币/掉落反馈）。
+        v2 多对多：按当回合死亡单位列表（st["_last_killed"]，缺省回退主怪）逐单位结算——
+        主怪（is_boss/is_elite/阵列首）全量 exp/gold+掉落；爪牙 exp/gold ×0.5、无掉落。
 
         对照野外 _kill 的 v93 经济模式：经验入账 + 金币×1.5 折算成可卖材料
         （怪物掉落池优先，通用池兜底；精英 2 种普通 1 种）。组队存活成员各一份。
         Boss 击杀走 _instance_victory 通关奖励，不在此列。
         注意：副本战斗内不做升级检查（check_player_level_up 会把 hp 回满，
         会破坏战斗节奏），经验攒到出副本后野外击杀时统一结算。"""
-        mdef = st.get("boss")
-        if not mdef:
+        killed = st.get("_last_killed") or ([st["boss"]] if st.get("boss") else [])
+        killed = [k for k in killed if k]
+        if not killed:
             return []
         lines = []
         cur = self._instance_current_members(group_id, st)
+        # 归并：跨单位累计每成员的 exp 与材料
+        per_member = {}
         for _m in st["members"]:
             if str(_m) not in cur:
                 continue  # v104 P1：已退队成员不参与击杀奖励
@@ -1621,66 +1890,90 @@ class InstanceCmds(CommandBase):
             p = self._player(group_id, _m)
             if not p:
                 continue
-            snap = st["players"].get(str(_m)) or {}
-            exp = mdef.get("exp", 0)
-            diff = mdef.get("lv", 0) - p.get("level", 0)
-            if diff > 5:
-                exp = int(exp * max(0.10, 1.0 - (diff - 5) * 0.15))
-            elif diff < -5:
-                exp = int(exp * max(0.10, 1.0 - (-diff - 5) * 0.20))
-            # v93 经济改革：金币不入账，折算成可卖材料
-            mats = []
-            mat_value = int(mdef.get("gold", 0) * 1.5)
-            if mat_value > 0:
-                drop_pool = [m for m in (mdef.get("drops") or []) if m]
-                if not drop_pool:
-                    drop_pool = ["兽肉", "狼皮", "蛇皮", "野猪牙"]
-                is_hi = mdef.get("is_elite") or mdef.get("is_boss")
-                # 测试确定性铁律（v103）：不在这里用 random.sample——新增随机数消耗
-                # 会打乱全量回归的战斗随机序列（两次跑失败点不同=随机性证据）。
-                # 掉落种类按掉落池顺序取前 N 种（确定性），数量仍按价值折算。
-                picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
-                per_val = mat_value / len(picks)
-                for mat_name in picks:
-                    mid = E.resolve_drop(mat_name)
-                    if mid is None:
-                        continue
-                    if mid in C.MATERIALS:
-                        mprice = C.MATERIALS[mid].get("price", 0)
-                        if mprice <= 0:
-                            continue
-                        n = max(1, min(99, round(per_val / mprice)))
-                        db.add_item(group_id, _m, mid,
-                                    {"name": C.display("materials", mid), "type": "材料",
-                                     "stackable": True, "price": mprice}, n)
-                        mats.append(f"{C.display('materials', mid)} ×{n}")
-                    else:
-                        # v110 审计修复：副本掉落支持消耗品钥匙（i_key_* 发放链补全）
-                        _it = C.ITEMS.get(mid, {})
-                        db.add_item(group_id, _m, mid,
-                                    {"name": _it.get("name", mat_name), "type": _it.get("type", "消耗品"),
-                                     "stackable": True, "price": _it.get("price", 0)}, 1)
-                        mats.append(f"{_it.get('name', mat_name)} ×1")
-            db.init_stats(group_id, _m)
-            db.bump_stats(group_id, _m, kills=1, day_kills=1)
-            if mdef.get("is_elite"):
-                db.bump_stats(group_id, _m, elite_kills=1)
-            elif mdef.get("is_boss"):
-                db.bump_stats(group_id, _m, boss_kills=1)
-            db.bump_bestiary(group_id, _m, mdef.get("name", ""))
-            db.update_player(group_id, _m, exp=p["exp"] + exp,
+            per_member[str(_m)] = {"exp": 0, "mats": [], "p": p}
+        for mdef in killed:
+            # 主怪（is_boss/is_elite 或普通主怪）全量；from _scale_enemy_copy/_summon_minions
+            # 派生的爪牙（is_minion）→ exp/gold ×0.5 且不掉落（§2.2 / §8.2）
+            slave = bool(mdef.get("is_minion"))
+            mainlike = bool(mdef.get("is_boss") or mdef.get("is_elite"))
+            ratio = 0.5 if slave else 1.0
+            for _key, acc in per_member.items():
+                p = acc["p"]
+                snap = st["players"].get(_key) or {}
+                exp = int(mdef.get("exp", 0) * ratio)
+                diff = mdef.get("lv", 0) - p.get("level", 0)
+                if diff > 5:
+                    exp = int(exp * max(0.10, 1.0 - (diff - 5) * 0.15))
+                elif diff < -5:
+                    exp = int(exp * max(0.10, 1.0 - (-diff - 5) * 0.20))
+                acc["exp"] += exp
+                # 掉落（仅主怪：爪牙不掉落）
+                if not slave:
+                    mat_value = int(mdef.get("gold", 0) * 1.5)
+                    if mat_value > 0:
+                        drop_pool = [m for m in (mdef.get("drops") or []) if m]
+                        if not drop_pool:
+                            drop_pool = ["兽肉", "狼皮", "蛇皮", "野猪牙"]
+                        is_hi = mdef.get("is_elite") or mdef.get("is_boss")
+                        # 测试确定性铁律（v103）：不在这里用 random.sample——新增随机数消耗
+                        # 会打乱全量回归的战斗随机序列（两次跑失败点不同=随机性证据）。
+                        # 掉落种类按掉落池顺序取前 N 种（确定性），数量仍按价值折算。
+                        picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
+                        per_val = mat_value / len(picks)
+                        for mat_name in picks:
+                            mid = E.resolve_drop(mat_name)
+                            if mid is None:
+                                continue
+                            if mid in C.MATERIALS:
+                                mprice = C.MATERIALS[mid].get("price", 0)
+                                if mprice <= 0:
+                                    continue
+                                n = max(1, min(99, round(per_val / mprice)))
+                                db.add_item(group_id, _key, mid,
+                                            {"name": C.display("materials", mid), "type": "材料",
+                                             "stackable": True, "price": mprice}, n)
+                                acc["mats"].append(f"{C.display('materials', mid)} ×{n}")
+                            else:
+                                # v110 审计修复：副本掉落支持消耗品钥匙（i_key_* 发放链补全）
+                                _it = C.ITEMS.get(mid, {})
+                                db.add_item(group_id, _key, mid,
+                                            {"name": _it.get("name", mat_name), "type": _it.get("type", "消耗品"),
+                                             "stackable": True, "price": _it.get("price", 0)}, 1)
+                                acc["mats"].append(f"{_it.get('name', mat_name)} ×1")
+            # 统计/图鉴：主怪记精英/Boss，爪牙只记普通击杀
+            for _key in per_member:
+                db.init_stats(group_id, _key)
+                db.bump_stats(group_id, _key, kills=1, day_kills=1)
+                if mainlike:
+                    if mdef.get("is_elite"):
+                        db.bump_stats(group_id, _key, elite_kills=1)
+                    elif mdef.get("is_boss") or mdef.get("role") == "boss":
+                        db.bump_stats(group_id, _key, boss_kills=1)
+                db.bump_bestiary(group_id, _key, mdef.get("name", ""))
+        # 写入 DB 并生成播报
+        for _key, acc in per_member.items():
+            p = acc["p"]
+            snap = st["players"].get(_key) or {}
+            exp = int(acc["exp"])
+            db.update_player(group_id, _key, exp=p["exp"] + exp,
                              hp=snap.get("hp", p.get("hp", 0)), mp=snap.get("mp", p.get("mp", 0)),
                              max_hp=snap.get("max_hp", p.get("max_hp", 0)),
                              max_mp=snap.get("max_mp", p.get("max_mp", 0)))
             line = f"  {p['name']}：经验 +{exp}"
-            if mats:
-                line += f"，拾取材料 {'、'.join(mats)}"
+            # 去重材料（同击杀多单位同材料时合并数量提示）
+            seen = {}
+            for _ms in acc["mats"]:
+                seen[_ms] = True
+            if seen:
+                line += f"，拾取材料 {'、'.join(list(seen))}"
             lines.append(line)
             # v105 M19 P0：副本内击杀同步推进主线进度（组队玩家路线）——主线击杀目标
             # 只挂副本时，组队通关副本的击杀必须计入，否则副本路线玩家主线卡死
-            _ql = self._instance_main_kill_progress(group_id, _m, mdef.get("name", ""))
-            if _ql:
-                lines.append(f"  {p['name']}：{'；'.join(_ql)}")
+            for mdef in killed:
+                _ql = self._instance_main_kill_progress(group_id, _key, mdef.get("name", ""))
+                if _ql:
+                    lines.append(f"  {p['name']}：{'；'.join(_ql)}")
+                    break
         return lines
 
     def _instance_main_kill_progress(self, group_id, qq_id, monster_name):
@@ -1951,6 +2244,7 @@ class InstanceCmds(CommandBase):
         st["mode"] = "map"
         st["boss"] = None
         st["enemy"] = None
+        st["enemies"] = []
         db.save_battle(group_id, st["leader"], st)
         yield event.plain_result("\n".join(lines))
 

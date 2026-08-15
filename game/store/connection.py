@@ -133,6 +133,12 @@ CREATE TABLE IF NOT EXISTS players (
                 qq_id TEXT NOT NULL,
                 map_id TEXT NOT NULL,
                 PRIMARY KEY (qq_id, map_id)
+            );CREATE TABLE IF NOT EXISTS visited_subareas (
+                qq_id TEXT NOT NULL,
+                map_id TEXT NOT NULL,
+                sa_id TEXT NOT NULL,
+                first_at INTEGER,
+                PRIMARY KEY (qq_id, map_id, sa_id)
             );CREATE TABLE IF NOT EXISTS player_groups (
                 qq_id TEXT NOT NULL,
                 group_id TEXT NOT NULL,

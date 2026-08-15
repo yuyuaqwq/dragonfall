@@ -54,15 +54,30 @@ async def main():
     st["mode"] = "battle"
     st["boss"] = boss
     st["enemy"] = boss
+    st["enemies"] = [dict(boss)]  # v2：敌方阵列（boss/enemy 为兼容键）
     st["round"] = 1
     st["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", st)
 
     print("【通关结算 + 停留搜刮】")
-    # 杀掉 Boss → 通关
-    st["boss"]["hp"] = 1
-    db.save_battle("g1", "i1", st)
-    out = await cmd(m, "attack", "g1", "i1", "攻击")
+    # 杀掉 Boss → 通关（v2：Boss mech=summon 会召爪牙，enemies 阵列需全部清空，多次攻击）
+    for _ in range(12):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        st = battle["state"]
+        st["boss"]["hp"] = 1
+        st["boss"]["atk"] = 1
+        st["boss"]["matk"] = 1
+        for _eu in (st.get("enemies") or []):  # v2：兼容键同步到阵列单位（boss/enemies 深拷贝后脱节）
+            _eu["hp"] = 1
+            _eu["atk"] = 1
+            _eu["matk"] = 1
+        st["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", st)
+        out = await cmd(m, "attack", "g1", "i1", "攻击")
+        if "通关" in out:
+            break
     check("通关播报", "通关" in out, out[:200])
     check("通关后提示搜刮", "战利品堆" in out, out[:300])
     b = db.get_battle("g1", "i1")
@@ -110,6 +125,10 @@ async def main():
     st["boss"]["hp"] = 1
     st["boss"]["atk"] = 1
     st["boss"]["matk"] = 1
+    for _eu in (st.get("enemies") or []):  # v2：兼容键同步到阵列单位
+        _eu["hp"] = 1
+        _eu["atk"] = 1
+        _eu["matk"] = 1
     db.save_battle("g1", "i1", st)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
     check("守卫击杀提示宝箱", "神秘宝箱" in out, out[:300])

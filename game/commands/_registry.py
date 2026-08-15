@@ -42,7 +42,9 @@ COMMAND_REGEX = {
     "enhance": r'^(?:\[At:\d+\]\s*)?强化(?:\s*|$)',
     "equip": r'^(?:\[At:\d+\]\s*)?装备(?:\s*|$)',
     "evolve": r'^(?:\[At:\d+\]\s*)?转职(?!重置)(?:\s*|$)',
-    "explore": r'^(?:\[At:\d+\]\s*)?探索(?:\s*|$)',
+    "explore": r'^(?:\[At:\d+\]\s*)?探索(?!进度)(?:\s*|$)',
+    # v115 探索见闻：『探索进度』指令（commands/exploration.py）
+    "explore_progress": r'^(?:\[At:\d+\]\s*)?探索进度(?:[\s\S]*)$',
     "feedback_cmd": r'^(?:\[At:\d+\]\s*)?意见(?:[\s\S]*)$',
     "find_npc": r'^(?:\[At:\d+\]\s*)?找(?:\s*|$)',
     "time_cmd": r'^(?:\[At:\d+\]\s*)?时间(?:指令)?(?:\s*|$)',

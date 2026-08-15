@@ -18,6 +18,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
+from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
@@ -38,7 +39,7 @@ WORLD_BOSS_DROPS = {
 
 class CombatCmds(CommandBase):
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?探索(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?探索(?!进度)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
 
@@ -132,6 +133,15 @@ class CombatCmds(CommandBase):
             if not _ok:
                 yield event.plain_result(_st)
                 return
+        # v115 今日奇遇：取当前野外图的当日效果（无奇遇返回 {}，A/C 未就绪时 getattr 兜底）
+        _fx = getattr(C, "today_event_effects", lambda m: {})(cur)
+        # v115 隐藏房间探索计数：每次野外探索成功扣体力后累加（A 提供的 bump_explore_count）
+        _bump_fx = getattr(C, "bump_explore_count", None)
+        if _bump_fx is not None:
+            try:
+                _bump_fx(group_id, qq_id, cur)
+            except Exception:
+                pass
         cur_sa_id_poi = player.get("cur_subarea") or ""
         poi_hit = C.roll_poi(group_id, qq_id, cur, cur_sa_id_poi, chance=0.15)
         if poi_hit:
@@ -161,8 +171,11 @@ class CombatCmds(CommandBase):
         if self._rain_boost(group_id, qq_id):
             # v104 M23：『突如其来的雨』30 分钟窗口内探索遇怪率 +15%（事件概率让渡给遇怪）
             _ev_chance = max(0.0, _ev_chance - 0.15)
+        # v115 今日奇遇：事件率叠加 event_chance（clamp 到 [0, 0.6]，在 rain_boost 调整后叠加）
+        _ev_chance += _fx.get("event_chance", 0)
+        _ev_chance = min(0.6, max(0.0, _ev_chance))
         if random.random() < _ev_chance:
-            handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map)
+            handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map, _fx=_fx)
             if handled:
                 yield event.plain_result(ev_text)
                 return
@@ -170,7 +183,7 @@ class CombatCmds(CommandBase):
         # fire explore_done 规则。原 4 条 explore_done 规则（luck/ghost/scenery/coin）挂在
         # 下方『无 events 且无 elite/boss』死分支（v95r38 空池保护接管后 203 个野外子区域
         # 全有怪 → 分支不可达，规则 100% 死规则），现经此路径复活。
-        if random.random() < 0.25:
+        if random.random() < max(0.05, 0.25 - _fx.get("encounter_rate", 0)):
             _rule_txt = self._rule_fire('explore_done', group_id, qq_id, player, cur_map, {'event': 'empty'})
             yield event.plain_result("你四处搜寻，什么也没发现……"
                                      + (f"\n{_rule_txt}" if _rule_txt else ""))
@@ -231,7 +244,9 @@ class CombatCmds(CommandBase):
         hm = self._roll_hidden_monster(group_id, qq_id, player, cur_map)
         if hm:
             monster, tag, flavor = hm
-            b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+            # v2 多对多：隐藏怪经 build_monster_group 生成敌方阵列（精英带爪牙）后传入 Battle
+            group = C.build_monster_group(monster, cur_map, player)
+            b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
             db.save_battle(group_id, qq_id, b.to_state())
             self._lock_battle(group_id, qq_id)
             bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
@@ -244,7 +259,7 @@ class CombatCmds(CommandBase):
                 f"✨ 遭遇隐藏怪物！\n"
                 f"{tag}【{monster['name']}】Lv.{monster['lv']}\n"
                 f"　　{flavor}\n"
-                f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
+                f"{self._battle_formation_panel(player, b)}\n"
                 + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
                 + f"{bless_note}━━━━━━━━━━━━\n"
                 f"你的行动：{_acts}"
@@ -254,8 +269,10 @@ class CombatCmds(CommandBase):
         monster = None
         tag = ""
         stam_warn = ""
+        double = False
         eb = self._mount_explore_bonus(player)
-        if sa_elite and (random.random() < (0.08 + eb) or not events):
+        # v115 今日奇遇：精英遭遇率叠加 elite_chance
+        if sa_elite and (random.random() < (0.08 + eb + _fx.get("elite_chance", 0)) or not events):
             monster = C.build_monster(sa_elite, cur_map)
             tag = "⭐ 精英"
         elif sa_boss and (random.random() < C.SA_BOSS_CHANCE or not events):
@@ -268,6 +285,10 @@ class CombatCmds(CommandBase):
             # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
             # v101.25i3：曾试 ±2 被鱼鱼否（"加减2太多了"）→ 保持 ±1
             monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=1)
+            # v2 多对多：普通怪 60% 单只 / 40% 双只——用确定性哈希决定（v103 铁律：不新增 random
+            # 调用点；monster_id+lv 唯一确定同一只怪是否双只，不改变既有 random 调用顺序/结果）
+            _double = hash(monster.get("id", "") + "_" + str(monster.get("lv", 0))) % 100 < 40
+            double = _double
         # v105 M23 P3-9：删除原 else 兜底死代码——空池+无 elite/boss 已在上方提前 return；
         # 纯精英/Boss 房（events 空）由上方 sa_elite/sa_boss 的 `or not events` 保底必命中，else 理论不可达
         # 遇普通怪但此地有精英/Boss → 提示气息（刷精英的方向感）
@@ -290,7 +311,10 @@ class CombatCmds(CommandBase):
             elif sa_boss:
                 hint = f"\n💨 隐约感到强大的威压……👑 此地首领【{sa_boss[1]}】蛰伏于深处，继续『探索』有机会遇到！"
         # 保存战斗状态（v9 统一引擎）
-        b = BT.Battle("monster", monster, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+        # v2 多对多：经 build_monster_group 生成敌方阵列（普通怪 single/double；精英带爪牙；
+        # Boss 带 2 爪牙）后传入 Battle 构造（enemies 参数）
+        group = C.build_monster_group(monster, cur_map, player, double=double)
+        b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=group)
         db.save_battle(group_id, qq_id, b.to_state())
         self._lock_battle(group_id, qq_id)
         bless_note = "✨ 回声祝福生效：本场攻击力 +5%！\n" if b.p_buffs.get("echo_bless") else ""
@@ -306,7 +330,7 @@ class CombatCmds(CommandBase):
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
             f"{mod_line}"
-            f"❤️ HP {monster['hp']}/{monster['max_hp']}\n"
+            f"{self._battle_formation_panel(player, b)}\n"
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
             + f"{bless_note}━━━━━━━━━━━━\n"
             f"你的行动：{_acts}"
@@ -634,9 +658,11 @@ class CombatCmds(CommandBase):
         except Exception:
             return False
 
-    def _handle_explore_event(self, group_id, qq_id, player, cur_map):
+    def _handle_explore_event(self, group_id, qq_id, player, cur_map, _fx=None):
         """处理探索随机事件；返回 (handled, 文本)
-        v97.3：事件全部走模板引擎（core/event_templates.py），数据在 data/events.py。"""
+        v97.3：事件全部走模板引擎（core/event_templates.py），数据在 data/events.py。
+        v115：_fx 为当日奇遇 effects（loot_mult/pref_mats 注入 EventContext），
+              若 E 未给 EventContext 加参，则经 try 回退不带这两项。"""
         # v97.1 条件探索事件优先：find 型任务(告示委托)命中则不再 roll 常规事件
         find_lines = self._roll_find_quest_events(group_id, qq_id, player, cur_map)
         if find_lines:
@@ -646,9 +672,22 @@ class CombatCmds(CommandBase):
         # v105 M23 P1-1：探索彩蛋已移出本函数（explore() 事件窗口外独立判定，见 combat.py 探索入口），
         # 此处不再 roll 彩蛋——避免彩蛋再次被 35% 事件窗口吞掉导致实际概率只剩 0.175%
         ev = C.roll_explore_event(exclude=self._recent_explore_events(group_id, qq_id))
-        ctx = EventContext(group_id, qq_id, player, cur_map,
-                           params=ev.get("params", {}), name=name,
-                           hooks={"title_bonus": lambda q: self._title_bonus(group_id, q)})
+        ctx_kw = {"params": ev.get("params", {}), "name": name,
+                  "hooks": {"title_bonus": lambda q: self._title_bonus(group_id, q)}}
+        _fx = _fx or {}
+        _lm = _fx.get("loot_mult")
+        _pm = _fx.get("mats")
+        if _lm is not None:
+            ctx_kw["loot_mult"] = _lm
+        if _pm:
+            ctx_kw["pref_mats"] = _pm
+        try:
+            ctx = EventContext(group_id, qq_id, player, cur_map, **ctx_kw)
+        except TypeError:
+            # E 尚未给 EventContext 加 loot_mult/pref_mats 参数：去掉这两项回退构造
+            ctx_kw.pop("loot_mult", None)
+            ctx_kw.pop("pref_mats", None)
+            ctx = EventContext(group_id, qq_id, player, cur_map, **ctx_kw)
         text = execute_event_template(ev["template"], ctx)
         if text:
             self._remember_explore_event(group_id, qq_id, ev["id"])
@@ -735,6 +774,25 @@ class CombatCmds(CommandBase):
                                json.dumps({"stat": bkey, "mult": 1.10, "left": 5, "name": bname}, ensure_ascii=False))
             return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
                     f"✨ 获得祝福：{bname}+10%(持续 5 次战斗)！")
+        # v115 行商营地：随机金币（图等级×5~×10）或一张图纸（简化版，不做强卖流程）
+        if eff == "merchant":
+            if random.random() < 0.5:
+                gold = random.randint(cur_map.get("lv", 1) * 5, cur_map.get("lv", 1) * 10)
+                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+                return (f"{icon} 【{pname}】行商在你的{loc}支起货摊，见你面善，低价收走了一批旧货。\n"
+                        f"💰 获得 {gold} 金币！(图级 Lv.{cur_map.get('lv', 1)})")
+            bp = C.roll_blueprint(max(1, player["level"]))
+            _learned = player.get("learned_blueprints") or []
+            if bp.get("blueprint_for") in _learned:
+                _bpq = bp.get("quality", "white")
+                _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(_bpq, 1)
+                db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye", {
+                    "name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=_pages)
+                return (f"{icon} 【{pname}】行商神秘地掏出一卷图纸：{bp['name']}！\n"
+                        f"📜 可惜你已经学会了，化作 {_pages} 张图纸残页（『出售 图纸残页』变现）")
+            db.add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
+            return (f"{icon} 【{pname}】行商神秘地掏出一卷图纸：{bp['name']}！\n"
+                    f"📜 他称这是从远方古墓里『顺』来的，你赶紧收好。")
         # 草药丛：1-2 份炼金材料
         if eff == "herb":
             # v101.4：草药丛材料池数据化 → data/poi_pools.py HERB_POOL
@@ -793,6 +851,16 @@ class CombatCmds(CommandBase):
                     f"🎣 你赶紧甩杆——『垂钓』吧，这次垂钓不消耗体力(30 分钟内有效)！")
         # 神秘字条：隐藏线索
         if eff == "note":
+            # v115 旅者之墓：见闻 flag（grave_<map>_<qid>），区分第一次祭拜 / 再次经过
+            if poi_id == "traveler_grave":
+                _gkey = f"grave_{cur_map.get('id', '')}_{qq_id}"
+                if not db.get_event_state(_gkey):
+                    db.set_event_state(_gkey, "1")
+                    return (f"{icon} 【{pname}】你在{loc}见到一座无名的旅者之墓，苔痕斑驳的碑上刻着几行字。\n"
+                            f"🪦 \"{player['name']}，愿你的旅途有人记得。\"\n"
+                            f"🕯️ 你郑重祭拜，于墓前放下一朵野花。")
+                return (f"{icon} 【{pname}】你再次路过{loc}的旅者之墓，碑前的野花还开着。\n"
+                        f"🪦 你默默驻足片刻，为这位先行的旅人献上沉默的敬意。")
             from ..data.pois import NOTE_POOL
             txt = random.choice(NOTE_POOL)
             db.set_talk_flag(group_id, qq_id, "poi_note_found", "found_note")
@@ -927,17 +995,23 @@ class CombatCmds(CommandBase):
     async def attack(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        # 带参 → PVP 发起（『攻击 @QQ』『攻击 QQ』『攻击 名字』）
         target_arg = self._strip_cmd(event, "攻击").strip()
-        if target_arg:
-            async for _r in self._pvp_start(event, group_id, qq_id, player, target_arg):
-                yield _r
-            return
         battle = db.get_battle(group_id, qq_id)
         if not battle:
             inst_row = self._instance_battle_for(group_id, qq_id)
             if inst_row:
                 battle = inst_row
+        # 目标解析（v2 多对多 §8.1）：『攻击 @QQ』/『攻击 QQ 号』(数字/@ 开头)→ 恒走 PVP；
+        # 其余带参 → 若当前在怪/世界Boss战斗中则解析为指定目标名（非 PVP），否则维持 PVP 发起。
+        if target_arg:
+            _is_pvp_target = target_arg[0].isdigit() or target_arg.startswith("@")
+            # 『攻击 <名字>』：当前已处于任意战斗（含副本/PVP）且非数字/@ → 视为本次战斗行动
+            # （不在战斗中 → 维持 PVP 发起）。数字/@ 开头恒走 PVP（『攻击 @QQ』/『攻击 QQ 号』）。
+            _in_any_cbt = bool(battle)
+            if _is_pvp_target or not _in_any_cbt:
+                async for _r in self._pvp_start(event, group_id, qq_id, player, target_arg):
+                    yield _r
+                return
         if not battle:
             yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～")
             return
@@ -953,6 +1027,8 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
+        # v2 指定目标：『攻击 <名字>』解析为目标名传给引擎（引擎会校验射程/存活）；无参→None 自动
+        _target = target_arg or None
         # v94.2 体力：每次攻击扣 1（普通/世界Boss通用；instance/pvp 已在上方分流）
         _ok, _st = self._spend_stamina(group_id, qq_id, 1, player, "攻击")
         if not _ok:
@@ -963,10 +1039,10 @@ class CombatCmds(CommandBase):
                 yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
         if b.btype == "worldboss":
-            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None):
+            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "attack", None, target=_target):
                 yield _r
             return
-        logs, ended = b.player_turn("attack", None, player)
+        logs, ended = b.player_turn("attack", None, player, target=_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
@@ -998,6 +1074,15 @@ class CombatCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能")
         player = self._player(group_id, qq_id)
+        # v2 目标指定：『技能 <名> <目标名>』——原始命令行 token 保留，战斗施放时取首个之后的
+        # token 为指定目标（技能名本身是单 token，无空格）；槽位施放『技能 <槽位> <目标名>』同理。
+        raw_tokens = skill_name.split()
+        if raw_tokens and raw_tokens[0].isdigit():
+            _skill_target = " ".join(raw_tokens[1:]) if len(raw_tokens) >= 2 else None
+        elif len(raw_tokens) >= 2:
+            _skill_target = " ".join(raw_tokens[1:])
+        else:
+            _skill_target = None
         # v52 Build 懒迁移：技能栏全空的老玩家，自动把已学技能装进前几格
         bar = db.get_skill_bar(qq_id)
         if not any(bar or []):
@@ -1092,6 +1177,14 @@ class CombatCmds(CommandBase):
             yield event.plain_result("你附近没有敌人！输入『探索』寻找敌人～(『技能列表』查看技能)")
             return
         skill_name = skill_name.strip()
+        # v2 技能带目标解析：『技能 <名> <目标名>』——当前位于"施放"分支（学习/列表/详情/
+        # 升级/槽位等关键字已在上方 return），parts[0] 是技能名 token。先尝试用 parts[0] 查技能，
+        # 查到 → 技能名取 parts[0]、剩余 token 拼接为目标传战斗层；查不到 → 用完整串（保持旧逻辑）。
+        _skill_resolve_keys = {"学习", "列表", "list", "详情", "升级", "洗点", "栏"}
+        if (len(parts) >= 2 and not skill_name.isdigit() and first not in _skill_resolve_keys):
+            if E.skill_info(player["class_name"], first):
+                skill_name = first
+                _skill_target = " ".join(parts[1:])
         info = E.skill_info(player["class_name"], skill_name)
         if not info:
             # v95.25 #145：报错读 learned_skills（v52 后 skills 列不再更新），并引流『技能列表』
@@ -1153,10 +1246,10 @@ class CombatCmds(CommandBase):
                 yield event.plain_result(_st + "\n🍖 战斗中『使用 <食物>』恢复体力继续战斗，或『逃跑』脱离战斗～")
             return
         if b.btype == "worldboss":
-            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name):
+            async for _r in self._worldboss_act(event, group_id, qq_id, player, b, "skill", skill_name, target=_skill_target):
                 yield _r
             return
-        logs, ended = b.player_turn("skill", skill_name, player)
+        logs, ended = b.player_turn("skill", skill_name, player, target=_skill_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
@@ -1540,13 +1633,54 @@ class CombatCmds(CommandBase):
         cap = rd.get("max", 99)
         return f"⚡ {name}：{cur}/{cap}"
 
+    def _player_unit_for_formation(self, player: dict) -> dict:
+        """v2 多对多站位图：把玩家单机单位表示为站位单位 dict（并入我方阵列展示用）。
+        只读 player，不改动原 dict；rank/reach 按职业 default_rank/reach（数据层已落地）。"""
+        cls = player.get("class_name", "")
+        cls_info = C.CLASSES.get(cls, {}) or {}
+        cls_cn = cls_info.get("name") or cls
+        return {
+            "uid": "p_self",
+            "side": "ally",
+            "rank": int(cls_info.get("default_rank", 2) or 2),
+            "reach": int(cls_info.get("reach", 2) or 2),
+            "name": f"{player.get('name', '你')}({cls_cn})",
+            "hp": player.get("hp", 0), "max_hp": player.get("max_hp", 0),
+            "buffs": {}, "stacks": {}, "defending": False, "charging": None,
+        }
+
+    def _battle_formation_panel(self, player: dict, b) -> str:
+        """v2 多对多站位图面板（§4.4）：双方各一层行（formation_view），含蓄力标记。
+        敌方= b.enemies 存活阵列；我方= 单机 [玩家]。阵亡（enemies 全灭）面板不输出敌方行。"""
+        from ..core.formation import alive_units
+        allies = [self._player_unit_for_formation(player)]
+        ally_rows = formation_view(alive_units(allies))
+        _alive_enemies = alive_units(b.enemies)
+        enemy_rows = formation_view(_alive_enemies) if _alive_enemies else []
+        panel = (("── 敌方 ──\n" + "\n".join(enemy_rows) + "\n") if enemy_rows else "") \
+            + "── 我方 ──\n" + "\n".join(ally_rows)
+        return panel.rstrip("\n")
+
     def _battle_footer(self, player: dict, b, monster: dict) -> str:
-        """战斗底部：血蓝 + 状态行(有状态才追加)+ 速度优势提示(v61)"""
+        """战斗底部：双方站位图 + 敌方血量汇总(主目标行)+ 血蓝 + 状态行(v61)"""
         status = self._status_line(player, b)
         lines = [
-            f"🐾【{monster['name']}】❤️ {max(0, monster['hp'])}/{monster['max_hp']}",
-            f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}",
+            self._battle_formation_panel(player, b),
         ]
+        # 敌方血量汇总（多怪时每层一行；主目标行单独列出便于一眼）
+        if len(b.enemies) <= 1:
+            lines.append(f"🐾【{b.enemy['name']}】❤️ {max(0, b.enemy['hp'])}/{b.enemy['max_hp']}")
+        else:
+            alive_enemy = [u for u in b.enemies if u.get("hp", 0) > 0]
+            if alive_enemy:
+                rows = []
+                from ..core.formation import front_rank
+                front = front_rank(alive_enemy)
+                rows.append(f"👹 敌方 {len(alive_enemy)} 只(剩 {sum(1 for u in alive_enemy if u.get('rank', 1) == front)} 只前排)")
+                for u in alive_enemy:
+                    rows.append(f"　· {u.get('icon', '') or ''}{u.get('name','')} ❤️{max(0, u.get('hp', 0))}".strip())
+                lines.append("\n".join(rows))
+        lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         rl = self._resource_line(player, b)
         if rl:
             lines.append(rl)
@@ -2188,28 +2322,77 @@ class CombatCmds(CommandBase):
         # 已有世界BOSS战斗状态 → 显示当前状态
         battle = db.get_battle(group_id, qq_id)
         if battle and battle["state"].get("type") == "worldboss":
-            b2 = battle["state"].get("enemy", {})
-            pct = max(0, int(b2.get("hp", 0) / max(1, b2.get("max_hp", 1)) * 100))
-            yield event.plain_result(
-                f"⚔️ 你已加入讨伐！\n"
-                f"👹【{b2.get('name', '?')}】❤️ {max(0, b2.get('hp', 0)):,} / {b2.get('max_hp', 0):,}({pct}%)\n"
-                f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
-                f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
-            )
+            _st = battle["state"]
+            _enemies = _st.get("enemies") or []
+            if _enemies:
+                _sum = sum(1 for u in _enemies if (u.get("hp") or 0) > 0)
+                _sum_hp = sum(max(0, u.get("hp", 0)) for u in _enemies)
+                _sum_max = sum(max(0, u.get("max_hp", u.get("hp", 1))) for u in _enemies)
+                _pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))
+                yield event.plain_result(
+                    f"⚔️ 你已加入讨伐！\n"
+                    f"👹【{b.get('name', '?')}】敌方还有 {_sum} 只(总 {_sum_hp:,}/{_sum_max:,}, {_pct}%)\n"
+                    f"  " + "\n  ".join([f"{u.get('name','?')} ❤️{max(0,u.get('hp',0))}" for u in _enemies if (u.get('hp') or 0) > 0]) + "\n"
+                    f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
+                    f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
+                )
+            else:
+                b2 = battle["state"].get("enemy", {})
+                pct = max(0, int(b2.get("hp", 0) / max(1, b2.get("max_hp", 1)) * 100))
+                yield event.plain_result(
+                    f"⚔️ 你已加入讨伐！\n"
+                    f"👹【{b2.get('name', '?')}】❤️ {max(0, b2.get('hp', 0)):,} / {b2.get('max_hp', 0):,}({pct}%)\n"
+                    f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}\n"
+                    f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』"
+                )
             return
         # 第一次进入：创建世界BOSS战斗（Boss 没技能则按等级配 2 个攻击技能）
         import random as _rnd
-        boss = dict(b)
-        if not boss.get("skills"):
+        if not b.get("skills"):
             cand = [s for s, si in C.MONSTER_SKILLS.items() if si.get("kind") in ("物理", "魔法")]
-            boss["skills"] = _rnd.sample(cand, min(2, len(cand)))
-        nb = BT.Battle("worldboss", boss, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), dmg_mult=db.get_boss_dmg_mult(qq_id))
+            b["skills"] = _rnd.sample(cand, min(2, len(cand)))
+        # v2 多对多：世界 Boss 经 build_monster_group 生成敌方阵列（Boss+2 爪牙）。
+        # 全局数据升级为 {"enemies": [...]}（首元素=主目标），旧 hp/max_hp/name 保留作主目标汇总兼容。
+        # 判定 is_boss=True 触发 build_monster_group 的分支；阵列为 [Boss(rank1) + 爪牙(rank1)]——
+        # 世界 Boss 保持 rank1 让所有玩家（含近战 reach1）都能打到主目标（全局讨伐设计，避免爪牙当肉盾挡住近战贡献）。
+        wmap = {"id": b.get("map", ""), "name": b.get("map_name", ""),
+                "area": b.get("map", "")}
+        _old_hp = b.get("hp")
+        was_hp_missing = "enemies" not in b
+        b["uid"] = "wb_0"
+        b["rank"] = 1
+        b["reach"] = 1
+        b["is_boss"] = True
+        b["is_elite"] = False
+        b.setdefault("buffs", {}); b.setdefault("stacks", {})
+        b["defending"] = False; b["charging"] = None
+        # 世界 Boss：scale_main=False（数值由事件配置，不把主怪 ×0.7；多对多才缩主怪）
+        _boss_grp = C.build_monster_group(b, wmap, player, scale_main=False)
+        _main = _boss_grp[0]
+        # 已有全局 enemies（他人已打过）：新构建的爪牙按 uid 从既有全局阵列同步 hp，避免重置
+        _existing = b.get("enemies")
+        if _existing:
+            _ex_by_uid = {u.get("uid"): u for u in _existing}
+            for _ug in _boss_grp:
+                _eu = _ex_by_uid.get(_ug.get("uid"))
+                if _eu is not None and _eu.get("hp") is not None:
+                    _ug["hp"] = _eu.get("hp", _ug.get("hp", 0))
+        # 存量单一 Boss 数据（无 enemies 键）：把旧全局 hp 同步进主目标，保证不重置
+        if was_hp_missing and _old_hp and _main.get("hp"):
+            _main["hp"] = _old_hp
+        b["enemies"] = [dict(u) for u in _boss_grp]  # 拷贝：避免 b["enemies"][0] is b 全局自引用（P3 序列化递归）
+        b["name"] = _main.get("name", b.get("name", "?"))
+        b["hp"], b["max_hp"] = _main.get("hp", 0), _main.get("max_hp", _main.get("hp", 1))
+        nb = BT.Battle("worldboss", None, self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), dmg_mult=db.get_boss_dmg_mult(qq_id), enemies=[dict(u) for u in _boss_grp])
+        # 同步回全局事件（含 enemies 阵列，供其他玩家响应共享血量）
+        db.save_world_event(cur["etype"], cur["ends_at"], cur["data"])
         db.save_battle(group_id, qq_id, nb.to_state())
         self._lock_battle(group_id, qq_id)
-        pct = max(0, int(boss["hp"] / max(1, boss["max_hp"]) * 100))
+        pct = max(0, int(_main.get("hp", 0) / max(1, _main.get("max_hp", 1)) * 100))
         yield event.plain_result(
-            f"⚔️ 你冲向【{boss['name']}】，讨伐开始！\n"
-            f"👹 Lv.{boss.get('lv', 30)} ❤️ {boss['hp']:,} / {boss['max_hp']:,}({pct}%)\n"
+            f"⚔️ 你冲向【{_main['name']}】，讨伐开始！\n"
+            f"👹 Lv.{_main.get('lv', 30)} ❤️ {_main.get('hp', 0):,} / {_main.get('max_hp', 1):,}({pct}%)\n"
+            f"{self._battle_formation_panel(player, nb)}\n"
             f"━━━━━━━━━━━━\n你的行动：『攻击』『技能 <名称/序号>』『防御』\n"
             f"💡 造成伤害计入讨伐贡献，Boss 倒下后按贡献分奖励！"
         )
@@ -2230,11 +2413,11 @@ class CombatCmds(CommandBase):
             return None
         return None
 
-    async def _worldboss_act(self, event, group_id, qq_id, player, b, action, skill_name=None):
+    async def _worldboss_act(self, event, group_id, qq_id, player, b, action, skill_name=None, target=None):
         """世界BOSS战斗行动（attack/skill/defend 共用）
-        1. 同步全局 Boss 血量（其他玩家可能也打了）
-        2. 玩家行动 → 贡献累积 → 同步回世界事件
-        3. Boss 死亡 → 按贡献结算奖励并广播；玩家死亡 → 走死亡结算
+        1. 同步全局 Boss 阵列血量到本地 b.enemies（其他玩家可能也打了，逐 uid）
+        2. 玩家行动（target 指定目标）→ 贡献累积（全阵列伤害合计）→ 本地写回全局阵列
+        3. 全阵列无存活（b._enemy_dead()）→ Boss 死亡结算；玩家死亡 → 走死亡结算
         """
         cur_evt = db.get_world_event()
         if not cur_evt or cur_evt["etype"] != "boss":
@@ -2243,17 +2426,42 @@ class CombatCmds(CommandBase):
             yield event.plain_result("👹 世界 Boss 已经撤离……下次再战！")
             return
         gboss = cur_evt["data"]["boss"]
-        b.enemy["hp"] = gboss.get("hp", b.enemy.get("hp", 0))  # 同步全局血量
-        before = b.enemy["hp"]
-        logs, ended = b.player_turn(action, skill_name, player)
+        genemies = gboss.get("enemies")
+        # 行动前：全局阵列血量 → 本地 b.enemies（逐 uid；旧单怪数据回落主目标 hp）
+        if genemies:
+            _g_by_uid = {u.get("uid"): u for u in genemies}
+            for u in b.enemies:
+                _gu = _g_by_uid.get(u.get("uid"))
+                if _gu is not None:
+                    u["hp"] = _gu.get("hp", u.get("hp", 0))
+        else:
+            b.enemy["hp"] = gboss.get("hp", b.enemy.get("hp", 0))
+        before = sum(max(0, u.get("hp", 0)) for u in b.enemies)
+        logs, ended = b.player_turn(action, skill_name, player, target=target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
-        dealt = max(0, before - b.enemy["hp"])
+        after = sum(max(0, u.get("hp", 0)) for u in b.enemies)
+        dealt = max(0, before - after)  # 全阵列伤害合计
         contrib = gboss.setdefault("contrib", {})
         contrib[str(qq_id)] = contrib.get(str(qq_id), 0) + dealt
         lines = [x for x in logs if "你击败了" not in x and "毒发身亡" not in x]
 
+        # 行动后：本地 b.enemies → 全局阵列（逐 uid 同步 hp）+ 主目标汇总
+        if genemies:
+            _l_by_uid = {u.get("uid"): u for u in b.enemies}
+            for _gu in genemies:
+                _lu = _l_by_uid.get(_gu.get("uid"))
+                if _lu is not None:
+                    _gu["hp"] = _lu.get("hp", _gu.get("hp", 0))
+            _main_now = next((u for u in b.enemies if (u.get("hp") or 0) > 0), None) or (b.enemies[0] if b.enemies else None)
+            if _main_now:
+                gboss["name"] = _main_now.get("name", gboss.get("name", "?"))
+                gboss["hp"] = _main_now.get("hp", 0)
+                gboss["max_hp"] = _main_now.get("max_hp", _main_now.get("hp", 1))
+        else:
+            gboss["hp"] = b.enemy["hp"]
+
         if ended and b.result == "victory":
-            # Boss 死亡结算（先于玩家死亡判断）
+            # Boss 死亡结算（全阵列无存活；先于玩家死亡判断）
             lines.append("")
             lines.append(f"🎉 【{gboss['name']}】被击败了！")
             total = sum(contrib.values())
@@ -2308,7 +2516,8 @@ class CombatCmds(CommandBase):
 
         if ended and b.result == "defeat":
             # 玩家阵亡（Boss 未死）：贡献已记，同步血量，走死亡结算
-            gboss["hp"] = b.enemy["hp"]
+            if not genemies:
+                gboss["hp"] = b.enemy["hp"]
             db.save_world_event(cur_evt["etype"], cur_evt["ends_at"], cur_evt["data"])
             self._unlock_battle(group_id, qq_id)
             db.clear_battle(group_id, qq_id)
@@ -2319,16 +2528,21 @@ class CombatCmds(CommandBase):
                 yield _r
             return
 
-        # Boss 未死：更新贡献 + 全局血量 + 战斗状态
-        gboss["hp"] = b.enemy["hp"]
+        # Boss 未死：更新贡献 + 全局血量/阵列 + 战斗状态
         db.save_world_event(cur_evt["etype"], cur_evt["ends_at"], cur_evt["data"])
         db.save_battle(group_id, qq_id, b.to_state())
-        pct = max(0, int(gboss["hp"] / max(1, gboss["max_hp"]) * 100))
+        _enemies_alive = [u for u in b.enemies if (u.get("hp") or 0) > 0]
+        _sum_hp = sum(max(0, u.get("hp", 0)) for u in _enemies_alive or [])
+        _sum_max = sum(max(0, u.get("max_hp", u.get("hp", 1))) for u in _enemies_alive or [])
+        pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))
         body = "\n".join(lines)
         status = self._status_line(player, b)
+        _enemy_line = (f"👹【{gboss['name']}】敌方剩 {len(_enemies_alive)} 只(总 {_sum_hp:,}/{_sum_max:,}, {pct}%)"
+                       if len(_enemies_alive) > 1 else
+                       f"👹【{gboss['name']}】❤️ {gboss['hp']:,} / {gboss['max_hp']:,}({pct}%)")
         yield event.plain_result(
             f"{body}\n━━━━━━━━━━━━\n"
-            f"👹【{gboss['name']}】❤️ {gboss['hp']:,} / {gboss['max_hp']:,}({pct}%)｜你的贡献 {contrib[str(qq_id)]:,}\n"
+            f"{_enemy_line}｜你的贡献 {contrib[str(qq_id)]:,}\n"
             f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}"
             + (f"\n{status}" if status else "")
         )
@@ -2373,6 +2587,7 @@ class CombatCmds(CommandBase):
         v109.2 P0 修复：补全战斗结算属性（此前缺 atk/def/mdef/tenacity 等 → PVP 中防御/韧性全失效，
         玩家攻击打敌方 0 防御、暴击不受敌方韧性削减——审计 P1-7 快照不消费根源）。"""
         st = E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}), p.get("class_tier", 0), p.get("attributes"), p.get("evolve_path", 0), self._title_bonus(group_id, qq_id), p.get("race"))
+        cls_info = C.CLASSES.get(p["class_name"], {}) or {}
         return {
             "qq_id": str(p["qq_id"]), "name": p["name"],
             "class_name": p["class_name"], "level": p["level"],
@@ -2380,6 +2595,12 @@ class CombatCmds(CommandBase):
             "equipment": p.get("equipment", {}), "class_tier": p.get("class_tier", 0),
             "attributes": p.get("attributes", {}),
             "evolve_path": p.get("evolve_path", 0), "race": p.get("race"),
+            # v2 多对多站位：PVP 1v1 双方均为 rank1（无队友分层），reach 按职业（§8.1/9.1）
+            "uid": f"p_{str(p['qq_id'])}",
+            "side": "enemy",
+            "rank": 1,
+            "reach": int(cls_info.get("reach", 2) or 2),
+            "buffs": {}, "stacks": {}, "defending": False, "charging": None,
             # v109.2 战斗结算属性（_enemy_stats/_pvp_enemy_turn 消费）
             "atk": st.get("atk", 0), "def": st.get("def", 0),
             "matk": st.get("matk", 0), "mdef": st.get("mdef", 0),
@@ -2565,10 +2786,13 @@ class CombatCmds(CommandBase):
         # PVP 战斗中血量/蓝量以快照为准（战斗内扣血不写回 db，避免被重置）
         player["hp"] = state[my_key].get("hp", player["hp"])
         player["mp"] = state[my_key].get("mp", player["mp"])
-        # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）
-        b = BT.Battle("pvp", enemy=dict(opp), title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id))
+        # 重建 Battle：我是 player，对方是 enemy 快照（PVP 不自动反击）。
+        # v2 多对多：per 快照已含 rank/reach/buffs/stacks/defending/charging 站位字段 → enemies=[快照]
+        b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp)])
         b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
+        # PVP 蓄力持久化：跨回合恢复玩家侧 charging（蓄力技 PVP 中跨回合生效）
+        b.charging = state.get("charging")
         if action == "skill":
             info = E.skill_info(player["class_name"], skill_name)
             if not info:
@@ -2591,13 +2815,15 @@ class CombatCmds(CommandBase):
             # 非防御行动：对方此前的防御姿态被本次行动消耗
             state.pop("defending_qq", None)
         logs, ended = b.player_turn(action, skill_name, player, enemy_act=False)
-        # 同步快照与 buffs
-        opp["hp"] = b.enemy["hp"]
+        # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
+        opp["hp"] = b.enemy.get("hp", 0)
         opp["mp"] = b.enemy.get("mp", opp.get("mp", 0))
         state[my_key]["hp"] = player["hp"]
         state[my_key]["mp"] = player["mp"]
         state[f"{my_key[0]}_buffs"] = b.p_buffs
         state[f"{opp_key[0]}_buffs"] = b.e_buffs
+        # PVP 蓄力持久化：写回（含 None 表示蓄力已结束/未蓄力）
+        state["charging"] = b.charging
         db.save_battle(group_id, qq_id, state)
         db.save_battle(group_id, opp["qq_id"], state)
         if ended and b.result == "victory":

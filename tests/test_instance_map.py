@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """v87.2 副本地图化（29 章十三节）：层=小地图 + 复用世界地图管线
 
 覆盖：
@@ -113,6 +113,10 @@ async def main():
     st["boss"]["hp"] = 1
     st["boss"]["atk"] = 5
     st["boss"]["matk"] = 5
+    for _eu in (st.get("enemies") or []):  # v2：兼容键同步到阵列单位
+        _eu["hp"] = 1
+        _eu["atk"] = 5
+        _eu["matk"] = 5
     st["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", st)
     out = await cmd(m, "attack", "g1", "i1", "攻击")
@@ -127,6 +131,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", "i1", "攻击")
@@ -178,6 +186,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", stt["members"][stt["turn"]], "攻击")
@@ -197,6 +209,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", stt["members"][stt["turn"]], "攻击")
@@ -257,6 +273,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         out = await cmd(m, "attack", "g1", "i1", "攻击")

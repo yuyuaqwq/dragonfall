@@ -30,7 +30,7 @@ def main():
     print("  · 数据完整性")
     check("HIDDEN_MONSTERS 25 种", len(C.HIDDEN_MONSTERS) == 25,
           f"实际 {len(C.HIDDEN_MONSTERS)}")
-    check("POIS 10 种（含 v87.9 风景）", len(C.POIS) == 10, f"实际 {len(C.POIS)}")
+    check("POIS 17 种（v87.9 风景 + v115 扩 17 类）", len(C.POIS) == 17, f"实际 {len(C.POIS)}")
     check("PROPS 59 种", len(C.PROPS) == 59, f"实际 {len(C.PROPS)}")
     check("SUBAREA_POIS 挂载数 ≥25", len(C.SUBAREA_POIS) >= 25,
           f"实际 {len(C.SUBAREA_POIS)}")
@@ -82,17 +82,15 @@ def main():
     print("  · 探索彩蛋扩充")
     from data.plugins.dragonfall.game.data.events import EXPLORE_EGG_EVENTS, EXPLORE_EVENTS
     egg_ids = [e["id"] for e in EXPLORE_EGG_EVENTS]
-    # v97.6 扩容 5→30（区域 15 + 全局 10）
-    check("彩蛋事件 30 种（含 old_map/gold_slime + v97.6 新 25）",
-          len(egg_ids) == 30 and "old_map" in egg_ids and "gold_slime" in egg_ids
+    # v97.6 扩容 5→30 → v115 再扩 36（区域 19 + 全局 17）
+    check("彩蛋事件 36 种（含 old_map/gold_slime + v97.6 新 25 + v115 扩）",
+          len(egg_ids) == 36 and "old_map" in egg_ids and "gold_slime" in egg_ids
           and "egg_oak_whisper" in egg_ids and "egg_twin_moon" in egg_ids,
           f"实际 {len(egg_ids)}")
     ev_ids = [e["id"] for e in EXPLORE_EVENTS]
-    # v97.4 扩容 12→30（新 18：firefly/old_well/windmill/hunter_hut/beehive/floating_bridge/
-    # old_tree_hollow/stone_tablet/cart_wreck/night_owl/spider_web/frost_flower/old_boot/
-    # mushroom_ring/echo_cave/campfire_ashes/drifting_bottle/abandoned_minecart）
-    check("常规事件 30 种（含 lost_camp/meteor/animal/rain + v97.4 新 18）",
-          len(ev_ids) == 30
+    # v97.4 扩容 12→30 → v115 再扩 50
+    check("常规事件 50 种（含 lost_camp/meteor/animal/rain + v97.4 新 18 + v115 扩）",
+          len(ev_ids) == 50
           and all(x in ev_ids for x in ("lost_camp", "meteor", "animal", "rain"))
           and all(x in ev_ids for x in ("firefly", "old_well", "windmill", "hunter_hut", "beehive",
                                         "floating_bridge", "old_tree_hollow", "stone_tablet",

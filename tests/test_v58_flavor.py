@@ -155,6 +155,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位（boss/enemies 深拷贝后脱节）
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         cur = stt["members"][stt["turn"]]
@@ -172,6 +176,10 @@ async def main():
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位（boss/enemies 深拷贝后脱节）
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
         stt["turn_time"] = int(time.time())
         db.save_battle("g1", "i1", stt)
         cur = stt["members"][stt["turn"]]

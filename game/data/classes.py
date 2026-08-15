@@ -39,6 +39,9 @@ CLASSES = {
         },
         "weapon_type": "sword",
         "name": "见习冒险者",
+        "default_rank": 1,   # v2 站位层：前排
+        "reach": 1,          # v2 攻击范围
+        "rank_label": "前排",
     },
     "cls_zhan_shi": {
         "desc": "身穿重甲、手持巨剑的钢铁壁垒，正面硬刚一切敌人。",
@@ -75,7 +78,10 @@ CLASSES = {
             "spd": 0.6
         },
         "weapon_type": "sword",
-        "name": "战士"
+        "name": "战士",
+        "default_rank": 1,   # v2 站位层：前排（坦克壁垒）
+        "reach": 1,          # v2 攻击范围：近战
+        "rank_label": "前排",
     },
     "cls_fa_shi": {
         "desc": "掌控元素之力的施法者，输出爆炸但身板脆弱。",
@@ -114,7 +120,10 @@ CLASSES = {
             "spd": 0.8
         },
         "weapon_type": "staff",
-        "name": "法师"
+        "name": "法师",
+        "default_rank": 2,   # v2 站位层：后排（施法者）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
     },
     "cls_you_xia": {
         # v113（鱼鱼拍板）：攻线"猎魔人"主题名实不符（无猎魔内容），
@@ -151,7 +160,10 @@ CLASSES = {
             "spd": 1.8
         },
         "weapon_type": "bow",
-        "name": "游侠"
+        "name": "游侠",
+        "default_rank": 2,   # v2 站位层：后排（射手）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
     },
     "cls_mu_shi": {
         "desc": "信仰圣光的神职者，能打能奶，队伍的灵魂。",
@@ -191,7 +203,10 @@ CLASSES = {
             "spd": 0.7
         },
         "weapon_type": "mace",
-        "name": "牧师"
+        "name": "牧师",
+        "default_rank": 2,   # v2 站位层：后排（远程治疗+输出）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
     },
     "cls_ci_ke": {
         "desc": "暗影中的利刃，出手必见血，暴击与闪避的极致。",
@@ -228,7 +243,10 @@ CLASSES = {
             "spd": 2.2
         },
         "weapon_type": "dagger",
-        "name": "刺客"
+        "name": "刺客",
+        "default_rank": 2,   # v2 站位层：后排（高机动刺客）
+        "reach": 2,          # v2 攻击范围：远程（可挠后排）
+        "rank_label": "后排",
     },
     "cls_wu_seng": {
         "desc": "以拳入道的修行者，拳拳到肉，连击与反击的行家。",
@@ -264,7 +282,10 @@ CLASSES = {
             "spd": 1.4
         },
         "weapon_type": "fist",
-        "name": "拳师"
+        "name": "拳师",
+        "default_rank": 1,   # v2 站位层：前排（近战格斗）
+        "reach": 1,          # v2 攻击范围：近战
+        "rank_label": "前排",
     },
     # ================= v112 隐藏线（主题线制，6 条 = 6 基础各 1 条） =================
     # 设计文档：design/new_world/09_职业体系.md
@@ -298,6 +319,9 @@ CLASSES = {
         },
         "weapon_type": "sword",
         "name": "龙裔誓约",
+        "default_rank": 1,   # v2 站位层：前排（坦克龙血近战流）
+        "reach": 1,          # v2 攻击范围：近战
+        "rank_label": "前排",
         "hidden": True,
         "src_base": "cls_zhan_shi",  # 渊源根基：战士
         "src_race": "dragonborn",    # v113 种族限制：龙裔血脉方可传承（鱼鱼拍板）
@@ -331,6 +355,9 @@ CLASSES = {
         },
         "weapon_type": "staff",
         "name": "时咒法师",
+        "default_rank": 2,   # v2 站位层：后排（施法流）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
         "hidden": True,
         "src_base": "cls_fa_shi",  # 渊源根基：法师
         "src_race": "human",       # v113 种族限制：人类血脉方可传承（魔法学院一脉）
@@ -364,6 +391,9 @@ CLASSES = {
         },
         "weapon_type": "bow",
         "name": "星语者",
+        "default_rank": 2,   # v2 站位层：后排（荒野猎手远程流）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
         "hidden": True,
         "src_base": "cls_you_xia",  # 渊源根基：游侠
         "src_race": "elf",          # v113 种族限制：银月精灵血脉方可传承（星语湖观星台）
@@ -396,6 +426,9 @@ CLASSES = {
         },
         "weapon_type": "mace",
         "name": "暗影神谕",
+        "default_rank": 2,   # v2 站位层：后排（暗影施法流）
+        "reach": 2,          # v2 攻击范围：远程
+        "rank_label": "后排",
         "hidden": True,
         "src_base": "cls_mu_shi",  # 渊源根基：牧师（神谕者线的堕落变奏）
         "src_race": "orc",         # v113 种族限制：兽人血脉方可传承（旧王陵的亡者低语）
@@ -429,6 +462,9 @@ CLASSES = {
         },
         "weapon_type": "dagger",
         "name": "暮影行者",
+        "default_rank": 2,   # v2 站位层：后排（刺客系，远程挠后排）
+        "reach": 2,          # v2 攻击范围：远程（刺客系）
+        "rank_label": "后排",
         "hidden": True,
         "src_base": "cls_ci_ke",  # 渊源根基：刺客
         "src_race": "halfling",   # v113 种族限制：半身人血脉方可传承（行会暗影密档）
@@ -461,6 +497,9 @@ CLASSES = {
         },
         "weapon_type": "fist",
         "name": "苦修士",
+        "default_rank": 1,   # v2 站位层：前排（苦修士近战流）
+        "reach": 1,          # v2 攻击范围：近战
+        "rank_label": "前排",
         "hidden": True,
         "src_base": "cls_wu_seng",  # 渊源根基：拳师
         "src_race": "dwarf",        # v113 种族限制：矮人血脉方可传承（铁砧要塞斗士一脉）

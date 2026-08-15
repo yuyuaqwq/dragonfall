@@ -43,7 +43,7 @@ from .stats import (  # noqa: F401
 from .maps import _build_ency  # noqa: F401
 from .drops import (  # noqa: F401
     make_blueprint, roll_blueprint, roll_drop, generate_equip, generate_roster_equip,
-    build_monster,
+    build_monster, build_monster_group,
 )
 from .factions import faction_reputation_tier  # noqa: F401
 from .fishing import roll_fish, roll_collect_fish  # noqa: F401
@@ -74,8 +74,17 @@ from .runes import rune_value, rune_conflict, rune_item  # noqa: F401
 from .portals import portal_cost  # noqa: F401
 from .events import roll_explore_event, roll_explore_egg  # noqa: F401
 from .pois import subarea_pois, roll_poi, subarea_props, prop_entry  # noqa: F401
-from .maps import subarea_links, map_exit_subarea, map_entry_subarea  # noqa: F401
+from .maps import (  # noqa: F401
+    subarea_links, map_exit_subarea, map_entry_subarea,
+    # v115 网状子区域：供命令层 C.xxx 调用（world/combat 经 getattr(C, ...) 消费）
+    subarea_depth, is_hidden_room, reveal_met, reveal_progress, bump_explore_count,
+)
+from .daily_events import today_map_event, today_event_effects  # noqa: F401
 from .pets import make_pet_egg, pet_exp_need, pet_skill_label, pet_quality_label, pet_line  # noqa: F401
 from .mounts import make_mount_rein, roll_mount_drop, mount_effects  # noqa: F401
+from .exploration import (  # noqa: F401
+    record_visit as exploration_record_visit,  # v115 协作契约名（G 调用 C.exploration_record_visit）
+    record_visit, region_progress, overall_progress,
+)
 
 # 原 game/engine.py、game/battle.py 保持原位，由 game/__init__ 聚合

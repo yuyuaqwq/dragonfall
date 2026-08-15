@@ -196,7 +196,8 @@ check("冥想回复 1% mp", p2["mp"] == 12)
 b = make_battle(enemy={"name": "野狼", "hp": 20, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
 logs = []
 AFX.SET_PROC_EFFECTS["execute"](b, player, 100, logs)
-check("套装 execute 处决（<30% 追加 25%）", b.enemy["hp"] == 0 and "处决" in logs[0])
+# v2：处决击杀后单位从阵列移除（compact），b.enemy 回退 {} → .get 兜底
+check("套装 execute 处决（<30% 追加 25%）", b.enemy.get("hp", 0) == 0 and "处决" in logs[0])
 # 套装特效：未知 eff 安全跳过
 b = make_battle()
 b._set_attack_proc = Battle._set_attack_proc  # 恢复原方法（防 mock 污染）

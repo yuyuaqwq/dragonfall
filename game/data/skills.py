@@ -41,8 +41,8 @@ PLAYER_SKILLS = {
                 "kind": "物理",
                 "res_gain": 1,
                 "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.4, "label": "孤军深入"},
-                "aoe": True,
-                "desc": "旋转斩击，110% 全体伤害，怒气＋1。目标 HP>70% 时＋40%",
+                "aoe": "front",
+                "desc": "旋转斩击，110% 全体伤害(打前排)，怒气＋1。目标 HP>70% 时＋40%",
                 "name": "旋风斩",
             },
     "sk_lie_di_zhan": {
@@ -55,6 +55,18 @@ PLAYER_SKILLS = {
                 "cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 8, "mult": 1.5, "label": "震怒"},
                 "desc": "终结技，180% 破防斩击，消耗 3 怒气。怒气≥8 时伤害＋50%",
                 "name": "裂地斩",
+            },
+    "sk_xu_li_zhan": {
+                "lv": 22,
+                "mp": 16,
+                "power": 2.2,
+                "kind": "物理",
+                "pierce": True,
+                "res_gain": 2,
+                "cd": 4,
+                "charge": 1,
+                "desc": "蓄力斩！蓄力 1 回合，期间受击会被打断；蓄力完成挥出 220% 破防一击，怒气＋2。",
+                "name": "蓄力斩",
             },
     "sk_zhan_hou": {
                 "lv": 3,
@@ -107,8 +119,8 @@ PLAYER_SKILLS = {
                 "kind": "物理",
                 "res_gain": 2,
                 "cond": {"type": "enemy_frozen", "mult": 1.4, "label": "震地压制"},
-                "aoe": True,
-                "desc": "战争践踏！80% 全体伤害，怒气＋2。目标被冻结/减速时＋40%",
+                "aoe": "front",
+                "desc": "战争践踏！80% 全体伤害(打前排)，怒气＋2。目标被冻结/减速时＋40%",
                 "name": "战争践踏",
             },
     "sk_wu_wei_chong_ji": {
@@ -281,7 +293,7 @@ PLAYER_SKILLS = {
                 "element": "ice",
                 "mech": "freeze",
                 "mech_val": 1,
-                "aoe": True,
+                "aoe": "all",
                 "desc": "冰霜新星！80% 全体伤害＋30% 概率冻结 1 回合(强控·群体，CD 3)",
                 "name": "冰霜新星",
             },
@@ -292,9 +304,33 @@ PLAYER_SKILLS = {
                 "kind": "魔法",
                 "element": "current",
                 "cond": {"type": "element_marks", "element": "any", "stacks": 1, "mult": 1.5, "label": "元素过载"},
-                "aoe": True,
+                "aoe": "all",
                 "desc": "元素风暴！当前系 200% 全体伤害。目标有元素印记时＋50%(元素过载)",
                 "name": "元素风暴",
+            },
+    "sk_yun_shi_shu": {
+                "lv": 28,
+                "mp": 75,
+                "power": 3.0,
+                "kind": "魔法",
+                "element": "fire",
+                "cd": 4,
+                "charge": 2,
+                "aoe": "all",
+                "reach": 3,
+                "desc": "陨石术！蓄力 2 回合，期间受击会被打断；蓄力完成召唤陨石轰击全场，火系 300% 范围伤害(可及全阵后排)。",
+                "name": "陨石术",
+            },
+    "sk_fa_shu_fan_zhi": {
+                "lv": 16,
+                "mp": 15,
+                "power": 0.3,
+                "kind": "魔法",
+                "element": "current",
+                "cd": 3,
+                "interrupt": True,
+                "desc": "法术禁制！30% 微量魔法伤害，命中打断目标蓄力(可打断读条技能)。",
+                "name": "法术禁制",
             },
     "sk_p_lie_yan_qin_he": {
                 "lv": 12,
@@ -465,6 +501,19 @@ PLAYER_SKILLS = {
                 "cond": {"type": "enemy_poison_stacks", "stacks": 3, "mult": 1.5, "label": "狩猎盛宴"},
                 "desc": "狩猎终章！200% 致命一击，消耗全部精力。目标中毒 ≥3 层时＋50%(狩猎盛宴)",
                 "name": "狩猎终章",
+            },
+    "sk_xu_li_ju_ji": {
+                "lv": 26,
+                "mp": 0,
+                "power": 2.0,
+                "kind": "物理",
+                "pierce": True,
+                "res_cost": {"energy": 50},
+                "cd": 4,
+                "charge": 1,
+                "reach": 3,
+                "desc": "蓄力狙击！蓄力 1 回合，期间受击会被打断；狙击后排，蓄力完成射出 200% 破防一箭(可及全阵)。",
+                "name": "蓄力狙击",
             },
     "sk_p_lie_shou_ben_neng": {
                 "lv": 12,
@@ -642,6 +691,18 @@ PLAYER_SKILLS = {
                 "desc": "神恩降临！全队治疗 180%，消耗全部信仰(每点＋8%)。自身 HP<30% 时治疗量＋50%(低血救场)",
                 "name": "神恩降临",
             },
+    "sk_da_zhi_liao_shu": {
+                "lv": 26,
+                "mp": 45,
+                "power": 3.2,
+                "kind": "治疗",
+                "team": "heal_all",
+                "res_gain": 3,
+                "cd": 3,
+                "charge": 1,
+                "desc": "大治疗术！蓄力 1 回合，期间受击会被打断；蓄力完成施展圣光治愈，全队治疗 320%，信仰＋3。",
+                "name": "大治疗术",
+            },
     "sk_p_bi_hu_zhi_guang": {
                 "lv": 12,
                 "mp": 0,
@@ -795,7 +856,7 @@ PLAYER_SKILLS = {
                 "cd": 3,
                 "mech": "poison",
                 "mech_val": 2,
-                "aoe": True,
+                "aoe": "all",
                 "desc": "毒雾！80% 全体伤害＋2 层中毒(毒刃流铺场)",
                 "name": "毒雾",
             },
@@ -902,8 +963,8 @@ PLAYER_SKILLS = {
                 "combo": "踢",
                 "res_gain": 1,
                 "cond": {"type": "enemy_frozen", "mult": 1.3, "label": "立足不稳"},
-                "aoe": True,
-                "desc": "回旋踢！120% 全体伤害，气＋1，连招【踢】。目标减速/冻结时＋30%",
+                "aoe": "front",
+                "desc": "回旋踢！120% 全体伤害(打前排)，气＋1，连招【踢】。目标减速/冻结时＋30%",
                 "name": "回旋踢",
             },
     "sk_zhen_di_ji": {
@@ -914,8 +975,8 @@ PLAYER_SKILLS = {
                 "combo": "踢",
                 "res_gain": 1,
                 "cc": "stun",
-                "aoe": True,
-                "desc": "震地击！130% 全体伤害＋35% 概率眩晕，气＋1，连招【踢】",
+                "aoe": "front",
+                "desc": "震地击！130% 全体伤害(打前排)＋35% 概率眩晕，气＋1，连招【踢】",
                 "name": "震地击",
             },
     "sk_ce_ti": {
@@ -1290,7 +1351,7 @@ BRANCH_SKILLS = {
                             "mult": 1.3,
                             "label": "战意通天"
                         },
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "180%×3 全体连斩，消耗 5 怒气。怒气≥9 时伤害＋30%",
                         "cd": 3,
                         "name": "怒涛连斩"
@@ -1570,7 +1631,7 @@ BRANCH_SKILLS = {
                             "label": "万象连环"
                         },
                         "mp": 30,
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "当前系 180%×3 全体。目标有印记时伤害＋30%(万象清场)",
                         "cd": 3,
                         "name": "万象风暴"
@@ -1584,7 +1645,7 @@ BRANCH_SKILLS = {
                         "element": "thunder",
                         "team": "matk_all",
                         "cd": 5,
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "终极技，雷系 450% 全体 + 全队魔攻强化(终极元素爆发)",
                         "name": "万象天雷"
                     }
@@ -1596,7 +1657,7 @@ BRANCH_SKILLS = {
                         "kind": "魔法",
                         "element": "current",
                         "cd": 6,
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "三转奥义，当前系 400% 全体核弹(清场)",
                         "name": "元素裁决"
                     }
@@ -1608,11 +1669,11 @@ BRANCH_SKILLS = {
                                  "desc": "奥术爆发！220% 魔法伤害，引爆全部奥术印记",
                                  "name": "奥术爆发"},
                     "奥术领域": {"lv": 90, "mp": 100, "power": 4.0, "kind": "魔法",
-                                 "aoe": True, "team": "shield_all", "cd": 6,
+                                 "aoe": "all", "team": "shield_all", "cd": 6,
                                  "desc": "三转奥义，奥术 400% 全体 + 全队护盾(终极领域)",
                                  "name": "奥术领域"},
                     "大奥术": {"lv": 92, "mp": 30, "power": 2.0, "kind": "魔法",
-                               "multi": 2, "aoe": True, "mech": "arcane", "mech_val": 2,
+                               "multi": 2, "aoe": "all", "mech": "arcane", "mech_val": 2,
                                "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 6, "mult": 1.3, "label": "大奥术回响"},
                                "cd": 3,
                                "desc": "奥术 200%×2 全体，奥术充能＋2。充能≥6 层时伤害＋30%(群体共鸣)",
@@ -1765,7 +1826,7 @@ BRANCH_SKILLS = {
                             "label": "疾风领域"
                         },
                         "res_cost": {"energy": 30},
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "130%×3 全体风刃(无视防御)，CD3。速度比≥2x 时伤害＋25%(极速压制)，消耗 30 精力",
                         "name": "风刃乱舞"
                     }
@@ -2409,7 +2470,7 @@ BRANCH_SKILLS = {
                         "res_cost": {
                             "cp": 3
                         },
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "80% 毒雾(全体)，叠 2 层毒，消耗 3 连击点，CD3(AOE 叠毒)",
                         "name": "毒雾·淬"
                     }
@@ -2484,7 +2545,7 @@ BRANCH_SKILLS = {
                         "res_cost": {
                             "cp": 4
                         },
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "150% 剧毒风暴(全体)，叠 4 层毒，消耗 4 连击点，CD4(群体毒爆)",
                         "name": "剧毒风暴"
                     }
@@ -2515,7 +2576,7 @@ BRANCH_SKILLS = {
                         "res_cost": {
                             "cp": 5
                         },
-                        "aoe": True,
+                        "aoe": "all",
                         "desc": "三转奥义，全体剧毒爆发，消耗 5 连击点(毒爆核弹)",
                         "name": "万毒归宗"
                     }

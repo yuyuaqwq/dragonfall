@@ -188,6 +188,10 @@ make_player("g2", "q10", "测试癸", "战士", level=1)
 db.add_prof_exp("g1", "q8", "gather", 1200)   # q8 总分高(1200→Lv.8，严格高于 q10 的 Lv.7)
 db.add_prof_exp("g1", "q9", "mining", 300)    # q9 总分低
 db.add_prof_exp("g2", "q10", "gather", 1000)  # 他群高总分，全服榜应计入（与等级榜 top_players 同口径）
+# v113.6：prof_top 只计已激活副业等级（未激活不计分）——测试需先激活
+db.activate_prof("g1", "q8", "gather")
+db.activate_prof("g1", "q9", "mining")
+db.activate_prof("g2", "q10", "gather")
 tops7 = db.prof_top("g1", 10)
 ids7 = {r["qq_id"] for r in tops7}
 check("prof_top(g1) 全服含 q8/q9/q10", ids7 == {"q8", "q9", "q10"})

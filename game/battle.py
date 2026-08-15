@@ -91,12 +91,29 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 
 
 class Battle:
-    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0):
+    def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp
         self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
         self.round = 0
-        self.enemy = enemy or {}           # 敌方单位 dict（怪物 / Boss / 玩家快照）
+        # v2 多对多阵列（§3.2）：enemies=敌方阵列每怪一个 dict；allies=我方阵列
+        # （单机 = [player]；副本由命令层维护）。enemy 单怪兼容包装为单怪阵列。
+        self._enemies_raw = enemy or {}    # 主目标 dict（单怪时整个敌方单位）
+        if enemies is not None:
+            self.enemies = [dict(u) for u in enemies]
+            if not any(u.get("rank") for u in self.enemies):
+                for i, u in enumerate(self.enemies):
+                    u.setdefault("uid", f"e_{i}")
+                    u.setdefault("rank", 1)
+                    u.setdefault("reach", 1)
+                    u.setdefault("buffs", {})
+                    u.setdefault("stacks", {})
+                    u.setdefault("defending", False)
+                    u.setdefault("charging", None)
+        else:
+            # 单怪兼容包装（§3.2）
+            self.enemies = [self._wrap_enemy_unit(self._enemies_raw, 0)]
+        self.allies: list = []             # 我方阵列单位（单机由命令层填充 [player]）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余回合（百分比存 p_buffs["reduce_all"]）
@@ -106,9 +123,8 @@ class Battle:
         self.p_shields: dict = {}          # v101.28d 护盾 buff 化：来源 → {"value": 盾值, "turns": 剩余回合}，同源可叠厚，异源并存
         self.e_minions: list = []          # v101.28l #438 真召唤：敌方援军实体 [{name,hp,max_hp,atk,matk}]
         self.summons: list = []            # v107 召唤物：玩家侧独立实体 [{tid,name,icon,hp,max_hp,atk,def,dmg_type}]
-        self.e_buffs: dict = {}            # 敌方状态 {effect: turns}（含减益）
         self.p_defending = False           # 玩家本回合是否防御
-        self.e_defending = False
+        self.charging: dict | None = None  # v2 玩家侧蓄力状态 {"skill","left","name"}（§6）
         self.result = None                 # None | victory | defeat | fled
         self.title_bonus = title_bonus or {}  # 副业大师称号属性加成
         self.team_effects: list = []         # v50 团队技能效果（副本全队广播用）
@@ -178,19 +194,86 @@ class Battle:
         # O116 受击伤害日志延迟输出：_enemy_turn 只计算伤害并暂存"造成 X 点伤害"文案，
         # 由 _damage_player 在闪避判定后决定是否输出（闪避时不再同时报伤害）
         self._pending_dmg_lines: list = []
+        # v2 受击伤害来源（打断判定用）：最近一次对敌方造成伤害的来源名（默认玩家）
+        self._last_hitter: str = "你"
+
+    # ---------------- v2 阵列兼容代理（§3.2） ----------------
+    @staticmethod
+    def _wrap_enemy_unit(e: dict, idx: int) -> dict:
+        """单怪敌方 dict → 阵列单位（原地补 v2 站位字段，保持引用以便外部读 hp 同步）。"""
+        u = e or {}
+        u.setdefault("uid", f"e_{idx}")
+        u.setdefault("rank", 1)
+        u.setdefault("reach", 1)
+        u.setdefault("buffs", u.get("buffs") or {})
+        u.setdefault("stacks", u.get("stacks") or {})
+        u.setdefault("defending", False)
+        u.setdefault("charging", None)
+        return u
+
+    @property
+    def enemy(self) -> dict:
+        """兼容代理：主目标 = 最前排第一个存活单位（无存活返回 enemies[0]）。"""
+        for u in self.enemies:
+            if u.get("hp", 0) > 0:
+                return u
+        if self.enemies:
+            return self.enemies[0]
+        return {}
+
+    @enemy.setter
+    def enemy(self, val: dict):
+        """兼容写入：单怪场景外部改写 b.enemy = {...} 时同步主目标（enemies[0]）。"""
+        if not self.enemies:
+            self.enemies.append(self._wrap_enemy_unit(val, 0))
+        else:
+            self.enemies[0] = self._wrap_enemy_unit(val, 0)
+
+    @property
+    def e_buffs(self) -> dict:
+        """兼容代理：主目标单位级增益（可读写）。"""
+        return self.enemy.setdefault("buffs", {})
+
+    @e_buffs.setter
+    def e_buffs(self, val: dict):
+        self.enemy["buffs"] = val or {}
+
+    @property
+    def e_defending(self) -> bool:
+        """兼容代理：主目标防御状态。"""
+        return bool(self.enemy.get("defending", False))
+
+    @e_defending.setter
+    def e_defending(self, val: bool):
+        self.enemy["defending"] = bool(val)
+
+    @property
+    def mech_stacks(self) -> dict:
+        """玩家侧叠层保留原语义（battle 实例字段）；敌方叠层在 enemy["stacks"]。"""
+        if not hasattr(self, "_mech_stacks"):
+            self._mech_stacks = {}
+        return self._mech_stacks
+
+    @mech_stacks.setter
+    def mech_stacks(self, val: dict):
+        self._mech_stacks = val or {}
 
     # ---------------- 序列化 ----------------
     def to_state(self) -> dict:
         return {
             "type": self.btype,
             "round": self.round,
+            # v2：敌方完整阵列（核心）；enemy 保留为兼容键（= 主目标引用）
             "enemy": self.enemy,
+            "enemies": self.enemies,
+            "charging": self.charging,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
             "poi_buff": getattr(self, "poi_buff", None),
             "p_hot": self.p_hot,
             "p_food_effects": self.p_food_effects,
             "p_shields": self.p_shields,
+            # v101.28l 旧观兼容键保留（= 敌方阵列中 summon 型援军副本，命令层写回用）
             "e_minions": self.e_minions,
             "summons": self.summons,
             "e_buffs": self.e_buffs,
@@ -217,7 +300,20 @@ class Battle:
 
     @classmethod
     def from_state(cls, st: dict):
-        b = cls(st.get("type", "monster"), st.get("enemy", {}), st.get("title_bonus") or {}, pet=st.get("pet") or {})
+        # v2：有完整阵列用阵列；只有单怪 enemy → 包成单怪阵列（旧存档容错）
+        enemies = st.get("enemies")
+        if enemies:
+            b = cls(st.get("type", "monster"), None, st.get("title_bonus") or {}, pet=st.get("pet") or {},
+                    enemies=[dict(u) for u in enemies])
+        else:
+            b = cls(st.get("type", "monster"), st.get("enemy", {}) or {}, st.get("title_bonus") or {}, pet=st.get("pet") or {})
+            # 旧存档：只有 e_buffs 时并入主单位 buffs（§3.2 容错）
+            legacy = st.get("e_buffs") or {}
+            if legacy:
+                main = b.enemy
+                merged = dict(legacy)
+                merged.update(main.get("buffs") or {})
+                main["buffs"] = merged
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
         b.poi_buff = st.get("poi_buff")
@@ -226,7 +322,7 @@ class Battle:
         b.p_shields = st.get("p_shields", {}) or {}
         b.e_minions = st.get("e_minions", []) or []
         b.summons = st.get("summons", []) or []
-        b.e_buffs = st.get("e_buffs", {}) or {}
+        b.charging = st.get("charging")
         b.p_defending = st.get("p_defending", False)
         b.e_defending = st.get("e_defending", False)
         b.mech_stacks = st.get("mech_stacks", {}) or {}
@@ -351,12 +447,102 @@ class Battle:
             return f"⚡ 速度优势！轮到你的回合时还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
         return f"⚡ 速度优势！你还可以行动 {n} 次(『攻击』『技能 <名称>』『使用 <道具>』)"
 
+    # ---------------- v2 目标选择 / 蓄力（§3.2、§6） ----------------
+    def _player_attacker(self, player: dict) -> dict:
+        """玩家攻击方（射程按职业 reach，数据层未落地时默认 2=远程）。"""
+        return {"uid": "player", "reach": int(player.get("reach") or 2)}
+
+    def _resolve_player_target(self, player: dict, target=None) -> dict | None:
+        """解析玩家行动目标（单怪兼容：恒为唯一/enemy 主目标）。
+        返回目标单位 dict；无存活敌方返回 None。distinct 记录在 self._active_target。"""
+        from .core.formation import alive_units, select_target
+        alive = alive_units(self.enemies)
+        if not alive:
+            self._active_target = None
+            return None
+        if len(alive) == 1:
+            # 单怪路径零随机（v103 确定性铁律：不改变存量单怪 random 顺序）
+            self._active_target = alive[0]
+            return alive[0]
+        attacker = self._player_attacker(player)
+        if target is None:
+            picked = select_target(attacker, self.enemies)
+        else:
+            # 指定目标：uid 精确或名字前缀匹配（存活）
+            picked = None
+            for u in self.enemies:
+                if u.get("hp", 0) > 0 and (u.get("uid") == target or str(u.get("name", "")).startswith(str(target))):
+                    picked = u
+                    break
+            if picked is not None and int(picked.get("rank", 1) or 1) > attacker["reach"]:
+                # 射程校验（审计 P1 修复）：目标在攻击范围外 → 拒绝（提示 + 不消耗回合）
+                self._active_target = None
+                self._target_out_of_range = True
+                return None
+            if picked is None:
+                picked = select_target(attacker, self.enemies)
+        self._active_target = picked
+        return picked
+
+    def _player_charge_release(self, player: dict, logs: list) -> bool:
+        """蓄力回合开始结算：left 递增计时，归零自动释放技能。返回是否已释放。"""
+        if not self.charging or not self.charging.get("skill"):
+            self.charging = None
+            return False
+        left = int(self.charging.get("left", 1) or 1)
+        cname = self.charging.get("name", self.charging.get("skill", "?"))
+        if left > 0:
+            self.charging["left"] = max(0, left - 1)
+            if self.charging["left"] == 0:
+                # 归零 → 自动结算技能效果（不重复扣 MP/资源）
+                skill_name = self.charging["skill"]
+                self.charging = None
+                logs.append(f"✨ 【{cname}】蓄力完成，轰然落下！")
+                self._releasing_charge = True
+                try:
+                    self._do_player_skill(skill_name, player)
+                finally:
+                    self._releasing_charge = False
+                return True
+            else:
+                logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {self.charging['left']} 回合)，本回合无法普攻/技能！")
+        return False
+
+    def _player_charging_blocked(self, logs: list, action: str) -> bool:
+        """蓄力期间非防御/道具行动 → 拦截（提示剩余回合），返回是否被拦截。"""
+        if not (self.charging and self.charging.get("skill")):
+            return False
+        if action in ("defend", "use_item", "flee"):
+            return False
+        cname = self.charging.get("name", self.charging.get("skill", "?"))
+        left = int(self.charging.get("left", 1) or 1)
+        logs.append(f"⏳ 你正在蓄力【{cname}】(剩 {left} 回合)！可『防御』或『使用 <道具>』")
+        return True
+
+    def _interrupt_charging(self, unit, logs, source="敌人"):
+        """打断单位蓄力（主动伤害/被控）。玩家侧返还 50% 已扣 MP（向上取整）。"""
+        ch = unit.get("charging")
+        if not ch:
+            return
+        ustr = unit.get("name") or "目标"
+        unit["charging"] = None
+        logs.append(f"🔨 【{ustr}】的蓄力被{source}打断了！")
+        # 玩家侧返还 50% 已扣 MP（§6.2规则4；敌方不返还）
+        if unit.get("side") == "ally":
+            # 蓄力花费记录在 charging 上（施放时已扣，打断按 half 返还）
+            spent = int(ch.get("mp_spent", 0) or 0)
+            if spent > 0:
+                unit["mp"] = min(unit.get("max_mp", unit.get("mp", 0)),
+                                 unit.get("mp", 0) + (spent + 1) // 2)
+                logs.append(f"✨ 返还了 {(spent + 1) // 2} 点魔力。")
+
     # ---------------- 玩家行动入口 ----------------
-    def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True) -> tuple:
+    def player_turn(self, action: str, skill_name: str | None, player: dict, enemy_act: bool = True, target=None) -> tuple:
         """执行玩家行动。返回 (日志列表, 是否结束)
         action: attack | skill | defend | flee | use_item
         player: 玩家 dict（战斗内会修改 hp/mp，由调用方负责存库）
         enemy_act: 是否在玩家行动后立即结算敌方回合（PVP 传 False，由对方真人操作）
+        target: v2 指定目标（uid 或名字前缀，None=自动选择）
         v61：进度条速度机制——双方进度各+速度，攒够慢方速度获得额外行动。
         玩家额外行动可自由选择出手方式（攻击/技能/道具），不再自动普攻。
         """
@@ -412,6 +598,12 @@ class Battle:
                 return self._enemy_phase(player, logs, enemy_act, defend=True)
             return self._do_flee(player, logs, self.e_extra_left)
 
+        # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
+        # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
+        if "silence" in self.p_buffs and action == "skill":
+            logs.append("🤐 你被沉默，无法使用技能！(只能普攻/防御/道具)")
+            action = "attack"
+
         # O118 技能施放失败保护：正常回合开始前先校验（技能不存在/未学习/冷却/蓝/
         # 核心资源不足），失败不消耗回合、不结算敌方行动，玩家可重新选择其他行动
         if action == "skill":
@@ -422,6 +614,8 @@ class Battle:
 
         # ---- 正常回合开始 ----
         self.round += 1
+        # v2 蓄力：回合开始结算——归零自动释放技能（§6.2）
+        self._player_charge_release(player, logs)
         logs += self._turn_start(player)
         # v101.28 食物持续恢复：正常回合开始结算 hot（每回合一次，含眩晕/冻结回合）
         if self.p_hot and self.p_hot.get("turns", 0) > 0:
@@ -446,10 +640,23 @@ class Battle:
             logs.append("❄️ 你被冻结，无法行动！")
             self.p_buffs.pop("freeze", None)
             return self._enemy_phase(player, logs, enemy_act)
-        # v63 玩家被沉默：技能类行动被拦截，只能普攻/防御/道具
-        if "silence" in self.p_buffs and action == "skill":
-            logs.append("🤐 你被沉默，无法使用技能！(只能普攻/防御/道具)")
-            action = "attack"
+
+        # v2 蓄力期间：普攻/技能被拦截（可防御/道具），敌方照常行动
+        if self._player_charging_blocked(logs, action):
+            if self.p_extra_left > 0:
+                self.p_extra_left = 0
+            return self._enemy_phase(player, logs, enemy_act, defend=(action == "defend"))
+
+        # v2 目标解析（攻击/技能指定的目标；其余行动重置为主目标）
+        if action in ("attack", "skill"):
+            self._target_out_of_range = False
+            self._resolve_player_target(player, target)
+            if getattr(self, "_target_out_of_range", False):
+                # 射程校验拒绝（审计 P1 修复）：不消耗回合，玩家可重新选择
+                logs.append(f"⛔ 【{target}】在你的攻击范围之外，够不着！(近战只可及前排)")
+                return logs, False
+        else:
+            self._active_target = None
 
         if action == "defend":
             return self._do_defend(player, logs, enemy_act, e_extra)
@@ -509,23 +716,37 @@ class Battle:
         return self._enemy_phase(player, logs, enemy_act)
 
     def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
-        """敌方行动阶段：行动 1 次 + 额外次数（先手时先手一击已打，只补额外）
-        defend=True 时敌方伤害减半（额外行动阶段防御用）"""
+        """v2 敌方行动阶段：每个存活敌方单位依次行动一次（rank升序→spd降序，§3.2）。
+        + 速度优势额外批次（e_extra_left 整轮再加打）。defend=True 时敌方伤害减半。
+        e_first 时主目标已在 player_turn 先手一击打过，这里跳过主目标避免重复。"""
         if enemy_act:
-            e_acts = self.e_extra_left if self.e_first else (1 + self.e_extra_left)
+            from .core.formation import alive_units
+            # 敌方行动顺序：rank 升序 → spd 降序
+            units = sorted(alive_units(self.enemies),
+                           key=lambda u: (int(u.get("rank", 1) or 1), -int(u.get("spd", 0) or 0)))
+            if self.e_first:
+                # 主目标先手已打
+                main = self.enemy
+                units = [u for u in units if u is not main]
+            batches = units
+            if self.e_extra_left:
+                batches = list(units) * (1 + self.e_extra_left)
             self.e_extra_left = 0
-            for _ in range(e_acts):
+            for unit in batches:
                 if self._player_dead(player):
                     break
-                mlogs, dmg = self._enemy_turn(player)
+                if unit.get("hp", 0) <= 0:
+                    continue
+                mlogs, dmg = self._enemy_turn(player, unit)
                 logs += mlogs
                 if defend and dmg > 0:
                     dmg = max(1, int(dmg * DEFEND_REDUCE))
                     # O116 与伤害文案一起延迟输出（闪避时不显示）
                     self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-                self._damage_player(player, dmg, logs)
+                self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
                 if self._player_dead(player):
                     self.result = "defeat"
+            self._active_target = None  # 敌方行动结束后重置玩家下次目标
         self._end_round()
         return logs, self.result is not None
 
@@ -785,14 +1006,15 @@ class Battle:
                                   player.get("learned_skills", [])):
             logs.append(f"该技能需要 Lv.{info['lv']} 才能使用，你才 Lv.{player['level']}(或『技能学习 {skill_name}』提前学习)")
             return logs
-        # v2.0 冷却：CD 未结束拦截（强控/终结技等）
-        if self._skill_on_cd(skill_name):
+        # v2.0 冷却：CD 未结束拦截（强控/终结技等）——蓄力释放跳过（施放时已入 CD，§6.2）
+        _releasing = bool(getattr(self, "_releasing_charge", False))
+        if not _releasing and self._skill_on_cd(skill_name):
             left = self._skill_cd_left(skill_name)
             logs.append(f"⏳【{skill_name}】还在冷却中(剩余 {left} 回合)！")
             return logs
         # v2.0 核心资源：技能消耗检查（res_cost，如怒气/连击点/信仰/气）
         # v104 R3 P1-4 修复：先验蓝再扣资源（原实现先扣 res_cost 后查 mp，蓝不足时怒气/连击点白扣）
-        if player["mp"] < info["mp"]:
+        if not _releasing and player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
             return logs
         # v104 R3 P1-6 修复：『消耗全部』终结技（consume_all）动态结算——资源不满也可施放，
@@ -811,7 +1033,7 @@ class Battle:
             self.resources[ck] = 0
         else:
             res_cost = info.get("res_cost") or {}
-            if res_cost:
+            if res_cost and not _releasing:  # 蓄力释放跳过资源扣减（施放时已扣）
                 for rk, rv in res_cost.items():
                     if not E.core_resource_spend(player["class_name"], self.resources, rv, key=rk):
                         rd = E.core_resource_def(player["class_name"])
@@ -824,7 +1046,19 @@ class Battle:
         mp_cost = info["mp"]
         if mana_lvl:
             mp_cost = max(1, int(mp_cost * (1 - C.rune_value("mana_flow", mana_lvl))))
-        player["mp"] -= mp_cost
+        if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
+            player["mp"] -= mp_cost
+        # v2 蓄力技能（§6）：施放扣 MP/资源 → 进入蓄力，本回合不结算技能效果
+        if not getattr(self, "_releasing_charge", False) and int(info.get("charge", 0) or 0) >= 1:
+            cname = info.get("name") or skill_name
+            self.charging = {"skill": skill_name, "left": int(info["charge"]),
+                             "name": cname, "mp_spent": mp_cost}
+            logs.append(f"✨ 你开始蓄力【{cname}】，需要 {int(info['charge'])} 回合！")
+            # 冷却照常进入（§6.2 施放即冷却）
+            cd = info.get("cd", 0)
+            if cd:
+                self._set_skill_cd(skill_name, cd)
+            return logs
         logs += self._player_skill(st, skill_name, info, player)
         # v2.0 冷却：技能表 cd 字段（回合），施放后进入冷却
         cd = info.get("cd", 0)
@@ -1891,9 +2125,13 @@ class Battle:
         if self._monster_dodge_check(logs):
             total = 0
         else:
-            if info.get("aoe"):
-                # v114 AOE 多目标：Boss+全部援军各吃全额（不走挡刀），吸血按对 Boss 实伤段
-                _boss_dmg = self._aoe_damage_enemy(total, logs)
+            aoe = info.get("aoe")
+            if aoe:
+                # v114/v2 AOE：结构语义化 scope（True→"all"），技能 reach 覆盖职业 reach，falloff 衰减
+                scope = "all" if aoe is True else str(aoe)
+                self._aoe_reach = int(info.get("reach") or 3)
+                self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
+                _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
             else:
                 self._damage_enemy(total, logs)
                 _boss_dmg = total
@@ -2067,6 +2305,11 @@ class Battle:
         handler = MECH_EFFECTS.get(mech)
         if handler:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
+        if mech in ("stun", "freeze", "silence"):
+            tgt = getattr(self, "_active_target", None) or self.enemy
+            if tgt.get("charging"):
+                self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
 
     # ---------------- v10 套装攻击特效 ----------------
     def _set_attack_proc(self, player: dict, dmg: int, logs: list):
@@ -2125,65 +2368,67 @@ class Battle:
                     logs.append(f"🩸【{e['name']}】龙鳞反伤！你受到 {rb} 点反弹伤害！")
         return dmg
 
-    def _boss_mech(self, logs: list):
+    def _boss_mech(self, logs: list, unit=None):
         """v58/v83 Boss 专属机制（04 章 2.5）：enrage/summon/heal/shield/phase/stacks/reflect
         支持逗号分隔多机制（如 "enrage,summon"）。状态存 enemy dict（随战斗序列化持久化）
-        v98.4：机制实现数据化 → core/battle_mech.py BOSS_MECHS（reflect 仍是被动，在 _boss_dmg_filter）"""
-        mech = self.enemy.get("mech")
+        v98.4：机制实现数据化 → core/battle_mech.py BOSS_MECHS（reflect 仍是被动，在 _boss_dmg_filter）
+        v2：unit 参数（多怪场景逐个单位触发自身 mech；缺省=主目标）。"""
+        e = unit or self.enemy
+        mech = e.get("mech")
         if not mech or self.btype == "pvp":
             return
         from .core.battle_mech import BOSS_MECHS
         mechs = [x.strip() for x in mech.split(",") if x.strip()]
         r = self.round
-        e = self.enemy
         for m in mechs:
             handler = BOSS_MECHS.get(m)
             if handler:
                 handler(self, logs, e, r)
 
-    def _enemy_turn(self, player: dict) -> tuple:
-        """敌方行动。返回 (日志列表, 对玩家伤害)"""
+    def _enemy_turn(self, player: dict, unit=None) -> tuple:
+        """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
+        v2：unit 缺省 = 主目标（单怪兼容）；支持单位级蓄力。"""
         if self.btype == "pvp":
             return self._pvp_enemy_turn(player)
+        e = unit or self.enemy
+        eb = e.setdefault("buffs", {})
+        ename = e.get("name", "怪物")
         logs = []
-        self._boss_mech(logs)
-        est = self._enemy_stats()
+        # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
+        # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
+        self._active_target = e
+        self._boss_mech(logs, e)
         pst = self._player_stats(player)
         dmg = 0
         # v29 冻结：跳过敌方回合
-        if "freeze" in self.e_buffs:
-            logs.append("❄️ 敌人被冻结，无法行动！")
-            self.e_buffs.pop("freeze", None)
+        if "freeze" in eb:
+            logs.append(f"❄️ 【{ename}】被冻结，无法行动！")
+            eb.pop("freeze", None)
             return logs, 0
-        # v63 眩晕：跳过敌方回合（物理系控制，与冻结同机制不同来源）
-        if "stun" in self.e_buffs:
-            logs.append("🌀 敌人被眩晕，无法行动！")
-            self.e_buffs.pop("stun", None)
+        # v63 眩晕
+        if "stun" in eb:
+            logs.append(f"🌀 【{ename}】被眩晕，无法行动！")
+            eb.pop("stun", None)
             return logs, 0
-        # v109.2 P1-3：睡眠——跳过敌方回合（安眠曲；受击解除，睡多回合时按回合递减）
-        if "sleep" in self.e_buffs:
-            logs.append("💤 敌人陷入沉睡，无法行动！")
-            self.e_buffs["sleep"] -= 1
-            if self.e_buffs["sleep"] <= 0:
-                del self.e_buffs["sleep"]
+        # v109.2 P1-3：睡眠（受击解除，按回合递减）
+        if "sleep" in eb:
+            logs.append(f"💤 【{ename}】陷入沉睡，无法行动！")
+            eb["sleep"] -= 1
+            if eb["sleep"] <= 0:
+                del eb["sleep"]
             return logs, 0
-        # v101.28l #438：援军出手（召唤的爪牙每回合攻击一次，独立于 Boss 行动）
-        minion_dmg = 0
-        if self.e_minions:
-            _pst0 = self._player_stats(player)
-            for m in list(self.e_minions):
-                md = E.calc_damage(int(m.get("atk", 0)), _pst0["def"])
-                minion_dmg += md
-                # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
-                self._pending_dmg_lines.append(f"👹 援军【{m['name']}】扑向你，造成 {md} 点伤害！")
+        est = self._enemy_stats()
+        # v2 敌方蓄力单位：left-1；归零自动释放技能（结算效果，不普攻）
+        if e.get("charging"):
+            return self._enemy_charge_tick(e, pst, est, logs, ename)
         # 30% 概率使用技能（v63：沉默时只能普攻）
         skill = None
-        silenced = "silence" in self.e_buffs
-        if self.enemy.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
-            skill = random.choice(self.enemy["skills"])
+        silenced = "silence" in eb
+        if e.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
+            skill = random.choice(e["skills"])
             sinfo = C.MONSTER_SKILLS.get(skill)
             if sinfo:
-                sname = sinfo.get("name", skill)  # 显示中文名（技能池可能存 ID）
+                sname = sinfo.get("name", skill)  # 显示中文名
                 kind = sinfo.get("kind")
                 if kind == "增益":
                     from .core.battle_mech import MON_BUFF_EFFECTS
@@ -2191,16 +2436,14 @@ class Battle:
                     eff_fn = MON_BUFF_EFFECTS.get(eff)
                     if eff_fn:
                         eff_fn(self, logs, sname)
-                    return logs, minion_dmg
+                    return logs, 0
                 power = sinfo.get("power", 1.0)
-                # v104 M02 P2-10：怪物技能暴击按自身 crit 判定（此前固定 MON_SKILL_CRIT 0.1，高 crit 怪技能不暴击）
-                # v106 韧性：被暴击率 × (1 - 玩家韧性)
+                # v104 M02 P2-10：怪物技能暴击按自身 crit 判定；v106 韧性
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 if kind == "物理":
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="phys")
-                    # v106.4 物理免伤统一属性结算（物理技能段与普攻同口径）
                     _pst_pr = self._player_stats(player)
                     pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
                     if pr > 0:
@@ -2211,23 +2454,21 @@ class Battle:
                     _pp, _pf = self._pene_vals(est, magic=True)
                     dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="magi")
-                # v106.4 魔法免伤统一属性结算（种族龙鳞/鲁莽之心 + 词条魔抗 + 被动 → st["magic_reduce"]）
-                if kind != "物理":
-                    _pst_mr = self._player_stats(player)
-                    mr = float(_pst_mr.get("magic_reduce", 0) or 0)
-                    if self.p_buffs.get("magic_resist"):
-                        mr = 1 - (1 - mr) * (1 - 0.15)  # 龙鳞药剂/魔鳞药剂 +15% 魔免（乘算并入）
-                    mr = min(mr, 0.4)
-                    if mr > 0:
-                        red = max(1, int(dmg * mr))
-                        dmg = max(1, dmg - red)
-                        logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
-                    elif mr < 0:
-                        red = max(1, int(dmg * -mr))
-                        dmg = dmg + red
-                        logs.append(f"🔥 鲁莽之心，额外受到 {red} 点伤害！")
-                # 阶段八.1：怪物元素技能 → 玩家元素抗性减免（v106.1 面板化：属性 elem_res/abyss_res 为主，
-                # 旧装备词条 ID 未折算时补差；职业/词条/套装多来源聚合）
+                    if kind != "物理":
+                        _pst_mr = self._player_stats(player)
+                        mr = float(_pst_mr.get("magic_reduce", 0) or 0)
+                        if self.p_buffs.get("magic_resist"):
+                            mr = 1 - (1 - mr) * (1 - 0.15)
+                        mr = min(mr, 0.4)
+                        if mr > 0:
+                            red = max(1, int(dmg * mr))
+                            dmg = max(1, dmg - red)
+                            logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
+                        elif mr < 0:
+                            red = max(1, int(dmg * -mr))
+                            dmg = dmg + red
+                            logs.append(f"🔥 鲁莽之心，额外受到 {red} 点伤害！")
+                # 元素抗性减免
                 melem = sinfo.get("element", "")
                 if melem:
                     resist = 0.0
@@ -2241,7 +2482,7 @@ class Battle:
                     if melem in ("fire", "ice", "thunder"):
                         resist = elem_attr
                         if "elem_resist" in pids and elem_attr < 0.08:
-                            resist += 0.08 - elem_attr  # 旧装备（未折算）补差
+                            resist += 0.08 - elem_attr
                     elif melem == "dark":
                         resist = abyss_attr
                         if "abyss_resist" in pids and abyss_attr < 0.10:
@@ -2250,10 +2491,10 @@ class Battle:
                         red = max(1, int(dmg * resist))
                         dmg = max(1, dmg - red)
                         logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
-                # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
+                # O116 延迟输出
                 self._pending_dmg_lines.append(
-                    f"【{self.enemy['name']}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-                # v63 怪物技能机制：眩晕/沉默/冻结 等控制（v98.4：数据化 → core/battle_mech.py MON_CTRL_EFFECTS）
+                    f"【{ename}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+                # v63 怪物技能控制
                 mmech = sinfo.get("mech")
                 if mmech:
                     from .core.battle_mech import MON_CTRL_EFFECTS
@@ -2261,24 +2502,64 @@ class Battle:
                     if ctrl_fn:
                         mval = int(sinfo.get("mech_val", 1) or 1)
                         ctrl_fn(self, player, logs, mval)
-                return logs, dmg + minion_dmg
-        # v104 M02 P2：怪物普攻按 crit 属性判定暴击（此前完全忽略 est["crit"]，与玩家/PVP 同款逻辑）
-        # v106 韧性：被暴击率 × (1 - 玩家韧性)；穿透：怪物物穿削减玩家防御
+                return logs, dmg
+        # 怪物普攻
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
-        # v106.4 物理免伤统一属性结算（种族石肤 + 词条铁壁 + 被动 → st["phys_reduce"]）
         _pst_pr = self._player_stats(player)
-        pr = float(_pst_pr.get("phys_reduce", 0) or 0)
-        pr = min(pr, 0.4)
+        pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
         if pr > 0:
             red = max(1, int(dmg * pr))
             dmg = max(1, dmg - red)
             logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
-        # O116 伤害文案延迟输出（闪避判定后），避免"造成伤害"与"闪避"同显
         self._pending_dmg_lines.append(
-            f"【{self.enemy['name']}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-        return logs, dmg + minion_dmg
+            f"【{ename}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        return logs, dmg
+
+    def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str) -> tuple:
+        """敌方蓄力单位回合：left-1；归零自动释放技能（结算效果，不普攻）。"""
+        ch = e.get("charging") or {}
+        left = int(ch.get("left", 1) or 1)
+        cname = ch.get("name", ch.get("skill", "?"))
+        if left > 0:
+            ch["left"] = max(0, left - 1)
+            e["charging"] = ch if ch["left"] > 0 else None
+            if ch["left"] == 0:
+                logs.append(f"✨ 【{ename}】的【{cname}】蓄力完成，轰然落下！")
+                # 释放 = 结算一次该单位的技能效果（无目标次要：对玩家造成伤害）
+                return self._enemy_release_charge(e, cname, pst, est, logs, ename)
+            logs.append(f"⏳ 【{ename}】正在蓄力【{cname}】(剩 {ch['left']} 回合)！")
+            return logs, 0
+        return logs, 0
+
+    def _enemy_release_charge(self, e: dict, skill_name: str, pst: dict, est: dict, logs: list, ename: str) -> tuple:
+        """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
+        返回 (logs, 对玩家伤害)。"""
+        sinfo = C.MONSTER_SKILLS.get(skill_name) or {}
+        if not sinfo:
+            return logs, 0
+        kind = sinfo.get("kind")
+        power = sinfo.get("power", 1.0)
+        is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
+        sname = sinfo.get("name", skill_name)
+        if kind == "增益":
+            from .core.battle_mech import MON_BUFF_EFFECTS
+            eff_fn = MON_BUFF_EFFECTS.get(sinfo.get("effect"))
+            if eff_fn:
+                eff_fn(self, logs, sname)
+            return logs, 0
+        if kind == "物理":
+            _pp, _pf = self._pene_vals(est)
+            dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
+                                dmg_type="phys")
+        else:
+            _pp, _pf = self._pene_vals(est, magic=True)
+            dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
+                                dmg_type="magi")
+        self._pending_dmg_lines.append(
+            f"【{ename}】的【{sname}】对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        return logs, max(0, dmg)
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
         """PVP：敌方玩家行动(v9.2 启用；先实现 AI 普攻)。
@@ -2325,9 +2606,12 @@ class Battle:
                     st[attr] = int(st.get(attr, 0) * val)
         return st
 
-    def _enemy_stats(self) -> dict:
-        """敌方当前属性(应用敌方增益/减益)"""
-        e = self.enemy
+    def _enemy_stats(self, unit=None) -> dict:
+        """敌方当前属性(应用敌方增益/减益)。v2：unit 缺省=主目标（单怪兼容）。"""
+        if unit is None:
+            unit = getattr(self, "_active_target", None) or self.enemy
+        e = unit
+        eb = e.setdefault("buffs", {})
         est = {
             "atk": e.get("atk", 0), "def": e.get("def", 0),
             "matk": e.get("matk", 0), "mdef": e.get("mdef", 0),
@@ -2340,7 +2624,7 @@ class Battle:
             "elem_res": e.get("elem_res", 0) or 0, "abyss_res": e.get("abyss_res", 0) or 0,
             "precise": e.get("precise", 0) or 0,
         }
-        est = self._apply_buffs(est, self.e_buffs)
+        est = self._apply_buffs(est, eb)
         # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%
         if e.get("enraged"):
             est["atk"] = int(est["atk"] * 1.35)
@@ -2353,15 +2637,15 @@ class Battle:
         if e.get("mech_stacks_n"):
             sm = 1 + 0.08 * e["mech_stacks_n"]
             est["atk"] = int(est["atk"] * sm)
-        if "def_down" in self.e_buffs:
+        if "def_down" in eb:
             # 阶段八：词条破甲 15%（_armor_break_pct），旧技能破甲减半兜底
-            pct = float(self.e_buffs.get("_armor_break_pct", DEF_DOWN_MULT) or DEF_DOWN_MULT)
+            pct = float(eb.get("_armor_break_pct", DEF_DOWN_MULT) or DEF_DOWN_MULT)
             est["def"] = int(est["def"] * (1 - pct))
-        if "spd_down" in self.e_buffs:
+        if "spd_down" in eb:
             est["spd"] = int(est["spd"] * SPD_DOWN_MULT)
         # v34 符文虚弱：敌人攻击 -x%
-        if "mon_atk_down" in self.e_buffs:
-            wv = float(self.e_buffs.get("_weaken_val", 0.15) or 0.15)
+        if "mon_atk_down" in eb:
+            wv = float(eb.get("_weaken_val", 0.15) or 0.15)
             est["atk"] = int(est["atk"] * (1 - wv))
             est["matk"] = int(est["matk"] * (1 - wv))
         return est
@@ -2712,69 +2996,107 @@ class Battle:
             pass
         return False
 
-    def _aoe_damage_enemy(self, dmg: int, logs: list) -> int:
-        """v114 AOE 多目标结算：Boss 与全部援军各吃全额伤害（不走挡刀，援军无防御/免伤）。
-        每援军输出一行『💥 对【XX的爪牙】造成 N 点伤害！』，死亡 pop 并输出击倒文案。
-        返回对 Boss 实际造成的伤害（吸血按 Boss 段计，援军段不吸血）。
-        PVP（btype=pvp）e_minions 恒空 → 等价单体，无需特判。"""
-        if self.e_defending and dmg > 0:
-            dmg = max(1, int(dmg * DEFEND_REDUCE))
-            logs.append(f"(格挡后 {dmg} 点伤害)")
-        if dmg > 0 and "sleep" in self.e_buffs:
-            self.e_buffs.pop("sleep", None)
-            logs.append("💥 敌人被攻击惊醒！")
+    def _aoe_damage(self, dmg: int, logs: list, scope: str = "all", source=None) -> int:
+        """v2 AOE 多目标结算（§5）：对 select_aoe_targets 每个目标独立走完整伤害链。
+
+        - scope ∈ "front"/"all"/"rankN"（技能自带 reach 时由调用方把 attacker reach 覆盖好）。
+        - 逐目标独立结算：rank>1 目标受 aoe_falloff（默认 1.0）衰减；各自独立扣血。
+        - 目标死亡即时压缩（_remove_unit）并继续结算剩余目标。
+        返回对主目标实际造成的伤害（吸血按主目标段计）。"""
+        from .core import formation as _fm
+        attacker = {"reach": getattr(self, "_aoe_reach", 3), "uid": "aoe"}
+        falloff = float(getattr(self, "_aoe_falloff", 1.0) or 1.0)
         if dmg <= 0:
             return 0
-        boss_dmg = min(dmg, self.enemy.get("hp", 0))
-        self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
-        if self.e_minions:
-            for m in list(self.e_minions):
-                m["hp"] -= dmg
-                logs.append(f"💥 对【{m['name']}】造成 {dmg} 点伤害！")
-                if m["hp"] <= 0:
-                    self.e_minions.remove(m)
-                    logs.append(f"💥 援军【{m['name']}】被击倒了！")
-        return boss_dmg
+        targets = _fm.select_aoe_targets(attacker, self.enemies, scope)
+        if not targets:
+            return 0
+        main = self.enemy
+        main_hit = 0
+        for t in targets:
+            if t.get("hp", 0) <= 0:
+                continue
+            t_dmg = dmg
+            if int(t.get("rank", 1) or 1) > 1 and falloff != 1.0:
+                t_dmg = max(1, int(t_dmg * falloff))
+            # G3 修复（审计）：逐目标消费各自防御——反推攻击方等效 atk 后按目标 def 重算
+            # （与召唤物挡刀同款反推；dmg 是调用方按主目标防御算好的值）
+            _tdef = max(0, int(t.get("def", 0) or 0))
+            if _tdef > 0:
+                try:
+                    _atk = (t_dmg + int((t_dmg * t_dmg + 4 * t_dmg * _tdef) ** 0.5)) // 2
+                    t_dmg = max(1, int(E.calc_damage(_atk, _tdef, variance=0)))
+                except Exception:
+                    pass
+            # 击杀结算当前目标（打断钩子 + 防御过滤）
+            dealt = self._damage_enemy(t_dmg, logs, target=t, source=source or self._last_hitter)
+            logs.append(f"💥 对【{t.get('name', '敌人')}】造成 {dealt} 点伤害！")
+            if dealt > 0 and t is main:
+                main_hit = dealt
+        return main_hit
 
-    def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True) -> int:
-        """v101.28l #438：真召唤援军——伤害先扣援军（挡刀），援军死光才扣 Boss。
-        返回对 Boss 实际造成的伤害（援军吸收部分不计入）。
-        v109.2 P1-3：wake_sleep——主动攻击/反伤打醒睡眠（dot 传 False，防止睡眠每回合必被持续伤害打断）。
-        F1 P1-4（report_09）：PVP 防御生效——敌方快照防御中(e_defending)时伤害减半，
-        与 PVE 防御(_enemy_phase/_do_defend)同规则 DEFEND_REDUCE；PVE 怪 e_defending 恒 False 无感。"""
-        if self.e_defending and dmg > 0:
+    def _aoe_damage_enemy(self, dmg: int, logs: list) -> int:
+        """v114 旧 AOE 入口（兼容）：全阵 AOE，返回对主目标伤害。"""
+        return self._aoe_damage(dmg, logs, "all", None)
+
+    def _damage_enemy(self, dmg: int, logs: list, wake_sleep: bool = True, target=None, source=None) -> int:
+        """对敌方单位造成伤害（§3.2）。返回实际对目标造成（或其 HP 被扣）的伤害。
+
+        - target：目标单位 dict；None=当前玩家活跃目标(_active_target)或主目标(self.enemy)。
+        - 删除旧"援军挡刀吸收"逻辑（站位天然承担）：每单位独立扣血。
+        - 主动伤害>0 且目标蓄力中 → 打断（打断钩子，返还 50%MP 见 _interrupt_charging）。
+        - wake_sleep：dot 传 False（持续伤害不打醒睡眠、也不打断蓄力）。
+        F1 P1-4：PVP 防御生效——目标防御中(defending)时伤害减半。"""
+        if target is None:
+            target = getattr(self, "_active_target", None) or self.enemy
+        if dmg <= 0:
+            return 0
+        if target.get("defending"):
             dmg = max(1, int(dmg * DEFEND_REDUCE))
             logs.append(f"(格挡后 {dmg} 点伤害)")
-        if wake_sleep and dmg > 0 and "sleep" in self.e_buffs:
-            self.e_buffs.pop("sleep", None)
+        if wake_sleep and target.get("buffs", {}).get("sleep"):
+            target["buffs"].pop("sleep", None)
             logs.append("💥 敌人被攻击惊醒！")
-        if not self.e_minions or dmg <= 0:
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - dmg)
-            return dmg
-        m = self.e_minions[0]
-        absorb = min(m["hp"], dmg)
-        m["hp"] -= absorb
-        rest = dmg - absorb
-        if rest > 0:
-            self.enemy["hp"] = max(0, self.enemy.get("hp", 0) - rest)
-        logs.append(f"🛡️ 援军【{m['name']}】挡下了 {absorb} 点伤害！")
-        if m["hp"] <= 0:
-            self.e_minions.pop(0)
-            logs.append(f"💥 援军【{m['name']}】被击倒了！")
-        return rest
+        # 主动伤害打断蓄力（DOT→wake_sleep=False 不打断）
+        if wake_sleep and target.get("charging"):
+            self._interrupt_charging(target, logs, source=source or self._last_hitter)
+        before = target.get("hp", 0)
+        target["hp"] = max(0, before - dmg)
+        if target["hp"] <= 0:
+            # v2 阵型压缩（§4.3）：单位死亡即时移除 + 后排前移补位（审计 P1 修复）
+            self._remove_unit("enemy", target)
+        return dmg
+
 
     def _summon_minions(self, n: int = 1) -> list:
-        """v101.28l #438：生成援军实体（血量=Boss 20%、攻击=Boss 40%）"""
+        """v2（§7.2）：敌方援军入 enemies 阵列（rank1/reach1，站位天然挡刀）。
+        保持 e_minions 旧字段同步（命令层/instance 展示与持久化兼容）。
+        每只血量=Boss 20%、攻击=Boss 40%。"""
         e = self.enemy or {}
         created = []
+        base_uid = len(self.enemies)
         for i in range(n):
             m = {
+                "uid": f"e_min_{base_uid + i}",
+                "side": "enemy",
+                "rank": 1,
+                "reach": 1,
                 "name": f"{e.get('name', '首领')}的爪牙",
                 "hp": int(e.get("max_hp", 1) * 0.20),
                 "max_hp": int(e.get("max_hp", 1) * 0.20),
                 "atk": int(e.get("atk", 0) * 0.40),
                 "matk": int(e.get("matk", 0) * 0.40),
+                "def": int(e.get("def", 0) * 0.40),
+                "mdef": int(e.get("mdef", 0) * 0.40),
+                "spd": int(e.get("spd", 0) or 1),
+                "crit": e.get("crit", 0.05),
+                "buffs": {},
+                "stacks": {},
+                "defending": False,
+                "charging": None,
+                "is_minion": True,
             }
+            self.enemies.append(m)
             self.e_minions.append(m)
             created.append(m)
         return created
@@ -2801,25 +3123,31 @@ class Battle:
         df = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
         self.summons.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
                              "hp": hp, "max_hp": hp, "atk": atk, "def": df,
-                             "dmg_type": tmpl.get("dmg_type", "phys")})
-        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk})")
+                             "dmg_type": tmpl.get("dmg_type", "phys"),
+                             "rank": int(tmpl.get("rank", 1) or 1),
+                             "reach": int(tmpl.get("reach", 1) or 1)})
+        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{self.summons[-1]['rank']}层)")
         return True
 
     def _summons_act(self, player: dict, logs: list) -> list:
         """v107 召唤物自动攻击：每个存活召唤物攻击一次（玩家行动后、敌方行动前）。
-        真伤召唤物（影狼）走 dmg_type=true 绕过全减伤。"""
+        真伤召唤物（影狼）走 dmg_type=true 绕过全减伤；按自身 reach 选目标（§7）。"""
         if not self.summons:
             return logs
         for s in list(self.summons):
             if s.get("hp", 0) <= 0 or self._enemy_dead():
                 continue
+            # v2：召唤物按自身 reach 选目标（射程内最前排）
+            target = self._pick_summon_target(s)
+            if target is None:
+                continue
             if s["dmg_type"] == "true":
                 dmg = max(1, int(s["atk"] * (1 + random.uniform(-0.15, 0.15))))
             else:
-                est = self._enemy_stats()
+                est = self._enemy_stats(target)
                 dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type="phys")
             dmg = max(1, dmg)
-            self._damage_enemy(dmg, logs)
+            self._damage_enemy(dmg, logs, target=target, source=s.get("name", "召唤物"))
             logs.append(f"{s.get('icon', '')} {s['name']} 攻击，造成 {dmg} 点伤害！")
         # 清理死亡召唤物
         for s in list(self.summons):
@@ -2827,6 +3155,40 @@ class Battle:
                 logs.append(f"💀 {s['name']} 倒下了！")
                 self.summons.remove(s)
         return logs
+
+    def _pick_summon_target(self, s: dict) -> dict | None:
+        """v2：召唤物按自身 reach 选敌方目标（§7.3——射程内最前排）。"""
+        from .core.formation import alive_units, select_target
+        alive = alive_units(self.enemies)
+        if not alive:
+            return None
+        if len(alive) == 1:
+            return alive[0]
+        return select_target(s, self.enemies)
+
+    def _remove_unit(self, side: str, unit: dict) -> list:
+        """v2 单位死亡统一移除入口（§3.2）：从阵列移除 + 该侧阵型压缩 + 击杀槽文案。
+        返回压缩时被移除（死亡）的单位列表。"""
+        from .core.formation import compact
+        removed = []
+        if side == "enemy":
+            if unit in self.enemies:
+                self.enemies.remove(unit)
+                removed = compact(self.enemies)
+            # 同步 e_minions 旧字段（镜像同对象）
+            if unit in self.e_minions:
+                self.e_minions[:] = [m for m in self.e_minions if m.get("hp", 0) > 0]
+            self.enemy  # 刷新主目标引用（property）
+        elif side == "ally":
+            lives = []
+            for u in (self.allies or []):
+                if u.get("hp", 0) > 0:
+                    lives.append(u)
+                else:
+                    removed.append(u)
+            self.allies[:] = lives
+            removed += compact(self.allies)
+        return removed
 
     def _summon_block_check(self, player: dict, dmg: int, logs: list) -> int:
         """v107 召唤物挡刀：敌人攻击时按模板 bodyguard 概率由随机存活召唤物承受伤害。
@@ -2896,10 +3258,21 @@ class Battle:
         self._pending_dmg_lines = []
         return lines
 
-    def _damage_player(self, player: dict, dmg: int, logs: list):
+    def _damage_player(self, player: dict, dmg: int, logs: list, source: str = "敌人"):
         if dmg <= 0:
             self._pending_dmg_lines = []
             return
+        # v2 蓄力打断：玩家蓄力中受到主动伤害>0 → 打断并返还 50% MP（§6.2规则4）
+        if self.charging and self.charging.get("skill"):
+            pname = player.get("name", "你")
+            cname = self.charging.get("name", self.charging.get("skill", "?"))
+            spent = int(self.charging.get("mp_spent", 0) or 0)
+            self.charging = None
+            logs.append(f"🔨 【{pname}】的蓄力被{source}打断了！")
+            if spent > 0:
+                player["mp"] = min(player.get("max_mp", player.get("mp", 0)),
+                                   player.get("mp", 0) + (spent + 1) // 2)
+                logs.append(f"✨ 返还了 {(spent + 1) // 2} 点魔力。")
         # 24 章宠物技能·影袭：替主人挡一次攻击（主动保护优先于自身闪避，拦截后直接结束本次伤害）
         dmg = self._pet_block_check(dmg, logs)
         if dmg <= 0:
@@ -3124,7 +3497,9 @@ class Battle:
                     logs.append(f"✨ {_pn}：回复 {heal} 点生命！")
 
     def _enemy_dead(self) -> bool:
-        return self.enemy.get("hp", 1) <= 0
+        # v2：敌方阵列无存活（§3.2）——同时压缩移除死亡单位
+        from .core.formation import alive_units
+        return not alive_units(self.enemies)
 
     def _player_dead(self, player: dict) -> bool:
         return player.get("hp", 1) <= 0

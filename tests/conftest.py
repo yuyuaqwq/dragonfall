@@ -97,6 +97,7 @@ def clean_db(*tables):
             "achievements", "stats", "feedback", "market", "bestiary",
             "guilds", "guild_members", "party", "pets", "pet_dex", "reputation", "signin", "fishing",
             "visited", "world_event", "event_state", "professions", "props_use",
+            "visited_subareas",
         )
         for t in targets:
             conn.execute(f"DELETE FROM {t}")

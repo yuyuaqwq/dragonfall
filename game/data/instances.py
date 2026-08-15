@@ -24,6 +24,7 @@ INSTANCES = {
         "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20,
                  ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
                  ["咕噜的皇冠"]],
+        "minions": [{"name": "哥布林打手", "role": "dps", "count": 2}],  # v27b：Boss 爪牙（命令层消费）
                 "stages":         [
             {
                 "name": "营地前哨",
@@ -122,6 +123,7 @@ INSTANCES = {
         "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 28,
                  ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
                  ["杰克的金钩"]],
+        "minions": [{"name": "海盗喽啰", "role": "dps", "count": 2}],  # v27b：Boss 爪牙（命令层消费）
                 "stages":         [
             {
                 "name": "洞口滩涂",

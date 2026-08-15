@@ -417,6 +417,87 @@ def tpl_stamina_cost(ctx):
                   .replace("{max}", str(max_st)))
 
 
+# ============ v115 探索体验扩容：4 个新增模板 ============
+
+@register("region_lore")
+def tpl_region_lore(ctx):
+    """v115 区域见闻：纯氛围文案 + 记入见闻录 flag。
+    params: flag/texts/seen_texts/header（可选）
+    首次触发写 event_state lore_{flag}_{qq_id}="1" 并取 texts 一条；
+    重复触发（flag 已存在）从 seen_texts（缺省回退 texts）里换一条。
+    """
+    db = ctx._db()
+    key = f"lore_{ctx.param('flag', 'default')}_{ctx.qq_id}"
+    seen = bool(db.get_event_state(key))
+    if not seen:
+        db.set_event_state(key, "1")
+    pool = ctx.param("seen_texts") if (seen and ctx.param("seen_texts")) else ctx.param("texts", [])
+    if not pool:
+        return ""
+    return random.choice(pool).replace("{name}", ctx.name)
+
+
+@register("stamina_gift")
+def tpl_stamina_gift(ctx):
+    """v115 体力馈赠：随机回复体力 5-10（可自定义 min/max）。
+    params: min/max/header
+    体力封顶 100 + lv*2（与 base.py _stamina_max 一致）。
+    """
+    db = ctx._db()
+    gain = random.randint(ctx.param("min", 5), ctx.param("max", 10))
+    max_st = 100 + ctx.lv * 2
+    cur = int(ctx.player.get("stamina") or 0)
+    new = min(max_st, cur + gain)
+    if new != cur:
+        import time as _time
+        db.update_player(ctx.group_id, ctx.qq_id, stamina=new, stamina_ts=int(_time.time()))
+        ctx.player["stamina"] = new  # 同步上下文，避免跨事件陈旧值
+    header = ctx.param("header", "⚡ 体力 +{gain}（当前 ⚡ {stamina}/{max}）")
+    return (header.replace("{name}", ctx.name)
+                  .replace("{gain}", str(new - cur))
+                  .replace("{stamina}", str(new))
+                  .replace("{max}", str(max_st)))
+
+
+@register("shrine_bless")
+def tpl_shrine_bless(ctx):
+    """v115 神龛祝福：写 event_state bless_{qq_id}，下次战斗攻击 +pct%。
+    battle.py 现有 echo_bless 机制读键 bless_{qid}（本场攻击 ×1.05，一次性消费）；
+    此处复用同款键命名习惯——params: pct/header
+    """
+    import json as _json
+    db = ctx._db()
+    pct = ctx.param("pct", 5)
+    db.set_event_state(f"bless_{ctx.qq_id}", _json.dumps({"pct": pct}, ensure_ascii=False))
+    header = ctx.param("header", "🔮 神龛祝福降临！✨ 下次战斗攻击力 +{pct}% ！")
+    return header.replace("{name}", ctx.name).replace("{pct}", str(pct))
+
+
+@register("rare_find")
+def tpl_rare_find(ctx):
+    """v115 稀有发现：从 params.mats 稀有材料池随机抽 n 份入包（复用 loot_materials 思路）。
+    params: mats/n/header（header 可含 {mats}/{extra} 占位）
+    """
+    import uuid
+    db = ctx._db()
+    C = ctx._C()
+    mats_pool = ctx.param("mats", ["秘银", "星辉石"])
+    n = ctx.param("n", 1)
+    got = []
+    for _ in range(n):
+        m = random.choice(mats_pool)
+        mid = C.resolve("materials", m)
+        if mid in C.MATERIALS:
+            db.add_item(ctx.group_id, ctx.qq_id, mid,
+                        {"name": C.display("materials", mid), "type": "材料",
+                         "stackable": True, "price": C.MATERIALS[mid]["price"]})
+            got.append(C.display("materials", mid))
+    header = ctx.param("header", "✨ 稀有发现！🎒 获得稀有材料：{mats}！{extra}")
+    return (header.replace("{name}", ctx.name)
+                  .replace("{mats}", "、".join(got))
+                  .replace("{extra}", ""))
+
+
 def execute_event_template(template_name, ctx):
     """执行模板；未注册返回 None（调用方兜底）。"""
     fn = TEMPLATES.get(template_name)
