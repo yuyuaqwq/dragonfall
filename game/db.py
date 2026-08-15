@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》存储层 —— 薄聚合层（重构后）
+"""奥兰迪亚·余烬纪年存储层 —— 薄聚合层（重构后）
 
 实际实现已拆至 game/store/（Repository 分层）。
 本文件保留 `from .game import db` / `db.xxx` 兼容路径。

@@ -5,7 +5,7 @@ from ..data import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES, MATERIALS
 from ..core.index import resolve, display as _display
 
 
-"""《剑与魔法》数据层 - craft.py(v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文)"""
+"""奥兰迪亚·余烬纪年数据层 - craft.py(v48：输入中文名 → resolve 转 ID 查表；装备名 display 转中文)"""
 def craft_recipe_make(name: str, affinity: str | None = None) -> dict | None:
     """按配方锻造一件装备（装备等级 = 配方 lv，名字 = 配方名）
     阶段八：名册配方（roster_id）走名册精确生成（词条 v2/需求/套装）；

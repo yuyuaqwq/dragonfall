@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - misc（misc）
+"""奥兰迪亚·余烬纪年命令层 - misc（misc）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -152,7 +152,7 @@ class MiscCmds(CommandBase):
 
     CMD_HELP_SOCIAL = """🤝 【社交】指令
 ━━━━━━━━━━━━
-【阵营】加入阵营 <编号> 阵营任务 阵营商店 阵营排行（Lv.30 起选四大阵营；任务/商店/排行）
+【阵营】加入阵营 <编号> 阵营任务 阵营商店 阵营排行（Lv.20 起选四大阵营；任务/商店/排行）
 【公会】公会 创建公会 加入公会 退出公会 解散公会 公会签到 公会任务 公会捐献 公会排行
 【宠物】宠物 宠物改名 喂养 放生（宠物蛋打怪掉落）
 【坐骑】坐骑 骑乘 <名称> 下马（精英/Boss 掉缰绳解锁，传送省钱）
@@ -257,28 +257,33 @@ class MiscCmds(CommandBase):
         cur_evt = db.get_world_event()
         if cur_evt and cur_evt["etype"] == "festival":
             gold *= 2
-        db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-        lines = [
-            f"📅 【签到成功】第 {total} 次签到！连续 {streak} 天！",
-            f"💰 获得 {gold} 金币",
-        ]
-        # v87：运势显示
-        fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
-        fortune_desc = {"大吉": "今日经验＋10%", "平": "今日平平无奇", "小凶": "今日金币－10%"}.get(fortune, "")
-        lines.append(f"{fortune_icon} 今日运势：{fortune}({fortune_desc})")
-        if fortune == "小凶":
-            # vF3：小凶无预警提示——金币 -10% 早知道（概率/数值不变），可用幸运符消解或明日重roll
-            lines.append("💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～")
-        if cur_evt and cur_evt["etype"] == "festival":
-            lines.append("🎉 节日庆典：签到奖励翻倍！")
-        # 每 7 天额外奖励
-        if streak % 7 == 0:
-            import uuid
-            q = random.choices(["green", "blue", "purple"], weights=[55, 35, 10])[0]
-            equip = C.generate_equip(random.choice(["weapon", "armor", "ring"]), player["level"], q)
-            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
-            lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")
-        yield event.plain_result("\n".join(lines))
+        # C8：认领为前置原子步骤已成功，此处结果构建/落库若抛错不重试认领（防重领），
+        # 只回执最小成功提示，避免「已领签到但零回执」的静默失败。
+        try:
+            db.update_player(group_id, qq_id, gold=player["gold"] + gold)
+            lines = [
+                f"📅 【签到成功】第 {total} 次签到！连续 {streak} 天！",
+                f"💰 获得 {gold} 金币",
+            ]
+            # v87：运势显示
+            fortune_icon = {"大吉": "🌟", "平": "🍀", "小凶": "🌧️"}.get(fortune, "🍀")
+            fortune_desc = {"大吉": "今日经验＋10%", "平": "今日平平无奇", "小凶": "今日金币－10%"}.get(fortune, "")
+            lines.append(f"{fortune_icon} 今日运势：{fortune}({fortune_desc})")
+            if fortune == "小凶":
+                # vF3：小凶无预警提示——金币 -10% 早知道（概率/数值不变），可用幸运符消解或明日重roll
+                lines.append("💡 今日小凶金币收益 -10%……别灰心！用『使用 幸运符』可消解，或明日签到重roll运势～")
+            if cur_evt and cur_evt["etype"] == "festival":
+                lines.append("🎉 节日庆典：签到奖励翻倍！")
+            # 每 7 天额外奖励
+            if streak % 7 == 0:
+                import uuid
+                q = random.choices(["green", "blue", "purple"], weights=[55, 35, 10])[0]
+                equip = C.generate_equip(random.choice(["weapon", "armor", "ring"]), player["level"], q)
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
+                lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")
+            yield event.plain_result("\n".join(lines))
+        except Exception:
+            yield event.plain_result("✅ 已签到（奖励发放异常，请联系管理）")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?成就(?:\s*(领取|列表)?(?:\s*([^\s]+))?\s*|$)")
     @require_player()
@@ -349,8 +354,20 @@ class MiscCmds(CommandBase):
         if len(args) > 200:
             yield event.plain_result("❌ 意见太长啦(≤200 字)，精简一下再说～")
             return
+        # q11 低风险项：同 qq 30 秒内限 1 条（意见箱防刷屏），沿用 event_state 存末次提交时间戳
+        _cd_key = f"fb_cd_{qq_id}"
+        try:
+            _last_ts = float(db.get_event_state(_cd_key) or 0)
+        except (TypeError, ValueError):
+            _last_ts = 0.0
+        _now_ts = time.time()
+        if _now_ts - _last_ts < 30:
+            yield event.plain_result("意见发送太频繁，请稍后再试～")
+            return
         try:
             fid = db.add_feedback(qq_id, group_id, args)
+            # 持续成功的频控：仅成功后更新时间戳，避免失败的尝试锁住玩家再次提交
+            db.set_event_state(_cd_key, str(_now_ts))
             # 主动通知 Hermes（格温本体）：异步 POST，不阻塞玩家回复
             await self._notify_hermes(group_id, qq_id, args, "feedback")
             yield event.plain_result(
@@ -388,10 +405,10 @@ class MiscCmds(CommandBase):
                     "msg_type": msg_type,
                 },
                 ensure_ascii=False,
-            ).encode("utf－8")
+            ).encode("utf-8")
             headers = {"Content-Type": "application/json"}
             if secret:
-                sig = hmac.new(secret.encode("utf－8"), payload, hashlib.sha256).hexdigest()
+                sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
                 headers["X-Webhook-Signature"] = sig
             async with aiohttp.ClientSession() as session:
                 async with session.post(webhook_url, data=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=5)) as resp:

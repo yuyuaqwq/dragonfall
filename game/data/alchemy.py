@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - alchemy.py(v48 key 转 ID；v54 加副业等级限制 + 配方丰富)"""
+"""奥兰迪亚·余烬纪年数据层 - alchemy.py(v48 key 转 ID；v54 加副业等级限制 + 配方丰富)"""
 ALCHEMY_RECIPES = {
     "al_zhi_liao_yao_shui": {
         "cost": {

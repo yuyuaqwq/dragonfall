@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - talk_actions.py（v101.23d B 级：对话动作注册表）
+"""奥兰迪亚·余烬纪年命令层 - talk_actions.py（v101.23d B 级：对话动作注册表）
 
 与 core/dialogue_conds.py 的 CONDITIONS 注册表对称：加新对话动作 =
 register 一个函数（~5 行），_apply_talk_action 零改动，纯内容扩展不动引擎。

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》AstrBot 插件主入口 —— 薄装配层（重构后）
+"""奥兰迪亚·余烬纪年AstrBot 插件主入口 —— 薄装配层（重构后）
 
 命令处理器已按领域拆至 game/commands/（Mixin 模式）：
   PlayerCmds / WorldCmds / CombatCmds / EconomyCmds / SocialCmds / MiscCmds
@@ -173,7 +173,10 @@ def _file_loopback_start():
             with open(lock_path, "w", encoding="utf-8") as f:
                 f.write(str(os.getpid()))
         except Exception:
-            pass  # 锁失败不阻塞（极端情况容忍多 worker）
+            # q11：锁失败不阻塞（极端情况容忍多 worker），留痕便于排查
+            logging.getLogger(__name__).warning(
+                "loopback worker 锁文件读写失败（容忍多 worker 继续）", exc_info=True
+            )
         while True:
             try:
                 for cmd_path in _loopback_files():
@@ -187,7 +190,10 @@ def _file_loopback_start():
                         if cmd:
                             _dispatch(cmd, _out_file_for(cmd_path))
             except Exception:
-                pass
+                # q11：单轮轮询失败不中断线程，留痕便于定位
+                logging.getLogger(__name__).warning(
+                    "loopback worker 单轮轮询失败（已跳过，1s 后重试）", exc_info=True
+                )
             _time.sleep(1.0)
 
     def _dispatch(cmd: str, out_file: str):
@@ -274,7 +280,7 @@ class Main(
     GmCmds,
     ExplorationCmds,  # v115 探索进度指令
 ):
-    """《剑与魔法》西幻文字RPG——在QQ群里冒险吧！"""
+    """奥兰迪亚·余烬纪年西幻文字RPG——在QQ群里冒险吧！"""
 
     def __init__(self, context: star.Context) -> None:
         self.context = context

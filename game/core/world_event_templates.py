@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - world_event_templates.py（v98.5：世界事件展示注册表）
+"""奥兰迪亚·余烬纪年核心层 - world_event_templates.py（v98.5：世界事件展示注册表）
 
 消灭 commands/social.py world_event() 里的 etype if-elif 硬编码（6 分支）：
 世界事件数据（data/events.py WORLD_EVENT_POOL）只声明 type，展示统一走本模块注册表。

@@ -2,7 +2,7 @@
 import json, datetime
 from .connection import _connect, _lock
 
-"""《剑与魔法》存储层 - quests"""
+"""奥兰迪亚·余烬纪年存储层 - quests"""
 
 
 def expire_daily(quest_data):

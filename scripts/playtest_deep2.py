@@ -220,7 +220,7 @@ async def stage12_auction():
     gold_p1c = db.get_player(PF.G, PF.Q)["gold"]
     print(f"  [i] P1 金币: {gold_p1c}（若>100000 → 漏洞！倒赚）")
     if gold_p1c > gold_p1b:
-        issue("拍卖自加价低于旧价 → 倒赚金币（经济漏洞）", "high")
+        issue(12, "高", "拍卖自加价低于旧价 → 倒赚金币（经济漏洞）")
     # 5. P2 一口价 10000 买 2 号
     r = await q2_cmd("竞拍 2 10000", "P2一口价买2号")
     print(f"  [i] P2一口价: {r[:200]}")
@@ -240,6 +240,10 @@ async def stage12_auction():
         print(f"  [i] 结算: {r[:400]}")
     # 8. 结算后 P1/P2 金币核对（1号流拍或成交都应收支平衡）
     print(f"  [i] 最终 P1: {db.get_player(PF.G, PF.Q)['gold']} / P2: {db.get_player(PF.G, Q2)['gold']}")
+    # 双保险：对“自加价低于旧价 → 倒赚金币”独立显式断言（不等即失败退出）
+    if gold_p1c > gold_p1b:
+        print("  [E] 经济漏洞：自加价低于旧价导致 P1 金币倒赚！")
+        sys.exit(1)
     print("\n── 阶段十二完成 ──")
 
 @stage(13)

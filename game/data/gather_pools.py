@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - gather_pools.py（v98.1：采集物地图绑定池）
+"""奥兰迪亚·余烬纪年 数据层 - gather_pools.py（v98.1：采集物地图绑定池）
 
 原 hardcode 在 commands/economy.py（v95.23 + v97.2），数据下沉后：
 - 加新地图采集池 = 在此文件加一行，零代码改动

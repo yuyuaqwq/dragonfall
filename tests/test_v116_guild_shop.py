@@ -98,6 +98,17 @@ async def main():
     out = await cmd(m, "guild_skill_view", "g1", "g1p", "公会技能")
     check("技能列表展示", "公会技能" in out and "攻击强化" in out and "积分" in out, out[:300])
 
+    print("【v116 审计 A0-A1：同 key 堆叠合并】")
+    # 公会已 Lv.3，用无每日限购(item6 藏宝图碎片, daily_limit=0)连买两件，
+    # 验证稳定 item_key 使 stackable 商品并为一格 count=2（去掉随机 uuid 后缀的效果）。
+    out = await cmd(m, "guild_shop", "g1", "g1p", "公会商店 6")
+    check("首买藏宝图碎片成功", "购买成功" in out, out[:300])
+    out = await cmd(m, "guild_shop", "g1", "g1p", "公会商店 6")
+    check("再买藏宝图碎片成功", "购买成功" in out, out[:300])
+    inv6 = [it for it in db.get_inventory("g1", "g1p") if it["data"].get("name") == "藏宝图碎片"]
+    check("同类商品合并为一格且计数=2", len(inv6) == 1 and inv6[0]["count"] == 2,
+          f"len={len(inv6)} counts={[x['count'] for x in inv6]}")
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

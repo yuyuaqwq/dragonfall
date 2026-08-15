@@ -149,6 +149,28 @@ async def main():
     hit = [name for (_, name), c in zip(handlers, comps) if c.search("[At:123] 背包")]
     check("At+背包 → inventory", "inventory" in hit, str(hit))
 
+    print("【攻击目标解析 B7：@昵称 / 名字(QQ)】")
+    from conftest import db as _db2, Main as _Main2
+    _db2.init_db()
+    clean_db()
+    m2 = _Main2(None)
+    ev = FakeEvent("g2", "p1", "注册 战士 阿呆 男")
+    await run(m2.register, ev)
+    # 纯 @昵称：前导 @ 剥掉后按名字查（B7 修复前无法命中）
+    r = m2._parse_target_qq("@阿呆")
+    check("@昵称 命中玩家", r is not None and r[0] == "p1", str(r))
+    # 纯名字
+    r = m2._parse_target_qq("阿呆")
+    check("纯名字 命中玩家", r is not None and r[0] == "p1", str(r))
+    # @名字(QQ)
+    r = m2._parse_target_qq("@阿呆(8888)")
+    check("@名字(QQ) 命中", r is not None and r[0] == "8888", str(r))
+    # 名字(QQ)（无 @）
+    r = m2._parse_target_qq("阿呆(8888)")
+    check("名字(QQ) 命中", r is not None and r[0] == "8888", str(r))
+    # 未知名字 → None（不误报）
+    check("未知名字 → None", m2._parse_target_qq("@不存在") is None, str(m2._parse_target_qq("@不存在")))
+
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

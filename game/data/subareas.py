@@ -2720,7 +2720,7 @@ SUBAREAS = {
             "desc": "圣堂地窖入口：大圣堂深处的暗门，石阶盘旋向下。烛台的余烬还冒着轻烟，空气里混着蜡与尘土的味道。",
             "type": "副本",
             "lv": 42,
-            "npcs": ["npc_chrono_warden", "npc_blood_priest"],
+            "npcs": ["npc_chrono_warden"],
             "monsters": [
                 [
                     "m_shadow_priest",
@@ -2990,7 +2990,7 @@ SUBAREAS = {
             "desc": "圣光试炼场入口：试炼场的石拱门刻着圣辉纹章，门前立着两尊持剑骑士像。据说只有通过试炼者才能踏过门槛。",
             "type": "副本",
             "lv": 36,
-            "npcs": ["npc_templar_knight"],
+            "npcs": [],
             "monsters": [],
             "elite": None,
             "boss": [
@@ -3410,7 +3410,7 @@ SUBAREAS = {
             "desc": "银月林海的边缘，银叶在风里翻出粼粼的光。巡林人挎着弓沿林缘巡视，精灵鹿在树影间时隐时现。",
             "type": "野外",
             "lv": 46,
-            "npcs": ["npc_silverwood_ranger", "npc_beast_tamer"],
+            "npcs": ["npc_silverwood_ranger"],
             "monsters": [
                 [
                     "m_elf_beast",
@@ -4096,7 +4096,7 @@ SUBAREAS = {
             "desc": "翠谷的谷口藤蔓垂挂，鹿群在溪边饮水。牧鹿人吹着木笛，翠鹿抬起头聆听。",
             "type": "野外",
             "lv": 47,
-            "npcs": ["npc_emeraldvalley_deerherd", "npc_jungle_hunter"],
+            "npcs": ["npc_emeraldvalley_deerherd"],
             "monsters": [
                 [
                     "m_emerald_deer",
@@ -7184,7 +7184,7 @@ SUBAREAS = {
             "desc": "风暴海峡的入口浪急风高，风暴元素在浪尖上成形又消散。领航员眯眼望着天色，估算着过峡的时机。",
             "type": "野外",
             "lv": 48,
-            "npcs": ["npc_stormstrait_navigator", "npc_void_watcher"],
+            "npcs": ["npc_stormstrait_navigator"],
             "monsters": [
                 [
                     "m_storm_element",

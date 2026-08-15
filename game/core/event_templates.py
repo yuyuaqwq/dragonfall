@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - event_templates.py（v97.3：事件模板引擎）
+"""奥兰迪亚·余烬纪年核心层 - event_templates.py（v97.3：事件模板引擎）
 
 消灭 commands/combat.py 里探索事件/彩蛋的 if-elif 硬编码：
 事件数据只声明 template + params，执行统一走本模块注册表。
@@ -50,7 +50,7 @@ class EventContext:
     """模板执行上下文。"""
 
     def __init__(self, group_id, qq_id, player, cur_map, params=None,
-                 name="此地", hooks=None):
+                 name="此地", hooks=None, loot_mult=None, pref_mats=None):
         self.group_id = group_id
         self.qq_id = qq_id
         self.player = player
@@ -58,6 +58,9 @@ class EventContext:
         self.params = params or {}
         self.name = name
         self.hooks = hooks or {}
+        # v115 今日奇遇：loot_mult=金币/材料倍率，pref_mats=材料倾向池（combat.py explore() 注入）
+        self.loot_mult = loot_mult
+        self.pref_mats = pref_mats or []
 
     # ---- 便捷访问 ----
     @property
@@ -79,6 +82,16 @@ class EventContext:
     def param(self, key, default=None):
         return self.params.get(key, default)
 
+    # ---- v115 今日奇遇：材料倾向池 ----
+    def mat_choice_pool(self, pool):
+        """当日奇遇材料倾向：pref_mats 与传入池(显示名列表)有交集时优先从交集抽取，
+        交集为空回退原池（数据依赖：daily_events.py 的 mats 与材料池同用显示名）。"""
+        pref = self.pref_mats or []
+        if not pref:
+            return pool
+        inter = [x for x in (pool or []) if x in pref]
+        return inter if inter else (pool or [])
+
 
 # ================= 模板实现 =================
 
@@ -91,6 +104,7 @@ def tpl_loot_gold(ctx):
     问题 v105 M18 已修，quest 路径漏网导致 test_v104_quests 30% 偶发失败）"""
     db = ctx._db()
     gold = random.randint(ctx.param("min", 10), ctx.param("max", 40)) + ctx.lv * ctx.param("scale_lv", 1)
+    gold = int(gold * (ctx.loot_mult or 1.0))  # v115 今日奇遇 loot_mult 倍率
     cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
     db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     header = ctx.param("header", "💰 你捡到了一些金币！")
@@ -112,9 +126,11 @@ def tpl_loot_materials(ctx):
         if have >= ctx.param("cap_count", 1):
             mats_pool = ctx.param("fallback_mats", ["古木枝"])
     n = ctx.param("n", 1)
+    # v115 今日奇遇：pref_mats 与池有交集时优先抽（交集为空回退原池）
+    mats_choice = ctx.mat_choice_pool(mats_pool)
     got = []
     for _ in range(n):
-        m = random.choice(mats_pool)
+        m = random.choice(mats_choice)
         mid = C.resolve("materials", m)
         if mid in C.MATERIALS:
             db.add_item(ctx.group_id, ctx.qq_id, mid,
@@ -145,13 +161,16 @@ def tpl_loot_gold_mats(ctx):
     C = ctx._C()
     E = ctx._E()
     gold = random.randint(ctx.param("min", 50), ctx.param("max", 120)) + ctx.lv * ctx.param("scale_lv", 5)
+    gold = int(gold * (ctx.loot_mult or 1.0))  # v115 今日奇遇 loot_mult 倍率
     # v110 P0-1：与 tpl_loot_gold 同型修复——读 DB 最新 gold 再累加，防陈旧 dict 覆盖吞金币
     cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
     db.update_player(ctx.group_id, ctx.qq_id, gold=cur + gold)
     mat_line = ""
     mats_pool = ctx.param("mats", [])
-    if mats_pool:
-        mid = C.resolve("materials", random.choice(mats_pool))
+    # v115 今日奇遇：pref_mats 与池有交集时优先抽（交集为空回退原池）
+    mats_choice = ctx.mat_choice_pool(mats_pool)
+    if mats_choice:
+        mid = C.resolve("materials", random.choice(mats_choice))
         if mid in C.MATERIALS:
             db.add_item(ctx.group_id, ctx.qq_id, mid,
                         {"name": C.display("materials", mid), "type": "材料",
@@ -275,6 +294,7 @@ def tpl_mystery_chest(ctx):
     db = ctx._db()
     C = ctx._C()
     gold = random.randint(50, 120) + ctx.lv * 5
+    gold = int(gold * (ctx.loot_mult or 1.0))  # v115 今日奇遇 loot_mult 倍率
     # v110 审计修复：与 tpl_loot_gold 同型——读 DB 最新 gold 再累加，防 ctx.player
     # 陈旧 dict 覆盖吞金币（v109.3 P0 同类事故的漏网模板）
     cur = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
@@ -292,6 +312,8 @@ def tpl_mystery_chest(ctx):
         mon_src = ctx.cur_map.get("monsters", [])
     pool = [m[5] for m in mon_src]
     mats = [x for sub in pool for x in sub if x and "图纸" not in x]
+    # v115 今日奇遇：pref_mats 与掉落池有交集时优先抽（交集为空回退原池）
+    mats = ctx.mat_choice_pool(mats)
     if mats:
         mid = C.resolve("materials", random.choice(mats))
         if mid in C.MATERIALS:
@@ -322,7 +344,10 @@ def tpl_merchant(ctx):
     q = random.choices(["white", "green", "blue"], weights=[45, 40, 15])[0]
     equip = C.generate_equip(random.choice(["weapon", "ring", "necklace"]), max(1, ctx.lv), q)
     price = int(equip["price"] * 0.6)
-    if ctx.player["gold"] >= price and random.random() < C.TRADER_DEAL_CHANCE:  # v101.5 常量
+    # F1 审计修复（C-D3.3）：按 DB 最新 gold 判能否出价（原用 ctx.player 陈旧对象——调用方在
+    # _rule_fire 前可能已通过其他路径加/扣过金币，旧 dict 覆盖会误判出价；与 tpl_loot_gold 同型口径）
+    _cur_gold = db.get_player(ctx.group_id, ctx.qq_id).get("gold", 0)
+    if _cur_gold >= price and random.random() < C.TRADER_DEAL_CHANCE:  # v101.5 常量
         # v113.5 O71：原逻辑直接扣金币入包（强卖无确认）——先挂起报价等玩家答复
         import json as _json, time as _time
         db.set_event_state(f"trader_{ctx.group_id}_{ctx.qq_id}", _json.dumps({

@@ -98,6 +98,13 @@ async def main():
         random.seed(seed)
         p2 = mk_player(["thorns"])
         b2 = BT.Battle("怪物", mk_enemy(), {}, p2)
+        # 屏蔽随机闪避，保证受击断言确定性（反伤需命中才触发）
+        _orig_ps = b2._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b2._player_stats = _ps_nododge
         logs = []
         b2._damage_player(p2, 100, logs)
         if any("反伤" in l for l in logs):

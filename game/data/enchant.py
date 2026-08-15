@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - enchant.py(v48 ENCHANT_SLOTS 品质英文 ID；v117 副本材料附魔联动)"""
+"""奥兰迪亚·余烬纪年数据层 - enchant.py(v48 ENCHANT_SLOTS 品质英文 ID；v117 副本材料附魔联动)"""
 ENCHANT_SLOTS = {
     "blue": 1,
     "purple": 2,

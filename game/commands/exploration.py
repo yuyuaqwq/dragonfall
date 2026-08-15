@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - exploration（v115 探索进度指令）
+"""奥兰迪亚·余烬纪年命令层 - exploration（v115 探索进度指令）
 
 『探索进度』：按地图 region 聚合展示每域子区域探索进度 + 全大陆探索度。
 由 Main 继承本 Mixin 使用；核心计算在 game/core/exploration.py（region_progress/overall_progress）。

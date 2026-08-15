@@ -54,13 +54,31 @@ def test_shield_persist_and_absorb():
     b.p_shields = {"test_shield": {"value": 100, "turns": 999}}
     b2 = BT.Battle.from_state(b.to_state())
     check("护盾跨回合保留", b2.p_shields.get("test_shield", {}).get("value") == 100, str(b2.p_shields))
+    # 屏蔽随机闪避，保证受击断言确定性（护盾吸收需命中才触发）
+    _orig_ps = b2._player_stats
+    def _ps_nododge(p_):
+        s = _orig_ps(p_)
+        s["dodge"] = 0.0
+        return s
+    b2._player_stats = _ps_nododge
     logs = []
     b2._damage_player(player, 30, logs)
     check("吸收后剩 70", b2.p_shields.get("test_shield", {}).get("value") == 70, str(b2.p_shields))
     check("玩家未掉血", player["hp"] == 1000, str(player["hp"]))
 
+def test_reduce_all_left_persist():
+    print("【团队减伤剩余回合跨存档持久化（A0-A2）】")
+    b = BT.Battle("monster", {"name": "靶", "hp": 100, "max_hp": 100})
+    b._reduce_all_left = 3
+    b2 = BT.Battle.from_state(b.to_state())
+    check("reduce_all_left 保留", b2._reduce_all_left == 3, str(getattr(b2, "_reduce_all_left", None)))
+    # 老存档无字段兼容（默认 0）
+    b3 = BT.Battle.from_state({"type": "monster", "enemy": {}, "p_buffs": {}, "e_buffs": {}})
+    check("老存档兼容", getattr(b3, "_reduce_all_left", None) == 0, str(getattr(b3, "_reduce_all_left", None)))
+
 if __name__ == "__main__":
     test_serialize_roundtrip()
     test_two_rounds_stack_persist()
     test_shield_persist_and_absorb()
+    test_reduce_all_left_persist()
     print(f"\n结果: {passed} 通过, 0 失败")

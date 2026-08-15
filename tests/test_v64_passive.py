@@ -102,6 +102,13 @@ def test_dmg_reduce():
     pl["hp"] = 300
     pl["max_hp"] = 300
     b = BT.Battle("monster", {"name": "测试怪", "hp": 500, "max_hp": 500, "atk": 30, "def": 10, "matk": 10, "mdef": 5, "spd": 10, "lv": 5, "role": "dps"})
+    # 闪避为随机（战士基础 dodge 3%），本测试目标是『受击减伤』被动 → 屏蔽闪避保证确定性
+    _orig_ps = b._player_stats
+    def _ps_nododge(p):
+        s = _orig_ps(p)
+        s["dodge"] = 0.0
+        return s
+    b._player_stats = _ps_nododge
     logs = []
     before = pl["hp"]
     b._damage_player(pl, 100, logs)

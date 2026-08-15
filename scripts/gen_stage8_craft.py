@@ -108,16 +108,22 @@ def main():
                 lines.append(f"        {f!r}: {rec[f]!r},")
         lines.append("    },")
     lines.append("}")
-    # 读原文件保留 CRAFT_RECIPE_ALIASES（tail 部分）
-    src_path = os.path.join(QQBOT, "data/plugins/dragonfall/game/data/craft.py")
-    with open(src_path, encoding="utf-8") as f:
-        src = f.read()
-    aliases_marker = "CRAFT_RECIPE_ALIASES = {"
-    if aliases_marker in src:
-        tail = src[src.index(aliases_marker):]
-        # 去掉 CRAFT_RECIPES 部分后保留 ALIASES
-        lines.append("")
-        lines.append(tail)
+    # v48 约定常驻的旧世界别名（仅保留仍存活的 3 个配方 key；
+    # 其余约 42 个旧换代配方 key 已悬空删除——不再整段保留旧 tail 以免重新写入死数据）
+    lines.append("CRAFT_RECIPE_ALIASES = {")
+    lines.append('    "rec_tie_jian": [')
+    lines.append('        "铁剑",')
+    lines.append('        "新手剑"')
+    lines.append("    ],")
+    lines.append('    "rec_xue_tu_fa_zhang": [')
+    lines.append('        "学徒杖",')
+    lines.append('        "法杖"')
+    lines.append("    ],")
+    lines.append('    "rec_lie_gong": [')
+    lines.append('        "新手弓",')
+    lines.append('        "短弓"')
+    lines.append("    ],")
+    lines.append("}")
     out_path = os.path.join(QQBOT, "data/plugins/dragonfall/game/data/craft.py")
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")

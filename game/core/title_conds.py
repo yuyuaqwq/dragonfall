@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - title_conds.py（v98.3：称号获得条件注册表）
+"""奥兰迪亚·余烬纪年核心层 - title_conds.py（v98.3：称号获得条件注册表）
 
 消灭 commands/economy.py _earned_titles() 里的 if-elif 硬编码：
 称号数据只声明 id，判定统一走本模块注册表。

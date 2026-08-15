@@ -501,9 +501,9 @@ EXPLORE_EVENTS = [
 ]
 
 # v83 02 章 7.5：探索彩蛋事件（独立于常规权重，总概率 EXPLORE_EGG_CHANCE）
-# v97.6 彩蛋扩容 5→30（区域专属 15 + 全局 10）后总权重 249：命中后按权重分配
-# 流星 60→约 0.12% / 宝匣 30→约 0.06% / 访客 10→约 0.02%
-# （单事件实际概率 = weight/249 × EXPLORE_EGG_CHANCE；区域专属事件仅对应地图可触发）
+# v97.6 彩蛋扩容 5→30（区域专属 15 + 全局 10）后由 EXPLORE_EGG_SUM 动态汇总：命中后按权重分配
+# （总权重不在此硬编码：随事件增删由下方 EXPLORE_EGG_SUM 动态汇总，避免按旧总数评估蛋概率失准）
+# （单事件实际概率 = weight/EXPLORE_EGG_SUM × EXPLORE_EGG_CHANCE；区域专属事件仅对应地图可触发）
 EXPLORE_EGG_CHANCE = 0.005
 EXPLORE_EGG_EVENTS = [
     {"id": "shooting_star", "weight": 60, "name": "流星许愿",

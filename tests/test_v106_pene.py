@@ -238,8 +238,9 @@ async def main():
     # 属性面板命令可渲染（防 KeyError）
     from data.plugins.dragonfall.game.commands import player as PC
     _rows = PC.PlayerCommand.attributes if hasattr(PC, "PlayerCommand") else None
-    check("面板 stat_rows 含 6 新行（源码断言）", "pene_phys" in open(
-        r"C:\Users\yuyu\qqbot\data\plugins\dragonfall\game\commands\player.py", encoding="utf-8").read())
+    check("面板 stat_rows 含 6 新行（源码断言）", "pene_phys" in open(os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "player.py"),
+        encoding="utf-8").read())
 
     print(f"\n===== v106 穿透测试: {passed} passed, {failed} failed =====")
     return failed == 0

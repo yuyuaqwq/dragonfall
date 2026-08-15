@@ -205,16 +205,20 @@ async def test_move_alias(m):
     # 与复位后『移动 1』回复不一致（前者首访、后者非首访）。预写 visited_subareas 让
     # 两次 alias 调用均为非首访（回复等价），保留"别名回复等价"断言意图。
     C.exploration_record_visit("g1", "q4", "oak_town", "oak_town_2")
+    before = db.get_player("g1", "q4")["cur_subarea"]  # 起点（期望 ≠ 移动后落点）
     out1, hits1 = await dispatch(m, "g1", "q4", "前往 1")
+    land1 = db.get_player("g1", "q4")["cur_subarea"]   # 『前往 1』落点
     check("『前往 1』命中 move", hits1 == ["move"], str(hits1))
+    check("『前往 1』确实变更子区域", land1 != before, str(land1))
     db.update_player("g1", "q4", cur_subarea=sa0)  # 复位起点，保证同条件对比
     out2, hits2 = await dispatch(m, "g1", "q4", "移动 1")
     check("『移动 1』命中 move（别名复活）", hits2 == ["move"], str(hits2))
     check("『移动 1』有回复（不无响应）", len(out2) == 1 and len(out2[0]) > 5, str(out2)[:120])
     check("『移动 1』与『前往 1』回复等价", out1 and out2 and out1[0] == out2[0],
           f"前往={str(out1)[:80]} 移动={str(out2)[:80]}")
-    check("『移动 1』落点一致", db.get_player("g1", "q4")["cur_subarea"] ==
-          db.get_player("g1", "q4")["cur_subarea"], "")
+    land2 = db.get_player("g1", "q4")["cur_subarea"]   # 『移动 1』落点（复位后同起点）
+    check("『移动 1』落点与『前往 1』一致", land2 == land1, f"前往={land1} 移动={land2}")
+    check("『移动 1』确实变更子区域", land2 != before, str(land2))
     # 负向：『前往开始』不被 move 抢
     _, hits3 = await dispatch(m, "g1", "q4", "前往开始")
     check("『前往开始』不命中 move", "move" not in hits3, str(hits3))

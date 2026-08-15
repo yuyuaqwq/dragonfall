@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - instance（组队副本）
+"""奥兰迪亚·余烬纪年命令层 - instance（组队副本）
 
 2 人组队轮流回合 Boss 战：
 - 队长『副本 <名字>』开本（需已组队），队员自动参战
@@ -98,7 +98,13 @@ class InstanceCmds(CommandBase):
                 if valid:
                     old_st["retreated"] = False
                     old_st["mode"] = "map"
-                    old_st["members"] = ok_members
+                    # v106 恢复路径与 _instance_start 同规则：按速度降序重排行动序
+                    #（快者先出手），与开本规则、29 章 4.1 保持一致
+                    old_st["members"] = sorted(
+                        ok_members,
+                        key=lambda m: int(self._player(group_id, m).get("spd", 0)),
+                        reverse=True,
+                    )
                     old_st["acted"] = [False] * len(ok_members)
                     old_st["turn"] = 0
                     for m in ok_members:
@@ -1877,8 +1883,10 @@ class InstanceCmds(CommandBase):
         主怪（is_boss/is_elite/阵列首）全量 exp/gold+掉落；爪牙 exp/gold ×0.5、无掉落。
 
         对照野外 _kill 的 v93 经济模式：经验入账 + 金币×1.5 折算成可卖材料
-        （怪物掉落池优先，通用池兜底；精英 2 种普通 1 种）。组队存活成员各一份。
-        Boss 击杀走 _instance_victory 通关奖励，不在此列。
+        （怪物掉落池优先，通用池兜底；精英 2 种普通 1 种）。v105 q7-4：数量类资源
+        （经验/材料）按存活成员数分摊（总量 // 人数，余数给第一名），不再每人各得一整份；
+        图纸/稀有 key 等概率类掉落仍每人独立判定。Boss 击杀走 _instance_victory 通关奖励，
+        不在此列。
         注意：副本战斗内不做升级检查（check_player_level_up 会把 hp 回满，
         会破坏战斗节奏），经验攒到出副本后野外击杀时统一结算。"""
         killed = st.get("_last_killed") or ([st["boss"]] if st.get("boss") else [])
@@ -1904,10 +1912,19 @@ class InstanceCmds(CommandBase):
             slave = bool(mdef.get("is_minion"))
             mainlike = bool(mdef.get("is_boss") or mdef.get("is_elite"))
             ratio = 0.5 if slave else 1.0
-            for _key, acc in per_member.items():
+            # v105 审计修复（q7-4 用户拍板）：组队掉落按存活成员数分摊——此前每名存活成员
+            # 各得整份掉落，全队经济随人数 ×n。现按存活成员数 shares 分摊（数量类资源都必须
+            # 分摊）：exp/掉落价值每份 = 总量 // shares，整除余数给第一名（per_member 首项，
+            # 即 st["members"] 中最靠前且存活的成员），避免总量因整除向下丢。
+            # 掉落概率类（图纸/稀有 key）走 else 分支每人独立判定、不在此分摊。
+            shares = len(per_member)
+            if shares < 1:
+                continue
+            for _i, (_key, acc) in enumerate(per_member.items()):
                 p = acc["p"]
                 snap = st["players"].get(_key) or {}
-                exp = int(mdef.get("exp", 0) * ratio)
+                raw_exp = int(mdef.get("exp", 0) * ratio)
+                exp = raw_exp // shares + (raw_exp % shares if _i == 0 else 0)
                 diff = mdef.get("lv", 0) - p.get("level", 0)
                 if diff > 5:
                     exp = int(exp * max(0.10, 1.0 - (diff - 5) * 0.15))
@@ -1917,7 +1934,8 @@ class InstanceCmds(CommandBase):
                 # 掉落（仅主怪：爪牙不掉落）
                 if not slave:
                     mat_value = int(mdef.get("gold", 0) * 1.5)
-                    if mat_value > 0:
+                    mat_share = mat_value // shares + (mat_value % shares if _i == 0 else 0)
+                    if mat_share > 0:
                         drop_pool = [m for m in (mdef.get("drops") or []) if m]
                         if not drop_pool:
                             drop_pool = ["兽肉", "狼皮", "蛇皮", "野猪牙"]
@@ -1926,7 +1944,7 @@ class InstanceCmds(CommandBase):
                         # 会打乱全量回归的战斗随机序列（两次跑失败点不同=随机性证据）。
                         # 掉落种类按掉落池顺序取前 N 种（确定性），数量仍按价值折算。
                         picks = drop_pool[:min(2 if is_hi else 1, len(drop_pool))]
-                        per_val = mat_value / len(picks)
+                        per_val = mat_share / len(picks)
                         for mat_name in picks:
                             mid = E.resolve_drop(mat_name)
                             if mid is None:
@@ -1935,7 +1953,8 @@ class InstanceCmds(CommandBase):
                                 mprice = C.MATERIALS[mid].get("price", 0)
                                 if mprice <= 0:
                                     continue
-                                n = max(1, min(99, round(per_val / mprice)))
+                                # q7-5 审计：向下取整（原 round 会 ±1 抖动）
+                                n = max(1, min(99, int(per_val / mprice)))
                                 db.add_item(group_id, _key, mid,
                                             {"name": C.display("materials", mid), "type": "材料",
                                              "stackable": True, "price": mprice}, n)
@@ -2084,7 +2103,7 @@ class InstanceCmds(CommandBase):
         )
 
     def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
-        """暗格宝箱：星灵蝶蛋 5% / 图纸残页 45% / 稀有符文 30% / 专属材料 20%（稀缺品低概率，防通胀）"""
+        """暗格宝箱：图纸残页 50% / 稀有符文 30% / 专属材料 15% / 星灵蝶蛋 5%（稀缺品低概率，防通胀）"""
         roll = random.random()
         inst = C.INSTANCES[st["inst_id"]]
         # v104 M17 P2-4：实装星灵蝶蛋渠道（pets.py source『传说级垂钓稀有产出/神秘宝箱』后半句）

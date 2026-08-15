@@ -233,6 +233,13 @@ def test_battle_affix():
         random.seed(seed)
         p4 = mk_player(["block", "counter", "thorns"])
         b4 = BT.Battle("monster", mk_enemy(), {}, p4)
+        # 屏蔽随机闪避，保证受击断言确定性（格挡/反击/反伤需命中才触发）
+        _orig_ps = b4._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b4._player_stats = _ps_nododge
         logs = []
         b4._damage_player(p4, 100, logs)
         joined = "".join(logs)

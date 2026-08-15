@@ -321,6 +321,13 @@ def test_charge_interrupt():
     b = BT.Battle("monster", e, {}, player=p)
     b.charging = {"skill": "蓄力斩", "left": 2, "name": "蓄力斩", "mp_spent": 16}
     mp_before = p["mp"]
+    # 屏蔽随机闪避，保证受击断言确定性（蓄力打断精确断言）
+    _orig_ps = b._player_stats
+    def _ps_nododge(p_):
+        s = _orig_ps(p_)
+        s["dodge"] = 0.0
+        return s
+    b._player_stats = _ps_nododge
     logs = []
     b._damage_player(p, 50, logs, source="怪")  # 玩家受击 → 打断 + 返还 50%MP
     check("玩家受击打断蓄力", not b.charging, str(b.charging))

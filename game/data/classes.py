@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - classes.py(v48 key 转 ID)
+"""奥兰迪亚·余烬纪年 数据层 - classes.py(v48 key 转 ID)
 
 v112 职业体系重构（主题线制）：13 隐藏 → 6 隐藏线（每基础 1 条），
 每线 = 主题 + 核心资源（core_resources.py）+ 线级被动 + 2-3 流派（evolve_branches[1]）。

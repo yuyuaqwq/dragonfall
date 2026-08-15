@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - pets.py
+"""奥兰迪亚·余烬纪年数据层 - pets.py
 
 24 章《宠物与伙伴系统》：14 品种（v101.11 扩容，原 4 品种），Lv.10 解锁宠物技能，饱食度系统。
 品质统一复用 equipment.QUALITY 5 档（⚪普通/🟢优秀/🔵稀有/🟣史诗/🟠传说），全项目一致。
@@ -25,7 +25,7 @@ PET_POOL = [
      "lines": ["嗷呜！", "汪！主人我上啦！", "（龇牙）交给我！"]},
     {"key": "pet_turtle", "name": "铁壳龟", "icon": "🐢", "quality": "white", "focus": "防守",
      "skill_name": "铁壁缩壳", "skill_interval": 4, "skill_type": "block", "skill_value": 0.15,
-     "source": "垂钓稀有产出(blue 档)",  # v105 M17 P2-3：橡木镇新手任务渠道未实装（24 章无此设计），文案与实现对齐
+     "source": "新手任务(主线 reward_pet) + 蓝档垂钓稀有产出",  # v105 M17 P2-3：橡木镇新手任务渠道已实装（reward_pet 接 world.py、quests.py，垂钓 blue 档接 economy.py），文案与实现对齐
      "desc": "慢吞吞但硬邦邦，每 4 回合有 15% 概率替主人挡下一次攻击",
      "lines": ["……（缩头）", "壳！", "慢慢来，比较快。"]},
     # ---------- 🟢 优秀 ----------

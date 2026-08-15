@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - stat_templates.py（v102.5：从 core/stats.py 下沉）
+"""奥兰迪亚·余烬纪年数据层 - stat_templates.py（v102.5：从 core/stats.py 下沉）
 
 怪物角色/装备部位属性模板 + 经验金币基数。公式逻辑留在 core/stats.py，
 这里只放"数值表"——调数值不改代码，加角色/部位只加一行。

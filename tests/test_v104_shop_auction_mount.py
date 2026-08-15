@@ -129,10 +129,14 @@ async def main():
     random.random = lambda: 0.99
     r1 = C.roll_mount_drop("boss")
     check("boss 全不中返回 None", r1 is None, str(r1))
-    seq = iter([0.99, 0.99, 0.99, 0.0])  # 前三项不中 → 狮鹫 1% 命中
-    random.random = lambda: next(seq)
+    # q7-3 单次分档随机：一次抽签按累计区间分摊（wolf[0,.10) ghost[.10,.14)
+    # warhorse[.14,.16) griffin[.16,.17)），r=0.165 落在狮鹫区间 → 直接命中
+    random.random = lambda: 0.165
     r2 = C.roll_mount_drop("boss")
     check("boss 可掷出狮鹫", r2 == "mount_griffin", str(r2))
+    random.random = lambda: 0.05
+    r3 = C.roll_mount_drop("boss")
+    check("boss 掷出灰狼（累计区间首段）", r3 == "mount_wolf", str(r3))
     random.random = orig_rnd
     check("狮鹫=传说坐骑 Lv.60", C.MOUNT_BY_KEY["mount_griffin"]["quality"] == "orange"
           and C.MOUNT_BY_KEY["mount_griffin"]["lv"] == 60,

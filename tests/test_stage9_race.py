@@ -5,9 +5,9 @@
   1. 数据完整性：6 种族 / 每族 2 正 1 负 / 净强度≈不变
   2. 注册选种族：『注册 战士 测试 精灵』 / 未知种族拦截 / 缺省人类
   3. engine stat 结算：精灵月缺 HP-5%+暴击+8% / 人类凡人之躯成长-2% / 矮人磐石步履先手-5% / 兽人坚韧体魄 HP+8%
-  4. 战斗天赋：石肤物理减伤 / 龙鳞魔伤减 / 鲁莽之心魔伤增 / 圣光亲和受疗+10% / 孤傲之血受疗-10%
+  4. 战斗天赋：石肤物理减伤 / 龙鳞魔伤减 / 鲁莽之心魔伤增 / 孤傲之血受疗-10%
      / 无畏残血攻+20% / 怯战残血攻-10% / 龙之吐息首击+15%
-  5. 命令层天赋：多才多艺学习-8% / 幸运儿金币+15% / 灵巧双手消耗品+10% / 熔炉之心锻造经验+1
+  5. 命令层天赋：多才多艺学习-8% / 幸运儿掉落收益+10% / 灵巧双手消耗品+10% / 熔炉之心锻造经验+1
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -155,14 +155,6 @@ def test_battle_talents():
             found3 = True
             break
     check("鲁莽之心魔伤增", found3)
-    # 圣光亲和：人类受疗 +10%（治疗技能路径太深，直接验证 heal_received 字段 + 战斗技能）
-    p_hu = mk_player("human", hp=100, max_hp=500)
-    p_hu["class_name"] = "cls_mu_shi"
-    p_hu["learned_skills"] = ["治愈术"]
-    p_hu["skill_levels"] = {"治愈术": 1}
-    b4 = BT.Battle("monster", mk_enemy(), {}, p_hu)
-    logs4 = b4._do_player_skill("治愈术", p_hu)
-    check("圣光亲和受疗+10%", "圣光亲和" in "".join(logs4) or p_hu["hp"] > 100, f"{logs4} hp={p_hu['hp']}")
     # 龙之吐息：首击 +15%
     p_db2 = mk_player("dragonborn")
     b5 = BT.Battle("monster", mk_enemy(), {}, p_db2)

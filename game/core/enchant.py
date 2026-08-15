@@ -6,7 +6,7 @@ from .constants import PCT_STATS  # v102.6 百分比显示属性
 from ..data import ENCHANT_MAX_VALUE, ENCHANT_RECIPES
 
 
-"""《剑与魔法》数据层 - enchant.py"""
+"""奥兰迪亚·余烬纪年数据层 - enchant.py"""
 def enchant_value(slot: str, lv: int, stat: str, big: bool = False) -> int | float:
     """附魔数值：白板基础 * ratio；大成功 1.5x；crit/dodge 固定小值"""
     rec = ENCHANT_RECIPES.get(stat)

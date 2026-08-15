@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - gm(GM 调试/运营指令，v96)
+"""奥兰迪亚·余烬纪年命令层 - gm(GM 调试/运营指令，v96)
 
 权限：数据库 gm_whitelist(JSON) ∪ 环境变量 GWEN_GM_QQ(逗号分隔) 白名单；
 gm_ 前缀身份(测试回环)恒放行；未配置任何白名单时默认拒绝一切 GM 指令（v104.1 收紧，私聊不再放行）。
@@ -377,6 +377,9 @@ class GmCmds(CommandBase):
         except ValueError:
             yield event.plain_result("数量必须是整数！")
             return
+        if n < 0:
+            yield event.plain_result("数量不能为负！")
+            return
         p = db.get_player("", tgt)
         db.update_player("", tgt, gold=(p.get("gold") or 0) + n)
         yield event.plain_result(f"💰 已给 {p.get('name')} 发放 {n} 金币(现在 {p.get('gold', 0) + n})！")
@@ -430,6 +433,9 @@ class GmCmds(CommandBase):
             n = int(parts[1])
         except ValueError:
             yield event.plain_result("经验值必须是整数！")
+            return
+        if n < 0:
+            yield event.plain_result("经验值不能为负！")
             return
         p = db.get_player("", tgt)
         db.update_player("", tgt, exp=(p.get("exp") or 0) + n)

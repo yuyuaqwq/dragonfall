@@ -37,9 +37,9 @@ dragonfall/
 
 | 文件 | 内容（从 content.py 迁出） |
 |---|---|
-| `index.py` | pinyin_id / build_index / resolve / display / _INDEXES |
+| `index.py` | `_INDEXES`（ID 索引活容器）；pinyin_id / build_index / resolve / display 在 `core/index.py`、索引构建在 `_assembly.py` |
 | `classes.py` | CLASSES |
-| `maps.py` | MAPS / MAP_BY_ID / MAP_AREAS / AREA_ENTRY / MAP_CONNECTIONS / HIDDEN_MAP_UNLOCK / ENCY_* |
+| `maps.py` | MAPS / MAP_BY_ID / MAP_CONNECTIONS / HIDDEN_MAP_UNLOCK / ENCY_* |
 | `monsters.py` | MONSTER_SKILLS / monster_skills_pool |
 | `skills.py` | PLAYER_SKILLS / BRANCH_SKILLS |
 | `equipment.py` | EQUIP_SLOTS / QUALITY / QUALITY_ORDER / WEAPON_TYPES / WEAPON_NAME_SUFFIX / WEAPON_FLAVOR / EQUIP_NAME_PREFIX / EQUIP_NAME_SUFFIX / AFFIX_* |

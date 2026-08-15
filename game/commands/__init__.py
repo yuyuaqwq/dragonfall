@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 —— 按领域拆分的 Command Mixin
+"""奥兰迪亚·余烬纪年命令层 —— 按领域拆分的 Command Mixin
 
 Main(star.Star) 继承全部 Mixin，实现命令路由。
 """

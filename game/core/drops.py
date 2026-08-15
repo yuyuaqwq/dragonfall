@@ -19,7 +19,7 @@ _BLUEPRINT_RECIPE_RIDS = frozenset(
 )
 
 
-"""《剑与魔法》数据层 - drops.py"""
+"""奥兰迪亚·余烬纪年数据层 - drops.py"""
 
 
 def _eq_random_desc(name: str, slot: str, weapon_type: str | None = None) -> str:

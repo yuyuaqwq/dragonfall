@@ -5,7 +5,7 @@
 1. 召唤：技能带 summon 字段 → 实体生成（属性按玩家比例缩放）
 2. 上限：骷髅海 limit=3，第 4 次召唤被拒
 3. 自动攻击：_summons_act 每回合造成伤害（物理段吃敌 def）
-4. 真伤召唤物（影狼）：dmg_type=true 绕过防御
+4. 真伤召唤物（合成 synthetic_true）：dmg_type=true 绕过防御
 5. 挡刀：_damage_player 概率转移伤害给召唤物
 6. 受击死亡：挡刀扣血到 0 移除
 7. summon_power 强化：生成属性加成
@@ -132,6 +132,13 @@ async def main():
         p5 = mk_player(hp=1000)
         b5 = BT.Battle("怪物", mk_enemy(), {}, p5)
         b5._summon_entity("skeleton", p5, [])
+        # 屏蔽随机闪避，保证受击断言确定性（挡刀/扣血精确断言）
+        _orig_ps = b5._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b5._player_stats = _ps_nododge
         hp5 = p5["hp"]
         b5.summons[0]["hp"] = 500
         logs5 = []
@@ -156,6 +163,13 @@ async def main():
     b6 = BT.Battle("怪物", mk_enemy(), {}, p6)
     b6._summon_entity("skeleton", p6, [])
     b6.summons[0]["hp"] = 30
+    # 屏蔽随机闪避，保证受击断言确定性（挡刀致死精确断言）
+    _orig_ps = b6._player_stats
+    def _ps_nododge(p_):
+        s = _orig_ps(p_)
+        s["dodge"] = 0.0
+        return s
+    b6._player_stats = _ps_nododge
     for i in range(50):  # 反复打直到挡刀触发
         random.seed(10 + i)
         logs6 = []

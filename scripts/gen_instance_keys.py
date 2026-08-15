@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""给 instances.py 副本加 key_item/key_source 字段（29 章 11 节）。"""
+"""给 instances.py 副本加 key_item/key_source 字段（29 章 11 节）。
+
+⚠️ 已内化（key_item/key_source 已写入 instances.py），勿重跑！
+KEYS 源与现网可能失步（例如晨曦城大教堂任务奖励 vs 现网购买 300 金等 v110 改动），
+重跑会根据旧值插入或与现网不一致。仅作历史迁移脚本保留。
+"""
 import os, re
 
 PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

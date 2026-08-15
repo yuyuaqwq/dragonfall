@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - titles.py"""
+"""奥兰迪亚·余烬纪年数据层 - titles.py"""
 TITLES = [
     {"id": "novice",      "name": "初出茅庐",   "desc": "注册角色，踏上冒险之路"},
     {"id": "lv10",        "name": "崭露头角",   "desc": "达到 10 级"},
@@ -16,6 +16,7 @@ TITLES = [
     {"id": "quest10",     "name": "任务达人",   "desc": "完成 10 个主线任务"},
     {"id": "wealthy",     "name": "腰缠万贯",   "desc": "拥有 5000 金币"},
     {"id": "explorer",    "name": "大陆探险家", "desc": "到访 10 个不同子区域"},
+    # 垂钓大师 展示用：条件与奖励以成就侧为准 —— 与成就 ach_fish100『垂钓100次』同名不同条件，展示/加成统一归成就侧
     {"id": "fish10",      "name": "垂钓大师",   "desc": "垂钓 10 次"},
     {"id": "enhance5",    "name": "锻造新星",   "desc": "成功强化装备至＋5"},
     {"id": "enhance9",    "name": "神匠之手",   "desc": "成功强化装备至＋9"},
@@ -28,6 +29,7 @@ TITLES = [
     {"id": "pro_mining3", "name": "挖矿工",     "desc": "挖掘达到 Lv.3"},
     {"id": "pro_mining6", "name": "矿脉猎手",   "desc": "挖掘达到 Lv.6"},
     {"id": "pro_mining10", "name": "群山之王",   "desc": "挖掘达到 Lv.10(攻击＋8)", "bonus": {"atk": 8}},
+    # 垂钓新手 展示用：条件与奖励以成就侧为准 —— 副业 Lv.3 同名（ach_pro_fishing3 Lv.3 / ach_fish10 垂钓10次），展示统一
     {"id": "pro_fishing3", "name": "垂钓新手",   "desc": "垂钓达到 Lv.3"},
     {"id": "pro_fishing6", "name": "捕鱼能手",   "desc": "垂钓达到 Lv.6"},
     {"id": "pro_fishing10", "name": "深海渔神",   "desc": "垂钓达到 Lv.10(暴击＋2%)", "bonus": {"crit": 0.02}},
@@ -36,7 +38,9 @@ TITLES = [
     {"id": "pro_alchemy10", "name": "贤者之石",   "desc": "炼金达到 Lv.10(魔力＋30)", "bonus": {"mp": 30}},
     {"id": "pro_craft3", "name": "铁匠学徒",   "desc": "锻造达到 Lv.3"},
     {"id": "pro_craft6", "name": "锻造师",     "desc": "锻造达到 Lv.6"},
-    {"id": "pro_craft10", "name": "神锻名家",   "desc": "锻造达到 Lv.10(防御＋8)", "bonus": {"def": 8}},
+    # 神锻名家 展示用：条件与奖励以成就侧为准 —— 副业大师同名（ach_pro_craft10 Lv.10 def:8 / ach_craft100 锻造100件），
+    # 独立 bonus 注释掉（原 def:8），由成就侧 ach_pro_craft10 发属性，避免同名双端重复定义
+    {"id": "pro_craft10", "name": "神锻名家",   "desc": "锻造达到 Lv.10(防御＋8)"},
     {"id": "pro_cooking3", "name": "厨房新手",   "desc": "烹饪达到 Lv.3"},
     {"id": "pro_cooking6", "name": "料理人",     "desc": "烹饪达到 Lv.6"},
     {"id": "pro_cooking10", "name": "食神",       "desc": "烹饪达到 Lv.10(速度＋3)", "bonus": {"spd": 3}},

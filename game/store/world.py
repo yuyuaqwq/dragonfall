@@ -4,7 +4,7 @@ import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
 
-"""《剑与魔法》存储层 - world"""
+"""奥兰迪亚·余烬纪年存储层 - world"""
 
 
 def bump_fishing(group_id, qq_id, n=1):

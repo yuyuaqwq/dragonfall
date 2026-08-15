@@ -142,10 +142,11 @@ def test_phase_scripted():
 
 def test_phase_threshold_warn():
     print("【5. phase 阈值预告】")
-    e = mk_boss("phase", hp=260, max_hp=1000, scripts={
+    # v118+ 审计（用户拍板）：阈值读 phases[1].min=30，当前 31%（30%~33% 内）应预告
+    e = mk_boss("phase", hp=310, max_hp=1000, scripts={
         "phases": [{"min": 60, "add_skills": []}, {"min": 30, "add_skills": []}],
     })
-    e["phase_count"] = 1  # 已在阶段2，下一阈值 25%，当前 26%（25%~28% 内）
+    e["phase_count"] = 1  # 已在阶段2，下一阈值 30%，当前 31%（30%~33% 内）
     b = BT.Battle("monster", e, {}, player=mk_player())
     b.round = 5
     logs = []
@@ -179,6 +180,42 @@ def test_data_config_resolution():
     check("_boss_cfg 读取 b_moro phases", len(cfg.get("phases") or []) == 2, "")
 
 
+def test_phase_save_battle_serializable():
+    print("【7. phase 进阶段后 save_battle 不崩（A0-A1：_phase_warned 必须可 JSON 序列化）】")
+    from data.plugins.dragonfall.game.store import battle_state as BS
+    scripts = {"phases": [{"min": 60, "add_skills": []}, {"min": 30, "add_skills": []}]}
+    b = BT.Battle("monster", mk_boss("phase", hp=400, max_hp=1000, scripts=scripts), {}, player=mk_player())
+    b.round = 3
+    logs = []
+    b._boss_mech(logs)
+    check("阶段进入 phase_count==1", b.enemy.get("phase_count") == 1, str(b.enemy.get("phase_count")))
+    # 新逻辑 _phase_warned 应为 list（可 JSON 序列化）
+    check("_phase_warned 为 list 且含 1", isinstance(b.enemy.get("_phase_warned"), list)
+          and 1 in b.enemy.get("_phase_warned", []), str(b.enemy.get("_phase_warned")))
+    st = {"type": "monster", "enemy": dict(b.enemy), "enemies": [dict(b.enemy)]}
+    try:
+        BS.save_battle("g_phase", "q_phase", st)
+        ok = True
+        detail_ex = "ok"
+    except Exception as ex:
+        ok = False
+        detail_ex = repr(ex)
+    check("进阶段后 save_battle 不抛异常", ok, detail_ex)
+    gb = BS.get_battle("g_phase", "q_phase")
+    check("save_battle 后状态可读回", gb is not None, str(gb))
+    # 兼容旧档：state 里手动残留 set（如旧版 phase BOSS 的 _phase_warned）也应清洗后能存
+    legacy = {"type": "monster", "enemy": dict(b.enemy), "enemies": [dict(b.enemy)]}
+    legacy["enemy"]["_phase_warned"] = {1, 2}
+    try:
+        BS.save_battle("g_phase", "q_phase2", legacy)
+        ok2 = True
+        detail2 = "ok"
+    except Exception as ex2:
+        ok2 = False
+        detail2 = repr(ex2)
+    check("旧 set 存档经 _json_ready 清洗不崩", ok2, detail2)
+
+
 async def main():
     clean_db()
     test_low_hp_chase()
@@ -187,6 +224,7 @@ async def main():
     test_phase_scripted()
     test_phase_threshold_warn()
     test_data_config_resolution()
+    test_phase_save_battle_serializable()
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0
 

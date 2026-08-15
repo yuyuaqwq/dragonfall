@@ -106,10 +106,44 @@ async def main():
               and any(i in SCENIC for i in ids)
               and all(i in C.POIS for i in ids))
         check(f"{key} 功能+风景共存", ok, ids)
+    # v115 后块覆盖丢失：oak_plain_3 需保留 campfire（与基础块并集）
+    ids = C.subarea_pois("oak_plain", "oak_plain_3")
+    check("oak_plain_3 保留 campfire", "campfire" in ids, ids)
     # 全局：所有 SUBAREA_POIS 挂载无死键
     dead = [k for k, ids in C.SUBAREA_POIS.items()
             for i in ids if i not in C.POIS]
     check("全部 SUBAREA_POIS 挂载可解析", not dead, dead[:10])
+    # q9：SUBAREA_POIS 无重复 key（基础块 + v115 块须并集合并，重复 key 会被后者覆盖而静默丢 POI）。
+    # 运行期 dict 键天然唯一，故用"受影响子区域并集保序断言"守护：基础块 POI 一个都不能丢。
+    # 【基础块条目在前，v115 追加的新条目在后，去重保序】
+    NEW_POI = {"merchant_camp", "ancient_altar", "bird_nest", "ice_sculpture",
+               "dragon_bone", "shipwreck", "traveler_grave"}  # v115 新增 POI 前缀尾段
+    BASE_MERGE = {
+        "oak_plain_2": ["herb_patch", "campfire", "merchant_camp"],
+        "gold_plain_3": ["star_gazing", "merchant_camp"],
+        "gold_plain_2": ["campfire", "herb_patch", "ancient_altar"],
+        "deep_lake_2": ["fishing_spot", "shrine", "ancient_altar"],
+        "silverwood_2": ["fishing_spot", "loot_pile", "bird_nest"],
+        "starlake_2": ["fishing_spot", "shrine", "bird_nest"],
+        "emerald_forest_2": ["herb_patch", "campfire", "bird_nest"],
+        "frost_field_1": ["campfire", "shrine", "ice_sculpture"],
+        "frost_field_2": ["campfire", "shrine", "ice_sculpture"],
+        "permafrost_field_2": ["campfire", "shrine", "ice_sculpture"],
+        "dragon_ridge_1": ["campfire", "dragon_bone"],
+        "bone_wild_2": ["campfire", "loot_pile", "dragon_bone"],
+        "coral_reef_1": ["fishing_spot", "loot_pile", "shipwreck"],
+        "storm_sea_2": ["scenic_view", "campfire", "shipwreck"],
+        "misty_swamp_1": ["herb_patch", "loot_pile", "campfire", "traveler_grave"],
+        "molten_abyss_1": ["loot_pile", "campfire", "traveler_grave"],
+    }
+    sa_by_tail = {k.rsplit(":", 1)[1]: k for k in C.SUBAREA_POIS}
+    lost = []
+    for tail, expect in BASE_MERGE.items():
+        got = C.SUBAREA_POIS.get(sa_by_tail.get(tail), [])
+        base_part = [b for b in expect if b not in NEW_POI]
+        if not set(base_part) <= set(got):
+            lost.append((tail, got))
+    check("SUBAREA_POIS 并集合并：基础块 POI 无丢失(q9)", not lost, lost[:10])
 
     print("\n【4. 城镇探索冷却】")
     clean_db()

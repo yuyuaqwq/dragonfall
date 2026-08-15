@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - title_bonus.py（v105 M01#11）
+"""奥兰迪亚·余烬纪年核心层 - title_bonus.py（v105 M01#11）
 
 副业大师称号/成就称号的属性加成汇总，独立于命令层：
 - commands/base.py:_title_bonus 与 store/players.py 惰性升级共用同一实现，
@@ -95,5 +95,7 @@ def title_bonus(group_id, qq_id, player=None) -> dict:
                     if k != "atk" or v != 0:  # 占位字段跳过
                         bonus[k] = bonus.get(k, 0) + v
     except Exception:
+        import logging
+        logging.getLogger("astrbot").warning("[dragonfall] title_bonus 计算异常，称号加成降级为空", exc_info=True)
         pass
     return bonus

@@ -105,8 +105,12 @@ async def main():
     check("非橡木镇拦截买老马", "橡木镇的商人" in out, out[:150])
 
     print("【市场：上架/下架】")
-    out = await cmd(m, "market", "g1", "e1", "上架 1 100")
-    check("上架有返回", len(out) > 5, out[:120])
+    # 上架走 market_sell 面板（v66 群市场）：卖背包里的狼皮，验证真走上架分支
+    out = await cmd(m, "market_sell", "g1", "e1", "上架 狼皮 100")
+    check("上架有返回", "已上架" in out, out[:150])
+    on_sale = any(it["item_data"].get("name") == "狼皮" for it in db.market_list("g1"))
+    check("市场已立上架记录", on_sale, str([it["item_data"].get("name") for it in db.market_list("g1")]))
+    check("上架后背包狼皮减 1", db.count_item("g1", "e1", "狼皮") == 4, str(db.count_item("g1", "e1", "狼皮")))
 
     print("【图鉴】")
     out = await cmd(m, "bestiary", "g1", "e1", "图鉴")

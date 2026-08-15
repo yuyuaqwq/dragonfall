@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心引擎 —— 属性/战斗/掉落/升级/任务"""
+"""奥兰迪亚·余烬纪年核心引擎 —— 属性/战斗/掉落/升级/任务"""
 import random
 
 from . import content as C

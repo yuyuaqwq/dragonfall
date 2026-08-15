@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - base（base）
+"""奥兰迪亚·余烬纪年命令层 - base（base）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -154,11 +154,23 @@ class CommandBase:
                 for x in json.loads(raw):
                     wl.add(str(x))
         except Exception:
-            pass
+            # q11：白名单读取失败回退环境变量，留痕便于排查
+            import logging
+            logging.getLogger("astrbot").warning(
+                "[dragonfall] 读取 GM 白名单失败，回退环境变量", exc_info=True
+            )
         return wl
 
     def _is_gm(self, qq_id) -> bool:
         """GM 判定：gm_ 前缀测试身份 / 数据库+环境变量白名单。"""
+        # q11 注释：gm_ 前缀的授予范围与安全边界——
+        # 授予范围：凡以 "gm_" 开头的任意字符串均视为 GM（playthrough 文件回环
+        # /多号联测等测试身份，是 QQ 不存在的虚拟号），仅服务于本插件内部测试链路，
+        # 不下发真实玩家。
+        # 安全边界：真实 QQ 号是纯数字，日常群聊不会误带 gm_ 前缀；但 gm_ 前缀属
+        # 无条件放行后门，若事件来源可伪造 sender_id（外部恶意事件/代理伪装）需警惕。
+        # 面向真实玩家的 GM 权限应只信任 _gm_whitelist()（db gm_whitelist ∪
+        # GWEN_GM_QQ 环境变量）中的实名白名单，勿依赖 gm_ 前缀判别线上真实身份。
         qq_id = str(qq_id)
         if qq_id.startswith("gm_"):
             return True
@@ -206,7 +218,10 @@ class CommandBase:
             try:
                 stop()
             except Exception:
-                pass
+                import logging
+                logging.getLogger("astrbot").warning(
+                    "[dragonfall] stop_event 调用失败（已忽略）", exc_info=True
+                )
 
     def _strip_cmd(self, event: AstrMessageEvent, cmd: str) -> str:
         """从消息中剥离 At 前缀和指令名，返回剩余参数"""
@@ -424,7 +439,11 @@ class CommandBase:
                         except re.error:
                             continue
         except Exception:
-            pass
+            # q11：注册表遍历异常不应中断快捷转发，回退静态表并留痕
+            import logging
+            logging.getLogger("astrbot").warning(
+                "[dragonfall] 遍历 AstrBot 注册表异常，回退静态表", exc_info=True
+            )
         # 回退：静态正则表
         for regex, name in self._static_handlers():
             try:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - enhance.py"""
+"""奥兰迪亚·余烬纪年数据层 - enhance.py"""
 ENHANCE_TABLE = {
     0: {"rate": 1.00, "cost": 50,   "mult": 1.00},
     1: {"rate": 0.95, "cost": 120,  "mult": 1.10},

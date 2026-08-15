@@ -3,9 +3,30 @@ import json
 import time
 from .connection import _connect, _lock
 
-"""《剑与魔法》存储层 - battle_state"""
+"""奥兰迪亚·余烬纪年存储层 - battle_state"""
 # v104 M02 P2：普通战斗 24h 无活动自动回收（battle_state 永久残留泄漏；PVP 另有 5 分钟超时在 combat.py）
 BATTLE_STALE_SEC = 24 * 3600
+
+
+def _json_ready(obj):
+    """v116 兜底：把 state 里可能残留的 Python set（如 phase BOSS 的 _phase_warned）
+    递归深转成 list，保证 json.dumps 序列化不再抛 TypeError；其余类型原样返回。"""
+    if isinstance(obj, set):
+        return [_json_ready(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _json_ready(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_ready(x) for x in obj]
+    return obj
+
+
+def _monster_display_name(state):
+    """I0-B8：monster 列展示宿主昵称——多对多阵列优先取 enemies[0]（阵列压缩换位后的实际首单位），
+    无 enemies 时回落单怪 enemy 名。"""
+    enemies = state.get("enemies")
+    if isinstance(enemies, list) and enemies:
+        return enemies[0].get("name", "") or ""
+    return (state.get("enemy") or {}).get("name", "") or ""
 
 
 def save_battle(group_id, qq_id, state: dict):
@@ -25,7 +46,6 @@ def save_battle(group_id, qq_id, state: dict):
     with _lock:
         conn = _connect()
         try:
-            enemy = state.get("enemy") or {}
             old = conn.execute(
                 "SELECT state FROM battle_state WHERE qq_id=?", (qq_id,)
             ).fetchone()
@@ -37,9 +57,13 @@ def save_battle(group_id, qq_id, state: dict):
                 except (ValueError, TypeError):
                     pass
             conn.execute(
+                # I0-B8：monster 列存展示主目标昵称——多对多阵列（state.enemies）压缩换位后首单位
+                # 可能非原主目标，故优先取 enemies[0]，单怪回落 enemy 名；旧档遗留敌名仍可显示。
+                # A0-A1：写入前经 _json_ready 清洗残留 set（phase BOSS 旧档 _phase_warned），
+                # 避免 json.dumps 抛 TypeError 致存档崩溃。
                 "INSERT INTO battle_state (qq_id, monster, state, updated_at) VALUES (?,?,?,?) "
                 "ON CONFLICT(qq_id) DO UPDATE SET monster=excluded.monster, state=excluded.state, updated_at=excluded.updated_at",
-                (qq_id, enemy.get("name", ""), json.dumps(state, ensure_ascii=False), int(time.time())),
+                (qq_id, _monster_display_name(state), json.dumps(_json_ready(state), ensure_ascii=False), int(time.time())),
             )
             conn.commit()
         finally:

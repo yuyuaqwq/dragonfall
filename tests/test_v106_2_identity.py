@@ -119,9 +119,7 @@ async def main():
     b = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_m, pet=None)
     st_m2 = b._player_stats(p_m)
     check("牧师战斗 heal_power 10%", abs(st_m2.get("heal_power", 0) - 0.10) < 1e-6, str(st_m2.get("heal_power")))
-    # 直接测乘算：matk×1.0×(1+0.10)
-    heal_base = int(st_m2["matk"] * 1.0)
-    check("治疗公式 ×(1+heal_power)", heal_base == int(heal_base), "sanity")
+    # 治疗公式 ×(1+heal_power) 的真实倍率交由 real 战斗疗伤段（risky）覆盖，此处去除假校验
 
     # ============ 6. 护盾强度 ============
     print("【6. 护盾强度】")
@@ -152,7 +150,7 @@ async def main():
 
     # ============ 7. 面板 ============
     print("【7. 面板】")
-    src = open(r"C:\Users\yuyu\qqbot\data\plugins\dragonfall\game\commands\player.py", encoding="utf-8").read()
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "player.py"), encoding="utf-8").read()
     check("面板含 heal_power 行", "heal_power" in src)
     check("面板含 shield_power 行", "shield_power" in src)
     check("面板含 gold_bonus 行（未被误删）", "gold_bonus" in src)

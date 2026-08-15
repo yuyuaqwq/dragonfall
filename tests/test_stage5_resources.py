@@ -38,6 +38,13 @@ print("【核心资源：获取】")
 logs, done = b.player_turn('attack', None, p, enemy_act=False)
 check("战士普攻 +1 怒气", b.resources.get('rage') == 1, str(b.resources))
 b3 = BT.Battle('monster', mkmon(), player=mk('战士'))
+# 屏蔽随机闪避，保证受击断言确定性（dodge≈0.03 否则 ~3% 概率闪避返回不 +怒气）
+_orig_ps = b3._player_stats
+def _ps_nododge(p_):
+    s = _orig_ps(p_)
+    s["dodge"] = 0.0
+    return s
+b3._player_stats = _ps_nododge
 b3._damage_player(p, 10, [])
 check("战士受击 +1 怒气", b3.resources.get('rage') == 1, str(b3.resources))
 b4 = BT.Battle('monster', mkmon(), player=mk('战士'))

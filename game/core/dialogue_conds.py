@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - dialogue_conds.py（v98.3：对话条件注册表）
+"""奥兰迪亚·余烬纪年核心层 - dialogue_conds.py（v98.3：对话条件注册表）
 
 消灭 core/dialogue.py check_need() 里的 if-elif 硬编码：
 对话数据只声明 need dict（key → 值），判定统一走本模块注册表。
@@ -8,6 +8,7 @@
 - 加条件类型：register 一个函数（~5 行），之后所有对话数据直接可用
 - 函数签名：fn(ctx: dict, v) -> bool，ctx 由 check_need 原样传入
   （player/quests/flags/apprentices/npc_id/side_quests/item_counts）
+v113 新增条件键：race_is/hidden_unlocked/hidden_current/not_hidden_current/side_available。
 """
 CONDITIONS = {}
 

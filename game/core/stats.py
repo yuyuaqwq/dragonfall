@@ -6,7 +6,7 @@ from ..data import (
 )  # v102.5 模板表下沉 data/stat_templates.py
 
 
-"""《剑与魔法》数据层 - stats.py"""
+"""奥兰迪亚·余烬纪年数据层 - stats.py"""
 # v56.2 怪物等级段曲线（鱼鱼拍板调数值，根治"后期大招乱秒"）
 # hp：16 级起渐入放大（30 级 ×2.2 / 60 级 ×3.4 / 90 级 ×4.3），≤15 级完全不变
 # atk：31 级起放缓（60 级 ×0.85 / 90 级 ×0.73），避免后期怪攻击成长超过玩家防御
@@ -25,12 +25,13 @@ def atk_stage_mult(lv: int) -> float:
         return 1.0
     if lv <= 60:
         return 1.0 - (lv - 30) * 0.005
-    return 0.85 - (lv - 60) * 0.004
+    # 防御性下限，防未来提高等级上限时出现负 atk（当前 ≤100 级不生效）
+    return max(0.2, 0.85 - (lv - 60) * 0.004)
 
 
 def monster_stats(lv: int, role: str) -> dict:
     """怪物属性公式：按等级 + 角色模板生成。
-    role: tank(血牛) / dps(攻高) / caster(魔攻) / speedster(敏捷) / boss(首领) / elite(精英)
+    role: tank(血牛) / dps(攻高) / caster(魔攻) / speedster(敏捷) / healer(治疗) / boss(首领) / elite(精英)
     v56.2：hp 吃等级段放大、atk 后期放缓（见 hp_stage_mult/atk_stage_mult）
     """
     base = MONSTER_ROLE_BASE[role]
@@ -44,10 +45,12 @@ def monster_stats(lv: int, role: str) -> dict:
         else:
             stats[k] = int(base[k] + growth[k] * (lv - 1))
     # 首领/精英血量系数按等级段放大，保证后期 Boss 有压迫感
+    # v118+ 审计（用户拍板）：双层叠加设上限 min(·, 3.0)，抑制高等级 boss 血量 runaway
+    # boss 系数达 3.0 于 Lv≥33，elite 系数达 3.0 于 Lv≥50，此后不再随等级增长
     if role == "boss":
-        stats["hp"] = int(stats["hp"] * (1 + lv * 0.06))
+        stats["hp"] = int(stats["hp"] * min(1 + lv * 0.06, 3.0))
     if role == "elite":
-        stats["hp"] = int(stats["hp"] * (1 + lv * 0.04))
+        stats["hp"] = int(stats["hp"] * min(1 + lv * 0.04, 3.0))
     # v106 穿透体系：Boss 重甲/精英精锐——防御 ×1.25/×1.15（穿透属性的需求端）
     if role == "boss":
         stats["def"] = int(stats["def"] * 1.25)

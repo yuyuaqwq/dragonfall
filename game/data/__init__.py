@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 —— 纯静态内容（无逻辑、无IO）
+"""奥兰迪亚·余烬纪年 数据层 —— 纯静态内容（无逻辑、无IO）
 
 聚合导出全部数据表，保持 `from game.data import *` 或
 `import game.data as C` 用法与旧 content 一致。
@@ -10,7 +10,7 @@ from .index import _INDEXES  # noqa: F401
 from .classes import CLASSES  # noqa: F401
 from .maps import (
     MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
-    MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
+    MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
@@ -78,6 +78,18 @@ from .achievements import ACHIEVEMENTS  # noqa: F401
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401
 from .gather_pools import GATHER_MAP_POOLS  # noqa: F401
 from .gather_pools import GATHER_COND_POOLS, MINING_DEEP_POOLS  # noqa: F401 v102.3 限定采集/深矿
+
+# v104 B4：采集/挖掘池引用的材料 id 全量校验——任一缺定义即在启动时报错，
+# 前置 _settle_gather 运行期的 C.MATERIALS[mat]["price"] KeyError 风险
+for _pool_name, _pool in (("GATHER_MAP_POOLS", GATHER_MAP_POOLS),
+                          ("GATHER_COND_POOLS", GATHER_COND_POOLS),
+                          ("MINING_DEEP_POOLS", MINING_DEEP_POOLS)):
+    for _map_id, _entries in _pool.items():
+        for _entry in _entries:
+            _mat_id = _entry[0]
+            assert _mat_id in MATERIALS, (
+                f"[{_pool_name}:{_map_id}] 材料 {_mat_id} 未在 MATERIALS 定义"
+            )
 from .poi_pools import WISH_POOL, CAMPFIRE_FOOD_POOL, HERB_POOL  # noqa: F401
 from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401

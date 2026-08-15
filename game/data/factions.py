@@ -94,7 +94,7 @@ FACTION_CAMP_DAILY_LIMIT = 2
 # 阵营切换冷却（秒）。缺省 7 天 = 604800 秒；设为 0 则允许随时切换。
 FACTION_CAMP_SWITCH_COOLDOWN = 7 * 24 * 3600
 
-# 阵营商店：prop=物品 ID（C.ITEMS / C.MATERIALS）/ cost=所需阵营贡献 / level=可选等级门槛。
+# 阵营商店：item=物品 ID（C.ITEMS / C.MATERIALS）/ cost=所需阵营贡献 / name=商品名。
 # 语义与上方 FACTION_SHOP（声望门槛+金币）区分：阵营商店为「贡献交换」，不花金币。
 # 贡献由每日阵营任务积累（FACTION_CAMP_DAILY_TASKS），四阵营共用同一档商品池，
 # 二级区分：军需/材料各有代表，前两件低门槛(药水)、后两件高档(强化石/卷轴)。

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - sets.py(v48 全 key 转 ID)"""
+"""奥兰迪亚·余烬纪年数据层 - sets.py(v48 全 key 转 ID)"""
 SET_THEMES = {
     "blue": [
         "寒霜",

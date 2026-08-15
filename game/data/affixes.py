@@ -2,7 +2,7 @@
 """奥兰迪亚·余烬纪年 数据层 - affixes.py（阶段八装备重写，2026-08-06）
 
 20 章装备特色词条系统落地：
-- AFFIXES：30 种特色词条（武器攻击 18 + 防具防御 12），词条决定装备"性格"
+- AFFIXES：45 种特色词条（攻击 24 + 防御 21），词条决定装备"性格"
 - AFFIX_POOL_BY_QUALITY：随机词条池按品质（20 章 4.2）
 - LEGENDARY_EFFECTS：传说专属效果（橙装 1 件 1 个，20 章 2.3）
 
@@ -11,7 +11,7 @@
 - kind      attack/defense（武器/防具类，决定随机池归属与显示分组）
 - trigger   触发时机：stat（常驻属性）/on_hit（攻击命中后）/on_taken（受击时）
             /turn_start（回合开始）/battle_start（战斗开始）/passive（被动判定）
-- chance    触发概率（无 = 100%）
+- chance    触发概率（缺省 100% 恒触发；仅随机概率词条需显式 chance，如 armor_break/pierce）
 - effect    效果参数（由 core/affix.py 或 battle.py 解释）
 - desc      玩家可见描述（显示在装备详情/词条表）
 """
@@ -55,19 +55,16 @@ AFFIXES = {
     },
     "element_fire": {
         "name": "元素·火", "kind": "attack", "trigger": "on_hit",
-    "chance": 1.0,
         "effect": {"element": "fire", "pct": 0.05},
         "desc": "攻击附加 5% 火属性伤害",
     },
     "element_ice": {
         "name": "元素·冰", "kind": "attack", "trigger": "on_hit",
-    "chance": 1.0,
         "effect": {"element": "ice", "pct": 0.05, "slow": 0.10},
-        "desc": "攻击附加 5% 冰属性伤害 + 减速 10%",
+        "desc": "攻击附加 5% 冰属性伤害 + 减速（敌速减半）",
     },
     "element_thunder": {
         "name": "元素·雷", "kind": "attack", "trigger": "on_hit",
-    "chance": 1.0,
         "effect": {"element": "thunder", "pct": 0.05},
         "desc": "攻击附加 5% 雷属性伤害",
     },
@@ -144,7 +141,6 @@ AFFIXES = {
     },
     "dmg_reduce": {
         "name": "减伤", "kind": "defense", "trigger": "stat",
-    "chance": 1.0,
         "effect": {"dmg_reduce": 0.03},
         "desc": "受击伤害－3%",
     },
@@ -158,7 +154,7 @@ AFFIXES = {
         "effect": {"magic_reduce": 0.05},
         "desc": "魔法免伤 +5%（v106.4）",
     },
-    "thirst_phys": {
+    "thirst_phys": {  # v106.4 攻击类被动词条（kind=attack），按吸血主题排在防具区便于阅读
         "name": "渴血", "kind": "attack", "trigger": "stat",
         "effect": {"lifesteal_phys": 0.08},
         "desc": "物理吸血 +8%（v106.4：仅物理攻击回血）",
@@ -188,13 +184,11 @@ AFFIXES = {
     },
     "regen": {
         "name": "回春", "kind": "defense", "trigger": "turn_start",
-    "chance": 1.0,
         "effect": {"regen_hp_pct": 0.01},
         "desc": "每回合回复 1% 生命",
     },
     "meditate": {
         "name": "冥想", "kind": "defense", "trigger": "turn_start",
-    "chance": 1.0,
         "effect": {"regen_mp_pct": 0.01},
         "desc": "每回合回复 1% 魔力",
     },
@@ -324,7 +318,6 @@ LEGENDARY_EFFECTS = {
         "desc": "攻击 25% 驱散目标 2 层增益",
     },
     "dawn_crown": {  # 晨曦之冠：回春强化
-    "chance": 1.0,
         "name": "晨曦祝福", "kind": "defense", "trigger": "turn_start",
         "effect": {"regen_hp_pct": 0.02},
         "desc": "每回合回复 2% 生命",
@@ -340,13 +333,11 @@ LEGENDARY_EFFECTS = {
         "desc": "冰属性伤害＋15%",
     },
     "earth_heart": {  # 符文战锤·大地之心：减伤+生命
-    "chance": 1.0,
         "name": "大地护佑", "kind": "defense", "trigger": "stat",
         "effect": {"dmg_reduce": 0.05, "hp_pct": 0.05},
         "desc": "受击伤害－5%，最大生命＋5%",
     },
     "dragon_tongue": {  # 龙语圣剑：攻击叠印记
-    "chance": 1.0,
         "name": "龙语印记", "kind": "attack", "trigger": "on_hit",
         "effect": {"dragon_mark": 0.02, "max_mark": 5},
         "desc": "攻击叠加龙语印记(每层＋2% 伤害，上限 5 层)",

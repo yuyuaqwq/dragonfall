@@ -222,7 +222,7 @@ async def stage9_craft_home_market():
     r = await cmd("仓库 狼皮", "存仓库")
     r = await cmd("仓库", "仓库（存入后）")
     r = await cmd("取出 1", "取出物品")
-    r = await cmd("升级", "房产升级")
+    r = await cmd("地契 升级", "房产升级")
     await cmd("出门", "出门")
     # 7. 市场：A 上架 → B 购入（上架未装备的狼皮）
     await register_player2(lv=25, cls="游侠", name="买家酱")

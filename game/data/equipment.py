@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - equipment.py(v48 品质/武器类型英文 ID)"""
+"""奥兰迪亚·余烬纪年 数据层 - equipment.py(v48 品质/武器类型英文 ID)"""
 EQUIP_SLOTS = {
     "weapon": "武器",
     "helm": "头盔",

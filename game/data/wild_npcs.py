@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年 数据层 - wild_npcs.py（18 章野外NPC与时间季节系统，2026-08-06）
 
-- WILD_NPCS：28 个野外 NPC（满足出现条件 → 偶遇；随机性 chance/roam/cycle/unlock 可选）
+- WILD_NPCS：32 个野外 NPC（满足出现条件 → 偶遇；随机性 chance/roam/cycle/unlock 可选）
 - HIDDEN_NPCS：10 个隐藏 NPC（解锁条件 + 高随机性，隐藏任务链 H3-H12 后续落地）
 
 条件字段（AND）：

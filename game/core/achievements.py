@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - achievements.py（阶段九：成就系统，14 章）
+"""奥兰迪亚·余烬纪年核心层 - achievements.py（阶段九：成就系统，14 章）
 
 - cond_met(player, stats, profs, extra, cond)：单条条件判定
 - check_achievements(group_id, qq_id)：遍历 97 成就，满足且未解锁 → 解锁 + 发奖励
@@ -151,6 +151,8 @@ def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
                 new_ones.append(a)
         return new_ones
     except Exception:
+        import logging
+        logging.getLogger("astrbot").warning("[dragonfall] check_achievements 异常，成就列表降级为空", exc_info=True)
         return []
 
 
@@ -163,6 +165,7 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
     from .. import content as C
     from .. import db
     from ..engine import check_player_level_up
+    from .title_bonus import title_bonus
     try:
         rows = db.get_achievements(group_id, qq_id) or []
         pending = [r for r in rows if not r.get("claimed")]
@@ -189,7 +192,9 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         if not player:
             return [], "请先注册角色～"
         player = dict(player)
-        player["_title_bonus"] = _title_bonus_plain(group_id, qq_id)
+        # K0-A1：复用统一单点 title_bonus()（含 M18 同名去重 + TITLES 侧 bonus），
+        # 不再用轻量 _title_bonus_plain——避免 Lv.10 副业大师称号被当作第二份双算。
+        player["_title_bonus"] = title_bonus(group_id, qq_id, player)
         exp_gain = sum((a.get("reward") or {}).get("exp", 0) for a in claimable)
         gold_gain = sum((a.get("reward") or {}).get("gold", 0) for a in claimable)
         player["exp"] = player.get("exp", 0) + exp_gain
@@ -213,20 +218,3 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         import logging
         logging.getLogger("astrbot").warning(f"[dragonfall] 成就领取失败: {e}")
         return [], "领取失败，稍后再试试～"
-
-
-def _title_bonus_plain(group_id, qq_id):
-    """轻量版称号加成计算（避免 import 环）。仅用于领取时的属性快照。"""
-    from .. import content as C
-    from .. import db
-    try:
-        base = {"hp": 0, "atk": 0, "def": 0, "matk": 0, "mdef": 0, "spd": 0, "crit": 0.0}
-        rows = db.get_achievements("", qq_id) or []
-        unlocked = {r["ach_key"] for r in rows}
-        for a in C.ACHIEVEMENTS:
-            if a.get("bonus") and a["id"] in unlocked:
-                for k, v in a["bonus"].items():
-                    base[k] = base.get(k, 0) + v
-        return base
-    except Exception:
-        return {}

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - economy（economy）
+"""奥兰迪亚·余烬纪年命令层 - economy（economy）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -37,6 +37,10 @@ _MAT_FACILITY = {
     "食材": "shop", "织物": "shop", "杂物": "shop",
     "收藏": "shop", "传说": "shop", "任务道具": "shop",
 }
+
+# q7-8：材料回收品类提示（新手按类型去对应柜台，防跑错店）——集中一处维护，出售提示复用
+_MAT_FACILITY_HINT = ("材料按类型分店回收：矿石/木材/兽材/宝石→铁匠铺、"
+                      "草药/精华→草药铺/炼金工坊、食材/织物/杂物→商店")
 
 # v105 M14 评估实现（19 章 §2.2 挖掘疲劳值）：连续挖掘 N 次进入疲劳，
 # 疲劳期间稀有矿脉概率减半；10 分钟不挖掘自动恢复（与体力自然恢复节奏一致）。
@@ -708,9 +712,10 @@ class EconomyCmds(CommandBase):
         meff = C.mount_effects(player)
         cb = float(meff.get("collect_bonus", 0) or 0)
         if cb > 0 and random.random() < cb:
-            extra = self._gather_roll(player["level"], prof, _map_id)
-            if extra:
-                mat = extra[0]
+            # B3 修复：坐骑 collect_bonus 不再重新掷池（_gather_roll 可能抽到与本次非同
+            # 类的材料），改从本次 mats 中取样，保证『🐾 坐骑帮你多叼回一份』与实入包同物
+            mat = random.choice(mats) if mats else None
+            if mat:
                 mname = C.display("materials", mat)
                 db.add_item(group_id, qq_id, mat, {"name": mname, "type": C.MATERIALS[mat].get("type", "材料"), "stackable": True, "price": C.MATERIALS[mat]["price"]})
                 got[mname] = got.get(mname, 0) + 1
@@ -744,10 +749,13 @@ class EconomyCmds(CommandBase):
         _daily_lines = []
         self._bump_daily_progress(group_id, qq_id, "collect_any", _daily_lines)
         _daily_txt = "".join(f"\n{l}" for l in _daily_lines) if _daily_lines else ""
+        # q7-9：满级采集彩蛋（兔蛋/驯鹿缰绳）只绑稀有产出（价格≥150），低等级图无稀有材料
+        # 恒 0%——本次未采到稀有材料时提示去高级图（纯文案，不动数值）
+        _rare_hint = ("\n💡 稀有产出需前往产出价≥150 材料的区域（高级图）" if not rare_hit else "")
         # v105R3 M14 P3-2：材料每项单独一行（对齐物品详情排版规范 v101.21）
         _got_txt = "".join(f"\n{m}x{c}" for m, c in got.items())
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
-                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_daily_txt}")
+                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_rare_hint}{_daily_txt}")
 
     # ---------- v105 挖掘疲劳值（19 章 §2.2；M14 P2-4 最小实现） ----------
     # 连续挖掘计数存 event_state（mining_fatigue_{qq_id}），无 schema 变更；
@@ -854,7 +862,10 @@ class EconomyCmds(CommandBase):
         # v105 疲劳值：结算附疲劳提示（疲劳只降稀有概率，不影响正常产出）
         _fat_line = ("\n💤 连续挖掘让你手臂发酸，稀有矿脉更难挖到了……休息 10 分钟（不挖掘）疲劳自会消退！"
                      if fatigued else "")
-        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}{_fat_line}"
+        # q7-9：满级挖掘稀有矿脉只绑价格≥150 的矿，低等级图矿池无稀有矿则彩蛋恒 0%——
+        # 本次无稀有矿可挖时提示去高级图（纯文案，不动数值）
+        _rare_hint = ("\n💡 稀有产出需前往产出价≥150 材料的区域（高级图）" if not rare else "")
+        return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}{_fat_line}{_rare_hint}"
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
         """等待型副业统一流程：进行中→提示剩余；到期→先结算再开新一轮；无→开新一轮。
@@ -1048,18 +1059,26 @@ class EconomyCmds(CommandBase):
                     db.remove_item(group_id, qq_id, it["key"], take)
                     remain -= take
         # 发放产物（v48：product key 已是 ID，直接按 ID 入库）
+        # G0-A1：注入 craft_cost=材料总成本，使 _sell_one 卖店封顶（售价≤成本），堵炼金→卖店净正收益；
+        # 产物售价数据高于成本时下调注入价至 ≤0.9×成本（仅影响卖店回收，不改产物效果/正常消耗）
+        _cc = sum(C.MATERIALS.get(m, {}).get("price", 0) * cnt for m, cnt in r["cost"].items())
+        _cc_price_floor = round(0.9 * _cc) if _cc > 0 else None
         lines = []
         for pkey, pcnt in r["product"].items():
             if pkey.startswith("mat_"):
                 mname = C.display("materials", pkey)
-                db.add_item(group_id, qq_id, pkey, {"name": mname, "type": C.MATERIALS.get(pkey, {}).get("type", "材料"), "stackable": True, "price": C.MATERIALS.get(pkey, {}).get("price", 150)})
+                _mprice = C.MATERIALS.get(pkey, {}).get("price", 150)
+                db.add_item(group_id, qq_id, pkey, {"name": mname, "type": C.MATERIALS.get(pkey, {}).get("type", "材料"), "stackable": True, "price": _mprice if _cc_price_floor is None or _mprice <= _cc_price_floor else _cc_price_floor, "craft_cost": _cc})
                 lines.append(f"  🎒 获得材料：{mname} ×{pcnt}")
             else:
                 itdef = C.ITEMS.get(pkey, {})
+                _iprice = itdef.get("price", 100)
+                if _cc_price_floor is not None and _iprice > _cc_price_floor:
+                    _iprice = _cc_price_floor
                 # v104 M08 P2-9：产物全字段拷贝（原只拷 heal/mana/effect/stamina 四字段，
                 # 未来配方加 hot/food_effect/affix 等即静默丢失——与 M09-P0 商店路径同类坑）
                 db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True,
-                                                    "price": itdef.get("price", 100),
+                                                    "price": _iprice, "craft_cost": _cc,
                                                     **{k: v for k, v in itdef.items() if k not in ("name", "price")}},
                                count=pcnt)
                 lines.append(f"  🎒 获得：{itdef.get('name', pkey)} ×{pcnt}")
@@ -1205,6 +1224,18 @@ class EconomyCmds(CommandBase):
         # 否则烹饪出的词条料理在战斗里没有特殊效果）
         pkey = next(iter(r["product"]))
         itdef = C.ITEMS.get(pkey, {})
+        # G0-A1：注入 craft_cost=食材总成本（食材可为 mat_ 材料或 i_ 道具），使 _sell_one 卖店
+        # 封顶（售价≤成本），堵烹饪→卖店净正收益；产物售价数据高于成本时下调注入价至 ≤0.9×成本
+        _cc = 0
+        for _m, _cnt in r["cost"].items():
+            if _m.startswith("mat_"):
+                _cc += C.MATERIALS.get(_m, {}).get("price", 0) * _cnt
+            else:
+                _cc += C.ITEMS.get(_m, {}).get("price", 0) * _cnt
+        _cc_price_floor = round(0.9 * _cc) if _cc > 0 else None
+        _iprice = itdef.get("price", 10)
+        if _cc_price_floor is not None and _iprice > _cc_price_floor:
+            _iprice = _cc_price_floor
         # v104R3 M16 P2-4：入库带 desc——自制词条料理的【吸血】【护盾】【回春】等
         # 战斗效果在背包详情可见（原只拷效果字段无 desc，渲染器兜底只能算 heal/mana）
         _fx_fields = ("heal", "mana", "effect", "stamina", "hot", "hot_turns", "hot_mana", "food_effect", "desc")
@@ -1219,7 +1250,7 @@ class EconomyCmds(CommandBase):
             # 不再显示未增强旧数值误导（效果字段已 ×1.5，desc 原文数值脱节）
             _item_kwargs["desc"] = itdef.get("desc", "") + "（完美料理：上述效果 ×1.5）"
             _perfect_line = " ✨完美料理！效果提升 50%！"
-        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": itdef.get("price", 10), **_item_kwargs})
+        db.add_item(group_id, qq_id, pkey, {"name": itdef.get("name", pkey), "type": "消耗品", "stackable": True, "price": _iprice, "craft_cost": _cc, **_item_kwargs})
         # 副业经验
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "cooking", 1)
         lv_msg = ""
@@ -3685,7 +3716,8 @@ class EconomyCmds(CommandBase):
                     total += r[2]
                     player = self._player(group_id, qq_id)
             if not sold:
-                tip = "（装备要去铁匠铺、材料按类型对应店铺：矿石/兽材→铁匠铺、草药/精华→炼金铺、食材/杂物→商店）" if blocked else ""
+                # q7-8：完整品类分店提示（装备→铁匠铺；材料见 _MAT_FACILITY_HINT）
+                tip = f"（装备要去铁匠铺；{_MAT_FACILITY_HINT}）" if blocked else ""
                 if quest_protected:
                     tip += f"；{'、'.join(quest_protected)} 是任务道具，已帮你留着"
                 if protected:
@@ -3699,7 +3731,8 @@ class EconomyCmds(CommandBase):
             if len(sold) > 8:
                 lines.append(f"  · ……等 {len(sold)} 种")
             if blocked:
-                lines.append(f"💡 有 {blocked} 种物品要对应店铺出售（装备→铁匠铺、矿石/兽材→铁匠铺、草药/精华→炼金铺、食材/杂物→商店）～")
+                # q7-8：完整品类分店提示（装备→铁匠铺；材料见 _MAT_FACILITY_HINT）
+                lines.append(f"💡 有 {blocked} 种物品要对应店铺出售（装备要去铁匠铺；{_MAT_FACILITY_HINT}）～")
             if quest_protected:
                 lines.append(f"🛡️ 已跳过 { '、'.join(quest_protected) }（任务道具，主线/隐藏任务要用）")
             if protected:
@@ -3772,7 +3805,11 @@ class EconomyCmds(CommandBase):
                 _mm = C.MATERIALS_BY_NAME.get(d.get("name", "")) or {}
                 _need = _MAT_FACILITY.get(_mm.get("type", "杂物"), "shop")
                 _hint_map = {"smith": "铁匠铺（矿石/兽材/木材/宝石）", "alchemy": "草药铺/炼金工坊（草药/精华）", "shop": "商店（食材/织物/杂物）"}
-                yield event.plain_result(f"『{d['name']}』是材料，要到{_hint_map.get(_need, '对应店铺')}才能回收成金币～")
+                # q7-8：单件提示到具体柜台，并附完整分店品类说明帮新手不跑错柜台（纯文案）
+                yield event.plain_result(
+                    f"『{d['name']}』是材料，要到{_hint_map.get(_need, '对应店铺')}才能回收成金币～\n"
+                    f"💡 {_MAT_FACILITY_HINT}。"
+                )
             return
         r = self._sell_one(group_id, qq_id, player, target, rate)
         if not r:

@@ -5,7 +5,7 @@ from pypinyin import lazy_pinyin
 from ..data import _INDEXES
 
 
-"""《剑与魔法》数据层 - index.py"""
+"""奥兰迪亚·余烬纪年数据层 - index.py"""
 def pinyin_id(name: str) -> str:
     """中文名 → 拼音 id：狼皮 → lang_pi；保留字母/数字"""
     parts = []

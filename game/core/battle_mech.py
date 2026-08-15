@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - battle_mech.py（v98.4：战斗机制效果注册表）
+"""奥兰迪亚·余烬纪年核心层 - battle_mech.py（v98.4：战斗机制效果注册表）
 
 消灭 game/battle.py 里的 if-elif 硬编码：
 1. Battle._apply_mech_effect() 的 32 个 mech 分支（攻击技能机制结算）
@@ -454,6 +454,17 @@ def _b_shield(battle, logs, e, r):
         logs.append(f"🛡️【{e['name']}】周身浮现一层护盾(受伤减半)！")
 
 
+def _phase_threshold(phases, pc):
+    """阶段进下一阶段阈值（ratio 0-1）：有 phases 配置且 phases[pc].min 存在则用 min/100
+    （设计 60%/30%），否则回退 0.5**(pc+1)（50%/25%）。
+    v118+ 审计：用户拍板，实现读 phases[].min，缺省保留 0.5^n。"""
+    if pc < len(phases):
+        mn = phases[pc].get("min")
+        if mn is not None:
+            return mn / 100.0
+    return 0.5 ** (pc + 1)
+
+
 @register(BOSS_MECHS, "phase")
 def _b_phase(battle, logs, e, r):
     """阶段：每掉一半血进入下一阶段（最多 3 次）
@@ -461,28 +472,29 @@ def _b_phase(battle, logs, e, r):
     - 阶段演出回合：进入新阶段该回合不行动（battle._phase_skip_act=True）
     - 换招表：进入第 N 阶段追加 phases[N-1].add_skills（幂等）
     - 阈值预告：阶段 2/3 起，血量接近下一阈值(+3%)提前输出预警
+    - 阈值：有 phases[].min 用 min%（设计 60%/30%），缺省 0.5^n（50%/25%）
     无 phases 配置 → 完全维持旧行为（纯增伤 atk/matk +20%/阶段）。"""
     pc = e.get("phase_count", 0)
-    target = 0.5 ** (pc + 1)
-    ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
     cfg = battle._boss_cfg(e) if hasattr(battle, "_boss_cfg") else {}
     phases = cfg.get("phases") or []
+    target = _phase_threshold(phases, pc)
+    ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
     # ---- 阈值预告（阶段 2/3 起）：接近下一阈值 +3% 内提前 2 回合口径输出 ----
     if pc > 0:
-        nxt = 0.5 ** (pc + 1)  # 下一阶段阈值
+        nxt = _phase_threshold(phases, pc)  # 下一阶段阈值
         within = 0.03
         if nxt <= ratio <= nxt + within:
-            warned = e.get("_phase_warned") or set()
+            warned = e.get("_phase_warned") or []
             if (pc + 1) not in warned:
-                warned.add(pc + 1)
+                warned.append(pc + 1)
                 e["_phase_warned"] = warned
                 logs.append(f"⚠️ 【{e['name']}】的气息开始紊乱……似乎要进入更凶猛的阶段了！")
     if ratio < target and pc < 3:
         npc = pc + 1
         e["phase_count"] = npc
-        if not isinstance(e.get("_phase_warned"), set):
-            e["_phase_warned"] = set()
-        e["_phase_warned"].add(npc)
+        if not isinstance(e.get("_phase_warned"), list):
+            e["_phase_warned"] = []
+        e["_phase_warned"].append(npc)
         # ---- 换招表：第 npc 阶段对应 phases[npc-1]，追加阶段专属技能（幂等）----
         if phases and npc - 1 < len(phases):
             for s in (phases[npc - 1].get("add_skills") or []):

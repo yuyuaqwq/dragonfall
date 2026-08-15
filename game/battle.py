@@ -269,6 +269,9 @@ class Battle:
             "charging": self.charging,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
+            # v113.1 团队减伤 reduce_all 剩余回合：percent 存 p_buffs、回合数独立计时，
+            # 必须随存档持久化，否则恢复后 __init__=0 被下回合立即弹掉 reduce_all。
+            "reduce_all_left": self._reduce_all_left,
             "poi_buff": getattr(self, "poi_buff", None),
             "p_hot": self.p_hot,
             "p_food_effects": self.p_food_effects,
@@ -316,6 +319,7 @@ class Battle:
                 main["buffs"] = merged
         b.round = st.get("round", 0)
         b.p_buffs = st.get("p_buffs", {}) or {}
+        b._reduce_all_left = int(st.get("reduce_all_left", 0) or 0)  # v113.1 恢复减伤剩余回合
         b.poi_buff = st.get("poi_buff")
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
@@ -1466,6 +1470,9 @@ class Battle:
         chain_lvl = self._enchant_lvl(effs, "chain")
         if chain_lvl:
             prob, mult = C.rune_value("chain", chain_lvl)
+            # 契约断言：data/runes.py chain lvl 返回 [prob, mult] 二元素列表，防未来改单值静默错位
+            assert isinstance(prob, (int, float)) and isinstance(mult, (int, float)), \
+                f"rune chain lvl={chain_lvl} 应返回 [prob, mult]，实得 {C.rune_value('chain', chain_lvl)!r}"
             if random.random() < prob:
                 cd = int(st.get("atk", 0) * mult)
                 self._damage_enemy(cd, logs)
@@ -1759,14 +1766,11 @@ class Battle:
                 heal = int(heal * (1 + _hpv))
         except Exception:
             pass
-        # 阶段九：种族受疗天赋（人类圣光亲和 +10% / 龙裔孤傲之血 -10%）
+        # 阶段九：种族受疗天赋（目前仅龙裔孤傲之血 -10%；人类 v106.2 已移除圣光亲和改 exp_bonus）
         hr = self._race_bonus(player).get("heal_received", 0) or 0
         if hr:
             heal = max(1, int(heal * (1 + hr)))
-            if hr > 0:
-                logs.append(f"✨ 圣光亲和：治疗效果 +{int(hr*100)}%！")
-            else:
-                logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
+            logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
         hp_before = player.get("hp", 0)
         player["hp"] = min(player.get("max_hp", player["hp"]), hp_before + heal)
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
@@ -1814,7 +1818,8 @@ class Battle:
                 self.e_buffs["mark"] = E.skill_buff_turns(lv)
             elif eff == "sleep":
                 # v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 回合）
-                self.e_buffs["sleep"] = 1 if self.btype == "worldboss" else 2
+                # v120 q5：Boss 亦控制减半（普通 2 回合 → Boss 1 回合）。
+                self.e_buffs["sleep"] = self._boss_ctrl_dur("sleep", 1 if self.btype == "worldboss" else 2)
             elif eff == "shield_all":
                 # v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
                 st2 = self._player_stats(player)
@@ -1883,10 +1888,6 @@ class Battle:
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
         if info.get("summon"):
             self._summon_entity(info["summon"], player, logs)
-        # v107 单宠进化（兽王）：summon_evolve 字段升级当前狼宠形态（1幼狼→2狼王→3影狼）
-        # 必须在入口处理（增益分支提前 return，末尾挂点不达）
-        if info.get("summon_evolve"):
-            self._summon_evolve(int(info["summon_evolve"]), player, logs)
         # v107 血魔法（猩红学者）：消耗当前 HP % 换伤害加成（hp_cost 字段，0.10 = 扣 10% 当前生命）
         self._hp_cost_bonus = 0.0
         if info.get("hp_cost") and player.get("hp", 0) > 0:
@@ -2306,6 +2307,15 @@ class Battle:
         if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade"):
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
+    def _boss_ctrl_dur(self, key: str, val: int) -> int:
+        """v120 审计修复 q5：敌方/BOSS 控制免疫·霸体——眩晕/冰冻/沉默/睡眠等控制效果
+        作用在 Boss（敌方 dict is_boss 标记或 role=="boss"）上时时长减半（向下取整、至少 1 回合）。
+        非 Boss 单位原样返回（不改变非 Boss 行为）。"""
+        e = self.enemy or {}
+        if not (e.get("is_boss") or e.get("role") == "boss"):
+            return val
+        return max(1, int(val) // 2)
+
     def _apply_mech_effect(self, mech: str, mval: int, p_mech: dict, total: int, logs: list, skill_name: str, is_crit: bool = False, info: dict | None = None):
         """攻击技能施放后的机制结算（v98.4：数据化 → core/battle_mech.py MECH_EFFECTS）
         v113.1：info（技能 dict）下传，handler 可读技能自带 mech_chance 固定概率。"""
@@ -2313,6 +2323,14 @@ class Battle:
         handler = MECH_EFFECTS.get(mech)
         if handler:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # v120 审计修复 q5：玩家施加的控制（眩晕/冰冻/沉默）统一切入 Boss 控制抗性——
+        # Boss 时长减半（至少 1 回合）；非 Boss 不变（handler 已设时长，此处术后收紧）。
+        if mech in ("stun", "freeze", "silence"):
+            tgt = getattr(self, "_active_target", None) or self.enemy
+            if tgt.get("is_boss") or tgt.get("role") == "boss":
+                for k in ("stun", "freeze", "silence"):
+                    if k in self.e_buffs:
+                        self.e_buffs[k] = self._boss_ctrl_dur(k, self.e_buffs[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
         if mech in ("stun", "freeze", "silence"):
             tgt = getattr(self, "_active_target", None) or self.enemy
@@ -2728,6 +2746,14 @@ class Battle:
             wv = float(eb.get("_weaken_val", 0.15) or 0.15)
             est["atk"] = int(est["atk"] * (1 - wv))
             est["matk"] = int(est["matk"] * (1 - wv))
+        # v120 审计修复 q5：敌方攻强总帽——enrage/phase/stacks/low_hp/pv_broken/atk_up 等
+        # 乘区叠加后不得突破 3.0×该单位基础 atk/matk，防满配置 BOSS 一击秒杀。
+        # 帽值 3.0 的道理：狂暴1.35×阶段(如×1.4)×叠层(如×1.24)×低血1.25 等真实可同时叠加的
+        # 乘区乘积上限大致落在 2~3 倍内，取 3.0 保正常配装强度不受钳制，仅拦极端叠加秒杀。
+        for _k in ("atk", "matk"):
+            _base = max(0, int(e.get(_k, 0) or 0))
+            if _base > 0:
+                est[_k] = min(est[_k], _base * 3)
         return est
 
     def _enemy_mitigate(self, dmg: int, magi_part: int, element: str | None, logs: list, kind: str = "物理",
@@ -3023,7 +3049,9 @@ class Battle:
         PVE 怪物无精准=0（玩家闪避不被削减）。任何异常按 0 处理。"""
         try:
             en = self.enemy or {}
-            if self.mode == "pvp" and en.get("equipment"):
+            # v120 审计修复 q3：类从未定义 self.mode（恒 AttributeError 被吞→恒 0.0），
+            # Battle 用 self.btype 区分类型（monster/worldboss/pvp）→ 改用 btype，PVP 精准真实生效。
+            if self.btype == "pvp" and en.get("equipment"):
                 return float(self._player_stats(en).get("precise", 0) or 0)
             return float(en.get("precise", 0) or 0)
         except Exception:
@@ -3225,7 +3253,9 @@ class Battle:
                 dmg = max(1, int(s["atk"] * (1 + random.uniform(-0.15, 0.15))))
             else:
                 est = self._enemy_stats(target)
-                dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type="phys")
+                # 非真伤：按召唤物自身 dmg_type（phys/magi）传给 calc_damage，
+                # 不再硬编码 phys（当前三模板均 phys 故行为不变，属防回归）。
+                dmg = E.calc_damage(s["atk"], est.get("def", 0), dmg_type=s.get("dmg_type", "phys"))
             dmg = max(1, dmg)
             self._damage_enemy(dmg, logs, target=target, source=s.get("name", "召唤物"))
             logs.append(f"{s.get('icon', '')} {s['name']} 攻击，造成 {dmg} 点伤害！")
@@ -3301,36 +3331,6 @@ class Battle:
             logs.append(f"💀 {s['name']} 在保护你时倒下了！")
             self.summons.remove(s)
         return 0
-
-    def _summon_evolve(self, stage: int, player: dict, logs: list) -> bool:
-        """v107 单宠进化（兽王）：升级当前狼宠形态（1 幼狼 → 2 狼王 → 3 影狼真伤）。
-        无狼宠时提示先召唤；进化后属性按新模板重算并回满血。"""
-        try:
-            from .data.summons import SUMMONS
-        except Exception:
-            return False
-        cur = [s for s in self.summons if str(s.get("tid", "")).startswith("wolf")]
-        if not cur:
-            logs.append("🐺 没有可进化的伙伴！先召唤幼狼吧。")
-            return False
-        stage_map = {1: "wolf_cub", 2: "wolf_king", 3: "shadow_wolf"}
-        target = stage_map.get(stage)
-        tmpl = SUMMONS.get(target) if target else None
-        if not tmpl:
-            return False
-        s = cur[0]
-        st = self._player_stats(player)
-        sp = float(st.get("summon_power", 0) or 0)
-        s["tid"] = target
-        s["name"] = tmpl["name"]
-        s["icon"] = tmpl.get("icon", "")
-        s["max_hp"] = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
-        s["atk"] = max(5, int(st.get("atk", 50) * float(tmpl["atk_ratio"]) * (1 + sp)))
-        s["def"] = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
-        s["dmg_type"] = tmpl.get("dmg_type", "phys")
-        s["hp"] = s["max_hp"]  # 进化回满
-        logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 进化了！(HP {s['max_hp']} / 攻击 {s['atk']})")
-        return True
 
     def _drain_pending_dmg(self) -> list:
         """O116：取出并清空延迟的受击伤害日志（命中后由 _damage_player 输出）。"""
@@ -3522,6 +3522,9 @@ class Battle:
         barrier_lvl = self._enchant_lvl(effs, "barrier")
         if barrier_lvl:
             prob, pct = C.rune_value("barrier", barrier_lvl)
+            # 契约断言：data/runes.py barrier lvl 返回 [prob, pct] 二元素列表，防未来改单值静默错位
+            assert isinstance(prob, (int, float)) and isinstance(pct, (int, float)), \
+                f"rune barrier lvl={barrier_lvl} 应返回 [prob, pct]，实得 {C.rune_value('barrier', barrier_lvl)!r}"
             if random.random() < prob:
                 shield_gain = int(player.get("max_hp", player.get("hp", 1)) * pct)
                 self._add_shield("rune_barrier", shield_gain, 2)

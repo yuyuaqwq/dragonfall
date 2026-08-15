@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from .connection import _connect, _lock
 
-"""《剑与魔法》存储层 - feedback"""
+"""奥兰迪亚·余烬纪年存储层 - feedback"""
 
 
 def add_feedback(qq_id, group_id, content):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - runes.py(v48 key=effect ID)"""
+"""奥兰迪亚·余烬纪年数据层 - runes.py(v48 key=effect ID)"""
 RUNES = {
     "rn_brutal": {
         "quality": "purple",

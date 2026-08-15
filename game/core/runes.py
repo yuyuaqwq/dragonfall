@@ -3,7 +3,7 @@
 from ..data import RUNES, RUNE_CONFLICTS, RUNE_LEVEL_ROMAN, QUALITY
 
 
-"""《剑与魔法》数据层 - runes.py"""
+"""奥兰迪亚·余烬纪年数据层 - runes.py"""
 def rune_value(effect: str, lvl: int):
     """符文效果数值：effect + 等级 → 数值(用于战斗结算)"""
     for name, r in RUNES.items():

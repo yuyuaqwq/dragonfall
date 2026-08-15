@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - social（social）
+"""奥兰迪亚·余烬纪年命令层 - social（social）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -23,6 +23,7 @@ from ..commands.base import CommandBase, require_player
 from ..data import guild as _G
 from ..store.social import (
     guild_get_member, guild_set_role, guild_spend_contribute,
+    market_sell_atomic,
 )  # noqa: F401
 
 
@@ -82,8 +83,11 @@ class SocialCmds(CommandBase):
             yield event.plain_result(f"背包里没有『{item_name}』！『背包』查看～")
             return
         item_key, data = found
-        db.market_add(group_id, qq_id, item_key, data, price)
-        db.remove_item(group_id, qq_id, item_key, count=1)
+        # v116 审计修复 H0-A2：原 market_add + remove_item 两次独立调用，崩溃会致
+        # 物品复制/少货得金。改走 store.social.market_sell_atomic 单事务原子上架。
+        if not market_sell_atomic(group_id, qq_id, item_key, data, price):
+            yield event.plain_result(f"背包里没有『{item_name}』！『背包』查看～")
+            return
         yield event.plain_result(f"📦 已上架【{data['name']}】，定价 {price} 金币！\n『市场』查看，『下架 <编号>』撤回")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?下架(?:\s*|$)")
@@ -745,7 +749,6 @@ class SocialCmds(CommandBase):
 
     async def _guild_shop_buy(self, event, group_id, qq_id, g, member, num):
         """公会商店购买：扣成员贡献积分 → 发包件物品。"""
-        import uuid as _uuid
         import datetime as _dt
         it = _G.GUILD_SHOP_ITEMS.get(num)
         if not it:
@@ -772,7 +775,10 @@ class SocialCmds(CommandBase):
         if not guild_spend_contribute(g["gid"], qq_id, it["cost"]):
             yield event.plain_result("积分扣除失败！可能积分变动，请重试～")
             return
-        item_key = f"{it.get('item_key', 'gs_')}{_uuid.uuid4().hex[:8]}"
+        # v116 审计修复 A0-A1：直接使用 GUILD_SHOP_ITEMS 的稳定 item_key（gs_*），
+        # 去掉随机 uuid 后缀——否则 stackable 商品每次购买生成新 key，永不合并堆叠。
+        # 商品 key 全表唯一，此处直接引用即可（add_item 按其 key 堆叠合并）。
+        item_key = it.get("item_key", "gs_")
         db.add_item(group_id, qq_id, item_key, it["item_data"], count=1)
         if it.get("daily_limit"):
             db.set_event_state(f"guild_shop:{g['gid']}:{qq_id}:{num}", _dt.date.today().isoformat())

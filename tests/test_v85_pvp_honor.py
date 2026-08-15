@@ -87,8 +87,18 @@ async def main():
     db.update_player("g1", "w1", cur_map="emerald_forest")
     out = await cmd(m, "move", "g1", "w1", "前往 白鹿城")
     check("红名进城镇被拦", "守卫" in out and "红名" in out, out[:300])
+    # F1 H0-S1：败方同样进入 PVP 袭击 CD（胜方 w1 已在结算处设 CD，本轮败方 w2 也应进入 CD，
+    # 阻断两账号交替互杀无限对刷荣誉）。w1 为攻击方，其 CD 在 _pvp_finish 已设。
+    check("攻击方 w1 进入袭击 CD", m._pvp_cd_left("w1") > 0, f"cd={m._pvp_cd_left('w1')}")
+    check("败方 w2 进入袭击 CD", m._pvp_cd_left("w2") > 0, f"cd={m._pvp_cd_left('w2')}")
+    # 二次交替攻击应被 CD 拦下（w2 上轮战败进入 CD，立即再袭击被拒）
+    out = await cmd(m, "attack", "g1", "w2", "攻击 铁拳")
+    check("战败方立即再袭击被拒", "秒后才能再次袭击" in out, out[:200])
 
     print("【v84 击杀红名 → 荣誉 +50】")
+    # 清理上轮 PVP 双方袭击 CD，避免影响本段荣誉验证（本段目标：击杀红名 +50 荣誉）
+    db.set_event_state("pvp_cd_w1", "0")
+    db.set_event_state("pvp_cd_w2", "0")
     # w2 复活打红名的 w1（w3 是新手不能攻击，用 w2）
     # v94.1：get_player 会 clamp hp 到 max_hp（#41 修复），hp=99999 作弊不再生效，
     # 因此把红名 w1 的 hp 设为 1，确保 w2 一击必杀（测试意图：击杀红名得荣誉）

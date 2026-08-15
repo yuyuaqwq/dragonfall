@@ -4,7 +4,7 @@ import time
 from .connection import _connect, _lock
 from .. import content as C
 
-"""《剑与魔法》存储层 - players"""
+"""奥兰迪亚·余烬纪年存储层 - players"""
 
 # B2 加固（2026-08-10）：players 表实际列白名单（PRAGMA 验证，qq_id 为 WHERE 专用不列入）。
 # update_player 的字段名必须先过此白名单再拼 SQL，防动态列名注入/拼错列。
@@ -384,9 +384,10 @@ def _delete_player_event_state(conn, qq_id):
     qid = str(qq_id)
     suf_under, suf_colon = "_" + qid, ":" + qid
     keys = [r["key"] for r in conn.execute("SELECT key FROM event_state").fetchall()]
-    for key in keys:
-        if key.endswith(suf_under) or key.endswith(suf_colon):
-            conn.execute("DELETE FROM event_state WHERE key=?", (key,))
+    matched = [k for k in keys if k.endswith(suf_under) or k.endswith(suf_colon)]
+    # v110 修复：收拢匹配键后单次 executemany，消除逐条 DELETE 的 N 次往返。
+    if matched:
+        conn.executemany("DELETE FROM event_state WHERE key=?", [(k,) for k in matched])
 
 def delete_player(qq_id):
     """注销角色：删除玩家主记录 + 全部关联数据（v62 群友想切职业）。

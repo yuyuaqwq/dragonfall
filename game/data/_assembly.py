@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - 装配（索引构建 + 派生表）
+"""奥兰迪亚·余烬纪年 数据层 - 装配（索引构建 + 派生表）
 
 执行顺序关键：
 1. 先构建派生表（百科/职业毕业套/技能扁平表等）
@@ -10,7 +10,7 @@ from ..core.index import build_index, pinyin_id, resolve, display  # noqa: F401
 from .classes import CLASSES  # noqa: F401
 from .maps import (
     MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
-    MAP_AREAS, AREA_ENTRY, MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
+    MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
 from .pois import SUBAREA_POIS  # noqa: F401
@@ -170,7 +170,7 @@ else:  # v48 前：key 是中文档位
         "name_to_id": {v: k for k, v in QUALITY_CN.items()},
         "id_to_name": dict(QUALITY_CN),
     }
-# 武器类型：key 已是英文 ID
+# 武器类型：key 已是英文 ID（先 build_index 建骨架，WT_CN 再覆盖中文展示映射）
 build_index("weapon_types", WEAPON_TYPES)
 _INDEXES["weapon_types"]["id_to_name"] = dict(WT_CN)
 _INDEXES["weapon_types"]["name_to_id"] = {v: k for k, v in WT_CN.items()}
@@ -210,12 +210,6 @@ for _sas in SUBAREAS.values():
             if _mname not in _MONSTER_INDEX:
                 _MONSTER_INDEX[_mname] = _mid
             _MONSTER_ID_NAMES.setdefault(_mid, _mname)
-# 兜底：无子区域的地图级内容（当前全图都有子区域，此处为空）
-for _m in MAPS:
-    for _mid, _mname in _collect_monster_entries(_m, ("monsters", "elite", "boss")):
-        if _mname not in _MONSTER_INDEX:
-            _MONSTER_INDEX[_mname] = _mid
-        _MONSTER_ID_NAMES.setdefault(_mid, _mname)
 # v104 M24：实例层副本专属怪进索引——同名冲突时实例怪优先（无条件覆盖，
 # 与 build_index 的 name_to_id 后写覆盖规则一致；实例内部 elite/boss 槽位排在 monsters 之后，
 # 同名时实例专属的 elite/boss 变体自然胜出，不再串到子区域同名怪）

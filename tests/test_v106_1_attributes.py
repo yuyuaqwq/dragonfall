@@ -169,7 +169,7 @@ async def main():
 
     # ============ 9. 面板 ============
     print("【9. 面板】")
-    src = open(r"C:\Users\yuyu\qqbot\data\plugins\dragonfall\game\commands\player.py", encoding="utf-8").read()
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "player.py"), encoding="utf-8").read()
     for k in ("cdr", "elem_res", "abyss_res", "exp_bonus", "gold_bonus"):
         check(f"面板含 {k} 行", k in src)
 

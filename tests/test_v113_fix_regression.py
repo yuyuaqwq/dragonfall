@@ -240,6 +240,13 @@ async def test_downstream_skills_combat(m):
         random.seed(seed)
         b = BT.Battle("怪物", mk_be(hp=30000), {}, p)
         b._last_player = p
+        # 屏蔽随机闪避，保证受击断言确定性（反击需命中才触发）
+        _orig_ps = b._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b._player_stats = _ps_nododge
         emy0 = b.enemy["hp"]
         logs = []
         b._damage_player(p, 100, logs)
@@ -429,6 +436,13 @@ def test_plant_summons(m):
         b5.summons[0]["hp"] = 500
         shp0 = b5.summons[0]["hp"]
         hp0 = p5["hp"]
+        # 屏蔽随机闪避，保证受击断言确定性（挡刀/扣召唤物 HP 精确断言）
+        _orig_ps = b5._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b5._player_stats = _ps_nododge
         logs = []
         b5._damage_player(p5, 100, logs)
         if any("挡下" in l for l in logs):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》存储层 —— SQLite Repository（唯一碰 DB 的层）
+"""奥兰迪亚·余烬纪年存储层 —— SQLite Repository（唯一碰 DB 的层）
 
 按领域拆分：
 - connection: 连接/锁/建表

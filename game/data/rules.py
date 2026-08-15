@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - rules.py（v97.5：行为彩蛋规则）
+"""奥兰迪亚·余烬纪年数据层 - rules.py（v97.5：行为彩蛋规则）
 
 规则 = 条件→反应，挂"触发器"（引擎在 core/rule_engine.py）。
 加规则 = 复制一条 dict 改 id/trigger/cond/chance/action，零代码。

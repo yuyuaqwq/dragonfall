@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - dialogue（多轮对话引擎）
+"""奥兰迪亚·余烬纪年核心层 - dialogue（多轮对话引擎）
 
 纯逻辑，不碰 DB/QQ。数据在 data/dialogues.py。
 
@@ -35,6 +35,7 @@ def check_need(need, ctx: dict) -> bool:
     need 支持的键（quest_done/quest_active/quest_pending/quest_ready/side_ready/
     quest_any_active/apprentice/not_apprentice/is_novice/not_novice/class_any/
     evolve_ready）见该文件；
+    v113 增补：race_is/hidden_unlocked/hidden_current/not_hidden_current/side_available。
     加新条件类型 = register 一个函数（~5 行），本文件零改动。
     """
     if not need:
@@ -52,7 +53,6 @@ def check_need(need, ctx: dict) -> bool:
                     f"数据笔误？已按'永远可见'放行，请检查 dialogues.py")
             # v110.5 X3：显式判定测试环境——既看私有库名含 "test"（旧约定兼容），
             # 也认 GWEN_TEST_MODE=1（本轮私有库名不含 "test" 时测试行为漂移的根因）。
-            _db = os.environ.get("GWEN_GAME_DB", "")
             _test = ("test" in os.path.basename(_db).lower()
                      or os.environ.get("GWEN_TEST_MODE") == "1")
             if _test:

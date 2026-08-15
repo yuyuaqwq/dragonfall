@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - world（world）
+"""奥兰迪亚·余烬纪年命令层 - world（world）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -829,6 +829,51 @@ class WorldCmds(CommandBase):
             f"🧭 【{target['name']}】的路线：{' → '.join(names)}（{len(route) - 1} 段路程）。\n"
             f"💡 输入『前往 <地名>』逐段赶路；方碑已激活的地区可用『传送 <名称>』直达～")
 
+    def _instance_gate_block(self, player: dict, group_id: str, qq_id: str, target: dict) -> str:
+        """q1-B 副本图门禁：徒步『前往/移动』不可直接进入副本图（type=副本）。
+
+        否则终局副本旁路：ash_temple/abyss_gate 等副本图经 MAP_CONNECTIONS 连通可徒步
+        到达，玩家走进即自动完成 explore 主线目标（q9_3/q10_3 目标 ash_temple，
+        q12_3 目标 abyss_gate），绕过『副本 <名字>』开本流程的钥匙/等级/人数校验。
+        准入判定有三档（任一满足即放行，返回值空串）：
+          - 玩家正持有 active 且 explore 目标为本图的**主线或支线任务**（任务内进入不受影响）；
+          - 背包持有该副本 key_item（如 ash_temple→烬火令，abyss_gate→深渊钥匙）；
+          - 已通关该副本（inst_clear_* 首通记录，与 instance.py 免钥匙同口径）。
+        命中时返回拦截文案；非副本图直接放行。『副本 <名字>』开本入口不经过本方法，不受影响。
+        """
+        if target.get("type") != C.MAP_TYPE_INSTANCE:
+            return ""
+        kid = target.get("id", "")
+        mid = f"inst_{kid}"
+        inst = C.INSTANCES.get(mid)
+        # 1) 任务内进入：active 主线或支线 explore 目标 == 本副本图 → 放行
+        quests = db.get_quests(group_id, qq_id)
+        if quests.get("main_status") == "active":
+            mq = next((q for q in C.MAIN_QUESTS if q["id"] == quests.get("main_quest")), None)
+            if mq and mq["objective"].get("explore") == kid:
+                return ""
+        side = quests.get("side") or {}
+        if any(sq.get("status") == "active"
+               and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == kid
+               for sid, sq in side.items()):
+            return ""
+        # 2) 持有钥匙（与 instance.py 开本钥匙判定同源：按物品名/key 匹配背包）
+        key_item = (inst or {}).get("key_item")
+        if key_item:
+            for it in (db.get_inventory(group_id, qq_id) or []):
+                it_name = (it.get("data") or {}).get("name", "")
+                if it_name == key_item or it.get("key") == key_item \
+                        or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
+                    if (it.get("count") or 0) >= 1:
+                        return ""
+        # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径）
+        if any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
+               for a in (db.get_achievements(group_id, qq_id) or [])):
+            return ""
+        inst_name = (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本")
+        return (f"🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n"
+                f"💡 副本经『副本 <名字>』正常开启（含队伍/等级校验）；或先完成任务、收集所需钥匙～")
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()
     @no_prof_waiting()
@@ -1015,6 +1060,12 @@ class WorldCmds(CommandBase):
                 f"🧭 你身处【{_cur_sa_name}】，还不能离开{cur_map.get('name', '此地')}——"
                 f"需要先到{_exit_name}(『前往 {_exit_name}』)才能出城/出图。"
             )
+            return
+        # q1-B 副本图门禁：副本图（type=副本）不可徒步直入（终局副本旁路修复）——
+        # 需已接取对应 explore 主线/支线任务、或持有副本钥匙、或已通关该副本才能进入。
+        _inst_gate = self._instance_gate_block(player, group_id, qq_id, target)
+        if _inst_gate:
+            yield event.plain_result(_inst_gate)
             return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
         target_sas = target.get("subareas") or []

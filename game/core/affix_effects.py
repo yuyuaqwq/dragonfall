@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - affix_effects.py（v98.5：词条/套装效果注册表）
+"""奥兰迪亚·余烬纪年核心层 - affix_effects.py（v98.5：词条/套装效果注册表）
 
 消灭 game/battle.py 的四处硬编码效果链：
 1. HIT_EFFECTS       _affix_on_hit     攻击命中词条（10 块，并列 if 语义）

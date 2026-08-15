@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""《剑与魔法》存储层 - connection：连接管理 + 建表(唯一碰 sqlite 连接的地方)"""
+"""奥兰迪亚·余烬纪年存储层 - connection：连接管理 + 建表(唯一碰 sqlite 连接的地方)"""
 import os
 import sqlite3
 import threading

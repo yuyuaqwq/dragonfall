@@ -13,7 +13,7 @@ from .time_weather import current_season
 _SEASON_PREFIX = {"spring": "🌸", "summer": "☀️", "autumn": "🍂", "winter": "❄️"}
 
 
-"""《剑与魔法》数据层 - events.py"""
+"""奥兰迪亚·余烬纪年数据层 - events.py"""
 def roll_explore_event(exclude=()):
     """掷一个随机事件，返回事件 dict
 

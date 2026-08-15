@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》存储层 - professions：副业等级与经验
+"""奥兰迪亚·余烬纪年存储层 - professions：副业等级与经验
 
 副业（采集/挖掘/垂钓/炼金/锻造/烹饪）独立成长线：
 - 每条副业 Lv.1~10，升级需求按 constants.prof_exp_need 二次曲线 need(lv)=5lv²+15lv
   （v105 平衡曲线，2026-08-13 鱼鱼拍板，累计 2100 满级；Lv.1→2 仅 20）
 - add_prof_exp 自动处理升级与封顶（Lv.10 满级不再累积）
-- ⚠️ 19 章 §4.1 设计表（100/300/…/5500）数值仍滞后，待文档对齐（v105R3 M13 P2-3）
+- 19 章 §4.1 设计表已按同一 v105 曲线对齐（见 design/new_world/19_副业体系详案.md §4.1）
 """
 from .connection import _connect, _lock
 from .. import content as C

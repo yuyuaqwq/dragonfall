@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - achievement_conds.py（v99.5：成就条件注册表）
+"""奥兰迪亚·余烬纪年核心层 - achievement_conds.py（v99.5：成就条件注册表）
 
 消灭 core/achievements.py cond_met() 的 41 种类型 if 硬编码：
 成就数据只声明 cond={"type": ..., "value": ...}，判定统一走本模块注册表。

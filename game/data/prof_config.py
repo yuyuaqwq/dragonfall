@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - prof_config.py（v98.1：副业配置数据下沉）
+"""奥兰迪亚·余烬纪年数据层 - prof_config.py（v98.1：副业配置数据下沉）
 
 原 hardcode 在 commands/economy.py 类属性，数据下沉后：
 - 加副业 = 在此文件加配置，零代码改动

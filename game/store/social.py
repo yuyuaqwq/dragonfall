@@ -5,7 +5,7 @@ import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
 
-"""《剑与魔法》存储层 - social"""
+"""奥兰迪亚·余烬纪年存储层 - social"""
 
 
 def add_reputation(group_id, qq_id, faction, points):
@@ -304,6 +304,27 @@ def market_stall_sell_atomic(group_id, qq_id, found_key, found_data, price, map_
              json.dumps(found_data, ensure_ascii=False), int(price), int(time.time()), map_id or ""),
         )
         _inv_remove_conn(conn, qq_id, _key_to_id(found_key, found_data), 1)
+    return True
+
+
+def market_sell_atomic(group_id, qq_id, item_key, item_data, price):
+    """原子上架（群市场寄售）：单事务内 插入 market 单 + 从背包扣减 1 件。
+
+    任一步失败整体回滚，消除原来 market_add 与 remove_item 两次独立调用之间
+    崩溃导致的『货已上架却没扣背包 / 货扣了却没上架』窗口。
+    item_key/item_data 已由命令层按 get_inventory 语义解析（uuid/id 均可）。
+    返回 True；背包无货/不足则返回 False（调用方给出提示）。
+    """
+    from .inventory import _key_to_id
+    key = _key_to_id(item_key, item_data)
+    with atomic() as conn:
+        if not _inv_remove_conn(conn, qq_id, key, 1):
+            return False
+        conn.execute(
+            "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
+            (group_id, qq_id, key,
+             json.dumps(item_data, ensure_ascii=False), int(price), int(time.time()), ""),
+        )
     return True
 
 

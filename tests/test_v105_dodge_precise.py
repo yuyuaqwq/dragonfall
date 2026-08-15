@@ -102,11 +102,16 @@ async def main():
                 "mp": 100, "max_mp": 100, "equipment": {"weapon": None, "armor": None, "helm": None,
                 "boots": None, "ring": None, "necklace": None}, "attributes": {"str": 10, "agi": 10, "int": 10, "vit": 10}}
     b4.enemy = opp_snap
-    b4.mode = "pvp"
+    b4.btype = "pvp"  # v120 审计修复 q3：Battle 用 btype 区分类型（旧 b.mode 类从未定义→PVP 精准恒被吞）
     # 打桩 _player_stats 返回对手精准 0.30
     b4._player_stats = lambda p: ({"dodge": 0.12, "precise": 0.30} if p is opp_snap else {"dodge": 0.12, "precise": 0.0})
     ap = b4._attacker_precise()
     check("PVP 攻击方精准读取=0.30", abs(ap - 0.30) < 1e-9, str(ap))
+    # v120 审计修复 q3 补充：PVP 精准真正生效后受击侧闪避按既有公式被削减——
+    # _damage_player 有效闪避=dodge×(1-min(atk_hit,0.60))（30% 精准→40% 闪避降为 28%）
+    eff_dodge = 0.40 * (1 - min(ap, 0.60))
+    check("PVP 精准生效：受击侧 40% 闪避被 30% 精准削减为 28%", abs(eff_dodge - 0.28) < 1e-9, f"eff={eff_dodge:.3f}")
+    check("PVP 精准生效：ap 由 mode 旧写法→btype 后非 0", ap != 0.0, str(ap))
     # 4.5 PVE 怪物无精准 → 玩家闪避不被削减
     b5 = make_bt(player_dodge=0.40)
     ap5 = b5._attacker_precise()

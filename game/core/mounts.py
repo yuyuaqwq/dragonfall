@@ -5,19 +5,30 @@ import random
 from ..data import MOUNT_BY_KEY, MOUNT_DROP_BOSS, MOUNT_DROP_ELITE
 
 
-"""《剑与魔法》核心层 - mounts.py"""
+"""奥兰迪亚·余烬纪年核心层 - mounts.py"""
 def make_mount_rein(mount_key):
     m = MOUNT_BY_KEY[mount_key]
     return {"name": f"{m['name']}缰绳", "type": "坐骑", "mount_key": mount_key, "stackable": True,
             "price": 300, "desc": f"使用后可获得坐骑『{m['name']}』"}
 
 def roll_mount_drop(role: str) -> str | None:
-    """战斗胜利按怪物角色掷坐骑缰绳掉落，返回 mount_key 或 None"""
+    """战斗胜利按怪物角色掷坐骑缰绳掉落，返回 mount_key 或 None。
+    q7-3：单次分档随机（cumulative 区间法）替代链式独立伯努利——原 for 循环若前项命中
+    即 return，后项名义概率被前项截流（如狮鹫名义 1% → 有效 ≈0.84%）。现一次 random.random()
+    按权重归一化取一根，保持各坐骑名义概率 = 实际概率。"""
     tbl = MOUNT_DROP_BOSS if role == "boss" else (MOUNT_DROP_ELITE if role == "elite" else None)
     if not tbl:
         return None
+    total = sum(p for p in tbl.values())
+    # 一次 uniform 抽签：r ∈ [0, total) 命中（掉落总概率=total）；≥total 则不掉落。
+    # 命中分支按累计区间分摊，各坐骑实际概率 = 名义概率，且不改变总掉落率（非必中）。
+    r = random.random()
+    if r >= total:
+        return None
+    acc = 0.0
     for mk, prob in tbl.items():
-        if random.random() < prob:
+        acc += prob
+        if r < acc:
             return mk
     return None
 

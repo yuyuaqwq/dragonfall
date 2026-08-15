@@ -4,7 +4,7 @@ from ..data import ENCY_MAP_MONSTERS, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, MA
 from .constants import SUB_TYPE_GATE, SUB_TYPE_STREET, SUB_TYPE_TOWN  # v102.1 类型常量
 
 
-"""《剑与魔法》数据层 - maps.py（v48：派生表 key 用 ID，value 存 ID）
+"""奥兰迪亚·余烬纪年数据层 - maps.py（v48：派生表 key 用 ID，value 存 ID）
 v87.6：内容下沉子区域，百科表从 SUBAREAS 构建（地图级字段已清空）。
 v87.14：空间连接规则——子区域相邻关系 + 城门出入。
 v115：网状子区域核心——subarea_links 切到 SUBAREA_LINKS_INDEX（显式网状，

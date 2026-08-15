@@ -3,7 +3,7 @@
 from ..data import REPUTATION_TIERS
 
 
-"""《剑与魔法》数据层 - factions.py"""
+"""奥兰迪亚·余烬纪年核心逻辑层 - factions 声望 tier"""
 def faction_reputation_tier(points: int) -> str:
     """声望点数 → 等级名"""
     name = "陌生"

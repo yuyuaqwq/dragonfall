@@ -57,7 +57,7 @@ HANDLERS = {
     "角色": "profile", "属性": "attributes", "背包": "inventory", "技能": "skill",
     "地图": "map_view", "帮助": "help_cmd", "商店": "shop", "任务": "quest_view",
     "前往": "move", "交任务": "turn_in", "休息": "rest_camp", "住宿": "rest",
-    "签到": "signin", "许愿": "wish_cmd", "副业": "profession_view",
+    "签到": "signin", "副业": "profession_view",
     "采集": "gather", "挖掘": "mining", "垂钓": "fishing", "锻造": "craft",
     "炼金": "alchemy", "烹饪": "cooking", "配方": "recipe_list",
     "强化": "enhance", "附魔": "enchant", "装备": "equip", "卸下": "unequip",

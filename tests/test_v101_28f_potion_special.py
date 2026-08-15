@@ -89,6 +89,13 @@ b3 = mk_battle()
 p3 = mk_player(80)
 b3._do_use_item("special:thorns_pot", p3)
 eh = b3.enemy["hp"]
+# 屏蔽随机闪避，保证受击断言确定性（荆棘反弹需命中才触发）
+_orig_ps = b3._player_stats
+def _ps_nododge(p_):
+    s = _orig_ps(p_)
+    s["dodge"] = 0.0
+    return s
+b3._player_stats = _ps_nododge
 b3._damage_player(p3, 50, [])
 check("荆棘反弹 30% 伤害(15)", b3.enemy["hp"] == eh - 15, f"{eh}→{b3.enemy['hp']}")
 

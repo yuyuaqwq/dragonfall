@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - hidden_cond.py（v98.3：隐藏怪环境条件注册表）
+"""奥兰迪亚·余烬纪年核心层 - hidden_cond.py（v98.3：隐藏怪环境条件注册表）
 
 消灭 commands/combat.py _roll_hidden_monster() 里的关键词元组 + cond elif 链：
 隐藏怪数据只声明 cond 名，环境判定统一走本模块注册表。

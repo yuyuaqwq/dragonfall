@@ -3,7 +3,7 @@ import json
 from .connection import _connect, _lock, atomic
 from .. import content as C
 
-"""《剑与魔法》存储层 - inventory"""
+"""奥兰迪亚·余烬纪年存储层 - inventory"""
 def _key_to_id(item_key, item_data=None):
     """v46：把「名字型」物品 key 转成稳定 ID（存档只存 ID）。
 

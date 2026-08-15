@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - guild.py"""
+"""奥兰迪亚·余烬纪年数据层 - guild.py"""
 GUILD_CONFIG = {
     "create_cost": 1000,       # 创建公会金币（策划 11 章 3.1：1000 金币）
     "create_level": 30,        # 创建公会等级要求（策划 11 章 3.1：Lv.30）
@@ -86,6 +86,8 @@ GUILD_SHOP_ITEMS = {
 # v116 公会技能：学习消耗公会积分 + 公会等级门槛；每级递增，最高 5 级。
 # 结构：{key: {name, desc(每级效果说明), max_level, level_costs[每级积分], level_guild_lv[每级公会门槛]}}
 # 战斗加成挂接延后（见 commands/social.py guild_skill_view 注释）——本轮仅数据 + 展示。
+# 审计标注：TODO·展示占位，战斗加成二期 —— 当前 desc 仅为展示文案，实际战斗 buff 未挂接；
+# 14_成就与称号.md / 11_公会.md 中相关展示承诺以本文件为准，二期排期待定。
 GUILD_SKILLS = {
     "atk": {
         "name": "攻击强化",

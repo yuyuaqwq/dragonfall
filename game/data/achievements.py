@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《奥兰迪亚：余烬纪年》数据层 - achievements.py（阶段九：成就系统，14 章 97 成就）
+"""《奥兰迪亚：余烬纪年》数据层 - achievements.py（阶段九：成就系统，14 章 119 成就）
 
 结构：ACHIEVEMENTS = [ {id, cat, name(称号名), desc, cond, points, reward} ]
 - cond.type 判定在 core/achievements.py（数据源：players/stats/professions/quests/bestiary/apprentices/achievements 表）
@@ -11,6 +11,8 @@
 ⚠️ 14 章四「成就等级体系（青铜→传奇）」：**待后续版本，未实装**。
 当前 achievement_points（core/achievements.py）只算点数（普通 1 / 隐藏 2），
 无等级划分/等级称号/等级加成。（v105 M18 P2 标注）
+
+计数沿革：初版 97 → v104 补录至 109 → v105~v113 随隐藏职业/隐藏任务/收藏鱼/阵营等陆续增删，现行共 **119** 条（隐藏 31）。
 """
 ACHIEVEMENTS = [
     # ---- 战斗（20） ----

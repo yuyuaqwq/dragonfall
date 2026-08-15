@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - poi_pools.py（v101.4：POI/特殊事件材料池）
+"""奥兰迪亚·余烬纪年数据层 - poi_pools.py（v101.4：POI/特殊事件材料池）
 
 原 hardcode 在 commands/combat.py（流星愿望/篝火/草药丛 3 处），数据下沉后：
 - 加新材料/调池子 = 在此文件改一行，零代码改动

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - honor_shop.py（v99.4：荣誉商店数据化）
+"""奥兰迪亚·余烬纪年数据层 - honor_shop.py（v99.4：荣誉商店数据化）
 
 原定义在 commands/combat.py 类内（v84 荣誉商店），v99.4 下沉：
 - 加商品 = 数据加一行（reward 声明发什么），零代码

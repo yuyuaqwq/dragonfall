@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from .connection import _connect, _lock
 
-"""《剑与魔法》存储层 - stats"""
+"""奥兰迪亚·余烬纪年存储层 - stats"""
 
 # B2 加固（2026-08-10）：stats 表可 bump 列白名单（qq_id/day_date 为 TEXT 不参与 +1 不列入）。
 STAT_FIELDS = {

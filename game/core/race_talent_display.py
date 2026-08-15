@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - race_talent_display.py（v98.3：种族天赋展示格式化注册表）
+"""奥兰迪亚·余烬纪年核心层 - race_talent_display.py（v98.3：种族天赋展示格式化注册表）
 
 消灭 commands/player.py races() 里的 if-elif 硬编码：
 天赋数据只声明 key → 值，展示文案统一走本模块注册表。
@@ -113,9 +113,9 @@ def _d_learn_discount(v, name):
     return f"{name} 学习-{int(v*100)}%"
 
 
-@register("gold_bonus")
-def _d_gold_bonus(v, name):
-    return f"{name} 金币+{int(v*100)}%"
+# A0-C1 深潜：v106.2 半身人"幸运儿"已由 gold_bonus 改用于 luck（见 data/races.py 半身人
+# talents）；全库种族已无 gold_bonus 天赋 key，原 @register("gold_bonus") 展示注册为死代码，
+# 故删除。若未来种族复用"金币+"天赋，于此重新 register 即可。
 
 
 # v110 审计修复：补 v106.2/3 新增 5 条正面天赋的展示注册（此前缺注册 →

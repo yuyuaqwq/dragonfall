@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - housing.py
+"""奥兰迪亚·余烬纪年数据层 - housing.py
 
 v84 余烬纪元房产（25 章：房产与家园系统）：
 - PROPERTIES[prop_id] = {"name", "map"(所在城镇地图), "price", "desc"}——全服唯一，先到先得

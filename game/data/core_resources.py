@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》数据层 - core_resources.py（v102.4：从 engine.py 下沉）
+"""奥兰迪亚·余烬纪年数据层 - core_resources.py（v102.4：从 engine.py 下沉）
 
 v2.0 核心资源系统（12 章 1.2 战斗资源总览）
 每职业一个独立战斗资源 dict，随战斗序列化（同 mech_stacks 机制）。

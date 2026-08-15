@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - combat（combat）
+"""奥兰迪亚·余烬纪年命令层 - combat（combat）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -79,7 +79,7 @@ class CombatCmds(CommandBase):
         # 城镇区域（安全区）：可触发 POI，无怪
         if cur_map.get("type") == C.MAP_TYPE_TOWN:
             # v105 M23 P2-1：冷却 key 去掉 group_id——玩家数据全局化（battle 按 qq 全局），
-            # 原 key 含群号可跨群绕过：A 群刷完 B 群立刻再刷，城镇 POI 每小时可白嫖约 9 次
+            # 原 key 含群号可跨群绕过：A 群刷完 B 群立刻再刷，城镇 POI 每小时可白嫖约 60 次（60s 冷却）
             _town_cd_key = f"town_explore_cd_{qq_id}"
             try:
                 _last_town = float(db.get_event_state(_town_cd_key) or 0)
@@ -671,8 +671,8 @@ class CombatCmds(CommandBase):
     def _handle_explore_event(self, group_id, qq_id, player, cur_map, _fx=None):
         """处理探索随机事件；返回 (handled, 文本)
         v97.3：事件全部走模板引擎（core/event_templates.py），数据在 data/events.py。
-        v115：_fx 为当日奇遇 effects（loot_mult/pref_mats 注入 EventContext），
-              若 E 未给 EventContext 加参，则经 try 回退不带这两项。"""
+        v115：当日奇遇 effects（loot_mult/pref_mats，取 _fx["mats"]）注入 EventContext，
+              由模板层落地倍率/材料倾向（S3）。"""
         # v97.1 条件探索事件优先：find 型任务(告示委托)命中则不再 roll 常规事件
         find_lines = self._roll_find_quest_events(group_id, qq_id, player, cur_map)
         if find_lines:
@@ -687,17 +687,12 @@ class CombatCmds(CommandBase):
         _fx = _fx or {}
         _lm = _fx.get("loot_mult")
         _pm = _fx.get("mats")
+        # v115 今日奇遇：EventContext 已支持 loot_mult/pref_mats（S3 落地），直接注入
         if _lm is not None:
             ctx_kw["loot_mult"] = _lm
         if _pm:
             ctx_kw["pref_mats"] = _pm
-        try:
-            ctx = EventContext(group_id, qq_id, player, cur_map, **ctx_kw)
-        except TypeError:
-            # E 尚未给 EventContext 加 loot_mult/pref_mats 参数：去掉这两项回退构造
-            ctx_kw.pop("loot_mult", None)
-            ctx_kw.pop("pref_mats", None)
-            ctx = EventContext(group_id, qq_id, player, cur_map, **ctx_kw)
+        ctx = EventContext(group_id, qq_id, player, cur_map, **ctx_kw)
         text = execute_event_template(ev["template"], ctx)
         if text:
             self._remember_explore_event(group_id, qq_id, ev["id"])
@@ -731,14 +726,14 @@ class CombatCmds(CommandBase):
 
         同一 POI 实例（地图:子区域:poi_id）同一天只触发一次：本日已用过返回 True（本次不触发）；
         首次触发则登记后返回 False（放行）。篝火 30% 回血/草药/鱼群等无法再高频重复刷。
-        """
+
+        F1 审计修复（A3）：原实现为 读(get_props_use)→判→写(mark_props_use) 两段非原子，并发
+        双请求可能同时读到"未用"都发放奖励造成重复。改为原子 API props_use_claim_atomic 单事务
+        内 读-判-写，只有首个占坑者返回 True。布尔语义与旧函数相反：props_use_claim_atomic 返回
+        True=本次占坑（放行发放），故此处取反返回（True=今日已用跳过）。"""
         import datetime as _dt
         key = f"{cur}:{sa_id}:{poi_id}"
-        used = db.get_props_use(qq_id)
-        if used.get(key) == _dt.date.today().isoformat():
-            return True
-        db.mark_props_use(qq_id, key, _dt.date.today().isoformat())
-        return False
+        return not db.props_use_claim_atomic(qq_id, key, _dt.date.today().isoformat())
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
         """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。
@@ -1969,7 +1964,8 @@ class CombatCmds(CommandBase):
                     mprice = C.MATERIALS[mid].get("price", 0)
                     if mprice <= 0:
                         continue
-                    n = max(1, min(99, round(per_val / mprice)))
+                    # q7-5 审计：向下取整（原 round 会 ±1 抖动，低阶怪刷低价材料可能白拿）
+                    n = max(1, min(99, int(per_val / mprice)))
                     db.add_item(group_id, qq_id, mid,
                                 {"name": C.display("materials", mid), "type": "材料",
                                  "stackable": True, "price": mprice}, n)
@@ -2581,10 +2577,13 @@ class CombatCmds(CommandBase):
         if m:
             return m.group(1), None
         # @名字(123) 或 名字(123) —— QQ @ 消息的文本格式（括号内是 QQ 号）
-        m = re.match(r"^@?[^()()]*[((](\d+)[))]$", t)
+        # F1 审计修复（B7）：去掉冗余字符类 [()()]/[((]/[))]（等价于 [()]/(/)，仅符号噪声），
+        # 正规化为 @名字(123)：名字内不含括号即可命中。
+        m = re.match(r"^@?[^()]*\((\d+)\)$", t)
         if m:
             return m.group(1), None
-        tp = db.find_player_by_name(t)
+        # 纯 @昵称：剥掉前导 @ 后按名字查玩家（B7：原实现含 @ 前缀无法命中 find_player_by_name）
+        tp = db.find_player_by_name(t.lstrip("@"))
         if tp:
             return str(tp["qq_id"]), tp["name"]
         return None
@@ -2899,6 +2898,9 @@ class CombatCmds(CommandBase):
         db.bump_stats(group_id, loser_qq, deaths=1)
         # 攻击方袭击 CD（防击杀后立刻蹲尸再打）
         self._set_pvp_cd(str(attacker_qq))
+        # F1 审计修复（H0-S1）：败方也进入 PVP 袭击 CD（同机制同时长）——否则两账号可交替
+        # 互杀无限对刷荣誉（胜者 +50）；现在胜负双方 2 分钟内都无法立即再次袭击，阻断荣誉对刷。
+        self._set_pvp_cd(str(loser_qq))
         now = int(time.time())
         # F1 P1-5（report_09）：灰名只写不读修复——结算处消费灰名标记。
         # 查证：26 章策划案(design/new_world/26_PVP与红名系统.md)无灰名设计、v110.14 提交说明

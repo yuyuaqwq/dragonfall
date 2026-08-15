@@ -131,7 +131,7 @@ SUBAREA_POIS = {
     "misty_swamp:misty_swamp_3": ["loot_pile"],
     "hill_mine:hill_mine_3": ["rune_stone", "loot_pile"],
     # ==== 野外·中域 ====
-    "gold_plain:gold_plain_2": ["campfire", "herb_patch"],
+    # gold_plain_2/gold_plain_3 已并入 v115 块（ancient_altar/merchant_camp 并集），此处不再重复定义
     "silver_river:silver_river_2": ["fishing_spot", "campfire"],
     "old_battlefield:old_battlefield_3": ["note"],
     "dawn_cathedral:dawn_cathedral_3": ["note"],
@@ -157,18 +157,17 @@ SUBAREA_POIS = {
     "cold_spine_snow_trail:cold_spine_snow_trail_1": ["shrine"],  # 铁砧北门：冰封神龛
     "sky_ladder_path:sky_ladder_path_3": ["shrine"],           # 风翼台：云中神龛
     # ==== v87.9 风景 POI（探索触发，纯氛围）====
-    "gold_plain:gold_plain_3": ["star_gazing"],            # 金穗平原：旷野星野
+    # gold_plain:gold_plain_3 星野 → 已并入 v115 块（merchant_camp 并集）
     "sky_ladder_path:sky_ladder_path_1": ["star_gazing", "campfire"],  # 天梯云径：云端星空
     "dragon_ridge_old_road:dragon_ridge_old_road_3": ["scenic_view"],  # 龙脊古道尽头
     "west_ridge_wilds:west_ridge_wilds_3": ["scenic_view"],  # 西岭荒原深处
 
     'oak_plain:oak_plain_1': ['herb_patch', 'campfire'],
-    'oak_plain:oak_plain_2': ['herb_patch', 'campfire'],
+    # oak_plain:oak_plain_2 已并入 v115 块（merchant_camp 并集）
     'white_deer_forest:white_deer_forest_1': ['herb_patch', 'campfire'],
     'white_deer_forest:white_deer_forest_2': ['herb_patch', 'campfire'],
     'emerald_forest:emerald_forest_1': ['herb_patch', 'campfire'],
-    'emerald_forest:emerald_forest_2': ['herb_patch', 'campfire'],
-    'misty_swamp:misty_swamp_1': ['herb_patch', 'loot_pile', 'campfire'],
+    # emerald_forest_2/misty_swamp_1 已并入 v115 块（bird_nest/traveler_grave 并集）
     'misty_swamp:misty_swamp_2': ['herb_patch', 'fishing_spot'],
     'hill_mine:hill_mine_1': ['loot_pile', 'campfire'],
     'hill_mine:hill_mine_2': ['loot_pile'],
@@ -210,9 +209,8 @@ SUBAREA_POIS = {
     'old_battlefield:old_battlefield_1': ['loot_pile'],
     'old_battlefield:old_battlefield_2': ['campfire', 'loot_pile'],
     'silverwood:silverwood_1': ['fishing_spot', 'loot_pile', 'campfire'],
-    'silverwood:silverwood_2': ['fishing_spot', 'loot_pile'],
+    # silverwood_2/starlake_2 已并入 v115 块（bird_nest 并集）
     'starlake:starlake_1': ['fishing_spot', 'shrine', 'campfire'],
-    'starlake:starlake_2': ['fishing_spot', 'shrine'],
     'ancient_tree:ancient_tree_1': ['campfire'],
     'ancient_tree:ancient_tree_2': ['herb_patch', 'campfire'],
     'moon_glade:moon_glade_1': ['herb_patch', 'campfire'],
@@ -227,8 +225,7 @@ SUBAREA_POIS = {
     'moonshadow_wood:moonshadow_wood_1': ['herb_patch', 'campfire'],
     'moonshadow_wood:moonshadow_wood_2': ['campfire', 'loot_pile'],
     'moonshadow_wood:moonshadow_wood_3': ['campfire', 'loot_pile'],
-    'frost_field:frost_field_1': ['campfire', 'shrine'],
-    'frost_field:frost_field_2': ['campfire', 'shrine'],
+    # frost_field_1/_2、permafrost_field_2 已并入 v115 块（ice_sculpture 并集）
     'forge_valley:forge_valley_1': ['herb_patch', 'campfire'],
     'forge_valley:forge_valley_2': ['fishing_spot', 'herb_patch'],
     'forge_valley:forge_valley_3': ['campfire', 'loot_pile'],
@@ -243,12 +240,10 @@ SUBAREA_POIS = {
     'winter_lake:winter_lake_2': ['campfire', 'shrine'],
     'winter_lake:winter_lake_3': ['fishing_spot', 'shrine'],
     'permafrost_field:permafrost_field_1': ['campfire', 'shrine'],
-    'permafrost_field:permafrost_field_2': ['campfire', 'shrine'],
     'permafrost_field:permafrost_field_3': ['campfire', 'shrine'],
     'frostwhisper_canyon:frostwhisper_canyon_1': ['herb_patch', 'campfire'],
     'frostwhisper_canyon:frostwhisper_canyon_2': ['herb_patch', 'campfire'],
     'frostwhisper_canyon:frostwhisper_canyon_3': ['campfire', 'shrine'],
-    'dragon_ridge:dragon_ridge_1': ['campfire'],
     'dragon_ridge:dragon_ridge_2': ['campfire'],
     'dragon_roost:dragon_roost_1': ['campfire', 'loot_pile'],
     'dragon_roost:dragon_roost_2': ['campfire', 'loot_pile'],
@@ -256,7 +251,6 @@ SUBAREA_POIS = {
     'ancient_battlefield:ancient_battlefield_1': ['loot_pile', 'campfire'],
     'ancient_battlefield:ancient_battlefield_2': ['loot_pile'],
     'bone_wild:bone_wild_1': ['campfire', 'loot_pile'],
-    'bone_wild:bone_wild_2': ['campfire', 'loot_pile'],
     'bone_wild:bone_wild_3': ['campfire', 'loot_pile'],
     'storm_cliff:storm_cliff_1': ['scenic_view', 'campfire'],
     'storm_cliff:storm_cliff_2': ['scenic_view', 'campfire'],
@@ -267,7 +261,6 @@ SUBAREA_POIS = {
     'dragonsfall_valley:dragonsfall_valley_1': ['herb_patch', 'campfire'],
     'dragonsfall_valley:dragonsfall_valley_2': ['campfire', 'loot_pile'],
     'dragonsfall_valley:dragonsfall_valley_3': ['herb_patch', 'campfire'],
-    'coral_reef:coral_reef_1': ['fishing_spot', 'loot_pile'],
     'coral_reef:coral_reef_2': ['campfire', 'loot_pile'],
     'sunset_isle:sunset_isle_1': ['fishing_spot', 'loot_pile'],
     'sunset_isle:sunset_isle_2': ['herb_patch', 'campfire'],
@@ -288,14 +281,11 @@ SUBAREA_POIS = {
     'shipwreck_graveyard:shipwreck_graveyard_2': ['campfire', 'loot_pile'],
     'shipwreck_graveyard:shipwreck_graveyard_3': ['shrine'],
     'storm_sea:storm_sea_1': ['fishing_spot', 'loot_pile'],
-    'storm_sea:storm_sea_2': ['scenic_view', 'campfire'],
     'fungus_forest:fungus_forest_1': ['herb_patch', 'campfire'],
     'fungus_forest:fungus_forest_2': ['campfire', 'loot_pile'],
     'fungus_forest:fungus_forest_3': ['herb_patch', 'campfire'],
     'deep_lake:deep_lake_1': ['fishing_spot', 'shrine', 'campfire'],
-    'deep_lake:deep_lake_2': ['fishing_spot', 'shrine'],
     'deep_lake:deep_lake_3': ['fishing_spot', 'shrine'],
-    'molten_abyss:molten_abyss_1': ['loot_pile', 'campfire'],
     'molten_abyss:molten_abyss_2': ['loot_pile'],
     'lava_bed:lava_bed_1': ['fishing_spot', 'herb_patch', 'campfire'],
     'lava_bed:lava_bed_2': ['fishing_spot', 'loot_pile'],
@@ -333,29 +323,29 @@ SUBAREA_POIS = {
     # ==== v115 探索体验扩容：新 POI 挂载（33 号文档 §5.2）====
     # 线索治理延续既有原则：traveler_grave 为见闻 flag 型 note（非线索收集），此处为地底/荒野见闻，未纳入 8 个线索挂载配额。
     # ---- merchant_camp：南境 2-3 处 + 中域 1 处 ----
-    "oak_plain:oak_plain_2": ["merchant_camp", "herb_patch", "campfire"],   # 橡木平原深处旁：行商路边营地
-    "oak_plain:oak_plain_3": ["merchant_camp", "herb_patch", "scenic_view"],  # 草地尽头：行商歇脚
-    "gold_plain:gold_plain_3": ["merchant_camp", "star_gazing"],          # 中域金穗平原：旷野市集
+    "oak_plain:oak_plain_2": ["herb_patch", "campfire", "merchant_camp"],   # 橡木平原深处旁：行商路边营地（与基础块并集）
+    "oak_plain:oak_plain_3": ["merchant_camp", "herb_patch", "scenic_view", "campfire"],  # 草地尽头：行商歇脚（与基础块并集，保留 campfire）
+    "gold_plain:gold_plain_3": ["star_gazing", "merchant_camp"],          # 中域金穗平原：旷野市集（与基础块星野并集）
     # ---- ancient_altar：中域 1-2 处 + 地底 1 处 ----
-    "gold_plain:gold_plain_2": ["ancient_altar", "campfire", "herb_patch"],  # 金穗平原中段：古祭坛
-    "deep_lake:deep_lake_2": ["ancient_altar", "fishing_spot", "shrine"],  # 地底深湖：水畔古祭坛
+    "gold_plain:gold_plain_2": ["campfire", "herb_patch", "ancient_altar"],  # 金穗平原中段：古祭坛（与基础块并集）
+    "deep_lake:deep_lake_2": ["fishing_spot", "shrine", "ancient_altar"],  # 地底深湖：水畔古祭坛（与基础块并集）
     # ---- bird_nest：西境 2 处 + 南境森林 1 处 ----
-    "silverwood:silverwood_2": ["bird_nest", "fishing_spot", "loot_pile"],  # 银木林深处：高枝鸟巢
-    "starlake:starlake_2": ["bird_nest", "fishing_spot", "shrine"],      # 星湖：林缘鸟巢
-    "emerald_forest:emerald_forest_2": ["bird_nest", "herb_patch", "campfire"],  # 翡翠森林中段：鸟巢
+    "silverwood:silverwood_2": ["fishing_spot", "loot_pile", "bird_nest"],  # 银木林深处：高枝鸟巢（与基础块并集）
+    "starlake:starlake_2": ["fishing_spot", "shrine", "bird_nest"],      # 星湖：林缘鸟巢（与基础块并集）
+    "emerald_forest:emerald_forest_2": ["herb_patch", "campfire", "bird_nest"],  # 翡翠森林中段：鸟巢（与基础块并集）
     # ---- ice_sculpture：北境 3 处 ----
-    "frost_field:frost_field_1": ["ice_sculpture", "campfire", "shrine"],  # 霜原入口：冰雕奇观
-    "frost_field:frost_field_2": ["ice_sculpture", "campfire", "shrine"],  # 霜原中段：天然冰雕
-    "permafrost_field:permafrost_field_2": ["ice_sculpture", "campfire", "shrine"],  # 永冻原：暮色冰雕
+    "frost_field:frost_field_1": ["campfire", "shrine", "ice_sculpture"],  # 霜原入口：冰雕奇观（与基础块并集）
+    "frost_field:frost_field_2": ["campfire", "shrine", "ice_sculpture"],  # 霜原中段：天然冰雕（与基础块并集）
+    "permafrost_field:permafrost_field_2": ["campfire", "shrine", "ice_sculpture"],  # 永冻原：暮色冰雕（与基础块并集）
     # ---- dragon_bone：东境 2 处 ----
-    "dragon_ridge:dragon_ridge_1": ["dragon_bone", "campfire"],          # 龙脊入口：半埋龙骨
-    "bone_wild:bone_wild_2": ["dragon_bone", "campfire", "loot_pile"],   # 骨野：巨大龙骸
+    "dragon_ridge:dragon_ridge_1": ["campfire", "dragon_bone"],          # 龙脊入口：半埋龙骨（与基础块并集）
+    "bone_wild:bone_wild_2": ["campfire", "loot_pile", "dragon_bone"],   # 骨野：巨大龙骸（与基础块并集）
     # ---- shipwreck：海域 2 处 ----
-    "coral_reef:coral_reef_1": ["shipwreck", "fishing_spot", "loot_pile"],  # 珊瑚礁：搁浅旧船
-    "storm_sea:storm_sea_2": ["shipwreck", "scenic_view", "campfire"],  # 风暴海：斜插礁石的沉船
+    "coral_reef:coral_reef_1": ["fishing_spot", "loot_pile", "shipwreck"],  # 珊瑚礁：搁浅旧船（与基础块并集）
+    "storm_sea:storm_sea_2": ["scenic_view", "campfire", "shipwreck"],  # 风暴海：斜插礁石的沉船（与基础块并集）
     # ---- traveler_grave：地底/荒野 2 处 ----
-    "misty_swamp:misty_swamp_1": ["traveler_grave", "herb_patch", "loot_pile", "campfire"],  # 迷雾沼泽入口：无名墓碑
-    "molten_abyss:molten_abyss_1": ["traveler_grave", "loot_pile", "campfire"],  # 熔渊入口：荒原孤墓
+    "misty_swamp:misty_swamp_1": ["herb_patch", "loot_pile", "campfire", "traveler_grave"],  # 迷雾沼泽入口：无名墓碑（与基础块并集）
+    "molten_abyss:molten_abyss_1": ["loot_pile", "campfire", "traveler_grave"],  # 熔渊入口：荒原孤墓（与基础块并集）
 }
 
 # 随机线索 POI 文案池（note 效果：线索收集）

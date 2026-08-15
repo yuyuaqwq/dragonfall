@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》核心层 - item_templates.py（v97.7：道具效果模板引擎）
+"""奥兰迪亚·余烬纪年核心层 - item_templates.py（v97.7：道具效果模板引擎）
 
 消灭 commands/economy.py use() 里消耗品的 if-elif 硬编码：
 道具数据只声明效果字段（heal/mana/stamina/effect/type），执行统一走本模块注册表。

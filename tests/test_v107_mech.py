@@ -132,6 +132,13 @@ async def main():
         p4 = mk_player(passives=["格挡反击测试"], hp=2000)
         p4["equipment"]["weapon"]["stats"]["block"] = 1.0  # 必格挡
         b4 = BT.Battle("怪物", mk_enemy(hp=5000), {}, p4)
+        # 屏蔽随机闪避，保证受击断言确定性（格挡反击需命中才触发）
+        _orig_ps = b4._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b4._player_stats = _ps_nododge
         e_hp4 = b4.enemy["hp"]
         logs4 = []
         b4._damage_player(p4, 100, logs4)
@@ -149,6 +156,13 @@ async def main():
         random.seed(seed)
         p5 = mk_player(passives=["反击测试"], hp=2000)
         b5 = BT.Battle("怪物", mk_enemy(hp=5000), {}, p5)
+        # 屏蔽随机闪避，保证受击断言确定性（反击需命中才触发）
+        _orig_ps = b5._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b5._player_stats = _ps_nododge
         e_hp5 = b5.enemy["hp"]
         logs5 = []
         b5._damage_player(p5, 100, logs5)
@@ -183,6 +197,13 @@ async def main():
     b7 = BT.Battle("怪物", mk_enemy(), {}, p7)
     b7._summon_entity("skeleton", p7, [])
     b7._summon_entity("skeleton", p7, [])
+    # 屏蔽随机闪避，保证受击断言确定性（死亡契约需命中才触发）
+    _orig_ps = b7._player_stats
+    def _ps_nododge(p_):
+        s = _orig_ps(p_)
+        s["dodge"] = 0.0
+        return s
+    b7._player_stats = _ps_nododge
     logs7 = []
     b7._damage_player(p7, 500, logs7)
     check("致死被契约救回", 0 < p7["hp"] <= p7["max_hp"] * 0.21, f"hp {p7['hp']} max {p7['max_hp']}")

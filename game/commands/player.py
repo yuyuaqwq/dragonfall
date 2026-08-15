@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""《剑与魔法》命令层 - player（player）
+"""奥兰迪亚·余烬纪年命令层 - player（player）
 
 由 main.py 拆分而来，作为 Mixin 被 Main 继承。
 """
@@ -1424,7 +1424,7 @@ class PlayerCmds(CommandBase):
             lines = [f"⚔️ 【{C.display('classes', cid)}流派】—— 同一职业，不同打法！", "━━━━━━━━━━━━"]
             for name, info in builds.items():
                 learned_cnt = sum(1 for s in info["skills"] if E.is_skill_learned(cid, player["level"], s, player.get("learned_skills", [])))
-                lines.append(f"{info.get('icon','')} {name}(已学 {learned_cnt}/6)")
+                lines.append(f"{info.get('icon','')} {name}(已学 {learned_cnt}/{len(info['skills'])})")
                 lines.append(f"    {info['desc']}")
             lines.append("━━━━━━━━━━━━")
             lines.append("💡 『流派 <名称>』一键配置技能栏，如『流派 狂暴流』")

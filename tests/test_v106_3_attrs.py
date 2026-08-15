@@ -135,6 +135,13 @@ async def main():
         random.seed(seed)
         p7 = mk_player(["block"], race="dwarf")
         b7 = BT.Battle("怪物", mk_enemy(), {}, p7)
+        # 屏蔽随机闪避，保证受击断言确定性（格挡需命中才触发）
+        _orig_ps = b7._player_stats
+        def _ps_nododge(p_):
+            s = _orig_ps(p_)
+            s["dodge"] = 0.0
+            return s
+        b7._player_stats = _ps_nododge
         logs7 = []
         b7._damage_player(p7, 100, logs7)
         g = [l for l in logs7 if "格挡" in l]

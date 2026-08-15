@@ -14,6 +14,10 @@ import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, BT
 
+# 预先保存原始 random 函数，供 restore_random 还原，避免 force_skill 永久污染全局随机状态
+_orig_random = random.random
+_orig_choice = random.choice
+
 passed = failed = 0
 
 
@@ -52,8 +56,9 @@ def force_skill(skill_name):
 
 
 def restore_random():
-    if hasattr(random, "random"):
-        pass
+    """还原被 force_skill 覆盖的 random.random/random.choice，杜绝全局随机污染。"""
+    random.random = _orig_random
+    random.choice = _orig_choice
 
 
 def test_charge_start_and_release():
