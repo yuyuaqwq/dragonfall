@@ -2508,6 +2508,8 @@ class WorldCmds(CommandBase):
                     lines.append(f"📜 交付『{mq['name']}』需要 {obj['collect']} ×{need}，你背包里不够了，先去凑齐吧～")
                     return lines
                 db.remove_item(group_id, qq_id, obj["collect"], need)
+                # v126.1 鱼获随机波动：交任务扣鱼同步删鱼篓明细（防交了任务还能卖重量）
+                db.consume_fish_catches(qq_id, obj["collect"], need)
                 lines.append(f"🎒 交出 {obj['collect']} ×{need}")
             # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式
             # + reward_pet/reward_mount/unlock_class）——此前主线交付只支持 reward_item
@@ -3890,6 +3892,8 @@ class WorldCmds(CommandBase):
             need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
             for _ in range(need):
                 db.remove_item(group_id, qq_id, _ckey)
+            # v126.1 鱼获随机波动：交任务扣鱼同步删鱼篓明细（防交了任务还能卖重量）
+            db.consume_fish_catches(qq_id, _ckey, need)
         # v124 交付剧情文本（无分支时）
         dt = sqd.get("deliver_text")
         if dt and not br:

@@ -98,6 +98,20 @@ def roll_fish(prof_lv: int = 1, spot_id: str | None = None, bait: str | None = N
                                   "autumn": "🍂限定", "winter": "❄️限定"}[season]
     return pick
 
+def roll_fish_size_weight(fish: dict):
+    """v126.1 鱼获随机波动：百分位均匀分布在品种 size_range/weight_range 区间内插值。
+
+    返回 {"size": float(cm), "weight": float(kg)}（保留 1 位小数）；品种未配区间
+    （老数据/测试桩）返回 None，调用方跳过入明细——出售按 1.0 原价，行为与旧版一致。
+    """
+    sr = fish.get("size_range")
+    wr = fish.get("weight_range")
+    if not sr or not wr or len(sr) < 2 or len(wr) < 2:
+        return None
+    size = sr[0] + (sr[1] - sr[0]) * random.random()
+    weight = wr[0] + (wr[1] - wr[0]) * random.random()
+    return {"size": round(size, 1), "weight": round(weight, 1)}
+
 def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):
     """彩蛋收藏鱼判定（16 章 4.x）：五档之外独立判定。
 

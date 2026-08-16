@@ -48,7 +48,7 @@ from .drops import (  # noqa: F401
     build_monster, build_monster_group,
 )
 from .factions import faction_reputation_tier  # noqa: F401
-from .fishing import roll_fish, roll_collect_fish  # noqa: F401
+from .fishing import roll_fish, roll_collect_fish, roll_fish_size_weight  # noqa: F401
 from .time_weather import (  # noqa: F401
     current_period, current_season, today_weather, time_weather_summary,
     PERIOD_CN, SEASON_CN, WEATHER_CN,
