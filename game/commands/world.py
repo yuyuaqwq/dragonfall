@@ -1663,10 +1663,7 @@ class WorldCmds(CommandBase):
                 if st == "done":
                     lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 已完成]")
                     continue
-                # v116 §3.4：进行中支线可放弃（主线不可弃），面板行尾给序号提示。
-                # 全局序号（跨侧支线/每日连续，与 quest_abandon 的解析一致、不随翻页变化）
-                _aband_g = side_items.index((sid, sq)) + 1
-                _aband = f"｜🗑️ 放弃请发：放弃 {_aband_g}"
+                # v116 §3.4：进行中支线可放弃（主线不可弃），放弃提示统一放面板底部（v123e 去行尾冗余）
                 # 收集型：实时按背包材料判断（v104 补测：复合目标同时显示击杀进度防误导）
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
@@ -1677,22 +1674,22 @@ class WorldCmds(CommandBase):
                         kv = _kill_prog_count(obj, prog)  # v105 M19 P2：兼容旧档老 key 聚合
                         kill_txt = f"｜击杀：{kv}/{obj.get('count', 0)}"
                     if have >= need:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]{_aband}")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]")
                         lines.append(f"    材料已齐！回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     else:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]{_aband}")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
                     continue
                 # v104 M20 P2：find 型（告示委托等）面板提示机制——在 XX 探索有概率遇到
                 # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
                 if obj.get("find"):
-                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]{_aband}")
+                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
                     lines.append(f"    {self._obj_text(obj)}")
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
-                lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]{_aband}")
+                lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
                 if st == "ready":
                     lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
             if pages > 1 and page < pages:
@@ -1714,12 +1711,10 @@ class WorldCmds(CommandBase):
                 if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，跳过
                     continue
                 _daily_n += 1
-                # 全局放弃序号 = 侧支线全部 + 每日任务序（与 quest_abandon 解析一致）
-                _aband_g = len(side_items) + _daily_n
                 dobj = dq["objective"]
                 # v104 M20：新日常目标类型（行会委托 complete_side / 采集任务 collect_any）纳入需求提取
                 need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("complete_side", dobj.get("collect_any", dobj.get("count", 99))))))
-                lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})｜🗑️ 放弃请发：放弃 {_aband_g}")
+                lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
         else:
             lines.append("")
             _done = int(daily.get("_completed", 0) or 0)
@@ -1737,6 +1732,9 @@ class WorldCmds(CommandBase):
             lines.append("【师门考验】")
             lines.append(f"  ⏳ 正在接受【{_tnpc.get('name', '导师')}】的拜师考验，回复『继续』接着进行")
         lines.append("")
+        # v123e：放弃提示统一放面板底部一次（原每个支线/每日行尾『放弃请发』冗余）
+        if side_items or any(k not in _DAILY_META_KEYS for k in daily):
+            lines.append("💡 放弃进行中的支线/每日：『放弃 <序号>』（序号见列表）")
         lines.append("💡 输入『每日』领取今日任务，『对话 <NPC名>』接取任务")
         yield event.plain_result("\n".join(lines))
 
@@ -1752,6 +1750,16 @@ class WorldCmds(CommandBase):
         # 主线（pending 可接）
         main_id = quests.get("main_quest")
         mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None) if main_id else None
+        # v123d：『接取 <序号>』——先按无参数列表全局序号映射到任务名（参数统一铁律：
+        # 列表展示序号即可选），映射后统一走下方名字分支（主线/支线都命中）
+        if raw and raw.isdigit():
+            _avail = self._available_quest_list(player, quests, mq)
+            idx = int(raw)
+            if 1 <= idx <= len(_avail):
+                raw = _avail[idx - 1]["name"]
+            else:
+                yield event.plain_result(f"❌ 序号无效！当前可接取 {len(_avail)} 个任务，输入『接取』查看列表～")
+                return
         if mq:
             st = quests.get("main_status", "pending")
             if st == "pending" and (not raw or raw in (mq["name"], "任务", "主线")):
@@ -1849,27 +1857,11 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"支线『{sq['name']}』由 {npc.get('name', '？')}(在{giver_map}) 发布，去找他对话接取～")
                 return
         # 无参数 → 列出当前地图可接任务（主线 pending + 未接支线）
-        available = []
-        if mq and quests.get("main_status") == "pending":
-            giver = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
-            if giver.get("map") == player["cur_map"]:
-                available.append(f"📜 主线『{mq['name']}』（{giver.get('name', '？')}发布）")
-        for sq in C.SIDE_QUESTS:
-            if sq["id"] in (quests.get("side") or {}):
-                continue
-            # v104 M20 P2：告示委托（board: true）只在告示板子区域指名接取，
-            # 列入普通列表会误导玩家（点名接取被 world.py 告示板拦截逻辑挡下）
-            if sq.get("board"):
-                continue
-            npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
-            if npc.get("map") == player["cur_map"]:
-                # v104 M19：接取列表显示支线等级门槛
-                _lv = f"Lv.{sq['min_level']}+ " if sq.get("min_level") else ""
-                available.append(f"📜 支线『{sq['name']}』{_lv}（{npc.get('name', '？')}发布）")
+        available = self._available_quest_list(player, quests, mq)
         if available:
             lines = ["📜 【可接取任务】", "━━━━━━━━━━━━"]
-            lines += [f"{i:>2}. {a}" for i, a in enumerate(available, 1)]
-            lines.append("💡 输入『接取 <任务名>』接取指定任务～")
+            lines += [f"{i:>2}. 📜 {a['line']}" for i, a in enumerate(available, 1)]
+            lines.append("💡 输入『接取 <任务名>』或『接取 <序号>』接取指定任务～")
             yield event.plain_result("\n".join(lines))
             return
         # v95.15 #70：指名接取但上面没匹配到 → 明确提示未找到/已接取
@@ -1881,6 +1873,37 @@ class WorldCmds(CommandBase):
                 yield event.plain_result(f"未找到名为『{raw}』的任务。输入『任务』查看进度～")
             return
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
+
+    def _available_quest_list(self, player, quests, mq) -> list:
+        """当前地图可接取任务列表（v123d 抽出，供『接取』无参渲染与『接取 <序号>』映射共用）。
+
+        返回 [{"name": 任务名, "line": 渲染行（不含 📜 前缀）}, ...]——主线 pending 在前，
+        支线按 C.SIDE_QUESTS 顺序；告示委托（board）不在此列（须去告示板指名接取）。
+        """
+        available = []
+        if mq and quests.get("main_status") == "pending":
+            giver = C.NPCS.get(mq["giver"]) or C.ALL_WILD.get(mq["giver"]) or {}
+            if giver.get("map") == player["cur_map"]:
+                available.append({
+                    "name": mq["name"],
+                    "line": f"主线『{mq['name']}』（{giver.get('name', '？')}发布）",
+                })
+        for sq in C.SIDE_QUESTS:
+            if sq["id"] in (quests.get("side") or {}):
+                continue
+            # v104 M20 P2：告示委托（board: true）只在告示板子区域指名接取，
+            # 列入普通列表会误导玩家（点名接取被 world.py 告示板拦截逻辑挡下）
+            if sq.get("board"):
+                continue
+            npc = C.NPCS.get(sq["giver"]) or C.ALL_WILD.get(sq["giver"]) or {}
+            if npc.get("map") == player["cur_map"]:
+                # v104 M19：接取列表显示支线等级门槛
+                _lv = f"Lv.{sq['min_level']}+ " if sq.get("min_level") else ""
+                available.append({
+                    "name": sq["name"],
+                    "line": f"支线『{sq['name']}』{_lv}（{npc.get('name', '？')}发布）",
+                })
+        return available
 
 
     # v116 §3.4：放弃进行中的支线/每日任务（释放接取位）。主线不可放弃。

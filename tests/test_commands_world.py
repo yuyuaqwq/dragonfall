@@ -156,6 +156,32 @@ async def main():
     check("指名进行中主线→进行中提示", "进行中" in out and "无需重复" in out, out[:120])
     check("不回显支线列表", "【可接取任务】" not in out, out[:120])
 
+    print("【v123d：『接取 <序号>』按列表序号接取（参数统一：展示序号即可选）】")
+    clean_db()
+    m4 = Main(None)
+    await cmd(m4, "register", "g1", "w1", "注册 战士 旅人 男")
+    db.update_player("g1", "w1", level=10, gold=1000, cur_map="oak_town")
+    # 主线 pending（giver 在橡木镇）→ 『接取 1』序号映射到主线名并接取
+    out = await cmd(m4, "quest_accept", "g1", "w1", "接取 1")
+    qs = db.get_quests("g1", "w1")
+    check("『接取 1』接取主线（序号映射）", qs.get("main_status") == "active", str(qs.get("main_status")))
+    # 主线 active 时无参数『接取』提示进行中（现有行为）
+    out = await cmd(m4, "quest_accept", "g1", "w1", "接取")
+    check("主线进行中提示", "进行中" in out, out[:120])
+    # 主线完成（main_quest=None）→ 『接取』显示支线列表（带序号）
+    qs["main_quest"] = None
+    qs["completed_main"] = ["done"]
+    db.save_quests("g1", "w1", qs)
+    out = await cmd(m4, "quest_accept", "g1", "w1", "接取")
+    check("接取列表带序号", "【可接取任务】" in out and "1. 📜" in out, out[:150])
+    # 『接取 1』→ 接第一个支线（史莱姆果冻，s1）
+    out = await cmd(m4, "quest_accept", "g1", "w1", "接取 1")
+    qs = db.get_quests("g1", "w1")
+    check("『接取 1』接取支线", "s1" in (qs.get("side") or {}), str(qs.get("side")))
+    # 越界序号
+    out = await cmd(m4, "quest_accept", "g1", "w1", "接取 99")
+    check("越界序号提示无效", "序号无效" in out, out[:120])
+
     print("【v95.13 #126：kill_any 支线计数（护送商货）】")
     clean_db()
     m3 = Main(None)
