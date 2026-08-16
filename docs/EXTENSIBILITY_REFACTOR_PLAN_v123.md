@@ -64,3 +64,11 @@
 - `_record_list_state` 放渲染函数尾部（能拿到 player/qq_id 就渲染函数内记，否则 handler 层记）
 - `=n` 越界 clamp 到 [1, pages]；`+n`/`-n` 同理
 - 全角 `＋－＝０-９` 必须支持（手机输入法）
+
+## 六、完成状态（2026-08-16）
+- ✅ 核心机制（base.py _record_list_state + player.py page_flip + shortcut_trigger 后缀 + _registry.py 同步）
+- ✅ 列表接入 13 处（economy 9 + combat 1 + social 2 + world 1）
+- ✅ test_v123_page_flip.py 48 断言全绿；test_v87_command_matrix 201/201；test_command_parse 21/21
+- ✅ 全量回归 151/151 绿；双仓提交；AstrBot 重启上线
+- ✅ 策划案 23 章同步（翻页快捷键 + 裸数字规则）
+- 追加 v123a（鱼鱼拍板）：移除「裸数字序号直接找 NPC」（npc_quick_dialog 删序号分支，保留对话树选项/物品查看/移动模式），NPC 列表序号仅展示；『对话 <名字/序号>』显式交谈保留；4 处文案+docstring+测试断言同步

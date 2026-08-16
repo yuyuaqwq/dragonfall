@@ -1467,6 +1467,7 @@ class CombatCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")
         lines.append("『技能学习 <名称>』消耗技能点学会；战斗中『技能 <槽位>』或『技能 <名称>』施放；副本中治疗可『技能 <名称> <队友名>』指定目标")
+        self._record_list_state(player.get("qq_id"), "技能列表", page, pages)
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?防御(?:\s*|$)")

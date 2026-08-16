@@ -146,7 +146,7 @@ REPRESENTATIVES = {
     # 代表输入用『放弃复活』：『使用复活羽毛』会被 use 前缀正则同时命中（待 O119 侧加 priority）
     "revive_confirm": "放弃复活",
     # player.py
-    "shortcut": "快捷", "shortcut_trigger": "5", "register": "注册", "profile": "角色",
+    "shortcut": "快捷", "shortcut_trigger": "5", "page_flip": "+2", "register": "注册", "profile": "角色",
     "leaderboard": "排行", "races": "种族", "evolve": "转职", "attributes": "属性",
     "add_attr": "加点", "reset_skill": "技能洗点", "evolve_reset": "转职重置",
     "reset_attr": "洗点", "power": "战力", "skill_detail": "技能详情",

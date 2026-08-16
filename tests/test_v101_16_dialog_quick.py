@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""v101.16 『找』→『对话』改版 + 裸数字序号对话测试。
+"""v101.16 『找』→『对话』改版测试（v123a 更新：裸数字序号找 NPC 已移除）。
 
 覆盖：
 1. 『对话 <NPC名>』无对话中 → 找 NPC 开始对话（talk_choice 无状态 fallback）
-2. 裸数字『1』→ 当前地图第 1 个 NPC 对话（npc_quick_dialog，优先级高于快捷指令）
+2. 裸数字『1』→ 不再触发找 NPC 对话（v123a 移除，放行快捷指令）
 3. 裸数字无 NPC 时 → 放行快捷指令（fallthrough）
-4. 对话树中裸数字 → 选对话选项（talk_choice 复用）
+4. 对话树中裸数字 → 选对话选项（talk_choice 复用，保留）
 5. 『找』别名仍可用
 """
 import sys, os, asyncio
@@ -44,15 +44,15 @@ async def main():
     check("进入对话状态", bool(st and st.get("npc")), str(st))
     db.clear_talk_state("g1", "1001")
 
-    # ---- 2. 裸数字『1』→ 对话第 1 个 NPC（无对话中） ----
+    # ---- 2. 裸数字『1』→ v123a 已移除序号找 NPC：放行（不 yield、不 stop） ----
     ev = FakeEvent("g1", "1001", "1")
     r = "".join(str(x) for x in await run(m.npc_quick_dialog, ev))
-    print("  [裸数字1]", r[:100].replace("\n", " | "))
-    check("裸数字命中 NPC 对话", "小艾" in r, r[:100])
-    check("裸数字触发 stop_event", ev._stopped, "未拦截快捷指令")
+    print("  [裸数字1]", (r or "（空=放行）")[:80])
+    check("裸数字不再触发 NPC 对话", r == "", r[:100])
+    check("裸数字不 stop_event（放行快捷指令）", not ev._stopped)
     db.clear_talk_state("g1", "1001")
 
-    # ---- 3. 对话树中裸数字 → 选选项 ----
+    # ---- 3. 对话树中裸数字 → 选选项（保留） ----
     # 先进入小艾对话树
     ev5 = FakeEvent("g1", "1001", "对话 小艾")
     await run(m.talk_choice, ev5)
@@ -81,13 +81,14 @@ async def main():
     check("『找 小艾』别名可用", "小艾" in r3, r3[:120])
     db.clear_talk_state("g1", "1001")
 
-    # ---- 6. 『对话』空参 → NPC 列表（带序号） ----
+    # ---- 6. 『对话』空参 → NPC 列表（带序号展示） ----
     ev4 = FakeEvent("g1", "1001", "对话")
     r4 = "".join(str(x) for x in await run(m.talk_choice, ev4))
     print("  [对话空参]", r4[:150].replace("\n", " | "))
     check("『对话』空参显示列表", "这里的 NPC" in r4 and "1." in r4, r4[:150])
+    check("列表提示引导『对话』", "对话 <名字>" in r4 or "对话 <序号>" in r4, r4[:150])
 
-    # ---- 7. 『对话 <序号>』无状态 → 找第 N 个 NPC ----
+    # ---- 7. 『对话 <序号>』无状态 → 找第 N 个 NPC（显式指令保留） ----
     # v101.25 测试确定性：oak_town_1 酱油 NPC（卖糖人/新手/老人/顽童）有 roam/appear
     # 随机性，深夜跑全量可能只剩小艾 → 移到 oak_town_2（镇长+文书墨点，墨点无随机配置）
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_2")
@@ -105,7 +106,7 @@ async def main():
     db.clear_talk_state("g1", "1001")
     try:
         r8 = "".join(str(x) for x in await run(m.npc_quick_dialog, ev8))
-        check("无 stop_event 事件不抛异常", bool(r8 and len(r8) > 15), r8[:100])
+        check("无 stop_event 事件不抛异常", r8 == "", (r8 or "空=放行")[:100])
     except Exception as e:
         check("无 stop_event 事件不抛异常", False, repr(e))
 

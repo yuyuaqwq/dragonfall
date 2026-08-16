@@ -53,6 +53,7 @@ class SocialCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"💡 『市场 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『购入 <编号>』购买，『上架 <物品> <价格>』寄售")
+        self._record_list_state(qq_id, "市场", page, pages)
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?上架(?:\s*|$)")
@@ -593,6 +594,7 @@ class SocialCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 『公会签到』『公会任务』『公会捐献』为公会赚经验！")
+        self._record_list_state(qq_id, "公会", page, pages)
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?公会签到(?:\s*|$)")

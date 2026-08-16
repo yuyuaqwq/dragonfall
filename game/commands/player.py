@@ -109,25 +109,90 @@ class PlayerCmds(CommandBase):
 
     # v105 P1(M01#4)+P2(M01)：触发放宽到任意位数字（复活历史 ≥100 死绑定）+
     # 允许尾随空格（『1 』此前静默无反应）；全角数字在 handler 内归一后查表
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d*\s*$")
+    # v123：支持快捷指令后缀（绑『1→前往』，发『13』= 前往 3）——正则数字开头后任意，
+    # 后缀在 handler 内拼 f"{cmd_text} {rest}" 转发（数字前缀仍全角归一）
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d*[\s\S]*$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
-        """纯数字消息：查玩家的快捷绑定并转发执行"""
+        """数字开头消息：查玩家的快捷绑定并转发执行（v123 起支持『数字+后缀』参数透传）"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
             return
         shortcuts = player.get("shortcuts") or {}
-        num = event.get_message_str().strip()
-        num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
-        # v105：全角数字归一（绑『１２』发『12』也能触发，反之亦然）
-        if num.isdigit():
-            num = str(int(num))
-        if num not in shortcuts:
+        msg = event.get_message_str().strip()
+        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg).strip()
+        m = re.match(r"[0-9０-９]\d*", msg)
+        if not m:
+            return
+        digits = m.group(0)
+        tail = msg[m.end():].strip()
+        # v123：先整段数字查表（保持纯数字原语义，『13』绑『13』仍直接触发）；
+        # 未命中则逐位缩短找绑定前缀，剩余数字并入后缀（绑『1→前往』，发『13』=『前往 3』）
+        num = None
+        suffix = tail
+        for i in range(len(digits), 0, -1):
+            cand = str(int(digits[:i]))  # v105：全角数字归一（int() 直接吃全角数字）
+            if cand in shortcuts:
+                num = cand
+                if i < len(digits):
+                    # 剩余数字并入后缀并归一（『１３』→『3』，目标 handler 解析更稳）
+                    suffix = (str(int(digits[i:])) + " " + tail).strip()
+                break
+        if num is None:
             return
         cmd_text = shortcuts[num]
-        async for r in self._run_shortcut(event, cmd_text):
+        if suffix:
+            # v123：快捷后缀 → 『绑定指令 后缀』（如『13』→『前往 3』）
+            async for r in self._run_shortcut(event, f"{cmd_text} {suffix}"):
+                yield r
+        else:
+            async for r in self._run_shortcut(event, cmd_text):
+                yield r
+
+    # v123 列表翻页快捷键：+ / ＋ 下一页、- / － 上一页、=n / ＝n 跳页（读 last_list_{qq_id} 状态）
+    # 单正则三符号（全角 ＋－＝ 一并匹配，手机输入法）；'=' 无数字时给用法提示；各列表渲染尾部由 _record_list_state 记录状态
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?[+＋\-－＝=][0-9０-９]*\s*$")
+    @require_player()
+
+    async def page_flip(self, event: AstrMessageEvent):
+        """v123 翻页快捷键：+ 下一页 / - 上一页 / =n 跳页（转发重建指令执行，零侵入渲染）"""
+        group_id, qq_id = self._uid(event)
+        msg = event.get_message_str().strip()
+        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
+        op = msg[0]
+        digits = msg[1:].strip()
+        # v123：+/- 无数字 → ±1 页；= 无数字 → 提示用法
+        n = int(digits) if digits else (1 if op in "+＋-－" else None)
+        if op in "=＝" and n is None:
+            yield event.plain_result("📄 跳页用法：『=页数』，如『=3』跳第 3 页～")
+            self._stop_event_safe(event)
+            return
+        saved = {}
+        try:
+            raw = db.get_event_state(f"last_list_{qq_id}")
+            if raw:
+                saved = json.loads(raw)
+        except Exception:
+            saved = {}
+        cmd = saved.get("cmd")
+        if not cmd:
+            yield event.plain_result("📄 先打开一个列表（『背包』『技能列表』『任务』等）再发翻页快捷键～")
+            self._stop_event_safe(event)
+            return
+        page = int(saved.get("page") or 1)
+        pages = int(saved.get("pages") or 1)
+        if op in "+＋":
+            new_page = page + n
+        elif op in "-－":
+            new_page = page - n
+        else:
+            new_page = n
+        new_page = max(1, min(new_page, pages))
+        text = f"{cmd} {new_page}"
+        async for r in self._run_shortcut(event, text):
             yield r
+        self._stop_event_safe(event)
 
     # v105 M24 P3-2：『注册表』前缀误触（(?:\s*|$) 空匹配语义）→ 负向断言收窄
     @filter.regex(r"^(?:\[At:\d+\]\s*)?注册(?!表)(?:\s*|$)")

@@ -54,12 +54,11 @@ async def main():
     check("『前往结束』响应", "已关闭" in r3, r3[:80])
     check("状态清除", db.get_event_state("move_mode:1001") != "1", str(db.get_event_state("move_mode:1001")))
 
-    # ---- 4. 关闭后裸数字 → 回退 NPC 对话（东大街有 NPC） ----
+    # ---- 4. 关闭后裸数字 → 放行（v123a：序号找 NPC 已移除；快捷指令兜底） ----
     ev4 = FakeEvent("g1", "1001", "1")
     r4 = "".join(str(x) for x in await run(m.npc_quick_dialog, ev4))
-    print("  [关闭后裸数字1]", r4[:100].replace("\n", " | "))
-    check("关闭后裸数字走 NPC 对话", bool(r4 and len(r4) > 15), r4[:100])
-    check("NPC 分支 stop_event", ev4._stopped)
+    print("  [关闭后裸数字1]", (r4 or "（空=放行）")[:100])
+    check("关闭后裸数字放行（不再走 NPC 对话）", r4 == "" and not ev4._stopped, r4[:100])
 
     # ---- 5. 『前往开始』不被 move 抢（regex 验证） ----
     import re as _re

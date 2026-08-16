@@ -656,7 +656,7 @@ class WorldCmds(CommandBase):
             lines.append("👥 这里的 NPC：")
             for i, (_, n) in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append("  💡 回复序号直接交谈")
+            lines.append("  💡 『对话 <名字>』交谈")
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
@@ -1183,7 +1183,7 @@ class WorldCmds(CommandBase):
             lines.append("👥 这里的 NPC：")
             for i, n in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append("  💡 回复序号直接交谈")
+            lines.append("  💡 『对话 <名字>』交谈")
         # 功能提示
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "锻造",
@@ -1697,6 +1697,7 @@ class WorldCmds(CommandBase):
                     lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
             if pages > 1 and page < pages:
                 lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
+            self._record_list_state(qq_id, "任务", page, pages)
         else:
             lines.append("")
             lines.append("【支线】暂无——找镇上的 NPC 聊聊可能有意外收获")
@@ -2130,7 +2131,7 @@ class WorldCmds(CommandBase):
         return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
 
     def _start_talk_list(self, group_id, qq_id) -> list:
-        """当前地图 NPC 列表（带序号，回复序号直接交谈）。『对话』空参共用。"""
+        """当前地图 NPC 列表（带序号展示；交谈用『对话 <名字>』/『对话 <序号>』，v123a 起裸数字不再直接找 NPC）。『对话』空参共用。"""
         player = self._player(group_id, qq_id)
         if player and player["cur_map"].startswith("home_"):
             return ["家里没有 NPC 可以交谈～『出门』去镇上找人吧！"]
@@ -2140,7 +2141,7 @@ class WorldCmds(CommandBase):
         lines = ["👥 这里的 NPC："]
         for i, n in enumerate(npcs, 1):
             lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-        lines.append("💡 回复序号直接交谈，或『对话 <名字>』")
+        lines.append("💡 『对话 <名字>』或『对话 <序号>』交谈")
         return lines
 
     def _find_npc_in_map(self, player, name_key):
@@ -2600,11 +2601,14 @@ class WorldCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$", priority=100)
     @require_player()
     async def npc_quick_dialog(self, event: AstrMessageEvent):
-        """裸数字优先 NPC 对话：对话树选项 > NPC 列表序号 > 快捷指令兜底。
+        """裸数字消费链：对话树选项 > 物品查看 > 移动模式 > 放行快捷指令。
 
         v101.16：『对话』改版配套——地图/NPC 列表带序号，回复序号直接交谈。
+        v123a（鱼鱼拍板）：移除「序号直接找 NPC」——裸数字不再触发找 NPC 对话，
+        NPC 列表序号仅作展示，交谈须『对话 <名字>』/『对话 <序号>』；
+        对话树中的选项回复（_talk_active）保留。
         priority=100 高于 shortcut_trigger(默认0)：命中即 stop_event 拦截快捷指令；
-        无 NPC 可对话时 return（不 yield）→ 放行给快捷指令。
+        无状态可消费时 return（不 yield）→ 放行给快捷指令。
         """
         group_id, qq_id = self._uid(event)
         num = event.get_message_str().strip()
@@ -2631,22 +2635,9 @@ class WorldCmds(CommandBase):
                 yield r
             self._stop_event_safe(event)
             return
-        player = self._player(group_id, qq_id)
-        # v101.25c：快捷指令优先于 NPC 序号——玩家绑定了该数字快捷（『快捷绑定 1 探索』）
-        # 时发『1』应执行快捷，而不是触发找 NPC 1 对话（鱼鱼 2026-08-11 抓包）
-        if player and num in (player.get("shortcuts") or {}):
-            return  # 放行给 shortcut_trigger（priority 低，本 handler return 不 yield）
-        if player and not str(player.get("cur_map", "")).startswith("home_"):
-            npcs = self._current_npcs(player)
-            if npcs and num.isdigit():
-                idx = int(num)
-                if 1 <= idx <= len(npcs):
-                    # 裸数字无"找/对话"前缀 → find_npc 的 _strip_cmd 返回原消息 → 序号分支
-                    async for r in self.find_npc(event):
-                        yield r
-                    self._stop_event_safe(event)
-                    return
-        return  # 无 NPC 可对话 → 放行（快捷指令 / 无响应）
+        # v123a：序号直接找 NPC 已移除——无对话/物品/移动状态时一律放行
+        # （快捷指令由 shortcut_trigger 消费；未绑定则无响应）
+        return
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?找(?:\s*|$)")
     @require_player()
@@ -2672,7 +2663,7 @@ class WorldCmds(CommandBase):
                 lines = ["👥 这里的 NPC："]
                 for i, n in enumerate(npcs, 1):
                     lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-                lines.append("💡 回复序号直接交谈，或『对话 <名字>』")
+                lines.append("💡 『对话 <名字>』或『对话 <序号>』交谈")
                 yield event.plain_result("\n".join(lines))
             return
         # 序号找：『找 1』→ 当前地图第 1 个 NPC

@@ -999,6 +999,7 @@ class EconomyCmds(CommandBase):
         if page < pages:
             nxt = f"｜『炼金 提纯 {page + 1}』下一页" if purify_only else f"｜『炼金 {page + 1}』下一页"
         lines.append(f"📄 第 {page}/{pages} 页{nxt}")
+        self._record_list_state(qq_id, "炼金 提纯" if purify_only else "炼金", page, pages)
         lines.append("💡 『合成 <提纯配方名>』提纯，如『合成 珍珠贝提纯』；🔒 = 炼金等级不够")
         yield event.plain_result("\n".join(lines))
 
@@ -1129,6 +1130,7 @@ class EconomyCmds(CommandBase):
             lines.append(f"    {cost} → {C.display('items', next(iter(r['product'])))}")
         lines.append("")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『烹饪列表 {page + 1}』下一页" if page < pages else ""))
+        self._record_list_state(qq_id, "烹饪列表", page, pages)
         lines.append(f"💡 你当前烹饪等级 Lv.{cook_lv}，『烹饪 <料理名>』制作(如：烹饪 蛇羹)")
         lines.append("💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验")
         yield event.plain_result("\n".join(lines))
@@ -1973,7 +1975,7 @@ class EconomyCmds(CommandBase):
 
     def _craft_recs_filtered(self, player) -> list:
         """当前玩家可锻造的配方列表(玩家等级 + 副业等级 + 图纸已学)"""
-        prof_lv = db.get_prof_level(player.get("group_id", ""), player["qq_id"], "craft")
+        prof_lv = db.get_prof_level(player.get("group_id", ""), player.get("qq_id"), "craft")
         out = []
         for rk, rec in C.CRAFT_RECIPES.items():
             if rec["lv"] > player["level"] + 6:
@@ -2005,11 +2007,12 @@ class EconomyCmds(CommandBase):
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造列表 {page + 1}』下一页" if page < pages else ""))
         lines.append("💡 『锻造 <序号>』锻造 ｜『锻造 <装备名>』锻造 ｜『锻造 全部』看全部 ｜『锻造 <职业>』看职业")
         lines.append("💡 📜 套装需图纸：『学习 <图纸名>』解锁后永久可造")
+        self._record_list_state(player.get("qq_id"), "锻造列表", page, pages)
         return "\n".join(lines)
 
     def _craft_list_all(self, player, page: int = 1) -> str:
         """『锻造 全部』：全部配方，未达标标记"""
-        prof_lv = db.get_prof_level(player.get("group_id", ""), player["qq_id"], "craft")
+        prof_lv = db.get_prof_level(player.get("group_id", ""), player.get("qq_id"), "craft")
         recs = []
         for rk, rec in C.CRAFT_RECIPES.items():
             marks = []
@@ -2033,6 +2036,7 @@ class EconomyCmds(CommandBase):
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 全部 {page + 1}』下一页" if page < pages else ""))
         lines.append("💡 未达标的配方：🔒等级不够 ｜ 🛠️锻造副业等级不够 ｜ 📜图纸未学习")
         lines.append("💡 序号仅本页展示用；实际锻造用『锻造 <装备名>』或『锻造列表』内对应序号")
+        self._record_list_state(player.get("qq_id"), "锻造 全部", page, pages)
         return "\n".join(lines)
 
     def _craft_list_class(self, player, cls: str, page: int = 1) -> str:
@@ -2051,6 +2055,7 @@ class EconomyCmds(CommandBase):
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 {cls_name} {page + 1}』下一页" if page < pages else ""))
         lines.append(f"💡 『锻造 <装备名>』锻造 ｜『锻造 全部』看全部配方")
         lines.append("💡 序号仅本页展示用；实际锻造用『锻造 <装备名>』或『锻造列表』内对应序号")
+        self._record_list_state(player.get("qq_id"), f"锻造 {cls_name}", page, pages)
         return "\n".join(lines)
 
     def _recipe_detail(self, rec_name: str) -> str:
@@ -2599,6 +2604,7 @@ class EconomyCmds(CommandBase):
         if pages > 1 and page < pages:
             lines.append(f"💡 『图鉴 {page+1}』看下一页(共 {pages} 页)")
         lines.append("💡 击败新怪物会自动收录图鉴")
+        self._record_list_state(qq_id, "图鉴", page, pages)
         # v104 M15 修复：垂钓彩蛋收藏鱼收集展示（13 章 4.3 / 16 章 4.x）
         yield event.plain_result("\n".join(lines) + self._collect_fish_bestiary(group_id, qq_id))
 
@@ -2819,6 +2825,7 @@ class EconomyCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『称号 {page+1}』看下一页")
+        self._record_list_state(qq_id, "称号", page, pages)
         lines.append(f"💡 『称号 装备 <名称>』佩戴展示(显示在角色名前)，『称号 卸下』取消")
         if not cur:
             lines.append("💡 当前未佩戴称号")
@@ -2938,6 +2945,8 @@ class EconomyCmds(CommandBase):
                                json.dumps({"cat": category or "", "page": page}, ensure_ascii=False))
         except Exception:
             pass
+        # v123 通用列表状态：翻页快捷键 +/−/= 恢复本列表（保留上方旧相对翻页状态，两者并存）
+        self._record_list_state(qq_id, f"背包 {category}" if category else "背包", page, pages)
         title = f"🎒 【背包·{category}】" if category else "🎒 【背包】"
         lines = [f"{title}(第 {page}/{pages} 页 · 共 {len(items)} 件)", "━━━━━━━━━━━━"]
         for i, it in enumerate(page_items, (page - 1) * 5 + 1):
@@ -3932,6 +3941,7 @@ class EconomyCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『商店 {page+1}』看下一页（共 {pages} 页）")
+        self._record_list_state(qq_id, "商店", page, pages)
         lines.append(f"💰 你的金币：{player['gold']}")
         lines.append("💡 『购买 <名称>』或『购买 <序号>』")
         yield event.plain_result("\n".join(lines))

@@ -254,6 +254,16 @@ class CommandBase:
             return int(raw)
         return 1
 
+    def _record_list_state(self, qq_id, cmd, page, pages):
+        """记录玩家最后一次列表视图（v123 翻页快捷键 +/-/= 用）。
+        qq_id: 玩家 QQ 号；cmd: 重建指令文本（不含页码，如 '背包 材料'/'技能列表'）；page/pages: 当前页/总页数"""
+        if not qq_id:
+            return
+        try:
+            db.set_event_state(f"last_list_{qq_id}", json.dumps({"cmd": cmd, "page": page, "pages": pages}, ensure_ascii=False))
+        except Exception:
+            pass
+
     def _at_smith(self, player: dict) -> bool:
         """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（锻造/代工/强化/附魔场所）。
         v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。"""
