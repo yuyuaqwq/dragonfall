@@ -50,9 +50,9 @@ async def main():
         # maps 有效
         for mid in (e.get("maps") or []):
             check(f"彩蛋 {e['id']} maps[{mid}]有效", mid in map_ids, mid)
-    check("彩蛋总数 = 36", len(EXPLORE_EGG_EVENTS) == 36, len(EXPLORE_EGG_EVENTS))
+    check("彩蛋总数 = 46（v125 扩容 36→46）", len(EXPLORE_EGG_EVENTS) == 46, len(EXPLORE_EGG_EVENTS))
     region_cnt = sum(1 for e in EXPLORE_EGG_EVENTS if e.get("maps"))
-    check("区域彩蛋 19 个", region_cnt == 19, region_cnt)
+    check("区域彩蛋 24 个（v125 扩容 19→24）", region_cnt == 24, region_cnt)
 
     print("\n【2. roll_explore_egg 区域过滤】")
     clean_db()

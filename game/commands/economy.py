@@ -3978,9 +3978,14 @@ class EconomyCmds(CommandBase):
                     _mo = "（已拥有）" if mdef["key"] in _mount_owned else ""
                     entries.append((f"mount:{mdef['key']}",
                                     f"{mdef['icon']}{mdef['name']}{_mo}（坐骑 Lv.{mdef['lv']} 商店直购）—— {mdef['price']} 金币"))
-        # v104 M09 P2 修复：商队集市 8 折期面板标注（此前面板恒显原价、实付 8 折无提示）
+        # v104 M09 P2 修复：世界事件商店折扣期面板标注（effects 数据驱动：shop_discount，0.8 = 8 折）
         cur_evt = db.get_world_event()
-        _discount_tip = "（商队集市 8 折！）" if (cur_evt and cur_evt["etype"] == "merchant") else ""
+        _discount_tip = ""
+        if cur_evt:
+            _evt_def = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur_evt["etype"]), None)
+            _sd = (_evt_def.get("effects") or {}).get("shop_discount") if _evt_def else None
+            if _sd:
+                _discount_tip = f"（{_evt_def['name']} {int(round(_sd * 10))} 折！）"
         raw = self._strip_cmd(event, "商店")
         page = self._parse_page(raw)
         page_items, pages, page = self._page_items(entries, page, per_page=5)
@@ -4042,11 +4047,16 @@ class EconomyCmds(CommandBase):
             item_name = " ".join(_parts[:-1])
         # 全角括号容错：『购买 治疗药水（中）』→ 半角『治疗药水(中)』
         item_name = item_name.replace("（", "(").replace("）", ")")
-        # 商队集市事件：商店 8 折
+        # 世界事件商店折扣（effects 数据驱动：shop_discount，0.8 = 8 折）
         discount = 1.0
+        _evt_tip = ""
         cur_evt = db.get_world_event()
-        if cur_evt and cur_evt["etype"] == "merchant":
-            discount = 0.8
+        if cur_evt:
+            _evt_def = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur_evt["etype"]), None)
+            _sd = (_evt_def.get("effects") or {}).get("shop_discount") if _evt_def else None
+            if _sd:
+                discount = float(_sd)
+                _evt_tip = f"（{_evt_def['name']} {int(round(_sd * 10))} 折！）"
         weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
         # v101.25h：武器/名册装备只在 smith/general 卖（草药铺/酒馆不卖）
         # v101.28o：is_smith 也放行——craft+alchemy 双职能店（如晨曦药剂坊 dawn_city_5）
@@ -4084,7 +4094,7 @@ class EconomyCmds(CommandBase):
                 bp = C.roll_blueprint(max(1, player["level"]))
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                tip = _evt_tip
                 yield event.plain_result(f"✅ 你买到一张【{bp['name']}】！{tip}")
                 return
             if str(key).startswith("m:"):
@@ -4099,7 +4109,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
                 db.add_item(group_id, qq_id, mid, {**mt, "type": "材料", "stackable": True, "price": price}, count=qty)
-                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                tip = _evt_tip
                 qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return
@@ -4186,7 +4196,7 @@ class EconomyCmds(CommandBase):
                 # v104 修 M09-P0：全量拷贝 ITEMS 定义字段（hot/hot_turns/hot_mana/food_effect/effect），
                 #   否则 9 种店售食物丢 hot 字段 → infer_template 判为药水，战斗内持续恢复失效
                 db.add_item(group_id, qq_id, iid, {**it, "type": "消耗品", "stackable": True, "price": price}, count=qty)
-                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                tip = _evt_tip
                 qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
@@ -4204,7 +4214,7 @@ class EconomyCmds(CommandBase):
             bp = C.roll_blueprint(max(1, player["level"]))
             import uuid
             db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-            tip = "（商队集市 8 折！）" if discount < 1 else ""
+            tip = _evt_tip
             yield event.plain_result(f"✅ 你买到一张【{bp['name']}】！{tip}")
             return
         # 找补给品（按名称）
@@ -4221,7 +4231,7 @@ class EconomyCmds(CommandBase):
                 # v104 修 M09-P0：全量拷贝 ITEMS 定义字段（hot/hot_turns/hot_mana/food_effect/effect），
                 #   否则 9 种店售食物丢 hot 字段 → infer_template 判为药水，战斗内持续恢复失效
                 db.add_item(group_id, qq_id, iid, {**it, "type": "消耗品", "stackable": True, "price": price}, count=qty)
-                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                tip = _evt_tip
                 qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{it['name']}】{qty_str}！{tip}")
                 return
@@ -4237,7 +4247,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
                 db.add_item(group_id, qq_id, mid, {**mt, "type": "材料", "stackable": True, "price": price}, count=qty)
-                tip = "（商队集市 8 折！）" if discount < 1 else ""
+                tip = _evt_tip
                 qty_str = f" ×{qty}"  # #254: 单件购买也回显数量（此前 qty=1 无回显）
                 yield event.plain_result(f"✅ 你购买了【{mt['name']}】{qty_str}！{tip}")
                 return

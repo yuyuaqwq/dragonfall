@@ -36,7 +36,7 @@ async def main():
         check(f"事件 {ev['id']} id 唯一", ev["id"] not in ids)
         ids.add(ev["id"])
         check(f"事件 {ev['id']} template 已注册", ev.get("template") in TEMPLATES)
-    check("常规事件数量 = 50", len(C.EXPLORE_EVENTS) == 50, len(C.EXPLORE_EVENTS))
+    check("常规事件数量 = 100（v125 扩容 50→100）", len(C.EXPLORE_EVENTS) == 100, len(C.EXPLORE_EVENTS))
 
     # 新模板注册
     for t in ["random_choice", "stamina_cost"]:

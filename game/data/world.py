@@ -11,14 +11,101 @@ WORLD_EVENT_POOL = [
     {"type": "boss",     "name": "世界Boss入侵", "icon": "👹", "duration": 10800,
      "desc": "强大的魔物突破封印降临大陆！全服勇士共同讨伐，输入『讨伐』加入战斗！"},
     {"type": "merchant", "name": "商队集市", "icon": "🎁", "duration": 3600,
-     "desc": "远方商队进城了！所有商店限时 8 折，快去扫货！(输入『商店』查看)"},
+     "desc": "远方商队进城了！所有商店限时 8 折，快去扫货！(输入『商店』查看)",
+     "effects": {"shop_discount": 0.8}},
     {"type": "omen",     "name": "深渊涌动", "icon": "🌋", "duration": 7200,
-     "desc": "深渊裂隙异常活跃，魔物蠢蠢欲动！探索战斗经验与金币收益＋50%！"},
+     "desc": "深渊裂隙异常活跃，魔物蠢蠢欲动！探索战斗经验与金币收益＋50%！",
+     "effects": {"exp_mult": 1.5, "gold_mult": 1.5}},
     {"type": "swarm",    "name": "兽潮来袭", "icon": "⚔️", "duration": 7200,
-     "desc": "兽潮涌向大陆，怪物经验＋30%，击杀声望双倍！守护这片土地！"},
+     "desc": "兽潮涌向大陆，怪物经验＋30%，击杀声望双倍！守护这片土地！",
+     "effects": {"exp_mult": 1.3, "rep_mult": 2.0}},
     {"type": "festival", "name": "圣光节", "icon": "🎉", "duration": 14400,
-     "desc": "教会举行圣光节庆典！『签到』奖励翻倍，战斗金币收益＋50%！"},
-]
+     "desc": "教会举行圣光节庆典！『签到』奖励翻倍，战斗金币收益＋50%！",
+     "effects": {"gold_mult": 1.5}},
+
+
+    # ============ v125 世界事件扩容 +8（effects 数据驱动） ============
+    {
+        "type": "festival",
+        "name": "丰收祭",
+        "icon": "🌾",
+        "duration": 14400,
+        "desc": "金穗平原麦浪翻涌，丰收祭启幕！全境战斗金币收益×1.5，共庆丰年！",
+        "effects": {
+        "gold_mult": 1.5
+    }
+},
+    {
+        "type": "festival",
+        "name": "仲夏夜祭典",
+        "icon": "🏮",
+        "duration": 14400,
+        "desc": "萤火纷飞、篝火映夜，仲夏夜祭典歌舞不休！战斗经验收益×1.3！",
+        "effects": {
+        "exp_mult": 1.3
+    }
+},
+    {
+        "type": "omen",
+        "name": "流星雨之夜",
+        "icon": "🌠",
+        "duration": 7200,
+        "desc": "流星雨划破夜空，星辉洒落大地！向流星许愿，战斗经验收益×1.5！",
+        "effects": {
+        "exp_mult": 1.5
+    }
+},
+    {
+        "type": "omen",
+        "name": "极光之夜",
+        "icon": "🌌",
+        "duration": 7200,
+        "desc": "北境极光漫天舞动，元素魔力为之共鸣！战斗经验与金币收益×1.3！",
+        "effects": {
+        "exp_mult": 1.3,
+        "gold_mult": 1.3
+    }
+},
+    {
+        "type": "merchant",
+        "name": "矮人商队",
+        "icon": "⚒️",
+        "duration": 3600,
+        "desc": "矮人锻造商队进城，锤声叮当！所有商店限时 8.5 折，神兵利器任你挑选！",
+        "effects": {
+        "shop_discount": 0.85
+    }
+},
+    {
+        "type": "merchant",
+        "name": "精灵商队",
+        "icon": "🧝",
+        "duration": 3600,
+        "desc": "精灵商队踏月色而至，药香弥漫街巷！所有商店限时 8.5 折，珍稀药剂材料不容错过！",
+        "effects": {
+        "shop_discount": 0.85
+    }
+},
+    {
+        "type": "swarm",
+        "name": "鼠潮",
+        "icon": "🐀",
+        "duration": 7200,
+        "desc": "地下鼠群骚动不安，成群涌出地表！讨伐鼠潮，战斗经验收益×1.2！",
+        "effects": {
+        "exp_mult": 1.2
+    }
+},
+    {
+        "type": "swarm",
+        "name": "狼群围猎季",
+        "icon": "🐺",
+        "duration": 7200,
+        "desc": "北境狼群进入围猎季，嚎声四起！猎杀群狼，战斗经验收益×1.3！",
+        "effects": {
+        "exp_mult": 1.3
+    }
+},]
 
 AUCTION_POOL = [
     {"slot": "weapon", "lv": 15, "quality": "purple", "base": 800,  "buyout": 3000},

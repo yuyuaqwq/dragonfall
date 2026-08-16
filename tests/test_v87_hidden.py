@@ -82,15 +82,15 @@ def main():
     print("  · 探索彩蛋扩充")
     from data.plugins.dragonfall.game.data.events import EXPLORE_EGG_EVENTS, EXPLORE_EVENTS
     egg_ids = [e["id"] for e in EXPLORE_EGG_EVENTS]
-    # v97.6 扩容 5→30 → v115 再扩 36（区域 19 + 全局 17）
-    check("彩蛋事件 36 种（含 old_map/gold_slime + v97.6 新 25 + v115 扩）",
-          len(egg_ids) == 36 and "old_map" in egg_ids and "gold_slime" in egg_ids
+    # v97.6 扩容 5→30 → v115 再扩 36（区域 19 + 全局 17）→ v125 再扩 46（区域 24 + 全局 22）
+    check("彩蛋事件 46 种（含 old_map/gold_slime + v97.6 新 25 + v115 扩 + v125 扩 10）",
+          len(egg_ids) == 46 and "old_map" in egg_ids and "gold_slime" in egg_ids
           and "egg_oak_whisper" in egg_ids and "egg_twin_moon" in egg_ids,
           f"实际 {len(egg_ids)}")
     ev_ids = [e["id"] for e in EXPLORE_EVENTS]
-    # v97.4 扩容 12→30 → v115 再扩 50
-    check("常规事件 50 种（含 lost_camp/meteor/animal/rain + v97.4 新 18 + v115 扩）",
-          len(ev_ids) == 50
+    # v97.4 扩容 12→30 → v115 再扩 50 → v125 再扩 100
+    check("常规事件 100 种（含 lost_camp/meteor/animal/rain + v97.4 新 18 + v115 扩 + v125 扩 50）",
+          len(ev_ids) == 100
           and all(x in ev_ids for x in ("lost_camp", "meteor", "animal", "rain"))
           and all(x in ev_ids for x in ("firefly", "old_well", "windmill", "hunter_hut", "beehive",
                                         "floating_bridge", "old_tree_hollow", "stone_tablet",

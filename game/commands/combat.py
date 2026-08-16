@@ -1799,8 +1799,10 @@ class CombatCmds(CommandBase):
         if em > 0:
             exp = int(exp * (1 + em))
             mount_bonus.append(f"🐎 坐骑疾驰：经验 +{int(em*100)}%")
-        # 世界事件加成：深渊涌动 经验金币+50%；兽潮 经验+30% 声望双倍；庆典 金币+50%
+        # 世界事件加成（effects 数据驱动：按 etype 查 WORLD_EVENT_POOL 定义拿 effects，
+        # db 的 world_event 仅存 etype/ends_at/data；查不到 = 无加成）
         evt_bonus = []
+        evt_effects = {}
         cur_evt = db.get_world_event()
         if cur_evt:
             # v105 M18 P1-5：世界事件期间参与战斗 → world_events 统计
@@ -1810,16 +1812,17 @@ class CombatCmds(CommandBase):
                 db.bump_stats(group_id, qq_id, world_events=1)
             except Exception:
                 pass
-            if cur_evt["etype"] == "omen":
-                exp = int(exp * 1.5); gold = int(gold * 1.5)
-                # v105 M23 P3-3：术语与 data/world.py 事件名统一（omen=深渊涌动，原写「元素异象」）
-                evt_bonus.append(f"{cur_evt.get('icon', '🌋')} {cur_evt.get('name', '深渊涌动')}：收益 +50%")
-            elif cur_evt["etype"] == "swarm":
-                exp = int(exp * 1.3)
-                evt_bonus.append("⚔️ 兽潮：经验 +30%")
-            elif cur_evt["etype"] == "festival":
-                gold = int(gold * 1.5)
-                evt_bonus.append("🎉 庆典：掉落价值 +50%")
+            evt_def = next((e for e in C.WORLD_EVENT_POOL if e["type"] == cur_evt["etype"]), None)
+            if evt_def:
+                evt_effects = evt_def.get("effects") or {}
+                _em = evt_effects.get("exp_mult")
+                _gm = evt_effects.get("gold_mult")
+                if _em:
+                    exp = int(exp * _em)
+                    evt_bonus.append(f"{evt_def['icon']} {evt_def['name']}：经验 +{int(round((_em - 1) * 100))}%")
+                if _gm:
+                    gold = int(gold * _gm)
+                    evt_bonus.append(f"{evt_def['icon']} {evt_def['name']}：金币 +{int(round((_gm - 1) * 100))}%")
         # v87 02 章 7.6：每日运势加成（大吉 经验+10% / 小凶 金币-10%）
         fortune_line = ""
         try:
@@ -1853,10 +1856,8 @@ class CombatCmds(CommandBase):
         if area_key and area_key in C.AREA_FACTION:
             faction = C.AREA_FACTION[area_key]
             rep_gain = 5 if monster.get("is_boss") else (3 if monster.get("is_elite") else 1)
-            # 兽潮事件声望双倍
-            cur_evt2 = db.get_world_event()
-            if cur_evt2 and cur_evt2["etype"] == "swarm":
-                rep_gain *= 2
+            # 世界事件声望加成（effects 数据驱动：rep_mult，如兽潮声望双倍）
+            rep_gain = int(rep_gain * evt_effects.get("rep_mult", 1))
             db.add_reputation(group_id, qq_id, faction, rep_gain)
             if rep_gain > 1:
                 rep_lines.append(f"🏛️ {C.FACTIONS[faction]['icon']} 声望 +{rep_gain}")
