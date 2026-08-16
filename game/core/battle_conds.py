@@ -198,3 +198,82 @@ def _c_speed_ratio(battle, player, cond):
     est = battle._enemy_stats()
     espd = est.get("spd", 0)
     return espd > 0 and pst.get("spd", 0) / espd >= cond.get("ratio", 1.5)
+
+
+# ================= 被动条件注册表（v1.x：PASSIVE_COND_CHECKS） =================
+
+# 被动技能 passive.cond 判定统一走本注册表（原 battle.py 三处 if/elif 硬编码）：
+#   - _player_stats 属性被动（rage>=5 / hp_low_50 / hp_high_70 / battle_start）
+#   - _player_skill 伤害倍率被动（dual_stat）
+#   - _damage_player 减伤被动（hp_low_30：条件不满足则跳过减伤）
+# 签名：fn(battle, player, ps) -> bool（ps=被动 dict，含 cond/stat/mult/reduce 等），
+# 返回该条件是否满足。新增被动条件 = 一处注册 + skills.py 数据声明，battle.py 零改动。
+PASSIVE_COND_CHECKS = {}
+
+
+def register_passive_cond(key):
+    """被动条件注册装饰器。"""
+    def deco(fn):
+        PASSIVE_COND_CHECKS[key] = fn
+        return fn
+    return deco
+
+
+def passive_cond_ok(battle, player, ps, default=True):
+    """被动条件判定（battle.py 消费入口）：
+    - ps 无 cond → default
+    - cond 已注册 → 按注册表 handler 判定
+    - cond 未知 → default（防御：未知条件不改变旧行为）
+    """
+    cond = ps.get("cond")
+    if not cond:
+        return default
+    fn = PASSIVE_COND_CHECKS.get(cond)
+    if fn is None:
+        return default
+    return fn(battle, player, ps)
+
+
+@register_passive_cond("rage>=5")
+def _pc_rage_ge5(battle, player, ps):
+    """怒气 ≥ 5（战意高涨）"""
+    return (battle.resources.get("rage", 0) or 0) >= 5
+
+
+@register_passive_cond("hp_low_50")
+def _pc_hp_low_50(battle, player, ps):
+    """生命低于 50%（死战）"""
+    return player.get("hp", 0) / max(1, player.get("max_hp", 1)) < 0.5
+
+
+@register_passive_cond("hp_high_70")
+def _pc_hp_high_70(battle, player, ps):
+    """生命高于 70%（钢铁壁垒/厚土）"""
+    return player.get("hp", 0) / max(1, player.get("max_hp", 1)) >= 0.7
+
+
+@register_passive_cond("battle_start")
+def _pc_battle_start(battle, player, ps):
+    """战斗开始（首回合，战争咆哮）"""
+    return getattr(battle, "round", 1) <= 1
+
+
+@register_passive_cond("hp_low_30")
+def _pc_hp_low_30(battle, player, ps):
+    """生命低于 30%（磐石之躯减伤）"""
+    return player.get("hp", 0) / max(1, player.get("max_hp", 1)) < 0.30
+
+
+@register_passive_cond("dual_stat")
+def _pc_dual_stat(battle, player, ps):
+    """力量/智力同时提升（atk 与 matk 均 > 0，双修精通）"""
+    st = battle._player_stats(player)
+    return bool(st.get("atk")) and bool(st.get("matk"))
+
+
+# 属性被动（_player_stats stat 加成）可消费的条件键白名单：
+# dual_stat（伤害倍率被动，_player_skill 消费）与 hp_low_30（受击减伤被动，
+# _damage_player 消费）由各自站点消费，不在 _player_stats 的 stat 循环内判定
+# （dual_stat 的 handler 内部会再调 _player_stats，若在此循环内求值将无限递归）。
+PASSIVE_COND_STAT_KEYS = frozenset(("rage>=5", "hp_low_50", "hp_high_70", "battle_start"))
+

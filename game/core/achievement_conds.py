@@ -429,7 +429,10 @@ def _c_quest_done(player, stats, profs, extra, cond):
 @register("main_done")
 def _c_main_done(player, stats, profs, extra, cond):
     """主线完成（v105 M18 P1-1 修复：原 db.get_quests 缺 group_id → TypeError 被吞恒 False）
-    完成主线第 12 章 = q12_6『黎明之后』交付（completed_main 含 q12_6）。"""
+    v124.3 数据驱动：completed_main 包含主线链尾任务 id（MAIN_QUESTS 中 next 为空的
+    任务，当前 = q12_6『黎明之后』）即判定完成——主线链增删任务自动跟随，不再硬编码 id。
+    （不采用 len(completed_main)>=len(MAIN_QUESTS)：存档容错重置主线起点时 completed_main
+    保留旧条目、重打会产生重复 id，长度判定会提前误判。）"""
     gid = extra.get("_group_id")
     if not gid:
         return False  # 无群上下文时保持旧行为（恒 False）
@@ -438,7 +441,14 @@ def _c_main_done(player, stats, profs, extra, cond):
         q = db.get_quests(gid, player["qq_id"])
     except Exception:
         return False
-    return "q12_6" in (q.get("completed_main") or [])
+    try:
+        from ..data import MAIN_QUESTS
+        tail_id = next((qd["id"] for qd in MAIN_QUESTS if not qd.get("next")), None)
+    except Exception:
+        return False
+    if not tail_id:
+        return False
+    return tail_id in (q.get("completed_main") or [])
 
 
 @register("main_quest_done")

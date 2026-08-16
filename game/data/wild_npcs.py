@@ -82,6 +82,10 @@ WILD_NPCS = {
         "desc": "知道所有民间传说",
         "funcs": ["lore", "info"],
         "dialogue": "夜里的河最会讲故事。来，给你说一段连国王都不知道的往事……",
+        # v124.3（审计）：解锁链数据化——交谈授予隐藏 NPC 解锁 flag
+        # （world.py _grant_wild_unlock_flags 读此字段；新增解锁型 NPC 无需改代码）
+        "unlock_flags": {"flag": "heard_owl_song",
+                         "notice": "🦉 巴尔的故事里传来一声夜枭的长啼——那声音，仿佛来自白鹿林的深处……"},
     },
     "w_grave_digger": {
         "name": "盗墓贼·鼠仔", "icon": "🪦", "map": "old_battlefield",
@@ -104,6 +108,9 @@ WILD_NPCS = {
         # v105 M21 P1-5：无任务 giver → 删 quest 死 func（保留 lore）
         "funcs": ["lore"],
         "dialogue": "……生者？多少年了，终于又有人踏进这片焦土。",
+        # v124.3（审计）：解锁链数据化（见 w_lore_master 注释）
+        "unlock_flags": {"flag": "soothed_five_ghosts",
+                         "notice": "👻 老兵之魂的执念渐渐平息——古战场深处，仿佛传来一声悠长的叹息……"},
     },
     # ---- 2.3 西境·银月林海（Lv.45-75）----
     "w_elf_wanderer": {
@@ -127,6 +134,9 @@ WILD_NPCS = {
         "desc": "收集歌谣的吟游诗人",
         "funcs": ["lore"],
         "dialogue": "我把路上听来的歌都收在琴里……你想听哪一段？",
+        # v124.3（审计）：解锁链数据化（见 w_lore_master 注释）
+        "unlock_flags": {"flag": "heard_timeless_tale",
+                         "notice": "⏳ 弦歌拨动琴弦，唱起一位不属于任何时代的旅人——『时光旅人』的传说……"},
     },
     "w_silent_hunter": {
         "name": "沉默猎人", "icon": "🐺", "map": "windvale",

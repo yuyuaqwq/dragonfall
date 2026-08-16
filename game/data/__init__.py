@@ -36,7 +36,7 @@ from .items import ITEMS, MATERIALS, MATERIALS_BY_NAME  # noqa: F401
 from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
-from .shop import SHOP_WEAPONS, SHOP_SMITH_MATERIALS, SHOP_EQUIP, SHOP_WILD_TRADE, SHOP_SUBAREA_ITEMS  # noqa: F401
+from .shop import SHOP_WEAPONS, SHOP_SMITH_MATERIALS, SHOP_EQUIP, SHOP_WILD_TRADE, SHOP_SUBAREA_ITEMS, SUBAREA_KIND  # noqa: F401
 from .factions import (  # noqa: F401
     FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES,
     FACTION_SHOP,  # v105 M18 P2-7：声望商店数据（聚合层导出，与其余表一致）
@@ -90,11 +90,32 @@ for _pool_name, _pool in (("GATHER_MAP_POOLS", GATHER_MAP_POOLS),
             assert _mat_id in MATERIALS, (
                 f"[{_pool_name}:{_map_id}] 材料 {_mat_id} 未在 MATERIALS 定义"
             )
+
+# v124 FISH_POOL↔MATERIALS 双处定义防漂移校验：_settle_fishing 入包以 FISH_POOL 的
+# type/price 为权威（economy.py 按名 resolve("materials") 取 mat_ key），MATERIALS 必须
+# 已登记同名条目且 price/type 一致——任一渔获缺登记/价型不符启动即报错（fail-fast），
+# 防止新增垃圾/宝物/鱼王类渔获后运行期 KeyError/中文 key 入包
+for _f in FISH_POOL:
+    _fmat = MATERIALS_BY_NAME.get(_f["name"])
+    assert _fmat is not None, (
+        f"[FISH_POOL] 渔获『{_f['name']}』未在 MATERIALS 登记——"
+        f"_settle_fishing 按名 resolve 将回退中文 key 入包"
+    )
+    assert _fmat.get("type") == _f.get("type"), (
+        f"[FISH_POOL] 渔获『{_f['name']}』type 不一致："
+        f"FISH_POOL={_f.get('type')} vs MATERIALS={_fmat.get('type')}（以 FISH_POOL 为准）"
+    )
+    assert _fmat.get("price") == _f.get("price"), (
+        f"[FISH_POOL] 渔获『{_f['name']}』price 不一致："
+        f"FISH_POOL={_f.get('price')} vs MATERIALS={_fmat.get('price')}"
+    )
 from .poi_pools import WISH_POOL, CAMPFIRE_FOOD_POOL, HERB_POOL  # noqa: F401
 from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401
     PROF_TUTORS, PROF_WAIT_BASE, DAILY_PROF_TASKS, BAG_FILTER_TYPES,
+    PROF_STAMINA_COST, PROF_WAIT_DECAY, PROF_WAIT_FLOOR, MINING_KEYWORDS, PAWN_RATES,
 )
+from .signin_config import SIGNIN_CONFIG  # noqa: F401  (v125 签到配置数据下沉)
 from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
 from .core_resources import CORE_RESOURCES  # noqa: F401  (v102.4 从 engine.py 下沉)
 from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)

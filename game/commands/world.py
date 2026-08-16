@@ -87,7 +87,7 @@ class WorldCmds(CommandBase):
             _sa_funcs = (sa_obj.get("funcs") or []) if sa_obj else []
             # O94 修复：与 base._at_smith 同源——鹿角淬火坊(white_deer_8)补入强化可用区域，
             # 地图设施清单同步显示铁匠铺入口（否则设施显示与『强化』可用性矛盾）
-            _smith = "craft" in _sa_funcs or sa_id == "white_deer_8" or any(k in _sa_name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+            _smith = "craft" in _sa_funcs or C.SUBAREA_KIND.get(sa_id) in ("smith", "enhance")
             if _smith:
                 lines.append("🔨 铁匠铺(『强化』『附魔』)")
         # 旅者方碑（只在中心广场/首个子区域提示）
@@ -1534,15 +1534,10 @@ class WorldCmds(CommandBase):
         if main_id and quests.get("main_status") == "active":
             mq = next((q for q in C.MAIN_QUESTS if q["id"] == main_id), None)
             if mq and mq["objective"].get("explore") == map_id:
-                player = self._player(group_id, qq_id)
-                player["exp"] += mq["reward_exp"]
-                player["gold"] += mq["reward_gold"]
-                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-                if lv_logs:
-                    lines.append("")
-                    lines += lv_logs
+                # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式
+                # + reward_pet/reward_mount/unlock_class）——此前 explore 自动完成只有
+                # reward_item 单值，reward_pet 配了也静默不发
+                self._grant_quest_rewards(group_id, qq_id, mq, lines)
                 completed = list(quests.get("completed_main", []))
                 completed.append(main_id)
                 quests["completed_main"] = completed
@@ -1554,24 +1549,7 @@ class WorldCmds(CommandBase):
                 quests["main_progress"] = {}
                 changed = True
                 lines.append(f"📜 主线『{mq['name']}』达成！奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
-                # v105 M19 P2：explore 自动完成补发 reward_item/声望——与 _take_main_quest
-                # 交付分支（world.py:1902-1921）对齐，避免奖励不一致隐患
-                ri = mq.get("reward_item")
-                if ri:
-                    _rid = C.resolve("items", ri)
-                    _tbl, _reg = "items", C.ITEMS
-                    if _rid not in C.ITEMS:
-                        _rid = C.resolve("materials", ri)
-                        _tbl, _reg = "materials", C.MATERIALS
-                    if _rid in _reg:
-                        _d = _reg[_rid] if isinstance(_reg[_rid], dict) else {}
-                        db.add_item(group_id, qq_id, _rid,
-                                    {"name": C.display(_tbl, _rid),
-                                     "type": _d.get("type", "物品" if _tbl == "items" else "材料"),
-                                     "stackable": True, "price": _d.get("price", 0)})
-                        lines.append(f"  🎁 获得道具：{C.display(_tbl, _rid)}")
-                    else:
-                        print(f"[dragonfall][v105] 主线『{mq['name']}』奖励道具缺失：{ri}（item_id 未收录），已跳过")
+                # v105 M19 P2：explore 自动完成补发声望（奖励本体已并入 _grant_quest_rewards）
                 _rep = self._quest_reputation(group_id, qq_id, mq["giver"])
                 if _rep:
                     lines.append(f"  {_rep}")
@@ -2495,16 +2473,10 @@ class WorldCmds(CommandBase):
                     return lines
                 db.remove_item(group_id, qq_id, obj["collect"], need)
                 lines.append(f"🎒 交出 {obj['collect']} ×{need}")
-            player = self._player(group_id, qq_id)
-            player["exp"] += mq["reward_exp"]
-            player["gold"] += mq["reward_gold"]
-            player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-            lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-            db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-            if lv_logs:
-                if lines:
-                    lines.append("")
-                lines += lv_logs
+            # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式
+            # + reward_pet/reward_mount/unlock_class）——此前主线交付只支持 reward_item
+            # 单值 + reward_pet，eq:/list 随机/坐骑/隐藏职业配了不发
+            self._grant_quest_rewards(group_id, qq_id, mq, lines)
             completed = list(quests.get("completed_main", []))
             completed.append(main_id)
             quests["completed_main"] = completed
@@ -2528,29 +2500,6 @@ class WorldCmds(CommandBase):
                             break
                 lines.append(f"  📖 {_ending}")
             lines.append(f"  奖励：经验 +{mq['reward_exp']} 金币 +{mq['reward_gold']}")
-            # v105 M19 P3：主线奖励道具（reward_item）入包——物品存在则直接加，不存在则跳过并记录（不阻塞交付）
-            ri = mq.get("reward_item")
-            if ri:
-                _rid = C.resolve("items", ri)
-                _tbl, _reg = "items", C.ITEMS
-                if _rid not in C.ITEMS:
-                    _rid = C.resolve("materials", ri)
-                    _tbl, _reg = "materials", C.MATERIALS
-                if _rid in _reg:
-                    _d = _reg[_rid] if isinstance(_reg[_rid], dict) else {}
-                    db.add_item(group_id, qq_id, _rid,
-                                {"name": C.display(_tbl, _rid),
-                                 "type": _d.get("type", "物品" if _tbl == "items" else "材料"),
-                                 "stackable": True, "price": _d.get("price", 0)})
-                    lines.append(f"  🎁 获得道具：{C.display(_tbl, _rid)}")
-                else:
-                    print(f"[dragonfall][v105] 主线『{mq['name']}』奖励道具缺失：{ri}（item_id 未收录），已跳过")
-            # v104 M17 P2-3：主线奖励宠物蛋（reward_pet，如橡木镇新手任务铁壳龟蛋）入包
-            rp = mq.get("reward_pet")
-            if rp:
-                _egg = C.make_pet_egg(rp)
-                db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
-                lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
             rep_line = self._quest_reputation(group_id, qq_id, mq["giver"])
             if rep_line:
                 lines.append(f"  {rep_line}")
@@ -2938,28 +2887,23 @@ class WorldCmds(CommandBase):
     def _grant_wild_unlock_flags(self, group_id, qq_id, npc_id):
         """v104 P1（M21 隐藏 NPC 永久锁死修复）：与特定野外 NPC 交谈 → 授予隐藏 NPC 解锁 flag。
 
-        设置点映射（flag 存任意 NPC 桶即可，unlock_met 已改全桶扫描）：
-          w_lore_master（说书人·巴尔）→ heard_owl_song         解锁 夜枭·啼月(h_owl)
-          w_bard_roaming（流浪诗人·弦歌）→ heard_timeless_tale   解锁 时光旅人·刹那(h_timeless)
-          w_war_ghost（老兵之魂）→ soothed_five_ghosts        解锁 墓王·静语(h_grave_king)
+        v124.3（审计）：解锁链数据化——配置读 NPC 数据的 unlock_flags 字段
+        （{"flag": "heard_owl_song", "notice": "…"}，见 wild_npcs.py 说书人·巴尔/
+        流浪诗人·弦歌/老兵之魂），新增解锁型 NPC = 纯数据操作（加字段即可），
+        本函数零改动。flag 存任意 NPC 桶即可，unlock_met 已改全桶扫描。
         返回首次授予的提示行；无授予返回 None。
         """
-        _unlock_map = {
-            "w_lore_master": ("heard_owl_song",
-                              "🦉 巴尔的故事里传来一声夜枭的长啼——那声音，仿佛来自白鹿林的深处……"),
-            "w_bard_roaming": ("heard_timeless_tale",
-                               "⏳ 弦歌拨动琴弦，唱起一位不属于任何时代的旅人——『时光旅人』的传说……"),
-            "w_war_ghost": ("soothed_five_ghosts",
-                            "👻 老兵之魂的执念渐渐平息——古战场深处，仿佛传来一声悠长的叹息……"),
-        }
-        entry = _unlock_map.get(npc_id)
-        if not entry:
+        npc = (C.ALL_WILD or {}).get(npc_id)
+        if not isinstance(npc, dict):
             return None
-        flag, notice = entry
+        cfg = npc.get("unlock_flags") or {}
+        flag = cfg.get("flag", "")
+        if not flag:
+            return None
         if flag in db.get_talk_flags(group_id, qq_id, npc_id):
             return None
         db.set_talk_flag(group_id, qq_id, npc_id, flag)
-        return notice
+        return cfg.get("notice", "")
 
     # ---------------- v104 P2（M21）teach 空挂修复 ----------------
     # v112 D6：教习技能表下沉 wild_npcs.py NPC 定义（teach_skills/teach_hint），
@@ -3400,38 +3344,67 @@ class WorldCmds(CommandBase):
         lines.append("👑 已达成最终转职（Lv.90 三转）！" if next_tier >= 3 else "💪 继续历练，下一次转职在 Lv.60/90")
         return lines
 
-    async def _apply_talk_action_async(self, group_id, qq_id, player, npc_id, action) -> list:
-        """异步版对话动作执行（v113：支持 hidden_evolve 等 async 动作）——talk_choice 调用本方法"""
+    async def _apply_talk_action_async(self, group_id, qq_id, player, npc_id, action):
+        """异步版对话动作执行（v113：支持 hidden_evolve 等 async 动作）——talk_choice 调用本方法。
+
+        返回 (通知行, 路由提示)。路由提示由条件型动作（apprentice_check 等）设置：
+          None    → 走选项 next
+          "fail"  → 走选项 fail_next
+          "__end__" → 直接结束对话
+        v124.3（审计）：apprentice_check 注册表化后 talk_choice 主循环不再特判，
+        只做本方法返回的通用路由分发；未知 action 键由 talk_actions.check_action_keys 告警。"""
         lines = []
+        route = None
+        self._talk_route = None
+        self._talk_tail = None
         if not action:
-            return lines
+            return lines, route
         import inspect
-        from .talk_actions import ACTIONS
+        from .talk_actions import ACTIONS, check_action_keys
+        check_action_keys(action)
         for key, fn in ACTIONS.items():
-            if action.get(key):
-                r = fn(self, group_id, qq_id, player, npc_id, action)
-                if inspect.isawaitable(r):
-                    r = await r
-                lines += r
-        return lines
+            if not action.get(key):
+                continue
+            r = fn(self, group_id, qq_id, player, npc_id, action)
+            if inspect.isawaitable(r):
+                r = await r
+            lines += r
+            if self._talk_route is not None:
+                # 条件型动作已判定：中断后续动作链（旧特判失败路径零动作执行——
+                # 如 apprentice_check 失败时 consume_item 不扣料）
+                route = self._talk_route
+                break
+        if self._talk_tail:
+            lines += self._talk_tail
+        return lines, route
 
     def _apply_talk_action(self, group_id, qq_id, player, npc_id, action) -> list:
         """执行选项动作(涉及 DB 的副作用统一在这落地)，返回通知行
         v101.23d：动作注册表化——commands/talk_actions.py 的 ACTIONS（与 CONDITIONS
         注册表对称），加新动作 = register 一个函数，本方法零改动。
         同步版：仅执行同步动作（测试/旧调用用）；对话主链路走 _apply_talk_action_async。
-        v113：hidden_evolve 为异步动作，同步版会跳过它（返回空）——对话内转职走 async 版。"""
+        v113：hidden_evolve 为异步动作，同步版会跳过它（返回空）——对话内转职走 async 版。
+        v124.3（审计）：与 async 版同源——未知 action 键告警 + 条件型动作（apprentice_check）
+        中断动作链；路由提示不入返回值（仅 async 版返回，供 talk_choice 分发）。"""
         lines = []
+        self._talk_route = None
+        self._talk_tail = None
         if not action:
             return lines
         import inspect
-        from .talk_actions import ACTIONS
+        from .talk_actions import ACTIONS, check_action_keys
+        check_action_keys(action)
         for key, fn in ACTIONS.items():
-            if action.get(key):
-                r = fn(self, group_id, qq_id, player, npc_id, action)
-                if inspect.isawaitable(r):
-                    continue  # 异步动作（hidden_evolve）同步版跳过
-                lines += r
+            if not action.get(key):
+                continue
+            r = fn(self, group_id, qq_id, player, npc_id, action)
+            if inspect.isawaitable(r):
+                continue  # 异步动作（hidden_evolve）同步版跳过
+            lines += r
+            if self._talk_route is not None:
+                break
+        if self._talk_tail:
+            lines += self._talk_tail
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:对话|继续|结束对话|再见|告辞)(?:[\s\S]*)$")
@@ -3521,46 +3494,18 @@ class WorldCmds(CommandBase):
             opt = opts[idx - 1]
             player = self._player(group_id, qq_id)
             action = opt.get("action") or {}
-            # v81 导师进修：apprentice_check 判定（检查背包材料）
-            if "apprentice_check" in action:
-                check = action["apprentice_check"]
-                # #255: 副业位满时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
-                # 位满则材料也不收，避免玩家交完材料才被拦白跑
-                # #417: 遍历层级 bug——dlg 顶层是 {start, nodes}，必须遍历 nodes 子表
-                prof_target = None
-                for _nid, _node in ((dlg.get("nodes") or {}).items()):
-                    if not isinstance(_node, dict):
-                        continue  # 对话树部分节点为纯字符串（跳转别名）
-                    for _o in (_node.get("options") or []):
-                        _ua = (_o.get("action") or {}).get("unlock_prof")
-                        if _ua:
-                            prof_target = _ua
-                            break
-                    if prof_target:
-                        break
-                if prof_target:
-                    _okp, _msgp = self._prof_active_check(group_id, qq_id, prof_target)
-                    if not _okp:
-                        # v101.29：副业位满拦截直接结束对话（不再渲染 fail 节点）——
-                        # 旧代码跳 fail_next 会渲染"材料凑不齐"类台词，与"副业位满
-                        # 先不收材料"的拦截归因矛盾（小红实测梅尔文交付被抓包）
-                        notices = [_msgp + "（这次考验先不收材料，腾出副业位再来吧）"]
-                        db.clear_talk_state(group_id, qq_id)
-                        lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]
-                        yield event.plain_result("\n".join(lines))
-                        return
-                have = db.count_item(group_id, qq_id, check.get("item", ""))
-                need = int(check.get("count", 1))
-                if have >= need:
-                    nxt = opt.get("next", "__end__")
-                    notices = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
-                    notices.append(f"✅ {npc['name']}满意地点了点头。")
-                else:
-                    nxt = opt.get("fail_next", opt.get("next", "__end__"))
-                    notices = [f"{npc['name']}摇头：还差 {need-have} 份{check.get('item', '材料')}，备齐了再来。"]
-            else:
-                nxt = opt.get("next", "__end__")
-                notices = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
+            nxt = opt.get("next", "__end__")
+            # v124.3（审计）：apprentice_check 已注册为动作（talk_actions.py），
+            # 主循环不再特判——条件型动作经 _apply_talk_action_async 返回的路由分发：
+            #   "fail"（材料不足）→ 走选项 fail_next；"__end__"（副业位满 #101.29）→ 结束对话
+            notices, _route = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
+            if _route == "__end__":
+                db.clear_talk_state(group_id, qq_id)
+                lines = notices + [f"{npc['name']}：那就再会了，冒险者。"]
+                yield event.plain_result("\n".join(lines))
+                return
+            if _route == "fail":
+                nxt = opt.get("fail_next", nxt)
             # v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready，修复主线卡死）
             notices += self._talk_quest_progress(group_id, qq_id, npc_id)
             # v105 P3：对话动作链落地后补成就判定（拜师/转职/任务交付等动作改 DB 后立即解锁——
@@ -3763,6 +3708,84 @@ class WorldCmds(CommandBase):
             return
         yield event.plain_result("没有可交的任务。输入『任务』查看进度～")
 
+    def _grant_quest_rewards(self, group_id, qq_id, qdef, lines):
+        """v124.3 统一任务奖励发放（主线 explore 自动完成 / 主线交付 / 支线交付三处共用）。
+
+        基准：支线 _complete_side_quest 原实现（v104 M20 + v124 全奖励类型）——
+        reward_exp/reward_gold 入角色并结算升级；reward_item 支持单值 / 列表随机 /
+        eq: 装备名册；reward_pet 宠物蛋 / reward_mount 坐骑缰绳入包；unlock_class
+        解锁隐藏职业。声望 / 分支 flag / 每日计数等任务特有处理不入此函数，调用方各自保留。
+        返回结算后的 player（调用方后续需要时使用，如 _complete_side_quest 的 _rule_fire）。"""
+        player = self._player(group_id, qq_id)
+        player["exp"] += qdef.get("reward_exp", 0)
+        player["gold"] += qdef.get("reward_gold", 0)
+        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
+        lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+        db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+        if lv_logs:
+            if lines:
+                lines.append("")
+            lines += lv_logs
+        # v104 M20 P1：列表型奖励（如 s17 随机符文）→ 随机抽一个发放
+        ri = qdef.get("reward_item")
+        if ri:
+            if isinstance(ri, list):
+                ri = random.choice(ri)
+            # v104 M20 P1：eq: 前缀 = 装备奖励（s3 汉斯的手工武器）——名册精确生成入包
+            if isinstance(ri, str) and ri.startswith("eq:"):
+                eq_name = ri[3:]
+                eq_ids = C.EQUIP_ROSTER_BY_NAME.get(eq_name, [])
+                if eq_ids:
+                    eq = C.generate_roster_equip(eq_ids[0])
+                    db.add_item(group_id, qq_id, eq_ids[0], eq)
+                    lines.append(f"  🎁 获得装备：{eq.get('name', eq_name)}")
+                else:
+                    print(f"[dragonfall][v104] 任务『{qdef.get('name', '')}』奖励装备缺失：{eq_name}（名册未收录），已跳过")
+            else:
+                # v104 M20 P3：先 items 后 materials（同名跨表实体发对表，如 s4「麦酒」）
+                _iid = C.resolve("items", ri)
+                if _iid in C.ITEMS:
+                    _idata = C.ITEMS[_iid]
+                    db.add_item(group_id, qq_id, _iid, _idata)
+                    lines.append(f"  🎁 获得特殊道具：{ri}")
+                else:
+                    rimid = C.resolve("materials", ri)
+                    if rimid in C.MATERIALS:
+                        db.add_item(group_id, qq_id, rimid,
+                                    {"name": C.display("materials", rimid),
+                                     "type": C.MATERIALS[rimid].get("type", "材料"),
+                                     "stackable": True, "price": C.MATERIALS[rimid]["price"]})
+                        lines.append(f"  🎁 获得特殊道具：{ri}")
+                    else:
+                        # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
+                        print(f"[dragonfall][v104] 任务『{qdef.get('name', '')}』奖励道具缺失：{ri}（未收录），已跳过")
+        # v124 宠物蛋（reward_pet，如橡木镇新手任务铁壳龟蛋）入包——蛋入包后『使用 宠物蛋』孵化
+        rp = qdef.get("reward_pet")
+        if rp:
+            _egg = C.make_pet_egg(rp)
+            db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
+            lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
+        # v124 坐骑缰绳（reward_mount，如 hq7_3 雾羽候鸟）——『使用 缰绳』驯服解锁
+        rm = qdef.get("reward_mount")
+        if rm:
+            _rein = C.make_mount_rein(rm)
+            db.add_item(group_id, qq_id, f"mountrein_{rm}", _rein)
+            lines.append(f"  🐾 获得道具：{_rein['name']}！『使用 缰绳』驯服坐骑！")
+        # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
+        uc = qdef.get("unlock_class")
+        if uc:
+            player_now = self._player(group_id, qq_id)
+            unlocks = list(player_now.get("hidden_class_unlock", []) or [])
+            if uc not in unlocks:
+                unlocks.append(uc)
+                db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
+                lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
+                # v112：档位门槛统一读 CLASSES["tier_levels"]（缺省 T1=40），删除 60/30 特例
+                _need = (C.CLASSES.get(uc, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90})[1]
+                _cname = C.CLASSES.get(uc, {}).get("name", uc)
+                lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
+        return player
+
     def _complete_side_quest(self, group_id, qq_id, sid, branch_choice=None):
         """交支线任务，返回通知行列表
         v124：支持 branch 分支交付（第一次输出选项并置 branch_wait，玩家回复数字后执行）+
@@ -3833,78 +3856,10 @@ class WorldCmds(CommandBase):
         dt = sqd.get("deliver_text")
         if dt and not br:
             lines.append(f"  📖 {dt}")
-        player = self._player(group_id, qq_id)
-        player["exp"] += sqd["reward_exp"]
-        player["gold"] += sqd["reward_gold"]
-        player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-        lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-        db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-        if lv_logs:
-            lines.append("")
-            lines += lv_logs
-        # v87 隐藏任务：奖励道具（reward_item）入包
-        # v104 M08 P0-1：type 从 MATERIALS 定义取（老守墓人发烬火信标 type=任务道具，
-        # 此前写死"材料"导致批量出售保护判据 d.type=="任务道具" 恒不命中 → H7 准入丢失）
-        ri = sqd.get("reward_item")
-        if ri:
-            # v104 M20 P1：列表型奖励（如 s17 随机符文）→ 随机抽一个发放
-            if isinstance(ri, list):
-                ri = random.choice(ri)
-            # v104 M20 P1：eq: 前缀 = 装备奖励（s3 汉斯的手工武器）——名册精确生成入包
-            if isinstance(ri, str) and ri.startswith("eq:"):
-                eq_name = ri[3:]
-                eq_ids = C.EQUIP_ROSTER_BY_NAME.get(eq_name, [])
-                if eq_ids:
-                    eq = C.generate_roster_equip(eq_ids[0])
-                    db.add_item(group_id, qq_id, eq_ids[0], eq)
-                    lines.append(f"  🎁 获得装备：{eq.get('name', eq_name)}")
-                else:
-                    print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励装备缺失：{eq_name}（名册未收录），已跳过")
-            else:
-                # v104 M20 P3：先 items 后 materials（与主线 world.py:2005-2009 同款顺序）——
-                # 支线奖励此前只查 materials，同名跨表实体（如 s4「麦酒」=消耗品 i_ale 回复道具，
-                # 材料表另有 mat_mai_jiu 烹饪调料）会发错实体
-                _iid = C.resolve("items", ri)
-                if _iid in C.ITEMS:
-                    _idata = C.ITEMS[_iid]
-                    db.add_item(group_id, qq_id, _iid, _idata)
-                    lines.append(f"  🎁 获得特殊道具：{ri}")
-                else:
-                    rimid = C.resolve("materials", ri)
-                    if rimid in C.MATERIALS:
-                        db.add_item(group_id, qq_id, rimid,
-                                    {"name": C.display("materials", rimid),
-                                     "type": C.MATERIALS[rimid].get("type", "材料"),
-                                     "stackable": True, "price": C.MATERIALS[rimid]["price"]})
-                        lines.append(f"  🎁 获得特殊道具：{ri}")
-                    else:
-                        # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
-                        print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励道具缺失：{ri}（未收录），已跳过")
-        # v124 支线奖励宠物蛋（reward_pet，与主线 world.py 同款）——蛋入包后『使用 宠物蛋』孵化
-        rp = sqd.get("reward_pet")
-        if rp:
-            _egg = C.make_pet_egg(rp)
-            db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
-            lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
-        # v124 支线奖励坐骑缰绳（reward_mount，如 hq7_3 雾羽候鸟）——『使用 缰绳』驯服解锁
-        rm = sqd.get("reward_mount")
-        if rm:
-            _rein = C.make_mount_rein(rm)
-            db.add_item(group_id, qq_id, f"mountrein_{rm}", _rein)
-            lines.append(f"  🐾 获得道具：{_rein['name']}！『使用 缰绳』驯服坐骑！")
-        # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
-        uc = sqd.get("unlock_class")
-        if uc:
-            player_now = self._player(group_id, qq_id)
-            unlocks = list(player_now.get("hidden_class_unlock", []) or [])
-            if uc not in unlocks:
-                unlocks.append(uc)
-                db.update_player(group_id, qq_id, hidden_class_unlock=unlocks)
-                lines.append(f"  ⚔️ 传承达成！隐藏职业「{C.CLASSES.get(uc, {}).get('name', uc)}」已解锁！")
-                # v112：档位门槛统一读 CLASSES["tier_levels"]（缺省 T1=40），删除 60/30 特例
-                _need = (C.CLASSES.get(uc, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90})[1]
-                _cname = C.CLASSES.get(uc, {}).get("name", uc)
-                lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
+        # v124.3：奖励统一走 _grant_quest_rewards（exp/gold/升级 + reward_item 全格式 +
+        # reward_pet/reward_mount/unlock_class）——逻辑与支线原实现完全一致（列表随机 /
+        # eq: 名册 / items→materials 顺序），返回结算后 player 供下方 _rule_fire 使用
+        player = self._grant_quest_rewards(group_id, qq_id, sqd, lines)
         # v95.12：交付后保留条目标记 done（无 completed_side 列），防止 _offer_side_quests 自动重接
         quests["side"][sid] = {"status": "done"}
         db.save_quests(group_id, qq_id, quests)

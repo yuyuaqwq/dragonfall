@@ -34,6 +34,19 @@ def _affix_chance(aid: str, default: float) -> float:
     return info.get("chance", default)
 
 
+def _affix_effect(aid: str) -> dict:
+    """词条效果参数：读数据（AFFIXES/LEGENDARY_EFFECTS 的 effect）。
+
+    缺失返回 {} —— handler 内一律 eff.get(key, 旧默认值) 兜底，
+    保证无 effect 字段的旧词条行为不变（数值下沉兼容层）。
+    """
+    from .. import content as C  # 延迟引用，防 core→content→core 循环
+    info = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid)
+    if info is None:
+        return {}
+    return info.get("effect") or {}
+
+
 def _set_chance(eff: str, default: float) -> float:
     """套装 4 件特效概率：读 sets.py bonus_4 的 chance，缺失用 default 兜底（v99.2）"""
     from .. import content as C  # 延迟引用，防 core→content→core 循环
@@ -63,9 +76,10 @@ def _h_bleed(battle, player, dmg, logs):
     """流血：20% 使目标流血（每回合 5% 生命，3 回合）"""
     if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
         # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
+        stacks = int(_affix_effect("bleed").get("stacks", 3))  # 每次触发叠层数（兼作上限）
         deb = battle.enemy.setdefault("debuffs", {})
         cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
-        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 3)  # 词条 3 层
+        cur["n"] = min(stacks, int(cur.get("n", 0) or 0) + stacks)
         deb["bleed"] = cur
         logs.append("🩸 流血！敌人伤口裂开，将持续失血！")
 
@@ -74,8 +88,9 @@ def _h_bleed(battle, player, dmg, logs):
 def _h_armor_break(battle, player, dmg, logs):
     """破甲：25% 降低目标防御 15%（2 回合）"""
     if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
-        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
-        battle.e_buffs["_armor_break_pct"] = 0.15
+        eff = _affix_effect("armor_break")
+        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
+        battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
         logs.append("🛡️ 破甲！敌人防御下降 15%！")
 
 
@@ -83,7 +98,7 @@ def _h_armor_break(battle, player, dmg, logs):
 def _h_combo(battle, player, dmg, logs):
     """连击：15% 追加一次 50% 伤害"""
     if "combo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("combo", 0.15):
-        cd = int(dmg * 0.50)
+        cd = int(dmg * float(_affix_effect("combo").get("extra_atk", 0.50)))
         battle._damage_enemy(cd, logs)
         logs.append(f"⚡ 连击！追加 {cd} 点伤害！")
 
@@ -92,7 +107,7 @@ def _h_combo(battle, player, dmg, logs):
 def _h_element_fire(battle, player, dmg, logs):
     """元素附加·火：5% 属性伤害"""
     if "element_fire" in battle._equip_affix_ids(player):
-        ed = max(1, int(dmg * 0.05))
+        ed = max(1, int(dmg * float(_affix_effect("element_fire").get("pct", 0.05))))
         battle._damage_enemy(ed, logs)
         logs.append(f"🔥 fire属性附加 {ed} 点伤害！")
 
@@ -101,10 +116,11 @@ def _h_element_fire(battle, player, dmg, logs):
 def _h_element_ice(battle, player, dmg, logs):
     """元素附加·冰：5% 属性伤害 + 减速"""
     if "element_ice" in battle._equip_affix_ids(player):
-        ed = max(1, int(dmg * 0.05))
+        ed = max(1, int(dmg * float(_affix_effect("element_ice").get("pct", 0.05))))
         battle._damage_enemy(ed, logs)
         logs.append(f"❄️ ice属性附加 {ed} 点伤害！")
-        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
+        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0),
+                                         int(_affix_effect("element_ice").get("slow_turns", 2)))
         logs.append("❄️ 减速！")
 
 
@@ -112,7 +128,7 @@ def _h_element_ice(battle, player, dmg, logs):
 def _h_element_thunder(battle, player, dmg, logs):
     """元素附加·雷：5% 属性伤害"""
     if "element_thunder" in battle._equip_affix_ids(player):
-        ed = max(1, int(dmg * 0.05))
+        ed = max(1, int(dmg * float(_affix_effect("element_thunder").get("pct", 0.05))))
         battle._damage_enemy(ed, logs)
         logs.append(f"⚡ thunder属性附加 {ed} 点伤害！")
 
@@ -123,7 +139,7 @@ def _h_pierce(battle, player, dmg, logs):
     from ..engine import calc_damage
     if "pierce" in battle._equip_affix_ids(player) and random.random() < _affix_chance("pierce", 0.20):
         pst = battle._player_stats(player)
-        pd = calc_damage(int(pst.get("atk", 0) * 0.6), 0)
+        pd = calc_damage(int(pst.get("atk", 0) * float(_affix_effect("pierce").get("atk_pct", 0.60))), 0)
         if pd > 0:
             battle._damage_enemy(pd, logs)
             logs.append(f"🏹 贯穿！无视防御 {pd} 点伤害！")
@@ -133,7 +149,7 @@ def _h_pierce(battle, player, dmg, logs):
 def _h_charge(battle, player, dmg, logs):
     """蓄力：10% 造成 150% 伤害（追加 50%）"""
     if "charge" in battle._equip_affix_ids(player) and random.random() < _affix_chance("charge", 0.10):
-        cd = int(dmg * 0.50)
+        cd = int(dmg * float(_affix_effect("charge").get("dmg_pct", 0.50)))
         battle._damage_enemy(cd, logs)
         logs.append(f"💪 蓄力爆发！追加 {cd} 点伤害！")
 
@@ -144,9 +160,9 @@ def _h_purify(battle, player, dmg, logs):
     ids = battle._equip_affix_ids(player)
     purge_n = 0
     if "judgment_chain" in ids and random.random() < _affix_chance("judgment_chain", 0.25):
-        purge_n = 2
+        purge_n = int(_affix_effect("judgment_chain").get("purge", 2))
     elif "purify" in ids and random.random() < _affix_chance("purify", 0.15):
-        purge_n = 1
+        purge_n = int(_affix_effect("purify").get("purge", 1))
     if purge_n:
         gain_keys = [k for k in battle.e_buffs
                      if k.startswith("mon_") or k in ("summon", "atk_up_strong")]
@@ -165,7 +181,8 @@ def _h_purify(battle, player, dmg, logs):
 def _h_dragon_tongue(battle, player, dmg, logs):
     """龙语印记：攻击叠印记（每层 +2% 伤害，上限 5）"""
     if "dragon_tongue" in battle._equip_affix_ids(player):
-        battle.mech_stacks["dragon_mark"] = min(5, int(battle.mech_stacks.get("dragon_mark", 0) or 0) + 1)
+        max_mark = int(_affix_effect("dragon_tongue").get("max_mark", 5))
+        battle.mech_stacks["dragon_mark"] = min(max_mark, int(battle.mech_stacks.get("dragon_mark", 0) or 0) + 1)
         logs.append(f"🐉 龙语印记叠加！({battle.mech_stacks['dragon_mark']} 层，每层＋2% 伤害)")
 
 
@@ -181,9 +198,9 @@ def _t_reduce(battle, player, ctx, logs):
     ids = battle._equip_affix_ids(player)
     reduce_pct = 0.0
     if "dmg_reduce" in ids:
-        reduce_pct += 0.03
+        reduce_pct += float(_affix_effect("dmg_reduce").get("dmg_reduce", 0.03))
     if "earth_heart" in ids:
-        reduce_pct += 0.05
+        reduce_pct += float(_affix_effect("earth_heart").get("dmg_reduce", 0.05))
     if reduce_pct:
         dmg_before = ctx["out"]
         ctx["out"] = max(1, int(ctx["out"] * (1 - reduce_pct)))
@@ -208,7 +225,7 @@ def _t_counter(battle, player, ctx, logs):
     if "counter" in battle._equip_affix_ids(player) and random.random() < _affix_chance("counter", 0.20) and battle.enemy.get("hp", 0) > 0:
         pst2 = battle._player_stats(player)
         est2 = battle._enemy_stats()
-        cd = calc_damage(int(pst2.get("atk", 0) * 0.6), est2.get("def", 0))
+        cd = calc_damage(int(pst2.get("atk", 0) * float(_affix_effect("counter").get("pct", 0.60))), est2.get("def", 0))
         if cd > 0:
             battle._damage_enemy(cd, logs)
             logs.append(f"⚔️ 反击！对【{battle.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
@@ -218,7 +235,7 @@ def _t_counter(battle, player, ctx, logs):
 def _t_ember_ward(battle, player, ctx, logs):
     """灰烬壁垒（灰烬守卫套专属）：20% 反弹 50% 伤害（基于原始 dmg）"""
     if "ember_ward" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_ward", 0.20) and battle.enemy.get("hp", 0) > 0:
-        rd = int(ctx["dmg"] * 0.50)
+        rd = int(ctx["dmg"] * float(_affix_effect("ember_ward").get("pct", 0.50)))
         battle._damage_enemy(rd, logs)
         logs.append(f"🔥 灰烬壁垒！反弹 {rd} 点伤害！")
 
@@ -227,8 +244,9 @@ def _t_ember_ward(battle, player, ctx, logs):
 def _t_moro_crown(battle, player, ctx, logs):
     """深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）"""
     if "moro_crown" in battle._equip_affix_ids(player) and random.random() < _affix_chance("moro_crown", 0.15):
-        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
-        battle.e_buffs["_weaken_val"] = 0.10
+        eff = _affix_effect("moro_crown")
+        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 2)))
+        battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.10))
         logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
 
 
@@ -243,9 +261,9 @@ def _ts_regen(battle, player, logs):
     ids = battle._equip_affix_ids(player)
     regen_pct = 0.0
     if "regen" in ids:
-        regen_pct += 0.01
+        regen_pct += float(_affix_effect("regen").get("pct", 0.01))
     if "dawn_crown" in ids:
-        regen_pct += 0.02
+        regen_pct += float(_affix_effect("dawn_crown").get("pct", 0.02))
     if regen_pct and player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * regen_pct)
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
@@ -256,7 +274,7 @@ def _ts_regen(battle, player, logs):
 def _ts_meditate(battle, player, logs):
     """冥想：1% 魔力回复"""
     if "meditate" in battle._equip_affix_ids(player) and player.get("mp", 0) < player.get("max_mp", 1):
-        heal = int(player.get("max_mp", player.get("mp", 1)) * 0.01)
+        heal = int(player.get("max_mp", player.get("mp", 1)) * float(_affix_effect("meditate").get("pct", 0.01)))
         player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
         logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
 

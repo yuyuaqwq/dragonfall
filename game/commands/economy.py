@@ -323,6 +323,27 @@ def item_detail_render(d, lines, equipped):
     fn(d, lines, equipped)
 
 
+# v125.2 fail-closed：限定采集条件词注册表（GATHER_COND_POOLS 条件串 split('+') 后的词）。
+# 判定统一走注册表：未收录词 → 本条不命中 + 告警日志（防拼写错误被静默放行造成
+# 语义反转——旧实现未知词 ok 保持 True，新增 "fog" 等词反而必出）。
+_GATHER_COND_CHECKERS = {
+    "night": lambda period, season, weather: period == "night",
+    "morning": lambda period, season, weather: period == "morning",
+    "winter": lambda period, season, weather: season == "winter",
+    "rain": lambda period, season, weather: weather == "rain",
+}
+
+# v125.2 启动校验：GATHER_COND_POOLS 全部条件词必须 ∈ 注册表（数据拼写错误启动即暴露，
+# 与 data/__init__.py B4 池 id 校验同款 fail-fast 风格）
+for _cond_map_id, _cond_entries in getattr(C, "GATHER_COND_POOLS", {}).items():
+    for _cond_mid, _cond_w, _cond_str in _cond_entries:
+        for _tok in str(_cond_str).split("+"):
+            if _tok not in _GATHER_COND_CHECKERS:
+                raise RuntimeError(
+                    f"[dragonfall] GATHER_COND_POOLS[{_cond_map_id}] 条件词 {_tok!r} 未注册"
+                    f"（材料 {_cond_mid}）——请修正拼写或补入 _GATHER_COND_CHECKERS")
+
+
 
 class EconomyCmds(CommandBase):
     """背包/装备/锻造/强化/商店/采集/垂钓/炼金"""
@@ -392,8 +413,11 @@ class EconomyCmds(CommandBase):
 
         条件：night=20:00-05:00 / morning=05:00-08:00 / winter=冬季 / rain=雨天；
         组合条件用 '+'（如 "winter+night" 需全部命中）。命中后按权重随机选一个。
+        v125.2 fail-closed：条件词查 _GATHER_COND_CHECKERS 注册表，未收录词
+        本条不命中 + 告警日志（防未知词静默放行导致语义反转：新词反而必出）。
         """
         import random as _rnd
+        import logging as _logging
         pool = getattr(C, "GATHER_COND_POOLS", {}).get(cur_map or "")
         if not pool:
             return None
@@ -402,16 +426,17 @@ class EconomyCmds(CommandBase):
         weather = C.today_weather(cur_map or None)
         hit = []
         for mid, w, cond in pool:
-            parts = cond.split("+")
             ok = True
-            for p in parts:
-                if p == "night" and period != "night":
+            for p in str(cond).split("+"):
+                chk = _GATHER_COND_CHECKERS.get(p)
+                if chk is None:
+                    # fail-closed：未知条件词 → 本条不命中 + 告警（防语义反转）
                     ok = False
-                elif p == "morning" and period != "morning":
-                    ok = False
-                elif p == "winter" and season != "winter":
-                    ok = False
-                elif p == "rain" and weather != "rain":
+                    _logging.getLogger("astrbot").warning(
+                        "[dragonfall] 采集条件词 %r 未注册（地图 %s 材料 %s），fail-closed 不命中——"
+                        "请检查 GATHER_COND_POOLS 或 _GATHER_COND_CHECKERS", p, cur_map, mid)
+                    continue
+                if not chk(period, season, weather):
                     ok = False
             if ok:
                 hit.extend([mid] * w)
@@ -443,11 +468,12 @@ class EconomyCmds(CommandBase):
         db.set_event_state(self._prof_wait_key(group_id, qq_id), "")
 
     def _prof_wait_duration(self, prof_type, prof_lv):
-        """等待时长：基准随机范围 ±25%，副业等级每级－5%(上限－50%)，保底 10 秒"""
+        """等待时长：基准随机范围 ±25%，副业等级每级－5%(上限－50%)，保底 10 秒
+        v125：衰减/保底数据下沉 prof_config.PROF_WAIT_DECAY / PROF_WAIT_FLOOR"""
         low, high, _ = C.PROF_WAIT_BASE[prof_type]
         wait = random.randint(low, high)
-        wait = int(wait * (1 - 0.05 * min(prof_lv, 10)))
-        return max(wait, 10)
+        wait = int(wait * (1 - C.PROF_WAIT_DECAY * min(prof_lv, 10)))
+        return max(wait, C.PROF_WAIT_FLOOR)
 
     def _prof_wait_begin(self, event, group_id, qq_id, prof_type, extra=None):
         """开始一轮等待型副业：存完成时间戳 + 尽力而为的延迟推送(失败由惰性结算兜底)"""
@@ -798,7 +824,7 @@ class EconomyCmds(CommandBase):
         if not player:
             return None
         prof = db.get_prof_level(group_id, qq_id, "mining")
-        _ORE_KW = ["矿石", "秘银", "精钢", "结晶", "核心", "碎片", "石", "精华"]
+        # v125：挖掘矿石关键词数据下沉 prof_config.MINING_KEYWORDS（原 _ORE_KW）
         # v105R3 M13 P2-4：结算用等待开始时存储的地图（重启后玩家已移动也不串池），
         # 无存储（旧状态）才回退当前地图
         cur_map = st.get("spot_map") or player.get("cur_map", "")
@@ -812,13 +838,13 @@ class EconomyCmds(CommandBase):
             pool = C.GATHER_MAP_POOLS.get(cur_map)
             if pool:
                 ores = [m for m, _w in pool for _ in range(_w)
-                        if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in _ORE_KW)]
+                        if any(k in C.MATERIALS.get(m, {}).get("name", "") for k in C.MINING_KEYWORDS)]
             else:
                 ores = []
             if not ores:
                 # v104 R3 M14 P1-2：兜底排除强化石类消耗品（i_stone_* 是炼金/商店独占，禁止挖掘白嫖）
                 ores = [m for m, mm in C.MATERIALS.items()
-                        if any(k in mm.get("name", "") for k in _ORE_KW)
+                        if any(k in mm.get("name", "") for k in C.MINING_KEYWORDS)
                         and m not in ("i_stone_upgrade", "i_stone_refine")]
                 _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
                 cand = [m for m in ores if 3 + _map_lv * 4 <= C.MATERIALS[m]["price"] <= 20 + _map_lv * 12]
@@ -912,7 +938,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(act_msg + text)
             return
         # v94 体力：采集消耗 5 体力（确认开启新轮后才扣；体力不足回滚新轮等待，防白等）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "采集")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["gather"], player, "采集")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
             yield event.plain_result(_st)
@@ -950,7 +976,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(act_msg + text)
             return
         # v94 体力：挖掘消耗 5 体力（确认开启新轮后才扣；体力不足回滚新轮等待，防白等）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "挖掘")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["mining"], player, "挖掘")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
             yield event.plain_result(_st)
@@ -1059,7 +1085,7 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(f"材料不足！需要 {mname}×{cnt}(你有 {have})")
                 return
         # v94 体力：炼金合成消耗 10 体力（材料校验通过后才扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "炼金")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["alchemy"], player, "炼金")
         if not _ok:
             yield event.plain_result(_st)
             return
@@ -1214,7 +1240,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"食材不足！做【{r['name']}】还缺：{'、'.join(lack)}。垂钓/采集收集食材～")
             return
         # v101.30 体力：烹饪消耗 5 体力（食材校验通过后才扣；制造副业半价，亲民入口）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "烹饪")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["cooking"], player, "烹饪")
         if not _ok:
             yield event.plain_result(_st)
             return
@@ -1602,7 +1628,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(act_msg + text)
             return
         # v94 体力：垂钓消耗 5 体力（确认开启新轮后才扣；体力不足回滚新轮等待，防白等）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 5, player, "垂钓")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["fishing"], player, "垂钓")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
             yield event.plain_result(_st)
@@ -1786,7 +1812,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"金币不足！锻造【{rec_disp}】需要 {gold_need} 金币，你只有 {player['gold']}。")
             return
         # v94 体力：锻造消耗 10 体力（所有前置校验通过后再扣，材料/金币不足不白扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "锻造")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["craft"], player, "锻造")
         if not _ok:
             yield event.plain_result(_st)
             return
@@ -2229,7 +2255,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"强化 +{cur_enh} → +{cur_enh+1} 需要 {info['cost']} 金币，你只有 {player['gold']}。")
             return
         # v94 体力：强化消耗 10 体力（v104 M11：金币/副业等校验全通过后才扣，防白扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "强化")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["enhance"], player, "强化")
         if not _ok:
             yield event.plain_result(_st)
             return
@@ -2428,7 +2454,7 @@ class EconomyCmds(CommandBase):
                 )
                 return
             # v94 体力：附魔消耗 10 体力（v105 P1：移到此处——符文/装备/槽位/冲突/等级校验全过后才扣，防白扣）
-            _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
+            _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["enchant"], player, "附魔")
             if not _ok:
                 yield event.plain_result(_st)
                 return
@@ -2518,7 +2544,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"附魔需要 {rec['cost']} 金币，你只有 {player['gold']}。")
             return
         # v94 体力：附魔消耗 10 体力（v105 P1：移到此处——属性名/装备/槽位/材料/金币校验全过后才扣，防白扣）
-        _ok, _st = self._spend_stamina(group_id, qq_id, 10, player, "附魔")
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["enchant"], player, "附魔")
         if not _ok:
             yield event.plain_result(_st)
             return
@@ -3622,21 +3648,22 @@ class EconomyCmds(CommandBase):
         """v101.21 出售地点限制：装备→铁匠/工坊（原价）；材料→按类型分设施（v101.25e 鱼鱼拍板）：
         矿石/木材/兽材/宝石→铁匠铺(0.9)；草药/精华→炼金铺(0.9)；食材/织物/杂物→商店(0.8)；其他→1.0。
         F1 P1-5：无 slot 消耗品（药水/食物/卷轴/炼金/烹饪产物）回收由 1.0 全价下调到 0.85——
-        原回落 1.0 与材料 0.8~0.9 明显倒挂，白送金币（与造物成本封顶互补，_sell_one 还有 craft_cost 封顶兜底）。"""
+        原回落 1.0 与材料 0.8~0.9 明显倒挂，白送金币（与造物成本封顶互补，_sell_one 还有 craft_cost 封顶兜底）。
+        v125：回收率数据下沉 prof_config.PAWN_RATES。"""
         if d.get("slot"):  # 装备必须去铁匠铺卖（回收装备是铁匠的活）
             if self._is_smith_shop(player):
-                return 1.0
+                return C.PAWN_RATES["equip"]
             return None
         # v105 M17 P3-3：宠物蛋/坐骑缰绳回收折价 0.5（此前无 slot 且非材料 → 1.0 全价，
         # 掉落蛋/缰绳=白送金币；与装备回收同档，防刷钱。宠物蛋按品质已分档定价 100~500）
         if d.get("type") in (C.ITEM_TYPE_PET_EGG, C.ITEM_TYPE_MOUNT):
-            return 0.5
+            return C.PAWN_RATES["pet_mount"]
         # v95.32 #397b：材料判定按名查表（data.type 可能是分类名如"精华/草药"，非"材料"）
         mm = C.MATERIALS_BY_NAME.get(d.get("name", "")) or {}
         if not mm:
             # F1 P1-5：非材料、非装备（药水/食物/卷轴/炼金/烹饪产物等消耗品）回收 0.85，
             # 与材料档对齐，避免白送金币（收藏鱼等特殊物在 _sell_one 单独置回 1.0）
-            return 0.85
+            return C.PAWN_RATES["consumable"]
         mtype = mm.get("type", "杂物")
         need = _MAT_FACILITY.get(mtype, "shop")
         sa = self._cur_subarea(player)
@@ -3645,11 +3672,11 @@ class EconomyCmds(CommandBase):
         name = sa.get("name", "")
         funcs = sa.get("funcs") or []
         if need == "alchemy" and ("炼金" in name or "alchemy" in funcs):
-            return 0.9
+            return C.PAWN_RATES["mat_alchemy"]
         if need == "smith" and self._is_smith_shop(player):
-            return 0.9
+            return C.PAWN_RATES["mat_smith"]
         if need == "shop" and self._at_shop(player):
-            return 0.8
+            return C.PAWN_RATES["mat_shop"]
         return None
 
     def _is_quest_item(self, d: dict) -> bool:

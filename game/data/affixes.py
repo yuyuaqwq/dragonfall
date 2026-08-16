@@ -20,7 +20,7 @@ AFFIXES = {
     # ================= 武器攻击词条（18） =================
     "bleed": {
         "name": "流血", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
-        "effect": {"dot_pct": 0.05, "turns": 3},
+        "effect": {"dot_pct": 0.05, "stacks": 3},
         "desc": "攻击 20% 使目标流血(每回合 5% 生命，3 回合)",
     },
     "armor_break": {
@@ -35,7 +35,7 @@ AFFIXES = {
     },
     "execute": {
         "name": "处决", "kind": "attack", "trigger": "passive",
-        "effect": {"hp_pct": 0.30, "dmg_pct": 0.30},
+        "effect": {"dmg_mult": 1.30, "execute_threshold": 0.30, "tag": "💀处决"},
         "desc": "对生命 <30% 的目标＋30% 伤害",
     },
     "lifesteal": {
@@ -60,7 +60,7 @@ AFFIXES = {
     },
     "element_ice": {
         "name": "元素·冰", "kind": "attack", "trigger": "on_hit",
-        "effect": {"element": "ice", "pct": 0.05, "slow": 0.10},
+        "effect": {"element": "ice", "pct": 0.05, "slow": 0.10, "slow_turns": 2},
         "desc": "攻击附加 5% 冰属性伤害 + 减速（敌速减半）",
     },
     "element_thunder": {
@@ -70,12 +70,12 @@ AFFIXES = {
     },
     "precise": {
         "name": "精准", "kind": "attack", "trigger": "stat",
-        "effect": {"precise": 0.10},
+        "effect": {"precise": 0.10, "dmg_mult": 1.10, "tag": "🎯精准"},
         "desc": "命中＋10%，无视闪避",
     },
     "pierce": {
         "name": "贯穿", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
-        "effect": {"pierce": 1.0},
+        "effect": {"atk_pct": 0.60},
         "desc": "攻击 20% 无视防御",
     },
     "pene_phys": {
@@ -100,22 +100,22 @@ AFFIXES = {
     },
     "hunt": {
         "name": "追猎", "kind": "attack", "trigger": "passive",
-        "effect": {"marked_dmg": 0.20},
+        "effect": {"dmg_mult": 1.20, "enemy_marked": True, "tag": "🎯追猎"},
         "desc": "对标记目标＋20% 伤害",
     },
     "charge": {
         "name": "蓄力", "kind": "attack", "trigger": "on_hit", "chance": 0.10,
-        "effect": {"dmg_pct": 1.50},
+        "effect": {"dmg_pct": 0.50},
         "desc": "攻击 10% 造成 150% 伤害",
     },
     "counter": {
         "name": "反击", "kind": "attack", "trigger": "on_taken", "chance": 0.20,
-        "effect": {"counter": 0.60},
+        "effect": {"pct": 0.60},
         "desc": "受击后 20% 反击 60% 伤害",
     },
     "break_magic": {
         "name": "破魔", "kind": "attack", "trigger": "passive",
-        "effect": {"vs_caster": 0.25},
+        "effect": {"dmg_mult": 1.25, "enemy_role": "caster", "tag": "🔮破魔"},
         "desc": "对魔法系敌人＋25% 伤害",
     },
     "purify": {
@@ -125,7 +125,7 @@ AFFIXES = {
     },
     "dragon_aw": {
         "name": "龙威", "kind": "attack", "trigger": "passive",
-        "effect": {"vs_dragon": 0.25},
+        "effect": {"dmg_mult": 1.25, "enemy_contains": ["龙"], "tag": "🐉龙威"},
         "desc": "对龙系敌人＋25% 伤害",
     },
     # ================= 防具防御词条（12） =================
@@ -166,7 +166,7 @@ AFFIXES = {
     },
     "shield": {
         "name": "护盾", "kind": "defense", "trigger": "battle_start",
-        "effect": {"shield_hp_pct": 0.10},
+        "effect": {"shield_hp_pct": 0.10, "turns": 3},
         "desc": "战斗开始获得 10% 生命护盾",
     },
     "dodge": {
@@ -184,12 +184,12 @@ AFFIXES = {
     },
     "regen": {
         "name": "回春", "kind": "defense", "trigger": "turn_start",
-        "effect": {"regen_hp_pct": 0.01},
+        "effect": {"pct": 0.01},
         "desc": "每回合回复 1% 生命",
     },
     "meditate": {
         "name": "冥想", "kind": "defense", "trigger": "turn_start",
-        "effect": {"regen_mp_pct": 0.01},
+        "effect": {"pct": 0.01},
         "desc": "每回合回复 1% 魔力",
     },
     "swift": {
@@ -304,13 +304,13 @@ LEGENDARY_EFFECTS = {
     },
     "jack_hook": {  # 杰克的金钩：对低血目标处决大幅强化
         "name": "处决狂潮", "kind": "attack", "trigger": "passive",
-        "effect": {"hp_pct": 0.30, "dmg_pct": 0.80},
+        "effect": {"dmg_mult": 1.80, "execute_threshold": 0.30, "tag": "💀处决狂潮"},
         "desc": "对生命 <30% 的目标额外＋80% 伤害",
     },
-    "ancient_king": {  # 古王剑：处决强化
+    "ancient_king": {  # 古王剑：处决强化（v110 斩杀线统一 30%，与 execute 一致）
         "name": "王权处决", "kind": "attack", "trigger": "passive",
-        "effect": {"hp_pct": 0.35, "dmg_pct": 0.35},
-        "desc": "对生命 <35% 的目标＋35% 伤害",
+        "effect": {"dmg_mult": 1.35, "execute_threshold": 0.30, "tag": "👑王权处决"},
+        "desc": "对生命 <30% 的目标＋35% 伤害",
     },
     "judgment_chain": {  # 审判之链：净化强化
         "name": "审判之链", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
@@ -319,7 +319,7 @@ LEGENDARY_EFFECTS = {
     },
     "dawn_crown": {  # 晨曦之冠：回春强化
         "name": "晨曦祝福", "kind": "defense", "trigger": "turn_start",
-        "effect": {"regen_hp_pct": 0.02},
+        "effect": {"pct": 0.02},
         "desc": "每回合回复 2% 生命",
     },
     "moon_bow": {  # 月神之弓：暴击大幅强化
@@ -339,17 +339,17 @@ LEGENDARY_EFFECTS = {
     },
     "dragon_tongue": {  # 龙语圣剑：攻击叠印记
         "name": "龙语印记", "kind": "attack", "trigger": "on_hit",
-        "effect": {"dragon_mark": 0.02, "max_mark": 5},
+        "effect": {"mark_pct": 0.02, "max_mark": 5},
         "desc": "攻击叠加龙语印记(每层＋2% 伤害，上限 5 层)",
     },
     "dawn_light": {  # 黎明之光：深渊特攻
         "name": "黎明破晓", "kind": "attack", "trigger": "passive",
-        "effect": {"vs_abyss": 0.50},
+        "effect": {"dmg_mult": 1.50, "enemy_contains": ["深渊"], "tag": "🌅黎明破晓"},
         "desc": "对深渊系敌人＋50% 伤害",
     },
     "moro_crown": {  # 摩罗之冠：受击腐蚀
         "name": "深渊腐蚀", "kind": "defense", "trigger": "on_taken", "chance": 0.15,
-        "effect": {"corrupt": 0.10, "turns": 2},
+        "effect": {"pct": 0.10, "turns": 2},
         "desc": "受击 15% 使敌人攻击－10%(2 回合)",
     },
     "aura_seal": {  # 奥拉圣印：雷系强化
@@ -374,7 +374,7 @@ LEGENDARY_EFFECTS = {
     },
     "ember_ward": {  # v87 灰烬守卫套：受击 20% 反弹 50% 伤害（重装反伤）
         "name": "灰烬壁垒", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
-        "effect": {"reflect_pct": 0.50},
+        "effect": {"pct": 0.50},
         "desc": "受击 20% 概率触发灰烬壁垒：反弹 50% 伤害",
     },
     "goblin_crown": {  # v104 修复（M06 P2-7）：咕噜的皇冠——哥布林王的威仪

@@ -29,7 +29,84 @@ def register(key):
     return deco
 
 
+def check_action_keys(action):
+    """消费端防御：action 中未注册的动作键（set(action) - set(ACTIONS)）告警。
+
+    v124.3（审计）：此前 _apply_talk_action 对未知 action 键静默忽略（qest_take
+    笔误无告警），与 check_need 的未知 need 键防御不对称。现与
+    core/dialogue.py check_need（v104 M21 P1）对齐：
+      生产环境 → astrbot 日志 warn 并放行（防数据笔误静默失效）；
+      测试环境（GWEN_GAME_DB 含 "test" / GWEN_TEST_MODE=1）→ 直接 raise 让单测抓笔误。
+    _apply_talk_action_async / _apply_talk_action 入口调用。"""
+    if not action:
+        return
+    unknown = set(action) - set(ACTIONS)
+    if not unknown:
+        return
+    import logging
+    import os
+    _db = os.environ.get("GWEN_GAME_DB", "")
+    _msg = (f"[dragonfall] 对话动作未注册键 action{unknown}："
+            f"数据笔误？已按'无动作'放行，请检查 dialogues.py")
+    _test = ("test" in os.path.basename(_db).lower()
+             or os.environ.get("GWEN_TEST_MODE") == "1")
+    if _test:
+        raise ValueError(_msg)
+    logging.getLogger("astrbot").warning(_msg)
+
+
 # ================= 动作实现 =================
+
+# 注册顺序 = 执行顺序。apprentice_check 必须最先注册：它是条件型动作（闸门），
+# 判定失败/副业位满时设置 world._talk_route，消费端据此中断后续动作链——
+# 与 v101.23d 前 talk_choice 特判"失败路径零动作执行（consume_item 不扣料）"一致。
+
+
+@register("apprentice_check")
+def action_apprentice_check(world, group_id, qq_id, player, npc_id, action):
+    """v81 导师进修：考验判定（检查背包材料）——由 talk_choice 主循环特判迁入注册表。
+
+    条件型动作：判定结果经 world._talk_route / world._talk_tail 通道传出，
+    _apply_talk_action_async 返回路由，talk_choice 主循环只做通用分发：
+      _talk_route = "__end__" → 副业位满直接结束对话（#101.29，不再渲染 fail 节点）
+      _talk_route = "fail"    → 材料不足，走选项 fail_next
+      通过（不设 route）     → 成功提示放 _talk_tail，待全部动作行之后追加
+                                 （与旧特判 notices.append("✅…") 的输出顺序一致）
+    交互行为（选项显示/失败提示/通过流程）与 v101.23d 前内联特判完全一致。
+    """
+    check = action["apprentice_check"]
+    # #255: 副业位满时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
+    # 位满则材料也不收，避免玩家交完材料才被拦白跑
+    # #417: 遍历层级 bug——dlg 顶层是 {start, nodes}，必须遍历 nodes 子表
+    prof_target = None
+    dlg = C.get_dialogue(npc_id)
+    for _nid, _node in ((dlg.get("nodes") or {}).items()):
+        if not isinstance(_node, dict):
+            continue  # 对话树部分节点为纯字符串（跳转别名）
+        for _o in (_node.get("options") or []):
+            _ua = (_o.get("action") or {}).get("unlock_prof")
+            if _ua:
+                prof_target = _ua
+                break
+        if prof_target:
+            break
+    _npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
+    _name = _npc.get("name", npc_id)
+    if prof_target:
+        _okp, _msgp = world._prof_active_check(group_id, qq_id, prof_target)
+        if not _okp:
+            # v101.29：副业位满拦截直接结束对话（不再渲染 fail 节点）——旧代码跳
+            # fail_next 会渲染"材料凑不齐"类台词，与"副业位满先不收材料"的拦截
+            # 归因矛盾（小红实测梅尔文交付被抓包）
+            world._talk_route = "__end__"
+            return [_msgp + "（这次考验先不收材料，腾出副业位再来吧）"]
+    have = db.count_item(group_id, qq_id, check.get("item", ""))
+    need = int(check.get("count", 1))
+    if have >= need:
+        world._talk_tail = [f"✅ {_name}满意地点了点头。"]
+        return []
+    world._talk_route = "fail"
+    return [f"{_name}摇头：还差 {need - have} 份{check.get('item', '材料')}，备齐了再来。"]
 
 
 @register("set_flag")
@@ -191,6 +268,15 @@ def action_unlock_prof(world, group_id, qq_id, player, npc_id, action):
         lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
     lines.append("💡 『副业』查看你的生活职业面板")
     return lines
+
+
+@register("give_prof_exp")
+def action_give_prof_exp(world, group_id, qq_id, player, npc_id, action):
+    """unlock_prof 的配套参数键（拜师礼副业经验，实际由 unlock_prof 动作消费）。
+
+    v124.3（审计）：注册为 no-op 仅为让 ACTIONS 覆盖数据中全部动作键，
+    防 check_action_keys 未知键告警误报（拜师选项均带此键）。"""
+    return []
 
 
 @register("unlock_class")

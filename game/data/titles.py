@@ -20,7 +20,7 @@ TITLES = [
     {"id": "fish10",      "name": "垂钓大师",   "desc": "垂钓 10 次"},
     {"id": "enhance5",    "name": "锻造新星",   "desc": "成功强化装备至＋5"},
     {"id": "enhance9",    "name": "神匠之手",   "desc": "成功强化装备至＋9"},
-    {"id": "hidden",      "name": "秘银追寻者", "desc": "进入隐藏地图秘银遗迹"},
+    {"id": "hidden",      "name": "秘银追寻者", "desc": "进入隐藏区域（如失落图书馆、灰烬回廊）"},
     {"id": "final",       "name": "传说终结者", "desc": "完成全部主线任务"},
     # ---- 副业称号（Lv.3/6/10 三档，大师称号带属性加成）----
     {"id": "pro_gather3", "name": "采药人",     "desc": "采集达到 Lv.3"},
@@ -48,16 +48,18 @@ TITLES = [
     # ---- 荣誉商店称号（26 章 3.3）----
     {"id": "pvp_hero",    "name": "荣誉勋章",   "desc": "PVP 强者，攻击＋10(荣誉商店兑换)", "bonus": {"atk": 10}},
     # ---- 20 份支线设计稿新增称号（2026-08-16 批量登记，任务链专属/隐藏线解锁）----
-    # 纯收藏型不带 bonus；带数值的走 bonus（spd 等）；副业经验/折扣类暂无属性位，效果写 desc
-    {"id": "north_benefactor", "name": "北境的恩人", "desc": "完成 S18 善结局，北境诸部的恩人(纯收藏，北境商店折扣+2%)"},
+    # 纯收藏型不带 bonus；带数值的走 bonus（spd 等）。
+    # v124.2 修复：副业经验/折扣/声望类 desc 原承诺效果（采集+10%/商店折扣等）无消费挂点
+    # （结算点在 economy.py/combat.py/store，title_bonus 只供面板属性消费）→ desc 去掉承诺，纯收藏。
+    {"id": "north_benefactor", "name": "北境的恩人", "desc": "完成 S18 善结局，北境诸部的恩人(纯收藏)"},
     {"id": "nightwalker",      "name": "长夜行者",   "desc": "完成 S18 暗结局，北境风雪记住的名字(纯收藏)"},
-    {"id": "guifan_seal",      "name": "归帆之印",   "desc": "完成海洋之歌线 S27，海神祝福的印记(海洋探索/垂钓小幅加成)"},
-    {"id": "dragon_warden",    "name": "守龙者",     "desc": "完成龙裔传承线——龙骨山脉记得你的名字(纯收藏+龙脊/风翼区域声望加成)"},
+    {"id": "guifan_seal",      "name": "归帆之印",   "desc": "完成海洋之歌线 S27，海神祝福的印记(纯收藏)"},
+    {"id": "dragon_warden",    "name": "守龙者",     "desc": "完成龙裔传承线——龙骨山脉记得你的名字(纯收藏)"},
     {"id": "gourmet",          "name": "美食鉴赏家", "desc": "赢得 S49 美食节大赛(纯收藏)"},
-    {"id": "herb_friend",      "name": "草木知己",   "desc": "完成 S49 月光药园线(采集副业经验+10%)"},
+    {"id": "herb_friend",      "name": "草木知己",   "desc": "完成 S49 月光药园线(纯收藏)"},
     {"id": "treasure_hunter",  "name": "寻宝猎人",   "desc": "完成 S49 收藏家线(纯收藏)"},
-    {"id": "furry_friend",     "name": "毛茸茸之友", "desc": "完成 L1-5 宠物情缘线(纯收藏，絮毛宠物店永久贵宾折扣)"},
-    {"id": "merchant_friend",  "name": "商会之友",   "desc": "完成 S50 商路风云线(铁港城商店折扣+5%)"},
+    {"id": "furry_friend",     "name": "毛茸茸之友", "desc": "完成 L1-5 宠物情缘线(纯收藏)"},
+    {"id": "merchant_friend",  "name": "商会之友",   "desc": "完成 S50 商路风云线(纯收藏)"},
     {"id": "just_enforcer",    "name": "公正执法者", "desc": "侦探与怪盗线 S49 正义线(收藏)"},
     {"id": "shadow_friend",    "name": "影子之友",   "desc": "侦探与怪盗线 S49 义气线(收藏)"},
     {"id": "dusk_detective",   "name": "晨昏侦探",   "desc": "完成 S50 侦探与怪盗线(速度+3)", "bonus": {"spd": 3}},
@@ -65,9 +67,9 @@ TITLES = [
     {"id": "guide",            "name": "引路人",     "desc": "完成 S50 学徒之路线，带出一个人来的冒险者不多(纯收藏)"},
     {"id": "night_rain",       "name": "夜雨常客",   "desc": "完成隐藏线 H5，雨夜的常客(速度+3)", "bonus": {"spd": 3}},
     {"id": "goose_messenger",  "name": "鸿雁传书",   "desc": "完成隐藏线 H7，翎信千里(速度+5)", "bonus": {"spd": 5}},
-    {"id": "forge_son",        "name": "熔炉之子",   "desc": "完成隐藏线 H8，铁砧要塞的传人(锻造经验+10%)"},
+    {"id": "forge_son",        "name": "熔炉之子",   "desc": "完成隐藏线 H8，铁砧要塞的传人(纯收藏)"},
     {"id": "graveyard_warden", "name": "墓园守望者", "desc": "完成隐藏线 H6，白石墓园的守望者(纯展示)"},
-    {"id": "fishing_legend",   "name": "垂钓传说",   "desc": "完成 S51 垂钓传说线(垂钓经验+20%)"},
+    {"id": "fishing_legend",   "name": "垂钓传说",   "desc": "完成 S51 垂钓传说线(纯收藏)"},
     {"id": "late_messenger",   "name": "迟到的信使", "desc": "完成 S50 旧友重逢线——把一封迟了二十年的信送到终点的人(纯收藏)"},
     {"id": "season_gardener",  "name": "四季花匠",   "desc": "完成 S51 花匠与四季线——花比人长情(纯收藏)"},
 ]

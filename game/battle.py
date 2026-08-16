@@ -18,6 +18,7 @@ import time
 
 from . import content as C
 from . import engine as E
+from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
 # v112 数据驱动收敛（D5）：文案下沉 CLASSES[职业]["attack_text"]，逻辑层只读数据
@@ -71,15 +72,9 @@ TEAM_BUFF_KEYS = {
 # v113.1：团队技能 reduce_all 真·百分比减伤（此前被 TEAM_BUFF_KEYS 误映射为 def_up 防御提升，
 # 玩家看到"减伤 x%"实际是防御+45%）。reduce_all 是团队减伤 effect，不走 TEAM_BUFF_KEYS，
 # 在 _skill_buff 单独处理成 p_buffs["reduce_all"]=减伤百分比。
-# 百分比取自各技能 desc（skills.py 无独立数字字段，另一 agent 在改 skills.py，此处按策划 desc 收敛）。
-# 副本广播侧（instance.py team_effects["reduce_all"]）保持既有口径，本文只修 battle.py 单机侧。
-REDUCE_ALL_PCT = {
-    "磐石护壁": 0.15,   # desc：全队减伤 15% 2 回合
-    "不破壁垒": 0.25,   # desc：全队减伤 25% 3 回合
-    "守护圣域": 0.50,   # desc：全队无敌屏障（按三转奥义档，收敛 50%）
-    "气力万法": 0.30,   # desc：全队减伤 30% 3 回合
-    "大地守护": 0.50,   # desc：全队减伤 50% 3 回合
-}
+# v1.x：数值下沉 skills.py 技能条目 reduce_all 字段（原 REDUCE_ALL_PCT 中文名硬编码表已删），
+# 消费端改读 info.get("reduce_all", 0)。副本广播侧（instance.py team_effects["reduce_all"]）
+# 保持既有口径，本文只修 battle.py 单机侧。
 # 负面效果
 DEF_DOWN_MULT = 0.5   # 破甲斩：敌方防御减半
 SPD_DOWN_MULT = 0.5   # 寒冰箭：敌方速度减半（暂不影响结算，留接口）
@@ -190,9 +185,13 @@ class Battle:
                 except Exception:
                     pass
             self._init_resources(player)
-        # 阶段八：战斗开始词条——护盾（获得 10% 生命护盾，3 回合；v101.28d 盾 buff 化）
+        # 阶段八：战斗开始词条——护盾（10% 生命护盾/3 回合，数值读 affixes 数据 shield_hp_pct/turns；
+        # v101.28d 盾 buff 化）
         if player and "shield" in self._equip_affix_ids(player):
-            self._add_shield("affix_shield", int(player.get("max_hp", 100) * 0.10), 3)
+            _se = (C.AFFIXES.get("shield") or {}).get("effect") or {}
+            self._add_shield("affix_shield",
+                             int(player.get("max_hp", 100) * float(_se.get("shield_hp_pct", 0.10))),
+                             int(_se.get("turns", 3)))
         # v121 CTB 行动时间轴：玩家 ct（越小越先行动），开局 = -spd（快者先手）
         self.p_ct: float = 0.0
         try:
@@ -1209,21 +1208,15 @@ class Battle:
                 st[_pv] = min(st.get(_pv, 0) + pb[_pk], C.PCT_CAPS.get(_pv, 0.6))
         # v104 R3 P1-1：条件属性被动战斗内结算（12 章 §12.2：战意高涨/战争咆哮/死战/厚土）
         # engine.py 面板只结算无 cond 属性，条件型（rage>=5/hp 阈值/battle_start）在此按战场状态动态生效
+        # v1.x：条件判定改查 PASSIVE_COND_CHECKS 注册表（原 if/elif 硬编码）
         pm = self._passive_map(player)
-        _hp_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
         for _pn, _ps in pm.get("stat", []):
             _st = _ps.get("stat")
-            _cond = _ps.get("cond")
-            _ok = False
-            if _cond == "rage>=5":
-                _ok = (self.resources.get("rage", 0) or 0) >= 5
-            elif _cond == "hp_low_50":
-                _ok = _hp_ratio < 0.5
-            elif _cond == "hp_high_70":
-                _ok = _hp_ratio >= 0.7
-            elif _cond == "battle_start":
-                _ok = getattr(self, "round", 1) <= 1
-            if _ok and _st in ("atk", "def", "matk", "mdef"):
+            # v1.x：条件判定改查 PASSIVE_COND_CHECKS 注册表（原 if/elif 硬编码）；
+            # 仅消费 PASSIVE_COND_STAT_KEYS 白名单内条件（dual_stat/hp_low_30 由其它站点消费）
+            if _ps.get("cond") in PASSIVE_COND_STAT_KEYS \
+                    and passive_cond_ok(self, player, _ps, default=False) \
+                    and _st in ("atk", "def", "matk", "mdef"):
                 st[_st] = int(st.get(_st, 0) * (1 + float(_ps.get("mult", 0))))
         return st
 
@@ -1502,60 +1495,59 @@ class Battle:
 
         处决（低血增伤）/追猎（标记）/破魔（魔法系）/龙威（龙系）/黎明之光（深渊系）
         /精准（命中强化近似 +10%）/龙语印记（每层 +2% 伤害）。
+        数值全查表（v126 数值下沉）：词条读 affixes.py effect（dmg_mult + execute_threshold/
+        enemy_contains/enemy_role/enemy_marked 条件 + tag），套装 5 件读 sets 数据
+        bonus_5_cond（enemy_contains/player_hp_below/dmg_mult/tag），斩杀阈值统一读数据。
         """
         ids = self._equip_affix_ids(player)
         # 套装 5 件对敌增伤不依赖词条（10 章五节，复用龙威/黎明破晓的关键词模式）
         mult = 1.0
         tags = []
-        s5names = "|".join(self._set_bonus_5(player))
+        s5names = self._set_bonus_5(player)
         ename = self.enemy.get("name", "")
         e = self.enemy
         hp_ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
-        if "圣光" in s5names and any(k in ename for k in ("暗", "影", "亡", "鬼", "骨", "骷髅")):
-            mult *= 1.10
-            tags.append("✨圣光克暗")
-        if "龙脊" in s5names and "龙" in ename:
-            mult *= 1.10
-            tags.append("🐉龙息追猎")
-        if "地底" in s5names and "深渊" in ename:
-            mult *= 1.10
-            tags.append("🕳️深渊共鸣")
-        # v104 M07 修复 P1/P2：灰烬守卫（残血增攻）与迷雾（沼泽/毒腐系增伤）5 件效果
+        # v104 M07 修复 P1/P2：灰烬守卫（残血增攻）与迷雾（沼泽/毒腐系增伤）5 件效果同表
         p_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
-        if "灰烬守卫" in s5names and p_ratio < 0.30:
-            mult *= 1.20
-            tags.append("🔥灰烬之怒")
-        if "迷雾" in s5names and any(k in ename for k in ("沼泽", "毒", "腐", "瘴")):
-            mult *= 1.10
-            tags.append("🌫️迷雾侵染")
+        for sname in s5names:
+            _sc = (E._set_info(sname) or {}).get("bonus_5_cond") or {}
+            if not _sc:
+                continue
+            _ok = True
+            if _sc.get("enemy_contains") and not any(k in ename for k in _sc["enemy_contains"]):
+                _ok = False
+            if _ok and _sc.get("player_hp_below") is not None and not (p_ratio < float(_sc["player_hp_below"])):
+                _ok = False
+            if _ok:
+                mult *= float(_sc.get("dmg_mult", 1.0))
+                tags.append(_sc.get("tag", sname))
         if not ids:
             # v101.28e/f：无词条时不能提前返回——食物/药水倍率（处决/精准/狂怒/死神）仍要结算
             return self._extra_dmg_mult(hp_ratio, mult, tags)
-        # v110 审计修复：词条处决阈值 0.35 → 0.30（斩杀线统一 30%，v109 拍板）
-        if "execute" in ids and hp_ratio < 0.30:
-            mult *= 1.30
-            tags.append("💀处决")
-        if "jack_hook" in ids and hp_ratio < 0.30:
-            mult *= 1.80
-            tags.append("💀处决狂潮")
-        if "ancient_king" in ids and hp_ratio < 0.30:
-            mult *= 1.35
-            tags.append("👑王权处决")
-        if "hunt" in ids and "mark" in self.e_buffs:
-            mult *= 1.20
-            tags.append("🎯追猎")
-        if "break_magic" in ids and e.get("role") == "caster":
-            mult *= 1.25
-            tags.append("🔮破魔")
-        if "dragon_aw" in ids and "龙" in e.get("name", ""):
-            mult *= 1.25
-            tags.append("🐉龙威")
-        if "dawn_light" in ids and "深渊" in e.get("name", ""):
-            mult *= 1.50
-            tags.append("🌅黎明破晓")
-        if "precise" in ids:
-            mult *= 1.10
-            tags.append("🎯精准")
+        # 被动词条/专属增伤：遍历数据 effect 的 dmg_mult（条件字段一并读数据；
+        # 遍历顺序保持旧代码分支序，斩杀线统一 30% 由 execute_threshold 数据声明）
+        for aid in ("execute", "jack_hook", "ancient_king", "hunt", "break_magic",
+                    "dragon_aw", "dawn_light", "precise"):
+            if aid not in ids:
+                continue
+            _ai = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid) or {}
+            _ae = _ai.get("effect") or {}
+            _dm = _ae.get("dmg_mult")
+            if not _dm:
+                continue
+            _ok = True
+            _th = _ae.get("execute_threshold")
+            if _th is not None and not (hp_ratio < float(_th)):
+                _ok = False
+            if _ok and _ae.get("enemy_contains") and not any(k in ename for k in _ae["enemy_contains"]):
+                _ok = False
+            if _ok and _ae.get("enemy_role") and e.get("role") != _ae["enemy_role"]:
+                _ok = False
+            if _ok and _ae.get("enemy_marked") and "mark" not in self.e_buffs:
+                _ok = False
+            if _ok:
+                mult *= float(_dm)
+                tags.append(_ae.get("tag", _ai.get("name", aid)))
         # v101.28e/f：食物+药水额外倍率（处决/精准/狂怒/死神），与词条是否为空无关
         mult, tags = self._extra_dmg_mult(hp_ratio, mult, tags)
         return mult, tags
@@ -1586,7 +1578,9 @@ class Battle:
             tags.append("⚔️狂怒")
         dm = int(self.mech_stacks.get("dragon_mark", 0) or 0)
         if dm:
-            mult *= 1 + 0.02 * dm
+            # v126 数值下沉：每层增伤读龙语印记数据 mark_pct（缺省 2%）
+            _dt = (C.AFFIXES.get("dragon_tongue") or {}).get("effect") or {}
+            mult *= 1 + float(_dt.get("mark_pct", 0.02)) * dm
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -1779,74 +1773,20 @@ class Battle:
         """增益分支（v103.6 从 _player_skill 拆出）"""
         eff = info.get("effect")
         if eff:
-            if eff == "mon_atk_down":
-                # v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）
-                self.e_buffs["mon_atk_down"] = E.skill_buff_turns(lv)
-            elif eff == "element_shift":
-                # v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%
-                cur = self.resources.get("element", "fire")
-                nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
-                self.resources["element"] = nxt
-                self.p_buffs["matk_up"] = E.skill_buff_turns(lv)
-                self._shifted_element = nxt
-            elif eff == "stealth":
-                # v104 R3 P1-10：潜行状态实装——下次攻击必暴（desc 对齐），暴击率 +20% 持续回合
-                self.p_buffs["stealth"] = 1
-                self.p_buffs["crit_up"] = E.skill_buff_turns(lv)
-            elif eff == "mark":
-                # v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）
-                self.e_buffs["mark"] = E.skill_buff_turns(lv)
-            elif eff == "sleep":
-                # v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 回合）
-                # v120 q5：Boss 亦控制减半（普通 2 回合 → Boss 1 回合）。
-                self.e_buffs["sleep"] = self._boss_ctrl_dur("sleep", 1 if self.btype == "worldboss" else 2)
-            elif eff == "shield_all":
-                # v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
-                st2 = self._player_stats(player)
-                base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
-                self._add_shield("team_bless", int(base * 0.20), 3)
-            elif eff == "reduce_all":
-                # v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
-                # p_buffs["reduce_all"] 存减伤百分比；回合数记 self._reduce_all_left（_end_round 单独递减）。
-                pct = float((info or {}).get("reduce_all", REDUCE_ALL_PCT.get(info.get("name", ""), 0)) or 0)
-                turns = E.skill_buff_turns(lv)
-                self.p_buffs["reduce_all"] = pct
-                self._reduce_all_left = max(getattr(self, "_reduce_all_left", 0), turns)
-                logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {self._reduce_all_left} 回合）")
+            # v1.x：mon_atk_down/element_shift/stealth/mark/sleep/shield_all/reduce_all
+            # 7 分支注册表化 → core/battle_mech.py SKILL_BUFF_EFFECTS；TEAM_BUFF_KEYS 保留原逻辑
+            from .core.battle_mech import SKILL_BUFF_EFFECTS
+            h = SKILL_BUFF_EFFECTS.get(eff)
+            if h:
+                h(self, skill_name, info, player, lv, logs)
             else:
                 # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
                 key = TEAM_BUFF_KEYS.get(eff, eff)
                 # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
                 self.p_buffs[key] = max(self.p_buffs.get(key, 0), E.skill_buff_turns(lv))
-        # v30 条件转化：增益型引爆也吃战场状态（如元素狂暴残血引爆）
-        cond_mult = self._cond_mult(info, player, lv)
-        # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
-        cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
-        # v29：effect 型机制（引爆/转化类增益技能）
-        if eff == "burn_burst":
-            # DOT 重构：敌方灼烧层迁为目标级 debuffs（契约 §3.1 与 _m_burn_burst 同口径）
-            n = int(((self.enemy.get("debuffs") or {}).get("burn") or {"n": 0}).get("n", 0) or 0)
-            st2 = self._player_stats(player)
-            if st2 and n:
-                d = int(st2["matk"] * 0.30 * n * cond_mult)
-                self._damage_enemy(d, logs)
-                logs.append(f"🔥 灼烧引爆！{n} 层造成 {d} 点伤害" + (f" ⚔️{cond_label} x{round(cond_mult, 2)}！" if cond_label else ""))
-            (self.enemy.get("debuffs") or {}).pop("burn", None)
-            self.e_buffs.pop("burn", None)
-        elif eff == "rage_burst":
-            n = p_mech.get("rage", 0)
-            if n:
-                self.p_buffs["atk_up_strong"] = E.skill_buff_turns(1)
-                logs.append(f"🔥 狂战之魂！{n} 层狂暴 → 攻击大幅提升")
-            p_mech["rage"] = 0
-        elif eff == "bless_shield":
-            n = p_mech.get("bless", 0)
-            st2 = self._player_stats(player)
-            if st2 and n:
-                shield = int(st2["matk"] * 0.08 * n)
-                self._add_shield("bless", shield, 2)
-                logs.append(f"✨ 神恩护盾！{n} 层转化为 {shield} 点护盾")
-            p_mech["bless"] = 0
+        # v1.x：原 burn_burst/rage_burst/bless_shield 三分支（v29 effect 型引爆/转化）
+        # 全库无数据 producer（skills.py 无 effect=burn_burst/rage_burst/bless_shield 条目）
+        # → 死代码删除；其专属 cond_mult/cond_label 计算一并移除。
         self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
         logs.append(f"你施展【{skill_name}】！")
         if eff == "element_shift" and getattr(self, "_shifted_element", None):
@@ -1954,12 +1894,10 @@ class Battle:
         for _pn, _ps in _procs.get("fire_bonus", []):
             if element == "fire" and kind == "魔法":
                 passive_bonus *= (1 + float(_ps.get("mult", 0.10)))
-        # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，原技能名硬编码）
+        # 双修精通：力量/智力同时增加时攻击 +5%（stat cond=dual_stat，v1.x 查 PASSIVE_COND_CHECKS）
         for _pn, _ps in _pm["stat"]:
-            if _ps.get("cond") == "dual_stat":
-                st_full = self._player_stats(player)
-                if st_full.get("atk") and st_full.get("matk"):
-                    passive_bonus *= (1 + float(_ps.get("mult", 0.05)))
+            if _ps.get("cond") == "dual_stat" and passive_cond_ok(self, player, _ps):
+                passive_bonus *= (1 + float(_ps.get("mult", 0.05)))
         # v104 R3 P1-1：分支/基础 proc 型被动伤害挂点（数据驱动：万象亲和/元素之心/毒师/淬毒之心/
         # 追猎者/猎魔之眼/奥术之心/武技/疾驰/审判之心/暗影之心/暗影之舞/元素共鸣）
         # 元素伤害类（元素系技能）
@@ -2348,27 +2286,35 @@ class Battle:
             if dmg < 1:
                 dmg = 1
         mech = self.enemy.get("mech")
-        if not mech or self.btype == "pvp":
+        if self.btype == "pvp":
             return dmg
-        mechs = [x.strip() for x in mech.split(",") if x.strip()]
+        mechs = [x.strip() for x in (mech or "").split(",") if x.strip()]
         e = self.enemy
-        if "shield" in mechs:
+        # v1.x：护盾双源——boss_shield（mech=shield，BOSS_MECHS 写入）与
+        # e_buffs["shield"]（怪物增益技 effect=shield，MON_BUFF_EFFECTS 写入，如珊瑚护盾/铁壁/云盾）
+        if "shield" in mechs or self.e_buffs.get("shield"):
             sh = e.get("boss_shield", 0)
+            src = "boss_shield"
+            if not sh:
+                sh = int(self.e_buffs.get("shield", 0) or 0)
+                src = "shield"
             if sh > 0:
                 if dmg_type == "true":
                     absorbed = min(sh, dmg)  # 真伤不 -50%，护盾层仍吸收
-                    e["boss_shield"] = sh - absorbed
-                    if e["boss_shield"] <= 0:
-                        e.pop("boss_shield", None)
-                        logs.append("💥 护盾破碎！")
+                    sh -= absorbed
                 else:
                     real = int(dmg * 0.5)
                     absorbed = min(sh, real)
-                    e["boss_shield"] = sh - absorbed
-                    if e["boss_shield"] <= 0:
-                        e.pop("boss_shield", None)
-                        logs.append("💥 护盾破碎！")
+                    sh -= absorbed
                     dmg = real
+                if sh <= 0:
+                    e.pop("boss_shield", None)
+                    self.e_buffs.pop("shield", None)
+                    logs.append("💥 护盾破碎！")
+                elif src == "boss_shield":
+                    e["boss_shield"] = sh
+                else:
+                    self.e_buffs["shield"] = sh
         if "reflect" in mechs:
             if not dot:  # v1.3 dot 只走护盾减半/吸收，不触发反射反伤
                 ratio = e.get("hp", 0) / max(1, e.get("max_hp", 1))
@@ -3098,7 +3044,9 @@ class Battle:
                     continue
                 # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
                 # 需单独递减（数值递减会让百分比被 -1 污染）。
-                if k == "reduce_all":
+                # v1.x：e_buffs["shield"]（怪物增益护盾）存的是护盾值（HP 量），
+                # 由 _boss_dmg_filter 按伤害扣减，不能按回合递减。
+                if k in ("reduce_all", "shield"):
                     continue
                 tbl[k] -= 1
                 if tbl[k] <= 0:
@@ -3515,7 +3463,9 @@ class Battle:
                 rpct = float(ps.get("reduce") or 0)
                 if rpct <= 0:
                     continue
-                if ps.get("cond") == "hp_low_30" and player.get("hp", 0) / max(1, player.get("max_hp", 1)) >= 0.30:
+                # v1.x：条件判定改查 PASSIVE_COND_CHECKS（原 hp_low_30 if 硬编码；
+                # 条件不满足 → 跳过本次减伤，语义与旧 `cond==hp_low_30 and hp>=30% → continue` 一致）
+                if not passive_cond_ok(self, player, ps):
                     continue
                 reduce_total += int(dmg * rpct)
                 # v113.1：守护姿态 passive 带 res_gain（受击怒气+2 承诺）——此前本分支只减伤

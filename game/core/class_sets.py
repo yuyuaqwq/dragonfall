@@ -39,6 +39,9 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"heal_power": 0.10},
         "bonus_4_stats": {"def": 0.08},
         "bonus_5": {"desc": "圣光增伤＋10%（对暗影/亡灵系敌人）"},
+        # v126 数值下沉：5 件对敌增伤条件（敌方名字关键词）从数据声明，battle 查表消费
+        "bonus_5_cond": {"enemy_contains": ["暗", "影", "亡", "鬼", "骨", "骷髅"],
+                         "dmg_mult": 1.10, "tag": "✨圣光克暗"},
     },
     "月语": {
         "icon": "🌙", "quality": "purple",
@@ -57,6 +60,8 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"mdef": 0.10},   # 魔抗 +10%
         "bonus_4_stats": {"atk": 0.08},
         "bonus_5": {"desc": "龙息增伤＋10%（对龙系敌人）"},
+        "bonus_5_cond": {"enemy_contains": ["龙"],
+                         "dmg_mult": 1.10, "tag": "🐉龙息追猎"},
     },
     "海神": {
         "icon": "🌊", "quality": "purple",
@@ -69,6 +74,8 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"mdef": 0.10},   # 暗抗 +10% ≈ 魔抗 +10%
         "bonus_4_stats": {"def": 0.08},
         "bonus_5": {"desc": "深渊增伤＋10%（对深渊系敌人）"},
+        "bonus_5_cond": {"enemy_contains": ["深渊"],
+                         "dmg_mult": 1.10, "tag": "🕳️深渊共鸣"},
     },
     "苍穹": {
         "icon": "☁️", "quality": "purple",
@@ -101,6 +108,8 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"dodge": 0.08},
         "bonus_4_stats": {"mdef": 0.08},
         "bonus_5": {"desc": "迷雾增伤＋10%（对沼泽/毒腐系敌人）"},
+        "bonus_5_cond": {"enemy_contains": ["沼泽", "毒", "腐", "瘴"],
+                         "dmg_mult": 1.10, "tag": "🌫️迷雾侵染"},
     },
     # v87 隐藏线（10 章 10.1/10.2）
     "星尘": {
@@ -114,6 +123,8 @@ _SERIES_SET_BONUS = {
         "bonus_2": {"mdef": 0.10},
         "bonus_4_stats": {"def": 0.08},
         "bonus_5": {"desc": "灰烬祝福：生命低于 30% 时攻击＋20%"},
+        "bonus_5_cond": {"player_hp_below": 0.30,
+                         "dmg_mult": 1.20, "tag": "🔥灰烬之怒"},
     },
 }
 
@@ -133,4 +144,7 @@ def _build_class_sets():
             entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
         if b.get("bonus_5"):
             entry["bonus_5"] = dict(b["bonus_5"])
+        if b.get("bonus_5_cond"):
+            # v126 数值下沉：5 件战斗条件（enemy_contains/player_hp_below/dmg_mult/tag）随套装注册
+            entry["bonus_5_cond"] = dict(b["bonus_5_cond"])
         SETS[set_id] = entry

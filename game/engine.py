@@ -460,18 +460,27 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                     st[k] = int(st[k] * (1 + v))
         names2 = [s for s, c in active_sets(equipment).items() if c >= 2]
         sources.append({"name": f"套装2件({'/'.join(names2)})", "stats": src2, "pct": True})
-    # 5. 套装 4 件属性型特效（常驻属性）
+    # 5. 套装 4 件属性型特效（常驻属性；数值读 sets.py bonus_4.stats，v126 数值下沉）
+    # 按已激活(>=4 件)套装逐套应用各自 bonus_4.stats（同 eff 多套叠加语义与旧代码一致；
+    # 无 stats 字段的特效型由战斗侧消费）
     eff_src = {}
-    for eff in set_bonus_4(equipment):
-        if eff == "crit_up_set":
-            eff_src["crit"] = eff_src.get("crit", 0) + 0.08
-            st["crit"] = min(st["crit"] + 0.08, 0.5)
-        elif eff == "dodge_set":
-            eff_src["dodge"] = eff_src.get("dodge", 0) + 0.10
-            st["dodge"] = min(st["dodge"] + 0.10, 0.4)
-        elif eff == "mdef_up_set":
-            eff_src["mdef"] = eff_src.get("mdef", 0) + 0.20
-            st["mdef"] = int(st["mdef"] * 1.20)
+    for sname, cnt in active_sets(equipment).items():
+        if cnt < 4:
+            continue
+        _b4 = (_set_info(sname) or {}).get("bonus_4") or {}
+        for k, v in (_b4.get("stats") or {}).items():
+            if k == "mdef":
+                eff_src["mdef"] = eff_src.get("mdef", 0) + v
+                st["mdef"] = int(st["mdef"] * (1 + v))
+            elif k == "crit":
+                eff_src["crit"] = eff_src.get("crit", 0) + v
+                st["crit"] = min(st["crit"] + v, 0.5)
+            elif k == "dodge":
+                eff_src["dodge"] = eff_src.get("dodge", 0) + v
+                st["dodge"] = min(st["dodge"] + v, 0.4)
+            else:
+                eff_src[k] = eff_src.get(k, 0) + v
+                st[k] = min(st.get(k, 0) + v, C.PCT_CAPS.get(k, 0.6))
     if eff_src:
         names4 = [s for s, c in active_sets(equipment).items() if c >= 4]
         sources.append({"name": f"套装4件({'/'.join(names4)})", "stats": eff_src, "pct": True})

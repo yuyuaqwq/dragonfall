@@ -1406,6 +1406,7 @@ BRANCH_SKILLS = {
                         "power": 0,
                         "kind": "增益",
                         "effect": "reduce_all",
+                        "reduce_all": 0.25,   # v1.x 数值下沉：全队减伤 25%（原 battle.py REDUCE_ALL_PCT 中文名硬编码）
                         "team": "reduce_all",
                         "res_cost": {
                             "rage": 5
@@ -1421,6 +1422,7 @@ BRANCH_SKILLS = {
                         "power": 0,
                         "kind": "增益",
                         "effect": "reduce_all",
+                        "reduce_all": 0.50,   # v1.x 数值下沉：全队减伤 50%（守护圣域）
                         "team": "reduce_all",
                         "res_cost": {
                             "rage": 5
@@ -2740,6 +2742,7 @@ BRANCH_SKILLS = {
                         "power": 0,
                         "kind": "增益",
                         "effect": "reduce_all",
+                        "reduce_all": 0.15,   # v1.x 数值下沉：全队减伤 15%（磐石护壁）
                         "team": "reduce_all",
                         "res_cost": {
                             "chi": 3
@@ -2906,6 +2909,7 @@ BRANCH_SKILLS = {
                         "power": 0,
                         "kind": "增益",
                         "effect": "reduce_all",
+                        "reduce_all": 0.30,   # v1.x 数值下沉：全队减伤 30%（气力万法）
                         "team": "reduce_all",
                         "res_cost": {
                             "chi": 10
@@ -2921,6 +2925,7 @@ BRANCH_SKILLS = {
                         "power": 0,
                         "kind": "增益",
                         "effect": "reduce_all",
+                        "reduce_all": 0.50,   # v1.x 数值下沉：全队减伤 50%（大地守护）
                         "team": "reduce_all",
                         "cd": 6,
                         "res_cost": {

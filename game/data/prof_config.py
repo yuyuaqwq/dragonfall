@@ -41,3 +41,26 @@ DAILY_PROF_TASKS = {
 
 # 背包过滤类型（『背包 材料』等）
 BAG_FILTER_TYPES = ["装备", "材料", "消耗品", "符文", "宠物蛋", "坐骑", "图纸", "鱼"]
+
+# 副业体力消耗（commands/economy.py 各副业命令 _spend_stamina 数据源；等待型 5 / 制造型 10）
+PROF_STAMINA_COST = {
+    "gather": 5, "mining": 5, "fishing": 5, "cooking": 5,
+    "alchemy": 10, "craft": 10, "enhance": 10, "enchant": 10,
+}
+
+# 等待型副业：等级每级等待衰减比例 / 保底等待秒数（economy._prof_wait_duration 数据源）
+PROF_WAIT_DECAY = 0.05
+PROF_WAIT_FLOOR = 10
+
+# 挖掘矿石类材料名关键词（economy._settle_mining 数据源；原 _ORE_KW 迁移）
+MINING_KEYWORDS = ["矿石", "秘银", "精钢", "结晶", "核心", "碎片", "石", "精华"]
+
+# 回收率表：物品类型 → 出售回收率（economy._pawn_rate 数据源）
+PAWN_RATES = {
+    "equip": 1.0,        # 装备→铁匠/工坊（原价）
+    "pet_mount": 0.5,    # 宠物蛋/坐骑缰绳
+    "consumable": 0.85,  # 非材料消耗品（药水/食物/卷轴/炼金/烹饪产物）
+    "mat_smith": 0.9,    # 材料→铁匠铺（矿石/木材/兽材/宝石）
+    "mat_alchemy": 0.9,  # 材料→炼金铺（草药/精华）
+    "mat_shop": 0.8,     # 材料→商店（食材/织物/杂物）
+}

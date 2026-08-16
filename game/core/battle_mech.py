@@ -771,6 +771,26 @@ def _mb_summon(battle, logs, sname):
     logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，召唤了援军【{m.get('name', '爪牙')}】！")
 
 
+@register(MON_BUFF_EFFECTS, "shield")
+def _mb_shield(battle, logs, sname):
+    """怪物护盾（v1.x 补注册：珊瑚护盾/铁壁/云盾 等 effect=shield 此前静默空转）。
+    参考 BOSS_MECHS shield handler 逻辑移植：e_buffs["shield"] 存护盾值
+    （技能数据无数值字段，按 BOSS 口径 = 20% 最大生命），玩家伤害经
+    battle._boss_dmg_filter 扣减（受伤减半 + 先扣盾再扣血），破盾即消失。"""
+    battle.e_buffs["shield"] = int(battle.enemy.get("max_hp", 1) * 0.20)
+    logs.append(f"🛡️ 【{battle.enemy['name']}】使用了【{sname}】，周身浮现一层护盾(受伤减半)！")
+
+
+@register(MON_BUFF_EFFECTS, "spd_up")
+def _mb_spd_up(battle, logs, sname):
+    """怪物加速（v1.x 补注册：疾驰/疾跑/闪烁 等 effect=spd_up 此前静默空转）。
+    参考 BUFF_MULT spd_up 模式：e_buffs["spd_up"] = BUFF_TURNS，
+    _enemy_stats → _apply_buffs 读 BUFF_MULT["spd_up"]=(spd, 1.40) 实际生效。"""
+    from ..battle import BUFF_TURNS  # 延迟引用，避免模块循环
+    battle.e_buffs["spd_up"] = BUFF_TURNS
+    logs.append(f"【{battle.enemy['name']}】使用了【{sname}】，速度提升了！")
+
+
 # ================= 4. 怪物控制机制（_enemy_turn 技能 mech） =================
 
 MON_CTRL_EFFECTS = {}
@@ -840,3 +860,74 @@ def _burst_damage(battle, bonus, logs):
     if player is not None:
         bonus = battle._boss_dmg_filter(bonus, player, logs)
     battle._damage_enemy(bonus, logs)
+
+
+# ================= 4.5 玩家增益技能效果（_skill_buff effect 分支注册表） =================
+
+# v1.x：battle.py _skill_buff 的 effect 8 分支中 7 个可注册表化的分支迁入本表
+# （mon_atk_down/element_shift/stealth/mark/sleep/shield_all/reduce_all），
+# battle.py 改查表；TEAM_BUFF_KEYS（effect=xx_all 团队增益）保留原逻辑。
+# SKILL_BUFF_EFFECTS 签名：fn(battle, skill_name, info, player, lv, logs) -> None
+SKILL_BUFF_EFFECTS = {}
+
+
+@register(SKILL_BUFF_EFFECTS, "mon_atk_down")
+def _sb_mon_atk_down(battle, skill_name, info, player, lv, logs):
+    """v51 挫志怒吼：敌方攻击下降（写 e_buffs 而非 p_buffs）"""
+    from ..engine import skill_buff_turns
+    battle.e_buffs["mon_atk_down"] = skill_buff_turns(lv)
+
+
+@register(SKILL_BUFF_EFFECTS, "element_shift")
+def _sb_element_shift(battle, skill_name, info, player, lv, logs):
+    """v2.1 元素跃迁：切换当前元素亲和系（火→冰→雷→火），下次元素技能伤害 +20%"""
+    from ..engine import skill_buff_turns
+    cur = battle.resources.get("element", "fire")
+    nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
+    battle.resources["element"] = nxt
+    battle.p_buffs["matk_up"] = skill_buff_turns(lv)
+    battle._shifted_element = nxt  # 由 battle.py _skill_buff 元素跃迁展示块消费
+
+
+@register(SKILL_BUFF_EFFECTS, "stealth")
+def _sb_stealth(battle, skill_name, info, player, lv, logs):
+    """v104 R3 P1-10：潜行状态实装——下次攻击必暴（desc 对齐），暴击率 +20% 持续回合"""
+    from ..engine import skill_buff_turns
+    battle.p_buffs["stealth"] = 1
+    battle.p_buffs["crit_up"] = skill_buff_turns(lv)
+
+
+@register(SKILL_BUFF_EFFECTS, "mark")
+def _sb_mark(battle, skill_name, info, player, lv, logs):
+    """v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）"""
+    from ..engine import skill_buff_turns
+    battle.e_buffs["mark"] = skill_buff_turns(lv)
+
+
+@register(SKILL_BUFF_EFFECTS, "sleep")
+def _sb_sleep(battle, skill_name, info, player, lv, logs):
+    """v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 回合）
+    v120 q5：Boss 亦控制减半（普通 2 回合 → Boss 1 回合）。"""
+    battle.e_buffs["sleep"] = battle._boss_ctrl_dur("sleep", 1 if battle.btype == "worldboss" else 2)
+
+
+@register(SKILL_BUFF_EFFECTS, "shield_all")
+def _sb_shield_all(battle, skill_name, info, player, lv, logs):
+    """v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）"""
+    st2 = battle._player_stats(player)
+    base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
+    battle._add_shield("team_bless", int(base * 0.20), 3)
+
+
+@register(SKILL_BUFF_EFFECTS, "reduce_all")
+def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
+    """v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
+    p_buffs["reduce_all"] 存减伤百分比；回合数记 battle._reduce_all_left（_end_round 单独递减）。
+    v1.x：数值下沉 skills.py reduce_all 字段（原 battle.py REDUCE_ALL_PCT 中文名硬编码已删）。"""
+    from ..engine import skill_buff_turns
+    pct = float((info or {}).get("reduce_all") or 0)
+    turns = skill_buff_turns(lv)
+    battle.p_buffs["reduce_all"] = pct
+    battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
+    logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 回合）")
+

@@ -1359,6 +1359,7 @@ MATERIALS = {
     "mat_yin_lin_yu": {
         "price": 6,
         "name": "银鳞鱼",
+        "type": "鱼",
         "quality": "white"
     },
     "mat_jin_li": {
@@ -1366,7 +1367,7 @@ MATERIALS = {
         "name": "金鲤",
         "quality": "green",
         # v104 R3 M08 P3-1：手写 type/desc（规则按"金"误判为矿石，实为鱼）
-        "type": "食材",
+        "type": "鱼",  # v124 与 FISH_POOL 对齐（垂钓入包以 FISH_POOL type 为权威）
         "desc": "通体金红的鲤鱼，鳞片泛着贵气光泽，据说能带来好运。"
     },
     # v104 R3 M08 P2-6 回滚：帝王鲑/盲鱼是 fishing.py FISH_POOL 垂钓鱼（按名 resolve→mat_ 键），不可删
@@ -1374,35 +1375,42 @@ MATERIALS = {
         "price": 22,
         "name": "帝王鲑",
         # 垂钓材料品质以 FISH_POOL 品种档为权威（16 章 1.1），非价档——保持 green
+        "type": "鱼",
         "quality": "green"
     },
     "mat_mang_yu": {
         "price": 9,
         "name": "盲鱼",
+        "type": "鱼",
         "quality": "green"
     },
     "mat_ye_guang_jiao": {
         "price": 35,
-        "name": "夜光鲛"
+        "name": "夜光鲛",
+        "type": "材料"
     },
     "mat_jiao_ren_lei": {
         "price": 120,
         "name": "鲛人泪",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_shen_hai_shui_jing": {
         "price": 250,
         "name": "深海水晶",
+        "type": "材料",
         "quality": "purple"
     },
     "mat_long_xian_xiang": {
         "price": 180,
         "name": "龙涎香",
+        "type": "材料",
         "quality": "purple"
     },
     "mat_gu_dai_yu_gu": {
         "price": 200,
         "name": "古代鱼骨",
+        "type": "材料",
         "quality": "orange"
     },
     # ---- 阶段四：5 个新副本 Boss 专属材料（04 章补登，13 章 5.7 登记）----
@@ -1430,57 +1438,94 @@ MATERIALS = {
     "mat_yue_guang_yu": {
         "price": 27,
         "name": "月光鱼",
+        "type": "鱼",
         "quality": "blue"
     },
     "mat_shen_mi_lin_pian": {
         "price": 30,
         "name": "神秘鳞片",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_hu_zhen_zhu": {
         "price": 40,
         "name": "湖珍珠",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_hai_zao": {
         "price": 15,
         "name": "海藻",
+        "type": "材料",
         "quality": "green"
     },
     "mat_zhen_zhu_bei": {
         "price": 35,
         "name": "珍珠贝",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_jing_xu_cao": {
         "price": 20,
         "name": "鲸须草",
+        "type": "材料",
         "quality": "green"
     },
     "mat_lei_jing_sha": {
         "price": 80,
         "name": "雷晶砂",
+        "type": "材料",
         "quality": "purple"
     },
     "mat_feng_bao_bei": {
         "price": 40,
         "name": "风暴贝",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_shen_yuan_zhen_zhu": {
         "price": 45,
         "name": "深渊珍珠",
+        "type": "材料",
         "quality": "blue"
     },
     "mat_yun_mian": {
         "price": 22,
         "name": "云棉",
+        "type": "材料",
         "quality": "green"
     },
     "mat_cai_hong_lu_zhu": {
         "price": 50,
         "name": "彩虹露珠",
+        "type": "材料",
         "quality": "blue"
+    },
+    # v124 FISH_POOL↔MATERIALS 防漂移：垃圾/宝物/鱼王类渔获补登记（_settle_fishing 按名
+    # resolve("materials") 入包，缺登记会以中文名回退成包 key；price/type 与 fishing.py 一致）
+    "mat_shui_cao": {
+        "price": 1,
+        "name": "水草",
+        "type": "垃圾",
+        "quality": "white"
+    },
+    "mat_po_jiu_de_xue_zi": {
+        "price": 1,
+        "name": "破旧的靴子",
+        "type": "垃圾",
+        "quality": "white"
+    },
+    "mat_chen_jiu_de_bao_xiang": {
+        "price": 0,
+        "name": "陈旧的宝箱",
+        "type": "宝物",
+        "quality": "purple"
+    },
+    "mat_yu_wang_fei_cui_ju_long": {
+        "price": 245,
+        "name": "鱼王·翡翠巨龙",
+        "type": "鱼王",
+        "quality": "orange"
     },
     # ---- 烹饪材料（13 章 2.3 烹饪表）----
     # ---- v83 彩蛋收藏鱼（16 章 4.x，纯收藏：不入配方、回收 1 金币）----
@@ -2404,9 +2449,17 @@ def _mat_quality(price: int) -> str:
     return "orange"
 
 
+from .fishing import FISH_POOL as _FISH_POOL  # v124：渔获 type 权威来源（防双处定义漂移）
+_FISH_TYPE_BY_NAME = {_f["name"]: _f["type"] for _f in _FISH_POOL}
+
 for _mid, _m in MATERIALS.items():
-    # type：已有（收藏/传说/任务道具）保留；"材料"占位或无 → 按名规则重算
-    if not _m.get("type") or _m.get("type") == "材料":
+    # v124：垂钓鱼 type 一律以 FISH_POOL 为准（_settle_fishing 入包即 fish["type"]，与
+    # data/__init__.py 启动校验一致）；其余材料：已有（收藏/传说/任务道具）保留；
+    # "材料"占位或无 → 按名规则重算
+    _fish_t = _FISH_TYPE_BY_NAME.get(_m.get("name"))
+    if _fish_t:
+        _m["type"] = _fish_t
+    elif not _m.get("type") or _m.get("type") == "材料":
         _m["type"] = _mat_type(_m["name"])
     # quality：已有（收藏品等）保留；无 → 按价格分档
     if not _m.get("quality"):

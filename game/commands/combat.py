@@ -19,6 +19,7 @@ from .. import engine as E
 from .. import battle as BT
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
+from .world import _DAILY_META_KEYS  # v125.1 P0：每日任务元数据键（_date/_completed/_repeat）
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
@@ -741,262 +742,29 @@ class CombatCmds(CommandBase):
 
     def _handle_poi(self, group_id, qq_id, player, cur_map, poi_id, poi, st=None):
         """v87 02 章 7.6：处理 POI 探索点交互；返回展示文本。
-        v87.2 副本地图化：支持副本层内联 POI（poi 带 type 字段 + st 战斗上下文）。"""
-        import uuid as _uuid
-        # ---- v87.2 副本内联 POI（宝箱/篝火/石碑/机关/陷阱/补给/遗骸）----
+
+        v125.2 注册表化：世界 POI 按 effect 键、副本内联 POI 按 inst:<type> 键
+        查 POI_EFFECTS（game/core/poi_effects.py，原 9+5 分支 if-chain 全量迁入）；
+        未知效果显式告警（不再静默 fallback 吞掉数据拼写错误）。
+        st 为副本战斗上下文（副本内联 POI 时传入）。
+        """
+        import logging as _logging
+        from ..core.poi_effects import PoiContext, execute_poi
+        eff = f"inst:{poi.get('type')}" if poi.get("type") else poi.get("effect", "")
+        ctx = PoiContext(group_id, qq_id, player, cur_map, poi_id, poi, st=st,
+                         hooks={"mark_used": self._mark_poi_used, "player": self._player})
+        text = execute_poi(eff, ctx)
+        if text is not None:
+            return text
+        # 未知 effect：显式告警（防数据拼写错误被静默吞掉）
+        _logging.getLogger("astrbot").warning(
+            "[dragonfall] 未知 POI effect %r（poi_id=%s），效果未结算——"
+            "请检查 data/pois.py 或 instance_stage_maps.py", eff, poi_id)
         if poi.get("type"):
-            return self._handle_inst_poi(group_id, qq_id, st, poi)
-        name = cur_map.get("name", "此地")
-        sub_name = ""
-        cur_sa_id = player.get("cur_subarea") or ""
-        for _sa in (cur_map.get("subareas") or []):
-            if _sa["id"] == cur_sa_id:
-                sub_name = _sa.get("name", "")
-                break
-        loc = f"{name}·{sub_name}" if sub_name else name
+            return f"你检查了{poi.get('name', '')}，没发现特别之处。"
         icon = poi.get("icon", "🌿")
         pname = poi.get("name", "探索点")
-        eff = poi.get("effect", "")
-        # 篝火：恢复 30% 生命/魔力 + 随机烹饪食材
-        if eff == "recover":
-            hp_gain = int(player["max_hp"] * 0.30)
-            mp_gain = int(player["max_mp"] * 0.30)
-            db.update_player(group_id, qq_id, hp=min(player["max_hp"], player["hp"] + hp_gain), mp=min(player["max_mp"], player["mp"] + mp_gain))
-            # v101.4：篝火食材池数据化 → data/poi_pools.py CAMPFIRE_FOOD_POOL
-            fd = random.choice(C.CAMPFIRE_FOOD_POOL)
-            mid = C.resolve("materials", fd)
-            got = ""
-            if mid in C.MATERIALS:
-                db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                got = C.display("materials", mid)
-            return (f"{icon} 【{pname}】你在{loc}的篝火旁坐下烤火。\n"
-                    f"❤️ 恢复 {hp_gain} 生命！💙 恢复 {mp_gain} 魔力！\n"
-                    f"🍖 篝火上还烤着一份{got}，顺手带走了。")
-        # 神龛：随机 buff（攻击/防御/速度 +10% 持续 5 次战斗）
-        if eff == "buff":
-            buffs = [("攻击", "atk"), ("防御", "def"), ("速度", "spd")]
-            bname, bkey = random.choice(buffs)
-            # v104 M23 修复只写不读：battle.py 战斗开始时读取（玩家级键 poi_buff_{qq_id}——
-            # battle 无 group_id 上下文，与 echo_bless bless_{qq_id} 同款全局键），
-            # 应用 mult 并递减 left，用完删除 key
-            db.set_event_state(f"poi_buff_{qq_id}",
-                               json.dumps({"stat": bkey, "mult": 1.10, "left": 5, "name": bname}, ensure_ascii=False))
-            return (f"{icon} 【{pname}】你向{loc}的神龛虔诚祈愿，石像仿佛亮了一瞬。\n"
-                    f"✨ 获得祝福：{bname}+10%(持续 5 次战斗)！")
-        # v115 行商营地：随机金币（图等级×5~×10）或一张图纸（简化版，不做强卖流程）
-        if eff == "merchant":
-            if random.random() < 0.5:
-                gold = random.randint(cur_map.get("lv", 1) * 5, cur_map.get("lv", 1) * 10)
-                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                return (f"{icon} 【{pname}】行商在你的{loc}支起货摊，见你面善，低价收走了一批旧货。\n"
-                        f"💰 获得 {gold} 金币！(图级 Lv.{cur_map.get('lv', 1)})")
-            bp = C.roll_blueprint(max(1, player["level"]))
-            _learned = player.get("learned_blueprints") or []
-            if bp.get("blueprint_for") in _learned:
-                _bpq = bp.get("quality", "white")
-                _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(_bpq, 1)
-                db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye", {
-                    "name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=_pages)
-                return (f"{icon} 【{pname}】行商神秘地掏出一卷图纸：{bp['name']}！\n"
-                        f"📜 可惜你已经学会了，化作 {_pages} 张图纸残页（『出售 图纸残页』变现）")
-            db.add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
-            return (f"{icon} 【{pname}】行商神秘地掏出一卷图纸：{bp['name']}！\n"
-                    f"📜 他称这是从远方古墓里『顺』来的，你赶紧收好。")
-        # 草药丛：1-2 份炼金材料
-        if eff == "herb":
-            # v101.4：草药丛材料池数据化 → data/poi_pools.py HERB_POOL
-            got = []
-            for _ in range(random.randint(1, 2)):
-                h = random.choice(C.HERB_POOL)
-                mid = C.resolve("materials", h)
-                if mid in C.MATERIALS:
-                    db.add_item(group_id, qq_id, mid, {"name": C.display("materials", mid), "type": "材料", "stackable": True, "price": C.MATERIALS[mid]["price"]})
-                    got.append(C.display("materials", mid))
-            return (f"{icon} 【{pname}】你在{loc}的草丛里仔细翻找，采到了一些好材料。\n"
-                    f"🎒 获得：{'、'.join(got)}！")
-        # 可疑包裹：金币 / 装备 / 陷阱
-        if eff == "loot":
-            r = random.random()
-            if r < 0.6:
-                gold = random.randint(20, 80) + player["level"] * 3
-                db.update_player(group_id, qq_id, gold=player["gold"] + gold)
-                return (f"{icon} 【{pname}】你打开{loc}路边的可疑包裹——里面是金币！\n"
-                        f"💰 获得 {gold} 金币！")
-            if r < 0.85:
-                bp = C.roll_blueprint(max(1, player["level"]))
-                # v101.25 #293：探索掉落已学图纸不再重复入包——与战斗掉落同款折算
-                # （playtest round66+ 抓包：探索反复掉落已学图纸）
-                _learned = player.get("learned_blueprints") or []
-                if bp.get("blueprint_for") in _learned:
-                    _bpq = bp.get("quality", "white")
-                    _pages = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(_bpq, 1)
-                    db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye", {
-                        "name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=_pages)
-                    return (f"{icon} 【{pname}】包裹里卷着一张泛黄的图纸……{bp['name']}！\n"
-                            f"📜 这张图纸你已经学会了，化作 {_pages} 张图纸残页（『出售 图纸残页』变现）")
-                db.add_item(group_id, qq_id, f"eq_{_uuid.uuid4().hex[:8]}", bp)
-                return (f"{icon} 【{pname}】包裹里卷着一张泛黄的图纸：{bp['name']}！\n"
-                        f"📜 看来是某位锻造师遗失的手稿。")
-            dmg = int(player["max_hp"] * 0.10) + 5
-            new_hp = max(1, player["hp"] - dmg)
-            db.update_player(group_id, qq_id, hp=new_hp)
-            # #256: 陷阱触发文案带先兆（包裹缝隙的寒光）——此前无任何提示直接扣血
-            return (f"💥 【{pname}】包裹的缝隙里隐约闪过一道金属寒光——你还没来得及缩手，一只发条咬人夹弹了出来！\n"
-                    f"你被夹了一下，损失 {dmg} 生命(当前 ❤️ {new_hp}/{player['max_hp']})")
-        # 符文石：图鉴/隐藏线索
-        if eff == "rune":
-            from ..data.pois import RUNE_POOL
-            txt = random.choice(RUNE_POOL)
-            db.set_talk_flag(group_id, qq_id, "poi_rune_read", "read_rune")
-            return (f"{icon} 【{pname}】你伸手轻触{loc}的符文石，碑面泛起幽光。\n"
-                    f"📖 {txt}")
-        # 鱼群聚集：免费垂钓次数（v104 M23 消费契约——垂钓命令读取方：
-        # key poi_fish_{gid}_{qid}（保持原格式），value {"ts": float, "window": 1800}，
-        # ts 在 1800s 窗口内 → 免冷却/免体力垂钓一次并删除该 key）
-        if eff == "fish":
-            db.set_event_state(f"poi_fish_{group_id}_{qq_id}",
-                               json.dumps({"ts": time.time(), "window": 1800}))
-            return (f"{icon} 【{pname}】水面泛起细密的涟漪，鱼群正聚在{loc}的水面下！\n"
-                    f"🎣 你赶紧甩杆——『垂钓』吧，这次垂钓不消耗体力(30 分钟内有效)！")
-        # 神秘字条：隐藏线索
-        if eff == "note":
-            # v115 旅者之墓：见闻 flag（grave_<map>_<qid>），区分第一次祭拜 / 再次经过
-            if poi_id == "traveler_grave":
-                _gkey = f"grave_{cur_map.get('id', '')}_{qq_id}"
-                if not db.get_event_state(_gkey):
-                    db.set_event_state(_gkey, "1")
-                    return (f"{icon} 【{pname}】你在{loc}见到一座无名的旅者之墓，苔痕斑驳的碑上刻着几行字。\n"
-                            f"🪦 \"{player['name']}，愿你的旅途有人记得。\"\n"
-                            f"🕯️ 你郑重祭拜，于墓前放下一朵野花。")
-                return (f"{icon} 【{pname}】你再次路过{loc}的旅者之墓，碑前的野花还开着。\n"
-                        f"🪦 你默默驻足片刻，为这位先行的旅人献上沉默的敬意。")
-            from ..data.pois import NOTE_POOL
-            txt = random.choice(NOTE_POOL)
-            db.set_talk_flag(group_id, qq_id, "poi_note_found", "found_note")
-            return (f"{icon} 【{pname}】你摘下{loc}树干上的字条，墨迹已有些褪色。\n"
-                    f"📜 {txt}")
-        # v87.9 风景 POI：纯氛围观景（无数值收益）
-        if eff == "sight":
-            from ..data.pois import SIGHT_POOL
-            txt = random.choice(SIGHT_POOL)
-            return (f"{icon} 【{pname}】你停住脚步，抬头望向{loc}的风景。\n"
-                    f"🌄 {txt}")
-        return f"{icon} 【{pname}】你打量了一下{loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
-
-    def _handle_inst_poi(self, group_id, qq_id, st, poi) -> str:
-        """v87.2 副本层内联 POI 效果结算（29 章 13.3）。
-
-        宝箱/补给/遗骸→loot；篝火→回血；石碑→lore+解锁；机关→effect；
-        陷阱→可拆解（有石碑线索）或全队受伤。st 为副本战斗状态（含 POI used 记录）。
-        """
-        logs = []
-        sidx = st["stage_idx"]
-        pid = poi.get("id", "")
-        ptype = poi.get("type", "")
-        pname = poi.get("name", "")
-        # 需要前置条件（need）
-        need = poi.get("need") or {}
-        if need:
-            if need.get("poi_read") and not st.get("poi_unlocks", {}).get(need["poi_read"]):
-                return f"🔒 {pname}纹丝不动——需要先找到某种启示/线索。"
-            if need.get("unlock") and not st.get("poi_unlocks", {}).get(need["unlock"]):
-                return f"🔒 {pname}还没准备好——似乎缺少某样东西。"
-        # 宝箱 / 补给 / 遗骸：给 loot
-        if ptype in ("chest", "supply", "corpse"):
-            loot = poi.get("loot") or {}
-            gold = loot.get("gold", 0)
-            mats = loot.get("materials") or []
-            p = self._player(group_id, qq_id)
-            if gold > 0 and p:
-                db.update_player(group_id, qq_id, gold=p["gold"] + gold)
-                logs.append(f"💰 你从{pname}里摸出了 {gold} 金币！")
-            for mn in mats:
-                mid = C.resolve("materials", mn)
-                if mid in C.MATERIALS:
-                    mname = C.display("materials", mid)
-                    db.add_item(group_id, qq_id, mid, {
-                        "name": mname, "type": "材料", "stackable": True,
-                        "price": C.MATERIALS[mid]["price"],
-                    })
-                    logs.append(f"🎒 拾取：{mname}")
-            self._mark_poi_used(st, sidx, pid)
-            head = f"💀 你蹲下搜刮{pname}……" if ptype == "corpse" else f"📦 {pname}："
-            return "\n".join([head] + logs)
-        # 篝火：回血
-        if ptype == "campfire":
-            for m in st["members"]:
-                if not st["alive"].get(str(m), True):
-                    continue
-                snap = st["players"].get(str(m), {})
-                if snap.get("hp") is not None:
-                    # R3 P3-3：heal_pct 消费 POI effect 配置（instance_stage_maps.py
-                    # 篝火 heal_pct: 0.2 此前是死配置，硬编码 0.2 未来调参会脱钩）
-                    _pct = (poi.get("effect") or {}).get("heal_pct", 0.2)
-                    heal = max(1, int(snap.get("max_hp", snap["hp"]) * _pct))
-                    snap["hp"] = min(snap.get("max_hp", snap["hp"]), snap["hp"] + heal)
-                    logs.append(f"🔥 {snap.get('name', m)} 在{pname}旁烤火，恢复 {heal} 点生命！")
-            self._mark_poi_used(st, sidx, pid)
-            return "\n".join(logs)
-        # 石碑：读 lore（可反复读，不标 used；effect.unlock 记录）
-        if ptype == "rune_stone":
-            lore = poi.get("lore", "碑文模糊不清，似乎被岁月磨平了。")
-            logs.append(f"🗿 你阅读{pname}：")
-            logs.append(f"  “{lore}”")
-            eff = poi.get("effect") or {}
-            # R3 P1-1：读取石碑即记录自身 poi id——need.poi_read 机关（旧王陵王座机关
-            # /龙之墓暗门机关）依赖此标记解锁；此前只写 effect.unlock，无 unlock 的
-            # 石碑（如墓志铭石碑）永远无法解锁 poi_read 机关
-            st.setdefault("poi_unlocks", {})[pid] = True
-            if eff.get("unlock"):
-                st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
-                logs.append("✨ 碑文的内容似乎触发了什么……(某个机关被解锁了！)")
-            if eff.get("avoid_trap"):
-                st.setdefault("poi_unlocks", {})[f"avoid_{eff['avoid_trap']}"] = True
-                logs.append("✨ 你记住了避开陷阱的路线。")
-            if eff.get("boss_buff"):
-                st["boss_buff_next"] = True
-                logs.append("✨ 风神的祝福涌入体内——Boss 战前将获得速度加持！")
-            return "\n".join(logs)
-        # 机关：按 effect 处理
-        if ptype == "mechanism":
-            eff = poi.get("effect") or {}
-            desc = poi.get("desc", f"你扳动了{pname}。")
-            logs.append(f"⚙️ {desc}")
-            if eff.get("open_secret"):
-                st["stage_secret_found"] = True
-                logs.append("🔓 隐藏房间出现了！『副本地图』查看详情。")
-            if eff.get("skip_elite"):
-                st["skip_elite_next"] = True
-                logs.append("🧭 机关打通了一条捷径——下一层的精英被绕开了！")
-            if eff.get("skip_wave"):
-                st["skip_wave_next"] = True
-                logs.append("🧭 援兵被引开了一部分——下一层的敌人减少了！")
-            if eff.get("unlock"):
-                st.setdefault("poi_unlocks", {})[eff["unlock"]] = True
-                logs.append("✨ 机关启动，某种封锁被解除了！")
-            self._mark_poi_used(st, sidx, pid)
-            return "\n".join(logs)
-        # 陷阱：可拆解（有石碑线索）或踩中受伤
-        if ptype == "trap":
-            if st.get("poi_unlocks", {}).get(f"avoid_{pid}"):
-                self._mark_poi_used(st, sidx, pid)
-                return f"⚠️ 你记得石碑上的提示，小心地拆除了{pname}！"
-            logs.append(f"⚠️ 你触发了{pname}！全队受到 10% 最大生命的伤害！")
-            for m in st["members"]:
-                if not st["alive"].get(str(m), True):
-                    continue
-                snap = st["players"].get(str(m), {})
-                if snap.get("hp") is not None:
-                    dmg = max(1, int(snap.get("max_hp", snap["hp"]) * 0.1))
-                    snap["hp"] = max(0, snap["hp"] - dmg)
-                    if snap["hp"] <= 0:
-                        st["alive"][str(m)] = False
-                        logs.append(f"💀 {snap.get('name', m)} 被陷阱击倒了！")
-                    else:
-                        logs.append(f"❤️ {snap.get('name', m)} 剩余 {snap['hp']}/{snap['max_hp']}")
-            self._mark_poi_used(st, sidx, pid)
-            return "\n".join(logs)
-        return f"你检查了{pname}，没发现特别之处。"
+        return f"{icon} 【{pname}】你打量了一下{ctx.loc}的{poi.get('desc', '这处探索点')}，似乎没什么特别的。"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?攻击(?:\s*|$)")
     @require_player()
@@ -2262,8 +2030,11 @@ class CombatCmds(CommandBase):
         if db.expire_daily(quests):
             changed = True
         daily = dict(quests.get("daily", {}))
+        # v125.1 P0 修复：跳过全部元数据键（_date/_completed/_repeat）——原只跳过 _date，
+        # _completed(int)/_repeat(dict) 被 dq["objective"] 下标 → TypeError 每日首战必崩
+        # （对照 world.py _bump_daily_progress 的 _DAILY_META_KEYS 正确实现）
         for dkey, dq in list(daily.items()):
-            if dkey == "_date":  # 跨天字段，不是任务
+            if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，不是任务
                 continue
             dobj = dq["objective"]
             prog = dq.get("progress", 0)

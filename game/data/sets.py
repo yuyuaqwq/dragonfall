@@ -72,7 +72,7 @@ SETS = {
             "def": 0.15
         },
         "bonus_4": {
-            "effect": "mdef_up_set",
+            "effect": "mdef_up_set", "stats": {"mdef": 0.20},
             "desc": "魔防＋20%"
         },
         "name": "秘银"
@@ -98,7 +98,7 @@ SETS = {
             "pene_magi": 0.05  # v106.1 月影法穿：法系穿透
         },
         "bonus_4": {
-            "effect": "crit_up_set",
+            "effect": "crit_up_set", "stats": {"crit": 0.08},
             "desc": "暴击率＋8%"
         },
         "name": "月影"
@@ -178,7 +178,7 @@ SETS = {
             "cdr": 0.05  # v106.1 旅人经验：冷却缩减
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "旅人公会"
@@ -321,7 +321,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "猎手"
@@ -334,7 +334,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "风行"
@@ -347,7 +347,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "暗夜"
@@ -360,7 +360,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "鹰眼"
@@ -373,7 +373,7 @@ SETS = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "苍穹"
@@ -728,7 +728,7 @@ CLASS_SET_THEMES = {
             "crit": 0.05
         },
         "bonus_4": {
-            "effect": "dodge_set",
+            "effect": "dodge_set", "stats": {"dodge": 0.10},
             "desc": "闪避率＋10%"
         },
         "name": "游侠"

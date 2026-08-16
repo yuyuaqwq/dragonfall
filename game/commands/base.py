@@ -266,7 +266,8 @@ class CommandBase:
 
     def _at_smith(self, player: dict) -> bool:
         """当前是否在铁匠铺/锻造坊/工坊/军械/强化类子区域（锻造/代工/强化/附魔场所）。
-        v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。"""
+        v87.6 子区域化：不再地图级一刀切（广场/旅店不能锻造）。
+        v125：关键词嗅探 + white_deer_8 特判 → 读 shop.SUBAREA_KIND（smith/enhance）。"""
         cur_map = player.get("cur_map", "")
         if cur_map not in C.ENHANCE_SMITH_MAPS:
             return False
@@ -276,16 +277,11 @@ class CommandBase:
         cm = C.MAP_BY_ID.get(cur_map, {})
         for sa in (cm.get("subareas") or []):
             if sa["id"] == sa_id:
-                name = sa.get("name", "")
-                funcs = sa.get("funcs") or []
-                # O94 修复：白鹿城鹿角淬火坊(white_deer_8)是强化/附魔坊（强化师·克拉拉+附魔师），
-                # 名字含"淬火"不命中旧关键词（铁匠/锻造/军械/工坊/强化）→ 强化/附魔误报
-                # "需要到铁匠铺/锻造坊"；此处显式补入强化可用区域 id
-                if sa_id == "white_deer_8":
+                # craft funcs 结构判断保留（炼金工坊 dawn_city_5 等双职能店可锻造）
+                if "craft" in (sa.get("funcs") or []):
                     return True
-                if "craft" in funcs:
-                    return True
-                return any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化"))
+                # 鹿角淬火坊(white_deer_8) 为 enhance（强化/附魔可用但非铁匠铺）
+                return C.SUBAREA_KIND.get(sa_id) in ("smith", "enhance")
         return False
 
     def _at_shop(self, player: dict, group_id: str = "", qq_id: str = "") -> bool:
@@ -326,21 +322,18 @@ class CommandBase:
         for sa in (cm.get("subareas") or []):
             if sa["id"] != sa_id:
                 continue
-            name = sa.get("name", "")
+            # v125：kind 数据下沉 shop.SUBAREA_KIND（旧关键词嗅探全量迁移，含优先级：
+            # herb>smith>tavern>cook>general>misc 已烘焙进表值）；未入表子区域按 funcs 兜底
+            kind = C.SUBAREA_KIND.get(sa_id)
+            if kind:
+                return kind
             funcs = sa.get("funcs") or []
-            # v101.25h：草药/炼金优先于 craft（炼金工坊既有 craft funcs 又卖药剂，按 herb 配货）
-            if "alchemy" in funcs or any(k in name for k in ("草药", "炼金")):
+            if "alchemy" in funcs:
                 return "herb"
-            if "craft" in funcs or any(k in name for k in ("铁匠", "锻造", "军械", "工坊", "强化", "锻室")):
+            if "craft" in funcs:
                 return "smith"
-            if sa.get("healer") or "heal" in funcs or any(k in name for k in ("酒馆", "旅店", "客栈")):
+            if sa.get("healer") or "heal" in funcs:
                 return "tavern"
-            # v101.28o 新增：食物店（灶坊/烹饪/食铺/磨坊）——只卖配货，不挂武器
-            if any(k in name for k in ("灶", "烹饪", "食铺", "磨坊", "膳房")):
-                return "cook"
-            # general 必须命中真实"杂货/集市/补给"语义，禁止无脑兜底
-            if any(k in name for k in ("集市", "商行", "码头", "商店", "杂货", "货栈", "商会", "补给", "营地")):
-                return "general"
             if sa.get("shop") or "shop" in funcs:
                 return "misc"
             return None
@@ -391,10 +384,8 @@ class CommandBase:
                     names.append(sa.get("name", ""))
             elif kind == "craft":
                 # v101.21 铁匠类场所（装备回收/锻造），炼金工坊除外
-                if "炼金" in sa.get("name", ""):
-                    continue
-                if "craft" in (sa.get("funcs") or []) or any(
-                        k in sa.get("name", "") for k in ("铁匠", "锻造", "军械", "工坊", "强化")):
+                # v125：关键词嗅探 → shop.SUBAREA_KIND（炼金工坊 dawn_city_5 为 herb 自然排除）
+                if "craft" in (sa.get("funcs") or []) or C.SUBAREA_KIND.get(sa.get("id")) == "smith":
                     names.append(sa.get("name", ""))
         if not names:
             return ""

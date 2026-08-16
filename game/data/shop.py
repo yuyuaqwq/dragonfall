@@ -472,3 +472,83 @@ SHOP_EQUIP = {
         "eq_mi_wu_xiang_lian",
     ],
 }
+
+# ================= 设施 kind 表（v125 设施判定数据下沉） =================
+# key = 子区域 ID，value = 设施类别。base.py 的 _at_smith / _sa_shop_kind /
+# _facility_hint 与 world.py 地图设施清单原用中文名关键词嗅探 + white_deer_8 特判，
+# 现统一改读此表（由旧逻辑全量子区域枚举生成，行为逐项等价）：
+#   smith   铁匠/锻造/军械/工坊/强化类（craft funcs 或旧关键词命中）
+#   herb    草药/炼金类（alchemy funcs 或旧关键词命中，优先于 craft）
+#   tavern  酒馆/旅店/客栈类（healer/heal funcs 或旧关键词命中）
+#   cook    灶坊/烹饪/食铺/磨坊类（旧关键词命中）
+#   general 集市/商行/码头/商店/杂货/补给/营地类（旧关键词命中）
+#   misc    其他 shop=True 无关键词（拍卖行/渔港等）
+#   enhance 强化坊（鹿角淬火坊 white_deer_8：强化/附魔可用但非铁匠铺，
+#            _sa_shop_kind 消费端与 misc 等价——仅配货不挂武器）
+# 未入表子区域由代码按 funcs 结构兜底（alchemy→herb / craft→smith / heal→tavern / shop→misc）
+SUBAREA_KIND = {
+    "anvil_fort_2": "tavern",
+    "anvil_fort_3": "smith",
+    "aurora_town_4": "tavern",
+    "black_forest_4": "general",
+    "cold_ridge_1": "general",
+    "cold_ridge_2": "tavern",
+    "cold_ridge_3": "general",
+    "dawn_city_3": "tavern",
+    "dawn_city_5": "herb",
+    "deep_tunnel_2": "misc",
+    "deep_tunnel_3": "tavern",
+    "dragon_kin_3": "tavern",
+    "dragon_pass_2": "tavern",
+    "dwarf_long_gallery_5": "smith",
+    "ember_camp_1": "general",
+    "ember_camp_2": "tavern",
+    "ember_camp_4": "general",
+    "frost_horn_3": "tavern",
+    "frost_horn_5": "tavern",
+    "harbor_docks_1": "general",
+    "ironharbor_4": "misc",
+    "ironharbor_5": "tavern",
+    "ironharbor_6": "general",
+    "ironharbor_8": "general",
+    "ironharbor_9": "smith",
+    "ironharbor_10": "herb",
+    "ironshield_town_2": "tavern",
+    "ironshield_town_3": "smith",
+    "jade_port_2": "general",
+    "jade_port_3": "tavern",
+    "jade_port_dock": "general",
+    "maple_village_4": "tavern",
+    "moon_court_3": "tavern",
+    "moon_gate_2": "tavern",
+    "moon_gate_3": "general",
+    "nameless_harbor_2": "tavern",
+    "nameless_harbor_3": "general",
+    "oak_plain_5": "cook",
+    "oak_town_3": "smith",
+    "oak_town_4": "tavern",
+    "oak_town_5": "herb",
+    "pearl_city_2": "tavern",
+    "pearl_city_3": "misc",
+    "pearl_city_4": "general",
+    "pearl_city_5": "misc",
+    "shell_town_1": "general",
+    "shell_town_2": "general",
+    "shell_town_3": "tavern",
+    "silver_brook_2": "cook",
+    "silver_brook_3": "tavern",
+    "silver_brook_4": "general",
+    "star_song_2": "general",
+    "star_song_3": "tavern",
+    "under_market_1": "general",
+    "under_market_2": "misc",
+    "under_market_3": "tavern",
+    "under_market_mouth": "general",
+    "white_deer_3": "smith",
+    "white_deer_4": "tavern",
+    "white_deer_5": "tavern",
+    "white_deer_6": "herb",
+    "white_deer_7": "cook",
+    "white_deer_8": "enhance",
+    "wind_city_2": "tavern",
+}

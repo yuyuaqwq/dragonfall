@@ -141,9 +141,18 @@ def _t_enhance9(ctx):
 
 @register("hidden")
 def _t_hidden(ctx):
-    db = ctx._db()
+    # v124 修复：mithril_hall 已删除（v104 P2 清理死条目）→ 改判真实隐藏区域，
+    # 与成就 ach_mythril（hidden_area≥1，achievement_conds.py 已修复）同语义：
+    # 到访任一隐藏区域即达成（lost_library / ember_corridor，或 hidden=True 地图）
+    from .. import content as C
     visited = ctx.hook("visited_maps", ctx.group_id, ctx.qq_id) or []
-    return db.get_visited_count(ctx.group_id, ctx.qq_id) >= 10 and "mithril_hall" in visited
+    hidden = set(getattr(C, "HIDDEN_MAP_UNLOCK", None) or {})
+    for m in (C.MAPS or []):
+        if m.get("hidden") or m.get("type") == "隐藏区域":
+            hidden.add(m["id"])
+    if not hidden:
+        return False
+    return any(v in hidden for v in visited)
 
 
 @register("final")
@@ -158,6 +167,9 @@ def _t_fish_king(ctx):
 
 @register("pvp_hero")
 def _t_pvp_hero(ctx):
+    # 数据源：荣誉商店兑换勋章（26 章 3.3，combat.py _honor_buy 写
+    # event_state key = f"honor_{reward['title_id']}_{qq}"，honor_shop.py
+    # 第 1 件商品 title_id="medal" → 键 honor_medal_{qq}，与本行读取键一致）
     return int(ctx._db().get_event_state(f"honor_medal_{ctx.qq_id}") or 0) >= 1
 
 

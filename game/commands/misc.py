@@ -213,10 +213,11 @@ class MiscCmds(CommandBase):
             yield event.plain_result("今天已经签过到啦！明天再来～")
             return
         # v87 02 章 7.6：每日运势（签到随机三档：大吉/平/小凶；幸运符可+1 档）
+        # v125：阈值数据下沉 signin_config.SIGNIN_CONFIG
         fortune_roll = random.random()
-        if fortune_roll < 0.15:
+        if fortune_roll < C.SIGNIN_CONFIG["fortune_bad_th"]:
             fortune = "小凶"   # 15%：当日金币 -10%
-        elif fortune_roll < 0.55:
+        elif fortune_roll < C.SIGNIN_CONFIG["fortune_good_th"]:
             fortune = "平"     # 40%：无效果
         else:
             fortune = "大吉"   # 45%：当日经验 +10%
@@ -233,11 +234,12 @@ class MiscCmds(CommandBase):
                 fortune = "大吉"
         db.set_event_state(f"daily_fortune_{group_id}_{qq_id}", _json.dumps({"date": today, "fortune": fortune}))
         # 连续签到（streak/total 已由 signin_claim 原子算好）
-        gold = 20 + streak * 5
+        # v125：奖励数值数据下沉 signin_config.SIGNIN_CONFIG
+        gold = C.SIGNIN_CONFIG["base_gold"] + streak * C.SIGNIN_CONFIG["streak_gold_step"]
         # 节日庆典：签到奖励翻倍
         cur_evt = db.get_world_event()
         if cur_evt and cur_evt["etype"] == "festival":
-            gold *= 2
+            gold *= C.SIGNIN_CONFIG["festival_mult"]
         # C8：认领为前置原子步骤已成功，此处结果构建/落库若抛错不重试认领（防重领），
         # 只回执最小成功提示，避免「已领签到但零回执」的静默失败。
         try:
@@ -258,7 +260,7 @@ class MiscCmds(CommandBase):
             # 每 7 天额外奖励
             if streak % 7 == 0:
                 import uuid
-                q = random.choices(["green", "blue", "purple"], weights=[55, 35, 10])[0]
+                q = random.choices(["green", "blue", "purple"], weights=C.SIGNIN_CONFIG["week_quality_weights"])[0]
                 equip = C.generate_equip(random.choice(["weapon", "armor", "ring"]), player["level"], q)
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip)
                 lines.append(f"🎁 连续 {streak} 天奖励：{C.QUALITY[equip['quality']]['color']}【{equip['name']}】！")
