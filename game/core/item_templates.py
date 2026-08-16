@@ -365,6 +365,8 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "lifesteal_pot": "special:lifesteal_pot",  # v106.3 嗜血药剂
               "crit_dmg_pot": "special:crit_dmg_pot",    # v106.3 狂暴药剂
               "block_pot": "special:block_pot",          # v106.3 岩壁药剂
+              # v125.3 收口审计 P1 修复：穿甲/破法药剂缺映射 → 战斗中使用走 none 被拒（有 handler 有数据无通路）
+              "pene_pot": "special:pene_pot", "pene_magi_pot": "special:pene_magi_pot",
               "rock_shield": "special:shield_small", "holy_shield": "special:shield_big"}
 
 

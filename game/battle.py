@@ -3073,6 +3073,11 @@ class Battle:
                 # 体系整体失效。印记生命周期 = 触发反应清除（clear=True）或战斗结束。
                 if k in ("fire_mark", "ice_mark", "thunder_mark"):
                     continue
+                # v125.3 收口审计 P1：next_atk_up（狂怒/月露/彩虹/黑羽药剂）是"下一次攻击消费"型
+                # 一次性 buff（_extra_dmg_mult 命中即 del）——按回合递减 turns=1 当回合结束被删，
+                # 下回合攻击吃不到 +50%。豁免回合递减，生命周期 = 攻击消费或战斗结束。
+                if k == "next_atk_up":
+                    continue
                 # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
                 # 需单独递减（数值递减会让百分比被 -1 污染）。
                 # v1.x：e_buffs["shield"]（怪物增益护盾）存的是护盾值（HP 量），
