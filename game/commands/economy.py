@@ -636,13 +636,14 @@ class EconomyCmds(CommandBase):
             return f"🎣 你在{spot}钓上来一个【{q_name}】……唉，今天的运气不太好。{lv_msg}{_cf_line}{bait_line}"
         # 鱼/材料入背包（9.3：mat_ ID 入包 + quality 字段，16 章 2.7 禁动态中文 key）
         mat_key = C.resolve("materials", fname)
+        # v126.2 个体属性 tags：roll 尺寸/重量 → 随 add_item 入包（tag 存 item_data.tags，
+        # 出售按 FIFO 加权"大鱼更贵"，任务扣料 remove_item 自动同步截断）
+        _sw = C.roll_fish_size_weight(fish)
         db.add_item(group_id, qq_id, mat_key,
                     {"name": fname, "type": fish["type"], "stackable": True,
-                     "price": fish["price"], "quality": fq})
-        # v126.1 鱼获随机波动：按品种区间 roll 尺寸/重量 → 鱼篓明细（出售大鱼更贵）
-        _sw = C.roll_fish_size_weight(fish)
+                     "price": fish["price"], "quality": fq},
+                    tag=_sw)
         if _sw:
-            db.log_fish_catch(qq_id, mat_key, _sw["size"], _sw["weight"])
             _size_line = f"（{_sw['size']:.1f}cm/{_sw['weight']:.1f}kg）"
         else:
             _size_line = ""
@@ -695,24 +696,22 @@ class EconomyCmds(CommandBase):
         meff = C.mount_effects(player)
         fb = float(meff.get("fish_bonus", 0) or 0)
         if fb > 0 and random.random() < fb:
+            # v126.2 坐骑叼回：同样 roll 个体属性入 tags
+            _sw2 = C.roll_fish_size_weight(fish)
             db.add_item(group_id, qq_id, mat_key,
                         {"name": fname, "type": fish["type"], "stackable": True,
-                         "price": fish["price"], "quality": fq})
-            # v126.1 入包同步记鱼篓明细（坐骑额外叼回）
-            _sw2 = C.roll_fish_size_weight(fish)
-            if _sw2:
-                db.log_fish_catch(qq_id, mat_key, _sw2["size"], _sw2["weight"])
+                         "price": fish["price"], "quality": fq},
+                        tag=_sw2)
             _mount_fish_line = f"\n🐾 坐骑帮你多叼回一条【{fname}】！"
         # v101.30b Lv.10 深海渔神：一杆双鱼（15% 概率多一条同品质渔获）
         _master_line = ""
         if prof_lv >= 10 and random.random() < 0.15:
+            # v126.2 渔神双鱼：同样 roll 个体属性入 tags
+            _sw3 = C.roll_fish_size_weight(fish)
             db.add_item(group_id, qq_id, mat_key,
                         {"name": fname, "type": fish["type"], "stackable": True,
-                         "price": fish["price"], "quality": fq})
-            # v126.1 入包同步记鱼篓明细（渔神双鱼）
-            _sw3 = C.roll_fish_size_weight(fish)
-            if _sw3:
-                db.log_fish_catch(qq_id, mat_key, _sw3["size"], _sw3["weight"])
+                         "price": fish["price"], "quality": fq},
+                        tag=_sw3)
             _master_line = f"\n🐟 渔神出手，一杆双鱼！又一条【{fname}】入网！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】{_size_line}！\n"
                 f"📦 {fish['desc']}(可『出售 {fname}』，标价 {fish['price']} 金币，实收按店铺 8~9 折){lv_msg}{_cf_line}{_mount_fish_line}{_master_line}{_pet_egg_line}{_life_line}{bait_line}")
@@ -3754,19 +3753,17 @@ class EconomyCmds(CommandBase):
         price = int(d.get("price", 0) * rate * sell_mult)
         if price <= 0:
             return None
-        # v126.1 大鱼卖更贵：鱼获按鱼篓明细 FIFO 重量加权——单条实收 = int(base × (0.5 + w/wmax))，
-        # 明细不足/老鱼（无明细）部分按原价（1.0 系数）；出售成功后同步删除对应明细行
-        _rows = db.peek_fish_catches(qq_id, it["key"], it["count"])
+        # v126.2 大鱼卖更贵：鱼获个体属性在 item_data.tags（FIFO），单条实收 = int(base × (0.5 + w/wmax))，
+        # 无 tag 的鱼（老数据/非鱼材料）按原价（1.0 系数）；remove_item 扣包时自动同步截断 tags
+        _tags = (it["data"].get("tags") or [])[:it["count"]]
         gold = price * it["count"]
-        if _rows:
+        if _tags:
             _wmax = self._fish_weight_max(d)
             if _wmax:
-                gold = sum(int(price * (0.5 + r["weight"] / _wmax)) for r in _rows)
-                gold += (it["count"] - len(_rows)) * price
+                gold = sum(int(price * (0.5 + t["weight"] / _wmax)) for t in _tags)
+                gold += (it["count"] - len(_tags)) * price
         # F1 P0-2：原子出售（单事务：校验货存→加金币→扣包），替代原两步独立 commit
         ok = db.sell_item_atomic(group_id, qq_id, it["key"], it["count"], gold)
-        if ok and _rows:
-            db.consume_fish_catches(qq_id, it["key"], it["count"])
         return (d["name"], it["count"], gold)
 
     def _apprentice_protect_mats(self, group_id, qq_id) -> dict:

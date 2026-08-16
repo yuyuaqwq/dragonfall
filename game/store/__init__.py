@@ -27,9 +27,6 @@ from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
     update_item_data, sell_item_atomic,
 )
-from .fishing_catches import (  # noqa: F401
-    log_fish_catch, peek_fish_catches, consume_fish_catches,
-)
 from .quests import get_quests, save_quests, expire_daily  # noqa: F401
 from .battle_state import save_battle, get_battle, get_battle_raw, clear_battle  # noqa: F401
 from .stats import (  # noqa: F401

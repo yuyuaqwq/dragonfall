@@ -4,6 +4,12 @@ from .connection import _connect, _lock, atomic
 from .. import content as C
 
 """奥兰迪亚·余烬纪年存储层 - inventory"""
+
+# v126.2 个体属性 tags 上限：单物品最多保留 500 条个体标记（防 item_data 膨胀），
+# 超出丢最旧（FIFO 语义：先钓的先卖，但囤积量级下截断最旧影响可忽略）
+FISH_TAGS_MAX = 500
+
+
 def _key_to_id(item_key, item_data=None):
     """v46：把「名字型」物品 key 转成稳定 ID（存档只存 ID）。
 
@@ -40,8 +46,12 @@ def _key_to_id(item_key, item_data=None):
     # 兜底：装备/图纸等直接给名字当 key 的，保持原样（外部 data 里有 name）
     return item_key
 
-def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
-    """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储"""
+def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | None = None):
+    """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储
+
+    v126.2 tag：个体属性标记（鱼获重量/大小）——堆叠物品每件一个 tag 存 item_data["tags"]，
+    与 count 同生共死（remove/sell 按 FIFO 截断），count 恒 >= len(tags)。
+    """
     if not isinstance(count, int) or isinstance(count, bool) or count <= 0 or count > 9999999:
         # F1 P1-3：数量非法（<=0 / 超大）直接拒绝，防负资产/内存膨胀
         return False
@@ -50,14 +60,27 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
         conn = _connect()
         try:
             row = conn.execute(
-                "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+                "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
                 (qq_id, item_key),
             ).fetchone()
             if row and item_data.get("stackable", True):
-                conn.execute(
-                    "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
-                    (count, qq_id, item_key),
-                )
+                if tag:
+                    # 堆叠 + 个体标记：读旧 data，append tag（上限 500 条，超出丢最旧）
+                    _d = json.loads(row["item_data"])
+                    _tags = _d.get("tags", []) or []
+                    _tags.append(tag)
+                    if len(_tags) > FISH_TAGS_MAX:
+                        _tags = _tags[-FISH_TAGS_MAX:]
+                    _d["tags"] = _tags
+                    conn.execute(
+                        "UPDATE inventory SET count=count+?, item_data=? WHERE qq_id=? AND item_key=?",
+                        (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
+                        (count, qq_id, item_key),
+                    )
             elif row:
                 # v110 审计修复：同 key 已存在且不可堆叠（如重复 uuid 场景）——
                 # 原裸 INSERT 撞主键抛 sqlite3.IntegrityError，公共函数应设防，退化累加
@@ -66,6 +89,9 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1):
                     (count, qq_id, item_key),
                 )
             else:
+                if tag:
+                    item_data = dict(item_data)
+                    item_data["tags"] = [tag]
                 conn.execute(
                     "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
                     (qq_id, item_key, json.dumps(item_data, ensure_ascii=False), count),
@@ -126,7 +152,7 @@ def remove_item(group_id, qq_id, item_key, count=1):
         conn = _connect()
         try:
             row = conn.execute(
-                "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+                "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
                 (qq_id, item_key),
             ).fetchone()
             if not row:
@@ -137,10 +163,19 @@ def remove_item(group_id, qq_id, item_key, count=1):
                     (qq_id, item_key),
                 )
             else:
-                conn.execute(
-                    "UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                    (count, qq_id, item_key),
-                )
+                # v126.2 同步截断 tags（FIFO：先扣的先删个体标记，保持 count >= len(tags)）
+                _d = json.loads(row["item_data"])
+                if _d.get("tags"):
+                    _d["tags"] = _d["tags"][count:]
+                    conn.execute(
+                        "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+                        (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                        (count, qq_id, item_key),
+                    )
             conn.commit()
             return True
         finally:
@@ -178,7 +213,7 @@ def sell_item_atomic(group_id, qq_id, item_key, count, gold_gain):
     item_key = _key_to_id(item_key)
     with atomic() as conn:
         row = conn.execute(
-            "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+            "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
             (qq_id, item_key),
         ).fetchone()
         if not row:
@@ -186,8 +221,17 @@ def sell_item_atomic(group_id, qq_id, item_key, count, gold_gain):
         if row["count"] <= count:
             conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?", (qq_id, item_key))
         else:
-            conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                         (count, qq_id, item_key))
+            # v126.2 同步截断 tags（FIFO：先卖的先删个体标记）
+            _d = json.loads(row["item_data"])
+            if _d.get("tags"):
+                _d["tags"] = _d["tags"][count:]
+                conn.execute(
+                    "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+                    (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
+                )
+            else:
+                conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
+                             (count, qq_id, item_key))
         conn.execute("UPDATE players SET gold=gold+? WHERE qq_id=?", (gold_gain, qq_id))
     return True
 

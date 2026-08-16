@@ -261,12 +261,6 @@ CREATE TABLE IF NOT EXISTS professions (
                 enchant_exp INTEGER DEFAULT 0,
                 fish_king INTEGER DEFAULT 0,
                 explore_wandering INTEGER DEFAULT 0
-            );CREATE TABLE IF NOT EXISTS fish_catches (
-                qq_id TEXT NOT NULL,
-                fish_key TEXT NOT NULL,
-                size REAL DEFAULT 0,
-                weight REAL DEFAULT 0,
-                ts INTEGER DEFAULT 0
             );"""
 
 
