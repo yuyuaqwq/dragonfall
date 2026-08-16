@@ -22,6 +22,23 @@ _BLUEPRINT_RECIPE_RIDS = frozenset(
 """奥兰迪亚·余烬纪年数据层 - drops.py"""
 
 
+def _merge_legendary_stats(stats: dict, legendary: str, slot: str, lv: int) -> None:
+    """v125 修复：传说专属 stat 型效果并入装备 stats（生成处折算一次，engine 属性聚合只读
+    stats、battle 只按 affix ids 消费元素/触发型，防双算）。
+    PCT_STATS 键（crit/crit_dmg/luck 等）直接加；hp_pct 按白板基础生命百分比折算
+    （与词条 hp_up 折算口径一致）；元素型（ice_dmg/thunder_dmg）与战斗触发型
+    （dmg_reduce 等）不并入——保持 battle.py 原有消费不动。"""
+    info = LEGENDARY_EFFECTS.get(legendary)
+    if not info or info.get("trigger") != "stat":
+        return
+    for k, v in (info.get("effect") or {}).items():
+        if k == "hp_pct":
+            base_hp = equip_stats(slot, lv, "white").get("hp", 0)
+            stats["hp"] = stats.get("hp", 0) + max(1, int(base_hp * v))
+        elif k in C.PCT_STATS:
+            stats[k] = round(stats.get(k, 0) + v, 4)
+
+
 def _eq_random_desc(name: str, slot: str, weapon_type: str | None = None) -> str:
     """随机装备描述（v101.25g）：按部位/武器类型模板生成，避免与名册描述撞车"""
     if slot == "weapon":
@@ -194,6 +211,9 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
     # 阶段八：随机橙装挂 1 个传说专属
     if quality == "orange":
         equip["legendary"] = random.choice(list(LEGENDARY_EFFECTS.keys()))
+        # v125：随机橙装专属 stat 型效果同样并入 stats（与名册口径一致，价格重算）
+        _merge_legendary_stats(equip["stats"], equip["legendary"], slot, lv)
+        equip["price"] = int(equip_value(equip["stats"]) * (3 + lv * 0.5) * QUALITY[quality]["mult"])
     if set_name:
         equip["set"] = set_name
     # v101.25g：随机装备描述（无名册 → 按部位/武器类型生成）
@@ -259,6 +279,9 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
             stats[k] = round(stats.get(k, 0) + v, 4)
         else:
             stats[k] = stats.get(k, 0) + int(v)
+    # v125：名册专属 stat 型效果并入 stats（生成处折算，防 engine/battle 双算）
+    if r.get("legendary"):
+        _merge_legendary_stats(stats, r["legendary"], slot, lv)
     equip = {
         "name": r["name"],
         "slot": slot,

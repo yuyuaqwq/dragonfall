@@ -216,17 +216,17 @@ EQUIP_ROSTER = {
     "eq_ye_xing_pi_feng": {"name": "夜行披风", "slot": "armor", "quality": "blue", "lv": 30, "series": "夜行", "req": {"agi": 25}, "source": "图纸"},
     "eq_rong_lu_zhi_xin": {"name": "熔炉之心", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 85, "series": "熔炉", "req": {"str": 85}, "legendary": "rong_lu_heart", "source": "图纸"},
     # ================= v124 支线奖励装备（6 件，eq: 前缀发放；系列为单件主题，非套装）=================
-    # s18 猎手的救赎（善结局分支）→ 白桦的护符（北境猎户传家护符，精准+5%/暴击+3%）
+    # s18 猎手的救赎（善结局分支）→ 白桦的护符（北境猎户传家护符，精准+10%/暴击+5%）
     "eq_bai_hua_de_hu_fu": {"name": "白桦的护符", "slot": "necklace", "quality": "blue", "lv": 70, "series": "白桦", "req": {"agi": 55}, "source": "支线"},
     # s51 霜角堡的冬宴 → 长夜徽记（长夜节纪念徽记，北境冬宴奖励）
     "eq_chang_ye_hui_ji": {"name": "长夜徽记", "slot": "necklace", "quality": "blue", "lv": 40, "series": "长夜", "req": {"vit": 32}, "source": "支线"},
-    # 垂钓线终奖 → 传说钓竿·银铃之竿（橙·传说，银铃河畔垂钓传说）
+    # 垂钓线终奖 → 传说钓竿·银铃之竿（橙·传说，银铃河畔主题；series 保留银铃——入银铃套计数为设计意图）
     "eq_chuan_shuo_diao_gan": {"name": "传说钓竿·银铃之竿", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 55, "series": "银铃", "req": {"agi": 40}, "legendary": "silver_bell_rod", "source": "legend"},
     # s84 老兵不死 → 守夜者徽章（守夜者金焰烙印徽章，老兵不屈）
     "eq_shou_ye_zhe_hui_zhang": {"name": "守夜者徽章", "slot": "necklace", "quality": "purple", "lv": 70, "series": "守夜", "req": {"str": 55}, "source": "支线"},
-    # s104 北境散支线 → 松木护符（守林人亡妻遗物，收藏向饰品）
+    # s121 北境散支线 → 松木护符（守林人亡妻遗物，收藏向饰品）
     "eq_song_mu_hu_fu": {"name": "松木护符", "slot": "necklace", "quality": "green", "lv": 30, "series": "松木", "source": "支线"},
-    # s78 侦探线（义气线分支）→ 猫眼石胸针（影子猫之母遗物，速度+2）
+    # s78 侦探线（义气线分支）→ 猫眼石胸针（影子猫之母遗物，速度+5%）
     "eq_mao_yan_shi_xiong_zhen": {"name": "猫眼石胸针", "slot": "necklace", "quality": "green", "lv": 35, "series": "猫眼", "source": "支线"},
 }
 

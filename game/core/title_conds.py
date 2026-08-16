@@ -182,6 +182,11 @@ def _t_north_benefactor(ctx):
     return _side_done(ctx, "s18") and _has_flag(ctx, "s18_branch_light")
 
 
+@register("nightwalker")
+def _t_nightwalker(ctx):
+    return _side_done(ctx, "s18") and _has_flag(ctx, "s18_branch_dark")
+
+
 @register("guifan_seal")
 def _t_guifan_seal(ctx):
     return _side_done(ctx, "s27")
@@ -219,12 +224,12 @@ def _t_merchant_friend(ctx):
 
 @register("just_enforcer")
 def _t_just_enforcer(ctx):
-    return _side_done(ctx, "s78") and _has_flag(ctx, "branch_justice")
+    return _side_done(ctx, "s78") and _has_flag(ctx, "s78_branch_justice")
 
 
 @register("shadow_friend")
 def _t_shadow_friend(ctx):
-    return _side_done(ctx, "s78") and _has_flag(ctx, "branch_mercy")
+    return _side_done(ctx, "s78") and _has_flag(ctx, "s78_branch_mercy")
 
 
 @register("dusk_detective")

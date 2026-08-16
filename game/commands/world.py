@@ -1684,14 +1684,17 @@ class WorldCmds(CommandBase):
                 # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
                 if obj.get("find"):
                     lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
-                    lines.append(f"    {self._obj_text(obj)}")
+                    # v124.2 复合目标逐行显示（s18 kill+find 两行都展示）
+                    for _t in self._obj_text_lines(obj, st):
+                        lines.append(f"    {_t}")
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
                 # v124 use 型（使用指定物品达成）——同 find 处理
                 if obj.get("use"):
                     lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
-                    lines.append(f"    {self._obj_text(obj)}")
+                    for _t in self._obj_text_lines(obj, st):
+                        lines.append(f"    {_t}")
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
@@ -2580,6 +2583,32 @@ class WorldCmds(CommandBase):
             return f"与 {npc.get('name', '？')} 交谈"
         return "？"
 
+    def _obj_text_lines(self, obj, st=None):
+        """v124.2 复合 objective 逐行渲染（如 s18 kill 腐牙萨满·嚎骨 + find 白桦 两行都显示）。
+        find 行按任务状态标 已找到/未找到（find 无进度存档，以 ready 态为准）；
+        纯 find 委托（有 map）保留『探索有概率遇到』机制提示，与原 _obj_text 文案一致。"""
+        lines = []
+        if obj.get("kill"):
+            lines.append(f"击败 {obj['kill']} ×{obj['count']}")
+        if obj.get("collect"):
+            lines.append(f"收集 {obj['collect']} ×{obj.get('collect_count', obj['count'])}")
+        if obj.get("explore"):
+            lines.append(f"前往 {C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}")
+        if obj.get("find"):
+            _mname = C.MAP_BY_ID.get(obj.get("map", ""), {}).get("name", "")
+            if st == "ready":
+                lines.append(f"{'在 ' + _mname + ' ' if _mname else ''}寻找 {obj['find']}（已找到）")
+            elif _mname:
+                lines.append(f"在 {_mname} 寻找 {obj['find']}(探索有概率遇到)")
+            else:
+                lines.append(f"寻找 {obj['find']}（未找到）")
+        if obj.get("use"):
+            lines.append(f"使用 {obj['use']}")
+        if obj.get("talk"):
+            npc = C.NPCS.get(obj["talk"], {})
+            lines.append(f"与 {npc.get('name', '？')} 交谈")
+        return lines or ["？"]
+
     def _quest_reputation(self, group_id, qq_id, npc_id):
         """完成任务时给对应势力加声望，返回提示行(如有)"""
         npc = C.NPCS.get(npc_id)
@@ -2711,6 +2740,8 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         num = event.get_message_str().strip()
         num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
+        # v124.2 全角数字兼容：全角『１』等回复转半角再比较（分支交付/对话树选项/物品查看/移动共用）
+        num = num.translate(str.maketrans("０１２３４５６７８９", "0123456789"))
         # v124 分支交付：支线 ready + branch_wait 时，裸数字 = 分支选项（优先于对话树）
         _bw = self._branch_wait_sid(group_id, qq_id)
         if _bw and (num.isdigit() or num):
@@ -3201,7 +3232,9 @@ class WorldCmds(CommandBase):
         return None
 
     def _update_use_quests(self, group_id, qq_id, item_name):
-        """v124 use 目标支线：使用指定物品后支线置 ready（如 递麦酒/用月鳞/交信物）。"""
+        """v124 use 目标支线：使用指定物品后支线置 ready（如 递麦酒/用月鳞/交信物）。
+        v124.2 防跨图白嫖：objective.map 或任务自身 map 配置时，须玩家当前地图一致才推进；
+        objective 无 map 且任务无 map 的保持原行为（不校验直接推进）。"""
         if not item_name:
             return ""
         quests = db.get_quests(group_id, qq_id)
@@ -3216,6 +3249,11 @@ class WorldCmds(CommandBase):
                 continue
             obj = sqd.get("objective") or {}
             if obj.get("use") and obj["use"] == item_name:
+                _need_map = obj.get("map") or sqd.get("map")
+                if _need_map:
+                    _pm = self._player(group_id, qq_id) or {}
+                    if _pm.get("cur_map") != _need_map:
+                        continue
                 side[sid] = {"status": "ready", "progress": {"use": item_name}}
                 changed = True
                 giver = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}

@@ -64,6 +64,10 @@ make_player(qq, 60)
 # 找一条 use 目标支线（s105 永恒花之名 use 月光露？查实际）
 use_sq = next((q for q in C.SIDE_QUESTS if q.get("objective", {}).get("use")), None)
 if use_sq:
+    # v124.2 地图校验：use 推进要求玩家在 objective.map/任务 map（若配置）
+    tgt_map = use_sq.get("objective", {}).get("map") or use_sq.get("map")
+    if tgt_map:
+        db.update_player("g", qq, cur_map=tgt_map)
     # 接取
     side = quests_of(qq).get("side", {})
     side[use_sq["id"]] = {"status": "active", "progress": {}}

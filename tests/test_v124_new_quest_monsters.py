@@ -56,8 +56,8 @@ sa2 = wdf_sas.get("white_deer_forest_2")
 boar = None
 if sa2:
     boar = next((m for m in (sa2.get("monsters") or []) if m[0] == "m_wild_boar"), None)
-check("白鹿之森深处 monsters 含 野猪(复用 m_wild_boar) Lv.6",
-      boar and boar[1] == "野猪" and boar[3] == 6, str(boar))
+check("白鹿之森深处 monsters 含 野猪(复用 m_wild_boar) Lv.5",
+      boar and boar[1] == "野猪" and boar[3] == 5, str(boar))
 check("野猪 drops=野猪牙", boar and boar[5] == ["野猪牙"], str(boar and boar[5]))
 
 # 04 章怪物表已有（野猪岭）——只挂载未新增重复条目
@@ -108,7 +108,7 @@ quests = {q["id"]: q for q in C.SIDE_QUESTS}
 SLOTS = {
     "s18": ("black_forest", "black_forest_4", "elite", 70),
     "s57": ("white_deer_forest", "white_deer_forest_7", "monsters", 11),
-    "s101": ("white_deer_forest", "white_deer_forest_2", "monsters", 6),
+    "s101": ("white_deer_forest", "white_deer_forest_2", "monsters", 5),
 }
 for sid, mob_name, (map_id, sa_id, slot, expect_lv) in (
         ("s18", "腐牙萨满·嚎骨", SLOTS["s18"]),

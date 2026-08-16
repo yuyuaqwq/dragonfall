@@ -10,7 +10,9 @@ GATHER_MAP_POOLS = {
     "oak_plain": [("mat_cao_yao", 30), ("mat_jiang_guo", 20), ("mat_yue_guang_cao", 15),
                   ("mat_shi_lai_mu_nian_ye", 15), ("mat_tu_mao", 10), ("mat_tu_pi", 10)],
     "white_deer_forest": [("mat_cao_yao", 25), ("mat_jiang_guo", 15), ("mat_yue_guang_cao", 15),
-                          ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15), ("mat_lang_pi", 10)],
+                          ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15), ("mat_lang_pi", 10),
+                          # v124 S111 面包贼蓬尾：被偷的面包（任务道具；白鹿之森无树洞专属采集点→挂普通池，低权重稀有）
+                          ("mat_bei_tou_de_mian_bao", 3)],
     "emerald_forest": [("mat_cao_yao", 25), ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15),
                        ("mat_yue_guang_cao", 10), ("mat_zhao_ze_hua", 15), ("mat_lang_pi", 15)],
     "misty_swamp": [("mat_zhao_ze_hua", 30), ("mat_cao_yao", 20), ("mat_yue_guang_cao", 10),
@@ -49,7 +51,9 @@ GATHER_MAP_POOLS = {
     "frost_field": [("mat_bing_jing", 30), ("mat_xue_lang_pi", 25), ("mat_xue_tu_pi", 20), ("mat_bing_lang_ya", 15), ("mat_meng_ma_mao", 10)],
     "frostwhisper_canyon": [("mat_shuang_ju_mo_xue", 25), ("mat_shuang_ju_mo_wang_jiao", 20), ("mat_shuang_ya_long_lin", 20), ("mat_bing_jing", 20), ("mat_bing_lang_ya", 15)],
     "fungus_forest": [("mat_bao_zi_nang", 25), ("mat_zhen_jun_rou", 25), ("mat_fu_guan_jun", 20), ("mat_ying_guang_fen", 15), ("mat_zhi_zhu_si", 15)],
-    "gold_plain": [("mat_shou_rou", 25), ("mat_niu_jiao", 20), ("mat_cao_yao", 20), ("mat_jiang_guo", 15), ("mat_cao_yuan_lang_pi", 20)],
+    "gold_plain": [("mat_shou_rou", 25), ("mat_niu_jiao", 20), ("mat_cao_yao", 20), ("mat_jiang_guo", 15), ("mat_cao_yuan_lang_pi", 20),
+                   # v124 S113 烛火不熄：蜂蜡（金穗平原花丛野蜂最多，s113 progress_text）
+                   ("mat_feng_la", 10)],
     "harbor_docks": [("mat_hai_yan_jie_jing", 30), ("mat_hai_ou_yu_mao", 20), ("mat_xie_ke", 15), ("mat_wu_zei_wan_zu", 15), ("mat_hai_zao", 20)],
     "hill_mine": [("mat_tie_kuang_shi", 35), ("mat_kuang_shi_sui_pian", 20), ("mat_shui_jing", 15), ("mat_shi_cai", 15), ("mat_mi_yin", 15)],
     "ironshield_hills": [("mat_tie_kuang_shi", 25), ("mat_qiu_ling_lang_pi", 25), ("mat_shi_cai", 20), ("mat_tie_ya_lang_pi", 15), ("mat_shan_yang_jiao", 15)],
@@ -93,7 +97,9 @@ GATHER_MAP_POOLS = {
 GATHER_COND_POOLS = {
     "silverwood": [("mat_night_mushroom", 8, "night"), ("mat_moon_dew", 6, "night")],
     "misty_swamp": [("mat_night_mushroom", 10, "night")],
-    "white_deer_forest": [("mat_moon_dew", 8, "night")],
+    "white_deer_forest": [("mat_moon_dew", 8, "night"),
+                          # v124 S103/S105 花匠与四季：萤火虫粪/月光露（夜晚白鹿之森采集/探索，见任务 desc）
+                          ("mat_ying_huo_chong_fen", 6, "night"), ("mat_yue_guang_lu", 6, "night")],
     "permafrost_field": [("mat_aurora_flower", 6, "winter+night"), ("mat_bing_jing", 10, "winter")],
     "emerald_forest": [("mat_thunder_vine", 8, "rain")],
     "redridge_plateau": [("mat_thunder_vine", 8, "rain")],

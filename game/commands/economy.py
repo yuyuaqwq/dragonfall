@@ -3532,10 +3532,11 @@ class EconomyCmds(CommandBase):
                 db.set_event_state(f"mining_fatigue_{qq_id}", "")
                 _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
         # v124 use 目标支线：使用物品后推进 use objective（如 递麦酒/用月鳞/交信物）。
-        # 任务道具（type=任务道具）走 none 模板 consume=False 但也算"使用"——必须推进，
-        # 否则 hq7 候鸟的信/青铜雨铃等链式 use 卡死（2026-08-16 实测修复）。
+        # v124.2 条件放宽：none 模板=使用动作成立（含收藏品等，如 s74 商会股份凭证），
+        # 按名精确匹配 active use 目标即推进，无匹配空操作无副作用；任务道具 tpl_none
+        # consume=False 不消耗语义不变；满血拦截等 consume=False 走 heal 等模板不受影响。
         _use_q_line = ""
-        if r.consume or (d.get("type") == "任务道具" and tpl_name == "none"):
+        if r.consume or tpl_name == "none":
             _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
         yield event.plain_result(r.text + _fat_line + _use_q_line)
 

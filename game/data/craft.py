@@ -1803,7 +1803,7 @@ CRAFT_RECIPES = {
         'desc': '鸦羽货摊流出的夜行斗篷，暗色里几乎看不见针脚',
         'name': '夜行披风',
         'roster_id': 'eq_ye_xing_pi_feng',
-        'blueprint': '图纸·夜行披风',
+        'blueprint': '夜行披风图纸',
     },
     # 熔炉之心：Lv.85 传说武器（熔岩核心×3+精金×5+源质×2），矮人先祖炉锻法
     'rec_rong_lu_zhi_xin': {
@@ -1820,7 +1820,7 @@ CRAFT_RECIPES = {
         'desc': '矮人先祖炉的传说锻法，能听见大地心跳的武器',
         'name': '熔炉之心',
         'roster_id': 'eq_rong_lu_zhi_xin',
-        'blueprint': '传说锻造图纸·熔炉之心',
+        'blueprint': '熔炉之心图纸',
     },
 }
 

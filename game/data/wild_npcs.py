@@ -534,7 +534,7 @@ HIDDEN_NPCS = {
         "condition": {"time": ["night"], "weather": "rain", "min_level": 20}, "chance": 1.0,
         "unlock": None,
         "desc": "雨夜码头灯塔残基下的撑伞商人",
-        "funcs": ["shop", "lore"],
+        "funcs": ["shop", "lore", "trade"],  # v124 P1：补 trade——_wild_trader_here 只认 trade 行商（鸦羽货摊分支）
         "dialogue": "雨夜的路，从来不是给人走的。可你来了第二次——看来你也是走夜路的人。",
         "quest": "h5",  # 隐藏任务 H5·雨夜的来客
     },
