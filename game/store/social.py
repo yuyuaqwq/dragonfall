@@ -4,6 +4,7 @@ import sqlite3
 import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
+from .inventory import FISH_TAGS_MAX, _slim, _trim_individuals
 
 """奥兰迪亚·余烬纪年存储层 - social"""
 
@@ -219,30 +220,48 @@ def market_remove(mid):
 # 所有内部 SQL 直接对单一 conn 执行（不回调 store 层其它连接函数，避免开新事务）。
 
 def _inv_upsert(conn, group_id, qq_id, item_key, item_data, count):
-    """在给定事务连接上向 inventory 加/累计一格。item_key 须已归一化（uuid 或 id）。"""
-    item_data = dict(item_data or {})
+    """在给定事务连接上向 inventory 加/累计一格。item_key 须已归一化（uuid 或 id）。
+
+    v126.3 瘦身：入库前 _slim 去类属性（类属性读配置）；同 key 已存在且新旧带
+    个体 tags → 合并（上限 FISH_TAGS_MAX 丢最旧，与 inventory.add_item 一致），
+    保证不变量 len(tags) <= count。
+    """
+    slim = _slim(item_key, item_data)
     row = conn.execute(
-        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
         (qq_id, item_key),
     ).fetchone()
-    data_json = json.dumps(item_data, ensure_ascii=False)
     if row:
-        # 同 key 已存在：优先非堆叠裸 UPDATE 累加 count（与 inventory.add_item 退化一致）
-        conn.execute(
-            "UPDATE inventory SET item_data=?, count=count+? WHERE qq_id=? AND item_key=?",
-            (data_json, count, qq_id, item_key),
-        )
+        # 同 key 已存在：堆叠且带个体 tags → 合并（上限截断丢最旧）；否则裸累加 count
+        if isinstance(slim, dict) and slim.get("tags") is not None:
+            _old = json.loads(row["item_data"] or "{}")
+            _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
+                _old if isinstance(_old, list) else [])
+            _new_tags = (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]
+            conn.execute(
+                "UPDATE inventory SET count=count+?, item_data=? WHERE qq_id=? AND item_key=?",
+                (count, json.dumps({"tags": _new_tags}, ensure_ascii=False), qq_id, item_key),
+            )
+        else:
+            conn.execute(
+                "UPDATE inventory SET count=count+? WHERE qq_id=? AND item_key=?",
+                (count, qq_id, item_key),
+            )
     else:
         conn.execute(
             "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
-            (qq_id, item_key, data_json, count),
+            (qq_id, item_key, json.dumps(slim, ensure_ascii=False), count),
         )
 
 
 def _inv_remove_conn(conn, qq_id, item_key, count=1):
-    """在给定事务连接上从 inventory 扣减 count；不足/不存在返回 False。"""
+    """在给定事务连接上从 inventory 扣减 count；不足/不存在返回 False。
+
+    v126.3 扣 count 同步截断个体 tags（FIFO，与 inventory.remove_item 一致），
+    不变量 len(tags) <= count 恒成立。
+    """
     row = conn.execute(
-        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
         (qq_id, item_key),
     ).fetchone()
     if not row:
@@ -251,8 +270,11 @@ def _inv_remove_conn(conn, qq_id, item_key, count=1):
         conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?",
                      (qq_id, item_key))
     else:
-        conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                     (count, qq_id, item_key))
+        _new = _trim_individuals(json.loads(row["item_data"] or "{}"), count)
+        conn.execute(
+            "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+            (count, json.dumps(_new, ensure_ascii=False), qq_id, item_key),
+        )
     return True
 
 

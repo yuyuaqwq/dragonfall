@@ -3,11 +3,128 @@ import json
 from .connection import _connect, _lock, atomic
 from .. import content as C
 
-"""奥兰迪亚·余烬纪年存储层 - inventory"""
+"""奥兰迪亚·余烬纪年存储层 - inventory
 
-# v126.2 个体属性 tags 上限：单物品最多保留 500 条个体标记（防 item_data 膨胀），
+v126.3 存储瘦身 + 个体属性对象包装（鱼鱼拍板形态）：
+  - item_data 不再存类属性（name/type/price/stackable），统一读配置（_hydrate 水合补全）
+  - 个体属性存 item_data["tags"]（对象包装，未来可在 tags 旁扩展其它个体字段）：
+      堆叠个体物（鱼）→ item_data = {"tags": [{"size":..,"weight":..}, ...]}（元素数 <= count）
+      装备等单体个体 → item_data = {slot/affixes/enhance/...}（对象，动态生成无配置）
+      普通材料/物品 → item_data = {}（类属性读配置）
+  - 所有扣 count 路径（remove/sell/仓库/市场/摆摊/赠送）必须同步截断 tags（FIFO），
+    不变量：len(tags) 恒 <= count（裸 SQL 路径见 world._storage_* / social._inv_*）
+"""
+
+# v126.2 个体属性上限：单物品最多保留 500 条个体标记（防 item_data 膨胀），
 # 超出丢最旧（FIFO 语义：先钓的先卖，但囤积量级下截断最旧影响可忽略）
 FISH_TAGS_MAX = 500
+
+# v126.3 类属性白名单：这些字段不落库（统一读配置），item_data 只存个体属性
+_CLASS_FIELDS = {"name", "type", "price", "stackable", "quality"}
+
+
+def _class_attrs(key):
+    """v126.3 类属性统一读配置：返回 {name,type,stackable,price}（读不到回 {}）。
+
+    查链：MATERIALS/ITEMS 按 key 直查 → 显示名反查 MATERIALS_BY_NAME → FISH_POOL 按名。
+    """
+    c = C.MATERIALS.get(key) or C.ITEMS.get(key)
+    if c:
+        return {"name": c.get("name", key), "type": c.get("type", "材料"),
+                "stackable": c.get("stackable", True), "price": c.get("price", 0),
+                "quality": c.get("quality", "white")}
+    nm = C.display("materials", key)
+    c = C.MATERIALS_BY_NAME.get(nm)
+    if c:
+        return {"name": c.get("name", nm), "type": c.get("type", "材料"),
+                "stackable": c.get("stackable", True), "price": c.get("price", 0),
+                "quality": c.get("quality", "white")}
+    for f in C.FISH_POOL:
+        if f["name"] in (key, nm):
+            return {"name": f["name"], "type": f.get("type", "鱼"),
+                    "stackable": True, "price": f.get("price", 0),
+                    "quality": f.get("quality", "white")}
+    return {}
+
+
+def _slim(item_key, item_data, tag=None):
+    """v126.3 存储瘦身：item_data 只存个体属性（类属性不落库）。
+
+    - tag 非 None（堆叠个体物入包，如鱼）→ {"tags": [tag]} 对象包装
+    - 已有 tags key（仓库/市场/赠送回流的快照）→ 只保留 {"tags": [...]}（去类属性）
+    - 裸数组（防御兼容）→ 包成 {"tags": [...]}
+    - 含非类属性字段（装备词条/强化等动态个体）→ 保留对象
+    - 纯类属性 → {}（配置命中才瘦身；配置查不到 = 动态/测试物品，保留完整 data）
+    """
+    if tag is not None:
+        if _class_attrs(item_key):
+            return {"tags": [tag]}
+        # 配置未命中（动态鱼）：保留类属性供水合残留兜底
+        out = {k: v for k, v in (item_data or {}).items() if k in _CLASS_FIELDS}
+        out["tags"] = [tag]
+        return out
+    d = item_data or {}
+    if isinstance(d, list):
+        return {"tags": d}
+    if isinstance(d, dict) and d.get("tags") is not None:
+        return {"tags": d["tags"]}
+    if isinstance(d, dict) and any(k not in _CLASS_FIELDS for k in d):
+        return d
+    if _class_attrs(item_key):
+        return {}
+    return d
+
+
+def _trim_individuals(data, consumed):
+    """v126.3 扣 count 后同步截断 tags（FIFO：先扣的先删个体标记）。
+
+    返回新 item_data：
+      - 带 tags 的对象 → 截断后剩余；截空移除 tags key（有 count 无个体，按原价兜底）
+      - 裸数组（防御）→ 包对象截断
+      - 非个体数据 → 原样
+    """
+    tags = None
+    if isinstance(data, dict):
+        tags = data.get("tags")
+    elif isinstance(data, list):
+        tags = data
+    if not tags:
+        return data
+    rest = tags[consumed:]
+    if isinstance(data, list):
+        return {"tags": rest} if rest else {}
+    out = dict(data)
+    if rest:
+        out["tags"] = rest
+    else:
+        out.pop("tags", None)
+    return out
+
+
+def _hydrate(key, data):
+    """v126.3 读取水合：瘦身数据补全类属性（配置 → 残留旧字段 → key 兜底）。
+
+    - 带 tags → {类属性, "tags": 数组}（下游读 data["tags"] 计价/展示无感）
+    - dict（装备个体对象/普通物）→ name 缺失时按配置反查补全（保留 v104R3 兜底链）
+    """
+    if isinstance(data, list):  # 防御：裸数组
+        data = {"tags": data}
+    if isinstance(data, dict) and data.get("tags") is not None:
+        out = _class_attrs(key)
+        for _k in ("name", "type", "price", "stackable"):
+            if _k not in out and _k in data:
+                out[_k] = data[_k]  # 残留兜底（动态/测试物品配置未命中）
+        out["tags"] = data["tags"]
+        return out
+    d = dict(data or {})
+    if not d:
+        # v126.3 瘦身后 {}（纯类属性已清）→ 全量水合类属性
+        return _class_attrs(key)
+    if not d.get("name"):
+        d["name"] = C.display("materials", key)
+        if d["name"] == key:
+            d["name"] = C.display("items", key)
+    return d
 
 
 def _key_to_id(item_key, item_data=None):
@@ -49,13 +166,17 @@ def _key_to_id(item_key, item_data=None):
 def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | None = None):
     """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储
 
-    v126.2 tag：个体属性标记（鱼获重量/大小）——堆叠物品每件一个 tag 存 item_data["tags"]，
-    与 count 同生共死（remove/sell 按 FIFO 截断），count 恒 >= len(tags)。
+    v126.2 tag：个体属性标记（鱼获重量/大小）——随 count 同生共死（remove/sell 按 FIFO
+    截断），count 恒 >= len(tags)。
+    v126.3 瘦身：存储时类属性不落库（_slim），个体属性存 item_data["tags"] 对象包装，
+    读取时 _hydrate 水合补全类属性。
     """
     if not isinstance(count, int) or isinstance(count, bool) or count <= 0 or count > 9999999:
         # F1 P1-3：数量非法（<=0 / 超大）直接拒绝，防负资产/内存膨胀
         return False
     item_key = _key_to_id(item_key, item_data)
+    slim = _slim(item_key, item_data, tag)
+    stackable = item_data.get("stackable", True) if isinstance(item_data, dict) else True
     with _lock:
         conn = _connect()
         try:
@@ -63,18 +184,16 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | No
                 "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
                 (qq_id, item_key),
             ).fetchone()
-            if row and item_data.get("stackable", True):
-                if tag:
-                    # 堆叠 + 个体标记：读旧 data，append tag（上限 500 条，超出丢最旧）
-                    _d = json.loads(row["item_data"])
-                    _tags = _d.get("tags", []) or []
-                    _tags.append(tag)
-                    if len(_tags) > FISH_TAGS_MAX:
-                        _tags = _tags[-FISH_TAGS_MAX:]
-                    _d["tags"] = _tags
+            if row and stackable:
+                if isinstance(slim, dict) and slim.get("tags") is not None:
+                    # 堆叠 + 个体数据：合并 tags 数组（上限截断丢最旧）
+                    _old = json.loads(row["item_data"])
+                    _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
+                        _old if isinstance(_old, list) else [])
+                    _new_tags = (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]
                     conn.execute(
                         "UPDATE inventory SET count=count+?, item_data=? WHERE qq_id=? AND item_key=?",
-                        (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
+                        (count, json.dumps({"tags": _new_tags}, ensure_ascii=False), qq_id, item_key),
                     )
                 else:
                     conn.execute(
@@ -89,12 +208,9 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | No
                     (count, qq_id, item_key),
                 )
             else:
-                if tag:
-                    item_data = dict(item_data)
-                    item_data["tags"] = [tag]
                 conn.execute(
                     "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
-                    (qq_id, item_key, json.dumps(item_data, ensure_ascii=False), count),
+                    (qq_id, item_key, json.dumps(slim, ensure_ascii=False), count),
                 )
             conn.commit()
         finally:
@@ -110,15 +226,9 @@ def get_inventory(group_id, qq_id):
             ).fetchall()
             out = []
             for r in rows:
-                d = json.loads(r["item_data"])
-                # v46：补显示名（旧档 name 可能缺失，用 id 反查或 key）
-                # v104R3 M11 P2-9：兜底不再只认 mat_ 前缀——i_stone_upgrade 等非 mat_ 材料
-                # 缺 name 时此前直接显示英文 key（黑名单 i_stone 泄漏）；按 materials→items 顺序
-                # 反查，查不到才退回 key（display 未命中时原样返回）
-                if not d.get("name"):
-                    d["name"] = C.display("materials", r["item_key"])
-                    if d["name"] == r["item_key"]:
-                        d["name"] = C.display("items", r["item_key"])
+                # v126.3 水合：瘦身数据补全类属性（配置 → 残留 → key 兜底），
+                # 下游读 name/price/tags 与 v126.2 完全一致（v104R3 M11 P2-9 兜底链保留）
+                d = _hydrate(r["item_key"], json.loads(r["item_data"]))
                 out.append({"key": r["item_key"], "data": d, "count": r["count"]})
             return out
         finally:
@@ -136,7 +246,7 @@ def count_item(group_id, qq_id, name):
             ).fetchall()
             total = 0
             for r in rows:
-                d = json.loads(r["item_data"])
+                d = _hydrate(r["item_key"], json.loads(r["item_data"]))
                 if d.get("name") == name or r["item_key"] == kid:
                     total += r["count"]
             return total
@@ -163,19 +273,12 @@ def remove_item(group_id, qq_id, item_key, count=1):
                     (qq_id, item_key),
                 )
             else:
-                # v126.2 同步截断 tags（FIFO：先扣的先删个体标记，保持 count >= len(tags)）
-                _d = json.loads(row["item_data"])
-                if _d.get("tags"):
-                    _d["tags"] = _d["tags"][count:]
-                    conn.execute(
-                        "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
-                        (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
-                    )
-                else:
-                    conn.execute(
-                        "UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                        (count, qq_id, item_key),
-                    )
+                # v126.2/126.3 同步截断个体数组（FIFO：先扣的先删个体标记，count >= len(tags) 恒成立）
+                _new = _trim_individuals(json.loads(row["item_data"]), count)
+                conn.execute(
+                    "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+                    (count, json.dumps(_new, ensure_ascii=False), qq_id, item_key),
+                )
             conn.commit()
             return True
         finally:
@@ -188,6 +291,7 @@ def update_item_data(group_id, qq_id, item_key, new_data: dict):
     比 remove_item+add_item 两步非原子替换更安全（后者中途崩会丢格/建重复格），
     且保留原格 count 与 rowid。装备所在格 key 为 uuid（get_inventory 原样返回），
     此处经 _key_to_id 归一化后仍命中同一格——key 语义与 remove/add 一致。
+    v126.3 写入前 _slim 瘦身（装备对象原样保留；水合对象自动提取 tags）。
     命中返回 True，否则 False（该格不存在，不做写入）。
     """
     item_key = _key_to_id(item_key, new_data)
@@ -196,7 +300,7 @@ def update_item_data(group_id, qq_id, item_key, new_data: dict):
         try:
             cur = conn.execute(
                 "UPDATE inventory SET item_data=? WHERE qq_id=? AND item_key=?",
-                (json.dumps(new_data, ensure_ascii=False), qq_id, item_key),
+                (json.dumps(_slim(item_key, new_data), ensure_ascii=False), qq_id, item_key),
             )
             conn.commit()
             return cur.rowcount > 0
@@ -221,18 +325,11 @@ def sell_item_atomic(group_id, qq_id, item_key, count, gold_gain):
         if row["count"] <= count:
             conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?", (qq_id, item_key))
         else:
-            # v126.2 同步截断 tags（FIFO：先卖的先删个体标记）
-            _d = json.loads(row["item_data"])
-            if _d.get("tags"):
-                _d["tags"] = _d["tags"][count:]
-                conn.execute(
-                    "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
-                    (count, json.dumps(_d, ensure_ascii=False), qq_id, item_key),
-                )
-            else:
-                conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                             (count, qq_id, item_key))
+            # v126.2/126.3 同步截断个体数组（FIFO：先卖的先删个体标记）
+            _new = _trim_individuals(json.loads(row["item_data"]), count)
+            conn.execute(
+                "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+                (count, json.dumps(_new, ensure_ascii=False), qq_id, item_key),
+            )
         conn.execute("UPDATE players SET gold=gold+? WHERE qq_id=?", (gold_gain, qq_id))
     return True
-
-

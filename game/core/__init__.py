@@ -20,6 +20,8 @@ from .constants import (  # noqa: F401
     SUB_TYPE_TOWN, SUB_TYPE_STREET, SUB_TYPE_GATE,
     # v102.2 物品 type 常量
     ITEM_TYPE_PET_EGG, ITEM_TYPE_MOUNT,
+    # v126.3 材料大类归并集合（背包『材料』筛选/『使用』材料兜底）
+    MATERIAL_KIND_TYPES,
     # v102.3 职业 ID 常量
     CLASS_NOVICE,
     # v102.6 属性集合常量

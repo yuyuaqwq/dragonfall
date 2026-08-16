@@ -40,6 +40,16 @@ _MAT_FACILITY = {
 _MAT_FACILITY_HINT = ("材料按类型分店回收：矿石/木材/兽材/宝石→铁匠铺、"
                       "草药/精华→草药铺/炼金工坊、食材/织物/杂物→商店")
 
+# v126.3 材料大类归并：配置 type 细分为 18 种（兽材/矿石/草药/精华/宝石/织物/木材/食材/
+# 杂物/图纸/鱼/材料/垃圾/宝物/鱼王/收藏/传说/任务道具），v126.3 水合后 data['type'] 是
+# 配置真实值——『背包 材料』筛选/使用兜底按大类归并，否则兽材/矿石等全部漏筛。
+def _item_kind_type(t):
+    """材料大类归并：采集/掉落可堆叠材料（C.MATERIAL_KIND_TYPES）→ '材料'；
+    图纸/鱼/收藏/传说/宝物/鱼王/消耗品/符文/宠物蛋/坐骑 等保留各自 type（专属筛选类别）。"""
+    if t in C.MATERIAL_KIND_TYPES:
+        return "材料"
+    return t
+
 # v105 M14 评估实现（19 章 §2.2 挖掘疲劳值）：连续挖掘 N 次进入疲劳，
 # 疲劳期间稀有矿脉概率减半；10 分钟不挖掘自动恢复（与体力自然恢复节奏一致）。
 # 存储用 event_state（mining_fatigue_{qq_id}），无 schema 变更。
@@ -317,8 +327,8 @@ _ITEM_DETAIL_RENDERERS = {
 
 def item_detail_render(d, lines, equipped):
     """按物品大类分发到渲染器（v101.6：加新类型 = 注册表加一行 + _item_category 加一类）。
-    大类判断与 EconomyCmds._item_category 一致（装备→slot；其余→type/其他）。"""
-    kind = "装备" if d.get("slot") else (d.get("type") or "其他")
+    大类判断与 EconomyCmds._item_category 一致（装备→slot；材料大类归并→type/其他）。"""
+    kind = "装备" if d.get("slot") else (_item_kind_type(d.get("type")) or "其他")
     fn = _ITEM_DETAIL_RENDERERS.get(kind) or _ITEM_DETAIL_RENDERERS["__default__"]
     fn(d, lines, equipped)
 
@@ -2945,10 +2955,10 @@ class EconomyCmds(CommandBase):
 
     @staticmethod
     def _item_category(d: dict) -> str:
-        """物品大类：装备(有 slot)→ 装备；其余按 type 字段归类"""
+        """物品大类：装备(有 slot)→ 装备；其余按 type 归并（材料大类→『材料』）"""
         if d.get("slot"):
             return "装备"
-        return d.get("type") or "其他"
+        return _item_kind_type(d.get("type")) or "其他"
 
     @staticmethod
     def _parse_bag_filter(text: str):
@@ -3044,8 +3054,9 @@ class EconomyCmds(CommandBase):
         lines = [f"{title}(第 {page}/{pages} 页 · 共 {len(items)} 件)", "━━━━━━━━━━━━"]
         for i, it in enumerate(page_items, (page - 1) * 5 + 1):
             d = it["data"]
-            if d.get("type") == "材料":
+            if _item_kind_type(d.get("type")) == "材料":
                 # v101.25e 材料品质色 + 类型标签（鱼鱼拍板：材料也要品质；v101.25f 去掉"可出售"尾巴）
+                # v126.3：type 为配置细分值（兽材/矿石/…）→ 按大类归并后命中本分支
                 _mm = C.MATERIALS_BY_NAME.get(d["name"])
                 if _mm and _mm.get("quality") in C.QUALITY:
                     lines.append(f"{i:>2}. {C.QUALITY[_mm['quality']]['color']}{d['name']} ×{it['count']} ({_mm.get('type', '杂物')})")

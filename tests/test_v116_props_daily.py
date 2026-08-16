@@ -7,7 +7,7 @@
 import sys, os, asyncio, sqlite3
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from conftest import FakeEvent, run, clean_db, TEST_DB, Main, db
+from conftest import FakeEvent, run, clean_db, TEST_DB, Main, db, C
 
 passed = failed = 0
 def check(name, ok, detail=""):
@@ -40,7 +40,7 @@ async def main():
     check("酒桶每日限制", "今天已经" in r2, r2[:80])
 
     inv = db.get_inventory("g1", "1001")
-    mat_items = [v for v in inv if isinstance(v.get("data"), dict) and v["data"].get("type") == "材料"]
+    mat_items = [v for v in inv if isinstance(v.get("data"), dict) and v["data"].get("type") in C.MATERIAL_KIND_TYPES]
     check("背包有酒桶材料", len(mat_items) >= 1, str(len(mat_items)))
 
     # ---- 2) 圣像（white_deer_4：1烛台 2圣像）→ 每日小额祝福回血 ----

@@ -103,9 +103,13 @@ async def main():
     finally:
         conn.close()
     check("月光鱼以 mat_ ID 入包", row is not None, "背包查 mat_yue_guang_yu")
-    if row:
-        d = json.loads(row[0])
-        check("入包带 quality=blue", d.get("quality") == "blue", str(d))
+    # v126.3 瘦身后存储不再含类属性——品质走配置水合（FISH_POOL quality=blue），改查水合结果
+    d = {}
+    for it in db.get_inventory("g1", "w1"):
+        if it["key"] == "mat_yue_guang_yu":
+            d = it["data"]
+            break
+    check("入包带 quality=blue", d.get("quality") == "blue", str(d))
     check("蓝档经验 +2", prof_exp("g1", "w1") == exp0 + 2, f"{prof_exp('g1','w1')} vs {exp0}+2")
 
     print("【9.3 结算·紫·史诗】")

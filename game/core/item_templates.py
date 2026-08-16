@@ -713,7 +713,10 @@ def tpl_none(ctx):
     if (ctx.data or {}).get("type") == "任务道具":
         return ItemResult(text=f"你使用了『{ctx.item_name()}』。", consume=False)
     # v113.5 O117：材料类（食材/矿材）不可直接使用，提示可走副业加工（烹饪/锻造/炼金）
-    if (ctx.data or {}).get("type") == "材料":
+    # v126.3：配置 type 细分为 18 种（兽材/矿石/草药/…），水合后 data.type 是真实细分值——
+    # 按 C.MATERIAL_KIND_TYPES 大类归并判定，否则兽材/矿石等材料漏判退回通用文案
+    from .. import content as C  # v102.2 延迟导入（core 聚合链惯例）
+    if (ctx.data or {}).get("type") in C.MATERIAL_KIND_TYPES:
         return ItemResult(
             text=f"『{ctx.item_name()}』不能直接使用——这是材料，可『烹饪』『锻造』『炼金』等副业加工成成品～",
             consume=False)

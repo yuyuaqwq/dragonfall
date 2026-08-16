@@ -2,6 +2,7 @@
 import json
 import time
 from .connection import _connect, _lock, atomic
+from .inventory import _slim, _trim_individuals, FISH_TAGS_MAX
 from .. import content as C
 
 """奥兰迪亚·余烬纪年存储层 - world"""
@@ -335,29 +336,47 @@ def cleanup_stale_event_state(max_age_days: int = 30) -> int:
 # JSON → 校验/改列表 → 写回 event_state → 扣/加背包。item_key 已由命令层归一化。
 
 def _storage_upsert(conn, qq_id, item_key, item_data, count):
-    """事务连接上的背包加/累计一格（语义对齐 inventory.add_item 退化累加）。"""
-    item_data = dict(item_data or {})
-    data_json = json.dumps(item_data, ensure_ascii=False)
+    """事务连接上的背包加/累计一格（语义对齐 inventory.add_item 退化累加）。
+
+    v126.3 瘦身：入包前 _slim（水合快照 → 只留个体 tags，类属性不落库）；
+    背包已有同 key 且新旧都带 tags 时合并（旧 tags + 新 tags，
+    FISH_TAGS_MAX 截断丢最旧）；无新 tags 时保留旧数据（旧 tags 不丢），
+    不变量 len(tags) <= count 恒成立。
+    """
+    slim = _slim(item_key, item_data or {})
     row = conn.execute(
-        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
         (qq_id, item_key),
     ).fetchone()
     if row:
+        _old = json.loads(row["item_data"]) if row["item_data"] else {}
+        if not isinstance(_old, (dict, list)):
+            _old = {}
+        if isinstance(slim, dict) and slim.get("tags") is not None:
+            _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
+                _old if isinstance(_old, list) else [])
+            _new_data = {"tags": (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]}
+        else:
+            _new_data = _old
         conn.execute(
             "UPDATE inventory SET item_data=?, count=count+? WHERE qq_id=? AND item_key=?",
-            (data_json, count, qq_id, item_key),
+            (json.dumps(_new_data, ensure_ascii=False), count, qq_id, item_key),
         )
     else:
         conn.execute(
             "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
-            (qq_id, item_key, data_json, count),
+            (qq_id, item_key, json.dumps(slim, ensure_ascii=False), count),
         )
 
 
 def _storage_remove(conn, qq_id, item_key, count=1):
-    """事务连接上的背包扣减；不足/不存在返回 False（计入回滚条件）。"""
+    """事务连接上的背包扣减；不足/不存在返回 False（计入回滚条件）。
+
+    v126.3 部分扣减时同步 _trim_individuals 截断 tags（FIFO：先扣的先删个体
+    标记），不变量 len(tags) <= count 恒成立。
+    """
     row = conn.execute(
-        "SELECT count FROM inventory WHERE qq_id=? AND item_key=?",
+        "SELECT count, item_data FROM inventory WHERE qq_id=? AND item_key=?",
         (qq_id, item_key),
     ).fetchone()
     if not row:
@@ -365,8 +384,14 @@ def _storage_remove(conn, qq_id, item_key, count=1):
     if row["count"] <= count:
         conn.execute("DELETE FROM inventory WHERE qq_id=? AND item_key=?", (qq_id, item_key))
     else:
-        conn.execute("UPDATE inventory SET count=count-? WHERE qq_id=? AND item_key=?",
-                     (count, qq_id, item_key))
+        _new = _trim_individuals(
+            json.loads(row["item_data"]) if row["item_data"] else {}, count)
+        if not isinstance(_new, (dict, list)):
+            _new = {}
+        conn.execute(
+            "UPDATE inventory SET count=count-?, item_data=? WHERE qq_id=? AND item_key=?",
+            (count, json.dumps(_new, ensure_ascii=False), qq_id, item_key),
+        )
     return True
 
 

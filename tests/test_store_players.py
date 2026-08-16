@@ -46,7 +46,7 @@ def main():
     db.add_item("g1", "q1", "mat_lang_pi", {"name": "狼皮", "type": "材料", "stackable": True})
     db.add_item("g1", "q1", "狼皮", {"name": "狼皮", "type": "材料", "stackable": True}, count=3)
     inv = db.get_inventory("g1", "q1")
-    mat_items = [it for it in inv if it["data"].get("type") == "材料"]
+    mat_items = [it for it in inv if it["data"].get("type") in C.MATERIAL_KIND_TYPES]
     check("材料按 ID 合并", len(mat_items) == 1 and mat_items[0]["count"] == 4,
           str([(it["key"], it["count"]) for it in inv]))
     check("count_item(狼皮)=4", db.count_item("g1", "q1", "狼皮") == 4, str(db.count_item("g1", "q1", "狼皮")))
