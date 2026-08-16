@@ -11,8 +11,8 @@
   4. 全角等价：'＋2'/'－'/'＝3'/'＋'/'+０' 与半角行为一致
   5. 无状态：没写过 last_list 发 '+' → 提示『先打开一个列表』，不转发
   6. 『=』无数字 → 提示跳页用法，不转发
-  7. 快捷后缀：绑『1→前往』，发『13』→ 转发『前往 3』；『1』不变；全角『１３』归一
-  8. 整段优先：绑『13→技能, 1→前往』，发『13』→ 『技能』（不拼后缀）；『134』→『技能 4』
+  7. 快捷后缀（v123b）：字母前缀透传（绑『n→前往』发『n3』=前往 3，大写归一）；数字全量不拆（绑『13』发『13』触发，绑『1』发『14』静默）；gm_/help 保护
+  8. 字母最长前缀：绑『goto→技能』『goto3』→『技能 3』不误拆『g』
   9. 列表接入冒烟：『背包』渲染后 last_list cmd='背包'；'+' 真实翻页；绑『1→背包』发『13』
      端到端到第 3 页；『技能列表』免空格不回归且记录状态
  10. 守卫：无角色发 '+' → 注册提示（require_player）
@@ -201,41 +201,58 @@ async def test_flip_no_state(m):
           len(replies) == 1 and "注册" in replies[0], str(replies))
 
 
-# ---------- 7. 快捷指令后缀 ----------
+# ---------- 7. 快捷后缀（v123b：数字全量不拆 / 字母前缀透传） ----------
 async def test_shortcut_suffix(m):
-    print("【7. 快捷指令后缀：绑『1→前往』，『13』→ 转发『前往 3』】")
+    print("【7. 快捷后缀：字母前缀透传（绑『n→前往』『n3』=前往 3）；数字全量不拆】")
     clean_db()
     make_player(GID, QID)
-    shortcuts = {"1": "前往"}
+    # 字母前缀：n → 前往
+    shortcuts = {"n": "前往"}
     cases = [
-        ("13", ["前往 3"]),
-        ("1", ["前往"]),        # 纯数字行为不变
-        ("12", ["前往 2"]),     # 任意剩余数字并入后缀
-        ("１３", ["前往 3"]),   # 全角数字前缀归一
-        ("13 ", ["前往 3"]),    # 尾随空格
+        ("n3", ["前往 3"]),
+        ("n", ["前往"]),        # 无后缀原样触发
+        ("n12", ["前往 12"]),   # 任意剩余并入后缀
+        ("N3", ["前往 3"]),     # 大写归一
+        ("n3 ", ["前往 3"]),    # 尾随空格
     ]
     for msg, expect in cases:
         _, captured = await shortcut_capture(m, msg, shortcuts)
-        check(f"绑『1→前往』发『{msg}』→ 转发 {expect}",
-              captured == expect, str(captured))
-    # 未绑定数字 → 静默（不转发不回复）
+        check(f"绑『n→前往』发『{msg}』→ 转发 {expect}", captured == expect, str(captured))
+    # 数字全量：绑『13』发『13』触发；绑『1』发『14』→ 静默（不拆后缀）
+    shortcuts2 = {"13": "技能", "1": "前往"}
+    cases2 = [
+        ("13", ["技能"]),
+        ("１３", ["技能"]),    # 全角整段归一
+        ("1", ["前往"]),
+    ]
+    for msg, expect in cases2:
+        _, captured = await shortcut_capture(m, msg, shortcuts2)
+        check(f"绑『13/1』发『{msg}』→ 转发 {expect}", captured == expect, str(captured))
+    replies, captured = await shortcut_capture(m, "14", {"1": "前往"})
+    check("数字不拆后缀：绑『1』发『14』→ 静默", captured == [] and replies == [], f"{captured} {replies}")
+    # 未绑定 → 静默（不转发不回复）
     replies, captured = await shortcut_capture(m, "99", shortcuts)
-    check("未绑定『99』→ 无转发无回复",
-          captured == [] and replies == [], f"{captured} {replies}")
+    check("未绑定『99』→ 无转发无回复", captured == [] and replies == [], f"{captured} {replies}")
+    # 内置英文指令保护：gm_ 系列 / help 不进快捷
+    replies, captured = await shortcut_capture(m, "gm_发金币", {"g": "前往"})
+    check("『gm_发金币』不进快捷（gm_ 保护）", captured == [] and replies == [], f"{captured} {replies}")
+    replies, captured = await shortcut_capture(m, "help", {"h": "前往"})
+    check("『help』不进快捷（help 保护）", captured == [] and replies == [], f"{captured} {replies}")
 
 
-# ---------- 8. 整段数字优先 ----------
+# ---------- 8. 字母最长前缀优先 ----------
 async def test_shortcut_full_match_first(m):
-    print("【8. 整段数字优先：绑『13→技能,1→前往』，『13』→『技能』不拼后缀】")
+    print("【8. 字母最长前缀：绑『goto→技能,n→前往』，『goto3』→『技能 3』不误拆『g』】")
     clean_db()
     make_player(GID, QID)
-    shortcuts = {"13": "技能", "1": "前往"}
+    shortcuts = {"goto": "技能", "n": "前往"}
     cases = [
-        ("13", ["技能"]),       # 整段命中 → 直接触发
-        ("１３", ["技能"]),     # 全角整段命中
-        ("1", ["前往"]),        # 短绑定仍可用
-        ("134", ["技能 4"]),    # 整段未命中 → 逐位缩短找 '13'，剩 '4' 入后缀
-        ("131", ["技能 1"]),
+        ("goto3", ["技能 3"]),   # 最长前缀命中 goto，剩 3 入后缀
+        ("goto", ["技能"]),
+        ("GOTO3", ["技能 3"]),   # 大写归一
+        ("n5", ["前往 5"]),
+        ("n", ["前往"]),
+        ("x1", []),              # 未绑定 → 静默
     ]
     for msg, expect in cases:
         _, captured = await shortcut_capture(m, msg, shortcuts)
@@ -279,19 +296,19 @@ async def test_list_state_smoke(m):
 
 
 async def test_shortcut_suffix_e2e(m):
-    print("【9c. 端到端：绑『1→背包』发『13』→ 真实背包第 3 页渲染】")
+    print("【9c. 端到端：绑『n→背包』发『n3』→ 真实背包第 3 页渲染】")
     clean_db()
     make_player(GID, QID)
     seed_bag()
-    db.update_player(GID, QID, shortcuts={"1": "背包"})
-    ev = FakeEvent(GID, QID, "13")
+    db.update_player(GID, QID, shortcuts={"n": "背包"})
+    ev = FakeEvent(GID, QID, "n3")
     replies = [r for r in await run(m.shortcut_trigger, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『13』→ 背包第 3 页", "第 3/4 页" in joined, joined[:200])
-    ev = FakeEvent(GID, QID, "1")
+    check("『n3』→ 背包第 3 页", "第 3/4 页" in joined, joined[:200])
+    ev = FakeEvent(GID, QID, "n")
     replies = [r for r in await run(m.shortcut_trigger, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『1』→ 背包第 1 页（纯数字行为不变）", "第 1/4 页" in joined, joined[:200])
+    check("『n』→ 背包第 1 页", "第 1/4 页" in joined, joined[:200])
 
 
 # ---------- 10. 免空格不回归 ----------

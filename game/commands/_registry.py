@@ -135,7 +135,7 @@ COMMAND_REGEX = {
     "set_view": r'^(?:\[At:\d+\]\s*)?套装(?:\s*|$)',
     "shop": r'^(?:\[At:\d+\]\s*)?商店(?:\s*|$)',
     "shortcut": r'^(?:\[At:\d+\]\s*)?(?:快捷绑定|快捷列表|快捷删除|快捷清除|快捷)(?:[\s\S]*)$',
-    "shortcut_trigger": r'^(?:\[At:\d+\]\s*)?[0-9０-９]\d*[\s\S]*$',
+    "shortcut_trigger": r'^(?:\[At:\d+\]\s*)?(?!gm_)(?!help(?:\s|$))(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*)[\s\S]*$',
     "page_flip": r'^(?:\[At:\d+\]\s*)?[+＋\-－＝=][0-9０-９]*\s*$',
     # v101.16 裸数字优先 NPC 对话（priority=100 高于快捷指令；同 pattern 双注册，gate 判定覆盖）
     "npc_quick_dialog": r'^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$',

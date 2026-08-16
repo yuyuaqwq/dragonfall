@@ -53,14 +53,21 @@ class PlayerCmds(CommandBase):
                 break
         if sub == "绑定":
             parts = rest.split(maxsplit=1)
-            if len(parts) < 2 or not parts[0].isdigit():
-                yield event.plain_result("📎 用法：『快捷绑定 <数字> <指令>』，如『快捷绑定 1 探索』\n发对应数字即可一键执行。")
+            if len(parts) < 2:
+                yield event.plain_result("📎 用法：『快捷绑定 <数字/字母> <指令>』，如『快捷绑定 1 探索』『快捷绑定 n 前往』\n数字 0-99 全量触发；字母可带参数（绑『n 前往』发『n3』=前往 3）")
                 return
-            # v105 P1(M01#4)：全角数字归一（『１２』→'12'，与触发侧同 key）；
-            # 限 1-2 位——触发正则只匹配 1-2 位数字，≥100 绑定成功也永远无法触发（死绑定）
-            num = str(int(parts[0]))
-            if len(num) > 2:
-                yield event.plain_result("❌ 快捷数字限 1-2 位（0-99）～（3 位以上消息触发不了快捷）")
+            # v123b：数字 key 限 1-2 位（0-99 全量匹配）；字母 key 1-8 位（字母开头可带数字，
+            # 前缀匹配+后缀透传）。全角数字归一，字母统一小写存储。
+            key = parts[0].strip()
+            if key.isdigit() or (key and all(ch in "０-９" for ch in key)):
+                key = str(int(key))
+                if len(key) > 2:
+                    yield event.plain_result("❌ 快捷数字限 1-2 位（0-99）～（3 位以上数字只能全量匹配，发『13』不会拆成『1』+『3』）")
+                    return
+            elif re.fullmatch(r"[a-zA-Z][a-zA-Z0-9]{0,7}", key):
+                key = key.lower()
+            else:
+                yield event.plain_result("📎 快捷键限：数字 0-99（全量触发）或 1-8 位字母开头键（支持后缀参数）～")
                 return
             cmd_text = parts[1].strip()
             if len(cmd_text) > 30:
@@ -72,9 +79,9 @@ class PlayerCmds(CommandBase):
             if self._find_handler(cmd_text) is None:
                 yield event.plain_result(f"❌ 『{cmd_text}』不是有效指令，先看看『帮助』确认指令名～")
                 return
-            shortcuts[num] = cmd_text
+            shortcuts[key] = cmd_text
             db.update_player(group_id, qq_id, shortcuts=shortcuts)
-            yield event.plain_result(f"✅ 快捷 {num} → 『{cmd_text}』 绑定成功！以后直接发『{num}』就行✂️")
+            yield event.plain_result(f"✅ 快捷 {key} → 『{cmd_text}』 绑定成功！以后直接发『{key}』就行✂️")
             return
         if sub == "删除":
             num = rest.split()[0] if rest else ""
@@ -95,26 +102,28 @@ class PlayerCmds(CommandBase):
         # 默认：列表
         if not shortcuts:
             yield event.plain_result(
-                "⚡ 快捷指令：把常用指令绑到数字，一键执行！\n"
-                "用法：『快捷绑定 1 探索』→ 之后发『1』就是探索\n"
+                "⚡ 快捷指令：把常用指令绑到数字/字母，一键执行！\n"
+                "用法：『快捷绑定 1 探索』→ 之后发『1』就是探索（数字全量匹配，绑『13』发『13』才触发）\n"
+                "『快捷绑定 n 前往』→ 发『n』=前往，发『n3』=前往 3（字母支持后缀参数）\n"
                 "『快捷绑定 2 技能1』→ 发『2』= 技能栏第 1 格\n"
-                "支持：快捷列表 / 快捷删除 <数字> / 快捷清除"
+                "支持：快捷列表 / 快捷删除 <键> / 快捷清除"
             )
             return
         lines = [f"⚡ {qq_id} 的快捷({len(shortcuts)} 个)："]
-        for num in sorted(shortcuts.keys(), key=lambda x: int(x) if x.isdigit() else 999):
+        for num in sorted(shortcuts.keys(), key=lambda x: (0, int(x)) if x.isdigit() else (1, x)):
             lines.append(f"  {num} → {shortcuts[num]}")
-        lines.append("『快捷绑定 <数字> <指令>』新增，『快捷删除 <数字>』删除")
+        lines.append("『快捷绑定 <数字/字母> <指令>』新增，『快捷删除 <键>』删除")
         yield event.plain_result("\n".join(lines))
 
     # v105 P1(M01#4)+P2(M01)：触发放宽到任意位数字（复活历史 ≥100 死绑定）+
     # 允许尾随空格（『1 』此前静默无反应）；全角数字在 handler 内归一后查表
-    # v123：支持快捷指令后缀（绑『1→前往』，发『13』= 前往 3）——正则数字开头后任意，
-    # 后缀在 handler 内拼 f"{cmd_text} {rest}" 转发（数字前缀仍全角归一）
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d*[\s\S]*$")
+    # v123b：数字开头全量匹配（绑『13』发『13』才触发，不拆 1+3）；
+    # 字母开头前缀匹配+后缀透传（绑『n 前往』发『n3』=前往 3）。
+    # 负向前瞻排除内置英文指令（gm_ 系列 / help），正则层即不抢指令（handler 内保护双保险）。
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?!gm_)(?!help(?:\s|$))(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*)[\s\S]*$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
-        """数字开头消息：查玩家的快捷绑定并转发执行（v123 起支持『数字+后缀』参数透传）"""
+        """数字/字母开头消息：查玩家的快捷绑定并转发执行（v123b 数字全量/字母前缀）"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not player:
@@ -122,28 +131,40 @@ class PlayerCmds(CommandBase):
         shortcuts = player.get("shortcuts") or {}
         msg = event.get_message_str().strip()
         msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg).strip()
-        m = re.match(r"[0-9０-９]\d*", msg)
+        if not msg:
+            return
+        # 内置英文指令保护：gm_ 系列 / help 不进快捷（玩家绑『g』『h』也不抢）
+        if msg.startswith("gm_") or msg == "help" or msg.startswith("help "):
+            return
+        m = re.match(r"([0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*)", msg)
         if not m:
             return
-        digits = m.group(0)
+        head = m.group(1)
         tail = msg[m.end():].strip()
-        # v123：先整段数字查表（保持纯数字原语义，『13』绑『13』仍直接触发）；
-        # 未命中则逐位缩短找绑定前缀，剩余数字并入后缀（绑『1→前往』，发『13』=『前往 3』）
-        num = None
-        suffix = tail
-        for i in range(len(digits), 0, -1):
-            cand = str(int(digits[:i]))  # v105：全角数字归一（int() 直接吃全角数字）
-            if cand in shortcuts:
-                num = cand
-                if i < len(digits):
-                    # 剩余数字并入后缀并归一（『１３』→『3』，目标 handler 解析更稳）
-                    suffix = (str(int(digits[i:])) + " " + tail).strip()
-                break
-        if num is None:
+        if head[0].isdigit():
+            # 数字：全量匹配——整段归一查表，不拆后缀（绑『13』发『13』触发；绑『1』发『13』静默）
+            num = str(int(head))
+            cmd_text = shortcuts.get(num)
+            if cmd_text is None:
+                return
+            async for r in self._run_shortcut(event, cmd_text):
+                yield r
             return
-        cmd_text = shortcuts[num]
+        # 字母：最长前缀匹配（goto3 → goto → got → ...），剩余部分并入后缀
+        head = head.lower()
+        key = None
+        suffix = tail
+        for i in range(len(head), 0, -1):
+            cand = head[:i]
+            if cand in shortcuts:
+                key = cand
+                suffix = (head[i:] + " " + tail).strip()
+                break
+        if key is None:
+            return
+        cmd_text = shortcuts[key]
         if suffix:
-            # v123：快捷后缀 → 『绑定指令 后缀』（如『13』→『前往 3』）
+            # v123b：字母前缀后缀透传（『n3』→『前往 3』）
             async for r in self._run_shortcut(event, f"{cmd_text} {suffix}"):
                 yield r
         else:
