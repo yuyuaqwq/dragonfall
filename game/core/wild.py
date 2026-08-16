@@ -82,6 +82,14 @@ def unlock_met(npc_id: str, npc: dict, group_id: str, qq_id: str) -> bool:
         except Exception:
             pass
         return False
+    if unlock.startswith("stats:"):
+        # v124 隐藏线触发：stats 计数门槛（如 候鸟·翎信 需垂钓 10 次）——stats:key:min
+        try:
+            _key, _min = unlock[6:].split(":", 1)
+            _st = db.get_stats(group_id, qq_id) or {}
+            return int(_st.get(_key, 0) or 0) >= int(_min)
+        except Exception:
+            return False
     return True
 
 

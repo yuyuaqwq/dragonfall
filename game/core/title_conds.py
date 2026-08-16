@@ -161,6 +161,122 @@ def _t_pvp_hero(ctx):
     return int(ctx._db().get_event_state(f"honor_medal_{ctx.qq_id}") or 0) >= 1
 
 
+# ================= v124 剧情线称号（side 完成判定）=================
+def _side_done(ctx, sid):
+    """支线完成 = quests.side[sid].status == done"""
+    return (ctx.quests.get("side") or {}).get(sid, {}).get("status") == "done"
+
+
+def _has_flag(ctx, flag):
+    """任意 NPC flag 桶含指定 flag（扫描全桶，同 wild.py unlock_met flag: 先例）"""
+    from .. import content as _C
+    db = ctx._db()
+    for nid in list(_C.NPCS.keys()) + list(_C.ALL_WILD.keys()) + list(_C.HIDDEN_NPCS.keys()):
+        if flag in db.get_talk_flags(ctx.group_id, ctx.qq_id, nid):
+            return True
+    return False
+
+
+@register("north_benefactor")
+def _t_north_benefactor(ctx):
+    return _side_done(ctx, "s18") and _has_flag(ctx, "s18_branch_light")
+
+
+@register("guifan_seal")
+def _t_guifan_seal(ctx):
+    return _side_done(ctx, "s27")
+
+
+@register("dragon_warden")
+def _t_dragon_warden(ctx):
+    return _side_done(ctx, "s33")
+
+
+@register("gourmet")
+def _t_gourmet(ctx):
+    return _side_done(ctx, "s56")
+
+
+@register("herb_friend")
+def _t_herb_friend(ctx):
+    return _side_done(ctx, "s60")
+
+
+@register("treasure_hunter")
+def _t_treasure_hunter(ctx):
+    return _side_done(ctx, "s64")
+
+
+@register("furry_friend")
+def _t_furry_friend(ctx):
+    return _side_done(ctx, "s69")
+
+
+@register("merchant_friend")
+def _t_merchant_friend(ctx):
+    return _side_done(ctx, "s74")
+
+
+@register("just_enforcer")
+def _t_just_enforcer(ctx):
+    return _side_done(ctx, "s78") and _has_flag(ctx, "branch_justice")
+
+
+@register("shadow_friend")
+def _t_shadow_friend(ctx):
+    return _side_done(ctx, "s78") and _has_flag(ctx, "branch_mercy")
+
+
+@register("dusk_detective")
+def _t_dusk_detective(ctx):
+    return _side_done(ctx, "s79")
+
+
+@register("peacemaker")
+def _t_peacemaker(ctx):
+    return _side_done(ctx, "s84")
+
+
+@register("guide")
+def _t_guide(ctx):
+    return _side_done(ctx, "s89")
+
+
+@register("night_rain")
+def _t_night_rain(ctx):
+    return _side_done(ctx, "hq5_3")
+
+
+@register("goose_messenger")
+def _t_goose_messenger(ctx):
+    return _side_done(ctx, "hq7_3")
+
+
+@register("forge_son")
+def _t_forge_son(ctx):
+    return _side_done(ctx, "hq8_4")
+
+
+@register("graveyard_warden")
+def _t_graveyard_warden(ctx):
+    return _side_done(ctx, "hq6_3")
+
+
+@register("fishing_legend")
+def _t_fishing_legend(ctx):
+    return _side_done(ctx, "s95")
+
+
+@register("late_messenger")
+def _t_late_messenger(ctx):
+    return _side_done(ctx, "s100")
+
+
+@register("season_gardener")
+def _t_season_gardener(ctx):
+    return _side_done(ctx, "s106")
+
+
 def check_pro_title(tid: str, ctx) -> bool:
     """副业称号：pro_<prof><lv>（如 pro_gather3）→ 副业等级达标。"""
     m = re.match(r"^pro_([a-z]+)(\d+)$", tid)

@@ -1688,6 +1688,13 @@ class WorldCmds(CommandBase):
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
+                # v124 use 型（使用指定物品达成）——同 find 处理
+                if obj.get("use"):
+                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"    {self._obj_text(obj)}")
+                    if st == "ready":
+                        lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
+                    continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
                 lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
                 if st == "ready":
@@ -1803,6 +1810,26 @@ class WorldCmds(CommandBase):
                         f"🛡️ 『{sq['name']}』需要 Lv.{sq['min_level']} 才能接取！（你当前 Lv.{player['level']}）"
                     )
                     return
+                # v124 链式支线：unlock 前置未满足 → 提示前置未完成
+                if not self._sq_unlocked(quests, sq):
+                    _pre = sq.get("unlock")
+                    _pn = []
+                    if isinstance(_pre, list):
+                        _pn = [next((q["name"] for q in C.SIDE_QUESTS if q["id"] == x.get("id")), "前置任务") for x in _pre if isinstance(x, dict)]
+                    elif isinstance(_pre, dict):
+                        _pn = [next((q["name"] for q in C.SIDE_QUESTS if q["id"] == _pre.get("id")), "前置任务")]
+                    yield event.plain_result(
+                        f"🔒 『{sq['name']}』的线索还没出现——先完成『{_pn[0] if _pn else '前置任务'}』再来看看吧。"
+                    )
+                    return
+                # v124 隐藏线：require_stats 计数门槛
+                if not self._sq_stats_met(player, sq):
+                    _rs = sq.get("require_stats") or {}
+                    _need = ", ".join(f"{k} {v}次" for k, v in _rs.items())
+                    yield event.plain_result(
+                        f"🔒 这条委托背后还藏着秘密……（需要 {_need} 后才会出现）"
+                    )
+                    return
                 # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族拒绝接取
                 if sq.get("require_race"):
                     _rr = sq["require_race"]
@@ -1874,6 +1901,45 @@ class WorldCmds(CommandBase):
             return
         yield event.plain_result("没有可接取的任务。输入『任务』查看进度～")
 
+    def _sq_unlocked(self, quests, sq):
+        """v124 链式支线：unlock 前置解锁检查。unlock 支持单条或列表（全部满足）。
+        格式：{"side": "s5"} 或 {"main": "q2_3"}（兼容 {"type":"side","id":"s5"} 写法）。
+        无 unlock=天然解锁。"""
+        u = sq.get("unlock")
+        if not u:
+            return True
+        us = u if isinstance(u, list) else [u]
+        for x in us:
+            if not isinstance(x, dict):
+                continue
+            _typ = x.get("type") or ("side" if x.get("side") else "main" if x.get("main") else None)
+            _tid = x.get("id") or x.get("side") or x.get("main") or ""
+            if _typ == "side":
+                # 支线完成 = side dict 中该任务 status==done
+                _sq = (quests.get("side") or {}).get(_tid) or {}
+                if _sq.get("status") != "done":
+                    return False
+            elif _typ == "main":
+                _cm = quests.get("completed_main") or []
+                if _tid not in _cm and quests.get("main_quest") != _tid:
+                    return False
+        return True
+
+    def _sq_stats_met(self, player, sq):
+        """v124 隐藏线/副业线：require_stats 动作计数门槛。达标才可接取。
+        stats 表以 qq_id 为主键，group_id 参数为兼容占位。"""
+        rs = sq.get("require_stats")
+        if not rs:
+            return True
+        _qq = player.get("qq_id") or player.get("id", "")
+        if not _qq:
+            return False
+        _st = db.get_stats("", _qq) or {}
+        for k, v in rs.items():
+            if int(_st.get(k, 0) or 0) < int(v):
+                return False
+        return True
+
     def _available_quest_list(self, player, quests, mq) -> list:
         """当前地图可接取任务列表（v123d 抽出，供『接取』无参渲染与『接取 <序号>』映射共用）。
 
@@ -1890,6 +1956,12 @@ class WorldCmds(CommandBase):
                 })
         for sq in C.SIDE_QUESTS:
             if sq["id"] in (quests.get("side") or {}):
+                continue
+            # v124 链式支线：unlock 前置未满足不出现在可接列表
+            if not self._sq_unlocked(quests, sq):
+                continue
+            # v124 隐藏线：require_stats 计数门槛未达不出现在可接列表
+            if not self._sq_stats_met(player, sq):
                 continue
             # v104 M20 P2：告示委托（board: true）只在告示板子区域指名接取，
             # 列入普通列表会误导玩家（点名接取被 world.py 告示板拦截逻辑挡下）
@@ -2500,6 +2572,9 @@ class WorldCmds(CommandBase):
         if obj.get("find"):
             # v97.1 告示委托：在指定地图探索概率找到目标
             return f"在 {C.MAP_BY_ID.get(obj.get('map', ''), {}).get('name', '？')} 寻找 {obj['find']}(探索有概率遇到)"
+        if obj.get("use"):
+            # v124 use 目标：使用指定物品达成
+            return f"使用 {obj['use']}"
         if obj.get("talk"):
             npc = C.NPCS.get(obj["talk"], {})
             return f"与 {npc.get('name', '？')} 交谈"
@@ -2636,6 +2711,13 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         num = event.get_message_str().strip()
         num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
+        # v124 分支交付：支线 ready + branch_wait 时，裸数字 = 分支选项（优先于对话树）
+        _bw = self._branch_wait_sid(group_id, qq_id)
+        if _bw and (num.isdigit() or num):
+            lines = self._complete_side_quest(group_id, qq_id, _bw, branch_choice=num)
+            yield event.plain_result("\n".join(lines))
+            self._stop_event_safe(event)
+            return
         # O99 修复：与 talk_choice/move 同源判定（_talk_active 清除损坏残留键）
         st = self._talk_active(group_id, qq_id)
         if st:
@@ -2775,6 +2857,14 @@ class WorldCmds(CommandBase):
                     if _sqd and _sqd["giver"] == npc_id and _sq.get("status") == "ready":
                         lines.append(f"✅ 支线『{_sqd['name']}』已完成！和{_ta}对话交付～")
                         break
+                # v124 progress_text：该 NPC 名下有进行中的链式支线 → 输出推进台词（有对话树的 NPC 也显示）
+                for _sid, _sq in list(_side.items()):
+                    _sqd = next((q for q in C.SIDE_QUESTS if q["id"] == _sid), None)
+                    if _sqd and _sqd["giver"] == npc_id and _sq.get("status") == "active":
+                        _pt = _sqd.get("progress_text")
+                        if _pt:
+                            lines.append(f"  💬 {_pt}")
+                            break
             else:
                 # 无对话树的 NPC：保持自动接取/交付（对话选项不存在，指令与提示兜底）
                 lines += self._take_main_quest(group_id, qq_id, npc_id, npc)
@@ -3101,6 +3191,39 @@ class WorldCmds(CommandBase):
             lines.append("0. 结束对话")
             lines.append("💡 直接回复序号继续交谈")
         return lines
+
+    def _branch_wait_sid(self, group_id, qq_id):
+        """v124：查找处于分支等待状态的支线 sid（ready + branch_wait）。"""
+        quests = db.get_quests(group_id, qq_id)
+        for sid, sq in (quests.get("side") or {}).items():
+            if sq.get("status") == "ready" and sq.get("branch_wait"):
+                return sid
+        return None
+
+    def _update_use_quests(self, group_id, qq_id, item_name):
+        """v124 use 目标支线：使用指定物品后支线置 ready（如 递麦酒/用月鳞/交信物）。"""
+        if not item_name:
+            return ""
+        quests = db.get_quests(group_id, qq_id)
+        side = quests.get("side") or {}
+        lines = []
+        changed = False
+        for sid, sq in list(side.items()):
+            if sq.get("status") != "active":
+                continue
+            sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
+            if not sqd:
+                continue
+            obj = sqd.get("objective") or {}
+            if obj.get("use") and obj["use"] == item_name:
+                side[sid] = {"status": "ready", "progress": {"use": item_name}}
+                changed = True
+                giver = C.NPCS.get(sqd["giver"]) or C.ALL_WILD.get(sqd["giver"]) or {}
+                lines.append(f"✨ 『{sqd['name']}』目标达成！回去找 {giver.get('name', '发布人')} 交付吧～")
+        if changed:
+            quests["side"] = side
+            db.save_quests(group_id, qq_id, quests)
+        return "\n".join(lines)
 
     def _talk_quest_progress(self, group_id, qq_id, npc_id) -> list:
         """v95.11：talk 型主线与目标 NPC 对话即达成（active 空进度遗留态 → ready）。
@@ -3447,6 +3570,12 @@ class WorldCmds(CommandBase):
                 continue
             if sq["id"] in side:
                 continue
+            # v124 链式支线：unlock 前置未满足不自动发（如剧情线第二步等第一步完成）
+            if not self._sq_unlocked(quests, sq):
+                continue
+            # v124 隐藏线/副业线：require_stats 计数门槛未达不自动发（如 H7 需垂钓 10 次）
+            if not self._sq_stats_met(player, sq):
+                continue
             # v101.30d #O52：支线等级门槛（min_level 字段）——等级不够不自动接，
             # 避免低等级玩家接了高危区域任务（如雾潮航道 Lv.45 区）
             if sq.get("min_level") and player["level"] < sq["min_level"]:
@@ -3565,6 +3694,11 @@ class WorldCmds(CommandBase):
                 continue
             # 击杀/探索型：按 ready 状态
             if sq.get("status") == "ready":
+                # v124 分支任务：输出选项等待玩家回复（不自动完成）
+                if sqd.get("branch") and not sq.get("branch_wait"):
+                    lines = self._complete_side_quest(group_id, qq_id, sid)
+                    yield event.plain_result("\n".join(lines))
+                    return
                 if npc and npc["map"] == player["cur_map"]:
                     absent = _npc_absent(sqd["giver"], npc)
                     if absent:
@@ -3591,8 +3725,10 @@ class WorldCmds(CommandBase):
             return
         yield event.plain_result("没有可交的任务。输入『任务』查看进度～")
 
-    def _complete_side_quest(self, group_id, qq_id, sid):
-        """交支线任务，返回通知行列表"""
+    def _complete_side_quest(self, group_id, qq_id, sid, branch_choice=None):
+        """交支线任务，返回通知行列表
+        v124：支持 branch 分支交付（第一次输出选项并置 branch_wait，玩家回复数字后执行）+
+        deliver_text 交付剧情文本。"""
         lines = []
         quests = db.get_quests(group_id, qq_id)
         sqd = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
@@ -3617,11 +3753,48 @@ class WorldCmds(CommandBase):
                     return [f"还要击败 {obj['kill']} ×{obj['count'] - kp}(当前 {kp}/{obj['count']})！"]
         elif sq.get("status") != "ready":
             return ["这个任务还没完成呢。"]
+        # v124 分支任务：第一次交付输出选项，等待玩家回复数字
+        br = sqd.get("branch")
+        if br and not branch_choice:
+            opts = br.get("options") or []
+            if sq.get("branch_wait"):
+                return [f"{br.get('prompt', '')}\n💡 回复数字选择：\n" + "\n".join(
+                    f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
+            quests["side"][sid] = {**sq, "status": "ready", "branch_wait": True}
+            db.save_quests(group_id, qq_id, quests)
+            _o = [f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts)]
+            return [f"{br.get('prompt', '')}\n💡 你的选择是？（回复数字）\n" + "\n".join(_o)]
+        # v124 分支选择执行
+        if br and branch_choice:
+            opts = br.get("options") or []
+            chosen = None
+            if isinstance(branch_choice, str):
+                for o in opts:
+                    if branch_choice in (o.get("key"), o.get("label")):
+                        chosen = o
+                        break
+            if chosen is None:
+                return [f"没有这个选项～{br.get('prompt', '')}\n💡 回复数字选择：\n" + "\n".join(
+                    f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
+            # 用分支选项覆盖奖励（顶层 reward 为 0 时以选项为准）
+            lines.append(f"  📖 {chosen.get('text', '')}")
+            sqd = {**sqd,
+                   "reward_exp": chosen.get("reward_exp", sqd.get("reward_exp", 0)),
+                   "reward_gold": chosen.get("reward_gold", sqd.get("reward_gold", 0)),
+                   "reward_item": chosen.get("reward_item", sqd.get("reward_item"))}
+            # v124 分支 flag：写入 giver NPC 的 flag 桶（称号/后续任务判定用）
+            _cf = chosen.get("flag")
+            if _cf:
+                db.set_talk_flag(group_id, qq_id, sqd.get("giver", ""), _cf)
         # 收集类：扣除材料
         if obj.get("collect"):
             need = obj.get("collect_count", obj["count"])
             for _ in range(need):
                 db.remove_item(group_id, qq_id, _ckey)
+        # v124 交付剧情文本（无分支时）
+        dt = sqd.get("deliver_text")
+        if dt and not br:
+            lines.append(f"  📖 {dt}")
         player = self._player(group_id, qq_id)
         player["exp"] += sqd["reward_exp"]
         player["gold"] += sqd["reward_gold"]

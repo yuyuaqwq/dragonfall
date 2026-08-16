@@ -74,7 +74,7 @@ async def main():
                 if rm not in C.MAP_BY_ID:
                     bad.append((nid, f"roam 地图不存在 {rm}"))
         un = npc.get("unlock")
-        if un and not un.startswith(("flag:", "item:", "quest:", "quest_done:")):
+        if un and not un.startswith(("flag:", "item:", "quest:", "quest_done:", "stats:")):
             bad.append((nid, f"unlock 前缀非法 {un}"))
         cond = npc.get("condition", {})
         for t in cond.get("time", []):

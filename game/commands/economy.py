@@ -3489,7 +3489,11 @@ class EconomyCmds(CommandBase):
             if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
                 db.set_event_state(f"mining_fatigue_{qq_id}", "")
                 _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
-        yield event.plain_result(r.text + _fat_line)
+        # v124 use 目标支线：成功使用物品（r.consume）后推进 use objective（如 递麦酒/用月鳞）
+        _use_q_line = ""
+        if r.consume:
+            _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
+        yield event.plain_result(r.text + _fat_line + _use_q_line)
 
     def _item_use_hooks(self, group_id, qq_id, target, player):
         """v97.7：道具模板引擎的命令层回调（体力/回城/红名等专属逻辑注入）。"""

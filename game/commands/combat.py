@@ -631,7 +631,8 @@ class CombatCmds(CommandBase):
             obj = sqd.get("objective") or {}
             if not obj.get("find"):
                 continue
-            if obj.get("map") != cur_id:
+            # v124：find 目标未显式指定 map 时 fallback 任务自身 map（s18 猎手的救赎 find 白桦）
+            if (obj.get("map") or sqd.get("map")) != cur_id:
                 continue
             chance = float(obj.get("chance", 0.1))
             if random.random() >= chance:

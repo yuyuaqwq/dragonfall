@@ -278,6 +278,119 @@ WILD_NPCS = {
         "funcs": ["info", "trade"],
         "dialogue": "龙鲸说，夏天它们会游到最温暖的海域……你想听听它们的歌吗？",
     },
+    # ---- v118 支线设计稿新增野外 NPC（01-21 稿，2026-08-16 落地）----
+    "npc_dock_coroner": {
+        "name": "验尸人·艾德娜", "icon": "🕯️", "map": "harbor_docks",
+        "condition": {"time": ["day", "evening"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
+        "desc": "铁港码头验尸人，前圣女庭杂役修女",
+        "funcs": ["quest", "lore"],
+        "dialogue": "尸体不说话，但尸体不撒谎——这是我在圣女庭扫地八年，学到的唯一一件事。说吧，你捞上来什么了？",
+    },
+    "npc_seal_jonah": {
+        "name": "守印修士·约拿", "icon": "📿", "map": "white_abbey",
+        "condition": {},
+        "desc": "白石修道院地下封印室看守，能听见封印状态的人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "潮声会认路……哦，是布鲁姆的拓片。坐吧，孩子。你看，这扇门闩，三百年前插得好好的。可有人把它往回抽。",
+    },
+    "npc_abyss_witness": {
+        # 设计稿 03 名「暗语者·默」与既有 npc_abyssaltar_whisperer（深渊祭坛守坛修士）重名，
+        # 按 NPC 命名铁律改用设计稿头衔「深渊见证者」规避（同 09 稿 老橡→老栎 先例）
+        "name": "深渊见证者·默", "icon": "✒️", "map": "abyss_altar",
+        "condition": {},
+        "desc": "深渊裂隙的记忆具象，只记录不插手",
+        "funcs": ["lore", "quest"],
+        "dialogue": "（在地上写字）别说话。这里的声音够多了。",
+    },
+    "npc_captain_ghost_edmund": {
+        "name": "船长亡灵·埃德蒙", "icon": "⚓", "map": "shipwreck_graveyard",
+        "condition": {"time": ["night"]},
+        "desc": "十二年前沉没的归帆号船长之魂",
+        "funcs": ["quest", "lore"],
+        "dialogue": "这封信……帮我送到珍珠城，交给我女儿伊莲。她认得我的字。",
+    },
+    "npc_retired_collector_heron": {
+        "name": "隐退收藏家·苍鹭", "icon": "🦢", "map": "starlake",
+        "condition": {"time": ["day", "evening"]},
+        "desc": "星语湖畔的隐退收藏家，黎明王冠的守冠人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "收藏的最高境界，不是把东西留在手里，而是知道它该去哪里。",
+    },
+    "npc_elven_ranger_yuelu": {
+        "name": "巡林者·月露", "icon": "🏹", "map": "silverwood",
+        "condition": {"time": ["day", "evening"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
+        "desc": "银月王庭外巡林者，长老银歌的关门弟子",
+        "funcs": ["quest", "lore"],
+        "dialogue": "……银尾？是银尾吗？银歌长老等了三百年的银尾。",
+    },
+    "npc_dusk_shadow": {
+        "name": "赤鳞龙王·暮影", "icon": "🐉", "map": "dragonsfall_valley",
+        "condition": {},
+        "desc": "千年前陨落的赤鳞龙王之魂，龙陨谷守望者",
+        "funcs": ["quest", "lore"],
+        "dialogue": "谷里的龙骨，是我的责任，也是我的牢笼。",
+    },
+    "npc_scalenote": {
+        "name": "龙裔先祖·瓦罗·鳞歌", "icon": "⚔️", "map": "ancient_battlefield",
+        "condition": {"time": ["night"]}, "unlock": "quest:s22",
+        "desc": "百族战争时期战死的龙裔战将英魂",
+        "funcs": ["lore"],
+        "dialogue": "三百年了……终于有人用我们的语言，叫我们回家。",
+    },
+    "npc_hunter_birch": {
+        "name": "猎手·白桦", "icon": "🏹", "map": "black_forest",
+        "condition": {"time": ["day", "evening"]}, "unlock": "quest:s18",
+        "desc": "被腐牙兽人掳走的年轻猎户，铁弓的弟弟",
+        "funcs": ["quest"],
+        "dialogue": "恩人！我左手使不上弓了，但我哥教我用右手——冬天结束前，我再猎一头雪狼，给你做双新靴子！",
+    },
+    "npc_fang_shaman": {
+        "name": "腐牙萨满·嚎骨", "icon": "🦴", "map": "black_forest",
+        "condition": {"time": ["night"]}, "unlock": "quest:s18",
+        "desc": "腐牙部落的转化萨满，以腐牙之血制造\"兄弟\"",
+        "funcs": [],
+        "dialogue": "北境的肉，最香了——尤其是猎户的肉，筋骨硬，养得出好'兄弟'！",
+    },
+    "npc_forest_keeper_moss": {
+        "name": "守林人·苔衣", "icon": "🪵", "map": "black_forest",
+        "condition": {"time": ["day"]},
+        "desc": "黑森林林缘守林人小屋的独居老人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "腐牙兽人总来扒我的柴垛、偷我的存粮。老头子打不动了，替我把它们赶远些，柴垛保住了，我分你一半过冬的柴火。",
+    },
+    "npc_leafwhisper": {
+        "name": "巡林人·叶语", "icon": "🍃", "map": "white_deer_forest",
+        "condition": {"time": ["night"]}, "unlock": "quest_done:s104",
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
+        "desc": "银月精灵巡林人·树语者，永恒花的寻访者",
+        "funcs": ["quest", "lore"],
+        "dialogue": "花比人长情，也比人守诺。",
+    },
+    "npc_starlake_elder": {
+        "name": "老人·罗根", "icon": "🧓", "map": "starlake",
+        "condition": {"time": ["day", "evening"]},
+        "desc": "每年月圆之夜来星语湖守约的退休马帮老人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "五十七年前，我和一个精灵姑娘约好，月亮最圆的时候，在这湖边见。我迟到了——马队在山里误了半个月。",
+    },
+    "npc_brook_whisper": {
+        "name": "守湖人·溪语", "icon": "💧", "map": "silverwood",
+        "roam": ["silverwood", "starlake"],
+        "condition": {"time": ["day", "evening"]},
+        "gender": "女",  # v95 #141：代词跟随 NPC 性别
+        "desc": "星语湖守湖人·水之祭司，月之母的信徒",
+        "funcs": ["quest", "lore"],
+        "dialogue": "三百年了，还有人带着它回来。……灯还亮着，说明它还没熄。可它在哪里，被什么绊住了——我不知道。",
+    },
+    "npc_fisher_buoy": {
+        "name": "老渔翁·浮标", "icon": "🎣", "map": "silver_river",
+        "condition": {"time": ["day", "evening"]},
+        "desc": "银铃河渡口的老渔翁，一辈子等银铃鲤的人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "鱼不信谎话，河不骗老实人。老头子钓了五十年，河说什么，我就信什么。",
+    },
 }
 
 # 隐藏 NPC（18 章 5.5.1：解锁条件 + 高随机性；隐藏任务链 H3-H12 数据落地后续阶段）
@@ -412,5 +525,36 @@ HIDDEN_NPCS = {
         "desc": "只在夜里出没的神秘商人",
         "funcs": ["trade"],
         "dialogue": "识货人？夜晚的货物，只卖给识货人。",
+    },
+    # ---- v118 18 稿隐藏任务链 H5-H8 新增隐藏 NPC（2026-08-16 落地）----
+    # 注：设计稿 condition 为 weather rain/storm 双值，引擎 weather 仅支持单值字符串（wild.py
+    # base_conditions_met 直接比较），取 rain 为准（雨 15% 概率最高）；storm 由实现端 H5 任务触发兜底。
+    "w_night_merchant": {
+        "name": "神秘商人·鸦羽", "icon": "🌂", "map": "harbor_docks",
+        "condition": {"time": ["night"], "weather": "rain", "min_level": 20}, "chance": 1.0,
+        "unlock": None,
+        "desc": "雨夜码头灯塔残基下的撑伞商人",
+        "funcs": ["shop", "lore"],
+        "dialogue": "雨夜的路，从来不是给人走的。可你来了第二次——看来你也是走夜路的人。",
+        "quest": "h5",  # 隐藏任务 H5·雨夜的来客
+    },
+    "npc_gravedigger": {
+        "name": "守墓人·灰杖", "icon": "🪦", "map": "white_abbey",
+        "condition": {"time": ["day", "evening"]}, "chance": 0.30,
+        "unlock": None,
+        "desc": "白石修道院墓园的独眼守墓人",
+        "funcs": ["quest", "lore"],
+        "dialogue": "墓园里的花，我只种白的。白花在夜里看得见——亡魂认得回家的路。",
+        "quest": "h6",  # 隐藏任务 H6·墓园的低语
+    },
+    "npc_letter_bird": {
+        "name": "候鸟·翎信", "icon": "🐦", "map": "starlake",
+        "condition": {"time": ["day", "evening"]}, "chance": 0.30,
+        "unlock": "quest:h7",
+        "desc": "星语湖畔颈挂旧铜管的灰羽候鸟，传了三百年信的邮差",
+        "funcs": ["quest", "lore"],
+        "dialogue": "（它落在你竿边，歪着头看你，铜管里露出一角油纸——那眼神不像鸟，倒像一位等了三百年的邮差。）",
+        "unlock": "stats:fish_count:10",  # H7 触发：星语湖垂钓 10 次后出现（wild.py unlock_met 支持 stats:key:min）
+        "quest": "hq7_1",  # 隐藏任务 H7·候鸟的信
     },
 }
