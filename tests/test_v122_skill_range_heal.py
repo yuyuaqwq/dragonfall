@@ -60,16 +60,18 @@ def test_range_label():
     print("【1. 范围标签映射】")
     cc = CombatCmds()
     cases = [
-        ({}, "单体"),
-        ({"range": "single"}, "单体"),
-        ({"range": "front"}, "前排"),
-        ({"range": "all"}, "全体"),
-        ({"range": "rank2"}, "第2层"),
-        ({"aoe": "front"}, "前排"),
-        ({"aoe": "all"}, "全体"),
-        ({"aoe": "rank3"}, "第3层"),
-        ({"aoe": "all", "range": "front"}, "前排"),   # range 优先于 aoe
-        ({"range": "weird"}, "单体"),                  # 未知值兜底单体
+        ({}, ""),                              # 单体不显示标签（v122c 鱼鱼拍板）
+        ({"range": "single"}, ""),
+        ({"range": "front"}, "群体"),
+        ({"range": "all"}, "群体"),
+        ({"range": "rank2"}, "群体"),
+        ({"aoe": "front"}, "群体"),
+        ({"aoe": "all"}, "群体"),
+        ({"aoe": "rank3"}, "群体"),
+        ({"aoe": "all", "range": "front"}, "群体"),   # range/aoe 任一非 single → 群体
+        ({"range": "weird"}, "群体"),                  # 未知值按群体（非 single）
+        ({"team": "heal_all"}, "群体"),                # 团队广播 → 群体
+        ({"team": "taunt"}, ""),                       # 嘲讽是单体目标，不显示
     ]
     for info, expect in cases:
         got = cc._skill_range_label(info)
@@ -84,16 +86,17 @@ def test_skill_list_range():
     p = mk_priest()
     # 牧师技能表含治愈术（单体）、圣光术（单体）、大治疗术（全体 heal_all，若已学/可见）
     out = m._skill_list_page(p, 1)
-    check("技能列表含 <单体>", "<单体>" in out, out[:200])
+    check("技能列表不含 <单体> 标签", "<单体>" not in out, out[:200])
     check("技能列表含 <治疗>", "<治疗>" in out, out[:200])
-    # 大治疗术（team heal_all）→ <全体>
+    check("技能列表消耗行含 射程：", "射程：" in out, out[:300])
+    # 大治疗术（team heal_all）→ <群体>
     info = E.skill_info("cls_mu_shi", "大治疗术")
     if info:
         cc = CombatCmds()
-        check("大治疗术范围标签 <全体>", cc._skill_range_label(info) == "全体",
+        check("大治疗术范围标签 <群体>", cc._skill_range_label(info) == "群体",
               cc._skill_range_label(info))
     else:
-        print("  ⚠️ 大治疗术不存在，跳过全体标签断言")
+        print("  ⚠️ 大治疗术不存在，跳过群体标签断言")
 
 
 # ---------------- 3. 治疗指定队友 ----------------

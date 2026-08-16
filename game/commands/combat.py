@@ -1370,25 +1370,17 @@ class CombatCmds(CommandBase):
         return ""
 
     def _skill_range_label(self, info: dict) -> str:
-        """v122 技能范围标签：range 字段优先，其次 aoe 推导，默认单体。
-        single→单体 / front→前排 / all→全体 / rankN→第N层"""
-        r = info.get("range")
-        if not r:
-            aoe = info.get("aoe")
-            r = aoe if isinstance(aoe, str) else None
-        if r == "front":
-            return "前排"
-        if r == "all":
-            return "全体"
-        # v122 兜底：团队广播技能（heal_all/shield_all/matk_all/...）→ 全体（防漏配 range/aoe）
+        """v122c 技能范围标签（鱼鱼拍板两轮）：只保留 <群体>——
+        AOE（aoe 字段）或团队广播（team *_all）→ "群体"；单体 → ""（不显示，避免与范围数字冗余）。"""
         if str(info.get("team") or "").endswith("_all"):
-            return "全体"
-        if str(r).startswith("rank"):
-            try:
-                return f"第{int(str(r)[4:])}层"
-            except (ValueError, TypeError):
-                return "前排"
-        return "单体"
+            return "群体"
+        r = info.get("range")
+        if r and r != "single":
+            return "群体"
+        aoe = info.get("aoe")
+        if isinstance(aoe, str) and aoe:
+            return "群体"
+        return ""
 
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
         """技能列表翻页(每页 5 条带序号，未学显示 Lv.0)。
@@ -1432,7 +1424,7 @@ class CombatCmds(CommandBase):
                 tags.append("团队")  # v56.4：团队标记放标签，不进描述
             if sname in branch_tags:
                 tags.append(branch_tags[sname])
-            tag_str = "".join(f"<{t}>" for t in tags)
+            tag_str = "".join(f"<{t}>" for t in tags if t)  # v122c：过滤空标签（单体无范围标签）
             # v101.25d 技能列表排版（鱼鱼拍板模板）：编号行 / 标签行 / 描述行 / 消耗行，
             # 每条之间 ━━ 分隔线，参考属性面板四维的分区感
             lines.append(f"{i}.{disp_name} [{lv_str}]")
@@ -1443,6 +1435,11 @@ class CombatCmds(CommandBase):
             _mp = info.get("mp", 0)
             if _mp:
                 _cost.append(f"{_mp} 魔力")
+            else:
+                _cost.append("无")
+            # v122d 攻击距离（鱼鱼拍板用「射程」：技能自带 reach 覆盖职业 reach）
+            _cls_reach = int((C.CLASSES.get(player.get("class_name", ""), {}) or {}).get("reach", 2) or 2)
+            _cost.append(f"射程：{int(info.get('reach') or _cls_reach)}")
             _rc = info.get("res_cost") or {}
             _rd = E.core_resource_def(player["class_name"])
             _rcn = _rd.get("name", "") if _rd else ""
