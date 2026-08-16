@@ -378,10 +378,14 @@ class InstanceCmds(CommandBase):
                 role = "⭐ 精英"
             else:
                 role = "🐾"
+            # v126 副本剧情化：Boss 战前台词（仅 role=boss 且 inst 有 boss_line 字段才渲染）
+            _inst2 = C.INSTANCES.get(st.get("inst_id") or "", {})
+            boss_line_note = f"💬 {_inst2['boss_line']}\n" if nxt[2] == "boss" and _inst2.get("boss_line") else ""
             yield event.plain_result(
                 f"🍃 你警惕地探索着，突然——{stage.get('name', '')}里的怪物扑了上来！\n"
                 f"━━━━━━━━━━━━\n"
                 f"{role}【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
+                f"{boss_line_note}"
                 f"━━━━━━━━━━━━\n"
                 f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
             )
@@ -1245,6 +1249,8 @@ class InstanceCmds(CommandBase):
         else:
             size_tip = f"🕐 单人挑战：{comp}\n"
         stage_name = stages[0]["name"] if stages else "主厅"
+        # v126 副本剧情化：入口叙事（inst 有 intro 字段才渲染，老数据无字段不显示）
+        intro_note = f"\n📖 {inst['intro']}" if inst.get("intro") else ""
         # v87.2 副本地图化：地图模式显示层全景，战斗模式保持原样
         if st.get("mode") == "map":
             map_view = self._instance_map_view(st, group_id)
@@ -1257,6 +1263,7 @@ class InstanceCmds(CommandBase):
                 f"{size_tip}"
                 f"💡 先『探索』看看有什么，或『调查』周围的交互点！\n"
                 f"⏳ 战斗轮到你时超时 60 秒自动防御！"
+                f"{intro_note}"
             )
             return
         stage_line = f"🚪 第 1 层 · {stage_name}\n" if stages else ""
@@ -1282,6 +1289,7 @@ class InstanceCmds(CommandBase):
             f"{self._instance_ct_queue(st, group_id)}\n"
             f"⏳ 轮到 {first_actor_name} 行动！『攻击』『技能 <名称>』『防御』\n"
             f"💡 按 CTB 行动轴轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！"
+            f"{intro_note}"
         )
 
     def _sync_players_db(self, group_id, st):
@@ -2331,6 +2339,9 @@ class InstanceCmds(CommandBase):
         lines = [x for x in logs if "你击败了" not in x]
         lines.append("")
         lines.append(f"🎉 【{boss['name']}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
+        # v126 副本剧情化：通关叙事（inst 有 outro 字段才渲染，老数据无字段不显示）
+        if inst.get("outro"):
+            lines.append(f"📜 {inst['outro']}")
         # v101.27 #390：通关后允许停留搜刮（鱼鱼拍板）——不再 clear_battle，
         # 保留状态让玩家调查 Boss 房交互物/战利品堆/隐藏暗格，主动『离开副本』才清。
         # 解锁战斗锁（可自由行动），但 battle 记录保留供副本指令读取
