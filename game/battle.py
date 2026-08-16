@@ -18,6 +18,13 @@ import time
 
 from . import content as C
 from . import engine as E
+from .data.battle_config import (  # v125.2 B1：战斗主路径数值/白名单数据表
+    MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
+    DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
+    BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
+    MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
+    MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
+)
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
@@ -90,6 +97,103 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 # v121 CTB 行动时间轴：全局行动消耗常量
 BASE_DELAY = 100.0    # 行动消耗基数（待 Agent D 模拟标定）
 SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
+
+# v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
+# handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
+# 数值全部读 PET_POOL 条目 skill_value/skill_interval（data/pets.py），加新技能类型 = register 一个函数
+PET_SKILL_EFFECTS = {}
+
+
+def _pet_skill_register(stype):
+    """宠物技能类型注册装饰器。"""
+    def deco(fn):
+        PET_SKILL_EFFECTS[stype] = fn
+        return fn
+    return deco
+
+
+def _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=False):
+    """宠物物理/魔法攻击 × skill_value 伤害（atk_pct/matk_pct/lifesteal/pierce 共用计算）。"""
+    st = battle._player_stats(player)
+    est = battle._enemy_stats()
+    if magic:
+        dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
+    else:
+        dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
+    battle._damage_enemy(dmg, logs)
+    logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"「{line}」" if line else ""))
+    return dmg
+
+
+def _pet_skill_victory(battle, logs):
+    """宠物击杀判定（与 _pet_skill_turn 原分支行为一致）。"""
+    if battle._enemy_dead():
+        battle.result = "victory"
+        logs.append(f"🎉 你击败了【{battle.enemy.get('name', '敌人')}】！(宠物击杀)")
+
+
+@_pet_skill_register("atk_pct")
+def _psk_atk_pct(battle, player, pdef, pname, sname, line, logs):
+    """撕咬/烈焰尾击/狮鹫俯冲：攻击力 × value 伤害。"""
+    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
+    _pet_skill_victory(battle, logs)
+
+
+@_pet_skill_register("matk_pct")
+def _psk_matk_pct(battle, player, pdef, pname, sname, line, logs):
+    """霜刃/龙息：魔攻 × value 伤害。"""
+    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=True)
+    _pet_skill_victory(battle, logs)
+
+
+@_pet_skill_register("lifesteal")
+def _psk_lifesteal(battle, player, pdef, pname, sname, line, logs):
+    """吸血撕咬：攻击 × value 伤害，并回复伤害 50% 生命（重伤减半）。"""
+    dmg = _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
+    heal = max(1, int(dmg * 0.5))
+    if battle.p_buffs.get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
+        heal = int(heal * 0.5)
+    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
+    _pet_skill_victory(battle, logs)
+
+
+@_pet_skill_register("pierce")
+def _psk_pierce(battle, player, pdef, pname, sname, line, logs):
+    """碎岩冲撞：攻击 × value 伤害，并破防（敌方防御减半 2 回合）。"""
+    _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs)
+    battle.e_buffs["def_down"] = max(int(battle.e_buffs.get("def_down", 0) or 0), 2)
+    logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 回合)")
+    _pet_skill_victory(battle, logs)
+
+
+@_pet_skill_register("heal_pct")
+def _psk_heal_pct(battle, player, pdef, pname, sname, line, logs):
+    """月光祝福/圣光羽翼/星辉治愈/月华低语：回复 max_hp × value 生命。"""
+    if player.get("hp", 0) < player.get("max_hp", 1):
+        heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
+
+
+@_pet_skill_register("buff_atk")
+def _psk_buff_atk(battle, player, pdef, pname, sname, line, logs):
+    """雷鸣鼓舞：攻击强化（数值实读 skill_value，_apply_buffs 用 _pet_buff_vals 覆盖常量）。"""
+    battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), 2)
+    _pbv = getattr(battle, "_pet_buff_vals", {})
+    _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
+    battle._pet_buff_vals = _pbv
+    logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
+
+
+@_pet_skill_register("crit_up")
+def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
+    """狩猎之眼/星羽疾风：暴击提升（数值实读 skill_value）。"""
+    battle.p_buffs["crit_up"] = max(int(battle.p_buffs.get("crit_up", 0) or 0), 2)
+    _pbv = getattr(battle, "_pet_buff_vals", {})
+    _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
+    battle._pet_buff_vals = _pbv
+    logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
 
 
 class Battle:
@@ -854,6 +958,7 @@ class Battle:
             return logs
         if payload.startswith("special:"):
             # v101.28f 药水特殊效果（next_atk_up/heal_up/magic_resist/thorns_pot/dodge_pot/cc_immune/execute_pot/def_down/shield）
+            # v125.1 P2-1：分发下沉 POTION_EFFECTS 注册表（game/core/potion_effects.py），数值读 items.py effect_data
             kind = payload[8:]
             return self._apply_potion_special(kind, player, logs)
         if payload.startswith("buff:"):
@@ -892,62 +997,22 @@ class Battle:
         return logs
 
     def _apply_potion_special(self, kind: str, player: dict, logs: list) -> list:
-        """v101.28f 药水特殊效果分发（非属性 buff 类，3 回合制；next_atk_up 一次性）。"""
-        if kind == "next_atk_up":
-            self.p_buffs["next_atk_up"] = 1
-            logs.append("⚔️ 你蓄势待发！下一次攻击+50%！")
-        elif kind == "heal_up":
-            self.p_buffs["heal_up"] = 3
-            logs.append("✨ 治疗增幅！治疗技能效果+20%！(3 回合)")
-        elif kind == "magic_resist":
-            self.p_buffs["magic_resist"] = 3
-            logs.append("🛡️ 魔鳞护体！受到魔法伤害－15%！(3 回合)")
-        elif kind == "thorns_pot":
-            self.p_buffs["thorns_pot"] = 3
-            logs.append("🌵 荆棘附体！受击反弹 30% 伤害！(3 回合)")
-        elif kind == "dodge_pot":
-            self.p_buffs["dodge_pot"] = 3
-            logs.append("💨 身法飘忽！15% 概率闪避攻击！(3 回合)")
-        elif kind == "cc_immune":
-            self.p_buffs["cc_immune"] = 3
-            logs.append("🗿 不动如山！免疫眩晕/冻结/减速！(3 回合)")
-        elif kind == "execute_pot":
-            self.p_buffs["execute_pot"] = 3
-            logs.append("💀 死神凝视！对生命<30%的敌人+30%伤害！(3 回合)")
-        elif kind == "def_down":
-            self.e_buffs["def_down"] = max(self.e_buffs.get("def_down", 0), 2)
-            self.e_buffs["_armor_break_pct"] = 0.15
-            logs.append("🛡️ 破甲！敌人防御下降 15%！(2 回合)")
-        elif kind == "pene_pot":
-            # v106.2 穿甲药剂：物穿 +15%（3 回合，与属性乘算）
-            self.p_buffs["pene_pot"] = 3
-            logs.append("🗡️ 穿甲附刃！物穿 +15%！(3 回合)")
-        elif kind == "pene_magi_pot":
-            # v106.2 破法药剂：法穿 +15%（3 回合，与属性乘算）
-            self.p_buffs["pene_magi_pot"] = 3
-            logs.append("🔮 破法附魔！法穿 +15%！(3 回合)")
-        elif kind == "lifesteal_pot":
-            # v106.3 嗜血药剂：吸血 +15%（3 回合，乘算并入 _settle_lifesteal）
-            self.p_buffs["lifesteal_pot"] = 3
-            logs.append("🩸 嗜血药剂！吸血 +15%！(3 回合)")
-        elif kind == "crit_dmg_pot":
-            # v106.3 狂暴药剂：暴击伤害 +25%（3 回合，乘算并入暴击结算）
-            self.p_buffs["crit_dmg_pot"] = 3
-            logs.append("💥 狂暴药剂！暴击伤害 +25%！(3 回合)")
-        elif kind == "block_pot":
-            # v106.3 岩壁药剂：格挡 +15%（3 回合，乘算并入受击格挡）
-            self.p_buffs["block_pot"] = 3
-            logs.append("🛡️ 岩壁药剂！格挡 +15%！(3 回合)")
-        elif kind == "shield_small":
-            gain = int(player.get("max_hp", 100) * 0.10)
-            self._add_shield("potion", gain, 3)
-            logs.append(f"🛡️ 岩盾护体！获得 {gain} 点护盾！(3 回合)")
-        elif kind == "shield_big":
-            gain = int(player.get("max_hp", 100) * 0.15)
-            self._add_shield("potion", gain, 3)
-            logs.append(f"🛡️ 圣盾护体！获得 {gain} 点护盾！(3 回合)")
-        else:
+        """v101.28f 药水特殊效果分发（非属性 buff 类，3 回合制；next_atk_up 一次性）。
+
+        v125.1 P2-1：改查 POTION_EFFECTS 注册表（game/core/potion_effects.py），
+        数值由 items.py 药水条目 effect_data 提供（注册表 DEFAULTS 扫描自数据层）。
+        新增药水效果 = items.py 加 effect/effect_data + potion_effects.py register 函数。
+        """
+        from .core.potion_effects import POTION_EFFECTS  # 延迟导入（core 聚合链惯例）
+        eff = POTION_EFFECTS.get(kind)
+        if not eff:
             logs.append("🧪 你饮下了药剂！")
+            return logs
+        # value：items.py 药水条目 effect_data（当前 special: payload 不携带物品数据 → None
+        # 走注册表 DEFAULTS；预留物品级覆盖：后续 payload 携带 item 数据时传入即可）
+        msg = eff(self, player, None)
+        if msg:
+            logs.append(msg)
         return logs
 
     def _apply_hot(self, player: dict) -> list:
@@ -1857,13 +1922,15 @@ class Battle:
             est = dict(est)
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
             est["mdef"] = int(est["mdef"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
-        # 机制：影袭（满血必暴）
-        if mech == "shadow" and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+        # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
+        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
             is_crit = True
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
         lucky = is_crit and random.random() < 0.30
-        # 机制：冰霜（冻结目标碎冰增伤）
-        frozen_bonus = 1.5 if (mech == "freeze" and "freeze" in self.e_buffs) else 1.0
+        # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
+        frozen_bonus = 1.0
+        if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
+            frozen_bonus = MECH_FROZEN_MULT[mech]
         # 机制：圣光/毒/影/气/审判/狂暴 层数加成
         stack_bonus = self._mech_stack_bonus(mech, p_mech, info)
         # v30 条件转化：按战场状态变形态（残血斩杀/背水一战）
@@ -1871,9 +1938,9 @@ class Battle:
         # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技）
         cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
         multi = info.get("multi", 1)
-        # 机制：风印 → 连击次数增加
-        if mech == "wind":
-            multi += p_mech.get("wind", 0)
+        # 机制：风印 → 连击次数增加（查表 MECH_COMBO_STACKS，v125.2 B1）
+        if mech in MECH_COMBO_STACKS:
+            multi += p_mech.get(mech, 0)
         # v34 破魔：魔法伤害 +x%
         mb_lvl = self._enchant_lvl(effs, "magic_break")
         magic_bonus = (1 + C.rune_value("magic_break", mb_lvl)) if mb_lvl and kind == "魔法" else 1.0
@@ -1905,16 +1972,17 @@ class Battle:
             if element and E.ELEMENT_MARKS.get(element):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v110.3 P2-9：毒系技能伤害（mech 判定，废弃"名字含毒"子串；毒爆术 mech=poison_burst 一并覆盖）
+        # v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
         for _pn, _ps in _procs.get("poison_dmg", []):
-            if mech in ("poison", "poison_burst"):
+            if mech in MECH_PROC_GROUPS.get("poison_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 对标记目标伤害（追猎者/猎魔之眼：e_buffs["mark"] 为目标易伤标记）
         for _pn, _ps in _procs.get("mark_dmg", []):
             if "mark" in self.e_buffs:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
-        # 奥术系伤害（奥术之心）
+        # 奥术系伤害（奥术之心）——v125.2 B1：mech 归属查表 MECH_PROC_GROUPS
         for _pn, _ps in _procs.get("arcane_dmg", []):
-            if mech == "arcane":
+            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 连招技能伤害（武技）
         for _pn, _ps in _procs.get("combo_dmg", []):
@@ -1925,12 +1993,12 @@ class Battle:
             if st.get("spd", 0) > est.get("spd", 0):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # 机制型 stat 被动（审判之心 judge / 暗影之心 shadow）：对应 mech 技能伤害加成
+        # v125.2 B1：mech 归属查表 MECH_STAT_PASSIVES
         for _pn, _ps in _pm["stat"]:
-            if _ps.get("stat") == "judge" and mech == "judge":
+            _sstat = _ps.get("stat")
+            if _sstat in MECH_STAT_PASSIVES and mech == MECH_STAT_PASSIVES[_sstat]:
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
-            elif _ps.get("stat") == "shadow" and mech == "shadow":
-                passive_bonus *= (1 + float(_ps.get("mult", 0)))
-            elif _ps.get("stat") == "stealth_crit_dmg" and self.p_buffs.get("stealth"):
+            elif _sstat == "stealth_crit_dmg" and self.p_buffs.get("stealth"):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
         # v104 R3 P1-1：复仇被动消费——受击后下次攻击 +30%（挨打反打，一次后清除）
         if self.p_buffs.get("revenge_atk"):
@@ -2093,7 +2161,7 @@ class Battle:
         tags = []
         if is_crit:
             tags.append("💥暴击")
-        if mech == "shadow" and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
+        if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
             tags.append("满血影袭必暴")
         if frozen_bonus > 1.0:
             tags.append("❄️碎冰增伤")
@@ -2162,8 +2230,9 @@ class Battle:
         self._last_player = player
         self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
         # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
+        # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
         cc = info.get("cc")
-        if cc and cc in ("stun", "silence", "cleanse"):
+        if cc and cc in SKILL_CC_WHITELIST:
             self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
 
         # ---- 技能特效（v9 落地）----
@@ -2188,15 +2257,12 @@ class Battle:
 
     # ---------------- v29 分支机制 ----------------
     def _mech_stack_bonus(self, mech: str, p_mech: dict, info: dict) -> float:
-        """层数型机制对本次伤害的倍率"""
-        if mech in ("rage", "shadow", "chi"):
+        """层数型机制对本次伤害的倍率（v125.2 B1：每层增伤查表 MECH_STACK_BONUS）"""
+        step = MECH_STACK_BONUS.get(mech)
+        if step:
             n = p_mech.get(mech, 0)
             if n:
-                return 1.0 + n * 0.12
-        if mech == "spellblade":
-            n = p_mech.get("spellblade", 0)
-            if n:
-                return 1.0 + n * 0.08
+                return 1.0 + n * step
         return 1.0
 
     def _cond_mult(self, info: dict, player: dict, lv: int = 1) -> float:
@@ -2227,8 +2293,8 @@ class Battle:
         return bool(check and check(self, player, cond))
 
     def _apply_mech_gain(self, mech: str, mval: int, p_mech: dict, logs: list, skill_name: str):
-        """增益类技能叠层(v59：封顶)"""
-        if mech and mval and mech in ("rage", "shield", "wind", "shadow", "chi", "bless", "judge", "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade"):
+        """增益类技能叠层(v59：封顶；v125.2 B1：可叠层 mech 白名单查表 MECH_STACK_WHITELIST)"""
+        if mech and mval and mech in MECH_STACK_WHITELIST:
             p_mech[mech] = E.mech_stack_gain(mech, p_mech, mval)
 
     def _boss_ctrl_dur(self, key: str, val: int) -> int:
@@ -2249,14 +2315,15 @@ class Battle:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
         # v120 审计修复 q5：玩家施加的控制（眩晕/冰冻/沉默）统一切入 Boss 控制抗性——
         # Boss 时长减半（至少 1 回合）；非 Boss 不变（handler 已设时长，此处术后收紧）。
-        if mech in ("stun", "freeze", "silence"):
+        # v125.2 B1：控制白名单查表 CONTROL_MECHS
+        if mech in CONTROL_MECHS:
             tgt = getattr(self, "_active_target", None) or self.enemy
             if tgt.get("is_boss") or tgt.get("role") == "boss":
-                for k in ("stun", "freeze", "silence"):
+                for k in CONTROL_MECHS:
                     if k in self.e_buffs:
                         self.e_buffs[k] = self._boss_ctrl_dur(k, self.e_buffs[k])
         # v2 控制打断蓄力：眩晕/冻结/沉默施加到蓄力目标 → 打断（§6.2规则4）
-        if mech in ("stun", "freeze", "silence"):
+        if mech in CONTROL_MECHS:
             tgt = getattr(self, "_active_target", None) or self.enemy
             if tgt.get("charging"):
                 self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
@@ -2648,24 +2715,24 @@ class Battle:
             "precise": e.get("precise", 0) or 0,
         }
         est = self._apply_buffs(est, eb)
-        # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%
+        # v58 Boss 狂暴：血量 <30% 触发后攻击 +35%（v125.2 B1：乘区查表 BOSS_ATTACK_MULTS）
         if e.get("enraged"):
-            est["atk"] = int(est["atk"] * 1.35)
-            est["matk"] = int(est["matk"] * 1.35)
+            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["enraged"])
+            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["enraged"])
         # v83 04 章 2.5：多阶段（每阶段 +20%）/ 叠层强化（每层 +8%）
         if e.get("phase_count"):
-            pm = 1 + 0.20 * e["phase_count"]
+            pm = 1 + BOSS_ATTACK_MULTS["phase_step"] * e["phase_count"]
             est["atk"] = int(est["atk"] * pm)
             est["matk"] = int(est["matk"] * pm)
         # v116.1 条件触发反制：玩家低血追击(+25%) / 玩家大招反扑(+30%)——仅受击当回合生效
         if e.get("_low_hp_active"):
-            est["atk"] = int(est["atk"] * 1.25)
-            est["matk"] = int(est["matk"] * 1.25)
+            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["low_hp"])
+            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["low_hp"])
         if e.get("_pv_broken_active"):
-            est["atk"] = int(est["atk"] * 1.30)
-            est["matk"] = int(est["matk"] * 1.30)
+            est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["pv_broken"])
+            est["matk"] = int(est["matk"] * BOSS_ATTACK_MULTS["pv_broken"])
         if e.get("mech_stacks_n"):
-            sm = 1 + 0.08 * e["mech_stacks_n"]
+            sm = 1 + BOSS_ATTACK_MULTS["stack_step"] * e["mech_stacks_n"]
             est["atk"] = int(est["atk"] * sm)
         if "def_down" in eb:
             # 阶段八：词条破甲 15%（_armor_break_pct），旧技能破甲减半兜底
@@ -2685,7 +2752,7 @@ class Battle:
         for _k in ("atk", "matk"):
             _base = max(0, int(e.get(_k, 0) or 0))
             if _base > 0:
-                est[_k] = min(est[_k], _base * 3)
+                est[_k] = min(est[_k], int(_base * BOSS_ATTACK_MULTS["cap"]))
         # v1.1 毒蚀（契约 §10.1）：每层毒使目标防御/魔防 -4%（上限 20%），
         # 层数衰减时自动恢复（动态计算，不改 enemy dict 本体）
         _poison_n = int((e.get("debuffs") or {}).get("poison", {}).get("n", 0) or 0)
@@ -2770,54 +2837,10 @@ class Battle:
         pname = pet.get("name") or pdef["name"]
         sname = pdef["skill_name"]
         line = C.pet_line(pdef["key"])  # v101.11 宠物战斗台词
-        if stype in ("atk_pct", "lifesteal", "pierce"):
-            st = self._player_stats(player)
-            est = self._enemy_stats()
-            dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
-            self._damage_enemy(dmg, logs)
-            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"「{line}」" if line else ""))
-            if stype == "lifesteal":
-                heal = max(1, int(dmg * 0.5))
-                if self.p_buffs.get("mortal_wound"):  # v1.3 重伤：宠物吸血减半
-                    heal = int(heal * 0.5)
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"🩸 {pname}汲取了 {heal} 点生命归还给你！")
-            elif stype == "pierce":
-                self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), 2)
-                logs.append(f"🛡️ {pname}的【{sname}】击碎了敌人的护甲！(防御减半 2 回合)")
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
-        elif stype == "matk_pct":
-            st = self._player_stats(player)
-            est = self._enemy_stats()
-            dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
-            self._damage_enemy(dmg, logs)
-            logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"「{line}」" if line else ""))
-            if self._enemy_dead():
-                self.result = "victory"
-                logs.append(f"🎉 你击败了【{self.enemy.get('name', '敌人')}】！(宠物击杀)")
-        elif stype == "heal_pct":
-            if player.get("hp", 0) < player.get("max_hp", 1):
-                heal = int(player.get("max_hp", player.get("hp", 1)) * pdef["skill_value"])
-                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
-                logs.append(f"🐾 {pname}的【{sname}】为你回复了 {heal} 点生命！" + (f"「{line}」" if line else ""))
-        elif stype == "buff_atk":
-            self.p_buffs["atk_up"] = max(int(self.p_buffs.get("atk_up", 0) or 0), 2)
-            # v104 M17 P2-5：buff 数值实读 PET_POOL skill_value（_apply_buffs 用 _pet_buff_vals 覆盖常量 1.30）
-            _pbv = getattr(self, "_pet_buff_vals", {})
-            _pbv["atk"] = max(float(_pbv.get("atk", 0.0) or 0.0), float(pdef["skill_value"]))
-            self._pet_buff_vals = _pbv
-            # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 30%）
-            logs.append(f"🐾 {pname}的【{sname}】为你加持攻击强化！(攻击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
-        elif stype == "crit_up":
-            self.p_buffs["crit_up"] = max(int(self.p_buffs.get("crit_up", 0) or 0), 2)
-            # v104 M17 P2-5：同上——暴击加成实读 skill_value（覆盖常量 0.20）
-            _pbv = getattr(self, "_pet_buff_vals", {})
-            _pbv["crit"] = max(float(_pbv.get("crit", 0.0) or 0.0), float(pdef["skill_value"]))
-            self._pet_buff_vals = _pbv
-            # v104 M17 P3：日志百分比读 skill_value 动态拼接（不再硬编码 20%）
-            logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
+        # v125.1 P2-2：按 PET_SKILL_EFFECTS 注册表分发（原 if/elif 链，数值读 PET_POOL 数据）
+        handler = PET_SKILL_EFFECTS.get(stype)
+        if handler:
+            handler(self, player, pdef, pname, sname, line, logs)
         return logs
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
@@ -2879,10 +2902,11 @@ class Battle:
         except Exception:
             _atk = _matk = 0
         # 每层每回合混合公式：poison=atk×0.5+max_hp×1.5% / burn=matk×0.4+max_hp×1% / bleed=atk×0.6+max_hp×1.5%
-        _atk_parts = {"poison": 0.5, "burn": 0.0, "bleed": 0.6}
-        _matk_parts = {"poison": 0.0, "burn": 0.4, "bleed": 0.0}
-        _hp_parts = {"poison": 0.015, "burn": 0.01, "bleed": 0.015}
-        for k in ("poison", "burn", "bleed"):
+        # v125.2 B1：系数下沉 data/battle_config.py DOT_DEFS（纯数据）
+        _atk_parts = {_k: _v["atk"] for _k, _v in DOT_DEFS.items()}
+        _matk_parts = {_k: _v["matk"] for _k, _v in DOT_DEFS.items()}
+        _hp_parts = {_k: _v["hp"] for _k, _v in DOT_DEFS.items()}
+        for k in DOT_DEFS:
             d = deb.get(k)
             if not d:
                 continue
@@ -2899,7 +2923,7 @@ class Battle:
             # v1.2 总抗：基础抗性 + 减益适应（cap 0.95）
             base_res = float(e.get("dot_res", 0) or 0)
             adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
-            res = min(0.95, base_res + adapt_v)
+            res = min(DOT_RESIST_CAP, base_res + adapt_v)
             # v1.1 混合公式：每层 = (攻击系数 + 最大生命小百分比) × 层数 × 被动倍率 × (1 - 总抗)
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
             hp_part = max_hp * _hp_parts[k]
@@ -2917,8 +2941,9 @@ class Battle:
             # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
             p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
             # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
+            # v125.2 B1：阈值查表 DOT_BLEED_DOUBLE_HP_PCT
             _bleed_tag = ""
-            if k == "bleed" and e.get("hp", 0) < max_hp * 0.30:
+            if k == "bleed" and e.get("hp", 0) < max_hp * DOT_BLEED_DOUBLE_HP_PCT:
                 p *= 2
                 _bleed_tag = "(放血)"
             if p > 0:
@@ -2933,11 +2958,12 @@ class Battle:
             else:
                 d["n"] = n
             # v1.2 适应回落：poison/burn 最近 2 回合未再叠层 → 该类型适应 -4%（耐受消退）
+            # v125.2 B1：步长查表 DOT_ADAPT_DECAY_STEP
             if k in ("poison", "burn"):
                 _last = int(d.get("last_round", 0) or 0)
                 if _last > 0 and self.round - _last >= 2:
                     _am = e.setdefault("adapt", {})
-                    _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - 0.04)
+                    _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - DOT_ADAPT_DECAY_STEP)
             if self._enemy_dead():
                 self.result = "victory"
                 death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn" else "失血过多")
@@ -3005,14 +3031,19 @@ class Battle:
             break
         # v109.2 P2-9：奥术直觉/符文刻印 每回合自动充能（proc arcane_regen / stat spellblade_regen，
         # 原按技能名硬编码——改名即失效风险同款）
+        # v125.1 P2-3：mech 键读被动数据 mech 字段（skills.py 奥术直觉 passive.mech="arcane"），
+        # 不再按 proc 名写死 mech_stacks 键
         for _pn, _ps in self._passive_map(player)["proc"].get("arcane_regen", []):
-            self.mech_stacks["arcane"] = E.mech_stack_gain("arcane", self.mech_stacks, 1)
-            logs.append(f"📖 {_pn}：充能自动+1(当前 {self.mech_stacks['arcane']} 层)")
+            _mech = _ps.get("mech") or "arcane"  # 兜底保旧行为
+            self.mech_stacks[_mech] = E.mech_stack_gain(_mech, self.mech_stacks, 1)
+            logs.append(f"📖 {_pn}：充能自动+1(当前 {self.mech_stacks[_mech]} 层)")
             break
         for _pn, _ps in self._passive_map(player)["stat"]:
+            # v113 魔剑士流派已删：spellblade_regen 无数据（保留兼容分支，mech 键同样读数据字段）
             if _ps.get("stat") == "spellblade_regen":
-                self.mech_stacks["spellblade"] = E.mech_stack_gain("spellblade", self.mech_stacks, 1)
-                logs.append(f"⚔️ {_pn}：魔能自动+1(当前 {self.mech_stacks['spellblade']} 层)")
+                _mech = _ps.get("mech") or "spellblade"  # 兜底保旧行为
+                self.mech_stacks[_mech] = E.mech_stack_gain(_mech, self.mech_stacks, 1)
+                logs.append(f"⚔️ {_pn}：魔能自动+1(当前 {self.mech_stacks[_mech]} 层)")
                 break
         # v2.0 核心资源：回合回复（游侠精力 +25/回合）
         cls = player.get("class_name", "")

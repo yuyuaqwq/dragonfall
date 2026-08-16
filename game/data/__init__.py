@@ -114,8 +114,11 @@ from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401
     PROF_TUTORS, PROF_WAIT_BASE, DAILY_PROF_TASKS, BAG_FILTER_TYPES,
     PROF_STAMINA_COST, PROF_WAIT_DECAY, PROF_WAIT_FLOOR, MINING_KEYWORDS, PAWN_RATES,
+    ENCHANT_SLOT_UNLOCK, RUNE_LEVEL_GATE, DAILY_PROF_EXP,  # noqa: F401 v125.2 B3 副业数值下沉
+    PRICE_BAND, price_band, RARE_MATERIAL_PRICE,  # noqa: F401
 )
 from .signin_config import SIGNIN_CONFIG  # noqa: F401  (v125 签到配置数据下沉)
+from .econ_config import ECON_CONFIG  # noqa: F401  (v125.1 命令层经济数值下沉)
 from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
 from .core_resources import CORE_RESOURCES  # noqa: F401  (v102.4 从 engine.py 下沉)
 from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
@@ -130,4 +133,13 @@ from . import _assembly  # noqa: F401,E402  (执行 build_index 等)
 from ._assembly import (  # noqa: F401
     _SKILL_FLAT, _MONSTER_INDEX, _FISH_INDEX, _NPC_INDEX, _SHOP_W_INDEX,
     SUBAREA_INDEX, SUBAREA_BY_MAP, SUBAREA_LINKS_INDEX,
+)
+
+# v125.2 B1：战斗主路径数据表（从 battle.py 伤害段 / engine.py 下沉，纯数据）
+from .battle_config import (  # noqa: F401
+    MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
+    DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
+    ELEMENT_REACTIONS, BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
+    MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
+    MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
 )

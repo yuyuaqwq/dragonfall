@@ -3,6 +3,7 @@
 import random
 
 from . import content as C
+from .data.battle_config import ELEMENT_REACTIONS  # v125.2 B1：元素反应表下沉数据层（对外接口不变）
 
 
 # ============================================================
@@ -24,19 +25,10 @@ ELEMENT_CN = {"fire": "火", "ice": "冰", "thunder": "雷"}
 ELEMENT_MARKS = {"fire": "fire_mark", "ice": "ice_mark", "thunder": "thunder_mark"}
 
 # ============================================================
-# v2.0 元素反应（12 章 3.1，严格按策划案表）
-# 当前系 × 目标印记 → 反应：
-#   蒸发 = 火印(目标) + 水/冰(当前系) → 增伤 30%，清除印记
-#   超载 = 雷印(目标) + 火(当前系)   → 全体 120% 伤害，清除印记
-#   冻结 = 冰印(目标) + 水(当前系)   → 冻结 1 回合（法师暂无水系技能，预留）
-#   感电 = 雷印(目标) + 雷(当前系)   → 连击 +1，印记保留
+# v2.0 元素反应（12 章 3.1，严格按策划案表）——定义见 data/battle_config.py
+# 当前系 × 目标印记 → 反应：蒸发 / 超载 / 冻结（预留，法师暂无水系技能）/ 感电
 # ============================================================
-ELEMENT_REACTIONS = {
-    ("ice", "fire_mark"):      {"name": "蒸发", "mult": 1.30, "clear": True, "extra": ""},
-    ("fire", "thunder_mark"):  {"name": "超载", "mult": 1.00, "clear": True, "extra": "aoe"},
-    ("water", "ice_mark"):     {"name": "冻结", "mult": 1.00, "clear": True, "extra": "freeze"},
-    ("thunder", "thunder_mark"): {"name": "感电", "mult": 1.00, "clear": False, "extra": "chain"},
-}
+# （ELEMENT_REACTIONS 表本体 v125.2 B1 已下沉 data/battle_config.py，顶部 import 保持对外接口）
 
 
 def element_reaction(cur_element: str, target_marks: dict) -> dict | None:

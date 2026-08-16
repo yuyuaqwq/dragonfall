@@ -19,20 +19,10 @@ from .. import engine as E
 from .. import battle as BT
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
-from .world import _DAILY_META_KEYS  # v125.1 P0：每日任务元数据键（_date/_completed/_repeat）
+from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
-
-# v116 任务系统定稿 §3.4：每日任务重复衰减档位（与 world.py 一致）
-# 第 N 次完成同任务 → 奖励乘数（0=首刷 100%，1=第 2 次 60%，2=第 3 次 30%，≥3=第 4 次起 10%）
-_DAILY_REPEAT_FACTORS = (1.0, 0.6, 0.3, 0.1)
-
-
-def _daily_repeat_pct(repeat):
-    """重复完成同日常任务 → 衰减后的发奖比例（百分比）。repeat = 今日已完成的次数。"""
-    f = _DAILY_REPEAT_FACTORS[repeat] if repeat < len(_DAILY_REPEAT_FACTORS) else _DAILY_REPEAT_FACTORS[-1]
-    return int(round(f * 100))
 
 # DOT/减益重构（契约 §6）：世界 Boss 全局每 4 次玩家行动结算一次 dot，
 # 模拟"一队一轮"（毒/灼烧/流血共享叠加层，多玩家并发不再各算各的导致毒伤无限累加）。
@@ -1350,6 +1340,16 @@ class CombatCmds(CommandBase):
         "execute_pot": "💀处决",
         "stun": "🌀眩晕", "freeze": "❄️冻结", "silence": "🤐沉默",
         "mortal_wound": "🤕重伤",
+        # v125.1 P2-4：补漏显键（对照 BUFF_MULT 24 键 + 全量 p_buffs 写入点）
+        "echo_bless": "✨回声祝福", "matk_up_pot": "🔮魔攻↑", "food_spd_up_small": "🍖速↑",
+        "pene_pot": "🗡️物穿", "pene_magi_pot": "🔮法穿", "lifesteal_pot": "🩸吸血",
+        "crit_dmg_pot": "💥暴伤", "block_pot": "🧱格挡",
+        "spd_down": "💨减速", "atk_down": "😵攻↓", "revenge_atk": "⚔️复仇",
+        "spellblade_surge": "🔮魔涌", "stealth": "🌫️潜行", "dodge_up": "💨闪避↑",
+        # 注：atk_down 由 Boss 开场技『低吼削弱』写入（battle_mech.py _b_opening），
+        # 目前无属性消费端（死键）——状态栏照实显示作透明标注，待数值接入
+        # 注：reduce_all 存减伤百分比（float）且回合数由 _reduce_all_left 单独计时，
+        # 无回合数可显示，故意不进本表（避免"剩0.3回合"误导）
     }
     # 敌方状态 key → 显示名（v63 加 眩晕/沉默）
     _E_BUFF_NAMES = {
@@ -1358,6 +1358,10 @@ class CombatCmds(CommandBase):
         "mon_atk_up_strong": "⚔️攻↑↑", "mon_def_up": "🛡️防↑", "def_down": "💔破甲",
         "spd_down": "💨减速", "poison": "☠️中毒", "mark": "🎯标记", "burn": "🔥灼烧",
         "summon": "👥召唤", "mortal_wound": "🤕重伤",
+        # v125.1 P2-4：补漏显键（对照全量 e_buffs 写入点：Boss 盾/速/睡眠/减速 + 元素印记）
+        "shield": "🛡️护盾", "spd_up": "💨速↑", "sleep": "😴睡眠",
+        "mon_spd_down": "💨减速", "fire_mark": "🔥火印", "ice_mark": "❄️冰印",
+        "thunder_mark": "⚡雷印",
     }
     # 玩家叠层 key → 显示名
     _STACK_NAMES = {
@@ -1401,7 +1405,13 @@ class CombatCmds(CommandBase):
         ebuf = []
         for k, v in (b.e_buffs or {}).items():
             if v and v > 0 and k in self._E_BUFF_NAMES:
-                ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: 同上，回合数标注
+                # v125.1 P2-4：shield 存护盾值（HP 量）、元素印记存层数——非回合语义，按各自格式显示
+                if k == "shield":
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}{v}")
+                elif k in ("fire_mark", "ice_mark", "thunder_mark"):
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
+                else:
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: 同上，回合数标注
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")
@@ -2047,28 +2057,9 @@ class CombatCmds(CommandBase):
             dq["progress"] = prog
             changed = True
             if prog >= dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", 99))):
-                # v116 §3.4 每日完成计数：_completed（当日总完成数）/ _repeat（同任务重复次数）
-                # 与 world.py _bump_daily_progress 同口径（击杀型每日在此接线，防刷上限/衰减对击杀型也生效）
-                daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
-                rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
-                _rep = dict(daily.get("_repeat", {}) or {})
-                _rep[dq["name"]] = rpt + 1
-                daily["_repeat"] = _rep
-                _dec = dq.get("repeat", 0)
-                if _dec:
-                    _pct = _daily_repeat_pct(_dec)
-                    lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
-                else:
-                    lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
-                player = self._player(group_id, qq_id)
-                player["exp"] += dq["reward_exp"]
-                player["gold"] += dq["reward_gold"]
-                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-                if lv_logs:
-                    lines.append("")
-                    lines += lv_logs
+                # v125.1 P2：发奖结算统一走 _settle_daily_quest（与 world._bump_daily_progress 同单点；
+                # 击杀型每日在此接线，防刷上限/衰减对击杀型同样生效）
+                _settle_daily_quest(self, group_id, qq_id, daily, dq, lines)
                 del daily[dkey]
         # 无条件写回：即使全部完成（daily 为空）也要清空 quests，否则任务残留会无限重复发奖励
         quests["daily"] = daily

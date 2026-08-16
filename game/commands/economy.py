@@ -384,14 +384,16 @@ class EconomyCmds(CommandBase):
         else:
             # v97.2 兜底：按地图等级映射价格区间（修复原逻辑 Lv50+ 采不到 500+ 材料的问题）
             # v104 R3 M14 P1-2：兜底池排除强化石类消耗品（i_stone_* 是炼金/商店独占，禁止采集白嫖）
+            # v125.2 B3：价格带公式数据下沉 prof_config.price_band（原 3+lv*4 / 20+lv*12 双处字面量）
             _map_lv = C.MAP_BY_ID.get(cur_map or "", {}).get("lv", level)
+            _lo, _hi = C.price_band(_map_lv)
             cand = [name for name, m in C.MATERIALS.items()
-                    if 3 + _map_lv * 4 <= m["price"] <= 20 + _map_lv * 12
+                    if _lo <= m["price"] <= _hi
                     and name not in ("i_stone_upgrade", "i_stone_refine")]
             if not cand:
                 # 空区间放宽为"全价段"，保证高等级副本/隐藏区域也有产出
                 cand = [name for name, m in C.MATERIALS.items()
-                        if m["price"] <= 20 + _map_lv * 12
+                        if m["price"] <= _hi
                         and name not in ("i_stone_upgrade", "i_stone_refine")]
             if not cand:
                 cand = [n for n in C.MATERIALS
@@ -750,7 +752,8 @@ class EconomyCmds(CommandBase):
         cur_map = C.MAP_BY_ID.get(_map_id, {})
         # 24 章二：月光兔蛋特殊渠道——采集稀有产出 10% 概率（稀有材料判定参考 _gather_roll 的高价段）
         _pet_egg_line = ""
-        rare_hit = any(C.MATERIALS[m].get("price", 0) >= 150 for m in mats)
+        # v125.2 B3：稀有阈值数据下沉 prof_config.RARE_MATERIAL_PRICE（原字面量 150）
+        rare_hit = any(C.MATERIALS[m].get("price", 0) >= C.RARE_MATERIAL_PRICE for m in mats)
         # v101.30b Lv.10 万物采集大师：稀有惊喜概率翻倍（兔蛋 10%→20%）
         _rare_ch = 0.20 if prof >= 10 else C.RARE_MAT_CHANCE
         if rare_hit and random.random() < _rare_ch:
@@ -775,7 +778,7 @@ class EconomyCmds(CommandBase):
         _daily_txt = "".join(f"\n{l}" for l in _daily_lines) if _daily_lines else ""
         # q7-9：满级采集彩蛋（兔蛋/驯鹿缰绳）只绑稀有产出（价格≥150），低等级图无稀有材料
         # 恒 0%——本次未采到稀有材料时提示去高级图（纯文案，不动数值）
-        _rare_hint = ("\n💡 稀有产出需前往产出价≥150 材料的区域（高级图）" if not rare_hit else "")
+        _rare_hint = (f"\n💡 稀有产出需前往产出价≥{C.RARE_MATERIAL_PRICE} 材料的区域（高级图）" if not rare_hit else "")
         # v105R3 M14 P3-2：材料每项单独一行（对齐物品详情排版规范 v101.21）
         _got_txt = "".join(f"\n{m}x{c}" for m, c in got.items())
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
@@ -847,13 +850,16 @@ class EconomyCmds(CommandBase):
                         if any(k in mm.get("name", "") for k in C.MINING_KEYWORDS)
                         and m not in ("i_stone_upgrade", "i_stone_refine")]
                 _map_lv = C.MAP_BY_ID.get(cur_map, {}).get("lv", player["level"])
-                cand = [m for m in ores if 3 + _map_lv * 4 <= C.MATERIALS[m]["price"] <= 20 + _map_lv * 12]
+                # v125.2 B3：价格带公式数据下沉 prof_config.price_band（原 3+lv*4 / 20+lv*12 双处字面量）
+                _lo, _hi = C.price_band(_map_lv)
+                cand = [m for m in ores if _lo <= C.MATERIALS[m]["price"] <= _hi]
                 if cand:
                     ores = cand
         # 稀有矿脉：副业 Lv.4+ 概率（15% / Lv.7+ 30%），只在当前地图池内选稀有
         # v101.30b Lv.10 群山之王：稀有矿脉 50%
         # v105 疲劳值（19 章 §2.2）：疲劳期间稀有矿脉概率减半
-        rare = [m for m in ores if C.MATERIALS[m]["price"] >= 150]
+        # v125.2 B3：稀有阈值数据下沉 prof_config.RARE_MATERIAL_PRICE（原字面量 150）
+        rare = [m for m in ores if C.MATERIALS[m]["price"] >= C.RARE_MATERIAL_PRICE]
         is_rare = False
         fatigued = self._mining_fatigued(group_id, qq_id)
         _rare_ch = 0.15 if prof < 7 else (0.50 if prof >= 10 else 0.30)
@@ -888,7 +894,7 @@ class EconomyCmds(CommandBase):
                      if fatigued else "")
         # q7-9：满级挖掘稀有矿脉只绑价格≥150 的矿，低等级图矿池无稀有矿则彩蛋恒 0%——
         # 本次无稀有矿可挖时提示去高级图（纯文案，不动数值）
-        _rare_hint = ("\n💡 稀有产出需前往产出价≥150 材料的区域（高级图）" if not rare else "")
+        _rare_hint = (f"\n💡 稀有产出需前往产出价≥{C.RARE_MATERIAL_PRICE} 材料的区域（高级图）" if not rare else "")
         return f"{head}\n你获得了 {oname} x{n}！(『背包』查看){lv_msg}{_fat_line}{_rare_hint}"
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
@@ -1109,7 +1115,8 @@ class EconomyCmds(CommandBase):
         for pkey, pcnt in r["product"].items():
             if pkey.startswith("mat_"):
                 mname = C.display("materials", pkey)
-                _mprice = C.MATERIALS.get(pkey, {}).get("price", 150)
+                # v125.2 B3：产物价格兜底读 prof_config.RARE_MATERIAL_PRICE（原字面量 150，行为等价）
+                _mprice = C.MATERIALS.get(pkey, {}).get("price", C.RARE_MATERIAL_PRICE)
                 db.add_item(group_id, qq_id, pkey, {"name": mname, "type": C.MATERIALS.get(pkey, {}).get("type", "材料"), "stackable": True, "price": _mprice if _cc_price_floor is None or _mprice <= _cc_price_floor else _cc_price_floor, "craft_cost": _cc})
                 lines.append(f"  🎒 获得材料：{mname} ×{pcnt}")
             else:
@@ -1417,7 +1424,7 @@ class EconomyCmds(CommandBase):
         lines.append("💡 『副业 排行』看群友等级，『烹饪列表』看料理配方～")
         # v105R3 M14 P2-6：稀有产出条件标注（兔蛋/驯鹿缰绳依赖本次采集 roll 出价值150+材料，
         # 低等级图无稀有材料永久无法触发——设计内但玩家不可见，面板明示）
-        lines.append("💡 采集稀有材料(价值150+金币)才有机会出兔蛋/驯鹿缰绳等惊喜；挖掘稀有矿脉需挖掘Lv.4+")
+        lines.append(f"💡 采集稀有材料(价值{C.RARE_MATERIAL_PRICE}+金币)才有机会出兔蛋/驯鹿缰绳等惊喜；挖掘稀有矿脉需挖掘Lv.4+")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$")
@@ -1527,9 +1534,10 @@ class EconomyCmds(CommandBase):
             if player:
                 db.update_player(group_id, qq_id, gold=player["gold"] + gold)
             # v101.30: 副业经验奖励（主奖励，练级加速；金币为成本零头补贴）
-            _nl, _lvl2 = db.add_prof_exp(group_id, qq_id, tkey2, 50)
+            # v125.2 B3：每日副业奖励经验数据下沉 prof_config.DAILY_PROF_EXP（原字面量 50）
+            _nl, _lvl2 = db.add_prof_exp(group_id, qq_id, tkey2, C.DAILY_PROF_EXP)
             _lvl2_msg = f"→ Lv.{_nl}！" if _lvl2 else ""
-            return True, f"\n🎯 今日副业任务完成！【{name}×{need}】奖励 {gold} 金币 + 50 副业经验{_lvl2_msg}！"
+            return True, f"\n🎯 今日副业任务完成！【{name}×{need}】奖励 {gold} 金币 + {C.DAILY_PROF_EXP} 副业经验{_lvl2_msg}！"
         return False, ""
 
     # v104 M24 P2-1：『每日副业/今日副业』别名（19 章旧称呼，策划案 §六统一为『副业任务』）
@@ -1545,7 +1553,7 @@ class EconomyCmds(CommandBase):
             "🎯 【今日副业任务】",
             "━━━━━━━━━━━━",
             f"目标：{name} ×{need} {mark}",
-            f"奖励：{gold} 金币 + 50 副业经验",
+            f"奖励：{gold} 金币 + {C.DAILY_PROF_EXP} 副业经验",
             "",
             "💡 完成对应副业动作自动推进，明天刷新新任务！",
         ]
@@ -2424,7 +2432,8 @@ class EconomyCmds(CommandBase):
             d = target["data"]
             slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
             # v101.30/30b 附魔槽：Lv.7 史诗工艺（紫装 3 槽）/ Lv.8 传说工艺（橙装 3 槽）
-            if (prof_lv >= 7 and d.get("quality") == "purple") or (prof_lv >= 8 and d.get("quality") == "orange"):
+            # v125.2 B3：槽位等级门数据下沉 prof_config.ENCHANT_SLOT_UNLOCK（原双处拷贝收敛单点读表）
+            if prof_lv >= C.ENCHANT_SLOT_UNLOCK.get(d.get("quality", ""), 99):
                 slots += 1
             if slots <= 0:
                 yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有附魔槽，只有蓝/紫/橙装备可以附魔！")
@@ -2446,8 +2455,9 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(f"【{d['name']}】已经有『{rd['name']}』的效果了！")
                 return
             # v101.28i 符文等级解锁：附魔 Lv.2 刻 lvl.1、Lv.4 刻 lvl.2、Lv.6 刻 lvl.3（附魔等级不再是摆设）
+            # v125.2 B3：符文等级门数据下沉 prof_config.RUNE_LEVEL_GATE（原 {1:2, 2:4, 3:6} 硬编码）
             _rune_lv = rd.get("lvl", 1)
-            _need_lv = {1: 2, 2: 4, 3: 6}.get(_rune_lv, 2)
+            _need_lv = C.RUNE_LEVEL_GATE.get(_rune_lv, 2)
             if prof_lv < _need_lv:
                 yield event.plain_result(
                     f"『{rd['name']}』是 {_rune_lv} 级符文，需要附魔副业 Lv.{_need_lv}(你 Lv.{prof_lv})！多附魔练练手艺吧～"
@@ -2517,7 +2527,8 @@ class EconomyCmds(CommandBase):
         d = target["data"]
         slots = C.ENCHANT_SLOTS.get(d.get("quality", ""), 0)
         # v101.30/30b 附魔槽：Lv.7 史诗工艺（紫装 3 槽）/ Lv.8 传说工艺（橙装 3 槽）
-        if (prof_lv >= 7 and d.get("quality") == "purple") or (prof_lv >= 8 and d.get("quality") == "orange"):
+        # v125.2 B3：槽位等级门数据下沉 prof_config.ENCHANT_SLOT_UNLOCK（原双处拷贝收敛单点读表）
+        if prof_lv >= C.ENCHANT_SLOT_UNLOCK.get(d.get("quality", ""), 99):
             slots += 1
         if slots <= 0:
             yield event.plain_result(f"【{d['name']}】({C.QUALITY[d['quality']]['name']})没有附魔槽，只有蓝/紫/橙装备可以附魔！")
@@ -3178,7 +3189,7 @@ class EconomyCmds(CommandBase):
                 stats["hp"] = stats.get("hp", 0) + int(fv)
             else:
                 stats[fk] = stats.get(fk, 0) + int(stats.get(fk, 0) * fv)
-        base = int(C.equip_value(stats) * (3 + lv * 0.5) * C.QUALITY[quality]["mult"])
+        base = int(C.equip_value(stats) * (C.ECON_CONFIG["shop_equip_price_base"] + lv * C.ECON_CONFIG["shop_equip_price_lv"]) * C.QUALITY[quality]["mult"])
         return int(base * SHOP_EQUIP_PRICE_MULT.get(quality, 1.5))
 
     def _shop_equip_roster(self, player: dict, equip_items: list) -> list:
@@ -3702,7 +3713,7 @@ class EconomyCmds(CommandBase):
         # 装备误购回收惨淡；0.5 仍低于买入价，不构成刷钱渠道）
         # v95.32 #397b：判据用 slot 而非 quality——v101.25e 起材料也注入全服品质字段，材料被打 0.3 折是 bug
         if d.get("slot"):
-            rate = min(rate, 0.5)
+            rate = min(rate, C.ECON_CONFIG["equip_resale_rate"])
         # M10 P1-2 锻造→卖店印钞修复：锻造产物（craft_cost=材料价+锻造费）卖店最多回本，
         # 杜绝 材料→锻造→卖店 金币永动机（104/114 配方净赚，最高 +1234%）。
         # F1 P1-5：原仅覆盖装备分支持有 craft_cost 的造物，现扩展到炼金/烹饪等带 craft_cost 的
@@ -3956,7 +3967,8 @@ class EconomyCmds(CommandBase):
                 mt = C.MATERIALS[mid]
                 entries.append((mid, f"{mt['name']}{_owned(mt['name'])} —— {mt['price']} 金币（锻造材料）"))
             # v94 图纸经济：铁匠铺兜底卖图纸（随机一张，价格 = 图纸价×3 = (lv×3+20)×3）
-            bp_price = int((max(1, player["level"]) * 3 + 20) * 3)
+            bp_price = int((max(1, player["level"]) * C.ECON_CONFIG["bp_price_per_lv"]
+                            + C.ECON_CONFIG["bp_price_base"]) * C.ECON_CONFIG["bp_smith_mult"])
             entries.append(("bp:rand", f"📜 神秘锻造图纸（随机一张）—— {bp_price} 金币"))
             equip_items = self._shop_equip_roster(player, C.SHOP_EQUIP.get(cur) or C.SHOP_EQUIP.get(area_id, []))
             for rid in equip_items:
@@ -4034,6 +4046,7 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "购买")
         player = self._player(group_id, qq_id)
+        _ec = C.ECON_CONFIG
         if self._is_redname(qq_id):
             yield event.plain_result("☠️ 你是红名！商店老板不敢卖你东西……（等红名消退再来）")
             return
@@ -4070,7 +4083,7 @@ class EconomyCmds(CommandBase):
         qty = 1
         _parts = item_name.split()
         if len(_parts) >= 2 and _parts[-1].isdigit():
-            qty = max(1, min(int(_parts[-1]), 999))
+            qty = max(1, min(int(_parts[-1]), _ec["buy_qty_max"]))
             item_name = " ".join(_parts[:-1])
         # 全角括号容错：『购买 治疗药水（中）』→ 半角『治疗药水(中)』
         item_name = item_name.replace("（", "(").replace("）", ")")
@@ -4109,7 +4122,8 @@ class EconomyCmds(CommandBase):
             key = entries[idx - 1]
             if key == "bp:rand":
                 # v94 图纸经济：铁匠铺随机图纸（价格 = 图纸价×3，商队集市 8 折）
-                bp_price = int((max(1, player["level"]) * 3 + 20) * 3 * discount)
+                bp_price = int((max(1, player["level"]) * _ec["bp_price_per_lv"]
+                                + _ec["bp_price_base"]) * _ec["bp_smith_mult"] * discount)
                 # v105 M09 P3-9：图纸单件商品，数量参数不适用（此前 qty 被静默忽略）
                 if qty > 1:
                     yield event.plain_result("神秘锻造图纸只能买 1 张！想再买一张就再输一次～")
@@ -4159,7 +4173,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = self._buy_weapon(wname, wtype, wlv, wq)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半（否则属性推导价远高于买入价，可无限倒卖刷钱）
-                equip_item["price"] = int(price * 0.5)
+                equip_item["price"] = int(price * _ec["equip_resale_rate"])
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
@@ -4205,7 +4219,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = C.generate_roster_equip(rid)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半
-                equip_item["price"] = int(price * 0.5)
+                equip_item["price"] = int(price * _ec["equip_resale_rate"])
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")
@@ -4229,7 +4243,8 @@ class EconomyCmds(CommandBase):
                 return
         # 找铁匠铺随机图纸（按名称）：『购买 神秘锻造图纸』→ bp:rand（序号分支 v94 已支持，名称分支补上）
         if is_smith and item_name in ("神秘锻造图纸", "锻造图纸", "图纸", "神秘图纸"):
-            bp_price = int((max(1, player["level"]) * 3 + 20) * 3 * discount)
+            bp_price = int((max(1, player["level"]) * _ec["bp_price_per_lv"]
+                            + _ec["bp_price_base"]) * _ec["bp_smith_mult"] * discount)
             # v105 M09 P3-9：图纸单件商品
             if qty > 1:
                 yield event.plain_result("神秘锻造图纸只能买 1 张！想再买一张就再输一次～")
@@ -4294,7 +4309,7 @@ class EconomyCmds(CommandBase):
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = self._buy_weapon(wname, wtype, wlv, wq)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半
-                equip_item["price"] = int(price * 0.5)
+                equip_item["price"] = int(price * _ec["equip_resale_rate"])
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{wname}】！放到背包了，输入『装备 {wname}』使用。")
@@ -4314,7 +4329,7 @@ class EconomyCmds(CommandBase):
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = C.generate_roster_equip(rid)
-                equip_item["price"] = int(price * 0.5)
+                equip_item["price"] = int(price * _ec["equip_resale_rate"])
                 import uuid
                 db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", equip_item)
                 yield event.plain_result(f"✅ 你购买了【{r['name']}】！放到背包了，输入『装备 {r['name']}』使用。")

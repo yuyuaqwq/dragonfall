@@ -64,3 +64,31 @@ PAWN_RATES = {
     "mat_alchemy": 0.9,  # 材料→炼金铺（草药/精华）
     "mat_shop": 0.8,     # 材料→商店（食材/织物/杂物）
 }
+
+# v125.2 B3：附魔槽位 +1 等级门——品质 → 副业等级（economy 附魔/属性附魔双路径共用，
+# 原双处拷贝 `(prof_lv >= 7 and purple) or (prof_lv >= 8 and orange)` 收敛为单点读表）
+ENCHANT_SLOT_UNLOCK = {"purple": 7, "orange": 8}
+
+# 符文等级门：符文等级 → 所需附魔副业等级（economy 符文刻印数据源；原 {1:2, 2:4, 3:6} 硬编码）
+RUNE_LEVEL_GATE = {1: 2, 2: 4, 3: 6}
+
+# 每日副业任务完成奖励经验（economy._daily_prof_bump 数据源；原字面量 50）
+DAILY_PROF_EXP = 50
+
+# 价格带公式配置（未配置采集/挖掘池的地图按地图等级映射价格区间兜底；
+# economy._gather_roll / _settle_mining 双处原字面量公式收敛为 price_band() 单函数）
+PRICE_BAND = {
+    "lo_base": 3, "lo_per_lv": 4,     # 低价带：3 + lv*4
+    "hi_base": 20, "hi_per_lv": 12,   # 高价带：20 + lv*12
+}
+
+
+def price_band(map_lv: int) -> tuple:
+    """地图等级 → 价格区间 (低, 高)：3+lv*4 ≤ price ≤ 20+lv*12（v97.2 兜底公式）"""
+    _pb = PRICE_BAND
+    return _pb["lo_base"] + _pb["lo_per_lv"] * map_lv, _pb["hi_base"] + _pb["hi_per_lv"] * map_lv
+
+
+# 稀有材料价格阈值：price ≥ 此值判定为稀有产出（兔蛋/驯鹿缰绳/稀有矿脉；
+# economy 采集/挖掘/炼金/面板共 5 处字面量 150 收敛为单点读表）
+RARE_MATERIAL_PRICE = 150

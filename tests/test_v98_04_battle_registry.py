@@ -250,7 +250,8 @@ for src in (instances, ism, monsters):
         for single in combo.split(","):
             all_boss_mech.add(single.strip())
 # 原代码无实现的 key（reflect 被动 / 控制类走怪物控制）：允许缺失
-implied = all_boss_mech - {"reflect", "freeze", "silence", "slow", "stun"}
+# v125.2 interrupt：暗影弹死字段改注册 MON_CTRL_EFFECTS（控制类），加入豁免集
+implied = all_boss_mech - {"reflect", "freeze", "silence", "slow", "stun", "interrupt"}
 missing_boss = implied - set(BM.BOSS_MECHS.keys())
 check(f"boss mech 全覆盖（数据 {len(implied)} 个需实现）", not missing_boss)
 

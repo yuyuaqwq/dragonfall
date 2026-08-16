@@ -241,4 +241,304 @@ MONSTER_MODS = {
         "hp_mult": 1.45, "atk_mult": 1.10, "spd_mult": 0.70,
         "desc": "黑曜石魔像：虚空造物，迟钝而恐怖",
     },
+    # ================= v125.1 P2 补登（boss/elite 裸奔审计） =================
+    # 说明：
+    # 1) 副本 Boss（19 个 b_*）由 instances.py 的 mech/hp_mult/atk_mult 注入覆盖（instance.py
+    #    _enter_stage_combat/_instance_act 消费），数值与机制均不裸奔，此处不补 mod：
+    #    b_goblin_chief / b_jack_pirate / b_king_odric / b_marcus / b_dawn_elf / b_helga /
+    #    b_eter / b_om_shadow / b_fort_ghost / b_trial_knight / b_moon_guard / b_frost_lord /
+    #    b_storm_king / b_ghost_captain / b_siren_queen / b_lange / b_aolan / b_gray_lord /
+    #    b_under_dragon / b_storm_master / b_ola（其中 b_goblin_chief/b_king_odric/b_eter/
+    #    b_om_shadow/b_moro/b_cardinal 本表已有数值 mod，instances mech 叠加生效）。
+    #    仅 b_ember_lord（烬火·野外）/ b_lost_archivist（藏书阁·野外）无副本覆盖 → 下方补数值 mod。
+    # 2) 野外/隐藏精英（e_*）此前全部裸奔 → 统一补保守个体 mod（±5%~20%），
+    #    只写 6 个 mult 键（hp/atk/def/spd/matk/mdef），不改变原 role 公式基调。
+
+    # ---------- 隐藏精英（hidden_monsters.py，v125.1 P2 补登） ----------
+    "e_gold_slime": {
+        "hp_mult": 1.20, "spd_mult": 0.90,
+        "desc": "黄金史莱姆：一身金壳又厚又沉，跑得略慢",
+    },
+    "e_fortune_fox": {
+        "spd_mult": 1.15, "atk_mult": 1.05,
+        "desc": "幸运灵狐：机敏迅捷，爪击带三分灵气",
+    },
+    "e_glimmer_fish": {
+        "spd_mult": 1.10, "matk_mult": 1.10,
+        "desc": "荧光鱼群：游弋如光，水弹更疼",
+    },
+    "e_iron_bull": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "铁角蛮牛：铁角冲撞势大力沉",
+    },
+    "e_swamp_croc": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "沼泽巨鳄：皮糙肉厚，撕咬凶狠",
+    },
+    "e_forest_wolf_king": {
+        "atk_mult": 1.15, "spd_mult": 1.10,
+        "desc": "森林狼王：狼群之首，又快又狠",
+    },
+    "e_moon_wolf": {
+        "spd_mult": 1.15, "atk_mult": 1.10,
+        "desc": "月狼：月光下快如残影",
+    },
+    "e_frost_bear": {
+        "hp_mult": 1.20, "atk_mult": 1.05,
+        "desc": "霜原巨熊：厚毛如甲，一巴掌拍碎冰面",
+    },
+    "e_fungus_king": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "真菌之王：菌盖坚硬，孢子携带剧毒",
+    },
+    "e_mine_troll": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "矿洞巨魔：常年挖矿，身板结实",
+    },
+    "e_abbey_guardian": {
+        "def_mult": 1.15, "hp_mult": 1.10,
+        "desc": "圣堂武僧：金钟罩般的横练功夫",
+    },
+    "e_ash_salamander": {
+        "matk_mult": 1.15, "spd_mult": 1.10,
+        "desc": "烬火蝾螈：吐息滚烫，身形灵活",
+    },
+    "e_sea_serpent": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "海蛇：鳞甲坚韧，绞杀有力",
+    },
+    "e_storm_eagle": {
+        "spd_mult": 1.20, "atk_mult": 1.05,
+        "desc": "雷暴鹰：俯冲快若闪电",
+    },
+    "e_cloud_serpent": {
+        "matk_mult": 1.15, "spd_mult": 1.10,
+        "desc": "云龙：腾云驾雾，吐息带雷光",
+    },
+    "e_deep_angler": {
+        "matk_mult": 1.15, "hp_mult": 1.05,
+        "desc": "深海鮟鱇：幽光钓饵摄人心魄",
+    },
+    "e_dragon_hatchling": {
+        "atk_mult": 1.15, "spd_mult": 1.05,
+        "desc": "幼龙：龙威初显，爪牙锋利",
+    },
+    "e_ghost_knight": {
+        "atk_mult": 1.10, "def_mult": 1.15,
+        "desc": "幽灵骑士：锈甲不腐，剑刃带寒",
+    },
+    "e_lava_golem": {
+        "hp_mult": 1.20, "atk_mult": 1.10,
+        "desc": "熔岩魔像：滚烫岩躯，重拳如锤",
+    },
+    "e_royal_guard": {
+        "def_mult": 1.15, "atk_mult": 1.05,
+        "desc": "王都禁卫：重甲在身，枪阵森严",
+    },
+    "e_shadow_stalker": {
+        "atk_mult": 1.15, "spd_mult": 1.10,
+        "desc": "暗影猎手：黑暗中出手，快而致命",
+    },
+    "e_siren": {
+        "matk_mult": 1.15, "hp_mult": 1.05,
+        "desc": "塞壬：歌声如刃，法术凌厉",
+    },
+    # ---------- 野外精英（subareas.py，v125.1 P2 补登） ----------
+    "e_great_boar": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "巨型野猪：獠牙拱地，皮厚膘肥",
+    },
+    "e_gorge_troll": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "峡谷巨魔：山石般的身板",
+    },
+    "e_boar_king": {
+        "hp_mult": 1.20, "atk_mult": 1.10,
+        "desc": "野猪王·裂鬃：鬃毛如刺，冲撞开山",
+    },
+    "e_valley_troll": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "谷地巨魔：皮糙肉厚，蛮力惊人",
+    },
+    "e_swamp_king": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "沼泽巨鳄·沼王：潜伏一击，咬合如闸",
+    },
+    "e_plain_wolf": {
+        "atk_mult": 1.10, "spd_mult": 1.10,
+        "desc": "平原狼王：草原猎手，快准狠",
+    },
+    "e_cave_troll": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "洞穴巨魔：洞窟霸主，筋骨结实",
+    },
+    "e_pirate_lieutenant": {
+        "atk_mult": 1.10, "hp_mult": 1.05,
+        "desc": "海盗副官：弯刀淬毒，出手狠辣",
+    },
+    "e_river_dragon_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "河龙领主：控水成术，鳞甲坚韧",
+    },
+    "e_inquisitor": {
+        "matk_mult": 1.15, "hp_mult": 1.05,
+        "desc": "审判官：圣焰法术炽烈",
+    },
+    "e_hill_wolf_king": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "丘陵狼王·铁牙：铁牙咬碎盾牌",
+    },
+    "e_knight_instructor": {
+        "atk_mult": 1.10, "def_mult": 1.10,
+        "desc": "骑士教官：攻守有度，招式老辣",
+    },
+    "e_battle_lord": {
+        "atk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "百族战将·亡影：百战余生，凶悍绝伦",
+    },
+    "e_reef_king": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "珊瑚礁主·红棘：棘甲坚硬，钳击有力",
+    },
+    "e_island_tiger": {
+        "atk_mult": 1.15, "spd_mult": 1.10,
+        "desc": "落日岛虎·金焰：扑击迅猛，爪裂岩石",
+    },
+    "e_siren_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "海妖领主·潮汐：潮汐之力加身",
+    },
+    "e_valley_lord": {
+        "matk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "翠谷领主·林语：自然之力厚重",
+    },
+    "e_moon_wolf_alpha": {
+        "atk_mult": 1.10, "spd_mult": 1.15,
+        "desc": "月狼王·银鬃：月色下的闪电",
+    },
+    "e_storm_leviathan": {
+        "hp_mult": 1.15, "matk_mult": 1.10,
+        "desc": "风暴巨兽：雷雨淬炼的庞然巨物",
+    },
+    "e_lake_king": {
+        "matk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "星语湖王：湖灵庇佑，水术绵长",
+    },
+    "e_wind_king": {
+        "spd_mult": 1.15, "matk_mult": 1.10,
+        "desc": "风语王·岚歌：御风而行，风刃无形",
+    },
+    "e_archive_warden": {
+        "matk_mult": 1.15, "hp_mult": 1.05,
+        "desc": "档案馆长·奥古斯特：禁书法术凌厉",
+    },
+    "e_moon_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "月光领主·银辉：月华护体，法术皎洁",
+    },
+    "e_moonshadow_lord": {
+        "atk_mult": 1.10, "spd_mult": 1.15,
+        "desc": "月影领主·夜歌：影随心动，快如鬼魅",
+    },
+    "e_trench_leviathan": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "海沟巨兽·渊影：深渊巨口，吞天噬地",
+    },
+    "e_whale_king": {
+        "hp_mult": 1.20, "atk_mult": 1.05,
+        "desc": "龙鲸王·涛声：如山身躯，一撞碎舟",
+    },
+    "e_graveyard_lord": {
+        "atk_mult": 1.15, "def_mult": 1.05,
+        "desc": "沉船领主·溺骨：锈刃凶戾，怨气缠身",
+    },
+    "e_ice_fang_lord": {
+        "atk_mult": 1.10, "hp_mult": 1.10,
+        "desc": "冰牙领主·霜白：冰甲覆身，獠牙如锥",
+    },
+    "e_frost_troll_lord": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "霜巨魔王：霜巨人中的王，耐打且力大",
+    },
+    "e_storm_dragon": {
+        "matk_mult": 1.15, "spd_mult": 1.05,
+        "desc": "风暴海龙·雷鸣：吐息裹挟雷暴",
+    },
+    "e_frost_mammoth": {
+        "hp_mult": 1.20, "atk_mult": 1.05,
+        "desc": "冰原猛犸·雪岭：长毛如甲，踩踏如崩",
+    },
+    "e_lake_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "永冬湖主·冰瞳：冰术深沉，冻气逼人",
+    },
+    "e_dark_leech": {
+        "matk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "黑暗水蛭王：吸饱暗能，身躯坚韧",
+    },
+    "e_rot_chief_guard": {
+        "hp_mult": 1.15, "atk_mult": 1.10,
+        "desc": "腐牙亲卫：腐化之躯不知疼痛",
+    },
+    "e_glacier_wyrm": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "冰川龙·霜牙：寒鳞如铁，牙口锋利",
+    },
+    "e_demon_warrior": {
+        "atk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "恶魔战士：地狱火淬炼的肌肉",
+    },
+    "e_molten_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "熔火领主·烬核：岩浆在胸腔翻涌",
+    },
+    "e_ash_champion": {
+        "atk_mult": 1.15, "spd_mult": 1.05,
+        "desc": "灰烬勇士：余烬不灭，战意不熄",
+    },
+    "e_cloud_lord": {
+        "matk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "云海领主·雾冠：云雾凝甲，术法悠长",
+    },
+    "e_red_dragon_lord": {
+        "matk_mult": 1.15, "atk_mult": 1.05,
+        "desc": "赤龙领主·烬翼：龙息焚天，爪裂山岩",
+    },
+    "e_magma_king": {
+        "hp_mult": 1.15, "matk_mult": 1.10,
+        "desc": "岩浆王·烬核：岩浆之躯，法术滚烫",
+    },
+    "e_altar_guardian": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "祭坛守卫·魔眼：邪眼凝视，术法诡异",
+    },
+    "e_dragon_lord_ghost": {
+        "atk_mult": 1.10, "hp_mult": 1.15,
+        "desc": "龙陨战魂·暮影：执念凝躯，龙威犹在",
+    },
+    "e_dragon_roost_king": {
+        "atk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "龙巢王·焰翼：巢穴之主，爪牙如刃",
+    },
+    "e_rainbow_dragon": {
+        "matk_mult": 1.10, "spd_mult": 1.10,
+        "desc": "彩虹龙·霞光：七色吐息变幻莫测",
+    },
+    "e_storm_lord": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "雷暴领主·雷霆：雷云随身，术法轰鸣",
+    },
+    "e_star_dragon": {
+        "matk_mult": 1.15, "atk_mult": 1.05,
+        "desc": "星龙·辰光：星光凝息，爪带星辉",
+    },
+    # ---------- 野外 Boss（无副本 mech 覆盖，v125.1 P2 补登） ----------
+    "b_ember_lord": {
+        "hp_mult": 1.20, "atk_mult": 1.10, "matk_mult": 1.10,
+        "desc": "烬火领主·伊格尼斯：烬山之心，烈焰不熄",
+    },
+    "b_lost_archivist": {
+        "matk_mult": 1.15, "hp_mult": 1.10,
+        "desc": "守馆者·遗忘贤者：禁书库的守门人，术法渊深",
+    },
 }

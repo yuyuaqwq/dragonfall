@@ -57,6 +57,49 @@ def _daily_repeat_pct(repeat):
     return int(round(f * 100))
 
 
+def _settle_daily_quest(inst, group_id, qq_id, daily, dq, lines=None):
+    """v125.1 P2：每日任务达标结算单点（world._bump_daily_progress 与 combat._update_quests
+    双副本收敛）。职责：完成计数(_completed)/重复衰减计数(_repeat)、经验金币发放、升级、
+    通知行。调用方负责进度 +1 与达标判断，结算后自行 del 任务键；lines=None 时不输出通知。"""
+    daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
+    rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
+    _rep = dict(daily.get("_repeat", {}) or {})
+    _rep[dq["name"]] = rpt + 1
+    daily["_repeat"] = _rep
+    if lines is not None:
+        _dec = dq.get("repeat", 0)
+        if _dec:
+            _pct = _daily_repeat_pct(_dec)
+            lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+        else:
+            lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
+    player = inst._player(group_id, qq_id)
+    player["exp"] += dq["reward_exp"]
+    player["gold"] += dq["reward_gold"]
+    player["_title_bonus"] = inst._title_bonus(group_id, qq_id)
+    lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
+    db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
+    if lines is not None and lv_logs:
+        lines.append("")
+        lines += lv_logs
+
+
+def _daily_need(dq):
+    """每日任务需求数（面板显示用）。objective 单键值即达标数（kill_any:10 等）。
+    v125.1 P2：存档缺 objective 时回读 DAILY_QUESTS 定义；仍无定义返回 None，
+    面板只显示实际进度，不再兜底假 99。"""
+    dobj = (dq or {}).get("objective") or {}
+    for _v in dobj.values():
+        if isinstance(_v, int) and _v > 0:
+            return _v
+    _def = next((q for q in C.DAILY_QUESTS if q.get("name") == (dq or {}).get("name")), None)
+    if _def:
+        for _v in (_def.get("objective") or {}).values():
+            if isinstance(_v, int) and _v > 0:
+                return _v
+    return None
+
+
 class WorldCmds(CommandBase):
 
     def _map_facilities(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> list:
@@ -1395,7 +1438,7 @@ class WorldCmds(CommandBase):
                 shown = cost
                 tag = ""
                 if disc > 0:
-                    shown = max(1, int(cost * (1 - disc)))
+                    shown = max(C.ECON_CONFIG["portal_min_cost"], int(cost * (1 - disc)))
                     tag = f"（骑乘坐骑 {int(disc*100)}% 折扣）"
                 name = p.get("name", mid) if p else mid
                 icon = p.get("icon", "🌌") if p else "🌌"
@@ -1487,7 +1530,7 @@ class WorldCmds(CommandBase):
         active_mk = mounts.get("active")
         if active_mk and active_mk in C.MOUNT_BY_KEY:
             disc = C.MOUNT_BY_KEY[active_mk].get("discount", 0)
-            cost = max(1, int(cost * (1 - disc)))
+            cost = max(C.ECON_CONFIG["portal_min_cost"], int(cost * (1 - disc)))
         if player["gold"] < cost:
             yield event.plain_result(f"传送需要 {cost} 金币(你只有 {player['gold']})！打怪攒点金币吧～")
             return
@@ -1645,7 +1688,7 @@ class WorldCmds(CommandBase):
                 # 收集型：实时按背包材料判断（v104 补测：复合目标同时显示击杀进度防误导）
                 if obj.get("collect"):
                     have = db.count_item(group_id, qq_id, obj["collect"])
-                    need = obj.get("collect_count", obj["count"])
+                    need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 的复合目标不再 KeyError
                     prog = sq.get("progress", {})
                     kill_txt = ""
                     if obj.get("kill"):
@@ -1657,6 +1700,13 @@ class WorldCmds(CommandBase):
                     else:
                         lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
+                    # v125.1 P2：复合目标（collect+use/find/explore，如 s53/s56/s64/s105）
+                    # 补显其余目标行，与 find/use 分支的 _obj_text_lines 展示口径一致
+                    # （收集/击杀行已在上方展示，过滤避免重复）
+                    for _t in self._obj_text_lines(obj, st):
+                        if _t.startswith(("收集", "击败")):
+                            continue
+                        lines.append(f"    {_t}")
                     continue
                 # v104 M20 P2：find 型（告示委托等）面板提示机制——在 XX 探索有概率遇到
                 # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
@@ -1695,14 +1745,18 @@ class WorldCmds(CommandBase):
             lines.append("")
             lines.append("【每日】")
             _daily_n = 0  # v116 每日任务序号（仅计实际任务，跨元数据）
-            for i, (dkey, dq) in enumerate(daily.items(), 1):
+            for dkey, dq in daily.items():
                 if dkey in _DAILY_META_KEYS:  # 跨天/计数元数据，跳过
                     continue
                 _daily_n += 1
-                dobj = dq["objective"]
-                # v104 M20：新日常目标类型（行会委托 complete_side / 采集任务 collect_any）纳入需求提取
-                need = dobj.get("kill_any", dobj.get("kill_elite", dobj.get("kill_boss", dobj.get("complete_side", dobj.get("collect_any", dobj.get("count", 99))))))
-                lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
+                # v125.1 P2：序号用 _daily_n（仅计实际任务）——原用 enumerate 的 i 会把
+                # _date/_completed/_repeat 元数据占位算进去（面板显示 4./5.，『放弃』按 1..N 对不上）
+                need = _daily_need(dq)
+                if need is None:
+                    # v125.1 P2：无达标数定义时只显示实际进度，不再兜底假 99
+                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']} (进度 {dq.get('progress', 0)})")
+                else:
+                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
         else:
             lines.append("")
             _done = int(daily.get("_completed", 0) or 0)
@@ -2057,11 +2111,13 @@ class WorldCmds(CommandBase):
         quests["daily"] = daily
         db.save_quests(group_id, qq_id, quests)
         lines = ["📜 今日任务已发布！", "━━━━━━━━━━━━"]
-        for i, (dkey, dq) in enumerate(daily.items(), 1):
+        _daily_n = 0  # v125.1 P2：序号仅计实际任务（跨 _date/_completed/_repeat 元数据键）
+        for dkey, dq in daily.items():
             if dkey in _DAILY_META_KEYS:
                 continue
+            _daily_n += 1
             _dec = dq.get("repeat", 0)
-            lines.append(f"{i:>2}. 『{dq['name']}』{dq['desc']}")
+            lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']}")
             if _dec:
                 _pct = _daily_repeat_pct(_dec)
                 lines.append(f"    ⚠️ 重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
@@ -2115,28 +2171,8 @@ class WorldCmds(CommandBase):
             dq["progress"] = int(dq.get("progress", 0)) + 1
             changed = True
             if dq["progress"] >= need:
-                # v116 §3.4 每日完成计数：_completed（当日总完成数）/ _repeat（同任务重复次数）
-                daily["_completed"] = int(daily.get("_completed", 0) or 0) + 1
-                rpt = int(daily.get("_repeat", {}).get(dq["name"], 0) or 0)
-                _rep = dict(daily.get("_repeat", {}) or {})
-                _rep[dq["name"]] = rpt + 1
-                daily["_repeat"] = _rep
-                player = self._player(group_id, qq_id)
-                player["exp"] += dq["reward_exp"]
-                player["gold"] += dq["reward_gold"]
-                player["_title_bonus"] = self._title_bonus(group_id, qq_id)
-                lv_logs, player = E.check_player_level_up(group_id, qq_id, player)
-                db.update_player(group_id, qq_id, exp=player["exp"], gold=player["gold"], level=player["level"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-                if lines is not None:
-                    _dec = dq.get("repeat", 0)
-                    if _dec:
-                        _pct = _daily_repeat_pct(_dec)
-                        lines.append(f"📜 每日『{dq['name']}』完成！重复完成，奖励衰减 {_pct}%：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
-                    else:
-                        lines.append(f"📜 每日『{dq['name']}』完成！奖励：经验 +{dq['reward_exp']} 金币 +{dq['reward_gold']}")
-                    if lv_logs:
-                        lines.append("")
-                        lines += lv_logs
+                # v125.1 P2：发奖结算统一走 _settle_daily_quest（与 combat._update_quests 同单点）
+                _settle_daily_quest(self, group_id, qq_id, daily, dq, lines)
                 del daily[dkey]
         if changed:
             # 保留 _date/_completed/_repeat（active 任务清空后仍须持续生效防刷/衰减计数）
@@ -2518,7 +2554,8 @@ class WorldCmds(CommandBase):
         if obj.get("kill"):
             return f"击败 {obj['kill']} ×{obj['count']}"
         if obj.get("collect"):
-            return f"收集 {obj['collect']} ×{obj['count']}"
+            # v125.1 P2：s64 等 collect_count 无 count 的复合目标不再 KeyError
+            return f"收集 {obj['collect']} ×{obj.get('collect_count') or obj.get('count', 1)}"
         if obj.get("explore"):
             return f"前往 {C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}"
         if obj.get("find"):
@@ -2540,7 +2577,8 @@ class WorldCmds(CommandBase):
         if obj.get("kill"):
             lines.append(f"击败 {obj['kill']} ×{obj['count']}")
         if obj.get("collect"):
-            lines.append(f"收集 {obj['collect']} ×{obj.get('collect_count', obj['count'])}")
+            # v125.1 P2：s64 等 collect_count 无 count 的复合目标不再 KeyError
+            lines.append(f"收集 {obj['collect']} ×{obj.get('collect_count') or obj.get('count', 1)}")
         if obj.get("explore"):
             lines.append(f"前往 {C.MAP_BY_ID.get(obj['explore'], {}).get('name', '？')}")
         if obj.get("find"):
@@ -3657,7 +3695,7 @@ class WorldCmds(CommandBase):
                 # v104 审计 P1-3：复合目标（魔剑士试炼 collect_count=2/count=3）门槛统一按
                 # collect_count 判定（此前用 obj["count"]=3 与 quest_view 的 2 不一致：
                 # 面板显示"✅ 可交"、交付却拒"还差 ×1(背包 2/3)"）
-                need = obj.get("collect_count", obj["count"])
+                need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
                 have = db.count_item(group_id, qq_id, obj["collect"])
                 if have >= need:
                     if npc and npc["map"] == player["cur_map"]:
@@ -3802,7 +3840,7 @@ class WorldCmds(CommandBase):
         # 收集型：实时检查背包材料（不依赖 ready 状态）
         if obj.get("collect"):
             # v87 复合目标：kill+collect（魔剑士试炼），collect_count 独立于 kill count
-            need = obj.get("collect_count", obj["count"])
+            need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
             _ckey = C.resolve("materials", obj["collect"])
             have = db.count_item(group_id, qq_id, _ckey)
             if have < need:
@@ -3849,7 +3887,7 @@ class WorldCmds(CommandBase):
                 db.set_talk_flag(group_id, qq_id, sqd.get("giver", ""), _cf)
         # 收集类：扣除材料
         if obj.get("collect"):
-            need = obj.get("collect_count", obj["count"])
+            need = obj.get("collect_count") or obj.get("count", 1)  # v125.1 P2：s64 等 collect_count 无 count 不再 KeyError
             for _ in range(need):
                 db.remove_item(group_id, qq_id, _ckey)
         # v124 交付剧情文本（无分支时）
@@ -3955,11 +3993,15 @@ class WorldCmds(CommandBase):
             return
         # v101.25i4 住宿费：Lv.≤15 保持 max(30, lv×5)（新手友好不动）；
         # Lv.16+ 跟随怪物金币曲线(hp_stage_mult^0.5) 并向下取整到百（鱼鱼拍板：凑整，Lv.100=1000金）
+        # v125.1：数值下沉 econ_config.ECON_CONFIG
+        _ec = C.ECON_CONFIG
         lv = player.get("level") or 1
-        if lv <= 15:
-            cost = max(30, lv * 5)
+        if lv <= _ec["inn_cost_lv_cap"]:
+            cost = max(_ec["inn_cost_min_low"], lv * _ec["inn_cost_per_lv"])
         else:
-            cost = max(100, int(lv * 5 * hp_stage_mult(lv) ** 0.5) // 100 * 100)
+            cost = max(_ec["inn_cost_min_high"],
+                       int(lv * _ec["inn_cost_per_lv"] * hp_stage_mult(lv) ** 0.5)
+                       // _ec["inn_cost_round"] * _ec["inn_cost_round"])
         if player["gold"] < cost:
             yield event.plain_result(f"住宿需要 {cost} 金币，你只有 {player['gold']} 金币。先去『探索』赚点钱吧～")
             return

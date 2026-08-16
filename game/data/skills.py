@@ -1530,7 +1530,7 @@ BRANCH_SKILLS = {
                                  "desc": "奥术 110%×3，奥术充能＋1。充能≥2 层时伤害＋15%(蓄能强化)",
                                  "name": "奥术弹幕"},
                     "奥术直觉": {"lv": 38, "mp": 0, "power": 0, "kind": "被动",
-                                 "passive": {"proc": "arcane_regen", "mult": 1},
+                                 "passive": {"proc": "arcane_regen", "mech": "arcane", "mult": 1},
                                  "desc": "触发被动：每回合开始奥术充能＋1(自动蓄能)",
                                  "name": "奥术直觉"},
                     "奥术飞弹": {"lv": 40, "mp": 15, "power": 1.0, "kind": "魔法",

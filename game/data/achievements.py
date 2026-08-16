@@ -41,7 +41,7 @@ ACHIEVEMENTS = [
     {"id": "ach_undead100", "cat": "战斗", "name": "亡灵使者", "title": "亡灵使者",
      "desc": "击杀 100 只亡灵系怪物", "cond": {"type": "kills_type", "keywords": ["亡灵", "骷髅", "僵尸", "幽灵"], "value": 100}, "points": 1},
     {"id": "ach_demon100", "cat": "战斗", "name": "恶魔猎手", "title": "恶魔猎手",
-     "desc": "击杀 100 只恶魔系怪物", "cond": {"type": "kills_type", "keywords": ["恶魔", "魔像"], "value": 100}, "points": 1},
+     "desc": "击杀 100 只恶魔/魔像系怪物", "cond": {"type": "kills_type", "keywords": ["恶魔", "魔像"], "value": 100}, "points": 1},
     {"id": "ach_dragon50", "cat": "战斗", "name": "龙之仇敌", "title": "龙之仇敌",
      "desc": "击杀 50 只龙系怪物", "cond": {"type": "kills_type", "keyword": "龙", "value": 50}, "points": 1},
     {"id": "ach_inst1", "cat": "战斗", "name": "副本新星", "title": "副本新星",
@@ -49,7 +49,7 @@ ACHIEVEMENTS = [
     {"id": "ach_inst10", "cat": "战斗", "name": "副本达人", "title": "副本达人",
      "desc": "通关任意副本 10 次", "cond": {"type": "inst_clear", "value": 10}, "points": 1},
     {"id": "ach_inst_all8", "cat": "战斗", "name": "副本大师", "title": "副本大师",
-     "desc": "通关全部 8 大主线副本", "cond": {"type": "inst_all8"}, "points": 1, "bonus": {"atk": 5, "def": 5, "matk": 5, "mdef": 5, "spd": 5}},
+     "desc": "累计通关 8 个副本", "cond": {"type": "inst_all8"}, "points": 1, "bonus": {"atk": 5, "def": 5, "matk": 5, "mdef": 5, "spd": 5}},
     {"id": "ach_flawless", "cat": "战斗", "name": "完美主义者", "title": "完美主义者",
      "desc": "未受伤通关 1 个副本", "cond": {"type": "flawless"}, "points": 1},
     {"id": "ach_worldboss", "cat": "战斗", "name": "世界 Boss 猎手", "title": "世界 Boss 猎手",
@@ -75,11 +75,11 @@ ACHIEVEMENTS = [
     {"id": "ach_lv100", "cat": "成长", "name": "百级传说", "title": "百级传说",
      "desc": "达到 100 级", "cond": {"type": "level", "value": 100}, "points": 1, "bonus": {"atk": 10, "def": 10, "matk": 10, "mdef": 10, "spd": 10}},
     {"id": "ach_evolve1", "cat": "成长", "name": "首次转职", "title": "首次转职",
-     "desc": "完成 30 级转职", "cond": {"type": "evolve", "value": 1}, "points": 1, "reward": {"exp": 1000}},
+     "desc": "完成首次转职", "cond": {"type": "evolve", "value": 1}, "points": 1, "reward": {"exp": 1000}},
     {"id": "ach_evolve2", "cat": "成长", "name": "资深斗士", "title": "资深斗士",
-     "desc": "完成 60 级转职", "cond": {"type": "evolve", "value": 2}, "points": 1},
+     "desc": "完成二次转职", "cond": {"type": "evolve", "value": 2}, "points": 1},
     {"id": "ach_evolve3", "cat": "成长", "name": "传奇斗士", "title": "传奇斗士",
-     "desc": "完成 90 级转职", "cond": {"type": "evolve", "value": 3}, "points": 1, "bonus": {"atk": 12}},
+     "desc": "完成三次转职", "cond": {"type": "evolve", "value": 3}, "points": 1, "bonus": {"atk": 12}},
     {"id": "ach_learn10", "cat": "成长", "name": "技能收藏家", "title": "技能收藏家",
      "desc": "学习 10 个技能", "cond": {"type": "learned", "value": 10}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_learn30", "cat": "成长", "name": "技能大师", "title": "技能大师",
@@ -93,7 +93,7 @@ ACHIEVEMENTS = [
     {"id": "ach_area2", "cat": "探索", "name": "初来乍到", "title": "初来乍到",
      "desc": "到达第 2 个区域", "cond": {"type": "visited", "value": 2}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_area10", "cat": "探索", "name": "大陆探险家", "title": "大陆探险家",
-     "desc": "到访 10 个不同子区域", "cond": {"type": "visited", "value": 10}, "points": 1},
+     "desc": "到访 10 个不同区域", "cond": {"type": "visited", "value": 10}, "points": 1},
     {"id": "ach_area_all", "cat": "探索", "name": "环游大陆", "title": "环游大陆",
      # v110 审计修复：desc 原写"全部 30 个区域"——实现为"到访≥30 张地图"（visited>=30），
      # 非地图全集语义，措辞修正避免误导
@@ -197,21 +197,22 @@ ACHIEVEMENTS = [
     {"id": "ach_guild5", "cat": "社交", "name": "公会栋梁", "title": "公会栋梁",
      "desc": "公会达到 5 级", "cond": {"type": "guild_lv", "value": 5}, "points": 1, "bonus": {"hp": 20}},
     # v105 M18 P2 显式声明：11 章阵营体系未落地（策划案 14 章落地说明同步标注），
-    # 「选择阵营/阵营先锋/大陆之柱」3 个阵营成就暂不可解锁（判定恒 False，随 11 章阵营系统一并实装）
+    # v116 实装：阵营判定见 achievement_conds.py——faction=已加入阵营 / faction_top=贡献≥100 /
+    # faction_rank1=贡献≥500（阈值近似，无国战排名系统），desc 与判定口径一致
     {"id": "ach_faction1", "cat": "社交", "name": "选择阵营", "title": "选择阵营",
      "desc": "加入 1 个阵营", "cond": {"type": "faction", "value": 1}, "points": 1, "reward": {"exp": 100}},
     {"id": "ach_faction_top", "cat": "社交", "name": "阵营先锋", "title": "阵营先锋",
-     "desc": "阵营贡献前 10", "cond": {"type": "faction_top"}, "points": 1, "bonus": {"atk": 8}},
+     "desc": "累计阵营贡献达到 100", "cond": {"type": "faction_top"}, "points": 1, "bonus": {"atk": 8}},
     {"id": "ach_event10", "cat": "社交", "name": "国战勇士", "title": "国战勇士",
      "desc": "参与 10 次世界事件", "cond": {"type": "world_event", "value": 10}, "points": 1},
     {"id": "ach_faction_rank1", "cat": "社交", "name": "大陆之柱", "title": "大陆之柱",
-     "desc": "所属阵营国战排名第 1", "cond": {"type": "faction_rank1"}, "points": 1, "bonus": {"atk": 8, "def": 8, "matk": 8, "mdef": 8, "spd": 8}},
+     "desc": "累计阵营贡献达到 500", "cond": {"type": "faction_rank1"}, "points": 1, "bonus": {"atk": 8, "def": 8, "matk": 8, "mdef": 8, "spd": 8}},
 
     # ---- 隐藏（10） ----
     {"id": "ach_bard_all", "cat": "隐藏", "name": "史诗聆听者", "title": "史诗聆听者",
      "desc": "聆听吟游诗人的歌谣", "cond": {"type": "flag", "flag": "heard_song"}, "points": 2},
     {"id": "ach_truth", "cat": "隐藏", "name": "真相追寻者", "title": "真相追寻者",
-     "desc": "发现主线真相(第 7 章后)", "cond": {"type": "flag", "flag": "saw_the_rift"}, "points": 2},
+     "desc": "发现主线真相(第 9 章)", "cond": {"type": "flag", "flag": "saw_the_rift"}, "points": 2},
     {"id": "ach_saint_save", "cat": "隐藏", "name": "圣女守护者", "title": "圣女守护者",
      "desc": "救下圣女(完成主线 q6_1·圣女的信任)", "cond": {"type": "main_quest_done", "key": "q6_1"}, "points": 2},
     {"id": "ach_main12", "cat": "隐藏", "name": "黎明继承者", "title": "黎明之光继承者",

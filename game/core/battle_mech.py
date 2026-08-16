@@ -23,11 +23,18 @@ import random
 
 
 def register(registry, key):
-    """注册装饰器。"""
+    """注册装饰器。
+    v125.1 P2：同时记录 (registry, key) 注册顺序——供末尾 _validate_boss_mechs()
+    检测 BOSS_MECHS 重复注册（register 会静默覆盖同键，重复即 bug）。"""
     def deco(fn):
+        _REG_ORDER.append((id(registry), key))
         registry[key] = fn
         return fn
     return deco
+
+
+# v125.1 P2：注册顺序跟踪（见 register docstring；供末尾启动校验消费）
+_REG_ORDER = []
 
 
 def _mech_chance(info, default_chance):
@@ -827,6 +834,26 @@ def _mc_silence(battle, player, logs, mval):
     logs.append("🤐 你被沉默，2 回合内无法使用技能！")
 
 
+@register(MON_CTRL_EFFECTS, "interrupt")
+def _mc_interrupt(battle, player, logs, mval):
+    """打断玩家蓄力（v125.1 P2 消费端：ms_an_ying_dan 等带 mech=interrupt 的怪物技能）。
+    原怪物技能 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——改经 mech 接线本表：
+    命中时若玩家正在蓄力（battle.charging，蓄力状态在 Battle 对象而非 player dict），
+    打断并返还 50% 已扣 MP（向上取整，对齐 battle._interrupt_charging 玩家侧口径）。"""
+    ch = getattr(battle, "charging", None)
+    if not ch or not ch.get("skill"):
+        return
+    cname = ch.get("name", ch.get("skill", "?"))
+    spent = int(ch.get("mp_spent", 0) or 0)
+    battle.charging = None
+    if spent > 0 and player is not None:
+        player["mp"] = min(player.get("max_mp", player.get("mp", 0)),
+                           player.get("mp", 0) + (spent + 1) // 2)
+        logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！返还 {(spent + 1) // 2} 点魔力。")
+    else:
+        logs.append(f"🔨 你的蓄力【{cname}】被怪物打断了！")
+
+
 @register(MON_CTRL_EFFECTS, "slow")
 def _mc_slow(battle, player, logs, mval):
     """减速玩家（霜狼套 5 件免疫；v101.28f 不动药剂免疫）"""
@@ -930,4 +957,48 @@ def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
     battle.p_buffs["reduce_all"] = pct
     battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
     logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 回合）")
+
+
+# ================= 5. BOSS_MECHS 启动校验（v125.1 P2 审计） =================
+
+# 被动机制白名单：reflect 由 battle.py _boss_dmg_filter 直读 enemy.mech 消费
+# （不经 _boss_mech/BOSS_MECHS 注册表，见 battle.py _boss_mech docstring），
+# 故不要求注册；其余 token 必须能在 BOSS_MECHS 找到 handler。
+_PASSIVE_MECH_TOKENS = ("reflect",)
+
+
+def validate_boss_mechs():
+    """v125.1 P2：BOSS_MECHS 注册表启动校验（模块导入末尾执行，可重复调用）。
+    1. 键去重：同一 mech token 被 register 两次（后注册静默覆盖前注册）→ 直接报错，
+       防止两个 handler 抢同一 token 导致前者永久失效。
+    2. 数据引用校验：instances.py / monster_mods.py 的 mech 字段 token 必须已注册
+       （未注册 → 告警；reflect 等被动 token 白名单豁免）。
+    """
+    from collections import Counter
+    reg_keys = [k for rid, k in _REG_ORDER if rid == id(BOSS_MECHS)]
+    dups = [k for k, n in Counter(reg_keys).items() if n > 1]
+    if dups:
+        raise RuntimeError(
+            "[battle_mech] BOSS_MECHS 重复注册（后注册覆盖前注册，请检查重复的 @register 装饰器）："
+            + ", ".join(sorted(dups))
+        )
+    try:
+        from ..data.instances import INSTANCES
+        from ..data.monster_mods import MONSTER_MODS
+    except Exception as _e:  # 数据层不可用（极简环境）→ 跳过数据引用校验，仅保留去重校验
+        print(f"[battle_mech] 跳过 mech token 数据引用校验（数据层不可用）：{_e}")
+        return
+    unknown = []
+    for _src_name, _src in (("instances", INSTANCES), ("monster_mods", MONSTER_MODS)):
+        for _k, _v in _src.items():
+            for _tok in str(_v.get("mech") or "").split(","):
+                _tok = _tok.strip()
+                if _tok and _tok not in BOSS_MECHS and _tok not in _PASSIVE_MECH_TOKENS:
+                    unknown.append(f"{_src_name}:{_k}={_tok}")
+    if unknown:
+        print("[battle_mech] 警告：mech token 未在 BOSS_MECHS 注册（运行期将静默无效果）："
+              + "; ".join(sorted(set(unknown))))
+
+
+validate_boss_mechs()
 

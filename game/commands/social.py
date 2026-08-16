@@ -63,14 +63,14 @@ class SocialCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         args = self._strip_cmd(event, "上架").rsplit(None, 1)
-        if len(args) < 2 or not args[1].isdigit() or int(args[1]) < 1:
+        if len(args) < 2 or not args[1].isdigit() or int(args[1]) < C.ECON_CONFIG["market_min_price"]:
             yield event.plain_result("格式：上架 <物品名> <价格>，如『上架 铁剑 500』；价格至少 1 金币")
             return
         item_name = args[0]
         price = int(args[1])
         # v104R3 P2：上架价格上限——防止 999999999 恶意占坑/诱导高价（上限远超任何物品价值）
-        if price > 999999:
-            yield event.plain_result("价格太高啦！上架价最多 999999 金币～")
+        if price > C.ECON_CONFIG["market_price_cap"]:
+            yield event.plain_result(f"价格太高啦！上架价最多 {C.ECON_CONFIG['market_price_cap']} 金币～")
             return
         inv = db.get_inventory(group_id, qq_id)
         found = None
@@ -164,12 +164,12 @@ class SocialCmds(CommandBase):
             item_name, price = args[0], 0  # 不带价格 = 以物换物
         elif args[1].isdigit():
             item_name, price = args[0], int(args[1])
-            if price < 1:
+            if price < C.ECON_CONFIG["market_min_price"]:
                 yield event.plain_result("价格至少 1 金币！")
                 return
             # v104R3 P2：摆摊价格上限（与『上架』一致，防恶意占坑/诱导）
-            if price > 999999:
-                yield event.plain_result("价格太高啦！摆摊价最多 999999 金币～")
+            if price > C.ECON_CONFIG["market_price_cap"]:
+                yield event.plain_result(f"价格太高啦！摆摊价最多 {C.ECON_CONFIG['market_price_cap']} 金币～")
                 return
         else:
             yield event.plain_result("格式：摆摊 <物品名> [价格]，不带价格 = 以物换物，如『摆摊 铁剑』或『摆摊 铁剑 500』")

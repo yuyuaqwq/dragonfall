@@ -10,7 +10,9 @@ MONSTER_SKILLS = {
     "ms_an_ying_dan": {
         "kind": "魔法",
         "power": 1.6,
-        "interrupt": True,
+        # v125.1 P2：原 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——已改为经 mech
+        # 接线 battle_mech.MON_CTRL_EFFECTS["interrupt"] 消费：命中打断玩家蓄力（battle.charging）。
+        "mech": "interrupt",
         "desc": "暗影弹，暗影能量弹攻击敌人，命中打断目标蓄力",
         "name": "暗影弹",
         "element": "dark",
@@ -174,8 +176,10 @@ MONSTER_SKILLS = {
     "ms_di_yu_huo": {
         "kind": "魔法",
         "power": 2.2,
+        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
+        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
         "aoe": "all",
-        "desc": "地狱火，地狱烈焰灼烧全场敌人",
+        "desc": "地狱火，地狱烈焰灼烧敌人",
         "name": "地狱火",
         "element": "fire",
     },
@@ -390,8 +394,10 @@ MONSTER_SKILLS = {
     "ms_huo_pao": {
         "kind": "魔法",
         "power": 1.8,
+        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
+        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
         "aoe": "all",
-        "desc": "火炮，轰击全场敌人",
+        "desc": "火炮，轰击敌人",
         "name": "火炮",
         "element": "fire",
     },
@@ -404,8 +410,10 @@ MONSTER_SKILLS = {
     "ms_huo_yan": {
         "kind": "魔法",
         "power": 1.8,
+        # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
+        # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
         "aoe": "all",
-        "desc": "火焰，烈焰灼烧全场敌人",
+        "desc": "火焰，烈焰灼烧敌人",
         "name": "火焰",
         "element": "fire",
     },
