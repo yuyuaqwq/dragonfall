@@ -244,9 +244,9 @@ CLASSES = {
         },
         "weapon_type": "dagger",
         "name": "刺客",
-        "default_rank": 2,   # v2 站位层：后排（高机动刺客）
-        "reach": 2,          # v2 攻击范围：远程（可挠后排）
-        "rank_label": "后排",
+        "default_rank": 1,   # v122f 站位层：前排（匕首近战，鱼鱼拍板：刺客哪有那么长手）
+        "reach": 1,          # v122f 攻击范围：近战（原 2 错误，匕首近战系）
+        "rank_label": "前排",
     },
     "cls_wu_seng": {
         "desc": "以拳入道的修行者，拳拳到肉，连击与反击的行家。",
@@ -462,9 +462,9 @@ CLASSES = {
         },
         "weapon_type": "dagger",
         "name": "暮影行者",
-        "default_rank": 2,   # v2 站位层：后排（刺客系，远程挠后排）
-        "reach": 2,          # v2 攻击范围：远程（刺客系）
-        "rank_label": "后排",
+        "default_rank": 1,   # v122f 站位层：前排（匕首近战，与基础刺客一致）
+        "reach": 1,          # v122f 攻击范围：近战（刺客系匕首，原 2 错误）
+        "rank_label": "前排",
         "hidden": True,
         "src_base": "cls_ci_ke",  # 渊源根基：刺客
         "src_race": "halfling",   # v113 种族限制：半身人血脉方可传承（行会暗影密档）

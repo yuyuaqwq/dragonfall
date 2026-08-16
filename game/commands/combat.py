@@ -2177,6 +2177,7 @@ class CombatCmds(CommandBase):
         _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
         _town_sa = _town_sas[0]["id"] if _town_sas else ""
         _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
+        _town_sa_name = _town_sas[0]["name"] if _town_sas else "广场"
         # O119 复活羽毛：背包有复活羽毛 → 战败结算提示『消耗复活羽毛？或损失金币』。
         # 先回城满血（玩家已阵亡不能滞留），金币扣款挂起到 revive_confirm 二段回复
         # （回复『使用复活羽毛』免扣，『放弃复活』按原损失结算；超时按损失兜底）。
@@ -2201,7 +2202,7 @@ class CombatCmds(CommandBase):
             lines.append(
                 f"🪶 背包里的复活羽毛泛起微光！回复『使用复活羽毛』消耗 1 根，免于损失 {_pen}；"
                 f"或回复『放弃复活』损失 {_pen}。\n"
-                f"你已被送回{_town_name}中心广场，休息后满血复活。"
+                f"你已被送回{_town_name}·{_town_sa_name}，休息后满血复活。"
             )
             self._rule_fire("battle_win", group_id, qq_id, player,
                             C.MAP_BY_ID.get(player.get("cur_map"), {}),
@@ -2214,7 +2215,7 @@ class CombatCmds(CommandBase):
                          max_hp=player["max_hp"], max_mp=player["max_mp"],
                          cur_map=_town_id, cur_subarea=_town_sa)
         lines.append(
-            f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了{_town_name}中心广场。\n"
+            f"你丢失了 {lost} 金币（战败损失 10% 金币），被好心人送回了{_town_name}·{_town_sa_name}。\n"
             f"休息后满血复活！下次要小心啊，冒险者。"
         )
         # v97.5 行为彩蛋规则：战败（用于清零连胜等计数，不产出彩蛋）

@@ -280,7 +280,7 @@ async def main():
           (p["cur_subarea"], first_sa.get("id")))
     check("战败→满血复活", p["hp"] == p["max_hp"], (p["hp"], p["max_hp"]))
     check("战败→扣 10% 金币", p["gold"] == 900, p["gold"])
-    check("战败文案含城镇中心广场", "中心广场" in out, out[:120])
+    check("战败文案含落点广场名", first_sa.get("name", "") in out, out[:120])
 
     print(f"\n======== 结果: {passed} 通过 / {failed} 失败 ========")
     return failed == 0

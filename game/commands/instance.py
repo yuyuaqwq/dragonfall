@@ -2459,8 +2459,9 @@ class InstanceCmds(CommandBase):
                 _town_id = self._nearest_town(p.get("cur_map", ""))
                 _town_sas = C.MAP_BY_ID.get(_town_id, {}).get("subareas") or []
                 _town_sa = _town_sas[0]["id"] if _town_sas else ""
+                _town_sa_name = _town_sas[0]["name"] if _town_sas else "广场"
                 _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
                 db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0),
                                  cur_map=_town_id, cur_subarea=_town_sa)
-                lines.append(f"📍 {p['name']} 被送回了【{_town_name}】中心广场（HP 0，先休息恢复吧）")
+                lines.append(f"📍 {p['name']} 被送回了【{_town_name}·{_town_sa_name}】（HP 0，先休息恢复吧）")
         yield event.plain_result("\n".join(lines))
