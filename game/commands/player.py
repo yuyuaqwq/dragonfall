@@ -54,10 +54,10 @@ class PlayerCmds(CommandBase):
         if sub == "绑定":
             parts = rest.split(maxsplit=1)
             if len(parts) < 2:
-                yield event.plain_result("📎 用法：『快捷绑定 <数字/字母> <指令>』，如『快捷绑定 1 探索』『快捷绑定 n 前往』\n数字 0-99 全量触发；字母可带参数（绑『n 前往』发『n3』=前往 3）")
+                yield event.plain_result("📎 用法：『快捷绑定 <数字/字母/符号> <指令>』，如『快捷绑定 1 探索』『快捷绑定 n 前往』『快捷绑定 . 攻击』\n数字 0-99 全量触发；字母/符号可带参数（绑『n 前往』发『n3』=前往 3）")
                 return
             # v123b：数字 key 限 1-2 位（0-99 全量匹配）；字母 key 1-8 位（字母开头可带数字，
-            # 前缀匹配+后缀透传）。全角数字归一，字母统一小写存储。
+            # 前缀匹配+后缀透传）；单字符符号 key（v123c，排除翻页/At 冲突符号）。全角数字归一，字母统一小写。
             key = parts[0].strip()
             if key.isdigit() or (key and all(ch in "０-９" for ch in key)):
                 key = str(int(key))
@@ -66,8 +66,13 @@ class PlayerCmds(CommandBase):
                     return
             elif re.fullmatch(r"[a-zA-Z][a-zA-Z0-9]{0,7}", key):
                 key = key.lower()
+            elif len(key) == 1 and not key.isdigit() and key not in "+＋-－=＝@[／/" \
+                    and not ("\u4e00" <= key <= "\u9fff"):
+                # v123c：单字符符号键（含全角标点），排除翻页快捷键（+－-=＝）、
+                # At/引用前缀（@[）、斜杠（潜在消息解析冲突）、中文汉字（正则层不支持，防死绑定）
+                pass
             else:
-                yield event.plain_result("📎 快捷键限：数字 0-99（全量触发）或 1-8 位字母开头键（支持后缀参数）～")
+                yield event.plain_result("📎 快捷键限：数字 0-99（全量触发）、1-8 位字母开头键、或单字符符号（如 . ! # *）～（+ - = 是翻页快捷键，@ [ / 不可用）")
                 return
             cmd_text = parts[1].strip()
             if len(cmd_text) > 30:
@@ -117,10 +122,11 @@ class PlayerCmds(CommandBase):
 
     # v105 P1(M01#4)+P2(M01)：触发放宽到任意位数字（复活历史 ≥100 死绑定）+
     # 允许尾随空格（『1 』此前静默无反应）；全角数字在 handler 内归一后查表
-    # v123b：数字开头全量匹配（绑『13』发『13』才触发，不拆 1+3）；
-    # 字母开头前缀匹配+后缀透传（绑『n 前往』发『n3』=前往 3）。
-    # 负向前瞻排除内置英文指令（gm_ 系列 / help），正则层即不抢指令（handler 内保护双保险）。
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?!gm_)(?!help(?:\s|$))(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*)[\s\S]*$")
+    # v123b/v123c：数字开头全量匹配（绑『13』发『13』才触发，不拆 1+3）；
+    # 字母开头前缀匹配+后缀透传（绑『n 前往』发『n3』=前往 3）；
+    # 单字符符号键前缀匹配+后缀透传（绑『. 攻击』发『.3』=攻击 3；中文汉字键不支持，避免匹配全部中文指令）。
+    # 负向前瞻排除：内置英文指令（gm_ / help）+ 翻页快捷键（+－-=＝）+ At/引用前缀（@[/）。
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?!gm_)(?!help(?:\s|$))(?![+＋\-－＝=@\[/])(?:[0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*|[^\s0-9０-９a-zA-Z\u4e00-\u9fff])[\s\S]*$")
 
     async def shortcut_trigger(self, event: AstrMessageEvent):
         """数字/字母开头消息：查玩家的快捷绑定并转发执行（v123b 数字全量/字母前缀）"""
@@ -136,7 +142,10 @@ class PlayerCmds(CommandBase):
         # 内置英文指令保护：gm_ 系列 / help 不进快捷（玩家绑『g』『h』也不抢）
         if msg.startswith("gm_") or msg == "help" or msg.startswith("help "):
             return
-        m = re.match(r"([0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*)", msg)
+        # v123c 防御：翻页快捷键（+－-=＝）/ At / 引用 / 斜杠 开头不进快捷（正则层已排除，此处双保险）
+        if msg[0] in "+＋-－=＝@[/":
+            return
+        m = re.match(r"([0-9０-９]\d*|[a-zA-Z][a-zA-Z0-9]*|[^\s0-9０-９a-zA-Z\u4e00-\u9fff])", msg)
         if not m:
             return
         head = m.group(1)
@@ -150,21 +159,22 @@ class PlayerCmds(CommandBase):
             async for r in self._run_shortcut(event, cmd_text):
                 yield r
             return
-        # 字母：最长前缀匹配（goto3 → goto → got → ...），剩余部分并入后缀
-        head = head.lower()
+        # 字母/符号/中文单字：最长前缀匹配（goto3 → goto → got → ...），剩余部分并入后缀；
+        # 字母统一小写归一，符号/中文原样查表（v123c）
+        h = head.lower() if re.fullmatch(r"[a-zA-Z][a-zA-Z0-9]*", head) else head
         key = None
         suffix = tail
-        for i in range(len(head), 0, -1):
-            cand = head[:i]
+        for i in range(len(h), 0, -1):
+            cand = h[:i]
             if cand in shortcuts:
                 key = cand
-                suffix = (head[i:] + " " + tail).strip()
+                suffix = (h[i:] + " " + tail).strip()
                 break
         if key is None:
             return
         cmd_text = shortcuts[key]
         if suffix:
-            # v123b：字母前缀后缀透传（『n3』→『前往 3』）
+            # v123b/c：字母/符号/中文键后缀透传（『n3』→『前往 3』，『.3』→『攻击 3』）
             async for r in self._run_shortcut(event, f"{cmd_text} {suffix}"):
                 yield r
         else:

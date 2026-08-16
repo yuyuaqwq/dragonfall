@@ -238,6 +238,21 @@ async def test_shortcut_suffix(m):
     check("『gm_发金币』不进快捷（gm_ 保护）", captured == [] and replies == [], f"{captured} {replies}")
     replies, captured = await shortcut_capture(m, "help", {"h": "前往"})
     check("『help』不进快捷（help 保护）", captured == [] and replies == [], f"{captured} {replies}")
+    # v123c 符号键：单字符符号/中文前缀+后缀透传；翻页符号/At/斜杠被排除
+    shortcuts3 = {".": "攻击", "!": "探索"}
+    cases3 = [
+        (".3", ["攻击 3"]),
+        (".", ["攻击"]),
+        ("!2", ["探索 2"]),
+        ("! ", ["探索"]),       # 尾随空格
+    ]
+    for msg, expect in cases3:
+        _, captured = await shortcut_capture(m, msg, shortcuts3)
+        check(f"绑『. / !』发『{msg}』→ 转发 {expect}", captured == expect, str(captured))
+    replies, captured = await shortcut_capture(m, "+2", {"+": "攻击"})
+    check("『+2』不进快捷（翻页符号保护）", captured == [] and replies == [], f"{captured} {replies}")
+    replies, captured = await shortcut_capture(m, "=3", {"=": "攻击"})
+    check("『=3』不进快捷（翻页符号保护）", captured == [] and replies == [], f"{captured} {replies}")
 
 
 # ---------- 8. 字母最长前缀优先 ----------
