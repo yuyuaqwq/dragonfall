@@ -293,7 +293,10 @@ EXTRA_SUBAREAS = {
                 ["m_dark_elf", "黑暗精灵", "speedster", 75,
                  ["ms_an_ying_jian", "ms_qian_xing"], ["黑暗精灵刃"]]
             ],
-            "elite": None, "boss": None, "funcs": ["explore"], "shop": False, "healer": False,
+            # v124 S18 猎手的救赎：腐牙萨满·嚎骨（腐牙营地精英，任务期击杀目标，掉落腐牙血囊）
+            "elite": ["m_fu_ya_sa_man_hao_gu", "腐牙萨满·嚎骨", "elite", 70,
+                      ["ms_ai_hao", "ms_an_ying_dan"], ["腐牙血囊"]],
+            "boss": None, "funcs": ["explore"], "shop": False, "healer": False,
         },
         {
             "id": "black_forest_5", "name": "腐林腹地", "icon": "🍄",

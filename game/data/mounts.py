@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年数据层 - mounts.py
 
-坐骑 10 种（v101.11 扩容，原 3 种）。品质统一复用 equipment.QUALITY 5 档。
+坐骑 11 种（v101.11 扩容至 10，原 3 种；v124 新增雾羽候鸟）。品质统一复用 equipment.QUALITY 5 档。
 效果字段（全部可叠加，骑乘中生效）：
   discount       传送费折扣（已有）
   elite_bonus    探索精英率加成（已有）
@@ -48,6 +48,11 @@ MOUNT_POOL = [
      "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.10, "sell_bonus": 0.0,
      "collect_bonus": 0.10, "fish_bonus": 0.0, "exp_mult": 0.0,
      "desc": "银月林海的圣兽。传送费－30%，精英率＋5%，探索/移动 10% 概率不耗体力，采集产出＋10%(传说级垂钓稀有产出『独角兽缰绳』)"},
+    # v124 隐藏线·候鸟的信：速度类坐骑（传送折扣+体力节省双速度向效果）
+    {"key": "mount_fogbird", "name": "雾羽候鸟", "icon": "🕊️", "quality": "purple", "lv": 50, "price": 0,
+     "discount": 0.30, "elite_bonus": 0.05, "stamina_reduce": 0.20, "sell_bonus": 0.0,
+     "collect_bonus": 0.0, "fish_bonus": 0.0, "exp_mult": 0.05,
+     "desc": "翅羽如雾的候鸟之王，日行千里。传送费－30%，探索/移动 20% 概率不耗体力，精英率＋5%，经验＋5%(v124 隐藏线·候鸟的信 hq7_3 奖励『雾羽候鸟缰绳』)"},
     # ---------- 🟠 传说 ----------
     {"key": "mount_griffin", "name": "狮鹫", "icon": "🦅", "quality": "orange", "lv": 60, "price": 0,
      "discount": 0.40, "elite_bonus": 0.10, "stamina_reduce": 0.20, "sell_bonus": 0.10,

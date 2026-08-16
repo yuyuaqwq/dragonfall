@@ -142,6 +142,27 @@ EXTRA_SUBAREAS = {
             "healer": False,
             "hidden": False,
             "reveal": None
+        },
+        {
+            # v124 S57 荒废的药园：月光药园（噬根藤精 Lv.11 任务怪，掉落草药/月光草）
+            "id": "white_deer_forest_7",
+            "name": "月光药园",
+            "icon": "🌿",
+            "desc": "密林深处一座被藤蔓缠死的废园，篱笆朽烂，药畦早已荒芜。噬根藤精把根扎进畦土，护着园心那株通体泛着银光的月光兰。",
+            "type": "野外",
+            "lv": 11,
+            "npcs": [],
+            "monsters": [
+                ["m_shi_gen_teng_jing", "噬根藤精", "dps", 11,
+                 ["ms_teng_bian", "ms_gen_xu_chan_rao"], ["草药", "月光草"]]
+            ],
+            "elite": None,
+            "boss": None,
+            "funcs": ["explore"],
+            "shop": False,
+            "healer": False,
+            "hidden": False,
+            "reveal": None
         }
     ],
     "emerald_forest": [
@@ -1330,7 +1351,8 @@ SUBAREA_LINKS = {
         "white_deer_forest_3": ["white_deer_forest_2", "white_deer_forest_4"],
         "white_deer_forest_4": ["white_deer_forest_1", "white_deer_forest_3", "white_deer_forest_6"],
         "white_deer_forest_5": ["white_deer_forest_2", "white_deer_forest_6"],
-        "white_deer_forest_6": ["white_deer_forest_4", "white_deer_forest_5"],  # 捷径(密林深处↔猎户旧屋)
+        "white_deer_forest_6": ["white_deer_forest_4", "white_deer_forest_5", "white_deer_forest_7"],
+        "white_deer_forest_7": ["white_deer_forest_6"],  # 死胡同-月光药园(v124 S57)
     },
     "emerald_forest": {
         "emerald_forest_1": ["emerald_forest_2", "emerald_forest_4"],

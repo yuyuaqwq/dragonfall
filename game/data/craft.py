@@ -1788,6 +1788,40 @@ CRAFT_RECIPES = {
         'name': '龙脊大剑', 'roster_id': 'eq_long_ji_da_jian',
         'blueprint': '龙脊大剑图纸',
     },
+    # ================= v124 支线奖励：H5 夜行披风 / H8 熔炉之心（图纸学习制） =================
+    # 夜行披风：Lv.30 蓝装（披风按 armor 部位登记），鸦羽货摊唯一图纸
+    'rec_ye_xing_pi_feng': {
+        'slot': 'armor',
+        'quality': 'blue',
+        'lv': 30,
+        "mats": {
+            'mat_hei_ya_pi_feng': 2,
+            'mat_ye_zhu_ya': 3,
+            'mat_jing_tie': 2,
+        },
+        'gold': 260,
+        'desc': '鸦羽货摊流出的夜行斗篷，暗色里几乎看不见针脚',
+        'name': '夜行披风',
+        'roster_id': 'eq_ye_xing_pi_feng',
+        'blueprint': '图纸·夜行披风',
+    },
+    # 熔炉之心：Lv.85 传说武器（熔岩核心×3+精金×5+源质×2），矮人先祖炉锻法
+    'rec_rong_lu_zhi_xin': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 85,
+        'weapon_type': 'sword',
+        "mats": {
+            'mat_rong_yan_he_xin': 3,
+            'mat_jing_jin': 5,
+            'mat_yuan_zhi': 2,
+        },
+        'gold': 1500,
+        'desc': '矮人先祖炉的传说锻法，能听见大地心跳的武器',
+        'name': '熔炉之心',
+        'roster_id': 'eq_rong_lu_zhi_xin',
+        'blueprint': '传说锻造图纸·熔炉之心',
+    },
 }
 
 CRAFT_RECIPE_ALIASES = {

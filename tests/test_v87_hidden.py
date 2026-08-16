@@ -148,7 +148,7 @@ def main():
 
     # ===== 10. 隐藏装备/套装 =====
     print("  · 隐藏装备")
-    check("EQUIP_ROSTER 159 件（v101.25e 补档 + v104 补充 + v105 支线 5 件）", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))
+    check("EQUIP_ROSTER 167 件（v101.25e 补档 + v104 补充 + v105 支线 5 件 + v124 支线奖励 6 件 + 配方装备 2 件）", len(C.EQUIP_ROSTER) == 167, str(len(C.EQUIP_ROSTER)))
     for n in ["星尘法杖", "星尘长袍", "星尘之戒", "星尘坠饰", "星尘护腿",
               "灰烬长剑", "灰烬铠甲", "灰烬之盔", "灰烬之盾", "灰烬护腿", "灰烬战靴", "星陨之剑"]:
         check(f"隐藏装备 {n}", bool(C.EQUIP_ROSTER_BY_NAME.get(n)))

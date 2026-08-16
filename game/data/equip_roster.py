@@ -212,6 +212,22 @@ EQUIP_ROSTER = {
     "eq_jin_he_zhi_xin_zhang": {"name": "烬核之心", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 86, "series": "烬核", "req": {"int": 68}, "legendary": "jin_he_heart", "source": "图纸"},
     # s35 龙陨谷的守望→暮影龙魂（龙陨战魂·暮影，dragonsfall_valley Lv.88 大剑，吸血/连击）
     "eq_mu_ying_long_hun_jian": {"name": "暮影龙魂", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 88, "series": "暮影", "req": {"str": 70}, "legendary": "mu_ying_soul", "source": "图纸"},
+    # ================= v124 支线奖励：H5 夜行披风（蓝装·披风按 armor 部位）/ H8 熔炉之心（传说武器） =================
+    "eq_ye_xing_pi_feng": {"name": "夜行披风", "slot": "armor", "quality": "blue", "lv": 30, "series": "夜行", "req": {"agi": 25}, "source": "图纸"},
+    "eq_rong_lu_zhi_xin": {"name": "熔炉之心", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 85, "series": "熔炉", "req": {"str": 85}, "legendary": "rong_lu_heart", "source": "图纸"},
+    # ================= v124 支线奖励装备（6 件，eq: 前缀发放；系列为单件主题，非套装）=================
+    # s18 猎手的救赎（善结局分支）→ 白桦的护符（北境猎户传家护符，精准+5%/暴击+3%）
+    "eq_bai_hua_de_hu_fu": {"name": "白桦的护符", "slot": "necklace", "quality": "blue", "lv": 70, "series": "白桦", "req": {"agi": 55}, "source": "支线"},
+    # s51 霜角堡的冬宴 → 长夜徽记（长夜节纪念徽记，北境冬宴奖励）
+    "eq_chang_ye_hui_ji": {"name": "长夜徽记", "slot": "necklace", "quality": "blue", "lv": 40, "series": "长夜", "req": {"vit": 32}, "source": "支线"},
+    # 垂钓线终奖 → 传说钓竿·银铃之竿（橙·传说，银铃河畔垂钓传说）
+    "eq_chuan_shuo_diao_gan": {"name": "传说钓竿·银铃之竿", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 55, "series": "银铃", "req": {"agi": 40}, "legendary": "silver_bell_rod", "source": "legend"},
+    # s84 老兵不死 → 守夜者徽章（守夜者金焰烙印徽章，老兵不屈）
+    "eq_shou_ye_zhe_hui_zhang": {"name": "守夜者徽章", "slot": "necklace", "quality": "purple", "lv": 70, "series": "守夜", "req": {"str": 55}, "source": "支线"},
+    # s104 北境散支线 → 松木护符（守林人亡妻遗物，收藏向饰品）
+    "eq_song_mu_hu_fu": {"name": "松木护符", "slot": "necklace", "quality": "green", "lv": 30, "series": "松木", "source": "支线"},
+    # s78 侦探线（义气线分支）→ 猫眼石胸针（影子猫之母遗物，速度+2）
+    "eq_mao_yan_shi_xiong_zhen": {"name": "猫眼石胸针", "slot": "necklace", "quality": "green", "lv": 35, "series": "猫眼", "source": "支线"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）
@@ -251,6 +267,15 @@ _EQ_SERIES_THEME = {
     "雷鸣": "风暴海龙雷鸣的鳞甲，隐隐有雷光游走",
     "烬核": "岩浆王烬核的余温，靠近就能感到灼热",
     "暮影": "龙陨战魂暮影的残响，仿佛还带着古龙的叹息",
+    # v124 支线奖励装备系列（单件主题，非套装）
+    "白桦": "北境白桦林的清冽气息，木纹里藏着猎户的旧故事",
+    "长夜": "长夜节篝火的暖光，仿佛还带着冬宴的酒香",
+    "守夜": "守夜者三百年金焰的余温，沉默而滚烫",
+    "松木": "守林人小屋的松木清香，朴实而安心",
+    "猫眼": "白鹿城夜色里猫眼石的光泽，狡黠又温柔",
+    # v124 支线奖励：H5 夜行 / H8 熔炉（图纸装备系列）
+    "夜行": "夜色中淬炼的隐秘工艺，暗线几乎隐没在阴影里",
+    "熔炉": "矮人先祖炉的熔铸，锤声里藏着大地的心跳",
 }
 _EQ_SLOT_DESC = {
     "weapon": {

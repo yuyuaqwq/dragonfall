@@ -258,5 +258,34 @@ COOKING_RECIPES = {
         "cost": {"mat_jin_he": 1, "mat_mian_fen": 1},
         "product": {"i_ash_pancake": 1},
     },
+    # ================= v124 支线奖励：S47/S49/S51 食谱（图纸学习制，blueprint=图纸名） =================
+    # 香草烤兽肉：成本 12×2+8×1+5×1=37；产物价 30 ≤ 37×0.9=33.3 ✓
+    "cook_xiang_cao_kao_shou_rou": {
+        "name": "香草烤兽肉",
+        "desc": "香草裹着兽肉烤得滋滋冒油，攻+6%持续 2 场战斗(S47 食谱图纸)",
+        "min_lv": 4,
+        "cost": {"mat_shou_rou": 2, "mat_cao_yao": 1, "mat_jiang_guo": 1},
+        "product": {"i_xiang_cao_kao_shou_rou": 1},
+        "blueprint": "食谱图纸·香草烤兽肉",
+    },
+    # 金锅野猪肋排：成本 5×3+5×2+8×2=41；产物价 36 ≤ 41×0.9=36.9 ✓
+    "cook_jin_guo_ye_zhu_pai_pai": {
+        "name": "金锅野猪肋排",
+        "desc": "胖托尼获奖菜谱的压轴硬菜，攻+10%持续 3 场战斗(S49 食谱图纸)",
+        "min_lv": 5,
+        "cost": {"mat_ye_zhu_ya": 3, "mat_ye_mei": 2, "mat_cao_yao": 2},
+        "product": {"i_jin_guo_ye_zhu_pai_pai": 1},
+        "blueprint": "食谱图纸·金锅野猪肋排",
+    },
+    # 银铃鲤饵：成本 6×1+3×1+80×1=89；产物 i_yin_ling_li_er 30×3=90 ≤ 89×0.9=80.1 ✗
+    # → 按烹饪卖店封顶逻辑（售价≤0.9×成本注入）运行时自动封顶，配方登记不受影响
+    "cook_yin_ling_li_er": {
+        "name": "银铃鲤饵",
+        "desc": "银鳞鱼与月光草揉成的传说饵团——下一次垂钓传说档位概率×3(仅 1 次)",
+        "min_lv": 6,
+        "cost": {"mat_yin_lin_yu": 1, "mat_mian_tuan": 1, "mat_yue_guang_cao": 1},
+        "product": {"i_yin_ling_li_er": 3},
+        "blueprint": "配方·银铃鲤饵",
+    },
 }
 

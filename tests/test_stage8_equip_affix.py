@@ -58,8 +58,8 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("45 种词条（44 基准 + v110 审计拆分 tenacity_cc「坚韧」——原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 45, str(len(C.AFFIXES)))
-    check("专属 20", len(C.LEGENDARY_EFFECTS) == 20, str(len(C.LEGENDARY_EFFECTS)))  # v104 M20 P2: +烬核余温/龙魂低吟
-    check("名册 159 件", len(C.EQUIP_ROSTER) == 159, str(len(C.EQUIP_ROSTER)))  # v104 M20 P2: +5 支线图纸装备
+    check("专属 22", len(C.LEGENDARY_EFFECTS) == 22, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳
+    check("名册 167 件", len(C.EQUIP_ROSTER) == 167, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线奖励装备 + 夜行披风/熔炉之心
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
     # 词条触发时机全合法
@@ -109,7 +109,7 @@ def test_roster_gen():
     check("苍穹之枪类型枪", e4.get("weapon_type") == "spear")
     # 名册系列全部映射套装（蓝以上）；v104 M20 P2：支线单件图纸装备（裂鬃/铁牙/雷鸣/烬核/暮影）非套装系列，豁免
     random.seed(11)
-    _single_series = {"裂鬃", "铁牙", "雷鸣", "烬核", "暮影"}
+    _single_series = {"裂鬃", "铁牙", "雷鸣", "烬核", "暮影", "白桦", "长夜", "守夜", "松木", "猫眼", "夜行", "熔炉"}
     no_set = [rid for rid, r in C.EQUIP_ROSTER.items()
             if r["quality"] != "white"
             and r["series"] not in _single_series
@@ -302,7 +302,7 @@ async def test_shop_roster():
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（142 个，v104 补 11 图纸配方+淬火石配方 + v117 副本材料联动 +13 图纸配方，无旧毕业套）
-    check("配方数 142", len(C.CRAFT_RECIPES) == 142, str(len(C.CRAFT_RECIPES)))  # v117: 副本材料联动 +13 图纸配方
+    check("配方数 144", len(C.CRAFT_RECIPES) == 144, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -313,8 +313,11 @@ def test_craft_set():
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）——v104 补 11 条图纸配方 + v117 副本材料联动 +13 图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 95, str(len(bp_recs)))  # v117: 副本材料联动 +13 图纸配方
-    check("图纸名匹配", all(f"{r['name']}图纸" == r["blueprint"] for r in bp_recs))
+    check("需图纸配方存在", len(bp_recs) == 97, str(len(bp_recs)))  # v124: +夜行披风/熔炉之心
+    # 图纸名匹配：blueprint 要么遵循「X图纸」命名（Boss 掉落动态生成），
+    # 要么是静态图纸物品名（v124 起允许「图纸·X」「传说锻造图纸·X」前缀风格）
+    _bp_items = {v.get("name") for v in C.MATERIALS.values() if v.get("type") == "图纸"}
+    check("图纸名匹配", all(r["blueprint"] == f"{r['name']}图纸" or r["blueprint"] in _bp_items for r in bp_recs))
     # 名册套装效果（圣光套 2 件治疗 / 4 件防御）
     w = C.generate_roster_equip("eq_sheng_guang_chang_jian")
     h = C.generate_roster_equip("eq_qi_shi_tou_kui")

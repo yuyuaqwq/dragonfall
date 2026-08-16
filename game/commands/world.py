@@ -3842,6 +3842,18 @@ class WorldCmds(CommandBase):
                     else:
                         # v104 M20 P1：奖励实体缺失时记录（此前静默不发，缺失项无从发现）
                         print(f"[dragonfall][v104] 支线『{sqd['name']}』奖励道具缺失：{ri}（未收录），已跳过")
+        # v124 支线奖励宠物蛋（reward_pet，与主线 world.py 同款）——蛋入包后『使用 宠物蛋』孵化
+        rp = sqd.get("reward_pet")
+        if rp:
+            _egg = C.make_pet_egg(rp)
+            db.add_item(group_id, qq_id, f"petegg_{rp}", _egg)
+            lines.append(f"  🥚 获得道具：{_egg['name']}！『使用 宠物蛋』孵化！")
+        # v124 支线奖励坐骑缰绳（reward_mount，如 hq7_3 雾羽候鸟）——『使用 缰绳』驯服解锁
+        rm = sqd.get("reward_mount")
+        if rm:
+            _rein = C.make_mount_rein(rm)
+            db.add_item(group_id, qq_id, f"mountrein_{rm}", _rein)
+            lines.append(f"  🐾 获得道具：{_rein['name']}！『使用 缰绳』驯服坐骑！")
         # v87 隐藏职业：交任务解锁（unlock_class 写入 hidden_class_unlock）
         uc = sqd.get("unlock_class")
         if uc:

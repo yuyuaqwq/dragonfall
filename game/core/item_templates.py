@@ -705,7 +705,11 @@ def tpl_skill_tome(ctx):
 @register("none")
 def tpl_none(ctx):
     """兜底：不能使用的物品（含未实现的战斗卷轴等占位数据）。
-    v113.5 O117：『使用 风干肉』等材料无引导 → 按类型补副业用途说明。"""
+    v113.5 O117：『使用 风干肉』等材料无引导 → 按类型补副业用途说明。
+    v124：任务道具（支线信物/线索）走 use 目标支线——给友好使用文案（不消耗）。"""
+    # v124 任务道具：支线信物 use（如 候鸟的信/青铜雨铃/月辉信物），走 _update_use_quests 推进
+    if (ctx.data or {}).get("type") == "任务道具":
+        return ItemResult(text=f"你使用了『{ctx.item_name()}』。", consume=False)
     # v113.5 O117：材料类（食材/矿材）不可直接使用，提示可走副业加工（烹饪/锻造/炼金）
     if (ctx.data or {}).get("type") == "材料":
         return ItemResult(

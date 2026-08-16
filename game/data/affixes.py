@@ -397,6 +397,16 @@ LEGENDARY_EFFECTS = {
         "effect": {"crit": 0.08},
         "desc": "暴击率＋8%",
     },
+    "silver_bell_rod": {  # v124 垂钓线终奖：传说钓竿·银铃之竿——愿者上钩
+        "name": "愿者上钩", "kind": "attack", "trigger": "stat",
+        "effect": {"luck": 0.10},
+        "desc": "垂钓者的眷顾：掉落收益＋10%",
+    },
+    "rong_lu_heart": {  # v124 H8：熔炉之心——大地的心跳（矮人先祖炉传说武器）
+        "name": "大地心跳", "kind": "attack", "trigger": "stat",
+        "effect": {"crit": 0.06, "hp_pct": 0.08},
+        "desc": "暴击率＋6%，最大生命＋8%",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -491,6 +501,16 @@ SERIES_FIXED_AFFIX = {
     "雷鸣龙鳞": ["thorns", "block"],           # 反伤/格挡（风暴海龙·雷鸣）
     "烬核之心": ["element_fire", "combo"],     # 灼烧/连击（岩浆王·烬核）
     "暮影龙魂": ["lifesteal", "combo"],        # 吸血/连击（龙陨战魂·暮影）
+    # v124 支线奖励装备固定词条（复用现有词条 ID）
+    "白桦的护符": ["precise", "crit_up"],       # 精准/暴击强化（s18 善结局：精准+5%、暴击+3%）
+    "长夜徽记": ["tenacity"],                   # 韧性（s51 长夜节，长夜守候的坚毅）
+    "传说钓竿·银铃之竿": ["luck", "meditate"],  # 幸运/冥想（垂钓者的耐心与眷顾）
+    "守夜者徽章": ["tenacity", "dmg_reduce"],   # 韧性/减伤（s84 老兵不屈）
+    "松木护符": ["regen"],                      # 回春（s104 守林人护符，林间生机）
+    "猫眼石胸针": ["swift"],                    # 迅捷（s78 侦探线，速度+2）
+    # v124 支线图纸装备固定词条（H5 夜行披风 / H8 熔炉之心）
+    "夜行披风": ["dodge", "swift"],             # 闪避/迅捷（夜行者的隐秘身法）
+    "熔炉之心": ["element_fire", "charge"],     # 灼烧/冲锋（先祖炉熔铸的大地之力）
     # v87 隐藏线：星尘（法系星空）
     "星尘法杖": ["element_thunder", "meditate"], "星尘长袍": ["dodge", "meditate"],
     "星尘之戒": ["crit_up", "element_thunder"], "星尘坠饰": ["crit_dmg", "meditate"],

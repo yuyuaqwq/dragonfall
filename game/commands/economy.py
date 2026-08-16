@@ -992,6 +992,9 @@ class EconomyCmds(CommandBase):
             pname2 = _mname(pname)
             need = r.get("min_lv", 1)
             mark = "✅" if prof_lv >= need else "🔒"
+            # v124 图纸学习制：带 blueprint 的配方未学习时标注（合成时拦截）
+            if r.get("blueprint") and r["blueprint"] not in (player.get("learned_blueprints") or []):
+                mark += " 📜未学"
             lines.append(f"{base + i:>2}. {mark} {C.display('alchemy', rname)}：{cost} → {pname2}  [炼金Lv.{need}]")
             lines.append(f"    {r['desc']}")
         lines.append("━━━━━━━━━━━━")
@@ -1031,6 +1034,20 @@ class EconomyCmds(CommandBase):
                 f"【{C.display('alchemy', rkey)}】需要炼金 Lv.{need}，你才 Lv.{prof_lv}！多合成低级配方升级炼金吧～"
             )
             return
+        # v124 图纸学习制：带 blueprint 的炼金配方需先『学习』（与锻造一致）
+        if r.get("blueprint"):
+            bp_name = r["blueprint"]
+            if bp_name not in (player.get("learned_blueprints") or []):
+                have_bp = db.count_item(group_id, qq_id, bp_name)
+                if have_bp >= 1:
+                    yield event.plain_result(
+                        f"你背包里有『{bp_name}』！输入『学习 {bp_name}』解锁配方后就能永久合成了～"
+                    )
+                else:
+                    yield event.plain_result(
+                        f"【{C.display('alchemy', rkey)}】需要先学习配方『{bp_name}』(支线奖励获取)！『学习 <图纸名>』永久解锁。"
+                    )
+                return
         items = db.get_inventory(group_id, qq_id)
         # 检查材料是否够（背包 data.name 存中文，r.cost key 是 ID）
         # v105R3 M13 P1-2：材料校验在扣体力之前——材料不足不再白扣 10 体力
@@ -1121,6 +1138,9 @@ class EconomyCmds(CommandBase):
         base = (page - 1) * 5
         for i, (rkey, r) in enumerate(page_items, 1):
             lock = "" if cook_lv >= r["min_lv"] else " 🔒"
+            # v124 图纸学习制：带 blueprint 的食谱未学习时标注（烹饪时拦截）
+            if r.get("blueprint") and r["blueprint"] not in (player.get("learned_blueprints") or []):
+                lock += " 📜未学"
             def _mname(k):
                 # v105R3 M16 P3-1：全部 cost 已 mat_ ID 化（v48），fish 分支死——
                 # 改 items 兜底（i_ 前缀材料如强化石也能正确显示）
@@ -1167,6 +1187,20 @@ class EconomyCmds(CommandBase):
         if cook_lv < r["min_lv"]:
             yield event.plain_result(f"【{r['name']}】需要烹饪 Lv.{r['min_lv']}，你才 Lv.{cook_lv}。多做简单料理提升吧！")
             return
+        # v124 图纸学习制：带 blueprint 的食谱需先『学习』（与锻造一致）
+        if r.get("blueprint"):
+            bp_name = r["blueprint"]
+            if bp_name not in (player.get("learned_blueprints") or []):
+                have_bp = db.count_item(group_id, qq_id, bp_name)
+                if have_bp >= 1:
+                    yield event.plain_result(
+                        f"你背包里有『{bp_name}』！输入『学习 {bp_name}』解锁食谱后就能永久烹饪了～"
+                    )
+                else:
+                    yield event.plain_result(
+                        f"【{r['name']}】需要先学习食谱『{bp_name}』(支线奖励获取)！『学习 <图纸名>』永久解锁。"
+                    )
+                return
         # 检查材料（v48 起全部 cost 已是 mat_/i_ ID，无 fish_ 中文 key）
         # v105R3 M13 P1-2：食材校验在扣体力之前——食材不足不再白扣 5 体力
         #（与锻造/强化/附魔对齐：所有校验通过后才扣，v104 只修了 3/8 条）
@@ -1934,9 +1968,12 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"『{bp_disp}』你已经学会了，不需要重复学习～")
             return
         # M10 P2 学习废图纸白扣修复：先统计解锁配方数，0 个则不消耗图纸也不记录
+        # v124：烹饪/炼金配方同样走图纸学习制（rec.blueprint=图纸名，与锻造一致）
         unlocked = [rk for rk, rec in C.CRAFT_RECIPES.items() if rec.get("blueprint") == bp_disp]
+        unlocked += [rk for rk, rec in C.COOKING_RECIPES.items() if rec.get("blueprint") == bp_disp]
+        unlocked += [rk for rk, rec in C.ALCHEMY_RECIPES.items() if rec.get("blueprint") == bp_disp]
         if not unlocked:
-            yield event.plain_result(f"『{bp_disp}』没有对应的锻造配方(旧版本残留图纸)，图纸未消耗，可自行出售～")
+            yield event.plain_result(f"『{bp_disp}』没有对应的锻造/烹饪/炼金配方(旧版本残留图纸)，图纸未消耗，可自行出售～")
             return
         # 消耗图纸 + 记录
         db.remove_item(group_id, qq_id, target["key"], 1)
@@ -1944,14 +1981,19 @@ class EconomyCmds(CommandBase):
         db.update_player(group_id, qq_id, learned_blueprints=learned)
         lines = [
             f"📜 你研读了【{bp_disp}】，图纸化作点点光芒融入记忆！",
-            f"🧠 永久解锁 {len(unlocked)} 个配方(锻造时不再消耗图纸)！",
+            f"🧠 永久解锁 {len(unlocked)} 个配方(制作时不再消耗图纸)！",
             "━━━━━━━━━━━━",
         ]
-        for rk in sorted(unlocked, key=lambda x: C.CRAFT_RECIPES[x]["slot"]):
-            rec = C.CRAFT_RECIPES[rk]
+        _craft_recs = {rk: C.CRAFT_RECIPES[rk] for rk in unlocked if rk in C.CRAFT_RECIPES}
+        _other_recs = [rk for rk in unlocked if rk not in C.CRAFT_RECIPES]
+        for rk in sorted(_craft_recs, key=lambda x: _craft_recs[x]["slot"]):
+            rec = _craft_recs[rk]
             lines.append(f"  {C.QUALITY[rec['quality']]['color']}【{rec['name']}】Lv.{rec['lv']} {C.EQUIP_SLOTS[rec['slot']]}")
+        for rk in _other_recs:
+            rec = C.COOKING_RECIPES.get(rk) or C.ALCHEMY_RECIPES.get(rk)
+            lines.append(f"  📜【{rec['name']}】")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『锻造』查看可锻造的配方，『锻造 <装备名>』直接锻造！")
+        lines.append("💡 『锻造』查看可锻造的配方，『锻造 <装备名>』直接锻造！『烹饪列表』/『炼金』查看生活配方！")
         yield event.plain_result("\n".join(lines))
 
     def _craft_prof_need(self, rec_lv: int) -> int:
@@ -3489,9 +3531,11 @@ class EconomyCmds(CommandBase):
             if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
                 db.set_event_state(f"mining_fatigue_{qq_id}", "")
                 _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
-        # v124 use 目标支线：成功使用物品（r.consume）后推进 use objective（如 递麦酒/用月鳞）
+        # v124 use 目标支线：使用物品后推进 use objective（如 递麦酒/用月鳞/交信物）。
+        # 任务道具（type=任务道具）走 none 模板 consume=False 但也算"使用"——必须推进，
+        # 否则 hq7 候鸟的信/青铜雨铃等链式 use 卡死（2026-08-16 实测修复）。
         _use_q_line = ""
-        if r.consume:
+        if r.consume or (d.get("type") == "任务道具" and tpl_name == "none"):
             _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
         yield event.plain_result(r.text + _fat_line + _use_q_line)
 

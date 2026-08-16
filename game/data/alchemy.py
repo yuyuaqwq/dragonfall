@@ -429,5 +429,24 @@ ALCHEMY_RECIPES = {
         "desc": "龙宫珠封存的符文匣，打开获得随机稀有符文",
         "name": "龙宫符文匣"
     },
+    # ================= v124 支线奖励：S49/H6 炼金配方（图纸学习制，blueprint=图纸名） =================
+    # 月光安神剂：成本 80×2+40×1+120×1=320；产物价 60（卖店按 ≤0.9×成本注入封顶）
+    "al_yue_guang_an_shen_ji": {
+        "cost": {"mat_yue_guang_cao": 2, "mat_zhao_ze_hua": 1, "mat_yue_guang_lan_mi": 1},
+        "product": {"i_yue_guang_an_shen_ji": 1},
+        "min_lv": 3,
+        "desc": "月光兰蜜调和的安神药水，回复 40% HP + 20% MP(S49 配方图纸)",
+        "name": "月光安神剂",
+        "blueprint": "配方·月光安神剂",
+    },
+    # 白石圣灰药剂：成本 150×2+8×1+5×1=313；产物价 100（卖店按 ≤0.9×成本注入封顶）
+    "al_bai_shi_sheng_hui_yao_ji": {
+        "cost": {"mat_white_ash": 2, "mat_cao_yao": 1, "mat_kong_ping": 1},
+        "product": {"i_bai_shi_sheng_hui_yao_ji": 1},
+        "min_lv": 4,
+        "desc": "白石圣灰调成的圣光药剂——战斗中驱散全队负面(H6 唯一来源)",
+        "name": "白石圣灰药剂",
+        "blueprint": "隐藏配方·白石圣灰药剂",
+    },
 }
 

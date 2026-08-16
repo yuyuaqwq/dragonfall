@@ -293,6 +293,19 @@ SUBAREAS = {
                     [
                         "蛇皮"
                     ]
+                ],
+                # v124 S101 花圃的野猪：白鹿之森野猪（复用 m_wild_boar，拱花圃的野猪群）
+                [
+                    "m_wild_boar",
+                    "野猪",
+                    "dps",
+                    6,
+                    [
+                        "ms_chong_zhuang"
+                    ],
+                    [
+                        "野猪牙"
+                    ]
                 ]
             ],
             "elite": None,
