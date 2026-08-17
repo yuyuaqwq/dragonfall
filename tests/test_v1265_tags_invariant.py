@@ -221,12 +221,59 @@ async def main():
         check("损坏 tag 出售不崩", False, repr(e))
 
     print("【8 FISH_TAGS_MAX 500 截断】")
+    clear_fish("g1", "w2", key)
     for i in range(501):
         db.add_item("g1", "w2", key, {"name": "银鳞鱼", "type": "鱼",
                                       "stackable": True, "price": 6, "quality": "white"},
                     tag={"size": float(i), "weight": 0.5})
     c8, t8 = inv_count_tags("g1", "w2", key)
     check("501 条合并截断到 500", t8 == 500 and c8 >= 500, f"count={c8} tags={t8}")
+
+    print("【9 鱼专属渲染器（拍板项 3）】")
+    clear_fish("g1", "w1", key)
+    db.add_item("g1", "w1", key, {"name": "银鳞鱼", "type": "鱼",
+                                  "stackable": True, "price": 6, "quality": "white"},
+                tag={"size": 30.0, "weight": 1.0})
+    out9 = await cmd(m, "item_detail", "g1", "w1", "物品详情 银鳞鱼")
+    check("鱼标题用 🐟 图标", "🐟 【银鳞鱼】" in out9, out9)
+    check("不再用默认 📦 图标", "📦 【银鳞鱼】" not in out9, out9)
+    check("显示类型+品质", "类型：鱼 ｜ 品质：" in out9, out9)
+    check("显示 FISH_POOL 描述", "描述：" in out9 and "淡水鱼" in out9, out9)
+    check("大鱼按重量加价提示", "大鱼按重量加价" in out9, out9)
+    check("个体区仍在", "个体：" in out9 and "30.0cm / 1.0kg" in out9, out9)
+
+    print("【10 渔获材料不加权（拍板项 1）】")
+    clear_fish("g1", "w2", key)
+    hc_key = fish_key("海藻")
+    # 海藻 type=材料（FISH_POOL 登记），带满重 tag（旧行为会加权 1.5×）
+    db.add_item("g1", "w2", hc_key, {"name": "海藻", "type": "材料",
+                                     "stackable": True, "price": 15, "quality": "green"},
+                tag={"size": 30.0, "weight": 1.9})
+    invh = db.get_inventory("g1", "w2")
+    hc = next(x for x in invh if x["key"] == hc_key)
+    r_hc = m._sell_one("g1", "w2", db.get_player("g1", "w2"), hc, 0.8)
+    check("海藻（材料）卖价 = 原价 12 不加权", r_hc and r_hc[2] == 12, r_hc)
+    # 对照：银鳞鱼（type=鱼）同价位仍加权
+    db.add_item("g1", "w2", key, {"name": "银鳞鱼", "type": "鱼",
+                                  "stackable": True, "price": 6, "quality": "white"},
+                tag={"size": 40.0, "weight": 1.8})
+    invf = db.get_inventory("g1", "w2")
+    ff = next(x for x in invf if x["key"] == key)
+    r_f = m._sell_one("g1", "w2", db.get_player("g1", "w2"), ff, 0.8)
+    check("银鳞鱼（鱼）满重加权 > 原价", r_f and r_f[2] > 4, r_f)
+
+    print("【11 体力不足带旧轮结算播报（拍板项 4）】")
+    # w3：采集等待已到期 + 体力 0 → 发『采集』应同时看到结算播报和体力不足
+    await cmd(m, "register", "g1", "w3", "注册 游侠 野行 女")
+    db.update_player("g1", "w3", apprentices=["gather"], cur_map="oak_plain",
+                     cur_subarea="oak_plain_3", stamina=0)
+    db.activate_prof("g1", "w3", "gather")
+    db.set_event_state("prof_wait_w3", json.dumps(
+        {"finish": int(__import__("time").time()) - 1, "type": "gather",
+         "spot_map": "oak_plain"}))
+    out11 = await cmd(m, "gather", "g1", "w3", "采集")
+    check("输出含旧轮结算播报", "采集完成" in out11, out11)
+    check("输出含体力不足提示", "体力不足" in out11, out11)
 
     print(f"\n结果：{passed} 通过 / {failed} 失败")
     if failed:

@@ -109,6 +109,30 @@ for _f in FISH_POOL:
         f"[FISH_POOL] 渔获『{_f['name']}』price 不一致："
         f"FISH_POOL={_f.get('price')} vs MATERIALS={_fmat.get('price')}"
     )
+
+# v126.4 审计 P3：FISH_POOL size_range/weight_range 合法性校验（fail-fast）——
+# 防珍珠类 0.0kg 式区间配置错误（区间倒挂/零/负/舍入越界）再犯：
+# 带波动区间的渔获必须 [lo, hi] 且 lo>=0、hi>lo；v126.4 后 <0.1kg 保留 3 位小数，
+# 校验 min_weight >= 0.005（3 位小数下不会舍入成 0）
+for _f in FISH_POOL:
+    _sr = _f.get("size_range")
+    _wr = _f.get("weight_range")
+    assert _sr is None or (isinstance(_sr, (list, tuple)) and len(_sr) >= 2
+                           and _sr[0] >= 0 and _sr[1] > _sr[0]), (
+        f"[FISH_POOL] 渔获『{_f['name']}』size_range 非法：{_sr}（需 [lo,hi] 且 hi>lo>=0）"
+    )
+    assert _wr is None or (isinstance(_wr, (list, tuple)) and len(_wr) >= 2
+                           and _wr[0] >= 0.005 and _wr[1] > _wr[0]), (
+        f"[FISH_POOL] 渔获『{_f['name']}』weight_range 非法：{_wr}（需 [lo,hi] 且 "
+        f"0.005<=lo<hi；<0.1kg 品种保留 3 位小数，lo 低于 0.005 会舍入成 0.0）"
+    )
+# v126.4 审计 P3：FISH_COLLECT 收藏鱼登记校验（与 FISH_POOL 同款防护，
+# 防止手工双处同步漂移导致收藏鱼按中文 key 入包）
+from .fishing import FISH_COLLECT  # noqa: F401  (此处延迟引入避免顶部循环)
+for _cf in FISH_COLLECT:
+    assert MATERIALS_BY_NAME.get(_cf["name"]) is not None, (
+        f"[FISH_COLLECT] 收藏鱼『{_cf['name']}』未在 MATERIALS 登记"
+    )
 from .poi_pools import WISH_POOL, CAMPFIRE_FOOD_POOL, HERB_POOL  # noqa: F401
 from .honor_shop import HONOR_SHOP  # noqa: F401
 from .prof_config import (  # noqa: F401

@@ -190,6 +190,22 @@ def _render_material(d, lines, equipped):
     lines.append(f"💡 回收参考价 {d.get('price', 0)} 金币(实收按店铺 8~9 折) ｜ 『出售 {d['name']}』变现 ｜ 『喂养 {d['name']}』喂宠物")
 
 
+def _render_fish(d, lines, equipped):
+    """鱼详情（v126.4 拍板项 3：鱼专属渲染器，替代默认消耗品 📦 样式）"""
+    # ===== 鱼 =====
+    fish = next((f for f in C.FISH_POOL if f["name"] == d.get("name", "")), None)
+    q = C.QUALITY.get(d.get("quality") or (fish or {}).get("quality", "white"), {})
+    lines.append(f"🐟 【{d['name']}】")
+    lines.append("━━━━━━━━━━━━")
+    lines.append(f"类型：鱼 ｜ 品质：{q.get('color', '')}{q.get('name', '普通')}")
+    desc = (fish or {}).get("desc") or d.get("desc")
+    if desc:
+        lines.append(f"描述：{desc}")
+    lines.append("")
+    # v126.1 大鱼卖更贵：实收按个体重量加权（0.5~1.5×），底价仅为参考
+    lines.append(f"💡 出售参考价 {d.get('price', 0)} 金币（大鱼按重量加价） ｜ 『出售 {d['name']}』变现 ｜ 『喂养 {d['name']}』喂宠物")
+
+
 def _render_rune(d, lines, equipped):
     """符文详情"""
     # ===== 符文（v34） =====
@@ -321,6 +337,7 @@ _ITEM_DETAIL_RENDERERS = {
     "图纸": _render_blueprint,
     "宠物蛋": _render_pet_egg,
     "坐骑": _render_mount,
+    "鱼": _render_fish,  # v126.4 拍板项 3：鱼专属（🐟 + 品质色 + 描述 + 大鱼加价提示）
     "__default__": _render_consumable,
 }
 
@@ -1017,7 +1034,8 @@ class EconomyCmds(CommandBase):
         _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["gather"], player, "采集")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
-            yield event.plain_result(_st)
+            # v126.4 拍板项 4：体力不足也要带上旧轮结算播报（否则收获入包了玩家却毫不知情）
+            yield event.plain_result((text + "\n" + _st) if text else _st)
             return
         yield event.plain_result(act_msg + text)
 
@@ -1055,14 +1073,9 @@ class EconomyCmds(CommandBase):
         _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["mining"], player, "挖掘")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
-            yield event.plain_result(_st)
+            # v126.4 拍板项 4：体力不足也要带上旧轮结算播报
+            yield event.plain_result((text + "\n" + _st) if text else _st)
             return
-        # v105 疲劳值（19 章 §2.2）：确认开启新轮才计数（等待中重复指令不误计）；
-        # 连续 5 次进入疲劳 → 结算时稀有矿脉概率减半，10 分钟不挖自动恢复
-        _fc, _ff = self._mining_fatigue_tick(group_id, qq_id)
-        if _ff:
-            text += ("\n💤 连续挖掘让你手臂发酸……疲劳时稀有矿脉更难挖到了，"
-                     "休息 10 分钟（不挖掘）疲劳自会消退！")
         yield event.plain_result(act_msg + text)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?炼金(?:[\s\S]*)$")
@@ -1709,7 +1722,8 @@ class EconomyCmds(CommandBase):
         _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["fishing"], player, "垂钓")
         if not _ok:
             self._prof_wait_clear(group_id, qq_id)
-            yield event.plain_result(_st)
+            # v126.4 拍板项 4：体力不足也要带上旧轮结算播报（T3 审计：鱼已入包玩家却只看到体力不足）
+            yield event.plain_result((text + "\n" + _st) if text else _st)
             return
         yield event.plain_result(act_msg + text)
 
@@ -3816,7 +3830,9 @@ class EconomyCmds(CommandBase):
         gold = price * it["count"]
         if _tags and isinstance(_tags, list):
             _wmax = self._fish_weight_max(d)
-            if _wmax:
+            # v126.4 拍板项 1：只对 type=鱼 加权（渔获材料回归原价——同材料垂钓所得
+            # vs 采集所得售价一致，避免"材料按类型折价"与"个体波动"语义混叠）
+            if _wmax and d.get("type") == "鱼":
                 # v126.4 审计 P2：t.get("weight", 0) 防损坏 tag 缺键直接 KeyError 崩出售
                 gold = sum(int(price * (0.5 + (t.get("weight") or 0) / _wmax)) for t in _tags if isinstance(t, dict))
                 gold += (it["count"] - len(_tags)) * price
