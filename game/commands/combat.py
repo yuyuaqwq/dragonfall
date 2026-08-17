@@ -1206,13 +1206,15 @@ class CombatCmds(CommandBase):
             _rc_parts = []
             for _k, _v in _rc.items():
                 _cn = _rcn or _k
-                _rc_parts.append(f"{_v} {_cn}")
+                # v126.6b 鱼鱼拍板：消耗项数字后缀形式 `信仰值 +3`（魔力与信仰值之间
+                # 用 ｜ 间隔，避免 `30 魔力 + 3 信仰值` 无间隔 + 与 ｜ 混用不统一）
+                _rc_parts.append(f"{_cn} +{_v}")
             if _mp or _rc_parts:
                 _cost_parts = []
                 if _mp:
                     _cost_parts.append(f"{_mp} 魔力")
                 _cost_parts.extend(_rc_parts)
-                _cost.append(" + ".join(_cost_parts))
+                _cost.append(" ｜ ".join(_cost_parts))
             else:
                 _cost.append("无")
             # v122d 攻击距离（鱼鱼拍板用「射程」：技能自带 reach 覆盖职业 reach）

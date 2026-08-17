@@ -1441,6 +1441,43 @@ MATERIALS = {
         "type": "鱼",
         "quality": "blue"
     },
+    # ---- v126.6 鱼种扩容（FISH_POOL↔MATERIALS 同步登记，价格交叉校验）----
+    "mat_xi_zun": {
+        "price": 7,
+        "name": "溪鳟",
+        "type": "鱼",
+        "quality": "white"
+    },
+    "mat_qing_wen_lu": {
+        "price": 15,
+        "name": "青纹鲈",
+        "type": "鱼",
+        "quality": "green"
+    },
+    "mat_zhao_ya_shan": {
+        "price": 32,
+        "name": "沼牙鳝",
+        "type": "鱼",
+        "quality": "blue"
+    },
+    "mat_deng_yu_xue": {
+        "price": 38,
+        "name": "灯语鳕",
+        "type": "鱼",
+        "quality": "blue"
+    },
+    "mat_bing_lin_xun": {
+        "price": 130,
+        "name": "冰鳞鲟",
+        "type": "鱼",
+        "quality": "purple"
+    },
+    "mat_lei_wen_qing": {
+        "price": 145,
+        "name": "雷纹鲭",
+        "type": "鱼",
+        "quality": "purple"
+    },
     "mat_shen_mi_lin_pian": {
         "price": 30,
         "name": "神秘鳞片",

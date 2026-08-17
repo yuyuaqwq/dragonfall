@@ -92,6 +92,9 @@ FISH_POOL = [
     # ---- 白·普通 ----
     {"name": "银鳞鱼", "quality": "white", "type": "鱼", "price": 6, "spots": None,
      "weight": 55, "size_range": [15, 42], "weight_range": [0.3, 1.8], "desc": "常见的淡水鱼，肉质鲜美"},
+    # v126.6 鱼种扩容：白档 +1 浅水域溪流鱼
+    {"name": "溪鳟", "quality": "white", "type": "鱼", "price": 7, "spots": ["oak_plain", "starlake"],
+     "weight": 35, "size_range": [20, 45], "weight_range": [0.4, 2.0], "desc": "溪流中银光闪闪的鳟鱼，肉质紧实"},
     {"name": "水草", "quality": "white", "type": "垃圾", "price": 1, "spots": None,
      "weight": 25, "size_range": [10, 15], "weight_range": [0.1, 0.2], "desc": "缠成一团的水草，什么也没有"},
     {"name": "破旧的靴子", "quality": "white", "type": "垃圾", "price": 1, "spots": None,
@@ -116,10 +119,19 @@ FISH_POOL = [
     {"name": "盲鱼", "quality": "green", "type": "鱼", "price": 9,
      "spots": ["deep_lake"],
      "weight": 10, "size_range": [10, 22], "weight_range": [0.1, 0.4], "desc": "地下湖的盲眼鱼，肉质细腻"},
+    # v126.6 鱼种扩容：绿档 +1 河海交汇鲈鱼（银铃河下游直通铁港）
+    {"name": "青纹鲈", "quality": "green", "type": "鱼", "price": 15, "spots": ["silver_river", "harbor_docks"],
+     "weight": 20, "size_range": [30, 70], "weight_range": [1.0, 4.5], "desc": "背青腹白的河鲈，银铃河与海口一带常见"},
     # ---- 蓝·稀有 ----
     {"name": "月光鱼", "quality": "blue", "type": "鱼", "price": 27, "spots": None,
      "season_boost": "autumn",  # v116 秋季偏好：秋夜清明，月光鱼更易浮出
      "weight": 20, "size_range": [20, 50], "weight_range": [0.4, 2.2], "desc": "月光下泛着银蓝光泽的鱼，稀有"},
+    # v126.6 鱼种扩容：蓝档 +2 沼泽掠食鳝 + 深海发光鳕（均限对应水域）
+    {"name": "沼牙鳝", "quality": "blue", "type": "鱼", "price": 32, "spots": ["misty_swamp"],
+     "weight": 18, "size_range": [35, 65], "weight_range": [1.5, 4.0], "desc": "潜伏在沼泽水面下的掠食鳝，满口细牙"},
+    {"name": "灯语鳕", "quality": "blue", "type": "鱼", "price": 38, "spots": ["mist_trench", "deep_lake"],
+     "season_boost": "winter",  # v126.6 冬季偏好：深冬深海最暗，灯语鳕的光点尤为明亮
+     "weight": 14, "size_range": [40, 80], "weight_range": [2.0, 6.0], "desc": "深海暗处用额前光点引诱猎物的鳕鱼，光点明灭如语"},
     {"name": "湖珍珠", "quality": "blue", "type": "材料", "price": 40,
      "spots": ["starlake", "harbor_docks", "silver_river", "misty_swamp"],
      "weight": 35, "size_range": [2, 4], "weight_range": [0.01, 0.05], "desc": "贝中孕育的珍宝，附魔师抢着收"},
@@ -160,6 +172,12 @@ FISH_POOL = [
     {"name": "雷晶砂", "quality": "purple", "type": "材料", "price": 80,
      "spots": ["storm_sea"],
      "weight": 20, "size_range": [3, 7], "weight_range": [0.05, 0.25], "desc": "雷暴淬炼过的晶砂，滋滋作响"},
+    # v126.6 鱼种扩容：紫档 +2 史诗大鱼（各限一个高级钓点，补紫档无鱼断层）
+    {"name": "冰鳞鲟", "quality": "purple", "type": "鱼", "price": 130, "spots": ["frost_horn"],
+     "season_boost": "winter",  # v126.6 冬季偏好：冰湖封冻最深处鲟鱼肥美
+     "weight": 18, "size_range": [90, 150], "weight_range": [12, 30], "desc": "霜原冰湖深处的巨型鲟鱼，鳞甲覆着薄冰"},
+    {"name": "雷纹鲭", "quality": "purple", "type": "鱼", "price": 145, "spots": ["storm_sea"],
+     "weight": 16, "size_range": [70, 120], "weight_range": [8, 20], "desc": "劈浪而行的海鲭，侧腹雷纹闪烁，风暴中最为活跃"},
     # ---- 橙·传说 ----
     {"name": "鱼王·翡翠巨龙", "quality": "orange", "type": "鱼王", "price": 245,
      "spots": ["harbor_docks"],
