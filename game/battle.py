@@ -223,6 +223,9 @@ class Battle:
         else:
             # 单怪兼容包装（§3.2）
             self.enemies = [self._wrap_enemy_unit(self._enemies_raw, 0)]
+        # v126.7 胜利结算引用：打死怪后 _remove_unit 会清空 enemies（单怪场景 b.enemy 变 {}），
+        # 结算层（_handle_victory）需要原主怪的 exp/gold/lv/drops——构造时保存一份副本。
+        self._origin_enemy = dict(self.enemies[0]) if self.enemies else {}
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}

@@ -814,7 +814,10 @@ class CombatCmds(CommandBase):
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
-                for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
+                # b.enemy 变 {} → monster["exp"] KeyError）
+                _mon = getattr(b, "_origin_enemy", None) or b.enemy
+                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs)):
                     yield _r
                 return
             if b.result == "defeat":
@@ -1028,7 +1031,9 @@ class CombatCmds(CommandBase):
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
             if b.result == "victory":
-                for _r in self._handle_victory(event, group_id, qq_id, player, b.enemy, "\n".join(logs)):
+                # v126.7 胜利结算用原主怪引用（打死怪后 b.enemy 变 {}）
+                _mon = getattr(b, "_origin_enemy", None) or b.enemy
+                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs)):
                     yield _r
                 return
             if b.result == "defeat":
