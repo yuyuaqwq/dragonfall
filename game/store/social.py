@@ -4,7 +4,7 @@ import sqlite3
 import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
-from .inventory import FISH_TAGS_MAX, _slim, _trim_individuals
+from .inventory import FISH_TAGS_MAX, _slim, _trim_individuals, _snapshot_one
 
 """奥兰迪亚·余烬纪年存储层 - social"""
 
@@ -238,9 +238,12 @@ def _inv_upsert(conn, group_id, qq_id, item_key, item_data, count):
             _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
                 _old if isinstance(_old, list) else [])
             _new_tags = (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]
+            # v126.4 审计 P2：保留 slim 非 tags 字段（配置未命中动态物的类属性兜底）
+            _merged = {k: v for k, v in slim.items() if k != "tags"}
+            _merged["tags"] = _new_tags
             conn.execute(
                 "UPDATE inventory SET count=count+?, item_data=? WHERE qq_id=? AND item_key=?",
-                (count, json.dumps({"tags": _new_tags}, ensure_ascii=False), qq_id, item_key),
+                (count, json.dumps(_merged, ensure_ascii=False), qq_id, item_key),
             )
         else:
             conn.execute(
@@ -290,6 +293,8 @@ def market_buy_atomic(group_id, qq_id, mid):
         if not row:
             return False, "没有这个物品！可能已被买走。", None
         item_data = json.loads(row["item_data"] or "{}")
+        # v126.4 审计 P1：旧市场行可能是整堆 tags 快照——买入按 1 件交付，只带 1 条个体
+        item_data = _snapshot_one(item_data)
         item_name = item_data.get("name", "?")
         if str(row["seller"]) == str(qq_id):
             return False, "不能买自己的物品！", item_name
@@ -318,12 +323,13 @@ def market_stall_sell_atomic(group_id, qq_id, found_key, found_data, price, map_
     with atomic() as conn:
         for s in old_stall_items:
             _inv_upsert(conn, group_id, qq_id,
-                        _key_to_id(s["item_key"], s["item_data"]), s["item_data"], 1)
+                        _key_to_id(s["item_key"], s["item_data"]),
+                        _snapshot_one(s["item_data"]), 1)
             conn.execute("DELETE FROM market WHERE id=? AND seller=?", (s["id"], qq_id))
         conn.execute(
             "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
             (group_id, qq_id, _key_to_id(found_key, found_data),
-             json.dumps(found_data, ensure_ascii=False), int(price), int(time.time()), map_id or ""),
+             json.dumps(_snapshot_one(found_data), ensure_ascii=False), int(price), int(time.time()), map_id or ""),
         )
         _inv_remove_conn(conn, qq_id, _key_to_id(found_key, found_data), 1)
     return True
@@ -345,7 +351,7 @@ def market_sell_atomic(group_id, qq_id, item_key, item_data, price):
         conn.execute(
             "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
             (group_id, qq_id, key,
-             json.dumps(item_data, ensure_ascii=False), int(price), int(time.time()), ""),
+             json.dumps(_snapshot_one(item_data), ensure_ascii=False), int(price), int(time.time()), ""),
         )
     return True
 
@@ -366,11 +372,13 @@ def market_exchange_atomic(group_id, qq_id, mid, give_key, give_data):
         # 扣买家的给物（不足则整单回滚，另一请求也拿不到 → 各自 Message 一致）
         if not _inv_remove_conn(conn, qq_id, give_key, 1):
             return False, "背包里没有这个交换物！"
-        # 删摊主单并交付
+        # 删摊主单并交付（v126.4 审计 P1：摊主单/给物都按 1 件流转，快照只带 1 条个体）
         conn.execute("DELETE FROM market WHERE id=?", (mid,))
         tgt_group = row["group_id"] or group_id
-        _inv_upsert(conn, tgt_group, qq_id, _key_to_id(row["item_key"], item_data), item_data, 1)
-        _inv_upsert(conn, tgt_group, str(row["seller"]), give_key, give_data, 1)
+        _inv_upsert(conn, tgt_group, qq_id, _key_to_id(row["item_key"], item_data),
+                    _snapshot_one(item_data), 1)
+        _inv_upsert(conn, tgt_group, str(row["seller"]), give_key,
+                    _snapshot_one(give_data), 1)
     return True, item_name
 
 

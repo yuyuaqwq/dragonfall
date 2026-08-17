@@ -103,6 +103,9 @@ def roll_fish_size_weight(fish: dict):
 
     返回 {"size": float(cm), "weight": float(kg)}（保留 1 位小数）；品种未配区间
     （老数据/测试桩）返回 None，调用方跳过入明细——出售按 1.0 原价，行为与旧版一致。
+    v126.4 审计 P2：重量精度按量级自适应——低于 0.1kg 的品种（珍珠类 0.01-0.05kg）
+    原 round(weight,1) 几乎 100% 舍入成 0.0（播报 0.0kg + 加权系数恒 0.5 失效），
+    现 <0.1kg 保留 3 位小数（0.045），≥0.1kg 保留 1 位。
     """
     sr = fish.get("size_range")
     wr = fish.get("weight_range")
@@ -110,6 +113,8 @@ def roll_fish_size_weight(fish: dict):
         return None
     size = sr[0] + (sr[1] - sr[0]) * random.random()
     weight = wr[0] + (wr[1] - wr[0]) * random.random()
+    if weight < 0.1:
+        return {"size": round(size, 1), "weight": round(weight, 3)}
     return {"size": round(size, 1), "weight": round(weight, 1)}
 
 def roll_collect_fish(spot_id: str | None = None, is_night: bool = False):

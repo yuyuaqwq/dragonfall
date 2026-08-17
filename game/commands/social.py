@@ -23,6 +23,7 @@ from ..store.social import (
     guild_get_member, guild_set_role, guild_spend_contribute,
     market_sell_atomic,
 )  # noqa: F401
+from ..store.inventory import _snapshot_one  # noqa: F401  v126.4 单件回流快照裁剪
 
 
 class SocialCmds(CommandBase):
@@ -109,7 +110,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result("只能下架自己的物品！")
             return
         db.market_remove(mid)
-        db.add_item(group_id, qq_id, it["item_key"], it["item_data"], count=1)
+        # v126.4 审计 P1：下架回流按 1 件，快照只带 1 条个体（防旧整堆快照破坏不变量）
+        db.add_item(group_id, qq_id, it["item_key"], _snapshot_one(it["item_data"]), count=1)
         yield event.plain_result(f"↩️ 已下架【{it['item_data'].get('name','?')}】，物品退回背包")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?购入(?:\s*|$)")
@@ -231,7 +233,8 @@ class SocialCmds(CommandBase):
             yield event.plain_result("你现在没有摊位。『摆摊 <物品> <价格>』支起摊位～")
             return
         for s in removed:
-            db.add_item(group_id, qq_id, s["item_key"], s["item_data"], count=1)
+            # v126.4 审计 P1：收摊回流按 1 件，快照只带 1 条个体
+            db.add_item(group_id, qq_id, s["item_key"], _snapshot_one(s["item_data"]), count=1)
         names = "、".join(s["item_data"].get("name", "?") for s in removed)
         yield event.plain_result(f"🏪 收摊！【{names}】退回背包")
 

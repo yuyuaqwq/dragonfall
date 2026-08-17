@@ -19,6 +19,19 @@ v126.3 存储瘦身 + 个体属性对象包装（鱼鱼拍板形态）：
 # 超出丢最旧（FIFO 语义：先钓的先卖，但囤积量级下截断最旧影响可忽略）
 FISH_TAGS_MAX = 500
 
+
+def _snapshot_one(item_data):
+    """v126.4 单件流转快照裁剪：市场/摆摊/仓库/交换 每次流转 1 件，只带 1 条个体
+    tags（FIFO 头）。防整堆 tags 快照回流破坏 len(tags)<=count 不变量（审计实测：
+    上架 5 条整堆快照 → 买家 count=1 却拿到 5 条 tags，幻影 tags 可被加权出售）。
+    无 tags / 非 dict 原样返回。"""
+    if isinstance(item_data, dict) and isinstance(item_data.get("tags"), list) \
+            and item_data["tags"]:
+        out = dict(item_data)
+        out["tags"] = item_data["tags"][:1]
+        return out
+    return item_data
+
 # v126.3 类属性白名单：这些字段不落库（统一读配置），item_data 只存个体属性
 _CLASS_FIELDS = {"name", "type", "price", "stackable", "quality"}
 
@@ -111,15 +124,19 @@ def _hydrate(key, data):
         data = {"tags": data}
     if isinstance(data, dict) and data.get("tags") is not None:
         out = _class_attrs(key)
-        for _k in ("name", "type", "price", "stackable"):
+        # v126.4 审计 P2：兜底元组补 quality——配置未命中的动态带 tag 物品
+        # （测试/动态鱼）水合后 quality 丢失会退化成无名无品质
+        for _k in ("name", "type", "price", "stackable", "quality"):
             if _k not in out and _k in data:
                 out[_k] = data[_k]  # 残留兜底（动态/测试物品配置未命中）
         out["tags"] = data["tags"]
         return out
     d = dict(data or {})
     if not d:
-        # v126.3 瘦身后 {}（纯类属性已清）→ 全量水合类属性
-        return _class_attrs(key)
+        # v126.3 瘦身后 {}（纯类属性已清）→ 全量水合类属性；
+        # v126.4 审计 P2：配置也未命中时兜底 name=key（防下游 d["name"] KeyError）
+        return _class_attrs(key) or {"name": key, "type": "材料", "stackable": True,
+                                     "price": 0, "quality": "white"}
     if not d.get("name"):
         d["name"] = C.display("materials", key)
         if d["name"] == key:
@@ -191,9 +208,13 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | No
                     _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
                         _old if isinstance(_old, list) else [])
                     _new_tags = (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]
+                    # v126.4 审计 P2：合并只写 {"tags": ...} 会丢 _slim 为配置未命中
+                    # 动态物品保留的类属性兜底 → 保留 slim 的非 tags 字段（正常配置命中时为空）
+                    _merged = {k: v for k, v in slim.items() if k != "tags"}
+                    _merged["tags"] = _new_tags
                     conn.execute(
                         "UPDATE inventory SET count=count+?, item_data=? WHERE qq_id=? AND item_key=?",
-                        (count, json.dumps({"tags": _new_tags}, ensure_ascii=False), qq_id, item_key),
+                        (count, json.dumps(_merged, ensure_ascii=False), qq_id, item_key),
                     )
                 else:
                     conn.execute(

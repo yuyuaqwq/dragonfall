@@ -114,8 +114,10 @@ def main():
         lake_mats = {mat for mat, _w in pools["starlake"]}
         names = set()
         for item in bag:
-            if item.get("type") == "材料":
-                names.add(item.get("name", ""))
+            # v126.4 审计 P2-1：get_inventory 返回 {key,data,count} 包装，顶层无 type；
+            # 且 v126.3 后 data.type 是配置真实值（兽材/矿石等），须用 MATERIAL_KIND_TYPES 归并
+            if item.get("data", {}).get("type") in C.MATERIAL_KIND_TYPES:
+                names.add(item["data"].get("name", ""))
         lake_names = {C.MATERIALS[x]["name"] for x in lake_mats}
         check("入包材料全部来自星语湖池", names <= lake_names, f"包内: {names}")
 

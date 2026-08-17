@@ -2,7 +2,7 @@
 import json
 import time
 from .connection import _connect, _lock, atomic
-from .inventory import _slim, _trim_individuals, FISH_TAGS_MAX
+from .inventory import _slim, _trim_individuals, FISH_TAGS_MAX, _snapshot_one
 from .. import content as C
 
 """奥兰迪亚·余烬纪年存储层 - world"""
@@ -355,7 +355,10 @@ def _storage_upsert(conn, qq_id, item_key, item_data, count):
         if isinstance(slim, dict) and slim.get("tags") is not None:
             _old_tags = _old.get("tags", []) if isinstance(_old, dict) else (
                 _old if isinstance(_old, list) else [])
-            _new_data = {"tags": (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]}
+            _new_tags = (_old_tags + slim["tags"])[-FISH_TAGS_MAX:]
+            # v126.4 审计 P2：保留 slim 非 tags 字段（配置未命中动态物的类属性兜底）
+            _new_data = {k: v for k, v in slim.items() if k != "tags"}
+            _new_data["tags"] = _new_tags
         else:
             _new_data = _old
         conn.execute(
@@ -410,7 +413,9 @@ def home_storage_deposit_atomic(group_id, qq_id, storage_key, item_key, item_dat
                 lst = []
         if len(lst) >= max_slots:
             return False, -1
-        lst.append({"key": item_key, "data": dict(item_data or {}), "count": 1})
+        # v126.4 审计 P1：存仓按 1 件流转，快照只带 1 条个体 tags（防整堆快照回流
+        # 破坏 len(tags)<=count；取回 _storage_upsert 合并 1 条与 count=1 对称）
+        lst.append({"key": item_key, "data": dict(_snapshot_one(item_data) or {}), "count": 1})
         conn.execute(
             "INSERT INTO event_state (key, value) VALUES (?,?) "
             "ON CONFLICT(key) DO UPDATE SET value=excluded.value",

@@ -700,7 +700,7 @@ class EconomyCmds(CommandBase):
                      "price": fish["price"], "quality": fq},
                     tag=_sw)
         if _sw:
-            _size_line = f"（{_sw['size']:.1f}cm/{_sw['weight']:.1f}kg）"
+            _size_line = f"（{_sw['size']:.1f}cm/{_sw['weight']}kg）"
         else:
             _size_line = ""
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
@@ -3814,10 +3814,11 @@ class EconomyCmds(CommandBase):
         # 无 tag 的鱼（老数据/非鱼材料）按原价（1.0 系数）；remove_item 扣包时自动同步截断 tags
         _tags = (it["data"].get("tags") or [])[:it["count"]]
         gold = price * it["count"]
-        if _tags:
+        if _tags and isinstance(_tags, list):
             _wmax = self._fish_weight_max(d)
             if _wmax:
-                gold = sum(int(price * (0.5 + t["weight"] / _wmax)) for t in _tags)
+                # v126.4 审计 P2：t.get("weight", 0) 防损坏 tag 缺键直接 KeyError 崩出售
+                gold = sum(int(price * (0.5 + (t.get("weight") or 0) / _wmax)) for t in _tags if isinstance(t, dict))
                 gold += (it["count"] - len(_tags)) * price
         # F1 P0-2：原子出售（单事务：校验货存→加金币→扣包），替代原两步独立 commit
         ok = db.sell_item_atomic(group_id, qq_id, it["key"], it["count"], gold)
