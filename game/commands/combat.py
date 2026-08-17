@@ -910,8 +910,14 @@ class CombatCmds(CommandBase):
                 # 大治愈术 faith3）此前脱战 0 信仰可无限刷，改拦截（核心资源仅战斗内存在，脱战无法攒取）；
                 # CD 为战斗内状态，脱战无 battle 实例无法校验，带 cd 的无资源技能保持可脱战施放
                 if info.get("res_cost"):
+                    _rd_t = E.core_resource_def(player["class_name"])
+                    _rcn_t = _rd_t.get("name", "") if _rd_t else ""
+                    _rc_list = []
+                    for _k, _v in info["res_cost"].items():
+                        _cn_t = _rcn_t or _k
+                        _rc_list.append(f"{_v} {_cn_t}")
                     yield event.plain_result(
-                        f"『{info.get('name', skill_name)}』需要战斗内核心资源才能施放（消耗 {', '.join(str(k) + str(v) for k, v in info['res_cost'].items())}），脱战中无法使用～"
+                        f"『{info.get('name', skill_name)}』需要战斗内核心资源才能施放（消耗 {' + '.join(_rc_list)}），脱战中无法使用～"
                     )
                     return
                 if player["mp"] < info["mp"]:
@@ -1192,19 +1198,26 @@ class CombatCmds(CommandBase):
             lines.append(f"  · {info['desc']}")
             _cost = []
             _mp = info.get("mp", 0)
-            if _mp:
-                _cost.append(f"{_mp} 魔力")
+            # v126.5 资源消耗并入魔力求（鱼鱼问"信仰-3 是不是要消耗"→原格式 `信仰值 -3`
+            # 像属性值 -3 有歧义；改为 `30 魔力 + 3 信仰值` 直白表达消耗）
+            _rc = info.get("res_cost") or {}
+            _rd = E.core_resource_def(player["class_name"])
+            _rcn = _rd.get("name", "") if _rd else ""
+            _rc_parts = []
+            for _k, _v in _rc.items():
+                _cn = _rcn or _k
+                _rc_parts.append(f"{_v} {_cn}")
+            if _mp or _rc_parts:
+                _cost_parts = []
+                if _mp:
+                    _cost_parts.append(f"{_mp} 魔力")
+                _cost_parts.extend(_rc_parts)
+                _cost.append(" + ".join(_cost_parts))
             else:
                 _cost.append("无")
             # v122d 攻击距离（鱼鱼拍板用「射程」：技能自带 reach 覆盖职业 reach）
             _cls_reach = int((C.CLASSES.get(player.get("class_name", ""), {}) or {}).get("reach", 2) or 2)
             _cost.append(f"射程：{int(info.get('reach') or _cls_reach)}")
-            _rc = info.get("res_cost") or {}
-            _rd = E.core_resource_def(player["class_name"])
-            _rcn = _rd.get("name", "") if _rd else ""
-            for _k, _v in _rc.items():
-                _cn = _rcn or _k
-                _cost.append(f"{_cn} -{_v}")
             _rg = info.get("res_gain") or 0
             if _rg:
                 # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {"energy": 10}）
