@@ -331,6 +331,52 @@ def item_detail_render(d, lines, equipped):
     kind = "装备" if d.get("slot") else (_item_kind_type(d.get("type")) or "其他")
     fn = _ITEM_DETAIL_RENDERERS.get(kind) or _ITEM_DETAIL_RENDERERS["__default__"]
     fn(d, lines, equipped)
+    # v126.4 个体属性（tags）通用渲染：主体渲染后统一追加（数据驱动 ITEM_TAG_DISPLAY）
+    _render_item_tags(d, lines)
+
+
+def _render_item_tags(d, lines):
+    """v126.4 个体属性（tags）通用渲染——数据驱动 ITEM_TAG_DISPLAY 按物品大类配置行模板。
+
+    堆叠个体物（垂钓渔获等）入包带 tag（{...}）存 item_data.tags；『物品详情』统一在
+    主体渲染后追加个体区。加新 tag 显示 = 数据表加一行（key=物品 type 大类）：
+    - line: 每条 tag 渲染行模板（str.format 填充 tag 字段，支持列表=一条 tag 多行）
+    - max_lines: 单次渲染行数上限（防囤鱼刷屏），超出用 omit 省略行
+    模板字段与 tag 不匹配 → 单条跳过（数据缺失不炸详情）；未命中配置 → 不显示。
+    """
+    tags = d.get("tags")
+    if not tags or not isinstance(tags, list):
+        return
+    kind = _item_kind_type(d.get("type")) or ""
+    cfg = (getattr(C, "ITEM_TAG_DISPLAY", None) or {}).get(kind)
+    if not cfg:
+        cfg = (getattr(C, "ITEM_TAG_DISPLAY", None) or {}).get("*")
+    if not cfg or not cfg.get("line"):
+        return
+    max_lines = int(cfg.get("max_lines") or 20)
+    shown = tags[:max_lines]
+    out = []
+    for t in shown:
+        if not isinstance(t, dict):
+            continue
+        tmpls = cfg["line"] if isinstance(cfg["line"], list) else [cfg["line"]]
+        for tmpl in tmpls:
+            try:
+                out.append("  · " + tmpl.format(**t))
+            except (KeyError, TypeError, ValueError):
+                continue  # 模板字段缺失/类型不符 → 跳过这条（数据行容忍缺字段）
+    if not out:
+        return
+    lines.append("")
+    lines.append("个体：")
+    lines.extend(out)
+    left = len(tags) - len(shown)
+    if left > 0:
+        omit = cfg.get("omit", "……还有 {left} 条")
+        try:
+            lines.append(omit.format(left=left))
+        except (KeyError, TypeError, ValueError):
+            lines.append(f"……还有 {left} 条")
 
 
 # v125.2 fail-closed：限定采集条件词注册表（GATHER_COND_POOLS 条件串 split('+') 后的词）。

@@ -117,6 +117,23 @@ from .prof_config import (  # noqa: F401
     ENCHANT_SLOT_UNLOCK, RUNE_LEVEL_GATE, DAILY_PROF_EXP,  # noqa: F401 v125.2 B3 副业数值下沉
     PRICE_BAND, price_band, RARE_MATERIAL_PRICE,  # noqa: F401
 )
+from .item_tag_display import ITEM_TAG_DISPLAY  # noqa: F401  (v126.4 个体属性 tags 显示注册表)
+
+# v126.4 ITEM_TAG_DISPLAY 结构校验（fail-fast）：每条配置 line 必须是模板串或模板串列表、
+# max_lines 为正整数、omit 是模板串——配置写错启动即暴露，防『物品详情』运行期静默跳过全部 tag
+for _tag_type, _tag_cfg in ITEM_TAG_DISPLAY.items():
+    _lines = _tag_cfg["line"] if isinstance(_tag_cfg["line"], list) else [_tag_cfg["line"]]
+    assert _lines and all(isinstance(_l, str) and "{" in _l for _l in _lines), (
+        f"[ITEM_TAG_DISPLAY] type={_tag_type!r} 的 line 必须是含占位符的模板串/列表"
+    )
+    if "max_lines" in _tag_cfg:
+        assert isinstance(_tag_cfg["max_lines"], int) and _tag_cfg["max_lines"] > 0, (
+            f"[ITEM_TAG_DISPLAY] type={_tag_type!r} 的 max_lines 必须是正整数"
+        )
+    if "omit" in _tag_cfg:
+        assert isinstance(_tag_cfg["omit"], str) and "{left}" in _tag_cfg["omit"], (
+            f"[ITEM_TAG_DISPLAY] type={_tag_type!r} 的 omit 必须是含 {{left}} 的模板串"
+        )
 from .signin_config import SIGNIN_CONFIG  # noqa: F401  (v125 签到配置数据下沉)
 from .econ_config import ECON_CONFIG  # noqa: F401  (v125.1 命令层经济数值下沉)
 from .skill_up import SKILL_UP  # noqa: F401  (v102.4 从 engine.py 下沉)
