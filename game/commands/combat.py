@@ -1206,9 +1206,9 @@ class CombatCmds(CommandBase):
             _rc_parts = []
             for _k, _v in _rc.items():
                 _cn = _rcn or _k
-                # v126.6b 鱼鱼拍板：消耗项数字后缀形式 `信仰值 +3`（魔力与信仰值之间
-                # 用 ｜ 间隔，避免 `30 魔力 + 3 信仰值` 无间隔 + 与 ｜ 混用不统一）
-                _rc_parts.append(f"{_cn} +{_v}")
+                # v126.6c 鱼鱼终版拍板：消耗项数字后缀用 `-`（消耗=扣减，与 res_gain
+                # 获得的 `+` 区分；`消耗：` 前缀后带上下文，无属性值歧义）
+                _rc_parts.append(f"{_cn} -{_v}")
             if _mp or _rc_parts:
                 _cost_parts = []
                 if _mp:

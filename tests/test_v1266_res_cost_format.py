@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """v126.5 技能列表资源消耗显示格式 回归测试。
 
-鱼鱼问「信仰-3 是不是需要消耗 3 信仰才能释放？」——原渲染 `信仰值 -3`
-容易被读成属性值 -3。v126.5 改为资源消耗并入魔力求：
-v126.6b 鱼鱼拍板终版格式（数字后缀 + ｜ 间隔）：
-  `消耗：30 魔力 ｜ 信仰值 +3 ｜ 射程：2`
+鱼鱼问「信仰-3 是不是需要消耗 3 信仰才能释放？」——v126.5 初版并入魔力求
+`30 魔力 + 3 信仰值`，v126.6b 改 `30 魔力 ｜ 信仰值 +3`，v126.6c 终版：
+消耗=扣减，数字后缀用 `-`（与 res_gain 获得 `+` 区分，`消耗：` 前缀带上下文）：
+  `消耗：30 魔力 ｜ 信仰值 -3 ｜ 射程：2`
 
 同时修复脱战拦截提示输出英文 key（`faith3`）违反"玩家可见文本禁止内部 ID"铁律。
 
-1. 圣光惩击（cls_mu_shi res_cost faith3）：消耗行含 `30 魔力 ｜ 信仰值 +3`，不含旧格式
+1. 圣光惩击（cls_mu_shi res_cost faith3）：消耗行含 `30 魔力 ｜ 信仰值 -3`
 2. 战士怒气技（res_cost rageN）：消耗行含 `N 怒气` 并入
 3. 零 MP + 纯资源技：只显示资源不求
 4. 无资源技能：消耗行不含 `-` 资源后缀
@@ -69,11 +69,11 @@ def test_skill_list_res_cost_format():
     # 圣光惩击：res_cost {"faith": 3}，mp 30
     priest = mk_priest(learned=["圣光惩击"])
     out = m._skill_list_page(priest, 1)
-    check("圣光惩击消耗行格式 30 魔力 ｜ 信仰值 +3",
-          "30 魔力 ｜ 信仰值 +3" in out, out[:400])
-    check("不再显示旧格式 信仰值 -3",
-          "信仰值 -3" not in out, out[:400])
-    check("消耗行不含 `信仰值 -3` 负号样式",
+    check("圣光惩击消耗行格式 30 魔力 ｜ 信仰值 -3",
+          "30 魔力 ｜ 信仰值 -3" in out, out[:400])
+    check("消耗行不含 +3 混淆格式（消耗用-获得用+）",
+          "信仰值 +3" not in out, out[:400])
+    check("消耗行不含 `信仰值 -3` 负号样式残留检查（-3 前必须带 ｜ 间隔）",
           "-3 信仰值" not in out, out[:400])
 
     # 战士怒气技：裂地斩 res_cost {"rage": 3} 之类的技能
@@ -90,10 +90,15 @@ def test_skill_list_no_res_suffix():
     print("【2. 无资源技能不产生资源后缀】")
     clean_db()
     m = Main(None)
-    # 用 level 1 牧师（只学早期技能，多数无 res_cost）
+    # 用 level 1 牧师（只学治愈术/圣光术，均无 res_cost——只有 res_gain 加号）
     low = mk_priest(learned=["治愈术", "圣光术"])
     out = m._skill_list_page(low, 1)
-    check("消耗行不含 `信仰值 -` 残留", "信仰值 -" not in out, out[:400])
+    # v126.6c 修正：列表里可学的惩戒/圣光惩击（res_cost 技）会正常显示 `信仰值 -N`，
+    # 断言须限定已学技能（治愈术/圣光术）的消耗行，不能全页检查
+    learned_lines = [ln for ln in out.split("\n")
+                     if ln.startswith(("1.", "2.", "3."))]
+    bad = [ln for ln in learned_lines if "信仰值 -" in ln]
+    check("已学无资源技能消耗行不含 `信仰值 -` 后缀", not bad, str(bad[:3]))
     check("消耗行含有 射程：", "射程：" in out, out[:200])
 
 
