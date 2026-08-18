@@ -3138,8 +3138,8 @@ class EconomyCmds(CommandBase):
                     lines.append(f"{i:>2}. {C.QUALITY[_q]['color']}{d['name']} ×{it['count']}")
                 else:
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
-        lines.append("")
         lines.append("━━━━━━━━━━━━")  # v127.2 提示区上方分隔
+        # v127.4.1 移除物品列表与分隔线之间的空行——分隔线本身即视觉间隔，空行多余（鱼鱼反馈）
         # v127.1 每面板只抽 1 条随机提示；筛选序号警告(防卖错)仅筛选视图显示
         lines.append(self._tip("bag"))
         if category:
