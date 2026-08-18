@@ -52,7 +52,7 @@ def check(name, cond, detail=""):
 
 # ---------- 通用夹具 ----------
 def seed_bag(n=17):
-    """17 件材料 → 背包 4 页（每页 5 件，第 4 页有 2 件）。"""
+    """17 件材料 → 背包 2 页（每页 10 件，第 2 页有 7 件，v127.2）。"""
     for i in range(1, n + 1):
         db.add_item(GID, QID, f"mat_t{i}",
                     {"name": f"测试材料{i}", "type": "材料", "stackable": False})
@@ -276,7 +276,7 @@ async def test_shortcut_full_match_first(m):
 
 # ---------- 9. 端到端（真实转发链路） ----------
 async def test_e2e_page_flip(m):
-    print("【9a. 端到端：'+2' → 真实背包第 4 页渲染】")
+    print("【9a. 端到端：'+2' → 真实背包第 2 页渲染（越界 clamp）】")
     clean_db()
     make_player(GID, QID)
     seed_bag()
@@ -284,8 +284,8 @@ async def test_e2e_page_flip(m):
     ev = FakeEvent(GID, QID, "+2")
     replies = [r for r in await run(m.page_flip, ev) if r is not None]
     joined = "\n".join(replies)
-    check("回复含『第 4/4 页』", "第 4/4 页" in joined, joined[:200])
-    check("回复含第 4 页物品『测试材料16』", "测试材料16" in joined, joined[:200])
+    check("回复含『第 2/2 页』", "第 2/2 页" in joined, joined[:200])
+    check("回复含第 2 页物品『测试材料16』", "测试材料16" in joined, joined[:200])
     check("回复含『共 17 件』", "共 17 件" in joined, joined[:200])
 
 
@@ -297,15 +297,15 @@ async def test_list_state_smoke(m):
     ev = FakeEvent(GID, QID, "背包")
     replies = [r for r in await run(m.inventory, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『背包』渲染第 1 页", "第 1/4 页" in joined, joined[:120])
+    check("『背包』渲染第 1 页", "第 1/2 页" in joined, joined[:120])
     st = json.loads(db.get_event_state(f"last_list_{QID}") or "{}")
     check("last_list cmd='背包'", st.get("cmd") == "背包", str(st))
-    check("last_list page=1 pages=4",
-          st.get("page") == 1 and st.get("pages") == 4, str(st))
+    check("last_list page=1 pages=2",
+          st.get("page") == 1 and st.get("pages") == 2, str(st))
     ev = FakeEvent(GID, QID, "+")
     replies = [r for r in await run(m.page_flip, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『+』→ 第 2/4 页", "第 2/4 页" in joined, joined[:200])
+    check("『+』→ 第 2/2 页", "第 2/2 页" in joined, joined[:200])
     st = json.loads(db.get_event_state(f"last_list_{QID}") or "{}")
     check("翻页后 last_list page=2", st.get("page") == 2, str(st))
 
@@ -319,11 +319,11 @@ async def test_shortcut_suffix_e2e(m):
     ev = FakeEvent(GID, QID, "n3")
     replies = [r for r in await run(m.shortcut_trigger, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『n3』→ 背包第 3 页", "第 3/4 页" in joined, joined[:200])
+    check("『n3』→ 背包第 3 页(越界clamp到2)", "第 2/2 页" in joined, joined[:200])
     ev = FakeEvent(GID, QID, "n")
     replies = [r for r in await run(m.shortcut_trigger, ev) if r is not None]
     joined = "\n".join(replies)
-    check("『n』→ 背包第 1 页", "第 1/4 页" in joined, joined[:200])
+    check("『n』→ 背包第 1 页", "第 1/2 页" in joined, joined[:200])
 
 
 # ---------- 10. 免空格不回归 ----------

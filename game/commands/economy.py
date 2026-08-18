@@ -3098,7 +3098,7 @@ class EconomyCmds(CommandBase):
                 return f"背包里没有『{category}』类物品～『背包』看全部"
         if not items:
             return "你的背包空空如也……去『探索』打点东西吧！"
-        page_items, pages, page = self._page_items(items, page, per_page=5)
+        page_items, pages, page = self._page_items(items, page, per_page=10)  # v127.2 背包每页 10 件
         # 记录当前视图(分类+页码)，供『上一页/下一页』相对翻页
         try:
             db.set_event_state(f"bag_page_{group_id}_{qq_id}",
@@ -3139,6 +3139,7 @@ class EconomyCmds(CommandBase):
                 else:
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("")
+        lines.append("━━━━━━━━━━━━")  # v127.2 提示区上方分隔
         # v127.1 每面板只抽 1 条随机提示；筛选序号警告(防卖错)仅筛选视图显示
         lines.append(self._tip("bag"))
         if category:
