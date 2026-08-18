@@ -194,8 +194,19 @@ class CommandBase:
     @filter.custom_filter(_GameCmdFilter, priority=100)
     async def _maint_gate(self, event: AstrMessageEvent):
         """v96 停服维护拦截：停服时非 GM 的游戏指令一律拦下并停止传播。
-        开服或 GM 直接放行（不产出任何结果，事件继续传给真正的指令 handler）。"""
+        开服或 GM 直接放行（不产出任何结果，事件继续传给真正的指令 handler）。
+        v127.5：任意游戏指令入口 → 惰性刷新通用倒计时引擎（懒计时，见 timed_events）。
+        """
         group_id, qq_id = self._uid(event)
+        # v127.5：任意玩家游戏指令先刷一次倒计时（过期清理+on_expire，无害幂等；
+        # GM 也刷（GM 无事件则空扫）；日常闲聊不进本 gate 不触发，零开销）
+        try:
+            from ..core import timed_events as _te
+            _te.refresh_timed(group_id, qq_id)
+        except Exception:
+            import logging
+            logging.getLogger("dragonfall").warning(
+                "[timed_events] _maint_gate 刷新失败（不影响指令主流程）", exc_info=True)
         if self._is_gm(qq_id):
             return
         if self._server_down():

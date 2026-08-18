@@ -60,6 +60,11 @@ from .wild import (  # noqa: F401
     roll_wild_encounter, wild_npc_findable, met_wild, nearby_hints,
     town_npc_day_sa, town_npc_visible, town_npc_dialogue,
 )
+# v127.5 通用倒计时事件引擎（懒计时：限时NPC / 限时任务 / 限时商店等
+# 一切"限时存在"状态，任意玩家指令惰性刷新，见 docs/TIMED_EVENT_PLAN_v1275.md）
+from .timed_events import (  # noqa: F401
+    register_timed, set_timed, get_timed, remove_timed, list_timed, refresh_timed,
+)
 from .achievements import (  # noqa: F401
     check_achievements, achievement_titles, achievement_points,
     claim_achievement_rewards,
