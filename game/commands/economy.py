@@ -20,6 +20,14 @@ from .. import engine as E
 from .. import battle as BT
 from ..commands.base import CommandBase, require_player
 from ..core.drops import _eq_random_desc
+from ..core import timed_events as _te  # noqa: E402
+
+# v127.5 等待型副业（垂钓/采集/挖掘）收编进通用懒计时引擎：
+# 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"），
+# 引擎 expire = 真实完成时间 → 到点被 lazy 清除（_maint_gate 挂 refresh 触发）。
+# on_expire 不需要：结算走 _prof_delayed_push（尽力而为推送）+ 惰性结算兜底
+# （_prof_wait_residual 非破坏读引擎存储残留，防『到点但未结算』吞掉奖励）。
+_te.register_timed("prof_wait", duration_sec=None, on_expire=None)
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
@@ -524,10 +532,43 @@ class EconomyCmds(CommandBase):
 
     def _prof_wait_key(self, group_id, qq_id):
         # v83: 去掉 group_id —— 等待型副业按玩家全局互斥，防止跨群双开多刷
+        # v127.5：仅保留作为历史遗留键（v127.5 前的在途等待迁移/清理用），主体存储已走引擎
         return f"prof_wait_{qq_id}"
 
-    def _prof_wait_state(self, group_id, qq_id):
-        """读取进行中的等待型副业状态(无/损坏返回 None)"""
+    @staticmethod
+    def _prof_wait_ev_name(qq_id):
+        # timed_events 引擎的玩家事件存储 key（与 engine 内部 _PLAYER_KEY 同一模板）
+        return f"timed_events_{qq_id}"
+
+    @staticmethod
+    def _prof_wait_compat(ev):
+        """引擎事件 → 兼容 st 形状 {finish,type,…extra}（data 平铺 + finish/type 补齐）"""
+        st = dict(ev.get("data") or {})
+        if not st.get("finish"):
+            st["finish"] = ev.get("expire")
+        if st.get("type") is None:
+            st["type"] = ev.get("type")
+        return st if st.get("finish") else None
+
+    def _prof_wait_residual(self, group_id, qq_id):
+        """非破坏读『到点但未结算』的残留等待数据（惰性结算兜底数据源）。
+
+        v127.5：引擎 expire = 完成时间，到点即被 get_timed/_maint_gate refresh 惰性清除；
+        但结算需要事件数据（type/spot/spot_map/finish），清除即丢 → 从这里按引擎存储布局
+        非破坏回读残留（不清除），供 _prof_wait_flow/_prof_delayed_push/prof_forget 兜底。
+        顺序：timed_events 引擎残留 → v127.5 前历史遗留 prof_wait_{qq}（迁移）。"""
+        raw = db.get_event_state(self._prof_wait_ev_name(qq_id))
+        if raw:
+            try:
+                d = json.loads(raw)
+            except (ValueError, TypeError):
+                d = None
+            ev = ((d or {}).get("prof_wait")) if isinstance(d, dict) else None
+            if isinstance(ev, dict):
+                st = self._prof_wait_compat(ev)
+                if st:
+                    return st
+        # v127.5 前历史遗留键（旧格式 {finish,type,…extra}）——迁移兜底
         raw = db.get_event_state(self._prof_wait_key(group_id, qq_id))
         if not raw:
             return None
@@ -535,11 +576,24 @@ class EconomyCmds(CommandBase):
             st = json.loads(raw)
         except (ValueError, TypeError):
             return None
-        if not isinstance(st, dict) or not st.get("finish"):
+        if isinstance(st, dict) and st.get("finish"):
+            return st
+        return None
+
+    def _prof_wait_state(self, group_id, qq_id):
+        """读取进行中的等待型副业状态(无/损坏返回 None)。v127.5 改走 timed_events 引擎。
+
+        未过期 → 兼容 st 形状 {finish,type,…extra}（data 平铺 + finish=expire）；
+        已到点/无 → None（引擎 lazy 清除，与惰性语义一致——到点即视为不在等待中）。
+        注意：调用方如需结算『到点但未结算』的数据，用 _prof_wait_residual。"""
+        raw = _te.get_timed(group_id, qq_id, "prof_wait")
+        if not raw:
             return None
-        return st
+        return self._prof_wait_compat(raw)
 
     def _prof_wait_clear(self, group_id, qq_id):
+        _te.remove_timed(group_id, qq_id, "prof_wait")
+        # 顺手清历史遗留键，防 v127.5 前残留状态串台
         db.set_event_state(self._prof_wait_key(group_id, qq_id), "")
 
     def _prof_wait_duration(self, prof_type, prof_lv):
@@ -551,14 +605,21 @@ class EconomyCmds(CommandBase):
         return max(wait, C.PROF_WAIT_FLOOR)
 
     def _prof_wait_begin(self, event, group_id, qq_id, prof_type, extra=None):
-        """开始一轮等待型副业：存完成时间戳 + 尽力而为的延迟推送(失败由惰性结算兜底)"""
+        """开始一轮等待型副业：挂 timed_events 引擎倒计时 + 尽力而为的延迟推送(失败由惰性结算兜底)。
+
+        v127.5：set_timed(key="prof_wait", type_key="prof_wait", duration_sec=wait)
+        → 引擎 expire = 真实完成时间；data 平铺 {finish,type,…extra} 供结算取用。"""
         prof_lv = db.get_prof_level(group_id, qq_id, prof_type)
         wait = self._prof_wait_duration(prof_type, prof_lv)
         finish = int(time.time()) + wait
-        st = {"finish": finish, "type": prof_type}
+        data = {"finish": finish, "type": prof_type}
         if extra:
-            st.update(extra)
-        db.set_event_state(self._prof_wait_key(group_id, qq_id), json.dumps(st, ensure_ascii=False))
+            data.update(extra)
+        _te.set_timed(group_id, qq_id, key="prof_wait", type_key="prof_wait",
+                      data=data, duration_sec=wait)
+        # 历史遗留键清空：新轮已挂引擎，防止 v127.5 前残留/测试残留后续被 residual 误读
+        db.set_event_state(self._prof_wait_key(group_id, qq_id), "")
+        st = dict(data)  # 兼容形状（延迟推送/结算用）
         try:
             asyncio.get_running_loop()
             asyncio.create_task(self._prof_delayed_push(event, group_id, qq_id, st, wait))
@@ -567,12 +628,14 @@ class EconomyCmds(CommandBase):
         return wait
 
     async def _prof_delayed_push(self, event, group_id, qq_id, st, wait):
-        """延迟结算并主动推送结果(尽力而为；进程重启/推送失败由惰性结算兜底)"""
+        """延迟结算并主动推送结果(尽力而为；进程重启/推送失败由惰性结算兜底)
+
+        v127.5：到点后引擎已 lazy 清除事件，结算数据从 _prof_wait_residual（引擎存储残留）取"""
         try:
             await asyncio.sleep(wait)
-            cur = self._prof_wait_state(group_id, qq_id)
+            cur = self._prof_wait_state(group_id, qq_id) or self._prof_wait_residual(group_id, qq_id)
             if not cur or cur.get("finish") != st.get("finish"):
-                return  # 已被惰性结算
+                return  # 已被惰性结算/开新轮
             text = self._prof_settle(group_id, qq_id, cur)
             if text and hasattr(event, "send"):
                 await event.send(MessageChain([Plain(text)]))
@@ -986,7 +1049,12 @@ class EconomyCmds(CommandBase):
 
     def _prof_wait_flow(self, event, group_id, qq_id, prof_type, extra=None, begin_text=""):
         """等待型副业统一流程：进行中→提示剩余；到期→先结算再开新一轮；无→开新一轮。
-        返回 (回复文本, 是否开启新一轮)。"""
+        返回 (回复文本, 是否开启新一轮)。
+
+        v127.5 惰性结算兜底：引擎 expire=完成时间，到点事件已被 get_timed/_maint_gate
+        refresh lazy 清除，旧轮结算数据只剩引擎存储残留可取 → 先 _prof_wait_residual
+        非破坏读一次再走 _prof_wait_state，防『到点但未结算』被吞（奖励丢失）。"""
+        leftover = self._prof_wait_residual(group_id, qq_id)
         st = self._prof_wait_state(group_id, qq_id)
         now = int(time.time())
         if st and st["finish"] > now:
@@ -996,6 +1064,9 @@ class EconomyCmds(CommandBase):
         settle_text = None
         if st:
             settle_text = self._prof_settle(group_id, qq_id, st)
+        elif leftover and int(leftover.get("finish", 0)) <= now:
+            # 到点但引擎已惰性清 → 残留数据结算（防吞旧轮产出）
+            settle_text = self._prof_settle(group_id, qq_id, leftover)
         wait = self._prof_wait_begin(event, group_id, qq_id, prof_type, extra)
         head = f"{settle_text}\n" if settle_text else ""
         return f"{head}{begin_text}{wait} 秒后完成，自动入包～", True
@@ -1535,6 +1606,9 @@ class EconomyCmds(CommandBase):
         # v104 P1 修复：仅当进行中的等待型副业 == 被遗忘副业时才清——
         # 否则垂钓等待中遗忘炼金会把垂钓状态误清（白等 + 结算丢失）
         _wait_st = self._prof_wait_state(group_id, qq_id)
+        if _wait_st is None:
+            # v127.5 惰性结算兜底：到点事件已被引擎惰性清 → 残留存根仍可结算
+            _wait_st = self._prof_wait_residual(group_id, qq_id)
         _settle_text = ""
         if _wait_st and _wait_st.get("type") == key:
             if int(_wait_st.get("finish", 0)) <= int(time.time()):

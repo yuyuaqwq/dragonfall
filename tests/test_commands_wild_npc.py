@@ -150,13 +150,20 @@ async def main():
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
     check("白天找隐士（黄昏/夜晚出现）→ 时段未到提示(#71)", "还没到出现的时候" in out and "🧭" in out, out[:200])
     set_clock("night", "summer", "sunny")
+    # v127.5 限时NPC：偶遇制——先在夜晚偶遇隐士（白鹿之森夜晚候选首个）才在场
+    p = {"level": 20}
+    hit = W.roll_wild_encounter("g1", "w1", p, "white_deer_forest")
+    check("夜晚白鹿之森偶遇隐士（在场）", bool(hit) and hit[0] == "w_sage_ryder", str(hit))
     out = await cmd(m, "find_npc", "g1", "w1", "找 隐士·莱德")
-    check("夜晚找隐士 → 找到并对话", "隐士·莱德" in out, out[:300])
+    check("夜晚找隐士 → 找到并对话", "隐士·莱德" in out and "今天还没遇到" not in out, out[:300])
     set_clock("day", "summer", "sunny")
 
     print("【9.4 支线 S36：采药女 offer + 『交任务』交付（修复 bug）】")
     db.update_player("g1", "w1", cur_map="white_deer_forest")
     set_clock("day", "summer", "sunny")
+    # v127.5 限时NPC：偶遇制——任务 giver 也先偶遇在场才能接/交（鱼鱼拍板：在场期可接可交）
+    hit = W.roll_wild_encounter("g1", "w1", p, "white_deer_forest")
+    check("白天白鹿之森偶遇采药女（在场）", bool(hit) and hit[0] == "w_forest_girl", str(hit))
     out = await cmd(m, "find_npc", "g1", "w1", "找 采药女·小荨")
     check("找采药女接 S36", "采药女的心愿" in out, out[:400])
     q = db.get_quests("g1", "w1")

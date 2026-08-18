@@ -120,12 +120,13 @@ class CombatCmds(CommandBase):
         if wild:
             nid, wnpc = wild
             _ta = "她" if wnpc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
+            _dur = int(wnpc.get("duration", 60) or 60)  # v127.5 限时NPC：在场分钟数
             yield event.plain_result(
                 f"🍃 你在{cur_map['name']}偶遇了【{wnpc['icon']}{wnpc['name']}】！\n"
                 f"　　{wnpc.get('desc', '')}\n"
                 f"“{wnpc.get('dialogue', '……')}”\n"
                 f"━━━━━━━━━━━━\n"
-                f"💡 『对话 {wnpc['name']}』与{_ta}交谈——{_ta}今天在这里，错过就要等下次了！"
+                f"💡 『对话 {wnpc['name']}』与{_ta}交谈——⏳ {_ta}只在这里停留 {_dur} 分钟，错过要等下次了！"
             )
             return
         # v87 02 章 7.6：POI 探索点独立判定（15%）

@@ -700,6 +700,14 @@ class WorldCmds(CommandBase):
             for i, (_, n) in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
             lines.append(f"  {self._tip('talk')}")
+        # v127.5 限时NPC：在场野外旅人（偶遇进入限时状态，带 ⏳ 剩余分钟，全图可见）
+        # v127.5.1 不重复加 _tip('talk')——对上城镇 NPC 区已有同分类提示（AST 防重铁律）
+        wild_lines = self._present_wild_hints(group_id, qq_id, cur)
+        if wild_lines:
+            if lines and lines[-1]:
+                lines.append("")
+            lines.append("🧭 游历的旅人：")
+            lines.extend(wild_lines)
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
@@ -1227,6 +1235,13 @@ class WorldCmds(CommandBase):
             for i, n in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
             lines.append(f"  {self._tip('talk')}")
+        # v127.5 限时NPC：在场野外旅人（偶遇限时，map 级全图可见；子区域视图同地图面板）
+        # v127.5.1 不重复加 _tip('talk')——对上城镇 NPC 区已有同分类提示（AST 防重铁律）
+        if group_id is not None and qq_id is not None:
+            wild_lines = self._present_wild_hints(group_id, qq_id, cur_map.get("id", ""))
+            if wild_lines:
+                lines.append("🧭 游历的旅人：")
+                lines.extend(wild_lines)
         # 功能提示
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "锻造",
@@ -2243,17 +2258,47 @@ class WorldCmds(CommandBase):
                         and C.town_npc_visible(nid, C.NPCS[nid], sa_id)]
         return [C.NPCS[nid] for nid in m.get("npcs", []) if nid in C.NPCS]
 
+    def _present_wild_hints(self, group_id, qq_id, cur_map) -> list:
+        """v127.5 限时NPC：当前地图（map 级，全图都算）在场限时野外NPC 显示行。
+
+        偶遇后挂 timed events，倒计时内地图/位置可见并带 ⏳ 剩余分钟；过期
+        list_timed 惰性清除 → 天然消失（显示与对话同时，铁律）。
+        返回例：["  🧭游商·老马 ⏳剩60分", ...]（2 空格缩进，与普通 NPC 行一致）。
+        """
+        lines = []
+        evs = C.list_timed(group_id, qq_id, type_key="wild_npc",
+                           data_match={"map": cur_map})
+        for ev in evs:
+            nid = ev.get("data", {}).get("npc_id") or ""
+            wnpc = C.ALL_WILD.get(nid)
+            if not wnpc:
+                continue
+            remain_min = max(1, -(-int(ev.get("remain", 0)) // 60))  # ceil(remain/60)
+            lines.append(f"  {wnpc.get('icon', '')}{wnpc.get('name', nid)} ⏳剩{remain_min}分")
+        return lines
+
     def _start_talk_list(self, group_id, qq_id) -> list:
         """当前地图 NPC 列表（带序号展示；交谈用『对话 <名字>』/『对话 <序号>』，v123a 起裸数字不再直接找 NPC）。『对话』空参共用。"""
         player = self._player(group_id, qq_id)
         if player and player["cur_map"].startswith("home_"):
             return ["家里没有 NPC 可以交谈～『出门』去镇上找人吧！"]
         npcs = self._current_npcs(player) if player else []
-        if not npcs:
+        # v127.5 限时NPC：在场野外旅人并入裸『对话』列表（排城镇 NPC 之后，带序号可对话）
+        wild_evs = C.list_timed(group_id, qq_id, type_key="wild_npc",
+                                data_match={"map": player["cur_map"]}) if player else []
+        if not npcs and not wild_evs:
             return ["这里没有 NPC。输入『地图』看看哪里有 NPC～"]
         lines = ["👥 这里的 NPC："]
         for i, n in enumerate(npcs, 1):
             lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
+        # 在场野外旅人：续在城镇 NPC 之后编号（带 ⏳ 剩余分钟）
+        for j, ev in enumerate(wild_evs, len(npcs) + 1):
+            nid = ev.get("data", {}).get("npc_id") or ""
+            wnpc = C.ALL_WILD.get(nid)
+            if not wnpc:
+                continue
+            remain_min = max(1, -(-int(ev.get("remain", 0)) // 60))  # ceil(remain/60)
+            lines.append(f"{j:>2}. {wnpc.get('icon', '')}{wnpc.get('name', nid)} ⏳剩{remain_min}分")
         lines.append(self._tip("npc_list"))
         return lines
 
@@ -2786,28 +2831,35 @@ class WorldCmds(CommandBase):
             if cur_m.startswith("home_"):
                 yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
                 return
-            npcs = self._current_npcs(player)
-            if not npcs:
-                yield event.plain_result("这里没有 NPC。输入『地图』看看哪里有 NPC～")
-            else:
-                lines = ["👥 这里的 NPC："]
-                for i, n in enumerate(npcs, 1):
-                    lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-                lines.append(self._tip("npc_list"))
-                yield event.plain_result("\n".join(lines))
+            # v127.5 限时NPC：与『对话』空参同源——在场野外旅人也并入列表
+            yield event.plain_result("\n".join(self._start_talk_list(group_id, qq_id)))
             return
-        # 序号找：『找 1』→ 当前地图第 1 个 NPC
+        # 序号找：『找 1』→ 当前地图第 1 个 NPC（含 v127.5 在场野外旅人续号）
         if name_key.isdigit():
             if player["cur_map"].startswith("home_"):
                 yield event.plain_result("家里没有 NPC 可以交谈～『出门』去镇上找人吧！")
                 return
             npcs = self._current_npcs(player)
+            wild_evs = C.list_timed(group_id, qq_id, type_key="wild_npc",
+                                    data_match={"map": player["cur_map"]})
+            total = len(npcs) + len(wild_evs)
             idx = int(name_key)
-            if idx < 1 or idx > len(npcs):
-                yield event.plain_result(f"这里没有第 {idx} 位 NPC(共 {len(npcs)} 位)！『对话』查看列表～")
+            if idx < 1 or idx > total:
+                yield event.plain_result(f"这里没有第 {idx} 位 NPC(共 {total} 位)！『对话』查看列表～")
                 return
-            npc = npcs[idx - 1]
-            npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
+            if idx <= len(npcs):
+                npc = npcs[idx - 1]
+                npc_id = next((nid for nid, n in C.NPCS.items() if n is npc), None)
+            else:
+                # v127.5 限时NPC：序号命中在场野外旅人（不在 C.NPCS，不能走反查）
+                _ev = wild_evs[idx - len(npcs) - 1]
+                npc_id = _ev.get("data", {}).get("npc_id") or ""
+                _w = C.ALL_WILD.get(npc_id)
+                if not _w:
+                    yield event.plain_result("这位旅人似乎已经离开了……")
+                    return
+                npc = dict(_w)
+                npc.setdefault("title", "游历于野外的旅人")  # 与 _find_wild_npc 一致
         else:
             npc_id, npc = self._find_npc_in_map(player, name_key)
             if npc and player.get("_npc_absent"):
@@ -2827,6 +2879,13 @@ class WorldCmds(CommandBase):
         if not npc:
             # 9.4：野外 NPC（当前地图 + 出现条件）
             npc_id, npc = self._find_wild_npc(player, name_key, group_id, qq_id)
+            if npc:
+                # v127.5 限时NPC：偶遇制——只在倒计时内在场可找；未偶遇/过期 → "今天没遇到"
+                if not C.get_timed(group_id, qq_id, f"wild:{npc_id}"):
+                    _ta = "她" if npc.get("gender") == "女" else "他"
+                    yield event.plain_result(
+                        f"🍃 『{name_key}』今天还没遇到……多『探索』几圈，{_ta}不定什么时候就路过这里啦～")
+                    return
         if not npc:
             # v95.15 #71：名字命中但时段/条件不满足（NPC 在本图却找不到）→ 提示出现条件
             unseen = self._wild_unseen_hint(player, name_key, group_id, qq_id)
@@ -3496,6 +3555,13 @@ class WorldCmds(CommandBase):
             db.clear_talk_state(group_id, qq_id)
             _ta = "她" if npc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
             yield event.plain_result(f"{npc['name']}不在这里了，对话只能作罢。去找{_ta}再聊聊吧～")
+            return
+        # v127.5 限时NPC：对话中野外NPC的在场的限时事件过期 → 会话作废
+        # （倒计时结束显示与对话同时消失；与 npc_map_id 失效同位置、同文案风格）
+        if npc_id in C.ALL_WILD and not C.get_timed(group_id, qq_id, f"wild:{npc_id}"):
+            db.clear_talk_state(group_id, qq_id)
+            _ta = "她" if npc.get("gender") == "女" else "他"  # v95 #141：代词跟随 NPC 性别
+            yield event.plain_result(f"{npc['name']}已经离开了，对话只能作罢。去找{_ta}再聊聊吧～")
             return
         dlg = C.get_dialogue(npc_id)
         if not dlg:

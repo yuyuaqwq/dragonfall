@@ -20,9 +20,24 @@ import random
 
 from ..data.wild_npcs import WILD_NPCS, HIDDEN_NPCS
 from .time_weather import current_period, current_season, today_weather
+from .timed_events import register_timed, set_timed
 
 # 全部野外/隐藏 NPC（HIDDEN 后合并，同 map 遍历顺序：普通先、隐藏后）
 ALL_WILD = {**WILD_NPCS, **HIDDEN_NPCS}
+
+
+# ==================== v127.5 限时NPC（通用懒计时引擎接入） ====================
+# 偶遇触发 → set_timed 挂"在场限时"事件；倒计时内地图/对话可见可找，过期即同消。
+# 过期回调：清除该 NPC 可能存在的进行中对话会话（显示与对话同时消失，铁律）。
+def _wild_npc_expire(group_id, qq_id, data):
+    from .. import db  # noqa: E402（延迟导入防 data/_assembly 循环）
+    try:
+        db.clear_talk_state(group_id, qq_id)
+    except Exception:
+        pass  # 清除失败无副作用
+
+
+register_timed("wild_npc", duration_sec=60 * 60, on_expire=_wild_npc_expire)
 
 WILD_META_KEY = "wildmeta_{gid}_{qid}"
 MISS_GUARANTEE = 7  # 连续 7 次条件满足未遇 → 必出
@@ -226,6 +241,12 @@ def roll_wild_encounter(group_id: str, qq_id: str, player: dict, map_id: str):
         meta.setdefault("miss", {}).pop(nid, None)
         meta.setdefault("last", {})[nid] = now
         _save_meta(group_id, qq_id, meta)
+        # v127.5 限时NPC：偶遇命中 → 挂"在场限时"事件（通用懒计时引擎）。
+        # 时长按 NPC 的 duration 分钟（缺省 60）；map 用 npc_map_id 支持 roam 当日定位。
+        _dur_min = npc.get("duration", 60) or 60
+        set_timed(group_id, qq_id, f"wild:{nid}", "wild_npc",
+                  data={"npc_id": nid, "map": npc_map_id(nid, npc, today)},
+                  duration_sec=int(_dur_min) * 60)
         return nid, npc
     return None
 

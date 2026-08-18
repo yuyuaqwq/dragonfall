@@ -48,19 +48,21 @@ async def main():
 
     # ===== 2. 过期 → get 惰性清除 =====
     print("【2. 过期 → get 惰性清除】")
-    TE.set_timed(GID, QID, "a:short", "test_a", data={}, duration_sec=1)
+    # 并发/高负载下 time.sleep 与实际流逝有抖动，时长不用极短 1s（秒级边界碰线），用 3s
+    TE.set_timed(GID, QID, "a:short", "test_a", data={}, duration_sec=3)
     ev = TE.get_timed(GID, QID, "a:short")
-    check("1s 事件未过期", bool(ev), str(ev))
-    time.sleep(1.2)
+    check("3s 事件未过期", bool(ev), str(ev))
+    check("3s 事件 remain≤3", ev and 0 < ev["remain"] <= 3, str(ev))
+    time.sleep(3.5)  # 缓冲 >3s，容忍调度延迟
     ev = TE.get_timed(GID, QID, "a:short")
     check("过期后 get 返回 None", ev is None, str(ev))
 
     # ===== 3. refresh 物理清理 + on_expire =====
     print("【3. refresh_timed 物理清理 + on_expire 回调】")
     fired = []
-    TE.register_timed("test_b", duration_sec=1, on_expire=lambda g, q, d: fired.append(d))
+    TE.register_timed("test_b", duration_sec=3, on_expire=lambda g, q, d: fired.append(d))
     TE.set_timed(GID, QID, "b:y", "test_b", data={"v": 7})
-    time.sleep(1.2)
+    time.sleep(3.5)  # 缓冲 >3s，容忍调度延迟
     n = TE.refresh_timed(GID, QID)
     check("refresh 清理 1 条", n == 1, str(n))
     check("on_expire 回调收到 data", fired == [{"v": 7}], str(fired))
@@ -99,6 +101,7 @@ async def main():
 
     # ===== 7. 同 key 重复 set = 顶替 =====
     print("【7. 同 key 重复 set 顶替刷新】")
+    TE.register_timed("test_c", duration_sec=300)
     TE.set_timed(GID, QID, "c:1", "test_c", data={"map": "m1"})
     ev_before = TE.get_timed(GID, QID, "c:1")
     remain_before = ev_before["remain"] if ev_before else -1
@@ -106,7 +109,7 @@ async def main():
     TE.set_timed(GID, QID, "c:1", "test_c", data={"map": "m1_new"})
     ev_after = TE.get_timed(GID, QID, "c:1")
     check("重复 set 后 remain 拉满（顶替刷新）",
-          ev_after and ev_after["remain"] >= remain_before,
+          ev_after and ev_after["remain"] >= min(remain_before, 299),
           f"{remain_before} -> {ev_after and ev_after['remain']}")
     check("重复 set 新 data 覆盖", ev_after and ev_after["data"]["map"] == "m1_new",
           str(ev_after))

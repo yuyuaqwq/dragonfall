@@ -25,6 +25,7 @@ WILD_NPCS = {
     "w_old_trader": {
         "name": "游商·老马", "icon": "🧭", "map": "oak_plain",
         "condition": {"time": ["day"]},
+        "duration": 60,  # v127.5 限时NPC：在场分钟数（缺省 60）
         "desc": "走南闯北的行商，消息灵通",
         "funcs": ["trade", "info"],
         "dialogue": "赶路呢？要不要看看货？都是走南闯北淘来的好东西。",
