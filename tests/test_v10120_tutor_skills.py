@@ -35,8 +35,8 @@ async def join_mage(m):
     await cmd(m, "register", "g1", "w1", "注册 法师 小查 女")
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_1")
     await cmd(m, "find_npc", "g1", "w1", "找 行会")
-    await cmd(m, "talk_choice", "g1", "w1", "对话 2")  # 法师
-    await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 确定
+    await cmd(m, "talk_choice", "g1", "w1", "2")  # 法师
+    await cmd(m, "talk_choice", "g1", "w1", "1")  # 确定
 
 async def main():
     clean_db()
@@ -75,8 +75,8 @@ async def main():
     await cmd(m, "register", "g1", "w2", "注册 法师 树徒 女")
     db.update_player("g1", "w2", cur_map="oak_town", cur_subarea="oak_town_1")
     await cmd(m, "find_npc", "g1", "w2", "找 行会")
-    await cmd(m, "talk_choice", "g1", "w2", "对话 2")  # 法师
-    await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # 确定
+    await cmd(m, "talk_choice", "g1", "w2", "2")  # 法师
+    await cmd(m, "talk_choice", "g1", "w2", "1")  # 确定
     _p2 = db.get_player("g1", "w2")
     check("对话树法师就职", _p2["class_name"] == "cls_fa_shi", _p2.get("class_name"))
     db.update_player("g1", "w2", cur_map="white_deer", cur_subarea="white_deer_1",
@@ -84,9 +84,9 @@ async def main():
     out = await cmd(m, "find_npc", "g1", "w2", "找 大法师·艾德琳")
     check("对话树进入法师导师 welcome（含魔力脉冲菜单）",
           "魔法不是念咒" in out and "魔力脉冲" in out, out[:300])
-    out = await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # → teach_ao_shu
+    out = await cmd(m, "talk_choice", "g1", "w2", "1")  # → teach_ao_shu
     check("对话树进入 teach_ao_shu 节点", "魔力脉冲——把魔力压缩成一束光" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w2", "对话 1")  # 『请教我！』→ action tutor_skill
+    out = await cmd(m, "talk_choice", "g1", "w2", "1")  # 『请教我！』→ action tutor_skill
     check("对话树教学学会魔力脉冲", "学会了进阶技能『魔力脉冲』" in out, out[:300])
     _p2 = db.get_player("g1", "w2")
     check("对话树技能写入 learned_skills", "魔力脉冲" in _p2["learned_skills"],
@@ -117,8 +117,8 @@ async def main():
     await cmd(m, "register", "g1", "w1", "注册 战士 小战 男")
     db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_1")
     await cmd(m, "find_npc", "g1", "w1", "找 行会")
-    await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 战士
-    await cmd(m, "talk_choice", "g1", "w1", "对话 1")
+    await cmd(m, "talk_choice", "g1", "w1", "1")  # 战士
+    await cmd(m, "talk_choice", "g1", "w1", "1")
     db.update_player("g1", "w1", level=8, skill_points=20)
     out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 破甲斩")
     check("破甲斩技能点可学", "学会了『破甲斩』" in out, out[:150])

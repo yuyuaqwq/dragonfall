@@ -61,24 +61,24 @@ async def main():
     db.update_player("g1", "w1", level=30, gold=5000, cur_map="white_deer", cur_subarea="white_deer_1")
     out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
     check("导师对话含转职入口", "我想转职" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想转职 → 一转菜单
+    out = await cmd(m, "talk_choice", "g1", "w1", "3")  # 我想转职 → 一转菜单
     check("一转菜单含吟游诗人/神谕者", "吟游诗人" in out and "神谕者" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 转职为吟游诗人（进攻）
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")  # 转职为吟游诗人（进攻）
     check("一转成功含吟游诗人", "转职成功" in out and "吟游诗人" in out, out[:200])
     p = db.get_player("g1", "w1")
     check("class_tier=1 path=1", p.get("class_tier") == 1 and p.get("evolve_path") == 1,
           str((p.get("class_tier"), p.get("evolve_path"))))
     db.update_player("g1", "w1", level=60)
     out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想继续转职 → 二转菜单
+    out = await cmd(m, "talk_choice", "g1", "w1", "3")  # 我想继续转职 → 二转菜单
     check("二转菜单含灵魂歌者/大主教", "灵魂歌者" in out and "大主教" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 灵魂歌者
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")  # 灵魂歌者
     check("二转成功含灵魂歌者", "转职成功" in out and "灵魂歌者" in out, out[:200])
     db.update_player("g1", "w1", level=90)
     out = await cmd(m, "find_npc", "g1", "w1", "找 圣殿执事·莉亚")
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 3")  # 我想进行最终转职 → 三转菜单
+    out = await cmd(m, "talk_choice", "g1", "w1", "3")  # 我想进行最终转职 → 三转菜单
     check("三转菜单含黎明颂者/圣光先知", "黎明颂者" in out and "圣光先知" in out, out[:250])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 1")  # 黎明颂者
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")  # 黎明颂者
     check("三转成功含黎明颂者", "转职成功" in out and "黎明颂者" in out, out[:200])
     p = db.get_player("g1", "w1")
     check("class_tier=3", p.get("class_tier") == 3, str(p.get("class_tier")))

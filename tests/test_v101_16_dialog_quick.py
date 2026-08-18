@@ -74,11 +74,11 @@ async def main():
     print("  [家里裸数字2]", (r2 or "（空=放行）")[:80])
     check("无 NPC 放行（不 yield）", r2 == "" and not ev2._stopped, repr(r2[:60]))
 
-    # ---- 5. 『找』别名仍可用 ----
+    # ---- 5. find_npc 内部查找链仍可用（v127.8『找』不再对外注册，方法保留供『对话』转发） ----
     db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
     ev3 = FakeEvent("g1", "1001", "找 小艾")
     r3 = "".join(str(x) for x in await run(m.find_npc, ev3))
-    check("『找 小艾』别名可用", "小艾" in r3, r3[:120])
+    check("find_npc 内部查找链可用（『对话』转发路径）", "小艾" in r3, r3[:120])
     db.clear_talk_state("g1", "1001")
 
     # ---- 6. 『对话』空参 → NPC 列表（带序号展示） ----

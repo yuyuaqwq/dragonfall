@@ -292,8 +292,8 @@ async def test_command_vs_dialogue(m):
     db.update_player("gD", "c2", race="dragonborn", cur_map="dusk_ridge_road",
                      cur_subarea="dusk_ridge_road_1", hidden_class_unlock=["cls_dragon_oath"])
     await cmd(m, "talk_choice", "gD", "c2", "对话 龙裔老兵·铁鳞")
-    await cmd(m, "talk_choice", "gD", "c2", "对话 1")
-    await cmd(m, "talk_choice", "gD", "c2", "对话 1")
+    await cmd(m, "talk_choice", "gD", "c2", "1")
+    await cmd(m, "talk_choice", "gD", "c2", "1")
     pd = db.get_player("gD", "c2")
 
     equal = all(pc[k] == pd[k] for k in fields)
@@ -313,8 +313,8 @@ async def test_command_vs_dialogue(m):
     db.update_player("gD", "c4", race="elf", cur_map="starlake",
                      cur_subarea="starlake_1", hidden_class_unlock=["cls_wild_hunter"])
     await cmd(m, "talk_choice", "gD", "c4", "对话 观星台主·星澜")
-    await cmd(m, "talk_choice", "gD", "c4", "对话 1")
-    await cmd(m, "talk_choice", "gD", "c4", "对话 1")
+    await cmd(m, "talk_choice", "gD", "c4", "1")
+    await cmd(m, "talk_choice", "gD", "c4", "1")
     pd = db.get_player("gD", "c4")
 
     equal = all(pc[k] == pd[k] for k in fields)

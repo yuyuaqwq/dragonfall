@@ -46,7 +46,6 @@ COMMAND_REGEX = {
     # v115 探索见闻：『探索进度』指令（commands/exploration.py）
     "explore_progress": r'^(?:\[At:\d+\]\s*)?探索进度(?:[\s\S]*)$',
     "feedback_cmd": r'^(?:\[At:\d+\]\s*)?意见(?:[\s\S]*)$',
-    "find_npc": r'^(?:\[At:\d+\]\s*)?找(?:\s*|$)',
     "time_cmd": r'^(?:\[At:\d+\]\s*)?时间(?:指令)?(?:\s*|$)',
     "wild_notes": r'^(?:\[At:\d+\]\s*)?见闻录(?:\s*|$)',
     "fishing": r'^(?:\[At:\d+\]\s*)?垂钓(?:选择|点)?(?:\s*|$)',

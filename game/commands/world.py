@@ -2834,11 +2834,11 @@ class WorldCmds(CommandBase):
         # （快捷指令由 shortcut_trigger 消费；未绑定则无响应）
         return
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?找(?:\s*|$)")
-    @require_player()
-
+    # v127.8：『找』指令已删除（鱼鱼拍板）——find_npc 改为内部方法，
+    # 仅被 talk_choice 『对话 <名字>』 内部调用；外部不再有『找 X』触发词。
+    # 原 @filter.regex("找") + @require_player() 装饰器移除（talk_choice 前置已校验玩家）。
     async def find_npc(self, event: AstrMessageEvent):
-        """『找 <NPC名/序号>』：找 NPC 交谈（『对话』新名的别名入口，提示文案统一用『对话』）"""
+        """『对话 <NPC名/序号>』内部查找链：被 talk_choice 无对话分支调用；不对外注册（v127.8）"""
         group_id, qq_id = self._uid(event)
         name_key = self._strip_cmd(event, "找")
         player = self._player(group_id, qq_id)
@@ -3613,16 +3613,15 @@ class WorldCmds(CommandBase):
             if msg.startswith(cmd):
                 raw = msg[len(cmd):].strip()
                 break
-        # v101.27 #412：对话菜单中『对话 N』优先匹配菜单选项（鱼鱼拍板：菜单选项 > NPC 路由）
-        # 此前 v101.25 #320 曾改为 NPC 优先——playtest 四角色复现玩家困惑：
-        # 菜单开着发『对话 2』被当成"找场景 NPC#2"而不是选第 2 项。
-        # 现规则：『对话 <数字>』→ 菜单选项；『对话 <名字>』→ 找 NPC（非数字仍走 find_npc）
-        if msg.startswith("对话") and raw and raw != "0" and not raw.isdigit():
-            _prev_msg = event.message_str
-            event.message_str = "找 " + raw
-            async for r in self.find_npc(event):
-                yield r
-            event.message_str = _prev_msg
+        # v127.8（鱼鱼拍板）：对话进行中『对话 <参数>』拦截——
+        # ① 不能用于回复 NPC（选项回复走裸数字 1/2/3…，回复 0 结束对话）
+        # ② 不能跳去别的 NPC（先回复 0 结束当前对话，才能『对话 <别的NPC>』）
+        # 此前 v101.27 #412 的「『对话 数字』= 菜单选项 / 『对话 名字』= 找 NPC」规则整体作废。
+        # 『对话』空参 → 重渲染当前节点；『对话 0』→ 结束对话（两者保持原行为，向下兼容）。
+        if msg.startswith("对话") and raw and raw != "0":
+            yield event.plain_result(
+                f"你正在和 {npc['name']} 对话——直接回复数字选选项，回复 0 结束对话～\n"
+                f"💡 想找别的 NPC？先回复 0 结束当前对话再说")
             return
         cur_node_id = st.get("node", dlg.get("start", ""))
         node = C.dialogue_node(dlg, cur_node_id)

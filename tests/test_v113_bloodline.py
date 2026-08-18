@@ -105,8 +105,8 @@ async def main():
                          cur_subarea=subarea, hidden_class_unlock=[cls_id])
         # 对话 → 选项1（试炼/渴望入口）→ trial 节点 → 选项1（接受传承）
         await cmd(m, "talk_choice", "g1", qid, f"对话 {C.NPCS[nid]['name']}")
-        out = await cmd(m, "talk_choice", "g1", qid, "对话 1")
-        out = await cmd(m, "talk_choice", "g1", qid, "对话 1")
+        out = await cmd(m, "talk_choice", "g1", qid, "1")
+        out = await cmd(m, "talk_choice", "g1", qid, "1")
         p = db.get_player("g1", qid)
         ok = p["class_name"] == cls_id and p["class_tier"] == 1 and p["evolve_path"] == 1
         check(f"{cls_id} 对话传承成功", ok, f"{p['class_name']}/{p['class_tier']}/{p['evolve_path']}")
@@ -114,7 +114,7 @@ async def main():
             check("  传承文案", "传承完成" in out, out[:200])
         # 传承后对话不再显示传承选项
         await cmd(m, "talk_choice", "g1", qid, f"对话 {C.NPCS[nid]['name']}")
-        out2 = await cmd(m, "talk_choice", "g1", qid, "对话 1")
+        out2 = await cmd(m, "talk_choice", "g1", qid, "1")
         check(f"{cls_id} 传承后无传承选项", "接受传承" not in out2, out2[:120])
 
     print("【6. 升档对话（已传承 → T2）】")
@@ -122,8 +122,8 @@ async def main():
     db.update_player("g1", "z1", level=60, race="dragonborn", cur_map="dusk_ridge_road",
                      cur_subarea="dusk_ridge_road_1", hidden_class_unlock=["cls_dragon_oath"])
     await cmd(m, "talk_choice", "g1", "z1", "对话 龙裔老兵·铁鳞")
-    await cmd(m, "talk_choice", "g1", "z1", "对话 1")
-    out = await cmd(m, "talk_choice", "g1", "z1", "对话 1")
+    await cmd(m, "talk_choice", "g1", "z1", "1")
+    out = await cmd(m, "talk_choice", "g1", "z1", "1")
     p = db.get_player("g1", "z1")
     check("60 级传承=T2(修为继承)", p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 2,
           str((p["class_name"], p["class_tier"])))
