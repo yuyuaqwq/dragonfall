@@ -65,8 +65,27 @@ def check_need(need, ctx: dict) -> bool:
 
 
 def visible_options(dlg, node, ctx: dict) -> list:
-    """过滤出当前可见的选项(need 不满足的隐藏)"""
-    return [opt for opt in node.get("options", []) if check_need(opt.get("need"), ctx)]
+    """过滤出当前可见的选项(need 不满足的隐藏)
+
+    v127.6 side_menu 动态菜单：选项带非空 'side_menu' 键时，调用命令层注入的
+    ctx['side_menu_expand'](opt) 回调，将该选项展开成一组动态子选项
+    （每个子选项自带 text/next/action，如『接『支线名』(目标)』）；
+    未注入回调、need 不满足、或展开为空 → 该选项整体不出现
+    （无活儿可接时不显示菜单）。core 层保持纯逻辑、零 DB，回调由命令层注入。
+    """
+    out = []
+    for opt in node.get("options", []):
+        if opt.get("side_menu") is not None:
+            if not check_need(opt.get("need"), ctx):
+                continue
+            expand = ctx.get("side_menu_expand")
+            subs = expand(opt) if expand else []
+            if subs:
+                out.extend(subs)
+            continue  # 未注入回调/展开为空 → 跳过该选项
+        if check_need(opt.get("need"), ctx):
+            out.append(opt)
+    return out
 
 
 _STORY_PREFIX = re.compile(r"^[^：:]{1,20}[：:]\s*")

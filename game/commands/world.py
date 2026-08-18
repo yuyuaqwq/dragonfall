@@ -2926,16 +2926,10 @@ class WorldCmds(CommandBase):
                     elif _st == "ready":
                         lines.append(f"✅ 主线『{_mq['name']}』达成！和{_ta}对话交付领奖～")
                 _side = _quests.get("side", {})
-                for _sq in C.SIDE_QUESTS:
-                    if _sq["giver"] != npc_id or _sq["id"] in _side:
-                        continue
-                    if _sq.get("board"):  # v95r65 #288/#295：告示委托走告示板，不在对话提示
-                        continue
-                    # v104 审计 P2：等级不足不提示"可接取"（否则点了对话就崩/直接接走）
-                    if _sq.get("min_level") and player["level"] < _sq["min_level"]:
-                        continue
-                    lines.append(f"📜 支线『{_sq['name']}』可接取——和{_ta}对话接下吧～")
-                    break
+                # v127.6 预告全量：复用 _side_available_list（与对话菜单同源过滤）——
+                # 把该 NPC 所有可接支线都列出来（此前 break 只显示第一条，与实际可接数对不上）
+                for _av in self._side_available_list(group_id, qq_id, npc_id, npc):
+                    lines.append(f"📜 支线『{_av['name']}』可接取——和{_ta}对话接下吧～")
                 for _sid, _sq in list(_side.items()):
                     _sqd = next((q for q in C.SIDE_QUESTS if q["id"] == _sid), None)
                     if _sqd and _sqd["giver"] == npc_id and _sq.get("status") == "ready":
@@ -3255,7 +3249,30 @@ class WorldCmds(CommandBase):
             "npc_id": npc_id,
             "side_quests": C.SIDE_QUESTS,
             "item_counts": {m: db.count_item(group_id, qq_id, m) for m in {(o.get("objective") or {}).get("collect") for o in C.SIDE_QUESTS} if m},
+            # v127.6 side_menu 动态菜单：core.visible_options 渲染时用该回调
+            # 把『有活儿要交给我吗』类选项展开成『每个可接支线一个子选项』
+            "side_menu_expand": lambda opt: self._side_menu_expand(group_id, qq_id, npc_id, opt),
         }
+
+    def _side_menu_expand(self, group_id, qq_id, npc_id, opt) -> list:
+        """v127.6：side_menu 选项的动态展开——每个可接支线一个子选项（玩家自选单接）。
+
+        供 core.visible_options 的 side_menu_expand 回调调用；无任何可接支线 → 返回 []（菜单不出现）。
+        子选项 next：side_menu.after（连串接，通常为该 NPC 对话树 start）→ 选项原 next → __end__。
+        每条子选项 action: {"side_take_one": sid}，走 talk_actions.side_take_one 单条接取。
+        """
+        available = self._side_available_list(group_id, qq_id, npc_id, None)
+        if not available:
+            return []
+        nxt = (opt.get("side_menu") or {}).get("after") or opt.get("next") or "__end__"
+        subs = []
+        for item in available:
+            subs.append({
+                "text": f"📜 接『{item['name']}』({item['objective_text']})",
+                "next": nxt,
+                "action": {"side_take_one": item["sid"]},
+            })
+        return subs
 
     def _render_talk_node(self, npc, dlg, node, ctx) -> list:
         """渲染一个对话节点：头像 + 台词 + 可见选项
@@ -3648,15 +3665,19 @@ class WorldCmds(CommandBase):
             return "对话交付"
         return "『交付任务』交付"
 
-    def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
-        """NPC 有未接的支线任务时自动接取，返回通知行列表"""
-        # v104 审计 P0-1：O52 修复引入的 NameError——方法签名无 player 参数，
-        # 下方 min_level 门槛引用 player["level"] 必崩（对话 老水手·巴德/对话树 side_offer 全崩）
-        player = self._player(group_id, qq_id)
-        lines = []
+    def _side_available_list(self, group_id, qq_id, npc_id, npc) -> list:
+        """v127.6：该 NPC 名下当前"可接"的支线清单（对话菜单/预告/全接三处同源过滤）。
+
+        过滤条件与旧 _offer_side_quests 全部一致：giver == npc_id、非告示板委托(board)、
+        未接取（不在 side）、_sq_unlocked 链式前置、_sq_stats_met 计数门槛、
+        min_level 等级门槛、require_race 种族限制。每项返回
+        {sid, name, desc, objective_text, reward_exp, reward_gold}，按 SIDE_QUESTS 定义顺序
+        （保证对话菜单序号稳定）。npc 参数保留以与 _offer_side_quests 签名一致（此处未用到）。
+        """
+        player = self._player(group_id, qq_id) or {}
         quests = db.get_quests(group_id, qq_id)
-        side = dict(quests.get("side", {}))
-        changed = False
+        side = quests.get("side", {}) or {}
+        out = []
         for sq in C.SIDE_QUESTS:
             if sq["giver"] != npc_id:
                 continue
@@ -3670,14 +3691,87 @@ class WorldCmds(CommandBase):
             # v124 隐藏线/副业线：require_stats 计数门槛未达不自动发（如 H7 需垂钓 10 次）
             if not self._sq_stats_met(player, sq):
                 continue
-            # v101.30d #O52：支线等级门槛（min_level 字段）——等级不够不自动接，
-            # 避免低等级玩家接了高危区域任务（如雾潮航道 Lv.45 区）
-            if sq.get("min_level") and player["level"] < sq["min_level"]:
+            # v101.30d #O52：支线等级门槛（min_level 字段）——等级不够不算可接
+            if sq.get("min_level") and (player.get("level") or 0) < sq["min_level"]:
+                continue
+            # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族不算可接
+            if sq.get("require_race"):
+                _cur = player.get("race") or "human"
+                if _cur != sq["require_race"]:
+                    continue
+            out.append({
+                "sid": sq["id"],
+                "name": sq["name"],
+                "desc": sq.get("desc", ""),
+                "objective_text": self._obj_text(sq.get("objective") or {}),
+                "reward_exp": sq.get("reward_exp", 0),
+                "reward_gold": sq.get("reward_gold", 0),
+            })
+        return out
+
+    def _offer_side_quest(self, group_id, qq_id, npc_id, sid) -> list:
+        """v127.6：单条支线接取（对话 side_menu 子选项 action: side_take_one）。
+
+        校验 sid 必须在 _side_available_list 当前可接清单内才接（防越权/已接/等级不足），
+        否则返回 [] 不落地。返回该任务的接取通知行列表。
+        """
+        item = next((a for a in self._side_available_list(group_id, qq_id, npc_id, None)
+                     if a["sid"] == sid), None)
+        if not item:
+            return []
+        sq = next((q for q in C.SIDE_QUESTS if q["id"] == sid), None)
+        if not sq:
+            return []
+        quests = db.get_quests(group_id, qq_id)
+        side = dict(quests.get("side", {}))
+        side[sid] = {"status": "active", "progress": {}}
+        quests["side"] = side
+        db.save_quests(group_id, qq_id, quests)
+        return [
+            f"📜 【支线】『{sq['name']}』{sq['desc']}",
+            f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}",
+            f"  🎯 目标：{item['objective_text']}",
+        ]
+
+    def _offer_side_quests(self, group_id, qq_id, npc_id, npc):
+        """NPC 有未接的支线任务时自动接取，返回通知行列表
+
+        v127.6 重构：可接清单统一走 _side_available_list（与对话 side_menu 菜单/预告同源过滤），
+        逐条复用 _offer_side_quest 接取；不可接（min_level/require_race 被过滤掉）的
+        原拒绝提示按 SIDE_QUESTS 顺序保留，全接+完成提示行为不变（旧 side_offer action 兼容，
+        单支线 NPC 无感）。
+        """
+        player = self._player(group_id, qq_id) or {}
+        lines = []
+        quests = db.get_quests(group_id, qq_id)
+        side = dict(quests.get("side", {}))
+        available = self._side_available_list(group_id, qq_id, npc_id, npc)
+        av_ids = {a["sid"] for a in available}
+        changed = False
+        for sq in C.SIDE_QUESTS:
+            if sq["giver"] != npc_id or sq.get("board"):
+                continue
+            if sq["id"] in side:
+                continue
+            if sq["id"] in av_ids:
+                side[sq["id"]] = {"status": "active", "progress": {}}
+                changed = True
+                lines.append(f"📜 【支线】『{sq['name']}』{sq['desc']}")
+                lines.append(f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}")
+                lines.append(f"  🎯 目标：{self._obj_text(sq['objective'])}")
+                continue
+            # 不可接但符合其余条件的拒绝提示（与原始行为文案一致）
+            if not self._sq_unlocked(quests, sq):
+                continue
+            if not self._sq_stats_met(player, sq):
+                continue
+            # v101.30d #O52：支线等级门槛——等级不够不自动接
+            if sq.get("min_level") and (player.get("level") or 0) < sq["min_level"]:
                 lines.append(
                     f"🛡️ {npc.get('name', '对方')}打量了你一眼：这活得有 Lv.{sq['min_level']}+ 的本事，你再去练练吧。"
                 )
                 continue
-            # v113 种族限制：require_race 指定血脉（隐藏线试炼）——非该种族导师直接拒绝
+            # v113 种族限制：require_race 指定血脉——非该种族导师直接拒绝
             if sq.get("require_race"):
                 _rr = sq["require_race"]
                 _cur = player.get("race") or "human"
@@ -3688,11 +3782,6 @@ class WorldCmds(CommandBase):
                         f"你体内流淌的{(C.RACES.get(_cur) or {}).get('name', '血脉')}之血，与它无缘。』"
                     )
                     continue
-            side[sq["id"]] = {"status": "active", "progress": {}}
-            changed = True
-            lines.append(f"📜 【支线】『{sq['name']}』{sq['desc']}")
-            lines.append(f"  奖励：经验 +{sq['reward_exp']} 金币 +{sq['reward_gold']}")
-            lines.append(f"  🎯 目标：{self._obj_text(sq['objective'])}")
         if changed:
             quests["side"] = side
             db.save_quests(group_id, qq_id, quests)

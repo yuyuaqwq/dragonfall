@@ -236,6 +236,20 @@ def action_side_offer(world, group_id, qq_id, player, npc_id, action):
     return world._offer_side_quests(group_id, qq_id, npc_id, npc)
 
 
+@register("side_take_one")
+def action_side_take_one(world, group_id, qq_id, player, npc_id, action):
+    """v127.6：对话 side_menu 子选项——单条支线接取（自选，不再全接）。
+
+    与 side_offer 对称，但只接 action['side_take_one'] 指定的那一条；
+    走 world._offer_side_quest 校验 sid 在当前可接清单内才落地（防越权）。
+    """
+    sid = action.get("side_take_one")
+    npc = C.NPCS.get(npc_id) or C.ALL_WILD.get(npc_id) or {}
+    if not npc or not sid:
+        return []
+    return world._offer_side_quest(group_id, qq_id, npc_id, sid)
+
+
 @register("consume_item")
 def action_consume_item(world, group_id, qq_id, player, npc_id, action):
     ci = action["consume_item"]
