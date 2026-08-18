@@ -1777,9 +1777,7 @@ class WorldCmds(CommandBase):
             lines.append("【师门考验】")
             lines.append(f"  ⏳ 正在接受【{_tnpc.get('name', '导师')}】的拜师考验，回复『继续』接着进行")
         lines.append("")
-        # v123e：放弃提示统一放面板底部一次（原每个支线/每日行尾『放弃请发』冗余）
-        if side_items or any(k not in _DAILY_META_KEYS for k in daily):
-            lines.append(self._tip("quest"))
+        # v127.1 每面板只抽 1 条随机提示（v123e 放弃/接取引导并入随机池）
         lines.append(self._tip("quest"))
         yield event.plain_result("\n".join(lines))
 

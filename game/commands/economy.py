@@ -2214,7 +2214,6 @@ class EconomyCmds(CommandBase):
         lines.append("━━━━━━━━━━━━")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 {cls_name} {page + 1}』下一页" if page < pages else ""))
         lines.append(self._tip("forge"))
-        lines.append(self._tip("forge"))
         self._record_list_state(player.get("qq_id"), f"锻造 {cls_name}", page, pages)
         return "\n".join(lines)
 
@@ -2986,8 +2985,6 @@ class EconomyCmds(CommandBase):
             mark = "👑" if n == cur else "  "
             lines.append(f"{mark}{i:>2}. {n}")
         lines.append("")
-        if pages > 1 and page < pages:
-            lines.append(self._tip("title"))
         self._record_list_state(qq_id, "称号", page, pages)
         lines.append(self._tip("title"))
         if not cur:
@@ -3142,11 +3139,10 @@ class EconomyCmds(CommandBase):
                 else:
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("")
-        if pages > 1 and page < pages:
-            lines.append(self._tip("bag"))
+        # v127.1 每面板只抽 1 条随机提示；筛选序号警告(防卖错)仅筛选视图显示
         lines.append(self._tip("bag"))
-        lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
-        lines.append(self._tip("bag"))
+        if category:
+            lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)", priority=50)
@@ -4140,8 +4136,6 @@ class EconomyCmds(CommandBase):
         for i, (key, row) in enumerate(page_items, (page - 1) * 5 + 1):
             lines.append(f"{i:>2}. {row}")
         lines.append("")
-        if pages > 1 and page < pages:
-            lines.append(self._tip("shop"))
         self._record_list_state(qq_id, "商店", page, pages)
         lines.append(f"💰 你的金币：{player['gold']}")
         lines.append(self._tip("shop"))

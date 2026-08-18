@@ -29,6 +29,51 @@ def check(name, cond, detail=""):
         print(f"✅ {name}")
 
 
+def _scan_multi_tip():
+    """v127.1 防回归：同函数内相同 key 的 _tip 调用 >1 = 面板堆叠多条提示。
+    互斥分支白名单：craft/quest_branch 三分支/camp_task/camp_shop。
+    """
+    import ast as _ast
+    root = os.path.dirname(os.path.abspath(C.__file__))
+    allowed = {
+        # v127.1 实测互斥分支：每次只走其一，允许同 key 多调用点
+        ("economy.py", "craft"),
+        ("world.py", "_complete_side_quest"),
+        ("world.py", "camp_task"),
+        ("world.py", "camp_shop"),
+        ("instance.py", "_instance_map_view"),   # 通关分支 vs 正常视图
+        ("player.py", "leaderboard"),            # 战力榜 vs 等级榜
+    }
+    bad = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        if "__pycache__" in dirpath:
+            continue
+        for fn in filenames:
+            if not fn.endswith(".py"):
+                continue
+            rel = os.path.relpath(os.path.join(dirpath, fn), root)
+            tree = _ast.parse(open(os.path.join(dirpath, fn), encoding="utf-8").read())
+            for node in _ast.walk(tree):
+                if not isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                    continue
+                if (fn, node.name) in allowed:
+                    continue
+                calls = {}
+                for sub in _ast.walk(node):
+                    if isinstance(sub, _ast.Call) and isinstance(sub.func, _ast.Attribute) \
+                            and sub.func.attr in ("_tip", "_rand_tip") and sub.args \
+                            and isinstance(sub.args[0], _ast.Constant):
+                        calls.setdefault(sub.args[0].value, []).append(sub.lineno)
+                for key, lines in calls.items():
+                    if len(lines) > 1:
+                        bad.append(f"{rel}:{node.name} {key!r} x{len(lines)} @{lines}")
+    return bad
+
+def _check_one_tip_per_panel():
+    bad = _scan_multi_tip()
+    check("每面板同一分类最多 1 条提示", not bad, f"{bad}")
+
+
 def main():
     tips = C.TIPS
     # 1. 结构
@@ -76,6 +121,7 @@ def main():
     check(f"命令层 key 全部在 TIPS（used={len(used_keys)}）", not missing, f"missing={missing}")
 
     # 4. item_templates 用 _rand_tip 的 key 同样覆盖
+    _check_one_tip_per_panel()
     print(f"\n总计: {sum(1 for _ in FAILS)} 失败 / 全部检查完成")
     if FAILS:
         sys.exit(1)
