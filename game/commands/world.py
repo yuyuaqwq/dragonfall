@@ -1702,6 +1702,7 @@ class WorldCmds(CommandBase):
                 if st == "done":
                     lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 已完成]")
                     continue
+                # v127.7 排版：任务名单独一行（名字+状态），描述缩进下一行，目标进度行统一再缩进
                 # v116 §3.4：进行中支线可放弃（主线不可弃），放弃提示统一放面板底部（v123e 去行尾冗余）
                 # 收集型：实时按背包材料判断（v104 补测：复合目标同时显示击杀进度防误导）
                 if obj.get("collect"):
@@ -1713,10 +1714,12 @@ class WorldCmds(CommandBase):
                         kv = _kill_prog_count(obj, prog)  # v105 M19 P2：兼容旧档老 key 聚合
                         kill_txt = f"｜击杀：{kv}/{obj.get('count', 0)}"
                     if have >= need:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [✅ 可交{kill_txt}]")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』[✅ 可交{kill_txt}]")
+                        lines.append(f"    {sqd['desc']}")
                         lines.append(f"    材料已齐！回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     else:
-                        lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [⏳]")
+                        lines.append(f"{i:>2}. 『{sqd['name']}』[⏳{kill_txt}]")
+                        lines.append(f"    {sqd['desc']}")
                         lines.append(f"    收集：{obj['collect']} {have}/{need}{kill_txt}")
                     # v125.1 P2：复合目标（collect+use/find/explore，如 s53/s56/s64/s105）
                     # 补显其余目标行，与 find/use 分支的 _obj_text_lines 展示口径一致
@@ -1729,7 +1732,8 @@ class WorldCmds(CommandBase):
                 # v104 M20 P2：find 型（告示委托等）面板提示机制——在 XX 探索有概率遇到
                 # （此前走通用兜底只显示 desc+[⏳]，玩家不知如何推进）
                 if obj.get("find"):
-                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"{i:>2}. 『{sqd['name']}』[{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"    {sqd['desc']}")
                     # v124.2 复合目标逐行显示（s18 kill+find 两行都展示）
                     for _t in self._obj_text_lines(obj, st):
                         lines.append(f"    {_t}")
@@ -1738,18 +1742,26 @@ class WorldCmds(CommandBase):
                     continue
                 # v124 use 型（使用指定物品达成）——同 find 处理
                 if obj.get("use"):
-                    lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"{i:>2}. 『{sqd['name']}』[{'✅ 可交' if st == 'ready' else '⏳'}]")
+                    lines.append(f"    {sqd['desc']}")
                     for _t in self._obj_text_lines(obj, st):
                         lines.append(f"    {_t}")
                     if st == "ready":
                         lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
                     continue
                 mark = "✅ 可交" if st == "ready" else "⏳"
-                lines.append(f"{i:>2}. 『{sqd['name']}』{sqd['desc']} [{mark}]")
+                lines.append(f"{i:>2}. 『{sqd['name']}』[{mark}]")
+                lines.append(f"    {sqd['desc']}")
                 if st == "ready":
                     lines.append(f"    回去找 {giver} {self._deliver_hint(sqd['giver'])}")
-            if pages > 1 and page < pages:
-                lines.append(f"💡 『任务 {page+1}』看下一页(共 {pages} 页)")
+            # v127.7 翻页提示补全：上一页/下一页 + 总页数（此前只有下一页）
+            if pages > 1:
+                _nav = []
+                if page > 1:
+                    _nav.append(f"『任务 {page-1}』上一页")
+                if page < pages:
+                    _nav.append(f"『任务 {page+1}』下一页")
+                lines.append(f"💡 {' | '.join(_nav)}(共 {pages} 页)")
             self._record_list_state(qq_id, "任务", page, pages)
         else:
             lines.append("")
@@ -1757,6 +1769,7 @@ class WorldCmds(CommandBase):
         # 每日
         # v116 §3.4：daily 含 _completed/_repeat 元数据（active 任务清空后仍在）——
         # 只剩元数据 = 今日全部完成，按"已完成"分支展示；_completed 超额时给出计数。
+        # v127.7：玩家从未领取（daily 为空）→ 提示『每日』领取，不再误报"已完成"。
         daily = quests.get("daily", {})
         active_keys = [k for k in daily if k not in _DAILY_META_KEYS]
         if active_keys:
@@ -1770,18 +1783,25 @@ class WorldCmds(CommandBase):
                 # v125.1 P2：序号用 _daily_n（仅计实际任务）——原用 enumerate 的 i 会把
                 # _date/_completed/_repeat 元数据占位算进去（面板显示 4./5.，『放弃』按 1..N 对不上）
                 need = _daily_need(dq)
+                # v127.7 排版：每日任务名单独一行，描述缩进下一行
                 if need is None:
                     # v125.1 P2：无达标数定义时只显示实际进度，不再兜底假 99
-                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']} (进度 {dq.get('progress', 0)})")
+                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』")
+                    lines.append(f"    {dq['desc']} (进度 {dq.get('progress', 0)})")
                 else:
-                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』{dq['desc']} ({dq.get('progress',0)}/{need})")
+                    lines.append(f"{_daily_n:>2}. 『{dq['name']}』")
+                    lines.append(f"    {dq['desc']} ({dq.get('progress',0)}/{need})")
         else:
             lines.append("")
-            _done = int(daily.get("_completed", 0) or 0)
-            if _done >= DAILY_LIMIT:
-                lines.append(f"【每日】今日已完成 {_done}/{DAILY_LIMIT} 个每日任务，明天再来！")
+            if not daily:
+                # v127.7 修复：从未领取（新号/跨天清空）→ 引导领取，不显示"已完成"
+                lines.append("【每日】今日还没领取任务——输入『每日』发布今日悬赏～")
             else:
-                lines.append("【每日】今日任务已完成，明天再来！")
+                _done = int(daily.get("_completed", 0) or 0)
+                if _done >= DAILY_LIMIT:
+                    lines.append(f"【每日】今日已完成 {_done}/{DAILY_LIMIT} 个每日任务，明天再来！")
+                else:
+                    lines.append(f"【每日】今日已完成 {_done} 个每日任务——输入『每日』还能再接～")
         # v101.30d #O1：师门考验追踪——对话树进行中时面板显示（playtest 小红：考验无面板条目）
         _MASTER_IDS = ("npc_herb_master", "npc_mine_master", "npc_fish_master", "npc_cook_master",
                        "npc_alchemy_master", "npc_craft_master", "npc_enhance_master", "npc_rune_master")
