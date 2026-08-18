@@ -96,6 +96,25 @@ async def main():
     check("赶路中 0 结束", "已结束" in r, r[:80])
     check("状态清除", db.get_event_state("move_mode:1001") != "1", str(db.get_event_state("move_mode:1001")))
 
+    # ---- 8.5 类型过滤跟到落点：赶路 NPC 移到镇长办公处 → 只看 NPC 无场景/怪物 ----
+    db.update_player("g1", "1001", cur_map="oak_town", cur_subarea="oak_town_1")
+    ev = FakeEvent("g1", "1001", "赶路 NPC")   # 设 hurry_type=npc + 进赶路模式
+    await run(m.hurry_view, ev)
+    ev = FakeEvent("g1", "1001", "1")          # 冒险者广场 → 镇长办公处(序号1)
+    r = "".join(str(x) for x in await run(m.npc_quick_dialog, ev))
+    p = db.get_player("g1", "1001")
+    print("  [赶路NPC落点]", r.replace("\n", " | ")[:180])
+    check("赶路NPC落点本体在办公处", p["cur_subarea"] == "oak_town_2", str(p.get("cur_subarea")))
+    check("赶路NPC落点含NPC", "这里的 NPC" in r, r[:150])
+    check("赶路NPC落点不含场景", "✨ 场景" not in r, "场景未过滤")
+    check("赶路NPC落点不含怪物", "此地的怪物" not in r, "怪物未过滤")
+    check("赶路NPC落点仍含通道", "可前往" in r, "缺通道")
+    check("赶路NPC落点带赶路提示", "赶路模式中" in r, r[-80:])
+    # 结束清过滤类型
+    ev = FakeEvent("g1", "1001", "0")
+    await run(m.npc_quick_dialog, ev)
+    check("0 后过滤类型已清", (db.get_event_state("hurry_type:1001") or "") == "", str(db.get_event_state("hurry_type:1001")))
+
     # ---- 9. 正则互斥 ----
     import re as _re
     hr = _re.compile(r"^(?:\[At:\d+\]\s*)?赶路(?:[\s\S]*)$")

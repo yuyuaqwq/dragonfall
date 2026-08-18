@@ -828,15 +828,13 @@ class WorldCmds(CommandBase):
             return ""
         return self._HURRY_ALIAS.get(k)
 
-    def _hurry_panel(self, player: dict, cur_map: dict, cur_sa: str,
-                     group_id, qq_id, ftype: str) -> str:
-        """v128.1 赶路过滤面板：标题 + [类型清单] + 可前往通道 + 赶路提示。
+    def _hurry_section(self, player: dict, cur_map: dict, cur_sa: str,
+                       group_id, qq_id, ftype: str) -> list:
+        """v128.1 类型过滤区（NPC/怪物/场景/设施）——赶路面板与移动落点过滤共用。
 
-        意见 #1（鱼鱼拍板合并为『赶路 <类型>』可选参数）：赶路时只看对应内容
-        + 地图通道，省略其他信息，方便快速找 NPC/怪物/场景互动。ftype=""=全量。
+        返回 lines 列表（未 join）；无内容给"没有XX"提示行，保证赶路语境一致。
         """
-        nav = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id, show_here=False)
-        lines = [nav[0], "━━━━━━━━━━━━"] if nav else []
+        lines = []
         sas = cur_map.get("subareas") or []
         cur_sa_obj = None
         for _sa in sas:
@@ -905,6 +903,18 @@ class WorldCmds(CommandBase):
                     lines.append(f"  {l}")
             else:
                 lines.append("🏪 这里没有商店/设施～")
+        return lines
+
+    def _hurry_panel(self, player: dict, cur_map: dict, cur_sa: str,
+                     group_id, qq_id, ftype: str) -> str:
+        """v128.1 赶路过滤面板：标题 + [类型清单] + 可前往通道 + 赶路提示。
+
+        意见 #1（鱼鱼拍板合并为『赶路 <类型>』可选参数）：赶路时只看对应内容
+        + 地图通道，省略其他信息，方便快速找 NPC/怪物/场景互动。ftype=""=全量。
+        """
+        nav = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id, show_here=False)
+        lines = [nav[0], "━━━━━━━━━━━━"] if nav else []
+        lines.extend(self._hurry_section(player, cur_map, cur_sa, group_id, qq_id, ftype))
         # 可前往通道（复用导航主体，跳过标题/desc/分隔线）
         rest = [x for x in nav[3:] if str(x).strip()]
         if rest:
@@ -943,6 +953,8 @@ class WorldCmds(CommandBase):
             return
         # 进入赶路模式（0 结束；无参也进，方便直接回复序号走）
         db.set_event_state(f"move_mode:{qq_id}", "1")
+        # v128.1 持久化过滤类型（移动落点也按该类型过滤）
+        db.set_event_state(f"hurry_type:{qq_id}", ftype)
         cur = player["cur_map"]
         if cur.startswith("home_"):
             yield event.plain_result(self._home_view(group_id, qq_id, cur))
@@ -1519,12 +1531,29 @@ class WorldCmds(CommandBase):
         v101.25c：主体复用 _subarea_body（与跨图移动/返回同模板）。
         v115：H 提供 exploration_record_visit 时，到达即记录 + 首访奖励文本追加。
         """
-        out = "\n".join([
-            f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
-            f"{sa.get('desc', '')}",
-            f"━━━━━━━━━━━━",
-            self._subarea_body(player, cur_map, sa, group_id, qq_id),
-        ])
+        # v128.1 赶路类型过滤落点：hurry_type 非空时只显示该类型 + 可前往通道
+        _ht = ""
+        if group_id is not None and qq_id is not None:
+            _ht = db.get_event_state(f"hurry_type:{qq_id}") or ""
+        if _ht:
+            nav = self._map_nav_body(player, cur_map, sa["id"], group_id, qq_id, show_here=False)
+            sec = self._hurry_section(player, cur_map, sa["id"], group_id, qq_id, _ht)
+            lines = [f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
+                     f"{sa.get('desc', '')}",
+                     "━━━━━━━━━━━━"] + sec
+            rest = [x for x in nav[3:] if str(x).strip()]
+            if rest:
+                if sec:
+                    lines.append("")
+                lines.extend(rest)
+            out = "\n".join(lines)
+        else:
+            out = "\n".join([
+                f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
+                f"{sa.get('desc', '')}",
+                "━━━━━━━━━━━━",
+                self._subarea_body(player, cur_map, sa, group_id, qq_id),
+            ])
         # v115 探索见闻：到达子区域记录 + 首访奖励（H 提供，getattr 兜底）
         _rec = getattr(C, "exploration_record_visit", None)
         if _rec is not None and group_id is not None and qq_id is not None:
@@ -2997,6 +3026,7 @@ class WorldCmds(CommandBase):
         if db.get_event_state(f"move_mode:{qq_id}"):
             if num == "0":
                 db.set_event_state(f"move_mode:{qq_id}", "")
+                db.set_event_state(f"hurry_type:{qq_id}", "")  # v128.1 结束赶路同时清过滤
                 yield event.plain_result("🚶 赶路模式已结束，回复数字不再自动赶路～")
                 self._stop_event_safe(event)
                 return
