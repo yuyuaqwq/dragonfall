@@ -110,7 +110,7 @@ REPRESENTATIVES = {
     "portal_travel": "传送", "quest_view": "任务", "quest_accept": "接取", "daily": "每日",
     # v116：放弃进行中的支线/每日任务（代表输入带序号）
     "quest_abandon": "放弃 2",
-    "time_cmd": "时间", "wild_notes": "见闻录", "move_mode_cmd": "前往开始",
+    "time_cmd": "时间", "wild_notes": "见闻录", "location_view": "位置",
     # O74 『返回 <地名>』提示 handler / O115 『问路 <地名>』路线指引 handler
     "back_cmd": "返回 橡木镇", "ask_way": "问路 海蚀洞窟",
     "npc_quick_dialog": "5", "interact_prop": "交互", "talk_choice": "对话",
@@ -202,7 +202,7 @@ EXTRA_POSITIVE = [
     ("我的角色", {"profile"}),
     ("主线", {"quest_view"}),
     ("队伍", {"party"}),
-    ("位置", {"map_view"}),
+    ("位置", {"location_view"}),  # v128: 『位置』拆出→精简面板（原 v101 归 map_view）
     ("周围", {"map_view"}),
     ("骑乘", {"mount_cmd"}),
     ("下马", {"mount_cmd"}),

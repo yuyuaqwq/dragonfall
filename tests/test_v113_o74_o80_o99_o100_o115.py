@@ -128,7 +128,9 @@ async def test_o115_ask_way(m, gid, qid):
     check("『问路 海蚀洞窟』命中 ask_way handler", hit_name == "ask_way", str(hit)[:160])
     out = await cmd(m, "ask_way", gid, qid, "问路 海蚀洞窟")
     check("跨图路线含路径链", "翡翠港" in out and "铁港城" in out and "海蚀洞窟" in out, out)
-    check("路线含『前往』提示", "前往" in out, out)
+    # v128 顺手修复预存在 flaky：asway 尾部 _tip('move') 随机抽到「传送」条时无「前往」字样，
+    # 断言改为兼容随机（只要有移动/传送引导即可）
+    check("路线含引导提示（前往/传送）", ("前往" in out) or ("传送" in out), out)
     # 同图子区域
     out = await cmd(m, "ask_way", gid, qid, "问路 翡翠码头")
     check("同图子区域给『前往』直达提示", "翡翠码头" in out and "前往" in out, out)

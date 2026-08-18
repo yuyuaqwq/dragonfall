@@ -545,7 +545,7 @@ class WorldCmds(CommandBase):
             return
         yield event.plain_result(f"📦 取出【{it['data'].get('name', '?')}】，放入背包！")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|位置|周围)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:地图|周围)(?:\s*|$)")
     @require_player()
 
     async def map_view(self, event: AstrMessageEvent):
@@ -585,58 +585,8 @@ class WorldCmds(CommandBase):
                 if _sa["id"] == cur_sa:
                     sa_desc = _sa.get("desc", "") or ""
                     break
-        lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
-        # v87.4 合并显示：子区域 + 相邻地图统一连续编号（『移动 <序号>』直接可用）
-        # v87.16 空间连接：只列相邻可达子区域（subarea_links），序号与 move 解析一致
-        # v115 网状：links 用 _visible_sas 过滤（隐藏未揭示不在编号列表），隐藏房单列 🔒？？？
-        sas = cur_map.get("subareas") or []
-        neighbors = C.MAP_CONNECTIONS.get(cur, [])
-        links = C.subarea_links(cur, cur_sa)
-        _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
-        _v_links = [lid for lid in links if lid in _v_ids]
-        shown = [(i + 1, next((s for s in sas if s["id"] == lid), None))
-                 for i, lid in enumerate(_v_links)]
-        shown = [(i, s) for i, s in shown if s]
-        # 深度标记（A 提供 subarea_depth）——v114.3 精简：深度色圈（🟢🟡🟠🔴）对玩家决策无增益（Lv. 已示危险度），
-        # 只保留尽头标记 🔚（死胡同连接数==1 且非入口，提示此路到头需回头）
-        _depth = getattr(C, "subarea_depth", None)
-        _entry_id = C.map_entry_subarea(cur)
-        def _sa_mark(sa):
-            if _depth is None:
-                return ""
-            # 死胡同（连接数==1 且非入口）
-            try:
-                if sa["id"] != _entry_id and len(C.subarea_links(cur, sa["id"])) == 1:
-                    return "🔚"
-            except Exception:
-                pass
-            return ""
-        if shown or neighbors:
-            if sa_now:
-                lines.append(f"📍 当前位置：{sa_now}")
-            lines.append("📮 可前往：")
-            for i, sa in shown:
-                mark = " (你在这里)" if sa["id"] == cur_sa else ""
-                lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
-                lines.append(f"  {i}. {_sa_mark(sa)}{sa['name']}{lv_mark}{mark}")
-            # 隐藏未揭示房：显示 🔒？？？ 不编号（不可直接前往）
-            _hidden_sas = [s for s in sas if s["id"] in links and s["id"] not in _v_ids]
-            if _hidden_sas:
-                for _hs in _hidden_sas:
-                    lines.append(f"  🔒？？？(隐藏角落)")
-            exit_sa_id = C.map_exit_subarea(cur)
-            at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
-            # v95.21 跨图连接只在出口子区域列出：普通场所（镇长办公处等）不显示野外/他镇目的地，
-            # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
-            if at_exit:
-                for i, nid in enumerate(neighbors, len(_v_links) + 1):
-                    nm, want_sa = self._conn_target(nid)
-                    sa_lbl = self._conn_subarea_name(nm, want_sa)
-                    lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                    lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
-            # v114.3 尽头标记图例（有深度数据才显示）
-            if _depth is not None:
-                lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
+        lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id)
+        sas = cur_map.get("subareas") or []  # 后续设施/NPC/怪物区块复用
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
@@ -756,6 +706,114 @@ class WorldCmds(CommandBase):
         lines.append(self._tip("map"))
         yield event.plain_result("\n".join(lines))
 
+    def _map_nav_body(self, player: dict, cur_map: dict, cur_sa: str,
+                      group_id=None, qq_id=None, show_here=True) -> list:
+        """v128 地图导航主体（标题/描述/当前位置/可前往列表）——『地图』『位置』共用。
+
+        返回 lines 列表（未 join），调用方按需追加其余区块。
+        可前往编号与 move 解析一致（同图子区域 → 隐藏🔒 → 跨图邻居）。
+        """
+        sas = cur_map.get("subareas") or []
+        sa_now = ""
+        sa_desc = ""
+        for _sa in sas:
+            if _sa["id"] == cur_sa:
+                sa_now = _sa["name"]
+                sa_desc = _sa.get("desc", "") or ""
+                break
+        # v87.3 标题修复：地图名 + 当前子区域（不再重复"橡木镇 · 橡木镇"）
+        title = cur_map["name"]
+        if sa_now:
+            title = f"{cur_map['name']} · {sa_now}"
+        # v87.13 描述优先显示当前子区域（子区域无 desc 时回退地图 desc）
+        lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
+        neighbors = C.MAP_CONNECTIONS.get(cur_map.get("id", ""), [])
+        links = C.subarea_links(cur_map.get("id", ""), cur_sa)
+        _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
+        _v_links = [lid for lid in links if lid in _v_ids]
+        shown = [(i + 1, next((s for s in sas if s["id"] == lid), None))
+                 for i, lid in enumerate(_v_links)]
+        shown = [(i, s) for i, s in shown if s]
+        # 深度标记——v114.3 精简：只保留尽头标记 🔚（死胡同连接数==1 且非入口，提示此路到头需回头）
+        _depth = getattr(C, "subarea_depth", None)
+        _entry_id = C.map_entry_subarea(cur_map.get("id", ""))
+
+        def _sa_mark(sa):
+            if _depth is None:
+                return ""
+            # 死胡同（连接数==1 且非入口）
+            try:
+                if sa["id"] != _entry_id and len(C.subarea_links(cur_map.get("id", ""), sa["id"])) == 1:
+                    return "🔚"
+            except Exception:
+                pass
+            return ""
+
+        if shown or neighbors:
+            # v128 位置面板（show_here=False）始终显示当前位置；『地图』保持原有 if sa_now 语义
+            if sa_now or not show_here:
+                lines.append(f"📍 当前位置：{sa_now or title}")
+            lines.append("📮 可前往：")
+            for i, sa in shown:
+                # v128 位置面板精简：不显示 "(你在这里)"（show_here=True 时保留）
+                mark = f" (你在这里)" if (show_here and sa["id"] == cur_sa) else ""
+                lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
+                lines.append(f"  {i}. {_sa_mark(sa)}{sa['name']}{lv_mark}{mark}")
+            # 隐藏未揭示房：显示 🔒？？？ 不编号（不可直接前往）
+            _hidden_sas = [s for s in sas if s["id"] in links and s["id"] not in _v_ids]
+            if _hidden_sas:
+                for _hs in _hidden_sas:
+                    lines.append("  🔒？？？(隐藏角落)")
+            exit_sa_id = C.map_exit_subarea(cur_map.get("id", ""))
+            at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
+            # v95.21 跨图连接只在出口子区域列出：普通场所不显示野外/他镇目的地，
+            # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
+            if at_exit:
+                for i, nid in enumerate(neighbors, len(_v_links) + 1):
+                    nm, want_sa = self._conn_target(nid)
+                    sa_lbl = self._conn_subarea_name(nm, want_sa)
+                    lock = " (🔒隐藏)" if nm.get("hidden") else ""
+                    lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+            # v114.3 尽头标记图例（有深度数据才显示）
+            if _depth is not None:
+                lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
+        return lines
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?位置(?:\s*|$)")
+    @require_player()
+    async def location_view(self, event: AstrMessageEvent):
+        """v128 位置精简面板：当前位置 + 可前往列表 + 赶路模式提示（0 切换）。
+
+        鱼鱼拍板：把『前往』指令拆成『位置』（精简）与『地图』（完整现状）。
+        『位置』砍掉设施/场景/NPC/怪物等，只留导航；面板末尾提示回复 0
+        进入赶路模式（再回复 0 结束），替代 v101.17 『前往开始/结束』。
+        """
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        # O114 同源：副本战斗中与『地图』一致显示"副本战斗中"而非旧地点
+        _inst_row = self._instance_battle_for(group_id, qq_id)
+        if _inst_row:
+            yield event.plain_result(
+                "🗺️ 【副本战斗中】\n"
+                "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"
+                f"{self._tip('instance')}"
+            )
+            return
+        cur = player["cur_map"]
+        # v68 家地图：home_{qq_id} 不在 MAPS，定制展示（与『地图』同款）
+        if cur.startswith("home_"):
+            yield event.plain_result(self._home_view(group_id, qq_id, cur))
+            return
+        cur_map = C.MAP_BY_ID[cur]
+        cur_sa = player.get("cur_subarea") or ""
+        lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id, show_here=False)
+        # v128 赶路模式开关提示（0 切换：进入/结束）
+        if db.get_event_state(f"move_mode:{qq_id}"):
+            lines.append("💡 赶路模式中：回复序号直接赶路，回复 0 结束")
+        else:
+            lines.append("💡 回复 0 进入赶路模式（再回复 0 结束），然后回复序号即可赶路")
+        yield event.plain_result("\n".join(lines))
+
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
         """v87.14 同图内不可直达时的提示(城镇星形 / 野外线性)。"""
         cur_sa_id = player.get("cur_subarea") or ""
@@ -789,7 +847,8 @@ class WorldCmds(CommandBase):
                 f"路只有一条，需要先经过{'、'.join(link_names)}。")
 
     # v104 P2(M22): 『移动』=『前往』别名（23 章指令表主指令=『移动 <地名或序号>』），双名共存；
-    # (?!开始|结束) 负向断言保护 v101.17 移动模式开关『前往开始/结束』不被 move 抢
+    # (?!开始|结束) 负向断言保留：v128 已删移动模式开关（改『位置』面板回复 0 切换赶路），
+    # 旧指令『前往开始』『前往结束』仍不让 move 当目的地名吞掉
     # O74 『返回 <地名>』空回复修复（playtest 第 7 次复现，v101.25i 已删 move_back 但旧指令
     # 仍被玩家使用 → 注册提示 handler，不再只回标题零回复）：指引改用『前往』/『传送』
     @filter.regex(r"^(?:\[At:\d+\]\s*)?返回(?:[\s\S]*)$")
@@ -1162,9 +1221,7 @@ class WorldCmds(CommandBase):
         nav = ""
         # v101.25c 模板统一后：完整"可前往"列表已由 _subarea_body 输出，
         # 此处不再拼紧凑版（否则跨图移动出现两行重复列表，playtest #405）
-        # v101.17 移动模式提示（开启时回复序号直接赶路）
-        if db.get_event_state(f"move_mode:{qq_id}"):
-            nav = "\n🚶 移动模式中：回复序号直接赶路，『前往结束』退出"
+        # v128 赶路模式提示统一由 _subarea_arrive 输出（回复 0 结束），此处不再重复。
         fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
         fac_msg = ""
         if fac:
@@ -1217,7 +1274,7 @@ class WorldCmds(CommandBase):
         # 跨图特有信息插在主体前（等级提示/任务/方碑）
         _head_extra = f"{lv_msg}{extra}{portal_msg}"
         yield event.plain_result(
-            f"{arrive_view}{_head_extra}{nav}"
+            f"{arrive_view}{_head_extra}"
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
 
@@ -1347,6 +1404,10 @@ class WorldCmds(CommandBase):
                     _rw = _rv.get("reward") or ""
                     if _rw:
                         out += f"\n{_rw}"
+
+        # v128 赶路模式：移动落点统一提示（回复 0 结束），替代『前往结束』
+        if group_id is not None and qq_id is not None and db.get_event_state(f"move_mode:{qq_id}"):
+            out += "\n🚶 赶路模式中：回复序号直接赶路，回复 0 结束"
         return out
 
     def _travel_ambush(self, player: dict, target_map: dict, group_id=None, qq_id=None):
@@ -2751,34 +2812,6 @@ class WorldCmds(CommandBase):
         lines.append("💡 集齐见闻是冒险者的浪漫——见过的人会记住你。")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?:开始|结束)(?:\s*|$)", priority=50)
-    @require_player()
-    async def move_mode_cmd(self, event: AstrMessageEvent):
-        """v101.17 移动模式开关：『前往开始』/『移动开始』开启后裸数字=赶路，『前往结束』/『移动结束』退出。
-
-        状态存 event_state（key=move_mode:{qq_id}），npc_quick_dialog 裸数字优先消费。
-        v104 P2(M22)：正则扩为 (?:前往|移动)(?:开始|结束)——23 章指令表『移动开始/结束』
-        仍为移动模式开关（v104 修复说明原话），此前『移动开始』对 move（负向断言拦截）与
-        move_mode（只认前往）双不命中完全无响应。
-        """
-        group_id, qq_id = self._uid(event)
-        msg = event.get_message_str().strip()
-        msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
-        # v104 P2(M22)：『前往开始 2』等尾参此前被 (?:\s*|$) 前缀匹配静默忽略 → 报格式错误
-        _rest = re.sub(r"^(?:前往|移动)(?:开始|结束)", "", msg).strip()
-        if _rest:
-            yield event.plain_result("格式错误：『前往开始』/『前往结束』不接受额外参数～")
-            return
-        if "结束" in msg:
-            db.set_event_state(f"move_mode:{qq_id}", "")
-            yield event.plain_result("🚶 移动模式已关闭，回复数字不再自动赶路～")
-            return
-        db.set_event_state(f"move_mode:{qq_id}", "1")
-        yield event.plain_result(
-            "🚶 移动模式已开启！直接回复序号即可赶路，每步都会更新可前往列表；\n"
-            "『前往结束』退出移动模式，『对话 <NPC名>』照常交谈。"
-        )
-
     @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$", priority=100)
     async def npc_quick_dialog(self, event: AstrMessageEvent):
         """裸数字消费链：对话树选项 > 物品查看 > 移动模式 > 放行快捷指令。
@@ -2823,11 +2856,23 @@ class WorldCmds(CommandBase):
                 yield r
             self._stop_event_safe(event)
             return
-        # v101.17 移动模式：开启时裸数字优先赶路（改消息转发 move）
+        # v128 赶路模式：开启时裸数字赶路（改消息转发 move），0=关闭
         if db.get_event_state(f"move_mode:{qq_id}"):
+            if num == "0":
+                db.set_event_state(f"move_mode:{qq_id}", "")
+                yield event.plain_result("🚶 赶路模式已结束，回复数字不再自动赶路～")
+                self._stop_event_safe(event)
+                return
             event.message_str = f"前往 {num}"
             async for r in self.move(event):
                 yield r
+            self._stop_event_safe(event)
+            return
+        # v128 赶路模式开关：无其他状态可消费时回复 0 进入（替代 v101.17 『前往开始/结束』）
+        if num == "0":
+            db.set_event_state(f"move_mode:{qq_id}", "1")
+            yield event.plain_result(
+                "🚶 赶路模式已开启！直接回复序号即可赶路，回复 0 结束～")
             self._stop_event_safe(event)
             return
         # v123a：序号直接找 NPC 已移除——无对话/物品/移动状态时一律放行
