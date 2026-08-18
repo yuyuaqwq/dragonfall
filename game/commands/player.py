@@ -184,11 +184,18 @@ class PlayerCmds(CommandBase):
     # v123 列表翻页快捷键：+ / ＋ 下一页、- / － 上一页、=n / ＝n 跳页（读 last_list_{qq_id} 状态）
     # 单正则三符号（全角 ＋－＝ 一并匹配，手机输入法）；'=' 无数字时给用法提示；各列表渲染尾部由 _record_list_state 记录状态
     @filter.regex(r"^(?:\[At:\d+\]\s*)?[+＋\-－＝=][0-9０-９]*\s*$")
-    @require_player()
 
     async def page_flip(self, event: AstrMessageEvent):
-        """v123 翻页快捷键：+ 下一页 / - 上一页 / =n 跳页（转发重建指令执行，零侵入渲染）"""
+        """v123 翻页快捷键：+ 下一页 / - 上一页 / =n 跳页（转发重建指令执行，零侵入渲染）
+
+        v127.4：去掉 @require_player()——翻页是列表序号的延续交互（已注册玩家专属，
+        靠 last_list_{qq_id} 状态），未注册用户发『+』『-』不应被"你还没有角色"打扰
+        （鱼鱼反馈，与 npc_quick_dialog 同类），改为函数内对未注册静默 return。
+        """
         group_id, qq_id = self._uid(event)
+        # v127.4：未注册玩家无列表可翻 → 静默放行，免"未注册"打扰
+        if not self._player(group_id, qq_id):
+            return
         msg = event.get_message_str().strip()
         msg = re.sub(r"^\[At:[^\]]*\]\s*", "", msg)
         op = msg[0]

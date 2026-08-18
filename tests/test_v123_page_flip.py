@@ -194,11 +194,11 @@ async def test_flip_no_state(m):
     check("『=』无数字 → 跳页用法提示",
           len(replies) == 1 and "跳页用法" in replies[0], str(replies))
     check("『=』无数字不转发", captured == [], str(captured))
-    # 无玩家：require_player 守卫
+    # 无玩家：v127.4 静默放行（未注册用户无列表可翻，不再弹"注册"提示；如蚕蛹反馈）
     clean_db()
     replies, captured = await flip(m, "+")
-    check("无角色 '+' → 注册提示（require_player 守卫）",
-          len(replies) == 1 and "注册" in replies[0], str(replies))
+    check("无角色 '+' → 静默放行（不再弹注册提示）",
+          replies == [] and captured == [], str(replies))
 
 
 # ---------- 7. 快捷后缀（v123b：数字全量不拆 / 字母前缀透传） ----------

@@ -2715,7 +2715,6 @@ class WorldCmds(CommandBase):
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?[0-9０-９]\d?$", priority=100)
-    @require_player()
     async def npc_quick_dialog(self, event: AstrMessageEvent):
         """裸数字消费链：对话树选项 > 物品查看 > 移动模式 > 放行快捷指令。
 
@@ -2725,8 +2724,14 @@ class WorldCmds(CommandBase):
         对话树中的选项回复（_talk_active）保留。
         priority=100 高于 shortcut_trigger(默认0)：命中即 stop_event 拦截快捷指令；
         无状态可消费时 return（不 yield）→ 放行给快捷指令。
+        v127.4：去掉 @require_player()——裸数字是对话树/移动/快捷等"已注册玩家专属"的
+        交互链，未注册用户发『1』『2』不应被"你还没有角色"打扰（鱼鱼反馈），
+        改为函数内对未注册静默 return（不 yield、不提示），放行顺延。
         """
         group_id, qq_id = self._uid(event)
+        # v127.4：未注册玩家无对话树/物品查看/移动模式/快捷绑定可消费 → 静默放行，免"未注册"打扰
+        if not self._player(group_id, qq_id):
+            return
         num = event.get_message_str().strip()
         num = re.sub(r"^\[At:[^\]]*\]\s*", "", num).strip()
         # v124.2 全角数字兼容：全角『１』等回复转半角再比较（分支交付/对话树选项/物品查看/移动共用）
