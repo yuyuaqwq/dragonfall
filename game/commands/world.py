@@ -1186,8 +1186,8 @@ class WorldCmds(CommandBase):
                 "reach": int(_cls.get("reach", 2) or 2), "name": player.get("name", "你"),
                 "hp": player.get("hp", 0), "max_hp": player.get("max_hp", 0),
             }
-            _enemy_rows = formation_view(alive_units(_grp))
-            _ally_rows = formation_view(alive_units([_self_unit]))
+            _enemy_rows = formation_view(alive_units(_grp), side="enemy")
+            _ally_rows = formation_view(alive_units([_self_unit]), side="ally")
             yield event.plain_result(
                 f"{arrive_txt}\n{(first_sa.get('desc') if first_sa else '') or target.get('desc', '')}{lv_msg}{extra}{portal_msg}\n"
                 f"━━━━━━━━━━━━\n"

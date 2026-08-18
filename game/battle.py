@@ -621,8 +621,14 @@ class Battle:
 
     def _resolve_player_target(self, player: dict, target=None) -> dict | None:
         """解析玩家行动目标（单怪兼容：恒为唯一/enemy 主目标）。
-        返回目标单位 dict；无存活敌方返回 None。distinct 记录在 self._active_target。"""
-        from .core.formation import alive_units, select_target
+        返回目标单位 dict；无存活敌方返回 None。distinct 记录在 self._active_target。
+
+        v127.3 目标编号：target 支持 a<序号>（敌方第 N）/ 纯数字（敌方第 N，修复
+        『技能1 2』不能选敌）/ uid 精确 / 名字前缀。b<序号> 是友方目标（治疗），
+        不在此解析。
+        """
+        import re as _re
+        from .core.formation import alive_units, numbered_units, select_target
         alive = alive_units(self.enemies)
         if not alive:
             self._active_target = None
@@ -635,12 +641,24 @@ class Battle:
         if target is None:
             picked = select_target(attacker, self.enemies)
         else:
-            # 指定目标：uid 精确或名字前缀匹配（存活）
+            # v127.3 编号解析：a2 / 纯数字 2 → 敌方第 2 个目标（站位顺序）
             picked = None
-            for u in self.enemies:
-                if u.get("hp", 0) > 0 and (u.get("uid") == target or str(u.get("name", "")).startswith(str(target))):
-                    picked = u
-                    break
+            _m = _re.match(r"^(?:a)?(\d+)$", str(target).strip().lower())
+            if _m:
+                _n = int(_m.group(1))
+                _numed = numbered_units(self.enemies)
+                if 1 <= _n <= len(_numed):
+                    picked = _numed[_n - 1][1]
+                else:
+                    self._target_not_found = str(target)
+            else:
+                # 指定目标：uid 精确或名字前缀匹配（存活）
+                for u in self.enemies:
+                    if u.get("hp", 0) > 0 and (str(u.get("uid", "")) == str(target) or str(u.get("name", "")).startswith(str(target))):
+                        picked = u
+                        break
+                if picked is None and target not in (None, ""):
+                    self._target_not_found = str(target)
             if picked is not None and int(picked.get("rank", 1) or 1) > attacker["reach"]:
                 # 射程校验（审计 P1 修复）：目标在攻击范围外 → 拒绝（提示 + 不消耗回合）
                 self._active_target = None
@@ -652,9 +670,18 @@ class Battle:
         return picked
 
     def _resolve_ally_target(self, target) -> dict | None:
-        """v122 治疗指定队友：uid 精确或名字前缀匹配（存活）。
-        allies 为空（单人战斗）或找不到 → None。"""
+        """v122 治疗指定队友：b<序号>（v127.3 编号）或 uid 精确或名字前缀匹配（存活）。
+        allies 为空（单人战斗）或找不到 → None。b1 在 allies 空时=None=治疗自己。"""
+        import re as _re
         if not target or not self.allies:
+            return None
+        _m = _re.match(r"^b(\d+)$", str(target).strip().lower())
+        if _m:
+            _n = int(_m.group(1))
+            from .core.formation import numbered_units
+            _numed = numbered_units(self.allies)
+            if 1 <= _n <= len(_numed):
+                return _numed[_n - 1][1]
             return None
         for u in self.allies:
             if u.get("hp", 0) > 0 and (
@@ -799,11 +826,16 @@ class Battle:
                 self._active_target = None
             else:
                 self._target_out_of_range = False
+                self._target_not_found = None
                 self._resolve_player_target(player, target)
                 if getattr(self, "_target_out_of_range", False):
                     # 射程校验拒绝（审计 P1 修复）：不消耗回合，玩家可重新选择
                     logs.append(f"⛔ 【{target}】在你的攻击范围之外，够不着！(近战只可及前排)")
                     return logs, False
+                # v127.3：指定目标未找到 → 明确提示（不再静默回退自动选择）
+                if getattr(self, "_target_not_found", None):
+                    logs.append(f"⚠️ 没有找到目标『{self._target_not_found}』，攻击自动选择！(站位图编号：a1/a2… 敌方，b1/b2… 友方)")
+                    self._target_not_found = None
         else:
             self._active_target = None
 
@@ -2152,7 +2184,11 @@ class Battle:
         if multi > 1:
             logs.append(f"你施展【{skill_name}】，连击 {multi} 次，共造成 {total} 点伤害！")
         else:
-            logs.append(f"你施展【{skill_name}】，造成 {total} 点伤害！")
+            # v127.3 多怪时日志带目标名（a1 指定/自动选择都显示打了谁；单怪保持原文案）
+            _alive_n = sum(1 for u in self.enemies if u.get("hp", 0) > 0)
+            _tg_d = getattr(self, "_active_target", None) or self.enemy
+            _tgtxt = f"对【{_tg_d.get('name', '敌人')}】" if _alive_n > 1 and _tg_d else ""
+            logs.append(f"你施展【{skill_name}】，{_tgtxt}造成 {total} 点伤害！")
         # v107 吸MP（虚空行者）：魔法伤害的 mp_steal% 回复自身魔力（打空敌人蓝条的反向续航）
         if info.get("mp_steal") and total > 0:
             gain = int(total * float(info["mp_steal"]))

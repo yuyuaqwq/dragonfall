@@ -630,8 +630,12 @@ class InstanceCmds(CommandBase):
             else:
                 # 技能名未精确前缀命中 → 无法可靠剥离目标，交自动选择
                 return None
-            if not rest or "@" in rest or rest.isdigit():
+            # v127.3：允许编号目标（a2/b2/纯数字2）——『技能 火球术 a2』
+            if not rest or "@" in rest:
                 return None
+            import re as _re
+            if _re.fullmatch(r"[ab]?\d+", rest.strip().lower()):
+                return rest.strip().lower()
             return rest
         return None
 
@@ -755,10 +759,10 @@ class InstanceCmds(CommandBase):
         ]
         # v2 站位图（§4）：敌方阵列 + 我方存活玩家阵列，蓄力单位带标记
         from ..core import formation as FM
-        enemy_view = FM.formation_view(st.get("enemies") or [])
+        enemy_view = FM.formation_view(st.get("enemies") or [], side="enemy")
         player_units = [snap for key, snap in (st.get("players") or {}).items()
                         if st.get("alive", {}).get(str(key), True)]
-        ally_view = FM.formation_view(player_units)
+        ally_view = FM.formation_view(player_units, side="ally")
         if enemy_view:
             lines.append("── 敌方 ──")
             lines.extend(f"  {l}" for l in enemy_view)
@@ -1309,8 +1313,11 @@ class InstanceCmds(CommandBase):
                              max_hp=snap.get("max_hp", 100), max_mp=snap.get("max_mp", 100))
 
     # ---------------- 行动核心 ----------------
-    async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None):
-        """副本回合行动(由攻击/技能/防御指令路由进来)"""
+    async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None, target=None):
+        """副本回合行动(由攻击/技能/防御指令路由进来)
+
+        v127.3：target 参数（『技能 <槽位> <编号>』指定目标）由 combat 层解析传入。
+        """
         # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
         # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
         # 层内无敌人时直接引导『深入』推进，不进入战斗回合逻辑。
@@ -1403,7 +1410,8 @@ class InstanceCmds(CommandBase):
         # 若本次是防御行动，_do_defend 会重新置 True 并写回）
         st["p_defending"][cur_key] = False
         # v2 目标指定：从消息『攻击 <名字>』/『技能 <名> <目标名>』解析（None=自动）
-        target = self._instance_extract_target(event, action, skill_name)
+        # v127.3：combat 层已解析好 target（『技能1 a2』槽位+编号）时优先使用
+        target = target if target is not None else self._instance_extract_target(event, action, skill_name)
         # v2 敌我阵列归一（老存档恢复时补 enemies/站位字段）
         self._instance_ensure_player_fields(st)
         enemies = st["enemies"] if st.get("enemies") else [st["boss"]] if st.get("boss") else []

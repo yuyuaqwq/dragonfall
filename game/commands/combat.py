@@ -1002,7 +1002,7 @@ class CombatCmds(CommandBase):
             yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
             return
         if battle["state"].get("type") == "instance":
-            async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name):
+            async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "skill", skill_name, target=_skill_target):
                 yield _r
             return
         b = BT.Battle.from_state(battle["state"])
@@ -1494,12 +1494,15 @@ class CombatCmds(CommandBase):
 
     def _battle_formation_panel(self, player: dict, b) -> str:
         """v2 多对多站位图面板（§4.4）：双方各一层行（formation_view），含蓄力标记。
-        敌方= b.enemies 存活阵列；我方= 单机 [玩家]。阵亡（enemies 全灭）面板不输出敌方行。"""
+        敌方= b.enemies 存活阵列；我方= 单机 [玩家]。阵亡（enemies 全灭）面板不输出敌方行。
+
+        v127.3 目标编号：敌方 a1/a2…（A{n}层），我方 b1（B{n}层）——『技能1 a2』指定目标。
+        """
         from ..core.formation import alive_units
         allies = [self._player_unit_for_formation(player)]
-        ally_rows = formation_view(alive_units(allies))
+        ally_rows = formation_view(alive_units(allies), side="ally")
         _alive_enemies = alive_units(b.enemies)
-        enemy_rows = formation_view(_alive_enemies) if _alive_enemies else []
+        enemy_rows = formation_view(_alive_enemies, side="enemy") if _alive_enemies else []
         panel = (("── 敌方 ──\n" + "\n".join(enemy_rows) + "\n") if enemy_rows else "") \
             + "── 我方 ──\n" + "\n".join(ally_rows)
         return panel.rstrip("\n")
@@ -1529,6 +1532,8 @@ class CombatCmds(CommandBase):
             lines.append(rl)
         if status:
             lines.append(status)
+        # v127.3 选敌引导：站位图编号 a1/a2(敌) b1/b2(友)，『技能 <槽位> <编号>』指定目标
+        lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
         return "\n".join(lines)
 
     def _handle_victory(self, event, group_id, qq_id, player, monster, result):

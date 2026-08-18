@@ -137,10 +137,29 @@ def compact(units) -> list:
     return removed
 
 
-def formation_view(units) -> list:
+def numbered_units(units) -> list:
+    """存活单位按站位顺序编号（rank 升序 + 层内原序），返回 [(序号, unit), ...]。
+
+    v127.3 战斗选敌：显示与解析共用同一编号（a1/a2… 敌方，b1/b2… 我方）。
+    """
+    alive = alive_units(units)
+    alive.sort(key=lambda u: (int(u.get("rank", 1) or 1), _orig_idx(units, u)))
+    return [(i + 1, u) for i, u in enumerate(alive)]
+
+
+def _orig_idx(units, u) -> int:
+    """单位在原列表中的位置（稳定编号用；找不到返回大值排最后）。"""
+    for i, x in enumerate(units):
+        if x is u:
+            return i
+    return 10 ** 6
+
+
+def formation_view(units, side: str = "enemy") -> list:
     """生成站位图文案行（每层一行）。仅含存活单位；蓄力单位带"⏳蓄力中(剩N)"。
 
-    示例：`1层: 🛡️ 战士 ❤️150 | 🔥 法师 ❤️90`
+    v127.3：side 决定阵营代号——enemy: 层=A{n}层、目标=a{序号}；ally: 层=B{n}层、目标=b{序号}。
+    示例：`A1层: a1 🐺野狼 ❤️100 | a2 🐻黑熊 ❤️150`
     """
     rows = []
     alive = alive_units(units)
@@ -148,17 +167,20 @@ def formation_view(units) -> list:
     for u in alive:
         r = int(u.get("rank", 1) or 1)
         rows_map.setdefault(r, []).append(u)
+    numed = {id(u): n for n, u in numbered_units(units)}
+    side_mark = "A" if side == "enemy" else "B"
     for r in sorted(rows_map):
         parts = []
         for u in rows_map[r]:
             icon = u.get("icon", "") or ""
             nm = u.get("name", "单位")
             hp = u.get("hp", 0)
-            seg = f"{icon} {nm} ❤️{hp}".strip()
+            tag = f"{side_mark.lower()}{numed.get(id(u), '?')}"
+            seg = f"{tag} {icon} {nm} ❤️{hp}".strip()
             ch = u.get("charging")
             if ch:
                 left = ch.get("left", 1)
                 seg += f" ⏳蓄力中(剩{left})"
             parts.append(seg)
-        rows.append(f"{r}层: " + " | ".join(parts))
+        rows.append(f"{side_mark}{r}层: " + " | ".join(parts))
     return rows
