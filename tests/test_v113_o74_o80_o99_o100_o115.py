@@ -65,17 +65,16 @@ async def test_o80_craft_alias(m, gid, qid):
 
 async def test_o99_talk_zero(m, gid, qid):
     print("【3. O99 『对话 0』统一对话结束状态判定】")
-    # 3.1 影刃宗师：对话树建立 → 『对话 0』正常退出 + 移动放行（与吟游诗人一致）
+    # 3.1 影刃宗师：对话树建立 → 裸数字 0 正常退出 + 移动放行（与吟游诗人一致）
     db.update_player(gid, qid, cur_map="jade_port", cur_subarea="jade_port_1", race="halfling")
     out = await cmd(m, "talk_choice", gid, qid, "对话 影刃宗师·夜枭")
     check("影刃宗师对话树渲染（含选项）", "结束对话" in out, out[:120])
     check("影刃宗师对话状态已建立", db.get_talk_state(gid, qid) is not None, "")
-    out = await cmd(m, "talk_choice", gid, qid, "对话 0")
-    check("影刃宗师『对话 0』正常告别", "那就再会了" in out, out)
-    check("影刃宗师『对话 0』后状态清除", db.get_talk_state(gid, qid) is None, "")
+    out = await cmd(m, "talk_choice", gid, qid, "0")  # v127.8b: 对话中『对话 0』亦拦截，结束统一裸数字 0
+    check("影刃宗师裸数字 0 正常告别", "那就再会了" in out, out)
+    check("影刃宗师裸数字 0 后状态清除", db.get_talk_state(gid, qid) is None, "")
     out = await cmd(m, "move", gid, qid, "前往 1")
-    check("『对话 0』后移动不再被拦截", "交谈中" not in out and "你来到了" in out, out[:80])
-    # 3.2 无状态时：『对话 0』/『对话 ０』（全角）明确提示，不再报"没有第 0 位 NPC"
+    check("裸数字 0 后移动不再被拦截", "交谈中" not in out and "你来到了" in out, out[:80])
     out = await cmd(m, "talk_choice", gid, qid, "对话 0")
     check("无状态『对话 0』提示无对话", "没有正在进行的对话" in out, out)
     out = await cmd(m, "talk_choice", gid, qid, "对话 ０")
@@ -87,13 +86,13 @@ async def test_o99_talk_zero(m, gid, qid):
     check("损坏残留键已被清除", db.get_event_state(db.talk_state_key(gid, qid)) is None, "")
     out = await cmd(m, "move", gid, qid, "前往 1")
     check("损坏键清除后移动放行", "你来到了" in out, out[:80])
-    # 3.4 对照：吟游诗人处『对话 0』可正常退出
+    # 3.4 对照：吟游诗人处裸数字 0 可正常退出
     db.update_player(gid, qid, cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "talk_choice", gid, qid, "对话 吟游诗人·莎拉")
     check("吟游诗人对话树渲染", "结束对话" in out, out[:120])
-    out = await cmd(m, "talk_choice", gid, qid, "对话 0")
-    check("吟游诗人『对话 0』正常告别", "那就再会了" in out, out)
-    check("吟游诗人『对话 0』后状态清除", db.get_talk_state(gid, qid) is None, "")
+    out = await cmd(m, "talk_choice", gid, qid, "0")  # v127.8b: 裸数字 0 结束对话
+    check("吟游诗人裸数字 0 正常告别", "那就再会了" in out, out)
+    check("吟游诗人裸数字 0 后状态清除", db.get_talk_state(gid, qid) is None, "")
 
 
 async def test_o100_turn_in(m, gid, qid):

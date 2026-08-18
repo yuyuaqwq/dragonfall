@@ -72,7 +72,7 @@ async def main():
     print("【v65 对话树：分支与结束】")
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("town 分支可回史莱姆", "黏糊糊的绿家伙" in out, out[:200])
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 0")
+    out = await cmd(m, "talk_choice", "g1", "w1", "0")
     check("对话0结束", "那就再会了" in out, out[:120])
     out = await cmd(m, "talk_choice", "g1", "w1", "再见")
     check("结束词再见提示无会话", "没有正在进行的对话" in out, out[:120])

@@ -925,10 +925,10 @@ class WorldCmds(CommandBase):
         if dest.startswith("移动"):
             dest = dest[2:].strip()  # v104 P2(M22): 『移动 <地名/序号>』别名参数剥离（双名共存）
         player = self._player(group_id, qq_id)
-        # v87.13 对话中禁止移动：多轮对话进行时先『对话 0』结束
+        # v87.13 对话中禁止移动：多轮对话进行时先回复 0 结束（v127.8 起『对话 0』亦拦截）
         # O99 修复：统一对话状态判定（_talk_active 会清除损坏残留键，防判定漂移）
         if self._talk_active(group_id, qq_id):
-            yield event.plain_result("你还在和 NPC 交谈中！先『对话 0』结束谈话再动身吧。")
+            yield event.plain_result("你还在和 NPC 交谈中！先回复 0 结束对话再动身吧。")
             return
         # v95.17 #146：战斗中禁止移动（与传送/回家/拜访一致，防战斗挂起跨图/被撞怪覆盖）
         if self._in_battle(group_id, qq_id):
@@ -3554,7 +3554,7 @@ class WorldCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         # O99 修复：统一对话状态判定（损坏残留键在 _talk_active 内清除，
-        # 『对话 0』与移动拦截同源同判定，不再出现"提示无对话但树仍在"的漂移）
+        # 对话中『对话 0』亦拦截（v127.8b）与移动拦截同源同判定，不再出现"提示无对话但树仍在"的漂移）
         st = self._talk_active(group_id, qq_id)
         if not st:
             # v101.16 『找』→『对话』：无对话中时『对话 <名字/序号>』= 找 NPC 开始对话
@@ -3617,8 +3617,10 @@ class WorldCmds(CommandBase):
         # ① 不能用于回复 NPC（选项回复走裸数字 1/2/3…，回复 0 结束对话）
         # ② 不能跳去别的 NPC（先回复 0 结束当前对话，才能『对话 <别的NPC>』）
         # 此前 v101.27 #412 的「『对话 数字』= 菜单选项 / 『对话 名字』= 找 NPC」规则整体作废。
-        # 『对话』空参 → 重渲染当前节点；『对话 0』→ 结束对话（两者保持原行为，向下兼容）。
-        if msg.startswith("对话") and raw and raw != "0":
+        # 『对话』空参 → 重渲染当前节点（向下兼容）；v127.8 起对话中任何『对话 X』（含 0）一律拦截，结束统一回复 0。
+        # v127.8b（鱼鱼拍板）：『对话 0』也不保留——对话中任何『对话 X』（含 0）
+        # 一律拦截，结束对话统一回复裸数字 0（与选项回复同通道，无二义性）。
+        if msg.startswith("对话") and raw:
             yield event.plain_result(
                 f"你正在和 {npc['name']} 对话——直接回复数字选选项，回复 0 结束对话～\n"
                 f"💡 想找别的 NPC？先回复 0 结束当前对话再说")

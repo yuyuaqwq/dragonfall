@@ -53,13 +53,19 @@ async def main():
     out = await cmd(m, "talk_choice", "g1", "w1", "2")
     check("裸数字 2 选选项推进", "镇子还算太平" in out, out[:200])
 
-    print("【5. 对话中『对话 0』结束对话（保留兼容）】")
+    print("【5. 对话中『对话 0』同样被拦截（v127.8b）】")
     out = await cmd(m, "talk_choice", "g1", "w1", "对话 0")
-    check("『对话 0』结束对话", "那就再会了" in out, out[:120])
+    check("对话中『对话 0』被拦截提示", "正在和" in out and "回复 0 结束" in out, out[:200])
+    st = db.get_talk_state("g1", "w1")
+    check("对话状态未被清除（『对话 0』不结束）", bool(st and st.get("npc") == "npc_mayor"), str(st))
+
+    print("【6. 裸数字 0 结束对话（唯一结束通道）】")
+    out = await cmd(m, "talk_choice", "g1", "w1", "0")
+    check("裸数字 0 结束对话", "那就再会了" in out, out[:120])
     check("对话状态已清", db.get_talk_state("g1", "w1") is None, "")
 
-    print("【6. 对话结束后裸数字放行（不触发对话）】")
-    # 第5步已清对话状态，这里直接发裸数字 → npc_quick_dialog 放行
+    print("【7. 对话结束后裸数字放行（不触发对话）】")
+    # 第6步已清对话状态，这里直接发裸数字 → npc_quick_dialog 放行
     ev = FakeEvent("g1", "w1", "9")
     r = "".join(str(x) for x in await run(m.npc_quick_dialog, ev))
     check("对话外裸数字放行", r == "" and not ev._stopped, (r or "空=放行")[:80])
