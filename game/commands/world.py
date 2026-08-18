@@ -814,6 +814,143 @@ class WorldCmds(CommandBase):
             lines.append("💡 回复 0 进入赶路模式（再回复 0 结束），然后回复序号即可赶路")
         yield event.plain_result("\n".join(lines))
 
+    _HURRY_ALIAS = {
+        "npc": "npc",
+        "怪物": "monster", "怪": "monster", "monster": "monster",
+        "场景": "scene", "scene": "scene", "景物": "scene",
+        "设施": "facility", "facility": "facility", "商店": "facility",
+    }
+
+    def _hurry_type(self, raw: str):
+        """『赶路』可选参数归一：""=全量, None=无效；npc/monster/scene/facility=类型过滤。"""
+        k = (raw or "").strip().lower()
+        if k in ("", "全部", "全", "all"):
+            return ""
+        return self._HURRY_ALIAS.get(k)
+
+    def _hurry_panel(self, player: dict, cur_map: dict, cur_sa: str,
+                     group_id, qq_id, ftype: str) -> str:
+        """v128.1 赶路过滤面板：标题 + [类型清单] + 可前往通道 + 赶路提示。
+
+        意见 #1（鱼鱼拍板合并为『赶路 <类型>』可选参数）：赶路时只看对应内容
+        + 地图通道，省略其他信息，方便快速找 NPC/怪物/场景互动。ftype=""=全量。
+        """
+        nav = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id, show_here=False)
+        lines = [nav[0], "━━━━━━━━━━━━"] if nav else []
+        sas = cur_map.get("subareas") or []
+        cur_sa_obj = None
+        for _sa in sas:
+            if _sa["id"] == cur_sa:
+                cur_sa_obj = _sa
+                break
+        if ftype == "npc":
+            npc_ids = (cur_sa_obj.get("npcs") if cur_sa_obj else None) or cur_map.get("npcs", [])
+            if cur_map.get("inline_npcs"):
+                npc_ids = cur_map["inline_npcs"]
+            npcs = []
+            for nid in npc_ids:
+                if nid in C.HIDDEN_NPCS:
+                    npcs.append((nid, C.HIDDEN_NPCS[nid]))
+                elif nid in C.NPCS:
+                    npcs.append((nid, C.NPCS[nid]))
+            npcs = [(nid, n) for nid, n in npcs
+                    if nid in C.HIDDEN_NPCS or not cur_sa or C.town_npc_visible(nid, n, cur_sa)]
+            if npcs:
+                lines.append("👥 这里的 NPC：")
+                for i, (_, n) in enumerate(npcs, 1):
+                    lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
+            else:
+                lines.append("👥 这里附近没有可交谈的 NPC ～")
+        elif ftype == "monster":
+            mons = (cur_sa_obj.get("monsters") if cur_sa_obj else None)
+            if mons is None:
+                mons = cur_map.get("monsters", [])
+            elite = (cur_sa_obj.get("elite") if cur_sa_obj else None) or cur_map.get("elite")
+            boss = (cur_sa_obj.get("boss") if cur_sa_obj else None) or cur_map.get("boss")
+            if mons:
+                _mlvs = [lv for _m, _n, _r, lv, _s, _d in mons if lv]
+                if _mlvs:
+                    _lo, _hi = min(_mlvs), max(_mlvs)
+                    lv_label = f"Lv.{_lo}" if _lo == _hi else f"Lv.{_lo}-{_hi}"
+                else:
+                    base_lv = (cur_sa_obj.get("lv") if cur_sa_obj else None) or cur_map["lv"]
+                    lv_label = f"Lv.{base_lv}"
+                lines.append(f"🐾 此地的怪物 ({lv_label})：")
+                for mid, name, role, lv, skills, drops in mons:
+                    if role == "elite" and elite and elite[0] == mid:
+                        continue
+                    if role == "boss" and boss and boss[0] == mid:
+                        continue
+                    mark = "👑" if role == "boss" else ("⭐" if role == "elite" else "")
+                    lines.append(f"  {mark}{name} Lv.{lv}")
+            if elite:
+                lines.append(f"  ⭐ 精英：{elite[1]}")
+            if boss:
+                lines.append(f"  👑 Boss：{boss[1]}")
+            if not mons and not elite and not boss:
+                lines.append("🐾 这里没什么怪物，比较安全～")
+        elif ftype == "scene":
+            scene = self._map_scene(cur_map, player, cur_sa)
+            if scene:
+                lines.append("✨ 场景：")
+                for l in scene:
+                    lines.append(f"  {l}")
+            else:
+                lines.append("✨ 这里没什么特别的场景～")
+        elif ftype == "facility":
+            fac = self._map_facilities(cur_map, player, cur_sa)
+            if fac:
+                lines.append("🏪 此地设施：")
+                for l in fac:
+                    lines.append(f"  {l}")
+            else:
+                lines.append("🏪 这里没有商店/设施～")
+        # 可前往通道（复用导航主体，跳过标题/desc/分隔线）
+        rest = [x for x in nav[3:] if str(x).strip()]
+        if rest:
+            if ftype and lines and lines[-1]:  # v128.1 无参(full)无类型区不加分隔空行
+                lines.append("")
+            lines.extend(rest)
+        lines.append("")
+        lines.append("💡 赶路模式中：回复序号直接赶路，回复 0 结束")
+        return "\n".join(lines)
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?赶路(?:[\s\S]*)$")
+    @require_player()
+    @no_prof_waiting()
+    async def hurry_view(self, event: AstrMessageEvent):
+        """v128.1 『赶路 [NPC/怪物/场景/设施]』过滤面板 + 进入赶路模式。
+
+        意见 #1（赶路NPC/赶路怪物/赶路场景，鱼鱼拍板合并可选参数）：赶路时
+        只看对应内容 + 地图通道，省略其他信息，方便快速找 NPC/怪物/场景互动。
+        无参 = 当前位置全量可前往；全部形态进入赶路模式（0 结束）。
+        """
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        _inst_row = self._instance_battle_for(group_id, qq_id)
+        if _inst_row:
+            yield event.plain_result(
+                "🗺️ 【副本战斗中】\n"
+                "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"
+                f"{self._tip('instance')}"
+            )
+            return
+        raw = self._strip_cmd(event, "赶路").strip()
+        ftype = self._hurry_type(raw)
+        if ftype is None:
+            yield event.plain_result(
+                "『赶路』可选参数：NPC / 怪物 / 场景 / 设施（例：『赶路 NPC』；无参=看当前全部可前往）～")
+            return
+        # 进入赶路模式（0 结束；无参也进，方便直接回复序号走）
+        db.set_event_state(f"move_mode:{qq_id}", "1")
+        cur = player["cur_map"]
+        if cur.startswith("home_"):
+            yield event.plain_result(self._home_view(group_id, qq_id, cur))
+            return
+        cur_map = C.MAP_BY_ID[cur]
+        cur_sa = player.get("cur_subarea") or ""
+        yield event.plain_result(self._hurry_panel(player, cur_map, cur_sa, group_id, qq_id, ftype))
+
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
         """v87.14 同图内不可直达时的提示(城镇星形 / 野外线性)。"""
         cur_sa_id = player.get("cur_subarea") or ""

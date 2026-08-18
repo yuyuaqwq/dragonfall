@@ -111,6 +111,7 @@ REPRESENTATIVES = {
     # v116：放弃进行中的支线/每日任务（代表输入带序号）
     "quest_abandon": "放弃 2",
     "time_cmd": "时间", "wild_notes": "见闻录", "location_view": "位置",
+    "hurry_view": "赶路",
     # O74 『返回 <地名>』提示 handler / O115 『问路 <地名>』路线指引 handler
     "back_cmd": "返回 橡木镇", "ask_way": "问路 海蚀洞窟",
     "npc_quick_dialog": "5", "interact_prop": "交互", "talk_choice": "对话",

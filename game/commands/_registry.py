@@ -79,6 +79,7 @@ COMMAND_REGEX = {
     "leaderboard": r'^(?:\[At:\d+\]\s*)?排行(?:[\s\S]*)$',
     "map_view": r'^(?:\[At:\d+\]\s*)?(?:地图|周围)(?:\s*|$)',
     "location_view": r'^(?:\[At:\d+\]\s*)?位置(?:\s*|$)',
+    "hurry_view": r'^(?:\[At:\d+\]\s*)?赶路(?:[\s\S]*)$',
     "deed_view": r'^(?:\[At:\d+\]\s*)?地契(?:[\s\S]*)$',
     "deed_buy": r'^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$',
     "deed_sell": r'^(?:\[At:\d+\]\s*)?卖房(?:[\s\S]*)$',
