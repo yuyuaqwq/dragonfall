@@ -257,7 +257,7 @@ def _render_pet_egg(d, lines, equipped):
     else:
         lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
     lines.append("")
-    lines.append("💡 『使用 宠物蛋』孵化")
+    lines.append(self._tip("item_detail"))
 
 
 def _render_mount(d, lines, equipped):
@@ -276,7 +276,7 @@ def _render_mount(d, lines, equipped):
     else:
         lines.append("缰绳上残留着野兽的气息……")
     lines.append("")
-    lines.append("💡 『使用 <名称>』解锁坐骑，『坐骑』查看")
+    lines.append(self._tip("item_detail"))
 
 
 def _render_consumable(d, lines, equipped):
@@ -869,7 +869,7 @@ class EconomyCmds(CommandBase):
         # v105R3 M14 P3-2：材料每项单独一行（对齐物品详情排版规范 v101.21）
         _got_txt = "".join(f"\n{m}x{c}" for m, c in got.items())
         return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
-                f"💡 『背包』查看，『出售 <名称>』变现～{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_rare_hint}{_daily_txt}")
+                + self._tip("gather") + f"{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_rare_hint}{_daily_txt}")
 
     # ---------- v105 挖掘疲劳值（19 章 §2.2；M14 P2-4 最小实现） ----------
     # 连续挖掘计数存 event_state（mining_fatigue_{qq_id}），无 schema 变更；
@@ -1118,7 +1118,7 @@ class EconomyCmds(CommandBase):
             nxt = f"｜『炼金 提纯 {page + 1}』下一页" if purify_only else f"｜『炼金 {page + 1}』下一页"
         lines.append(f"📄 第 {page}/{pages} 页{nxt}")
         self._record_list_state(qq_id, "炼金 提纯" if purify_only else "炼金", page, pages)
-        lines.append("💡 『合成 <提纯配方名>』提纯，如『合成 珍珠贝提纯』；🔒 = 炼金等级不够")
+        lines.append(self._tip("alchemy"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?合成(?:\s*|$)")
@@ -1267,7 +1267,7 @@ class EconomyCmds(CommandBase):
         lines.append("")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『烹饪列表 {page + 1}』下一页" if page < pages else ""))
         self._record_list_state(qq_id, "烹饪列表", page, pages)
-        lines.append(f"💡 你当前烹饪等级 Lv.{cook_lv}，『烹饪 <料理名>』制作(如：烹饪 蛇羹)")
+        lines.append(self._tip("cooking"))
         lines.append("💡 烹饪等级：采集植物 + 垂钓 → 料理，成功制作＋1 经验")
         yield event.plain_result("\n".join(lines))
 
@@ -1504,7 +1504,7 @@ class EconomyCmds(CommandBase):
         lines.append(f"📊 副业总分：{total}(已激活副业等级之和，与『副业 排行』同口径)")
         lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』(等级清零)")
         lines.append("💡 新副业需先找对应导师拜师学习才解锁（如 铁港城·老渔夫·马库斯 教垂钓）")
-        lines.append("💡 『副业 排行』看群友等级，『烹饪列表』看料理配方～")
+        lines.append(self._tip("profession"))
         # v105R3 M14 P2-6：稀有产出条件标注（兔蛋/驯鹿缰绳依赖本次采集 roll 出价值150+材料，
         # 低等级图无稀有材料永久无法触发——设计内但玩家不可见，面板明示）
         lines.append(f"💡 采集稀有材料(价值{C.RARE_MATERIAL_PRICE}+金币)才有机会出兔蛋/驯鹿缰绳等惊喜；挖掘稀有矿脉需挖掘Lv.4+")
@@ -1564,7 +1564,7 @@ class EconomyCmds(CommandBase):
             medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(i, "  ")
             lines.append(f"{medal} {i:>2}. {names.get(t['qq_id'], t['qq_id'])}：{t['total']} 分")
         lines.append("")
-        lines.append("💡 『副业』查看自己的等级面板")
+        lines.append(self._tip("profession"))
         return "\n".join(lines)
 
     # ---------------- 每日副业任务 ----------------
@@ -1849,7 +1849,7 @@ class EconomyCmds(CommandBase):
                         mats_show += " + %s×1" % rec["blueprint"]
                     lines.append(f"{q['color']}【{C.display('recipes', name)}】Lv.{rec['lv']} {C.EQUIP_SLOTS[rec['slot']]}{bp}｜{mats_show}｜{rec['gold']}金")
                 lines.append("")
-                lines.append("💡 输入『锻造 <装备名>』直接锻造，『锻造 配方 <装备名>』看详情～")
+                lines.append(self._tip("forge"))
                 yield event.plain_result("\n".join(lines))
                 return
             yield event.plain_result(f"没有找到『{text}』的锻造配方！『锻造』看职业分组，『锻造 配方 <装备名>』看详情～")
@@ -1866,7 +1866,7 @@ class EconomyCmds(CommandBase):
         if prof_lv < need_prof:
             yield event.plain_result(
                 f"【{rec_disp}】需要锻造副业 Lv.{need_prof}，你才 Lv.{prof_lv}！多锻造装备升级副业吧～\n"
-                f"💡 赶时间可以找铁匠『代工 <装备名>』：3 倍金币，不受锻造等级限制(单人玩家的救星)"
+                + self._tip("forge")
             )
             return
         # v54 图纸学习制：需图纸配方必须已学习（不再每件消耗图纸）
@@ -2111,7 +2111,7 @@ class EconomyCmds(CommandBase):
             rec = C.COOKING_RECIPES.get(rk) or C.ALCHEMY_RECIPES.get(rk)
             lines.append(f"  📜【{rec['name']}】")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『锻造』查看可锻造的配方，『锻造 <装备名>』直接锻造！『烹饪列表』/『炼金』查看生活配方！")
+        lines.append(self._tip("blueprint"))
         yield event.plain_result("\n".join(lines))
 
     def _craft_prof_need(self, rec_lv: int) -> int:
@@ -2165,8 +2165,8 @@ class EconomyCmds(CommandBase):
             lines.append(self._craft_line(rec, base + i))
         lines.append("━━━━━━━━━━━━")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造列表 {page + 1}』下一页" if page < pages else ""))
-        lines.append("💡 『锻造 <序号>』锻造 ｜『锻造 <装备名>』锻造 ｜『锻造 全部』看全部 ｜『锻造 <职业>』看职业")
-        lines.append("💡 📜 套装需图纸：『学习 <图纸名>』解锁后永久可造")
+        lines.append(self._tip("forge"))
+        lines.append(self._tip("blueprint"))
         self._record_list_state(player.get("qq_id"), "锻造列表", page, pages)
         return "\n".join(lines)
 
@@ -2195,7 +2195,7 @@ class EconomyCmds(CommandBase):
         lines.append("━━━━━━━━━━━━")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 全部 {page + 1}』下一页" if page < pages else ""))
         lines.append("💡 未达标的配方：🔒等级不够 ｜ 🛠️锻造副业等级不够 ｜ 📜图纸未学习")
-        lines.append("💡 序号仅本页展示用；实际锻造用『锻造 <装备名>』或『锻造列表』内对应序号")
+        lines.append(self._tip("forge"))
         self._record_list_state(player.get("qq_id"), "锻造 全部", page, pages)
         return "\n".join(lines)
 
@@ -2213,8 +2213,8 @@ class EconomyCmds(CommandBase):
             lines.append(self._craft_line(rec, base + i))
         lines.append("━━━━━━━━━━━━")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 {cls_name} {page + 1}』下一页" if page < pages else ""))
-        lines.append(f"💡 『锻造 <装备名>』锻造 ｜『锻造 全部』看全部配方")
-        lines.append("💡 序号仅本页展示用；实际锻造用『锻造 <装备名>』或『锻造列表』内对应序号")
+        lines.append(self._tip("forge"))
+        lines.append(self._tip("forge"))
         self._record_list_state(player.get("qq_id"), f"锻造 {cls_name}", page, pages)
         return "\n".join(lines)
 
@@ -2247,7 +2247,7 @@ class EconomyCmds(CommandBase):
         if rec.get("desc"):
             lines.append(f"📖 {rec['desc']}")
         lines.append("")
-        lines.append("💡 到铁匠铺输入『锻造 装备名』制作！")
+        lines.append(self._tip("forge"))
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?配方(?:\s*|$)")
@@ -2268,7 +2268,7 @@ class EconomyCmds(CommandBase):
                             or r.get("slot") != "weapon"]  # M10 P2：防具/饰品全职业可锻，不再只在武器过滤下不可见
                 lines.append(f"{icon} {C.display('classes', cls)}：{'、'.join(C.display('recipes', n) for n, _ in sorted(cls_recs, key=lambda x: x[1]['lv']))}")
             lines.append("")
-            lines.append("💡 锻造：到铁匠铺『锻造 <职业>』查看，『锻造 <装备名>』制作")
+            lines.append(self._tip("forge"))
             yield event.plain_result("\n".join(lines))
             return
         # 带参数：查看指定配方详情
@@ -2466,7 +2466,7 @@ class EconomyCmds(CommandBase):
                 f"属性附魔：{'、'.join(r['label'] for r in C.ENCHANT_RECIPES.values())}\n"
                 f"符文(MC 式，独特效果+等级)：{_rune_list}\n"
                 "例：『附魔 烈焰之刃 攻击』『附魔 烈焰之刃 史诗符文·残忍 II』\n"
-                "💡 打怪掉落符文，『物品详情 <符文名>』查看效果"
+                + self._tip("enchant")
             )
             return
         item_name = parts[0]
@@ -2765,7 +2765,7 @@ class EconomyCmds(CommandBase):
             lines.append(f"{i:>2}. {r['monster']} ×{r['kills']}")
         lines.append("")
         if pages > 1 and page < pages:
-            lines.append(f"💡 『图鉴 {page+1}』看下一页(共 {pages} 页)")
+            lines.append(self._tip("bestiary"))
         lines.append("💡 击败新怪物会自动收录图鉴")
         self._record_list_state(qq_id, "图鉴", page, pages)
         # v104 M15 修复：垂钓彩蛋收藏鱼收集展示（13 章 4.3 / 16 章 4.x）
@@ -2820,7 +2820,7 @@ class EconomyCmds(CommandBase):
                 "例：『百科 狼皮』→ 狼皮在哪掉",
                 "　　『百科 光耀狼』→ 光耀狼在哪出现",
                 "　　『百科 远境草甸』→ 地图里的怪物",
-                "💡 符文：『史诗符文·残忍』『传说符文·壁垒』(打怪掉落)",
+                self._tip("rune"),
             ]
             yield event.plain_result("\n".join(lines))
             return
@@ -2987,9 +2987,9 @@ class EconomyCmds(CommandBase):
             lines.append(f"{mark}{i:>2}. {n}")
         lines.append("")
         if pages > 1 and page < pages:
-            lines.append(f"💡 『称号 {page+1}』看下一页")
+            lines.append(self._tip("title"))
         self._record_list_state(qq_id, "称号", page, pages)
-        lines.append(f"💡 『称号 装备 <名称>』佩戴展示(显示在角色名前)，『称号 卸下』取消")
+        lines.append(self._tip("title"))
         if not cur:
             lines.append("💡 当前未佩戴称号")
         yield event.plain_result("\n".join(lines))
@@ -3143,10 +3143,10 @@ class EconomyCmds(CommandBase):
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("")
         if pages > 1 and page < pages:
-            lines.append(f"💡 『背包 {page+1}』看下一页；筛选+翻页：『背包 材料 2』(共 {pages} 页)")
-        lines.append("💡 『背包 <类型>』筛选(装备/材料/消耗品/符文/宠物蛋/坐骑/图纸/鱼)，支持『背包材料』『背包材料2』『背包筛选 材料』")
+            lines.append(self._tip("bag"))
+        lines.append(self._tip("bag"))
         lines.append("💡 筛选视图序号与全局背包不同，『出售 <序号>』按全局序号——出售/装备请用物品名称（#234）")
-        lines.append("💡 『装备 <名称>』『使用 <名称>』『物品详情 <名称>』『出售 <名称>』")
+        lines.append(self._tip("bag"))
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)", priority=50)
@@ -3182,7 +3182,7 @@ class EconomyCmds(CommandBase):
         if not item_name:
             yield event.plain_result(
                 "格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』\n"
-                "💡 也可以『物品详情开始』开启快捷模式，直接回复序号查看～"
+                + self._tip("item_detail")
             )
             return
         items = db.get_inventory(group_id, qq_id)
@@ -3361,7 +3361,7 @@ class EconomyCmds(CommandBase):
                     enh = d.get("enhance", 0)
                     enh_str = f" +{enh}" if enh > 0 else ""
                     lines.append(f"  {i}. {q['color']}【{d['name']}{enh_str}】({C.EQUIP_SLOTS[d['slot']]}) Lv.{d['lv']}")
-                lines.append(f"💡 『装备 <名称> <序号>』穿指定那件（如『装备 {matches[0]['data']['name']} 1』），或『装备 <背包序号>』直接穿")
+                lines.append(self._tip("equip"))
                 yield event.plain_result("\n".join(lines))
                 return
             if matches:
@@ -3982,7 +3982,7 @@ class EconomyCmds(CommandBase):
                         fq = C.QUALITY[fd["quality"]] if fd.get("quality") and fd.get("slot") else None
                         fname_s = f"{fq['color']}【{fd['name']}】" if fq else fd["name"]
                         flines.append(f"  {i}. {fname_s} ×{it['count']}（出售价 {self._pawn_rate(player, fd) or '需对应店铺'}）")
-                    flines.append("💡 同名多件用『出售 <名称> <序号>』指定（如『出售 迷雾兜帽 2』），或『出售 <完整名>』～")
+                    flines.append(self._tip("sell"))
                     yield event.plain_result("\n".join(flines))
                     return
                 if len(fuzzy) == 1:
@@ -4141,10 +4141,10 @@ class EconomyCmds(CommandBase):
             lines.append(f"{i:>2}. {row}")
         lines.append("")
         if pages > 1 and page < pages:
-            lines.append(f"💡 『商店 {page+1}』看下一页（共 {pages} 页）")
+            lines.append(self._tip("shop"))
         self._record_list_state(qq_id, "商店", page, pages)
         lines.append(f"💰 你的金币：{player['gold']}")
-        lines.append("💡 『购买 <名称>』或『购买 <序号>』")
+        lines.append(self._tip("shop"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?购买(?:\s*|$)")

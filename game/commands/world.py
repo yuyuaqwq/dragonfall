@@ -293,7 +293,7 @@ class WorldCmds(CommandBase):
                 mname = C.MAP_BY_ID.get(prop["map"], {}).get("name", "？")
                 lines.append(f"{i:>2}. {prop['name']} ｜ {prop['price']} 金币 ｜ {mname}")
                 lines.append(f"     {prop['desc']}")
-            lines.append("💡 『买房 <编号>』购下心仪的地皮(一人一张)")
+            lines.append(self._tip("house"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?买房(?:[\s\S]*)$")
@@ -519,7 +519,7 @@ class WorldCmds(CommandBase):
         lines = ["📦 【家中仓库】", "━━━━━━━━━━━━"]
         for i, it in enumerate(lst, 1):
             lines.append(f"{i:>2}. {it['data'].get('name', '?')} ×{it.get('count', 1)}")
-        lines.append("💡 『仓库 <物品名>』存入，『取出 <编号>』取出")
+        lines.append(self._tip("storage"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?取出(?:[\s\S]*)$")
@@ -558,7 +558,7 @@ class WorldCmds(CommandBase):
             yield event.plain_result(
                 "🗺️ 【副本战斗中】\n"
                 "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"
-                "💡 『副本』可查看当前战斗状态，『角色』查看队伍信息。"
+                f"{self._tip('instance')}"
             )
             return
         cur = player["cur_map"]
@@ -699,7 +699,7 @@ class WorldCmds(CommandBase):
             lines.append("👥 这里的 NPC：")
             for i, (_, n) in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append("  💡 『对话 <名字>』交谈")
+            lines.append(f"  {self._tip('talk')}")
         # v66 此地玩家（含摆摊标记）
         mid = cur_map.get("id", "")
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
@@ -745,7 +745,7 @@ class WorldCmds(CommandBase):
             lines.append(f"  👑 Boss：{boss[1]}")
         if lines and lines[-1]:
             lines.append("")
-        lines.append("输入『探索』遇怪，『前往 序号』前往他处，『对话 <NPC名>』交谈")
+        lines.append(self._tip("map"))
         yield event.plain_result("\n".join(lines))
 
     def _move_blocked_msg(self, cur_map: dict, player: dict, target_sa: dict) -> str:
@@ -860,7 +860,7 @@ class WorldCmds(CommandBase):
         names = [C.MAP_BY_ID.get(_i, {}).get("name", _i) for _i in route]
         yield event.plain_result(
             f"🧭 【{target['name']}】的路线：{' → '.join(names)}（{len(route) - 1} 段路程）。\n"
-            f"💡 输入『前往 <地名>』逐段赶路；方碑已激活的地区可用『传送 <名称>』直达～")
+            f"{self._tip('move')}；方碑已激活的地区可用『传送 <名称>』直达～")
 
     def _instance_gate_block(self, player: dict, group_id: str, qq_id: str, target: dict) -> str:
         """q1-B 副本图门禁：徒步『前往/移动』不可直接进入副本图（type=副本）。
@@ -905,7 +905,7 @@ class WorldCmds(CommandBase):
             return ""
         inst_name = (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本")
         return (f"🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n"
-                f"💡 副本经『副本 <名字>』正常开启（含队伍/等级校验）；或先完成任务、收集所需钥匙～")
+                f"{self._tip('instance')}；或先完成任务、收集所需钥匙～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:前往|移动)(?!开始|结束)(?:\s*|$)")
     @require_player()
@@ -1226,7 +1226,7 @@ class WorldCmds(CommandBase):
             lines.append("👥 这里的 NPC：")
             for i, n in enumerate(npcs, 1):
                 lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append("  💡 『对话 <名字>』交谈")
+            lines.append(f"  {self._tip('talk')}")
         # 功能提示
         funcs = sa.get("funcs") or []
         func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "锻造",
@@ -1255,7 +1255,10 @@ class WorldCmds(CommandBase):
         scene = self._map_scene(cur_map, player, sa["id"])
         if scene:
             lines.append("✨ 场景：")
-            lines.append("  " + "  ".join(scene))
+            # v127 修正：与『地图』面板一致逐行输出（原 "  " + "  ".join 单行合并，
+            # 导致移动到达场景行 ≠ 地图场景行，test_v87_13b 概率性失败）
+            for _l in scene:
+                lines.append(f"  {_l}")
         # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板/move 一致）
         # v115 网状：links 用 _visible_sas 过滤（隐藏未揭示不可前往），与『地图』/move 编号一致
         sas = cur_map.get("subareas") or []
@@ -1296,7 +1299,7 @@ class WorldCmds(CommandBase):
                         _hint = _chain[0]["name"]
                 lines.append(f"🧭 出城需先到『{_hint}』")
         lines.append("")
-        lines.append("💡 『前往 <子区域名/序号>』切换位置，『地图』查看详情")
+        lines.append(self._tip("map"))
         return "\n".join(lines)
 
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict, group_id=None, qq_id=None) -> str:
@@ -1444,7 +1447,7 @@ class WorldCmds(CommandBase):
                 icon = p.get("icon", "🌌") if p else "🌌"
                 lines.append(f" {i}. {icon}{name}({m.get('name', '?')} · {shown} 金币{tag})")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『传送 <名称/序号>』付费传送；到新地图发现方碑就『激活』吧～")
+        lines.append(self._tip("portal"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:激活祭坛|激活)(?:\s*|$)")
@@ -1776,8 +1779,8 @@ class WorldCmds(CommandBase):
         lines.append("")
         # v123e：放弃提示统一放面板底部一次（原每个支线/每日行尾『放弃请发』冗余）
         if side_items or any(k not in _DAILY_META_KEYS for k in daily):
-            lines.append("💡 放弃进行中的支线/每日：『放弃 <序号>』（序号见列表）")
-        lines.append("💡 输入『每日』领取今日任务，『对话 <NPC名>』接取任务")
+            lines.append(self._tip("quest"))
+        lines.append(self._tip("quest"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?接取(?:\s*|$)")
@@ -1923,7 +1926,7 @@ class WorldCmds(CommandBase):
         if available:
             lines = ["📜 【可接取任务】", "━━━━━━━━━━━━"]
             lines += [f"{i:>2}. 📜 {a['line']}" for i, a in enumerate(available, 1)]
-            lines.append("💡 输入『接取 <任务名>』或『接取 <序号>』接取指定任务～")
+            lines.append(self._tip("accept"))
             yield event.plain_result("\n".join(lines))
             return
         # v95.15 #70：指名接取但上面没匹配到 → 明确提示未找到/已接取
@@ -2208,7 +2211,7 @@ class WorldCmds(CommandBase):
             for s in stalls:
                 sname = "你" if str(s["seller"]) == str(qq_id) else (owner["name"] if str(s["seller"]) == str(owner_qid) else s["seller"])
                 lines.append(f"  #{s['id']} {s['item_data'].get('name', '?')} ｜ {self._stall_label(s)} ｜ {sname}")
-            lines.append("💡 『购入 <编号>』买下，标 🔄 的用『换 <编号> <物品名>』交换")
+            lines.append(self._tip("home_stall"))
         else:
             # v104R3 P2：木屋(0 挂机位)不提示摆摊开张——与铺面挂机位实现对齐(25 章房产案)
             _odlv = int(owner.get("deed_lv", 1) or 1)
@@ -2226,7 +2229,7 @@ class WorldCmds(CommandBase):
             if hl.get("stall_slots"):
                 lines.append(f"🏪 铺面挂机位：{hl['stall_slots']} 个(『摆摊 <物品> [价格]』开张)")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『出门』回到城镇")
+        lines.append(self._tip("home"))
         return "\n".join(lines)
 
     def _current_npcs(self, player):
@@ -2253,7 +2256,7 @@ class WorldCmds(CommandBase):
         lines = ["👥 这里的 NPC："]
         for i, n in enumerate(npcs, 1):
             lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-        lines.append("💡 『对话 <名字>』或『对话 <序号>』交谈")
+        lines.append(self._tip("npc_list"))
         return lines
 
     def _find_npc_in_map(self, player, name_key):
@@ -2656,7 +2659,7 @@ class WorldCmds(CommandBase):
             lines.append("🍃 附近似乎有人影出没：")
             for nid, npc in hints[:5]:
                 lines.append(f"  {npc['icon']}{npc['name']}({self._wild_cond_label(npc)})")
-            lines.append("💡 『探索』碰碰运气，『对话 <名字>』直接寻找")
+            lines.append(self._tip("explore"))
         else:
             lines.append("🍃 附近没有特别的气息……")
         yield event.plain_result("\n".join(lines))
@@ -2787,7 +2790,7 @@ class WorldCmds(CommandBase):
                 lines = ["👥 这里的 NPC："]
                 for i, n in enumerate(npcs, 1):
                     lines.append(f"{i:>2}. {n['icon']}{n['name']}({n['title']})")
-                lines.append("💡 『对话 <名字>』或『对话 <序号>』交谈")
+                lines.append(self._tip("npc_list"))
                 yield event.plain_result("\n".join(lines))
             return
         # 序号找：『找 1』→ 当前地图第 1 个 NPC
@@ -2907,7 +2910,7 @@ class WorldCmds(CommandBase):
                 lines.append(f"🎻 {ta}给你讲了一个传说：\n“{_lore_txt}”")
             else:
                 lines.append(f"🎻 {ta}捋了捋胡子，说起一段大陆往事……(传说散落在各地，多去听听老人们的见闻吧)")
-            lines.append("💡 『百科 <名称>』还能查询怪物/材料/地图的记载～")
+            lines.append(self._tip("encyclopedia"))
         if "teach" in funcs:
             # v104 P2（M21）teach 空挂修复：有对话树的教习 NPC 走对话树选项；
             # 无对话树的教习 NPC（龙语者·古尔/上古守卫者/墓王·静语）→ 按职业直接传授对应技能
@@ -2985,7 +2988,7 @@ class WorldCmds(CommandBase):
             f"💰 你献上 {cost} 金币作为谢礼",
             f"✨ 前辈悉心传授，你学会了技能『{sname_cn}』！",
             f"「{info['desc']}」",
-            "💡 记得『设置技能 <槽位> <技能名>』放入技能栏～",
+            self._tip("skill_set"),
         ]
 
     # ---------------- v87.9 场景元素交互 ----------------
@@ -3022,7 +3025,7 @@ class WorldCmds(CommandBase):
                 if pp:
                     name = label or pp['name']
                     lines.append(f"{i}. {pp['icon']}{name}：{pp.get('desc', '')}")
-            lines.append("💡 输入『交互 <名称/序号>』互动")
+            lines.append(self._tip("interact"))
             yield event.plain_result("\n".join(lines))
             return
         # 序号交互：『交互 1』→ 当前子区域第 1 个元素
@@ -3088,7 +3091,7 @@ class WorldCmds(CommandBase):
                 lines.append("━━━━━━━━━━━━")
                 lines.append("🧾 【告示委托】")
                 lines += board_lines
-                lines.append("💡 输入『接取 <委托名>』接下委托～")
+                lines.append(self._tip("notice_board"))
             else:
                 done = any(
                     side.get(sq["id"], {}).get("status") == "done"
@@ -3203,7 +3206,7 @@ class WorldCmds(CommandBase):
             for i, opt in enumerate(opts, 1):
                 lines.append(f"{i}. {opt['text']}")
             lines.append("0. 结束对话")
-            lines.append("💡 直接回复序号继续交谈")
+            lines.append(self._tip("talk_tree"))
         return lines
 
     def _branch_wait_sid(self, group_id, qq_id):
@@ -3317,7 +3320,7 @@ class WorldCmds(CommandBase):
         lines.append(f"『{cls['desc']}』")
         if names:
             lines.append(f"📖 行会赠送基础技能书，你学会了：{names}")
-        lines.append("💡 升级获得技能点，『技能学习 <技能名>』学更多技能")
+        lines.append(self._tip("skill_learn"))
         lines.append("💡 各城职业导师可学进阶技能；Lv.30/60/90 找导师转职")
         return lines
 
@@ -3738,7 +3741,7 @@ class WorldCmds(CommandBase):
             lines = ["📜 可交付任务："]
             for i, (qname, giver, giver_map) in enumerate(waiting, 1):
                 lines.append(f"{i:>2}. 『{qname}』→ 找 {giver}(在{giver_map})")
-            lines.append("💡 到对应 NPC 所在地区后输入『交付任务』即可交付～")
+            lines.append(self._tip("quest_deliver"))
             yield event.plain_result("\n".join(lines))
             return
         if collect_missing:
@@ -3858,12 +3861,12 @@ class WorldCmds(CommandBase):
         if br and not branch_choice:
             opts = br.get("options") or []
             if sq.get("branch_wait"):
-                return [f"{br.get('prompt', '')}\n💡 回复数字选择：\n" + "\n".join(
+                return [f"{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(
                     f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
             quests["side"][sid] = {**sq, "status": "ready", "branch_wait": True}
             db.save_quests(group_id, qq_id, quests)
             _o = [f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts)]
-            return [f"{br.get('prompt', '')}\n💡 你的选择是？（回复数字）\n" + "\n".join(_o)]
+            return [f"{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(_o)]
         # v124 分支选择执行
         if br and branch_choice:
             opts = br.get("options") or []
@@ -3874,7 +3877,7 @@ class WorldCmds(CommandBase):
                         chosen = o
                         break
             if chosen is None:
-                return [f"没有这个选项～{br.get('prompt', '')}\n💡 回复数字选择：\n" + "\n".join(
+                return [f"没有这个选项～{br.get('prompt', '')}\n{self._tip('quest_branch')}\n" + "\n".join(
                     f"  {o.get('key', str(i + 1))}. {o.get('label', '')}" for i, o in enumerate(opts))]
             # 用分支选项覆盖奖励（顶层 reward 为 0 时以选项为准）
             lines.append(f"  📖 {chosen.get('text', '')}")
@@ -4033,7 +4036,7 @@ class WorldCmds(CommandBase):
         lines.append("")
         lines.append("💡 击杀各地怪物、完成当地任务可获得对应势力声望")
         # v105 M18 P2-7：声望消费侧入口（声望商店按等级解锁专属商品）
-        lines.append("💡 『声望商店』：声望等级可解锁各势力专属商品（金币购买）")
+        lines.append(self._tip("rep_shop"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?声望商店(?:\s+\S+)?$")
@@ -4083,7 +4086,7 @@ class WorldCmds(CommandBase):
                 unlocked = sum(1 for g in goods if pts >= g["tier"])
                 lines.append(f"{i:>2}. {f['icon']} {f['name']}：{tier}({pts}) 可购 {unlocked}/{len(goods)}")
             lines.append("")
-            lines.append("💡 『声望商店 <势力名/序号>』查看专属商品；声望等级解锁、金币购买")
+            lines.append(self._tip("rep_shop"))
             yield event.plain_result("\n".join(lines))
             return
 
@@ -4305,7 +4308,7 @@ class WorldCmds(CommandBase):
                 lines.append(f"    本日已完成交付：{data.get('done_today', 0)}/{FACTION_CAMP_DAILY_LIMIT}")
             lines.append("")
             lines.append(f"ℹ️ 当前贡献：{data.get('contrib', 0)}　累计完成任务：{data.get('done_total', 0)} 次")
-            lines.append(f"💡 『阵营任务 <序号>』交付对应任务！(上限 {FACTION_CAMP_DAILY_LIMIT} 个/天)")
+            lines.append(self._tip("faction_task"))
             yield event.plain_result("\n".join(lines))
             return
 
@@ -4331,7 +4334,7 @@ class WorldCmds(CommandBase):
         if have < t["count"]:
             yield event.plain_result(
                 f"📦 材料不足！『{t['name']}』需要 {t['item']} ×{t['count']}，你只有 {have} 个。\n"
-                f"💡 去野外『探索/采集』获取材料后再来交付。")
+                f"{self._tip('faction_task')}。")
             return
         db.remove_item(group_id, qq_id, t["item"], t["count"])
         t["delivered"] = t["count"]
@@ -4383,9 +4386,9 @@ class WorldCmds(CommandBase):
                 lines.append(f"{i:>2}. {mark} {g['name']} {extra}")
             lines.append("")
             if not cur:
-                lines.append("💡 加入阵营后可购买（『加入阵营 <编号>』）")
+                lines.append(self._tip("faction_shop"))
             else:
-                lines.append("💡 『阵营商店 <序号>』购买（消耗阵营贡献）")
+                lines.append(self._tip("faction_shop"))
             yield event.plain_result("\n".join(lines))
             return
 
@@ -4404,7 +4407,7 @@ class WorldCmds(CommandBase):
         if contrib < g["cost"]:
             yield event.plain_result(
                 f"🏛️ 贡献不足！需 {g['cost']} 贡献，当前 {contrib}。\n"
-                f"💡 完成『阵营任务』获取贡献。")
+                f"{self._tip('faction_task')}。")
             return
         # 扣贡献 + 发物品
         data["contrib"] = contrib - g["cost"]
@@ -4452,7 +4455,7 @@ class WorldCmds(CommandBase):
             lines.append(
                 f"{i}. {c['icon']} {c['name']}：成员 {camp_count.get(cid, 0)} 人 · 总贡献 {camp_contrib.get(cid, 0)}")
         lines.append("")
-        lines.append("💡 壮大阵营：『加入阵营』+『阵营任务』攒贡献！")
+        lines.append(self._tip("faction"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?编年史(?:\s*|$)")

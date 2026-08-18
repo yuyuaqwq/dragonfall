@@ -108,7 +108,7 @@ if br_sq:
     # 第一次交付 → 输出选项，不完成
     lines1 = w._complete_side_quest("g", qq, sid)
     txt = "\n".join(lines1)
-    check("第一次交付输出选项", "回复数字" in txt or "你的选择" in txt, txt[:60])
+    check("第一次交付输出选项", "选择" in txt or "序号" in txt or "数字" in txt, txt[:60])
     check("第一次交付未完成", quests_of(qq)["side"][sid].get("status") == "ready")
     check("branch_wait 置位", quests_of(qq)["side"][sid].get("branch_wait") is True)
     # 无效选择

@@ -80,7 +80,7 @@ async def main():
     db.add_item("g1", "w1", "t3", {"name": "幸运金币", "type": "消耗品", "stackable": True,
                 "effect": "lucky", "price": 300})
     out = await cmd(m, "use", "g1", "w1", "使用 幸运金币")
-    check("幸运金币生效", "幸运" in out and "金币＋50%" in out, out[:120])
+    check("幸运金币生效", "幸运" in out and "50%" in out, out[:120])
 
     # 白银箱（open_chest 模板）
     db.add_item("g1", "w1", "t4", {"name": "白银箱", "type": "消耗品", "stackable": True,

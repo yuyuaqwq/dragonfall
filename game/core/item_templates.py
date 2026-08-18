@@ -22,8 +22,16 @@ import json
 import random
 import time
 
+from ..data import TIPS  # noqa: F401  (v127 指令随机提示库，数据驱动)
+
 TEMPLATES = {}
 META = {}
+
+
+def _rand_tip(cat):
+    """v127 数据驱动随机提示：从 TIPS 分类库随机抽 1 条（含 💡 前缀）。"""
+    pool = TIPS.get(cat) or TIPS.get("common") or ["看看『帮助』了解更多"]
+    return "💡 " + random.choice(pool)
 
 
 def register(name, battle_ok=False):
@@ -422,7 +430,7 @@ def tpl_teleport_portal(ctx):
     if not portals:
         return ItemResult(
             text="🌀 传送卷轴泛起微光又暗淡下去——还没有可用的方碑锚点！\n"
-                 "💡 先去大陆上找到方碑『激活』它，之后就能用传送卷轴定向传送了～",
+                 + _rand_tip("portal"),
             consume=False)
     dest = portals[-1]  # 最后激活的方碑（add_portal 追加序）
     if dest == cur:
@@ -444,7 +452,7 @@ def tpl_teleport_portal(ctx):
     return ItemResult(text=(
         f"🌀 传送卷轴展开，星辉流转——你抵达了【{tgt.get('name', '城镇')}】({picon}{pname})！\n"
         f"📍 当前方碑锚点：{anchors}\n"
-        "💡 想传送到其他城镇？先去那里的方碑『激活』，卷轴会锚定最新激活的一座～"))
+        + _rand_tip("portal")))
 
 
 @register("lucky")
@@ -456,7 +464,7 @@ def tpl_lucky(ctx):
     db.update_player(ctx.group_id, ctx.qq_id, lucky_until=int(time.time()) + 600)
     return ItemResult(
         text="🍀 幸运护符泛起微光，你的气息变得祥和……\n"
-             "💡 10 分钟内打怪金币＋50%、材料掉落＋1！")
+             + _rand_tip("lucky"))
 
 
 # ---- v102.3 生活技能差异化：鱼饵（垂钓品质加权，仅 1 次） ----
@@ -499,7 +507,7 @@ def tpl_enhance_boost(ctx):
         return ItemResult(text="强化剂要留着到铁匠铺用，战斗中用不上～", consume=False)
     ctx.hook("remove_item")
     db.set_event_state(f"enhance_boost_{ctx.qq_id}", "1")
-    return ItemResult(text="🔧 星铁强化剂渗入装备纹理，泛着星火微光……\n💡 下次『强化』必定成功！")
+    return ItemResult(text="🔧 星铁强化剂渗入装备纹理，泛着星火微光……\n" + _rand_tip("enhance"))
 
 
 @register("clear_red")
@@ -565,7 +573,7 @@ def tpl_open_rune_chest(ctx):
     return ItemResult(
         text=f"📦 你打开了【{ctx.item_name()}】！\n"
              f"✨ 匣中泛起微光——符文【{rune_data['name']}】！\n"
-             f"💡 输入『附魔』可将符文刻印到装备上～")
+             + _rand_tip("enchant"))
 
 
 
@@ -597,7 +605,7 @@ def tpl_pet_egg(ctx):
     return ItemResult(
         text=f"🥚 宠物蛋微微颤动……裂开了！\n"
              f"🎉 {pdef['icon']} 【{pdef['name']}】破壳而出，成为了你的伙伴！(图鉴 {dex_count}/{len(C.PET_POOL)})\n"
-             f"💡 输入『宠物』查看，『喂养 <材料>』恢复饱食度，升到 Lv.10 解锁宠物技能！")
+             + _rand_tip("pet"))
 
 
 @register("mount")
@@ -619,7 +627,7 @@ def tpl_mount(ctx):
     ctx.hook("remove_item")
     return ItemResult(
         text=f"🐾 缰绳上的封印解开，{mdef['icon']}【{mdef['name']}】顺从地蹭了蹭你！\n"
-             f"💡 输入『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
+             + _rand_tip("mount"))
 
 
 # v104 P2-7 修复：净化卷轴死数据——战斗内清除玩家负面 buff（stun/freeze/silence/spd_down）

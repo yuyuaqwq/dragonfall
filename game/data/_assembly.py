@@ -70,6 +70,7 @@ from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
 from .races import RACES  # noqa: F401
+from .tips import TIPS  # noqa: F401
 
 from ..core.maps import _build_ency  # noqa: F401
 from ..core.class_sets import _build_class_sets  # noqa: F401

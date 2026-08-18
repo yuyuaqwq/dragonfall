@@ -238,6 +238,15 @@ class CommandBase:
                     break
         return msg
 
+    def _tip(self, cat: str) -> str:
+        """v127 数据驱动随机提示：从 TIPS 分类库随机抽 1 条（含 💡 前缀）。
+
+        面板底部操作引导提示统一走这里，不再硬编码长提示。
+        分类缺失时回退 common 兜底，保证永不崩。
+        """
+        pool = C.TIPS.get(cat) or C.TIPS.get("common") or ["看看『帮助』了解更多"]
+        return "💡 " + random.choice(pool)
+
     @staticmethod
     def _page_items(items: list, page: int, per_page: int = 5) -> tuple:
         """通用翻页：返回 (当前页条目, 总页数, 当前页码)"""

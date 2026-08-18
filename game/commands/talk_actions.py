@@ -266,7 +266,7 @@ def action_unlock_prof(world, group_id, qq_id, player, npc_id, action):
         lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」(副业经验 +{exp})")
     else:
         lines.append(f"🎓 拜师成功！解锁副业「{db.PROF_FIELDS.get(prof, prof)}」")
-    lines.append("💡 『副业』查看你的生活职业面板")
+    lines.append(world._tip("profession"))
     return lines
 
 
@@ -326,7 +326,7 @@ def action_tutor_skill(world, group_id, qq_id, player, npc_id, action):
         f"💰 支付学费 {cost} 金币",
         f"✨ 导师悉心传授，你学会了进阶技能『{sname}』！",
         f"「{info['desc']}」",
-        "💡 记得『设置技能 <槽位> <技能名>』放入技能栏～",
+        world._tip("skill_set"),
     ]
 
 

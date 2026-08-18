@@ -53,7 +53,7 @@ class SocialCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『市场 {page+1}』看下一页(共 {pages} 页)")
-        lines.append("💡 『购入 <编号>』购买，『上架 <物品> <价格>』寄售")
+        lines.append(self._tip("market"))
         self._record_list_state(qq_id, "市场", page, pages)
         yield event.plain_result("\n".join(lines))
 
@@ -508,7 +508,7 @@ class SocialCmds(CommandBase):
         yield event.plain_result(
             f"🏰 【公会创建成功】『{name}』！\n"
             f"你成为了公会会长！\n"
-            f"💡 『公会』查看信息，『公会签到』『公会任务』『公会捐献』为公会贡献力量！"
+            f"{self._tip('guild')}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加入公会(?:\s*|$)")
@@ -531,7 +531,7 @@ class SocialCmds(CommandBase):
         db.guild_join(g["gid"], qq_id)
         # v105 M18 P2：加入公会立即判定成就（ach_guild1「加入公会」无需等下次事件）
         C.check_achievements(group_id, qq_id)
-        yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n💡 『公会』查看信息，『公会签到』每日报到！")
+        yield event.plain_result(f"🏰 欢迎加入公会【{g['name']}】！\n{self._tip('guild')}")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?退出公会(?:\s*|$)")
     @require_player()
@@ -596,7 +596,7 @@ class SocialCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(f"💡 『公会 {page+1}』看下一页(共 {pages} 页)")
-        lines.append("💡 『公会签到』『公会任务』『公会捐献』为公会赚经验！")
+        lines.append(self._tip("guild"))
         self._record_list_state(qq_id, "公会", page, pages)
         yield event.plain_result("\n".join(lines))
 
@@ -681,7 +681,7 @@ class SocialCmds(CommandBase):
         if total < need:
             yield event.plain_result(
                 f"🎯 【公会捐献】需要上交 {need} 份材料(当前 {total}/{need})！\n"
-                f"💡 打怪掉落/采集可获得材料，凑齐后『公会捐献』再来～"
+                f"{self._tip('guild_donate')}"
             )
             return
         # 扣材料（从背包靠前的材料开始扣）
@@ -747,7 +747,7 @@ class SocialCmds(CommandBase):
             limit = f"每日限购 {it['daily_limit']}" if it.get("daily_limit") else "不限购"
             lines.append(f"   {it['item_data'].get('desc', '')} ｜ 需公会 Lv.{it['min_level']} ｜ {limit}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 积分获取：『公会签到』+10『公会捐献』+20；『公会商店 <编号>』购买")
+        lines.append(self._tip("guild_shop"))
         yield event.plain_result("\n".join(lines))
 
     async def _guild_shop_buy(self, event, group_id, qq_id, g, member, num):
@@ -944,7 +944,7 @@ class SocialCmds(CommandBase):
         lines.append(bond_line)
         lines.append(f"✨ 经验加成：+{bonus}%(主人战斗经验)" + ("(饱食度归零，加成减半)" if sat <= 0 else ""))
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『喂养 <材料>』恢复饱食度，『宠物改名 <名字>』改名，『放生』告别")
+        lines.append(self._tip("pet"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?宠物改名(?:\s*|$)")
@@ -1104,7 +1104,7 @@ class SocialCmds(CommandBase):
             lines.append(f"{_q_label(m)} {m['icon']} {m['name']}{mark} — {m['desc']}")
         if owned:
             lines.append("")
-            lines.append("💡 『骑乘 <名称>』骑上坐骑，『下马』下来")
+            lines.append(self._tip("mount"))
         else:
             lines.append("")
             lines.append("💡 可获得的坐骑：" + "、".join(f"{_q_label(m)}{m['name']}" for m in C.MOUNT_POOL))
@@ -1224,7 +1224,7 @@ class SocialCmds(CommandBase):
             lines.append(f"   底价 {it['base']} ｜ 最高：{top_name} ｜ 一口价 {it['buyout']}")
             lines.append(f"   『竞拍 {it['id']} <金币>』出价")
         lines.append("")
-        lines.append("💡 出价立即扣款；被超越自动退还；结束最高价者得！")
+        lines.append(self._tip("auction"))
         yield event.plain_result("\n".join(lines))
 
     def _settle_auction(self, cur, group_id: str) -> str:

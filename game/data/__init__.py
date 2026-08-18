@@ -142,6 +142,7 @@ from .prof_config import (  # noqa: F401
     PRICE_BAND, price_band, RARE_MATERIAL_PRICE,  # noqa: F401
 )
 from .item_tag_display import ITEM_TAG_DISPLAY  # noqa: F401  (v126.4 个体属性 tags 显示注册表)
+from .tips import TIPS  # noqa: F401  (v127 指令随机提示库，数据驱动)
 
 # v126.4 ITEM_TAG_DISPLAY 结构校验（fail-fast）：每条配置 line 必须是模板串或模板串列表、
 # max_lines 为正整数、omit 是模板串——配置写错启动即暴露，防『物品详情』运行期静默跳过全部 tag

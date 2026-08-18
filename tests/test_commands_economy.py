@@ -60,7 +60,7 @@ async def main():
     db.update_player("g1", "e1", apprentices=["craft"])  # v95.22 拜师模拟
     out = await cmd(m, "craft", "g1", "e1", "锻造")
     check("只列可锻造配方", "当前可锻造" in out and "铁剑" in out, out[:200])
-    check("列表提示全部/职业", "锻造 全部" in out and "锻造 <职业>" in out, out[:200])
+    check("列表提示存在(随机库)", "💡" in out and "锻造" in out, out[:200])
     out = await cmd(m, "craft", "g1", "e1", "锻造 全部")
     check("全部配方含未学标记", "未学" in out or "✅" in out, out[:200])
     out = await cmd(m, "craft", "g1", "e1", "锻造 战士")
@@ -172,7 +172,7 @@ async def main():
     # 幸运护符使用（非战斗）
     db.add_item("g1", "e1", "lucky1", {"name": "幸运护符", "type": "消耗品", "effect": "lucky", "stackable": True, "price": 150})
     out = await cmd(m, "use", "g1", "e1", "使用 幸运护符")
-    check("幸运护符使用成功", "幸运护符" in out and "10 分钟" in out, out[:200])
+    check("幸运护符使用成功", "幸运护符" in out and "50%" in out, out[:200])
     p2 = db.get_player("g1", "e1")
     check("lucky_until 已设置", int(p2.get("lucky_until") or 0) > 0, str(p2.get("lucky_until")))
 

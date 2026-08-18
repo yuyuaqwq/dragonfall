@@ -995,7 +995,7 @@ class CombatCmds(CommandBase):
         if skill_name not in (bar or []):
             yield event.plain_result(
                 f"『{skill_name}』没放进技能栏！『技能栏』查看，『设置技能 1 {skill_name}』(或任意空槽)配置后才能在战斗中使用～\n"
-                f"💡 想快速搭配？试试『流派』一键配置技能组合！"
+                f"{self._tip('build')}"
             )
             return
         if player["mp"] < info["mp"]:
@@ -2540,7 +2540,7 @@ class CombatCmds(CommandBase):
             lines.append(f"{i}. {item['name']} ｜ {item['cost']} 荣誉")
             lines.append(f"   {item['desc']}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 荣誉获取：击杀红名玩家+50；『荣誉 兑换 <编号>』兑换")
+        lines.append(self._tip("honor"))
         if self._is_redname(qq_id):
             lines.append(f"☠️ 你当前红名中(剩余 {max(0, self._red_until(qq_id) - int(time.time())) // 60} 分钟)！")
         yield event.plain_result("\n".join(lines))

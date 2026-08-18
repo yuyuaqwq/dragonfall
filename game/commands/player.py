@@ -566,7 +566,7 @@ class PlayerCmds(CommandBase):
                 lines.append(f"{medals[i]} {_pw(p):,} 战力 Lv.{p['level']} "
                              f"{C.CLASSES[p['class_name']]['icon']}{p['name']} ({C.display('classes', p['class_name'])})")
             lines.append("")
-            lines.append("💡 『排行』看等级榜，『排行 副业』看副业等级榜")
+            lines.append(self._tip("rank"))
             yield event.plain_result("\n".join(lines))
             return
         tops = db.top_players(group_id, 10)
@@ -578,7 +578,7 @@ class PlayerCmds(CommandBase):
             _ci = C.CLASSES.get(p['class_name'], {})  # v105 P1(M01#10)：脏 class_name 兜底
             lines.append(f"{medals[i]} Lv.{p['level']} {_ci.get('icon', '❓')}{p['name']} ({C.display('classes', p['class_name'])})")
         lines.append("")
-        lines.append("💡 『排行 副业』看副业等级榜")
+        lines.append(self._tip("rank"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?种族(?:\s*|$)")
@@ -981,7 +981,7 @@ class PlayerCmds(CommandBase):
         lines.append(f"🧠 智力：{attr.get('int', 0)}\n   ·每点＋1.2 魔攻 ＋ 1.5 魔力")
         lines.append(f"❤️‍🩹 耐力：{attr.get('vit', 0)}\n   ·每点＋8 生命")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『加点 力量 <点数>』分配属性点，『洗点』重置(500金币)")
+        lines.append(self._tip("attr"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?加点(?:\s*|$)")
@@ -1468,7 +1468,7 @@ class PlayerCmds(CommandBase):
             else:
                 lines.append(f" {i+1}. (空)")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『设置技能 <槽位> <技能名>』配置，如：设置技能 1 火球术(须先学会)")
+        lines.append(self._tip("skill"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?设置技能(?:\s*|$)")
@@ -1522,7 +1522,7 @@ class PlayerCmds(CommandBase):
                 lines.append(f"{info.get('icon','')} {name}(已学 {learned_cnt}/{len(info['skills'])})")
                 lines.append(f"    {info['desc']}")
             lines.append("━━━━━━━━━━━━")
-            lines.append("💡 『流派 <名称>』一键配置技能栏，如『流派 狂暴流』")
+            lines.append(self._tip("build"))
             yield event.plain_result("\n".join(lines))
             return
         # 配置指定流派

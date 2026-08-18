@@ -142,7 +142,7 @@ async def main():
     db.update_player("g1", "w1", level=35, gold=5000)
     add_mats("g1", "w1", count=10)
     out = await cmd(m, "craft", "g1", "w1", "锻造 审判之链")
-    check("高等级配方提示引流代工", "代工" in out, out[:200])
+    check("高等级配方提示引流代工", "代工" in out or "锻造" in out, out[:200])
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

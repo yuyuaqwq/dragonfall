@@ -214,7 +214,7 @@ async def test_move_alias(m):
     out2, hits2 = await dispatch(m, "g1", "q4", "移动 1")
     check("『移动 1』命中 move（别名复活）", hits2 == ["move"], str(hits2))
     check("『移动 1』有回复（不无响应）", len(out2) == 1 and len(out2[0]) > 5, str(out2)[:120])
-    check("『移动 1』与『前往 1』回复等价", out1 and out2 and out1[0] == out2[0],
+    check("『移动 1』与『前往 1』回复等价", out1 and out2 and _strip_tip(out1[0]) == _strip_tip(out2[0]),
           f"前往={str(out1)[:80]} 移动={str(out2)[:80]}")
     land2 = db.get_player("g1", "q4")["cur_subarea"]   # 『移动 1』落点（复位后同起点）
     check("『移动 1』落点与『前往 1』一致", land2 == land1, f"前往={land1} 移动={land2}")
@@ -399,6 +399,12 @@ async def main():
         for f_ in findings:
             print(f"  ⚠️ {f_}")
     return failed == 0
+
+
+def _strip_tip(text):
+    """v127 随机提示库：剥离 💡 提示行后比较别名回复核心内容（提示随机是设计特性）。"""
+    return "\n".join(l for l in text.split("\n") if "💡" not in l)
+
 
 
 if __name__ == "__main__":

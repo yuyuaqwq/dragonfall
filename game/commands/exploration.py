@@ -49,8 +49,6 @@ class ExplorationCmds(CommandBase):
         lines.append(
             f"全大陆探索度 {overall['pct']}%（{overall['visited']}/{overall['total']}）"
         )
-        lines.append(
-            "💡 逛遍子区域可获得首访奖励；『地图』查看当前图还有哪些角落没去过"
-        )
+        lines.append(self._tip("explore"))
 
         yield event.plain_result("\n".join(lines))

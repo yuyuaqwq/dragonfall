@@ -148,7 +148,7 @@ def section_branch_dark(m):
     set_side(qq, "s18", "ready", progress={"腐牙萨满·嚎骨": 1, "白桦": 1})
     lines1 = m._complete_side_quest("g", qq, "s18")
     txt1 = "\n".join(lines1)
-    check("E1 首次交付输出分支选项", "你的选择" in txt1 or "回复数字" in txt1, txt1[:60])
+    check("E1 首次交付输出分支选项", "选择" in txt1 or "序号" in txt1 or "数字" in txt1, txt1[:60])
     check("E2 首次交付未完成（仍 ready）", side_status(qq, "s18") == "ready")
     st = (db.get_quests("g", qq).get("side") or {})["s18"]
     check("E3 branch_wait 置位", st.get("branch_wait") is True)

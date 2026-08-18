@@ -322,7 +322,7 @@ class MiscCmds(CommandBase):
                 got_c = sum(1 for a in sub if a["id"] in unlocked)
                 lines.append(f"{'✅' if got_c == len(sub) else '⬜'} {c}：{got_c}/{len(sub)}(『成就 {c}』查看明细)")
         lines.append("")
-        lines.append("💡 达成条件自动解锁，称号自动获得；『成就 领取』领奖励，『称号』可佩戴展示")
+        lines.append(self._tip("achievement"))
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?意见(?:[\s\S]*)$")

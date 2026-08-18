@@ -41,7 +41,7 @@ async def main():
     out = await cmd(m, "craft", "g1", "e1", "锻造列表")
     check("锻造列表=可锻造列表", "当前可锻造" in out, out[:200])
     check("不再报找不到配方", "没有找到" not in out, out[:200])
-    check("提示序号锻造", "锻造 <序号>" in out, out[:200])
+    check("提示锻造(随机库)", "💡" in out and "锻造" in out, out[:200])
 
     print("【锻造列表 翻页】")
     # level=5 时配方足够多（>5 件）才有多页；无条件翻页应退到最后一页不报错

@@ -729,7 +729,7 @@ class InstanceCmds(CommandBase):
             )
             lines.append(f"   👹 Boss：{inst['boss'][1]}(Lv.{inst['boss'][3]})· 掉落：{mats}")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 单人副本直接『副本 <名字>』开本！多人副本先『组队 <对方名字>』(上限 4 人)，队长『副本 <名字>』开本！")
+        lines.append(self._tip("instance"))
         lines.append("💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！")
         return "\n".join(lines)
 
@@ -892,7 +892,7 @@ class InstanceCmds(CommandBase):
                 lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
             if st.get("secret_chest"):
                 lines.append("🔐 神秘宝箱：密室深处泛着微光（『调查 宝箱』）")
-            lines.append("💡 搜刮完毕用『离开副本』传出～")
+            lines.append(self._tip("instance"))
         else:
             # 怪物
             mons = vmap.get("monsters") or []
@@ -918,7 +918,7 @@ class InstanceCmds(CommandBase):
                 else:
                     lines.append("🐾 这里暂时没有敌人。")
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 『探索』遇怪 · 『调查 <名称>』互动 · 『深入』推进 · 『副本地图』查看全景 · 『撤退』离开")
+        lines.append(self._tip("instance"))
         return "\n".join(lines)
 
     def _stage_npcs(self, group_id, qq_id) -> list:
@@ -1261,7 +1261,7 @@ class InstanceCmds(CommandBase):
                 f"{map_view}\n"
                 f"━━━━━━━━━━━━\n"
                 f"{size_tip}"
-                f"💡 先『探索』看看有什么，或『调查』周围的交互点！\n"
+                f"{self._tip('instance')}\n"
                 f"⏳ 战斗轮到你时超时 60 秒自动防御！"
                 f"{intro_note}"
             )
