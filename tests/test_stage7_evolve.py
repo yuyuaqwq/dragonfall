@@ -69,7 +69,9 @@ def test_data():
     # v113：隐藏线收敛单流派 + 技能下放基础职业后，分支总技能 = 161
     #   （战士攻线+龙息之怒、法师攻线+虚空爆破、游侠攻线+毒爆/召唤/剧毒之心、
     #     刺客攻线+收割、拳师守线+以守为攻/反击之王；隐藏线仅留星陨/占卜等单流派技能）
-    check("分支总技能 163", total == 163, str(total))
+    # v130.2：新增 20+ 分支技能（元素湮灭/裂岳连击/龙脉终曲/流星陨落/安魂曲/撼岳·终焉等）
+    #   + 战士攻线龙息之怒等既有下放 → 分支总技能 = 182
+    check("分支总技能 182（v130.2）", total == 182, str(total))
 
     print("【数据：tier 划分（基础严格：t1≤55 / t2 56-68 / t3≥90；隐藏线宽松：t1≤56 / t2 20-68 / t3≥70）】")
     bad = []
@@ -282,7 +284,10 @@ def test_mage_mechanics():
     print("【元素/奥术机制：元素跃迁切系（element_shift，法师系）】")
     pf = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
     b2 = make_battle(pf)
-    check("初始火系", b2.resources.get("element") == "fire", str(b2.resources.get("element")))
+    # v130.2：资源下放分支后基础法师（tier0）不再附带元素资源 → 初始无元素态（None）；
+    # 元素系技能挂载在攻线·元素法师分支，切系机制仍可动态挂 element 键（下方校验）
+    check("基础法师无资源（初始无元素态）", b2.resources.get("element") is None,
+          str(b2.resources.get("element")))
     info2 = E.skill_info("法师", "元素跃迁")
     check("元素跃迁可查到", bool(info2), str(info2))
     if info2:

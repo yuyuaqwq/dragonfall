@@ -247,6 +247,204 @@ AFFIXES = {
         "effect": {"shield_power": 0.05},
         "desc": "护盾强度＋5%（v106.2）",
     },
+    # ================= v130.2 装备-资源联动词条（六职业线，设计稿 §6 落地） =================
+    # 说明：字段与既有 affix 结构对齐（name/kind/trigger/effect/desc/chance），
+    # 额外附 "qualities"（品质分布：blue=精良/稀有 紫=史诗 orange=传说，对应 AFFIX_POOL_BY_QUALITY）
+    # 与 "tiers"（数值档位按品质的取值表，供批 2 引擎按品质取档）、"unique"（唯一主词条，禁跨件叠加）、
+    # "line"（归属职业线/攻守）。effect 内 res 使用 core_resources 资源 key（rage/element/energy/faith/cp/chi）。
+    # ================= 战士（怒气 rage ）=================
+    "war_spirit": {
+        "name": "战意", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "rage", "gain": 1, "on": ["on_attack", "on_skill"]},
+        "qualities": ["blue", "purple"], "line": "战士·通用基础",
+        "desc": "攻击/技能触发怒气时 怒气获取额外 +1",
+    },
+    "rage_forge": {
+        "name": "怒火熔铸", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "rage", "max_bonus": 2},
+        "qualities": ["purple", "orange"], "unique": True, "line": "战士·通用基础",
+        "desc": "怒气上限 +2 (10 → 12，配合满怒档)",
+    },
+    "warcry_echo": {
+        "name": "战吼回响", "kind": "defense", "trigger": "passive",
+        "effect": {"res": "rage", "gain": 1, "on": "buff_skill"},
+        "qualities": ["purple"], "line": "战士·通用基础",
+        "desc": "释放增益技能后 怒气 +1",
+    },
+    "blood_bath": {
+        "name": "浴血", "kind": "defense", "trigger": "on_taken",
+        "effect": {"res": "rage", "gain": 1, "on": "on_taken"},
+        "qualities": ["purple"], "line": "战士·攻线",
+        "desc": "受击时 怒气 +1 (与血债怒火叠加)",
+    },
+    "ember_brand": {
+        "name": "残血灼薪", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "rage", "gain": 1, "cond": "hp_lt_30"},
+        "qualities": ["blue"], "line": "战士·攻线",
+        "desc": "生命 <30% 时 怒气获取 +1",
+    },
+    "boiling_blood": {
+        "name": "沸血浇筑", "kind": "defense", "trigger": "passive",
+        "effect": {"dmg_reduce": 0.08, "cond": "rage_full"},
+        "qualities": ["orange"], "line": "战士·攻线沸血体系",
+        "desc": "怒气全满时 全减伤 +8% (沸血战体)",
+    },
+    # ================= 法师（元素亲和充能条 element；基础纯蓝，攻线限定词条标注转职生效） =================
+    "arcana_flux": {
+        "name": "充能汲引", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "element", "gain": 1, "on": "on_cast"},
+        "qualities": ["blue"], "line": "法师·基础/转职通用",
+        "desc": "元素/奥术技能施放 充能获取 +1 (额外)",
+    },
+    "arcane_focus": {
+        "name": "凝神塑能", "kind": "defense", "trigger": "stat",
+        "effect": {"mp_cost_reduce": 0.10},
+        "qualities": ["blue"], "line": "法师·基础即受益",
+        "desc": "元素/奥术技能 魔力消耗 -10% (续航向，基础即受益)",
+    },
+    "sigil_engrave": {
+        "name": "印记铭刻", "kind": "attack", "trigger": "stat",
+        "effect": {"max_sigil": 1, "cond": "element_mage"},
+        "qualities": ["blue", "purple"], "line": "法师·攻线限定",
+        "desc": "元素印记上限 +1 (每系 3 → 4，元素法师转职后生效)",
+    },
+    "reaction_catalyst": {
+        "name": "反应催化", "kind": "attack", "trigger": "stat",
+        "effect": {"reaction_dmg": 0.15, "cond": "element_mage"},
+        "qualities": ["purple"], "line": "法师·攻线限定",
+        "desc": "元素反应伤害 +15% (元素法师转职后生效)",
+    },
+    # ================= 游侠（精力 energy） =================
+    "energy_blade": {
+        "name": "精力刀刃", "kind": "attack", "trigger": "stat",
+        "effect": {"res": "energy", "cost_reduce": 0.05, "tiers": {"blue": 0.05, "purple": 0.08, "orange": 0.12}},
+        "qualities": ["blue", "purple"], "line": "游侠·通用",
+        "desc": "精力消耗 -5% (史诗 -8%，传说 -12%)",
+    },
+    "energy_tide": {
+        "name": "精力潮汐", "kind": "defense", "trigger": "turn_start",
+        "effect": {"res": "energy", "regen": 5, "tiers": {"purple": 5, "orange": 10}},
+        "qualities": ["purple", "orange"], "line": "游侠·通用",
+        "desc": "每回合 精力回复 +5 (传说 +10)",
+    },
+    "full_pack": {
+        "name": "盈满背囊", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "energy", "max_bonus": 10, "tiers": {"purple": 10, "orange": 20}},
+        "qualities": ["purple", "orange"], "line": "游侠·通用",
+        "desc": "精力上限 +10 (史诗 +10，传说 +20)",
+    },
+    "crit_charge": {
+        "name": "暴击蓄能", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "energy", "gain": 3, "on": "on_crit"},
+        "qualities": ["purple", "orange"], "line": "游侠·转职后兑现",
+        "desc": "暴击命中时 精力回复 +3",
+    },
+    "swift_tailwind": {
+        "name": "疾风余韵", "kind": "defense", "trigger": "turn_start",
+        "effect": {"res": "energy", "regen": 10, "cond": "energy_ge_80"},
+        "qualities": ["orange"], "line": "游侠·守线满弦兑现",
+        "desc": "回合结束时，若精力 ≥ 80，下回合 精力回复 +10",
+    },
+    # ================= 牧师（信仰 faith） =================
+    "holy_echo": {
+        "name": "圣辉回响", "kind": "defense", "trigger": "passive",
+        "effect": {"res": "faith", "gain": 1, "on": "on_heal", "tiers": {"blue": 1, "purple": 2}},
+        "qualities": ["blue", "purple"], "line": "牧师·通用",
+        "desc": "治疗命中时 信仰 +1 (史诗 +2)",
+    },
+    "divine_radiance": {
+        "name": "神赐容光", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "faith", "max_bonus": 1},
+        "qualities": ["purple"], "line": "牧师·通用",
+        "desc": "信仰上限 +1",
+    },
+    "holy_heart": {
+        "name": "圣光之心", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "faith", "max_bonus": 2},
+        "qualities": ["orange"], "unique": True, "line": "牧师·通用",
+        "desc": "信仰上限 +2 (唯一主词条)",
+    },
+    "sigil_blessing": {
+        "name": "圣徽之佑", "kind": "defense", "trigger": "stat",
+        "effect": {"mp_cost_reduce": 5, "on": "miracle", "tiers": {"blue": 5, "purple": 10}},
+        "qualities": ["blue", "purple"], "line": "牧师·神迹技",
+        "desc": "神迹技 魔力消耗 -5 (史诗 -10)",
+    },
+    "pious_charm": {
+        "name": "虔诚护符", "kind": "defense", "trigger": "on_taken",
+        "effect": {"res": "faith", "gain": 1, "on": "on_taken"},
+        "qualities": ["blue"], "unique": True, "line": "牧师·通用",
+        "desc": "受击时 信仰 +1 (唯一词条)",
+    },
+    # ================= 刺客（连击点 cp；暴击回点/连段 毒/攻线向） =================
+    "crit_return": {
+        "name": "暴击回点", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "cp", "gain": 1, "on": "on_crit", "chance": 0.15,
+                   "tiers": {"blue": 0.15, "purple": 0.25, "orange": 0.40}},
+        "qualities": ["blue", "purple"], "line": "刺客·毒线/影步线向",
+        "desc": "暴击时 15% 概率额外获得 1 连击点 (史诗 25%，传说 40%)",
+    },
+    "finisher": {
+        "name": "终结之技", "kind": "attack", "trigger": "passive",
+        "effect": {"finisher_dmg": 0.10, "tiers": {"blue": 0.10, "purple": 0.15, "orange": 0.20}},
+        "qualities": ["blue", "purple"], "line": "刺客·通用",
+        "desc": "终结技伤害 +10% (史诗 +15%，传说 +20%)",
+    },
+    "combo_ward": {
+        "name": "连段护持", "kind": "defense", "trigger": "on_taken",
+        "effect": {"combo_keep_chance": 0.15, "tiers": {"purple": 0.15, "orange": 0.30}, "cond": "攻线限定"},
+        "qualities": ["purple", "orange"], "line": "刺客·攻线限定",
+        "desc": "受击时 15% 概率连击不因受击回退 (史诗 30%；攻线限定)",
+    },
+    "combo_edge": {
+        "name": "连段之锋", "kind": "attack", "trigger": "stat",
+        "effect": {"combo_threshold_reduce": 1, "cond": "攻线限定"},
+        "qualities": ["purple"], "line": "刺客·攻线限定",
+        "desc": "连段生效阈值 -1 (combo ≥ 3 → ≥ 2；攻线限定)",
+    },
+    "rhythm_badge": {
+        "name": "节奏之徽", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "cp", "max_bonus": 1, "max_total": 2},
+        "qualities": ["purple", "orange"], "unique": True, "line": "刺客·收藏主词条",
+        "desc": "连击点上限 +1 (最多 +2)",
+    },
+    # ================= 拳师（气 chi；命名西幻化，苦修 line 锁系数不上浮） =================
+    "combo_recover": {
+        "name": "连段回收", "kind": "attack", "trigger": "passive",
+        "effect": {"res": "chi", "gain": 1, "on": "combo_skill"},
+        "qualities": ["blue"], "line": "拳师·通用基础连段",
+        "desc": "连招技额外 +1 气",
+    },
+    "chi_limit": {
+        "name": "气量强化", "kind": "defense", "trigger": "stat",
+        "effect": {"res": "chi", "max_bonus": 2},
+        "qualities": ["purple", "orange"], "unique": True, "line": "拳师·攻线/爆发流",
+        "desc": "气上限 +2 (至 12)",
+    },
+    "rock_rest": {
+        "name": "磐息", "kind": "defense", "trigger": "on_taken",
+        "effect": {"res": "chi", "gain": 1, "on": "on_taken"},
+        "qualities": ["blue"], "line": "拳师·守线专属",
+        "desc": "受击时额外 +1 气 (配合守线反震/柱势)",
+    },
+    "burst_break": {
+        "name": "爆发贯体", "kind": "attack", "trigger": "stat",
+        "effect": {"chi_skill_phys": 0.10},
+        "qualities": ["purple"], "line": "拳师·通用倾泻流",
+        "desc": "气力技物理伤害 +10%",
+    },
+    "opening_stance": {
+        "name": "起手之势", "kind": "defense", "trigger": "battle_start",
+        "effect": {"res": "chi", "gain": 1, "on": "battle_start"},
+        "qualities": ["blue"], "line": "拳师·通用开局节奏",
+        "desc": "战斗开始时 +1 气",
+    },
+    "momentum_mastery": {
+        "name": "蓄势精通", "kind": "attack", "trigger": "stat",
+        "effect": {"momentum_per_chi": 0.04, "base": 0.03, "cond": "攻线蓄势"},
+        "qualities": ["blue", "purple"], "line": "拳师·攻线专属",
+        "desc": "攻线每 1 气提升的物理伤害 +3% → +4% (蓄势 Momentum 系数；苦修锁 4% 不上浮)",
+    },
 }
 
 # 随机词条池按品质（20 章 4.2：蓝 → 攻击 7 + 防具 7；紫 → 攻击 17 + 防具 9；橙 → 全部）
@@ -256,6 +454,11 @@ AFFIX_POOL_BY_QUALITY = {
         "block", "dodge", "dmg_reduce", "swift", "hp_up", "regen",
         "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
         "heal_power", "shield_power",  # v106.2 圣愈/坚盾
+        # v130.2 资源联动词条（基础/稀有档：战意 残血灼薪 充能汲引 凝神塑能 印记铭刻 精力刀刃 圣辉回响
+        # 圣徽之佑 虔诚护符 暴击回点 终结之技 连段回收 磐息 起手之势 蓄势精通）
+        "war_spirit", "ember_brand", "arcana_flux", "arcane_focus", "sigil_engrave", "energy_blade",
+        "holy_echo", "sigil_blessing", "pious_charm", "crit_return", "finisher",
+        "combo_recover", "rock_rest", "opening_stance", "momentum_mastery",
     ],
     "purple": [
         "bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up", "crit_dmg",
@@ -267,6 +470,14 @@ AFFIX_POOL_BY_QUALITY = {
         "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
         "heal_power", "shield_power",  # v106.2 圣愈/坚盾
         "phys_ward", "magic_ward", "thirst_phys", "thirst_magi",  # v106.4 铁壁/魔抗/渴血/吸魂
+        # v130.2 资源联动词条（史诗档：战意 怒火熔铸 战吼回响 浴血 印记铭刻 反应催化 精力刀刃 精力潮汐
+        # 盈满背囊 暴击蓄能 圣辉回响 神赐容光 圣徽之佑 暴击回点 终结之技 连段护持 连段之锋 节奏之徽
+        # 气量强化 爆发贯体 蓄势精通）
+        "war_spirit", "rage_forge", "warcry_echo", "blood_bath", "sigil_engrave", "reaction_catalyst",
+        "energy_blade", "energy_tide", "full_pack", "crit_charge",
+        "holy_echo", "divine_radiance", "sigil_blessing",
+        "crit_return", "finisher", "combo_ward", "combo_edge", "rhythm_badge",
+        "chi_limit", "burst_break", "momentum_mastery",
     ],
     "orange": sorted(AFFIXES.keys()),
 }
@@ -521,4 +732,93 @@ SERIES_FIXED_AFFIX = {
     "灰烬战靴": ["tenacity", "block"],
     # v87 隐藏线：传说·星陨之剑
     "星陨之剑": ["crit_up", "element_thunder"],
+}
+
+# ================= v130.2 装备-资源联动：套装效果（职业线设计稿 §6.2 提案落地） =================
+# 说明：运行时套装定义在 game/data/sets.py（SETS：set_* key + bonus_2/bonus_4/bonus_5）。
+# 本批次铁律「只改 affixes.py」，故套装以"落地清单"形式登记于此，结构对齐 sets.py 的件数/effect/desc
+# 形状，供主 agent 在批 2 统一并入 sets.py 并接引擎（compounds：battle.py/engine.py 的 SET_PROC 分发）。
+# quality 为设计稿建议档（蓝=新手/基础 紫=史诗 橙=传说，最终配色质与掉落由主 agent 统一）。
+V130_RESOURCE_SET_BONUSES = {
+    # ---- 战士（怒气 rage） ----
+    "set_xue_shi_zhan_tuan": {  # 散件配套（通用基础）
+        "name": "血誓战团", "quality": "purple", "icon": "⚔️", "line": "战士·通用基础",
+        "bonus_2": {"effect": "res_gain", "res": "rage", "value": 1, "on": "on_taken",
+                    "desc": "受击回怒 +1"},
+    },
+    "set_yu_jin_jun_tuan_hui_zhang": {  # 攻线
+        "name": "余烬军团徽章", "quality": "purple", "icon": "🔥", "line": "战士·攻线",
+        "bonus_2": {},
+        "bonus_4": {"effect": "full_rage_pursuit", "power": 0.50, "rage_cost_reduce": 1,
+                    "desc": "满怒(沸血二段)时 普攻二段追击 威力 30% → 50%；满怒大招 怒气消耗 -1 (最低消耗 1)"},
+    },
+    # ---- 法师（元素亲和充能条 element） ----
+    "set_yuan_su_shi_tu": {  # 传说套装，团本/世界 Boss 掉落
+        "name": "元素使徒", "quality": "orange", "icon": "✨", "line": "法师·基础/转职通用",
+        "bonus_2": {"effect": "res_max", "res": "element", "value": 1,
+                    "desc": "元素亲和充能条 上限 +1 (5 → 6)"},
+        "bonus_4": {"effect": "ultimate_cost_reduce", "res": "element", "value": 1,
+                    "desc": "全耗奥义(元素风暴) 充能消耗 -1 (-5 → -4，保留残点走轴)"},
+    },
+    "set_shi_zhi_ling_zhu": {  # 隐藏线 2 件（时咒）
+        "name": "时之领主", "quality": "orange", "icon": "⏳", "line": "法师·隐藏线(时咒)",
+        "bonus_2": {"effect": "cdr_set", "on": "time_freeze", "value": -1,
+                    "desc": "时停领域 冷却时间 -1"},
+    },
+    # ---- 游侠（精力 energy） ----
+    "set_xun_lin_zhang_pi_feng": {  # 散件配套
+        "name": "巡林长披风", "quality": "purple", "icon": "🍃", "line": "游侠·散件配套",
+        "bonus_2": {"effect": "crit_on_marked", "crit": 0.05,
+                    "desc": "命中带标记目标时 暴击率 +5%"},
+    },
+    "set_lie_shou_yuan_zheng_dui_hui_ji": {  # 攻线叠标流更吃这套
+        "name": "猎首远征队徽记", "quality": "purple", "icon": "🏹", "line": "游侠·攻线",
+        "bonus_2": {},
+        "bonus_4": {"effect": "res_cost_reduce", "res": "energy", "value": 0.10, "on": "finisher_marked",
+                    "desc": "对带标记敌人释放 50/100 档终结技时 精力消耗 -10%"},
+    },
+    # ---- 牧师（信仰 faith） ----
+    "set_sheng_dian_ri_mian": {  # 平稳流/最高档爆发最佳伴侣
+        "name": "圣典·日冕", "quality": "purple", "icon": "🌞", "line": "牧师·平稳/爆发流",
+        "bonus_2": {"effect": "heal_team_on_miracle_t2plus", "hp": 30,
+                    "desc": "施放二档以上神迹时 全体队友额外恢复 30 体力"},
+        "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1,
+                    "desc": "满信仰状态下 首次受击免伤 (每战 1 次)"},
+    },
+    "set_an_ye_sheng_dian": {  # 暗影神谕共享（只对悼咏机制生效）
+        "name": "暗夜圣典", "quality": "purple", "icon": "🌙", "line": "牧师·暗影神谕(悼咏)",
+        "bonus_2": {"effect": "res_gain", "res": "canticle", "value": 1, "on": "undead_on_field",
+                    "desc": "场上亡灵≥1 时 悼咏积攒 +1"},
+        "bonus_4": {"effect": "elegy_dmg", "value": 0.20,
+                    "desc": "满档安魂曲/献祭暗焰 伤害 +20%"},
+    },
+    "set_sheng_hui_shi_yue": {  # 新手保底
+        "name": "圣徽·誓约", "quality": "blue", "icon": "🛡️", "line": "牧师·新手保底",
+        "bonus_2": {"effect": "res_gain", "res": "faith", "value": 1, "on": "on_taken",
+                    "desc": "受击回信仰 +1"},
+        "bonus_4": {"effect": "res_gain", "res": "faith", "value": 1, "on": "on_heal",
+                    "desc": "治疗回信仰 +1"},
+    },
+    # ---- 刺客（连击点 cp，5 件套） ----
+    "set_ye_mu_he_qi_ying_sha": {  # 轻甲/武器
+        "name": "夜幕合契·影纱", "quality": "purple", "icon": "🗡️", "line": "刺客·轻甲/武器 5 件套",
+        "bonus_2": {"effect": "battle_start_cp", "value": 1,
+                    "desc": "战斗开始时 +1 连击点"},
+        "bonus_4": {"effect": "finisher_crit", "crit": 0.15,
+                    "desc": "终结技暴击率 +15%"},
+        "bonus_5": {"effect": "combo_finisher_per_layer", "per_layer": 0.08, "base": 0.05,
+                    "desc": "攻线连段每层终结技增伤 5% → 8% (上限 +64%)"},
+    },
+    # ---- 拳师（气 chi） ----
+    "set_xu_shi_yong_dong": {
+        "name": "蓄势涌动", "quality": "purple", "icon": "🌊", "line": "拳师·通用",
+        "bonus_2": {"effect": "battle_start_res", "res": "chi", "value": 2,
+                    "desc": "进入战斗时 2 气 (开局即进连段中段)"},
+    },
+    "set_shi_bu_ke_dang": {
+        "name": "势不可挡", "quality": "purple", "icon": "⛰️", "line": "拳师·通用",
+        "bonus_2": {},
+        "bonus_4": {"effect": "chi_skill_phys", "value": 0.15,
+                    "desc": "气力技/终结技 物理伤害 +15%"},
+    },
 }

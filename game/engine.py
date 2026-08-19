@@ -60,6 +60,24 @@ def core_resource_def(class_name: str) -> dict:
     return C.CORE_RESOURCES.get(cls_id, {})
 
 
+def core_resource_def_by_key(res_key: str) -> dict:
+    """按资源 key 直接查核心资源定义（v130.2 副资源：共鸣/回声等按 key 注册，
+    非 class id，core_resource_def 按 class 查不到——歌者双资源/分支级 resource_override 用）。"""
+    if not res_key:
+        return {}
+    return C.CORE_RESOURCES.get(res_key, {})
+
+
+def core_resource_gain_key(res_key: str, resources: dict, amount: int) -> int:
+    """按资源 key 直接增加副资源（v130.2：res_gain 副资源 key 支持，歌者共鸣/回声等）。
+    返回新值。未配置上限/未定义的资源不限制（同 core_resource_gain 语义）。"""
+    rd = core_resource_def_by_key(res_key)
+    if not rd:
+        return resources.get(res_key, 0)
+    cap = rd.get("max", 99)
+    return min(cap, resources.get(res_key, 0) + amount)
+
+
 def core_resource_gain(class_name: str, resources: dict, amount: int, key: str = "") -> int:
     """核心资源增加（带上限）。resources 是战斗内资源 dict（Battle 实例持有）。
     返回新值。未配置上限/未定义的资源不限制。

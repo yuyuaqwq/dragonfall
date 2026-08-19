@@ -2682,8 +2682,8 @@ ITEMS.update({
     "i_tome_long_xi_zhi_nu": {"name": "龙息之怒技能书", "price": 5000, "type": "消耗品",
                               "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi",
                               "desc": "记载着龙息之怒的古卷——战士一脉皆可参悟，习得真伤绝技"},
-    "i_tome_xu_kong_bao_po": {"name": "虚空爆破技能书", "price": 6000, "type": "消耗品",
-                              "learn_skill": "虚空爆破", "require_class": "cls_fa_shi",
+    "i_tome_xu_kong_bao_po": {"name": "元素湮灭技能书", "price": 6000, "type": "消耗品",
+                              "learn_skill": "元素湮灭", "require_class": "cls_fa_shi",
                               "desc": "记录着虚空回响的残卷——法师一脉皆可参悟，吸蓝爆破"},
     "i_tome_du_bao": {"name": "毒爆术技能书", "price": 4500, "type": "消耗品",
                       "learn_skill": "毒爆术", "require_class": "cls_you_xia",
@@ -2786,4 +2786,83 @@ ITEMS.update({
                                  "desc": "胖托尼获奖的金锅肋排——战斗外回复 35% 生命；战斗中攻击+10%(3 回合，设计稿 +10% 持续 3 场取最近档)"},
     "i_bai_shi_sheng_hui_yao_ji": {"name": "白石圣灰药剂", "price": 100, "heal": 0.3, "type": "消耗品",
                                    "desc": "白石圣灰调成的圣光药剂——战斗外回复 30% 生命；战斗中驱散全队负面(驱散逻辑待接入)"},
+})
+
+# ================= v130.2 核心资源重设计：六职业线资源联动消耗品（回资源类） =================
+# 设计稿：resource_redesign_v130/<线名>.md §7 物品联动提案（2026-08-19）
+# 效果字段规范（v130.2 新增 effect 族，消费端实现归批次 2 引擎/消费层）：
+#   - restore_resource      立即回复资源量            effect_data {key, amount}
+#   - restore_resource_full 立即充满资源（带代价）      effect_data {key, penalty_pct, penalty_turns}
+#   - resource_amp          指定触发下资源获取额外 +N  effect_data {key, amount, turns 或 hits, trigger}
+#   - battle_start_resource 战前/战斗开始预充资源       effect_data {key, amount, buff(可选)}
+#   - mana_cost_down        技能魔力消耗 -P%          effect_data {pct, turns}
+#   - buff_phys_next        下一次气力/物理技能 +P%     effect_data {pct}
+#   - full_tension（游侠守线专属满弦）                  effect_data {turns}
+# ⚠️ v130.2 基础法师无资源（纯蓝）：元素结晶/元素亲和药剂 按设计稿 §7 落地为纯蓝补给，不做充能写入（攻线限定说明见 desc）。
+# 资源 key 对齐 core_resources.py：rage / energy / faith / cp / chi / time_sand（法师基础 element 不再写入）。
+# 价格口径：一般 45-200 金、传说级特殊消耗品 400+（参考现有效果类物品；设计稿银/金参考值已按经济系统校准）。
+ITEMS.update({
+    # ---- 战士线（怒气 rage，max 10）----
+    "i_rage_draught": {"name": "怒火药剂", "price": 70, "type": "消耗品",
+                       "effect": "restore_resource", "effect_data": {"key": "rage", "amount": 3},
+                       "desc": "战斗中使用，立即回复 3 点怒气（占 1 回合行动）；怒火在喉，一饮而尽 (精良，炼金商人 / 军营杂货出售)"},
+    "i_boiling_war_blood": {"name": "沸腾战血", "price": 110, "type": "消耗品",
+                            "effect": "resource_amp", "effect_data": {"key": "rage", "amount": 2, "turns": 3, "trigger": "on_hit"},
+                            "desc": "战斗中使用，3 回合内受击时 怒气获取 + 2（可与血债/浴血叠加）(精良，炼金商人 / 副本掉落)"},
+    "i_molten_core": {"name": "熔核之心", "price": 450, "type": "消耗品",
+                      "effect": "restore_resource_full", "effect_data": {"key": "rage", "penalty_pct": 0.2, "penalty_turns": 2},
+                      "desc": "战斗中使用，立即充满怒气；代价：2 回合内 全减伤 - 20%（限定补给，拿血换怒的物资层延伸）(史诗，高级炼金 / 精英副本 / 军团军需官)"},
+    "i_prebattle_feast": {"name": "战前猛火餐", "price": 50, "type": "消耗品",
+                          "effect": "battle_start_resource", "effect_data": {"key": "rage", "amount": 2},
+                          "desc": "战斗开始前食用，首回合 怒气 + 2 预充（烧烤巨兽肝，食物 buff，非战斗中）(稀有，军营厨师 / 篝火烹饪)"},
+    # ---- 法师线（v130.2 基础无资源 → 纯蓝补给；时之沙漏为时咒隐藏线专属）----
+    "i_element_crystal": {"name": "元素结晶", "price": 90, "type": "消耗品", "mana": 0.6,
+                          "desc": "使用后回复 60% 魔力——冰火雷元素凝成的纯净结晶（v130.2 基础法师无充能条，作为纯蓝补给落地；攻线转职后亦可作充能媒介）(精良，元素地脉矿点 / 炼金师「结晶调和」)"},
+    "i_affinity_draught": {"name": "元素亲和药剂", "price": 120, "type": "消耗品",
+                           "effect": "mana_cost_down", "effect_data": {"pct": 0.1, "turns": 3},
+                           "desc": "战斗中使用，3 回合内 技能魔力消耗 - 10%（基础法师纯蓝减耗，蓝量管理即节奏锚点；攻线转职后同时提供充能获取 + 1）(精良，附魔台 / 药剂商店)"},
+    "i_time_hourglass": {"name": "时之沙漏", "price": 450, "type": "消耗品",
+                         "effect": "restore_resource", "effect_data": {"key": "time_sand", "amount": 2},
+                         "require_class": "cls_chronomancer",
+                         "desc": "战斗中使用，立即回复 2 点时之沙（时咒线专属，其余职业使用无效；沙漏倒转，时间的节拍加速）(史诗，时光试炼奖励 / 时光裂隙副本)"},
+    # ---- 游侠线（精力 energy，max 100，自然回 30）----
+    "i_vitality_draught": {"name": "活力原浆", "price": 60, "type": "消耗品",
+                           "effect": "restore_resource", "effect_data": {"key": "energy", "amount": 40},
+                           "desc": "战斗中使用，立即回复 40 点精力（占 1 回合行动；精力是全资源唯一天然回，补给即输出上限）(精良，炼金商人 / 山间草药合成)"},
+    "i_swiftness_core": {"name": "迅捷之核", "price": 80, "type": "消耗品",
+                         "effect": "resource_amp", "effect_data": {"key": "energy", "amount": 30, "turns": 1, "trigger": "regen"},
+                         "desc": "战斗中使用，本回合 精力自然回复 + 30（与自然回叠加）(精良，猎人营地铁匠 / 副本掉落)"},
+    "i_fulltension_brew": {"name": "满弦烈酒", "price": 95, "type": "消耗品",
+                           "effect": "full_tension", "effect_data": {"turns": 1},
+                           "desc": "战斗中使用，立即进入满弦状态 1 回合（精力阈值视为已满足；游侠守线·风行者专属补给，基础/攻线携带无效）(精良，酒馆 / 杂货出售)"},
+    # ---- 牧师线（信仰 faith，max 10）----
+    "i_radiance_potion": {"name": "圣辉药剂", "price": 140, "type": "消耗品",
+                          "effect": "restore_resource", "effect_data": {"key": "faith", "amount": 3, "cooldown": 2},
+                          "desc": "战斗中使用，立即回复 3 点信仰值（冷却 2 回合）(精良，圣教团声望商店 / 炼金配方)"},
+    "i_faith_crystal": {"name": "信仰结晶", "price": 300, "type": "消耗品",
+                        "effect": "restore_resource", "effect_data": {"key": "faith", "amount": 5, "next_heal_pct": 0.2},
+                        "desc": "战斗中使用，立即回复 5 点信仰值，并使下一次治疗技能效果 + 20%（圣光凝聚的结晶，光芒愈盛）(史诗，圣光教徒精英掉落)"},
+    "i_incense_candle": {"name": "香薰圣烛", "price": 110, "type": "消耗品",
+                         "effect": "resource_amp", "effect_data": {"key": "faith", "amount": 1, "turns": 3, "trigger": "on_heal"},
+                         "desc": "战斗外点燃，开场 3 回合内 治疗获得 信仰值 + 1（香薰安神，预热神恩）(精良，杂货商 / 支线奖励)"},
+    # ---- 刺客线（连击点 cp，max 5）----
+    "i_shadowstrike_potion": {"name": "影袭药水", "price": 80, "type": "消耗品",
+                              "effect": "resource_amp", "effect_data": {"key": "cp", "amount": 1, "hits": 3, "trigger": "on_hit"},
+                              "desc": "战斗中使用，接下来 3 次出手命中时 额外 + 1 连击点 (稀有，炼金商人 / 19-25 级副本)"},
+    "i_blink_crystal": {"name": "瞬步结晶", "price": 280, "type": "消耗品",
+                        "effect": "restore_resource", "effect_data": {"key": "cp", "amount": 2, "once_per_battle": True},
+                        "desc": "战斗中使用，立即获得 2 连击点（每场战斗限用 1 次）；身影一瞬，再出现时已贴近要害 (史诗，精英怪掉落 / 影纱任务链)"},
+    "i_nightowl_tea": {"name": "夜枭茶", "price": 55, "type": "消耗品",
+                       "effect": "battle_start_resource", "effect_data": {"key": "cp", "amount": 1},
+                       "desc": "战斗开始前饮用（30 分钟效果），战斗开始时 + 1 连击点；夜枭静栖，敛翼待猎 (稀有，餐厅 / 营地烹饪)"},
+    # ---- 拳师线（气 chi，max 10）----
+    "i_chi_pellet": {"name": "斗气凝丸", "price": 60, "type": "消耗品",
+                     "effect": "restore_resource", "effect_data": {"key": "chi", "amount": 2},
+                     "desc": "战斗中使用，立即回复 2 点气（转职攻线/苦修后，本回合不破坏蓄势斜坡）(精良，商店 / 炼金)"},
+    "i_chi_essence": {"name": "引气精华", "price": 160, "type": "消耗品",
+                      "effect": "buff_phys_next", "effect_data": {"pct": 0.2},
+                      "desc": "战斗中使用，下一次气力技 物理伤害 + 20%（引气入体，气力灌注拳锋）(史诗，副本掉落 / 炼金台)"},
+    "i_surging_brew": {"name": "澎湃烈酒", "price": 85, "type": "消耗品",
+                       "effect": "battle_start_resource", "effect_data": {"key": "chi", "amount": 1, "buff": {"kind": "phys_up", "pct": 0.05, "turns": 3}},
+                       "desc": "战斗前饮用，开战后前 3 回合 物理伤害 + 5%，且初始 + 1 点气；烈酒入喉，气机澎湃 (稀有，酒馆 / 任务奖励)"},
 })

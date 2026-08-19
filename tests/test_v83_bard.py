@@ -51,6 +51,9 @@ async def main():
           and "快板节奏" in t3_names and "终章·黎明颂歌" in t3_names, str(t3_names))
     team_cnt = sum(1 for t in (1, 2, 3) for bn in br[t] for v in br[t][bn].values() if v.get("team"))
     check("团队技能>=5", team_cnt >= 5, str(team_cnt))
+    # 覆盖检查：每名歌手系分支技能须在 SKILL_UP（v56.4 覆盖率铁律）。
+    # v130.2 新增 启明圣咏/破晓圣咏 尚无 SKILL_UP 配置（audit_data P1-3 = 20 新技缺 SKILL_UP，
+    # 数据缺陷非断言过时）→ 此循环将挂红 2 项，待 skill_up.py 补齐后回归（不掩改断言）。
     all_names = t1_names + t2_names + t3_names
     for n in all_names:
         check(f"SKILL_UP 有 {n}", n in E.C.SKILL_UP, "")

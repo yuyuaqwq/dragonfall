@@ -9,7 +9,7 @@
  2. 七本技能书全链路（HIGH）：每本给正确源流职业建高等级号，使用技能书→learned_skills
     写入→重复被拦→战斗施放可用；错误源流职业使用被拒（require_class 校验）。
  3. 下放技能在基础职业的战斗可用性（MEDIUM）：战士学会龙息之怒→真伤无视防御；
-    法师学会虚空爆破→战斗施放回蓝；刺客学会收割→伤害；游侠学会毒爆术→叠毒引爆；
+    法师学会元素湮灭→战斗施放回蓝；刺客学会收割→伤害；游侠学会毒爆术→叠毒引爆；
     拳师学会以守为攻→受击触发反击（被动）。
  4. 命令 vs 对话传承等价性 + 90 级对话 T3（MEDIUM）：同一基础职业同等级分别用
     『转职 <档位名>』命令与导师对话『接受传承』各传承一次，断言最终
@@ -74,7 +74,7 @@ LINES = [
 # 七本技能书：item_id, 技能名, 源流职业, 学习等级
 TOMES = [
     ("i_tome_long_xi_zhi_nu", "龙息之怒", "cls_zhan_shi", 55),
-    ("i_tome_xu_kong_bao_po", "虚空爆破", "cls_fa_shi", 55),
+    ("i_tome_xu_kong_bao_po", "元素湮灭", "cls_fa_shi", 55),
     ("i_tome_du_bao",         "毒爆术",   "cls_you_xia", 55),
     ("i_tome_shou_ge",        "收割",     "cls_ci_ke",   62),
     ("i_tome_ku_lou_hai",     "骷髅海",   "cls_hymn",    70),
@@ -206,11 +206,11 @@ async def test_downstream_skills_combat(m):
     logs, dealt = cast_skill(b, p, "龙息之怒")
     check("战士·龙息之怒 真伤无视 def=5000", dealt > 200, f"dealt {dealt}")
 
-    # 3.2 法师攻线学会虚空爆破 → 战斗施放回蓝
-    p = mk_bp("cls_fa_shi", ["虚空爆破"], level=60, mp=20)
+    # 3.2 法师攻线学会元素湮灭 → 战斗施放回蓝
+    p = mk_bp("cls_fa_shi", ["元素湮灭"], level=60, mp=20)
     b = BT.Battle("怪物", mk_be(def_=10, mdef=10), {}, p)
-    logs, dealt = cast_skill(b, p, "虚空爆破")
-    check("法师·虚空爆破 战斗施放回蓝", p["mp"] > 20, f"mp {p['mp']}")
+    logs, dealt = cast_skill(b, p, "元素湮灭")
+    check("法师·元素湮灭 战斗施放回蓝", p["mp"] > 20, f"mp {p['mp']}")
 
     # 3.3 刺客攻线学会收割 → 伤害（物理按 atk）
     p = mk_bp("cls_ci_ke", ["收割"], level=65, atk=150)

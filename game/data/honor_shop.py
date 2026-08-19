@@ -62,14 +62,14 @@ HONOR_SHOP = {
         },
     },
     6: {
-        "name": "虚空爆破技能书", "cost": 800,
-        "desc": "学会隐藏技能「虚空爆破」(法师一脉，吸蓝爆破)",
+        "name": "元素湮灭技能书", "cost": 800,
+        "desc": "学会隐藏技能「元素湮灭」(法师一脉，吸蓝爆破)",
         "reward": {
             "type": "item", "item_prefix": "tome_",
-            "item": {"name": "虚空爆破技能书", "type": "消耗品", "stackable": True,
-                     "price": 0, "learn_skill": "虚空爆破", "require_class": "cls_fa_shi",
+            "item": {"name": "元素湮灭技能书", "type": "消耗品", "stackable": True,
+                     "price": 0, "learn_skill": "元素湮灭", "require_class": "cls_fa_shi",
                      "desc": "记录着虚空回响的残卷——法师一脉皆可参悟"},
-            "msg": "📖 『使用 虚空爆破技能书』学会吸蓝爆破！",
+            "msg": "📖 『使用 元素湮灭技能书』学会吸蓝爆破！",
         },
     },
 }

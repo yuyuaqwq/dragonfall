@@ -18,12 +18,17 @@ import time
 
 from . import content as C
 from . import engine as E
-from .data.battle_config import (  # v125.2 B1：战斗主路径数值/白名单数据表
+from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径数值/白名单数据表 + v130 引擎新机制表
     MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
     DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
     BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
     MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
     MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
+    ELEMENT_MARKS_MAX, REACTION_TABLE, ELEMENT_MARK_GAIN_PER_HIT,
+    ELEMENT_SAME_CAST_EXTRA_CHARGE, RAGE_GAIN_HP_SCALE, ENERGY_HIGH,
+    COMBO_CFG, ASSASSIN_ON_CRIT_GAIN, ASSASSIN_ON_TAKE_HIT_PENALTY,
+    MOMENTUM_CFG, SHADOW_STEP_CFG, ECHO_CFG, BARD_BRANCHES,
+    BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
 )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 
@@ -247,6 +252,8 @@ class Battle:
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余回合数），随战斗序列化；回合结束递减
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
+        self._last_element = None           # v130.2 法师攻线·元素：上次施放元素（同系连发判定）
+        self.p_eff: dict = {}              # v130.2 物品效果持久数据（resource_amp / mana_cost_down / buff_phys_next / phys_up / battle_start 预充标记），随战斗序列化
         if player:
             # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
             # 会导致战斗内血量上限/治疗 clamp/护盾与『角色』面板不一致（装备 HP 加成战斗内不生效）
@@ -407,6 +414,8 @@ class Battle:
             "title_bonus": self.title_bonus,
             "mech_stacks": self.mech_stacks,
             "resources": self.resources,
+            # v130.2 物品效果持久数据（resource_amp/mana_cost_down/buff_phys_next/phys_up/战前预充标记）
+            "eff_data": getattr(self, "p_eff", {}),
             "cooldown": self.cooldown,
             "combo_seq": self.combo_seq,
             "p_ct": self.p_ct,
@@ -452,6 +461,7 @@ class Battle:
         b.e_defending = st.get("e_defending", False)
         b.mech_stacks = st.get("mech_stacks", {}) or {}
         b.resources = st.get("resources", {}) or {}
+        b.p_eff = st.get("eff_data", {}) or {}  # v130.2 物品效果持久数据
         b.cooldown = st.get("cooldown", {}) or {}
         b.combo_seq = st.get("combo_seq", []) or []
         b.team_effects = []
@@ -487,36 +497,257 @@ class Battle:
                 b.enemy["debuffs"] = _new_deb
         return b
 
-    # ---------------- 核心资源（v2.0） ----------------
-    def _init_resources(self, player: dict):
-        """战斗开始：按职业初始化核心资源 dict。
-        元素亲和（法师）默认 fire；游侠精力满 100；其余 0。"""
+    # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
+    def _branch_keys(self, player: dict) -> list:
+        """当前职业/转职分支激活的核心资源 key 列表（v130.2 分支级 resource_override）。
+        命中 BRANCH_RESOURCE_OVERRIDE[(class, evolve_path)] → 用分支指定资源（歌者 共鸣+回声、
+        元素/奥秘法师 充能条）；否则回落 core_resources 按 class 默认单资源。
+        基础法师（纯蓝施法者）无分支时不持有任何资源 → 返回 []。"""
+        cls = player.get("class_name", "") or ""
+        path = int(player.get("evolve_path", 0) or 0)
+        tier = int(player.get("class_tier", 0) or 0)
+        ov = BRANCH_RESOURCE_OVERRIDE.get((cls, path))
+        if ov is not None:
+            return list(ov)
+        if cls == "cls_fa_shi" and not (path and tier):
+            # v130.2（鱼鱼拍板）：基础法师无核心资源——纯蓝施法者，充能条是转职首获
+            return []
+        rd = E.core_resource_def(cls)
+        return [rd["key"]] if rd else []
+
+    def _is_branch_of(self, player: dict, *branch_names: str) -> bool:
+        """判断玩家当前转职分支名是否在 branch_names 中（拿当前 tier 分支列表，path 选列）。
+        攻线 path=1 / 守线 path=2；隐藏线 class_name 即隐藏职业，不走此判定。"""
         cls = player.get("class_name", "")
+        tier = int(player.get("class_tier", 0) or 0)
+        path = int(player.get("evolve_path", 0) or 0)
+        if tier < 1 or path < 1:
+            return False
+        cls_info = C.CLASSES.get(cls) or {}
+        branches = (cls_info.get("evolve_branches") or {}).get(tier) or []
+        if path - 1 >= len(branches):
+            return False
+        return branches[path - 1] in branch_names
+
+    def _is_path(self, player: dict, path: int) -> bool:
+        """玩家转职分支线判定（攻线=1 / 守线=2；evolve_path 恒为所选线，跨 tier 进化改名仍命中；
+        基础/无分支 evolve_path=0 不命中）。v130.2 P1-1：修复 8 处挂点只认 tier1 分支名（狂战士/
+        影舞者/格斗士/风行者/元素法师等），60/90 级进化改名后机制全档断档的系统性问题。"""
+        return int(player.get("evolve_path", 0) or 0) == int(path or 0)
+
+    def _elem_charge(self) -> int:
+        """法师充能条当前值（v130.2：element 资源数值化 0-5；resources['element'] 保留当前系字符串，兼容旧消费点）"""
+        return int(self.resources.get("element_charge", 0) or 0)
+
+    def _res_read(self, key: str) -> int:
+        """读取资源值（element → 充能条 element_charge；其余直读 resources[key]）"""
+        if key == "element":
+            return self._elem_charge()
+        return int(self.resources.get(key, 0) or 0)
+
+    def _res_gain(self, player: dict, key: str, amount: int) -> int:
+        """资源增加（带上限）。element → 充能条（CORE_RESOURCES element max=5）；
+        副资源（resonance 等按 key 注册）→ core_resource_gain_key；其余按 class 定义。
+        v130.2 P1-3 修复：基础 key（rage/cp/energy/faith/dragon_might/zen 等，非按 key 注册的副资源）
+        旧实现只返回新值不写回 self.resources[k] → restore_resource 药水/战前预充/隐藏线 res_gain 全静默失效；
+        现统一写回（调用方丢弃返回值也落库正确，无双重累加风险——各调用方均不以返回值为累加基准）。"""
+        if key == "element":
+            rd_e = C.CORE_RESOURCES.get("element") or {}
+            mx = int(rd_e.get("max", 5) or 5)
+            self.resources["element_charge"] = min(mx, self._elem_charge() + int(amount or 0))
+            return self.resources["element_charge"]
+        if E.core_resource_def_by_key(key):
+            new = E.core_resource_gain_key(key, self.resources, int(amount or 0))
+            self.resources[key] = new
+            return new
+        rd = E.core_resource_def(player.get("class_name", ""))
+        if not rd:
+            return self.resources.get(key, 0)
+        new = min(rd.get("max", 99), int(self.resources.get(key, 0) or 0) + int(amount or 0))
+        self.resources[key] = new
+        return new
+
+    def _res_spend(self, key: str, amount: int) -> bool:
+        """资源消耗（足够则扣除返回 True；不足不扣返回 False）。element → 充能条。"""
+        if key == "element":
+            cur = self._elem_charge()
+            if cur < int(amount or 0):
+                return False
+            self.resources["element_charge"] = cur - int(amount or 0)
+            return True
+        cur = int(self.resources.get(key, 0) or 0)
+        if cur < int(amount or 0):
+            return False
+        self.resources[key] = cur - int(amount or 0)
+        return True
+
+    def _res_gain_class(self, cls: str, k: str, amount: int) -> int:
+        """类主资源增加（带上限 + 隐藏线满溢转盾）。v130.2：悼咏 canticle overflow_shield=True
+        时满 10 后每溢出 1 点转自身 5 点护盾（冷却 1 回合，priest.md §5.2）。"""
         rd = E.core_resource_def(cls)
         if not rd:
+            return self.resources.get(k, 0)
+        mx = int(rd.get("max", 99) or 99)
+        cur = int(self.resources.get(k, 0) or 0)
+        amount = int(amount or 0)
+        overflow = 0
+        if amount > 0 and cur + amount > mx:
+            overflow = cur + amount - mx
+        new = min(mx, cur + amount)
+        if rd.get("overflow_shield") and overflow > 0:
+            shield = int(overflow * 5)
+            self._add_shield("canticle_overflow", shield, 1)
+        self.resources[k] = new
+        return new
+
+    def _amp_resource(self, player: dict, trigger: str) -> int:
+        """v130.2 资源增幅（resource_amp）消费挂点（P0-1：4 种药水写无读修复）。
+        p_eff['amps'] 中 trigger 匹配且剩余计数>0 的条目，额外 _res_gain 对应资源 amount。
+        trigger ∈ {on_hit_taken 受击 / on_land_hit 出手命中 / on_heal 治疗 / regen 自然回复}。
+        on_hit 双语义（沸腾战血=受击/影袭=出手命中）由 hits_left 区分：>0 → 出手命中逐次递减；
+        ≤0 → 回合制（turns 在 _end_round 递减）。返回本次额外增加总量。"""
+        amps = (self.p_eff or {}).get("amps")
+        if not amps:
+            return 0
+        extra = 0
+        for key, amp in list(amps.items()):
+            if not isinstance(amp, dict):
+                continue
+            t = str(amp.get("trigger", ""))
+            if trigger == "on_land_hit":
+                if t != "on_hit" or int(amp.get("hits_left", 0) or 0) <= 0:
+                    continue
+            elif trigger == "on_hit_taken":
+                if t != "on_hit" or int(amp.get("hits_left", 0) or 0) > 0:
+                    continue
+            elif t != trigger:
+                continue
+            remain = int(amp.get("hits_left", 0) or 0) if trigger == "on_land_hit" \
+                else int(amp.get("turns_left", 0) or 0)
+            if remain <= 0:
+                continue
+            amount = int(amp.get("amount", 0) or 0)
+            if amount <= 0:
+                continue
+            self._res_gain(player, str(amp.get("key", "") or key), amount)
+            extra += amount
+            if trigger == "on_land_hit":  # hits 制出手命中逐次消耗
+                amp["hits_left"] = remain - 1
+                if amp["hits_left"] <= 0 and int(amp.get("turns_left", 0) or 0) <= 0:
+                    del amps[key]
+        if not amps:
+            self.p_eff.pop("amps", None)
+        return extra
+
+    def _init_resources(self, player: dict):
+        """战斗开始：按职业/转职分支初始化核心资源 dict（v130.2 分支级 resource_override）。
+        元素法师→当前系 fire + 充能条 0；游侠精力满 100；其余 0。"""
+        # v130.2 战前待用效果注入（战前猛火餐/夜枭茶/澎湃烈酒/香薰圣烛，物品消费端战场前挂载；
+        # 与 battle_start_cp 被动同入口，战斗初始化段一次性，from_state 恢复不再触发）
+        self._apply_pending_prebattle(player)
+        keys = self._branch_keys(player)
+        if not keys:
             return
-        k = rd["key"]
-        if k == "element":
-            self.resources[k] = "fire"
-        elif k == "energy":
-            self.resources[k] = rd.get("max", 100)
-        else:
-            self.resources[k] = 0
+        for k in keys:
+            if k == "element":
+                # resources['element'] 保持当前系字符串（代码多处按字符串读）；充能数值走 element_charge
+                self.resources["element"] = "fire"
+                self.resources["element_charge"] = 0
+            elif k == "echo":
+                # 回声 = mech_stacks 驻留叠层（战斗内不清零），不占 resources 数值位
+                self.mech_stacks.setdefault("echo", 0)
+            elif k == "energy":
+                # 游侠精力：唯一自然回资源，战斗开始满额 100（ranger.md 设计稿 + E1 回归修复）
+                self.resources[k] = int((C.CORE_RESOURCES.get("cls_you_xia") or {}).get("max", 100) or 100)
+            else:
+                self.resources[k] = 0
         # v110.3 P1-11：致命预谋被动——战斗开始 +1 连击点（数据驱动 battle_start_cp，替代名字硬匹配）
-        if k == "cp" and self._passive_map(player)["proc"].get("battle_start_cp", []):
-            self.resources[k] = 1
+        if "cp" in keys and self._passive_map(player)["proc"].get("battle_start_cp", []):
+            self.resources["cp"] = 1
+
+    def _apply_pending_prebattle(self, player: dict):
+        """v130.2 战前待用效果注入（物品消费端战场前挂载）。
+        economy『使用 战前猛火餐/夜枭茶/澎湃烈酒/香薰圣烛』战斗外写入玩家级
+        event_state prebattle_{qq_id}（item_templates._v130_pend_add），战斗初始化段在此
+        读取并注入：battle_start_resource → 预充资源 + 可选 buff；resource_amp → 挂载 amp。
+        仅注入玩家职业/分支持有的资源位（_branch_keys），跨职业误用静默跳过；注入后清 key。"""
+        qq = player.get("qq_id")
+        if not qq:
+            return
+        import json as _json
+        from . import db as _db
+        _key = f"prebattle_{qq}"
+        _raw = _db.get_event_state(_key)
+        if not _raw:
+            return
+        try:
+            _pend = _json.loads(_raw)
+        except Exception:
+            _db.delete_event_state(_key)
+            return
+        if not isinstance(_pend, list):
+            _db.delete_event_state(_key)
+            return
+        keys = self._branch_keys(player)
+        for _pe in _pend:
+            if not isinstance(_pe, dict):
+                continue
+            _rk = _pe.get("key", "")
+            if not _rk or _rk not in keys:
+                continue
+            if _pe.get("type") == "battle_start_resource":
+                _amt = int(_pe.get("amount", 0) or 0)
+                if _amt > 0:
+                    self._res_gain(player, _rk, _amt)
+                _bf = _pe.get("buff")
+                if isinstance(_bf, dict) and _bf.get("kind") == "phys_up":
+                    _pct = float(_bf.get("pct", 0.05) or 0)
+                    _t = int(_bf.get("turns", 3) or 3)
+                    self.p_buffs["phys_up"] = max(int(self.p_buffs.get("phys_up", 0) or 0), _t)
+                    self.p_eff["phys_up"] = max(float(self.p_eff.get("phys_up", 0) or 0), _pct)
+            elif _pe.get("type") == "resource_amp":
+                amps = self.p_eff.setdefault("amps", {})
+                _prev = amps.get(_rk) or {}
+                amps[_rk] = {
+                    "key": _rk, "amount": int(_pe.get("amount", 0) or 0),
+                    "trigger": _pe.get("trigger", ""),
+                    "turns_left": max(int(_prev.get("turns_left", 0) or 0), int(_pe.get("turns", 0) or 0)),
+                    "hits_left": max(int(_prev.get("hits_left", 0) or 0), int(_pe.get("hits", 0) or 0)),
+                }
+        # 注入后清除战前待用（一次性，防重复）
+        _db.delete_event_state(_key)
 
     def _resource_label(self, player: dict) -> str:
-        """战斗状态栏显示核心资源(如 ⚡ 怒气 3/10)。"""
-        cls = player.get("class_name", "")
-        rd = E.core_resource_def(cls)
-        if not rd:
+        """战斗状态栏显示核心资源(如 ⚡ 怒气 3/10 / ✦ 元素亲合 3/5 / ✦ 共鸣 4/10·回声 2/3)。"""
+        keys = self._branch_keys(player)
+        if not keys:
             return ""
-        k = rd["key"]
-        v = self.resources.get(k, 0)
-        if k == "element":
-            return f"✦ {E.ELEMENT_CN.get(v, '?')}系"
-        return f"✦ {rd['name']} {v}/{rd['max']}"
+        parts = []
+        for k in keys:
+            if k == "echo":
+                v = int(self.mech_stacks.get("echo", 0) or 0)
+                parts.append(f"✦ 回声 {v}/{ECHO_CFG['max_layers']}")
+            elif k == "element":
+                v = self._elem_charge()
+                mx = int((C.CORE_RESOURCES.get("element") or {}).get("max", 5) or 5)
+                parts.append(f"✦ 元素亲合 {v}/{mx}")
+            else:
+                # 主资源（怒气/精力/信仰/连击点/气/龙力等）= CORE_RESOURCES 以 class id 为 key，
+                # 取 definitions 映射到 key（class 资源定义的 key 字段）而非直接 by_key 查。
+                rd = E.core_resource_def(player.get("class_name", "")) or {}
+                if rd.get("key") != k:
+                    # 副资源（如分支 override 引入的独立 key）才按 key 查
+                    rd2 = E.core_resource_def_by_key(k) or {}
+                    # 隐藏线主资源（龙力/时之沙/猎印/影步/禅意）class 定义兜底
+                    if not rd2 and not rd:
+                        continue
+                    rd = rd2 or rd
+                if not rd:
+                    continue
+                v = int(self.resources.get(k, 0) or 0)
+                mx = int(rd.get("max", 99) or 99)
+                parts.append(f"✦ {rd['name']} {v}/{mx}")
+        return " ".join(parts)
 
     # ---------------- 技能冷却（v2.0） ----------------
     def _skill_cd_left(self, skill_name: str) -> int:
@@ -574,6 +805,173 @@ class Battle:
         while len(parts) < len(self.COMBO_ORDER):
             parts.append("_")
         return "→".join(parts)
+
+    # ---------------- v130.2 新机制挂点（资源即身份：转职分支独占，基础无） ----------------
+    # —— 刺客攻线·影舞者：连段计数 combo（连了才涨、断了重来；仅攻线结算）——
+    def _combo_active(self, player: dict) -> bool:
+        """连段计数是否活跃（仅攻线·影舞者；基础/毒线/影步线均不读 combo）"""
+        return player.get("class_name", "") == "cls_ci_ke" and self._is_path(player, 1)
+
+    def _combo_add(self, player: dict) -> int:
+        """命中 +1 连段（上限 cap=10）。"""
+        combo = int(self.mech_stacks.get("combo", 0) or 0)
+        combo = min(int(COMBO_CFG.get("cap", 10) or 10), combo + 1)
+        self.mech_stacks["combo"] = combo
+        return combo
+
+    def _combo_break(self, player: dict) -> None:
+        """受击或落空 → 连段归零（断了重来）。"""
+        self.mech_stacks.pop("combo", None)
+
+    def _combo_dmg_mult(self, player: dict) -> float:
+        """终结技连段增伤：combo ≥3 起每层 +5%，上限 +40%（8 层封顶）。"""
+        if not self._combo_active(player):
+            return 1.0
+        combo = int(self.mech_stacks.get("combo", 0) or 0)
+        if combo < int(COMBO_CFG.get("finish_min", 3) or 3):
+            return 1.0
+        bonus = combo * float(COMBO_CFG.get("per_layer", 0.05) or 0.05)
+        bonus = min(bonus, float(COMBO_CFG.get("max_bonus", 0.40) or 0.40))
+        return 1.0 + bonus
+
+    # —— 拳师攻线·格斗士：蓄势 Momentum（每 1 气持有 物理伤害 +3%，满 +30%）——
+    def _momentum_mult(self, player: dict) -> float:
+        """蓄势持有加伤倍率。仅攻线·格斗士（monk evolve_path=1）吃到；气耗尽自然归 0。"""
+        cls = player.get("class_name", "")
+        if not (cls == "cls_wu_seng" and self._is_path(player, 1)):
+            return 1.0
+        chi = int(self.resources.get("chi", 0) or 0)
+        cap = int(MOMENTUM_CFG.get("cap_chi", 10) or 10)
+        per = float(MOMENTUM_CFG.get("per_chi", 0.03) or 0.03)
+        return 1.0 + min(chi, cap) * per
+
+    # —— 游侠守线·风行者：满弦状态（精力 ≥80 时 低耗/连射技能 暴击率 +10%）——
+    def _energy_high_crit(self, player: dict, info: dict | None = None) -> bool:
+        """满弦状态判定：守线·风行者（you_xia evolve_path=2）且精力 ≥80 且技能处于低耗/连射档。
+        v130.2：满弦烈酒 p_buffs["full_tension"] = 阈值视为已满足（立即满弦，handler 已做守线专属判定）。"""
+        if self.p_buffs.get("full_tension"):
+            return True
+        if player.get("class_name", "") != "cls_you_xia" or not self._is_path(player, 2):
+            return False
+        # v130.2 P1-4：读「施放前」精力（_do_player_skill 已快照）；直接调用/非技能链回落当前值。
+        _pres = getattr(self, "_pre_cost_res", None)
+        energy_val = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
+            else int(self.resources.get("energy", 0) or 0)
+        if energy_val < int(ENERGY_HIGH.get("threshold", 80) or 80):
+            return False
+        if info is not None:
+            cost = int((info.get("res_cost") or {}).get("energy", 0) or 0)
+            if cost > int(ENERGY_HIGH.get("max_cost", 25) or 25):
+                return False
+        return True
+
+    # —— 法师攻线·元素：目标侧 element_marks 登记（每目标每系独立 0..3）——
+    def _elem_marks(self, target: dict | None = None) -> dict:
+        """目标侧元素印记 dict {fire/ice/thunder: 0..N}；缺省 = 当前交战目标。"""
+        tgt = target or getattr(self, "_active_target", None) or self.enemy
+        if not isinstance(tgt, dict):
+            return {}
+        marks = tgt.get("element_marks")
+        if not isinstance(marks, dict):
+            marks = {}
+            tgt["element_marks"] = marks
+        return marks
+
+    def _elem_mark_apply(self, element: str, target: dict | None = None, layers: int = 1) -> int:
+        """施法命中叠加目标元素印记（每系上限 ELEMENT_MARKS_MAX=3）。返回该系新层数。"""
+        if element not in ("fire", "ice", "thunder"):
+            return 0
+        marks = self._elem_marks(target)
+        cur = int(marks.get(element, 0) or 0)
+        new = min(int(ELEMENT_MARKS_MAX or 3), cur + int(layers or 1))
+        marks[element] = new
+        return new
+
+    def _elem_marks_total(self, target: dict | None = None) -> int:
+        """目标三系印记总和（供元素共鸣类加成引用）。"""
+        marks = self._elem_marks(target)
+        return sum(int(v or 0) for v in marks.values()) if marks else 0
+
+    # —— 法师攻线·元素：last_element 同系连发（被动「元素凝聚」：连续两次同系施放，第二次 +1 充能）——
+    def _last_element_set(self, player: dict, element: str) -> bool:
+        """记录上次施放元素。返回本次是否「同系连发」（与上次同系 → True）。"""
+        last = self._last_element if hasattr(self, "_last_element") else None
+        self._last_element = element
+        if not last or last != element:
+            return False
+        # 元素凝聚被动：同系连发第二次施放额外 +1 充能（攻线·元素法师）
+        if (player.get("class_name", "") == "cls_fa_shi"
+                and self._is_path(player, 1)
+                and ELEMENT_SAME_CAST_EXTRA_CHARGE):
+            self._res_gain(player, "element", ELEMENT_SAME_CAST_EXTRA_CHARGE)
+        return True
+
+    # —— 牧师攻线·歌者：回声驻留叠层（echo 存 mech_stacks，战斗内不清零，上限 max_layers）——
+    def _echo_layers(self) -> int:
+        return int(self.mech_stacks.get("echo", 0) or 0)
+
+    def _echo_add(self, player: dict, logs: list) -> int:
+        """歌类技施放 +1 回声（上限 3）。返回新层数（未变动返回 0）。"""
+        if player.get("class_name", "") != "cls_mu_shi" or not self._is_branch_of(player, *BARD_BRANCHES):
+            return 0
+        cur = self._echo_layers()
+        cap = int(ECHO_CFG.get("max_layers", 3) or 3)
+        if cur >= cap:
+            return cur
+        cur = min(cap, cur + 1)
+        self.mech_stacks["echo"] = cur
+        logs.append(f"🎵 回声驻留 +1：全队回合恢复随回声层数(当前 {cur}/{cap})")
+        return cur
+
+    def _is_bard_skill(self, player: dict, info: dict | None = None) -> bool:
+        """技能是否歌者分支技能（歌类技 → 施放叠回声 + 增益续时）。"""
+        if player.get("class_name", "") != "cls_mu_shi" or not self._is_branch_of(player, *BARD_BRANCHES):
+            return False
+        if info is None:
+            return True
+        owner = E.branch_skill_owner("cls_mu_shi", info.get("name", ""))
+        return bool(owner and owner[1] in BARD_BRANCHES)
+
+    # —— 法师攻线·元素：引爆技反应表结算（cond type='reaction'，读目标 element_marks）——
+    def _reaction_table_resolve(self, player: dict, element: str, st: dict, logs: list) -> tuple | None:
+        """引爆技按 引爆系 × 目标 element_marks 组合查 REACTION_TABLE 结算（蒸发/超载/冻结/感电）。
+
+        返回 (reaction_mult, 反应日志, chain_flag) 或 None（目标无对应印记系）。
+        aoe/freeze 在函数内结算；chain 返回 flag 由调用方 multi+1。结算后清除被反应消费的目标印记系。
+        """
+        if element not in ("fire", "ice", "thunder"):
+            return None
+        marks = self._elem_marks()
+        target_el = None
+        for cast_el, mark_el in REACTION_TABLE:
+            if cast_el == element and int(marks.get(mark_el, 0) or 0) > 0:
+                target_el = mark_el
+                break
+        if target_el is None:
+            return None
+        r = REACTION_TABLE[(element, target_el)]
+        rmult = float(r.get("mult", 1.0))
+        log = f"💥{r['name']}！"
+        chain_flag = False
+        # v104 R3 P1-1：元素共鸣被动——元素反应伤害 +15%（在基础反应倍率上叠加；随后复位）
+        if getattr(self, "_elem_reaction_boost", 1.0) > 1.0:
+            rmult *= self._elem_reaction_boost
+            self._elem_reaction_boost = 1.0
+        extra = r.get("extra", "")
+        if extra == "aoe":
+            aoe_dmg = int((st or {}).get("matk", 0) * 1.2 * rmult)
+            self._aoe_damage_enemy(aoe_dmg, logs)
+            log = f"💥超载爆发！额外 {aoe_dmg} 点全体伤害！"
+        elif extra == "freeze":
+            self.e_buffs["freeze"] = 1
+            log = "❄️冻结！目标被冰封 1 回合！"
+        elif extra == "chain":
+            chain_flag = True
+            log = "⚡感电连锁！追加一次攻击！"
+        clear_el = r.get("clear", "")
+        if clear_el:
+            marks.pop(clear_el, None)
+        return rmult, log, chain_flag
 
     def _ct_cost(self, spd) -> float:
         """v121 CTB：行动消耗 cost = BASE_DELAY / max(1, min(spd, SPD_CT_CAP))。"""
@@ -994,8 +1392,21 @@ class Battle:
         if payload.startswith("special:"):
             # v101.28f 药水特殊效果（next_atk_up/heal_up/magic_resist/thorns_pot/dodge_pot/cc_immune/execute_pot/def_down/shield）
             # v125.1 P2-1：分发下沉 POTION_EFFECTS 注册表（game/core/potion_effects.py），数值读 items.py effect_data
+            # v130.2：资源联动药水 effect_data 数值随 payload 传递（special:<kind>:<json>，
+            # item_templates _make_buff_tpl 注入）→ 解析出 value 传入 handler（旧药水无数据保持 None 走 DEFAULTS）
             kind = payload[8:]
-            return self._apply_potion_special(kind, player, logs)
+            value = None
+            if ":" in kind:
+                _k, _, _j = kind.partition(":")
+                try:
+                    import json as _json
+                    _d = _json.loads(_j)
+                    if isinstance(_d, dict) and _d:
+                        value = _d
+                        kind = _k
+                except Exception:
+                    pass
+            return self._apply_potion_special(kind, player, logs, value)
         if payload.startswith("buff:"):
             # v54 战斗药水：effect → p_buffs 增益 3 回合
             # 9.3：支持逗号分隔复合 buff（如龙涎药剂 buff:atk_up,def_up）
@@ -1031,21 +1442,21 @@ class Battle:
                 logs.append("💊 你使用了战斗道具！")
         return logs
 
-    def _apply_potion_special(self, kind: str, player: dict, logs: list) -> list:
+    def _apply_potion_special(self, kind: str, player: dict, logs: list, value=None) -> list:
         """v101.28f 药水特殊效果分发（非属性 buff 类，3 回合制；next_atk_up 一次性）。
 
         v125.1 P2-1：改查 POTION_EFFECTS 注册表（game/core/potion_effects.py），
         数值由 items.py 药水条目 effect_data 提供（注册表 DEFAULTS 扫描自数据层）。
         新增药水效果 = items.py 加 effect/effect_data + potion_effects.py register 函数。
+        v130.2：value = 物品级 effect_data（由 special payload special:<kind>:<json> 解析传入）；
+        None（旧特殊药水）→ 走注册表 DEFAULTS（数据层单一权威）。
         """
         from .core.potion_effects import POTION_EFFECTS  # 延迟导入（core 聚合链惯例）
         eff = POTION_EFFECTS.get(kind)
         if not eff:
             logs.append("🧪 你饮下了药剂！")
             return logs
-        # value：items.py 药水条目 effect_data（当前 special: payload 不携带物品数据 → None
-        # 走注册表 DEFAULTS；预留物品级覆盖：后续 payload 携带 item 数据时传入即可）
-        msg = eff(self, player, None)
+        msg = eff(self, player, value)
         if msg:
             logs.append(msg)
         return logs
@@ -1101,21 +1512,21 @@ class Battle:
         consume_all = info.get("consume_all") or {}
         if consume_all:
             ck = consume_all.get("key", "")
-            if self.resources.get(ck, 0) < 1:
+            if self._res_read(ck) < 1:
                 rd = E.core_resource_def(player["class_name"])
-                rname = rd.get("name", ck)
+                rname = (E.core_resource_def_by_key(ck) or rd or {}).get("name", ck)
                 logs.append(f"⚡ {rname}不足！需要至少 1 点，当前 0(『攻击』攒资源)")
                 return logs, True
         # 普通 res_cost：逐资源校验（纯检查，不扣除）
         res_cost = info.get("res_cost") or {}
         for rk, rv in res_cost.items():
             rd = E.core_resource_def(player["class_name"])
-            if not rd:
+            if not rd and not E.core_resource_def_by_key(rk):
                 continue
-            k = rk or rd["key"]
-            if self.resources.get(k, 0) < rv:
-                rname = rd.get("name", rk)
-                cur = self.resources.get(k, 0)
+            k = rk or (rd or {}).get("key", "")
+            if self._res_read(k) < int(rv or 0):
+                rname = (E.core_resource_def_by_key(k) or rd or {}).get("name", k)
+                cur = self._res_read(k)
                 logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
                 return logs, True
         return logs, False
@@ -1143,28 +1554,35 @@ class Battle:
         if not _releasing and player["mp"] < info["mp"]:
             logs.append("💙 魔力不足！")
             return logs
+        # v130.2 P1-4：施放前核心资源快照（满弦判定 / 隐藏线每层加成读「施放时持有值」而非扣费后值）——
+        # 满弦语义=「施放时精力≥80」，扣费后精力永低于满档导致高耗档永不触发；龙力/禅意每层加成因
+        # 消耗型金技扣费后归 0 无法按层放大的同病。后续消费点读 self._pre_cost_res（未命中回落当前值）。
+        self._pre_cost_res = dict(self.resources)
         # v104 R3 P1-6 修复：『消耗全部』终结技（consume_all）动态结算——资源不满也可施放，
         # 按剩余资源算倍率（power = 1 + per×当前值，满资源恰等于数据表 power），并扣光该资源
         consume_all = info.get("consume_all") or {}
         if consume_all:
             ck = consume_all.get("key", "")
-            cur = self.resources.get(ck, 0)
+            cur = self._res_read(ck)
             if cur < 1:
                 rd = E.core_resource_def(player["class_name"])
-                rname = rd.get("name", ck)
+                rname = (E.core_resource_def_by_key(ck) or rd or {}).get("name", ck)
                 logs.append(f"⚡ {rname}不足！需要至少 1 点，当前 0(『攻击』攒资源)")
                 return logs
             info = dict(info)
             info["power"] = round(1.0 + float(consume_all.get("per", 0.0)) * cur, 3)
-            self.resources[ck] = 0
+            if ck == "element":
+                self.resources["element_charge"] = 0
+            else:
+                self.resources[ck] = 0
         else:
             res_cost = info.get("res_cost") or {}
             if res_cost and not _releasing:  # 蓄力释放跳过资源扣减（施放时已扣）
                 for rk, rv in res_cost.items():
-                    if not E.core_resource_spend(player["class_name"], self.resources, rv, key=rk):
+                    if not self._res_spend(rk, int(rv or 0)):
                         rd = E.core_resource_def(player["class_name"])
-                        rname = rd.get("name", rk)
-                        cur = self.resources.get(rk, 0)
+                        rname = (E.core_resource_def_by_key(rk) or rd or {}).get("name", rk)
+                        cur = self._res_read(rk)
                         logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
                         return logs
         # v122 治疗指定队友：指定的队友不存在 → 拦截（不扣资源、不消耗回合）；
@@ -1178,6 +1596,11 @@ class Battle:
         mp_cost = info["mp"]
         if mana_lvl:
             mp_cost = max(1, int(mp_cost * (1 - C.rune_value("mana_flow", mana_lvl))))
+        # v130.2 元素亲和药剂（mana_cost_down）：技能魔力消耗 ×(1-pct)（与符文乘算叠加）
+        if self.p_buffs.get("mana_cost_down"):
+            _mcd = float((self.p_eff or {}).get("mana_cost_down", 0) or 0)
+            if _mcd > 0:
+                mp_cost = max(1, int(mp_cost * (1 - _mcd)))
         if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
             player["mp"] -= mp_cost
         # v2 蓄力技能（§6）：施放扣 MP/资源 → 进入蓄力，本回合不结算技能效果
@@ -1374,6 +1797,25 @@ class Battle:
         dmg = int(dmg * race_mult)
         if race_tags:
             affix_tags = list(affix_tags) + race_tags
+        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：普攻为物理伤害，吃「每 1 气 +3%」持有加伤
+        mom_mult = self._momentum_mult(player)
+        if mom_mult != 1.0:
+            dmg = int(dmg * mom_mult)
+            affix_tags = list(affix_tags) + [f"🔥蓄势x{round(mom_mult, 2)}"]
+        # v130.2 澎湃烈酒（phys_up，P0-5 消费端）：本场物理伤害 +pct%（p_eff 存 pct / p_buffs 存剩余回合）
+        if self.p_buffs.get("phys_up"):
+            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
+            if _pu > 0:
+                dmg = int(dmg * (1 + _pu))
+                affix_tags = list(affix_tags) + [f"🍺物理x{round(1 + _pu, 2)}"]
+        # v130.2 引气精华（buff_phys_next，P0-2 消费端）：下一次物理攻击 +pct%（一次性，随即清；豁免回合递减）
+        if self.p_buffs.get("buff_phys_next"):
+            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
+            if _bpn > 0:
+                dmg = int(dmg * (1 + _bpn))
+                del self.p_buffs["buff_phys_next"]
+                self.p_eff.pop("buff_phys_next", None)
+                affix_tags = list(affix_tags) + [f"🥊引气x{round(1 + _bpn, 2)}"]
         # v34 残忍：暴击伤害 +x%（按等级，符文特效）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and is_crit:
@@ -1409,8 +1851,20 @@ class Battle:
             self._affix_on_hit(player, dmg, logs)
             self._food_on_hit(player, dmg, logs)
             self._set_attack_proc(player, dmg, logs)
+            # v130.2：刺客攻线·影舞者 连段计数——命中 +1（上限 10）
+            if self._combo_active(player):
+                new_combo = self._combo_add(player)
+                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
             # v2.0 核心资源：普攻获取（战士怒气/刺客连击点/拳师气）
-            self._resource_on_attack(player)
+            self._resource_on_attack(player, is_crit=is_crit)
+            # v130.2 资源增幅：普攻出手命中（影袭药水 hits 制额外 +1 连击点等，P0-1 消费端）
+            _amp_hit = self._amp_resource(player, "on_land_hit")
+            if _amp_hit:
+                logs.append(f"⚡ 影袭药剂：出手命中额外资源 +{_amp_hit}！")
+        else:
+            # v130.2：刺客攻线 落空 → 连段归零（断了重来）
+            if self._combo_active(player):
+                self._combo_break(player)
         return logs
 
     def _settle_lifesteal(self, player: dict, dmg: int, logs: list, magic: bool = False, dmg_type: str = "phys"):
@@ -1444,8 +1898,10 @@ class Battle:
         player["hp"] = min(player.get("max_hp", player["hp"]), player.get("hp", 0) + heal)
         logs.append(f"🩸 吸血：回复 {heal} 点生命！")
 
-    def _resource_on_attack(self, player: dict):
-        """v2.0 核心资源：普攻/技能命中自动获取(on_attack/on_skill)。"""
+    def _resource_on_attack(self, player: dict, is_crit: bool = False):
+        """v2.0 核心资源：普攻命中自动获取(on_attack)。
+        v130.2：星语猎印「任意命中 +1」（on_hit 命中语义）+ 暴击额外 +1；
+        暮影/刺客 on_crit 暴击攒点由 _on_crit_resource 统一结算。"""
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
         if not rd:
@@ -1464,37 +1920,92 @@ class Battle:
         for _pn, _ps in pm["proc"].get("attack_res", []):
             if k == _ps.get("res", "faith") and _ps.get("gain"):
                 gain += int(_ps.get("gain", 0))
+        # v130.2 星语猎印：命中才攒——普攻命中再按 on_hit（任意命中追加）+1
+        if cls in HUNT_MARK_ON_LAND_HIT and rd.get("on_hit"):
+            gain += int(rd["on_hit"])
         if gain:
-            self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
+            self.resources[k] = self._res_gain_class(cls, k, gain)
+        # v130.2 暴击命中结算挂点（on_crit：暮影影步 / 刺客攻线连击点 / 星语猎印暴击额外）
+        if is_crit:
+            self._on_crit_resource(player)
 
     def _resource_on_skill(self, player: dict, info: dict = None):
         """v2.0 核心资源：技能命中获取（on_skill 或技能 res_gain 覆盖）。
         牧师治疗获取信仰（on_heal）。有 res_cost 的终结技不获取（消耗型）。
-        v113.1 修复：终结技 res_cost 与命中 res_gain 可并存——若技能自带 res_gain
-        （如林语印记 res_cost 40 精力 / res_gain {"energy": 10}，消耗与获取并存），
-        即使带 res_cost 也结算 res_gain；仅当 res_gain 缺省时才按现状对 res_cost
-        终结技短路不获取。res_gain 支持 int 或 dict（按本职业核心资源 key 取值）。"""
+        v130.2：res_gain dict 支持副资源 key（歌者 {\"resonance\": N}、法师 {\"element\": N} 充能条）；
+        星语猎印「任意命中 +1 追加」（come through on_hit）。"""
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
         if not rd:
             return
         k = rd["key"]
+        # v130.2：元素法师充能条 / 攻线歌者双资源等，不一定以类主 key 为资源位——用分支激活资源集合
+        act_keys = self._branch_keys(player)
         # 终结技（有 res_cost）默认不获取资源——除非技能自带 res_gain（消耗与获取并存）
         if info and info.get("res_cost") and info.get("res_gain") is None:
             return
         # 技能自带 res_gain 覆盖默认（如终结技 0 获取）。
-        # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {"energy": 10}）。
+        # res_gain 可为 int（常规）或 dict（按资源名取值，如林语印记 {\"energy\": 10}）。
         gain = 0
         if info and info.get("res_gain") is not None:
             rg = info["res_gain"]
             if isinstance(rg, dict):
-                gain = int(rg.get(k, 0) or 0)
+                # v130.2 副资源 key：逐一结算到对应资源（歌者共鸣/法师充能条），未激活主键照常
+                for rk, rv in rg.items():
+                    amt = int(rv or 0)
+                    if not amt:
+                        continue
+                    if rk in act_keys or rk == "element" or E.core_resource_def_by_key(rk):
+                        self._res_gain(player, rk, amt)
+                # 主资源 key 若在 dict 里已结算，避免重复累加
+                if k in rg:
+                    gain = 0
+                else:
+                    gain = rd.get("on_skill", 0)
             else:
                 gain = int(rg)
         elif rd.get("on_skill"):
             gain = rd["on_skill"]
-        if gain:
+        # v130.2 P1-2（on_heal 消费端修复）：治疗技能按 rd['on_heal'] 给职业主资源（牧师/悼咏 +2）。
+        # 仅主资源位持有者生效——歌者分支被覆盖为双资源（resonance+echo）时 faith 不在激活集合 → 不重复给
+        # （歌者治疗走分支挂载 res_gain，见 v130.2 双资源口径；engine 不得给歌者双计数）。
+        if info and info.get("kind") == "治疗" and rd.get("on_heal") and k in act_keys:
+            gain += int(rd["on_heal"])
+        # v130.2 星语猎印：技能命中再按 on_hit（任意命中追加）+1
+        on_skill_extra = 0
+        if cls in HUNT_MARK_ON_LAND_HIT and rd.get("on_hit"):
+            on_skill_extra = int(rd["on_hit"])
+        if gain or on_skill_extra:
+            if k == "element":
+                self._res_gain(player, "element", gain + on_skill_extra)
+            else:
+                self.resources[k] = self._res_gain_class(cls, k, gain + on_skill_extra)
+
+    def _on_crit_resource(self, player: dict):
+        """v130.2 暴击命中结算挂点（on_crit）：暮影影步 on_crit 攒步、刺客攻线 on_crit +1 连击点、
+        星语猎印暴击额外 +1（crit_mark）。仅命中暴击时调用。"""
+        cls = player.get("class_name", "")
+        rd = E.core_resource_def(cls)
+        if not rd:
+            return
+        k = rd["key"]
+        proc_ok = False
+        # 暮影影步：暴击命中 on_crit 攒步（核心资源 on_crit > 0），潜行出手额外 +1
+        if rd.get("on_crit"):
+            gain = int(rd["on_crit"])
+            if self.p_buffs.get("stealth"):
+                gain += int(SHADOW_STEP_CFG.get("stealth_extra", 1) or 0)
             self.resources[k] = E.core_resource_gain(cls, self.resources, gain)
+            proc_ok = True
+        # 刺客攻线·影舞者：on_crit 额外 +1 连击点（叠于 on_attack/on_skill）
+        elif cls == "cls_ci_ke" and self._is_path(player, 1):
+            self.resources[k] = E.core_resource_gain(cls, self.resources, ASSASSIN_ON_CRIT_GAIN)
+            proc_ok = True
+        # 星语猎印：暴击额外 +1（crit_mark）
+        if cls in HUNT_MARK_ON_LAND_HIT and HUNT_MARK_CRIT_EXTRA:
+            self.resources[k] = E.core_resource_gain(cls, self.resources, HUNT_MARK_CRIT_EXTRA)
+            proc_ok = True
+        return proc_ok
 
     def _apply_enchant_attack(self, effs: dict, dmg: int, st: dict, player: dict, logs: list):
         """v34：攻击后符文效果结算(灼烧/冻结/吸血/连锁/虚弱/破魔)"""
@@ -1831,6 +2342,12 @@ class Battle:
         if hr:
             heal = max(1, int(heal * (1 + hr)))
             logs.append(f"🐉 孤傲之血：治疗效果 -{int(-hr*100)}%！")
+        # v130.2 信仰结晶副效果（next_heal_up，P0-3 消费端）：下一次治疗技能效果 +pct%（一次性，随即清 p_eff）
+        _nhu = float((self.p_eff or {}).get("next_heal_up", 0) or 0)
+        if _nhu > 0:
+            heal = int(heal * (1 + _nhu))
+            del self.p_eff["next_heal_up"]
+            logs.append(f"✨ 信仰结晶：治疗技能效果 +{int(_nhu * 100)}%！")
         hp_before = target_unit.get("hp", 0)
         target_unit["hp"] = min(target_unit.get("max_hp", target_unit.get("hp", 0)), hp_before + heal)
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
@@ -1866,6 +2383,13 @@ class Battle:
             logs.append(f"🌟【团队】圣光笼罩全队，所有人恢复 {heal} 点生命！")
         # v2.0 核心资源：治疗获取信仰（on_heal=2）
         self._resource_on_skill(player, info)
+        # v130.2 资源增幅：治疗触发（香薰圣烛 on_heal 额外 +1 信仰，回合制）
+        _amp_heal = self._amp_resource(player, "on_heal")
+        if _amp_heal:
+            logs.append(f"⚡ 香薰圣烛：治疗额外获取信仰 +{_amp_heal}！")
+        # v130.2 牧师攻线·歌者：歌类技（治疗亦歌曲）施放叠回声
+        if self._is_bard_skill(player, info):
+            self._echo_add(player, logs)
         return logs
 
 
@@ -1883,7 +2407,11 @@ class Battle:
                 # v104 M02 P1-4：团队增益 effect=xx_all 映射为施放者自身有效键（def_all→def_up 等）
                 key = TEAM_BUFF_KEYS.get(eff, eff)
                 # v104 M02 P2-11：同 effect 不同技能 buff 覆盖取高（与药水路径一致）
-                self.p_buffs[key] = max(self.p_buffs.get(key, 0), E.skill_buff_turns(lv))
+                base_turns = E.skill_buff_turns(lv)
+                # v130.2 歌者回声：增益技持续 + 回声层数 回合（priest_转职.md §3.0）
+                if self._is_bard_skill(player, info):
+                    base_turns += int(ECHO_CFG.get("buff_extend_per_layer", 1) or 1) * self._echo_layers()
+                self.p_buffs[key] = max(self.p_buffs.get(key, 0), base_turns)
         # v1.x：原 burn_burst/rage_burst/bless_shield 三分支（v29 effect 型引爆/转化）
         # 全库无数据 producer（skills.py 无 effect=burn_burst/rage_burst/bless_shield 条目）
         # → 死代码删除；其专属 cond_mult/cond_label 计算一并移除。
@@ -1900,6 +2428,9 @@ class Battle:
             logs.append(f"🌟【团队】{info.get('name', skill_name)} 笼罩全队！")
         # v2.0 核心资源：增益技能获取（如战吼怒气+3）
         self._resource_on_skill(player, info)
+        # v130.2 牧师攻线·歌者：歌类增益技施放叠回声（增益续时已在 effect 段结算）
+        if self._is_bard_skill(player, info):
+            self._echo_add(player, logs)
         return logs
     def _player_skill(self, st: dict, skill_name: str, info: dict, player: dict, target=None) -> list:
         """施放技能：治疗/增益/攻击 + 特效全部落地(v27 技能等级 + v29 分支机制)"""
@@ -1940,6 +2471,9 @@ class Battle:
         est = self._enemy_stats()
         # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
         is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)) * self._tenacity_mult(est)
+        # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%
+        if self._energy_high_crit(player, info):
+            is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
         # v104 R3 P1-1：猎手本能——对标记目标暴击 +10%（e_buffs["mark"] 为目标易伤标记）
         if "mark" in self.e_buffs:
             for _pn, _ps in self._passive_map(player)["stat"]:
@@ -2085,10 +2619,56 @@ class Battle:
                 if r["clear"]:
                     for mk in E.ELEMENT_MARKS.values():
                         self.e_buffs.pop(mk, None)
+        # v130.2 攻线·元素：引爆技反应表（cond type='reaction'，消耗充能时按引爆系+目标印记结算）。
+        # 独立于旧 e_buffs 反应体系，读目标侧 element_marks（mage_转职.md §1.0②）
+        if info.get("cond", {}).get("type") == "reaction" and element:
+            rr = self._reaction_table_resolve(player, element, st, logs)
+            if rr is not None:
+                rmult, rlog, chain_flag = rr
+                reaction_mult *= rmult
+                if reaction_log:
+                    reaction_log += rlog
+                else:
+                    reaction_log = rlog
+                if chain_flag:
+                    multi += 1
+        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
+        _mom_mult = self._momentum_mult(player)
+        if kind == "物理" and _mom_mult != 1.0:
+            passive_bonus *= _mom_mult
+            self._mom_mult = _mom_mult
+        else:
+            self._mom_mult = 1.0
+        # v130.2 刺客攻线·影舞者：终结技（res_cost cp）连段增伤（combo≥3 每层 +5%，上限 +40%）
+        _combo_mult = 1.0
+        if self._combo_active(player) and (info.get("res_cost") or {}).get("cp"):
+            _combo_mult = self._combo_dmg_mult(player)
+            if _combo_mult != 1.0:
+                passive_bonus *= _combo_mult
+        self._combo_mult = _combo_mult
         total = 0
         _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
         affix_mult, affix_tags = self._affix_dmg_mult(player)
+        if self._mom_mult != 1.0:
+            affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
+        if self._combo_mult != 1.0:
+            affix_tags = list(affix_tags) + [f"🌪️连段x{round(self._combo_mult, 2)}"]
+        # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理技能伤害 +pct%
+        # （幂等乘入 passive_bonus；buff_phys_next 一次性随即清，豁免回合递减；P0-2/P0-5 消费端）
+        if kind == "物理" and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
+            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
+            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
+            if _pu > 0:
+                passive_bonus *= (1 + _pu)
+            if _bpn > 0:
+                passive_bonus *= (1 + _bpn)
+                del self.p_buffs["buff_phys_next"]
+                self.p_eff.pop("buff_phys_next", None)
+            _tags_pu = ([f"🍺物理x{round(1 + _pu, 2)}"] if _pu > 0 else []) + \
+                       ([f"🥊引气x{round(1 + _bpn, 2)}"] if _bpn > 0 else [])
+            if _tags_pu:
+                affix_tags = list(affix_tags) + _tags_pu
         elem_mult = self._affix_element_dmg(player, element)
         # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
         race_mult, race_tags = self._race_attack_mult(player)
@@ -2236,6 +2816,14 @@ class Battle:
                 if random.random() < float(_ps.get("chance", 0.3)):
                     extra_layers += 1
             E.element_mark_apply(self.e_buffs, element, extra_layers)
+            # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
+            if total > 0:
+                new_marks = self._elem_mark_apply(element, layers=extra_layers)
+                if player.get("class_name", "") == "cls_fa_shi" and self._is_path(player, 1):
+                    logs.append(f"✦ 元素印记：目标{ {'fire': '火', 'ice': '冰', 'thunder': '雷'} [element]}印 {new_marks}/3")
+                # v130.2 last_element 同系连发：记录上次元素，同系第二次施放额外 +1 充能（元素凝聚）
+                if player.get("class_name", "") == "cls_fa_shi":
+                    self._last_element_set(player, element)
             # v104 R3 P1-1：寒霜亲和——冰系技能命中附带减速 2 回合
             if element == "ice":
                 for _pn, _ps in _procs.get("ice_slow", []):
@@ -2289,6 +2877,24 @@ class Battle:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
         # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
         self._resource_on_skill(player, info)
+        # v130.2 资源增幅：技能出手命中（影袭药水 hits 制额外 +1 连击点等，仅命中；P0-1 消费端）
+        if total > 0:
+            _amp_hit = self._amp_resource(player, "on_land_hit")
+            if _amp_hit:
+                logs.append(f"⚡ 影袭药剂：出手命中额外资源 +{_amp_hit}！")
+        # v130.2 刺客攻线·影舞者：技能命中 +1 连段 / 落空归零（断了重来）
+        if self._combo_active(player):
+            if total > 0:
+                new_combo = self._combo_add(player)
+                logs.append(f"🌪️ 连段 {new_combo}/{COMBO_CFG['cap']}")
+            else:
+                self._combo_break(player)
+        # v130.2 暴击命中结算（on_crit：暮影影步/刺客攻线/星语猎印暴击额外）
+        if total > 0 and is_crit:
+            self._on_crit_resource(player)
+        # v130.2 牧师攻线·歌者：歌类技施放叠回声（战斗内不清零，上限 3）
+        if self._is_bard_skill(player, info):
+            self._echo_add(player, logs)
         # ---- v10 套装攻击特效 ----
         if total > 0:
             self._set_attack_proc(player, total, logs)
@@ -2296,12 +2902,30 @@ class Battle:
 
     # ---------------- v29 分支机制 ----------------
     def _mech_stack_bonus(self, mech: str, p_mech: dict, info: dict) -> float:
-        """层数型机制对本次伤害的倍率（v125.2 B1：每层增伤查表 MECH_STACK_BONUS）"""
+        """层数型机制对本次伤害的倍率（v125.2 B1：每层增伤查表 MECH_STACK_BONUS）
+        v130.2 P1-5：隐藏线每层加成（dragon_might +18%/zen +12%，已并入 MECH_STACK_BONUS）——
+        消耗型终极技（res_cost 含该核心资源键）按「施放前持有层数」叠乘（龙脉终曲 满龙力 ×2.8、
+        撼岳·终焉 满禅意 ×2.2），读 self._pre_cost_res（见 _do_player_skill 快照，扣费后归 0 放不大）。"""
         step = MECH_STACK_BONUS.get(mech)
         if step:
             n = p_mech.get(mech, 0)
             if n:
                 return 1.0 + n * step
+        # v130.2：技能 res_cost 消费的核心资源键若在 MECH_STACK_BONUS 且非 mech 叠层型（dragon_might/zen），
+        # 按其「施放前持有层数」补阶梯加成——mech 叠层型（rage/chi/shadow/spellblade，在 MECH_STACK_WHITELIST）
+        # 层数存 mech_stacks 由上方 mech 分支结算，此处分流避免双重累加。
+        rc = (info or {}).get("res_cost") or {}
+        if rc:
+            _pres = getattr(self, "_pre_cost_res", None)
+            _pres = _pres if isinstance(_pres, dict) else None
+            for _k, _step in MECH_STACK_BONUS.items():
+                if _k in MECH_STACK_WHITELIST:
+                    continue
+                if int(rc.get(_k, 0) or 0) <= 0:
+                    continue
+                n = int(_pres.get(_k, 0) or 0) if _pres else int(self.resources.get(_k, 0) or 0)
+                if n > 0:
+                    return 1.0 + n * _step
         return 1.0
 
     def _cond_mult(self, info: dict, player: dict, lv: int = 1) -> float:
@@ -3094,6 +3718,20 @@ class Battle:
             new = self.resources[k]
             if new > old:
                 logs.append(f"🍃 {rd['name']}回复 {new - old} 点({new}/{rd['max']})")
+        # v130.2 资源增幅：自然回触发（迅捷之核 本回合精力额外 +30，P0-1 消费端）
+        _amp_pt = self._amp_resource(player, "regen")
+        if _amp_pt:
+            logs.append(f"⚡ 迅捷之核：自然回复额外资源 +{_amp_pt}！")
+        # v130.2 歌者回声驻留：每层回合初始全队恢复 6 体力（priest_转职.md §3.0）
+        echo_n = self._echo_layers()
+        if echo_n > 0:
+            _heal_e = int(ECHO_CFG.get("heal_per_layer", 6) or 6) * echo_n
+            if player.get("hp", 0) < player.get("max_hp", 1):
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _heal_e)
+                logs.append(f"🎵 回声余韵：全队恢复 {_heal_e} 点体力({echo_n} 层)")
+            for _ally in (self.allies or []):
+                if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
+                    _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
         return logs
 
     def _end_round(self):
@@ -3115,7 +3753,8 @@ class Battle:
                 # v125.3 收口审计 P1：next_atk_up（狂怒/月露/彩虹/黑羽药剂）是"下一次攻击消费"型
                 # 一次性 buff（_extra_dmg_mult 命中即 del）——按回合递减 turns=1 当回合结束被删，
                 # 下回合攻击吃不到 +50%。豁免回合递减，生命周期 = 攻击消费或战斗结束。
-                if k == "next_atk_up":
+                # v130.2 P0-2：引气精华 buff_phys_next 同款一次性语义（物理技消费即 del）→ 一并豁免。
+                if k in ("next_atk_up", "buff_phys_next"):
                     continue
                 # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
                 # 需单独递减（数值递减会让百分比被 -1 污染）。
@@ -3136,6 +3775,18 @@ class Battle:
             self.p_shields[key]["turns"] -= 1
             if self.p_shields[key]["turns"] <= 0:
                 del self.p_shields[key]
+        # v130.2 资源增幅回合制 turns 衰减（hits 制由 _amp_resource 出手命中逐次扣）→ 归 0 清 amp
+        _amp_m = (self.p_eff or {}).get("amps")
+        if _amp_m:
+            for _ak in list(_amp_m):
+                _a = _amp_m[_ak]
+                if not isinstance(_a, dict) or int(_a.get("turns_left", 0) or 0) <= 0:
+                    continue
+                _a["turns_left"] = int(_a["turns_left"]) - 1
+                if int(_a.get("turns_left", 0) or 0) <= 0 and int(_a.get("hits_left", 0) or 0) <= 0:
+                    del _amp_m[_ak]
+            if not _amp_m:
+                self.p_eff.pop("amps", None)
         self._tick_cooldowns()
 
     def _attacker_precise(self) -> float:
@@ -3487,6 +4138,12 @@ class Battle:
             # O116 闪避成功：丢弃延迟的伤害日志，只报闪避（命中/闪避二选一）
             self._pending_dmg_lines = []
             logs.append("💨 你闪避了攻击！")
+            # v130.2 暮影影步：闪避成功 on_dodge_success 攒步（core_resources on_dodge_success>0）
+            _rd = E.core_resource_def(player.get("class_name", ""))
+            if _rd and _rd.get("on_dodge_success"):
+                _rk = _rd["key"]
+                self.resources[_rk] = self._res_gain_class(player.get("class_name", ""), _rk, int(_rd["on_dodge_success"]))
+                logs.append(f"🫧 影步积攒 +{_rd['on_dodge_success']}({self.resources.get(_rk, 0)}/{_rd['max']})")
             return
         # O116 命中：此刻才输出"造成 X 点伤害"日志（此前由 _enemy_turn 延迟暂存）
         logs += self._drain_pending_dmg()
@@ -3499,6 +4156,13 @@ class Battle:
             if _rd > 0:
                 dmg = max(1, dmg - _rd)
                 logs.append(f"🕸️ 团队屏障减伤 {_rd} 点！")
+        elif _rd_pct < 0:
+            # v130.2 P0-4：熔核之心战损——全减伤负值 = 受伤加重（-20% → 受击 +20%）。
+            # 原实现只处理 >0 把负值整个跳过，熔核变成白嫖满怒无代价；此处补 <0 分支，不覆盖正向 reduce_all。
+            _pen_rd = int(dmg * -_rd_pct)
+            if _pen_rd > 0:
+                dmg += _pen_rd
+                logs.append(f"🔥 熔核代价：全减伤惩罚·受伤加重 {_pen_rd} 点！")
         # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
         # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
         block_chance = float(self._player_stats(player).get("block", 0) or 0)
@@ -3667,9 +4331,39 @@ class Battle:
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
-        if rd and rd.get("on_hit"):
+        # v130.2 P1-5：on_hit 双语义解耦——星语猎手 on_hit 是「任意命中」语义（ranger.md §3.1(b)），
+        # 受击不得按旧钩子当「受击回资源」读（白名单 HUNT_MARK_ON_LAND_HIT，数据驱动非硬编码）：
+        # 猎印只有命中才攒（普攻/技能走 _resource_on_attack/_resource_on_skill），无受击渠道。
+        if rd and rd.get("on_hit") and cls not in HUNT_MARK_ON_LAND_HIT:
             k = rd["key"]
-            self.resources[k] = E.core_resource_gain(cls, self.resources, rd["on_hit"])
+            gain = int(rd["on_hit"])
+            # v130.2 战士血债怒火（攻线·狂战士 T1）：受击回怒 = 1 + ⌊缺失HP%×4⌋，封顶 5
+            #   （warrior_转职 下放签名：卖血换怒——满血+1、缺25%血+2、缺一半+3、濒死+5）
+            if cls == "cls_zhan_shi" and self._is_path(player, 1):
+                _max = max(1, player.get("max_hp", 1) or 1)
+                _missing = max(0.0, min(1.0, 1.0 - (float(player.get("hp", 0) or 0) / _max)))
+                gain = int(RAGE_GAIN_HP_SCALE.get("base", 1) or 1)
+                gain += int(_missing * float(RAGE_GAIN_HP_SCALE.get("coef", 4.0) or 4.0))
+                gain = min(int(RAGE_GAIN_HP_SCALE.get("cap", 5) or 5), gain)
+            self.resources[k] = self._res_gain_class(cls, k, gain)
+        # v130.2 资源增幅：受击触发（沸腾战血 3 回合内受击额外 +2 怒，P0-1 消费端；回合制 turns 衰减）
+        _amp_th = self._amp_resource(player, "on_hit_taken")
+        if _amp_th:
+            logs.append(f"⚡ 沸腾战血：受击额外资源 +{_amp_th}！")
+        # v130.2 暮影影步：受击清空全部（全额惩罚，assassin.md §5.2）——on_hit=0 不列 base 分支，单独处理
+        if cls == "cls_shadow_blade" and rd:
+            if int(self.resources.get(rd["key"], 0) or 0) > 0:
+                self.resources[rd["key"]] = 0
+                logs.append("🫧 受击！影步清空")
+        # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
+        if cls == "cls_ci_ke" and self._is_path(player, 1):
+            _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
+            cur_cp = int(self.resources.get("cp", 0) or 0)
+            if cur_cp > 0 and _pen < 0:
+                penalty = min(cur_cp, -_pen)
+                self.resources["cp"] = cur_cp - penalty
+                logs.append(f"🗡️ 受击！连击点 -{penalty}({self.resources['cp']}/{rd['max'] if rd else 5})")
+            self._combo_break(player)
         # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
         if player["hp"] > 0:
             for _pn, _ps in self._passive_map(player)["proc"].get("dmg_taken_heal", []):

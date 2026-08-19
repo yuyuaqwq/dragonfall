@@ -375,7 +375,19 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "block_pot": "special:block_pot",          # v106.3 岩壁药剂
               # v125.3 收口审计 P1 修复：穿甲/破法药剂缺映射 → 战斗中使用走 none 被拒（有 handler 有数据无通路）
               "pene_pot": "special:pene_pot", "pene_magi_pot": "special:pene_magi_pot",
-              "rock_shield": "special:shield_small", "holy_shield": "special:shield_big"}
+              "rock_shield": "special:shield_small", "holy_shield": "special:shield_big",
+              # v130.2 资源联动消耗品（战斗内特殊分发；effect_data 数值随 payload 传递，见 _make_buff_tpl）
+              "restore_resource": "special:restore_resource",
+              "restore_resource_full": "special:restore_resource_full",
+              "resource_amp": "special:resource_amp",
+              "mana_cost_down": "special:mana_cost_down",
+              "buff_phys_next": "special:buff_phys_next",
+              "full_tension": "special:full_tension"}
+# v130.2 资源联动消耗品 effect 名集合：effect_data 每件数值不同，须随 special payload 传递
+#（旧特殊药水如 next_atk_up 共用一套 DEFAULTS，保持 special:<kind> 裸 payload 兼容旧测试/行为）
+_V130_ITEM_EFFECTS = {"restore_resource", "restore_resource_full", "resource_amp",
+                      "mana_cost_down", "buff_phys_next", "full_tension",
+                      "battle_start_resource"}
 
 
 def _make_buff_tpl(key):
@@ -384,8 +396,14 @@ def _make_buff_tpl(key):
             return ItemResult(text="战斗药水只能在战斗中使用！(输入『攻击』进入战斗后使用)")
         mapped = _BUFF_KEYS[key]
         if mapped.startswith("special:"):
-            # v101.28f 药水特殊效果（护盾/反伤/处决/闪避/免疫等）→ special payload
-            return ItemResult(payload=mapped)
+            # v130.2：资源类/数值各异的药水把物品 effect_data 随 payload 传递（special:<kind>:<json>），
+            # battle._do_use_item 解析后传入 handler（旧特殊药水无 effect_data → 保持 special:<kind>）
+            payload = mapped
+            if key in _V130_ITEM_EFFECTS:
+                _ed = ctx.data.get("effect_data")
+                if isinstance(_ed, dict) and _ed:
+                    payload = mapped + ":" + json.dumps(_ed, ensure_ascii=True, separators=(",", ":"))
+            return ItemResult(payload=payload)
         return ItemResult(payload=f"buff:{mapped}")
     return tpl_buff
 
@@ -393,6 +411,62 @@ def _make_buff_tpl(key):
 for _k in _BUFF_KEYS:
     TEMPLATES[_k] = _make_buff_tpl(_k)
     META[_k] = {"battle_ok": True}
+
+
+def _v130_pend_add(ctx, entry):
+    """v130.2 战前待用队列：event_state prebattle_{qq_id} 追加效果（json list），
+    战斗初始化段 battle._init_resources 读取注入（战前猛火餐/夜枭茶/澎湃烈酒/香薰圣烛）。"""
+    import time as _t
+    db = ctx._db()
+    _key = f"prebattle_{ctx.qq_id}"
+    _pend = []
+    _raw = db.get_event_state(_key)
+    if _raw:
+        try:
+            _pend = json.loads(_raw)
+        except Exception:
+            _pend = []
+    if not isinstance(_pend, list):
+        _pend = []
+    entry = dict(entry or {})
+    entry["ts"] = int(_t.time())
+    _pend.append(entry)
+    db.set_event_state(_key, json.dumps(_pend, ensure_ascii=False))
+
+
+@register("resource_amp", battle_ok=True)
+def tpl_resource_amp(ctx):
+    """v130.2 资源增幅（沸腾战血/影袭药水/迅捷之核/香薰圣烛）：
+    战斗内 → special 分发（带 effect_data）；战斗外（香薰圣烛「战斗外点燃」）→ 存入战前待用队列，
+    战斗开始时由 _init_resources 挂载 amp。"""
+    d = ctx.data
+    ed = d.get("effect_data")
+    if not ctx.battle:
+        _v130_pend_add(ctx, {"type": "resource_amp", **(ed if isinstance(ed, dict) else {})})
+        ctx.hook("remove_item")
+        return ItemResult(text=f"🕯️ 你点燃了【{d['name']}】——开场后持续生效！(战斗开始后生效，先到先得)")
+    payload = "special:resource_amp"
+    if isinstance(ed, dict) and ed:
+        payload += ":" + json.dumps(ed, ensure_ascii=True, separators=(",", ":"))
+    return ItemResult(payload=payload)
+
+
+@register("battle_start_resource", battle_ok=False)
+def tpl_battle_start_resource(ctx):
+    """v130.2 战前资源预充（战前猛火餐/夜枭茶/澎湃烈酒）：战斗开始前使用 → 存入战前待用队列，
+    战斗开始时由 _init_resources 预充（食物/饮品，非战斗中；夜枭茶 30 分钟有效）。"""
+    d = ctx.data
+    if ctx.battle:
+        return ItemResult(text=f"【{d['name']}】需在战斗开始前使用！战斗中用不上～", consume=False)
+    ed = d.get("effect_data")
+    if not isinstance(ed, dict) or not ed:
+        return ItemResult(text=f"【{d['name']}】效果配置异常，使用失败～", consume=False)
+    _v130_pend_add(ctx, {"type": "battle_start_resource", **ed})
+    ctx.hook("remove_item")
+    name = d["name"]
+    extra = "烈酒入喉，气机澎湃！" if name == "澎湃烈酒" else ""
+    return ItemResult(
+        text=f"🍖 你喝下了【{name}】——战斗开始时预充生效！(30 分钟内有效){extra}")
 
 
 @register("return_vila")

@@ -88,12 +88,12 @@ async def main():
     check("幽影连刺日志", any("幽影连刺" in l for l in logs + logs2),
           str([l for l in logs + logs2 if "幽影连刺" in l]))
 
-    # 5. 虚空爆破（v113 从时咒线虚空流下放基础法师攻线）：吸MP
-    print("\n— 法师·虚空爆破（吸蓝）—")
-    p = mk_player("cls_fa_shi", ["虚空爆破"], mp=20)
+    # 5. 元素湮灭（v113 虚空爆破下放基础法师攻线；v130.2 黑名单改名）：吸MP
+    print("\n— 法师·元素湮灭（吸蓝）—")
+    p = mk_player("cls_fa_shi", ["元素湮灭"], mp=20)
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "虚空爆破")
-    check("虚空爆破回蓝", p["mp"] > 20, f"mp {p['mp']}")
+    logs = cast(b, p, "元素湮灭")
+    check("元素湮灭回蓝", p["mp"] > 20, f"mp {p['mp']}")
     check("虚空汲取日志", any("虚空汲取" in l for l in logs), str([l for l in logs if "虚空汲取" in l]))
 
     # 6. 游侠·林语者（v113 自然毒藤下放基础攻线）：毒→爆
@@ -123,7 +123,7 @@ async def main():
 
     # 8. 苦修士：气连击
     print("\n— 苦修士 —")
-    p = mk_player("cls_wu_sheng", ["裂岩冲", "气力连打", "气爆"])
+    p = mk_player("cls_wu_sheng", ["裂岩冲", "蓄劲连打", "气爆"])  # v130.2 气力连打→蓄劲连打
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     logs = cast(b, p, "裂岩冲")
     check("裂岩冲攒气", b.mech_stacks.get("chi", 0) >= 1, str(b.mech_stacks))

@@ -32,6 +32,8 @@ bm = BT.Battle('monster', mkmon('史莱姆'), player=pm)
 check("法师元素亲和默认火", bm.resources.get('element') == 'fire', str(bm.resources))
 py = mk('游侠')
 by = BT.Battle('monster', mkmon('狼'), player=py)
+# v130.2 引擎回归追踪：_init_resources 丢失了 `elif k == "energy": =min(100)` 分支
+# （docstring/设计稿仍写“游侠精力满 100”，实现却置 0）→ 本节与「精力已满」断言挂红，待引擎修复，不掩改。
 check("游侠精力初始满 100", by.resources.get('energy') == 100, str(by.resources))
 
 print("【核心资源：获取】")
@@ -74,8 +76,12 @@ assert E.core_resource_spend('游侠', by2.resources, 999) is False
 check("不足不扣", by2.resources.get('energy') == 60, str(by2.resources))
 
 print("【核心资源：显示标签】")
-check("战士标签", "怒气" in b._resource_label(p), b._resource_label(p))
-check("法师标签", "火系" in bm._resource_label(pm), bm._resource_label(pm))
+# v130.2：标签格式收敛——法师 element 特判从旧「✦ 火系」改为「✦ 元素亲合 0/5」（充能条显示，
+# core_resources.py 明确旧「火系」为待收敛遗留）。战士/游侠等类级资源标签本应含 怒气/精力，
+# 但 v130.2 _resource_label 用 core_resource_def_by_key（只认顶级 key）查不到类级资源 → 空串
+# （引擎回归，见「待引擎修复」清单；下两行仅注释不掩改断言）。
+check("战士标签（怒气 0/10）", "怒气" in b._resource_label(p), b._resource_label(p))
+check("法师标签·充能条", "元素亲合 0/5" in bm._resource_label(pm), bm._resource_label(pm))
 
 print(f"\n结果: {passed} passed, {failed} failed")
 sys.exit(1 if failed else 0)

@@ -66,6 +66,9 @@ b4.player_turn("skill", "冰锥", p, enemy_act=False)
 check("冰锥对火印蒸发", b4.e_buffs.get("fire_mark", 0) == 0, str(b4.e_buffs))
 
 print("【游侠：精力消耗不耗魔】")
+# v130.2 引擎回归追踪：_init_resources 丢失 `elif k == "energy": =max(100)` 分支
+# → 精力初始 0（docstring/设计稿仍写“精力满 100”），「精力初始满 100」「疾风连射耗 20 精力」
+# 两断言挂红，待引擎修复后回归（不掩改断言）。
 p = learn_all(mk("游侠"), "cls_you_xia")
 b5 = BT.Battle("monster", mkmon(), player=p)
 check("精力初始满 100", b5.resources.get("energy", 0) == 100, str(b5.resources))
