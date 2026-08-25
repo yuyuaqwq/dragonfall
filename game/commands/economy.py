@@ -2787,11 +2787,17 @@ class EconomyCmds(CommandBase):
             info = E._set_info(sname)
             if not info:
                 continue
-            b2 = "  ".join(
-                f"{sn} +{int(v * 100)}%"
-                for k, v in info.get("bonus_2", {}).items()
-                for sn in [{"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击", "dodge": "闪避", "heal": "治疗"}.get(k, k)]
-            )
+            b2_raw = info.get("bonus_2", {}) or {}
+            if isinstance(b2_raw, dict) and b2_raw.get("effect"):
+                # v130.2e 修复（审计 P0）：effect 型 bonus_2（资源套装）取 desc 展示，不再逐键 int(v*100) 崩溃
+                b2 = b2_raw.get("desc", "") or ""
+            else:
+                b2 = "  ".join(
+                    f"{sn} +{int(v * 100)}%"
+                    for k, v in b2_raw.items()
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                    for sn in [{"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防", "hp": "生命", "spd": "速度", "crit": "暴击", "dodge": "闪避", "heal": "治疗"}.get(k, k)]
+                )
             # 阶段八：4 件效果 = 属性加成（bonus_4_stats）或特效（bonus_4.effect）
             b4_parts = []
             for k, v in info.get("bonus_4_stats", {}).items():
