@@ -129,10 +129,10 @@ PLAYER_SKILLS = {
                 "power": 2.2,
                 "kind": "物理",
                 "res_cost": {"rage": 10},
-                "consume_all": {"key": "rage", "per": 0.15},
+                "consume_all": {"key": "rage", "per": 0.12},
                 "pierce": True,
                 # v130.2 基础瘦身：去 HP<30% 血线乘区条件，做成无条件朴素满怒大招（EQ = 2.2×2.2 ≈ 4.84）
-                "desc": "无畏冲击！消耗全部怒气，每点怒气＋15% 伤害(满怒 = 220%·EQ≈4.84)。基础满怒档大招。",
+                "desc": "无畏冲击！消耗全部怒气，每点怒气＋12% 伤害(满怒 = 220%·EQ≈4.84)。基础满怒档大招。",
                 "name": "无畏冲击",
             },
     "sk_p_zhan_yi": {
@@ -878,10 +878,11 @@ PLAYER_SKILLS = {
                 "mp": 18,
                 "power": 3.2,
                 "kind": "物理",
-                "res_cost": {"cp": 5},
-                "consume_all": {"key": "cp", "per": 0.4},
+                # v130.2 统一公式：per=0 威力恒为数据表 3.2（满 5 点 3.2×1.5=EQ4.8，策划 12 章 §6.1 奥义基准；
+                # 「每点＋40%」为 v104 旧式 1+per×cur 残留——暗影行定位=固定 5 点高档终结，非逐点强化）
+                "consume_all": {"key": "cp", "per": 0.0},
                 "cond": {"type": "enemy_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "死亡边缘"},
-                "desc": "暗影处刑！320% 致命一击，消耗全部连击点(每点＋40%)。目标 HP<30% 时＋50%(EQ≈4.8)",
+                "desc": "暗影处刑！320% 致命一击，消耗全部连击点。目标 HP<30% 时＋50%(满 5 点 EQ≈4.8)",
                 "name": "暗影处刑",
             },
     "sk_p_an_ying_zhi_wu": {
@@ -1051,9 +1052,9 @@ PLAYER_SKILLS = {
                 "mp": 15,
                 "power": 2.4,
                 "kind": "物理",
-                "res_cost": {"chi": 10},
                 "consume_all": {"key": "chi", "per": 0.1},
-                # v130.2 基础瘦身：破晓之拳重定为无条件满势终结——每 1 气物理威力 +10%，满 10 气 EQ≈4.8（去残血条件）
+                # v130.2 基础瘦身：破晓之拳重定为无条件满势终结——每 1 气物理威力 +10%（2.4×(1+0.1×10)=4.8），
+                # 满 10 气 EQ≈4.8（去残血条件；res_cost 与 consume_all 冲突字段已去，改按持有气动态结算）
                 "desc": "破晓之拳！240% 致命一击，消耗全部气(每点＋10%，满 10 气 EQ≈4.8)",
                 "name": "破晓之拳",
             },
@@ -1526,16 +1527,16 @@ BRANCH_SKILLS = {
                     }
 ,
                     # v113：吸蓝机制下放——原时咒线吸蓝流派技降为基础法师攻线 Lv.55 进阶技
-                    # v130.2：黑名单违名技更名「元素湮灭」——重定位为攻线 T1 满充能全耗终极（res_cost element -5）
+                    # v130.2：黑名单违名技更名「元素湮灭」——重定位为攻线 T1 满充能全耗终极（consume_all element per 0.2）
                     "元素湮灭":                     {
                         "lv": 55,
                         "mp": 40,
                         "power": 2.4,
                         "kind": "魔法",
                         "mp_steal": 0.20,
-                        "res_cost": {"element": 5},
+                        "consume_all": {"key": "element", "per": 0.2},
                         "cd": 4,
-                        "desc": "元素湮灭！240% 魔法伤害，消耗 5 点充能(满充能全耗终极·EQ≈4.8)，回复 20% 伤害值的魔力",
+                        "desc": "元素湮灭！240% 魔法伤害，消耗全部充能(每点＋20%，满 5 充能 EQ≈4.8)，回复 20% 伤害值的魔力",
                         "name": "元素湮灭"
                     }
 ,
@@ -2092,23 +2093,27 @@ BRANCH_SKILLS = {
             1: {
                 "吟游诗人": {
                     "即兴弹唱": {"lv": 32, "mp": 3, "power": 1.0, "kind": "物理",
+                                 "res_gain": {"echo": 1},
                                  "mech": "poison", "mech_val": 1,
                                  "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒(琴弦如刃)",
                                  "name": "即兴弹唱"},
                     "轻快拨弦": {"lv": 35, "mp": 3, "power": 1.1, "kind": "物理",
-                                 "res_gain": {"resonance": 1}, "mech": "poison", "mech_chance": 0.1,
+                                 "res_gain": {"resonance": 1, "echo": 1}, "mech": "poison", "mech_chance": 0.1,
                                  "desc": "轻快拨弦，110% 物理伤害，10% 附加中毒（v130.2 歌者双资源：共鸣 +1·低耗攒共振养回声）",
                                  "name": "轻快拨弦"},
                     "战歌": {"lv": 38, "mp": 10, "power": 0, "kind": "增益",
+                             "res_gain": {"echo": 1},
                              "effect": "atk_up", "team": "atk_all", "cd": 2,
                              "desc": "激昂战歌！全队攻＋30% 3 回合(副本广播，团队技能)",
                              "name": "战歌"},
                     "安眠曲": {"lv": 45, "mp": 10, "power": 0, "kind": "增益",
+                               "res_gain": {"echo": 1},
                                "effect": "sleep", "cd": 3,
                                "desc": "安眠曲！使敌人陷入沉睡 2 回合（受击解除，对首领只持续 1 回合）",
                                "name": "安眠曲"},
                     # v130.2 新增：歌者签名一（v130.2 双资源·启明全队增益，消耗 3 共鸣）
                     "启明圣咏": {"lv": 50, "mp": 20, "power": 0, "kind": "增益",
+                                 "res_gain": {"echo": 1},
                                  "effect": "atk_up", "team": "atk_all", "cd": 2,
                                  "res_cost": {"resonance": 3},
                                  "desc": "启明圣咏！全队攻击＋10% 3 回合（v130.2 歌者花共鸣放增益·同时养回声）",
@@ -2174,19 +2179,21 @@ BRANCH_SKILLS = {
             2: {
                 "灵魂歌者": {
                     "鼓舞": {"lv": 60, "mp": 10, "power": 0, "kind": "增益",
+                             "res_gain": {"echo": 1},
                              "effect": "crit_up", "team": "crit_all", "cd": 2,
                              "desc": "鼓舞士气！全队暴击＋20% 3 回合(副本广播，团队技能)",
                              "name": "鼓舞"},
-                    "哀歌": {"lv": 62, "mp": 15, "power": 1.6, "kind": "魔法",
+                    "哀歌": {"lv": 62, "mp": 15, "power": 1.7, "kind": "魔法",
                              "cc": "silence", "cd": 3,
-                             "res_gain": {"resonance": 1},
-                             "desc": "哀歌！160% 魔法伤害，50% 概率沉默目标 2 回合（v130.2 歌者攒共鸣 +1）",
+                             "res_gain": {"resonance": 1, "echo": 1},
+                             "desc": "哀歌！170% 魔法伤害，50% 概率沉默目标 2 回合（v130.2 歌者攒共鸣 +1）",
                              "name": "哀歌"},
                     "伴奏": {"lv": 65, "mp": 0, "power": 0, "kind": "被动",
                              "passive": {"stat": "crit", "add": 0.08},
                              "desc": "属性被动：伴奏之魂，暴击＋8%",
                              "name": "伴奏"},
                     "轻风咏叹": {"lv": 68, "mp": 15, "power": 0, "kind": "增益",
+                                 "res_gain": {"echo": 1},
                                  "effect": "spd_up", "team": "spd_all", "cd": 2,
                                  "res_cost": {"resonance": 3},
                                  "desc": "轻风咏叹！全队速度＋40% 3 回合（v130.2 歌者消耗 3 共鸣·全队增益）",
@@ -2243,6 +2250,7 @@ BRANCH_SKILLS = {
                                    "desc": "英雄叙事诗！治疗全队 150% 生命（v130.2 歌者共鸣 +2·治疗双计数铁律下不放信仰）",
                                    "name": "英雄叙事诗"},
                     "奥术咏叹调": {"lv": 92, "mp": 20, "power": 0, "kind": "增益",
+                                   "res_gain": {"echo": 1},
                                    "effect": "matk_up", "team": "matk_all", "cd": 2,
                                    "res_cost": {"resonance": 3},
                                    "desc": "奥术咏叹调！魔攻＋50% 3 回合（v130.2 歌者消耗 3 共鸣·全队魔攻强化）",
@@ -2252,6 +2260,7 @@ BRANCH_SKILLS = {
                                  "desc": "属性被动：快板节奏，冷却缩减＋8%",
                                  "name": "快板节奏"},
                     "终章·黎明颂歌": {"lv": 98, "mp": 35, "power": 0, "kind": "增益",
+                                       "res_gain": {"echo": 2},
                                        "effect": "atk_up_strong", "team": "atk_all", "cd": 5,
                                        "res_cost": {"resonance": 5},
                                        "desc": "终章·黎明颂歌！全队攻＋75% 3 回合（v130.2 歌者满档周期爆发·消耗 5 共鸣）",
@@ -2259,7 +2268,7 @@ BRANCH_SKILLS = {
                     # v130.2 新增：歌者 tier3 专属攒点技（光咏晨祷，共鸣 +1）
                     "破晓圣咏": {"lv": 94, "mp": 30, "power": 1.7, "kind": "魔法",
                                  "cd": 3, "reach": 2,
-                                 "res_gain": {"resonance": 1},
+                                 "res_gain": {"resonance": 1, "echo": 1},
                                  "desc": "破晓圣咏！170% 光咏魔法伤害（v130.2 歌者攒共鸣 +1·晨祷唱诗附圣光）",
                                  "name": "破晓圣咏"},
                 },                "圣光先知": {

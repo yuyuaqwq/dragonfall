@@ -43,6 +43,9 @@ _STAT_AFFIX_FX = {
     "dodge": {"stat": "dodge", "pct": None, "flat": 0.05},
     "hp_up": {"stat": "hp", "pct": 0.05},
     "swift": {"stat": "spd", "pct": 0.05},
+    # v130.2c 半活修复：精准词条补折算行（此前只接了 dmg_mult 1.10，命中率 0.10 从未并入
+    # 装备 stats → _monster_dodge_check 读 _player_stats['precise']（cap 0.60）恒为 0，命中加成失效）
+    "precise": {"stat": "precise", "pct": None, "flat": 0.10},
     # v106 穿透/韧性/幸运词条折算
     "pene_phys": {"stat": "pene_phys", "pct": None, "flat": 0.05},
     "pene_magi": {"stat": "pene_magi", "pct": None, "flat": 0.05},

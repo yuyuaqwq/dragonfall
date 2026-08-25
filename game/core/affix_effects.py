@@ -194,13 +194,16 @@ TAKEN_EFFECTS = {}
 
 @register(TAKEN_EFFECTS, "reduce")
 def _t_reduce(battle, player, ctx, logs):
-    """减伤（常驻：减伤词条 +3%、大地之心专属 +5%，叠加后统一应用）"""
+    """减伤（常驻：减伤词条 +3%、大地之心专属 +5%，叠加后统一应用）。
+    v130.2c：沸血浇筑（怒气全满时 全减伤 +8%，rage_full=怒气 ≥ 上限（含怒火熔铸上限加成））"""
     ids = battle._equip_affix_ids(player)
     reduce_pct = 0.0
     if "dmg_reduce" in ids:
         reduce_pct += float(_affix_effect("dmg_reduce").get("dmg_reduce", 0.03))
     if "earth_heart" in ids:
         reduce_pct += float(_affix_effect("earth_heart").get("dmg_reduce", 0.05))
+    if "boiling_blood" in ids and battle._rage_full(player):
+        reduce_pct += float(_affix_effect("boiling_blood").get("dmg_reduce", 0.08))
     if reduce_pct:
         dmg_before = ctx["out"]
         ctx["out"] = max(1, int(ctx["out"] * (1 - reduce_pct)))
@@ -277,6 +280,22 @@ def _ts_meditate(battle, player, logs):
         heal = int(player.get("max_mp", player.get("mp", 1)) * float(_affix_effect("meditate").get("pct", 0.01)))
         player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
         logs.append(f"🧘 冥想生效，回复 {heal} 点魔力！")
+
+
+@register(TURN_START_EFFECTS, "energy_tide")
+def _ts_energy_tide(battle, player, logs):
+    """精力潮汐：每回合 精力回复 +5（史诗）/ +10（传说，tier 取档）。
+    v130.2c 接线：数据 effect.regen + effect.tiers[quality] 覆盖，走 battle._res_gain（带上限）。"""
+    if "energy_tide" not in battle._equip_affix_ids(player) or "energy" not in battle._branch_keys(player):
+        return
+    eff, tier = battle._affix_eff_tiered(player, "energy_tide")
+    gain = int(tier if tier is not None else (eff or {}).get("regen", 5) or 5)
+    if gain <= 0:
+        return
+    old = battle._res_read("energy")
+    battle._res_gain(player, "energy", gain)
+    if battle._res_read("energy") > old:
+        logs.append(f"🌊 精力潮汐：精力回复 +{gain}！")
 
 
 # ================= 4. 套装 4 件攻击特效（_set_attack_proc） =================

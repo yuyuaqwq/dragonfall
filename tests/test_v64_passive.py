@@ -174,7 +174,7 @@ def test_data_integrity():
     # v106.2：战士/游侠 +穿透被动 → 16；v112.1：各职业 +1 一转觉醒被动（Lv.30）
     # v114.2：蓄力/打断新技能——战士+蓄力斩、法师+陨石术+法术禁制、游侠+蓄力狙击、牧师+大治疗术
     for cls, cname, expect in [("cls_zhan_shi", "战士", 18), ("cls_fa_shi", "法师", 18),
-                               ("cls_you_xia", "游侠", 18), ("cls_mu_shi", "牧师", 17),
+                               ("cls_you_xia", "游侠", 18), ("cls_mu_shi", "牧师", 18),
                                ("cls_ci_ke", "刺客", 16), ("cls_wu_seng", "拳师", 16)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
         check(f"{cname} 技能总数 {n} (10基础+5被动+觉醒)", n == expect, f"实际 {n}")

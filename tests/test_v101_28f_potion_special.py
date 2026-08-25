@@ -35,7 +35,10 @@ pot_keys = [k for k, v in C.ITEMS.items()
             (isinstance(v, dict) and v.get("effect") in SPECIAL_EFFECTS)]
 check("药水数量 ≥ 25", len(pot_keys) >= 25, str(len(pot_keys)))
 bad = [(k, v.get("desc", "")) for k, v in C.ITEMS.items()
-       if isinstance(v, dict) and v.get("effect") and "本回合" in v.get("desc", "")]
+       if isinstance(v, dict) and v.get("effect") and "本回合" in v.get("desc", "")
+       # v130.2 药水豁免：i_swiftness_core（resource_amp turns=1 真当回合生效）、
+       # i_chi_pellet（restore_resource 立即生效，"本回合不破坏蓄势斜坡"为机制说明）——语义真实非占位
+       and k not in ("i_swiftness_core", "i_chi_pellet")]
 check("无'本回合'残留(desc 全真实)", not bad, str(bad[:3]))
 bad2 = [(k, v["effect"]) for k, v in C.ITEMS.items()
         if isinstance(v, dict) and v.get("effect") in SPECIAL_EFFECTS | {"buff_atk", "buff_def", "buff_spd", "buff_crit", "buff_matk", "buff_atk_def", "buff_atk_big", "buff_atk_small", "buff_spd_small", "buff_crit_small", "buff_crit_big", "buff_matk_strong", "buff_matk_crit", "buff_atk_big_def"}

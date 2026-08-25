@@ -57,7 +57,7 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 # ============ 1. 数据完整性 ============
 def test_data():
     print("【1. 数据完整性】")
-    check("45 种词条（44 基准 + v110 审计拆分 tenacity_cc「坚韧」——原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 45, str(len(C.AFFIXES)))
+    check("76 种词条（45 基准 + v130.2 资源联动词条 31——v110 审计拆分 tenacity_cc「坚韧」原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 76, str(len(C.AFFIXES)))
     check("专属 22", len(C.LEGENDARY_EFFECTS) == 22, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳
     check("名册 167 件", len(C.EQUIP_ROSTER) == 167, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线奖励装备 + 夜行披风/熔炉之心
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)

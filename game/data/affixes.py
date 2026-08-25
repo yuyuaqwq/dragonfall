@@ -2,7 +2,7 @@
 """奥兰迪亚·余烬纪年 数据层 - affixes.py（阶段八装备重写，2026-08-06）
 
 20 章装备特色词条系统落地：
-- AFFIXES：45 种特色词条（攻击 24 + 防御 21），词条决定装备"性格"
+- AFFIXES：76 种特色词条（攻击 37 + 防御 39，含 v130.2 资源联动词条 31 种），词条决定装备"性格"
 - AFFIX_POOL_BY_QUALITY：随机词条池按品质（20 章 4.2）
 - LEGENDARY_EFFECTS：传说专属效果（橙装 1 件 1 个，20 章 2.3）
 
@@ -307,12 +307,14 @@ AFFIXES = {
         "effect": {"max_sigil": 1, "cond": "element_mage"},
         "qualities": ["blue", "purple"], "line": "法师·攻线限定",
         "desc": "元素印记上限 +1 (每系 3 → 4，元素法师转职后生效)",
+        # v130.2c 暂下架：机制未接线
     },
     "reaction_catalyst": {
         "name": "反应催化", "kind": "attack", "trigger": "stat",
         "effect": {"reaction_dmg": 0.15, "cond": "element_mage"},
         "qualities": ["purple"], "line": "法师·攻线限定",
         "desc": "元素反应伤害 +15% (元素法师转职后生效)",
+        # v130.2c 暂下架：机制未接线
     },
     # ================= 游侠（精力 energy） =================
     "energy_blade": {
@@ -344,6 +346,7 @@ AFFIXES = {
         "effect": {"res": "energy", "regen": 10, "cond": "energy_ge_80"},
         "qualities": ["orange"], "line": "游侠·守线满弦兑现",
         "desc": "回合结束时，若精力 ≥ 80，下回合 精力回复 +10",
+        # v130.2c 暂下架：机制未接线
     },
     # ================= 牧师（信仰 faith） =================
     "holy_echo": {
@@ -395,12 +398,14 @@ AFFIXES = {
         "effect": {"combo_keep_chance": 0.15, "tiers": {"purple": 0.15, "orange": 0.30}, "cond": "攻线限定"},
         "qualities": ["purple", "orange"], "line": "刺客·攻线限定",
         "desc": "受击时 15% 概率连击不因受击回退 (史诗 30%；攻线限定)",
+        # v130.2c 暂下架：机制未接线
     },
     "combo_edge": {
         "name": "连段之锋", "kind": "attack", "trigger": "stat",
         "effect": {"combo_threshold_reduce": 1, "cond": "攻线限定"},
         "qualities": ["purple"], "line": "刺客·攻线限定",
         "desc": "连段生效阈值 -1 (combo ≥ 3 → ≥ 2；攻线限定)",
+        # v130.2c 暂下架：机制未接线
     },
     "rhythm_badge": {
         "name": "节奏之徽", "kind": "defense", "trigger": "stat",
@@ -444,7 +449,19 @@ AFFIXES = {
         "effect": {"momentum_per_chi": 0.04, "base": 0.03, "cond": "攻线蓄势"},
         "qualities": ["blue", "purple"], "line": "拳师·攻线专属",
         "desc": "攻线每 1 气提升的物理伤害 +3% → +4% (蓄势 Momentum 系数；苦修锁 4% 不上浮)",
+        # v130.2c 暂下架：机制未接线
     },
+}
+
+# ================= v130.2c 暂下架词条（机制未接线，仅从掉落池移除，定义/显示保留） =================
+# 已装备玩家面板不受影响；重新接线后从本集合移除 ID 即可恢复掉落。
+AFFIX_DELISTED_V130_2C = {
+    "sigil_engrave",       # 印记铭刻：元素印记上限机制未接线
+    "reaction_catalyst",   # 反应催化：元素反应伤害机制未接线
+    "swift_tailwind",      # 疾风余韵：回合结束满精力回能机制未接线
+    "combo_ward",          # 连段护持：受击连段保留机制未接线
+    "combo_edge",          # 连段之锋：连段阈值削减机制未接线
+    "momentum_mastery",    # 蓄势精通：蓄势系数上浮机制未接线（苦修锁 4%）
 }
 
 # 随机词条池按品质（20 章 4.2：蓝 → 攻击 7 + 防具 7；紫 → 攻击 17 + 防具 9；橙 → 全部）
@@ -454,11 +471,11 @@ AFFIX_POOL_BY_QUALITY = {
         "block", "dodge", "dmg_reduce", "swift", "hp_up", "regen",
         "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
         "heal_power", "shield_power",  # v106.2 圣愈/坚盾
-        # v130.2 资源联动词条（基础/稀有档：战意 残血灼薪 充能汲引 凝神塑能 印记铭刻 精力刀刃 圣辉回响
-        # 圣徽之佑 虔诚护符 暴击回点 终结之技 连段回收 磐息 起手之势 蓄势精通）
-        "war_spirit", "ember_brand", "arcana_flux", "arcane_focus", "sigil_engrave", "energy_blade",
+        # v130.2 资源联动词条（基础/稀有档：战意 残血灼薪 充能汲引 凝神塑能 精力刀刃
+        # 圣辉回响 圣徽之佑 虔诚护符 暴击回点 终结之技 连段回收 磐息 起手之势）
+        "war_spirit", "ember_brand", "arcana_flux", "arcane_focus", "energy_blade",
         "holy_echo", "sigil_blessing", "pious_charm", "crit_return", "finisher",
-        "combo_recover", "rock_rest", "opening_stance", "momentum_mastery",
+        "combo_recover", "rock_rest", "opening_stance",
     ],
     "purple": [
         "bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up", "crit_dmg",
@@ -470,16 +487,16 @@ AFFIX_POOL_BY_QUALITY = {
         "cdr", "exp_bonus", "gold_bonus",  # v106.1 轻灵/求知/聚宝
         "heal_power", "shield_power",  # v106.2 圣愈/坚盾
         "phys_ward", "magic_ward", "thirst_phys", "thirst_magi",  # v106.4 铁壁/魔抗/渴血/吸魂
-        # v130.2 资源联动词条（史诗档：战意 怒火熔铸 战吼回响 浴血 印记铭刻 反应催化 精力刀刃 精力潮汐
-        # 盈满背囊 暴击蓄能 圣辉回响 神赐容光 圣徽之佑 暴击回点 终结之技 连段护持 连段之锋 节奏之徽
-        # 气量强化 爆发贯体 蓄势精通）
-        "war_spirit", "rage_forge", "warcry_echo", "blood_bath", "sigil_engrave", "reaction_catalyst",
+        # v130.2 资源联动词条（史诗档：战意 怒火熔铸 战吼回响 浴血 精力刀刃 精力潮汐
+        # 盈满背囊 暴击蓄能 圣辉回响 神赐容光 圣徽之佑 暴击回点 终结之技 节奏之徽
+        # 气量强化 爆发贯体）
+        "war_spirit", "rage_forge", "warcry_echo", "blood_bath",
         "energy_blade", "energy_tide", "full_pack", "crit_charge",
         "holy_echo", "divine_radiance", "sigil_blessing",
-        "crit_return", "finisher", "combo_ward", "combo_edge", "rhythm_badge",
-        "chi_limit", "burst_break", "momentum_mastery",
+        "crit_return", "finisher", "rhythm_badge",
+        "chi_limit", "burst_break",
     ],
-    "orange": sorted(AFFIXES.keys()),
+    "orange": sorted(k for k in AFFIXES.keys() if k not in AFFIX_DELISTED_V130_2C),
 }
 
 # 词条类型（装备显示/随机池按部位过滤用）

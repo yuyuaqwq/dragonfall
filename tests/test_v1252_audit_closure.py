@@ -28,6 +28,7 @@ from conftest import C, BT  # noqa: E402
 from data.plugins.dragonfall.game.core import battle_mech as BM  # noqa: E402
 from data.plugins.dragonfall.game.core import battle_conds as BC  # noqa: E402
 from data.plugins.dragonfall.game.core import potion_effects as PE  # noqa: E402
+from data.plugins.dragonfall.game.data import affixes as DA  # noqa: E402
 from data.plugins.dragonfall.game.core import poi_effects as POIE  # noqa: E402
 from data.plugins.dragonfall.game.core import affix_effects as AF  # noqa: E402
 from data.plugins.dragonfall.game.commands.economy import _GATHER_COND_CHECKERS  # noqa: E402
@@ -74,6 +75,7 @@ def ref_aids(registry):
         except Exception:
             continue
         out |= set(re.findall(r"\"([a-z_0-9]+)\" in (?:ids|battle\._equip_affix_ids\(player\))", src))
+        out |= set(re.findall(r"@\w+\((?:\w+\.)*\w+, \"([a-z_0-9]+)\"\)", src))  # v130.2c @register 装饰器模式
     return out
 
 
@@ -178,12 +180,16 @@ def section_affix():
     data.update(getattr(C, "LEGENDARY_EFFECTS", {}) or {})
     # 数据方向：on_hit/on_taken/turn_start 触发型词条必须被 handler 引用（starfall 由 battle.py 直连）
     ref = ref_aids(AF.HIT_EFFECTS) | ref_aids(AF.TAKEN_EFFECTS) | ref_aids(AF.TURN_START_EFFECTS)
-    trigger_ids = {aid for aid, d in data.items() if d.get("trigger") in ("on_hit", "on_taken", "turn_start")}
+    ref |= set(getattr(BT.Battle, "RES_AFFIX_GAIN", ()) or ())  # v130.2c battle.py 统一读取器接线
+    delisted = set(getattr(DA, "AFFIX_DELISTED_V130_2C", []) or [])  # v130.2c 下架（机制未接线前不掉落）
+    trigger_ids = {aid for aid, d in data.items() if d.get("trigger") in ("on_hit", "on_taken", "turn_start")} - delisted
     uncovered = trigger_ids - ref - {"starfall"}
     check("触发型词条（on_hit/on_taken/turn_start）全部有 handler", not uncovered,
           f"uncovered={sorted(uncovered)}")
     # handler 方向：handler 自查的 aid 必须存在于数据
     not_in_data = ref - set(data)
+    # reduce = TAKEN_EFFECTS 的 effect-key 注册（_t_reduce 按 effect dict 分发 dmg_reduce/earth_heart 等），非词条 aid
+    not_in_data = not_in_data - {"reduce"}
     check("handler 引用的词条 aid 全部存在（AFFIXES/LEGENDARY_EFFECTS）", not not_in_data,
           f"not_in_data={sorted(not_in_data)}")
     # 套装 4 件攻击特效：无 stats 字段的 bonus_4.effect 必须 ∈ SET_PROC_EFFECTS 或 battle.py 直连消费
@@ -205,11 +211,11 @@ def section_potion():
         ed = _d.get("effect_data")
         if isinstance(ed, dict) and ed:
             item_eff.add(_d.get("effect"))
-    check("15 种药水特殊效果数据齐备", len(item_eff) == 15, f"effects={sorted(item_eff)}")
+    check("22 种药水特殊效果数据齐备", len(item_eff) == 22, f"effects={sorted(item_eff)}")
     alias = PE._EFFECT_KIND
     missing = {alias.get(e, e) for e in item_eff} - set(PE.POTION_EFFECTS)
     check("全部药水 effect_data 效果已注册 handler（别名对齐）", not missing, f"missing={sorted(missing)}")
-    check("POTION_EFFECTS 注册 15 键", len(PE.POTION_EFFECTS) == 15, str(len(PE.POTION_EFFECTS)))
+    check("POTION_EFFECTS 注册 22 键", len(PE.POTION_EFFECTS) == 22, str(len(PE.POTION_EFFECTS)))
     check("DEFAULTS 由 items.py effect_data 扫描覆盖全部注册键",
           set(PE.DEFAULTS) == set(PE.POTION_EFFECTS),
           f"defaults={sorted(PE.DEFAULTS)}")
