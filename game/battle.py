@@ -437,6 +437,8 @@ class Battle:
             "first_attack_done": self.first_attack_done,
             "death_pact_used": getattr(self, "_death_pact_used", False),
             "set_immune_used": getattr(self, "_set_immune_used", False),
+            # v130.2f 致命预谋：首次终结返还标记（随战斗持久化，防断线恢复后重复返还）
+            "assassin_refund_used": getattr(self, "_assassin_refund_used", False),
             # v104 M02 P2-9：断线恢复后 burst 机制（灼烧引爆/剑刃风暴/神恩护盾）与
             # 元素跃迁日志依赖 _last_player/_shifted_element，必须随战斗状态持久化
             "last_player": getattr(self, "_last_player", None),
@@ -490,6 +492,7 @@ class Battle:
         b.first_attack_done = bool(st.get("first_attack_done", False))
         b._death_pact_used = bool(st.get("death_pact_used", False))
         b._set_immune_used = bool(st.get("set_immune_used", False))
+        b._assassin_refund_used = bool(st.get("assassin_refund_used", False))  # v130.2f 致命预谋返还标记
         # v104 M02 P2-9：恢复 _last_player/_shifted_element；_last_player 为空保持
         # 未设置（hasattr=False，避免 battle_mech 对 None 调 _player_stats 崩溃）
         _lp = st.get("last_player")
@@ -1877,6 +1880,9 @@ class Battle:
                 self.resources["element_charge"] = _left
             else:
                 self.resources[ck] = _left
+            # v130.2f 致命预谋：本场首次 消耗连击点的终结技 结算后 返还 1 连击点（保底节奏）
+            if ck == "cp":
+                self._assassin_finisher_refund(player, logs)
         else:
             res_cost = info.get("res_cost") or {}
             if res_cost and not _releasing:  # 蓄力释放跳过资源扣减（施放时已扣）
@@ -1891,6 +1897,9 @@ class Battle:
                         cur = self._res_read(rk)
                         logs.append(f"⚡ {rname}不足！需要 {rv}，当前 {cur}(『攻击』攒资源)")
                         return logs
+            # v130.2f 致命预谋：本场首次 消耗连击点的终结技 结算后 返还 1 连击点（保底节奏）
+            if "cp" in res_cost:
+                self._assassin_finisher_refund(player, logs)
         # v122 治疗指定队友：指定的队友不存在 → 拦截（不扣资源、不消耗回合）；
         # 单人战斗（无 allies）忽略目标，按治疗自己处理
         if info.get("kind") == "治疗" and target and self.allies:
@@ -1925,6 +1934,13 @@ class Battle:
                 self._set_skill_cd(skill_name, cd)
             return logs
         logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
+        # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：歌类技施放 20% 概率 回声 +1
+        # （原「暴击+8%」面板加成的扣除在 _player_stats；数据层并行批次将移除其 stat crit 字段，
+        #   届时扣除条件自动失效。歌类技统一标记 = _is_bard_skill（BARD_BRANCHES 分支归属），
+        #   不硬造 tag；回声上限 3 由 _echo_add 天然处理）
+        if E.is_passive_learned(player.get("class_name", ""), "伴奏", player.get("learned_skills", [])) \
+                and self._is_bard_skill(player, info) and random.random() < 0.20:
+            self._res_gain(player, "echo", 1, logs)
         # v130.2c 圣典·日冕 2 件：施放二档以上神迹 → 全体队友额外恢复 30 体力
         self._set_miracle_team_heal(player, info, logs)
         # v2.0 冷却：技能表 cd 字段（回合），施放后进入冷却
@@ -2006,6 +2022,15 @@ class Battle:
             st["def"] = int(st.get("def", 0) * (1 + C.rune_value("ironwall", effs["ironwall"])))
         # v64 被动属性：魔力涌动/风行步/疾影/鹰眼（百分比属性被动）
         pb = E.player_passive_stats(player.get("class_name", "战士"), player.get("learned_skills", []))
+        # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：原「暴击+8%」属性被动 → 「歌类技施放 20% 概率回声+1」。
+        # 数据层并行批次将移除 伴奏 的 stat crit 定义；此处仅在数据仍声明 stat crit 时扣除其面板
+        # 贡献（移除后条件自动失效，零残留）。回声触发挂点在 _do_player_skill 施放结算处。
+        _bz = E.skill_info(player.get("class_name", "战士"), "伴奏") or {}
+        _bz_ps = _bz.get("passive") or {}
+        if _bz_ps.get("stat") == "crit" and E.is_passive_learned(
+                player.get("class_name", "战士"), "伴奏", player.get("learned_skills", [])):
+            pb["crit_add"] = max(0.0, float(pb.get("crit_add", 0.0) or 0.0)
+                                 - float(_bz_ps.get("add", 0.08) or 0.0))
         if pb.get("mp_mult", 1.0) != 1.0:
             st["max_mp"] = int(st.get("max_mp", 0) * pb["mp_mult"])
             st["mp"] = int(st.get("mp", 0) * pb["mp_mult"])
@@ -2330,6 +2355,22 @@ class Battle:
             proc_ok = True
         return proc_ok
 
+    def _assassin_finisher_refund(self, player: dict, logs: list):
+        """v130.2f 致命预谋返还挂点：每场首次 消耗连击点的终结技 结算后，返还 1 连击点
+        （保底节奏；_assassin_refund_used 防重复，随战斗序列化）。
+        被动判定走 battle_start_cp proc（致命预谋 数据层挂载），数据驱动不按名字硬匹配。
+        调用点：_do_player_skill 的 res_cost cp / consume_all cp 两处扣费结算后。"""
+        if getattr(self, "_assassin_refund_used", False):
+            return
+        if not self._passive_map(player)["proc"].get("battle_start_cp", []):
+            return
+        self._assassin_refund_used = True
+        _cls = player.get("class_name", "")
+        _before = int(self.resources.get("cp", 0) or 0)
+        _now = self._res_gain_class(_cls, "cp", 1)
+        if _now > _before:  # 真实增量判定（连击点已满时不误报返还）
+            logs.append(f"🗡️ 致命预谋：首次终结返还 1 连击点（当前 {_now}）")
+
     def _apply_enchant_attack(self, effs: dict, dmg: int, st: dict, player: dict, logs: list):
         """v34：攻击后符文效果结算(灼烧/冻结/吸血/连锁/虚弱/破魔)"""
         if not effs:
@@ -2425,16 +2466,21 @@ class Battle:
             return eff
         return None
 
-    def _undead_on_field(self) -> bool:
-        """场上是否存在亡灵单位：玩家召唤骷髅（skeleton tid）或敌方名称含亡灵系关键词。
+    def _undead_count(self) -> int:
+        """场上存活亡灵单位计数：玩家召唤骷髅（skeleton tid/名含骷髅）或敌方名称含亡灵系关键词。
         关键词与成就 亡灵使者 kills_type 同源（亡灵/骷髅/僵尸/幽灵）。"""
+        n = 0
         for s in self.summons:
             if s.get("hp", 0) > 0 and (s.get("tid") == "skeleton" or "骷髅" in str(s.get("name", ""))):
-                return True
+                n += 1
         for u in self.enemies:
             if u.get("hp", 0) > 0 and any(k in str(u.get("name", "")) for k in ("亡灵", "骷髅", "僵尸", "幽灵")):
-                return True
-        return False
+                n += 1
+        return n
+
+    def _undead_on_field(self) -> bool:
+        """场上是否存在亡灵单位（v130.2f 改读 _undead_count 统一口径）。"""
+        return self._undead_count() > 0
 
     def _set_res_proc(self, player: dict, event: str, logs: list):
         """v130.2c 套装 res_gain 统一读取器：on_taken 受击 / on_heal 治疗 / undead_on_field 回合开始亡灵在场。
@@ -4170,6 +4216,17 @@ class Battle:
         self._food_turn_start(player, logs)
         # v130.2c 暗夜圣典 2 件：场上亡灵≥1 时 悼咏积攒 +1（回合开始）
         self._set_res_proc(player, "undead_on_field", logs)
+        # v130.2f 亡灵祭仪（暗影神谕·悼咏线）：场上每只存活亡灵 回合初 悼咏 +1
+        # （core_resources.py cls_hymn 注释承诺「最多 2 只生效」；上限 10/满溢转盾由 _res_gain_class 处理）
+        _crd = E.core_resource_def(player.get("class_name", ""))
+        if _crd and _crd.get("key") == "canticle":
+            _ud_n = self._undead_count()
+            if _ud_n > 0:
+                _ud_g = min(_ud_n, 2)
+                _ud_before = int(self.resources.get("canticle", 0) or 0)
+                _ud_now = self._res_gain_class(player.get("class_name", ""), "canticle", _ud_g)
+                if _ud_now > _ud_before:  # 真实增量判定（满资源不再误报，同 _set_res_proc 口径）
+                    logs.append(f"🕯️ 亡灵祭仪：{_ud_n} 只亡灵在场，悼咏 +{_ud_g}（当前 {_ud_now}/10）")
         # 圣光/永恒套：每回合开始回复生命
         for eff in E.set_bonus_4(player.get("equipment", {})):
             if eff in ("regen", "regen_strong") and player.get("hp", 0) < player.get("max_hp", 1):
@@ -4791,6 +4848,13 @@ class Battle:
                     self._damage_enemy(ca_dmg, logs)
                     logs.append(f"🥊 反击！你立刻回击造成 {ca_dmg} 点伤害！"
                                 + (" 💥暴击" if _ca_crit else ""))
+                    # v130.2f 反击回气承诺落地（monk.md §3.1「受击换气/反震回气」）：
+                    # 以守为攻/反击之王 反击命中后 气 +2（走 _res_gain_class 类资源上限管线）
+                    _cr_cls = player.get("class_name", "")
+                    _cr_rd = E.core_resource_def(_cr_cls)
+                    if _cr_rd and _cr_rd.get("key") == "chi":
+                        _chi_now = self._res_gain_class(_cr_cls, "chi", 2)
+                        logs.append(f"🥊 反击回气 +2（气 {_chi_now}）")
                     break  # 命中即停（一次受击最多一次反击）
         # v51 盾牌反击：被攻击时 60% 概率反击 120% 伤害
         if self.p_buffs.get("counter", 0) > 0 and self.enemy.get("hp", 0) > 0:

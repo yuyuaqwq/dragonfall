@@ -54,11 +54,11 @@ async def main():
           str(b._player_stats(p).get("pene_phys")))
     b, p = btl("cls_you_xia", ["穿甲箭"])
     check("穿甲箭 → 物穿 5%", abs(b._player_stats(p).get("pene_phys", 0) - 0.05) < 1e-6)
-    # v112.5：魔力贯穿为时咒线级基础，与线级基础法穿 15% 乘算
+    # v130.2f 设计变更：魔力贯穿由法穿+5% 属性被动 → attack_res 节拍器（施法命中+1 时之沙，§14.3）
+    # 时咒基础法穿 15% 不再叠加 5% → pene_magi = 0.15
     b, p = btl("cls_chronomancer", ["魔力贯穿"])
-    expect_arc = 1 - 0.85 * 0.95
-    check(f"魔力贯穿+基础法穿 → 乘算 {expect_arc:.4f}",
-          abs(b._player_stats(p).get("pene_magi", 0) - expect_arc) < 1e-6,
+    check("魔力贯穿改版后法穿=基础 15%（不再乘算 5%）",
+          abs(b._player_stats(p).get("pene_magi", 0) - 0.15) < 1e-6,
           str(b._player_stats(p).get("pene_magi")))
     b, p = btl("cls_zhan_shi", [])
     check("无被动 → 物穿 0", abs(b._player_stats(p).get("pene_phys", 0) - 0.0) < 1e-6)

@@ -59,7 +59,12 @@ def test_engine_stats():
     check("法师魔力涌动 mp_mult=1.15", abs(b["mp_mult"] - 1.15) < 1e-9, str(b))
     b2 = E.player_passive_stats("游侠", ["风行步", "鹰眼"])
     check("游侠风行步 spd_mult=1.08", abs(b2["spd_mult"] - 1.08) < 1e-9, str(b2))
-    check("游侠鹰眼 crit_add=0.03", abs(b2["crit_add"] - 0.03) < 1e-9, str(b2))
+    # v130.2f 设计变更：鹰眼由 crit+3% 属性被动 → mark_extra 叠印节拍器（15% 额外叠印，§14.3）
+    check("游侠鹰眼 crit_add=0（改版为 mark_extra 叠印节拍器）", abs(b2["crit_add"] - 0.0) < 1e-9, str(b2))
+    _yy = [v for v in C.PLAYER_SKILLS["cls_you_xia"]["skills"].values() if v.get("name") == "鹰眼"]
+    check("鹰眼 passive=mark_extra{chance 0.15}",
+          bool(_yy) and (_yy[0].get("passive") or {}).get("proc") == "mark_extra"
+          and abs(float((_yy[0].get("passive") or {}).get("chance", 0)) - 0.15) < 1e-9, str(_yy))
     b3 = E.player_passive_stats("战士", ["战意高涨"])
     check("战士战意高涨 无属性加成(条件型)", b3["atk_mult"] == 1.0, str(b3))
     # 未学被动 → 无加成

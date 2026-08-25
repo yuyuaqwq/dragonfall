@@ -155,7 +155,12 @@ def _c_player_res_stacks(battle, player, cond):
     （元素风暴「元素过载」stacks=1）；rage/cp/faith/chi/energy 等 int 叠层保持原逻辑。
     """
     rk = cond.get("res_key", "rage")
-    val = battle.resources.get(rk, 0)
+    # v130.2f 修复：条件基于施放前快照评估（HC-12 快照语义）——消耗型技能（res_cost/consume_all）扣费后
+    # 资源回落导致「满资源档」cond 永不触发（时停领域-3 满5、流星陨落-5 满5、龙焰吐息-5 满10 同病，
+    # 既有先例裂地斩 rage≥8/圣光惩击 faith≥8/疾风拳 chi≥5 一并修复）。施放前快照 _pre_cost_res 由
+    # _cast_player_skill 在扣费前写入（battle.py:1849）；非施放语境（外部直接调 cond）回落当前值。
+    pres = getattr(battle, "_pre_cost_res", None)
+    val = pres.get(rk) if pres is not None else battle.resources.get(rk, 0)
     if isinstance(val, str):
         return bool(val)
     if not isinstance(val, (int, float)):

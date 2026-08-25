@@ -143,7 +143,8 @@ async def main():
     print("【7. 被动系统】")
     # v112.3：伴奏/快板节奏已归入牧师攻线分支（灵魂歌者/黎明颂者），按分支查技能
     pb = E.player_passive_stats("cls_mu_shi", ["伴奏", "快板节奏"])
-    check("伴奏 crit +8%（add bug 修复）", abs(pb.get("crit_add", 0) - 0.08) < 1e-9, str(pb.get("crit_add")))
+    # v130.2f 设计变更：伴奏由 crit+8% 属性被动 → 歌类技 20% 回声节拍器（引擎挂点 battle.py _do_player_skill）
+    check("伴奏 crit_add=0（改版为歌类技回声节拍器）", abs(pb.get("crit_add", 0) - 0.0) < 1e-9, str(pb.get("crit_add")))
     check("快板节奏 cdr +8%", abs(pb.get("cdr_add", 0) - 0.08) < 1e-9, str(pb.get("cdr_add")))
     # 技能数据存在（走牧师攻线分支表）
     from game.engine import skill_info
