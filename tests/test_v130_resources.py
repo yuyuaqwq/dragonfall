@@ -15,6 +15,9 @@
     同时打印提示，映射到主 agent 的「待引擎修复后回归」清单）。
 
 运行：python tests/test_v130_resources.py（exit=0 全绿；skip 不计数为失败）
+
+注：v130.2c/d 机制行为断言（consume_all 统一公式 / 回声满层翻倍 / 六词条 / 套装消费）见
+tests/test_v1302c_mechanics.py——本文件只覆盖 v130.2 资源层数据 + 引擎就绪判定。
 """
 import os
 import sys

@@ -214,9 +214,11 @@ def smoke_bard_echo():
     info2 = C.PLAYER_SKILLS.get("cls_mu_shi", {}).get("sk_she_dan")
     if isinstance(info2, dict) and "skills" not in info2:
         check("基础圣光弹非歌类", b._is_bard_skill(p, info2) is False)
-    # _turn_start 全队恢复 6×3=18
-    b._turn_start(p)
-    check("回合初始回声恢复(3层=18)", True)
+    # _turn_start 全队恢复：满层翻倍 6×3×2=36/回合（策划案 12 章 5.1.1；原恒真 check 已改真断言）
+    p["hp"] = 100  # 满血时恢复被跳过（hp<max 才结算），先压低血量再验证真实恢复量
+    logs_ts = b._turn_start(p)
+    check("回合初始回声恢复(3层=36)", p["hp"] == 136,
+          f"hp={p['hp']} echo={b._echo_layers()} logs={logs_ts[-3:]}")
     # 回声重开战斗（驻留）——新 Battle 归零
     b2, _p2 = new_battle("cls_mu_shi", 1, 1)
     check("新战斗回声归零", b2._echo_layers() == 0)
@@ -501,6 +503,8 @@ def smoke_mech_stack_hidden():
     b._pre_cost_res["dragon_might"] = 10
     m = b._mech_stack_bonus("dragon_might", {}, {"res_cost": {"dragon_might": 10}})
     check("龙脉终曲 满龙力10层 ×2.80", abs(m - 2.80) < 1e-9, f"{m}")
+    # 注意：cls_wu_sheng=苦修士（隐藏线，禅意 zen 专属；气爆/撼岳·终焉 均其技能），
+    # 与拳师 cls_wu_seng 不同——此处类名非笔误，勿"修正"
     b, p = new_battle("cls_wu_sheng", 0, 0)
     b.resources["zen"] = 10
     b._pre_cost_res = dict(b.resources)

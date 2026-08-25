@@ -563,12 +563,13 @@ class Battle:
             return self._elem_charge()
         return int(self.resources.get(key, 0) or 0)
 
-    def _res_gain(self, player: dict, key: str, amount: int) -> int:
+    def _res_gain(self, player: dict, key: str, amount: int, logs: list | None = None) -> int:
         """资源增加（带上限）。element → 充能条（CORE_RESOURCES element max=5）；
         副资源（resonance 等按 key 注册）→ core_resource_gain_key；其余按 class 定义。
         v130.2 P1-3 修复：基础 key（rage/cp/energy/faith/dragon_might/zen 等，非按 key 注册的副资源）
         旧实现只返回新值不写回 self.resources[k] → restore_resource 药水/战前预充/隐藏线 res_gain 全静默失效；
-        现统一写回（调用方丢弃返回值也落库正确，无双重累加风险——各调用方均不以返回值为累加基准）。"""
+        现统一写回（调用方丢弃返回值也落库正确，无双重累加风险——各调用方均不以返回值为累加基准）。
+        v130.2 R1：logs 可选透传——echo 分支经 _echo_add 产出「🎵 回声驻留 +N」反馈（歌者施放可见）。"""
         if key == "element":
             # v130.2c 元素使徒 2 件：充能条上限 +1（5 → 6）——走 _res_max 统一上限
             mx = self._res_max(player, key)
@@ -576,7 +577,7 @@ class Battle:
             return self.resources["element_charge"]
         if key == "echo":
             # v130.2 收尾：echo 驻留叠层存 mech_stacks（战斗内不清零），不走 resources 影子槽
-            return self._echo_add(player, [], int(amount or 0))
+            return self._echo_add(player, logs if logs is not None else [], int(amount or 0))
         if E.core_resource_def_by_key(key):
             new = E.core_resource_gain_key(key, self.resources, int(amount or 0))
             self.resources[key] = new
@@ -608,8 +609,10 @@ class Battle:
         rd = E.core_resource_def(cls)
         if not rd:
             return self.resources.get(k, 0)
-        # v130.2c 词条上限加成：_res_gain_class 无 player 参数，取本场玩家（战斗资源 dict 单主）
-        mx = int(rd.get("max", 99) or 99) + self._res_affix_max_bonus(self.player, k)
+        # v130.2 R1：上限口径与 _res_max 统一（词条 max_bonus + 套装 res_max）；无 player 参数取本场玩家；
+        # self.player 为 None（from_state 恢复等）时按空 dict 守卫，套装/词条加成归 0
+        _pl = self.player or {}
+        mx = int(rd.get("max", 99) or 99) + self._res_affix_max_bonus(_pl, k) + self._set_res_max_bonus(_pl, k)
         cur = int(self.resources.get(k, 0) or 0)
         amount = int(amount or 0)
         overflow = 0
@@ -661,7 +664,7 @@ class Battle:
             self.p_eff.pop("amps", None)
         return extra
 
-    # ---------------- v130.2c 装备-资源词条接线（31 哑词条修复：统一读取器 + 各挂点） ----------------
+    # ---------------- v130.2c 装备-资源词条接线（31 词条接线：统一读取器 + 各挂点） ----------------
     # 修复对象：affixes.py v130.2 资源联动词条 31 个（此前纯展示无效果）。
     # gain 类 12：战意/战吼回响/浴血/残血灼薪/充能汲引/圣辉回响/虔诚护符/暴击回点/暴击蓄能/
     #             连段回收/磐息/起手之势；max_bonus 类 6：怒火熔铸/神赐容光/圣光之心/盈满背囊/
@@ -779,10 +782,12 @@ class Battle:
                     gain = int(tier or gain)
                 if gain <= 0:
                     continue
+                _before = self._res_read(res)
                 added = self._res_gain(player, res, gain)
-                if added > 0:
+                if added > _before:  # v130.2 R1：真实增量判定（满资源不再误报）
                     _nm = (C.AFFIXES.get(aid) or {}).get("name", aid)
-                    logs.append(f"✦ {_nm}：{res} +{gain}！")
+                    _rd = E.core_resource_def_by_key(res) or E.core_resource_def(player.get("class_name", "")) or {}
+                    logs.append(f"✦ {_nm}：{_rd.get('name', res)} +{gain}！")
 
     def _mp_cost_reduce(self, player: dict, info: dict) -> int:
         """v130.2c 魔力消耗减免（词条）：返回固定减免值。
@@ -1061,7 +1066,7 @@ class Battle:
         _ce = self._set_eff(player, "combo_finisher_per_layer", 5)
         if _ce:
             per = float(_ce.get("per_layer", 0.08) or 0.08)
-            cap = per * 8
+            cap = per * int(_ce.get("max_layers", 8) or 8)  # v130.2 R1：层数帽读数据（缺省 8）
         bonus = min(combo * per, cap)
         return 1.0 + bonus
 
@@ -1141,6 +1146,10 @@ class Battle:
                 v = int(tier if tier is not None else eff.get("max_sigil", 0) or 0)
                 if v > 0:
                     bonus += v
+                # v130.2 R1 印记帽：词条 effect.max_total 封顶多件叠加（R2 配 sigil_engrave max_total=1；未读到不封顶）
+                _mt = int(eff.get("max_total", 0) or 0)
+                if _mt > 0 and bonus > _mt:
+                    bonus = _mt
         return int(ELEMENT_MARKS_MAX or 3) + bonus
 
     def _elem_marks_total(self, target: dict | None = None) -> int:
@@ -1789,22 +1798,23 @@ class Battle:
                 rname = (E.core_resource_def_by_key(ck) or rd or {}).get("name", ck)
                 logs.append(f"⚡ {rname}不足！需要至少 1 点，当前 0(『攻击』攒资源)")
                 return logs, True
-        # 普通 res_cost：逐资源校验（纯检查，不扣除）
-        res_cost = info.get("res_cost") or {}
-        for rk, rv in res_cost.items():
-            rd = E.core_resource_def(player["class_name"])
-            if not rd and not E.core_resource_def_by_key(rk):
-                continue
-            k = rk or (rd or {}).get("key", "")
-            _rv = int(rv or 0)
-            # v130.2c 猎首远征队徽记 4 件：对带标记敌人 50/100 档终结技 精力消耗 -10%（校验与扣减同口径）
-            if rk == "energy":
-                _rv = self._energy_cost_after_sets(player, info, _rv)
-            if self._res_read(k) < _rv:
-                rname = (E.core_resource_def_by_key(k) or rd or {}).get("name", k)
-                cur = self._res_read(k)
-                logs.append(f"⚡ {rname}不足！需要 {_rv}，当前 {cur}(『攻击』攒资源)")
-                return logs, True
+        else:
+            # 普通 res_cost：逐资源校验（纯检查，不扣除）——consume_all 分支处理完不再落入（双声明技能 P1-2）
+            res_cost = info.get("res_cost") or {}
+            for rk, rv in res_cost.items():
+                rd = E.core_resource_def(player["class_name"])
+                if not rd and not E.core_resource_def_by_key(rk):
+                    continue
+                k = rk or (rd or {}).get("key", "")
+                _rv = int(rv or 0)
+                # v130.2 R1：精力消耗统一折算（词条精力刀刃 + 套装猎首），与扣减同源（P1-1）
+                if rk == "energy":
+                    _rv = self._energy_cost_reduce(player, info, _rv)
+                if self._res_read(k) < _rv:
+                    rname = (E.core_resource_def_by_key(k) or rd or {}).get("name", k)
+                    cur = self._res_read(k)
+                    logs.append(f"⚡ {rname}不足！需要 {_rv}，当前 {cur}(『攻击』攒资源)")
+                    return logs, True
         return logs, False
 
     def _do_player_skill(self, skill_name: str, player: dict, target=None) -> list:
@@ -1854,10 +1864,15 @@ class Battle:
             # v130.2c 套装全耗减免（保留残点走轴，最低消耗 1）：
             # 元素使徒 4 件（全耗奥义充能消耗 -1，-5→-4）/ 余烬军团徽章 4 件（满怒大招怒气消耗 -1）
             _left = 0
-            if ck == "element" and self._set_eff(player, "ultimate_cost_reduce", 4, res="element"):
-                _left = 1 if cur >= 2 else 0
-            elif ck == "rage" and self._rage_full(player) and self._set_eff(player, "full_rage_pursuit", 4):
-                _left = 1 if cur >= 2 else 0
+            # v130.2 R1：全耗减免「留 1 点」读套装 effect.value（元素使徒 value=1；余烬军团读 rage_cost_reduce 兼容）
+            if ck == "element":
+                _ue = self._set_eff(player, "ultimate_cost_reduce", 4, res="element")
+                if _ue:
+                    _left = int(_ue.get("value", 1) or 1)
+            elif ck == "rage" and self._rage_full(player):
+                _frp = self._set_eff(player, "full_rage_pursuit", 4)
+                if _frp:
+                    _left = int(_frp.get("value", _frp.get("rage_cost_reduce", 1)) or 1)
             if ck == "element":
                 self.resources["element_charge"] = _left
             else:
@@ -1867,14 +1882,9 @@ class Battle:
             if res_cost and not _releasing:  # 蓄力释放跳过资源扣减（施放时已扣）
                 for rk, rv in res_cost.items():
                     _rv = int(rv or 0)
-                    # v130.2c 精力刀刃：精力消耗按词条折扣（tier 档 5%/8%/12%），保底 1 点
+                    # v130.2 R1：精力消耗统一折算（词条精力刀刃 + 套装猎首）——与预检 _skill_cast_blocked 同源
                     if rk == "energy":
-                        _ee, _et = self._affix_eff_tiered(player, "energy_blade")
-                        if _ee:
-                            _disc = float(_et if _et is not None else _ee.get("cost_reduce", 0.05) or 0.05)
-                            _rv = max(1, int(_rv * (1 - _disc)))
-                        # v130.2c 猎首远征队徽记 4 件：对带标记敌人 50/100 档终结技 精力消耗 -10%
-                        _rv = self._energy_cost_after_sets(player, info, _rv, orig=int(rv or 0))
+                        _rv = self._energy_cost_reduce(player, info, _rv)
                     if not self._res_spend(rk, _rv):
                         rd = E.core_resource_def(player["class_name"])
                         rname = (E.core_resource_def_by_key(rk) or rd or {}).get("name", rk)
@@ -2242,7 +2252,7 @@ class Battle:
         if is_crit:
             self._on_crit_resource(player)
 
-    def _resource_on_skill(self, player: dict, info: dict = None):
+    def _resource_on_skill(self, player: dict, info: dict = None, logs: list | None = None):
         """v2.0 核心资源：技能命中获取（on_skill 或技能 res_gain 覆盖）。
         牧师治疗获取信仰（on_heal）。有 res_cost 的终结技不获取（消耗型）。
         v130.2：res_gain dict 支持副资源 key（歌者 {\"resonance\": N}、法师 {\"element\": N} 充能条）；
@@ -2269,7 +2279,7 @@ class Battle:
                     if not amt:
                         continue
                     if rk in act_keys or rk == "element" or E.core_resource_def_by_key(rk):
-                        self._res_gain(player, rk, amt)
+                        self._res_gain(player, rk, amt, logs)
                 # 主资源 key 若在 dict 里已结算，避免重复累加
                 if k in rg:
                     gain = 0
@@ -2290,7 +2300,7 @@ class Battle:
             on_skill_extra = int(rd["on_hit"])
         if gain or on_skill_extra:
             if k == "element":
-                self._res_gain(player, "element", gain + on_skill_extra)
+                self._res_gain(player, "element", gain + on_skill_extra, logs)
             else:
                 self.resources[k] = self._res_gain_class(cls, k, gain + on_skill_extra)
 
@@ -2443,9 +2453,12 @@ class Battle:
             gain = int(eff.get("value", 1) or 1)
             if gain <= 0:
                 continue
+            _before = self._res_read(eff["res"])
             added = self._res_gain(player, eff["res"], gain)
-            if added > 0:
-                logs.append(f"⚔️ 套装回响：{eff['res']} +{gain}！")
+            if added > _before:  # v130.2 R1：真实增量判定（满资源不再误报）
+                _rd = E.core_resource_def(player.get("class_name", ""))
+                _rnm = (E.core_resource_def_by_key(eff["res"]) or _rd or {}).get("name", eff["res"])
+                logs.append(f"⚔️ 套装回响：{_rnm} +{gain}！")
 
     def _set_res_max_bonus(self, player: dict, key: str) -> int:
         """套装 res_max 资源上限加成（元素使徒 2 件：元素亲和充能条上限 +1，5 → 6）。"""
@@ -2468,14 +2481,26 @@ class Battle:
                 bonus += float(eff4.get("crit", 0.15) or 0.15)
         return bonus
 
+    def _energy_cost_reduce(self, player: dict, info: dict, base_cost: int) -> int:
+        """v130.2 R1 P1-1：精力消耗统一折算——先词条「精力刀刃」折扣（tier 档 5%/8%/12%，保底 1 点），
+        再套装「猎首」折扣（对带标记敌人 50/100 档 -10%）。预检 _skill_cast_blocked 与扣减
+        _do_player_skill 共用此函数，保证两处消耗口径完全同源。"""
+        _rv = int(base_cost or 0)
+        _ee, _et = self._affix_eff_tiered(player, "energy_blade")
+        if _ee:
+            _disc = float(_et if _et is not None else _ee.get("cost_reduce", 0.05) or 0.05)
+            _rv = max(1, int(_rv * (1 - _disc)))
+        return self._energy_cost_after_sets(player, info, _rv, orig=int(base_cost or 0))
+
     def _energy_cost_after_sets(self, player: dict, info: dict, rv: int, orig: int | None = None) -> int:
         """v130.2c 猎首远征队徽记 4 件：对带标记敌人释放 50/100 档终结技时 精力消耗 -10%。
         档位按原始消耗判定（orig 缺省 = rv），折扣作用于传入的 rv（可叠加精力刀刃词条）。"""
         rc = info.get("res_cost") or {}
         _base = orig if orig is not None else rv
-        if _base >= 50 and rc.get("energy") and "mark" in self.e_buffs:
+        if rc.get("energy") and "mark" in self.e_buffs:
             eff = self._set_eff(player, "res_cost_reduce", 4, res="energy", on="finisher_marked")
-            if eff:
+            # v130.2 R1：50/100 档阈值读数据 effect.min_cost（R2 配；缺省 50）
+            if eff and _base >= int(eff.get("min_cost", 50) or 50):
                 return max(1, int(rv * (1 - float(eff.get("value", 0.10) or 0.10))))
         return rv
 
@@ -2487,7 +2512,9 @@ class Battle:
             return
         rc = info.get("res_cost") or {}
         ca = info.get("consume_all") or {}
-        if not (ca.get("key") == "faith" or int(rc.get("faith", 0) or 0) >= 5):
+        # v130.2 R1：二档判定阈值读数据 effect.miracle_min（R2 配；缺省 5）
+        _mmin = int(eff.get("miracle_min", 5) or 5)
+        if not (ca.get("key") == "faith" or int(rc.get("faith", 0) or 0) >= _mmin):
             return
         hp = int(eff.get("hp", 30) or 30)
         if player.get("hp", 0) < player.get("max_hp", 1):
@@ -2503,10 +2530,15 @@ class Battle:
         mult = 1.0
         eff4 = self._set_eff(player, "elegy_dmg", 4)
         if eff4 and skill_name in ("安魂曲", "献祭暗焰"):
-            mult *= 1.0 + float(eff4.get("value", 0.20) or 0.20)
+            # v130.2 R1：暗夜圣典「满档」判定——数据 effect.cond=canticle_full 时需悼咏满档才加成（R2 配；缺省无条件）
+            if eff4.get("cond") != "canticle_full" or self._res_read("canticle") >= self._res_max(player, "canticle"):
+                mult *= 1.0 + float(eff4.get("value", 0.20) or 0.20)
         effs = self._set_eff(player, "chi_skill_phys", 4)
         if effs and kind == "物理":
-            is_chi_fin = player.get("class_name", "") == "cls_wu_seng" or bool(info.get("res_cost") or info.get("consume_all"))
+            # v130.2 R1：势不可挡收窄为 chi 资源相关（res_cost.chi / consume_all key==chi / 拳师），与 burst_break 口径一致
+            _rc = info.get("res_cost") or {}
+            _ca = info.get("consume_all") or {}
+            is_chi_fin = player.get("class_name", "") == "cls_wu_seng" or bool(_rc.get("chi")) or _ca.get("key") == "chi"
             if is_chi_fin:
                 mult *= 1.0 + float(effs.get("value", 0.15) or 0.15)
         return mult
@@ -2825,7 +2857,7 @@ class Battle:
             self.team_effects.append({"kind": "heal_all", "power": info["power"], "lv": lv, "matk": st["matk"]})
             logs.append(f"🌟【团队】圣光笼罩全队，所有人恢复 {heal} 点生命！")
         # v2.0 核心资源：治疗获取信仰（on_heal=2）
-        self._resource_on_skill(player, info)
+        self._resource_on_skill(player, info, logs)
         # v130.2c 资源词条：治疗技能施放（战意 on_skill 通用技能事件）
         self._affix_res_proc(player, "on_skill", logs)
         # v130.2 资源增幅：治疗触发（香薰圣烛 on_heal 额外 +1 信仰，回合制）
@@ -2874,7 +2906,7 @@ class Battle:
             self.team_effects.append({"kind": team, "effect": eff, "lv": lv, "stats": st2})
             logs.append(f"🌟【团队】{info.get('name', skill_name)} 笼罩全队！")
         # v2.0 核心资源：增益技能获取（如战吼怒气+3）
-        self._resource_on_skill(player, info)
+        self._resource_on_skill(player, info, logs)
         # v130.2c 资源词条：增益技能（战吼回响 buff_skill 怒气 +1）
         self._affix_res_proc(player, "buff_skill", logs)
 
@@ -3332,7 +3364,7 @@ class Battle:
         if info.get("pierce") and self.enemy.get("hp", 0) > 0:
             self.e_buffs["def_down"] = E.skill_buff_turns(lv)
         # v2.0 核心资源：攻击技能获取（战士怒气/刺客连击点/拳师气，res_gain 覆盖默认）
-        self._resource_on_skill(player, info)
+        self._resource_on_skill(player, info, logs)
         # v130.2c 资源词条：技能命中（战意 on_skill / 充能汲引 on_cast 元素奥术技 / 连段回收 combo_skill）
         self._affix_res_proc(player, "on_skill", logs)
         if player.get("class_name", "") == "cls_fa_shi" and (info.get("element") or (info.get("res_gain") or {}).get("element")):

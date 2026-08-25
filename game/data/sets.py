@@ -573,9 +573,10 @@ SETS = {
         },
         "name": "铁砧拳套"
     },
-    # ================= v130.2c 资源联动套装（12 套，效果定义原样并入 affixes.py V130_RESOURCE_SET_BONUSES，2026-08-25 全量落地） =================
+    # ================= v130.2c 资源联动套装（12 套，效果定义已自 affixes.py V130 段迁入（v130.2d）；战斗侧消费见 battle.py SET_EFFECT_CONSUMED） =================
     # bonus_2 为 effect 型（非属性 dict）——引擎 set_bonus_2 按非 STAT 键静默跳过，
     # 战斗侧消费由引擎 agent 按 desc/effect 接入（见主报告数据结构约定）。
+    # line 字段：非运行字段，策划说明（12 套统一）。
     "set_xue_shi_zhan_tuan": {  # 战士·通用基础（散件配套）
         "quality": "purple", "icon": "⚔️", "name": "血誓战团", "line": "战士·通用基础",
         "bonus_2": {"effect": "res_gain", "res": "rage", "value": 1, "on": "on_taken",
@@ -585,14 +586,14 @@ SETS = {
         "quality": "purple", "icon": "🔥", "name": "余烬军团徽章", "line": "战士·攻线",
         "bonus_2": {},
         "bonus_4": {"effect": "full_rage_pursuit", "power": 0.50, "rage_cost_reduce": 1,
-                    "desc": "满怒(沸血二段)时 普攻二段追击 威力 30% → 50%；满怒大招 怒气消耗 -1 (最低消耗 1)"},
+                    "desc": "满怒时 普攻二段追击 威力 30% → 50%；满怒大招 怒气消耗 -1 (最低消耗 1)"},
     },
     "set_yuan_su_shi_tu": {  # 法师·基础/转职通用（传说套装，团本/世界 Boss 掉落）
         "quality": "orange", "icon": "✨", "name": "元素使徒", "line": "法师·基础/转职通用",
         "bonus_2": {"effect": "res_max", "res": "element", "value": 1,
                     "desc": "元素亲和充能条 上限 +1 (5 → 6)"},
         "bonus_4": {"effect": "ultimate_cost_reduce", "res": "element", "value": 1,
-                    "desc": "全耗奥义(元素风暴) 充能消耗 -1 (-5 → -4，保留残点走轴)"},
+                    "desc": "全耗奥义(元素湮灭) 充能消耗 -1 (-5 → -4，保留残点走轴)"},
     },
     "set_shi_zhi_ling_zhu": {  # 法师·隐藏线(时咒)
         "quality": "orange", "icon": "⏳", "name": "时之领主", "line": "法师·隐藏线(时咒)",
@@ -608,12 +609,13 @@ SETS = {
         "quality": "purple", "icon": "🏹", "name": "猎首远征队徽记", "line": "游侠·攻线",
         "bonus_2": {},
         "bonus_4": {"effect": "res_cost_reduce", "res": "energy", "value": 0.10, "on": "finisher_marked",
+                    "min_cost": 50,
                     "desc": "对带标记敌人释放 50/100 档终结技时 精力消耗 -10%"},
     },
     "set_sheng_dian_ri_mian": {  # 牧师·平稳/爆发流
         "quality": "purple", "icon": "🌞", "name": "圣典·日冕", "line": "牧师·平稳/爆发流",
-        "bonus_2": {"effect": "heal_team_on_miracle_t2plus", "hp": 30,
-                    "desc": "施放二档以上神迹时 全体队友额外恢复 30 体力"},
+        "bonus_2": {"effect": "heal_team_on_miracle_t2plus", "hp": 30, "miracle_min": 5,
+                    "desc": "施放耗 5 点以上信仰的神迹技时 全体队友额外恢复 30 体力"},
         "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1,
                     "desc": "满信仰状态下 首次受击免伤 (每战 1 次)"},
     },
@@ -621,7 +623,7 @@ SETS = {
         "quality": "purple", "icon": "🌙", "name": "暗夜圣典", "line": "牧师·暗影神谕(悼咏)",
         "bonus_2": {"effect": "res_gain", "res": "canticle", "value": 1, "on": "undead_on_field",
                     "desc": "场上亡灵≥1 时 悼咏积攒 +1"},
-        "bonus_4": {"effect": "elegy_dmg", "value": 0.20,
+        "bonus_4": {"effect": "elegy_dmg", "value": 0.20, "cond": "canticle_full",
                     "desc": "满档安魂曲/献祭暗焰 伤害 +20%"},
     },
     "set_sheng_hui_shi_yue": {  # 牧师·新手保底
@@ -638,6 +640,7 @@ SETS = {
         "bonus_4": {"effect": "finisher_crit", "crit": 0.15,
                     "desc": "终结技暴击率 +15%"},
         "bonus_5": {"effect": "combo_finisher_per_layer", "per_layer": 0.08, "base": 0.05,
+                    "max_layers": 8,
                     "desc": "攻线连段每层终结技增伤 5% → 8% (上限 +64%)"},
     },
     "set_xu_shi_yong_dong": {  # 拳师·通用
@@ -649,7 +652,7 @@ SETS = {
         "quality": "purple", "icon": "⛰️", "name": "势不可挡", "line": "拳师·通用",
         "bonus_2": {},
         "bonus_4": {"effect": "chi_skill_phys", "value": 0.15,
-                    "desc": "气力技/终结技 物理伤害 +15%"},
+                    "desc": "气力技(耗气) 物理伤害 +15%"},
     },
 }
 

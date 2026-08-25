@@ -439,10 +439,14 @@ SHOP_EQUIP = {
         "eq_xiang_mu_jie_zhi",
         "eq_xiang_mu_xiang_lian",
         # v130.2c：圣徽·誓约（牧师·新手保底，Lv.15-16 蓝装直售，无属性需求）
-        "eq_shi_yue_quan_zhang",
-        "eq_shi_yue_sheng_guan",
-        "eq_shi_yue_fa_yi",
-        "eq_shi_yue_sheng_xue",
+        # v130.2d R2：定价修复——推导价公式对低等级蓝装过贵（4 件合计 8451 金，背离新手曲线）。
+        # 条目支持 {"rid": ..., "price": ...} 覆盖价（economy._SHOP_EQUIP_PRICE_OVERRIDE 读取；
+        # 出售/显示同源，事件折扣仍生效）。目标：整套 ≤800 金（权杖 s1 任务免费，商店备售 150），
+        # 另 3 件 150-280/件（对齐参照：白鹿镇绿装 72-100 金档）。
+        {"rid": "eq_shi_yue_quan_zhang", "price": 150},
+        {"rid": "eq_shi_yue_sheng_guan", "price": 170},
+        {"rid": "eq_shi_yue_fa_yi", "price": 260},
+        {"rid": "eq_shi_yue_sheng_xue", "price": 190},
     ],
     "white_deer": [         # 白鹿城绿装 6 件
         "eq_bai_lu_pi_mao",

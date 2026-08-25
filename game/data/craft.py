@@ -1946,7 +1946,8 @@ CRAFT_RECIPES = {
     'rec_xun_lin_chang_pi_feng': {
         'slot': 'armor',
         'quality': 'purple', 'lv': 40,
-        "mats": {'mat_yue_lang_mao_pi': 4, 'mat_shi_lai_mu_nian_ye': 4},
+        # v130.2d R2：原 月狼毛皮(月光林 Lv.52)+史莱姆黏液(新手带) 倒挂 → 圣光结晶/圣殿铁块（Lv.28-33 带，同 古王剑/圣光猎弓）
+        "mats": {'mat_sheng_guang_jie_jing': 4, 'mat_sheng_dian_tie_kuai': 3},
         'gold': 340,
         'desc': '巡林长披风，沾过晨露与松针的林线巡守装',
         'name': '巡林长披风',
@@ -1956,7 +1957,8 @@ CRAFT_RECIPES = {
     'rec_xun_lin_chang_gong': {
         'slot': 'weapon',
         'quality': 'purple', 'weapon_type': 'bow', 'lv': 42,
-        "mats": {'mat_jing_ling_lu_jiao': 3, 'mat_shi_lai_mu_nian_ye': 4},
+        # v130.2d R2：原 精灵鹿角(翠谷 Lv.47)+史莱姆黏液 倒挂 → 圣光结晶/圣殿铁块（同 古王剑 Lv.42 配方）
+        "mats": {'mat_sheng_guang_jie_jing': 3, 'mat_sheng_dian_tie_kuai': 3},
         'gold': 356,
         'desc': '巡林长的猎弓，弦声清越如林鸟',
         'name': '巡林长弓',
@@ -2096,7 +2098,8 @@ CRAFT_RECIPES = {
     'rec_ying_sha_mian_jin': {
         'slot': 'helm',
         'quality': 'purple', 'lv': 50,
-        "mats": {'mat_shuang_ju_mo_xue': 4, 'mat_yue_lang_mao_pi': 3},
+        # v130.2d R2：原 霜巨魔血(霜语峡谷 Lv.72) 倒挂 → 精灵鹿角(翠谷 Lv.47)/月狼毛皮(月光林 Lv.52)（同 猎首皮帽 Lv.50）
+        "mats": {'mat_jing_ling_lu_jiao': 4, 'mat_yue_lang_mao_pi': 3},
         'gold': 420,
         'desc': '夜幕合契·影纱的面巾，蒙上便隐入夜风',
         'name': '影纱面巾',
@@ -2126,7 +2129,8 @@ CRAFT_RECIPES = {
     'rec_ying_sha_qing_xue': {
         'slot': 'boots',
         'quality': 'purple', 'lv': 50,
-        "mats": {'mat_shuang_ju_mo_xue': 4, 'mat_jing_ling_lu_jiao': 3},
+        # v130.2d R2：原 霜巨魔血(霜语峡谷 Lv.72) 倒挂 → 月狼毛皮/精灵鹿角（同 猎首长靴 Lv.50）
+        "mats": {'mat_yue_lang_mao_pi': 4, 'mat_jing_ling_lu_jiao': 3},
         'gold': 420,
         'desc': '夜幕合契·影纱的轻靴，落地无声',
         'name': '影纱轻靴',
@@ -2176,7 +2180,8 @@ CRAFT_RECIPES = {
     'rec_po_zhu_hu_tui': {
         'slot': 'legs',
         'quality': 'purple', 'lv': 52,
-        "mats": {'mat_sheng_dian_tie_kuai': 4, 'mat_jing_tie': 4},
+        # v130.2d R2：原 精铁(新手带) 低材高用 → 海妖鳞片（同 破竹武袍 Lv.54 曲线）
+        "mats": {'mat_sheng_dian_tie_kuai': 4, 'mat_hai_yao_lin_pian': 4},
         'gold': 436,
         'desc': '破竹拳路的护腿，绑腿打得结实',
         'name': '破竹护腿',
@@ -2186,15 +2191,14 @@ CRAFT_RECIPES = {
     'rec_po_zhu_bu_xue': {
         'slot': 'boots',
         'quality': 'purple', 'lv': 52,
-        "mats": {'mat_sheng_dian_tie_kuai': 4, 'mat_shi_lai_mu_nian_ye': 4},
+        # v130.2d R2：原 史莱姆黏液(新手带) 低材高用 → 海妖鳞片（同 破竹武袍 Lv.54 曲线）
+        "mats": {'mat_sheng_dian_tie_kuai': 4, 'mat_hai_yao_lin_pian': 4},
         'gold': 436,
         'desc': '破竹拳路的布靴，抓地稳当',
         'name': '破竹布靴',
-        'roster_id': 'eq_po_zhu_bu_xue',
         'blueprint': '破竹布靴图纸',
     },
 }
-
 CRAFT_RECIPE_ALIASES = {
     "rec_tie_jian": [
         "铁剑",

@@ -36,6 +36,14 @@ _te.register_timed("prof_wait", duration_sec=None, on_expire=None)
 # 最终价格比（属性倍率×价格系数）：白2.0 / 绿3.12 / 蓝4.80 / 紫7.20 / 橙11.0（橙≈白 5.5 倍）
 SHOP_EQUIP_PRICE_MULT = {"white": 2.0, "green": 2.4, "blue": 3.0, "purple": 4.0, "orange": 5.5}
 
+# v130.2d R2：SHOP_EQUIP 条目可选 dict 覆盖价 {"rid": ..., "price": ...}
+# （圣徽·誓约新手保底：推导价公式对低等级蓝装过贵；显示与购买同源取本表，事件折扣仍生效）
+_SHOP_EQUIP_PRICE_OVERRIDE = {}
+for _shop_list in C.SHOP_EQUIP.values():
+    for _entry in _shop_list:
+        if isinstance(_entry, dict) and _entry.get("rid") and _entry.get("price") is not None:
+            _SHOP_EQUIP_PRICE_OVERRIDE[_entry["rid"]] = int(_entry["price"])
+
 # v101.25e 材料类型 → 回收设施（鱼鱼拍板：不同设施收不同材料）
 _MAT_FACILITY = {
     "矿石": "smith", "木材": "smith", "兽材": "smith", "宝石": "smith",
@@ -3329,9 +3337,13 @@ class EconomyCmds(CommandBase):
         names = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
         return "需" + "、".join(f"{names.get(k, k)}{v}" for k, v in req.items())
 
-    def _shop_equip_price(self, slot: str, lv: int, quality: str, weapon_type: str | None = None) -> int:
+    def _shop_equip_price(self, slot: str, lv: int, quality: str, weapon_type: str | None = None,
+                              rid: str | None = None) -> int:
         """v101.25e 商店装备价：确定性基础推导价（含武器类型风味，不含随机词条）× 品质系数。
-        显示价与购买价同源，避免词条随机导致价格漂移。"""
+        显示价与购买价同源，避免词条随机导致价格漂移。
+        v130.2d R2：rid 命中 SHOP_EQUIP 覆盖价（{"rid":..,"price":..}）时直接返回覆盖价。"""
+        if rid and rid in _SHOP_EQUIP_PRICE_OVERRIDE:
+            return _SHOP_EQUIP_PRICE_OVERRIDE[rid]
         stats = C.equip_stats(slot, lv, quality)
         flavor = C.WEAPON_FLAVOR.get(weapon_type, {}) if slot == "weapon" else {}
         for fk, fv in flavor.items():
@@ -3350,8 +3362,10 @@ class EconomyCmds(CommandBase):
 
     def _shop_equip_roster(self, player: dict, equip_items: list) -> list:
         """v101.25e 商店装备列表 = 静态配置 ∪ 动态补档（玩家 lv±2 内 商店/锻造 源名册装备，最多 3 件）。
-        修 #298 商店装备等级断层：每个等级都有装备可买（Lv.30+ 防具走锻造/图纸/副本经济，不破坏专属掉落）。"""
-        base = list(equip_items)
+        修 #298 商店装备等级断层：每个等级都有装备可买（Lv.30+ 防具走锻造/图纸/副本经济，不破坏专属掉落）。
+        v130.2d R2：静态条目支持 {"rid":..,"price":..} 覆盖价 dict——此处统一归一为 rid 字符串，
+        覆盖价由 _SHOP_EQUIP_PRICE_OVERRIDE（模块级）读取，列表/购买逻辑无感。"""
+        base = [e["rid"] if isinstance(e, dict) else e for e in equip_items]
         exist = set(base)
         # v101.28m #440：排除 SHOP_WEAPONS 已上架的武器名册（圣光长剑重复上架事件——
         # 静态武器表与动态补档各加一次，同价 7998G 出现两行）
@@ -4153,7 +4167,7 @@ class EconomyCmds(CommandBase):
             for rid in equip_items:
                 r = C.EQUIP_ROSTER[rid]
                 q = C.QUALITY[r["quality"]]
-                entries.append((f"e:{rid}", f"{q['color']}{r['name']}{_owned(r['name'])}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'))} 金币"))
+                entries.append((f"e:{rid}", f"{q['color']}{r['name']}{_owned(r['name'])}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'), rid)} 金币"))
             weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
             for wname, wtype, wlv, wq in weapons:
                 q = C.QUALITY[wq]
@@ -4385,7 +4399,7 @@ class EconomyCmds(CommandBase):
                 rid = str(key)[2:]
                 r = C.EQUIP_ROSTER[rid]
                 q = C.QUALITY[r["quality"]]
-                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type")) * discount)
+                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type"), rid) * discount)
                 # v105 M09 P3-9：装备单件商品（数量参数不适用）
                 if qty > 1:
                     yield event.plain_result(f"『{r['name']}』是装备，只能单件购买！需要几件就再买几次～")
@@ -4496,7 +4510,7 @@ class EconomyCmds(CommandBase):
             r = C.EQUIP_ROSTER[rid]
             if item_name in r["name"]:
                 # v95.34：价格与显示/序号购买同源（v101.25e _shop_equip_price），修 #414 名称购买走旧公式低价漏洞
-                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type")) * discount)
+                price = int(self._shop_equip_price(r["slot"], r["lv"], r["quality"], r.get("weapon_type"), rid) * discount)
                 # v105 M09 P3-9：装备单件商品（数量参数不适用）
                 if qty > 1:
                     yield event.plain_result(f"『{r['name']}』是装备，只能单件购买！需要几件就再买几次～")

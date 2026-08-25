@@ -35,6 +35,10 @@ from data.plugins.dragonfall.game.commands.economy import _GATHER_COND_CHECKERS 
 from data.plugins.dragonfall.game.data.sets import SETS  # noqa: E402
 from data.plugins.dragonfall.game import engine as E  # noqa: E402
 
+# R3 audit 加固：battle.py 源码（反查 SET_EFFECT_CONSUMED / stat-trigger 词条消费点用；大文件只做包含检查）
+_PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BATTLE_SRC = open(os.path.join(_PLUGIN_DIR, "game", "battle.py"), encoding="utf-8").read()
+
 PASS = 0
 FAIL = 0
 
@@ -183,8 +187,11 @@ def section_affix():
     ref |= set(getattr(BT.Battle, "RES_AFFIX_GAIN", ()) or ())  # v130.2c battle.py 统一读取器接线
     ref |= set(getattr(BT.Battle, "RES_AFFIX_TURN_START", ()) or ())  # v130.2d battle.py 回合开始接线（疾风余韵）
     ref |= set(getattr(BT.Battle, "RES_AFFIX_ON_TAKEN", ()) or ())  # v130.2d battle.py 受击接线（连段护持）
-    delisted = set(getattr(DA, "AFFIX_DELISTED_V130_2C", []) or [])  # v130.2c 下架（机制未接线前不掉落）
-    trigger_ids = {aid for aid, d in data.items() if d.get("trigger") in ("on_hit", "on_taken", "turn_start")} - delisted
+    # v130.2d 六词条全部接线后下架集合已删除（affixes.py 注释确认）——死参数兜底空集删掉，
+    # 改为断言「集合不存在」，防止未来误复活死字段（若重挂 AFFIX_DELISTED_V130_2C 此处即红）
+    check("AFFIX_DELISTED_V130_2C 集合已删除（六词条重回掉落池）",
+          not hasattr(DA, "AFFIX_DELISTED_V130_2C"))
+    trigger_ids = {aid for aid, d in data.items() if d.get("trigger") in ("on_hit", "on_taken", "turn_start")}
     uncovered = trigger_ids - ref - {"starfall"}
     check("触发型词条（on_hit/on_taken/turn_start）全部有 handler", not uncovered,
           f"uncovered={sorted(uncovered)}")
@@ -217,6 +224,17 @@ def section_affix():
           f"missing={sorted(missing_effs)} all={sorted(all_effs)}")
     check("SET_EFFECT_CONSUMED 键全部在套装数据中存在", set_consumed <= all_effs,
           f"ghost={sorted(set_consumed - all_effs)}")
+    # R3 audit 加固：SET_EFFECT_CONSUMED 自证式漏洞——不能只信「注册表自身声明」，
+    # 反查 battle.py 源码：每个 effect 名出现 ≥1 次（真实消费点）；找不到消费点 → 红
+    for _eff in sorted(set_consumed):
+        _cnt = _BATTLE_SRC.count(f'"{_eff}"')
+        check(f"SET_EFFECT_CONSUMED『{_eff}』battle.py 源码含消费点(≥1)", _cnt >= 1, f"count={_cnt}")
+    # R3 audit 加固：六词条 4 个 stat-trigger 词条零保护补丁——battle.py 源码反查消费点
+    # （sigil_engrave/reaction_catalyst/combo_edge/momentum_mastery 是 trigger=stat，
+    #  不在上方触发型词条集合内；swift_tailwind/combo_ward 已由 RES_AFFIX_TURN_START/ON_TAKEN 覆盖）
+    for _aid in ("sigil_engrave", "reaction_catalyst", "combo_edge", "momentum_mastery"):
+        _cnt = _BATTLE_SRC.count(f'"{_aid}"')
+        check(f"stat-trigger 词条『{_aid}』battle.py 源码含消费点(≥1)", _cnt >= 1, f"count={_cnt}")
 
 
 # ================= 8. 药水 effect_data → POTION_EFFECTS =================
