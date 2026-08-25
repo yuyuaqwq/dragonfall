@@ -228,6 +228,64 @@ EQUIP_ROSTER = {
     "eq_song_mu_hu_fu": {"name": "松木护符", "slot": "necklace", "quality": "green", "lv": 30, "series": "松木", "source": "支线"},
     # s78 侦探线（义气线分支）→ 猫眼石胸针（影子猫之母遗物，速度+5%）
     "eq_mao_yan_shi_xiong_zhen": {"name": "猫眼石胸针", "slot": "necklace", "quality": "green", "lv": 35, "series": "猫眼", "source": "支线"},
+    # ================= v130.2c 资源联动套装（12 套 41 件，2026-08-25 全量落地） =================
+    # set 字段 = 套装中文名（对应 game/data/sets.py SETS.name），generate_roster_equip 优先读
+    # 名册 set 字段挂载（drops.py）；新系列不进 SERIES_SETS（避免误入旧套装体系/legs 约束）。
+    # 发放：紫/橙 source=图纸/boss → 有 CRAFT_RECIPES 配方 → 自动进 Boss 图纸池(5%)/宝箱/垂钓/事件；
+    # 蓝（圣徽·誓约）source=商店 → SHOP_EQUIP oak_town 直售 + s1 支线奖励。
+    # ---- 血誓战团（purple 2 件，战士·通用基础）----
+    "eq_xue_shi_zhan_jian": {"name": "血誓战剑", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 36, "series": "血誓", "req": {"str": 30}, "set": "血誓战团", "source": "图纸"},
+    "eq_xue_shi_zhan_jia": {"name": "血誓战甲", "slot": "armor", "quality": "purple", "lv": 35, "series": "血誓", "req": {"str": 28}, "set": "血誓战团", "source": "图纸"},
+    # ---- 余烬军团徽章（purple 4 件，战士·攻线）----
+    "eq_yu_jin_jun_tuan_jian": {"name": "余烬军团战剑", "slot": "weapon", "weapon_type": "sword", "quality": "purple", "lv": 55, "series": "余烬军团", "req": {"str": 52}, "set": "余烬军团徽章", "source": "图纸"},
+    "eq_yu_jin_jun_tuan_kui": {"name": "余烬军团战盔", "slot": "helm", "quality": "purple", "lv": 50, "series": "余烬军团", "req": {"str": 48}, "set": "余烬军团徽章", "source": "图纸"},
+    "eq_yu_jin_jun_tuan_jia": {"name": "余烬军团胸甲", "slot": "armor", "quality": "purple", "lv": 52, "series": "余烬军团", "req": {"str": 50}, "set": "余烬军团徽章", "source": "图纸"},
+    "eq_yu_jin_jun_tuan_xue": {"name": "余烬军团战靴", "slot": "boots", "quality": "purple", "lv": 50, "series": "余烬军团", "req": {"str": 46}, "set": "余烬军团徽章", "source": "图纸"},
+    # ---- 元素使徒（orange 4 件，法师·基础/转职通用，团本/世界 Boss）----
+    "eq_yuan_su_shi_tu_fa_zhang": {"name": "元素使徒法杖", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 88, "series": "元素使徒", "req": {"int": 85}, "legendary": "element_apostle_wand", "set": "元素使徒", "source": "boss"},
+    "eq_yuan_su_shi_tu_zhi_guan": {"name": "元素使徒之冠", "slot": "helm", "quality": "orange", "lv": 85, "series": "元素使徒", "req": {"int": 82}, "legendary": "element_apostle_crown", "set": "元素使徒", "source": "boss"},
+    "eq_yuan_su_shi_tu_chang_pao": {"name": "元素使徒长袍", "slot": "armor", "quality": "orange", "lv": 86, "series": "元素使徒", "req": {"int": 84}, "legendary": "element_apostle_robe", "set": "元素使徒", "source": "boss"},
+    "eq_yuan_su_shi_tu_zhui_shi": {"name": "元素使徒坠饰", "slot": "necklace", "quality": "orange", "lv": 90, "series": "元素使徒", "req": {"int": 88}, "legendary": "element_apostle_pendant", "set": "元素使徒", "source": "boss"},
+    # ---- 时之领主（orange 2 件，法师·隐藏线 时咒）----
+    "eq_shi_zhi_ling_zhu_mi_yi": {"name": "时之领主秘仪", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 92, "series": "时之领主", "req": {"int": 90}, "legendary": "time_lord_scepter", "set": "时之领主", "source": "boss"},
+    "eq_shi_zhi_ling_zhu_shi_jie": {"name": "时之领主时戒", "slot": "ring", "quality": "orange", "lv": 88, "series": "时之领主", "req": {"int": 84}, "legendary": "time_lord_ring", "set": "时之领主", "source": "boss"},
+    # ---- 巡林长披风（purple 2 件，游侠·散件配套）----
+    "eq_xun_lin_chang_pi_feng": {"name": "巡林长披风", "slot": "armor", "quality": "purple", "lv": 40, "series": "巡林长", "req": {"agi": 36}, "set": "巡林长披风", "source": "图纸"},
+    "eq_xun_lin_chang_gong": {"name": "巡林长弓", "slot": "weapon", "weapon_type": "bow", "quality": "purple", "lv": 42, "series": "巡林长", "req": {"agi": 40}, "set": "巡林长披风", "source": "图纸"},
+    # ---- 猎首远征队徽记（purple 4 件，游侠·攻线）----
+    "eq_lie_shou_chang_gong": {"name": "猎首长弓", "slot": "weapon", "weapon_type": "bow", "quality": "purple", "lv": 56, "series": "猎首远征队", "req": {"agi": 54}, "set": "猎首远征队徽记", "source": "图纸"},
+    "eq_lie_shou_pi_mao": {"name": "猎首皮帽", "slot": "helm", "quality": "purple", "lv": 50, "series": "猎首远征队", "req": {"agi": 48}, "set": "猎首远征队徽记", "source": "图纸"},
+    "eq_lie_shou_pi_jia": {"name": "猎首皮甲", "slot": "armor", "quality": "purple", "lv": 52, "series": "猎首远征队", "req": {"agi": 50}, "set": "猎首远征队徽记", "source": "图纸"},
+    "eq_lie_shou_chang_xue": {"name": "猎首长靴", "slot": "boots", "quality": "purple", "lv": 50, "series": "猎首远征队", "req": {"agi": 48}, "set": "猎首远征队徽记", "source": "图纸"},
+    # ---- 圣典·日冕（purple 4 件，牧师·平稳/爆发流）----
+    "eq_ri_mian_quan_zhang": {"name": "日冕权杖", "slot": "weapon", "weapon_type": "mace", "quality": "purple", "lv": 56, "series": "日冕", "req": {"int": 52}, "set": "圣典·日冕", "source": "图纸"},
+    "eq_ri_mian_sheng_guan": {"name": "日冕圣冠", "slot": "helm", "quality": "purple", "lv": 50, "series": "日冕", "req": {"int": 48}, "set": "圣典·日冕", "source": "图纸"},
+    "eq_ri_mian_fa_yi": {"name": "日冕法衣", "slot": "armor", "quality": "purple", "lv": 54, "series": "日冕", "req": {"int": 50}, "set": "圣典·日冕", "source": "图纸"},
+    "eq_ri_mian_sheng_xue": {"name": "日冕圣靴", "slot": "boots", "quality": "purple", "lv": 52, "series": "日冕", "req": {"int": 48}, "set": "圣典·日冕", "source": "图纸"},
+    # ---- 暗夜圣典（purple 4 件，牧师·暗影神谕 悼咏）----
+    "eq_ye_dao_quan_zhang": {"name": "夜祷权杖", "slot": "weapon", "weapon_type": "mace", "quality": "purple", "lv": 66, "series": "夜祷", "req": {"int": 62}, "set": "暗夜圣典", "source": "图纸"},
+    "eq_ye_dao_dou_mao": {"name": "夜祷兜帽", "slot": "helm", "quality": "purple", "lv": 62, "series": "夜祷", "req": {"int": 58}, "set": "暗夜圣典", "source": "图纸"},
+    "eq_ye_dao_fa_yi": {"name": "夜祷法衣", "slot": "armor", "quality": "purple", "lv": 64, "series": "夜祷", "req": {"int": 60}, "set": "暗夜圣典", "source": "图纸"},
+    "eq_ye_dao_zhi_jie": {"name": "夜祷之戒", "slot": "ring", "quality": "purple", "lv": 64, "series": "夜祷", "req": {"int": 58}, "set": "暗夜圣典", "source": "图纸"},
+    # ---- 圣徽·誓约（blue 4 件，牧师·新手保底；无属性需求——新手期不卡职业，v95 精神）----
+    "eq_shi_yue_quan_zhang": {"name": "誓约权杖", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 16, "series": "誓约", "set": "圣徽·誓约", "source": "商店"},
+    "eq_shi_yue_sheng_guan": {"name": "誓约圣冠", "slot": "helm", "quality": "blue", "lv": 15, "series": "誓约", "set": "圣徽·誓约", "source": "商店"},
+    "eq_shi_yue_fa_yi": {"name": "誓约法衣", "slot": "armor", "quality": "blue", "lv": 15, "series": "誓约", "set": "圣徽·誓约", "source": "商店"},
+    "eq_shi_yue_sheng_xue": {"name": "誓约圣靴", "slot": "boots", "quality": "blue", "lv": 16, "series": "誓约", "set": "圣徽·誓约", "source": "商店"},
+    # ---- 夜幕合契·影纱（purple 5 件，刺客·轻甲/武器 5 件套）----
+    "eq_ying_sha_zhi_ren": {"name": "影纱之刃", "slot": "weapon", "weapon_type": "dagger", "quality": "purple", "lv": 56, "series": "影纱", "req": {"agi": 54}, "set": "夜幕合契·影纱", "source": "图纸"},
+    "eq_ying_sha_mian_jin": {"name": "影纱面巾", "slot": "helm", "quality": "purple", "lv": 50, "series": "影纱", "req": {"agi": 48}, "set": "夜幕合契·影纱", "source": "图纸"},
+    "eq_ying_sha_pi_yi": {"name": "影纱皮衣", "slot": "armor", "quality": "purple", "lv": 52, "series": "影纱", "req": {"agi": 50}, "set": "夜幕合契·影纱", "source": "图纸"},
+    "eq_ying_sha_hu_tui": {"name": "影纱护腿", "slot": "legs", "quality": "purple", "lv": 52, "series": "影纱", "req": {"agi": 50}, "set": "夜幕合契·影纱", "source": "图纸"},
+    "eq_ying_sha_qing_xue": {"name": "影纱轻靴", "slot": "boots", "quality": "purple", "lv": 50, "series": "影纱", "req": {"agi": 48}, "set": "夜幕合契·影纱", "source": "图纸"},
+    # ---- 蓄势涌动（purple 2 件，拳师·通用）----
+    "eq_xu_shi_quan_tao": {"name": "蓄势拳套", "slot": "weapon", "weapon_type": "fist", "quality": "purple", "lv": 40, "series": "蓄势", "req": {"str": 38}, "set": "蓄势涌动", "source": "图纸"},
+    "eq_xu_shi_shu_dai": {"name": "蓄势束带", "slot": "helm", "quality": "purple", "lv": 38, "series": "蓄势", "req": {"str": 34}, "set": "蓄势涌动", "source": "图纸"},
+    # ---- 势不可挡（purple 4 件，拳师·通用）----
+    "eq_po_zhu_quan_tao": {"name": "破竹拳套", "slot": "weapon", "weapon_type": "fist", "quality": "purple", "lv": 56, "series": "破竹", "req": {"str": 54}, "set": "势不可挡", "source": "图纸"},
+    "eq_po_zhu_wu_pao": {"name": "破竹武袍", "slot": "armor", "quality": "purple", "lv": 54, "series": "破竹", "req": {"str": 50}, "set": "势不可挡", "source": "图纸"},
+    "eq_po_zhu_hu_tui": {"name": "破竹护腿", "slot": "legs", "quality": "purple", "lv": 52, "series": "破竹", "req": {"str": 48}, "set": "势不可挡", "source": "图纸"},
+    "eq_po_zhu_bu_xue": {"name": "破竹布靴", "slot": "boots", "quality": "purple", "lv": 52, "series": "破竹", "req": {"str": 46}, "set": "势不可挡", "source": "图纸"},
 }
 
 # 系列 → 系列名（套装主题名：10 章五节）
@@ -276,6 +334,19 @@ _EQ_SERIES_THEME = {
     # v124 支线奖励：H5 夜行 / H8 熔炉（图纸装备系列）
     "夜行": "夜色中淬炼的隐秘工艺，暗线几乎隐没在阴影里",
     "熔炉": "矮人先祖炉的熔铸，锤声里藏着大地的心跳",
+    # v130.2c 资源联动套装系列主题
+    "血誓": "血誓战团的制式装备，浸过誓言的温度",
+    "余烬军团": "余烬军团的行伍战具，带着烽火淬炼的余温",
+    "元素使徒": "元素使徒的仪式器物，流转着四系元气的辉光",
+    "时之领主": "时之领主的秘仪造物，指针般的纹路凝住片刻时光",
+    "巡林长": "巡林长巡守林线的装备，沾着晨露与松针的气息",
+    "猎首远征队": "猎首远征队的猎具，透着荒原上的果决",
+    "日冕": "圣典·日冕的圣器，纹着正午最盛的光纹",
+    "夜祷": "暗夜圣典的夜祷器具，蒙着月光与安魂的低语",
+    "誓约": "圣徽·誓约的誓言之器，新手牧师的第一份荣光",
+    "影纱": "夜幕合契·影纱的轻甲，薄如纱影、快如夜风",
+    "蓄势": "蓄势拳师的练功器物，拳风起处浪涌般的蓄力",
+    "破竹": "破竹拳路的武备，攻势如破竹、一气到底",
 }
 _EQ_SLOT_DESC = {
     "weapon": {

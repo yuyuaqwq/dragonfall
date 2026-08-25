@@ -307,14 +307,12 @@ AFFIXES = {
         "effect": {"max_sigil": 1, "cond": "element_mage"},
         "qualities": ["blue", "purple"], "line": "法师·攻线限定",
         "desc": "元素印记上限 +1 (每系 3 → 4，元素法师转职后生效)",
-        # v130.2c 暂下架：机制未接线
     },
     "reaction_catalyst": {
         "name": "反应催化", "kind": "attack", "trigger": "stat",
         "effect": {"reaction_dmg": 0.15, "cond": "element_mage"},
         "qualities": ["purple"], "line": "法师·攻线限定",
         "desc": "元素反应伤害 +15% (元素法师转职后生效)",
-        # v130.2c 暂下架：机制未接线
     },
     # ================= 游侠（精力 energy） =================
     "energy_blade": {
@@ -346,7 +344,6 @@ AFFIXES = {
         "effect": {"res": "energy", "regen": 10, "cond": "energy_ge_80"},
         "qualities": ["orange"], "line": "游侠·守线满弦兑现",
         "desc": "回合结束时，若精力 ≥ 80，下回合 精力回复 +10",
-        # v130.2c 暂下架：机制未接线
     },
     # ================= 牧师（信仰 faith） =================
     "holy_echo": {
@@ -398,14 +395,12 @@ AFFIXES = {
         "effect": {"combo_keep_chance": 0.15, "tiers": {"purple": 0.15, "orange": 0.30}, "cond": "攻线限定"},
         "qualities": ["purple", "orange"], "line": "刺客·攻线限定",
         "desc": "受击时 15% 概率连击不因受击回退 (史诗 30%；攻线限定)",
-        # v130.2c 暂下架：机制未接线
     },
     "combo_edge": {
         "name": "连段之锋", "kind": "attack", "trigger": "stat",
         "effect": {"combo_threshold_reduce": 1, "cond": "攻线限定"},
         "qualities": ["purple"], "line": "刺客·攻线限定",
         "desc": "连段生效阈值 -1 (combo ≥ 3 → ≥ 2；攻线限定)",
-        # v130.2c 暂下架：机制未接线
     },
     "rhythm_badge": {
         "name": "节奏之徽", "kind": "defense", "trigger": "stat",
@@ -449,20 +444,12 @@ AFFIXES = {
         "effect": {"momentum_per_chi": 0.04, "base": 0.03, "cond": "攻线蓄势"},
         "qualities": ["blue", "purple"], "line": "拳师·攻线专属",
         "desc": "攻线每 1 气提升的物理伤害 +3% → +4% (蓄势 Momentum 系数；苦修锁 4% 不上浮)",
-        # v130.2c 暂下架：机制未接线
     },
 }
 
-# ================= v130.2c 暂下架词条（机制未接线，仅从掉落池移除，定义/显示保留） =================
-# 已装备玩家面板不受影响；重新接线后从本集合移除 ID 即可恢复掉落。
-AFFIX_DELISTED_V130_2C = {
-    "sigil_engrave",       # 印记铭刻：元素印记上限机制未接线
-    "reaction_catalyst",   # 反应催化：元素反应伤害机制未接线
-    "swift_tailwind",      # 疾风余韵：回合结束满精力回能机制未接线
-    "combo_ward",          # 连段护持：受击连段保留机制未接线
-    "combo_edge",          # 连段之锋：连段阈值削减机制未接线
-    "momentum_mastery",    # 蓄势精通：蓄势系数上浮机制未接线（苦修锁 4%）
-}
+# ================= v130.2d 六词条机制恢复（印记铭刻/反应催化/疾风余韵/连段护持/连段之锋/蓄势精通） ================
+# 机制已在 battle.py 全部接线（v130.2d）；AFFIX_DELISTED_V130_2C 集合移除（剩 0 个），六词条重回掉落池，
+# 存量装备（此前已掉落/已装备）与新掉落装备一同按 battle.py 挂点自动生效。
 
 # 随机词条池按品质（20 章 4.2：蓝 → 攻击 7 + 防具 7；紫 → 攻击 17 + 防具 9；橙 → 全部）
 AFFIX_POOL_BY_QUALITY = {
@@ -476,6 +463,8 @@ AFFIX_POOL_BY_QUALITY = {
         "war_spirit", "ember_brand", "arcana_flux", "arcane_focus", "energy_blade",
         "holy_echo", "sigil_blessing", "pious_charm", "crit_return", "finisher",
         "combo_recover", "rock_rest", "opening_stance",
+        # v130.2d 机制恢复（印记铭刻/蓄势精通，蓝档）
+        "sigil_engrave", "momentum_mastery",
     ],
     "purple": [
         "bleed", "armor_break", "combo", "execute", "lifesteal", "crit_up", "crit_dmg",
@@ -495,8 +484,10 @@ AFFIX_POOL_BY_QUALITY = {
         "holy_echo", "divine_radiance", "sigil_blessing",
         "crit_return", "finisher", "rhythm_badge",
         "chi_limit", "burst_break",
+        # v130.2d 机制恢复（印记铭刻/反应催化/连段护持/连段之锋/蓄势精通，紫档）
+        "sigil_engrave", "reaction_catalyst", "combo_ward", "combo_edge", "momentum_mastery",
     ],
-    "orange": sorted(k for k in AFFIXES.keys() if k not in AFFIX_DELISTED_V130_2C),
+    "orange": sorted(AFFIXES.keys()),
 }
 
 # 词条类型（装备显示/随机池按部位过滤用）
@@ -635,6 +626,37 @@ LEGENDARY_EFFECTS = {
         "effect": {"crit": 0.06, "hp_pct": 0.08},
         "desc": "暴击率＋6%，最大生命＋8%",
     },
+    # ================= v130.2c 资源联动套装传说专属（6 件橙装，stat 型——并入/战斗消费均走既有通用路径） =================
+    "element_apostle_wand": {  # 元素使徒法杖：元素共鸣
+        "name": "元素共鸣", "kind": "attack", "trigger": "stat",
+        "effect": {"thunder_dmg": 0.15, "ice_dmg": 0.15},
+        "desc": "雷/冰属性伤害＋15%",
+    },
+    "element_apostle_crown": {  # 元素使徒之冠：使徒荣光
+        "name": "使徒荣光", "kind": "defense", "trigger": "stat",
+        "effect": {"hp_pct": 0.06},
+        "desc": "最大生命＋6%",
+    },
+    "element_apostle_robe": {  # 元素使徒长袍：使徒庇护
+        "name": "使徒庇护", "kind": "defense", "trigger": "stat",
+        "effect": {"dmg_reduce": 0.05},
+        "desc": "受击伤害－5%",
+    },
+    "element_apostle_pendant": {  # 元素使徒坠饰：使徒之印
+        "name": "使徒之印", "kind": "attack", "trigger": "stat",
+        "effect": {"crit_dmg": 0.20},
+        "desc": "暴击伤害＋20%",
+    },
+    "time_lord_scepter": {  # 时之领主秘仪：时之低语
+        "name": "时之低语", "kind": "attack", "trigger": "stat",
+        "effect": {"cdr": 0.08},
+        "desc": "冷却缩减＋8%",
+    },
+    "time_lord_ring": {  # 时之领主时戒：时光流转
+        "name": "时光流转", "kind": "attack", "trigger": "stat",
+        "effect": {"crit_dmg": 0.18},
+        "desc": "暴击伤害＋18%",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -749,6 +771,43 @@ SERIES_FIXED_AFFIX = {
     "灰烬战靴": ["tenacity", "block"],
     # v87 隐藏线：传说·星陨之剑
     "星陨之剑": ["crit_up", "element_thunder"],
+    # ================= v130.2c 资源联动套装固定词条（41 件，对齐同级名册风格） =================
+    # 血誓战团（战士·通用基础）
+    "血誓战剑": ["crit_up", "charge"], "血誓战甲": ["dmg_reduce", "block"],
+    # 余烬军团徽章（战士·攻线）
+    "余烬军团战剑": ["execute", "crit_up"], "余烬军团战盔": ["tenacity", "hp_up"],
+    "余烬军团胸甲": ["dmg_reduce", "thorns"], "余烬军团战靴": ["swift", "tenacity"],
+    # 元素使徒（法师·基础/转职通用）
+    "元素使徒法杖": ["element_fire", "element_ice", "meditate"],
+    "元素使徒之冠": ["meditate", "magic_ward", "tenacity"],
+    "元素使徒长袍": ["magic_ward", "dmg_reduce", "regen"],
+    "元素使徒坠饰": ["crit_up", "meditate", "element_thunder"],
+    # 时之领主（法师·隐藏线 时咒）
+    "时之领主秘仪": ["meditate", "cdr", "element_thunder"],
+    "时之领主时戒": ["crit_up", "cdr", "meditate"],
+    # 巡林长披风（游侠·散件配套）
+    "巡林长披风": ["dodge", "swift"], "巡林长弓": ["precise", "hunt"],
+    # 猎首远征队徽记（游侠·攻线）
+    "猎首长弓": ["hunt", "crit_up"], "猎首皮帽": ["precise", "swift"],
+    "猎首皮甲": ["dodge", "swift"], "猎首长靴": ["swift", "precise"],
+    # 圣典·日冕（牧师·平稳/爆发流）
+    "日冕权杖": ["holy_heart", "meditate"], "日冕圣冠": ["holy_echo", "tenacity"],
+    "日冕法衣": ["holy_echo", "magic_ward"], "日冕圣靴": ["swift", "meditate"],
+    # 暗夜圣典（牧师·暗影神谕 悼咏）
+    "夜祷权杖": ["purify", "meditate"], "夜祷兜帽": ["tenacity", "dodge"],
+    "夜祷法衣": ["magic_ward", "dodge"], "夜祷之戒": ["meditate", "tenacity"],
+    # 圣徽·誓约（牧师·新手保底）
+    "誓约权杖": ["holy_heart", "meditate"], "誓约圣冠": ["holy_echo", "tenacity"],
+    "誓约法衣": ["holy_echo", "magic_ward"], "誓约圣靴": ["swift", "meditate"],
+    # 夜幕合契·影纱（刺客·轻甲/武器 5 件套）
+    "影纱之刃": ["crit_up", "combo"], "影纱面巾": ["dodge", "swift"],
+    "影纱皮衣": ["dodge", "crit_up"], "影纱护腿": ["dodge", "combo"],
+    "影纱轻靴": ["swift", "crit_up"],
+    # 蓄势涌动（拳师·通用）
+    "蓄势拳套": ["charge", "crit_up"], "蓄势束带": ["tenacity", "hp_up"],
+    # 势不可挡（拳师·通用）
+    "破竹拳套": ["charge", "armor_break"], "破竹武袍": ["dmg_reduce", "block"],
+    "破竹护腿": ["tenacity", "dmg_reduce"], "破竹布靴": ["swift", "tenacity"],
 }
 
 # ================= v130.2 装备-资源联动：套装效果（职业线设计稿 §6.2 提案落地） =================

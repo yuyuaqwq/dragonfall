@@ -181,6 +181,8 @@ def section_affix():
     # 数据方向：on_hit/on_taken/turn_start 触发型词条必须被 handler 引用（starfall 由 battle.py 直连）
     ref = ref_aids(AF.HIT_EFFECTS) | ref_aids(AF.TAKEN_EFFECTS) | ref_aids(AF.TURN_START_EFFECTS)
     ref |= set(getattr(BT.Battle, "RES_AFFIX_GAIN", ()) or ())  # v130.2c battle.py 统一读取器接线
+    ref |= set(getattr(BT.Battle, "RES_AFFIX_TURN_START", ()) or ())  # v130.2d battle.py 回合开始接线（疾风余韵）
+    ref |= set(getattr(BT.Battle, "RES_AFFIX_ON_TAKEN", ()) or ())  # v130.2d battle.py 受击接线（连段护持）
     delisted = set(getattr(DA, "AFFIX_DELISTED_V130_2C", []) or [])  # v130.2c 下架（机制未接线前不掉落）
     trigger_ids = {aid for aid, d in data.items() if d.get("trigger") in ("on_hit", "on_taken", "turn_start")} - delisted
     uncovered = trigger_ids - ref - {"starfall"}
@@ -195,12 +197,26 @@ def section_affix():
     # 套装 4 件攻击特效：无 stats 字段的 bonus_4.effect 必须 ∈ SET_PROC_EFFECTS 或 battle.py 直连消费
     no_stats_eff = {b4["effect"] for s in SETS.values()
                     if (b4 := (s.get("bonus_4") or {})) and b4.get("effect") and not b4.get("stats")}
-    missing = no_stats_eff - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"}
+    set_consumed = set(getattr(BT.Battle, "SET_EFFECT_CONSUMED", ()) or ())  # v130.2c 套装 effect 战斗侧直连消费
+    missing = no_stats_eff - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"} - set_consumed
     check("套装 4 件无 stats 特效全部有消费（SET_PROC_EFFECTS/直连）", not missing,
           f"missing={sorted(missing)} effects={sorted(no_stats_eff)}")
     check("SET_PROC_EFFECTS 键 ⊆ 套装数据 effect 键",
           set(AF.SET_PROC_EFFECTS) <= no_stats_eff | {"reflect", "regen", "regen_strong"},
           f"reg={sorted(AF.SET_PROC_EFFECTS)} data={sorted(no_stats_eff)}")
+    # v130.2c 全档位（2/4/5 件）effect 型套装效果覆盖审计：全部 ∈ 战斗侧直连消费注册表
+    # （stats 型 effect——mdef_up_set/crit_up_set/dodge_set——由 compute_stats 属性面板消费，不在此列）
+    all_effs = set()
+    for _s in SETS.values():
+        for _tk in ("bonus_2", "bonus_4", "bonus_5"):
+            _b = _s.get(_tk) or {}
+            if isinstance(_b, dict) and _b.get("effect") and not _b.get("stats"):
+                all_effs.add(_b["effect"])
+    missing_effs = all_effs - set_consumed - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"}
+    check("12 套资源联动 effect 全部有战斗侧消费（SET_EFFECT_CONSUMED）", not missing_effs,
+          f"missing={sorted(missing_effs)} all={sorted(all_effs)}")
+    check("SET_EFFECT_CONSUMED 键全部在套装数据中存在", set_consumed <= all_effs,
+          f"ghost={sorted(set_consumed - all_effs)}")
 
 
 # ================= 8. 药水 effect_data → POTION_EFFECTS =================

@@ -572,7 +572,85 @@ SETS = {
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "铁砧拳套"
-    }
+    },
+    # ================= v130.2c 资源联动套装（12 套，效果定义原样并入 affixes.py V130_RESOURCE_SET_BONUSES，2026-08-25 全量落地） =================
+    # bonus_2 为 effect 型（非属性 dict）——引擎 set_bonus_2 按非 STAT 键静默跳过，
+    # 战斗侧消费由引擎 agent 按 desc/effect 接入（见主报告数据结构约定）。
+    "set_xue_shi_zhan_tuan": {  # 战士·通用基础（散件配套）
+        "quality": "purple", "icon": "⚔️", "name": "血誓战团", "line": "战士·通用基础",
+        "bonus_2": {"effect": "res_gain", "res": "rage", "value": 1, "on": "on_taken",
+                    "desc": "受击回怒 +1"},
+    },
+    "set_yu_jin_jun_tuan_hui_zhang": {  # 战士·攻线
+        "quality": "purple", "icon": "🔥", "name": "余烬军团徽章", "line": "战士·攻线",
+        "bonus_2": {},
+        "bonus_4": {"effect": "full_rage_pursuit", "power": 0.50, "rage_cost_reduce": 1,
+                    "desc": "满怒(沸血二段)时 普攻二段追击 威力 30% → 50%；满怒大招 怒气消耗 -1 (最低消耗 1)"},
+    },
+    "set_yuan_su_shi_tu": {  # 法师·基础/转职通用（传说套装，团本/世界 Boss 掉落）
+        "quality": "orange", "icon": "✨", "name": "元素使徒", "line": "法师·基础/转职通用",
+        "bonus_2": {"effect": "res_max", "res": "element", "value": 1,
+                    "desc": "元素亲和充能条 上限 +1 (5 → 6)"},
+        "bonus_4": {"effect": "ultimate_cost_reduce", "res": "element", "value": 1,
+                    "desc": "全耗奥义(元素风暴) 充能消耗 -1 (-5 → -4，保留残点走轴)"},
+    },
+    "set_shi_zhi_ling_zhu": {  # 法师·隐藏线(时咒)
+        "quality": "orange", "icon": "⏳", "name": "时之领主", "line": "法师·隐藏线(时咒)",
+        "bonus_2": {"effect": "cdr_set", "on": "time_freeze", "value": -1,
+                    "desc": "时停领域 冷却时间 -1"},
+    },
+    "set_xun_lin_zhang_pi_feng": {  # 游侠·散件配套
+        "quality": "purple", "icon": "🍃", "name": "巡林长披风", "line": "游侠·散件配套",
+        "bonus_2": {"effect": "crit_on_marked", "crit": 0.05,
+                    "desc": "命中带标记目标时 暴击率 +5%"},
+    },
+    "set_lie_shou_yuan_zheng_dui_hui_ji": {  # 游侠·攻线
+        "quality": "purple", "icon": "🏹", "name": "猎首远征队徽记", "line": "游侠·攻线",
+        "bonus_2": {},
+        "bonus_4": {"effect": "res_cost_reduce", "res": "energy", "value": 0.10, "on": "finisher_marked",
+                    "desc": "对带标记敌人释放 50/100 档终结技时 精力消耗 -10%"},
+    },
+    "set_sheng_dian_ri_mian": {  # 牧师·平稳/爆发流
+        "quality": "purple", "icon": "🌞", "name": "圣典·日冕", "line": "牧师·平稳/爆发流",
+        "bonus_2": {"effect": "heal_team_on_miracle_t2plus", "hp": 30,
+                    "desc": "施放二档以上神迹时 全体队友额外恢复 30 体力"},
+        "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1,
+                    "desc": "满信仰状态下 首次受击免伤 (每战 1 次)"},
+    },
+    "set_an_ye_sheng_dian": {  # 牧师·暗影神谕(悼咏)
+        "quality": "purple", "icon": "🌙", "name": "暗夜圣典", "line": "牧师·暗影神谕(悼咏)",
+        "bonus_2": {"effect": "res_gain", "res": "canticle", "value": 1, "on": "undead_on_field",
+                    "desc": "场上亡灵≥1 时 悼咏积攒 +1"},
+        "bonus_4": {"effect": "elegy_dmg", "value": 0.20,
+                    "desc": "满档安魂曲/献祭暗焰 伤害 +20%"},
+    },
+    "set_sheng_hui_shi_yue": {  # 牧师·新手保底
+        "quality": "blue", "icon": "🛡️", "name": "圣徽·誓约", "line": "牧师·新手保底",
+        "bonus_2": {"effect": "res_gain", "res": "faith", "value": 1, "on": "on_taken",
+                    "desc": "受击回信仰 +1"},
+        "bonus_4": {"effect": "res_gain", "res": "faith", "value": 1, "on": "on_heal",
+                    "desc": "治疗回信仰 +1"},
+    },
+    "set_ye_mu_he_qi_ying_sha": {  # 刺客·轻甲/武器 5 件套
+        "quality": "purple", "icon": "🗡️", "name": "夜幕合契·影纱", "line": "刺客·轻甲/武器 5 件套",
+        "bonus_2": {"effect": "battle_start_cp", "value": 1,
+                    "desc": "战斗开始时 +1 连击点"},
+        "bonus_4": {"effect": "finisher_crit", "crit": 0.15,
+                    "desc": "终结技暴击率 +15%"},
+        "bonus_5": {"effect": "combo_finisher_per_layer", "per_layer": 0.08, "base": 0.05,
+                    "desc": "攻线连段每层终结技增伤 5% → 8% (上限 +64%)"},
+    },
+    "set_xu_shi_yong_dong": {  # 拳师·通用
+        "quality": "purple", "icon": "🌊", "name": "蓄势涌动", "line": "拳师·通用",
+        "bonus_2": {"effect": "battle_start_res", "res": "chi", "value": 2,
+                    "desc": "进入战斗时 2 气 (开局即进连段中段)"},
+    },
+    "set_shi_bu_ke_dang": {  # 拳师·通用
+        "quality": "purple", "icon": "⛰️", "name": "势不可挡", "line": "拳师·通用",
+        "bonus_2": {},
+        "bonus_4": {"effect": "chi_skill_phys", "value": 0.15,
+                    "desc": "气力技/终结技 物理伤害 +15%"},
+    },
 }
 
 CLASS_SET_STAGES = [

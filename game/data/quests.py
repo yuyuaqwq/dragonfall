@@ -871,6 +871,8 @@ SIDE_QUESTS = [
         "objective": {"collect": "史莱姆黏液", "count": 5},
         "reward_exp": 150,
         "reward_gold": 60,
+        # v130.2c：新手保底套装「圣徽·誓约」任务奖励（誓约权杖，橡木镇第一个支线）
+        "reward_item": "eq:誓约权杖",
         "story": "玛莎：『史莱姆黏液做的果冻可好吃了，镇上孩子们都馋。帮我弄点来？』",
     },
     {

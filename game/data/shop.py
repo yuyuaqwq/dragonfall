@@ -431,13 +431,18 @@ SHOP_SMITH_MATERIALS = {
 
 # v93 铁匠类商店全套装备：key = 城镇地图 ID，值 = 装备名册 ID 列表（EQUIP_ROSTER）
 SHOP_EQUIP = {
-    "oak_town": [           # 橡木镇白装 6 件
+    "oak_town": [           # 橡木镇白装 6 件 + v130.2c 圣徽·誓约套（新手保底 4 件）
         "eq_pi_jia",
         "eq_jiu_pi_xue",
         "eq_xiang_mu_hu_tui",
         "eq_mao_pi_mao",
         "eq_xiang_mu_jie_zhi",
         "eq_xiang_mu_xiang_lian",
+        # v130.2c：圣徽·誓约（牧师·新手保底，Lv.15-16 蓝装直售，无属性需求）
+        "eq_shi_yue_quan_zhang",
+        "eq_shi_yue_sheng_guan",
+        "eq_shi_yue_fa_yi",
+        "eq_shi_yue_sheng_xue",
     ],
     "white_deer": [         # 白鹿城绿装 6 件
         "eq_bai_lu_pi_mao",

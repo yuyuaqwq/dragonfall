@@ -301,7 +301,10 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
         equip["legendary"] = r["legendary"]
     # 阶段八：名册装备挂系列套装（v104 修复 P1：白装成员同样挂 set——
     # 橡木套 15 件中 11 件白装此前无 set，新手凑不齐 2 件效果）
-    if r["series"] in SERIES_SETS:
+    # v130.2c：优先名册显式 set 字段（资源联动套装=套装全名，非系列映射）
+    if r.get("set"):
+        equip["set"] = r["set"]
+    elif r["series"] in SERIES_SETS:
         equip["set"] = SERIES_SETS[r["series"]]
     # v101.25g：名册装备描述（EQUIP_ROSTER 已注入 desc）
     if r.get("desc"):
