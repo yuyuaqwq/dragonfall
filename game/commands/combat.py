@@ -1160,12 +1160,13 @@ class CombatCmds(CommandBase):
         skills = self._player_skill_table(player)
         skill_items = list(skills.items())
         learned = player.get("learned_skills", [])
-        # 分支技能名 → 分支名标记
+        # 分支技能名 → 分支名标记（v130.2f.2：苦修档位展示名映射，分支 key 不动）
+        _BRANCH_DISPLAY = {"武僧": "淬势者", "大地武僧": "锻势行者"}
         branch_tags = {}
         for sname in skills:
             owner = E.branch_skill_owner(player["class_name"], sname)
             if owner:
-                branch_tags[sname] = owner[1]
+                branch_tags[sname] = _BRANCH_DISPLAY.get(owner[1], owner[1])
         page_items, pages, page = self._page_items(skill_items, page, per_page=5)
         lines = ["技能列表"]
         lines.append("━━━━━━━━━━━━")

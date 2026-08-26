@@ -3254,7 +3254,7 @@ SIDE_QUESTS = [
             {
         # v113：种族限制——矮人血脉方可接取（苦修传承=矮人）；导师驻铁砧要塞，试炼地在边境堡
         "id": "s_wu_sheng_trial",
-        "name": "苦修士试炼",
+        "name": "淬势者试炼",
         "giver": "npc_wusheng_monk",
         "map": "anvil_fort",
         "min_level": 40,

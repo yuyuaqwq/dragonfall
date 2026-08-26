@@ -2196,6 +2196,7 @@ CRAFT_RECIPES = {
         'gold': 436,
         'desc': '破竹拳路的布靴，抓地稳当',
         'name': '破竹布靴',
+        'roster_id': 'eq_po_zhu_bu_xue',
         'blueprint': '破竹布靴图纸',
     },
 }

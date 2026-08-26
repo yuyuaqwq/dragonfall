@@ -31,6 +31,14 @@ def _tutor_mentor(cls_id: str):
 # v112：核心资源 key → 中文名（skill 消耗展示用，数据源 CORE_RESOURCES，新增资源只改数据）
 _RES_CN = {rd["key"]: rd["name"] for rd in C.CORE_RESOURCES.values()}
 
+# v130.2f.2 苦修档位改名收尾（展示层）：evolve_branches 分支 key（与 skills.py BRANCH_SKILLS
+# 强耦合、绝不可动）→ 新档位展示名。仅苦修线：T1 武僧→淬势者、T2 大地武僧→锻势行者
+# （T3「撼岳者」key=展示名无需映射）；其他线分支 key 即展示名，不映射、不动。
+_BRANCH_KEY_DISPLAY = {
+    "武僧": "淬势者",
+    "大地武僧": "锻势行者",
+}
+
 
 class PlayerCmds(CommandBase):
 
@@ -409,7 +417,7 @@ class PlayerCmds(CommandBase):
                 f"　· 『传送』可前往各地路标\n"
                 f"━━━━━━━━━━━━\n"
                 f"⚔️ 见习冒险者无法学习职业技能，就职后解锁！\n"
-                f"　· 去广场找『行会接待员·小艾』就职职业（战士/法师/游侠/牧师/刺客/武僧）\n"
+                f"　· 去广场找『行会接待员·小艾』就职职业（战士/法师/游侠/牧师/刺客/拳师）\n"
                 f"　· 各城还藏着职业导师，可学进阶技能与转职\n"
                 f"━━━━━━━━━━━━\n"
                 f"冒险者，你的故事开始了！"
@@ -672,7 +680,8 @@ class PlayerCmds(CommandBase):
                 tagged = []
                 for i, b in enumerate(branch_list):
                     tag = "攻" if i == 0 else "守"
-                    tagged.append(f"{b}({tag})")
+                    # v130.2f.2 苦修改名收尾：分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
+                    tagged.append(f"{_BRANCH_KEY_DISPLAY.get(b, b)}({tag})")
                 evo_lines.append(f"Lv.{lv} → {' / '.join(tagged)}")
             yield event.plain_result(
                 f"{line} 的进化之路：\n"
@@ -685,7 +694,8 @@ class PlayerCmds(CommandBase):
         # 可以转职：v95.23 改为找职业导师 NPC 转职（不再直接指令转职）
         # v112 D4：导师表下沉 CLASSES[职业]["tutor"]
         tname, tloc = C.CLASSES.get(player["class_name"], {}).get("tutor", ("职业导师", "对应城市"))
-        branch_names = " / ".join(branches) if branches else "对应分支"
+        # v130.2f.2 苦修改名收尾：分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
+        branch_names = " / ".join(_BRANCH_KEY_DISPLAY.get(b, b) for b in branches) if branches else "对应分支"
         yield event.plain_result(
             f"🌟 {cls['icon']}{C.display('classes', player['class_name'])} 达到了 {need_lv} 级，可以转职！\n"
             f"━━━━━━━━━━━━\n"
@@ -708,7 +718,8 @@ class PlayerCmds(CommandBase):
             idx = max(0, int(evolve_path or 0) - 1)
             lst = branches[tier]
             if 0 <= idx < len(lst):
-                return lst[idx]
+                # v130.2f.2 苦修改名收尾：分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
+                return _BRANCH_KEY_DISPLAY.get(lst[idx], lst[idx])
         evolve = cls.get("evolve", [])
         if tier - 1 < len(evolve):
             return evolve[tier - 1].split("(")[0]
@@ -758,6 +769,9 @@ class PlayerCmds(CommandBase):
         # v112：按玩家当前流派显示下一阶（3 流派线 T2/T3 名称按流派对齐）
         _p = max(0, int(player.get("evolve_path", 1) or 1) - 1)
         nname = names[_p] if _p < len(names) else (names[0] if names else "下一阶")
+        # v130.2f.2 苦修改名收尾：下一阶展示名走 key→展示名映射（武僧→淬势者、大地武僧→锻势行者）；
+        # 『转职 <展示名>』命令由 aliases（淬势者/锻势行者）路由可达，展示与命令口径一致
+        nname = _BRANCH_KEY_DISPLAY.get(nname, nname)
         if player["level"] < need_lv:
             yield event.plain_result(
                 f"{cls['icon']} 传承之路：下一阶【{nname}】需要 Lv.{need_lv}，当前 Lv.{player['level']}。")
@@ -1260,7 +1274,8 @@ class PlayerCmds(CommandBase):
         ]
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
-            lines.append(f"专属：{owner[1]}(Lv.{C.EVOLVE_LEVELS[owner[0]]} 转职解锁)")
+            # v130.2f.2 苦修改名收尾：专属归属分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
+            lines.append(f"专属：{_BRANCH_KEY_DISPLAY.get(owner[1], owner[1])}(Lv.{C.EVOLVE_LEVELS[owner[0]]} 转职解锁)")
         if info.get("multi"):
             lines.append(f"连击：x{info['multi']}")
         if info.get("pierce"):
@@ -1341,6 +1356,8 @@ class PlayerCmds(CommandBase):
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
             need_tier, bname = owner
+            # v130.2f.2 苦修改名收尾：分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
+            bname = _BRANCH_KEY_DISPLAY.get(bname, bname)
             my_tier = player.get("class_tier", 0)
             my_path = player.get("evolve_path", 0)
             if my_tier < need_tier or not my_path:
@@ -1348,7 +1365,8 @@ class PlayerCmds(CommandBase):
             branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
             # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
             idx = max(0, int(my_path or 0) - 1)
-            my_branch = branches[idx] if idx < len(branches) else ""
+            # v130.2f.2 苦修改名收尾：当前流派分支 key → 展示名（与 bname 同口径比较）
+            my_branch = _BRANCH_KEY_DISPLAY.get(branches[idx], branches[idx]) if idx < len(branches) else ""
             if my_branch != bname:
                 return f"『{display_name}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"
         need_lv = info["lv"]

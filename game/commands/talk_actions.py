@@ -18,6 +18,9 @@ from .. import content as C  # noqa: F401
 from .. import db
 from .. import engine as E  # noqa: F401
 
+# v130.2f.2 苦修档位展示名映射（分支 key 不动，仅展示层；与 player.py _BRANCH_KEY_DISPLAY 同源）
+_BRANCH_DISPLAY = {"武僧": "淬势者", "大地武僧": "锻势行者"}
+
 ACTIONS = {}
 
 
@@ -320,14 +323,16 @@ def action_tutor_skill(world, group_id, qq_id, player, npc_id, action):
         need_tier, bname = owner
         my_tier = player.get("class_tier", 0)
         my_path = player.get("evolve_path", 0)
+        # v130.2f.2 苦修档位展示名映射（与 player.py _BRANCH_KEY_DISPLAY 同源；分支 key 不动）
+        _dn = _BRANCH_DISPLAY.get(bname, bname)
         if my_tier < need_tier or not my_path:
-            return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，需要先转职为 {bname} 才能学习！(Lv.30/60/90 可转职)"]
+            return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {_dn} 的专属技能，需要先转职为 {_dn} 才能学习！(Lv.30/60/90 可转职)"]
         branches = C.CLASSES[player["class_name"]].get("evolve_branches", {}).get(need_tier, [])
         # v112：多分支索引通用化（攻/守 path=1/2；隐藏流派 path=1/2/3）
         idx = max(0, int(my_path or 0) - 1)
         my_branch = branches[idx] if idx < len(branches) else ""
         if my_branch != bname:
-            return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {bname} 的专属技能，你走的是 {my_branch} 路线，学不了～"]
+                return [f"导师摇摇头：『{info.get('name', sk_id)}』是 {_dn} 的专属技能，你走的是 {_BRANCH_DISPLAY.get(my_branch, my_branch)} 路线，学不了～"]
     if (player.get("gold", 0) or 0) < cost:
         return [f"导师伸出三根手指：学费 {cost} 金币，少一个子儿都不行。(你现在有 {player.get('gold', 0)} 金币)"]
     learned = list(player.get("learned_skills", []))

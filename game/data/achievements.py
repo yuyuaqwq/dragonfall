@@ -245,8 +245,9 @@ ACHIEVEMENTS = [
      "desc": "解锁隐藏职业「暗影神谕」", "cond": {"type": "hidden_class", "key": "cls_hymn"}, "points": 2},
     {"id": "ach_shadow_blade_unlock", "cat": "隐藏", "name": "暮影行者", "title": "暮影行者",
      "desc": "解锁隐藏职业「暮影行者」", "cond": {"type": "hidden_class", "key": "cls_shadow_blade"}, "points": 2},
-    {"id": "ach_wu_sheng_unlock", "cat": "隐藏", "name": "苦修士", "title": "苦修士",
-     "desc": "解锁隐藏职业「苦修士」", "cond": {"type": "hidden_class", "key": "cls_wu_sheng"}, "points": 2},
+    {"id": "ach_wu_sheng_unlock", "cat": "隐藏", "name": "淬势者", "title": "淬势者",
+     # v130.2f.2 苦修改名收尾：成就名/称号/desc 随档位展示名（苦修士→淬势者）；cond 按 key 判定不受影响
+     "desc": "解锁隐藏职业「淬势者」", "cond": {"type": "hidden_class", "key": "cls_wu_sheng"}, "points": 2},
     # v113：补齐 5 条隐藏线的 90 级满级成就（暗影神谕 ach_shadow_master 不重复）
     {"id": "ach_dragon_master", "cat": "隐藏", "name": "龙魂战将", "title": "龙魂战将",
      "desc": "隐藏职业龙裔誓约达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_dragon_oath", "value": 90}, "points": 2},
@@ -257,7 +258,7 @@ ACHIEVEMENTS = [
     {"id": "ach_shadow_blade_master", "cat": "隐藏", "name": "暮影收割者", "title": "暮影收割者",
      "desc": "隐藏职业暮影行者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_shadow_blade", "value": 90}, "points": 2},
     {"id": "ach_wu_sheng_master", "cat": "隐藏", "name": "撼岳者", "title": "撼岳者",
-     "desc": "隐藏职业苦修士达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wu_sheng", "value": 90}, "points": 2},
+     "desc": "隐藏职业淬势者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wu_sheng", "value": 90}, "points": 2},
     {"id": "ach_shadow_master", "cat": "隐藏", "name": "黯灵主教", "title": "黯灵主教",
      "desc": "隐藏职业暗影神谕达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_hymn", "value": 90}, "points": 2},
 
