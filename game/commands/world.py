@@ -779,14 +779,16 @@ class WorldCmds(CommandBase):
                 lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
         return lines
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?位置(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?位置(?:\s*0)?(?:\s*|$)")
     @require_player()
     async def location_view(self, event: AstrMessageEvent):
-        """v128 位置精简面板：当前位置 + 可前往列表 + 赶路模式提示（0 切换）。
+        """v128.2 位置精简面板：当前位置 + 可前往列表 + 赶路入口提示。
 
         鱼鱼拍板：把『前往』指令拆成『位置』（精简）与『地图』（完整现状）。
-        『位置』砍掉设施/场景/NPC/怪物等，只留导航；面板末尾提示回复 0
-        进入赶路模式（再回复 0 结束），替代 v101.17 『前往开始/结束』。
+        『位置』砍掉设施/场景/NPC/怪物等，只留导航。
+        v128.2（鱼鱼拍板）：『位置 0』/发 0 进入赶路模式的旧捷径已移除——
+        『位置 0』/『位置0』仍命中本面板（正则捕获 0 后缀）但不再切换赶路，
+        面板统一提示用『赶路』指令进入（替代 v101.17 『前往开始/结束』）。
         """
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
@@ -807,11 +809,11 @@ class WorldCmds(CommandBase):
         cur_map = C.MAP_BY_ID[cur]
         cur_sa = player.get("cur_subarea") or ""
         lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id, show_here=False)
-        # v128 赶路模式开关提示（0 切换：进入/结束）
+        # v128.2 赶路模式提示：唯一入口=『赶路』指令（旧『位置 0』捷径已移除）
         if db.get_event_state(f"move_mode:{qq_id}"):
             lines.append("💡 赶路模式中：回复序号直接赶路，回复 0 结束")
         else:
-            lines.append("💡 回复 0 进入赶路模式（再回复 0 结束），然后回复序号即可赶路")
+            lines.append("💡 想赶路请发送『赶路』指令（可选『赶路 NPC/怪物/场景/设施』过滤）～")
         yield event.plain_result("\n".join(lines))
 
     _HURRY_ALIAS = {
@@ -2986,6 +2988,8 @@ class WorldCmds(CommandBase):
         v123a（鱼鱼拍板）：移除「序号直接找 NPC」——裸数字不再触发找 NPC 对话，
         NPC 列表序号仅作展示，交谈须『对话 <名字>』/『对话 <序号>』；
         对话树中的选项回复（_talk_active）保留。
+        v128.2（鱼鱼拍板）：『位置 0』/发 0 进入赶路模式的旧捷径已移除，
+        赶路入口统一为『赶路』指令（hurry_view 进入）；0 仅在赶路模式中用于结束。
         priority=100 高于 shortcut_trigger(默认0)：命中即 stop_event 拦截快捷指令；
         无状态可消费时 return（不 yield）→ 放行给快捷指令。
         v127.4：去掉 @require_player()——裸数字是对话树/移动/快捷等"已注册玩家专属"的
@@ -3035,13 +3039,9 @@ class WorldCmds(CommandBase):
                 yield r
             self._stop_event_safe(event)
             return
-        # v128 赶路模式开关：无其他状态可消费时回复 0 进入（替代 v101.17 『前往开始/结束』）
-        if num == "0":
-            db.set_event_state(f"move_mode:{qq_id}", "1")
-            yield event.plain_result(
-                "🚶 赶路模式已开启！直接回复序号即可赶路，回复 0 结束～")
-            self._stop_event_safe(event)
-            return
+        # v128.2：『位置 0』/发 0 进入赶路模式的旧捷径已移除——无状态可消费时
+        # 回复 0 一律放行（不再开启赶路模式）；进入赶路唯一入口=『赶路』指令
+        # （hurry_view）；0 仅在赶路模式中用于结束（见上）。
         # v123a：序号直接找 NPC 已移除——无对话/物品/移动状态时一律放行
         # （快捷指令由 shortcut_trigger 消费；未绑定则无响应）
         return

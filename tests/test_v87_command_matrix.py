@@ -153,6 +153,8 @@ REPRESENTATIVES = {
     "reset_attr": "洗点", "power": "战力", "skill_detail": "技能详情",
     "skill_learn": "技能学习", "skill_upgrade": "技能升级", "skill_bar_view": "技能栏",
     "skill_bar_set": "设置技能", "build_view": "流派", "delete_account": "注销",
+    # v130.2g 新功能：『职业』速查指令（代表输入）
+    "job_guide": "职业",
     # economy.py
     "gather": "采集", "mining": "挖掘", "alchemy": "炼金", "alchemy_craft": "合成",
     "cooking_list": "烹饪列表", "cooking": "烹饪", "profession_view": "副业",

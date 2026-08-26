@@ -15,6 +15,7 @@ from .game import db
 from .game.commands import (
     PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds,
     InstanceCmds, GmCmds, ExplorationCmds,  # v115 探索进度指令
+    JobGuideCmds,  # v130.2g 『职业』速查指令
 )
 
 
@@ -273,6 +274,7 @@ class Main(
     EconomyCmds,
     SocialCmds,
     MiscCmds,
+    JobGuideCmds,  # v130.2g 『职业』速查指令
     InstanceCmds,
     GmCmds,
     ExplorationCmds,  # v115 探索进度指令
