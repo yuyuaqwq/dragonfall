@@ -27,9 +27,10 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
     ELEMENT_MARKS_MAX, REACTION_TABLE, ELEMENT_MARK_GAIN_PER_HIT,
     ELEMENT_SAME_CAST_EXTRA_CHARGE, RAGE_GAIN_HP_SCALE, ENERGY_HIGH,
     COMBO_CFG, ASSASSIN_ON_CRIT_GAIN, ASSASSIN_ON_TAKE_HIT_PENALTY,
-    MOMENTUM_CFG, SHADOW_STEP_CFG, ECHO_CFG, BARD_BRANCHES,
-    BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
-)
+    MOMENTUM_CFG, ZEN_HOLD_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
+        ECHO_CFG, BARD_BRANCHES,
+        BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
+    )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
@@ -1093,6 +1094,18 @@ class Battle:
                 break
         return 1.0 + min(chi, cap) * per
 
+    # —— 苦修士·武僧：禅意持有加伤（每 1 禅意 物理伤害 +4%，满 +40%）——
+    def _zen_hold_mult(self, player: dict) -> float:
+        """禅意持有加伤倍率。仅苦修士武僧线（cls_wu_sheng evolve_path=1）吃到；消耗倾泻后自然回落。
+        与拳师蓄势 _momentum_mult 同型（读当前持有 zen，封顶 cap_zen；monk.md §5.2 承诺落地）。"""
+        cls = player.get("class_name", "")
+        if not (cls == "cls_wu_sheng" and self._is_path(player, 1)):
+            return 1.0
+        zen = int(self.resources.get("zen", 0) or 0)
+        cap = int(ZEN_HOLD_CFG.get("cap_zen", 10) or 10)
+        per = float(ZEN_HOLD_CFG.get("per_zen", 0.04) or 0.04)
+        return 1.0 + min(zen, cap) * per
+
     # —— 游侠守线·风行者：满弦状态（精力 ≥80 时 低耗/连射技能 暴击率 +10%）——
     def _energy_high_crit(self, player: dict, info: dict | None = None) -> bool:
         """满弦状态判定：守线·风行者（you_xia evolve_path=2）且精力 ≥80 且技能处于低耗/连射档。
@@ -2140,6 +2153,11 @@ class Battle:
         if mom_mult != 1.0:
             dmg = int(dmg * mom_mult)
             affix_tags = list(affix_tags) + [f"🔥蓄势x{round(mom_mult, 2)}"]
+        # v130.2f2 苦修禅意持有加伤（武僧线）：普攻为物理伤害，吃「每 1 禅意 +4%」持有加伤（与蓄势同型）
+        zen_mult = self._zen_hold_mult(player)
+        if zen_mult != 1.0:
+            dmg = int(dmg * zen_mult)
+            affix_tags = list(affix_tags) + [f"🧘禅意x{round(zen_mult, 2)}"]
         # v130.2 澎湃烈酒（phys_up，P0-5 消费端）：本场物理伤害 +pct%（p_eff 存 pct / p_buffs 存剩余回合）
         if self.p_buffs.get("phys_up"):
             _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
@@ -3006,8 +3024,12 @@ class Battle:
                 if _ps.get("stat") == "crit_mark" and random.random() < float(_ps.get("mult", 0.1)):
                     is_crit = True
         # v104 R3 P1-10：潜行状态（stealth）——下次攻击必暴，攻击后消耗
+        # v130.2f2：顺带记录本次攻击出手时处于潜行（供暮影潜行乘区 破影一击×1.5/幽影刃×1.25 消费，
+        #   判定与下方必暴共享同一字段 p_buffs["stealth"]：攻击时消费即视为潜行出手）
+        _stealth_hit = False
         if self.p_buffs.get("stealth"):
             is_crit = True
+            _stealth_hit = True
             del self.p_buffs["stealth"]
             logs.append("🌙 潜行生效！本次攻击必定暴击！")
         # v34 符文：装备效果（破甲/暴伤/破魔/攻击特效）
@@ -3020,6 +3042,11 @@ class Battle:
         # 机制：影袭（满血必暴）——查表 MECH_FULL_HP_CRIT（v125.2 B1）
         if mech in MECH_FULL_HP_CRIT and self.enemy.get("hp", 0) >= self.enemy.get("max_hp", 1):
             is_crit = True
+        # v130.2f2 暮影潜行乘区：潜行出手时 终结·破影一击 ×1.5 / 幽影刃 ×1.25（数据驱动
+        #   SHADOW_STEALTH_DMG_MULT，assassin.md §5.2；非潜行/非表内技能恒 1.0，不影响其他职业）
+        stealth_mult = 1.0
+        if _stealth_hit and skill_name in SHADOW_STEALTH_DMG_MULT:
+            stealth_mult = float(SHADOW_STEALTH_DMG_MULT[skill_name])
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
         lucky = is_crit and random.random() < 0.30
         # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
@@ -3165,6 +3192,14 @@ class Battle:
             self._mom_mult = _mom_mult
         else:
             self._mom_mult = 1.0
+        # v130.2f2 苦修禅意持有加伤（武僧线）：物理技能吃「每 1 禅意 +4%」持有加伤
+        # （与蓄势同型：读当前持有 zen 动态结算，monk.md §5.2 / core_resources.py 禅意 desc）
+        _zen_mult = self._zen_hold_mult(player)
+        if kind == "物理" and _zen_mult != 1.0:
+            passive_bonus *= _zen_mult
+            self._zen_mult = _zen_mult
+        else:
+            self._zen_mult = 1.0
         # v130.2 刺客攻线·影舞者：终结技（res_cost cp）连段增伤（combo≥3 每层 +5%，上限 +40%）
         _combo_mult = 1.0
         if self._combo_active(player) and (info.get("res_cost") or {}).get("cp"):
@@ -3188,6 +3223,8 @@ class Battle:
             affix_tags = list(affix_tags) + [f"🌪️连段x{round(self._combo_mult, 2)}"]
         if getattr(self, "_sk_af_mult", 1.0) > 1.0:
             affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
+        if getattr(self, "_zen_mult", 1.0) != 1.0:
+            affix_tags = list(affix_tags) + [f"🧘禅意x{round(getattr(self, '_zen_mult', 1.0), 2)}"]
         # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理技能伤害 +pct%
         # （幂等乘入 passive_bonus；buff_phys_next 一次性随即清，豁免回合递减；P0-2/P0-5 消费端）
         if kind == "物理" and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
@@ -3208,9 +3245,9 @@ class Battle:
         race_mult, race_tags = self._race_attack_mult(player)
         if race_tags:
             affix_tags = list(affix_tags) + race_tags
-        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stack_bonus * cond_mult
+        pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
                  * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult)
-        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×叠层×条件×魔法×被动×反应×词缀×元素×种族）
+        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族）
         # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
         if pmult > C.SKILL_PMULT_CAP:
             pmult = C.SKILL_PMULT_CAP
@@ -3318,6 +3355,8 @@ class Battle:
             tags.append("满血影袭必暴")
         if frozen_bonus > 1.0:
             tags.append("❄️碎冰增伤")
+        if stealth_mult > 1.0:
+            tags.append(f"🌙潜行x{round(stealth_mult, 2)}")
         if stack_bonus > 1.0:
             tags.append(f"⚡增幅x{round(stack_bonus, 2)}")
         if cond_mult > 1.0 and cond_label:

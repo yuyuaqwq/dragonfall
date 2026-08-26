@@ -32,7 +32,7 @@ async def main():
     HIDDEN = [
         ("cls_dragon_oath", "龙裔誓约"), ("cls_chronomancer", "时咒法师"),
         ("cls_wild_hunter", "星语者"), ("cls_hymn", "暗影神谕"),
-        ("cls_shadow_blade", "暮影行者"), ("cls_wu_sheng", "苦修士"),
+        ("cls_shadow_blade", "暮影行者"), ("cls_wu_sheng", "淬势者"),  # v130.2 改名：苦修士→淬势者（T2 锻势行者）
     ]
     print("— 注册与字段 —")
     check("隐藏线共 6 条", len([1 for c in C.CLASSES.values() if c.get("hidden")]) == 6)

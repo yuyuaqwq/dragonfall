@@ -502,7 +502,7 @@ def smoke_mech_stack_hidden():
     b._pre_cost_res = dict(b.resources)
     b._pre_cost_res["dragon_might"] = 10
     m = b._mech_stack_bonus("dragon_might", {}, {"res_cost": {"dragon_might": 10}})
-    check("龙脉终曲 满龙力10层 ×2.80", abs(m - 2.80) < 1e-9, f"{m}")
+    check("龙脉终曲 满龙力10层 ×2.00（v130.2f 每层 0.18→0.10 收敛）", abs(m - 2.00) < 1e-9, f"{m}")
     # 注意：cls_wu_sheng=苦修士（隐藏线，禅意 zen 专属；气爆/撼岳·终焉 均其技能），
     # 与拳师 cls_wu_seng 不同——此处类名非笔误，勿"修正"
     b, p = new_battle("cls_wu_sheng", 0, 0)
