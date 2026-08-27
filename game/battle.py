@@ -253,6 +253,7 @@ class Battle:
         self.resources: dict = {}          # v2.0 核心资源（怒气/元素亲和/精力/信仰/连击点/气），随战斗序列化
         self.cooldown: dict = {}           # v2.0 技能冷却（技能名 → 剩余回合数），随战斗序列化；回合结束递减
         self.combo_seq: list = []          # v2.0 拳师连招序列（拳/踢/掌 tag 记录，满 3 触发三连）
+        self.last_combo_tag: str | None = None  # v130.6 变招：上一招连招 tag（三连清空后仍记忆）
         self._last_element = None           # v130.2 法师攻线·元素：上次施放元素（同系连发判定）
         self._tailwind_prev_energy = None   # v130.2d 疾风余韵：上回合结束时精力快照（跨回合态，随战斗序列化）
         self.p_eff: dict = {}              # v130.2 物品效果持久数据（resource_amp / mana_cost_down / buff_phys_next / phys_up / battle_start 预充标记），随战斗序列化
@@ -437,6 +438,7 @@ class Battle:
             "eff_data": getattr(self, "p_eff", {}),
             "cooldown": self.cooldown,
             "combo_seq": self.combo_seq,
+            "last_combo_tag": self.last_combo_tag,
             "p_ct": self.p_ct,
             "player_hit": self._player_hit,
             "first_attack_done": self.first_attack_done,
@@ -488,6 +490,7 @@ class Battle:
         b.p_eff = st.get("eff_data", {}) or {}  # v130.2 物品效果持久数据
         b.cooldown = st.get("cooldown", {}) or {}
         b.combo_seq = st.get("combo_seq", []) or []
+        b.last_combo_tag = st.get("last_combo_tag") or None
         b.team_effects = []
         # v121 CTB：玩家 ct 读取（老存档兜底 0）；敌方单位 ct 兜底 -spd
         b.p_ct = float(st.get("p_ct", getattr(b, "p_ct", 0.0)) or 0.0)
@@ -1021,6 +1024,7 @@ class Battle:
         else:
             # 顺序不对：从该 tag 重新开始（如果 tag 是起手拳则开始新序列）
             self.combo_seq = [tag] if tag == self.COMBO_ORDER[0] else []
+        self.last_combo_tag = tag  # v130.6：无论推进/重置/触发都记忆上一招
         if len(self.combo_seq) == len(self.COMBO_ORDER):
             self.combo_seq = []
             return True
@@ -3255,6 +3259,18 @@ class Battle:
             if _combo_mult != 1.0:
                 passive_bonus *= _combo_mult
         self._combo_mult = _combo_mult
+        # v130.6 三连击破回馈实装（combo_ready 消费端，原只写不读的死标记）：
+        # 三连后下一次气力技（res_cost 耗气 / consume_all 耗气技能）伤害 +20%，
+        # 一次性消费；文案与连招三连 desc 统一为 +20%（钢拳「三连准备」设计意图）
+        if self.resources.get("combo_ready"):
+            _is_chi_skill = ("chi" in (info.get("res_cost") or {})) or \
+                ((info.get("consume_all") or {}).get("key") == "chi")
+            if _is_chi_skill:
+                passive_bonus *= 1.20
+                self.resources["combo_ready"] = 0
+                self._combo_ready_used = True
+            else:
+                self._combo_ready_used = False
         # v130.2c 伤害倍率词条：爆发贯体（气力技物理 +10%）/ 终结之技（终结技 +10%~20%，tier 取档）
         # v130.2c 套装伤害倍率：暗夜圣典 4 件（安魂曲/献祭暗焰 +20%）/ 势不可挡 4 件（气力技/终结技物理 +15%）
         _sk_af = self._affix_skill_dmg_mult(player, info, kind) * self._set_skill_dmg_mult(player, info, kind, skill_name)
@@ -3269,6 +3285,8 @@ class Battle:
             affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
         if self._combo_mult != 1.0:
             affix_tags = list(affix_tags) + [f"🌪️连段x{round(self._combo_mult, 2)}"]
+        if getattr(self, "_combo_ready_used", False):
+            affix_tags = list(affix_tags) + ["🥊三连余劲x1.20"]
         if getattr(self, "_sk_af_mult", 1.0) > 1.0:
             affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
         if getattr(self, "_zen_mult", 1.0) != 1.0:

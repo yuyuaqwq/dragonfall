@@ -186,6 +186,18 @@ def _c_player_untouched(battle, player, cond):
     return not getattr(battle, "_player_hit", False)
 
 
+# ================= 连招类条件（v130.6 变招引擎） =================
+@register("player_combo", label=lambda c: f"上一招·{c.get('last', '连招中')}")
+def _c_player_combo(battle, player, cond):
+    """连招上下文判定（v130.6 变招/派生通用条件）：
+    last=<tag>：上一招连招 tag 为指定值（拳/踢/掌；三连触发清空序列后仍记忆）
+    无参数：当前连招进行中（combo_seq 非空，如格斗术「连招期间」类判定）
+    """
+    last = cond.get("last")
+    if last:
+        return getattr(battle, "last_combo_tag", None) == last
+    return bool(getattr(battle, "combo_seq", None))
+
 # ================= 速度类条件 =================
 
 @register("player_first", label=lambda c: "先手行动")
