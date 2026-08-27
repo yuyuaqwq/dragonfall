@@ -315,7 +315,8 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
     """将地图怪物配置展开为完整怪物字典
     v58：应用 MONSTER_MODS 个体修正（同 role 同等级不同怪数值错开）
     v101.25c：lv_jitter>0 时普通怪等级 ±jitter 随机（同图同怪等级有波动，
-    鱼鱼抓"橡木平原写 1-3 级结果只有 1 级史莱姆"）——精英/Boss 不参与波动。"""
+    鱼鱼抓"橡木平原写 1-3 级结果只有 1 级史莱姆"）——精英/Boss 不参与波动。
+    v130.8 意见#32：野外普通怪波动增强为 ±2（±1 感知弱），保底 Lv.1 不变。"""
     mid, name, role, lv, skills, drops = monster_def
     # 等级波动（仅普通怪，保底 Lv.1）
     if lv_jitter > 0 and role not in ("elite", "boss"):

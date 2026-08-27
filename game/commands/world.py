@@ -1615,7 +1615,7 @@ class WorldCmds(CommandBase):
                 chance = 0.08
             if random.random() >= chance:
                 return None
-            return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
+            return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
         # v87.6 内容下沉子区域：优先取落点入口子区域的怪；入口无怪才找最近有怪子区域
         # （M22 P3：原逻辑取"首个有怪子区域"，入口无怪时会抽到深处高等级怪，玩家刚进图就被深处怪秒）
         _sas = target_map.get("subareas") or []
@@ -1646,9 +1646,9 @@ class WorldCmds(CommandBase):
             chance = 0.08
         if random.random() >= chance:
             return None
-        # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
-        # v101.25i3：曾试 ±2 被鱼鱼否（"加减2太多了"）→ 保持 ±1
-        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
+        # v101.25c 移动撞怪也带等级波动（普通怪 ±2，精英/Boss 固定）
+        # v130.8 意见#32：±1 感知弱 → 增强为 ±2（v101.25i3 曾试 ±2 被否，意见复批通过）
+        return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")

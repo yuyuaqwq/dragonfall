@@ -732,6 +732,10 @@ class InstanceCmds(CommandBase):
                 for m in inst.get("materials", [])
             )
             lines.append(f"   👹 Boss：{inst['boss'][1]}(Lv.{inst['boss'][3]})· 掉落：{mats}")
+            # v130.8 意见#31：钥匙需求引导——Boss 行下列出所需钥匙与获取途径
+            ki = inst.get("key_item")
+            if ki:
+                lines.append(f"   🔑 需『{ki}』：{inst.get('key_source', '？？？')}")
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("instance"))
         lines.append("💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！")
