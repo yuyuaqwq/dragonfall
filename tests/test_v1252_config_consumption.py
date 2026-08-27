@@ -47,8 +47,8 @@ def make_player(qq, lv=10, cur_map="oak_town", cur_subarea="oak_town_4", gold=10
 async def section_inn(m):
     print("【1. econ_config 住宿费（lv10=50 / lv100=1000）】")
     ec = C.ECON_CONFIG
-    check("ECON_CONFIG 键数与审计一致（15 键）", len(ec) == 15,
-          f"keys={sorted(ec)}（任务清单写 17 键，实际 15 键——以代码为准）")
+    check("ECON_CONFIG 键数与审计一致（16 键）", len(ec) == 16,
+          f"keys={sorted(ec)}（v131 新增 inn_cost_high_mult 解耦住宿曲线，任务清单写 17 键，实际 16 键——以代码为准）")
     # Lv.10：新手档 max(30, 10×5)=50
     qq = "c_inn10"
     make_player(qq, lv=10)

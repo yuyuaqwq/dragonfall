@@ -4390,7 +4390,9 @@ class WorldCmds(CommandBase):
             )
             return
         # v101.25i4 住宿费：Lv.≤15 保持 max(30, lv×5)（新手友好不动）；
-        # Lv.16+ 跟随怪物金币曲线(hp_stage_mult^0.5) 并向下取整到百（鱼鱼拍板：凑整，Lv.100=1000金）
+        # Lv.16+ 纯等级线性 每级 5×2=10 金 并向下取整到百（鱼鱼拍板：凑整，Lv.100=1000金）
+        # v131：解耦 hp_stage_mult——怪物曲线放缓后住宿跟随掉到 900，违反拍板 1000；
+        #       费用按等级不按百分比（鱼鱼铁律），金币产出侧已由 monster_gold ×1.3 补偿。
         # v125.1：数值下沉 econ_config.ECON_CONFIG
         _ec = C.ECON_CONFIG
         lv = player.get("level") or 1
@@ -4398,7 +4400,7 @@ class WorldCmds(CommandBase):
             cost = max(_ec["inn_cost_min_low"], lv * _ec["inn_cost_per_lv"])
         else:
             cost = max(_ec["inn_cost_min_high"],
-                       int(lv * _ec["inn_cost_per_lv"] * hp_stage_mult(lv) ** 0.5)
+                       int(lv * _ec["inn_cost_per_lv"] * _ec["inn_cost_high_mult"])
                        // _ec["inn_cost_round"] * _ec["inn_cost_round"])
         if player["gold"] < cost:
             yield event.plain_result(f"住宿需要 {cost} 金币，你只有 {player['gold']} 金币。先去『探索』赚点钱吧～")

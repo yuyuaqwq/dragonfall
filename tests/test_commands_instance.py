@@ -217,9 +217,10 @@ async def main():
     check("深入第 3 层 Boss", "古王·奥德里克" in out, out[:200])
     # v87.2 地图化：Boss 房探索触发 Boss 战
     await enter_combat(m, "g1", "i1")
-    # Boss 血量缩放验证（2 人队 hp_mult=2.5）
-    base = C.build_monster(C.INSTANCES["inst_old_king_tomb"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
-    expect = int(base * 2.5)
+    # Boss 血量缩放验证（2 人队：inst.hp_mult + 0.65×(2-min)）——v131 动态公式（area=instance 豁免野外分档）
+    _inst = C.INSTANCES["inst_old_king_tomb"]
+    base = C.build_monster(_inst["boss"], {"id": "x", "name": "x", "area": "instance"})["max_hp"]
+    expect = int(base * (_inst["hp_mult"] + 0.65 * (2 - _inst.get("min_players", 1))))
     stboss = db.get_battle("g1", "i1")["state"]
     check("Boss 血量 2.5 倍", abs(stboss["boss"]["max_hp"] - expect) <= 1, f"{stboss['boss']['max_hp']} vs {expect}")
     # 击杀 Boss → 通关
@@ -466,8 +467,9 @@ async def main():
     await enter_combat(m, "g1", "i1")
     stg3 = db.get_battle("g1", "i1")["state"]
     check("单人第 3 层 Boss", "哥布林酋长" in stg3["boss"]["name"], f"enemy={stg3['boss']['name']}")
-    base_g = C.build_monster(C.INSTANCES["inst_goblin_camp"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
-    expect_g = int(base_g * 1.6)  # min_players=1 → hp_mult 不缩放
+    _inst = C.INSTANCES["inst_goblin_camp"]
+    base_g = C.build_monster(_inst["boss"], {"id": "x", "name": "x", "area": "instance"})["max_hp"]
+    expect_g = int(base_g * (_inst["hp_mult"] + 0.65 * (1 - _inst.get("min_players", 1))))  # 单人
     check("单人 Boss 血量 = 1.6 倍", abs(stg3["boss"]["max_hp"] - expect_g) <= 1, f"{stg3['boss']['max_hp']} vs {expect_g}")
     # 单人副本直接通关（v2：Boss rank2 + 2 爪牙 rank1——先清爪牙，Boss 前移后才可及，需多次攻击）
     for _ in range(12):
@@ -564,8 +566,9 @@ async def main():
     # v87.2 地图化：Boss 房探索触发 Boss 战
     await enter_combat(m, "g1", "i1")
     stm3 = db.get_battle("g1", "i1")["state"]
-    base_m = C.build_monster(C.INSTANCES["inst_deep_dragon_palace"]["boss"], {"id": "x", "name": "x", "area": "x"})["max_hp"]
-    expect_m = int(base_m * 2.7)  # min_players=4 → 4 人不缩放
+    _inst = C.INSTANCES["inst_deep_dragon_palace"]
+    base_m = C.build_monster(_inst["boss"], {"id": "x", "name": "x", "area": "instance"})["max_hp"]
+    expect_m = int(base_m * (_inst["hp_mult"] + 0.65 * (4 - _inst.get("min_players", 1))))  # 4 人
     check("4 人 Boss 血量 = 2.7 倍", abs(stm3["boss"]["max_hp"] - expect_m) <= 1, f"{stm3['boss']['max_hp']} vs {expect_m}")
     # 清理深海龙宫战斗（否则 instance_cmd 直接显示状态，走不到人数校验）
     for q in ("i1", "i2", "i3", "i4"):

@@ -46,15 +46,16 @@ def check(name, cond, detail=""):
 
 
 def main():
-    print("【1/6 legacy 对照：旧残疾模型轮数 ≈ 升级前 118（哥布林营地）】")
+    print("【1/6 legacy 对照：旧残疾模型（v131 怪物数据下）轮数锚点】")
     rows = team_matrix(loadout="legacy")
     by_id = {r["iid"]: r for r in rows}
     gob = by_id.get("inst_goblin_camp", {}).get("rounds")
-    check("哥布林营地 legacy 轮数在 115~121（旧工具 118 ±3%）",
-          115 <= gob <= 121, f"rounds={gob}")
+    # v131 怪物变强（HP×2、boss×2.5）后旧模型打怪轮数按比例放大；锚点随怪数据同步重标定
+    check("哥布林营地 legacy 轮数 2545~2704（v131 新怪数据，2026-08-27 重标定）",
+          2545 <= gob <= 2704, f"rounds={gob}")
     old_king = by_id.get("inst_old_king_tomb", {}).get("rounds")
-    check("老王之墓 legacy 轮数在 272~288（旧工具 280 ±3%）",
-          272 <= old_king <= 288, f"rounds={old_king}")
+    check("老王之墓 legacy 轮数 1338~1422（同上）",
+          1338 <= old_king <= 1422, f"rounds={old_king}")
 
     print("【2/6 真实模型 vs 真实引擎：per_action_dmg vs BT.Battle 每行动实测（20 seeds）】")
     m = NS.monster_of("dps", 11)

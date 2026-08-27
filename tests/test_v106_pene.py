@@ -170,7 +170,8 @@ async def main():
     check("Boss Lv.30 def ×1.25 重甲", ms_boss["def"] == int(120 * 1.25), f"{ms_boss['def']} vs {int(120*1.25)}")
     check("Boss Lv.30 mdef ×1.25", ms_boss["mdef"] == int(int(10 + 3.4 * 29) * 1.25), str(ms_boss["mdef"]))
     ms_elite = monster_stats(30, "elite")
-    check("精英 def ×1.15", ms_elite["def"] == int(int(8 + 2.8 * 29) * 1.15), str(ms_elite["def"]))
+    # v131 精英 def 成长 2.8→5.5（elite 模板）；boss def 3.8 未动
+    check("精英 def ×1.15", ms_elite["def"] == int(int(8 + 5.5 * 29) * 1.15), str(ms_elite["def"]))
     ms_dps = monster_stats(30, "dps")
     check("dps 物穿 5%（保留小数）", abs(ms_dps.get("pene_phys", 0) - 0.05) < 1e-6, str(ms_dps.get("pene_phys")))
     ms_cast = monster_stats(30, "caster")
@@ -178,7 +179,8 @@ async def main():
     ms_el2 = monster_stats(30, "elite")
     check("精英 双穿 3%", abs(ms_el2.get("pene_phys", 0) - 0.03) < 1e-6 and abs(ms_el2.get("pene_magi", 0) - 0.03) < 1e-6)
     # 普通怪不吃重甲加成
-    check("dps 不吃重甲（def 无 1.25）", ms_dps["def"] == int(4 + 2.0 * 29), str(ms_dps["def"]))
+    # v131 dps 防御成长 2.0→5.0；普通怪不吃重甲（无 1.25）
+    check("dps 不吃重甲（def 无 1.25）", ms_dps["def"] == int(4 + 5.0 * 29), str(ms_dps["def"]))
 
     # ============ 7. 韧性 ============
     print("【7. 韧性】")

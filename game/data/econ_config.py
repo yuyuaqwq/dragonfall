@@ -12,6 +12,9 @@ ECON_CONFIG = {
     "inn_cost_per_lv": 5,        # 每级 5 金
     "inn_cost_min_high": 100,    # Lv.16+ 档最低：max(100, ...)
     "inn_cost_round": 100,       # Lv.16+ 向下取整到百（Lv.100=1000 金）
+    "inn_cost_high_mult": 2.0,   # v131 高档系数：lv×5×2 = 每级 10 金（Lv.100=1000）
+                                 #   —— 解耦 hp_stage_mult（怪物曲线放缓后住宿跟随掉到 900，
+                                 #      违反鱼鱼拍板凑整 1000 金；费用按等级不按百分比）
     # ---- 传送（world.py portal_view/portal_travel，v39 坐骑折扣后保底）----
     "portal_min_cost": 1,        # 传送费折扣后最低 1 金
     # ---- 市场/摆摊定价（social.py market_sell/stall，v104R3 P2）----

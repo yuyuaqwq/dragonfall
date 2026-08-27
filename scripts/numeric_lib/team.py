@@ -95,28 +95,35 @@ def team_matrix(instances: list[str] | None = None,
         dmg = per_player_dmg_fn("cls_zhan_shi", lv, gear, bdef, m.get("mdef", 0))
         tb = 1.0 if loadout == "legacy" else TEAM_BUFF   # 旧模型无团队buff概念，对照必须 1.0
         rounds = team_rounds(dmg, n_eff, hp_tot, team_buff=tb)
-        # v131 承伤侧：战士满乘区面板 vs Boss 单发期望（攻强乘区取 enraged ×1.35 保守；
-        # 多人生存分摊：承伤回合按"全队累计HP / 单发"（Boss 每轮打一人，近似全队池）
+        # v131 长盘承伤（含奶续航）：4 人队默认 1 奶（牧师治愈 200% × 50% 轮次占用 ≈ matk/轮）；
+        # 净承伤 = hit - heal（下限 hit×20%，奶不足时不能完全抵消）；单刷 n=1 无奶 = 硬抗。
         st_w = build_player("cls_zhan_shi", lv, gear, PlayerOptions(), potion=0.0)
         boss_dmg = _boss_hit(boss_def, m, st_w.get("def", 0), st_w.get("mdef", 0))
-        pool = st_w.get("max_hp", 1000) * n_eff * (1.0 if loadout == "legacy" else 1.0)
-        survive = pool / max(boss_dmg, 1) if n_eff >= 1 else 0
+        pool = st_w.get("max_hp", 1000) * n_eff
+        if n_eff >= 2 and loadout != "legacy":
+            # 含奶：heal = 牧师 matk×200%×50% 轮次（治愈术 200% 治疗；保守按自职业 matk 的 0.5× 折算）
+            st_healer = build_player("cls_mu_shi", lv, gear, PlayerOptions(), potion=0.0)
+            heal = st_healer.get("matk", 0) * 2.0 * 0.5
+            net = max(boss_dmg - heal, boss_dmg * 0.2)
+        else:
+            net = boss_dmg
+        survive = pool / max(net, 1) if n_eff >= 1 else 0
         if loadout == "legacy":
             flag = "🔴" if rounds > 80 else "🟡" if rounds > 40 else "✅"
         else:
-            # v131 副本 Boss 策略长盘标准（鱼鱼 2026-08-27 拍板：副本 Boss 应保底大几十轮、拼策略）
-            #   ✅ 40~80 轮（机制/阶段/资源规划有演出空间）
-            #   🟡 20~40（略快）或 80~100（略拖）
-            #   ⚠️ <20（过速：机制没机会演出 = 秒杀）
-            #   🔴 >100（拖死）或 承伤不足（先死）
+            # v131 副本 Boss 策略长盘标准（鱼鱼 2026-08-27 拍板：保底大几十轮、拼策略；实测目标 100~150 轮）
+            #   ✅ 100~150 轮（阶段/召唤/狂暴/治疗续航有演出空间）
+            #   🟡 80~100（略快）或 150~180（略拖）
+            #   ⚠️ <80（过速：机制没机会演出 = 秒杀）
+            #   🔴 >180（拖死）或 承伤不足（先死）
             flag = "✅"
             if survive < rounds * 0.9:
                 flag = "🔴"        # 先死 = 打不过
-            elif rounds > 100:
+            elif rounds > 180:
                 flag = "🔴"
-            elif rounds < 20:
+            elif rounds < 80:
                 flag = "⚠️"       # 过速（Boss 机制无演出空间）
-            elif rounds < 40 or rounds > 80:
+            elif rounds < 100 or rounds > 150:
                 flag = "🟡"       # 偏快或偏慢
         out.append({
             "iid": iid, "lv": lv, "boss_lv": m.get("lv", 0), "boss_hp": hp_tot,

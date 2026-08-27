@@ -18,17 +18,30 @@ MONSTER_ROLE_BASE = {
     "boss":       {"hp": 160, "atk": 16, "def": 10, "matk": 12, "mdef": 10, "spd": 10, "dodge": 0.03},
 }
 MONSTER_ROLE_GROWTH = {
-    "tank":       {"hp": 20,  "atk": 2.5, "def": 1.6, "matk": 0.8, "mdef": 1.4, "spd": 0.3, "dodge": 0.0},
-    "dps":        {"hp": 15,  "atk": 3.5, "def": 2.0, "matk": 1.0, "mdef": 1.2, "spd": 1.0, "dodge": 0.0},
-    "caster":     {"hp": 11,  "atk": 1.2, "def": 1.0, "matk": 3.5, "mdef": 2.2, "spd": 0.9, "dodge": 0.0},
-    "speedster":  {"hp": 10,  "atk": 2.6, "def": 1.0, "matk": 1.0, "mdef": 1.0, "spd": 1.8, "dodge": 0.0},
-    "healer":     {"hp": 10,  "atk": 1.0, "def": 1.0, "matk": 3.0, "mdef": 1.8, "spd": 0.8, "dodge": 0.0},
+    # v131 数值重设计（2026-08-27 鱼鱼拍板）：怪 HP×2 / 防御×2~4.5 / 攻击×1.4，
+    # 攻防比收敛 r≈1.6~2.0（防御重新有意义），跨5级裸装全胜→必败；boss 血量×2.5（副本长盘化）。
+    "tank":       {"hp": 36,  "atk": 3.5, "def": 4.0, "matk": 0.8, "mdef": 2.8, "spd": 0.3, "dodge": 0.0},
+    "dps":        {"hp": 30,  "atk": 5.0, "def": 5.0, "matk": 1.0, "mdef": 2.4, "spd": 1.0, "dodge": 0.0},
+    "caster":     {"hp": 22,  "atk": 1.8, "def": 3.5, "matk": 5.0, "mdef": 4.0, "spd": 0.9, "dodge": 0.0},
+    "speedster":  {"hp": 22,  "atk": 3.5, "def": 4.5, "matk": 1.0, "mdef": 2.0, "spd": 1.8, "dodge": 0.0},
+    "healer":     {"hp": 20,  "atk": 1.5, "def": 3.0, "matk": 4.0, "mdef": 3.0, "spd": 0.8, "dodge": 0.0},
     # v57 精英上调：hp 32→40、atk 5.5→6.5（鱼鱼反馈前期精英太弱，2级全力量战士无脑碾压4级精英）
-    "elite":      {"hp": 40,  "atk": 6.5, "def": 2.8, "matk": 5.0, "mdef": 2.8, "spd": 1.5, "dodge": 0.0},
-    "boss":       {"hp": 58,  "atk": 7.5, "def": 3.8, "matk": 6.0, "mdef": 3.4, "spd": 1.8, "dodge": 0.0},
+    # v131 精英 hp 40→70、def 2.8→5.5（配合 FIELD_TIER_MULT 分档 → 蓝+5 单刷 20~35 轮）
+    "elite":      {"hp": 70,  "atk": 6.5, "def": 5.5, "matk": 5.0, "mdef": 4.5, "spd": 1.5, "dodge": 0.0},
+    # v131 boss hp 58→145（副本 Boss 保底大几十轮策略长盘；配合实例 hp_mult 表 → 4人 100~150 轮）
+    "boss":       {"hp": 145, "atk": 7.5, "def": 3.8, "matk": 6.0, "mdef": 3.4, "spd": 1.8, "dodge": 0.0},
 }
 # 怪物经验/金币基数（v28/v56.2 校准，公式在 core/stats.py）
 MONSTER_EXP_BASE = {"tank": 8, "dps": 9, "caster": 10, "speedster": 9, "healer": 10, "elite": 24, "boss": 60}
+
+# v131 野外首领/精英难度分档（2026-08-27 鱼鱼拍板，build_monster 消费）：
+#   野外战斗无组队血量缩放（组队 DPS≈人数倍）→ 精英/野外 Boss 按团队/高挑战定标；
+#   与 MONSTER_MODS 个体 mod（±5%~20%）叠乘生效；副本 Boss 不消费本表（走 instances.hp_mult）。
+#   目标：野外精英 蓝+5 单刷 20~35 轮；野外 Boss 4 人组队 60~100 轮（单刷=送死）。
+FIELD_TIER_MULT = {
+    "elite": ((30, 8.0), (60, 3.0), (999, 1.5)),     # ≤30 ×8 / 31-60 ×3 / 61+ ×1.5
+    "boss":  ((30, 15.0), (60, 9.0), (999, 6.2)),    # ≤30 ×15 / 31-60 ×9 / 61+ ×6.2（v131 标定：4人组队 60~100 轮全达标）
+}
 MONSTER_GOLD_BASE = {"tank": 5, "dps": 6, "caster": 6, "speedster": 6, "healer": 6, "elite": 20, "boss": 60}
 
 # ============ 装备部位属性模板 ============

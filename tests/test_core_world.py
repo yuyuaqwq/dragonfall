@@ -37,22 +37,24 @@ def main():
     else:
         check("portal_cost 可访问", False, "未暴露")
 
-    print("【v56.2 怪物等级段曲线（乱秒修复）】")
+    print("【v56.2 怪物等级段曲线（乱秒修复）+ v131 新模板】")
     ms = getattr(C, "monster_stats", None)
     if ms:
         m1 = ms(10, "dps")
         m15 = ms(15, "dps")
         m30 = ms(30, "dps")
         m60 = ms(60, "dps")
-        check("Lv≤15 怪数值不变(10级)", m1["hp"] == 180, "hp=%s" % m1["hp"])
-        check("Lv≤15 怪数值不变(15级)", m15["hp"] == 255, "hp=%s" % m15["hp"])
-        check("30级怪 hp 放大(1056)", m30["hp"] > 900 and m30["hp"] < 1300, "hp=%s" % m30["hp"])
+        # v131：dps hp 成长 15→30/级，≤15 段等级段曲线仍无加成（315=10×30+15 尾差）
+        check("Lv10 dps hp=315（v131 模板 30/级）", m1["hp"] == 315, "hp=%s" % m1["hp"])
+        check("Lv15 dps hp=465（v131 模板）", m15["hp"] == 465, "hp=%s" % m15["hp"])
+        check("30级怪 hp 放大(1601)", 1500 < m30["hp"] < 1750, "hp=%s" % m30["hp"])
         check("60级怪 hp 继续放大", m60["hp"] > m30["hp"] * 2, "%s vs %s" % (m60["hp"], m30["hp"]))
-        check("30级怪 atk 不变(线性)", ms(30, "dps")["atk"] == int(12 + 3.5 * 29), "atk=%s" % ms(30, "dps")["atk"])
-        check("60级怪 atk 放缓(<线性)", ms(60, "dps")["atk"] < 12 + 3.5 * 59, "atk=%s" % ms(60, "dps")["atk"])
+        # v131：dps atk 成长 3.5→5.0/级，30 级线性取整 = 12+5.0×29=157
+        check("30级怪 atk 线性(157)", ms(30, "dps")["atk"] == int(12 + 5.0 * 29), "atk=%s" % ms(30, "dps")["atk"])
+        check("60级怪 atk 放缓(<线性)", ms(60, "dps")["atk"] < 12 + 5.0 * 59, "atk=%s" % ms(60, "dps")["atk"])
         e1 = getattr(C, "monster_exp", None)
         if e1:
-            check("30级怪经验补偿", e1(30, "dps") > 9 * 28, "exp=%s" % e1(30, "dps"))
+            check("30级怪经验补偿", e1(30, "dps") > 9 * 28 * 1.5, "exp=%s" % e1(30, "dps"))
     else:
         check("monster_stats 可访问", False, "未暴露")
 

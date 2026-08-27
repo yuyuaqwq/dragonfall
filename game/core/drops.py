@@ -8,7 +8,7 @@ from .. import content as C
 from ..data import (AFFIXES, AFFIX_POOL_BY_QUALITY, CRAFT_RECIPES,
                     EQUIP_NAME_PREFIX, EQUIP_NAME_SUFFIX,
                     EQUIP_PREFIX_FLAVOR, LEGENDARY_EFFECTS, QUALITY, SET_CHANCE, SET_THEMES,
-                    SERIES_SETS, WEAPON_FLAVOR,
+                    SERIES_SETS, WEAPON_FLAVOR, FIELD_TIER_MULT,  # v131 难度分档表
                     WEAPON_NAME_SUFFIX, WEAPON_TYPES)
 
 
@@ -328,6 +328,14 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
                         ("matk", "matk_mult"), ("mdef", "mdef_mult"), ("spd", "spd_mult")):
             if mult in mod:
                 stats[k] = max(1, int(stats[k] * mod[mult]))
+    # v131 野外首领/精英难度分档（FIELD_TIER_MULT，2026-08-27 鱼鱼拍板）：
+    #   野外战斗无组队血量缩放 → 野外精英（蓝+5 单刷 20~35 轮）/ 野外 Boss（4 人组队 60~100 轮）
+    #   副本（area=instance）不消费本表（副本 Boss 走 instances.hp_mult）；与 MONSTER_MODS 叠乘。
+    if role in ("elite", "boss") and map_obj.get("area") != "instance":
+        for _cap, _mult in FIELD_TIER_MULT.get(role, ()):
+            if lv <= _cap:
+                stats["hp"] = max(1, int(stats["hp"] * _mult))
+                break
     is_boss = role == "boss"
     is_elite = role == "elite"
     # v27b 多对多站位引擎：按 role 推导站位层/射程（§9.3 数据层规格）

@@ -11,13 +11,15 @@ from ..data import (
 # hp：16 级起渐入放大（30 级 ×2.2 / 60 级 ×3.4 / 90 级 ×4.3），≤15 级完全不变
 # atk：31 级起放缓（60 级 ×0.85 / 90 级 ×0.73），避免后期怪攻击成长超过玩家防御
 def hp_stage_mult(lv: int) -> float:
+    # v131 收缓（2026-08-27）：16-30 段 8%→5%（30 级 1.75）、31-60 段 4%→3%（60 级 2.65）、61+ 3%→2%（100 级 3.45）
+    # 原：≤15=1.0；16-30: 1+(lv-15)*0.08；31-60: 2.2+(lv-30)*0.04；61+: 3.4+(lv-60)*0.03
     if lv <= 15:
         return 1.0
     if lv <= 30:
-        return 1.0 + (lv - 15) * 0.08
+        return 1.0 + (lv - 15) * 0.05
     if lv <= 60:
-        return 2.2 + (lv - 30) * 0.04
-    return 3.4 + (lv - 60) * 0.03
+        return 1.75 + (lv - 30) * 0.03
+    return 2.65 + (lv - 60) * 0.02
 
 
 def atk_stage_mult(lv: int) -> float:
@@ -99,15 +101,17 @@ def exp_to_next(level: int) -> int:
 
 def monster_exp(lv: int, role: str) -> int:
     """怪物经验公式（v28 校准：base 下调，配合等级差惩罚）
-    v56.2：怪 hp 变肉后经验同步补偿（×hp_mult^0.7，30 级约 ×1.8）"""
+    v56.2：怪 hp 变肉后经验同步补偿（×hp_mult^0.7，30 级约 ×1.8）
+    v131：战斗拉长补偿 ×1.5（2026-08-27 拍板，27 章附章七同步）"""
     base = MONSTER_EXP_BASE[role]
     exp = int(base * (1 + lv * 0.9))
-    return int(exp * (hp_stage_mult(lv) ** 0.7))
+    return int(exp * 1.5 * (hp_stage_mult(lv) ** 0.7))
 
 
 def monster_gold(lv: int, role: str) -> int:
-    """怪物金币公式(v56.2：同步补偿 ×hp_mult^0.5)"""
+    """怪物金币公式(v56.2：同步补偿 ×hp_mult^0.5)
+    v131：战斗拉长补偿 ×1.3（2026-08-27 拍板，27 章附章七同步）"""
     base = MONSTER_GOLD_BASE[role]
     gold = int(base * (1 + lv * 0.6))
-    return int(gold * (hp_stage_mult(lv) ** 0.5))
+    return int(gold * 1.3 * (hp_stage_mult(lv) ** 0.5))
 

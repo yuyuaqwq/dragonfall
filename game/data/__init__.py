@@ -170,7 +170,7 @@ from .job_guide import (  # noqa: F401  (v130.2g 『职业』速查 12 职业数
 )
 from .stat_templates import (  # noqa: F401  (v102.5 从 core/stats.py 下沉)
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, MONSTER_EXP_BASE, MONSTER_GOLD_BASE,
-    EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING,
+    EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING, FIELD_TIER_MULT,  # v131 野外首领/精英难度分档
 )
 
 # 依赖顺序：maps 依赖 classes 等 → 在最后装配派生表/索引
