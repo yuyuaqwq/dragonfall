@@ -814,6 +814,10 @@ class CombatCmds(CommandBase):
         logs, ended = b.player_turn("attack", None, player, target=_target)
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
         if ended:
+            # v130.3 意见#9 体验增强：胜利/结束时若残存潜行（技能/防御击杀场景潜行未被攻击消费），
+            # 显式提示消散，避免玩家误解"战斗结束了暴击还在"
+            if b.p_buffs.get("stealth"):
+                logs.append("🌫️ 潜行的影子在战局结束后消散了……")
             if b.result == "victory":
                 # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
                 # b.enemy 变 {} → monster["exp"] KeyError）
