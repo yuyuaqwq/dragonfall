@@ -1251,7 +1251,9 @@ class CombatCmds(CommandBase):
         lines.append(f"页数：{page}/{pages}")
         if pages > 1 and page < pages:
             lines.append(f"『技能列表 {page+1}』看下一页")
-        lines.append("『技能学习 <名称>』消耗技能点学会；战斗中『技能 <槽位>』或『技能 <名称>』施放；副本中治疗可『技能 <名称> <队友名>』指定目标")
+        # v130.5 意见#8 落地：固定长引导 → TIPS.skill 随机提示池(带 emoji，≤20字)，
+        # 与背包/炼金等面板风格统一；操作要点(战斗施放/学习/副本指定队友)已拆入提示池
+        lines.append(self._tip("skill"))
         self._record_list_state(player.get("qq_id"), "技能列表", page, pages)
         return "\n".join(lines)
 

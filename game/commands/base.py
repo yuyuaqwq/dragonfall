@@ -250,13 +250,17 @@ class CommandBase:
         return msg
 
     def _tip(self, cat: str) -> str:
-        """v127 数据驱动随机提示：从 TIPS 分类库随机抽 1 条（含 💡 前缀）。
+            """v127 数据驱动随机提示：从 TIPS 分类库随机抽 1 条（含 💡 前缀）。
 
-        面板底部操作引导提示统一走这里，不再硬编码长提示。
-        分类缺失时回退 common 兜底，保证永不崩。
-        """
-        pool = C.TIPS.get(cat) or C.TIPS.get("common") or ["看看『帮助』了解更多"]
-        return "💡 " + random.choice(pool)
+            面板底部操作引导提示统一走这里，不再硬编码长提示。
+            分类缺失时回退 common 兜底，保证永不崩。
+            v130.5：条目自身以 emoji 开头（如技能池 ⚔️/🎓/🛡️）时不再叠加 💡 前缀，
+            避免『💡 📖』双 emoji 冗余；中文开头的旧条目行为不变。
+            """
+            t = random.choice(pool := C.TIPS.get(cat) or C.TIPS.get("common") or ["看看『帮助』了解更多"])
+            if t and re.match(r"^[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F]", t):
+                return t
+            return "💡 " + t
 
     @staticmethod
     def _page_items(items: list, page: int, per_page: int = 5) -> tuple:
