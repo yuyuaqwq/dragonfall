@@ -373,6 +373,10 @@ class PlayerCmds(CommandBase):
                 "请选择性别！格式：注册 <名字> <性别> [种族]，如『注册 格温 女 精灵』（男/女）"
             )
             return
+        # v130.7 意见#29：注册重名检查——精确重名即拒（同音/相似名不拦），不落库
+        if db.find_player_by_name(name):
+            yield event.plain_result("这个名字已经有人用啦，换一个吧～")
+            return
         cls = C.CLASSES[cls_id]
         cls_display = cls.get("name", cls_id)
         # v100.7 注册初始血量必须乘种族倍率（银月精灵月缺 HP-5% 等），否则初始当前生命 > 上限

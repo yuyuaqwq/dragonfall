@@ -979,27 +979,99 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         mat_name = self._strip_cmd(event, "喂养").strip()
         if not mat_name:
-            yield event.plain_result("格式：喂养 <材料名/序号>，如『喂养 狼皮』或『喂养 1』(打怪/采集可获得材料)")
+            yield event.plain_result("格式：喂养 <食物名/序号>，如『喂养 烤鸟肉』或『喂养 1』(打怪/采集/垂钓可获得食物)")
             return
-        # 找背包里的食材（材料/鱼/草药均可，24 章四）
+        # v130.7 意见#21：批量喂养『喂养 <名>*<数量>』/『喂养 <名> <数量>』双格式
+        # （对齐 v130.4『使用』批量解析）；名字后带数量时名字按子串/序号匹配
+        qty = 1
+        _qty_raw = None
+
+        def _is_qty_token(tok: str) -> bool:
+            return tok.isdecimal() or (tok.startswith("-") and len(tok) > 1 and tok[1:].isdecimal())
+
+        _it_parts = mat_name.split()
+        if len(_it_parts) >= 2 and _is_qty_token(_it_parts[-1]):
+            _qty_raw = _it_parts[-1]
+            mat_name = " ".join(_it_parts[:-1])
+        elif "*" in mat_name:
+            _head, _, _tail = mat_name.rpartition("*")
+            _tail = _tail.strip()
+            if _is_qty_token(_tail):
+                _qty_raw = _tail
+                mat_name = _head.strip()
+            else:
+                yield event.plain_result("数量格式不对！例：『喂养 银鳞鱼*5』或『喂养 银鳞鱼 5』～")
+                return
+        if _qty_raw is not None:
+            try:
+                qty = int(_qty_raw)
+            except ValueError:
+                yield event.plain_result("数量不合法！请输入正整数，如『喂养 银鳞鱼 5』～")
+                return
+            if qty < 1:
+                yield event.plain_result("数量至少 1 个！大批量喂养用『喂养 <食物> 数量』或『喂养 <食物>*数量』～")
+                return
+        # v130.7 意见#22：喂养只能吃食物——白名单 = 带 food 标记的食物 + 鱼（原"材料/鱼中非食物"已剔除）
         items = db.get_inventory(group_id, qq_id)
+        FOOD_TYPES = {"鱼"}
+
+        def _is_feed_food(it):
+            d = it["data"]
+            if d.get("food") or d.get("type") in FOOD_TYPES:
+                return True
+            # v126.3 瘦身存储水合只带类字段，food 标记按 key 回查配置表（材料/消耗品同一判定）
+            cfg = C.ITEMS.get(it["key"]) or C.MATERIALS.get(it["key"]) or {}
+            return bool(cfg.get("food"))
+
         target = None
-        FOOD_TYPES = {"材料", "鱼"}
         if mat_name.isdigit():
-            mats = [it for it in items if it["data"].get("type") in FOOD_TYPES]
+            mats = [it for it in items if _is_feed_food(it)]
             idx = int(mat_name)
             if idx < 1 or idx > len(mats):
-                yield event.plain_result(f"背包里没有第 {idx} 个食材(共 {len(mats)} 个)！打怪、『采集』、『垂钓』可获得食材。")
+                yield event.plain_result(f"背包里没有第 {idx} 个食物(共 {len(mats)} 个)！打怪、『采集』、『垂钓』可获得食物。")
                 return
             target = mats[idx - 1]
         else:
             for it in items:
                 d = it["data"]
-                if d.get("type") in FOOD_TYPES and mat_name in d["name"]:
+                if _is_feed_food(it) and mat_name in d["name"]:
                     target = it
                     break
         if not target:
-            yield event.plain_result(f"背包里没有食材『{mat_name}』！打怪、『采集』、『垂钓』可获得食材。")
+            yield event.plain_result(f"背包里没有可喂食的食物『{mat_name}』！打怪、『采集』、『垂钓』可获得食物。")
+            return
+        # v130.7 意见#21：批量喂养（对齐 v130.4『使用』批量模板）——
+        # 数量超持有显式报错不扣物；循环每次扣 1 + 喂 1 次（饱食度 +30 上限 100、
+        # 亲密度 +5 封顶 100、经验 +10），饱食度到 100 自动停，超上限部分不扣物品
+        if qty > 1:
+            if qty > target.get("count", 1):
+                yield event.plain_result(f"最多喂养 {target.get('count', 1)} 个『{target['data']['name']}』！")
+                return
+            fed = 0
+            _lv0 = pet["level"]
+            _lv_end = _lv0
+            for _k in range(qty):
+                if pet["satiety"] >= 100:
+                    break
+                db.remove_item(group_id, qq_id, target["key"])
+                _sat = min(100, pet["satiety"] + 30)
+                # v105 M17 P3-6：亲密度封顶 100（面板显示 x/100，此前 99→104 显示 104/100）
+                _bond = min(100, pet["bond"] + 5)
+                _exp = pet["exp"] + 10
+                _lv = pet["level"]
+                while _exp >= C.pet_exp_need(_lv):
+                    _exp -= C.pet_exp_need(_lv)
+                    _lv += 1
+                db.pet_update(qq_id, satiety=_sat, bond=_bond, exp=_exp, level=_lv)
+                pet = {**pet, "satiety": _sat, "bond": _bond, "exp": _exp, "level": _lv}
+                _lv_end = _lv
+                fed += 1
+            _lv_s = f"\n🎉 宠物升级到 Lv.{_lv_end}！" if _lv_end > _lv0 else ""
+            _full_s = "（饱食度已满）" if fed < qty and pet["satiety"] >= 100 else ""
+            yield event.plain_result(
+                f"🍖 你喂了【{pet['name']}】{fed} 份{target['data']['name']}！\n"
+                f"✅ 已喂食 {fed}/{qty} 份{_full_s}{_lv_s}"
+            )
             return
         # 喂食：饱食度 +30（24 章四），亲密度 +5，经验 +10
         db.remove_item(group_id, qq_id, target["key"])

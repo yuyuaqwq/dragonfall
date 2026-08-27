@@ -15,6 +15,7 @@ from ..data.job_guide import (
     EXTRA_RESOURCES, resolve_job,
 )
 from ..data.core_resources import CORE_RESOURCES
+from ..data.classes import CLASSES
 from ..commands.base import CommandBase
 
 
@@ -63,6 +64,10 @@ class JobGuideCmds(CommandBase):
         kind = "隐藏职业" if g["hidden"] else "基础职业"
         lines = [f"{g['icon']} 【{g['name']}】（{kind}）", "━━━━━━━━━━━━"]
         lines.append(f"📖 {g['desc']}")
+        # v130.7 意见#19：核心玩法机制解释（classes.py mech，无该字段的兜底不显示该行）
+        _mech = CLASSES.get(cid, {}).get("mech")
+        if _mech:
+            lines.append(f"🎯 核心玩法：{_mech}")
         lines.append(self._jg_tier_line(g))
         lines.append(self._jg_resource_line(g))
         melee = "近战" if g["reach"] == 1 else "远程"

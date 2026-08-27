@@ -32,6 +32,9 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
         BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
+from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
+    FLEE_CHANCE, FLEE_LEVEL_STEP, FLEE_SPD_STEP, FLEE_MIN, FLEE_MAX,
+)
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
 # v112 数据驱动收敛（D5）：文案下沉 CLASSES[职业]["attack_text"]，逻辑层只读数据
@@ -232,6 +235,9 @@ class Battle:
         # v126.7 胜利结算引用：打死怪后 _remove_unit 会清空 enemies（单怪场景 b.enemy 变 {}），
         # 结算层（_handle_victory）需要原主怪的 exp/gold/lv/drops——构造时保存一份副本。
         self._origin_enemy = dict(self.enemies[0]) if self.enemies else {}
+        # v130.7 意见#17 多目标战斗击杀记录：敌方死亡单位 dict 快照列表
+        # （_remove_unit 敌方死亡时记录；胜利结算按全部击杀逐个计任务进度）
+        self.killed_enemies: list = []
         self.allies: list = allies or []   # v122 我方阵列（治疗指定队友：副本传存活玩家快照引用）
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
@@ -415,6 +421,7 @@ class Battle:
             # v2：敌方完整阵列（核心）；enemy 保留为兼容键（= 主目标引用）
             "enemy": self.enemy,
             "enemies": self.enemies,
+            "killed_enemies": getattr(self, "killed_enemies", []),  # v130.7 意见#17 击杀记录随战斗持久化（跨消息续战胜利不丢）
             "charging": self.charging,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
@@ -481,6 +488,7 @@ class Battle:
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
         b.p_shields = st.get("p_shields", {}) or {}
         b.e_minions = st.get("e_minions", []) or []
+        b.killed_enemies = [dict(u) for u in (st.get("killed_enemies") or [])]  # v130.7 意见#17 击杀记录恢复
         b.summons = st.get("summons", []) or []
         b.charging = st.get("charging")
         b.p_defending = st.get("p_defending", False)
@@ -2011,11 +2019,30 @@ class Battle:
             # v121 CTB：逃跑失败也被敌方追击 → 玩家 ct 照走，敌方段按 ct 判定
             self._after_actor_ct("p", player=player)
             return self._enemy_phase(player, logs, True)
-        if random.random() < C.FLEE_CHANCE:
+        # v130.7 意见#28：逃跑成功率 = 基础 FLEE_CHANCE ± 等级差×FLEE_LEVEL_STEP
+        # ± 速度差×FLEE_SPD_STEP，clamp 到 [FLEE_MIN, FLEE_MAX]——高打低/快打慢更好跑，
+        # 越级进高级区更难脱身（玩家等级/速度取战斗实时值）
+        p_lv = int(player.get("level", 1) or 1)
+        p_spd = int(self._player_stats(player).get("spd", 0) or 0)
+        e = self.enemy or {}
+        e_lv = int(e.get("lv", 0) or 0)
+        e_spd = int(self._enemy_stats().get("spd", 0) or 0)
+        # 敌方数据缺失（lv/spd 为 0）时对应差值项退化为 0，仅按可得项修正（防误判逃跑率）
+        lv_diff = (p_lv - e_lv) if e_lv > 0 else 0
+        spd_diff = (p_spd - e_spd) if e_spd > 0 else 0
+        flee_rate = FLEE_CHANCE + lv_diff * FLEE_LEVEL_STEP + spd_diff * FLEE_SPD_STEP
+        flee_rate = max(FLEE_MIN, min(FLEE_MAX, flee_rate))
+        if random.random() < flee_rate:
             logs.append("💨 你成功脱离了战斗！")
             self.result = "fled"
             return logs, True
-        logs.append("💨 逃跑失败！被追上了！(可以再『逃跑』，或『防御』『用药』撑住)" )
+        # v130.7 意见#28：逃跑失败给出原因（敌方更高/更快时明示，保持既有提示风格）
+        flee_reason = ""
+        if lv_diff < 0:
+            flee_reason = f"敌方比你高 {-lv_diff} 级，几乎逃不脱；"
+        elif spd_diff < 0:
+            flee_reason = f"敌方比你快 {-spd_diff} 点，几乎逃不脱；"
+        logs.append(f"💨 逃跑失败！被追上了！({flee_reason}可以再『逃跑』，或『防御』『用药』撑住)")
         # v121 CTB：逃跑也是玩家行动 → 玩家 ct 照走（PVP 不介入），敌方段按 ct 判定
         if self.btype != "pvp":
             self._after_actor_ct("p", player=player)
@@ -4742,6 +4769,12 @@ class Battle:
             if unit in self.enemies:
                 self.enemies.remove(unit)
                 removed = compact(self.enemies)
+            # v130.7 意见#17：敌方死亡单位快照进 killed_enemies——unit（本次击杀）
+            # 与 compact 返回的阵亡单位（AOE 同时击杀多只）全部记录；同单位只记一次
+            for _u in [unit] + removed:
+                if _u in self.killed_enemies:
+                    continue
+                self.killed_enemies.append(dict(_u))
             # 同步 e_minions 旧字段（镜像同对象）
             if unit in self.e_minions:
                 self.e_minions[:] = [m for m in self.e_minions if m.get("hp", 0) > 0]

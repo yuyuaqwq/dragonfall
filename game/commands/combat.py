@@ -178,6 +178,11 @@ class CombatCmds(CommandBase):
             _ev_chance = max(0.0, _ev_chance - 0.15)
         # v115 今日奇遇：事件率叠加 event_chance（clamp 到 [0, 0.6]，在 rain_boost 调整后叠加）
         _ev_chance += _fx.get("event_chance", 0)
+        # v130.7 意见#28 越级风险增强：地图等级高于玩家时，探索事件率随等级差叠加
+        # （每高 1 级 +5%，最高 +25%；0.35+0.25=0.60 刚好顶格下方 clamp）
+        _lv_gap = (cur_map.get("lv") or 1) - (player.get("level") or 1)
+        if _lv_gap > 0:
+            _ev_chance += min(_lv_gap * 0.05, 0.25)
         _ev_chance = min(0.6, max(0.0, _ev_chance))
         if random.random() < _ev_chance:
             handled, ev_text = self._handle_explore_event(group_id, qq_id, player, cur_map, _fx=_fx)
@@ -822,7 +827,9 @@ class CombatCmds(CommandBase):
                 # v126.7 胜利结算用原主怪引用（打死怪后 _remove_unit 清空 enemies，
                 # b.enemy 变 {} → monster["exp"] KeyError）
                 _mon = getattr(b, "_origin_enemy", None) or b.enemy
-                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs)):
+                # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
+                _kills = list(getattr(b, "killed_enemies", None) or [])
+                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
             if b.result == "defeat":
@@ -1038,7 +1045,9 @@ class CombatCmds(CommandBase):
             if b.result == "victory":
                 # v126.7 胜利结算用原主怪引用（打死怪后 b.enemy 变 {}）
                 _mon = getattr(b, "_origin_enemy", None) or b.enemy
-                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs)):
+                # v130.7 意见#17：同场全部击杀单位（含副怪）交胜利结算——掉落/经验只按主怪一次
+                _kills = list(getattr(b, "killed_enemies", None) or [])
+                for _r in self._handle_victory(event, group_id, qq_id, player, _mon, "\n".join(logs), extra_kills=_kills):
                     yield _r
                 return
             if b.result == "defeat":
@@ -1544,8 +1553,10 @@ class CombatCmds(CommandBase):
         lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
         return "\n".join(lines)
 
-    def _handle_victory(self, event, group_id, qq_id, player, monster, result):
-        """击败怪物：经验/金币/掉落/任务进度"""
+    def _handle_victory(self, event, group_id, qq_id, player, monster, result, extra_kills=None):
+        """击败怪物：经验/金币/掉落/任务进度
+        v130.7 意见#17：extra_kills=同场其余击杀单位快照（多目标战副怪）——经验/金币/
+        掉落仍只按主怪 monster 结算一次，任务进度按全部击杀逐个计数。"""
         self._unlock_battle(group_id, qq_id)
         db.clear_battle(group_id, qq_id)
         exp = monster["exp"]
@@ -1916,8 +1927,14 @@ class CombatCmds(CommandBase):
                 lines.append("")
             lines += lv_logs
             db.update_player(group_id, qq_id, level=player["level"], exp=player["exp"], hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"], skills=player["skills"], attr_pts=player.get("attr_pts", 0), skill_points=player.get("skill_points", 0), learned_skills=player.get("learned_skills", []))
-        # 任务进度
-        quest_lines = self._update_quests(group_id, qq_id, monster)
+        # 任务进度（v130.7 意见#17：多目标战斗按全部击杀单位逐个计数——掉落/经验/金币
+        # 仍只按主怪 monster 结算一次，故仅此处走循环；同名不合并，前缀变体各计一次）
+        killed = [dict(k) for k in (extra_kills or [])]
+        if monster and not any(k.get("name") == monster.get("name") for k in killed):
+            killed.insert(0, monster)
+        quest_lines = []
+        for k in killed:
+            quest_lines += (self._update_quests(group_id, qq_id, k) or [])
         if quest_lines:
             if lines:
                 lines.append("")

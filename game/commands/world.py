@@ -1636,8 +1636,10 @@ class WorldCmds(CommandBase):
         diff = target_map.get("lv", 1) - player["level"]
         if diff <= -5:
             return None
+        # v130.7 意见#28 越级风险增强：比玩家高 5 级起，撞怪概率随等级差线性提升
+        # （0.30 + (diff-5)*0.05；低 10 级 = 0.55，低 11 级+ = 0.60 封顶）
         if diff >= 5:
-            chance = 0.30
+            chance = min(0.60, 0.30 + (diff - 5) * 0.05)
         elif diff >= 0:
             chance = 0.18
         else:

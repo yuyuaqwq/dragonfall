@@ -105,20 +105,21 @@ async def main():
     out = await cmd(m, "market_sell", "g1", "e1", "上架 狼皮 100")
     check("正常价格上架成功", "已上架" in out, out[:150])
 
-    # ============ 5. 商店坐骑（v104 M17-P2：橡木镇面板+序号购买） ============
+    # ============ 5. 商店坐骑（v130.7 意见#23：仅 smith/general 店铺售卖） ============
     print("【5. 商店坐骑】")
+    # 旅店（tavern）不再卖坐骑
     db.update_player("g1", "e1", gold=10000, cur_map="oak_town", cur_subarea="oak_town_4")
     out = await cmd(m, "shop", "g1", "e1", "商店")
-    check("面板显示老马", "老马" in out, out[:250])
-    check("面板显示小毛驴", "小毛驴" in out, out[:250])
-    mm = re.search(r"^\s*(\d+)\.\s*[^\n]*老马", out, re.M)
-    idx = int(mm.group(1)) if mm else 4
-    out = await cmd(m, "buy", "g1", "e1", f"购买 {idx}")
-    check(f"序号购买老马(序号{idx})成功", "买了老马" in out, out[:200])
+    check("旅店面板不显示老马", "老马" not in out, out[:250])
+    check("旅店面板不显示小毛驴", "小毛驴" not in out, out[:250])
+    # 铁匠铺（smith）卖坐骑：名称购买 + 重复购买拦截（序号链路已由 test_v1307_mount_shop 覆盖）
+    db.update_player("g1", "e1", cur_map="oak_town", cur_subarea="oak_town_3")
+    out = await cmd(m, "buy", "g1", "e1", "购买 老马")
+    check("铁匠铺名称购买老马成功", "你买了老马" in out, out[:200])
     p = db.get_player("g1", "e1")
     owned = (p.get("mounts") or {}).get("owned") or []
     check("mounts.owned 含 mount_horse", "mount_horse" in owned, str(p.get("mounts")))
-    out = await cmd(m, "buy", "g1", "e1", f"购买 {idx}")
+    out = await cmd(m, "buy", "g1", "e1", "购买 老马")
     check("重复购买被拦截", "你已经拥有老马" in out, out[:200])
 
     # ============ 6. 狮鹫渠道（v104 M06 P2-3：世界 Boss 掉落池） ============

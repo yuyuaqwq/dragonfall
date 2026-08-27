@@ -136,8 +136,9 @@ async def main():
     m = Main(None)
     # w1：主力垂钓+烹饪；w3：采集；w4：挖掘
     await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
-    await cmd(m, "register", "g1", "w3", "注册 战士 旅人 男")
-    await cmd(m, "register", "g1", "w4", "注册 战士 旅人 男")
+    # v130.7 意见#29 重名检查：职业格式（注册 <职业> <名字> <性别>），三玩家须不同名
+    await cmd(m, "register", "g1", "w3", "注册 战士 采风 男")
+    await cmd(m, "register", "g1", "w4", "注册 战士 铁锤 男")
     db.update_player("g1", "w1", apprentices=["fishing", "cooking"], level=20, gold=5000,
                      cur_map="oak_plain", cur_subarea="oak_plain_3")
     db.activate_prof("g1", "w1", "fishing")

@@ -1235,6 +1235,15 @@ class EconomyCmds(CommandBase):
         if not rname:
             yield event.plain_result("格式：合成 <配方名>！『炼金』查看全部配方～")
             return
+        # v130.7 意见#30：『合成 <序号>』= 『炼金』面板第 N 个配方（取数列表与面板同源：非提纯 + min_lv 排序）
+        if rname.isdigit():
+            idx = int(rname)
+            _recs = [(k, r) for k, r in C.ALCHEMY_RECIPES.items() if r.get("purify") is not True]
+            _recs.sort(key=lambda x: x[1].get("min_lv", 1))
+            if idx < 1 or idx > len(_recs):
+                yield event.plain_result(f"没有第 {idx} 个炼金配方(共 {len(_recs)} 个)！『炼金』查看～")
+                return
+            rname = _recs[idx - 1][0]
         # v48：配方 key 已是 ID，用户输入中文名需 resolve
         rkey = C.resolve("alchemy", rname)
         r = C.ALCHEMY_RECIPES.get(rkey)
@@ -1385,6 +1394,14 @@ class EconomyCmds(CommandBase):
         if not raw or raw == "列表":
             yield event.plain_result("发『烹饪列表』查看全部料理配方～(如：烹饪 蛇羹)")
             return
+        # v130.7 意见#30：『烹饪 <序号>』= 『烹饪列表』面板第 N 道料理（取数列表与面板同源：COOKING_RECIPES 插入序）
+        if raw.isdigit():
+            idx = int(raw)
+            _recs = list(C.COOKING_RECIPES.items())
+            if idx < 1 or idx > len(_recs):
+                yield event.plain_result(f"没有第 {idx} 道料理(共 {len(_recs)} 道)！『烹饪列表』查看～")
+                return
+            raw = _recs[idx - 1][0]
         rkey = C.resolve("cooking", raw)
         r = C.COOKING_RECIPES.get(rkey)
         if not r:
@@ -1602,12 +1619,9 @@ class EconomyCmds(CommandBase):
         # v113.6：副业总分只计已激活副业（与『副业 排行』prof_top 同口径，未激活不计分）——
         # v113.5 曾统一为 8 条之和，但未激活也是 Lv.1 导致人人默认 8 分，鱼鱼拍板不计分
         lines.append(f"📊 副业总分：{total}(已激活副业等级之和，与『副业 排行』同口径)")
-        lines.append("💡 每人只能发展 2 条副业，练满再选新的需『遗忘副业 <名称>』(等级清零)")
-        lines.append("💡 新副业需先找对应导师拜师学习才解锁（如 铁港城·老渔夫·马库斯 教垂钓）")
+        # v130.7 意见#14：3 条固定 💡（2条上限+遗忘/拜师解锁/稀有采集兔蛋）已收敛进 tips.py
+        # profession 随机池（含新条目共 12 条），面板只留 1 条随机提示（v130.5 意见#8 同标准）
         lines.append(self._tip("profession"))
-        # v105R3 M14 P2-6：稀有产出条件标注（兔蛋/驯鹿缰绳依赖本次采集 roll 出价值150+材料，
-        # 低等级图无稀有材料永久无法触发——设计内但玩家不可见，面板明示）
-        lines.append(f"💡 采集稀有材料(价值{C.RARE_MATERIAL_PRICE}+金币)才有机会出兔蛋/驯鹿缰绳等惊喜；挖掘稀有矿脉需挖掘Lv.4+")
         yield event.plain_result("\n".join(lines))
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?遗忘副业(?:[\s\S]*)$")
@@ -2095,6 +2109,14 @@ class EconomyCmds(CommandBase):
                 "铁匠代工 = 图纸 + 材料＋3倍金币，不受锻造等级限制(单人玩家也能拿高级装备)"
             )
             return
+        # v130.7 意见#30：『代工 <序号>』= 『锻造』面板第 N 个可锻造配方（取数列表与面板同源 _craft_recs_filtered，与『锻造 N』一致）
+        if text.isdigit():
+            idx = int(text)
+            _recs = self._craft_recs_filtered(player)
+            if idx < 1 or idx > len(_recs):
+                yield event.plain_result(f"没有第 {idx} 个可代工配方(当前可代工 {len(_recs)} 件)！『锻造列表』查看～")
+                return
+            text = _recs[idx - 1][0]
         rec_name = C.craft_recipe_search(text)
         if not rec_name or rec_name not in C.CRAFT_RECIPES:  # 旧别名指向已删除配方 → 视作未找到
             # M10 P2 死别名引导：旧版本已移除的配方给出明确提示
@@ -2179,7 +2201,15 @@ class EconomyCmds(CommandBase):
             return
         # 背包找图纸（type=图纸）
         items = db.get_inventory(group_id, qq_id)
-        target = next((it for it in items if it["data"].get("type") == "图纸" and bp_name in it["data"].get("name", "")), None)
+        # v130.7 意见#30：『学习 <序号>』= 『背包 图纸』面板第 N 张图纸（取数列表与面板同源 _item_category 过滤，序号跨页连续）
+        if bp_name.isdigit():
+            idx = int(bp_name)
+            _bps = [it for it in items if self._item_category(it["data"]) == "图纸"]
+            if idx < 1 or idx > len(_bps):
+                yield event.plain_result(f"背包里没有第 {idx} 张图纸(共 {len(_bps)} 张)！『背包 图纸』查看～")
+                return
+            bp_name = _bps[idx - 1]["data"].get("name", "")
+        target = next((it for it in items if self._item_category(it["data"]) == "图纸" and bp_name in it["data"].get("name", "")), None)
         if not target:
             yield event.plain_result(f"背包里没有『{bp_name}』图纸！Boss 掉落/宝箱/垂钓/商店获得，『背包 图纸』查看～")
             return
@@ -2586,6 +2616,17 @@ class EconomyCmds(CommandBase):
                 f"附魔需要附魔副业 Lv.2(你 Lv.{prof_lv})！多附魔升级吧～"
             )
             return
+        # v130.7 意见#30：『附魔 <序号> <属性/符文>』——装备名支持序号（取数列表与『背包』面板同源 db.get_inventory 全局序号）
+        if item_name.isdigit():
+            _items = db.get_inventory(group_id, qq_id)
+            idx = int(item_name)
+            if idx < 1 or idx > len(_items):
+                yield event.plain_result(f"背包里没有第 {idx} 件物品(共 {len(_items)} 件)！『背包』查看～")
+                return
+            if not _items[idx - 1]["data"].get("slot"):
+                yield event.plain_result(f"背包第 {idx} 件『{_items[idx-1]['data']['name']}』不是装备，不能附魔！『背包』查看～")
+                return
+            item_name = _items[idx - 1]["data"]["name"]
         # ---- v34 符文路径：第二参数含"符文"则走符文附魔 ----
         if "符文" in stat_label:
             items = db.get_inventory(group_id, qq_id)
@@ -4259,6 +4300,8 @@ class EconomyCmds(CommandBase):
             return
         area_id = cur_map.get("area", cur)
         is_smith = self._is_smith_shop(player)
+        # v130.7 意见#23：sa_kind 提到函数级（铁匠分支原不计算该变量；坐骑块/武器块共用）
+        sa_kind = self._sa_shop_kind(player)
         subarea = self._cur_subarea(player)
         shop_title = (subarea.get("name") or cur_map.get("name") or cur)
         lines = []
@@ -4335,7 +4378,8 @@ class EconomyCmds(CommandBase):
                         _r = {"req": C.random_req("weapon", wlv, wtype)}
                     entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
         # v104 修 M17-P2：橡木镇（新手村）商店面板列出可购坐骑（price>0 的老马/小毛驴），并入序号购买
-        if area_id == "oak" and cur == C.START_MAP:
+        # v130.7 意见#23：坐骑只挂 smith/general 贸易场所（草药铺 herb/酒馆 tavern 不再隔空卖坐骑，口径同武器块）
+        if area_id == "oak" and cur == C.START_MAP and sa_kind in ("smith", "general"):
             _mount_owned = set((player.get("mounts") or {}).get("owned") or [])
             for mdef in C.MOUNT_POOL:
                 if (mdef.get("price") or 0) > 0:
@@ -4474,7 +4518,8 @@ class EconomyCmds(CommandBase):
         if item_name.isdigit():
             entries = list(shop_items) + [f"m:{m}" for m in materials] + (["bp:rand"] if is_smith else []) + [f"e:{rid}" for rid in equip_items] + [f"w:{w[0]}" for w in weapons]
             # v104 修 M17-P2：橡木镇序号购买含坐骑（与商店面板顺序一致，追加在末尾）
-            if area_id == "oak" and cur == C.START_MAP:
+            # v130.7 意见#23：序号购买与面板同口径（草药铺/酒馆序号不挂坐骑）
+            if area_id == "oak" and cur == C.START_MAP and sa_kind in ("smith", "general"):
                 entries += [f"mount:{m['key']}" for m in C.MOUNT_POOL if (m.get("price") or 0) > 0]
             idx = int(item_name)
             if idx < 1 or idx > len(entries):
@@ -4699,7 +4744,8 @@ class EconomyCmds(CommandBase):
         shop_mounts = [m for m in C.MOUNT_POOL if (m.get("price") or 0) > 0]
         for mdef in shop_mounts:
             if item_name in mdef["name"] or item_name.strip() == mdef["key"]:
-                if area_id != "oak" or cur != C.START_MAP:
+                # v130.7 意见#23：名称购买同口径（草药铺/酒馆『购买 老马』同样拦截）
+                if area_id != "oak" or cur != C.START_MAP or sa_kind not in ("smith", "general"):
                     yield event.plain_result(f"橡木镇的商人才能买到{mdef['name']}！去橡木镇『商店』看看～")
                     return
                 mounts = player.get("mounts") or {}

@@ -63,9 +63,9 @@ async def main():
     check("面板技能行", "技能" in out, out[:200])
 
     # ---- 喂养 +30 ----
-    # 给背包加一个材料
-    db.add_item("g1", "w1", "m_wolf_skin", {"name": "狼皮", "type": "材料", "stackable": True, "price": 10})
-    out = await cmd(m, "pet_feed", "g1", "w1", "喂养 狼皮")
+    # 给背包加一个食物（v130.7 意见#22：只喂食物/鱼，材料类需带 food 标记）
+    db.add_item("g1", "w1", "mat_shou_rou", {"name": "兽肉", "type": "材料", "stackable": True, "price": 10})
+    out = await cmd(m, "pet_feed", "g1", "w1", "喂养 兽肉")
     check("喂养成功 +30", "饱食度 +30" in out, out[:200])
     pet = db.pet_get("w1")
     check("饱食度 100（上限）", pet["satiety"] == 100, str(pet["satiety"]))

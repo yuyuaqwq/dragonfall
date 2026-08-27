@@ -17,6 +17,12 @@ DEFAULT_STAMINA = 100
 # ================= v99.3 战斗/流程概率常量 =================
 # （原散落各文件的裸数字，集中后改平衡参数只动这里）
 FLEE_CHANCE = 0.75             # battle.py:538 战斗逃跑成功率
+# v130.7 意见#28：逃跑成功率随等级差/速度差修正（battle.py _do_flee：
+# 基础 FLEE_CHANCE ± 等级差×FLEE_LEVEL_STEP ± 速度差×FLEE_SPD_STEP，clamp 到 [FLEE_MIN, FLEE_MAX]）
+FLEE_LEVEL_STEP = 0.05         # 每 1 级等级差（玩家-敌）修正 ±5%
+FLEE_SPD_STEP = 0.01           # 每 1 点速度差（玩家-敌）修正 ±1%
+FLEE_MIN = 0.15                # 逃跑成功率下限（敌高我低保底，防完全跑不掉）
+FLEE_MAX = 0.95                # 逃跑成功率上限（不保 100% 脱身）
 MON_SKILL_CHANCE = 0.3         # battle.py:1294 怪物技能使用概率
 MON_SKILL_CRIT = 0.1           # battle.py:1308 怪物技能暴击率
 SHIELD_COUNTER_CHANCE = 0.6    # battle.py:1597 v51 盾牌反击概率（反击 120% 伤害）
