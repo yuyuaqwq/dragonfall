@@ -25,11 +25,11 @@ class JobGuideCmds(CommandBase):
     async def job_guide(self, event: AstrMessageEvent):
         raw = self._strip_cmd(event, "职业").strip()
         if not raw:
-            yield event.plain_result(self._overview())
+            yield event.plain_result(self._jg_overview())
             return
         hit = resolve_job(raw)
         if isinstance(hit, str):
-            yield event.plain_result(self._detail(hit))
+            yield event.plain_result(self._jg_detail(hit))
             return
         if isinstance(hit, list):
             yield event.plain_result(
@@ -41,7 +41,7 @@ class JobGuideCmds(CommandBase):
 
     # ---------------- 一览 ----------------
 
-    def _overview(self) -> str:
+    def _jg_overview(self) -> str:
         lines = ["⚔️ 【职业】12 职业速查 · 『职业 <名称>』看详情", "━━━━━━━━━━━━"]
         lines.append("🟦 基础六职业（30 级转职，各分攻/守双线）")
         for cid in BASE_ORDER:
@@ -58,26 +58,26 @@ class JobGuideCmds(CommandBase):
 
     # ---------------- 详情 ----------------
 
-    def _detail(self, cid: str) -> str:
+    def _jg_detail(self, cid: str) -> str:
         g = JOB_GUIDE[cid]
         kind = "隐藏职业" if g["hidden"] else "基础职业"
         lines = [f"{g['icon']} 【{g['name']}】（{kind}）", "━━━━━━━━━━━━"]
         lines.append(f"📖 {g['desc']}")
-        lines.append(self._tier_line(g))
-        lines.append(self._resource_line(g))
+        lines.append(self._jg_tier_line(g))
+        lines.append(self._jg_resource_line(g))
         melee = "近战" if g["reach"] == 1 else "远程"
         role = g["role"] + (" · " + g["rank_label"] if g["rank_label"] else "")
         lines.append(f"🎯 定位：{role} · {melee}")
         if g["hidden"]:
-            lines.append(self._unlock_line(g))
+            lines.append(self._jg_unlock_line(g))
         else:
             for s in HIDDEN_SUCCESSORS.get(cid, []):
                 sg = JOB_GUIDE[s]
                 lines.append(
-                    f"🔮 隐藏传承：{sg['icon']}{sg['name']}（{self._unlock_line(sg, short=True)}）")
+                    f"🔮 隐藏传承：{sg['icon']}{sg['name']}（{self._jg_unlock_line(sg, short=True)}）")
         return "\n".join(lines)
 
-    def _tier_line(self, g: dict) -> str:
+    def _jg_tier_line(self, g: dict) -> str:
         """档位路线：T1(Lv.30) 攻线·狂战士 / 守线·盾卫士（基础双线，index0=攻线）"""
         lines = ["🔀 档位路线："]
         tlv = g["tier_levels"]
@@ -93,7 +93,7 @@ class JobGuideCmds(CommandBase):
                 lines.append(f"  T{t}(Lv.{lv}) 攻线·{atk} / 守线·{dfn}")
         return "\n".join(lines)
 
-    def _resource_line(self, g: dict) -> str:
+    def _jg_resource_line(self, g: dict) -> str:
         """核心资源与机制一句话（core_resources.py desc 原文）+ 转职分支专属资源"""
         lines = [f"⚡ 核心资源·{g['resource_name']}（上限 {g['resource_max']}）：{g['resource_desc']}"]
         for rk in EXTRA_RESOURCES.get(g["cls_id"], []):
@@ -102,7 +102,7 @@ class JobGuideCmds(CommandBase):
                 lines.append(f"　↳ 转职分支专属·{r.get('name', rk)}（上限 {r.get('max')}）：{r.get('desc')}")
         return "\n".join(lines)
 
-    def _unlock_line(self, g: dict, short: bool = False) -> str:
+    def _jg_unlock_line(self, g: dict, short: bool = False) -> str:
         """隐藏线解锁方式：任务链 + 档位门槛 + 种族血缘限制 + 线索（详情）"""
         tlv = g["tier_levels"]
         tk = g.get("task_name") or "专属试炼"
