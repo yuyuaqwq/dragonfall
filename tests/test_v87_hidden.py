@@ -105,8 +105,7 @@ def main():
     inst = Main.__new__(Main)
     player = {"qq_id": "q", "cur_subarea": "oak_town_1"}
     cur_map = C.MAP_BY_ID["oak_town"]
-    lines = inst._map_scene(cur_map, player)
-    poi_lines = [l for l in lines if "探索" in l and "发现" in l]
+    poi_lines, prop_lines = inst._map_scene(cur_map, player)  # v132 返回拆分 (POI, PROPS)
     check("地图面板显示 POI（冒险者广场）", len(poi_lines) >= 1, f"实际 {poi_lines}")
 
     # ===== 6. 隐藏 NPC +3 =====

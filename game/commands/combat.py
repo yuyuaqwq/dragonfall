@@ -292,9 +292,10 @@ class CombatCmds(CommandBase):
             if (player.get("stamina") or 0) < 20:
                 stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
         elif events:
-            # v101.25c 怪物等级波动：普通怪 ±2 级（精英/Boss 固定）——同图练级不单调
-            # v130.8 意见#32：±1 感知弱 → 增强为 ±2（v101.25i3 曾试 ±2 被否，意见复批通过）
-            monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=2)
+            # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
+            # v130.8 意见#32：±1 感知弱 → 增强为 ±2；v132 鱼鱼拍板改回 ±1（"随机等级大概在正负1就行了"，
+            # 面板已明示 Lv.X±1 → 波动感知由展示层承担，数值层收敛防等级飘移）
+            monster = C.build_monster(random.choice(events)[1], cur_map, lv_jitter=1)
             # v2 多对多：普通怪 60% 单只 / 40% 双只——用确定性哈希决定（v103 铁律：不新增 random
             # 调用点；monster_id+lv 唯一确定同一只怪是否双只，不改变既有 random 调用顺序/结果）
             _double = hash(monster.get("id", "") + "_" + str(monster.get("lv", 0))) % 100 < 40

@@ -74,7 +74,7 @@ async def test_o99_talk_zero(m, gid, qid):
     check("影刃宗师裸数字 0 正常告别", "那就再会了" in out, out)
     check("影刃宗师裸数字 0 后状态清除", db.get_talk_state(gid, qid) is None, "")
     out = await cmd(m, "move", gid, qid, "前往 1")
-    check("裸数字 0 后移动不再被拦截", "交谈中" not in out and "你来到了" in out, out[:80])
+    check("裸数字 0 后移动不再被拦截", "交谈中" not in out and "🗺️" in out, out[:80])
     out = await cmd(m, "talk_choice", gid, qid, "对话 0")
     check("无状态『对话 0』提示无对话", "没有正在进行的对话" in out, out)
     out = await cmd(m, "talk_choice", gid, qid, "对话 ０")
@@ -85,7 +85,7 @@ async def test_o99_talk_zero(m, gid, qid):
     check("损坏状态『对话 0』提示无对话", "没有正在进行的对话" in out, out)
     check("损坏残留键已被清除", db.get_event_state(db.talk_state_key(gid, qid)) is None, "")
     out = await cmd(m, "move", gid, qid, "前往 1")
-    check("损坏键清除后移动放行", "你来到了" in out, out[:80])
+    check("损坏键清除后移动放行", "🗺️" in out, out[:80])
     # 3.4 对照：吟游诗人处裸数字 0 可正常退出
     db.update_player(gid, qid, cur_map="ironharbor", cur_subarea="ironharbor_1")
     out = await cmd(m, "talk_choice", gid, qid, "对话 吟游诗人·莎拉")

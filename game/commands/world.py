@@ -169,13 +169,15 @@ class WorldCmds(CommandBase):
             lines.append("🌿 野地可采集(『采集』)")
         return lines
 
-    def _map_scene(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> list:
+    def _map_scene(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> tuple:
         """当前子区域场景元素清单（POI 探索点 + PROPS 场景元素 + 副本内联 POI）。
 
         v87.13 从 _map_interactions 拆出：氛围/景物类，标题用「✨ 场景」。
         v87.13b sa_id_override：移动到达展示时目标子区域还没写进 player，显式传入落点子区域 id。
+        v132 返回拆分：("🔎 可探索触发" POI 行列表, "✨ 可交互场景" PROPS 行列表)——
+        鱼鱼拍板新排版：探索触发与直接交互分两区展示（城镇版/野外版同一套区块）。
         """
-        lines = []
+        poi_lines, prop_lines = [], []
         mid = cur_map.get("id", "")
         sa_id = sa_id_override or (player or {}).get("cur_subarea") or ""
         # v87 02 章 7.6：探索点 POI 显示（子区域挂载）
@@ -184,7 +186,7 @@ class WorldCmds(CommandBase):
             for _pid in poi_ids:
                 _p = C.POIS.get(_pid)
                 if _p:
-                    lines.append(f"{_p['icon']} {_p['name']}(『探索』有机会发现)")
+                    poi_lines.append(f"{_p['icon']} {_p['name']}(『探索』有机会发现)")
         # v87.9 场景元素 PROPS 显示（子区域挂载，直接交互）
         # v87.11 支持专属名：挂载条目可为 (prop_id, 专属名) 元组
         if player:
@@ -194,13 +196,13 @@ class WorldCmds(CommandBase):
                 _pp = C.PROPS.get(_ppid)
                 if _pp:
                     _name = _label or _pp['name']
-                    lines.append(f"{_pp['icon']} {_name}(『交互 {_name}』)")
+                    prop_lines.append(f"{_pp['icon']} {_name}(『交互 {_name}』)")
         # v87.2 副本地图化：内联 POI（副本层自带 pois → 直接显示，『调查 <名称>』互动）
         for _p in (cur_map.get("pois") or []):
             if isinstance(_p, dict) and _p.get("name"):
-                lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}(『调查 {_p['name']}』)")
+                poi_lines.append(f"{_p.get('icon', '❓')} {_p['name']}：{_p.get('hint', '')}(『调查 {_p['name']}』)")
         # v87.4 NPC 不再进场景（由地图面板「👥 这里的 NPC」统一显示，避免重复）
-        return lines
+        return poi_lines, prop_lines
 
     def _visible_sas(self, player: dict, cur_map: dict, group_id: str, qq_id: str) -> list:
         """v115 当前位置地图中**可见**的子区域列表（供面板/移动统一使用）。
@@ -586,7 +588,21 @@ class WorldCmds(CommandBase):
                     sa_desc = _sa.get("desc", "") or ""
                     break
         lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id)
-        sas = cur_map.get("subareas") or []  # 后续设施/NPC/怪物区块复用
+        # v132 公共区块（今日奇遇/设施/场景/NPC/旅人/玩家/怪物/tip）——「地图」与「到达视图」同源
+        lines += self._map_blocks(player, cur_map, cur_sa, group_id, qq_id)
+        yield event.plain_result("\n".join(lines))
+
+    def _map_blocks(self, player: dict, cur_map: dict, cur_sa: str,
+                    group_id=None, qq_id=None) -> list:
+        """v132 从 map_view 抽取：位置导航之外的完整区块（今日奇遇/设施/场景/NPC/旅人/玩家/怪物/tip）。
+
+        『地图』与 `_subarea_arrive`（到达视图）共用此方法 → 两处排版永不分裂
+        （v101.25c 铁律：鱼鱼抓"前往不同区域提示模板不一样"）。
+        cur_sa 传 sa id：到达视图时 player.cur_subarea 尚未更新为落点（v87.13b 同源处理）。
+        """
+        lines = []
+        cur = cur_map.get("id", "")
+        sas = cur_map.get("subareas") or []
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
@@ -608,19 +624,26 @@ class WorldCmds(CommandBase):
         if lines and lines[-1]:
             lines.append("")
         # 此地设施 + 场景（v87.13 拆分：设施=功能入口，场景=氛围景物）
-        fac = self._map_facilities(cur_map, player)
+        fac = self._map_facilities(cur_map, player, cur_sa)
         if fac:
             if lines and lines[-1]:
                 lines.append("")
             lines.append("🏪 此地设施：")
             for l in fac:
                 lines.append(f"  {l}")
-        scene = self._map_scene(cur_map, player)
-        if scene:
+        # v132 场景两区：🔎 可探索触发（POI/调查）+ ✨ 可交互场景（PROPS）
+        poi_lines, prop_lines = self._map_scene(cur_map, player, cur_sa)
+        if poi_lines:
             if lines and lines[-1]:
                 lines.append("")
-            lines.append("✨ 场景：")
-            for l in scene:
+            lines.append("🔎 可探索触发：")
+            for l in poi_lines:
+                lines.append(f"  {l}")
+        if prop_lines:
+            if lines and lines[-1]:
+                lines.append("")
+            lines.append("✨ 可交互场景：")
+            for l in prop_lines:
                 lines.append(f"  {l}")
         # 本地 NPC
         # v86 子区域：NPC 按当前子区域显示（无子区域则地图级）
@@ -652,23 +675,22 @@ class WorldCmds(CommandBase):
             lines.append(f"  {self._tip('talk')}")
         # v127.5 限时NPC：在场野外旅人（偶遇进入限时状态，带 ⏳ 剩余分钟，全图可见）
         # v127.5.1 不重复加 _tip('talk')——对上城镇 NPC 区已有同分类提示（AST 防重铁律）
-        wild_lines = self._present_wild_hints(group_id, qq_id, cur)
+        wild_lines = self._present_wild_hints(group_id, qq_id, cur) if group_id is not None and qq_id is not None else []
         if wild_lines:
             if lines and lines[-1]:
                 lines.append("")
             lines.append("🧭 游历的旅人：")
             lines.extend(wild_lines)
-        # v66 此地玩家（含摆摊标记）
-        mid = cur_map.get("id", "")
-        here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == mid]
+        # v66 此地玩家（含摆摊标记；v132 加编号，鱼鱼新排版）
+        here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == cur]
         if here_players:
-            stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, mid)}
+            stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, cur)}
             if lines and lines[-1]:
                 lines.append("")
             lines.append("👤 此地的玩家：")
-            for p in here_players:
+            for i, p in enumerate(here_players, 1):
                 stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
-                lines.append(f"  {p['name']} Lv.{p['level']}{stall_mark}")
+                lines.append(f"  {i}. {p['name']} Lv.{p['level']}{stall_mark}")
         # v86 子区域：怪物按当前子区域（无则回退地图级）
         mons = (cur_sa_obj.get("monsters") if cur_sa_obj else None)
         if mons is None:
@@ -696,7 +718,9 @@ class WorldCmds(CommandBase):
                 if role == "boss" and boss and boss[0] == mid:
                     continue
                 mark = "👑" if role == "boss" else ("⭐" if role == "elite" else "")
-                lines.append(f"  {mark}{name} Lv.{lv}")
+                # v132 等级波动明示：普通怪 ±1（精英/Boss 不参与波动，不标注）
+                jitter = "±1" if role not in ("elite", "boss") else ""
+                lines.append(f"  {mark}{name} Lv.{lv}{jitter}")
         if elite:
             lines.append(f"  ⭐ 精英：{elite[1]}")
         if boss:
@@ -704,14 +728,15 @@ class WorldCmds(CommandBase):
         if lines and lines[-1]:
             lines.append("")
         lines.append(self._tip("map"))
-        yield event.plain_result("\n".join(lines))
+        return lines
 
     def _map_nav_body(self, player: dict, cur_map: dict, cur_sa: str,
-                      group_id=None, qq_id=None, show_here=True) -> list:
+                      group_id=None, qq_id=None, show_here=True, with_header=True) -> list:
         """v128 地图导航主体（标题/描述/当前位置/可前往列表）——『地图』『位置』共用。
 
         返回 lines 列表（未 join），调用方按需追加其余区块。
         可前往编号与 move 解析一致（同图子区域 → 隐藏🔒 → 跨图邻居）。
+        v132 with_header=False：跳过标题三行（🗺️/描述/分隔线）——到达视图自带标题时用。
         """
         sas = cur_map.get("subareas") or []
         sa_now = ""
@@ -726,7 +751,8 @@ class WorldCmds(CommandBase):
         if sa_now:
             title = f"{cur_map['name']} · {sa_now}"
         # v87.13 描述优先显示当前子区域（子区域无 desc 时回退地图 desc）
-        lines = [f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
+        lines = ([f"🗺️ 【{title}】", f"{sa_desc or cur_map['desc']}", "━━━━━━━━━━━━"]
+                 if with_header else [])
         neighbors = C.MAP_CONNECTIONS.get(cur_map.get("id", ""), [])
         links = C.subarea_links(cur_map.get("id", ""), cur_sa)
         _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
@@ -774,6 +800,17 @@ class WorldCmds(CommandBase):
                     sa_lbl = self._conn_subarea_name(nm, want_sa)
                     lock = " (🔒隐藏)" if nm.get("hidden") else ""
                     lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+            else:
+                # v95.25 #133：非出口子区域提示必经出口（与旧 _subarea_body 同口径，
+                # v132 模板统一回归修复；街道链城镇在广场时提示必经之路）
+                _exit_sa_name = next((s["name"] for s in sas if s["id"] == exit_sa_id), "出口")
+                _hint = _exit_sa_name
+                _center = sas[0] if sas else {}
+                if _center.get("type") == C.SUB_TYPE_TOWN and cur_sa == _center.get("id", ""):
+                    _chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
+                    if _chain and _chain[0]["id"] != exit_sa_id:
+                        _hint = _chain[0]["name"]
+                lines.append(f"  🧭 出城需先到『{_hint}』")
             # v114.3 尽头标记图例（有深度数据才显示）
             if _depth is not None:
                 lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
@@ -1373,15 +1410,8 @@ class WorldCmds(CommandBase):
         # v101.25c 模板统一后：完整"可前往"列表已由 _subarea_body 输出，
         # 此处不再拼紧凑版（否则跨图移动出现两行重复列表，playtest #405）
         # v128 赶路模式提示统一由 _subarea_arrive 输出（回复 0 结束），此处不再重复。
-        fac = self._map_facilities(target, player, first_sa["id"] if first_sa else "")
-        fac_msg = ""
-        if fac:
-            fac_msg = "\n\n🏪 此地设施：\n  " + "\n  ".join(fac)
-        scene = self._map_scene(target, player, first_sa["id"] if first_sa else "")
-        scene_msg = ""
-        if scene:
-            scene_msg = "\n\n✨ 场景：\n  " + "\n  ".join(scene)
-        inter_msg = fac_msg + scene_msg
+        # v132：fac_msg/scene_msg 死代码已删（v101.25c 起跨图移动走 _subarea_arrive，
+        # 此处拼装从未被消费；_map_scene 改返回 (poi, prop) 后旧 join 会直接崩）
         # v49 意见#4：移动撞怪（生物趋避利害——低级闯高级区容易撞怪，高级玩家威慑低级区）
         ambush = self._travel_ambush(player, target, group_id, qq_id)
         # v101.25c 模板统一：跨图移动也走 _subarea_arrive 完整模板（NPC/可互动/设施/场景/可前往）
@@ -1428,134 +1458,42 @@ class WorldCmds(CommandBase):
             f"{arrive_view}{_head_extra}"
             + (f"\n{_rule_txt}" if _rule_txt else "")
         )
-
-    def _subarea_body(self, player: dict, cur_map: dict, sa: dict, group_id=None, qq_id=None) -> str:
-        """v101.25c 子区域主体展示（NPC/可互动/设施/场景/可前往）——跨图移动、
-        子区域切换、返回三处共用同一模板（鱼鱼抓"前往不同区域提示模板不一样"）。"""
-        lines = []
-        # 本子区域 NPC
-        # v101.25c 统一模板遗漏修复（#391/#358/#382）：移动展示必须与『地图』/『对话』
-        # 一致——酱油 NPC 按 游走(roam)/概率(appear)/时段(period) 过滤（功能 NPC 恒在）
-        npcs = [C.NPCS[nid] for nid in sa.get("npcs", []) if nid in C.NPCS
-                and C.town_npc_visible(nid, C.NPCS[nid], sa["id"])]
-        if npcs:
-            lines.append("👥 这里的 NPC：")
-            for i, n in enumerate(npcs, 1):
-                lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append(f"  {self._tip('talk')}")
-        # v127.5 限时NPC：在场野外旅人（偶遇限时，map 级全图可见；子区域视图同地图面板）
-        # v127.5.1 不重复加 _tip('talk')——对上城镇 NPC 区已有同分类提示（AST 防重铁律）
-        if group_id is not None and qq_id is not None:
-            wild_lines = self._present_wild_hints(group_id, qq_id, cur_map.get("id", ""))
-            if wild_lines:
-                lines.append("🧭 游历的旅人：")
-                lines.extend(wild_lines)
-        # 功能提示
-        funcs = sa.get("funcs") or []
-        func_cn = {"shop": "商店", "heal": "住宿", "quest": "任务", "craft": "锻造",
-                   "stall": "摆摊", "auction": "拍卖", "fish": "垂钓", "lore": "听故事",
-                   "apprentice": "副业", "enhance": "强化", "portal": "方碑",
-                   "alchemy": "炼金", "teach": "教学", "trade": "交易", "info": "咨询"}
-        show_funcs = [func_cn.get(f, f) for f in funcs if f not in ("explore", "instance")]
-        # v95.25 #137：可互动提示与实际设施一致——funcs 有 shop/heal 但布尔未开时过滤
-        if "shop" in funcs and not sa.get("shop"):
-            show_funcs = [f for f in show_funcs if f != "商店"]
-        if "heal" in funcs and not sa.get("healer"):
-            show_funcs = [f for f in show_funcs if f != "住宿"]
-        # #232: lore 只在子区域有讲故事的 NPC 时显示——铁锚酒馆等无 lore NPC 的子区域
-        # "听故事"是空挂（吟游诗人·莎拉在港口广场，酒馆内无触发入口）
-        if "lore" in funcs and not any(
-            "lore" in (C.NPCS.get(nid, {}).get("funcs") or []) for nid in sa.get("npcs", [])
-        ):
-            show_funcs = [f for f in show_funcs if f != "听故事"]
-        if show_funcs:
-            lines.append(f"🏷️ 可互动：{'、'.join(show_funcs)}(『商店』『住宿』『对话 <NPC名>』等)")
-        # v6：设施 + 场景（与『地图』面板一致）
-        fac = self._map_facilities(cur_map, player, sa["id"])
-        if fac:
-            lines.append("🏪 此地设施：")
-            lines.append("  " + "  ".join(fac))
-        scene = self._map_scene(cur_map, player, sa["id"])
-        if scene:
-            lines.append("✨ 场景：")
-            # v127 修正：与『地图』面板一致逐行输出（原 "  " + "  ".join 单行合并，
-            # 导致移动到达场景行 ≠ 地图场景行，test_v87_13b 概率性失败）
-            for _l in scene:
-                lines.append(f"  {_l}")
-        # 子区域间切换（同图免费，v87.14 只列相邻可达子区域，序号与地图面板/move 一致）
-        # v115 网状：links 用 _visible_sas 过滤（隐藏未揭示不可前往），与『地图』/move 编号一致
-        sas = cur_map.get("subareas") or []
-        _raw_links = C.subarea_links(cur_map.get("id", ""), sa["id"])
-        if group_id is not None and qq_id is not None:
-            _v_ids = {vs["id"] for vs in self._visible_sas(player, cur_map, group_id, qq_id)}
-            links = [lid for lid in _raw_links if lid in _v_ids]
-        else:
-            links = _raw_links
-        others = [(i + 1, next((x for x in sas if x["id"] == lid), None))
-                  for i, lid in enumerate(links)]
-        others = [(i, x) for i, x in others if x]
-        if others:
-            lines.append("📮 可前往：")
-            for i, x in others:
-                lines.append(f"  {i}. {x['name']}")
-        # v87.16 与地图面板一致：邻居地图从 len(links)+1 编号
-        # v95.25 #133/#144/#148：非出口子区域不列跨图目的地（与『地图』一致），避免列出但被拦
-        neighbors = C.MAP_CONNECTIONS.get(cur_map.get("id", ""), [])
-        if neighbors:
-            _exit_sa_id = C.map_exit_subarea(cur_map.get("id", ""))
-            at_exit = (not _exit_sa_id) or (sa["id"] == _exit_sa_id)
-            if at_exit:
-                if not others:
-                    lines.append("📮 可前往：")
-                for i, nid in enumerate(neighbors, len(links) + 1):
-                    nm, _ = self._conn_target(nid)
-                    lines.append(f"  {i}. {nm['name']}")
-            else:
-                _exit_sa_name = next((s["name"] for s in sas if s["id"] == _exit_sa_id), "出口")
-                # v104 P2(M22)：街道链城镇在广场时提示必经之路（广场→圣光大道→城门），
-                # 不直接跳城门——提示必须与真实空间连接一致（_move_blocked_msg 同口径）
-                _hint = _exit_sa_name
-                _center = sas[0] if sas else {}
-                if _center.get("type") == C.SUB_TYPE_TOWN and sa["id"] == _center.get("id", ""):
-                    _chain = [s for s in sas if s.get("type") in (C.SUB_TYPE_STREET, C.SUB_TYPE_GATE)]
-                    if _chain and _chain[0]["id"] != _exit_sa_id:
-                        _hint = _chain[0]["name"]
-                lines.append(f"🧭 出城需先到『{_hint}』")
-        lines.append("")
-        lines.append(self._tip("map"))
-        return "\n".join(lines)
-
     def _subarea_arrive(self, player: dict, cur_map: dict, sa: dict, group_id=None, qq_id=None) -> str:
-        """v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
+        """v132 到达视图：🗺️ 标题 + 描述 + 完整区块（导航/奇遇/设施/场景/NPC/旅人/玩家/怪物/tip）。
 
+        v86 子区域到达展示：位置 + 描述 + 本子区域可互动 + 可前往子区域。
         v6 修复：与跨图移动一致，展示本子区域 PROPS/POI 场景元素
         （鱼鱼验收：移动展示必须与『地图』面板一致）。
         v101.25c：主体复用 _subarea_body（与跨图移动/返回同模板）。
+        v132：_subarea_body 移除，改为 _map_nav_body(without_header) + _map_blocks——
+        与『地图』面板 100% 同源（鱼鱼拍板新排版：可前往带 Lv/尽头标记、场景分两区、
+        玩家编号、怪物标 ±1 波动；移动面板与地图面板永不分裂）。
         v115：H 提供 exploration_record_visit 时，到达即记录 + 首访奖励文本追加。
         """
+        title = cur_map["name"]
+        if sa.get("name"):
+            title = f"{cur_map['name']} · {sa['name']}"
+        desc = sa.get("desc", "") or cur_map.get("desc", "")
         # v128.1 赶路类型过滤落点：hurry_type 非空时只显示该类型 + 可前往通道
         _ht = ""
         if group_id is not None and qq_id is not None:
             _ht = db.get_event_state(f"hurry_type:{qq_id}") or ""
         if _ht:
-            nav = self._map_nav_body(player, cur_map, sa["id"], group_id, qq_id, show_here=False)
+            nav = self._map_nav_body(player, cur_map, sa["id"], group_id, qq_id,
+                                     show_here=False, with_header=False)
             sec = self._hurry_section(player, cur_map, sa["id"], group_id, qq_id, _ht)
-            lines = [f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
-                     f"{sa.get('desc', '')}",
-                     "━━━━━━━━━━━━"] + sec
-            rest = [x for x in nav[3:] if str(x).strip()]
+            lines = [f"🗺️ 【{title}】", desc, "━━━━━━━━━━━━"] + sec
+            rest = [x for x in nav if str(x).strip()]
             if rest:
                 if sec:
                     lines.append("")
                 lines.extend(rest)
             out = "\n".join(lines)
         else:
-            out = "\n".join([
-                f"🚶 你来到了【{cur_map['name']}·{sa['name']}】",
-                f"{sa.get('desc', '')}",
-                "━━━━━━━━━━━━",
-                self._subarea_body(player, cur_map, sa, group_id, qq_id),
-            ])
+            nav = self._map_nav_body(player, cur_map, sa["id"], group_id, qq_id,
+                                     show_here=False, with_header=False)
+            blocks = self._map_blocks(player, cur_map, sa["id"], group_id, qq_id)
+            out = "\n".join([f"🗺️ 【{title}】", desc, "━━━━━━━━━━━━"] + nav + blocks)
         # v115 探索见闻：到达子区域记录 + 首访奖励（H 提供，getattr 兜底）
         _rec = getattr(C, "exploration_record_visit", None)
         if _rec is not None and group_id is not None and qq_id is not None:
@@ -1615,7 +1553,7 @@ class WorldCmds(CommandBase):
                 chance = 0.08
             if random.random() >= chance:
                 return None
-            return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
+            return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
         # v87.6 内容下沉子区域：优先取落点入口子区域的怪；入口无怪才找最近有怪子区域
         # （M22 P3：原逻辑取"首个有怪子区域"，入口无怪时会抽到深处高等级怪，玩家刚进图就被深处怪秒）
         _sas = target_map.get("subareas") or []
@@ -1646,9 +1584,9 @@ class WorldCmds(CommandBase):
             chance = 0.08
         if random.random() >= chance:
             return None
-        # v101.25c 移动撞怪也带等级波动（普通怪 ±2，精英/Boss 固定）
-        # v130.8 意见#32：±1 感知弱 → 增强为 ±2（v101.25i3 曾试 ±2 被否，意见复批通过）
-        return C.build_monster(random.choice(monsters), target_map, lv_jitter=2)
+        # v101.25c 移动撞怪也带等级波动（普通怪 ±1，精英/Boss 固定）
+        # v130.8 意见#32：±1 感知弱 → 增强为 ±2；v132 鱼鱼拍板改回 ±1（面板明示 Lv.X±1）
+        return C.build_monster(random.choice(monsters), target_map, lv_jitter=1)
 
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:祭坛|方碑)(?:\s*|$)")
