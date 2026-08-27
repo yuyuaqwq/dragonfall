@@ -106,12 +106,12 @@ def main():
     ea_a, first_a = run_freq(pa, ma)
     ratio_a = ROUNDS / ea_a
     print(f"  📊 20 回合怪行动次数 = {ea_a}，首次怪动在第 {first_a} 次玩家行动后，频率比 = 20/{ea_a} ≈ {ratio_a:.2f}:1")
-    # ⚠️失衡基线锁定：理论比 15:1（前 15 回合怪站桩），修复目标 ≤3:1——CTB 修复后收紧
-    check("锁定现状：20 回合怪行动 == 3 次（失衡实测）", ea_a == 3, f"ea={ea_a}")
-    check("⚠️失衡锁定：首次怪动需玩家行动 15 次（理论比 15:1）",
-          first_a == 15, f"first={first_a}")
-    check("⚠️失衡对照：频率比 6.67:1 > 修复目标 3:1（现状失衡，修复后应收紧）",
-          ratio_a > 3.0, f"ratio={ratio_a:.2f}")
+    # v130.10 绝对时刻 CTB 修复：频率线性（spd72 vs 31 → 理论 2.32:1），无站桩
+    check("✅ 20 回合怪行动 == 8 次（线性频率实测）", ea_a == 8, f"ea={ea_a}")
+    check("✅ 首次怪动在第 3 次玩家行动后（无 15 回合站桩）",
+          first_a == 3, f"first={first_a}")
+    check("✅ 频率比 2.50:1 ≤ 3:1 修复目标（达标）",
+          ratio_a <= 3.0, f"ratio={ratio_a:.2f}")
 
     print("【CTB 行动频率 · 场景② 全力刺客：spd41 vs spd31】")
     pb = mk_player("cls_ci_ke", 11, {"str": 39})

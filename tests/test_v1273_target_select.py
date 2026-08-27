@@ -171,7 +171,13 @@ def test_single_monster_target():
     b = BT.Battle("monster", None, {}, player=player, enemies=[mon])
     logs, ended = b.player_turn("skill", "猛击", player, target="a9")
     out = "\n".join(logs)
-    check("单怪仍打唯一目标", "史莱姆" in out and b.enemies[0]["hp"] < b.enemies[0]["max_hp"], out[:300])
+    # v130.10 绝对时刻 CTB：怪 ct 初始 = cost（>0），玩家首动后怪未到行动点不再反击
+    # （v121 相对时钟下怪 -spd 开局、玩家行动后即反击，日志含『史莱姆』行）。单怪路径
+    # 的玩家攻击行本就不含目标名（多怪才有『对【X】造成』）——按新行为断言：a9 越界
+    # 被单怪路径静默忽略（无『没有找到目标』提示）+ 伤害命中唯一目标。
+    check("单怪仍打唯一目标", "没有找到目标" not in out
+          and "猛击" in out
+          and b.enemies[0]["hp"] < b.enemies[0]["max_hp"], out[:300])
 
 
 def main():

@@ -205,6 +205,17 @@ def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
     logs.append(f"🐾 {pname}的【{sname}】为你加持暴击提升！(暴击 +{int(pdef['skill_value'] * 100)}%，2 回合)" + (f"「{line}」" if line else ""))
 
 
+def _ct_initial_wait(spd) -> float:
+    """v130.10 绝对时刻 CTB：单位初始行动等待 = BASE_DELAY/spd（阴阳师式速度条，行动频率线性）。
+    替代 v121 的 -spd 先手值——旧相对时钟下怪 ct 被玩家行动持续回拽导致追赶死锁/站桩
+    （见 docs/NUMERIC_TEST.md 失衡基线；修复后频率比 = spd_p/spd_e 线性）。"""
+    try:
+        eff = min(float(spd or 0), SPD_CT_CAP)
+    except Exception:
+        eff = 0.0
+    return BASE_DELAY / max(1.0, eff)
+
+
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp
@@ -219,7 +230,7 @@ class Battle:
             # v121 CTB：敌方单位 ct 缺省 -spd（快者先手）；随 enemies 阵列持久化
             for u in self.enemies:
                 if "ct" not in u:
-                    u["ct"] = -float(u.get("spd", 0) or 0)
+                    u["ct"] = _ct_initial_wait(u.get("spd", 0))  # v130.10 绝对时刻：初始行动等待 = cost
             if not any(u.get("rank") for u in self.enemies):
                 for i, u in enumerate(self.enemies):
                     u.setdefault("uid", f"e_{i}")
@@ -332,12 +343,9 @@ class Battle:
             if _chi_eff and "chi" in _keys0:
                 self._res_gain(player, "chi", int(_chi_eff.get("value", 2) or 2))
         # v121 CTB 行动时间轴：玩家 ct（越小越先行动），开局 = -spd（快者先手）
+        # v130.10 绝对时刻 CTB：玩家时钟从 0 起（回合制外壳第一回合必动，行动后 +cost）。
+        # 旧 v121 初始 -spd 是相对时钟追赶死锁的根源（怪被玩家行动持续回拽 → 站桩）。
         self.p_ct: float = 0.0
-        try:
-            if player:
-                self.p_ct = -float(self._player_stats(player).get("spd", 0) or 0)
-        except Exception:
-            self.p_ct = -float(player.get("spd", 0) or 0) if player else 0.0
         self._player_hit: bool = False        # 本场玩家是否受过击（v2.1 条件：未受击增伤）
         self.first_attack_done: bool = False  # 阶段九：龙之吐息首击标记（每场首次攻击 +15%）
         self._death_pact_used: bool = False   # v107 死亡契约（暗影祭司）：每场 1 次标记
@@ -363,7 +371,7 @@ class Battle:
         u.setdefault("stacks", u.get("stacks") or {})
         u.setdefault("defending", False)
         u.setdefault("charging", None)
-        u.setdefault("ct", -float(u.get("spd", 0) or 0))  # v121 CTB 缺省 -spd
+        u.setdefault("ct", _ct_initial_wait(u.get("spd", 0)))  # v130.10 绝对时刻：初始行动等待 = cost
         return u
 
     @property
@@ -501,10 +509,14 @@ class Battle:
         b.last_combo_tag = st.get("last_combo_tag") or None
         b.team_effects = []
         # v121 CTB：玩家 ct 读取（老存档兜底 0）；敌方单位 ct 兜底 -spd
+        # v130.10 绝对时刻：p_ct<0（旧相对时钟存档）重置 0；怪 ct 缺失或<=0（旧 -spd 语义）重置为初始等待
         b.p_ct = float(st.get("p_ct", getattr(b, "p_ct", 0.0)) or 0.0)
+        if b.p_ct < 0:
+            b.p_ct = 0.0
         for _u in b.enemies:
-            if "ct" not in _u:
-                _u["ct"] = -float(_u.get("spd", 0) or 0)
+            _c = _u.get("ct")
+            if "ct" not in _u or float(_c or 0) <= 0:
+                _u["ct"] = _ct_initial_wait(_u.get("spd", 0))
         b._player_hit = bool(st.get("player_hit", False))
         b.first_attack_done = bool(st.get("first_attack_done", False))
         b._death_pact_used = bool(st.get("death_pact_used", False))
@@ -1315,7 +1327,7 @@ class Battle:
         return BASE_DELAY / max(1.0, eff)
 
     def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None):
-        """v121 CTB：行动者 ct += cost；其余所有存活单位 ct -= cost。
+        """v121 CTB→v130.10 绝对时刻：行动者 ct += cost；其余所有存活单位 ct -= cost（时间流逝，正确保留）。
         side="p"：玩家行动完（用传入 player 的速度；from_state 恢复/副本构造无 self.player，
         必须传 player 否则 spd 视为 0 导致 p_ct 每次 +BASE_DELAY 卡死玩家）；
         side="e"：指定敌方单位行动完（该单位 cost 广播给玩家和其他敌）。
@@ -1325,7 +1337,7 @@ class Battle:
             p_cost = self._ct_cost(self._player_stats(_p).get("spd", 0) if _p else 0)
             self.p_ct += p_cost
             for u in self.enemies:
-                u.setdefault("ct", -float(u.get("spd", 0) or 0))
+                u.setdefault("ct", _ct_initial_wait(u.get("spd", 0)))
                 if u.get("hp", 0) > 0:
                     u["ct"] = float(u.get("ct", 0) or 0) - p_cost
         else:
@@ -1614,7 +1626,7 @@ class Battle:
         return self._enemy_phase(player, logs, enemy_act)
 
     def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
-        """v121 CTB 敌方行动段：while 敌方存活单位中最小 ct < 玩家 ct → 该单位行动一次，
+        """v121→v130.10 绝对时刻敌方行动段：while 敌方存活单位中最小 ct > 0（行动点）→ 该单位行动一次，
         行动后结算其 ct（自身 +cost、其余含玩家 -cost）；死亡单位即时移出候选（存活判定沿用 alive）。
         被控（stun/freeze）跳过的敌方单位行动后仍照常结算其 ct（行动被浪费）。
         defend=True 时敌方伤害减半。硬上限：单次玩家行动后敌方最多连动 8 次，超限 break。
@@ -1627,7 +1639,7 @@ class Battle:
                 if not alive or self._player_dead(player):
                     break
                 min_e_ct = min(float(u.get("ct", 0) or 0) for u in alive)
-                if min_e_ct >= self.p_ct:
+                if min_e_ct > 0.0:  # v130.10 绝对时刻：0 为行动点
                     break
                 unit = min(alive, key=lambda u: float(u.get("ct", 0) or 0))
                 mlogs, dmg = self._enemy_turn(player, unit)

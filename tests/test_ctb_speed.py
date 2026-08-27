@@ -22,6 +22,8 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import BT, C, clean_db
 
+_REAL_ESTATS = BT.Battle._enemy_stats  # v130.10 保存原始实现（多怪频率断言临时还原，绕过全局 speed patch）
+
 passed = failed = 0
 def check(name, cond, detail=""):
     global passed, failed
@@ -87,8 +89,8 @@ def test_openers():
     clean_db()
     set_spd(20, 10)
     b = BT.Battle("monster", make_enemy(10), player=make_player())
-    check("玩家 ct 初值 = -spd", abs(b.p_ct - (-20.0)) < 0.001, f"p_ct={b.p_ct}")
-    check("敌方单位 ct 初值 = -spd", abs(b.enemy["ct"] - (-10.0)) < 0.001, f"e_ct={b.enemy['ct']}")
+    check("玩家 ct 初值 = 0（v130.10 绝对时刻）", abs(b.p_ct) < 0.001, f"p_ct={b.p_ct}")
+    check("敌方单位 ct 初值 = cost(100/spd)", abs(b.enemy["ct"] - 10.0) < 0.001, f"e_ct={b.enemy['ct']}")
     check("快者 ct 更小（更先）", b.p_ct < b.enemy["ct"], f"{b.p_ct} vs {b.enemy['ct']}")
     # 快者（玩家）先行动：第一回合完整回合，玩家 ct 仍 <= 敌方 ct（敌方未抢到先手）
     b2 = BT.Battle("monster", make_enemy(10), player=make_player())
@@ -100,7 +102,15 @@ def test_openers():
     # 反向：敌方更快 → 敌方 ct 初值更负，先行动
     set_spd(10, 30)
     b3 = BT.Battle("monster", make_enemy(30), player=make_player())
-    check("敌方更快时敌方先手", b3.enemy["ct"] < b3.p_ct, f"{b3.enemy['ct']} vs {b3.p_ct}")
+    cnt3 = [0]
+    _o3 = BT.Battle._enemy_turn
+    def _w3(self, player, unit=None):
+        cnt3[0] += 1
+        return _o3(self, player, unit)
+    BT.Battle._enemy_turn = _w3
+    b3.player_turn("attack", None, make_player())
+    BT.Battle._enemy_turn = _o3
+    check("敌方更快时第1回合敌方段即行动（先手插队）", cnt3[0] >= 1, f"e_acts={cnt3[0]}")
 
 
 def test_frequency_2to1():
@@ -176,10 +186,17 @@ def test_enemy_chained():
         act_log.append(unit.get("uid"))
         return orig(self, player, unit)
     BT.Battle._enemy_turn = wrap2
-    bm.player_turn("attack", None, make_player())  # 单个玩家行动窗口
+    BT.Battle._enemy_stats = _REAL_ESTATS  # 临时还原真实 stats（全局 patch 恒 spd=10 会抹平快慢怪）
+    try:
+        _p = make_player()
+        for _ in range(10):
+            bm.player_turn("attack", None, _p)  # 长程 10 个玩家回合（v130.10 线性频率）
+    finally:
+        BT.Battle._enemy_stats = patched_e_stats
     BT.Battle._enemy_turn = orig
-    check("单个窗口内慢怪零动", "e_slow" not in act_log, f"acted={act_log}")
-    check("单个窗口内快怪连动（≥2 次）", act_log.count("e_fast") >= 2, f"acted={act_log}")
+    _fc, _sc = act_log.count("e_fast"), act_log.count("e_slow")
+    check("长程快怪频率显著高于慢怪（线性）", _fc >= _sc * 10 and _sc <= 4,
+          f"fast={_fc} slow={_sc}")
 
 
 def test_enemy_control():
@@ -190,8 +207,9 @@ def test_enemy_control():
     b = BT.Battle("monster", make_enemy(18, hp=10_000_000, atk=50), player=make_player())
     b.e_buffs["stun"] = 1          # 敌方眩晕
     p = make_player()
+    b.player_turn("attack", None, p)  # 第1回合：怪未到期（e_ct 5.56-5=0.56>0）
     before_e = b.enemy["ct"]
-    logs, ended = b.player_turn("attack", None, p)
+    logs, ended = b.player_turn("attack", None, p)  # 第2回合：怪到期 → 眩晕跳过
     dmg = 999999 - p["hp"]
     check("敌方眩晕轮到行动被跳过", any("眩晕" in l for l in logs), str(logs[-3:]))
     check("眩晕敌方未造成伤害（高 atk 仍 0）", dmg == 0, f"dmg={dmg}")
@@ -229,7 +247,7 @@ def test_save_roundtrip():
     # 老存档：无 p_ct → 兜底 0；敌人无 ct → 兜底 -spd
     old = BT.Battle.from_state({"type": "monster", "enemies": [make_enemy(7)], "round": 1})
     check("老存档 p_ct 兜底 0", old.p_ct == 0.0, f"p_ct={old.p_ct}")
-    check("老存档敌人 ct 兜底 -spd", abs(old.enemies[0]["ct"] + 7.0) < 1e-9,
+    check("老存档敌人 ct 兜底 cost（v130.10 迁移）", abs(old.enemies[0]["ct"] - 100.0 / 7) < 1e-9,
           f"e_ct={old.enemies[0]['ct']}")
 
 

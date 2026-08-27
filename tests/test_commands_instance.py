@@ -146,6 +146,13 @@ async def main():
         _eu["matk"] = 5
     st3["turn"] = 0  # 把回合拨回首位
     st3["turn_time"] = int(time.time()) - 200  # 模拟首位超时 200s
+    # v130.10 绝对时刻 CTB：行动次序由 ct 判定（st["turn"] 仅展示，拨号不再生效）——
+    # 此刻最小 ct 行动者恰为请求者（队员），旧『turn 拨回首位』不再触发超时路径。
+    # 把队长 ct 拨到全场最小并保持超时 200s，使队员的攻击触发『队长自动防御 → 轮到队员』。
+    for key in st3["players"]:
+        st3["players"][key]["ct"] = -50.0 if key == st3["members"][0] else 0.0
+    for _eu in (st3.get("enemies") or []):
+        _eu["ct"] = 0.0
     db.save_battle("g1", "i1", st3)
     out = await cmd(m, "attack", "g1", second_m, "攻击")
     check("超时自动防御并行动", "自动" in out, out[:200])

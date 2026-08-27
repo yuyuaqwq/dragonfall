@@ -177,17 +177,24 @@ def test_multi_enemy_turns():
                            mk_unit("怪丙", hp=10 ** 9, atk=30, spd=10)])
     hp0 = p["hp"]
     random.seed(4)
-    # v121 CTB：敌方行动段按 ct 调度（不再"每怪每轮固定行动一次"）。把玩家 ct 置高
-    # （玩家行动后处于时间轴后方），使三个敌方单位均在当段轮到行动，验证多怪可各自命中玩家。
-    b.p_ct = 5.0
-    logs, _ = b._enemy_phase(p, [], True)
-    check("多怪每怪各行动一次（玩家受击）", p["hp"] < hp0, f"loss={hp0 - p['hp']}")
+    # v130.10 绝对时刻 CTB：怪 ct 初始 = cost=100/spd（>0），玩家行动（时间流逝 -cost）后
+    # 才把怪拉到行动点（ct<=0）——不再"每回合每怪各行动一次"，旧断言（b.p_ct=5.0 置高后
+    # 单次敌方段三怪全出手）失效。改为长程断言：跑 10 个玩家回合，各怪按各自 cost 到期
+    # 行动，三只怪都至少出手过 1 次；总行动次数按 spd 线性分配（快怪更多），非固定每怪一次。
     hit = set()
-    for x in logs:
-        for nm in ("怪甲", "怪乙", "怪丙"):
-            if nm in x and "攻击" in x:
-                hit.add(nm)
-    check("三只怪都出手", hit == {"怪甲", "怪乙", "怪丙"}, str(sorted(hit)))
+    total = 0
+    for _ in range(10):
+        logs, ended = b.player_turn("attack", None, p, enemy_act=True)
+        for x in logs:
+            for nm in ("怪甲", "怪乙", "怪丙"):
+                if nm in x and "攻击" in x:
+                    hit.add(nm)
+                    total += 1
+        if ended:
+            break
+    check("长程10回合内三只怪都至少出手过1次", hit == {"怪甲", "怪乙", "怪丙"}, str(sorted(hit)))
+    check("敌方总行动次数>=3（按cost到期，非每怪每回合固定一次）", total >= 3, f"total={total}")
+    check("玩家受击", p["hp"] < hp0, f"loss={hp0 - p['hp']}")
 
 
 def test_all_dead_victory():
