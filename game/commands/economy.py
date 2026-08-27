@@ -3635,6 +3635,39 @@ class EconomyCmds(CommandBase):
         item_name = self._strip_cmd(event, "使用")
         player = self._player(group_id, qq_id)
         item_name = item_name.strip()
+        # v130.4 玩家意见#11：批量使用『使用 <名/序号>*<数量>』（星号）与
+        #   『使用 <名/序号> <数量>』（空格）两种格式（对齐『购买』批量语义，
+        #   如『使用 治疗药水*10』、『使用 2 3』）；数量校验显式报错不静默钳制。
+        qty = 1
+        _qty_raw = None
+
+        def _is_qty_token(tok: str) -> bool:
+            return tok.isdecimal() or (tok.startswith("-") and len(tok) > 1 and tok[1:].isdecimal())
+
+        _it_parts = item_name.split()
+        if len(_it_parts) >= 2 and _is_qty_token(_it_parts[-1]):
+            _qty_raw = _it_parts[-1]
+            item_name = " ".join(_it_parts[:-1])
+        elif "*" in item_name:
+            _head, _, _tail = item_name.rpartition("*")
+            _tail = _tail.strip()
+            if _is_qty_token(_tail):
+                _qty_raw = _tail
+                item_name = _head.strip()
+            else:
+                yield event.plain_result(
+                    "数量格式不对！例：『使用 治疗药水*5』或『使用 治疗药水 5』；『背包』查看物品～"
+                )
+                return
+        if _qty_raw is not None:
+            try:
+                qty = int(_qty_raw)
+            except ValueError:
+                yield event.plain_result("数量不合法！请输入正整数，如『使用 治疗药水 5』～")
+                return
+            if qty < 1:
+                yield event.plain_result("数量至少 1 个！大批量使用用『使用 <物品> 数量』或『使用 <物品>*数量』～")
+                return
         items = db.get_inventory(group_id, qq_id)
         target = None
         if item_name.isdigit():
@@ -3664,6 +3697,10 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
         d = target["data"]
+        # v130.4 玩家意见#11：批量数量超过持有 → 显式报错（对齐购买超上限语义，不静默钳制）
+        if qty > 1 and qty > target.get("count", 1):
+            yield event.plain_result(f"你只有 {target.get('count', 1)} 个『{d['name']}』，用不了这么多～")
+            return
         # ---- v97.7 道具效果模板引擎分发（消灭 if-elif 硬编码，行为与旧实现逐条对齐）----
         from ..core import item_templates as IT
         tpl_name = IT.infer_template(d)
@@ -3676,6 +3713,10 @@ class EconomyCmds(CommandBase):
         # 完整副本上下文覆盖成战斗引擎残缺状态 → 『深入』报"没有分层结构" 全指令死锁
         inst_battling = inst_row is not None
         if self._in_battle(group_id, qq_id) or inst_battling:
+            # v130.4 玩家意见#11：回合制战斗中一次只能使用 1 个道具（批量留战斗结束）
+            if qty > 1:
+                yield event.plain_result("战斗中一次只能使用 1 个道具！剩下的留到战斗结束再用～")
+                return
             # 副本战斗优先（v95r55 #269 补充：队员视角——副本 battle 存队长名下，
             # _instance_battle_for 先查自己再查队长，与 combat.py 攻击/技能分流一致）
             if inst_battling:
@@ -3791,24 +3832,54 @@ class EconomyCmds(CommandBase):
             )
             return
         # 战斗外：模板直接执行副作用并返回展示文本
-        ctx = IT.ItemContext(group_id, qq_id, player, d, battle=None, hooks=hooks)
-        r = IT.TEMPLATES[tpl_name](ctx)
-        # v105R3 M13 P2-8：吃料理解除挖掘疲劳（19 章 §2.2 第二条恢复途径）——
-        # 食用含体力/持续效果的食物且实际消耗成功时，清除疲劳计数（10 分钟自动恢复之外的另一途径）
+        # v130.4 玩家意见#11：支持批量循环（『使用 <名> <数量>』/『使用 <名>*<数量>』）；
+        # 每次重读 player（模板已落库 HP/MP），满血/满蓝拦截 (consume=False) 即停止。
+        use_count = 0
+        _parts = []
         _fat_line = ""
-        if r.consume and (d.get("stamina") or d.get("food_effect")):
-            _fst = self._mining_fatigue_state(group_id, qq_id)
-            if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
-                db.set_event_state(f"mining_fatigue_{qq_id}", "")
-                _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
-        # v124 use 目标支线：使用物品后推进 use objective（如 递麦酒/用月鳞/交信物）。
-        # v124.2 条件放宽：none 模板=使用动作成立（含收藏品等，如 s74 商会股份凭证），
-        # 按名精确匹配 active use 目标即推进，无匹配空操作无副作用；任务道具 tpl_none
-        # consume=False 不消耗语义不变；满血拦截等 consume=False 走 heal 等模板不受影响。
         _use_q_line = ""
-        if r.consume or tpl_name == "none":
-            _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
-        yield event.plain_result(r.text + _fat_line + _use_q_line)
+        for _k in range(qty):
+            _p_cur = self._player(group_id, qq_id) if _k else player
+            ctx = IT.ItemContext(group_id, qq_id, _p_cur, d, battle=None, hooks=hooks)
+            r = IT.TEMPLATES[tpl_name](ctx)
+            if r.consume:
+                use_count += 1
+                _parts.append(r.text)
+            else:
+                # 满血/满蓝拦截提示也展示（首轮或中途停止都让玩家看到原因）
+                if _k == 0 or use_count > 0:
+                    _parts.append(r.text)
+                # v105R3 M13 P2-8：吃料理解除挖掘疲劳（19 章 §2.2 第二条恢复途径）——
+                # 食用含体力/持续效果的食物且实际消耗成功时，清除疲劳计数（批量仅首轮判定）
+                # v124 use 目标支线：使用物品后推进 use objective（如 递麦酒/用月鳞/交信物）。
+                # v124.2 条件放宽：none 模板=使用动作成立（含收藏品等，如 s74 商会股份凭证），
+                # 按名精确匹配 active use 目标即推进，无匹配空操作无副作用；任务道具 tpl_none
+                # consume=False 不消耗语义不变；满血拦截等 consume=False 走 heal 等模板不受影响。
+                if tpl_name == "none" and _k == 0:
+                    if d.get("stamina") or d.get("food_effect"):
+                        _fst = self._mining_fatigue_state(group_id, qq_id)
+                        if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
+                            db.set_event_state(f"mining_fatigue_{qq_id}", "")
+                            _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
+                    _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
+                break
+            if use_count == 1:
+                # v105R3 M13 P2-8：吃料理解除挖掘疲劳（19 章 §2.2 第二条恢复途径）——
+                # 食用含体力/持续效果的食物且实际消耗成功时，清除疲劳计数（批量仅首轮判定）
+                if d.get("stamina") or d.get("food_effect"):
+                    _fst = self._mining_fatigue_state(group_id, qq_id)
+                    if _fst and int(time.time()) - _fst.get("ts", 0) <= MINING_FATIGUE_RECOVER:
+                        db.set_event_state(f"mining_fatigue_{qq_id}", "")
+                        _fat_line = "\n🍖 吃饱喝足，疲劳一扫而空！(挖掘稀有矿脉概率恢复)"
+                # v124 use 目标支线：批量只推进一次
+                _use_q_line = self._update_use_quests(group_id, qq_id, d.get("name", ""))
+        _text = "\n".join(_parts)
+        if qty > 1 and use_count > 0:
+            if use_count == qty:
+                _text += f"\n━━━━━━━━━━━━\n✅ 已使用 {use_count} 个『{d.get('name')}』"
+            else:
+                _text += f"\n━━━━━━━━━━━━\n✅ 已使用 {use_count}/{qty} 个『{d.get('name')}』（状态已满，剩余保留）"
+        yield event.plain_result(_text + _fat_line + _use_q_line)
 
     def _item_use_hooks(self, group_id, qq_id, target, player):
         """v97.7：道具模板引擎的命令层回调（体力/回城/红名等专属逻辑注入）。"""
