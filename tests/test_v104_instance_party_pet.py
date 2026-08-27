@@ -171,14 +171,14 @@ async def main():
     st["turn_time"] = int(time.time())
     hp_i2_before = st["players"]["i2"]["hp"]
     db.save_battle("g1", "i1", st)
+    # v132.1 稳定化：副本入口战斗可能为小怪层（attack 实际打骷髅兵），Boss 回合按 CTB 时序随机，
+    # "Boss 必命中当前成员"断言 v131 已知 flake（990→990 / 附近没有敌人）→ 断言收敛为退队者不被打
     out = await cmd(m, "attack", "g1", "i1", "攻击")
-    st2 = db.get_battle("g1", "i1")
-    st2 = st2["state"] if st2 else st
+    _b = db.get_battle("g1", "i1")
+    st2 = _b["state"] if _b else st
     check("退队者血量未被打", st2["players"]["i2"]["hp"] == hp_i2_before,
           f"{st2['players']['i2']['hp']} vs {hp_i2_before}")
     check("退队者存活标记未动", st2["alive"].get("i2", True) is True, str(st2["alive"]))
-    check("Boss 打的是当前成员", st2["players"]["i1"]["hp"] < st["players"]["i1"]["hp"],
-          f"i1 {st['players']['i1']['hp']} → {st2['players']['i1']['hp']}")
     reset_battle(m, "g1", "i1")
     heal("g1", "i1")
 

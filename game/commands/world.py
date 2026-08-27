@@ -603,6 +603,8 @@ class WorldCmds(CommandBase):
         lines = []
         cur = cur_map.get("id", "")
         sas = cur_map.get("subareas") or []
+        # v132.1 城镇紧凑模式（鱼鱼模板：●横排、无后缀/头衔）；野外/副本详细模式
+        _compact = cur_map.get("type") == C.MAP_TYPE_TOWN
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
@@ -629,22 +631,36 @@ class WorldCmds(CommandBase):
             if lines and lines[-1]:
                 lines.append("")
             lines.append("🏪 此地设施：")
-            for l in fac:
-                lines.append(f"  {l}")
+            if _compact:
+                lines.append("  ●" + " ●".join(fac))
+            else:
+                for l in fac:
+                    lines.append(f"  {l}")
         # v132 场景两区：🔎 可探索触发（POI/调查）+ ✨ 可交互场景（PROPS）
         poi_lines, prop_lines = self._map_scene(cur_map, player, cur_sa)
         if poi_lines:
             if lines and lines[-1]:
                 lines.append("")
             lines.append("🔎 可探索触发：")
-            for l in poi_lines:
-                lines.append(f"  {l}")
+            if _compact:
+                names = []
+                for l in poi_lines:
+                    nm = l.split("(")[0].strip()
+                    names.append(f"●{nm}")
+                lines.append("  " + " ".join(names))
+            else:
+                for l in poi_lines:
+                    lines.append(f"  {l}")
         if prop_lines:
             if lines and lines[-1]:
                 lines.append("")
             lines.append("✨ 可交互场景：")
-            for l in prop_lines:
-                lines.append(f"  {l}")
+            if _compact:
+                names = [f"●{i}. {l.split('(')[0].strip()}" for i, l in enumerate(prop_lines, 1)]
+                lines.append("  " + " ".join(names))
+            else:
+                for l in prop_lines:
+                    lines.append(f"  {l}")
         # 本地 NPC
         # v86 子区域：NPC 按当前子区域显示（无子区域则地图级）
         cur_sa_obj = None
@@ -670,9 +686,14 @@ class WorldCmds(CommandBase):
             if lines and lines[-1]:
                 lines.append("")
             lines.append("👥 这里的 NPC：")
-            for i, (_, n) in enumerate(npcs, 1):
-                lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
-            lines.append(f"  {self._tip('talk')}")
+            if _compact:
+                # 城镇紧凑：●1. 名 ●2. 名（无头衔，鱼鱼模板）
+                _parts = [f"●{i}. {n['icon']}{n['name']}" for i, (_, n) in enumerate(npcs, 1)]
+                lines.append("  " + " ".join(_parts))
+            else:
+                for i, (_, n) in enumerate(npcs, 1):
+                    lines.append(f"  {i:>2}. {n['icon']}{n['name']}({n['title']})")
+                lines.append(f"  {self._tip('talk')}")
         # v127.5 限时NPC：在场野外旅人（偶遇进入限时状态，带 ⏳ 剩余分钟，全图可见）
         # v127.5.1 不重复加 _tip('talk')——对上城镇 NPC 区已有同分类提示（AST 防重铁律）
         wild_lines = self._present_wild_hints(group_id, qq_id, cur) if group_id is not None and qq_id is not None else []
@@ -688,9 +709,16 @@ class WorldCmds(CommandBase):
             if lines and lines[-1]:
                 lines.append("")
             lines.append("👤 此地的玩家：")
-            for i, p in enumerate(here_players, 1):
-                stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
-                lines.append(f"  {i}. {p['name']} Lv.{p['level']}{stall_mark}")
+            if _compact:
+                # 城镇紧凑：●1. 名 Lv.X ●2. 名 Lv.X（鱼鱼模板；摆摊标记保留——功能状态）
+                _parts = [f"●{i}. {p['name']} Lv.{p['level']}"
+                          + (" 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else "")
+                          for i, p in enumerate(here_players, 1)]
+                lines.append("  " + " ".join(_parts))
+            else:
+                for i, p in enumerate(here_players, 1):
+                    stall_mark = " 🏪摆摊中" if str(p.get("qq_id")) in stall_sellers else ""
+                    lines.append(f"  {i}. {p['name']} Lv.{p['level']}{stall_mark}")
         # v86 子区域：怪物按当前子区域（无则回退地图级）
         mons = (cur_sa_obj.get("monsters") if cur_sa_obj else None)
         if mons is None:
@@ -776,15 +804,26 @@ class WorldCmds(CommandBase):
             return ""
 
         if shown or neighbors:
+            # v132.1 城镇紧凑模式：鱼鱼模板（●横排、无📍/无Lv/无🔚）——城镇子区域少且内部互连；
+            # 野外/副本/隐藏走详细模式（竖排带 Lv/🔚/📍，信息完整）
+            _compact = cur_map.get("type") == C.MAP_TYPE_TOWN
             # v128 位置面板（show_here=False）始终显示当前位置；『地图』保持原有 if sa_now 语义
-            if sa_now or not show_here:
+            if not _compact and (sa_now or not show_here):
+                lines.append(f"📍 当前位置：{sa_now or title}")
+            elif not show_here:
+                # v132.1 城镇紧凑：『位置』面板/到达视图仍显示 📍（精简导航核心信息）；
+                # 仅『地图』面板（show_here=True）按鱼鱼模板隐藏（标题已含位置）
                 lines.append(f"📍 当前位置：{sa_now or title}")
             lines.append("📮 可前往：")
-            for i, sa in shown:
-                # v128 位置面板精简：不显示 "(你在这里)"（show_here=True 时保留）
-                mark = f" (你在这里)" if (show_here and sa["id"] == cur_sa) else ""
-                lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
-                lines.append(f"  {i}. {_sa_mark(sa)}{sa['name']}{lv_mark}{mark}")
+            if _compact and shown:
+                _parts = [f"●{i}. {sa['name']}" for i, sa in shown]
+                lines.append("  " + " ".join(_parts))
+            else:
+                for i, sa in shown:
+                    # v128 位置面板精简：不显示 "(你在这里)"（show_here=True 时保留）
+                    mark = f" (你在这里)" if (show_here and sa["id"] == cur_sa) else ""
+                    lv_mark = f" Lv.{sa['lv']}" if sa.get("lv") else ""
+                    lines.append(f"  {i}. {_sa_mark(sa)}{sa['name']}{lv_mark}{mark}")
             # 隐藏未揭示房：显示 🔒？？？ 不编号（不可直接前往）
             _hidden_sas = [s for s in sas if s["id"] in links and s["id"] not in _v_ids]
             if _hidden_sas:
@@ -811,8 +850,8 @@ class WorldCmds(CommandBase):
                     if _chain and _chain[0]["id"] != exit_sa_id:
                         _hint = _chain[0]["name"]
                 lines.append(f"  🧭 出城需先到『{_hint}』")
-            # v114.3 尽头标记图例（有深度数据才显示）
-            if _depth is not None:
+            # v114.3 尽头标记图例（有深度数据才显示；城镇紧凑模式不显示——鱼鱼模板无此行）
+            if _depth is not None and not _compact:
                 lines.append("  💡 🔚=尽头（此路到头，需原路返回）")
         return lines
 
