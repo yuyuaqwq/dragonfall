@@ -2851,6 +2851,35 @@ class EconomyCmds(CommandBase):
         lines.append("💡 套装部件：名册装备/商店/锻造获得的装备自带系列套装(如『橡木』『圣光』『银铃』)，穿 2 件起生效")
         yield event.plain_result("\n".join(lines))
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?怪物(?:\s+(\S+))?\s*$")
+    @require_player()
+
+    async def monster(self, event: AstrMessageEvent):
+        """v130.3 意见#3：『怪物 <名称>』查刷新点（等级/子区域/类型；比百科更细）"""
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "怪物").strip()
+        if not raw:
+            yield event.plain_result(
+                "👹 想找怪物？发『怪物 <名称>』查刷新地点（例：『怪物 森林狼』『怪物 狼王·灰影』）。\n"
+                "💡 也可以用『百科 <名称>』查材料掉落/地图怪物~"
+            )
+            return
+        locs = C.MONSTER_LOCS.get(raw)
+        if not locs:
+            fuzzy = [k for k in C.MONSTER_LOCS if raw in k][:5]
+            if fuzzy:
+                yield event.plain_result(
+                    f"👹 没有叫『{raw}』的怪物，你是不是想找：{' / '.join(fuzzy)}？\n发『怪物 <完整名字>』即可~"
+                )
+            else:
+                yield event.plain_result(f"👹 未收录『{raw}』……试试『百科 {raw}』或先『图鉴』看看怪物列表？")
+            return
+        lines = [f"👹 【{raw}】出现地点（共 {len(locs)} 处）：", "━━━━━━━━━━━━"]
+        for sa_name, mname, lv, mtype in locs:
+            lines.append(f"  {mtype}·Lv.{lv} {sa_name}（{mname}）")
+        lines.append("💡 前往对应地图后按区域探索/战斗即有机会遭遇；首领/精英带稀有掉落~")
+        yield event.plain_result("\n".join(lines))
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?图鉴(?:\s*|$)")
     @require_player()
 

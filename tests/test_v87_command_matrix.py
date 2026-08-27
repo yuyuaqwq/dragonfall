@@ -160,7 +160,7 @@ REPRESENTATIVES = {
     "cooking_list": "烹饪列表", "cooking": "烹饪", "profession_view": "副业",
     "prof_forget": "遗忘副业", "daily_prof": "副业任务", "fishing": "垂钓", "craft": "锻造",
     "craft_commission": "代工", "learn": "学习", "recipe_list": "配方", "enhance": "强化",
-    "enchant": "附魔", "set_view": "套装", "bestiary": "图鉴", "encyclopedia": "百科",
+    "enchant": "附魔", "set_view": "套装", "bestiary": "图鉴", "encyclopedia": "百科", "monster": "怪物",  # v130.3 意见#3
     "titles": "称号", "inventory": "背包", "bag_filter": "背包筛选",
     "item_view_mode_cmd": "物品详情开始", "item_detail": "物品详情", "equip": "装备",
     "unequip": "卸下", "use": "使用", "sell": "出售", "shop": "商店", "buy": "购买",

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from ..data import ENCY_MAP_MONSTERS, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, MAPS, SUBAREAS
+from ..data import ENCY_MAP_MONSTERS, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, MAPS, SUBAREAS, MONSTER_LOCS
 from .constants import SUB_TYPE_GATE, SUB_TYPE_STREET, SUB_TYPE_TOWN  # v102.1 类型常量
 
 
@@ -49,6 +49,24 @@ def _build_ency():
                 entries.append((bstr, blv, "首领"))
         ENCY_MAP_MONSTERS[mid] = entries
         ENCY_MAP_MONSTERS[mname_cn] = entries  # v101.29 双 key：玩家输中文地图名也能查
+
+def _build_monster_locs():
+    """v130.3 意见#3：怪名 → [(子区域显示名, 地图名, 等级, 类型)] 详细分布（含等级/子区域粒度）"""
+    for m in MAPS:
+        mid, mname_cn = m["id"], m["name"]
+        for sa in (SUBAREAS.get(mid) or []):
+            sa_name = sa.get("name") or sa.get("id", "")
+            for (_, mname, _, lv, _, _) in (sa.get("monsters") or []):
+                MONSTER_LOCS.setdefault(mname, []).append((sa_name, mname_cn, lv, "普通"))
+            if sa.get("elite"):
+                (_, estr, _, elv, _, _) = sa["elite"]
+                MONSTER_LOCS.setdefault(estr, []).append((sa_name, mname_cn, elv, "精英"))
+            if sa.get("boss"):
+                (_, bstr, _, blv, _, _) = sa["boss"]
+                MONSTER_LOCS.setdefault(bstr, []).append((sa_name, mname_cn, blv, "首领"))
+
+_build_monster_locs()
+
 
 
 def subarea_links(map_id: str, subarea_id: str) -> list:

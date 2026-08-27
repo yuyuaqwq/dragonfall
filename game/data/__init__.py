@@ -10,6 +10,7 @@ from .index import _INDEXES  # noqa: F401
 from .classes import CLASSES  # noqa: F401
 from .maps import (
     MAPS, MAP_BY_ID, ENCY_MATERIAL_SOURCE, ENCY_MONSTER_MAP, ENCY_MAP_MONSTERS,
+    MONSTER_LOCS,  # v130.3 意见#3：怪名→子区域/等级/类型 详细分布
     MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401

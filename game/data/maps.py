@@ -4109,5 +4109,6 @@ LEGACY_MAP_ALIAS = {
 ENCY_MAP_MONSTERS = {}
 
 ENCY_MONSTER_MAP = {}
+MONSTER_LOCS = {}  # v130.3 意见#3：怪名→子区域/等级/类型分布（core/maps _build_monster_locs 填充）
 
 ENCY_MATERIAL_SOURCE = {}
