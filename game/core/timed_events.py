@@ -94,10 +94,29 @@ def set_timed(group_id: str, qq_id: str, key: str, type_key: str,
     return expire
 
 
+def _fire_expire(group_id: str, qq_id: str, ev: dict) -> None:
+    """触发一个过期事件的 on_expire 回调（引擎所有过期删除路径共用）。
+
+    refresh_timed / get_timed / list_timed 过期删除时都调用，保证
+    『数据保全类』回调（如 prof_wait 结算数据平移）不会被读路径绕过。
+    """
+    type_key = ev.get("type")
+    cfg = _EVENT_TYPES.get(type_key, {})
+    cb = cfg.get("on_expire")
+    if cb:
+        try:
+            cb(group_id, qq_id, ev.get("data", {}))
+        except Exception:
+            import logging
+            logging.getLogger("dragonfall").warning(
+                f"[timed_events] on_expire 回调失败 {type_key}", exc_info=True)
+
+
 def get_timed(group_id: str, qq_id: str, key: str) -> dict | None:
     """读取单个事件：未过期返回 {type,data,expire,remain}；过期惰性清除返回 None。
 
-    所有显示/查找出口都必须走这里 → 过期即不可见（惰性正确性核心）
+    所有显示/查找出口都必须走这里 → 过期即不可见（惰性正确性核心）。
+    v127.6：过期清除前同样触发 on_expire（读路径不得绕过数据保全回调）。
     """
     events = _load(group_id, qq_id)
     ev = events.get(key)
@@ -107,6 +126,7 @@ def get_timed(group_id: str, qq_id: str, key: str) -> dict | None:
     if now >= ev.get("expire", 0):
         events.pop(key, None)
         _save(group_id, qq_id, events) if events else _remove_whole(group_id, qq_id)
+        _fire_expire(group_id, qq_id, ev)
         return None
     return {"type": ev.get("type"), "data": ev.get("data", {}),
             "expire": ev["expire"], "remain": ev["expire"] - now}
@@ -139,8 +159,8 @@ def list_timed(group_id: str, qq_id: str, type_key: str | None = None,
     """
     events = _load(group_id, qq_id)
     now = int(time.time())
-    expired = [k for k, ev in events.items()
-               if now >= ev.get("expire", 0)]
+    expired = {k: ev for k, ev in events.items()
+               if now >= ev.get("expire", 0)}
     for k in expired:
         events.pop(k, None)
     if expired:
@@ -148,6 +168,9 @@ def list_timed(group_id: str, qq_id: str, type_key: str | None = None,
             _save(group_id, qq_id, events)
         else:
             _remove_whole(group_id, qq_id)
+    # v127.6：过期删除同样触发 on_expire（与 refresh/get 路径一致，防读路径绕过保全）
+    for k, ev in expired.items():
+        _fire_expire(group_id, qq_id, ev)
     out = []
     for k, ev in events.items():
         if type_key is not None and ev.get("type") != type_key:
