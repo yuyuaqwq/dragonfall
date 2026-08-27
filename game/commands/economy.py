@@ -25,9 +25,30 @@ from ..core import timed_events as _te  # noqa: E402
 # v127.5 等待型副业（垂钓/采集/挖掘）收编进通用懒计时引擎：
 # 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"），
 # 引擎 expire = 真实完成时间 → 到点被 lazy 清除（_maint_gate 挂 refresh 触发）。
-# on_expire 不需要：结算走 _prof_delayed_push（尽力而为推送）+ 惰性结算兜底
+# 结算主路径 _prof_delayed_push（尽力而为推送）+ 惰性结算兜底
 # （_prof_wait_residual 非破坏读引擎存储残留，防『到点但未结算』吞掉奖励）。
-_te.register_timed("prof_wait", duration_sec=None, on_expire=None)
+# 意见#6『采集后没有东西』修复：延迟推送失败（进程重启/异常被吞）时，到点的
+# prof_wait 事件若被 refresh_timed 直接物理删除，结算数据即永久丢失（玩家之后
+# 任意指令都会触发 _maint_gate → refresh_timed，唯一幸存路径是下一个指令恰好
+# 又是副业指令）。→ 注册 on_expire：引擎删除前把结算数据平移到历史遗留键
+# prof_wait_{qq_id}（_prof_wait_residual 第二顺位读取），由下次副业指令的
+# _prof_wait_flow 惰性结算出旧轮（物品入包 + 提示语一并带出）。
+
+def _prof_wait_expire_cb(group_id, qq_id, data):
+    """v127.5 意见#6：引擎 refresh 物理删除到点 prof_wait 前的数据保全。
+
+    把 {finish,type,spot_map} 平移到历史遗留键 prof_wait_{qq_id}，供
+    _prof_wait_residual 下次读取 → _prof_wait_flow 惰性结算（入包+播报）。
+    幂等：结算后 _prof_wait_clear 清空该键，无双结算；重复触发仅覆盖同结构数据。
+    """
+    try:
+        st = dict(data or {})
+        if st.get("finish") and st.get("type") in ("gather", "fishing", "mining"):
+            db.set_event_state(f"prof_wait_{qq_id}", json.dumps(st, ensure_ascii=False))
+    except Exception:
+        pass
+
+_te.register_timed("prof_wait", duration_sec=None, on_expire=_prof_wait_expire_cb)
 
 
 # v101.25e 商店装备价格系数（鱼鱼拍板数值方案：商店价 = 确定性推导价 × 品质系数）
@@ -3196,8 +3217,8 @@ class EconomyCmds(CommandBase):
         # v123 通用列表状态：翻页快捷键 +/−/= 恢复本列表（保留上方旧相对翻页状态，两者并存）
         self._record_list_state(qq_id, f"背包 {category}" if category else "背包", page, pages)
         title = f"🎒 【背包·{category}】" if category else "🎒 【背包】"
-        lines = [f"{title}(第 {page}/{pages} 页 · 共 {len(items)} 件)", "━━━━━━━━━━━━"]
-        for i, it in enumerate(page_items, (page - 1) * 5 + 1):
+        lines = [title, "━━━━━━━━━━━━"]  # 玩家意见 #5 zerc：页数/翻页提示移到列表底部（见下方 📄 行）
+        for i, it in enumerate(page_items, (page - 1) * 10 + 1):  # v130.3 序号起点随 per_page=10 同步（原 5 错位）
             d = it["data"]
             if _item_kind_type(d.get("type")) == "材料":
                 # v101.25e 材料品质色 + 类型标签（鱼鱼拍板：材料也要品质；v101.25f 去掉"可出售"尾巴）
@@ -3227,6 +3248,11 @@ class EconomyCmds(CommandBase):
                 else:
                     lines.append(f"{i:>2}. {d['name']} ×{it['count']}")
         lines.append("━━━━━━━━━━━━")  # v127.2 提示区上方分隔
+        # 玩家意见 #5（zerc）：页数/翻页提示从标题移到底部，
+        # 与炼金/烹饪/锻造/技能列表的底部页数风格统一（📄 行）
+        _flip = f"｜『背包筛选 {category} {page + 1}』下一页" if (category and page < pages) \
+            else (f"｜『背包 {page + 1}』下一页" if page < pages else "")
+        lines.append(f"📄 第 {page}/{pages} 页 · 共 {len(items)} 件{_flip}")
         # v127.4.1 移除物品列表与分隔线之间的空行——分隔线本身即视觉间隔，空行多余（鱼鱼反馈）
         # v127.1 每面板只抽 1 条随机提示；筛选序号警告(防卖错)仅筛选视图显示
         lines.append(self._tip("bag"))
@@ -4276,12 +4302,50 @@ class EconomyCmds(CommandBase):
                 "格式：购买 <商品名/序号> [数量]，如『购买 治疗药水(小) 5』；『商店』查看商品列表～"
             )
             return
-        # v95.25 #127：支持『购买 <名称/序号> <数量>』（如『购买 治疗药水(中) 6』、『购买 2 8』）
+# v95.25 #127 + 玩家意见#2（zerc）：支持『购买 <名称/序号> <数量>』（空格）与
+        #   『购买 <名称>*<数量>』（星号）两种批量格式（如『购买 治疗药水(中) 6』、『购买 治疗药水*10』、『购买 1*5』）；
+        #   数量校验显式报错：0/负/非数字/超 buy_qty_max 不再静默钳制（此前 0/负被钳成 1、超限被钳到上限，
+        #   用户感知为"买少了/买错了"；isdigit 误吞 ²/³ 等上标会在 int() 抛 ValueError，一并改为 isdecimal 加固）
         qty = 1
+        _qty_raw = None
+        # 尾部数量 token 判定：十进制数字或带负号的数字（负号/0 走下方 qty<1 显式报错，
+        # 而不是被当成商品名的一部分去搜索——「商店里没有『治疗药水 -3』」不友好）
+        def _is_qty_token(tok: str) -> bool:
+            return tok.isdecimal() or (tok.startswith("-") and len(tok) > 1 and tok[1:].isdecimal())
+
         _parts = item_name.split()
-        if len(_parts) >= 2 and _parts[-1].isdigit():
-            qty = max(1, min(int(_parts[-1]), _ec["buy_qty_max"]))
+        if len(_parts) >= 2 and _is_qty_token(_parts[-1]):
+            _qty_raw = _parts[-1]
             item_name = " ".join(_parts[:-1])
+        elif "*" in item_name:
+            _head, _, _tail = item_name.rpartition("*")
+            _tail = _tail.strip()
+            if _is_qty_token(_tail):
+                _qty_raw = _tail
+                item_name = _head.strip()
+            else:
+                yield event.plain_result(
+                    "数量格式不对！例：『购买 治疗药水*5』或『购买 治疗药水 5』；『商店』查看商品列表～"
+                )
+                return
+        if _qty_raw is not None:
+            try:
+                qty = int(_qty_raw)
+            except ValueError:
+                yield event.plain_result("数量不合法！请输入正整数，如『购买 治疗药水 5』～")
+                return
+            if qty < 1:
+                yield event.plain_result("数量至少 1 个！大批量购买用『购买 <商品> 数量』或『购买 <商品>*数量』～")
+                return
+            if qty > _ec["buy_qty_max"]:
+                yield event.plain_result(f"单次最多购买 {_ec['buy_qty_max']} 个！需要更多请分批购买～")
+                return
+        # 星号/数量剥离后无商品名（如『购买 *5』）→ 显式格式提示，防空名称静默买第一件（F2-2 同款兜底）
+        if not item_name:
+            yield event.plain_result(
+                "格式：购买 <商品名/序号> [数量]，如『购买 治疗药水(小) 5』；『商店』查看商品列表～"
+            )
+            return
         # 全角括号容错：『购买 治疗药水（中）』→ 半角『治疗药水(中)』
         item_name = item_name.replace("（", "(").replace("）", ")")
         # 世界事件商店折扣（effects 数据驱动：shop_discount，0.8 = 8 折）

@@ -420,6 +420,9 @@ class PlayerCmds(CommandBase):
                 f"　· 去广场找『行会接待员·小艾』就职职业（战士/法师/游侠/牧师/刺客/拳师）\n"
                 f"　· 各城还藏着职业导师，可学进阶技能与转职\n"
                 f"━━━━━━━━━━━━\n"
+                f"🔨 副业系统\n"
+                f"　· 『副业』查看状态；找导师『对话 <导师名>』拜师解锁（附近：橡木镇·草药师·艾琳 教采集）\n"
+                f"━━━━━━━━━━━━\n"
                 f"冒险者，你的故事开始了！"
             )
             return
@@ -440,6 +443,9 @@ class PlayerCmds(CommandBase):
             f"⚔️ 已学会初始技能：{init_display}\n"
             f"　· 升级获得技能点，『技能学习 <技能名>』学新技能\n"
             f"　· 各城职业导师可学进阶技能，Lv.30/60/90 可转职\n"
+            f"━━━━━━━━━━━━\n"
+            f"🔨 副业系统\n"
+            f"　· 『副业』查看状态；找导师『对话 <导师名>』拜师解锁（附近：橡木镇·草药师·艾琳 教采集）\n"
             f"━━━━━━━━━━━━\n"
             f"冒险者，你的故事开始了！"
         )
@@ -1272,6 +1278,8 @@ class PlayerCmds(CommandBase):
             f"类型：{info.get('kind','')} ｜ 需求等级：Lv.{info['lv']} ｜ 消耗：{_cost_txt}",
             f"效果：{info['desc']}",
         ]
+        if is_learned and info.get("kind") != "被动" and mx > 1:
+            lines.append(f"📈 Lv.{slv} 当前效果：{' · '.join(self._skill_upgrade_gains(info, slv))}")
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
             # v130.2f.2 苦修改名收尾：专属归属分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）
