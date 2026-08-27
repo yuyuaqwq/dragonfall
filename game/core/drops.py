@@ -329,7 +329,7 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
             if mult in mod:
                 stats[k] = max(1, int(stats[k] * mod[mult]))
     # v131 野外首领/精英难度分档（FIELD_TIER_MULT，2026-08-27 鱼鱼拍板）：
-    #   野外战斗无组队血量缩放 → 野外精英（蓝+5 单刷 20~35 轮）/ 野外 Boss（4 人组队 60~100 轮）
+    #   野外战斗无组队血量缩放 → 野外精英（蓝+5 单刷 20~35 轮）/ 野外 Boss（蓝+5 单刷 45~80 轮可过）
     #   副本（area=instance）不消费本表（副本 Boss 走 instances.hp_mult）；与 MONSTER_MODS 叠乘。
     if role in ("elite", "boss") and map_obj.get("area") != "instance":
         for _cap, _mult in FIELD_TIER_MULT.get(role, ()):
