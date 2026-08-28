@@ -64,7 +64,8 @@ async def main():
     print("【v66 摆摊：地图玩家列表】")
     out = await cmd(m, "map_view", "g1", "w1", "地图")
     check("此地玩家显示", "此地的玩家" in out and "米娅" in out, out[:200])
-    check("摆摊标记", "摆摊中" in out, out[:200])
+    # v134.1 #46：地图排除自己——w1 发地图看不到自己（旅人）的摆摊标记，只显示别的玩家（米娅）
+    check("摆摊标记(别人)", "摆摊中" not in out and "旅人" not in out, out[:200])
 
     print("【v66 摆摊：购入】")
     stalls = db.market_list("g1", "oak_town")

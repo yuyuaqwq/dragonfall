@@ -434,12 +434,10 @@ def build_monster_group(monster: dict, map_obj: dict, player: dict = None,
             return [main, cub]
         return [monster]
 
-    # 精英：精英(rank1) + 1 爪牙(rank1，×0.5)
+    # 精英：单只（v134.1 鱼鱼反馈"被精英小怪连击/群殴"——旧精英 rank1 + 1 爪牙 2 打 1，
+    #   与 Boss 群殴设计混淆且蓝+5 标定(8~15轮)按单只算 → 精英改为单只不缩放，掉宝价值保留）
     if is_elite and not is_boss:
-        claw_uid = "{}-minion".format(base_uid)
-        claw = _scale_monster(main, 0.5, claw_uid,
-                              "{}的爪牙".format(base_name), 1, 1)
-        return [main, claw]
+        return [monster]
 
     # Boss：Boss(rank 按 build_monster 已由 role 推导，caster/healer/boss → 2 其余 → 1) + 2 爪牙(rank1，×0.5)
     minions = []

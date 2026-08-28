@@ -32,13 +32,14 @@ async def main():
     plain = mk_monster("m_corpse_crawler", "腐尸爬行者", "dps", 12)
     base_dog = C.monster_stats(12, "dps")
     check("无 mods 怪不受影响", plain["hp"] == base_dog["hp"], f"{plain['hp']} vs {base_dog['hp']}")
-    # 精英 mods：MONSTER_MODS(hp×1.3) 与 v134 FIELD_TIER_MULT(≤15级 elite ×1.2) 叠乘
-    #   build_monster 顺序：先 mod 后 tier → int(int(base×1.3))×1.2
-    #   （v134 重定标：旧 ×8 比 Boss 还肉，玩家反馈 24 级精英 3.9 万血离谱 → 独立分档 ≤15×1.2/16-30×2.0/31-60×1.0/61+×0.7）
+    # 精英 mods：MONSTER_MODS(hp×1.3) 与 v134.1 FIELD_TIER_MULT(≤15级 elite ×0.9) 叠乘
+    #   build_monster 顺序：先 mod 后 tier → int(int(base×1.3))×0.9
+    #   （v134 重定标：旧 ×8 比 Boss 还肉，玩家反馈 24 级精英 3.9 万血离谱 → 独立分档；
+    #     v134.1 渐进：≤15×0.9 / 16-30×1.5 / 31-60×1.1 / 61+×0.9，前期弱后期强）
     elite = mk_monster("e_bandit_leader", "山贼头目", "elite", 4)
     base_elite = C.monster_stats(4, "elite")
-    check("山贼头目 hp 修正(1.3x)+分档(1.2x)", elite["hp"] == int(int(base_elite["hp"] * 1.3) * 1.2),
-          f"{elite['hp']} vs {int(int(base_elite['hp']*1.3)*1.2)}")
+    check("山贼头目 hp 修正(1.3x)+分档(0.9x)", elite["hp"] == int(int(base_elite["hp"] * 1.3) * 0.9),
+          f"{elite['hp']} vs {int(int(base_elite['hp']*1.3)*0.9)}")
     # 图鉴/怪猎信息带 mod
     check("怪物带 mod 字段", "mod" in elite, str(elite.keys()))
 

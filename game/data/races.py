@@ -27,11 +27,17 @@ RACES = {
         "name": "人类", "icon": "🧑",
         "desc": "均衡·多面手。没有天赋就是最好的天赋——什么都能学。",
         "talents": {
-            "learn_discount": 0.08,    # 多才多艺：学习技能点 -8%
-            "exp_bonus": 0.05,         # v106.2 勤学：战斗经验 +5%（替换原受疗+10%，贴合多面手成长设定）
-            "growth_mult": 0.98,       # 🔻 凡人之躯：全属性成长 -2%
+            # v134.1 人类天赋重做（鱼鱼拍板 2026-08-28，三次迭代）：
+            #   ① 旧 learn_discount 0.08（技能点-8%）取整后每技能仅省 1 点，体感≈0
+            #   ② 改学习-1/升级-1 → 鱼鱼说"每次学习都-1太离谱了，削一下"
+            #   ③ 最终：首次升级某技能返还 1 技能点（first_upgrade_refund=1，player.skill_upgrade 特判）
+            #      副业亲和保留：副业经验 +10%（professions.add_prof_exp 特判）
+            "first_upgrade_refund": 1,      # 博学者：首次升级技能返还 1 技能点（每技能一次）
+            "prof_bonus": 0.10,             # v134.1 副业亲和：副业经验 +10%（professions.add_prof_exp 特判）
+            "exp_bonus": 0.05,              # v106.2 勤学：战斗经验 +5%（替换原受疗+10%，贴合多面手成长设定）
+            "growth_mult": 0.98,            # 🔻 凡人之躯：全属性成长 -2%
         },
-        "talent_names": {"learn_discount": "多才多艺", "exp_bonus": "勤学", "growth_mult": "凡人之躯"},
+        "talent_names": {"first_upgrade_refund": "博学者", "prof_bonus": "副业亲和", "exp_bonus": "勤学", "growth_mult": "凡人之躯"},
     },
     "elf": {
         "name": "银月精灵", "icon": "🧝",

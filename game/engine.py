@@ -671,7 +671,9 @@ def skill_learn_cost(need_lv: int) -> int:
 
 
 def skill_learn_cost_for(player: dict, need_lv: int) -> int:
-    """v95.7 #36：最终学习成本（含种族折扣）——技能列表/学习提示/扣点必须同源，避免显示不一致"""
+    """v95.7 #36：最终学习成本（含种族折扣）——技能列表/学习提示/扣点必须同源，避免显示不一致
+    v134.1 人类天赋重做：learn_discount 已删除（鱼鱼拍板改 first_upgrade_refund），
+    本函数保留比例折扣兼容（未来种族若配比例仍生效）"""
     cost = skill_learn_cost(need_lv)
     disc = race_stats(player.get("race")).get("learn_discount")
     if disc:

@@ -28,6 +28,23 @@ _battle_locks = set()
 # 模拟"一队一轮"（毒/灼烧/流血共享叠加层，多玩家并发不再各算各的导致毒伤无限累加）。
 WORLD_BOSS_DOT_INTERVAL = 4
 
+
+# ---- v134.1 意见#47：英雄联盟式多等级效果曲线工具 ----
+def _curve_vals(fn, cur: int, mx: int) -> list:
+    """按 Lv.1→满级逐级取值；折线级数(满级>5)按『当前级/满级』压缩（鱼鱼偏好显示宁砍不堆）。"""
+    mx = min(max(mx, 1), 5)
+    if mx <= 1 or cur < 1:
+        return []
+    if mx <= 5:
+        return [fn(lv) for lv in range(1, mx + 1)]
+    return [fn(1), fn(max(cur, 1)), fn(mx)]
+
+
+def _fmt_mult(v) -> str:
+    """条件倍率紧凑格式：×1.2 / ×1.15（去尾零）"""
+    s = f"{v:g}"
+    return s
+
 # v104 M06 P2-3：世界 Boss 特殊物品掉落池（传说材料/坐骑缰绳，按 Boss 名配池）
 # 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
 WORLD_BOSS_DROPS = {
@@ -1185,6 +1202,39 @@ class CombatCmds(CommandBase):
             parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
         return parts
 
+    def _skill_gains_curve(self, info: dict, cur: int, mx: int) -> str:
+        """v134.1 意见#47：英雄联盟式多等级效果曲线（Lv.1→满级逐级数值，最高到 Lv.5）。
+        维度与 _skill_list_gains 同源（伤害/治疗/持续回合/条件×/叠层/吸血）：
+        - 折线级数（Lv.5）按『当前级/满级』压缩：跳级只保留当前级+满级；
+        - 数值全等无成长 → 返回空串（passive/无成长维度，不占行）。"""
+        parts = []
+        kind = info.get("kind", "")
+        if info.get("power"):
+            label = "治疗" if kind == "治疗" else "伤害"
+            vals = _curve_vals(
+                lambda lv: int(info["power"] * E.skill_power_mult(lv, info) * 100), cur, mx)
+            if len(vals) > 1:
+                parts.append(f"{label} {'/'.join(f'{v}%' for v in vals)}")
+        if kind in ("增益", "嘲讽"):
+            vals = _curve_vals(lambda lv: E.skill_buff_turns(lv), cur, mx)
+            if len(vals) > 1:
+                parts.append(f"持续 {'/'.join(f'{v}回合' for v in vals)}")
+        if info.get("cond"):
+            vals = _curve_vals(
+                lambda lv: round(E.skill_cond_mult(info["cond"], lv, info), 2), cur, mx)
+            if len(vals) > 1:
+                parts.append(f"条件 ×{'/×'.join(_fmt_mult(v) for v in vals)}")
+        if info.get("mech_val"):
+            vals = _curve_vals(lambda lv: E.skill_mech_val(info, lv), cur, mx)
+            if len(vals) > 1:
+                parts.append(f"叠层 {'/'.join(str(v) for v in vals)}")
+        if info.get("lifesteal"):
+            vals = _curve_vals(
+                lambda lv: int(E.skill_lifesteal_pct(info, lv) * 100), cur, mx)
+            if len(vals) > 1:
+                parts.append(f"吸血 {'/'.join(f'{v}%' for v in vals)}")
+        return " · ".join(parts)
+
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
         """技能列表翻页(每页 5 条带序号，未学显示 Lv.0)。
         v104 R3 P2-22：序号仅用于『技能详情/学习/升级 <序号>』定位列表项；
@@ -1236,10 +1286,11 @@ class CombatCmds(CommandBase):
                 lines.append(f"  · {tag_str}")
             # v134 意见#38：已学技能显示当前等级具体数值（如『伤害 148% · 持续 4 回合』），
             # 不再复读 desc 里重复的技能名；未学/被动（无成长维度）照旧显示 desc
+            # v134.1 意见#47：改列多等级效果曲线（Lv.1→满级逐级，英雄联盟式），单行放不下再退当前等级
             if learned_now and slv > 0:
-                _gains = self._skill_list_gains(info, slv)
-                if _gains:
-                    lines.append(f"  · {' · '.join(_gains)}")
+                _curve = self._skill_gains_curve(info, slv, E.skill_max_level(info))
+                if _curve:
+                    lines.append(f"  · {_curve}")
                 else:
                     lines.append(f"  · {info['desc']}")
             else:

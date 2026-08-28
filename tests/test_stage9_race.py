@@ -68,7 +68,8 @@ def test_data():
         t = r["talents"]
         has_pos = any(v > 1 for k, v in t.items() if k in ("hp_mult", "growth_mult", "spd_mult", "magic_reduce", "heal_received", "crit_add"))
         has_pos = has_pos or bool(t.get("phys_reduce")) or bool(t.get("berserk_hp")) or bool(t.get("first_hit")) \
-            or bool(t.get("gold_bonus")) or bool(t.get("item_effect")) or bool(t.get("craft_bonus")) or bool(t.get("learn_discount")) or bool(t.get("explore_item"))
+            or bool(t.get("gold_bonus")) or bool(t.get("item_effect")) or bool(t.get("craft_bonus")) or bool(t.get("learn_discount")) or bool(t.get("explore_item")) \
+            or bool(t.get("first_upgrade_refund")) or bool(t.get("prof_bonus"))  # v134.1 人类天赋重做
         check(f"{r['name']} 有正面补偿", has_pos)
     # resolve 种族名/ID
     check("resolve 人类", C.resolve("races", "人类") == "human")
@@ -194,7 +195,8 @@ async def test_command_talents():
     p2 = db.get_player("g1", "q1")
     # 破甲斩 Lv.10 成本 vs 默认
     base_cost = E.skill_learn_cost(10)  # v104 R3 P2-17：签名删死参数 level
-    check("多才多艺学习-8%", p2["skill_points"] == 50 - max(1, int(base_cost * 0.92)), f"{p2['skill_points']} (base {base_cost})")
+    # v134.1 人类天赋重做：学习折扣已删（鱼鱼拍板）→ 学习成本 = 原价
+    check("人类学习无折扣(原价)", p2["skill_points"] == 50 - base_cost, f"{p2['skill_points']} (base {base_cost})")
     # 灵巧双手：战斗药水 +10%
     random.seed(1)
     p3 = mk_player("halfling", hp=100, max_hp=500)

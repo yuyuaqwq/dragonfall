@@ -60,7 +60,7 @@ def fish_dict(name, quality, ftype="鱼", price=12):
 async def main():
     clean_db()
     m = Main(None)
-    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 男")
+    await cmd(m, "register", "g1", "w1", "注册 战士 旅人 精灵 男")
     # 激活垂钓 + 练到 Lv.5（蓝档 10%）
     await cmd(m, "fishing", "g1", "w1", "垂钓")
     db.add_prof_exp("g1", "w1", "fishing", 200)

@@ -44,7 +44,10 @@ async def main():
     print("【技能：列表】")
     out = await cmd(m, "skill", "g1", "k1", "技能 列表")
     check("技能列表有返回", len(out) > 5, out[:120])
-    check("技能列表无状态emoji", "✅" not in out and "📖" not in out and "🔒" not in out, out[:200])
+    # v134.1 修复 flaky：v130.5 起底部 TIPS 随机提示池（📖/✨ 等 emoji）抽中会让整段输出含 emoji
+    # → 断言范围收窄到『页数』之前的主体（列表区仍无状态 emoji）
+    body = out.split("页数：")[0] if "页数：" in out else out
+    check("技能列表无状态emoji", "✅" not in body and "📖" not in body and "🔒" not in body, body[:200])
     check("技能列表描述不再用「」框(v101.25d)", "「" not in out, out[:200])
     check("技能列表 · 前缀排版(v101.25d)", "  · <物理>" in out or "  · <魔法>" in out, out[:200])
     check("技能列表消耗行", "  · 消耗：" in out, out[:200])

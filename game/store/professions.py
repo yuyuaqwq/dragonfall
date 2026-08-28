@@ -72,6 +72,19 @@ def _has_achievement(qq_id, ach_key):
         return False
 
 
+def _is_human(qq_id):
+    """v134.1 副业亲和：玩家是否为人类（锁外查 players.race，异常按非人类处理不阻断）"""
+    try:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT race FROM players WHERE qq_id=?", (qq_id,)).fetchone()
+            return bool(row and row["race"] == "human")
+        finally:
+            conn.close()
+    except Exception:
+        return False
+
+
 def add_prof_exp(group_id, qq_id, key, exp=1):
     """给副业加经验，自动升级。返回 (level, leveled_up)"""
     if key not in PROF_FIELDS:  # B2 加固（2026-08-10）：动态列名前白名单校验
@@ -81,6 +94,9 @@ def add_prof_exp(group_id, qq_id, key, exp=1):
     # 注意：必须在 _lock 外检查（get_achievements 会取同一把锁，Lock 不可重入）
     if exp > 0 and _has_achievement(qq_id, "ach_apprentice8"):
         exp = (exp * 11 + 9) // 10  # ceil(exp * 1.10)，纯整数运算
+    # v134.1 人类 副业亲和 prof_bonus +10%（与全知全能成就叠加；同向上取整保证可见）
+    if exp > 0 and _is_human(qq_id):
+        exp = (exp * 11 + 9) // 10  # ceil(exp * 1.10)
     with _lock:
         conn = _connect()
         try:

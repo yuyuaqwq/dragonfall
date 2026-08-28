@@ -704,7 +704,9 @@ class WorldCmds(CommandBase):
             lines.extend(wild_lines)
         # v66 此地玩家（含摆摊标记；v132 加编号，鱼鱼新排版）
         # v134 #33：无其他玩家时不显示本段（连标题行一并省略，不留空行）
-        here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == cur]
+        # v134.1 #46：排除自己——"只有玩家一个人时"不再显示『👤 此地的玩家：●1. 自己』
+        here_players = [p for p in db.get_group_players(group_id).values()
+                        if p.get("cur_map") == cur and str(p.get("qq_id")) != str(qq_id)]
         if here_players:
             stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, cur)}
             if lines and lines[-1]:

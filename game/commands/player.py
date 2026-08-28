@@ -1477,15 +1477,23 @@ class PlayerCmds(CommandBase):
             return
         levels[C.resolve("skills", skill_name)] = cur_lv + 1  # #259：key 统一 ID（写库 resolve 幂等，防中文/ID 双 key）
         spent = player.get("skill_spent", 0) + cost
-        db.update_player(group_id, player["qq_id"], skill_points=pts - cost,
+        refund = 0
+        # v134.1 人类 博学者：首次升级某技能返还 1 技能点（每技能一次，原 cur_lv=1 时）
+        #   （鱼鱼拍板：学习-1/升级-1 太离谱 → 削成首次升级返还 1 点，鼓励尝试新技能）
+        if cur_lv == 1:
+            fur = E.race_stats(player.get("race")).get("first_upgrade_refund")
+            if fur:
+                refund = int(fur)
+        db.update_player(group_id, player["qq_id"], skill_points=pts - cost + refund,
                          skill_levels=levels, skill_spent=spent)
         display_name = info.get("name", skill_name)
         gains = self._skill_upgrade_gains(info, cur_lv + 1)
         desc = " · ".join(gains)
         next_cost = E.skill_upgrade_cost(cur_lv + 1, info)
         tail = f"｜ 升到 Lv.{cur_lv + 2} 需 {next_cost} 点" if next_cost else "｜ 已满级！"
+        refund_txt = f"（人类博学者：首次升级返还 1 点）" if refund else ""
         yield event.plain_result(
-            f"⬆️ 『{display_name}』升级到 Lv.{cur_lv + 1}({desc})！消耗 {cost} 技能点，剩余 {pts - cost} 点{tail}"
+            f"⬆️ 『{display_name}』升级到 Lv.{cur_lv + 1}({desc})！消耗 {cost} 技能点，剩余 {pts - cost + refund} 点{refund_txt}{tail}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能栏(?:\s*|$)")
