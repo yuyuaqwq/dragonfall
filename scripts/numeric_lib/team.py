@@ -111,20 +111,20 @@ def team_matrix(instances: list[str] | None = None,
         if loadout == "legacy":
             flag = "🔴" if rounds > 80 else "🟡" if rounds > 40 else "✅"
         else:
-            # v131 副本 Boss 策略长盘标准（鱼鱼 2026-08-27 拍板：保底大几十轮、拼策略；实测目标 100~150 轮）
-            #   ✅ 100~150 轮（阶段/召唤/狂暴/治疗续航有演出空间）
-            #   🟡 80~100（略快）或 150~180（略拖）
-            #   ⚠️ <80（过速：机制没机会演出 = 秒杀）
-            #   🔴 >180（拖死）或 承伤不足（先死）
+            # v136 副本 Boss 目标（鱼鱼 2026-08-29 拍板：100 太长 → 60-70 轮适中，多策略但不拖沓）
+            #   ✅ 60~80 轮（阶段/召唤/狂暴/治疗续航有演出空间，但不拖沓）
+            #   🟡 45~60（略快）或 80~100（略拖）
+            #   ⚠️ <45（过速：机制没机会演出 = 秒杀）或 100~120（偏拖）
+            #   🔴 >120（拖死）或 承伤不足（先死）
             flag = "✅"
             if survive < rounds * 0.9:
                 flag = "🔴"        # 先死 = 打不过
-            elif rounds > 180:
+            elif rounds > 120:
                 flag = "🔴"
-            elif rounds < 80:
-                flag = "⚠️"       # 过速（Boss 机制无演出空间）
-            elif rounds < 100 or rounds > 150:
-                flag = "🟡"       # 偏快或偏慢
+            elif rounds < 45 or rounds > 100:
+                flag = "⚠️"
+            elif rounds < 60 or rounds > 80:
+                flag = "🟡"
         out.append({
             "iid": iid, "lv": lv, "boss_lv": m.get("lv", 0), "boss_hp": hp_tot,
             "boss_def": bdef, "boss_atk": m.get("atk", 0),

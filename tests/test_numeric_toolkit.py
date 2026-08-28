@@ -51,11 +51,11 @@ def main():
     by_id = {r["iid"]: r for r in rows}
     gob = by_id.get("inst_goblin_camp", {}).get("rounds")
     # v131 怪物变强（HP×2、boss×2.5）后旧模型打怪轮数按比例放大；锚点随怪数据同步重标定
-    check("哥布林营地 legacy 轮数 1276~1376（v136 hp_mult 17→8.4 校准后）",
-          1276 <= gob <= 1376, f"rounds={gob}")
+    check("哥布林营地 legacy 轮数 565~665（v136 hp_mult 渐进标定 3.9 后）",
+          565 <= gob <= 665, f"rounds={gob}")
     old_king = by_id.get("inst_old_king_tomb", {}).get("rounds")
-    check("老王之墓 legacy 轮数 212~312（v136 hp_mult 6.5→1.2 校准后）",
-          212 <= old_king <= 312, f"rounds={old_king}")
+    check("老王之墓 legacy 轮数 277~377（v136 hp_mult 渐进标定 1.5 后）",
+          277 <= old_king <= 377, f"rounds={old_king}")
 
     print("【2/6 真实模型 vs 真实引擎：per_action_dmg vs BT.Battle 每行动实测（20 seeds）】")
     m = NS.monster_of("dps", 11)
