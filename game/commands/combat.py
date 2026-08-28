@@ -1583,18 +1583,18 @@ class CombatCmds(CommandBase):
             if gb > 0:
                 exp = int(exp * (1 + gb))
                 guild_bonus.append(f"🏰 公会加成：经验 +{int(gb*100)}%")
-        # 宠物经验加成（24 章五：等级/20 上限 20%，v133 由等级/10 上限 50% 收敛；饱食度 >0 全额，=0 减半）
+        # 宠物经验加成（24 章五 v133.2 品质分级：等级×品质每级加成，cap 5~30%；饱食度 >0 全额，=0 减半）
         pet_bonus = []
         pet = db.pet_get(qq_id)
         pet = db.pet_decay_satiety(pet)
         if pet:
-            pb = min(pet["level"] / 20, 0.2)
+            pb = C.pet_exp_bonus(pet)
             if pet["satiety"] <= 0:
                 pb = pb / 2  # 饱食度 =0：经验加成减半
             if pb > 0:
                 exp = int(exp * (1 + pb))
                 ptag = "🐾 陪伴(饱食度归零，加成减半)" if pet["satiety"] <= 0 else "🐾 陪伴"
-                pet_bonus.append(f"{ptag}：经验 +{int(pb*100)}%")
+                pet_bonus.append(f"{ptag}：经验 +{C.pct_str(pb)}%")
             # v104 M17 P3：亲密度≥50 → 战斗经验 +5%（bond 消费方，面板见 social.py pet_view）
             if pet.get("bond", 0) >= 50:
                 exp = int(exp * 1.05)

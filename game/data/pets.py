@@ -181,6 +181,31 @@ def pet_skill_label(pet_key):
     return f"{p['skill_name']}({detail})"
 
 
+# v133.2 宠物经验加成品质分级（鱼鱼拍板 2026-08-28）：
+#   加成 = min(等级 × 每级加成, 上限)，10 级满档；饱食度=0 减半逻辑在战斗结算/面板处。
+#   品质越高每级越多（等差），上限越高——高品质宠物值得养，白宠保底成长线。
+PET_EXP_GRADE = {
+    "white":  {"per_lv": 0.005, "cap": 0.05},   # ⚪ 白：每级 +0.5%，上限 5%（10级满）
+    "green":  {"per_lv": 0.010, "cap": 0.10},   # 🟢 绿：每级 +1.0%，上限 10%（10级满）
+    "blue":   {"per_lv": 0.015, "cap": 0.15},   # 🔵 蓝：每级 +1.5%，上限 15%（10级满）
+    "purple": {"per_lv": 0.020, "cap": 0.20},   # 🟣 紫：每级 +2.0%，上限 20%（10级满）
+    "orange": {"per_lv": 0.030, "cap": 0.30},   # 🟠 橙：每级 +3.0%，上限 30%（10级满）
+}
+
+
+def pet_exp_bonus(pet) -> float:
+    """宠物等级经验加成系数（0~0.3）；按品质查表，未知品质按白。"""
+    p = next((x for x in PET_POOL if x["key"] == (pet or {}).get("pet_key")), None)
+    g = PET_EXP_GRADE.get((p or {}).get("quality", "white"), PET_EXP_GRADE["white"])
+    return min(max(int((pet or {}).get("level", 0) or 0) * g["per_lv"], 0.0), g["cap"])
+
+
+def pct_str(x: float) -> str:
+    """百分比显示：0.5 → '0.5'，5.0 → '5'（去尾零，宠物品质分级小数值用）。"""
+    s = f"{x * 100:.1f}"
+    return s[:-2] if s.endswith(".0") else s
+
+
 def pet_line(pet_key):
     """宠物随机战斗台词（无则返回空串；v101.11 活人感）"""
     import random

@@ -91,7 +91,7 @@ from .maps import (  # noqa: F401
     subarea_depth, is_hidden_room, reveal_met, reveal_progress, bump_explore_count,
 )
 from .daily_events import today_map_event, today_event_effects  # noqa: F401
-from .pets import make_pet_egg, pet_exp_need, pet_skill_label, pet_quality_label, pet_line  # noqa: F401
+from .pets import make_pet_egg, pet_exp_need, pet_skill_label, pet_quality_label, pet_line, pet_exp_bonus, pct_str  # noqa: F401
 from .mounts import make_mount_rein, roll_mount_drop, mount_effects  # noqa: F401
 from .exploration import (  # noqa: F401
     record_visit as exploration_record_visit,  # v115 协作契约名（G 调用 C.exploration_record_visit）

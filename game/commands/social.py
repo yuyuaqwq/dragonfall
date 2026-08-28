@@ -912,11 +912,11 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         sat = pet["satiety"]
         # v104 M17 P2：面板加成按饱食度显示实际值（与战斗实算一致：饱食度=0 减半）
-        # v133：经验加成收敛 等级/10 上限50% → 等级/20 上限20%（鱼鱼拍板，配 24 章五）
-        _pb = min(pet["level"] / 20, 0.2)
+        # v133.2：品质分级加成（pet_exp_bonus），显示去尾零（白宠 0.5%/级 → +0.5%）
+        _pb = C.pet_exp_bonus(pet)
         if sat <= 0:
             _pb = _pb / 2
-        bonus = int(_pb * 100)
+        bonus = C.pct_str(_pb)
         skill_line = ""
         if pdef:
             skill_line = f"\n🎯 技能：{C.pet_skill_label(pet['pet_key'])}(Lv.10 解锁)"
