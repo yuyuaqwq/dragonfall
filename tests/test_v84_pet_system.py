@@ -126,7 +126,7 @@ async def main():
     # 造 3 级怪（exp 约 30+）
     mon = C.build_monster(["m_test4", "测试野狼", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"])
     exp0 = mon["exp"]
-    # 手动调宠物到 Lv.5（加成 50% 上限），饱食度 100
+    # 手动调宠物到 Lv.5（加成 20% 上限，v133 收敛：等级/20 cap 0.2，原 等级/10 cap 0.5），饱食度 100
     db.pet_update("w1", level=5, satiety=100, exp=0)
     player = db.get_player("g1", "w1")
     fe = FakeEvent("g1", "w1", "")

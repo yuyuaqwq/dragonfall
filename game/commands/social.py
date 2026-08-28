@@ -912,7 +912,8 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         sat = pet["satiety"]
         # v104 M17 P2：面板加成按饱食度显示实际值（与战斗实算一致：饱食度=0 减半）
-        _pb = min(pet["level"] / 10, 0.5)
+        # v133：经验加成收敛 等级/10 上限50% → 等级/20 上限20%（鱼鱼拍板，配 24 章五）
+        _pb = min(pet["level"] / 20, 0.2)
         if sat <= 0:
             _pb = _pb / 2
         bonus = int(_pb * 100)

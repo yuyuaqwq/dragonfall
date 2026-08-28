@@ -1583,12 +1583,12 @@ class CombatCmds(CommandBase):
             if gb > 0:
                 exp = int(exp * (1 + gb))
                 guild_bonus.append(f"🏰 公会加成：经验 +{int(gb*100)}%")
-        # 宠物经验加成（24 章五：等级/10 上限 50%；饱食度 >0 全额，=0 减半）
+        # 宠物经验加成（24 章五：等级/20 上限 20%，v133 由等级/10 上限 50% 收敛；饱食度 >0 全额，=0 减半）
         pet_bonus = []
         pet = db.pet_get(qq_id)
         pet = db.pet_decay_satiety(pet)
         if pet:
-            pb = min(pet["level"] / 10, 0.5)
+            pb = min(pet["level"] / 20, 0.2)
             if pet["satiety"] <= 0:
                 pb = pb / 2  # 饱食度 =0：经验加成减半
             if pb > 0:

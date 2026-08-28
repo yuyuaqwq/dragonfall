@@ -278,10 +278,10 @@ async def main():
     db.pet_update("i1", satiety=0)
     out = await cmd(m, "pet_view", "g1", "i1", "宠物")
     check("面板显示饱食度 0/100", "饱食度：0/100" in out, out[:300])
-    check("面板显示加成减半", "加成减半" in out and "+25%" in out, out[:300])
+    check("面板显示加成减半", "加成减半" in out and "+10%" in out, out[:300])
     db.pet_update("i1", satiety=100)
     out = await cmd(m, "pet_view", "g1", "i1", "宠物")
-    check("满饱食显示全额 +50%", "+50%" in out and "加成减半" not in out, out[:300])
+    check("满饱食显示全额 +20%", "+20%" in out and "加成减半" not in out, out[:300])
 
     # ============ 10. 宠物蛋定价 ============
     print("【10. 宠物蛋定价】")
