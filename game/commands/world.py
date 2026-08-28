@@ -603,8 +603,8 @@ class WorldCmds(CommandBase):
         lines = []
         cur = cur_map.get("id", "")
         sas = cur_map.get("subareas") or []
-        # v132.1 城镇紧凑模式（鱼鱼模板：●横排、无后缀/头衔）；野外/副本详细模式
-        _compact = cur_map.get("type") == C.MAP_TYPE_TOWN
+        # v132.2 全地图紧凑模式（鱼鱼拍板：地图排版统一 ●横排模板，不再区分城镇/野外）
+        _compact = True
         # v115 今日奇遇：面板底部一行（getattr 兜底，A/C 未就绪则不显示）
         _today_ev_fn = getattr(C, "today_map_event", None)
         if _today_ev_fn is not None:
@@ -804,9 +804,8 @@ class WorldCmds(CommandBase):
             return ""
 
         if shown or neighbors:
-            # v132.1 城镇紧凑模式：鱼鱼模板（●横排、无📍/无Lv/无🔚）——城镇子区域少且内部互连；
-            # 野外/副本/隐藏走详细模式（竖排带 Lv/🔚/📍，信息完整）
-            _compact = cur_map.get("type") == C.MAP_TYPE_TOWN
+            # v132.2 全地图紧凑模式（鱼鱼拍板）：●横排、无📍/无Lv/无🔚——模板统一，野外同款
+            _compact = True
             # v128 位置面板（show_here=False）始终显示当前位置；『地图』保持原有 if sa_now 语义
             if not _compact and (sa_now or not show_here):
                 lines.append(f"📍 当前位置：{sa_now or title}")
@@ -834,11 +833,21 @@ class WorldCmds(CommandBase):
             # v95.21 跨图连接只在出口子区域列出：普通场所不显示野外/他镇目的地，
             # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
             if at_exit:
-                for i, nid in enumerate(neighbors, len(_v_links) + 1):
-                    nm, want_sa = self._conn_target(nid)
-                    sa_lbl = self._conn_subarea_name(nm, want_sa)
-                    lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                    lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
+                if _compact:
+                    # v132.2 全地图紧凑：跨图邻居同样 ●横排（无 Lv，编号保留供『前往 N』直达）
+                    _parts = []
+                    for i, nid in enumerate(neighbors, len(_v_links) + 1):
+                        nm, want_sa = self._conn_target(nid)
+                        sa_lbl = self._conn_subarea_name(nm, want_sa)
+                        lock = " (🔒隐藏)" if nm.get("hidden") else ""
+                        _parts.append(f"●{i}. {nm['name']}{sa_lbl}{lock}")
+                    lines.append("  " + " ".join(_parts))
+                else:
+                    for i, nid in enumerate(neighbors, len(_v_links) + 1):
+                        nm, want_sa = self._conn_target(nid)
+                        sa_lbl = self._conn_subarea_name(nm, want_sa)
+                        lock = " (🔒隐藏)" if nm.get("hidden") else ""
+                        lines.append(f"  {i}. {nm['name']}{sa_lbl} Lv.{nm['lv']}{lock}")
             else:
                 # v95.25 #133：非出口子区域提示必经出口（与旧 _subarea_body 同口径，
                 # v132 模板统一回归修复；街道链城镇在广场时提示必经之路）
