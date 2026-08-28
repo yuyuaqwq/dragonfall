@@ -90,6 +90,8 @@ from .event_templates import EventContext, execute_event_template  # noqa: F401
 from .class_sets import _build_class_sets  # noqa: F401
 from .enchant import enchant_value, enchant_match_material  # noqa: F401
 from .runes import rune_value, rune_conflict, rune_item  # noqa: F401
+# v136 原石系统核心逻辑（聚合导出，命令层 C.roll_gem / C.gem_combine 等可直接调用）
+from .gems import roll_gem, gem_combine, gem_socket_cost, sockets_capacity, roll_gem_drop  # noqa: F401
 from .portals import portal_cost  # noqa: F401
 from .events import roll_explore_event, roll_explore_egg  # noqa: F401
 from .pois import subarea_pois, roll_poi, subarea_props, prop_entry  # noqa: F401

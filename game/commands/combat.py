@@ -1844,6 +1844,19 @@ class CombatCmds(CommandBase):
                 rune_data = C.rune_item(r_def["effect"], r_lvl)
                 db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{r_lvl}", rune_data)
                 rune_line = f"💎 掉落了【{rune_data['name']}】！({rune_data['desc']})『附魔 <装备> {rune_data['name']}』使用"
+        # v136 原石随机掉落（Phase 2 定稿：普通 2% / 精英 5% / 野外 Boss 15% / 副本 Boss 20%）。
+        # 命中 1 颗随机原石（layer 范围按怪档查 GEM_DROP_TIER；Boss 专属固定属性倾向查
+        # GEM_BOSS_FIXED[怪物名]——裂鬃=pene_phys 破甲等）。掉落只吃 1 次 random.random()
+        # （roll_gem_drop 内部命中判定），不破坏存量战斗回归的随机序列（v103 确定性铁律）。
+        # 不掉 999 上限：与材料/图纸同逻辑，正常随机 1 颗入包（key gem_<uuid8>）。
+        gem_line = ""
+        try:
+            _gem = C.roll_gem_drop(monster)
+            if _gem:
+                db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", _gem)
+                gem_line = f"💎 获得原石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
+        except Exception:
+            gem_line = ""  # 掉落挂接失败不阻塞胜利结算（老档/数据缺失兜底）
         # v34 符文收益：拾荒(金币+%) / 睿智(经验+%)——直接从已装备读符文
         _rune_effs = {}
         for _slot, _it in (player.get("equipment") or {}).items():
@@ -1952,6 +1965,8 @@ class CombatCmds(CommandBase):
         if exp_bonus_line:
             lines.append(exp_bonus_line.strip())
         lines += drop_lines
+        if gem_line:
+            lines.append(gem_line)
         if rune_line:
             lines.append(rune_line)
         if pet_egg_line:

@@ -2413,6 +2413,19 @@ class InstanceCmds(CommandBase):
                     })
                     lines.append(f"  🎒 {p['name']} 拾取：{mname}")
         # 贡献最高 → 职业图纸
+        # v136 副本 Boss 原石掉落（Phase 2 定稿：20% 掉 1 颗随机原石，3-10 层；Boss 专属
+        # 固定属性倾向查 GEM_BOSS_FIXED[boss 名]——深海龙王·敖澜=pene_magi 法穿等）。
+        # 每名存活成员独立判定；掉落只吃 1 次 random.random()，不影响副本其余随机序列。
+        gem_drop_line = ""
+        try:
+            _gem = C.roll_gem_drop(boss)
+            if _gem:
+                db.add_item(group_id, m, f"gem_{uuid.uuid4().hex[:8]}", _gem)
+                gem_drop_line = f"  💎 {p['name']} 获得原石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
+        except Exception:
+            gem_drop_line = ""
+        if gem_drop_line:
+            lines.append(gem_drop_line)
         if inst.get("blueprint") and st.get("contribution"):
             top_key = max(st["contribution"], key=st["contribution"].get)
             if str(top_key) not in cur:

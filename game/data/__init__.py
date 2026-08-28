@@ -59,6 +59,20 @@ from .enchant import (  # noqa: F401
 )
 from .runes import (  # noqa: F401
     RUNES, RUNE_CONFLICTS, RUNE_DROP, RUNE_EFFECT_NAMES, RUNE_LEVEL_ROMAN,
+    RUNE_CRAFT, RUNE_CRAFT_SHARDS, RUNE_SHARD_KEY,
+)
+# v136 原石系统数据表（数据层聚合导出，命令层 C.GEM_TIERS 等可直接访问）
+from .gems import (  # noqa: F401
+    GEM_TIERS, GEM_TIER_NAMES, GEM_STATS, GEM_SOCKETS, GEM_DRILL,
+    GEM_REMOVE_COST, RUNE_REMOVE_COST, GEM_LEGENDARY_EFFECTS,
+    GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED,
+)
+# v136 装备进化（怪猎派生树）：同系列旧→新，继承强化/升级
+from .evolve import EVOLVE_RECIPES  # noqa: F401
+# v136 怪异炼成（怪猎曙光怪异化）：稀有素材随机强化，每件限 3 次
+from .calamity import (  # noqa: F401
+    CALAMITY_MAX, CALAMITY_COST, CALAMITY_STATS,
+    CALAMITY_BONUS, CALAMITY_MALUS, CALAMITY_POSITIVE_CHANCE,
 )
 from .portals import PORTALS  # noqa: F401
 from .gather import CAMP_SPOTS, MINE_SPOTS  # noqa: F401

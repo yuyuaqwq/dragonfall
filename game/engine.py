@@ -445,6 +445,21 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             k, v = en.get("stat"), en.get("value", 0)
             if k in STAT_NAMES:
                 item_src[k] = item_src.get(k, 0) + v
+        # v136 原石系统：孔位里镶嵌的原石属性加成（stats 值=百分比/数值，直接加）
+        # sockets: {孔位1: gem_dict, 孔位2: gem_dict, ...}，gem_dict 形如 {"stats": {"atk": 0.01}, ...}
+        # 原石 stats 键全在 STAT_NAMES 面板属性内；百分比/数值统一直接加，
+        # 后续 PENE_PCT_STATS/PCT_STATS 分支统一处理 cap（见下方汇总循环）
+        for _gk, _gv in (item.get("sockets") or {}).items():
+            if not isinstance(_gv, dict):
+                continue
+            for _sk, _sv in (_gv.get("stats") or {}).items():
+                if _sk in STAT_NAMES:
+                    item_src[_sk] = item_src.get(_sk, 0) + _sv
+        # v136 怪异炼成：随机强化属性（calamity_bonus: {属性: 百分比}，每件限 3 次）
+        # 与强化/升级乘区独立叠加，走 PCT_STATS cap（≤5% 小数值，机制向取舍）
+        for _ck, _cv in (item.get("calamity_bonus") or {}).items():
+            if _ck in STAT_NAMES and _cv:
+                item_src[_ck] = item_src.get(_ck, 0) + _cv
         if item_src:
             enh_s = f"+{enh}" if enh > 0 else ""
             sources.append({"name": f"{item.get('name', slot)}{enh_s}", "stats": item_src})

@@ -253,6 +253,16 @@ def _render_equip(d, lines, equipped):
     if _upg > 0:
         _uinfo = C.UPGRADE_TABLE.get(_upg)
         lines.append(f"升级：Lv.{_upg} (属性 ×{_uinfo['mult']})" if _uinfo else f"升级：Lv.{_upg}")
+    # v136 原石孔位展示
+    _socks = d.get("sockets") or {}
+    if _socks:
+        _sock_lines = []
+        for _sk, _sv in _socks.items():
+            if _sv:
+                _sock_lines.append(f"{_sk}:💎{_sv.get('name','')}")
+            else:
+                _sock_lines.append(f"{_sk}:空")
+        lines.append("💎 原石： " + "  ".join(_sock_lines))
     if d.get("desc"):
         lines.append(f"描述：{d['desc']}")
     else:
@@ -2923,6 +2933,731 @@ class EconomyCmds(CommandBase):
             lines.append("🌟 装备焕发出温润的宝光——这已是工艺的极限！")
         yield event.plain_result("\n".join(lines))
 
+    # ================= v136 原石系统：打孔/镶嵌/拆卸/合成/查看 =================
+
+    def _gem_find_equip(self, group_id, qq_id, player, item_name):
+        """查找装备目标（背包连续编号 + 背包名匹配 + 已装备槽位，与强化/升级同语义）。
+
+        返回 (target, err)：
+        - target: {"key","data","_equipped"?}，err 为空串
+        - 失败：target=None，err=提示文案（非装备/未找到/序号越界等）
+        """
+        item_name = (item_name or "").strip()
+        items = db.get_inventory(group_id, qq_id)
+        if item_name.isdigit():
+            idx = int(item_name)
+            if idx < 1 or idx > len(items):
+                return None, f"背包里没有第 {idx} 件物品(共 {len(items)} 件)！『背包』查看全部～"
+            target = items[idx - 1]
+            if not target["data"].get("slot"):
+                return None, f"背包第 {idx} 件『{target['data']['name']}』不是装备，不能操作！『背包』看装备序号～"
+            return target, ""
+        for it in items:
+            d = it["data"]
+            if d.get("slot") and item_name in d["name"]:
+                return it, ""
+        eq = player.get("equipment") or {}
+        for slot, ed in eq.items():
+            if item_name in (ed.get("name", "") if isinstance(ed, dict) else ""):
+                return {"key": f"eq_equipped_{slot}", "data": ed, "_equipped": slot}, ""
+        return None, f"背包里没有叫『{item_name}』的装备！(已装备的装备也可以直接操作，如『打孔 铁剑』)"
+
+    def _gem_find_gem(self, group_id, qq_id, raw):
+        """按 名称子串/背包序号 找背包里的原石（type=原石 或 gem=True）。
+
+        返回 (gem_item, err)：gem_item 含 key/data/count，失败时 (None, 提示)。
+        """
+        raw = (raw or "").strip()
+        if not raw:
+            return None, "哪个原石？输入『原石』查看背包里的原石～"
+        gems = [it for it in db.get_inventory(group_id, qq_id)
+                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+        if raw.isdigit():
+            idx = int(raw)
+            if idx < 1 or idx > len(gems):
+                return None, f"背包里没有第 {idx} 颗原石(共 {len(gems)} 颗)！『原石』查看～"
+            return gems[idx - 1], ""
+        for it in gems:
+            if raw in it["data"].get("name", ""):
+                return it, ""
+        return None, f"背包里没有『{raw}』！『原石』查看背包里的原石～"
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?打孔(?:[\s\S]*)$")
+    @require_player()
+
+    async def gem_drill(self, event: AstrMessageEvent):
+        """v136 原石系统：『打孔 <装备名/序号>』——铁匠铺为蓝/紫/橙装打出 S1/S2/S3 孔位。
+
+        费用+锻造副业门槛查 GEM_DRILL（蓝 500 金/锻造 Lv.1，紫 1500/Lv.3，橙 4000/Lv.5）；
+        白/绿装无孔位；已有孔位无需再打（防重复扣费）。
+        """
+        group_id, qq_id = self._uid(event)
+        item_name = self._strip_cmd(event, "打孔")
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能打孔！(先『地图』移动到铁匠铺)")
+            return
+        item_name = item_name.strip()
+        if not item_name:
+            yield event.plain_result("给哪件装备打孔？输入『打孔 <装备名>』或『打孔 <背包序号>』(如：打孔 铁剑 / 打孔 3)")
+            return
+        target, err = self._gem_find_equip(group_id, qq_id, player, item_name)
+        if not target:
+            yield event.plain_result(err)
+            return
+        d = target["data"]
+        quality = d.get("quality", "white")
+        qinfo = C.GEM_SOCKETS.get(quality)
+        if not qinfo or qinfo.get("count", 0) <= 0:
+            yield event.plain_result(
+                f"【{d['name']}】({C.QUALITY.get(quality, {}).get('name', '')})没有孔位可打，只有蓝/紫/橙装备可以打孔！")
+            return
+        if d.get("sockets"):
+            yield event.plain_result(f"【{d['name']}】已经有 {len(d['sockets'])} 个孔位了，不用再打～")
+            return
+        info = C.GEM_DRILL.get(quality)
+        if not info:
+            yield event.plain_result(f"【{d['name']}】的品质不支持打孔！")
+            return
+        # 副业门槛：锻造副业等级（v95.22 拜师校验同款）
+        ok, act_msg = self._prof_active_check(group_id, qq_id, "craft", require_apprentice=True)
+        if not ok:
+            yield event.plain_result(act_msg)
+            return
+        prof_lv = db.get_prof_level(group_id, qq_id, "craft")
+        if prof_lv < info["craft_lv"]:
+            yield event.plain_result(
+                f"打孔需要锻造副业 Lv.{info['craft_lv']}(你 Lv.{prof_lv})！多锻造装备升级吧～")
+            return
+        if player["gold"] < info["cost"]:
+            yield event.plain_result(f"打孔需要 {info['cost']} 金币，你只有 {player['gold']}。")
+            return
+        # 体力：打孔消耗 10（全校验通过后才扣，防白扣）
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["craft"], player, "打孔")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
+        count = qinfo["count"]
+        slots = {f"S{i}": None for i in range(1, count + 1)}
+        d["sockets"] = slots
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = d
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.update_item_data(group_id, qq_id, target["key"], d)
+        db.update_player(group_id, qq_id, gold=player["gold"] - info["cost"])
+        names = "/".join(slots.keys())
+        yield event.plain_result(
+            f"🔨 打孔成功！【{d['name']}】现在有 {count} 个孔位({names})！"
+            f"『镶嵌 {d['name']} <原石>』放入原石～")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?镶嵌(?:[\s\S]*)$")
+    @require_player()
+
+    async def gem_socket(self, event: AstrMessageEvent):
+        """v136 原石系统：『镶嵌 <装备名> <原石名/序号> [孔位]』——把原石镶入装备孔位。
+
+        孔位可选（默认第一个空孔）；原石层数须在孔位层数范围（GEM_SOCKETS[quality]）；
+        孔位已占/无空孔/层数超范围均拦截。原石扣出背包，写 sockets[孔位]=原石 dict。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "镶嵌")
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能镶嵌原石！(先『地图』移动到铁匠铺)")
+            return
+        parts = raw.strip().split()
+        if len(parts) < 2:
+            yield event.plain_result(
+                "镶嵌哪颗原石到哪件装备？输入『镶嵌 <装备名> <原石名/序号> [孔位]』\n"
+                "如：『镶嵌 铁剑 碎裂I·攻击+1%』『镶嵌 铁剑 1』『镶嵌 铁剑 碎裂I S2』(孔位默认第一个空孔)")
+            return
+        item_name, gem_raw = parts[0], parts[1]
+        slot_arg = parts[2] if len(parts) > 2 else ""
+        target, err = self._gem_find_equip(group_id, qq_id, player, item_name)
+        if not target:
+            yield event.plain_result(err)
+            return
+        d = target["data"]
+        socks = d.get("sockets")
+        if not socks:
+            yield event.plain_result(
+                f"【{d['name']}】还没有孔位！先『打孔 {d['name']}』打出孔位再镶嵌～")
+            return
+        gem_item, err = self._gem_find_gem(group_id, qq_id, gem_raw)
+        if not gem_item:
+            yield event.plain_result(err)
+            return
+        gd = gem_item["data"]
+        quality = d.get("quality", "white")
+        cap = C.GEM_SOCKETS.get(quality)
+        min_t = (cap or {}).get("min_tier", 0)
+        max_t = (cap or {}).get("max_tier", 0)
+        if not (min_t <= gd.get("tier", 0) <= max_t):
+            yield event.plain_result(
+                f"【{d['name']}】({C.QUALITY.get(quality, {}).get('name', '')})的孔位只能镶 "
+                f"{C.GEM_TIER_NAMES.get(min_t, min_t)}~{C.GEM_TIER_NAMES.get(max_t, max_t)} 的原石"
+                f"(你选的是 {gd['name']})！")
+            return
+        # 孔位解析：显式孔位（S1/S2/S3）→ 校验存在且空；未给 → 第一个空孔
+        target_slot = ""
+        if slot_arg:
+            slot_arg = slot_arg.strip().upper()
+            if slot_arg not in socks:
+                yield event.plain_result(
+                    f"【{d['name']}】没有 {slot_arg} 这个孔位(孔位：{'/'.join(socks)})！")
+                return
+            if socks[slot_arg] is not None:
+                yield event.plain_result(
+                    f"【{d['name']}】的 {slot_arg} 已经镶了『{socks[slot_arg].get('name', '')}』！"
+                    f"『拆卸 {d['name']} {slot_arg}』先拆下来～")
+                return
+            target_slot = slot_arg
+        else:
+            for sk, sv in socks.items():
+                if sv is None:
+                    target_slot = sk
+                    break
+            if not target_slot:
+                yield event.plain_result(
+                    f"【{d['name']}】的 {len(socks)} 个孔位都满了，没有空孔！"
+                    f"『拆卸 <装备名> <孔位>』拆一颗再镶～")
+                return
+        db.remove_item(group_id, qq_id, gem_item["key"], 1)
+        socks[target_slot] = dict(gd)
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = d
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.update_item_data(group_id, qq_id, target["key"], d)
+        yield event.plain_result(
+            f"💎 镶嵌成功！【{d['name']}】{target_slot} 镶入 {gd['name']}！"
+            f"『原石』查看背包剩余原石～")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?拆卸(?:[\s\S]*)$")
+    @require_player()
+
+    async def gem_remove(self, event: AstrMessageEvent):
+        """v136 原石系统：『拆卸 <装备名> <孔位>』——铁匠铺拆下孔位里的原石。
+
+        拆卸费 500×原石层数（GEM_REMOVE_COST × tier）；原石回背包（key=gem_<uuid8>）。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "拆卸")
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能拆卸原石！(先『地图』移动到铁匠铺)")
+            return
+        parts = raw.strip().split()
+        if len(parts) < 2:
+            yield event.plain_result(
+                "拆卸哪个孔位的原石？输入『拆卸 <装备名> <孔位>』(如：拆卸 铁剑 S1)")
+            return
+        item_name, slot_arg = parts[0], parts[1].strip().upper()
+        target, err = self._gem_find_equip(group_id, qq_id, player, item_name)
+        if not target:
+            yield event.plain_result(err)
+            return
+        d = target["data"]
+        socks = d.get("sockets") or {}
+        if slot_arg not in socks:
+            yield event.plain_result(
+                f"【{d['name']}】没有 {slot_arg} 这个孔位(孔位：{'/'.join(socks) or '无'})！")
+            return
+        if socks[slot_arg] is None:
+            yield event.plain_result(f"【{d['name']}】的 {slot_arg} 是空孔，没有原石可拆～")
+            return
+        gd = socks[slot_arg]
+        cost = C.gem_socket_cost(gd)
+        if player["gold"] < cost:
+            yield event.plain_result(f"拆卸需要 {cost} 金币(500×层数)，你只有 {player['gold']}。")
+            return
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost)
+        import uuid
+        db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", dict(gd))
+        socks[slot_arg] = None
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = d
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.update_item_data(group_id, qq_id, target["key"], d)
+        yield event.plain_result(
+            f"🔧 拆卸成功！取回 {gd['name']}，花费 {cost} 金币"
+            f"(已放回背包，『原石』查看～)")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?原石合成(?:[\s\S]*)$")
+    @require_player()
+
+    async def gem_combine(self, event: AstrMessageEvent):
+        """v136 原石系统：『原石合成 [原石名/序号]』——3 个同级原石 → 1 个上级。
+
+        无参 → 列出背包里可合成的原石（按 tier 分组）；带参 → 消耗 3 个同名同级原石合成；
+        传说II(tier=10) 无法再合成。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "原石合成")
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能合成原石！(先『地图』移动到铁匠铺)")
+            return
+        items = db.get_inventory(group_id, qq_id)
+        gems = [it for it in items
+                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+        if not raw:
+            # 无参：列出可合成原石（按 tier 分组，≥3 颗可合成）
+            by_tier = {}
+            for it in gems:
+                by_tier.setdefault(it["data"].get("tier", 0), []).append(it)
+            lines = ["💎 【原石合成】3 个同级原石 → 1 个上级，无失败！", "━━━━━━━━━━━━"]
+            shown = 0
+            for tier in sorted(by_tier):
+                if tier >= 10:
+                    continue
+                gd = by_tier[tier][0]["data"]
+                cnt = sum(it["count"] for it in by_tier[tier])
+                ok = "✅" if cnt >= 3 else "❌"
+                lines.append(f"{ok} {gd['name']} ×{cnt}/3  →  {C.GEM_TIER_NAMES.get(tier + 1, '?')}")
+                shown += 1
+            if shown == 0:
+                lines.append("背包里还没有可合成的原石！打怪有概率掉落原石～")
+            lines.append("━━━━━━━━━━━━")
+            lines.append("💡 『原石合成 <原石名/序号>』消耗 3 颗同级原石合成 1 颗上级(传说II 不可再合成)")
+            yield event.plain_result("\n".join(lines))
+            return
+        if not gems:
+            yield event.plain_result("背包里还没有原石！打怪有概率掉落原石～")
+            return
+        gem_item, err = self._gem_find_gem(group_id, qq_id, raw)
+        if not gem_item:
+            yield event.plain_result(err)
+            return
+        gd = gem_item["data"]
+        tier = gd.get("tier", 0)
+        if tier >= 10:
+            yield event.plain_result(f"{gd['name']} 已是传说II，无法再合成了！")
+            return
+        # 统计同 tier 全部原石数量（跨堆）
+        same_tier = [it for it in gems if it["data"].get("tier") == tier]
+        total = sum(it["count"] for it in same_tier)
+        if total < 3:
+            yield event.plain_result(
+                f"合成需要 3 颗 {C.GEM_TIER_NAMES.get(tier, tier)} 原石，你有 {total} 颗！")
+            return
+        # 扣 3 颗同 tier（跨堆扣取，key 优先）
+        remain = 3
+        for it in same_tier:
+            if remain <= 0:
+                break
+            take = min(it["count"], remain)
+            if db.remove_item(group_id, qq_id, it["key"], take):
+                remain -= take
+        new_gem = C.gem_combine([gd, gd, gd])
+        db.add_item(group_id, qq_id, f"gem_{__import__('uuid').uuid4().hex[:8]}", new_gem)
+        yield event.plain_result(
+            f"✨ 三颗 {gd['name']} 光芒交织，合成了更纯粹的原石！\n"
+            f"✅ 合成成功！获得 {new_gem['name']}(消耗 3 颗，无失败)")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?原石(?!合成)(?:\s*|$)")
+    @require_player()
+
+    async def gem_view(self, event: AstrMessageEvent):
+        """v136 原石系统：『原石』——查看背包全部原石（名称/层数/属性/孔位需求）。"""
+        group_id, qq_id = self._uid(event)
+        items = db.get_inventory(group_id, qq_id)
+        gems = [it for it in items
+                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+        if not gems:
+            yield event.plain_result(
+                "💎 背包里还没有原石！打怪有概率掉落原石～\n"
+                "💡 『打孔 <装备>』给蓝/紫/橙装开孔，『镶嵌 <装备> <原石>』镶入获得属性！")
+            return
+        lines = [f"💎 【原石】(共 {sum(it['count'] for it in gems)} 颗)", "━━━━━━━━━━━━"]
+        _SNAMES = C.STAT_NAMES if hasattr(C, "STAT_NAMES") else {}
+        for it in gems:
+            gd = it["data"]
+            stats_str = "、".join(
+                f"{_SNAMES.get(k, k)}+{int(v * 100)}%" for k, v in (gd.get("stats") or {}).items())
+            need = "蓝孔" if gd.get("tier", 1) <= 2 else ("紫孔" if gd.get("tier", 1) <= 4 else "橙孔")
+            lines.append(f"💎 {gd['name']} ×{it['count']} ｜ 层{gd.get('tier', '?')} ｜ {stats_str} ｜ {need}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『镶嵌 <装备> <原石>』镶入装备 ｜ 『原石合成 <原石>』3 合 1 升级 ｜ 『拆卸 <装备> <孔位>』取下")
+        yield event.plain_result("\n".join(lines))
+
+    # ================= v136 符文制作 / 符文拆卸（Phase 3：掉落 → 掉落+可制作） =================
+
+    def _rune_craft_panel(self, player):
+        """符文制作面板（无参时展示全部配方：素材+碎片+制作费）。"""
+        lines = ["🔮 【符文制作】掉落之外，铁匠铺可用怪物素材+符文碎片合成符文(1 级)！",
+                 "━━━━━━━━━━━━"]
+        for rkey, r in C.RUNES.items():
+            cfg = C.RUNE_CRAFT.get(rkey)
+            if not cfg:
+                continue
+            mname = C.display("materials", cfg["mat"])
+            shards = C.RUNE_CRAFT_SHARDS.get(r["quality"], 3)
+            fee = r.get("cost", 0) // 2
+            lines.append(f"{C.QUALITY[r['quality']]['color']}符文·{r.get('name', rkey)}"
+                         f"：{mname}×{cfg['count']}+符文碎片×{shards}+{fee}金")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『符文制作 <符文名>』消耗素材+符文碎片+金币，获得 1 级符文"
+                     "(符文碎片=拆卸符文回收，隐藏怪「符文魔像」也掉落)")
+        return "\n".join(lines)
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?符文制作(?:\s*|$)")
+    @require_player()
+
+    async def rune_craft(self, event: AstrMessageEvent):
+        """v136 符文制作：『符文制作 <符文名>』——铁匠铺用怪物素材+符文碎片+金币合成 1 级符文。
+
+        配方表 C.RUNE_CRAFT（素材按品质 2/3/4 个）+ C.RUNE_CRAFT_SHARDS（碎片 3/4/6 个）；
+        制作费 = 符文 cost 的一半（rune_item price 同源）；体力 10（全校验通过后才扣）。
+        产出 C.rune_item(effect, 1)，key=rune_<effect>_1（与掉落同 key，可堆叠）。
+        """
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能制作符文！(先『地图』移动到铁匠铺)")
+            return
+        raw = self._strip_cmd(event, "符文制作").strip()
+        if not raw:
+            yield event.plain_result(self._rune_craft_panel(player))
+            return
+        # 解析符文：ID / 中文名 / 子串
+        rkey = None
+        if raw in C.RUNES:
+            rkey = raw
+        else:
+            rkey = C.resolve("runes", raw)
+            if rkey not in C.RUNES:
+                hits = [k for k, r in C.RUNES.items() if raw in r.get("name", "")]
+                rkey = hits[0] if hits else rkey
+        if rkey not in C.RUNES:
+            yield event.plain_result(
+                f"没有『{raw}』这个符文！『符文制作』查看全部可制作符文～")
+            return
+        r = C.RUNES[rkey]
+        cfg = C.RUNE_CRAFT.get(rkey)
+        if not cfg:
+            yield event.plain_result(f"『{r.get('name', rkey)}』暂时不能制作，只能靠打怪掉落～")
+            return
+        # 体力：所有校验通过后才扣（防白扣，与炼金/附魔对齐）
+        _ok, _st = self._spend_stamina(group_id, qq_id, C.PROF_STAMINA_COST["craft"], player, "符文制作")
+        if not _ok:
+            yield event.plain_result(_st)
+            return
+        # 材料校验
+        items = db.get_inventory(group_id, qq_id)
+        mname = C.display("materials", cfg["mat"])
+        have_mat = sum(it["count"] for it in items if it["data"].get("name") == mname)
+        if have_mat < cfg["count"]:
+            yield event.plain_result(f"材料不足！制作【{r.get('name', rkey)}】需要 {mname}×{cfg['count']}(你有 {have_mat})")
+            return
+        shards = C.RUNE_CRAFT_SHARDS.get(r["quality"], 3)
+        have_shard = db.count_item(group_id, qq_id, "符文碎片")
+        if have_shard < shards:
+            yield event.plain_result(f"符文碎片不足！制作【{r.get('name', rkey)}】需要 符文碎片×{shards}(你有 {have_shard})"
+                                     f"(拆卸符文回收，或隐藏怪「符文魔像」掉落)")
+            return
+        fee = r.get("cost", 0) // 2
+        if player["gold"] < fee:
+            yield event.plain_result(f"制作【{r.get('name', rkey)}】需要 {fee} 金币，你只有 {player['gold']}。")
+            return
+        # 扣素材（跨堆）+ 碎片 + 金币
+        remain = cfg["count"]
+        for it in items:
+            if remain <= 0:
+                break
+            if it["data"].get("name") == mname:
+                take = min(it["count"], remain)
+                if db.remove_item(group_id, qq_id, it["key"], take):
+                    remain -= take
+        remain = shards
+        for it in items:
+            if remain <= 0:
+                break
+            if it["data"].get("name") == "符文碎片":
+                take = min(it["count"], remain)
+                if db.remove_item(group_id, qq_id, it["key"], take):
+                    remain -= take
+        db.update_player(group_id, qq_id, gold=player["gold"] - fee)
+        # 产出 1 级符文（key=rune_<effect>_1，与掉落同 key 可堆叠）
+        rune_data = C.rune_item(r["effect"], 1)
+        db.add_item(group_id, qq_id, f"rune_{r['effect']}_1", rune_data)
+        # 副业经验（锻造 +1，与炼金/烹饪同思路）
+        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "craft", 1)
+        _lv_msg = f"\n🌟 锻造副业提升到 Lv.{new_lv}！" if leveled else ""
+        _done, _msg = self._daily_prof_bump(group_id, qq_id, "craft")
+        if _msg:
+            _lv_msg += "\n" + _msg.strip()
+        db.bump_stats(group_id, qq_id, craft_count=1)
+        C.check_achievements(group_id, qq_id, player)
+        yield event.plain_result(
+            f"🔮 【符文制作成功】获得了【{rune_data['name']}】！({rune_data['desc']})\n"
+            f"(消耗 {mname}×{cfg['count']}+符文碎片×{shards}+{fee}金币)\n"
+            f"💡 『附魔 <装备> {rune_data['name']}』刻印到装备上！{_lv_msg}")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?符文拆卸(?:\s*|$)")
+    @require_player()
+
+    async def rune_remove(self, event: AstrMessageEvent):
+        """v136 符文拆卸：『符文拆卸 <装备名> <孔位>』——铁匠铺从装备附魔槽拆下符文。
+
+        附魔槽 enchant 列表里 effect 项即符文（与属性附魔 stat 项区分）：
+        按 装备名(序号/子串/已装备) 匹配装备 → 拆最后一段符文（默认）或 <孔位> 指定第 N 个符文效果。
+        手续费 1000×符文等级（C.RUNE_REMOVE_COST × lvl）；回收 符文碎片×等级。
+        （原石走『拆卸 <装备> <孔位>』500×层数，两命令并行不冲突。）
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "符文拆卸")
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能拆卸符文！(先『地图』移动到铁匠铺)")
+            return
+        parts = raw.strip().split()
+        if not parts:
+            yield event.plain_result(
+                "拆卸哪个装备上的符文？输入『符文拆卸 <装备名> [孔位]』(如：符文拆卸 铁剑 / 符文拆卸 铁剑 2)")
+            return
+        item_name = parts[0]
+        slot_arg = parts[1] if len(parts) > 1 else ""
+        # 找装备：背包（序号/子串）+ 已装备槽位（与强化/升级/附魔同语义）
+        items = db.get_inventory(group_id, qq_id)
+        target = None
+        if item_name.isdigit():
+            idx = int(item_name)
+            if idx < 1 or idx > len(items):
+                yield event.plain_result(f"背包里没有第 {idx} 件物品(共 {len(items)} 件)！『背包』查看全部～")
+                return
+            target = items[idx - 1]
+            if not target["data"].get("slot"):
+                yield event.plain_result(f"背包第 {idx} 件『{target['data']['name']}』不是装备，不能拆符文！")
+                return
+        else:
+            for it in items:
+                d = it["data"]
+                if d.get("slot") and item_name in d["name"]:
+                    target = it
+                    break
+            if not target:
+                eq = player.get("equipment") or {}
+                for slot, ed in eq.items():
+                    if item_name in (ed.get("name", "") if isinstance(ed, dict) else ""):
+                        target = {"key": f"eq_equipped_{slot}", "data": ed, "_equipped": slot}
+                        break
+            if not target:
+                yield event.plain_result(f"背包里没有叫『{item_name}』的装备！(已装备的也可以直接『符文拆卸 <装备名>』)")
+                return
+        d = target["data"]
+        orig = d.get("enchant") or []
+        # 符文 = enchant 里带 effect 的项（与属性附魔 stat 项区分）
+        rune_pos = [(i, e) for i, e in enumerate(orig)
+                    if e and isinstance(e, dict) and e.get("effect")]
+        if not rune_pos:
+            yield event.plain_result(f"【{d['name']}】没有刻印任何符文～(『附魔 <装备> <符文>』刻印)")
+            return
+        # 孔位：默认拆最后一个符文；显式 <n> 指定第 n 个符文效果（1 起）
+        idx = 0
+        if slot_arg:
+            if not slot_arg.isdigit():
+                yield event.plain_result(f"『{slot_arg}』不是有效孔位！输入『符文拆卸 <装备名> <孔位序号>』，如：符文拆卸 铁剑 1")
+                return
+            n = int(slot_arg)
+            if n < 1 or n > len(rune_pos):
+                yield event.plain_result(f"【{d['name']}】只有 {len(rune_pos)} 个符文(孔位 1~{len(rune_pos)})，没有第 {n} 个！")
+                return
+            idx = n - 1
+        else:
+            idx = len(rune_pos) - 1
+        orig_pos, en = rune_pos[idx]
+        eff = en.get("effect")
+        lvl = int(en.get("lvl", 1) or 1)
+        cost = C.RUNE_REMOVE_COST * lvl
+        if player["gold"] < cost:
+            yield event.plain_result(f"拆卸 Lv.{lvl} 符文需要 {cost} 金币(1000×等级)，你只有 {player['gold']}。")
+            return
+        # 回收符文碎片×等级（可堆叠，key=mat_fu_wen_sui_pian 已有定义）
+        db.update_player(group_id, qq_id, gold=player["gold"] - cost)
+        shard_name = C.display("materials", C.RUNE_SHARD_KEY)
+        db.add_item(group_id, qq_id, C.RUNE_SHARD_KEY,
+                    {"name": shard_name, "type": "材料", "stackable": True,
+                     "price": C.MATERIALS.get(C.RUNE_SHARD_KEY, {}).get("price", 100)},
+                    lvl)
+        # 从 enchant 移除该符文（保留属性附魔 stat 项）
+        d["enchant"] = [e for i, e in enumerate(orig) if i != orig_pos]
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = d
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.update_item_data(group_id, qq_id, target["key"], d)
+        eff_name = C.RUNE_EFFECT_NAMES.get(eff, eff)
+        yield event.plain_result(
+            f"🔧 符文拆卸成功！【{d['name']}】拆下了『{eff_name}』(Lv.{lvl})，"
+            f"花费 {cost} 金币\n"
+            f"🎒 回收 符文碎片×{lvl}（『附魔 <装备> <符文>』可重新刻印）")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备进化(?:[\s\S]*)$")
+    @require_player()
+
+    async def evolve_equip(self, event: AstrMessageEvent):
+        """v136 装备进化（怪猎派生树）：『装备进化 <装备名>』——同系列旧武器→高阶武器。
+
+        消耗稀有素材+金钱 → 新装备入包，继承旧装备强化/升级等级（inherit=half 折半向下取整）。
+        旧装备被消耗（投资不沉没：强化/升级等级带到新装备）。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "装备进化").strip()
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能进化装备！(先『地图』移动到铁匠铺)")
+            return
+        if not raw:
+            # 无参：列出全部可进化配方
+            lines = ["🔀 【装备进化】（怪猎派生树：旧→新，继承一半强化/升级）", ""]
+            for _src, _cfg in C.EVOLVE_RECIPES.items():
+                _tgt = C.display("recipes", _cfg["target"])
+                _mats = " + ".join(f"{C.display('materials', m)}×{n}" for m, n in _cfg["mats"].items())
+                lines.append(f"  {_src} → {_tgt}｜{_mats} + {_cfg['gold']}金")
+            lines.append("")
+            lines.append("💡 『装备进化 <装备名>』进化你的装备，继承一半强化/升级！")
+            yield event.plain_result("\n".join(lines))
+            return
+        target, err = self._gem_find_equip(group_id, qq_id, player, raw)
+        if not target:
+            yield event.plain_result(err)
+            return
+        d = target["data"]
+        src_name = d.get("name", "")
+        # 名字可能带品质色前缀（如 🔵·弯刀），用 in 匹配配方 key
+        rec = None
+        for _src, _cfg in C.EVOLVE_RECIPES.items():
+            if _src in src_name:
+                rec = _cfg
+                break
+        if not rec:
+            yield event.plain_result(f"【{src_name}】没有进化配方！『装备进化』看可进化列表～")
+            return
+        tgt_rec = C.CRAFT_RECIPES.get(rec["target"])
+        if not tgt_rec:
+            yield event.plain_result(f"【{src_name}】的进化目标不存在(配置缺失)！")
+            return
+        # 校验等级门槛
+        if tgt_rec["lv"] > player["level"] + 6:
+            yield event.plain_result(f"进化目标【{tgt_rec['name']}】是 Lv.{tgt_rec['lv']}，你才 Lv.{player['level']}，等级再高些才能驾驭！")
+            return
+        # 校验材料
+        lack = []
+        for m, n in rec["mats"].items():
+            have = db.count_item(group_id, qq_id, m)
+            if have < n:
+                lack.append(f"{C.display('materials', m)}×{n}(你有{have})")
+        if lack:
+            yield event.plain_result(f"进化材料不足！还缺：{'、'.join(lack)}。Boss 掉落稀有素材～")
+            return
+        # 校验金币
+        if player["gold"] < rec["gold"]:
+            yield event.plain_result(f"金币不足！进化需要 {rec['gold']} 金币，你只有 {player['gold']}。")
+            return
+        # 扣材料 + 扣金币 + 扣旧装备
+        for m, n in rec["mats"].items():
+            db.remove_item(group_id, qq_id, m, n)
+        db.update_player(group_id, qq_id, gold=player["gold"] - rec["gold"])
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = None
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.remove_item(group_id, qq_id, target["key"], 1)
+        # 造新装备 + 继承强化/升级（half 折半向下取整）
+        new_equip = C.craft_recipe_make(rec["target"])
+        _inh = rec.get("inherit", "half")
+        if _inh == "full":
+            new_equip["enhance"] = d.get("enhance", 0)
+            new_equip["upgrade_lv"] = d.get("upgrade_lv", 0)
+        else:  # half
+            new_equip["enhance"] = (d.get("enhance", 0) or 0) // 2
+            new_equip["upgrade_lv"] = (d.get("upgrade_lv", 0) or 0) // 2
+        # 原石/炼成不继承（新装备重新追求）
+        import uuid
+        key = f"eq_{uuid.uuid4().hex[:8]}"
+        db.add_item(group_id, qq_id, key, new_equip)
+        _eh = new_equip["enhance"]
+        _up = new_equip["upgrade_lv"]
+        _inh_str = f"继承强化+{_eh}/升级Lv.{_up}" if (_eh or _up) else "（新装备）"
+        yield event.plain_result(
+            f"🔀 【装备进化成功】{src_name} 淬炼成 {C.QUALITY[new_equip['quality']]['color']}【{new_equip['name']}】！\n"
+            f"🎯 {_inh_str}——旧装备的强化/升级投资不沉没！\n"
+            f"💰 消耗 {rec['gold']} 金币 + 稀有素材")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?炼成(?:[\s\S]*)$")
+    @require_player()
+
+    async def calamity_forge(self, event: AstrMessageEvent):
+        """v136 怪异炼成（怪猎曙光怪异化）：『炼成 <装备名>』——稀有素材随机强化装备属性。
+
+        每件限 3 次（calamity_count）；90% 正面 +3% / 10% 负面 -1%（取舍）。
+        消耗：2000 金 + 余烬核心×1（CALAMITY_COST）。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "炼成").strip()
+        player = self._player(group_id, qq_id)
+        if not self._at_smith(player):
+            yield event.plain_result("需要到铁匠铺/锻造坊才能怪异炼成！(先『地图』移动到铁匠铺)")
+            return
+        if not raw:
+            yield event.plain_result("炼成哪件装备？输入『炼成 <装备名>』(如：炼成 铁剑)——每件限 3 次，随机强化属性(90%+3%/10%-1%)")
+            return
+        target, err = self._gem_find_equip(group_id, qq_id, player, raw)
+        if not target:
+            yield event.plain_result(err)
+            return
+        d = target["data"]
+        cnt = d.get("calamity_count", 0) or 0
+        if cnt >= C.CALAMITY_MAX:
+            yield event.plain_result(f"【{d['name']}】已经炼成 {cnt}/{C.CALAMITY_MAX} 次，到极限了！换装备继续炼吧～")
+            return
+        # 校验材料/金币
+        lack = []
+        for m, n in C.CALAMITY_COST["mats"].items():
+            have = db.count_item(group_id, qq_id, m)
+            if have < n:
+                lack.append(f"{C.display('materials', m)}×{n}(你有{have})")
+        if lack:
+            yield event.plain_result(f"炼成材料不足！还缺：{'、'.join(lack)}。Boss 掉落稀有素材～")
+            return
+        if player["gold"] < C.CALAMITY_COST["gold"]:
+            yield event.plain_result(f"金币不足！怪异炼成需要 {C.CALAMITY_COST['gold']} 金币，你只有 {player['gold']}。")
+            return
+        # 扣材料/金币
+        for m, n in C.CALAMITY_COST["mats"].items():
+            db.remove_item(group_id, qq_id, m, n)
+        db.update_player(group_id, qq_id, gold=player["gold"] - C.CALAMITY_COST["gold"])
+        # 随机强化：90% 正面 +3% / 10% 负面 -1%
+        import random as _rnd
+        _stat = _rnd.choice(C.CALAMITY_STATS)
+        _pos = _rnd.random() < C.CALAMITY_POSITIVE_CHANCE
+        _val = C.CALAMITY_BONUS if _pos else -C.CALAMITY_MALUS
+        cb = dict(d.get("calamity_bonus") or {})
+        cb[_stat] = round(cb.get(_stat, 0) + _val, 4)
+        d["calamity_bonus"] = cb
+        d["calamity_count"] = cnt + 1
+        _stat_cn = E.STAT_NAMES.get(_stat, _stat) if E.STAT_NAMES else _stat
+        if target.get("_equipped"):
+            eq = dict(player.get("equipment") or {})
+            eq[target["_equipped"]] = d
+            db.update_player(group_id, qq_id, equipment=eq)
+        else:
+            db.update_item_data(group_id, qq_id, target["key"], d)
+        _arrow = "✨ 炼成成功！" if _pos else "🌪️ 炼成波动……"
+        _sgn = "+" if _val > 0 else ""
+        yield event.plain_result(
+            f"{_arrow}【{d['name']}】{_stat_cn}{_sgn}{int(_val * 100)}%！"
+            f"({d.get('calamity_count', 1)}/{C.CALAMITY_MAX} 次)\n"
+            f"💰 消耗 {C.CALAMITY_COST['gold']} 金币 + 稀有素材")
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?附魔(?:\s*|$)")
     @require_player()
 
@@ -3990,7 +4725,7 @@ class EconomyCmds(CommandBase):
         eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:装备|我的装备)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:装备(?!进化)|我的装备)(?:\s*|$)")
     @require_player()
 
     async def equip(self, event: AstrMessageEvent):

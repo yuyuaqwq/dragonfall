@@ -274,3 +274,33 @@ RUNE_LEVEL_ROMAN = {
     2: "II",
     3: "III"
 }
+
+# ============ v136 符文制作（Phase 3：掉落 → 掉落+可制作） ============
+# 消耗规则：品质决定素材/碎片/金币
+#   blue   → 怪物素材×2 + 符文碎片×3 + 制作费  cost//2 金
+#   purple → 怪物素材×3 + 符文碎片×4 + 制作费  cost//2 金
+#   orange → 怪物素材×4 + 符文碎片×6 + 制作费  cost//2 金
+# 素材 key 用「怪物掉落主材」：裂鬃獠牙(野猪王·裂鬃)/巨魔獠牙/兽人獠牙（龙脉路线核心素材）
+# 素材池（可扩展）：裂鬃獠牙/巨魔獠牙/兽人獠牙/灰影狼牙/狼王牙
+RUNE_CRAFT = {
+    "rn_brutal":      {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_armor_pierce": {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_magic_break":  {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_lifesteal":    {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_regen":        {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_thorns":       {"mat": "mat_lie_zong_liao_ya", "count": 3},
+    "rn_burn":         {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_freeze":       {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_weaken":       {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_swift":        {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_ironwall":     {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_mana_flow":    {"mat": "mat_ju_mo_liao_ya", "count": 2},
+    "rn_scavenger":    {"mat": "mat_shou_ren_liao_ya", "count": 2},
+    "rn_exp_bless":    {"mat": "mat_shou_ren_liao_ya", "count": 2},
+    "rn_chain":        {"mat": "mat_shou_ren_liao_ya", "count": 4},
+    "rn_barrier":      {"mat": "mat_shou_ren_liao_ya", "count": 4},
+}
+# 制作碎片消耗（品质 → 符文碎片数量）
+RUNE_CRAFT_SHARDS = {"blue": 3, "purple": 4, "orange": 6}
+# 符文碎片材料 key（items.py 已定义 mat_fu_wen_sui_pian，名字『符文碎片』，price 100）
+RUNE_SHARD_KEY = "mat_fu_wen_sui_pian"

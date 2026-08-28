@@ -163,6 +163,18 @@ REPRESENTATIVES = {
     "bp_craft": "图纸合成 铁剑",  # v135 图纸残页合成
     "craft_commission": "代工", "learn": "学习", "recipe_list": "配方", "enhance": "强化",
     "equip_upgrade": "升级 铁剑",  # v135 装备升级
+    # v136 原石系统：打孔/镶嵌/拆卸/合成/查看（代表输入）
+    "gem_drill": "打孔 铁剑",
+    "gem_socket": "镶嵌 铁剑 碎裂I",
+    "gem_remove": "拆卸 铁剑 S1",
+    "gem_combine": "原石合成 碎裂I",
+    "gem_view": "原石",
+    # v136 Phase 3 符文可制作+可拆卸（独立命令，与『拆卸』原石命令并行不冲突）
+    "rune_craft": "符文制作 残忍",
+    "rune_remove": "符文拆卸 铁剑 1",
+    # v136 Phase 4/5 装备进化 + 怪异炼成
+    "evolve_equip": "装备进化 弯刀",
+    "calamity_forge": "炼成 铁剑",
     "enchant": "附魔", "set_view": "套装", "bestiary": "图鉴", "encyclopedia": "百科", "monster": "怪物",  # v130.3 意见#3
     "titles": "称号", "inventory": "背包", "bag_filter": "背包筛选",
     "item_view_mode_cmd": "物品详情开始", "item_detail": "物品详情", "equip": "装备",
@@ -239,6 +251,13 @@ EXTRA_POSITIVE = [
     ("[At:123] 签到", {"signin"}),
     ("[At:123] 技能", {"skill"}),
     ("[At:123] 副本", {"instance_cmd"}),
+    # v136 原石系统：别名/带参变体/负向断言收窄
+    ("原石 碎裂I", {"gem_view"}),
+    ("原石合成", {"gem_combine"}),
+    ("打孔", {"gem_drill"}),
+    ("镶嵌 铁剑 1", {"gem_socket"}),
+    ("[At:123] 原石", {"gem_view"}),
+    ("[At:123] 原石合成 碎裂I", {"gem_combine"}),
 ]
 
 
