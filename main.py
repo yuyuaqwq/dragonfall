@@ -6,6 +6,7 @@
 本文件只保留：插件生命周期 + 后台任务 + Mixin 装配。
 """
 import glob
+import re
 import threading
 import logging
 
@@ -381,3 +382,29 @@ class AstrMain(star.Star, Main):
     def __init__(self, context=None, **kwargs):
         proxy = _ContextProxy(context) if context is not None else None
         Main.__init__(self, proxy)
+
+
+def is_game_command(msg: str) -> bool:
+    """v134.1 私聊延迟修复：判断消息是否为本插件能处理的游戏指令。
+
+    供 AstrBot RateLimitStage（only_llm 模式）调用：命中任一注册指令
+    pattern → 该消息走规则匹配秒回，跳过限流；未命中 → 走 LLM 才限流。
+    逐条 re.match（与 @filter.regex 语义一致，锚定开头）。
+    """
+    try:
+        from .game.commands._registry import COMMAND_REGEX
+    except Exception:
+        return False
+    if not msg:
+        return False
+    for key, pat in COMMAND_REGEX.items():
+        if key == "_maint_gate":
+            # v134.1：维护门 pattern 全可选（空匹配一切），不能用于指令判定
+            continue
+        try:
+            m = re.match(pat, msg)
+            if m and m.end() > 0:  # 必须消费至少 1 字符，排除空/万能 pattern
+                return True
+        except re.error:
+            continue
+    return False
