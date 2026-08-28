@@ -210,12 +210,11 @@ class CommandBase:
         if self._is_gm(qq_id):
             return
         if self._server_down():
-            msg = self._server_down_msg()
-            yield event.plain_result(
-                "🔧 服务器维护中，暂时无法游玩～\n"
-                + (f"📢 {msg}\n" if msg else "")
-                + "维护期间请稍候，开服会广播通知～"
-            )
+            # v134.7：停服时『意见』指令放行（玩家反馈渠道不能断，维护期也要能提意见）
+            _text = event.get_message_str().strip()
+            if re.match(r"^(?:\[At:\d+\]\s*)?意见", _text):
+                return
+            # v134.7：停服其他指令直接无视（不回复维护提示，静默 stop 不产出结果）
             event.stop_event()
             return
         # 开服：放行

@@ -237,23 +237,23 @@ async def test_maint_gate(m):
         hit = gf.filter(ev, None)
         check(f"停服 gate 命中『{text}』（registry 键补全）", hit is True, "")
         if hit:
-            res = await run(m._maint_gate, ev)
-            check(f"『{text}』被 _maint_gate 拦截（维护提示+停传播）",
-                  len(res) == 1 and "维护" in res[0] and ev._stopped,
-                  f"res={str(res)[:100]} stopped={ev._stopped}")
+            res = await m._maint_gate(ev)
+            check(f"『{text}』被 _maint_gate 静默拦截（v134.7 不回复维护提示，直接无视）",
+                  res is None and ev._stopped,
+                  f"res={res} stopped={ev._stopped}")
     # 日常聊天不误拦
     ev = FakeEvent("g1", "p1", "今天天气不错，大家晚上好")
     check("日常聊天不被 gate 命中", gf.filter(ev, None) is False, "")
     # GM 身份放行（gate 不产出、不拦截）
     ev = FakeEvent("g1", "gm_x1", "gm_状态")
     check("GM 指令仍被 filter 命中（gate 语义）", gf.filter(ev, None) is True, "")
-    res = await run(m._maint_gate, ev)
-    check("GM 身份 _maint_gate 直接放行（0 条产出）", len(res) == 0, str(res)[:80])
+    res = await m._maint_gate(ev)
+    check("GM 身份 _maint_gate 直接放行（0 条产出）", res is None, str(res)[:80])
     # 开服后 gate 放行
     db.delete_event_state("server_maintenance")
     ev = FakeEvent("g1", "p1", "物品 2")
-    res = await run(m._maint_gate, ev)
-    check("开服后 _maint_gate 放行（0 条产出）", len(res) == 0 and not ev._stopped, str(res)[:80])
+    res = await m._maint_gate(ev)
+    check("开服后 _maint_gate 放行（0 条产出）", res is None and not ev._stopped, str(res)[:80])
 
 
 # ================= 6. 命令矩阵 =================
