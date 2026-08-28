@@ -1252,10 +1252,27 @@ class PlayerCmds(CommandBase):
                 yield event.plain_result(f"你的职业只有 {len(skill_items)} 个技能！『技能列表』查看全部～")
                 return
             skill_name = skill_items[idx - 1]
-        info = E.skill_info(player["class_name"], skill_name)
-        if not info:
+        msg = self._skill_detail_message(player, skill_name)
+        if msg is None:
             yield event.plain_result(f"你的职业没有『{skill_name}』技能！『技能列表』查看全部～")
             return
+        yield event.plain_result(msg)
+
+    def _skill_detail_message(self, player: dict, skill_name: str) -> str | None:
+        """v134.6 通用技能详情渲染（供 skill_detail / item_detail『查看』共用）：
+        返回详情文本；技能不存在返回 None。player 须含 class_name/level/learned_skills/skill_levels。"""
+        skill_name = skill_name.strip()
+        # 序号查看：『技能详情 5』→ 技能列表第 5 个技能
+        if skill_name.isdigit():
+            skills = self._player_skill_table(player)
+            skill_items = list(skills.keys())
+            idx = int(skill_name)
+            if idx < 1 or idx > len(skill_items):
+                return f"你的职业只有 {len(skill_items)} 个技能！『技能列表』查看全部～"
+            skill_name = skill_items[idx - 1]
+        info = E.skill_info(player["class_name"], skill_name)
+        if not info:
+            return None
         # v56.1：显示一律用中文名（info 里带 name，序号查询进来的是 sk_xxx ID）
         display_name = info.get("name", skill_name)
         learned = player.get("learned_skills", [])
@@ -1332,7 +1349,7 @@ class PlayerCmds(CommandBase):
                 lines.append(f"💡 『技能升级 {display_name}』花 {cost} 点升到 Lv.{slv + 1}（{nxt}，当前 {player.get('skill_points',0)} 点）")
             else:
                 lines.append("✨ 已满级！")
-        yield event.plain_result("\n".join(lines))
+        return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?技能学习(?:[\s\S]*)$")
     @require_player()

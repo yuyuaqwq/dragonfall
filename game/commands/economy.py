@@ -3169,16 +3169,27 @@ class EconomyCmds(CommandBase):
             lines.append("💡 『副本』看全部副本列表；已通关该副本可免钥匙入场")
             yield event.plain_result("\n".join(lines))
             return
-        _inst_by_name = {inst["name"]: inst for inst in _key_hits}
+        # v134.2 修复：副本名匹配覆盖全部副本（不只带钥匙的）——
+        # 哥布林营地等无钥匙副本此前落进「地图查询」只显怪物，等级/人数/进入条件全漏
+        _inst_by_name = {inst["name"]: inst for inst in C.INSTANCES.values()}
         if raw in _inst_by_name:
             inst = _inst_by_name[raw]
             lines = [f"🏰 【{inst['name']}】", "━━━━━━━━━━━━"]
             if inst.get("desc"):
                 lines.append(f"{inst['desc']}")
+            # 进入条件：等级 / 人数
+            _lv = inst.get("lv", "?")
+            _min_p = inst.get("min_players", 1)
+            _max_p = inst.get("max_players", _min_p)
+            _ppl = f"{_min_p}-{_max_p} 人" if _max_p != _min_p else f"{_min_p} 人"
+            lines.append(f"⚔️ 推荐等级 Lv.{_lv}+ · {_ppl} · {inst.get('icon', '🏰')}")
+            # 钥匙需求（有钥匙才显示；无钥匙副本显示免钥匙）
             ki = inst.get("key_item")
             if ki:
                 lines.append(f"🔑 入场需要『{ki}』：{inst.get('key_source', '？？？')}")
-            lines.append(f"💡 『百科 {ki}』可查看钥匙详情（若已通关可免钥匙）")
+            else:
+                lines.append("🔑 无需钥匙，直接进入")
+            lines.append(f"💡 『副本 {inst['name']}』开启挑战；『百科 <钥匙名>』看钥匙获取（若需）")
             yield event.plain_result("\n".join(lines))
             return
         # 3. 地图查询
@@ -3409,6 +3420,8 @@ class EconomyCmds(CommandBase):
             if not items:
                 return f"背包里没有『{category}』类物品～『背包』看全部"
         if not items:
+            # v134.6：空背包也记录列表状态（否则『查看 <数字>』会沿用上一列表的技能上下文）
+            self._record_list_state(qq_id, f"背包 {category}" if category else "背包", 1, 1)
             return "你的背包空空如也……去『探索』打点东西吧！"
         page_items, pages, page = self._page_items(items, page, per_page=10)  # v127.2 背包每页 10 件
         # 记录当前视图(分类+页码)，供『上一页/下一页』相对翻页
@@ -3507,8 +3520,19 @@ class EconomyCmds(CommandBase):
         items = db.get_inventory(group_id, qq_id)
         target = None
         equipped = False
-        # 序号查看：『物品详情 1』→ 背包第 1 件（与『背包』列表序号一致）
+        # v134.6 通用查看：『查看 <序号>』按 last_list 上下文路由——
+        # 刚看过『技能列表』→ 数字=技能序号(技能详情)；否则=背包序号(物品详情)。
+        # 与背包/技能列表的 _record_list_state 联动，改一处即可扩展更多列表。
         if item_name.isdigit():
+            try:
+                _lst = json.loads(db.get_event_state(f"last_list_{qq_id}") or "{}")
+            except Exception:
+                _lst = {}
+            if _lst.get("cmd") == "技能列表":
+                _msg = self._skill_detail_message(player, item_name)
+                if _msg:
+                    yield event.plain_result(_msg)
+                    return
             idx = int(item_name)
             if idx < 1 or idx > len(items):
                 yield event.plain_result(f"背包里没有第 {idx} 件物品(共 {len(items)} 件)！『背包』查看全部～")
