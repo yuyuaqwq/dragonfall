@@ -91,8 +91,9 @@ def _is_phys(cls: str) -> bool:
     return [c[2] for c in CLASSES if c[1] == cls_id(cls)][0] == "phys"
 
 
-def _skill_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
-    """技能轴一次行动期望伤害（E.calc_damage 实算，variance=0；技能倍率 E.skill_info 实读）。"""
+def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0) -> float:
+    """技能轴一次行动期望伤害（E.calc_damage 实算，variance=0；技能倍率 E.skill_info 实读）。
+    v133：暴击/幸运期望按每技能 multi 折算（多段仅首段吃暴击）。"""
     phys = _is_phys(cls)
     tot, wsum = 0.0, 0.0
     for name, w in ROTATIONS.get(cls_id(cls), []):
@@ -117,6 +118,7 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
             dmg *= ASSASSIN_COND_WEIGHT
         if cls_id(cls) == "cls_wu_seng" and name == "碎骨拳":
             dmg *= 1 / 3.0   # 3 气 → 每 3 行动 1 发
+        dmg *= _crit_mult(st, extra_crit=extra_crit, multi=multi)
         tot += dmg * w
         wsum += w
     return tot / max(wsum, 1.0)
@@ -129,10 +131,12 @@ def _basic_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
     return E.calc_damage(int(stat), int(d), variance=0.0, dmg_type="phys" if phys else "magi")
 
 
-def _crit_mult(st: dict, extra_crit: float = 0.0) -> float:
-    """暴击期望 + 幸运一击（暴击后 30% 概率追加 50% 伤害，battle.py 引擎路径）。"""
+def _crit_mult(st: dict, extra_crit: float = 0.0, multi: int = 1) -> float:
+    """暴击期望 + 幸运一击（v133 对齐引擎：幸运幅度 1.5→1.3；多段仅首段吃暴击——
+    multi≥2 时暴击/幸运加成按 1/multi 折算，与 battle.py seg=0 判定一致）。"""
     crit = min(float(st.get("crit", 0) or 0) + extra_crit, 0.5)
-    return 1.0 + crit * (0.5 + float(st.get("crit_dmg", 0) or 0)) + crit * 0.3 * 0.5
+    first = 1.0 / max(1, int(multi or 1))
+    return 1.0 + crit * (0.5 + float(st.get("crit_dmg", 0) or 0)) * first + crit * 0.3 * 0.3 * first
 
 
 def per_action_dmg(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
@@ -152,12 +156,14 @@ def per_action_dmg(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
             skills=False, affixes=False, enchant=False, potion=False))
         potion = POTION_ATK if st_tmp["atk"] >= st_tmp["matk"] else POTION_MATK
     st = build_player(cls, lv, gear, opts, potion=potion)
+    _ec = ENCHANT_CRIT if opts.enchant else 0.0
     if opts.skills:
-        d = _skill_dmg(st, cls, edef, mdef)
+        d = _skill_dmg(st, cls, edef, mdef, extra_crit=_ec)
     else:
         d = _basic_dmg(st, cls, edef, mdef)
-    if crit:
-        d *= _crit_mult(st, extra_crit=ENCHANT_CRIT if opts.enchant else 0.0)
+    if crit and not opts.skills:
+        d *= _crit_mult(st, extra_crit=_ec, multi=1)
+        d *= _crit_mult(st, extra_crit=_ec, multi=1)
     if opts.affixes:
         d *= AFFIX_MULT
     return d

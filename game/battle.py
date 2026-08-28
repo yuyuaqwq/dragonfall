@@ -30,6 +30,7 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
     MOMENTUM_CFG, ZEN_HOLD_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
         ECHO_CFG, BARD_BRANCHES,
         BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
+        LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
@@ -2191,13 +2192,14 @@ class Battle:
         # v130.2c 巡林长披风：命中带标记目标 暴击率 +5%（crit_on_marked）
         is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12) + self._set_crit_bonus(player)) * self._tenacity_mult(est)
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击）
-        lucky = is_crit and random.random() < 0.30
+        # v133 收敛：追加倍率 1.5→1.3（LUCKY_CRIT_MULT 数据表）
+        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
         # v106 穿透：玩家物穿/固定物穿削减怪物有效防御
         _pp, _pf = self._pene_vals(st)
         # v107 伤害类型四层架构：普攻显式声明 phys（物理段，吃 def/物免/格挡/物吸）
         dmg = E.calc_damage(st["atk"], est["def"], is_crit, pene_pct=_pp, pene_flat=_pf, dmg_type="phys")
         if lucky:
-            dmg = int(dmg * 1.5)
+            dmg = int(dmg * LUCKY_CRIT_MULT)
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         # v109.2 P3-4：魔能涌动对普攻生效（魔剑士附魔普攻→magi 段；原只在技能端消费，普攻浪费 buff）
         if self.p_buffs.get("spellblade_surge"):
@@ -3139,7 +3141,7 @@ class Battle:
         if _stealth_hit and skill_name in SHADOW_STEALTH_DMG_MULT:
             stealth_mult = float(SHADOW_STEALTH_DMG_MULT[skill_name])
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击，含必暴机制）
-        lucky = is_crit and random.random() < 0.30
+        lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
         # 机制：冰霜（冻结目标碎冰增伤）——查表 MECH_FROZEN_MULT（v125.2 B1）
         frozen_bonus = 1.0
         if mech in MECH_FROZEN_MULT and "freeze" in self.e_buffs:
@@ -3359,51 +3361,55 @@ class Battle:
         # v106 穿透：物理技能用物穿/固定物穿，魔法技能用法穿/固定法穿
         _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
-        for _ in range(multi):
+        for seg in range(multi):
+            # v133 峰值红线：多段仅首段吃暴击/幸运（MULTI_HIT_CRIT_FIRST_ONLY，
+            # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
+            _seg_crit = is_crit and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
+            _lucky_seg = lucky and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
             # v107 伤害类型四层架构：物理→phys / 魔法→magi / 真伤→true（新增，绕过全减伤）
             if kind == "真伤":
-                dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, dmg_type="true")
+                dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, dmg_type="true")
             elif kind == "物理":
                 if info.get("pierce"):
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, is_crit, pierce=True,
+                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, pierce=True,
                                           dmg_type="phys")
                 else:
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], is_crit,
+                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], _seg_crit,
                                           pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
                 # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
                 if info.get("magic_add"):
-                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], is_crit,
+                    dmg_m = E.calc_damage(int(st["matk"] * info["magic_add"] * pmult), est["mdef"], _seg_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                     dmg_i += dmg_m
                     _magi_part += dmg_m
             else:
                 # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
                 if info.get("pierce"):
-                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), 0, is_crit, pierce=True,
+                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), 0, _seg_crit, pierce=True,
                                           dmg_type="magi")
                 else:
-                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], is_crit,
+                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], _seg_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
             if self.p_buffs.get("spellblade_surge"):
-                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], is_crit,
+                surge_dmg = E.calc_damage(int(st["matk"] * 0.80 * pmult), est["mdef"], _seg_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
                 dmg_i += surge_dmg
                 _magi_part += surge_dmg
                 del self.p_buffs["spellblade_surge"]
             # v34 残忍：暴击伤害 +x%（按等级，符文特效）
             brutal_lvl = self._enchant_lvl(effs, "brutal")
-            if brutal_lvl and is_crit:
+            if brutal_lvl and _seg_crit:
                 dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
             # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
             cdmg = float(st.get("crit_dmg", 0) or 0)
             if self.p_buffs.get("crit_dmg_pot"):
                 cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
-            if is_crit and cdmg > 0:
+            if _seg_crit and cdmg > 0:
                 dmg_i = int(dmg_i * (1 + cdmg))
             # v109.2 P1-1 运势：幸运一击——暴击后 30% 概率追加 50% 伤害
-            if lucky:
-                dmg_i = int(dmg_i * 1.5)
+            if _lucky_seg:
+                dmg_i = int(dmg_i * LUCKY_CRIT_MULT)
             dmg_i = self._apply_mark(dmg_i)
             total += dmg_i
         if lucky:

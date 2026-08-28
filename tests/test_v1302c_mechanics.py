@@ -104,19 +104,19 @@ def test_consume_all_formula():
     print("\n【1. consume_all 统一公式（4 技能数值）】")
     # ---- 数据层硬断言：power / per 配置（折算公式 = power × (1 + per×当前持有值)）----
     w = E.skill_info("cls_zhan_shi", "无畏冲击") or {}
-    check("数据：无畏冲击 power=2.2 / consume_all{rage, per:0.12}",
-          abs(float(w.get("power", 0)) - 2.2) < 1e-9 and w.get("consume_all") == {"key": "rage", "per": 0.12},
+    check("数据：无畏冲击 power=0.724 / consume_all{rage, per:0.12}（v133 峰值收敛 2.2→0.724）",
+          abs(float(w.get("power", 0)) - 0.724) < 1e-9 and w.get("consume_all") == {"key": "rage", "per": 0.12},
           str({k: w.get(k) for k in ("power", "consume_all")}))
     s = E.skill_info("cls_ci_ke", "暗影处刑") or {}
-    check("数据：暗影处刑 power=3.2 / consume_all{cp, per:0.0} / 残血 cond 1.5",
-          abs(float(s.get("power", 0)) - 3.2) < 1e-9
+    check("数据：暗影处刑 power=1.317 / consume_all{cp, per:0.0} / 残血 cond 1.5（v133 峰值收敛 3.2→1.317）",
+          abs(float(s.get("power", 0)) - 1.317) < 1e-9
           and s.get("consume_all") == {"key": "cp", "per": 0.0}
           and (s.get("cond") or {}).get("mult") == 1.5
           and (s.get("cond") or {}).get("hp_pct") == 0.3,
           str({k: s.get(k) for k in ("power", "consume_all", "cond")}))
     pn = E.skill_info("cls_wu_seng", "破晓之拳") or {}
-    check("数据：破晓之拳 power=2.4 / consume_all{chi, per:0.1}",
-          abs(float(pn.get("power", 0)) - 2.4) < 1e-9 and pn.get("consume_all") == {"key": "chi", "per": 0.1},
+    check("数据：破晓之拳 power=0.634 / consume_all{chi, per:0.1}（v133 峰值收敛 2.4→0.634）",
+          abs(float(pn.get("power", 0)) - 0.634) < 1e-9 and pn.get("consume_all") == {"key": "chi", "per": 0.1},
           str({k: pn.get(k) for k in ("power", "consume_all")}))
     e = E.skill_info("cls_fa_shi", "元素湮灭") or {}
     check("数据：元素湮灭 power=2.4 / consume_all{element, per:0.2}",
@@ -127,8 +127,8 @@ def test_consume_all_formula():
         b, p = new_battle("cls_zhan_shi", 0, 0, learned=["无畏冲击"])
         b.resources["rage"] = 10
         cap, logs = cast_capture(b, "无畏冲击", p)
-        check_float("无畏冲击 满 10 怒折算 power = 4.84（2.2×2.2）",
-                    cap.get("power", 0), 2.2 * (1 + 0.12 * 10))
+        check_float("无畏冲击 满 10 怒折算 power = 1.593（round(0.724×2.2, 3)）",
+                    cap.get("power", 0), round(0.724 * (1 + 0.12 * 10), 3))
         check("无畏冲击 施放后怒气扣光 = 0", b.resources.get("rage") == 0,
               f"rage={b.resources.get('rage')} logs={logs[:2]}")
     except (AttributeError, TypeError) as ex:
@@ -137,11 +137,11 @@ def test_consume_all_formula():
         b, p = new_battle("cls_ci_ke", 0, 0, learned=["暗影处刑"])
         b.resources["cp"] = 5
         cap, logs = cast_capture(b, "暗影处刑", p)
-        check_float("暗影处刑 per=0 折算 power = 3.2（恒为数据表值）", cap.get("power", 0), 3.2)
+        check_float("暗影处刑 per=0 折算 power = 1.317（恒为数据表值）", cap.get("power", 0), 1.317)
         b.enemy["hp"] = 100  # 5% < 30% → 残血 cond 激活
         cm = b._cond_mult(E.skill_info("cls_ci_ke", "暗影处刑"), p)
         check_float("暗影处刑 残血 cond ×1.5（死亡边缘）", cm, 1.5)
-        check_float("暗影处刑 EQ = 3.2×1.5 = 4.8", cap.get("power", 0) * cm, 4.8)
+        check_float("暗影处刑 EQ = 1.317×1.5 = 1.9755", cap.get("power", 0) * cm, 1.9755)
         check("暗影处刑 施放后连击点扣光 = 0", b.resources.get("cp") == 0,
               f"cp={b.resources.get('cp')}")
     except (AttributeError, TypeError) as ex:
@@ -150,7 +150,7 @@ def test_consume_all_formula():
         b, p = new_battle("cls_wu_seng", 0, 0, learned=["破晓之拳"])
         b.resources["chi"] = 10
         cap, logs = cast_capture(b, "破晓之拳", p)
-        check_float("破晓之拳 满 10 气折算 power = 4.8（2.4×2.0）", cap.get("power", 0), 4.8)
+        check_float("破晓之拳 满 10 气折算 power = 1.268（0.634×2.0）", cap.get("power", 0), 1.268)
         check("破晓之拳 施放后气扣光 = 0", b.resources.get("chi") == 0,
               f"chi={b.resources.get('chi')}")
     except (AttributeError, TypeError) as ex:
@@ -182,8 +182,8 @@ def test_overcap_regression():
         b2, p2 = new_battle("cls_zhan_shi", 0, 0, learned=["无畏冲击"])
         b2.resources["rage"] = 4
         cap, _ = cast_capture(b2, "无畏冲击", p2)
-        check_float("4 怒折算 power = 3.256（2.2×(1+0.12×4)）", cap.get("power", 0),
-                    2.2 * (1 + 0.12 * 4))
+        check_float("4 怒折算 power = 1.072（round(0.724×(1+0.12×4), 3)）", cap.get("power", 0),
+                    round(0.724 * (1 + 0.12 * 4), 3))
     except (AttributeError, TypeError) as ex:
         skip("引擎：持 4 怒无畏冲击", str(ex))
     try:

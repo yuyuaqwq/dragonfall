@@ -26,7 +26,7 @@ PLAYER_SKILLS = {
     "sk_po_jia_zhan": {
                 "lv": 8,
                 "mp": 6,
-                "power": 1.3,
+                "power": 0.875,
                 "kind": "物理",
                 "pierce": True,
                 "res_gain": 2,
@@ -37,7 +37,7 @@ PLAYER_SKILLS = {
     "sk_xuan_feng_zhan": {
                 "lv": 14,
                 "mp": 10,
-                "power": 1.1,
+                "power": 0.946,
                 "kind": "物理",
                 "res_gain": 1,
                 "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.4, "label": "孤军深入"},
@@ -48,7 +48,7 @@ PLAYER_SKILLS = {
     "sk_lie_di_zhan": {
                 "lv": 20,
                 "mp": 8,
-                "power": 1.8,
+                "power": 0.816,
                 "kind": "物理",
                 "pierce": True,
                 "res_cost": {"rage": 3},
@@ -126,7 +126,7 @@ PLAYER_SKILLS = {
     "sk_wu_wei_chong_ji": {
                 "lv": 30,
                 "mp": 15,
-                "power": 2.2,
+                "power": 0.724,
                 "kind": "物理",
                 "res_cost": {"rage": 10},
                 "consume_all": {"key": "rage", "per": 0.12},
@@ -216,7 +216,7 @@ PLAYER_SKILLS = {
     "sk_bing_zhui": {
                 "lv": 8,
                 "mp": 15,
-                "power": 1.1,
+                "power": 0.964,
                 "kind": "魔法",
                 "element": "ice",
                 "mech": "spd_down",
@@ -228,7 +228,7 @@ PLAYER_SKILLS = {
     "sk_lei_ji": {
                 "lv": 14,
                 "mp": 20,
-                "power": 1.2,
+                "power": 1.046,
                 "kind": "魔法",
                 "element": "thunder",
                 "cond": {"type": "player_first", "mult": 1.15, "label": "雷系爆发"},
@@ -258,7 +258,7 @@ PLAYER_SKILLS = {
     "sk_yuan_su_dan_mu": {
                 "lv": 6,
                 "mp": 12,
-                "power": 1.0,
+                "power": 0.842,
                 "kind": "魔法",
                 "multi": 2,
                 "desc": "元素弹幕！100%×2，当前系增伤(低耗填充)",
@@ -404,7 +404,7 @@ PLAYER_SKILLS = {
     "sk_zhi_ming_ju_ji": {
                 "lv": 8,
                 "mp": 0,
-                "power": 1.8,
+                "power": 1.357,
                 "kind": "物理",
                 "res_cost": {"energy": 35},
                 "cond": {"type": "enemy_hp_low", "hp_pct": 0.4, "mult": 1.5, "label": "绝境之眼"},
@@ -494,7 +494,7 @@ PLAYER_SKILLS = {
     "sk_shou_lie_zhong_zhang": {
                 "lv": 30,
                 "mp": 0,
-                "power": 4.8,
+                "power": 1.202,
                 "kind": "物理",
                 "res_cost": {"energy": 100},
                 "mech": "mark_burst",
@@ -617,7 +617,7 @@ PLAYER_SKILLS = {
     "sk_sheng_guang_cheng_ji": {
                 "lv": 20,
                 "mp": 30,
-                "power": 2.0,
+                "power": 0.905,
                 "kind": "魔法",
                 "res_cost": {"faith": 3},
                 "mech": "cleanse",
@@ -707,7 +707,7 @@ PLAYER_SKILLS = {
                 # v130.2 新增：基础满点神迹·神威爆发（EQ = 3.0 全体 ×1.6 折算 ≈ 4.8，铁律 2 锚定）
                 "lv": 30,
                 "mp": 40,
-                "power": 3.0,
+                "power": 1.663,
                 "kind": "魔法",
                 "aoe": "all",
                 "res_cost": {"faith": 10},
@@ -787,7 +787,7 @@ PLAYER_SKILLS = {
     "sk_shuang_ren_luan_wu": {
                 "lv": 8,
                 "mp": 8,
-                "power": 0.9,
+                "power": 0.651,
                 "kind": "物理",
                 "multi": 2,
                 # v130.2 基础瘦身：多段不再每段回点，统一朴素「命中 +1」（高频多段下放攻线影舞者）
@@ -810,7 +810,7 @@ PLAYER_SKILLS = {
     "sk_an_sha": {
                 "lv": 20,
                 "mp": 12,
-                "power": 2.4,
+                "power": 1.147,
                 "kind": "物理",
                 "res_cost": {"cp": 3},
                 "cond": {"type": "enemy_hp_low", "hp_pct": 0.4, "mult": 1.4, "label": "残血收割"},
@@ -876,7 +876,7 @@ PLAYER_SKILLS = {
     "sk_an_ying_chu_xing": {
                 "lv": 30,
                 "mp": 18,
-                "power": 3.2,
+                "power": 1.317,
                 "kind": "物理",
                 # v130.2 统一公式：per=0 威力恒为数据表 3.2（满 5 点 3.2×1.5=EQ4.8，策划 12 章 §6.1 奥义基准；
                 # 「每点＋40%」为 v104 旧式 1+per×cur 残留——暗影处刑定位=固定 5 点高档终结，非逐点强化）
@@ -961,7 +961,7 @@ PLAYER_SKILLS = {
         # v130.2：基础 3 气档轻倾泻——power 1.5，敌血高 +20%
         "lv": 4,
         "mp": 6,
-        "power": 1.5,
+        "power": 0.96,
         "kind": "物理",
         "combo": "拳",
         "pierce": True,
@@ -1042,7 +1042,7 @@ PLAYER_SKILLS = {
     "sk_lian_zhao_san_lian": {
                 "lv": 24,
                 "mp": 10,
-                "power": 1.5,
+                "power": 0.896,
                 "kind": "物理",
                 "combo": "拳",
                 "multi": 3,
@@ -1053,7 +1053,7 @@ PLAYER_SKILLS = {
     "sk_po_xiao_zhi_quan": {
                 "lv": 30,
                 "mp": 15,
-                "power": 2.4,
+                "power": 0.634,
                 "kind": "物理",
                 "consume_all": {"key": "chi", "per": 0.1},
                 # v130.2 基础瘦身：破晓之拳重定为无条件满势终结——每 1 气物理威力 +10%（2.4×(1+0.1×10)=4.8），
@@ -1119,7 +1119,7 @@ BRANCH_SKILLS = {
                 "狂战士": {
                     "怒斩":                     {
                         "lv": 32,
-                        "power": 2.38,
+                        "power": 1.166,
                         "kind": "物理",
                         "res_gain": 2,
                         "cond": {
@@ -1166,7 +1166,7 @@ BRANCH_SKILLS = {
                     "狂怒爆发":                     {
                         "lv": 55,
                         "mp": 0,
-                        "power": 2.4,
+                        "power": 1.307,
                         "kind": "物理",
                         "res_cost": {
                             "rage": 5
@@ -1199,7 +1199,7 @@ BRANCH_SKILLS = {
                 "盾卫士": {
                     "盾击·卫":                     {
                         "lv": 32,
-                        "power": 2.38,
+                        "power": 1.634,
                         "kind": "物理",
                         "mech": "stun",
                         "mech_val": 1,
@@ -1286,7 +1286,7 @@ BRANCH_SKILLS = {
                     "处决":                     {
                         "lv": 68,
                         "mp": 0,
-                        "power": 3.0,
+                        "power": 2.647,
                         "kind": "物理",
                         "res_cost": {
                             "rage": 4
@@ -1333,7 +1333,7 @@ BRANCH_SKILLS = {
                     "破城锤":                     {
                         "lv": 68,
                         "mp": 0,
-                        "power": 2.2,
+                        "power": 1.097,
                         "kind": "物理",
                         "pierce": True,
                         "res_cost": {
@@ -1356,7 +1356,7 @@ BRANCH_SKILLS = {
                     "怒涛连斩":                     {
                         "lv": 92,
                         "mp": 0,
-                        "power": 1.8,
+                        "power": 1.202,
                         "kind": "物理",
                         "multi": 3,
                         "res_cost": {
@@ -1378,7 +1378,7 @@ BRANCH_SKILLS = {
                     "战争化身":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 5.0,
+                        "power": 2.396,
                         "kind": "物理",
                         "res_cost": {
                             "rage": 10
@@ -1461,7 +1461,7 @@ BRANCH_SKILLS = {
                 "元素法师": {
                     "元素冲击":                     {
                         "lv": 32,
-                        "power": 1.9,
+                        "power": 1.371,
                         "kind": "魔法",
                         "element": "current",
                         "cond": {
@@ -1546,7 +1546,7 @@ BRANCH_SKILLS = {
                 },
                 # v112.5：奥秘守线 = 奥术师（印记系）+ 秘法族（充能系）合并体，自原隐藏奥秘线降级
                 "奥秘法师": {
-                    "奥术弹幕": {"lv": 32, "mp": 15, "power": 1.1, "kind": "魔法",
+                    "奥术弹幕": {"lv": 32, "mp": 15, "power": 0.676, "kind": "魔法",
                                  "multi": 3, "mech": "arcane", "mech_val": 1,
                                  "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.15, "label": "蓄势待发"},
                                  "cd": 2,
@@ -1576,7 +1576,7 @@ BRANCH_SKILLS = {
                                  "effect": "shield_all", "cd": 4,
                                  "desc": "秘法护盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
                                  "name": "秘法护盾"},
-                    "奥术洪流": {"lv": 55, "mp": 30, "power": 2.5, "kind": "魔法",
+                    "奥术洪流": {"lv": 55, "mp": 30, "power": 1.844, "kind": "魔法",
                                  "mech": "arcane_burst",
                                  "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4, "label": "共鸣巅峰"},
                                  "cd": 3,
@@ -1664,7 +1664,7 @@ BRANCH_SKILLS = {
                 "元素贤者": {
                     "万象风暴":                     {
                         "lv": 92,
-                        "power": 1.8,
+                        "power": 1.479,
                         "kind": "魔法",
                         "multi": 3,
                         "element": "current",
@@ -1820,7 +1820,7 @@ BRANCH_SKILLS = {
                     "疾风射击":                     {
                         "lv": 32,
                         "mp": 0,
-                        "power": 1.9,
+                        "power": 0.951,
                         "kind": "物理",
                         "cond": {
                             "type": "speed_ratio",
@@ -1865,7 +1865,7 @@ BRANCH_SKILLS = {
                     "风刃乱舞":                     {
                         "lv": 55,
                         "mp": 0,
-                        "power": 1.3,
+                        "power": 0.629,
                         "kind": "物理",
                         "multi": 3,
                         "pierce": True,
@@ -1930,7 +1930,7 @@ BRANCH_SKILLS = {
                     "穿心箭":                     {
                         "lv": 68,
                         "mp": 0,
-                        "power": 2.8,
+                        "power": 1.884,
                         "kind": "物理",
                         "pierce": True,
                         "cond": {
@@ -1973,7 +1973,7 @@ BRANCH_SKILLS = {
                     "穿云箭":                     {
                         "lv": 68,
                         "mp": 0,
-                        "power": 2.2,
+                        "power": 1.857,
                         "kind": "物理",
                         "pierce": True,
                         "cond": {
@@ -2017,7 +2017,7 @@ BRANCH_SKILLS = {
                     "死神之箭":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 4.5,
+                        "power": 2.693,
                         "kind": "物理",
                         "pierce": True,
                         "cond": {
@@ -2034,7 +2034,7 @@ BRANCH_SKILLS = {
                     "猎杀时刻":                     {
                         "lv": 90,
                         "mp": 0,
-                        "power": 4.0,
+                        "power": 2.121,
                         "kind": "物理",
                         "pierce": True,
                         "cond": {
@@ -2053,7 +2053,7 @@ BRANCH_SKILLS = {
                     "风暴之舞":                     {
                         "lv": 92,
                         "mp": 0,
-                        "power": 1.6,
+                        "power": 1.405,
                         "kind": "物理",
                         "multi": 4,
                         "cd": 4,
@@ -2065,7 +2065,7 @@ BRANCH_SKILLS = {
                     "疾风骤雨":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 2.0,
+                        "power": 1.684,
                         "kind": "物理",
                         "multi": 3,
                         "cd": 5,
@@ -2327,7 +2327,7 @@ BRANCH_SKILLS = {
                 "影舞者": {
                     "影刃":                     {
                         "lv": 32,
-                        "power": 2.85,
+                        "power": 1.151,
                         "kind": "物理",
                         "res_gain": 1,
                         "cond": {
@@ -2356,7 +2356,7 @@ BRANCH_SKILLS = {
 ,
                     "幻影连刺":                     {
                         "lv": 45,
-                        "power": 1.0,
+                        "power": 0.82,
                         "kind": "物理",
                         "multi": 3,
                         "res_gain": 3,
@@ -2374,7 +2374,7 @@ BRANCH_SKILLS = {
                     "终结·处刑":                     {
                         "lv": 55,
                         "mp": 0,
-                        "power": 4.0,
+                        "power": 1.598,
                         "kind": "物理",
                         "res_cost": {
                             "cp": 5
@@ -2394,7 +2394,7 @@ BRANCH_SKILLS = {
                 "毒刃者": {
                     "毒刃":                     {
                         "lv": 32,
-                        "power": 2.85,
+                        "power": 1.387,
                         "kind": "物理",
                         "mech": "poison",
                         "mech_val": 2,
@@ -2586,7 +2586,7 @@ BRANCH_SKILLS = {
                     "终结·暗影绞杀":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 5.0,
+                        "power": 2.347,
                         "kind": "物理",
                         "res_cost": {
                             "cp": 5
@@ -2631,7 +2631,7 @@ BRANCH_SKILLS = {
                     "万毒噬心":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 3.0,
+                        "power": 2.604,
                         "kind": "物理",
                         "res_cost": {
                             "cp": 5
@@ -2646,7 +2646,7 @@ BRANCH_SKILLS = {
                     "万毒归宗":                     {
                         "lv": 90,
                         "mp": 0,
-                        "power": 2.5,
+                        "power": 1.937,
                         "kind": "物理",
                         "mech": "poison",
                         "mech_val": 5,
@@ -2670,7 +2670,7 @@ BRANCH_SKILLS = {
                 "格斗士": {
                     "疾风拳":                     {
                         "lv": 32,
-                        "power": 2.85,
+                        "power": 1.728,
                         "kind": "物理",
                         "combo": "拳",
                         "res_gain": 2,
@@ -2718,7 +2718,7 @@ BRANCH_SKILLS = {
                     "气力爆发":                     {
                         "lv": 55,
                         "mp": 0,
-                        "power": 2.8,
+                        "power": 1.496,
                         "kind": "物理",
                         "res_cost": {
                             "chi": 5
@@ -2737,7 +2737,7 @@ BRANCH_SKILLS = {
                 "磐石行者": {
                     "铁壁拳":                     {
                         "lv": 32,
-                        "power": 2.85,
+                        "power": 1.705,
                         "kind": "物理",
                         "combo": "拳",
                         "res_gain": 1,
@@ -2859,7 +2859,7 @@ BRANCH_SKILLS = {
                     "气力裂空":                     {
                         "lv": 68,
                         "mp": 0,
-                        "power": 2.6,
+                        "power": 1.746,
                         "kind": "物理",
                         "pierce": True,
                         "res_cost": {
@@ -2938,7 +2938,7 @@ BRANCH_SKILLS = {
                     "气力天地":                     {
                         "lv": 98,
                         "mp": 0,
-                        "power": 5.0,
+                        "power": 3.465,
                         "kind": "物理",
                         "res_cost": {
                             "chi": 10
