@@ -431,22 +431,15 @@ SHOP_SMITH_MATERIALS = {
 
 # v93 铁匠类商店全套装备：key = 城镇地图 ID，值 = 装备名册 ID 列表（EQUIP_ROSTER）
 SHOP_EQUIP = {
-    "oak_town": [           # 橡木镇白装 6 件 + v130.2c 圣徽·誓约套（新手保底 4 件）
+    "oak_town": [           # 橡木镇白装 6 件
+        # v135 套装锻造专属：圣徽·誓约（新手保底 4 件）从商店下架，
+        # 改为铁匠铺锻造获取（rec_shi_yue_* 配方）——锻造是凑齐套装的必经之路
         "eq_pi_jia",
         "eq_jiu_pi_xue",
         "eq_xiang_mu_hu_tui",
         "eq_mao_pi_mao",
         "eq_xiang_mu_jie_zhi",
         "eq_xiang_mu_xiang_lian",
-        # v130.2c：圣徽·誓约（牧师·新手保底，Lv.15-16 蓝装直售，无属性需求）
-        # v130.2d R2：定价修复——推导价公式对低等级蓝装过贵（4 件合计 8451 金，背离新手曲线）。
-        # 条目支持 {"rid": ..., "price": ...} 覆盖价（economy._SHOP_EQUIP_PRICE_OVERRIDE 读取；
-        # 出售/显示同源，事件折扣仍生效）。目标：整套 ≤800 金（权杖 s1 任务免费，商店备售 150），
-        # 另 3 件 150-280/件（对齐参照：白鹿镇绿装 72-100 金档）。
-        {"rid": "eq_shi_yue_quan_zhang", "price": 150},
-        {"rid": "eq_shi_yue_sheng_guan", "price": 170},
-        {"rid": "eq_shi_yue_fa_yi", "price": 260},
-        {"rid": "eq_shi_yue_sheng_xue", "price": 190},
     ],
     "white_deer": [         # 白鹿城绿装 6 件
         "eq_bai_lu_pi_mao",
@@ -456,16 +449,9 @@ SHOP_EQUIP = {
         "eq_bai_lu_zhi_jie",
         "eq_bai_lu_diao_zhu",
     ],
-    # v101.30d #O45：蓝装补档套商店上架（银铃/翡翠/迷雾，策划案 10 章 4.10）
-    "ironharbor": [         # 铁港城锻造坊：银铃套 7 件（含银铃项链）
-        "eq_yin_ling_duan_ren",
-        "eq_yin_ling_hu_tui",
-        "eq_yin_ling_zhang",
-        "eq_yin_ling_tou_kui",
-        "eq_yin_ling_xiong_jia",
-        "eq_yin_ling_zhan_xue",
-        "eq_yin_ling_xiang_lian",
-    ],
+    # v135 套装锻造专属：银铃套 7 件从商店下架（原 ironharbor 铁港城锻造坊直售），
+    # 改为锻造获取（rec_yin_ling_* 配方齐备，Lv.18-24）——锻造是凑齐套装的必经之路
+    "ironharbor": [],
     "jade_port": [          # 翡翠港·翡翠集市：翡翠套 5 件
         "eq_fei_cui_pi_jia",
         "eq_fei_cui_hu_tui",

@@ -126,11 +126,16 @@ def _h_element_ice(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "element_thunder")
 def _h_element_thunder(battle, player, dmg, logs):
-    """元素附加·雷：5% 属性伤害"""
+    """元素附加·雷：5% 属性伤害
+    v135 哑词条激活·雷系增强：15% 概率追加一次 20% 雷伤小爆（感电连跳，玩家可感知）"""
     if "element_thunder" in battle._equip_affix_ids(player):
         ed = max(1, int(dmg * float(_affix_effect("element_thunder").get("pct", 0.05))))
         battle._damage_enemy(ed, logs)
         logs.append(f"⚡ thunder属性附加 {ed} 点伤害！")
+        if random.random() < _affix_chance("element_thunder", 0.15):
+            sd = max(1, int(dmg * float(_affix_effect("element_thunder").get("thunder_bonus", 0.20))))
+            battle._damage_enemy(sd, logs)
+            logs.append(f"⚡⚡ 感电连跳！追加 {sd} 点雷系伤害！")
 
 
 @register(HIT_EFFECTS, "pierce")
@@ -175,6 +180,11 @@ def _h_purify(battle, player, dmg, logs):
             removed += 1
         if removed:
             logs.append(f"✨ 净化！驱散了敌人 {removed} 层增益！")
+            # v135 哑词条激活·净化增强：驱散成功附加『圣洁』——敌人攻击 -10%(1 回合)
+            # （驱散 × 削弱，净化从"防 buff"升级为攻防一体的可感知特色）
+            battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+            battle.e_buffs["_weaken_val"] = float(_affix_effect("purify").get("holy_weaken", 0.10))
+            logs.append("😇 圣洁之力！净化后敌人攻击下降 10%！")
 
 
 @register(HIT_EFFECTS, "dragon_tongue")
@@ -218,7 +228,10 @@ def _t_tenacity(battle, player, ctx, logs):
         neg = [k for k in battle.p_buffs if k in ("spd_down", "atk_down", "def_down")]
         if neg:
             del battle.p_buffs[random.choice(neg)]
-            logs.append("💪 坚韧！免疫了负面效果")
+            # v135 哑词条激活·坚韧增强：免疫负面成功后 回复 3% 最大生命（铁壁意志）
+            _heal = max(1, int(player.get("max_hp", 1) * float(_affix_effect("tenacity_cc").get("heal_pct", 0.03))))
+            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _heal)
+            logs.append(f"💪 坚韧！免疫了负面效果，回复 {_heal} 点生命")
 
 
 @register(TAKEN_EFFECTS, "counter")

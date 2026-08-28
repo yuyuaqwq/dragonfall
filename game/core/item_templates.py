@@ -600,7 +600,8 @@ def tpl_clear_red(ctx):
 
 @register("open_chest")
 def tpl_open_chest(ctx):
-    """宝箱：金币 + 50% 概率蓝图（v41：宝箱不再掉成品装备，统一走锻造）。"""
+    """宝箱：金币 + 图纸概率（v41：宝箱不再掉成品装备，统一走锻造）。
+    v135（鱼鱼拍板）：图纸概率 50% → 85%（constants.CHEST_BP_CHANCE）。"""
     import uuid
     db = ctx._db()
     C = ctx._C()
@@ -610,8 +611,9 @@ def tpl_open_chest(ctx):
     lines = [f"🎁 你打开了【{ctx.item_name()}】！", f"💰 获得 {gold} 金币！"]
     if random.random() < C.CHEST_BP_CHANCE:  # v101.5 常量
         bp = C.roll_blueprint(max(1, ctx.lv))
-        db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-        lines.append(f"📜 宝箱里还有：{bp['name']}！")
+        if bp:
+            db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+            lines.append(f"📜 宝箱里还有：{bp['name']}！")
     return ItemResult(text="\n".join(lines))
 
 

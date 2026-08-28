@@ -2385,6 +2385,21 @@ class InstanceCmds(CommandBase):
             _ql = self._instance_main_kill_progress(group_id, m, boss.get("name", ""))
             if _ql:
                 lines.append(f"  {p['name']}：{'；'.join(_ql)}")
+            # v135 副本全员图纸小概率：每名存活成员独立判定（首功图纸之外的全员奖励，
+            # 概率 constants.INSTANCE_BP_CHANCE=10%）。已学图纸折算图纸残页，未学整张入包。
+            if random.random() < C.INSTANCE_BP_CHANCE:
+                bp2 = C.roll_blueprint(boss["lv"])
+                if bp2:
+                    _learned2 = (p.get("learned_blueprints") or [])
+                    if bp2.get("blueprint_for") in _learned2:
+                        _pages2 = {"white": 1, "green": 1, "blue": 2, "purple": 4, "orange": 6}.get(bp2.get("quality", "white"), 1)
+                        db.add_item(group_id, m, "mat_tu_zhi_can_ye",
+                                    {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                                    count=_pages2)
+                        lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}（已学会，化作 {_pages2} 张图纸残页）")
+                    else:
+                        db.add_item(group_id, m, f"bp_{uuid.uuid4().hex[:8]}", bp2)
+                        lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}")
             # 专属材料
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):

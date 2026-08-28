@@ -302,7 +302,8 @@ async def test_shop_roster():
 def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（142 个，v104 补 11 图纸配方+淬火石配方 + v117 副本材料联动 +13 图纸配方，无旧毕业套）
-    check("配方数 181", len(C.CRAFT_RECIPES) == 181, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心
+    # v135 套装锻造专属：+6 配方（誓约 4 + 银铃护腿/杖 2）→ 187
+    check("配方数 187", len(C.CRAFT_RECIPES) == 187, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心; v135: +誓约4/银铃2
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")

@@ -1569,11 +1569,51 @@ CRAFT_RECIPES = {
         'gold': 155, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
         'name': '银铃项链', 'roster_id': 'eq_yin_ling_xiang_lian',
     },
+    # v135 套装锻造专属补全：银铃护腿/银铃杖（roster source=锻造 但缺配方 → 锻造凑不齐 5 件，补齐）
+    'rec_yin_ling_hu_tui': {
+        'slot': 'legs', 'quality': 'blue', 'lv': 18,
+        "mats": {'mat_ge_bu_lin_hui_ji': 2, 'mat_hai_yao_lin_pian': 1},
+        'gold': 150, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃护腿', 'roster_id': 'eq_yin_ling_hu_tui',
+    },
+    'rec_yin_ling_zhang': {
+        'slot': 'weapon', 'quality': 'blue', 'lv': 24, 'weapon_type': 'staff',
+        "mats": {'mat_ge_bu_lin_hui_ji': 3, 'mat_hai_yao_lin_pian': 2},
+        'gold': 200, 'desc': '银铃河畔工匠的细心打磨，线条干净利落',
+        'name': '银铃杖', 'roster_id': 'eq_yin_ling_zhang',
+    },
     'rec_yin_ling_duan_ren': {
         'slot': 'weapon', 'quality': 'blue', 'lv': 18, 'weapon_type': 'sword',
         "mats": {'mat_qiang_hua_shi': 8, 'mat_jing_tie': 4},
         'gold': 280, 'desc': '银铃河畔工匠的细心打磨，淬火石淬出的剑刃寒光凛凛',
         'name': '银铃短刃', 'roster_id': 'eq_yin_ling_duan_ren',
+    },
+    # ================= v135 套装锻造专属：圣徽·誓约 4 件配方（原商店直售，改为仅锻造） =================
+    # 誓约权杖 s1 支线任务仍免费发 1 件（roster source=商店 兼容发放路径），商店不再直售；
+    # 配方无 blueprint（蓝装直接可锻，与银铃/翡翠/迷雾一致）——锻造是凑齐誓约套的必经之路
+    'rec_shi_yue_quan_zhang': {
+        'slot': 'weapon', 'quality': 'blue', 'lv': 16, 'weapon_type': 'mace',
+        "mats": {'mat_shi_lai_mu_nian_ye': 4, 'mat_jing_tie': 2},
+        'gold': 150, 'desc': '圣徽·誓约的誓言之器，新手牧师的第一份荣光',
+        'name': '誓约权杖', 'roster_id': 'eq_shi_yue_quan_zhang',
+    },
+    'rec_shi_yue_sheng_guan': {
+        'slot': 'helm', 'quality': 'blue', 'lv': 15,
+        "mats": {'mat_shi_lai_mu_nian_ye': 3, 'mat_jing_tie': 2},
+        'gold': 140, 'desc': '圣徽·誓约的誓言之器，新手牧师的第一份荣光',
+        'name': '誓约圣冠', 'roster_id': 'eq_shi_yue_sheng_guan',
+    },
+    'rec_shi_yue_fa_yi': {
+        'slot': 'armor', 'quality': 'blue', 'lv': 15,
+        "mats": {'mat_shi_lai_mu_nian_ye': 4, 'mat_jing_tie': 2},
+        'gold': 150, 'desc': '圣徽·誓约的誓言之器，新手牧师的第一份荣光',
+        'name': '誓约法衣', 'roster_id': 'eq_shi_yue_fa_yi',
+    },
+    'rec_shi_yue_sheng_xue': {
+        'slot': 'boots', 'quality': 'blue', 'lv': 16,
+        "mats": {'mat_shi_lai_mu_nian_ye': 3, 'mat_jing_tie': 2},
+        'gold': 140, 'desc': '圣徽·誓约的誓言之器，新手牧师的第一份荣光',
+        'name': '誓约圣靴', 'roster_id': 'eq_shi_yue_sheng_xue',
     },
     'rec_fei_cui_pi_jia': {
         'slot': 'armor', 'quality': 'blue', 'lv': 20,

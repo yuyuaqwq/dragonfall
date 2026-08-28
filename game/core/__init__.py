@@ -16,6 +16,7 @@ from .constants import (  # noqa: F401
     FISH_RARE_CHANCE, PET_EGG_ORANGE_CHANCE, RARE_MAT_CHANCE, PROF5_BONUS_CHANCE,
     INST_EVENT_CHANCE, MOVE_ENCOUNTER_CHANCE,
     STARFALL_STUN_CHANCE, BOSS_BP_DROP_CHANCE, TRADER_DEAL_CHANCE, CHEST_BP_CHANCE,
+    INSTANCE_BP_CHANCE,
     RECIPE_LV_TIERS,
     # v102.1 地图/子区域类型常量
     MAP_TYPE_TOWN, MAP_TYPE_FIELD, MAP_TYPE_INSTANCE, MAP_TYPE_HIDDEN,
@@ -52,6 +53,13 @@ from .drops import (  # noqa: F401
     build_monster, build_monster_group,
 )
 from .factions import faction_reputation_tier  # noqa: F401
+# v135 铁匠铺全服共享货架：延迟 import（模块自身 import db → db → store.connection →
+# content 循环；数据层装配后再加载，避免 content 初始化期死锁）
+from . import smith_stock as _smith_stock  # noqa: F401,E402
+from .smith_stock import (  # noqa: F401
+    QUALITY_WEIGHTS, STOCK_COUNT, STOCK_WINDOW, RESTOCK_HOURS, SMITH_NPC_NAMES,
+    town_level, roll_stock, get_smith_stock, buy_stock_item, smith_stock_price,
+)
 from .fishing import roll_fish, roll_collect_fish, roll_fish_size_weight  # noqa: F401
 from .time_weather import (  # noqa: F401
     current_period, current_season, today_weather, time_weather_summary,

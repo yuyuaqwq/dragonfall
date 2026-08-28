@@ -30,7 +30,7 @@ REFLECT_CHANCE = 0.25          # battle.py:1605 龙鳞套反弹概率（反弹 2
 ENCOUNTER_EVENT_CHANCE = 0.35  # combat.py:95 探索随机事件概率（野外/外郊/核心区）
 SA_BOSS_CHANCE = 0.05          # combat.py:125/202 子区域 Boss 出现概率
 ENCOUNTER_LOW_CHANCE = 0.5     # combat.py:144 普通怪低概率（新手保护）
-FISH_RARE_CHANCE = 0.5         # economy.py:211 垂钓稀有档概率
+FISH_RARE_CHANCE = 0.6         # economy.py:785 垂钓宝物箱图纸概率（v135：50% → 60%）
 PET_EGG_ORANGE_CHANCE = 0.15   # economy.py:240 月光兔蛋（垂钓传说档）概率
 RARE_MAT_CHANCE = 0.10         # economy.py:280 稀有材料额外掉落概率
 PROF5_BONUS_CHANCE = 0.3       # economy.py:306 副业 5 级额外产出概率
@@ -38,9 +38,10 @@ INST_EVENT_CHANCE = 0.5        # instance.py:278 副本探索事件概率
 MOVE_ENCOUNTER_CHANCE = 0.25   # world.py:2026 移动撞怪概率
 # v101.5 新增
 STARFALL_STUN_CHANCE = 0.20    # battle_mech.py:258 星陨斩眩晕概率
-BOSS_BP_DROP_CHANCE = 0.05     # drops.py:69 Boss 图纸惊喜掉率
+BOSS_BP_DROP_CHANCE = 0.10    # drops.py:69 Boss 图纸惊喜掉率（v135：5% → 10%，×（1+幸运≤50%）最高 15%）
 TRADER_DEAL_CHANCE = 0.5       # event_templates.py:253 流浪商人成交概率
-CHEST_BP_CHANCE = 0.5          # item_templates.py:235 宝箱蓝图概率
+CHEST_BP_CHANCE = 0.85         # item_templates.py:611 探索宝箱图纸概率（v135：50% → 85%）
+INSTANCE_BP_CHANCE = 0.10      # instance.py:2390 副本通关全员图纸小概率（v135：每名存活成员独立判定）
 
 # 配方副业等级阶梯（economy.py _craft_prof_need：装备等级 → 副业门槛）
 RECIPE_LV_TIERS = (10, 30, 50, 70, 90)

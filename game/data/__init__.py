@@ -49,6 +49,9 @@ from .fishing import (  # noqa: F401
 from .enhance import (  # noqa: F401
     ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS,
 )
+from .upgrade import (  # noqa: F401 v135 装备升级机制
+    UPGRADE_TABLE, MAX_UPGRADE, UPGRADE_STONE, UPGRADE_STAMINA, UPGRADE_MATERIAL_CN,
+)
 from .sets import SET_THEMES, SET_CHANCE, SETS, CLASS_SET_STAGES, CLASS_SET_THEMES  # noqa: F401
 from .craft import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES  # noqa: F401
 from .enchant import (  # noqa: F401
@@ -189,4 +192,8 @@ from .battle_config import (  # noqa: F401
     ELEMENT_REACTIONS, BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
     MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
     MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
+    # v135 锻造品质随机（19 章实装）：蓝→紫 5%（神锻名家 Lv.10 +2% → 7%）、
+    # 紫→橙 5%（+2%）、橙装 2% 精良前缀（属性 ×1.15）；提升消耗 精金锭+深海水晶
+    QUALITY_UPGRADE_CHANCE, QUALITY_UPGRADE_MASTER_BONUS, MASTERPIECE_CHANCE,
+    QUALITY_UPGRADE_COST,
 )

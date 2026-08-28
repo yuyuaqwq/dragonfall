@@ -2782,9 +2782,9 @@ class Battle:
                 _ok = False
             if _ok and _ae.get("enemy_contains") and not any(k in ename for k in _ae["enemy_contains"]):
                 _ok = False
-            if _ok and _ae.get("enemy_role") and e.get("role") != _ae["enemy_role"]:
+            if _ok and _ae.get("enemy_role") and not self._affix_role_ok(e, _ae["enemy_role"]):
                 _ok = False
-            if _ok and _ae.get("enemy_marked") and "mark" not in self.e_buffs:
+            if _ok and _ae.get("enemy_marked") and not self._affix_marked(e):
                 _ok = False
             if _ok:
                 mult *= float(_dm)
@@ -2792,6 +2792,31 @@ class Battle:
         # v101.28e/f：食物+药水额外倍率（处决/精准/狂怒/死神），与词条是否为空无关
         mult, tags = self._extra_dmg_mult(hp_ratio, mult, tags)
         return mult, tags
+
+
+    def _affix_role_ok(self, e: dict, role: str) -> bool:
+        """v135 哑词条激活·破魔：原 enemy_role == "caster" 条件在全怪物库零命中
+        （怪物 role 只用 tank/dps/healer/speedster/elite/boss）→ 放宽为：
+        role 精确匹配 caster/healer，或该怪技能表含任意『魔法』系技能（魔法系敌人）。
+        数据定义（affixes.py break_magic enemy_role）保留，消费条件放宽使其真实可触发。"""
+        if role == "caster":
+            if e.get("role") in ("caster", "healer"):
+                return True
+            sk = e.get("skills") or []
+            if sk and any((C.MONSTER_SKILLS.get(s) or {}).get("kind") == "魔法" for s in sk):
+                return True
+            return False
+        return e.get("role") == role
+
+    def _affix_marked(self, e: dict) -> bool:
+        """v135 哑词条激活·追猎：标记判定放宽——e_buffs["mark"]（技能标记）+ 目标级
+        debuffs.mark（层数 >0，副本/多单位共享标记）任一存在即视为标记目标。
+        原实现只认 e_buffs["mark"]（仅游侠标记技写入），战士/法师/牧师/刺客/拳师
+        携带追猎词条时零触发 → 放宽后追猎成为普适的『集火增伤』特色词条。"""
+        if "mark" in self.e_buffs:
+            return True
+        mk = (e.get("debuffs") or {}).get("mark") or {}
+        return int(mk.get("n", 0) or 0) > 0
 
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
         """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。

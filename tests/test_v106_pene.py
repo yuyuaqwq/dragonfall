@@ -205,21 +205,21 @@ async def main():
     print("【8. 幸运】")
     from data.plugins.dragonfall.game.core.drops import roll_drop
     random.seed(42)
-    # 无幸运：Boss 掉率 5%（统计 2000 次 ≈ 100）
+    # 无幸运：Boss 掉率 10%（v135 从 5% 提高，统计 2000 次 ≈ 200）
     n0 = sum(1 for _ in range(2000) if roll_drop(30, "boss")[1] is not None)
     random.seed(42)
     n_luck = sum(1 for _ in range(2000) if roll_drop(30, "boss", 0.5)[1] is not None)
-    check(f"无幸运 Boss 图纸率 ≈5%（{n0}/2000）", 60 <= n0 <= 140, str(n0))
-    check(f"幸运50% Boss 图纸率 ≈7.5%（{n_luck}/2000）", 100 <= n_luck <= 200, str(n_luck))
-    check("幸运提升明显（7.5% > 5%）", n_luck > n0 * 1.3, f"{n_luck} vs {n0}")
+    check(f"无幸运 Boss 图纸率 ≈10%（{n0}/2000）", 160 <= n0 <= 240, str(n0))
+    check(f"幸运50% Boss 图纸率 ≈15%（{n_luck}/2000）", 260 <= n_luck <= 340, str(n_luck))
+    check("幸运提升明显（15% > 10%）", n_luck > n0 * 1.3, f"{n_luck} vs {n0}")
     # 普通怪不掉图纸（幸运也不改变 v94 规则）
     random.seed(42)
     n_norm = sum(1 for _ in range(1000) if roll_drop(30, "dps", 0.5)[1] is not None)
     check("普通怪幸运也不掉图纸（v94 铁律）", n_norm == 0, str(n_norm))
-    # 幸运超 50% 被 cap
+    # 幸运超 50% 被 cap（v135 起基础 10% × 1.5 = 15%）
     random.seed(42)
     n_cap = sum(1 for _ in range(2000) if roll_drop(30, "boss", 0.99)[1] is not None)
-    check(f"幸运99% cap 50% → 仍 ≈7.5%（{n_cap}/2000）", 100 <= n_cap <= 200, str(n_cap))
+    check(f"幸运99% cap 50% → 仍 ≈15%（{n_cap}/2000）", 260 <= n_cap <= 340, str(n_cap))
 
     # ============ 9. Battle 辅助 ============
     print("【9. Battle 穿透取值】")

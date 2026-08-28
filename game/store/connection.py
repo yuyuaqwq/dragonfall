@@ -14,7 +14,21 @@ DB_PATH = os.environ.get(
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game_data.db"),
 )
 
-C_MAP_IDS = set(C.MAP_BY_ID.keys())
+# v135 装配期循环解除：connection 不再顶层依赖 content（data._assembly → core →
+# smith_stock → db → store.connection → content 未完成初始化）。C_MAP_IDS 改为
+# 惰性求值——首次访问时 content 必已完成装配（消费端都在命令层运行期）。
+_C_MAP_IDS_CACHE = None
+
+
+def _map_ids() -> set:
+    global _C_MAP_IDS_CACHE
+    if _C_MAP_IDS_CACHE is None:
+        _C_MAP_IDS_CACHE = set(C.MAP_BY_ID.keys())
+    return _C_MAP_IDS_CACHE
+
+
+# 兼容旧引用（store 层内部使用 C_MAP_IDS 做集合运算）
+C_MAP_IDS = _map_ids()
 
 # v105 P1(M01#11)：RLock——get_player 读档惰性升级前需在锁内计算称号加成（title_bonus
 # 会再调 get_stats/get_quests/get_inventory 等 store 函数），Lock 不可重入会死锁。

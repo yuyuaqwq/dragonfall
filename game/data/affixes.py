@@ -64,9 +64,9 @@ AFFIXES = {
         "desc": "攻击附加 5% 冰属性伤害 + 减速（敌速减半）",
     },
     "element_thunder": {
-        "name": "元素·雷", "kind": "attack", "trigger": "on_hit",
-        "effect": {"element": "thunder", "pct": 0.05},
-        "desc": "攻击附加 5% 雷属性伤害",
+        "name": "元素·雷", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"element": "thunder", "pct": 0.05, "thunder_bonus": 0.20},
+        "desc": "攻击附加 5% 雷属性伤害，15% 概率追加 20% 雷伤",
     },
     "precise": {
         "name": "精准", "kind": "attack", "trigger": "stat",
@@ -101,7 +101,7 @@ AFFIXES = {
     "hunt": {
         "name": "追猎", "kind": "attack", "trigger": "passive",
         "effect": {"dmg_mult": 1.20, "enemy_marked": True, "tag": "🎯追猎"},
-        "desc": "对标记目标＋20% 伤害",
+        "desc": "对标记/被集火目标＋20% 伤害",
     },
     "charge": {
         "name": "蓄力", "kind": "attack", "trigger": "on_hit", "chance": 0.10,
@@ -116,12 +116,12 @@ AFFIXES = {
     "break_magic": {
         "name": "破魔", "kind": "attack", "trigger": "passive",
         "effect": {"dmg_mult": 1.25, "enemy_role": "caster", "tag": "🔮破魔"},
-        "desc": "对魔法系敌人＋25% 伤害",
+        "desc": "对魔法系敌人(法师/治疗型/会用魔法技的怪)＋25% 伤害",
     },
     "purify": {
         "name": "净化", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
-        "effect": {"purge": 1},
-        "desc": "攻击 15% 驱散目标 1 层增益",
+        "effect": {"purge": 1, "holy_weaken": 0.10},
+        "desc": "攻击 15% 驱散目标 1 层增益，成功时敌人攻击－10%(1 回合)",
     },
     "dragon_aw": {
         "name": "龙威", "kind": "attack", "trigger": "passive",
@@ -179,8 +179,8 @@ AFFIXES = {
     #（受击 20% 免疫控制，仅由 affix_effects._t_tenacity_cc 消费）
     "tenacity_cc": {
         "name": "坚韧", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
-        "effect": {"immune_cc": 1},
-        "desc": "受击 20% 免疫眩晕/减速",
+        "effect": {"immune_cc": 1, "heal_pct": 0.03},
+        "desc": "受击 20% 免疫眩晕/减速，成功时回复 3% 生命",
     },
     "regen": {
         "name": "回春", "kind": "defense", "trigger": "turn_start",

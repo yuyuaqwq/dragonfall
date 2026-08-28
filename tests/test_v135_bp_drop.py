@@ -1,0 +1,253 @@
+# -*- coding: utf-8 -*-
+"""v135 图纸掉率提高 + 图纸残页合成验收测试
+
+验收标准（docs/EQUIP_REDESIGN_PLAN_v135.md 六节）：
+1. 概率常量：BOSS_BP_DROP_CHANCE=0.10 / CHEST_BP_CHANCE=0.85 / FISH_RARE_CHANCE=0.60
+2. Boss 掉落：drops.roll_drop(boss) 基础 10%，幸运 50% 时最高 15%（随机统计 4 万次）
+3. 探索宝箱：tpl_open_chest 消费 C.CHEST_BP_CHANCE（85%）
+4. 垂钓宝物箱：economy 垂钓消费 C.FISH_RARE_CHANCE（60%）
+5. 副本首功 + 全员 10%：instance 通关奖励循环消费 C.INSTANCE_BP_CHANCE（10%），
+   已学图纸折算图纸残页、未学整张入包
+6. 图纸残页合成：『图纸合成』面板 / 『图纸合成 <装备名>』消耗 10 张残页 → 指定图纸；
+   残页不足拦截；未知名拦截
+
+独立运行：python tests/test_v135_bp_drop.py
+"""
+import os
+import sys
+import random
+import asyncio
+import inspect
+from contextlib import contextmanager
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from conftest import FakeEvent, run, clean_db, make_player  # noqa: F401
+
+from data.plugins.dragonfall.game import content as C, db
+from data.plugins.dragonfall.game.core import drops as DROPS
+from data.plugins.dragonfall.game.commands.economy import EconomyCmds
+from data.plugins.dragonfall.game.commands.instance import InstanceCmds
+
+PASS = 0
+FAIL = 0
+
+
+def asyncio_run(coro):
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+
+@contextmanager
+def _patched(mod, attr, value):
+    old = getattr(mod, attr)
+    setattr(mod, attr, value)
+    try:
+        yield
+    finally:
+        setattr(mod, attr, old)
+
+
+def check(name, cond):
+    global PASS, FAIL
+    if cond:
+        PASS += 1
+        print(f"  ✅ {name}")
+    else:
+        FAIL += 1
+        print(f"  ❌ {name}")
+
+
+# ============ 1. 概率常量 ============
+print("【1. 概率常量（constants.py）】")
+check("BOSS_BP_DROP_CHANCE == 0.10", abs(C.BOSS_BP_DROP_CHANCE - 0.10) < 1e-9)
+check("CHEST_BP_CHANCE == 0.85", abs(C.CHEST_BP_CHANCE - 0.85) < 1e-9)
+check("FISH_RARE_CHANCE == 0.60", abs(C.FISH_RARE_CHANCE - 0.60) < 1e-9)
+check("INSTANCE_BP_CHANCE == 0.10", abs(C.INSTANCE_BP_CHANCE - 0.10) < 1e-9)
+
+# ============ 2. Boss 图纸掉落（roll_drop） ============
+print("【2. Boss 图纸掉落概率（roll_drop，随机 4 万次）】")
+N = 40000
+hit0 = sum(1 for _ in range(N) if DROPS.roll_drop(30, "boss", 0.0)[1])
+hit50 = sum(1 for _ in range(N) if DROPS.roll_drop(30, "boss", 0.5)[1])
+hit100 = sum(1 for _ in range(N) if DROPS.roll_drop(30, "boss", 1.0)[1])  # 幸运上限 50%
+r0 = hit0 / N
+r50 = hit50 / N
+r100 = hit100 / N
+print(f"  幸运 0%:  {r0:.3%}（期望 10%）")
+print(f"  幸运 50%: {r50:.3%}（期望 15%）")
+print(f"  幸运 100%: {r100:.3%}（上限 50% → 15%）")
+check("幸运 0% 约 10%（±1.5%）", 0.085 <= r0 <= 0.115)
+check("幸运 50% 约 15%（±1.8%）", 0.132 <= r50 <= 0.168)
+check("幸运 100% 仍 15%（幸运上限 50%）", 0.132 <= r100 <= 0.168)
+bp = DROPS.roll_drop(30, "boss", 1.0)[1]
+check("掉落物为图纸物品（type=图纸）", bp is None or (bp.get("type") == "图纸" and bp.get("blueprint_for")))
+# 普通怪不掉图纸（v94 铁律）
+hit_norm = sum(1 for _ in range(2000) if DROPS.roll_drop(30, "normal", 0.0)[1])
+check("普通怪不掉图纸（v94 铁律）", hit_norm == 0)
+
+# ============ 3. 探索宝箱（tpl_open_chest 消费 CHEST_BP_CHANCE） ============
+print("【3. 探索宝箱图纸概率（tpl_open_chest 消费 CHEST_BP_CHANCE）】")
+from data.plugins.dragonfall.game.core import item_templates as IT
+
+
+class _ChestCtx:
+    """tpl_open_chest 最小上下文替身（只暴露模板用到的字段）。"""
+
+    def __init__(self, dbm, Cm, gid, qid, lv):
+        self.group_id = gid
+        self.qq_id = qid
+        self.lv = lv
+        self.player = dbm.get_player(gid, qid)
+        self._dbm = dbm
+        self._Cm = Cm
+
+    def _db(self):
+        return self._dbm
+
+    def _C(self):
+        return self._Cm
+
+    def item_name(self):
+        return "陈旧宝箱"
+
+    def hook(self, name):
+        # 真实 ItemContext 在此执行命名钩子（如 remove_item 消耗物品）；测试替身 no-op
+        return None
+
+    def plain_result(self, text):
+        return text
+
+
+# 3a. 模板消费 CHEST_BP_CHANCE（源代码引用验证）
+tpl_src = inspect.getsource(IT.tpl_open_chest)
+check("open_chest 模板消费 CHEST_BP_CHANCE", "C.CHEST_BP_CHANCE" in tpl_src)
+# 3b. CHEST_BP_CHANCE=1.0 时开箱必得图纸
+clean_db()
+make_player("g1", "q1", "宝箱测试", "战士", level=20)
+with _patched(C, "CHEST_BP_CHANCE", 1.0):
+    ctx = _ChestCtx(db, C, "g1", "q1", 20)
+    try:
+        for _ in IT.tpl_open_chest(ctx):
+            pass
+    except TypeError:
+        pass
+    inv = db.get_inventory("g1", "q1")
+    check("CHEST_BP_CHANCE=1.0 时开箱必得图纸", any(it["data"].get("type") == "图纸" for it in inv))
+# 3c. CHEST_BP_CHANCE=0.0 时开箱不得图纸
+with _patched(C, "CHEST_BP_CHANCE", 0.0):
+    clean_db()
+    make_player("g1", "q1", "宝箱测试", "战士", level=20)
+    ctx = _ChestCtx(db, C, "g1", "q1", 20)
+    try:
+        for _ in IT.tpl_open_chest(ctx):
+            pass
+    except TypeError:
+        pass
+    inv = db.get_inventory("g1", "q1")
+    check("CHEST_BP_CHANCE=0.0 时开箱不得图纸", not any(it["data"].get("type") == "图纸" for it in inv))
+
+
+class _ChestCtx:
+    """tpl_open_chest 最小上下文替身（只暴露模板用到的字段）。"""
+
+    def __init__(self, dbm, Cm, gid, qid, lv):
+        self.group_id = gid
+        self.qq_id = qid
+        self.lv = lv
+        self.player = dbm.get_player(gid, qid)
+        self._dbm = dbm
+        self._Cm = Cm
+
+    def _db(self):
+        return self._dbm
+
+    def _C(self):
+        return self._Cm
+
+    def item_name(self):
+        return "陈旧宝箱"
+
+    def hook(self, name):
+        # 真实 ItemContext 在此执行命名钩子（如 remove_item 消耗物品）；测试替身 no-op
+        return None
+
+    def plain_result(self, text):
+        return text
+
+# ============ 4. 垂钓宝物箱（FISH_RARE_CHANCE） ============
+print("【4. 垂钓宝物箱图纸（FISH_RARE_CHANCE=60%）】")
+clean_db()
+make_player("g1", "q1", "钓鱼测试", "战士", level=30)
+src = inspect.getsource(EconomyCmds)
+has_fish_const = "random.random() < C.FISH_RARE_CHANCE" in src
+check("垂钓消费 FISH_RARE_CHANCE 常量", has_fish_const)
+check("FISH_RARE_CHANCE 数值 0.6", abs(C.FISH_RARE_CHANCE - 0.6) < 1e-9)
+
+# ============ 5. 副本通关全员图纸（INSTANCE_BP_CHANCE） ============
+print("【5. 副本通关全员图纸（INSTANCE_BP_CHANCE=10%）】")
+clean_db()
+insrc = inspect.getsource(InstanceCmds)
+check("副本通关循环消费 INSTANCE_BP_CHANCE", "C.INSTANCE_BP_CHANCE" in insrc)
+check("副本已学图纸折算残页逻辑", "图纸残页" in insrc and "learned_blueprints" in insrc)
+hit_inst = sum(1 for _ in range(40000) if random.random() < C.INSTANCE_BP_CHANCE)
+ri = hit_inst / 40000
+print(f"  INSTANCE_BP_CHANCE 抽样: {ri:.3%}（期望 10%）")
+check("INSTANCE_BP_CHANCE 抽样约 10%（±1.5%）", 0.085 <= ri <= 0.115)
+
+# ============ 6. 图纸残页合成『图纸合成』 ============
+print("【6. 图纸残页合成（bp_craft）】")
+clean_db()
+eco = EconomyCmds()
+p = make_player("g1", "q1", "合成测试", "战士", level=30)
+# 6a. 无残页：面板提示不足
+ev = FakeEvent("g1", "q1", "图纸合成")
+res = asyncio_run(run(eco.bp_craft, ev))
+joined = "\n".join(res)
+check("无参面板展示可合成池", "图纸残页合成" in joined and "10" in joined)
+check("残页不足提示", "图纸残页不足" in joined or "不足" in joined)
+# 6b. 未知名拦截
+ev = FakeEvent("g1", "q1", "图纸合成 不存在的装备XYZ")
+res = asyncio_run(run(eco.bp_craft, ev))
+joined = "\n".join(res)
+check("未知名拦截", "没有" in joined and "图纸合成" in joined)
+# 6c. 残页不足 + 指定装备
+_cand = [(rid, r) for rid, r in C.EQUIP_ROSTER.items()
+         if r["source"] in ("图纸", "boss") and rid in C.EQUIP_ROSTER_BY_NAME.get(r["name"], [])]
+_cand.sort(key=lambda x: x[1]["lv"])
+rid0, r0 = _cand[0]
+ev = FakeEvent("g1", "q1", f"图纸合成 {r0['name']}")
+res = asyncio_run(run(eco.bp_craft, ev))
+joined = "\n".join(res)
+check(f"指定装备残页不足拦截（{r0['name']}）", "不足" in joined)
+# 6d. 给 10 张残页 → 合成成功
+db.add_item("g1", "q1", "mat_tu_zhi_can_ye",
+            {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=10)
+ev = FakeEvent("g1", "q1", f"图纸合成 {r0['name']}")
+res = asyncio_run(run(eco.bp_craft, ev))
+joined = "\n".join(res)
+check("10 张残页合成成功", "合成成功" in joined and r0["name"] in joined)
+inv = db.get_inventory("g1", "q1")
+bp_items = [it for it in inv if it["data"].get("type") == "图纸"]
+shards_left = sum(it["count"] for it in inv if it["key"] == "mat_tu_zhi_can_ye")
+check("背包出现指定图纸", any(it["data"].get("blueprint_for") == r0["name"] for it in bp_items))
+check("残页扣光 10 张", shards_left == 0)
+# 6e. 数字选择：『图纸合成 1』 消耗 10 张合成第一件
+db.add_item("g1", "q1", "mat_tu_zhi_can_ye",
+            {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10}, count=10)
+ev = FakeEvent("g1", "q1", "图纸合成 1")
+res = asyncio_run(run(eco.bp_craft, ev))
+joined = "\n".join(res)
+check("数字序号合成成功", "合成成功" in joined and _cand[0][1]["name"] in joined)
+
+# ============ 总结 ============
+print()
+print(f"✅ PASS: {PASS}  ❌ FAIL: {FAIL}")
+if FAIL:
+    sys.exit(1)
+print("v135 图纸掉率提高 + 图纸残页合成验收全部通过")
