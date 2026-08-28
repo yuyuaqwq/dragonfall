@@ -924,6 +924,18 @@ def _sb_stealth(battle, skill_name, info, player, lv, logs):
     battle.p_buffs["crit_up"] = skill_buff_turns(lv)
 
 
+@register(SKILL_BUFF_EFFECTS, "shadow_realm")
+def _sb_shadow_realm(battle, skill_name, info, player, lv, logs):
+    """v134.1 意见#45：影之国度实装——desc 说"每回合高暴击"但原只挂 spd_up（速度+40%），
+    描述与效果不符。现补暴击：速度+40% + 暴击+20%（crit_up）持续 skill_buff_turns 回合。
+    数值对齐 desc"暗影国度 3 回合(每回合高暴击)"；受 PCT_CAPS.crit 0.5 约束（_apply_buffs）。"""
+    from ..engine import skill_buff_turns
+    turns = skill_buff_turns(lv)
+    battle.p_buffs["spd_up"] = max(battle.p_buffs.get("spd_up", 0), turns)
+    battle.p_buffs["crit_up"] = max(battle.p_buffs.get("crit_up", 0), turns)
+    logs.append(f"🌑 影之国度笼罩！速度+40%、暴击+20%（持续 {turns} 回合）")
+
+
 @register(SKILL_BUFF_EFFECTS, "mark")
 def _sb_mark(battle, skill_name, info, player, lv, logs):
     """v104 M02 P1-2：死亡标记是目标易伤——挂敌方侧 e_buffs（_apply_mark 只认 e_buffs）"""

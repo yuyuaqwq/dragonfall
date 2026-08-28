@@ -2611,12 +2611,12 @@ BRANCH_SKILLS = {
                         "mp": 0,
                         "power": 0,
                         "kind": "增益",
-                        "effect": "spd_up",
+                        "effect": "shadow_realm",
                         "cd": 6,
                         "res_cost": {
                             "cp": 4
                         },
-                        "desc": "三转奥义，进入暗影国度 3 回合(每回合高暴击)",
+                        "desc": "三转奥义，进入暗影国度 3 回合(速度+40%、每回合高暴击)",
                         "name": "影之国度"
                     }
 ,
