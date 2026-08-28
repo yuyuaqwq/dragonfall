@@ -1283,7 +1283,16 @@ class PlayerCmds(CommandBase):
             f"效果：{info['desc']}",
         ]
         if is_learned and info.get("kind") != "被动" and mx > 1:
-            lines.append(f"📈 Lv.{slv} 当前效果：{' · '.join(self._skill_upgrade_gains(info, slv))}")
+            # v134.5 意见#57：LOL 式逐级数值——每级一行，展示 Lv.1→满级全部数值
+            # （原只显示当前级单行）。维度与 _skill_upgrade_gains 同源。
+            lines.append("📈 数值成长：")
+            for _lv in range(1, mx + 1):
+                _gains = self._skill_upgrade_gains(info, _lv)
+                _mark = "▶" if _lv == slv else " "
+                if _gains:
+                    lines.append(f"  {_mark} Lv.{_lv}: {' · '.join(_gains)}")
+                else:
+                    lines.append(f"  {_mark} Lv.{_lv}: (无成长数值)")
         owner = E.branch_skill_owner(player["class_name"], skill_name)
         if owner:
             # v130.2f.2 苦修改名收尾：专属归属分支 key → 展示名（武僧→淬势者、大地武僧→锻势行者）

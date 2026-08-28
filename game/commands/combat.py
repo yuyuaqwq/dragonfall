@@ -1284,17 +1284,9 @@ class CombatCmds(CommandBase):
             lines.append(f"{i}.{disp_name} [{lv_str}]")
             if tag_str:
                 lines.append(f"  · {tag_str}")
-            # v134 意见#38：已学技能显示当前等级具体数值（如『伤害 148% · 持续 4 回合』），
-            # 不再复读 desc 里重复的技能名；未学/被动（无成长维度）照旧显示 desc
-            # v134.1 意见#47：改列多等级效果曲线（Lv.1→满级逐级，英雄联盟式），单行放不下再退当前等级
-            if learned_now and slv > 0:
-                _curve = self._skill_gains_curve(info, slv, E.skill_max_level(info))
-                if _curve:
-                    lines.append(f"  · {_curve}")
-                else:
-                    lines.append(f"  · {info['desc']}")
-            else:
-                lines.append(f"  · {info['desc']}")
+            # v134.4 意见#57 落地：技能列表不再显示技能描述（desc/等级曲线），只保留
+            # 编号/名称/等级/标签/消耗/射程/冷却——一眼扫完；想看效果用『技能详情
+            # <名称/序号>』（已支持序号，如『技能详情 6』）
             _cost = []
             _mp = info.get("mp", 0)
             # v126.5 资源消耗并入魔力求（鱼鱼问"信仰-3 是不是要消耗"→原格式 `信仰值 -3`
