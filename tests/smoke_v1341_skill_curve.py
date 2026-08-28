@@ -51,11 +51,26 @@ def main():
         for ln in out.splitlines():
             if ln.startswith(("1.", "  · ")):
                 print(f"  {ln}")
-        check(f"{cls} 技能列表有等级曲线(伤害)", "/" in out, out[:200])
-        # 升级到 Lv.3 后曲线应保持全等级展示
+        # v134.4 意见#57：曲线从列表移到『技能详情』——列表不再含等级曲线（desc/曲线）
+        # 页数行『页数：1/4』含 /，不能用 / 判断；检查技能条目区无曲线特征（伤害%/持续回合）
+        _no_curve = ("· 伤害" not in out and "· 持续" not in out
+                     and "· 恢复" not in out and "· 防御" not in out and "· 魔攻" not in out)
+        check(f"{cls} 技能列表不再显示描述/曲线", _no_curve, out[:200])
+        # 详情应显示当前等级效果曲线
+        det = m._skill_detail_msg(p, s1) if hasattr(m, "_skill_detail_msg") else None
+        if det is None:
+            # 走 handler 路径（序号 1）
+            import asyncio
+            from conftest import FakeEvent, run
+            ev = FakeEvent(g, q, "技能详情 1")
+            _r = asyncio.run(run(m.skill_detail, ev))
+            det = _r[0] if _r else ""
+        check(f"{cls} 技能详情有等级曲线", "/" in det or "%" in det, det[:200])
+        # 升级到 Lv.3 后详情曲线应保持全等级展示
         db.update_player(g, q, skill_levels={s1: 3})
-        out3 = m._skill_list_page(m._player(g, q), 1)
-        check(f"{cls} 技能升级 Lv.3 曲线仍全等级", "112%" in out3 and "148%" in out3, out3[:200])
+        p3 = m._player(g, q)
+        out3 = m._skill_list_page(p3, 1)
+        check(f"{cls} 技能列表升级后仍无曲线", "112%" not in out3 and "148%" not in out3, out3[:200])
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)
 

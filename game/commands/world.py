@@ -588,8 +588,26 @@ class WorldCmds(CommandBase):
                     sa_desc = _sa.get("desc", "") or ""
                     break
         lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id)
-        # v132 公共区块（今日奇遇/设施/场景/NPC/旅人/玩家/怪物/tip）——「地图」与「到达视图」同源
-        lines += self._map_blocks(player, cur_map, cur_sa, group_id, qq_id)
+        # v134.3 赶路模式精简：move_mode 开启时『地图』只显示可前往；带 hurry_type
+        # 参数才显示对应类型区（与 _subarea_arrive 同规则，鱼鱼拍板）
+        _mv = bool(db.get_event_state(f"move_mode:{qq_id}"))
+        _ht = db.get_event_state(f"hurry_type:{qq_id}") or ""
+        if _mv:
+            if _ht:
+                sec = self._hurry_section(player, cur_map, cur_sa, group_id, qq_id, _ht)
+                if sec:
+                    lines.append("")
+                    lines.extend(sec)
+            lines.append("")
+            lines.append("💡 赶路模式中：回复序号直接赶路，回复 0 结束")
+            yield event.plain_result("\n".join(lines))
+            return
+        # v134.2 排版修复：导航区与公共区块间补空行——_map_blocks 内部从空 lines 开始，
+        # 首区块前无法感知调用方已拼好的 nav 内容（镇长办公处『✨ 可交互场景』紧贴『🧭 出城』）
+        blocks = self._map_blocks(player, cur_map, cur_sa, group_id, qq_id)
+        if blocks and lines and lines[-1]:
+            lines.append("")
+        lines += blocks
         yield event.plain_result("\n".join(lines))
 
     def _map_blocks(self, player: dict, cur_map: dict, cur_sa: str,
@@ -1529,10 +1547,19 @@ class WorldCmds(CommandBase):
         _ht = ""
         if group_id is not None and qq_id is not None:
             _ht = db.get_event_state(f"hurry_type:{qq_id}") or ""
-        if _ht:
+        # v134.3 赶路模式精简：move_mode 开启时默认只显示可前往（不显示设施/场景/NPC
+        # 等杂项），带 hurry_type 参数才显示对应类型——鱼鱼拍板"默认赶路状态不需要
+        # 显示那么多，只显示可前往就行了，带参数才要显示别的"
+        _mv = False
+        if group_id is not None and qq_id is not None:
+            _mv = bool(db.get_event_state(f"move_mode:{qq_id}"))
+        if _ht or _mv:
             nav = self._map_nav_body(player, cur_map, sa["id"], group_id, qq_id,
                                      show_here=False, with_header=False)
-            sec = self._hurry_section(player, cur_map, sa["id"], group_id, qq_id, _ht)
+            if _ht:
+                sec = self._hurry_section(player, cur_map, sa["id"], group_id, qq_id, _ht)
+            else:
+                sec = []
             lines = [f"🗺️ 【{title}】", desc, "━━━━━━━━━━━━"] + sec
             rest = [x for x in nav if str(x).strip()]
             if rest:

@@ -390,6 +390,12 @@ def is_game_command(msg: str) -> bool:
     供 AstrBot RateLimitStage（only_llm 模式）调用：命中任一注册指令
     pattern → 该消息走规则匹配秒回，跳过限流；未命中 → 走 LLM 才限流。
     逐条 re.match（与 @filter.regex 语义一致，锚定开头）。
+
+    v134.2 补充：纯数字消息（数字快捷指令『快捷绑定 N xxx』/赶路模式回复序号）
+    也判为游戏指令——它们由 shortcut_trigger handler 处理（player.py:137 正则
+    覆盖 [0-9０-９] 开头），但该正则不在 COMMAND_REGEX 静态表（避免把普通
+    中文聊天误判）。纯数字/全角数字消息被跳过限流风险极低，换来快捷/赶路
+    连发不被 60秒/30条 限流 stall。
     """
     try:
         from .game.commands._registry import COMMAND_REGEX
@@ -397,6 +403,9 @@ def is_game_command(msg: str) -> bool:
         return False
     if not msg:
         return False
+    # v134.2 纯数字（含全角）快捷/赶路：直接命中 shortcut_trigger
+    if re.match(r"^[0-9０-９]+\s*$", msg):
+        return True
     for key, pat in COMMAND_REGEX.items():
         if key == "_maint_gate":
             # v134.1：维护门 pattern 全可选（空匹配一切），不能用于指令判定

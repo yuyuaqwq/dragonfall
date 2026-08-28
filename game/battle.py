@@ -4883,7 +4883,7 @@ class Battle:
         # 伪装帷幕（effect=dodge_up 闪避率 +40%）：乘算并入
         if self.p_buffs.get("dodge_up"):
             dodge = 1 - (1 - dodge) * (1 - 0.40)
-        # 无声被动——被攻击概率降低 30%：乘算并入
+        # 无声被动——闪避率＋30%：乘算并入
         for _pn, _ps in self._passive_map(player)["proc"].get("dodge_up", []):
             dodge = 1 - (1 - dodge) * (1 - float(_ps.get("mult", 0.3)))
         # 影步药剂 15%：并入乘算（不再独立判定——旧实现独立判定绕过 40% 上限，基础 40%+药水可达 49.7%）
