@@ -228,6 +228,9 @@ _PASSIVE_STAT_APPLY = {
     # dodge（游侠一转觉醒被动「风之加护」）此前无映射 → 觉醒被动完全无效。
     "heal_power": ("heal_power_add", "add", False),
     "dodge": ("dodge_add", "add", False),
+    # v134.1 意见#45：速度→暴击转化被动（游侠/刺客"疾风之眼"）——spd_crit 系数含义：
+    #   每点速度 +0.001×mult 暴击（mult=0.1 → 每10点速度+1%），受 PCT_CAPS.crit 0.5 约束
+    "spd_crit": ("spd_crit_add", "add", False),
 }
 
 
@@ -253,7 +256,8 @@ def player_passive_stats(class_name: str, learned_skills: list | None = None) ->
              # 恒 0 死键删除——battle.py:916-918 的读 pb.get(...,0.0) 恒 0 死循环由 X1 处理。
              # v113.1：恢复 heal_power_add/dodge_add（圣光祝福/风之加护 觉醒被动消费）
              "elem_res_add": 0.0, "luck_add": 0.0, "summon_power_add": 0.0,
-             "heal_power_add": 0.0, "dodge_add": 0.0}  # v106.4 + v107 专属属性被动 + v113.1 觉醒被动
+             "heal_power_add": 0.0, "dodge_add": 0.0,
+             "spd_crit_add": 0.0}  # v134.1 意见#45：速度→暴击被动（游侠/刺客"疾风之眼"）
     learned = [C.display("skills", s) for s in (learned_skills or []) if s]
     for name in learned:
         info = skill_info(class_name, name)
@@ -291,6 +295,11 @@ def apply_passive_to_stats(st: dict, class_name: str, learned_skills: list | Non
     if pb.get("crit_add", 0.0):
         # v110 §三：暴击率上限统一 0.5（PCT_CAPS 权威；原 0.6 与 buff 1.0 不一致）
         st["crit"] = min(st.get("crit", 0) + pb["crit_add"], C.PCT_CAPS.get("crit", 0.5))
+    # v134.1 意见#45：速度→暴击转化（游侠/刺客"疾风之眼"）——每点速度 +0.001×mult 暴击
+    #   mult=0.1 → 每 10 点速度 +1%；须在 spd_mult 应用后折算，受 PCT_CAPS.crit 0.5 约束
+    if pb.get("spd_crit_add", 0.0):
+        spd_crit = st.get("spd", 0) * 0.001 * pb["spd_crit_add"]
+        st["crit"] = min(st.get("crit", 0) + spd_crit, C.PCT_CAPS.get("crit", 0.5))
     if pb.get("cdr_add", 0.0):
         st["cdr"] = min(st.get("cdr", 0) + pb["cdr_add"], 0.4)
     if pb.get("pene_phys_add", 0.0):

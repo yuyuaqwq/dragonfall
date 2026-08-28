@@ -533,6 +533,16 @@ PLAYER_SKILLS = {
                 "desc": "属性被动：速度＋8%",
                 "name": "风行步",
             },
+    "sk_p_ji_feng_zhi_yan": {
+                "lv": 32,
+                "mp": 0,
+                "power": 0,
+                "kind": "被动",
+                # v134.1 意见#45：速度→暴击（疾风之眼）——每点速度 +0.1% 暴击（10点速度+1%）
+                "passive": {"stat": "spd_crit", "mult": 0.1},
+                "desc": "属性被动：疾风之眼——每 10 点速度＋1% 暴击",
+                "name": "疾风之眼",
+            },
     "sk_p_feng_zhi_jia_hu": {
                 "lv": 30,
                 "mp": 0,

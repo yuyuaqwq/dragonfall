@@ -73,11 +73,15 @@ def main():
     check("① 日志含三连余劲", any("余劲" in x for x in logsA), str(logsA)[:250])
     check("① combo_ready 已消费归零", bA.resources.get("combo_ready") == 0, str(bA.resources))
     # 伤害均值对比（战斗有幸运一击 ±50% 随机，8 次均值消除噪声）
+    # v134.1 修复 flaky：固定种子让 with/wo 两组同随机序列公平对比（此前无种子偶发失败）
+    import random
     dmg_with = []
+    random.seed(20260828)
     for _ in range(8):
         b, logs = cast("sk_beng_quan", lambda b: b.resources.__setitem__("combo_ready", 1))
         dmg_with.append(99999 - b.enemy["hp"])
     dmg_wo = []
+    random.seed(20260828)
     for _ in range(8):
         b, _ = cast("sk_beng_quan")
         dmg_wo.append(99999 - b.enemy["hp"])

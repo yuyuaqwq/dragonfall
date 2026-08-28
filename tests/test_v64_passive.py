@@ -41,10 +41,11 @@ def test_defs():
         tbl = C.PLAYER_SKILLS[cls]["skills"]
         passives = [v for v in tbl.values() if v.get("kind") == "被动"]
         # v106.2：战士/游侠新增穿透被动；v112.1：各职业 +1 一转觉醒被动（Lv.30）
-        expect_n = 6 if cls in ("cls_zhan_shi", "cls_you_xia") else 5
+        # v134.1：游侠 +1 疾风之眼被动（速度→暴击，意见#45）→ 游侠 7
+        expect_n = 7 if cls == "cls_you_xia" else (6 if cls == "cls_zhan_shi" else 5)
         check(f"{cname} 被动数量={expect_n}", len(passives) == expect_n, f"实际 {len(passives)}")
         for v in passives:
-            check(f"  {v['name']} lv={v['lv']} mp=0", v.get("mp") == 0 and v.get("lv") in (12, 25, 30, 38, 55, 45, 48),
+            check(f"  {v['name']} lv={v['lv']} mp=0", v.get("mp") == 0 and v.get("lv") in (12, 25, 30, 38, 55, 45, 48, 32),
                   f"mp={v.get('mp')} lv={v.get('lv')}")
     # 抽查代表性被动
     zs = C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]
@@ -178,8 +179,9 @@ def test_data_integrity():
     # 阶段六：新世界每职业 10 主动 + 4 被动 = 14；v95 补 Lv.2 过渡技能 +1 → 15
     # v106.2：战士/游侠 +穿透被动 → 16；v112.1：各职业 +1 一转觉醒被动（Lv.30）
     # v114.2：蓄力/打断新技能——战士+蓄力斩、法师+陨石术+法术禁制、游侠+蓄力狙击、牧师+大治疗术
+    # v134.1：游侠 +1 疾风之眼被动（速度→暴击，意见#45）→ 总数 19
     for cls, cname, expect in [("cls_zhan_shi", "战士", 18), ("cls_fa_shi", "法师", 18),
-                               ("cls_you_xia", "游侠", 18), ("cls_mu_shi", "牧师", 18),
+                               ("cls_you_xia", "游侠", 19), ("cls_mu_shi", "牧师", 18),
                                ("cls_ci_ke", "刺客", 16), ("cls_wu_seng", "拳师", 16)]:
         n = len(C.PLAYER_SKILLS[cls]["skills"])
         check(f"{cname} 技能总数 {n} (10基础+5被动+觉醒)", n == expect, f"实际 {n}")
