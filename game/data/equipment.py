@@ -22,17 +22,17 @@ QUALITY = {
         "name": "优秀"
     },
     "blue": {
-        "mult": 1.6,
+        "mult": 1.55,
         "color": "🔵",
         "name": "稀有"
     },
     "purple": {
-        "mult": 1.8,
+        "mult": 1.75,
         "color": "🟣",
         "name": "史诗"
     },
     "orange": {
-        "mult": 2.0,
+        "mult": 1.95,
         "color": "🟠",
         "name": "传说"
     }

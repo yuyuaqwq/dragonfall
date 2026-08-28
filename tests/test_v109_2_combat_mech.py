@@ -137,7 +137,7 @@ async def main():
     b3.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.2}
     logs3 = b3._turn_start(p3)
     hp_loss3 = 10000 - b3.enemy["hp"]
-    expect3 = int((154 * 0.4 + 10000 * 0.01) * 1.2)  # matk=154（龙裔誓约30级）→ 193
+    expect3 = int((152 * 0.4 + 10000 * 0.01) * 1.2)  # matk=152（龙裔誓约30级，v136 属性转化后）→ 192
     check(f"灼烧伤害 = (matk×40%+max_hp×1%)×1.2（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
     check("日志含强化标注×1.2", any("强化×1.2" in x for x in logs3), str(logs3))
     random.seed(7)
@@ -146,7 +146,7 @@ async def main():
     b3b.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
     b3b._turn_start(p3b)
     hp_loss3b = 10000 - b3b.enemy["hp"]
-    check("无火之亲和：灼烧 = matk×40%+max_hp×1%", hp_loss3b == 161, f"got {hp_loss3b}")
+    check("无火之亲和：灼烧 = matk×40%+max_hp×1%", hp_loss3b == 160, f"got {hp_loss3b}")
 
     print("\n===== 4. 运势 luck 暴击联动（P1-1）=====\n")
     n = 900

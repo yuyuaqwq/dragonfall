@@ -50,7 +50,7 @@ def main():
     check("UPGRADE_TABLE 存在且 11 级", len(C.UPGRADE_TABLE) == 11)
     check("MAX_UPGRADE=10", C.MAX_UPGRADE == 10)
     check("0 级倍率 1.00", C.UPGRADE_TABLE[0]["mult"] == 1.0)
-    check("10 级倍率 1.50", C.UPGRADE_TABLE[10]["mult"] == 1.5)
+    check("10 级倍率 1.35", C.UPGRADE_TABLE[10]["mult"] == 1.35)
     check("成本递增", C.UPGRADE_TABLE[1]["cost"] > C.UPGRADE_TABLE[0]["cost"])
 
     # 2. 升级命令流程（成功路径）
@@ -82,15 +82,15 @@ def main():
     print("[3] engine 属性结算")
     st0, _ = E.player_stats_detail("cls_zhan_shi", 1, {}, 0, None, 0, None, "human")
     eq2 = C.generate_roster_equip("eq_tie_jian")
-    eq2["upgrade_lv"] = 5  # 倍率 1.25
+    eq2["upgrade_lv"] = 5  # 倍率 1.175（v136 升级 1.25→1.175）
     eq2["stats"] = {"atk": 10}
     st1, _ = E.player_stats_detail(
         "cls_zhan_shi", 1,
         {"weapon": eq2}, 0, None, 0, None, "human",
     )
     atk_diff = st1.get("atk", 0) - st0.get("atk", 0)
-    check("升级5级 atk×1.25 生效", atk_diff == 12, f"diff={atk_diff}")
-    # 升级+强化叠加：atk10 强化2(1.22) + 升级5(1.25) → 10*1.22*1.25=15.25→15
+    check("升级5级 atk×1.175 生效", atk_diff == 11, f"diff={atk_diff}")
+    # 升级+强化叠加：atk10 强化2(1.22) + 升级5(1.175) → 10*1.22*1.175=14.34→14
     eq3 = C.generate_roster_equip("eq_tie_jian")
     eq3["upgrade_lv"] = 5
     eq3["enhance"] = 2
@@ -100,7 +100,7 @@ def main():
         {"weapon": eq3}, 0, None, 0, None, "human",
     )
     atk_diff2 = st2.get("atk", 0) - st0.get("atk", 0)
-    check("升级×强化叠加 10*1.22*1.25=15", atk_diff2 == 15, f"diff={atk_diff2}")
+    check("升级×强化叠加 10*1.22*1.175=13（engine 逐级取整）", atk_diff2 == 13, f"diff={atk_diff2}")
 
     # 4. 拦截分支（每个独立重建玩家）
     print("[4] 拦截分支")

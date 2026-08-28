@@ -61,7 +61,7 @@ def test_data():
     check("专属 22", len(C.LEGENDARY_EFFECTS) == 28, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳
     check("名册 208 件", len(C.EQUIP_ROSTER) == 208, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线奖励装备 + 夜行披风/熔炉之心
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
-    check("品质倍率蓝 1.6", C.QUALITY["blue"]["mult"] == 1.6)
+    check("品质倍率蓝 1.55", C.QUALITY["blue"]["mult"] == 1.55)
     # 词条触发时机全合法
     valid_triggers = {"stat", "on_hit", "on_taken", "turn_start", "battle_start", "passive"}
     bad = [aid for aid, info in C.AFFIXES.items() if info["trigger"] not in valid_triggers]

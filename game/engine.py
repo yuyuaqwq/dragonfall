@@ -394,11 +394,14 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
     # v105 P1(M01#7)：attributes 可能是字符串/'null'（脏档）→ 非 dict 一律按空处理
     attr = attributes if isinstance(attributes, dict) else {}
     attr_src = {}
-    attr_src["atk"] = int(attr.get("str", 0) * 1.2)
-    attr_src["matk"] = int(attr.get("int", 0) * 1.2)
+    # v136 数值重构（鱼鱼拍板 C）：属性点转化率回归合理值，降基础属性虚高
+    # str→atk 1.2→1.0（1点力量=1攻击）、int→matk 1.2→1.0、vit→hp 8→6
+    # 原 1.2 导致裸装主属性堆叠收益高于装备，玩家无脑全投主属性，装备系统失去意义
+    attr_src["atk"] = int(attr.get("str", 0) * 1.0)
+    attr_src["matk"] = int(attr.get("int", 0) * 1.0)
     attr_src["spd"] = int(attr.get("agi", 0) * 0.8)
     attr_src["crit"] = attr.get("agi", 0) * 0.004
-    attr_src["hp"] = int(attr.get("vit", 0) * 8)
+    attr_src["hp"] = int(attr.get("vit", 0) * 6)
     attr_src["mp"] = int(attr.get("int", 0) * 1.5)
     st["atk"] += attr_src["atk"]
     st["matk"] += attr_src["matk"]

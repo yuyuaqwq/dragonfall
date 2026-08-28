@@ -7,16 +7,16 @@
 """
 UPGRADE_TABLE = {
     0: {"cost": 200, "mult": 1.00},
-    1: {"cost": 300, "mult": 1.05},
-    2: {"cost": 450, "mult": 1.10},
-    3: {"cost": 675, "mult": 1.15},
-    4: {"cost": 1012, "mult": 1.20},
-    5: {"cost": 1518, "mult": 1.25},
-    6: {"cost": 2277, "mult": 1.30},
-    7: {"cost": 3415, "mult": 1.35},
-    8: {"cost": 5122, "mult": 1.40},
-    9: {"cost": 7683, "mult": 1.45},
-    10: {"cost": 11524, "mult": 1.50},
+    1: {"cost": 300, "mult": 1.035},
+    2: {"cost": 450, "mult": 1.07},
+    3: {"cost": 675, "mult": 1.105},
+    4: {"cost": 1012, "mult": 1.14},
+    5: {"cost": 1518, "mult": 1.175},
+    6: {"cost": 2277, "mult": 1.21},
+    7: {"cost": 3415, "mult": 1.245},
+    8: {"cost": 5122, "mult": 1.28},
+    9: {"cost": 7683, "mult": 1.315},
+    10: {"cost": 11524, "mult": 1.35},
 }
 MAX_UPGRADE = 10
 UPGRADE_STONE = "i_stone_refine"     # 每级 1 个精炼强化石

@@ -146,23 +146,23 @@ def main():
           f"agi={a_agi['spd']} str={a_str['spd']}")
     check("刺客 全敏 vs 全力 spd 差 == +31", a_agi["spd"] - a_str["spd"] == 31,
           f"d={a_agi['spd'] - a_str['spd']}")
-    check("刺客 全力 atk 93 / 全敏 atk 47", a_str["atk"] == 93 and a_agi["atk"] == 47,
+    check("刺客 全力 atk 86 / 全敏 atk 47", a_str["atk"] == 86 and a_agi["atk"] == 47,
           f"str={a_str['atk']} agi={a_agi['atk']}")
-    check("刺客 全力 vs 全敏 atk 差 == +46", a_str["atk"] - a_agi["atk"] == 46,
+    check("刺客 全力 vs 全敏 atk 差 == +39", a_str["atk"] - a_agi["atk"] == 39,
           f"d={a_str['atk'] - a_agi['atk']}")
-    # 战士：全力 vs 全耐 —— hp 差 +312（682 vs 370）
+    # 战士：全力 vs 全耐 —— hp 差 +234（604 vs 370，v136 属性转化 vit→hp 8→6）
     w_str = E.player_final_stats("cls_zhan_shi", 11, {}, 0, {"str": 39})
     w_vit = E.player_final_stats("cls_zhan_shi", 11, {}, 0, {"vit": 39})
-    check("战士 全耐 hp 682 / 全力 hp 370", w_vit["max_hp"] == 682 and w_str["max_hp"] == 370,
+    check("战士 全耐 hp 604 / 全力 hp 370", w_vit["max_hp"] == 604 and w_str["max_hp"] == 370,
           f"vit={w_vit['max_hp']} str={w_str['max_hp']}")
-    check("战士 全耐 vs 全力 hp 差 == +312", w_vit["max_hp"] - w_str["max_hp"] == 312,
+    check("战士 全耐 vs 全力 hp 差 == +234", w_vit["max_hp"] - w_str["max_hp"] == 234,
           f"d={w_vit['max_hp'] - w_str['max_hp']}")
-    # 法师：全智 vs 裸装 —— matk +46（106 vs 60）、mp +58（278 vs 220）
+    # 法师：全智 vs 裸装 —— matk +39（99 vs 60，v136 属性转化 int→matk 1.2→1.0）
     f_int = E.player_final_stats("cls_fa_shi", 11, {}, 0, {"int": 39})
     f_bare = E.player_final_stats("cls_fa_shi", 11, {}, 0, None)
-    check("法师 全智 matk 106 /> mp 278", f_int["matk"] == 106 and f_int["max_mp"] == 278,
+    check("法师 全智 matk 99 /> mp 278", f_int["matk"] == 99 and f_int["max_mp"] == 278,
           f"matk={f_int['matk']} mp={f_int['max_mp']}")
-    check("法师 全智 vs 裸装 matk 差 == +46", f_int["matk"] - f_bare["matk"] == 46,
+    check("法师 全智 vs 裸装 matk 差 == +39", f_int["matk"] - f_bare["matk"] == 39,
           f"d={f_int['matk'] - f_bare['matk']}")
     check("法师 全智 vs 裸装 mp 差 == +58", f_int["max_mp"] - f_bare["max_mp"] == 58,
           f"d={f_int['max_mp'] - f_bare['max_mp']}")

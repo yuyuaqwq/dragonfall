@@ -90,13 +90,13 @@ def win_rate(equip, mdef, seeds=6):
 def main():
     print("【① 满装生成快照（固定种子，锁词条与 stats）】")
     full_equip = make_full_equip()
-    # 装备 stats/词条快照（实测锁定，2026-08-27 baseline）
+    # 装备 stats/词条快照（实测锁定，2026-08-29 v136 品质 1.6→1.55 更新）
     EXPECT_EQUIP = {
-        "weapon": ({"atk": 27, "matk": 27, "crit": 0.09}, ["crit_up", "energy_blade"]),
-        "helm":   ({"def": 14, "hp": 82, "spd": 1}, ["swift", "hp_up"]),
-        "armor":  ({"def": 28, "hp": 168, "dodge": 0.05}, ["dodge", "pious_charm"]),
-        "legs":   ({"def": 19, "hp": 105, "spd": 1}, ["swift", "meditate"]),
-        "boots":  ({"def": 10, "spd": 15}, ["swift", "arcane_focus"]),
+        "weapon": ({"atk": 26, "matk": 26, "crit": 0.089}, ["crit_up", "energy_blade"]),
+        "helm":   ({"def": 13, "hp": 79, "spd": 1}, ["swift", "hp_up"]),
+        "armor":  ({"def": 27, "hp": 162, "dodge": 0.05}, ["dodge", "pious_charm"]),
+        "legs":   ({"def": 18, "hp": 102, "spd": 1}, ["swift", "meditate"]),
+        "boots":  ({"def": 10, "spd": 14}, ["swift", "arcane_focus"]),
     }
     for slot, (est, eaf) in EXPECT_EQUIP.items():
         it = full_equip[slot]
@@ -113,8 +113,8 @@ def main():
     full = panel(full_equip)
     BARE_EXPECT = {"max_hp": 370, "max_mp": 70, "atk": 50, "def": 40,
                    "matk": 11, "mdef": 22, "spd": 16, "crit": 0.05, "dodge": 0.03}
-    FULL_EXPECT = {"max_hp": 725, "max_mp": 70, "atk": 83, "def": 111,
-                   "matk": 38, "mdef": 22, "spd": 36, "crit": 0.14, "dodge": 0.13}
+    FULL_EXPECT = {"max_hp": 713, "max_mp": 70, "atk": 82, "def": 108,
+                   "matk": 37, "mdef": 22, "spd": 35, "crit": 0.139, "dodge": 0.13}
     for k, v in BARE_EXPECT.items():
         check(f"裸装 {k} = {v}", bare[k] == v, f"got={bare[k]}")
     for k, v in FULL_EXPECT.items():
