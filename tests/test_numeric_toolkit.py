@@ -51,11 +51,11 @@ def main():
     by_id = {r["iid"]: r for r in rows}
     gob = by_id.get("inst_goblin_camp", {}).get("rounds")
     # v131 怪物变强（HP×2、boss×2.5）后旧模型打怪轮数按比例放大；锚点随怪数据同步重标定
-    check("哥布林营地 legacy 轮数 2545~2704（v131 新怪数据，2026-08-27 重标定）",
-          2545 <= gob <= 2704, f"rounds={gob}")
+    check("哥布林营地 legacy 轮数 1276~1376（v136 hp_mult 17→8.4 校准后）",
+          1276 <= gob <= 1376, f"rounds={gob}")
     old_king = by_id.get("inst_old_king_tomb", {}).get("rounds")
-    check("老王之墓 legacy 轮数 1338~1422（同上）",
-          1338 <= old_king <= 1422, f"rounds={old_king}")
+    check("老王之墓 legacy 轮数 212~312（v136 hp_mult 6.5→1.2 校准后）",
+          212 <= old_king <= 312, f"rounds={old_king}")
 
     print("【2/6 真实模型 vs 真实引擎：per_action_dmg vs BT.Battle 每行动实测（20 seeds）】")
     m = NS.monster_of("dps", 11)
@@ -154,7 +154,7 @@ def main():
     check("全部 BossHP>0", all(r["boss_hp"] > 0 for r in rows))
     check("全部轮数>0", all(r["rounds"] > 0 for r in rows))
     check("solo_low 存在超标 🔴（校准工具判红能力）", any(r["flag"] == "🔴" for r in rows_low))
-    check("team_mid 存在舒适 ✅", any(r["flag"] == "✅" for r in rows))
+    check("team_mid 存在长盘 🟡/🔴（v136 副本 100 轮长盘策略设计）", any(r["flag"] in ("🟡", "🔴") for r in rows))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     sys.exit(1 if failed else 0)

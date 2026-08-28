@@ -3454,8 +3454,12 @@ class Battle:
                 self._aoe_falloff = float(info.get("aoe_falloff", 1.0) or 1.0)
                 _boss_dmg = self._aoe_damage(total, logs, scope, source=skill_name)
             else:
-                self._damage_enemy(total, logs)
-                _boss_dmg = total
+                # v136 等级压制：_damage_enemy 内部按等级差压制实际伤害，返回值=真实扣血，
+                # 回写 total 让后续日志/吸血/结算都反映压制后的值（原 total 未回写→日志虚高）
+                _real = self._damage_enemy(total, logs)
+                _boss_dmg = _real
+                if _real != total:
+                    total = _real
             # v106.3 吸血统一结算（属性化：词条/种族/被动/药水 → st["lifesteal"] 一处消费）
             # v106.4：魔法技能走法术吸血（lifesteal_magi），物理技能走物理吸血（lifesteal_phys）
             # v107：真伤不吸血（dmg_type="true" 直接跳过）
@@ -4683,6 +4687,23 @@ class Battle:
             target = getattr(self, "_active_target", None) or self.enemy
         if dmg <= 0:
             return 0
+        # v136 等级压制：玩家 vs 怪物等级差伤害修正（PVE 生效，PVP 不压；按目标自身等级实时算，
+        # 多目标阵列每怪等级不同也能正确压制）。双向曲线（鱼鱼拍板：增伤不封顶，曲线自然延伸）：
+        #   低打高：低 1-3 级 ×0.95/级，低 4+ 级 ×0.90/级（指数曲线，封顶 ×0.30 防归零）
+        #   高打低：每高 1 级 ×1.02 连乘（指数曲线，不封顶——等级越高碾压越强）
+        if self.btype != "pvp" and self.player and target.get("lv"):
+            try:
+                _plv = int(self.player.get("level", 0) or 0)
+                _diff = int(target.get("lv", 0) or 0) - _plv
+                if _diff > 0:
+                    _mult = 1.0
+                    for _i in range(min(_diff, 10)):
+                        _mult *= (0.95 if _i < 3 else 0.90)
+                    dmg = max(1, int(dmg * max(0.30, _mult)))
+                elif _diff < 0:
+                    dmg = max(1, int(dmg * (1.02 ** min(-_diff, 50))))
+            except Exception:
+                pass
         if target.get("defending"):
             dmg = max(1, int(dmg * DEFEND_REDUCE))
             logs.append(f"(格挡后 {dmg} 点伤害)")
