@@ -100,6 +100,7 @@ def hits(text):
 REPRESENTATIVES = {
     # misc.py
     "achievements": "成就", "help_cmd": "帮助", "signin": "签到", "feedback_cmd": "意见",
+    "game_tip": "游戏提示",
     # instance.py
     "instance_cmd": "副本", "instance_advance": "深入", "instance_map_view_cmd": "副本地图",
     "instance_investigate": "调查 房间", "instance_retreat": "撤退", "instance_leave": "离开副本",

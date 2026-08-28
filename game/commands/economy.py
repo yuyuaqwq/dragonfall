@@ -2262,6 +2262,57 @@ class EconomyCmds(CommandBase):
             return True
         return bp in (player.get("learned_blueprints") or [])
 
+    def _learned_blueprint_list(self, player) -> str:
+        """v134.1 意见#39：『图纸列表』——当前玩家已学会的全部图纸一览。
+
+        数据源：player.learned_blueprints（learn 命令永久记录，图纸名=配方 blueprint 字段）。
+        按配方反查类型（锻造/烹饪/炼金）+ 等级/职业要求；无配方引用的残留图纸（旧版本遗留）
+        也列出（标注"已失效"提示可出售）。"""
+        learned = list(player.get("learned_blueprints") or [])
+        if not learned:
+            return ("📜 你还没有学会任何图纸！\n"
+                    "💡 图纸由 Boss 掉落/宝箱/垂钓/商店获得，背包里有图纸时发『学习 <图纸名>』永久解锁～")
+        rows = []
+        for bp in learned:
+            rec = None
+            kind = "锻造"
+            for rk, r in C.CRAFT_RECIPES.items():
+                if r.get("blueprint") == bp:
+                    rec = r
+                    break
+            if not rec:
+                for rk, r in C.COOKING_RECIPES.items():
+                    if r.get("blueprint") == bp:
+                        rec = r
+                        kind = "烹饪"
+                        break
+            if not rec:
+                for rk, r in C.ALCHEMY_RECIPES.items():
+                    if r.get("blueprint") == bp:
+                        rec = r
+                        kind = "炼金"
+                        break
+            if not rec:
+                rows.append(f"📜【{bp}】（已失效/旧版本残留，可出售）")
+                continue
+            name = rec.get("name", bp)
+            q = C.QUALITY.get(rec.get("quality", ""), {})
+            lv = rec.get("lv", 0)
+            cls = rec.get("class", "")
+            wt = rec.get("weapon_type", "")
+            cls_part = ""
+            if cls and cls in C.CLASSES:
+                cls_part = f" {C.display('classes', cls)}"
+            elif wt:
+                _names = [C.display("classes", ck) for ck, cv in C.CLASSES.items()
+                          if cv.get("weapon_type") == wt and ck != "cls_novice"]
+                if _names:
+                    cls_part = f" {'、'.join(_names)}"
+            rows.append(f"{q.get('color', '')}【{name}】{kind}·Lv.{lv}{cls_part}")
+        head = f"📜 【已学图纸】共 {len(learned)} 张"
+        lines = [head, "━━━━━━━━━━━━"] + rows + ["", "💡 已学图纸锻造/烹饪/炼金不再消耗图纸 ｜ 背包里新图纸发『学习 <图纸名>』解锁"]
+        return "\n".join(lines)
+
     def _craft_mats_str(self, rec) -> str:
         mats_str = " + ".join(f"{C.display('materials', m)}×{n}" for m, n in rec["mats"].items())
         return mats_str
@@ -2382,14 +2433,22 @@ class EconomyCmds(CommandBase):
         lines.append(self._tip("forge"))
         return "\n".join(lines)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?配方(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:配方|图纸列表)(?:\s*|$)")
     @require_player()
 
     async def recipe_list(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
+        # v134.1 意见#39：『图纸列表』直接命中（不走『配方 图纸列表』绕路）
+        if event.get_message_str().strip().startswith("图纸列表"):
+            yield event.plain_result(self._learned_blueprint_list(self._player(group_id, qq_id)))
+            return
         raw = self._strip_cmd(event, "配方")
         player = self._player(group_id, qq_id)
         text = raw.strip()
+        # v134.1 意见#39：『图纸列表』= 已学图纸一览（独立指令，与『配方』全量列表区分）
+        if text in ("图纸", "图纸列表", "列表 图纸", "已学"):
+            yield event.plain_result(self._learned_blueprint_list(player))
+            return
         # 无参数：按职业分组列出全部配方
         if not text or text == "列表":
             lines = ["📜 铁匠锻造配方(『锻造 <职业>』看该职业，『锻造 配方 <装备名>』看详情)：", ""]
@@ -2925,9 +2984,23 @@ class EconomyCmds(CommandBase):
     @require_player()
 
     async def bestiary(self, event: AstrMessageEvent):
+        """图鉴：怪物全量（默认）/『图鉴 垂钓』彩蛋收藏鱼 /『图鉴 收藏』特殊收藏品
+        v134.1 意见#41：子分类——垂钓=彩蛋收藏鱼收录，收藏=type=收藏 的特殊收藏品；
+        默认保持怪物图鉴全量（原有行为）。"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         raw = self._strip_cmd(event, "图鉴")
+        # v134.1 意见#41：子分类路由（数字=翻页保持原义）
+        if not raw.isdigit():
+            sub = raw.strip()
+            if sub in ("垂钓", "钓鱼", "鱼"):
+                yield event.plain_result(self._collect_fish_bestiary(group_id, qq_id))
+                return
+            if sub in ("收藏", "收藏品", "纪念品"):
+                yield event.plain_result(self._collect_items_bestiary(group_id, qq_id))
+                return
+            if sub in ("怪物", "图鉴", "全部", "所有"):
+                raw = ""
         page = self._parse_page(raw)
         rows = db.get_bestiary(group_id, qq_id)
         if not rows:
@@ -2944,7 +3017,7 @@ class EconomyCmds(CommandBase):
         lines.append("")
         if pages > 1 and page < pages:
             lines.append(self._tip("bestiary"))
-        lines.append("💡 击败新怪物会自动收录图鉴")
+        lines.append("💡 击败新怪物会自动收录图鉴 ｜ 『图鉴 垂钓』看彩蛋收藏鱼 ｜ 『图鉴 收藏』看特殊收藏品")
         self._record_list_state(qq_id, "图鉴", page, pages)
         # v104 M15 修复：垂钓彩蛋收藏鱼收集展示（13 章 4.3 / 16 章 4.x）
         yield event.plain_result("\n".join(lines) + self._collect_fish_bestiary(group_id, qq_id))
@@ -2952,7 +3025,8 @@ class EconomyCmds(CommandBase):
     def _collect_fish_bestiary(self, group_id, qq_id):
         """v104 M15 修复：彩蛋收藏鱼收集进度展示（已收藏 X/3 + 各鱼钓获次数 + catch_collect 累计计数）
         v104 R3 M15 P2-3：收藏状态永久化——钓获即解锁的隐藏成就(collect_fish)为永久记录，
-        出售收藏鱼后图鉴不回退（与怪物图鉴永久收录语义一致）；背包仍有存货时附 ×N 数量。"""
+        出售收藏鱼后图鉴不回退（与怪物图鉴永久收录语义一致）；背包仍有存货时附 ×N 数量。
+        v134.1 意见#41：头部加子分类提示（'图鉴 垂钓' 直达，怪物页尾部也有入口）。"""
         inv = {it["key"]: it["count"] for it in db.get_inventory(group_id, qq_id)}
         _ach_unlocked = set()
         try:
@@ -2980,6 +3054,39 @@ class EconomyCmds(CommandBase):
             else:
                 lines.append("  ❌ ??? （垂钓时有极低概率邂逅）")
         lines.append("💡 彩蛋收藏鱼钓到自动收进图鉴；对应成就见『成就 隐藏』")
+        return "\n".join(lines)
+
+    def _collect_items_bestiary(self, group_id, qq_id):
+        """v134.1 意见#41：『图鉴 收藏』特殊收藏品一览——type=收藏 的物品（不含彩蛋收藏鱼，
+        鱼走『图鉴 垂钓』）。判据与批量出售保护同源（MATERIALS_BY_NAME/ITEMS 定义兜底，
+        背包 data.type 可能被发放路径写死为"材料"）。已持有=背包有货；未持有=灰色占位（
+        只列定义全量，让玩家知道有哪些可收集）。"""
+        inv = {it["data"].get("name", ""): it["count"] for it in db.get_inventory(group_id, qq_id)}
+        _defs = {}
+        for _k, _v in C.MATERIALS_BY_NAME.items():
+            if isinstance(_v, dict) and _v.get("type") == "收藏":
+                _defs[_v.get("name", _k)] = _v
+        for _k, _v in (C.ITEMS or {}).items():
+            if isinstance(_v, dict) and _v.get("type") == "收藏":
+                _defs[_v.get("name", _k)] = _v
+        # 彩蛋收藏鱼单独走『图鉴 垂钓』（3 条 FISH_COLLECT 在 MATERIALS 里也是 type=收藏，剔除）
+        _fish_names = {cf["name"] for cf in C.FISH_COLLECT}
+        _defs = {n: v for n, v in _defs.items() if n not in _fish_names}
+        owned = [n for n in _defs if n in inv]
+        lines = [f"🏺 【收藏品图鉴】已收藏 {len(owned)}/{len(_defs)} 件", "━━━━━━━━━━━━"]
+        if not _defs:
+            lines.append("（暂无收藏品条目）")
+        for n in sorted(_defs):
+            _v = _defs[n]
+            if n in inv:
+                _cnt = f" ×{inv[n]}" if inv[n] > 1 else ""
+                lines.append(f"  ✅ {n}{_cnt}")
+            else:
+                _d = (_v or {}).get("desc", "")
+                _hint = f"（{_d[:30]}…）" if _d else ""
+                lines.append(f"  ❌ ??? {_hint}")
+        lines.append("")
+        lines.append("💡 收藏品来自支线/隐藏任务奖励与纪念品，『图鉴 垂钓』看彩蛋收藏鱼，『图鉴』看怪物")
         return "\n".join(lines)
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?百科(?:\s*|$)")
@@ -3048,6 +3155,32 @@ class EconomyCmds(CommandBase):
                 lines.append(f"💡 出售价 {mat['price']} 金币")
                 yield event.plain_result("\n".join(l for l in lines if l))
                 return
+        # 2.5 副本钥匙/信物查询（v134 意见#36：玩家打副本卡主线不知道钥匙哪掉 → 通用百科）
+        #   双向：『百科 王陵钥匙』→ 哪个副本要它 + 获取途径；『百科 旧王陵』→ 副本要什么钥匙 + 途径。
+        #   数据源 INSTANCES.key_item / key_source（20 本带钥匙副本），与副本列表引导同源。
+        _key_hits = [inst for inst in C.INSTANCES.values() if inst.get("key_item")]
+        _inst_by_key = {inst["key_item"]: inst for inst in _key_hits if inst.get("key_item")}
+        if raw in _inst_by_key:
+            inst = _inst_by_key[raw]
+            lines = [f"🔑 【{raw}】", "━━━━━━━━━━━━"]
+            lines.append(f"用途：『{inst['name']}』入场钥匙")
+            lines.append(f"获取：{inst.get('key_source', '？？？')}")
+            lines.append(f"副本：{inst['name']}（Lv.{inst.get('lv', '?')}+ · {inst.get('desc', '')[:40]}")
+            lines.append("💡 『副本』看全部副本列表；已通关该副本可免钥匙入场")
+            yield event.plain_result("\n".join(lines))
+            return
+        _inst_by_name = {inst["name"]: inst for inst in _key_hits}
+        if raw in _inst_by_name:
+            inst = _inst_by_name[raw]
+            lines = [f"🏰 【{inst['name']}】", "━━━━━━━━━━━━"]
+            if inst.get("desc"):
+                lines.append(f"{inst['desc']}")
+            ki = inst.get("key_item")
+            if ki:
+                lines.append(f"🔑 入场需要『{ki}』：{inst.get('key_source', '？？？')}")
+            lines.append(f"💡 『百科 {ki}』可查看钥匙详情（若已通关可免钥匙）")
+            yield event.plain_result("\n".join(lines))
+            return
         # 3. 地图查询
         if raw in C.ENCY_MAP_MONSTERS:
             entries = C.ENCY_MAP_MONSTERS[raw]
@@ -3350,19 +3483,24 @@ class EconomyCmds(CommandBase):
         )
         self._stop_event_safe(event)
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?物品详情(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:物品详情|查看(?!地图|任务|背包|技能|图鉴|百科|成就|称号|宠物|副本|排行|帮助|列表|商店|位置|声望|荣誉|套装|坐骑|队伍|摊位|市场|仓库|事件|许愿|种族|流派|签到|战力|职业|配方|烹饪|副业|锻造|炼金|合成|钓鱼|采集|挖掘|学习|洗点|装备|卸下|喂养|放生|传送|祭坛|赶路|深入|调查|撤退|离开|注册|意见|怪物|咨询|状态|属性|详情|信息))(?:[\s\S]*)$")
     @require_player()
 
     async def item_detail(self, event: AstrMessageEvent):
-        """v105 M24 P3-4：查看物品详细信息：装备属性/材料/消耗品/宠物蛋"""
+        """v105 M24 P3-4：查看物品详细信息：装备属性/材料/消耗品/宠物蛋
+        v134：『查看 <名称/序号>』别名（意见#37，玩家习惯用『查看』而非『物品详情』）"""
         group_id, qq_id = self._uid(event)
         msg = event.get_message_str().strip()
-        item_name = self._strip_cmd(event, "物品详情")
+        # v134 别名：『查看』前缀同样剥掉
+        if msg.startswith("查看"):
+            item_name = self._strip_cmd(event, "查看")
+        else:
+            item_name = self._strip_cmd(event, "物品详情")
         player = self._player(group_id, qq_id)
         item_name = item_name.strip()
         if not item_name:
             yield event.plain_result(
-                "格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』或『物品详情 1』\n"
+                "格式：物品详情 <名称/序号>，如『物品详情 雷霆之锤』、『查看 1』或『查看 雷霆之锤』\n"
                 + self._tip("item_detail")
             )
             return
@@ -3404,6 +3542,47 @@ class EconomyCmds(CommandBase):
         # v101.6：物品类型分发数据化 → item_detail_render（加新类型 = 注册表加一行）
         item_detail_render(d, lines, equipped)
         yield event.plain_result("\n".join(lines))
+
+    def _my_equipment_view(self, group_id, qq_id, player) -> str:
+        """v134.1 意见#43：『我的装备』/『装备 状态』——当前穿戴一览（部位/名称/品质/强化/属性）。
+
+        数据源：player.equipment（槽位 dict，值=装备对象，与 get_inventory 水合同构）。
+        属性渲染复用 _render_equip 同款行式（属性每项一行）；空槽显示 未穿戴。
+        """
+        eq = player.get("equipment") or {}
+        lines = ["⚔️ 【当前穿戴】", "━━━━━━━━━━━━"]
+        worn = 0
+        for slot in C.EQUIP_SLOTS:
+            item = eq.get(slot)
+            if not item:
+                lines.append(f"  {C.EQUIP_SLOTS[slot]}：未穿戴")
+                continue
+            worn += 1
+            q = C.QUALITY.get(item.get("quality", ""), {})
+            enh = item.get("enhance", 0)
+            enh_str = f" +{enh}" if enh > 0 else ""
+            lines.append(f"  {C.EQUIP_SLOTS[slot]}：{q.get('color', '')}【{item.get('name', '?')}{enh_str}】{q.get('name', '')}")
+            st = item.get("stats") or {}
+            _stat_names = _STAT_NAMES
+            for k, v in st.items():
+                if v:
+                    label = _stat_names.get(k, k)
+                    if k in C.PCT_STATS:
+                        lines.append(f"      · {label} + {int(v * 100)}%")
+                    else:
+                        lines.append(f"      · {label} + {v}")
+            for af in item.get("affixes") or []:
+                if isinstance(af, dict):
+                    k, v = af.get("stat"), af.get("value", 0)
+                    label = _stat_names.get(k, k)
+                    lines.append(f"      · {label} + {int(v * 100)}%" if k in C.PCT_STATS else f"      · {label} + {v}")
+                    continue
+                info = C.AFFIXES.get(af)
+                if info:
+                    lines.append(f"      · {info.get('name', af)}：{info.get('desc', '')}" if info.get("desc") else f"      · {info.get('name', af)}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append(f"已穿戴 {worn}/{len(C.EQUIP_SLOTS)} 件 ｜ 『装备 <序号>』换装 ｜ 『卸下 <部位>』脱下 ｜ 『物品详情 <名称>』看详情")
+        return "\n".join(lines)
 
     def _req_check(self, player: dict, d: dict):
         """阶段八：装备属性需求检查。返回 (通过, 提示文本, 缺失属性名列表)。
@@ -3498,19 +3677,27 @@ class EconomyCmds(CommandBase):
         eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:装备|我的装备)(?:\s*|$)")
     @require_player()
 
     async def equip(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
+        # v134.1 意见#43：『我的装备』直接命中（不走『装备 我的』绕路）
+        if event.get_message_str().strip().startswith("我的装备"):
+            yield event.plain_result(self._my_equipment_view(group_id, qq_id, self._player(group_id, qq_id)))
+            return
         item_name = self._strip_cmd(event, "装备")
         player = self._player(group_id, qq_id)
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("战斗中不能更换装备！先解决眼前的敌人吧～")
             return
         item_name = item_name.strip()
+        # v134.1 意见#43：『我的装备』/『装备 状态』= 查看当前穿戴一览（与『装备 <序号>』穿戴语义不冲突）
+        if item_name in ("状态", "我的", "查看", "一览", "我的装备"):
+            yield event.plain_result(self._my_equipment_view(group_id, qq_id, player))
+            return
         if not item_name:
-            yield event.plain_result("要穿哪件？『装备 <名称>』或『装备 <背包序号>』（『背包』看序号）～")
+            yield event.plain_result("要穿哪件？『装备 <名称>』或『装备 <背包序号>』（『背包』看序号）；『我的装备』查看当前穿戴～")
             return
         items = db.get_inventory(group_id, qq_id)
         # 找装备
@@ -4143,7 +4330,44 @@ class EconomyCmds(CommandBase):
             mode = "equip"
         else:
             mode = None
+        # v134.1 玩家意见#40：批量出售指定数量『出售 <名>*<数量>』/『出售 <名> <数量>』
+        # （对齐『购买/使用』批量语义；超持有/0/负显式报错不静默钳制）
+        qty = 1
+        _qty_raw = None
+        if not mode:
+
+            def _is_qty_token(tok: str) -> bool:
+                return tok.isdecimal() or (tok.startswith("-") and len(tok) > 1 and tok[1:].isdecimal())
+
+            _parts = item_name.split()
+            if len(_parts) >= 2 and _is_qty_token(_parts[-1]):
+                _qty_raw = _parts[-1]
+                item_name = " ".join(_parts[:-1])
+            elif "*" in item_name:
+                _head, _, _tail = item_name.rpartition("*")
+                _tail = _tail.strip()
+                if _is_qty_token(_tail):
+                    _qty_raw = _tail
+                    item_name = _head.strip()
+                else:
+                    yield event.plain_result(
+                        "数量格式不对！例：『出售 狼皮*5』或『出售 狼皮 5』；『背包』查看物品～"
+                    )
+                    return
+        if _qty_raw is not None:
+            try:
+                qty = int(_qty_raw)
+            except ValueError:
+                yield event.plain_result("数量不合法！请输入正整数，如『出售 狼皮 5』～")
+                return
+            if qty < 1:
+                yield event.plain_result("数量至少 1 个！大批量出售用『出售 <物品> 数量』或『出售 <物品>*数量』～")
+                return
         if mode:
+            # v134.1 意见#40：『出售 全部 N』/『出售 材料 N』等批量模式不支持数量参数（批量=全清语义）
+            if qty > 1:
+                yield event.plain_result("『出售 全部/材料/装备』是批量模式，不支持数量；指定数量请用『出售 <物品> <数量>』～")
+                return
             blocked = 0
             total = 0
             sold = []
@@ -4201,6 +4425,8 @@ class EconomyCmds(CommandBase):
             yield event.plain_result("\n".join(lines))
             return
         target = None
+        # v134.1 意见#40：空格数量格式『出售 <名称> <数量>』——数量 token 已在 qty 解析阶段从
+        # item_name 剥离（『出售 狼皮 5』→ item_name='狼皮'），此处 item_name 已是纯名称/序号
         if item_name.isdigit():
             # 序号出售：『出售 1』→ 背包第 1 件物品（与『背包』序号一致）
             idx = int(item_name)
@@ -4219,11 +4445,18 @@ class EconomyCmds(CommandBase):
                 name_part, idx_part = m.group("name"), int(m.group("idx"))
             # v104 M09 P2 修复：精确同名多件时支持『出售 <名称> <序号>』（原精确分支忽略 idx，
             #   两件同名迷雾兜帽『出售 迷雾兜帽 2』会卖成第 1 件；与装备命令 idx 处理对齐）
+            # v134.1 意见#40：空格数量格式『出售 <名称> <数量>』优先于序号格式——数量剥离发生在
+            #   精确名查找之前（见上方 qty 解析），到达此处时 item_name 已只剩纯名称，
+            #   idx_part 仅当『出售 <名称> <序号>』（未带数量）时才有值；若同时指定了数量，
+            #   后面两个空格 token 是数量，不会误进此分支（数量 token 已被 qty 解析吞掉）
             exact = [it for it in items if it["data"]["name"] == name_part]
             if exact:
                 if len(exact) > 1 and idx_part is not None:
                     if 1 <= idx_part <= len(exact):
+                        # v134.1 意见#40：同名多件 + 数量 → 数量优先（『出售 迷雾兜帽 2 5』=卖第 2 件×5）
                         target = exact[idx_part - 1]
+                        if qty > 1:
+                            idx_part = None
                     else:
                         yield event.plain_result(f"『{name_part}』只有 {len(exact)} 件，没有第 {idx_part} 件！『背包』查看序号～")
                         return
@@ -4254,6 +4487,10 @@ class EconomyCmds(CommandBase):
         if self._is_quest_item(d):
             yield event.plain_result(f"『{d['name']}』是任务道具，主线/隐藏任务要用，不能出售！")
             return
+        # v134.1 意见#40：指定数量超持有 → 显式报错（对齐『使用』批量语义，不静默钳制）
+        if qty > 1 and qty > target.get("count", 1):
+            yield event.plain_result(f"你只有 {target.get('count', 1)} 个『{d['name']}』，卖不了这么多～")
+            return
         rate = self._pawn_rate(player, d)
         if rate is None:
             if d.get("slot"):
@@ -4271,6 +4508,19 @@ class EconomyCmds(CommandBase):
                     f"『{d['name']}』是材料，要到{_hint_map.get(_need, '对应店铺')}才能回收成金币～\n"
                     f"💡 {_MAT_FACILITY_HINT}。"
                 )
+            return
+        # v134.1 意见#40：指定数量出售——复用 _sell_one 全部计价逻辑（品质折价/锻造回本/鱼重/坐骑加成），
+        #   仅把出售份数限定为 qty（sell_item_atomic 按 count 原子扣包，剩余自动保留）；
+        #   必须先于单件 _sell_one 调用（否则先全卖再补扣，背包空后 sell_item_atomic 静默失败）
+        if qty > 1:
+            it2 = dict(target)
+            it2["count"] = qty
+            r2 = self._sell_one(group_id, qq_id, player, it2, rate)
+            if not r2:
+                yield event.plain_result(f"『{d['name']}』不能出售。")
+                return
+            name, cnt, gold = r2
+            yield event.plain_result(f"💰 你出售了 {name} ×{cnt}，获得 {gold} 金币！（回收价 {int(rate * 100)}%）")
             return
         r = self._sell_one(group_id, qq_id, player, target, rate)
         if not r:

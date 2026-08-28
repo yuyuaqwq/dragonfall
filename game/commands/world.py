@@ -703,6 +703,7 @@ class WorldCmds(CommandBase):
             lines.append("🧭 游历的旅人：")
             lines.extend(wild_lines)
         # v66 此地玩家（含摆摊标记；v132 加编号，鱼鱼新排版）
+        # v134 #33：无其他玩家时不显示本段（连标题行一并省略，不留空行）
         here_players = [p for p in db.get_group_players(group_id).values() if p.get("cur_map") == cur]
         if here_players:
             stall_sellers = {str(s["seller"]) for s in db.market_list(group_id, cur)}

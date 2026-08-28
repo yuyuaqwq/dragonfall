@@ -1167,6 +1167,24 @@ class CombatCmds(CommandBase):
             return "群体"
         return ""
 
+    def _skill_list_gains(self, info: dict, lv: int) -> list:
+        """v134 意见#38：技能列表当前等级数值维度——与 player.py _skill_upgrade_gains 同逻辑
+        （CombatCmds 与 PlayerCmds 是不同 Mixin 不能跨类调用，本地复制；列表只展示已学技能数值）"""
+        parts = []
+        kind = info.get("kind", "")
+        if info.get("power"):
+            label = "治疗" if kind == "治疗" else "伤害"
+            parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
+        if kind in ("增益", "嘲讽"):
+            parts.append(f"持续 {E.skill_buff_turns(lv)} 回合")
+        if info.get("cond"):
+            parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
+        if info.get("mech_val"):
+            parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
+        if info.get("lifesteal"):
+            parts.append(f"吸血 {int(E.skill_lifesteal_pct(info, lv) * 100)}%")
+        return parts
+
     def _skill_list_page(self, player: dict, page: int = 1) -> str:
         """技能列表翻页(每页 5 条带序号，未学显示 Lv.0)。
         v104 R3 P2-22：序号仅用于『技能详情/学习/升级 <序号>』定位列表项；
@@ -1216,7 +1234,16 @@ class CombatCmds(CommandBase):
             lines.append(f"{i}.{disp_name} [{lv_str}]")
             if tag_str:
                 lines.append(f"  · {tag_str}")
-            lines.append(f"  · {info['desc']}")
+            # v134 意见#38：已学技能显示当前等级具体数值（如『伤害 148% · 持续 4 回合』），
+            # 不再复读 desc 里重复的技能名；未学/被动（无成长维度）照旧显示 desc
+            if learned_now and slv > 0:
+                _gains = self._skill_list_gains(info, slv)
+                if _gains:
+                    lines.append(f"  · {' · '.join(_gains)}")
+                else:
+                    lines.append(f"  · {info['desc']}")
+            else:
+                lines.append(f"  · {info['desc']}")
             _cost = []
             _mp = info.get("mp", 0)
             # v126.5 资源消耗并入魔力求（鱼鱼问"信仰-3 是不是要消耗"→原格式 `信仰值 -3`
