@@ -133,7 +133,7 @@ EXTRA_SUBAREAS = {
             "lv": 9,
             "npcs": [],
             "monsters": [
-                ["m_goblin_scout", "哥布林斥候", "speedster", 9, ["ms_duan_dao"], ["哥布林耳朵", "哥布林耳坠"]]
+                ["m_goblin_scout", "哥布林斥候", "speedster", 9, ["ms_duan_dao"], ["哥布林耳朵", "哥布林耳坠", "山贼徽章"]]
             ],
             "elite": None,
             "boss": None,
@@ -726,7 +726,7 @@ EXTRA_SUBAREAS = {
             "lv": 34,
             "npcs": [],
             "monsters": [
-                ["m_river_dragon", "河龙", "tank", 34, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞"]]
+                ["m_river_dragon", "河龙", "tank", 34, ["ms_shui_xi", "ms_shuai_wei"], ["河龙鳞", "鼠狮核心"]]
             ],
             "elite": None,
             "boss": None,

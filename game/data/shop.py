@@ -451,13 +451,21 @@ SHOP_EQUIP = {
     ],
     # v135 套装锻造专属：银铃套 7 件从商店下架（原 ironharbor 铁港城锻造坊直售），
     # 改为锻造获取（rec_yin_ling_* 配方齐备，Lv.18-24）——锻造是凑齐套装的必经之路
-    "ironharbor": [],
-    "jade_port": [          # 翡翠港·翡翠集市：翡翠套 5 件
+    "ironharbor": [
+        # v136 Phase6 审计 P1-4：渡口区域套过渡档（Lv20）商店直售
+        "eq_du_kou_xiong_jia",
+        "eq_du_kou_hu_tui",
+        "eq_du_kou_zhi_xue",
+    ],
+    "jade_port": [          # 翡翠港·翡翠集市：翡翠套 5 件 + 巡林区域套过渡档（v136 审计 P1-4）
         "eq_fei_cui_pi_jia",
         "eq_fei_cui_hu_tui",
         "eq_fei_cui_tou_kui",
         "eq_fei_cui_zhan_xue",
         "eq_fei_cui_xiang_lian",
+        "eq_xun_lin_xiong_jia",
+        "eq_xun_lin_hu_tui",
+        "eq_xun_lin_zhi_xue",
     ],
     "ironshield_town": [    # 铁盾镇军械铺：迷雾套 5 件
         "eq_mi_wu_hu_tui",

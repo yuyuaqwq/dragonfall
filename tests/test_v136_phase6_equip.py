@@ -3,7 +3,7 @@
 
 运行: python tests/test_v136_phase6_equip.py（直跑模式，顶部 import conftest）
 覆盖:
-1. 数量基线（名册 384 / 配方 348 / 素材 552）
+1. 数量基线（名册 388 / 配方 352 / 素材 552）
 2. 职业套装 90 件可生成 + set 挂载 + req 正确
 3. 职业折扣（本职业 100% / 非本职业 60%）
 4. 散装不挂套装（自由线）
@@ -33,8 +33,8 @@ def check(name, cond, detail=""):
 
 def test_counts():
     print("【1. 数量基线】")
-    check("名册 384 件", len(C.EQUIP_ROSTER) == 384, str(len(C.EQUIP_ROSTER)))
-    check("配方 348 条", len(C.CRAFT_RECIPES) == 348, str(len(C.CRAFT_RECIPES)))
+    check("名册 388 件", len(C.EQUIP_ROSTER) == 388, str(len(C.EQUIP_ROSTER)))
+    check("配方 352 条", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))
     check("素材 552 个", len(C.MATERIALS) == 552, str(len(C.MATERIALS)))
     # 新素材存在
     for mid in ["mat_ye_zhu_pi", "mat_shan_zei_hui_zhang", "mat_shu_shi_he_xin",
@@ -45,6 +45,19 @@ def test_counts():
               "猎手", "风行", "暗夜", "轻影", "夜行", "阴影", "行者", "石拳", "壁槌",
               "护林", "渡口", "巡林", "霜猎", "龙裔"]:
         check(f"系列 {s} 映射套装", s in C.SERIES_SETS, s)
+
+
+    # 猎首远征队恢复（v136 审计 P0：Phase6 游侠装备 id 撞车覆盖旧条目，已换 id 恢复）
+    lh_count = sum(1 for r in C.EQUIP_ROSTER.values() if r.get("series") == "猎首远征队")
+    check("猎首远征队 4 件", lh_count == 4, str(lh_count))
+    lh = C.EQUIP_ROSTER.get("eq_lie_shou_pi_mao")
+    check("猎首皮帽恢复", lh is not None and lh.get("quality") == "purple" and lh.get("lv") == 50,
+          str(lh))
+    # 游侠武器链（P2 对齐）：猎手短弓→风行长弓→暗夜长弓
+    fy = C.EQUIP_ROSTER.get("eq_feng_xing_chang_gong")
+    check("风行长弓 Lv30", fy is not None and fy.get("lv") == 30 and fy.get("series") == "风行", str(fy))
+    ay = C.EQUIP_ROSTER.get("eq_an_ye_chang_gong")
+    check("暗夜长弓 Lv50", ay is not None and ay.get("lv") == 50 and ay.get("series") == "暗夜", str(ay))
 
 
 def test_class_sets():
@@ -152,20 +165,28 @@ def test_craft():
 
 
 def test_set_effects():
-    """4 件套特效注册（v136 审计补：_build_class_sets 必须注册 bonus_4，
-    否则战斗侧 set_bonus_4 读不到 effect，玩家白穿 4 件套）"""
+    """套装特效注册（v136 审计补：_build_class_sets 必须注册 bonus_4/bonus_3，
+    否则战斗侧 set_bonus_4 读不到 effect，玩家白穿套装）"""
     print("【7. 套装特效注册】")
-    # 铁皮套 4 件 → pierce（破甲）；护林套 4 件 → regen（回血）
+    # 铁皮套 4 件 → pierce（破甲）；护林套 3 件 → regen（回血，区域套 3 槽位）
     b4 = C.SETS.get("set_tie_pi_tao", {}).get("bonus_4", {})
     check("铁皮套 bonus_4 注册", b4.get("effect") == "pierce", str(b4))
-    b4b = C.SETS.get("set_hu_lin_tao", {}).get("bonus_4", {})
-    check("护林套 bonus_4 注册", b4b.get("effect") == "regen", str(b4b))
+    b4b = C.SETS.get("set_hu_lin_tao", {}).get("bonus_3", {})
+    check("护林套 bonus_3 注册", b4b.get("effect") == "regen", str(b4b))
     eqs = [generate_roster_equip(rid) for rid, r in C.EQUIP_ROSTER.items()
            if r.get("series") == "铁皮"][:4]
     if len(eqs) == 4:
         equipment = {"weapon": eqs[0], "helm": eqs[1], "armor": eqs[2], "legs": eqs[3]}
         effs = engine_set_bonus_4(equipment)
         check("铁皮套4件特效", "pierce" in effs, str(effs))
+    # 区域套 3 件特效（v136 审计 P1-1：3 槽位凑不齐 4 件，bonus_3 让 3 件生效）
+    r3 = [generate_roster_equip(rid) for rid, r in C.EQUIP_ROSTER.items()
+          if r.get("series") == "护林" and r.get("source") == "商店"][:3]
+    if len(r3) == 3:
+        equipment3 = {"armor": r3[0], "legs": r3[1], "boots": r3[2]}
+        effs3 = engine_set_bonus_4(equipment3)
+        check("护林套3件特效", "regen" in effs3, str(effs3))
+        check("护林套3件属性", "hp" in set_bonus_2(equipment3), str(set_bonus_2(equipment3)))
 
 
 if __name__ == "__main__":

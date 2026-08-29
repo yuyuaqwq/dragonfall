@@ -644,6 +644,14 @@ def set_bonus_2(equipment: dict, class_name: str | None = None) -> dict:
             for k, v in _b2.items():
                 if isinstance(v, (int, float)) and not isinstance(v, bool):
                     bonus[k] = bonus.get(k, 0) + v * _disc
+        if cnt >= 3:
+            # v136 审计：区域套 3 槽位（armor/legs/boots）只能凑 3 件，bonus_3 让 3 件套生效
+            for k, v in info.get("bonus_3_stats", {}).items():
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    bonus[k] = bonus.get(k, 0) + v * _disc
+            for k, v in info.get("bonus_3", {}).items():
+                if k not in ("effect", "desc", "chance", "stats") and isinstance(v, (int, float)) and not isinstance(v, bool):
+                    bonus[k] = bonus.get(k, 0) + v * _disc
         if cnt >= 4:
             for k, v in info.get("bonus_4_stats", {}).items():
                 if isinstance(v, (int, float)) and not isinstance(v, bool):
@@ -665,12 +673,14 @@ def has_set(equipment: dict, set_name: str) -> bool:
 
 
 def set_bonus_4(equipment: dict) -> list:
-    """返回已激活套装(>=4 件)的 4 件特效效果名列表"""
+    """返回已激活套装的 4 件特效效果名列表（v136 审计：区域套 3 槽位用 bonus_3 特效）"""
     effs = []
     for sname, cnt in active_sets(equipment).items():
         info = _set_info(sname)
         if info and cnt >= 4 and info.get("bonus_4", {}).get("effect"):
             effs.append(info["bonus_4"]["effect"])
+        elif info and cnt >= 3 and info.get("bonus_3", {}).get("effect"):
+            effs.append(info["bonus_3"]["effect"])
     return effs
 
 

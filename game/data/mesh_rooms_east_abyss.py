@@ -70,7 +70,7 @@ EXTRA_SUBAREAS = {
             "npcs": [],
             "monsters": [
                 ["m_ancient_golem", "远古魔像", "tank", 67, ["ms_zhong_ji", "ms_fu_wen_chong_ji"], ["远古符文石"]],
-                ["m_lava_elemental", "熔岩元素", "tank", 69, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["熔岩核心"]],
+                ["m_lava_elemental", "熔岩元素", "tank", 69, ["ms_rong_yan_dan", "ms_zhuo_shao"], ["熔岩核心", "龙焰精华"]],
             ],
             "elite": None,
             "boss": None,

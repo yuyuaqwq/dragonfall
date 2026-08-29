@@ -137,9 +137,9 @@ _SERIES_SET_BONUS = {
     '布衣': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
     '祝福': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
     '圣堂': {'class': 'cls_mu_shi', 'icon': '⛪', 'quality': 'purple', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
-    '猎手': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
-    '风行': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
-    '暗夜': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'purple', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
+    '猎手': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.08}, 'chance': 1.0, 'desc': '闪避率＋8%'}},
+    '风行': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.08}, 'chance': 1.0, 'desc': '闪避率＋8%'}},
+    '暗夜': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'purple', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.08}, 'chance': 1.0, 'desc': '闪避率＋8%'}},
     '轻影': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'blue', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
     '夜行': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'blue', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
     '阴影': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'purple', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
@@ -147,11 +147,11 @@ _SERIES_SET_BONUS = {
     '石拳': {'class': 'cls_wu_seng', 'icon': '🥋', 'quality': 'blue', 'bonus_2': {'atk': 0.08, 'def': 0.05}, 'bonus_4_stats': {'hp': 0.1}, 'bonus_4': {'effect': 'lifesteal_set', 'chance': 0.3, 'desc': '攻击 30% 概率吸血 15% 伤害'}},
     '壁槌': {'class': 'cls_wu_seng', 'icon': '🥋', 'quality': 'purple', 'bonus_2': {'atk': 0.08, 'def': 0.05}, 'bonus_4_stats': {'hp': 0.1}, 'bonus_4': {'effect': 'lifesteal_set', 'chance': 0.3, 'desc': '攻击 30% 概率吸血 15% 伤害'}},
     # ===== v136 Phase6 区域套（5 资料片通用，无 class 字段=不打职业折扣）=====
-    '护林': {'icon': '🌳', 'quality': 'white', 'bonus_2': {'def': 0.05}, 'bonus_4_stats': {'hp': 0.08}, 'bonus_4': {'effect': 'regen', 'desc': '每回合开始回复 3% 生命'}},
-    '渡口': {'icon': '⛵', 'quality': 'blue', 'bonus_2': {'spd': 0.05}, 'bonus_4_stats': {'mdef': 0.06}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.05}, 'chance': 1.0, 'desc': '闪避率＋5%'}},
-    '巡林': {'icon': '🌲', 'quality': 'blue', 'bonus_2': {'dodge': 0.05}, 'bonus_4_stats': {'spd': 0.05}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.06}, 'chance': 1.0, 'desc': '闪避率＋6%'}},
-    '霜猎': {'icon': '🐺', 'quality': 'purple', 'bonus_2': {'element_ice': 0.05}, 'bonus_4_stats': {'atk': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 20% 伤害'}},
-    '龙裔': {'icon': '🐉', 'quality': 'purple', 'bonus_2': {'mdef': 0.05}, 'bonus_4_stats': {'atk': 0.06}, 'bonus_4': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
+    '护林': {'icon': '🌳', 'quality': 'white', 'bonus_2': {'def': 0.05}, 'bonus_3_stats': {'hp': 0.08}, 'bonus_3': {'effect': 'regen', 'desc': '每回合开始回复 3% 生命'}},
+    '渡口': {'icon': '⛵', 'quality': 'blue', 'bonus_2': {'spd': 0.05}, 'bonus_3_stats': {'mdef': 0.06}, 'bonus_3': {'effect': 'dodge_set', 'stats': {'dodge': 0.05}, 'chance': 1.0, 'desc': '闪避率＋5%'}},
+    '巡林': {'icon': '🌲', 'quality': 'blue', 'bonus_2': {'dodge': 0.05}, 'bonus_3_stats': {'spd': 0.05}, 'bonus_3': {'effect': 'dodge_set', 'stats': {'dodge': 0.06}, 'chance': 1.0, 'desc': '闪避率＋6%'}},
+    '霜猎': {'icon': '🐺', 'quality': 'purple', 'bonus_2': {'crit': 0.05}, 'bonus_3_stats': {'atk': 0.05}, 'bonus_3': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 20% 伤害'}},
+    '龙裔': {'icon': '🐉', 'quality': 'purple', 'bonus_2': {'mdef': 0.05}, 'bonus_3_stats': {'atk': 0.06}, 'bonus_3': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
 }
 
 
@@ -173,6 +173,10 @@ def _build_class_sets():
             entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
         if b.get("bonus_4"):
             entry["bonus_4"] = dict(b["bonus_4"])
+        if b.get("bonus_3"):
+            entry["bonus_3"] = dict(b["bonus_3"])
+        if b.get("bonus_3_stats"):
+            entry["bonus_3_stats"] = dict(b["bonus_3_stats"])
         if b.get("bonus_5"):
             entry["bonus_5"] = dict(b["bonus_5"])
         if b.get("bonus_5_cond"):
