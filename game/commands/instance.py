@@ -240,6 +240,8 @@ class InstanceCmds(CommandBase):
         if old_row:
             old_st = old_row["state"]
             # v137 副本地图化：rooms 存档恢复——玩家 cur_map + cur_subarea 同步回入口房间
+            cur = self._instance_current_members(group_id, old_st)
+            ok_members = [m for m in old_st["members"] if str(m) in cur]
             if old_st.get("rooms"):
                 _mid = (old_st.get("inst_id") or "").removeprefix("inst_")
                 _entry_sa = C.map_entry_subarea(_mid)
@@ -249,12 +251,6 @@ class InstanceCmds(CommandBase):
             if old_st.get("inst_id") and (old_st["inst_id"] == arg or
                                           C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
-                cur = self._instance_current_members(group_id, old_st)
-                ok_members = [m for m in old_st["members"] if str(m) in cur]
-                # R3 P2-5（上轮 N6 遗留）：0 血成员不得随队恢复进本——
-                # 阵亡者应等治疗/复活后再归队，避免 0 血开本直接踩陷阱/遇怪即倒
-                ok_members = [m for m in ok_members
-                              if (self._player(group_id, m) or {}).get("hp", 0) > 0]
                 # 人数/等级重校验（与 _instance_start 同规则）
                 min_players = inst.get("min_players", 2)
                 max_players = inst.get("max_players", 3)
@@ -598,6 +594,62 @@ class InstanceCmds(CommandBase):
         )
 
     # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
+    # v137 副本地图化：队长在副本地图模式下达『移动』= 副本内移动（world.move 副本分支），
+    # 由 _instance_dungeon_move 负责：全队 cur_subarea 同步 + 遇怪判定 + Boss 房 Boss 战。
+    # 注意：world.move 顶部有 _in_battle 全局拦截（battle_state 按 qq 全局 + 内存锁），
+    # 副本地图模式（mode=map，st.boss=None）下战斗锁仍持有 → 先解锁再路由。
+    # _instance_dungeon_move 定义在 world.py（async，副本分支用 async for 消费）。
+    async def _instance_move_route(self, event, group_id, qq_id, player, dest):
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if not inst_row or inst_row["state"].get("mode") != "map" or not inst_row["state"].get("rooms"):
+            return
+        st = inst_row["state"]
+        if str(qq_id) != str(st.get("leader")):
+            yield event.plain_result("⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～")
+            return
+        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        cur_sa = player.get("cur_subarea") or ""
+        links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
+        # 目标房间解析（序号优先，其次名字/id）
+        target_sa = None
+        if dest.isdigit():
+            idx = int(dest)
+            if 1 <= idx <= len(links):
+                tid = links[idx - 1]
+                target_sa = next((s for s in (cur_map.get("subareas") or []) if s["id"] == tid), None)
+        else:
+            for s in (cur_map.get("subareas") or []):
+                if dest in (s["name"], s["id"]):
+                    target_sa = s
+                    break
+        if target_sa is None:
+            names = "、".join(
+                f"{i + 1}. {next((s['name'] for s in (cur_map.get('subareas') or []) if s['id'] == lid), lid)}"
+                for i, lid in enumerate(links)
+            ) or "（无）"
+            yield event.plain_result(
+                f"🧭 从当前房间可前往：{names}。输入『移动 <房间名/序号>』～"
+                f"（『副本地图』查看全景）")
+            return
+        if target_sa["id"] == cur_sa:
+            yield event.plain_result(f"你已经在这里了({cur_map.get('name', '')}·{target_sa['name']})～")
+            return
+        if target_sa["id"] not in links:
+            yield event.plain_result(
+                f"🧭 【{target_sa['name']}】与当前房间不相连！副本内只能移动到相邻房间（『副本地图』查看可前往）～")
+            return
+        # 副本内移动：先解锁战斗锁（副本地图模式持有锁防双线战斗），world.move 前置
+        # _in_battle 拦截依赖锁状态——解锁后 move 正常进入副本分支 _instance_dungeon_move。
+        for m in st.get("members") or []:
+            self._unlock_battle(group_id, m)
+        # world.move 到达副本分支后再次上锁（遇怪/到达都会 _lock_battle），
+        # 此处直接调 _instance_dungeon_move 等价推进（含遇怪/Boss 房链路与重新上锁）。
+        # 注意：_instance_dungeon_move 的 dest 参数是房间名字符串（在连通表内做 `in (name,id)`
+        # 匹配），这里传目标房间名（world.move 原分支传玩家输入 dest，语义相同）。
+        async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, cur_map, target_sa["name"]):
+            yield _r
+        return
+
     async def _instance_explore(self, event, group_id, qq_id, inst_row):
         """副本内探索：POI 交互 → 遇怪 → 无事（v137 统一路径）。
 

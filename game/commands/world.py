@@ -1272,6 +1272,19 @@ class WorldCmds(CommandBase):
         if self._talk_active(group_id, qq_id):
             yield event.plain_result("你还在和 NPC 交谈中！先回复 0 结束对话再动身吧。")
             return
+        # v137 副本地图化：副本内移动（队长带队，房间连通）——必须先于 _in_battle 全局拦截：
+        # 副本地图模式（mode=map，st.boss=None）下 battle 锁仍持有，_in_battle 会拦截所有移动。
+        # _instance_move_route 内部校验副本状态并自行处理锁（解锁→推进→按需重新上锁）。
+        _mv_dest = dest
+        if _mv_dest.startswith("移动"):
+            _mv_dest = _mv_dest[2:].strip()
+        _routed = False
+        async for _r in self._instance_move_route(event, group_id, qq_id, player, _mv_dest.strip()):
+            yield _r
+            _routed = True
+        if _routed:
+            return
+        dest = _mv_dest
         # v95.17 #146：战斗中禁止移动（与传送/回家/拜访一致，防战斗挂起跨图/被撞怪覆盖）
         if self._in_battle(group_id, qq_id):
             yield event.plain_result("⚔️ 你正在战斗中！输入『攻击』/『技能 <名称>』继续战斗，『防御』『逃跑』『用药』可选——先解决眼前的敌人再说移动。")
@@ -1453,6 +1466,8 @@ class WorldCmds(CommandBase):
         # v137 副本地图化：副本内移动（已开本 + 在副本图内）——队长带队、房间连通、
         # discovery_agro 遇怪、Boss 房 Boss 战。目标房间名/序号解析与野外同款，
         # 但只在本图连通表内移动（no_exit 无出口，不连野外）。
+        # 注意：_instance_move_route 已在 move 顶部先行路由（副本地图模式持有战斗锁，
+        # _in_battle 全局拦截在前）；此处副本分支保留以兼容直接调用/后续路径。
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row and inst_row["state"].get("inst_id") == target["id"] \
                 and (inst_row["state"].get("mode") == "map" or inst_row["state"].get("rooms")):
@@ -1629,7 +1644,7 @@ class WorldCmds(CommandBase):
             out += "\n🚶 赶路模式中：回复序号直接赶路，回复 0 结束"
         return out
 
-    def _instance_dungeon_move(self, event, group_id, qq_id, player, inst_row, target, dest):
+    async def _instance_dungeon_move(self, event, group_id, qq_id, player, inst_row, target, dest):
         """v137 副本内移动（world.move 副本分支）：队长带队 + 房间连通校验 + discovery_agro 遇怪 + Boss 房 Boss 战。
 
         与野外移动共用同一『前往/移动』入口（鱼鱼 v137：副本与野外共用一套代码机制），
@@ -1661,7 +1676,7 @@ class WorldCmds(CommandBase):
         links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
         # 副本内不隐藏房间（v137 房间全可见），直接取连通表
         target_sa = None
-        if dest.isdigit():
+        if isinstance(dest, str) and dest.isdigit():
             idx = int(dest)
             if 1 <= idx <= len(links):
                 tid = links[idx - 1]
@@ -1700,7 +1715,7 @@ class WorldCmds(CommandBase):
         _agro = float(_dun.get("discovery_agro", 0.85) or 0.85)
         _left = rstate.get("monsters_left")
         _hit = False
-        if _left is not None and len(_left) > 0 and random.random() < _agro:
+        if isinstance(_left, list) and len(_left) > 0 and random.random() < _agro:
             _hit = True
         if _hit:
             # 遇怪 → 弹出 1 只 → 构建敌方阵列 → 进战斗（现状 _enter_stage_combat 链路）

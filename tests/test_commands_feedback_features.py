@@ -97,6 +97,14 @@ async def main():
     await cmd(m, "instance_cmd", "g1", "f4", "副本 旧王陵")
     # v87.2 副本地图化：探索触发战斗后才有仇恨表
     await cmd(m, "explore", "g1", "f4", "探索")
+    # v137 副本地图化：开本为地图模式，探索可能触发 POI 或遇怪——遇怪后才有仇恨表。
+    # 探索遇怪概率 discovery_agro=0.85，但 POI 优先（房间1挂载 墓志铭石碑/翻板机关）；
+    # 反复探索直到进入战斗（mode=battle），保证仇恨表存在。
+    for _i in range(30):
+        await cmd(m, "explore", "g1", "f4", "探索")
+        st = db.get_battle("g1", "f4")["state"]
+        if st.get("mode") == "battle":
+            break
     st = db.get_battle("g1", "f4")["state"]
     check("开本有仇恨表", "threat" in st, str(st.keys()))
     check("仇恨初始 0", all(v == 0 for v in st["threat"].values()), str(st["threat"]))

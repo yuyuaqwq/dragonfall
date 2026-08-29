@@ -148,14 +148,24 @@ async def main():
     await cmd(m, "instance_cmd", "g1", "i1", "副本 旧王陵")
     st = db.get_battle("g1", "i1")["state"]
     # v87.2 副本地图化：开本为地图模式 → 探索触发第 1 层战斗
-    await cmd(m, "explore", "g1", "i1", "探索")
-    st = db.get_battle("g1", "i1")["state"]
+    # v137：副本=封闭地图，房间怪物池（rooms[房间].monsters_left）打完即空；探索
+    # 可能先命中 POI（discovery_agro=0.85，POI 优先），反复探索直到进入战斗。
+    for _i in range(30):
+        await cmd(m, "explore", "g1", "i1", "探索")
+        st = db.get_battle("g1", "i1")["state"]
+        if st.get("mode") == "battle":
+            break
     # v86.2 分层：开本第 1 层小怪，第 3 层才是 Boss → 深入两次到 Boss 层验证 mech
+    # v137：副本房间化后『深入』= 兼容移动（仅 Boss 房相邻时移动；否则引导『移动 <房间>』）。
+    # 房间1 骷髅兵/僵尸 → 房间2 幽灵/幽灵骑士 → 房间3 王座厅 Boss。逐房间清怪 + 队长
+    # 『移动』推进，直到触发 Boss 战验证 mech 透传。
+    st = db.get_battle("g1", "i1")["state"]
     st["boss"]["hp"] = 1
     st["boss"]["atk"] = 5
     st["boss"]["matk"] = 5
     st["turn_time"] = int(time.time())
     db.save_battle("g1", "i1", st)
+    # v137：房间1 有两只怪（骷髅兵+僵尸），清完进入肃清（map）→ 队长『移动』去房间2。
     for _ in range(10):
         battle = db.get_battle("g1", "i1")
         if not battle:
@@ -174,14 +184,21 @@ async def main():
         out = await cmd(m, "attack", "g1", cur, "攻击")
         if "深入" in out or "通关" in out:
             break
+    # v137 深入 = 兼容移动：房间1 相邻 = 房间2（殉葬坑），『深入』直接带队移动过去
     await cmd(m, "instance_advance", "g1", "i1", "深入")
-    # v87.2 地图模式：探索触发第 2 层战斗
-    await cmd(m, "explore", "g1", "i1", "探索")
+    # v137 房间2：幽灵+幽灵骑士（精英）——探索触发战斗（POI 优先，反复探索）
+    for _i in range(30):
+        await cmd(m, "explore", "g1", "i1", "探索")
+        stt = db.get_battle("g1", "i1")["state"]
+        if stt.get("mode") == "battle":
+            break
     for _ in range(10):
         battle = db.get_battle("g1", "i1")
         if not battle:
             break
         stt = battle["state"]
+        if stt.get("boss") is None:
+            break  # 肃清后 map 模式 boss=None（防御）
         stt["boss"]["hp"] = 1
         stt["boss"]["atk"] = 5
         stt["boss"]["matk"] = 5
@@ -195,9 +212,47 @@ async def main():
         out = await cmd(m, "attack", "g1", cur, "攻击")
         if "深入" in out or "通关" in out:
             break
-    await cmd(m, "instance_advance", "g1", "i1", "深入")
-    # v87.2 地图模式：Boss 房探索触发 Boss 战
-    await cmd(m, "explore", "g1", "i1", "探索")
+    # v137：房间2 相邻 = 房间3（王座厅/Boss 房）——『深入』带队移动到 Boss 房触发 Boss 战
+    # 注意：『深入』仅 Boss 房在连通表相邻时移动；此时 i1 仍在 room1（『深入』在 rooms
+    # 分支仅处理 Boss 房相邻；room1 相邻 = room2，room2 相邻 = room3，需逐房间『移动』）。
+    # 用『移动 殉葬坑』推进到 room2 → 『移动 王座厅』到 Boss 房。
+    await cmd(m, "move", "g1", "i1", "移动 殉葬坑")
+    # room2 探索遇怪清空（幽灵+幽灵骑士）
+    for _i in range(30):
+        await cmd(m, "explore", "g1", "i1", "探索")
+        stt = db.get_battle("g1", "i1")["state"]
+        if stt.get("mode") == "battle":
+            break
+    for _ in range(10):
+        battle = db.get_battle("g1", "i1")
+        if not battle:
+            break
+        stt = battle["state"]
+        if stt.get("boss") is None:
+            break  # 肃清后 map 模式 boss=None（防御）
+        stt["boss"]["hp"] = 1
+        stt["boss"]["atk"] = 5
+        stt["boss"]["matk"] = 5
+        for _eu in (stt.get("enemies") or []):  # v2：兼容键同步到阵列单位（boss/enemies 深拷贝后脱节）
+            _eu["hp"] = 1
+            _eu["atk"] = 5
+            _eu["matk"] = 5
+        stt["turn_time"] = int(time.time())
+        db.save_battle("g1", "i1", stt)
+        cur = stt["members"][stt["turn"]]
+        out = await cmd(m, "attack", "g1", cur, "攻击")
+        if "深入" in out or "通关" in out:
+            break
+    # 移动到 Boss 房（room3 王座厅）→ 触发 Boss 战（boss_alive 且 boss_room 匹配）
+    await cmd(m, "move", "g1", "i1", "移动 王座厅")
+    st = db.get_battle("g1", "i1")["state"]
+    # Boss 房移动即触发 Boss 战（mode=battle），无需探索
+    if st.get("mode") != "battle":
+        for _i in range(30):
+            await cmd(m, "explore", "g1", "i1", "探索")
+            stt = db.get_battle("g1", "i1")["state"]
+            if stt.get("mode") == "battle":
+                break
     st = db.get_battle("g1", "i1")["state"]
     check("古王·奥德里克 mech=enrage,summon", st["boss"].get("mech") == "enrage,summon", str(st["boss"].get("mech")))
     for q in ("i1", "i2"):
