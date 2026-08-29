@@ -2047,9 +2047,39 @@ class CombatCmds(CommandBase):
         # v97.5 行为彩蛋规则：战斗胜利后（#262：触发已提前到进度条生成前，这里只保留公告行位置）
         if _rule_txt:
             lines.append(_rule_txt)
+        # v138.3 结算卡·下一步（借鉴《云海猎团》M8.4 峰终定律——终值=结算接养成指引）：
+        # 把爽感直接接到养成循环上，玩家打完知道"接下来干嘛"
+        _next = self._next_step_hint(group_id, qq_id, player, monster)
+        if _next:
+            lines.append(_next)
         lines.append("━━━━━━━━━━━━")
         lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         yield event.plain_result("\n".join(lines))
+
+    def _next_step_hint(self, group_id, qq_id, player, monster) -> str:
+        """v138.3 结算卡·下一步指引（峰终定律）：战斗胜利后给一条养成方向的短指引。
+
+        优先级：可升级 → 装备可强化 → 日常未完成 → 探索继续。全部不满足则提示回城休整。
+        数据驱动：读玩家等级/经验/金币，不写死数值；文案贴合奥兰迪亚西幻世界观。
+        """
+        try:
+            if not player:
+                return ""
+            lv = int(player.get("level", 1) or 1)
+            exp = int(player.get("exp", 0) or 0)
+            need = C.exp_to_next(lv) if hasattr(C, "exp_to_next") else 0
+            if need and exp >= need:
+                return f"✨ 经验已满——去『加点』突破吧，实力还能再进一步！"
+            gold = int(player.get("gold", 0) or 0)
+            if gold >= 500:
+                return f"🛠️ 攒了点金币——回城去『铁匠铺』强化装备，讨伐更顺手！"
+            # 探索引导：当前地图还有未探索区域
+            cur_map = player.get("cur_map") or ""
+            if cur_map:
+                return f"🗺️ 继续『探索』{cur_map}，还有未知的角落等着你——"
+            return f"⚔️ 继续讨伐，下一个猎物已在路上——"
+        except Exception:
+            return ""
 
     def _nearest_town(self, cur_map: str) -> str:
         """BFS 找离当前地图最近的城镇（战败回城用；与回城卷轴 economy._nearest_town 同逻辑，M22 P3）。"""

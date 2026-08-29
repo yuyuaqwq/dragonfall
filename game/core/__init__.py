@@ -38,6 +38,9 @@ from .constants import (  # noqa: F401
     DEFAULT_MAX_MP, PVP_TIMEOUT_SEC, GUILD_EXP_BASE, PROF_EXP_BASE, prof_exp_need,
     # vF3 体验与战斗数值调整常量
     STAMINA_RECOVER_INTERVAL, SKILL_PMULT_CAP,
+    # v138.2 异常体系五律（阈值递增/每场上限+饱和/跨阶段保留/真伤独立结算/饱和收敛）
+    DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP, DOT_MAX_TRIGGER,
+    DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
 )
 from .index import pinyin_id, build_index, resolve, display  # noqa: F401
 from .dialogue import (  # noqa: F401

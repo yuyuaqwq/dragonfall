@@ -598,11 +598,39 @@ def _b_phase(battle, logs, e, r):
     if ratio < target and pc < 3:
         npc = pc + 1
         e["phase_count"] = npc
+        # v138.1 阶段四件套：读取模板 + Boss 内联覆盖，应用数值/行为/退出/反制
+        # 数据源 game/data/boss_phases.py BOSS_PHASE_TEMPLATES（phases[] 条目带 phase_id 时引用；
+        # 旧 phases 只有 min/add_skills/script → 不引用模板，维持旧行为）
+        _phase_cfg = None
+        _merged = None
+        if phases and npc - 1 < len(phases):
+            _ph = phases[npc - 1]
+            _pid = _ph.get("phase_id")
+            if _pid and hasattr(battle, "_phase_apply"):
+                try:
+                    from ..data.boss_phases import merge_phase_config
+                    _merged = merge_phase_config(_pid, _ph)
+                    _phase_cfg = _merged
+                except Exception:
+                    _phase_cfg = None
+        if _phase_cfg and hasattr(battle, "_phase_apply"):
+            battle._phase_apply(e, _phase_cfg, npc, logs)
         # v1.2 Boss phase 转换清异常（契约 §11.2）：清空敌方持续减益与适应状态
-        had_debuffs = e.pop("debuffs", None) is not None
-        had_adapt = e.pop("adapt", None) is not None
+        # v138.2 律三（进度遗产）：改为保留一半层数（_preserve_debuffs），不再全清——
+        # 借鉴《云海猎团》「破坏槽不随阶段重置、异常积蓄保留 50%」：转阶段前攒的异常条不白费
+        # （若阶段模板 preserve_debuffs=False 才全清，默认 True 保留）
+        _preserve = True
+        if _merged is not None:
+            _preserve = bool(_merged.get("preserve_debuffs", True))
+        had_debuffs = bool(e.get("debuffs"))
+        had_adapt = bool(e.get("adapt"))
         if had_debuffs or had_adapt:
-            logs.append("🌀 Boss 转换阶段，净化了身上的异常状态！")
+            if _preserve and hasattr(battle, "_preserve_debuffs"):
+                battle._preserve_debuffs(logs)  # 保留 50% 层数 + 阈值 +15%
+            else:
+                e.pop("debuffs", None)
+                e.pop("adapt", None)
+                logs.append("🌀 Boss 转换阶段，净化了身上的异常状态！")
         if not isinstance(e.get("_phase_warned"), list):
             e["_phase_warned"] = []
         e["_phase_warned"].append(npc)

@@ -35,6 +35,9 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
 from .core.constants import (  # v130.7 意见#28：逃跑成功率修正常量（core/__init__ 未导出清单，直连避免动聚合层）
     FLEE_CHANCE, FLEE_LEVEL_STEP, FLEE_SPD_STEP, FLEE_MIN, FLEE_MAX,
+    # v138.2 异常体系五律：阈值递增/每场上限+饱和/跨阶段保留/饱和收敛（真伤走 DOT_DEFS true_dmg）
+    DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP, DOT_MAX_TRIGGER,
+    DOT_PRESERVE_PCT, DOT_PRESERVE_THRESHOLD_BONUS, DOT_SATURATE_MULT,
 )
 
 # v95.4 普攻文案按职业区分（玩家反馈：全职业"你挥剑攻击"违和）
@@ -3964,6 +3967,11 @@ class Battle:
             dmg = int(dmg * self.dmg_mult)
             if dmg < 1:
                 dmg = 1
+        # v138.1 阶段四件套：承伤倍率 dmg_taken_mult（>1=更脆，对应「疲态核心件外露」易伤+0.40）——
+        # 由 _phase_apply 写入 e._dmg_taken_mult，_enemy_stats 聚合时从 _phase_mod 刷新
+        _dtm = float((self.enemy or {}).get("_dmg_taken_mult", 1.0) or 1.0)
+        if _dtm != 1.0:
+            dmg = max(1, int(dmg * _dtm))
         mech = self.enemy.get("mech")
         if self.btype == "pvp":
             return dmg
@@ -4088,6 +4096,10 @@ class Battle:
             self._phase_skip_act = False
             logs.append(f"🎬 【{ename}】正在蜕变，尚未行动！")
             return logs, 0
+        # v138.1 反制窗口：Boss 处于阶段模板（_phase_counter）时，每回合战报附一行解题提示
+        _ctr = (e or {}).get("_phase_counter")
+        if _ctr:
+            logs.append(f"💡 反制：{_ctr}")
         pst = self._player_stats(player)
         dmg = 0
         # v29 冻结：跳过敌方回合
@@ -4336,6 +4348,18 @@ class Battle:
             pm = 1 + BOSS_ATTACK_MULTS["phase_step"] * e["phase_count"]
             est["atk"] = int(est["atk"] * pm)
             est["matk"] = int(est["matk"] * pm)
+        # v138.1 阶段四件套：_phase_mod 数值修正（atk_mult/def_add/spd_add/dmg_taken_mult）——
+        # 数据来自 game/data/boss_phases.py 模板（+ Boss phases[] 覆盖），由 _phase_apply 写入
+        _pm = e.get("_phase_mod") or {}
+        if _pm:
+            _am = float(_pm.get("atk_mult", 1.0) or 1.0)
+            if _am != 1.0:
+                est["atk"] = int(est["atk"] * _am)
+                est["matk"] = int(est["matk"] * _am)
+            est["def"] = max(0, int(est["def"]) + int(_pm.get("def_add", 0) or 0))
+            est["mdef"] = max(0, int(est["mdef"]) + int(_pm.get("def_add", 0) or 0))
+            est["spd"] = max(1, int(est["spd"]) + int(_pm.get("spd_add", 0) or 0))
+            e["_dmg_taken_mult"] = float(_pm.get("dmg_taken_mult", 1.0) or 1.0)
         # v116.1 条件触发反制：玩家低血追击(+25%) / 玩家大招反扑(+30%)——仅受击当回合生效
         if e.get("_low_hp_active"):
             est["atk"] = int(est["atk"] * BOSS_ATTACK_MULTS["low_hp"])
@@ -4479,7 +4503,7 @@ class Battle:
         return dmg
 
     def _tick_dots(self, player: dict, logs: list, force: bool = False) -> list:
-        """DOT 重构（契约 §2.2 + §10.1 + §11.1）：敌方持续减益（毒/灼烧/流血）统一结算。
+        """DOT 重构（契约 §2.2 + §10.1 + §11.1）+ v138.2 异常五律：敌方持续减益统一结算。
 
         每次结算（每层每回合混合公式）：
           poison = (atk×0.5 + max_hp×1.5%) × n × mult
@@ -4490,11 +4514,26 @@ class Battle:
         poison/burn 最近 2 回合未再叠层时适应 -4%（耐受消退）。
         免疫列表 immune_dots 命中类型直接移除不结算。
 
-        - 伤害类型：毒/灼烧=magi，流血=phys
+        v138.2 五律（docs/COMBAT_ENRICH_v138.md §二）：
+          律一 阈值递增：debuffs[k].threshold 记录该类型已累积触发阈值，每次触发后
+               threshold = min(threshold ×DOT_THRESHOLD_MULT, DOT_THRESHOLD_CAP)（封顶 3.0）——
+               防同一构筑「无限复读同一异常」；threshold 为内部调节参数，不直接减伤。
+          律二 每场上限+饱和：debuffs[k].trigger_count 累计触发次数，达 DOT_MAX_TRIGGER[k]
+               置 saturated=True；饱和后控制类（freeze/stun/sleep）不再结算（Boss 永不被
+               无限控死），伤害类（poison/burn/bleed/corros）照常结算（异常仍是输出轴）。
+          律三 跨阶段保留：_preserve_debuffs 保留 50% 层数 + 阈值 +15%，供 _b_phase 转换时调用。
+          律四 真伤独立结算：DOT_DEFS 带 true_dmg 的类型（腐蚀 corros）绕过 _enemy_mitigate
+               的 def/mdef 削减，直走 _boss_dmg_filter（护盾层吸收）→ _damage_enemy，
+               仍走免疫检查——异常流成为第二条独立输出轴。
+          律五 饱和阈值收敛：饱和后 saturate_mult 逐次 ×DOT_SATURATE_MULT（0.8^t），
+               叠入结算乘区防极端构筑把异常乘区叠爆（对应 v133 峰值红线精神）。
+        旧 debuffs 无 threshold/trigger_count/saturate_mult 字段 → 默认 0/1.0，不崩。
+
+        - 伤害类型：毒/灼烧=magi，流血=phys；腐蚀=true（真伤）
         - 灼烧走 fire 元素抗、毒不吃元素抗、流血吃物理物免
         - 结算频率：单机每玩家行动一次（_dot_pending 闸门）；副本/世界 Boss 由命令层控制
         - force=True（世界 Boss 全局多行动一次）时跳过闸门
-        文案按类型区分：毒发身亡 / 灼烧致死 / 失血过多；死亡后 break。
+        文案按类型区分：毒发身亡 / 灼烧致死 / 失血过多 / 腐蚀崩解；死亡后 break。
         """
         if not force:
             if not getattr(self, "_dot_pending", True):
@@ -4502,6 +4541,21 @@ class Battle:
             self._dot_pending = False
         e = self.enemy or {}
         deb = e.get("debuffs") or {}
+        # v138.2 律二（控制侧）：e_buffs 里的控制效果达上限后直接失效（防 Boss 被无限控死）。
+        # 独立于 DOT 循环执行（控制类由 eb 驱动、非 debuffs；且 deb 可能为空/已消散，
+        # 但控制饱和判定必须每回合都跑——放在 deb 空检查之前）。
+        _iname_map = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
+        _eb = e.get("buffs") or {}
+        _eb2 = _eb
+        for _ck in ("freeze", "stun", "sleep"):
+            _cm = DOT_MAX_TRIGGER.get(_ck)
+            if _cm is None or not _eb2.get(_ck):
+                continue
+            _cc = int(_eb2.get(f"{_ck}_trigger_count", 0) or 0)
+            if _cc >= _cm:
+                _eb2.pop(_ck, None)  # 达上限：控制效果直接消散
+                _cn = _iname_map.get(_ck, _ck)
+                logs.append(f"🛡️ 【{e.get('name', '敌人')}】对{_cn}产生了饱和抗性，控制不再生效！")
         if not deb:
             return logs
         max_hp = int(e.get("max_hp", 1) or 1)
@@ -4518,6 +4572,15 @@ class Battle:
         _atk_parts = {_k: _v["atk"] for _k, _v in DOT_DEFS.items()}
         _matk_parts = {_k: _v["matk"] for _k, _v in DOT_DEFS.items()}
         _hp_parts = {_k: _v["hp"] for _k, _v in DOT_DEFS.items()}
+        _true_parts = {_k: bool(_v.get("true_dmg", False)) for _k, _v in DOT_DEFS.items()}
+        # 律二：控制类集合（饱和后不再结算）——冻结/眩晕/睡眠
+        # 注意：控制类由 eb（e_buffs）回合递减驱动，非 DOT_DEFS 类型；此处只按 DOT_MAX_TRIGGER
+        # 白名单做饱和判定（控制类达上限后不再结算其 eb 效果，层数仍保留供计数）。
+        # 控制侧饱和已在函数开头（deb 空检查前）执行，此处 _ctrl 仅用于伤害类/控制类文案分流。
+        _ctrl = ("freeze", "stun", "sleep")
+        _iname_map = {"poison": "中毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
+        _kname_map = {"poison": "毒", "burn": "灼烧", "bleed": "流血", "corros": "腐蚀"}
+        _icon_map = {"poison": "☠️", "burn": "🔥", "bleed": "🩸", "corros": "🧪"}
         for k in DOT_DEFS:
             d = deb.get(k)
             if not d:
@@ -4526,13 +4589,33 @@ class Battle:
             if n <= 0:
                 deb.pop(k, None)
                 continue
+            _iname = _iname_map.get(k, k)
             # 免疫：命中该类型时直接移除该层并提示免疫，不结算伤害
             if k in immune:
                 deb.pop(k, None)
-                logs.append(f"🛡️ 【{e.get('name', '敌人')}】免疫{('中毒' if k == 'poison' else '灼烧' if k == 'burn' else '流血')}，减益消散了！")
+                logs.append(f"🛡️ 【{e.get('name', '敌人')}】免疫{_iname}，减益消散了！")
                 continue
+            # v138.2 律二：饱和检查——控制类达上限后不再结算（伤害类照常）
+            _max_trig = DOT_MAX_TRIGGER.get(k)
+            _saturated = bool(d.get("saturated", False)) or (
+                _max_trig is not None and int(d.get("trigger_count", 0) or 0) >= _max_trig)
+            if _saturated and k in _ctrl:
+                if not d.get("saturated"):
+                    d["saturated"] = True
+                    logs.append(f"🛡️ 【{e.get('name', '敌人')}】对{_iname}产生了饱和抗性，控制不再生效！")
+                continue
+            if _saturated and not d.get("saturated"):
+                d["saturated"] = True
+                logs.append(f"⚗️ 【{e.get('name', '敌人')}】对{'腐蚀' if k == 'corros' else _iname}的异常积累已饱和，威力逐渐衰减！")
             mult = float(d.get("mult", 1.0) or 1.0)
-            # v1.2 总抗：基础抗性 + 减益适应（cap 0.95）
+            # v138.2 律五：饱和阈值收敛——饱和后 saturate_mult 逐次 ×0.8（0.8^t 指数衰减）
+            _sat_mult = float(d.get("saturate_mult", 1.0) or 1.0)
+            if _saturated and _sat_mult < 1.0:
+                mult *= _sat_mult
+                _sat_tag = f"(饱和×{_sat_mult:.2f})"
+            else:
+                _sat_tag = ""
+            # v1.2 总抗：基础抗性 + 减益适应（cap 0.95）；真伤分支（律四）不吃总抗
             base_res = float(e.get("dot_res", 0) or 0)
             adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
             res = min(DOT_RESIST_CAP, base_res + adapt_v)
@@ -4540,18 +4623,25 @@ class Battle:
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
             hp_part = max_hp * _hp_parts[k]
             p = int((atk_part + hp_part) * n * mult * (1 - res))
-            # 伤害段：灼烧=magi 走火元素抗；毒=magi 不吃元素抗；流血=phys 吃物理物免
-            if k == "burn":
-                dt = "magi"
-                p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
-            elif k == "poison":
-                dt = "magi"
-                p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
+            # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，仍走免疫检查 +
+            # Boss 护盾过滤（护盾层吸收）→ _damage_enemy。腐蚀类 = 独立第二条输出轴。
+            # 注意：总抗（dot_res/适应）仍参与公式——真伤只豁免防御削减，不豁免目标异常抗性。
+            if _true_parts.get(k):
+                dt = "true"
+                p = self._boss_dmg_filter(p, player, logs, dmg_type="true", dot=True)
             else:
-                dt = "phys"
-                p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
-            # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
-            p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
+                # 伤害段：灼烧=magi 走火元素抗；毒=magi 不吃元素抗；流血=phys 吃物理物免
+                if k == "burn":
+                    dt = "magi"
+                    p, _ = self._enemy_mitigate(p, p, "fire", logs, kind="魔法", dot=True)
+                elif k == "poison":
+                    dt = "magi"
+                    p, _ = self._enemy_mitigate(p, p, None, logs, kind="魔法", dot=True)
+                else:
+                    dt = "phys"
+                    p, _ = self._enemy_mitigate(p, 0, None, logs, kind="物理", dot=True)
+                # v83 Boss 护盾过滤：盾/吸收对 dot 生效（护盾 -50%）；dot 不触发反射反伤
+                p = self._boss_dmg_filter(p, player, logs, dmg_type=dt, dot=True)
             # v1.1 放血：目标当前生命 <30%（处决线）时流血伤害 ×2（处决/斩杀联动）
             # v125.2 B1：阈值查表 DOT_BLEED_DOUBLE_HP_PCT
             _bleed_tag = ""
@@ -4560,15 +4650,35 @@ class Battle:
                 _bleed_tag = "(放血)"
             if p > 0:
                 self._damage_enemy(p, logs, wake_sleep=False, target=e)  # dot 不打醒睡眠、不打断蓄力
-            kname = "毒" if k == "poison" else "灼烧" if k == "burn" else "流血"
+            # v138.2 律一：阈值递增——每次触发后 threshold ×1.3（封顶 3.0），防无限复读
+            _thr = float(d.get("threshold", 0.0) or 0.0)
+            if _thr <= 0.0:
+                _thr = 1.0  # 首触基准
+            _thr = min(DOT_THRESHOLD_CAP, _thr * DOT_THRESHOLD_MULT)
+            d["threshold"] = _thr
+            # v138.2 律二：触发计数 +1，达上限置饱和标记
+            d["trigger_count"] = int(d.get("trigger_count", 0) or 0) + 1
+            _tc = d["trigger_count"]
+            if _max_trig is not None and _tc >= _max_trig:
+                d["saturated"] = True
+                if k not in _ctrl:
+                    logs.append(f"⚗️ 【{e.get('name', '敌人')}】的{'腐蚀' if k == 'corros' else _iname}积累已达上限，进入饱和！")
+            kname = _kname_map.get(k, k)
             _mult_tag = f"(强化×{mult:.1f})" if mult != 1.0 else ""
-            logs.append(f"{'☠️' if k == 'poison' else '🔥' if k == 'burn' else '🩸'} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_mult_tag}{_bleed_tag}")
+            _icon = _icon_map.get(k, "💥")
+            logs.append(f"{_icon} 【{e.get('name', '敌人')}】{kname}发作，损失 {p} 点生命！(剩余 {n - 1} 层){_mult_tag}{_bleed_tag}{_sat_tag}")
             n -= 1
             if n <= 0:
                 deb.pop(k, None)
                 logs.append(f"💨 【{e.get('name', '敌人')}】的{kname}消散了！")
             else:
                 d["n"] = n
+            # v138.2 律五：饱和阈值收敛——饱和标记置位后，后续触发逐次 ×0.8（0.8^t 指数衰减，
+            # 防极端构筑把异常乘区叠爆；对应 v133 峰值红线精神）。置位当次不衰减（饱和前已结算），
+            # 从下一次触发起逐次收敛。
+            if d.get("saturated") and k not in _ctrl:
+                _sm = float(d.get("saturate_mult", 1.0) or 1.0)
+                d["saturate_mult"] = _sm * DOT_SATURATE_MULT
             # v1.2 适应回落：poison/burn 最近 2 回合未再叠层 → 该类型适应 -4%（耐受消退）
             # v125.2 B1：步长查表 DOT_ADAPT_DECAY_STEP
             if k in ("poison", "burn"):
@@ -4578,7 +4688,8 @@ class Battle:
                     _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - DOT_ADAPT_DECAY_STEP)
             if self._enemy_dead():
                 self.result = "victory"
-                death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn" else "失血过多")
+                death_text = ("毒发身亡" if k == "poison" else "灼烧致死" if k == "burn"
+                              else "失血过多" if k == "bleed" else "腐蚀崩解")
                 logs.append(f"🎉 你击败了【{e.get('name', '敌人')}】！({death_text})")
                 break
         # v1.3 标记层与 dot 同生命周期：每回合结算后 n-1，归零移除（与 e_buffs["mark"] 2 回合计时同步）
@@ -4590,6 +4701,92 @@ class Battle:
             else:
                 _mk["n"] = _mn
         return logs
+
+    def _preserve_debuffs(self, logs: list) -> None:
+        """v138.2 律三：跨阶段保留（进度遗产）——阶段转换时保留一半异常进度。
+
+        - 层数保留 DOT_PRESERVE_PCT（50%，向下取整，至少保留 1 层——首层不白费）
+        - 阈值 ×(1+DOT_PRESERVE_THRESHOLD_BONUS)（新阶段对同一异常略微更抗，仍封顶 DOT_THRESHOLD_CAP）
+        - trigger_count / saturated / saturate_mult 保留原值（每场上限是战斗级约束，跨阶段不清零，
+          防止「转阶段重置上限」被利用成无限叠异常）
+        调用点：_b_phase（battle_mech.py BOSS_MECHS["phase"]）阶段转换处（主 agent 收尾接线）。
+        """
+        e = self.enemy or {}
+        deb = e.get("debuffs") or {}
+        if not deb:
+            return
+        for k, d in list(deb.items()):
+            if not isinstance(d, dict):
+                continue
+            if k == "mark":
+                # 标记是伤害易伤窗口，非异常积蓄，跨阶段不保留（直接清除）
+                deb.pop(k, None)
+                continue
+            n = int(d.get("n", 0) or 0)
+            if n > 0:
+                keep = max(1, int(n * DOT_PRESERVE_PCT))  # 50%，向下取整，至少 1 层
+                d["n"] = keep
+            _thr = float(d.get("threshold", 0.0) or 0.0)
+            if _thr > 0.0:
+                d["threshold"] = min(DOT_THRESHOLD_CAP, _thr * (1.0 + DOT_PRESERVE_THRESHOLD_BONUS))
+        logs.append(f"🌀 【{e.get('name', '敌人')}】蜕变了，但残留的异常仍在侵蚀它的躯体！（保留一半层数）")
+
+    def _phase_apply(self, e: dict, phase_cfg: dict, npc: int, logs: list) -> None:
+        """v138.1 阶段四件套应用器（battle_mech._b_phase 阶段转换时调用）。
+
+        借鉴《云海猎团》03 章 M3.2：每阶段配「数值变化/行为变化/退出条件/反制窗口」。
+        数据来源 game/data/boss_phases.py BOSS_PHASE_TEMPLATES（+ Boss phases[] 内联覆盖）。
+        旧 phases（只有 min/add_skills/script）不调用本方法，维持旧行为。
+
+        - 数值变化：atk_mult / def_add / spd_add / dmg_taken_mult（承伤倍率，>1=更脆，对应疲态核心件外露）
+        - 行为变化：add_skills（换招表，幂等追加）/ freq_mult（行动频率倍率）/ ult_every（每 N 回合大招）
+        - 退出条件：exit_turns（回合数）/ exit_dmg（累计承伤）写入 e._phase_exit（供 _b_phase 轮询）
+        - 反制窗口：counter 写入 e._phase_counter（战报展示，引导玩家解题）
+        - 演出：icon / enter_line / warn_line
+        """
+        if not phase_cfg:
+            return
+        # ---- 数值变化 ----
+        _am = float(phase_cfg.get("atk_mult", 1.0) or 1.0)
+        _da = int(phase_cfg.get("def_add", 0) or 0)
+        _sa = int(phase_cfg.get("spd_add", 0) or 0)
+        _dtm = float(phase_cfg.get("dmg_taken_mult", 1.0) or 1.0)
+        # 应用到敌方 stats（存 e 上的阶段修正，_enemy_stats 聚合时读取）
+        _pm = e.setdefault("_phase_mod", {})
+        _pm["atk_mult"] = _am
+        _pm["def_add"] = _da
+        _pm["spd_add"] = _sa
+        _pm["dmg_taken_mult"] = _dtm
+        # 承伤倍率直接写 e._dmg_taken_mult（_boss_dmg_filter 读取，无需先经 _enemy_stats）
+        e["_dmg_taken_mult"] = _dtm
+        # ---- 行为变化：换招表（幂等追加）----
+        for s in (phase_cfg.get("add_skills") or []):
+            if s and s not in e.get("skills", []):
+                e["skills"] = list(e.get("skills", [])) + [s]
+        e["_phase_ult_every"] = phase_cfg.get("ult_every")          # 每 N 回合大招（None=无）
+        e["_phase_freq_mult"] = float(phase_cfg.get("freq_mult", 1.0) or 1.0)  # 行动频率倍率
+        # ---- 退出条件 ----
+        e["_phase_exit"] = {
+            "turns": phase_cfg.get("exit_turns"),
+            "dmg": phase_cfg.get("exit_dmg"),
+            "entered_at": getattr(self, "round", 0),
+        }
+        # ---- 反制窗口 ----
+        e["_phase_counter"] = phase_cfg.get("counter")
+        # ---- 演出 ----
+        icon = phase_cfg.get("icon", "🔥")
+        name = phase_cfg.get("name", f"第{npc + 1}阶段")
+        enter = phase_cfg.get("enter_line") or f"力量再度攀升！"
+        logs.append(f"{icon}【{e.get('name', '敌人')}】{name}！{enter}")
+        if phase_cfg.get("warn_line"):
+            logs.append(f"⚠️ {phase_cfg['warn_line']}")
+        # 阶段演出回合：进入新阶段该回合 Boss 不行动（呼吸点，v116.1 既有语义）
+        self._phase_skip_act = True
+
+    def _phase_counter_line(self, e: dict) -> str:
+        """v138.1 反制窗口文案（战报展示，引导玩家解题）。无则返回空串。"""
+        _c = (e or {}).get("_phase_counter")
+        return f"💡 反制：{_c}" if _c else ""
 
     def _tailwind_regen_bonus(self, player: dict) -> int:
         """v130.2d 疾风余韵：上回合结束时精力 ≥80 → 本回合精力自然回复 +10（词条 effect.regen）。

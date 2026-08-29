@@ -125,6 +125,30 @@ STAMINA_RECOVER_INTERVAL = 300             # 体力自然恢复间隔：300s（5
 SKILL_PMULT_CAP = 6.0                      # 技能伤害倍率连乘上限（battle.py 阶段七 pmult 封顶，防高倍率配置失控；
                                            # 仅 clamp 技能伤害倍率，不影响暴击/暴伤/幸运一击独立乘区）
 
+# ================= v138.2 异常体系五律（docs/COMBAT_ENRICH_v138.md §二） =================
+# 借鉴《云海猎团》04 章 M4.2「九态异常：积蓄-触发-衰减」三律，加固现有毒/灼烧/流血 DOT：
+#   律一 阈值递增：同一异常每次触发后阈值 ×DOT_THRESHOLD_MULT，封顶 DOT_THRESHOLD_CAP 倍基准——
+#         防同一构筑「无限复读同一异常」（数值结合 v133 峰值红线精神：连击越久收益越摊薄）
+#   律二 每场上限+饱和：每异常每场最多触发 DOT_MAX_TRIGGER[k] 次，达上限置饱和标记；
+#         饱和后控制类（freeze/stun/sleep）不再结算（Boss 永不被无限控死），
+#         伤害类（poison/burn/bleed/corros）照常结算（异常仍是输出轴）
+#   律三 跨阶段保留：阶段转换时 _preserve_debuffs 保留 DOT_PRESERVE_PCT 层数（向下取整）、
+#         阈值 ×(1+DOT_PRESERVE_THRESHOLD_BONUS)（进度遗产：转阶段前攒的异常条不白费）
+#   律四 异常直伤独立结算：DOT_DEFS 带 true_dmg 的类型走真伤分支——绕过 _enemy_mitigate 的
+#         def/mdef 削减（仍走免疫检查 + Boss 护盾层吸收），使异常流成为第二条独立输出轴
+#   律五 饱和阈值收敛：饱和后 saturate_mult 逐次 ×DOT_SATURATE_MULT（0.8^t），
+#         防极端构筑把异常乘区叠爆（对应 v133 峰值红线 40% 精神）
+DOT_THRESHOLD_MULT = 1.3                   # 律一：阈值递增倍率（每次触发后 ×1.3）
+DOT_THRESHOLD_CAP = 3.0                    # 律一：阈值封顶（相对首触基准 ×3.0，防无限复读被倍率反噬）
+DOT_MAX_TRIGGER = {                        # 律二：每场上限（达上限置饱和标记）
+    "poison": 5, "burn": 5, "bleed": 5,    #   伤害类 5 次：单轴输出天花板，配合层数上限 5 层双保险
+    "corros": 5,                           #   腐蚀（真伤轴）同样 5 次，与伤害类对齐
+    "freeze": 2, "stun": 2, "sleep": 2,    #   控制类 2 次：Boss 每场最多被控 2 次，永不被锁死
+}
+DOT_PRESERVE_PCT = 0.5                     # 律三：跨阶段保留比例（层数保留 50%，向下取整）
+DOT_PRESERVE_THRESHOLD_BONUS = 0.15        # 律三：跨阶段阈值 +15%（新阶段对同一异常略微更抗）
+DOT_SATURATE_MULT = 0.8                    # 律五：饱和后乘区收敛倍率（逐次 ×0.8，指数衰减防叠爆）
+
 
 def prof_exp_need(lv):
     """副业升级经验需求（v105 平衡曲线）：need(lv) = 5*lv² + 15*lv

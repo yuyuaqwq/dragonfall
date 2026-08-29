@@ -312,16 +312,17 @@ def test_fix_regressions():
     if b5.p_buffs.get("mortal_wound"):
         heal = int(heal * 0.5)
     check("重伤技能吸血减半（25%→12.5%）", heal == 125, f"heal={heal}")
-    # Boss phase 清减益/适应
+    # Boss phase 清减益/适应 → v138.2 律三进度遗产：保留 50% 层数（不再全清）
     b6 = BT.Battle("monster", mk_enemy(hp=1000, mech="phase,phase"))
     b6.enemy.setdefault("debuffs", {})["poison"] = {"n": 3, "mult": 1.0}
     b6.enemy["adapt"] = {"poison": 0.12}
     b6.enemy["hp"] = 300  # <50% 触发第一段
     lg6 = []
     BM.BOSS_MECHS["phase"](b6, lg6, b6.enemy, 3)
-    check("phase 转换清减益", "debuffs" not in b6.enemy, str(b6.enemy.get("debuffs")))
-    check("phase 转换清适应", "adapt" not in b6.enemy, str(b6.enemy.get("adapt")))
-    check("phase 净化日志", any("净化" in l for l in lg6), str(lg6))
+    check("phase 转换保留 50% 层数（进度遗产）", b6.enemy.get("debuffs", {}).get("poison", {}).get("n", 0) == 1,
+          str(b6.enemy.get("debuffs")))
+    check("phase 转换保留适应（进度遗产）", "adapt" in b6.enemy, str(b6.enemy.get("adapt")))
+    check("phase 残留日志", any("残留" in l or "保留" in l for l in lg6), str(lg6))
     # H1：流血词条写入目标级 debuffs 并结算
     b7 = BT.Battle("monster", mk_enemy(hp=100000))
     b7._equip_affix_ids = lambda pl: ["bleed"]

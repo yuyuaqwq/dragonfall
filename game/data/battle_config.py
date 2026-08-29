@@ -44,11 +44,17 @@ MECH_STACK_WHITELIST = (
 # ============================================================
 # DOT 混合公式（_tick_dots，契约 §2.2）：
 #   每层伤害 = (atk×atk + matk×matk + max_hp×hp) × 层数 × mult × (1 - 总抗)
+#   true_dmg=True 的类型（v138.2 律四：腐蚀类）走真伤分支——绕过 _enemy_mitigate 的
+#   def/mdef 削减（仍走免疫检查 + Boss 护盾层吸收），使异常流成为第二条独立输出轴。
 # ============================================================
 DOT_DEFS = {
     "poison": {"atk": 0.5, "matk": 0.0, "hp": 0.015},  # 毒：atk×0.5 + max_hp×1.5%
     "burn":   {"atk": 0.0, "matk": 0.4, "hp": 0.01},   # 灼烧：matk×0.4 + max_hp×1%
     "bleed":  {"atk": 0.6, "matk": 0.0, "hp": 0.015},  # 流血：atk×0.6 + max_hp×1.5%
+    # v138.2 律四：腐蚀（真伤轴）——数值参考 atk 0.4 / matk 0.3 / hp 2.0%，
+    # 低于毒/流血的 0.5/0.6 攻击系数 + 略高于 1.5% 的生命系数：真伤绕过 def/mdef，
+    # 对高防 Boss 的等效收益自动反超，故攻击系数刻意压低防异常流数值反超常规输出轴
+    "corros":  {"atk": 0.4, "matk": 0.3, "hp": 0.02, "true_dmg": True},
 }
 DOT_BLEED_DOUBLE_HP_PCT = 0.30  # 放血：目标当前生命 <30% 时流血伤害 ×2（处决线）
 DOT_ADAPT_DECAY_STEP = 0.04     # 适应回落：poison/burn 最近 2 回合未再叠层 → 耐受 -4%
