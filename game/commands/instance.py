@@ -24,6 +24,19 @@ from ..commands.base import CommandBase, no_prof_waiting, require_player
 INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
 
 
+def _inst_map_id(inst_id: str) -> str:
+    """v137：副本 INSTANCES key（inst_xxx）→ 地图 MAPS key（xxx）。
+
+    st["inst_id"] 存的是 INSTANCES 的 key（inst_goblin_camp），而 MAP_BY_ID /
+    SUBAREAS / SUBAREA_LINKS_INDEX 的 key 是地图 id（goblin_camp，无 inst_ 前缀）。
+    副本地图化后所有地图查询（cur_map/dungeon 字段/LINKS/POI）都要经本函数转换，
+    否则拿到空 dict → cur_map["name"] KeyError（v98_05 等副本测试崩因）。
+    """
+    if inst_id and inst_id.startswith("inst_"):
+        return inst_id[len("inst_"):]
+    return inst_id or ""
+
+
 class InstanceCmds(CommandBase):
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副本(?!地图)(?:[\s\S]*)$")
@@ -65,6 +78,12 @@ class InstanceCmds(CommandBase):
         old_row = self._instance_retreated_row(group_id, qq_id)
         if old_row:
             old_st = old_row["state"]
+            # v137 副本地图化：rooms 存档恢复——玩家 cur_subarea 同步回入口房间
+            if old_st.get("rooms"):
+                _entry_sa = C.map_entry_subarea(old_st.get("inst_id", ""))
+                if _entry_sa:
+                    for _m in ok_members:
+                        db.update_player(group_id, _m, cur_subarea=_entry_sa)
             if old_st.get("inst_id") and (old_st["inst_id"] == arg or
                                           C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
@@ -146,6 +165,24 @@ class InstanceCmds(CommandBase):
                 yield event.plain_result("当前层的敌人还没肃清！『探索』找到它们～")
             else:
                 yield event.plain_result("当前层的敌人还没肃清！先打完再说～")
+            return
+        # v137 副本地图化：dungeon 副本（rooms 存档）『深入』= 移动到 Boss 房/下一房间
+        # （兼容保留：boss_room 房间在连通表末位，移动到它即触发 Boss 战）
+        if st.get("rooms"):
+            _dun_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+            _dun = _dun_map.get("dungeon") or {}
+            _br = _dun.get("boss_room")
+            _rooms = st["rooms"]
+            if _br and _br in _rooms:
+                # 队长移动到 Boss 房（触发 _instance_dungeon_move 的 Boss 战链路）
+                _cur = (self._player(group_id, st.get("leader")) or {}).get("cur_subarea") or ""
+                _links = C.subarea_links(_inst_map_id(st.get("inst_id") or ""), _cur)
+                if _cur != _br and _br in _links:
+                    async for _r in self._instance_dungeon_move(event, group_id, qq_id, player,
+                                                                inst_row, _dun_map, _br):
+                        yield _r
+                    return
+            yield event.plain_result("副本内请使用『移动 <房间>』推进（队长带队）～『副本地图』查看可前往房间。")
             return
         if st["stage_idx"] >= len(stages) - 1:
             yield event.plain_result("已经是最深层了，击败面前的 Boss 就通关了！")
@@ -239,7 +276,12 @@ class InstanceCmds(CommandBase):
     @no_prof_waiting()
 
     async def instance_investigate(self, event: AstrMessageEvent):
-        """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱(29 章 13.5)"""
+        """与当前层 POI 互动：开箱/点火/读碑/拉机关/拆陷阱(29 章 13.5)
+
+        v137 副本地图化：从 SUBAREA_POIS 查当前房间挂载 POI（_handle_poi 已支持
+        inst:<type> effect），消耗 rooms[cur_room].pois_left（资源池上限）+ 经
+        _handle_poi 的 inst:loot 链路消耗 resources_pool（波次 3a 实现后）。
+        """
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         inst_row = self._instance_battle_for(group_id, qq_id)
@@ -255,9 +297,6 @@ class InstanceCmds(CommandBase):
         if not name:
             yield event.plain_result("格式：『调查 <目标>』，如『调查 宝箱』『调查 篝火』～（『副本地图』查看当前层可调查目标）")
             return
-        stages = st.get("inst_stages") or []
-        sidx = st["stage_idx"]
-        stage = stages[sidx] if sidx < len(stages) else {}
         # v101.27 #390：通关后特殊搜刮 POI 优先（战利品堆/墙砖/密室宝箱），
         # 避免『调查 宝箱』误命中 Boss 房静态"陪葬宝箱"等 stage POI
         if st.get("cleared"):
@@ -270,22 +309,55 @@ class InstanceCmds(CommandBase):
             if name in ("宝箱", "暗格宝箱", "神秘宝箱") and st.get("secret_chest"):
                 yield event.plain_result(self._instance_secret_chest(group_id, qq_id, player, st))
                 return
-        poi = self._find_stage_poi(stage, name)
-        # 隐藏房间 POI 也算
-        secret = stage.get("secret")
-        if not poi and secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
-            for sp in secret.get("pois", []):
-                if sp.get("name") == name or (name and name in sp.get("name", "")):
-                    poi = sp
+        # v137 副本地图化：优先按当前房间 SUBAREA_POIS 查（rooms 存档存在时）
+        rooms = st.get("rooms")
+        cur_sa_id = player.get("cur_subarea") or ""
+        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        cur_sa = None
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa["id"] == cur_sa_id:
+                cur_sa = _sa
+                break
+        poi = None
+        poi_id = None
+        if rooms:
+            rstate = rooms.get(cur_sa_id) or {}
+            _pois_left = rstate.get("pois_left")
+            for _pid in (C.subarea_pois(cur_map.get("id", ""), cur_sa_id) or []):
+                if _pois_left is not None and _pid not in _pois_left:
+                    continue
+                _p = C.POIS.get(_pid)
+                if _p and (name == _p.get("name") or (name and name in _p.get("name", ""))):
+                    poi = _p
+                    poi_id = _pid
                     break
-        if not poi:
+        # 旧 stages 路径（rooms 未实现时的过渡兼容）：层内联 POI
+        stages = st.get("inst_stages") or []
+        sidx = st.get("stage_idx", 0)
+        stage = stages[sidx] if sidx < len(stages) else {}
+        if poi is None and not rooms:
+            poi = self._find_stage_poi(stage, name)
+            # 隐藏房间 POI 也算
+            secret = stage.get("secret")
+            if not poi and secret and st.get("stage_secret_found") and not st.get("stage_secret_cleared"):
+                for sp in secret.get("pois", []):
+                    if sp.get("name") == name or (name and name in sp.get("name", "")):
+                        poi = sp
+                        break
+        if poi is None:
             yield event.plain_result(f"这里没有『{name}』可以调查～『副本地图』看看周围有什么。")
             return
-        if self._poi_used(st, sidx, poi.get("id", "")):
+        if not rooms and self._poi_used(st, sidx, poi.get("id", "")):
             yield event.plain_result(f"{poi.get('name', '')}已经被处理过了。")
             return
-        # v87.2 复用世界地图 POI 处理（_handle_poi → _handle_inst_poi）
-        text = self._handle_poi(group_id, qq_id, player, stage, poi.get("id", ""), poi, st=st)
+        if rooms and _pois_left is not None:
+            if poi_id in _pois_left:
+                _pois_left.remove(poi_id)  # 资源池消费：探索完即空
+            else:
+                yield event.plain_result(f"{poi.get('name', '')}已经被搜刮一空了。")
+                return
+        # v87.2 复用世界地图 POI 处理（_handle_poi → inst:<type> 效果链路）
+        text = self._handle_poi(group_id, qq_id, player, cur_sa or stage or cur_map, poi.get("id", "") or poi_id, poi, st=st)
         self._check_stage_secret_cond(st)
         # R3 P1-2：篝火回血/陷阱扣血只改 st 快照，须同步 DB——否则下次 _enter_stage_combat
         # 快照刷新从 DB 读旧值覆盖（回血丢失/伤害回滚），且『使用 治疗药水』满血误判复发
@@ -315,6 +387,13 @@ class InstanceCmds(CommandBase):
                 yield event.plain_result("战斗中无法撤退！先击败眼前的敌人再说！")
             return
         st["retreated"] = True
+        # v137 副本地图化：撤退保留 rooms/resources_pool（下次恢复继续），
+        # 同时把全队 cur_subarea 复位到入口房间（下次『副本 <名>』恢复路径同步）
+        if st.get("rooms"):
+            _entry_sa = C.map_entry_subarea(st.get("inst_id", ""))
+            if _entry_sa:
+                for _m in st["members"]:
+                    db.update_player(group_id, _m, cur_subarea=_entry_sa)
         db.save_battle(group_id, st["leader"], st)
         for m in st["members"]:
             self._unlock_battle(group_id, m)
@@ -357,12 +436,73 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 副本探索（v87.2，由 combat.explore 路由） ----------------
     async def _instance_explore(self, event, group_id, qq_id, inst_row):
-        """副本内探索：优先遇怪(进入战斗)，未触发陷阱概率踩中，否则无事。"""
+        """副本内探索：POI 交互 → 遇怪 → 无事（v137 统一路径）。
+
+        v137 副本地图化：副本探索与野外共用同一『探索』入口（combat.explore 分流），
+        判定顺序与野外一致（先 POI 再遇怪），但：
+          ① POI 触发概率 = dungeon.discovery_agro（0.85），且只从 rooms[cur_room].pois_left 抽
+             （资源池上限，探索完即空；poi 效果经 _handle_poi 的 inst:<type> 链路消费）
+          ② 遇怪概率 = discovery_agro，消耗 rooms[cur_room].monsters_left（打完不刷）
+          ③ 无隐藏房间/精英保底/彩蛋等野外专属判定（副本内容=房间池）
+        波次 3a 未实现 rooms/consume_* 时：只有 rooms 字段存在才消费；否则保持
+        旧 inst_stages/stage_pending 行为（兼容过渡）。
+        """
         st = inst_row["state"]
         # v101.27 #390：通关后探索无意义（已无敌人），引导搜刮/离开
         if st.get("cleared"):
             yield event.plain_result("副本已通关，没有敌人可探索了！『副本地图』看看战利品堆，或『离开副本』传出～")
             return
+        player = self._player(group_id, qq_id)
+        cur_sa_id = player.get("cur_subarea") or ""
+        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        cur_sa = None
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa["id"] == cur_sa_id:
+                cur_sa = _sa
+                break
+        rooms = st.get("rooms")
+        if rooms:
+            # ---- v137 dungeon 房间池消费 ----
+            _dun = cur_map.get("dungeon") or {}
+            _agro = float(_dun.get("discovery_agro", 0.85) or 0.85)
+            rstate = rooms.get(cur_sa_id) or {}
+            _left = rstate.get("monsters_left") or []
+            _pois_left = rstate.get("pois_left")
+            # ① POI（概率=discovery_agro，只从 pois_left 抽，消耗资源池）
+            poi_ids = [pid for pid in (C.subarea_pois(cur_map.get("id", ""), cur_sa_id) or [])
+                       if _pois_left is None or pid in _pois_left]
+            if poi_ids and random.random() < _agro:
+                poi_id = poi_ids[0]  # 确定性：取剩余列表首个（不新增 random 调用点）
+                poi = C.POIS.get(poi_id, {})
+                if _pois_left is not None and poi_id in _pois_left:
+                    _pois_left.remove(poi_id)
+                text = self._handle_poi(group_id, qq_id, player, cur_sa or cur_map, poi_id, poi, st=st)
+                self._sync_players_db(group_id, st)
+                db.save_battle(group_id, st["leader"], st)
+                yield event.plain_result(f"🍃 你仔细搜索着这片区域……\n{text}")
+                return
+            # ② 遇怪（discovery_agro + monsters_left 非空 → 消耗 1 只 → 进战斗）
+            if _left:
+                if random.random() < _agro:
+                    _def = _left.pop(0)
+                    self._enter_stage_combat(group_id, st, _def, cur_sa or cur_map)
+                    db.save_battle(group_id, st["leader"], st)
+                    _mon = st.get("boss") or {}
+                    _role = "👑 BOSS" if _def[2] == "boss" else ("⭐ 精英" if _def[2] == "elite" else "🐾")
+                    yield event.plain_result(
+                        f"🍃 你警惕地探索着，突然——{cur_sa.get('name', '') if cur_sa else cur_map.get('name', '')}里的怪物扑了上来！\n"
+                        f"━━━━━━━━━━━━\n"
+                        f"{_role}【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} ❤️ {_mon.get('hp', 0):,}\n"
+                        f"━━━━━━━━━━━━\n"
+                        f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                    )
+                    return
+                yield event.plain_result("🍃 你仔细搜索了这片区域，怪物没有发现你……")
+                return
+            # ③ 无怪可遇
+            yield event.plain_result("🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～")
+            return
+        # ---- 旧 stages 路径（波次 3a rooms 未实现前的过渡兼容，行为与现状一致） ----
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
         stage = stages[sidx] if sidx < len(stages) else {}
@@ -391,7 +531,6 @@ class InstanceCmds(CommandBase):
             )
             return
         # 无怪：检查陷阱（未用的 trap POI）——50% 概率踩中
-        player = self._player(group_id, qq_id)
         for p in stage.get("pois") or []:
             if p.get("type") == "trap" and not self._poi_used(st, sidx, p.get("id", "")):
                 if random.random() < C.INST_EVENT_CHANCE:
@@ -866,7 +1005,68 @@ class InstanceCmds(CommandBase):
         }
 
     def _instance_map_view(self, st: dict, group_id) -> str:
-        """生成当前层小地图全景(desc + 复用 _map_interactions + 怪物/隐藏房间)"""
+        """生成副本内小地图全景。
+
+        v137 副本地图化：rooms 存档存在时按房间渲染（当前房间/可前往 LINKS/怪物剩余/
+        POI 剩余/资源池），复用 world 的 _map_nav_body + _map_blocks 统一模板；否则
+        回退旧层全景（_stage_virtual_map，兼容过渡）。
+        """
+        rooms = st.get("rooms")
+        if rooms:
+            cur_sa_id = st.get("cur_subarea") or ""
+            # 队长名下的 st 无 cur_subarea；从队长玩家行读（开本落点已写）
+            leader = st.get("leader")
+            _lp = self._player(group_id, leader) if leader else None
+            if not cur_sa_id and _lp:
+                cur_sa_id = _lp.get("cur_subarea") or ""
+            inst = C.INSTANCES.get(st["inst_id"], {})
+            cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+            sas = cur_map.get("subareas") or []
+            cur_sa = next((s for s in sas if s["id"] == cur_sa_id), None)
+            lines = []
+            if _lp:
+                nav = self._map_nav_body(_lp, cur_map, cur_sa_id or "", group_id, group_id, show_here=False, with_header=True)
+                blocks = self._map_blocks(_lp, cur_map, cur_sa_id or "", group_id, group_id)
+                lines = nav + blocks
+            else:
+                lines.append(f"🗺️ 【{cur_map.get('name', '副本')} · {cur_sa.get('name', '') if cur_sa else ''}】")
+            # 房间状态块：怪物剩余 / POI 剩余 / 资源池
+            lines.append("━━━━━━━━━━━━")
+            _dun = cur_map.get("dungeon") or {}
+            if _dun.get("no_exit"):
+                lines.append("🚪 副本内 · 无出口（没有通往外面的路）")
+            _rstate = (rooms.get(cur_sa_id) or {}) if cur_sa_id else {}
+            _ml = _rstate.get("monsters_left") or []
+            _pl = _rstate.get("pois_left")
+            _poi_names = []
+            if _pl is not None:
+                for _pid in _pl:
+                    _p = C.POIS.get(_pid)
+                    if _p and _p.get("name"):
+                        _poi_names.append(_p["name"])
+            if _ml:
+                _names = "、".join(m[1] if isinstance(m, (list, tuple)) and len(m) > 1 else str(m) for m in _ml)
+                lines.append(f"🐾 此房怪物剩余：{_names}（『探索』高概率遭遇）")
+            else:
+                lines.append("🐾 此房怪物已肃清。")
+            if _poi_names:
+                lines.append(f"🔎 此房可调查：{'、'.join(_poi_names[:6])}{'…' if len(_poi_names) > 6 else ''}(『调查 <名称>』)")
+            _rp = st.get("resources_pool")
+            if _rp:
+                _gl = _rp.get("gold_left", 0)
+                _mats = _rp.get("mats_left") or {}
+                _mat_txt = "、".join(f"{k}×{v}" for k, v in _mats.items() if v)
+                _pool_txt = f"💰 副本资源池剩余：{_gl} 金币" + (f" · {_mat_txt}" if _mat_txt else "")
+                lines.append(_pool_txt)
+            if _dun.get("boss_room") == cur_sa_id and (_rstate.get("boss_alive", False) if cur_sa_id else False):
+                lines.append("👑 Boss 就在这个房间！『探索』进入战斗！")
+            if st.get("cleared"):
+                if st.get("loot_pile"):
+                    lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
+                if st.get("secret_crack"):
+                    lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
+            lines.append(self._tip("instance"))
+            return "\n".join(lines)
         vmap = self._stage_virtual_map(st)
         stages = st.get("inst_stages") or []
         sidx = st["stage_idx"]
@@ -1066,7 +1266,135 @@ class InstanceCmds(CommandBase):
         }
         # v2：由主怪构建敌方阵列 st["enemies"]（Boss+配置爪牙；怪区 map 模式 boss=None→空）
         st["enemies"] = self._instance_build_enemy_array(st, st.get("boss"))
+        # v137 副本地图化：dungeon 房间池/资源池存档（开本时生成，波次 3a 消费端约定）——
+        # 从 SUBAREAS[地图id] 房间的 monsters/elite/boss 槽生成 monsters_left（数量上限=
+        # 配置数，打完不刷），从 SUBAREA_POIS 挂载 POI 生成 pois_left（资源池上限，探索完即空）。
+        # resources_pool 由 POI loot（gold/materials/equip）+ 副本奖励配置（inst.gold/materials）
+        # 汇总生成——开本时创建好资源总量，探索拾取逐次扣减（consume_poi_loot）。
+        _map_id = kid[5:] if str(kid).startswith("inst_") else kid
+        _dun_map = C.MAP_BY_ID.get(_map_id, {})
+        _rooms_def = C.SUBAREAS.get(_map_id) or []
+        if _dun_map.get("dungeon") and _rooms_def:
+            _rooms = {}
+            _pool_gold = 0
+            _pool_mats = {}
+            _pool_equip = []
+            for _sa in _rooms_def:
+                _sa_id = _sa.get("id", "")
+                _ml = []
+                for _ent in (_sa.get("monsters") or []):
+                    if isinstance(_ent, (list, tuple)) and len(_ent) >= 2:
+                        _ml.append(list(_ent))
+                if _sa.get("elite") and isinstance(_sa["elite"], (list, tuple)) and len(_sa["elite"]) >= 2:
+                    _ml.append(list(_sa["elite"]))
+                # 房间 POI 挂载（v137 dungeon_pois 已并入 SUBAREA_POIS，id 带前缀唯一）
+                _poi_ids = list(C.subarea_pois(_map_id, _sa_id) or [])
+                # 资源池汇总：本房间 POI loot（gold/materials/equip）
+                for _pid in _poi_ids:
+                    _p = C.POIS.get(_pid) or {}
+                    _loot = _p.get("loot") or {}
+                    _g = int(_loot.get("gold") or 0)
+                    if _g > 0:
+                        _pool_gold += _g
+                    for _mn in (_loot.get("materials") or []):
+                        _pool_mats[_mn] = _pool_mats.get(_mn, 0) + 1
+                    _eq = _loot.get("equip")
+                    if _eq:
+                        if isinstance(_eq, list):
+                            _pool_equip.extend(_eq)
+                        else:
+                            _pool_equip.append(_eq)
+                _rooms[_sa_id] = {
+                    "monsters_left": _ml,
+                    "pois_left": _poi_ids,
+                    "boss_alive": bool(_sa.get("boss")),
+                }
+            st["rooms"] = _rooms
+            # 资源池 = POI loot 总量 + 副本通关奖励配置（inst.gold / inst.materials，
+            # 通关奖励走 _instance_victory 发放但池先记总量，防探索收益超配置上限）
+            _inst_cfg = C.INSTANCES.get(kid) or {}
+            _pool_gold += int(_inst_cfg.get("gold") or 0)
+            for _mn in (_inst_cfg.get("materials") or []):
+                _pool_mats[_mn] = _pool_mats.get(_mn, 0) + int(_inst_cfg.get("mat_count", 1) or 1)
+            st["resources_pool"] = {
+                "gold_left": _pool_gold,
+                "mats_left": _pool_mats,
+                "equip_left": _pool_equip,
+            }
         return st
+
+    # ---------------- v137 dungeon 房间池/资源池消耗（world 联动消费端） ----------------
+    def consume_monster(self, st: dict, sa_id: str):
+        """v137：从副本房间怪物池弹出 1 只怪物定义（rooms[sa_id].monsters_left 首项）。
+
+        - sa_id 无效 / 房间无存档 / 池空 → 返回 None（调用方按"无怪可遇"处理）
+        - 弹出的怪物定义保持 SUBAREAS 槽位形态：[
+            mid, 名, role(boss/elite/tank/dps/healer/speedster), lv, [技能], [掉落]]
+        - 仅修改 st["rooms"]，由调用方负责 db.save_battle 持久化
+        """
+        rooms = st.get("rooms")
+        if not rooms:
+            return None
+        rstate = rooms.get(sa_id)
+        if not rstate:
+            return None
+        pool = rstate.get("monsters_left")
+        if not pool:
+            return None
+        return pool.pop(0)
+
+    def consume_poi_loot(self, st: dict, sa_id: str, poi_id: str):
+        """v137：消费房间 POI 的 loot（从资源池扣减），返回奖励 dict 或 None。
+
+        校验链：
+          ① poi_id 必须仍在 rooms[sa_id].pois_left（探索完即空，重复调查返回 None）
+          ② POI 定义从 C.POIS 查（dungeon_pois 已并入），无 loot 的 POI（篝火/石碑/机关/
+             陷阱等非拾取型）→ 返回 {"gold": 0, "materials": [], "equip": []}（效果仍结算）
+          ③ 资源池扣减：gold 从 resources_pool.gold_left 扣（不足则只发剩余）；
+             materials 同名从 mats_left 扣（不足 1 件则跳过）；equip 从 equip_left 移出
+             （不足则跳过）。
+        成功（或 POI 无 loot 但已在池中）→ 从 pois_left 移除并返回奖励 dict；
+        poi 不在池中 / 房间无存档 → None（调用方文案"已被搜刮一空"）。
+        """
+        rooms = st.get("rooms")
+        if not rooms:
+            return None
+        rstate = rooms.get(sa_id)
+        if not rstate:
+            return None
+        pois_left = rstate.get("pois_left")
+        if pois_left is None or poi_id not in pois_left:
+            return None
+        pool = st.setdefault("resources_pool", {})
+        gold_left = int(pool.get("gold_left", 0) or 0)
+        mats_left = pool.setdefault("mats_left", {})
+        equip_left = pool.setdefault("equip_left", [])
+        poi = C.POIS.get(poi_id) or {}
+        loot = poi.get("loot") or {}
+        reward = {"gold": 0, "materials": [], "equip": []}
+        # 金币：资源池扣减（不足则只发剩余）
+        g = int(loot.get("gold") or 0)
+        if g > 0:
+            take = min(g, gold_left)
+            if take > 0:
+                gold_left -= take
+                reward["gold"] = take
+        # 材料：同名从 mats_left 扣（不足 1 件则跳过）
+        for mn in (loot.get("materials") or []):
+            if mats_left.get(mn, 0) > 0:
+                mats_left[mn] -= 1
+                reward["materials"].append(mn)
+        # 装备：从 equip_left 移出（不足则跳过）
+        for eq in (loot.get("equip") or []):
+            try:
+                equip_left.remove(eq)
+                reward["equip"].append(eq)
+            except ValueError:
+                pass
+        pool["gold_left"] = gold_left
+        # 已消费 POI 移出剩余列表（探索完即空语义）
+        pois_left.remove(poi_id)
+        return reward
 
 
     async def _instance_start(self, event, group_id, qq_id, player, arg):
@@ -1246,6 +1574,11 @@ class InstanceCmds(CommandBase):
         # 锁全队
         for m in members:
             self._lock_battle(group_id, m)
+        # v137 副本地图化：开本落点 = 副本入口子区域（全队 cur_subarea 同步）
+        _entry_sa = C.map_entry_subarea(kid)
+        if st.get("mode") == "map" and st.get("rooms") and _entry_sa:
+            for m in members:
+                db.update_player(group_id, m, cur_subarea=_entry_sa)
         db.save_battle(group_id, qq_id, st)
         # v49 意见#7：队伍构成提示（单人副本跳过）
         comp = " + ".join(self._class_role_label(st["players"][str(m)]["class_name"]) for m in members)
@@ -1270,7 +1603,7 @@ class InstanceCmds(CommandBase):
                 f"━━━━━━━━━━━━\n"
                 f"{size_tip}"
                 f"{self._tip('instance')}\n"
-                f"⏳ 战斗轮到你时超时 60 秒自动防御！"
+                f"⏳ 副本内『移动』由队长带队；『探索』『调查』各人自由进行，遇怪全队合并进同一场战斗！"
                 f"{intro_note}"
             )
             return

@@ -176,6 +176,8 @@ class WorldCmds(CommandBase):
         v87.13b sa_id_override：移动到达展示时目标子区域还没写进 player，显式传入落点子区域 id。
         v132 返回拆分：("🔎 可探索触发" POI 行列表, "✨ 可交互场景" PROPS 行列表)——
         鱼鱼拍板新排版：探索触发与直接交互分两区展示（城镇版/野外版同一套区块）。
+        v137 副本地图化：副本内（玩家开本且当前房间）时，经 rooms[cur_room].pois_left
+        过滤子区域挂载 POI——探索完即空的资源池语义；已消费的 POI 不再显示。
         """
         poi_lines, prop_lines = [], []
         mid = cur_map.get("id", "")
@@ -183,6 +185,20 @@ class WorldCmds(CommandBase):
         # v87 02 章 7.6：探索点 POI 显示（子区域挂载）
         if player:
             poi_ids = C.subarea_pois(mid, sa_id)
+            # v137 副本地图化：副本内 POI 显示受 rooms[cur_room].pois_left 过滤（资源池语义）
+            _inst_row = None
+            try:
+                _inst_row = self._instance_battle_for(player.get("group_id", "g"), player.get("qq_id"))
+            except Exception:
+                _inst_row = None
+            if _inst_row and (_inst_row["state"].get("mode") == "map" or _inst_row["state"].get("rooms")):
+                _st = _inst_row["state"]
+                _rooms = _st.get("rooms") or {}
+                _rkey = sa_id or (player or {}).get("cur_subarea") or ""
+                _rstate = _rooms.get(_rkey) or {}
+                _left = _rstate.get("pois_left")
+                if _left is not None:
+                    poi_ids = [pid for pid in poi_ids if pid in _left]
             for _pid in poi_ids:
                 _p = C.POIS.get(_pid)
                 if _p:
@@ -851,6 +867,10 @@ class WorldCmds(CommandBase):
                     lines.append("  🔒？？？(隐藏角落)")
             exit_sa_id = C.map_exit_subarea(cur_map.get("id", ""))
             at_exit = (not exit_sa_id) or (cur_sa == exit_sa_id)
+            # v137 副本地图化：副本内（no_exit）不显示通往野外的连接——副本是封闭地图
+            _dun = cur_map.get("dungeon") or {}
+            if _dun.get("no_exit"):
+                neighbors = []
             # v95.21 跨图连接只在出口子区域列出：普通场所不显示野外/他镇目的地，
             # 出城必须走城门（镇郊/野外入口），符合"出城走城门"铁律
             if at_exit:
@@ -1424,6 +1444,15 @@ class WorldCmds(CommandBase):
         if _inst_gate:
             yield event.plain_result(_inst_gate)
             return
+        # v137 副本地图化：副本内移动（已开本 + 在副本图内）——队长带队、房间连通、
+        # discovery_agro 遇怪、Boss 房 Boss 战。目标房间名/序号解析与野外同款，
+        # 但只在本图连通表内移动（no_exit 无出口，不连野外）。
+        inst_row = self._instance_battle_for(group_id, qq_id)
+        if inst_row and inst_row["state"].get("inst_id") == target["id"] \
+                and (inst_row["state"].get("mode") == "map" or inst_row["state"].get("rooms")):
+            async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, target, dest):
+                yield _r
+            return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
         target_sas = target.get("subareas") or []
         first_sa = None
@@ -1593,6 +1622,119 @@ class WorldCmds(CommandBase):
         if group_id is not None and qq_id is not None and db.get_event_state(f"move_mode:{qq_id}"):
             out += "\n🚶 赶路模式中：回复序号直接赶路，回复 0 结束"
         return out
+
+    def _instance_dungeon_move(self, event, group_id, qq_id, player, inst_row, target, dest):
+        """v137 副本内移动（world.move 副本分支）：队长带队 + 房间连通校验 + discovery_agro 遇怪 + Boss 房 Boss 战。
+
+        与野外移动共用同一『前往/移动』入口（鱼鱼 v137：副本与野外共用一套代码机制），
+        差异仅在：
+          ① 仅队长可移动，全队 cur_subarea 同步（db.update_player 每个成员）
+          ② 目标房间必须在本图 SUBAREA_LINKS_INDEX 连通表内（副本无出口，不连野外）
+          ③ 遇怪概率 = dungeon.discovery_agro（0.85），消耗 rooms[cur_room].monsters_left
+          ④ 到达 Boss 房 + boss_alive → 触发 Boss 战（走 _enter_stage_combat 现状战斗链路）
+        """
+        st = inst_row["state"]
+        if st.get("cleared"):
+            yield event.plain_result("副本已通关，没有敌人了！『副本地图』看看战利品堆，或『离开副本』传出～")
+            return
+        # 战斗进行中（mode != map）→ 不能移动（与野外战斗中禁止移动同规则）
+        if st.get("mode") != "map":
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人再说～")
+            return
+        # 队长带队：仅队长可移动
+        members = st.get("members") or []
+        if str(qq_id) != str(st.get("leader")):
+            _lead = self._player(group_id, st.get("leader")) or {}
+            yield event.plain_result(
+                f"⏳ 副本内由队长【{_lead.get('name', st.get('leader'))}】带队移动！等待队长『移动 <房间>』～")
+            return
+        # 目标房间解析：序号（本图连通表）优先，其次房间名/id
+        cur_sa = player.get("cur_subarea") or ""
+        cur_map = C.MAP_BY_ID.get((st.get("inst_id") or "").removeprefix("inst_"), {})
+        sas = cur_map.get("subareas") or []
+        links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
+        # 副本内不隐藏房间（v137 房间全可见），直接取连通表
+        target_sa = None
+        if dest.isdigit():
+            idx = int(dest)
+            if 1 <= idx <= len(links):
+                tid = links[idx - 1]
+                target_sa = next((s for s in sas if s["id"] == tid), None)
+        else:
+            for s in sas:
+                if dest in (s["name"], s["id"]):
+                    target_sa = s
+                    break
+        if target_sa is None:
+            names = "、".join(
+                f"{i + 1}. {next((s['name'] for s in sas if s['id'] == lid), lid)}"
+                for i, lid in enumerate(links)
+            ) or "（无）"
+            yield event.plain_result(
+                f"🧭 从当前房间可前往：{names}。输入『移动 <房间名/序号>』～"
+                f"（『副本地图』查看全景）")
+            return
+        if target_sa["id"] == cur_sa:
+            yield event.plain_result(f"你已经在这里了({cur_map.get('name', '')}·{target_sa['name']})～")
+            return
+        if target_sa["id"] not in links:
+            yield event.plain_result(
+                f"🧭 【{target_sa['name']}】与当前房间不相连！副本内只能移动到相邻房间（『副本地图』查看可前往）～")
+            return
+        # 目标房间：rooms 存档（怪物池/资源池）——波次 3a 未实现则只做移动/展示
+        rooms = st.get("rooms") or {}
+        rstate = rooms.get(target_sa["id"]) or {}
+        # 落点：全队 cur_subarea 同步
+        for m in members:
+            db.update_player(group_id, m, cur_subarea=target_sa["id"])
+        db.save_battle(group_id, st["leader"], st)
+        arrive_view = self._subarea_arrive(self._player(group_id, qq_id), cur_map, target_sa, group_id, qq_id)
+        # v137 dungeon 修饰符：discovery_agro 遇怪判定（消耗 monsters_left，打完不刷）
+        _dun = cur_map.get("dungeon") or {}
+        _agro = float(_dun.get("discovery_agro", 0.85) or 0.85)
+        _left = rstate.get("monsters_left")
+        _hit = False
+        if _left is not None and len(_left) > 0 and random.random() < _agro:
+            _hit = True
+        if _hit:
+            # 遇怪 → 弹出 1 只 → 构建敌方阵列 → 进战斗（现状 _enter_stage_combat 链路）
+            _def = _left.pop(0)
+            self._enter_stage_combat(group_id, st, _def, target_sa)
+            db.save_battle(group_id, st["leader"], st)
+            _mon = st.get("boss") or {}
+            _role = "👑 BOSS" if _def[2] == "boss" else ("⭐ 精英" if _def[2] == "elite" else "🐾")
+            yield event.plain_result(
+                f"{arrive_view}\n"
+                f"━━━━━━━━━━━━\n"
+                f"🍃 刚踏进【{target_sa['name']}】，{_mon.get('name', '怪物')} 就扑了上来！\n"
+                f"━━━━━━━━━━━━\n"
+                f"{_role}【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} ❤️ {_mon.get('hp', 0):,}\n"
+                f"━━━━━━━━━━━━\n"
+                f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+            )
+            return
+        # Boss 房 + boss_alive → 触发 Boss 战（不消耗普通怪池）
+        _br = _dun.get("boss_room")
+        _boss_alive = bool(rstate.get("boss_alive", False))
+        if _br == target_sa["id"] and _boss_alive:
+            boss_def = target_sa.get("boss")
+            if boss_def:
+                self._enter_stage_combat(group_id, st, boss_def, target_sa)
+                rstate["boss_alive"] = False
+                db.save_battle(group_id, st["leader"], st)
+                _mon = st.get("boss") or {}
+                yield event.plain_result(
+                    f"{arrive_view}\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"👑 踏入【{target_sa['name']}】，Boss【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} 拦在面前！\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"👑【{_mon.get('name', '')}】❤️ {_mon.get('hp', 0):,}\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
+                )
+                return
+        # 无事到达
+        yield event.plain_result(arrive_view)
 
     def _travel_ambush(self, player: dict, target_map: dict, group_id=None, qq_id=None):
         """移动撞怪判定：返回撞到的怪物 dict 或 None。

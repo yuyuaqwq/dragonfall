@@ -69,7 +69,7 @@ class CombatCmds(CommandBase):
         player = self._player(group_id, qq_id)
         # v87.2 副本地图化：副本地图模式（mode=map）→ 副本内探索
         inst_row = self._instance_battle_for(group_id, qq_id)
-        if inst_row and inst_row["state"].get("mode") == "map":
+        if inst_row and (inst_row["state"].get("mode") == "map" or inst_row["state"].get("rooms")):
             async for _r in self._instance_explore(event, group_id, qq_id, inst_row):
                 yield _r
             return
