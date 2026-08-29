@@ -577,8 +577,16 @@ class WorldCmds(CommandBase):
         player = self._player(group_id, qq_id)
         # O114 修复：副本战斗中『地图』与副本状态同步——显示"副本战斗中"而非旧地点
         # （与『角色』位置显示同源，playtest O114 洛洛实测）
+        # v137 副本地图化：副本 map 模式（mode=map，无战斗）→ 显示副本地图视图
         _inst_row = self._instance_battle_for(group_id, qq_id)
         if _inst_row:
+            _st = _inst_row["state"]
+            if _st.get("mode") == "map" or (_st.get("rooms") and not (_st.get("enemies") or _st.get("boss"))):
+                # 副本内地图模式：显示副本地图（_instance_map_view 是 InstanceCmds 方法，
+                # 通过主实例调用——Main 继承所有 Mixin，self 即 Main）
+                if hasattr(self, "_instance_map_view"):
+                    yield event.plain_result(self._instance_map_view(_st, group_id))
+                    return
             yield event.plain_result(
                 "🗺️ 【副本战斗中】\n"
                 "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"

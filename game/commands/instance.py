@@ -1502,6 +1502,9 @@ class InstanceCmds(CommandBase):
                         _ml.append(list(_ent))
                 if _sa.get("elite") and isinstance(_sa["elite"], (list, tuple)) and len(_sa["elite"]) >= 2:
                     _ml.append(list(_sa["elite"]))
+                # v137：Boss 房 Boss 也进怪物池（探索可遇 Boss；boss_alive 标记通关判定）
+                if _sa.get("boss") and isinstance(_sa["boss"], (list, tuple)) and len(_sa["boss"]) >= 2:
+                    _ml.append(list(_sa["boss"]))
                 # 房间 POI 挂载（v137 dungeon_pois 已并入 SUBAREA_POIS，id 带前缀唯一）
                 _poi_ids = list(C.subarea_pois(_map_id, _sa_id) or [])
                 # 资源池汇总：本房间 POI loot（gold/materials/equip）
@@ -2153,6 +2156,43 @@ class InstanceCmds(CommandBase):
                     "\n━━━━━━━━━━━━\n"
                     "✅ 精英守卫被击败了！密室深处露出一口【神秘宝箱】……\n"
                     "🔐 『调查 宝箱』看看里面藏着什么！"
+                )
+                return
+            # v137 副本地图化：dungeon rooms 存档 → 敌人全灭后按当前房间判定
+            # （Boss 房 → 通关；普通房 → 回地图模式，怪物池已消耗该房间剩余）
+            if st.get("rooms"):
+                cur_sa = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
+                _rstate = (st.get("rooms") or {}).get(cur_sa) or {}
+                _kill_lines = self._instance_kill_reward(group_id, st)
+                if _rstate.get("boss_alive"):
+                    # Boss 房 Boss 被击败 → 标记 boss_alive=False + 通关（下段 _instance_victory）
+                    _rstate["boss_alive"] = False
+                    _rstate["_boss_room"] = True
+                st["stage_cleared"] = True
+                st["over"] = False
+                st["mode"] = "map"
+                st["boss"] = None
+                st["enemy"] = None
+                st["enemies"] = []
+                for m in st["members"]:
+                    self._unlock_battle(group_id, m)
+                self._sync_players_db(group_id, st)
+                db.save_battle(group_id, st["leader"], st)
+                if _rstate.get("_boss_room"):
+                    # Boss 房击败 → 走通关结算
+                    st = db.get_battle(group_id, st["leader"])["state"]
+                    async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs + [f"👑 副本 Boss 已被击败！"]):
+                        yield _r
+                    return
+                map_view = self._instance_map_view(st, group_id)
+                yield event.plain_result(
+                    "\n".join(logs) +
+                    (("\n" + "\n".join(_kill_lines)) if _kill_lines else "") +
+                    f"\n━━━━━━━━━━━━\n"
+                    f"✅ 【{cur_sa}】的敌人被肃清了！\n"
+                    f"{map_view}\n"
+                    f"━━━━━━━━━━━━\n"
+                    f"🧭 副本内可继续探索/移动，或『副本』查看进度！"
                 )
                 return
             stages = st.get("inst_stages") or []
@@ -2896,10 +2936,14 @@ class InstanceCmds(CommandBase):
 
     async def _instance_victory(self, event, group_id, qq_id, player, st, logs):
         inst = C.INSTANCES[st["inst_id"]]
-        boss = st["boss"]
+        # v137：Boss 可能已从 st["boss"] 置空（enemies 阵列承载），从阵列找 role=boss 或取首个
+        boss = st.get("boss")
+        if not boss or not isinstance(boss, dict):
+            boss = next((u for u in (st.get("enemies") or []) if u.get("role") == "boss"), None) \
+                or next((u for u in (st.get("enemies") or [])), None) or {}
         lines = [x for x in logs if "你击败了" not in x]
         lines.append("")
-        lines.append(f"🎉 【{boss['name']}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
+        lines.append(f"🎉 【{boss.get('name', '副本首领')}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
         # v126 副本剧情化：通关叙事（inst 有 outro 字段才渲染，老数据无字段不显示）
         if inst.get("outro"):
             lines.append(f"📜 {inst['outro']}")
@@ -2937,7 +2981,7 @@ class InstanceCmds(CommandBase):
             # v135 副本全员图纸小概率：每名存活成员独立判定（首功图纸之外的全员奖励，
             # 概率 constants.INSTANCE_BP_CHANCE=10%）。已学图纸折算图纸残页，未学整张入包。
             if random.random() < C.INSTANCE_BP_CHANCE:
-                bp2 = C.roll_blueprint(boss["lv"])
+                bp2 = C.roll_blueprint(boss.get("lv", 1) or 1)
                 if bp2:
                     _learned2 = (p.get("learned_blueprints") or [])
                     if bp2.get("blueprint_for") in _learned2:
@@ -2982,7 +3026,7 @@ class InstanceCmds(CommandBase):
             if top_key:
                 top_p = self._player(group_id, top_key)
                 if top_p:
-                    bp = C.roll_blueprint(boss["lv"])
+                    bp = C.roll_blueprint(boss.get("lv", 1) or 1)
                     # v101.25 #349：首功图纸奖励同规则——已学图纸折算为图纸残页
                     _learned = (top_p.get("learned_blueprints") or [])
                     if bp.get("blueprint_for") in _learned:

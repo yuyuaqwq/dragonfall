@@ -11,6 +11,14 @@ e_minions / round / resources / cooldown / combo_seq →
 援军/精力状态，验证跨回合传递与写回。
 """
 import sys, os, time
+
+# ⚠️ v137 副本彻底重构（副本地图化）：本测试基于旧副本结构（st["boss"]/st["turn"]/分层推进/旧 POI id），
+# 已不适用于 v137（副本=多房间地图，怪物在 rooms 池，战斗在 enemies 阵列，推进靠移动）。
+# 核心玩法验收由 tests/test_v137_dungeon.py 覆盖。保留本文件供历史参考，跳过执行。
+print("⏭️ test_v98_05_instance_state_persist.py: v137 重构后旧结构测试已跳过（见 test_v137_dungeon.py）")
+import sys as _sys
+_sys.exit(0)
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 

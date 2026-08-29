@@ -13,6 +13,12 @@ import sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, db, clean_db, Main, FakeEvent, run
 
+# ⚠️ v137 副本彻底重构（副本地图化）：本测试基于旧副本结构（st["boss"]/st["turn"]/分层推进），
+# 已不适用于 v137（副本=多房间地图，怪物在 rooms 池，战斗在 enemies 阵列，推进靠移动）。
+# 核心玩法验收由 tests/test_v137_dungeon.py 覆盖。保留本文件供历史参考，跳过执行。
+print("⏭️ test_commands_instance: v137 重构后旧结构测试已跳过（见 test_v137_dungeon.py）")
+sys.exit(0)
+
 # v94 体力：本文件用 register 命令建号（不走 make_player 的 999999），
 # 副本测试不测体力系统，直接豁免体力扣减，防开本被体力拦截。
 def _fake_spend(self, gid, qid, cost, player, action="行动"):
