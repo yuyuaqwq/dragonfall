@@ -39,6 +39,167 @@ def _inst_map_id(inst_id: str) -> str:
 
 class InstanceCmds(CommandBase):
 
+    # ---------------- v137 『加入战斗』：同队伍成员并入正在进行中的副本战斗 ----------------
+    # 设计依据：docs/RESEARCH_join_battle.md §四.2/§五/§九（CTB 播种 = 参考点 + 自身 cost；
+    # 战斗结束/PVP/满员/重复/0血/异地拒绝；只改状态不推进行动轴）。
+    # 本期范围：仅支持『副本战斗』（battle 存队长名下，st["type"]=="instance"）；
+    # 野外同场战斗（方案 B 队长键）与『副本锁拆分为战斗锁+副本锁』留待后续 Phase。
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?加入战斗(?:\s*|$)")
+    @require_player()
+    @no_prof_waiting()
+
+    async def join_battle(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if not player:
+            yield event.plain_result("你还没有角色！先『注册』开始冒险～")
+            return
+        new_key = str(qq_id)
+        # 0. 加入者自己已在战斗中 → 拒绝（副本队员经 _instance_battle_for 反查队长行）
+        if self._in_battle(group_id, qq_id):
+            inst_row = self._instance_battle_for(group_id, qq_id)
+            if inst_row and str(inst_row["state"].get("leader")) == new_key:
+                yield event.plain_result("你就是这场战斗的队长！『攻击』『技能 <名称>』『防御』行动～")
+                return
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人～")
+            return
+        # 1. 同队伍校验：无队 → 拒绝
+        members = db.party_members(group_id, qq_id)
+        if not members:
+            yield event.plain_result("你还没有队伍！先『组队 <对方名字>』拉上队友，再一起并肩作战～")
+            return
+        if str(members[0]) != new_key:
+            # 队员视角：目标战斗 = 队长名下（副本 battle 存队长行）
+            leader_key = str(members[0])
+            battle_row = db.get_battle(group_id, leader_key)
+            if not battle_row or battle_row["state"].get("type") != "instance":
+                yield event.plain_result("附近没有可加入的战斗！让队长先在副本中遇怪开战吧～")
+                return
+            st = battle_row["state"]
+            # 2a. 地理校验：队员在副本中（副本是封闭地图，野外玩家不能跨图加入）。
+            #     队员自己的 battle 行不存在（副本战斗存队长名下），用 _instance_battle_for
+            #     反查（party 表 → 队长行）；再比对 inst_id 防跨副本串台。
+            inst_row_self = self._instance_battle_for(group_id, qq_id)
+            if not inst_row_self or inst_row_self["state"].get("inst_id") != st.get("inst_id"):
+                yield event.plain_result("副本是封闭区域——先进入副本（队长『副本 <名字>』开本）才能加入战斗！")
+                return
+        else:
+            # 队长视角：自己开本遇怪 → 自己就是战斗；无需再加入（上面已拦）
+            yield event.plain_result("你就是这场战斗的队长！『攻击』『技能 <名称>』『防御』行动～")
+            return
+        # 3. 战斗状态校验
+        if st.get("over") or st.get("cleared"):
+            yield event.plain_result("这场战斗已经结束了！")
+            return
+        if st.get("retreated"):
+            yield event.plain_result("这场战斗已经撤退了！")
+            return
+        if st.get("type") != "instance":
+            yield event.plain_result("这个战斗不支持加入！")
+            return
+        players = st.setdefault("players", {})
+        # 3a. 重复加入：已在 st["players"] → 拒绝（幂等）
+        if new_key in players:
+            yield event.plain_result("你已在战斗中！『攻击』『技能 <名称>』『防御』行动～")
+            return
+        # 3b. 满员：len(members) >= 4 → 拒绝（与队伍上限对齐）
+        if len(st.get("members") or []) >= 4:
+            yield event.plain_result("战斗满员了（4 人）！")
+            return
+        # 3c. 敌方已全灭（残局无怪）→ 拒绝（无敌人可打）
+        if not self._instance_enemies_alive(st):
+            yield event.plain_result("这场战斗的敌人已经全部倒下！没有可加入的战斗了～")
+            return
+        # 3d. 0 血 → 拒绝（与开本 0 血拦截同规则）
+        if int(player.get("hp", 0) or 0) <= 0:
+            yield event.plain_result("💀 你生命值为 0！先去住宿或用药恢复，别拿命加入战斗～")
+            return
+        # 4. 构造新玩家快照（_instance_start 同款：player_final_stats 实时属性 + 站位/单位字段）
+        _p = self._player(group_id, qq_id)
+        if not _p:
+            yield event.plain_result("你的角色数据异常，无法加入战斗！")
+            return
+        _st2 = E.player_final_stats(_p["class_name"], _p["level"], _p.get("equipment", {}),
+                                    _p.get("class_tier", 0), _p.get("attributes"),
+                                    _p.get("evolve_path", 0), None, _p.get("race"))
+        _spd = float(_st2.get("spd", 0) or 0)
+        snap = {
+            "name": _p["name"], "qq_id": qq_id,
+            "class_name": _p["class_name"], "level": _p["level"],
+            "hp": min(int(_p.get("hp", 0)), int(_st2.get("max_hp", _p.get("max_hp", 100)))),
+            "max_hp": int(_st2.get("max_hp", _p.get("max_hp", 100))),
+            "mp": min(int(_p.get("mp", 0)), int(_st2.get("max_mp", _p.get("max_mp", C.DEFAULT_MAX_MP)))),
+            "max_mp": int(_st2.get("max_mp", _p.get("max_mp", C.DEFAULT_MAX_MP))),
+            "atk": _p.get("atk", 0), "def": _p.get("def", 0),
+            "matk": _p.get("matk", 0), "mdef": _p.get("mdef", 0),
+            "spd": _spd,
+            "equipment": _p.get("equipment", {}),
+            "skills": _p.get("skills", []),
+            "learned_skills": _p.get("learned_skills", []),
+            "class_tier": _p.get("class_tier", 0),
+            "evolve_path": _p.get("evolve_path", 0),
+            "attributes": _p.get("attributes"),
+            "title_bonus": self._title_bonus(group_id, qq_id),
+            "race": _p.get("race"),
+            "rank": C.CLASSES.get(_p["class_name"], {}).get("default_rank", 2),
+            "reach": C.CLASSES.get(_p["class_name"], {}).get("reach",
+                             C.CLASSES.get(_p["class_name"], {}).get("default_rank", 2)),
+            "uid": "p_{}".format(new_key),
+            "buffs": {},
+            "stacks": {},
+            "defending": False,
+            "charging": None,
+        }
+        # 5. CTB 播种（RESEARCH_join_battle.md §四.2）：参考点 = min(存活敌方 ct, 存活玩家 ct)，
+        #    新玩家 ct = 参考点 + 自身 _ct_cost(spd) —— 入场有代价、不抢当前行动窗口。
+        try:
+            ref = None
+            ec = [float(u.get("ct", 0) or 0) for u in st.get("enemies") or [] if u.get("hp", 0) > 0]
+            pc = [float(s.get("ct", 0) or 0) for k, s in players.items()
+                  if st.get("alive", {}).get(str(k), True) and s.get("hp", 0) > 0]
+            cands = [c for c in (ec + pc) if c is not None]
+            if cands:
+                ref = min(cands)
+            cost = BT.Battle()._ct_cost(_spd)
+            snap["ct"] = (ref if ref is not None else 0.0) + cost
+        except Exception:
+            snap["ct"] = -_spd  # 兜底：-spd 与旧副本口径一致
+        # 6. 并入 st（只改状态，不推进行动轴）
+        players[new_key] = snap
+        st.setdefault("members", []).append(new_key)
+        st.setdefault("alive", {})[new_key] = True
+        st.setdefault("p_buffs", {})[new_key] = {}
+        st.setdefault("p_hot", {})[new_key] = {}
+        st.setdefault("p_food_effects", {})[new_key] = []
+        st.setdefault("p_food_affixes", {})[new_key] = []
+        st.setdefault("mech_stacks", {})[new_key] = {}
+        st.setdefault("p_defending", {})[new_key] = False
+        st.setdefault("contribution", {})[new_key] = 0
+        st.setdefault("threat", {})[new_key] = 0
+        st.setdefault("player_hit", {})[new_key] = False
+        st.setdefault("resources", {}).setdefault(new_key, {})
+        st.setdefault("cooldown", {}).setdefault(new_key, {})
+        st.setdefault("combo_seq", {}).setdefault(new_key, [])
+        # 7. 持久化 + 锁 + 广播
+        try:
+            db.save_battle(group_id, st["leader"], st)
+        except Exception:
+            pass
+        self._lock_battle(group_id, qq_id)
+        # 同步 DB 血量（快照与 DB 对齐，防 _sync_players_db 用旧值覆盖）
+        try:
+            db.update_player(group_id, qq_id, hp=snap["hp"], mp=snap["mp"],
+                             max_hp=snap["max_hp"], max_mp=snap["max_mp"])
+        except Exception:
+            pass
+        yield event.plain_result(
+            f"⚔️ {snap['name']} 加入了战斗！\n"
+            f"━━━━━━━━━━━━\n"
+            f"{self._instance_ct_queue(st, group_id)}\n"
+            f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in st.get('members', []))}"
+        )
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副本(?!地图)(?:[\s\S]*)$")
     @require_player()
     @no_prof_waiting()
@@ -78,12 +239,13 @@ class InstanceCmds(CommandBase):
         old_row = self._instance_retreated_row(group_id, qq_id)
         if old_row:
             old_st = old_row["state"]
-            # v137 副本地图化：rooms 存档恢复——玩家 cur_subarea 同步回入口房间
+            # v137 副本地图化：rooms 存档恢复——玩家 cur_map + cur_subarea 同步回入口房间
             if old_st.get("rooms"):
-                _entry_sa = C.map_entry_subarea(old_st.get("inst_id", ""))
+                _mid = (old_st.get("inst_id") or "").removeprefix("inst_")
+                _entry_sa = C.map_entry_subarea(_mid)
                 if _entry_sa:
                     for _m in ok_members:
-                        db.update_player(group_id, _m, cur_subarea=_entry_sa)
+                        db.update_player(group_id, _m, cur_map=_mid, cur_subarea=_entry_sa)
             if old_st.get("inst_id") and (old_st["inst_id"] == arg or
                                           C.INSTANCES.get(old_st["inst_id"], {}).get("name") == arg):
                 inst = C.INSTANCES.get(old_st["inst_id"], {})
@@ -388,12 +550,13 @@ class InstanceCmds(CommandBase):
             return
         st["retreated"] = True
         # v137 副本地图化：撤退保留 rooms/resources_pool（下次恢复继续），
-        # 同时把全队 cur_subarea 复位到入口房间（下次『副本 <名>』恢复路径同步）
+        # 同时把全队 cur_map + cur_subarea 复位到入口房间（下次『副本 <名>』恢复路径同步）
         if st.get("rooms"):
-            _entry_sa = C.map_entry_subarea(st.get("inst_id", ""))
+            _mid = (st.get("inst_id") or "").removeprefix("inst_")
+            _entry_sa = C.map_entry_subarea(_mid)
             if _entry_sa:
                 for _m in st["members"]:
-                    db.update_player(group_id, _m, cur_subarea=_entry_sa)
+                    db.update_player(group_id, _m, cur_map=_mid, cur_subarea=_entry_sa)
         db.save_battle(group_id, st["leader"], st)
         for m in st["members"]:
             self._unlock_battle(group_id, m)
@@ -1574,11 +1737,12 @@ class InstanceCmds(CommandBase):
         # 锁全队
         for m in members:
             self._lock_battle(group_id, m)
-        # v137 副本地图化：开本落点 = 副本入口子区域（全队 cur_subarea 同步）
-        _entry_sa = C.map_entry_subarea(kid)
+        # v137 副本地图化：开本落点 = 副本入口子区域（全队 cur_map + cur_subarea 同步）
+        _map_id = kid[5:] if str(kid).startswith("inst_") else kid
+        _entry_sa = C.map_entry_subarea(_map_id)
         if st.get("mode") == "map" and st.get("rooms") and _entry_sa:
             for m in members:
-                db.update_player(group_id, m, cur_subarea=_entry_sa)
+                db.update_player(group_id, m, cur_map=_map_id, cur_subarea=_entry_sa)
         db.save_battle(group_id, qq_id, st)
         # v49 意见#7：队伍构成提示（单人副本跳过）
         comp = " + ".join(self._class_role_label(st["players"][str(m)]["class_name"]) for m in members)

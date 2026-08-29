@@ -96,6 +96,8 @@ COMMAND_REGEX = {
     # v130.2g 新功能：『职业』/『职业 <名称>』12 职业速查（玩家意见 #1 zerc，
     # 数据源 data/job_guide.py：classes.py + core_resources.py 派生；与转职/技能/图鉴不冲突）
     "job_guide": r'^(?:\[At:\d+\]\s*)?职业(?:\s+(\S+))?\s*$',
+    # v137 『加入战斗』：同队伍成员并入正在进行中的副本战斗（handler：instance.py InstanceCmds.join_battle）
+    "join_battle": r'^(?:\[At:\d+\]\s*)?加入战斗(?:\s*|$)',
     "item_view_mode_cmd": r'^(?:\[At:\d+\]\s*)?物品详情(?:开始|结束)(?:\s*|$)',
     "leaderboard": r'^(?:\[At:\d+\]\s*)?排行(?:[\s\S]*)$',
     "map_view": r'^(?:\[At:\d+\]\s*)?(?:地图|周围)(?:\s*|$)',

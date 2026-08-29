@@ -202,7 +202,13 @@ class WorldCmds(CommandBase):
             for _pid in poi_ids:
                 _p = C.POIS.get(_pid)
                 if _p:
-                    poi_lines.append(f"{_p['icon']} {_p['name']}(『探索』有机会发现)")
+                    # v137 副本 POI（dungeon_pois）无 icon 字段——用 type 映射或 ❓ 兜底
+                    _icon = _p.get("icon")
+                    if not _icon:
+                        _icon = {"chest": "📦", "campfire": "🔥", "rune_stone": "🗿",
+                                 "mechanism": "⚙️", "trap": "⚠️", "supply": "🎒",
+                                 "corpse": "💀"}.get(_p.get("type"), "❓")
+                    poi_lines.append(f"{_icon} {_p['name']}(『探索』有机会发现)")
         # v87.9 场景元素 PROPS 显示（子区域挂载，直接交互）
         # v87.11 支持专属名：挂载条目可为 (prop_id, 专属名) 元组
         if player:
