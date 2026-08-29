@@ -15,7 +15,7 @@ import conftest  # noqa: F401
 
 from data.plugins.dragonfall.game import data as C
 from data.plugins.dragonfall.game.core.drops import generate_roster_equip
-from data.plugins.dragonfall.game.engine import set_bonus_2, player_stats_detail
+from data.plugins.dragonfall.game.engine import set_bonus_2, player_stats_detail, set_bonus_4 as engine_set_bonus_4
 from data.plugins.dragonfall.game.core.craft import craft_recipe_make
 
 PASS = 0
@@ -142,6 +142,23 @@ def test_craft():
         check("锻造铁皮长剑套装", eq and eq.get("set") == "铁皮套", str(eq.get("set") if eq else None))
 
 
+def test_set_effects():
+    """4 件套特效注册（v136 审计补：_build_class_sets 必须注册 bonus_4，
+    否则战斗侧 set_bonus_4 读不到 effect，玩家白穿 4 件套）"""
+    print("【7. 套装特效注册】")
+    # 铁皮套 4 件 → pierce（破甲）；护林套 4 件 → regen（回血）
+    b4 = C.SETS.get("set_tie_pi_tao", {}).get("bonus_4", {})
+    check("铁皮套 bonus_4 注册", b4.get("effect") == "pierce", str(b4))
+    b4b = C.SETS.get("set_hu_lin_tao", {}).get("bonus_4", {})
+    check("护林套 bonus_4 注册", b4b.get("effect") == "regen", str(b4b))
+    eqs = [generate_roster_equip(rid) for rid, r in C.EQUIP_ROSTER.items()
+           if r.get("series") == "铁皮"][:4]
+    if len(eqs) == 4:
+        equipment = {"weapon": eqs[0], "helm": eqs[1], "armor": eqs[2], "legs": eqs[3]}
+        effs = engine_set_bonus_4(equipment)
+        check("铁皮套4件特效", "pierce" in effs, str(effs))
+
+
 if __name__ == "__main__":
     test_counts()
     test_class_sets()
@@ -149,6 +166,7 @@ if __name__ == "__main__":
     test_scatter()
     test_region()
     test_craft()
+    test_set_effects()
     print(f"\n===== 结果：通过 {PASS} / 断言 {PASS + FAIL} =====")
     if FAIL:
         raise SystemExit(1)

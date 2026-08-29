@@ -171,6 +171,8 @@ def _build_class_sets():
             entry["class"] = b["class"]
         if b.get("bonus_4_stats"):
             entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
+        if b.get("bonus_4"):
+            entry["bonus_4"] = dict(b["bonus_4"])
         if b.get("bonus_5"):
             entry["bonus_5"] = dict(b["bonus_5"])
         if b.get("bonus_5_cond"):
