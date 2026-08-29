@@ -17,7 +17,7 @@ PLAYER_FIELDS = {
     "learned_blueprints", "lucky_until", "deed", "apprentices", "race",
     "equipped_title", "hidden_class_unlock", "deed_lv", "cur_subarea",
     "stamina", "stamina_ts", "explore_wandering", "gender",
-    "faction",
+    "faction", "battle_prefs",
 }
 
 
@@ -127,6 +127,8 @@ def get_player(group_id, qq_id):
             # v46：skill_levels 键名同样转回技能名
             p["skill_levels"] = {C.display("skills", k) if k else k: v for k, v in p["skill_levels"].items()}
             p["mounts"] = _jload(p.get("mounts"), {})
+            # v139 战前指令偏好（形态预设/终结阈值/蓄力档位）——JSON dict，缺省空
+            p["battle_prefs"] = _jload(p.get("battle_prefs"), {})
             p["learned_blueprints"] = _jload(p.get("learned_blueprints"), [])
             # v81 导师进修：apprentices 已拜师副业列表（JSON 数组）
             p["apprentices"] = _jload(p.get("apprentices"), [])
@@ -244,7 +246,7 @@ def update_player(group_id, qq_id, **fields):
             for k, v in fields.items():
                 if k not in PLAYER_FIELDS:
                     raise ValueError(f"update_player 非法字段: {k}（不在 players 表列白名单）")
-                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices", "hidden_class_unlock"):
+                if k in ("equipment", "skills", "learned_skills", "shortcuts", "skill_levels", "mounts", "learned_blueprints", "apprentices", "hidden_class_unlock", "battle_prefs"):
                     # v46：技能名列表/技能等级表 写入时转 ID（存档只存 ID）
                     if k in ("learned_skills", "skills") and isinstance(v, list):
                         v = [C.resolve("skills", s) if s else s for s in v]

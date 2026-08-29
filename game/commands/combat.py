@@ -2965,3 +2965,95 @@ class CombatCmds(CommandBase):
                     lines.append("☠️ 你击杀了玩家，红名 30 分钟！(红名期间无法进入安全区)")
                 db.set_event_state(f"red_{winner_qq}", str(new_red))
         yield event.plain_result("\n".join(lines))
+
+    # ============================================================
+    # v139 战前指令（职业融合：双形态预设 / 终结阈值 / 查看）
+    # 存储：player["battle_prefs"]（JSON dict，随玩家存档持久化）
+    # ============================================================
+    # 双形态职业 → 形态名（与 classes.py dual_form.form 对齐）
+    _DF139_CLASS_FORMS = {
+        "cls_zhan_shi": ("狂暴", "fury"),
+        "cls_dragon_oath": ("龙焰", "drake"),
+        "cls_shadow_blade": ("影舞", "shadow"),
+        "cls_wu_sheng": ("蓄势", "gather"),
+    }
+    # 刺客终结阈值四档（classes.py finisher_threshold.options）
+    _FINISHER139_OPTIONS = ("快刀", "满刃", "残血", "满段")
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前形态(?:[ 　]*(.+))?$")
+    @require_player()
+    async def battle_prefs_form(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        text = (event.get_message_str() or "").strip()
+        arg = text.split("战前形态", 1)[1].strip() if "战前形态" in text else ""
+        lines = []
+        cls_id = C.resolve("classes", player.get("class_name", ""))
+        forms = self._DF139_CLASS_FORMS.get(cls_id)
+        if not forms:
+            lines.append("🗡️ 当前职业不支持双形态预设（狂战士/龙裔/暮影/淬势者专属）。")
+            yield event.plain_result("\n".join(lines))
+            return
+        fname, fkey = forms
+        if not arg:
+            cur = (player.get("battle_prefs") or {}).get("dual_form", "")
+            lines.append(f"⚔️ 双形态预设：{'【' + cur + '】' if cur else '未设置（默认按资源自动入形态）'}")
+            lines.append(f"可用：{fname}（当前职业仅此一种双形态）")
+            yield event.plain_result("\n".join(lines))
+            return
+        if arg not in (fname, fkey):
+            lines.append(f"⚠️ 未知形态『{arg}』！当前职业可用：{fname}")
+            yield event.plain_result("\n".join(lines))
+            return
+        prefs = dict(player.get("battle_prefs") or {})
+        prefs["dual_form"] = fname
+        db.update_player(group_id, qq_id, battle_prefs=prefs)
+        lines.append(f"⚔️ 战前形态预设：{fname} ✅")
+        lines.append("入战将自动启用该形态（免费切换，不占行动）。")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前阈值(?:[ 　]*(.+))?$")
+    @require_player()
+    async def battle_prefs_finisher(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        text = (event.get_message_str() or "").strip()
+        arg = text.split("战前阈值", 1)[1].strip() if "战前阈值" in text else ""
+        lines = []
+        if C.resolve("classes", player.get("class_name", "")) != "cls_ci_ke":
+            lines.append("🗡️ 终结阈值是刺客专属战前设置。")
+            yield event.plain_result("\n".join(lines))
+            return
+        if not arg:
+            cur = (player.get("battle_prefs") or {}).get("finisher", "满刃")
+            lines.append(f"⚔️ 终结阈值：{'【' + cur + '】'}")
+            lines.append("档位：快刀(cp≥3) / 满刃(cp=5) / 残血(HP<40%+cp≥3) / 满段(链值≥8)")
+            yield event.plain_result("\n".join(lines))
+            return
+        if arg not in self._FINISHER139_OPTIONS:
+            lines.append(f"⚠️ 未知档位『{arg}』！可用：{'/'.join(self._FINISHER139_OPTIONS)}")
+            yield event.plain_result("\n".join(lines))
+            return
+        prefs = dict(player.get("battle_prefs") or {})
+        prefs["finisher"] = arg
+        db.update_player(group_id, qq_id, battle_prefs=prefs)
+        lines.append(f"⚔️ 终结阈值：{arg} ✅")
+        lines.append("战斗中达到对应条件即触发终结技（与四档 DSL 一致）。")
+        yield event.plain_result("\n".join(lines))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?战前指令(?:\s*|$)")
+    @require_player()
+    async def battle_prefs_view(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        prefs = player.get("battle_prefs") or {}
+        lines = ["⚙️ 战前指令（当前预设）："]
+        if not prefs:
+            lines.append("  （未设置任何战前指令）")
+        else:
+            if prefs.get("dual_form"):
+                lines.append(f"  ⚔️ 形态：{prefs['dual_form']}")
+            if prefs.get("finisher"):
+                lines.append(f"  🗡️ 终结阈值：{prefs['finisher']}")
+        lines.append("用法：战前形态 <狂暴> / 战前阈值 <快刀|满刃|残血|满段>")
+        yield event.plain_result("\n".join(lines))

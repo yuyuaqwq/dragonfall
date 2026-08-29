@@ -119,8 +119,9 @@ def test_consume_all_formula():
           abs(float(pn.get("power", 0)) - 0.634) < 1e-9 and pn.get("consume_all") == {"key": "chi", "per": 0.1},
           str({k: pn.get(k) for k in ("power", "consume_all")}))
     e = E.skill_info("cls_fa_shi", "元素湮灭") or {}
-    check("数据：元素湮灭 power=2.4 / consume_all{element, per:0.2}",
-          abs(float(e.get("power", 0)) - 2.4) < 1e-9 and e.get("consume_all") == {"key": "element", "per": 0.2},
+    # v139 峰值红线收敛：元素湮灭 power 2.4→1.2（满充能 EQ 4.8→2.4，峰值 92.8%→过线）
+    check("数据：元素湮灭 power=1.2 / consume_all{element, per:0.2}",
+          abs(float(e.get("power", 0)) - 1.2) < 1e-9 and e.get("consume_all") == {"key": "element", "per": 0.2},
           str({k: e.get(k) for k in ("power", "consume_all")}))
     # ---- 引擎黑盒：满资源施放 → 折算 power（捕获 _do_player_skill 折算结果）----
     try:
@@ -159,7 +160,7 @@ def test_consume_all_formula():
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"])
         b.resources["element_charge"] = 5
         cap, logs = cast_capture(b, "元素湮灭", p)
-        check_float("元素湮灭 满 5 充能折算 power = 4.8（2.4×2.0）", cap.get("power", 0), 4.8)
+        check_float("元素湮灭 满 5 充能折算 power = 2.4（1.2×2.0）", cap.get("power", 0), 2.4)
         check("元素湮灭 施放后充能扣光 = 0", b._elem_charge() == 0,
               f"charge={b._elem_charge()}")
     except (AttributeError, TypeError) as ex:
@@ -270,7 +271,8 @@ def test_six_affixes():
               f"bonus={b._tailwind_regen_bonus(p)}")
         b.resources["energy"] = 60
         b._turn_start(p)
-        check("回合开始：自然回 30 + 疾风余韵 10 = 100", b.resources["energy"] == 100,
+        # v139 凝神屏息：60+30+10=100 满值自动排气归零（签名机制）——余韵回复本身已生效（达到 100 上限）
+        check("回合开始：自然回 30 + 疾风余韵 10 = 满 100 触发排气", b.resources["energy"] == 0,
               f"energy={b.resources['energy']}")
         b2, p2 = new_battle("cls_you_xia", 1, 2, equipment=mk_eq(mk_piece(["swift_tailwind"])))
         b2._tailwind_prev_energy = 70
@@ -343,7 +345,7 @@ def test_sets_sample():
         b._res_gain(p, "element", 10)
         check("充能获取封顶 6", b._elem_charge() == 6, f"charge={b._elem_charge()}")
         cap, logs = cast_capture(b, "元素湮灭", p)
-        check_float("6 充能元素湮灭折算 power = 5.28（2.4×2.2）", cap.get("power", 0), 5.28)
+        check_float("6 充能元素湮灭折算 power = 2.64（1.2×2.2）", cap.get("power", 0), 2.64)
         check("元素使徒 4 件：全耗 -1 留残点 1（-6→-5）", b._elem_charge() == 1,
               f"charge={b._elem_charge()}")
     except (AttributeError, TypeError) as ex:

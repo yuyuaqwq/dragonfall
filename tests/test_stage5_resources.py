@@ -60,8 +60,10 @@ b2 = BT.Battle.from_state(st)
 check("resources 序列化往返", b2.resources == by.resources, str((b2.resources, by.resources)))
 
 print("【核心资源：回合回复】")
+# v139 凝神屏息：游侠精力满 100 回合开始自动排气归零（签名机制）——80 回 30 达 100 → 触发排气
+b2.resources['energy'] = 80
 logs = b2._turn_start(py)
-check("精力已满不超上限", b2.resources.get('energy') == 100, str(b2.resources))
+check("精力 80 回 30 → 满 100 触发凝神屏息归零", b2.resources.get('energy') == 0, str(b2.resources))
 py2 = mk('游侠')
 by2 = BT.Battle('monster', mkmon(), player=py2)
 by2.resources['energy'] = 50

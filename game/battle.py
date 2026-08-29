@@ -323,6 +323,17 @@ class Battle:
                 player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
             except Exception:
                 pass
+            # v139 配置注入：core_resources 的 dual_form/focus/vent 定义挂到 player dict
+            # （battle_modes/battle_bars 纯函数读 player["dual_form"]/["focus"]/["vent"]；
+            #   缺失 = 默认不启用，兼容旧职业/旧存档；转职分支差异由 core_resource_override 覆盖）
+            try:
+                from . import engine as _E139
+                _crd139 = _E139.core_resource_def(player.get("class_name", "")) or {}
+                for _mk139 in ("dual_form", "focus", "vent"):
+                    if _crd139.get(_mk139) and not player.get(_mk139):
+                        player[_mk139] = _crd139[_mk139]
+            except Exception:
+                pass
             # v97.4 回音洞穴祝福：探索事件写入 event_state bless_{qid}（玩家级，players 表全局无 group_id），本场攻击 +5%，一次性
             if player.get("qq_id") and not self.p_buffs.get("echo_bless"):
                 try:
@@ -1565,6 +1576,18 @@ class Battle:
             player["max_mp"] = int(_st.get("max_mp", player.get("max_mp", C.DEFAULT_MAX_MP)))
         except Exception:
             pass
+        # v139 配置注入（player 传入时补一次）：core_resources 的 dual_form/focus/vent 定义挂到 player dict
+        # （from_state 恢复的战斗 __init__ 不传 player 刷新不到，此处补注入；battle_modes/battle_bars 纯函数读这些字段）
+        try:
+            from . import engine as _E139b
+            _crd139b = _E139b.core_resource_def(player.get("class_name", "")) or {}
+            for _mk139b in ("dual_form", "focus", "vent"):
+                if _crd139b.get(_mk139b) and not player.get(_mk139b):
+                    player[_mk139b] = _crd139b[_mk139b]
+            player["v139_modes"] = self._v139_modes
+            player["v139_charge"] = self._v139_charge
+        except Exception:
+            pass
         # v63 玩家被沉默：技能类行动先被拦截转普攻（置于 O118 校验前，避免未学习技能
         # 在沉默下先被拦截而无法转普攻）；后续沉默状态下只能普攻/防御/道具
         if "silence" in self.p_buffs and action == "skill":
@@ -2095,6 +2118,8 @@ class Battle:
                 return logs, True
         else:
             # 普通 res_cost：逐资源校验（纯检查，不扣除）——consume_all 分支处理完不再落入（双声明技能 P1-2）
+            from .core.battle_bars import charge_def as _charge_def
+            _is_charge_skill = bool(_charge_def(info))  # v139 电荷制：蓄力阶段只耗 charge_cost，不校验完整 res_cost
             res_cost = info.get("res_cost") or {}
             for rk, rv in res_cost.items():
                 rd = E.core_resource_def(player["class_name"])
@@ -2105,6 +2130,17 @@ class Battle:
                 # v130.2 R1：精力消耗统一折算（词条精力刀刃 + 套装猎首），与扣减同源（P1-1）
                 if rk == "energy":
                     _rv = self._energy_cost_reduce(player, info, _rv)
+                # v139 电荷制：蓄力阶段只校验 charge_cost（默认 10），不校验完整 res_cost（满阶释放才扣）
+                if _is_charge_skill:
+                    _charge_cost = int(_charge_def(info).get("charge_cost", 10) or 10)
+                    if rk == "energy":
+                        _charge_cost = self._energy_cost_reduce(player, info, _charge_cost)
+                    if self._res_read(k) < _charge_cost:
+                        rname = (E.core_resource_def_by_key(k) or rd or {}).get("name", k)
+                        cur = self._res_read(k)
+                        logs.append(f"⚡ {rname}不足！需要 {_charge_cost}，当前 {cur}(『攻击』攒资源)")
+                        return logs, True
+                    continue
                 if self._res_read(k) < _rv:
                     rname = (E.core_resource_def_by_key(k) or rd or {}).get("name", k)
                     cur = self._res_read(k)
@@ -2176,8 +2212,10 @@ class Battle:
             if ck == "cp":
                 self._assassin_finisher_refund(player, logs)
         else:
+            from .core.battle_bars import charge_def as _charge_def2
+            _is_charge_skill2 = bool(_charge_def2(info))  # v139 电荷制：蓄力阶段不扣完整 res_cost（电荷分支只扣 charge_cost）
             res_cost = info.get("res_cost") or {}
-            if res_cost and not _releasing:  # 蓄力释放跳过资源扣减（施放时已扣）
+            if res_cost and not _releasing and not _is_charge_skill2:  # 蓄力释放跳过资源扣减（施放时已扣）；电荷制跳过（满阶释放由电荷分支补扣）
                 for rk, rv in res_cost.items():
                     _rv = int(rv or 0)
                     # v130.2 R1：精力消耗统一折算（词条精力刀刃 + 套装猎首）——与预检 _skill_cast_blocked 同源
@@ -2214,6 +2252,70 @@ class Battle:
             mp_cost = max(1, mp_cost - _mp_red)
         if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
             player["mp"] -= mp_cost
+        # ---- v139 电荷制（云海弓手三律翻译）：技能有 charge_cfg → 走电荷制，不走旧蓄力 ----
+        # 「蓄力」动作：电荷 +1 并立即出伤 0.7/1.3/1.9（边攒边打）；受击 -1 阶不清零；满阶强制释放（release_power）
+        from .core.battle_bars import charge_def, charge_state, charge_tick, charge_release_power, charge_clear
+        _charge_cfg = charge_def(info)
+        if _charge_cfg and not getattr(self, "_releasing_charge", False):
+            # v139 电荷制蓄力：每次蓄力动作耗 charge_cost（默认 10 精力），不耗完整 res_cost（满阶释放才耗）
+            _charge_cost = int(_charge_cfg.get("charge_cost", 10) or 10)
+            _res_key = next(iter(info.get("res_cost", {})), None) if info.get("res_cost") else None
+            if _res_key:
+                _cur = self._res_read(_res_key)
+                if _cur < _charge_cost:
+                    _res_cn = C.CORE_RESOURCES.get(_res_key, {}).get("name", _res_key)
+                    logs.append(f"⚡ 精力不足！需要 {_charge_cost}，当前 {_cur}(『攻击』攒资源)")
+                    logs.append("技能施放失败！可选择其他行动")
+                    return logs
+                self._res_spend(_res_key, _charge_cost)
+            _ch = charge_tick(player, info, logs)  # +1 阶 + 边攒边打倍率
+            if _ch["released"]:
+                # 满阶强制释放：本回合打 release_power 满伤害，随后清空电荷；耗完整 res_cost
+                _rel = charge_release_power(info)
+                _orig_power = info.get("power", 1.0)
+                info["power"] = float(_rel.get("power", 2.8) or 1.0)
+                _extra = _rel.get("extra") or {}
+                # v139 满阶释放：破防/指定后排等 extra 生效（临时标记，_player_skill 内消费）
+                _prev_extra = info.get("_charge_release_extra")
+                if _extra:
+                    info["_charge_release_extra"] = _extra
+                # v139 满阶释放扣完整 res_cost（能量 50；蓄力阶段只扣了 charge_cost）
+                for _rk, _rv in (info.get("res_cost") or {}).items():
+                    self._res_spend(_rk, int(_rv or 0))
+                logs += self._player_skill(st, skill_name, info, player, target=target)
+                info["power"] = _orig_power
+                if _extra:
+                    if _prev_extra is None:
+                        info.pop("_charge_release_extra", None)
+                    else:
+                        info["_charge_release_extra"] = _prev_extra
+                charge_clear(player)
+                # v139 电荷制：冷却只在满阶释放后进入（蓄力阶段每回合可蓄，不触发 cd）
+                cd = info.get("cd", 0)
+                if cd:
+                    self._set_skill_cd(skill_name, cd)
+            else:
+                # 未满阶：本回合出伤 ×dmg_mult（边攒边打），不进入旧蓄力，不触发 cd
+                _orig_power = info.get("power", 1.0)
+                info["power"] = float(_ch.get("dmg_mult", 0.7) or 0.7)
+                logs += self._player_skill(st, skill_name, info, player, target=target)
+                info["power"] = _orig_power
+            return logs
+        # ---- v139 focus 开启技（元素架设/时间凝滞）：effect=element_focus/time_stasis → 进入架设态，本回合不出伤 ----
+        _focus_effect = info.get("effect", "")
+        if _focus_effect in ("element_focus", "time_stasis"):
+            from .core.battle_modes import focus_def as _fdef139, focus_state as _fst139, focus_enter as _fent139, focus_exit as _fext139
+            if _fdef139(player):
+                if _fst139(player).get("active"):
+                    _fext139(player, logs)
+                    logs.append("🧘 主动解除专注施法状态（无损）。")
+                else:
+                    _fent139(player, logs)
+                # 开启技进入冷却，不落主结算（power=0 无伤害）
+                cd = info.get("cd", 0)
+                if cd:
+                    self._set_skill_cd(skill_name, cd)
+                return logs
         # v2 蓄力技能（§6）：施放扣 MP/资源 → 进入蓄力，本回合不结算技能效果
         if not getattr(self, "_releasing_charge", False) and int(info.get("charge", 0) or 0) >= 1:
             cname = info.get("name") or skill_name
@@ -2665,6 +2767,21 @@ class Battle:
                 self._res_gain(player, "element", gain + on_skill_extra, logs)
             else:
                 self.resources[k] = self._res_gain_class(cls, k, gain + on_skill_extra)
+        # v139 双形态进入检查：技能结算后资源已更新，若满足入形态条件（狂战士满 10 怒 / 龙裔龙力≥8）自动进入
+        # （auto 技能显式声明 或 资源达 enter_requirement 均可触发；免费切换不占行动）
+        try:
+            from .core.battle_modes import dual_form_def as _dfd139, dual_form_state as _dfs139, dual_form_can_enter as _dfce139, dual_form_enter as _dfe139
+            _df_cfg = _dfd139(player)
+            if _df_cfg:
+                _df_key = _df_cfg.get("key", k)
+                _df_val = int(self.resources.get(_df_key, 0) or 0)
+                _df_auto = (info or {}).get("auto", "")
+                _df_want = _df_auto in ("rage_form_enter", "dragon_form_enter") or _dfce139(player, _df_val)
+                if _df_want and not _dfs139(player).get("form") == "alt":
+                    if _dfe139(player, logs):
+                        logs.append(f"⚡【{_df_cfg.get('form', '形态')}】觉醒！(资源 {_df_val})")
+        except Exception:
+            pass
 
     def _on_crit_resource(self, player: dict):
         """v130.2 暴击命中结算挂点（on_crit）：暮影影步 on_crit 攒步、刺客攻线 on_crit +1 连击点、
@@ -3805,6 +3922,23 @@ class Battle:
         cc = info.get("cc")
         if cc and cc in SKILL_CC_WHITELIST:
             self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
+        # ---- v139 enemy_bar 挂敌身条：技能命中注入 shaken（拳师破绽/淬势撼岳）----
+        # 数据源：技能 info.shaken_gain（三连击破+15/碎颅势+15/旋风踢+5每目标/无影连打每段+3）
+        # 触发：阈值满 → 敌方跳过回合（skip_turn）；触发后免疫窗口 + 阈值递增（防无限控）
+        _shaken_gain = info.get("shaken_gain")
+        if _shaken_gain:
+            try:
+                from .core.battle_bars import bar_gain, bar_should_trigger, bar_trigger
+                _tgt = getattr(self, "_active_target", None) or self.enemy
+                _sg = int(_shaken_gain)
+                bar_gain(_tgt, "shaken", _sg, logs)
+                if bar_should_trigger(_tgt, "shaken"):
+                    if bar_trigger(_tgt, "shaken", logs):
+                        _tgt_buffs = _tgt.get("buffs", {})
+                        _bs = _tgt_buffs.get("shaken", {})
+                        logs.append(f"💢 破绽值满！敌人被震慑，下回合无法行动！(阈值提升至 {_bs.get('threshold', '?')})")
+            except Exception:
+                pass
 
         # ---- 技能特效（v9 落地）----
         # v2.0：技能名硬编码特效已废弃（12 章技能全数据驱动，mech/effect/cond 在 _apply_mech_effect 覆盖）
@@ -5030,6 +5164,10 @@ class Battle:
                 # v1.x：e_buffs["shield"]（怪物增益护盾）存的是护盾值（HP 量），
                 # 由 _boss_dmg_filter 按伤害扣减，不能按回合递减。
                 if k in ("reduce_all", "shield"):
+                    continue
+                # v139 enemy_bar 挂敌身条：buffs 里 shaken/curse 等 bar 状态是 dict（{val, threshold, ...}），
+                # 由 battle_bars 的 bar_tick 自行衰减（decay_per_turn），回合结束不按 int 递减
+                if isinstance(tbl[k], dict):
                     continue
                 tbl[k] -= 1
                 if tbl[k] <= 0:

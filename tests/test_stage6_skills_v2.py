@@ -69,11 +69,17 @@ print("【游侠：精力消耗不耗魔】")
 # v130.2 引擎回归追踪：_init_resources 丢失 `elif k == "energy": =max(100)` 分支
 # → 精力初始 0（docstring/设计稿仍写“精力满 100”），「精力初始满 100」「疾风连射耗 20 精力」
 # 两断言挂红，待引擎修复后回归（不掩改断言）。
+# v139 凝神屏息：精力=100 回合开始自动排气归零——初始 100 会被排空，改 80 测「不满 100 正常消耗」
 p = learn_all(mk("游侠"), "cls_you_xia")
 b5 = BT.Battle("monster", mkmon(), player=p)
 check("精力初始满 100", b5.resources.get("energy", 0) == 100, str(b5.resources))
+# v139：满 100 回合开始自动凝神屏息归零（签名机制），下一行动从 0 起
 logs = cast(b5, p, "疾风连射")
-check("疾风连射耗 20 精力", b5.resources.get("energy", 0) == 80, str(b5.resources))
+check("精力初始满 100 触发凝神屏息归零", any("气息" in x or "排气" in x for x in logs), str(logs)[:120])
+# 不满 100 正常消耗：重置精力到 50（50+回合回30=80 不满 100 不排气），疾风连射耗 20 → 60
+b5.resources["energy"] = 50
+logs = cast(b5, p, "疾风连射")
+check("疾风连射耗 20 精力", b5.resources.get("energy", 0) == 60, str(b5.resources))
 check("游侠不耗魔", p["mp"] == 500, str(p["mp"]))
 # 精力不足拦截（回合开始回 25：5→30 < 35）
 b6 = BT.Battle("monster", mkmon(), player=p)

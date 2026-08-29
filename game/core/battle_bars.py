@@ -162,9 +162,20 @@ def bar_preserve(enemy: dict, bar_key: str, pct: float | None = None) -> None:
 # ============================================================
 
 def charge_def(skill_info: dict) -> dict:
-    """读取技能 charge 配置（skill_info["charge"]），无则 {}。"""
-    c = skill_info.get("charge") if isinstance(skill_info, dict) else None
-    return c or {}
+    """读取技能电荷配置（charge dict / charge_cfg dict），无则 {}。
+
+    v139：数据层统一用 charge_cfg 字段（云海弓手三律翻译），charge 保留旧蓄力 int。
+    charge_def 优先读 charge（dict 才读），回退读 charge_cfg。
+    """
+    if not isinstance(skill_info, dict):
+        return {}
+    c = skill_info.get("charge")
+    if isinstance(c, dict):
+        return c
+    cc = skill_info.get("charge_cfg")
+    if isinstance(cc, dict) and cc:
+        return cc
+    return {}
 
 
 def charge_state(player: dict) -> dict:
@@ -205,6 +216,12 @@ def charge_tick(player: dict, skill_info: dict, logs: list | None = None) -> dic
         return {"staged": 0, "dmg_mult": 0.0, "released": False}
     st = charge_state(player)
     mx = int(st.get("max", _cfg(_battle_cfg("charge"), "max", 3)) or 3)
+    # v139：首次蓄力记录技能名（供受击打断/满阶释放识别），切技能自动重置阶数
+    cur_skill = st.get("skill")
+    if cur_skill and cur_skill != skill_info.get("name"):
+        st["stages"] = 0
+        st["max"] = mx
+    st["skill"] = skill_info.get("name")
     st["stages"] = min(mx, int(st.get("stages", 0) or 0) + 1)
     stages = st["stages"]
     dmg_list = cd.get("dmg_per_stage", _cfg(_battle_cfg("charge"), "dmg_per_stage", [0.7, 1.3, 1.9]))

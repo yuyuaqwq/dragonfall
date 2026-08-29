@@ -227,6 +227,10 @@ COMMAND_REGEX = {
     "gm_help": r'^(?:\[At:\d+\]\s*)?gm_帮助(?:[\s\S]*)$',
     "gm_boss_dmg": r'^(?:\[At:\d+\]\s*)?gm_伤害(?:[\s\S]*)$',
     "gm_spy": r'^(?:\[At:\d+\]\s*)?gm_窥探(?:[\s\S]*)$',
+    # v139 战前指令（职业融合：双形态预设/终结阈值/查看）——存 player.battle_prefs
+    "battle_prefs_form": r'^(?:\[At:\d+\]\s*)?战前形态(?:[ 　]*(.+))?$',
+    "battle_prefs_finisher": r'^(?:\[At:\d+\]\s*)?战前阈值(?:[ 　]*(.+))?$',
+    "battle_prefs_view": r'^(?:\[At:\d+\]\s*)?战前指令(?:\s*|$)',
     # v96 停服全局 gate（base.py _maint_gate）：匹配空串/At/引用消息前缀，拦截所有游戏指令；
     # 不参与指令互斥矩阵（不匹配任何指令正文），表内保留以与装饰器 1:1 对齐。
     "_maint_gate": r'^(?:\[At:\d+\]\s*)?(?:\[At:全体成员\]\s*)?(?:\[引用消息[^\]]*\]\s*)?',
