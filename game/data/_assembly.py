@@ -13,7 +13,7 @@ from .maps import (
     MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
-from .pois import SUBAREA_POIS  # noqa: F401
+from .pois import SUBAREA_POIS, POIS  # noqa: F401
 # v115 网状子区域：三个区域文件（地理拆分，并行填充；stub 阶段为空 dict）
 from .mesh_rooms_south import (  # noqa: F401
     EXTRA_SUBAREAS as _EXTRA_SOUTH,
@@ -30,6 +30,10 @@ from .mesh_rooms_east_abyss import (  # noqa: F401
     SUBAREA_LINKS as _LINKS_EAST_ABYSS,
     MESH_POI_MOUNTS as _POI_EAST_ABYSS,
 )
+# v137 副本地图化：22 个副本房间连通表（只含副本内部房间，不连外部地图）
+from .dungeon_links import SUBAREA_LINKS as _LINKS_DUNGEON  # noqa: F401
+# v137 副本地图化：副本层 POI 挂载（key="地图id:子区域id"→POI 列表，装配合并进 SUBAREA_POIS）
+from .dungeon_pois import DUNGEON_POI_MOUNTS as _POI_DUNGEON  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
 from .instance_stage_maps import INSTANCE_STAGE_MAPS, INSTANCE_STAGE_NPCS  # noqa: F401
 from .monsters import MONSTER_SKILLS  # noqa: F401
@@ -85,7 +89,7 @@ for _mid, _rooms in _EXTRA_ALL.items():
 # 2) 合并 SUBAREA_LINKS → SUBAREA_LINKS_INDEX（模块级名，供 core/maps 导入）
 #    只含显式定义该图的网状连接；未定义图回退旧逻辑（城镇星形/野外线性）
 SUBAREA_LINKS_INDEX = {}
-for _links in (_LINKS_SOUTH, _LINKS_WEST_NORTH, _LINKS_EAST_ABYSS):
+for _links in (_LINKS_SOUTH, _LINKS_WEST_NORTH, _LINKS_EAST_ABYSS, _LINKS_DUNGEON):
     for _mid, _graph in _links.items():
         _target = SUBAREA_LINKS_INDEX.setdefault(_mid, {})
         _target.update(_graph)
@@ -94,6 +98,19 @@ for _links in (_LINKS_SOUTH, _LINKS_WEST_NORTH, _LINKS_EAST_ABYSS):
 for _mkmounts in (_POI_SOUTH, _POI_WEST_NORTH, _POI_EAST_ABYSS):
     for _k, _v in _mkmounts.items():
         SUBAREA_POIS.setdefault(_k, []).extend(_v)
+
+# 3b) v137 副本 POI 挂载：副本子区域 POI（dict 型内联 POI）合并进 SUBAREA_POIS。
+#     SUBAREA_POIS 约定 value = poi id 列表（消费端 subarea_pois 返回 id，_handle_poi 从 POIS 查 dict）。
+#     因此：①把每个 POI dict 注册进 POIS（key=带前缀 id，保留 type 供 inst:<type> effect）；②SUBAREA_POIS 只存 id。
+for _k, _v in _POI_DUNGEON.items():
+    _ids = []
+    for _poi in _v:
+        if isinstance(_poi, dict) and _poi.get("id"):
+            POIS[_poi["id"]] = _poi
+            _ids.append(_poi["id"])
+        else:
+            _ids.append(_poi)
+    SUBAREA_POIS.setdefault(_k, []).extend(_ids)
 
 # ---- 1. 派生表 ----
 _build_ency()

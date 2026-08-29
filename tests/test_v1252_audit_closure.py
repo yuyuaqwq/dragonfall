@@ -274,11 +274,13 @@ def section_pet():
 # ================= 10. POI effect/副本 type → POI_EFFECTS =================
 def section_poi():
     print("【10. POI effect/副本 type → POI_EFFECTS】")
-    world_eff = {p["effect"] for p in C.POIS.values() if isinstance(p, dict) and p.get("effect")}
+    world_eff = {p["effect"] for p in C.POIS.values() if isinstance(p, dict) and isinstance(p.get("effect"), str)}
     check("世界 POI 9 效果全注册", world_eff <= set(POIE.POI_EFFECTS),
           f"missing={sorted(world_eff - set(POIE.POI_EFFECTS))} used={sorted(world_eff)}")
     check("世界 POI 效果数 = 9（recover/buff/merchant/herb/loot/rune/fish/note/sight）",
           len(world_eff) == 9, f"used={sorted(world_eff)}")
+    # v137 副本 POI 注册进 POIS：dict effect 的副本 POI 走 inst:<type>（POI_EFFECTS），
+    # 不计入世界 effect；此处从 POIS 收集副本 POI 的 inst: 键做注册校验。
     inst_types = set()
     from data.plugins.dragonfall.game.data.instance_stage_maps import INSTANCE_STAGE_MAPS  # noqa: E402
 

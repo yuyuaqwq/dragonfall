@@ -128,6 +128,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "goblin_camp_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "hill_mine",
@@ -200,6 +206,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "sea_cave_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "silver_brook",
@@ -272,6 +284,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "deer_fort_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "maple_village",
@@ -416,6 +434,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "old_king_tomb_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "border_castle",
@@ -470,6 +494,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "secret_crypt_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "knight_yard",
@@ -524,6 +554,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "holy_trial_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "ironshield_town",
@@ -668,6 +704,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "elven_ruins_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "ancient_tree",
@@ -758,6 +800,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "moon_temple_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "windvale",
@@ -920,6 +968,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "ash_temple_4",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "abyss_gate",
@@ -938,6 +992,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "abyss_gate_6",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "frost_fang",
@@ -1010,6 +1070,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "frost_throne_4",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "aurora_town",
@@ -1154,6 +1220,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "dragon_tomb_6",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "dragon_kin",
@@ -1226,6 +1298,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "storm_throne_5",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "redridge_plateau",
@@ -1388,6 +1466,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "sunken_ship_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "siren_nest",
@@ -1406,6 +1490,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "siren_nest_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "nameless_harbor",
@@ -1532,6 +1622,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "sea_god_temple_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "deep_dragon_palace",
@@ -1550,6 +1646,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "deep_dragon_palace_3",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "deep_tunnel",
@@ -1658,6 +1760,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "gray_dwarf_5",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "under_dragon",
@@ -1676,6 +1784,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "under_dragon_4",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "ember_camp",
@@ -1748,6 +1862,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "abyss_throne_5",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "wind_city",
@@ -1820,6 +1940,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "eye_of_storm_6",
+            "on_clear": "victory"
+        },
     },
     {
         "id": "rainbow_cloud",
@@ -1874,6 +2000,12 @@ MAPS = [
         "elite": None,
         "boss": None,
         "npcs": [],
+        "dungeon": {
+            "no_exit": True,
+            "discovery_agro": 0.85,
+            "boss_room": "cloud_sanctum_6",
+            "on_clear": "victory"
+        },
     },
     # ================= v87 隐藏线：H6 失落图书馆（02 章七 H6，Lv.55，准入=3 张泛黄书页）=================
     {

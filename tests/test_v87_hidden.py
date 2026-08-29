@@ -30,7 +30,9 @@ def main():
     print("  · 数据完整性")
     check("HIDDEN_MONSTERS 25 种", len(C.HIDDEN_MONSTERS) == 25,
           f"实际 {len(C.HIDDEN_MONSTERS)}")
-    check("POIS 17 种（v87.9 风景 + v115 扩 17 类）", len(C.POIS) == 17, f"实际 {len(C.POIS)}")
+    check("POIS 17 种 + v137 副本 POI（≥17）", len(C.POIS) >= 17 and any(
+        k.startswith(("goblin_camp_", "sea_cave_", "dragon_tomb_")) for k in C.POIS
+    ), f"实际 {len(C.POIS)}")
     check("PROPS 59 种", len(C.PROPS) == 59, f"实际 {len(C.PROPS)}")
     check("SUBAREA_POIS 挂载数 ≥25", len(C.SUBAREA_POIS) >= 25,
           f"实际 {len(C.SUBAREA_POIS)}")
