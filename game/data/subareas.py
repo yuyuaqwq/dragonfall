@@ -784,74 +784,91 @@ SUBAREAS = {
         }
     ],
     "goblin_camp": [
-        {
-            "id": "goblin_camp_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "哥布林营地入口：歪斜的木栅栏围出一片喧闹的营地，绿皮身影在篝火间窜动，臭味与叫嚷声隔着老远就能闻到。",
-            "type": "副本",
-            "lv": 15,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_goblin_guard",
-                    "哥布林守卫",
-                    "tank",
-                    15,
+            {
+                "id": "goblin_camp_1",
+                "name": "入口栅栏",
+                "icon": "🚪",
+                "desc": "歪斜的木栅栏围出营地外围，兽皮晾在栏上，篝火堆散落四周。守卫在缺口处探头张望，臭味与叫嚷声扑面而来。",
+                "type": "副本",
+                "lv": 15,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_dun_ji"
+                        "m_goblin_guard",
+                        "哥布林守卫",
+                        "tank",
+                        15,
+                        ["ms_dun_ji"],
+                        ["哥布林铁片"]
                     ],
                     [
-                        "哥布林铁片"
+                        "m_goblin_shaman",
+                        "哥布林萨满",
+                        "healer",
+                        16,
+                        ["ms_zhi_liao", "ms_du_wu"],
+                        ["萨满图腾"]
                     ]
                 ],
-                [
-                    "m_goblin_shaman",
-                    "哥布林萨满",
-                    "healer",
-                    16,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "goblin_camp_2",
+                "name": "篝火营地",
+                "icon": "🔥",
+                "desc": "营地中央的篝火噼啪作响，酒桶堆在火边，狂战士围着火堆磨牙鼓噪。酋长的帐篷就矗立在火光尽头。",
+                "type": "副本",
+                "lv": 18,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_zhi_liao",
-                        "ms_du_wu"
-                    ],
-                    [
-                        "萨满图腾"
+                        "m_goblin_berserker",
+                        "哥布林狂战士",
+                        "dps",
+                        18,
+                        ["ms_lian_zhan"],
+                        ["狂战士腰带"]
                     ]
                 ],
-                [
-                    "m_goblin_berserker",
+                "elite": [
+                    "e_goblin_berserker",
                     "哥布林狂战士",
-                    "dps",
+                    "elite",
                     18,
-                    [
-                        "ms_lian_zhan"
-                    ],
-                    [
-                        "狂战士腰带"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_goblin_chief",
-                "哥布林酋长·咕噜",
-                "boss",
-                20,
-                [
-                    "ms_lian_zhan",
-                    "ms_nu_hou",
-                    "ms_zhao_huan"
+                    ["ms_kuang_bao", "ms_lian_zhan"],
+                    ["哥布林徽记"]
                 ],
-                [
-                    "咕噜的皇冠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "goblin_camp_3",
+                "name": "酋长帐篷",
+                "icon": "👑",
+                "desc": "兽骨装饰的帐篷深处，咕噜酋长坐在兽皮宝座上，身边堆满抢来的货物。皇冠歪戴，它正等着好好『招待』不速之客。",
+                "type": "副本",
+                "lv": 20,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_goblin_chief",
+                    "哥布林酋长·咕噜",
+                    "boss",
+                    20,
+                    ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
+                    ["咕噜的皇冠"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "hill_mine": [
         {
@@ -1281,76 +1298,91 @@ SUBAREAS = {
         }
     ],
     "sea_cave": [
-        {
-            "id": "sea_cave_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "海蚀洞窟入口：潮水在洞口涨落，岩壁上挂着海藻与盐霜。洞内漆黑，只有深处传来水珠滴落的回声。",
-            "type": "副本",
-            "lv": 22,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_sea_slime",
-                    "海史莱姆",
-                    "tank",
-                    22,
+            {
+                "id": "sea_cave_1",
+                "name": "潮汐洞口",
+                "icon": "🌊",
+                "desc": "咸腥的海风灌进洞口，滩涂上散落着贝壳与沉船木，浪声在洞中轰鸣。海史莱姆在潮痕间蠕动着伏击来客。",
+                "type": "副本",
+                "lv": 22,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_zhuang_ji",
-                        "ms_nian_ye"
+                        "m_sea_slime",
+                        "海史莱姆",
+                        "tank",
+                        22,
+                        ["ms_zhuang_ji", "ms_nian_ye"],
+                        ["海盐结晶"]
                     ],
                     [
-                        "海盐结晶"
+                        "m_siren",
+                        "海妖",
+                        "healer",
+                        24,
+                        ["ms_mei_huo_zhi_ge", "ms_shui_dan"],
+                        ["海妖鳞片"]
                     ]
                 ],
-                [
-                    "m_siren",
-                    "海妖",
-                    "healer",
-                    24,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sea_cave_2",
+                "name": "沉船滩涂",
+                "icon": "⚓",
+                "desc": "洞穴向内延伸，半艘沉船的残骸搁浅在暗湾里，海盗的火把在黑暗中晃动。精锐水手守着通往宝库的窄道。",
+                "type": "副本",
+                "lv": 26,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_mei_huo_zhi_ge",
-                        "ms_shui_dan"
-                    ],
-                    [
-                        "海妖鳞片"
+                        "m_pirate_elite",
+                        "海盗精锐",
+                        "dps",
+                        26,
+                        ["ms_wan_dao", "ms_huo_qiang"],
+                        ["精锐佩剑"]
                     ]
                 ],
-                [
-                    "m_pirate_elite",
+                "elite": [
+                    "e_pirate_elite",
                     "海盗精锐",
-                    "dps",
+                    "elite",
                     26,
-                    [
-                        "ms_wan_dao",
-                        "ms_huo_qiang"
-                    ],
-                    [
-                        "精锐佩剑"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_jack_pirate",
-                "海盗王·独眼杰克",
-                "boss",
-                28,
-                [
-                    "ms_wan_dao",
-                    "ms_huo_qiang",
-                    "ms_zhao_huan_shui_gui"
+                    ["ms_wan_dao", "ms_huo_qiang"],
+                    ["海妖鳞片"]
                 ],
-                [
-                    "杰克的金钩"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sea_cave_3",
+                "name": "藏宝密室",
+                "icon": "💰",
+                "desc": "密室堆满抢来的货物：木箱、酒桶、珠宝散落一地，独眼杰克的骷髅旗挂在墙上。旗下的暗影，正等着算总账。",
+                "type": "副本",
+                "lv": 28,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_jack_pirate",
+                    "海盗王·独眼杰克",
+                    "boss",
+                    28,
+                    ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
+                    ["杰克的金钩"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "silver_brook": [
         {
@@ -1656,36 +1688,83 @@ SUBAREAS = {
         }
     ],
     "deer_fort": [
-        {
-            "id": "deer_fort_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "鹿角要塞入口：废弃要塞的拱门爬满藤蔓，门楣上残存着白鹿纹章。风穿过门洞，带来陈年的铁锈气。",
-            "type": "副本",
-            "lv": 18,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": [
-                "b_fort_ghost",
-                "要塞幽灵",
-                "boss",
-                24,
-                [
-                    "ms_ai_hao",
-                    "ms_chuan_shen",
-                    "ms_zhao_huan_ku_lou"
+            {
+                "id": "deer_fort_1",
+                "name": "破败城门",
+                "icon": "🛡️",
+                "desc": "城门半塌，锈蚀的绞盘还挂着半截吊桥铁链，墙头插着折断的军旗。游荡的要塞守卫拖着长戟，在门洞下踱步。",
+                "type": "副本",
+                "lv": 18,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_fort_guard",
+                        "要塞守卫",
+                        "dps",
+                        18,
+                        ["ms_lian_zhan"],
+                        ["要塞残片"]
+                    ]
                 ],
-                [
-                    "要塞残片"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "deer_fort_2",
+                "name": "战火庭院",
+                "icon": "⚔️",
+                "desc": "庭院里散落着折断的兵器与烧毁的战车，地面被马蹄踏得泥泞。弓手据守断墙，一道虚影般的幽灵护卫在废墟间巡行。",
+                "type": "副本",
+                "lv": 22,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_fort_archer",
+                        "要塞弓手",
+                        "speedster",
+                        20,
+                        ["ms_jian_ji"],
+                        ["要塞残片"]
+                    ]
+                ],
+                "elite": [
+                    "e_fort_ghost",
+                    "要塞幽灵护卫",
+                    "elite",
+                    22,
+                    ["ms_you_ling"],
+                    ["要塞残片"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "deer_fort_3",
+                "name": "要塞主厅",
+                "icon": "👻",
+                "desc": "主厅的壁炉早已熄灭，梁柱间飘荡着不甘的虚影。失落的军旗之下，要塞幽灵正在等待一个能替它复命的人。",
+                "type": "副本",
+                "lv": 24,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_fort_ghost",
+                    "要塞幽灵",
+                    "boss",
+                    24,
+                    ["ms_ai_hao", "ms_chuan_shen", "ms_zhao_huan_ku_lou"],
+                    ["要塞残片"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "maple_village": [
         {
@@ -2442,77 +2521,84 @@ SUBAREAS = {
         }
     ],
     "old_king_tomb": [
-        {
-            "id": "old_king_tomb_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "旧王陵入口：石门半掩在荒草间，门前的石狮已风化得面目模糊。王陵深处的黑暗仿佛在等待什么。",
-            "type": "副本",
-            "lv": 35,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_skeleton",
-                    "骷髅兵",
-                    "dps",
-                    35,
+            {
+                "id": "old_king_tomb_1",
+                "name": "墓道",
+                "icon": "🕯️",
+                "desc": "石板墓道两侧是壁龛，烛火幽绿，脚步声在空旷中回响。积尘的骷髅兵与僵硬的僵尸，沿着甬道缓缓转身。",
+                "type": "副本",
+                "lv": 35,
+                "npcs": [],
+                "monsters": [
+                    ["m_skeleton", "骷髅兵", "dps", 35, ["ms_jian_ji"], ["碎骨"]],
                     [
-                        "ms_jian_ji"
-                    ],
-                    [
-                        "碎骨",
-                        "黎明王冠碎片"
+                        "m_zombie",
+                        "僵尸",
+                        "tank",
+                        37,
+                        ["ms_zhao_ji", "ms_gan_ran"],
+                        ["腐肉"]
                     ]
                 ],
-                [
-                    "m_zombie",
-                    "僵尸",
-                    "tank",
-                    37,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "old_king_tomb_2",
+                "name": "殉葬坑",
+                "icon": "💀",
+                "desc": "巨大的殉葬坑里白骨累累，幽灵在坑沿飘荡低泣。披甲执剑的幽灵骑士立在坑心，守护着通往王座的最后一程。",
+                "type": "副本",
+                "lv": 40,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_zhao_ji",
-                        "ms_gan_ran"
-                    ],
-                    [
-                        "腐肉"
+                        "m_ghost",
+                        "幽灵",
+                        "speedster",
+                        37,
+                        ["ms_chuan_shen", "ms_ai_hao"],
+                        ["幽灵之尘"]
                     ]
                 ],
-                [
-                    "m_ghost",
-                    "幽灵",
-                    "speedster",
-                    37,
-                    [
-                        "ms_chuan_shen",
-                        "ms_ai_hao"
-                    ],
-                    [
-                        "幽灵之尘",
-                        "鬼魂精华",
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_king_odric",
-                "古王·奥德里克",
-                "boss",
-                45,
-                [
-                    "ms_jian_ji",
-                    "ms_wang_wei",
-                    "ms_zhao_huan_ku_lou"
+                "elite": [
+                    "e_ghost_king",
+                    "幽灵骑士",
+                    "elite",
+                    40,
+                    ["ms_you_ling", "ms_zhao_huan"],
+                    ["古王碎片"]
                 ],
-                [
-                    "古王剑"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "old_king_tomb_3",
+                "name": "王座厅",
+                "icon": "👑",
+                "desc": "王座厅的烛火齐齐亮起，古王·奥德里克拄剑起身。三百年前的君王铠甲依旧锃亮——他早已不再安眠，只等来者报上名来。",
+                "type": "副本",
+                "lv": 45,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_king_odric",
+                    "古王·奥德里克",
+                    "boss",
+                    45,
+                    ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
+                    ["古王剑"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "border_castle": [
         {
@@ -2744,62 +2830,82 @@ SUBAREAS = {
         }
     ],
     "secret_crypt": [
-        {
-            "id": "secret_crypt_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "圣堂地窖入口：大圣堂深处的暗门，石阶盘旋向下。烛台的余烬还冒着轻烟，空气里混着蜡与尘土的味道。",
-            "type": "副本",
-            "lv": 42,
-            "npcs": ["npc_chrono_warden"],
-            "monsters": [
-                [
-                    "m_shadow_priest",
-                    "血祭祭司",
-                    "healer",
-                    42,
+            {
+                "id": "secret_crypt_1",
+                "name": "地窖回廊",
+                "icon": "🕯️",
+                "desc": "教堂地下的石廊，圣光从气窗漏下，墙上有烧焦的痕迹。血祭祭司的低语与猎犬的鼻息，在烛影里忽远忽近。",
+                "type": "副本",
+                "lv": 42,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_an_ying_dan",
-                        "ms_hei_an_zhi_liao"
+                        "m_shadow_priest",
+                        "血祭祭司",
+                        "healer",
+                        42,
+                        ["ms_an_ying_dan", "ms_hei_an_zhi_liao"],
+                        ["染黑圣典"]
                     ],
                     [
-                        "染黑圣典"
+                        "m_inquisitor_hound",
+                        "审判猎犬",
+                        "speedster",
+                        45,
+                        ["ms_si_yao"],
+                        ["猎犬项圈"]
                     ]
                 ],
-                [
-                    "m_inquisitor_hound",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "secret_crypt_2",
+                "name": "审判庭",
+                "icon": "⚖️",
+                "desc": "审判庭中央立着铁刑架，周围摆着囚笼，空气里残留着铁锈与火油味。一头被教会驯养的猎犬伏在庭心，低吼着打量来者。",
+                "type": "副本",
+                "lv": 45,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_judge_hound",
                     "审判猎犬",
-                    "speedster",
+                    "elite",
                     45,
-                    [
-                        "ms_si_yao"
-                    ],
-                    [
-                        "猎犬项圈"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_marcus",
-                "审判长·马尔库斯",
-                "boss",
-                52,
-                [
-                    "ms_an_ying_dan",
-                    "ms_suo_lian",
-                    "ms_shen_pan_zhi_yan"
+                    ["ms_kuang_bao", "ms_si_yao"],
+                    ["圣光圣徽"]
                 ],
-                [
-                    "马尔库斯的法冠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "secret_crypt_3",
+                "name": "枢机密室",
+                "icon": "🔐",
+                "desc": "枢机主教藏匿的密室：书架、密信、封印的圣物，烛台还在燃烧。审判长·马尔库斯锁链绷直——奉命看守此门者，只问来者为何。",
+                "type": "副本",
+                "lv": 52,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_marcus",
+                    "审判长·马尔库斯",
+                    "boss",
+                    52,
+                    ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
+                    ["马尔库斯的法冠"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "knight_yard": [
         {
@@ -3014,36 +3120,83 @@ SUBAREAS = {
         }
     ],
     "holy_trial": [
-        {
-            "id": "holy_trial_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "圣光试炼场入口：试炼场的石拱门刻着圣辉纹章，门前立着两尊持剑骑士像。据说只有通过试炼者才能踏过门槛。",
-            "type": "副本",
-            "lv": 36,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": [
-                "b_trial_knight",
-                "试炼骑士长",
-                "boss",
-                46,
-                [
-                    "ms_sheng_guang_dan",
-                    "ms_jian_ji",
-                    "ms_zhao_huan"
+            {
+                "id": "holy_trial_1",
+                "name": "试炼之门",
+                "icon": "⚜️",
+                "desc": "刻满誓言的石门，圣光从门缝中透出，门上挂着历代冠军的名牌。试炼侍从持剑而立，第一关便从这里开始。",
+                "type": "副本",
+                "lv": 36,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_trial_squire",
+                        "试炼侍从",
+                        "dps",
+                        36,
+                        ["ms_lian_zhan"],
+                        ["试炼徽记"]
+                    ]
                 ],
-                [
-                    "试炼徽记"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "holy_trial_2",
+                "name": "骑士回廊",
+                "icon": "🛡️",
+                "desc": "回廊两侧立着历代冠军的雕像，圣光在石板上流淌。试炼骑士举盾拦路，一位身披重甲的试炼冠军守在回廊尽头。",
+                "type": "副本",
+                "lv": 43,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_trial_knight2",
+                        "试炼骑士",
+                        "dps",
+                        40,
+                        ["ms_dun_ji", "ms_sheng_guang_dan"],
+                        ["试炼徽记"]
+                    ]
+                ],
+                "elite": [
+                    "e_trial_champion",
+                    "试炼冠军",
+                    "elite",
+                    43,
+                    ["ms_sheng_guang_dan", "ms_lian_zhan"],
+                    ["试炼徽记"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "holy_trial_3",
+                "name": "圣光竞技场",
+                "icon": "✨",
+                "desc": "圆形竞技场，圣光如柱般垂落。试炼骑士长立于场心，剑尖点地——圣光不认可软弱的祈祷，只认可走到这里的勇气。",
+                "type": "副本",
+                "lv": 46,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_trial_knight",
+                    "试炼骑士长",
+                    "boss",
+                    46,
+                    ["ms_sheng_guang_dan", "ms_jian_ji", "ms_zhao_huan"],
+                    ["试炼徽记"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "ironshield_town": [
         {
@@ -3781,64 +3934,82 @@ SUBAREAS = {
         },
     ],
     "elven_ruins": [
-        {
-            "id": "elven_ruins_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "精灵废墟入口：坍塌的月白石柱散落一地，浮雕上的精灵文字已被风雨磨平。废墟深处有微光一闪而逝。",
-            "type": "副本",
-            "lv": 58,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_corrupted_elf",
-                    "堕落精灵",
-                    "dps",
-                    58,
+            {
+                "id": "elven_ruins_1",
+                "name": "残垣入口",
+                "icon": "🏛️",
+                "desc": "倒塌的精灵柱廊，藤蔓缠绕，月光从破顶洒下，落叶铺了厚厚一层。堕落精灵的歌声在断柱间回荡，远古魔像在阴影中苏醒。",
+                "type": "副本",
+                "lv": 58,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_jing_ling_jian_shu",
-                        "ms_an_ying_zhan"
+                        "m_corrupted_elf",
+                        "堕落精灵",
+                        "dps",
+                        58,
+                        ["ms_jing_ling_jian_shu", "ms_an_ying_zhan"],
+                        ["堕落精灵护符"]
                     ],
                     [
-                        "堕落精灵护符",
-                        "妖精之尘",
+                        "m_ancient_golem",
+                        "远古魔像",
+                        "tank",
+                        62,
+                        ["ms_zhong_ji", "ms_fu_wen_chong_ji"],
+                        ["远古符文石"]
                     ]
                 ],
-                [
-                    "m_ancient_golem",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "elven_ruins_2",
+                "name": "神殿走廊",
+                "icon": "🌙",
+                "desc": "走廊尽头的精灵石像一字排开，眼窝里嵌着宝石，仿佛在注视来者。一尊被唤醒的远古魔像堵住了通往王座的路。",
+                "type": "副本",
+                "lv": 62,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_ancient_golem",
                     "远古魔像",
-                    "tank",
+                    "elite",
                     62,
-                    [
-                        "ms_zhong_ji",
-                        "ms_fu_wen_chong_ji"
-                    ],
-                    [
-                        "远古符文石"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_dawn_elf",
-                "远古精灵王·晨曦",
-                "boss",
-                66,
-                [
-                    "ms_yue_guang_zhan",
-                    "ms_zhao_huan_shu_ren",
-                    "ms_zhi_yu"
+                    ["ms_ying_hua", "ms_zhen_ji"],
+                    ["魔像核心"]
                 ],
-                [
-                    "晨曦之冠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "elven_ruins_3",
+                "name": "精灵王座",
+                "icon": "👑",
+                "desc": "王座厅的地面嵌着星图，穹顶的裂缝漏进一线月光。远古精灵王·晨曦从王座上起身——死去的王，也还记得如何守土。",
+                "type": "副本",
+                "lv": 66,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_dawn_elf",
+                    "远古精灵王·晨曦",
+                    "boss",
+                    66,
+                    ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
+                    ["晨曦之冠"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "ancient_tree": [
         {
@@ -4242,36 +4413,83 @@ SUBAREAS = {
         }
     ],
     "moon_temple": [
-        {
-            "id": "moon_temple_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "月神圣殿入口：银白的神殿大门半开，门楣上的月牙纹样在夜里会泛起柔光。殿内寂静得能听见自己的心跳。",
-            "type": "副本",
-            "lv": 60,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": [
-                "b_moon_guard",
-                "月神守卫",
-                "boss",
-                68,
-                [
-                    "ms_yue_guang_zhan",
-                    "ms_zhi_yu",
-                    "ms_zhao_huan"
+            {
+                "id": "moon_temple_1",
+                "name": "月门",
+                "icon": "🌕",
+                "desc": "银白的月门，月光凝成实质在门框上流淌，仿佛踏进月色本身。月神侍僧在门内列队，吟唱着古老的祷文。",
+                "type": "副本",
+                "lv": 60,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_moon_priest",
+                        "月神侍僧",
+                        "dps",
+                        60,
+                        ["ms_yue_guang_zhan"],
+                        ["月辉碎片"]
+                    ]
                 ],
-                [
-                    "月辉碎片"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "moon_temple_2",
+                "name": "月光回廊",
+                "icon": "🌙",
+                "desc": "回廊的穹顶绘着月相变迁，月光在地面铺成一条银毯。月骑士的银甲在月色中流转，一道猎手般的阴影潜伏在廊柱之间。",
+                "type": "副本",
+                "lv": 66,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_moon_knight",
+                        "月骑士",
+                        "dps",
+                        64,
+                        ["ms_dun_ji", "ms_yue_guang_zhan"],
+                        ["月辉碎片"]
+                    ]
+                ],
+                "elite": [
+                    "e_moon_elite",
+                    "月光猎手",
+                    "elite",
+                    66,
+                    ["ms_yue_guang_zhan", "ms_jian_ji"],
+                    ["月辉碎片"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "moon_temple_3",
+                "name": "月神圣殿",
+                "icon": "✨",
+                "desc": "神殿中央，月光如银瀑自穹顶倾泻。月神守卫沐浴在月华中，月光凝成的长矛斜插在地——穿过它的银甲，便是月神的认可。",
+                "type": "副本",
+                "lv": 68,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_moon_guard",
+                    "月神守卫",
+                    "boss",
+                    68,
+                    ["ms_yue_guang_zhan", "ms_zhi_yu", "ms_zhao_huan"],
+                    ["月辉碎片"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "windvale": [
         {
@@ -5127,142 +5345,173 @@ SUBAREAS = {
         }
     ],
     "ash_temple": [
-        {
-            "id": "ash_temple_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "烬山祭坛入口：黑曜石砌成的门廊布满焦痕，门内飘出硫磺与灰烬的气味。祭坛深处的火光忽明忽暗。",
-            "type": "副本",
-            "lv": 82,
-            "npcs": [
-                "npc_eter",
-                "npc_demon_priestess"
-            ],
-            "monsters": [
-                [
-                    "m_demon_priest",
-                    "恶魔祭司",
-                    "healer",
-                    82,
+            {
+                "id": "ash_temple_1",
+                "name": "灰烬门廊",
+                "icon": "🌋",
+                "desc": "灼热的空气中飘着灰烬，熔岩在远处缓缓流淌，火光映红整片岩壁。恶魔祭司在门廊下低吟，腐蚀的封印守卫横刀而立。",
+                "type": "副本",
+                "lv": 82,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_an_ying_dan",
-                        "ms_hei_an_zhi_liao"
+                        "m_demon_priest",
+                        "恶魔祭司",
+                        "healer",
+                        82,
+                        ["ms_an_ying_dan", "ms_hei_an_zhi_liao"],
+                        ["染血祭器"]
                     ],
                     [
-                        "染血祭器"
+                        "m_seal_guardian",
+                        "封印守卫(腐蚀)",
+                        "tank",
+                        86,
+                        ["ms_zhong_ji", "ms_fu_shi"],
+                        ["碎裂封印石"]
                     ]
                 ],
-                [
-                    "m_seal_guardian",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "ash_temple_2",
+                "name": "火焰回廊",
+                "icon": "🔥",
+                "desc": "回廊两侧是燃烧的火盆，地面石板被烤得发烫，热浪扭曲了视线。被黑暗侵蚀的封印守卫堵在回廊尽头，眼中只剩空洞的杀意。",
+                "type": "副本",
+                "lv": 86,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_seal_guard",
                     "封印守卫(腐蚀)",
-                    "tank",
+                    "elite",
                     86,
-                    [
-                        "ms_zhong_ji",
-                        "ms_fu_shi"
-                    ],
-                    [
-                        "碎裂封印石"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_helga",
-                "恶魔祭司·赫尔加",
-                "boss",
-                92,
-                [
-                    "ms_an_ying_dan",
-                    "ms_zhao_huan_e_mo",
-                    "ms_hei_an_yi_shi"
+                    ["ms_an_ying", "ms_xu_kong"],
+                    ["烬核"]
                 ],
-                [
-                    "赫尔加的祭器"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "ash_temple_3",
+                "name": "封印之殿",
+                "icon": "⛓️",
+                "desc": "封印之殿地面刻着巨大的封印阵，恶魔祭司·赫尔加正在主持最后的仪式。三百年前的旧账，她今夜要连本带利讨回来。",
+                "type": "副本",
+                "lv": 92,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_helga",
+                    "恶魔祭司·赫尔加",
+                    "boss",
+                    92,
+                    ["ms_an_ying_dan", "ms_zhao_huan_e_mo", "ms_hei_an_yi_shi"],
+                    ["赫尔加的祭器"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "abyss_gate": [
-        {
-            "id": "abyss_gate_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "深渊裂隙入口：大地裂开一道巨缝，边缘的岩石泛着诡异的紫光。缝隙深处传来若有若无的低语。",
-            "type": "副本",
-            "lv": 90,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_abyss_hound",
-                    "深渊猎犬",
-                    "dps",
-                    90,
+            {
+                "id": "abyss_gate_1",
+                "name": "裂隙入口",
+                "icon": "🌑",
+                "desc": "大地裂开的伤口，黑暗从裂缝深处涌出，仿佛在呼吸。深渊猎犬沿着裂隙巡弋，深渊骑士在裂口旁列成沉默的队列。",
+                "type": "副本",
+                "lv": 90,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_si_yao",
-                        "ms_an_ying_zhao"
+                        "m_abyss_hound",
+                        "深渊猎犬",
+                        "dps",
+                        90,
+                        ["ms_si_yao", "ms_an_ying_zhao"],
+                        ["深渊犬牙"]
                     ],
                     [
-                        "深渊犬牙",
-                        "深渊精钢",
-                        "深渊精钢",
+                        "m_abyss_knight",
+                        "深渊骑士",
+                        "tank",
+                        92,
+                        ["ms_jian_ji", "ms_an_ying_zhan"],
+                        ["深渊骑士盔甲碎片"]
                     ]
                 ],
-                [
-                    "m_abyss_knight",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "abyss_gate_2",
+                "name": "深渊长廊",
+                "icon": "🌀",
+                "desc": "长廊的墙壁上刻着扭曲的浮雕，深渊法师的低语声在黑暗中不断回响。暗影中，一尊深渊骑士缓缓拔出锈蚀的长剑。",
+                "type": "副本",
+                "lv": 94,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_abyss_mage",
+                        "深渊法师",
+                        "healer",
+                        94,
+                        ["ms_an_ying_dan", "ms_hei_an_zhi_liao", "ms_zhao_huan"],
+                        ["深渊法师杖"]
+                    ]
+                ],
+                "elite": [
+                    "e_abyss_knight",
                     "深渊骑士",
-                    "tank",
+                    "elite",
                     92,
-                    [
-                        "ms_jian_ji",
-                        "ms_an_ying_zhan"
-                    ],
-                    [
-                        "深渊骑士盔甲碎片"
-                    ,
-                        "深渊钥匙"]
+                    ["ms_an_ying", "ms_xu_kong"],
+                    ["深渊珍珠"]
                 ],
-                [
-                    "m_abyss_mage",
-                    "深渊法师",
-                    "healer",
-                    94,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "abyss_gate_3",
+                "name": "蚀夜之巢",
+                "icon": "💜",
+                "desc": "巢穴中央是蠕动的黑暗之核，蚀夜的真身正在凝聚。守夜三百年的人影缓缓抬头——这一次，是来听他说完真相，还是最后一战？",
+                "type": "副本",
+                "lv": 100,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_eter",
+                    "蚀夜(真相形态)",
+                    "boss",
+                    100,
                     [
-                        "ms_an_ying_dan",
-                        "ms_hei_an_zhi_liao",
-                        "ms_zhao_huan"
+                        "ms_an_ying_zhan",
+                        "ms_shen_yuan_zhi_nu",
+                        "ms_zhao_huan_shen_yuan"
                     ],
-                    [
-                        "深渊法师杖"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_eter",
-                "蚀夜(真相形态)",
-                "boss",
-                100,
-                [
-                    "ms_an_ying_zhan",
-                    "ms_shen_yuan_zhi_nu",
-                    "ms_zhao_huan_shen_yuan"
+                    ["黎明之光碎片"]
                 ],
-                [
-                    "黎明之光碎片"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "frost_fang": [
         {
@@ -5555,36 +5804,83 @@ SUBAREAS = {
         }
     ],
     "frost_throne": [
-        {
-            "id": "frost_throne_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "冰霜王座入口：冰晶凝结的拱门晶莹剔透，寒气从门内涌出，在门槛上结成一层薄霜。",
-            "type": "副本",
-            "lv": 74,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": [
-                "b_frost_lord",
-                "冰霜领主",
-                "boss",
-                84,
-                [
-                    "ms_bing_xi",
-                    "ms_dong_jie",
-                    "ms_zhao_huan"
+            {
+                "id": "frost_throne_1",
+                "name": "冰封入口",
+                "icon": "❄️",
+                "desc": "寒风灌入口中，冰霜在墙壁上结出荆棘般的冰晶，呼出的气立刻成雾。寒冰守卫在入口内静立，铠甲上覆满白霜。",
+                "type": "副本",
+                "lv": 74,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_frost_guard",
+                        "寒冰守卫",
+                        "dps",
+                        74,
+                        ["ms_bing_xi"],
+                        ["永冻之核"]
+                    ]
                 ],
-                [
-                    "永冻之核"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "frost_throne_2",
+                "name": "寒冰回廊",
+                "icon": "🧊",
+                "desc": "回廊的冰柱如剑林，寒气透骨，脚下的冰面映出模糊的倒影。冰霜法师的低吟让空气愈发刺骨，一个巨人般的轮廓在冰雾中逼近。",
+                "type": "副本",
+                "lv": 81,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_frost_mage",
+                        "冰霜法师",
+                        "speedster",
+                        78,
+                        ["ms_bing_xi", "ms_dong_jie"],
+                        ["永冻之核"]
+                    ]
+                ],
+                "elite": [
+                    "e_frost_elite",
+                    "冰霜巨人",
+                    "elite",
+                    81,
+                    ["ms_bing_xi", "ms_dun_ji"],
+                    ["永冻之核"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "frost_throne_3",
+                "name": "冰霜王座",
+                "icon": "👑",
+                "desc": "王座由整块寒冰雕成，冰霜领主坐在其上，呼出的气都是冰雾。三百年了，它终于等来一个敢踏上王座的活人。",
+                "type": "副本",
+                "lv": 84,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_frost_lord",
+                    "冰霜领主",
+                    "boss",
+                    84,
+                    ["ms_bing_xi", "ms_dong_jie", "ms_zhao_huan"],
+                    ["永冻之核"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "aurora_town": [
         {
@@ -6260,64 +6556,82 @@ SUBAREAS = {
         }
     ],
     "dragon_tomb": [
-        {
-            "id": "dragon_tomb_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "龙之墓入口：巨龙骸骨的胸腔形成天然拱门，龙骨上还残留着微弱的魔力光辉。墓穴深处仿佛有龙吟回荡。",
-            "type": "副本",
-            "lv": 90,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_dragon_ghost",
+            {
+                "id": "dragon_tomb_1",
+                "name": "龙骨拱门",
+                "icon": "🦴",
+                "desc": "巨大的龙骨拱门横亘眼前，两侧的龙牙比人还高，龙威仿佛还残留在骨架上。龙魂在骨间游荡，一尊古龙睁开琥珀色的竖瞳。",
+                "type": "副本",
+                "lv": 90,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_dragon_ghost",
+                        "龙魂",
+                        "dps",
+                        90,
+                        ["ms_long_xi", "ms_long_zhao"],
+                        ["龙魂碎片"]
+                    ],
+                    [
+                        "m_ancient_dragon",
+                        "古龙",
+                        "tank",
+                        92,
+                        ["ms_long_xi", "ms_long_wei_190", "ms_wei_ya"],
+                        ["古龙鳞"]
+                    ]
+                ],
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "dragon_tomb_2",
+                "name": "骨堆甬道",
+                "icon": "💀",
+                "desc": "甬道堆满龙骨，踩上去嘎吱作响，骨缝里闪着磷火。一道强大的龙魂在骨堆间盘旋，发出无声的龙吟。",
+                "type": "副本",
+                "lv": 95,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_dragon_soul",
                     "龙魂",
-                    "dps",
-                    90,
-                    [
-                        "ms_long_xi",
-                        "ms_long_zhao"
-                    ],
-                    [
-                        "龙魂碎片"
-                    ]
+                    "elite",
+                    95,
+                    ["ms_long_xi", "ms_zhao_huan"],
+                    ["龙魂碎片"]
                 ],
-                [
-                    "m_ancient_dragon",
-                    "古龙",
-                    "tank",
-                    92,
-                    [
-                        "ms_long_xi",
-                        "ms_long_wei_190",
-                        "ms_wei_ya"
-                    ],
-                    [
-                        "古龙鳞"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_om_shadow",
-                "古龙·奥姆之影",
-                "boss",
-                100,
-                [
-                    "ms_long_xi",
-                    "ms_long_zhao",
-                    "ms_gu_long_wei_ya"
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "dragon_tomb_3",
+                "name": "龙眠大殿",
+                "icon": "🐉",
+                "desc": "大殿中央，古龙奥姆的骸骨盘踞成山，幽火在它的眼窝中燃烧。奥姆之影缓缓睁眼——龙族的传承，只托付给证明了自己的人。",
+                "type": "副本",
+                "lv": 100,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_om_shadow",
+                    "古龙·奥姆之影",
+                    "boss",
+                    100,
+                    ["ms_long_xi", "ms_long_zhao", "ms_gu_long_wei_ya"],
+                    ["龙语传承"]
                 ],
-                [
-                    "龙语传承"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "dragon_kin": [
         {
@@ -6611,36 +6925,87 @@ SUBAREAS = {
         }
     ],
     "storm_throne": [
-        {
-            "id": "storm_throne_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "风暴王座入口：雷云在入口上空盘旋，石阶上布满焦黑的闪电痕迹。门内狂风不止，吹得人睁不开眼。",
-            "type": "副本",
-            "lv": 90,
-            "npcs": [],
-            "monsters": [],
-            "elite": None,
-            "boss": [
-                "b_storm_king",
-                                "雷霆君主",
-                                "boss",
-                98,
-                [
-                    "ms_lei_bao",
-                    "ms_feng_bao_zhi_yan",
-                    "ms_zhao_huan_lei_niao"
+            {
+                "id": "storm_throne_1",
+                "name": "风暴之门",
+                "icon": "⛈️",
+                "desc": "雷云在门框上翻滚，电光不时劈在门柱上，风刃割得脸生疼。雷暴守卫擎着雷枪，在风暴中列阵。",
+                "type": "副本",
+                "lv": 90,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_storm_guard",
+                        "雷暴守卫",
+                        "dps",
+                        90,
+                        ["ms_lei_bao"],
+                        ["风暴之核"]
+                    ]
                 ],
-                [
-                    "风暴之核"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "storm_throne_2",
+                "name": "雷霆回廊",
+                "icon": "⚡",
+                "desc": "回廊的地面是导电的金属板，雷光在脚下流窜，空气中满是臭氧味。风暴祭司吟唱着雷霆祷词，巨人的身影在雷光中浮现。",
+                "type": "副本",
+                "lv": 96,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_storm_priest",
+                        "风暴祭司",
+                        "speedster",
+                        94,
+                        ["ms_lei_bao", "ms_feng_bao_zhi_yan"],
+                        ["风暴之核"]
+                    ]
+                ],
+                "elite": [
+                    "e_storm_elite2",
+                    "雷霆巨人",
+                    "elite",
+                    96,
+                    ["ms_lei_bao", "ms_dun_ji"],
+                    ["风暴之核"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "storm_throne_3",
+                "name": "风暴王座",
+                "icon": "👑",
+                "desc": "雷霆君主盘踞在王座上，周身环绕着雷暴，王座由云与雷铸成。雷霆为冠、狂风为座——风暴只臣服于敢于直面它的勇者。",
+                "type": "副本",
+                "lv": 98,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_storm_king",
+                    "雷霆君主",
+                    "boss",
+                    98,
+                    [
+                        "ms_lei_bao",
+                        "ms_feng_bao_zhi_yan",
+                        "ms_zhao_huan_lei_niao"
+                    ],
+                    ["风暴之核"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "redridge_plateau": [
         {
@@ -7425,122 +7790,160 @@ SUBAREAS = {
         }
     ],
     "sunken_ship": [
-        {
-            "id": "sunken_ship_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "沉船湾入口：一艘古船的残骸半埋在沙滩上，船身倾斜，桅杆折断。退潮时能看到船舷上的古老徽记。",
-            "type": "副本",
-            "lv": 38,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_ghost_sailor",
-                    "幽灵水手",
-                    "dps",
-                    38,
+            {
+                "id": "sunken_ship_1",
+                "name": "倾斜甲板",
+                "icon": "⚓",
+                "desc": "倾斜的甲板泡在海水里，桅杆断裂，帆布腐烂，海鸟在残骸上盘旋。幽灵水手在迷雾中来回踱步，溺死者的手从水下探出。",
+                "type": "副本",
+                "lv": 38,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_xiu_jian",
-                        "ms_ai_hao"
+                        "m_ghost_sailor",
+                        "幽灵水手",
+                        "dps",
+                        38,
+                        ["ms_xiu_jian", "ms_ai_hao"],
+                        ["幽灵帆布"]
                     ],
                     [
-                        "幽灵帆布"
+                        "m_drowned",
+                        "溺死者",
+                        "tank",
+                        42,
+                        ["ms_zhao_ji", "ms_chan_rao"],
+                        ["海藻缠绕"]
                     ]
                 ],
-                [
-                    "m_drowned",
-                    "溺死者",
-                    "tank",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sunken_ship_2",
+                "name": "霉烂船舱",
+                "icon": "🕸️",
+                "desc": "船舱里堆着霉烂的货物，幽灵水手在暗处低声哼着水手歌。一道大副的虚影守在舱梯口，仿佛还在等船长下令。",
+                "type": "副本",
+                "lv": 42,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_ghost_captain",
+                    "幽灵大副",
+                    "elite",
                     42,
-                    [
-                        "ms_zhao_ji",
-                        "ms_chan_rao"
-                    ],
-                    [
-                        "海藻缠绕"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_ghost_captain",
-                "幽灵船长·克罗",
-                "boss",
-                48,
-                [
-                    "ms_wan_dao",
-                    "ms_zhao_huan_you_ling",
-                    "ms_zu_zhou"
+                    ["ms_you_ling", "ms_wan_dao"],
+                    ["幽灵船票"]
                 ],
-                [
-                    "克罗的罗盘"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sunken_ship_3",
+                "name": "船长室",
+                "icon": "🗝️",
+                "desc": "船长室的门半掩，里面传来金币碰撞的声音，克罗的旗子挂在墙上。幽灵船长·克罗正等着取回它唯一记得的归途——那枚罗盘。",
+                "type": "副本",
+                "lv": 48,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_ghost_captain",
+                    "幽灵船长·克罗",
+                    "boss",
+                    48,
+                    ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"],
+                    ["克罗的罗盘"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "siren_nest": [
-        {
-            "id": "siren_nest_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "海妖巢穴入口：礁石间的洞口被贝壳与海藻覆盖，洞口传出缥缈的歌声，让人不由自主地想要靠近。",
-            "type": "副本",
-            "lv": 52,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_siren_elite",
-                    "海妖精英",
-                    "dps",
-                    52,
+            {
+                "id": "siren_nest_1",
+                "name": "海藻洞",
+                "icon": "🧜‍♀️",
+                "desc": "茂密的海藻挡住光线，水波在洞壁上投下摇曳的光影，歌声在深处回荡。海妖精英在藻丛间游弋，巨大的触手贴着礁石蠕动。",
+                "type": "副本",
+                "lv": 52,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_mei_huo",
-                        "ms_du_ci"
+                        "m_siren_elite",
+                        "海妖精英",
+                        "dps",
+                        52,
+                        ["ms_mei_huo", "ms_du_ci"],
+                        ["海妖之羽"]
                     ],
                     [
-                        "海妖之羽"
+                        "m_kraken_tentacle",
+                        "海妖触手",
+                        "tank",
+                        54,
+                        ["ms_jiao_sha", "ms_shui_xi"],
+                        ["触手皮"]
                     ]
                 ],
-                [
-                    "m_kraken_tentacle",
-                    "海妖触手",
-                    "tank",
-                    54,
-                    [
-                        "ms_jiao_sha",
-                        "ms_shui_xi"
-                    ],
-                    [
-                        "触手皮"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_siren_queen",
-                "海妖女王·蓝歌",
-                "boss",
-                60,
-                [
-                    "ms_mei_huo_zhi_ge",
-                    "ms_ju_lang",
-                    "ms_zhao_huan_chu_shou"
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "siren_nest_2",
+                "name": "珊瑚回廊",
+                "icon": "🪸",
+                "desc": "珊瑚如水晶般发光，照亮整个回廊，鱼群在珊瑚间穿梭。一名持叉的海妖守卫立在回廊尽头，歌声骤然变得凌厉。",
+                "type": "副本",
+                "lv": 55,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_siren_guard",
+                    "海妖守卫",
+                    "elite",
+                    55,
+                    ["ms_hai_yao", "ms_du_ya"],
+                    ["海妖鳞片"]
                 ],
-                [
-                    "蓝歌之冠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "siren_nest_3",
+                "name": "珍珠王座",
+                "icon": "💎",
+                "desc": "巢穴中央，海妖女王·蓝歌坐在珍珠王座上，歌声就是从这里传出的。『留下来吧，旅人——我的歌里，有你想回的家。』",
+                "type": "副本",
+                "lv": 60,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_siren_queen",
+                    "海妖女王·蓝歌",
+                    "boss",
+                    60,
+                    ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
+                    ["蓝歌之冠"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "nameless_harbor": [
         {
@@ -8176,148 +8579,182 @@ SUBAREAS = {
         }
     ],
     "sea_god_temple": [
-        {
-            "id": "sea_god_temple_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "海神神殿入口：珊瑚与贝壳砌成的殿门立在浅海中，门柱上雕刻着持三叉戟的海神像，潮水在门槛外徘徊。",
-            "type": "副本",
-            "lv": 64,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_sea_priest",
-                    "海神祭司",
-                    "healer",
-                    64,
+            {
+                "id": "sea_god_temple_1",
+                "name": "神殿门厅",
+                "icon": "🌊",
+                "desc": "海底神殿的入口，海神雕像手持三叉戟注视来者，水流在柱间穿行。海神祭司在门厅低诵祷文，潮汐守卫的铁戟交叉拦路。",
+                "type": "副本",
+                "lv": 64,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_shui_dan",
-                        "ms_hai_chao_zhu_fu"
+                        "m_sea_priest",
+                        "海神祭司",
+                        "healer",
+                        64,
+                        ["ms_shui_dan", "ms_hai_chao_zhu_fu"],
+                        ["海神祭器"]
                     ],
                     [
-                        "海神祭器"
+                        "m_tidal_guard",
+                        "潮汐守卫",
+                        "tank",
+                        66,
+                        ["ms_ju_lang", "ms_tie_bi"],
+                        ["潮汐碎片"]
                     ]
                 ],
-                [
-                    "m_tidal_guard",
-                    "潮汐守卫",
-                    "tank",
-                    66,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sea_god_temple_2",
+                "name": "潮汐回廊",
+                "icon": "🌊",
+                "desc": "回廊的潮水随节奏涨落，贝壳在墙壁上嵌成花纹。甲壳战士沿着潮线列队，一名海神护卫沐浴着圣光，冷冷注视着入侵者。",
+                "type": "副本",
+                "lv": 68,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_ju_lang",
-                        "ms_tie_bi"
-                    ],
-                    [
-                        "潮汐碎片"
+                        "m_shell_warrior",
+                        "甲壳战士",
+                        "dps",
+                        68,
+                        ["ms_qian_ji", "ms_ying_hua"],
+                        ["甲壳残片"]
                     ]
                 ],
-                [
-                    "m_shell_warrior",
-                    "甲壳战士",
-                    "dps",
+                "elite": [
+                    "e_sea_priest",
+                    "海神护卫",
+                    "elite",
                     68,
-                    [
-                        "ms_qian_ji",
-                        "ms_ying_hua"
-                    ],
-                    [
-                        "甲壳残片"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_lange",
-                "海神祭司·澜歌",
-                "boss",
-                72,
-                [
-                    "ms_hai_chao",
-                    "ms_zhao_huan_sha_yu",
-                    "ms_jing_hua_zhi_chao"
+                    ["ms_hai_yao", "ms_sheng_guang"],
+                    ["潮汐之泪"]
                 ],
-                [
-                    "澜歌之泪"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
-    ],
-    "deep_dragon_palace": [
-        {
-            "id": "deep_dragon_palace_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "深海龙宫入口：水晶拱门在深海中泛着蓝光，门两侧立着龙形的雕像，水压在这里骤然加重。",
-            "type": "副本",
-            "lv": 70,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_coral_mage",
-                    "珊瑚法师",
-                    "healer",
-                    70,
-                    [
-                        "ms_shui_dan",
-                        "ms_shan_hu_hu_dun"
-                    ],
-                    [
-                        "珊瑚枝"
-                    ]
-                ],
-                [
-                    "m_deep_knight",
-                    "深海骑士",
-                    "tank",
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "sea_god_temple_3",
+                "name": "海神祭坛",
+                "icon": "⛲",
+                "desc": "祭坛上的水镜映出天空，海神祭司·澜歌正在进行祈潮仪式，海水在她脚下臣服。海神正注视着你——跪下，或者被潮水带走。",
+                "type": "副本",
+                "lv": 72,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_lange",
+                    "海神祭司·澜歌",
+                    "boss",
                     72,
                     [
-                        "ms_san_cha_ji",
-                        "ms_shui_xi"
+                        "ms_hai_chao",
+                        "ms_zhao_huan_sha_yu",
+                        "ms_jing_hua_zhi_chao"
+                    ],
+                    ["澜歌之泪"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
+    ],
+    "deep_dragon_palace": [
+            {
+                "id": "deep_dragon_palace_1",
+                "name": "水晶宫门",
+                "icon": "🐲",
+                "desc": "龙宫的珊瑚宫门，夜明珠在门楣上发光，虾兵蟹将在门外巡逻。珊瑚法师在门内施法，深海骑士的甲胄在蓝光中泛着冷意。",
+                "type": "副本",
+                "lv": 70,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_coral_mage",
+                        "珊瑚法师",
+                        "healer",
+                        70,
+                        ["ms_shui_dan", "ms_shan_hu_hu_dun"],
+                        ["珊瑚枝"]
                     ],
                     [
-                        "深海骑士甲"
+                        "m_deep_knight",
+                        "深海骑士",
+                        "tank",
+                        72,
+                        ["ms_san_cha_ji", "ms_shui_xi"],
+                        ["深海骑士甲"]
                     ]
                 ],
-                [
-                    "m_dragon_prawn",
-                    "龙虾战士",
-                    "dps",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "deep_dragon_palace_2",
+                "name": "珊瑚长廊",
+                "icon": "🪸",
+                "desc": "长廊两侧是水晶珊瑚，鱼群在廊外游过，水波把光影揉碎。龙虾战士挥钳挡住去路，一名龙宫守卫持戟立于廊心。",
+                "type": "副本",
+                "lv": 74,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_dragon_prawn",
+                        "龙虾战士",
+                        "dps",
+                        74,
+                        ["ms_qian_ji", "ms_chong_zhuang"],
+                        ["龙虾壳"]
+                    ]
+                ],
+                "elite": [
+                    "e_dragon_guard",
+                    "龙宫守卫",
+                    "elite",
                     74,
-                    [
-                        "ms_qian_ji",
-                        "ms_chong_zhuang"
-                    ],
-                    [
-                        "龙虾壳"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_aolan",
-                "深海龙王·敖澜",
-                "boss",
-                78,
-                [
-                    "ms_shui_xi",
-                    "ms_long_wei",
-                    "ms_zhao_huan_hai_shou"
+                    ["ms_long_xi", "ms_du_ya"],
+                    ["龙宫珠"]
                 ],
-                [
-                    "敖澜之珠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "deep_dragon_palace_3",
+                "name": "龙王大殿",
+                "icon": "👑",
+                "desc": "大殿金碧辉煌，深海龙王·敖澜盘踞在宝座上，龙须随水流浮动。它缓缓睁开金色的竖瞳——是谁吵醒了万年的沉眠？",
+                "type": "副本",
+                "lv": 78,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_aolan",
+                    "深海龙王·敖澜",
+                    "boss",
+                    78,
+                    ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
+                    ["敖澜之珠"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "deep_tunnel": [
         {
@@ -8794,121 +9231,160 @@ SUBAREAS = {
         }
     ],
     "gray_dwarf": [
-        {
-            "id": "gray_dwarf_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "灰矮人要塞入口：厚重的石门嵌在岩壁中，门楣刻着矮人符文。门缝里透出熔炉的红光与沉闷的锻声。",
-            "type": "副本",
-            "lv": 74,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_gray_dwarf",
-                    "灰矮人战士",
-                    "dps",
-                    74,
+            {
+                "id": "gray_dwarf_1",
+                "name": "铁门甬道",
+                "icon": "⛏️",
+                "desc": "铁门厚重，门楣刻着灰矮人的锤徽，熔炉的红光从门缝里透出。灰矮人战士抡着战锤巡逻，技师在甬道边检修着隆隆作响的机械。",
+                "type": "副本",
+                "lv": 74,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_zhan_chui",
-                        "ms_dun_ji"
+                        "m_gray_dwarf",
+                        "灰矮人战士",
+                        "dps",
+                        74,
+                        ["ms_zhan_chui", "ms_dun_ji"],
+                        ["灰矮人徽记"]
                     ],
                     [
-                        "灰矮人徽记"
+                        "m_gray_engineer",
+                        "灰矮人技师",
+                        "healer",
+                        76,
+                        ["ms_xiu_li", "ms_bao_dan"],
+                        ["机械零件"]
                     ]
                 ],
-                [
-                    "m_gray_engineer",
-                    "灰矮人技师",
-                    "healer",
-                    76,
-                    [
-                        "ms_xiu_li",
-                        "ms_bao_dan"
-                    ],
-                    [
-                        "机械零件"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_gray_lord",
-                "灰矮人领主·石炉",
-                "boss",
-                84,
-                [
-                    "ms_zhan_chui",
-                    "ms_zhao_huan_gong_cheng_shou"
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "gray_dwarf_2",
+                "name": "兵工厂",
+                "icon": "🔩",
+                "desc": "锻造炉还在燃烧，兵器架上插满铁制武器，火星在空气中飞舞。一名全副武装的灰矮人守卫守在锻炉旁，锤子敲得地动山摇。",
+                "type": "副本",
+                "lv": 78,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_dwarf_guard",
+                    "灰矮人守卫",
+                    "elite",
+                    78,
+                    ["ms_dun_ji", "ms_kuang_bao"],
+                    ["灰矮人徽记"]
                 ],
-                [
-                    "石炉之锤"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "gray_dwarf_3",
+                "name": "领主大厅",
+                "icon": "🔨",
+                "desc": "石炉领主坐在铁王座上，面前摆着斟满的酒杯，火光在他脸上跳动。『地底只认锤子说话的规矩——你的骨头，够硬吗？』",
+                "type": "副本",
+                "lv": 84,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_gray_lord",
+                    "灰矮人领主·石炉",
+                    "boss",
+                    84,
+                    ["ms_zhan_chui", "ms_zhao_huan_gong_cheng_shou"],
+                    ["石炉之锤"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "under_dragon": [
-        {
-            "id": "under_dragon_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "地底龙巢入口：巨大的龙爪痕迹刻在岩壁上，洞口堆着磨得发亮的兽骨。巢内传来沉重的呼吸声。",
-            "type": "副本",
-            "lv": 84,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_under_drake",
+            {
+                "id": "under_dragon_1",
+                "name": "巢穴入口",
+                "icon": "🕳️",
+                "desc": "洞穴入口堆着巨兽的骸骨，硫磺味刺鼻，地底的热气从岩缝中喷出。地底幼龙在骨堆间扑腾，一尊古龙裔缓缓抬起覆甲的头颅。",
+                "type": "副本",
+                "lv": 84,
+                "npcs": [],
+                "monsters": [
+                    [
+                        "m_under_drake",
+                        "地底幼龙",
+                        "dps",
+                        84,
+                        ["ms_suan_xi", "ms_long_zhao"],
+                        ["地底龙鳞"]
+                    ],
+                    [
+                        "m_under_wyrm",
+                        "地底古龙裔",
+                        "tank",
+                        88,
+                        ["ms_suan_xi", "ms_long_wei_190"],
+                        ["古龙裔甲"]
+                    ]
+                ],
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "under_dragon_2",
+                "name": "龙骸甬道",
+                "icon": "🦴",
+                "desc": "甬道的墙壁嵌着龙鳞，被磨损的地面发亮，深处传来幼龙的嘶鸣。一道比同类更庞大的龙影盘踞在甬道中央，竖瞳泛着幽光。",
+                "type": "副本",
+                "lv": 88,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_deep_dragon",
                     "地底幼龙",
-                    "dps",
-                    84,
-                    [
-                        "ms_suan_xi",
-                        "ms_long_zhao"
-                    ],
-                    [
-                        "地底龙鳞"
-                    ]
-                ],
-                [
-                    "m_under_wyrm",
-                    "地底古龙裔",
-                    "tank",
+                    "elite",
                     88,
-                    [
-                        "ms_suan_xi",
-                        "ms_long_wei_190"
-                    ],
-                    [
-                        "古龙裔甲"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_under_dragon",
-                "地底古龙·黑渊",
-                "boss",
-                92,
-                [
-                    "ms_suan_xi",
-                    "ms_tun_shi",
-                    "ms_zhao_huan_you_long"
+                    ["ms_long_xi", "ms_an_ying"],
+                    ["地底龙鳞"]
                 ],
-                [
-                    "黑渊之眼"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "under_dragon_3",
+                "name": "岩浆龙巢",
+                "icon": "🌋",
+                "desc": "黑渊的古龙盘在巢中，周身缭绕着地底熔光，岩浆湖在巢穴下缓缓翻涌。它已经很久没有闻到活物的气味了——幽暗地域最古老的掠食者，不挑食。",
+                "type": "副本",
+                "lv": 92,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_under_dragon",
+                    "地底古龙·黑渊",
+                    "boss",
+                    92,
+                    ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"],
+                    ["黑渊之眼"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "ember_camp": [
         {
@@ -9227,63 +9703,86 @@ SUBAREAS = {
         }
     ],
     "abyss_throne": [
-        {
-            "id": "abyss_throne_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "深渊王座入口：黑曜石巨门矗立在黑暗尽头，门上的纹路如同蠕动的触须。门后是深渊的最深处。",
-            "type": "副本",
-            "lv": 90,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_abyss_guard",
-                    "深渊守卫",
-                    "tank",
-                    90,
+            {
+                "id": "abyss_throne_1",
+                "name": "深渊入口",
+                "icon": "🕳️",
+                "desc": "深渊的入口是张开的巨口，黑暗仿佛有重量。深渊守卫的黑甲在暗处泛光，术士的咒语在门内回荡——踏入此门，便再无退路。",
+                "type": "副本",
+                "lv": 90,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_zhong_ji",
-                        "ms_an_ying_zhan"
+                        "m_abyss_guard",
+                        "深渊守卫",
+                        "tank",
+                        90,
+                        ["ms_zhong_ji", "ms_an_ying_zhan"],
+                        ["深渊守卫甲"]
                     ],
                     [
-                        "深渊守卫甲"
+                        "m_abyss_warlock",
+                        "深渊术士",
+                        "healer",
+                        92,
+                        ["ms_an_ying_dan", "ms_zhao_huan_e_mo"],
+                        ["术士法杖"]
                     ]
                 ],
-                [
-                    "m_abyss_warlock",
-                    "深渊术士",
-                    "healer",
-                    92,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "abyss_throne_2",
+                "name": "魔像走廊",
+                "icon": "🗿",
+                "desc": "走廊两侧的深渊魔像排成队列，空洞的眼窝注视着过客，仿佛随时会苏醒。地面传来细微的震动——它们已经醒了。",
+                "type": "副本",
+                "lv": 94,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_abyss_elite",
+                    "深渊魔像",
+                    "elite",
+                    94,
+                    ["ms_an_ying", "ms_xu_kong"],
+                    ["魔像核心"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "abyss_throne_3",
+                "name": "深渊王座",
+                "icon": "👹",
+                "desc": "摩罗坐在骸骨王座上，四周漂浮着暗影，王座之下是无尽的深渊。三百年了，终于有人敢来献上头颅！",
+                "type": "副本",
+                "lv": 98,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_moro",
+                    "深渊领主·摩罗",
+                    "boss",
+                    98,
                     [
-                        "ms_an_ying_dan",
-                        "ms_zhao_huan_e_mo"
+                        "ms_shen_yuan_zhi_nu",
+                        "ms_zhao_huan_e_mo",
+                        "ms_fu_shi_ling_yu"
                     ],
-                    [
-                        "术士法杖"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_moro",
-                "深渊领主·摩罗",
-                "boss",
-                98,
-                [
-                    "ms_shen_yuan_zhi_nu",
-                    "ms_zhao_huan_e_mo",
-                    "ms_fu_shi_ling_yu"
+                    ["摩罗之冠"]
                 ],
-                [
-                    "摩罗之冠"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "wind_city": [
         {
@@ -9559,63 +10058,86 @@ SUBAREAS = {
         }
     ],
     "eye_of_storm": [
-        {
-            "id": "eye_of_storm_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "风暴之眼入口：风眼正对着一道石门，气流在门前旋转成漩涡。门内平静得反常，仿佛风暴都被驯服了。",
-            "type": "副本",
-            "lv": 92,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_eye_guardian",
-                    "风暴守卫",
-                    "tank",
-                    92,
+            {
+                "id": "eye_of_storm_1",
+                "name": "云巅之门",
+                "icon": "☁️",
+                "desc": "云端之上的石门，风从门缝呼啸而过，云海在脚下翻涌。风暴守卫与天空战士在门前列阵，元素军团在狂风中待命。",
+                "type": "副本",
+                "lv": 92,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_lei_ji",
-                        "ms_tie_bi"
+                        "m_eye_guardian",
+                        "风暴守卫",
+                        "tank",
+                        92,
+                        ["ms_lei_ji", "ms_tie_bi"],
+                        ["守卫铠甲碎片"]
                     ],
                     [
-                        "守卫铠甲碎片"
+                        "m_sky_warrior",
+                        "天空战士",
+                        "dps",
+                        94,
+                        ["ms_feng_ren", "ms_lei_jian"],
+                        ["天空战刃"]
                     ]
                 ],
-                [
-                    "m_sky_warrior",
-                    "天空战士",
-                    "dps",
-                    94,
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "eye_of_storm_2",
+                "name": "风暴回廊",
+                "icon": "🌪️",
+                "desc": "回廊悬在云海上，风元素在四周游荡，脚下的云桥时隐时现。一道由风暴凝成的巨影在回廊中游走，风声如雷鸣。",
+                "type": "副本",
+                "lv": 96,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_storm_elite",
+                    "风暴元素",
+                    "elite",
+                    96,
+                    ["ms_feng_bao", "ms_lei_ji"],
+                    ["风暴之核"]
+                ],
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "eye_of_storm_3",
+                "name": "风暴之眼",
+                "icon": "👁️",
+                "desc": "风暴的平静中心，风暴之主·云怒悬浮在空中，雷云在他脚下翻腾。竟敢踏入天空的尽头？就让风暴，为你们送葬！",
+                "type": "副本",
+                "lv": 100,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_storm_master",
+                    "风暴之主·云怒",
+                    "boss",
+                    100,
                     [
-                        "ms_feng_ren",
-                        "ms_lei_jian"
+                        "ms_lei_bao",
+                        "ms_feng_bao_zhi_yan",
+                        "ms_zhao_huan_lei_niao"
                     ],
-                    [
-                        "天空战刃"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_storm_master",
-                "风暴之主·云怒",
-                "boss",
-                100,
-                [
-                    "ms_lei_bao",
-                    "ms_feng_bao_zhi_yan",
-                    "ms_zhao_huan_lei_niao"
+                    ["云怒之核"]
                 ],
-                [
-                    "云怒之核"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "rainbow_cloud": [
         {
@@ -9835,63 +10357,82 @@ SUBAREAS = {
         }
     ],
     "cloud_sanctum": [
-        {
-            "id": "cloud_sanctum_1",
-            "name": "入口",
-            "icon": "🚪",
-            "desc": "云中圣殿入口：云梯的尽头是一扇月光石大门，门框镶着风纹。殿门半开，圣光从门缝中倾泻而出。",
-            "type": "副本",
-            "lv": 94,
-            "npcs": [],
-            "monsters": [
-                [
-                    "m_cloud_guard",
-                    "云殿守卫",
-                    "tank",
-                    94,
+            {
+                "id": "cloud_sanctum_1",
+                "name": "云门",
+                "icon": "☁️",
+                "desc": "云层凝成的门扉，光从门缝中流泻，脚下是软绵绵的云阶。云殿守卫的甲胄映着天光，光之祭司的祷歌在门内回响。",
+                "type": "副本",
+                "lv": 94,
+                "npcs": [],
+                "monsters": [
                     [
-                        "ms_yun_dun",
-                        "ms_feng_ren"
+                        "m_cloud_guard",
+                        "云殿守卫",
+                        "tank",
+                        94,
+                        ["ms_yun_dun", "ms_feng_ren"],
+                        ["云殿铠甲"]
                     ],
                     [
-                        "云殿铠甲"
+                        "m_light_priest",
+                        "光之祭司",
+                        "healer",
+                        96,
+                        ["ms_sheng_guang_dan", "ms_zhu_fu"],
+                        ["光之圣典"]
                     ]
                 ],
-                [
-                    "m_light_priest",
-                    "光之祭司",
-                    "healer",
+                "elite": None,
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "cloud_sanctum_2",
+                "name": "圣殿回廊",
+                "icon": "✨",
+                "desc": "回廊的地面是流动的云，云中守卫的身影时隐时现，星辉在穹顶流淌。圣光与风暴在廊柱间交织，每一级阶梯都通向云端之上。",
+                "type": "副本",
+                "lv": 96,
+                "npcs": [],
+                "monsters": [],
+                "elite": [
+                    "e_cloud_guard",
+                    "云中守卫",
+                    "elite",
                     96,
-                    [
-                        "ms_sheng_guang_dan",
-                        "ms_zhu_fu"
-                    ],
-                    [
-                        "光之圣典"
-                    ]
-                ]
-            ],
-            "elite": None,
-            "boss": [
-                "b_ola",
-                "云中圣者·奥拉",
-                "boss",
-                100,
-                [
-                    "ms_sheng_guang",
-                    "ms_feng_bao",
-                    "ms_zhao_huan_yun_wei"
+                    ["ms_sheng_guang", "ms_feng_bao"],
+                    ["云怒之核"]
                 ],
-                [
-                    "奥拉圣印碎片"
-                ]
-            ],
-            "funcs": [
-                "instance"
-            ],
-            "shop": False,
-            "healer": False
-        }
+                "boss": None,
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            },
+            {
+                "id": "cloud_sanctum_3",
+                "name": "云中圣殿",
+                "icon": "🌟",
+                "desc": "圣殿中央，云中圣者·奥拉被光环环绕，圣歌在云间回荡。传承只授予配得上天空之人——证明你们的勇气吧！",
+                "type": "副本",
+                "lv": 100,
+                "npcs": [],
+                "monsters": [],
+                "elite": None,
+                "boss": [
+                    "b_ola",
+                    "云中圣者·奥拉",
+                    "boss",
+                    100,
+                    ["ms_sheng_guang", "ms_feng_bao", "ms_zhao_huan_yun_wei"],
+                    ["奥拉圣印碎片"]
+                ],
+                "funcs": ["instance"],
+                "shop": False,
+                "healer": False
+            }
     ],
     "lost_library": [
         {
