@@ -66,6 +66,7 @@ from .gems import (  # noqa: F401
     GEM_TIERS, GEM_TIER_NAMES, GEM_STATS, GEM_SOCKETS, GEM_DRILL,
     GEM_REMOVE_COST, RUNE_REMOVE_COST, GEM_LEGENDARY_EFFECTS,
     GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED,
+    GEM_BASE_NAME, GEM_ITEM_TYPE,
 )
 # v136 装备进化（怪猎派生树）：同系列旧→新，继承强化/升级
 from .evolve import EVOLVE_RECIPES  # noqa: F401

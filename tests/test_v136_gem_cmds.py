@@ -55,7 +55,7 @@ def make_gem(tier, stat="atk"):
     """构造一颗确定属性的原石（stats 值 = 该层 mult）。"""
     return {
         "name": f"{C.GEM_TIER_NAMES[tier]}·攻击+{int(C.GEM_TIERS[tier]['mult'] * 100)}%",
-        "type": "原石",
+        "type": "幸运宝石",
         "gem": True,
         "stats": {stat: C.GEM_TIERS[tier]["mult"]},
         "tier": tier,
@@ -256,7 +256,7 @@ def main():
     d = inv[0]["data"] if inv else {}
     check("孔位已清空", d.get("sockets", {}).get("S1") is None, str(d.get("sockets")))
     gems_back = [it for it in inv if it["data"].get("gem")]
-    check("原石已回背包", len(gems_back) == 1 and gems_back[0]["data"]["name"].startswith("碎裂I"),
+    check("原石已回背包", len(gems_back) == 1 and gems_back[0]["data"]["name"].startswith("碎裂的幸运宝石"),
           str([it["data"].get("name") for it in gems_back]))
     check("回包 key 为 gem_ 前缀", gems_back[0]["key"].startswith("gem_"), gems_back[0]["key"])
     # 空孔拆卸拦截
@@ -298,7 +298,7 @@ def main():
     check("不足 3 颗拦截", "需要 3 颗" in txt, txt[:120])
     inv = db.get_inventory(g, q)
     check("拦截后原石未扣", sum(it["count"] for it in inv if it["data"].get("gem")) == 2)
-    # 4c. 传说II(tier=10) 不可再合成
+    # 4c. 神话(tier=10) 不可再合成
     clean_db()
     m = Main(None)
     make_player(g, q, name="传说", cls="战士", level=30)
@@ -309,9 +309,9 @@ def main():
     ev = FakeEvent(g, q, f"原石合成 {gem10['name']}")
     out = asyncio.run(run(m.gem_combine, ev))
     txt = out[0] if out else ""
-    check("传说II 不可再合成拦截", "无法再合成" in txt, txt[:120])
+    check("神话 不可再合成拦截", "无法再合成" in txt, txt[:120])
     inv = db.get_inventory(g, q)
-    check("传说II 拦截后未扣", sum(it["count"] for it in inv if it["data"].get("gem")) == 3)
+    check("神话 拦截后未扣", sum(it["count"] for it in inv if it["data"].get("gem")) == 3)
 
     # ---------- 5. 原石查看 + 面板 ----------
     print("[5] 原石查看/面板")
@@ -325,8 +325,8 @@ def main():
     ev = FakeEvent(g, q, "原石")
     out = asyncio.run(run(m.gem_view, ev))
     txt = out[0] if out else ""
-    check("原石面板含名称", "碎裂I" in txt, txt[:150])
-    check("原石面板含层数/孔位需求", "层1" in txt and "蓝孔" in txt, txt[:150])
+    check("原石面板含名称", "碎裂的幸运宝石" in txt, txt[:150])
+    check("原石面板含层数/孔位需求", "阶1" in txt and "蓝孔" in txt, txt[:150])
     check("原石面板含属性", "攻击" in txt, txt[:150])
     # 5b. 空背包原石面板提示
     clean_db()
@@ -335,7 +335,7 @@ def main():
     ev = FakeEvent(g, q, "原石")
     out = asyncio.run(run(m.gem_view, ev))
     txt = out[0] if out else ""
-    check("空背包原石提示", "还没有原石" in txt, txt[:120])
+    check("空背包原石提示", "还没有幸运宝石" in txt, txt[:120])
     # 5c. 面板 _render_equip 带 sockets 显示孔位
     from data.plugins.dragonfall.game.commands.economy import _render_equip
     eq_p = C.generate_roster_equip("eq_tie_jian")
@@ -345,7 +345,7 @@ def main():
     _lines = []
     _render_equip(eq_p, _lines, equipped=False)
     _rc = "\n".join(_lines)
-    check("面板含原石孔位行", "💎 原石：" in _rc, _rc[:300])
+    check("面板含原石孔位行", "💎 幸运宝石：" in _rc, _rc[:300])
     check("面板 S1 显示已镶原石", "S1:💎" in _rc, _rc[:300])
     check("面板 S2 显示空孔", "S2:空" in _rc, _rc[:300])
 

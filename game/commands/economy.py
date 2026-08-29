@@ -262,7 +262,7 @@ def _render_equip(d, lines, equipped):
                 _sock_lines.append(f"{_sk}:💎{_sv.get('name','')}")
             else:
                 _sock_lines.append(f"{_sk}:空")
-        lines.append("💎 原石： " + "  ".join(_sock_lines))
+        lines.append("💎 幸运宝石： " + "  ".join(_sock_lines))
     if d.get("desc"):
         lines.append(f"描述：{d['desc']}")
     else:
@@ -2969,18 +2969,18 @@ class EconomyCmds(CommandBase):
         """
         raw = (raw or "").strip()
         if not raw:
-            return None, "哪个原石？输入『原石』查看背包里的原石～"
+            return None, "哪颗幸运宝石？输入『原石』查看背包里的幸运宝石～"
         gems = [it for it in db.get_inventory(group_id, qq_id)
-                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+                if it["data"].get("gem") or it["data"].get("type") in ("原石", "幸运宝石")]
         if raw.isdigit():
             idx = int(raw)
             if idx < 1 or idx > len(gems):
-                return None, f"背包里没有第 {idx} 颗原石(共 {len(gems)} 颗)！『原石』查看～"
+                return None, f"背包里没有第 {idx} 颗幸运宝石(共 {len(gems)} 颗)！『原石』查看～"
             return gems[idx - 1], ""
         for it in gems:
             if raw in it["data"].get("name", ""):
                 return it, ""
-        return None, f"背包里没有『{raw}』！『原石』查看背包里的原石～"
+        return None, f"背包里没有『{raw}』！『原石』查看背包里的幸运宝石～"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?打孔(?:[\s\S]*)$")
     @require_player()
@@ -3050,7 +3050,7 @@ class EconomyCmds(CommandBase):
         names = "/".join(slots.keys())
         yield event.plain_result(
             f"🔨 打孔成功！【{d['name']}】现在有 {count} 个孔位({names})！"
-            f"『镶嵌 {d['name']} <原石>』放入原石～")
+            f"『镶嵌 {d['name']} <原石>』放入幸运宝石～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?镶嵌(?:[\s\S]*)$")
     @require_player()
@@ -3070,8 +3070,8 @@ class EconomyCmds(CommandBase):
         parts = raw.strip().split()
         if len(parts) < 2:
             yield event.plain_result(
-                "镶嵌哪颗原石到哪件装备？输入『镶嵌 <装备名> <原石名/序号> [孔位]』\n"
-                "如：『镶嵌 铁剑 碎裂I·攻击+1%』『镶嵌 铁剑 1』『镶嵌 铁剑 碎裂I S2』(孔位默认第一个空孔)")
+                "镶嵌哪颗幸运宝石到哪件装备？输入『镶嵌 <装备名> <原石名/序号> [孔位]』\n"
+                "如：『镶嵌 铁剑 碎裂的幸运宝石』『镶嵌 铁剑 1』『镶嵌 铁剑 碎裂 S2』(孔位默认第一个空孔)")
             return
         item_name, gem_raw = parts[0], parts[1]
         slot_arg = parts[2] if len(parts) > 2 else ""
@@ -3097,7 +3097,7 @@ class EconomyCmds(CommandBase):
         if not (min_t <= gd.get("tier", 0) <= max_t):
             yield event.plain_result(
                 f"【{d['name']}】({C.QUALITY.get(quality, {}).get('name', '')})的孔位只能镶 "
-                f"{C.GEM_TIER_NAMES.get(min_t, min_t)}~{C.GEM_TIER_NAMES.get(max_t, max_t)} 的原石"
+                f"{C.GEM_TIER_NAMES.get(min_t, min_t)}~{C.GEM_TIER_NAMES.get(max_t, max_t)} 的幸运宝石"
                 f"(你选的是 {gd['name']})！")
             return
         # 孔位解析：显式孔位（S1/S2/S3）→ 校验存在且空；未给 → 第一个空孔
@@ -3134,7 +3134,7 @@ class EconomyCmds(CommandBase):
             db.update_item_data(group_id, qq_id, target["key"], d)
         yield event.plain_result(
             f"💎 镶嵌成功！【{d['name']}】{target_slot} 镶入 {gd['name']}！"
-            f"『原石』查看背包剩余原石～")
+            f"『原石』查看背包剩余幸运宝石～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?拆卸(?:[\s\S]*)$")
     @require_player()
@@ -3153,7 +3153,7 @@ class EconomyCmds(CommandBase):
         parts = raw.strip().split()
         if len(parts) < 2:
             yield event.plain_result(
-                "拆卸哪个孔位的原石？输入『拆卸 <装备名> <孔位>』(如：拆卸 铁剑 S1)")
+                "拆卸哪个孔位的幸运宝石？输入『拆卸 <装备名> <孔位>』(如：拆卸 铁剑 S1)")
             return
         item_name, slot_arg = parts[0], parts[1].strip().upper()
         target, err = self._gem_find_equip(group_id, qq_id, player, item_name)
@@ -3167,7 +3167,7 @@ class EconomyCmds(CommandBase):
                 f"【{d['name']}】没有 {slot_arg} 这个孔位(孔位：{'/'.join(socks) or '无'})！")
             return
         if socks[slot_arg] is None:
-            yield event.plain_result(f"【{d['name']}】的 {slot_arg} 是空孔，没有原石可拆～")
+            yield event.plain_result(f"【{d['name']}】的 {slot_arg} 是空孔，没有幸运宝石可拆～")
             return
         gd = socks[slot_arg]
         cost = C.gem_socket_cost(gd)
@@ -3205,7 +3205,7 @@ class EconomyCmds(CommandBase):
             return
         items = db.get_inventory(group_id, qq_id)
         gems = [it for it in items
-                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+                if it["data"].get("gem") or it["data"].get("type") in ("原石", "幸运宝石")]
         if not raw:
             # 无参：列出可合成原石（按 tier 分组，≥3 颗可合成）
             by_tier = {}
@@ -3222,13 +3222,13 @@ class EconomyCmds(CommandBase):
                 lines.append(f"{ok} {gd['name']} ×{cnt}/3  →  {C.GEM_TIER_NAMES.get(tier + 1, '?')}")
                 shown += 1
             if shown == 0:
-                lines.append("背包里还没有可合成的原石！打怪有概率掉落原石～")
+                lines.append("背包里还没有可合成的幸运宝石！打怪有概率掉落幸运宝石～")
             lines.append("━━━━━━━━━━━━")
-            lines.append("💡 『原石合成 <原石名/序号>』消耗 3 颗同级原石合成 1 颗上级(传说II 不可再合成)")
+            lines.append("💡 『原石合成 <原石名/序号>』消耗 3 颗同级幸运宝石合成 1 颗上级(神话 不可再合成)")
             yield event.plain_result("\n".join(lines))
             return
         if not gems:
-            yield event.plain_result("背包里还没有原石！打怪有概率掉落原石～")
+            yield event.plain_result("背包里还没有幸运宝石！打怪有概率掉落幸运宝石～")
             return
         gem_item, err = self._gem_find_gem(group_id, qq_id, raw)
         if not gem_item:
@@ -3244,7 +3244,7 @@ class EconomyCmds(CommandBase):
         total = sum(it["count"] for it in same_tier)
         if total < 3:
             yield event.plain_result(
-                f"合成需要 3 颗 {C.GEM_TIER_NAMES.get(tier, tier)} 原石，你有 {total} 颗！")
+                f"合成需要 3 颗 {C.GEM_TIER_NAMES.get(tier, tier)}，你有 {total} 颗！")
             return
         # 扣 3 颗同 tier（跨堆扣取，key 优先）
         remain = 3
@@ -3257,7 +3257,7 @@ class EconomyCmds(CommandBase):
         new_gem = C.gem_combine([gd, gd, gd])
         db.add_item(group_id, qq_id, f"gem_{__import__('uuid').uuid4().hex[:8]}", new_gem)
         yield event.plain_result(
-            f"✨ 三颗 {gd['name']} 光芒交织，合成了更纯粹的原石！\n"
+            f"✨ 三颗 {gd['name']} 光芒交织，合成了更纯粹的幸运宝石！\n"
             f"✅ 合成成功！获得 {new_gem['name']}(消耗 3 颗，无失败)")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?原石(?!合成)(?:\s*|$)")
@@ -3268,20 +3268,20 @@ class EconomyCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         items = db.get_inventory(group_id, qq_id)
         gems = [it for it in items
-                if it["data"].get("gem") or it["data"].get("type") == "原石"]
+                if it["data"].get("gem") or it["data"].get("type") in ("原石", "幸运宝石")]
         if not gems:
             yield event.plain_result(
-                "💎 背包里还没有原石！打怪有概率掉落原石～\n"
+                "💎 背包里还没有幸运宝石！打怪有概率掉落幸运宝石～\n"
                 "💡 『打孔 <装备>』给蓝/紫/橙装开孔，『镶嵌 <装备> <原石>』镶入获得属性！")
             return
-        lines = [f"💎 【原石】(共 {sum(it['count'] for it in gems)} 颗)", "━━━━━━━━━━━━"]
+        lines = [f"💎 【幸运宝石】(共 {sum(it['count'] for it in gems)} 颗)", "━━━━━━━━━━━━"]
         _SNAMES = C.STAT_NAMES if hasattr(C, "STAT_NAMES") else {}
         for it in gems:
             gd = it["data"]
             stats_str = "、".join(
                 f"{_SNAMES.get(k, k)}+{int(v * 100)}%" for k, v in (gd.get("stats") or {}).items())
             need = "蓝孔" if gd.get("tier", 1) <= 2 else ("紫孔" if gd.get("tier", 1) <= 4 else "橙孔")
-            lines.append(f"💎 {gd['name']} ×{it['count']} ｜ 层{gd.get('tier', '?')} ｜ {stats_str} ｜ {need}")
+            lines.append(f"💎 {gd['name']} ×{it['count']} ｜ 阶{gd.get('tier', '?')} ｜ {stats_str} ｜ {need}")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『镶嵌 <装备> <原石>』镶入装备 ｜ 『原石合成 <原石>』3 合 1 升级 ｜ 『拆卸 <装备> <孔位>』取下")
         yield event.plain_result("\n".join(lines))

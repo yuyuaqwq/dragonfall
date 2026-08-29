@@ -10,12 +10,13 @@
 import random
 
 from ..data import GEM_TIERS, GEM_TIER_NAMES, GEM_STATS, GEM_SOCKETS, \
-    GEM_REMOVE_COST, GEM_LEGENDARY_EFFECTS, GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED
+    GEM_REMOVE_COST, GEM_LEGENDARY_EFFECTS, GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED, \
+    GEM_ITEM_TYPE
 
 
 def _tier_label(tier: int) -> str:
-    """层数 → 展示名（如 1 → 碎裂I、2 → 碎裂II、10 → 传说II）"""
-    return GEM_TIER_NAMES.get(tier, f"层{tier}")
+    """阶 → 展示名（如 1 → 碎裂的幸运宝石、10 → 神话的幸运宝石）"""
+    return GEM_TIER_NAMES.get(tier, f"阶{tier}")
 
 
 def _stat_label(stat: str) -> str:
@@ -60,7 +61,7 @@ def roll_gem(min_tier: int = 1, max_tier: int = 10, boss_fixed: dict | None = No
     tier = max(k for k, info in GEM_TIERS.items() if info["mult"] == tier) if stats else lo
     gem = {
         "name": "",
-        "type": "原石",
+        "type": GEM_ITEM_TYPE,
         "gem": True,
         "stats": stats,
         "tier": tier,
@@ -135,7 +136,7 @@ def gem_combine(gems: list) -> dict:
     stats = {k: new_mult for k in stats}
     gem = {
         "name": "",
-        "type": "原石",
+        "type": GEM_ITEM_TYPE,
         "gem": True,
         "stats": stats,
         "tier": new_tier,

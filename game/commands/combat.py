@@ -1854,7 +1854,7 @@ class CombatCmds(CommandBase):
             _gem = C.roll_gem_drop(monster)
             if _gem:
                 db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", _gem)
-                gem_line = f"💎 获得原石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
+                gem_line = f"💎 获得幸运宝石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
         except Exception:
             gem_line = ""  # 掉落挂接失败不阻塞胜利结算（老档/数据缺失兜底）
         # v34 符文收益：拾荒(金币+%) / 睿智(经验+%)——直接从已装备读符文

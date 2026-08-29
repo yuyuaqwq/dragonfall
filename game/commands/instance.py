@@ -2421,7 +2421,7 @@ class InstanceCmds(CommandBase):
             _gem = C.roll_gem_drop(boss)
             if _gem:
                 db.add_item(group_id, m, f"gem_{uuid.uuid4().hex[:8]}", _gem)
-                gem_drop_line = f"  💎 {p['name']} 获得原石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
+                gem_drop_line = f"  💎 {p['name']} 获得幸运宝石：{_gem['name']}！(『原石』镶嵌到装备孔位)"
         except Exception:
             gem_drop_line = ""
         if gem_drop_line:
