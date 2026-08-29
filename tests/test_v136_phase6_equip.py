@@ -102,6 +102,15 @@ def test_scatter():
         check("猎风披风无套装", gen.get("set") is None, str(gen.get("set")))
         check("猎风披风词条", gen.get("affixes") is not None, str(gen.get("affixes")))
 
+    # v136 审计补：散装不得与职业套装共用系列名（猎手斗篷/猎手之靴曾挂猎手套）
+    for nm2 in ["猎手斗篷", "猎手之靴"]:
+        rid2 = next((k for k, v in C.EQUIP_ROSTER.items() if v.get("name") == nm2), None)
+        check(f"{nm2} 存在", rid2 is not None, str(rid2))
+        if rid2:
+            gen2 = generate_roster_equip(rid2)
+            check(f"{nm2} 散装无套装", gen2.get("set") is None,
+                  f"series={gen2.get('series')} set={gen2.get('set')}")
+
 
 def test_region():
     print("【5. 区域套】")
