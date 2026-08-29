@@ -88,6 +88,38 @@ def _c_enemy_poison_stacks(battle, player, cond):
             >= cond.get("stacks", 3))
 
 
+@register("enemy_shaken_gt", label=lambda c: "敌方破绽/震慑中")
+def _c_enemy_shaken_gt(battle, player, cond):
+    """敌方破绽（shaken 挂敌身条）处于触发态（val=0 且 trigger_count>0 且免疫期内 = 被震慑中）。
+
+    v139 拳师/淬势者：破绽条触发 = 敌方跳过回合（被晕），trigger_count>0 表示触发过、
+    immune_turns>0 表示仍在免疫窗口（即刚被震慑）。stacks 参数保留兼容（默认 0）。
+    """
+    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    if not isinstance(bs, dict):
+        return False
+    return int(bs.get("trigger_count", 0) or 0) > 0 and int(bs.get("immune_turns", 0) or 0) > 0
+
+
+@register("player_rage_form", label=lambda c: "狂暴形态中")
+def _c_player_rage_form(battle, player, cond):
+    """v139 狂战士：是否处于狂暴形态（dual_form alt 态，怒斩等狂暴门槛技联动）。"""
+    from .battle_modes import dual_form_active
+    return dual_form_active(player)
+
+
+@register("player_stance", label=lambda c: "守护姿态生效")
+def _c_player_stance(battle, player, cond):
+    """v139 盾卫士：是否处于守护姿态（p_buffs 姿态标记或已学守护姿态）。"""
+    return bool(battle.p_buffs.get("stance") or battle.p_buffs.get("guard_stance"))
+
+
+@register("player_combo_stacks", label=lambda c: f"链值≥{c.get('stacks', 3)}")
+def _c_player_combo_stacks(battle, player, cond):
+    """v139 刺客攻线：链值（combo mech_stacks）≥ stacks（默认 3）。"""
+    return int(battle.mech_stacks.get("combo", 0) or 0) >= cond.get("stacks", 3)
+
+
 @register("enemy_marked", label=lambda c: "敌方被标记")
 def _c_enemy_marked(battle, player, cond):
     """敌方被标记（e_buffs 或目标级 debuffs 机制层任一）"""

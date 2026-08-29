@@ -103,9 +103,9 @@ async def main():
     # ④ 采集 on_expire 回调
     check("采集 on_expire 回调", "_prof_wait_expire_cb" in src_eco2)
 
-    # ⑤ 技能详情📈
+    # ⑤ 技能详情📈（v134.5 重构为「📈 数值成长：」逐级数值；v139 同步断言）
     src_pl = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "game", "commands", "player.py"), encoding="utf-8").read()
-    check("技能详情📈当前效果", "📈" in src_pl and "当前效果" in src_pl)
+    check("技能详情📈当前效果", "📈" in src_pl and ("当前效果" in src_pl or "数值成长" in src_pl))
 
     # ⑥ 注册表同步
     from data.plugins.dragonfall.game.commands._registry import COMMAND_REGEX

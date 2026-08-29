@@ -54,7 +54,8 @@ async def main():
 
     ev = FakeEvent("g1", "w1", "探索")
     results = await run(m._maint_gate, ev)
-    check("非 GM 被拦(维护提示)", len(results) == 1 and "维护" in str(results[0]), str(results))
+    # v134.7：停服非 GM 静默 stop 不产出结果（不再回维护提示）；断言事件被 stop
+    check("非 GM 被拦(事件 stop)", getattr(ev, "_stopped", False) is True, str(results))
     check("非 GM 事件被 stop", getattr(ev, "_stopped", False) is True)
 
     ev = FakeEvent("g1", "gm_playtest", "探索")
@@ -73,7 +74,8 @@ async def main():
     results = await run(m._maint_gate, ev)
     # 说明：直接调 handler 会绕过 AstrBot 的 filter 机制；日常聊天不命中
     # _GameCmdFilter 已在【1】验证。此处在停服+非GM下直接调 handler 应被拦(模拟 filter 已过)。
-    check("日常聊天直接调 handler 也被拦(模拟filter已过)", len(results) == 1, str(results))
+    # v134.7：停服静默 stop 不产出结果 → 断言事件被 stop
+    check("日常聊天直接调 handler 也被拦(模拟filter已过)", getattr(ev, "_stopped", False) is True, str(results))
 
     print("【3. gm_停服 / gm_开服 / gm_状态】")
     out = await cmd(m, "gm_maintenance", "g1", "1454832774", "gm_停服 版本更新")

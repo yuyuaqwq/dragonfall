@@ -88,6 +88,10 @@ def test_branch_skill_cost():
         total += 1
         if s.get("kind") == "被动":
             continue
+        # v139：自动追加技（auto 字段，如破势斩/顿足盾击/龙焰初击）由形态触发不占行动、
+        # mp=0 是设计意图——非玩家主动施放动作，跳过零消耗检查
+        if s.get("auto"):
+            continue
         active += 1
         mp = int(s.get("mp", 0) or 0)
         rc = s.get("res_cost") or {}

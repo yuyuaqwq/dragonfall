@@ -143,10 +143,12 @@ async def main():
     logs, _ = b2.player_turn("skill", "冰霜新星", pl, enemy_act=True)
     check("固定 seed 42 冻结跳过敌方回合", any("冻结" in l for l in logs), str(logs))
     print("【机制：毒层→毒爆】")
+    # v139 改版：毒爆吃 3 cp + 毒层≥3 才触发剧毒共鸣（提前引爆拿虚弱压制的价值保留）
     pl = make_player("刺客", 35, skills=["淬毒", "毒爆"])
     b = make_battle(10000)
     b.player_turn("skill", "淬毒", pl, enemy_act=False)
     b.player_turn("skill", "淬毒", pl, enemy_act=False)
+    b.player_turn("skill", "淬毒", pl, enemy_act=False)  # 第 3 次叠满 3 层毒
     hp_before = b.enemy["hp"]
     b.player_turn("skill", "毒爆", pl, enemy_act=False)
     check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")

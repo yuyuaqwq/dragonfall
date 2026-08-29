@@ -310,6 +310,10 @@ class Battle:
         #            + 潜行出手标记（本次出手是否潜行，供暴击结算读；出手时置位/复位，瞬时态不序列化）
         self._overflow_shield_cd: bool = False
         self._stealth_atk: bool = False
+        # v139 职业融合：模式状态机（dual_form/focus/vent + charge 电荷），随战斗序列化
+        # 状态统一存 self（同 mech_stacks 惯例），通过 _v139_sync 桥接到 player dict
+        self._v139_modes: dict = {}
+        self._v139_charge: dict = {}
         if player:
             # v95.19: 战斗内属性统一用实时计算值——DB max_hp/max_mp 是注册/升级快照，换装备后过时，
             # 会导致战斗内血量上限/治疗 clamp/护盾与『角色』面板不一致（装备 HP 加成战斗内不生效）
@@ -501,6 +505,9 @@ class Battle:
             "dot_pending": getattr(self, "_dot_pending", True),
             "tailwind_prev_energy": getattr(self, "_tailwind_prev_energy", None),  # v130.2d 疾风余韵跨回合状态
             "overflow_shield_cd": getattr(self, "_overflow_shield_cd", False),  # v130.2f2 满溢转盾冷却（断线恢复不重置冷却）
+            # v139 职业融合：模式状态机随战斗序列化（dual_form/focus/vent + charge 电荷）
+            "v139_modes": getattr(self, "_v139_modes", {}),
+            "v139_charge": getattr(self, "_v139_charge", {}),
         }
 
     @classmethod
@@ -554,6 +561,8 @@ class Battle:
         b._death_pact_used = bool(st.get("death_pact_used", False))
         b._set_immune_used = bool(st.get("set_immune_used", False))
         b._assassin_refund_used = bool(st.get("assassin_refund_used", False))  # v130.2f 致命预谋返还标记
+        b._v139_modes = st.get("v139_modes", {}) or {}   # v139 职业融合：模式状态机恢复
+        b._v139_charge = st.get("v139_charge", {}) or {}  # v139 charge 电荷恢复
         # v104 M02 P2-9：恢复 _last_player/_shifted_element；_last_player 为空保持
         # 未设置（hasattr=False，避免 battle_mech 对 None 调 _player_stats 崩溃）
         _lp = st.get("last_player")
@@ -616,6 +625,11 @@ class Battle:
         """玩家转职分支线判定（攻线=1 / 守线=2；evolve_path 恒为所选线，跨 tier 进化改名仍命中；
         基础/无分支 evolve_path=0 不命中）。v130.2 P1-1：修复 8 处挂点只认 tier1 分支名（狂战士/
         影舞者/格斗士/风行者/元素法师等），60/90 级进化改名后机制全档断档的系统性问题。"""
+        # v139 桥接：把 self._v139_modes/_v139_charge 挂到 player dict 上，
+        # 让 battle_modes/battle_bars 纯函数读写正确的状态源（状态统一存 self）
+        if player is not None:
+            player["v139_modes"] = self._v139_modes
+            player["v139_charge"] = self._v139_charge
         return int(player.get("evolve_path", 0) or 0) == int(path or 0)
 
     def _elem_charge(self) -> int:
@@ -3594,8 +3608,9 @@ class Battle:
         if race_tags:
             affix_tags = list(affix_tags) + race_tags
         pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
-                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult)
-        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族）
+                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult
+                 * self._v139_dmg_mult(player, info))
+        # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
         # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
         if pmult > C.SKILL_PMULT_CAP:
             pmult = C.SKILL_PMULT_CAP
@@ -3862,6 +3877,28 @@ class Battle:
                 if n > 0:
                     return 1.0 + n * _step
         return 1.0
+
+    def _v139_dmg_mult(self, player: dict, info: dict | None = None) -> float:
+        """v139 职业融合：dual_form 形态增伤 × focus 专注增伤（连乘进 pmult）。
+
+        数据驱动：读 player 的 dual_form/focus 数据字段（core_resources 配置），
+        无字段 = 1.0（不启用）。focus 的 no_burst_skills 保护由 battle_modes 内部处理。
+        """
+        if player is None:
+            return 1.0
+        try:
+            # 桥接状态源（若 _is_path 未被调用过，主动挂载）
+            player.setdefault("v139_modes", self._v139_modes)
+            player.setdefault("v139_charge", self._v139_charge)
+            from .core.battle_modes import dual_form_active, dual_form_mult, focus_active, focus_mult
+            m = 1.0
+            if dual_form_active(player):
+                m *= dual_form_mult(player)
+            if focus_active(player):
+                m *= focus_mult(player, info)
+            return m
+        except Exception:
+            return 1.0
 
     def _cond_mult(self, info: dict, player: dict, lv: int = 1) -> float:
         """条件转化（v30）：按战场状态返回伤害倍率。
@@ -4918,6 +4955,49 @@ class Battle:
             for _ally in (self.allies or []):
                 if isinstance(_ally, dict) and _ally.get("hp", 0) < _ally.get("max_hp", 1):
                     _ally["hp"] = min(_ally.get("max_hp", _ally.get("hp", 1)), _ally.get("hp", 0) + _heal_e)
+        # ---- v139 职业融合：回合开始状态机（dual_form 维护 / vent 排气 / focus 计时）----
+        from .core.battle_modes import (
+            dual_form_def, dual_form_state, dual_form_active, dual_form_tick,
+            dual_form_force_return, dual_form_exit, vent_def, vent_should_trigger,
+            vent_apply, focus_def, focus_state, focus_tick,
+        )
+        # dual_form：alt 形态每回合维护成本（从资源扣）
+        if dual_form_active(player):
+            _dfd = dual_form_def(player)
+            _df_tick = dual_form_tick(player, logs)
+            for _item in _df_tick:
+                if isinstance(_item, dict) and "maintain_cost" in _item:
+                    _df_key = _dfd.get("key", "rage")
+                    _mc = int(_item["maintain_cost"])
+                    _cur = int(self.resources.get(_df_key, 0) or 0)
+                    if _cur >= _mc:
+                        self.resources[_df_key] = _cur - _mc
+                        logs.append(f"⚡【{_dfd.get('form', '形态')}】维持消耗 {_mc}（{self.resources.get(_df_key, 0)}）")
+                    # 强制回基础形态
+                    if dual_form_force_return(player, int(self.resources.get(_df_key, 0) or 0)):
+                        dual_form_exit(player, logs)
+                        logs.append("⚠️ 力量不支，被迫回到常态！")
+        # vent：满值强制排气（游侠精力 100 / 星语者猎印 5）
+        _vd = vent_def(player)
+        if _vd:
+            _v_key = _vd.get("key", "energy")
+            _v_cur = int(self.resources.get(_v_key, 0) or 0)
+            if vent_should_trigger(player, _v_cur):
+                _vr = vent_apply(player, logs)
+                self.resources[_v_key] = int(_vr.get("reset_to", 0) or 0)
+                logs.append(f"💨 气息满溢，自动排气！(重置为 {_vr.get('reset_to', 0)})")
+        # focus：专注计时（额外资源 + 超时退出）
+        _fd = focus_def(player)
+        if _fd:
+            _ft = focus_tick(player, logs)
+            if _ft.get("gain"):
+                _f_key = _fd.get("key", "element")
+                _f_gain = int(_ft["gain"])
+                # 专注额外资源（走 _res_gain 带上限）
+                _f_before = int(self.resources.get(_f_key, 0) or 0)
+                self.resources[_f_key] = self._res_gain(player, _f_key, _f_gain)
+                if int(self.resources.get(_f_key, 0) or 0) > _f_before:
+                    logs.append(f"🧘 专注积累 +{_f_gain}（{self.resources.get(_f_key, 0)}）")
         return logs
 
     def _end_round(self):
@@ -5406,6 +5486,30 @@ class Battle:
                     logs.append(f"🛡️ {_pn}：格挡反击！反弹 {rd} 点伤害！")
                     break  # 命中即停（一次格挡最多一次反击）
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
+        # ---- v139 职业融合：受击处理（dual_form 扣资源 / focus 打断 / charge 打断 -1 阶）----
+        from .core.battle_modes import dual_form_def, dual_form_state, dual_form_hit, dual_form_force_return, dual_form_exit, dual_form_active, focus_def, focus_state, focus_on_hit, vent_def, vent_relief
+        from .core.battle_bars import charge_state, charge_on_hit
+        # dual_form：狂暴/龙焰形态受击 -N（P3 不清零、单回合封顶，由 dual_form_hit 返回应扣量）
+        if dual_form_active(player):
+            _dfd = dual_form_def(player)
+            _df_hc = dual_form_hit(player)
+            if _df_hc > 0:
+                _df_key = _dfd.get("key", "rage")
+                _df_cur = int(self.resources.get(_df_key, 0) or 0)
+                self.resources[_df_key] = max(0, _df_cur - _df_hc)
+                logs.append(f"⚡【{_dfd.get('form', '形态')}】受击，形态值 -{_df_hc}（{self.resources.get(_df_key, 0)}）")
+                # 强制回基础形态检查（资源 < force_return）
+                if dual_form_force_return(player, int(self.resources.get(_df_key, 0) or 0)):
+                    dual_form_exit(player, logs)
+                    logs.append("⚠️ 力量不支，被迫回到常态！")
+        # focus：专注中受击打断判定（interrupt_rate 概率，资源保留）
+        if focus_state(player).get("active"):
+            focus_on_hit(player, logs)
+        # charge：蓄力中受击 -1 阶（不清零）
+        _ch_st = charge_state(player)
+        if int(_ch_st.get("stages", 0) or 0) > 0:
+            charge_on_hit(player, {"name": _ch_st.get("skill", "蓄力")}, logs)
+        # vent：闪避已在上方 return（闪避成功走 vent_relief），这里命中时不泄压
         # v104 R3 P1-1：复仇被动——受击后下次攻击 +30%（挨打反打）
         for _pn, _ps in self._passive_map(player)["proc"].get("counter", []):
             self.p_buffs["revenge_atk"] = max(self.p_buffs.get("revenge_atk", 0), 1)

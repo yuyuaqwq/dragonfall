@@ -45,7 +45,7 @@ def main():
               for c in C.CLASSES if C.CLASSES[c].get("hidden")),
           str({c: sorted(k for k in ("aliases", "lore", "hint", "tier_levels", "attack_text", "tutor")
                          if k not in C.CLASSES[c]) for c in C.CLASSES if C.CLASSES[c].get("hidden")}))
-    check("核心资源 12 职业 + 2 副资源(共鸣/回声按 key 注册)", len(C.CORE_RESOURCES) == 14,
+    check("核心资源 12 职业 + 3 副资源(共鸣/回声/圣律按 key 注册)", len(C.CORE_RESOURCES) == 15,
           str({k: v.get("name") for k, v in C.CORE_RESOURCES.items()}))
     sk = C.resolve("skills", "烈焰冲击")
     check("resolve(skills, 烈焰冲击) 有值", bool(sk), str(sk))

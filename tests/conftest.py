@@ -84,12 +84,19 @@ class FakeEvent:
 
 
 async def run(handler, ev):
-    """调用 async handler，收集全部 yield 结果。"""
+    """调用 async handler，收集全部 yield 结果。
+
+    v139 兼容：普通 async def（无 yield，如 _maint_gate v134.7 后静默 stop）直接 await，
+    返回 []；async generator（有 yield，有 asend 方法）逐个收集。"""
     gen = handler(ev)
     results = []
     try:
-        while True:
-            results.append(await gen.__anext__())
+        # async generator 有 asend 方法；普通 coroutine 没有
+        if hasattr(gen, "asend"):
+            while True:
+                results.append(await gen.__anext__())
+        else:
+            await gen
     except StopAsyncIteration:
         pass
     return results
