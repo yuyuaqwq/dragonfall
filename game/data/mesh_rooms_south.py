@@ -55,7 +55,7 @@ EXTRA_SUBAREAS = {
             "lv": 4,
             "npcs": [],
             "monsters": [
-                ["m_boar", "野猪", "dps", 4, ["ms_chong_zhuang"], ["野猪牙"]]
+                ["m_boar", "野猪", "dps", 4, ["ms_chong_zhuang"], ["野猪牙", "野猪皮"]]
             ],
             "elite": None,
             "boss": None,
@@ -747,7 +747,7 @@ EXTRA_SUBAREAS = {
             "lv": 42,
             "npcs": [],
             "monsters": [
-                ["m_bandit", "盗贼", "speedster", 42, ["ms_duan_jian", "ms_tou_qie"], ["盗贼面巾"]]
+                ["m_bandit", "盗贼", "speedster", 42, ["ms_duan_jian", "ms_tou_qie"], ["盗贼面巾", "山贼徽章"]]
             ],
             "elite": None,
             "boss": None,

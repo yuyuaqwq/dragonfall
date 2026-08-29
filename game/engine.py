@@ -480,7 +480,8 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             else:
                 st[k] += v
     # 4. 套装 2 件百分比加成（基于基础+属性点+装备的最终值）
-    sb2 = set_bonus_2(equipment)
+    # v136 Phase6：传 class_name 实现职业套装折扣（本职业 100%/非本职业 60%）
+    sb2 = set_bonus_2(equipment, class_name)
     if sb2:
         src2 = {}
         for k, v in sb2.items():
@@ -619,31 +620,39 @@ def _set_info(set_name: str) -> dict | None:
     return None
 
 
-def set_bonus_2(equipment: dict) -> dict:
+def set_bonus_2(equipment: dict, class_name: str | None = None) -> dict:
     """汇总所有激活套装的 2 件百分比加成 {stat: 总和}
     阶段八：>=4 件时叠加 4 件属性加成（bonus_4_stats），>=5 件时叠加 5 件 stat 型效果（bonus_5.crit/dodge，10 章五节橡木/铁港）
     v130.2c 修复 P0：effect 型 bonus_2（资源联动 12 套，键含 effect/res/value/on/desc）不再按 stat 累加
     （旧实现 int+str TypeError 崩点）；整 dict 跳过交由战斗侧 _set_effs 消费，面板 sources 不再混入
-    非数值键（P2 污染清理）。仅聚合数值型属性键，兼容 {"spd": 0.15} 旧属性型。"""
+    非数值键（P2 污染清理）。仅聚合数值型属性键，兼容 {"spd": 0.15} 旧属性型。
+    v136 Phase6：职业套装职业折扣——套装 entry 带 "class" 字段（本职业专用）时，
+    非本职业玩家（class_name != entry["class"]）属性加成 ×0.6（鱼鱼拍板：本职业 100%，非本职业 60%）。
+    effect 型特效（bonus_4/bonus_5）不打折（机制向非面板向）。"""
     bonus = {}
     for sname, cnt in active_sets(equipment).items():
         info = _set_info(sname)
         if not info:
             continue
+        # v136 Phase6 职业折扣：仅影响 stat 型加成（bonus_2/bonus_4_stats/bonus_5 数值键）
+        _disc = 1.0
+        _cls = info.get("class")
+        if _cls and class_name and class_name != _cls:
+            _disc = 0.6
         _b2 = info.get("bonus_2") or {}
         if "effect" not in _b2:
             for k, v in _b2.items():
                 if isinstance(v, (int, float)) and not isinstance(v, bool):
-                    bonus[k] = bonus.get(k, 0) + v
+                    bonus[k] = bonus.get(k, 0) + v * _disc
         if cnt >= 4:
             for k, v in info.get("bonus_4_stats", {}).items():
                 if isinstance(v, (int, float)) and not isinstance(v, bool):
-                    bonus[k] = bonus.get(k, 0) + v
+                    bonus[k] = bonus.get(k, 0) + v * _disc
         if cnt >= 5:
             for k, v in info.get("bonus_5", {}).items():
                 # 5 件 stat 型效果（crit/dodge 直接是属性）；desc/effect 型（战斗特效）不在这里结算
                 if k in C.PCT_STATS and isinstance(v, (int, float)) and not isinstance(v, bool):
-                    bonus[k] = bonus.get(k, 0) + v
+                    bonus[k] = bonus.get(k, 0) + v * _disc
     return bonus
 
 

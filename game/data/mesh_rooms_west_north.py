@@ -171,7 +171,7 @@ EXTRA_SUBAREAS = {
             "npcs": [], "hidden": False, "reveal": None,
             "monsters": [
                 ["m_moon_shade", "月影兽", "dps", 56,
-                 ["ms_an_ying_zhao", "ms_yue_guang_zhan"], ["月影之爪"]]
+                 ["ms_an_ying_zhao", "ms_yue_guang_zhan"], ["月影之爪", "月影之皮"]]
             ],
             "elite": None, "boss": None, "funcs": ["explore"], "shop": False, "healer": False,
         },

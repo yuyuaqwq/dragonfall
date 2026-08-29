@@ -126,6 +126,32 @@ _SERIES_SET_BONUS = {
         "bonus_5_cond": {"player_hp_below": 0.30,
                          "dmg_mult": 1.20, "tag": "🔥灰烬之怒"},
     },
+
+    # ===== v136 Phase6 合并: CLASS_SET_BONUS (18 条) =====
+    '铁皮': {'class': 'cls_zhan_shi', 'icon': '🛡️', 'quality': 'blue', 'bonus_2': {'atk': 0.08, 'def': 0.08}, 'bonus_4_stats': {'def': 0.1}, 'bonus_4': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
+    '精铁': {'class': 'cls_zhan_shi', 'icon': '🛡️', 'quality': 'blue', 'bonus_2': {'atk': 0.08, 'def': 0.08}, 'bonus_4_stats': {'def': 0.1}, 'bonus_4': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
+    '百炼': {'class': 'cls_zhan_shi', 'icon': '⚔️', 'quality': 'purple', 'bonus_2': {'atk': 0.08, 'def': 0.08}, 'bonus_4_stats': {'def': 0.1}, 'bonus_4': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
+    '学徒': {'class': 'cls_fa_shi', 'icon': '🔮', 'quality': 'blue', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'thunder', 'chance': 0.25, 'desc': '攻击 25% 概率追加一次雷击(60% 攻击伤害)'}},
+    '符文': {'class': 'cls_fa_shi', 'icon': '🔮', 'quality': 'blue', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'thunder', 'chance': 0.25, 'desc': '攻击 25% 概率追加一次雷击(60% 攻击伤害)'}},
+    '秘法': {'class': 'cls_fa_shi', 'icon': '✨', 'quality': 'purple', 'bonus_2': {'matk': 0.08, 'cdr': 0.05}, 'bonus_4_stats': {'matk': 0.1}, 'bonus_4': {'effect': 'thunder', 'chance': 0.25, 'desc': '攻击 25% 概率追加一次雷击(60% 攻击伤害)'}},
+    '布衣': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
+    '祝福': {'class': 'cls_mu_shi', 'icon': '☀️', 'quality': 'blue', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
+    '圣堂': {'class': 'cls_mu_shi', 'icon': '⛪', 'quality': 'purple', 'bonus_2': {'heal_power': 0.08, 'mdef': 0.05}, 'bonus_4_stats': {'mdef': 0.1}, 'bonus_4': {'effect': 'regen', 'chance': 1.0, 'desc': '每回合开始回复 5% 生命'}},
+    '猎手': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
+    '风行': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'blue', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
+    '暗夜': {'class': 'cls_you_xia', 'icon': '🏹', 'quality': 'purple', 'bonus_2': {'spd': 0.08, 'crit': 0.03}, 'bonus_4_stats': {'spd': 0.08}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.1}, 'chance': 1.0, 'desc': '闪避率＋10%'}},
+    '轻影': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'blue', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
+    '夜行': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'blue', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
+    '阴影': {'class': 'cls_ci_ke', 'icon': '🗡️', 'quality': 'purple', 'bonus_2': {'crit': 0.05, 'atk': 0.08}, 'bonus_4_stats': {'crit': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 25% 伤害'}},
+    '行者': {'class': 'cls_wu_seng', 'icon': '🥋', 'quality': 'blue', 'bonus_2': {'atk': 0.08, 'def': 0.05}, 'bonus_4_stats': {'hp': 0.1}, 'bonus_4': {'effect': 'lifesteal_set', 'chance': 0.3, 'desc': '攻击 30% 概率吸血 15% 伤害'}},
+    '石拳': {'class': 'cls_wu_seng', 'icon': '🥋', 'quality': 'blue', 'bonus_2': {'atk': 0.08, 'def': 0.05}, 'bonus_4_stats': {'hp': 0.1}, 'bonus_4': {'effect': 'lifesteal_set', 'chance': 0.3, 'desc': '攻击 30% 概率吸血 15% 伤害'}},
+    '壁槌': {'class': 'cls_wu_seng', 'icon': '🥋', 'quality': 'purple', 'bonus_2': {'atk': 0.08, 'def': 0.05}, 'bonus_4_stats': {'hp': 0.1}, 'bonus_4': {'effect': 'lifesteal_set', 'chance': 0.3, 'desc': '攻击 30% 概率吸血 15% 伤害'}},
+    # ===== v136 Phase6 区域套（5 资料片通用，无 class 字段=不打职业折扣）=====
+    '护林': {'icon': '🌳', 'quality': 'white', 'bonus_2': {'def': 0.05}, 'bonus_4_stats': {'hp': 0.08}, 'bonus_4': {'effect': 'regen', 'desc': '每回合开始回复 3% 生命'}},
+    '渡口': {'icon': '⛵', 'quality': 'blue', 'bonus_2': {'spd': 0.05}, 'bonus_4_stats': {'mdef': 0.06}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.05}, 'chance': 1.0, 'desc': '闪避率＋5%'}},
+    '巡林': {'icon': '🌲', 'quality': 'blue', 'bonus_2': {'dodge': 0.05}, 'bonus_4_stats': {'spd': 0.05}, 'bonus_4': {'effect': 'dodge_set', 'stats': {'dodge': 0.06}, 'chance': 1.0, 'desc': '闪避率＋6%'}},
+    '霜猎': {'icon': '🐺', 'quality': 'purple', 'bonus_2': {'element_ice': 0.05}, 'bonus_4_stats': {'atk': 0.05}, 'bonus_4': {'effect': 'execute', 'chance': 1.0, 'desc': '对生命低于 30% 的敌人额外造成 20% 伤害'}},
+    '龙裔': {'icon': '🐉', 'quality': 'purple', 'bonus_2': {'mdef': 0.05}, 'bonus_4_stats': {'atk': 0.06}, 'bonus_4': {'effect': 'pierce', 'chance': 0.3, 'desc': '攻击 30% 概率破甲(敌方防御减半 2 回合)'}},
 }
 
 
@@ -140,6 +166,9 @@ def _build_class_sets():
             "bonus_2": dict(b["bonus_2"]),
             "name": set_name,
         }
+        # v136 Phase6：职业套装归属（本职业 100% / 非本职业 60% 职业折扣）
+        if b.get("class"):
+            entry["class"] = b["class"]
         if b.get("bonus_4_stats"):
             entry["bonus_4_stats"] = dict(b["bonus_4_stats"])
         if b.get("bonus_5"):

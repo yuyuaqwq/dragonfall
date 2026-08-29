@@ -110,7 +110,7 @@ EXTRA_SUBAREAS = {
             "lv": 84,
             "npcs": [],
             "monsters": [
-                ["m_stone_dragon", "石龙", "tank", 84, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞"]]
+                ["m_stone_dragon", "石龙", "tank", 84, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞", "龙焰精华"]]
             ],
             "elite": None,
             "boss": None,
@@ -130,7 +130,7 @@ EXTRA_SUBAREAS = {
             "npcs": [],
             "monsters": [
                 ["m_dragonkin", "龙裔战士", "dps", 87, ["ms_long_jian_shu"], ["龙鳞碎片"]],
-                ["m_stone_dragon", "石龙", "tank", 89, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞"]],
+                ["m_stone_dragon", "石龙", "tank", 89, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞", "龙焰精华"]],
             ],
             "elite": None,
             "boss": None,
@@ -1573,7 +1573,7 @@ EXTRA_SUBAREAS = {
             "npcs": [],
             "monsters": [
                 ["m_demon_priest", "恶魔祭司", "healer", 85, ["ms_an_ying_dan", "ms_hei_an_zhi_liao"], ["染血祭器"]],
-                ["m_stone_dragon", "石龙", "tank", 87, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞"]],
+                ["m_stone_dragon", "石龙", "tank", 87, ["ms_shi_xi", "ms_zhong_ji"], ["石龙鳞", "龙焰精华"]],
             ],
             "elite": None,
             "boss": None,
