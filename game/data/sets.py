@@ -579,6 +579,7 @@ CLASS_SET_THEMES = {
         },
         "bonus_4": {
             "effect": "thunder", "chance": 0.25,
+            "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "atk", "pct": 0.60, "tag": "⚡", "name": "雷霆一击"},
             "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
         },
         "name": "法师"

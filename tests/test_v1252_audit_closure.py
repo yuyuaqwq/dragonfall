@@ -56,6 +56,20 @@ def check(name, ok, detail=""):
         print(f"  ❌ {name} {detail}")
 
 
+def _eff_params(eff_name: str) -> dict:
+    """v142：从套装数据查 effect 的 params（数据驱动）"""
+    for _s in SETS.values():
+        for _tk in ("bonus_2", "bonus_3", "bonus_4", "bonus_5"):
+            _b = _s.get(_tk) or {}
+            if _b.get("effect") == eff_name and _b.get("params"):
+                return _b["params"]
+    return {}
+
+
+def _has_params(eff_name: str) -> bool:
+    return bool(_eff_params(eff_name))
+
+
 def all_skills():
     """聚合 PLAYER_SKILLS + TUTOR_SKILLS 全部技能定义（按 id 合并）。"""
     out = {}
@@ -213,13 +227,21 @@ def section_affix():
             if _b4.get("effect") and not _b4.get("stats"):
                 no_stats_eff.add(_b4["effect"])
     set_consumed = set(getattr(BT.Battle, "SET_EFFECT_CONSUMED", ()) or ())  # v130.2c 套装 effect 战斗侧直连消费
-    missing = no_stats_eff - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"} - set_consumed
-    check("套装 4 件无 stats 特效全部有消费（SET_PROC_EFFECTS/直连）", not missing,
+    # v142 数据驱动：有 params 的 effect 由 SET_PROC_TYPES/TAKEN_TYPES 通用执行器消费
+    _dd_effs = {_eff for _eff in no_stats_eff if _has_params(_eff)}
+    missing = no_stats_eff - _dd_effs - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"} - set_consumed
+    check("套装 4 件无 stats 特效全部有消费（数据驱动/直连）", not missing,
           f"missing={sorted(missing)} effects={sorted(no_stats_eff)}")
-    check("SET_PROC_EFFECTS 键 ⊆ 套装数据 effect 键",
+    check("SET_PROC_EFFECTS 键 ⊆ 套装数据 effect 键（旧注册表仅兼容）",
           set(AF.SET_PROC_EFFECTS) <= no_stats_eff | {"reflect", "regen", "regen_strong"}
           | {"execute", "lifesteal_set", "pierce", "thunder"},
           f"reg={sorted(AF.SET_PROC_EFFECTS)} data={sorted(no_stats_eff)}")
+    # v142：数据驱动注册表（SET_PROC_TYPES + TAKEN_TYPES）覆盖全部有 params 的 effect type
+    _all_params_types = {(_eff, _p.get("type")) for _eff in no_stats_eff if (_p := _eff_params(_eff))}
+    _known_types = set(AF.SET_PROC_TYPES) | set(AF.TAKEN_TYPES)
+    _unknown = {(e, t) for e, t in _all_params_types if t not in _known_types}
+    check("数据驱动：全部 params.type ∈ SET_PROC_TYPES/TAKEN_TYPES", not _unknown,
+          f"unknown={sorted(_unknown)}")
     # v130.2c 全档位（2/4/5 件）effect 型套装效果覆盖审计：全部 ∈ 战斗侧直连消费注册表
     # （stats 型 effect——mdef_up_set/crit_up_set/dodge_set——由 compute_stats 属性面板消费，不在此列）
     all_effs = set()
@@ -228,8 +250,10 @@ def section_affix():
             _b = _s.get(_tk) or {}
             if isinstance(_b, dict) and _b.get("effect") and not _b.get("stats"):
                 all_effs.add(_b["effect"])
-    missing_effs = all_effs - set_consumed - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"}
-    check("12 套资源联动 effect 全部有战斗侧消费（SET_EFFECT_CONSUMED）", not missing_effs,
+    # v142 数据驱动：有 params 的 effect 由通用执行器消费（SET_PROC_TYPES/TAKEN_TYPES）；SET_EFFECT_CONSUMED 仅覆盖直连型
+    _dd_all = {_eff for _eff in all_effs if _has_params(_eff)}
+    missing_effs = all_effs - _dd_all - set_consumed - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"}
+    check("12 套资源联动 effect 全部有战斗侧消费（数据驱动/直连）", not missing_effs,
           f"missing={sorted(missing_effs)} all={sorted(all_effs)}")
     check("SET_EFFECT_CONSUMED 键全部在套装数据中存在", set_consumed <= all_effs,
           f"ghost={sorted(set_consumed - all_effs)}")

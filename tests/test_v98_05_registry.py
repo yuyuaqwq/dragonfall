@@ -24,6 +24,16 @@ PASS = 0
 FAIL = 0
 
 
+def _set_eff_params(eff_name: str) -> dict:
+    """v142：从套装数据查 effect 的 params（数据驱动消费检查）"""
+    for _s in (C.SETS or {}).values():
+        for _tk in ("bonus_2", "bonus_3", "bonus_4", "bonus_5"):
+            _b = _s.get(_tk) or {}
+            if _b.get("effect") == eff_name and _b.get("params"):
+                return _b["params"]
+    return {}
+
+
 def check(name, cond):
     global PASS, FAIL
     if cond:
@@ -193,10 +203,11 @@ p2 = {"hp": 100, "max_hp": 100, "mp": 10, "max_mp": 200}
 logs = []
 b._affix_turn_start(p2, logs)
 check("冥想回复 1% mp", p2["mp"] == 12)
-# 套装特效：execute 处决（直接调 handler，防 equipment 缺失）
+# 套装特效：execute 处决（v142 数据驱动——用 _execute_set_proc + params）
 b = make_battle(enemy={"name": "野狼", "hp": 20, "max_hp": 100, "atk": 20, "matk": 15, "def": 5, "mdef": 5, "spd": 10})
 logs = []
-AFX.SET_PROC_EFFECTS["execute"](b, player, 100, logs)
+eff_execute = {"effect": "execute", "chance": 1.0, "params": {"type": "proc_execute", "chance": 1.0, "hp_lt": 0.30, "dmg_pct": 0.25, "pct_of_dmg": True, "tag": "💀", "name": "灭世之力"}}
+AFX._execute_set_proc(eff_execute, b, player, 100, logs)
 # v2：处决击杀后单位从阵列移除（compact），b.enemy 回退 {} → .get 兜底
 check("套装 execute 处决（<30% 追加 25%）", b.enemy.get("hp", 0) == 0 and "处决" in logs[0])
 # 套装特效：未知 eff 安全跳过
@@ -240,10 +251,12 @@ set4_effs = set(re.findall(r'"bonus_4"\s*:\s*\{[^}]*?"effect"\s*:\s*"([^"]+)"', 
 set4_effs |= set(re.findall(r'"bonus_3"\s*:\s*\{[^}]*?"effect"\s*:\s*"([^"]+)"', sets_src))
 set4_effs |= set(re.findall(r"'bonus_4':\s*\{[^}]*?'effect':\s*'([^']+)'", class_sets_src))
 set4_effs |= set(re.findall(r"'bonus_3':\s*\{[^}]*?'effect':\s*'([^']+)'", class_sets_src))
-# v141.3 S1 套装去模板化：6 旧模板 + 新 on_hit 型套装特效全部注册 SET_PROC
+# v142 数据驱动重构：6 旧模板 + 新 on_hit 型套装特效全部下沉 params（SET_PROC_TYPES 通用执行器消费）
 # （其余如 crit_up_set/reflect/regen/regen_strong/dodge_set 走别的系统——属性/受击/回合开始直连）
+# 注：execute/pierce/thunder/lifesteal_set 位于 CLASS_SET_THEMES（旧世界毕业套，已废弃不参与 SETS 战斗消费），
+#     其 params 仅供旧档兼容；名册套（C.SETS）消费检查不包含它们。
 implemented = {
-    "frost", "burn", "thunder", "pierce", "lifesteal_set", "execute",
+    "frost", "burn",
     # S1-A 闪避族 on_hit
     "travel_mark", "hunter_mark_bonus", "gale_double", "eagle_vision",
     "sky_chain", "hunt_pack", "shadow_track", "ranger_net",
@@ -260,7 +273,9 @@ implemented = {
     # S1-D 吸血族 on_hit
     "hei_zhao_erode", "xing_zhe_flow", "xing_zhe_hunt",
 }
-check("套装特效全部注册", implemented <= set(AFX.SET_PROC_EFFECTS.keys()))
+# v142：检查每个 effect 在套装数据里有 params（数据驱动消费）；SET_PROC_EFFECTS 旧注册表已废弃（handler 已删）
+_missing_params = {e for e in implemented if not _set_eff_params(e)}
+check("套装特效全部数据驱动（params 下沉）", not _missing_params)
 # v110.5 X3：恒真断言替换——其余 non_attack 特效（mdef_up_set/reflect/crit_up_set/regen/
 # regen_strong/dodge_set + 受击/回合开始直连型 holy_halo_shield 等）走其他系统（属性/受击/回合开始），
 # 不得误注册为『攻击特效』。若有人把非攻击类特效加进 SET_PROC_EFFECTS 则必红。
