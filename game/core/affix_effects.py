@@ -138,6 +138,28 @@ def _h_element_thunder(battle, player, dmg, logs):
             logs.append(f"⚡⚡ 感电连跳！追加 {sd} 点雷系伤害！")
 
 
+@register(HIT_EFFECTS, "chu_huo")
+def _h_chu_huo(battle, player, dmg, logs):
+    """初火余烬（灰烬圣剑·初火 Lv95 终章传说剑）：攻击附加 8% 火属性伤害，
+    20% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合；Boss 1%）"""
+    if "chu_huo" not in battle._equip_affix_ids(player):
+        return
+    eff = _affix_effect("chu_huo")
+    pct = float(eff.get("pct", 0.08))
+    ed = max(1, int(dmg * pct))
+    battle._damage_enemy(ed, logs)
+    logs.append(f"🔥 初火余烬：火属性附加 {ed} 点伤害！")
+    if random.random() < _affix_chance("chu_huo", 0.20):
+        pct_dot = 0.01 if (battle.enemy or {}).get("role") == "boss" else 0.015
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
+        cur["pct"] = pct_dot
+        cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 3)))
+        deb["burn"] = cur
+        logs.append("🔥 初火余烬：目标被灼烧！（每回合损 1.5% 最大生命，3 回合）")
+
+
 @register(HIT_EFFECTS, "pierce")
 def _h_pierce(battle, player, dmg, logs):
     """贯穿：20% 无视防御追加伤害"""

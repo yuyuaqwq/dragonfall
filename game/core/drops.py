@@ -124,6 +124,44 @@ def roll_drop(monster_lv: int, role: str, luck: float = 0.0):
     # 普通怪 / 精英：不掉图纸（v94）
     return None, None, 0, 0
 
+def roll_drop_equip(monster_lv: int, role: str) -> dict | None:
+    """v140 装备掉落引擎（鱼鱼拍板：打破 v93 怪不掉装备铁律，但普通怪仍不掉）。
+
+    精英：蓝装 90% / 紫装 10%，基础掉率 12%（不吃幸运，防与图纸叠加膨胀）
+    野外/副本 Boss：紫装 70% / 橙装 30%，基础掉率 35%（图纸 10% 独立判定共存）
+    普通怪：不掉（v93 保留，控总量防海量刷）
+    装备 = 从名册按等级就近抽（|名册lv - 怪lv| <= 15 优先 → ±30 → 兜底随机生成）
+    返回装备 dict（名册精确生成）或 None。词条生成走 generate_roster_equip / generate_equip。
+    """
+    if role == "elite":
+        if random.random() >= 0.12:
+            return None
+        quality = "purple" if random.random() < 0.10 else "blue"
+    elif role == "boss":
+        if random.random() >= 0.35:
+            return None
+        quality = "orange" if random.random() < 0.30 else "purple"
+    else:
+        # 普通怪不掉装备（v93 铁律保留）
+        return None
+
+    # 从名册按等级就近抽（优先 ±15，再 ±30，兜底随机生成）
+    roster = C.EQUIP_ROSTER
+    candidates_15 = [rid for rid, r in roster.items()
+                     if r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 15]
+    if candidates_15:
+        rid = random.choice(candidates_15)
+        return generate_roster_equip(rid)
+    candidates_30 = [rid for rid, r in roster.items()
+                     if r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 30]
+    if candidates_30:
+        rid = random.choice(candidates_30)
+        return generate_roster_equip(rid)
+    # 兜底：随机生成
+    slot = random.choice(["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
+    return generate_equip(slot, monster_lv, quality)
+
+
 def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = None):
     """生成一件随机装备（名称 + 属性 + 词条 v2 + 属性需求）。
 

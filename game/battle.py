@@ -389,6 +389,13 @@ class Battle:
             _chi_eff = self._set_eff(player, "battle_start_res", 2, res="chi")
             if _chi_eff and "chi" in _keys0:
                 self._res_gain(player, "chi", int(_chi_eff.get("value", 2) or 2))
+        # v140 波3.1：特效装备战斗开始（星辉壁垒/疾风步/深渊屏障/蚀月之冠/奥术苍穹等）
+        if player:
+            try:
+                from .core.weapon_effects import proc as _we_proc
+                _we_proc(self, player, "battle_start", {}, [])
+            except Exception:
+                pass
         # v121 CTB 行动时间轴：玩家 ct（越小越先行动），开局 = -spd（快者先手）
         # v130.10 绝对时刻 CTB：玩家时钟从 0 起（回合制外壳第一回合必动，行动后 +cost）。
         # 旧 v121 初始 -spd 是相对时钟追赶死锁的根源（怪被玩家行动持续回拽 → 站桩）。
@@ -1737,6 +1744,12 @@ class Battle:
                 if self._player_dead(player):
                     self.result = "defeat"
                 _guard += 1
+            # v140 波3.1：特效装备敌人行动后（兰顿倦意/冰脉寒流——速度 -6%/-8% 每层）
+            try:
+                from .core.weapon_effects import proc as _we_proc
+                _we_proc(self, player, "enemy_act", {}, logs)
+            except Exception:
+                pass
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
         self._end_round()
         return logs, self.result is not None
@@ -2491,6 +2504,33 @@ class Battle:
                     and passive_cond_ok(self, player, _ps, default=False) \
                     and _st in ("atk", "def", "matk", "mdef"):
                 st[_st] = int(st.get(_st, 0) * (1 + float(_ps.get("mult", 0))))
+        # v140 波3.1：特效装备常驻面板属性（奥术苍穹魔攻+15%/疾风步速度+/弑星·无尽辉光暴伤+）
+        try:
+            from .core.weapon_effects import weapon_effect_ids as _we_ids
+            _weids = set(_we_ids(self, player))
+            if "arcane_firmament" in _weids:
+                st["matk"] = int(st.get("matk", 0) * 1.15)
+            _gale_pct = float((self.p_eff or {}).get("gale_step_pct", 0) or 0)
+            if _gale_pct > 0 and self.p_buffs.get("gale_step"):
+                st["spd"] = int(st.get("spd", 0) * (1 + _gale_pct))
+            if "star_slayer_edge" in _weids:
+                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.30
+            if "endless_radiance" in _weids:
+                st["crit_dmg"] = float(st.get("crit_dmg", 0) or 0) + 0.25
+            # 风痕（风行短弓）：每层速度 +2%
+            _wm = int((self.mech_stacks or {}).get("wind_mark", 0) or 0)
+            if _wm > 0:
+                st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _wm))
+            # v140 波4：新手特效 翠风（novice_wind_spd）——命中后自身速度 +5%（2 回合）
+            if self.p_buffs.get("novice_wind_spd"):
+                st["spd"] = int(st.get("spd", 0) * 1.05)
+            # 雷纹连打（雷纹拳甲）：每层速度 +2%、攻击 +1%
+            _tw = int((self.mech_stacks or {}).get("thunder_weave", 0) or 0)
+            if _tw > 0:
+                st["spd"] = int(st.get("spd", 0) * (1 + 0.02 * _tw))
+                st["atk"] = int(st.get("atk", 0) * (1 + 0.01 * _tw))
+        except Exception:
+            pass
         return st
 
     def _passive_map(self, player: dict) -> dict:
@@ -2547,6 +2587,28 @@ class Battle:
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
+        # v140 波3.1：特效装备被动增伤（暮光处决/弑星/岁月流转/三相/破岳/咒誓/反击/暮裂/雷纹等）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wectx = {"mult": 1.0, "tags": [], "attack": True, "is_crit": is_crit,
+                      "crit_dmg": float(st.get("crit_dmg", 0) or 0)}
+            _we_proc(self, player, "passive", _wectx, logs)
+            # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
+            _vuln = (self.p_eff or {}).get("vuln")
+            if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
+                _vb = float(_vuln.get("bonus", 0) or 0)
+                if _vb > 0:
+                    _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
+                    _wectx["tags"] = _wectx.get("tags", []) + [f"🎯弱点x{1 + _vb:.2f}"]
+            if _wectx.get("mult", 1.0) != 1.0:
+                dmg = int(dmg * _wectx["mult"])
+                affix_tags = list(affix_tags) + _wectx.get("tags", [])
+            if _wectx.get("crit_dmg", 0) > 0 and is_crit:
+                cdmg = float(st.get("crit_dmg", 0) or 0)
+                dmg = int(dmg * (1 + _wectx["crit_dmg"] / max(1e-9, (1 + cdmg))))
+                affix_tags = list(affix_tags) + [f"🌙暴伤x{1 + _wectx['crit_dmg']:.2f}"]
+        except Exception:
+            pass
         # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
         race_mult, race_tags = self._race_attack_mult(player)
         dmg = int(dmg * race_mult)
@@ -2576,6 +2638,11 @@ class Battle:
                 del self.p_buffs["buff_phys_next"]
                 self.p_eff.pop("buff_phys_next", None)
                 affix_tags = list(affix_tags) + [f"🥊引气x{round(1 + _bpn, 2)}"]
+        # v140 波4：新手特效 星火连击（novice_spark_followup）——释放技能后，下次普攻伤害 +10%
+        if self.mech_stacks.get("novice_spark"):
+            dmg = int(dmg * 1.10)
+            del self.mech_stacks["novice_spark"]
+            affix_tags = list(affix_tags) + ["✨星火x1.1"]
         # v34 残忍：暴击伤害 +x%（按等级，符文特效）
         brutal_lvl = self._enchant_lvl(effs, "brutal")
         if brutal_lvl and is_crit:
@@ -2617,6 +2684,22 @@ class Battle:
             self._affix_on_hit(player, dmg, logs)
             self._food_on_hit(player, dmg, logs)
             self._set_attack_proc(player, dmg, logs)
+            # v140 波3.1：特效装备攻击命中（风痕/破绽/裂伤/霜环/败血/裂风矢/圣裁/雷纹/幻影/海妖/破败/穿星等）
+            try:
+                from .core.weapon_effects import proc as _we_proc
+                _we_proc(self, player, "hit", {"dmg": dmg, "is_crit": is_crit}, logs)
+            except Exception:
+                pass
+            # v140 波3.2：连携增幅墨——命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
+            _dam = (self.p_eff or {}).get("dot_amp")
+            if _dam and int(_dam.get("turns_left", 0) or 0) > 0:
+                _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
+                _deb = self.enemy.setdefault("debuffs", {})
+                for _dk in ("poison", "burn", "bleed"):
+                    if _deb.get(_dk, {}).get("n", 0):
+                        _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
+                        _d["n"] = int(_d.get("n", 0) or 0) + _per
+                logs.append(f"🎨 连携增幅墨：异常层数 +{_per}！")
             # v130.2：刺客攻线·影舞者 连段计数——命中 +1（上限 10）
             if self._combo_active(player):
                 new_combo = self._combo_add(player)
@@ -3351,7 +3434,24 @@ class Battle:
             del self.p_eff["next_heal_up"]
             logs.append(f"✨ 信仰结晶：治疗技能效果 +{int(_nhu * 100)}%！")
         hp_before = target_unit.get("hp", 0)
+        # v140 波3.1：特效装备治疗加成（坚毅祝福+15%/圣辉涌动+20%/回响祝福+25%）+ 溢出转盾（圣木/赎罪）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wectx = {"heal": heal, "overflow": 0, "target": target_unit}
+            _we_proc(self, player, "heal", _wectx, logs)
+            heal = max(1, int(_wectx.get("heal", heal)))
+            _we_proc(self, player, "passive", {"heal": heal}, logs)
+        except Exception:
+            pass
         target_unit["hp"] = min(target_unit.get("max_hp", target_unit.get("hp", 0)), hp_before + heal)
+        # v140 波3.1：特效装备治疗溢出转盾（回响祝福/赎罪之盾）——clamp 后计算真实溢出
+        try:
+            _real_overflow = max(0, hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0)))
+            if _real_overflow > 0:
+                from .core.weapon_effects import proc as _we_proc2
+                _we_proc2(self, player, "heal", {"heal": heal, "overflow": _real_overflow}, logs)
+        except Exception:
+            pass
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
         # 此前 clamp 后按 hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾
         # v122：治疗队友时溢出护盾加给被治疗者（队友快照 p_shields；自己场景保持 self._add_shield）
@@ -3444,6 +3544,12 @@ class Battle:
         lv = E.skill_level_of(player, skill_name)  # #259：兼容 skill_levels key 为中文名（战斗内等级此前恒 Lv.1）
         kind = info["kind"]
         mech = info.get("mech", "")
+        # v140 波3.1：特效装备技能释放即叠层（铭文/秘典/永恒契约——含治疗/增益）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, player, "skill_cast", {"skill": skill_name, "kind": kind}, logs)
+        except Exception:
+            pass
         # v122 治疗指定队友：解析目标（allies 空=单人战斗 → None=奶自己）
         target_ally = self._resolve_ally_target(target) if kind == "治疗" else None
         # v107 召唤：技能带 summon 字段 → 生成召唤物实体（治疗/增益/攻击技能均可带，先召唤再结算技能）
@@ -3788,6 +3894,21 @@ class Battle:
         if lucky:
             logs.append("✨ 幸运一击！暴击伤害额外提升 50%！")
         total = self._boss_dmg_filter(total, player, logs, dmg_type={"物理": "phys", "魔法": "magi", "真伤": "true"}.get(kind, "phys"))
+        # v140 波3.1：特效装备技能被动增伤（奥术苍穹/岁月流转/永恒契约/铭文/秘典/雷纹/三相/破岳/咒誓/暮裂）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wectx = {"mult": 1.0, "tags": [], "is_crit": is_crit, "kind": kind, "skill": skill_name}
+            _we_proc(self, player, "passive", _wectx, logs)
+            # v140 波3.2：弱点击破石——目标负面越多增伤越高（vuln 标记）
+            _vuln = (self.p_eff or {}).get("vuln")
+            if _vuln and int(_vuln.get("turns_left", 0) or 0) > 0:
+                _vb = float(_vuln.get("bonus", 0) or 0)
+                if _vb > 0:
+                    _wectx["mult"] = _wectx.get("mult", 1.0) * (1 + _vb)
+            if _wectx.get("mult", 1.0) != 1.0:
+                total = int(total * _wectx["mult"])
+        except Exception:
+            pass
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
@@ -3913,6 +4034,23 @@ class Battle:
         self._affix_on_hit(player, total, logs)
         # v101.28e 攻击命中后料理效果触发
         self._food_on_hit(player, total, logs)
+        # v140 波3.1：特效装备技能命中（余波/咒刃/湮灭回响/烬燃/永冻/永霜禁锢/无尽辉光/无尽锋芒等）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, player, "skill_hit",
+                     {"dmg": total, "is_crit": is_crit, "skill": skill_name, "kind": kind}, logs)
+        except Exception:
+            pass
+        # v140 波3.2：连携增幅墨——技能命中使目标毒/灼烧/流血层数 +1（dot_amp 标记）
+        _dam = (self.p_eff or {}).get("dot_amp")
+        if _dam and int(_dam.get("turns_left", 0) or 0) > 0 and total > 0:
+            _per = max(1, int(_dam.get("layer_per_hit", 1) or 1))
+            _deb = self.enemy.setdefault("debuffs", {})
+            for _dk in ("poison", "burn", "bleed"):
+                if _deb.get(_dk, {}).get("n", 0):
+                    _d = _deb.setdefault(_dk, {"n": 0, "mult": 1.0})
+                    _d["n"] = int(_d.get("n", 0) or 0) + _per
+            logs.append(f"🎨 连携增幅墨：异常层数 +{_per}！")
 
         # ---- 分支机制结算（v29） ----
         self._last_player = player
@@ -4547,6 +4685,10 @@ class Battle:
             est["def"] = int(est["def"] * (1 - pct))
         if "spd_down" in eb:
             est["spd"] = int(est["spd"] * SPD_DOWN_MULT)
+        # v140 波3.1：特效装备敌方减速（兰顿倦意/冰脉寒流——_spd_down_pct 乘算叠加）
+        _wespd = float(eb.get("_spd_down_pct", 0) or 0)
+        if _wespd > 0:
+            est["spd"] = max(1, int(est["spd"] * (1 - min(_wespd, 0.5))))
         # v34 符文虚弱：敌人攻击 -x%
         if "mon_atk_down" in eb:
             wv = float(eb.get("_weaken_val", 0.15) or 0.15)
@@ -4991,6 +5133,12 @@ class Battle:
         # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
         self._food_turn_start(player, logs)
+        # v140 波3.1：特效装备回合开始（铁卫意志/晨曦微光/不灭微光/死亡之舞缓伤/岁月流转）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, player, "turn_start", {}, logs)
+        except Exception:
+            pass
         # v130.2c 暗夜圣典 2 件：场上亡灵≥1 时 悼咏积攒 +1（回合开始）
         self._set_res_proc(player, "undead_on_field", logs)
         # v130.2f 亡灵祭仪（暗影神谕·悼咏线）：场上每只存活亡灵 回合初 悼咏 +1
@@ -5194,6 +5342,13 @@ class Battle:
                     del _amp_m[_ak]
             if not _amp_m:
                 self.p_eff.pop("amps", None)
+        # v140 波3.2：弱点击破/连携增幅墨 回合衰减（turns_left -1，归 0 清）
+        for _pkey in ("vuln", "dot_amp"):
+            _pe = (self.p_eff or {}).get(_pkey)
+            if isinstance(_pe, dict) and int(_pe.get("turns_left", 0) or 0) > 0:
+                _pe["turns_left"] = int(_pe.get("turns_left", 0) or 0) - 1
+                if int(_pe.get("turns_left", 0) or 0) <= 0:
+                    self.p_eff.pop(_pkey, None)
         self._tick_cooldowns()
         # v130.2d 疾风余韵：回合结束记录精力（下回合 _turn_start 判定 ≥80 → 自然回复 +10）
         self._tailwind_prev_energy = int(self.resources.get("energy", 0) or 0)
@@ -5467,6 +5622,13 @@ class Battle:
                 if _u in self.killed_enemies:
                     continue
                 self.killed_enemies.append(dict(_u))
+            # v140 波3.1：特效装备击杀后（暮裂潜行——击杀进入潜行，每场 1 次）
+            if self.player:
+                try:
+                    from .core.weapon_effects import proc as _we_proc
+                    _we_proc(self, self.player, "kill", {}, getattr(self, "_pending_dmg_lines", None) or [])
+                except Exception:
+                    pass
             # 同步 e_minions 旧字段（镜像同对象）
             if unit in self.e_minions:
                 self.e_minions[:] = [m for m in self.e_minions if m.get("hp", 0) > 0]
@@ -5563,6 +5725,9 @@ class Battle:
         # 影步药剂 15%：并入乘算（不再独立判定——旧实现独立判定绕过 40% 上限，基础 40%+药水可达 49.7%）
         if self.p_buffs.get("dodge_pot"):
             dodge = 1 - (1 - dodge) * (1 - 0.15)
+        # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首回合闪避率 +5%
+        if (self.p_eff or {}).get("novice_dodge_active") and int(self.round or 0) <= 1:
+            dodge = 1 - (1 - dodge) * (1 - 0.05)
         # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
         atk_hit = self._attacker_precise()
         if atk_hit > 0:
@@ -5655,6 +5820,20 @@ class Battle:
         # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
         dmg = self._affix_on_taken(player, dmg, logs)
         dmg = self._food_on_taken(player, dmg, logs)
+        # v140 波3.1：特效装备受击（哨兵壁垒/铁壁回响/寒霜凝视/荆棘/卫士/深岩/龙脊/复仇环/烬火/石像/泰坦/巡林）
+        # 亡舞战铠常驻 -8% 减伤一并在此消费（passive taken 分发）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _wetaken = {"dmg": dmg, "taken": dmg}
+            _we_proc(self, player, "taken", _wetaken, logs)
+            _we_proc(self, player, "passive", {"taken": _wetaken.get("taken", dmg)}, logs)
+            dmg = max(1, int(_wetaken.get("taken", dmg)))
+        except Exception:
+            pass
+        # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首回合受击伤害 -10%
+        if (self.p_eff or {}).get("novice_guard_active") and int(self.round or 0) <= 1:
+            dmg = max(1, int(dmg * 0.90))
+            logs.append("🛡️ 守御：首回合受击伤害 -10%！")
         # v130.2c 套装受击回资源：血誓战团（受击回怒 +1）/ 圣徽·誓约（受击回信仰 +1）
         self._set_res_proc(player, "on_taken", logs)
         # v64/v104 被动 proc 结算（按 passive 字段查 learned_skills，替换名字硬匹配）：
@@ -5780,6 +5959,23 @@ class Battle:
             logs.append(f"🌵 符文荆棘：反弹 {rd} 点伤害！")
         # v106.4 反伤属性统一结算在 _damage_player 段（thorns_pot 已乘算并入 thorns，
         # 此段删除 v101.28f 旧独立反弹——否则双重结算，2026-08-13 回归抓包）
+        # v140 波3.2：次元门扉符无敌——本回合免疫一切伤害（p_eff invuln，用后清 + 记录僵直）
+        _inv = (self.p_eff or {}).get("invuln")
+        if _inv and int(_inv.get("turns", 1) or 1) > 0:
+            _inv["turns"] = int(_inv.get("turns", 1) or 1) - 1
+            if int(_inv.get("turns", 0) or 0) <= 0:
+                self.p_eff.pop("invuln", None)
+                _sa = int(_inv.get("stun_after", 1) or 1)
+                if _sa > 0:
+                    self.p_buffs["stun"] = max(int(self.p_buffs.get("stun", 0) or 0), _sa)
+                    logs.append("🌀 次元门扉关闭，你陷入短暂僵直！")
+            logs.append("🌀 次元门扉：免疫了这次伤害！")
+            return
+        # v140 波3.2：龙血变身药剂——受击伤害 +15%（morph_dmg_taken）
+        _morph = float((self.p_eff or {}).get("morph_dmg_taken", 0) or 0)
+        if _morph > 0:
+            dmg = max(1, int(dmg * (1 + _morph)))
+            logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
         shields = self.p_shields
         if shields:
@@ -5800,6 +5996,31 @@ class Battle:
                 if dmg <= 0:
                     return
         player["hp"] = max(0, player.get("hp", 0) - dmg)
+        # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
+        # + 不灭意志免疫致死（本回合免疫致死伤害，扣血后回拉）
+        try:
+            from .core.weapon_effects import proc as _we_proc
+            _we_proc(self, player, "threshold", {"dmg": dmg}, logs)
+            if battle_p_eff_undying := getattr(self, "p_eff", {}).get("we_undying_immune"):
+                if player.get("hp", 0) <= 0:
+                    player["hp"] = max(1, int(player.get("max_hp", player.get("hp", 1)) * 0.10))
+                    logs.append("✨ 不灭意志：你撑住了致命一击！")
+                self.p_eff.pop("we_undying_immune", None)
+            # 死亡之舞：受击伤害 35% 转为缓伤池（回合开始结算 10%）
+            if getattr(self, "p_eff", {}).get("we_death_pool") is not None:
+                self.p_eff["we_death_pool"] = float(self.p_eff.get("we_death_pool", 0) or 0) + dmg * 0.35
+        except Exception:
+            pass
+        # v140 波3.2：不死鸟之羽复活——致死时以 revive_hp% 生命复活 1 次（+ 减伤 buff）
+        if player["hp"] <= 0 and (self.p_eff or {}).get("phoenix_revive") and not (self.p_eff or {}).get("phoenix_consumed"):
+            _pr = self.p_eff.get("phoenix_revive") or {}
+            self.p_eff["phoenix_consumed"] = True
+            player["hp"] = max(1, int(player.get("max_hp", player.get("hp", 1)) * float(_pr.get("hp", 0.30) or 0.30)))
+            _prt = max(1, int(_pr.get("turns", 3) or 3))
+            self.p_buffs["reduce_all"] = max(float(self.p_buffs.get("reduce_all", 0) or 0),
+                                             float(_pr.get("dmg_reduce", 0.20) or 0.20))
+            self._reduce_all_left = max(int(getattr(self, "_reduce_all_left", 0) or 0), _prt)
+            logs.append(f"🪶 不死鸟之羽燃尽！你以 {player['hp']} HP 复活，获得减伤！")
         # v107 死亡契约（暗影祭司）：致死时牺牲一个召唤物以 20% HP 存活（每场 1 次）
         if player["hp"] <= 0 and self.summons and not self._death_pact_used:
             for _pn, _ps in self._passive_map(player)["proc"].get("death_pact", []):

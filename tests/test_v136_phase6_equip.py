@@ -33,9 +33,9 @@ def check(name, cond, detail=""):
 
 def test_counts():
     print("【1. 数量基线】")
-    check("名册 388 件", len(C.EQUIP_ROSTER) == 388, str(len(C.EQUIP_ROSTER)))
+    check("名册 631 件", len(C.EQUIP_ROSTER) == 631, str(len(C.EQUIP_ROSTER)))
     check("配方 352 条", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))
-    check("素材 552 个", len(C.MATERIALS) == 552, str(len(C.MATERIALS)))
+    check("素材 563 个", len(C.MATERIALS) == 563, str(len(C.MATERIALS)))
     # 新素材存在
     for mid in ["mat_ye_zhu_pi", "mat_shan_zei_hui_zhang", "mat_shu_shi_he_xin",
                 "mat_yue_ying_zhi_pi", "mat_long_yan_jing_hua"]:

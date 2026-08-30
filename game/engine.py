@@ -917,6 +917,32 @@ def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
             logs.append(f"📖 有 {len(can_learn)} 个技能可学习（含被动）！『技能学习 <技能名>』消耗技能点学会(『技能列表』查看)")
         if player["level"] == C.EVOLVE_LEVELS[1]:
             logs.append(f"🌟 你已达到 {player['level']} 级，可以转职了！(输入『转职』查看)")
+        # v140 波3.3：章节礼包——每 10 级里程碑发放一次（event_state 防重复）
+        if player["level"] % 10 == 0:
+            try:
+                from . import db as _db
+                _ck = f"chapter_pack_{player['level']}_{qq_id}"
+                if not _db.get_event_state(_ck):
+                    _packs = {p["lv"]: p for p in C.CHAPTER_PACK}
+                    _pack = _packs.get(player["level"])
+                    if _pack:
+                        from .store.inventory import add_item as _add_item
+                        _got = []
+                        for _iname in _pack.get("items", []):
+                            _iid = C.resolve("items", _iname)
+                            if _iid in C.ITEMS:
+                                _add_item(group_id, qq_id, _iid, C.ITEMS[_iid])
+                                _got.append(_iname)
+                            else:
+                                _imid = C.resolve("materials", _iname)
+                                if _imid in C.MATERIALS:
+                                    _add_item(group_id, qq_id, _imid, {"name": C.display("materials", _imid), "type": C.MATERIALS[_imid].get("type", "材料"), "stackable": True, "price": C.MATERIALS[_imid]["price"]})
+                                    _got.append(_iname)
+                        if _got:
+                            _db.set_event_state(_ck, "1")
+                            logs.append(f"🎁 章节里程碑达成！获得【{_pack.get('name', '礼包')}】：{'、'.join(_got)}！")
+            except Exception:
+                pass
     return logs, player
 
 

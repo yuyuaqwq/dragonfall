@@ -337,8 +337,21 @@ class MiscCmds(CommandBase):
                 mark = "✅" if a["id"] in unlocked else "⬜"
                 rw = a.get("reward") or {}
                 # v105 M18 P3：奖励 key 显示中文（经验/金币），对齐解锁提示 _reward_txt
+                # v140 波2：items 物品奖励也显示（《物品名》×N）
                 _RW_CN = {"exp": "经验", "gold": "金币"}
-                rw_txt = f"（{'、'.join(f'{_RW_CN.get(k, k)}+{v}' for k, v in rw.items())}）" if rw else ""
+                rw_parts = []
+                for k, v in rw.items():
+                    if k == "items":
+                        for _ik, _ic in (v or {}).items():
+                            _nm = _ik
+                            try:
+                                _nm = (C.ITEMS.get(_ik) or C.MATERIALS.get(_ik) or {}).get("name", _ik)
+                            except Exception:
+                                pass
+                            rw_parts.append(f"{_nm}×{_ic}")
+                    else:
+                        rw_parts.append(f"{_RW_CN.get(k, k)}+{v}")
+                rw_txt = f"（{'、'.join(rw_parts)}）" if rw_parts else ""
                 if a["id"] in unlocked and a["id"] not in claimed and rw:
                     mark = "🎁"
                 lines.append(f"{mark} {a['name']}：{a['desc']}{rw_txt}")

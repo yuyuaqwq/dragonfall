@@ -72,6 +72,9 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_mayor"},
         "reward_exp": 100,
         "reward_gold": 30,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:誓约之杖·初芽",
+        "title": "iron_adventurer",  # v140 波3.6：铁牌冒险者称号（title_conds 条件=完成 q1_6）
         "next": "q2_1",
         "story": "镇长：『孩子，橡木镇太小了。我年轻时也像你一样，想去看看外面的世界……去白鹿城吧，那里有更大的舞台。』",
         "ending": "麦酒下肚，镇长拍着你的肩：『行会的卡莉会照顾你的。去吧，孩子，橡木镇以你为荣！』",
@@ -108,6 +111,8 @@ MAIN_QUESTS = [
         "objective": {"kill": "狼王·灰影", "count": 1},
         "reward_exp": 600,
         "reward_gold": 300,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "灰影狼牙刃图纸",
         "suggest_lv": 12,
         "next": "q2_4",
         "story": "猎户：『是灰影！它咬死了我们三个猎人……白鹿城悬赏它很久了。』",
@@ -133,6 +138,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_tavern_owner"},
         "reward_exp": 300,
         "reward_gold": 150,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "寒霜符文",
         "next": "q3_1",
         "story": "胖托尼压低声音：『听说了吗？王都的圣女殿下……不见了。教会派了圣光骑士团到处找人，闹得可大了。』旁边的佣兵冷笑：『圣女失踪？我看是教会自己把她藏起来了。』",
         "ending": "你直觉感到蹊跷。圣女失踪的背后，似乎藏着比表面更深的东西。白鹿城的酒馆，第一次让你意识到——这个世界没有想象中那么简单。",
@@ -170,6 +177,8 @@ MAIN_QUESTS = [
         "objective": {"kill": "海盗王·独眼杰克", "count": 1},
         "reward_exp": 1000,
         "reward_gold": 500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": ["潮汐黑铁", "金钩弯刀图纸"],
         "suggest_lv": 25,
         "next": "q3_4",
         "story": "克洛伊城主：『独眼杰克盘踞海蚀洞窟三年了，你若是能端掉他，铁港城记你一功。』",
@@ -207,6 +216,9 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_auctioneer"},
         "reward_exp": 500,
         "reward_gold": 250,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:麦酒的祝福",
+        "reward_pet": "pet_fox",  # v140 波3.3 修复：原 pet_blue_egg 无实体（静默兜底白蛋）→ 改蓝品质冰晶狐
         "next": "q4_1",
         "story": "金槌：『这东西看着像深渊的东西……但教会说深渊已经被封印三百年了。你见多识广，帮我看看？』",
         "ending": "深海石散发着幽蓝的光。你想起沼泽里泛黑的水——它们的气息，如此相似。",
@@ -269,6 +281,8 @@ MAIN_QUESTS = [
         "objective": {"explore": "white_abbey"},
         "reward_exp": 700,
         "reward_gold": 350,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "烈焰符文",
         "next": "q5_1",
         "story": "玛格丽特：『修道院里有几本修女留下的日记，记录了圣女到访后的异常。帮我找回来——也许能拼出真相。』",
         "ending": "日记拼出了完整的时间线：圣女到访 → 地下室渗出黑气 → 修女们开始异变。而这一切的起点，是教会送来的「圣物」。",
@@ -341,6 +355,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_knight_commander"},
         "reward_exp": 1000,
         "reward_gold": 500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:圣女的遗赠",
         "next": "q6_1",
         "story": "罗兰·圣剑：『骑士的剑只为守护而挥。但当我发现剑锋指向的是无辜者时——我会先折断它。来吧，让我看看你的本事。』",
         "ending": "罗兰收剑入鞘：『你的剑里有信念。很好——最近我要去执行一项任务，追捕一名「叛教者」。希望我的剑，不会用错地方。』",
@@ -365,6 +381,8 @@ MAIN_QUESTS = [
         "objective": {"kill": "古王·奥德里克", "count": 1},
         "reward_exp": 2500,
         "reward_gold": 1200,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "古王剑图纸",
         "suggest_lv": 40,
         "next": "q6_3",
         "story": "古王·奥德里克的残魂：『……艾德里克……他做了正确的选择，却被世人误解……你们要找到……烬山下的真相……』",
@@ -414,6 +432,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_knight_commander"},
         "reward_exp": 1800,
         "reward_gold": 900,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": ["烈焰符文", "寒霜符文", "雷击符文"],
         "next": "q7_1",
         "story": "罗兰：『从今天起，我的剑只守护真相。晨曦城那边，我会处理。你们……去西境吧，精灵的史书里，记载着完整的圣战。』",
         "ending": "圣光骑士团团长倒戈，教会震怒。而你的冒险，才刚刚进入正题——西境的银月林海，正在等着你。",
@@ -487,6 +507,9 @@ MAIN_QUESTS = [
         "objective": {"kill": "暗影精灵", "count": 5},
         "reward_exp": 3500,
         "reward_gold": 1800,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:月冠的守望",
+        "reward_pet": "pet_starswift",  # v140 波3.3 修复：原 pet_purple_egg 无实体（静默兜底白蛋）→ 改紫品质星羽候鸟（精灵主题契合）
         "next": "q8_1",
         "story": "瑟兰握紧拳头：『这把弓……跟了我五百年。那些叛逃的暗影精灵偷走了它。帮我夺回来！』",
         "ending": "月弓物归原主。瑟兰单膝跪地：『从今往后，月影卫士与你的情谊，就像这弓弦一样结实。』",
@@ -559,6 +582,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_north_chief"},
         "reward_exp": 4500,
         "reward_gold": 2200,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "破甲符文",
         "next": "q9_1",
         "story": "篝火旁，海尔达望着远方：『南方的老爷们忘了我们。可深渊不会忘——每一年冬天，都有新的兄弟倒在黑森林里。』",
         "ending": "战歌在篝火间回荡。海尔达郑重道：『北境记你的人情。烬山之战，算我们一份！』",
@@ -595,6 +620,8 @@ MAIN_QUESTS = [
         "objective": {"explore": "ash_temple"},
         "reward_exp": 10000,
         "reward_gold": 5000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": ["烬核火种", "赫尔加的祭器图纸"],
         "next": "q9_4",
         "story": "赫尔加的声音回荡：『封印松动是必然的。你们的教会用谎言维持了三百年，也该到还债的时候了。』",
         "ending": "你在祭坛边缘看到恶魔祭司赫尔加的身影——她正在举行撕裂封印的仪式。必须阻止她！",
@@ -631,6 +658,8 @@ MAIN_QUESTS = [
         "objective": {"kill": "深渊奴仆", "count": 3},
         "reward_exp": 9000,
         "reward_gold": 4500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:烬山守望者之徽",
         "next": "q10_1",
         "story": "深夜，裂隙深处传来低语。深渊奴仆开始试探联军的防线——你握紧了武器。",
         "ending": "击退深渊奴仆后，你看到裂隙边缘的金光——那封印之下，有什么东西在注视着你。",
@@ -709,6 +738,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_eter"},
         "reward_exp": 15000,
         "reward_gold": 7500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "幸运宝石",
         "next": "q11_1",
         "story": "蚀夜：『去吧，凡人。教会的事、封印的事，都需要你去做。若我还能撑到那一天……我想亲眼看看，你守护的黎明。』",
         "ending": "金色的守护者目送你离开封印之核。它的低语在身后回荡：『谢谢你……愿意相信真相。』",
@@ -781,6 +812,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_saintess"},
         "reward_exp": 20000,
         "reward_gold": 10000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "图纸残页",
         "next": "q12_1",
         "story": "艾莉丝笑着说：『这一次，我不想当祭品了。我想和你一起，站在封印之前。』",
         "ending": "圣女的身影与黎明之光融为一体：『走吧——去给这个故事，写一个不一样的结局。』",
@@ -805,6 +838,8 @@ MAIN_QUESTS = [
         "objective": {"kill": "蚀夜(真相形态)", "count": 1},
         "reward_exp": 40000,
         "reward_gold": 20000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "蚀夜之面图纸",
         "next": "q12_3",
         "story": "蚀夜被深渊之怒侵蚀，理智尽失仍在挣扎：『……守……守护……我……要守住……』",
         "ending": "金色身影终于倒下。深渊的意志不甘地咆哮——但守夜者已经守到了最后一刻。",
@@ -853,6 +888,8 @@ MAIN_QUESTS = [
         "objective": {"talk": "npc_guildmaster"},
         "reward_exp": 100000,
         "reward_gold": 0,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "eq:灰烬圣剑·初火",
         "next": None,
         "story": "老约翰把一枚传奇徽章别在你胸前：『从今以后，你就是行会的一面旗。』",
         "ending": "没有加冕为王，没有成为神——你只是冒险者行会有史以来第一个『传奇』级别的冒险者。大陆的冒险，还在继续……",
@@ -928,6 +965,8 @@ SIDE_QUESTS = [
         "objective": {"kill": "水鬼", "count": 3},
         "reward_exp": 500,
         "reward_gold": 250,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "烤肉串",
         "story": "货物被水鬼拖进了海里——打捞时发现水鬼身上有圣光教会的印记。",
     },
     {
@@ -941,6 +980,8 @@ SIDE_QUESTS = [
         "objective": {"explore": "hill_mine"},
         "reward_exp": 600,
         "reward_gold": 300,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "强化石",
         "story": "行会会长·老约翰·铁砧：『老学者布鲁姆托我传个话——矿洞里挖出了些奇怪的石板，上面的符文……和古籍里记载的深渊封印有关。你去山丘矿洞取回来，报酬从行会账上出。』",
     },
     {
@@ -957,6 +998,8 @@ SIDE_QUESTS = [
         "objective": {"kill": "腐蚀修女", "count": 5, "collect": "染黑玫瑰", "collect_count": 3},
         "reward_exp": 800,
         "reward_gold": 400,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "图纸残页",
         "story": "玛格丽特：『这些黑玫瑰是圣女走前留下的。她说——「如果花开了，就说明还有希望。」帮我看看。』",
     },
     {
@@ -968,6 +1011,8 @@ SIDE_QUESTS = [
         "objective": {"explore": "old_king_tomb"},
         "reward_exp": 1000,
         "reward_gold": 500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "双倍金币符",
         "story": "腓特烈三世：『三百年前的宫廷档案，关键几页被「意外」烧毁了。朕不信巧合——替朕找一份别的副本回来。』",
     },
     {
@@ -995,6 +1040,8 @@ SIDE_QUESTS = [
         "objective": {"kill": "河龙领主", "count": 1},
         "reward_exp": 2000,
         "reward_gold": 1000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "炖菜",
         "story": "河边渔夫：『河神发怒了！其实……是我打渔时偷了河底的祭品……求你把祭品还回去。』",
     },
     {
@@ -1020,6 +1067,8 @@ SIDE_QUESTS = [
         "objective": {"kill": "月狼王·银鬃", "count": 1},
         "reward_exp": 2500,
         "reward_gold": 1200,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "强化石",
         "story": "瑟兰：『月狼是月之母的孩子，本不该狂暴。查清真相——若是有人在森林里动了手脚，精灵不会善罢甘休。』",
     },
     {
@@ -1042,6 +1091,8 @@ SIDE_QUESTS = [
         "objective": {"explore": "starlake"},
         "reward_exp": 3000,
         "reward_gold": 1500,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "白银箱",
         "story": "精灵诗人·夜歌：『三百年前，一个人类骑士在这里向精灵姑娘求婚……戒指掉进了湖里。帮我找回来，这是他们唯一的孩子托付的。』",
     },
     {
@@ -1069,6 +1120,8 @@ SIDE_QUESTS = [
         "objective": {"collect": "雪狼皮", "count": 5},
         "reward_exp": 4000,
         "reward_gold": 2000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "图纸残页",
         "story": "酒馆老板·烧壶：『北境的冬天能冻死龙。帮我弄点雪狼皮，给守城的兄弟们做皮袄。』",
     },
     {
@@ -1244,6 +1297,8 @@ SIDE_QUESTS = [
         "objective": {"collect": "幽魂尘", "count": 5},
         "reward_exp": 1800,
         "reward_gold": 900,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "淬火石",
         "story": "白鸦：『旧战场遗址的亡魂越来越多……我怀疑有什么东西在唤醒它们。帮我查清楚。』",
     },
     {
@@ -1288,6 +1343,8 @@ SIDE_QUESTS = [
         "objective": {"explore": "shipwreck_graveyard"},
         "reward_exp": 8500,
         "reward_gold": 4200,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "白银箱",
         "story": "老鲸：『那批金币是当年遇难商船的……被沉船领主诅咒了。取回来，我找教堂净化它，让亡魂安息。』",
     },
     {
@@ -1445,6 +1502,8 @@ SIDE_QUESTS = [
         "objective": {"explore": "nameless_harbor"},
         "reward_exp": 8000,
         "reward_gold": 4000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "精炼强化石",
         # v104 M20 P2：高危区域门槛——无名港地图怪 Lv.55（与 s_lighthouse 同区同规格）
         "min_level": 55,
         "story": "光柄：『灯不能灭。可这暴风雨……年轻人，你能陪我守到天亮吗？』",
@@ -1472,6 +1531,8 @@ SIDE_QUESTS = [
         "objective": {"collect": "雷晶砂", "count": 5},
         "reward_exp": 12000,
         "reward_gold": 6000,
+        # v140 任务奖励丰富化（资源获取渠道）
+        "reward_item": "图纸残页",
         # v104 M20 P2：高危区域门槛——风暴峭壁地图怪 Lv.86
         "min_level": 86,
         "story": "岚：『风暴的结晶！帮我收集一些，我要研究它为什么这么美！』",

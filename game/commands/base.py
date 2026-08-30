@@ -207,6 +207,13 @@ class CommandBase:
             import logging
             logging.getLogger("dragonfall").warning(
                 "[timed_events] _maint_gate 刷新失败（不影响指令主流程）", exc_info=True)
+        # v140 波2：任意指令惰性刷新野王全局状态（跨时段/存活超时懒清理 + 时段首刷，
+        # 与倒计时引擎同款懒计时思路；幂等，不阻塞指令主流程）
+        try:
+            from ..core.wild_king import wild_king_tick
+            wild_king_tick()
+        except Exception:
+            pass
         if self._is_gm(qq_id):
             return
         if self._server_down():

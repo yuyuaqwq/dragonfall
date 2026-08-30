@@ -23,6 +23,13 @@ from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
 
+# v140 波2：副本通关后调查机制——每日调查上限（跨日归零，玩家行 investigate_date/investigate_count）
+INVESTIGATE_DAILY_LIMIT = 3
+# 调查点奖励概率默认值（数据层 INVESTIGATION_POINTS 逐点可覆盖；蓝符仅 Lv.60+ 副本生效）
+INVESTIGATE_BP_CHANCE = 0.25     # 图纸残页
+INVESTIGATE_RUNE_CHANCE = 0.15   # 蓝符（Lv.60+）
+INVESTIGATE_COLLECT_CHANCE = 0.03  # 收藏
+
 
 def _inst_map_id(inst_id: str) -> str:
     """v137：副本 INSTANCES key（inst_xxx）→ 地图 MAPS key（xxx）。
@@ -458,6 +465,15 @@ class InstanceCmds(CommandBase):
         # v101.27 #390：通关后特殊搜刮 POI 优先（战利品堆/墙砖/密室宝箱），
         # 避免『调查 宝箱』误命中 Boss 房静态"陪葬宝箱"等 stage POI
         if st.get("cleared"):
+            # v140 波2：通关后调查点（第①层）——cleared 专属，与战利品堆/暗格并行不冲突。
+            # 命中链顺序：调查点名 → 战利品堆/墙砖/宝箱（旧搜刮）→ 房间 POI（现有）。
+            # 调查点先判但仅"点名称"命中；战利品堆/墙砖/宝箱走旧链路不受每日上限限制。
+            if not (name in ("战利品堆", "战利品", "墙砖", "松动的墙砖", "裂痕", "暗格", "宝箱", "暗格宝箱", "神秘宝箱")):
+                _inv_text = self._instance_investigate_cleared(group_id, qq_id, player, st, name)
+                if _inv_text is not None:
+                    yield event.plain_result(_inv_text)
+                    return
+            # 第②层：现有战利品堆/暗格（互不干扰：调查点未命中才回落）
             if name in ("战利品堆", "战利品") and st.get("loot_pile"):
                 yield event.plain_result(self._instance_loot_pile(group_id, qq_id, player, st))
                 return
@@ -1280,6 +1296,14 @@ class InstanceCmds(CommandBase):
                     lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
                 if st.get("secret_crack"):
                     lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
+                # v140 波2：通关后调查点层（cleared 专属；未调查完的列提示，已翻完的省略）
+                _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
+                if _inv_pts:
+                    _inv_done = set(st.get("investigated") or [])
+                    _inv_remain = [p for p in _inv_pts if p.get("id") not in _inv_done]
+                    if _inv_remain:
+                        _names = "、".join(p["name"] for p in _inv_remain[:3]) + ("…" if len(_inv_remain) > 3 else "")
+                        lines.append(f"🔍 通关后这里多了些可调查的痕迹：{_names}（『调查 <名称>』· 今日剩余 {max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))} 次）")
             lines.append(self._tip("instance"))
             return "\n".join(lines)
         vmap = self._stage_virtual_map(st)
@@ -1308,13 +1332,21 @@ class InstanceCmds(CommandBase):
             lines.extend(f"  {l}" for l in inter)
         # v101.27 #390 通关后特殊搜刮 POI 显示（战利品堆必出 / 暗格墙砖概率 / 密室宝箱）
         if st.get("cleared"):
-            lines.append("━━━━━━━━━━━━")
             if st.get("loot_pile"):
                 lines.append("🎁 战利品堆：首领的遗物堆在角落（『调查 战利品堆』）")
             if st.get("secret_crack"):
                 lines.append("🧱 墙上有一块松动的墙砖……（『调查 墙砖』）")
             if st.get("secret_chest"):
                 lines.append("🔐 神秘宝箱：密室深处泛着微光（『调查 宝箱』）")
+            # v140 波2：通关后调查点层（cleared 专属；未调查完的列提示，已翻完的省略）
+            _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
+            if _inv_pts:
+                _inv_done = set(st.get("investigated") or [])
+                _inv_remain = [p for p in _inv_pts if p.get("id") not in _inv_done]
+                if _inv_remain:
+                    _names = "、".join(p["name"] for p in _inv_remain[:3]) + ("…" if len(_inv_remain) > 3 else "")
+                    lines.append(f"🔍 通关后这里多了些可调查的痕迹：{_names}（『调查 <名称>』· 今日剩余 {max(0, INVESTIGATE_DAILY_LIMIT - self._instance_investigate_used_today(group_id, qq_id))} 次）")
+        if st.get("cleared"):
             lines.append(self._tip("instance"))
         else:
             # 怪物
@@ -2814,6 +2846,145 @@ class InstanceCmds(CommandBase):
         return lines
 
     # ---------------- 通关后搜刮（v101.27 #390） ----------------
+    # ---------------- v140 波2：通关后调查点（cleared 专属调查层） ----------------
+    def _instance_investigate_cleared(self, group_id, qq_id, player, st, name) -> str or None:
+        """通关后调查点（第①层『调查 <目标>』命中链）。
+
+        与 POI 调查/战利品堆/暗格并行不冲突：
+        - 只查 INVESTIGATION_POINTS[inst_id]（cleared 专属数据，不挂 SUBAREAS/POIS/
+          rooms 资源池），命中才消费；未命中返回 None → 调用方回落战利品堆/暗格/房间 POI。
+        - 每日上限 INVESTIGATE_DAILY_LIMIT=3（玩家行 investigate_date/investigate_count，
+          跨日归零；与 props_use 的日记录表并存互不干扰）。
+        - 奖励四层：保底材料 / 图纸残页 25% / 蓝符 15%（Lv.60+）/ 收藏 3%。
+        """
+        inst_id = st.get("inst_id") or ""
+        points = (C.INVESTIGATION_POINTS or {}).get(inst_id) or []
+        if not points:
+            return None
+        # 名称命中：先完全匹配，再包含匹配（与 POI 命中规则一致）
+        poi = None
+        for p in points:
+            if p.get("name") == name:
+                poi = p
+                break
+        if poi is None:
+            for p in points:
+                if name and name in p.get("name", ""):
+                    poi = p
+                    break
+        if poi is None:
+            return None
+        # 每日上限校验（玩家行日期+次数；跨日归零）
+        today = time.strftime("%Y-%m-%d")
+        if player.get("investigate_date") != today:
+            player["investigate_date"] = today
+            player["investigate_count"] = 0
+        used = int(player.get("investigate_count", 0) or 0)
+        if used >= INVESTIGATE_DAILY_LIMIT:
+            return "⏳ 今日副本调查已达上限（3 次）！明天再来吧～（『调查 战利品堆』等搜刮不受影响）"
+        # 已调查过的点（本副本本局内）→ 不重复
+        done = st.setdefault("investigated", set())
+        if not isinstance(done, set):
+            try:
+                done = set(done)
+                st["investigated"] = done
+            except Exception:
+                done = set()
+        if poi["id"] in done:
+            return f"{poi.get('name', '调查点')}已经被你翻遍了。"
+        # 奖励四层 roll
+        inst = C.INSTANCES.get(inst_id) or {}
+        lines = [f"🔍 你仔细调查了【{poi.get('name', '调查点')}】……"]
+        reward = self._instance_investigate_reward(group_id, qq_id, player, st, poi, inst)
+        if not reward:
+            return f"{poi.get('name', '调查点')}里空空如也，什么也没发现。"
+        lines += reward
+        # 记账：每日次数 +1 + 本局已调查标记（persist）
+        db.update_player(group_id, qq_id,
+                         investigate_date=today, investigate_count=used + 1)
+        done.add(poi["id"])
+        st["investigated"] = sorted(done)  # set 不可 JSON 序列化 → 落库转 list
+        db.save_battle(group_id, st["leader"], st)
+        return "\n".join(lines)
+
+    def _instance_investigate_reward(self, group_id, qq_id, player, st, poi, inst) -> list:
+        """调查点奖励发放：四层（保底材料 / 图纸残页 / 蓝符 / 收藏），返回展示行列表。
+
+        概率（数据层 INVESTIGATION_POINTS 逐点可覆盖，缺省用命令层常量）：
+        - 收藏 3% → 图纸残页 25% → 蓝符 15%（仅 Lv.60+）→ 否则保底材料 1 件。
+        蓝符只在副本 Lv.60+ 生效（低等级副本该档概率并入保底材料）；
+        蓝符 = 蓝色品质 RUNES 符文（C.rune_item 构造，与 _instance_secret_chest 同款），
+        按副本等级就近出符：Lv.60-74 → lvl 1-2，Lv.82+ → lvl 2-3。
+        """
+        from ..core import runes as _runes_core  # 延迟：rune_item 在 core.runes
+        inst_lv = int(inst.get("lv", 0) or 0)
+        bp_chance = float(poi.get("bp_chance", INVESTIGATE_BP_CHANCE))
+        rune_chance = float(poi.get("rune_chance", INVESTIGATE_RUNE_CHANCE)) if inst_lv >= 60 else 0.0
+        collect_chance = float(poi.get("collect_chance", INVESTIGATE_COLLECT_CHANCE))
+        r = random.random()
+        # ④ 收藏（最低概率，先判）
+        if r < collect_chance:
+            collect = poi.get("collect")
+            if collect is None:
+                collect = C.INVESTIGATE_COLLECT_SAMPLES
+            if not isinstance(collect, (list, tuple)):
+                collect = [collect]
+            for cid in collect:
+                mid = C.resolve("materials", cid) if cid else None
+                if mid and mid in C.MATERIALS:
+                    mname = C.display("materials", mid)
+                    db.add_item(group_id, qq_id, mid, {
+                        "name": mname, "type": "收藏", "stackable": True,
+                        "price": C.MATERIALS[mid].get("price", 1),
+                    })
+                    return [f"✨ 你发现了一件稀罕的收藏品——【{mname}】！(图鉴『收藏』可查看)"]
+            return []  # 收藏池空 → 放弃（不入保底，防刷稀有）
+        # ③ 蓝符（Lv.60+）
+        if inst_lv >= 60 and r < collect_chance + rune_chance:
+            blue_runes = [k for k, rr in C.RUNES.items() if (rr.get("quality") or "") == "blue"]
+            if blue_runes:
+                rk = random.choice(blue_runes)
+                r_def = C.RUNES[rk]
+                lvl = random.randint(1, 2) if inst_lv < 82 else random.randint(2, 3)
+                rune_data = C.rune_item(r_def["effect"], lvl)
+                if rune_data:
+                    db.add_item(group_id, qq_id, f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
+                    return [f"✨ 你拾起一枚刻着符文的宝石——【{rune_data['name']}】！"]
+            # 蓝符池空 → 落保底材料（不额外消耗随机）
+            pass
+        # ② 图纸残页（在蓝符未命中后判定；若蓝符档并入/未命中，r 落在 [collect+rune, collect+rune+bp)）
+        if r < collect_chance + rune_chance + bp_chance:
+            pages = random.randint(2, 3)
+            db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
+                        {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
+                        count=pages)
+            return [f"📜 你翻出一叠泛黄的纸页——图纸残页 ×{pages}！"]
+        # ① 保底材料（默认/兜底层）
+        mats = poi.get("materials") or inst.get("materials", [])
+        mat = random.choice(mats) if mats else None
+        mat_id = C.resolve("materials", mat) if mat else None
+        if mat_id and mat_id in C.MATERIALS:
+            mname = C.display("materials", mat_id)
+            db.add_item(group_id, qq_id, mat_id, {
+                "name": mname, "type": "材料", "stackable": True,
+                "price": C.MATERIALS[mat_id]["price"],
+            })
+            return [f"🎒 你摸到了些材料——{mname} ×1！"]
+        return [f"🎒 你翻了翻，只找到一点零碎。"]
+
+    def _instance_investigate_used_today(self, group_id, qq_id) -> int:
+        """今日已用副本调查次数（玩家行 investigate_count；跨日视为 0）。"""
+        try:
+            p = self._player(group_id, qq_id)
+            if not p:
+                return 0
+            today = time.strftime("%Y-%m-%d")
+            if p.get("investigate_date") != today:
+                return 0
+            return int(p.get("investigate_count", 0) or 0)
+        except Exception:
+            return 0
+
     def _instance_loot_pile(self, group_id, qq_id, player, st) -> str:
         """战利品堆（必出，保底搜刮）：金币 = 通关奖金×30% + 专属材料×1
         通胀核算：Lv.25 怪金≈253，海蚀洞窟 gold=220 → 66 金 ≈ 0.26 只怪/人，
@@ -3060,6 +3231,8 @@ class InstanceCmds(CommandBase):
         # ① 战利品堆（必出，保底搜刮体验）：金币=通关奖金×30% + 专属材料×1
         # ② 隐藏暗格（概率出）：20%（首通 50%）→ 墙上的裂痕 → 精英守卫 → 宝箱
         #    宝箱内容分层：图纸残页 50% / 稀有符文 30% / 专属材料 20%（稀缺品走低概率，防通胀）
+        # v140 波2：通关后调查点层（cleared 专属，22 本 × 3-5 个）——_instance_map_view /
+        #    调查命令 cleared 分支已接入，通关文案给一行入口提示
         st["cleared"] = True
         st["cleared_time"] = int(time.time())
         st["loot_pile"] = True
@@ -3071,6 +3244,10 @@ class InstanceCmds(CommandBase):
         lines.append("")
         lines.append("🏆 副本已通关！你可以在副本内停留搜刮：")
         lines.append("  · 🎁 【战利品堆】—— 首领的遗物，搜刮一次（『调查 战利品堆』）")
+        # v140 波2：通关调查点提示（未翻完时给入口）
+        _inv_pts = (C.INVESTIGATION_POINTS or {}).get(st.get("inst_id") or "", [])
+        if _inv_pts:
+            lines.append(f"  · 🔍 通关后这里多了些可调查的痕迹（『副本地图』查看，每日限 {INVESTIGATE_DAILY_LIMIT} 次）")
         if st["secret_crack"]:
             lines.append("  · 🧱 墙上似乎有【松动的墙砖】……（『调查 墙砖』）")
         lines.append("搜刮完毕用『离开副本』传出～")

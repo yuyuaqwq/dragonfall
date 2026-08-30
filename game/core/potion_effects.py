@@ -380,3 +380,343 @@ def eff_battle_start_resource(battle, player, value):
     if not msgs:
         return "🧪 效果未触发！"
     return "⚡ 战前准备生效！" + "、".join(msgs) + "！"
+
+
+# ================= v140 战斗机制道具（20 件）效果 handler =================
+# 消费端：items.py 尾部 20 件战斗机制道具（i_jin_ling_xiang_lu ~ i_ruo_dian_ji_po_shi，
+# 方案 3.6：召唤/陷阱控制/资源节奏/特殊机制/组合爆发五类）。
+# handler 签名统一 fn(battle, player, value)：battle=Battle 实例、player=玩家 dict、
+# value=物品级 effect_data（由 item_templates 注入 special:<kind>:<json> payload）。
+# 复用优先：冻结/沉默/眩晕走 CONTROL_MECHS（enemy buffs 由 _enemy_turn 消费）、
+# 护盾走 _add_shield、减伤走 reduce_all、持续回血走 p_hot（_apply_hot 消费）、
+# 破防走 mon_atk_down（_enemy_stats 消费）、反应倍率走 _elem_reaction_boost
+# （_reaction_table_resolve 消费）、印记走 _elem_mark_apply（引爆技反应表消费）。
+# 无消费点的纯标记效果（phoenix/invuln/morph 等）按 v140 收口约定先挂 p_eff/p_buffs
+# 标记（后续引擎消费端接线），确保『使用』不落 tpl_none 死数据。
+
+# 召唤物默认外观表（tid → 名称/图标；属性按 effect_data 比例缩放）
+_SUMMON_FACES = {
+    "ember_wisp": ("烬灵", "🔥"), "holy_totem": ("圣徽替身", "🛐"),
+    "thorn_golem": ("荆棘傀儡", "🌵"), "medic_golem": ("医者魔偶", "⚕️"),
+}
+
+
+@register("summon")
+def eff_summon(battle, player, value):
+    """v140 召唤类消耗品（烬灵香炉/圣徽替身像/荆棘傀儡种/战地医者魔偶）：
+    按 effect_data 比例生成召唤物实体入 battle.summons（_summons_act 自动攻击 +
+    _summon_block_check 挡刀复用 v107 机制）；附带的 thorns/heal_pct/taunt 等
+    辅助效果走既有 buff 槽（荆棘药剂 thorns_pot / 食物 hot / 治疗增强 heal_up）。"""
+    v = _resolve(value, "summon")
+    tid = v.get("tid", "")
+    turns = max(1, int(v.get("turns", 3) or 3))
+    if not tid:
+        return "🧪 召唤物配置异常，没有生效！"
+    # 每场限 1 只：同 tid 已在场/已用过 → 无效无消耗
+    limit = int(v.get("limit", 1) or 1)
+    used = battle.p_eff.setdefault("summon_used", [])
+    if len([s for s in battle.summons if s.get("tid") == tid]) >= limit or tid in used:
+        return "⛔ 该召唤物每场战斗只能使用 1 次，已经用过了！"
+    st = battle._player_stats(player)
+    face = _SUMMON_FACES.get(tid, (tid, "👥"))
+    hp = max(20, int(st.get("max_hp", 200) * float(v.get("hp_ratio", 0.30))))
+    atk = max(5, int(st.get("atk", 50) * float(v.get("atk_ratio", 0.35))))
+    df = max(2, int(st.get("def", 20) * float(v.get("def_ratio", 0.30))))
+    battle.summons.append({"tid": tid, "name": face[0], "icon": face[1],
+                           "hp": hp, "max_hp": hp, "atk": atk, "def": df,
+                           "dmg_type": "phys", "rank": 1, "reach": 1})
+    used.append(tid)
+    msgs = [f"{face[1]} {face[0]} 加入战斗！(HP {hp} / 攻击 {atk})"]
+    if float(v.get("thorns", 0) or 0) > 0:
+        battle.p_buffs["thorns_pot"] = max(int(battle.p_buffs.get("thorns_pot", 0) or 0), turns)
+        msgs.append(f"受击反弹 {int(float(v['thorns']) * 100)}% 伤害")
+    if float(v.get("heal_pct", 0) or 0) > 0:
+        battle.p_hot = {"heal": float(v["heal_pct"]), "mana": 0.0, "turns": turns}
+        msgs.append(f"每回合回复 {int(float(v['heal_pct']) * 100)}% 最大生命")
+    if float(v.get("heal_bonus", 0) or 0) > 0:
+        battle.p_buffs["heal_up"] = max(int(battle.p_buffs.get("heal_up", 0) or 0), turns)
+        msgs.append("治疗技能效果提升")
+    return "✨ 召唤成功！" + "、".join(msgs) + f"！(持续 {turns} 回合)"
+
+
+@register("trap")
+def eff_trap(battle, player, value):
+    """v140 陷阱/控制类消耗品（霜寒捕兽夹/沉默封咒蜡/缴械绳网/魅惑魔粉）：
+    ctrl 控制写入敌方 buffs（freeze/stun/silence 由 _enemy_turn 行动级消费，
+    与 CONTROL_MECHS 白名单同口径）；Boss 降级/缴械/魅惑自伤走既有敌方攻击
+    减益槽（mon_atk_down + _weaken_val 由 _enemy_stats 消费）。"""
+    v = _resolve(value, "trap")
+    ctrl = v.get("ctrl", "")
+    turns = max(1, int(v.get("turns", 1) or 1))
+    if ctrl not in ("stun", "freeze", "silence"):
+        return "🧪 陷阱控制类型配置异常，没有生效！"
+    e = battle.enemy or {}
+    is_boss = bool(e.get("is_boss") or e.get("role") == "boss")
+    eb = e.setdefault("buffs", {})
+    msgs = []
+    # 魅惑魔粉：Boss 免疫（降级为降攻 boss_downgrade）；普通怪按原控制生效
+    if ctrl == "charm":
+        return "🧪 魅惑魔粉尚未接入魅惑结算，没有生效！"
+    if is_boss:
+        dg = v.get("boss_downgrade")
+        if isinstance(dg, str):  # 霜寒捕兽夹：Boss 冻结降级为减速
+            eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), turns)
+            msgs.append(f"Boss 免疫冻结，降级为减速 {turns} 回合！")
+        elif isinstance(dg, (int, float)):  # 沉默封咒蜡/魅惑：Boss 成功率
+            if random.random() < float(dg):
+                eb[ctrl] = max(int(eb.get(ctrl, 0) or 0), turns)
+                msgs.append(f"控制成功！Boss 被{'冻结' if ctrl == 'freeze' else '沉默'} {turns} 回合！")
+            else:
+                msgs.append(f"Boss 抵抗了控制（成功率 {int(float(dg) * 100)}%）！")
+        else:
+            eb[ctrl] = max(int(eb.get(ctrl, 0) or 0), turns)
+            msgs.append("控制生效！")
+    else:
+        eb[ctrl] = max(int(eb.get(ctrl, 0) or 0), turns)
+        msgs.append(f"敌方被{'冻结' if ctrl == 'freeze' else '眩晕' if ctrl == 'stun' else '沉默'} {turns} 回合！")
+    # 缴械绳网：普攻伤害 -atk_reduce%（mon_atk_down 槽 + _weaken_val 数值）
+    ar = float(v.get("atk_reduce", 0) or 0)
+    if ar > 0:
+        eb["mon_atk_down"] = max(int(eb.get("mon_atk_down", 0) or 0), 1)
+        eb["_weaken_val"] = min(0.9, ar)
+        msgs.append(f"缴械：敌方普攻伤害 -{int(ar * 100)}%！")
+    if not msgs:
+        return "🧪 陷阱效果未触发！"
+    return "⚔️ " + "，".join(msgs)
+
+
+@register("mana_restore")
+def eff_mana_restore(battle, player, value):
+    """v140 圣泉源泉瓶：回复 mana_pct% 最大法力（直接改 player 快照，与 mana 模板同源）
+    + 技能消耗 -cost_reduce% 持续 turns 回合（mana_cost_down 由技能施放结算消费）。"""
+    v = _resolve(value, "mana_restore")
+    mp_pct = float(v.get("mana_pct", 0.25) or 0)
+    gain = int(player.get("max_mp", 0) * mp_pct)
+    before = player.get("mp", 0)
+    player["mp"] = min(player.get("max_mp", player["mp"]), before + gain)
+    msgs = [f"回复 {player['mp'] - before} 点魔力！({player['mp']}/{player.get('max_mp', '?')})"]
+    cr = float(v.get("cost_reduce", 0) or 0)
+    if cr > 0:
+        turns = max(1, int(v.get("turns", 2) or 2))
+        battle.p_buffs["mana_cost_down"] = max(int(battle.p_buffs.get("mana_cost_down", 0) or 0), turns)
+        battle.p_eff["mana_cost_down"] = max(float(battle.p_eff.get("mana_cost_down", 0) or 0), cr)
+        msgs.append(f"技能消耗 -{int(cr * 100)}%（{turns} 回合）")
+    return "💙 " + "，".join(msgs)
+
+
+@register("resource_charge")
+def eff_resource_charge(battle, player, value):
+    """v140 充能蒸馏器：核心资源 +res_gain（按玩家职业核心资源 key，_res_gain 带上限），
+    且全部技能冷却 -cd_reduce 回合（cooldown 表直接减，_tick_cooldowns 次日递减）。"""
+    v = _resolve(value, "resource_charge")
+    gain = int(v.get("res_gain", 0) or 0)
+    cd = int(v.get("cd_reduce", 0) or 0)
+    from .. import engine as E
+    rd = E.core_resource_def(player.get("class_name", ""))
+    msgs = []
+    if rd and gain > 0:
+        key = rd["key"]
+        new = battle._res_gain(player, key, gain)
+        msgs.append(f"{rd['name']} +{gain}({new}/{rd.get('max', '?')})")
+    if cd > 0 and battle.cooldown:
+        for k in list(battle.cooldown):
+            battle.cooldown[k] = max(0, int(battle.cooldown[k] or 0) - cd)
+        msgs.append(f"全部技能冷却 -{cd} 回合")
+    if not msgs:
+        return "🧪 你的职业没有核心资源，充能没有生效！"
+    return "⚡ " + "，".join(msgs) + "！"
+
+
+@register("steal_buff")
+def eff_steal_buff(battle, player, value):
+    """v140 汲魂水晶：偷取敌方 1 个增益转给自己（敌方 buffs 键 → p_buffs 同回合数）。
+    敌方无增益时按 effect_data no_target_no_consume 语义不消耗（模板层已拦截）。"""
+    v = _resolve(value, "steal_buff")
+    e = battle.enemy or {}
+    eb = e.get("buffs") or {}
+    # 敌方增益候选：正向乘区/控制标记以外的 buff 键
+    cand = [k for k in eb if k not in ("stun", "freeze", "silence", "sleep")
+            and int(eb.get(k, 0) or 0) > 0]
+    if not cand:
+        return "🧪 敌方没有可偷取的增益！"
+    k = cand[0]
+    turns = max(1, int(v.get("turns", 2) or 2))
+    t = eb.pop(k)
+    battle.p_buffs[k] = max(int(battle.p_buffs.get(k, 0) or 0), int(t or turns))
+    return f"🕳️ 你偷取了敌方的增益【{k}】转给自己 {int(t or turns)} 回合！"
+
+
+@register("buff_extend")
+def eff_buff_extend(battle, player, value):
+    """v140 时之延香：自身全部增益时长 +extend_turns 回合（p_buffs 逐个顺延，
+    _end_round 回合递减消费；一次性标记类键豁免）。"""
+    v = _resolve(value, "buff_extend")
+    ext = max(1, int(v.get("extend_turns", 2) or 2))
+    n = 0
+    for k in list(battle.p_buffs):
+        if k in ("next_atk_up", "buff_phys_next", "stealth", "reduce_all", "stun", "freeze"):
+            continue
+        battle.p_buffs[k] = int(battle.p_buffs.get(k, 0) or 0) + ext
+        n += 1
+    return f"⏳ 时之延香燃尽，你身上的 {n} 个增益延长 {ext} 回合！"
+
+
+@register("phoenix")
+def eff_phoenix(battle, player, value):
+    """v140 不死鸟之羽：设置复活标记（被击倒后以 revive_hp% 生命复活 1 次，
+    复活后 turns 回合减伤 dmg_reduce%——标记存 p_eff 由战斗引擎死亡结算消费；
+    本版按 v140 收口先挂标记，消费端接线属引擎批次）。"""
+    v = _resolve(value, "phoenix")
+    if battle.p_eff.get("phoenix_used"):
+        return "⛔ 不死鸟之羽每场战斗只能使用 1 次，已经用过了！"
+    battle.p_eff["phoenix_used"] = True
+    battle.p_eff["phoenix_revive"] = {
+        "hp": float(v.get("revive_hp", 0.30) or 0.30),
+        "dmg_reduce": float(v.get("dmg_reduce", 0.20) or 0.20),
+        "turns": max(1, int(v.get("turns", 3) or 3)),
+    }
+    return f"🪶 不死鸟之羽泛起辉光——你获得 1 次濒死复活（{int(float(v.get('revive_hp', 0.30)) * 100)}% 生命）！"
+
+
+@register("purify_immune")
+def eff_purify_immune(battle, player, value):
+    """v140 圣光净水：净化全部负面状态（p_buffs 负向键清除，与净化卷轴同口径）
+    + turns 回合免疫 silence/stun（cc_immune 免疫槽，供引擎控制结算消费）。"""
+    v = _resolve(value, "purify_immune")
+    turns = max(1, int(v.get("turns", 3) or 3))
+    neg = ("stun", "freeze", "silence", "spd_down", "atk_down", "def_down",
+           "matk_down", "mdef_down", "reduce_all")
+    cleared = [k for k in neg if k in battle.p_buffs]
+    for k in cleared:
+        battle.p_buffs.pop(k, None)
+    if "reduce_all" in cleared:
+        battle._reduce_all_left = 0
+    battle.p_buffs["cc_immune"] = max(int(battle.p_buffs.get("cc_immune", 0) or 0), turns)
+    msg = "✨ 圣光涤荡，" + ("、".join(cleared) + " 已净化！" if cleared else "身上没有负面状态～")
+    return msg + f"({turns} 回合免疫沉默/眩晕)"
+
+
+@register("morph")
+def eff_morph(battle, player, value):
+    """v140 龙血变身药剂：变身 turns 回合攻/魔攻 +30%（atk_up/matk_up_pot 既有 buff 槽），
+    受击伤害 +15%（dmg_taken_up 标记存 p_eff，引擎受击结算消费）。"""
+    v = _resolve(value, "morph")
+    turns = max(1, int(v.get("turns", 3) or 3))
+    if battle.p_eff.get("morph_used"):
+        return "⛔ 变身药剂每场战斗只能使用 1 次，已经用过了！"
+    battle.p_eff["morph_used"] = True
+    battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), turns)
+    battle.p_buffs["matk_up_pot"] = max(int(battle.p_buffs.get("matk_up_pot", 0) or 0), turns)
+    battle.p_eff["morph_dmg_taken"] = float(v.get("dmg_taken_up", 0.15) or 0.15)
+    return f"🐉 龙血沸腾，你进入龙人形态 {turns} 回合！攻击/魔攻+30%，但受击伤害+{int(float(v.get('dmg_taken_up', 0.15)) * 100)}%！"
+
+
+@register("invuln")
+def eff_invuln(battle, player, value):
+    """v140 次元门扉符：无敌 1 回合免疫一切伤害（invuln 标记存 p_eff，引擎受击结算消费；
+    下回合无法行动僵直 stun_after 一并登记）。"""
+    v = _resolve(value, "invuln")
+    if battle.p_eff.get("invuln_used"):
+        return "⛔ 次元门扉符每场战斗只能使用 1 次，已经用过了！"
+    battle.p_eff["invuln_used"] = True
+    battle.p_eff["invuln"] = {"turns": max(1, int(v.get("turns", 1) or 1)),
+                              "stun_after": int(v.get("stun_after", 1) or 1)}
+    return "🌀 次元门扉展开，你遁入虚数空间——本回合免疫一切伤害！(下回合将僵直)"
+
+
+@register("apply_mark")
+def eff_apply_mark(battle, player, value):
+    """v140 元素引爆剂：对目标施加 stacks 层元素印记（_elem_mark_apply 写目标
+    element_marks，引爆技反应表 REACTION_TABLE 消费），并提升下次元素反应
+    倍率 ×react_bonus（_elem_reaction_boost 由 _reaction_table_resolve 消费）。"""
+    v = _resolve(value, "apply_mark")
+    mark = v.get("mark", "")
+    stacks = max(1, int(v.get("stacks", 1) or 1))
+    if mark not in ("fire", "ice", "thunder"):
+        return "🧪 元素印记类型配置异常，没有生效！"
+    new = battle._elem_mark_apply(mark, layers=stacks, player=player)
+    rb = float(v.get("react_bonus", 0) or 0)
+    if rb > 0:
+        battle._elem_reaction_boost = max(float(getattr(battle, "_elem_reaction_boost", 1.0) or 1.0), rb)
+    cn = {"fire": "火", "ice": "冰", "thunder": "雷"}[mark]
+    msg = f"✦ 目标被施加 {stacks} 层{cn}印记(当前 {new} 层)！"
+    if rb > 0:
+        msg += f" 下次元素反应倍率 ×{rb}！"
+    return msg
+
+
+@register("dot_amp")
+def eff_dot_amp(battle, player, value):
+    """v140 连携增幅墨：turns 回合内每次命中使目标毒/灼烧/流血层数 +layer_per_hit
+    （标记存 p_eff，命中叠层消费端属引擎批次；当前回合直接为目标已有点 dot 各 +1 层）。"""
+    v = _resolve(value, "dot_amp")
+    turns = max(1, int(v.get("turns", 2) or 2))
+    per = max(1, int(v.get("layer_per_hit", 1) or 1))
+    battle.p_eff["dot_amp"] = {"turns_left": turns, "layer_per_hit": per}
+    e = battle.enemy or {}
+    deb = e.setdefault("debuffs", {})
+    n = 0
+    for k in ("poison", "burn", "bleed"):
+        if deb.get(k, {}).get("n", 0):
+            d = deb.setdefault(k, {"n": 0, "mult": 1.0})
+            d["n"] = int(d.get("n", 0) or 0) + per
+            n += 1
+    msg = f"🎨 连携增幅墨生效！{turns} 回合内每次命中使异常层数 +{per}"
+    if n:
+        msg += f"（已为目标 {n} 种异常各 +{per} 层）"
+    return msg + "！"
+
+
+@register("reaction")
+def eff_reaction(battle, player, value):
+    """v140 元素共鸣石：直接引爆目标印记触发元素反应（遍历目标 element_marks，
+    按 REACTION_TABLE 任一组可反应组合结算——蒸发/超载/冻结/感电，含倍率/清印/特效）；
+    无印记则造成 fallback_matk% 魔攻伤害（_damage_enemy 直接结算）。"""
+    v = _resolve(value, "reaction")
+    marks = battle._elem_marks()
+    hit = None
+    for cast_el, mark_el in REACTION_TABLE:
+        if int(marks.get(mark_el, 0) or 0) > 0:
+            hit = (cast_el, mark_el)
+            break
+    if hit is not None:
+        rr = battle._reaction_table_resolve(player, hit[0], battle._player_stats(player), [])
+        if rr is not None:
+            rmult, rlog, chain = rr
+            msg = f"💥 元素共鸣石引爆！{rlog}"
+            if chain:
+                msg += " 追加一次攻击！"
+            return msg
+    fb = float(v.get("fallback_matk", 0.90) or 0.90)
+    st = battle._player_stats(player)
+    dmg = max(1, int(st.get("matk", 0) * fb))
+    battle._damage_enemy(dmg, [])
+    return f"⚡ 目标没有可引爆的印记，共鸣石化为 {int(fb * 100)}% 魔攻冲击，造成 {dmg} 点伤害！"
+
+
+@register("vuln")
+def eff_vuln(battle, player, value):
+    """v140 弱点击破石：目标每有 1 种负面状态，你对其伤害 +per_debuff%（上限
+    max_debuff 种 +max_bonus%），持续 turns 回合——按当前敌方负面数即时结算并
+    挂 p_eff 标记（引擎后续攻击结算消费持续效果）。"""
+    v = _resolve(value, "vuln")
+    turns = max(1, int(v.get("turns", 3) or 3))
+    per = float(v.get("per_debuff", 0.12) or 0.12)
+    mdb = max(1, int(v.get("max_debuff", 3) or 3))
+    cap = float(v.get("max_bonus", 0.36) or 0.36)
+    e = battle.enemy or {}
+    neg = 0
+    eb = e.get("buffs") or {}
+    for k in ("freeze", "stun", "silence", "spd_down", "def_down", "mon_atk_down", "sleep"):
+        if int(eb.get(k, 0) or 0) > 0:
+            neg += 1
+    deb = e.get("debuffs") or {}
+    for k in ("poison", "burn", "bleed", "corros", "mark"):
+        if int((deb.get(k) or {}).get("n", 0) or 0) > 0:
+            neg += 1
+    cnt = min(neg, mdb)
+    bonus = min(cap, per * cnt)
+    battle.p_eff["vuln"] = {"per_debuff": per, "count": cnt, "bonus": bonus, "turns_left": turns}
+    battle.p_buffs["vuln"] = max(int(battle.p_buffs.get("vuln", 0) or 0), turns)
+    return f"🎯 弱点击破！目标当前 {neg} 种负面状态，你对其伤害 +{int(bonus * 100)}%({turns} 回合)！"
+

@@ -58,18 +58,19 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("76 种词条（45 基准 + v130.2 资源联动词条 31——v110 审计拆分 tenacity_cc「坚韧」原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 76, str(len(C.AFFIXES)))
-    check("专属 22", len(C.LEGENDARY_EFFECTS) == 28, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳
-    check("名册 384 件", len(C.EQUIP_ROSTER) == 388, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180(职业套装90+散装60+区域套30)
+    check("专属 29", len(C.LEGENDARY_EFFECTS) == 29, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳; v140: +初火余烬
+    check("名册 631 件", len(C.EQUIP_ROSTER) == 631, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180; v140: +213(特效70+精英/Boss掉落+早期/中期/后期补位+任务装)
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.55", C.QUALITY["blue"]["mult"] == 1.55)
     # 词条触发时机全合法
     valid_triggers = {"stat", "on_hit", "on_taken", "turn_start", "battle_start", "passive"}
     bad = [aid for aid, info in C.AFFIXES.items() if info["trigger"] not in valid_triggers]
     check("词条触发时机合法", not bad, str(bad))
-    # 名册每件都有需求 + 固定词条配置
+    # 名册每件都有需求 + 固定词条配置（白/绿装豁免：0/1 词条走随机池）
     missing_fixed = [rid for rid, r in C.EQUIP_ROSTER.items()
-                     if r["name"] not in C.SERIES_FIXED_AFFIX]
-    check("固定词条全覆盖", not missing_fixed, str(missing_fixed[:5]))
+                     if r["quality"] in ("blue", "purple", "orange")
+                     and r["name"] not in C.SERIES_FIXED_AFFIX]
+    check("固定词条全覆盖（蓝紫橙）", not missing_fixed, str(missing_fixed[:5]))
     # v95：商店饰品无属性需求（新手期不卡职业），req 允许缺失/为空
     bad_req = [rid for rid, r in C.EQUIP_ROSTER.items()
                if not set(r.get("req") or {}).issubset({"str", "agi", "int", "vit"})]

@@ -52,7 +52,7 @@ from .stats import (  # noqa: F401
 )
 from .maps import _build_ency  # noqa: F401
 from .drops import (  # noqa: F401
-    make_blueprint, roll_blueprint, roll_drop, generate_equip, generate_roster_equip,
+    make_blueprint, roll_blueprint, roll_drop, roll_drop_equip, generate_equip, generate_roster_equip,
     build_monster, build_monster_group,
 )
 from .factions import faction_reputation_tier  # noqa: F401
@@ -109,6 +109,12 @@ from .mounts import make_mount_rein, roll_mount_drop, mount_effects  # noqa: F40
 from .exploration import (  # noqa: F401
     record_visit as exploration_record_visit,  # v115 协作契约名（G 调用 C.exploration_record_visit）
     record_visit, region_progress, overall_progress,
+)
+# v140 波2：野外 Boss 看守宝箱（野王体系）核心逻辑（聚合导出，命令层 C.wild_king_* 调用）
+from .wild_king import (  # noqa: F401
+    wild_king_tick, wild_king_state, explore_king, build_king_monster,
+    wild_king_on_kill, open_chest, wild_king_summary,
+    personal_meta, list_active_kings, period_key, period_label,
 )
 
 # 原 game/engine.py、game/battle.py 保持原位，由 game/__init__ 聚合

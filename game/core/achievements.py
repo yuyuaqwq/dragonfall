@@ -7,11 +7,65 @@
 - achievement_points(qq_id)：成就点计算（普通 1 / 隐藏 2）
 
 ⚠️ 本模块在 core 聚合链内，禁止顶层 import content/engine（循环导入），一律函数内延迟导入。
-数据源：players（level/evolve_path/learned_skills/apprentices/gold）、
-stats 表（kills/elite/boss/visited_areas/inst_clears/party_count/副业次数/world_events）、
-professions 表（副业等级）、quests（completed_main）、bestiary（击杀/图鉴）、
+数据源：players（level/evolve_path/learned_skills/apprentices/gold/learned_blueprints）、
+stats 表（kills/elite/boss/visited_areas/inst_clears/party_count/副业次数/world_events/chests_opened）、
+professions 表（副业等级）、quests（completed_main/side）、bestiary（击杀/图鉴）、
 achievements 表（已解锁 + inst_clear_* 记录）。
+
+v140 波2（成就/称号/收藏资源化 3.9）：
+- reward.items 物品奖励发放（claim_achievement_rewards）
+- 3 个新条件类型注册（blueprints_learned/quests_done/chests_opened）——直接 extend
+  COND_CHECKS 注册表（achievement_conds.py 的 dict 是模块级单例，注册后 cond_met 立即可用）
 """
+
+# v140 波2：3 个新条件类型注册（数据已有零消费点或最小接线）
+# 与 achievement_conds.py 共用 COND_CHECKS 单例：本模块 import 它再注册，cond_met 同 dict 生效。
+try:
+    from .achievement_conds import COND_CHECKS as _COND_CHECKS
+except Exception:
+    _COND_CHECKS = None
+
+
+def _register_cond(key):
+    """向 COND_CHECKS 注册条件判定（v140 波2 新增类型）。"""
+    def deco(fn):
+        if _COND_CHECKS is not None:
+            _COND_CHECKS[key] = fn
+        return fn
+    return deco
+
+
+@_register_cond("blueprints_learned")
+def _c_blueprints_learned(player, stats, profs, extra, cond):
+    """已学习图纸数（v140 波2：读 players.learned_blueprints 长度，数据已有零消费点）"""
+    return len(player.get("learned_blueprints") or []) >= cond.get("value", 0)
+
+
+@_register_cond("quests_done")
+def _c_quests_done(player, stats, profs, extra, cond):
+    """累计完成任务数（v140 波2：读 quests.completed_main + side done 计数，数据已有零消费点）"""
+    gid = extra.get("_group_id")
+    if not gid:
+        return False
+    from .. import db
+    try:
+        q = db.get_quests(gid, player["qq_id"])
+    except Exception:
+        return False
+    if not q:
+        return False
+    done = len(q.get("completed_main") or [])
+    for _s in (q.get("side") or {}).values():
+        if isinstance(_s, dict) and _s.get("status") == "done":
+            done += 1
+    return done >= cond.get("value", 0)
+
+
+@_register_cond("chests_opened")
+def _c_chests_opened(player, stats, profs, extra, cond):
+    """累计开启宝箱数（v140 波2：读 stats.chests_opened——stats 新列 +
+    item_templates.py tpl_open_chest 一行 bump 接线；无列时 get 兜底 0 不报错）"""
+    return int(stats.get("chests_opened", 0) or 0) >= cond.get("value", 0)
 
 
 def _bestiary_kills(qq_id, keyword) -> int:
@@ -137,12 +191,21 @@ def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
                     continue
                 unlocked.add(a["id"])
                 rw = a.get("reward") or {}
-                if rw.get("exp") or rw.get("gold"):
+                if rw.get("exp") or rw.get("gold") or rw.get("items"):
                     parts = []
                     if rw.get("exp"):
                         parts.append(f"经验+{rw['exp']}")
                     if rw.get("gold"):
                         parts.append(f"金币+{rw['gold']}")
+                    # v140 波2：物品奖励进解锁提示（《物品名》×N）
+                    if rw.get("items"):
+                        for _ik, _ic in rw["items"].items():
+                            _nm = _ik
+                            try:
+                                _nm = (C.ITEMS.get(_ik) or C.MATERIALS.get(_ik) or {}).get("name", _ik)
+                            except Exception:
+                                pass
+                            parts.append(f"{_nm}×{_ic}")
                     a = dict(a)
                     a["_reward_txt"] = "、".join(parts) + "（『成就 领取』领取）"
                 else:
@@ -157,10 +220,13 @@ def check_achievements(group_id, qq_id, player=None, extra=None) -> list:
 
 
 def claim_achievement_rewards(group_id, qq_id) -> tuple:
-    """领取全部待领取的成就奖励(经验/金币)。返回 (lines, err) 供命令输出。
+    """领取全部待领取的成就奖励(经验/金币/物品)。返回 (lines, err) 供命令输出。
 
     v101.22：成就解锁后奖励待领取，玩家手动『成就 领取』时统一发放，
     发放走 check_player_level_up 正常结算升级。未解锁/无奖励成就忽略。
+    v140 波2（成就/称号/收藏资源化 3.9）：reward 新增 items 物品奖励
+    （{item_key: count}），与经验/金币一同发放——db.add_item 入包，
+    物品 key 走 _key_to_id 兼容中文名；发放失败静默跳过（物品缺失不影响其他奖励）。
     """
     from .. import content as C
     from .. import db
@@ -178,7 +244,8 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
             # v105.xx P0 修复：原 `if a and X or Y` 优先级错误——a=None（如 inst_clear_* 记录
             # 不在 C.ACHIEVEMENTS 中）时 `or` 右侧仍求值 a.get() → AttributeError 崩溃。
             # 显式括号：a 为 None 时短路，不进入。
-            if a and (((a.get("reward") or {}).get("exp", 0)) or ((a.get("reward") or {}).get("gold", 0))):
+            if a and (((a.get("reward") or {}).get("exp", 0)) or ((a.get("reward") or {}).get("gold", 0))
+                      or ((a.get("reward") or {}).get("items"))):
                 claimable.append(a)
         if not claimable:
             # 没有奖励的成就直接标记已领取，避免永久挂起
@@ -197,6 +264,27 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         player["_title_bonus"] = title_bonus(group_id, qq_id, player)
         exp_gain = sum((a.get("reward") or {}).get("exp", 0) for a in claimable)
         gold_gain = sum((a.get("reward") or {}).get("gold", 0) for a in claimable)
+        # v140 波2：物品奖励统一收集 → 发放（失败静默跳过，不阻塞经验/金币/升级）
+        item_lines = []
+        _reward_ok = True
+        try:
+            from ..store.inventory import _key_to_id
+        except Exception:
+            _key_to_id = None
+        for a in claimable:
+            for ik, ic in ((a.get("reward") or {}).get("items") or {}).items():
+                try:
+                    if _key_to_id is not None:
+                        ik = _key_to_id(ik)
+                    _idata = C.ITEMS.get(ik) or C.MATERIALS.get(ik)
+                    if _idata is None:
+                        # 兜底：给个最小数据让 add_item 有 name 可显示
+                        _idata = {"name": ik, "type": "材料", "stackable": True, "price": 0}
+                    db.add_item(group_id, qq_id, ik, _idata, count=int(ic))
+                    _disp = _idata.get("name", ik)
+                    item_lines.append(f"  🎒 {_disp} ×{ic}")
+                except Exception:
+                    _reward_ok = False
         player["exp"] = player.get("exp", 0) + exp_gain
         player["gold"] = player.get("gold", 0) + gold_gain
         lv_logs, player = check_player_level_up(group_id, qq_id, player)
@@ -209,6 +297,11 @@ def claim_achievement_rewards(group_id, qq_id) -> tuple:
         for a in claimable:
             db.set_achievement(group_id, qq_id, a["id"], 1, 1)
         lines = [f"🎁 成就奖励领取！经验 +{exp_gain}" + (f" 金币 +{gold_gain}" if gold_gain else "")]
+        if item_lines:
+            lines.append("🎒 获得物品：")
+            lines += item_lines
+            if not _reward_ok:
+                lines.append("(部分物品发放失败，可联系管理)")
         for a in claimable:
             lines.append(f"🏅 {a['name']}")
         lines.append("")

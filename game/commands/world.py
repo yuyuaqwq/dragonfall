@@ -4406,6 +4406,18 @@ class WorldCmds(CommandBase):
                 _need = (C.CLASSES.get(uc, {}).get("tier_levels") or {1: 40, 2: 60, 3: 90})[1]
                 _cname = C.CLASSES.get(uc, {}).get("name", uc)
                 lines.append(f"  💡 达到 {_need} 级后输入『转职 {_cname}』接受传承！")
+        # v140 波3.6：任务奖励称号（title 字段 = titles.py id 或中文名；称号系统条件判定自动拥有，
+        # 这里仅播报解锁——条件满足即生效，不满足也不阻塞任务完成）
+        _tid = qdef.get("title")
+        if _tid:
+            _tinfo = next((t for t in C.TITLES if t.get("id") == _tid), None)
+            if not _tinfo:
+                # 兼容支线旧字段用中文名（如 "北境的恩人" → north_benefactor）
+                _tinfo = next((t for t in C.TITLES if t.get("name") == _tid), None)
+            if _tinfo:
+                lines.append(f"  🏅 获得称号：「{_tinfo.get('name', _tid)}」！")
+            else:
+                print(f"[dragonfall][v140] 任务『{qdef.get('name', '')}』称号 id 缺失：{_tid}（titles.py 未登记），已跳过")
         return player
 
     def _complete_side_quest(self, group_id, qq_id, sid, branch_choice=None):

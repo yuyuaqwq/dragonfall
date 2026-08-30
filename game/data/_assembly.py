@@ -36,6 +36,15 @@ from .dungeon_links import SUBAREA_LINKS as _LINKS_DUNGEON  # noqa: F401
 from .dungeon_pois import DUNGEON_POI_MOUNTS as _POI_DUNGEON  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
 from .instance_stage_maps import INSTANCE_STAGE_MAPS, INSTANCE_STAGE_NPCS  # noqa: F401
+# v140 波2：副本通关后调查点数据（22 副本 × 3-5 个，key=inst_xxx 与 INSTANCES 对齐）
+from .instance_investigation import INVESTIGATION_POINTS  # noqa: F401
+# v140 波2：野外 Boss 看守宝箱（野王体系）数据表
+from .wild_king_data import (  # noqa: F401
+    WILD_KINGS, WILD_KING_MAPS, WILD_KING_PERIODS, WILD_KING_CHEST_TIERS,
+    WILD_KING_GLOBAL_LIMIT, WILD_KING_LIFETIME_SEC, WILD_KING_LOOT_PRIORITY_SEC,
+    WILD_KING_PER_PERIOD_LIMIT, WILD_KING_PER_DAY_LIMIT,
+    WILD_KING_PITY_PERIODS, WILD_KING_NO_KILL_EXTRA, WILD_KING_SPAWN_HOURS,
+)
 from .monsters import MONSTER_SKILLS  # noqa: F401
 from .skills import PLAYER_SKILLS, BRANCH_SKILLS, TUTOR_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401

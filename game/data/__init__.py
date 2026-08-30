@@ -91,9 +91,29 @@ from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
 from .instances import INSTANCES  # noqa: F401
+# v140 波2：副本通关后调查点数据（聚合层导出，命令层 C.INVESTIGATION_POINTS 直读）
+from .instance_investigation import (  # noqa: F401
+    INVESTIGATION_POINTS, INVESTIGATE_COLLECT_SAMPLES,
+    INVESTIGATE_BP_CHANCE, INVESTIGATE_RUNE_CHANCE, INVESTIGATE_COLLECT_CHANCE,
+)
+# v140 波2：野外 Boss 看守宝箱（野王体系）数据表（聚合层导出，命令层 C.WILD_KING_* 直读）
+from .wild_king_data import (  # noqa: F401
+    WILD_KINGS, WILD_KING_MAPS, WILD_KING_PERIODS, WILD_KING_CHEST_TIERS,
+    WILD_KING_GLOBAL_LIMIT, WILD_KING_LIFETIME_SEC, WILD_KING_LOOT_PRIORITY_SEC,
+    WILD_KING_PER_PERIOD_LIMIT, WILD_KING_PER_DAY_LIMIT,
+    WILD_KING_PITY_PERIODS, WILD_KING_NO_KILL_EXTRA, WILD_KING_SPAWN_HOURS,
+)
+# v140 波3.3：任务奖励/章节礼包/补给箱数据（聚合层导出，命令层 C.CHAPTER_PACK / C.SUPPLY_BOX 直读）
+from .quest_add_v140 import (  # noqa: F401
+    QUEST_ADD, QUEST_MAT, CHAPTER_PACK, SUPPLY_BOX,
+)
+# v140 波3.7：今日奇遇地图配置（此前仅被 core/daily_events.py 直连引用，未走聚合导出；
+# 事件菜单指令需要 C.DAILY_MAP_EVENTS 全图遍历，补导出）
+from .daily_events import DAILY_MAP_EVENTS  # noqa: F401
 from .housing import PROPERTIES, HOUSE_LEVELS, HOUSE_MAX_LEVEL, HOUSE_REFUND  # noqa: F401
 from .races import RACES  # noqa: F401
 from .achievements import ACHIEVEMENTS  # noqa: F401
+from .collection_book import COLLECTION_BOOKS  # noqa: F401  (v140 波2：5 套冒险者收藏册数据)
 from .wild_npcs import WILD_NPCS, HIDDEN_NPCS  # noqa: F401
 from .gather_pools import GATHER_MAP_POOLS  # noqa: F401
 from .gather_pools import GATHER_COND_POOLS, MINING_DEEP_POOLS  # noqa: F401 v102.3 限定采集/深矿

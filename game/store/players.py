@@ -18,6 +18,8 @@ PLAYER_FIELDS = {
     "equipped_title", "hidden_class_unlock", "deed_lv", "cur_subarea",
     "stamina", "stamina_ts", "explore_wandering", "gender",
     "faction", "battle_prefs",
+    # v140 波2：副本通关后调查——每日次数/日期（跨日归零）
+    "investigate_date", "investigate_count",
 }
 
 

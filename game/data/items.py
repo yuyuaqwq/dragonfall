@@ -2035,7 +2035,7 @@ CONSUMABLES = {
     "i_holy_water": {"name": "祝福圣水", "price": 80, "heal": 0.25,
                      "desc": "回复 25% HP（圣堂祝福的净水）"},
     # ---- 2.2 食物（非战斗回复 + 持续 buff） ----
-    "i_bread": {"name": "黑面包", "food": True, "price": 5, "hot": 0.03, "hot_turns": 3, "heal": 0.3, "stamina": 20,
+    "i_bread": {"name": "黑面包", "food": True, "price": 10, "hot": 0.03, "hot_turns": 3, "heal": 0.3, "stamina": 20,
                 "desc": "回复 30% HP + 20 体力；战斗中每回合回复 3% 生命（3 回合）"},
     "i_meat_skewer": {"name": "烤肉串", "food": True, "price": 15, "hot": 0.06, "hot_turns": 3, "heal": 0.5, "stamina": 30,
                       "desc": "回复 50% HP + 30 体力；战斗中每回合回复 6% 生命（3 回合）"},
@@ -2168,9 +2168,9 @@ CONSUMABLES = {
     "i_salve_l": {"name": "秘制药膏", "price": 300, "heal": 500,
                   "desc": "回复 500 点 HP（固定值，旧式配方）"},
     # ---- B. 食物线（城镇特色 12 地 × 3 + 野外野味）----
-    "i_oats_porridge": {"name": "燕麦粥", "food": True, "price": 6, "hot": 0.03, "hot_turns": 3, "heal": 0.2, "stamina": 20,
+    "i_oats_porridge": {"name": "燕麦粥", "food": True, "price": 10, "hot": 0.03, "hot_turns": 3, "heal": 0.2, "stamina": 20,
                         "desc": "回复 20% HP + 20 体力（橡木镇农家）；战斗中每回合回复 3% 生命（3 回合）"},
-    "i_honey_pancake": {"name": "蜂蜜烤饼", "food": True, "price": 8, "hot": 0.03, "hot_turns": 3, "stamina": 25,
+    "i_honey_pancake": {"name": "蜂蜜烤饼", "food": True, "price": 12, "hot": 0.03, "hot_turns": 3, "stamina": 25,
                         "desc": "回复 25 体力（橡木镇甜点）；战斗中每回合回复 3% 生命（3 回合）"},
     "i_apple_wine": {"name": "苹果酒", "food": True, "price": 10, "hot_turns": 3, "hot_mana": 0.04, "mana": 0.1, "stamina": 15,
                      "desc": "回复 10% MP + 15 体力（橡木镇果园）；战斗中每回合回复 4% 魔力（3 回合）"},
@@ -2663,6 +2663,79 @@ MATERIALS.update({
         "desc": "夜祷祭司的圣物，浸透午夜祈祷的幽蓝微光(Boss 稀有素材，装备进化消耗)"},
 })
 
+# ================= v140 波3.5：任务专属材料 + 图纸/工具实体（2026-08-30） =================
+# 3 种任务专属材料定义见 quest_add_v140.py::QUEST_MAT（q3_3 潮汐黑铁 / q7_3 月辉精魄 / q9_4 烬核火种），
+# 仅任务可得、用于传说锻造；按名 resolve("materials") 发放 → 必须挂 MATERIALS，与 QUEST_MAT 字段一致。
+MATERIALS.update({
+    "mat_tide_blackiron": {
+        "name": "潮汐黑铁", "type": "材料", "quality": "blue",
+        "price": 300,
+        "desc": "独眼杰克的旗舰龙骨下压着的深海黑铁，被潮汐淬炼了百年——传说锻造「海神之怒·潮汐」的基石材料（仅任务可得）",
+    },
+    "mat_moonlight_essence": {
+        "name": "月辉精魄", "type": "材料", "quality": "purple",
+        "price": 600,
+        "desc": "星语湖王消散时留下的月辉结晶，倒映着湖底古老的星图——传说锻造「星辉之缚·苍穹」的基石材料（仅任务可得）",
+    },
+    "mat_ember_seed": {
+        "name": "烬核火种", "type": "材料", "quality": "orange",
+        "price": 1500,
+        "desc": "赫尔加仪式炉中未燃尽的火种，仍跳动着烬山的余温——传说锻造「灰烬圣剑·初火」的基石材料（仅任务可得）",
+    },
+})
+
+# ================= v140 波3.5：5 种图纸/工具实体（2026-08-30） =================
+# q3_3 金钩弯刀图纸（金钩弯刀=eq_jin_gou_wan_dao 橙 Lv26 铁港系列，equip_roster 已登记）／
+# q9_3 赫尔加的祭器图纸（eq_he_er_jia_de_ji_qi 橙 Lv72 霜狼系列）／q8_6 破甲符文（紫符文，同 s17 符文奖励先例）／
+# q10_6 幸运宝石（对照 v136 宝石体系：装备孔位镶嵌提升暴击率）／银铃之竿（v124 垂钓线纪念，对照钓竿工具）。
+MATERIALS.update({
+    # ---- 金钩弯刀图纸：海盗王·独眼杰克专属武器图纸（q3_3 主线奖励）----
+    "mat_bp_jin_gou_wan_dao": {
+        'price': 200, 'name': "金钩弯刀图纸", 'type': "图纸",
+        'blueprint_for': "金钩弯刀", 'roster_id': "eq_jin_gou_wan_dao",
+        'desc': "海盗王独眼杰克的弯刀锻造图纸，学习后可锻造【金钩弯刀】(Lv.26 橙武，铁港系列)",
+    },
+    # ---- 赫尔加的祭器图纸：恶魔祭司·赫尔加专属祭器图纸（q9_3 主线奖励）----
+    "mat_bp_he_jia_de_ji_qi": {
+        'price': 300, 'name': "赫尔加的祭器图纸", 'type': "图纸",
+        'blueprint_for': "赫尔加的祭器", 'roster_id': "eq_he_er_jia_de_ji_qi",
+        'desc': "烬山祭坛恶魔祭司赫尔加的祭器锻造图纸，学习后可锻造【赫尔加的祭器】(Lv.72 橙项链，霜狼系列)",
+    },
+    # ---- 破甲符文：紫符文（q8_6 战歌·Lv.62 档主线奖励；符文掉落先例见 s17 随机符文）----
+    "mat_po_jia_fu_wen": {
+        "price": 400, "name": "破甲符文", "type": "符文", "quality": "purple",
+        "desc": "战歌中铭刻的破甲符文，附魔后攻击可无视部分防御",
+    },
+    # ---- 幸运宝石：宝石（q10_6 最后的拥抱·Lv.88 档主线奖励；对照 v136 宝石体系嵌入孔位）----
+    "mat_xing_yun_bao_shi": {
+        "price": 500, "name": "幸运宝石", "type": "宝石", "quality": "purple",
+        "desc": "蕴含好运的宝石，可嵌入装备孔位提升暴击率",
+    },
+    # ---- 传说钓竿·银铃之竿：工具（v124 垂钓线传说钓竿，对照钓竿工具格式；真装备 eq_chuan_shuo_diao_gan 已登记名册）----
+    "mat_chuan_shuo_diao_gan_yin_ling": {
+        "price": 800, "name": "传说钓竿·银铃之竿", "type": "工具", "quality": "orange",
+        "desc": "垂钓传说档极稀有的银铃钓竿，愿者上钩——垂钓者的眷顾，掉落收益提升",
+    },
+    # ---- 灰影狼牙刃图纸：狼王·灰影专属武器图纸（q2_3 主线奖励；craft.py 无 blueprint 引用，纯任务奖励）----
+    "mat_bp_hui_ying_lang_ya_ren": {
+        'price': 150, 'name': "灰影狼牙刃图纸", 'type': "图纸",
+        'blueprint_for': "灰影狼牙刃", 'roster_id': "eq_hui_ying_lang_ya_ren",
+        'desc': "狼王·灰影的獠牙磨成的短刃锻造图纸，学习后可锻造【灰影狼牙刃】(Lv.14 紫匕首，铁牙系列)",
+    },
+    # ---- 古王剑图纸：古王·奥德里克陪葬王剑图纸（q6_2 主线奖励；craft.py blueprint 引用同名配方）----
+    "mat_bp_gu_wang_jian": {
+        'price': 260, 'name': "古王剑图纸", 'type': "图纸",
+        'blueprint_for': "古王剑", 'roster_id': "eq_gu_wang_jian",
+        'desc': "古王·奥德里克陪葬王剑的锻造图纸，学习后可锻造【古王剑】(Lv.42 橙剑，圣光系列)",
+    },
+    # ---- 蚀夜之面图纸：蚀夜（真相形态）暗影面具图纸（q12_2 主线奖励；craft.py 无引用，纯任务奖励）----
+    "mat_bp_shi_ye_zhi_mian": {
+        'price': 380, 'name': "蚀夜之面图纸", 'type': "图纸",
+        'blueprint_for': "蚀夜之面", 'roster_id': "eq_shi_ye_zhi_mian",
+        'desc': "蚀夜褪下的暗影面具锻造图纸，学习后可锻造【蚀夜之面】(Lv.98 橙头盔，影纱系列)",
+    },
+})
+
 # ================= 材料 desc 注入（v101.25g，手写优先） =================
 for _mid, _m in MATERIALS.items():
     if not _m.get("desc"):
@@ -2885,4 +2958,49 @@ ITEMS.update({
     "i_surging_brew": {"name": "澎湃烈酒", "food": True, "price": 85, "type": "消耗品",
                        "effect": "battle_start_resource", "effect_data": {"key": "chi", "amount": 1, "buff": {"kind": "phys_up", "pct": 0.05, "turns": 3}},
                        "desc": "战斗前饮用，开战后前 3 回合 物理伤害 + 5%，且初始 + 1 点气；烈酒入喉，气机澎湃 (稀有，酒馆 / 任务奖励)"},
+})
+
+
+# ================= v140 资源获取渠道丰富化新增道具（39件） =================
+# 来源：战斗机制道具20+功能生活道具19（方案 3.6/3.7 节）
+ITEMS.update({
+    'i_jin_ling_xiang_lu': {'name': '烬灵香炉', 'price': 60, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'summon', 'effect_data': {'tid': 'ember_wisp', 'turns': 3, 'limit': 1, 'atk_ratio': 0.35, 'bodyguard': 0.3}, 'desc': '青铜香炉袅袅生烟，召出「烬灵」并肩而战——自动攻击(35%攻击)并为你挡刀，持续 3 回合(每场限 1 只，战斗内使用)'},
+    'i_sheng_hui_ti_shen_xiang': {'name': '圣徽替身像', 'price': 120, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'summon', 'effect_data': {'tid': 'holy_totem', 'turns': 3, 'limit': 1, 'taunt': True, 'heal_bonus': 0.15}, 'desc': '圣徽圣像嘲讽敌方 1 回合，其后 2 回合你受治疗+15%(每场限 1，战斗内使用)'},
+    'i_jing_ji_kui_lei_zhong': {'name': '荆棘傀儡种', 'price': 80, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'summon', 'effect_data': {'tid': 'thorn_golem', 'turns': 3, 'limit': 1, 'thorns': 0.2}, 'desc': '撒下荆棘傀儡种，召出傀儡 3 回合，受击反弹 20% 伤害(每场限 1，战斗内使用)'},
+    'i_zhan_di_yi_zhe_mo_ou': {'name': '战地医者魔偶', 'price': 150, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'summon', 'effect_data': {'tid': 'medic_golem', 'turns': 3, 'limit': 1, 'heal_pct': 0.08}, 'desc': '召出医者魔偶 3 回合，每回合末回复 8% 最大生命(每场限 1，战斗内使用)'},
+    'i_shuang_han_bu_shou_jia': {'name': '霜寒捕兽夹', 'price': 70, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'trap', 'effect_data': {'ctrl': 'freeze', 'turns': 1, 'boss_downgrade': 'slow', 'shatter_bonus': 1.5}, 'desc': '冻结敌人 1 回合(Boss 降级为减速)，可接碎冰 1.5 倍增伤(战斗内使用)'},
+    'i_chen_mo_feng_zhou_la': {'name': '沉默封咒蜡', 'price': 110, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'trap', 'effect_data': {'ctrl': 'silence', 'turns': 1, 'boss_rate': 0.6}, 'desc': '沉默敌人 1 回合(Boss 成功率 60%)(战斗内使用)'},
+    'i_jiao_xie_sheng_wang': {'name': '缴械绳网', 'price': 60, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'trap', 'effect_data': {'ctrl': 'disarm', 'turns': 1, 'atk_reduce': 0.6}, 'desc': '敌方普攻伤害-60% 持续 1 回合(缴械)(战斗内使用)'},
+    'i_mei_huo_mo_fen': {'name': '魅惑魔粉', 'price': 200, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'trap', 'effect_data': {'ctrl': 'charm', 'turns': 1, 'self_damage': 0.5, 'boss_downgrade': 0.2, 'limit': 1}, 'desc': '魅惑敌人 1 回合，其攻击自身造成 50% 自伤(Boss 免疫，改降攻 20%)(每场限 1，战斗内使用)'},
+    'i_sheng_quan_yuan_quan_ping': {'name': '圣泉源泉瓶', 'price': 130, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'mana_restore', 'effect_data': {'mana_pct': 0.25, 'cost_reduce': 0.25, 'turns': 2}, 'desc': '回复 25% 最大法力，且技能消耗-25% 持续 2 回合(战斗内使用)'},
+    'i_chong_neng_zheng_liu_qi': {'name': '充能蒸馏器', 'price': 140, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'resource_charge', 'effect_data': {'res_gain': 2, 'cd_reduce': 1}, 'desc': '核心资源+2，且全部技能冷却-1 回合(战斗内使用)'},
+    'i_ji_hun_shui_jing': {'name': '汲魂水晶', 'price': 90, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'steal_buff', 'effect_data': {'turns': 2, 'no_target_no_consume': True}, 'desc': '偷取敌方 1 个增益转给自己 2 回合(敌方无增益则不消耗)(战斗内使用)'},
+    'i_shi_zhi_yan_xiang': {'name': '时之延香', 'price': 120, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'buff_extend', 'effect_data': {'extend_turns': 2}, 'desc': '自身全部增益时长+2 回合(战斗内使用)'},
+    'i_bu_si_niao_zhi_yu': {'name': '不死鸟之羽', 'price': 260, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'phoenix', 'effect_data': {'revive_hp': 0.3, 'dmg_reduce': 0.2, 'turns': 3, 'limit': 1}, 'desc': '濒死守护：被击倒后以 30% 生命复活 1 次，复活后 3 回合减伤 20%(每场限 1，战斗内使用)'},
+    'i_sheng_guang_jing_shui': {'name': '圣光净水', 'price': 85, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'purify_immune', 'effect_data': {'purify': True, 'immune': ['silence', 'stun'], 'turns': 3}, 'desc': '净化全部负面状态，且 3 回合免疫沉默/眩晕(战斗内使用)'},
+    'i_long_xue_bian_shen_yao': {'name': '龙血变身药剂', 'price': 240, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'morph', 'effect_data': {'atk_up': 0.3, 'matk_up': 0.3, 'dmg_taken_up': 0.15, 'turns': 3, 'limit': 1}, 'desc': '变身 3 回合：攻/魔攻+30%，但受击伤害+15%(每场限 1，战斗内使用)'},
+    'i_ci_yuan_men_fei_fu': {'name': '次元门扉符', 'price': 280, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'invuln', 'effect_data': {'turns': 1, 'stun_after': 1, 'limit': 1}, 'desc': '无敌 1 回合免疫一切伤害，但下回合无法行动(僵直)(每场限 1，战斗内使用)'},
+    'i_yuan_su_yin_bao_ji': {'name': '元素引爆剂', 'price': 100, 'type': '消耗品', 'quality': 'blue', 'battle_ok': True, 'effect': 'apply_mark', 'effect_data': {'mark': 'fire', 'stacks': 2, 'react_bonus': 1.3}, 'desc': '对目标施加 2 层火印，接蒸发 1.30 倍/引爆反应(战斗内使用)'},
+    'i_lian_xie_zeng_fu_mo': {'name': '连携增幅墨', 'price': 75, 'type': '消耗品', 'quality': 'green', 'battle_ok': True, 'effect': 'dot_amp', 'effect_data': {'turns': 2, 'layer_per_hit': 1}, 'desc': '2 回合内每次命中使目标毒/灼烧/流血层数+1(战斗内使用)'},
+    'i_yuan_su_gong_ming_shi': {'name': '元素共鸣石', 'price': 220, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'reaction', 'effect_data': {'trigger_react': True, 'fallback_matk': 0.9}, 'desc': '直接引爆目标印记触发元素反应(无印记则造成 90% 魔攻伤害)(战斗内使用)'},
+    'i_ruo_dian_ji_po_shi': {'name': '弱点击破石', 'price': 210, 'type': '消耗品', 'quality': 'purple', 'battle_ok': True, 'effect': 'vuln', 'effect_data': {'per_debuff': 0.12, 'max_debuff': 3, 'max_bonus': 0.36, 'turns': 3}, 'desc': '目标每有 1 种负面状态，你对其伤害+12%(上限 3 种+36%)，持续 3 回合(战斗内使用)'},
+    'i_kuang_gong_ti_deng': {'name': '矿工提灯', 'price': 150, 'type': '消耗品', 'quality': 'blue', 'effect': 'lantern', 'effect_data': {'dur_min': 30, 'treasure_boost': 0.5, 'night_only': True}, 'desc': '30 分钟内探索事件出现宝藏/稀有档概率+50%(夜间限定)'},
+    'i_pan_yan_gou_suo': {'name': '攀岩钩索', 'price': 90, 'type': '消耗品', 'quality': 'green', 'effect': 'grapple', 'effect_data': {'reach_unexplored': True, 'free_move': True}, 'desc': '下次探索必定抵达 1 个相邻未探索地图，并免 1 次移动消耗(仅野外)'},
+    'i_xun_bao_luo_pan': {'name': '寻宝罗盘', 'price': 240, 'type': '消耗品', 'quality': 'purple', 'effect': 'compass', 'effect_data': {'dur_min': 30, 'chest_quality_up': 1, 'no_stack': True}, 'desc': '30 分钟内探索开出的宝箱品质+1 档(不叠加，与幸运符同池互斥)'},
+    'i_xing_guang_wang_yuan_jing': {'name': '星光望远镜', 'price': 50, 'type': '消耗品', 'quality': 'white', 'effect': 'scout', 'effect_data': {'info': 'map_specialty'}, 'desc': '查看当前地图特产/隐藏区域线索/危险度(纯信息)'},
+    'i_feng_rao_zhi_chu': {'name': '丰饶之锄', 'price': 230, 'type': '消耗品', 'quality': 'purple', 'effect': 'harvest_boost', 'effect_data': {'dur_min': 30, 'quality_up': 1, 'no_stack': True}, 'desc': '30 分钟内采集/挖掘产出品质+1 档(不叠加)'},
+    'i_jiao_xiao_yu_wang': {'name': '鲛绡鱼网', 'price': 140, 'type': '消耗品', 'quality': 'blue', 'effect': 'fish_net', 'effect_data': {'catch_mult': 2, 'no_stack_with_bait': True}, 'desc': '下次垂钓渔获数量×2(不与鱼饵叠加)'},
+    'i_ling_zhong_dai': {'name': '灵种袋', 'price': 80, 'type': '消耗品', 'quality': 'green', 'effect': 'seed_planter', 'effect_data': {'seed_pack': True}, 'desc': '家园花圃种子包，收获食材/草药原料(需家园系统)'},
+    'i_bian_xie_zhong_zhi_xiang': {'name': '便携种植箱', 'price': 260, 'type': '消耗品', 'quality': 'blue', 'effect': 'garden_slot', 'effect_data': {'slot_add': 1, 'per_house_limit': 3}, 'desc': '家园花圃永久+1 种植位(每宅限 3 次，需房产)'},
+    'i_kong_jian_bu_dai': {'name': '空间布袋', 'price': 300, 'type': '消耗品', 'quality': 'blue', 'effect': 'bag_expand', 'effect_data': {'slots': 5, 'per_char_limit': 3}, 'desc': '背包永久+5 格(每角色限 3 次)'},
+    'i_xin_ya_ling': {'name': '信鸦翎', 'price': 100, 'type': '消耗品', 'quality': 'green', 'effect': 'mail', 'effect_data': {'fee_rate': 0.05, 'no_bound': True}, 'desc': '邮寄 1 件非绑定物品给指定玩家(收 5% 邮费)'},
+    'i_geng_ming_qi_yue': {'name': '更名契约', 'price': 400, 'type': '消耗品', 'quality': 'purple', 'effect': 'rename', 'effect_data': {'monthly_limit': 1}, 'desc': '玩家改名 1 次(每角色月限 1)'},
+    'i_gui_tu_xing_sha': {'name': '归途星砂', 'price': 180, 'type': '消耗品', 'quality': 'blue', 'effect': 'anchor', 'effect_data': {'dur_hours': 24, 'unique': True}, 'desc': '野外放置临时锚点，24 小时内可一键返回(锚点唯一)'},
+    'i_duan_lu_zhong_zhu_quan': {'name': '锻炉重铸券', 'price': 350, 'type': '消耗品', 'quality': 'purple', 'effect': 'reforge', 'effect_data': {'keep_enhance': True, 'per_item_limit': 1, 'no_orange': True}, 'desc': '装备品质档随机重随 1 次，保留强化等级(每件限 1 次，橙装禁用)'},
+    'i_ming_yun_zhi_mo': {'name': '命运之墨', 'price': 320, 'type': '消耗品', 'quality': 'purple', 'effect': 're_roll_affix', 'effect_data': {'same_tier': True}, 'desc': '重随装备 1 条附加词条(同档位)'},
+    'i_yi_wang_zhi_quan': {'name': '遗忘之泉', 'price': 800, 'type': '消耗品', 'quality': 'purple', 'effect': 'reset_voucher', 'effect_data': {'free_reset': True}, 'desc': '免费属性+技能洗点 1 次(替代 500 金收费)'},
+    'i_tui_bian_shen_yao': {'name': '蜕变神药', 'price': 500, 'type': '消耗品', 'quality': 'orange', 'effect': 'pet_rename', 'effect_data': {'per_pet_limit': 1}, 'desc': '宠物改名 1 次(每宠限 1 次)'},
+    'i_huan_xing_wan_ou': {'name': '幻形玩偶', 'price': 200, 'type': '消耗品', 'quality': 'blue', 'effect': 'toy_form', 'effect_data': {'dur_min': 30, 'form': 'npc', 'no_stat': True}, 'desc': '30 分钟变身 NPC 形态，纯展示无属性(战斗无效)'},
+    'i_qing_dian_yan_hua': {'name': '庆典烟花', 'price': 60, 'type': '消耗品', 'quality': 'green', 'effect': 'firework', 'effect_data': {'daily_limit': 1, 'cooldown_min': 10}, 'desc': '全群广播祝福语烟花(每日限 1，冷却 10 分钟)'},
+    'i_yu_jin_ji_nian_zhang': {'name': '余烬纪念章', 'price': 1, 'type': '收藏品', 'quality': 'orange', 'effect': 'collection', 'effect_data': {'codex': True}, 'desc': '成就纪念品，图鉴点亮，纯收藏'},
 })

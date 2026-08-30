@@ -120,6 +120,10 @@ REPRESENTATIVES = {
     "turn_in": "交付任务", "rest_camp": "休息", "rest": "住宿", "reputation": "声望",
     "rep_shop": "声望商店",
     "chronicle": "编年史",
+    # v140 波2 『收藏册』（5 套冒险者收藏册展示/满套领奖）
+    "collection": "收藏册",
+    # v140 波3.7 『今日事件/事件 <地图名>』（地图随机事件菜单；裸『事件』由 world_event 占用）
+    "event_menu": "今日事件",
     # social.py
     "market": "市场", "market_sell": "上架", "market_unsell": "下架", "market_buy": "购入",
     "stall": "摆摊", "stall_close": "收摊", "stall_view": "摊位", "stall_exchange": "换",
@@ -191,6 +195,8 @@ REPRESENTATIVES = {
     "battle_prefs_form": "战前形态 狂暴",
     "battle_prefs_finisher": "战前阈值 快刀",
     "battle_prefs_view": "战前指令",
+    # v140 波2：野王看守宝箱（sibling 子 agent 登记的命令，补矩阵代表输入防漏）
+    "wild_king_chest": "摸战利箱",
 }
 
 # 设计内双注册豁免：输入 → (期望命中集合, 原因)

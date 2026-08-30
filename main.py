@@ -17,6 +17,8 @@ from .game.commands import (
     PlayerCmds, WorldCmds, CombatCmds, EconomyCmds, SocialCmds, MiscCmds,
     InstanceCmds, GmCmds, ExplorationCmds,  # v115 探索进度指令
     JobGuideCmds,  # v130.2g 『职业』速查指令
+    CollectionCmds,  # v140 波2 『收藏册』指令
+    EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
 )
 
 
@@ -279,6 +281,8 @@ class Main(
     InstanceCmds,
     GmCmds,
     ExplorationCmds,  # v115 探索进度指令
+    CollectionCmds,  # v140 波2 『收藏册』指令
+    EventMenuCmds,  # v140 波3.7 『今日事件/事件』指令
 ):
     """奥兰迪亚·余烬纪年核心游戏类（v117.5 起平台无关，不再继承 astrbot star.Star）。
 

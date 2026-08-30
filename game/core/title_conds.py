@@ -160,6 +160,12 @@ def _t_final(ctx):
     return ctx.quests.get("main_quest") is None and len(ctx.quests.get("completed_main", [])) >= 10
 
 
+@register("iron_adventurer")
+def _t_iron_adventurer(ctx):
+    """铁牌冒险者（v140 q1_6 主线奖励）：完成第一杯麦酒（q1_6 在 completed_main）。"""
+    return "q1_6" in (ctx.quests.get("completed_main") or [])
+
+
 @register("fish_king")
 def _t_fish_king(ctx):
     return ctx._db().get_fish_king(ctx.group_id, ctx.qq_id) >= 1
@@ -303,3 +309,42 @@ def check_pro_title(tid: str, ctx) -> bool:
     if prof_key in ("gather", "mining", "fishing", "alchemy", "craft", "cooking"):
         return ctx._db().get_prof_level(ctx.group_id, ctx.qq_id, prof_key) >= need_lv
     return False
+
+
+# ================= v140 波3.6：资源向称号条件（方案 3.9，6 个） =================
+# 条件口径与 achievements.py prof_count 一致（stats 计数），效果消费点见 titles.py effect 字段
+
+@register("res_forge_master")
+def _t_res_forge_master(ctx):
+    """锻造大师（锻造体力-1）：锻造 ≥100 件装备。"""
+    return ctx.stats.get("craft_count", 0) >= 100
+
+
+@register("res_gather_expert")
+def _t_res_gather_expert(ctx):
+    """采集高手（采集品质+10%）：累计采集 ≥500 次。"""
+    return ctx.stats.get("gather_count", 0) >= 500
+
+
+@register("res_treasure_hunter")
+def _t_res_treasure_hunter(ctx):
+    """寻宝猎人（宝藏发现率+2%）：开启 ≥50 个宝箱。"""
+    return ctx.stats.get("chests_opened", 0) >= 50
+
+
+@register("res_fishing_legend")
+def _t_res_fishing_legend(ctx):
+    """垂钓传说·资源（稀有鱼+5%）：累计垂钓 ≥500 次。"""
+    return ctx.stats.get("fish_count", 0) >= 500
+
+
+@register("res_alchemy_master")
+def _t_res_alchemy_master(ctx):
+    """炼金大师（炼金产物+1）：累计炼金 ≥50 次。"""
+    return ctx.stats.get("alchemy_count", 0) >= 50
+
+
+@register("res_food_king")
+def _t_res_food_king(ctx):
+    """美食之王（食物效果+10%）：累计烹饪 ≥50 次。"""
+    return ctx.stats.get("cook_count", 0) >= 50

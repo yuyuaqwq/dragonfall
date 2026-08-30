@@ -102,7 +102,9 @@ CREATE TABLE IF NOT EXISTS players (
                 race TEXT DEFAULT 'human',
                 gender TEXT DEFAULT '',
                 faction TEXT DEFAULT '',
-                battle_prefs TEXT DEFAULT '{}'
+                battle_prefs TEXT DEFAULT '{}',
+                investigate_date TEXT DEFAULT '',
+                investigate_count INTEGER DEFAULT 0
             );CREATE TABLE IF NOT EXISTS inventory (
                 qq_id TEXT NOT NULL,
                 item_key TEXT NOT NULL,
@@ -148,7 +150,8 @@ CREATE TABLE IF NOT EXISTS players (
                 enhance_count INTEGER DEFAULT 0,
                 enchant_count INTEGER DEFAULT 0,
                 world_events INTEGER DEFAULT 0,
-                catch_collect INTEGER DEFAULT 0
+                catch_collect INTEGER DEFAULT 0,
+                chests_opened INTEGER DEFAULT 0
             );CREATE TABLE IF NOT EXISTS reputation (
                 qq_id TEXT NOT NULL,
                 faction TEXT NOT NULL,
@@ -329,6 +332,11 @@ def _ensure_legacy_columns(conn):
         conn.execute("ALTER TABLE players ADD COLUMN learned_blueprints TEXT DEFAULT '[]'")
     if "lucky_until" not in pcols:
         conn.execute("ALTER TABLE players ADD COLUMN lucky_until INTEGER DEFAULT 0")
+    # v140 波2：副本通关后调查——每日调查次数与日期（跨日归零）
+    if "investigate_date" not in pcols:
+        conn.execute("ALTER TABLE players ADD COLUMN investigate_date TEXT DEFAULT ''")
+    if "investigate_count" not in pcols:
+        conn.execute("ALTER TABLE players ADD COLUMN investigate_count INTEGER DEFAULT 0")
     # v94 体力系统：动作类行为消耗体力，食物/住宿/自然恢复（老库自愈）
     if "stamina" not in pcols:
         conn.execute("ALTER TABLE players ADD COLUMN stamina INTEGER DEFAULT 100")
@@ -347,7 +355,7 @@ def _ensure_legacy_columns(conn):
     scols = [r[1] for r in conn.execute("PRAGMA table_info(stats)").fetchall()]
     for scol in ("visited_areas", "inst_clears", "party_count", "fish_count", "gather_count",
                  "mine_count", "cook_count", "alchemy_count", "craft_count", "enhance_count",
-                 "enchant_count", "world_events", "catch_collect"):
+                 "enchant_count", "world_events", "catch_collect", "chests_opened"):
         if scol not in scols:
             conn.execute(f"ALTER TABLE stats ADD COLUMN {scol} INTEGER DEFAULT 0")
     if "equipped_title" not in pcols:

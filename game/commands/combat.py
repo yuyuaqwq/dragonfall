@@ -20,6 +20,10 @@ from .. import battle as BT
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
+from ..core.wild_king import (  # v140 波2：野王体系（探索命中/击杀结算/摸宝箱）
+    explore_king, build_king_monster, wild_king_on_kill, open_chest,
+    wild_king_summary, personal_meta,
+)
 
 # 全局战斗锁（简单并发保护：同一玩家同一时间只能一场战斗）
 _battle_locks = set()
@@ -133,6 +137,31 @@ class CombatCmds(CommandBase):
             )
             return
         # 9.4：野外 NPC 偶遇（满足条件 → 偶遇提示，不消耗探索；30 分钟冷却防刷）
+        # v140 波2：野王看守宝箱——探索优先命中当前图野王（在场则进入战斗，优先级最高）
+        _king = explore_king(group_id, qq_id, cur)
+        if _king:
+            if _king.get("killed"):
+                # 已被击杀：宝箱在原地，提示摸箱
+                yield event.plain_result(wild_king_summary(cur))
+                return
+            # 野王在场：构造野王战斗（血量弹性按参战人数）→ 保存战斗状态
+            monster = build_king_monster(_king, cur_map, player)
+            group = C.build_monster_group(monster, cur_map, player, scale_main=False)
+            b = BT.Battle("monster", None, self._title_bonus(group_id, qq_id), player=player,
+                          pet=db.pet_get(qq_id), enemies=group)
+            db.save_battle(group_id, qq_id, b.to_state())
+            self._lock_battle(group_id, qq_id)
+            _acts = "『攻击』『技能 <名称>』『防御』"  # 野王=Boss 战，不可逃跑
+            yield event.plain_result(
+                f"🔥 遭遇【{monster['name']}】！{_king.get('icon', '👑')} 野王看守宝箱中！\n"
+                f"👑 Lv.{monster['lv']} ❤️ {monster['hp']:,}\n"
+                f"{self._battle_formation_panel(player, b)}\n"
+                + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
+                + f"━━━━━━━━━━━━\n"
+                f"⚔️ 击败它即可解锁它看守的宝箱！\n"
+                f"你的行动：{_acts}"
+            )
+            return
         wild = C.roll_wild_encounter(group_id, qq_id, player, cur)
         if wild:
             nid, wnpc = wild
@@ -364,6 +393,37 @@ class CombatCmds(CommandBase):
             f"你的行动：{_acts}"
             f"{hint}{stam_warn}"
         )
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摸(?:战利箱|宝箱)(?:\s*|$)")
+    @require_player()
+
+    async def wild_king_chest(self, event: AstrMessageEvent):
+        """v140 波2：野王看守宝箱——『摸宝箱』/『摸战利箱』开箱。
+
+        前置：当前地图野王已被击杀（宝箱解锁）。击杀者（队伍）优先 15 分钟战利箱，
+        之后转公共箱（同图每人 1 次）；每人每时段最多 1 次、每日最多 2 次；
+        个人连续 3 时段参与未开箱 → 第 4 时段保底券（不占次数）。
+        """
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        if self._in_battle(group_id, qq_id):
+            yield event.plain_result("你正在战斗中！先解决眼前的敌人再摸宝箱～")
+            return
+        cur = player.get("cur_map") or ""
+        if cur.startswith("home_"):
+            yield event.plain_result("家里可没有野王宝箱……(『出门』去野外)")
+            return
+        try:
+            text, need_bc = open_chest(group_id, qq_id, cur)
+        except Exception:
+            text = "⏳ 宝箱暂时无法打开，稍后再试试……"
+            need_bc = False
+        yield event.plain_result(text)
+        if need_bc:
+            try:
+                await self._broadcast(text.split("\n")[0] + "\n" + "\n".join(text.split("\n")[1:3]))
+            except Exception:
+                pass
 
     def _main_kill_target_on_map(self, group_id, qq_id, cur_map):
         """v105 M19 P0：当前 active 主线击杀目标怪是否挂载于本副本地图。
@@ -1785,6 +1845,23 @@ class CombatCmds(CommandBase):
                 db.add_item(group_id, qq_id, bp_key, drop_bp)
                 # v56.4：掉落提示只显示名字，不把 desc 整段塞进括号（曾漏内部 ID）
                 drop_lines.append(f"📜 掉落图纸：{drop_bp['name']}")
+
+        # v140 装备掉落（鱼鱼拍板：打破 v93 铁律，精英/Boss 掉装备；普通怪仍不掉）
+        # 精英=蓝/紫、Boss=紫/橙；与图纸 10% 独立判定共存
+        if drop_equip is None and monster.get("role") in ("elite", "boss"):
+            drop_equip = C.roll_drop_equip(monster.get("lv", 0), monster.get("role"))
+        if drop_equip:
+            import uuid as _uuid2
+            eq_key = f"eq_{_uuid2.uuid4().hex[:8]}"
+            db.add_item(group_id, qq_id, eq_key, drop_equip)
+            _qname = drop_equip.get("name", "")
+            _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
+                drop_equip.get("quality", ""), "")
+            if drop_equip.get("quality") in ("purple", "orange"):
+                drop_lines.append(f"{_qmark} 紫光流转，你拾起了【{_qname}】！(✦史诗·已收入背包)" if drop_equip.get("quality")=="purple" else f"{_qmark} 一道耀眼的金光冲天而起！【{_qname}】现世了！这件传说中的宝物，已收入你的背包！")
+            else:
+                drop_lines.append(f"{_qmark} 一道蓝光闪过，你拾起了【{_qname}】！" if drop_equip.get("quality")=="blue" else f"🎒 你拾起了【{_qname}】")
+
         # 材料掉落（v95.7 #45：v23 旧路径与 v93 折算路径重复掉落同一材料 → 删除旧路径，
         # 统一走下方 v93 折算（掉落池优先 + 数量按价值），修复『拾取材料X』+『拾取材料X ×N』双行）
         pet_egg_line = ""
@@ -2025,6 +2102,20 @@ class CombatCmds(CommandBase):
             if lines:
                 lines.append("")
             lines += quest_lines
+        # v140 波2：野王击杀结算——Boss 死亡 → 解锁宝箱 → 广播（探索命中链路专用）
+        if monster and str(monster.get("id", "")).startswith("b_guard_"):
+            try:
+                _wk_lines = wild_king_on_kill(group_id, qq_id, monster)
+                if _wk_lines:
+                    if lines:
+                        lines.append("")
+                    lines += _wk_lines
+                    try:
+                        self._broadcast("\n".join(_wk_lines))
+                    except Exception:
+                        pass
+            except Exception:
+                pass
         # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
         ach_lines = []
         # v87：隐藏怪击杀累计（成就·传说猎人）

@@ -245,14 +245,22 @@ def section_potion():
         ed = _d.get("effect_data")
         if isinstance(ed, dict) and ed:
             item_eff.add(_d.get("effect"))
-    check("22 种药水特殊效果数据齐备", len(item_eff) == 22, f"effects={sorted(item_eff)}")
+    # v140 口径修正：item effect_data 含 19 种功能性道具（灯笼/罗盘/改名/背包等，
+    # 走 item_templates.py 模板 handler），非药水 → 药水类 = POTION_EFFECTS 覆盖的 effect
     alias = PE._EFFECT_KIND
+    potion_eff = {alias.get(e, e) for e in item_eff} & set(PE.POTION_EFFECTS)
+    check("药水特殊效果数据齐备（POTION_EFFECTS 覆盖 36 种）", len(potion_eff) == len(PE.POTION_EFFECTS),
+          f"potion={sorted(potion_eff)}")
     missing = {alias.get(e, e) for e in item_eff} - set(PE.POTION_EFFECTS)
-    check("全部药水 effect_data 效果已注册 handler（别名对齐）", not missing, f"missing={sorted(missing)}")
-    check("POTION_EFFECTS 注册 22 键", len(PE.POTION_EFFECTS) == 22, str(len(PE.POTION_EFFECTS)))
+    # 功能道具类 effect 由 item_templates.py 处理，检查它们是否注册了模板 handler
+    from data.plugins.dragonfall.game.core import item_templates as IT
+    tpl_missing = [e for e in missing if e not in IT.TEMPLATES
+                   and not hasattr(IT, f"tpl_{e}")]
+    check("功能道具 effect 全部有模板 handler（非药水）", not tpl_missing, f"tpl_missing={sorted(tpl_missing)}")
+    check("POTION_EFFECTS 注册 36 键", len(PE.POTION_EFFECTS) == 36, str(len(PE.POTION_EFFECTS)))
     check("DEFAULTS 由 items.py effect_data 扫描覆盖全部注册键",
-          set(PE.DEFAULTS) == set(PE.POTION_EFFECTS),
-          f"defaults={sorted(PE.DEFAULTS)}")
+          set(PE.POTION_EFFECTS) <= set(PE.DEFAULTS),
+          f"缺默认值={sorted(set(PE.POTION_EFFECTS) - set(PE.DEFAULTS))}")
     check("狂怒药剂 effect_data 数值 {pct:0.5}",
           C.ITEMS["i_fury_potion"].get("effect_data") == {"pct": 0.5},
           str(C.ITEMS["i_fury_potion"].get("effect_data")))

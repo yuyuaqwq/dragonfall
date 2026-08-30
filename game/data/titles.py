@@ -22,6 +22,8 @@ TITLES = [
     {"id": "enhance9",    "name": "神匠之手",   "desc": "成功强化装备至＋9"},
     {"id": "hidden",      "name": "秘银追寻者", "desc": "进入隐藏区域（如失落图书馆、灰烬回廊）"},
     {"id": "final",       "name": "传说终结者", "desc": "完成全部主线任务"},
+    # v140 波3.6：任务奖励称号（q1_6 第一杯麦酒·铁牌冒险者，冒险者行会注册章；纯收藏）
+    {"id": "iron_adventurer", "name": "铁牌冒险者", "desc": "在冒险者行会完成注册，踏出冒险第一步（q1_6 主线奖励）"},
     # ---- 副业称号（Lv.3/6/10 三档，大师称号带属性加成）----
     {"id": "pro_gather3", "name": "采药人",     "desc": "采集达到 Lv.3"},
     {"id": "pro_gather6", "name": "草药专家",   "desc": "采集达到 Lv.6"},
@@ -72,5 +74,20 @@ TITLES = [
     {"id": "fishing_legend",   "name": "垂钓传说",   "desc": "完成 S51 垂钓传说线(纯收藏)"},
     {"id": "late_messenger",   "name": "迟到的信使", "desc": "完成 S50 旧友重逢线——把一封迟了二十年的信送到终点的人(纯收藏)"},
     {"id": "season_gardener",  "name": "四季花匠",   "desc": "完成 S51 花匠与四季线——花比人长情(纯收藏)"},
+    # ---- v140 波2 资源向称号（方案 3.9：6 个，effect 字段标注消费点，title_bonus 消费点待接线）----
+    # 每个效果必须落真实消费点（杜绝 v124.2 承诺无兑现）：effect 字段 = 消费点注册名，
+    # 对应改造点（待主 agent 后续接线，本版本仅数据登记 + 展示）：
+    #   craft_stamina-1  → game/core/craft.py 体力扣减处（锻造体力-1）
+    #   gather_quality+10% → game/commands/economy.py _settle_gather 品质概率
+    #   treasure_find+2% → 探索/宝箱宝藏发现率（explore/chest 结算）
+    #   fish_rare+5% → economy.py 垂钓稀有档概率
+    #   alchemy_yield+1 → economy.py 炼金产物数量
+    #   food_effect+10% → 使用食物/料理效果结算（item_templates/战斗 buff）
+    {"id": "res_forge_master",   "name": "锻造大师",   "desc": "锻造体力-1（资源向称号·v140，效果待消费点接线）", "effect": "craft_stamina-1"},
+    {"id": "res_gather_expert",  "name": "采集高手",   "desc": "采集产出品质+10%（资源向称号·v140，效果待消费点接线）", "effect": "gather_quality+10%"},
+    {"id": "res_treasure_hunter", "name": "寻宝猎人",   "desc": "宝藏发现率+2%（资源向称号·v140，效果待消费点接线）", "effect": "treasure_find+2%"},
+    {"id": "res_fishing_legend", "name": "垂钓传说·资源", "desc": "稀有鱼钓获率+5%（资源向称号·v140，效果待消费点接线）", "effect": "fish_rare+5%"},
+    {"id": "res_alchemy_master", "name": "炼金大师",   "desc": "炼金产物+1（资源向称号·v140，效果待消费点接线）", "effect": "alchemy_yield+1"},
+    {"id": "res_food_king",      "name": "美食之王",   "desc": "食物效果+10%（资源向称号·v140，效果待消费点接线）", "effect": "food_effect+10%"},
 ]
 

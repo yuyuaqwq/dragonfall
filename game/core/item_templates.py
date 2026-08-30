@@ -382,12 +382,33 @@ _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "resource_amp": "special:resource_amp",
               "mana_cost_down": "special:mana_cost_down",
               "buff_phys_next": "special:buff_phys_next",
-              "full_tension": "special:full_tension"}
+              "full_tension": "special:full_tension",
+              # v140 战斗机制道具（20 件，方案 3.6）：special 分发 + effect_data 随 payload 传递
+              # （summon/trap/mana_restore/resource_charge/steal_buff/buff_extend/phoenix/
+              #  purify_immune/morph/invuln/apply_mark/dot_amp/reaction/vuln 共 14 键）
+              "summon": "special:summon",
+              "trap": "special:trap",
+              "mana_restore": "special:mana_restore",
+              "resource_charge": "special:resource_charge",
+              "steal_buff": "special:steal_buff",
+              "buff_extend": "special:buff_extend",
+              "phoenix": "special:phoenix",
+              "purify_immune": "special:purify_immune",
+              "morph": "special:morph",
+              "invuln": "special:invuln",
+              "apply_mark": "special:apply_mark",
+              "dot_amp": "special:dot_amp",
+              "reaction": "special:reaction",
+              "vuln": "special:vuln"}
 # v130.2 资源联动消耗品 effect 名集合：effect_data 每件数值不同，须随 special payload 传递
 #（旧特殊药水如 next_atk_up 共用一套 DEFAULTS，保持 special:<kind> 裸 payload 兼容旧测试/行为）
 _V130_ITEM_EFFECTS = {"restore_resource", "restore_resource_full", "resource_amp",
                       "mana_cost_down", "buff_phys_next", "full_tension",
-                      "battle_start_resource"}
+                      "battle_start_resource",
+                      # v140：14 种战斗机制道具数值各异的 effect_data 同样随 payload 传递
+                      "summon", "trap", "mana_restore", "resource_charge", "steal_buff",
+                      "buff_extend", "phoenix", "purify_immune", "morph", "invuln",
+                      "apply_mark", "dot_amp", "reaction", "vuln"}
 
 
 def _make_buff_tpl(key):
@@ -601,13 +622,19 @@ def tpl_clear_red(ctx):
 @register("open_chest")
 def tpl_open_chest(ctx):
     """宝箱：金币 + 图纸概率（v41：宝箱不再掉成品装备，统一走锻造）。
-    v135（鱼鱼拍板）：图纸概率 50% → 85%（constants.CHEST_BP_CHANCE）。"""
+    v135（鱼鱼拍板）：图纸概率 50% → 85%（constants.CHEST_BP_CHANCE）。
+    v140 波2（成就资源化）：开箱 bump stats.chests_opened（ach_chest50 宝箱猎人数据源）。"""
     import uuid
     db = ctx._db()
     C = ctx._C()
     ctx.hook("remove_item")
     gold = random.randint(30, 80) + ctx.lv * 3
     db.update_player(ctx.group_id, ctx.qq_id, gold=ctx.player["gold"] + gold)
+    # v140 波2：宝箱计数（stats 白名单已加 chests_opened；bump 失败静默不影响开箱）
+    try:
+        db.bump_stats(ctx.group_id, ctx.qq_id, chests_opened=1)
+    except Exception:
+        pass
     lines = [f"🎁 你打开了【{ctx.item_name()}】！", f"💰 获得 {gold} 金币！"]
     if random.random() < C.CHEST_BP_CHANCE:  # v101.5 常量
         bp = C.roll_blueprint(max(1, ctx.lv))
@@ -805,3 +832,316 @@ def tpl_none(ctx):
             text=f"『{ctx.item_name()}』不能直接使用——这是材料，可『烹饪』『锻造』『炼金』等副业加工成成品～",
             consume=False)
     return ItemResult(text=f"『{ctx.item_name()}』不能使用。", consume=False)
+
+
+# ================= v140 功能/生活/探索道具（19 件）模板 =================
+# 消费端：items.py 尾部 19 件（i_kuang_gong_ti_deng ~ i_yu_jin_ji_nian_zhang，方案 3.7）。
+# 设计：与鱼饵 bait_ 同款 event_state 标记模式（key = v140_<effect>_{qq_id}），
+# 由后续探索/采集/垂钓/家园/邮箱等系统消费端读取；对应系统尚未接线的效果给出
+# 友好引导文案且不消耗（防玩家白扣道具）。纯展示/收藏类（星光望远镜/余烬纪念章）
+# 直接提供信息或收藏登记。
+
+_V140_STATE_PREFIX = "v140_"
+
+
+def _v140_mark(ctx, effect: str, payload: dict, tip: str = "") -> str:
+    """v140 生活道具公共标记：写 event_state（v140_<effect>_{qq_id}，json），
+    返回带💡提示的使用文本。与 bait_ 标记同款（垂钓/探索消费端按 key 读取）。"""
+    db = ctx._db()
+    key = f"{_V140_STATE_PREFIX}{effect}_{ctx.qq_id}"
+    payload = dict(payload or {})
+    payload["ts"] = int(time.time())
+    db.set_event_state(key, json.dumps(payload, ensure_ascii=False))
+    ctx.hook("remove_item")
+    tip_line = f"\n{_rand_tip('common')}" if not tip else f"\n{tip}"
+    return f"✨ 你使用了【{ctx.item_name()}】！{tip_line}"
+
+
+def _v140_system_todo(ctx, system: str) -> ItemResult:
+    """v140 未接线系统友好引导（不消耗）：desc 承诺的系统尚未落地，避免白扣道具。"""
+    return ItemResult(
+        text=f"📭 你端详着【{ctx.item_name()}】——{system}系统尚未开放，先收好吧！",
+        consume=False)
+
+
+@register("lantern")
+def tpl_lantern(ctx):
+    """矿工提灯：30 分钟探索宝藏/稀有档概率 +50%（夜间限定）。
+    event_state 标记 v140_lantern_{qq_id}，探索事件消费端读取；非夜间拒绝使用。"""
+    if ctx.battle:
+        return ItemResult(text="提灯要在野外探索时点亮，战斗中用不上～", consume=False)
+    import time as _t
+    hour = _t.localtime().tm_hour
+    if not (hour >= 19 or hour < 6):
+        return ItemResult(
+            text="🌙 矿工提灯只在夜间(19:00-06:00)才管用——白天用太浪费啦～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "lantern", {
+        "dur_min": int(ed.get("dur_min", 30) or 30),
+        "treasure_boost": float(ed.get("treasure_boost", 0.5) or 0.5),
+        "until": int(time.time()) + int(ed.get("dur_min", 30) or 30) * 60,
+    }, tip="接下来 30 分钟(夜间)探索宝藏/稀有档概率+50%！"))
+
+
+@register("grapple")
+def tpl_grapple(ctx):
+    """攀岩钩索：下次探索必定抵达 1 个相邻未探索地图，并免 1 次移动消耗（仅野外）。
+    event_state 标记 v140_grapple_{qq_id}，探索/移动消费端读取。"""
+    if ctx.battle:
+        return ItemResult(text="钩索要在野外攀爬时使用，战斗中用不上～", consume=False)
+    from .. import content as C
+    cur = (ctx.player or {}).get("cur_map", "")
+    cm = C.MAP_BY_ID.get(cur) or {}
+    if cm.get("type") == C.MAP_TYPE_TOWN:
+        return ItemResult(text="钩索只在野外有用——城里到处是路，用不上它～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "grapple", {
+        "reach_unexplored": bool(ed.get("reach_unexplored", True)),
+        "free_move": bool(ed.get("free_move", True)),
+    }, tip="下次探索必定抵达 1 个相邻未探索地图，并免 1 次移动消耗！"))
+
+
+@register("compass")
+def tpl_compass(ctx):
+    """寻宝罗盘：30 分钟内探索开出的宝箱品质 +1 档（不叠加，与幸运符同池互斥）。
+    event_state 标记 v140_compass_{qq_id}，探索宝箱消费端读取。"""
+    if ctx.battle:
+        return ItemResult(text="罗盘要在野外寻宝时使用，战斗中用不上～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "compass", {
+        "dur_min": int(ed.get("dur_min", 30) or 30),
+        "chest_quality_up": int(ed.get("chest_quality_up", 1) or 1),
+        "until": int(time.time()) + int(ed.get("dur_min", 30) or 30) * 60,
+    }, tip="接下来 30 分钟探索开出的宝箱品质+1 档！(不叠加，与幸运符互斥)"))
+
+
+@register("scout")
+def tpl_scout(ctx):
+    """星光望远镜：查看当前地图特产/隐藏区域线索/危险度（纯信息，不消耗）。"""
+    if ctx.battle:
+        return ItemResult(text="望远镜要在野外眺望时使用，战斗中用不上～", consume=False)
+    from .. import content as C
+    cur = (ctx.player or {}).get("cur_map", "")
+    cm = C.MAP_BY_ID.get(cur) or {}
+    lines = [f"🔭 你举起【{ctx.item_name()}】眺望{cm.get('name', '此地')}……"]
+    if cm:
+        lines.append(f"📍 区域：{cm.get('region', '?')} · 章节 {cm.get('chapter', '?')}")
+        lines.append(f"⚠️ 危险度：Lv.{cm.get('lv', '?')}（{cm.get('type', '?')}）")
+        lines.append(f"📝 {cm.get('desc', '')}")
+        sas = cm.get("subareas") or []
+        if sas:
+            lines.append("🗺️ 子区域：" + "、".join(sa.get("name", sa.get("id", "?")) for sa in sas[:6]))
+    else:
+        lines.append("（没有找到这张地图的信息……）")
+    return ItemResult(text="\n".join(lines), consume=False)
+
+
+@register("harvest_boost")
+def tpl_harvest_boost(ctx):
+    """丰饶之锄：30 分钟内采集/挖掘产出品质 +1 档（不叠加）。
+    event_state 标记 v140_harvest_{qq_id}，采集/挖掘消费端读取。"""
+    if ctx.battle:
+        return ItemResult(text="锄头要在采集时使用，战斗中用不上～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "harvest", {
+        "dur_min": int(ed.get("dur_min", 30) or 30),
+        "quality_up": int(ed.get("quality_up", 1) or 1),
+        "until": int(time.time()) + int(ed.get("dur_min", 30) or 30) * 60,
+    }, tip="接下来 30 分钟采集/挖掘产出品质+1 档！(不叠加)"))
+
+
+@register("fish_net")
+def tpl_fish_net(ctx):
+    """鲛绡鱼网：下次垂钓渔获数量 ×2（不与鱼饵叠加）。
+    event_state 标记 v140_fish_net_{qq_id}，垂钓消费端读取；已挂鱼饵时拒绝使用。"""
+    if ctx.battle:
+        return ItemResult(text="鱼网要在水边使用时，战斗结束后再下网吧～", consume=False)
+    from .. import content as C
+    _cur = (ctx.player or {}).get("cur_map", "")
+    if _cur and not C.FISHING_SPOTS.get(_cur):
+        return ItemResult(text="鱼网只能在水边使用——这里没有水域，到有钓点的地方再下网吧～", consume=False)
+    db = ctx._db()
+    _braw = db.get_event_state(f"bait_{ctx.qq_id}")
+    if _braw:
+        return ItemResult(text="你已经挂了鱼饵，鱼网不能与鱼饵叠加使用～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "fish_net", {
+        "catch_mult": int(ed.get("catch_mult", 2) or 2),
+    }, tip="下次垂钓渔获数量×2！(不与鱼饵叠加)"))
+
+
+@register("seed_planter")
+def tpl_seed_planter(ctx):
+    """灵种袋：家园花圃种子包，收获食材/草药原料（需家园系统）。"""
+    if ctx.battle:
+        return ItemResult(text="种子要在花圃播种，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "家园花圃")
+
+
+@register("garden_slot")
+def tpl_garden_slot(ctx):
+    """便携种植箱：家园花圃永久 +1 种植位（每宅限 3 次，需房产）。"""
+    if ctx.battle:
+        return ItemResult(text="种植箱要在花圃布置，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "家园花圃")
+
+
+@register("bag_expand")
+def tpl_bag_expand(ctx):
+    """空间布袋：背包永久 +5 格（每角色限 3 次）。背包容量系统未落地——
+    登记 event_state 标记 v140_bag_{qq_id} 累计次数，容量系统接线后按标记生效。"""
+    if ctx.battle:
+        return ItemResult(text="布袋要在整理背包时使用，战斗中用不上～", consume=False)
+    db = ctx._db()
+    key = f"{_V140_STATE_PREFIX}bag_{ctx.qq_id}"
+    raw = db.get_event_state(key)
+    try:
+        cur = int(raw or 0)
+    except Exception:
+        cur = 0
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    limit = int(ed.get("per_char_limit", 3) or 3)
+    if cur >= limit:
+        return ItemResult(text=f"你的背包扩容次数已达上限({limit} 次)！", consume=False)
+    db.set_event_state(key, str(cur + 1))
+    ctx.hook("remove_item")
+    return ItemResult(text=f"🎒 你展开【{ctx.item_name()}】——背包扩容登记 +1(已用 {cur + 1}/{limit} 次，每格 +{ed.get('slots', 5)} 格)！")
+
+
+@register("mail")
+def tpl_mail(ctx):
+    """信鸦翎：邮寄 1 件非绑定物品给指定玩家（收 5% 邮费）。邮箱系统未接线——
+    友好引导不消耗（『邮件』指令开放后接线）。"""
+    if ctx.battle:
+        return ItemResult(text="信鸦要在驿站放飞，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "邮件")
+
+
+@register("rename")
+def tpl_rename(ctx):
+    """更名契约：玩家改名 1 次（每角色月限 1）。改名指令未接线——登记标记不消耗。"""
+    if ctx.battle:
+        return ItemResult(text="契约要在闲时签订，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "改名")
+
+
+@register("anchor")
+def tpl_anchor(ctx):
+    """归途星砂：野外放置临时锚点，24 小时内可一键返回（锚点唯一）。
+    event_state 标记 v140_anchor_{qq_id}，移动/传送消费端读取。"""
+    if ctx.battle:
+        return ItemResult(text="星砂要在野外安置，战斗中用不上～", consume=False)
+    from .. import content as C
+    cur = (ctx.player or {}).get("cur_map", "")
+    cm = C.MAP_BY_ID.get(cur) or {}
+    if cm.get("type") == C.MAP_TYPE_TOWN:
+        return ItemResult(text="星砂锚点只能放在野外——城镇随时能回，用不上它～", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "anchor", {
+        "map": cur,
+        "dur_hours": int(ed.get("dur_hours", 24) or 24),
+        "until": int(time.time()) + int(ed.get("dur_hours", 24) or 24) * 3600,
+    }, tip=f"临时锚点已安置在【{cm.get('name', cur)}】，24 小时内可一键返回！"))
+
+
+@register("reforge")
+def tpl_reforge(ctx):
+    """锻炉重铸券：装备品质档随机重随 1 次，保留强化等级（每件限 1 次，橙装禁用）。
+    重铸指令未接线——友好引导不消耗。"""
+    if ctx.battle:
+        return ItemResult(text="重铸券要到铁匠铺使用，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "装备重铸")
+
+
+@register("re_roll_affix")
+def tpl_re_roll_affix(ctx):
+    """命运之墨：重随装备 1 条附加词条（同档位）。词条重随指令未接线——引导不消耗。"""
+    if ctx.battle:
+        return ItemResult(text="命运之墨要在铁匠铺使用，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "词条重随")
+
+
+@register("reset_voucher")
+def tpl_reset_voucher(ctx):
+    """遗忘之泉：免费属性+技能洗点 1 次（替代 500 金收费）。
+    洗点指令未接线——友好引导不消耗（避免白扣 800 金道具）。"""
+    if ctx.battle:
+        return ItemResult(text="泉水要在城镇静心饮用，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "洗点")
+
+
+@register("pet_rename")
+def tpl_pet_rename(ctx):
+    """蜕变神药：宠物改名 1 次（每宠限 1 次）。宠物改名指令未接线——引导不消耗。"""
+    if ctx.battle:
+        return ItemResult(text="神药要在宠物身边使用，战斗中用不上～", consume=False)
+    return _v140_system_todo(ctx, "宠物改名")
+
+
+@register("toy_form")
+def tpl_toy_form(ctx):
+    """幻形玩偶：30 分钟变身 NPC 形态，纯展示无属性（战斗无效）。
+    event_state 标记 v140_toy_{qq_id}，展示系统消费端读取；战斗内无效。"""
+    if ctx.battle:
+        return ItemResult(text="玩偶的变身效果在战斗中不生效！(纯展示，战斗无效)", consume=False)
+    d = ctx.data
+    ed = d.get("effect_data") or {}
+    return ItemResult(text=_v140_mark(ctx, "toy", {
+        "dur_min": int(ed.get("dur_min", 30) or 30),
+        "form": ed.get("form", "npc"),
+        "until": int(time.time()) + int(ed.get("dur_min", 30) or 30) * 60,
+    }, tip="接下来 30 分钟你将呈现 NPC 形态(纯展示无属性)！"))
+
+
+@register("firework")
+def tpl_firework(ctx):
+    """庆典烟花：全群广播祝福语烟花（每日限 1，冷却 10 分钟）。
+    全群广播需指令层 Bot 能力——登记 event_state 标记 v140_firework_{qq_id}（含每日/冷却），
+    广播指令接线后消费；此处给出使用确认不白扣。"""
+    if ctx.battle:
+        return ItemResult(text="烟花要在庆祝时点燃，战斗中用不上～", consume=False)
+    db = ctx._db()
+    key = f"{_V140_STATE_PREFIX}firework_{ctx.qq_id}"
+    raw = db.get_event_state(key)
+    data = {}
+    try:
+        data = json.loads(raw) if raw else {}
+    except Exception:
+        data = {}
+    now = int(time.time())
+    if data.get("day") == time.strftime("%Y%m%d"):
+        return ItemResult(text="🎆 今天的烟花份额已经放过了(每日限 1 次)！", consume=False)
+    if data.get("ts") and now - int(data.get("ts", 0)) < 600:
+        return ItemResult(text="🎆 烟花还在冷却中(冷却 10 分钟)！", consume=False)
+    data.update({"day": time.strftime("%Y%m%d"), "ts": now})
+    db.set_event_state(key, json.dumps(data, ensure_ascii=False))
+    ctx.hook("remove_item")
+    return ItemResult(text="🎆 你点燃了【庆典烟花】——璀璨烟火冲天而起！(全群广播接线后可见)")
+
+
+@register("collection")
+def tpl_collection(ctx):
+    """余烬纪念章：成就纪念品，图鉴点亮，纯收藏。使用 = 登记收藏标记（不消耗）。"""
+    if ctx.battle:
+        return ItemResult(text="纪念章只是收藏品，战斗中不能使用～", consume=False)
+    db = ctx._db()
+    key = f"{_V140_STATE_PREFIX}collection_{ctx.qq_id}"
+    raw = db.get_event_state(key)
+    try:
+        lst = json.loads(raw) if raw else []
+    except Exception:
+        lst = []
+    if not isinstance(lst, list):
+        lst = []
+    name = ctx.item_name()
+    if name not in lst:
+        lst.append(name)
+        db.set_event_state(key, json.dumps(lst, ensure_ascii=False))
+    return ItemResult(text=f"🏅 你点亮了图鉴收藏【{name}】！(纯收藏，已登记)", consume=False)

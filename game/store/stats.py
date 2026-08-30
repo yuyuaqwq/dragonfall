@@ -8,7 +8,7 @@ STAT_FIELDS = {
     "kills", "elite_kills", "boss_kills", "deaths", "day_kills", "visited_areas",
     "inst_clears", "party_count", "fish_count", "gather_count", "mine_count",
     "cook_count", "alchemy_count", "craft_count", "enhance_count",
-    "enchant_count", "world_events", "catch_collect",
+    "enchant_count", "world_events", "catch_collect", "chests_opened",
 }
 
 
