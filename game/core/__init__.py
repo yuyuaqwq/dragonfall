@@ -116,5 +116,15 @@ from .wild_king import (  # noqa: F401
     wild_king_on_kill, open_chest, wild_king_summary,
     personal_meta, list_active_kings, period_key, period_label,
 )
+# v141 大陆隔离：位置结构体 + 大陆抽象（聚合导出，命令层 C.Position / C.cur_map_obj 等调用）
+from .position import (  # noqa: F401
+    Position, cur_map_obj, cur_subareas, player_position, position_to_db,
+)
+from .worlds import (  # noqa: F401
+    get_instance_world, create_instance_world, destroy_instance_world,
+    update_instance_world, set_instance_st, get_instance_st,
+    list_instance_worlds, cleanup_stale_instances, resolve_map_for,
+    instance_worlds,
+)
 
 # 原 game/engine.py、game/battle.py 保持原位，由 game/__init__ 聚合

@@ -366,6 +366,9 @@ def _ensure_legacy_columns(conn):
     # v86 子区域（02 章 13 节）：players 表补 cur_subarea 列（当前所在子区域，空=地图默认落点）
     if "cur_subarea" not in pcols:
         conn.execute("ALTER TABLE players ADD COLUMN cur_subarea TEXT DEFAULT ''")
+    # v141 大陆隔离：players 表补 world_id 列（所在大陆 id，默认 mainland=主大陆；副本实例=inst:<uuid>）
+    if "world_id" not in pcols:
+        conn.execute("ALTER TABLE players ADD COLUMN world_id TEXT DEFAULT 'mainland'")
     # 兼容旧库：feedback 表补 reply 列（意见回复）
     fcols = [r[1] for r in conn.execute("PRAGMA table_info(feedback)").fetchall()]
     if "reply" not in fcols:

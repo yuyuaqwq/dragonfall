@@ -20,6 +20,8 @@ PLAYER_FIELDS = {
     "faction", "battle_prefs",
     # v140 波2：副本通关后调查——每日次数/日期（跨日归零）
     "investigate_date", "investigate_count",
+    # v141 大陆隔离：玩家所在大陆 id（mainland=主大陆 / inst:<uuid>=副本实例）
+    "world_id",
 }
 
 
@@ -183,6 +185,14 @@ def get_player(group_id, qq_id):
                     p["cur_subarea"] = _sas0[0]["id"]
             except Exception:
                 pass
+            # v141 大陆隔离：读档 world_id 兜底——旧存档无该列/脏数据一律回退主大陆
+            # （副本实例大陆 world_id 只在开本期间存在；读档看到 inst: 前缀但大陆已销毁 → 回主大陆）
+            try:
+                _wid = p.get("world_id")
+                if not _wid or not isinstance(_wid, str):
+                    p["world_id"] = "mainland"
+            except Exception:
+                p["world_id"] = "mainland"
             # v95.7 #26：读档惰性结算经验溢出（面板曾出现 100% 不升级，要打一场才结算）
             # 任务奖励等路径若漏查升级，读档时自动补算并写回（升级回满血/给属性点技能点）
             # v95.12 #143：惰性升级的 logs 不能丢——挂到 p["_lv_logs"]，由 check_player_level_up 消费
