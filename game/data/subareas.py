@@ -777,7 +777,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -969,7 +970,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -1291,7 +1293,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -2310,7 +2313,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -3070,7 +3074,8 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -3113,7 +3118,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -3928,7 +3934,9 @@ SUBAREAS = {
             "monsters": [],
             "elite": None,
             "boss": None,
-            "funcs": [],
+            "funcs": [
+                "instance"
+            ],
             "shop": False,
             "healer": False
         },
@@ -4299,7 +4307,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -5338,7 +5347,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -5991,7 +6001,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -6703,7 +6714,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -7304,7 +7316,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -8158,7 +8171,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -8252,7 +8266,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -8997,7 +9012,8 @@ SUBAREAS = {
             "elite": None,
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -9041,7 +9057,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -9585,7 +9602,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -9693,7 +9711,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -10311,7 +10330,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -10764,7 +10784,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False
@@ -11070,7 +11091,8 @@ SUBAREAS = {
             ],
             "boss": None,
             "funcs": [
-                "explore"
+                "explore",
+                "instance"
             ],
             "shop": False,
             "healer": False

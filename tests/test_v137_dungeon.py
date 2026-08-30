@@ -88,6 +88,8 @@ async def main():
     make_player("g1", "q1", cls="战士", level=20)
     p = db.get_player("g1", "q1")
     db.update_player("g1", "q1", hp=p["max_hp"], mp=p["max_mp"], level=20, gold=5000, cur_map="oak_town", cur_subarea="oak_town_1")
+    # F2 入口设施化：开本需站在副本入口（哥布林营地入口 = misty_swamp/misty_swamp_3）
+    db.update_player("g1", "q1", cur_map="misty_swamp", cur_subarea="misty_swamp_3")
     out = await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     check("开本成功", "副本开启" in out, out[:200])
     p = db.get_player("g1", "q1")
@@ -170,6 +172,9 @@ async def main():
         db.update_player("g1", q, hp=p["max_hp"], mp=p["max_mp"], level=20, gold=5000)
     # q2 未组队直接加入战斗 → 校验拦截
     await cmd(m, "party", "g1", "q1", "组队 法师")
+    # F2 入口设施化：双人开本也需站入口
+    db.update_player("g1", "q1", cur_map="misty_swamp", cur_subarea="misty_swamp_3")
+    db.update_player("g1", "q2", cur_map="misty_swamp", cur_subarea="misty_swamp_3")
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     await enter_combat(m, "g1", "q1")
     battle = db.get_battle("g1", "q1")

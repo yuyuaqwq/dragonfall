@@ -141,6 +141,13 @@ class WorldCmds(CommandBase):
                     lines.append(f"🌌 {p['icon']}{p['name']}(已激活，『传送 <名称>』)")
                 else:
                     lines.append(f"🌌 {p['icon']}{p['name']}(『激活』解锁传送点)")
+        # F2 副本入口设施化：funcs 含 instance 的子区域 = 副本入口设施（消费 F1 标记）
+        if sa_obj and "instance" in (sa_obj.get("funcs") or []):
+            for _ik, _iv in C.INSTANCES.items():
+                _ie = _iv.get("entry") or {}
+                if _ie.get("map") == mid and _ie.get("subarea") == sa_id:
+                    lines.append(f"🏰 此处是【{_iv.get('name', '副本')}】入口（『副本 {_iv.get('name', '')}』进入）")
+                    break
         # 自然互动（9.3：垂钓点显示特色描述；v87.17 子区域绑定：不在对应子区域不显示）
         if mid in C.FISHING_SPOTS:
             _fi = C.FISHING_SPOTS[mid]

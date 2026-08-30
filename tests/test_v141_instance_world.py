@@ -19,6 +19,19 @@ import os
 import sys
 import time
 
+# ⚠️ F2 副本入口设施化（v141.x）：开本现在要求队长站在入口位置（entry 字段），
+# 本测试全部开本用例的 prep_player 落点是 oak_town（非入口），会被新位置校验拦截。
+# 适配：开本前把玩家瞬移到哥布林营地入口（misty_swamp/misty_swamp_3），
+# 其余断言与大陆隔离语义不变。
+GOBLIN_ENTRY = ("misty_swamp", "misty_swamp_3")
+
+
+def goto_goblin_entry(gid, *qids):
+    """把若干玩家瞬移到哥布林营地入口（misty_swamp/misty_swamp_3）。"""
+    for q in qids:
+        db.update_player(gid, q, cur_map=GOBLIN_ENTRY[0], cur_subarea=GOBLIN_ENTRY[1])
+
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, make_player, Main, FakeEvent, run  # noqa: E402
 
@@ -192,6 +205,7 @@ async def check_world_crud(m):
 async def check_start_world(m):
     print("【3. 开本→大陆】")
     prep_player(m, "g1", "q1", "战士", "战士", level=20)
+    goto_goblin_entry("g1", "q1")  # F2：开本需站在副本入口
     out = await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     check("开本成功", "副本开启" in out, out[:200])
     p = db.get_player("g1", "q1")
@@ -228,6 +242,7 @@ async def check_start_world(m):
 async def check_retreat_keep(m):
     print("【4. 撤退→大陆保留】")
     prep_player(m, "g1", "q1", "战士", "战士", level=20)
+    goto_goblin_entry("g1", "q1")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     wid = db.get_player("g1", "q1").get("world_id", "")
     out = await cmd(m, "instance_retreat", "g1", "q1", "撤退")
@@ -260,6 +275,7 @@ async def check_retreat_keep(m):
 async def check_leave_destroy(m):
     print("【5. 离开副本→大陆销毁】")
     prep_player(m, "g1", "q1", "战士", "战士", level=20)
+    goto_goblin_entry("g1", "q1")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     wid = db.get_player("g1", "q1").get("world_id", "")
     check("开本成功（前置）", str(wid).startswith("inst:"), wid)
@@ -282,6 +298,7 @@ async def check_party_leave_rollback(m):
         prep_player(m, "g1", q, nm, cls, level=20)
     ok = db.party_create("g1", "q1", "q2")
     check("真实组队成功", ok, "")
+    goto_goblin_entry("g1", "q1", "q2")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     wid = db.get_player("g1", "q1").get("world_id", "")
     check("队长开本成功（前置）", str(wid).startswith("inst:"), wid)
@@ -311,12 +328,14 @@ async def check_multi_team_isolation(m):
         prep_player(m, "g1", q, nm, cls, level=20)
     db.party_create("g1", "q1", "q2")
     db.party_create("g1", "q3", "q4")
-    # 队 A 开本
+    # 队 A 开本（F2：开本需站在副本入口）
+    goto_goblin_entry("g1", "q1", "q2")
     outA = await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     widA = db.get_player("g1", "q1").get("world_id", "")
     check("队A开本成功", "副本开启" in outA, outA[:150])
     check("队A world_id inst:", str(widA).startswith("inst:"), widA)
-    # 队 B 开本
+    # 队 B 开本（F2：队 B 也要站入口）
+    goto_goblin_entry("g1", "q3", "q4")
     outB = await cmd(m, "instance_cmd", "g1", "q3", "副本 哥布林营地")
     widB = db.get_player("g1", "q3").get("world_id", "")
     check("队B开本成功", "副本开启" in outB, outB[:150])
@@ -357,6 +376,7 @@ async def check_fail_destroy(m):
     p = db.get_player("g1", "z1")
     db.update_player("g1", "z1", hp=p["max_hp"], mp=p["max_mp"], level=20, gold=5000,
                      cur_map="oak_town", cur_subarea="oak_town_1")
+    goto_goblin_entry("g1", "z1")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "z1", "副本 哥布林营地")
     wid = db.get_player("g1", "z1").get("world_id", "")
     check("开本成功（前置）", str(wid).startswith("inst:"), wid)
@@ -404,6 +424,7 @@ async def check_fail_destroy(m):
 async def check_orphan_heal(m):
     print("【9. 孤儿大陆自愈】")
     prep_player(m, "g1", "q1", "战士", "战士", level=20)
+    goto_goblin_entry("g1", "q1")  # F2：开本需站在副本入口
     await cmd(m, "instance_cmd", "g1", "q1", "副本 哥布林营地")
     wid = db.get_player("g1", "q1").get("world_id", "")
     check("开本成功（前置）", str(wid).startswith("inst:"), wid)

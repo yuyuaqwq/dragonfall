@@ -15,6 +15,7 @@ Boss 全部引用 04 章 b_* 定义（阶段三/四已挂进地图 monsters）�
 INSTANCES = {
     # ================= 主线 8（多人/进阶） =================
     "inst_goblin_camp": {
+        "entry": {"map": "misty_swamp", "subarea": "misty_swamp_3"},
         "name": "哥布林营地",
         "icon": "👺",
         "lv": 15,
@@ -117,6 +118,7 @@ INSTANCES = {
         "blueprint": False,
     },
     "inst_sea_cave": {
+        "entry": {"map": "harbor_docks", "subarea": "harbor_docks_3"},
         "name": "海蚀洞窟",
         "icon": "🌊",
         "lv": 22,
@@ -221,6 +223,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_old_king_tomb": {
+        "entry": {"map": "king_road", "subarea": "king_road_3"},
         "name": "旧王陵",
         "icon": "🦴",
         "lv": 35,
@@ -325,6 +328,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_secret_crypt": {
+        "entry": {"map": "dawn_cathedral", "subarea": "dawn_cathedral_3"},
         "name": "圣堂地窖",
         "icon": "⛪",
         "lv": 42,
@@ -415,6 +419,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_elven_ruins": {
+        "entry": {"map": "moon_court", "subarea": "moon_court_gate"},
         "name": "精灵废墟",
         "icon": "🏛️",
         "lv": 58,
@@ -506,6 +511,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_ash_temple": {
+        "entry": {"map": "cinder_mountain", "subarea": "cinder_mountain_3"},
         "name": "烬山祭坛",
         "icon": "🌋",
         "lv": 82,
@@ -597,6 +603,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_abyss_gate": {
+        "entry": {"map": "ash_temple", "subarea": "ash_temple_1"},
         "name": "深渊裂隙",
         "icon": "🌑",
         "lv": 90,
@@ -710,6 +717,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_dragon_tomb": {
+        "entry": {"map": "dragon_roost", "subarea": "dragon_roost_3"},
         "name": "龙之墓",
         "icon": "🐉",
         "lv": 90,
@@ -803,6 +811,7 @@ INSTANCES = {
     },
     # ================= 区域支线 5（可单人） =================
     "inst_deer_fort": {
+        "entry": {"map": "hill_mine", "subarea": "hill_mine_3"},
         "name": "鹿角要塞",
         "icon": "🛡️",
         "lv": 18,
@@ -856,6 +865,7 @@ INSTANCES = {
         "blueprint": False,
     },
     "inst_holy_trial": {
+        "entry": {"map": "king_road", "subarea": "king_road_2"},
         "name": "圣光试炼场",
         "icon": "⚜️",
         "lv": 36,
@@ -906,6 +916,7 @@ INSTANCES = {
         "blueprint": False,
     },
     "inst_moon_temple": {
+        "entry": {"map": "moon_glade", "subarea": "moon_glade_3"},
         "name": "月神圣殿",
         "icon": "🌙",
         "lv": 60,
@@ -956,6 +967,7 @@ INSTANCES = {
         "blueprint": False,
     },
     "inst_frost_throne": {
+        "entry": {"map": "winter_lake", "subarea": "winter_lake_3"},
         "name": "冰霜王座",
         "icon": "❄️",
         "lv": 74,
@@ -1006,6 +1018,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_storm_throne": {
+        "entry": {"map": "storm_cliff", "subarea": "storm_cliff_3"},
         "name": "风暴王座",
         "icon": "🌩️",
         "lv": 90,
@@ -1057,6 +1070,7 @@ INSTANCES = {
     },
     # ================= 外域 6（翡翠海/无尽海/地底） =================
     "inst_sunken_ship": {
+        "entry": {"map": "storm_strait", "subarea": "storm_strait_3"},
         "name": "沉船湾",
         "icon": "⚓",
         "lv": 38,
@@ -1150,6 +1164,7 @@ INSTANCES = {
         "blueprint": False,
     },
     "inst_siren_nest": {
+        "entry": {"map": "mermaid_bay", "subarea": "mermaid_bay_3"},
         "name": "海妖巢穴",
         "icon": "🧜‍♀️",
         "lv": 52,
@@ -1241,6 +1256,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_sea_god_temple": {
+        "entry": {"map": "storm_sea", "subarea": "storm_sea_3"},
         "name": "海神神殿",
         "icon": "🌊",
         "lv": 64,
@@ -1347,6 +1363,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_deep_dragon_palace": {
+        "entry": {"map": "storm_sea", "subarea": "storm_sea_2"},
         "name": "深海龙宫",
         "icon": "🐲",
         "lv": 70,
@@ -1454,6 +1471,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_gray_dwarf": {
+        "entry": {"map": "deep_lake", "subarea": "deep_lake_3"},
         "name": "灰矮人要塞",
         "icon": "⛏️",
         "lv": 74,
@@ -1544,6 +1562,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_under_dragon": {
+        "entry": {"map": "molten_abyss", "subarea": "molten_abyss_3"},
         "name": "地底龙巢",
         "icon": "🐍",
         "lv": 84,
@@ -1636,6 +1655,7 @@ INSTANCES = {
     },
     # ================= 扩展 3（天空/地底终极） =================
     "inst_eye_of_storm": {
+        "entry": {"map": "storm_plateau", "subarea": "storm_plateau_3"},
         "name": "风暴之眼",
         "icon": "🌀",
         "lv": 92,
@@ -1727,6 +1747,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_abyss_throne": {
+        "entry": {"map": "abyss_altar", "subarea": "abyss_altar_3"},
         "name": "深渊王座",
         "icon": "👹",
         "lv": 90,
@@ -1818,6 +1839,7 @@ INSTANCES = {
         "blueprint": True,
     },
     "inst_cloud_sanctum": {
+        "entry": {"map": "rainbow_cloud", "subarea": "rainbow_cloud_3"},
         "name": "云中圣殿",
         "icon": "☁️",
         "lv": 94,

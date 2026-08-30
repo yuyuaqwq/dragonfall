@@ -47,6 +47,8 @@ async def main():
 
     print("【v116：首通前有钥匙 → 消耗且无免钥匙提示】")
     db.add_item("g1", "i1", "mat_jun_qi_sui_pian", {"name": "军旗碎片", "type": "材料", "stackable": True, "price": 100})
+    # F2 入口设施化：鹿角要塞入口 = hill_mine/hill_mine_3，开本前站到入口
+    db.update_player("g1", "i1", cur_map="hill_mine", cur_subarea="hill_mine_3")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
     check("有钥匙开本成功", "副本开启" in out, out[:200])
     check("首通前无免钥匙提示", "免钥匙" not in out, out[:200])
@@ -60,6 +62,8 @@ async def main():
     print("【v116：已通关免钥匙入场】")
     # 直接落首通成就模拟历史通关（真实路径：_instance_victory 结算 → db.set_achievement）
     db.set_achievement("g1", "i1", "inst_clear_inst_deer_fort", 1)
+    # F2：已通关豁免位置校验，但仍在入口更稳（已在入口）
+    db.update_player("g1", "i1", cur_map="hill_mine", cur_subarea="hill_mine_3")
     out = await cmd(m, "instance_cmd", "g1", "i1", "副本 鹿角要塞")
     check("已通关无钥匙开本成功", "副本开启" in out, out[:200])
     check("已通关免钥匙入场提示", "已通关副本，免钥匙入场" in out, out[:200])

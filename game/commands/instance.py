@@ -1187,6 +1187,15 @@ class InstanceCmds(CommandBase):
             ki = inst.get("key_item")
             if ki:
                 lines.append(f"   🔑 需『{ki}』：{inst.get('key_source', '？？？')}")
+            ent = inst.get("entry")
+            if ent:
+                _em = C.MAP_BY_ID.get(ent.get("map", ""), {}).get("name", ent.get("map", ""))
+                _esa_n = ""
+                for _esa2 in (C.MAP_BY_ID.get(ent.get("map", ""), {}).get("subareas") or []):
+                    if _esa2.get("id") == ent.get("subarea"):
+                        _esa_n = _esa2.get("name", "")
+                        break
+                lines.append(f"   📍 入口：{_em}·{_esa_n or ent.get('subarea', '')}")
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("instance"))
         lines.append("💡 按顺序轮流出手，Boss 血量随人数上涨，配合好才能通关！")
@@ -1849,6 +1858,53 @@ class InstanceCmds(CommandBase):
                 db.remove_item(group_id, qq_id, key_entry["key"])
             else:
                 key_free_note = "✅ 已通关副本，免钥匙入场！\n"
+        # F2 副本入口设施化：走到入口才能开本（消费 F1 的 entry 字段 + funcs=instance 标记）
+        # 兼容红线：entry 为空免校验；已通关免校验；cur_map 已在副本图视为已在入口；
+        # 主线/支线 explore 目标 == 本副本图（任务内单人可进图）免校验。
+        _entry_cfg = inst.get("entry")
+        if _entry_cfg:
+            _entry_map = _entry_cfg.get("map")
+            _entry_sa = _entry_cfg.get("subarea")
+            _leader_p = self._player(group_id, qq_id)
+            _ok_pos = True
+            if _entry_map and _entry_sa:
+                _ok_pos = (str(_leader_p.get("cur_map") or "") == str(_entry_map)
+                           and str(_leader_p.get("cur_subarea") or "") == str(_entry_sa))
+                # 兼容红线：存量玩家 cur_map 已在副本图（旧存档徒步进图）→ 视为已在入口
+                if not _ok_pos and str(_leader_p.get("cur_map") or "") == _inst_map_id(kid):
+                    _ok_pos = True
+            if not _ok_pos:
+                # 兼容红线：已通关该副本 → 免位置校验（老玩家便利）
+                from ..core.instance_gate import instance_cleared_qq
+                _cleared = instance_cleared_qq(group_id, qq_id, kid)
+                if not _cleared:
+                    # 兼容红线：主线/支线 explore 目标 == 本副本图 → 任务内单人可进图，免校验
+                    _quests = db.get_quests(group_id, qq_id)
+                    _in_quest = False
+                    if _quests.get("main_status") == "active":
+                        _mq = next((q for q in C.MAIN_QUESTS if q["id"] == _quests.get("main_quest")), None)
+                        if _mq and _mq.get("objective", {}).get("explore") == _inst_map_id(kid):
+                            _in_quest = True
+                    if not _in_quest:
+                        _side = _quests.get("side") or {}
+                        if any(
+                            sq.get("status") == "active"
+                            and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == _inst_map_id(kid)
+                            for sid, sq in _side.items()
+                        ):
+                            _in_quest = True
+                    if not _in_quest:
+                        _em_name = C.MAP_BY_ID.get(_entry_map, {}).get("name", _entry_map)
+                        _esa_name = ""
+                        for _esa in (C.MAP_BY_ID.get(_entry_map, {}).get("subareas") or []):
+                            if _esa.get("id") == _entry_sa:
+                                _esa_name = _esa.get("name", "")
+                                break
+                        yield event.plain_result(
+                            f"📍 请先到【{_em_name}·{_esa_name or _entry_sa}】副本入口处（『前往』）再开本！\n"
+                            f"（副本入口在 {_em_name} 的 {_esa_name or _entry_sa}，走到那里输入『副本 {inst['name']}』）"
+                        )
+                        return
         # v94 体力：开本消耗 20 体力（全队队长扣）
         _ok, _st = self._spend_stamina(group_id, qq_id, 20, player, "进入副本")
         if not _ok:
