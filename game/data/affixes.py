@@ -662,6 +662,307 @@ LEGENDARY_EFFECTS = {
         "effect": {"element": "fire", "pct": 0.08, "burn_pct": 0.015, "burn_turns": 3},
         "desc": "攻击附加 8% 火属性伤害，20% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合）",
     },
+    # ================= D2 基础效果库扩充（D2_design.md：24 个 = 7 完整 + 17 名字补全） =================
+    "dragon_scale": {  # D2 龙鳞庇护：全元素抗性+15%、深渊抗性+5%，代价最大生命-10%
+        "name": "龙鳞庇护", "kind": "defense", "trigger": "stat",
+        "effect": {"elem_res": 0.15, "abyss_res": 0.05, "hp_pct": -0.10},
+        "desc": "全元素抗性＋15%、深渊抗性＋5%，代价最大生命－10%",
+    },
+    "obsidian_aegis": {  # D2 黑曜壁垒：受击10%获得8%最大生命护盾
+        "name": "黑曜壁垒", "kind": "defense", "trigger": "on_taken", "chance": 0.10,
+        "effect": {"pct": 0.08, "turns": 3},
+        "desc": "受击 10% 获得 8% 最大生命护盾（3 回合）",
+    },
+    "iron_bastion": {  # D2 铁壁意志：受击20%使敌人下一次攻击-25%
+        "name": "铁壁意志", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
+        "effect": {"pct": 0.25},
+        "desc": "受击 20% 使敌人下一次攻击－25%",
+    },
+    "steady_core": {  # D2 磐石之心：受击15%免疫眩晕/减速且回3%生命
+        "name": "磐石之心", "kind": "defense", "trigger": "on_taken", "chance": 0.15,
+        "effect": {"cc_resist": 0.5, "heal_pct": 0.03},
+        "desc": "受击 15% 免疫眩晕/减速且回复 3% 最大生命",
+    },
+    "life_spring": {  # D2 生命泉涌：每回合回3%最大生命
+        "name": "生命泉涌", "kind": "defense", "trigger": "turn_start",
+        "effect": {"pct": 0.03},
+        "desc": "每回合回复 3% 最大生命",
+    },
+    "arcane_ward": {  # D2 奥术屏障：战斗开始15%最大生命护盾3回合
+        "name": "奥术屏障", "kind": "defense", "trigger": "battle_start",
+        "effect": {"shield_hp_pct": 0.15, "turns": 3},
+        "desc": "战斗开始获得 15% 最大生命护盾（3 回合）",
+    },
+    "grim_ward": {  # D2 亡者守护：生命>50%时受击-7%
+        "name": "亡者守护", "kind": "defense", "trigger": "passive",
+        "effect": {"dmg_taken_mult": 0.93, "cond": "hp_gt_50"},
+        "desc": "生命 >50% 时受击伤害－7%",
+    },
+    "storm_herald": {  # D2 风暴使者：雷伤+15%，元素抗性+5%
+        "name": "风暴使者", "kind": "attack", "trigger": "stat",
+        "effect": {"thunder_dmg": 0.15, "elem_res": 0.05},
+        "desc": "雷属性伤害＋15%，元素抗性＋5%",
+    },
+    "frost_veil": {  # D2 霜结之纱：冰伤+20%，速度+5%
+        "name": "霜结之纱", "kind": "attack", "trigger": "stat",
+        "effect": {"ice_dmg": 0.20, "spd_pct": 0.05},
+        "desc": "冰属性伤害＋20%，速度＋5%",
+    },
+    "crimson_fang": {  # D2 猩红獠牙：吸血+10%，代价暴伤-10%
+        "name": "猩红獠牙", "kind": "attack", "trigger": "stat",
+        "effect": {"lifesteal": 0.10, "crit_dmg": -0.10},
+        "desc": "吸血＋10%，代价暴击伤害－10%",
+    },
+    "soul_devourer": {  # D2 噬魂者：攻击15%将6%伤害转生命
+        "name": "噬魂者", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"heal_pct": 0.06},
+        "desc": "攻击 15% 将 6% 伤害转为生命",
+    },
+    "executioner": {  # D2 处刑者：低血处决强化（斩杀线 30%）
+        "name": "处刑者", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.40, "execute_threshold": 0.30, "tag": "⚔️处刑者"},
+        "desc": "对生命 <30% 的目标＋40% 伤害",
+    },
+    "sun_blaze": {  # D2 烈日迸发：攻击15%概率80%额外火伤
+        "name": "烈日迸发", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"element": "fire", "pct": 0.80},
+        "desc": "攻击 15% 概率造成 80% 额外火属性伤害",
+    },
+    "chain_overload": {  # D2 连锁过载：攻击15%追加60%雷伤
+        "name": "连锁过载", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"extra_atk": 0.60, "element": "thunder"},
+        "desc": "攻击 15% 概率连锁过载：追加 60% 雷属性伤害",
+    },
+    "mark_hunt": {  # D2 猎杀印记：对标记目标增伤（被动）
+        "name": "猎杀印记", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.25, "enemy_marked": True, "tag": "🎯猎杀印记"},
+        "desc": "对标记/被集火目标＋25% 伤害",
+    },
+    "giant_slayer": {  # D2 巨人屠戮：对巨人系增伤
+        "name": "巨人屠戮", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.25, "enemy_contains": ["巨人"], "tag": "🗿巨人屠戮"},
+        "desc": "对巨人系敌人＋25% 伤害",
+    },
+    "memory_tear": {  # D2 记忆撕裂：攻击15%沉默目标1回合
+        "name": "记忆撕裂", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"silence": 1},
+        "desc": "攻击 15% 撕裂目标记忆，使其沉默 1 回合",
+    },
+    "war_cry": {  # D2 战吼：战斗开始攻击强化
+        "name": "战吼", "kind": "attack", "trigger": "battle_start",
+        "effect": {"atk_up": 2, "tag": "📣战吼"},
+        "desc": "战斗开始战吼：攻击大幅提升（2 回合）",
+    },
+    "top_hunter": {  # D2 猎首者：对精英敌人增伤
+        "name": "猎首者", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.15, "enemy_role": "elite", "tag": "🏹猎首者"},
+        "desc": "对精英敌人＋15% 伤害",
+    },
+    "mortal_wound": {  # D2 致伤重击：攻击20%使目标受治疗-30%
+        "name": "致伤重击", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"heal_down": 2},
+        "desc": "攻击 20% 使目标重伤：受治疗－30%（2 回合）",
+    },
+    "arcane_echo": {  # D2 秘法回响：施放技能15%下次技能伤害+15%
+        "name": "秘法回响", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"next_skill_dmg": 0.15},
+        "desc": "施放技能 15% 概率使下次技能伤害＋15%",
+    },
+    "siphon": {  # D2 汲魂：攻击20%驱散1层增益并回3%生命
+        "name": "汲魂", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"purge": 1, "heal_pct": 0.03},
+        "desc": "攻击 20% 驱散目标 1 层增益并回复 3% 最大生命",
+    },
+    "summon_pact": {  # D2 召唤契约：攻击20%召唤契约生物助战
+        "name": "召唤契约", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"summon": 1},
+        "desc": "攻击 20% 概率召唤契约生物助战",
+    },
+    "last_breath": {  # D2 最后喘息：致命伤害时以20%生命存活（每场1次）
+        "name": "最后喘息", "kind": "defense", "trigger": "passive",
+        "effect": {"revive": True, "revive_hp": 0.20, "tag": "🌙最后喘息"},
+        "desc": "每场 1 次：受到致命伤害时以 20% 最大生命存活",
+    },
+    # ================= D3-A 前期新效果（D3_A_report.md 新效果清单） =================
+    "oath_sword": {  # D3-A 王都誓约之剑：暴击时回复2%最大生命
+        "name": "誓约之刃", "kind": "attack", "trigger": "on_hit", "chance": 1.0,
+        "effect": {"heal_pct": 0.02, "on_crit": True},
+        "desc": "暴击时回复 2% 最大生命",
+    },
+    "dawn_grace": {  # D3-A 珍珠项链：最大生命+4%
+        "name": "晨光恩泽", "kind": "defense", "trigger": "stat",
+        "effect": {"hp_pct": 0.04},
+        "desc": "最大生命＋4%",
+    },
+    "sea_breeze": {  # D3-A 海风长弓：闪避率+3%
+        "name": "海风祝福", "kind": "defense", "trigger": "stat",
+        "effect": {"dodge": 0.03},
+        "desc": "闪避率＋3%",
+    },
+    "lighthouse_ward": {  # D3-A 灯塔之光：受击伤害-3%
+        "name": "灯塔守望", "kind": "defense", "trigger": "stat",
+        "effect": {"dmg_reduce": 0.03},
+        "desc": "受击伤害－3%",
+    },
+    "morning_dew": {  # D3-A 晨露戒指：每回合回复1%魔力
+        "name": "晨露滋养", "kind": "defense", "trigger": "turn_start",
+        "effect": {"pct": 0.01},
+        "desc": "每回合回复 1% 魔力",
+    },
+    # ================= D3-B 中期新效果（D3_B_report.md 第三节 12 个） =================
+    "kingdom_lion_heart": {  # D3-B 试炼徽章：生命>70%伤害+8%
+        "name": "王狮之心", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.08, "cond": "hp_gt_70", "tag": "🦁王狮之心"},
+        "desc": "生命 >70% 时伤害＋8%",
+    },
+    "blood_oath_echo": {  # D3-B 血誓战剑：受击20%回2%生命+下次攻击+10%
+        "name": "血誓回响", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
+        "effect": {"heal_pct": 0.02, "atk_up": 0.10},
+        "desc": "受击 20%：回复 2% 最大生命，下次攻击＋10%",
+    },
+    "sanctum_light": {  # D3-B 圣殿战锤：命中15%敌人攻击-8%（1回合）
+        "name": "圣殿辉光", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"enemy_atk_down": 0.08, "turns": 1},
+        "desc": "攻击命中 15%：敌人攻击－8%（1 回合）",
+    },
+    "ember_furnace": {  # D3-B 熔岩护手：命中20%灼烧1%×2回合
+        "name": "熔炉余烬", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"burn_pct": 0.01, "burn_turns": 2},
+        "desc": "攻击命中 20%：灼烧 1% 最大生命×2 回合",
+    },
+    "surge_ready": {  # D3-B 蓄势拳套：战斗开始下一次攻击+15%
+        "name": "蓄势待发", "kind": "attack", "trigger": "battle_start",
+        "effect": {"next_atk_up": 0.15},
+        "desc": "战斗开始：下一次攻击＋15%",
+    },
+    "night_watch": {  # D3-B 长夜徽记：受击5%回1%生命
+        "name": "长夜守望", "kind": "defense", "trigger": "on_taken", "chance": 0.05,
+        "effect": {"heal_pct": 0.01},
+        "desc": "受击 5%：回复 1% 最大生命",
+    },
+    "beast_ward": {  # D3-B 裂鬃獠牙：反伤+5%
+        "name": "兽性庇护", "kind": "defense", "trigger": "stat",
+        "effect": {"thorns": 0.05},
+        "desc": "反伤＋5%",
+    },
+    "captain_insight": {  # D3-B 船长的望远镜：幸运+6%
+        "name": "船长洞察", "kind": "attack", "trigger": "stat",
+        "effect": {"luck": 0.06},
+        "desc": "幸运＋6%",
+    },
+    "abyss_anchor": {  # D3-B 深渊之锚：深渊抗+8%元素抗+6%
+        "name": "深渊锚护", "kind": "defense", "trigger": "stat",
+        "effect": {"abyss_res": 0.08, "elem_res": 0.06},
+        "desc": "深渊抗性＋8%，元素抗性＋6%",
+    },
+    "moon_shadow": {  # D3-B 月影斗篷：闪避+4%
+        "name": "月影庇护", "kind": "defense", "trigger": "stat",
+        "effect": {"dodge": 0.04},
+        "desc": "闪避＋4%",
+    },
+    "ranger_precision": {  # D3-B 巡林长弓：精准+6%
+        "name": "巡林精准", "kind": "attack", "trigger": "stat",
+        "effect": {"precise": 0.06},
+        "desc": "精准＋6%",
+    },
+    "jade_wealth": {  # D3-B 翡翠之心：金币收益+5%
+        "name": "翡翠生财", "kind": "attack", "trigger": "stat",
+        "effect": {"gold_bonus": 0.05},
+        "desc": "金币收益＋5%",
+    },
+    # ================= D3-C 后期新效果（D3_C_report.md 第二节 6 个） =================
+    "blazing_sun": {  # D3-C 铁砧战锤：附加8%火伤+15%灼烧
+        "name": "烈日灼烧", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
+        "effect": {"element": "fire", "pct": 0.08, "burn_pct": 0.015, "burn_turns": 3},
+        "desc": "攻击附加 8% 火属性伤害，15% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合）",
+    },
+    "deep_frost": {  # D3-C 银叶法杖：附加8%冰伤+减速20%2回合
+        "name": "深寒", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"element": "ice", "pct": 0.08, "slow": 0.20, "slow_turns": 2},
+        "desc": "攻击附加 8% 冰属性伤害并减速目标（速度－20%，2 回合）",
+    },
+    "thunder_mark": {  # D3-C 雷鸣龙鳞：攻击20%叠雷鸣印记
+        "name": "雷鸣印记", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+        "effect": {"mark_pct": 0.02, "max_mark": 5},
+        "desc": "攻击 20% 叠加雷鸣印记（每层＋2% 伤害，上限 5 层）",
+    },
+    "wolf_howl": {  # D3-C 霜狼长剑：战斗开始本场伤害+10%
+        "name": "狼嚎", "kind": "attack", "trigger": "battle_start",
+        "effect": {"cond": "battle_start", "dmg_mult": 1.10, "tag": "🐺狼嚎"},
+        "desc": "战斗开始时嚎叫：本场战斗伤害＋10%",
+    },
+    "night_prayer": {  # D3-C 夜祷兜帽：每回合回3%最大生命
+        "name": "夜祷", "kind": "defense", "trigger": "turn_start",
+        "effect": {"pct": 0.03},
+        "desc": "每回合回复 3% 最大生命",
+    },
+    "crimson_tide": {  # D3-C 海神戒指：吸血+10%代价暴伤-10%
+        "name": "猩红潮汐", "kind": "attack", "trigger": "stat",
+        "effect": {"lifesteal": 0.10, "crit_dmg": -0.10},
+        "desc": "吸血＋10%，代价暴击伤害－10%",
+    },
+    # ================= D3-D 末期新效果（D3_D_report.md 第二节 6 个） =================
+    "xing_hui_zhi_guan": {  # D3-D 星辉之冠：暴伤+15%闪避+5%
+        "name": "星辉守护", "kind": "defense", "trigger": "stat",
+        "effect": {"crit_dmg": 0.15, "dodge": 0.05},
+        "desc": "暴击伤害＋15%、闪避＋5%",
+    },
+    "xing_he_fa_zhang": {  # D3-D 星河法杖：冰伤+20%暴击+5%
+        "name": "冰嚎", "kind": "attack", "trigger": "stat",
+        "effect": {"ice_dmg": 0.20, "crit": 0.05},
+        "desc": "冰属性伤害＋20%、暴击率＋5%",
+    },
+    "shuang_lang_zhi_wang_ya": {  # D3-D 霜狼之王牙：全元素抗+10%韧性+5%
+        "name": "霜墙防线", "kind": "defense", "trigger": "stat",
+        "effect": {"elem_resist": 0.10, "tenacity": 0.05},
+        "desc": "全元素抗性＋10%、韧性＋5%——以寒霜筑起无形防线",
+    },
+    "bing_hao_zhan_ren": {  # D3-D 冰嚎战刃：冰伤+15%韧性+5%
+        "name": "永冻之心", "kind": "defense", "trigger": "stat",
+        "effect": {"ice_dmg": 0.15, "tenacity": 0.05},
+        "desc": "冰属性伤害＋15%、韧性＋5%",
+    },
+    "frozen_heart": {  # D3-D 永冻之心：深渊抗+10%最大生命+5%
+        "name": "深渊守望", "kind": "defense", "trigger": "stat",
+        "effect": {"abyss_resist": 0.10, "hp_pct": 0.05},
+        "desc": "深渊抗性＋10%、最大生命＋5%",
+    },
+    "death_wall": {  # D3-D 死亡防线：韧性+8%代价最大生命-5%
+        "name": "死亡防线", "kind": "defense", "trigger": "stat",
+        "effect": {"tenacity": 0.08, "hp_pct": -0.05},
+        "desc": "韧性＋8%，代价最大生命－5%——以血肉为墙",
+    },
+    # ================= D3-E 终局新效果（D3_E_report.md 第二节 6 个） =================
+    "night_eater_mask": {  # D3-E 蚀夜之面：暗夜闪避+8%
+        "name": "蚀夜", "kind": "defense", "trigger": "stat",
+        "effect": {"dodge": 0.08},
+        "desc": "暗夜闪避＋8%",
+    },
+    "storm_crown": {  # D3-E 风暴之冠：雷属性伤害+20%
+        "name": "风暴之冠", "kind": "attack", "trigger": "stat",
+        "effect": {"thunder_dmg": 0.20},
+        "desc": "雷属性伤害＋20%",
+    },
+    "cloud_rage_core": {  # D3-E 云怒之核：雷属性伤害+20%
+        "name": "云怒雷核", "kind": "attack", "trigger": "stat",
+        "effect": {"thunder_dmg": 0.20},
+        "desc": "雷属性伤害＋20%",
+    },
+    "star_destruction": {  # D3-E 黑渊之眼：对深渊系+30%伤害
+        "name": "星陨湮灭", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.30, "enemy_contains": ["深渊"], "tag": "☄️星陨湮灭"},
+        "desc": "对深渊系敌人＋30% 伤害",
+    },
+    "dragon_annihilation": {  # D3-E 深渊骑枪：对龙系+25%伤害
+        "name": "灭龙", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.25, "enemy_contains": ["龙"], "tag": "🐉灭龙"},
+        "desc": "对龙系敌人＋25% 伤害",
+    },
+    "divine_execution": {  # D3-E 辰光法杖：对生命<30%目标+60%伤害
+        "name": "神罚处决", "kind": "attack", "trigger": "passive",
+        "effect": {"dmg_mult": 1.60, "execute_threshold": 0.30, "tag": "⚡神罚处决"},
+        "desc": "对生命 <30% 的目标额外＋60% 伤害",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -1178,6 +1479,7 @@ SERIES_FIXED_AFFIX = {
     '蚀夜之面': ['dodge', 'swift'],
     '黑鸦面巾': ['dodge', 'swift'],
     '时光沙漏': ['meditate', 'cdr'],
+    '龙鳞庇护之坠': ['elem_resist', 'hp_up'],
 
 
     # ===== v140 波2 后期段职业武器补位（equip_add_fist_archer.py）固定词条 =====

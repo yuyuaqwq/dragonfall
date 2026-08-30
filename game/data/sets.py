@@ -59,10 +59,7 @@ SETS = {
         "bonus_2": {
             "crit": 0.05
         },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_4": {"effect": "lei_ting_chain", "chance": 0.25, "desc": "攻击命中 25% 概率追加 50% 魔攻雷击（带雷印记时 75%）"},
         "name": "雷霆"
     },
     "set_mi_yin": {
@@ -110,10 +107,7 @@ SETS = {
             "atk": 0.18,
             "pene_phys": 0.05  # v106.1 黑沼穿甲：暗杀者破甲
         },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_4": {"effect": "hei_zhao_erode", "chance": 0.3, "desc": "攻击 30% 概率附加暗蚀（2 回合每回合 1% 敌方最大生命暗伤），伤害全额转化自身生命"},
         "name": "黑沼"
     },
     "set_sheng_hui": {
@@ -125,10 +119,7 @@ SETS = {
             "abyss_res": 0.05,   # v106.1 圣徽庇护：深渊抗性
             "heal_power": 0.05   # v106.2 圣徽圣愈：治疗强度
         },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_4": {"effect": "holy_halo_shield", "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每回合最多 1 次）"},
         "name": "圣徽"
     },
     "set_bai_yin_qi_shi": {
@@ -137,10 +128,7 @@ SETS = {
         "bonus_2": {
             "atk": 0.2
         },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_4": {"effect": "silver_knight_lance", "chance": 0.3, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；目标已破甲则追加 30% 攻击力冲锋"},
         "name": "白银骑士"
     },
     "set_hei_tie_yong_bing": {
@@ -150,10 +138,7 @@ SETS = {
             "crit": 0.1,
             "atk": 0.1
         },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_4": {"effect": "iron_execute_rampage", "chance": 0.3, "desc": "对生命低于 40% 的敌人，攻击命中 30% 概率追加一次 50% 攻击力的斩杀"},
         "name": "黑铁佣兵"
     },
     "set_chen_guang_jiao_hui": {
@@ -177,400 +162,217 @@ SETS = {
             "dodge": 0.05,
             "cdr": 0.05  # v106.1 旅人经验：冷却缩减
         },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_4": {"effect": "travel_mark", "chance": 0.3, "desc": "攻击命中 30% 概率给敌人挂 1 层旅人标记（每层 +20% 伤害，上限 5）"},
         "name": "旅人公会"
     },
     "set_tie_pi": {
         "quality": "blue",
         "icon": "🛡️",
-        "bonus_2": {
-            "atk": 0.15,
-            "def": 0.12
-        },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_2": {"def": 0.18, "atk": 0.08},
+        "bonus_4": {"effect": "tie_pi_bulwark", "chance": 0.2, "desc": "受击 20% 概率获得 5% 最大生命护盾（1 回合）"},
         "name": "铁皮"
     },
     "set_jing_tie": {
         "quality": "blue",
         "icon": "🛡️",
-        "bonus_2": {
-            "atk": 0.15,
-            "def": 0.12
-        },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_2": {"atk": 0.18, "def": 0.08},
+        "bonus_4": {"effect": "jing_tie_refine", "chance": 0.5, "desc": "攻击命中 50% 概率叠 1 层精淬（敌方防御 -5%/层，上限 3 层）"},
         "name": "精铁"
     },
     "set_qi_shi": {
         "quality": "purple",
         "icon": "🛡️",
-        "bonus_2": {
-            "atk": 0.15,
-            "def": 0.12
-        },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_2": {"atk": 0.2, "def": 0.08},
+        "bonus_4": {"effect": "qi_shi_charge", "chance": 0.18, "desc": "攻击命中 18% 概率追加 100% 攻击力冲锋（每回合最多 1 次）"},
         "name": "骑士"
     },
     "set_shou_wang": {
         "quality": "purple",
         "icon": "🛡️",
-        "bonus_2": {
-            "atk": 0.15,
-            "def": 0.12
-        },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_2": {"def": 0.2, "hp": 0.08},
+        "bonus_4": {"effect": "shou_wang_ward", "chance": 0.25, "desc": "受击 25% 概率本次受击伤害 -50%"},
         "name": "守望"
     },
     "set_li_ming": {
         "quality": "orange",
         "icon": "🛡️",
-        "bonus_2": {
-            "atk": 0.15,
-            "def": 0.12
-        },
-        "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
-        },
+        "bonus_2": {"atk": 0.18, "def": 0.12},
+        "bonus_4": {"effect": "li_ming_dawnbreak", "chance": 0.3, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；破甲期间目标受疗效果 -30%"},
         "name": "黎明"
     },
     "set_xue_tu": {
         "quality": "blue",
         "icon": "🔮",
-        "bonus_2": {
-            "matk": 0.18,
-            "crit": 0.04
-        },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_2": {"matk": 0.15, "cdr": 0.05},
+        "bonus_4": {"effect": "xue_tu_spark", "chance": 0.4, "desc": "攻击命中 40% 概率叠 1 层雷印记（上限 3）"},
         "name": "学徒"
     },
     "set_fu_wen": {
         "quality": "blue",
         "icon": "🔮",
-        "bonus_2": {
-            "matk": 0.18,
-            "crit": 0.04
-        },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_2": {"matk": 0.18, "crit": 0.03},
+        "bonus_4": {"effect": "fu_wen_glyph_bolt", "chance": 0.3, "desc": "攻击命中 30% 概率追加 45% 魔攻雷击（雷印记 ≥2 消耗 1 层额外 +30%）"},
         "name": "符文"
     },
     "set_mi_fa": {
         "quality": "purple",
         "icon": "🔮",
-        "bonus_2": {
-            "matk": 0.18,
-            "crit": 0.04
-        },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_2": {"matk": 0.15, "crit": 0.05},
+        "bonus_4": {"effect": "mi_fa_arcane_bolt", "chance": 0.2, "desc": "攻击命中 20% 概率追加 80% 魔攻秘法雷击（吃暴击）"},
         "name": "秘法"
     },
     "set_xing_jie": {
         "quality": "purple",
         "icon": "🔮",
-        "bonus_2": {
-            "matk": 0.18,
-            "crit": 0.04
-        },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_2": {"matk": 0.18, "pene_magi": 0.03},
+        "bonus_4": {"effect": "xing_jie_starfall", "chance": 0.15, "desc": "攻击命中 15% 概率追加 80% 魔攻星雷并溅射全体 40% 魔攻"},
         "name": "星界"
     },
     "set_xing_chen": {
         "quality": "orange",
         "icon": "🔮",
-        "bonus_2": {
-            "matk": 0.18,
-            "crit": 0.04
-        },
-        "bonus_4": {
-            "effect": "thunder", "chance": 0.25,
-            "desc": "攻击 25% 概率追加一次雷击(60% 攻击伤害)"
-        },
+        "bonus_2": {"matk": 0.2, "crit": 0.04},
+        "bonus_4": {"effect": "xing_chen_starstrike", "chance": 0.25, "desc": "攻击命中 25% 概率追加 75% 魔攻星雷（雷印记满 3 必触发）"},
         "name": "星辰"
     },
     "set_lie_shou": {
         "quality": "blue",
         "icon": "🏹",
-        "bonus_2": {
-            "spd": 0.18,
-            "crit": 0.05
-        },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_2": {"spd": 0.15, "pene_phys": 0.04},
+        "bonus_4": {"effect": "hunter_mark_bonus", "chance": 0.4, "desc": "攻击命中 40%：标记目标伤害 +15%，否则叠 1 层标记"},
         "name": "猎手"
     },
     "set_feng_xing": {
         "quality": "blue",
         "icon": "🏹",
-        "bonus_2": {
-            "spd": 0.18,
-            "crit": 0.05
-        },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_2": {"spd": 0.18, "dodge": 0.03},
+        "bonus_4": {"effect": "gale_double", "chance": 0.25, "desc": "攻击命中 25% 概率追加一次 50% 攻击力的连射"},
         "name": "风行"
     },
     "set_an_ye": {
         "quality": "purple",
         "icon": "🏹",
-        "bonus_2": {
-            "spd": 0.18,
-            "crit": 0.05
-        },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_2": {"crit": 0.06, "dodge": 0.04},
+        "bonus_4": {"stats": {"precise": 0.05, "dodge": 0.05}, "desc": "精准 +5%、闪避 +5%（暗夜潜行精准）"},
         "name": "暗夜"
     },
     "set_ying_yan": {
         "quality": "purple",
         "icon": "🏹",
-        "bonus_2": {
-            "spd": 0.18,
-            "crit": 0.05
-        },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_2": {"crit": 0.07, "pene_phys": 0.03},
+        "bonus_4": {"effect": "eagle_vision", "chance": 0.35, "desc": "攻击命中 35% 概率下一次攻击暴击伤害 +30%"},
         "name": "鹰眼"
     },
     "set_cang_qiong": {
         "quality": "orange",
         "icon": "🏹",
-        "bonus_2": {
-            "spd": 0.18,
-            "crit": 0.05
-        },
-        "bonus_4": {
-            "effect": "dodge_set", "stats": {"dodge": 0.10},
-            "desc": "闪避率＋10%"
-        },
+        "bonus_2": {"spd": 0.15, "crit": 0.06},
+        "bonus_4": {"effect": "sky_chain", "chance": 0.25, "desc": "攻击命中 25% 概率追加 60% 攻击力的箭雨（标记目标 75%）"},
         "name": "苍穹"
     },
     "set_bu_yi": {
         "quality": "blue",
         "icon": "☀️",
-        "bonus_2": {
-            "mdef": 0.18,
-            "hp": 0.1
-        },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_2": {"mdef": 0.16, "hp": 0.12},
+        "bonus_4": {"effect": "cloth_regen_battle", "chance": 0.3, "desc": "攻击命中 30% 概率回复 8% 最大生命"},
         "name": "布衣"
     },
     "set_zhu_fu": {
         "quality": "blue",
         "icon": "☀️",
-        "bonus_2": {
-            "mdef": 0.18,
-            "hp": 0.1
-        },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_2": {"mdef": 0.18, "hp": 0.1, "heal_power": 0.03},
+        "bonus_4": {"effect": "bless_chant_mp", "chance": 0.35, "desc": "攻击命中 35% 概率回复 5% 最大魔力"},
         "name": "祝福"
     },
     "set_sheng_tang": {
         "quality": "purple",
         "icon": "☀️",
-        "bonus_2": {
-            "mdef": 0.18,
-            "hp": 0.1
-        },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_2": {"mdef": 0.2, "hp": 0.1},
+        "bonus_4": {"effect": "holy_field_heal", "desc": "每回合开始：生命低于 50% 回复 6%，否则回复 3%"},
         "name": "圣堂"
     },
     "set_shen_pan": {
         "quality": "purple",
         "icon": "☀️",
-        "bonus_2": {
-            "mdef": 0.18,
-            "hp": 0.1
-        },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_2": {"mdef": 0.18, "hp": 0.1, "tenacity": 0.03},
+        "bonus_4": {"effect": "judge_purify_heal", "chance": 0.25, "desc": "攻击命中 25% 概率净化自身 1 个负面效果并回复 4% 最大生命"},
         "name": "审判"
     },
     "set_shen_en": {
         "quality": "orange",
         "icon": "☀️",
-        "bonus_2": {
-            "mdef": 0.18,
-            "hp": 0.1
-        },
-        "bonus_4": {
-            "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
-        },
+        "bonus_2": {"mdef": 0.18, "hp": 0.12, "heal_power": 0.05},
+        "bonus_4": {"effect": "divine_grace_burst", "desc": "每回合开始回复 5% 生命；生命首次低于 30% 时额外回复 15%（每场 1 次）"},
         "name": "神恩"
     },
     "set_qing_ying": {
         "quality": "blue",
         "icon": "🗡️",
-        "bonus_2": {
-            "crit": 0.08,
-            "atk": 0.1
-        },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_2": {"crit": 0.08, "atk": 0.1},
+        "bonus_4": {"effect": "shadow_combo_double", "chance": 0.25, "desc": "攻击命中 25% 概率追加一次 40% 攻击力的连刺"},
         "name": "轻影"
     },
     "set_ye_xing": {
         "quality": "blue",
         "icon": "🗡️",
-        "bonus_2": {
-            "crit": 0.08,
-            "atk": 0.1
-        },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_2": {"crit": 0.1, "atk": 0.08},
+        "bonus_4": {"effect": "night_backstab", "chance": 0.2, "desc": "对满血敌人伤害 +25%；否则 20% 概率附加 5% 最大生命真伤"},
         "name": "夜行"
     },
     "set_yin_ying": {
         "quality": "purple",
         "icon": "🗡️",
-        "bonus_2": {
-            "crit": 0.08,
-            "atk": 0.1
-        },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_2": {"crit": 0.08, "atk": 0.1, "pene_phys": 0.03},
+        "bonus_4": {"effect": "shadow_etch_vuln", "chance": 0.3, "desc": "攻击命中 30% 概率叠 1 层阴影蚀刻（每层 +15% 受伤害，上限 5）"},
         "name": "阴影"
     },
     "set_huan_ying": {
         "quality": "purple",
         "icon": "🗡️",
-        "bonus_2": {
-            "crit": 0.08,
-            "atk": 0.1
-        },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_2": {"crit": 0.06, "atk": 0.12},
+        "bonus_4": {"effect": "phantom_echo", "chance": 0.15, "desc": "攻击命中 15% 概率追加 60% 攻击力的幻影斩（暴击时 30%）"},
         "name": "幻影"
     },
     "set_wu_ye": {
         "quality": "orange",
         "icon": "🗡️",
-        "bonus_2": {
-            "crit": 0.08,
-            "atk": 0.1
-        },
-        "bonus_4": {
-            "effect": "execute", "chance": 1.0,
-            "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
-        },
+        "bonus_2": {"crit": 0.1, "atk": 0.12},
+        "bonus_4": {"effect": "midnight_assassinate", "chance": 0.35, "desc": "对生命低于 30% 的敌人，攻击命中 35% 概率追加 40% 攻击力真伤处决"},
         "name": "午夜"
     },
     "set_xing_zhe": {
         "quality": "blue",
         "icon": "🥋",
-        "bonus_2": {
-            "atk": 0.12,
-            "hp": 0.15
-        },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_2": {"atk": 0.1, "lifesteal": 0.02, "hp": 0.08},
+        "bonus_4": {"effect": "xing_zhe_hunt", "chance": 0.4, "desc": "攻击 40% 概率吸血 12% 伤害"},
         "name": "行者"
     },
     "set_tie_shou": {
         "quality": "blue",
         "icon": "🥋",
-        "bonus_2": {
-            "atk": 0.12,
-            "hp": 0.15
-        },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_2": {"hp": 0.15, "def": 0.08},
+        "bonus_4": {"effect": "tie_shou_blood", "chance": 0.3, "desc": "受击 30% 概率回复 3% 最大生命"},
         "name": "石拳"
     },
     "set_hu_xiao": {
         "quality": "purple",
         "icon": "🥋",
-        "bonus_2": {
-            "atk": 0.12,
-            "hp": 0.15
-        },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_2": {"hp": 0.12, "mdef": 0.1},
+        "bonus_4": {"effect": "hu_xiao_barrier", "desc": "每回合开始获得 3% 最大生命的护盾（1 回合）"},
         "name": "壁槌"
     },
     "set_pan_shi": {
         "quality": "purple",
         "icon": "🥋",
-        "bonus_2": {
-            "atk": 0.12,
-            "hp": 0.15
-        },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_2": {"def": 0.15, "hp": 0.1},
+        "bonus_4": {"effect": "pan_shi_steady", "desc": "受击时伤害 -5%（磐石不动）"},
         "name": "磐石"
     },
     "set_anvil_guard": {
         "quality": "orange",
         "icon": "🥋",
-        "bonus_2": {
-            "atk": 0.12,
-            "hp": 0.15
-        },
-        "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
-            "desc": "攻击 30% 概率吸血 15% 伤害"
-        },
+        "bonus_2": {"def": 0.12, "hp": 0.15, "block": 0.04},
+        "bonus_4": {"effect": "anvil_parry", "chance": 0.2, "desc": "受击 20% 概率完全免疫本次伤害（每场最多 3 次）"},
         "name": "铁砧拳套"
     },
     # ================= v130.2c 资源联动套装（12 套，效果定义已自 affixes.py V130 段迁入（v130.2d）；战斗侧消费见 battle.py SET_EFFECT_CONSUMED） =================
