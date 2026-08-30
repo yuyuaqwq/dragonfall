@@ -344,6 +344,15 @@ def _we_smith_blaze_wound(battle, player, ctx, logs):
 
 
 @register("hit")
+def _we_rong_lu_yu_wen(battle, player, ctx, logs):
+    """熔炉余温（石炉战锤）：命中 20% 使目标灼烧 3% 最大生命 × 2 回合（精英/Boss 1.5%）。"""
+    if not has_effect(battle, player, "rong_lu_yu_wen") or random.random() >= 0.20:
+        return
+    pct = 0.015 if _boss_enemy(battle.enemy or {}) else 0.03
+    _apply_dot(battle, "burn", 1, pct, 2, logs, source="🔥 熔炉余温")
+
+
+@register("hit")
 def _we_frost_ring(battle, player, ctx, logs):
     """霜环（碎冰长弓）：命中 25% 减速 2 回合（速度-40%），已减速则冻结 1 回合。"""
     if not has_effect(battle, player, "frost_ring") or random.random() >= 0.25:
