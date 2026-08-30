@@ -2,6 +2,7 @@
 
 > 版本：v1.0（2026-08-29）· 只读研究文档，**不含任何代码改动**
 > 目标：把 `game/commands/instance.py` 中约 2500 行自写副本轮流回合 CTB 战斗状态机（ct 队列 / 仇恨 / 人数缩放 / 自动防御 / 敌我多对多）收编进统一战斗引擎 `game/battle.py`（`class Battle`，`btype=monster/worldboss/pvp`）。
+> ⚠️ **2026-08-30 审计更新（v141 后）**：本方案**未按计划落地**。battle.py 的 `_inst_*` 9 方法（含 `_inst_next_actor`/`_inst_enemy_phase`/`_inst_auto_defend`/`_inst_reset_cts`）为**零调用死代码**（v137 平移了没接线），副本战斗实际仍是 instance.py 命令层手写 CTB。**收编方案已废弃**，改为承认现状——副本战斗 = **瞬态 Battle 结算器（player_turn/_enemy_turn 单次结算）+ 命令层 CTB 调度（instance.py `_instance_*` 方法）**。battle.py 不再有 `_inst_*` 调度方法（已随收编方案删除/废弃）。本文档 §3 之后的收编改造细节、等价性测试、实施顺序**仅作历史参考，不再执行**。
 > 原则：**最小改动**——战斗数值/机制（伤害公式、buff、dot、站位、蓄力、mech）一律不动，只移动"调度/时序/队列"层；不破坏现有 25+ 副本测试。
 > 关联文档：`docs/CTB_REFACTOR.md`（v121 已立 CTB 统一目标，本节 1.4 明确"仇恨/嘲讽/目标选择、击杀奖励、切怪/分层/通关流程全部不变"）、`docs/INSTANCE_MAP_UNIFY_v137.md`。
 
@@ -11,11 +12,11 @@
 
 | 维度 | 结论 |
 |---|---|
-| 现状 | 副本战斗 = **双层状态**：调度/队列/仇恨/超时在 `instance.py`（命令层），单次结算（伤害/buff/dot/蓄力/mech）在 `battle.py`（引擎，经 `Battle.from_state` 逐行动者构造单怪 Battle） |
+| 现状 | 副本战斗 = **双层状态**：调度/队列/仇恨/超时在 `instance.py`（命令层），单次结算（伤害/buff/dot/蓄力/mech）在 `battle.py`（引擎，经 `Battle.from_state` 逐行动者构造单怪 Battle）——即**瞬态 Battle 结算器 + 命令层 CTB 调度**（v141 审计确认，见头部 ⚠️ 更新） |
 | 关键语义差异 | instance 层 CTB 是 **v121 相对时钟**（ct=-spd 播种，行动者 +cost、其余 -cost）；battle.py 是 **v130.10 绝对时刻**（ct=+cost 起步，0 为行动点）——**两套时钟语义不等价**，是收编的第一技术障碍 |
 | 引擎已有 | 多对多 `enemies` 阵列、`allies` 我方阵列、`_ct_cost`/`_after_actor_ct`/`_enemy_phase`（单玩家侧 CTB 敌方段）、`_resolve_player_target`（射程+编号）、`_resolve_ally_target`（治疗队友）、`_end_round` 等 |
 | 引擎缺 | **多玩家侧 CTB 调度器**（下一行动者在"多个玩家 + 多个敌人"中取最小 ct）、玩家快照 ct 持久化通道、仇恨/嘲讽选择挂点、超时自动防御、人数缩放、动态加入（`allies` 追加）、旧 st 字段（`alive/p_defending/threat/taunt_*`）映射 |
-| 收编方案 | 在 `battle.py` 新增 `btype="instance"` 分支 + 一组 `_inst_*` 方法（调度器 + 敌段循环 + 自动防御 + 仇恨/嘲讽），`instance.py` 保留**薄壳**（建 state / 展示 / 奖励 / 切怪分层 / 持久化） |
+| 收编方案 | ~~在 `battle.py` 新增 `btype="instance"` 分支 + 一组 `_inst_*` 方法~~（**已废弃，见头部 ⚠️ 更新**：`_inst_*` 9 方法零调用死代码，将随收编方案删除；实际架构 = 瞬态 Battle 结算器 + instance.py 命令层 `_instance_*` 调度） |
 | 等价性验证 | 双实现对比测试：同一初始 state 分别跑旧 instance 逻辑与新引擎 instance 分支，断言每步 `(行动者, 目标, 伤害, ct 序列, hp)` 全等；先"函数级纯逻辑对比"，再"命令层整流程对比"（随机种子固定） |
 | 最大风险 | 时钟语义迁移（v121 相对 vs v130.10 绝对）；`from_state` 单怪构造丢失阵列上下文（援军/多怪 mech）；动态 `allies` 追加与 `alive` 过滤；`round/dot_pending` 结算频次被引擎 `_end_round` 改变 |
 
@@ -71,7 +72,7 @@
 | `round_acted/dot_pending` | `st` | instance（δ副本层 dot 闸门） | instance 写回；`battle._dot_pending` 透传 |
 | `contribution/mech_stacks/p_buffs/e_buffs/resources/cooldown/combo_seq/charging/player_hit` | `st` | instance 透传 ↔ `battle` 实例 | 双向 |
 
-**关键洞察**：副本的"战斗状态"实际是一棵 `st`（dict，JSON 持久化），battle 引擎每次只被"借用"做**单行动者的瞬时结算**，从不持有整场战斗生命周期。收编 = 让 battle 引擎持有这场战斗（含玩家侧多快照），instance 只做 I/O 与展示。
+**关键洞察**：副本的"战斗状态"实际是一棵 `st`（dict，JSON 持久化），battle 引擎每次只被"借用"做**单行动者的瞬时结算**，从不持有整场战斗生命周期。**v141 审计确认这即是最终架构**（瞬态 Battle 结算器 + 命令层 CTB 调度）；原"收编 = 让 battle 引擎持有这场战斗（含玩家侧多快照），instance 只做 I/O 与展示"的计划已废弃（见头部 ⚠️ 更新）。
 
 ### 1.2 逐函数分析（按收编相关度排序）
 
@@ -150,6 +151,8 @@
 
 ---
 
+> ⚠️ **2026-08-30 审计更新**：下述 §3 收编改造细节**未落地且已废弃**——battle.py `_inst_*` 9 方法零调用，副本战斗保持"瞬态 Battle 结算器 + 命令层 CTB 调度"现状（instance.py `_instance_act`/`_instance_next_actor`/`_instance_enemy_ct_acts`/`_instance_auto_defend_player` 为实际调度方）。本节**整体为历史方案**（含下方 3.2 搬迁映射表、3.3 引擎草案代码、4 等价性测试、5 风险表、6 实施顺序）：文中所有 `_inst_*` 方法**均指已废弃的旧方案目标**，不代表现有或未来代码。仅作历史参考保留。
+
 ## 3. 收编改造点（每个函数搬到哪、怎么改）
 
 ### 3.1 总体架构：常驻 InstanceBattle + 命令层薄壳
@@ -172,6 +175,8 @@ game/commands/instance.py (InstanceCmds 薄壳)
 ```
 
 ### 3.2 函数级搬迁映射（必须搬 vs 可以留）
+
+> ⚠️ **2026-08-30 审计更新**：下表为**已废弃旧方案**的搬迁映射——其中"搬入位置"列的 `Battle._inst_*` 目标方法全部未落地且将删除，不构成代码事实。仅作历史参考。
 
 #### 🔴 必须搬（引擎新增 `_inst_*`，语义对齐 battle CTB）
 
@@ -201,6 +206,8 @@ game/commands/instance.py (InstanceCmds 薄壳)
 `_instance_act` 的调度 while 循环 → 改为"一次 `engine.player_turn(...)` 调用 + 一次 `engine._inst_enemy_phase()` 调用"，但**行动者判定/超时轮转**仍可留在命令层（它需要 QQ 业务上下文：谁是请求者、谁超时）；`_instance_extract_target`、`_instance_current_members`、展示（status/map_view/ct_queue/next_player_name）、奖励、分层、通关、`_instance_victory/_defeat`、`_instance_list`、`_instance_battle_for` 等——全部保留。
 
 ### 3.3 引擎侧扩展点（battle.py 具体改法草案）
+
+> ⚠️ **2026-08-30 审计更新**：以下代码草案（`_inst_enemy_phase`/`_inst_pick_target`/`_inst_auto_defend` 等）为**已废弃旧方案**的草稿，从未落地、将删除，**不代表现有或未来 battle.py 代码**。仅作历史参考。
 
 ```python
 # ---- __init__ 新增 instance 分支 ----
@@ -303,13 +310,15 @@ def player_turn(self, action, skill_name, player, enemy_act=False, target=None):
 
 ### 4.2 测试分层
 
+> ⚠️ **2026-08-30 审计更新**：以下等价性测试（层 1/2/3）**均未落地且已废弃**（收编方案废弃，无新引擎可比对）。仅作历史参考。
+
 #### 层 1：函数级纯逻辑对比（核心，无 I/O）
 
 直接 import 两个实现，喂同一 state，断言每一步输出全等：
 
 ```python
-# tests/test_battle_unify_eq.py（草案）
 import random
+# tests/test_battle_unify_eq.py（草案）
 from game import battle as BT
 from game.commands import instance as INST
 
@@ -402,6 +411,8 @@ async def eq_flow(gid, qid, inst_name, seed=42):
 
 ## 5. 风险点
 
+> ⚠️ **2026-08-30 审计更新**：本风险表为旧收编方案的风险评估，**已随方案废弃**。表中 R1-R12 均针对"将调度收编进引擎"的假设，现状（瞬态结算器 + 命令层调度）下这些风险不再适用。仅作历史参考。
+
 | # | 风险 | 影响 | 缓解 |
 |---|---|---|---|
 | R1 | **时钟语义迁移（v121 相对 → v130.10 绝对）** | 行动序列/频率改变——副本玩家行动节奏、敌方连动次数全变；若 instance 仍按 -spd 播种而引擎按 +cost 播种，同一 st 读出的行动者不同 | 收编时**统一播种**：`_instance_reset_player_cts` 与 `_instance_build_enemy_array` 的 ct 初始化改为 `_ct_initial_wait(spd)`；等价性测试层 1 的用例 ①-② 专测播种后的首行动者 |
@@ -421,6 +432,8 @@ async def eq_flow(gid, qid, inst_name, seed=42):
 
 ## 6. 实施顺序建议（最小改动路径）
 
+> ⚠️ **2026-08-30 审计更新**：本实施顺序**整体未执行**（Phase 0 文档+测试骨架亦未落地）。v141 审计结论：收编方案废弃，`_inst_*` 死代码随修复删除，不再按此路径推进。仅作历史参考。
+
 1. **Phase 0（不动代码）**：本文档定稿；补层 1 测试骨架（`tests/test_battle_unify_eq.py` 先写"旧实现快照"基线，跑通）。
 2. **Phase 1**：battle.py 加 `btype="instance"` 构造分支 + `_after_actor_ct` allies 广播 + `_inst_*` 方法族（纯新增，不影响 monster/worldboss/pvp 路径）。
 3. **Phase 2**：instance.py 加 `_USE_UNIFIED_ENGINE` 开关，`_instance_act`/`_instance_enemy_one_act` 双路径；层 1 对比测试全绿（逐行动 trace 全等）。
@@ -432,8 +445,10 @@ async def eq_flow(gid, qid, inst_name, seed=42):
 
 ## 7. 参考
 
+> **2026-08-30 审计更新**：battle.py 行号现为 v141 后版本，`_inst_*` 方法（battle.py:1757-1927）已废弃删除；instance.py CTB 段现位于 2527-2598（`_instance_next_actor`/`_instance_apply_enemy_act_ct`/`_instance_enemy_ct_acts`/`_instance_auto_defend_player`）。
+
 - `game/battle.py`：`__init__` 221-361、`_ct_cost` 1322、`_after_actor_ct` 1330、`player_turn` 1490、`_enemy_phase` 1629、`_enemy_turn` 3857、`_turn_start` 4398、`_end_round` 4513、`from_state` 476、`to_state` 426
-- `game/commands/instance.py`：CTB 段 1802-2051、`_instance_act` 1320、`_instance_build_state` 945、`_enter_stage_combat` 422、阵列 486-604
+- `game/commands/instance.py`：CTB 调度段 2527-2598（`_instance_next_actor`/`_instance_apply_enemy_act_ct`/`_instance_enemy_ct_acts`/`_instance_auto_defend_player`）、`_instance_act` 1986、`_instance_build_state` 945、`_enter_stage_combat` 422、阵列 486-604
 - `game/core/formation.py`：`select_target` 34（threat 参数）、`compact` 110、`numbered_units` 140
 - `docs/CTB_REFACTOR.md`（v121 规格，§1.4 副本调度）、`docs/NUMERIC_TEST.md`（v130.10 绝对时刻改版背景）
 - `tests/test_commands_instance.py`（25+ 断言，含 CTB 语义校验 `_next_player_key`）

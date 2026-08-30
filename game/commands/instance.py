@@ -1,12 +1,22 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年命令层 - instance（组队副本）
 
-2 人组队轮流回合 Boss 战：
-- 队长『副本 <名字>』开本（需已组队），队员自动参战
-- 轮流出手：队员A行动 → 队员B行动 → Boss行动 → 下一轮
-- 超时自动防御（事件驱动惰性检测，非定时器）：轮到的人 60 秒不动，
-  任何人再发指令时自动把 TA 的回合带过去
-- 战斗中不能逃跑（Boss 锁定）；副本失败全队回城
+v137 副本地图化 + v141 大陆隔离现状（2026-08-30 审计后描述）：
+- 副本 = 静态封闭图（MAP_BY_ID 里 22 张 type=副本 的 dungeon 图，无出口 no_exit，
+  房间经 SUBAREA_LINKS_INDEX 连通）。开本『副本 <名字>』克隆图 → 大陆实例
+  （world_id inst:<uuid>，game/core/worlds.py），全队 players.world_id 指向它。
+- dungeon 配置（数据表驱动）：discovery_agro 遇怪概率（core/encounter.py 统一读）、
+  rooms 怪物池/资源池（开本生成 rooms[sa_id].monsters_left/pois_left +
+  resources_pool 总量，探索/移动经 consume_monster 消费，POI loot 经 consume_poi_loot 扣减）。
+- 命令层 CTB 调度：副本战斗走 _instance_act（CTB 行动轴），开本/深入/移动/探索/调查/
+  撤退/离开/超时回收全部命令层调度；移动路由经 _instance_move_route →
+  world._instance_dungeon_move（队长带队、全队 cur_subarea 同步、遇怪/Boss 房链路）。
+- 大陆生命周期：开本 create_instance_world → 撤退保留（rooms/resources_pool 续档）→
+  离开/失败/30min 通关超时/24h 过期 destroy_instance_world + world_id 回 mainland。
+
+历史语义（保留）：2 人组队轮流回合 Boss 战——队长『副本 <名字>』开本（需已组队），
+队员自动参战；超时自动防御（事件驱动惰性检测，非定时器）；战斗中不能逃跑
+（Boss 锁定）；副本失败全队回城。
 """
 import random
 import re
@@ -233,6 +243,8 @@ class InstanceCmds(CommandBase):
         # v141 大陆隔离：孤儿大陆自愈——玩家 world_id 残留 inst: 前缀但大陆 st 已
         # 无活跃战斗（cleared/over/镜像 battle_state 已清），销毁孤儿大陆 + world_id 回主大陆。
         # 覆盖场景：异常路径（clear_battle 但未 destroy）/测试清理/重启后事件恢复不一致。
+        # 注意：cleared（通关停留搜刮）也视为孤儿销毁——停留超时由下方 30min 分支接管；
+        # 30min 超时分支需要 st 里 cleared_time 来判定，故此处先销毁无妨（大陆 st 已无活跃战斗）。
         try:
             _pwid = (player or {}).get("world_id") or ""
             if _pwid.startswith("inst:"):
@@ -240,7 +252,7 @@ class InstanceCmds(CommandBase):
                 _pst = (_pinst or {}).get("st") or {}
                 _pb = db.get_battle(group_id, qq_id)
                 _mirror_gone = _pb is None or _pb["state"].get("type") != "instance"
-                if _pinst is None or _pst.get("cleared") or _pst.get("over") or _mirror_gone:
+                if _pinst is None or _pst.get("over") or _mirror_gone:
                     C.destroy_instance_world(_pwid)
                     db.update_player(group_id, qq_id, world_id="mainland")
                     player["world_id"] = "mainland"
@@ -259,17 +271,28 @@ class InstanceCmds(CommandBase):
                         continue
                     self._unlock_battle(group_id, _m)
                     db.clear_battle(group_id, _m)
+                # v141 审计 P0（30min 通关超时）：与 instance_leave（640-646）同构——
+                # 销毁大陆实例 + 当前队伍成员 world_id 回主大陆（只动当前队伍成员，退队者不动）
+                _wid2 = _st.get("world_id") or ""
+                if _wid2.startswith("inst:"):
+                    for _m2 in _st["members"]:
+                        if str(_m2) in _cur:
+                            db.update_player(group_id, _m2, world_id="mainland")
+                    C.destroy_instance_world(_wid2)
                 # R3 P3-1：文案与行为对齐——开本不占地图位置，超时只解除战斗锁/
                 # 清 battle（v101.27 #390），玩家从未被\"传送\"；沿用『离开副本』口径
                 yield event.plain_result("⏳ 通关时间已过 30 分钟，你已自动离开副本。")
                 return
             yield event.plain_result(self._instance_status(group_id, qq_id, inst_row))
             return
+        # 副本超 24h 无行动被回收（_expired）→ 先给过期提示并清理（再列副本列表）
+        _hint = self._instance_expired_hint(group_id, qq_id)
+        if _hint:
+            yield event.plain_result(_hint + "\n" + self._instance_list(player))
+            return
         arg = self._strip_cmd(event, "副本").strip()
         if not arg:
-            # v104 M04 P2：副本超 24h 无行动被回收 → 不再静默消失，先给过期提示
-            _hint = self._instance_expired_hint(group_id, qq_id)
-            yield event.plain_result((_hint + "\n" if _hint else "") + self._instance_list(player))
+            yield event.plain_result(self._instance_list(player))
             return
         # 队长开本：『副本 <名字>』
         # v87.2：若存在已撤退（retreated）的同副本记录 → 恢复进度继续
@@ -366,7 +389,11 @@ class InstanceCmds(CommandBase):
         # v137 副本地图化：dungeon 副本（rooms 存档）『深入』= 移动到 Boss 房/下一房间
         # （兼容保留：boss_room 房间在连通表末位，移动到它即触发 Boss 战）
         if st.get("rooms"):
-            _dun_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+            # v141 审计：副本大陆路径统一走 resolve_map_for（唯一入口契约）；
+            # 大陆实例已销毁（world_id 残留 inst:）→ resolve_map_for None → 回退全局静态图
+            # （副本图在 MAP_BY_ID 始终存在，与原 C.MAP_BY_ID.get 语义一致）
+            _dun_map = C.resolve_map_for(st.get("world_id") or "", _inst_map_id(st.get("inst_id") or "")) \
+                or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
             _dun = _dun_map.get("dungeon") or {}
             _br = _dun.get("boss_room")
             _rooms = st["rooms"]
@@ -376,7 +403,7 @@ class InstanceCmds(CommandBase):
                 _links = C.subarea_links(_inst_map_id(st.get("inst_id") or ""), _cur)
                 if _cur != _br and _br in _links:
                     async for _r in self._instance_dungeon_move(event, group_id, qq_id, player,
-                                                                inst_row, _dun_map, _br):
+                                                                inst_row, _br):
                         yield _r
                     return
             yield event.plain_result("副本内请使用『移动 <房间>』推进（队长带队）～『副本地图』查看可前往房间。")
@@ -505,7 +532,6 @@ class InstanceCmds(CommandBase):
                 if _inv_text is not None:
                     yield event.plain_result(_inv_text)
                     return
-            # 第②层：现有战利品堆/暗格（互不干扰：调查点未命中才回落）
             if name in ("战利品堆", "战利品") and st.get("loot_pile"):
                 yield event.plain_result(self._instance_loot_pile(group_id, qq_id, player, st))
                 return
@@ -518,7 +544,10 @@ class InstanceCmds(CommandBase):
         # v137 副本地图化：优先按当前房间 SUBAREA_POIS 查（rooms 存档存在时）
         rooms = st.get("rooms")
         cur_sa_id = player.get("cur_subarea") or ""
-        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        # v141 审计：副本大陆路径统一走 resolve_map_for（唯一入口契约）；
+        # 大陆实例已销毁（world_id 残留 inst:）→ resolve_map_for None → 回退全局静态图
+        cur_map = C.resolve_map_for(st.get("world_id") or "", _inst_map_id(st.get("inst_id") or "")) \
+            or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
         cur_sa = None
         for _sa in (cur_map.get("subareas") or []):
             if _sa["id"] == cur_sa_id:
@@ -662,50 +691,22 @@ class InstanceCmds(CommandBase):
         if str(qq_id) != str(st.get("leader")):
             yield event.plain_result("⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～")
             return
-        # v141 大陆隔离：优先从大陆实例读（克隆图），回退全局静态图
-        _wid = st.get("world_id") or ""
-        _inst = C.get_instance_world(_wid) if _wid.startswith("inst:") else None
-        cur_map = (_inst or {}).get("maps", {}).get(_inst_map_id(st.get("inst_id") or ""), {}) or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
-        cur_sa = player.get("cur_subarea") or ""
-        links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
-        # 目标房间解析（序号优先，其次名字/id）
-        target_sa = None
-        if dest.isdigit():
-            idx = int(dest)
-            if 1 <= idx <= len(links):
-                tid = links[idx - 1]
-                target_sa = next((s for s in (cur_map.get("subareas") or []) if s["id"] == tid), None)
-        else:
-            for s in (cur_map.get("subareas") or []):
-                if dest in (s["name"], s["id"]):
-                    target_sa = s
-                    break
-        if target_sa is None:
-            names = "、".join(
-                f"{i + 1}. {next((s['name'] for s in (cur_map.get('subareas') or []) if s['id'] == lid), lid)}"
-                for i, lid in enumerate(links)
-            ) or "（无）"
-            yield event.plain_result(
-                f"🧭 从当前房间可前往：{names}。输入『移动 <房间名/序号>』～"
-                f"（『副本地图』查看全景）")
-            return
-        if target_sa["id"] == cur_sa:
-            yield event.plain_result(f"你已经在这里了({cur_map.get('name', '')}·{target_sa['name']})～")
-            return
-        if target_sa["id"] not in links:
-            yield event.plain_result(
-                f"🧭 【{target_sa['name']}】与当前房间不相连！副本内只能移动到相邻房间（『副本地图』查看可前往）～")
-            return
-        # 副本内移动：先解锁战斗锁（副本地图模式持有锁防双线战斗），world.move 前置
-        # _in_battle 拦截依赖锁状态——解锁后 move 正常进入副本分支 _instance_dungeon_move。
+        # v141 审计 #8（route 瘦身）：目标解析 + 队长校验由 _instance_dungeon_move
+        # 统一执行（world.py:1655，逐字等价：序号优先/名字/id/目标 None 提示/已在原地/
+        # 不相连），此处只做 inst_row 校验 + 解锁全队，玩家原始 dest 直接透传——
+        # 不再重复解析（原 671-698 段删除，避免目标解析+队长校验各执行 2 遍）。
+        # 解锁全队（副本内移动需解除战斗锁防双线；_instance_dungeon_move 推进后重新上锁）
         for m in st.get("members") or []:
             self._unlock_battle(group_id, m)
-        # world.move 到达副本分支后再次上锁（遇怪/到达都会 _lock_battle），
-        # 此处直接调 _instance_dungeon_move 等价推进（含遇怪/Boss 房链路与重新上锁）。
-        # 注意：_instance_dungeon_move 的 dest 参数是房间名字符串（在连通表内做 `in (name,id)`
-        # 匹配），这里传目标房间名（world.move 原分支传玩家输入 dest，语义相同）。
-        async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, cur_map, target_sa["name"]):
+        # v141 审计 #8：_instance_dungeon_move 内部会再上锁（遇怪/到达都会 _lock_battle）；
+        # 但其开头有 cleared/mode!=map/队长校验，route 已通过 inst_row 校验，此处直接透传 dest。
+        async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, dest):
             yield _r
+        # 兜底：若 _instance_dungeon_move 提前 return（如目标解析失败/已在原地/不相连），
+        # 全队锁已在上方解锁——重新上锁防双线战斗（world.move 前置 _in_battle 拦截需要锁）。
+        _st2 = inst_row["state"]
+        for _m2 in _st2.get("members") or []:
+            self._lock_battle(group_id, _m2)
         return
 
     async def _instance_explore(self, event, group_id, qq_id, inst_row):
@@ -727,7 +728,10 @@ class InstanceCmds(CommandBase):
             return
         player = self._player(group_id, qq_id)
         cur_sa_id = player.get("cur_subarea") or ""
-        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        # v141 审计：副本大陆路径统一走 resolve_map_for（唯一入口契约）；
+        # 大陆实例已销毁（world_id 残留 inst:）→ resolve_map_for None → 回退全局静态图
+        cur_map = C.resolve_map_for(st.get("world_id") or "", _inst_map_id(st.get("inst_id") or "")) \
+            or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
         cur_sa = None
         for _sa in (cur_map.get("subareas") or []):
             if _sa["id"] == cur_sa_id:
@@ -736,8 +740,10 @@ class InstanceCmds(CommandBase):
         rooms = st.get("rooms")
         if rooms:
             # ---- v137 dungeon 房间池消费 ----
-            _dun = cur_map.get("dungeon") or {}
-            _agro = float(_dun.get("discovery_agro", 0.85) or 0.85)
+            # v141 审计：遇怪概率统一走 core/encounter.encounter_chance（数据表驱动，
+            # 读 dungeon.discovery_agro；与野外 _travel_ambush 等级差模型互为设计差异）
+            from ..core.encounter import encounter_chance as _enc_chance
+            _agro = _enc_chance(cur_map)
             rstate = rooms.get(cur_sa_id) or {}
             _left = rstate.get("monsters_left") or []
             _pois_left = rstate.get("pois_left")
@@ -757,7 +763,11 @@ class InstanceCmds(CommandBase):
             # ② 遇怪（discovery_agro + monsters_left 非空 → 消耗 1 只 → 进战斗）
             if _left:
                 if random.random() < _agro:
-                    _def = _left.pop(0)
+                    # v141 审计 #7：死代码接线——consume_monster 弹出（原 _left.pop(0) 内联）
+                    _def = self.consume_monster(st, cur_sa_id)
+                    if _def is None:
+                        yield event.plain_result("🍃 这里已被肃清，没有敌人了。『副本地图』看看剩余可调查的 POI，或让队长『移动』去别的房间～")
+                        return
                     self._enter_stage_combat(group_id, st, _def, cur_sa or cur_map)
                     self._instance_save(group_id, st)
                     _mon = st.get("boss") or {}
@@ -1087,7 +1097,8 @@ class InstanceCmds(CommandBase):
                     _st = _inst.get("st")
                     # v141：cleared/over（通关后停留搜刮/已结束）不算战斗中，玩家可自由行动
                     if _st and _st.get("type") == "instance" and not _st.get("retreated") \
-                            and not _st.get("cleared") and not _st.get("over"):
+                            and not _st.get("cleared") and not _st.get("over") \
+                            and not _st.get("_expired"):
                         return {"state": _st, "name": "", "updated_at": _inst.get("created_at", 0)}
         except Exception:
             pass
@@ -1123,6 +1134,17 @@ class InstanceCmds(CommandBase):
             return ""
         st = row["state"]
         if st.get("type") == "instance" and st.get("_expired"):
+            # v141 审计（24h 过期回收）：清 battle 前先取 world_id，inst: 前缀 →
+            # 全员 world_id 回主大陆 + 销毁大陆实例（battle_state.py:91-98 的
+            # store 层兜底也会幂等销毁，命令层先行保证 DB 恢复一致）
+            _wid = st.get("world_id") or ""
+            if _wid.startswith("inst:"):
+                for _m in (st.get("members") or []):
+                    try:
+                        db.update_player(group_id, _m, world_id="mainland")
+                    except Exception:
+                        pass
+                C.destroy_instance_world(_wid)
             db.clear_battle(group_id, leader)
             return "⌛ 你之前的副本因超过 24 小时无人行动，已自动过期消失～"
         return ""
@@ -1310,13 +1332,19 @@ class InstanceCmds(CommandBase):
             if not cur_sa_id and _lp:
                 cur_sa_id = _lp.get("cur_subarea") or ""
             inst = C.INSTANCES.get(st["inst_id"], {})
-            cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+            # v141 审计：副本大陆路径统一走 resolve_map_for（唯一入口契约）；
+            # 大陆实例已销毁（world_id 残留 inst:）→ resolve_map_for None → 回退全局静态图
+            cur_map = C.resolve_map_for(st.get("world_id") or "", _inst_map_id(st.get("inst_id") or "")) \
+                or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
             sas = cur_map.get("subareas") or []
             cur_sa = next((s for s in sas if s["id"] == cur_sa_id), None)
             lines = []
             if _lp:
-                nav = self._map_nav_body(_lp, cur_map, cur_sa_id or "", group_id, group_id, show_here=False, with_header=True)
-                blocks = self._map_blocks(_lp, cur_map, cur_sa_id or "", group_id, group_id)
+                # v141 审计 #6：_map_nav_body 第 5 参（qq_id）此前误传 group_id，
+                # 导致 _visible_sas（reveal 隐藏房间判定）按群号查探索计数恒空——
+                # 副本内隐藏房间（如海蚀洞窟 L3 藏宝密室）永不揭示。改传队长 qq_id。
+                nav = self._map_nav_body(_lp, cur_map, cur_sa_id or "", group_id, str(leader), show_here=False, with_header=True)
+                blocks = self._map_blocks(_lp, cur_map, cur_sa_id or "", group_id, str(leader))
                 lines = nav + blocks
             else:
                 lines.append(f"🗺️ 【{cur_map.get('name', '副本')} · {cur_sa.get('name', '') if cur_sa else ''}】")
@@ -1640,6 +1668,11 @@ class InstanceCmds(CommandBase):
         - 弹出的怪物定义保持 SUBAREAS 槽位形态：[
             mid, 名, role(boss/elite/tank/dps/healer/speedster), lv, [技能], [掉落]]
         - 仅修改 st["rooms"]，由调用方负责 db.save_battle 持久化
+
+        v141 审计 #7（死代码接线）：本函数已接入两处消费端——
+        ① world.py _instance_dungeon_move（移动遇怪弹出）
+        ② instance.py _instance_explore（探索遇怪弹出）
+        （原两处各自内联的 _left.pop(0) 已改调本函数，消费语义逐字等价）
         """
         rooms = st.get("rooms")
         if not rooms:
@@ -1664,6 +1697,13 @@ class InstanceCmds(CommandBase):
              （不足则跳过）。
         成功（或 POI 无 loot 但已在池中）→ 从 pois_left 移除并返回奖励 dict；
         poi 不在池中 / 房间无存档 → None（调用方文案"已被搜刮一空"）。
+
+        v141 审计 #7（死代码评估）：本函数当前仍**无调用方**（保留死代码）——
+        房间 POI 的实际消费走 instance.py instance_investigate 的 ③ 层（_pois_left.remove
+        直接移出 + _handle_poi 效果链路），因该路径同时要产出交互文案/效果文本，
+        且 _handle_poi 的效果结算与资源池扣减是两段耦合逻辑，接入 consume_poi_loot
+        会拆散交互文本与奖励发放（体验/代码耦合都更差）。保留本函数作公共 API：
+        未来"拾取型 POI 独立结算"或跨命令复用资源池扣减时直接调用。不强行删。
         """
         rooms = st.get("rooms")
         if not rooms:
@@ -1789,17 +1829,13 @@ class InstanceCmds(CommandBase):
         key_item = inst.get("key_item")
         key_free_note = ""  # 已通关免钥匙提示（有钥匙要求的副本通关过则显示）
         if key_item:
-            inv = db.get_inventory(group_id, qq_id)
-            # 找到匹配的钥匙（按物品名匹配）
-            key_entry = None
-            for it in (inv or []):
-                it_name = (it.get("data") or {}).get("name", "")
-                if it_name == key_item or it.get("key") == key_item or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
-                    key_entry = it
-                    break
-            has_key = key_entry is not None and (key_entry.get("count") or 0) >= 1
-            cleared_before = any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
-                                 for a in (db.get_achievements(group_id, qq_id) or []))
+            # v141 审计 #9：钥匙三路匹配 + 通关豁免抽到 core/instance_gate.py
+            # （world.py 门禁同源公共函数；开本不放行是设计——开本走完整校验，
+            # 有钥匙且未通关才扣钥匙，已通关免钥匙入场）
+            from ..core.instance_gate import find_instance_key_item, instance_cleared_qq
+            key_entry = find_instance_key_item(group_id, qq_id, key_item)
+            has_key = key_entry is not None
+            cleared_before = instance_cleared_qq(group_id, qq_id, kid)
             if not has_key and not cleared_before:
                 src = inst.get("key_source", "？？？")
                 yield event.plain_result(
@@ -2141,6 +2177,10 @@ class InstanceCmds(CommandBase):
         st.setdefault("p_food_effects", {})[cur_key] = b.p_food_effects
         st["e_buffs"] = b.e_buffs
         st["mech_stacks"][cur_key] = b.mech_stacks
+        # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
+        # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
+        # _damage_enemy 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
+        st["enemies"] = b.enemies
         # δ副本层：本轮已结算——本行动者是本轮第一个（或唯一）动作，Boss 敌减益只在此结算
         # 一次；后续同一轮其他行动者 from_state 读到 dot_pending=False 不再 tick（Battle._dot_pending）
         st["dot_pending"] = False
@@ -2250,6 +2290,10 @@ class InstanceCmds(CommandBase):
                 logs += self._apply_team_effect(st, cur_key, te)
 
         # 4. 当前敌人死亡 → 分层判断（v86.2：清小怪→推进→Boss）
+        # v141 审计：b.player_turn(enemy_act=False) 只改 st["enemies"] 各单位 hp，
+        # 不压缩死亡单位（battle 内部 _enemy_phase 被跳过，_enemy_dead 只读存活）。
+        # 副本侧全灭判定必须基于存活单位——先压缩一次（死亡单位移出，防占位误判）。
+        self._instance_enemies_compact(st)
         if not self._instance_enemies_alive(st):
             # v101.27 #390 暗格守卫击杀：走精英击杀奖励 → 密室宝箱出现（不是通关）
             if st.get("secret_guard_pending"):
@@ -2278,10 +2322,25 @@ class InstanceCmds(CommandBase):
                 cur_sa = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
                 _rstate = (st.get("rooms") or {}).get(cur_sa) or {}
                 _kill_lines = self._instance_kill_reward(group_id, st)
-                if _rstate.get("boss_alive"):
+                # v141 审计：Boss 房判定以"当前房间的 boss 是否已被击败"为准——
+                # boss_alive 可能已被 dungeon_move 置 False（到达 Boss 房触发 Boss 战后
+                # 未置 False 则保持 True），或 rooms 怪池消费后 Boss 从池中消失。
+                _room_boss = bool(_rstate.get("boss_alive")) or bool(_rstate.get("_boss_room"))
+                if _room_boss or (cur_sa and (st.get("rooms") or {}).get(cur_sa, {}).get("boss_alive") is False
+                                  and not (_rstate.get("monsters_left") or [])):
                     # Boss 房 Boss 被击败 → 标记 boss_alive=False + 通关（下段 _instance_victory）
                     _rstate["boss_alive"] = False
                     _rstate["_boss_room"] = True
+                    # v141 审计：大陆 st 与镜像 battle 是不同对象（create 深拷贝）——
+                    # 权威 st（大陆）也要同步 boss_alive/_boss_room，否则 _instance_victory
+                    # 读大陆 st 时 rooms 仍是旧值（boss_alive=True）→ 通关判定失效。
+                    _wid_a = st.get("world_id") or ""
+                    if _wid_a.startswith("inst:"):
+                        _st_inst = C.get_instance_st(_wid_a)
+                        if _st_inst is not None:
+                            _ra = (_st_inst.get("rooms") or {}).get(cur_sa) or {}
+                            _ra["boss_alive"] = False
+                            _ra["_boss_room"] = True
                 st["stage_cleared"] = True
                 st["over"] = False
                 st["mode"] = "map"
@@ -2294,8 +2353,13 @@ class InstanceCmds(CommandBase):
                 self._instance_save(group_id, st)
                 if _rstate.get("_boss_room"):
                     # Boss 房击败 → 走通关结算
-                    st = db.get_battle(group_id, st["leader"])["state"]
-                    async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs + [f"👑 副本 Boss 已被击败！"]):
+                    # v141 审计：大陆 st 与镜像 battle_state 是不同对象（create 时深拷贝），
+                    # 直接取 DB 行可能拿到旧 rooms（boss_alive 未清）——统一从大陆实例读权威 st。
+                    _st_final = C.get_instance_st(st.get("world_id") or "") or st
+                    _rstate_final = (_st_final.get("rooms") or {}).get(cur_sa) or {}
+                    _rstate_final["boss_alive"] = False
+                    _rstate_final["_boss_room"] = True
+                    async for _r in self._instance_victory(event, group_id, qq_id, player, _st_final, logs + [f"👑 副本 Boss 已被击败！"]):
                         yield _r
                     return
                 map_view = self._instance_map_view(st, group_id)
@@ -2314,6 +2378,31 @@ class InstanceCmds(CommandBase):
             if pending:
                 # 当前层还有怪 → 切下一只
                 # v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报）
+                # v141 审计：dungeon rooms 副本（v137 副本地图化）的房间怪池与 stages 配置
+                # 脱钩——rooms[当前房].monsters_left 才是权威池，stage_pending 只是开本时
+                # 由 stages 生成的旧字段。Boss 房 Boss（从房间怪池消费）被击败后 stage_pending
+                # 仍非空，但当前房间 boss_alive 已 False 且房间怪池已空 → 直接走通关结算，
+                # 不再"切下一只"（否则打完 Boss 又出小怪，通关永远不触发）。
+                _cur_sa_p = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
+                _rp = (st.get("rooms") or {}).get(_cur_sa_p) or {}
+                if bool(st.get("rooms")) and not (_rp.get("monsters_left") or []) \
+                        and not _rp.get("boss_alive", True):
+                    _rp["_boss_room"] = True
+                    _wid_p = st.get("world_id") or ""
+                    if _wid_p.startswith("inst:"):
+                        _sp = C.get_instance_st(_wid_p)
+                        if _sp is not None:
+                            _rp2 = (_sp.get("rooms") or {}).get(_cur_sa_p) or {}
+                            _rp2["_boss_room"] = True
+                    st["over"] = True
+                    st["first_clear"] = not any(
+                        a.get("ach_key") == f"inst_clear_{st['inst_id']}" and a.get("progress", 0) >= 1
+                        for m in (self._instance_current_members(group_id, st) or [str(st["leader"])])
+                        for a in (db.get_achievements(group_id, m) or [])
+                    )
+                    async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
+                        yield _r
+                    return
                 kill_lines = self._instance_kill_reward(group_id, st)
                 nxt = pending.pop(0)
                 st["boss"] = C.build_monster(nxt, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
@@ -2394,6 +2483,26 @@ class InstanceCmds(CommandBase):
                 for m in _fc_cur
                 for a in (db.get_achievements(group_id, m) or [])
             )
+            # v141 审计：dungeon rooms 副本的 Boss 房判定——rooms 存档 + 当前房间
+            # boss_alive（Boss 从房间怪池消费后为 False）时，`stage_pending` 仍非空
+            # （房间怪池与 stages 配置脱钩，v137 副本地图化后 rooms 是权威池）。
+            # 此时玩家实际击败的是 Boss 房 Boss，应走通关结算而非"切下一只"——补一次
+            # 权威判定：当前房间 boss_alive 已 False 且房间怪池已空 → 标记通关路径。
+            _cur_sa_v = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
+            _rv = (st.get("rooms") or {}).get(_cur_sa_v) or {}
+            _room_done = bool(st.get("rooms")) and not (_rv.get("monsters_left") or []) \
+                and not _rv.get("boss_alive", True)
+            if _room_done and st.get("rooms"):
+                _rv["_boss_room"] = True
+                _wid_v = st.get("world_id") or ""
+                if _wid_v.startswith("inst:"):
+                    _sv = C.get_instance_st(_wid_v)
+                    if _sv is not None:
+                        _rv2 = (_sv.get("rooms") or {}).get(_cur_sa_v) or {}
+                        _rv2["_boss_room"] = True
+                async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
+                    yield _r
+                return
             async for _r in self._instance_victory(event, group_id, qq_id, player, st, logs):
                 yield _r
             return
@@ -2938,6 +3047,11 @@ class InstanceCmds(CommandBase):
         - 每日上限 INVESTIGATE_DAILY_LIMIT=3（玩家行 investigate_date/investigate_count，
           跨日归零；与 props_use 的日记录表并存互不干扰）。
         - 奖励四层：保底材料 / 图纸残页 25% / 蓝符 15%（Lv.60+）/ 收藏 3%。
+
+        v141 审计 P0-1（调查点误锁房间 POI）：『调查 篝火』先被调查点"篝火余烬"的
+        包含匹配吞掉，本可自由调查的房间 POI（如"将熄的篝火"）被误锁。修复：
+        达上限/已翻两种"非真命中"情形返回 None 回落第②③层；且玩家输入更长/同长
+        于调查点名时，包含匹配不算真命中（同样回落）。
         """
         inst_id = st.get("inst_id") or ""
         points = (C.INVESTIGATION_POINTS or {}).get(inst_id) or []
@@ -2954,6 +3068,11 @@ class InstanceCmds(CommandBase):
                 if name and name in p.get("name", ""):
                     poi = p
                     break
+        # v141 审计 P0-1：『调查 篝火』这类输入先被调查点"篝火余烬"的包含匹配吞掉，
+        # 本可自由调查的房间 POI（如"将熄的篝火"）被误锁——玩家输入更长/同长的
+        # 目标名时，调查点包含匹配不算真命中，返回 None 回落第②③层（房间 POI）。
+        if poi is not None and poi.get("name") != name and len(name) >= len(poi.get("name", "")):
+            return None
         if poi is None:
             return None
         # 每日上限校验（玩家行日期+次数；跨日归零）
@@ -2963,9 +3082,11 @@ class InstanceCmds(CommandBase):
             player["investigate_count"] = 0
         used = int(player.get("investigate_count", 0) or 0)
         if used >= INVESTIGATE_DAILY_LIMIT:
-            return "⏳ 今日副本调查已达上限（3 次）！明天再来吧～（『调查 战利品堆』等搜刮不受影响）"
+            # v141 审计 P0-1：达上限/已翻不是"真命中"（玩家输入可能同时命中房间 POI），
+            # 返回 None 回落第②③层——否则『调查 篝火』会被上限文案锁死，房间 POI 查不到。
+            return None
         # 已调查过的点（本副本本局内）→ 不重复
-        done = st.setdefault("investigated", set())
+        done = st.setdefault("investigated", [])  # v141 审计 P0-2：list 初始化防 set 落库成字符串
         if not isinstance(done, set):
             try:
                 done = set(done)
@@ -2973,7 +3094,8 @@ class InstanceCmds(CommandBase):
             except Exception:
                 done = set()
         if poi["id"] in done:
-            return f"{poi.get('name', '调查点')}已经被你翻遍了。"
+            # 同上：已翻不是真命中——回落第②③层（房间 POI 可自由调查，互不冲突）
+            return None
         # 奖励四层 roll
         inst = C.INSTANCES.get(inst_id) or {}
         lines = [f"🔍 你仔细调查了【{poi.get('name', '调查点')}】……"]

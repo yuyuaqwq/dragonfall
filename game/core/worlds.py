@@ -62,6 +62,19 @@ def _restore_from_db(world_id: str) -> None:
         if raw:
             data = json.loads(raw) if isinstance(raw, str) else raw
             if isinstance(data, dict):
+                # P0-2（2026-08-30 审计）：老档/异常路径落库的 set 被 default=str 串化成
+                # 字符串 → 重启恢复成字符集合 → 调查点重复刷奖。恢复后对 st.investigated
+                # 做校验：str 尝试 ast.literal_eval 解析回 list，失败/非 list 重置为空 list。
+                _st = data.get("st")
+                if isinstance(_st, dict) and isinstance(_st.get("investigated"), str):
+                    try:
+                        import ast
+                        _parsed = ast.literal_eval(_st["investigated"])
+                        if not isinstance(_parsed, list):
+                            _parsed = []
+                    except Exception:
+                        _parsed = []
+                    _st["investigated"] = _parsed
                 instance_worlds[world_id] = data
     except Exception:
         # DB 不可用/损坏 → 当作不存在，调用方自行兜底
@@ -128,6 +141,24 @@ def destroy_instance_world(world_id: str) -> None:
         pass
 
 
+def _json_ready(obj):
+    """v116 兜底（store/battle_state 同构函数）：把 state 里可能残留的 Python set（如
+    phase BOSS 的 _phase_warned / instance st 的 investigated）递归深转成 list，保证
+    json.dumps 序列化不再抛 TypeError / 不再被 default=str 掩盖成字符串；其余类型原样返回。
+
+    P0-2（2026-08-30 审计）：worlds._persist 原先用 json.dumps(default=str) 兜底，
+    set 落库变成字符串，重启恢复成字符集合 → 调查点重复刷奖。本函数在写入前
+    显式清洗，与 store/battle_state.py:11-20 的 _json_ready 逻辑保持一致。
+    """
+    if isinstance(obj, set):
+        return [_json_ready(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: _json_ready(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_ready(x) for x in obj]
+    return obj
+
+
 def _persist(world_id: str) -> None:
     """落库 event_state（重启防丢）。只落非战斗核心字段（st 也落，可恢复）。"""
     data = instance_worlds.get(world_id)
@@ -135,13 +166,19 @@ def _persist(world_id: str) -> None:
         return
     try:
         from ..store.world import set_event_state
-        set_event_state(f"{EVENT_STATE_PREFIX}{world_id}", json.dumps(data, ensure_ascii=False, default=str))
+        set_event_state(f"{EVENT_STATE_PREFIX}{world_id}",
+                        json.dumps(_json_ready(data), ensure_ascii=False))
     except Exception:
         pass
 
 
 def update_instance_world(world_id: str, **fields) -> None:
-    """更新大陆实例字段（房间/资源池/队伍快照等）并落库。"""
+    """更新大陆实例字段（房间/资源池/队伍快照等）并落库。
+
+    v141 审计（2026-08-30）：当前生产 0 消费（instance.py 直接改大陆 dict
+    字段后经 _instance_save → set_instance_st 落库）；保留作公共 API
+    （未来动态化/监控/运维可能按字段增量更新）。
+    """
     data = instance_worlds.get(world_id)
     if data is None:
         return
@@ -151,28 +188,46 @@ def update_instance_world(world_id: str, **fields) -> None:
 
 
 def set_instance_st(world_id: str, st: Optional[dict]) -> None:
-    """设置副本战斗状态快照（迁移自 battle_state 存队长 → 存大陆）。"""
+    """设置副本战斗状态快照（迁移自 battle_state 存队长 → 存大陆）。
+
+    v141 消费方：instance.py（开本/_instance_save 落库 st）——生产活跃调用。
+    """
     update_instance_world(world_id, st=st)
 
 
 def get_instance_st(world_id: str) -> Optional[dict]:
-    """取副本战斗状态快照。"""
+    """取副本战斗状态快照。v141 消费方：instance.py（读大陆 st 恢复战斗）。"""
     data = get_instance_world(world_id)
     return (data or {}).get("st")
 
 
 def list_instance_worlds() -> List[str]:
-    """列出全部存活大陆实例 world_id（监控/清理用）。"""
+    """列出全部存活大陆实例 world_id（监控/清理用）。
+
+    v141 审计（2026-08-30）：当前生产 0 消费；保留——监控/运维
+    （查看未回收大陆实例、统计泄漏）是明确预期用途，删除会让排查手段缺失。
+    """
     return list(instance_worlds.keys())
 
 
 def cleanup_stale_instances(max_age_sec: int = 24 * 3600) -> int:
     """惰性回收过期大陆实例（24h 无活动）。返回清理数量。
 
-    过期判定：created_at 距今超过 max_age_sec。调用方（命令层）在
-    任意副本入口检查本副本的 world_id 是否过期。
+    过期判定：created_at 距今超过 max_age_sec。两层清理：
+    1. 内存 instance_worlds dict 轻扫（超龄 → destroy_instance_world，同时删 DB 键）；
+    2. DB event_state 键扫描（key LIKE 'instance_world_%'，读 JSON 取 created_at，
+       超龄则 delete_event_state）——覆盖进程重启后未惰性恢复的孤儿键
+       （内存已无、DB 残留），防 event_state 表只增不删。
+
+    注：store/world.py 的 _EVENT_STATE_PLAYER_PREFIXES 不扩——instance_world_ 键
+    无内嵌 qq_id 可提取，玩家活跃度清理机制不匹配，扫描逻辑内聚在本函数。
+
+    幂等（多实例/热重载安全）；轻量（仅一次 LIKE 查询 + 少量 JSON 解析），
+    挂任意指令入口（base.py _maint_gate）与启动兜底（main.py）均不阻塞主流程。
     """
     now = int(time.time())
+    cleaned = 0
+    # 1. 内存 dict 轻扫（destroy 同时删内存 + DB 键）
     stale = []
     for wid, data in instance_worlds.items():
         created = int(data.get("created_at", 0) or 0)
@@ -180,11 +235,48 @@ def cleanup_stale_instances(max_age_sec: int = 24 * 3600) -> int:
             stale.append(wid)
     for wid in stale:
         destroy_instance_world(wid)
-    return len(stale)
+    cleaned += len(stale)
+    # 2. DB event_state 孤儿键扫描（内存已无该 world_id 的 instance_world_* 键）
+    try:
+        from ..store.connection import _connect, _lock as _db_lock
+        from ..store.world import delete_event_state
+        with _db_lock:
+            conn = _connect()
+            try:
+                rows = conn.execute(
+                    "SELECT key, value FROM event_state WHERE key LIKE ?",
+                    (EVENT_STATE_PREFIX + "%",),
+                ).fetchall()
+            finally:
+                conn.close()
+        for r in rows:
+            _k = r["key"]
+            _wid = _k[len(EVENT_STATE_PREFIX):]
+            if _wid in instance_worlds:
+                continue  # 内存仍存活（未超龄）——不碰，避免误删活跃大陆
+            _created = 0
+            try:
+                _data = json.loads(r["value"]) if isinstance(r["value"], str) else r["value"]
+                _created = int((_data or {}).get("created_at", 0) or 0)
+            except Exception:
+                _created = 0  # JSON 损坏无法判定年龄 → 保守不删
+            if _created and now - _created > max_age_sec:
+                try:
+                    delete_event_state(_k)
+                    cleaned += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    return cleaned
 
 
 def resolve_map_for(world_id: str, map_id: str) -> Optional[dict]:
-    """按世界解析地图（纯函数，供不持有 Position 的场景）。"""
+    """按世界解析地图（纯函数，供不持有 Position 的场景）。
+
+    副本大陆实例优先（克隆图）；实例已销毁/不存在 → 返回 None
+    （与原 C.MAP_BY_ID.get 语义区分：调用方需自行回退全局静态图）。
+    """
     if world_id and world_id.startswith("inst:"):
         data = get_instance_world(world_id)
         if data is None:

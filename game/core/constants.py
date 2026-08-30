@@ -34,8 +34,12 @@ FISH_RARE_CHANCE = 0.6         # economy.py:785 垂钓宝物箱图纸概率（v1
 PET_EGG_ORANGE_CHANCE = 0.15   # economy.py:240 月光兔蛋（垂钓传说档）概率
 RARE_MAT_CHANCE = 0.10         # economy.py:280 稀有材料额外掉落概率
 PROF5_BONUS_CHANCE = 0.3       # economy.py:306 副业 5 级额外产出概率
-INST_EVENT_CHANCE = 0.5        # instance.py:278 副本探索事件概率
-MOVE_ENCOUNTER_CHANCE = 0.25   # world.py:2026 移动撞怪概率
+INST_EVENT_CHANCE = 0.5        # instance.py:278 副本探索事件概率（v141 审计 2026-08-30：
+                               # 仍被消费——instance.py:809 陷阱 POI 踩中概率；副本遇怪/事件
+                               # 主概率已走 dungeon.discovery_agro 配置 + core/encounter.py
+                               # encounter_chance(map_dict, default=0.85)，本常量保留勿删；
+                               # 代码默认值只维护在 encounter.py，不在此新增副本遇怪默认值）
+MOVE_ENCOUNTER_CHANCE = 0.25   # world.py:2026 移动撞怪概率（world._travel_ambush 用，保留）
 # v101.5 新增
 STARFALL_STUN_CHANCE = 0.20    # battle_mech.py:258 星陨斩眩晕概率
 BOSS_BP_DROP_CHANCE = 0.10    # drops.py:69 Boss 图纸惊喜掉率（v135：5% → 10%，×（1+幸运≤50%）最高 15%）

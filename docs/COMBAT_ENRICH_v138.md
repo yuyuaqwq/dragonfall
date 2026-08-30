@@ -192,7 +192,8 @@
 
 ### 4.1 托管决策序（超时自动防御 → 预案执行）【v138 决策：文档化 + 最小增强，代码后置】
 
-- 现状：副本超时 60s 自动防御（`_inst_auto_defend`，instance.py ~2484）——置 p_defending + 手动结算 CTB ct
+- 现状：副本超时 60s 自动防御（`_instance_auto_defend_player`，instance.py ~2598）——置 p_defending + 手动结算 CTB ct
+  - **2026-08-30 审计注**：副本超时自动防御属**命令层调度**（instance.py `_instance_auto_defend_player`）；battle.py 的 `_inst_auto_defend` 是零调用死代码（收编方案已废弃，随修复删除）。副本战斗引擎现状 = **瞬态 Battle 结算器（player_turn）+ 命令层 CTB 调度**（instance.py `_instance_*` 前缀方法）。
 - 升级方向（设计定稿）：超时代打按决策序：血线<40% 走保底位（防御/道具）→ 资源到阈值就释放（不屯）→ 打最软处（标记>已破坏>防御最低）
 - **v138 落地决策（2026-08-29 主 agent 收尾确认）**：
   - 副本 CTB 是核心玩法，`_instance_auto_defend_player` 的手动 ct 结算与 `player_turn` 内部 ct 结算会重复

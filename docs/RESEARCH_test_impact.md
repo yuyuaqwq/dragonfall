@@ -73,9 +73,9 @@ round_acted[] / dot_pending / contribution / over
 
 ### 1.5 战斗现状：副本自写 ~2500 行状态机
 
-`game/commands/instance.py`（2518 行）自写 CTB 轮流回合：`_instance_act`（1320）/`_instance_enemy_ct_acts`（1864）/`_instance_next_actor`（1824）/`_instance_apply_enemy_act_ct`（1838，单怪临时 `BT.Battle("instance", unit, enemies=[unit])` 仅借 `_enemy_stats` 算 buffed spd）/`_instance_kill_reward`/`_instance_victory`/`_instance_defeat`。`game/battle.py` 的 `Battle.__init__` 只认 `monster|worldboss|pvp`，**`"instance"` 未正式支持**（注释 222 行）；`from_state` 能过 type=instance（1445 行）。
+`game/commands/instance.py`（2518 行）自写 CTB 轮流回合：`_instance_act`（1986）/`_instance_enemy_ct_acts`（2567）/`_instance_next_actor`（2527）/`_instance_apply_enemy_act_ct`（2541，单怪临时 `BT.Battle("instance", unit, enemies=[unit])` 仅借 `_enemy_stats` 算 buffed spd）/`_instance_kill_reward`/`_instance_victory`/`_instance_defeat`。`game/battle.py` 的 `Battle.__init__` 支持 `btype="instance"`（225 行，瞬态 Battle 结算器：enemies/allies 引用直传 + allies ct 广播，**不含调度**——调度/敌方阶段/超时/换层全在命令层 instance.py）。
 
-重构后：BT.Battle 正式支持 `btype="instance"`，多人 CTB 调度收编进 battle.py，instance.py 瘦身只留开本/结算/钥匙/人数。
+重构后：~~BT.Battle 正式支持 `btype="instance"`，多人 CTB 调度收编进 battle.py，instance.py 瘦身只留开本/结算/钥匙/人数~~——**2026-08-30 审计更正：收编未落地且已废弃**。现状即最终架构：**瞬态 Battle 结算器（player_turn）+ 命令层 CTB 调度（instance.py `_instance_*` 前缀方法）**；battle.py 不再有 `_inst_*` 调度方法。
 
 ---
 
@@ -102,6 +102,8 @@ round_acted[] / dot_pending / contribution / over
 | 4 人副本拦截/开本 | 深海龙宫 | 人数校验 | 保留，绿 |
 | 入场钥匙 | 军旗碎片拦截/消耗 | key_item 校验 | 保留，绿 |
 | 首通免钥匙 | 首通后免钥匙开本 | inst_clear_* 成就 | 保留，绿 |
+
+> **2026-08-30 设计口径注（钥匙）**：**徒步进副本图（门禁）不扣钥匙、『副本 <名>』开本才扣 1 个，属设计**——门禁 `_instance_gate_block`（world.py）只做任务/钥匙/首通三档放行校验不消耗（任务与钥匙两路放行）；开本 `_instance_start`（instance.py ~1795-1815）才消耗钥匙（首通前，已通关免钥匙）。判定逻辑两处同源（字符串级复制），修复将抽公共函数（core/instance_gate.py）。
 
 **结论**：本文件是重灾区——地图模式开本断言、探索进战、深入推进、通关状态、战斗回合五处全踩新结构。**建议重写为主**：开本断言改为"落第 1 子区域+可前往列表"，推进改『移动』，战斗断言改为对 BT instance 分支的等价性断言。
 

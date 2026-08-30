@@ -168,6 +168,7 @@ st["resources_pool"] = {
 
 1. `_instance_build_state`（instance.py:945）新增 rooms/resources_pool 生成逻辑（读 SUBAREAS[inst_id]）
 2. `_instance_explore` 改为消费 rooms[cur_room].monsters_left（discovery_agro 判定）
+   - **2026-08-30 设计口径注**：副本遇怪概率 = `dungeon.discovery_agro` 数据表配置（maps.py 0.85；代码默认 0.85 在 core/encounter.py），固定高遇怪是**设计**——开本已校验等级，与野外等级差模型互为设计差异。
 3. `instance_investigate` 改为消费 pois_left + resources_pool
 4. world.py `移动` 加副本分支（队长带队 + 房间连通 + 遇怪）
 5. 测试：新增"数量上限"断言（打完不刷）+ "资源池"断言（探索完即空）

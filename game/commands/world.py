@@ -1230,6 +1230,12 @@ class WorldCmds(CommandBase):
           - 玩家正持有 active 且 explore 目标为本图的**主线或支线任务**（任务内进入不受影响）；
           - 背包持有该副本 key_item（如 ash_temple→烬火令，abyss_gate→深渊钥匙）；
           - 已通关该副本（inst_clear_* 首通记录，与 instance.py 免钥匙同口径）。
+
+        v141 审计 #9：钥匙三路匹配 + 通关豁免抽到 core/instance_gate.py
+        （find_instance_key_item / instance_cleared_qq），此处只做任务放行层 + 调用公共函数。
+        设计语义：**徒步进图不扣钥匙**（只校验持有，钥匙由『副本 <名字>』开本时才扣），
+        任务/钥匙两路放行；开本才扣（见 instance.py _instance_start 同款公共函数调用）。
+
         命中时返回拦截文案；非副本图直接放行。『副本 <名字>』开本入口不经过本方法，不受影响。
         """
         if target.get("type") != C.MAP_TYPE_INSTANCE:
@@ -1248,18 +1254,14 @@ class WorldCmds(CommandBase):
                and next((q for q in C.SIDE_QUESTS if q["id"] == sid), {}).get("objective", {}).get("explore") == kid
                for sid, sq in side.items()):
             return ""
-        # 2) 持有钥匙（与 instance.py 开本钥匙判定同源：按物品名/key 匹配背包）
+        # 2) 持有钥匙（与 instance.py 开本钥匙判定同源，抽公共 core/instance_gate.py）
+        from ..core.instance_gate import find_instance_key_item
         key_item = (inst or {}).get("key_item")
-        if key_item:
-            for it in (db.get_inventory(group_id, qq_id) or []):
-                it_name = (it.get("data") or {}).get("name", "")
-                if it_name == key_item or it.get("key") == key_item \
-                        or C.ITEMS.get(it.get("key"), {}).get("name") == key_item:
-                    if (it.get("count") or 0) >= 1:
-                        return ""
-        # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径）
-        if any(a.get("ach_key") == f"inst_clear_{kid}" and a.get("progress", 0) >= 1
-               for a in (db.get_achievements(group_id, qq_id) or [])):
+        if key_item and find_instance_key_item(group_id, qq_id, key_item) is not None:
+            return ""
+        # 3) 已通关副本 → 免钥匙放行（与 instance.py 同口径，抽公共 core/instance_gate.py）
+        from ..core.instance_gate import instance_cleared_qq
+        if instance_cleared_qq(group_id, qq_id, kid):
             return ""
         inst_name = (inst or {}).get("name") or C.MAP_BY_ID.get(kid, {}).get("name", "副本")
         return (f"🔒 此处为【{inst_name}】入口，需接取相应任务（或持有钥匙）才能进入。\n"
@@ -1479,7 +1481,9 @@ class WorldCmds(CommandBase):
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row and inst_row["state"].get("inst_id") == target["id"] \
                 and (inst_row["state"].get("mode") == "map" or inst_row["state"].get("rooms")):
-            async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, target, dest):
+            # v141 审计 #8：_instance_dungeon_move 去掉 target 死参数——地图目标
+            # 在函数内按 inst_id 解析（大陆实例优先），此处只透传玩家原始 dest
+            async for _r in self._instance_dungeon_move(event, group_id, qq_id, player, inst_row, dest):
                 yield _r
             return
         # v86 子区域：跨图移动 → 落点：城镇=城门，野外=入口（v87.14）
@@ -1652,15 +1656,19 @@ class WorldCmds(CommandBase):
             out += "\n🚶 赶路模式中：回复序号直接赶路，回复 0 结束"
         return out
 
-    async def _instance_dungeon_move(self, event, group_id, qq_id, player, inst_row, target, dest):
+    async def _instance_dungeon_move(self, event, group_id, qq_id, player, inst_row, dest):
         """v137 副本内移动（world.move 副本分支）：队长带队 + 房间连通校验 + discovery_agro 遇怪 + Boss 房 Boss 战。
 
         与野外移动共用同一『前往/移动』入口（鱼鱼 v137：副本与野外共用一套代码机制），
         差异仅在：
           ① 仅队长可移动，全队 cur_subarea 同步（db.update_player 每个成员）
           ② 目标房间必须在本图 SUBAREA_LINKS_INDEX 连通表内（副本无出口，不连野外）
-          ③ 遇怪概率 = dungeon.discovery_agro（0.85），消耗 rooms[cur_room].monsters_left
+          ③ 遇怪概率 = dungeon.discovery_agro（core/encounter.encounter_chance 统一读，
+             数据表驱动），消耗 rooms[cur_room].monsters_left
           ④ 到达 Boss 房 + boss_alive → 触发 Boss 战（走 _enter_stage_combat 现状战斗链路）
+
+        dest：玩家原始输入（房间名/序号/图 id），内部统一解析（v141 审计 #8：
+        本函数是目标解析唯一入口，_instance_move_route 直接透传，不再二次解析）。
         """
         st = inst_row["state"]
         if st.get("cleared"):
@@ -1722,15 +1730,20 @@ class WorldCmds(CommandBase):
         db.save_battle(group_id, st["leader"], st)
         arrive_view = self._subarea_arrive(self._player(group_id, qq_id), cur_map, target_sa, group_id, qq_id)
         # v137 dungeon 修饰符：discovery_agro 遇怪判定（消耗 monsters_left，打完不刷）
-        _dun = cur_map.get("dungeon") or {}
-        _agro = float(_dun.get("discovery_agro", 0.85) or 0.85)
+        # v141 审计：遇怪概率统一走 core/encounter.encounter_chance（数据表驱动）
+        from ..core.encounter import encounter_chance as _enc_chance
+        _agro = _enc_chance(cur_map)
         _left = rstate.get("monsters_left")
         _hit = False
         if isinstance(_left, list) and len(_left) > 0 and random.random() < _agro:
             _hit = True
         if _hit:
             # 遇怪 → 弹出 1 只 → 构建敌方阵列 → 进战斗（现状 _enter_stage_combat 链路）
-            _def = _left.pop(0)
+            # v141 审计 #7：死代码接线——consume_monster 弹出（原 _left.pop(0) 内联）
+            _def = self.consume_monster(st, target_sa["id"])
+            if _def is None:
+                yield event.plain_result(arrive_view)
+                return
             self._enter_stage_combat(group_id, st, _def, target_sa)
             db.save_battle(group_id, st["leader"], st)
             _mon = st.get("boss") or {}
@@ -1746,6 +1759,7 @@ class WorldCmds(CommandBase):
             )
             return
         # Boss 房 + boss_alive → 触发 Boss 战（不消耗普通怪池）
+        _dun = cur_map.get("dungeon") or {}
         _br = _dun.get("boss_room")
         _boss_alive = bool(rstate.get("boss_alive", False))
         if _br == target_sa["id"] and _boss_alive:

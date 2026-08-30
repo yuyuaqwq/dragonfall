@@ -7,7 +7,12 @@ import random
 
 
 def subarea_pois(map_id: str, subarea_id: str) -> list:
-    """返回指定子区域挂载的 POI id 列表(无则空)。"""
+    """返回指定子区域挂载的 POI id 列表(无则空)。
+
+    注（v141 审计 2026-08-30）：大陆克隆 subareas 当前无命令层消费，
+    保留待动态化——副本内 POI 查询走 instance.py 直读数据表（_map_scene/_enter_stage
+    经 C.subarea_pois 以克隆图 id 查询全局 SUBAREA_POIS，非克隆 subareas 字段）。
+    """
     from ..data.pois import SUBAREA_POIS
     key = f"{map_id}:{subarea_id}"
     return SUBAREA_POIS.get(key, [])

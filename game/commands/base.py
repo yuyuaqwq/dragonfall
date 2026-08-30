@@ -214,6 +214,13 @@ class CommandBase:
             wild_king_tick()
         except Exception:
             pass
+        # v141 大陆回收（P0-3，2026-08-30 审计）：任意指令惰性清理超龄大陆实例
+        # （24h 无活动；内存 dict 轻扫 + DB event_state 孤儿键），幂等不阻塞主流程
+        try:
+            from ..core.worlds import cleanup_stale_instances as _csi
+            _csi(24 * 3600)
+        except Exception:
+            pass
         if self._is_gm(qq_id):
             return
         if self._server_down():

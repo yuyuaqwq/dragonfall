@@ -264,6 +264,17 @@ def _event_state_cleanup_once():
         n = cleanup_stale_event_state()
         if n:
             logging.getLogger(__name__).info("已清理 %d 个流失玩家残留 event_state 键", n)
+        # v141 大陆回收（P0-3，2026-08-30 审计）：启动兜底清理超龄大陆实例
+        # （内存 dict + DB event_state 孤儿键，24h 默认；幂等）
+        try:
+            from .game.core.worlds import cleanup_stale_instances
+            _nw = cleanup_stale_instances()
+            if _nw:
+                logging.getLogger(__name__).info("已清理 %d 个超龄大陆实例", _nw)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "大陆实例清理跳过（异常不影响启动）", exc_info=True
+            )
     except Exception:
         logging.getLogger(__name__).warning(
             "event_state 残留键清理跳过（DB 未就绪或异常，不影响启动）", exc_info=True

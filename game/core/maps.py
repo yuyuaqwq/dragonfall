@@ -72,6 +72,10 @@ _build_monster_locs()
 def subarea_links(map_id: str, subarea_id: str) -> list:
     """同图内可直达的子区域 id 列表（v87.14 空间连接 + v87.16 街道链 + v115 网状）。
 
+    注（v141 审计 2026-08-30）：副本大陆克隆的 subareas 无命令层消费本函数——
+    大陆克隆 subareas 当前无命令层消费，保留待动态化。命令层副本移动走
+    SUBAREA_LINKS_INDEX（instance.py _subarea_arrive 直读数据表），主大陆移动消费本函数。
+
     v115：若 SUBAREA_LINKS_INDEX 有该图的显式网状定义 → 返回该子区域的显式
     连接列表（**包含隐藏房间，不过滤**——隐藏房间的可见性由命令层过滤，这是
     与 G agent 的契约）；否则回退旧逻辑（城镇星形/野外线性）完全不变。

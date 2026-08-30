@@ -95,6 +95,18 @@ def get_battle(group_id, qq_id):
                         (json.dumps(state, ensure_ascii=False), qq_id),
                     )
                     conn.commit()
+                    # v141 兜底（P0-3，2026-08-30 审计）：instance 行超 BATTLE_STALE_SEC
+                    # 只打 _expired 标记不销毁大陆 → 大陆实例泄漏（内存 + event_state 键）。
+                    # 命令层（instance.py）会补 30min 超时销毁；这里做 24h 过期兜底：
+                    # state 里带 world_id 且为 inst: 前缀 → 直接销毁大陆实例（幂等）。
+                    # 正常 instance 战斗（未过期）不碰；非 inst: 前缀（异常数据）不碰。
+                    try:
+                        _wid = state.get("world_id") or ""
+                        if isinstance(_wid, str) and _wid.startswith("inst:"):
+                            from ..core.worlds import destroy_instance_world as _diw
+                            _diw(_wid)
+                    except Exception:
+                        pass
                     return None
                 conn.execute("DELETE FROM battle_state WHERE qq_id=?", (qq_id,))
                 conn.commit()

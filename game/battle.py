@@ -222,8 +222,12 @@ def _ct_initial_wait(spd) -> float:
 
 class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
-        self.btype = btype                 # monster | worldboss | pvp | instance（v137 副本收编）
+        self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
         self._st = st or {}                # v137 副本内聚状态引用（players/alive/p_defending/threat/taunt_*）
+        # v137 副本：btype="instance" 的 Battle 仅是命令层（instance.py）驱动的"瞬态结算器"——
+        # 玩家行动 player_turn(enemy_act=False) + 序列化 type + allies ct 广播（_after_actor_ct 1393-1436）。
+        # 副本战斗主循环（谁行动/敌方阶段/超时/换层）由命令层 instance.py 驱动，不在本引擎内调度。
+        # active_keys 参数保留（命令层可注入在场成员 key），本引擎不使用（v137 收编方法已删）。
         self._active_keys = active_keys or [str(p.get("qq_id")) for p in (allies or [])]  # v137 在场玩家 key（退队过滤，命令层注入）
         self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
@@ -1425,7 +1429,7 @@ class Battle:
         # （p_cost 已在本函数上方按 side=="p" 分支算出）。玩家 ct 权威 = 各快照 snap["ct"]，
         # self.p_ct 单值在 instance 分支不参与调度。仅当 allies 非空才广播——
         # monster/worldboss/pvp 单机路径 allies 恒空，行为零变化。退队过滤由命令层
-        # active_keys 注入在 _inst_living_cts 侧完成（R8），广播按存活快照全量。
+        # 注入 active_keys 完成（R8），广播按存活快照全量。
         if self.allies:
             _cost = e_cost if side == "e" else (p_cost if side == "p" else 0.0)
             if _cost > 0:
@@ -1753,177 +1757,6 @@ class Battle:
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
         self._end_round()
         return logs, self.result is not None
-
-    # ---------------- v137 副本（btype="instance"）多人 CTB 调度 ----------------
-    # 语义平移自 instance.py 的 _instance_next_actor/_instance_min_player_ct/
-    # _instance_min_enemy_ct/_instance_living_player_cts/_instance_enemy_ct_acts/
-    # _instance_enemy_one_act/_instance_auto_defend_player，时钟统一到 v130.10 绝对时刻
-    # （ct 播种 = _ct_initial_wait(spd)，0 为行动点；玩家 ct 权威 = 各快照 snap["ct"]）。
-    # 纯新增：monster/worldboss/pvp 路径不经过这些方法。
-
-    def _inst_living_cts(self) -> dict:
-        """存活且在场玩家快照的 {key: ct}（active_keys 过滤 = 命令层注入的在场成员，
-        退队判定是 QQ 业务不搬引擎 R8；存活 = alive 标记与 hp>0 双判）。"""
-        cur = {str(k) for k in (self._active_keys or [])}
-        res = {}
-        for _a in self.allies:
-            _k = str(_a.get("qq_id") or _a.get("uid", ""))
-            if cur and _k not in cur:
-                continue
-            if not (self._st.get("alive") or {}).get(_k, True):
-                continue
-            if _a.get("hp", 0) > 0:
-                res[_k] = float(_a.get("ct", 0) or 0)
-        return res
-
-    def _inst_min_player_ct(self):
-        """存活玩家最小 ct（无存活 → None）。"""
-        cts = self._inst_living_cts()
-        return min(cts.values()) if cts else None
-
-    def _inst_min_enemy_ct(self):
-        """存活敌方最小 ct（无存活 → None）。"""
-        cts = [float(u.get("ct", 0) or 0) for u in self.enemies if u.get("hp", 0) > 0]
-        return min(cts) if cts else None
-
-    def _inst_next_actor(self):
-        """CTB 下一行动者 = 存活玩家与存活敌方中 ct 最小者（v130.10 绝对时刻：
-        玩家 ct 读快照 snap["ct"]，不再 -spd 相对值）。同 ct 玩家先（保底与现状一致）。
-        返回 ("p", member_key) / ("e", None) / ("none", None)。"""
-        mp = self._inst_min_player_ct()
-        me = self._inst_min_enemy_ct()
-        if me is None and mp is None:
-            return ("none", None)
-        if me is not None and (mp is None or me < mp):
-            return ("e", None)
-        cts = self._inst_living_cts()
-        k = min(cts, key=lambda kk: cts[kk]) if cts else None
-        return ("p", k) if k else ("none", None)
-
-    def _inst_pick_target(self, unit: dict):
-        """副本敌方单次行动目标：嘲讽（taunt_target/taunt_turns，目标存活且在射程内）
-        → 仇恨/射程 select_target（threat 表按 qq_id 取，uid 键映射）。返回目标玩家快照
-        或 None（无可攻击目标）。语义同 instance._instance_enemy_one_act 目标选择段。"""
-        from .core.formation import select_target
-        taunt_key = str(self._st.get("taunt_target", ""))
-        target = None
-        if taunt_key and int(self._st.get("taunt_turns", 0) or 0) > 0 \
-                and (self._st.get("alive") or {}).get(taunt_key, False):
-            for _a in self.allies:
-                if str(_a.get("qq_id")) == taunt_key \
-                        and int(_a.get("rank", 1) or 1) <= int(unit.get("reach", 1) or 1):
-                    target = _a
-                    break
-            if target is not None:
-                self._st["taunt_turns"] = max(0, int(self._st.get("taunt_turns", 0) or 0) - 1)
-                if self._st["taunt_turns"] <= 0:
-                    self._st.pop("taunt_target", None)
-            else:
-                # 嘲讽目标已死/不在射程 → 视为无效，走正常选择（同现状）
-                self._st.pop("taunt_target", None)
-        if target is None:
-            threat_by_uid = {}
-            for _a in self.allies:
-                _q = str(_a.get("qq_id") or _a.get("uid", ""))
-                threat_by_uid[str(_a.get("uid", ""))] = float((self._st.get("threat") or {}).get(_q, 0) or 0)
-            target = select_target(unit, self.allies, threat=threat_by_uid)
-        return target
-
-    def _inst_enemy_one_act(self, unit: dict, logs: list) -> list:
-        """副本敌方阵列单个单位行动一次：目标 = _inst_pick_target（嘲讽/仇恨/射程）
-        → _enemy_turn(目标快照, unit)（player 参数 = 目标玩家快照，R3）→ 防御减半
-        （目标 p_defending 时 ×0.5 + 文案修正）→ 扣血/alive 标记（快照引用直接改）。
-        返回追加日志。语义同 instance._instance_enemy_one_act。"""
-        if unit.get("hp", 0) <= 0:
-            return logs
-        target = self._inst_pick_target(unit)
-        if target is None:
-            # 无可攻击目标：仅 ct 结算由调用方 _inst_enemy_phase 负责（无目标也结算）
-            return logs
-        tkey = str(target.get("qq_id") or target.get("uid", ""))
-        tname = target.get("name", tkey)
-        mlogs, dmg = self._enemy_turn(target, unit)
-        # O116：受击伤害文案暂存 pending，本层不走 _damage_player 需手动取出拼进日志
-        try:
-            _pend = self._drain_pending_dmg()
-            if _pend:
-                mlogs = mlogs + _pend
-        except Exception:
-            pass
-        # v121 审计修复：防御状态不在此重置——防御覆盖"防御后到该玩家下次行动前"
-        # 的全部敌方行动；过期点 = 该玩家下次行动开始时（命令层 _instance_act 重置）
-        if (self._st.get("p_defending") or {}).get(tkey):
-            dmg = max(1, int(dmg * 0.5))
-            # v101.25 #345：防御减伤后日志同步修正（伤害数字与实际扣血一致）
-            import re as _re
-            mlogs = [_re.sub(r"造成 (\d+) 点伤害",
-                             lambda m: f"造成 {max(1, int(int(m.group(1)) * 0.5))} 点伤害(格挡)",
-                             x) for x in mlogs]
-            logs.append(f"🛡️ {tname} 举盾格挡！")
-        logs += mlogs
-        if dmg > 0:
-            target["hp"] = max(0, target.get("hp", 0) - dmg)
-            target["took_dmg"] = True  # v105 M18 P1：无伤通关(ach_flawless)受损标记
-            logs.append(f"❤️ {tname} 剩余 {target['hp']}/{target.get('max_hp', target['hp'])}")
-        if target.get("hp", 0) <= 0:
-            (self._st.setdefault("alive", {}))[tkey] = False
-            self._st.setdefault("threat", {})[tkey] = 0
-            # O105：Boss 行动后死亡同样明确提示"你已倒下，等待队友…"
-            logs.append(f"💀 {tname} 倒下了！你已倒下，等待队友…")
-        return logs
-
-    def _inst_enemy_phase(self, logs: list, target_player=None) -> list:
-        """v130.10 绝对时刻副本敌方行动段：while min(存活敌方 ct) <= 0（行动点）且
-        < min(存活玩家 ct) → 该单位 _inst_enemy_one_act → _after_actor_ct("e", unit,
-        player=目标快照)（行动者 +cost、其余敌方 -cost、allies 广播 -cost）。
-        硬上限 8 动防极端配速死循环；玩家全灭提前终止。返回追加日志。
-        语义同 instance._instance_enemy_ct_acts（时钟 v130.10 化）。"""
-        from .core.formation import alive_units
-        _guard = 0
-        while _guard < 8:
-            alive = alive_units(self.enemies)
-            players = [a for a in self.allies if a.get("hp", 0) > 0]
-            if not alive or not players:
-                break
-            me = min(float(u.get("ct", 0) or 0) for u in alive)
-            mp = min(float(a.get("ct", 0) or 0) for a in players)
-            if me > 0.0 or me >= mp:   # v130.10：0 为行动点
-                break
-            unit = min(alive, key=lambda u: float(u.get("ct", 0) or 0))
-            tgt = self._inst_pick_target(unit)
-            if tgt is None:
-                # 无目标也结算 ct（与现状一致：return 前不扣血但 ct 照走）
-                self._after_actor_ct("e", unit)
-                _guard += 1
-                continue
-            logs = self._inst_enemy_one_act(unit, logs)
-            self._after_actor_ct("e", unit, player=tgt)
-            # 玩家全灭（含同归于尽）→ 敌方段提前终止
-            if not [a for a in self.allies if a.get("hp", 0) > 0]:
-                break
-            _guard += 1
-        return logs
-
-    def _inst_auto_defend(self, player: dict) -> list:
-        """副本超时自动防御结算（超时判定在命令层，引擎只收"结算"）：
-        p_defending[key]=True + 该玩家 ct += cost（buffed spd）+ 队友/敌方 -cost
-        （复用 _after_actor_ct("p", player=...) 的 allies 广播扩展）。
-        语义同 instance._instance_auto_defend_player。"""
-        _key = str(player.get("qq_id") or player.get("uid", ""))
-        self._st.setdefault("p_defending", {})[_key] = True
-        self._after_actor_ct("p", player=player)
-        return [f"⏰ {player.get('name', _key)} 迟迟没有行动，自动进入防御姿态！"]
-
-    def _inst_reset_cts(self) -> None:
-        """副本换怪/切层：存活玩家快照与存活敌方单位 ct 统一重置为 v130.10 初始等待
-        （_ct_initial_wait(spd)，不再是 -spd！否则与引擎时钟混用出 bug）。
-        语义同 instance._instance_reset_player_cts（时钟 v130.10 化）。"""
-        for _a in self.allies:
-            if _a.get("hp", 0) > 0:
-                _a["ct"] = _ct_initial_wait(_a.get("spd", 0))
-        for u in self.enemies:
-            if u.get("hp", 0) > 0:
-                u["ct"] = _ct_initial_wait(u.get("spd", 0))
 
     def _add_shield(self, key: str, value: int, turns: int = 3):
         """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新回合（取 max），异源并存各计各的回合。
