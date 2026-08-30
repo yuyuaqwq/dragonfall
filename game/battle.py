@@ -4156,16 +4156,17 @@ class Battle:
     def _set_attack_proc(self, player: dict, dmg: int, logs: list, is_crit: bool = False):
         """玩家攻击后触发已激活套装的 4 件攻击特效
         v98.5：效果数据化 → core/affix_effects.py SET_PROC_EFFECTS
-        v140 S1：is_crit 透传并落到 battle._last_crit（供 phantom_echo 等 handler 读）"""
+        v140 S1：is_crit 透传并落到 battle._last_crit（供 phantom_echo 等 handler 读）
+        v142：数据驱动重构——优先读 params.type 调通用执行器，无 params 回退旧注册表"""
         self._last_crit = bool(is_crit)
         effs = E.set_bonus_4(player.get("equipment", {}))
         if not effs:
             return
-        from .core.affix_effects import SET_PROC_EFFECTS
-        for eff in effs:
-            fn = SET_PROC_EFFECTS.get(eff)
-            if fn:
-                fn(self, player, dmg, logs)
+        from .core.affix_effects import _execute_set_proc
+        for eff_name in effs:
+            # 从套装数据取完整 effect dict（含 params）
+            eff = self._set_eff(player, eff_name, 4) or {"effect": eff_name}
+            _execute_set_proc(eff, self, player, dmg, logs)
 
     # ---------------- 敌方回合 ----------------
     def _boss_dmg_filter(self, dmg: int, player: dict, logs: list, dmg_type: str = "phys", dot: bool = False) -> int:

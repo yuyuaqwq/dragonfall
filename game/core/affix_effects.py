@@ -337,6 +337,403 @@ def _ts_energy_tide(battle, player, logs):
 # elif 分发：eff 互斥匹配（同 eff 只进一个分支）；按 eff key 查表
 
 SET_PROC_EFFECTS = {}
+SET_PROC_TYPES = {}  # 数据驱动 type → 通用执行器（v142 重构）
+
+
+def _proc_register(registry, key):
+    """注册表装饰器（SET_PROC_TYPES / SET_PROC_EFFECTS 通用）"""
+
+    def deco(fn):
+        registry[key] = fn
+        return fn
+
+    return deco
+
+
+# ============================================================
+# v142 数据驱动：通用执行器（type 分发表）
+# 数值全部从套装数据 params 读取，禁止硬编码魔法数
+# ============================================================
+
+def _sp_params(eff: dict) -> dict:
+    """取 effect dict 的 params（缺省空 dict）"""
+    return (eff or {}).get("params") or {}
+
+
+def _sp_chance(eff: dict) -> float:
+    """触发概率：优先 params.chance，其次数据表 chance，默认 1.0"""
+    p = _sp_params(eff)
+    if "chance" in p:
+        return float(p["chance"])
+    return float((eff or {}).get("chance", 1.0))
+
+
+def _sp_stat(battle, player, key: str) -> float:
+    """读取玩家属性（atk/matk/def/mdef）"""
+    st = battle._player_stats(player)
+    return float(st.get(key, 0) or 0)
+
+
+def _sp_enemy_def(battle, key: str = "def") -> float:
+    """读取敌方防御（def/mdef）"""
+    est = battle._enemy_stats()
+    return float(est.get(key, est.get("def", 0)) or 0)
+
+
+def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
+    """proc_flat_dmg：概率附加 pct×atk/matk 伤害（可带条件：标记/低血变比例）
+    params: chance, stat(atk/matk), pct, cond_mark(bool), cond_hp_lt, pct_alt, dmg_type"""
+    from ..engine import calc_damage
+    pct = float(params.get("pct", 0.50))
+    if params.get("cond_hp_lt") is not None:
+        ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+        if ratio >= float(params["cond_hp_lt"]):
+            return
+    if params.get("cond_mark"):
+        mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
+        if int(mk.get("n", 0) or 0) > 0:
+            pct = float(params.get("pct_alt", pct))
+    stat = params.get("stat", "atk")
+    atk = _sp_stat(battle, player, stat)
+    edef = _sp_enemy_def(battle, params.get("edef", "def" if stat == "atk" else "mdef"))
+    dmg_type = params.get("dmg_type", "phys" if stat == "atk" else "magic")
+    cd = calc_damage(int(atk * pct), int(edef), dmg_type=dmg_type)
+    if cd > 0:
+        battle._damage_enemy(cd, logs)
+        tag = params.get("tag", "⚔️")
+        logs.append(f"{tag} {params.get('name', '追加伤害')}！追加 {cd} 点伤害！")
+
+
+def _sp_mark(battle, player, dmg, logs, params: dict):
+    """proc_mark：概率叠标记
+    params: chance, max_mark, mark_key(mark/element_marks/thunder/erode/poison), mark_desc"""
+    deb = battle.enemy.setdefault("debuffs", {})
+    key = params.get("mark_key", "mark")
+    if key == "element_marks":
+        mk = deb.setdefault("element_marks", {})
+        mk["thunder"] = min(int(params.get("max_mark", 3)), int(mk.get("thunder", 0) or 0) + 1)
+    elif key in ("erode", "poison", "burn"):
+        cur = deb.get(key) or {"n": 0, "mult": 1.0}
+        cur["n"] = min(int(params.get("max_mark", 5)), int(cur.get("n", 0) or 0) + 1)
+        if params.get("pct"):
+            cur["pct"] = float(params["pct"])
+        if params.get("turns"):
+            cur["turns"] = max(int(cur.get("turns", 0) or 0), int(params["turns"]))
+        deb[key] = cur
+    else:
+        cur = deb.setdefault(key, {"n": 0, "mult": 1.0})
+        cur["n"] = min(int(params.get("max_mark", 5)), int(cur.get("n", 0) or 0) + 1)
+    tag = params.get("tag", "🎒")
+    logs.append(f"{tag} {params.get('name', '标记')}！{params.get('mark_desc', '敌人被标记！')}")
+
+
+def _sp_slow(battle, player, dmg, logs, params: dict):
+    """proc_slow：概率减速
+    params: chance, slow_pct, slow_turns"""
+    battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(params.get("slow_turns", 2)))
+    battle.e_buffs["_spd_down_pct"] = float(params.get("slow_pct", 0.15))
+    tag = params.get("tag", "🕸️")
+    logs.append(f"{tag} {params.get('name', '减速')}！敌方速度下降 {int(params.get('slow_pct', 0.15)*100)}%！")
+
+
+def _sp_heal_hp(battle, player, dmg, logs, params: dict):
+    """proc_heal_hp：概率回血 %max_hp
+    params: chance, heal_pct"""
+    heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.05)))
+    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    tag = params.get("tag", "🌳")
+    logs.append(f"{tag} {params.get('name', '回血')}！回复 {heal} 点生命！")
+
+
+def _sp_heal_mp(battle, player, dmg, logs, params: dict):
+    """proc_heal_mp：概率回蓝 %max_mp
+    params: chance, heal_pct"""
+    heal = int(player.get("max_mp", 1) * float(params.get("heal_pct", 0.05)))
+    player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
+    tag = params.get("tag", "🎵")
+    logs.append(f"{tag} {params.get('name', '回蓝')}！回复 {heal} 点魔力！")
+
+
+def _sp_lifesteal(battle, player, dmg, logs, params: dict):
+    """proc_lifesteal：概率吸血 %伤害
+    params: chance, lifesteal_pct"""
+    heal = int(dmg * float(params.get("lifesteal_pct", 0.15)))
+    if heal > 0:
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        tag = params.get("tag", "🌑")
+        logs.append(f"{tag} {params.get('name', '吸血')}！汲取 {heal} 点生命！")
+
+
+def _sp_buff(battle, player, dmg, logs, params: dict):
+    """proc_buff：概率自身 buff
+    params: chance, buff_key, buff_val, buff_turns, buff_mode(set/add/stack)"""
+    key = params.get("buff_key")
+    val = params.get("buff_val")
+    if params.get("buff_mode") == "stack":
+        lv = battle.p_eff.get(key, 0)
+        if lv < int(params.get("buff_max", 10)):
+            battle.p_eff[key] = lv + 1
+            tag = params.get("tag", "🔨")
+            logs.append(f"{tag} {params.get('name', '叠加')}！（当前 {lv+1} 层）")
+    else:
+        battle.p_eff[key] = val
+        tag = params.get("tag", "✨")
+        logs.append(f"{tag} {params.get('name', 'Buff')}！")
+
+
+def _sp_execute(battle, player, dmg, logs, params: dict):
+    """proc_execute：低血处决（追加 pct×atk 伤害）
+    params: hp_lt, pct, stat"""
+    from ..engine import calc_damage
+    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if ratio < float(params.get("hp_lt", 0.30)):
+        stat = params.get("stat", "atk")
+        atk = _sp_stat(battle, player, stat)
+        dmg_type = params.get("dmg_type", "true" if params.get("true_dmg") else ("phys" if stat == "atk" else "magic"))
+        edef = 0 if dmg_type == "true" else int(_sp_enemy_def(battle, params.get("edef", "def" if stat == "atk" else "mdef")))
+        cd = calc_damage(int(atk * float(params.get("pct", 0.50))), edef, dmg_type=dmg_type)
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            tag = params.get("tag", "💀")
+            logs.append(f"{tag} {params.get('name', '处决')}！追加 {cd} 点伤害！")
+
+
+def _sp_shield(battle, player, dmg, logs, params: dict):
+    """proc_shield：概率护盾
+    params: chance, shield_pct, shield_turns"""
+    shield = int(player.get("max_hp", 1) * float(params.get("shield_pct", 0.05)))
+    battle._add_shield(params.get("shield_key", "proc_shield"), shield, int(params.get("shield_turns", 1)))
+    tag = params.get("tag", "🛡️")
+    logs.append(f"{tag} {params.get('name', '护盾')}！获得 {shield} 点护盾！")
+
+
+def _sp_burn(battle, player, dmg, logs, params: dict):
+    """proc_burn：概率灼烧
+    params: chance, burn_pct, burn_turns, max_stacks"""
+    deb = battle.enemy.setdefault("debuffs", {})
+    cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+    cur["n"] = min(int(params.get("max_stacks", 3)), int(cur.get("n", 0) or 0) + 1)
+    cur["pct"] = float(params.get("burn_pct", 0.01))
+    cur["turns"] = max(int(cur.get("turns", 0) or 0), int(params.get("burn_turns", 2)))
+    deb["burn"] = cur
+    tag = params.get("tag", "🔥")
+    logs.append(f"{tag} {params.get('name', '灼烧')}！目标被灼烧！（每回合损 {int(params.get('burn_pct', 0.01)*100)}% 最大生命，{params.get('burn_turns', 2)} 回合）")
+
+
+def _sp_freeze(battle, player, dmg, logs, params: dict):
+    """proc_freeze：概率冰冻
+    params: chance, freeze_turns"""
+    if hasattr(battle, "_freeze_enemy"):
+        battle._freeze_enemy()
+    else:
+        battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), int(params.get("freeze_turns", 1)))
+    tag = params.get("tag", "🧊")
+    logs.append(f"{tag} {params.get('name', '冰冻')}！敌人被冻结！")
+
+
+def _sp_purify_heal(battle, player, dmg, logs, params: dict):
+    """proc_purify_heal：概率净化减益 + 回血
+    params: chance, heal_pct"""
+    neg = [k for k in battle.p_buffs if k in ("spd_down", "poison", "mortal_wound", "atk_down", "def_down", "burn", "weak")]
+    if neg:
+        del battle.p_buffs[neg[0]]
+        tag = params.get("tag", "⚖️")
+        logs.append(f"{tag} {params.get('name', '净化')}！净化 1 个负面效果！")
+    heal = int(player.get("max_hp", 1) * float(params.get("heal_pct", 0.04)))
+    player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+    tag = params.get("tag", "⚖️")
+    logs.append(f"{tag} {params.get('name', '净化')}！回复 {heal} 点生命！")
+
+
+def _sp_armor_break(battle, player, dmg, logs, params: dict):
+    """proc_armor_break：概率破甲（可带：已破甲追加伤害）
+    params: chance, break_pct, break_turns, bonus_atk_pct"""
+    if "def_down" in battle.e_buffs and params.get("bonus_atk_pct"):
+        from ..engine import calc_damage
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * float(params["bonus_atk_pct"])), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            tag = params.get("tag", "🐎")
+            logs.append(f"{tag} {params.get('name', '破甲追加')}！追加 {cd} 点伤害！")
+    else:
+        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+        battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+        tag = params.get("tag", "🐎")
+        logs.append(f"{tag} {params.get('name', '破甲')}！敌人防御下降 {int(params.get('break_pct', 0.15)*100)}%！")
+
+
+def _sp_anti_heal(battle, player, dmg, logs, params: dict):
+    """proc_anti_heal：概率破甲 + 受疗 -%
+    params: chance, break_pct, break_turns, anti_heal_pct"""
+    battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(params.get("break_turns", 2)))
+    battle.e_buffs["_armor_break_pct"] = float(params.get("break_pct", 0.15))
+    battle.e_buffs["_anti_heal_pct"] = float(params.get("anti_heal_pct", 0.30))
+    tag = params.get("tag", "🌅")
+    logs.append(f"{tag} {params.get('name', '破甲+禁疗')}！敌人破甲且受疗效果 -{int(params.get('anti_heal_pct', 0.30)*100)}%！")
+
+
+def _sp_mon_atk_down(battle, player, dmg, logs, params: dict):
+    """proc_mon_atk_down：概率敌方攻击 -%
+    params: chance, atk_down_pct, turns"""
+    battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(params.get("turns", 2)))
+    battle.e_buffs["_weaken_val"] = float(params.get("atk_down_pct", 0.15))
+    tag = params.get("tag", "🐉")
+    logs.append(f"{tag} {params.get('name', '敌方攻击下降')}！敌人攻击下降 {int(params.get('atk_down_pct', 0.15)*100)}%！")
+
+
+def _sp_def_up_stack(battle, player, dmg, logs, params: dict):
+    """proc_def_up_stack：受击概率叠防御 buff（层数上限）
+    params: chance, def_pct, turns, max_stacks, stack_key"""
+    key = params.get("stack_key", "tie_pi_def_lv")
+    lv = battle.p_buffs.get(key, 0)
+    if lv < int(params.get("max_stacks", 2)):
+        battle.p_buffs[key] = lv + 1
+        battle.p_buffs[params.get("turns_key", "tie_pi_def_turns")] = int(params.get("turns", 2))
+    tag = params.get("tag", "🛡️")
+    logs.append(f"{tag} {params.get('name', '防御叠加')}！防御 +{int(params.get('def_pct', 0.15)*100)}%！")
+
+
+def _sp_dmg_cut(battle, player, dmg, logs, params: dict):
+    """proc_dmg_cut：受击概率本次伤害 -%
+    params: chance, cut_pct"""
+    dmg = max(1, int(dmg * float(params.get("cut_pct", 0.50))))
+    battle._last_dmg = dmg
+    tag = params.get("tag", "🛡️")
+    logs.append(f"{tag} {params.get('name', '减伤')}！本次受击伤害减半！")
+
+
+def _sp_counter(battle, player, dmg, logs, params: dict):
+    """proc_counter：受击概率反击
+    params: chance, atk_pct, once_per_round(bool)"""
+    if not battle.enemy.get("hp", 0) or battle.enemy.get("hp", 0) <= 0:
+        return
+    if params.get("once_per_round"):
+        _turn = getattr(battle, "round", 0) or 0
+        if (battle.p_eff or {}).get("counter_used") == _turn:
+            return
+        battle.p_eff["counter_used"] = _turn
+    from ..engine import calc_damage
+    pst = battle._player_stats(player)
+    est = battle._enemy_stats()
+    cd = calc_damage(int(pst.get("atk", 0) * float(params.get("atk_pct", 0.40))), est.get("def", 0), dmg_type="phys")
+    cd = battle._boss_dmg_filter(cd, player, logs)
+    battle._damage_enemy(cd, logs)
+    tag = params.get("tag", "🌊")
+    logs.append(f"{tag} {params.get('name', '反击')}！反击 {cd} 点伤害！")
+
+
+def _sp_res_gain(battle, player, dmg, logs, params: dict):
+    """proc_res_gain：概率获得资源
+    params: chance, res_key, amount"""
+    battle._res_gain(player, params.get("res_key", "cp"), int(params.get("amount", 1)))
+    tag = params.get("tag", "🗡️")
+    logs.append(f"{tag} {params.get('name', '资源')}！额外获得 {params.get('amount', 1)} 点资源！")
+
+
+def _sp_stealth(battle, player, dmg, logs, params: dict):
+    """proc_stealth：低血概率隐身（下次攻击必暴击）
+    params: hp_lt, chance, buff_key"""
+    ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if ratio < float(params.get("hp_lt", 0.30)):
+        battle.p_buffs[params.get("buff_key", "stealth")] = 1
+        tag = params.get("tag", "🌙")
+        logs.append(f"{tag} {params.get('name', '隐身')}！下一次攻击必定暴击！")
+
+
+def _sp_mp_on_dmg(battle, player, dmg, logs, params: dict):
+    """proc_mp_on_dmg：概率雷击 + 回伤害% MP
+    params: chance, stat, pct, mp_pct"""
+    from ..engine import calc_damage
+    stat = params.get("stat", "matk")
+    atk = _sp_stat(battle, player, stat)
+    edef = _sp_enemy_def(battle, params.get("edef", "mdef" if stat == "matk" else "def"))
+    dmg_type = params.get("dmg_type", "magic" if stat == "matk" else "phys")
+    cd = calc_damage(int(atk * float(params.get("pct", 0.40))), int(edef), dmg_type=dmg_type)
+    if cd > 0:
+        battle._damage_enemy(cd, logs)
+        mp = int(cd * float(params.get("mp_pct", 0.15)))
+        player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + mp)
+        tag = params.get("tag", "✨")
+        logs.append(f"{tag} {params.get('name', '雷击回蓝')}！追加 {cd} 点伤害，回复 {mp} 点魔力！")
+
+
+def _sp_erode(battle, player, dmg, logs, params: dict):
+    """proc_erode：概率暗蚀（敌方每回合损 %max_hp，全额回血）
+    params: chance, max_stacks, turns"""
+    deb = battle.enemy.setdefault("debuffs", {})
+    cur = deb.get("erode") or {"n": 0, "mult": 1.0}
+    cur["n"] = min(int(params.get("max_stacks", 2)), int(cur.get("n", 0) or 0) + 1)
+    deb["erode"] = cur
+    tag = params.get("tag", "🌑")
+    logs.append(f"{tag} {params.get('name', '暗蚀')}！敌人被暗蚀侵蚀！（每回合损 {params.get('pct', 1)}% 最大生命，全额回血）")
+
+
+def _sp_thunder_burst(battle, player, dmg, logs, params: dict):
+    """proc_thunder_burst：雷印体系——叠印/满印引爆
+    params: chance, max_mark, burst_pct, stat(matk), edef"""
+    from ..engine import calc_damage
+    deb = battle.enemy.setdefault("debuffs", {})
+    mk = deb.setdefault("element_marks", {})
+    mk["thunder"] = min(int(params.get("max_mark", 3)), int(mk.get("thunder", 0) or 0) + 1)
+    if int(mk.get("thunder", 0)) >= int(params.get("burst_at", 3)):
+        stat = params.get("stat", "matk")
+        atk = _sp_stat(battle, player, stat)
+        edef = _sp_enemy_def(battle, params.get("edef", "mdef"))
+        cd = calc_damage(int(atk * float(params.get("burst_pct", 0.90))), int(edef), dmg_type="magic")
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+        mk["thunder"] = 0
+        tag = params.get("tag", "📜")
+        logs.append(f"{tag} {params.get('name', '引爆')}！引爆 {cd} 点雷伤！")
+    else:
+        tag = params.get("tag", "📜")
+        logs.append(f"{tag} {params.get('name', '刻印')}！雷印记 +1！")
+
+
+# 注册表：type → 执行器
+SET_PROC_TYPES.update({
+    "proc_flat_dmg": _sp_flat_dmg,
+    "proc_mark": _sp_mark,
+    "proc_slow": _sp_slow,
+    "proc_heal_hp": _sp_heal_hp,
+    "proc_heal_mp": _sp_heal_mp,
+    "proc_lifesteal": _sp_lifesteal,
+    "proc_buff": _sp_buff,
+    "proc_execute": _sp_execute,
+    "proc_shield": _sp_shield,
+    "proc_burn": _sp_burn,
+    "proc_freeze": _sp_freeze,
+    "proc_purify_heal": _sp_purify_heal,
+    "proc_armor_break": _sp_armor_break,
+    "proc_anti_heal": _sp_anti_heal,
+    "proc_mon_atk_down": _sp_mon_atk_down,
+    "proc_def_up_stack": _sp_def_up_stack,
+    "proc_dmg_cut": _sp_dmg_cut,
+    "proc_counter": _sp_counter,
+    "proc_res_gain": _sp_res_gain,
+    "proc_stealth": _sp_stealth,
+    "proc_mp_on_dmg": _sp_mp_on_dmg,
+    "proc_erode": _sp_erode,
+    "proc_thunder_burst": _sp_thunder_burst,
+})
+
+
+def _execute_set_proc(eff: dict, battle, player, dmg, logs):
+    """数据驱动套装特效分发器：读 params.type → 调通用执行器。
+    无 params 时按旧 effect 名查注册表（兼容过渡期）。"""
+    p = _sp_params(eff)
+    t = p.get("type")
+    if t and t in SET_PROC_TYPES:
+        if random.random() > _sp_chance(eff):
+            return
+        SET_PROC_TYPES[t](battle, player, dmg, logs, p)
+        return
+    # 旧路径（无 params）：查 effect 名注册表
+    fn = SET_PROC_EFFECTS.get(eff.get("effect"))
+    if fn:
+        fn(battle, player, dmg, logs)
 
 
 @register(SET_PROC_EFFECTS, "frost")
