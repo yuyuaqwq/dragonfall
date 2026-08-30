@@ -119,7 +119,7 @@ async def main():
     for _eu in (st.get("enemies") or []):
         _eu["ct"] = 0.0
     st["turn_time"] = int(time.time())
-    db.save_battle("g1", "f4", st)
+    m._instance_save("g1", st)
     await cmd(m, "attack", "g1", "f5", "攻击")  # 抢回合被拦（轮到队长 f4）
     await cmd(m, "attack", "g1", "f4", "攻击")  # 队长攻击
     st2 = db.get_battle("g1", "f4")["state"]
@@ -135,7 +135,7 @@ async def main():
     for _eu in (st3.get("enemies") or []):
         _eu["ct"] = 0.0
     st3["turn_time"] = int(time.time())
-    db.save_battle("g1", "f4", st3)
+    m._instance_save("g1", st3)
     out = await cmd(m, "defend", "g1", "f5", "防御")
     check("防御嘲讽提示", "挑衅" in out or "嘲讽" in out or "吸引" in out, out[:150])
     st4 = db.get_battle("g1", "f4")["state"]

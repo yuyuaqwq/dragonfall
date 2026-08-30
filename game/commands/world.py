@@ -1679,7 +1679,10 @@ class WorldCmds(CommandBase):
             return
         # 目标房间解析：序号（本图连通表）优先，其次房间名/id
         cur_sa = player.get("cur_subarea") or ""
-        cur_map = C.MAP_BY_ID.get((st.get("inst_id") or "").removeprefix("inst_"), {})
+        # v141 大陆隔离：优先从大陆实例读（克隆图），回退全局静态图
+        _wid = st.get("world_id") or ""
+        _inst = C.get_instance_world(_wid) if _wid.startswith("inst:") else None
+        cur_map = (_inst or {}).get("maps", {}).get((st.get("inst_id") or "").removeprefix("inst_"), {}) or C.MAP_BY_ID.get((st.get("inst_id") or "").removeprefix("inst_"), {})
         sas = cur_map.get("subareas") or []
         links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
         # 副本内不隐藏房间（v137 房间全可见），直接取连通表

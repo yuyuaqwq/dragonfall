@@ -467,6 +467,16 @@ class SocialCmds(CommandBase):
             if inst_member:
                 self._unlock_battle(group_id, qq_id)
                 db.clear_battle(group_id, qq_id)
+            # v141 大陆隔离：队员退队时若正挂在副本大陆（world_id=inst:），
+            # 回滚 world_id 到主大陆 + 位置回副本入口图（防卡副本图出不去）。
+            # 大陆实例的 members 快照保留（展示用），副本进度不受退队影响。
+            try:
+                _p2 = self._player(group_id, qq_id)
+                _wid2 = (_p2 or {}).get("world_id") or ""
+                if _wid2.startswith("inst:"):
+                    db.update_player(group_id, qq_id, world_id="mainland")
+            except Exception:
+                pass
             # v104 M04 P2：队长退队=队伍解散，其名下撤退保留的副本进度行一并清理
             # （队伍已散，进度无法恢复；此前该行驻留到被新开本覆盖，长期占一行数据）
             if not db.party_members(group_id, qq_id):

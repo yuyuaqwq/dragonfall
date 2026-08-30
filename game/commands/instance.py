@@ -46,6 +46,22 @@ def _inst_map_id(inst_id: str) -> str:
 
 class InstanceCmds(CommandBase):
 
+    def _instance_save(self, group_id, st):
+        """v141 大陆隔离：副本状态持久化统一入口。
+
+        同时写两处：
+        1. battle_state 镜像（兼容旧代码/旧测试/过期回收机制）
+        2. 大陆实例 st（权威源，_instance_battle_for 优先读它）
+
+        所有副本内 st 变更后都应走本方法，保证大陆实例永远最新。
+        """
+        if st is None:
+            return
+        db.save_battle(group_id, st.get("leader") or "", st)
+        _wid = st.get("world_id") or ""
+        if _wid.startswith("inst:"):
+            C.set_instance_st(_wid, st)
+
     # ---------------- v137 『加入战斗』：同队伍成员并入正在进行中的副本战斗 ----------------
     # 设计依据：docs/RESEARCH_join_battle.md §四.2/§五/§九（CTB 播种 = 参考点 + 自身 cost；
     # 战斗结束/PVP/满员/重复/0血/异地拒绝；只改状态不推进行动轴）。
@@ -190,7 +206,7 @@ class InstanceCmds(CommandBase):
         st.setdefault("combo_seq", {}).setdefault(new_key, [])
         # 7. 持久化 + 锁 + 广播
         try:
-            db.save_battle(group_id, st["leader"], st)
+            self._instance_save(group_id, st)
         except Exception:
             pass
         self._lock_battle(group_id, qq_id)
@@ -214,6 +230,22 @@ class InstanceCmds(CommandBase):
     async def instance_cmd(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
+        # v141 大陆隔离：孤儿大陆自愈——玩家 world_id 残留 inst: 前缀但大陆 st 已
+        # 无活跃战斗（cleared/over/镜像 battle_state 已清），销毁孤儿大陆 + world_id 回主大陆。
+        # 覆盖场景：异常路径（clear_battle 但未 destroy）/测试清理/重启后事件恢复不一致。
+        try:
+            _pwid = (player or {}).get("world_id") or ""
+            if _pwid.startswith("inst:"):
+                _pinst = C.get_instance_world(_pwid)
+                _pst = (_pinst or {}).get("st") or {}
+                _pb = db.get_battle(group_id, qq_id)
+                _mirror_gone = _pb is None or _pb["state"].get("type") != "instance"
+                if _pinst is None or _pst.get("cleared") or _pst.get("over") or _mirror_gone:
+                    C.destroy_instance_world(_pwid)
+                    db.update_player(group_id, qq_id, world_id="mainland")
+                    player["world_id"] = "mainland"
+        except Exception:
+            pass
         # 已在副本战斗中 → 显示状态
         inst_row = self._instance_battle_for(group_id, qq_id)
         if inst_row:
@@ -291,7 +323,7 @@ class InstanceCmds(CommandBase):
                     old_st["turn"] = 0
                     for m in ok_members:
                         self._lock_battle(group_id, m)
-                    db.save_battle(group_id, qq_id, old_st)
+                    self._instance_save(group_id, old_st)
                     yield event.plain_result(
                         f"{inst.get('icon', '🏰')} 【{inst.get('name', '')}】你回到了副本深处！\n"
                         f"━━━━━━━━━━━━\n"
@@ -392,7 +424,7 @@ class InstanceCmds(CommandBase):
         # 锁全队（层推进重新上锁）
         for m in st["members"]:
             self._lock_battle(group_id, m)
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         if st.get("mode") == "map":
             # 新层地图模式：显示层全景
             map_view = self._instance_map_view(st, group_id)
@@ -536,7 +568,7 @@ class InstanceCmds(CommandBase):
         # R3 P1-2：篝火回血/陷阱扣血只改 st 快照，须同步 DB——否则下次 _enter_stage_combat
         # 快照刷新从 DB 读旧值覆盖（回血丢失/伤害回滚），且『使用 治疗药水』满血误判复发
         self._sync_players_db(group_id, st)
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         yield event.plain_result(text)
 
     # ---------------- 撤退（v87.2） ----------------
@@ -569,7 +601,7 @@ class InstanceCmds(CommandBase):
             if _entry_sa:
                 for _m in st["members"]:
                     db.update_player(group_id, _m, cur_map=_mid, cur_subarea=_entry_sa)
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         for m in st["members"]:
             self._unlock_battle(group_id, m)
         inst = C.INSTANCES.get(st["inst_id"], {})
@@ -605,6 +637,13 @@ class InstanceCmds(CommandBase):
                 continue
             self._unlock_battle(group_id, m)
             db.clear_battle(group_id, m)
+        # v141 大陆隔离：离开副本 → 销毁大陆实例 + 全员 world_id 回主大陆
+        _wid = st.get("world_id") or ""
+        if _wid.startswith("inst:"):
+            for m in st["members"]:
+                if str(m) in cur:
+                    db.update_player(group_id, m, world_id="mainland")
+            C.destroy_instance_world(_wid)
         yield event.plain_result(
             f"🏳️ 你带着战利品离开了{inst.get('name', '副本')}。冒险者的旅途还在继续～"
         )
@@ -623,7 +662,10 @@ class InstanceCmds(CommandBase):
         if str(qq_id) != str(st.get("leader")):
             yield event.plain_result("⏳ 副本内由队长带队移动！等待队长『移动 <房间>』～")
             return
-        cur_map = C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
+        # v141 大陆隔离：优先从大陆实例读（克隆图），回退全局静态图
+        _wid = st.get("world_id") or ""
+        _inst = C.get_instance_world(_wid) if _wid.startswith("inst:") else None
+        cur_map = (_inst or {}).get("maps", {}).get(_inst_map_id(st.get("inst_id") or ""), {}) or C.MAP_BY_ID.get(_inst_map_id(st.get("inst_id") or ""), {})
         cur_sa = player.get("cur_subarea") or ""
         links = C.subarea_links(cur_map.get("id", ""), cur_sa) if cur_sa else []
         # 目标房间解析（序号优先，其次名字/id）
@@ -709,7 +751,7 @@ class InstanceCmds(CommandBase):
                     _pois_left.remove(poi_id)
                 text = self._handle_poi(group_id, qq_id, player, cur_sa or cur_map, poi_id, poi, st=st)
                 self._sync_players_db(group_id, st)
-                db.save_battle(group_id, st["leader"], st)
+                self._instance_save(group_id, st)
                 yield event.plain_result(f"🍃 你仔细搜索着这片区域……\n{text}")
                 return
             # ② 遇怪（discovery_agro + monsters_left 非空 → 消耗 1 只 → 进战斗）
@@ -717,7 +759,7 @@ class InstanceCmds(CommandBase):
                 if random.random() < _agro:
                     _def = _left.pop(0)
                     self._enter_stage_combat(group_id, st, _def, cur_sa or cur_map)
-                    db.save_battle(group_id, st["leader"], st)
+                    self._instance_save(group_id, st)
                     _mon = st.get("boss") or {}
                     _role = "👑 BOSS" if _def[2] == "boss" else ("⭐ 精英" if _def[2] == "elite" else "🐾")
                     yield event.plain_result(
@@ -742,7 +784,7 @@ class InstanceCmds(CommandBase):
             # 遇怪 → 进战斗
             nxt = pending.pop(0)
             self._enter_stage_combat(group_id, st, nxt, stage)
-            db.save_battle(group_id, st["leader"], st)
+            self._instance_save(group_id, st)
             if nxt[2] == "boss":
                 role = "👑 BOSS"
             elif nxt[2] == "elite":
@@ -769,7 +811,7 @@ class InstanceCmds(CommandBase):
                     self._check_stage_secret_cond(st)
                     # R3 P1-2：陷阱扣血同步 DB（同调查路径，防快照刷新覆盖回滚）
                     self._sync_players_db(group_id, st)
-                    db.save_battle(group_id, st["leader"], st)
+                    self._instance_save(group_id, st)
                     yield event.plain_result("🍃 你小心翼翼地探索……\n" + text)
                     return
                 break
@@ -1031,7 +1073,24 @@ class InstanceCmds(CommandBase):
 
     def _instance_battle_for(self, group_id, qq_id):
         """查找玩家（队长或队员）当前的副本战斗状态；无则 None
-        v87.2：retreated（撤退保留进度）的副本不参与战斗判定（玩家可自由行动）"""
+        v87.2：retreated（撤退保留进度）的副本不参与战斗判定（玩家可自由行动）
+        v141 大陆隔离：优先从玩家 world_id 反查大陆实例（权威源）——队员退队后
+        不再依赖 party 反查队长行，大陆实例成员快照即真相；battle_state 镜像兜底。
+        """
+        # v141：玩家 world_id 指向 inst: 前缀 → 直接查大陆实例
+        try:
+            _p = self._player(group_id, qq_id)
+            _wid = (_p or {}).get("world_id") or ""
+            if _wid.startswith("inst:"):
+                _inst = C.get_instance_world(_wid)
+                if _inst is not None:
+                    _st = _inst.get("st")
+                    # v141：cleared/over（通关后停留搜刮/已结束）不算战斗中，玩家可自由行动
+                    if _st and _st.get("type") == "instance" and not _st.get("retreated") \
+                            and not _st.get("cleared") and not _st.get("over"):
+                        return {"state": _st, "name": "", "updated_at": _inst.get("created_at", 0)}
+        except Exception:
+            pass
         b = db.get_battle(group_id, qq_id)
         if b and b["state"].get("type") == "instance" and not b["state"].get("retreated"):
             return b
@@ -1824,13 +1883,36 @@ class InstanceCmds(CommandBase):
         # 锁全队
         for m in members:
             self._lock_battle(group_id, m)
-        # v137 副本地图化：开本落点 = 副本入口子区域（全队 cur_map + cur_subarea 同步）
+        # v141 大陆隔离：开本前清理孤儿大陆实例——若全队 world_id 残留 inst: 前缀
+        # （上次副本已 clear_battle 但大陆未销毁，如测试/异常路径），先销毁旧大陆，
+        # 防止 _instance_battle_for 从旧大陆读到僵尸 st 拦截本次开本。
+        try:
+            _p0 = self._player(group_id, qq_id)
+            _old_wid = (_p0 or {}).get("world_id") or ""
+            if _old_wid.startswith("inst:"):
+                C.destroy_instance_world(_old_wid)
+        except Exception:
+            pass
+        # v141 大陆隔离：开本创建独立大陆实例，副本进度（st/rooms/resources_pool）
+        # 挂在大陆实例上（权威源），battle_state 保留兼容镜像（读取时大陆优先）。
+        # 全队 players.world_id = inst:<uuid>，位置同步到副本入口。
         _map_id = kid[5:] if str(kid).startswith("inst_") else kid
         _entry_sa = C.map_entry_subarea(_map_id)
-        if st.get("mode") == "map" and st.get("rooms") and _entry_sa:
-            for m in members:
-                db.update_player(group_id, m, cur_map=_map_id, cur_subarea=_entry_sa)
-        db.save_battle(group_id, qq_id, st)
+        _world_id = C.create_instance_world(
+            kid, members, boss, now=now, leader=qq_id,
+            st=st,
+            rooms=st.get("rooms") or {},
+            resources_pool=st.get("resources_pool") or {},
+        )
+        st["world_id"] = _world_id
+        for m in members:
+            if st.get("mode") == "map" and st.get("rooms") and _entry_sa:
+                db.update_player(group_id, m, cur_map=_map_id, cur_subarea=_entry_sa,
+                                 world_id=_world_id)
+            else:
+                # 老副本（战斗模式）：只写 world_id，位置由战斗逻辑管理
+                db.update_player(group_id, m, world_id=_world_id)
+        self._instance_save(group_id, st)
         # v49 意见#7：队伍构成提示（单人副本跳过）
         comp = " + ".join(self._class_role_label(st["players"][str(m)]["class_name"]) for m in members)
         comp_hints = self._party_composition_hint(st) if min_players > 1 else []
@@ -2008,7 +2090,7 @@ class InstanceCmds(CommandBase):
             st["turn"] = (st["turn"] + 1) % len(members)
             st["turn_time"] = now
             self._sync_players_db(group_id, st)
-            db.save_battle(group_id, st["leader"], st)
+            self._instance_save(group_id, st)
             yield event.plain_result("眼前已经没有敌人了！")
             return
         # v49 意见#6 仇恨：行动前记录全队血量（用于计算治疗仇恨）
@@ -2181,7 +2263,7 @@ class InstanceCmds(CommandBase):
                 for m in st["members"]:
                     self._unlock_battle(group_id, m)
                 self._sync_players_db(group_id, st)
-                db.save_battle(group_id, st["leader"], st)
+                self._instance_save(group_id, st)
                 yield event.plain_result(
                     "\n".join(logs) +
                     (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
@@ -2209,7 +2291,7 @@ class InstanceCmds(CommandBase):
                 for m in st["members"]:
                     self._unlock_battle(group_id, m)
                 self._sync_players_db(group_id, st)
-                db.save_battle(group_id, st["leader"], st)
+                self._instance_save(group_id, st)
                 if _rstate.get("_boss_room"):
                     # Boss 房击败 → 走通关结算
                     st = db.get_battle(group_id, st["leader"])["state"]
@@ -2258,7 +2340,7 @@ class InstanceCmds(CommandBase):
                 st["turn"] = 0
                 st["turn_time"] = now
                 self._sync_players_db(group_id, st)  # v95r76 #383：切怪前同步快照血量
-                db.save_battle(group_id, st["leader"], st)
+                self._instance_save(group_id, st)
                 yield event.plain_result(
                     "\n".join(logs) +
                     (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
@@ -2285,7 +2367,7 @@ class InstanceCmds(CommandBase):
                     for m in st["members"]:
                         self._unlock_battle(group_id, m)
                     self._sync_players_db(group_id, st)  # v95r76 #383：层肃清后战斗外逻辑读 DB 须与快照一致
-                    db.save_battle(group_id, st["leader"], st)
+                    self._instance_save(group_id, st)
                     cur_name = stages[st["stage_idx"]]["name"]
                     nxt_name = stages[st["stage_idx"] + 1]["name"]
                     map_view = self._instance_map_view(st, group_id)
@@ -2341,7 +2423,7 @@ class InstanceCmds(CommandBase):
 
         # 6. 保存状态（存到队长名下）并展示
         self._sync_players_db(group_id, st)  # v95r76 #383：每回合行动后同步快照血量（对齐普通战斗）
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         nxt_key = str(members[st["turn"]])
         nxt_p = self._player(group_id, nxt_key)
         boss = st["boss"] or (st["enemies"][0] if st.get("enemies") else {})
@@ -2904,7 +2986,7 @@ class InstanceCmds(CommandBase):
                          investigate_date=today, investigate_count=used + 1)
         done.add(poi["id"])
         st["investigated"] = sorted(done)  # set 不可 JSON 序列化 → 落库转 list
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         return "\n".join(lines)
 
     def _instance_investigate_reward(self, group_id, qq_id, player, st, poi, inst) -> list:
@@ -3005,7 +3087,7 @@ class InstanceCmds(CommandBase):
                 })
                 lines.append(f"🎒 拾取：{mname} ×1")
         st["loot_pile"] = False
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         return "\n".join(lines)
 
     def _instance_secret_crack(self, group_id, qq_id, player, st) -> str:
@@ -3028,7 +3110,7 @@ class InstanceCmds(CommandBase):
                     break
         if not guard:
             st["secret_crack"] = False
-            db.save_battle(group_id, st["leader"], st)
+            self._instance_save(group_id, st)
             return "🧱 墙砖松动了，但后面只有一堵死墙……（暗格消失了）"
         st["secret_crack"] = False
         st["secret_guard"] = guard  # 标记守卫战（击杀走宝箱分支不通关）
@@ -3036,7 +3118,7 @@ class InstanceCmds(CommandBase):
         self._enter_stage_combat(group_id, st, guard, stage)
         # 守卫精英化：补 is_elite 标记（掉落/播报走精英逻辑）
         st["boss"]["is_elite"] = True
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         gname = st["boss"]["name"]
         return (
             "🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n"
@@ -3102,7 +3184,7 @@ class InstanceCmds(CommandBase):
             }, count=2)
             text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
         st["secret_chest"] = None
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         return "🔐 你打开了密室宝箱！\n" + text
 
     async def _instance_victory(self, event, group_id, qq_id, player, st, logs):
@@ -3257,7 +3339,7 @@ class InstanceCmds(CommandBase):
         st["boss"] = None
         st["enemy"] = None
         st["enemies"] = []
-        db.save_battle(group_id, st["leader"], st)
+        self._instance_save(group_id, st)
         yield event.plain_result("\n".join(lines))
 
     async def _instance_defeat(self, event, group_id, qq_id, player, st, logs):
@@ -3283,6 +3365,11 @@ class InstanceCmds(CommandBase):
                 _town_sa_name = _town_sas[0]["name"] if _town_sas else "广场"
                 _town_name = C.MAP_BY_ID.get(_town_id, {}).get("name", "城镇")
                 db.update_player(group_id, m, hp=0, mp=p.get("max_mp", 0),
-                                 cur_map=_town_id, cur_subarea=_town_sa)
+                                 cur_map=_town_id, cur_subarea=_town_sa,
+                                 world_id="mainland")
                 lines.append(f"📍 {p['name']} 被送回了【{_town_name}·{_town_sa_name}】（HP 0，先休息恢复吧）")
+        # v141 大陆隔离：副本失败 → 销毁大陆实例（进度作废）
+        _wid = st.get("world_id") or ""
+        if _wid.startswith("inst:"):
+            C.destroy_instance_world(_wid)
         yield event.plain_result("\n".join(lines))
