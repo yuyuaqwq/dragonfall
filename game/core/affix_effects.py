@@ -811,6 +811,28 @@ def _taken_heal(battle, player, dmg, logs, params: dict):
     logs.append(f"{tag} {params.get('name', '受击回血')}！回复 {heal} 点生命！")
 
 
+# 受击型注册表：type → 执行器
+TAKEN_TYPES = {
+    "taken_shield": _taken_shield,
+    "taken_def_up_stack": _taken_def_up_stack,
+    "taken_dmg_cut": _taken_dmg_cut,
+    "taken_counter": _taken_counter,
+    "taken_heal": _taken_heal,
+}
+
+
+def _execute_taken_proc(eff: dict, battle, player, dmg, logs):
+    """v142 数据驱动：套装受击特效分发器（读 params.type，taken_*）。
+    返回：int（削减后 dmg，供 _set_taken_proc 更新）或 None"""
+    p = (eff or {}).get("params") or {}
+    t = p.get("type")
+    if not t or t not in TAKEN_TYPES:
+        return None
+    if random.random() > float(p.get("chance", (eff or {}).get("chance", 1.0))):
+        return None
+    return TAKEN_TYPES[t](battle, player, dmg, logs, p)
+
+
 # 注册表：type → 执行器
 SET_PROC_TYPES.update({
     "proc_flat_dmg": _sp_flat_dmg,

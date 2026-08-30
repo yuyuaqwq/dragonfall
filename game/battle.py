@@ -2843,7 +2843,8 @@ class Battle:
     # ---------------- v130.2c 资源联动套装统一读取器（12 套 effect 消费入口） ----------------
     def _set_effs(self, player: dict, min_tier: int = 2) -> list:
         """已达成档位（≥min_tier 件）套装的全部 effect dict，[(effect dict, 档位)]。
-        与 _affix_effs 同模式；装备 set 字段支持 set_xxx ID 与中文名（engine._set_info 双向解析）。"""
+        与 _affix_effs 同模式；装备 set 字段支持 set_xxx ID 与中文名（engine._set_info 双向解析）。
+        v142：加入 bonus_3（区域 3 槽位套）——部分区域套特效注册在 bonus_3"""
         out = []
         for sname, cnt in E.active_sets(player.get("equipment") or {}).items():
             if cnt < min_tier:
@@ -2851,7 +2852,7 @@ class Battle:
             info = E._set_info(sname)
             if not info:
                 continue
-            for tier in (2, 4, 5):
+            for tier in (2, 3, 4, 5):
                 if cnt >= tier:
                     eff = info.get(f"bonus_{tier}") or {}
                     if isinstance(eff, dict) and eff.get("effect"):
@@ -3209,6 +3210,22 @@ class Battle:
         for fn in TAKEN_EFFECTS.values():
             fn(self, player, ctx, logs)
         return ctx["out"]
+
+    def _set_taken_proc(self, player: dict, dmg: int, logs: list) -> int:
+        """v142 数据驱动：套装受击特效（taken_* 型）。
+        遍历已激活套装的 bonus_X effect，读 params.type（taken_*）→ 调通用执行器。
+        执行器若返回 int（如 taken_dmg_cut 削减伤害）则更新 dmg。"""
+        from .core.affix_effects import TAKEN_TYPES, _execute_taken_proc
+        for eff, _tier in self._set_effs(player, 2):
+            p = (eff or {}).get("params") or {}
+            if not p.get("type") or not p["type"].startswith("taken_"):
+                continue
+            if p["type"] not in TAKEN_TYPES:
+                continue
+            r = _execute_taken_proc(eff, self, player, dmg, logs)
+            if isinstance(r, int):
+                dmg = r
+        return dmg
 
     def _affix_turn_start(self, player: dict, logs: list):
         """回合开始词条：回春(1% 生命)/冥想(1% 魔力)/晨曦祝福(2% 生命)
@@ -5786,6 +5803,8 @@ class Battle:
         # 阶段八：受击词条（减伤/格挡/反击/反伤/腐蚀/坚韧）
         dmg = self._affix_on_taken(player, dmg, logs)
         dmg = self._food_on_taken(player, dmg, logs)
+        # v142 数据驱动：套装受击特效（taken_* 型，读 params.type 调通用执行器）
+        dmg = self._set_taken_proc(player, dmg, logs)
         # v140 波3.1：特效装备受击（哨兵壁垒/铁壁回响/寒霜凝视/荆棘/卫士/深岩/龙脊/复仇环/烬火/石像/泰坦/巡林）
         # 亡舞战铠常驻 -8% 减伤一并在此消费（passive taken 分发）
         try:
@@ -5993,33 +6012,7 @@ class Battle:
                 logs.append(f"✨ 护盾吸收 {absorb_total} 点伤害(剩余 {left})")
                 if dmg <= 0:
                     return
-        # v140 S1 直连消费：渡口回潮（ferry_repel，区域 3 槽位 bonus_3）——受击后 25% 概率以 40% 攻击反击（每回合最多 1 次）
-        if self._set_eff(player, "ferry_repel", 3) and self.enemy.get("hp", 0) > 0:
-            _fr_turn = getattr(self, "round", 0) or 0
-            if (self.p_eff or {}).get("ferry_repel_used") != _fr_turn and random.random() < 0.25:
-                _fr_st = self._player_stats(player)
-                _fr_est = self._enemy_stats()
-                _fr_dmg = E.calc_damage(int(_fr_st["atk"] * 0.40), _fr_est.get("def", 0), dmg_type="phys")
-                _fr_dmg = self._boss_dmg_filter(_fr_dmg, player, logs)
-                self._damage_enemy(_fr_dmg, logs)
-                self.p_eff["ferry_repel_used"] = _fr_turn
-                logs.append(f"🌊 渡口回潮！浪潮反击 {_fr_dmg} 点伤害！")
-        # v141.3 S1 直连消费：铁皮护体（tie_pi_bulwark）——受击 20% 获得 5% 最大生命护盾（1 回合）
-        if self._set_eff(player, "tie_pi_bulwark", 4) and random.random() < 0.20:
-            _tp_shield = int(player.get("max_hp", 1) * 0.05)
-            self._add_shield("tie_pi_bulwark", _tp_shield, 1)
-            logs.append(f"🛡️ 铁皮护体！获得 {_tp_shield} 点护盾！")
-        # v141.3 S1 直连消费：铁皮厚盾（tie_pi_harden，铁皮套 4 件）——受击 30% 防御 +15%（2 回合，可叠 2 层）
-        if self._set_eff(player, "tie_pi_harden", 4) and random.random() < 0.30:
-            _tp_lv = self.p_buffs.get("tie_pi_def_lv", 0)
-            if _tp_lv < 2:
-                self.p_buffs["tie_pi_def_lv"] = _tp_lv + 1
-                self.p_buffs["tie_pi_def_turns"] = 2
-            logs.append("🛡️ 铁皮厚盾！防御 +15%！")
-        # v141.3 S1 直连消费：守望开盾（shou_wang_ward）——受击 25% 本次受击伤害 -50%
-        if self._set_eff(player, "shou_wang_ward", 4) and random.random() < 0.25:
-            dmg = max(1, int(dmg * 0.50))
-            logs.append("🛡️ 守望开盾！本次受击伤害减半！")
+        # v142 数据驱动：S1 受击直连已迁至 _set_taken_proc（ferry_repel/tie_pi_bulwark/tie_pi_harden/shou_wang_ward/tie_shou_blood）
         player["hp"] = max(0, player.get("hp", 0) - dmg)
         # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
         # + 不灭意志免疫致死（本回合免疫致死伤害，扣血后回拉）

@@ -169,7 +169,7 @@ SETS = {
         "quality": "blue",
         "icon": "🛡️",
         "bonus_2": {"def": 0.18, "atk": 0.08},
-        "bonus_4": {"effect": "tie_pi_bulwark", "chance": 0.2, "desc": "受击 20% 概率获得 5% 最大生命护盾（1 回合）"},
+        "bonus_4": {"effect": "tie_pi_bulwark", "chance": 0.2, "params": {"type": "taken_shield", "chance": 0.20, "shield_pct": 0.05, "shield_turns": 1, "shield_key": "tie_pi_bulwark", "tag": "🛡️", "name": "铁皮护体"}, "desc": "受击 20% 概率获得 5% 最大生命护盾（1 回合）"},
         "name": "铁皮"
     },
     "set_jing_tie": {
