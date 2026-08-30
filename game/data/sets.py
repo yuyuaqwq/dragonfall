@@ -119,7 +119,7 @@ SETS = {
             "abyss_res": 0.05,   # v106.1 圣徽庇护：深渊抗性
             "heal_power": 0.05   # v106.2 圣徽圣愈：治疗强度
         },
-        "bonus_4": {"effect": "holy_halo_shield", "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每回合最多 1 次）"},
+        "bonus_4": {"effect": "holy_halo_shield", "params": {"type": "taken_shield_convert", "shield_pct": 0.10, "once_per_round": True, "tag": "✨", "name": "圣辉护盾"}, "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每回合最多 1 次）"},
         "name": "圣徽"
     },
     "set_bai_yin_qi_shi": {
@@ -288,7 +288,7 @@ SETS = {
         "quality": "purple",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.2, "hp": 0.1},
-        "bonus_4": {"effect": "holy_field_heal", "desc": "每回合开始：生命低于 50% 回复 6%，否则回复 3%"},
+        "bonus_4": {"effect": "holy_field_heal", "params": {"type": "turn_heal_cond", "heal_low_pct": 0.06, "heal_high_pct": 0.03, "cond_hp_lt": 0.50, "tag": "✨", "name": "圣辉疗愈"}, "desc": "每回合开始：生命低于 50% 回复 6%，否则回复 3%"},
         "name": "圣堂"
     },
     "set_shen_pan": {
@@ -302,7 +302,7 @@ SETS = {
         "quality": "orange",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.18, "hp": 0.12, "heal_power": 0.05},
-        "bonus_4": {"effect": "divine_grace_burst", "desc": "每回合开始回复 5% 生命；生命首次低于 30% 时额外回复 15%（每场 1 次）"},
+        "bonus_4": {"effect": "divine_grace_burst", "params": {"type": "turn_heal_cond", "heal_pct": 0.05, "low_extra_pct": 0.15, "low_hp_lt": 0.30, "per_battle": True, "tag": "☀️", "name": "神恩爆发"}, "desc": "每回合开始回复 5% 生命；生命首次低于 30% 时额外回复 15%（每场 1 次）"},
         "name": "神恩"
     },
     "set_qing_ying": {
@@ -358,21 +358,21 @@ SETS = {
         "quality": "purple",
         "icon": "🥋",
         "bonus_2": {"hp": 0.12, "mdef": 0.1},
-        "bonus_4": {"effect": "hu_xiao_barrier", "desc": "每回合开始获得 3% 最大生命的护盾（1 回合）"},
+        "bonus_4": {"effect": "hu_xiao_barrier", "params": {"type": "turn_shield", "shield_pct": 0.03, "shield_turns": 1, "tag": "🧱", "name": "壁立千仞"}, "desc": "每回合开始获得 3% 最大生命的护盾（1 回合）"},
         "name": "壁槌"
     },
     "set_pan_shi": {
         "quality": "purple",
         "icon": "🥋",
         "bonus_2": {"def": 0.15, "hp": 0.1},
-        "bonus_4": {"effect": "pan_shi_steady", "desc": "受击时伤害 -5%（磐石不动）"},
+        "bonus_4": {"effect": "pan_shi_steady", "params": {"type": "taken_dmg_reduce_flat", "reduce_pct": 0.05, "tag": "⛰️", "name": "磐石不动"}, "desc": "受击时伤害 -5%（磐石不动）"},
         "name": "磐石"
     },
     "set_anvil_guard": {
         "quality": "orange",
         "icon": "🥋",
         "bonus_2": {"def": 0.12, "hp": 0.15, "block": 0.04},
-        "bonus_4": {"effect": "anvil_parry", "chance": 0.2, "desc": "受击 20% 概率完全免疫本次伤害（每场最多 3 次）"},
+        "bonus_4": {"effect": "anvil_parry", "chance": 0.2, "params": {"type": "taken_immune", "chance": 0.20, "per_battle": 3, "tag": "🛡️", "name": "铁壁格挡"}, "desc": "受击 20% 概率完全免疫本次伤害（每场最多 3 次）"},
         "name": "铁砧拳套"
     },
     # ================= v130.2c 资源联动套装（12 套，效果定义已自 affixes.py V130 段迁入（v130.2d）；战斗侧消费见 battle.py SET_EFFECT_CONSUMED） =================
@@ -418,7 +418,7 @@ SETS = {
         "quality": "purple", "icon": "🌞", "name": "圣典·日冕", "line": "牧师·平稳/爆发流",
         "bonus_2": {"effect": "heal_team_on_miracle_t2plus", "hp": 30, "miracle_min": 5,
                     "desc": "施放耗 5 点以上信仰的神迹技时 全体队友额外恢复 30 体力"},
-        "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1,
+        "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1, "params": {"type": "taken_immune_cond", "cond": "faith_full", "per_battle": 1, "tag": "☀️", "name": "圣典日冕"},
                     "desc": "满信仰状态下 首次受击免伤 (每战 1 次)"},
     },
     "set_an_ye_sheng_dian": {  # 牧师·暗影神谕(悼咏)

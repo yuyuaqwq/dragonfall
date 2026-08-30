@@ -5107,9 +5107,10 @@ class Battle:
         _s4 = E.set_bonus_4(player.get("equipment", {}))
         if "holy_field_heal" in _s4:
             _hfh = (self._set_eff(player, "holy_field_heal", 4) or {})
-            _low = float(_hfh.get("low_pct", 0.50) or 0.50)
-            _hl = float(_hfh.get("heal_low", 0.06) or 0.06)
-            _hh = float(_hfh.get("heal_high", 0.03) or 0.03)
+            _hfh_p = (_hfh or {}).get("params") or {}
+            _low = float(_hfh_p.get("cond_hp_lt", _hfh.get("low_pct", 0.50)) or 0.50)
+            _hl = float(_hfh_p.get("heal_low_pct", _hfh.get("heal_low", 0.06)) or 0.06)
+            _hh = float(_hfh_p.get("heal_high_pct", _hfh.get("heal_high", 0.03)) or 0.03)
             _mx_hp = player.get("max_hp", player.get("hp", 1))
             if player.get("hp", 0) < _mx_hp:
                 _pct = _hl if player.get("hp", 0) / max(1, _mx_hp) < _low else _hh
@@ -5117,18 +5118,22 @@ class Battle:
                 player["hp"] = min(_mx_hp, player.get("hp", 0) + _hf_heal)
                 logs.append(f"⛪ 圣堂领域：圣光庇护，你回复了 {_hf_heal} 点生命！")
         if "divine_grace_burst" in _s4:
+            _dgb_eff = (self._set_eff(player, "divine_grace_burst", 4) or {})
+            _dgb_p = (_dgb_eff or {}).get("params") or {}
             _mx_hp2 = player.get("max_hp", player.get("hp", 1))
-            _dg_heal = int(_mx_hp2 * 0.05)
+            _dg_heal = int(_mx_hp2 * float(_dgb_p.get("heal_pct", 0.05)))
             if player.get("hp", 0) < _mx_hp2:
                 player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_heal)
                 logs.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
-            if not (self.p_eff or {}).get("divine_burst_used") and player.get("hp", 0) / max(1, _mx_hp2) < 0.30:
-                _dg_extra = int(_mx_hp2 * 0.15)
+            if not (self.p_eff or {}).get("divine_burst_used") and player.get("hp", 0) / max(1, _mx_hp2) < float(_dgb_p.get("low_hp_lt", 0.30)):
+                _dg_extra = int(_mx_hp2 * float(_dgb_p.get("low_extra_pct", 0.15)))
                 player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_extra)
                 self.p_eff["divine_burst_used"] = True
                 logs.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
         if "hu_xiao_barrier" in _s4:
-            self._add_shield("hu_xiao_barrier", int(player.get("max_hp", player.get("hp", 1)) * 0.03), 1)
+            _hxb_eff = (self._set_eff(player, "hu_xiao_barrier", 4) or {})
+            _hxb_p = (_hxb_eff or {}).get("params") or {}
+            self._add_shield("hu_xiao_barrier", int(player.get("max_hp", player.get("hp", 1)) * float(_hxb_p.get("shield_pct", 0.03))), int(_hxb_p.get("shield_turns", 1)))
             logs.append("🧱 壁立千仞：千仞壁垒立于身前！")
         # v104 M07 修复 P1：星尘套 5 件——夜间每回合回蓝 5%（10 章五节；夜间 = 19:00-06:00 服务器本地时间）
         if "星尘" in "|".join(self._set_bonus_5(player)) and player.get("mp", 0) < player.get("max_mp", 1):
@@ -5723,10 +5728,12 @@ class Battle:
             self._set_immune_used = True
             logs.append("☀️ 圣典·日冕：满信仰免伤结界抵挡了这次攻击！")
             return
-        # v140 S1 直连消费：铁壁格挡（anvil_parry）——受击 20% 概率免疫本次伤害（每场 3 次）
-        if self._set_eff(player, "anvil_parry", 4):
-            _apl = int((self.p_eff or {}).get("anvil_parry_left", 3) or 3)
-            if _apl > 0 and random.random() < 0.20:
+        # v142 数据驱动：铁壁格挡（anvil_parry）——受击 20% 概率免疫本次伤害（每场 3 次，数值读 params）
+        _ap_eff = self._set_eff(player, "anvil_parry", 4)
+        if _ap_eff:
+            _ap_params = (_ap_eff or {}).get("params") or {}
+            _apl = int((self.p_eff or {}).get("anvil_parry_left", _ap_params.get("per_battle", 3)) or 3)
+            if _apl > 0 and random.random() < float(_ap_params.get("chance", 0.20)):
                 self.p_eff["anvil_parry_left"] = _apl - 1
                 logs.append(f"🛡️ 铁壁格挡！千锤百炼的拳套挡下了攻击！（剩余 {_apl - 1} 次）")
                 return
@@ -5756,9 +5763,11 @@ class Battle:
             block_reduce = max(1, int(dmg * 0.5))
             dmg = max(1, dmg - block_reduce)
             logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
-            # v140 S1 直连消费：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害
-            if self._set_eff(player, "bi_chui_wall", 4) and self.enemy.get("hp", 0) > 0:
-                _bw = max(1, int(dmg * 0.30))
+            # v142 数据驱动：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害（数值读 params）
+            _bw_eff = self._set_eff(player, "bi_chui_wall", 4)
+            if _bw_eff and self.enemy.get("hp", 0) > 0:
+                _bw_params = (_bw_eff or {}).get("params") or {}
+                _bw = max(1, int(dmg * float(_bw_params.get("reflect_pct", 0.30))))
                 _bw = self._boss_dmg_filter(_bw, player, logs)
                 self._damage_enemy(_bw, logs)
                 logs.append(f"🧱 壁槌反震！格挡余劲反弹 {_bw} 点伤害！")
@@ -5864,10 +5873,18 @@ class Battle:
                     rd = self._boss_dmg_filter(rd, player, logs)
                     self._damage_enemy(rd, logs)
                     logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
-        # v140 S1 直连消费：磐石不动（pan_shi_steady）——常驻 5% 减伤并入汇总
-        if self._set_eff(player, "pan_shi_steady", 4):
-            reduce_total += int(dmg * 0.05)
+        # v142 数据驱动：磐石不动（pan_shi_steady）——常驻 5% 减伤并入汇总（数值读 params）
+        _ps_eff = self._set_eff(player, "pan_shi_steady", 4)
+        if _ps_eff:
+            _ps_params = (_ps_eff or {}).get("params") or {}
+            reduce_total += int(dmg * float(_ps_params.get("reduce_pct", 0.05)))
             logs.append("⛰️ 磐石不动：巍然不动，减伤 5%！")
+        # 圣堂壁垒（holy_bastion_def）——常驻 5% 减伤（数值读 params）
+        _hb_eff = self._set_eff(player, "holy_bastion_def", 4)
+        if _hb_eff:
+            _hb_params = (_hb_eff or {}).get("params") or {}
+            reduce_total += int(dmg * float(_hb_params.get("reduce_pct", 0.05)))
+            logs.append("⛪ 圣堂壁垒：受击减伤 5%！")
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
@@ -5886,12 +5903,14 @@ class Battle:
         # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
         # v109 P0-3：多个反击被动（以守为攻+反击之王）逐个独立 roll，命中即停；此前 break 在
         # for 末尾无条件退出，只 roll 第一个被动 → 反击之王(lv70)被废
-        # v140 S1 直连消费：石拳反打（shi_quan_retort）——受击 15% 概率以 30% 攻击反击
-        if self._set_eff(player, "shi_quan_retort", 4) and self.enemy.get("hp", 0) > 0:
-            if random.random() < 0.15:
+        # v142 数据驱动：石拳反打（shi_quan_retort）——受击 15% 概率以 30% 攻击反击（数值读 params）
+        _sq_eff = self._set_eff(player, "shi_quan_retort", 4)
+        if _sq_eff and self.enemy.get("hp", 0) > 0:
+            _sq_params = (_sq_eff or {}).get("params") or {}
+            if random.random() < float(_sq_params.get("chance", 0.15)):
                 _sq_st = self._player_stats(player)
                 _sq_est = self._enemy_stats()
-                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * 0.30), _sq_est.get("def", 0), dmg_type="phys")
+                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * float(_sq_params.get("atk_pct", 0.30))), _sq_est.get("def", 0), dmg_type="phys")
                 _sq_dmg = self._boss_dmg_filter(_sq_dmg, player, logs)
                 self._damage_enemy(_sq_dmg, logs)
                 logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
@@ -5974,21 +5993,21 @@ class Battle:
         if _morph > 0:
             dmg = max(1, int(dmg * (1 + _morph)))
             logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
-        # v140 S1 直连消费：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 回合）
-        if self._set_eff(player, "bless_ward_shield", 4):
-            if random.random() < 0.25:
-                _bw_sh = int(player.get("max_hp", player.get("hp", 1)) * 0.08)
-                self._add_shield("bless_ward", _bw_sh, 3)
+        # v142 数据驱动：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 回合，数值读 params）
+        _bws_eff = self._set_eff(player, "bless_ward_shield", 4)
+        if _bws_eff:
+            _bws_params = (_bws_eff or {}).get("params") or {}
+            if random.random() < float(_bws_params.get("chance", 0.25)):
+                _bw_sh = int(player.get("max_hp", player.get("hp", 1)) * float(_bws_params.get("shield_pct", 0.08)))
+                self._add_shield("bless_ward", _bw_sh, int(_bws_params.get("shield_turns", 3)))
                 logs.append(f"✨ 圣徽守护！获得 {_bw_sh} 点护盾！")
-        # v140 S1 直连消费：圣堂壁垒（holy_bastion_def）——常驻承受伤害 ×0.95
-        if self._set_eff(player, "holy_bastion_def", 4):
-            dmg = int(dmg * 0.95)
-            logs.append("⛪ 圣堂壁垒：圣光壁垒削弱了来袭伤害！")
-        # v140 S1 直连消费：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每回合最多 1 次）
-        if self._set_eff(player, "holy_halo_shield", 4) and int(dmg) > 0:
+        # v142 数据驱动：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每回合最多 1 次，数值读 params）
+        _hh_eff = self._set_eff(player, "holy_halo_shield", 4)
+        if _hh_eff and int(dmg) > 0:
+            _hh_params = (_hh_eff or {}).get("params") or {}
             _hh_turn = getattr(self, "round", 0) or 0
             if (self.p_eff or {}).get("holy_halo_used") != _hh_turn:
-                _hh_sh = int(dmg * 0.10)
+                _hh_sh = int(dmg * float(_hh_params.get("shield_pct", 0.10)))
                 if _hh_sh > 0:
                     self._add_shield("holy_halo", _hh_sh, 2)
                     self.p_eff["holy_halo_used"] = _hh_turn

@@ -237,11 +237,19 @@ def section_affix():
           | {"execute", "lifesteal_set", "pierce", "thunder"},
           f"reg={sorted(AF.SET_PROC_EFFECTS)} data={sorted(no_stats_eff)}")
     # v142：数据驱动注册表（SET_PROC_TYPES + TAKEN_TYPES）覆盖全部有 params 的 effect type
+    # 特殊直连型 type（battle.py 特殊触发位置消费，不注册通用执行器）列入白名单，由下方 battle.py 源码反查保证
+    _SPECIAL_DIRECT_TYPES = {"taken_immune", "taken_immune_cond", "taken_block_reflect",
+                             "taken_shield_convert", "taken_dmg_reduce_flat", "turn_heal_cond", "turn_shield"}
     _all_params_types = {(_eff, _p.get("type")) for _eff in no_stats_eff if (_p := _eff_params(_eff))}
-    _known_types = set(AF.SET_PROC_TYPES) | set(AF.TAKEN_TYPES)
+    _known_types = set(AF.SET_PROC_TYPES) | set(AF.TAKEN_TYPES) | _SPECIAL_DIRECT_TYPES
     _unknown = {(e, t) for e, t in _all_params_types if t not in _known_types}
-    check("数据驱动：全部 params.type ∈ SET_PROC_TYPES/TAKEN_TYPES", not _unknown,
+    check("数据驱动：全部 params.type ∈ SET_PROC_TYPES/TAKEN_TYPES/直连白名单", not _unknown,
           f"unknown={sorted(_unknown)}")
+    # 直连白名单 type 的 effect 必须在 battle.py 源码有消费点（R3 反查）
+    for _eff, _t in sorted(_all_params_types):
+        if _t in _SPECIAL_DIRECT_TYPES:
+            _cnt = _BATTLE_SRC.count(f'"{_eff}"')
+            check(f"直连型『{_eff}』battle.py 源码含消费点(≥1)", _cnt >= 1, f"count={_cnt}")
     # v130.2c 全档位（2/4/5 件）effect 型套装效果覆盖审计：全部 ∈ 战斗侧直连消费注册表
     # （stats 型 effect——mdef_up_set/crit_up_set/dodge_set——由 compute_stats 属性面板消费，不在此列）
     all_effs = set()
