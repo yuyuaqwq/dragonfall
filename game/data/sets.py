@@ -36,7 +36,7 @@ SETS = {
             "spd": 0.15
         },
         "bonus_4": {
-            "effect": "frost", "chance": 0.3,
+            "effect": "frost", "chance": 0.3, "params": {"type": "proc_slow", "chance": 0.30, "slow_pct": 0.15, "slow_turns": 2, "tag": "❄️", "name": "寒霜之力"},
             "desc": "攻击 30% 概率使敌人减速 2 回合"
         },
         "name": "寒霜"
@@ -48,7 +48,7 @@ SETS = {
             "atk": 0.12
         },
         "bonus_4": {
-            "effect": "burn", "chance": 0.3,
+            "effect": "burn", "chance": 0.3, "params": {"type": "proc_burn", "chance": 0.30, "burn_pct": 0.05, "burn_turns": 2, "max_stacks": 5, "tag": "🔥", "name": "烈焰之力"},
             "desc": "攻击 30% 概率灼烧敌人(2 回合每回合 5% 生命)"
         },
         "name": "烈焰"
@@ -59,7 +59,7 @@ SETS = {
         "bonus_2": {
             "crit": 0.05
         },
-        "bonus_4": {"effect": "lei_ting_chain", "chance": 0.25, "desc": "攻击命中 25% 概率追加 50% 魔攻雷击（带雷印记时 75%）"},
+        "bonus_4": {"effect": "lei_ting_chain", "chance": 0.25, "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "matk", "pct": 0.50, "pct_alt": 0.75, "cond_thunder_mark": True, "edef": "mdef", "dmg_type": "magic", "tag": "⚡", "name": "连环雷"}, "desc": "攻击命中 25% 概率追加 50% 魔攻雷击（带雷印记时 75%）"},
         "name": "雷霆"
     },
     "set_mi_yin": {
@@ -107,7 +107,7 @@ SETS = {
             "atk": 0.18,
             "pene_phys": 0.05  # v106.1 黑沼穿甲：暗杀者破甲
         },
-        "bonus_4": {"effect": "hei_zhao_erode", "chance": 0.3, "desc": "攻击 30% 概率附加暗蚀（2 回合每回合 1% 敌方最大生命暗伤），伤害全额转化自身生命"},
+        "bonus_4": {"effect": "hei_zhao_erode", "chance": 0.3, "params": {"type": "proc_erode", "chance": 0.30, "max_stacks": 2, "pct": 1, "tag": "🌑", "name": "暗蚀"}, "desc": "攻击 30% 概率附加暗蚀（2 回合每回合 1% 敌方最大生命暗伤），伤害全额转化自身生命"},
         "name": "黑沼"
     },
     "set_sheng_hui": {
@@ -128,7 +128,7 @@ SETS = {
         "bonus_2": {
             "atk": 0.2
         },
-        "bonus_4": {"effect": "silver_knight_lance", "chance": 0.3, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；目标已破甲则追加 30% 攻击力冲锋"},
+        "bonus_4": {"effect": "silver_knight_lance", "chance": 0.3, "params": {"type": "proc_armor_break", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "bonus_atk_pct": 0.30, "tag": "🐎", "name": "白银冲锋"}, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；目标已破甲则追加 30% 攻击力冲锋"},
         "name": "白银骑士"
     },
     "set_hei_tie_yong_bing": {
@@ -138,7 +138,7 @@ SETS = {
             "crit": 0.1,
             "atk": 0.1
         },
-        "bonus_4": {"effect": "iron_execute_rampage", "chance": 0.3, "desc": "对生命低于 40% 的敌人，攻击命中 30% 概率追加一次 50% 攻击力的斩杀"},
+        "bonus_4": {"effect": "iron_execute_rampage", "chance": 0.3, "params": {"type": "proc_flat_dmg", "chance": 0.30, "stat": "atk", "pct": 0.50, "cond_hp_lt": 0.40, "tag": "💀", "name": "黑铁斩杀"}, "desc": "对生命低于 40% 的敌人，攻击命中 30% 概率追加一次 50% 攻击力的斩杀"},
         "name": "黑铁佣兵"
     },
     "set_chen_guang_jiao_hui": {
@@ -162,7 +162,7 @@ SETS = {
             "dodge": 0.05,
             "cdr": 0.05  # v106.1 旅人经验：冷却缩减
         },
-        "bonus_4": {"effect": "travel_mark", "chance": 0.3, "desc": "攻击命中 30% 概率给敌人挂 1 层旅人标记（每层 +20% 伤害，上限 5）"},
+        "bonus_4": {"effect": "travel_mark", "chance": 0.3, "params": {"type": "proc_mark", "chance": 0.30, "max_mark": 5, "mark_desc": "每层 +20% 伤害", "tag": "🎒", "name": "旅人标记"}, "desc": "攻击命中 30% 概率给敌人挂 1 层旅人标记（每层 +20% 伤害，上限 5）"},
         "name": "旅人公会"
     },
     "set_tie_pi": {
@@ -176,14 +176,14 @@ SETS = {
         "quality": "blue",
         "icon": "🛡️",
         "bonus_2": {"atk": 0.18, "def": 0.08},
-        "bonus_4": {"effect": "jing_tie_refine", "chance": 0.5, "desc": "攻击命中 50% 概率叠 1 层精淬（敌方防御 -5%/层，上限 3 层）"},
+        "bonus_4": {"effect": "jing_tie_refine", "chance": 0.5, "params": {"type": "proc_armor_stack", "chance": 0.50, "max_stacks": 3, "break_pct": 0.05, "break_turns": 2, "tag": "⚒️", "name": "精淬"}, "desc": "攻击命中 50% 概率叠 1 层精淬（敌方防御 -5%/层，上限 3 层）"},
         "name": "精铁"
     },
     "set_qi_shi": {
         "quality": "purple",
         "icon": "🛡️",
         "bonus_2": {"atk": 0.2, "def": 0.08},
-        "bonus_4": {"effect": "qi_shi_charge", "chance": 0.18, "desc": "攻击命中 18% 概率追加 100% 攻击力冲锋（每回合最多 1 次）"},
+        "bonus_4": {"effect": "qi_shi_charge", "chance": 0.18, "params": {"type": "proc_flat_dmg", "chance": 0.18, "stat": "atk", "pct": 1.00, "once_per_round": True, "tag": "🐎", "name": "骑士冲锋"}, "desc": "攻击命中 18% 概率追加 100% 攻击力冲锋（每回合最多 1 次）"},
         "name": "骑士"
     },
     "set_shou_wang": {
@@ -197,56 +197,56 @@ SETS = {
         "quality": "orange",
         "icon": "🛡️",
         "bonus_2": {"atk": 0.18, "def": 0.12},
-        "bonus_4": {"effect": "li_ming_dawnbreak", "chance": 0.3, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；破甲期间目标受疗效果 -30%"},
+        "bonus_4": {"effect": "li_ming_dawnbreak", "chance": 0.3, "params": {"type": "proc_anti_heal", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "anti_heal_pct": 0.30, "tag": "🌅", "name": "黎明破晓"}, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；破甲期间目标受疗效果 -30%"},
         "name": "黎明"
     },
     "set_xue_tu": {
         "quality": "blue",
         "icon": "🔮",
         "bonus_2": {"matk": 0.15, "cdr": 0.05},
-        "bonus_4": {"effect": "xue_tu_spark", "chance": 0.4, "desc": "攻击命中 40% 概率叠 1 层雷印记（上限 3）"},
+        "bonus_4": {"effect": "xue_tu_spark", "chance": 0.4, "params": {"type": "proc_mark", "chance": 0.40, "max_mark": 3, "mark_key": "element_marks", "tag": "⚡", "name": "蓄雷"}, "desc": "攻击命中 40% 概率叠 1 层雷印记（上限 3）"},
         "name": "学徒"
     },
     "set_fu_wen": {
         "quality": "blue",
         "icon": "🔮",
         "bonus_2": {"matk": 0.18, "crit": 0.03},
-        "bonus_4": {"effect": "fu_wen_glyph_bolt", "chance": 0.3, "desc": "攻击命中 30% 概率追加 45% 魔攻雷击（雷印记 ≥2 消耗 1 层额外 +30%）"},
+        "bonus_4": {"effect": "fu_wen_glyph_bolt", "chance": 0.3, "params": {"type": "proc_flat_dmg", "chance": 0.30, "stat": "matk", "pct": 0.45, "pct_alt": 0.75, "cond_thunder_ge2": True, "consume_thunder": True, "edef": "mdef", "dmg_type": "magic", "tag": "📜", "name": "符文雷刻"}, "desc": "攻击命中 30% 概率追加 45% 魔攻雷击（雷印记 ≥2 消耗 1 层额外 +30%）"},
         "name": "符文"
     },
     "set_mi_fa": {
         "quality": "purple",
         "icon": "🔮",
         "bonus_2": {"matk": 0.15, "crit": 0.05},
-        "bonus_4": {"effect": "mi_fa_arcane_bolt", "chance": 0.2, "desc": "攻击命中 20% 概率追加 80% 魔攻秘法雷击（吃暴击）"},
+        "bonus_4": {"effect": "mi_fa_arcane_bolt", "chance": 0.2, "params": {"type": "proc_flat_dmg", "chance": 0.20, "stat": "matk", "pct": 0.80, "edef": "mdef", "dmg_type": "magic", "tag": "✨", "name": "秘术重雷"}, "desc": "攻击命中 20% 概率追加 80% 魔攻秘法雷击（吃暴击）"},
         "name": "秘法"
     },
     "set_xing_jie": {
         "quality": "purple",
         "icon": "🔮",
         "bonus_2": {"matk": 0.18, "pene_magi": 0.03},
-        "bonus_4": {"effect": "xing_jie_starfall", "chance": 0.15, "desc": "攻击命中 15% 概率追加 80% 魔攻星雷并溅射全体 40% 魔攻"},
+        "bonus_4": {"effect": "xing_jie_starfall", "chance": 0.15, "params": {"type": "proc_flat_dmg", "chance": 0.15, "stat": "matk", "pct": 0.80, "edef": "mdef", "dmg_type": "magic", "tag": "☄️", "name": "星坠"}, "desc": "攻击命中 15% 概率追加 80% 魔攻星雷并溅射全体 40% 魔攻"},
         "name": "星界"
     },
     "set_xing_chen": {
         "quality": "orange",
         "icon": "🔮",
         "bonus_2": {"matk": 0.2, "crit": 0.04},
-        "bonus_4": {"effect": "xing_chen_starstrike", "chance": 0.25, "desc": "攻击命中 25% 概率追加 75% 魔攻星雷（雷印记满 3 必触发）"},
+        "bonus_4": {"effect": "xing_chen_starstrike", "chance": 0.25, "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "matk", "pct": 0.75, "edef": "mdef", "dmg_type": "magic", "tag": "🌟", "name": "星辰轰击", "cond_thunder_full": True}, "desc": "攻击命中 25% 概率追加 75% 魔攻星雷（雷印记满 3 必触发）"},
         "name": "星辰"
     },
     "set_lie_shou": {
         "quality": "blue",
         "icon": "🏹",
         "bonus_2": {"spd": 0.15, "pene_phys": 0.04},
-        "bonus_4": {"effect": "hunter_mark_bonus", "chance": 0.4, "desc": "攻击命中 40%：标记目标伤害 +15%，否则叠 1 层标记"},
+        "bonus_4": {"effect": "hunter_mark_bonus", "chance": 0.4, "params": {"type": "proc_mark_or_dmg", "chance": 0.40, "max_mark": 5, "dmg_pct": 0.15, "tag": "🏹", "name": "猎手印记"}, "desc": "攻击命中 40%：标记目标伤害 +15%，否则叠 1 层标记"},
         "name": "猎手"
     },
     "set_feng_xing": {
         "quality": "blue",
         "icon": "🏹",
         "bonus_2": {"spd": 0.18, "dodge": 0.03},
-        "bonus_4": {"effect": "gale_double", "chance": 0.25, "desc": "攻击命中 25% 概率追加一次 50% 攻击力的连射"},
+        "bonus_4": {"effect": "gale_double", "chance": 0.25, "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "atk", "pct": 0.50, "tag": "🌪️", "name": "风行连射"}, "desc": "攻击命中 25% 概率追加一次 50% 攻击力的连射"},
         "name": "风行"
     },
     "set_an_ye": {
@@ -260,28 +260,28 @@ SETS = {
         "quality": "purple",
         "icon": "🏹",
         "bonus_2": {"crit": 0.07, "pene_phys": 0.03},
-        "bonus_4": {"effect": "eagle_vision", "chance": 0.35, "desc": "攻击命中 35% 概率下一次攻击暴击伤害 +30%"},
+        "bonus_4": {"effect": "eagle_vision", "chance": 0.35, "params": {"type": "proc_buff", "chance": 0.35, "buff_key": "eagle_vision", "buff_val": True, "tag": "🦅", "name": "鹰眼锐视"}, "desc": "攻击命中 35% 概率下一次攻击暴击伤害 +30%"},
         "name": "鹰眼"
     },
     "set_cang_qiong": {
         "quality": "orange",
         "icon": "🏹",
         "bonus_2": {"spd": 0.15, "crit": 0.06},
-        "bonus_4": {"effect": "sky_chain", "chance": 0.25, "desc": "攻击命中 25% 概率追加 60% 攻击力的箭雨（标记目标 75%）"},
+        "bonus_4": {"effect": "sky_chain", "chance": 0.25, "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "atk", "pct": 0.60, "pct_alt": 0.75, "cond_mark": True, "tag": "☄️", "name": "苍穹连星"}, "desc": "攻击命中 25% 概率追加 60% 攻击力的箭雨（标记目标 75%）"},
         "name": "苍穹"
     },
     "set_bu_yi": {
         "quality": "blue",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.16, "hp": 0.12},
-        "bonus_4": {"effect": "cloth_regen_battle", "chance": 0.3, "desc": "攻击命中 30% 概率回复 8% 最大生命"},
+        "bonus_4": {"effect": "cloth_regen_battle", "chance": 0.3, "params": {"type": "proc_heal_hp", "chance": 0.30, "heal_pct": 0.08, "tag": "☀️", "name": "布衣愈合"}, "desc": "攻击命中 30% 概率回复 8% 最大生命"},
         "name": "布衣"
     },
     "set_zhu_fu": {
         "quality": "blue",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.18, "hp": 0.1, "heal_power": 0.03},
-        "bonus_4": {"effect": "bless_chant_mp", "chance": 0.35, "desc": "攻击命中 35% 概率回复 5% 最大魔力"},
+        "bonus_4": {"effect": "bless_chant_mp", "chance": 0.35, "params": {"type": "proc_heal_mp", "chance": 0.35, "heal_pct": 0.05, "tag": "🎵", "name": "祝福咏叹"}, "desc": "攻击命中 35% 概率回复 5% 最大魔力"},
         "name": "祝福"
     },
     "set_sheng_tang": {
@@ -295,7 +295,7 @@ SETS = {
         "quality": "purple",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.18, "hp": 0.1, "tenacity": 0.03},
-        "bonus_4": {"effect": "judge_purify_heal", "chance": 0.25, "desc": "攻击命中 25% 概率净化自身 1 个负面效果并回复 4% 最大生命"},
+        "bonus_4": {"effect": "judge_purify_heal", "chance": 0.25, "params": {"type": "proc_purify_heal", "chance": 0.25, "heal_pct": 0.04, "tag": "⚖️", "name": "审判净化"}, "desc": "攻击命中 25% 概率净化自身 1 个负面效果并回复 4% 最大生命"},
         "name": "审判"
     },
     "set_shen_en": {
@@ -309,42 +309,42 @@ SETS = {
         "quality": "blue",
         "icon": "🗡️",
         "bonus_2": {"crit": 0.08, "atk": 0.1},
-        "bonus_4": {"effect": "shadow_combo_double", "chance": 0.25, "desc": "攻击命中 25% 概率追加一次 40% 攻击力的连刺"},
+        "bonus_4": {"effect": "shadow_combo_double", "chance": 0.25, "params": {"type": "proc_flat_dmg", "chance": 0.25, "stat": "atk", "pct": 0.40, "tag": "🗡️", "name": "轻影连刺"}, "desc": "攻击命中 25% 概率追加一次 40% 攻击力的连刺"},
         "name": "轻影"
     },
     "set_ye_xing": {
         "quality": "blue",
         "icon": "🗡️",
         "bonus_2": {"crit": 0.1, "atk": 0.08},
-        "bonus_4": {"effect": "night_backstab", "chance": 0.2, "desc": "对满血敌人伤害 +25%；否则 20% 概率附加 5% 最大生命真伤"},
+        "bonus_4": {"effect": "night_backstab", "chance": 0.2, "params": {"type": "proc_execute", "stat": "atk", "pct": 0.25, "hp_full": True, "chance": 0.20, "pct2": 0.05, "hp_pct_dmg": True, "tag": "🌙", "name": "夜行背刺"}, "desc": "对满血敌人伤害 +25%；否则 20% 概率附加 5% 最大生命真伤"},
         "name": "夜行"
     },
     "set_yin_ying": {
         "quality": "purple",
         "icon": "🗡️",
         "bonus_2": {"crit": 0.08, "atk": 0.1, "pene_phys": 0.03},
-        "bonus_4": {"effect": "shadow_etch_vuln", "chance": 0.3, "desc": "攻击命中 30% 概率叠 1 层阴影蚀刻（每层 +15% 受伤害，上限 5）"},
+        "bonus_4": {"effect": "shadow_etch_vuln", "chance": 0.3, "params": {"type": "proc_mark", "chance": 0.30, "max_mark": 5, "mark_desc": "每层 +15% 受伤害", "tag": "🌒", "name": "阴影蚀刻"}, "desc": "攻击命中 30% 概率叠 1 层阴影蚀刻（每层 +15% 受伤害，上限 5）"},
         "name": "阴影"
     },
     "set_huan_ying": {
         "quality": "purple",
         "icon": "🗡️",
         "bonus_2": {"crit": 0.06, "atk": 0.12},
-        "bonus_4": {"effect": "phantom_echo", "chance": 0.15, "desc": "攻击命中 15% 概率追加 60% 攻击力的幻影斩（暴击时 30%）"},
+        "bonus_4": {"effect": "phantom_echo", "chance": 0.15, "params": {"type": "proc_flat_dmg", "chance": 0.20, "stat": "atk", "pct": 0.60, "pct_alt": 0.35, "cond_crit": True, "tag": "👻", "name": "幻影分身"}, "desc": "攻击命中 15% 概率追加 60% 攻击力的幻影斩（暴击时 30%）"},
         "name": "幻影"
     },
     "set_wu_ye": {
         "quality": "orange",
         "icon": "🗡️",
         "bonus_2": {"crit": 0.1, "atk": 0.12},
-        "bonus_4": {"effect": "midnight_assassinate", "chance": 0.35, "desc": "对生命低于 30% 的敌人，攻击命中 35% 概率追加 40% 攻击力真伤处决"},
+        "bonus_4": {"effect": "midnight_assassinate", "chance": 0.35, "params": {"type": "proc_execute", "chance": 0.35, "stat": "atk", "pct": 0.40, "hp_lt": 0.30, "true_dmg": True, "tag": "🗡️", "name": "午夜暗杀"}, "desc": "对生命低于 30% 的敌人，攻击命中 35% 概率追加 40% 攻击力真伤处决"},
         "name": "午夜"
     },
     "set_xing_zhe": {
         "quality": "blue",
         "icon": "🥋",
         "bonus_2": {"atk": 0.1, "lifesteal": 0.02, "hp": 0.08},
-        "bonus_4": {"effect": "xing_zhe_hunt", "chance": 0.4, "desc": "攻击 40% 概率吸血 12% 伤害"},
+        "bonus_4": {"effect": "xing_zhe_hunt", "chance": 0.4, "params": {"type": "proc_lifesteal", "chance": 0.40, "lifesteal_pct": 0.12, "tag": "🩸", "name": "猎血"}, "desc": "攻击 40% 概率吸血 12% 伤害"},
         "name": "行者"
     },
     "set_tie_shou": {
@@ -545,7 +545,7 @@ CLASS_SET_THEMES = {
             "def": 0.12
         },
         "bonus_4": {
-            "effect": "pierce", "chance": 0.3,
+            "effect": "pierce", "chance": 0.3, "params": {"type": "proc_armor_break", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "tag": "⚔️", "name": "破甲之力"},
             "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
         },
         "name": "战士"
@@ -677,7 +677,7 @@ CLASS_SET_THEMES = {
             "atk": 0.1
         },
         "bonus_4": {
-            "effect": "execute", "chance": 1.0,
+            "effect": "execute", "chance": 1.0, "params": {"type": "proc_execute", "chance": 1.0, "hp_lt": 0.30, "dmg_pct": 0.25, "pct_of_dmg": True, "tag": "💀", "name": "灭世之力"},
             "desc": "对生命低于 30% 的敌人额外造成 25% 伤害"
         },
         "name": "刺客"
@@ -710,7 +710,7 @@ CLASS_SET_THEMES = {
             "hp": 0.15
         },
         "bonus_4": {
-            "effect": "lifesteal_set", "chance": 0.3,
+            "effect": "lifesteal_set", "chance": 0.3, "params": {"type": "proc_lifesteal", "chance": 0.30, "lifesteal_pct": 0.15, "tag": "🌑", "name": "深渊之力"},
             "desc": "攻击 30% 概率吸血 15% 伤害"
         },
         "name": "拳师"
