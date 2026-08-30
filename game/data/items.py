@@ -2051,7 +2051,7 @@ CONSUMABLES = {
     "i_str_potion": {"name": "力量药剂", "price": 100, "effect": "buff_atk",
                      "desc": "3 回合攻击 + 30%"},
     "i_def_potion": {"name": "铁壁药剂", "price": 350, "effect": "buff_def",
-                     "desc": "3 回合防御 + 45%"},
+                     "desc": "抵挡 3 次受击防御 + 45%"},
     "i_spd_potion": {"name": "疾风药剂", "price": 100, "effect": "buff_spd",
                      "desc": "3 回合速度 + 40%"},
     "i_fury_potion": {"name": "狂怒药剂", "price": 200, "effect": "next_atk_up", "effect_data": {"pct": 0.5},
@@ -2094,7 +2094,7 @@ CONSUMABLES = {
     "i_mermaid_tear": {"name": "鲛人之泪", "price": 150, "effect": "buff_matk",
                       "desc": "3 回合魔攻 + 30%"},
     "i_ambergris_draught": {"name": "龙涎药剂", "price": 250, "effect": "buff_atk_def",
-                           "desc": "3 回合攻击 + 30%、防御 + 45%"},
+                           "desc": "3 回合攻击 + 30%；抵挡 3 次受击防御 + 45%"},
     # ============ v97.7 道具模板批量生成（55→250，全部走 core/item_templates.py） ============
     # ---- A. 药水线扩展（heal/mana/复合）----
     "i_treat_micro": {"name": "微效治疗药水", "price": 8, "heal": 0.15,
@@ -2306,9 +2306,9 @@ CONSUMABLES = {
     "i_void_pot": {"name": "虚空药剂", "price": 300, "effect": "buff_matk_crit",
                    "desc": "3 回合魔攻 + 80%、暴击率 + 15%"},
     "i_berserker_pot": {"name": "狂战士药剂", "price": 200, "effect": "buff_atk_def",
-                        "desc": "3 回合攻击 + 30%、防御 + 45%"},
+                        "desc": "3 回合攻击 + 30%；抵挡 3 次受击防御 + 45%"},
     "i_warsaint_pot": {"name": "战圣药剂", "price": 350, "effect": "buff_atk_big_def",
-                       "desc": "3 回合攻击 + 40%、防御 + 45%"},
+                       "desc": "3 回合攻击 + 40%；抵挡 3 次受击防御 + 45%"},
     # ---- D. 卷轴/护符/券扩展 ----
     "i_scroll_guild": {"name": "公会回城卷", "price": 300, "effect": "return_vila",
                        "desc": "立即返回最近城镇（公会刻印）"},
@@ -2763,7 +2763,7 @@ ITEMS.update({
     "i_thunder_elixir": {"name": "雷晶药剂", "price": 200, "effect": "buff_atk_big",
                          "desc": "战斗中使用，攻击力 + 40%(3 回合)，雷晶砂淬炼的噼啪药剂"},
     "i_dragonbone_elixir": {"name": "龙骨药剂", "price": 400, "effect": "buff_atk_big_def",
-                            "desc": "战斗中使用，攻击 + 40%、防御 + 45%(3 回合)，上古鱼骨熬成的猛药"},
+                            "desc": "战斗中使用，攻击 + 40%；抵挡 3 次受击防御 + 45%，上古鱼骨熬成的猛药"},
 })
 
 # ================= v112 隐藏技能书（P1：横向扩展，跨流派稀有技） =================

@@ -1572,6 +1572,10 @@ class CombatCmds(CommandBase):
         # 敌方状态（e_buffs 回合数 >0）
         ebuf = []
         for k, v in (b.e_buffs or {}).items():
+            # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
+            # 不是回合 buff，跳过显示（bar 状态由战斗逻辑单独维护）
+            if isinstance(v, dict):
+                continue
             if v and v > 0 and k in self._E_BUFF_NAMES:
                 # v125.1 P2-4：shield 存护盾值（HP 量）、元素印记存层数——非回合语义，按各自格式显示
                 if k == "shield":

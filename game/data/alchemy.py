@@ -185,7 +185,7 @@ ALCHEMY_RECIPES = {
             "i_def_potion": 1
         },
         "min_lv": 4,
-        "desc": "战斗中使用，防御力 + 45%(3 回合)",
+        "desc": "战斗中使用，抵挡 3 次受击防御 + 45%",
         # v105R3 M16 P3-5：配方名与产物名统一（产物 i_def_potion 为『铁壁药剂』）
         "name": "铁壁药剂"
     },
@@ -377,7 +377,7 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_di_di_long_lin": 10, "mat_shen_yuan_zhen_zhu": 1},
         "product": {"i_def_potion": 1},
         "min_lv": 5,
-        "desc": "地底龙鳞炼就的铁壁药剂，战斗中防御力 + 45%(3 回合)",
+        "desc": "地底龙鳞炼就的铁壁药剂，战斗中抵挡 3 次受击防御 + 45%",
         "name": "龙鳞铁壁药剂"
     },
     "al_ji_qi_shen_yuan": {

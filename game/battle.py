@@ -289,6 +289,7 @@ class Battle:
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余回合（百分比存 p_buffs["reduce_all"]）
+        self._p_buff_hits: dict = {}       # v151 时刻制：防御型 buff 受击计数 {effect: 剩余受击次数}——防御/减伤/受击类按"敌方出手次数"计时而非玩家回合
         self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余回合}
         self.p_food_effects: list = []     # v101.28e 食物效果（战斗中吃料理获得，本场有效；独立于装备词条体系）
@@ -503,6 +504,8 @@ class Battle:
             "charging": self.charging,
             "pet": self.pet,
             "p_buffs": self.p_buffs,
+            # v151 时刻制：防御型 buff 受击计数（随战斗序列化，跨消息续战不丢）
+            "p_buff_hits": getattr(self, "_p_buff_hits", {}) or {},
             # v113.1 团队减伤 reduce_all 剩余回合：percent 存 p_buffs、回合数独立计时，
             # 必须随存档持久化，否则恢复后 __init__=0 被下回合立即弹掉 reduce_all。
             "reduce_all_left": self._reduce_all_left,
@@ -562,7 +565,8 @@ class Battle:
                 main["buffs"] = merged
         b.round = st.get("round", 0)
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
-        b.p_buffs = st.get("p_buffs", {}) or {}
+        b.p_buffs = dict(st.get("p_buffs") or {})
+        b._p_buff_hits = dict(st.get("p_buff_hits") or {})  # v151 时刻制：防御型 buff 受击计数
         b._reduce_all_left = int(st.get("reduce_all_left", 0) or 0)  # v113.1 恢复减伤剩余回合
         b.poi_buff = st.get("poi_buff")
         b.p_hot = st.get("p_hot", {}) or {}
@@ -1113,6 +1117,30 @@ class Battle:
             self.cooldown[k] -= 1
             if self.cooldown[k] <= 0:
                 del self.cooldown[k]
+        # v151 修复（回合制审计 P1-1）：特效装备冷却（we_*_cd）此前只写不递减——
+        # 永冻领域/无尽辉光/哨兵壁垒/深岩壁垒等"冷却 N 回合"实际永久生效。
+        # p_eff 中 we_*_cd 键与 self.cooldown 同节奏递减（回合结束）。
+        _pe = self.p_eff
+        if isinstance(_pe, dict):
+            for _k in [k for k in list(_pe) if k.startswith("we_") and k.endswith("_cd")]:
+                _v = int(_pe.get(_k, 0) or 0) - 1
+                if _v <= 0:
+                    _pe.pop(_k, None)
+                else:
+                    _pe[_k] = _v
+        # v151 修复（回合制审计 P1-2）：星辉壁垒每 5 回合刷新计数（we_starlight_next）
+        if isinstance(_pe, dict) and int(_pe.get("we_starlight_next", 0) or 0) > 0:
+            _sn = int(_pe.get("we_starlight_next", 0) or 0) - 1
+            if _sn <= 0:
+                _pe.pop("we_starlight_next", None)
+                # 归零 → 重新触发 battle_start 特效（星辉壁垒刷新护盾）
+                try:
+                    from .core.weapon_effects import proc as _we_proc
+                    _we_proc(self, self.player, "battle_start", {}, [])
+                except Exception:
+                    pass
+            else:
+                _pe["we_starlight_next"] = _sn
 
     # ---------------- 连招序列（v2.0，拳师） ----------------
     # 连招顺序：拳 → 踢 → 掌 →（三连触发）→ 重新开始
@@ -1884,6 +1912,14 @@ class Battle:
                    "matk_up": "魔攻", "matk_up_strong": "魔攻"}
             for _k in kind.split(","):
                 self.p_buffs[_k] = max(self.p_buffs.get(_k, 0), 3)
+            # v151 时刻制（鱼鱼拍板）：防御/受击类 buff 改"受击计数"——铁壁/岩壁/影步/荆棘等
+            # 防的是敌方出手，按敌方出手次数计时（3 次受击）而非玩家回合，不受速度差影响。
+            # 注：food_def_up 保持回合制（食物是持续小加成，非爆发防御，语义不同）
+            _def_keys = {"def_up", "def_up_big", "def_up_small",
+                         "mdef_up", "dodge_pot", "block_pot", "thorns_pot", "magic_resist"}
+            for _k in kind.split(","):
+                if _k in _def_keys:
+                    self._p_buff_hits[_k] = 3
             _names = '、'.join(_cn.get(k, k) for k in kind.split(','))
             # v101.28b 食物 buff（food_ 前缀键）播报区分：料理 vs 药水
             if any(k.startswith("food_") for k in kind.split(",")):
@@ -4341,6 +4377,12 @@ class Battle:
             logs.append(f"🌀 【{ename}】被眩晕，无法行动！")
             eb.pop("stun", None)
             return logs, 0
+        # v151 破绽断链修复（引擎差距报告 P0）：破绽触发（skip_turn）→ 敌方跳过行动。
+        # bar_trigger 已设 immune_turns>0 且 val 清空；此处读 immune_turns>0 判定本回合应跳过。
+        _sk = eb.get("shaken")
+        if isinstance(_sk, dict) and int(_sk.get("immune_turns", 0) or 0) > 0:
+            logs.append(f"💢 【{ename}】被破绽震慑，无法行动！")
+            return logs, 0
         # v109.2 P1-3：睡眠（受击解除，按回合递减）
         # v121 审计修复：回合递减只由 _end_round 统一执行（每玩家行动 1 次）——
         # 此分支此前每次被选中行动都 -1，CTB 连动下睡眠一回合被多重递减直接清零
@@ -5073,6 +5115,20 @@ class Battle:
             self._dot_pending = True
         # 原地追加（_tick_dots 向传入 logs 追加文案并返回同一列表，勿用 += 以免二次自拼接）
         self._tick_dots(player, logs)
+        # v151 破绽断链修复（引擎差距报告 P0）：turn_start_bars 此前从未被调用——
+        # 拳师破绽条（shaken）的每回合衰减 4/免疫期递减实际不跑。回合开始统一衰减+触发检查。
+        try:
+            from .core.battle_bars import turn_start_bars
+            _trig = turn_start_bars(self.enemy, logs) or []
+            for _bk in _trig:
+                # 触发效果：skip_turn → 敌方跳过下回合行动（由 _enemy_turn 消费 immune_turns）
+                _bd = None
+                from .core.battle_bars import bar_def
+                _bd = bar_def(_bk) or {}
+                if (_bd.get("trigger_effect") or "") == "skip_turn":
+                    logs.append(f"💢 破绽触发！敌方即将失去行动！")
+        except Exception:
+            pass
         # 阶段八：词条回合开始回复（回春/冥想/晨曦祝福）
         self._affix_turn_start(player, logs)
         self._food_turn_start(player, logs)
@@ -5291,6 +5347,10 @@ class Battle:
                 # v139 enemy_bar 挂敌身条：buffs 里 shaken/curse 等 bar 状态是 dict（{val, threshold, ...}），
                 # 由 battle_bars 的 bar_tick 自行衰减（decay_per_turn），回合结束不按 int 递减
                 if isinstance(tbl[k], dict):
+                    continue
+                # v151 时刻制：防御型 buff（登记了受击计数 _p_buff_hits）豁免回合递减——
+                # 由 _damage_player 实际受击时按"剩余受击次数"递减，不再按玩家回合数衰减
+                if tbl is self.p_buffs and k in (getattr(self, "_p_buff_hits", {}) or {}):
                     continue
                 tbl[k] -= 1
                 if tbl[k] <= 0:
@@ -5781,6 +5841,20 @@ class Battle:
                     logs.append(f"🛡️ {_pn}：格挡反击！反弹 {rd} 点伤害！")
                     break  # 命中即停（一次格挡最多一次反击）
         self._player_hit = True  # v2.1 条件：记录本场受击（未受击增伤判定）
+        # ---- v151 时刻制：防御型 buff 受击计数递减（鱼鱼拍板：防御药水"3回合"应按敌方出手次数计）----
+        # 铁壁药剂/岩壁药剂/影步药剂/荆棘药剂/技能铁壁 等防御/受击类 buff 不再按玩家回合递减，
+        # 改为"实际受击 N 次后消失"——防的是敌方出手，就按敌方出手数计时，不受速度差影响。
+        if getattr(self, "_p_buff_hits", None):
+            for _hk in [k for k in list(self._p_buff_hits) if int(self._p_buff_hits.get(k, 0) or 0) > 0]:
+                _nh = int(self._p_buff_hits.get(_hk, 0) or 0) - 1
+                if _nh <= 0:
+                    self._p_buff_hits.pop(_hk, None)
+                    # 受击次数耗尽 → 移除对应 buff（若 p_buffs 里还有回合数残留也清掉）
+                    if _hk in self.p_buffs:
+                        self.p_buffs.pop(_hk, None)
+                        logs.append(f"🕛 【{_hk}】效果随受击消耗殆尽！")
+                else:
+                    self._p_buff_hits[_hk] = _nh
         # ---- v139 职业融合：受击处理（dual_form 扣资源 / focus 打断 / charge 打断 -1 阶）----
         from .core.battle_modes import dual_form_def, dual_form_state, dual_form_hit, dual_form_force_return, dual_form_exit, dual_form_active, focus_def, focus_state, focus_on_hit, vent_def, vent_relief
         from .core.battle_bars import charge_state, charge_on_hit

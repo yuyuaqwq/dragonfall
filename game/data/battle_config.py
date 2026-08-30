@@ -35,10 +35,11 @@ MECH_STACK_BONUS = {
     "zen": 0.12,         # v130.2 禅意：每层 +12%（撼岳·终焉/穿岳一击 满禅意 10 层 +120%）
 }
 
-# 增益类技能可叠层 mech 白名单（_apply_mech_gain；v59 封顶语义，共 14 个）
+# 增益类技能可叠层 mech 白名单（_apply_mech_gain；v59 封顶语义，共 16 个）
 MECH_STACK_WHITELIST = (
     "rage", "shield", "wind", "shadow", "chi", "bless", "judge",
     "iron", "mark", "burn", "poison", "freeze", "arcane", "spellblade",
+    "zhan_yi", "lian_duan",   # v151 职业重构：战意（战士叠层）/ 连段（刺客计数）
 )
 
 # ============================================================
