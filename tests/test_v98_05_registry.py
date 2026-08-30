@@ -234,13 +234,36 @@ check("4 件商品全部带 reward", all("reward" in v for v in C.HONOR_SHOP.val
 print("【4. 数据覆盖检查】")
 import re
 sets_src = open(os.path.join("game", "data", "sets.py"), encoding="utf-8").read()
-set4_effs = set(re.findall(r'"bonus_4"\s*:\s*\{[^}]*"effect"\s*:\s*"([^"]+)"', sets_src))
-# 旧代码只实现 6 种攻击特效（其余如 crit_up_set/reflect/regen 走别的系统，原 elif 链无分支 → 无操作）
-implemented = {"frost", "burn", "thunder", "pierce", "lifesteal_set", "execute"}
-check("套装特效 6 种全部注册", implemented <= set(AFX.SET_PROC_EFFECTS.keys()))
+class_sets_src = open(os.path.join("game", "core", "class_sets.py"), encoding="utf-8").read()
+# v141.3 S1：合并 sets.py + class_sets.py 的 bonus_4/bonus_3 effect 名（双引号 + 单引号两种格式）
+set4_effs = set(re.findall(r'"bonus_4"\s*:\s*\{[^}]*?"effect"\s*:\s*"([^"]+)"', sets_src))
+set4_effs |= set(re.findall(r'"bonus_3"\s*:\s*\{[^}]*?"effect"\s*:\s*"([^"]+)"', sets_src))
+set4_effs |= set(re.findall(r"'bonus_4':\s*\{[^}]*?'effect':\s*'([^']+)'", class_sets_src))
+set4_effs |= set(re.findall(r"'bonus_3':\s*\{[^}]*?'effect':\s*'([^']+)'", class_sets_src))
+# v141.3 S1 套装去模板化：6 旧模板 + 新 on_hit 型套装特效全部注册 SET_PROC
+# （其余如 crit_up_set/reflect/regen/regen_strong/dodge_set 走别的系统——属性/受击/回合开始直连）
+implemented = {
+    "frost", "burn", "thunder", "pierce", "lifesteal_set", "execute",
+    # S1-A 闪避族 on_hit
+    "travel_mark", "hunter_mark_bonus", "gale_double", "eagle_vision",
+    "sky_chain", "hunt_pack", "shadow_track", "ranger_net",
+    # S1-B 回血处决族 on_hit
+    "cloth_regen_battle", "bless_chant_mp", "judge_purify_heal",
+    "ranger_regen_wild", "iron_execute_rampage", "shadow_combo_double",
+    "night_backstab", "shadow_etch_vuln", "phantom_echo", "midnight_assassinate",
+    "shadow_combo_cp", "night_stealth_exec", "shadow_erode_poison", "frost_hunt_freeze",
+    # S1-C 破甲雷击族 on_hit
+    "silver_knight_lance", "jing_tie_refine", "qi_shi_charge", "li_ming_dawnbreak",
+    "jing_tie_edge", "bai_lian_forge", "long_yi_dread", "lei_ting_chain",
+    "xue_tu_spark", "fu_wen_glyph_bolt", "mi_fa_arcane_bolt", "xing_jie_starfall",
+    "xing_chen_starstrike", "xue_tu_surge", "fu_wen_annihilate", "mi_fa_condense",
+    # S1-D 吸血族 on_hit
+    "hei_zhao_erode", "xing_zhe_flow", "xing_zhe_hunt",
+}
+check("套装特效全部注册", implemented <= set(AFX.SET_PROC_EFFECTS.keys()))
 # v110.5 X3：恒真断言替换——其余 non_attack 特效（mdef_up_set/reflect/crit_up_set/regen/
-# regen_strong/dodge_set）走其他系统（属性/受击/回合开始），不得误注册为『攻击特效』。
-# 若有人把非攻击类特效加进 SET_PROC_EFFECTS 则必红。
+# regen_strong/dodge_set + 受击/回合开始直连型 holy_halo_shield 等）走其他系统（属性/受击/回合开始），
+# 不得误注册为『攻击特效』。若有人把非攻击类特效加进 SET_PROC_EFFECTS 则必红。
 non_attack = set4_effs - implemented
 bad_reg = non_attack & set(AFX.SET_PROC_EFFECTS.keys())
 check("非攻击类套装特效不注册为攻击特效（由其他系统处理）", bad_reg == set())

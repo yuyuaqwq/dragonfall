@@ -404,3 +404,773 @@ def _sp_execute(battle, player, dmg, logs):
         bonus = int(dmg * 0.25)
         battle._damage_enemy(bonus, logs)
         logs.append(f"💀 灭世之力！处决追加 {bonus} 点伤害！")
+
+# ============================================================
+# v141.3 S1 套装去模板化 + D3 装备专属 handler（数据驱动追加）
+# ============================================================
+
+# ---- D3 装备专属 on_hit（HIT_EFFECTS，经 _equip_affix_ids 消费）----
+
+@register(HIT_EFFECTS, "oath_sword")
+def _h_oath_sword(battle, player, dmg, logs):
+    """誓约之刃（王都誓约之剑）：暴击时回复 2% 最大生命"""
+    if "oath_sword" in battle._equip_affix_ids(player):
+        if getattr(battle, "_last_crit", False):
+            heal = int(player.get("max_hp", 1) * float(_affix_effect("oath_sword").get("heal_pct", 0.02)))
+            player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+            logs.append(f"🗡️ 誓约之刃！暴击回复 {heal} 点生命！")
+
+
+@register(HIT_EFFECTS, "sanctum_light")
+def _h_sanctum_light(battle, player, dmg, logs):
+    """圣殿辉光（圣殿战锤）：15% 敌人攻击 -8%（1 回合）"""
+    if "sanctum_light" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sanctum_light", 0.15):
+        eff = _affix_effect("sanctum_light")
+        battle.e_buffs["enemy_atk_down"] = max(battle.e_buffs.get("enemy_atk_down", 0), int(eff.get("turns", 1)))
+        battle.e_buffs["_enemy_atk_down_pct"] = float(eff.get("enemy_atk_down", 0.08))
+        logs.append("✨ 圣殿辉光！敌人攻击下降 8%！")
+
+
+@register(HIT_EFFECTS, "ember_furnace")
+def _h_ember_furnace(battle, player, dmg, logs):
+    """熔炉余烬（熔岩护手）：20% 灼烧 1% 最大生命×2 回合"""
+    if "ember_furnace" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_furnace", 0.20):
+        eff = _affix_effect("ember_furnace")
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
+        cur["pct"] = float(eff.get("burn_pct", 0.01))
+        cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 2)))
+        deb["burn"] = cur
+        logs.append("🔥 熔炉余烬！目标被灼烧！（每回合损 1% 最大生命，2 回合）")
+
+
+@register(HIT_EFFECTS, "blazing_sun")
+def _h_blazing_sun(battle, player, dmg, logs):
+    """烈日灼烧（铁砧战锤）：15% 火附加 8% + 灼烧 1.5%×3"""
+    if "blazing_sun" in battle._equip_affix_ids(player):
+        eff = _affix_effect("blazing_sun")
+        ed = max(1, int(dmg * float(eff.get("pct", 0.08))))
+        battle._damage_enemy(ed, logs)
+        logs.append(f"🔥 烈日灼烧：火属性附加 {ed} 点伤害！")
+        if random.random() < _affix_chance("blazing_sun", 0.15):
+            deb = battle.enemy.setdefault("debuffs", {})
+            cur = deb.get("burn") or {"n": 0, "mult": 1.0}
+            cur["n"] = min(3, int(cur.get("n", 0) or 0) + 1)
+            cur["pct"] = float(eff.get("burn_pct", 0.015))
+            cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 3)))
+            deb["burn"] = cur
+            logs.append("🔥 烈日灼烧：目标被灼烧！（每回合损 1.5% 最大生命，3 回合）")
+
+
+@register(HIT_EFFECTS, "deep_frost")
+def _h_deep_frost(battle, player, dmg, logs):
+    """深寒（银叶法杖）：20% 冰附加 8% + 减速 20% 2 回合"""
+    if "deep_frost" in battle._equip_affix_ids(player):
+        eff = _affix_effect("deep_frost")
+        ed = max(1, int(dmg * float(eff.get("pct", 0.08))))
+        battle._damage_enemy(ed, logs)
+        logs.append(f"❄️ 深寒：冰属性附加 {ed} 点伤害！")
+        if random.random() < _affix_chance("deep_frost", 0.20):
+            battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), int(eff.get("slow_turns", 2)))
+            battle.e_buffs["_spd_down_pct"] = float(eff.get("slow", 0.20))
+            logs.append("❄️ 深寒：目标减速 20%！")
+
+
+@register(HIT_EFFECTS, "thunder_mark")
+def _h_thunder_mark(battle, player, dmg, logs):
+    """雷鸣印记（雷鸣龙鳞）：20% 叠雷鸣印记"""
+    if "thunder_mark" in battle._equip_affix_ids(player) and random.random() < _affix_chance("thunder_mark", 0.20):
+        eff = _affix_effect("thunder_mark")
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
+        cur["n"] = min(int(eff.get("max_mark", 5)), int(cur.get("n", 0) or 0) + 1)
+        logs.append("⚡ 雷鸣印记！敌人被标记（每层 +2% 伤害）")
+
+
+@register(HIT_EFFECTS, "soul_devourer")
+def _h_soul_devourer(battle, player, dmg, logs):
+    """噬魂者：15% 将 6% 伤害转生命"""
+    if "soul_devourer" in battle._equip_affix_ids(player) and random.random() < _affix_chance("soul_devourer", 0.15):
+        heal = int(dmg * float(_affix_effect("soul_devourer").get("heal_pct", 0.06)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"👻 噬魂者！汲取 {heal} 点生命！")
+
+
+# ---- D3 装备专属 on_taken（TAKEN_EFFECTS，ctx 结算）----
+
+@register(TAKEN_EFFECTS, "blood_oath_echo")
+def _t_blood_oath_echo(battle, player, ctx, logs):
+    """血誓回响（血誓战剑）：受击 20% 回复 2% 最大生命 + 下次攻击 +10%"""
+    if "blood_oath_echo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("blood_oath_echo", 0.20):
+        eff = _affix_effect("blood_oath_echo")
+        heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.02)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        battle.p_eff["atk_up"] = float(eff.get("atk_up", 0.10))
+        logs.append(f"🩸 血誓回响！回复 {heal} 点生命，下次攻击 +10%！")
+
+
+@register(TAKEN_EFFECTS, "night_watch")
+def _t_night_watch(battle, player, ctx, logs):
+    """长夜守望（长夜徽记）：受击 5% 回复 1% 最大生命"""
+    if "night_watch" in battle._equip_affix_ids(player) and random.random() < _affix_chance("night_watch", 0.05):
+        heal = int(player.get("max_hp", 1) * float(_affix_effect("night_watch").get("heal_pct", 0.01)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🌙 长夜守望！回复 {heal} 点生命！")
+
+
+# ---- D3 装备专属 turn_start（TURN_START_EFFECTS）----
+
+@register(TURN_START_EFFECTS, "morning_dew")
+def _ts_morning_dew(battle, player, logs):
+    """晨露滋养（晨露戒指）：每回合回复 1% 魔力"""
+    if "morning_dew" in battle._equip_affix_ids(player) and player.get("mp", 0) < player.get("max_mp", 1):
+        heal = int(player.get("max_mp", player.get("mp", 1)) * float(_affix_effect("morning_dew").get("pct", 0.01)))
+        player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
+        logs.append(f"💧 晨露滋养！回复 {heal} 点魔力！")
+
+
+@register(TURN_START_EFFECTS, "night_prayer")
+def _ts_night_prayer(battle, player, logs):
+    """夜祷（夜祷兜帽）：每回合回复 3% 最大生命"""
+    if "night_prayer" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
+        heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("night_prayer").get("pct", 0.03)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🙏 夜祷！回复 {heal} 点生命！")
+
+
+# ---- S1 套装 on_hit（SET_PROC_EFFECTS，_set_attack_proc 分发）----
+
+@register(SET_PROC_EFFECTS, "travel_mark")
+def _sp_travel_mark(battle, player, dmg, logs):
+    """旅人标记（旅人公会 4 件）：30% 叠 1 层敌人标记"""
+    if random.random() < _set_chance("travel_mark", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
+        cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        logs.append("🎒 旅人标记！敌人被标记（每层 +20% 伤害）")
+
+
+@register(SET_PROC_EFFECTS, "hunter_mark_bonus")
+def _sp_hunter_mark_bonus(battle, player, dmg, logs):
+    """猎手印记（猎手 4 件）：40% 标记目标 +15% 伤害否则叠层"""
+    if random.random() < _set_chance("hunter_mark_bonus", 0.40):
+        mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
+        if int(mk.get("n", 0) or 0) > 0:
+            battle._damage_enemy(int(dmg * 0.15), logs)
+            logs.append("🏹 猎手印记！标记目标追加 15% 伤害！")
+        else:
+            deb = battle.enemy.setdefault("debuffs", {})
+            cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
+            cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+            logs.append("🏹 猎手印记！敌人被标记！")
+
+
+@register(SET_PROC_EFFECTS, "gale_double")
+def _sp_gale_double(battle, player, dmg, logs):
+    """风行连射（风行 4 件）：25% 追加 50% atk 连射"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("gale_double", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.50), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🌪️ 风行连射！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "eagle_vision")
+def _sp_eagle_vision(battle, player, dmg, logs):
+    """鹰眼锐视（鹰眼 4 件）：35% 下一次攻击暴伤 +30%"""
+    if random.random() < _set_chance("eagle_vision", 0.35):
+        battle.p_eff["eagle_vision"] = True
+        logs.append("🦅 鹰眼锐视！下一次攻击暴击伤害 +30%！")
+
+
+@register(SET_PROC_EFFECTS, "sky_chain")
+def _sp_sky_chain(battle, player, dmg, logs):
+    """苍穹连星（苍穹 4 件）：25% 追加 60% atk 箭雨（标记时 75%）"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("sky_chain", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        mk = (battle.enemy.get("debuffs") or {}).get("mark") or {}
+        pct = 0.75 if int(mk.get("n", 0) or 0) > 0 else 0.60
+        cd = calc_damage(int(pst.get("atk", 0) * pct), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"☄️ 苍穹连星！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "hunt_pack")
+def _sp_hunt_pack(battle, player, dmg, logs):
+    """狩猎本能（猎手套 4 件）：30% 追加 50% atk 追击，低血 <50% +20%"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("hunt_pack", 0.30):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        hp_ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+        pct = 0.60 if hp_ratio < 0.50 else 0.50
+        cd = calc_damage(int(pst.get("atk", 0) * pct), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🏹 狩猎本能！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "shadow_track")
+def _sp_shadow_track(battle, player, dmg, logs):
+    """暗影追踪（暗夜套 4 件）：30% 叠 1 层暗影标记"""
+    if random.random() < _set_chance("shadow_track", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
+        cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        logs.append("🌑 暗影追踪！敌人被暗影标记！")
+
+
+@register(SET_PROC_EFFECTS, "ranger_net")
+def _sp_ranger_net(battle, player, dmg, logs):
+    """巡林罗网（巡林套 3 件）：30% 敌方速度 -15% 2 回合"""
+    if random.random() < _set_chance("ranger_net", 0.30):
+        battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
+        battle.e_buffs["_spd_down_pct"] = 0.15
+        logs.append("🕸️ 巡林罗网！敌方速度下降 15%！")
+
+
+@register(SET_PROC_EFFECTS, "cloth_regen_battle")
+def _sp_cloth_regen_battle(battle, player, dmg, logs):
+    """布衣愈合（布衣 4 件）：30% 回 8% max_hp"""
+    if random.random() < _set_chance("cloth_regen_battle", 0.30):
+        heal = int(player.get("max_hp", 1) * 0.08)
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"☀️ 布衣愈合！回复 {heal} 点生命！")
+
+
+@register(SET_PROC_EFFECTS, "bless_chant_mp")
+def _sp_bless_chant_mp(battle, player, dmg, logs):
+    """祝福咏叹（祝福 4 件）：35% 回 5% max_mp"""
+    if random.random() < _set_chance("bless_chant_mp", 0.35):
+        heal = int(player.get("max_mp", 1) * 0.05)
+        player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
+        logs.append(f"🎵 祝福咏叹！回复 {heal} 点魔力！")
+
+
+@register(SET_PROC_EFFECTS, "judge_purify_heal")
+def _sp_judge_purify_heal(battle, player, dmg, logs):
+    """审判净化（审判 4 件）：25% 净化 1 减益 + 回 4% max_hp"""
+    if random.random() < _set_chance("judge_purify_heal", 0.25):
+        neg = [k for k in battle.p_buffs if k in ("spd_down", "poison", "mortal_wound", "atk_down", "def_down", "burn", "weak")]
+        if neg:
+            del battle.p_buffs[neg[0]]
+            logs.append("⚖️ 审判净化！净化 1 个负面效果！")
+        heal = int(player.get("max_hp", 1) * 0.04)
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"⚖️ 审判净化！回复 {heal} 点生命！")
+
+
+@register(SET_PROC_EFFECTS, "ranger_regen_wild")
+def _sp_ranger_regen_wild(battle, player, dmg, logs):
+    """护林再生（护林套 3 件）：40% 回 5% max_hp"""
+    if random.random() < _set_chance("ranger_regen_wild", 0.40):
+        heal = int(player.get("max_hp", 1) * 0.05)
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🌳 护林再生！回复 {heal} 点生命！")
+
+
+@register(SET_PROC_EFFECTS, "iron_execute_rampage")
+def _sp_iron_execute_rampage(battle, player, dmg, logs):
+    """黑铁斩杀（黑铁佣兵 4 件）：敌 hp<40% 时 30% 追加 50% atk 斩杀"""
+    from ..engine import calc_damage
+    hp_ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if hp_ratio < 0.40 and random.random() < _set_chance("iron_execute_rampage", 0.30):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.50), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"💀 黑铁斩杀！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "shadow_combo_double")
+def _sp_shadow_combo_double(battle, player, dmg, logs):
+    """轻影连刺（轻影 4 件）：25% 追加 40% atk 连刺"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("shadow_combo_double", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.40), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🗡️ 轻影连刺！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "night_backstab")
+def _sp_night_backstab(battle, player, dmg, logs):
+    """夜行背刺（夜行 4 件）：满血 +25% 增伤，否则 20% 5% max_hp 真伤"""
+    from ..engine import calc_damage
+    hp_ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if hp_ratio >= 0.999:
+        battle._damage_enemy(int(dmg * 0.25), logs)
+        logs.append("🌙 夜行背刺！满血目标追加 25% 伤害！")
+    elif random.random() < _set_chance("night_backstab", 0.20):
+        pst = battle._player_stats(player)
+        cd = calc_damage(int(battle.enemy.get("max_hp", 1) * 0.05), 0)
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🌙 夜行背刺！追加 {cd} 点真伤！")
+
+
+@register(SET_PROC_EFFECTS, "shadow_etch_vuln")
+def _sp_shadow_etch_vuln(battle, player, dmg, logs):
+    """阴影蚀刻（阴影 4 件）：30% 叠 1 层蚀刻（每层 +15% 受伤害）"""
+    if random.random() < _set_chance("shadow_etch_vuln", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.setdefault("mark", {"n": 0, "mult": 1.0})
+        cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        logs.append("🌒 阴影蚀刻！敌人被蚀刻（每层 +15% 受伤害）")
+
+
+@register(SET_PROC_EFFECTS, "phantom_echo")
+def _sp_phantom_echo(battle, player, dmg, logs):
+    """幻影分身（幻影 4 件）：20% 追加 60% atk 幻影斩（暴击时 35%）"""
+    from ..engine import calc_damage
+    is_crit = getattr(battle, "_last_crit", False)
+    chance = 0.35 if is_crit else 0.20
+    if random.random() < _set_chance("phantom_echo", chance):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.60), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"👻 幻影分身！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "midnight_assassinate")
+def _sp_midnight_assassinate(battle, player, dmg, logs):
+    """午夜暗杀（午夜 4 件）：敌 hp<30% 时 35% 追加 40% atk 真伤"""
+    from ..engine import calc_damage
+    hp_ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if hp_ratio < 0.30 and random.random() < _set_chance("midnight_assassinate", 0.35):
+        pst = battle._player_stats(player)
+        cd = calc_damage(int(pst.get("atk", 0) * 0.40), 0)
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🗡️ 午夜暗杀！追加 {cd} 点真伤处决！")
+
+
+@register(SET_PROC_EFFECTS, "shadow_combo_cp")
+def _sp_shadow_combo_cp(battle, player, dmg, logs):
+    """轻影连击套（轻影套 4 件）：30% 额外获得 1 连击点"""
+    if random.random() < _set_chance("shadow_combo_cp", 0.30):
+        battle._res_gain(player, "cp", 1)
+        logs.append("🗡️ 轻影连击！额外获得 1 连击点！")
+
+
+@register(SET_PROC_EFFECTS, "night_stealth_exec")
+def _sp_night_stealth_exec(battle, player, dmg, logs):
+    """夜行潜行套（夜行套 4 件）：敌 hp<30% 时 30% 下一次攻击必定暴击"""
+    hp_ratio = battle.enemy.get("hp", 0) / max(1, battle.enemy.get("max_hp", 1))
+    if hp_ratio < 0.30 and random.random() < _set_chance("night_stealth_exec", 0.30):
+        battle.p_buffs["stealth"] = 1
+        logs.append("🌙 夜行潜行！下一次攻击必定暴击！")
+
+
+@register(SET_PROC_EFFECTS, "shadow_erode_poison")
+def _sp_shadow_erode_poison(battle, player, dmg, logs):
+    """阴影侵蚀套（阴影套 4 件）：30% 叠 1 层毒（上限 5）"""
+    if random.random() < _set_chance("shadow_erode_poison", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("poison") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
+        deb["poison"] = cur
+        logs.append("☠️ 阴影侵蚀！敌人中毒！（每层持续伤害）")
+
+
+@register(SET_PROC_EFFECTS, "frost_hunt_freeze")
+def _sp_frost_hunt_freeze(battle, player, dmg, logs):
+    """霜猎冰冻（霜猎套 3 件）：20% 冻结敌人 1 回合（Boss 减速 40%）"""
+    if random.random() < _set_chance("frost_hunt_freeze", 0.20):
+        if hasattr(battle, "_freeze_enemy"):
+            battle._freeze_enemy()
+            logs.append("🧊 霜猎冰冻！敌人被冻结！")
+        else:
+            battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), 1)
+            logs.append("🧊 霜猎冰冻！敌人被冻结！")
+
+
+@register(SET_PROC_EFFECTS, "silver_knight_lance")
+def _sp_silver_knight_lance(battle, player, dmg, logs):
+    """白银冲锋（白银骑士 4 件）：30% 破甲 15% 2 回合 + 已破甲追加 30% atk"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("silver_knight_lance", 0.30):
+        if "def_down" in battle.e_buffs:
+            pst = battle._player_stats(player)
+            est = battle._enemy_stats()
+            cd = calc_damage(int(pst.get("atk", 0) * 0.30), est.get("def", 0))
+            if cd > 0:
+                battle._damage_enemy(cd, logs)
+                logs.append(f"🐎 白银冲锋！破甲追加 {cd} 点伤害！")
+        else:
+            battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
+            battle.e_buffs["_armor_break_pct"] = 0.15
+            logs.append("🐎 白银冲锋！敌人防御下降 15%！")
+
+
+@register(SET_PROC_EFFECTS, "jing_tie_refine")
+def _sp_jing_tie_refine(battle, player, dmg, logs):
+    """精淬（精铁 4 件）：50% 叠 1 层精淬（-5%/层，上限 3）"""
+    if random.random() < _set_chance("jing_tie_refine", 0.50):
+        lv = battle.e_buffs.get("jing_tie_lv", 0)
+        if lv < 3:
+            battle.e_buffs["jing_tie_lv"] = lv + 1
+            battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
+        logs.append("⚒️ 精淬！敌方防御 -5%/层！")
+
+
+@register(SET_PROC_EFFECTS, "qi_shi_charge")
+def _sp_qi_shi_charge(battle, player, dmg, logs):
+    """骑士冲锋（骑士 4 件）：18% 追加 100% atk 冲锋（每回合 1 次）"""
+    from ..engine import calc_damage
+    if battle.p_eff.get("qi_shi_used"):
+        return
+    if random.random() < _set_chance("qi_shi_charge", 0.18):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 1.00), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            battle.p_eff["qi_shi_used"] = True
+            logs.append(f"🐎 骑士冲锋！追加 {cd} 点伤害！")
+
+
+@register(SET_PROC_EFFECTS, "li_ming_dawnbreak")
+def _sp_li_ming_dawnbreak(battle, player, dmg, logs):
+    """黎明破晓（黎明 4 件）：30% 破甲 15% 2 回合 + 目标受疗 -30%"""
+    if random.random() < _set_chance("li_ming_dawnbreak", 0.30):
+        battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
+        battle.e_buffs["_armor_break_pct"] = 0.15
+        battle.e_buffs["_anti_heal_pct"] = 0.30
+        logs.append("🌅 黎明破晓！敌人破甲且受疗效果 -30%！")
+
+
+@register(SET_PROC_EFFECTS, "jing_tie_edge")
+def _sp_jing_tie_edge(battle, player, dmg, logs):
+    """精铁锋刃（精铁套 4 件）：40% 本次攻击无视 15% 防御"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("jing_tie_edge", 0.40):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.15), 0)
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"⚔️ 精铁锋刃！追加 {cd} 点无视防御伤害！")
+
+
+@register(SET_PROC_EFFECTS, "bai_lian_forge")
+def _sp_bai_lian_forge(battle, player, dmg, logs):
+    """百炼（百炼套 4 件）：叠 1 层百炼（+2% atk，上限 10）"""
+    lv = battle.p_eff.get("bai_lian_lv", 0)
+    if lv < 10:
+        battle.p_eff["bai_lian_lv"] = lv + 1
+        logs.append(f"🔨 百炼！攻击 +2%（当前 {lv+1} 层）")
+
+
+@register(SET_PROC_EFFECTS, "long_yi_dread")
+def _sp_long_yi_dread(battle, player, dmg, logs):
+    """龙威压制（龙裔套 3 件）：30% 敌人攻击 -15% 2 回合"""
+    if random.random() < _set_chance("long_yi_dread", 0.30):
+        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
+        battle.e_buffs["_weaken_val"] = 0.15
+        logs.append("🐉 龙威压制！敌人攻击下降 15%！")
+
+
+@register(SET_PROC_EFFECTS, "lei_ting_chain")
+def _sp_lei_ting_chain(battle, player, dmg, logs):
+    """连环雷（雷霆 4 件）：25% 追加 50% matk 雷击（带雷印时 75%）"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("lei_ting_chain", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        mk = (battle.enemy.get("debuffs") or {}).get("element_marks") or {}
+        pct = 0.75 if int(mk.get("thunder", 0) or 0) > 0 else 0.50
+        cd = calc_damage(int(pst.get("matk", 0) * pct), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"⚡ 连环雷！追加 {cd} 点雷击伤害！")
+
+
+@register(SET_PROC_EFFECTS, "xue_tu_spark")
+def _sp_xue_tu_spark(battle, player, dmg, logs):
+    """蓄雷（学徒 4 件）：40% 叠 1 层雷印记（上限 3）"""
+    if random.random() < _set_chance("xue_tu_spark", 0.40):
+        deb = battle.enemy.setdefault("debuffs", {})
+        mk = deb.setdefault("element_marks", {})
+        mk["thunder"] = min(3, int(mk.get("thunder", 0) or 0) + 1)
+        logs.append("⚡ 蓄雷！雷印记 +1！")
+
+
+@register(SET_PROC_EFFECTS, "fu_wen_glyph_bolt")
+def _sp_fu_wen_glyph_bolt(battle, player, dmg, logs):
+    """符文雷刻（符文 4 件）：30% 追加 45% matk 雷击（雷印 ≥2 消耗 1 层 +30%）"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("fu_wen_glyph_bolt", 0.30):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        mk = (battle.enemy.setdefault("debuffs", {}).setdefault("element_marks", {}))
+        pct = 0.45
+        if int(mk.get("thunder", 0) or 0) >= 2:
+            pct = 0.75
+            mk["thunder"] = int(mk.get("thunder", 0)) - 1
+        cd = calc_damage(int(pst.get("matk", 0) * pct), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"📜 符文雷刻！追加 {cd} 点雷击伤害！")
+
+
+@register(SET_PROC_EFFECTS, "mi_fa_arcane_bolt")
+def _sp_mi_fa_arcane_bolt(battle, player, dmg, logs):
+    """秘术重雷（秘法 4 件）：20% 追加 80% matk 秘法雷击"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("mi_fa_arcane_bolt", 0.20):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("matk", 0) * 0.80), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"✨ 秘术重雷！追加 {cd} 点雷击伤害！")
+
+
+@register(SET_PROC_EFFECTS, "xing_jie_starfall")
+def _sp_xing_jie_starfall(battle, player, dmg, logs):
+    """星坠（星界 4 件）：15% 追加 80% matk 星雷 + 溅射 40% matk"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("xing_jie_starfall", 0.15):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("matk", 0) * 0.80), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"☄️ 星坠！追加 {cd} 点星雷伤害！")
+
+
+@register(SET_PROC_EFFECTS, "xing_chen_starstrike")
+def _sp_xing_chen_starstrike(battle, player, dmg, logs):
+    """星辰轰击（星辰 4 件）：25% 追加 75% matk 星雷（雷印满 3 必触发）"""
+    from ..engine import calc_damage
+    mk = (battle.enemy.setdefault("debuffs", {}).setdefault("element_marks", {}))
+    full = int(mk.get("thunder", 0) or 0) >= 3
+    if full or random.random() < _set_chance("xing_chen_starstrike", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("matk", 0) * 0.75), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"🌟 星辰轰击！追加 {cd} 点星雷伤害！")
+
+
+@register(SET_PROC_EFFECTS, "xue_tu_surge")
+def _sp_xue_tu_surge(battle, player, dmg, logs):
+    """蓄能（学徒套 4 件）：叠 1 层蓄能（下次雷击 +10%，上限 3）"""
+    lv = battle.p_eff.get("xue_tu_surge_lv", 0)
+    if lv < 3:
+        battle.p_eff["xue_tu_surge_lv"] = lv + 1
+        logs.append(f"⚡ 蓄能！下次雷击伤害 +10%（当前 {lv+1} 层）")
+
+
+@register(SET_PROC_EFFECTS, "fu_wen_annihilate")
+def _sp_fu_wen_annihilate(battle, player, dmg, logs):
+    """符文爆印（符文套 4 件）：30% 叠雷印；雷印 ≥3 引爆 90% matk 雷伤并清印"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("fu_wen_annihilate", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        mk = deb.setdefault("element_marks", {})
+        mk["thunder"] = min(3, int(mk.get("thunder", 0) or 0) + 1)
+        if int(mk.get("thunder", 0)) >= 3:
+            pst = battle._player_stats(player)
+            est = battle._enemy_stats()
+            cd = calc_damage(int(pst.get("matk", 0) * 0.90), est.get("mdef", est.get("def", 0)))
+            if cd > 0:
+                battle._damage_enemy(cd, logs)
+            mk["thunder"] = 0
+            logs.append(f"📜 符文爆印！引爆 {cd} 点雷伤！")
+        else:
+            logs.append("📜 符文刻印！雷印记 +1！")
+
+
+@register(SET_PROC_EFFECTS, "mi_fa_condense")
+def _sp_mi_fa_condense(battle, player, dmg, logs):
+    """秘术回响（秘法套 4 件）：25% 追加 40% matk 雷击 + 回 15% 伤害 MP"""
+    from ..engine import calc_damage
+    if random.random() < _set_chance("mi_fa_condense", 0.25):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("matk", 0) * 0.40), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            mp = int(cd * 0.15)
+            player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + mp)
+            logs.append(f"✨ 秘术回响！追加 {cd} 点雷击，回复 {mp} 点魔力！")
+
+
+@register(SET_PROC_EFFECTS, "hei_zhao_erode")
+def _sp_hei_zhao_erode(battle, player, dmg, logs):
+    """暗蚀（黑沼 4 件）：30% 附加暗蚀 2 回合每回合 1% max_hp 暗伤全额回血"""
+    if random.random() < _set_chance("hei_zhao_erode", 0.30):
+        deb = battle.enemy.setdefault("debuffs", {})
+        cur = deb.get("erode") or {"n": 0, "mult": 1.0}
+        cur["n"] = min(2, int(cur.get("n", 0) or 0) + 1)
+        deb["erode"] = cur
+        logs.append("🌑 暗蚀！敌人被暗蚀侵蚀！（每回合损 1% 最大生命，全额回血）")
+
+
+@register(SET_PROC_EFFECTS, "xing_zhe_flow")
+def _sp_xing_zhe_flow(battle, player, dmg, logs):
+    """行者游血（行者套 4 件）：100% 吸血 6% 伤害"""
+    heal = int(dmg * 0.06)
+    if heal > 0:
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🩸 行者游血！汲取 {heal} 点生命！")
+
+
+@register(SET_PROC_EFFECTS, "xing_zhe_hunt")
+def _sp_xing_zhe_hunt(battle, player, dmg, logs):
+    """猎血（行者 4 件）：40% 吸血 12% 伤害"""
+    if random.random() < _set_chance("xing_zhe_hunt", 0.40):
+        heal = int(dmg * 0.12)
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🩸 猎血！汲取 {heal} 点生命！")
+
+# ============================================================
+# v141.3 D2 独特装备触发型 handler 补充（on_hit/on_taken/turn_start）
+# passive 型（giant_slayer/mark_hunt/executioner/top_hunter/last_breath/grim_ward）
+# 走 _affix_dmg_mult 被动倍率通道（battle.py），不注册触发 handler
+# ============================================================
+
+# ---- D2 受击型（TAKEN_EFFECTS）----
+
+@register(TAKEN_EFFECTS, "obsidian_aegis")
+def _t_obsidian_aegis(battle, player, ctx, logs):
+    """黑曜壁垒（D2）：受击 10% 获得 8% 最大生命护盾（3 回合）"""
+    if "obsidian_aegis" in battle._equip_affix_ids(player) and random.random() < _affix_chance("obsidian_aegis", 0.10):
+        eff = _affix_effect("obsidian_aegis")
+        shield = int(player.get("max_hp", 1) * float(eff.get("pct", 0.08)))
+        battle._add_shield("obsidian_aegis", shield, int(eff.get("turns", 3)))
+        logs.append(f"🪨 黑曜壁垒！获得 {shield} 点护盾！")
+
+
+@register(TAKEN_EFFECTS, "iron_bastion")
+def _t_iron_bastion(battle, player, ctx, logs):
+    """铁壁意志（D2）：受击 20% 使敌人下一次攻击 -25%"""
+    if "iron_bastion" in battle._equip_affix_ids(player) and random.random() < _affix_chance("iron_bastion", 0.20):
+        eff = _affix_effect("iron_bastion")
+        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
+        battle.e_buffs["_weaken_val"] = float(eff.get("pct", 0.25))
+        logs.append("🛡️ 铁壁意志！敌人下一次攻击 -25%！")
+
+
+@register(TAKEN_EFFECTS, "steady_core")
+def _t_steady_core(battle, player, ctx, logs):
+    """磐石之心（D2）：受击 15% 免疫眩晕/减速且回 3% 生命"""
+    if "steady_core" in battle._equip_affix_ids(player) and random.random() < _affix_chance("steady_core", 0.15):
+        eff = _affix_effect("steady_core")
+        for k in ("stun", "freeze", "spd_down"):
+            battle.p_buffs.pop(k, None)
+        heal = int(player.get("max_hp", 1) * float(eff.get("heal_pct", 0.03)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"⛰️ 磐石之心！免疫控制，回复 {heal} 点生命！")
+
+
+@register(TAKEN_EFFECTS, "grim_ward")
+def _t_grim_ward(battle, player, ctx, logs):
+    """亡者守护（D2）：生命 >50% 时受击伤害 -7%"""
+    if "grim_ward" in battle._equip_affix_ids(player):
+        eff = _affix_effect("grim_ward")
+        p_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1))
+        if p_ratio > 0.50:
+            dmg_before = ctx["out"]
+            ctx["out"] = max(1, int(ctx["out"] * float(eff.get("dmg_taken_mult", 0.93))))
+            logs.append(f"🕯️ 亡者守护！减伤 {dmg_before - ctx['out']} 点")
+
+
+# ---- D2 回合开始型（TURN_START_EFFECTS）----
+
+@register(TURN_START_EFFECTS, "life_spring")
+def _ts_life_spring(battle, player, logs):
+    """生命泉涌（D2）：每回合回 3% 最大生命"""
+    if "life_spring" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
+        heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("life_spring").get("pct", 0.03)))
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🌊 生命泉涌！回复 {heal} 点生命！")
+
+
+# ---- D2 攻击命中型（HIT_EFFECTS，全部 on_hit trigger）----
+
+@register(HIT_EFFECTS, "sun_blaze")
+def _h_sun_blaze(battle, player, dmg, logs):
+    """烈日迸发（D2）：攻击 15% 概率造成 80% 额外火伤"""
+    if "sun_blaze" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sun_blaze", 0.15):
+        ed = max(1, int(dmg * 0.80))
+        battle._damage_enemy(ed, logs)
+        logs.append(f"☀️ 烈日迸发！追加 {ed} 点火属性伤害！")
+
+
+@register(HIT_EFFECTS, "chain_overload")
+def _h_chain_overload(battle, player, dmg, logs):
+    """连锁过载（D2）：攻击 15% 概率追加 60% 魔攻雷击"""
+    from ..engine import calc_damage
+    if "chain_overload" in battle._equip_affix_ids(player) and random.random() < _affix_chance("chain_overload", 0.15):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("matk", 0) * 0.60), est.get("mdef", est.get("def", 0)))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"⚡ 连锁过载！追加 {cd} 点雷击伤害！")
+
+
+@register(HIT_EFFECTS, "mortal_wound")
+def _h_mortal_wound(battle, player, dmg, logs):
+    """致伤重击（D2）：攻击 20% 概率使目标受疗效果 -50%（2 回合）"""
+    if "mortal_wound" in battle._equip_affix_ids(player) and random.random() < _affix_chance("mortal_wound", 0.20):
+        battle.e_buffs["_anti_heal_pct"] = 0.50
+        battle.e_buffs["anti_heal_turns"] = max(battle.e_buffs.get("anti_heal_turns", 0), 2)
+        logs.append("💢 致伤重击！目标受疗效果 -50%！")
+
+
+@register(HIT_EFFECTS, "memory_tear")
+def _h_memory_tear(battle, player, dmg, logs):
+    """记忆撕裂（D2）：攻击 15% 概率使敌人攻击 -15%（2 回合）"""
+    if "memory_tear" in battle._equip_affix_ids(player) and random.random() < _affix_chance("memory_tear", 0.15):
+        battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
+        battle.e_buffs["_weaken_val"] = 0.15
+        logs.append("🧠 记忆撕裂！敌人攻击下降 15%！")
+
+
+@register(HIT_EFFECTS, "arcane_echo")
+def _h_arcane_echo(battle, player, dmg, logs):
+    """秘法回响（D2）：攻击 15% 概率使下次技能伤害 +15%"""
+    if "arcane_echo" in battle._equip_affix_ids(player) and random.random() < _affix_chance("arcane_echo", 0.15):
+        battle.p_eff["arcane_echo_next"] = 1.15
+        logs.append("🔮 秘法回响！下一次技能伤害 +15%！")
+
+
+@register(HIT_EFFECTS, "siphon")
+def _h_siphon(battle, player, dmg, logs):
+    """汲力（D2）：攻击 20% 概率回复 5% 最大生命"""
+    if "siphon" in battle._equip_affix_ids(player) and random.random() < _affix_chance("siphon", 0.20):
+        heal = int(player.get("max_hp", 1) * 0.05)
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"🌀 汲力！回复 {heal} 点生命！")
+
+
+@register(HIT_EFFECTS, "summon_pact")
+def _h_summon_pact(battle, player, dmg, logs):
+    """召唤契约（D2）：攻击 20% 概率召唤援军（30% 攻击力）"""
+    from ..engine import calc_damage
+    if "summon_pact" in battle._equip_affix_ids(player) and random.random() < _affix_chance("summon_pact", 0.20):
+        pst = battle._player_stats(player)
+        est = battle._enemy_stats()
+        cd = calc_damage(int(pst.get("atk", 0) * 0.30), est.get("def", 0))
+        if cd > 0:
+            battle._damage_enemy(cd, logs)
+            logs.append(f"📜 召唤契约！召唤援军造成 {cd} 点伤害！")
+
+

@@ -33,7 +33,7 @@ def check(name, cond, detail=""):
 
 def test_counts():
     print("【1. 数量基线】")
-    check("名册 631 件", len(C.EQUIP_ROSTER) == 631, str(len(C.EQUIP_ROSTER)))
+    check("名册 632 件", len(C.EQUIP_ROSTER) == 632, str(len(C.EQUIP_ROSTER)))
     check("配方 352 条", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))
     check("素材 563 个", len(C.MATERIALS) == 563, str(len(C.MATERIALS)))
     # 新素材存在
@@ -168,24 +168,24 @@ def test_set_effects():
     """套装特效注册（v136 审计补：_build_class_sets 必须注册 bonus_4/bonus_3，
     否则战斗侧 set_bonus_4 读不到 effect，玩家白穿套装）"""
     print("【7. 套装特效注册】")
-    # 铁皮套 4 件 → pierce（破甲）；护林套 3 件 → regen（回血，区域套 3 槽位）
+    # v141.3 S1 套装去模板化：铁皮套 4 件 → tie_pi_harden（受击防御）；护林套 3 件 → ranger_regen_wild（攻击回血）
     b4 = C.SETS.get("set_tie_pi_tao", {}).get("bonus_4", {})
-    check("铁皮套 bonus_4 注册", b4.get("effect") == "pierce", str(b4))
+    check("铁皮套 bonus_4 注册", b4.get("effect") == "tie_pi_harden", str(b4))
     b4b = C.SETS.get("set_hu_lin_tao", {}).get("bonus_3", {})
-    check("护林套 bonus_3 注册", b4b.get("effect") == "regen", str(b4b))
+    check("护林套 bonus_3 注册", b4b.get("effect") == "ranger_regen_wild", str(b4b))
     eqs = [generate_roster_equip(rid) for rid, r in C.EQUIP_ROSTER.items()
            if r.get("series") == "铁皮"][:4]
     if len(eqs) == 4:
         equipment = {"weapon": eqs[0], "helm": eqs[1], "armor": eqs[2], "legs": eqs[3]}
         effs = engine_set_bonus_4(equipment)
-        check("铁皮套4件特效", "pierce" in effs, str(effs))
+        check("铁皮套4件特效", "tie_pi_harden" in effs, str(effs))
     # 区域套 3 件特效（v136 审计 P1-1：3 槽位凑不齐 4 件，bonus_3 让 3 件生效）
     r3 = [generate_roster_equip(rid) for rid, r in C.EQUIP_ROSTER.items()
           if r.get("series") == "护林" and r.get("source") == "商店"][:3]
     if len(r3) == 3:
         equipment3 = {"armor": r3[0], "legs": r3[1], "boots": r3[2]}
         effs3 = engine_set_bonus_4(equipment3)
-        check("护林套3件特效", "regen" in effs3, str(effs3))
+        check("护林套3件特效", "ranger_regen_wild" in effs3, str(effs3))
         check("护林套3件属性", "hp" in set_bonus_2(equipment3), str(set_bonus_2(equipment3)))
 
 

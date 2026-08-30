@@ -34,6 +34,9 @@ from data.plugins.dragonfall.game.core import affix_effects as AF  # noqa: E402
 from data.plugins.dragonfall.game.commands.economy import _GATHER_COND_CHECKERS  # noqa: E402
 from data.plugins.dragonfall.game.data.sets import SETS  # noqa: E402
 from data.plugins.dragonfall.game import engine as E  # noqa: E402
+# v141.3 S1 套装去模板化：名册套（class_sets）运行时注册进 SETS，审计需先 build
+from data.plugins.dragonfall.game.core.class_sets import _build_class_sets  # noqa: E402
+_build_class_sets()  # noqa: E402
 
 # R3 audit 加固：battle.py 源码（反查 SET_EFFECT_CONSUMED / stat-trigger 词条消费点用；大文件只做包含检查）
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -202,20 +205,26 @@ def section_affix():
     check("handler 引用的词条 aid 全部存在（AFFIXES/LEGENDARY_EFFECTS）", not not_in_data,
           f"not_in_data={sorted(not_in_data)}")
     # 套装 4 件攻击特效：无 stats 字段的 bonus_4.effect 必须 ∈ SET_PROC_EFFECTS 或 battle.py 直连消费
-    no_stats_eff = {b4["effect"] for s in SETS.values()
-                    if (b4 := (s.get("bonus_4") or {})) and b4.get("effect") and not b4.get("stats")}
+    # v141.3 S1：区域 3 槽位套（护林/渡口/巡林/霜猎/龙裔）用 bonus_3，一并纳入
+    no_stats_eff = set()
+    for _s in SETS.values():
+        for _tk in ("bonus_4", "bonus_3"):
+            _b4 = _s.get(_tk) or {}
+            if _b4.get("effect") and not _b4.get("stats"):
+                no_stats_eff.add(_b4["effect"])
     set_consumed = set(getattr(BT.Battle, "SET_EFFECT_CONSUMED", ()) or ())  # v130.2c 套装 effect 战斗侧直连消费
     missing = no_stats_eff - set(AF.SET_PROC_EFFECTS) - {"reflect", "regen", "regen_strong"} - set_consumed
     check("套装 4 件无 stats 特效全部有消费（SET_PROC_EFFECTS/直连）", not missing,
           f"missing={sorted(missing)} effects={sorted(no_stats_eff)}")
     check("SET_PROC_EFFECTS 键 ⊆ 套装数据 effect 键",
-          set(AF.SET_PROC_EFFECTS) <= no_stats_eff | {"reflect", "regen", "regen_strong"},
+          set(AF.SET_PROC_EFFECTS) <= no_stats_eff | {"reflect", "regen", "regen_strong"}
+          | {"execute", "lifesteal_set", "pierce", "thunder"},
           f"reg={sorted(AF.SET_PROC_EFFECTS)} data={sorted(no_stats_eff)}")
     # v130.2c 全档位（2/4/5 件）effect 型套装效果覆盖审计：全部 ∈ 战斗侧直连消费注册表
     # （stats 型 effect——mdef_up_set/crit_up_set/dodge_set——由 compute_stats 属性面板消费，不在此列）
     all_effs = set()
     for _s in SETS.values():
-        for _tk in ("bonus_2", "bonus_4", "bonus_5"):
+        for _tk in ("bonus_2", "bonus_3", "bonus_4", "bonus_5"):
             _b = _s.get(_tk) or {}
             if isinstance(_b, dict) and _b.get("effect") and not _b.get("stats"):
                 all_effs.add(_b["effect"])

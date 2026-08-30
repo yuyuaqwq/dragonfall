@@ -381,6 +381,18 @@ class Battle:
             self._add_shield("affix_shield",
                              int(player.get("max_hp", 100) * float(_se.get("shield_hp_pct", 0.10))),
                              int(_se.get("turns", 3)))
+        # v140 S1 战斗开始专属：狼嚎（wolf_howl）/ 蓄势待发（surge_ready）/ 奥术屏障（arcane_ward）
+        if player:
+            _bs_ids = set(self._equip_affix_ids(player))
+            if "wolf_howl" in _bs_ids:
+                self.p_eff["wolf_howl_mult"] = 1.10
+                self._startup_logs = list(getattr(self, "_startup_logs", []) or []) + ["🐺 狼嚎！本场伤害+10%"]
+            if "surge_ready" in _bs_ids:
+                self.p_eff["surge_ready"] = True
+                self._startup_logs = list(getattr(self, "_startup_logs", []) or []) + ["💪 蓄势待发：下一次攻击伤害 +15%！"]
+            if "arcane_ward" in _bs_ids:
+                self._add_shield("arcane_ward", int(player.get("max_hp", 100) * 0.15), 3)
+                self._startup_logs = list(getattr(self, "_startup_logs", []) or []) + ["🔮 奥术屏障：奥术护盾笼罩周身！"]
         # v130.2c 战斗开始资源词条：起手之势（拳师开局 +1 气；统一读取器 battle_start 事件）
         if player:
             self._affix_res_proc(player, "battle_start", [])
@@ -803,7 +815,12 @@ class Battle:
                            "crit_on_marked", "res_cost_reduce", "heal_team_on_miracle_t2plus",
                            "first_hit_immune", "elegy_dmg", "battle_start_cp", "finisher_crit",
                            "combo_finisher_per_layer", "battle_start_res", "chi_skill_phys",
-                           "full_rage_pursuit")
+                           "full_rage_pursuit",
+                           "holy_halo_shield", "holy_field_heal", "divine_grace_burst",
+                           "cloth_heal_overflow", "bless_ward_shield", "holy_bastion_def",
+                           "shi_quan_retort", "bi_chui_wall", "pan_shi_steady", "anvil_parry",
+                           "tie_shou_blood", "hu_xiao_barrier", "ferry_repel",
+                           "tie_pi_bulwark", "shou_wang_ward", "tie_pi_harden")
 
     def _affix_effs(self, player: dict, aid: str) -> list:
         """已装备词条的全部实例 effect 列表（可跨件叠加；每件 = (effect dict, tier 值或 None)）。
@@ -2420,6 +2437,20 @@ class Battle:
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
         affix_mult, affix_tags = self._affix_dmg_mult(player)
         dmg = int(dmg * affix_mult)
+        # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
+        if (self.p_eff or {}).get("wolf_howl_mult"):
+            dmg = int(dmg * float(self.p_eff.get("wolf_howl_mult", 1.10)))
+            affix_tags = list(affix_tags) + ["🐺狼嚎x1.1"]
+        # v140 S1 直连消费：蓄势待发（surge_ready）——战斗开始后第一次攻击 +15%（一次性）
+        if (self.p_eff or {}).get("surge_ready"):
+            dmg = int(dmg * 1.15)
+            self.p_eff.pop("surge_ready", None)
+            affix_tags = list(affix_tags) + ["💪蓄势x1.15"]
+        # v140 S1 直连消费：血誓回响（blood_oath_echo atk_up）——本次攻击 +10%（一次性）
+        if (self.p_eff or {}).get("atk_up"):
+            dmg = int(dmg * 1.10)
+            self.p_eff.pop("atk_up", None)
+            affix_tags = list(affix_tags) + ["🩸血誓x1.1"]
         # v140 波3.1：特效装备被动增伤（暮光处决/弑星/岁月流转/三相/破岳/咒誓/反击/暮裂/雷纹等）
         try:
             from .core.weapon_effects import proc as _we_proc
@@ -2486,6 +2517,11 @@ class Battle:
             cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
         if is_crit and cdmg > 0:
             dmg = int(dmg * (1 + cdmg))
+        # v140 S1 直连消费：鹰眼锐视（eagle_vision）——本次暴击伤害 +30%（一次性消费）
+        if is_crit and (self.p_eff or {}).get("eagle_vision"):
+            dmg = int(dmg * 1.30)
+            self.p_eff.pop("eagle_vision", None)
+            affix_tags = list(affix_tags) + ["🦅鹰眼锐视"]
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
@@ -2516,7 +2552,7 @@ class Battle:
             # 阶段八：攻击命中后词条触发（流血/破甲/连击/元素附加等）
             self._affix_on_hit(player, dmg, logs)
             self._food_on_hit(player, dmg, logs)
-            self._set_attack_proc(player, dmg, logs)
+            self._set_attack_proc(player, dmg, logs, is_crit=is_crit)
             # v140 波3.1：特效装备攻击命中（风痕/破绽/裂伤/霜环/败血/裂风矢/圣裁/雷纹/幻影/海妖/破败/穿星等）
             try:
                 from .core.weapon_effects import proc as _we_proc
@@ -3031,7 +3067,11 @@ class Battle:
         # 被动词条/专属增伤：遍历数据 effect 的 dmg_mult（条件字段一并读数据；
         # 遍历顺序保持旧代码分支序，斩杀线统一 30% 由 execute_threshold 数据声明）
         for aid in ("execute", "jack_hook", "ancient_king", "hunt", "break_magic",
-                    "dragon_aw", "dawn_light", "precise"):
+                    "dragon_aw", "dawn_light", "precise",
+                    # v141.3 D2 passive 专属 + D3 passive 专属
+                    "kingdom_lion_heart", "star_destruction", "dragon_annihilation",
+                    "divine_execution", "giant_slayer", "mark_hunt", "executioner",
+                    "top_hunter", "last_breath"):
             if aid not in ids:
                 continue
             _ai = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid) or {}
@@ -3048,6 +3088,9 @@ class Battle:
             if _ok and _ae.get("enemy_role") and not self._affix_role_ok(e, _ae["enemy_role"]):
                 _ok = False
             if _ok and _ae.get("enemy_marked") and not self._affix_marked(e):
+                _ok = False
+            # v140 S1 王狮之心：仅生命 >70% 时增伤生效（cond hp_gt_70 数据字段）
+            if _ok and _ae.get("cond") == "hp_gt_70" and not (player.get("hp", 0) / max(1, player.get("max_hp", 1)) > 0.70):
                 _ok = False
             if _ok:
                 mult *= float(_dm)
@@ -3241,6 +3284,9 @@ class Battle:
             if random.random() < float(_ps.get("chance", 0.2)):
                 heal = int(heal * (1 + float(_ps.get("mult", 0))))
                 logs.append(f"✨ {_pn}：治疗暴击！治疗量提升！")
+        # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗 +8%，溢出转护盾
+        if self._set_eff(player, "cloth_heal_overflow", 4):
+            heal = int(heal * 1.08)
         # 阶段八：圣光套 2 件效果——治疗 +10%
         if E.has_set(player.get("equipment", {}), "圣光套"):
             heal = int(heal * 1.10)
@@ -3277,6 +3323,23 @@ class Battle:
         except Exception:
             pass
         target_unit["hp"] = min(target_unit.get("max_hp", target_unit.get("hp", 0)), hp_before + heal)
+        # v140 S1 直连消费：圣愈不浪费（cloth_heal_overflow）——治疗溢出量 50% 转护盾
+        if self._set_eff(player, "cloth_heal_overflow", 4):
+            _cho_ov = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
+            if _cho_ov > 0:
+                _cho_sh = int(_cho_ov * 0.50)
+                if target_ally is not None:
+                    _sh_t = target_unit.setdefault("p_shields", {})
+                    _cur_t = _sh_t.get("cloth_overflow")
+                    if _cur_t:
+                        _cur_t["value"] = _cur_t.get("value", 0) + _cho_sh
+                        _cur_t["turns"] = max(_cur_t.get("turns", 0), 2)
+                    else:
+                        _sh_t["cloth_overflow"] = {"value": _cho_sh, "turns": 2}
+                    logs.append(f"☀️ 圣愈不浪费：治疗溢出转化 {_cho_sh} 点护盾！")
+                else:
+                    self._add_shield("cloth_overflow", _cho_sh, 2)
+                    logs.append(f"☀️ 圣愈不浪费：治疗溢出转化 {_cho_sh} 点护盾！")
         # v140 波3.1：特效装备治疗溢出转盾（回响祝福/赎罪之盾）——clamp 后计算真实溢出
         try:
             _real_overflow = max(0, hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0)))
@@ -3633,6 +3696,10 @@ class Battle:
         _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
         # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
         affix_mult, affix_tags = self._affix_dmg_mult(player)
+        # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
+        if (self.p_eff or {}).get("wolf_howl_mult"):
+            affix_mult = affix_mult * float(self.p_eff.get("wolf_howl_mult", 1.10))
+            affix_tags = list(affix_tags) + ["🐺狼嚎x1.1"]
         if self._mom_mult != 1.0:
             affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
         if self._combo_mult != 1.0:
@@ -3952,7 +4019,7 @@ class Battle:
 
         # ---- v10 套装攻击特效 ----
         if total > 0:
-            self._set_attack_proc(player, total, logs)
+            self._set_attack_proc(player, total, logs, is_crit=is_crit)
         return logs
 
     # ---------------- v29 分支机制 ----------------
@@ -4086,9 +4153,11 @@ class Battle:
                 self._interrupt_charging(tgt, logs, source=skill_name or self._last_hitter)
 
     # ---------------- v10 套装攻击特效 ----------------
-    def _set_attack_proc(self, player: dict, dmg: int, logs: list):
+    def _set_attack_proc(self, player: dict, dmg: int, logs: list, is_crit: bool = False):
         """玩家攻击后触发已激活套装的 4 件攻击特效
-        v98.5：效果数据化 → core/affix_effects.py SET_PROC_EFFECTS"""
+        v98.5：效果数据化 → core/affix_effects.py SET_PROC_EFFECTS
+        v140 S1：is_crit 透传并落到 battle._last_crit（供 phantom_echo 等 handler 读）"""
+        self._last_crit = bool(is_crit)
         effs = E.set_bonus_4(player.get("equipment", {}))
         if not effs:
             return
@@ -4590,10 +4659,17 @@ class Battle:
 
     def _apply_mark(self, dmg: int) -> int:
         """标记易伤（v1.1 按层，契约 §10.1）：每层 +20%（5 层 +100%，对齐设计 27章:305）。
-        e_buffs["mark"] 计时窗口保留（由 _m_mark 写入），层数在 enemy.debuffs 随回合衰减。"""
+        e_buffs["mark"] 计时窗口保留（由 _m_mark 写入），层数在 enemy.debuffs 随回合衰减。
+        v140 S1 分档：暗蚀铭刻（shadow_etch_vuln）每层 +15%；追影者（shadow_track）
+        额外 +5%（与暗蚀铭刻叠加 = 每层 +25%）；无则维持 +20%。"""
         n = int((self.enemy.get("debuffs") or {}).get("mark", {}).get("n", 0) or 0)
         if n > 0:
-            return int(dmg * (1 + 0.20 * n))
+            _pl = getattr(self, "player", None) or {}
+            _mk_effs = E.set_bonus_4(_pl.get("equipment") or {})
+            _pct = 0.15 if "shadow_etch_vuln" in _mk_effs else 0.20
+            if "shadow_track" in _mk_effs:
+                _pct += 0.05
+            return int(dmg * (1 + _pct * n))
         return dmg
 
     def _pet_skill_turn(self, player: dict, logs: list) -> list:
@@ -4705,6 +4781,22 @@ class Battle:
         if not deb:
             return logs
         max_hp = int(e.get("max_hp", 1) or 1)
+        # v140 S1 直连消费：暗蚀（erode，hei_zhao_erode 挂）——每回合扣 1% 敌方最大生命暗伤，全额回血
+        _er = deb.get("erode")
+        if _er:
+            _er_n = int(_er.get("n", 0) or 0)
+            if _er_n > 0 and e.get("hp", 0) > 0:
+                _er_dmg = max(1, int(max_hp * 0.01))
+                _er_dmg = self._boss_dmg_filter(_er_dmg, player, logs, dmg_type="true", dot=True)
+                self._damage_enemy(_er_dmg, logs, wake_sleep=False, target=e)
+                _er_heal = _er_dmg
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _er_heal)
+                logs.append(f"🌑 暗蚀：蚀骨之力侵蚀【{e.get('name', '敌人')}】，损失 {_er_dmg} 点生命，你回复 {_er_heal} 点生命！")
+                _er_n -= 1
+                if _er_n <= 0:
+                    deb.pop("erode", None)
+                else:
+                    _er["n"] = _er_n
         immune = e.get("immune_dots") or []
         # v1.1 混合公式：施放者攻击快照（防御性取数，失败按 0 处理只留生命部分）
         try:
@@ -4993,6 +5085,33 @@ class Battle:
                 player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
                 logs.append(f"✨ 套装祝福生效，你回复了 {heal} 点生命！")
                 break
+        # v140 S1 直连消费：圣堂领域（holy_field_heal）/ 神恩爆发（divine_grace_burst）/ 壁立千仞（hu_xiao_barrier）
+        _s4 = E.set_bonus_4(player.get("equipment", {}))
+        if "holy_field_heal" in _s4:
+            _hfh = (self._set_eff(player, "holy_field_heal", 4) or {})
+            _low = float(_hfh.get("low_pct", 0.50) or 0.50)
+            _hl = float(_hfh.get("heal_low", 0.06) or 0.06)
+            _hh = float(_hfh.get("heal_high", 0.03) or 0.03)
+            _mx_hp = player.get("max_hp", player.get("hp", 1))
+            if player.get("hp", 0) < _mx_hp:
+                _pct = _hl if player.get("hp", 0) / max(1, _mx_hp) < _low else _hh
+                _hf_heal = int(_mx_hp * _pct)
+                player["hp"] = min(_mx_hp, player.get("hp", 0) + _hf_heal)
+                logs.append(f"⛪ 圣堂领域：圣光庇护，你回复了 {_hf_heal} 点生命！")
+        if "divine_grace_burst" in _s4:
+            _mx_hp2 = player.get("max_hp", player.get("hp", 1))
+            _dg_heal = int(_mx_hp2 * 0.05)
+            if player.get("hp", 0) < _mx_hp2:
+                player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_heal)
+                logs.append(f"☀️ 神恩爆发：神恩涌动，你回复了 {_dg_heal} 点生命！")
+            if not (self.p_eff or {}).get("divine_burst_used") and player.get("hp", 0) / max(1, _mx_hp2) < 0.30:
+                _dg_extra = int(_mx_hp2 * 0.15)
+                player["hp"] = min(_mx_hp2, player.get("hp", 0) + _dg_extra)
+                self.p_eff["divine_burst_used"] = True
+                logs.append(f"☀️ 神恩爆发·濒危：圣辉倾泻，额外回复 {_dg_extra} 点生命！（每场 1 次）")
+        if "hu_xiao_barrier" in _s4:
+            self._add_shield("hu_xiao_barrier", int(player.get("max_hp", player.get("hp", 1)) * 0.03), 1)
+            logs.append("🧱 壁立千仞：千仞壁垒立于身前！")
         # v104 M07 修复 P1：星尘套 5 件——夜间每回合回蓝 5%（10 章五节；夜间 = 19:00-06:00 服务器本地时间）
         if "星尘" in "|".join(self._set_bonus_5(player)) and player.get("mp", 0) < player.get("max_mp", 1):
             _hour = time.localtime().tm_hour
@@ -5586,6 +5705,13 @@ class Battle:
             self._set_immune_used = True
             logs.append("☀️ 圣典·日冕：满信仰免伤结界抵挡了这次攻击！")
             return
+        # v140 S1 直连消费：铁壁格挡（anvil_parry）——受击 20% 概率免疫本次伤害（每场 3 次）
+        if self._set_eff(player, "anvil_parry", 4):
+            _apl = int((self.p_eff or {}).get("anvil_parry_left", 3) or 3)
+            if _apl > 0 and random.random() < 0.20:
+                self.p_eff["anvil_parry_left"] = _apl - 1
+                logs.append(f"🛡️ 铁壁格挡！千锤百炼的拳套挡下了攻击！（剩余 {_apl - 1} 次）")
+                return
         # v113.1：团队技能 reduce_all 真·百分比减伤（此前误映射 def_up 防御提升）——
         # p_buffs["reduce_all"] 存减伤百分比，回合数由 self._reduce_all_left 单独计时。
         # 单机侧在此按比例减伤；副本广播侧（instance.py 消费 team_effects["reduce_all"]）另口径。
@@ -5612,6 +5738,12 @@ class Battle:
             block_reduce = max(1, int(dmg * 0.5))
             dmg = max(1, dmg - block_reduce)
             logs.append(f"🛡️ 格挡！减免 {block_reduce} 点伤害！")
+            # v140 S1 直连消费：壁槌反震（bi_chui_wall）——格挡成功必反弹 30% 原始伤害
+            if self._set_eff(player, "bi_chui_wall", 4) and self.enemy.get("hp", 0) > 0:
+                _bw = max(1, int(dmg * 0.30))
+                _bw = self._boss_dmg_filter(_bw, player, logs)
+                self._damage_enemy(_bw, logs)
+                logs.append(f"🧱 壁槌反震！格挡余劲反弹 {_bw} 点伤害！")
             # v107 格挡反击（圣殿骑士）：格挡成功后按 chance 反伤（物理段，mult 为反伤系数）
             # v110.3 P2-1：多个格挡反击被动逐个独立 roll，命中即停；此前 break 在 for 末尾无条件退出，只 roll 第一个被动
             for _pn, _ps in self._passive_map(player)["proc"].get("block_counter", []):
@@ -5712,6 +5844,10 @@ class Battle:
                     rd = self._boss_dmg_filter(rd, player, logs)
                     self._damage_enemy(rd, logs)
                     logs.append(f"🪨 {ps_name}：反弹 {rd} 点伤害！")
+        # v140 S1 直连消费：磐石不动（pan_shi_steady）——常驻 5% 减伤并入汇总
+        if self._set_eff(player, "pan_shi_steady", 4):
+            reduce_total += int(dmg * 0.05)
+            logs.append("⛰️ 磐石不动：巍然不动，减伤 5%！")
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
@@ -5730,6 +5866,15 @@ class Battle:
         # v107 反击（苦修士）：受击后按 chance 概率立即普攻反击（物理段，吃暴击）
         # v109 P0-3：多个反击被动（以守为攻+反击之王）逐个独立 roll，命中即停；此前 break 在
         # for 末尾无条件退出，只 roll 第一个被动 → 反击之王(lv70)被废
+        # v140 S1 直连消费：石拳反打（shi_quan_retort）——受击 15% 概率以 30% 攻击反击
+        if self._set_eff(player, "shi_quan_retort", 4) and self.enemy.get("hp", 0) > 0:
+            if random.random() < 0.15:
+                _sq_st = self._player_stats(player)
+                _sq_est = self._enemy_stats()
+                _sq_dmg = E.calc_damage(int(_sq_st["atk"] * 0.30), _sq_est.get("def", 0), dmg_type="phys")
+                _sq_dmg = self._boss_dmg_filter(_sq_dmg, player, logs)
+                self._damage_enemy(_sq_dmg, logs)
+                logs.append(f"🥊 石拳反打！铁拳回敬 {_sq_dmg} 点伤害！")
         if self.enemy.get("hp", 0) > 0:
             for _pn, _ps in self._passive_map(player)["proc"].get("counter_attack", []):
                 if random.random() < float(_ps.get("chance", 0.20)):
@@ -5809,6 +5954,25 @@ class Battle:
         if _morph > 0:
             dmg = max(1, int(dmg * (1 + _morph)))
             logs.append(f"🐉 龙人形态：额外承受 {int(dmg * _morph)} 点伤害！")
+        # v140 S1 直连消费：圣徽守护（bless_ward_shield）——受击 25% 概率获得 8% 最大生命护盾（3 回合）
+        if self._set_eff(player, "bless_ward_shield", 4):
+            if random.random() < 0.25:
+                _bw_sh = int(player.get("max_hp", player.get("hp", 1)) * 0.08)
+                self._add_shield("bless_ward", _bw_sh, 3)
+                logs.append(f"✨ 圣徽守护！获得 {_bw_sh} 点护盾！")
+        # v140 S1 直连消费：圣堂壁垒（holy_bastion_def）——常驻承受伤害 ×0.95
+        if self._set_eff(player, "holy_bastion_def", 4):
+            dmg = int(dmg * 0.95)
+            logs.append("⛪ 圣堂壁垒：圣光壁垒削弱了来袭伤害！")
+        # v140 S1 直连消费：圣辉圣环（holy_halo_shield）——受击后 10% 伤害转护盾（每回合最多 1 次）
+        if self._set_eff(player, "holy_halo_shield", 4) and int(dmg) > 0:
+            _hh_turn = getattr(self, "round", 0) or 0
+            if (self.p_eff or {}).get("holy_halo_used") != _hh_turn:
+                _hh_sh = int(dmg * 0.10)
+                if _hh_sh > 0:
+                    self._add_shield("holy_halo", _hh_sh, 2)
+                    self.p_eff["holy_halo_used"] = _hh_turn
+                    logs.append(f"✨ 圣辉圣环：{_hh_sh} 点伤害化为护盾！")
         # v29 神恩护盾：优先吸收（v59：护盾存战斗状态；v101.28d：多来源护盾逐个扣，同源叠厚异源并存）
         shields = self.p_shields
         if shields:
@@ -5828,6 +5992,33 @@ class Battle:
                 logs.append(f"✨ 护盾吸收 {absorb_total} 点伤害(剩余 {left})")
                 if dmg <= 0:
                     return
+        # v140 S1 直连消费：渡口回潮（ferry_repel，区域 3 槽位 bonus_3）——受击后 25% 概率以 40% 攻击反击（每回合最多 1 次）
+        if self._set_eff(player, "ferry_repel", 3) and self.enemy.get("hp", 0) > 0:
+            _fr_turn = getattr(self, "round", 0) or 0
+            if (self.p_eff or {}).get("ferry_repel_used") != _fr_turn and random.random() < 0.25:
+                _fr_st = self._player_stats(player)
+                _fr_est = self._enemy_stats()
+                _fr_dmg = E.calc_damage(int(_fr_st["atk"] * 0.40), _fr_est.get("def", 0), dmg_type="phys")
+                _fr_dmg = self._boss_dmg_filter(_fr_dmg, player, logs)
+                self._damage_enemy(_fr_dmg, logs)
+                self.p_eff["ferry_repel_used"] = _fr_turn
+                logs.append(f"🌊 渡口回潮！浪潮反击 {_fr_dmg} 点伤害！")
+        # v141.3 S1 直连消费：铁皮护体（tie_pi_bulwark）——受击 20% 获得 5% 最大生命护盾（1 回合）
+        if self._set_eff(player, "tie_pi_bulwark", 4) and random.random() < 0.20:
+            _tp_shield = int(player.get("max_hp", 1) * 0.05)
+            self._add_shield("tie_pi_bulwark", _tp_shield, 1)
+            logs.append(f"🛡️ 铁皮护体！获得 {_tp_shield} 点护盾！")
+        # v141.3 S1 直连消费：铁皮厚盾（tie_pi_harden，铁皮套 4 件）——受击 30% 防御 +15%（2 回合，可叠 2 层）
+        if self._set_eff(player, "tie_pi_harden", 4) and random.random() < 0.30:
+            _tp_lv = self.p_buffs.get("tie_pi_def_lv", 0)
+            if _tp_lv < 2:
+                self.p_buffs["tie_pi_def_lv"] = _tp_lv + 1
+                self.p_buffs["tie_pi_def_turns"] = 2
+            logs.append("🛡️ 铁皮厚盾！防御 +15%！")
+        # v141.3 S1 直连消费：守望开盾（shou_wang_ward）——受击 25% 本次受击伤害 -50%
+        if self._set_eff(player, "shou_wang_ward", 4) and random.random() < 0.25:
+            dmg = max(1, int(dmg * 0.50))
+            logs.append("🛡️ 守望开盾！本次受击伤害减半！")
         player["hp"] = max(0, player.get("hp", 0) - dmg)
         # v140 波3.1：特效装备生命阈值（时光凝滞/磐石守护/苍穹庇护/石像鬼之心/不灭意志）
         # + 不灭意志免疫致死（本回合免疫致死伤害，扣血后回拉）
@@ -5900,6 +6091,12 @@ class Battle:
                 self.resources["cp"] = cur_cp - penalty
                 logs.append(f"🗡️ 受击！连击点 -{penalty}({self.resources['cp']}/{rd['max'] if rd else 5})")
             self._combo_break(player, self._combo_keep_chance(player))
+        # v140 S1 直连消费：拳心回流（tie_shou_blood）——受击 30% 概率回复 3% 最大生命
+        if self._set_eff(player, "tie_shou_blood", 4) and player.get("hp", 0) > 0:
+            if random.random() < 0.30:
+                _ts_heal = int(player.get("max_hp", player.get("hp", 1)) * 0.03)
+                player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + _ts_heal)
+                logs.append(f"🩸 拳心回流：气血奔涌，回复 {_ts_heal} 点生命！")
         # v110.3 P2-9：被动·神圣坚韧——受击后按 chance 概率回复 pct 生命（数据驱动 dmg_taken_heal，替代名字硬匹配）
         if player["hp"] > 0:
             for _pn, _ps in self._passive_map(player)["proc"].get("dmg_taken_heal", []):
