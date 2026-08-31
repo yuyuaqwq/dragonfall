@@ -483,6 +483,28 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
     battle.e_buffs.pop("poison", None)
 
 
+@register(MECH_EFFECTS, "bleed")
+def _m_bleed(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v151 流血：叠层到 enemy.debuffs.bleed（每层每回合掉血，与 poison 同构）。
+    刺客割裂等技能 mech=bleed 消费端。"""
+    use_mc, chance = _mech_chance(info, 1.0)
+    if not mval and not use_mc:
+        return
+    if use_mc and random.random() >= chance:
+        return
+    enemy = battle.enemy or {}
+    if "bleed" in (enemy.get("immune_dots") or []):
+        logs.append("🛡️ 敌人免疫流血！")
+        return
+    deb = enemy.setdefault("debuffs", {})
+    cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
+    cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
+    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    deb["bleed"] = cur
+    n = cur["n"]
+    logs.append(f"🩸 流血 {n} 层(每层每回合掉血)")
+
+
 @register(MECH_EFFECTS, "chi")
 def _m_chi(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """气力：攒层（每点＋12%）"""

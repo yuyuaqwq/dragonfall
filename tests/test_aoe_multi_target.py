@@ -252,16 +252,16 @@ def main():
     check("星陨 10% 概率：未触发无伤害", b8b.enemy["hp"] == 10 ** 9, f"hp={b8b.enemy['hp']}")
 
     # ============ 7. multi×aoe ============
-    print("\n===== 7. multi×aoe：怒涛连斩 180%×3 全体（累加 total 后一次 aoe 结算）=====\n")
-    info_multi = E.skill_info("cls_zhan_shi", "怒涛连斩")
-    check("数据：怒涛连斩 multi=3 且 aoe=True",
+    print("\n===== 7. multi×aoe：风刃乱舞 70%×3 全体（累加 total 后一次 aoe 结算）=====\n")
+    info_multi = E.skill_info("cls_you_xia", "风刃乱舞")
+    check("数据：风刃乱舞 multi=3 且 aoe=True",
           bool(info_multi and info_multi.get("multi") == 3 and info_multi.get("aoe")),
           str(info_multi and {k: info_multi.get(k) for k in ("multi", "aoe", "power")}))
     random.seed(15)
-    p9 = mk_player(reach=3)
+    p9 = mk_player(cls="cls_you_xia", reach=3)
     b9 = BT.Battle("monster", None, {}, p9,
                    enemies=[mk_enemy("M1", rank=1, hp=10 ** 9), mk_enemy("M2", rank=1, hp=10 ** 9)])
-    logs9, loss9 = cast_skill_aoe(b9, b9._player_stats(p9), info_multi, p9, "怒涛连斩", 15)
+    logs9, loss9 = cast_skill_aoe(b9, b9._player_stats(p9), info_multi, p9, "风刃乱舞", 15)
     check("multi×aoe：M1 吃 3 段累加 total", loss9.get("M1", 0) > 0, f"loss={loss9}")
     check("multi×aoe：M2 与 M1 相同（同 rank 同衰减）", loss9.get("M1", 0) == loss9.get("M2", 0),
           f"loss={loss9}")

@@ -115,7 +115,10 @@ missing = data_types - registered
 check(f"成就数据 cond type 全覆盖（数据 {len(data_types)} 种）", not missing)
 if missing:
     print("  缺失:", sorted(missing))
-check("注册表无孤儿（除测试外全部被数据使用）", registered - data_types - {"test_fake_cond"} == set() or len(registered - data_types) <= 1)
+# v151：hidden_class/hidden_class_lv（隐藏职业解锁）与 skill_has 为引擎保留条件——
+# 隐藏职业全删后成就表无引用（保留供未来数据挂载/兼容旧档判定），不在孤儿告警范围
+_reserved = {"test_fake_cond", "hidden_class", "hidden_class_lv", "skill_has"}
+check("注册表无孤儿（除测试外全部被数据使用）", registered - data_types - _reserved == set())
 
 print()
 print(f"结果: {PASS} 通过, {FAIL} 失败")

@@ -95,9 +95,9 @@ async def main():
     p = make_player(lv=25, mp=999)
     p["learned_skills"] = ["盾击"]
     b.e_buffs["stun"] = 1
-    # 盾击技能信息（战士 v2.0：cc=stun）
+    # 盾击技能信息（v151：mech=stun）
     info = E.skill_info("cls_zhan_shi", "盾击")
-    check("盾击带眩晕 cc", info.get("cc") == "stun", str(info.get("cc")))
+    check("盾击带眩晕 mech", info.get("mech") == "stun", str(info.get("mech")))
     b2 = BT.Battle("monster", make_monster())
     b2.e_buffs["stun"] = 1
     mult_stunned = b2._cond_mult(info, make_player(lv=25), 1)
@@ -111,7 +111,7 @@ async def main():
 
     print("【技能挂载验证】")
     info_jt = E.skill_info("cls_wu_seng", "震地击")
-    check("震地击带眩晕 cc", info_jt.get("cc") == "stun", str(info_jt.get("cc")))
+    check("震地击带眩晕 mech", info_jt.get("mech") == "stun", str(info_jt.get("mech")))
     info_gc = E.skill_info("cls_ci_ke", "淬毒")
     check("淬毒带毒 mech", info_gc.get("mech") == "poison", str(info_gc.get("mech")))
 

@@ -43,45 +43,46 @@ async def main():
     clean_db()
     inst = PlayerCmds()
 
-    print("【隐藏线路由（档位全名 → (cls_id, tier, path)）】")
+    print("【隐藏线路由（v151 已删 → 空表）】")
     routes = PlayerCmds._hidden_class_routes(inst)
-    check("route 龙血战士 → 龙裔 T1 流派1",
-          routes.get("龙血战士") == ("cls_dragon_oath", 1, 1), str(routes.get("龙血战士")))
-    check("route 龙裔斗士 → 龙裔 T2 流派1",
-          routes.get("龙裔斗士") == ("cls_dragon_oath", 2, 1), str(routes.get("龙裔斗士")))
-    check("route 龙魂战将 → 龙裔 T3 流派1",
-          routes.get("龙魂战将") == ("cls_dragon_oath", 3, 1), str(routes.get("龙魂战将")))
-    check("route 时停线路由存在", routes.get("时停") is not None, str(routes.get("时停")))
+    check("隐藏路由表为空（v151 已删 6 隐藏职业）",
+          len(routes) == 0, str(len(routes)))
 
-    print("【隐藏短别名 → (cls_id, 流派索引)】")
+    print("【隐藏短别名 → 空表】")
     aliases = PlayerCmds._hidden_alias_map(inst)
-    check("alias 龙血 → (cls_dragon_oath, 流派1)",
-          aliases.get("龙血") == ("cls_dragon_oath", 1), str(aliases.get("龙血")))
-    check("alias 时咒 → (cls_chronomancer, 流派1)",
-          aliases.get("时咒") == ("cls_chronomancer", 1), str(aliases.get("时咒")))
+    check("隐藏别名表为空（v151 已删）",
+          len(aliases) == 0, str(len(aliases)))
 
-    print("【流派归属 + 核心资源】")
-    owner = E.branch_skill_owner("cls_dragon_oath", "龙焰吐息")
-    check("branch_skill_owner 龙焰吐息 → (3, 龙魂战将)",
-          owner == (3, "龙魂战将"), str(owner))
-    rd = E.core_resource_def("cls_dragon_oath")
-    check("core_resource_def key=dragon_might",
-          isinstance(rd, dict) and rd.get("key") == "dragon_might", str(rd))
+    print("【流派归属 + 核心资源（基础职业）】")
+    owner = E.branch_skill_owner("cls_zhan_shi", "龙息之怒")
+    check("branch_skill_owner 龙息之怒 → (2, 狂战统领)",
+          owner == (2, "狂战统领"), str(owner))
+    rd = E.core_resource_def("cls_zhan_shi")
+    check("core_resource_def 战士 key=rage",
+          isinstance(rd, dict) and rd.get("key") == "rage", str(rd))
 
-    print("【龙裔传承最小闭环（40级战士 + dragonborn 血脉 → 龙裔 T1）】")
-    make_player("g1", "q1", "龙裔武者", "cls_zhan_shi", level=40)
-    db.update_player("g1", "q1", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
+    print("【基础职业导师转职最小闭环（30级战士 → 狂战士 T1）】")
+    from conftest import Main
+    mm = Main(None)
+    make_player("g1", "q1", "龙裔武者", "cls_zhan_shi", level=30)
+    db.update_player("g1", "q1", cur_map="white_deer", cur_subarea="white_deer_1")
     p = db.get_player("g1", "q1")
-    ev = FakeEvent("g1", "q1", "转职 龙血战士")
+    ev = FakeEvent("g1", "q1", "对话 老兵·格里姆")
     out = []
-    async for r in PlayerCmds()._evolve_hidden_generic(ev, "g1", "q1", p, "cls_dragon_oath", 1, 1):
+    async for r in mm.talk_choice(ev):
+        out.append(r)
+    ev = FakeEvent("g1", "q1", "3")
+    out = []
+    async for r in mm.talk_choice(ev):
+        out.append(r)
+    ev = FakeEvent("g1", "q1", "1")
+    out = []
+    async for r in mm.talk_choice(ev):
         out.append(r)
     p2 = db.get_player("g1", "q1")
-    check("传承后 class=cls_dragon_oath tier=1 path=1",
-          p2["class_name"] == "cls_dragon_oath" and p2["class_tier"] == 1 and p2["evolve_path"] == 1,
+    check("转职后 tier=1 path=1",
+          p2["class_name"] == "cls_zhan_shi" and p2["class_tier"] == 1 and p2["evolve_path"] == 1,
           "class=%s tier=%s path=%s" % (p2["class_name"], p2.get("class_tier"), p2.get("evolve_path")))
-    learned = p2.get("learned_skills", [])
-    check("习得 龙魂/龙息", "龙魂" in learned and "龙息" in learned, str(learned))
     check("传承有输出文案", len(out) > 0, "输出为空")
 
     # 清理私有库文件

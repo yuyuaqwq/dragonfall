@@ -97,8 +97,22 @@ async def main():
     print("【战斗：减益 buff（冰/毒/破甲）】")
     random.seed(4)
     b = BT.Battle("monster", make_monster(hp=100000))
-    b.player_turn("skill", "冰锥", make_player("法师", 10, mp=100))
-    check("冰锥挂冰元素印记", b.e_buffs.get("ice_mark", 0) > 0, str(b.e_buffs))
+    # v151：基础冰锥 mech=spd_down（30% 概率减速）——概率判定前固定 1.0 保证断言稳定
+    _orig_si = E.skill_info
+    def _ice_force(*a, **k):
+        info = _orig_si(*a, **k)
+        if info and info.get("name") == "冰锥":
+            info = dict(info)
+            info["mech_chance"] = 1.0
+        return info
+    E.skill_info = _ice_force
+    try:
+        logs, _ = b.player_turn("skill", "冰锥", make_player("法师", 10, mp=100))
+    finally:
+        E.skill_info = _orig_si
+    # v151：冰锥减速 1 回合，回合结束即被递减清除——以日志断言机制命中（确定性）
+    check("冰锥减速命中（spd_down）", any("被减速" in l for l in logs), str(logs))
+    check("冰锥不再挂冰元素印记（基础层纯蓝）", b.e_buffs.get("ice_mark", 0) == 0, str(b.e_buffs))
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "淬毒", make_player("刺客", 15, mp=100))
@@ -119,10 +133,14 @@ async def main():
     check("毒层结算后衰减", b.enemy["debuffs"]["poison"]["n"] == 1, str(b.enemy["debuffs"]))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
-    for cls, base_lv30 in [("法师", "元素风暴"), ("战士", "无畏冲击"), ("游侠", "狩猎终章"),
-                            ("牧师", "神恩降临"), ("刺客", "暗影处刑"), ("拳师", "破晓之拳")]:
+    # v151：旧 Lv.30 大招（元素风暴/无畏冲击等）已删除，改以各职业基础技能表最高等效输出为基准
+    for cls, base_lv30 in [("法师", "元素弹幕"), ("战士", "蓄力斩"), ("游侠", "致命狙击"),
+                            ("牧师", "圣光惩戒"), ("刺客", "暗杀"), ("拳师", "连招三连")]:
         cid = C.resolve("classes", cls)
-        base_power = C.PLAYER_SKILLS[cid]["skills"][C.resolve("skills", base_lv30)]["power"]
+        # v151：直接用 E.skill_info 取基础技能定义（导师同名技能会遮蔽基础技能，
+        # 直接查 PLAYER_SKILLS 表键会在导师同名技能（如圣光惩戒）时 KeyError）
+        base_info = E.skill_info(cid, base_lv30) or {}
+        base_power = base_info.get("power", 0) * base_info.get("multi", 1)
         t3 = C.BRANCH_SKILLS[cid]["branches"][3]
         # 分支 t3 奥义等效 = power × multi × cond.mult，取全分支最大
         best = 0
@@ -136,12 +154,13 @@ async def main():
         check(f"{cls} 分支奥义等效 ≥ 基础Lv.30({base_power})", best >= base_power * 0.95,
               f"best {best} vs {base_power}")
 
-    print("【机制：冻结】")
+    print("【机制：冻结→减速】")
+    # v151：冰霜新星 mech=spd_down（30% 概率减速），不再冻结——断言改为减速日志
     pl = make_player("法师", 35, skills=["冰霜新星"])
     b2 = make_battle()
     random.seed(42)
     logs, _ = b2.player_turn("skill", "冰霜新星", pl, enemy_act=True)
-    check("固定 seed 42 冻结跳过敌方回合", any("冻结" in l for l in logs), str(logs))
+    check("冰霜新星减速（spd_down 命中）", any("被减速" in l for l in logs), str(logs))
     print("【机制：毒层→毒爆】")
     # v139 改版：毒爆吃 3 cp + 毒层≥3 才触发剧毒共鸣（提前引爆拿虚弱压制的价值保留）
     pl = make_player("刺客", 35, skills=["淬毒", "毒爆"])

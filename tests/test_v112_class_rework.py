@@ -36,26 +36,8 @@ async def cmd(m, handler_name, gid, qid, msg):
 def test_data_integrity():
     print("【1. 数据完整性】")
     hidden = {k: v for k, v in C.CLASSES.items() if v.get("hidden")}
-    check("6 隐藏线", len(hidden) == 6, str(len(hidden)))
-    # v113 流派结构：每线收敛为单流派 × 3 档，档位名与 BRANCH_SKILLS 分支 key 一致
-    for cid, cls in hidden.items():
-        eb = cls.get("evolve_branches", {})
-        br = C.BRANCH_SKILLS.get(cid, {}).get("branches", {})
-        for t in (1, 2, 3):
-            names = eb.get(t, [])
-            check(f"{cid} t{t} 分支名与技能表一致",
-                  all(n in (br.get(t) or {}) for n in names) and len(names) == len(br.get(t, {})),
-                  f"evolve={names} br={list((br.get(t) or {}).keys())}")
-        # 线级基础（觉醒即得）在 PLAYER_SKILLS
-        basics = C.PLAYER_SKILLS.get(cid, {}).get("skills", {})
-        check(f"{cid} 线级基础非空", len(basics) >= 1, str(list(basics)))
-        # v112 新字段
-        for k in ("aliases", "lore", "hint", "tier_levels", "attack_text", "tutor"):
-            check(f"{cid} 字段 {k}", k in cls, k)
-        check(f"{cid} 档位门槛 40/60/90", cls.get("tier_levels") == {1: 40, 2: 60, 3: 90}, str(cls.get("tier_levels")))
-        # 核心资源
-        rd = E.core_resource_def(cid)
-        check(f"{cid} 核心资源挂载", bool(rd and rd.get("name")), str(rd))
+    # v151 隐藏职业已删（龙裔/时咒/星语/暗影/暮影/苦修 6 线）
+    check("0 隐藏线（v151 已删）", len(hidden) == 0, str(len(hidden)))
     # 全库技能名唯一（不同 ID 同名=0 铁律）
     flat = {}
     for _c, _t in C.PLAYER_SKILLS.items():
@@ -71,9 +53,9 @@ def test_data_integrity():
             dups.append((nm, name2id[nm], k))
         name2id[nm] = k
     check("全库技能名唯一", not dups, str(dups[:5]))
-    # 技能书数据（v113：收敛为 7 本——龙息之怒/虚空爆破/毒爆术/骷髅海/安眠曲/收割/气爆）
+    # 技能书数据（v151：收敛为 5 本——龙息之怒/元素湮灭/毒爆术/安眠曲/收割）
     tomes = {k: v for k, v in C.ITEMS.items() if v.get("learn_skill")}
-    check("技能书 7 本", len(tomes) == 7, str(len(tomes)))
+    check("技能书 5 本", len(tomes) == 5, str(len(tomes)))
     for k, v in tomes.items():
         ls = v["learn_skill"]
         req = v.get("require_class")
@@ -87,37 +69,40 @@ def test_data_integrity():
 
 
 async def test_evolve_chain(m):
-    print("【2. 传承链路】")
+    print("【2. 传承链路（v151：隐藏传承已删，改验基础职业导师转职链路）】")
     routes = m._hidden_class_routes()
-    check("路由带流派索引", routes.get("龙血战士") == ("cls_dragon_oath", 1, 1)
-          and routes.get("龙裔斗士") == ("cls_dragon_oath", 2, 1)
-          and routes.get("暗影祭司") == ("cls_hymn", 1, 1), str(routes.get("龙血战士")))
+    check("隐藏路由为空（v151 已删）", len(routes) == 0, str(len(routes)))
     aliases = m._hidden_alias_map()
-    check("别名映射", aliases.get("龙血") == ("cls_dragon_oath", 1)
-          and aliases.get("龙裔") == ("cls_dragon_oath", 1)
-          and aliases.get("亡灵") == ("cls_hymn", 1), str(aliases.get("龙血")))
-    # 40 级战士 → 龙裔线龙血流：线级被动 + 流派技能
-    make_player("g1", "p1", "修一", "战士", level=40)
-    db.update_player("g1", "p1", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
-    out = await cmd(m, "evolve", "g1", "p1", "转职 龙血战士")
+    check("隐藏别名映射为空（v151 已删）", len(aliases) == 0, str(aliases))
+    # 基础职业导师转职：30 级战士 → 战士导师攻线 T1（狂战士），60 级升 T2 保留攻线
+    from conftest import FakeEvent, run
+    async def talk(m, gid, qid, msg):
+        ev = FakeEvent(gid, qid, msg)
+        results = await run(m.talk_choice, ev)
+        return "".join(str(x) for x in results)
+    make_player("g1", "p1", "修一", "战士", level=30)
+    db.update_player("g1", "p1", cur_map="white_deer", cur_subarea="white_deer_1")
+    await talk(m, "g1", "p1", "对话 老兵·格里姆")
+    await talk(m, "g1", "p1", "3")   # 我想转职
+    out = await talk(m, "g1", "p1", "1")  # 狂战士（攻线）
     p = db.get_player("g1", "p1")
-    check("传承成功(龙血流)", p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 1 and p["evolve_path"] == 1,
+    check("30 级转狂战士 = T1 攻线",
+          p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 1 and p["evolve_path"] == 1,
           str((p["class_name"], p["class_tier"], p["evolve_path"])))
-    learned = p.get("learned_skills", [])
-    check("线级被动授予(龙魂/火之亲和)", "龙魂" in learned and "火之亲和" in learned, str(learned))
-    check("流派技能授予(龙息)", "龙息" in learned, str(learned))
-    check("T3 技能未授予(龙焰吐息,lv75>40)", "龙焰吐息" not in learned, str(learned))
-    # 同职业升档保留流派
+    await talk(m, "g1", "p1", "0")
     db.update_player("g1", "p1", level=60)
-    out = await cmd(m, "evolve", "g1", "p1", "转职 龙裔斗士")
+    await talk(m, "g1", "p1", "对话 老兵·格里姆")
+    await talk(m, "g1", "p1", "3")
+    out = await talk(m, "g1", "p1", "1")  # 狂战统领（攻线 T2）
     p = db.get_player("g1", "p1")
-    check("升档 T2 保留龙血流", p["class_tier"] == 2 and p["evolve_path"] == 1, str((p["class_tier"], p["evolve_path"])))
-    # 流派隔离（单流派收敛后指 tier 门槛）：T1 学 T3 技能被拒
+    check("升档 T2 狂战统领保留攻线", p["class_tier"] == 2 and p["evolve_path"] == 1,
+          str((p["class_tier"], p["evolve_path"])))
+    check("T2 文案显示狂战统领", "狂战统领" in out, out[:120])
+    # 分支专属技能隔离：T1 战士学 T2 分支技能（lv58 龙息之怒）被拒
     make_player("g1", "p2", "修二", "战士", level=60)
-    db.update_player("g1", "p2", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn", skill_points=100)
-    out = await cmd(m, "evolve", "g1", "p2", "转职 龙血战士")
-    out = await cmd(m, "skill_learn", "g1", "p2", "技能学习 龙焰吐息")
-    check("龙血流学龙焰吐息被拒", "学不了" in out or "需要" in out, out[:150])
+    db.update_player("g1", "p2", skill_points=100)
+    out = await cmd(m, "skill_learn", "g1", "p2", "技能学习 龙息之怒")
+    check("T1 学 T2 分支技被拒", "需要先转职" in out or "学不了" in out or "专属" in out, out[:150])
 
 
 async def test_tome(m):
@@ -146,13 +131,13 @@ async def test_tome(m):
                  "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi"})
     out = await cmd(m, "use", "g2", "w1", "使用 龙息之怒技能书")
     check("重复学习拦截", "早已掌握" in out, out[:120])
-    # 等级拒绝：40 级战士（< Lv.55）用龙息之怒技能书 → 拒绝
+    # 等级拒绝：40 级战士（< Lv.58）用龙息之怒技能书 → 拒绝
     make_player("g3", "w2", "学徒", "战士", level=40)
     db.add_item("g3", "w2", "i_tome_long_xi_zhi_nu",
                 {"name": "龙息之怒技能书", "type": "消耗品", "stackable": True, "price": 5000,
                  "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi"})
     out = await cmd(m, "use", "g3", "w2", "使用 龙息之怒技能书")
-    check("等级不足被拒", "Lv.55" in out, out[:150])
+    check("等级不足被拒", "Lv.58" in out, out[:150])
     check("道具未消耗(等级不足)", db.count_item("g3", "w2", "i_tome_long_xi_zhi_nu") == 1, "")
     # 战斗可用（学会后可施放真伤）
     from data.plugins.dragonfall.game import battle as BT

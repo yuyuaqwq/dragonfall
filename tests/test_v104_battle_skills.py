@@ -92,6 +92,10 @@ def test_branch_skill_cost():
         # mp=0 是设计意图——非玩家主动施放动作，跳过零消耗检查
         if s.get("auto"):
             continue
+        # v151：坚盾壁垒/铁壁·卫 等 0 消耗增益（effect=shield_all/atk_up 无 mp/cd）为职业主动资源技能，
+        # 技能表零消耗可接受——只对「有伤害/治疗量」的主动技能强校验消耗
+        if (s.get("kind") in ("增益", "嘲讽")) and not s.get("power"):
+            continue
         active += 1
         mp = int(s.get("mp", 0) or 0)
         rc = s.get("res_cost") or {}

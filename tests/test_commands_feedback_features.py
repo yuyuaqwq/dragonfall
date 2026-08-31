@@ -28,7 +28,7 @@ async def main():
     roles = {C.CLASSES[k]["name"]: C.CLASSES[k].get("role") for k in C.CLASSES}
     check("战士=坦克", roles.get("战士") == "坦克", str(roles))
     check("牧师=治疗", roles.get("牧师") == "治疗", str(roles))
-    check("全部职业都有定位", len(roles) >= 8 and all(roles.values()), str(roles))
+    check("全部职业都有定位", len(roles) >= 6 and all(roles.values()), str(roles))
     label = m._class_role_label("cls_zhan_shi")
     check("定位标签", "坦克" in label, label)
 
@@ -89,8 +89,13 @@ async def main():
     print("【#6 副本仇恨】")
     await cmd(m, "register", "g1", "f4", "注册 战士 坦克甲 男")
     await cmd(m, "register", "g1", "f5", "注册 法师 输出乙 男")
-    db.update_player("g1", "f4", level=40, gold=9999, cur_map="oak_town")
-    db.update_player("g1", "f5", level=40, gold=9999, cur_map="oak_town")
+    # v151 修：v137 副本地图化 + F2 入口设施化——开本需站在副本入口
+    # （旧王陵入口 = 王陵古道/王陵前 king_road_3），且 level 提升不回满血，
+    # 补满血防 CTB 首回合残血暴毙
+    for _q in ("f4", "f5"):
+        _p = db.get_player("g1", _q)
+        db.update_player("g1", _q, level=40, gold=9999, cur_map="king_road",
+                         cur_subarea="king_road_3", hp=_p["max_hp"], mp=_p["max_mp"])
     await cmd(m, "party", "g1", "f4", "组队 输出乙")
     # v86.3 入场钥匙：旧王陵需要王陵钥匙
     db.add_item("g1", "f4", "i_key_old_king", {"name": "王陵钥匙", "type": "钥匙", "stackable": True, "price": 500})

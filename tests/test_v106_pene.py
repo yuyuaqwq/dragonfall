@@ -112,31 +112,30 @@ async def main():
         return b.get("pene_phys", 0), b.get("pene_magi", 0)
     check("刺客 物穿10%（特色保留）", base_pene("cls_ci_ke") == (0.10, 0))
     check("法师 法穿10%（特色保留）", base_pene("cls_fa_shi") == (0, 0.10))
-    check("龙裔誓约 无天生穿透", base_pene("cls_dragon_oath") == (0, 0))
-    check("战士 无天生穿透（被动破甲精通补偿）", base_pene("cls_zhan_shi") == (0, 0))
-    check("游侠 无天生穿透（被动穿甲箭补偿）", base_pene("cls_you_xia") == (0, 0))
+    # v151 隐藏职业已删（龙裔誓约/暗影神谕等）——仅基础职业无天生穿透
+    check("战士 无天生穿透", base_pene("cls_zhan_shi") == (0, 0))
+    check("游侠 无天生穿透", base_pene("cls_you_xia") == (0, 0))
     check("拳师 无天生穿透", base_pene("cls_wu_seng") == (0, 0))
     check("牧师 无天生穿透", base_pene("cls_mu_shi") == (0, 0))
-    check("暗影神谕 无穿透", base_pene("cls_hymn") == (0, 0))
     check("见习 无穿透", base_pene("cls_novice") == (0, 0))
     # 面板聚合：刺客 Lv.30 裸装物穿 = 10%
     st_ass, _ = E.player_stats_detail("cls_ci_ke", 30, {})
     check("刺客 Lv.30 面板物穿 10%", abs(st_ass.get("pene_phys", 0) - 0.10) < 1e-6, str(st_ass.get("pene_phys")))
-    # v106.2 补偿被动生效（战斗内乘算）
+    # v106.2 补偿被动生效（战斗内乘算）——v151 已删 破甲精通/穿甲箭，改验无被动基线
     from data.plugins.dragonfall.game import battle as BT
     p_w = {"qq_id": "w1", "name": "测试", "level": 60, "class_name": "cls_zhan_shi",
            "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
-           "equipment": {}, "attributes": {}, "learned_skills": ["破甲精通"]}
+           "equipment": {}, "attributes": {}, "learned_skills": []}
     enemy = {"name": "T", "hp": 1000, "max_hp": 1000, "atk": 30, "def": 10, "matk": 5, "mdef": 5, "spd": 5, "crit": 0.05}
     b = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_w, pet=None)
     st_w = b._player_stats(p_w)
-    check("战士 破甲精通被动 → 物穿 5%（战斗内）", abs(st_w.get("pene_phys", 0) - 0.05) < 1e-6, str(st_w.get("pene_phys")))
+    check("战士 无被动 → 物穿 0（v151 穿透收敛）", abs(st_w.get("pene_phys", 0) - 0.0) < 1e-6, str(st_w.get("pene_phys")))
     p_r = {"qq_id": "w2", "name": "测试", "level": 55, "class_name": "cls_you_xia",
            "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
-           "equipment": {}, "attributes": {}, "learned_skills": ["穿甲箭"]}
+           "equipment": {}, "attributes": {}, "learned_skills": []}
     b2 = BT.Battle("wild", enemy=enemy, title_bonus=None, player=p_r, pet=None)
     st_r = b2._player_stats(p_r)
-    check("游侠 穿甲箭被动 → 物穿 5%（战斗内）", abs(st_r.get("pene_phys", 0) - 0.05) < 1e-6, str(st_r.get("pene_phys")))
+    check("游侠 无被动 → 物穿 0（v151 穿透收敛）", abs(st_r.get("pene_phys", 0) - 0.0) < 1e-6, str(st_r.get("pene_phys")))
 
     # ============ 5. 装备词条折算 ============
     print("【5. 装备词条】")

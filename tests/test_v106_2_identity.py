@@ -34,12 +34,10 @@ async def main():
         return b.get("pene_phys", 0), b.get("pene_magi", 0)
     check("刺客 10% 物穿（唯一物理特色）", base_pene("cls_ci_ke") == (0.10, 0))
     check("法师 10% 法穿（唯一法系特色）", base_pene("cls_fa_shi") == (0, 0.10))
-    # v112.5：隐藏线中时咒(法穿15%)/暮影(物穿15%)为穿透职业，其余线无天生穿透
-    for cid in ("cls_zhan_shi", "cls_you_xia", "cls_mu_shi", "cls_wu_seng",
-                "cls_dragon_oath", "cls_wild_hunter", "cls_hymn", "cls_wu_sheng", "cls_novice"):
+    # v151 隐藏职业已删（时咒/暮影等 6 线）——仅基础职业无天生穿透
+    for cid in ("cls_zhan_shi", "cls_you_xia", "cls_mu_shi", "cls_wu_seng", "cls_novice"):
         check(f"{CLASSES[cid]['name']} 无天生穿透", base_pene(cid) == (0, 0))
-    check("时咒法师 15% 法穿（隐藏线特色）", base_pene("cls_chronomancer") == (0, 0.15))
-    check("暮影行者 15% 物穿（隐藏线特色）", base_pene("cls_shadow_blade") == (0.15, 0))
+    check("拳师 无天生穿透", base_pene("cls_wu_seng") == (0, 0))
 
     # ============ 2. 补偿被动 ============
     print("【2. 补偿被动】")
@@ -49,26 +47,15 @@ async def main():
              "hp": 500, "max_hp": 500, "mp": 100, "max_mp": 100,
              "equipment": {}, "attributes": {}, "learned_skills": skills}
         return BT.Battle("wild", enemy=enemy, title_bonus=None, player=p, pet=None), p
-    b, p = btl("cls_zhan_shi", ["破甲精通"])
-    check("破甲精通 → 物穿 5%", abs(b._player_stats(p).get("pene_phys", 0) - 0.05) < 1e-6,
-          str(b._player_stats(p).get("pene_phys")))
-    b, p = btl("cls_you_xia", ["穿甲箭"])
-    check("穿甲箭 → 物穿 5%", abs(b._player_stats(p).get("pene_phys", 0) - 0.05) < 1e-6)
-    # v130.2f 设计变更：魔力贯穿由法穿+5% 属性被动 → attack_res 节拍器（施法命中+1 时之沙，§14.3）
-    # 时咒基础法穿 15% 不再叠加 5% → pene_magi = 0.15
-    b, p = btl("cls_chronomancer", ["魔力贯穿"])
-    check("魔力贯穿改版后法穿=基础 15%（不再乘算 5%）",
-          abs(b._player_stats(p).get("pene_magi", 0) - 0.15) < 1e-6,
-          str(b._player_stats(p).get("pene_magi")))
     b, p = btl("cls_zhan_shi", [])
     check("无被动 → 物穿 0", abs(b._player_stats(p).get("pene_phys", 0) - 0.0) < 1e-6)
-    # 被动+词条乘算：刺客 10% + 词条 5% + 无被动
+    # v151 职业重构：破甲精通/穿甲箭（旧 v106.2 补偿被动）已删除——物穿渠道收敛为
+    # 刺客 10% 天生 + 词条/套装/药水（下节验证）；此处验证基础职业技能表无穿透被动
     names = {s.get("name") for s in PLAYER_SKILLS["cls_zhan_shi"]["skills"].values()}
-    check("战士技能树含 破甲精通", "破甲精通" in names)
+    check("战士基础技能树 9 技能（v151 表）", len(names) == 9, str(sorted(names)))
     names2 = {s.get("name") for s in PLAYER_SKILLS["cls_you_xia"]["skills"].values()}
-    check("游侠技能树含 穿甲箭", "穿甲箭" in names2)
-    names3 = {s.get("name") for s in PLAYER_SKILLS["cls_chronomancer"]["skills"].values()}
-    check("时咒线级基础含 魔力贯穿", "魔力贯穿" in names3)
+    check("游侠基础技能树 8 技能（v151 表）", len(names2) == 8, str(sorted(names2)))
+    # v151：隐藏线已删，技能树收敛为 6 基础职业（不再含 时咒线级基础）
 
     # ============ 3. 穿透药水 ============
     print("【3. 穿透药水】")

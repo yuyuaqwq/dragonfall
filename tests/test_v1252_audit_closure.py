@@ -128,7 +128,7 @@ def section_cond():
         cd = sk.get("cond")
         if isinstance(cd, dict) and cd.get("type"):
             used.add(cd["type"])
-    check("技能 cond 类型非空", len(used) >= 5, f"used={sorted(used)}")
+    check("技能 cond 类型非空", len(used) >= 3, f"used={sorted(used)}")  # v151：新表 3 种 cond
     missing = used - set(BC.COND_CHECKS)
     check("全部技能 cond 类型已注册 handler", not missing, f"missing={sorted(missing)}")
 

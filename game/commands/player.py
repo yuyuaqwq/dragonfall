@@ -928,9 +928,15 @@ class PlayerCmds(CommandBase):
         target_lv = 60 if next_tier == 2 else 90
         out = []
         for sname, sinfo in tier_branches[names[idx]].items():
-            if sinfo.get("lv") == target_lv:
-                out.append(sinfo.get("name", sname))
-        return out
+            # v151 3-key 表：t2 从 lv58 起、t3 从 lv92 起，多数分支无恰 lv60/90 技能——
+            # 取「达到目标等级后的最低等级技能」（二转取 lv≥60 最小、三转取 lv≥90 最小）作为
+            # 自动获得技能（原 lv==target_lv 硬匹配在 v151 表下多数分支落空）
+            if sinfo.get("lv") >= target_lv:
+                out.append((sinfo.get("name", sname), int(sinfo.get("lv", 0) or 0)))
+        if not out:
+            return []
+        out.sort(key=lambda x: x[1])
+        return [out[0][0]]
 
     def _tier_title(self, class_name: str, tier: int, evolve_path: int = 0) -> str:
         """职业进阶称号(v25：按分支返回)"""

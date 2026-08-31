@@ -817,7 +817,7 @@ class Battle:
     # v130.2c 资源联动套装 effect 全部由 battle.py 直连消费（供收口审计 test_v1252_audit_closure 引用）
     SET_EFFECT_CONSUMED = ("res_gain", "res_max", "ultimate_cost_reduce", "cdr_set",
                            "crit_on_marked", "res_cost_reduce", "heal_team_on_miracle_t2plus",
-                           "first_hit_immune", "elegy_dmg", "battle_start_cp", "finisher_crit",
+                           "first_hit_immune", "battle_start_cp", "finisher_crit",
                            "combo_finisher_per_layer", "battle_start_res", "chi_skill_phys",
                            "full_rage_pursuit",
                            "holy_halo_shield", "holy_field_heal", "divine_grace_burst",

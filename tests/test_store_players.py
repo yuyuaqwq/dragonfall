@@ -33,9 +33,20 @@ def main():
     check("update level=5", p2["level"] == 5, str(p2.get("level")))
     check("update gold=999", p2["gold"] == 999, str(p2.get("gold")))
     # 技能存取（v46：内存名字 / 落库 ID）
-    db.update_player("g1", "q1", learned_skills=["火球术", "冰箭"])
+    # v151 职业重构：旧技能（火球术/冰箭——冰箭已删）读档时被检测为失效技能 → 自动重置清空
+    # （读档一次性技能重置：清 learned_skills/skill_levels，skill_spent 返还 skill_points）。
+    # 因此验证 v151 重置语义：旧技能被清空 + _v151_skill_reset 标记置位；
+    # 用现存的 v151 技能验证读回名字（如 火球术 仍存在）。
+    db.update_player("g1", "q1", learned_skills=["火球术", "冰箭"], skill_spent=2, skill_points=1)
     p3 = db.get_player("g1", "q1")
-    check("技能读回是名字", p3["learned_skills"] == ["火球术", "冰箭"], str(p3.get("learned_skills")))
+    check("v151 技能重置清空旧技能", p3["learned_skills"] == [], str(p3.get("learned_skills")))
+    check("skill_spent 返还 skill_points", p3.get("skill_points") == 1 + 2, str((p3.get("skill_points"), p3.get("skill_spent"))))
+    check("重置标记置位", p3.get("_v151_skill_reset") is True, str(p3.get("_v151_skill_reset")))
+    # v151 现存技能（挥砍）读回名字——注意：重置只发生一次（_v151_skill_reset 标记），
+    # 且 v151 技能按玩家职业校验（战士 火球术 非本职业技能仍会被清）
+    db.update_player("g1", "q1", learned_skills=["挥砍"])
+    p3b = db.get_player("g1", "q1")
+    check("v151 技能读回是名字", p3b["learned_skills"] == ["挥砍"], str(p3b.get("learned_skills")))
     # 快捷指令
     db.update_player("g1", "q1", shortcuts={"1": "探索"})
     p4 = db.get_player("g1", "q1")

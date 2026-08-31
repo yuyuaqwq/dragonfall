@@ -423,10 +423,10 @@ SETS = {
     },
     "set_an_ye_sheng_dian": {  # 牧师·幽祷线（v151：原暗影神谕悼咏→幽祷召唤流）
         "quality": "purple", "icon": "🌙", "name": "暗夜圣典", "line": "牧师·幽祷(召唤流)",
-        "bonus_2": {"effect": "summon_heal", "value": 0.05,
-                    "desc": "场上亡灵≥1 时 每回合全队回复 5% 生命"},
-        "bonus_4": {"effect": "summon_dmg", "value": 0.20,
-                    "desc": "场上亡灵≥1 时 召唤物伤害 +20%"},
+        "bonus_2": {"effect": "proc_lifesteal", "chance": 1.0, "params": {"type": "proc_lifesteal", "chance": 1.0, "lifesteal_pct": 0.06, "tag": "🌙", "name": "暗夜汲取"},
+                    "desc": "攻击命中 100% 吸血 6% 伤害（亡者汲取）"},
+        "bonus_4": {"effect": "proc_flat_dmg", "chance": 0.3, "params": {"type": "proc_flat_dmg", "chance": 0.3, "stat": "matk", "pct": 0.5, "tag": "🌙", "name": "暗夜蚀骨"},
+                    "desc": "攻击命中 30% 概率追加 50% 魔攻伤害（暗蚀）"},
     },
     "set_sheng_hui_shi_yue": {  # 牧师·新手保底
         "quality": "blue", "icon": "🛡️", "name": "圣徽·誓约", "line": "牧师·新手保底",

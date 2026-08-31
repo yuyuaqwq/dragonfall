@@ -125,28 +125,30 @@ async def main():
     check("灼烧 dot 不打醒睡眠", "sleep" in b2c.e_buffs, str(b2c.e_buffs))
 
     print("\n===== 3. 火之亲和（龙血灼烧 +20%）=====\n")
-    info_hz = EG.skill_info("龙裔誓约", "火之亲和")
-    check("火之亲和技能存在", info_hz is not None, str(info_hz))
-    check("火之亲和 passive=burn_amp×1.2",
-          info_hz and info_hz.get("passive") == {"proc": "burn_amp", "mult": 1.2},
+    # v151：龙裔誓约（隐藏职业）已删，burn_amp 被动改为 战士 t2 狂战统领·内燃（burn_amp×1.15）
+    info_hz = EG.skill_info("cls_zhan_shi", "内燃")
+    check("火之亲和/内燃技能存在", info_hz is not None, str(info_hz))
+    check("内燃 passive=burn_amp×1.15",
+          info_hz and info_hz.get("passive") == {"proc": "burn_amp", "mult": 1.15},
           str(info_hz and info_hz.get("passive")))
     random.seed(7)
-    p3 = mk_player(cls="龙裔誓约", skills=["火之亲和"])
+    p3 = mk_player(cls="cls_zhan_shi", skills=["内燃"])
     b3 = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3)
-    # 重构图 v1.1：灼烧混合公式（matk×0.4 + max_hp×1%）× 层 × mult；火之亲和 mult=1.2
-    b3.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.2}
+    # 重构图 v1.1：灼烧混合公式（matk×0.4 + max_hp×1%）× 层 × mult；内燃 mult=1.15
+    b3.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.15}
+    st3 = b3._player_stats(p3)
     logs3 = b3._turn_start(p3)
     hp_loss3 = 10000 - b3.enemy["hp"]
-    expect3 = int((152 * 0.4 + 10000 * 0.01) * 1.2)  # matk=152（龙裔誓约30级，v136 属性转化后）→ 192
-    check(f"灼烧伤害 = (matk×40%+max_hp×1%)×1.2（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
-    check("日志含强化标注×1.2", any("强化×1.2" in x for x in logs3), str(logs3))
+    expect3 = int((st3["matk"] * 0.4 + 10000 * 0.01) * 1.15)  # 战士 30 级 matk → 174
+    check(f"灼烧伤害 = (matk×40%+max_hp×1%)×1.15（={expect3}）", hp_loss3 == expect3, f"got {hp_loss3}")
+    check("日志含强化标注", any("强化×" in x or "灼烧发作" in x for x in logs3), str(logs3))
     random.seed(7)
-    p3b = mk_player(cls="龙裔誓约")
+    p3b = mk_player(cls="cls_zhan_shi")
     b3b = BT.Battle("怪物", mk_enemy(hp=10000), {}, p3b)
     b3b.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
     b3b._turn_start(p3b)
     hp_loss3b = 10000 - b3b.enemy["hp"]
-    check("无火之亲和：灼烧 = matk×40%+max_hp×1%", hp_loss3b == 160, f"got {hp_loss3b}")
+    check("无内燃：灼烧 = matk×40%+max_hp×1%", hp_loss3b == 152, f"got {hp_loss3b}")
 
     print("\n===== 4. 运势 luck 暴击联动（P1-1）=====\n")
     n = 900
@@ -217,6 +219,8 @@ async def main():
     print("\n===== 5. 武圣连击 0.50（P1-2）=====\n")
     def combo_play(with_passive):
         random.seed(23)
+        # v151：连招精通（combo_boost 被动）已从 3-key 表删除——无 0.50 强化路径，
+        # 三连追加恒 0.30。with_passive 参数保留（对照验证：v151 表无此被动时两路相同）
         sk = ["连招精通"] if with_passive else []
         p = mk_player(cls="拳师", skills=sk)
         b = BT.Battle("怪物", mk_enemy(def_=0, hp=10**9), {}, p)
@@ -233,18 +237,16 @@ async def main():
     import re as _re
     m_b = _re.search(r"钢拳】，造成 (\d+) 点伤害", next(x for x in logs_b if "钢拳" in x))
     main_b = int(m_b.group(1))
-    exp_a = int(main_b * 0.30)   # 无被动追加
-    exp_b = int(main_b * 0.50)   # 有被动追加
+    exp_a = int(main_b * 0.30)   # 三连追加基线
     check(f"三连触发（日志含『三连击破』）", any("三连击破" in x for x in logs_b), str(logs_b))
-    check(f"无被动：追加 = 主伤×0.30（{exp_a}）", (total_b - total_a) == exp_b - exp_a,
-          f"差值 {total_b-total_a} vs 期望 {exp_b-exp_a}")
-    # v110.5 X3：恒真断言替换——从 logs_b 解析『三连击破』行的实际追加数值，
-    # 断言 == int(主伤×0.50)。若被动未生效（追加仍走 0.30）或日志格式变动则必红。
+    check(f"无被动：追加 = 主伤×0.30（{exp_a}）", (total_b - total_a) == 0,
+          f"差值 {total_b-total_a} vs 期望 0（v151 无连招精通，两路一致）")
+    # 从日志解析实际追加数值，断言 == 主伤×0.30
     _re_bonus = _re.search(r"三连击破.*?追加 (\d+) 点伤害", next(x for x in logs_b if "三连击破" in x))
     got_bonus = int(_re_bonus.group(1)) if _re_bonus else None
-    check(f"有被动：追加 = 主伤×0.50（{exp_b}）",
-          got_bonus is not None and got_bonus == exp_b,
-          f"got {got_bonus} vs 期望 {exp_b}（主伤 {main_b}）")
+    check(f"追加 = 主伤×0.30（{exp_a}）",
+          got_bonus is not None and got_bonus == exp_a,
+          f"got {got_bonus} vs 期望 {exp_a}（主伤 {main_b}）")
     # 对照：无被动组合（logs_a 也必有三连，追加走 0.30）同样可解析出 0.30
     _re_bonus_a = _re.search(r"三连击破.*?追加 (\d+) 点伤害", next(x for x in logs_a if "三连击破" in x))
     got_bonus_a = int(_re_bonus_a.group(1)) if _re_bonus_a else None

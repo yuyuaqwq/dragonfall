@@ -52,47 +52,60 @@ def skill_name(key):
     return SK[key]["name"]
 
 
-def cast(sk_key, setup=None, chi=10):
-    """构造拳师战斗并施放指定技能，返回 (battle, logs)"""
-    p = mk(lv=30)
-    p["learned_skills"] = [skill_name(sk_key)]
+# v151 拳师表：直拳(拳)/侧踢(踢)/钢拳(掌)/连招三连/震地击/铜墙/冲拳/冥想
+# 气力技已移至分支（磐岩释能 res_cost guard_core）——combo_ready 消费端测试改用
+# 磐岩释能（guard_core 气力技）验证；普通技用 直拳
+_CHI_SKILL = "磐岩释能"   # v151 分支气力技（res_cost guard_core 1）
+_PLAIN_SKILL = "直拳"     # 普通 combo 技（不耗资源）
+
+
+def cast(sk_name, setup=None, chi=10):
+    """构造拳师战斗并施放指定技能（sk_name 传中文名），返回 (battle, logs)"""
+    p = mk(lv=40)
+    p["class_name"] = "cls_wu_seng"
+    p["class_tier"] = 1
+    p["evolve_path"] = 2
+    p["learned_skills"] = [sk_name]
     b = BT.Battle("monster", mkmon(), player=p)
-    b.resources["chi"] = chi
+    b.resources["guard_core"] = chi
     if setup:
         setup(b)
-    logs, _ = b.player_turn("skill", skill_name(sk_key), p, enemy_act=False)
+    logs, _ = b.player_turn("skill", sk_name, p, enemy_act=False)
     return b, logs
 
 
 def main():
     clean_db()
     print("【① combo_ready 消费：三连后气力技 +20%】")
-    bA, logsA = cast("sk_beng_quan", lambda b: b.resources.__setitem__("combo_ready", 1))
-    check("① 消费路径生效（_combo_ready_used）", getattr(bA, "_combo_ready_used", False),
-          str(logsA)[:200])
-    check("① 日志含三连余劲", any("余劲" in x for x in logsA), str(logsA)[:250])
-    check("① combo_ready 已消费归零", bA.resources.get("combo_ready") == 0, str(bA.resources))
-    # 伤害均值对比（战斗有幸运一击 ±50% 随机，8 次均值消除噪声）
-    # v134.1 修复 flaky：固定种子让 with/wo 两组同随机序列公平对比（此前无种子偶发失败）
+    # v151：拳师资源改为 guard_core（磐核），combo_ready 消费端 `_is_chi_skill` 只认 res_cost chi——
+    # v151 无 chi 资源技能，该机制已随旧资源体系废弃。保留验证：combo_ready 标记对非 chi 技不消费
+    # （对应旧②语义），并直接验证 guard_core 资源技（磐岩释能）正常施放
+    bA, logsA = cast(_CHI_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
+    check("① 磐岩释能正常施放（guard_core 资源技）", bA.enemy["hp"] < 99999, str(logsA)[:200])
+    check("① 非 chi 资源技不消费 combo_ready（v151 旧机制废弃）",
+          bA.resources.get("combo_ready") == 1 and not getattr(bA, "_combo_ready_used", False),
+          str(bA.resources))
+    check("① 无三连余劲日志（v151 无 chi 技）", not any("余劲" in x for x in logsA), str(logsA)[:250])
+    # 伤害均值对比（战斗有幸运一击 ±50% 随机，8 次均值消除噪声）——v151 无 chi 消耗差异，改为施放正常性冒烟
     import random
     dmg_with = []
     random.seed(20260828)
     for _ in range(8):
-        b, logs = cast("sk_beng_quan", lambda b: b.resources.__setitem__("combo_ready", 1))
+        b, logs = cast(_CHI_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
         dmg_with.append(99999 - b.enemy["hp"])
     dmg_wo = []
     random.seed(20260828)
     for _ in range(8):
-        b, _ = cast("sk_beng_quan")
+        b, _ = cast(_CHI_SKILL)
         dmg_wo.append(99999 - b.enemy["hp"])
     avg_with = sum(dmg_with) / 8
     avg_wo = sum(dmg_wo) / 8
-    check(f"① 气力技伤害均值倾向 +20%（{avg_with:.0f} vs {avg_wo:.0f}）",
-          avg_with > avg_wo and (avg_with - avg_wo) / avg_wo > 0.05,
+    check(f"① 磐岩释能 8 次施放均值稳定（{avg_with:.0f} vs {avg_wo:.0f}）",
+          avg_with > 0 and avg_wo > 0,
           f"with={dmg_with} wo={dmg_wo}")
 
     print("【② combo_ready 非气力技不消费】")
-    bC, logsC = cast("sk_zhi_quan", lambda b: b.resources.__setitem__("combo_ready", 1))
+    bC, logsC = cast(_PLAIN_SKILL, lambda b: b.resources.__setitem__("combo_ready", 1))
     check("② 普通技不消费标记", bC.resources.get("combo_ready") == 1, str(bC.resources))
     check("② 无消费标志", not getattr(bC, "_combo_ready_used", False), str(logsC)[:200])
     check("② 普通技无余劲日志", not any("余劲" in x for x in logsC), str(logsC)[:250])
@@ -109,7 +122,9 @@ def main():
 
     print("【④ 侧踢变招：上一招拳 → +10%（_cond_mult 确定性断言）】")
     p = mk(lv=30)
-    info = SK["sk_ce_ti"]
+    # v151：侧踢无 cond 字段——构造带 player_combo cond 的技能 dict 验证变招条件引擎（v130.6 引擎仍在）
+    info = {"name": "侧踢", "power": 1.0, "kind": "物理",
+            "cond": {"type": "player_combo", "last": "拳", "mult": 1.10, "label": "侧踢变招"}}
     bF = BT.Battle("monster", mkmon(), player=p)
     bF._combo_push("拳")
     check("④ 上一招拳 → cond 触发", abs(bF._cond_mult(info, p) - 1.10) < 1e-9,
@@ -124,7 +139,7 @@ def main():
     check("④ 无连招 → 不触发", abs(bH._cond_mult(info, p) - 1.0) < 1e-9,
           str(bH._cond_mult(info, p)))
     # 完整施放冒烟：上一招拳 + 侧踢
-    bI, logsI = cast("sk_ce_ti", lambda b: b._combo_push("拳"))
+    bI, logsI = cast("侧踢", lambda b: b._combo_push("拳"))
     check("④ 变招施放无异常", bI.enemy["hp"] < 99999, str(logsI)[:200])
 
     print("【⑤ 序列化往返】")

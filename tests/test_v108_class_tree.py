@@ -34,13 +34,24 @@ async def cmd(m, handler_name, gid, qid, msg):
     results = await run(handler, ev)
     return "".join(str(x) for x in results)
 
+
+async def evolve_via_tutor(m, gid, qid, tutor_npc, tier_opt):
+    """基础职业导师转职：对话 → 选『我想转职』→ 选路线（玩家须已在导师所在图）"""
+    await cmd(m, "talk_choice", gid, qid, f"对话 {tutor_npc}")
+    await cmd(m, "talk_choice", gid, qid, "3")  # 『我想转职！』
+    return await cmd(m, "talk_choice", gid, qid, str(tier_opt))
+
+
 async def main():
     clean_db()
     m = Main(None)
 
     print("[1] 数据完整性")
     hidden = {k: v for k, v in C.CLASSES.items() if v.get("hidden")}
-    check("隐藏职业 6 线", len(hidden) == 6, str(len(hidden)))
+    # v151 隐藏职业已删（龙裔/时咒/星语/暗影/暮影/苦修 6 线）——无隐藏职业
+    check("隐藏职业 0 线（v151 已删）", len(hidden) == 0, str(len(hidden)))
+    check("基础职业 6 线", len([k for k in C.CLASSES if not C.CLASSES[k].get("hidden") and k != "cls_novice"]) == 6,
+          str([k for k in C.CLASSES]))
     check("全部有 src_base 且为血缘职业",
           all(v.get("src_base") and not C.CLASSES[v["src_base"]].get("hidden") for v in hidden.values()),
           str([(k, v.get("src_base")) for k, v in hidden.items() if not v.get("src_base") or C.CLASSES.get(v["src_base"], {}).get("hidden")]))
@@ -59,171 +70,194 @@ async def main():
     legal_self = {cls["name"] for cls in C.CLASSES.values() if cls.get("hidden")}
     dup = [n for n in dup_raw if n not in legal_self]
     check("职业名+档位名无重名", not dup, str(dup))
-    # v113：隐藏档位全名 = 龙裔3+时咒3+星语3+暗影3+暮影3+苦修3 = 18 名，全部可路由
+    # v113：隐藏档位全名 = 18 名，全部可路由——v151 已删隐藏职业 → 0 名
     routes = m._hidden_class_routes()
     hidden_names = []
     for cls_id, cls in hidden.items():
         for t, brs in (cls.get("evolve_branches") or {}).items():
             hidden_names.extend(brs)
-    check("隐藏档位名全部入路由表(18)",
-          all(n in routes for n in hidden_names) and len(hidden_names) == len(set(hidden_names)),
+    check("隐藏档位名全部入路由表(0, v151 已删)",
+          all(n in routes for n in hidden_names) and len(hidden_names) == 0,
           f"{len(hidden_names)} 名 / 路由 {len(routes)}")
-    # v113：路由带流派索引（单流派收敛——龙血 T1 path=1 / 龙裔斗士 T2 path=1 / 时间领主 T3 path=1）
-    check("路由带流派索引", routes.get("龙血战士") == ("cls_dragon_oath", 1, 1)
-          and routes.get("龙裔斗士") == ("cls_dragon_oath", 2, 1)
-          and routes.get("时间领主") == ("cls_chronomancer", 3, 1), str(routes.get("龙血战士")))
+    # v113：路由带流派索引——v151 无隐藏职业，路由表为空
+    check("路由表为空（v151 无隐藏职业）", len(routes) == 0, str(len(routes)))
 
     print("[2] 修为继承（转职 tier 按等级）")
-    make_player("g1", "p1", "修一", "战士", level=40)
-    db.update_player("g1", "p1", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
-    out = await cmd(m, "evolve", "g1", "p1", "转职 龙血战士")
+    # v151 隐藏职业已删：隐藏传承链路全部移除——修为继承验证改为基础职业 30/60/90 导师转职
+    # 战士导师·格里姆（白鹿城·白鹿广场）；等级达标即对话转职，'3'=转职入口，'1'=攻线
+    make_player("g1", "p1", "修一", "战士", level=30)
+    db.update_player("g1", "p1", cur_map="white_deer", cur_subarea="white_deer_1")
+    out = await evolve_via_tutor(m, "g1", "p1", "老兵·格里姆", 1)
     p = db.get_player("g1", "p1")
-    check("40 级转龙血战士 = T1(龙裔线·龙血流)",
-          p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 1 and p["evolve_path"] == 1,
-          str((p["class_name"], p["class_tier"], p["evolve_path"])))
+    check("30 级转狂战士 = T1(战士攻线)", p and p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 1,
+          str(p and (p["class_name"], p["class_tier"])))
     make_player("g1", "p2", "修二", "战士", level=60)
-    db.update_player("g1", "p2", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
-    out = await cmd(m, "evolve", "g1", "p2", "转职 龙裔斗士")
+    db.update_player("g1", "p2", cur_map="white_deer", cur_subarea="white_deer_1")
+    await evolve_via_tutor(m, "g1", "p2", "老兵·格里姆", 1)   # T1（30 级达标）
+    await cmd(m, "talk_choice", "g1", "p2", "0")              # 结束对话
+    out = await evolve_via_tutor(m, "g1", "p2", "老兵·格里姆", 1)  # T2
     p = db.get_player("g1", "p2")
-    check("60 级转龙裔斗士 = T2", p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 2,
+    check("60 级转狂战统领 = T2", p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 2,
           str((p["class_name"], p["class_tier"])))
-    check("T2 文案显示龙裔斗士", "龙裔斗士" in out, out[:150])
+    check("T2 文案显示狂战统领", "狂战统领" in out, out[:150])
     make_player("g1", "p3", "修三", "战士", level=90)
-    db.update_player("g1", "p3", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
-    out = await cmd(m, "evolve", "g1", "p3", "转职 龙魂战将")
+    db.update_player("g1", "p3", cur_map="white_deer", cur_subarea="white_deer_1")
+    await evolve_via_tutor(m, "g1", "p3", "老兵·格里姆", 1)   # T1
+    await cmd(m, "talk_choice", "g1", "p3", "0")
+    await evolve_via_tutor(m, "g1", "p3", "老兵·格里姆", 1)   # T2
+    await cmd(m, "talk_choice", "g1", "p3", "0")
+    out = await evolve_via_tutor(m, "g1", "p3", "老兵·格里姆", 1)  # T3
     p = db.get_player("g1", "p3")
-    check("90 级转龙魂战将 = T3", p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 3,
+    check("90 级转战争领主 = T3", p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 3,
           str((p["class_name"], p["class_tier"])))
-    # v112 技能继承：线级基础 + 本流派（龙血 path=1）全档分支技能 lv<=90
-    expect90 = []
-    for _s, _i in C.PLAYER_SKILLS["cls_dragon_oath"]["skills"].items():
-        if _i["lv"] <= 90:
-            expect90.append(C.display("skills", _s))
-    for _t in (1, 2, 3):
-        _bn = C.CLASSES["cls_dragon_oath"]["evolve_branches"][_t][0]
-        for _s, _i in C.BRANCH_SKILLS["cls_dragon_oath"]["branches"][_t][_bn].items():
-            if _i["lv"] <= 90:
-                expect90.append(_s)
-    check("技能继承 lv<=90 全给(线级+龙血流派)", set(p["learned_skills"]) == set(expect90),
-          f"{len(p['learned_skills'])}/{len(expect90)} 差: {set(p['learned_skills']) ^ set(expect90)}")
+    # v112 技能继承：导师转职自动授各档分支奥义（_evolve_auto_skills：二转取本分支
+    # lv≥60 最低、三转取 lv≥90 最低）——按引擎同口径计算期望
+    def _auto_expect(_t, _bn):
+        _cand = [(int(_i.get("lv", 0)), _i.get("name", _s)) for _s, _i in
+                 C.BRANCH_SKILLS["cls_zhan_shi"]["branches"][_t][_bn].items()
+                 if _i.get("lv", 0) >= (60 if _t == 2 else 90)]
+        return _cand[0][1] if _cand else None
+    auto_expect = {_auto_expect(2, "狂战统领"), _auto_expect(3, "战争领主")} - {None}
+    check("转职自动授分支奥义", bool(auto_expect) and set(p["learned_skills"]) == auto_expect,
+          f"got {set(p['learned_skills'])} expect {auto_expect}")
 
     print("[3] 等级门槛拦截")
+    # 40 级法师直接转 T2/T3：evolve 命令只提示找导师（等级门槛在导师对话处拦）——
+    # 转职命令本身对 tier=0 玩家一律提示导师；等级校验改由导师对话拦截（下节验证）
     make_player("g1", "p4", "修四", "法师", level=40)
-    db.update_player("g1", "p4", hidden_class_unlock=["cls_chronomancer"])
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时律术士")
-    check("40 级转时律术士(T2)被拒", "Lv.60" in out, out[:150])
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时间领主")
-    check("40 级转时间领主(T3)被拒", "Lv.90" in out, out[:150])
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时停")
-    check("40 级转时停(T1)成功", "传承完成" in out, out[:150])
+    out = await cmd(m, "evolve", "g1", "p4", "转职 元素术士")
+    check("40 级转元素术士被指引导师", "导师" in out, out[:150])
+    out = await cmd(m, "evolve", "g1", "p4", "转职 元素贤者")
+    check("40 级转元素贤者被指引导师", "导师" in out, out[:150])
+    # 40 级法师找导师转 T2 → 对话层 Lv.60 拦截
+    db.update_player("g1", "p4", cur_map="white_deer", cur_subarea="white_deer_4")
+    await cmd(m, "talk_choice", "g1", "p4", "对话 法师导师·艾琳")
+    out = await cmd(m, "talk_choice", "g1", "p4", "3")
+    check("40 级找导师转 T2 无转职选项", "转职" not in out, out[:150])
 
     print("[4] 同职业逐阶升 + 跳档/跨职业")
+    # p4 40级法师：先转 T1（30 级达标）→ 升 60 → 转 T2 → 升 90 → 转 T3
+    db.update_player("g1", "p4", cur_map="white_deer", cur_subarea="white_deer_1")
+    out = await evolve_via_tutor(m, "g1", "p4", "大法师·艾德琳", 1)
+    p = db.get_player("g1", "p4")
+    check("40 级法师转 T1 元素法师", p["class_tier"] == 1, str(p["class_tier"]))
+    await cmd(m, "talk_choice", "g1", "p4", "0")
     db.update_player("g1", "p4", level=60)
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时律术士")
+    out = await evolve_via_tutor(m, "g1", "p4", "大法师·艾德琳", 1)
     p = db.get_player("g1", "p4")
     check("T1→T2 逐阶升", p["class_tier"] == 2, str(p["class_tier"]))
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时停")
-    check("已是高阶提示", "已是时咒法师" in out, out[:120])
+    await cmd(m, "talk_choice", "g1", "p4", "0")
     db.update_player("g1", "p4", level=90)
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时间领主")
+    out = await evolve_via_tutor(m, "g1", "p4", "大法师·艾德琳", 1)
     p = db.get_player("g1", "p4")
     check("T2→T3 逐阶升", p["class_tier"] == 3, str(p["class_tier"]))
-    out = await cmd(m, "evolve", "g1", "p4", "转职 时间领主")
-    check("满阶提示已是", "已是时咒法师" in out, out[:120])
-    # 跨职业 90 级直接 T3（修为继承，未先转隐藏）
-    make_player("g1", "p5", "修五", "法师", level=90)
-    db.update_player("g1", "p5", hidden_class_unlock=["cls_chronomancer"])
-    out = await cmd(m, "evolve", "g1", "p5", "转职 时间领主")
+    # 满阶后再找导师：无转职入口
+    await cmd(m, "talk_choice", "g1", "p4", "0")
+    out = await cmd(m, "talk_choice", "g1", "p4", "对话 大法师·艾德琳")
+    check("满阶导师对话无转职入口", "转职" not in out, out[:120])
+    # 跨职业 90 级战士找战士导师逐阶升到 T3（修为继承）
+    make_player("g1", "p5", "修五", "战士", level=90)
+    db.update_player("g1", "p5", cur_map="white_deer", cur_subarea="white_deer_1")
+    await evolve_via_tutor(m, "g1", "p5", "老兵·格里姆", 1)   # T1
+    await cmd(m, "talk_choice", "g1", "p5", "0")
+    await evolve_via_tutor(m, "g1", "p5", "老兵·格里姆", 1)   # T2
+    await cmd(m, "talk_choice", "g1", "p5", "0")
+    out = await evolve_via_tutor(m, "g1", "p5", "老兵·格里姆", 1)  # T3
     p = db.get_player("g1", "p5")
-    check("90 级跨职业直接 T3 成功", "传承完成" in out and p["class_tier"] == 3, str((out[:80], p["class_tier"])))
-    # 同职业 T1 跳 T3 拦截
+    check("90 级战士导师逐阶升到 T3 成功", p["class_tier"] == 3, str((p["class_tier"])))
+    # 同职业 T1 跳 T3 拦截：已转 T1 的 90 级 → 导师只给 T2 入口（『继续转职』，无『最终转职』）
     make_player("g1", "p6", "修六", "法师", level=90)
-    db.update_player("g1", "p6", hidden_class_unlock=["cls_chronomancer"])
-    await cmd(m, "evolve", "g1", "p6", "转职 时停")
-    out = await cmd(m, "evolve", "g1", "p6", "转职 时间领主")
-    check("同职业跳档拦截", "时机未到" in out, out[:120])
+    db.update_player("g1", "p6", cur_map="white_deer", cur_subarea="white_deer_1")
+    await evolve_via_tutor(m, "g1", "p6", "大法师·艾德琳", 1)
+    p = db.get_player("g1", "p6")
+    check("T1 转职成功", p["class_tier"] == 1, str(p["class_tier"]))
+    await cmd(m, "talk_choice", "g1", "p6", "0")
+    out = await cmd(m, "talk_choice", "g1", "p6", "对话 大法师·艾德琳")
+    check("T1 跳 T3 被拦（导师只给 T2 入口）", "继续转职" in out and "最终转职" not in out, out[:150])
+    await cmd(m, "talk_choice", "g1", "p6", "3")
+    await cmd(m, "talk_choice", "g1", "p6", "1")
+    p = db.get_player("g1", "p6")
+    check("T2 逐阶升成功", p["class_tier"] == 2, str(p["class_tier"]))
 
-    print("[5] 『转职』无参数（隐藏职业显示下一阶/已满）")
+    print("[5] 『转职』无参数（基础职业进化之路）")
     out = await cmd(m, "evolve", "g1", "p6", "转职")
-    check("隐藏职业显示下一阶", "下一阶" in out and "时律术士" in out, out[:150])
-    out = await cmd(m, "evolve", "g1", "p5", "转职")
-    check("满阶显示传承完成", "已完成全部传承" in out, out[:120])
+    check("基础职业显示可选路线", "可选路线" in out and "元素贤者" in out, out[:150])
+    out = await cmd(m, "evolve", "g1", "p3", "转职")
+    check("满阶显示已完成全部转职", "已完成全部转职" in out, out[:120])
 
-    print("[6] 『转职重置』隐藏职业回渊源")
+    print("[6] 『转职重置』回根基职业")
+    # p5 已 T3 → 重置回战士
     db.update_player("g1", "p5", gold=5000)
     gold0 = db.get_player("g1", "p5")["gold"]
     out = await cmd(m, "evolve_reset", "g1", "p5", "转职重置")
     p = db.get_player("g1", "p5")
-    check("重置回法师", p["class_name"] == "cls_fa_shi" and p["class_tier"] == 0 and p["evolve_path"] == 0,
+    check("重置回战士", p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 0 and p["evolve_path"] == 0,
           str((p["class_name"], p["class_tier"], p["evolve_path"])))
     check("重置扣费", p["gold"] < gold0, str(p["gold"]))
-    check("重置文案回根基", "根基职业" in out and "法师" in out, out[:150])
+    check("重置文案回根基", "转职重置成功" in out and "回到基础职业" in out, out[:150])
 
-    print("[7] 统一 40/60/90 档位")
-    # 暗影神谕（单流派）：牧师 40 → 暗影祭司 T1
-    make_player("g1", "p7b", "亡语", "牧师", level=40)
-    db.update_player("g1", "p7b", hidden_class_unlock=["cls_hymn"], race="orc")
-    out = await cmd(m, "evolve", "g1", "p7b", "转职 暗影祭司")
+    print("[7] 统一 30/60/90 档位")
+    # 牧师 30 级导师转神谕者（攻线 T1）——牧师导师·圣殿执事·莉亚（白鹿城·白鹿广场）
+    make_player("g1", "p7b", "亡语", "牧师", level=30)
+    db.update_player("g1", "p7b", cur_map="white_deer", cur_subarea="white_deer_1")
+    out = await evolve_via_tutor(m, "g1", "p7b", "圣殿执事·莉亚", 1)
     p = db.get_player("g1", "p7b")
-    check("40 级暗影祭司 = T1(暗影神谕)",
-          p["class_name"] == "cls_hymn" and p["class_tier"] == 1 and p["evolve_path"] == 1,
+    check("30 级神谕者 = T1(牧师攻线)",
+          p["class_name"] == "cls_mu_shi" and p["class_tier"] == 1 and p["evolve_path"] == 1,
           str((p["class_name"], p["class_tier"], p["evolve_path"])))
-    # 暮影线（单流派·暗杀）：刺客 60 级『转职 暗杀』= 暗杀流派 T1（T1 流派名入路由）；
-    # 再『转职 暮刃大师』升 T2 保留流派
+    # 刺客 60 级导师转 T2 攻线（暗影之刃）→ 90 级升 T3（无影之刃）
     make_player("g1", "p8", "影修", "刺客", level=60)
-    db.update_player("g1", "p8", hidden_class_unlock=["cls_shadow_blade"], race="halfling")
-    out = await cmd(m, "evolve", "g1", "p8", "转职 暗杀")
+    db.update_player("g1", "p8", cur_map="ironharbor", cur_subarea="ironharbor_1")
+    await evolve_via_tutor(m, "g1", "p8", "暗影渡鸦", 1)   # T1
+    await cmd(m, "talk_choice", "g1", "p8", "0")
+    out = await evolve_via_tutor(m, "g1", "p8", "暗影渡鸦", 1)  # T2
     p = db.get_player("g1", "p8")
-    check("60 级『转职 暗杀』= T1 暗杀流派",
-          p["class_name"] == "cls_shadow_blade" and p["class_tier"] == 1 and p["evolve_path"] == 1,
+    check("60 级『转职 暗影之刃』= T2 攻线",
+          p["class_name"] == "cls_ci_ke" and p["class_tier"] == 2 and p["evolve_path"] == 1,
           str((p["class_name"], p["class_tier"], p["evolve_path"])))
-    out = await cmd(m, "evolve", "g1", "p8", "转职 暮刃大师")
+    await cmd(m, "talk_choice", "g1", "p8", "0")
+    db.update_player("g1", "p8", level=90)
+    out = await evolve_via_tutor(m, "g1", "p8", "暗影渡鸦", 1)  # T3
     p = db.get_player("g1", "p8")
-    check("升 T2 暮刃大师保留暗杀流派",
-          p["class_tier"] == 2 and p["evolve_path"] == 1 and "暮刃大师" in out,
+    check("升 T3 无影之刃保留攻线",
+          p["class_tier"] == 3 and p["evolve_path"] == 1 and "无影之刃" in out,
           str((p["class_tier"], p["evolve_path"], out[:80])))
-    # 苦修线（单流派·武僧）：拳师 40 别名『转职 武僧』= 武僧流派 T1
-    make_player("g1", "p8b", "拳修", "拳师", level=40)
-    db.update_player("g1", "p8b", hidden_class_unlock=["cls_wu_sheng"], race="dwarf")
-    out = await cmd(m, "evolve", "g1", "p8b", "转职 武僧")
+    # 拳师 30 级导师转格斗士（攻线 T1）——拳师导师·船帮武师·老陈（铁港城·港口广场）
+    make_player("g1", "p8b", "拳修", "拳师", level=30)
+    db.update_player("g1", "p8b", cur_map="ironharbor", cur_subarea="ironharbor_1")
+    out = await evolve_via_tutor(m, "g1", "p8b", "船帮武师·老陈", 1)
     p = db.get_player("g1", "p8b")
-    check("40 级别名『转职 武僧』= T1 武僧流派",
-          p["class_name"] == "cls_wu_sheng" and p["class_tier"] == 1 and p["evolve_path"] == 1,
+    check("30 级『转职 格斗士』= T1 攻线",
+          p["class_name"] == "cls_wu_seng" and p["class_tier"] == 1 and p["evolve_path"] == 1,
           str((p["class_name"], p["class_tier"], p["evolve_path"])))
 
-    print("[8] 血缘限制（非渊源职业被拒）")
-    # 战士（已解锁时咒线）转时停 → 被拒（渊源=法师）
-    make_player("g1", "p9", "修九", "战士", level=50)
-    db.update_player("g1", "p9", hidden_class_unlock=["cls_chronomancer"])
-    out = await cmd(m, "evolve", "g1", "p9", "转职 时停")
-    check("战士转时停被拒", "只向法师一脉" in out, out[:150])
+    print("[8] 转职拦截（等级/位阶校验仍生效）")
+    # 40 级战士找导师：无 T2 转职入口（Lv.60 门槛在导师处拦）
+    make_player("g1", "p9", "修九", "战士", level=40)
+    db.update_player("g1", "p9", cur_map="white_deer", cur_subarea="white_deer_1")
+    await cmd(m, "talk_choice", "g1", "p9", "对话 老兵·格里姆")
+    out = await cmd(m, "talk_choice", "g1", "p9", "3")
+    check("40 级找导师无 T2 转职入口", "继续转职" not in out, out[:150])
+    # 40 级找导师转 T1 成功（30 级达标）→ 升 90 后同职业只能逐阶
+    await cmd(m, "talk_choice", "g1", "p9", "3")
+    out = await cmd(m, "talk_choice", "g1", "p9", "1")
     p = db.get_player("g1", "p9")
-    check("职业未切换", p["class_name"] == "cls_zhan_shi", str(p["class_name"]))
-    # 游侠转龙血战士 → 被拒（渊源=战士）
-    make_player("g1", "p10", "修十", "游侠", level=50)
-    db.update_player("g1", "p10", hidden_class_unlock=["cls_dragon_oath"])
-    out = await cmd(m, "evolve", "g1", "p10", "转职 龙血战士")
-    check("游侠转龙血被拒", "只向战士一脉" in out, out[:150])
-    # 法师转暗影祭司 → 被拒（渊源=牧师）
-    make_player("g1", "p11", "修十一", "法师", level=40)
-    db.update_player("g1", "p11", hidden_class_unlock=["cls_hymn"])
-    out = await cmd(m, "evolve", "g1", "p11", "转职 暗影祭司")
-    check("法师转暗影祭司被拒", "只向牧师一脉" in out, out[:150])
-    # v112.3：诗人已回归牧师攻线（非独立职业），『转职 吟游诗人』不再是传承路由
-    routes_now = m._hidden_class_routes()
-    check("『吟游诗人』已退出隐藏路由(回归牧师攻线)", "吟游诗人" not in routes_now, "")
-    # 渊源职业转职正常（战士→龙血战士=龙裔线龙血流派，60 级）
-    make_player("g1", "p12", "修十二", "战士", level=60)
-    db.update_player("g1", "p12", hidden_class_unlock=["cls_dragon_oath"], race="dragonborn")
-    out = await cmd(m, "evolve", "g1", "p12", "转职 龙血战士")
-    p = db.get_player("g1", "p12")
-    check("战士转龙血战士成功(渊源·龙血流派)",
-          p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 1 and p["evolve_path"] == 1,
-          str((p["class_name"], p["class_tier"], p["evolve_path"])))
-    # 已转隐藏职业后升档不受血缘限制（同职业）
-    db.update_player("g1", "p12", level=62)
-    out = await cmd(m, "evolve", "g1", "p12", "转职 龙裔斗士")
-    check("隐藏职业内升档不查血缘(60 级门槛)", "Lv.60" in out or "传承完成" in out, out[:120])
+    check("40 级导师转 T1 成功", p["class_tier"] == 1, str(p["class_tier"]))
+    await cmd(m, "talk_choice", "g1", "p9", "0")
+    db.update_player("g1", "p9", level=90)
+    # T1 跳 T3 拦截（战士版）：T1 → 导师只给 T2 入口（狂战统领路线）
+    await cmd(m, "talk_choice", "g1", "p9", "对话 老兵·格里姆")
+    out = await cmd(m, "talk_choice", "g1", "p9", "3")
+    check("T1 跳 T3 被拦（导师只给 T2 入口）", "狂战统领" in out and "战争领主" not in out, out[:150])
+    await cmd(m, "talk_choice", "g1", "p9", "1")
+    p = db.get_player("g1", "p9")
+    check("战士 T2 逐阶升成功", p["class_tier"] == 2, str(p["class_tier"]))
+    # 90 级新手战士找导师：只给 T1 入口（位阶从 0 起逐阶）
+    make_player("g1", "p12", "修十二", "战士", level=90)
+    db.update_player("g1", "p12", cur_map="white_deer", cur_subarea="white_deer_1")
+    await cmd(m, "talk_choice", "g1", "p12", "对话 老兵·格里姆")
+    out = await cmd(m, "talk_choice", "g1", "p12", "3")
+    check("90 级新手导师只给 T1 入口", "转职为狂战士" in out and "继续转职" not in out, out[:150])
 
     print(f"\n===== v112 职业树测试: {passed} passed, {failed} failed =====")
     sys.exit(1 if failed else 0)

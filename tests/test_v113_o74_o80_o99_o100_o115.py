@@ -65,14 +65,17 @@ async def test_o80_craft_alias(m, gid, qid):
 
 async def test_o99_talk_zero(m, gid, qid):
     print("【3. O99 『对话 0』统一对话结束状态判定】")
-    # 3.1 影刃宗师：对话树建立 → 裸数字 0 正常退出 + 移动放行（与吟游诗人一致）
+    # 3.1 影刃宗师：v151 隐藏职业已删，血脉试炼任务（s_shadow_blade_trial）移除 →
+    # 对话树只剩 lore/氛围行（无选项、不建 talk_state）。验证：正常渲染 lore + 无状态
+    # 裸数字 0 不崩溃 + 移动放行（与吟游诗人对照组的「有树退出」行为分开）
     db.update_player(gid, qid, cur_map="jade_port", cur_subarea="jade_port_1", race="halfling")
     out = await cmd(m, "talk_choice", gid, qid, "对话 影刃宗师·夜枭")
-    check("影刃宗师对话树渲染（含选项）", "结束对话" in out, out[:120])
-    check("影刃宗师对话状态已建立", db.get_talk_state(gid, qid) is not None, "")
-    out = await cmd(m, "talk_choice", gid, qid, "0")  # v127.8b: 对话中『对话 0』亦拦截，结束统一裸数字 0
-    check("影刃宗师裸数字 0 正常告别", "那就再会了" in out, out)
-    check("影刃宗师裸数字 0 后状态清除", db.get_talk_state(gid, qid) is None, "")
+    check("影刃宗师对话树渲染（含 lore）", "影刃宗师" in out and ("传说" in out or "影豹" in out), out[:200])
+    check("影刃宗师无转职选项（隐藏职业已删）", "转职" not in out and "1." not in out, out[:200])
+    check("影刃宗师无对话状态（无树）", db.get_talk_state(gid, qid) is None, str(db.get_talk_state(gid, qid)))
+    out = await cmd(m, "talk_choice", gid, qid, "0")
+    check("影刃宗师裸数字 0 不崩溃", bool(out.strip()), out[:100])
+    db.set_event_state(db.talk_state_key(gid, qid), None)
     out = await cmd(m, "move", gid, qid, "前往 1")
     check("裸数字 0 后移动不再被拦截", "交谈中" not in out and "🗺️" in out, out[:80])
     out = await cmd(m, "talk_choice", gid, qid, "对话 0")

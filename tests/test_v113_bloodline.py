@@ -35,6 +35,8 @@ async def cmd(m, handler_name, gid, qid, msg):
 
 
 # 六线映射：导师 / 种族 / 隐藏线 / 地图（导师新位置）/ 导师所在子区域 / 血脉台词关键词
+# v151：6 隐藏职业（龙裔/时咒/星语/暗影/暮影/苦修）已全部删除——血脉传承链路随职业删除，
+# 本测试改为验证：导师 NPC 与数据残留清理 + 基础职业导师转职链路仍正常
 LINES = [
     ("npc_dragon_veteran", "dragonborn", "cls_dragon_oath", "dusk_ridge_road", "dusk_ridge_road_1", "龙骨山脉"),
     ("npc_chrono_warden", "human", "cls_chronomancer", "white_deer", "white_deer_4", "人类的求知欲"),
@@ -49,84 +51,50 @@ async def main():
     clean_db()
     m = Main(None)
 
-    print("【1. 数据完整性】")
+    print("【1. 数据完整性（v151：隐藏职业已删）】")
     for sq in C.SIDE_QUESTS:
         if sq.get("unlock_class"):
             check(f"{sq['id']} require_race 配置", bool(sq.get("require_race")), str(sq))
-    for nid, race, cls_id, map_id, subarea, kw in LINES:
+    # v151：CLASSES 无隐藏职业、SIDE_QUESTS 无 unlock_class 试炼（血脉传承链已删）
+    hidden = {k: v for k, v in C.CLASSES.items() if v.get("hidden")}
+    check("CLASSES 无隐藏职业（v151 已删）", len(hidden) == 0, str(list(hidden)))
+    unlock_qs = [sq for sq in C.SIDE_QUESTS if sq.get("unlock_class")]
+    check("无 unlock_class 试炼任务（v151 已删）", len(unlock_qs) == 0, str(len(unlock_qs)))
+    # 基础职业导师 NPC 仍驻留且对话树可用
+    for nid in ("npc_warrior_tutor", "npc_mage_tutor", "npc_priest_tutor"):
         dlg = C.DIALOGUES.get(nid)
-        check(f"{nid} 对话树存在", bool(dlg and dlg.get("start") in (dlg.get("nodes") or {})), str(dlg and dlg.get("start")))
-        # 试炼任务 require_race 与 src_race 一致
-        cls = C.CLASSES[cls_id]
-        check(f"{cls_id} src_race={race}", cls.get("src_race") == race, str(cls.get("src_race")))
-        # 导师 map 与试炼任务 map 一致
-        quest = next((q for q in C.SIDE_QUESTS if q.get("unlock_class") == cls_id), None)
         npc = C.NPCS.get(nid, {})
-        check(f"{nid} 导师驻地={C.MAP_BY_ID.get(map_id, {}).get('name')}", npc.get("map") == map_id and quest and quest.get("map") == map_id,
-              str((npc.get("map"), quest and quest.get("map"))))
+        check(f"{nid} 对话树存在", bool(dlg and dlg.get("start") in (dlg.get("nodes") or {})),
+              str(dlg and dlg.get("start")))
+        check(f"{nid} 导师驻地图存在", bool(npc.get("map") in C.MAP_BY_ID), str(npc.get("map")))
 
-    print("【2. 对话条件筛选】")
-    for nid, race, cls_id, map_id, subarea, kw in LINES:
-        dlg = C.get_dialogue(nid)
-        ctx_ok = {"player": {"class_name": "cls_zhan_shi", "race": race, "hidden_class_unlock": [], "class_tier": 0, "level": 40},
-                  "quests": {}, "flags": {}, "apprentices": [], "npc_id": nid,
-                  "side_quests": C.SIDE_QUESTS, "item_counts": {}}
-        ctx_bad = dict(ctx_ok)
-        ctx_bad["player"] = dict(ctx_ok["player"], race="human" if race != "human" else "elf")
-        opts_ok = C.visible_options(dlg, C.dialogue_node(dlg, "welcome"), ctx_ok)
-        opts_bad = C.visible_options(dlg, C.dialogue_node(dlg, "welcome"), ctx_bad)
-        check(f"{nid} 对应种族可见试炼选项", any("试炼" in o["text"] or "渴望" in o["text"] or "聆听" in o["text"] or "想" in o["text"] for o in opts_ok),
-              str([o["text"] for o in opts_ok]))
-        check(f"{nid} 非对应种族无传承选项", not any(o.get("action", {}).get("hidden_evolve") for o in opts_bad)
-              and len(opts_bad) <= 2, str([o["text"] for o in opts_bad]))
-
-    print("【3. 血脉拒绝（对话）】")
+    print("【2. 基础职业导师转职闭环】")
+    # 30 级战士 → 战士导师（白鹿城·白鹿广场）转攻线 T1
     await cmd(m, "register", "g1", "w1", "注册 战士 人类战 男")
-    db.update_player("g1", "w1", level=40, cur_map="dusk_ridge_road", cur_subarea="dusk_ridge_road_1")
-    out = await cmd(m, "talk_choice", "g1", "w1", "对话 龙裔老兵·铁鳞")
-    check("人类找铁鳞被拒", "龙骨山脉" in out and "接受传承" not in out, out[:150])
-    check("拒绝后无传承选项", "渴望龙血" not in out, out[:150])
+    db.update_player("g1", "w1", level=30, cur_map="white_deer", cur_subarea="white_deer_1")
+    await cmd(m, "talk_choice", "g1", "w1", "对话 老兵·格里姆")
+    await cmd(m, "talk_choice", "g1", "w1", "3")
+    out = await cmd(m, "talk_choice", "g1", "w1", "1")
+    p = db.get_player("g1", "w1")
+    check("30 级战士转职 T1 成功", p["class_tier"] == 1 and p["evolve_path"] == 1,
+          str((p["class_tier"], p["evolve_path"])))
+    check("转职文案显示狂战士", "狂战士" in out, out[:150])
 
-    print("【4. 『接取』指令种族门槛】")
-    await cmd(m, "register", "g1", "w2", "注册 战士 人类战2 男")
-    db.update_player("g1", "w2", level=40, cur_map="dusk_ridge_road", cur_subarea="dusk_ridge_road_1")
-    out = await cmd(m, "quest_accept", "g1", "w2", "接取 龙骨之血")
-    check("人类接龙血被拒", "龙裔的血脉" in out, out[:150])
-    q = db.get_quests("g1", "w2")
-    check("任务未接", "s_dragon_warrior_trial" not in (q.get("side") or {}), str(q.get("side")))
-
-    print("【5. 对话传承（6 线逐一）】")
-    for i, (nid, race, cls_id, map_id, subarea, kw) in enumerate(LINES, 1):
-        qid = f"b{i}"
-        base_cls = C.CLASSES[cls_id]["src_base"]
-        base_name = C.CLASSES[base_cls]["name"]
-        await cmd(m, "register", "g1", qid, f"注册 {base_name} 传承{i} 男")
-        db.update_player("g1", qid, level=40, race=race, cur_map=map_id,
-                         cur_subarea=subarea, hidden_class_unlock=[cls_id])
-        # 对话 → 选项1（试炼/渴望入口）→ trial 节点 → 选项1（接受传承）
-        await cmd(m, "talk_choice", "g1", qid, f"对话 {C.NPCS[nid]['name']}")
-        out = await cmd(m, "talk_choice", "g1", qid, "1")
-        out = await cmd(m, "talk_choice", "g1", qid, "1")
-        p = db.get_player("g1", qid)
-        ok = p["class_name"] == cls_id and p["class_tier"] == 1 and p["evolve_path"] == 1
-        check(f"{cls_id} 对话传承成功", ok, f"{p['class_name']}/{p['class_tier']}/{p['evolve_path']}")
-        if not ok:
-            check("  传承文案", "传承完成" in out, out[:200])
-        # 传承后对话不再显示传承选项
-        await cmd(m, "talk_choice", "g1", qid, f"对话 {C.NPCS[nid]['name']}")
-        out2 = await cmd(m, "talk_choice", "g1", qid, "1")
-        check(f"{cls_id} 传承后无传承选项", "接受传承" not in out2, out2[:120])
-
-    print("【6. 升档对话（已传承 → T2）】")
-    await cmd(m, "register", "g1", "z1", "注册 战士 龙升 男")
-    db.update_player("g1", "z1", level=60, race="dragonborn", cur_map="dusk_ridge_road",
-                     cur_subarea="dusk_ridge_road_1", hidden_class_unlock=["cls_dragon_oath"])
-    await cmd(m, "talk_choice", "g1", "z1", "对话 龙裔老兵·铁鳞")
-    await cmd(m, "talk_choice", "g1", "z1", "1")
-    out = await cmd(m, "talk_choice", "g1", "z1", "1")
-    p = db.get_player("g1", "z1")
-    check("60 级传承=T2(修为继承)", p["class_name"] == "cls_dragon_oath" and p["class_tier"] == 2,
+    print("【3. 转职重置回根基】")
+    db.update_player("g1", "w1", gold=5000)
+    gold0 = db.get_player("g1", "w1")["gold"]
+    out = await cmd(m, "evolve_reset", "g1", "w1", "转职重置")
+    p = db.get_player("g1", "w1")
+    check("重置回战士根基", p["class_name"] == "cls_zhan_shi" and p["class_tier"] == 0,
           str((p["class_name"], p["class_tier"])))
+    check("重置扣费", p["gold"] < gold0, str(p["gold"]))
+
+    print("【4. 等级门槛（导师对话层拦截）】")
+    await cmd(m, "register", "g1", "w2", "注册 法师 人类法2 男")
+    db.update_player("g1", "w2", level=40, cur_map="white_deer", cur_subarea="white_deer_1")
+    await cmd(m, "talk_choice", "g1", "w2", "对话 大法师·艾德琳")
+    out = await cmd(m, "talk_choice", "g1", "w2", "3")
+    check("40 级法师无 T2 转职入口（Lv.60 门槛）", "继续转职" not in out, out[:150])
 
     print()
     print(f"===== v113 血脉传承测试: {passed} passed, {failed} failed =====")

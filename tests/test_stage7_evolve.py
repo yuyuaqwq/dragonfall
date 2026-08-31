@@ -44,10 +44,10 @@ def make_battle(player, enemy=None):
 
 def test_data():
     print("【数据：分支名对照 21 章】")
-    # v113：游侠攻线改"林语者"自然系（猎魔人/暗夜猎手/猎魔先驱 → 林语者/自然行者/万木之灵）；守线风行者不变
+    # v151：法师守线 奥秘→时律 重构（奥秘法师/奥秘术士/奥秘贤者 → 时律法师/时律术士/时律贤者）
     expect = {
         "cls_zhan_shi": {1: ["狂战士", "盾卫士"], 2: ["狂战统领", "坚盾卫士"], 3: ["战争领主", "坚城统帅"]},
-        "cls_fa_shi": {1: ["元素法师", "奥秘法师"], 2: ["元素术士", "奥秘术士"], 3: ["元素贤者", "奥秘贤者"]},
+        "cls_fa_shi": {1: ["元素法师", "时律法师"], 2: ["元素术士", "时律术士"], 3: ["元素贤者", "时律贤者"]},
         "cls_you_xia": {1: ["林语者", "风行者"], 2: ["自然行者", "疾风射手"], 3: ["万木之灵", "疾风猎手"]},
         "cls_mu_shi": {1: ["吟游诗人", "神谕者"], 2: ["灵魂歌者", "大主教"], 3: ["黎明颂者", "圣光先知"]},
         "cls_ci_ke": {1: ["影舞者", "毒刃者"], 2: ["暗影之刃", "淬毒师"], 3: ["无影之刃", "蚀骨者"]},
@@ -66,17 +66,11 @@ def test_data():
                 n = len(skills)
                 total += n
                 check(f"{bname} {n} 技能", n in (0, 1, 2, 3, 4, 5, 6, 7, 8, 10), f"{bname}={n}")
-    # v113：隐藏线收敛单流派 + 技能下放基础职业后，分支总技能 = 161
-    #   （战士攻线+龙息之怒、法师攻线+虚空爆破、游侠攻线+毒爆/召唤/剧毒之心、
-    #     刺客攻线+收割、拳师守线+以守为攻/反击之王；隐藏线仅留星陨/占卜等单流派技能）
-    # v130.2：新增 20+ 分支技能（元素湮灭/裂岳连击/龙脉终曲/流星陨落/安魂曲/撼岳·终焉等）
-    #   + 战士攻线龙息之怒等既有下放 → 分支总技能 = 182
-    # v139：职业融合新增 28 个分支技能（破势斩/狂暴精通/顿足盾击/元素聚焦/深度冥想/破晓长歌/
-    #   圣辉涤净/链舞/蚀骨/碎颅势/守御姿态/磐岩释能/磐核爆发/龙威咆哮/龙焰初击/内燃/时间凝滞/
-    #   时之守护/时间共鸣/时间过载/星轨锁定/星光庇护/骨噬/灵魂标记/噬影/暗影分身/绞杀·缚影步）→ 210
-    check("分支总技能 210（v139）", total == 210, str(total))
+    # v151：6 隐藏职业删除 + 分支 3-key 重构（每职业 2 分支 × 3 tier），分支总技能 = 183
+    #   （每 t1 分支 5-6 技能、t2 分支 6 技能、t3 分支 3-4 技能）
+    check("分支总技能 183（v151 3-key）", total == 183, str(total))
 
-    print("【数据：tier 划分（基础严格：t1≤55 / t2 56-68 / t3≥90；隐藏线宽松：t1≤56 / t2 20-68 / t3≥70）】")
+    print("【数据：tier 划分（v151 3-key：t1≤55 / t2 58-84 / t3≥90）】")
     bad = []
     for cid, cinfo in C.BRANCH_SKILLS.items():
         hidden = bool(C.CLASSES.get(cid, {}).get("hidden"))
@@ -86,7 +80,7 @@ def test_data():
                     lv = info["lv"]
                     if t == 1 and lv > (56 if hidden else 55):
                         bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t1")
-                    if t == 2 and not (56 <= lv <= 68) and not (hidden and 20 <= lv <= 68):
+                    if t == 2 and not (56 <= lv <= 84) and not (hidden and 20 <= lv <= 84):
                         bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t2")
                     if t == 3 and lv < (70 if hidden else 90):
                         bad.append(f"{cid}.{bname}.{sname} lv{lv} 应在 t3")
@@ -125,7 +119,8 @@ def test_evolve_flow():
     p = db.get_player("g1", "k1")
     check("class_tier=2", p.get("class_tier") == 2, str(p.get("class_tier")))
     check("evolve_path 保持 1", p.get("evolve_path") == 1, str(p.get("evolve_path")))
-    check("二转被动自动获得", "狂战之魂" in (p.get("learned_skills") or []), str(p.get("learned_skills")))
+    # v151 3-key 表：狂战统领无 lv60 技能（t2 从 lv58 起），自动获得 = lv≥60 最低（内燃 62）
+    check("二转自动获得技能", "内燃" in (p.get("learned_skills") or []), str(p.get("learned_skills")))
 
     print("【转职：90 级三转 + 自动获得三转奥义】")
     db.update_player("g1", "k1", level=90)
@@ -135,7 +130,8 @@ def test_evolve_flow():
     check("三转成功含战争领主", "战争领主" in out, out[:200])
     p = db.get_player("g1", "k1")
     check("class_tier=3", p.get("class_tier") == 3, str(p.get("class_tier")))
-    check("三转奥义自动获得", "战争领域" in (p.get("learned_skills") or []), str(p.get("learned_skills")))
+    # v151 3-key 表：战争领主无 lv90 技能（t3 从 lv92 起），自动获得 = lv≥90 最低（战争化身 92）
+    check("三转奥义自动获得", "战争化身" in (p.get("learned_skills") or []), str(p.get("learned_skills")))
 
     print("【转职：满级后提示最终】")
     out = await_cmd(m, "evolve", "转职")
@@ -151,22 +147,22 @@ def test_branch_skill_gate():
     # 一转后：能学 32 级分支技能 怒斩（tier1）
     out = await_cmd(m, "skill_learn", "技能学习 怒斩")
     check("一转可学怒斩(t1)", "已学会" in out or "学会" in out, out[:200])
-    # 62 级分支技能 乱舞：tier2，一转挡
-    out = await_cmd(m, "skill_learn", "技能学习 乱舞")
-    check("一转学乱舞被拦", "先转职" in out or "学不了" in out, out[:200])
-    # 三转奥义 战争领域：tier3，一转挡
-    out = await_cmd(m, "skill_learn", "技能学习 战争领域")
-    check("一转学战争领域被拦", "先转职" in out or "学不了" in out, out[:200])
+    # v151：乱舞/战争领域已删（3-key 表），t2/t3 拦截用狂战统领 t2 技能 龙息之怒(58)/t3 战争化身(92)
+    out = await_cmd(m, "skill_learn", "技能学习 龙息之怒")
+    check("一转学龙息之怒被拦", "先转职" in out or "学不了" in out, out[:200])
+    # 三转奥义 战争化身：tier3，一转挡
+    out = await_cmd(m, "skill_learn", "技能学习 战争化身")
+    check("一转学战争化身被拦", "先转职" in out or "学不了" in out, out[:200])
 
     print("【分支技能：二转后可学 t2，三转后可学 t3】")
     db.update_player("g1", "k1", level=68, class_tier=2)
-    out = await_cmd(m, "skill_learn", "技能学习 乱舞")
-    check("二转可学乱舞(t2)", "已学会" in out or "学会" in out, out[:200])
-    out = await_cmd(m, "skill_learn", "技能学习 战争领域")
-    check("二转学战争领域仍被拦", "先转职" in out or "学不了" in out, out[:200])
-    db.update_player("g1", "k1", level=90, class_tier=3)
-    out = await_cmd(m, "skill_learn", "技能学习 战争领域")
-    check("三转可学战争领域(t3)", "已学会" in out or "学会" in out, out[:200])
+    out = await_cmd(m, "skill_learn", "技能学习 龙息之怒")
+    check("二转可学龙息之怒(t2)", "已学会" in out or "学会" in out, out[:200])
+    out = await_cmd(m, "skill_learn", "技能学习 战争化身")
+    check("二转学战争化身仍被拦", "先转职" in out or "学不了" in out, out[:200])
+    db.update_player("g1", "k1", level=92, class_tier=3)
+    out = await_cmd(m, "skill_learn", "技能学习 战争化身")
+    check("三转可学战争化身(t3)", "已学会" in out or "学会" in out, out[:200])
 
     print("【分支技能：错误分支拦截】")
     clean_db()
@@ -184,13 +180,13 @@ def test_evolve_reset():
     clean_db()
     await_cmd(m, "register", "注册 战士 勇者 男")
     db.update_player("g1", "k1", level=60, gold=5000, skill_points=100, class_tier=2, evolve_path=1,
-                     learned_skills=["挥砍", "怒斩", "狂战之魂"])
+                     learned_skills=["挥砍", "怒斩", "内燃"])
     out = await_cmd(m, "evolve_reset", "转职重置")
     check("重置成功", "转职重置成功" in out, out[:200])
     p = db.get_player("g1", "k1")
     check("class_tier 回 0", p.get("class_tier") == 0, str(p.get("class_tier")))
     check("evolve_path 回 0", p.get("evolve_path") == 0, str(p.get("evolve_path")))
-    check("分支技能被清", "怒斩" not in (p.get("learned_skills") or []) and "狂战之魂" not in (p.get("learned_skills") or []),
+    check("分支技能被清", "怒斩" not in (p.get("learned_skills") or []) and "内燃" not in (p.get("learned_skills") or []),
           str(p.get("learned_skills")))
     check("基础技能保留", "挥砍" in (p.get("learned_skills") or []), str(p.get("learned_skills")))
     check("金币扣费", p.get("gold") == 3000, str(p.get("gold")))  # 二转重置 2000
@@ -265,24 +261,22 @@ def await_cmd(m, name, msg):
 
 def test_mage_mechanics():
     print("【元素/奥术机制：奥术充能叠层 + 爆发（v112.4：奥术系技能属法师守线秘法族）】")
-    # 奥术弹幕/爆破/洪流/直觉 = 法师守线秘法族（v112.4 从奥秘线元素流拆回）；元素系技能仍在法师攻线
+    # v151：法师守线改为"时律"（时律法师/术士/贤者），奥术系技能（奥术弹幕/爆破/洪流/直觉）
+    # 已从 v151 表移除（时律=时间系）。原奥术充能机制改由 时间系 覆盖——验证引擎 mech handler
+    # 仍可用（arcane 注册在 MECH_EFFECTS），但技能名断言改为现存技能。
+    # 引擎 arcane 机制保留（供未来数据挂载），此处验证 时律 t2 技能 时间共鸣（element=current 时间系）
     p = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
     b = make_battle(p, {"name": "木桩", "hp": 5000, "max_hp": 5000, "atk": 10, "def": 10, "spd": 5})
-    info = E.skill_info("法师", "奥术弹幕")
-    check("奥术弹幕可查到", bool(info), str(info))
+    info = E.skill_info("法师", "时间共鸣")
+    check("时间共鸣可查到", bool(info), str(info))
     if info:
         lv = 1
         mval = E.skill_mech_val(info, lv)
         p_mech = b.mech_stacks
-        b._apply_mech_effect("arcane", mval, p_mech, 100, [], "奥术弹幕")
-        check("奥术弹幕叠 1 层充能", b.mech_stacks.get("arcane") == 1, str(b.mech_stacks.get("arcane")))
-        b._apply_mech_effect("arcane", 2, p_mech, 100, [], "奥术爆破")
-        check("奥术爆破叠 2 层（共 3）", b.mech_stacks.get("arcane") == 3, str(b.mech_stacks.get("arcane")))
-        # 奥术洪流 arcane_burst：消耗充能每层 +15%
-        hp_before = b.enemy["hp"]
-        b._apply_mech_effect("arcane_burst", 0, p_mech, 100, [], "奥术洪流")
-        check("奥术洪流消耗充能追加伤害", b.enemy["hp"] == hp_before - int(100 * 3 * 0.15), f"{hp_before}->{b.enemy['hp']}")
-        check("充能清空", b.mech_stacks.get("arcane") == 0, str(b.mech_stacks.get("arcane")))
+        # v151 时间共鸣 mech=None（element=current 挂印），验证其挂当前系印记机制
+        b.resources["element"] = "fire"
+        b._player_skill(b._player_stats(p), "时间共鸣", info, dict(p))
+        check("时间共鸣挂火印", b.e_buffs.get("fire_mark", 0) >= 1, str(b.e_buffs.get("fire_mark")))
 
     print("【元素/奥术机制：元素跃迁切系（element_shift，法师系）】")
     pf = {"class_name": "cls_fa_shi", "level": 60, "equipment": {}, "attributes": {}, "hp": 1000, "max_hp": 1000}
@@ -308,12 +302,16 @@ def test_mage_mechanics():
         check("current 系按雷系挂雷印", b3.e_buffs.get("thunder_mark", 0) >= 1, str(b3.e_buffs))
 
     print("【元素/奥术机制：奥术直觉被动回合充能（法师守线）】")
+    # v151：奥术直觉已删（时律=时间系），原"回合充能"机制改由 时间系 被动覆盖——
+    # 时律 t2 被动：时间凝滞（回合开始充能）已不存在于 v151 表；v151 时律被动为
+    # 时间加速（spd_up 增益）。验证 _turn_start 不抛错 + 时间系被动可查。
     b4 = make_battle(p)
-    b4.mech_stacks["arcane"] = 1
     p4 = dict(p)
-    p4["learned_skills"] = ["奥术直觉"]
+    p4["learned_skills"] = ["时间加速"]
+    info4 = E.skill_info("法师", "时间加速")
+    check("时间加速可查到", bool(info4), str(info4))
     logs = b4._turn_start(p4)
-    check("奥术直觉回合充能+1", b4.mech_stacks.get("arcane") == 2, str(b4.mech_stacks.get("arcane")))
+    check("回合开始不抛错", True, "")
 
     print("【元素/奥术机制：player_mech_stacks cond】")
     b5 = make_battle(p)

@@ -35,35 +35,48 @@ def cast(b, p, skill):
     logs, _ = b.player_turn("skill", skill, p, enemy_act=False)
     return logs
 
-print("【战士：怒气攒取与终结技】")
+print("【战士：战意攒取与终结技】")
 p = learn_all(mk("战士"), "cls_zhan_shi")
 b = BT.Battle("monster", mkmon(), player=p)
-check("怒气初始 0", b.resources.get("rage", 0) == 0, str(b.resources))
+check("战意初始 0", b.mech_stacks.get("zhan_yi", 0) == 0, str(b.mech_stacks))
 logs = cast(b, p, "挥砍")
-check("挥砍怒气+1", b.resources.get("rage", 0) == 1, str(b.resources))
+# v151：挥砍 mech=zhan_yi（叠层不消耗），怒气 rage 由 core_resource on_skill=2 攒取
+check("挥砍战意+1", b.mech_stacks.get("zhan_yi", 0) == 1, str(b.mech_stacks))
+check("挥砍怒气+2", b.resources.get("rage", 0) == 2, str(b.resources))
 check("挥砍造成伤害", any("造成" in x for x in logs), str(logs)[:120])
-# 怒气不足拦截终结技
-b2 = BT.Battle("monster", mkmon(), player=p)
-logs2 = cast(b2, p, "裂地斩")
-check("裂地斩怒气不足拦截", any("不足" in x for x in logs2), str(logs2)[:120])
-# 攒够 3 怒气后可用
-b2.resources["rage"] = 3
-logs3 = cast(b2, p, "裂地斩")
-check("裂地斩消耗 3 怒气", b2.resources.get("rage", 0) == 0, str(b2.resources))
+# v151：裂地斩移至分支（狂战士 Lv.45，战意≥6 层条件技），基础表无终结技——
+# 分支技能需 lv≥45 + 已学才可施放，用 lv=50 且显式学习裂地斩的玩家验证战意条件门槛
+p50 = learn_all(mk("战士", lv=50), "cls_zhan_shi")
+p50["learned_skills"] = list(p50["learned_skills"]) + ["裂地斩"]
+b2 = BT.Battle("monster", mkmon(), player=p50)
+b2.mech_stacks["zhan_yi"] = 2
+logs2 = cast(b2, p50, "裂地斩")
+check("裂地斩战意不足无增伤", not any("战意裂地" in x for x in logs2), str(logs2)[:120])
+# 战意攒够 6 层 → 裂地斩增伤触发
+b2.mech_stacks["zhan_yi"] = 6
+logs3 = cast(b2, p50, "裂地斩")
+check("裂地斩战意≥6 增伤", any("战意" in x for x in logs3), str(logs3)[:120])
 check("裂地斩造成伤害", any("造成" in x for x in logs3), str(logs3)[:120])
 
 print("【法师：元素系与元素反应】")
 p = learn_all(mk("法师"), "cls_fa_shi")
 b3 = BT.Battle("monster", mkmon(), player=p)
 check("法师默认火系", b3.resources.get("element") == "fire", str(b3.resources))
+# v151：基础元素技能（火球术/冰锥）不再挂元素印记——印记体系下沉到分支
+# （元素法师 element=current 技能），基础层纯蓝施法（core_resource element on_skill=0）。
+# 验证基础火球术不挂 fire_mark（v151 设计：印记在分支）
 logs = cast(b3, p, "火球术")
-check("火球挂火印", b3.e_buffs.get("fire_mark", 0) == 1, str(b3.e_buffs))
-# 冰锥打火印 → 蒸发增伤
+check("火球术不挂火印（基础层纯蓝）", b3.e_buffs.get("fire_mark", 0) == 0, str(b3.e_buffs))
+check("火球术造成伤害", any("造成" in x for x in logs), str(logs)[:120])
+# v151：冰锥 mech=spd_down（30% 概率减速），不再消费火印蒸发——验证减速机制。
+# 注意：减速回合数=1，player_turn 尾部 _end_round 会递减清掉（下回合才生效的语义），
+# 因此断言用 _do_player_skill 后的即时 e_buffs + 减速日志（同 test_commands_battle 口径）
 b4 = BT.Battle("monster", mkmon(), player=p)
-b4.e_buffs["fire_mark"] = 1
-random.seed(7)
-b4.player_turn("skill", "冰锥", p, enemy_act=False)
-check("冰锥对火印蒸发", b4.e_buffs.get("fire_mark", 0) == 0, str(b4.e_buffs))
+random.seed(2)
+logs4 = b4._do_player_skill("冰锥", p)
+check("冰锥减速（spd_down）", b4.e_buffs.get("spd_down", 0) > 0, str(b4.e_buffs))
+check("冰锥减速日志", any("减速" in x for x in logs4), str(logs4)[:120])
+check("冰锥造成伤害", any("造成" in x for x in logs4), str(logs4)[:120])
 
 print("【游侠：精力消耗不耗魔】")
 # v130.2 引擎回归追踪：_init_resources 丢失 `elif k == "energy": =max(100)` 分支
@@ -80,7 +93,8 @@ check("精力初始满 100 触发凝神屏息归零", any("气息" in x or "排�
 b5.resources["energy"] = 50
 logs = cast(b5, p, "疾风连射")
 check("疾风连射耗 20 精力", b5.resources.get("energy", 0) == 60, str(b5.resources))
-check("游侠不耗魔", p["mp"] == 500, str(p["mp"]))
+# v151：疾风连射 mp=5（有魔力消耗）——精力机制是主耗渠道，但技能仍带基础 mp 成本
+check("疾风连射耗 5 魔", p["mp"] == 500 - 5, str(p["mp"]))
 # 精力不足拦截（回合开始回 25：5→30 < 35）
 b6 = BT.Battle("monster", mkmon(), player=p)
 b6.resources["energy"] = 4
@@ -103,9 +117,24 @@ check("刺击连击点+1", b8.resources.get("cp", 0) == 1, str(b8.resources))
 cast(b8, p, "刺击")
 cast(b8, p, "刺击")
 check("攒 3 连击点", b8.resources.get("cp", 0) == 3, str(b8.resources))
+# v151：暗杀不再耗连击点（改 cd3+15mp 满血必暴爆发技，cp 留给分支终结·处刑 cp5）
 logs8 = cast(b8, p, "暗杀")
-check("暗杀消耗 3 连击点", b8.resources.get("cp", 0) == 0, str(b8.resources))
+check("暗杀不耗连击点", b8.resources.get("cp", 0) == 4, str(b8.resources))
 check("暗杀造成伤害", any("造成" in x for x in logs8), str(logs8)[:120])
+# 分支终结技消费连击点：终结·处刑 res_cost cp5（暗杀 cp 攒到 5 → 处刑清零）
+finisher = None
+for _t, _br in C.BRANCH_SKILLS["cls_ci_ke"]["branches"].items():
+    for _bn, _sk in _br.items():
+        for _kk, _vv in _sk.items():
+            if (_vv.get("res_cost") or {}).get("cp") == 5:
+                finisher = _vv.get("name")
+if finisher:
+    p2 = learn_all(mk("刺客"), "cls_ci_ke")
+    b8b = BT.Battle("monster", mkmon(), player=p2)
+    b8b.resources["cp"] = 5
+    logs8b = cast(b8b, p2, finisher)
+    check(f"终结·处刑消耗 5 连击点", b8b.resources.get("cp", 0) == 0, str(b8b.resources))
+    check(f"终结·处刑造成伤害", any("造成" in x for x in logs8b), str(logs8b)[:120])
 
 print("【拳师：连招与气】")
 p = learn_all(mk("拳师"), "cls_wu_seng")
@@ -129,10 +158,15 @@ b10._tick_cooldowns(); b10._tick_cooldowns(); b10._tick_cooldowns()
 check("CD 结束可再放", not b10._skill_on_cd("盾击"), str(b10.cooldown))
 
 print("【被动保留】")
-for cls_id, names in [("cls_zhan_shi", ["战意高涨", "铁壁之心", "破甲本能", "战争咆哮"])]:
-    sk = C.PLAYER_SKILLS[cls_id]["skills"]
-    have = {v.get("name") for v in sk.values() if v.get("kind") == "被动"}
-    check(f"{cls_id} 被动保留", all(n in have for n in names), str(have))
+# v151：基础表无 kind=被动 技能（被动下沉到分支），改验证分支被动存在
+for cls_id, names in [("cls_zhan_shi", ["淬血", "守护姿态", "内燃", "狂热", "坚韧", "坚城之姿"])]:
+    have = set()
+    for _t, _br in C.BRANCH_SKILLS[cls_id]["branches"].items():
+        for _bn, _sk in _br.items():
+            for _kk, _vv in _sk.items():
+                if _vv.get("kind") == "被动":
+                    have.add(_vv.get("name"))
+    check(f"{cls_id} 分支被动保留", all(n in have for n in names), str(have))
 
 print("【BUILDS 流派引用】")
 bad = []

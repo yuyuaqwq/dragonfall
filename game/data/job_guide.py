@@ -41,12 +41,6 @@ POSITION_BRIEF = {
     "cls_mu_shi": "信仰圣光的神职者，能打能奶，队伍的灵魂",
     "cls_ci_ke": "暗影中的利刃，出手必见血，暴击与闪避的极致",
     "cls_wu_seng": "以拳入道的修行者，拳拳到肉，连击与反击的行家",
-    "cls_dragon_oath": "继承古龙之血，以龙息与龙鳞屹立战场",
-    "cls_chronomancer": "操控时间之流、凝固万物之刻的时咒师——时滞、凝时、时停",
-    "cls_wild_hunter": "以星为引、以运为刃的占星猎手——占卜命运，射落星辰",
-    "cls_hymn": "行走于生死边界的亡者使徒——骷髅海铺场、死亡契约保命",
-    "cls_shadow_blade": "影即吾身——潜行、刺杀、一击必杀",
-    "cls_wu_sheng": "以武证道的拳师——禅意连击，拳破万法",
 }
 
 # classes.py aliases 之外的查询兼容名（职业名兼容层；classes aliases 自动并入 JOB_ALIASES）
@@ -108,10 +102,10 @@ def _build_guide():
 
 JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS = _build_guide()
 
-# 12 职业完整性 fail-fast（与 data/_assembly.py 同款启动即报错风格）
-assert len(JOB_GUIDE) == 12, f"[job_guide] 必须覆盖 12 职业，实际 {len(JOB_GUIDE)}"
-assert len(BASE_ORDER) == 6 and len(HIDDEN_ORDER) == 6, \
-    f"[job_guide] 基础六/隐藏六 分组异常：{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}"
+# 6 职业完整性 fail-fast（v151 隐藏职业删除：12→6；与 data/_assembly.py 同款启动即报错风格）
+assert len(JOB_GUIDE) == 6, f"[job_guide] 必须覆盖 6 职业，实际 {len(JOB_GUIDE)}"
+assert len(BASE_ORDER) == 6 and len(HIDDEN_ORDER) == 0, \
+    f"[job_guide] 基础六/隐藏分组异常：{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}"
 
 # 别名表：classes.py aliases + 分支名（含展示名映射）+ 兼容名 EXTRA_ALIASES
 JOB_ALIASES = {}

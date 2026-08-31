@@ -41,7 +41,7 @@ async def main():
     def base_attr(cid, k):
         return CLASSES[cid]["base"].get(k, 0)
     check("刺客 cdr 5%", abs(base_attr("cls_ci_ke", "cdr") - 0.05) < 1e-9)
-    check("龙裔誓约 cdr 5%", abs(base_attr("cls_dragon_oath", "cdr") - 0.05) < 1e-9)
+    # v151 隐藏职业已删：龙裔誓约(cls_dragon_oath)不再存在——cdr 职业特色收敛到刺客
     check("牧师 elem_res 5%", abs(base_attr("cls_mu_shi", "elem_res") - 0.05) < 1e-9)
     check("战士 elem_res 5%", abs(base_attr("cls_zhan_shi", "elem_res") - 0.05) < 1e-9)
     check("法师 abyss_res 5%", abs(base_attr("cls_fa_shi", "abyss_res") - 0.05) < 1e-9)
@@ -141,17 +141,17 @@ async def main():
 
     # ============ 7. 被动系统 ============
     print("【7. 被动系统】")
-    # v112.3：伴奏/快板节奏已归入牧师攻线分支（灵魂歌者/黎明颂者），按分支查技能
+    # v151 职业重构：伴奏/快板节奏（旧牧师歌者分支被动）已删除，无 cdr 属性被动；
+    # cdr 被动挂点验证改为空列表基线（player_passive_stats 对不存在技能返回 0）
     pb = E.player_passive_stats("cls_mu_shi", ["伴奏", "快板节奏"])
-    # v130.2f 设计变更：伴奏由 crit+8% 属性被动 → 歌类技 20% 回声节拍器（引擎挂点 battle.py _do_player_skill）
-    check("伴奏 crit_add=0（改版为歌类技回声节拍器）", abs(pb.get("crit_add", 0) - 0.0) < 1e-9, str(pb.get("crit_add")))
-    check("快板节奏 cdr +8%", abs(pb.get("cdr_add", 0) - 0.08) < 1e-9, str(pb.get("cdr_add")))
-    # 技能数据存在（走牧师攻线分支表）
+    check("伴奏/快板节奏已删 → crit_add=0", abs(pb.get("crit_add", 0) - 0.0) < 1e-9, str(pb.get("crit_add")))
+    check("伴奏/快板节奏已删 → cdr_add=0", abs(pb.get("cdr_add", 0) - 0.0) < 1e-9, str(pb.get("cdr_add")))
+    # v151 技能数据存在性改用现役基础技能（治愈术/圣佑，牧师表内）
     from game.engine import skill_info
-    info_ac = skill_info("cls_mu_shi", "伴奏")
-    info_kb = skill_info("cls_mu_shi", "快板节奏")
-    check("伴奏 为被动技能", bool(info_ac) and info_ac.get("kind") == "被动", str(info_ac))
-    check("快板节奏 为被动技能", bool(info_kb) and info_kb.get("kind") == "被动", str(info_kb))
+    info_ac = skill_info("cls_mu_shi", "治愈术")
+    info_kb = skill_info("cls_mu_shi", "圣佑")
+    check("治愈术 技能数据存在", bool(info_ac), str(info_ac))
+    check("圣佑 技能数据存在", bool(info_kb), str(info_kb))
 
     # ============ 8. 经验/金币加成聚合 ============
     print("【8. 经验/金币加成】")

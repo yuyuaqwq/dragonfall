@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""v107 隐藏职业技能层冒烟测试（2026-08-13 鱼鱼拍板）
+"""v151 基础职业技能层冒烟测试（原 v107 隐藏职业冒烟，2026-08-31 v151 重构后改版）
 
-覆盖 11 职业真实技能数据：施放不报错 + 关键机制字段生效
-（真伤/召唤/进化/斩杀被动/血魔法/吸MP/毒爆/护盾/奥术爆发/连击/多段）
+覆盖 6 基础职业真实技能数据：施放不报错 + 关键机制字段生效
+（真伤/召唤/多段/毒爆/元素印记/战意叠层）
+v151 变更：6 隐藏职业删除，旧技能名全部替换为新表技能。
 """
 import sys, os, random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +26,7 @@ async def main():
     clean_db()
     from data.plugins.dragonfall.game import battle as BT
 
-    print("===== v107 隐藏职业技能层冒烟 =====\n")
+    print("===== v151 基础职业技能层冒烟 =====\n")
 
     def mk_player(cls, skills=None, hp=800, mp=200):
         return {
@@ -47,27 +48,26 @@ async def main():
         random.seed(11)
         return b._player_skill(st, sname, info, p)
 
-    # 1. 龙血战士：龙息真伤
-    print("— 龙血战士 —")
-    p = mk_player("cls_dragon_oath", ["龙息", "龙息之怒"])
+    # 1. 战士：龙息之怒真伤（v151 T2 狂战统领）
+    print("— 战士·龙息之怒 —")
+    p = mk_player("cls_zhan_shi", ["龙息之怒"])
     b = BT.Battle("怪物", mk_enemy(def_=5000, hp=50000), {}, p)
     hp0 = b.enemy["hp"]
-    logs = cast(b, p, "龙息")
+    logs = cast(b, p, "龙息之怒")
     dealt = hp0 - b.enemy["hp"]
-    check("龙息真伤无视 def=5000", dealt > 100, f"dealt {dealt}")
-    check("龙息附灼烧", any("灼烧" in l for l in logs), str(logs[:2]))
+    check("龙息之怒真伤无视 def=5000", dealt > 100, f"dealt {dealt}")
+    check("龙息之怒附灼烧", any("灼烧" in l for l in logs), str(logs[:2]))
 
-    # 2. 暗影祭司：召唤骷髅
-    print("\n— 暗影祭司 —")
-    p = mk_player("cls_hymn", ["召唤骷髅", "骷髅海"])
+    # 2. 牧师·神谕者：召唤骷髅 + 骷髅海（v151 T1 神谕者 / T3 圣光先知）
+    print("\n— 牧师·召唤骷髅 —")
+    p = mk_player("cls_mu_shi", ["召唤骷髅", "骷髅海"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
     logs = cast(b, p, "召唤骷髅")
     check("召唤骷髅生成", len(b.summons) == 1, str(b.summons))
     logs2 = cast(b, p, "骷髅海")
-    check("骷髅海再召唤", len(b.summons) == 2, str(len(b.summons)))
-    check("骷髅海带攻击buff", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
+    check("骷髅海再召唤", len(b.summons) >= 2, str(len(b.summons)))
 
-    # 3. 植物召唤（v113 兽群进化链已删，召唤下放基础游侠攻线·林语者）
+    # 3. 游侠·林语者：植物召唤（v151 T1 林语者 / T3 万木之灵）
     print("\n— 林语者：植物召唤 —")
     p = mk_player("cls_you_xia", ["召唤藤蔓守卫", "召唤古树守卫"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
@@ -77,9 +77,9 @@ async def main():
     check("再召古树守卫", any(s["tid"] == "treant" for s in b.summons),
           str([s.get("tid") for s in b.summons]))
 
-    # 4. 暮影行者（暗杀流）：幽影连刺多段（v113 收割流派已下放基础刺客）
-    print("\n— 暮影行者（暗杀流）—")
-    p = mk_player("cls_shadow_blade", ["幽影袭", "幽影连刺", "幽影刃"])
+    # 4. 刺客·暗影之刃：幽影连刺多段（v151 T2 暗影之刃）
+    print("\n— 刺客·幽影连刺 —")
+    p = mk_player("cls_ci_ke", ["幽影连刺"])
     b = BT.Battle("怪物", mk_enemy(hp=50000), {}, p)
     hp0 = b.enemy["hp"]
     logs = cast(b, p, "幽影连刺")
@@ -88,15 +88,15 @@ async def main():
     check("幽影连刺日志", any("幽影连刺" in l for l in logs + logs2),
           str([l for l in logs + logs2 if "幽影连刺" in l]))
 
-    # 5. 元素湮灭（v113 虚空爆破下放基础法师攻线；v130.2 黑名单改名）：吸MP
-    print("\n— 法师·元素湮灭（吸蓝）—")
-    p = mk_player("cls_fa_shi", ["元素湮灭"], mp=20)
+    # 5. 法师·元素湮灭（v151 T1 元素法师）：消耗充能爆发
+    print("\n— 法师·元素湮灭（充能爆发）—")
+    p = mk_player("cls_fa_shi", ["元素湮灭"], mp=200)
     b = BT.Battle("怪物", mk_enemy(), {}, p)
+    hp0 = b.enemy["hp"]
     logs = cast(b, p, "元素湮灭")
-    check("元素湮灭回蓝", p["mp"] > 20, f"mp {p['mp']}")
-    check("虚空汲取日志", any("虚空汲取" in l for l in logs), str([l for l in logs if "虚空汲取" in l]))
+    check("元素湮灭输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
-    # 6. 游侠·林语者（v113 自然毒藤下放基础攻线）：毒→爆
+    # 6. 游侠·毒爆流（v151 T1 林语者）：毒→爆
     print("\n— 游侠·毒爆流 —")
     p = mk_player("cls_you_xia", ["淬毒箭矢", "藤蔓缠绕", "毒爆术", "剧毒之心"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
@@ -110,50 +110,31 @@ async def main():
     check("毒爆引爆", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
     check("毒层清空", "poison" not in (b.enemy.get("debuffs") or {}), str(b.enemy.get("debuffs")))
 
-    # 7. 龙裔誓约（龙血流）：龙焰吐息真伤（v113 本线只留龙血流派）
-    print("\n— 龙裔誓约（龙血流）—")
-    p = mk_player("cls_dragon_oath", ["龙息", "龙鳞", "龙威", "龙焰吐息"])
+    # 7. 拳师·格斗士：连招三连 + 震地击（v151 T1 格斗士）
+    print("\n— 拳师·连招/震地 —")
+    p = mk_player("cls_wu_seng", ["连招三连", "震地击", "冲拳"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
+    logs = cast(b, p, "连招三连")
+    check("连招三连多段输出", any("连击" in l for l in logs), str(logs[:2]))
     hp0 = b.enemy["hp"]
-    logs = cast(b, p, "龙焰吐息")
-    check("龙焰吐息真伤", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
-    check("龙焰吐息附灼烧", any("灼烧" in l for l in logs), str([l for l in logs if "灼烧" in l]))
-    logs_c = cast(b, p, "龙鳞")
-    check("龙鳞防御增益", any("龙鳞" in l for l in logs_c), str([l for l in logs_c if "龙鳞" in l]))
+    logs2 = cast(b, p, "震地击")
+    check("震地击输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
+    check("震地击眩晕机制字段", (E.skill_info("cls_wu_seng", "震地击") or {}).get("mech") == "stun",
+          str(E.skill_info("cls_wu_seng", "震地击")))
 
-    # 8. 苦修士：气连击
-    print("\n— 苦修士 —")
-    p = mk_player("cls_wu_sheng", ["裂岩冲", "蓄劲连打", "气爆"])  # v130.2 气力连打→蓄劲连打
+    # 8. 法师·元素印记（v151 基础）：元素弹幕 + 元素冲击叠印记
+    print("\n— 法师·元素印记 —")
+    p = mk_player("cls_fa_shi", ["元素弹幕", "元素冲击"])
     b = BT.Battle("怪物", mk_enemy(), {}, p)
-    logs = cast(b, p, "裂岩冲")
-    check("裂岩冲攒气", b.mech_stacks.get("chi", 0) >= 1, str(b.mech_stacks))
+    cast(b, p, "元素弹幕")
+    cast(b, p, "元素冲击")
+    check("元素印记叠加", b._elem_marks().get("fire", 0) >= 1, str(b._elem_marks()))
     hp0 = b.enemy["hp"]
-    logs2 = cast(b, p, "气爆")
-    check("气爆输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
-
-    # 9. 奥秘守线（基础法师）：飞弹→脉冲
-    print("\n— 奥秘守线 —")
-    p = mk_player("cls_fa_shi", ["奥术飞弹", "奥术脉冲"])
-    b = BT.Battle("怪物", mk_enemy(), {}, p)
-    cast(b, p, "奥术飞弹")
-    cast(b, p, "奥术飞弹")
-    check("奥术印记叠加", b.mech_stacks.get("arcane", 0) >= 2, str(b.mech_stacks.get("arcane")))
-    hp0 = b.enemy["hp"]
-    logs = cast(b, p, "奥术脉冲")
-    check("奥术脉冲输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
-
-    # 10. 星语者（原占星者，cls_wild_hunter 不变）：命运之轮多段
-    print("\n— 星语者 —")
-    p = mk_player("cls_wild_hunter", ["星陨", "命运之轮"])
-    b = BT.Battle("怪物", mk_enemy(), {}, p)
-    hp0 = b.enemy["hp"]
-    logs = cast(b, p, "命运之轮")
-    dealt = hp0 - b.enemy["hp"]
-    check("命运之轮多段输出", dealt > 150, f"dealt {dealt}")
-    check("命运之轮连击日志", any("连击" in l for l in logs), str(logs))
+    logs = cast(b, p, "元素冲击")
+    check("元素冲击输出", b.enemy["hp"] < hp0, f"{hp0}→{b.enemy['hp']}")
 
     print()
-    print(f"===== v107 隐藏职业技能层冒烟: {passed} passed, {failed} failed =====")
+    print(f"===== v151 基础职业技能层冒烟: {passed} passed, {failed} failed =====")
     if failed:
         sys.exit(1)
 

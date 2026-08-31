@@ -112,11 +112,12 @@ def check(name, cond, detail=""):
 
 
 def main():
+    # v151：6 隐藏职业全删 → CLASSES 恰 6 基础职业（+见习），快照断言从 12 → 6
     classes = [c for c in C.CLASSES if c != "cls_novice"]
-    check("12 职业完整性（CLASSES 全量，排除见习）", len(classes) == 12,
+    check("6 职业完整性（CLASSES 全量，排除见习）", len(classes) == 6,
           f"n={len(classes)} {classes}")
 
-    print("【① 12 职业裸装面板快照（1/11/30/60 级）】")
+    print("【① 6 职业裸装面板快照（1/11/30/60 级）】")
     for cid in classes:
         cname = C.CLASSES[cid]["name"]
         for lv in LEVELS:
