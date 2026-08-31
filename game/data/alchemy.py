@@ -58,7 +58,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_great_treatment": 1
         },
-        "min_lv": 3,
+        "min_lv": 4,
         "desc": "用圣光羽毛炼制的强效恢复药水",
         # v110 审计修复：配方名与产物 i_great_treatment 对齐（v110.11 产物已改名
         # 「高效治疗药水」40% 档；商店另有 i_treat_strong「强效治疗药水」50% 档——
@@ -73,7 +73,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_great_mana": 1
         },
-        "min_lv": 3,
+        "min_lv": 4,
         "desc": "用雪之精华炼制的强效魔力药水",
         # v105R3 M16 P3-5：配方名与产物名统一（产物 i_great_mana 为『强效魔法药水』）
         "name": "强效魔法药水"
@@ -87,7 +87,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_lucky_charm": 1
         },
-        "min_lv": 3,
+        "min_lv": 6,
         "desc": "提升打怪金币与材料掉落(10 分钟)",
         "name": "幸运护符"
     },
@@ -107,7 +107,7 @@ ALCHEMY_RECIPES = {
     "al_zhu_fu_fu_shi": {
         "cost": {"mat_star_iron": 1, "i_stone_upgrade": 1},
         "product": {"i_stone_blessed": 1},
-        "min_lv": 4,
+        "min_lv": 6,
         "desc": "星铁与强化石淬炼的祝福符石，强化成功率更高",
         "name": "祝福符石"
     },
@@ -159,7 +159,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "mat_lei_jing_sha": 1
         },
-        "min_lv": 5,
+        "min_lv": 4,
         "purify": True,
         "desc": "珍珠贝浓缩提纯为雷晶砂（蓝→紫），消耗冗余蓝材料的出口",
         "name": "珍珠贝提纯"
@@ -197,7 +197,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_super_treatment": 1
         },
-        "min_lv": 5,
+        "min_lv": 8,
         "desc": "高级恢复药水",
         "name": "超级治疗药水"
     },
@@ -209,7 +209,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_super_mana": 1
         },
-        "min_lv": 5,
+        "min_lv": 8,
         "desc": "高级魔力恢复",
         # v105R3 M16 P3-5：配方名与产物名统一（产物 i_super_mana 为『超级魔法药水』）
         "name": "超级魔法药水"
@@ -223,7 +223,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_spd_potion": 1
         },
-        "min_lv": 5,
+        "min_lv": 4,
         "desc": "战斗中使用，速度 + 40%(3 刻)",
         # v105R3 M16 P3-5：配方名与产物名统一（产物 i_spd_potion 为『疾风药剂』）
         "name": "疾风药剂"
@@ -249,7 +249,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_mermaid_tear": 1
         },
-        "min_lv": 3,
+        "min_lv": 4,
         # v105R3 M16 P2-7：实际 3 刻 buff（battle.py max(...,3)），desc 不再写「本刻」
         "desc": "战斗中使用，3 刻魔攻 + 30%",
         "name": "鲛人之泪"
@@ -261,7 +261,7 @@ ALCHEMY_RECIPES = {
         "product": {
             "i_ambergris_draught": 1
         },
-        "min_lv": 5,
+        "min_lv": 6,
         "desc": "战斗中使用，3 刻攻击 + 30%、防御 + 45%",
         "name": "龙涎药剂"
     },
@@ -270,21 +270,21 @@ ALCHEMY_RECIPES = {
     "al_yue_lu_jing_hua": {
         "cost": {"mat_moon_dew": 2, "mat_kong_ping": 1},
         "product": {"i_moon_dew_essence": 1},
-        "min_lv": 4,
+        "min_lv": 6,
         "desc": "月露凝炼的精华，战斗中喝下后下一次攻击伤害大幅提升",
         "name": "月露精华"
     },
     "al_shen_yuan_yao_ji": {
         "cost": {"mat_deep_crystal": 1, "mat_kong_ping": 1},
         "product": {"i_abyss_crystal_potion": 1},
-        "min_lv": 5,
+        "min_lv": 8,
         "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性（3 刻魔法伤害减免 15%）",
         "name": "深渊药剂"
     },
     "al_xing_tie_qiang_hua_ji": {
         "cost": {"mat_star_iron": 1, "i_stone_upgrade": 1},
         "product": {"i_star_iron_agent": 1},
-        "min_lv": 6,
+        "min_lv": 8,
         "desc": "星铁淬炼的强化剂，下一次强化装备必定成功",
         "name": "星铁强化剂"
     },
@@ -293,14 +293,14 @@ ALCHEMY_RECIPES = {
     "al_zhen_zhu_ming_mu": {
         "cost": {"mat_hu_zhen_zhu": 1, "mat_kong_ping": 1},
         "product": {"i_pearl_tonic": 1},
-        "min_lv": 3,
+        "min_lv": 4,
         "desc": "湖珍珠磨粉调制的灵水，战斗中暴击率 + 15%(3 刻)",
         "name": "珍珠明目水"
     },
     "al_shen_yuan_hui_xiang": {
         "cost": {"mat_shen_yuan_zhen_zhu": 1, "mat_kong_ping": 1},
         "product": {"i_abyss_echo": 1},
-        "min_lv": 5,
+        "min_lv": 8,
         "desc": "深渊珍珠研磨的暗色药水，战斗中魔攻 + 30%(3 刻)",
         "name": "深渊回响药剂"
     },
@@ -321,7 +321,7 @@ ALCHEMY_RECIPES = {
     "al_long_gu_yao_ji": {
         "cost": {"mat_gu_dai_yu_gu": 1, "mat_kong_ping": 1},
         "product": {"i_dragonbone_elixir": 1},
-        "min_lv": 7,
+        "min_lv": 8,
         "desc": "上古鱼骨熬成的猛药，战斗中攻击 + 40%、防御 + 45%(3 刻)",
         "name": "龙骨药剂"
     },
@@ -342,7 +342,7 @@ ALCHEMY_RECIPES = {
     "al_jin_he_qiang_hua": {
         "cost": {"mat_jin_he": 4, "mat_shen_yuan_zhen_zhu": 5},
         "product": {"i_stone_upgrade": 1},
-        "min_lv": 4,
+        "min_lv": 6,
         "desc": "烬核与深渊珍珠淬炼的强化石，强化装备失败不掉级（副本材料补链）",
         "name": "烬核强化石"
     },
@@ -355,35 +355,35 @@ ALCHEMY_RECIPES = {
             "mat_shen_yuan_zhen_zhu": 8,
         },
         "product": {"i_stone_refine": 1},
-        "min_lv": 6,
+        "min_lv": 9,
         "desc": "龙宫珠与黑渊之眼等珍材精炼而成的高品质强化石，强化成功率更高",
         "name": "龙宫精炼强化石"
     },
     "al_feng_bao_lei_yao": {
         "cost": {"mat_feng_bao_zhi_he": 1},
         "product": {"i_thunder_elixir": 1},
-        "min_lv": 6,
+        "min_lv": 9,
         "desc": "风暴之核淬炼的雷晶药剂，战斗中攻击力 + 40%(3 刻)",
         "name": "风暴雷晶药剂"
     },
     "al_yun_nu_bao_ji": {
         "cost": {"mat_yun_nu_zhi_he": 1, "mat_shen_yuan_zhen_zhu": 2},
         "product": {"i_crit_potion": 1},
-        "min_lv": 6,
+        "min_lv": 9,
         "desc": "云怒之核调制，战斗中暴击率 + 20%(3 刻)",
         "name": "云怒暴击药水"
     },
     "al_long_lin_tie_bi": {
         "cost": {"mat_di_di_long_lin": 10, "mat_shen_yuan_zhen_zhu": 1},
         "product": {"i_def_potion": 1},
-        "min_lv": 5,
+        "min_lv": 9,
         "desc": "地底龙鳞炼就的铁壁药剂，战斗中抵挡 3 次受击防御 + 45%",
         "name": "龙鳞铁壁药剂"
     },
     "al_ji_qi_shen_yuan": {
         "cost": {"mat_he_er_jia_de_ji_qi": 8, "mat_sheng_guang_sheng_hui": 1},
         "product": {"i_abyss_crystal_potion": 1},
-        "min_lv": 5,
+        "min_lv": 9,
         "desc": "赫尔加祭器研磨入药，战斗中魔法伤害减免 15%(3 刻)",
         "name": "祭器深渊药剂"
     },
@@ -395,7 +395,7 @@ ALCHEMY_RECIPES = {
             "mat_you_ling_chuan_piao": 1,
         },
         "product": {"i_stone_upgrade": 1},
-        "min_lv": 5,
+        "min_lv": 4,
         "desc": "石炉之锤与要塞残片捶打淬炼的强化石，强化失败不掉级",
         "name": "石炉强化石"
     },
@@ -409,7 +409,7 @@ ALCHEMY_RECIPES = {
     "al_lan_ge_ming_mu": {
         "cost": {"mat_lan_ge_zhi_guan": 1, "mat_shen_yuan_zhen_zhu": 1},
         "product": {"i_pearl_tonic": 1},
-        "min_lv": 4,
+        "min_lv": 6,
         "desc": "蓝歌之冠磨粉调制的灵水，战斗中暴击率 + 15%(3 刻)",
         "name": "蓝歌明目水"
     },
@@ -418,14 +418,14 @@ ALCHEMY_RECIPES = {
     "al_hei_yuan_fu_wen_xiang": {
         "cost": {"mat_hei_yuan_zhi_yan": 1, "mat_shen_yuan_zhen_zhu": 3},
         "product": {"i_hei_yuan_fu_wen_xiang": 1},
-        "min_lv": 6,
+        "min_lv": 8,
         "desc": "黑渊之眼封存的符文匣，打开获得随机稀有符文",
         "name": "黑渊符文匣"
     },
     "al_long_gong_fu_wen_xiang": {
         "cost": {"mat_long_gong_zhu": 1, "mat_shen_yuan_zhen_zhu": 1},
         "product": {"i_long_gong_fu_wen_xiang": 1},
-        "min_lv": 7,
+        "min_lv": 8,
         "desc": "龙宫珠封存的符文匣，打开获得随机稀有符文",
         "name": "龙宫符文匣"
     },
@@ -434,7 +434,7 @@ ALCHEMY_RECIPES = {
     "al_yue_guang_an_shen_ji": {
         "cost": {"mat_yue_guang_cao": 2, "mat_zhao_ze_hua": 1, "mat_yue_guang_lan_mi": 1},
         "product": {"i_yue_guang_an_shen_ji": 1},
-        "min_lv": 3,
+        "min_lv": 6,
         "desc": "月光兰蜜调和的安神药水，回复 40% HP + 20% MP(S49 配方图纸)",
         "name": "月光安神剂",
         "blueprint": "配方·月光安神剂",
@@ -443,10 +443,326 @@ ALCHEMY_RECIPES = {
     "al_bai_shi_sheng_hui_yao_ji": {
         "cost": {"mat_white_ash": 2, "mat_cao_yao": 1, "mat_kong_ping": 1},
         "product": {"i_bai_shi_sheng_hui_yao_ji": 1},
-        "min_lv": 4,
+        "min_lv": 6,
         "desc": "白石圣灰调成的圣光药剂——战斗中驱散全队负面(H6 唯一来源)",
         "name": "白石圣灰药剂",
         "blueprint": "隐藏配方·白石圣灰药剂",
+    },
+    # ================= v152 渠道补齐：战斗药剂/合剂/治疗配方（鱼鱼拍板） =================
+    "al_wei_xiao_zhi_liao": {
+        "cost": {"mat_cao_yao": 1},
+        "product": {"i_treat_micro": 1},
+        "min_lv": 1,
+        "desc": "基础草药熬制，回复 15% 生命",
+        "name": "微效治疗药水"
+    },
+    "al_qing_xiao_zhi_liao": {
+        "cost": {"mat_cao_yao": 2, "mat_kong_ping": 1},
+        "product": {"i_treat_light": 1},
+        "min_lv": 3,
+        "desc": "轻度治疗，回复 25% 生命",
+        "name": "轻效治疗药水"
+    },
+    "al_quan_xiao_yao_shui": {
+        "cost": {"mat_cao_yao": 2, "mat_yao_jing_zhi_chen": 1},
+        "product": {"i_full_potion": 1},
+        "min_lv": 4,
+        "desc": "同时回复 30% 生命与魔力",
+        "name": "全效药水"
+    },
+    "al_ao_shu_yao_ji": {
+        "cost": {"mat_mo_fa_fen_chen": 2, "mat_kong_ping": 1},
+        "product": {"i_arcane_pot": 1},
+        "min_lv": 4,
+        "desc": "奥术之力灌注，魔攻大幅提升",
+        "name": "奥术药剂"
+    },
+    "al_man_li_yao_ji": {
+        "cost": {"mat_sui_gu": 2, "mat_shou_xue": 1},
+        "product": {"i_brute_pot": 1},
+        "min_lv": 4,
+        "desc": "蛮力灌注，攻击小幅提升",
+        "name": "蛮力药剂"
+    },
+    "al_feng_ling_yao_ji": {
+        "cost": {"mat_feng_zhi_yu": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_windspirit_pot": 1},
+        "min_lv": 4,
+        "desc": "风灵加持，速度小幅提升",
+        "name": "风灵药剂"
+    },
+    "al_xue_tu_he_ji": {
+        "cost": {"mat_cao_yao": 1, "mat_yao_jing_zhi_chen": 1},
+        "product": {"i_apprentice_mix": 1},
+        "min_lv": 2,
+        "desc": "学徒练手合剂，回复 15% HP+MP",
+        "name": "学徒合剂"
+    },
+    "al_long_xue_yao_shui": {
+        "cost": {"mat_long_xue_cao": 2, "mat_kong_ping": 1},
+        "product": {"i_dragon_blood_pot": 1},
+        "min_lv": 6,
+        "desc": "龙血草炼制的强效回复，恢复 70% 生命",
+        "name": "龙血药水"
+    },
+    "al_zhi_yu_juan_zhou": {
+        "cost": {"mat_sheng_guang_yu_mao": 1, "mat_kong_ping": 1},
+        "product": {"i_scroll_heal": 1},
+        "min_lv": 6,
+        "desc": "圣光之力封存的卷轴，回复 40% 生命",
+        "name": "治愈卷轴"
+    },
+    "al_po_jia_yao_ji": {
+        "cost": {"mat_sui_gu": 2, "mat_zhi_zhu_du_nang": 1},
+        "product": {"i_armor_break_pot": 1},
+        "min_lv": 4,
+        "desc": "腐蚀性药液，破甲效果",
+        "name": "破甲药剂"
+    },
+    "al_yan_bi_yao_ji": {
+        "cost": {"mat_rong_yan_shi": 2},
+        "product": {"i_block_pot": 1},
+        "min_lv": 4,
+        "desc": "岩壁护体，格挡提升",
+        "name": "岩壁药剂"
+    },
+    "al_chuan_jia_yao_ji": {
+        "cost": {"mat_jing_tie": 1, "mat_sui_gu": 1},
+        "product": {"i_pene_pot": 1},
+        "min_lv": 4,
+        "desc": "穿甲之击，无视防御",
+        "name": "穿甲药剂"
+    },
+    "al_rui_mu_yao_ji": {
+        "cost": {"mat_shui_jing": 2, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_sharpeye_pot": 1},
+        "min_lv": 4,
+        "desc": "锐目如鹰，暴击小幅提升",
+        "name": "锐目药剂"
+    },
+    "al_xun_jie_yao_ji": {
+        "cost": {"mat_feng_zhi_yu": 2, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_swift_pot": 1},
+        "min_lv": 4,
+        "desc": "风之迅捷，速度提升",
+        "name": "迅捷药剂"
+    },
+    "al_jing_ji_yao_ji": {
+        "cost": {"mat_sui_gu": 1, "mat_zhi_zhu_du_nang": 1},
+        "product": {"i_thorn_pot": 1},
+        "min_lv": 4,
+        "desc": "荆棘反伤",
+        "name": "荆棘药剂"
+    },
+    "al_mao_xian_zhe_he_ji": {
+        "cost": {"mat_cao_yao": 2, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_adventurer_mix": 1},
+        "min_lv": 4,
+        "desc": "冒险者常用，回复 20% HP + 40% MP",
+        "name": "冒险者合剂"
+    },
+    "al_gao_ji_quan_xiao": {
+        "cost": {"i_full_potion": 1, "mat_cao_yao": 2},
+        "product": {"i_full_potion_hi": 1},
+        "min_lv": 6,
+        "desc": "高级复合回复（40% HP+MP）",
+        "name": "高级全效药水"
+    },
+    "al_sheng_guang_yao_shui": {
+        "cost": {"mat_sheng_guang_bai_he": 2, "mat_kong_ping": 1},
+        "product": {"i_holy_light_pot": 1},
+        "min_lv": 6,
+        "desc": "圣光百合炼制，回复 50% 生命",
+        "name": "圣光药水"
+    },
+    "al_kuang_bao_yao_ji": {
+        "cost": {"mat_long_xue_cao": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_crit_dmg_pot": 1},
+        "min_lv": 6,
+        "desc": "狂暴之力，暴击伤害提升",
+        "name": "狂暴药剂"
+    },
+    "al_zhan_hou_yao_ji": {
+        "cost": {"mat_lang_wang_ya": 1, "mat_shou_xue": 1},
+        "product": {"i_battlecry_potion": 1},
+        "min_lv": 8,
+        "desc": "战吼之力，攻击大幅提升",
+        "name": "战吼药剂"
+    },
+    "al_shi_xue_yao_ji": {
+        "cost": {"mat_shou_xue": 3, "mat_ju_mo_xue": 1},
+        "product": {"i_lifesteal_pot": 1},
+        "min_lv": 8,
+        "desc": "嗜血之力，吸血效果",
+        "name": "嗜血药剂"
+    },
+    "al_xing_yun_yao_ji": {
+        "cost": {"mat_xing_yun_fu": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_lucky_potion": 1},
+        "min_lv": 6,
+        "desc": "幸运加持，暴击提升",
+        "name": "幸运药剂"
+    },
+    "al_kuang_nu_yao_ji": {
+        "cost": {"mat_ju_mo_xue": 1, "mat_huo_yan_he_xin": 1},
+        "product": {"i_fury_potion": 1},
+        "min_lv": 8,
+        "desc": "狂怒之血，下次攻击提升",
+        "name": "狂怒药剂"
+    },
+    "al_zhi_ming_yao_ji": {
+        "cost": {"mat_mo_fa_fen_chen": 3, "mat_long_xue_cao": 1},
+        "product": {"i_lethal_pot": 1},
+        "min_lv": 6,
+        "desc": "致命一击，暴击大幅提升",
+        "name": "致命药剂"
+    },
+    "al_yan_dun_yao_ji": {
+        "cost": {"mat_rong_yan_shi": 1, "mat_sui_gu": 1},
+        "product": {"i_rock_shield_pot": 1},
+        "min_lv": 8,
+        "desc": "岩盾护体，减伤",
+        "name": "岩盾药剂"
+    },
+    "al_ying_bu_yao_ji": {
+        "cost": {"mat_you_ling_fan_bu": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_shadowstep_pot": 1},
+        "min_lv": 6,
+        "desc": "影步迷踪，闪避提升",
+        "name": "影步药剂"
+    },
+    "al_zhan_dou_he_ji": {
+        "cost": {"mat_long_xue_cao": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_battle_mix": 1},
+        "min_lv": 6,
+        "desc": "战斗特调，回复 40% HP + 20% MP",
+        "name": "战斗合剂"
+    },
+    "al_man_xue_lie_jiu": {
+        "cost": {"mat_ju_mo_xue": 2, "mat_kong_ping": 1},
+        "product": {"i_brutal_wine": 1},
+        "min_lv": 8,
+        "desc": "蛮血烈酒：下次攻击+50% 并回复 20% 生命（喝药极慢 2.5 刻）",
+        "name": "蛮血烈酒"
+    },
+    "al_chao_ji_quan_xiao": {
+        "cost": {"i_full_potion_hi": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_full_potion_super": 1},
+        "min_lv": 8,
+        "desc": "超级复合回复（50% HP+MP）",
+        "name": "超级全效药水"
+    },
+    "al_sheng_hui_zhi_liao": {
+        "cost": {"mat_sheng_guang_yu_mao": 1, "mat_long_xue_cao": 1},
+        "product": {"i_treat_holy": 1},
+        "min_lv": 8,
+        "desc": "圣光淬炼的强效治疗，回复 80% 生命",
+        "name": "圣辉治疗药水"
+    },
+    "al_sheng_dun_yao_ji": {
+        "cost": {"mat_sheng_guang_jie_jing": 2},
+        "product": {"i_holy_shield_pot": 1},
+        "min_lv": 8,
+        "desc": "圣光护盾，获得护盾",
+        "name": "圣盾药剂"
+    },
+    "al_bu_dong_yao_ji": {
+        "cost": {"mat_mi_yin": 1, "mat_fu_wen_shi": 1},
+        "product": {"i_immovable_pot": 1},
+        "min_lv": 8,
+        "desc": "不动如山，免疫控制",
+        "name": "不动药剂"
+    },
+    "al_kuang_zhan_shi_yao_ji": {
+        "cost": {"mat_ju_mo_xue": 1, "mat_sui_gu": 1},
+        "product": {"i_berserker_pot": 1},
+        "min_lv": 8,
+        "desc": "狂战士之血，攻防同时提升",
+        "name": "狂战士药剂"
+    },
+    "al_xing_huo_yao_ji": {
+        "cost": {"mat_huo_yan_he_xin": 1, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_starfire_pot": 1},
+        "min_lv": 8,
+        "desc": "星火燎原，魔攻大幅提升",
+        "name": "星火药剂"
+    },
+    "al_mi_fa_yao_ji": {
+        "cost": {"mat_mi_yin": 2, "mat_mo_fa_fen_chen": 1},
+        "product": {"i_mystic_pot": 1},
+        "min_lv": 8,
+        "desc": "秘法之力，魔攻提升",
+        "name": "秘法药剂"
+    },
+    "al_po_fa_yao_ji": {
+        "cost": {"mat_mi_yin": 1, "mat_fu_mo_fen_chen": 1},
+        "product": {"i_pene_magi_pot": 1},
+        "min_lv": 8,
+        "desc": "破法之击，无视魔抗",
+        "name": "破法药剂"
+    },
+    "al_long_li_yao_ji": {
+        "cost": {"mat_long_lin": 2, "mat_long_xue_cao": 1},
+        "product": {"i_dragon_power_pot": 1},
+        "min_lv": 8,
+        "desc": "龙之力灌注，攻击大幅提升",
+        "name": "龙力药剂"
+    },
+    "al_sheng_xian_yao_ji": {
+        "cost": {"mat_sheng_guang_bai_he": 1, "mat_long_xue_cao": 1},
+        "product": {"i_sage_pot": 1},
+        "min_lv": 8,
+        "desc": "贤者配方，回复 30% HP",
+        "name": "贤者药剂"
+    },
+    "al_yuan_zheng_he_ji": {
+        "cost": {"mat_long_xue_cao": 2, "mat_mi_yin": 1},
+        "product": {"i_expedition_mix": 1},
+        "min_lv": 8,
+        "desc": "远征必备，回复 50% HP + 30% MP",
+        "name": "远征合剂"
+    },
+    "al_shen_yu_yao_shui": {
+        "cost": {"mat_sheng_guang_yu_mao": 2, "mat_long_xue_cao": 1},
+        "product": {"i_treat_divine": 1},
+        "min_lv": 8,
+        "desc": "神愈之力灌注，回复 100% 生命",
+        "name": "神愈药水"
+    },
+    "al_zhan_shen_yao_ji": {
+        "cost": {"mat_zhan_hun_zhi_chen": 3, "mat_long_xue_cao": 1},
+        "product": {"i_war_god_pot": 1},
+        "min_lv": 9,
+        "desc": "战神之力，攻击提升",
+        "name": "战神药剂"
+    },
+    "al_si_shen_yao_ji": {
+        "cost": {"mat_gui_hun_jing_hua": 2, "mat_an_ying_sui_pian": 1},
+        "product": {"i_death_pot": 1},
+        "min_lv": 9,
+        "desc": "死神之息，斩杀效果",
+        "name": "死神药剂"
+    },
+    "al_xu_kong_yao_ji": {
+        "cost": {"mat_xu_kong_quan_ya": 2, "mat_an_ying_jing_hua": 1},
+        "product": {"i_void_pot": 1},
+        "min_lv": 9,
+        "desc": "虚空之力，魔攻暴击提升",
+        "name": "虚空药剂"
+    },
+    "al_zhan_sheng_yao_ji": {
+        "cost": {"mat_zhan_hun_zhi_chen": 3, "mat_long_lin": 1},
+        "product": {"i_warsaint_pot": 1},
+        "min_lv": 9,
+        "desc": "战圣之力，攻击大幅提升",
+        "name": "战圣药剂"
+    },
+    "al_sheng_xian_da_yao": {
+        "cost": {"mat_sheng_guang_bai_he": 2, "mat_long_xue_cao": 2},
+        "product": {"i_holy_sage_pot": 1},
+        "min_lv": 9,
+        "desc": "圣贤秘方，回复 60% HP+MP",
+        "name": "圣贤药剂"
     },
 }
 

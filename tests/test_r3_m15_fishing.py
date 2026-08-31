@@ -144,7 +144,7 @@ async def main():
     db.activate_prof("g1", "w1", "fishing")
     db.activate_prof("g1", "w1", "cooking")
     db.add_prof_exp("g1", "w1", "fishing", 200)   # Lv.5
-    db.add_prof_exp("g1", "w1", "cooking", 200)   # Lv.5
+    db.add_prof_exp("g1", "w1", "cooking", 500)   # Lv.6（v152 阶段重排：夜光鲛汤需 Lv.6，曲线 need=5lv²+15lv 累计 500）
     db.update_player("g1", "w3", apprentices=["gather"], level=10, gold=5000,
                      cur_map="emerald_forest", cur_subarea="")
     db.activate_prof("g1", "w3", "gather")

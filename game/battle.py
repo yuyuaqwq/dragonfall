@@ -1979,6 +1979,9 @@ class Battle:
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通刻与额外行动共用)"""
         logs = []
+        # v152 数据驱动动作时长：先剥离 payload 尾部 cast/recovery 参数（由 _item_payload_cast
+        # 在 player_turn 消费，此处只解析效果本体；不剥离会破坏 int()/split(",") 等解析）
+        payload = re.sub(r"(?:^|[;&,])\s*(?:cast|recovery):[\d.]+", "", payload).rstrip(";,")
         if payload.startswith("foodfx:"):
             # v101.28e 食物效果：foodfx:效果ID,效果ID（本场战斗有效，独立于装备词条）
             aids = [a for a in payload[7:].split(",") if a]

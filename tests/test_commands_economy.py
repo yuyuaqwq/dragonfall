@@ -148,17 +148,17 @@ async def main():
 
     print("【炼金副业等级（v54）】")
     db.update_player("g1", "e1", level=20, gold=50000, apprentices=["alchemy"])  # v95.22 拜师模拟
-    # 默认炼金 Lv.1 → 超级治疗药水(need 5) 被拦
-    out = await cmd(m, "alchemy_craft", "g1", "e1", "合成 超级治疗药水")
-    check("炼金等级不够拦截", "炼金 Lv.5" in out or "炼金等级" in out, out[:200])
+    # 默认炼金 Lv.1 → 全效药水(need 4, v152 阶段重排) 被拦
+    out = await cmd(m, "alchemy_craft", "g1", "e1", "合成 全效药水")
+    check("炼金等级不够拦截", "炼金 Lv.4" in out or "炼金等级" in out, out[:200])
     # 炼金列表显示等级
     out = await cmd(m, "alchemy", "g1", "e1", "炼金")
     check("炼金列表显示等级要求", "炼金Lv" in out and "治疗药水" in out, out[:300])
-    # 提升炼金等级到 5（反复加经验）
+    # 提升炼金等级到 4（反复加经验）
     for _ in range(300):
         db.add_prof_exp("g1", "e1", "alchemy", 1)
-    out = await cmd(m, "alchemy_craft", "g1", "e1", "合成 超级治疗药水")
-    check("炼金 5 级后走到材料检查", "材料不足" in out, out[:200])
+    out = await cmd(m, "alchemy_craft", "g1", "e1", "合成 全效药水")
+    check("炼金 4 级后走到材料检查", "材料不足" in out, out[:200])
 
     print("【战斗药水（v54）】")
     # battle 层：buff 药水挂 p_buffs 3 刻。v152 行为时长：药水 p_ct = now + cost + CAST_ITEM

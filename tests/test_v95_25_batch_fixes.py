@@ -48,9 +48,11 @@ async def main():
     check("背包 6 瓶", sum(i["count"] for i in pot) == 6, str([(i["data"]["name"], i["count"]) for i in inv]))
     p = db.get_player("g1", "w1")
     check("扣 6 倍钱", p["gold"] == 50000 - 6 * 30, f"gold={p['gold']}")
-    # 全角括号容错
+    # 全角括号容错（v152 商店重排：治疗药水(小)只在橡木镇，white_deer_6 卖中级药）
+    db.update_player("g1", "w1", cur_map="oak_town", cur_subarea="oak_town_5")
     out = await cmd(m, "buy", "g1", "w1", "购买 治疗药水（小） 2")
     check("全角括号可买", "×2" in out, out[:200])
+    db.update_player("g1", "w1", cur_map="white_deer", cur_subarea="white_deer_6")
     # 序号 + 数量（消耗品）
     out = await cmd(m, "buy", "g1", "w1", "购买 1 3")
     check("序号+数量可买", "×3" in out, out[:200])

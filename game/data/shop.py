@@ -20,232 +20,64 @@ SHOP_WILD_TRADE = [
 # 设计分工：药剂店(herb)→药水/药剂；酒馆旅店(tavern)→食物/饮品；集市商行(general)→卷轴/杂物/护符；
 # 铁匠工坊(smith)→武器+锻造材料（is_smith 分支），可追加军需补给。
 SHOP_SUBAREA_ITEMS = {
-    # ---------- 橡木镇（新手村） ----------
-    "oak_town_5": [  # 艾琳炼药铺（炼药师·艾琳）
-        "i_treat_s", "i_mana_s", "i_herb_juice", "i_bandage",
-    ],
-    "oak_town_4": [  # 橡木桶旅店
-        "i_bread", "i_ale", "i_meat_skewer",
-    ],
-    "oak_town_3": [  # 老铁铁匠铺（smith 分支：武器+锻造材料）
-        "i_stone_upgrade",
-    ],
-    # ---------- 白鹿城（南境首府） ----------
-    "white_deer_6": [  # 鹿鸣医馆
-        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage",
-    ],
-    "white_deer_5": [  # 白鹿与麦酒酒馆
-        "i_ale", "i_meat_skewer", "i_stew", "i_deer_burger", "i_deer_cheese",
-    ],
-    "white_deer_7": [  # 烹饪坊
-        "i_bread", "i_meat_skewer", "i_stew", "i_blessed_pastry",
-    ],
-    "white_deer_8": [  # 鹿角淬火坊（强化/附魔坊：v101.28o 拍板非 smith 分支，仅配强化石）
-        "i_stone_upgrade", "i_stone_refine",
-    ],
-    "white_deer_3": [  # 鹿角铁匠铺（smith 分支）
-        "i_stone_upgrade",
-        # v110 审计修复：29 章钥匙发放补全——王陵钥匙（29 章 key_source"白鹿城铁匠铺购买"）
-        "i_key_old_king",
-    ],
-    "white_deer_4": [  # 白鹿圣堂（heal + 圣物）
-        "i_holy_water", "i_holy_charm", "i_scroll_purify",
-    ],
-    # ---------- 铁港城（冒险者圣地） ----------
-    "ironharbor_5": [  # 铁锚酒馆
-        "i_ale", "i_dock_rum", "i_meat_skewer", "i_stew",
-    ],
-    "ironharbor_6": [  # 金齿轮商行
-        "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade", "i_stone_refine",
-        # v113.3 祝福符石上架（幸运向强化材料，与精炼石同柜台）
-        "i_stone_blessed",
-        # v101.30 鱼饵上架（垂钓大本营，老渔夫马库斯在铁港城）
-        "it_glow_bait", "it_dough_bait", "it_blood_bait",
-        # v104 M08 P1-6：双倍金币符/复活羽毛上架（v104 实装效果后全库零获取，
-        # 策划案 7.2 标"活动/商店"——金齿轮商行=冒险者杂货，珍宝类商品）
-        "i_shuang_bei_jin_bi_fu", "i_fu_huo_yu_mao",
-    ],
-    "ironharbor_8": [  # 渔火码头
-        "i_meat_skewer", "i_stew", "i_scroll_teleport",
-        # F4 P1-1：银鳞鱼/金鲤上架——垂钓拜师考验(3 银鳞鱼+1 金鲤)材料死锁修复：
-        # 垂钓未解锁时『垂钓』恒被 require_apprentice 拦截，钓不到考验鱼；
-        # 与 v101.25 #319 铁矿石 / v101.30d #O53 空瓶 同款方案（渔夫·潮生 NPC 台词即卖鱼）
-        "mat_yin_lin_yu", "mat_jin_li",
-    ],
-    "ironharbor_4": [  # 金槌拍卖行
-        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
-    ],
-    "ironharbor_9": [  # 海风锻造坊（smith 分支）
-        "i_stone_upgrade", "i_stone_refine", "i_stone_blessed",
-    ],
-    "ironharbor_10": [  # 潮汐药铺（herb 分支；O85 修复补炼金设施——药剂配货与白鹿城鹿鸣医馆同款）
-        "i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage",
-    ],
-    # ---------- 银溪镇 ----------
-    "silver_brook_3": [  # 河畔旅店
-        "i_bread", "i_ale", "i_meat_skewer",
-    ],
-    "silver_brook_4": [  # 集市
-        "i_scroll_escape", "i_meat_skewer", "i_stew",
-        # v101.30 鱼饵上架（集市杂货，银铃河钓点旁）
-        "it_glow_bait", "it_dough_bait", "it_blood_bait",
-    ],
-    "silver_brook_2": [  # 磨坊街
-        "i_bread", "i_ale", "i_apple_wine",
-    ],
-    # ---------- 枫橡村 ----------
-    "maple_village_4": [  # 枫叶旅店
-        "i_bread", "i_ale", "i_scroll_escape",
-    ],
-    # ---------- 晨曦城（王都） ----------
-    "dawn_city_3": [  # 圣光大教堂
-        "i_bread", "i_holy_water", "i_holy_charm", "i_scroll_purify",
-        # v110 审计修复：29 章钥匙发放补全——圣堂信物（原"任务奖励"无对应任务，改大教堂出售）
-        "i_key_crypt",
-    ],
-    "dawn_city_5": [  # 炼金工坊（herb 优先 + craft）
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion",
-        # v101.30d #O53：空瓶上架——梅尔文炼金考验(草药3+空瓶1)材料死锁修复
-        "mat_kong_ping",
-    ],
-    # ---------- 铁盾镇 ----------
-    "ironshield_town_3": [  # 坚盾军械铺（smith + 军需补给）
-        "i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion", "i_stone_upgrade",
-        # v110 审计修复：29 章钥匙发放补全——试炼令（原"兵营任务奖励"无对应任务，改军械铺出售）
-        "i_key_trial",
-    ],
-    "ironshield_town_2": [  # 镇公所（v104 M09 修复空商店：后院招待所供商旅歇脚，配少量药水+食物）
-        "i_treat_s", "i_mana_s", "i_bread", "i_ale",
-    ],
-    # ---------- 月冠隘口 ----------
-    "moon_gate_2": [  # 银月旅店
-        "i_bread", "i_ale", "i_elf_fruit",
-    ],
-    "moon_gate_3": [  # 哨塔集市
-        "i_scroll_escape", "i_meat_skewer", "i_elf_fruit",
-    ],
-    # ---------- 月冠王庭 ----------
-    "moon_court_3": [  # 月影卫营（M22 补旅店：卫营设客房，精灵果+药水）
-        "i_bread", "i_ale", "i_elf_fruit", "i_treat_m", "i_mana_m",
-        # v110 审计修复：29 章钥匙发放补全——月辉钥匙（key_source"月冠王庭月市购买"）
-        "i_key_moon",
-    ],
-    # ---------- 星歌镇 ----------
-    "star_song_2": [  # 星光集市
-        "i_scroll_escape", "i_elf_fruit", "i_stew",
-    ],
-    "star_song_3": [  # 星歌旅店
-        "i_bread", "i_ale", "i_elf_fruit",
-    ],
-    # ---------- 霜角堡 ----------
-    "frost_horn_3": [  # 霜角酒馆
-        "i_ale", "i_dwarf_liquor", "i_stew",
-    ],
-    "frost_horn_5": [  # 霜烛圣堂
-        "i_bread", "i_holy_water",
-    ],
-    # ---------- 铁砧要塞 ----------
-    "anvil_fort_2": [  # 铁砧议会厅（M22 补旅店：客房招待，矮人烈酒+药水）
-        "i_bread", "i_ale", "i_dwarf_liquor", "i_treat_m",
-    ],
-    "anvil_fort_3": [  # 符文工坊（smith + 烈酒）
-        "i_dwarf_liquor", "i_stone_upgrade", "i_stone_refine", "i_stone_blessed",
-    ],
-    # ---------- 寒脊营地 ----------
-    "cold_ridge_1": [  # 营地口（综合补给）
-        "i_treat_l", "i_mana_l", "i_bread", "i_ale", "i_scroll_escape",
-    ],
-    "cold_ridge_2": [  # 主帐篷
-        "i_bread", "i_stew",
-    ],
-    "cold_ridge_3": [  # 补给站
-        "i_treat_l", "i_mana_l", "i_scroll_escape", "i_stew",
-    ],
-    # ---------- 极光镇 ----------
-    "aurora_town_4": [  # 暖炉旅店
-        "i_bread", "i_ale", "i_scroll_escape",
-    ],
-    # ---------- 龙脊山口 ----------
-    "dragon_pass_2": [  # 龙裔长老堂（M22 补旅店：客房招待）
-        "i_bread", "i_ale", "i_meat_skewer", "i_treat_m",
-    ],
-    # ---------- 龙裔聚落 ----------
-    "dragon_kin_3": [  # 旅店
-        "i_bread", "i_ale", "i_meat_skewer",
-    ],
-    # ---------- 翡翠港 ----------
-    "jade_port_2": [  # 翡翠集市
-        "i_scroll_teleport", "i_meat_skewer", "i_stew",
-    ],
-    "jade_port_3": [  # 船坞旅店
-        "i_bread", "i_ale",
-    ],
-    # ---------- 贝壳镇 ----------
-    "shell_town_1": [  # 贝壳集市
-        "i_scroll_teleport", "i_meat_skewer", "i_stew",
-    ],
-    "shell_town_2": [  # 码头
-        "i_meat_skewer", "i_stew", "i_scroll_teleport",
-    ],
-    "shell_town_3": [  # 旅店
-        "i_bread", "i_ale",
-    ],
-    # ---------- 无名港 ----------
-    "nameless_harbor_2": [  # 港务厅（M22 补旅店：客栈，码头朗姆+炖菜）
-        "i_bread", "i_dock_rum", "i_stew", "i_treat_m",
-        # v110 审计修复：29 章钥匙发放补全——海神祷文（材料即钥匙；原"灯塔任务奖励"无对应任务，
-        # 改港务厅出售，弥补该钥匙仅副本层内 POI 可得的死锁）
-        "mat_hai_shen_dao_wen",
-    ],
-    "nameless_harbor_3": [  # 远洋码头
-        "i_scroll_teleport", "i_meat_skewer", "i_stew", "i_dock_rum",
-    ],
-    # ---------- 珍珠城 ----------
-    "pearl_city_2": [  # 城主府（M22 补旅店：迎宾馆）
-        "i_bread", "i_stew", "i_treat_m", "i_mana_m",
-    ],
-    "pearl_city_3": [  # 珊瑚拍卖行
-        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
-    ],
-    "pearl_city_4": [  # 商行
-        "i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade",
-    ],
-    "pearl_city_5": [  # 渔港
-        "i_meat_skewer", "i_stew", "i_scroll_teleport",
-    ],
-    # ---------- 深岩隧道 ----------
-    "deep_tunnel_2": [  # 中央大厅（M22 补商店：地底商摊，矿工补给）
-        "i_treat_m", "i_mana_m", "i_bread", "i_stew", "i_stone_upgrade",
-    ],
-    "deep_tunnel_3": [  # 营地区
-        "i_bread", "i_ale",
-    ],
-    # ---------- 地底集市 ----------
-    "under_market_1": [  # 集市广场
-        "i_scroll_escape", "i_stew", "i_meat_skewer",
-        # v110 审计修复：29 章钥匙发放补全——灰矮人通行令（原"矿工区任务奖励"无对应任务，改集市出售）
-        "i_key_gray_dwarf",
-    ],
-    "under_market_2": [  # 拍卖区
-        "i_scroll_teleport", "i_holy_charm", "i_stone_refine",
-    ],
-    "under_market_3": [  # 旅店
-        "i_bread", "i_ale",
-    ],
-    # ---------- 灰烬营地 ----------
-    "ember_camp_2": [  # 营长帐（M22 补旅店：客房，大瓶药水）
-        "i_bread", "i_stew", "i_treat_l", "i_mana_l",
-    ],
-    "ember_camp_1": [  # 营地口（综合补给）
-        "i_treat_l", "i_mana_l", "i_bread", "i_scroll_escape",
-    ],
-    "ember_camp_4": [  # 补给站
-        "i_treat_l", "i_mana_l", "i_stew", "i_scroll_escape",
-    ],
-    # ---------- 风翼城 ----------
-    "wind_city_2": [  # 云翼议会厅（M22 补旅店：云馆）
-        "i_bread", "i_ale", "i_treat_m", "i_mana_m",
-    ],
+    "oak_town_5": ["i_treat_micro", "i_treat_light", "i_treat_s", "i_mana_s", "i_herb_juice", "i_bandage"],
+    "oak_town_4": ["i_bread", "i_ale", "i_meat_skewer"],
+    "oak_town_3": ["i_stone_upgrade"],
+    "white_deer_6": ["i_treat_m", "i_mana_m", "i_treat_light", "i_herb_juice", "i_bandage", "i_salve_s", "i_salve_m", "i_antidote_pill", "i_emergency_salve"],
+    "white_deer_5": ["i_ale", "i_meat_skewer", "i_stew", "i_deer_burger", "i_deer_cheese"],
+    "white_deer_7": ["i_bread", "i_stew", "i_blessed_pastry", "i_mushroom_soup", "i_tree_honey"],
+    "white_deer_8": ["i_stone_upgrade", "i_stone_refine"],
+    "white_deer_3": ["i_stone_upgrade", "i_key_old_king"],
+    "white_deer_4": ["i_holy_water", "i_holy_charm", "i_scroll_purify"],
+    "ironharbor_5": ["i_ale", "i_dock_rum", "i_meat_skewer", "i_stew"],
+    "ironharbor_6": ["i_scroll_escape", "i_stone_upgrade", "i_stone_refine", "it_glow_bait", "it_dough_bait", "it_blood_bait", "i_shuang_bei_jin_bi_fu", "i_fu_huo_yu_mao"],
+    "ironharbor_8": ["i_meat_skewer", "i_stew", "i_scroll_teleport", "mat_yin_lin_yu", "mat_jin_li"],
+    "ironharbor_4": ["i_scroll_teleport", "i_holy_charm", "i_stone_refine"],
+    "ironharbor_9": ["i_stone_upgrade", "i_stone_refine", "i_stone_blessed"],
+    "ironharbor_10": ["i_treat_s", "i_treat_m", "i_mana_s", "i_mana_m", "i_herb_juice", "i_bandage"],
+    "silver_brook_3": ["i_bread", "i_ale", "i_meat_skewer"],
+    "silver_brook_4": ["i_scroll_escape", "i_meat_skewer", "i_stew", "it_glow_bait", "it_dough_bait", "it_blood_bait"],
+    "silver_brook_2": ["i_bread", "i_ale", "i_apple_wine"],
+    "maple_village_4": ["i_bread", "i_ale", "i_scroll_escape", "i_elf_fruit"],
+    "dawn_city_3": ["i_holy_water", "i_holy_charm", "i_scroll_purify", "i_key_crypt"],
+    "dawn_city_5": ["i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_str_potion", "i_def_potion", "i_spd_potion", "mat_kong_ping"],
+    "ironshield_town_3": ["i_treat_m", "i_treat_l", "i_mana_m", "i_mana_l", "i_stew", "i_str_potion", "i_stone_upgrade", "i_key_trial"],
+    "ironshield_town_2": ["i_treat_s", "i_mana_s", "i_bread", "i_ale"],
+    "moon_gate_2": ["i_bread", "i_ale", "i_elf_fruit"],
+    "moon_gate_3": ["i_scroll_escape", "i_meat_skewer", "i_elf_fruit"],
+    "moon_court_3": ["i_bread", "i_ale", "i_elf_fruit", "i_treat_m", "i_mana_m", "i_key_moon"],
+    "star_song_2": ["i_scroll_escape", "i_elf_fruit", "i_stew"],
+    "star_song_3": ["i_bread", "i_ale", "i_elf_fruit"],
+    "frost_horn_3": ["i_ale", "i_dwarf_liquor", "i_stew", "i_deer_burger"],
+    "frost_horn_5": ["i_holy_water", "i_treat_holy"],
+    "anvil_fort_2": ["i_dwarf_liquor", "i_stew", "i_elf_fruit", "i_treat_m"],
+    "anvil_fort_3": ["i_dwarf_liquor", "i_stone_upgrade", "i_stone_refine", "i_stone_blessed"],
+    "cold_ridge_1": ["i_treat_l", "i_mana_l", "i_treat_holy", "i_scroll_escape"],
+    "cold_ridge_2": ["i_bread", "i_stew", "i_deer_burger"],
+    "cold_ridge_3": ["i_treat_l", "i_mana_l", "i_scroll_escape", "i_stew"],
+    "aurora_town_4": ["i_bread", "i_ale", "i_scroll_escape", "i_elf_fruit"],
+    "dragon_pass_2": ["i_ale", "i_meat_skewer", "i_stew", "i_treat_m", "i_dragon_scale_potion"],
+    "dragon_kin_3": ["i_ale", "i_meat_skewer", "i_elf_fruit"],
+    "jade_port_2": ["i_scroll_teleport", "i_meat_skewer", "i_stew", "i_elf_fruit"],
+    "jade_port_3": ["i_ale", "i_dwarf_liquor", "i_stew"],
+    "shell_town_1": ["i_scroll_teleport", "i_meat_skewer", "i_stew", "i_treat_l"],
+    "shell_town_2": ["i_meat_skewer", "i_stew", "i_scroll_teleport", "i_elf_fruit"],
+    "shell_town_3": ["i_ale", "i_dwarf_liquor", "i_elf_fruit"],
+    "nameless_harbor_2": ["i_dock_rum", "i_stew", "i_treat_l", "i_treat_holy", "mat_hai_shen_dao_wen"],
+    "nameless_harbor_3": ["i_scroll_teleport", "i_meat_skewer", "i_stew", "i_dock_rum"],
+    "pearl_city_2": ["i_treat_l", "i_mana_l", "i_treat_holy", "i_phoenix_tear"],
+    "pearl_city_3": ["i_scroll_teleport", "i_holy_charm", "i_stone_refine", "i_stone_blessed"],
+    "pearl_city_4": ["i_scroll_escape", "i_scroll_teleport", "i_holy_charm", "i_stone_upgrade"],
+    "pearl_city_5": ["i_meat_skewer", "i_stew", "i_scroll_teleport"],
+    "deep_tunnel_2": ["i_treat_l", "i_mana_l", "i_stew", "i_stone_upgrade"],
+    "deep_tunnel_3": ["i_ale", "i_dwarf_liquor", "i_stew"],
+    "under_market_1": ["i_scroll_escape", "i_stew", "i_meat_skewer", "i_key_gray_dwarf"],
+    "under_market_2": ["i_scroll_teleport", "i_holy_charm", "i_stone_refine"],
+    "under_market_3": ["i_ale", "i_dwarf_liquor", "i_stew"],
+    "ember_camp_2": ["i_stew", "i_treat_l", "i_mana_l", "i_elf_fruit"],
+    "ember_camp_1": ["i_treat_l", "i_mana_l", "i_treat_holy", "i_scroll_escape"],
+    "ember_camp_4": ["i_treat_l", "i_mana_l", "i_treat_holy", "i_stew", "i_scroll_escape"],
+    "wind_city_2": ["i_treat_l", "i_mana_l", "i_treat_holy", "i_life_spring", "i_phoenix_tear"],
 }
 
 SHOP_WEAPONS = {
