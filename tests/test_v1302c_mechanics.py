@@ -99,48 +99,49 @@ def cast_capture(b, skill_name, p):
     return captured, logs
 
 
-# ================= 1. consume_all 统一公式 =================
+# ================= 1. 元素湮灭（v153：cond enemy_marks，无 consume_all） =================
 def test_consume_all_formula():
-    print("\n【1. consume_all 统一公式（4 技能数值）】")
-    # ---- 数据层硬断言：power / per 配置（折算公式 = power × (1 + per×当前持有值)）----
-    # v151（2026-08-31）：无畏冲击/暗影处刑/破晓之拳 已随旧表删除；
-    # 元素湮灭保留（power 2.4，consume_all{element, per:0.2}，v139 峰值收敛基准）。
+    print("\n【1. 元素湮灭（v153 改版：cond enemy_marks 取代 consume_all）】")
+    # ---- 数据层硬断言：v153 元素湮灭 power=1.71 / cond enemy_marks{4,×1.35}，无 consume_all ----
     e = E.skill_info("cls_fa_shi", "元素湮灭") or {}
-    check("数据：元素湮灭 power=2.4 / consume_all{element, per:0.2}",
-          abs(float(e.get("power", 0)) - 2.4) < 1e-9 and e.get("consume_all") == {"key": "element", "per": 0.2},
-          str({k: e.get(k) for k in ("power", "consume_all")}))
-    # ---- 引擎黑盒：满资源施放 → 折算 power（捕获 _do_player_skill 折算结果）----
-    # v151（2026-08-31）：旧 3 个 consume_all 技能（无畏冲击/暗影处刑/破晓之拳）已随
-    # 隐藏职业/旧表删除；元素湮灭是 v151 唯一保留的 consume_all 技能（power 2.4）。
+    check("数据：元素湮灭 power=1.71", abs(float(e.get("power", 0)) - 1.71) < 1e-9,
+          str(e.get("power")))
+    check("数据：元素湮灭 cond=enemy_marks{4,×1.35}",
+          (e.get("cond") or {}).get("type") == "enemy_marks"
+          and int((e.get("cond") or {}).get("stacks", 0)) == 4
+          and abs(float((e.get("cond") or {}).get("mult", 0)) - 1.35) < 1e-9,
+          str(e.get("cond")))
+    check("数据：元素湮灭已无 consume_all（v153 删除全耗语义）", not e.get("consume_all"),
+          str(e.get("consume_all")))
+    # ---- 引擎黑盒：施放不消耗充能（v153 语义：元素湮灭吃 cond 不吃充能条）----
     try:
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"])
         b.resources["element_charge"] = 5
         cap, logs = cast_capture(b, "元素湮灭", p)
-        check_float("元素湮灭 满 5 充能折算 power = 4.8（2.4×2.0）", cap.get("power", 0), 4.8)
-        check("元素湮灭 施放后充能扣光 = 0", b._elem_charge() == 0,
+        check_float("元素湮灭 折算 power 保持 1.71（无 consume_all 放大）", cap.get("power", 0), 1.71)
+        check("元素湮灭 施放后充能不变（仍 5）", b._elem_charge() == 5,
               f"charge={b._elem_charge()}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：元素湮灭 折算", str(ex))
 
 
-# ================= 2. 超标 P1-2 回归（资源不满可施放） =================
+# ================= 2. 资源不满可施放（v153 语义） =================
 def test_overcap_regression():
-    print("\n【2. 超标 P1-2 回归（资源不满可施放）】")
+    print("\n【2. 资源门槛预检（v153：res_cost/focus_cost 门槛）】")
     try:
-        # 持 2 充能（<5 满值）施放元素湮灭：资源不满可施放、成功、扣光
+        # 持 2 充能施放元素湮灭（v153 无 consume_all → 不校验充能，直接施放）
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"])
         b.resources["element_charge"] = 2
         logs, blocked = b._skill_cast_blocked("元素湮灭", p)
         check("持 2 充能预检不拦截", blocked is False, f"{logs}")
         logs = b._do_player_skill("元素湮灭", p)
         check("持 2 充能施放成功（无资源不足日志）", not any("不足" in l for l in logs), f"{logs[:2]}")
-        check("持 2 充能施放后充能扣光 = 0", b._elem_charge() == 0,
+        check("施放后充能保留（v153 不消耗）", b._elem_charge() == 2,
               f"charge={b._elem_charge()}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：持 2 充能元素湮灭", str(ex))
     try:
-        # 持 4 怒（<10 满值）施放——v151 战士无 consume_all 怒气技能，改用拳师守线磐岩释能
-        # （res_cost guard_core，非 consume_all）验证「不满资源不拦截」的通用预检语义。
+        # 拳师守线磐岩释能（res_cost guard_core）门槛 ≥1 即可
         b, p = new_battle("cls_wu_seng", 1, 2, learned=["磐岩释能"])
         b.resources["guard_core"] = 1
         logs, blocked = b._skill_cast_blocked("磐岩释能", p)
@@ -149,47 +150,41 @@ def test_overcap_regression():
         skip("引擎：磐岩释能 预检", str(ex))
 
 
-# ================= 3. 回声驻留闭环（歌者，引擎级） =================
+# ================= 3. 牧师信念负载（v153 取代歌者回声） =================
 def test_bard_echo_loop():
-    print("\n【3. 回声驻留闭环（歌者 cls_mu_shi tier1 path1）】")
-    # v151（2026-08-31）：歌者分支技能数据不再带 res_gain 字典（共鸣/回声生产被移除），
-    # 回声机制收敛为引擎级叠层 + 回合初恢复——本用例断言引擎行为。
+    print("\n【3. 牧师信念负载引擎（v153 取代歌者回声闭环）】")
     try:
-        b, p = new_battle("cls_mu_shi", 1, 1, level=95)
-        b._echo_add(p, [], 1)
-        check("回声叠层 1（_echo_add 引擎入口）", b._echo_layers() == 1, f"echo={b._echo_layers()}")
-        b._echo_add(p, [], 1)
-        b._echo_add(p, [], 1)
-        check("回声叠满 3 层（max_layers 帽）", b._echo_layers() == 3, f"echo={b._echo_layers()}")
-        b._echo_add(p, [], 1)
-        check("超出帽后不再叠（仍 3）", b._echo_layers() == 3, f"echo={b._echo_layers()}")
+        b, p = new_battle("cls_mu_shi", 0, 0)
+        b._res_gain(p, "faith", 5)
+        check("信念 +5（负载中段）", b._res_read("faith") == 5, f"faith={b._res_read('faith')}")
+        b._res_gain(p, "faith", 6)
+        check("信念封顶 10", b._res_read("faith") == 10, f"faith={b._res_read('faith')}")
+        check("信念消耗 -4 = 6", b._res_spend("faith", 4) and b._res_read("faith") == 6,
+              f"faith={b._res_read('faith')}")
+        # 负载档位治疗乘区（_skill_heal 读 load_tiers）：专注档 4-7 → ×1.25
+        # 用日志治疗量对比（faith=0 清醒 vs faith=5 专注，避开 max_hp 重算口径）
+        p2 = {"class_name": "cls_mu_shi", "level": 30, "hp": 100, "max_hp": 1000,
+              "mp": 100, "max_mp": 100, "name": "牧师", "reach": 3,
+              "equipment": {"weapon": {"name": "t", "stats": {"matk": 200}, "affixes": [], "enhance": 0}},
+              "attributes": {"int": 20}, "learned_skills": ["治愈术"], "race": "human"}
+        import re as _re3
+        def _heal_log(cls_, faith, hp=100):
+            pp = dict(p2)
+            pp["hp"] = hp
+            bb = BT.Battle("monster", make_enemy(), player=pp)
+            bb.resources["faith"] = faith
+            lg = bb._do_player_skill("治愈术", pp)
+            m3 = _re3.search(r"治愈了你 (\d+) 点生命", next(x for x in lg if "治愈" in x))
+            return int(m3.group(1)) if m3 else 0
+        h0 = _heal_log("cls_mu_shi", 0)
+        h5 = _heal_log("cls_mu_shi", 5)
+        check(f"专注档(5) 治疗量 = 清醒档(0) ×1.25（{h0} → {h5}）",
+              abs(h5 - h0 * 1.25) <= 2, f"h0={h0} h5={h5}")
+        h9 = _heal_log("cls_mu_shi", 9)
+        check(f"透支档(9) 治疗量 = 清醒档(0) ×1.50（{h0} → {h9}）",
+              abs(h9 - h0 * 1.50) <= 2, f"h0={h0} h9={h9}")
     except (AttributeError, TypeError) as ex:
-        skip("引擎：回声叠层", str(ex))
-    try:
-        # 回声恢复：1 层 6/回合；满 3 层翻倍 6×3×2 = 36/回合
-        b2, p2 = new_battle("cls_mu_shi", 1, 1, level=95)
-        b2._echo_add(p2, [], 1)
-        p2["hp"] = 100
-        b2._turn_start(p2)
-        check("回声 1 层回合初始恢复 6", p2["hp"] == 106, f"hp={p2['hp']}")
-        b2._echo_add(p2, [], 1)
-        b2._echo_add(p2, [], 1)
-        check("回声叠满 3 层（max_layers）", b2._echo_layers() == 3, f"echo={b2._echo_layers()}")
-        p2["hp"] = 100
-        logs3 = b2._turn_start(p2)
-        check("满 3 层回合初始恢复 36（满层翻倍 6×3×2）", p2["hp"] == 136,
-              f"hp={p2['hp']} logs={logs3}")
-    except (AttributeError, TypeError) as ex:
-        skip("引擎：回声 _turn_start 恢复", str(ex))
-    try:
-        # 回声日志反馈（施放歌类技若携带 echo 增益则产生驻留反馈——数据层现无生产者，
-        # 直接断言 _echo_add 的日志通道）
-        b3, p3 = new_battle("cls_mu_shi", 1, 1, level=95)
-        logs = []
-        b3._echo_add(p3, logs, 1)
-        check("回声驻留反馈日志", any("回声驻留" in l for l in logs), f"{logs}")
-    except (AttributeError, TypeError) as ex:
-        skip("引擎：回声日志", str(ex))
+        skip("引擎：牧师信念负载", str(ex))
 
 
 # ================= 4. 六词条行为 =================
@@ -228,8 +223,8 @@ def test_six_affixes():
               f"bonus={b._tailwind_regen_bonus(p)}")
         b.resources["energy"] = 60
         b._turn_start(p)
-        # v139 凝神屏息：60+30+10=100 满值自动排气归零（签名机制）——余韵回复本身已生效（达到 100 上限）
-        check("回合开始：自然回 30 + 疾风余韵 10 = 满 100 触发排气", b.resources["energy"] == 0,
+        # v153 精力自然回 18（v151 起 30→18 专注流量制）+ 疾风余韵 10 = 60+28=88
+        check("回合开始：自然回 18 + 疾风余韵 10 = 88", b.resources["energy"] == 88,
               f"energy={b.resources['energy']}")
         b2, p2 = new_battle("cls_you_xia", 1, 2, equipment=mk_eq(mk_piece(["swift_tailwind"])))
         b2._tailwind_prev_energy = 70
@@ -237,8 +232,18 @@ def test_six_affixes():
               f"bonus={b2._tailwind_regen_bonus(p2)}")
         b2.resources["energy"] = 60
         b2._turn_start(p2)
-        check("无余韵加成：60 + 30 = 90", b2.resources["energy"] == 90,
+        check("无余韵加成：60 + 18 = 78", b2.resources["energy"] == 78,
               f"energy={b2.resources['energy']}")
+        # 满 100 排气：v153 已废弃凝神屏息（vent trigger=999 永不到达，专注流量制）
+        b3, p3 = new_battle("cls_you_xia", 1, 2, equipment=mk_eq(mk_piece(["swift_tailwind"])))
+        check("v153 vent trigger=999（凝神屏息已废弃，专注流量制）",
+              int((p3.get("vent") or {}).get("trigger", 0)) == 999,
+              str(p3.get("vent")))
+        b3.resources["energy"] = 100
+        b3._tailwind_prev_energy = 100
+        b3._turn_start(p3)
+        check("满 100 + 余韵 10 封顶 100（v153 无排气，专注流量制）", b3.resources["energy"] == 100,
+              f"energy={b3.resources['energy']}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：疾风余韵", str(ex))
     try:
@@ -293,7 +298,7 @@ def test_six_affixes():
 def test_sets_sample():
     print("\n【5. 套装抽样 5 套】")
     try:
-        # 5a. 元素使徒：充能上限 5→6；4 件全耗 -1 留残点
+        # 5a. 元素使徒：充能上限 5→6；v153 元素湮灭无全耗 → 只验证充能上限 + 不消耗语义
         eq = mk_eq(mk_piece(set_id="set_yuan_su_shi_tu"), mk_piece(set_id="set_yuan_su_shi_tu"),
                    mk_piece(set_id="set_yuan_su_shi_tu"), mk_piece(set_id="set_yuan_su_shi_tu"))
         b, p = new_battle("cls_fa_shi", 1, 1, learned=["元素湮灭"], equipment=eq)
@@ -302,8 +307,8 @@ def test_sets_sample():
         b._res_gain(p, "element", 10)
         check("充能获取封顶 6", b._elem_charge() == 6, f"charge={b._elem_charge()}")
         cap, logs = cast_capture(b, "元素湮灭", p)
-        check_float("6 充能元素湮灭折算 power = 5.28（2.4×2.2）", cap.get("power", 0), 5.28)
-        check("元素使徒 4 件：全耗 -1 留残点 1（-6→-5）", b._elem_charge() == 1,
+        check_float("元素湮灭 折算 power 保持 1.71（v153 无全耗放大）", cap.get("power", 0), 1.71)
+        check("施放后充能保留 6（v153 元素湮灭不耗充能）", b._elem_charge() == 6,
               f"charge={b._elem_charge()}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：元素使徒套装", str(ex))
@@ -370,27 +375,14 @@ def test_sets_sample():
     except (AttributeError, TypeError) as ex:
         skip("引擎：余烬军团", str(ex))
     try:
-        # 5e. 时之领主：时停领域 冷却 -1（cdr_set on=time_freeze）
+        # 5e. 时之领主：cdr_set(on=time_freeze) 配置保留；时停领域技能 v153 已删（时律线退役）
         eq = mk_eq(mk_piece(set_id="set_shi_zhi_ling_zhu"), mk_piece(set_id="set_shi_zhi_ling_zhu"))
-        b, p = new_battle("cls_fa_shi", 3, 2, equipment=eq)   # v151：时停领域 → 法师 T3 时律贤者
+        b, p = new_battle("cls_fa_shi", 3, 2, equipment=eq)
         tf = b._set_eff(p, "cdr_set", 2, on="time_freeze")
-        check("时之领主 2 件 cdr_set(time_freeze) 生效", tf is not None and int(tf.get("value", 0)) == -1,
+        check("时之领主 2 件 cdr_set(time_freeze) 配置生效", tf is not None and int(tf.get("value", 0)) == -1,
               f"{tf}")
-        # 同基准对照：法师时律贤者无内置 cdr，套装修剪 1 → cd 3 变 2
-        b_no, p_no = new_battle("cls_fa_shi", 3, 2)
-        b_no._set_skill_cd("时停领域", 3)
-        cd_wo = b_no._skill_cd_left("时停领域")
-        b_cd, p_cd = new_battle("cls_fa_shi", 3, 2, equipment=eq)
-        b_cd._set_skill_cd("时停领域", 3)
-        cd_w = b_cd._skill_cd_left("时停领域")
-        check("时停领域 CD 削减 1（同基准相较差 1）", cd_w == cd_wo - 1 and cd_w >= 1,
-              f"cd_wo={cd_wo} cd_w={cd_w}")
-        # v152 时刻制：_skill_cd_left 折算 int +1（向上取整）——cd3 折算 3~4，cd2 折算 2~3。
-        # ACT_TICK=1.0（1 刻 = 1 秒）：ready_at 差 = 1 刻 = 1.0 时刻（套装修剪 1 回合）。
-        _ra_wo = float(b_no.cooldown.get("时停领域", 0))
-        _ra_w = float(b_cd.cooldown.get("时停领域", 0))
-        check("带套装：CD 3 → 2（cdr 折算后再 -1，ready_at 差 1.0）",
-              abs(_ra_wo - _ra_w - 1.0) < 1e-9, f"cd_wo={cd_wo} cd_w={cd_w} ra_wo={_ra_wo} ra_w={_ra_w}")
+        check("v153：时停领域技能已删除（时律线退役，套装 on 引用成死引用，已报告）",
+              E.skill_info("cls_fa_shi", "时停领域") is None, "")
     except (AttributeError, TypeError) as ex:
         skip("引擎：时之领主", str(ex))
 

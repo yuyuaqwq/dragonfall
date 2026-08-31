@@ -265,40 +265,39 @@ def test_aoe_target_def_gap():
 
 # ============ A6 蓄力 ============
 def test_charge_cast():
+    # v153：蓄力斩删除 → 蓄力技能 = 风行者分支 蓄力射击（charge=1.5 → 1 刻，mp 14）
     clean_db()
-    p = mk_player(learned=["蓄力斩"], mp=100, spd=0)
+    p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
     mp0 = p["mp"]
-    logs, _ = b.player_turn("skill", "蓄力斩", p, enemy_act=False)
+    logs, _ = b.player_turn("skill", "蓄力射击", p, enemy_act=False)
     check("施放进入蓄力(剩1)", b.charging and b.charging["left"] == 1, str(b.charging))
-    check("蓄力施放扣MP(16)", p["mp"] == mp0 - 16, f"{mp0}->{p['mp']}")
+    check("蓄力施放扣MP(14)", p["mp"] == mp0 - 14, f"{mp0}->{p['mp']}")
     check("施放回合不结算（靶子不掉血）", e["hp"] == 99999, f"hp={e['hp']}")
 
 
 def test_charge_blocks_attack():
     """蓄力中(charge>=2, 下一回合仍蓄力)禁普攻 → 提示。"""
     clean_db()
-    p = mk_player(learned=["蓄力斩"], mp=100, spd=0)
+    p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    b.charging = {"skill": "蓄力斩", "left": 2, "name": "蓄力斩", "mp_spent": 16}
+    b.charging = {"skill": "蓄力射击", "left": 2, "name": "蓄力射击", "mp_spent": 14}
     logs, _ = b.player_turn("attack", None, p, enemy_act=False)
     check("蓄力中普攻被拦截（提示正在蓄力）", any("正在蓄力" in x for x in logs), str(logs[:3]))
     check("蓄力中普攻未泄力（charging 仍在）", b.charging is not None, str(b.charging))
 
 
 def test_charge_release_damage():
-    """蓄力回合开始自动释放 → 技能效果生效（伤害）。用 CD 已清确保释放路径本身能结算。
-    [G5 注] 释放不应重复扣 MP（§6.2「不重复扣 MP/资源」）；当前 _do_player_skill 释放路径仍
-    再次扣 MP → 本用例"释放不重复扣MP"当前 FAIL，一并记录 G5。"""
+    """蓄力回合开始自动释放 → 技能效果生效（伤害）。用 CD 已清确保释放路径本身能结算。"""
     clean_db()
-    p = mk_player(learned=["蓄力斩"], mp=100, spd=0)
+    p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    p["mp"] = 84  # 模拟施放已扣 16
-    b.charging = {"skill": "蓄力斩", "left": 1, "name": "蓄力斩", "mp_spent": 16}
-    b.cooldown.pop("蓄力斩", None)  # 清 CD：隔离"释放路径能结算"（G4 是 CD 阻塞问题）
+    p["mp"] = 86  # 模拟施放已扣 14
+    b.charging = {"skill": "蓄力射击", "left": 1, "name": "蓄力射击", "mp_spent": 14}
+    b.cooldown.pop("蓄力射击", None)  # 清 CD：隔离"释放路径能结算"（G4 是 CD 阻塞问题）
     mp1 = p["mp"]
     logs = []
     released = b._player_charge_release(p, logs)
@@ -311,15 +310,15 @@ def test_charge_release_damage():
 
 
 def test_charge_release_cd_gap():
-    """[规格 G4] 真实 蓄力斩(cd=4) 释放回合被自身 CD 阻塞 → 伤害不生效。规格应自动结算。"""
+    """[规格 G4] 真实 蓄力射击(cd=12) 释放回合被自身 CD 阻塞 → 伤害不生效。规格应自动结算。"""
     clean_db()
-    p = mk_player(learned=["蓄力斩"], mp=100, spd=0)
+    p = mk_player(cls="cls_you_xia", learned=["蓄力射击"], mp=100, spd=0)
     e = mk_unit("靶子", hp=99999, atk=0)
     b = BT.Battle("monster", e, {}, player=p)
-    b.player_turn("skill", "蓄力斩", p, enemy_act=False)  # 施放设 CD=4
+    b.player_turn("skill", "蓄力射击", p, enemy_act=False)  # 施放设 CD=12
     hp0 = e["hp"]
     released = b._player_charge_release(p, [])  # 下回合开始：蓄力释放（隔离，不含玩家普攻）
-    check("真实蓄力斩释放造成伤害（不被自身CD阻塞）", e["hp"] < hp0, f"hp={hp0}->{e['hp']}")
+    check("真实蓄力射击释放造成伤害（不被自身CD阻塞）", e["hp"] < hp0, f"hp={hp0}->{e['hp']}")
     if released and e["hp"] == hp0:
         KNOWN_BUGS.append("G4：蓄力技能释放被自身CD阻塞（_do_player_skill 释放路径仍查 _skill_on_cd）")
 

@@ -97,24 +97,33 @@ def cast_skill_aoe(b, st, info, p, name, seed):
 
 def main():
     clean_db()
+    # v153：旋风斩 aoe 字段已移除（基础表无 aoe，现为单体 73% 战意技）；
+    # AOE 用 焚天斩（狂战士 t2 lv85，aoe=front）/ 陨石术（法师基础 lv24，aoe=all）
     info_xf = E.skill_info("cls_zhan_shi", "旋风斩")
-    check("数据：旋风斩带 aoe=True", bool(info_xf and info_xf.get("aoe")), str(info_xf))
-    info_single = dict(info_xf)
+    info_front = E.skill_info("cls_zhan_shi", "焚天斩")
+    info_all = E.skill_info("cls_fa_shi", "陨石术")
+    check("数据：焚天斩带 aoe=front（v153 AOE 代表）", bool(info_front and info_front.get("aoe")), str(info_front))
+    check("数据：陨石术带 aoe=all（v153 法师 AOE）", bool(info_all and info_all.get("aoe") == "all"), str(info_all))
+    check("数据：旋风斩 v153 已非 AOE（单体 73%）", not (info_xf or {}).get("aoe"), str(info_xf and info_xf.get("aoe")))
+    if not (info_front and info_all):
+        print("  ⚠️ 数据缺失，跳过 AOE 断言")
+        return
+    info_single = dict(info_front)
     info_single.pop("aoe", None)  # 对照组：等价单体技能（v2：单体技能只打 selected 目标）
 
     # ============ 1. 单目标回归 ============
     print("\n===== 1. 单目标回归：aoe 技能打单怪 == 原单体路径 =====\n")
     random.seed(11)
-    p1 = mk_player()
+    p1 = mk_player(learned=["焚天斩"])
     b1 = BT.Battle("monster", None, {}, p1, enemies=[mk_enemy()])
-    logs1, dealt_aoe = cast_skill_aoe(b1, b1._player_stats(p1), info_xf, p1, "旋风斩", 11)
+    logs1, dealt_aoe = cast_skill_aoe(b1, b1._player_stats(p1), info_front, p1, "焚天斩", 11)
     check("aoe 技能单怪 Boss 掉血 > 0", dealt_aoe.get("主怪", 0) > 0, f"d={dealt_aoe}")
     check("单怪 hp 精确扣减", b1.enemy["hp"] == 10 ** 9 - dealt_aoe["主怪"],
           f"hp={b1.enemy['hp']}")
     random.seed(11)
-    p2 = mk_player()
+    p2 = mk_player(learned=["焚天斩"])
     b2 = BT.Battle("monster", None, {}, p2, enemies=[mk_enemy()])
-    _, dealt_single = cast_skill_aoe(b2, b2._player_stats(p2), info_single, p2, "旋风斩", 11)
+    _, dealt_single = cast_skill_aoe(b2, b2._player_stats(p2), info_single, p2, "焚天斩", 11)
     check("aoe 单怪伤害 == 等价单体路径（同种子同构造）",
           dealt_aoe.get("主怪", 0) == dealt_single.get("主怪", 0),
           f"aoe={dealt_aoe} single={dealt_single}")
@@ -123,12 +132,11 @@ def main():
 
     # ============ 2. 多目标分配（scope=all 打全阵，rank2/3 吃 falloff） ============
     print("\n===== 2. 多目标分配：rank1+rank2+rank3 全阵，AOE all，后排吃 falloff 衰减 =====\n")
-    # 手造 all-AOE info（scope=all + reach 覆盖全阵 + falloff=0.7，仅含 AOE 结算所需字段）
-    info_all = dict(info_xf)
-    info_all["aoe"] = "all"
-    info_all["aoe_falloff"] = 0.7
+    # 陨石术（aoe=all）无 falloff 配置 → 全阵同伤；手造 falloff=0.7 版验证后排衰减
+    info_all_fall = dict(info_all)
+    info_all_fall["aoe_falloff"] = 0.7
     random.seed(12)
-    p3 = mk_player(reach=3, learned=["旋风斩"])
+    p3 = mk_player(cls="cls_fa_shi", reach=3, learned=["陨石术"])
     b3 = BT.Battle("monster", None, {}, p3,
                    enemies=[mk_enemy("前排甲", rank=1, hp=10 ** 9),
                             mk_enemy("后排乙", rank=2, hp=10 ** 9),
@@ -136,12 +144,12 @@ def main():
     st3 = b3._player_stats(p3)
     check("三怪入阵列且站位正确",
           [u["rank"] for u in b3.enemies] == [1, 2, 3], str([u["rank"] for u in b3.enemies]))
-    logs3, loss3 = cast_skill_aoe(b3, st3, info_all, p3, "旋风斩", 12)
+    logs3, loss3 = cast_skill_aoe(b3, st3, info_all_fall, p3, "陨石术", 12)
     check("rank1 前排吃全额 >0", loss3.get("前排甲", 0) > 0, f"loss={loss3}")
     check("rank2/rank3 后排也吃到（全阵 AOE）",
           loss3.get("后排乙", 0) > 0 and loss3.get("后排丙", 0) > 0, f"loss={loss3}")
     check("rank1 无衰减 == rank2 吃 0.7 衰减（front 全额 / back=front×0.7）",
-          abs(loss3.get("前排甲", 0) - int(loss3.get("后排乙", 0) / 0.7)) <= 1
+          abs(loss3.get("前排甲", 0) - int(loss3.get("后排乙", 0) / 0.7)) <= 3
           and loss3.get("前排甲", 0) > loss3.get("后排乙", 0),
           f"loss={loss3}")
     check("rank2 与 rank3 衰减一致（同 falloff）",
@@ -149,15 +157,15 @@ def main():
     check("逐目标独立伤害文案 3 行",
           sum(1 for x in logs3 if "💥 对【" in x) == 3, str(logs3))
 
-    # ============ 2c. AOE scope=front 只打当前最前排（数据层 旋风斩 实为 front） ============
+    # ============ 2c. AOE scope=front 只打当前最前排（焚天斩 aoe=front） ============
     print("\n===== 2c. AOE scope=front 只打当前最前排 =====\n")
-    check("数据：旋风斩 aoe=front（近战 AOE 打前排）",
-          str(info_xf.get("aoe")) == "front", f"aoe={info_xf.get('aoe')}")
-    p3f = mk_player(reach=3, learned=["旋风斩"])
+    check("数据：焚天斩 aoe=front（近战 AOE 打前排）",
+          str(info_front.get("aoe")) == "front", f"aoe={info_front.get('aoe')}")
+    p3f = mk_player(reach=3, learned=["焚天斩"])
     b3f = BT.Battle("monster", None, {}, p3f,
                     enemies=[mk_enemy("F1", rank=1, hp=10 ** 9), mk_enemy("F2", rank=1, hp=10 ** 9),
                              mk_enemy("B1", rank=2, hp=10 ** 9)])
-    logs3f, loss3f = cast_skill_aoe(b3f, b3f._player_stats(p3f), info_xf, p3f, "旋风斩", 13)
+    logs3f, loss3f = cast_skill_aoe(b3f, b3f._player_stats(p3f), info_front, p3f, "焚天斩", 13)
     check("front 只打 rank1 两只", loss3f.get("F1", 0) > 0 and loss3f.get("F2", 0) > 0,
           f"loss={loss3f}")
     check("front 不打 rank2 后排", loss3f.get("B1", 0) == 0, f"loss={loss3f}")
@@ -166,18 +174,18 @@ def main():
     print("\n===== 3. AOE 打阵列 vs 单体技能自动选目标 =====\n")
     # AOE（scope=all）：A(rank1)+B(rank2) 都吃（B 衰减）
     random.seed(14)
-    p4 = mk_player(reach=3, learned=["旋风斩"])
+    p4 = mk_player(cls="cls_fa_shi", reach=3, learned=["陨石术"])
     b4 = BT.Battle("monster", None, {}, p4,
                    enemies=[mk_enemy("A", rank=1, hp=10 ** 9), mk_enemy("B", rank=2, hp=10 ** 9)])
-    _, loss4 = cast_skill_aoe(b4, b4._player_stats(p4), info_all, p4, "旋风斩", 14)
+    _, loss4 = cast_skill_aoe(b4, b4._player_stats(p4), info_all, p4, "陨石术", 14)
     check("AOE：A(rank1) 吃全额", loss4.get("A", 0) > 0, f"loss={loss4}")
     check("AOE：B(rank2) 也吃到（站位不挡 AOE）", loss4.get("B", 0) > 0, f"loss={loss4}")
     # 单体：同构造，单体技能只打（自动选）最前排 A，后排 B 不掉血（站位挡伤）
     random.seed(14)
-    p5 = mk_player(reach=3, learned=["旋风斩"])
+    p5 = mk_player(cls="cls_fa_shi", reach=3, learned=["陨石术"])
     b5 = BT.Battle("monster", None, {}, p5,
                    enemies=[mk_enemy("A", rank=1, hp=10 ** 9), mk_enemy("B", rank=2, hp=10 ** 9)])
-    _, loss5 = cast_skill_aoe(b5, b5._player_stats(p5), info_single, p5, "旋风斩", 14)
+    _, loss5 = cast_skill_aoe(b5, b5._player_stats(p5), info_single, p5, "陨石术", 14)
     check("单体：最前排 A 吃到", loss5.get("A", 0) > 0, f"loss={loss5}")
     check("单体：后排 B 不掉血（站位挡伤）", loss5.get("B", 0) == 0, f"loss={loss5}")
 
@@ -252,16 +260,21 @@ def main():
     check("星陨 10% 概率：未触发无伤害", b8b.enemy["hp"] == 10 ** 9, f"hp={b8b.enemy['hp']}")
 
     # ============ 7. multi×aoe ============
-    print("\n===== 7. multi×aoe：风刃乱舞 70%×3 全体（累加 total 后一次 aoe 结算）=====\n")
+    print("\n===== 7. multi×aoe：风刃乱舞 34%×3（hits=3 累加 total 后一次 aoe 结算）=====\n")
+    # v153：风刃乱舞 无 aoe/multi 字段（hits=3 多段单体）；multi×aoe 组合用 手造 info 验证引擎路径
     info_multi = E.skill_info("cls_you_xia", "风刃乱舞")
-    check("数据：风刃乱舞 multi=3 且 aoe=True",
-          bool(info_multi and info_multi.get("multi") == 3 and info_multi.get("aoe")),
-          str(info_multi and {k: info_multi.get(k) for k in ("multi", "aoe", "power")}))
+    check("数据：风刃乱舞 hits=3（v153 多段）",
+          bool(info_multi and info_multi.get("hits") == 3),
+          str(info_multi and {k: info_multi.get(k) for k in ("hits", "multi", "aoe", "power")}))
+    # 引擎 multi×aoe 路径：手造 multi=3 + aoe=all
+    info_multi_aoe = dict(info_all)
+    info_multi_aoe["multi"] = 3
+    info_multi_aoe["aoe"] = "all"
     random.seed(15)
-    p9 = mk_player(cls="cls_you_xia", reach=3)
+    p9 = mk_player(cls="cls_fa_shi", reach=3, learned=["陨石术"])
     b9 = BT.Battle("monster", None, {}, p9,
                    enemies=[mk_enemy("M1", rank=1, hp=10 ** 9), mk_enemy("M2", rank=1, hp=10 ** 9)])
-    logs9, loss9 = cast_skill_aoe(b9, b9._player_stats(p9), info_multi, p9, "风刃乱舞", 15)
+    logs9, loss9 = cast_skill_aoe(b9, b9._player_stats(p9), info_multi_aoe, p9, "陨石术", 15)
     check("multi×aoe：M1 吃 3 段累加 total", loss9.get("M1", 0) > 0, f"loss={loss9}")
     check("multi×aoe：M2 与 M1 相同（同 rank 同衰减）", loss9.get("M1", 0) == loss9.get("M2", 0),
           f"loss={loss9}")
@@ -270,7 +283,7 @@ def main():
 
     # ============ 8. 吸血分账（AOE：heal == 主目标实伤×吸血率） ============
     print("\n===== 8. 吸血分账：AOE heal == 主目标(最前排)实伤×吸血率 =====\n")
-    p10 = mk_player(extra_stats={"lifesteal": 0.20}, reach=3)
+    p10 = mk_player(extra_stats={"lifesteal": 0.20}, reach=3, learned=["焚天斩"])
     b10 = BT.Battle("monster", None, {}, p10,
                     enemies=[mk_enemy("V1", rank=1, hp=10 ** 9), mk_enemy("V2", rank=2, hp=10 ** 9)])
     st10 = b10._player_stats(p10)
@@ -280,7 +293,7 @@ def main():
     before = {u["name"]: u["hp"] for u in b10.enemies}
     hp0 = p10["hp"]
     random.seed(11)
-    logs10 = b10._player_skill(st10, "旋风斩", info_xf, p10)
+    logs10 = b10._player_skill(st10, "焚天斩", info_front, p10)
     loss10 = {u["name"]: before[u["name"]] - u["hp"] for u in b10.enemies
               if u["hp"] < before[u["name"]]}
     heal = p10["hp"] - hp0

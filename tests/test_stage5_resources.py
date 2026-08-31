@@ -60,22 +60,23 @@ b2 = BT.Battle.from_state(st)
 check("resources 序列化往返", b2.resources == by.resources, str((b2.resources, by.resources)))
 
 print("【核心资源：回合回复】")
-# v139 凝神屏息：游侠精力满 100 回合开始自动排气归零（签名机制）——80 回 30 达 100 → 触发排气
-b2.resources['energy'] = 80
+# v153 专注流量制：游侠 energy regen 30→18/刻（core_resources.py cls_you_xia.regen=18）
+# v139 凝神屏息：游侠精力满 100 回合开始自动排气归零（签名机制）——82 回 18 达 100 → 触发排气
+b2.resources['energy'] = 82
 logs = b2._turn_start(py)
-check("精力 80 回 30 → 满 100 触发凝神屏息归零", b2.resources.get('energy') == 0, str(b2.resources))
+check("精力 82 回 18 → 满 100 触发凝神屏息归零", b2.resources.get('energy') == 0, str(b2.resources))
 py2 = mk('游侠')
 by2 = BT.Battle('monster', mkmon(), player=py2)
 by2.resources['energy'] = 50
 logs = by2._turn_start(py2)
-check("精力每回合 +30", by2.resources.get('energy') == 80, str(by2.resources))
+check("精力每回合 +18", by2.resources.get('energy') == 68, str(by2.resources))
 check("回复日志", any("精力回复" in x for x in logs), str(logs))
 
 print("【核心资源：消耗】")
 assert E.core_resource_spend('游侠', by2.resources, 20) is True
-check("消耗 20 精力", by2.resources.get('energy') == 60, str(by2.resources))
+check("消耗 20 精力", by2.resources.get('energy') == 48, str(by2.resources))
 assert E.core_resource_spend('游侠', by2.resources, 999) is False
-check("不足不扣", by2.resources.get('energy') == 60, str(by2.resources))
+check("不足不扣", by2.resources.get('energy') == 48, str(by2.resources))
 
 print("【核心资源：显示标签】")
 # v130.2：标签格式收敛——法师 element 特判从旧「✦ 火系」改为「✦ 元素亲合 0/5」（充能条显示，

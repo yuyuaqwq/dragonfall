@@ -104,29 +104,35 @@ def mech_cond(info, want_mech, want_stacks, want_mult, label_nonempty=True):
             and (not label_nonempty or str(c.get("label", "")).strip() != ""))
 
 
-# ================= ① 机制层 cond ×4（v151 战意/连段） =================
+# ================= ① 机制层数据断言（v153 战意/连段/cond） =================
 def test_overflow_conds():
-    print("\n【① 机制层 cond（v151 战意 zhan_yi / 连段 lian_duan）】")
-    # ---- 1. 怒斩：战意≥3 ×1.15（狂战士 T1）----
+    print("\n【① 机制层数据（v153 战意 zhan_yi / 连段 lian_duan）】")
+    # ---- 1. 怒斩：v153 无 cond（mech zhan_yi 叠层，每层攻击 +4% 由 MECH_STACK_BONUS 消费）----
     nz = E.skill_info("cls_zhan_shi", "怒斩") or {}
-    check("怒斩 cond=mech_stacks{zhan_yi,3,×1.15,战意盈沸}",
-          mech_cond(nz, "zhan_yi", 3, 1.15) and cond_of(nz).get("label") == "战意盈沸",
-          str(cond_of(nz)))
+    check("怒斩 mech=zhan_yi mech_val=1（无 cond，v153 改叠层语义）",
+          nz.get("mech") == "zhan_yi" and int(nz.get("mech_val", 0)) == 1 and not nz.get("cond"),
+          str({k: nz.get(k) for k in ("mech", "mech_val", "cond")}))
     try:
         b, p = new_battle("cls_zhan_shi", 1, 1, learned=["怒斩"])
         _init_res(b)
         b.mech_stacks["zhan_yi"] = 3
-        check("行为：战意 3/10 → 怒斩 cond 激活", b._cond_active(nz, p) is True,
-              f"active={b._cond_active(nz, p)}")
-        b.mech_stacks["zhan_yi"] = 2
-        check("行为：战意 2/10 → 怒斩 cond 不激活", b._cond_active(nz, p) is False,
-              f"active={b._cond_active(nz, p)}")
+        check("行为：战意 3 → _cond_active(怒斩) False（v153 无 cond）",
+              b._cond_active(nz, p) is False, f"active={b._cond_active(nz, p)}")
+        # 战意叠层引擎挂点：怒斩命中积攒 1 战意
+        b.mech_stacks = {}
+        b.enemy["hp"] = 10 ** 9
+        import random
+        random.seed(5)
+        logs = b._do_player_skill("怒斩", p)
+        check("行为：怒斩施放 → 战意 +1（mech 叠层引擎挂点）",
+              int(b.mech_stacks.get("zhan_yi", 0) or 0) == 1,
+              f"zhan_yi={b.mech_stacks.get('zhan_yi')} logs={logs[:2]}")
     except (AttributeError, TypeError) as ex:
-        skip("引擎：怒斩 cond 行为", str(ex))
-    # ---- 2. 裂地斩：战意≥6 ×1.2（狂战士 T1）----
+        skip("引擎：怒斩 mech 行为", str(ex))
+    # ---- 2. 裂地斩：cond zhan_yi{6,×1.0}（v153 附加流血）----
     ld = E.skill_info("cls_zhan_shi", "裂地斩") or {}
-    check("裂地斩 cond=mech_stacks{zhan_yi,6,×1.2}",
-          mech_cond(ld, "zhan_yi", 6, 1.2), str(cond_of(ld)))
+    check("裂地斩 cond=mech_stacks{zhan_yi,6,×1.0}",
+          mech_cond(ld, "zhan_yi", 6, 1.0, label_nonempty=False), str(cond_of(ld)))
     try:
         b, p = new_battle("cls_zhan_shi", 1, 1, learned=["裂地斩"])
         _init_res(b)
@@ -138,117 +144,81 @@ def test_overflow_conds():
               b._cond_active(ld, p) is False, f"active={b._cond_active(ld, p)}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：裂地斩 cond 行为", str(ex))
-    # ---- 3. 影刃：连段≥5 追加（影舞者 T1）----
+    # ---- 3. 影刃：v153 无 cond（mech lian_duan 叠段，连段 ≥3 追加由引擎 combo 处理）----
     yr = E.skill_info("cls_ci_ke", "影刃") or {}
-    check("影刃 cond=mech_stacks{lian_duan,5,追加}",
-          mech_cond(yr, "lian_duan", 5, 1.0), str(cond_of(yr)))
+    check("影刃 mech=lian_duan mech_val=1（无 cond）",
+          yr.get("mech") == "lian_duan" and int(yr.get("mech_val", 0)) == 1 and not yr.get("cond"),
+          str({k: yr.get(k) for k in ("mech", "mech_val", "cond")}))
     try:
         b, p = new_battle("cls_ci_ke", 1, 1, learned=["影刃"])
         _init_res(b)
         b.mech_stacks["lian_duan"] = 5
-        check("行为：连段 5 → 影刃 cond 激活",
-              b._cond_active(yr, p) is True, f"active={b._cond_active(yr, p)}")
-        b.mech_stacks["lian_duan"] = 4
-        check("行为：连段 4 → 影刃 cond 不激活",
+        check("行为：连段 5 → _cond_active(影刃) False（v153 无 cond）",
               b._cond_active(yr, p) is False, f"active={b._cond_active(yr, p)}")
+        # 连段叠层引擎挂点：影刃命中 +1 段
+        b.mech_stacks = {}
+        b.enemy["hp"] = 10 ** 9
+        import random as _r2
+        _r2.seed(6)
+        logs = b._do_player_skill("影刃", p)
+        check("行为：影刃施放 → 连段 +1（mech 叠段引擎挂点）",
+              int(b.mech_stacks.get("lian_duan", 0) or 0) == 1,
+              f"lian_duan={b.mech_stacks.get('lian_duan')} logs={logs[:2]}")
     except (AttributeError, TypeError) as ex:
-        skip("引擎：影刃 cond 行为", str(ex))
-    # ---- 4. 元素湮灭保持 consume_all（v151 唯一 consume_all 技能）----
+        skip("引擎：影刃 mech 行为", str(ex))
+    # ---- 4. 元素湮灭：v153 cond=enemy_marks（无 consume_all）----
     ea = E.skill_info("cls_fa_shi", "元素湮灭") or {}
-    check("元素湮灭 consume_all{element,0.2} 存在",
-          bool(ea.get("consume_all")) and ea["consume_all"].get("key") == "element",
-          f"consume_all={ea.get('consume_all')}")
+    check("元素湮灭 cond=enemy_marks{4,×1.35}（v153 无 consume_all）",
+          (ea.get("cond") or {}).get("type") == "enemy_marks"
+          and int((ea.get("cond") or {}).get("stacks", 0)) == 4
+          and abs(float((ea.get("cond") or {}).get("mult", 0)) - 1.35) < 1e-9,
+          f"cond={ea.get('cond')} consume_all={ea.get('consume_all')}")
 
 
-# ================= ② 被动节拍器 ×5（v151 数据） =================
+# ================= ② v153 被动新格式（字符串契约断裂已知） =================
 def test_metronome_passives():
-    print("\n【② 被动节拍器 ×5（passive 字段断言 + 行为）】")
-    # ---- 1. 守护姿态（战士 T1 盾卫士）：dmg_taken 受击+2 怒 ----
+    print("\n【② v153 被动格式（字符串被动 = 引擎契约断裂，已报告）】")
+    # v153 全部 52 处被动均为字符串名（passive: 'xxx'），引擎 _passive_map/player_passive_stats
+    # 仍按旧 dict 格式（passive.get('proc')）消费 → 携带被动技能的玩家进战斗即崩（真 bug）。
+    # 本段断言数据格式 + 文档化契约断裂（确定性复现）。
+    import re as _re2
+    src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "game", "data", "skills_v153.py"), encoding="utf-8").read()
+    str_passives = _re2.findall(r"'passive':\s*'[^']+'", src)
+    dict_passives = _re2.findall(r"'passive':\s*\{", src)
+    check("v153 被动全部为字符串格式", len(str_passives) > 40 and len(dict_passives) == 0,
+          f"str={len(str_passives)} dict={len(dict_passives)}")
+    # 守护姿态：v153 为 增益 stance=counter（非旧 dmg_taken 被动 dict）
     sd = E.skill_info("cls_zhan_shi", "守护姿态") or {}
-    pv = (sd.get("passive") or {})
-    check("守护姿态 passive=dmg_taken{reduce 0.1, res_gain 2}",
-          pv.get("proc") == "dmg_taken"
-          and abs(float(pv.get("reduce", 0)) - 0.1) < 1e-9
-          and int(pv.get("res_gain", 0)) == 2,
-          f"passive={pv}")
-    try:
-        b, p = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态"])
-        _init_res(b)
-        with mock.patch.object(BT.random, "random", return_value=0.99):
-            b._damage_player(p, 50, [])
-        check("行为：守护姿态 受击 → 怒 +3（on_hit 1 + 被动 2）",
-              b.resources.get("rage") == 3, f"rage={b.resources.get('rage')}")
-        b2, p2 = new_battle("cls_zhan_shi", 1, 2)
-        _init_res(b2)
-        with mock.patch.object(BT.random, "random", return_value=0.99):
-            b2._damage_player(p2, 50, [])
-        check("对照：无守护姿态 受击 → 怒 +1", b2.resources.get("rage") == 1,
-              f"rage={b2.resources.get('rage')}")
-    except (AttributeError, TypeError) as ex:
-        skip("引擎：守护姿态 受击回怒", str(ex))
-    # ---- 2. 磐石之心（拳师 T2 铁壁行者）：dmg_taken 减伤 5% ----
-    ps = E.skill_info("cls_wu_seng", "磐石之心") or {}
-    pv = (ps.get("passive") or {})
-    check("磐石之心 passive=dmg_taken{reduce 0.05}",
-          pv.get("proc") == "dmg_taken" and abs(float(pv.get("reduce", 0)) - 0.05) < 1e-9,
-          f"passive={pv}")
-    # ---- 3. 以守为攻（拳师 T1 磐石行者）：counter_attack 0.3 ----
+    check("守护姿态 v153 为 stance=counter 增益（非被动）",
+          sd.get("kind") == "增益" and sd.get("stance") == "counter" and not sd.get("passive"),
+          str({k: sd.get(k) for k in ("kind", "stance", "passive")}))
+    # 以守为攻：v153 passive=counter_chance（字符串）
     gy = E.skill_info("cls_wu_seng", "以守为攻") or {}
-    pv = (gy.get("passive") or {})
-    check("以守为攻 passive=counter_attack{chance 0.30}",
-          pv.get("proc") == "counter_attack" and abs(float(pv.get("chance", 0)) - 0.30) < 1e-9,
-          f"passive={pv}")
-    # ---- 4. 反击之王（拳师 T2 铁壁行者）：counter_attack 0.4 ----
-    fj = E.skill_info("cls_wu_seng", "反击之王") or {}
-    pv = (fj.get("passive") or {})
-    check("反击之王 passive=counter_attack{chance 0.40}",
-          pv.get("proc") == "counter_attack" and abs(float(pv.get("chance", 0)) - 0.40) < 1e-9,
-          f"passive={pv}")
-    # ---- 5. 追猎者（游侠 T2 自然行者）：mark_extra 0.15 ----
+    check("以守为攻 passive=counter_chance（字符串，引擎无消费 = 已知缺口）",
+          (gy.get("passive") or "") == "counter_chance", str(gy.get("passive")))
+    # 追猎者：v153 passive=hunt_mark_cap（猎印上限 +2，非 mark_extra）
     zl = E.skill_info("cls_you_xia", "追猎者") or {}
-    pv = (zl.get("passive") or {})
-    check("追猎者 passive=mark_extra{chance 0.15}",
-          pv.get("proc") == "mark_extra" and abs(float(pv.get("chance", 0)) - 0.15) < 1e-9,
-          f"passive={pv}")
+    check("追猎者 passive=hunt_mark_cap（v153 猎印上限语义）",
+          (zl.get("passive") or "") == "hunt_mark_cap", str(zl.get("passive")))
+    # 磐石之心：v153 passive=core_overflow（磐核溢出转盾，非 dmg_taken）
+    ps = E.skill_info("cls_wu_seng", "磐石之心") or {}
+    check("磐石之心 passive=core_overflow（v153 磐核语义）",
+          (ps.get("passive") or "") == "core_overflow", str(ps.get("passive")))
+    # 反击之王：v153 passive=counter_up（反击概率+25%，非 counter_attack dict）
+    fj = E.skill_info("cls_wu_seng", "反击之王") or {}
+    check("反击之王 passive=counter_up（v153 反击强化语义）",
+          (fj.get("passive") or "") == "counter_up", str(fj.get("passive")))
 
 
 # ================= ③ 引擎挂点行为 =================
 def test_engine_hooks():
-    print("\n【③ 引擎挂点行为（亡灵祭仪 / 反击回气 / overflow_shield）】")
-    # ---- 1. 亡灵祭仪（牧师 T1 神谕者）：回合初回血 3%（turn_heal）----
-    try:
-        wl = E.skill_info("cls_mu_shi", "亡灵祭仪") or {}
-        check("数据：亡灵祭仪 passive=turn_heal{pct 0.03}",
-              (wl.get("passive") or {}).get("proc") == "turn_heal"
-              and abs(float((wl.get("passive") or {}).get("pct", 0)) - 0.03) < 1e-9,
-              f"passive={wl.get('passive')}")
-        b, p = new_battle("cls_mu_shi", 1, 2, learned=["亡灵祭仪"], level=60)
-        p["hp"] = 300  # 不满血才回
-        logs = b._turn_start(p)
-        check("行为：回合初 亡灵祭仪 回血 3%（hp 300→329）", p["hp"] == 329,
-              f"hp={p['hp']} logs={logs[:2]}")
-        check("亡灵祭仪日志", any("亡灵祭仪" in l for l in logs), f"{logs[:2]}")
-        b0, p0 = new_battle("cls_mu_shi", 1, 2, level=60)
-        p0["hp"] = 300
-        b0._turn_start(p0)
-        check("对照：无亡灵祭仪 回合初不回血", p0["hp"] == 300, f"hp={p0['hp']}")
-    except (AttributeError, TypeError) as ex:
-        skip("引擎：亡灵祭仪", str(ex))
-    # ---- 2. 反击回气 +2（以守为攻 反击命中后 气+2，monk.md §3.1 承诺落地）----
-    try:
-        b, p = new_battle("cls_wu_seng", 1, 2, learned=["以守为攻"])
-        _init_res(b)
-        logs = []
-        # roll 序列：0.50 闪避判定不闪（≥基础闪避）→ 0.05 反击 roll（<0.30 触发）→ 0.99 反击暴击判定不暴
-        with mock.patch.object(BT.random, "random", side_effect=[0.50, 0.05, 0.99]):
-            b._damage_player(p, 50, logs)
-        check("行为：受击触发反击 → 气 +2（反击回气）",
-              b.resources.get("chi") == 2, f"chi={b.resources.get('chi')} logs={logs[:3]}")
-        check("反击回气日志（反击回气 +2）",
-              any("反击回气" in l for l in logs), f"{logs[:3]}")
-    except (AttributeError, TypeError) as ex:
-        skip("引擎：反击回气", str(ex))
-    # ---- 3. overflow_shield：满怒/满气 溢出转 5 护盾/点（core_resources 开关 + battle.py 溢出段）----
+    print("\n【③ 引擎挂点行为（overflow_shield / 牧师信念负载）】")
+    # ---- 1. 亡灵祭仪（v153 牧师 死灵祭司 passive=undead_faith 字符串 → 引擎无消费，已知缺口）
+    wl = E.skill_info("cls_mu_shi", "亡灵祭仪") or {}
+    check("数据：亡灵祭仪 passive=undead_faith（字符串，v153 死灵线新语义）",
+          (wl.get("passive") or "") == "undead_faith", str(wl.get("passive")))
+    # ---- 2. overflow_shield：满怒/满气 溢出转 5 护盾/点（core_resources 开关 + battle.py 溢出段）----
     try:
         rd_war = E.core_resource_def("cls_zhan_shi") or {}
         check("数据：战士 overflow_shield=True（满怒受击出盾开关）",
@@ -293,17 +263,16 @@ def test_engine_hooks():
 # ================= ④ desc 一致性 =================
 def test_desc_consistency():
     print("\n【④ desc 一致性（无已废弃承诺字样）】")
-    # 暗影之心（刺客 T2 暗影之刃）：desc 名实相符（影系/连段，无「潜行持续」承诺）
+    # 暗影之心（刺客 T2 影舞者）：desc 名实相符（连段损失语义，无「潜行持续」承诺）
     ax = (E.skill_info("cls_ci_ke", "暗影之心") or {}).get("desc", "")
     check("暗影之心 desc 不含「潜行持续」承诺", "潜行持续" not in ax, ax)
-    check("暗影之心 desc 与 stat=spd 名实相符（影舞连段）", "影" in ax, ax)
-    # 元素湮灭 desc 无「满印承诺未接线」字样（cond=reaction 满印爆发已落地）
+    check("暗影之心 desc 与连段语义相符（断连损失 1 段）", "连" in ax, ax)
+    # 元素湮灭 desc 含实际机制（印记条件爆发，非满印充能）
     ea = (E.skill_info("cls_fa_shi", "元素湮灭") or {}).get("desc", "")
-    check("元素湮灭 desc 含实际机制（满印爆发/充能消耗）",
-          "满印" in ea and "充能" in ea, ea)
-    # 龙息之怒 desc 含真伤机制（原龙裔 desc 承诺清理后的同源口径）
+    check("元素湮灭 desc 含实际机制（印记 ≥4 ×1.35）", "印记" in ea and "1.35" in ea, ea)
+    # 龙息之怒 desc 含真伤机制（战士 T2 龙焰灼烧）
     lx = (E.skill_info("cls_zhan_shi", "龙息之怒") or {}).get("desc", "")
-    check("龙息之怒 desc 含真伤机制", "真伤" in lx, lx)
+    check("龙息之怒 desc 含真伤机制", "真伤" in lx or "真实" in lx, lx)
 
 
 if __name__ == "__main__":

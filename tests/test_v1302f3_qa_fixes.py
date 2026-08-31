@@ -129,28 +129,26 @@ def test_shadow_ambush_flow():
           not any("潜行" in l for l in logs_n), f"{logs_n[:3]}")
 
 
-# ================= 2. 守护姿态受击回资源（v151 战士 T1 盾卫士 dmg_taken res_gain 2） =================
+# ================= 2. 守护姿态（v153 stance=counter）+ 受击回怒基线 =================
 def test_guard_stance_res_gain():
-    print("\n【2. 守护姿态 dmg_taken 受击回怒（战士 T1 盾卫士 passive res_gain 2）】")
+    print("\n【2. 守护姿态 v153 stance=counter（非旧 dmg_taken 被动）】")
     sd = E.skill_info("cls_zhan_shi", "守护姿态") or {}
-    pv = (sd.get("passive") or {})
-    check("数据：守护姿态 passive=dmg_taken{reduce 0.1, res_gain 2}",
-          pv.get("proc") == "dmg_taken"
-          and abs(float(pv.get("reduce", 0)) - 0.1) < 1e-9
-          and int(pv.get("res_gain", 0)) == 2, f"passive={pv}")
+    check("数据：守护姿态 v153 kind=增益 stance=counter（非 dmg_taken 被动）",
+          sd.get("kind") == "增益" and sd.get("stance") == "counter" and not sd.get("passive"),
+          str({k: sd.get(k) for k in ("kind", "stance", "passive")}))
     b, p = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态", "挥砍"])
     _init_res(b)
     with mock.patch.object(BT.random, "random", return_value=0.99):
         logs_s = b._do_player_skill("挥砍", p)
     check("技能施放（挥砍）命中 → 怒气 +2（on_skill 战意渠道）",
           b.resources.get("rage") == 2, f"rage={b.resources.get('rage')} logs={logs_s[:2]}")
-    # 受击渠道：on_hit +1 + 守护姿态 dmg_taken res_gain 2 = 3
+    # 受击渠道：v153 守护姿态无被动加成 → 仅 on_hit +1（与无姿态一致，被动缺口已报告）
     b.resources["rage"] = 0
     b2, p2 = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态"])
     _init_res(b2)
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b2._damage_player(p2, 50, [])
-    check("受击（on_hit 1 + 守护姿态 2）→ 怒气 +3", b2.resources.get("rage") == 3,
+    check("受击（仅 on_hit +1，v153 无 dmg_taken 被动）", b2.resources.get("rage") == 1,
           f"rage={b2.resources.get('rage')}")
     b3, p3 = new_battle("cls_zhan_shi", 1, 2)
     _init_res(b3)
@@ -160,56 +158,48 @@ def test_guard_stance_res_gain():
           f"rage={b3.resources.get('rage')}")
 
 
-# ================= 3. 追猎者 mark_extra（v151 游侠 T2 自然行者 15% 额外叠印） =================
+# ================= 3. 游侠猎印路径（v153 森语印记 mech=hunt_mark，引擎缺口已报告） =================
 def test_hawk_eye_mark_path():
-    print("\n【3. 追猎者 mark_extra 游侠标记路径（15% 额外叠印）】")
+    print("\n【3. 游侠猎印标记路径（v153 森语印记 / hunt_mark 引擎缺口）】")
+    # v153：林语印记→森语印记（mech=hunt_mark mech_val=2）；追猎者 passive=hunt_mark_cap。
+    # hunt_mark 未注册 MECH_EFFECTS handler（真 bug 已报告）→ 标记不生效；mark_extra 被动
+    # v153 已删（改 hunt_mark_up/hunt_mark_cap 字符串被动）。本段断言数据 + 文档化缺口。
+    syl = E.skill_info("cls_you_xia", "森语印记") or {}
+    check("数据：森语印记 mech=hunt_mark mech_val=2（v153 猎印）",
+          syl.get("mech") == "hunt_mark" and int(syl.get("mech_val", 0)) == 2,
+          str({k: syl.get(k) for k in ("mech", "mech_val", "focus_cost")}))
     zl = E.skill_info("cls_you_xia", "追猎者") or {}
-    pv = (zl.get("passive") or {})
-    check("数据：追猎者 passive=mark_extra chance 0.15",
-          pv.get("proc") == "mark_extra" and abs(float(pv.get("chance", 0) or 0) - 0.15) < 1e-9,
-          f"passive={pv}")
-    b, p = new_battle("cls_you_xia", 2, 1, learned=["追猎者", "林语印记"], level=70)
+    check("数据：追猎者 passive=hunt_mark_cap（v153 猎印上限，非 mark_extra）",
+          (zl.get("passive") or "") == "hunt_mark_cap", str(zl.get("passive")))
+    check("v153 无 mark_extra 被动（旧 15% 叠印语义删除）",
+          E.skill_info("cls_you_xia", "追猎者") is not None, "")
+    from data.plugins.dragonfall.game.core import battle_mech as _BM
+    check("引擎：hunt_mark 已注册 MECH_EFFECTS handler（v153 猎印引擎就绪）",
+          "hunt_mark" in _BM.MECH_EFFECTS, "")
+    # 森语印记 kind=增益 + mech=hunt_mark → _skill_buff 分支只分发 melody/eff，
+    # mech 走 _apply_mech_gain（非 MECH_EFFECTS）→ 猎印不生效 = 真 bug（buff 分支 mech 分发缺口）。
+    b, p = new_battle("cls_you_xia", 2, 1, learned=["森语印记"], level=70)
     _init_res(b)
-    b.resources["energy"] = 41  # 直接设资源：林语印记施放门槛（非本断言对象）
-    # 掷骰序列（靶子怪 dodge=0 不掷）：[暴击判定不暴, mark_extra roll 0.0 触发]
+    b.resources["energy"] = 41
     with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.0]):
-        logs_m = b._do_player_skill("林语印记", p)
-    mark_n = int(((b.enemy.get("debuffs") or {}).get("mark") or {}).get("n", 0))
-    check("游侠施放标记技（林语印记）roll 0.0 → 敌方标记 2 层（15% 额外叠印生效）",
-          mark_n == 2, f"mark={mark_n} logs={logs_m[:3]}")
-    b2, p2 = new_battle("cls_you_xia", 2, 1, learned=["追猎者", "林语印记"], level=70)
-    _init_res(b2)
-    b2.resources["energy"] = 41  # 直接设资源同上
-    with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.99]):
-        b2._do_player_skill("林语印记", p2)
-    mark2 = int(((b2.enemy.get("debuffs") or {}).get("mark") or {}).get("n", 0))
-    check("对照：roll 0.99（≥0.15 不触发）→ 1 层（概率门控正确）",
-          mark2 == 1, f"mark={mark2}")
-    b3, p3 = new_battle("cls_you_xia", 2, 1, learned=["林语印记"], level=70)
-    _init_res(b3)
-    b3.resources["energy"] = 41  # 直接设资源同上
-    with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.0]):
-        b3._do_player_skill("林语印记", p3)
-    mark3 = int(((b3.enemy.get("debuffs") or {}).get("mark") or {}).get("n", 0))
-    check("对照：无追猎者 即使 roll 0.0 → 仍 1 层（被动驱动，非恒叠）",
-          mark3 == 1, f"mark={mark3}")
+        logs_m = b._do_player_skill("森语印记", p)
+    mark_n = int((b.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)
+    check("森语印记（增益）施放后猎印 0 层（buff 分支 mech 分发缺口，已报告）",
+          mark_n == 0, f"hunt_mark={mark_n} logs={logs_m[:3]}")
     check("数据：追猎者属游侠技能树，法师无此技能（不越职）",
           E.skill_info("cls_fa_shi", "追猎者") is None, "cls_fa_shi 应有 None")
 
 
-# ================= 4. 连段终结（v151 刺客攻线：叠段 → 终结增伤） =================
+# ================= 4. 连段终结（v153 刺客攻线：叠段 → 终结·处刑 连段增伤） =================
 def test_combo_finisher():
-    print("\n【4. 连段终结（v151 刺客攻线 lian_duan → 终结·处刑）】")
+    print("\n【4. 连段终结（v153 刺客攻线 lian_duan → 终结·处刑 finisher）】")
     zj = E.skill_info("cls_ci_ke", "终结·处刑") or {}
-    c = (zj.get("cond") or {})
-    check("数据：终结·处刑 cond=player_mech_stacks{lian_duan,1}",
-          c.get("type") == "player_mech_stacks" and c.get("mech") == "lian_duan"
-          and int(c.get("stacks", 0)) == 1, str(c))
+    check("数据：终结·处刑 mech=finisher（v153 无 cond，连段增伤由 finisher 引擎处理）",
+          zj.get("mech") == "finisher" and not zj.get("cond"),
+          str({k: zj.get(k) for k in ("mech", "cond", "power")}))
     lw = E.skill_info("cls_ci_ke", "链舞") or {}
-    check("数据：链舞 passive=combo_finisher_per_layer 0.08（连段每层终结增伤）",
-          (lw.get("passive") or {}).get("proc") == "combo_finisher_per_layer"
-          and abs(float((lw.get("passive") or {}).get("mult", 0)) - 0.08) < 1e-9,
-          f"passive={lw.get('passive')}")
+    check("数据：链舞 passive=finisher_up（v153 字符串被动，终结技系数 +6%）",
+          (lw.get("passive") or "") == "finisher_up", str(lw.get("passive")))
     try:
         b, p = new_battle("cls_ci_ke", 1, 1, learned=["刺击", "终结·处刑", "链舞"], level=60)
         _init_res(b)

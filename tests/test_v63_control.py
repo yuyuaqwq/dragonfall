@@ -92,15 +92,15 @@ async def main():
 
     print("【联动：眩晕目标盾击增伤（enemy_stunned）】")
     b = BT.Battle("monster", make_monster())
-    p = make_player(lv=25, mp=999)
-    p["learned_skills"] = ["盾击"]
+    p = make_player(lv=35, mp=999)
+    p["learned_skills"] = ["盾击·誓"]
     b.e_buffs["stun"] = 1
-    # 盾击技能信息（v151：mech=stun）
-    info = E.skill_info("cls_zhan_shi", "盾击")
-    check("盾击带眩晕 mech", info.get("mech") == "stun", str(info.get("mech")))
+    # 盾击·誓（v153 盾卫士 t1 lv32，mech=stun）
+    info = E.skill_info("cls_zhan_shi", "盾击·誓")
+    check("盾击·誓带眩晕 mech", info.get("mech") == "stun", str(info.get("mech")))
     b2 = BT.Battle("monster", make_monster())
     b2.e_buffs["stun"] = 1
-    mult_stunned = b2._cond_mult(info, make_player(lv=25), 1)
+    mult_stunned = b2._cond_mult({"cond": info.get("cond")}, make_player(lv=35), 1)
     check("眩晕目标增伤>=1", mult_stunned >= 1.0, f"mult={mult_stunned}")
 
     print("【怪物控制技能定义】")
@@ -112,8 +112,8 @@ async def main():
     print("【技能挂载验证】")
     info_jt = E.skill_info("cls_wu_seng", "震地击")
     check("震地击带眩晕 mech", info_jt.get("mech") == "stun", str(info_jt.get("mech")))
-    info_gc = E.skill_info("cls_ci_ke", "淬毒")
-    check("淬毒带毒 mech", info_gc.get("mech") == "poison", str(info_gc.get("mech")))
+    info_gc = E.skill_info("cls_ci_ke", "毒刃")
+    check("毒刃带毒 mech", info_gc.get("mech") == "poison", str(info_gc.get("mech")))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed

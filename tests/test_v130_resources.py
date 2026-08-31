@@ -112,36 +112,44 @@ def test_element_charge():
         skip("引擎：充能条 获取/消耗", str(ex))
 
 
-# ================= 3. 歌者 共鸣+回声 =================
+# ================= 3. 牧师信念负载（v153 §4 C-18） =================
 def test_bard_dual_resource():
-    print("\n【3. 歌者 共鸣+回声 双资源】")
+    print("\n【3. 牧师信念负载（v153：歌者双资源退役 → faith 负载制）】")
+    # v153：牧师攻线 = 神谕者/死灵祭司（歌者已独立为第 7 职业 诗人），
+    # 共鸣/回声资源定义保留为历史遗留（不再有生产者）；牧师核心资源 = faith 负载制。
+    rd = C.CORE_RESOURCES.get("cls_mu_shi") or {}
+    check("牧师核心资源 key = faith", rd.get("key") == "faith", str(rd.get("key")))
+    check("牧师 on_heal=2 / on_hit=1 / on_skill=0", 
+          rd.get("on_heal") == 2 and rd.get("on_hit") == 1 and rd.get("on_skill") == 0,
+          str({k: rd.get(k) for k in ("on_heal", "on_hit", "on_skill")}))
+    tiers = rd.get("load_tiers") or []
+    check("负载四档 0-3/4-7/8-9/10", len(tiers) == 4
+          and tiers[0].get("max") == 3 and tiers[1].get("max") == 7
+          and tiers[2].get("max") == 9 and tiers[3].get("max") == 10,
+          str(tiers))
+    check("专注档治疗 ×1.25 / 透支档 ×1.50",
+          abs(float(tiers[1].get("heal_mult", 0)) - 1.25) < 1e-9
+          and abs(float(tiers[2].get("heal_mult", 0)) - 1.50) < 1e-9, str(tiers))
+    check("每刻衰减 −0.7 / 过载触发全队回复",
+          abs(float(rd.get("decay_per_tick", 0)) - 0.7) < 1e-9
+          and tiers[3].get("overload") is True, str({k: rd.get(k) for k in ("decay_per_tick", "overload_heal_pct")}))
+    # 历史遗留：resonance/echo 定义仍在（无生产者）；(cls_mu_shi,1) override 已过时
     rc = C.CORE_RESOURCES.get("resonance") or {}
     ec = C.CORE_RESOURCES.get("echo") or {}
-    check("共鸣 max = 10", rc.get("max") == 10, str(rc.get("max")))
-    check("回声 max = 3", ec.get("max") == 3, str(ec.get("max")))
-    check("攻线分支 override (cls_mu_shi,1) → resonance+echo",
-          BC.BRANCH_RESOURCE_OVERRIDE.get(("cls_mu_shi", 1)) == ("resonance", "echo"),
-          str(BC.BRANCH_RESOURCE_OVERRIDE.get(("cls_mu_shi", 1))))
-    check("回声配置 heal_per_layer = 6 / max_layers = 3",
-          BC.ECHO_CFG.get("heal_per_layer") == 6 and BC.ECHO_CFG.get("max_layers") == 3,
-          str(BC.ECHO_CFG))
+    check("（遗留）共鸣 max=10 / 回声 max=3 定义保留", rc.get("max") == 10 and ec.get("max") == 3,
+          str((rc.get("max"), ec.get("max"))))
     try:
-        b, p = new_battle("cls_mu_shi", 1, 1, learned=["轻快拨弦"])
-        check("歌者分支资源 = ['resonance','echo']", b._branch_keys(p) == ["resonance", "echo"],
+        b, p = new_battle("cls_mu_shi", 0, 0)
+        check("基础牧师资源 key = ['faith']", b._branch_keys(p) == ["faith"],
               f"{b._branch_keys(p)}")
-        b._res_gain(p, "resonance", 9)
-        check("共鸣 +9 = 9", b._res_read("resonance") == 9, f"resonance={b._res_read('resonance')}")
-        b._res_gain(p, "resonance", 9)
-        check("共鸣封顶 10", b._res_read("resonance") == 10, f"resonance={b._res_read('resonance')}")
-        check("共鸣消耗 -3 = 7", b._res_spend("resonance", 3) and b._res_read("resonance") == 7,
-              f"resonance={b._res_read('resonance')}")
-        b._echo_add(p, [])
-        b._echo_add(p, [])
-        b._echo_add(p, [])
-        b._echo_add(p, [])
-        check("回声叠层封顶 3", b._echo_layers() == 3, f"echo={b._echo_layers()}")
+        b._res_gain(p, "faith", 5)
+        check("信念 +5 = 5", b._res_read("faith") == 5, f"faith={b._res_read('faith')}")
+        b._res_gain(p, "faith", 9)
+        check("信念封顶 10", b._res_read("faith") == 10, f"faith={b._res_read('faith')}")
+        check("信念消耗 -3 = 7", b._res_spend("faith", 3) and b._res_read("faith") == 7,
+              f"faith={b._res_read('faith')}")
     except (AttributeError, TypeError) as ex:
-        skip("引擎：歌者 共鸣+回声", str(ex))
+        skip("引擎：牧师信仰资源", str(ex))
 
 
 # ================= 4. 战士血债怒火 =================

@@ -66,28 +66,27 @@ def test_skill_list_res_cost_format():
     clean_db()
     m = Main(None)
 
-    # v151：牧师基础技能纯蓝（圣光惩戒 mp 10），资源消耗技在游侠（精力 energy）——
-    # 用游侠 疾风连射（res_cost energy 20）验证资源消耗并入格式
+    # v153：疾风连射→连射（lv1，res_cost energy 22）；资源并入格式断言
     ranger = {"class_name": "cls_you_xia", "level": 30, "hp": 400, "max_hp": 1000,
               "mp": 100, "max_mp": 100, "name": "游侠", "reach": 3,
               "equipment": {"weapon": {"name": "测试弓", "stats": {"atk": 100, "matk": 0},
                                        "affixes": [], "enhance": 0}},
               "attributes": {"str": 20, "int": 5},
-              "learned_skills": ["疾风连射"]}
+              "learned_skills": ["连射"]}
     out = m._skill_list_page(ranger, 1)
-    check("疾风连射消耗行格式 5 魔力 ｜ 精力 -20",
-          "5 魔力 ｜ 精力 -20" in out, out[:400])
-    check("消耗行不含 +20 混淆格式（消耗用-获得用+）",
-          "精力 +20" not in out, out[:400])
-    check("消耗行不含 `精力 -20` 负号样式残留检查（-20 前必须带 ｜ 间隔）",
-          "-20 精力" not in out, out[:400])
+    check("连射消耗行格式 6 魔力 ｜ 精力 -22",
+          "6 魔力 ｜ 精力 -22" in out, out[:400])
+    check("消耗行不含 +22 混淆格式（消耗用-获得用+）",
+          "精力 +22" not in out, out[:400])
+    check("消耗行不含 `精力 -22` 负号样式残留检查（-22 前必须带 ｜ 间隔）",
+          "-22 精力" not in out, out[:400])
 
-    # 游侠技能列表含 精力（核心资源并入）——用游侠第 2 页（疾风连射已学第 1 页，翻页看后续技能消耗行）
+    # 游侠技能列表含 精力（核心资源并入）——连射已学第 1 页，翻页看后续技能消耗行
     ranger2 = dict(ranger)
-    ranger2["learned_skills"] = ["疾风连射", "瞄准射击", "鹰眼锁定"]
+    ranger2["learned_skills"] = ["连射", "瞄准射击", "鹰眼锁定"]
     out2 = m._skill_list_page(ranger2, 2)
     found_rage = "精力" in out2
-    check("游侠技能列表含 精力（v151 资源并入）", found_rage, out2[:400])
+    check("游侠技能列表含 精力（v153 资源并入）", found_rage, out2[:400])
     if found_rage:
         # 资源消耗并入：形如 `N 精力`，不是 `精力 -N` 反转
         check("资源消耗并入（无 `怒气 -` 后缀）", "怒气 -" not in out2, out2[:400])
@@ -114,15 +113,15 @@ def test_offbattle_guard_chinese_name():
     clean_db()
     from data.plugins.dragonfall.game.commands.combat import CombatCmds
     cc = CombatCmds()
-    # v151：牧师无信仰资源，用游侠 疾风连射（energy 20）验证脱战渲染中文名
+    # v153：疾风连射→连射（energy 22）验证脱战渲染中文名
     ranger = {"class_name": "cls_you_xia", "level": 30, "hp": 400, "max_hp": 1000,
               "mp": 100, "max_mp": 100, "name": "游侠", "reach": 3,
               "equipment": {"weapon": {"name": "测试弓", "stats": {"atk": 100, "matk": 0},
                                        "affixes": [], "enhance": 0}},
               "attributes": {"str": 20, "int": 5},
-              "learned_skills": ["疾风连射"]}
-    info = E.skill_info(ranger["class_name"], "疾风连射")
-    check("疾风连射有 res_cost", bool(info and info.get("res_cost")), str(info))
+              "learned_skills": ["连射"]}
+    info = E.skill_info(ranger["class_name"], "连射")
+    check("连射有 res_cost", bool(info and info.get("res_cost")), str(info))
     if not (info and info.get("res_cost")):
         return
     # 直接验证渲染片段（脱战拦截在 handler 里带 event，这里验证 join 逻辑产物）
@@ -133,7 +132,7 @@ def test_offbattle_guard_chinese_name():
         _cn = _rcn or _k
         parts.append(f"{_v} {_cn}")
     rendered = " + ".join(parts)
-    check("脱战提示消耗片段含中文 20 精力", "20 精力" in rendered, rendered)
+    check("脱战提示消耗片段含中文 22 精力", "22 精力" in rendered, rendered)
     check("脱战提示不含英文 key energy", "energy" not in rendered, rendered)
 
 

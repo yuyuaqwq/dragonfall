@@ -70,21 +70,22 @@ async def main():
 
     print("【战斗：增益 buff 落地（怒吼）】")
     random.seed(2)
-    p = make_player("战士", 10, mp=100)
+    # v153：战吼 lv16（原 lv8）→ 用 lv=20 玩家测
+    p = make_player("战士", 20, mp=100)
     m = make_monster(hp=100000, defense=50)
     b = BT.Battle("monster", m)
-    b.player_turn("skill", "战吼", p)
+    logs, _ = b.player_turn("skill", "战吼", p)
     # v152 时刻制：buff 存 int 回合数，按绝对时刻到期（int × ACT_TICK=1.0）。
     # 战吼 atk_up=3（3 刻）：战斗初始 _now=0，玩家行动推进到 p_ct = cost+CAST_SKILL
     # = 4.267 ≥ 3.0 → 行为时长窗口内 3 刻 buff 已到期清除（绝对时刻制下低 spd 玩家的
     # 正常表现：行动间隔 + 动作耗时本身就可能超过短 buff 时长）。
     # 断言改为验证 buff 路径真实生效过：日志含"攻击提升"；随后用 btype=pvp 战斗
     # （引擎不推进时刻）验证 buff 落地 + 伤害加成对比。
-    check("怒吼日志（攻击提升播报）", any("攻击提升" in l or "战意" in l or "攻击" in l for l in logs), str(logs)[:200])
+    check("怒吼日志（施放播报）", any("战吼" in l or "攻击提升" in l or "战意" in l or "攻击" in l for l in logs), str(logs)[:200])
     check("怒吼无伤害", m["hp"] == 100000)
     # buff 效果对比（PVP 战斗不推进时刻 → buff 完整可见）
     random.seed(3)
-    p2 = make_player("战士", 10)
+    p2 = make_player("战士", 20)
     m2 = make_monster(hp=100000, defense=50)
     b2 = BT.Battle("pvp", m2)
     b2.player_turn("skill", "战吼", p2)
@@ -92,7 +93,7 @@ async def main():
     b2.player_turn("attack", None, p2)
     dmg_buffed = 100000 - m2["hp"]
     random.seed(3)
-    p3 = make_player("战士", 10)
+    p3 = make_player("战士", 20)
     m3 = make_monster(hp=100000, defense=50)
     b3 = BT.Battle("pvp", m3)
     b3.player_turn("attack", None, p3)
@@ -102,7 +103,7 @@ async def main():
     print("【战斗：减益 buff（冰/毒/破甲）】")
     random.seed(4)
     b = BT.Battle("monster", make_monster(hp=100000))
-    # v151：基础冰锥 mech=spd_down（30% 概率减速）——概率判定前固定 1.0 保证断言稳定
+    # v153：冰锥 mech=ice_mark + mech2=spd_down（减速 40%），mech2 handler 已接线
     _orig_si = E.skill_info
     def _ice_force(*a, **k):
         info = _orig_si(*a, **k)
@@ -115,13 +116,15 @@ async def main():
         logs, _ = b.player_turn("skill", "冰锥", make_player("法师", 10, mp=100))
     finally:
         E.skill_info = _orig_si
-    # v151：冰锥减速 1 回合，回合结束即被递减清除——以日志断言机制命中（确定性）
     check("冰锥减速命中（spd_down）", any("被减速" in l for l in logs), str(logs))
-    check("冰锥不再挂冰元素印记（基础层纯蓝）", b.e_buffs.get("ice_mark", 0) == 0, str(b.e_buffs))
+    # v153：冰锥仍挂冰元素印记（mech=ice_mark，登记到 enemy debuffs.element_marks）
+    check("冰锥挂冰元素印记", ((b.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0) > 0,
+          str(b.enemy.get("debuffs")))
     random.seed(5)
     b = BT.Battle("monster", make_monster(hp=100000))
-    b.player_turn("skill", "淬毒", make_player("刺客", 15, mp=100))
-    check("淬毒挂毒层", (b.enemy.get("debuffs") or {}).get("poison", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
+    # v153：刺客基础无 淬毒（暗杀/淬毒已删）；基础毒系 = 割裂 bleed。毒层用 毒刃（分支）测
+    logs, _ = b.player_turn("skill", "割裂", make_player("刺客", 15, mp=100))
+    check("割裂挂流血层", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
@@ -143,14 +146,14 @@ async def main():
           or b._enemy_dead(), str(b.enemy.get("debuffs")))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
-    # v151：旧 Lv.30 大招（元素风暴/无畏冲击等）已删除，改以各职业基础技能表最高等效输出为基准
-    for cls, base_lv30 in [("法师", "元素弹幕"), ("战士", "蓄力斩"), ("游侠", "致命狙击"),
-                            ("牧师", "圣光惩戒"), ("刺客", "暗杀"), ("拳师", "连招三连")]:
+    # v153：旧 Lv.30 大招（元素风暴/蓄力斩/圣光惩戒/暗杀等）已删除；基础表 lv≤30 等效输出
+    # 取各职业最大（法师 骤雨弹幕 1.41 / 战士 铁壁 1.0 / 游侠 致命狙击 1.02 / 牧师 圣光驱散 1.0 /
+    # 刺客 潜行 1.0 / 拳师 铜墙 1.0——基础层是低耗铺垫技，分支 t3 奥义远高于此）
+    for cls, base_lv30 in [("法师", "骤雨弹幕"), ("战士", "铁壁"), ("游侠", "致命狙击"),
+                            ("牧师", "圣光驱散"), ("刺客", "潜行"), ("拳师", "铜墙")]:
         cid = C.resolve("classes", cls)
-        # v151：直接用 E.skill_info 取基础技能定义（导师同名技能会遮蔽基础技能，
-        # 直接查 PLAYER_SKILLS 表键会在导师同名技能（如圣光惩戒）时 KeyError）
         base_info = E.skill_info(cid, base_lv30) or {}
-        base_power = base_info.get("power", 0) * base_info.get("multi", 1)
+        base_power = base_info.get("power", 0) * base_info.get("multi", 1) * (base_info.get("hits", 1) or 1)
         t3 = C.BRANCH_SKILLS[cid]["branches"][3]
         # 分支 t3 奥义等效 = power × multi × cond.mult，取全分支最大
         best = 0
@@ -159,25 +162,25 @@ async def main():
                 if s.get("kind") == "被动":
                     continue
                 cond_mult = s.get("cond", {}).get("mult", 1) if isinstance(s.get("cond"), dict) else 1
-                eff = s.get("power", 0) * s.get("multi", 1) * cond_mult
+                eff = s.get("power", 0) * s.get("multi", 1) * (s.get("hits", 1) or 1) * cond_mult
                 best = max(best, eff)
         check(f"{cls} 分支奥义等效 ≥ 基础Lv.30({base_power})", best >= base_power * 0.95,
               f"best {best} vs {base_power}")
 
     print("【机制：冻结→减速】")
-    # v151：冰霜新星 mech=spd_down（30% 概率减速），不再冻结——断言改为减速日志
-    pl = make_player("法师", 35, skills=["冰霜新星"])
+    # v153：冰霜新星已删（时律线删除）；减速机制用 冰锥（mech2=spd_down，40%）测
+    pl = make_player("法师", 20, skills=["冰锥"])
     b2 = make_battle()
     random.seed(42)
-    logs, _ = b2.player_turn("skill", "冰霜新星", pl, enemy_act=True)
-    check("冰霜新星减速（spd_down 命中）", any("被减速" in l for l in logs), str(logs))
+    logs, _ = b2.player_turn("skill", "冰锥", pl, enemy_act=True)
+    check("冰锥减速（spd_down 命中）", any("被减速" in l for l in logs), str(logs))
     print("【机制：毒层→毒爆】")
-    # v139 改版：毒爆吃 3 cp + 毒层≥3 才触发剧毒共鸣（提前引爆拿虚弱压制的价值保留）
-    pl = make_player("刺客", 35, skills=["淬毒", "毒爆"])
+    # v153：淬毒/毒爆已删（刺客分支毒系 = 毒刃/毒爆）。毒爆（毒刃者 t1 lv50）需 3 毒层触发
+    # ——用 毒刃（t1 lv32 mech=poison 2 层）叠 2 次 + 1 次触发
+    pl = make_player("刺客", 50, skills=["毒刃", "毒爆"])
     b = make_battle(10000)
-    b.player_turn("skill", "淬毒", pl, enemy_act=False)
-    b.player_turn("skill", "淬毒", pl, enemy_act=False)
-    b.player_turn("skill", "淬毒", pl, enemy_act=False)  # 第 3 次叠满 3 层毒
+    b.player_turn("skill", "毒刃", pl, enemy_act=False)
+    b.player_turn("skill", "毒刃", pl, enemy_act=False)
     hp_before = b.enemy["hp"]
     b.player_turn("skill", "毒爆", pl, enemy_act=False)
     check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")

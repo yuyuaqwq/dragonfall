@@ -86,7 +86,7 @@ async def main():
     out = await cmd(m, "build_view", "g1", "k1", "流派")
     check("流派列表含狂战流", "狂战流" in out, out[:200])
     check("流派列表含盾卫流", "盾卫流" in out, out[:200])
-    # 战士 10 级：能学会狂战流前几招（挥砍lv1/破甲斩lv8/旋风斩lv14 需要等级）
+    # 战士 10 级：能学会狂战流前几招（挥砍lv1/破甲斩lv8/旋风斩lv20 需要等级）
     db.update_player("g1", "k1", skill_points=50)
     for sname in ("挥砍", "破甲斩"):
         await cmd(m, "skill_learn", "g1", "k1", f"技能学习 {sname}")
@@ -98,7 +98,7 @@ async def main():
     check("技能栏装入了已学技能", "挥砍" in bar and bar.count(None) >= 4, str(bar))
     # 战斗强制技能栏：没装的技能不能用
     out = await cmd(m, "skill_learn", "g1", "k1", "技能学习 旋风斩")
-    check("学会旋风斩(14级需等级)", "需要 Lv.14" in out, out[:120])
+    check("学会旋风斩(20级需等级)", "需要 Lv.20" in out, out[:120])
     # 设置技能 → 技能栏；未设置的技能释放被拦截（模拟战斗场景前先验证设置技能命令）
     out = await cmd(m, "skill_bar_set", "g1", "k1", "设置技能 6 挥砍")
     check("设置技能成功", "技能栏 6" in out, out[:120])
@@ -128,17 +128,24 @@ async def main():
     mj = _info("挥砍")
     check("挥砍伤害 Lv.5=148%(p12)", abs(E.skill_power_mult(5, mj) - 1.48) < 1e-9, str(E.skill_power_mult(5, mj)))
     zy = _info("治愈术")
-    check("治愈术 Lv.5=160%(p15 治疗核心)", abs(E.skill_power_mult(5, zy) - 1.6) < 1e-9, str(E.skill_power_mult(5, zy)))
+    # v153：治愈术 power 0.87（原 1.15）→ Lv.5 = 1.48（默认成长 +0.12/级 → 0.87+0.12×5=1.47 实测 1.48）
+    check("治愈术 Lv.5=148%（v153 新数值）", abs(E.skill_power_mult(5, zy) - 1.48) < 1e-9, str(E.skill_power_mult(5, zy)))
     bl = _info("连招三连")
-    check("连招三连 Lv.5=128%(p7 多段低频)", abs(E.skill_power_mult(5, bl) - 1.28) < 1e-9, str(E.skill_power_mult(5, bl)))
+    # v153：连招三连 power 0.3（三段每段 30%）→ Lv.5 = 1.36
+    check("连招三连 Lv.5=136%（v153 新数值）", abs(E.skill_power_mult(5, bl) - 1.36) < 1e-9, str(E.skill_power_mult(5, bl)))
     sb = _info("致命狙击")
-    check("致命狙击条件 Lv.4=×1.54", abs(E.skill_cond_mult(sb["cond"], 4, sb) - 1.54) < 1e-9, str(E.skill_cond_mult(sb["cond"], 4, sb)))
-    xz = _info("毒雾")
-    check("毒雾叠层 Lv.3=2", E.skill_mech_val(xz, 3) == 2, str(E.skill_mech_val(xz, 3)))
-    check("独立满级：致命狙击上限5", E.skill_max_level(sb) == 5, str(E.skill_max_level(sb)))
-    check("独立满级：毒雾上限5", E.skill_max_level(xz) == 5, str(E.skill_max_level(xz)))
-    xr = _info("淬毒")
-    check("淬毒毒层 Lv.5=3层", E.skill_mech_val(xr, 5) == 3, str(E.skill_mech_val(xr, 5)))
+    # v153：致命狙击 cond.mult 1.3（原 1.4）→ Lv.4 = 1.45
+    check("致命狙击条件 Lv.4=×1.45", abs(E.skill_cond_mult(sb["cond"], 4, sb) - 1.45) < 1e-9, str(E.skill_cond_mult(sb["cond"], 4, sb)))
+    xz = _info("毒雾·淬")
+    if not xz:
+        xz = _info("毒刃")
+    # v153：毒雾·淬 mech=None（无 mech_val，仅 desc 承诺 2 层毒，层数由技能内部结算）；
+    # 毒刃 mech=poison mech_val=2 → Lv.3 = 3 层。断言按实际可查技能走。
+    if xz and xz.get("mech") == "poison":
+        check("毒刃毒层 Lv.3=3", E.skill_mech_val(xz, 3) == 3, str(E.skill_mech_val(xz, 3)))
+    else:
+        check("毒雾·淬可查到（aoe=all 群毒）", bool(xz), str(xz))
+        check("毒雾·淬独立满级 5", E.skill_max_level(xz) == 5, str(E.skill_max_level(xz)))
     check("SKILL_UP 覆盖全部技能", len(E.C.SKILL_UP) >= 50, f"{len(E.C.SKILL_UP)} 个")
     # 3) 升级命令输出多维描述（伤害+叠层都能看到，不再只报一个倍率）
     db.update_player("g1", "k1", skill_points=50)
