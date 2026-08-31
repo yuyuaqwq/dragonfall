@@ -177,16 +177,15 @@ def test_overflow_conds():
 
 # ================= ② v153 被动新格式（字符串契约断裂已知） =================
 def test_metronome_passives():
-    print("\n【② v153 被动格式（字符串被动 = 引擎契约断裂，已报告）】")
-    # v153 全部 52 处被动均为字符串名（passive: 'xxx'），引擎 _passive_map/player_passive_stats
-    # 仍按旧 dict 格式（passive.get('proc')）消费 → 携带被动技能的玩家进战斗即崩（真 bug）。
-    # 本段断言数据格式 + 文档化契约断裂（确定性复现）。
+    print("\n【② v153 被动格式（dict 格式已修复，引擎不崩）】")
+    # v153 全部 52 处被动已由主 agent 从字符串名（passive: 'xxx'）改为 dict（passive: {'proc': 'xxx'}），
+    # 引擎 _passive_map/player_passive_stats 按 dict 消费不再崩（原字符串格式 AttributeError 已修）。
     import re as _re2
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             "game", "data", "skills_v153.py"), encoding="utf-8").read()
     str_passives = _re2.findall(r"'passive':\s*'[^']+'", src)
     dict_passives = _re2.findall(r"'passive':\s*\{", src)
-    check("v153 被动全部为字符串格式", len(str_passives) > 40 and len(dict_passives) == 0,
+    check("v153 被动全部为 dict 格式", len(dict_passives) > 40 and len(str_passives) == 0,
           f"str={len(str_passives)} dict={len(dict_passives)}")
     # 守护姿态：v153 为 增益 stance=counter（非旧 dmg_taken 被动 dict）
     sd = E.skill_info("cls_zhan_shi", "守护姿态") or {}
@@ -196,19 +195,19 @@ def test_metronome_passives():
     # 以守为攻：v153 passive=counter_chance（字符串）
     gy = E.skill_info("cls_wu_seng", "以守为攻") or {}
     check("以守为攻 passive=counter_chance（字符串，引擎无消费 = 已知缺口）",
-          (gy.get("passive") or "") == "counter_chance", str(gy.get("passive")))
+          ((gy.get("passive") or {}).get("proc") or "") == "counter_chance", str(gy.get("passive")))
     # 追猎者：v153 passive=hunt_mark_cap（猎印上限 +2，非 mark_extra）
     zl = E.skill_info("cls_you_xia", "追猎者") or {}
     check("追猎者 passive=hunt_mark_cap（v153 猎印上限语义）",
-          (zl.get("passive") or "") == "hunt_mark_cap", str(zl.get("passive")))
+          ((zl.get("passive") or {}).get("proc") or "") == "hunt_mark_cap", str(zl.get("passive")))
     # 磐石之心：v153 passive=core_overflow（磐核溢出转盾，非 dmg_taken）
     ps = E.skill_info("cls_wu_seng", "磐石之心") or {}
     check("磐石之心 passive=core_overflow（v153 磐核语义）",
-          (ps.get("passive") or "") == "core_overflow", str(ps.get("passive")))
+          ((ps.get("passive") or {}).get("proc") or "") == "core_overflow", str(ps.get("passive")))
     # 反击之王：v153 passive=counter_up（反击概率+25%，非 counter_attack dict）
     fj = E.skill_info("cls_wu_seng", "反击之王") or {}
     check("反击之王 passive=counter_up（v153 反击强化语义）",
-          (fj.get("passive") or "") == "counter_up", str(fj.get("passive")))
+          ((fj.get("passive") or {}).get("proc") or "") == "counter_up", str(fj.get("passive")))
 
 
 # ================= ③ 引擎挂点行为 =================
@@ -217,7 +216,7 @@ def test_engine_hooks():
     # ---- 1. 亡灵祭仪（v153 牧师 死灵祭司 passive=undead_faith 字符串 → 引擎无消费，已知缺口）
     wl = E.skill_info("cls_mu_shi", "亡灵祭仪") or {}
     check("数据：亡灵祭仪 passive=undead_faith（字符串，v153 死灵线新语义）",
-          (wl.get("passive") or "") == "undead_faith", str(wl.get("passive")))
+          ((wl.get("passive") or {}).get("proc") or "") == "undead_faith", str(wl.get("passive")))
     # ---- 2. overflow_shield：满怒/满气 溢出转 5 护盾/点（core_resources 开关 + battle.py 溢出段）----
     try:
         rd_war = E.core_resource_def("cls_zhan_shi") or {}

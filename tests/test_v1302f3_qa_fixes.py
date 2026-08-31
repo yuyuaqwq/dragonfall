@@ -170,7 +170,7 @@ def test_hawk_eye_mark_path():
           str({k: syl.get(k) for k in ("mech", "mech_val", "focus_cost")}))
     zl = E.skill_info("cls_you_xia", "追猎者") or {}
     check("数据：追猎者 passive=hunt_mark_cap（v153 猎印上限，非 mark_extra）",
-          (zl.get("passive") or "") == "hunt_mark_cap", str(zl.get("passive")))
+          ((zl.get("passive") or {}).get("proc") or "") == "hunt_mark_cap", str(zl.get("passive")))
     check("v153 无 mark_extra 被动（旧 15% 叠印语义删除）",
           E.skill_info("cls_you_xia", "追猎者") is not None, "")
     from data.plugins.dragonfall.game.core import battle_mech as _BM
@@ -199,7 +199,7 @@ def test_combo_finisher():
           str({k: zj.get(k) for k in ("mech", "cond", "power")}))
     lw = E.skill_info("cls_ci_ke", "链舞") or {}
     check("数据：链舞 passive=finisher_up（v153 字符串被动，终结技系数 +6%）",
-          (lw.get("passive") or "") == "finisher_up", str(lw.get("passive")))
+          ((lw.get("passive") or {}).get("proc") or "") == "finisher_up", str(lw.get("passive")))
     try:
         b, p = new_battle("cls_ci_ke", 1, 1, learned=["刺击", "终结·处刑", "链舞"], level=60)
         _init_res(b)

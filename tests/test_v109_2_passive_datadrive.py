@@ -80,26 +80,28 @@ async def main():
     dealt2m = h0 - b2m.enemy["hp"]
     check(f"魔法伤害 ≈ matk×1.0（{base2m}±15%）", 0.85*base2m <= dealt2m <= 1.15*base2m, f"dealt {dealt2m}")
 
-    # 3. v153 字符串被动契约断裂复现（确定性断言 bug 存在）
-    print("\n— 3. v153 字符串被动契约断裂（已知真 bug 复现）—")
-    check("v153 淬血 passive 为字符串（非 dict）",
-          isinstance((EG.skill_info("cls_zhan_shi", "淬血") or {}).get("passive"), str),
-          str((EG.skill_info("cls_zhan_shi", "淬血") or {}).get("passive")))
+    # 3. v153 被动 dict 格式验证（主 agent 已修复：passive 从字符串 → dict，引擎不崩）
+    print("\n— 3. v153 被动 dict 格式（已修复，引擎不崩）—")
+    p_quxue = (EG.skill_info("cls_zhan_shi", "淬血") or {}).get("passive")
+    check("v153 淬血 passive 为 dict（非字符串）",
+          isinstance(p_quxue, dict) and p_quxue.get("proc") == "zhan_yi_lifesteal",
+          str(p_quxue))
     p3 = mk_player(cls="战士", skills=["淬血"])
     b3 = BT.Battle("怪物", mk_enemy(), {}, p3)
     crashed = False
     try:
         b3._turn_start(p3)
+        b3._passive_map(p3)
     except AttributeError:
         crashed = True
-    check("引擎 _passive_map 遇字符串被动抛 AttributeError（契约断裂，已报告）", crashed, "")
-    # 旧格式被动（dict proc）在 v153 数据中已绝迹
+    check("引擎 _passive_map 遇 dict 被动不崩溃（契约已修复）", not crashed, "")
+    # 全部 passive 均为 dict 格式（无字符串残留）
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             "game", "data", "skills_v153.py"), encoding="utf-8").read()
     import re as _re
     dict_passives = _re.findall(r"'passive':\s*\{", src)
     str_passives = _re.findall(r"'passive':\s*'[^']+'", src)
-    check(f"v153 全部 {len(str_passives)} 处 passive 均为字符串（0 dict）", len(dict_passives) == 0,
+    check(f"v153 全部 {len(dict_passives)} 处 passive 均为 dict（0 字符串）", len(str_passives) == 0,
           f"dict={len(dict_passives)} str={len(str_passives)}")
 
     # 4. 数据驱动 mech 字段（v153 战意 zhan_yi 叠层仍走 MECH_EFFECTS）
