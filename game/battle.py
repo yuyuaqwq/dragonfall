@@ -5205,7 +5205,8 @@ class Battle:
         e["_phase_exit"] = {
             "turns": phase_cfg.get("exit_turns"),
             "dmg": phase_cfg.get("exit_dmg"),
-            "entered_at": getattr(self, "round", 0),
+            # v152 时刻制：entered_at = 行动轮次（_tick_no()）
+            "entered_at": self._tick_no(),
         }
         # ---- 反制窗口 ----
         e["_phase_counter"] = phase_cfg.get("counter")
@@ -6252,7 +6253,7 @@ class Battle:
         _hh_eff = self._set_eff(player, "holy_halo_shield", 4)
         if _hh_eff and int(dmg) > 0:
             _hh_params = (_hh_eff or {}).get("params") or {}
-            _hh_turn = getattr(self, "round", 0) or 0
+            _hh_turn = self._tick_no()
             if (self.p_eff or {}).get("holy_halo_used") != _hh_turn:
                 _hh_sh = int(dmg * float(_hh_params.get("shield_pct", 0.10)))
                 if _hh_sh > 0:

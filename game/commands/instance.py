@@ -1545,7 +1545,6 @@ class InstanceCmds(CommandBase):
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
-                    "round_acted": [],            # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
@@ -1582,7 +1581,6 @@ class InstanceCmds(CommandBase):
                     "e_buffs": {},
                     "p_defending": {str(m): False for m in members},
                     "mech_stacks": {str(m): {} for m in members},
-                    "round_acted": [],            # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
                     "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
                     "contribution": {},
                     "over": False,
@@ -1613,7 +1611,6 @@ class InstanceCmds(CommandBase):
             "p_food_effects": {str(m): [] for m in members},
             "e_buffs": {},
             "mech_stacks": {str(m): {} for m in members},  # v59 副本叠层（按玩家持久化）
-            "round_acted": [],               # δ副本层：本轮已行动玩家（列表持久化防 set 转 list）
             "dot_pending": True,             # δ副本层：dot 结算闸门（首行动者结算）
             "p_defending": {str(m): False for m in members},
             "turn_time": now,
@@ -2251,23 +2248,9 @@ class InstanceCmds(CommandBase):
         # v141 审计：b.enemies 与 st["enemies"] 是同一列表引用（from_state 直接传入），
         # _damage_enemy 死亡单位即时 _remove_unit 移除；此处直接同步，无需再压缩。
         st["enemies"] = b.enemies
-        # δ副本层：本轮已结算——本行动者是本轮第一个（或唯一）动作，Boss 敌减益只在此结算
-        # 一次；后续同一轮其他行动者 from_state 读到 dot_pending=False 不再 tick（Battle._dot_pending）
-        st["dot_pending"] = False
-        # δ副本层轮次推进：记录本玩家本轮已行动，全部存活成员都行动过 → 新一轮开始。
-        # 顺序保证：先置 False（行动者已结算）→ 再判轮满 → 轮满则清集合并置 True（下一轮
-        # 下一行动者 from_state 读取时恢复结算）。round_acted 用列表存放（battle_state 存 JSON，
-        # set 会被转成 list，统一用 list 免得类型错乱）；老存档无该键用 setdefault 兜底。
-        acted = st.setdefault("round_acted", [])
-        if not isinstance(acted, list):
-            acted = list(acted)          # 兼容老存档 set → 列表
-            st["round_acted"] = acted
-        if cur_key not in acted:
-            acted.append(str(cur_key))
-        _alive_keys = [str(m) for m in members if st.get("alive", {}).get(str(m), True)]
-        if _alive_keys and set(acted) >= set(_alive_keys):
-            st["round_acted"] = []
-            st["dot_pending"] = True
+        # δ副本层：DOT 结算闸门——v152 时刻制下每个玩家行动 = 时刻推进一次，
+        # 该行动者的 Battle 结算其 DOT（from_state 读 dot_pending=True）；不等待全员轮转。
+        st["dot_pending"] = True
         # v101.28m #438 复测修复：战斗状态写回（援军/时刻/资源/冷却/连招持久化）
         # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
         st["round"] = b._tick_no()
@@ -2482,7 +2465,6 @@ class InstanceCmds(CommandBase):
                 st["boss"].pop("debuffs", None)                    # 新怪无减益
                 st["boss"].pop("adapt", None)                      # δv1.2 §11.1：新怪无适应状态（与 debuffs 一起清）
                 st["mech_stacks"] = {str(m): {} for m in st["members"]}   # 玩家资源不跨怪
-                st["round_acted"] = []                              # 新一轮行动记录重置
                 st["round"] = 1
                 for i in st["members"]:
                     st["p_buffs"][i] = {}
