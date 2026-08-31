@@ -1311,7 +1311,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '召唤',
                         'cast': 2.4,
                         'cd': 20,
-                        'summon': '火元素',
+                        'summon': 'fire_elemental',
                         'name': '唤火',
                         'desc': '以魔力勾勒燃烧符文，召来火元素并肩而战——召唤火元素助阵'
                     },
@@ -1426,7 +1426,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '召唤',
                         'cast': 2.4,
                         'cd': 20,
-                        'summon': '雷元素',
+                        'summon': 'thunder_elemental',
                         'name': '唤雷',
                         'desc': '仰天诵念雷之真言，召来雷元素轰然降临——召唤雷元素助阵'
                     },
@@ -1569,7 +1569,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.2,
                         'cd': 20,
                         'focus_cost': 45,
-                        'summon': '藤蔓守卫',
+                        'summon': 'vine_guard',
                         'name': '召唤藤蔓守卫',
                         'desc': '低吟森语，藤蔓交织成守卫之躯——召唤藤蔓守卫为你作战'
                     },
@@ -1836,7 +1836,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.2,
                         'cd': 24,
                         'focus_cost': 60,
-                        'summon': '古树守卫',
+                        'summon': 'treant',
                         'name': '召唤古树守卫',
                         'desc': '大地震颤，古树拔地而起，枝干化作巨臂——召唤古树守卫为你作战'
                     },
@@ -2010,7 +2010,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.6,
                         'cd': 16,
                         'faith': 0,
-                        'summon': '骷髅',
+                        'summon': 'skeleton',
                         'name': '召唤骷髅',
                         'desc': '腐朽大地裂开，白骨自墓穴爬起——召唤 1 只骷髅（挡刀，上限 3）'
                     },
@@ -2285,7 +2285,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.8,
                         'cd': 24,
                         'faith': 0,
-                        'summon': '骷髅',
+                        'summon': 'skeleton',
                         'name': '亡魂大军',
                         'desc': '墓门轰然洞开，亡灵大军踏出——召唤 3 只骷髅'
                     },
@@ -2331,7 +2331,7 @@ _V153_BRANCH_SKILLS = {
                         'cd': 24,
                         'faith': 0,
                         'cond': {"type": "faith_full", "stacks": 10, "mult": 1.4},
-                        'summon': '骷髅',
+                        'summon': 'skeleton',
                         'name': '亡魂主宰',
                         'desc': '亡魂之主君临战场——造成 232% 魔攻伤害，信念满 10 时 ×1.4 并召唤亡魂大军'
                     },

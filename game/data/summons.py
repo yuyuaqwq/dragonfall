@@ -40,4 +40,26 @@ SUMMONS = {
         "eats_aoe": True,      # v151：吃 AOE
         "rank": 1, "reach": 1,
     },
+    # v153 §8 法师 A 线：唤火——火元素（每 3 刻喷火，挂火印 1 层）
+    "fire_elemental": {
+        "name": "火元素", "icon": "🔥",
+        "atk_ratio": 0.50, "hp_ratio": 0.40, "def_ratio": 0.30,
+        "dmg_type": "magi", "limit": 1, "bodyguard": 0,
+        "element": "fire",        # 攻击带火属性（吃 §9.1 克制）
+        "mark_on_hit": "fire",    # 每次攻击挂火印 1 层
+        "attack_interval": 3.0,   # 每 3 刻喷火一次
+        "eats_aoe": True,
+        "rank": 2, "reach": 2,
+    },
+    # v153 §8 法师 A 线：唤雷——雷元素（每 3 刻雷击，挂雷印 1 层）
+    "thunder_elemental": {
+        "name": "雷元素", "icon": "⚡",
+        "atk_ratio": 0.45, "hp_ratio": 0.40, "def_ratio": 0.30,
+        "dmg_type": "magi", "limit": 1, "bodyguard": 0,
+        "element": "thunder",     # 攻击带雷属性
+        "mark_on_hit": "thunder", # 每次攻击挂雷印 1 层
+        "attack_interval": 3.0,   # 每 3 刻雷击一次
+        "eats_aoe": True,
+        "rank": 2, "reach": 2,
+    },
 }
