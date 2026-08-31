@@ -126,6 +126,8 @@ _V153_PLAYER_SKILLS = {
              'power': 1.16,
              'kind': '魔法·冰',
              'cast': 1.6,
+             'mech': 'ice_mark',
+             'mech_val': 1,
              'mech2': 'spd_down',
              'name': '冰锥',
              'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 116% 魔法伤害，挂冰印 1 层并减速 20% 持续 5 刻'

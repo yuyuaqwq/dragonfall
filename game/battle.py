@@ -3644,6 +3644,15 @@ class Battle:
     def _skill_buff(self, st, skill_name, info, player, lv, mech, mval, p_mech, logs):
         """增益分支（v103.6 从 _player_skill 拆出）"""
         eff = info.get("effect")
+        # v153 §7：诗人旋律——增益技能带 melody 字段 → 起手/吟唱/终章（驻留光环）
+        if info.get("melody") or mech in ("melody", "melody_chant", "melody_finale"):
+            try:
+                from .core.battle_mech import MECH_EFFECTS
+                _mh = MECH_EFFECTS.get(mech or "melody")
+                if _mh:
+                    _mh(self, mval or 1, p_mech, 0, logs, skill_name, False, info)
+            except Exception:
+                pass
         if eff:
             # v1.x：mon_atk_down/element_shift/stealth/mark/sleep/shield_all/reduce_all
             # 7 分支注册表化 → core/battle_mech.py SKILL_BUFF_EFFECTS；TEAM_BUFF_KEYS 保留原逻辑
