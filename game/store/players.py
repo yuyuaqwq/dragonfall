@@ -222,6 +222,35 @@ def get_player(group_id, qq_id):
                         p["_lv_logs"] = _logs  # 升级提示暂存，供调用方展示
             except Exception:
                 pass
+            # v151 职业技能重构：一次性技能重置（鱼鱼拍板——旧技能全清返还技能点）
+            # 纯 v151 新表替换后，旧技能 key 查不到定义 → 检测到即重置：
+            #   清空 learned_skills/skill_levels，skill_spent 返还 skill_points，标记防重复。
+            try:
+                if not p.get("_v151_skill_reset"):
+                    from ..engine import skill_info
+                    _cls = p.get("class_name") or ""
+                    _stale = [s for s in (p.get("learned_skills") or []) if s and not skill_info(_cls, s)]
+                    if _stale:
+                        _refund = int(p.get("skill_spent") or 0)
+                        _new_sp = int(p.get("skill_points") or 0) + _refund
+                        # 清空已学/等级/花费，返还技能点
+                        conn.execute(
+                            "UPDATE players SET learned_skills=?, skill_levels=?, skill_spent=0, "
+                            "skill_points=?, shortcuts=?, skill_bar=? WHERE qq_id=?",
+                            (json.dumps([]), json.dumps({}), _new_sp,
+                             json.dumps({}), json.dumps([]), qq_id),
+                        )
+                        conn.commit()
+                        p["learned_skills"] = []
+                        p["skill_levels"] = {}
+                        p["skill_spent"] = 0
+                        p["skill_points"] = _new_sp
+                        p["shortcuts"] = {}
+                        p["skill_bar"] = []
+                        p["_v151_skill_reset_log"] = (len(_stale), _refund)
+                    p["_v151_skill_reset"] = True
+            except Exception:
+                pass
             return p
         finally:
             conn.close()
