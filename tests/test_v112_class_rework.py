@@ -115,8 +115,8 @@ async def test_tome(m):
     out = await cmd(m, "use", "g2", "w0", "使用 龙息之怒技能书")
     check("源流拒绝(刺客用战士书)", "战士" in out and "不合" in out, out[:150])
     check("道具未消耗", db.count_item("g2", "w0", "i_tome_long_xi_zhi_nu") == 1, "")
-    # 正常学习：60 级战士（>= Lv.55）用龙息之怒技能书 → 学会
-    make_player("g2", "w1", "剑士", "战士", level=60)
+    # 正常学习：65 级战士（>= Lv.62）用龙息之怒技能书 → 学会（v153 龙息之怒 lv 58→62）
+    make_player("g2", "w1", "剑士", "战士", level=65)
     db.add_item("g2", "w1", "i_tome_long_xi_zhi_nu",
                 {"name": "龙息之怒技能书", "type": "消耗品", "stackable": True, "price": 5000,
                  "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi"})
@@ -131,13 +131,13 @@ async def test_tome(m):
                  "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi"})
     out = await cmd(m, "use", "g2", "w1", "使用 龙息之怒技能书")
     check("重复学习拦截", "早已掌握" in out, out[:120])
-    # 等级拒绝：40 级战士（< Lv.58）用龙息之怒技能书 → 拒绝
+    # 等级拒绝：40 级战士（< Lv.62）用龙息之怒技能书 → 拒绝
     make_player("g3", "w2", "学徒", "战士", level=40)
     db.add_item("g3", "w2", "i_tome_long_xi_zhi_nu",
                 {"name": "龙息之怒技能书", "type": "消耗品", "stackable": True, "price": 5000,
                  "learn_skill": "龙息之怒", "require_class": "cls_zhan_shi"})
     out = await cmd(m, "use", "g3", "w2", "使用 龙息之怒技能书")
-    check("等级不足被拒", "Lv.58" in out, out[:150])
+    check("等级不足被拒", "Lv.62" in out, out[:150])
     check("道具未消耗(等级不足)", db.count_item("g3", "w2", "i_tome_long_xi_zhi_nu") == 1, "")
     # 战斗可用（学会后可施放真伤）
     from data.plugins.dragonfall.game import battle as BT

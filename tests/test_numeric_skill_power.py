@@ -32,14 +32,15 @@ def check(name, cond, detail=""):
         print(f"  ❌ {name} {detail}")
 
 # 锁定表：cid -> (基础技, 成型技)，每项 = (技能名, lv, power, mp, SKILL_UP.p)
-# v151 职业重构：隐藏职业全删，6 基础职业数值按 v151 新表实测锁定
+# v153 职业重做：7 基础职业数值按 v153 新表实测锁定（2026-09-01 baseline 重生成）
 LOCK = {
-    "cls_zhan_shi":     (("挥砍", 1, 1.0, 3, 12), ("旋风斩", 14, 0.946, 10, 12)),  # v133: 1.1→0.946 峰值红线
-    "cls_fa_shi":       (("火球术", 1, 1.1, 5, 12), ("元素弹幕", 14, 0.7, 12, 9)),
-    "cls_you_xia":      (("疾风连射", 1, 0.6, 5, 9), ("风之疾走", 14, 0, 0, 0)),
-    "cls_mu_shi":       (("治愈术", 1, 1.0, 8, 15), ("圣光驱散", 12, 0, 10, 0)),
-    "cls_ci_ke":        (("刺击", 1, 0.8, 3, 12), ("双刃乱舞", 14, 0.7, 8, 9)),
-    "cls_wu_seng":      (("直拳", 1, 0.8, 3, 12), ("钢拳", 12, 1.3, 8, 12)),
+    "cls_zhan_shi":     (("挥砍", 1, 0.82, 6, 12), ("铁壁", 12, 1.0, 5, 0)),
+    "cls_fa_shi":       (("火球术", 1, 1.16, 6, 12), ("元素引爆", 12, 1.16, 10, 12)),
+    "cls_you_xia":      (("连射", 1, 0.38, 6, 12), ("猎网陷阱", 12, 0.87, 10, 12)),
+    "cls_mu_shi":       (("治愈术", 1, 0.87, 8, 12), ("圣光护盾", 12, 1.0, 12, 0)),
+    "cls_ci_ke":        (("刺击", 1, 0.63, 6, 12), ("双刃乱舞", 12, 0.38, 10, 12)),
+    "cls_wu_seng":      (("直拳", 1, 0.72, 6, 12), ("连招三连", 12, 0.3, 12, 9)),
+    "cls_shi_ren":      (("战歌", 1, 1.0, 6, 0), ("拨弦", 12, 1.0, 8, 0)),
 }
 
 def select(cls_skills):
@@ -52,11 +53,11 @@ def select(cls_skills):
 
 def main():
     cls_ids = list(C.PLAYER_SKILLS.keys())
-    check("PLAYER_SKILLS 恰 6 职业", len(cls_ids) == 6, f"n={len(cls_ids)} ids={cls_ids}")
+    check("PLAYER_SKILLS 恰 7 职业", len(cls_ids) == 7, f"n={len(cls_ids)} ids={cls_ids}")
     for cid in LOCK:
         check(f"职业 {cid} 存在于 PLAYER_SKILLS", cid in C.PLAYER_SKILLS)
 
-    print("【12 职业 × 2 代表技能 power/mp/lv + SKILL_UP.p 快照】")
+    print("【14 职业 × 2 代表技能 power/mp/lv + SKILL_UP.p 快照】")
     for cid, (ebase, emature) in LOCK.items():
         info = C.PLAYER_SKILLS[cid]
         cn = info.get("name", cid)

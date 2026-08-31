@@ -50,7 +50,7 @@ async def main():
     hidden = {k: v for k, v in C.CLASSES.items() if v.get("hidden")}
     # v151 隐藏职业已删（龙裔/时咒/星语/暗影/暮影/苦修 6 线）——无隐藏职业
     check("隐藏职业 0 线（v151 已删）", len(hidden) == 0, str(len(hidden)))
-    check("基础职业 6 线", len([k for k in C.CLASSES if not C.CLASSES[k].get("hidden") and k != "cls_novice"]) == 6,
+    check("基础职业 7 线（v153 新增诗人）", len([k for k in C.CLASSES if not C.CLASSES[k].get("hidden") and k != "cls_novice"]) == 7,
           str([k for k in C.CLASSES]))
     check("全部有 src_base 且为血缘职业",
           all(v.get("src_base") and not C.CLASSES[v["src_base"]].get("hidden") for v in hidden.values()),
@@ -112,9 +112,12 @@ async def main():
           str((p["class_name"], p["class_tier"])))
     # v112 技能继承：导师转职自动授各档分支奥义（_evolve_auto_skills：二转取本分支
     # lv≥60 最低、三转取 lv≥90 最低）——按引擎同口径计算期望
+    # v153：BRANCH_SKILLS 分支键只登记 T1 档位名（狂战士/盾卫士），二/三转档位名
+    # 在 evolve_branches（狂战统领/战争领主）→ 用 T1 档位名查技能、按档位门槛取
     def _auto_expect(_t, _bn):
+        _t1name = C.CLASSES["cls_zhan_shi"]["evolve_branches"][1][0]  # 狂战士（攻线 T1 名）
         _cand = [(int(_i.get("lv", 0)), _i.get("name", _s)) for _s, _i in
-                 C.BRANCH_SKILLS["cls_zhan_shi"]["branches"][_t][_bn].items()
+                 C.BRANCH_SKILLS["cls_zhan_shi"]["branches"][_t][_t1name].items()
                  if _i.get("lv", 0) >= (60 if _t == 2 else 90)]
         return _cand[0][1] if _cand else None
     auto_expect = {_auto_expect(2, "狂战统领"), _auto_expect(3, "战争领主")} - {None}

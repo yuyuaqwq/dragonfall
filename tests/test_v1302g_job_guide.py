@@ -61,8 +61,8 @@ async def main():
 
     # ===== ① 数据一致性（classes.py / core_resources.py 交叉核对） =====
     print("【① 数据一致性】")
-    ok &= check("6 职业全量（基础六；v151 隐藏六已删除）",
-                len(JOB_GUIDE) == 6 and len(BASE_ORDER) == 6 and len(HIDDEN_ORDER) == 0,
+    ok &= check("7 职业全量（基础七；v151 隐藏六已删除）",
+                len(JOB_GUIDE) == 7 and len(BASE_ORDER) == 7 and len(HIDDEN_ORDER) == 0,
                 f"实际 {len(JOB_GUIDE)}/{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}")
     for cid, g in JOB_GUIDE.items():
         cls = C.CLASSES[cid]
@@ -100,9 +100,11 @@ async def main():
     ok &= check("别名 歌者 → 牧师", resolve_job("歌者") == "cls_mu_shi")
     d = await job_cmd("职业 牧师攻线歌者", jc)
     ok &= check("『职业 牧师攻线歌者』→ 牧师详情（攻线·歌者）",
-                "牧师" in d and "歌者" in d and "吟游诗人" in d, d[:120])
+                "牧师" in d and "歌者" in d and "神谕者" in d, d[:120])
     ok &= check("显示名 id 直查", resolve_job("cls_zhan_shi") == "cls_zhan_shi")
-    ok &= check("分支名别名（吟游诗人 → 牧师）", resolve_job("吟游诗人") == "cls_mu_shi")
+    # v153：诗人独立为第 7 职业 → 吟游诗人 解析到 cls_shi_ren
+    ok &= check("吟游诗人 → 诗人（v153 独立职业）", resolve_job("吟游诗人") == "cls_shi_ren")
+    ok &= check("诗人转职名别名（咏叹者 → 诗人）", resolve_job("咏叹者") == "cls_shi_ren")
     ok &= check("分支名别名（影舞者 → 刺客）", resolve_job("影舞者") == "cls_ci_ke")
     # 牧师攻线·歌者双资源（共鸣+回声）在详情中展示
     d = await job_cmd("职业 牧师", jc)

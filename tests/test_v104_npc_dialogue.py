@@ -188,25 +188,25 @@ def main():
               ("w_dragon_whisper", "w_ancient_guardian", "h_grave_king")),
           str([tid for tid in ("w_dragon_whisper", "w_ancient_guardian", "h_grave_king")
                if not (C.ALL_WILD.get(tid) or {}).get("teach_skills")]))
-    # 战士 Lv.50 找 龙语者·古尔 → 学会 蓄力斩（v151：w_dragon_whisper teach_skills 的
-    # 战争践踏/元素爆发等旧技能已删，教习表在 v151 下逐职业技能名失效——测试改用现存技能）
-    # 先给 NPC 挂 v151 现存技能表（teach_skills 是 NPC 数据，测试侧直接注入当前技能）
+    # 战士 Lv.50 找 龙语者·古尔 → 学会 冲锋（v153：w_dragon_whisper teach_skills 的
+    # 战争践踏/元素爆发等旧技能已删，教习表在 v153 下逐职业技能名失效——测试改用现存技能）
+    # 先给 NPC 挂 v153 现存技能表（teach_skills 是 NPC 数据，测试侧直接注入当前技能）
     db.create_player(GID, QID, "测试", "cls_zhan_shi", {}, 100, 100)
     db.update_player(GID, QID, level=50, gold=999999, cur_map="dragon_ridge", cur_subarea="dragon_ridge_1")
     _npc_cfg = dict(C.ALL_WILD.get("w_dragon_whisper") or {})
     _npc_cfg["teach_skills"] = {
-        "cls_zhan_shi": "蓄力斩", "cls_fa_shi": "陨石术", "cls_you_xia": "致命狙击",
-        "cls_mu_shi": "圣光惩戒", "cls_ci_ke": "暗杀", "cls_wu_seng": "连招三连",
+        "cls_zhan_shi": "冲锋", "cls_fa_shi": "陨石术", "cls_you_xia": "致命狙击",
+        "cls_mu_shi": "圣光惩戒", "cls_ci_ke": "暗影之刃", "cls_wu_seng": "连招三连",
     }
     C.ALL_WILD["w_dragon_whisper"] = _npc_cfg
     p = db.get_player(GID, QID)
     lines = m._teach_by_npc(GID, QID, p, "w_dragon_whisper")
     check("teach 有教学动作(非空)", len(lines) > 0, f"→ 空提示！lines={lines}")
     check("teach 提示学会技能", any("学会了技能" in ln for ln in lines), str(lines))
-    check("teach 教授职业技能蓄力斩", any("蓄力斩" in ln for ln in lines), str(lines))
+    check("teach 教授职业技能冲锋", any("冲锋" in ln for ln in lines), str(lines))
     p2 = db.get_player(GID, QID)
     check("teach 扣学费", p2["gold"] < 999999, str(p2["gold"]))
-    check("teach 技能入 learned_skills", "蓄力斩" in (p2.get("learned_skills") or []),
+    check("teach 技能入 learned_skills", "冲锋" in (p2.get("learned_skills") or []),
           str(p2.get("learned_skills")))
     lines = m._teach_by_npc(GID, QID, db.get_player(GID, QID), "w_dragon_whisper")
     check("teach 重复学习提示已掌握", any("早已掌握" in ln for ln in lines), str(lines))

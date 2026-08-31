@@ -52,9 +52,9 @@ async def main():
     # v151 职业重构：破甲精通/穿甲箭（旧 v106.2 补偿被动）已删除——物穿渠道收敛为
     # 刺客 10% 天生 + 词条/套装/药水（下节验证）；此处验证基础职业技能表无穿透被动
     names = {s.get("name") for s in PLAYER_SKILLS["cls_zhan_shi"]["skills"].values()}
-    check("战士基础技能树 9 技能（v151 表）", len(names) == 9, str(sorted(names)))
+    check("战士基础技能树 8 技能（v153 表）", len(names) == 8, str(sorted(names)))
     names2 = {s.get("name") for s in PLAYER_SKILLS["cls_you_xia"]["skills"].values()}
-    check("游侠基础技能树 8 技能（v151 表）", len(names2) == 8, str(sorted(names2)))
+    check("游侠基础技能树 8 技能（v153 表）", len(names2) == 8, str(sorted(names2)))
     # v151：隐藏线已删，技能树收敛为 6 基础职业（不再含 时咒线级基础）
 
     # ============ 3. 穿透药水 ============

@@ -27,14 +27,14 @@ def main():
     check("职业含基础技能表", isinstance(cls, dict), str(type(cls)))
 
     print("【data·角色族：技能】")
-    # v151 职业重构：隐藏职业全删，PLAYER_SKILLS/BRANCH_SKILLS 各 6 职业
-    check("PLAYER_SKILLS 6 职业(6基础)",
-          len(C.PLAYER_SKILLS) == 6 and all(c in C.PLAYER_SKILLS for c in
-          ("cls_zhan_shi", "cls_fa_shi", "cls_you_xia", "cls_mu_shi", "cls_ci_ke", "cls_wu_seng")),
+    # v153 职业重做：新增诗人，PLAYER_SKILLS/BRANCH_SKILLS 各 7 职业
+    check("PLAYER_SKILLS 7 职业(7基础)",
+          len(C.PLAYER_SKILLS) == 7 and all(c in C.PLAYER_SKILLS for c in
+          ("cls_zhan_shi", "cls_fa_shi", "cls_you_xia", "cls_mu_shi", "cls_ci_ke", "cls_wu_seng", "cls_shi_ren")),
           str(len(C.PLAYER_SKILLS)))
     check("每职业有技能表", all(isinstance(v, dict) and len(v) > 0 for v in C.PLAYER_SKILLS.values()),
           str({k: len(v) for k, v in C.PLAYER_SKILLS.items()}))
-    check("BRANCH_SKILLS 6 职业(6基础)", len(C.BRANCH_SKILLS) == 6, str(len(C.BRANCH_SKILLS)))
+    check("BRANCH_SKILLS 7 职业(7基础)", len(C.BRANCH_SKILLS) == 7, str(len(C.BRANCH_SKILLS)))
     check("每职业 3 分支（21 章三转体系 30/60/90）", all(len(v.get("branches", {})) == 3 for v in C.BRANCH_SKILLS.values()),
           str({k: len(v.get("branches", {})) for k, v in C.BRANCH_SKILLS.items()}))
     check("核心资源 6 职业 + 3 副资源(共鸣/回声/圣律按 key 注册)", len(C.CORE_RESOURCES) == 9,

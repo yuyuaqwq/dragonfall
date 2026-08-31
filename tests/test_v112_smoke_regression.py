@@ -55,8 +55,8 @@ async def main():
 
     print("【流派归属 + 核心资源（基础职业）】")
     owner = E.branch_skill_owner("cls_zhan_shi", "龙息之怒")
-    check("branch_skill_owner 龙息之怒 → (2, 狂战统领)",
-          owner == (2, "狂战统领"), str(owner))
+    check("branch_skill_owner 龙息之怒 → (2, 狂战士)（v153 BRANCH_SKILLS 键统一 T1 档位名）",
+          owner == (2, "狂战士"), str(owner))
     rd = E.core_resource_def("cls_zhan_shi")
     check("core_resource_def 战士 key=rage",
           isinstance(rd, dict) and rd.get("key") == "rage", str(rd))

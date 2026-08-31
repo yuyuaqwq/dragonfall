@@ -62,41 +62,12 @@ PANEL_SNAPSHOT = {
         30: {'max_hp': 657, 'atk': 96, 'def': 70, 'spd': 54, 'crit': 0.1, 'dodge': 0.12},
         60: {'max_hp': 1197, 'atk': 180, 'def': 130, 'spd': 96, 'crit': 0.1, 'dodge': 0.12},
     },
-    "cls_dragon_oath": {
-        1: {'max_hp': 150, 'atk': 18, 'def': 14, 'spd': 10, 'crit': 0.06, 'dodge': 0.04},
-        11: {'max_hp': 380, 'atk': 50, 'def': 40, 'spd': 17, 'crit': 0.06, 'dodge': 0.04},
-        30: {'max_hp': 817, 'atk': 110, 'def': 89, 'spd': 30, 'crit': 0.06, 'dodge': 0.04},
-        60: {'max_hp': 1507, 'atk': 206, 'def': 167, 'spd': 51, 'crit': 0.06, 'dodge': 0.04},
-    },
-    "cls_chronomancer": {
-        1: {'max_hp': 95, 'atk': 8, 'def': 7, 'spd': 12, 'crit': 0.08, 'dodge': 0.05},
-        11: {'max_hp': 195, 'atk': 16, 'def': 17, 'spd': 20, 'crit': 0.08, 'dodge': 0.05},
-        30: {'max_hp': 385, 'atk': 31, 'def': 36, 'spd': 35, 'crit': 0.08, 'dodge': 0.05},
-        60: {'max_hp': 685, 'atk': 55, 'def': 66, 'spd': 59, 'crit': 0.08, 'dodge': 0.05},
-    },
-    "cls_wild_hunter": {
-        1: {'max_hp': 115, 'atk': 15, 'def': 10, 'spd': 16, 'crit': 0.15, 'dodge': 0.12},
-        11: {'max_hp': 265, 'atk': 42, 'def': 26, 'spd': 35, 'crit': 0.15, 'dodge': 0.12},
-        30: {'max_hp': 550, 'atk': 93, 'def': 56, 'spd': 71, 'crit': 0.15, 'dodge': 0.12},
-        60: {'max_hp': 1000, 'atk': 174, 'def': 104, 'spd': 128, 'crit': 0.15, 'dodge': 0.12},
-    },
-    "cls_hymn": {
-        1: {'max_hp': 115, 'atk': 10, 'def': 12, 'spd': 10, 'crit': 0.05, 'dodge': 0.05},
-        11: {'max_hp': 265, 'atk': 22, 'def': 31, 'spd': 17, 'crit': 0.05, 'dodge': 0.05},
-        30: {'max_hp': 550, 'atk': 44, 'def': 67, 'spd': 30, 'crit': 0.05, 'dodge': 0.05},
-        60: {'max_hp': 1000, 'atk': 80, 'def': 124, 'spd': 51, 'crit': 0.05, 'dodge': 0.05},
-    },
-    "cls_shadow_blade": {
-        1: {'max_hp': 100, 'atk': 19, 'def': 9, 'spd': 20, 'crit': 0.22, 'dodge': 0.18},
-        11: {'max_hp': 230, 'atk': 53, 'def': 22, 'spd': 44, 'crit': 0.22, 'dodge': 0.18},
-        30: {'max_hp': 477, 'atk': 117, 'def': 46, 'spd': 89, 'crit': 0.22, 'dodge': 0.18},
-        60: {'max_hp': 867, 'atk': 219, 'def': 85, 'spd': 161, 'crit': 0.22, 'dodge': 0.18},
-    },
-    "cls_wu_sheng": {
-        1: {'max_hp': 140, 'atk': 16, 'def': 12, 'spd': 14, 'crit': 0.1, 'dodge': 0.12},
-        11: {'max_hp': 330, 'atk': 46, 'def': 33, 'spd': 29, 'crit': 0.1, 'dodge': 0.12},
-        30: {'max_hp': 691, 'atk': 103, 'def': 72, 'spd': 57, 'crit': 0.1, 'dodge': 0.12},
-        60: {'max_hp': 1261, 'atk': 193, 'def': 135, 'spd': 102, 'crit': 0.1, 'dodge': 0.12},
+    # v153 新增第 7 职业 吟游诗人（cls_shi_ren）
+    "cls_shi_ren": {
+        1: {'max_hp': 95, 'atk': 9, 'def': 10, 'spd': 13, 'crit': 0.07, 'dodge': 0.08},
+        11: {'max_hp': 205, 'atk': 20, 'def': 25, 'spd': 22, 'crit': 0.07, 'dodge': 0.08},
+        30: {'max_hp': 414, 'atk': 40, 'def': 53, 'spd': 39, 'crit': 0.07, 'dodge': 0.08},
+        60: {'max_hp': 744, 'atk': 73, 'def': 98, 'spd': 66, 'crit': 0.07, 'dodge': 0.08},
     },
 }
 
@@ -112,12 +83,12 @@ def check(name, cond, detail=""):
 
 
 def main():
-    # v151：6 隐藏职业全删 → CLASSES 恰 6 基础职业（+见习），快照断言从 12 → 6
+    # v153：7 基础职业（6 + 新增诗人），快照断言从 6 → 7
     classes = [c for c in C.CLASSES if c != "cls_novice"]
-    check("6 职业完整性（CLASSES 全量，排除见习）", len(classes) == 6,
+    check("7 职业完整性（CLASSES 全量，排除见习）", len(classes) == 7,
           f"n={len(classes)} {classes}")
 
-    print("【① 6 职业裸装面板快照（1/11/30/60 级）】")
+    print("【① 7 职业裸装面板快照（1/11/30/60 级）】")
     for cid in classes:
         cname = C.CLASSES[cid]["name"]
         for lv in LEVELS:

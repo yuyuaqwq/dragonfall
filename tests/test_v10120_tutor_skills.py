@@ -122,7 +122,7 @@ async def main():
     db.update_player("g1", "w1", level=8, skill_points=20)
     out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 破甲斩")
     check("破甲斩技能点可学", "学会了『破甲斩』" in out, out[:150])
-    db.update_player("g1", "w1", level=3, skill_points=20)
+    db.update_player("g1", "w1", level=16, skill_points=20)  # v153 战吼 lv 3→16
     out = await cmd(m, "skill_learn", "g1", "w1", "技能学习 战吼")
     check("战吼技能点可学", "学会了『战吼』" in out, out[:150])
 
