@@ -456,19 +456,10 @@ class Battle:
                     if _u.get("hp", 0) > 0:
                         _init_t = float(_u.get("ct", 0) or _ct_initial_wait(_u.get("spd", 0)))
                         self._schedule(_init_t, {"type": "enemy_act", "unit": _u})
-                # DOT：有初始 debuffs 则排第一个 dot_tick
-                if any((u.get("debuffs") or {}) for u in self.enemies):
-                    self._schedule(self._now + (ACT_TICK or 2.0), {"type": "dot_tick"})
-                # Boss 定时机制：有 mech 的敌方排 mech_tick（每 interval × ACT_TICK）
-                for _u in self.enemies:
-                    _m = (_u.get("mech") or "").strip()
-                    if _m:
-                        self._schedule(self._now + 3 * (ACT_TICK or 2.0),
-                                       {"type": "mech_tick", "unit": _u, "interval": 3})
-                # 宠物：skill_interval > 0 排 pet_tick
-                if self.pet and int((self.pet or {}).get("skill_interval", 0) or 0) > 0:
-                    self._schedule(self._now + int((self.pet or {}).get("skill_interval", 0)) * (ACT_TICK or 2.0),
-                                   {"type": "pet_tick"})
+                # DOT 由 player_turn 开头 _turn_start 结算（_tick_dots + _dot_pending 闸门），
+                # 不排独立 dot_tick 事件（避免重复结算）。
+                # Boss 定时机制由 _enemy_turn 内 _boss_mech 触发（每次敌方行动时按 r % interval 判定），
+                # 不排独立 mech_tick 事件（避免双重触发）。
                 # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
                 # 在玩家每次行动时结算（与旧回合制"每玩家行动结算一次"一致），避免 DOT 重复结算。
             except Exception:
@@ -1872,23 +1863,11 @@ class Battle:
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
-                elif evt == "dot_tick":
-                    self._tick_dots(player, logs, force=True)
-                    # 重新排下一次 DOT 跳动（若有未到期 DOT）
-                    self._reschedule_dot(player, ev)
-                elif evt == "mech_tick":
-                    # Boss 定时机制：每 interval × ACT_TICK 触发一次 _boss_mech
-                    self._boss_mech(logs, ev.get("unit"))
-                    self._reschedule_mech(ev)
-                elif evt == "pet_tick":
-                    if self.pet:
-                        logs = self._pet_skill_turn(player, logs)
-                        if self.result == "victory":
-                            break
-                    self._reschedule_pet(ev)
-                elif evt == "cast_done":
-                    # 玩家行为生效（v152 即时结算已做，此事件仅用于日志时序，可空处理）
-                    pass
+                # v152：DOT/宠物/Boss 定时/词条回血不再用独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
+                # elif evt == "dot_tick": ...
+                # elif evt == "mech_tick": ...
+                # elif evt == "pet_tick": ...
+                # elif evt == "cast_done": ...
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
                 logs.append(f"(事件处理异常: {_ex})")
@@ -1911,10 +1890,8 @@ class Battle:
                        {"type": "mech_tick", "unit": ev.get("unit"), "interval": interval})
 
     def _reschedule_pet(self, ev: dict):
-        """宠物技能重新排。interval 从 pet 数据读。"""
-        interval = float((self.pet or {}).get("skill_interval", 0) or 0)
-        if interval > 0:
-            self._schedule(self._now + interval * (ACT_TICK or 2.0), {"type": "pet_tick"})
+        """宠物技能重新排（v152 不再使用——由 player_turn 直接触发）。"""
+        pass
 
     def _add_shield(self, key: str, value: int, turns: int = 3):
         """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新时长（取 max），异源并存各计各的时长。
