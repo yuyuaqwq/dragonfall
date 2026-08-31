@@ -3352,6 +3352,19 @@ class Battle:
             del self.p_eff["next_heal_up"]
             logs.append(f"✨ 信仰结晶：治疗技能效果 +{int(_nhu * 100)}%！")
         hp_before = target_unit.get("hp", 0)
+        # v151 回合制审计：禁疗/重伤消费端修复——敌方 heal_down（层数×10%）/ _anti_heal_pct（百分比）
+        # 此前 weapon_effects/affix_effects 只写入不消费（死数据，禁疗无效）
+        try:
+            _ehd = int((self.e_buffs or {}).get("heal_down", 0) or 0)
+            if _ehd > 0:
+                heal = max(0, int(heal * (1 - min(_ehd * 0.10, 0.50))))
+                logs.append(f"🩸 敌方禁疗：治疗量 -{min(_ehd * 10, 50)}%！")
+            _aheal = float((self.e_buffs or {}).get("_anti_heal_pct", 0) or 0)
+            if _aheal > 0:
+                heal = max(0, int(heal * (1 - min(_aheal, 0.80))))
+                logs.append(f"🩸 敌方重伤：治疗量 -{int(min(_aheal, 0.80) * 100)}%！")
+        except Exception:
+            pass
         # v140 波3.1：特效装备治疗加成（坚毅祝福+15%/圣辉涌动+20%/回响祝福+25%）+ 溢出转盾（圣木/赎罪）
         try:
             from .core.weapon_effects import proc as _we_proc

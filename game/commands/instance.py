@@ -2623,9 +2623,19 @@ class InstanceCmds(CommandBase):
             return logs
         # 全队 buff（写入各自 p_buffs，Boss 回合按仇恨打时生效）
         buff_effects = {
-            "def_all": "def_up", "reduce_all": "def_up", "atk_all": "atk_up",
+            "def_all": "def_up", "atk_all": "atk_up",
             "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
         }
+        # v151 回合制审计：reduce_all 从映射表移除（原误映射 def_up，与单机 v113.1 口径分裂）——
+        # 真·百分比减伤：p_buffs["reduce_all"]=减伤百分比（float），回合记 st["reduce_all_left"]
+        if kind == "reduce_all":
+            pct = float(te.get("reduce_all") or (stats or {}).get("reduce_all") or 0)
+            st["reduce_all_left"] = max(int(st.get("reduce_all_left", 0) or 0), turns)
+            for k in alive:
+                pb = st["p_buffs"].setdefault(k, {})
+                pb["reduce_all"] = pct
+            logs.append(f"🛡️ 全队减伤 {int(pct * 100)}%（持续 {st['reduce_all_left']} 回合）")
+            return logs
         if kind in buff_effects:
             be = buff_effects[kind]
             for k in alive:

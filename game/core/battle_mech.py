@@ -998,10 +998,12 @@ def _sb_sleep(battle, skill_name, info, player, lv, logs):
 
 @register(SKILL_BUFF_EFFECTS, "shield_all")
 def _sb_shield_all(battle, skill_name, info, player, lv, logs):
-    """v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）"""
+    """v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
+    v151 回合制审计：盾值优先读技能字段 shield_val（盾值=matk×shield_val），缺省回落 0.20"""
     st2 = battle._player_stats(player)
     base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
-    battle._add_shield("team_bless", int(base * 0.20), 3)
+    pct = float((info or {}).get("shield_val") or 0.20)
+    battle._add_shield("team_bless", int(base * pct), 3)
 
 
 @register(SKILL_BUFF_EFFECTS, "reduce_all")

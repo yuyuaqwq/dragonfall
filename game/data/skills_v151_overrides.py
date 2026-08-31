@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """v151 职业体系重构：6 基础职业新技能表（纯 v151 表 · 不保留旧技能）
 
-来源：workspace/skills_v151_*.py（6 个独立落地文件，主 agent 归一化合并 + 分支重排）
-策略（鱼鱼拍板 2026-08-31）：完全抛弃隐藏职业 + 旧技能，技能表纯 v151 新表；
-  玩家旧技能重置返还技能点（另行处理）。
-  PLAYER_SKILLS 整体替换 6 职业段；BRANCH_SKILLS 统一 3-key（1/2/3=30/60/90级），
-  分支技能 key 统一中文名（引擎按名查）。
+来源：workspace/skills_v151_*.py（主 agent 归一化合并 + 分支重排 + 盾值补充）
+策略（鱼鱼拍板）：完全抛弃隐藏职业 + 旧技能；玩家旧技能重置返还技能点。
+  PLAYER_SKILLS 整体替换；BRANCH_SKILLS 统一 3-key；分支技能 key 中文名。
+  v151 审计：shield 技能补 shield_val（盾值=matk×shield_val）。
 本模块由脚本生成，勿手改。
 """
 
@@ -142,7 +141,8 @@ _V151_PLAYER_SKILLS = {
              'effect': 'shield_all',
              'cd': 4,
              'desc': '以魔力织成奥术壁障——为自己张开护盾（补生存）',
-             'name': '奥术护盾'},
+             'name': '奥术护盾',
+             'shield_val': 0.25},
             "sk_f_yun_shi_shu": {'lv': 20,
              'mp': 20,
              'power': 1.4,
@@ -286,7 +286,8 @@ _V151_PLAYER_SKILLS = {
              'mech': 'shield',
              'mech_val': 1,
              'desc': '以圣光凝成壁垒护住自身——获得护盾（单体预防）',
-             'name': '圣光护盾'},
+             'name': '圣光护盾',
+             'shield_val': 0.7},
             "sk_m_sheng_you": {'lv': 22, 'mp': 15, 'power': 0, 'kind': '增益', 'cd': 4, 'desc': '圣光加护，免疫 1 次控制效果（补生存）', 'name': '圣佑'},
         },
     },
@@ -544,7 +545,8 @@ _V151_BRANCH_SKILLS = {
                               'kind': '增益',
                               'effect': 'shield_all',
                               'desc': '高举坚盾，壁垒护佑全队——花 5 层战意为全队张开护盾(战意消耗待引擎接线)',
-                              'name': '坚盾壁垒'},
+                              'name': '坚盾壁垒',
+                              'shield_val': 0.3},
                      '顿足盾击': {'lv': 50,
                               'mp': 0,
                               'power': 0.4,
@@ -560,7 +562,8 @@ _V151_BRANCH_SKILLS = {
                               'effect': 'shield_all',
                               'cd': 3,
                               'desc': '举盾凝立如铁壁——自身获得护盾并进入格挡架势(CD 3)',
-                              'name': '铁壁·卫'},
+                              'name': '铁壁·卫',
+                              'shield_val': 0.25},
                      '嘲讽': {'lv': 55,
                             'mp': 0,
                             'power': 0,
@@ -668,7 +671,8 @@ _V151_BRANCH_SKILLS = {
                                'cd': 5,
                                'passive': {'proc': 'thorns', 'mult': 0.3},
                                'desc': '以誓约为盾——为全队张开护盾并附带 30% 反伤(挡刀待引擎接线，CD 5)',
-                               'name': '誓约之盾'},
+                               'name': '誓约之盾',
+                               'shield_val': 0.35},
                       '战吼·守': {'lv': 82,
                                'mp': 0,
                                'power': 0,
@@ -719,7 +723,8 @@ _V151_BRANCH_SKILLS = {
                                'cd': 5,
                                'passive': {'proc': 'thorns', 'mult': 0.5},
                                'desc': '以誓言为盾，守护全队——为全队张开护盾并附带 50% 反伤(挡刀待引擎接线，CD 5)',
-                               'name': '守护誓言'},
+                               'name': '守护誓言',
+                               'shield_val': 0.4},
                       '不破壁垒': {'lv': 95,
                                'mp': 0,
                                'power': 0,
@@ -787,7 +792,8 @@ _V151_BRANCH_SKILLS = {
                                'effect': 'shield_all',
                                'cd': 4,
                                'desc': '以元素编织护盾环绕周身——获得护盾（设计为架设中受击－20%，引擎无此字段，见清单）',
-                               'name': '元素护盾'},
+                               'name': '元素护盾',
+                               'shield_val': 0.2},
                       '元素引爆': {'lv': 52,
                                'mp': 0,
                                'power': 1.5,
@@ -921,7 +927,8 @@ _V151_BRANCH_SKILLS = {
                                'effect': 'shield_all',
                                'cd': 4,
                                'desc': '在时间夹缝中张开守护壁——获得护盾（设计为凝滞态中受击－30%，引擎无此字段，见清单）',
-                               'name': '时之守护'},
+                               'name': '时之守护',
+                               'shield_val': 0.2},
                       '时间共鸣': {'lv': 66,
                                'mp': 20,
                                'power': 0.9,
@@ -944,7 +951,8 @@ _V151_BRANCH_SKILLS = {
                                'effect': 'shield_all',
                                'cd': 5,
                                'desc': '以时光之力护住心神——获得护盾（设计为免疫 1 次控制，引擎无 cc_immune_once 字段，见清单）',
-                               'name': '时光护盾'},
+                               'name': '时光护盾',
+                               'shield_val': 0.2},
                       '时间回环': {'lv': 84,
                                'mp': 0,
                                'power': 0,
@@ -1462,7 +1470,8 @@ _V151_BRANCH_SKILLS = {
                              'effect': 'shield_all',
                              'team': 'shield_all',
                              'desc': '圣音凝成无形壁垒——全队获得护盾（补生存）',
-                             'name': '音障'},
+                             'name': '音障',
+                             'shield_val': 0.2},
                       '咏叹调·愈': {'lv': 84,
                                 'mp': 20,
                                 'power': 0.9,
@@ -1517,7 +1526,8 @@ _V151_BRANCH_SKILLS = {
                              'effect': 'shield_all',
                              'team': 'shield_all',
                              'desc': '白骨之甲覆体——召唤物与自身获得护盾（补生存）',
-                             'name': '骸骨甲'}}},
+                             'name': '骸骨甲',
+                             'shield_val': 0.2}}},
             3: {'黎明颂者': {'英雄叙事诗': {'lv': 92,
                                 'mp': 0,
                                 'power': 0,
@@ -2047,7 +2057,8 @@ _V151_BRANCH_SKILLS = {
                                'team': 'shield_all',
                                'cd': 4,
                                'desc': '气力化作守护之墙——为全队张开生命值 20% 的护盾(全队护盾)',
-                               'name': '气力守御'},
+                               'name': '气力守御',
+                               'shield_val': 0.2},
                       '大地之肤': {'lv': 78,
                                'mp': 0,
                                'power': 0,
@@ -2062,7 +2073,8 @@ _V151_BRANCH_SKILLS = {
                               'effect': 'shield_all',
                               'cd': 5,
                               'desc': '磐岩之力凝成护甲——将磐核转化为护盾(补生存；磐核转盾引擎暂未落地，先以全队护盾代替)',
-                              'name': '磐岩甲'}}},
+                              'name': '磐岩甲',
+                              'shield_val': 0.25}}},
             3: {'破晓者': {'气力通天': {'lv': 92,
                               'mp': 30,
                               'power': 2.4,
