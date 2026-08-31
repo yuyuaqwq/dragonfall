@@ -469,8 +469,8 @@ class Battle:
                 if self.pet and int((self.pet or {}).get("skill_interval", 0) or 0) > 0:
                     self._schedule(self._now + int((self.pet or {}).get("skill_interval", 0)) * (ACT_TICK or 2.0),
                                    {"type": "pet_tick"})
-                # 词条/套装回血节奏（regen_tick 按 ACT_TICK 节奏）
-                self._schedule(self._now + (ACT_TICK or 2.0), {"type": "regen_tick"})
+                # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
+                # 在玩家每次行动时结算（与旧回合制"每玩家行动结算一次"一致），避免 DOT 重复结算。
             except Exception:
                 pass
 
@@ -1865,8 +1865,9 @@ class Battle:
                         dmg = max(1, int(dmg * DEFEND_REDUCE))
                         self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                     self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
-                    # 行动后排下一次（用 buffed spd cost）
-                    self._after_actor_ct("e", unit)
+                    # 行动后排下一次（用 buffed spd cost；敌方普攻同样有行为时长 CAST_ATK，
+                    # 与玩家普攻对称——否则玩家 cast 0.5 而敌方 1.0 会破坏速度频率等价）
+                    self._after_actor_ct("e", unit, cast_mult=CAST_ATK)
                     self._schedule(float(unit.get("ct", 0) or 0), {"type": "enemy_act", "unit": unit})
                     if self._player_dead(player):
                         self.result = "defeat"
@@ -1885,10 +1886,6 @@ class Battle:
                         if self.result == "victory":
                             break
                     self._reschedule_pet(ev)
-                elif evt == "regen_tick":
-                    # 词条/套装"回合开始回血"——按 ACT_TICK 节奏触发
-                    self._turn_start(player)
-                    self._reschedule_regen(ev)
                 elif evt == "cast_done":
                     # 玩家行为生效（v152 即时结算已做，此事件仅用于日志时序，可空处理）
                     pass
@@ -1918,10 +1915,6 @@ class Battle:
         interval = float((self.pet or {}).get("skill_interval", 0) or 0)
         if interval > 0:
             self._schedule(self._now + interval * (ACT_TICK or 2.0), {"type": "pet_tick"})
-
-    def _reschedule_regen(self, ev: dict):
-        """词条/套装回血节奏重新排。"""
-        self._schedule(self._now + (ACT_TICK or 2.0), {"type": "regen_tick"})
 
     def _add_shield(self, key: str, value: int, turns: int = 3):
         """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新时长（取 max），异源并存各计各的时长。
