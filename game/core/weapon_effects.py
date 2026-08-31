@@ -214,7 +214,8 @@ def _we_starlight_bulwark(battle, player, ctx, logs):
     if not has_effect(battle, player, "starlight_bulwark"):
         return
     battle._add_shield("we_starlight", int(player.get("max_hp", 100) * 0.10), 3)
-    battle.p_eff["we_starlight_next"] = 5  # 每 5 回合刷新计数
+    # v152 时刻制：we_starlight_next 存 ready_at（now + 5×ACT_TICK）
+    battle.p_eff["we_starlight_next"] = battle._now + 5 * battle.ACT_TICK
     logs.append("✨ 星辉壁垒：战斗开始获得 10% 最大生命护盾！")
 
 
@@ -522,12 +523,13 @@ def _we_everfrost_domain(battle, player, ctx, logs):
     """永冻领域（永霜秘杖）：冰系技能后 30% 使目标冻结 1 回合（Boss 减速 2 回合），冷却 3 回合。"""
     if not has_effect(battle, player, "everfrost_domain"):
         return
-    if int(battle.p_eff.get("we_everfrost_cd", 0) or 0) > 0:
+    if float(battle.p_eff.get("we_everfrost_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.30:
         return
     _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 永冻领域")
-    battle.p_eff["we_everfrost_cd"] = 3
+    # v152 时刻制：CD 存 ready_at 绝对时刻（now + cd×ACT_TICK）
+    battle.p_eff["we_everfrost_cd"] = battle._now + 3 * battle.ACT_TICK
 
 
 @register("skill_hit")
@@ -568,9 +570,10 @@ def _we_endless_radiance(battle, player, ctx, logs):
     """无尽辉光（奥拉圣剑）：暴伤+25%（常驻），暴击时获得 5% 最大生命护盾（2 回合，冷却 3 回合）。"""
     if not has_effect(battle, player, "endless_radiance"):
         return
-    if ctx.get("is_crit") and int(battle.p_eff.get("we_radiance_cd", 0) or 0) <= 0:
+    if ctx.get("is_crit") and float(battle.p_eff.get("we_radiance_cd", 0) or 0) <= battle._now:
         battle._add_shield("we_radiance", int(player.get("max_hp", 100) * 0.05), 2)
-        battle.p_eff["we_radiance_cd"] = 3
+        # v152 时刻制：CD 存 ready_at 绝对时刻
+        battle.p_eff["we_radiance_cd"] = battle._now + 3 * battle.ACT_TICK
         logs.append("🌟 无尽辉光：暴击获得 5% 最大生命护盾！")
 
 
@@ -630,14 +633,15 @@ def _we_sentinel_aegis(battle, player, ctx, logs):
     """哨兵壁垒（哨兵胸甲）：受击 15% 获得护盾（吸收 6+0.5×Lv 点伤害，3 回合），冷却 1 回合。"""
     if not has_effect(battle, player, "sentinel_aegis"):
         return
-    if int(battle.p_eff.get("we_sentinel_cd", 0) or 0) > 0:
+    if float(battle.p_eff.get("we_sentinel_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.15:
         return
     lv = int(player.get("level", 1) or 1)
     shield = int(6 + 0.5 * lv)
     battle._add_shield("we_sentinel", shield, 3)
-    battle.p_eff["we_sentinel_cd"] = 1
+    # v152 时刻制：CD 存 ready_at 绝对时刻
+    battle.p_eff["we_sentinel_cd"] = battle._now + 1 * battle.ACT_TICK
     logs.append(f"🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 回合）")
 
 
@@ -692,12 +696,13 @@ def _we_deeprock_aegis(battle, player, ctx, logs):
     """深岩壁垒（深岩战盔）：受击 10% 获得护盾（吸收 8% 最大生命），冷却 2 回合。"""
     if not has_effect(battle, player, "deeprock_aegis"):
         return
-    if int(battle.p_eff.get("we_deeprock_cd", 0) or 0) > 0:
+    if float(battle.p_eff.get("we_deeprock_cd", 0) or 0) > battle._now:
         return
     if random.random() >= 0.10:
         return
     battle._add_shield("we_deeprock", int(player.get("max_hp", 100) * 0.08), 3)
-    battle.p_eff["we_deeprock_cd"] = 2
+    # v152 时刻制：CD 存 ready_at 绝对时刻
+    battle.p_eff["we_deeprock_cd"] = battle._now + 2 * battle.ACT_TICK
     logs.append("🪨 深岩壁垒：获得护盾！（吸收 8% 最大生命）")
 
 

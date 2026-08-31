@@ -39,7 +39,8 @@ def save_battle(group_id, qq_id, state: dict):
     """
     if "type" not in state:
         state = {
-            "type": "monster", "round": 0,
+            # v152 时刻制：round 删除，now = 战斗绝对时刻
+            "type": "monster", "now": 0.0,
             "enemy": state, "p_buffs": {}, "e_buffs": {},
             "p_defending": False, "e_defending": False,
         }
@@ -115,7 +116,7 @@ def get_battle(group_id, qq_id):
             # 兼容 v9 之前的旧数据（state 字段直接是裸怪物 dict）
             if "type" not in state:
                 state = {
-                    "type": "monster", "round": 0,
+                    "type": "monster", "now": 0.0,
                     "enemy": state, "p_buffs": {}, "e_buffs": {},
                     "p_defending": False, "e_defending": False,
                 }
@@ -137,7 +138,7 @@ def get_battle_raw(group_id, qq_id):
             state = json.loads(row["state"])
             if "type" not in state:
                 state = {
-                    "type": "monster", "round": 0,
+                    "type": "monster", "now": 0.0,
                     "enemy": state, "p_buffs": {}, "e_buffs": {},
                     "p_defending": False, "e_defending": False,
                 }

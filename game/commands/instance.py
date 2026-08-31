@@ -906,13 +906,26 @@ class InstanceCmds(CommandBase):
 
     # ---------------- v2 多对多阵列 helpers（§2.2 / §8.2） ----------------
     def _instance_reset_player_cts(self, st: dict) -> None:
-        """v121 审计修复：新敌人入场时重置存活玩家 ct = -spd（与敌方
-        _instance_build_enemy_array 的 -spd 播种对称）——此前玩家 ct 跨场残留
-        （多为正数），换怪/换层后新敌人以 -spd 开局直接碾压先手。"""
+        """v152 绝对时刻：新敌人入场时重置存活玩家 ct = 参考点 + 自身 cost。
+        参考点 = min(存活敌方 ct, 存活玩家 ct)（= 当前时间轴最早行动时刻），保证
+        重置后玩家 next_act_at 在参考点之后（不抢当前行动窗口），与入场播种一致。
+        v121 旧语义 -spd 是相对时钟，与绝对时刻播种（ref+cost）混用会错乱。"""
         self._instance_ensure_player_fields(st)
+        refs = []
+        for u in st.get("enemies") or []:
+            if u.get("hp", 0) > 0 and float(u.get("ct", 0) or 0) > 0:
+                refs.append(float(u.get("ct", 0) or 0))
         for key, snap in (st.get("players") or {}).items():
             if st.get("alive", {}).get(str(key), True):
-                snap["ct"] = -float(snap.get("spd", 0) or 0)
+                _spd = snap.get("spd", 0)
+                try:
+                    _st0 = BT.Battle()._player_stats(snap)
+                    _spd = _st0.get("spd", _spd) if _st0 else _spd
+                except Exception:
+                    pass
+                _cost = BT.Battle()._ct_cost(_spd)
+                ref = min(refs) if refs else 0.0
+                snap["ct"] = ref + _cost
 
     def _scale_enemy_copy(self, m: dict, mult: float, uid: str, name: str,
                           rank: int, reach: int) -> dict:
@@ -944,15 +957,16 @@ class InstanceCmds(CommandBase):
         Boss 主单位 = build_monster 产物（含 rank/reach/uid/buffs/stacks/defending/charging）；
         配置 minions 展开为 rank1 的爪牙（属性 ×0.5、名字"XX的{minion名}"、uid 唯一、is_boss/is_elite False）。
         精英/普通怪 → 单怪阵列 [boss]。缺省无 minions → 仅 Boss。
-        v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。"""
+        v121 CTB：每个敌方单位补 ct = -spd（越小越先行动）。
+        v152 绝对时刻：ct = 初始等待（BASE_DELAY/spd，即 cost，正数越大越晚行动）。"""
         boss = boss or {}
         if not boss:
             return []
         if not boss.get("is_boss"):
-            boss.setdefault("ct", -float(boss.get("spd", 0) or 0))
+            boss.setdefault("ct", BT.Battle()._ct_initial_wait(boss.get("spd", 0)))
             return [boss]
         enemies = [boss]
-        boss.setdefault("ct", -float(boss.get("spd", 0) or 0))
+        boss.setdefault("ct", BT.Battle()._ct_initial_wait(boss.get("spd", 0)))
         inst = C.INSTANCES.get(st.get("inst_id") or "", {})
         mcfg = inst.get("minions") or []
         base_name = boss.get("name", "BOSS")
@@ -967,7 +981,7 @@ class InstanceCmds(CommandBase):
                 sub = self._scale_enemy_copy(
                     boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
                     "{}的{}".format(base_name, mname), mrank, mreach)
-                sub.setdefault("ct", -float(sub.get("spd", 0) or 0))
+                sub.setdefault("ct", BT.Battle()._ct_initial_wait(sub.get("spd", 0)))
                 enemies.append(sub)
         return enemies
 
@@ -1942,10 +1956,10 @@ class InstanceCmds(CommandBase):
                 "spd": E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
-                # v121 CTB：玩家快照 ct = -spd（快者更负 → 先行动）
-                "ct": -E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                # v152 绝对时刻：玩家快照 ct = 初始等待（BASE_DELAY/spd，正数越大越晚行动）
+                "ct": BT.Battle()._ct_initial_wait(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
-                                            p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
+                                            p.get("evolve_path", 0), None, p.get("race")).get("spd", 0)),
                 "equipment": p.get("equipment", {}),
                 "skills": p.get("skills", []),
                 "learned_skills": p.get("learned_skills", []),
@@ -2254,26 +2268,17 @@ class InstanceCmds(CommandBase):
         if _alive_keys and set(acted) >= set(_alive_keys):
             st["round_acted"] = []
             st["dot_pending"] = True
-        # v101.28m #438 复测修复：战斗状态写回（援军/回合数/资源/冷却/连招持久化）
-        st["round"] = b.round
+        # v101.28m #438 复测修复：战斗状态写回（援军/时刻/资源/冷却/连招持久化）
+        # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
+        st["round"] = b._tick_no()
         st["e_minions"] = b.e_minions
         st.setdefault("resources", {})[cur_key] = b.resources
         st.setdefault("cooldown", {})[cur_key] = b.cooldown
         st.setdefault("combo_seq", {})[cur_key] = b.combo_seq
         # v121 CTB：玩家 ct 写回快照（b.p_ct 已含该玩家行动后的 _after_actor_ct("p") 推进）
+        # v152 绝对时刻制：snap["ct"] = b.p_ct（= 该玩家下次可行动绝对时刻）。
+        # 其他玩家 ct 是各自独立绝对值，无需广播 -cost（绝对时刻下时间流逝由各自 next_act_at 体现）。
         snap["ct"] = b.p_ct
-        # v121 审计修复：多玩家时间流逝对称——玩家行动后，其余存活玩家同步 -cost
-        # （敌方 ct 已由 Battle 内部 _after_actor_ct("p") 推进；队友 ct 不在 Battle 内，
-        # 必须在此广播，否则敌方相对未行动玩家行动偏快——与 _instance_apply_enemy_act_ct 对称）
-        try:
-            _cur2 = self._instance_current_members(group_id, st)
-            _p_cost = b._ct_cost(b._player_stats(snap).get("spd", 0) if snap else 0)
-            for _k2, _s2 in (st.get("players") or {}).items():
-                if str(_k2) != cur_key and str(_k2) in _cur2 \
-                        and st.get("alive", {}).get(str(_k2), True):
-                    _s2["ct"] = float(_s2.get("ct", 0) or 0) - _p_cost
-        except Exception:
-            pass
         st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
         # 副本防御减半完全不生效（playtest round67 影刃实测 93→75 仅约 -19%）
@@ -2714,8 +2719,10 @@ class InstanceCmds(CommandBase):
         return ("p", k) if k else ("none", None)
 
     def _instance_apply_enemy_act_ct(self, st: dict, group_id: int, unit: dict) -> None:
-        """v121 CTB：敌方单位行动后结算 ct（与 battle._after_actor_ct("e") 同语义）：
-        行动者 ct += cost；其余存活敌方 + 存活玩家 ct -= cost（时间流逝）。
+        """v152 真·绝对时刻：敌方单位行动后 next_act_at = 当前基准 + cost。
+        与 battle._after_actor_ct("e") 语义一致（绝对时刻制，行动者重排，其他单位不互相减）。
+        副本无全局 _now，用"当前行动参考点"= 该单位当前 ct（= 它本次行动的绝对时刻）。
+        行动者 ct = 参考点 + cost（下次可行动）；其他单位不动（各自已是绝对时刻）。
         v121 审计修复：cost 用 buffed spd（_enemy_stats 应用 spd_down 等，与 battle 一致）；
         玩家遍历按存活+在场（退队者不参与）过滤。"""
         try:
@@ -2724,20 +2731,12 @@ class InstanceCmds(CommandBase):
         except Exception:
             _espd = unit.get("spd", 0)
         cost = BT.Battle()._ct_cost(_espd)
-        unit.setdefault("ct", -float(unit.get("spd", 0) or 0))
+        unit.setdefault("ct", float(unit.get("spd", 0) or 0) * 0.0)  # 兜底 0 基准
         unit["ct"] = float(unit.get("ct", 0) or 0) + cost
         self._sync_enemy_unit(st, unit)
-        uid = str(unit.get("uid"))
-        for u in st.get("enemies") or []:
-            if str(u.get("uid")) == uid or u.get("hp", 0) <= 0:
-                continue
-            u.setdefault("ct", -float(u.get("spd", 0) or 0))
-            u["ct"] = float(u.get("ct", 0) or 0) - cost
-        self._instance_ensure_player_fields(st)
-        cur = self._instance_current_members(group_id, st)
-        for key, snap in (st.get("players") or {}).items():
-            if str(key) in cur and st.get("alive", {}).get(str(key), True):
-                snap["ct"] = float(snap.get("ct", 0) or 0) - cost
+        # 绝对时刻制：其他单位（敌/玩家）next_act_at 已是绝对值，不因本单位行动而变。
+        # 注：旧 v121 相对语义"其他 -cost"等价于绝对时刻下的时间流逝，但绝对时刻下
+        # 各单位 ct 是独立绝对值（= 各自下次行动时刻），无需广播调整。
 
     def _instance_enemy_ct_acts(self, st: dict, group_id: int) -> tuple:
         """v121 CTB 副本敌方行动段（取代 v57 _instance_boss_turn 的多动逻辑）：
@@ -2772,9 +2771,9 @@ class InstanceCmds(CommandBase):
 
     def _instance_auto_defend_player(self, st: dict, group_id: int, key: str) -> list:
         """CTB 超时自动防御：走现有自动防御路径（置 p_defending 防御），并结算一次 defend
-        行动的 ct（自身 +cost、其余存活玩家与敌方 -cost 时间流逝）。
+        行动的 ct（v152 绝对时刻：自身 ct += 防御耗时，其他单位不动）。
         v121 审计修复：cost 用快照速度的 buffed 口径（_player_stats 与正常行动一致，
-        此前 raw spd 使超时惩罚比正常行动重 ~2.3×）；队友 ct 同步 -cost（时间流逝对称）。"""
+        此前 raw spd 使超时惩罚比正常行动重 ~2.3×）。绝对时刻下其他单位 next_act_at 独立。"""
         snap = st["players"][key]
         logs = [f"⏰ {snap.get('name', key)} 迟迟没有行动，自动进入防御姿态！"]
         st["p_defending"][key] = True
@@ -2783,14 +2782,6 @@ class InstanceCmds(CommandBase):
         except Exception:
             cost = BT.Battle()._ct_cost(snap.get("spd", 0))
         snap["ct"] = float(snap.get("ct", 0) or 0) + cost
-        cur = self._instance_current_members(group_id, st)
-        for _k, _s2 in (st.get("players") or {}).items():
-            if str(_k) != key and str(_k) in cur and st.get("alive", {}).get(str(_k), True):
-                _s2["ct"] = float(_s2.get("ct", 0) or 0) - cost
-        for u in st.get("enemies") or []:
-            if u.get("hp", 0) > 0:
-                u.setdefault("ct", -float(u.get("spd", 0) or 0))
-                u["ct"] = float(u.get("ct", 0) or 0) - cost
         return logs
 
     def _instance_ct_queue(self, st: dict, group_id: int, limit: int = 8) -> str:
@@ -2889,7 +2880,8 @@ class InstanceCmds(CommandBase):
         # 敌方单位状态写回 st["enemies"]（按 uid 定位原单位；unit 本身即 st 对象，兜底同步）
         self._sync_enemy_unit(st, unit)
         st["e_buffs"] = unit.get("buffs") or {}
-        st["round"] = b.round
+        # v152 时刻制：round 删除，st["round"] 改为展示用行动轮次（_tick_no()）
+        st["round"] = b._tick_no()
         # 引擎可能召唤援军入 b.enemies（多怪整体 Battle 才生效；单怪 Battle 不产生）
         if b.enemies and any(str(u2.get("uid")) != str(unit.get("uid")) for u2 in b.enemies):
             exist = {str(u2.get("uid")) for u2 in st.get("enemies") or []}

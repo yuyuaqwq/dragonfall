@@ -303,8 +303,11 @@ def _pc_hp_high_70(battle, player, ps):
 
 @register_passive_cond("battle_start")
 def _pc_battle_start(battle, player, ps):
-    """战斗开始（首回合，战争咆哮）"""
-    return getattr(battle, "round", 1) <= 1
+    """战斗开始（首轮，战争咆哮）。v152 时刻制：round 删除，用 _tick_no()（行动轮次）<= 1。"""
+    try:
+        return battle._tick_no() <= 1
+    except Exception:
+        return True
 
 
 @register_passive_cond("hp_low_30")

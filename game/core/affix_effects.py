@@ -391,9 +391,9 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
         eff_chance = float(params.get("chance_alt", params.get("chance", 0.20)))
         if random.random() > eff_chance:
             return
-    # 每回合 1 次限制（qi_shi_charge）
+    # 每回合 1 次限制（qi_shi_charge）。v152 时刻制：round → _tick_no() 行动轮次
     if params.get("once_per_round"):
-        _turn = getattr(battle, "round", 0) or 0
+        _turn = battle._tick_no()
         if (battle.p_eff or {}).get("proc_used") == _turn:
             return
     pct = float(params.get("pct", 0.50))
@@ -423,7 +423,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
     if cd > 0:
         battle._damage_enemy(cd, logs)
         if params.get("once_per_round"):
-            battle.p_eff["proc_used"] = getattr(battle, "round", 0) or 0
+            battle.p_eff["proc_used"] = battle._tick_no()
         tag = params.get("tag", "⚔️")
         logs.append(f"{tag} {params.get('name', '追加伤害')}！追加 {cd} 点伤害！")
 
@@ -655,7 +655,7 @@ def _sp_counter(battle, player, dmg, logs, params: dict):
     if not battle.enemy.get("hp", 0) or battle.enemy.get("hp", 0) <= 0:
         return
     if params.get("once_per_round"):
-        _turn = getattr(battle, "round", 0) or 0
+        _turn = battle._tick_no()
         if (battle.p_eff or {}).get("counter_used") == _turn:
             return
         battle.p_eff["counter_used"] = _turn
@@ -800,7 +800,7 @@ def _taken_counter(battle, player, dmg, logs, params: dict):
     if not battle.enemy.get("hp", 0) or battle.enemy.get("hp", 0) <= 0:
         return
     if params.get("once_per_round"):
-        _turn = getattr(battle, "round", 0) or 0
+        _turn = battle._tick_no()
         if (battle.p_eff or {}).get("counter_used") == _turn:
             return
         battle.p_eff["counter_used"] = _turn
