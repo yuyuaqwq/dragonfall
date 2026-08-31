@@ -391,6 +391,7 @@ SUBAREAS = {
                 "npc_warrior_tutor",
                 "npc_mage_tutor",
                 "npc_priest_tutor",
+                "npc_bard_tutor",   # v153 诗人导师（第 7 职业）
                 'npc_deer_guard', 'npc_deer_bard',
             ],
             "monsters": [],
