@@ -27,30 +27,22 @@ def main():
     check("职业含基础技能表", isinstance(cls, dict), str(type(cls)))
 
     print("【data·角色族：技能】")
-    # v112 主题线制：13 隐藏 → 6 隐藏线；v112.3 诗人回归牧师攻线，PLAYER_SKILLS/BRANCH_SKILLS 各 12 职业
-    check("PLAYER_SKILLS 12 职业(6基础+6隐藏线)",
-          len(C.PLAYER_SKILLS) == 12 and C.PLAYER_SKILLS.get("cls_dragon_oath") is not None
-          and C.PLAYER_SKILLS.get("cls_chronomancer") is not None and C.PLAYER_SKILLS.get("cls_hymn") is not None,
+    # v151 职业重构：隐藏职业全删，PLAYER_SKILLS/BRANCH_SKILLS 各 6 职业
+    check("PLAYER_SKILLS 6 职业(6基础)",
+          len(C.PLAYER_SKILLS) == 6 and all(c in C.PLAYER_SKILLS for c in
+          ("cls_zhan_shi", "cls_fa_shi", "cls_you_xia", "cls_mu_shi", "cls_ci_ke", "cls_wu_seng")),
           str(len(C.PLAYER_SKILLS)))
     check("每职业有技能表", all(isinstance(v, dict) and len(v) > 0 for v in C.PLAYER_SKILLS.values()),
           str({k: len(v) for k, v in C.PLAYER_SKILLS.items()}))
-    check("BRANCH_SKILLS 12 职业(6基础攻守+6隐藏)", len(C.BRANCH_SKILLS) == 12, str(len(C.BRANCH_SKILLS)))
+    check("BRANCH_SKILLS 6 职业(6基础)", len(C.BRANCH_SKILLS) == 6, str(len(C.BRANCH_SKILLS)))
     check("每职业 3 分支（21 章三转体系 30/60/90）", all(len(v.get("branches", {})) == 3 for v in C.BRANCH_SKILLS.values()),
           str({k: len(v.get("branches", {})) for k, v in C.BRANCH_SKILLS.items()}))
-    check("隐藏线流派数(1-3，单流派线仅暗影神谕)", all(1 <= len(C.CLASSES[c].get("evolve_branches", {}).get(1, [])) <= 3
-                                    for c in C.CLASSES if C.CLASSES[c].get("hidden")),
-          str({c: C.CLASSES[c].get("evolve_branches", {}).get(1, []) for c in C.CLASSES if C.CLASSES[c].get("hidden")}))
-    check("隐藏线数据字段齐(aliases/lore/hint/tier_levels/attack_text/tutor)",
-          all(all(k in C.CLASSES[c] for k in ("aliases", "lore", "hint", "tier_levels", "attack_text", "tutor"))
-              for c in C.CLASSES if C.CLASSES[c].get("hidden")),
-          str({c: sorted(k for k in ("aliases", "lore", "hint", "tier_levels", "attack_text", "tutor")
-                         if k not in C.CLASSES[c]) for c in C.CLASSES if C.CLASSES[c].get("hidden")}))
-    check("核心资源 12 职业 + 3 副资源(共鸣/回声/圣律按 key 注册)", len(C.CORE_RESOURCES) == 15,
+    check("核心资源 6 职业 + 3 副资源(共鸣/回声/圣律按 key 注册)", len(C.CORE_RESOURCES) == 9,
           str({k: v.get("name") for k, v in C.CORE_RESOURCES.items()}))
-    sk = C.resolve("skills", "烈焰冲击")
-    check("resolve(skills, 烈焰冲击) 有值", bool(sk), str(sk))
+    sk = C.resolve("skills", "火球术")
+    check("resolve(skills, 火球术) 有值", bool(sk), str(sk))
     if sk:
-        check("display(skills, ID)→烈焰冲击", C.display("skills", sk) == "烈焰冲击", C.display("skills", sk))
+        check("display(skills, ID)→火球术", C.display("skills", sk) == "火球术", C.display("skills", sk))
 
     print("【data·角色族：符文】")
     check("RUNES 16 个符文", len(C.RUNES) >= 10, str(len(C.RUNES)))

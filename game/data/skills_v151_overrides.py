@@ -4,7 +4,7 @@
 来源：workspace/skills_v151_*.py（主 agent 归一化合并 + 分支重排 + 盾值补充）
 策略（鱼鱼拍板）：完全抛弃隐藏职业 + 旧技能；玩家旧技能重置返还技能点。
   PLAYER_SKILLS 整体替换；BRANCH_SKILLS 统一 3-key；分支技能 key 中文名。
-  v151 审计：shield 技能补 shield_val（盾值=matk×shield_val）。
+  v151 审计：shield 技能补 shield_val；刺客移回基础技能 key 用 sk_ ID。
 本模块由脚本生成，勿手改。
 """
 
@@ -359,7 +359,7 @@ _V151_PLAYER_SKILLS = {
              'cd': 3,
              'desc': '足尖点地，身影拖出残像掠向目标——速度＋40%，持续 3 回合（机动）',
              'name': '疾影'},
-            "淬毒": {'lv': 8,
+            "sk_cui_du": {'lv': 8,
              'mp': 5,
              'power': 0.8,
              'kind': '物理',
@@ -368,7 +368,7 @@ _V151_PLAYER_SKILLS = {
              'mech_gain': {'lian_duan': 0},
              'desc': '匕尖在幽绿毒液中浸过，再吻上猎物的咽喉——造成 80% 物理伤害并附加 1 层中毒',
              'name': '淬毒'},
-            "毒雾": {'lv': 16,
+            "sk_du_wu": {'lv': 16,
              'mp': 10,
              'power': 0.6,
              'kind': '魔法',
@@ -377,7 +377,7 @@ _V151_PLAYER_SKILLS = {
              'aoe': 'all',
              'desc': '掷出毒囊炸开一片幽绿雾气，腐蚀全场敌人的血肉——造成 60% 全体魔法伤害并附加 1 层中毒',
              'name': '毒雾'},
-            "死亡标记": {'lv': 20,
+            "sk_si_wang_biao_ji": {'lv': 20,
              'mp': 0,
              'power': 0,
              'kind': '增益',
