@@ -170,11 +170,25 @@ v152 方案：**结算引擎时刻制（内部无 round 无回合）**，交互�
 
 ## 五、验收标准（鱼鱼：所有跟回合有关的东西都要删掉）
 1. `grep -rn "round" game/` 无残留（`st["round"]`、`self.round`、`b.round` 全删，存档键也删）。
+   **当前状态**：battle.py `self.round`/`getattr(self,"round")` 全清零；instance.py `st["round"]` 仅剩展示用（= `_tick_no()` 行动轮次）+ 初始化占位；存档 `round` 键 → `now`。`round_acted` 已删。
 2. `grep -rn "回合" game/` 无残留（文案也删——不再说"第 N 回合"，改"时刻 T"或"你行动了"）。
-3. 全量回归通过（CTB 无关既有失败除外）。
-4. 模拟脚本产出标定结论（ACT_TICK/cast_time/换算系数）。
-5. 野外/世界 Boss/副本三条路径冒烟可用。
+   **当前状态**：约 470 处中文"回合"残留（battle.py 195 / potion_effects 70 / weapon_effects 56 / battle_mech 51...），
+   绝大多数是**展示文案**（"持续 3 回合"）和**数据字段名**（turns/max_turns/per_turn）。结算逻辑已全部时刻制。
+   **待鱼鱼拍板**：文案改成"刻/行动/息"哪种说法（clarify 超时未答）。
+3. 全量回归通过（CTB 无关既有失败除外）。**当前**：207/222 通过，15 失败（子 agent 适配中）。
+4. 模拟脚本产出标定结论（ACT_TICK/cast_time/换算系数）。**已产出**（scripts/sim_ctb_v152.py）：
+   - 行动频率实测比 vs 真实 spd 比偏差 < 11%（v152 事件队列保持速度频率等价）
+   - 行为时长：普攻 0.5 / 技能 0.8 / 道具 0.5 / 食物 0.5 / 防御 0.3 / 逃跑 1.0 × cost，p_ct 推进精确
+   - ACT_TICK = 2.0（BASE_DELAY/50）待最终复核
+5. 野外/世界 Boss/副本三条路径冒烟可用。**单机已验证**（完整战斗 victory）；副本待子 agent 测试绿后验证。
 
 ## 六、备注
 - 本设计文档是主 agent 分析的共享结论，子 agent 直接复用，勿重复全量读项目。
 - 涉及文件：`game/battle.py`（主）、`game/commands/instance.py`、`game/store/battle_state.py`、`game/commands/combat.py`、`game/commands/social.py`、`game/core/battle_mech.py`（Boss handler 的 round 参数）、`game/data/skills_v151_overrides.py`（技能 CD 字段，只读不改）、`tests/`。
+- **已提交进度**（git master）：
+  - 7e0e5b5 P1 引擎事件队列+行为时长+去回合化
+  - 57c30bc P2 副本绝对时刻化+特效CD时刻制+存档去round
+  - 4544f0a P3 敌方cast时长对称+频率标定
+  - ce283a0 P4 副本DOT闸门简化+去round残留
+  - 83f6030 P5 instance.py _ct_initial_wait 模块级调用
+  - 681ec89 P6 事件队列简化（只留 enemy_act 调度）
