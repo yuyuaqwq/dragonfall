@@ -3379,7 +3379,7 @@ TUTOR_SKILLS = {
             "lv": 6, "mp": 10, "power": 1.4, "kind": "魔法",
             "cd": 2,
             "desc": "召来圣光凝成惩戒之剑劈落——造成 140% 魔法伤害，对黑暗生物格外克制（导师秘传，CD 2）",
-            "name": "圣光惩戒",
+            "name": "圣光审判",
         },
         "sk_jiu_shu_zhi_guang": {
             "lv": 10, "mp": 15, "power": 1.5, "kind": "治疗",
@@ -3393,7 +3393,7 @@ TUTOR_SKILLS = {
             "lv": 10, "mp": 10, "power": 1.3, "kind": "物理",
             "mech": "poison", "mech_chance": 0.5, "cd": 3,
             "desc": "导师亲授的淬毒杀法，匕刃划过时毒液渗入伤口——造成 130% 物理伤害，50% 概率使目标中毒 2 回合",
-            "name": "淬毒之刃",
+            "name": "淬毒秘术",
         },
     },
     "cls_wu_seng": {
