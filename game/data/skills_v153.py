@@ -214,7 +214,7 @@ _V153_PLAYER_SKILLS = {
              'kind': '物理',
              'cast': 0.7,
              'hits': 2,
-             'focus_cost': 22,
+             'res_cost': {"energy": 22},
              'name': '连射',
              'desc': '弓弦连响，两箭破风而出——造成 76% 物理伤害×2'
             },
@@ -224,7 +224,7 @@ _V153_PLAYER_SKILLS = {
              'power': 0.87,
              'kind': '物理',
              'cast': 1.0,
-             'focus_cost': 28,
+             'res_cost': {"energy": 28},
              'name': '瞄准射击',
              'desc': '屏息凝神，箭尖直指要害——造成 87% 物理伤害'
             },
@@ -235,7 +235,7 @@ _V153_PLAYER_SKILLS = {
              'kind': '增益',
              'cast': 0.7,
              'cd': 12,
-             'focus_cost': 20,
+             'res_cost': {"energy": 20},
              'effect': 'crit_hit_buff',
              'name': '鹰眼锁定',
              'desc': '鹰瞳凝光，猎物破绽尽收眼底——自身暴击 +20%、命中 +15%，持续 10 刻'
@@ -249,7 +249,7 @@ _V153_PLAYER_SKILLS = {
              'cd': 12,
              'mech': 'spd_down',
              'mech_val': 40,
-             'focus_cost': 30,
+             'res_cost': {"energy": 30},
              'name': '猎网陷阱',
              'desc': '猎网铺开，荆棘缠住猎物双足——造成 87% 物理伤害，减速 40%，持续 6 刻'
             },
@@ -260,7 +260,7 @@ _V153_PLAYER_SKILLS = {
              'kind': '增益',
              'cast': 0.6,
              'cd': 8,
-             'focus_cost': 20,
+             'res_cost': {"energy": 20},
              'effect': 'spd_buff',
              'name': '风之疾走',
              'desc': '风元素缠绕足踝，身形化作林间掠影——速度 +30%，持续 8 刻，附带位移'
@@ -272,7 +272,7 @@ _V153_PLAYER_SKILLS = {
              'kind': '物理',
              'cast': 1.3,
              'cd': 12,
-             'focus_cost': 55,
+             'res_cost': {"energy": 55},
              'cond': {"type": "enemy_debuff", "mult": 1.3},
              'name': '致命狙击',
              'desc': '长弓满月，箭矢贯透要害——造成 102% 物理伤害，对异常状态目标伤害 ×1.3'
@@ -284,7 +284,7 @@ _V153_PLAYER_SKILLS = {
              'kind': '增益',
              'cast': 0.6,
              'cd': 16,
-             'focus_cost': 25,
+             'res_cost': {"energy": 25},
              'effect': 'dodge_buff',
              'name': '闪避步',
              'desc': '身影如叶随风偏转，险险避开锋芒——闪避 +30%，持续 6 刻'
@@ -298,7 +298,7 @@ _V153_PLAYER_SKILLS = {
              'cd': 8,
              'mech': 'hunt_mark',
              'mech_val': 1,
-             'focus_cost': 30,
+             'res_cost': {"energy": 30},
              'name': '猎印射击',
              'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 87% 物理伤害，挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
             },
@@ -1519,7 +1519,7 @@ _V153_BRANCH_SKILLS = {
                         'cd': 8,
                         'mech': 'hunt_mark',
                         'mech_val': 2,
-                        'focus_cost': 25,
+                        'res_cost': {"energy": 25},
                         'name': '森语印记',
                         'desc': '森林低语，印记深深烙上猎物之躯——挂猎印 2 层'
                     },
@@ -1530,7 +1530,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 0.8,
                         'cd': 8,
-                        'focus_cost': 30,
+                        'res_cost': {"energy": 30},
                         'cond': {"type": "enemy_hunt_mark", "mult": 1.25},
                         'name': '追猎',
                         'desc': '循着猎印的痕迹疾追而上——造成 91% 物理伤害，对猎印目标伤害 ×1.25'
@@ -1544,7 +1544,7 @@ _V153_BRANCH_SKILLS = {
                         'cd': 8,
                         'mech': 'poison',
                         'mech_val': 2,
-                        'focus_cost': 30,
+                        'res_cost': {"energy": 30},
                         'name': '淬毒箭',
                         'desc': '箭簇浸满幽绿毒液，破风而出——造成 91% 物理伤害，附加毒 2 层（可被荆棘爆引爆），持续 8 刻'
                     },
@@ -1557,7 +1557,7 @@ _V153_BRANCH_SKILLS = {
                         'cd': 12,
                         'mech': 'poison',
                         'mech_val': 2,
-                        'focus_cost': 40,
+                        'res_cost': {"energy": 40},
                         'mech2': 'stun',
                         'mech2_val': 1.5,
                         'name': '藤蔓缠绕',
@@ -1570,7 +1570,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '召唤',
                         'cast': 1.2,
                         'cd': 20,
-                        'focus_cost': 45,
+                        'res_cost': {"energy": 45},
                         'summon': 'vine_guard',
                         'name': '召唤藤蔓守卫',
                         'desc': '低吟森语，藤蔓交织成守卫之躯——召唤藤蔓守卫为你作战'
@@ -1583,7 +1583,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.2,
                         'cd': 12,
                         'mech': 'poison_burst',
-                        'focus_cost': 40,
+                        'res_cost': {"energy": 40},
                         'name': '荆棘爆',
                         'desc': '荆棘炸裂，毒液喷涌四溅——造成 84% 魔法伤害，引爆毒层，每层 +15% 伤害（5 层上限，最高 ×1.75）'
                     },
@@ -1595,7 +1595,7 @@ _V153_BRANCH_SKILLS = {
                         'power': 0.8,
                         'kind': '物理',
                         'cast': 0.6,
-                        'focus_cost': 25,
+                        'res_cost': {"energy": 25},
                         'cond': {"type": "speed_ratio", "ratio": 1.5, "mult": 1.3},
                         'name': '疾风射击',
                         'desc': '疾风裹挟箭矢，快过猎物的视线——造成 80% 物理伤害，速度比 ≥1.5 时伤害 ×1.3'
@@ -1608,7 +1608,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 0.8,
                         'cd': 8,
                         'hits': 2,
-                        'focus_cost': 35,
+                        'res_cost': {"energy": 35},
                         'name': '双重射击',
                         'desc': '双箭齐发，一弦二响破空——造成 96% 物理伤害×2'
                     },
@@ -1619,7 +1619,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.3,
                         'cd': 12,
-                        'focus_cost': 45,
+                        'res_cost': {"energy": 45},
                         'charge': 1.5,
                         'name': '蓄力射击',
                         'desc': '弓弦缓缓拉满，风压凝于箭尖——蓄力 1.5 刻，造成 120% 物理伤害，蓄力完成后 ×1.45'
@@ -1632,7 +1632,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 0.9,
                         'cd': 12,
                         'hits': 3,
-                        'focus_cost': 40,
+                        'res_cost': {"energy": 40},
                         'name': '风刃乱舞',
                         'desc': '三枚风刃割裂长空，纷乱斩落——造成 34% 物理伤害×3'
                     },
@@ -1643,7 +1643,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 0.7,
                         'cd': 16,
-                        'focus_cost': 30,
+                        'res_cost': {"energy": 30},
                         'effect': 'star_lock',
                         'name': '星轨锁定',
                         'desc': '星辉映照，猎物身形无所遁形——锁定目标无视站位，全队对其伤害 +12%，持续 12 刻'
@@ -1655,7 +1655,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 0.6,
                         'cd': 12,
-                        'focus_cost': 25,
+                        'res_cost': {"energy": 25},
                         'effect': 'spd_buff',
                         'name': '疾风步',
                         'desc': '足下生风，身形化作林间流影——速度 +40%，持续 6 刻'
@@ -1691,7 +1691,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.0,
                         'cd': 16,
-                        'focus_cost': 50,
+                        'res_cost': {"energy": 50},
                         'cond': {"type": "enemy_hunt_mark", "mult": 1.3},
                         'name': '猎杀狂宴',
                         'desc': '猎印绽放如血色盛宴，杀意沸腾——造成 118% 物理伤害，对猎印目标 ×1.3，全队暴击 +15% 持续 8 刻'
@@ -1713,7 +1713,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.3,
                         'cd': 12,
-                        'focus_cost': 45,
+                        'res_cost': {"energy": 45},
                         'cond': {"type": "enemy_hunt_full", "mult": 1.35},
                         'name': '穿心箭',
                         'desc': '箭矢循着猎印直贯心口——造成 138% 物理伤害，猎印满层时伤害 ×1.35'
@@ -1725,7 +1725,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 0.8,
                         'cd': 20,
-                        'focus_cost': 35,
+                        'res_cost': {"energy": 35},
                         'effect': 'dodge_reduce_all',
                         'name': '自然护佑',
                         'desc': '草木生灵环护周身，藤叶织成壁垒——全队闪避 +15%、减伤 10%，持续 12 刻'
@@ -1750,7 +1750,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 0.9,
                         'cd': 12,
                         'hits': 4,
-                        'focus_cost': 30,
+                        'res_cost': {"energy": 30},
                         'name': '急速射击',
                         'desc': '箭矢如连珠般倾泻而出——造成 29% 物理伤害×3，结余 ≥40 时改为四段'
                     },
@@ -1761,7 +1761,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.3,
                         'cd': 16,
-                        'focus_cost': 50,
+                        'res_cost': {"energy": 50},
                         'pierce': True,
                         'target': 'back',
                         'name': '穿云箭',
@@ -1774,7 +1774,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 0.7,
                         'cd': 20,
-                        'focus_cost': 30,
+                        'res_cost': {"energy": 30},
                         'effect': 'dodge_buff',
                         'name': '风之屏障',
                         'desc': '气流在身周凝成无形之壁——闪避 +40%，持续 6 刻'
@@ -1786,7 +1786,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.0,
                         'cd': 12,
-                        'focus_cost': 45,
+                        'res_cost': {"energy": 45},
                         'pierce': True,
                         'target': 'back',
                         'name': '穿甲射击',
@@ -1813,7 +1813,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 1.0,
                         'cd': 20,
-                        'focus_cost': 50,
+                        'res_cost': {"energy": 50},
                         'effect': 'hunt_team_dmg',
                         'name': '猎杀时刻',
                         'desc': '猎手本能觉醒，杀意笼罩全场——全队对猎印目标增伤 +30%，持续 12 刻'
@@ -1826,7 +1826,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.0,
                         'cd': 16,
                         'hits': 4,
-                        'focus_cost': 55,
+                        'res_cost': {"energy": 55},
                         'name': '致命连射',
                         'desc': '弓弦震颤如暴雨倾泻，箭矢连珠——造成 35% 物理伤害×4'
                     },
@@ -1837,7 +1837,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '召唤',
                         'cast': 1.2,
                         'cd': 24,
-                        'focus_cost': 60,
+                        'res_cost': {"energy": 60},
                         'summon': 'treant',
                         'name': '召唤古树守卫',
                         'desc': '大地震颤，古树拔地而起，枝干化作巨臂——召唤古树守卫为你作战'
@@ -1849,7 +1849,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.3,
                         'cd': 20,
-                        'focus_cost': 60,
+                        'res_cost': {"energy": 60},
                         'kill': {"hunt_full": True, "poison": 5, "hp_lt": 0.25},
                         'name': '死神之箭',
                         'desc': '死神凝视，索命之箭离弦而出——造成 195% 物理伤害，猎印满层且毒层 ≥5 时，斩杀生命 <25% 的目标'
@@ -1873,7 +1873,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '增益',
                         'cast': 1.0,
                         'cd': 24,
-                        'focus_cost': 50,
+                        'res_cost': {"energy": 50},
                         'effect': 'spd_all',
                         'name': '风神降临',
                         'desc': '风神之翼展开，天地为之呼啸——全队速度 +30%，持续 8 刻'
@@ -1886,7 +1886,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.0,
                         'cd': 16,
                         'hits': 4,
-                        'focus_cost': 55,
+                        'res_cost': {"energy": 55},
                         'name': '风暴之舞',
                         'desc': '身形旋舞，箭矢如风暴席卷——造成 35% 物理伤害×4'
                     },
@@ -1898,7 +1898,7 @@ _V153_BRANCH_SKILLS = {
                         'cast': 1.0,
                         'cd': 20,
                         'hits': 4,
-                        'focus_cost': 60,
+                        'res_cost': {"energy": 60},
                         'name': '疾风骤雨',
                         'desc': '箭雨如骤，风势愈烈，杀机愈盛——造成 35% 物理伤害×4，结余 ≥40 时暴击 +25%'
                     },
@@ -1919,7 +1919,7 @@ _V153_BRANCH_SKILLS = {
                         'kind': '物理',
                         'cast': 1.3,
                         'cd': 24,
-                        'focus_cost': 70,
+                        'res_cost': {"energy": 70},
                         'pierce': True,
                         'accuracy': 'true',
                         'crit': 'true',

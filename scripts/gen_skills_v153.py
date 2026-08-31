@@ -493,7 +493,8 @@ for cls, tiers in data.items():
                 info[k] = v
             # 职业专属字段
             if "专注" in sk and sk["专注"] not in ("—", ""):
-                info["focus_cost"] = int(parse_num(sk["专注"], 0))
+                # v153：游侠专注消耗 → 引擎 res_cost.energy（focus_cost 是设计字段，引擎消费 res_cost）
+                info["res_cost"] = {"energy": int(parse_num(sk["专注"], 0))}
             if "信念" in sk and sk["信念"] not in ("—", ""):
                 info["faith"] = int(parse_num(sk["信念"], 0))
             if "推条" in sk and sk["推条"] not in ("—", ""):
@@ -514,7 +515,7 @@ def fmt_info(info: dict, indent: str = "             ") -> str:
     """格式化技能 dict（对齐 v151 紧凑格式）"""
     parts = []
     order = ["lv", "mp", "power", "kind", "cast", "cd", "hits", "mech", "mech_val",
-             "shaken_gain", "focus_cost", "faith", "effect", "cond", "aoe", "pierce",
+             "shaken_gain", "res_cost", "faith", "effect", "cond", "aoe", "pierce",
              "lifesteal", "summon", "passive", "stance", "auto", "charge", "accuracy",
              "crit", "target", "kill", "no_mp", "kind_override", "mech2", "mech2_val",
              "melody", "finale", "sleep", "TODO_ENGINE", "name", "desc"]
