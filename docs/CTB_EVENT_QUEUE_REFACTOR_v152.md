@@ -185,6 +185,26 @@ v152 方案：**结算引擎时刻制（内部无 round 无回合）**，交互�
 ## 六、备注
 - 本设计文档是主 agent 分析的共享结论，子 agent 直接复用，勿重复全量读项目。
 - 涉及文件：`game/battle.py`（主）、`game/commands/instance.py`、`game/store/battle_state.py`、`game/commands/combat.py`、`game/commands/social.py`、`game/core/battle_mech.py`（Boss handler 的 round 参数）、`game/data/skills_v151_overrides.py`（技能 CD 字段，只读不改）、`tests/`。
+
+## 七、P11 追加：行动耗时模型 + 数据驱动动作时长（鱼鱼拍板 2026-08-31）
+
+### 1. 行动耗时模型（鱼鱼拍板：总耗时 = 速度间隔 + 固定动作耗时）
+- **旧模型（已推翻）**：总耗时 = 行动间隔 × cast_mult 系数（速度既影响频率又影响动作耗时，快上加快/慢上加慢）
+- **新模型（鱼鱼拍板）**：总耗时 = 行动间隔（100/spd，速度决定恢复等待）+ 固定动作耗时
+  - 速度只影响"恢复等待"（间隔），动作本身耗时固定（挥剑就是 1 秒，不因敏捷变 0.1 秒）
+  - 动作耗时稀释极端速度差：spd300 打 spd5 不再 60:1 吊打（防碾压）
+- **BASE_DELAY = 40.0**（原 100）：标定后普通怪战斗 ~49s（60s 内紧凑），旧 100 拖到 113s
+- **ACT_TICK = 1.0**：1 刻 = 1 游戏秒（鱼鱼拍板对齐秒，玩家直观）
+- **标定**（scripts/sim_ctb_v152.py）：频率比 = (BASE_DELAY/e_spd + CAST_ATK)/(BASE_DELAY/p_spd + CAST_ATK)，全场景偏差 <10%
+
+### 2. 数据驱动动作时长（_action_cast）
+- 优先级：技能/职业/道具数据字段 > 全局默认 CAST_* 常量
+- **技能**：skill.cast（前摇）+ skill.recovery（后摇，默认 0，未来扩展）——加到生效表 skills_v151_overrides.py（v151 整体覆盖 PLAYER_SKILLS，加在 skills.py 无效）
+- **职业普攻/防御/逃跑**：class.cast_atk / cast_defend / cast_flee + recovery_*（classes.py 顶层字段）
+- **道具**：payload 内嵌 cast:N / recovery:N（_item_payload_cast 解析，默认食物 1.0/道具 1.0）
+- **默认值**：普攻 1.0 / 技能 1.6 / 道具 1.0 / 食物 1.0 / 防御 0.6 / 逃跑 2.0
+- **数据示例**：战士重剑普攻 1.4s、刺客匕首 0.7s、火球术 1.8s 读条、冰锥默认 1.6s
+- **已提交**：6fee5ca（行动耗时模型）+ 54b9bb9（数据驱动动作时长）
 - **已提交进度**（git master）：
   - 7e0e5b5 P1 引擎事件队列+行为时长+去回合化
   - 57c30bc P2 副本绝对时刻化+特效CD时刻制+存档去round
