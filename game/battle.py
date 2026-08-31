@@ -4236,6 +4236,11 @@ class Battle:
         # ---- 分支机制结算（v29） ----
         self._last_player = player
         self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # v153：mech2 第二机制（如冰锥 mech=ice_mark + mech2=spd_down 减速）——独立结算
+        _mech2 = info.get("mech2")
+        if _mech2:
+            _m2val = int(info.get("mech2_val", 0) or 0) or 1
+            self._apply_mech_effect(_mech2, _m2val, p_mech, total, logs, skill_name, is_crit, info)
         # v63 额外控制效果（cc 字段，独立于 mech 叠层）：眩晕/沉默/净化
         # v125.2 B1：cc 白名单查表 SKILL_CC_WHITELIST
         cc = info.get("cc")
