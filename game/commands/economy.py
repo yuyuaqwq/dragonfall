@@ -5049,6 +5049,10 @@ class EconomyCmds(CommandBase):
                 # v101.27 #416 延续：mana 药水回蓝统一由 _do_use_item 应用（payload="mana:N"，
                 # 快照 st[players] 即 player_turn 传入的 player），模板不再直接改快照
                 payload = r.payload if r.payload is not None else "0"
+                # v152 数据驱动动作时长：道具 cast 内嵌 payload（_item_payload_cast 解析）
+                _it_cast = d.get("cast")
+                if _it_cast:
+                    payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
                 async for _r in self._instance_act(event, group_id, qq_id, player, battle["state"], "use_item", payload):
                     yield _r
                 return
@@ -5082,6 +5086,10 @@ class EconomyCmds(CommandBase):
             # 战斗内 mana 由模板算 payload（"mana:N"/"hm:hp,mp"）交 battle.player_turn
             # 的 _do_use_item 应用（v101.27/v104R3 M16 P2-3），模板不再直接改快照
             payload = r.payload if r.payload is not None else "0"
+            # v152 数据驱动动作时长：道具 cast 内嵌 payload（_item_payload_cast 解析）
+            _it_cast = d.get("cast")
+            if _it_cast:
+                payload = f"{payload};cast:{_it_cast}" if payload else f"cast:{_it_cast}"
             logs, ended = b.player_turn("use_item", payload, player)
             db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"],
                              max_hp=player["max_hp"], max_mp=player["max_mp"])
