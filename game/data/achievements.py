@@ -242,34 +242,6 @@ ACHIEVEMENTS = [
      "desc": "钓到传说收藏鱼虹彩龙鲤", "cond": {"type": "collect_fish", "key": "mat_rainbow_kite"}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 1}}, "points": 2},
     {"id": "ach_wish_met", "cat": "隐藏", "name": "流星祈愿者", "title": "流星祈愿者",
      "desc": "触发流星许愿并选择任一祝福", "cond": {"type": "wish_met"}, "reward": {"items": {"i_chest_iron": 1}}, "points": 2},
-    # v112 职业体系重构：隐藏职业成就改 6 新线（原 吟游诗人/魔剑士 成就随线合并）
-    # v112.3：诗人回归牧师攻线，删除诗人独立成就；v112.5：奥秘线降为基础守线，成就换时咒法师
-    {"id": "ach_dragon_unlock", "cat": "隐藏", "name": "龙裔誓约", "title": "龙裔誓约",
-     "desc": "解锁隐藏职业「龙裔誓约」", "cond": {"type": "hidden_class", "key": "cls_dragon_oath"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    {"id": "ach_chrono_unlock", "cat": "隐藏", "name": "时咒法师", "title": "时咒法师",
-     "desc": "解锁隐藏职业「时咒法师」", "cond": {"type": "hidden_class", "key": "cls_chronomancer"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    {"id": "ach_wild_unlock", "cat": "隐藏", "name": "星语者", "title": "星语者",
-     "desc": "解锁隐藏职业「星语者」", "cond": {"type": "hidden_class", "key": "cls_wild_hunter"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    {"id": "ach_shadow_unlock", "cat": "隐藏", "name": "暗影神谕", "title": "暗影神谕",
-     "desc": "解锁隐藏职业「暗影神谕」", "cond": {"type": "hidden_class", "key": "cls_hymn"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    {"id": "ach_shadow_blade_unlock", "cat": "隐藏", "name": "暮影行者", "title": "暮影行者",
-     "desc": "解锁隐藏职业「暮影行者」", "cond": {"type": "hidden_class", "key": "cls_shadow_blade"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    {"id": "ach_wu_sheng_unlock", "cat": "隐藏", "name": "淬势者", "title": "淬势者",
-     # v130.2f.2 苦修改名收尾：成就名/称号/desc 随档位展示名（苦修士→淬势者）；cond 按 key 判定不受影响
-     "desc": "解锁隐藏职业「淬势者」", "cond": {"type": "hidden_class", "key": "cls_wu_sheng"}, "reward": {"items": {"mat_shen_yuan_jing_gang": 2, "i_chest_iron": 1}}, "points": 2},
-    # v113：补齐 5 条隐藏线的 90 级满级成就（暗影神谕 ach_shadow_master 不重复）
-    {"id": "ach_dragon_master", "cat": "隐藏", "name": "龙魂战将", "title": "龙魂战将",
-     "desc": "隐藏职业龙裔誓约达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_dragon_oath", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
-    {"id": "ach_chrono_master", "cat": "隐藏", "name": "时间领主", "title": "时间领主",
-     "desc": "隐藏职业时咒法师达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_chronomancer", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
-    {"id": "ach_wild_master", "cat": "隐藏", "name": "命运编织者", "title": "命运编织者",
-     "desc": "隐藏职业星语者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wild_hunter", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
-    {"id": "ach_shadow_blade_master", "cat": "隐藏", "name": "暮影收割者", "title": "暮影收割者",
-     "desc": "隐藏职业暮影行者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_shadow_blade", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
-    {"id": "ach_wu_sheng_master", "cat": "隐藏", "name": "撼岳者", "title": "撼岳者",
-     "desc": "隐藏职业淬势者达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_wu_sheng", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
-    {"id": "ach_shadow_master", "cat": "隐藏", "name": "黯灵主教", "title": "黯灵主教",
-     "desc": "隐藏职业暗影神谕达到 90 级", "cond": {"type": "hidden_class_lv", "key": "cls_hymn", "value": 90}, "reward": {"items": {"i_chest_mithril": 1, "mat_tu_zhi_can_ye": 3}}, "points": 2},
 
 
     {"id": "ach_collect_moon", "cat": "隐藏", "name": "夜钓月华", "title": "月夜守望者",

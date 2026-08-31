@@ -218,9 +218,7 @@ WILD_NPCS = {
         "teach_skills": {
             "cls_zhan_shi": "战争践踏", "cls_fa_shi": "元素爆发", "cls_you_xia": "林语印记",
             "cls_mu_shi": "圣光惩击", "cls_ci_ke": "淬毒", "cls_wu_seng": "破晓之拳",
-            "cls_dragon_oath": "龙息", "cls_chronomancer": "时滞术", "cls_wild_hunter": "星陨",
-            "cls_hymn": "战歌", "cls_shadow_blade": "幽影袭", "cls_wu_sheng": "裂岩冲",
-        },
+            },
     },
     "w_bone_collector": {
         "name": "拾骨人·白骸", "icon": "🦴", "map": "bone_wild",
@@ -254,9 +252,7 @@ WILD_NPCS = {
         "teach_skills": {
             "cls_zhan_shi": "铁壁之心", "cls_fa_shi": "元素护盾", "cls_you_xia": "风行步",
             "cls_mu_shi": "神圣坚韧", "cls_ci_ke": "影袭", "cls_wu_seng": "磐石体",
-            "cls_dragon_oath": "龙鳞", "cls_chronomancer": "时间裂隙", "cls_wild_hunter": "占卜",
-            "cls_hymn": "英雄叙事诗", "cls_shadow_blade": "暗影步", "cls_wu_sheng": "势蓄连打",
-        },
+            },
     },
     # ---- 2.6 外域·无尽海（Lv.55-78）----
     "w_lighthouse_old": {
@@ -438,9 +434,7 @@ HIDDEN_NPCS = {
         "teach_skills": {
             "cls_zhan_shi": "无畏冲击", "cls_fa_shi": "冰霜新星", "cls_you_xia": "狩猎终章",
             "cls_mu_shi": "圣光驱散", "cls_ci_ke": "暗影处刑", "cls_wu_seng": "连招三连",
-            "cls_dragon_oath": "龙威", "cls_chronomancer": "凝时锁", "cls_wild_hunter": "命运之轮",
-            "cls_hymn": "哀歌", "cls_shadow_blade": "幽影连刺", "cls_wu_sheng": "蓄劲连打",
-        },
+            },
     },
     "h_moon_wolf_king": {
         "name": "月狼王·白夜", "icon": "🐺", "map": "silverwood",

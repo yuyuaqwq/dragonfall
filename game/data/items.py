@@ -2781,18 +2781,12 @@ ITEMS.update({
     "i_tome_du_bao": {"name": "毒爆术技能书", "price": 4500, "type": "消耗品",
                       "learn_skill": "毒爆术", "require_class": "cls_you_xia",
                       "desc": "浸着草汁的旧册——游侠一脉皆可参悟，毒层引爆"},
-    "i_tome_ku_lou_hai": {"name": "骷髅海技能书", "price": 5000, "type": "消耗品",
-                          "learn_skill": "骷髅海", "require_class": "cls_hymn",
-                          "desc": "缝着骨片的祷文卷——暗影一脉皆可参悟，不选暗影流派也能召唤骷髅海"},
     "i_tome_an_mian_qu": {"name": "安眠曲技能书", "price": 4500, "type": "消耗品",
                           "learn_skill": "安眠曲", "require_class": "cls_mu_shi",
                           "desc": "记着古老摇篮曲的乐谱——牧师一脉皆可参悟，歌声使人安眠"},
     "i_tome_shou_ge": {"name": "收割技能书", "price": 5000, "type": "消耗品",
                        "learn_skill": "收割", "require_class": "cls_ci_ke",
                        "desc": "染着暗红墨迹的薄册——刺客一脉皆可参悟，斩杀残血"},
-    "i_tome_qi_bao": {"name": "气爆技能书", "price": 5000, "type": "消耗品",
-                      "learn_skill": "气爆", "require_class": "cls_wu_sheng",
-                      "desc": "拳谱残页——苦修一脉皆可参悟，引爆气力"},
 })
 
 # ================= 21 份支线设计稿新增奖励物品：消耗品/纪念品（2026-08-16 批量登记） =================
@@ -2914,10 +2908,6 @@ ITEMS.update({
     "i_affinity_draught": {"name": "元素亲和药剂", "price": 120, "type": "消耗品",
                            "effect": "mana_cost_down", "effect_data": {"pct": 0.1, "turns": 3},
                            "desc": "战斗中使用，3 回合内 技能魔力消耗 - 10%（基础法师纯蓝减耗，蓝量管理即节奏锚点；攻线转职后同时提供充能获取 + 1）(精良，附魔台 / 药剂商店)"},
-    "i_time_hourglass": {"name": "时之沙漏", "price": 450, "type": "消耗品",
-                         "effect": "restore_resource", "effect_data": {"key": "time_sand", "amount": 2},
-                         "require_class": "cls_chronomancer",
-                         "desc": "战斗中使用，立即回复 2 点时之沙（时咒线专属，其余职业使用无效；沙漏倒转，时间的节拍加速）(史诗，时光试炼奖励 / 时光裂隙副本)"},
     # ---- 游侠线（精力 energy，max 100，自然回 30）----
     "i_vitality_draught": {"name": "活力原浆", "price": 60, "type": "消耗品",
                            "effect": "restore_resource", "effect_data": {"key": "energy", "amount": 40},

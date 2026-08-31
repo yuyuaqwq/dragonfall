@@ -3068,9 +3068,6 @@ class CombatCmds(CommandBase):
     # 双形态职业 → 形态名（与 classes.py dual_form.form 对齐）
     _DF139_CLASS_FORMS = {
         "cls_zhan_shi": ("狂暴", "fury"),
-        "cls_dragon_oath": ("龙焰", "drake"),
-        "cls_shadow_blade": ("影舞", "shadow"),
-        "cls_wu_sheng": ("蓄势", "gather"),
     }
     # 刺客终结阈值四档（classes.py finisher_threshold.options）
     _FINISHER139_OPTIONS = ("快刀", "满刃", "残血", "满段")

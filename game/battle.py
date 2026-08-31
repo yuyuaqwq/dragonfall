@@ -27,9 +27,9 @@ from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径
     ELEMENT_MARKS_MAX, REACTION_TABLE, ELEMENT_MARK_GAIN_PER_HIT,
     ELEMENT_SAME_CAST_EXTRA_CHARGE, RAGE_GAIN_HP_SCALE, ENERGY_HIGH,
     COMBO_CFG, ASSASSIN_ON_CRIT_GAIN, ASSASSIN_ON_TAKE_HIT_PENALTY,
-    MOMENTUM_CFG, ZEN_HOLD_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
+    MOMENTUM_CFG, SHADOW_STEP_CFG, SHADOW_STEALTH_DMG_MULT,
         ECHO_CFG, BARD_BRANCHES,
-        BRANCH_RESOURCE_OVERRIDE, HUNT_MARK_ON_LAND_HIT, HUNT_MARK_CRIT_EXTRA,
+        BRANCH_RESOURCE_OVERRIDE,
         LUCKY_CRIT_CHANCE, LUCKY_CRIT_MULT, MULTI_HIT_CRIT_FIRST_ONLY,  # v133 峰值红线
     )
 from .core.battle_conds import PASSIVE_COND_CHECKS, PASSIVE_COND_STAT_KEYS, passive_cond_ok  # v1.x 被动条件注册表
@@ -1255,17 +1255,10 @@ class Battle:
                 break
         return 1.0 + min(chi, cap) * per
 
-    # —— 苦修士·武僧：禅意持有加伤（每 1 禅意 物理伤害 +4%，满 +40%）——
+    # —— 苦修士·武僧：禅意持有加伤（v151 隐藏职业删除：cls_wu_sheng 已移除）——
     def _zen_hold_mult(self, player: dict) -> float:
-        """禅意持有加伤倍率。仅苦修士武僧线（cls_wu_sheng evolve_path=1）吃到；消耗倾泻后自然回落。
-        与拳师蓄势 _momentum_mult 同型（读当前持有 zen，封顶 cap_zen；monk.md §5.2 承诺落地）。"""
-        cls = player.get("class_name", "")
-        if not (cls == "cls_wu_sheng" and self._is_path(player, 1)):
-            return 1.0
-        zen = int(self.resources.get("zen", 0) or 0)
-        cap = int(ZEN_HOLD_CFG.get("cap_zen", 10) or 10)
-        per = float(ZEN_HOLD_CFG.get("per_zen", 0.04) or 0.04)
-        return 1.0 + min(zen, cap) * per
+        """v151 隐藏职业删除：禅意持有加伤（原 cls_wu_sheng 专属）恒 1.0"""
+        return 1.0
 
     # —— 游侠守线·风行者：满弦状态（精力 ≥80 时 低耗/连射技能 暴击率 +10%）——
     def _energy_high_crit(self, player: dict, info: dict | None = None) -> bool:
@@ -2678,9 +2671,7 @@ class Battle:
         for _pn, _ps in pm["proc"].get("attack_res", []):
             if k == _ps.get("res", "faith") and _ps.get("gain"):
                 gain += int(_ps.get("gain", 0))
-        # v130.2 星语猎印：命中才攒——普攻命中再按 on_hit（任意命中追加）+1
-        if cls in HUNT_MARK_ON_LAND_HIT and rd.get("on_hit"):
-            gain += int(rd["on_hit"])
+        # v151 隐藏职业删除：星语猎印 on_hit 追加逻辑已移除
         if gain:
             self.resources[k] = self._res_gain_class(cls, k, gain)
         # v130.2 暴击命中结算挂点（on_crit：暮影影步 / 刺客攻线连击点 / 星语猎印暴击额外）
@@ -2729,10 +2720,8 @@ class Battle:
         # （歌者治疗走分支挂载 res_gain，见 v130.2 双资源口径；engine 不得给歌者双计数）。
         if info and info.get("kind") == "治疗" and rd.get("on_heal") and k in act_keys:
             gain += int(rd["on_heal"])
-        # v130.2 星语猎印：技能命中再按 on_hit（任意命中追加）+1
+        # v151 隐藏职业删除：星语猎印技能命中追加逻辑已移除（on_skill_extra 恒 0）
         on_skill_extra = 0
-        if cls in HUNT_MARK_ON_LAND_HIT and rd.get("on_hit"):
-            on_skill_extra = int(rd["on_hit"])
         # v130.2f2（T7 P1-2/P1-3）：被动加成并入技能命中渠道——战争咆哮 res_gain_bonus
         # 「怒气全渠道+1」/ 魔力贯穿 attack_res「施法命中+1沙」在施法命中时也生效。
         # 叠加语义：与技能自带 res_gain 累加（同一获取源不重复）；终结技早返回（2311 附近）在前，
@@ -2793,10 +2782,7 @@ class Battle:
         elif cls == "cls_ci_ke" and self._is_path(player, 1):
             self.resources[k] = E.core_resource_gain(cls, self.resources, ASSASSIN_ON_CRIT_GAIN)
             proc_ok = True
-        # 星语猎印：暴击额外 +1（crit_mark）
-        if cls in HUNT_MARK_ON_LAND_HIT and HUNT_MARK_CRIT_EXTRA:
-            self.resources[k] = E.core_resource_gain(cls, self.resources, HUNT_MARK_CRIT_EXTRA)
-            proc_ok = True
+        # v151 隐藏职业删除：星语猎印暴击额外（crit_mark）已移除
         return proc_ok
 
     def _assassin_finisher_refund(self, player: dict, logs: list):
@@ -6143,10 +6129,8 @@ class Battle:
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
-        # v130.2 P1-5：on_hit 双语义解耦——星语猎手 on_hit 是「任意命中」语义（ranger.md §3.1(b)），
-        # 受击不得按旧钩子当「受击回资源」读（白名单 HUNT_MARK_ON_LAND_HIT，数据驱动非硬编码）：
-        # 猎印只有命中才攒（普攻/技能走 _resource_on_attack/_resource_on_skill），无受击渠道。
-        if rd and rd.get("on_hit") and cls not in HUNT_MARK_ON_LAND_HIT:
+        # v151 隐藏职业删除：星语猎印 on_hit 双语义解耦白名单已移除（受击按 on_hit 正常读）
+        if rd and rd.get("on_hit"):
             k = rd["key"]
             gain = int(rd["on_hit"])
             # v130.2 战士血债怒火（攻线·狂战士 T1）：受击回怒 = 1 + ⌊缺失HP%×4⌋，封顶 5
@@ -6164,11 +6148,7 @@ class Battle:
             logs.append(f"⚡ 沸腾战血：受击额外资源 +{_amp_th}！")
         # v130.2c 资源词条：受击（浴血 怒气/虔诚护符 信仰/磐息 气 +1；残血灼薪 血量条件判定）
         self._affix_res_proc(player, "on_taken", logs)
-        # v130.2 暮影影步：受击清空全部（全额惩罚，assassin.md §5.2）——on_hit=0 不列 base 分支，单独处理
-        if cls == "cls_shadow_blade" and rd:
-            if int(self.resources.get(rd["key"], 0) or 0) > 0:
-                self.resources[rd["key"]] = 0
-                logs.append("🫧 受击！影步清空")
+        # v151 隐藏职业删除：暮影影步受击清空（原 cls_shadow_blade 专属）已移除
         # v130.2 刺客攻线·影舞者：受击回退 -1 连击点 + 连段归零（高风险高回报，assassin_转职 §1.0）
         if cls == "cls_ci_ke" and self._is_path(player, 1):
             _pen = int(ASSASSIN_ON_TAKE_HIT_PENALTY or 0)
