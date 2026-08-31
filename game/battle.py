@@ -14,6 +14,7 @@ btype:
   - pvp       : 玩家对战（v9.2 启用，不可逃跑，enemy 为对方玩家快照）
 """
 import random
+import re
 import time
 
 from . import content as C
@@ -1481,6 +1482,51 @@ class Battle:
             eff = 0.0
         return BASE_DELAY / max(1.0, eff)
 
+    def _action_cast(self, kind: str, player: dict | None = None, skill: dict | None = None,
+                     item: dict | None = None, skill_name: str | None = None) -> float:
+        """v152 数据驱动动作时长：返回总动作耗时（前摇 + 后摇）。
+
+        优先级：技能/职业/道具数据字段 > 全局默认常量（CAST_*）。
+        kind: 'atk'|'skill'|'item'|'food'|'defend'|'flee'
+        - skill:   skill.cast（前摇）+ skill.recovery（后摇，默认 0）；skill_name 传入时自查技能表
+        - 职业普攻: class.cast_atk + class.recovery_atk（classes.py 顶层字段）
+        - 职业防御: class.cast_defend + class.recovery_defend
+        - 职业逃跑: class.cast_flee + class.recovery_flee
+        - 道具:    item.cast + item.recovery
+        - 兜底:    全局 CAST_* 常量（普攻 1.0/技能 1.6/道具 1.0/食物 1.0/防御 0.6/逃跑 2.0）
+        未来扩展：后摇 recovery 字段已预留（默认 0，不填无影响）。
+        """
+        _cast = _recovery = 0.0
+        if kind == "skill":
+            if not skill and skill_name and player:
+                skill = E.skill_info(player.get("class_name", ""), skill_name) or {}
+            if skill:
+                _cast = float(skill.get("cast", 0) or 0)
+                _recovery = float(skill.get("recovery", 0) or 0)
+        elif kind == "atk" and player:
+            _cls = (C.CLASSES or {}).get(player.get("class_name", ""), {})
+            _cast = float(_cls.get("cast_atk", 0) or 0)
+            _recovery = float(_cls.get("recovery_atk", 0) or 0)
+        elif kind == "defend" and player:
+            _cls = (C.CLASSES or {}).get(player.get("class_name", ""), {})
+            _cast = float(_cls.get("cast_defend", 0) or 0)
+            _recovery = float(_cls.get("recovery_defend", 0) or 0)
+        elif kind == "flee" and player:
+            _cls = (C.CLASSES or {}).get(player.get("class_name", ""), {})
+            _cast = float(_cls.get("cast_flee", 0) or 0)
+            _recovery = float(_cls.get("recovery_flee", 0) or 0)
+        elif kind == "item" and item:
+            _cast = float(item.get("cast", 0) or 0)
+            _recovery = float(item.get("recovery", 0) or 0)
+        elif kind == "food" and item:
+            _cast = float(item.get("cast", 0) or 0)
+            _recovery = float(item.get("recovery", 0) or 0)
+        # 兜底：数据字段缺失 → 全局默认（不填 = 旧行为）
+        if _cast <= 0:
+            _cast = {"atk": CAST_ATK, "skill": CAST_SKILL, "item": CAST_ITEM,
+                     "food": CAST_FOOD, "defend": CAST_DEFEND, "flee": CAST_FLEE}.get(kind, 1.0)
+        return _cast + _recovery
+
     def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None, cast_mult: float = 1.0):
         """v152 真·事件队列：行动者 next_act_at = now + 总耗时（绝对时刻，不互相减）。
         兼容壳：保留函数名（大量外部调用）。side="p"：玩家行动完；side="e"：敌方单位行动完。
@@ -1749,9 +1795,12 @@ class Battle:
             self._active_target = None
 
         if action == "defend":
-            return self._do_defend(player, logs, enemy_act, cast_mult=CAST_DEFEND)
+            # v152 数据驱动：防御动作时长 = 职业 cast_defend（默认 CAST_DEFEND）
+            return self._do_defend(player, logs, enemy_act,
+                                   cast_mult=self._action_cast("defend", player=player))
         if action == "flee":
-            return self._do_flee(player, logs, cast_mult=CAST_FLEE)
+            # v152 数据驱动：逃跑动作时长 = 职业 cast_flee（默认 CAST_FLEE）
+            return self._do_flee(player, logs, cast_mult=self._action_cast("flee", player=player))
         if action == "use_item":
             logs += self._do_use_item(skill_name or "", player)
             if self._enemy_dead():
@@ -1759,8 +1808,8 @@ class Battle:
                 self._end_round()
                 return logs, True
             # v152：使用道具也是玩家行为，有行为时长（吃药有时长，鱼鱼明确要求）
-            # 道具 cast_mult：食物（hot/foodfx）用 CAST_FOOD，普通道具用 CAST_ITEM
-            _cast_mult = CAST_FOOD if (skill_name or "").startswith(("foodfx:", "hot:")) else CAST_ITEM
+            # 道具 cast：payload 内嵌 cast:N 则用 N（自定义字段），否则食物/普通道具用全局默认
+            _cast_mult = self._item_payload_cast(skill_name or "")
             if self.btype != "pvp":
                 self._after_actor_ct("p", player=player, cast_mult=_cast_mult)
             return self._enemy_phase(player, logs, enemy_act)
@@ -1770,10 +1819,12 @@ class Battle:
             logs += self._do_player_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
             # v116.1 pv_broken：记录玩家本刻用了技能，敌方 _boss_mech 据此决定反扑
             self._player_recent_skill = True
-            _cast_mult = CAST_SKILL
+            # v152 数据驱动：技能动作时长 = 技能自己的 cast + recovery（默认 CAST_SKILL）
+            _cast_mult = self._action_cast("skill", player=player, skill_name=skill_name)
         else:
             logs += self._player_attack(st, player)
-            _cast_mult = CAST_ATK
+            # v152 数据驱动：普攻动作时长 = 职业 cast_atk + recovery_atk（默认 CAST_ATK）
+            _cast_mult = self._action_cast("atk", player=player)
 
         if self._enemy_dead():
             self.result = "victory"
@@ -2347,6 +2398,20 @@ class Battle:
         return logs
 
     # ---------------- 防御 / 逃跑 ----------------
+    def _item_payload_cast(self, payload: str) -> float:
+        """v152 道具动作时长：payload 内嵌 cast:N 则用 N（自定义字段），否则默认。
+        默认：食物（foodfx/hot）CAST_FOOD=1.0，普通道具 CAST_ITEM=1.0。
+        未来扩展：道具模板生成 payload 时带 cast:1.2 即可自定义（recovery 同理 recovery:0.5）。
+        """
+        _m = re.search(r"(?:^|[;&,])\s*cast:([\d.]+)", payload or "")
+        if _m:
+            return float(_m.group(1))
+        _m = re.search(r"(?:^|[;&,])\s*recovery:([\d.]+)", payload or "")
+        _rec = float(_m.group(1)) if _m else 0.0
+        if (payload or "").startswith(("foodfx:", "hot:")):
+            return CAST_FOOD + _rec
+        return CAST_ITEM + _rec
+
     def _do_defend(self, player: dict, logs: list, enemy_act: bool = True, cast_mult: float = 1.0) -> tuple:
         logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
         self.p_defending = True
