@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年 核心层 - weapon_effects.py（v140 波3.1：特效装备战斗消费引擎）
-
 背景：v140 波1 数据层新增 70 件特效装备（equip_add_effects.py → equip_roster.py），
 每件带 weapon_effect 字段（装备级特效注册 key）。本文件是消费端：
 - WEAPON_EFFECTS 注册表：effect_key → (事件组, handler 函数)
@@ -33,6 +32,9 @@
 """
 
 import random
+# v152：CD ready_at 换算用 ACT_TICK（battle.py 模块级常量，1 回合 ≈ ACT_TICK 时刻）
+# 注意：battle.py 只在函数内延迟 import 本模块（避免循环导入），此处导入 battle 安全
+from ..battle import ACT_TICK
 
 # ---------------------------------------------------------------- 读取器
 
@@ -215,7 +217,7 @@ def _we_starlight_bulwark(battle, player, ctx, logs):
         return
     battle._add_shield("we_starlight", int(player.get("max_hp", 100) * 0.10), 3)
     # v152 时刻制：we_starlight_next 存 ready_at（now + 5×ACT_TICK）
-    battle.p_eff["we_starlight_next"] = battle._now + 5 * battle.ACT_TICK
+    battle.p_eff["we_starlight_next"] = battle._now + 5 * ACT_TICK
     logs.append("✨ 星辉壁垒：战斗开始获得 10% 最大生命护盾！")
 
 
@@ -529,7 +531,7 @@ def _we_everfrost_domain(battle, player, ctx, logs):
         return
     _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 永冻领域")
     # v152 时刻制：CD 存 ready_at 绝对时刻（now + cd×ACT_TICK）
-    battle.p_eff["we_everfrost_cd"] = battle._now + 3 * battle.ACT_TICK
+    battle.p_eff["we_everfrost_cd"] = battle._now + 3 * ACT_TICK
 
 
 @register("skill_hit")
@@ -573,7 +575,7 @@ def _we_endless_radiance(battle, player, ctx, logs):
     if ctx.get("is_crit") and float(battle.p_eff.get("we_radiance_cd", 0) or 0) <= battle._now:
         battle._add_shield("we_radiance", int(player.get("max_hp", 100) * 0.05), 2)
         # v152 时刻制：CD 存 ready_at 绝对时刻
-        battle.p_eff["we_radiance_cd"] = battle._now + 3 * battle.ACT_TICK
+        battle.p_eff["we_radiance_cd"] = battle._now + 3 * ACT_TICK
         logs.append("🌟 无尽辉光：暴击获得 5% 最大生命护盾！")
 
 
@@ -641,7 +643,7 @@ def _we_sentinel_aegis(battle, player, ctx, logs):
     shield = int(6 + 0.5 * lv)
     battle._add_shield("we_sentinel", shield, 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
-    battle.p_eff["we_sentinel_cd"] = battle._now + 1 * battle.ACT_TICK
+    battle.p_eff["we_sentinel_cd"] = battle._now + 1 * ACT_TICK
     logs.append(f"🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 回合）")
 
 
@@ -702,7 +704,7 @@ def _we_deeprock_aegis(battle, player, ctx, logs):
         return
     battle._add_shield("we_deeprock", int(player.get("max_hp", 100) * 0.08), 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
-    battle.p_eff["we_deeprock_cd"] = battle._now + 2 * battle.ACT_TICK
+    battle.p_eff["we_deeprock_cd"] = battle._now + 2 * ACT_TICK
     logs.append("🪨 深岩壁垒：获得护盾！（吸收 8% 最大生命）")
 
 
