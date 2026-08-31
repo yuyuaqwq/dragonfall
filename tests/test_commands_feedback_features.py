@@ -130,9 +130,17 @@ async def main():
     st2 = db.get_battle("g1", "f4")["state"]
     threat2 = st2["threat"]
     check("攻击拉仇恨", threat2.get("f4", 0) > 0, str(threat2))
-    # 输出乙攻击 → 仇恨可能超过队长
+    # 输出乙攻击 → 仇恨可能超过队长（把 f5 的 ct 设为全场最小确保轮到它行动）
+    st2["players"]["f4"]["ct"] = 0.0
+    st2["players"]["f5"]["ct"] = -100.0
+    for _eu in (st2.get("enemies") or []):
+        _eu["ct"] = 0.0
+    st2["turn_time"] = int(time.time())
+    m._instance_save("g1", st2)
     await cmd(m, "attack", "g1", "f5", "攻击")
     st3 = db.get_battle("g1", "f4")["state"]
+    threat3 = st3["threat"]
+    check("输出乙攻击拉仇恨", threat3.get("f5", 0) > 0, str(threat3))
     # 输出乙防御 → 嘲讽拉仇恨（v121 CTB：手动拨 turn 无效，行动者由 ct 判定——
     # 把 f5 的 ct 设为全场最小确保轮到它防御）
     st3["players"]["f4"]["ct"] = 0.0

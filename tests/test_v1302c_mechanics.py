@@ -385,12 +385,12 @@ def test_sets_sample():
         cd_w = b_cd._skill_cd_left("时停领域")
         check("时停领域 CD 削减 1（同基准相较差 1）", cd_w == cd_wo - 1 and cd_w >= 1,
               f"cd_wo={cd_wo} cd_w={cd_w}")
-        # v152 时刻制：_skill_cd_left 折算 int +1（向上取整）——cd3 折算 3~4，cd2 折算 2~3；
-        # 断言改为比较两者的 ready_at 差（套装修剪 1 回合 = ready_at 差 2.0 时刻）。
+        # v152 时刻制：_skill_cd_left 折算 int +1（向上取整）——cd3 折算 3~4，cd2 折算 2~3。
+        # ACT_TICK=1.0（1 刻 = 1 秒）：ready_at 差 = 1 刻 = 1.0 时刻（套装修剪 1 回合）。
         _ra_wo = float(b_no.cooldown.get("时停领域", 0))
         _ra_w = float(b_cd.cooldown.get("时停领域", 0))
-        check("带套装：CD 3 → 2（cdr 折算后再 -1，ready_at 差 2.0）",
-              abs(_ra_wo - _ra_w - 2.0) < 1e-9, f"cd_wo={cd_wo} cd_w={cd_w} ra_wo={_ra_wo} ra_w={_ra_w}")
+        check("带套装：CD 3 → 2（cdr 折算后再 -1，ready_at 差 1.0）",
+              abs(_ra_wo - _ra_w - 1.0) < 1e-9, f"cd_wo={cd_wo} cd_w={cd_w} ra_wo={_ra_wo} ra_w={_ra_w}")
     except (AttributeError, TypeError) as ex:
         skip("引擎：时之领主", str(ex))
 

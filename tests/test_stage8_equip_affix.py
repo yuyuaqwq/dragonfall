@@ -209,7 +209,7 @@ def test_battle_affix():
     b = BT.Battle("monster", mk_enemy(), {}, p)
     # v152 时刻制：护盾存 {value, expire_at}（expire_at = now + turns×ACT_TICK = 3×2.0 = 6.0）
     check("护盾词条战斗开始", b.p_shields.get("affix_shield", {}).get("value") == int(int(p["max_hp"] * 0.10) * 1.05)
-          and abs(float(b.p_shields.get("affix_shield", {}).get("expire_at", 0)) - 6.0) < 1e-9, str(b.p_shields))  # v106.2 战士盾强 5%
+          and abs(float(b.p_shields.get("affix_shield", {}).get("expire_at", 0)) - 3.0) < 1e-9, str(b.p_shields))  # v106.2 战士盾强 5%；v152 ACT_TICK=1.0：3 刻 = 3.0
     # 6.2 处决低血增伤（血 20% 触发）
     p2 = mk_player(["execute"])
     b2 = BT.Battle("monster", mk_enemy(hp=200, max_hp=1000), {}, p2)

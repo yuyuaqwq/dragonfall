@@ -243,9 +243,9 @@ def test_overflow_cooldown():
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
     sh1 = b.p_shields.get("overflow_shield") or {}
-    check("满怒受击 #1 → 溢出 1 点转盾 5（v152 时刻制：expire_at = now + 1×2.0 = 2.0）",
+    check("满怒受击 #1 → 溢出 1 点转盾 5（v152 时刻制：expire_at = now + 1×1.0 = 1.0）",
           b.resources.get("rage") == 10 and int(sh1.get("value", 0)) == 5
-          and abs(float(sh1.get("expire_at", 0)) - 2.0) < 1e-9,
+          and abs(float(sh1.get("expire_at", 0)) - 1.0) < 1e-9,
           f"rage={b.resources.get('rage')} shields={b.p_shields}")
     hp_after1 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
@@ -257,13 +257,13 @@ def test_overflow_cooldown():
     b._end_round()  # 回合末：推进时刻 → 盾到期消失 + overflow 冷却重置（v152 绝对时刻到期）
     check("回合末（_end_round 推进时刻）：盾 expire_at 到期消失 + 冷却复位",
           not b.p_shields.get("overflow_shield"), f"shields={b.p_shields}")
-    b._advance_time(2.0)  # 跨回合（v152：推进 1 个 ACT_TICK 使冷却 ready_at 到期）
+    b._advance_time(1.0)  # 跨刻（v152：推进 1 个 ACT_TICK 使冷却 ready_at 到期）
     hp_after2 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
     sh3 = b.p_shields.get("overflow_shield") or {}
-    check("跨回合受击 #3 → 冷却重置后再转盾 5（新盾 expire_at = 当前时刻+2.0，且本击未被盾吸收）",
-          int(sh3.get("value", 0)) == 5 and abs(float(sh3.get("expire_at", 0)) - (b._now + 2.0)) < 1e-9
+    check("跨刻受击 #3 → 冷却重置后再转盾 5（新盾 expire_at = 当前时刻+1.0，且本击未被盾吸收）",
+          int(sh3.get("value", 0)) == 5 and abs(float(sh3.get("expire_at", 0)) - (b._now + 1.0)) < 1e-9
           and p["hp"] == hp_after2 - 30,
           f"shields={b.p_shields} now={b._now}")
 

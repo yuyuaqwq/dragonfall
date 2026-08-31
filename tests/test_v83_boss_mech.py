@@ -81,7 +81,7 @@ async def main():
     bt = BT.Battle("monster", b, {}, player=mk_player())
     logs = []
     for r in range(1, 7):
-        bt._now = r * 2.0  # v152：round r → 绝对时刻 r×2.0
+        bt._now = r * 1.0  # v152：round r → 绝对时刻 r×1.0（1刻=1秒）
         bt._boss_mech(logs)
     check("每2回合+1层（6回合=3层）", bt.enemy.get("mech_stacks_n") == 3, str(bt.enemy.get("mech_stacks_n")))
     est = bt._enemy_stats()
@@ -90,7 +90,7 @@ async def main():
     b = mk_boss("stacks")
     bt = BT.Battle("monster", b, {}, player=mk_player())
     for r in range(1, 13):
-        bt._now = r * 2.0  # v152：round r → 绝对时刻 r×2.0
+        bt._now = r * 1.0  # v152：round r → 绝对时刻 r×1.0（1刻=1秒）
         bt._boss_mech([])
     check("叠层上限5", bt.enemy.get("mech_stacks_n") == 5, str(bt.enemy.get("mech_stacks_n")))
 
@@ -116,14 +116,14 @@ async def main():
     bt = BT.Battle("monster", b, {}, player=mk_player())
     logs = []
     bt.enemy["hp"] = 200  # 20% 触发狂暴
-    # v152：r=2（now=4.0）→ summon 触发（r>1 且 r%3==0）；r=3（now=6.0）→ 不重复（summoned_round 幂等）
-    bt._now = 2 * 2.0
+    # v152：r=2（now=2.0）→ summon 触发（r>1 且 r%3==0）；r=3（now=3.0）→ 不重复（summoned_round 幂等）
+    bt._now = 2 * 1.0
     bt._boss_mech(logs)
     check("组合触发狂暴", bt.enemy.get("enraged"), "")
     check("组合触发召唤（summoned_round=3）", bt.enemy.get("summoned_round") == 3,
           str(bt.enemy.get("summoned_round")))
     logs2 = []
-    bt._now = 3 * 2.0
+    bt._now = 3 * 1.0
     bt._boss_mech(logs2)
     check("召唤幂等（r=3 不重复）", bt.enemy.get("summoned_round") == 3 and not logs2,
           f"{logs2} summoned_round={bt.enemy.get('summoned_round')}")

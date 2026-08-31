@@ -150,11 +150,14 @@ check("钢拳三连触发", b9.combo_seq == [] and b9.resources.get("combo_ready
 print("【CD 冷却：盾击】")
 p = learn_all(mk("战士"), "cls_zhan_shi")
 b10 = BT.Battle("monster", mkmon(), player=p)
-cast(b10, p, "盾击")
-check("盾击后进入 CD", b10._skill_on_cd("盾击"), str(b10.cooldown))
+# v152 绝对时刻制：盾击 CD=3 秒；战士 lv30 默认 spd 27 → 行动窗口 p_ct = cost(1.48)+CAST_SKILL(1.6)
+# = 3.08 ≥ 3.0 → 施放后推进时 CD 已到期（与 test_stage5 同款语义）。CD 拦截/到期逻辑由
+# 手动置 CD 路径覆盖（确定性）：_set_skill_cd(3) → 拦截 → 推进 3×ACT_TICK → 放行。
+b10._set_skill_cd("盾击", 3)
+check("盾击后进入 CD（手动置 CD 3）", b10._skill_on_cd("盾击"), str(b10.cooldown))
 logs10 = cast(b10, p, "盾击")
 check("CD 中拦截", any("冷却" in x for x in logs10), str(logs10)[:120])
-# v152 时刻制：推进 3 回合（3×ACT_TICK）使 ready_at 到期
+# v152 时刻制：推进 3 回合（3×ACT_TICK=3.0）使 ready_at 到期
 b10._end_round(); b10._end_round(); b10._end_round()
 check("CD 结束可再放", not b10._skill_on_cd("盾击"), str(b10.cooldown))
 

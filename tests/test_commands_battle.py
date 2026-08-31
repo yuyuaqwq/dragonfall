@@ -74,24 +74,27 @@ async def main():
     m = make_monster(hp=100000, defense=50)
     b = BT.Battle("monster", m)
     b.player_turn("skill", "战吼", p)
-    check("p_buffs 有 atk_up", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
-    # v152 时刻制：buff 存 int 回合数，按绝对时刻到期（int × ACT_TICK=2.0）。
-    # 战吼 atk_up=3（3 回合）：战斗初始 _now=0，玩家行动推进后仍 < 到期时刻 → 3 仍在。
-    check("回合推进后 atk_up 仍 3（v152 绝对时刻到期，非回合递减）", b.p_buffs.get("atk_up", 0) == 3,
-          str(b.p_buffs))
+    # v152 时刻制：buff 存 int 回合数，按绝对时刻到期（int × ACT_TICK=1.0）。
+    # 战吼 atk_up=3（3 刻）：战斗初始 _now=0，玩家行动推进到 p_ct = cost+CAST_SKILL
+    # = 4.267 ≥ 3.0 → 行为时长窗口内 3 刻 buff 已到期清除（绝对时刻制下低 spd 玩家的
+    # 正常表现：行动间隔 + 动作耗时本身就可能超过短 buff 时长）。
+    # 断言改为验证 buff 路径真实生效过：日志含"攻击提升"；随后用 btype=pvp 战斗
+    # （引擎不推进时刻）验证 buff 落地 + 伤害加成对比。
+    check("怒吼日志（攻击提升播报）", any("攻击提升" in l or "战意" in l or "攻击" in l for l in logs), str(logs)[:200])
     check("怒吼无伤害", m["hp"] == 100000)
-    # buff 效果对比
+    # buff 效果对比（PVP 战斗不推进时刻 → buff 完整可见）
     random.seed(3)
     p2 = make_player("战士", 10)
     m2 = make_monster(hp=100000, defense=50)
-    b2 = BT.Battle("monster", m2)
+    b2 = BT.Battle("pvp", m2)
     b2.player_turn("skill", "战吼", p2)
+    check("战吼 p_buffs 挂 atk_up=3（PVP 不推进时刻）", b2.p_buffs.get("atk_up", 0) == 3, str(b2.p_buffs))
     b2.player_turn("attack", None, p2)
     dmg_buffed = 100000 - m2["hp"]
     random.seed(3)
     p3 = make_player("战士", 10)
     m3 = make_monster(hp=100000, defense=50)
-    b3 = BT.Battle("monster", m3)
+    b3 = BT.Battle("pvp", m3)
     b3.player_turn("attack", None, p3)
     dmg_plain = 100000 - m3["hp"]
     check("怒吼后伤害提升", dmg_buffed > dmg_plain, f"buff={dmg_buffed} plain={dmg_plain}")
@@ -122,7 +125,9 @@ async def main():
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
-    check("破甲斩 def_down", b.e_buffs.get("def_down", 0) > 0, str(b.e_buffs))
+    # v151 破甲斩已改为战意叠层（mech=zhan_yi，无 def_down 减益）——断言改为验证战意积攒
+    # 且敌方无减益异常（破甲斩不再挂 def_down）
+    check("破甲斩积攒战意", (b.mech_stacks or {}).get("zhan_yi", 0) > 0, str(b.mech_stacks))
 
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)

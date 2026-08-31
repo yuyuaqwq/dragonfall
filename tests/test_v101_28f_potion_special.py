@@ -81,7 +81,7 @@ b2 = mk_battle()
 p2 = mk_player()
 b2._do_use_item("special:shield_small", p2)
 check("岩盾获得 10% 护盾", b2.p_shields.get("potion", {}).get("value") == 10, str(b2.p_shields))
-check("岩盾 3 回合（expire_at=6.0）", abs(float(b2.p_shields.get("potion", {}).get("expire_at", 0)) - 6.0) < 1e-9,
+check("岩盾 3 刻（expire_at=3.0，1刻=1秒）", abs(float(b2.p_shields.get("potion", {}).get("expire_at", 0)) - 3.0) < 1e-9,
       str(b2.p_shields))
 # 圣盾 15%
 b2b = mk_battle()

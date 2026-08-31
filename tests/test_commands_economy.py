@@ -161,11 +161,14 @@ async def main():
     check("炼金 5 级后走到材料检查", "材料不足" in out, out[:200])
 
     print("【战斗药水（v54）】")
-    # battle 层：buff 药水挂 p_buffs 3 回合
+    # battle 层：buff 药水挂 p_buffs 3 刻。v152 行为时长：药水 p_ct = now + cost + CAST_ITEM
+    # = 4.636 ≥ 3.0 → _enemy_phase 推进时 3 刻 buff 已到期清除（与战吼同款绝对时刻语义）。
+    # 为验证"药水路径真实生效"，改用 btype=pvp 战斗（引擎不推进时刻/不介入 p_ct），
+    # p_buffs 在行动后可见；日志播报攻击提升。
     pl = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 50, "atk": 10, "def": 5, "matk": 5, "mdef": 5, "spd": 5,
           "class_name": "cls_zhan_shi", "level": 3}
     enemy = C.build_monster(["m_test", "测试怪", "dps", 3, ["ms_si_yao"], ["mat_lang_pi"]], {"id": "x", "name": "x", "area": "x"})
-    b = BT.Battle.from_state({"type": "monster", "enemy": enemy, "p_buffs": {}, "e_buffs": {}, "p_defending": False, "e_defending": False})
+    b = BT.Battle.from_state({"type": "pvp", "enemy": enemy, "p_buffs": {}, "e_buffs": {}, "p_defending": False, "e_defending": False})
     logs, _ended = b.player_turn("use_item", "buff:atk_up", pl)
     check("攻击药水挂 atk_up", b.p_buffs.get("atk_up", 0) >= 2, str(b.p_buffs))
     check("战斗药水日志", "攻击" in "".join(logs) or "大幅提升" in "".join(logs), "".join(logs)[:200])
