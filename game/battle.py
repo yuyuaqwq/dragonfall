@@ -108,18 +108,25 @@ BUFF_TURNS = 3        # 增益默认持续刻
 DEBUFF_TURNS = 2      # 减益默认持续刻
 
 # v121 CTB 行动时间轴：全局行动消耗常量
-BASE_DELAY = 100.0    # 行动消耗基数（待 Agent D 模拟标定）
+# v152 鱼鱼拍板：总耗时 = 行动间隔（BASE_DELAY/spd）+ 固定动作耗时。
+# BASE_DELAY=40 经 sim 标定：普通怪战斗 ~49s（60s 内），紧凑不拖沓。
+# （旧 100 在新模型下战斗拖到 113s 太长；40 平衡节奏与速度差稀释）
+BASE_DELAY = 40.0     # 行动间隔基数（v152 标定：40 保持战斗节奏）
 SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
-# v152 CTB 彻底化：刻 → 时刻。ACT_TICK = 参考 spd 50 的平均行动间隔（BASE_DELAY/50），
-# 1 刻 ≈ ACT_TICK 时刻。所有原"持续 N 刻 / CD N 刻"换算为 N × ACT_TICK。
-# 初值由 sim_ctb_balance 标定（BASE_DELAY=100 维持、SPD_CT_CAP=80 维持），ACT_TICK 待 Agent D 复核。
-ACT_TICK = 2.0        # 1 刻 ≈ 2.0 时刻（BASE_DELAY / 50）
-CAST_ATK = 0.5        # 普攻 cast_time 系数（× 自身行动 cost）
-CAST_SKILL = 0.8      # 技能 cast_time 系数
-CAST_ITEM = 0.5       # 道具 cast_time 系数
-CAST_FOOD = 0.5       # 食物 cast_time 系数
-CAST_DEFEND = 0.3     # 防御 cast_time 系数（快动作）
-CAST_FLEE = 1.0       # 逃跑 cast_time 系数（慢，易被打断）
+# v152 CTB 彻底化：刻 → 时刻。ACT_TICK = 1 刻对应的全局时刻数。
+# 鱼鱼拍板（2026-08-31）：1 刻 = 1 游戏秒（对齐秒，玩家直观）。
+# 所有"持续 N 刻 / CD N 刻"换算为 N × ACT_TICK = N 时刻 = N 游戏秒。
+# 引擎内部无"刻"概念，只有全局绝对时刻 _now；"刻"是玩家可见的换算单位（1 刻 = 1 秒）。
+ACT_TICK = 1.0        # 1 刻 = 1.0 时刻 = 1 游戏秒（鱼鱼拍板对齐秒）
+# v152 鱼鱼拍板：总耗时 = 行动间隔（速度决定，100/spd）+ 固定动作耗时。
+# 速度只影响"恢复等待"（间隔），动作本身耗时固定（不随速度变）。
+# 动作耗时 = 绝对秒数（不再是 cast_mult 系数 × cost）。
+CAST_ATK = 1.0        # 普攻动作耗时（固定 1 秒）
+CAST_SKILL = 1.6      # 技能动作耗时（固定 1.6 秒，出手更慢）
+CAST_ITEM = 1.0       # 道具动作耗时（固定 1 秒）
+CAST_FOOD = 1.0       # 食物动作耗时（固定 1 秒）
+CAST_DEFEND = 0.6     # 防御动作耗时（固定 0.6 秒，快动作）
+CAST_FLEE = 2.0       # 逃跑动作耗时（固定 2 秒，慢，易被打断）
 
 # v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
 # handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
@@ -1475,18 +1482,19 @@ class Battle:
         return BASE_DELAY / max(1.0, eff)
 
     def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None, cast_mult: float = 1.0):
-        """v152 真·事件队列：行动者 next_act_at = now + 行动耗时（绝对时刻，不互相减）。
+        """v152 真·事件队列：行动者 next_act_at = now + 总耗时（绝对时刻，不互相减）。
         兼容壳：保留函数名（大量外部调用）。side="p"：玩家行动完；side="e"：敌方单位行动完。
-        cast_mult：行为耗时系数（普攻 0.5 / 技能 0.8 / 道具 0.5 / 防御 0.3 / 逃跑 1.0）。
-        - 玩家：p_ct 升级为"玩家下次可行动绝对时刻"（= now + cast_mult × cost）
-        - 敌方：u["ct"] 升级为"该单位下次可行动绝对时刻"（= now + cast_mult × cost）
+        cast_mult：**固定动作耗时（秒）**——总耗时 = 行动间隔(cost) + 动作耗时。
+        （v152 鱼鱼拍板：速度只影响"恢复等待"间隔，动作本身耗时固定，不随速度变。）
+        - 玩家：p_ct 升级为"玩家下次可行动绝对时刻"（= now + cost + 动作耗时）
+        - 敌方：u["ct"] 升级为"该单位下次可行动绝对时刻"（= now + cost + 动作耗时）
         - 绝对时刻制：其他单位不参与"时间流逝"（它们的 next_act_at 是绝对值，不因别人行动而变）。
         """
         _now = self._now
         if side == "p":
             _p = player or self.player or {}
             p_cost = self._ct_cost(self._player_stats(_p).get("spd", 0) if _p else 0)
-            self.p_ct = _now + (p_cost * float(cast_mult or 1.0))
+            self.p_ct = _now + p_cost + float(cast_mult or 1.0)
             # 敌方：绝对时刻制下无需互相调整（next_act_at 已是绝对值）。兜底初始化。
             for u in self.enemies:
                 if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
@@ -1498,7 +1506,7 @@ class Battle:
             # v121 审计修复：敌方 cost 用 buffed spd（_enemy_stats 应用 spd_down ×0.5 等），
             # 否则敌方减速/增益不影响其行动频率（与玩家侧 _player_stats 对称）
             e_cost = self._ct_cost(self._enemy_stats(u).get("spd", 0))
-            u["ct"] = _now + (e_cost * float(cast_mult or 1.0))
+            u["ct"] = _now + e_cost + float(cast_mult or 1.0)
         # v137 副本（btype="instance"）allies 广播：多玩家 CTB 时间流逝对称。
         # 绝对时刻制下各玩家 next_act_at 独立，无需广播调整（各自按自己的 cost 排程）。
         # 保留函数签名兼容；instance 层调度由命令层 _instance_next_actor 按 next_act_at 选人。

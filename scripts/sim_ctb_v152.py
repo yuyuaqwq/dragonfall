@@ -46,8 +46,11 @@ cases = [
 print(f"{'场景':<28} {'玩家动':<6} {'敌动':<6} {'实测比':<8} {'理论比':<8} {'偏差'}")
 for name, ps, es, theory in cases:
     p, e, rps, res = run_combat(ps, es, p_acts_target=60)
-    # 理论比用真实 spd（职业成长可能覆盖）
-    theory_real = rps / max(1, res)
+    # 理论比 = 新模型公式：频率 = 1/(间隔+动作耗时)，间隔 = BASE_DELAY/spd
+    # （v152 鱼鱼拍板：总耗时 = 速度间隔 + 固定动作耗时，动作耗时稀释极端速度差）
+    p_cycle = BT.BASE_DELAY / max(1.0, rps) + BT.CAST_ATK
+    e_cycle = BT.BASE_DELAY / max(1.0, res) + BT.CAST_ATK
+    theory_real = e_cycle / p_cycle
     ratio = p / max(1, e)
     dev = (ratio - theory_real) / theory_real * 100 if theory_real else 0
     flag = "OK" if abs(dev) < 25 else "!!"
@@ -73,5 +76,6 @@ for act, mult, label in [('attack', BT.CAST_ATK, '普攻'), ('skill', BT.CAST_SK
         b2._after_actor_ct('p', player=player, cast_mult=mult)
     else:
         b2._after_actor_ct('p', player=player, cast_mult=mult)
-    expect = cost * mult
+    # v152 新模型（鱼鱼拍板）：p_ct 推进 = cost（间隔）+ 固定动作耗时（cast_mult）
+    expect = cost + mult
     print(f"  {label:<6} cast_mult={mult:<4} p_ct推进={b2.p_ct:.2f} (期望 {expect:.2f}) {'OK' if abs(b2.p_ct - expect) < 0.01 else '!!'}")
