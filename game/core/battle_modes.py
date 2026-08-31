@@ -132,7 +132,8 @@ def dual_form_tick(player: dict, logs: list | None = None) -> list:
                 out.append("🌫️ 影舞态消退，回归常态。")
         return out
     # 手动形态（狂战士狂暴/龙裔龙焰）：维护成本从资源扣（由调用方传资源，本函数只返回应扣量）
-    mc = int(d.get("maintain_cost", _cfg(_battle_cfg("dual_form"), "maintain", 1)) or 0)
+    # v153：maintain_cost 支持浮点（狂暴每刻 −0.6 层），调用方按 float 扣
+    mc = float(d.get("maintain_cost", _cfg(_battle_cfg("dual_form"), "maintain", 1)) or 0)
     if mc > 0:
         out.append({"maintain_cost": mc})
     return out

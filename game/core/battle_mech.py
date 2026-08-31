@@ -1082,5 +1082,220 @@ def validate_boss_mechs():
               + "; ".join(sorted(set(unknown))))
 
 
+# ================= 4.9 v153 元素印记（法师 A 线：记账「元素印记」） =================
+# v153 §2：火/冰/雷三系印记挂敌身（enemy.debuffs.element_marks），0-3 层/系，
+# 不衰减（生命周期 = 结算清除或战斗结束）；结算触发反应（蒸发×1.3 / 超载AOE / 冻结 / 感电连击）。
+# 层数作用：该系结算倍率 1层×1.0 / 2层×1.2 / 3层×1.4
+
+ELEMENT_MARKS_KEY = "element_marks"
+ELEMENT_MARKS_MAX = 3
+ELEMENT_MARKS_REACTION = {
+    "evaporate": {"pair": ("fire", "ice"), "mult": 1.30},      # 火+冰 = 蒸发 伤害×1.30
+    "overload": {"pair": ("thunder", "fire"), "aoe": True},     # 雷+火 = 超载 转全体 AOE
+    "freeze": {"pair": ("ice", "thunder"), "stun": 1.5},        # 冰+雷 = 冻结 定身 1.5 刻
+}
+
+
+def _element_marks(battle):
+    """读取敌身元素印记 dict（不存在则初始化）"""
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    return deb.setdefault(ELEMENT_MARKS_KEY, {})
+
+
+@register(MECH_EFFECTS, "fire_mark")
+def _m_fire_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 挂火印：叠层（0-3，不衰减）"""
+    if not mval:
+        return
+    marks = _element_marks(battle)
+    marks["fire"] = min(ELEMENT_MARKS_MAX, int(marks.get("fire", 0) or 0) + mval)
+    logs.append(f"🔥 火印 {marks['fire']}/3")
+
+
+@register(MECH_EFFECTS, "ice_mark")
+def _m_ice_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 挂冰印：叠层（0-3，不衰减）"""
+    if not mval:
+        return
+    marks = _element_marks(battle)
+    marks["ice"] = min(ELEMENT_MARKS_MAX, int(marks.get("ice", 0) or 0) + mval)
+    logs.append(f"❄️ 冰印 {marks['ice']}/3")
+
+
+@register(MECH_EFFECTS, "thunder_mark")
+def _m_thunder_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 挂雷印：叠层（0-3，不衰减）"""
+    if not mval:
+        return
+    marks = _element_marks(battle)
+    marks["thunder"] = min(ELEMENT_MARKS_MAX, int(marks.get("thunder", 0) or 0) + mval)
+    logs.append(f"⚡ 雷印 {marks['thunder']}/3")
+
+
+@register(MECH_EFFECTS, "element_multi_mark")
+def _m_element_multi_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 双系连珠：两段各挂不同系印记 1 层（优先挂空系）"""
+    marks = _element_marks(battle)
+    order = ["fire", "ice", "thunder"]
+    empty = [k for k in order if (marks.get(k) or 0) == 0]
+    if empty:
+        k = empty[0]
+    else:
+        k = min(order, key=lambda x: marks.get(x, 0))
+    marks[k] = min(ELEMENT_MARKS_MAX, int(marks.get(k, 0) or 0) + 1)
+    logs.append(f"🎨 双系连珠：{k} 印 +1（{marks.get(k)}/3）")
+
+
+@register(MECH_EFFECTS, "element_burst")
+def _m_element_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 结算：引爆目标印记，触发对应反应"""
+    marks = _element_marks(battle)
+    active = {k: v for k, v in marks.items() if v > 0}
+    if not active:
+        logs.append("🌫️ 目标身上没有印记，元素引爆落空！")
+        return
+    total_mult = 1.0
+    for k, n in active.items():
+        total_mult *= (1.0 + 0.2 * (n - 1))
+    reacted = False
+    for rname, rcfg in ELEMENT_MARKS_REACTION.items():
+        k1, k2 = rcfg["pair"]
+        if active.get(k1, 0) > 0 and active.get(k2, 0) > 0:
+            if rname == "evaporate":
+                total_mult *= rcfg["mult"]
+                logs.append(f"💨 蒸发反应！伤害 ×{rcfg['mult']}")
+            elif rname == "overload":
+                logs.append("💥 超载反应！转为全体 AOE")
+                battle.p_buffs["element_overload_aoe"] = 1
+            elif rname == "freeze":
+                battle.e_buffs["stun"] = rcfg["stun"]
+                logs.append(f"🧊 冻结反应！目标定身 {rcfg['stun']} 刻")
+            reacted = True
+            break
+    if active.get("thunder", 0) >= 3 and not reacted:
+        logs.append("⚡ 感电！雷印满 3 层，连击 +1")
+        battle.p_buffs["element_thunder_combo"] = int(battle.p_buffs.get("element_thunder_combo", 0)) + 1
+    if total_mult > 1.0:
+        battle.p_buffs["element_burst_mult"] = total_mult
+    for k in list(marks.keys()):
+        marks[k] = 0
+    logs.append(f"🔥 元素结算完成，印记清空！")
+
+
+@register(MECH_EFFECTS, "element_burst_all")
+def _m_element_burst_all(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 元素迸发：结算目标全部印记，每层 +12% 伤害"""
+    marks = _element_marks(battle)
+    total_layers = sum(v for v in marks.values() if v > 0)
+    if total_layers <= 0:
+        logs.append("🌫️ 目标身上没有印记！")
+        return
+    mult = 1.0 + 0.12 * total_layers
+    battle.p_buffs["element_burst_mult"] = mult
+    logs.append(f"🔥 元素迸发：结算 {total_layers} 层印记，伤害 ×{mult}")
+    for k in list(marks.keys()):
+        marks[k] = 0
+
+
+@register(MECH_EFFECTS, "element_burst_3")
+def _m_element_burst_3(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 元素裁决：结算三系印记，每系 ×1.2"""
+    marks = _element_marks(battle)
+    active = {k: v for k, v in marks.items() if v > 0}
+    if not active:
+        logs.append("🌫️ 目标身上没有印记！")
+        return
+    mult = 1.0
+    for k, n in active.items():
+        mult *= 1.2
+    battle.p_buffs["element_burst_mult"] = mult
+    logs.append(f"⚖️ 元素裁决：结算 {len(active)} 系印记，伤害 ×{mult}")
+    for k in list(marks.keys()):
+        marks[k] = 0
+
+
+@register(MECH_EFFECTS, "element_mark_current")
+def _m_element_mark_current(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 元素洪流：全体挂当前主系印记 1 层"""
+    marks = _element_marks(battle)
+    cur = getattr(battle, "_element_main", "fire")  # 默认火系
+    marks[cur] = min(ELEMENT_MARKS_MAX, int(marks.get(cur, 0) or 0) + 1)
+    logs.append(f"🌊 元素洪流：全队挂 {cur} 印 1 层（{marks.get(cur)}/3）")
+
+
+# ================= 4.10 v153 诗人旋律（battle_aura + 强度层 + 终章） =================
+# v153 §7：旋律驻留（同时 1 首），起手 0.6 / 吟唱 1.2 / 终章 2.4 三档；
+# 强度层 0-5（每层光环效果 +20%），满 5 触发终章（一次性爆发，放完强度归零、旋律继续）
+
+MELODY_CFG = {
+    "max_stack": 5,
+    "per_stack_mult": 0.20,   # 每层光环效果 +20%
+}
+
+
+def _melody_state(battle):
+    """读取诗人旋律状态（存 battle 实例）"""
+    if not hasattr(battle, "_melody"):
+        battle._melody = {"name": None, "stack": 0, "finale_ready": False}
+    return battle._melody
+
+
+@register(MECH_EFFECTS, "melody")
+def _m_melody(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 起手：唱一首歌（驻留旋律，全队光环）"""
+    if not info:
+        return
+    mel = _melody_state(battle)
+    mel["name"] = info.get("name", skill_name)
+    mel["stack"] = 1
+    mel["finale_ready"] = False
+    logs.append(f"🎵 你开始演唱【{mel['name']}】！旋律驻留，全队获得光环！")
+
+
+@register(MECH_EFFECTS, "melody_chant")
+def _m_melody_chant(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 吟唱：当前旋律强度 +1（满 5 触发终章）"""
+    if not mval:
+        return
+    mel = _melody_state(battle)
+    if not mel.get("name"):
+        logs.append("🎵 还没有旋律驻留，吟唱落空！")
+        return
+    mel["stack"] = min(MELODY_CFG["max_stack"], int(mel.get("stack", 0)) + mval)
+    logs.append(f"🎶 吟唱！旋律强度 {mel['stack']}/{MELODY_CFG['max_stack']}（光环效果 +{int(mel['stack'] * MELODY_CFG['per_stack_mult'] * 100)}%）")
+    if mel["stack"] >= MELODY_CFG["max_stack"] and not mel.get("finale_ready"):
+        mel["finale_ready"] = True
+        logs.append("🌟 旋律圆满！下一次吟唱将触发【终章】！")
+
+
+@register(MECH_EFFECTS, "melody_finale")
+def _m_melody_finale(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 终章：满强度一次性爆发，强度归零、旋律继续驻留"""
+    mel = _melody_state(battle)
+    if not mel.get("name"):
+        logs.append("🎵 还没有旋律驻留，终章落空！")
+        return
+    mel["stack"] = 0
+    mel["finale_ready"] = False
+    logs.append(f"🌠【终章】！{mel['name']} 的力量完全迸发！")
+
+
+# ================= 4.11 v153 磐核 discharge（拳师 B 线） =================
+# v153 §6：磐核 0-5（引擎 GUARD_CORE_CFG 已配 max 5 / discharge 系数 0.7），
+# 磐岩释能/磐核爆发/气力万法 消耗全部磐核换伤害倍率
+
+@register(MECH_EFFECTS, "guard_core_burst")
+def _m_guard_core_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 磐核爆发：消耗全部磐核，×(1 + 0.7 × 核数)"""
+    cores = int((battle.resources or {}).get("guard_core", 0) or 0)
+    if cores <= 0:
+        logs.append("🪨 磐核为空，爆发落空！")
+        return
+    mult = 1.0 + 0.7 * cores
+    battle.p_buffs["guard_core_burst_mult"] = mult
+    battle.resources["guard_core"] = 0
+    logs.append(f"🪨 磐核爆发！消耗 {cores} 核，伤害 ×{mult}")
+
+
 validate_boss_mechs()
 

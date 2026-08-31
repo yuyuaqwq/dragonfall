@@ -2898,7 +2898,9 @@ class Battle:
         # 仅主资源位持有者生效——歌者分支被覆盖为双资源（resonance+echo）时 faith 不在激活集合 → 不重复给
         # （歌者治疗走分支挂载 res_gain，见 v130.2 双资源口径；engine 不得给歌者双计数）。
         if info and info.get("kind") == "治疗" and rd.get("on_heal") and k in act_keys:
-            gain += int(rd["on_heal"])
+            # v153 §4（C-18）：力竭中信念不增加（过载后 6 刻）
+            if not self.p_buffs.get("faith_exhausted"):
+                gain += int(rd["on_heal"])
         # v151 隐藏职业删除：星语猎印技能命中追加逻辑已移除（on_skill_extra 恒 0）
         on_skill_extra = 0
         # v130.2f2（T7 P1-2/P1-3）：被动加成并入技能命中渠道——战争咆哮 res_gain_bonus
@@ -3480,12 +3482,25 @@ class Battle:
         cond_mult = self._cond_mult(info, player, lv)
         # v104 R3 P2-18：条件满足即显示标签（含 mult=1.0 的纯条件技，如符文护体"魔能≥3"）
         cond_label = info.get("cond", {}).get("label", "") if self._cond_active(info, player) else ""
+        # v153 §4（C-18）：牧师信念负载档位——治疗量 × 档位乘区（0-3 清醒×1.0 / 4-7 专注×1.25 / 8-9 透支×1.5）
+        _crd_faith = E.core_resource_def(player.get("class_name", ""))
+        if _crd_faith and _crd_faith.get("key") == "faith" and _crd_faith.get("load_tiers"):
+            _faith_now = float(self.resources.get("faith", 0) or 0)
+            _tier_heal = 1.0
+            for _t in _crd_faith["load_tiers"]:
+                if _faith_now <= float(_t.get("max", 0)):
+                    _tier_heal = float(_t.get("heal_mult", 1.0))
+                    break
+            _faith_mult_applied = _tier_heal
         # v95r38：power<1 的治疗技能按 max_hp 百分比结算（如拳师气息调息 15% HP），
         # power>=1 保持原有"魔攻×power"模式（治愈术 200% 等），与消耗品 heal<1 百分比语义一致
         if info.get("power", 0) < 1:
             heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
         else:
             heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
+        # v153 §4（C-18）：牧师信念负载档位乘区（清醒×1.0 / 专注×1.25 / 透支×1.5）
+        if "_faith_mult_applied" in locals():
+            heal = int(heal * _faith_mult_applied)
         # v110.3 P2-9：被动·神恩——治疗技能效果 +X%（数据驱动 proc="heal"，替代名字硬匹配）。
         #              注意与下方 stat=="heal" 的神圣恩典为不同触发源，勿合并。
         #              ⚠ mult 为"完整倍率"语义（skills.py:725 神恩 mult=1.1 = 治疗×1.10，+10%）；
@@ -4040,6 +4055,28 @@ class Battle:
                 total = int(total * _wectx["mult"])
         except Exception:
             pass
+        # v153 §2/§6：元素印记结算倍率 / 磐核爆发倍率消费（battle_mech handler 写入 p_buffs）
+        _v153_mult = 1.0
+        if self.p_buffs.get("element_burst_mult"):
+            _v153_mult *= float(self.p_buffs.pop("element_burst_mult"))
+            logs.append(f"🔥 元素结算增伤 ×{_v153_mult:.2f}")
+        if self.p_buffs.get("guard_core_burst_mult"):
+            _v153_mult *= float(self.p_buffs.pop("guard_core_burst_mult"))
+        if self.p_buffs.get("element_overload_aoe"):
+            # 超载反应：本次技能转全体 AOE
+            info = dict(info)
+            info["aoe"] = "all"
+            self.p_buffs.pop("element_overload_aoe", None)
+        if _v153_mult != 1.0:
+            total = int(total * _v153_mult)
+        # v153 §2：感电连击（雷印满 3 层结算时连击 +1/+2）——多段追加
+        _ele_combo = int(self.p_buffs.get("element_thunder_combo", 0) or 0)
+        if _ele_combo:
+            self.p_buffs.pop("element_thunder_combo", None)
+            _combo_dmg = int(total / max(1, int(info.get("hits", 1) or 1)))
+            for _ci in range(_ele_combo):
+                total += _combo_dmg
+                logs.append(f"⚡ 感电连击！追加 {_combo_dmg} 点伤害！")
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
         total, _magi_part = self._enemy_mitigate(total, _magi_part, element, logs, kind=kind)
         # v105 怪物闪避：技能主伤害判定一次（闪避成功 total 归零，日志自然显示 0 伤害）
@@ -5448,6 +5485,30 @@ class Battle:
         _amp_pt = self._amp_resource(player, "regen")
         if _amp_pt:
             logs.append(f"⚡ 迅捷之核：自然回复额外资源 +{_amp_pt}！")
+        # v153 §4（C-18）：牧师信念负载——每刻 −0.7 衰减 + 过载触发（满 10 清零→全队回复 + 力竭）
+        _crd_f = E.core_resource_def(player.get("class_name", ""))
+        if _crd_f and _crd_f.get("key") == "faith" and _crd_f.get("decay_per_tick"):
+            _f_before = float(self.resources.get("faith", 0) or 0)
+            if _f_before >= float(_crd_f.get("max", 10)):
+                # 过载触发：清零 → 全队回复
+                _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
+                _ov_heal = int(self.player.get("max_hp", 1) * _ov_pct * _f_before)
+                self.resources["faith"] = 0
+                logs.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
+                # 力竭：后续治疗 ×0.5，信念不再增加（6 刻）
+                self.p_buffs["faith_exhausted"] = 6
+                if self.player.get("hp", 0) < self.player.get("max_hp", 1):
+                    self.player["hp"] = min(self.player.get("max_hp", 1), self.player.get("hp", 0) + _ov_heal)
+                    logs.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
+            elif _f_before > 0:
+                _f_decay = float(_crd_f.get("decay_per_tick", 0.7) or 0.7)
+                # 力竭中信念不增加（但仍衰减）
+                self.resources["faith"] = max(0.0, _f_before - _f_decay)
+                if float(self.resources["faith"]) < _f_before:
+                    logs.append(f"🕯️ 信念衰减：{_f_before:.1f} → {float(self.resources['faith']):.1f}")
+            # 力竭计数递减
+            if self.p_buffs.get("faith_exhausted"):
+                self.p_buffs["faith_exhausted"] = int(self.p_buffs["faith_exhausted"]) - 1
         # v130.2 歌者回声驻留：每层刻初始全队恢复 6 体力（priest_转职.md §3.0）
         echo_n = self._echo_layers()
         if echo_n > 0:
@@ -5473,8 +5534,8 @@ class Battle:
             for _item in _df_tick:
                 if isinstance(_item, dict) and "maintain_cost" in _item:
                     _df_key = _dfd.get("key", "rage")
-                    _mc = int(_item["maintain_cost"])
-                    _cur = int(self.resources.get(_df_key, 0) or 0)
+                    _mc = float(_item["maintain_cost"])  # v153：支持浮点维持（狂暴每刻 −0.6）
+                    _cur = float(self.resources.get(_df_key, 0) or 0)
                     if _cur >= _mc:
                         self.resources[_df_key] = _cur - _mc
                         logs.append(f"⚡【{_dfd.get('form', '形态')}】维持消耗 {_mc}（{self.resources.get(_df_key, 0)}）")
