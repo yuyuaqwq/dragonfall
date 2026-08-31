@@ -397,8 +397,8 @@ SETS = {
         "bonus_4": {"effect": "ultimate_cost_reduce", "res": "element", "value": 1,
                     "desc": "全耗奥义(元素湮灭) 充能消耗 -1 (-5 → -4，保留残点走轴)"},
     },
-    "set_shi_zhi_ling_zhu": {  # 法师·隐藏线(时咒)
-        "quality": "orange", "icon": "⏳", "name": "时之领主", "line": "法师·隐藏线(时咒)",
+    "set_shi_zhi_ling_zhu": {  # 法师·时律线（v151：原隐藏线时咒→时律线）
+        "quality": "orange", "icon": "⏳", "name": "时之领主", "line": "法师·时律线",
         "bonus_2": {"effect": "cdr_set", "on": "time_freeze", "value": -1,
                     "desc": "时停领域 冷却时间 -1"},
     },
@@ -421,12 +421,12 @@ SETS = {
         "bonus_4": {"effect": "first_hit_immune", "cond": "faith_full", "per_battle": 1, "params": {"type": "taken_immune_cond", "cond": "faith_full", "per_battle": 1, "tag": "☀️", "name": "圣典日冕"},
                     "desc": "满信仰状态下 首次受击免伤 (每战 1 次)"},
     },
-    "set_an_ye_sheng_dian": {  # 牧师·暗影神谕(悼咏)
-        "quality": "purple", "icon": "🌙", "name": "暗夜圣典", "line": "牧师·暗影神谕(悼咏)",
-        "bonus_2": {"effect": "res_gain", "res": "canticle", "value": 1, "on": "undead_on_field",
-                    "desc": "场上亡灵≥1 时 悼咏积攒 +1"},
-        "bonus_4": {"effect": "elegy_dmg", "value": 0.20, "cond": "canticle_full",
-                    "desc": "满档安魂曲/献祭暗焰 伤害 +20%"},
+    "set_an_ye_sheng_dian": {  # 牧师·幽祷线（v151：原暗影神谕悼咏→幽祷召唤流）
+        "quality": "purple", "icon": "🌙", "name": "暗夜圣典", "line": "牧师·幽祷(召唤流)",
+        "bonus_2": {"effect": "summon_heal", "value": 0.05,
+                    "desc": "场上亡灵≥1 时 每回合全队回复 5% 生命"},
+        "bonus_4": {"effect": "summon_dmg", "value": 0.20,
+                    "desc": "场上亡灵≥1 时 召唤物伤害 +20%"},
     },
     "set_sheng_hui_shi_yue": {  # 牧师·新手保底
         "quality": "blue", "icon": "🛡️", "name": "圣徽·誓约", "line": "牧师·新手保底",
