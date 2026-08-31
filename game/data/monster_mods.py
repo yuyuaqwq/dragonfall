@@ -32,7 +32,7 @@ MONSTER_MODS = {
         "atk_mult": 1.15, "def_mult": 0.85,
         "desc": "森林狼：猎手本性，攻高防低",
     },
-    # v95.16 #74：主线 q2_3『狼王·灰影』难度断层（Lv.10-11 单人 4 回合死 vs 17 回合才能杀）
+    # v95.16 #74：主线 q2_3『狼王·灰影』难度断层（Lv.10-11 单人 4 刻死 vs 17 刻才能杀）
     # 下调个体数值：959→498HP、98→58atk、75→45matk（相当于精英 Lv.10-11 水平，保持挑战性）
     "e_wolf_alpha": {
         "hp_mult": 0.52, "atk_mult": 0.60, "matk_mult": 0.60,
@@ -211,21 +211,21 @@ MONSTER_MODS = {
         "mech": "summon,phase_open,player_low",
         # v116.1 低血追击示范（玩家 HP<30% 时追击，cooldown=3 防刷屏）
         "triggers": {"player_low": {"hp": 0.30, "cooldown": 3}},
-        # v1.3 重创开场：玩家吸血/治疗偷取减半（2 回合）——反制吸血站撸 Boss
+        # v1.3 重创开场：玩家吸血/治疗偷取减半（2 刻）——反制吸血站撸 Boss
         "opening": {"name": "龙威·重创", "effect": "mortal_wound", "power": 2},
         "desc": "古龙·奥姆之影：龙威浩荡，会召唤雏龙护卫，开场龙威重创挑战者",
     },
     "b_cardinal": {  # 旧 b_abyss_pope 大祭司·克劳斯
         "hp_mult": 1.30, "matk_mult": 1.20,
         "mech": "heal,phase_open",
-        # v1.3 神罚·重创开场：玩家吸血/治疗偷取减半（2 回合）——回血 Boss 反制吸血站撸
+        # v1.3 神罚·重创开场：玩家吸血/治疗偷取减半（2 刻）——回血 Boss 反制吸血站撸
         "opening": {"name": "神罚·重创", "effect": "mortal_wound", "power": 2},
         "desc": "枢机主教·奥古斯都：借用旧神之力回复自身，开场神罚重创挑战者",
     },
     "b_king_odric": {  # 旧 b_silent_king 白骨君王
         "hp_mult": 1.35, "atk_mult": 1.15,
         "mech": "summon",
-        "desc": "古王·奥德里克：每过几回合就唤起新的骸骨卫士",
+        "desc": "古王·奥德里克：每过几刻就唤起新的骸骨卫士",
     },
     "b_eter": {  # 旧 b_chaos_lord 巫王·莫里斯
         "hp_mult": 1.40, "atk_mult": 1.25,

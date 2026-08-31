@@ -14,7 +14,7 @@ v137 副本地图化 + v141 大陆隔离现状（2026-08-30 审计后描述）�
 - 大陆生命周期：开本 create_instance_world → 撤退保留（rooms/resources_pool 续档）→
   离开/失败/30min 通关超时/24h 过期 destroy_instance_world + world_id 回 mainland。
 
-历史语义（保留）：2 人组队轮流回合 Boss 战——队长『副本 <名字>』开本（需已组队），
+历史语义（保留）：2 人组队轮流刻 Boss 战——队长『副本 <名字>』开本（需已组队），
 队员自动参战；超时自动防御（事件驱动惰性检测，非定时器）；战斗中不能逃跑
 （Boss 锁定）；副本失败全队回城。
 """
@@ -1002,7 +1002,7 @@ class InstanceCmds(CommandBase):
         from ..core import formation as FM
         enemies = st.setdefault("enemies", [])
         removed = FM.compact(enemies)
-        st["_last_killed"] = removed  # 记录本回合死亡单位（击杀奖励/任务统计按单位结算）
+        st["_last_killed"] = removed  # 记录本刻死亡单位（击杀奖励/任务统计按单位结算）
         # 兼容主目标：仅当原 Boss（按 uid 识别）仍在存活阵列中时，才把 st["boss"]/st["enemy"]
         # 更新为活着的首单位；若原 Boss 已死/被移除（爪牙存活），保留原 dict 引用，避免
         # "Boss 先死、爪牙存活"时 st["boss"] 被错误重指向爪牙。
@@ -2075,8 +2075,8 @@ class InstanceCmds(CommandBase):
         副本战斗中玩家 hp/mp 只存在 st["players"] 快照，DB 保持开本时的值——
         战斗外逻辑（治疗满血判定 tpl_heal、『角色』面板）读 DB 会拿到过时数据：
         层肃清后『使用 治疗药水』误报"生命是满的"拒用、进 Boss 战残血开局
-        （格温实测：DB 1003/1003 满血拒药，Boss 战第一回合实际 197/1003）。
-        每个写回点（行动保存/切怪/层肃清）前调用，与普通战斗每回合 update_player 对齐。"""
+        （格温实测：DB 1003/1003 满血拒药，Boss 战第一刻实际 197/1003）。
+        每个写回点（行动保存/切怪/层肃清）前调用，与普通战斗每刻 update_player 对齐。"""
         for m in st["members"]:
             snap = st["players"].get(str(m))
             if not snap:
@@ -2087,13 +2087,13 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 行动核心 ----------------
     async def _instance_act(self, event, group_id, qq_id, player, st, action, skill_name=None, target=None):
-        """副本回合行动(由攻击/技能/防御指令路由进来)
+        """副本刻行动(由攻击/技能/防御指令路由进来)
 
         v127.3：target 参数（『技能 <槽位> <编号>』指定目标）由 combat 层解析传入。
         """
         # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
         # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
-        # 层内无敌人时直接引导『深入』推进，不进入战斗回合逻辑。
+        # 层内无敌人时直接引导『深入』推进，不进入战斗刻逻辑。
         # v2 修复：判定基于 enemies 阵列存活（兼容键 st["boss"] 在阵列清空后保留引用，
         # 不能再用 not st.get("boss") 判断地图模式——否则肃清后攻击会进入空阵列战斗路径）。
         if not self._instance_enemies_alive(st) or not st.get("enemies"):
@@ -2166,7 +2166,7 @@ class InstanceCmds(CommandBase):
                 continue
             st["turn"] = cur_idx
             cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的回合，等待 TA 行动～"]))
+            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～"]))
             return
 
         # 2. 确认轮到当前玩家
@@ -2174,7 +2174,7 @@ class InstanceCmds(CommandBase):
         cur_key = str(members[cur_idx])
         if str(qq_id) != cur_key:
             cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的回合，等待 TA 行动～"]))
+            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～"]))
             return
 
         # 3. 玩家行动（enemy_act=False，Boss 不立即反击）
@@ -2215,14 +2215,14 @@ class InstanceCmds(CommandBase):
             "mech_stacks": st["mech_stacks"].get(cur_key, {}),
             "p_shields": snap.get("p_shields", {}) or {},
             # v101.28m #438 复测修复：副本战斗状态必须完整传递，否则召唤援军
-            # （e_minions）回合结束蒸发、核心资源（resources）不持久化导致耗资源
-            # 技能永不可用、round 恒 0 导致按回合 Boss 机制（召唤/回血）失序
+            # （e_minions）刻结束蒸发、核心资源（resources）不持久化导致耗资源
+            # 技能永不可用、round 恒 0 导致按刻 Boss 机制（召唤/回血）失序
             "round": st.get("round", 0),
             "e_minions": st.get("e_minions", []),
             "resources": st.get("resources", {}).get(cur_key, {}),
             "cooldown": st.get("cooldown", {}).get(cur_key, {}),
             "combo_seq": st.get("combo_seq", {}).get(cur_key, []),
-            # v2 副本玩家蓄力持久化：跨回合恢复（蓄力技副本中跨回合生效）
+            # v2 副本玩家蓄力持久化：跨刻恢复（蓄力技副本中跨刻生效）
             "charging": st.get("charging", {}).get(cur_key),
             # v121 CTB：透传玩家快照 ct（行动后 Battle 内部 _after_actor_ct("p") 推进并随写回转存）
             "p_ct": snap.get("ct", 0.0),
@@ -2324,7 +2324,7 @@ class InstanceCmds(CommandBase):
         team_effects = getattr(b, "team_effects", None) or []
         for te in team_effects:
             if te.get("kind") == "taunt":
-                # v51 嘲讽：仇恨拉满 + Boss 强制打嘲讽者 2 回合
+                # v51 嘲讽：仇恨拉满 + Boss 强制打嘲讽者 2 刻
                 top = max(threat.values()) if threat else 0
                 threat[cur_key] = max(threat.get(cur_key, 0), int(top * 2) + 100)
                 st["taunt_target"] = cur_key
@@ -2459,7 +2459,7 @@ class InstanceCmds(CommandBase):
                 # v121 审计修复：切怪后玩家 ct 与敌方同规则重置（-spd 播种对称）
                 self._instance_reset_player_cts(st)
                 st["e_buffs"] = {}
-                # δ副本层：切怪/换 Boss 清层——新怪无减益、新回合重新允许结算、
+                # δ副本层：切怪/换 Boss 清层——新怪无减益、新刻重新允许结算、
                 # 玩家资源（叠层/护盾）不跨怪残留、轮次行动记录重置
                 st["dot_pending"] = True
                 st["boss"].pop("debuffs", None)                    # 新怪无减益
@@ -2574,7 +2574,7 @@ class InstanceCmds(CommandBase):
         st["turn_time"] = now
 
         # 6. 保存状态（存到队长名下）并展示
-        self._sync_players_db(group_id, st)  # v95r76 #383：每回合行动后同步快照血量（对齐普通战斗）
+        self._sync_players_db(group_id, st)  # v95r76 #383：每刻行动后同步快照血量（对齐普通战斗）
         self._instance_save(group_id, st)
         nxt_key = str(members[st["turn"]])
         nxt_p = self._player(group_id, nxt_key)
@@ -2608,20 +2608,20 @@ class InstanceCmds(CommandBase):
                 p["hp"] = min(p.get("max_hp", p["hp"]), p.get("hp", 0) + heal)
                 logs.append(f"✨ {p.get('name', k)} 恢复 {heal} 点生命！")
             return logs
-        # 全队 buff（写入各自 p_buffs，Boss 回合按仇恨打时生效）
+        # 全队 buff（写入各自 p_buffs，Boss 刻按仇恨打时生效）
         buff_effects = {
             "def_all": "def_up", "atk_all": "atk_up",
             "matk_all": "matk_up_strong", "crit_all": "crit_up", "spd_all": "spd_up",
         }
-        # v151 回合制审计：reduce_all 从映射表移除（原误映射 def_up，与单机 v113.1 口径分裂）——
-        # 真·百分比减伤：p_buffs["reduce_all"]=减伤百分比（float），回合记 st["reduce_all_left"]
+        # v151 刻制审计：reduce_all 从映射表移除（原误映射 def_up，与单机 v113.1 口径分裂）——
+        # 真·百分比减伤：p_buffs["reduce_all"]=减伤百分比（float），刻记 st["reduce_all_left"]
         if kind == "reduce_all":
             pct = float(te.get("reduce_all") or (stats or {}).get("reduce_all") or 0)
             st["reduce_all_left"] = max(int(st.get("reduce_all_left", 0) or 0), turns)
             for k in alive:
                 pb = st["p_buffs"].setdefault(k, {})
                 pb["reduce_all"] = pct
-            logs.append(f"🛡️ 全队减伤 {int(pct * 100)}%（持续 {st['reduce_all_left']} 回合）")
+            logs.append(f"🛡️ 全队减伤 {int(pct * 100)}%（持续 {st['reduce_all_left']} 刻）")
             return logs
         if kind in buff_effects:
             be = buff_effects[kind]
@@ -2632,7 +2632,7 @@ class InstanceCmds(CommandBase):
                 pb[be] = max(pb.get(be, 0), turns)
             logs.append("🛡️ 全队获得增益效果！")
             return logs
-        # 全队护盾（v101.28d 盾 buff 化：同源叠加 + 刷新 3 回合）
+        # 全队护盾（v101.28d 盾 buff 化：同源叠加 + 刷新 3 刻）
         if kind == "shield_all":
             src = st["players"][source_key]
             base = stats.get("matk") or stats.get("atk") or 0
@@ -2655,12 +2655,12 @@ class InstanceCmds(CommandBase):
                 deb = boss.setdefault("debuffs", {})
                 cur = deb.get("poison") or {"n": 0, "mult": 1.0}
                 cur["n"] = min(5, cur["n"] + 2)
-                cur["last_round"] = st.get("round", 0) or 0  # 记录叠层回合
+                cur["last_round"] = st.get("round", 0) or 0  # 记录叠层刻
                 deb["poison"] = cur
-                # 适应机制：团队淬毒为持续施加，+0.04（cap 0.20），回落由结算侧按回合判定
+                # 适应机制：团队淬毒为持续施加，+0.04（cap 0.20），回落由结算侧按刻判定
                 adapt = boss.setdefault("adapt", {})
                 adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
-                logs.append("☠️ 全队武器淬毒！(毒层共享，每回合结算一次)")
+                logs.append("☠️ 全队武器淬毒！(毒层共享，每刻结算一次)")
             return logs
         return logs
 
@@ -2916,7 +2916,7 @@ class InstanceCmds(CommandBase):
     # ---------------- 结算 ----------------
     def _instance_kill_reward(self, group_id, st):
         """v95r77 #363：副本小怪/精英击杀奖励（此前击杀零播报——无经验/金币/掉落反馈）。
-        v2 多对多：按当回合死亡单位列表（st["_last_killed"]，缺省回退主怪）逐单位结算——
+        v2 多对多：按当刻死亡单位列表（st["_last_killed"]，缺省回退主怪）逐单位结算——
         主怪（is_boss/is_elite/阵列首）全量 exp/gold+掉落；爪牙 exp/gold ×0.5、无掉落。
 
         对照野外 _kill 的 v93 经济模式：经验入账 + 金币×1.5 折算成可卖材料

@@ -173,7 +173,7 @@ ALCHEMY_RECIPES = {
             "i_atk_potion": 1
         },
         "min_lv": 4,
-        "desc": "战斗中使用，攻击力 + 30%(3 回合)",
+        "desc": "战斗中使用，攻击力 + 30%(3 刻)",
         "name": "攻击药水"
     },
     "al_fang_yu_yao_shui": {
@@ -224,7 +224,7 @@ ALCHEMY_RECIPES = {
             "i_spd_potion": 1
         },
         "min_lv": 5,
-        "desc": "战斗中使用，速度 + 40%(3 回合)",
+        "desc": "战斗中使用，速度 + 40%(3 刻)",
         # v105R3 M16 P3-5：配方名与产物名统一（产物 i_spd_potion 为『疾风药剂』）
         "name": "疾风药剂"
     },
@@ -238,7 +238,7 @@ ALCHEMY_RECIPES = {
             "i_crit_potion": 1
         },
         "min_lv": 6,
-        "desc": "战斗中使用，暴击率 + 20%(3 回合)",
+        "desc": "战斗中使用，暴击率 + 20%(3 刻)",
         "name": "暴击药水"
     },
     # ---- 垂钓产业链（16 章 2.5：鲛人泪/龙涎香仅垂钓产出）----
@@ -250,8 +250,8 @@ ALCHEMY_RECIPES = {
             "i_mermaid_tear": 1
         },
         "min_lv": 3,
-        # v105R3 M16 P2-7：实际 3 回合 buff（battle.py max(...,3)），desc 不再写「本回合」
-        "desc": "战斗中使用，3 回合魔攻 + 30%",
+        # v105R3 M16 P2-7：实际 3 刻 buff（battle.py max(...,3)），desc 不再写「本刻」
+        "desc": "战斗中使用，3 刻魔攻 + 30%",
         "name": "鲛人之泪"
     },
     "al_long_xian_yao_ji": {
@@ -262,7 +262,7 @@ ALCHEMY_RECIPES = {
             "i_ambergris_draught": 1
         },
         "min_lv": 5,
-        "desc": "战斗中使用，3 回合攻击 + 30%、防御 + 45%",
+        "desc": "战斗中使用，3 刻攻击 + 30%、防御 + 45%",
         "name": "龙涎药剂"
     },
 
@@ -278,7 +278,7 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_deep_crystal": 1, "mat_kong_ping": 1},
         "product": {"i_abyss_crystal_potion": 1},
         "min_lv": 5,
-        "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性（3 回合魔法伤害减免 15%）",
+        "desc": "深渊水晶研磨入药，战斗中喝下获得魔法抗性（3 刻魔法伤害减免 15%）",
         "name": "深渊药剂"
     },
     "al_xing_tie_qiang_hua_ji": {
@@ -294,14 +294,14 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_hu_zhen_zhu": 1, "mat_kong_ping": 1},
         "product": {"i_pearl_tonic": 1},
         "min_lv": 3,
-        "desc": "湖珍珠磨粉调制的灵水，战斗中暴击率 + 15%(3 回合)",
+        "desc": "湖珍珠磨粉调制的灵水，战斗中暴击率 + 15%(3 刻)",
         "name": "珍珠明目水"
     },
     "al_shen_yuan_hui_xiang": {
         "cost": {"mat_shen_yuan_zhen_zhu": 1, "mat_kong_ping": 1},
         "product": {"i_abyss_echo": 1},
         "min_lv": 5,
-        "desc": "深渊珍珠研磨的暗色药水，战斗中魔攻 + 30%(3 回合)",
+        "desc": "深渊珍珠研磨的暗色药水，战斗中魔攻 + 30%(3 刻)",
         "name": "深渊回响药剂"
     },
     "al_cai_hong_yao_ji": {
@@ -315,14 +315,14 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_lei_jing_sha": 1, "mat_kong_ping": 1},
         "product": {"i_thunder_elixir": 1},
         "min_lv": 6,
-        "desc": "雷晶砂淬炼的药剂，战斗中攻击力 + 40%(3 回合)",
+        "desc": "雷晶砂淬炼的药剂，战斗中攻击力 + 40%(3 刻)",
         "name": "雷晶药剂"
     },
     "al_long_gu_yao_ji": {
         "cost": {"mat_gu_dai_yu_gu": 1, "mat_kong_ping": 1},
         "product": {"i_dragonbone_elixir": 1},
         "min_lv": 7,
-        "desc": "上古鱼骨熬成的猛药，战斗中攻击 + 40%、防御 + 45%(3 回合)",
+        "desc": "上古鱼骨熬成的猛药，战斗中攻击 + 40%、防御 + 45%(3 刻)",
         "name": "龙骨药剂"
     },
 
@@ -363,14 +363,14 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_feng_bao_zhi_he": 1},
         "product": {"i_thunder_elixir": 1},
         "min_lv": 6,
-        "desc": "风暴之核淬炼的雷晶药剂，战斗中攻击力 + 40%(3 回合)",
+        "desc": "风暴之核淬炼的雷晶药剂，战斗中攻击力 + 40%(3 刻)",
         "name": "风暴雷晶药剂"
     },
     "al_yun_nu_bao_ji": {
         "cost": {"mat_yun_nu_zhi_he": 1, "mat_shen_yuan_zhen_zhu": 2},
         "product": {"i_crit_potion": 1},
         "min_lv": 6,
-        "desc": "云怒之核调制，战斗中暴击率 + 20%(3 回合)",
+        "desc": "云怒之核调制，战斗中暴击率 + 20%(3 刻)",
         "name": "云怒暴击药水"
     },
     "al_long_lin_tie_bi": {
@@ -384,7 +384,7 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_he_er_jia_de_ji_qi": 8, "mat_sheng_guang_sheng_hui": 1},
         "product": {"i_abyss_crystal_potion": 1},
         "min_lv": 5,
-        "desc": "赫尔加祭器研磨入药，战斗中魔法伤害减免 15%(3 回合)",
+        "desc": "赫尔加祭器研磨入药，战斗中魔法伤害减免 15%(3 刻)",
         "name": "祭器深渊药剂"
     },
     "al_shi_lu_qiang_hua": {
@@ -403,14 +403,14 @@ ALCHEMY_RECIPES = {
         "cost": {"mat_shi_lian_hui_ji": 1, "mat_ke_luo_de_luo_pan": 1, "mat_ma_er_ku_si_de_fa_guan": 1},
         "product": {"i_spd_potion": 1},
         "min_lv": 4,
-        "desc": "试炼徽记与古贤遗物调制的疾风药剂，战斗中速度 + 40%(3 回合)",
+        "desc": "试炼徽记与古贤遗物调制的疾风药剂，战斗中速度 + 40%(3 刻)",
         "name": "试炼疾风药剂"
     },
     "al_lan_ge_ming_mu": {
         "cost": {"mat_lan_ge_zhi_guan": 1, "mat_shen_yuan_zhen_zhu": 1},
         "product": {"i_pearl_tonic": 1},
         "min_lv": 4,
-        "desc": "蓝歌之冠磨粉调制的灵水，战斗中暴击率 + 15%(3 回合)",
+        "desc": "蓝歌之冠磨粉调制的灵水，战斗中暴击率 + 15%(3 刻)",
         "name": "蓝歌明目水"
     },
 

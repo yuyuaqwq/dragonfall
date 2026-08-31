@@ -131,7 +131,7 @@ def bar_trigger(enemy: dict, bar_key: str, logs: list | None = None) -> bool:
 
 
 def bar_tick(enemy: dict, bar_key: str, logs: list | None = None) -> bool:
-    """回合开始：免疫期递减 + 积蓄自然衰减。返回是否触发（调用方处理效果）。"""
+    """刻开始：免疫期递减 + 积蓄自然衰减。返回是否触发（调用方处理效果）。"""
     bd = bar_def(bar_key)
     if not bd:
         return False
@@ -204,11 +204,11 @@ def charge_start(player: dict, skill_info: dict, logs: list | None = None) -> bo
 
 
 def charge_tick(player: dict, skill_info: dict, logs: list | None = None) -> dict:
-    """蓄力回合：+1 阶 + 边攒边打出伤。
+    """蓄力刻：+1 阶 + 边攒边打出伤。
 
     返回 {"staged": int, "dmg_mult": float, "released": bool}：
       staged    当前阶数
-      dmg_mult  本回合边攒边打的伤害倍率（0.7/1.3/1.9 按阶）
+      dmg_mult  本刻边攒边打的伤害倍率（0.7/1.3/1.9 按阶）
       released  是否满阶强制释放（调用方执行释放逻辑）
     """
     cd = charge_def(skill_info)
@@ -270,11 +270,11 @@ def charge_clear(player: dict) -> None:
 
 
 # ============================================================
-# 回合开始统一入口（供 battle.py _turn_start 调用）
+# 刻开始统一入口（供 battle.py _turn_start 调用）
 # ============================================================
 
 def turn_start_bars(enemy: dict, logs: list | None = None) -> list:
-    """敌方回合开始：所有已配置 bar 类型的免疫递减 + 衰减 + 触发检查。
+    """敌方刻开始：所有已配置 bar 类型的免疫递减 + 衰减 + 触发检查。
 
     返回触发列表 [bar_key, ...]（调用方处理触发效果）。
     """

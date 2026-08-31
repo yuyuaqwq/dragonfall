@@ -96,7 +96,7 @@ def infer_template(data):
         # （战斗内=持续恢复，战斗外=即时回复+体力；药水无 hot 字段走原逻辑）
         # v104 M08 P1-4：hot_mana 且无 hot 也是食物（苹果酒/蜂蜜茶/码头朗姆等 8 种
         # 只有 hot_mana/hot_turns 无 hot，此前被 infer 判为 mana 药水——战斗内变
-        # 即时回蓝，desc 却写"每回合回复魔力"，实机与文案不符）
+        # 即时回蓝，desc 却写"每刻回复魔力"，实机与文案不符）
         return "food"
     if data.get("effect"):
         # v101.28b 食物增益：effect + 恢复字段 = 战斗料理（战斗内 buff，战斗外恢复）
@@ -138,7 +138,7 @@ def tpl_heal(ctx):
     """生命恢复。heal <= 1 视为百分比（0.2=20%、1.0=100%），> 1 固定值（旧物品兼容）。
     战斗内：payload = 绝对恢复值（battle.player_turn 实际应用）。
     战斗外：满血纯治疗拦截不消耗；复合物品（带 stamina/mana）满血仍可用。
-    v104 M02 P1-5：战斗内满血同款拦截（此前白扣道具+白送敌方一回合）。"""
+    v104 M02 P1-5：战斗内满血同款拦截（此前白扣道具+白送敌方一刻）。"""
     d = ctx.data
     heal_v = d["heal"]
     # <=1 视为百分比（0.2=20%；1.0=100% 完全回复），>1 固定值（旧式配方兼容）
@@ -146,9 +146,9 @@ def tpl_heal(ctx):
         heal_v = int(ctx.player["max_hp"] * heal_v)
     if ctx.battle:
         # v104 M02 P1-5：战斗内满血拦截（与战斗外同规则）——满血纯治疗不扣道具、
-        # 不消耗回合（consume=False 由 economy use() 短路，敌方不动）。
+        # 不消耗刻（consume=False 由 economy use() 短路，敌方不动）。
         # 血量取权威来源：副本战斗读 st["players"] 快照（DB 可能过时，v95r76）；
-        # 普通战斗 hp 用 DB（每回合同步），上限用引擎实时值（DB max 换装/升级后
+        # 普通战斗 hp 用 DB（每刻同步），上限用引擎实时值（DB max 换装/升级后
         # 可能过时，对齐 battle.player_turn v95.19 刷新逻辑）。
         if not d.get("stamina") and not d.get("mana"):
             _hp, _max = _battle_cur_max(ctx, "hp", "max_hp")
@@ -173,8 +173,8 @@ def tpl_heal(ctx):
 
 def _battle_cur_max(ctx, cur_key, max_key):
     """战斗内当前值与上限的权威来源（v104 M02 P1-5 满血/满蓝判定用）：
-    - 副本战斗：st["players"][qq_id] 快照（引擎每回合刷新并写回，权威）
-    - 普通战斗：DB player（每回合 player_turn 后同步）；上限按引擎实时重算
+    - 副本战斗：st["players"][qq_id] 快照（引擎每刻刷新并写回，权威）
+    - 普通战斗：DB player（每刻 player_turn 后同步）；上限按引擎实时重算
       （v95.19：DB max_hp/max_mp 换装/升级后可能过时，player_turn 开头也会刷新）"""
     st = ctx.battle
     if isinstance(st, dict):
@@ -211,7 +211,7 @@ def tpl_mana(ctx):
         mana_v = int(ctx.player["max_mp"] * mana_v)
     if ctx.battle:
         # v104 M02 P1-5：战斗内满蓝拦截（与 tpl_heal 同规则）——满蓝纯回蓝不扣
-        # 道具、不消耗回合；血量取权威来源（副本快照/引擎实时上限，见 _battle_cur_max）
+        # 道具、不消耗刻；血量取权威来源（副本快照/引擎实时上限，见 _battle_cur_max）
         if not d.get("stamina") and not d.get("heal"):
             _mp, _max = _battle_cur_max(ctx, "mp", "max_mp")
             if _mp >= _max:
@@ -282,7 +282,7 @@ def tpl_stamina(ctx):
 
 @register("food", battle_ok=True)
 def tpl_food(ctx):
-    """v101.28 食物（hot 字段标记）：战斗内=持续恢复（hot 每回合回血/回蓝），
+    """v101.28 食物（hot 字段标记）：战斗内=持续恢复（hot 每刻回血/回蓝），
     战斗外=即时回复+体力（与 heal/mana 模板同效果，合并播报）。"""
     d = ctx.data
     if ctx.battle:
@@ -295,7 +295,7 @@ def tpl_food(ctx):
 
 @register("food_buff", battle_ok=True)
 def tpl_food_buff(ctx):
-    """v101.28b 战斗料理（effect + 恢复字段）：战斗内=属性 buff（弱化版，3 回合），
+    """v101.28b 战斗料理（effect + 恢复字段）：战斗内=属性 buff（弱化版，3 刻），
     战斗外=即时回复+体力（同 tpl_food 战斗外）。"""
     d = ctx.data
     if ctx.battle:
@@ -352,7 +352,7 @@ def _food_out_battle(ctx):
 _BUFF_KEYS = {"buff_atk": "atk_up", "buff_def": "def_up", "buff_spd": "spd_up",
               "buff_crit": "crit_up", "buff_matk": "matk_up_pot",
               "buff_atk_def": "atk_up,def_up",
-              # v101.28b 食物增益（弱化版 BUFF_MULT food_* 键，战斗中 3 回合）
+              # v101.28b 食物增益（弱化版 BUFF_MULT food_* 键，战斗中 3 刻）
               "buff_atk_food": "food_atk_up", "buff_def_food": "food_def_up",
               "buff_spd_food": "food_spd_up", "buff_crit_food": "food_crit_up",
               "buff_matk_food": "food_matk_up",
@@ -741,8 +741,8 @@ _PURIFY_DEBUFF_KEYS = ("stun", "freeze", "silence", "spd_down",
 @register("purify", battle_ok=True)
 def tpl_purify(ctx):
     """净化卷轴（v104 P2-7 修复：原无 effect 字段 → infer_template 判 none 死数据）。
-    战斗内：清除 p_buffs 中的负面效果。普通战斗 p_buffs 为平铺 {buff: 回合}；
-    副本战斗为 {成员: {buff: 回合}}，按道具文案『驱散全队负面』清全部成员。
+    战斗内：清除 p_buffs 中的负面效果。普通战斗 p_buffs 为平铺 {buff: 刻}；
+    副本战斗为 {成员: {buff: 刻}}，按道具文案『驱散全队负面』清全部成员。
     p_buffs 与战斗引擎 Battle 实例共享同一 dict 对象（battle.py from_state 直接引用
     st["p_buffs"]），此处直接改状态即被 player_turn 感知并随 to_state 持久化；
     payload="0" 走 _do_use_item 默认分支播报（不新增 battle.py 分支的约束下最简实现）。
@@ -756,7 +756,7 @@ def tpl_purify(ctx):
     pb = st.get("p_buffs") if isinstance(st, dict) else getattr(st, "p_buffs", None)
     removed = []
     if isinstance(pb, dict):
-        # 副本结构 {成员: {buff:回合}}（全队驱散）；普通战斗平铺 {buff:回合}
+        # 副本结构 {成员: {buff:刻}}（全队驱散）；普通战斗平铺 {buff:刻}
         nested = any(isinstance(v, dict) for v in pb.values())
         for t in (list(pb.values()) if nested else [pb]):
             if isinstance(t, dict):

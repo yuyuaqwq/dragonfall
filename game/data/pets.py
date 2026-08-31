@@ -6,14 +6,14 @@
 掉落表 PET_EGG_ROLL 数据化（v101.11 从 combat.py 硬编码迁入），加新宠物 = 加一行。
 
 宠物技能类型：
-  atk_pct   每 N 回合帮主人造成 攻击力 × value 伤害
-  matk_pct  每 N 回合造成 魔攻 × value 伤害
-  heal_pct  每 N 回合为主人回复 max_hp × value 生命
-  block     每 N 回合 value 概率替主人挡一次攻击（敌方行动时触发）
-  lifesteal 每 N 回合造成 攻击 × value 伤害，并回复伤害 50% 生命（v101.11 新增）
-  pierce    每 N 回合造成 攻击 × value 伤害，并破防（敌方防御减半，持续 2 回合）（v101.11 新增）
-  buff_atk  每 N 回合为主人加 攻击 ×(1+value) 攻击 buff（持续 2 回合）（v101.11 新增）
-  crit_up   每 N 回合为主人加暴击 +value（持续 2 回合）（v101.11 新增）
+  atk_pct   每 N 刻帮主人造成 攻击力 × value 伤害
+  matk_pct  每 N 刻造成 魔攻 × value 伤害
+  heal_pct  每 N 刻为主人回复 max_hp × value 生命
+  block     每 N 刻 value 概率替主人挡一次攻击（敌方行动时触发）
+  lifesteal 每 N 刻造成 攻击 × value 伤害，并回复伤害 50% 生命（v101.11 新增）
+  pierce    每 N 刻造成 攻击 × value 伤害，并破防（敌方防御减半，持续 2 刻）（v101.11 新增）
+  buff_atk  每 N 刻为主人加 攻击 ×(1+value) 攻击 buff（持续 2 刻）（v101.11 新增）
+  crit_up   每 N 刻为主人加暴击 +value（持续 2 刻）（v101.11 新增）
 """
 
 PET_POOL = [
@@ -21,88 +21,88 @@ PET_POOL = [
     {"key": "pet_wolf",   "name": "森林狼崽", "icon": "🐺", "quality": "white", "focus": "攻击",
      "skill_name": "撕咬", "skill_interval": 3, "skill_type": "atk_pct", "skill_value": 0.40,
      "source": "野外兽类怪(狼/狗/野猪/熊)掉落狼崽蛋",
-     "desc": "忠诚的森林伙伴，每 3 回合帮主人撕咬敌人造成攻击伤害",
+     "desc": "忠诚的森林伙伴，每 3 刻帮主人撕咬敌人造成攻击伤害",
      "lines": ["嗷呜！", "汪！主人我上啦！", "（龇牙）交给我！"]},
     {"key": "pet_turtle", "name": "铁壳龟", "icon": "🐢", "quality": "white", "focus": "防守",
      "skill_name": "铁壁缩壳", "skill_interval": 4, "skill_type": "block", "skill_value": 0.15,
      "source": "新手任务(主线 reward_pet) + 蓝档垂钓稀有产出",  # v105 M17 P2-3：橡木镇新手任务渠道已实装（reward_pet 接 world.py、quests.py，垂钓 blue 档接 economy.py），文案与实现对齐
-     "desc": "慢吞吞但硬邦邦，每 4 回合有 15% 概率替主人挡下一次攻击",
+     "desc": "慢吞吞但硬邦邦，每 4 刻有 15% 概率替主人挡下一次攻击",
      "lines": ["……（缩头）", "壳！", "慢慢来，比较快。"]},
     # ---------- 🟢 优秀 ----------
     {"key": "pet_cat",    "name": "黑猫", "icon": "🐈‍⬛", "quality": "green", "focus": "敏捷",
      "skill_name": "影袭", "skill_interval": 3, "skill_type": "block", "skill_value": 0.25,
      "source": "精英怪概率掉落(城市/密林精英)",
-     "desc": "神秘的黑猫，每 3 回合有 25% 概率替主人挡下一次攻击",
+     "desc": "神秘的黑猫，每 3 刻有 25% 概率替主人挡下一次攻击",
      "lines": ["喵——！", "（无声的扑击）", "影子会保护你。"]},
     {"key": "pet_rabbit", "name": "月光兔", "icon": "🐇", "quality": "green", "focus": "恢复",
      "skill_name": "月光祝福", "skill_interval": 4, "skill_type": "heal_pct", "skill_value": 0.08,
      "source": "采集点/垂钓稀有产出(特殊蛋)",
-     "desc": "月光下诞生的灵兔，每 4 回合为主人回复 8% 生命",
+     "desc": "月光下诞生的灵兔，每 4 刻为主人回复 8% 生命",
      "lines": ["（抖耳朵）月光在照耀！", "咕噜噜～", "别怕，我带着月亮的温柔。"]},
     {"key": "pet_dove",   "name": "圣光鸽", "icon": "🕊️", "quality": "green", "focus": "恢复",
      "skill_name": "圣光羽翼", "skill_interval": 4, "skill_type": "heal_pct", "skill_value": 0.12,
      "source": "垂钓稀有产出(blue 档)圣光鸽蛋",
-     "desc": "教会的信使，每 4 回合为主人回复 12% 生命",
+     "desc": "教会的信使，每 4 刻为主人回复 12% 生命",
      "lines": ["咕咕！愿圣光护佑你！", "（羽翼洒下光尘）", "光明与你同在。"]},
     # ---------- 🔵 稀有 ----------
     {"key": "pet_fox",    "name": "冰晶狐", "icon": "🦊", "quality": "blue", "focus": "元素",
      "skill_name": "霜刃", "skill_interval": 3, "skill_type": "matk_pct", "skill_value": 0.50,
      "source": "北境野外怪(狐/貂/雪兽)掉落冰晶狐蛋",
-     "desc": "北境雪原的精灵，每 3 回合以霜刃造成 50% 魔攻伤害",
+     "desc": "北境雪原的精灵，每 3 刻以霜刃造成 50% 魔攻伤害",
      "lines": ["（尾巴凝出冰霜）", "霜雪会埋葬敌人！", "嘶——好冷！"]},
     {"key": "pet_salamander", "name": "火尾蜥", "icon": "🦎", "quality": "blue", "focus": "元素",
      "skill_name": "烈焰尾击", "skill_interval": 3, "skill_type": "atk_pct", "skill_value": 0.55,
      "source": "火山/沙漠野外怪(蜥/火蛇)掉落火尾蜥蛋",
-     "desc": "尾尖燃着不灭的火焰，每 3 回合以烈焰尾击造成 55% 攻击伤害",
+     "desc": "尾尖燃着不灭的火焰，每 3 刻以烈焰尾击造成 55% 攻击伤害",
      "lines": ["嘶嘶——！", "（尾巴甩出火星）", "烧起来啦！"]},
     {"key": "pet_panther", "name": "影豹", "icon": "🐆", "quality": "blue", "focus": "敏捷",
      "skill_name": "狩猎之眼", "skill_interval": 3, "skill_type": "crit_up", "skill_value": 0.20,
      "source": "密林精英怪概率掉落影豹蛋",
-     "desc": "潜伏在密林阴影中的猎手，每 3 回合为主人加持 20% 暴击(2 回合)",
+     "desc": "潜伏在密林阴影中的猎手，每 3 刻为主人加持 20% 暴击(2 刻)",
      "lines": ["（瞳孔收缩）", "猎物……跑不掉的。", "狩猎开始！"]},
     # ---------- 🟣 史诗 ----------
     # v124 隐藏线·候鸟的信：星羽候鸟蛋（hq7_3 奖励，可孵化星羽候鸟）
     {"key": "pet_starswift", "name": "星羽候鸟", "icon": "🐦", "quality": "purple", "focus": "敏捷",
      "skill_name": "星羽疾风", "skill_interval": 3, "skill_type": "crit_up", "skill_value": 0.25,
      "source": "v124 隐藏线·候鸟的信(hq7_3)奖励星羽候鸟蛋",
-     "desc": "翅羽缀满星光的候鸟，每 3 回合以星羽疾风为主人加持 25% 暴击(2 回合)",
+     "desc": "翅羽缀满星光的候鸟，每 3 刻以星羽疾风为主人加持 25% 暴击(2 刻)",
      "lines": ["啾——！（星羽闪烁）", "风会带我到任何地方！", "（盘旋一圈，洒下星尘）"]},
     {"key": "pet_drake",  "name": "龙裔幼崽", "icon": "🐉", "quality": "purple", "focus": "元素",
      "skill_name": "龙息", "skill_interval": 4, "skill_type": "matk_pct", "skill_value": 0.60,
      "source": "Boss 概率掉落(龙系/精英 Boss)",
-     "desc": "龙族的幼崽，每 4 回合喷吐龙息造成 60% 魔攻伤害",
+     "desc": "龙族的幼崽，每 4 刻喷吐龙息造成 60% 魔攻伤害",
      "lines": ["吼——！（喷出一小团火）", "吾之血脉，燃烧！", "（龙威初显）"]},
     {"key": "pet_bat",    "name": "血蝠", "icon": "🦇", "quality": "purple", "focus": "攻击",
      "skill_name": "吸血撕咬", "skill_interval": 4, "skill_type": "lifesteal", "skill_value": 0.30,
      "source": "洞穴/墓穴精英怪概率掉落血蝠蛋",
-     "desc": "暗夜中的吸血鬼，每 4 回合撕咬造成 30% 攻击伤害，回复伤害一半的生命",
+     "desc": "暗夜中的吸血鬼，每 4 刻撕咬造成 30% 攻击伤害，回复伤害一半的生命",
      "lines": ["叽叽叽！", "（蝠翼展开）", "献上你的血……哦不是，你的败北！"]},
     {"key": "pet_armadillo", "name": "岩甲兽", "icon": "🦔", "quality": "purple", "focus": "防守",
      "skill_name": "碎岩冲撞", "skill_interval": 4, "skill_type": "pierce", "skill_value": 0.35,
      "source": "矿洞/山丘精英怪概率掉落岩甲兽蛋",
-     "desc": "披着岩石甲壳的重装兽，每 4 回合冲撞造成 35% 攻击伤害并破防(敌方防御减半 2 回合)",
+     "desc": "披着岩石甲壳的重装兽，每 4 刻冲撞造成 35% 攻击伤害并破防(敌方防御减半 2 刻)",
      "lines": ["哼哧哼哧！", "（滚成球冲出去）", "岩石的力量！"]},
     {"key": "pet_thunderbird", "name": "雷羽鸟", "icon": "🦅", "quality": "purple", "focus": "元素",
      "skill_name": "雷鸣鼓舞", "skill_interval": 4, "skill_type": "buff_atk", "skill_value": 0.30,
      "source": "高地 Boss 概率掉落",
-     "desc": "羽翼缠绕雷霆的战鸟，每 4 回合为主人加持 30% 攻击(2 回合)",
+     "desc": "羽翼缠绕雷霆的战鸟，每 4 刻为主人加持 30% 攻击(2 刻)",
      "lines": ["嘎——！（雷光闪烁）", "雷霆之力，借给你！", "（羽毛噼啪作响）"]},
     # ---------- 🟠 传说 ----------
     {"key": "pet_griffin", "name": "幼年狮鹫", "icon": "🦁", "quality": "orange", "focus": "攻击",
      "skill_name": "狮鹫俯冲", "skill_interval": 3, "skill_type": "atk_pct", "skill_value": 0.70,
      "source": "传说级 Boss 极稀有掉落",
-     "desc": "天空之王的后裔，每 3 回合俯冲造成 70% 攻击伤害",
+     "desc": "天空之王的后裔，每 3 刻俯冲造成 70% 攻击伤害",
      "lines": ["嗷——！（展翅）", "天空，是我的猎场！", "俯冲！"]},
     {"key": "pet_starbutterfly", "name": "星灵蝶", "icon": "🦋", "quality": "orange", "focus": "恢复",
      "skill_name": "星辉治愈", "skill_interval": 3, "skill_type": "heal_pct", "skill_value": 0.15,
      "source": "传说级垂钓稀有产出/神秘宝箱",
-     "desc": "翅膀洒落星辉的传说之蝶，每 3 回合为主人回复 15% 生命",
+     "desc": "翅膀洒落星辉的传说之蝶，每 3 刻为主人回复 15% 生命",
      "lines": ["（翅膀洒下星尘）", "星光会治愈一切～", "（轻盈地绕着你飞）"]},
     # v124 宠物情缘线终奖：第 15 品种（设计稿标注『需新增第 15 品种』，西境精灵伴生兽）
     {"key": "pet_moonfox", "name": "月尾狐", "icon": "🦊", "quality": "orange", "focus": "恢复",
      "skill_name": "月华低语", "skill_interval": 3, "skill_type": "heal_pct", "skill_value": 0.15,
      "source": "v124 宠物情缘支线(s69 终奖)奖励月尾狐蛋",
-     "desc": "西境精灵的伴生兽，尾尖泛着月光，每 3 回合以月华低语为主人回复 15% 生命",
+     "desc": "西境精灵的伴生兽，尾尖泛着月光，每 3 刻以月华低语为主人回复 15% 生命",
      "lines": ["嘤～（蹭蹭手心）", "月华所至，皆可安眠。", "（尾尖泛起温柔的月光）"]},
 ]
 
@@ -161,19 +161,19 @@ def pet_quality_label(pet_key):
 
 # 宠物技能类型 → 描述模板（v101.3：加新技能类型 = 加一行，改文案不动逻辑）
 _PET_SKILL_DESC = {
-    "atk_pct":  lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 攻击伤害",
-    "matk_pct": lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 魔攻伤害",
-    "heal_pct": lambda p, iv: f"每 {iv} 回合回复 {int(p['skill_value']*100)}% 生命",
-    "block":    lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 概率挡一次攻击",
-    "lifesteal": lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 攻击伤害并吸血回复一半",
-    "pierce":   lambda p, iv: f"每 {iv} 回合 {int(p['skill_value']*100)}% 攻击伤害并破防 2 回合",
-    "buff_atk": lambda p, iv: f"每 {iv} 回合为 {int(p['skill_value']*100)}% 攻击加成(2 回合)",
-    "crit_up":  lambda p, iv: f"每 {iv} 回合为 {int(p['skill_value']*100)}% 暴击加成(2 回合)",
+    "atk_pct":  lambda p, iv: f"每 {iv} 刻 {int(p['skill_value']*100)}% 攻击伤害",
+    "matk_pct": lambda p, iv: f"每 {iv} 刻 {int(p['skill_value']*100)}% 魔攻伤害",
+    "heal_pct": lambda p, iv: f"每 {iv} 刻回复 {int(p['skill_value']*100)}% 生命",
+    "block":    lambda p, iv: f"每 {iv} 刻 {int(p['skill_value']*100)}% 概率挡一次攻击",
+    "lifesteal": lambda p, iv: f"每 {iv} 刻 {int(p['skill_value']*100)}% 攻击伤害并吸血回复一半",
+    "pierce":   lambda p, iv: f"每 {iv} 刻 {int(p['skill_value']*100)}% 攻击伤害并破防 2 刻",
+    "buff_atk": lambda p, iv: f"每 {iv} 刻为 {int(p['skill_value']*100)}% 攻击加成(2 刻)",
+    "crit_up":  lambda p, iv: f"每 {iv} 刻为 {int(p['skill_value']*100)}% 暴击加成(2 刻)",
 }
 
 
 def pet_skill_label(pet_key):
-    """宠物技能一句话描述(面板用)，如「撕咬(每 3 回合 40% 攻击伤害)」"""
+    """宠物技能一句话描述(面板用)，如「撕咬(每 3 刻 40% 攻击伤害)」"""
     p = next((x for x in PET_POOL if x["key"] == pet_key), None)
     if not p:
         return ""

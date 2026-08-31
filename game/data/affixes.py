@@ -10,7 +10,7 @@
 - name      显示名
 - kind      attack/defense（武器/防具类，决定随机池归属与显示分组）
 - trigger   触发时机：stat（常驻属性）/on_hit（攻击命中后）/on_taken（受击时）
-            /turn_start（回合开始）/battle_start（战斗开始）/passive（被动判定）
+            /turn_start（刻开始）/battle_start（战斗开始）/passive（被动判定）
 - chance    触发概率（缺省 100% 恒触发；仅随机概率词条需显式 chance，如 armor_break/pierce）
 - effect    效果参数（由 core/affix.py 或 battle.py 解释）
 - desc      玩家可见描述（显示在装备详情/词条表）
@@ -21,12 +21,12 @@ AFFIXES = {
     "bleed": {
         "name": "流血", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"dot_pct": 0.05, "stacks": 3},
-        "desc": "攻击 20% 使目标流血(每回合 5% 生命，3 回合)",
+        "desc": "攻击 20% 使目标流血(每刻 5% 生命，3 刻)",
     },
     "armor_break": {
         "name": "破甲", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
         "effect": {"debuff": "def", "pct": 0.15, "turns": 2},
-        "desc": "攻击 25% 降低目标防御 15%(2 回合)",
+        "desc": "攻击 25% 降低目标防御 15%(2 刻)",
     },
     "combo": {
         "name": "连击", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
@@ -121,7 +121,7 @@ AFFIXES = {
     "purify": {
         "name": "净化", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
         "effect": {"purge": 1, "holy_weaken": 0.10},
-        "desc": "攻击 15% 驱散目标 1 层增益，成功时敌人攻击－10%(1 回合)",
+        "desc": "攻击 15% 驱散目标 1 层增益，成功时敌人攻击－10%(1 刻)",
     },
     "dragon_aw": {
         "name": "龙威", "kind": "attack", "trigger": "passive",
@@ -185,12 +185,12 @@ AFFIXES = {
     "regen": {
         "name": "回春", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.01},
-        "desc": "每回合回复 1% 生命",
+        "desc": "每刻回复 1% 生命",
     },
     "meditate": {
         "name": "冥想", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.01},
-        "desc": "每回合回复 1% 魔力",
+        "desc": "每刻回复 1% 魔力",
     },
     "swift": {
         "name": "迅捷", "kind": "defense", "trigger": "stat",
@@ -325,7 +325,7 @@ AFFIXES = {
         "name": "精力潮汐", "kind": "defense", "trigger": "turn_start",
         "effect": {"res": "energy", "regen": 5, "tiers": {"purple": 5, "orange": 10}},
         "qualities": ["purple", "orange"], "line": "游侠·通用",
-        "desc": "每回合 精力回复 +5 (传说 +10)",
+        "desc": "每刻 精力回复 +5 (传说 +10)",
     },
     "full_pack": {
         "name": "盈满背囊", "kind": "defense", "trigger": "stat",
@@ -343,7 +343,7 @@ AFFIXES = {
         "name": "疾风余韵", "kind": "defense", "trigger": "turn_start",
         "effect": {"res": "energy", "regen": 10, "cond": "energy_ge_80"},
         "qualities": ["orange"], "line": "游侠·守线满弦兑现",
-        "desc": "回合结束时，若精力 ≥ 80，下回合 精力回复 +10",
+        "desc": "刻结束时，若精力 ≥ 80，下刻 精力回复 +10",
     },
     # ================= 牧师（信仰 faith） =================
     "holy_echo": {
@@ -539,7 +539,7 @@ LEGENDARY_EFFECTS = {
     "dawn_crown": {  # 晨曦之冠：回春强化
         "name": "晨曦祝福", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.02},
-        "desc": "每回合回复 2% 生命",
+        "desc": "每刻回复 2% 生命",
     },
     "moon_bow": {  # 月神之弓：暴击大幅强化
         "name": "月神眷顾", "kind": "attack", "trigger": "stat",
@@ -569,7 +569,7 @@ LEGENDARY_EFFECTS = {
     "moro_crown": {  # 摩罗之冠：受击腐蚀
         "name": "深渊腐蚀", "kind": "defense", "trigger": "on_taken", "chance": 0.15,
         "effect": {"pct": 0.10, "turns": 2},
-        "desc": "受击 15% 使敌人攻击－10%(2 回合)",
+        "desc": "受击 15% 使敌人攻击－10%(2 刻)",
     },
     "aura_seal": {  # 奥拉圣印：雷系强化
         "name": "风暴之印", "kind": "attack", "trigger": "stat",
@@ -660,7 +660,7 @@ LEGENDARY_EFFECTS = {
     "chu_huo": {  # v140 灰烬圣剑·初火（Lv95 终章任务传说剑）：初火余烬
         "name": "初火余烬", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"element": "fire", "pct": 0.08, "burn_pct": 0.015, "burn_turns": 3},
-        "desc": "攻击附加 8% 火属性伤害，20% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合）",
+        "desc": "攻击附加 8% 火属性伤害，20% 概率使目标灼烧（每刻损 1.5% 最大生命，3 刻）",
     },
     # ================= D2 基础效果库扩充（D2_design.md：24 个 = 7 完整 + 17 名字补全） =================
     "dragon_scale": {  # D2 龙鳞庇护：全元素抗性+15%、深渊抗性+5%，代价最大生命-10%
@@ -671,7 +671,7 @@ LEGENDARY_EFFECTS = {
     "obsidian_aegis": {  # D2 黑曜壁垒：受击10%获得8%最大生命护盾
         "name": "黑曜壁垒", "kind": "defense", "trigger": "on_taken", "chance": 0.10,
         "effect": {"pct": 0.08, "turns": 3},
-        "desc": "受击 10% 获得 8% 最大生命护盾（3 回合）",
+        "desc": "受击 10% 获得 8% 最大生命护盾（3 刻）",
     },
     "iron_bastion": {  # D2 铁壁意志：受击20%使敌人下一次攻击-25%
         "name": "铁壁意志", "kind": "defense", "trigger": "on_taken", "chance": 0.20,
@@ -683,15 +683,15 @@ LEGENDARY_EFFECTS = {
         "effect": {"cc_resist": 0.5, "heal_pct": 0.03},
         "desc": "受击 15% 免疫眩晕/减速且回复 3% 最大生命",
     },
-    "life_spring": {  # D2 生命泉涌：每回合回3%最大生命
+    "life_spring": {  # D2 生命泉涌：每刻回3%最大生命
         "name": "生命泉涌", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.03},
-        "desc": "每回合回复 3% 最大生命",
+        "desc": "每刻回复 3% 最大生命",
     },
-    "arcane_ward": {  # D2 奥术屏障：战斗开始15%最大生命护盾3回合
+    "arcane_ward": {  # D2 奥术屏障：战斗开始15%最大生命护盾3 刻
         "name": "奥术屏障", "kind": "defense", "trigger": "battle_start",
         "effect": {"shield_hp_pct": 0.15, "turns": 3},
-        "desc": "战斗开始获得 15% 最大生命护盾（3 回合）",
+        "desc": "战斗开始获得 15% 最大生命护盾（3 刻）",
     },
     "grim_ward": {  # D2 亡者守护：生命>50%时受击-7%
         "name": "亡者守护", "kind": "defense", "trigger": "passive",
@@ -743,15 +743,15 @@ LEGENDARY_EFFECTS = {
         "effect": {"dmg_mult": 1.25, "enemy_contains": ["巨人"], "tag": "🗿巨人屠戮"},
         "desc": "对巨人系敌人＋25% 伤害",
     },
-    "memory_tear": {  # D2 记忆撕裂：攻击15%沉默目标1回合
+    "memory_tear": {  # D2 记忆撕裂：攻击15%沉默目标1 刻
         "name": "记忆撕裂", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
         "effect": {"silence": 1},
-        "desc": "攻击 15% 撕裂目标记忆，使其沉默 1 回合",
+        "desc": "攻击 15% 撕裂目标记忆，使其沉默 1 刻",
     },
     "war_cry": {  # D2 战吼：战斗开始攻击强化
         "name": "战吼", "kind": "attack", "trigger": "battle_start",
         "effect": {"atk_up": 2, "tag": "📣战吼"},
-        "desc": "战斗开始战吼：攻击大幅提升（2 回合）",
+        "desc": "战斗开始战吼：攻击大幅提升（2 刻）",
     },
     "top_hunter": {  # D2 猎首者：对精英敌人增伤
         "name": "猎首者", "kind": "attack", "trigger": "passive",
@@ -761,7 +761,7 @@ LEGENDARY_EFFECTS = {
     "mortal_wound": {  # D2 致伤重击：攻击20%使目标受治疗-30%
         "name": "致伤重击", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"heal_down": 2},
-        "desc": "攻击 20% 使目标重伤：受治疗－30%（2 回合）",
+        "desc": "攻击 20% 使目标重伤：受治疗－30%（2 刻）",
     },
     "arcane_echo": {  # D2 秘法回响：施放技能15%下次技能伤害+15%
         "name": "秘法回响", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
@@ -804,10 +804,10 @@ LEGENDARY_EFFECTS = {
         "effect": {"dmg_reduce": 0.03},
         "desc": "受击伤害－3%",
     },
-    "morning_dew": {  # D3-A 晨露戒指：每回合回复1%魔力
+    "morning_dew": {  # D3-A 晨露戒指：每刻回复1%魔力
         "name": "晨露滋养", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.01},
-        "desc": "每回合回复 1% 魔力",
+        "desc": "每刻回复 1% 魔力",
     },
     # ================= D3-B 中期新效果（D3_B_report.md 第三节 12 个） =================
     "kingdom_lion_heart": {  # D3-B 试炼徽章：生命>70%伤害+8%
@@ -820,15 +820,15 @@ LEGENDARY_EFFECTS = {
         "effect": {"heal_pct": 0.02, "atk_up": 0.10},
         "desc": "受击 20%：回复 2% 最大生命，下次攻击＋10%",
     },
-    "sanctum_light": {  # D3-B 圣殿战锤：命中15%敌人攻击-8%（1回合）
+    "sanctum_light": {  # D3-B 圣殿战锤：命中15%敌人攻击-8%（1 刻）
         "name": "圣殿辉光", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
         "effect": {"enemy_atk_down": 0.08, "turns": 1},
-        "desc": "攻击命中 15%：敌人攻击－8%（1 回合）",
+        "desc": "攻击命中 15%：敌人攻击－8%（1 刻）",
     },
-    "ember_furnace": {  # D3-B 熔岩护手：命中20%灼烧1%×2回合
+    "ember_furnace": {  # D3-B 熔岩护手：命中20%灼烧1%×2 刻
         "name": "熔炉余烬", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"burn_pct": 0.01, "burn_turns": 2},
-        "desc": "攻击命中 20%：灼烧 1% 最大生命×2 回合",
+        "desc": "攻击命中 20%：灼烧 1% 最大生命×2 刻",
     },
     "surge_ready": {  # D3-B 蓄势拳套：战斗开始下一次攻击+15%
         "name": "蓄势待发", "kind": "attack", "trigger": "battle_start",
@@ -874,12 +874,12 @@ LEGENDARY_EFFECTS = {
     "blazing_sun": {  # D3-C 铁砧战锤：附加8%火伤+15%灼烧
         "name": "烈日灼烧", "kind": "attack", "trigger": "on_hit", "chance": 0.15,
         "effect": {"element": "fire", "pct": 0.08, "burn_pct": 0.015, "burn_turns": 3},
-        "desc": "攻击附加 8% 火属性伤害，15% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合）",
+        "desc": "攻击附加 8% 火属性伤害，15% 概率使目标灼烧（每刻损 1.5% 最大生命，3 刻）",
     },
-    "deep_frost": {  # D3-C 银叶法杖：附加8%冰伤+减速20%2回合
+    "deep_frost": {  # D3-C 银叶法杖：附加8%冰伤+减速20%2 刻
         "name": "深寒", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
         "effect": {"element": "ice", "pct": 0.08, "slow": 0.20, "slow_turns": 2},
-        "desc": "攻击附加 8% 冰属性伤害并减速目标（速度－20%，2 回合）",
+        "desc": "攻击附加 8% 冰属性伤害并减速目标（速度－20%，2 刻）",
     },
     "thunder_mark": {  # D3-C 雷鸣龙鳞：攻击20%叠雷鸣印记
         "name": "雷鸣印记", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
@@ -891,10 +891,10 @@ LEGENDARY_EFFECTS = {
         "effect": {"cond": "battle_start", "dmg_mult": 1.10, "tag": "🐺狼嚎"},
         "desc": "战斗开始时嚎叫：本场战斗伤害＋10%",
     },
-    "night_prayer": {  # D3-C 夜祷兜帽：每回合回3%最大生命
+    "night_prayer": {  # D3-C 夜祷兜帽：每刻回3%最大生命
         "name": "夜祷", "kind": "defense", "trigger": "turn_start",
         "effect": {"pct": 0.03},
-        "desc": "每回合回复 3% 最大生命",
+        "desc": "每刻回复 3% 最大生命",
     },
     "crimson_tide": {  # D3-C 海神戒指：吸血+10%代价暴伤-10%
         "name": "猩红潮汐", "kind": "attack", "trigger": "stat",
@@ -1486,7 +1486,7 @@ SERIES_FIXED_AFFIX = {
     # 拳套三档：特效主题对齐（连击/反击/破甲），蓝装档位
     '岩拳·裂脊': ['combo', 'crit_up'],        # 岩拳之怒：每 3 次攻击后下一次攻击 +30%
     '铁脊拳套': ['counter', 'tenacity'],       # 铁脊反击：受击 15% 反击 50% 伤害
-    '碎岳拳': ['armor_break', 'charge'],       # 碎岳之势：攻击 25% 破甲 15%（2 回合）
+    '碎岳拳': ['armor_break', 'charge'],       # 碎岳之势：攻击 25% 破甲 15%（2 刻）
     # 游侠蓝弓：元素/迅捷主题
     '霜羽长弓': ['element_ice', 'precise'],    # 霜羽之矢：攻击附加 5% 冰伤 + 减速
     '疾风猎弓': ['swift', 'hunt'],             # 疾风追猎：命中叠自身速度

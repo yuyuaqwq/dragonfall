@@ -92,7 +92,7 @@ def _c_enemy_poison_stacks(battle, player, cond):
 def _c_enemy_shaken_gt(battle, player, cond):
     """敌方破绽（shaken 挂敌身条）处于触发态（val=0 且 trigger_count>0 且免疫期内 = 被震慑中）。
 
-    v139 拳师/淬势者：破绽条触发 = 敌方跳过回合（被晕），trigger_count>0 表示触发过、
+    v139 拳师/淬势者：破绽条触发 = 敌方跳过刻（被晕），trigger_count>0 表示触发过、
     immune_turns>0 表示仍在免疫窗口（即刚被震慑）。stacks 参数保留兼容（默认 0）。
     """
     bs = (battle.enemy.get("buffs") or {}).get("shaken")
@@ -161,7 +161,7 @@ def _c_element_marks(battle, player, cond):
 @register("player_shield", label=lambda c: "自身有护盾")
 def _c_player_shield(battle, player, cond):
     """自身有护盾（v104 修复：v101.28d 护盾 buff 化后 battle.shield 已移除，
-    改判 p_shields（来源 → {"value": 盾值, "turns": 剩余回合}）任一项盾值 > 0）"""
+    改判 p_shields（来源 → {"value": 盾值, "turns": 剩余刻}）任一项盾值 > 0）"""
     shields = getattr(battle, "p_shields", None) or {}
     return sum(s.get("value", 0) for s in shields.values()) > 0
 

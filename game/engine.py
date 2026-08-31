@@ -104,7 +104,7 @@ def core_resource_spend(class_name: str, resources: dict, amount: int, key: str 
 
 
 def core_resource_regen(class_name: str, resources: dict) -> int:
-    """回合开始核心资源回复(如游侠精力＋25)。返回新值。"""
+    """刻开始核心资源回复(如游侠精力＋25)。返回新值。"""
     rd = core_resource_def(class_name)
     if not rd:
         return resources.get(rd.get("key", ""), 0)
@@ -119,8 +119,8 @@ def core_resource_regen(class_name: str, resources: dict) -> int:
 # 层数封顶后依然能用爆发技能一次性清空，只是限制无限滚雪球。
 # ============================================================
 MECH_STACK_MAX = {
-    "burn": 5,     # 灼烧：5 层 = 每回合 15% 生命（结算后逐层衰减消散）
-    "poison": 5,   # 毒层：5 层 = 每回合 25% 生命（结算后逐层衰减消散）
+    "burn": 5,     # 灼烧：5 层 = 每刻 15% 生命（结算后逐层衰减消散）
+    "poison": 5,   # 毒层：5 层 = 每刻 25% 生命（结算后逐层衰减消散）
     "rage": 5,     # 狂暴：5 层 = +60% 伤害
     "shadow": 5,   # 影袭：5 层 = +60% 伤害
     "chi": 5,      # 气力：5 点 = +60% 伤害
@@ -773,7 +773,7 @@ def skill_power_mult(level: int, info: dict | None = None) -> float:
 
 
 def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int:
-    """增益技能升级：每级持续回合＋1(Lv.1=3，Lv.5=7)"""
+    """增益技能升级：每级持续刻＋1(Lv.1=3，Lv.5=7)"""
     lv = max(1, min(level, skill_max_level(info)))
     return base + (lv - 1)
 

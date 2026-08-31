@@ -42,10 +42,10 @@ check("药水无 hot → heal 模板", IT.infer_template(potion) == "heal")
 ale = C.ITEMS.get("i_ale", {})
 check("真实麦酒有 hot 字段", "hot" in ale, str(ale))
 check("真实麦酒 hot=0.05", ale.get("hot") == 0.05)
-check("真实麦酒 desc 含持续恢复说明", "战斗中每回合" in ale.get("desc", ""), ale.get("desc", ""))
+check("真实麦酒 desc 含持续恢复说明", "战斗中每刻" in ale.get("desc", ""), ale.get("desc", ""))
 treat = C.ITEMS.get("i_treat_s", {})
 check("治疗药水无 hot 字段", "hot" not in treat)
-check("治疗药水 desc 未污染", "战斗中每回合" not in treat.get("desc", ""))
+check("治疗药水 desc 未污染", "战斗中每刻" not in treat.get("desc", ""))
 check("真实麦酒 infer→food", IT.infer_template(ale) == "food")
 check("真实药水 infer→heal", IT.infer_template(treat) == "heal")
 
@@ -76,7 +76,7 @@ player = {"hp": 50, "max_hp": 100, "mp": 20, "max_mp": 100, "class_name": "cls_z
           "level": 1, "learned_skills": [], "race": "human", "attributes": {}}
 logs, ended = b.player_turn("use_item", "hot:0.05,0.06,3", player)
 joined = "\n".join(logs)
-check("吃下播报", "🍲 你吃下了食物" in joined and "每回合恢复 5% 生命" in joined, joined[:120])
+check("吃下播报", "🍲 你吃下了食物" in joined and "每刻恢复 5% 生命" in joined, joined[:120])
 check("p_hot 已设置", b.p_hot == {"heal": 0.05, "mana": 0.06, "turns": 3}, str(b.p_hot))
 hp0, mp0 = player["hp"], player["mp"]
 
@@ -85,7 +85,7 @@ logs2, _ = b.player_turn("attack", "", player)
 j2 = "\n".join(logs2)
 check("回合开始 hot 回血", "持续恢复生效" in j2 and player["hp"] > hp0, f"{j2[:100]} hp={player['hp']}")
 check("hot 回蓝", player["mp"] > mp0, f"mp={player['mp']}")
-check("剩余回合提示", "剩余 2 回合" in j2, j2[:100])
+check("剩余回合提示", "剩余 2 刻" in j2, j2[:100])
 check("turns 递减", b.p_hot["turns"] == 2, str(b.p_hot))
 
 # 再两回合 → hot 结束

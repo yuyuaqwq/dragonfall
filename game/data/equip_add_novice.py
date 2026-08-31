@@ -74,12 +74,12 @@ EQUIP_ADD = {
     "eq_tie_lang_zhi_zhua": {
         "name": "铁狼之爪", "slot": "weapon", "weapon_type": "sword", "quality": "green", "lv": 8,
         "series": "铁狼", "affix": "armor_break", "source": "商店",
-        "desc": "铁狼风格的利剑，刃口淬得发青，攻击 25% 降低目标防御 15%（2 回合）。",
+        "desc": "铁狼风格的利剑，刃口淬得发青，攻击 25% 降低目标防御 15%（2 刻）。",
     },
     "eq_ying_huo_fa_zhang": {
         "name": "萤火法杖", "slot": "weapon", "weapon_type": "staff", "quality": "green", "lv": 10,
         "series": "萤火", "affix": "meditate", "source": "商店",
-        "desc": "萤火风格的法杖，杖顶凝着一点微光，每回合回复 1% 魔力。",
+        "desc": "萤火风格的法杖，杖顶凝着一点微光，每刻回复 1% 魔力。",
     },
     "eq_yan_yang_zhi_jiao": {
         "name": "岩羊之角", "slot": "weapon", "weapon_type": "mace", "quality": "green", "lv": 12,
@@ -94,7 +94,7 @@ EQUIP_ADD = {
     "eq_shui_ta_pi_jia": {
         "name": "水獭皮甲", "slot": "armor", "quality": "green", "lv": 14,
         "series": "水獭", "affix": "regen", "source": "商店",
-        "desc": "水獭风格的皮甲，油亮的皮毛防水保暖，每回合回复 1% 生命。",
+        "desc": "水獭风格的皮甲，油亮的皮毛防水保暖，每刻回复 1% 生命。",
     },
     "eq_du_ya_gu_lian": {
         "name": "渡鸦骨链", "slot": "necklace", "quality": "green", "lv": 15,
@@ -113,7 +113,7 @@ EQUIP_ADD = {
         "name": "旅人之盾", "slot": "weapon", "weapon_type": "shield", "quality": "purple", "lv": 10,
         "series": "旅人", "req": {"str": 12}, "weapon_effect": "novice_first_turn_guard",
         "source": "图纸",
-        "desc": "旅人风格的盾牌，盾面厚实——守御特效：每场战斗首回合受击伤害－10%。",
+        "desc": "旅人风格的盾牌，盾面厚实——守御特效：每场战斗首刻受击伤害－10%。",
     },
     "eq_xing_huo_fa_zhang": {
         "name": "星火法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 10,
@@ -137,13 +137,13 @@ EQUIP_ADD = {
         "name": "翠风之弓", "slot": "weapon", "weapon_type": "bow", "quality": "purple", "lv": 13,
         "series": "翠风", "req": {"agi": 15}, "weapon_effect": "novice_wind_spd",
         "source": "图纸",
-        "desc": "翠风风格的长弓，弓臂缠着嫩绿藤蔓——翠风特效：攻击命中后，自身速度＋5%（持续 2 回合）。",
+        "desc": "翠风风格的长弓，弓臂缠着嫩绿藤蔓——翠风特效：攻击命中后，自身速度＋5%（持续 2 刻）。",
     },
     "eq_yuan_xing_dou_mao": {
         "name": "远行兜帽", "slot": "helm", "quality": "purple", "lv": 14,
         "series": "远行", "req": {"agi": 12}, "weapon_effect": "novice_first_turn_dodge",
         "source": "支线",
-        "desc": "远行风格的兜帽，帽檐压得很低——远行特效：每场战斗首回合闪避率＋5%。",
+        "desc": "远行风格的兜帽，帽檐压得很低——远行特效：每场战斗首刻闪避率＋5%。",
     },
     "eq_chen_xing_diao_zhui": {
         "name": "晨星吊坠", "slot": "necklace", "quality": "purple", "lv": 15,

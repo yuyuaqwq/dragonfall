@@ -1449,7 +1449,7 @@ class PlayerCmds(CommandBase):
             # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）
             parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
         if kind in ("增益", "嘲讽"):
-            parts.append(f"持续 {E.skill_buff_turns(lv)} 回合")
+            parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
         if info.get("cond"):
             parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
@@ -1464,7 +1464,7 @@ class PlayerCmds(CommandBase):
     @require_player()
 
     async def skill_upgrade(self, event: AstrMessageEvent):
-        """技能升级(v27)：已学技能花技能点升级，攻击/治疗 power 提升、增益回合延长"""
+        """技能升级(v27)：已学技能花技能点升级，攻击/治疗 power 提升、增益刻延长"""
         group_id, qq_id = self._uid(event)
         skill_name = self._strip_cmd(event, "技能升级").strip()
         player = self._player(group_id, qq_id)

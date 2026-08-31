@@ -11,7 +11,7 @@ v101.28c 词条料理借用装备词条机制（affix 字段 + _equip_affix_ids 
 注册表：
 - FOOD_HIT_EFFECTS          攻击命中效果 fn(battle, player, dmg, logs)
 - FOOD_TAKEN_EFFECTS        受击效果 fn(battle, player, ctx, logs)（ctx 同 affix TAKEN）
-- FOOD_TURN_START_EFFECTS   回合开始效果 fn(battle, player, logs)
+- FOOD_TURN_START_EFFECTS   刻开始效果 fn(battle, player, logs)
 
 伤害倍率类（execute/precise/龙语印记层数）由 battle._affix_dmg_mult 的
 p_food_effects 分支消费；护盾类（shield）由 _do_use_item 特判走 _add_shield。
@@ -45,7 +45,7 @@ def _f_h_lifesteal(battle, player, dmg, logs):
 
 @register(FOOD_HIT_EFFECTS, "bleed")
 def _f_h_bleed(battle, player, dmg, logs):
-    """烬火辣椒：20% 使目标流血（每回合 5% 生命，3 回合）"""
+    """烬火辣椒：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if random.random() < 0.20:
         # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
         deb = battle.enemy.setdefault("debuffs", {})
@@ -57,7 +57,7 @@ def _f_h_bleed(battle, player, dmg, logs):
 
 @register(FOOD_HIT_EFFECTS, "armor_break")
 def _f_h_armor_break(battle, player, dmg, logs):
-    """蘑菇汤：25% 降低目标防御 15%（2 回合）"""
+    """蘑菇汤：25% 降低目标防御 15%（2 刻）"""
     if random.random() < 0.25:
         battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), 2)
         battle.e_buffs["_armor_break_pct"] = 0.15
@@ -127,7 +127,7 @@ def _f_h_charge(battle, player, dmg, logs):
 
 @register(FOOD_HIT_EFFECTS, "static")
 def _f_h_static(battle, player, dmg, logs):
-    """雷雨藤烤串（v102.3）：静电麻痹——攻击 20% 令敌方减速（2 回合）"""
+    """雷雨藤烤串（v102.3）：静电麻痹——攻击 20% 令敌方减速（2 刻）"""
     if random.random() < 0.20 and battle.enemy.get("hp", 0) > 0:
         battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), 2)
         logs.append(f"⚡ 静电麻痹！【{battle.enemy.get('name', '敌人')}】速度下降！")
@@ -168,11 +168,11 @@ def _f_t_aurora_guard(battle, player, ctx, logs):
         logs.append(f"✨ 极光庇护！伤害减免 {reduced} 点！")
 
 
-# ================= 3. 回合开始效果（_food_turn_start） =================
+# ================= 3. 刻开始效果（_food_turn_start） =================
 
 @register(FOOD_TURN_START_EFFECTS, "regen")
 def _f_ts_regen(battle, player, logs):
-    """树蜜糖：每回合回复 1% 生命"""
+    """树蜜糖：每刻回复 1% 生命"""
     if player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * 0.01)
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
@@ -181,7 +181,7 @@ def _f_ts_regen(battle, player, logs):
 
 @register(FOOD_TURN_START_EFFECTS, "meditate")
 def _f_ts_meditate(battle, player, logs):
-    """月光饼：每回合回复 1% 魔力"""
+    """月光饼：每刻回复 1% 魔力"""
     if player.get("mp", 0) < player.get("max_mp", 1):
         heal = int(player.get("max_mp", player.get("mp", 1)) * 0.01)
         player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
@@ -190,7 +190,7 @@ def _f_ts_meditate(battle, player, logs):
 
 @register(FOOD_TURN_START_EFFECTS, "dawn_crown")
 def _f_ts_dawn_crown(battle, player, logs):
-    """御膳汤：每回合回复 2% 生命"""
+    """御膳汤：每刻回复 2% 生命"""
     if player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * 0.02)
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)

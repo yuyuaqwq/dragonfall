@@ -13,8 +13,8 @@
 
 字段说明（四件套）：
   - 数值变化：atk_mult / def_add / spd_add / dmg_taken_mult（承伤倍率，>1=更脆）
-  - 行为变化：add_skills（换招表）/ freq_mult（行动频率倍率，<1=降频）/ ult_every（每 N 回合全场大招）
-  - 退出条件：exit_turns（回合数，None=不限）/ exit_dmg（累计承伤阈值，None=不限）
+  - 行为变化：add_skills（换招表）/ freq_mult（行动频率倍率，<1=降频）/ ult_every（每 N 刻全场大招）
+  - 退出条件：exit_turns（刻数，None=不限）/ exit_dmg（累计承伤阈值，None=不限）
   - 反制窗口：counter（反制文案，写入战报引导玩家解题）
   - 演出：icon / enter_line（进场文案）/ warn_line（预告文案）
   - 进度遗产：preserve_debuffs（阶段转换时是否保留一半异常层数，默认 True=v138.2 律三）
@@ -59,7 +59,7 @@ BOSS_PHASE_TEMPLATES = {
         "atk_mult": 0.80, "def_add": -120, "spd_add": -10,
         "dmg_taken_mult": 1.40,     # 核心件外露：等效易伤 +0.40（对应云海「疲态 H+0.40」）
         "add_skills": [],
-        "freq_mult": 0.50, "ult_every": None,   # 降频：每 2 回合一动
+        "freq_mult": 0.50, "ult_every": None,   # 降频：每 2 刻一动
         "exit_turns": 5, "exit_dmg": None,
         "counter": "爆发期！集中火力，把绝技砸进这个窗口！",
         "enter_line": "攻势衰竭，核心破绽外露——",
@@ -73,11 +73,11 @@ BOSS_PHASE_TEMPLATES = {
         "atk_mult": 1.50, "def_add": 150, "spd_add": 30,
         "dmg_taken_mult": 1.00,
         "add_skills": [],           # 逐 Boss 配全场大招
-        "freq_mult": 1.00, "ult_every": 3,      # 每 3 回合一次全场大招
+        "freq_mult": 1.00, "ult_every": 3,      # 每 3 刻一次全场大招
         "exit_turns": None, "exit_dmg": None,
         "counter": "破核是唯一出路！集火核心件打断大招！",
-        "enter_line": "陷入狂澜！每 3 回合将释放全场大招——",
-        "warn_line": "⚠️ 下回合可能释放全场大招——优先破核打断！",
+        "enter_line": "陷入狂澜！每 3 刻将释放全场大招——",
+        "warn_line": "⚠️ 下刻可能释放全场大招——优先破核打断！",
         "preserve_debuffs": True,
     },
 }

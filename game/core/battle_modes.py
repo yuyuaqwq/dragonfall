@@ -3,7 +3,7 @@
 
 把《云海猎团》职业融合提炼的 3 个通用状态机实现为纯函数模块：
 1. dual_form  双形态（狂战士狂暴 / 龙裔龙焰 / 暮影影舞 / 淬势者倾泻）
-   —— 免费切换承重墙、P1 归零无惩罚、P3 受击不清零（单回合封顶）
+   —— 免费切换承重墙、P1 归零无惩罚、P3 受击不清零（单刻封顶）
 2. focus      架设态（法师元素架设 / 时咒时间凝滞）
    —— 站桩换火力：增伤 + 受击加重 + 打断不清零（资源保留）
 3. vent       排气节流阀（游侠凝神屏息 / 星语者猎印满 5）
@@ -111,7 +111,7 @@ def dual_form_enter(player: dict, logs: list | None = None) -> bool:
 
 
 def dual_form_tick(player: dict, logs: list | None = None) -> list:
-    """回合开始结算：维持成本 + 自动形态计时 + 强制回基础形态检查。
+    """刻开始结算：维持成本 + 自动形态计时 + 强制回基础形态检查。
 
     返回日志列表（追加到调用方 logs）。
     """
@@ -139,7 +139,7 @@ def dual_form_tick(player: dict, logs: list | None = None) -> list:
 
 
 def dual_form_hit(player: dict, logs: list | None = None) -> int:
-    """受击结算：返回应扣资源量（P3：不清零、单回合封顶 hit_cost_cap）。
+    """受击结算：返回应扣资源量（P3：不清零、单刻封顶 hit_cost_cap）。
 
     注：实际扣资源由调用方执行（本函数保持纯函数不写 resources）。
     """
@@ -250,9 +250,9 @@ def focus_enter(player: dict, logs: list | None = None) -> bool:
 
 
 def focus_tick(player: dict, logs: list | None = None) -> dict:
-    """回合开始结算：专注计时 + max_turns 检查。
+    """刻开始结算：专注计时 + max_turns 检查。
 
-    返回 {"gain": int, "expired": bool} —— gain=本回合额外资源（enter_gain 首回合 + gain_per_turn），
+    返回 {"gain": int, "expired": bool} —— gain=本刻额外资源（enter_gain 首刻 + gain_per_turn），
     expired=是否因超时自动退出。
     """
     d = focus_def(player)
@@ -368,7 +368,7 @@ def vent_should_trigger(player: dict, res_value: int) -> bool:
 
 
 def vent_apply(player: dict, logs: list | None = None) -> dict:
-    """执行排气：资源重置 + 下回合段数补偿。
+    """执行排气：资源重置 + 下刻段数补偿。
 
     返回 {"reset_to": int, "seg_bonus": int} —— 调用方负责把资源设为 reset_to。
     """
@@ -397,7 +397,7 @@ def vent_relief(player: dict, amount: int | None = None, logs: list | None = Non
 
 
 def vent_seg_bonus(player: dict) -> int:
-    """当前是否享受排气后段数补偿（bonus_duration 回合内）。"""
+    """当前是否享受排气后段数补偿（bonus_duration 刻内）。"""
     st = modes_state(player)
     v = st.get("vented")
     if not isinstance(v, dict):
@@ -409,18 +409,18 @@ def vent_seg_bonus(player: dict) -> int:
 
 
 # ============================================================
-# 回合开始统一入口（供 battle.py _turn_start 调用）
+# 刻开始统一入口（供 battle.py _turn_start 调用）
 # ============================================================
 
 def turn_start_modes(player: dict, res_read_fn, res_spend_fn, logs: list | None = None) -> list:
-    """回合开始统一处理 dual_form/focus/vent 三状态机。
+    """刻开始统一处理 dual_form/focus/vent 三状态机。
 
     res_read_fn(key) -> int  读取资源值
     res_spend_fn(key, amount) -> bool  扣资源（返回是否成功）
     返回日志列表（追加到调用方）。
     """
     out = []
-    # 1. dual_form 回合结算（维护成本）
+    # 1. dual_form 刻结算（维护成本）
     d = dual_form_def(player)
     if d:
         out.extend(dual_form_tick(player, logs))
@@ -446,7 +446,7 @@ def turn_start_modes(player: dict, res_read_fn, res_spend_fn, logs: list | None 
             res_spend_fn(key, res_read_fn(key))  # 清零（实际扣当前值）
             if logs is not None:
                 out.append(f"💨 气息满溢，自动排气！(重置 {r['reset_to']})")
-    # 3. focus 回合结算（额外资源 + 超时退出）
+    # 3. focus 刻结算（额外资源 + 超时退出）
     f = focus_def(player)
     if f:
         r = focus_tick(player, logs)

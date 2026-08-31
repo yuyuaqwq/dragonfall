@@ -392,7 +392,7 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
         "reach": reach,           # v27b 攻击范围（同 rank）
         "buffs": {},              # v27b 单位增益/减益
         "stacks": {},             # v27b 单位叠层
-        "defending": False,       # v27b 本回合防御
+        "defending": False,       # v27b 本刻防御
         "charging": None,         # v27b 蓄力状态
         "hp": stats["hp"],
         "max_hp": stats["hp"],

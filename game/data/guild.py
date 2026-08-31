@@ -54,8 +54,8 @@ GUILD_SHOP_ITEMS = {
         "cost": 80, "min_level": 2, "daily_limit": 3,
         "item_key": "gs_str_potion",
         "item_data": {"name": "力量药剂", "type": "消耗品", "stackable": True,
-                      "price": 100, "effect": "buff_atk", "desc": "战斗中使用，3 回合攻击 + 30%"},
-        "msg": "💊 『使用 力量药剂』3 回合攻击 + 30%！",
+                      "price": 100, "effect": "buff_atk", "desc": "战斗中使用，3 刻攻击 + 30%"},
+        "msg": "💊 『使用 力量药剂』3 刻攻击 + 30%！",
     },
     4: {
         "name": "彩虹露",

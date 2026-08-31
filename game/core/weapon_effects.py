@@ -14,8 +14,8 @@
 - taken         受击时（护盾/反弹/反击/重伤/缓伤池）
 - taken_after   受击后（下一次攻击强化标记）
 - heal          治疗结算时（回复量加成/溢出转盾）
-- turn_start    回合开始（回复/缓伤池结算/岁月流转）
-- turn_end      回合结束（岁月流转叠层）
+- turn_start    刻开始（回复/缓伤池结算/岁月流转）
+- turn_end      刻结束（岁月流转叠层）
 - enemy_act     敌人行动后（兰顿/冰脉减速）
 - threshold     生命阈值（金身/磐石/不灭/苍穹/石像鬼之心）
 - crit          暴击后（奥拉圣剑护盾/无终追击）
@@ -32,7 +32,7 @@
 """
 
 import random
-# v152：CD ready_at 换算用 ACT_TICK（battle.py 模块级常量，1 回合 ≈ ACT_TICK 时刻）
+# v152：CD ready_at 换算用 ACT_TICK（battle.py 模块级常量，1 刻 ≈ ACT_TICK 时刻）
 # 注意：battle.py 只在函数内延迟 import 本模块（避免循环导入），此处导入 battle 安全
 from ..battle import ACT_TICK
 
@@ -113,7 +113,7 @@ def _slow_enemy(battle, turns: int, pct: float = 0.40, logs=None):
     battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), turns)
     battle.e_buffs["_spd_down_pct"] = max(float(battle.e_buffs.get("_spd_down_pct", 0) or 0), pct)
     if logs is not None:
-        logs.append(f"❄️ 敌人减速 {int(pct * 100)}%（{turns} 回合）！")
+        logs.append(f"❄️ 敌人减速 {int(pct * 100)}%（{turns} 刻）！")
 
 
 def _freeze_enemy(battle, logs, turns: int = 1, boss_slow: int = 2, source: str = "❄️"):
@@ -125,7 +125,7 @@ def _freeze_enemy(battle, logs, turns: int = 1, boss_slow: int = 2, source: str 
         logs.append(f"{source} Boss 免疫冻结，退化为减速！")
         return False
     battle.e_buffs["freeze"] = max(battle.e_buffs.get("freeze", 0), turns)
-    logs.append(f"{source} 敌人被冻结 {turns} 回合！")
+    logs.append(f"{source} 敌人被冻结 {turns} 刻！")
     return True
 
 
@@ -137,7 +137,7 @@ def _apply_dot(battle, key: str, stacks: int, pct: float, turns: int, logs, sour
     cur["pct"] = pct
     cur["turns"] = max(int(cur.get("turns", 0) or 0), turns)
     deb[key] = cur
-    logs.append(f"{source} 目标被施加 {key}！（{cur['n']} 层，每回合 {int(pct * 100)}% 最大生命，{turns} 回合）")
+    logs.append(f"{source} 目标被施加 {key}！（{cur['n']} 层，每刻 {int(pct * 100)}% 最大生命，{turns} 刻）")
 
 
 def _heal_player(battle, player, amount: int, logs, source: str = "💚"):
@@ -212,7 +212,7 @@ def proc(battle, player, event: str, ctx: dict | None = None, logs: list | None 
 
 @register("battle_start")
 def _we_starlight_bulwark(battle, player, ctx, logs):
-    """星辉壁垒（哨兵短剑）：开战 10% 最大生命护盾，每 5 回合刷新。"""
+    """星辉壁垒（哨兵短剑）：开战 10% 最大生命护盾，每 5 刻刷新。"""
     if not has_effect(battle, player, "starlight_bulwark"):
         return
     battle._add_shield("we_starlight", int(player.get("max_hp", 100) * 0.10), 3)
@@ -223,22 +223,22 @@ def _we_starlight_bulwark(battle, player, ctx, logs):
 
 @register("battle_start")
 def _we_gale_step(battle, player, ctx, logs):
-    """疾风步（疾风轻靴）：开战获得 1 层疾风（速度+15%，3 回合）。"""
+    """疾风步（疾风轻靴）：开战获得 1 层疾风（速度+15%，3 刻）。"""
     if not has_effect(battle, player, "gale_step"):
         return
     battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 3)
     battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.15)
-    logs.append("🌪️ 疾风步：速度 +15%（3 回合）！")
+    logs.append("🌪️ 疾风步：速度 +15%（3 刻）！")
 
 
 @register("battle_start")
 def _we_swift_boots(battle, player, ctx, logs):
-    """迅捷如风（迅捷战靴）：开战获得 1 层疾风（速度+20%，3 回合）。"""
+    """迅捷如风（迅捷战靴）：开战获得 1 层疾风（速度+20%，3 刻）。"""
     if not has_effect(battle, player, "swift_boots"):
         return
     battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 3)
     battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.20)
-    logs.append("🌪️ 迅捷如风：速度 +20%（3 回合）！")
+    logs.append("🌪️ 迅捷如风：速度 +20%（3 刻）！")
 
 
 @register("battle_start")
@@ -254,32 +254,32 @@ def _we_abyss_barrier(battle, player, ctx, logs):
 
 @register("battle_start")
 def _we_deadman_stride(battle, player, ctx, logs):
-    """亡者疾行（亡者战靴）：开战获得 2 层疾风（速度+15%，4 回合）。"""
+    """亡者疾行（亡者战靴）：开战获得 2 层疾风（速度+15%，4 刻）。"""
     if not has_effect(battle, player, "deadman_stride"):
         return
     battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
     battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.15)
-    logs.append("🌪️ 亡者疾行：速度 +15%（4 回合）！")
+    logs.append("🌪️ 亡者疾行：速度 +15%（4 刻）！")
 
 
 @register("battle_start")
 def _we_temple_stride(battle, player, ctx, logs):
-    """圣殿疾行（圣殿战靴）：开战获得 2 层疾风（速度+20%，4 回合）。"""
+    """圣殿疾行（圣殿战靴）：开战获得 2 层疾风（速度+20%，4 刻）。"""
     if not has_effect(battle, player, "temple_stride"):
         return
     battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
     battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.20)
-    logs.append("🌪️ 圣殿疾行：速度 +20%（4 回合）！")
+    logs.append("🌪️ 圣殿疾行：速度 +20%（4 刻）！")
 
 
 @register("battle_start")
 def _we_void_stride(battle, player, ctx, logs):
-    """虚空疾行（虚空行者之靴）：开战获得 2 层疾风（速度+25%，4 回合）。"""
+    """虚空疾行（虚空行者之靴）：开战获得 2 层疾风（速度+25%，4 刻）。"""
     if not has_effect(battle, player, "void_stride"):
         return
     battle.p_buffs["gale_step"] = max(battle.p_buffs.get("gale_step", 0), 4)
     battle.p_eff["gale_step_pct"] = max(float(battle.p_eff.get("gale_step_pct", 0) or 0), 0.25)
-    logs.append("🌪️ 虚空疾行：速度 +25%（4 回合）！")
+    logs.append("🌪️ 虚空疾行：速度 +25%（4 刻）！")
 
 
 @register("battle_start")
@@ -303,7 +303,7 @@ def _we_arcane_firmament(battle, player, ctx, logs):
 
 @register("battle_start")
 def _we_undying_will(battle, player, ctx, logs):
-    """不灭意志（不灭意志）：每场 1 次，生命低于 20% 时触发，本回合免疫致死伤害并回复 10% 生命。
+    """不灭意志（不灭意志）：每场 1 次，生命低于 20% 时触发，本刻免疫致死伤害并回复 10% 生命。
     开战仅登记可用标记，阈值触发在 threshold 分发。"""
     if not has_effect(battle, player, "undying_will"):
         return
@@ -339,7 +339,7 @@ def _we_hunter_open(battle, player, ctx, logs):
 
 @register("hit")
 def _we_smith_blaze_wound(battle, player, ctx, logs):
-    """裂伤（锻火铁拳）：命中 20% 使目标 3 回合每回合损 1.5% 最大生命（精英/Boss 1%）。"""
+    """裂伤（锻火铁拳）：命中 20% 使目标 3 刻每刻损 1.5% 最大生命（精英/Boss 1%）。"""
     if not has_effect(battle, player, "smith_blaze_wound") or random.random() >= 0.20:
         return
     pct = 0.01 if _boss_enemy(battle.enemy or {}) else 0.015
@@ -348,7 +348,7 @@ def _we_smith_blaze_wound(battle, player, ctx, logs):
 
 @register("hit")
 def _we_rong_lu_yu_wen(battle, player, ctx, logs):
-    """熔炉余温（石炉战锤）：命中 20% 使目标灼烧 3% 最大生命 × 2 回合（精英/Boss 1.5%）。"""
+    """熔炉余温（石炉战锤）：命中 20% 使目标灼烧 3% 最大生命 × 2 刻（精英/Boss 1.5%）。"""
     if not has_effect(battle, player, "rong_lu_yu_wen") or random.random() >= 0.20:
         return
     pct = 0.015 if _boss_enemy(battle.enemy or {}) else 0.03
@@ -357,7 +357,7 @@ def _we_rong_lu_yu_wen(battle, player, ctx, logs):
 
 @register("hit")
 def _we_frost_ring(battle, player, ctx, logs):
-    """霜环（碎冰长弓）：命中 25% 减速 2 回合（速度-40%），已减速则冻结 1 回合。"""
+    """霜环（碎冰长弓）：命中 25% 减速 2 刻（速度-40%），已减速则冻结 1 刻。"""
     if not has_effect(battle, player, "frost_ring") or random.random() >= 0.25:
         return
     if battle.e_buffs.get("spd_down"):
@@ -368,7 +368,7 @@ def _we_frost_ring(battle, player, ctx, logs):
 
 @register("hit")
 def _we_blood_trace(battle, player, ctx, logs):
-    """败血（血痕双刺）：命中 25% 使目标 4 回合每回合损 2% 当前生命（Boss 1.5%）。"""
+    """败血（血痕双刺）：命中 25% 使目标 4 刻每刻损 2% 当前生命（Boss 1.5%）。"""
     if not has_effect(battle, player, "blood_trace") or random.random() >= 0.25:
         return
     deb = battle.enemy.setdefault("debuffs", {})
@@ -377,7 +377,7 @@ def _we_blood_trace(battle, player, ctx, logs):
     cur["pct"] = 0.015 if _boss_enemy(battle.enemy or {}) else 0.02
     cur["turns"] = 4
     deb["blood_trace"] = cur
-    logs.append("🩸 败血：目标 4 回合内每回合损失当前生命！（对败血目标 +10% 伤害）")
+    logs.append("🩸 败血：目标 4 刻内每刻损失当前生命！（对败血目标 +10% 伤害）")
 
 
 @register("hit")
@@ -390,12 +390,12 @@ def _we_wind_split(battle, player, ctx, logs):
 
 @register("hit")
 def _we_holy_judgment_field(battle, player, ctx, logs):
-    """圣裁领域（圣裁重锤）：命中 30% 使目标 2 回合减速 30% 并受治疗 -30%。"""
+    """圣裁领域（圣裁重锤）：命中 30% 使目标 2 刻减速 30% 并受治疗 -30%。"""
     if not has_effect(battle, player, "holy_judgment_field") or random.random() >= 0.30:
         return
     _slow_enemy(battle, 2, 0.30, logs)
     battle.e_buffs["heal_down"] = max(battle.e_buffs.get("heal_down", 0), 2)
-    logs.append("⚖️ 圣裁领域：目标受治疗 -30%（2 回合）！")
+    logs.append("⚖️ 圣裁领域：目标受治疗 -30%（2 刻）！")
 
 
 @register("hit")
@@ -476,7 +476,7 @@ def _we_star_pierce(battle, player, ctx, logs):
 
 @register("hit")
 def _we_combo_end(battle, player, ctx, logs):
-    """连击终点（夜枭双匕）：本回合连段≥3 时，本次攻击暴伤 +40%（被动判定）。"""
+    """连击终点（夜枭双匕）：本刻连段≥3 时，本次攻击暴伤 +40%（被动判定）。"""
     if not has_effect(battle, player, "combo_end"):
         return
     if battle._combo_active(player):
@@ -513,7 +513,7 @@ def _we_annihilation_echo(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_ember_burn(battle, player, ctx, logs):
-    """烬燃（灰烬拳套）：技能命中后 30% 使目标 3 回合每回合损 1.5% 最大生命（Boss 1%）。"""
+    """烬燃（灰烬拳套）：技能命中后 30% 使目标 3 刻每刻损 1.5% 最大生命（Boss 1%）。"""
     if not has_effect(battle, player, "ember_burn") or random.random() >= 0.30:
         return
     pct = 0.01 if _boss_enemy(battle.enemy or {}) else 0.015
@@ -522,7 +522,7 @@ def _we_ember_burn(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_everfrost_domain(battle, player, ctx, logs):
-    """永冻领域（永霜秘杖）：冰系技能后 30% 使目标冻结 1 回合（Boss 减速 2 回合），冷却 3 回合。"""
+    """永冻领域（永霜秘杖）：冰系技能后 30% 使目标冻结 1 刻（Boss 减速 2 刻），冷却 3 刻。"""
     if not has_effect(battle, player, "everfrost_domain"):
         return
     if float(battle.p_eff.get("we_everfrost_cd", 0) or 0) > battle._now:
@@ -536,7 +536,7 @@ def _we_everfrost_domain(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_everfrost_scepter(battle, player, ctx, logs):
-    """永霜禁锢（永霜权杖）：技能命中后 20% 冻结目标 1 回合（Boss 仅减速）。"""
+    """永霜禁锢（永霜权杖）：技能命中后 20% 冻结目标 1 刻（Boss 仅减速）。"""
     if not has_effect(battle, player, "everfrost_scepter") or random.random() >= 0.20:
         return
     _freeze_enemy(battle, logs, turns=1, boss_slow=2, source="🧊 永霜禁锢")
@@ -561,7 +561,7 @@ def _we_mountain_break(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_oath_blade(battle, player, ctx, logs):
-    """咒刃之誓（咒刃之誓）：释放技能后，下一次攻击伤害 +25%（每回合限 1 次）。"""
+    """咒刃之誓（咒刃之誓）：释放技能后，下一次攻击伤害 +25%（每刻限 1 次）。"""
     if not has_effect(battle, player, "oath_blade"):
         return
     battle.p_eff["we_oath"] = 0.25
@@ -569,7 +569,7 @@ def _we_oath_blade(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_endless_radiance(battle, player, ctx, logs):
-    """无尽辉光（奥拉圣剑）：暴伤+25%（常驻），暴击时获得 5% 最大生命护盾（2 回合，冷却 3 回合）。"""
+    """无尽辉光（奥拉圣剑）：暴伤+25%（常驻），暴击时获得 5% 最大生命护盾（2 刻，冷却 3 刻）。"""
     if not has_effect(battle, player, "endless_radiance"):
         return
     if ctx.get("is_crit") and float(battle.p_eff.get("we_radiance_cd", 0) or 0) <= battle._now:
@@ -581,7 +581,7 @@ def _we_endless_radiance(battle, player, ctx, logs):
 
 @register("skill_hit")
 def _we_endless_blade(battle, player, ctx, logs):
-    """无尽锋芒（无终之刃）：暴击后追加一次 20% 伤害的追击（每回合限 1 次）。"""
+    """无尽锋芒（无终之刃）：暴击后追加一次 20% 伤害的追击（每刻限 1 次）。"""
     if not has_effect(battle, player, "endless_blade"):
         return
     if not ctx.get("is_crit") or battle.p_eff.get("we_blade_used"):
@@ -632,7 +632,7 @@ def _we_eternal_codex_cast(battle, player, ctx, logs):
 
 @register("taken")
 def _we_sentinel_aegis(battle, player, ctx, logs):
-    """哨兵壁垒（哨兵胸甲）：受击 15% 获得护盾（吸收 6+0.5×Lv 点伤害，3 回合），冷却 1 回合。"""
+    """哨兵壁垒（哨兵胸甲）：受击 15% 获得护盾（吸收 6+0.5×Lv 点伤害，3 刻），冷却 1 刻。"""
     if not has_effect(battle, player, "sentinel_aegis"):
         return
     if float(battle.p_eff.get("we_sentinel_cd", 0) or 0) > battle._now:
@@ -644,7 +644,7 @@ def _we_sentinel_aegis(battle, player, ctx, logs):
     battle._add_shield("we_sentinel", shield, 3)
     # v152 时刻制：CD 存 ready_at 绝对时刻
     battle.p_eff["we_sentinel_cd"] = battle._now + 1 * ACT_TICK
-    logs.append(f"🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 回合）")
+    logs.append(f"🛡️ 哨兵壁垒：获得 {shield} 点护盾！（3 刻）")
 
 
 @register("taken")
@@ -660,7 +660,7 @@ def _we_iron_echo(battle, player, ctx, logs):
 
 @register("taken")
 def _we_frost_crown(battle, player, ctx, logs):
-    """寒霜凝视（寒霜之冠）：受击 10% 使敌人冻结 1 回合（每场最多 2 次）。"""
+    """寒霜凝视（寒霜之冠）：受击 10% 使敌人冻结 1 刻（每场最多 2 次）。"""
     if not has_effect(battle, player, "frost_crown"):
         return
     if int(battle.p_eff.get("we_frost_crown_cnt", 0) or 0) >= 2:
@@ -695,7 +695,7 @@ def _we_guardian_will(battle, player, ctx, logs):
 
 @register("taken")
 def _we_deeprock_aegis(battle, player, ctx, logs):
-    """深岩壁垒（深岩战盔）：受击 10% 获得护盾（吸收 8% 最大生命），冷却 2 回合。"""
+    """深岩壁垒（深岩战盔）：受击 10% 获得护盾（吸收 8% 最大生命），冷却 2 刻。"""
     if not has_effect(battle, player, "deeprock_aegis"):
         return
     if float(battle.p_eff.get("we_deeprock_cd", 0) or 0) > battle._now:
@@ -718,7 +718,7 @@ def _we_gargoyle_retort(battle, player, ctx, logs):
 
 @register("taken")
 def _we_dragon_spine_mail(battle, player, ctx, logs):
-    """龙脊反噬（龙脊鳞甲）：受击 15% 反弹 25% 伤害，并使其重伤（受治疗 -30%，2 回合）。"""
+    """龙脊反噬（龙脊鳞甲）：受击 15% 反弹 25% 伤害，并使其重伤（受治疗 -30%，2 刻）。"""
     if not has_effect(battle, player, "dragon_spine_mail") or random.random() >= 0.15:
         return
     dmg = int(ctx.get("dmg", 0) or 0)
@@ -743,7 +743,7 @@ def _we_retribution_ring(battle, player, ctx, logs):
 
 @register("taken")
 def _we_ember_bulwark(battle, player, ctx, logs):
-    """烬火燎原（烬火壁垒）：受击时对攻击者造成自身 5% 最大生命的伤害，并叠加 1 层灼烧（每回合限 1 次）。"""
+    """烬火燎原（烬火壁垒）：受击时对攻击者造成自身 5% 最大生命的伤害，并叠加 1 层灼烧（每刻限 1 次）。"""
     if not has_effect(battle, player, "ember_bulwark"):
         return
     if battle.p_eff.get("we_ember_bulwark_used"):
@@ -846,7 +846,7 @@ def _we_atonement_shield(battle, player, ctx, logs):
 
 @register("heal")
 def _we_holy_word_bind(battle, player, ctx, logs):
-    """圣言禁锢（圣辉权杖）：治疗技能后 20% 使敌人禁锢 1 回合（Boss 免疫，退化为减速）。
+    """圣言禁锢（圣辉权杖）：治疗技能后 20% 使敌人禁锢 1 刻（Boss 免疫，退化为减速）。
     在治疗加成阶段触发一次（不重复）。"""
     if not has_effect(battle, player, "holy_word_bind"):
         return
@@ -858,12 +858,12 @@ def _we_holy_word_bind(battle, player, ctx, logs):
 
 
 # ================================================================
-# 七、回合开始特效（turn_start）
+# 七、刻开始特效（turn_start）
 # ================================================================
 
 @register("turn_start")
 def _we_guard_regen(battle, player, ctx, logs):
-    """铁卫意志（铁卫战盔）：每回合开始回复 2% 已损失生命。"""
+    """铁卫意志（铁卫战盔）：每刻开始回复 2% 已损失生命。"""
     if not has_effect(battle, player, "guard_regen"):
         return
     missing = player.get("max_hp", 1) - player.get("hp", 0)
@@ -874,7 +874,7 @@ def _we_guard_regen(battle, player, ctx, logs):
 
 @register("turn_start")
 def _we_dawn_regen(battle, player, ctx, logs):
-    """晨曦微光（晨曦护符）：每回合开始回复 2% 最大生命。"""
+    """晨曦微光（晨曦护符）：每刻开始回复 2% 最大生命。"""
     if not has_effect(battle, player, "dawn_regen"):
         return
     if player.get("hp", 0) < player.get("max_hp", 1):
@@ -884,7 +884,7 @@ def _we_dawn_regen(battle, player, ctx, logs):
 
 @register("turn_start")
 def _we_undying_band(battle, player, ctx, logs):
-    """不灭微光（不灭之戒）：每回合开始回复 1.5% 最大生命。"""
+    """不灭微光（不灭之戒）：每刻开始回复 1.5% 最大生命。"""
     if not has_effect(battle, player, "undying_band"):
         return
     if player.get("hp", 0) < player.get("max_hp", 1):
@@ -902,7 +902,7 @@ def _we_death_dance_start(battle, player, ctx, logs):
 
 @register("turn_start")
 def _we_death_dance(battle, player, ctx, logs):
-    """死亡之舞（死亡之舞）：受击伤害的 35% 转为缓伤，每回合开始结算已积累缓伤的 10%（上限 10 回合）。"""
+    """死亡之舞（死亡之舞）：受击伤害的 35% 转为缓伤，每刻开始结算已积累缓伤的 10%（上限 10 刻）。"""
     if not has_effect(battle, player, "death_dance"):
         return
     pool = float(battle.p_eff.get("we_death_pool", 0) or 0)
@@ -916,7 +916,7 @@ def _we_death_dance(battle, player, ctx, logs):
 
 @register("turn_start")
 def _we_time_staff(battle, player, ctx, logs):
-    """岁月流转（岁月之杖）：每回合结束攻击 +1.5%、回复 1.5% 生命（上限 10 层 = +15%）。"""
+    """岁月流转（岁月之杖）：每刻结束攻击 +1.5%、回复 1.5% 生命（上限 10 层 = +15%）。"""
     if not has_effect(battle, player, "time_staff"):
         return
     n = min(10, int(battle.mech_stacks.get("time_staff", 0) or 0) + 1)
@@ -975,7 +975,7 @@ def _we_time_freeze(battle, player, ctx, logs):
 
 @register("threshold")
 def _we_bedrock_crown(battle, player, ctx, logs):
-    """磐石守护（磐石王冠）：每场 1 次，生命低于 25% 时获得护盾（吸收 20% 最大生命，4 回合）。"""
+    """磐石守护（磐石王冠）：每场 1 次，生命低于 25% 时获得护盾（吸收 20% 最大生命，4 刻）。"""
     if not has_effect(battle, player, "bedrock_crown"):
         return
     if battle.p_eff.get("we_bedrock_used"):
@@ -986,12 +986,12 @@ def _we_bedrock_crown(battle, player, ctx, logs):
     battle.p_eff["we_bedrock_used"] = True
     shield = int(player.get("max_hp", 100) * 0.20)
     battle._add_shield("we_bedrock", shield, 4)
-    logs.append(f"🪨 磐石守护：生命垂危，获得 {shield} 点护盾！（4 回合）")
+    logs.append(f"🪨 磐石守护：生命垂危，获得 {shield} 点护盾！（4 刻）")
 
 
 @register("threshold")
 def _we_firmament_crown(battle, player, ctx, logs):
-    """苍穹庇护（苍穹之冠）：每场 2 次，生命低于 30% 时获得护盾（吸收 12% 最大生命，3 回合）。"""
+    """苍穹庇护（苍穹之冠）：每场 2 次，生命低于 30% 时获得护盾（吸收 12% 最大生命，3 刻）。"""
     if not has_effect(battle, player, "firmament_crown"):
         return
     if int(battle.p_eff.get("we_firmament_cnt", 0) or 0) >= 2:
@@ -1025,7 +1025,7 @@ def _we_gargoyle_heart(battle, player, ctx, logs):
 
 @register("undying_will", "threshold")
 def _we_undying_will_t(battle, player, ctx, logs):
-    """不灭意志（不灭意志）：每场 1 次，生命低于 20% 时触发，本回合免疫致死伤害并回复 10% 生命。"""
+    """不灭意志（不灭意志）：每场 1 次，生命低于 20% 时触发，本刻免疫致死伤害并回复 10% 生命。"""
     if not has_effect(battle, player, "undying_will"):
         return
     if battle.p_eff.get("we_undying_used"):
@@ -1034,7 +1034,7 @@ def _we_undying_will_t(battle, player, ctx, logs):
     if ratio >= 0.20:
         return
     battle.p_eff["we_undying_used"] = True
-    battle.p_eff["we_undying_immune"] = True  # 本回合免疫致死（_damage_player 消费）
+    battle.p_eff["we_undying_immune"] = True  # 本刻免疫致死（_damage_player 消费）
     heal = int(player.get("max_hp", 100) * 0.10)
     _heal_player(battle, player, heal, logs, source="✨ 不灭意志")
     logs.append("✨ 不灭意志：免疫致死伤害！")
@@ -1180,7 +1180,7 @@ def _we_mountain_p(battle, player, ctx, logs):
 
 @register("oath_blade", "passive")
 def _we_oath_p(battle, player, ctx, logs):
-    """咒刃之誓（咒刃之誓）：下一次攻击伤害 +25%（每回合限 1 次）。"""
+    """咒刃之誓（咒刃之誓）：下一次攻击伤害 +25%（每刻限 1 次）。"""
     if not has_effect(battle, player, "oath_blade"):
         return
     if battle.p_eff.get("we_oath"):
@@ -1251,12 +1251,12 @@ def _we_novice_lifesteal(battle, player, ctx, logs):
 
 @register("battle_start")
 def _we_novice_first_turn_guard(battle, player, ctx, logs):
-    """守御（旅人之盾）：每场战斗首回合受击伤害 -10%。
+    """守御（旅人之盾）：每场战斗首刻受击伤害 -10%。
     仅 battle_start 挂标记，减伤由 _damage_player 消费（round≤1 时 ×0.90）。"""
     if not has_effect(battle, player, "novice_first_turn_guard"):
         return
     battle.p_eff["novice_guard_active"] = True
-    logs.append("🛡️ 守御：首回合受击伤害 -10%！")
+    logs.append("🛡️ 守御：首刻受击伤害 -10%！")
 
 
 @register("skill_cast")
@@ -1296,22 +1296,22 @@ def _we_novice_regen_heal(battle, player, ctx, logs):
 
 @register("hit")
 def _we_novice_wind_spd(battle, player, ctx, logs):
-    """翠风（翠风之弓）：攻击命中后，自身速度 +5%（持续 2 回合）。
+    """翠风（翠风之弓）：攻击命中后，自身速度 +5%（持续 2 刻）。
     hit 事件挂 p_buffs 计时，由 _player_stats 消费（spd×1.05）。"""
     if not has_effect(battle, player, "novice_wind_spd"):
         return
     battle.p_buffs["novice_wind_spd"] = max(int(battle.p_buffs.get("novice_wind_spd", 0) or 0), 2)
-    logs.append("🌪️ 翠风：自身速度 +5%（2 回合）！")
+    logs.append("🌪️ 翠风：自身速度 +5%（2 刻）！")
 
 
 @register("battle_start")
 def _we_novice_first_turn_dodge(battle, player, ctx, logs):
-    """远行（远行兜帽）：每场战斗首回合闪避率 +5%。
+    """远行（远行兜帽）：每场战斗首刻闪避率 +5%。
     仅 battle_start 挂标记，闪避加成由闪避判定消费（round≤1 时乘算 +5%）。"""
     if not has_effect(battle, player, "novice_first_turn_dodge"):
         return
     battle.p_eff["novice_dodge_active"] = True
-    logs.append("💨 远行：首回合闪避率 +5%！")
+    logs.append("💨 远行：首刻闪避率 +5%！")
 
 
 @register("skill_cast")

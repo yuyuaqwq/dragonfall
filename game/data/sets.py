@@ -37,7 +37,7 @@ SETS = {
         },
         "bonus_4": {
             "effect": "frost", "chance": 0.3, "params": {"type": "proc_slow", "chance": 0.30, "slow_pct": 0.15, "slow_turns": 2, "tag": "❄️", "name": "寒霜之力"},
-            "desc": "攻击 30% 概率使敌人减速 2 回合"
+            "desc": "攻击 30% 概率使敌人减速 2 刻"
         },
         "name": "寒霜"
     },
@@ -49,7 +49,7 @@ SETS = {
         },
         "bonus_4": {
             "effect": "burn", "chance": 0.3, "params": {"type": "proc_burn", "chance": 0.30, "burn_pct": 0.05, "burn_turns": 2, "max_stacks": 5, "tag": "🔥", "name": "烈焰之力"},
-            "desc": "攻击 30% 概率灼烧敌人(2 回合每回合 5% 生命)"
+            "desc": "攻击 30% 概率灼烧敌人(2 刻每刻 5% 生命)"
         },
         "name": "烈焰"
     },
@@ -107,7 +107,7 @@ SETS = {
             "atk": 0.18,
             "pene_phys": 0.05  # v106.1 黑沼穿甲：暗杀者破甲
         },
-        "bonus_4": {"effect": "hei_zhao_erode", "chance": 0.3, "params": {"type": "proc_erode", "chance": 0.30, "max_stacks": 2, "pct": 1, "tag": "🌑", "name": "暗蚀"}, "desc": "攻击 30% 概率附加暗蚀（2 回合每回合 1% 敌方最大生命暗伤），伤害全额转化自身生命"},
+        "bonus_4": {"effect": "hei_zhao_erode", "chance": 0.3, "params": {"type": "proc_erode", "chance": 0.30, "max_stacks": 2, "pct": 1, "tag": "🌑", "name": "暗蚀"}, "desc": "攻击 30% 概率附加暗蚀（2 刻每刻 1% 敌方最大生命暗伤），伤害全额转化自身生命"},
         "name": "黑沼"
     },
     "set_sheng_hui": {
@@ -119,7 +119,7 @@ SETS = {
             "abyss_res": 0.05,   # v106.1 圣徽庇护：深渊抗性
             "heal_power": 0.05   # v106.2 圣徽圣愈：治疗强度
         },
-        "bonus_4": {"effect": "holy_halo_shield", "params": {"type": "taken_shield_convert", "shield_pct": 0.10, "once_per_round": True, "tag": "✨", "name": "圣辉护盾"}, "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每回合最多 1 次）"},
+        "bonus_4": {"effect": "holy_halo_shield", "params": {"type": "taken_shield_convert", "shield_pct": 0.10, "once_per_round": True, "tag": "✨", "name": "圣辉护盾"}, "desc": "被攻击命中后将本次伤害 10% 转化为护盾（每刻最多 1 次）"},
         "name": "圣徽"
     },
     "set_bai_yin_qi_shi": {
@@ -128,7 +128,7 @@ SETS = {
         "bonus_2": {
             "atk": 0.2
         },
-        "bonus_4": {"effect": "silver_knight_lance", "chance": 0.3, "params": {"type": "proc_armor_break", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "bonus_atk_pct": 0.30, "tag": "🐎", "name": "白银冲锋"}, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；目标已破甲则追加 30% 攻击力冲锋"},
+        "bonus_4": {"effect": "silver_knight_lance", "chance": 0.3, "params": {"type": "proc_armor_break", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "bonus_atk_pct": 0.30, "tag": "🐎", "name": "白银冲锋"}, "desc": "攻击命中 30% 概率破甲 15%（2 刻）；目标已破甲则追加 30% 攻击力冲锋"},
         "name": "白银骑士"
     },
     "set_hei_tie_yong_bing": {
@@ -150,7 +150,7 @@ SETS = {
         },
         "bonus_4": {
             "effect": "regen_strong",
-            "desc": "每回合开始回复 8% 生命"
+            "desc": "每刻开始回复 8% 生命"
         },
         "name": "晨光教会"
     },
@@ -169,7 +169,7 @@ SETS = {
         "quality": "blue",
         "icon": "🛡️",
         "bonus_2": {"def": 0.18, "atk": 0.08},
-        "bonus_4": {"effect": "tie_pi_bulwark", "chance": 0.2, "params": {"type": "taken_shield", "chance": 0.20, "shield_pct": 0.05, "shield_turns": 1, "shield_key": "tie_pi_bulwark", "tag": "🛡️", "name": "铁皮护体"}, "desc": "受击 20% 概率获得 5% 最大生命护盾（1 回合）"},
+        "bonus_4": {"effect": "tie_pi_bulwark", "chance": 0.2, "params": {"type": "taken_shield", "chance": 0.20, "shield_pct": 0.05, "shield_turns": 1, "shield_key": "tie_pi_bulwark", "tag": "🛡️", "name": "铁皮护体"}, "desc": "受击 20% 概率获得 5% 最大生命护盾（1 刻）"},
         "name": "铁皮"
     },
     "set_jing_tie": {
@@ -183,7 +183,7 @@ SETS = {
         "quality": "purple",
         "icon": "🛡️",
         "bonus_2": {"atk": 0.2, "def": 0.08},
-        "bonus_4": {"effect": "qi_shi_charge", "chance": 0.18, "params": {"type": "proc_flat_dmg", "chance": 0.18, "stat": "atk", "pct": 1.00, "once_per_round": True, "tag": "🐎", "name": "骑士冲锋"}, "desc": "攻击命中 18% 概率追加 100% 攻击力冲锋（每回合最多 1 次）"},
+        "bonus_4": {"effect": "qi_shi_charge", "chance": 0.18, "params": {"type": "proc_flat_dmg", "chance": 0.18, "stat": "atk", "pct": 1.00, "once_per_round": True, "tag": "🐎", "name": "骑士冲锋"}, "desc": "攻击命中 18% 概率追加 100% 攻击力冲锋（每刻最多 1 次）"},
         "name": "骑士"
     },
     "set_shou_wang": {
@@ -197,7 +197,7 @@ SETS = {
         "quality": "orange",
         "icon": "🛡️",
         "bonus_2": {"atk": 0.18, "def": 0.12},
-        "bonus_4": {"effect": "li_ming_dawnbreak", "chance": 0.3, "params": {"type": "proc_anti_heal", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "anti_heal_pct": 0.30, "tag": "🌅", "name": "黎明破晓"}, "desc": "攻击命中 30% 概率破甲 15%（2 回合）；破甲期间目标受疗效果 -30%"},
+        "bonus_4": {"effect": "li_ming_dawnbreak", "chance": 0.3, "params": {"type": "proc_anti_heal", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "anti_heal_pct": 0.30, "tag": "🌅", "name": "黎明破晓"}, "desc": "攻击命中 30% 概率破甲 15%（2 刻）；破甲期间目标受疗效果 -30%"},
         "name": "黎明"
     },
     "set_xue_tu": {
@@ -288,7 +288,7 @@ SETS = {
         "quality": "purple",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.2, "hp": 0.1},
-        "bonus_4": {"effect": "holy_field_heal", "params": {"type": "turn_heal_cond", "heal_low_pct": 0.06, "heal_high_pct": 0.03, "cond_hp_lt": 0.50, "tag": "✨", "name": "圣辉疗愈"}, "desc": "每回合开始：生命低于 50% 回复 6%，否则回复 3%"},
+        "bonus_4": {"effect": "holy_field_heal", "params": {"type": "turn_heal_cond", "heal_low_pct": 0.06, "heal_high_pct": 0.03, "cond_hp_lt": 0.50, "tag": "✨", "name": "圣辉疗愈"}, "desc": "每刻开始：生命低于 50% 回复 6%，否则回复 3%"},
         "name": "圣堂"
     },
     "set_shen_pan": {
@@ -302,7 +302,7 @@ SETS = {
         "quality": "orange",
         "icon": "☀️",
         "bonus_2": {"mdef": 0.18, "hp": 0.12, "heal_power": 0.05},
-        "bonus_4": {"effect": "divine_grace_burst", "params": {"type": "turn_heal_cond", "heal_pct": 0.05, "low_extra_pct": 0.15, "low_hp_lt": 0.30, "per_battle": True, "tag": "☀️", "name": "神恩爆发"}, "desc": "每回合开始回复 5% 生命；生命首次低于 30% 时额外回复 15%（每场 1 次）"},
+        "bonus_4": {"effect": "divine_grace_burst", "params": {"type": "turn_heal_cond", "heal_pct": 0.05, "low_extra_pct": 0.15, "low_hp_lt": 0.30, "per_battle": True, "tag": "☀️", "name": "神恩爆发"}, "desc": "每刻开始回复 5% 生命；生命首次低于 30% 时额外回复 15%（每场 1 次）"},
         "name": "神恩"
     },
     "set_qing_ying": {
@@ -358,7 +358,7 @@ SETS = {
         "quality": "purple",
         "icon": "🥋",
         "bonus_2": {"hp": 0.12, "mdef": 0.1},
-        "bonus_4": {"effect": "hu_xiao_barrier", "params": {"type": "turn_shield", "shield_pct": 0.03, "shield_turns": 1, "tag": "🧱", "name": "壁立千仞"}, "desc": "每回合开始获得 3% 最大生命的护盾（1 回合）"},
+        "bonus_4": {"effect": "hu_xiao_barrier", "params": {"type": "turn_shield", "shield_pct": 0.03, "shield_turns": 1, "tag": "🧱", "name": "壁立千仞"}, "desc": "每刻开始获得 3% 最大生命的护盾（1 刻）"},
         "name": "壁槌"
     },
     "set_pan_shi": {
@@ -546,7 +546,7 @@ CLASS_SET_THEMES = {
         },
         "bonus_4": {
             "effect": "pierce", "chance": 0.3, "params": {"type": "proc_armor_break", "chance": 0.30, "break_pct": 0.15, "break_turns": 2, "tag": "⚔️", "name": "破甲之力"},
-            "desc": "攻击 30% 概率破甲(敌方防御减半 2 回合)"
+            "desc": "攻击 30% 概率破甲(敌方防御减半 2 刻)"
         },
         "name": "战士"
     },
@@ -646,7 +646,7 @@ CLASS_SET_THEMES = {
         },
         "bonus_4": {
             "effect": "regen",
-            "desc": "每回合开始回复 5% 生命"
+            "desc": "每刻开始回复 5% 生命"
         },
         "name": "牧师"
     },

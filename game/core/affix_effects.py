@@ -4,7 +4,7 @@
 消灭 game/battle.py 的四处硬编码效果链：
 1. HIT_EFFECTS       _affix_on_hit     攻击命中词条（10 块，并列 if 语义）
 2. TAKEN_EFFECTS     _affix_on_taken   受击词条（8 块，顺序结算 out）
-3. TURN_START_EFFECTS _affix_turn_start 回合开始词条（回春/冥想/晨曦）
+3. TURN_START_EFFECTS _affix_turn_start 刻开始词条（回春/冥想/晨曦）
 4. SET_PROC_EFFECTS  _set_attack_proc  套装 4 件攻击特效（6 种 eff，elif 分发）
 
 扩展方式：
@@ -73,7 +73,7 @@ HIT_EFFECTS = {}
 
 @register(HIT_EFFECTS, "bleed")
 def _h_bleed(battle, player, dmg, logs):
-    """流血：20% 使目标流血（每回合 5% 生命，3 回合）"""
+    """流血：20% 使目标流血（每刻 5% 生命，3 刻）"""
     if "bleed" in battle._equip_affix_ids(player) and random.random() < _affix_chance("bleed", 0.20):
         # 目标级减益：血层挂到 enemy["debuffs"]["bleed"]（攻击命中后 enemy 必在）
         stacks = int(_affix_effect("bleed").get("stacks", 3))  # 每次触发叠层数（兼作上限）
@@ -86,7 +86,7 @@ def _h_bleed(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "armor_break")
 def _h_armor_break(battle, player, dmg, logs):
-    """破甲：25% 降低目标防御 15%（2 回合）"""
+    """破甲：25% 降低目标防御 15%（2 刻）"""
     if "armor_break" in battle._equip_affix_ids(player) and random.random() < _affix_chance("armor_break", 0.25):
         eff = _affix_effect("armor_break")
         battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
@@ -141,7 +141,7 @@ def _h_element_thunder(battle, player, dmg, logs):
 @register(HIT_EFFECTS, "chu_huo")
 def _h_chu_huo(battle, player, dmg, logs):
     """初火余烬（灰烬圣剑·初火 Lv95 终章传说剑）：攻击附加 8% 火属性伤害，
-    20% 概率使目标灼烧（每回合损 1.5% 最大生命，3 回合；Boss 1%）"""
+    20% 概率使目标灼烧（每刻损 1.5% 最大生命，3 刻；Boss 1%）"""
     if "chu_huo" not in battle._equip_affix_ids(player):
         return
     eff = _affix_effect("chu_huo")
@@ -157,7 +157,7 @@ def _h_chu_huo(battle, player, dmg, logs):
         cur["pct"] = pct_dot
         cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 3)))
         deb["burn"] = cur
-        logs.append("🔥 初火余烬：目标被灼烧！（每回合损 1.5% 最大生命，3 回合）")
+        logs.append("🔥 初火余烬：目标被灼烧！（每刻损 1.5% 最大生命，3 刻）")
 
 
 @register(HIT_EFFECTS, "pierce")
@@ -202,7 +202,7 @@ def _h_purify(battle, player, dmg, logs):
             removed += 1
         if removed:
             logs.append(f"✨ 净化！驱散了敌人 {removed} 层增益！")
-            # v135 哑词条激活·净化增强：驱散成功附加『圣洁』——敌人攻击 -10%(1 回合)
+            # v135 哑词条激活·净化增强：驱散成功附加『圣洁』——敌人攻击 -10%(1 刻)
             # （驱散 × 削弱，净化从"防 buff"升级为攻防一体的可感知特色）
             battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 1)
             battle.e_buffs["_weaken_val"] = float(_affix_effect("purify").get("holy_weaken", 0.10))
@@ -280,7 +280,7 @@ def _t_ember_ward(battle, player, ctx, logs):
 
 @register(TAKEN_EFFECTS, "moro_crown")
 def _t_moro_crown(battle, player, ctx, logs):
-    """深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 回合）"""
+    """深渊腐蚀（摩罗之冠专属）：15% 敌人攻击 -10%（2 刻）"""
     if "moro_crown" in battle._equip_affix_ids(player) and random.random() < _affix_chance("moro_crown", 0.15):
         eff = _affix_effect("moro_crown")
         battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), int(eff.get("turns", 2)))
@@ -288,7 +288,7 @@ def _t_moro_crown(battle, player, ctx, logs):
         logs.append("👿 深渊腐蚀！敌人攻击下降 10%！")
 
 
-# ================= 3. 回合开始词条（_affix_turn_start） =================
+# ================= 3. 刻开始词条（_affix_turn_start） =================
 
 TURN_START_EFFECTS = {}
 
@@ -319,7 +319,7 @@ def _ts_meditate(battle, player, logs):
 
 @register(TURN_START_EFFECTS, "energy_tide")
 def _ts_energy_tide(battle, player, logs):
-    """精力潮汐：每回合 精力回复 +5（史诗）/ +10（传说，tier 取档）。
+    """精力潮汐：每刻 精力回复 +5（史诗）/ +10（传说，tier 取档）。
     v130.2c 接线：数据 effect.regen + effect.tiers[quality] 覆盖，走 battle._res_gain（带上限）。"""
     if "energy_tide" not in battle._equip_affix_ids(player) or "energy" not in battle._branch_keys(player):
         return
@@ -391,7 +391,7 @@ def _sp_flat_dmg(battle, player, dmg, logs, params: dict):
         eff_chance = float(params.get("chance_alt", params.get("chance", 0.20)))
         if random.random() > eff_chance:
             return
-    # 每回合 1 次限制（qi_shi_charge）。v152 时刻制：round → _tick_no() 行动轮次
+    # 每刻 1 次限制（qi_shi_charge）。v152 时刻制：round → _tick_no() 行动轮次
     if params.get("once_per_round"):
         _turn = battle._tick_no()
         if (battle.p_eff or {}).get("proc_used") == _turn:
@@ -562,7 +562,7 @@ def _sp_burn(battle, player, dmg, logs, params: dict):
     cur["turns"] = max(int(cur.get("turns", 0) or 0), int(params.get("burn_turns", 2)))
     deb["burn"] = cur
     tag = params.get("tag", "🔥")
-    logs.append(f"{tag} {params.get('name', '灼烧')}！目标被灼烧！（每回合损 {int(params.get('burn_pct', 0.01)*100)}% 最大生命，{params.get('burn_turns', 2)} 回合）")
+    logs.append(f"{tag} {params.get('name', '灼烧')}！目标被灼烧！（每刻损 {int(params.get('burn_pct', 0.01)*100)}% 最大生命，{params.get('burn_turns', 2)} 刻）")
 
 
 def _sp_freeze(battle, player, dmg, logs, params: dict):
@@ -705,14 +705,14 @@ def _sp_mp_on_dmg(battle, player, dmg, logs, params: dict):
 
 
 def _sp_erode(battle, player, dmg, logs, params: dict):
-    """proc_erode：概率暗蚀（敌方每回合损 %max_hp，全额回血）
+    """proc_erode：概率暗蚀（敌方每刻损 %max_hp，全额回血）
     params: chance, max_stacks, turns"""
     deb = battle.enemy.setdefault("debuffs", {})
     cur = deb.get("erode") or {"n": 0, "mult": 1.0}
     cur["n"] = min(int(params.get("max_stacks", 2)), int(cur.get("n", 0) or 0) + 1)
     deb["erode"] = cur
     tag = params.get("tag", "🌑")
-    logs.append(f"{tag} {params.get('name', '暗蚀')}！敌人被暗蚀侵蚀！（每回合损 {params.get('pct', 1)}% 最大生命，全额回血）")
+    logs.append(f"{tag} {params.get('name', '暗蚀')}！敌人被暗蚀侵蚀！（每刻损 {params.get('pct', 1)}% 最大生命，全额回血）")
 
 
 def _sp_thunder_burst(battle, player, dmg, logs, params: dict):
@@ -902,7 +902,7 @@ def _h_oath_sword(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "sanctum_light")
 def _h_sanctum_light(battle, player, dmg, logs):
-    """圣殿辉光（圣殿战锤）：15% 敌人攻击 -8%（1 回合）"""
+    """圣殿辉光（圣殿战锤）：15% 敌人攻击 -8%（1 刻）"""
     if "sanctum_light" in battle._equip_affix_ids(player) and random.random() < _affix_chance("sanctum_light", 0.15):
         eff = _affix_effect("sanctum_light")
         battle.e_buffs["enemy_atk_down"] = max(battle.e_buffs.get("enemy_atk_down", 0), int(eff.get("turns", 1)))
@@ -912,7 +912,7 @@ def _h_sanctum_light(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "ember_furnace")
 def _h_ember_furnace(battle, player, dmg, logs):
-    """熔炉余烬（熔岩护手）：20% 灼烧 1% 最大生命×2 回合"""
+    """熔炉余烬（熔岩护手）：20% 灼烧 1% 最大生命×2 刻"""
     if "ember_furnace" in battle._equip_affix_ids(player) and random.random() < _affix_chance("ember_furnace", 0.20):
         eff = _affix_effect("ember_furnace")
         deb = battle.enemy.setdefault("debuffs", {})
@@ -921,7 +921,7 @@ def _h_ember_furnace(battle, player, dmg, logs):
         cur["pct"] = float(eff.get("burn_pct", 0.01))
         cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 2)))
         deb["burn"] = cur
-        logs.append("🔥 熔炉余烬！目标被灼烧！（每回合损 1% 最大生命，2 回合）")
+        logs.append("🔥 熔炉余烬！目标被灼烧！（每刻损 1% 最大生命，2 刻）")
 
 
 @register(HIT_EFFECTS, "blazing_sun")
@@ -939,12 +939,12 @@ def _h_blazing_sun(battle, player, dmg, logs):
             cur["pct"] = float(eff.get("burn_pct", 0.015))
             cur["turns"] = max(int(cur.get("turns", 0) or 0), int(eff.get("burn_turns", 3)))
             deb["burn"] = cur
-            logs.append("🔥 烈日灼烧：目标被灼烧！（每回合损 1.5% 最大生命，3 回合）")
+            logs.append("🔥 烈日灼烧：目标被灼烧！（每刻损 1.5% 最大生命，3 刻）")
 
 
 @register(HIT_EFFECTS, "deep_frost")
 def _h_deep_frost(battle, player, dmg, logs):
-    """深寒（银叶法杖）：20% 冰附加 8% + 减速 20% 2 回合"""
+    """深寒（银叶法杖）：20% 冰附加 8% + 减速 20% 2 刻"""
     if "deep_frost" in battle._equip_affix_ids(player):
         eff = _affix_effect("deep_frost")
         ed = max(1, int(dmg * float(eff.get("pct", 0.08))))
@@ -1002,7 +1002,7 @@ def _t_night_watch(battle, player, ctx, logs):
 
 @register(TURN_START_EFFECTS, "morning_dew")
 def _ts_morning_dew(battle, player, logs):
-    """晨露滋养（晨露戒指）：每回合回复 1% 魔力"""
+    """晨露滋养（晨露戒指）：每刻回复 1% 魔力"""
     if "morning_dew" in battle._equip_affix_ids(player) and player.get("mp", 0) < player.get("max_mp", 1):
         heal = int(player.get("max_mp", player.get("mp", 1)) * float(_affix_effect("morning_dew").get("pct", 0.01)))
         player["mp"] = min(player.get("max_mp", player.get("mp", 1)), player.get("mp", 0) + heal)
@@ -1011,7 +1011,7 @@ def _ts_morning_dew(battle, player, logs):
 
 @register(TURN_START_EFFECTS, "night_prayer")
 def _ts_night_prayer(battle, player, logs):
-    """夜祷（夜祷兜帽）：每回合回复 3% 最大生命"""
+    """夜祷（夜祷兜帽）：每刻回复 3% 最大生命"""
     if "night_prayer" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("night_prayer").get("pct", 0.03)))
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
@@ -1022,7 +1022,7 @@ def _ts_night_prayer(battle, player, logs):
 
 @register(TAKEN_EFFECTS, "obsidian_aegis")
 def _t_obsidian_aegis(battle, player, ctx, logs):
-    """黑曜壁垒（D2）：受击 10% 获得 8% 最大生命护盾（3 回合）"""
+    """黑曜壁垒（D2）：受击 10% 获得 8% 最大生命护盾（3 刻）"""
     if "obsidian_aegis" in battle._equip_affix_ids(player) and random.random() < _affix_chance("obsidian_aegis", 0.10):
         eff = _affix_effect("obsidian_aegis")
         shield = int(player.get("max_hp", 1) * float(eff.get("pct", 0.08)))
@@ -1064,11 +1064,11 @@ def _t_grim_ward(battle, player, ctx, logs):
             logs.append(f"🕯️ 亡者守护！减伤 {dmg_before - ctx['out']} 点")
 
 
-# ---- D2 回合开始型（TURN_START_EFFECTS）----
+# ---- D2 刻开始型（TURN_START_EFFECTS）----
 
 @register(TURN_START_EFFECTS, "life_spring")
 def _ts_life_spring(battle, player, logs):
-    """生命泉涌（D2）：每回合回 3% 最大生命"""
+    """生命泉涌（D2）：每刻回 3% 最大生命"""
     if "life_spring" in battle._equip_affix_ids(player) and player.get("hp", 0) < player.get("max_hp", 1):
         heal = int(player.get("max_hp", player.get("hp", 1)) * float(_affix_effect("life_spring").get("pct", 0.03)))
         player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
@@ -1101,7 +1101,7 @@ def _h_chain_overload(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "mortal_wound")
 def _h_mortal_wound(battle, player, dmg, logs):
-    """致伤重击（D2）：攻击 20% 概率使目标受疗效果 -50%（2 回合）"""
+    """致伤重击（D2）：攻击 20% 概率使目标受疗效果 -50%（2 刻）"""
     if "mortal_wound" in battle._equip_affix_ids(player) and random.random() < _affix_chance("mortal_wound", 0.20):
         battle.e_buffs["_anti_heal_pct"] = 0.50
         battle.e_buffs["anti_heal_turns"] = max(battle.e_buffs.get("anti_heal_turns", 0), 2)
@@ -1110,7 +1110,7 @@ def _h_mortal_wound(battle, player, dmg, logs):
 
 @register(HIT_EFFECTS, "memory_tear")
 def _h_memory_tear(battle, player, dmg, logs):
-    """记忆撕裂（D2）：攻击 15% 概率使敌人攻击 -15%（2 回合）"""
+    """记忆撕裂（D2）：攻击 15% 概率使敌人攻击 -15%（2 刻）"""
     if "memory_tear" in battle._equip_affix_ids(player) and random.random() < _affix_chance("memory_tear", 0.15):
         battle.e_buffs["mon_atk_down"] = max(battle.e_buffs.get("mon_atk_down", 0), 2)
         battle.e_buffs["_weaken_val"] = 0.15

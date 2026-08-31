@@ -9,7 +9,7 @@
   传 None 时回退 DEFAULTS——DEFAULTS 由 items.py effect_data 扫描构建（数据层单一权威）。
 
 扩展方式（新增药水效果 = 注册函数 + 数据）：
-1. items.py 药水条目加 effect + effect_data（数值字段按效果语义：pct=百分比/turns=回合数）
+1. items.py 药水条目加 effect + effect_data（数值字段按效果语义：pct=百分比/turns=刻数）
 2. 本文件 register 一个新 handler（~10 行），数值全部读 value/DEFAULTS，禁止写死
 """
 
@@ -71,139 +71,139 @@ def eff_next_atk_up(battle, player, value):
 
 @register("heal_up")
 def eff_heal_up(battle, player, value):
-    """圣光药剂：治疗技能效果 +20%（3 回合）。"""
+    """圣光药剂：治疗技能效果 +20%（3 刻）。"""
     v = _resolve(value, "heal_up")
     pct = float(v.get("pct", 0.2))
     battle.p_buffs["heal_up"] = int(v.get("turns", 3))
-    return f"✨ 治疗增幅！治疗技能效果+{int(pct * 100)}%！(3 回合)"
+    return f"✨ 治疗增幅！治疗技能效果+{int(pct * 100)}%！(3 刻)"
 
 
 @register("magic_resist")
 def eff_magic_resist(battle, player, value):
-    """龙鳞药剂/深渊药剂：受到魔法伤害 －15%（3 回合）。"""
+    """龙鳞药剂/深渊药剂：受到魔法伤害 －15%（3 刻）。"""
     v = _resolve(value, "magic_resist")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["magic_resist"] = int(v.get("turns", 3))
-    return f"🛡️ 魔鳞护体！受到魔法伤害－{int(pct * 100)}%！(3 回合)"
+    return f"🛡️ 魔鳞护体！受到魔法伤害－{int(pct * 100)}%！(3 刻)"
 
 
 @register("thorns_pot")
 def eff_thorns_pot(battle, player, value):
-    """荆棘药剂：受击反弹 30% 伤害（3 回合）。"""
+    """荆棘药剂：受击反弹 30% 伤害（3 刻）。"""
     v = _resolve(value, "thorns_pot")
     pct = float(v.get("pct", 0.30))
     battle.p_buffs["thorns_pot"] = int(v.get("turns", 3))
-    return f"🌵 荆棘附体！受击反弹 {int(pct * 100)}% 伤害！(3 回合)"
+    return f"🌵 荆棘附体！受击反弹 {int(pct * 100)}% 伤害！(3 刻)"
 
 
 @register("dodge_pot")
 def eff_dodge_pot(battle, player, value):
-    """影步药剂：15% 概率闪避攻击（3 回合，乘算并入闪避结算）。"""
+    """影步药剂：15% 概率闪避攻击（3 刻，乘算并入闪避结算）。"""
     v = _resolve(value, "dodge_pot")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["dodge_pot"] = int(v.get("turns", 3))
-    return f"💨 身法飘忽！{int(pct * 100)}% 概率闪避攻击！(3 回合)"
+    return f"💨 身法飘忽！{int(pct * 100)}% 概率闪避攻击！(3 刻)"
 
 
 @register("cc_immune")
 def eff_cc_immune(battle, player, value):
-    """不动药剂：免疫眩晕/冻结/减速（3 回合）。"""
+    """不动药剂：免疫眩晕/冻结/减速（3 刻）。"""
     v = _resolve(value, "cc_immune")
     battle.p_buffs["cc_immune"] = int(v.get("turns", 3))
-    return "🗿 不动如山！免疫眩晕/冻结/减速！(3 回合)"
+    return "🗿 不动如山！免疫眩晕/冻结/减速！(3 刻)"
 
 
 @register("execute_pot")
 def eff_execute_pot(battle, player, value):
-    """死神药剂：对生命<30% 的敌人 +30% 伤害（3 回合）。"""
+    """死神药剂：对生命<30% 的敌人 +30% 伤害（3 刻）。"""
     v = _resolve(value, "execute_pot")
     pct = float(v.get("pct", 0.30))
     th = float(v.get("hp_threshold", 0.30))
     battle.p_buffs["execute_pot"] = int(v.get("turns", 3))
-    return f"💀 死神凝视！对生命<{int(th * 100)}%的敌人+{int(pct * 100)}%伤害！(3 回合)"
+    return f"💀 死神凝视！对生命<{int(th * 100)}%的敌人+{int(pct * 100)}%伤害！(3 刻)"
 
 
 @register("def_down")
 def eff_def_down(battle, player, value):
-    """破甲药剂：敌人防御下降 15%（2 回合，_armor_break_pct 供防御结算）。"""
+    """破甲药剂：敌人防御下降 15%（2 刻，_armor_break_pct 供防御结算）。"""
     v = _resolve(value, "def_down")
     pct = float(v.get("pct", 0.15))
     turns = int(v.get("turns", 2))
     battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), turns)
     battle.e_buffs["_armor_break_pct"] = pct
-    return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 回合)"
+    return f"🛡️ 破甲！敌人防御下降 {int(pct * 100)}%！({turns} 刻)"
 
 
 @register("pene_pot")
 def eff_pene_pot(battle, player, value):
-    """穿甲药剂：物穿 +15%（3 回合，与属性乘算）。"""
+    """穿甲药剂：物穿 +15%（3 刻，与属性乘算）。"""
     v = _resolve(value, "pene_pot")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["pene_pot"] = int(v.get("turns", 3))
-    return f"🗡️ 穿甲附刃！物穿 +{int(pct * 100)}%！(3 回合)"
+    return f"🗡️ 穿甲附刃！物穿 +{int(pct * 100)}%！(3 刻)"
 
 
 @register("pene_magi_pot")
 def eff_pene_magi_pot(battle, player, value):
-    """破法药剂：法穿 +15%（3 回合，与属性乘算）。"""
+    """破法药剂：法穿 +15%（3 刻，与属性乘算）。"""
     v = _resolve(value, "pene_magi_pot")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["pene_magi_pot"] = int(v.get("turns", 3))
-    return f"🔮 破法附魔！法穿 +{int(pct * 100)}%！(3 回合)"
+    return f"🔮 破法附魔！法穿 +{int(pct * 100)}%！(3 刻)"
 
 
 @register("lifesteal_pot")
 def eff_lifesteal_pot(battle, player, value):
-    """嗜血药剂：吸血 +15%（3 回合，乘算并入 _settle_lifesteal）。"""
+    """嗜血药剂：吸血 +15%（3 刻，乘算并入 _settle_lifesteal）。"""
     v = _resolve(value, "lifesteal_pot")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["lifesteal_pot"] = int(v.get("turns", 3))
-    return f"🩸 嗜血药剂！吸血 +{int(pct * 100)}%！(3 回合)"
+    return f"🩸 嗜血药剂！吸血 +{int(pct * 100)}%！(3 刻)"
 
 
 @register("crit_dmg_pot")
 def eff_crit_dmg_pot(battle, player, value):
-    """狂暴药剂：暴击伤害 +25%（3 回合，乘算并入暴击结算）。"""
+    """狂暴药剂：暴击伤害 +25%（3 刻，乘算并入暴击结算）。"""
     v = _resolve(value, "crit_dmg_pot")
     pct = float(v.get("pct", 0.25))
     battle.p_buffs["crit_dmg_pot"] = int(v.get("turns", 3))
-    return f"💥 狂暴药剂！暴击伤害 +{int(pct * 100)}%！(3 回合)"
+    return f"💥 狂暴药剂！暴击伤害 +{int(pct * 100)}%！(3 刻)"
 
 
 @register("block_pot")
 def eff_block_pot(battle, player, value):
-    """岩壁药剂：格挡 +15%（3 回合，乘算并入受击格挡）。"""
+    """岩壁药剂：格挡 +15%（3 刻，乘算并入受击格挡）。"""
     v = _resolve(value, "block_pot")
     pct = float(v.get("pct", 0.15))
     battle.p_buffs["block_pot"] = int(v.get("turns", 3))
-    return f"🛡️ 岩壁药剂！格挡 +{int(pct * 100)}%！(3 回合)"
+    return f"🛡️ 岩壁药剂！格挡 +{int(pct * 100)}%！(3 刻)"
 
 
 @register("shield_small")
 def eff_shield_small(battle, player, value):
-    """岩盾药剂：获得 max_hp × 10% 护盾（3 回合）。"""
+    """岩盾药剂：获得 max_hp × 10% 护盾（3 刻）。"""
     v = _resolve(value, "shield_small")
     pct = float(v.get("pct", 0.10))
     gain = int(player.get("max_hp", 100) * pct)
     battle._add_shield("potion", gain, int(v.get("turns", 3)))
-    return f"🛡️ 岩盾护体！获得 {gain} 点护盾！(3 回合)"
+    return f"🛡️ 岩盾护体！获得 {gain} 点护盾！(3 刻)"
 
 
 @register("shield_big")
 def eff_shield_big(battle, player, value):
-    """圣盾药剂：获得 max_hp × 15% 护盾（3 回合）。"""
+    """圣盾药剂：获得 max_hp × 15% 护盾（3 刻）。"""
     v = _resolve(value, "shield_big")
     pct = float(v.get("pct", 0.15))
     gain = int(player.get("max_hp", 100) * pct)
     battle._add_shield("potion", gain, int(v.get("turns", 3)))
-    return f"🛡️ 圣盾护体！获得 {gain} 点护盾！(3 回合)"
+    return f"🛡️ 圣盾护体！获得 {gain} 点护盾！(3 刻)"
 
 
 # ================= v130.2 资源联动消耗品（7 类新 effect handler） =================
 # 消费端：items.py 尾部 19 件资源联动消耗品（i_rage_draught ~ i_surging_brew）。
 # handler 签名统一 fn(battle, player, value)：battle=Battle 实例、player=玩家 dict、
 # value=物品级 effect_data（由 item_templates 注入 special payload；旧特殊药水无数据 → None 走 DEFAULTS）。
-# 资源值/回合类效果挂 p_buffs + p_eff{battle}（持久数据），引擎侧触发点消费。
+# 资源值/刻类效果挂 p_buffs + p_eff{battle}（持久数据），引擎侧触发点消费。
 # 职业校验统一走 battle._branch_keys（B1 分支级 resource_override，v130.2）。
 
 
@@ -222,7 +222,7 @@ def _res_mine(battle, player, key: str) -> bool:
 def eff_restore_resource(battle, player, value):
     """v130.2 回资源类消耗品：立即回复核心资源。
     effect_data {key, amount, cooldown?, once_per_battle?, next_heal_pct?}
-    支持：cooldown（叠加冷却，圣辉药剂 2 回合）/ once_per_battle（瞬步结晶每场限 1 次）/
+    支持：cooldown（叠加冷却，圣辉药剂 2 刻）/ once_per_battle（瞬步结晶每场限 1 次）/
     next_heal_pct（信仰结晶：下个治疗增强，_skill_heal 消费一次）。
     职业不符（如非时咒法师用时之沙漏）→ 无效无消耗。"""
     v = _resolve(value, "restore_resource")
@@ -242,7 +242,7 @@ def eff_restore_resource(battle, player, value):
     cd = int(v.get("cooldown", 0) or 0)
     _cdk = "item_cd_" + key
     if cd > 0 and int(battle.cooldown.get(_cdk, 0) or 0) > 0:
-        return f"⏳ 药剂还在冷却中(剩余 {int(battle.cooldown.get(_cdk, 0) or 0)} 回合)！"
+        return f"⏳ 药剂还在冷却中(剩余 {int(battle.cooldown.get(_cdk, 0) or 0)} 刻)！"
     rd = _item_res_def(key)
     new = battle._res_gain(player, key, amount)
     if once:
@@ -260,7 +260,7 @@ def eff_restore_resource(battle, player, value):
 
 @register("restore_resource_full")
 def eff_restore_resource_full(battle, player, value):
-    """v130.2 熔核之心：立即充满核心资源 + 战损代价（penalty_pct% 全减伤，penalty_turns 回合）。
+    """v130.2 熔核之心：立即充满核心资源 + 战损代价（penalty_pct% 全减伤，penalty_turns 刻）。
     effect_data {key, penalty_pct, penalty_turns}——全减伤负值 = 受击 +X%（battle.py reduce_all 槽消费）。"""
     v = _resolve(value, "restore_resource_full")
     key = v.get("key", "")
@@ -276,13 +276,13 @@ def eff_restore_resource_full(battle, player, value):
         battle.p_buffs["reduce_all"] = -penalty
         battle._reduce_all_left = turns
         return (f"🔥 熔核之心爆发！{rd.get('name', key)}充满({cap}/{cap})！"
-                f"代价：{turns} 回合内 全减伤 -{int(penalty * 100)}%（受损加重）")
+                f"代价：{turns} 刻内 全减伤 -{int(penalty * 100)}%（受损加重）")
     return f"🔥 {rd.get('name', key)} 瞬间充满！({cap}/{cap})"
 
 
 @register("resource_amp")
 def eff_resource_amp(battle, player, value):
-    """v130.2 资源增幅：特定触发下每次额外 +amount 资源（持续 turns 回合或 hits 次出手）。
+    """v130.2 资源增幅：特定触发下每次额外 +amount 资源（持续 turns 刻或 hits 次出手）。
     effect_data {key, amount, turns/hits, trigger}
     trigger ∈ {on_hit 受击 / 出手命中(hits 制) / on_heal 治疗 / regen 自然回复}，
     引擎侧触发点消费（battle.py _amp_resource 各站点；战斗外待用经 _init_resources 挂载）。
@@ -309,13 +309,13 @@ def eff_resource_amp(battle, player, value):
     _tcn = {"on_hit": "受击/出手", "on_heal": "治疗", "regen": "自然回复"}.get(trigger, trigger)
     if hits:
         return f"⚡ 接下来 {hits} 次出手命中时 {rd.get('name', key)} +{amount}！"
-    return f"⚡ {turns} 回合内（{_tcn}触发）{rd.get('name', key)} +{amount}！"
+    return f"⚡ {turns} 刻内（{_tcn}触发）{rd.get('name', key)} +{amount}！"
 
 
 @register("mana_cost_down")
 def eff_mana_cost_down(battle, player, value):
-    """v130.2 元素亲和药剂：技能魔力消耗 ×(1-pct) 持续 turns 回合（基础法师纯蓝减耗）。
-    effect_data {pct, turns}——p_buffs 回合计数 + p_eff 存 pct，battle.py 技能耗蓝结算消费。"""
+    """v130.2 元素亲和药剂：技能魔力消耗 ×(1-pct) 持续 turns 刻（基础法师纯蓝减耗）。
+    effect_data {pct, turns}——p_buffs 刻计数 + p_eff 存 pct，battle.py 技能耗蓝结算消费。"""
     v = _resolve(value, "mana_cost_down")
     pct = float(v.get("pct", 0.0) or 0)
     turns = int(v.get("turns", 3) or 3)
@@ -323,13 +323,13 @@ def eff_mana_cost_down(battle, player, value):
         return "🧪 药剂效果配置异常，没有生效！"
     battle.p_buffs["mana_cost_down"] = max(int(battle.p_buffs.get("mana_cost_down", 0) or 0), turns)
     battle.p_eff["mana_cost_down"] = pct
-    return f"🔮 元素亲和！技能魔力消耗 -{int(pct * 100)}%！({turns} 回合)"
+    return f"🔮 元素亲和！技能魔力消耗 -{int(pct * 100)}%！({turns} 刻)"
 
 
 @register("buff_phys_next")
 def eff_buff_phys_next(battle, player, value):
     """v130.2 引气精华：下一次物理/气力技 伤害 +pct%（一次性，物理技能伤害结算消费）。
-    effect_data {pct}——p_buffs 一次性标记 + p_eff 存 pct（同 next_atk_up 豁免回合递减）。"""
+    effect_data {pct}——p_buffs 一次性标记 + p_eff 存 pct（同 next_atk_up 豁免刻递减）。"""
     v = _resolve(value, "buff_phys_next")
     pct = float(v.get("pct", 0.0) or 0)
     if pct <= 0:
@@ -341,7 +341,7 @@ def eff_buff_phys_next(battle, player, value):
 
 @register("full_tension")
 def eff_full_tension(battle, player, value):
-    """v130.2 满弦烈酒：立即进入满弦状态 turns 回合（精力≥80 阈值视为已满足）。
+    """v130.2 满弦烈酒：立即进入满弦状态 turns 刻（精力≥80 阈值视为已满足）。
     effect_data {turns}——守线·风行者系专属（风行者/疾风射手/疾风猎手），其余职业无效。
     p_buffs[\"full_tension\"] 供 _energy_high_crit 满弦判定短路。"""
     v = _resolve(value, "full_tension")
@@ -349,7 +349,7 @@ def eff_full_tension(battle, player, value):
     if not battle._is_branch_of(player, "风行者", "疾风射手", "疾风猎手"):
         return "🏹 满弦是守线·风行者专属状态，这瓶烈酒没有生效！"
     battle.p_buffs["full_tension"] = max(int(battle.p_buffs.get("full_tension", 0) or 0), turns)
-    return f"🏹 满弦烈酒入喉，弓弦绷满！进入满弦状态 {turns} 回合！"
+    return f"🏹 满弦烈酒入喉，弓弦绷满！进入满弦状态 {turns} 刻！"
 
 
 @register("battle_start_resource")
@@ -376,7 +376,7 @@ def eff_battle_start_resource(battle, player, value):
         _t = int(bf.get("turns", 3) or 3)
         battle.p_buffs["phys_up"] = max(int(battle.p_buffs.get("phys_up", 0) or 0), _t)
         battle.p_eff["phys_up"] = max(float(battle.p_eff.get("phys_up", 0) or 0), _pct)
-        msgs.append(f"物理伤害 +{int(_pct * 100)}%({_t} 回合)")
+        msgs.append(f"物理伤害 +{int(_pct * 100)}%({_t} 刻)")
     if not msgs:
         return "🧪 效果未触发！"
     return "⚡ 战前准备生效！" + "、".join(msgs) + "！"
@@ -432,11 +432,11 @@ def eff_summon(battle, player, value):
         msgs.append(f"受击反弹 {int(float(v['thorns']) * 100)}% 伤害")
     if float(v.get("heal_pct", 0) or 0) > 0:
         battle.p_hot = {"heal": float(v["heal_pct"]), "mana": 0.0, "turns": turns}
-        msgs.append(f"每回合回复 {int(float(v['heal_pct']) * 100)}% 最大生命")
+        msgs.append(f"每刻回复 {int(float(v['heal_pct']) * 100)}% 最大生命")
     if float(v.get("heal_bonus", 0) or 0) > 0:
         battle.p_buffs["heal_up"] = max(int(battle.p_buffs.get("heal_up", 0) or 0), turns)
         msgs.append("治疗技能效果提升")
-    return "✨ 召唤成功！" + "、".join(msgs) + f"！(持续 {turns} 回合)"
+    return "✨ 召唤成功！" + "、".join(msgs) + f"！(持续 {turns} 刻)"
 
 
 @register("trap")
@@ -461,11 +461,11 @@ def eff_trap(battle, player, value):
         dg = v.get("boss_downgrade")
         if isinstance(dg, str):  # 霜寒捕兽夹：Boss 冻结降级为减速
             eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), turns)
-            msgs.append(f"Boss 免疫冻结，降级为减速 {turns} 回合！")
+            msgs.append(f"Boss 免疫冻结，降级为减速 {turns} 刻！")
         elif isinstance(dg, (int, float)):  # 沉默封咒蜡/魅惑：Boss 成功率
             if random.random() < float(dg):
                 eb[ctrl] = max(int(eb.get(ctrl, 0) or 0), turns)
-                msgs.append(f"控制成功！Boss 被{'冻结' if ctrl == 'freeze' else '沉默'} {turns} 回合！")
+                msgs.append(f"控制成功！Boss 被{'冻结' if ctrl == 'freeze' else '沉默'} {turns} 刻！")
             else:
                 msgs.append(f"Boss 抵抗了控制（成功率 {int(float(dg) * 100)}%）！")
         else:
@@ -473,7 +473,7 @@ def eff_trap(battle, player, value):
             msgs.append("控制生效！")
     else:
         eb[ctrl] = max(int(eb.get(ctrl, 0) or 0), turns)
-        msgs.append(f"敌方被{'冻结' if ctrl == 'freeze' else '眩晕' if ctrl == 'stun' else '沉默'} {turns} 回合！")
+        msgs.append(f"敌方被{'冻结' if ctrl == 'freeze' else '眩晕' if ctrl == 'stun' else '沉默'} {turns} 刻！")
     # 缴械绳网：普攻伤害 -atk_reduce%（mon_atk_down 槽 + _weaken_val 数值）
     ar = float(v.get("atk_reduce", 0) or 0)
     if ar > 0:
@@ -488,7 +488,7 @@ def eff_trap(battle, player, value):
 @register("mana_restore")
 def eff_mana_restore(battle, player, value):
     """v140 圣泉源泉瓶：回复 mana_pct% 最大法力（直接改 player 快照，与 mana 模板同源）
-    + 技能消耗 -cost_reduce% 持续 turns 回合（mana_cost_down 由技能施放结算消费）。"""
+    + 技能消耗 -cost_reduce% 持续 turns 刻（mana_cost_down 由技能施放结算消费）。"""
     v = _resolve(value, "mana_restore")
     mp_pct = float(v.get("mana_pct", 0.25) or 0)
     gain = int(player.get("max_mp", 0) * mp_pct)
@@ -500,14 +500,14 @@ def eff_mana_restore(battle, player, value):
         turns = max(1, int(v.get("turns", 2) or 2))
         battle.p_buffs["mana_cost_down"] = max(int(battle.p_buffs.get("mana_cost_down", 0) or 0), turns)
         battle.p_eff["mana_cost_down"] = max(float(battle.p_eff.get("mana_cost_down", 0) or 0), cr)
-        msgs.append(f"技能消耗 -{int(cr * 100)}%（{turns} 回合）")
+        msgs.append(f"技能消耗 -{int(cr * 100)}%（{turns} 刻）")
     return "💙 " + "，".join(msgs)
 
 
 @register("resource_charge")
 def eff_resource_charge(battle, player, value):
     """v140 充能蒸馏器：核心资源 +res_gain（按玩家职业核心资源 key，_res_gain 带上限），
-    且全部技能冷却 -cd_reduce 回合（cooldown 表直接减，_tick_cooldowns 次日递减）。"""
+    且全部技能冷却 -cd_reduce 刻（cooldown 表直接减，_tick_cooldowns 次日递减）。"""
     v = _resolve(value, "resource_charge")
     gain = int(v.get("res_gain", 0) or 0)
     cd = int(v.get("cd_reduce", 0) or 0)
@@ -521,7 +521,7 @@ def eff_resource_charge(battle, player, value):
     if cd > 0 and battle.cooldown:
         for k in list(battle.cooldown):
             battle.cooldown[k] = max(0, int(battle.cooldown[k] or 0) - cd)
-        msgs.append(f"全部技能冷却 -{cd} 回合")
+        msgs.append(f"全部技能冷却 -{cd} 刻")
     if not msgs:
         return "🧪 你的职业没有核心资源，充能没有生效！"
     return "⚡ " + "，".join(msgs) + "！"
@@ -529,7 +529,7 @@ def eff_resource_charge(battle, player, value):
 
 @register("steal_buff")
 def eff_steal_buff(battle, player, value):
-    """v140 汲魂水晶：偷取敌方 1 个增益转给自己（敌方 buffs 键 → p_buffs 同回合数）。
+    """v140 汲魂水晶：偷取敌方 1 个增益转给自己（敌方 buffs 键 → p_buffs 同刻数）。
     敌方无增益时按 effect_data no_target_no_consume 语义不消耗（模板层已拦截）。"""
     v = _resolve(value, "steal_buff")
     e = battle.enemy or {}
@@ -543,13 +543,13 @@ def eff_steal_buff(battle, player, value):
     turns = max(1, int(v.get("turns", 2) or 2))
     t = eb.pop(k)
     battle.p_buffs[k] = max(int(battle.p_buffs.get(k, 0) or 0), int(t or turns))
-    return f"🕳️ 你偷取了敌方的增益【{k}】转给自己 {int(t or turns)} 回合！"
+    return f"🕳️ 你偷取了敌方的增益【{k}】转给自己 {int(t or turns)} 刻！"
 
 
 @register("buff_extend")
 def eff_buff_extend(battle, player, value):
-    """v140 时之延香：自身全部增益时长 +extend_turns 回合（p_buffs 逐个顺延，
-    _end_round 回合递减消费；一次性标记类键豁免）。"""
+    """v140 时之延香：自身全部增益时长 +extend_turns 刻（p_buffs 逐个顺延，
+    _end_round 刻递减消费；一次性标记类键豁免）。"""
     v = _resolve(value, "buff_extend")
     ext = max(1, int(v.get("extend_turns", 2) or 2))
     n = 0
@@ -558,13 +558,13 @@ def eff_buff_extend(battle, player, value):
             continue
         battle.p_buffs[k] = int(battle.p_buffs.get(k, 0) or 0) + ext
         n += 1
-    return f"⏳ 时之延香燃尽，你身上的 {n} 个增益延长 {ext} 回合！"
+    return f"⏳ 时之延香燃尽，你身上的 {n} 个增益延长 {ext} 刻！"
 
 
 @register("phoenix")
 def eff_phoenix(battle, player, value):
     """v140 不死鸟之羽：设置复活标记（被击倒后以 revive_hp% 生命复活 1 次，
-    复活后 turns 回合减伤 dmg_reduce%——标记存 p_eff 由战斗引擎死亡结算消费；
+    复活后 turns 刻减伤 dmg_reduce%——标记存 p_eff 由战斗引擎死亡结算消费；
     本版按 v140 收口先挂标记，消费端接线属引擎批次）。"""
     v = _resolve(value, "phoenix")
     if battle.p_eff.get("phoenix_used"):
@@ -581,7 +581,7 @@ def eff_phoenix(battle, player, value):
 @register("purify_immune")
 def eff_purify_immune(battle, player, value):
     """v140 圣光净水：净化全部负面状态（p_buffs 负向键清除，与净化卷轴同口径）
-    + turns 回合免疫 silence/stun（cc_immune 免疫槽，供引擎控制结算消费）。"""
+    + turns 刻免疫 silence/stun（cc_immune 免疫槽，供引擎控制结算消费）。"""
     v = _resolve(value, "purify_immune")
     turns = max(1, int(v.get("turns", 3) or 3))
     neg = ("stun", "freeze", "silence", "spd_down", "atk_down", "def_down",
@@ -593,12 +593,12 @@ def eff_purify_immune(battle, player, value):
         battle._reduce_all_left = 0
     battle.p_buffs["cc_immune"] = max(int(battle.p_buffs.get("cc_immune", 0) or 0), turns)
     msg = "✨ 圣光涤荡，" + ("、".join(cleared) + " 已净化！" if cleared else "身上没有负面状态～")
-    return msg + f"({turns} 回合免疫沉默/眩晕)"
+    return msg + f"({turns} 刻免疫沉默/眩晕)"
 
 
 @register("morph")
 def eff_morph(battle, player, value):
-    """v140 龙血变身药剂：变身 turns 回合攻/魔攻 +30%（atk_up/matk_up_pot 既有 buff 槽），
+    """v140 龙血变身药剂：变身 turns 刻攻/魔攻 +30%（atk_up/matk_up_pot 既有 buff 槽），
     受击伤害 +15%（dmg_taken_up 标记存 p_eff，引擎受击结算消费）。"""
     v = _resolve(value, "morph")
     turns = max(1, int(v.get("turns", 3) or 3))
@@ -608,20 +608,20 @@ def eff_morph(battle, player, value):
     battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), turns)
     battle.p_buffs["matk_up_pot"] = max(int(battle.p_buffs.get("matk_up_pot", 0) or 0), turns)
     battle.p_eff["morph_dmg_taken"] = float(v.get("dmg_taken_up", 0.15) or 0.15)
-    return f"🐉 龙血沸腾，你进入龙人形态 {turns} 回合！攻击/魔攻+30%，但受击伤害+{int(float(v.get('dmg_taken_up', 0.15)) * 100)}%！"
+    return f"🐉 龙血沸腾，你进入龙人形态 {turns} 刻！攻击/魔攻+30%，但受击伤害+{int(float(v.get('dmg_taken_up', 0.15)) * 100)}%！"
 
 
 @register("invuln")
 def eff_invuln(battle, player, value):
-    """v140 次元门扉符：无敌 1 回合免疫一切伤害（invuln 标记存 p_eff，引擎受击结算消费；
-    下回合无法行动僵直 stun_after 一并登记）。"""
+    """v140 次元门扉符：无敌 1 刻免疫一切伤害（invuln 标记存 p_eff，引擎受击结算消费；
+    下刻无法行动僵直 stun_after 一并登记）。"""
     v = _resolve(value, "invuln")
     if battle.p_eff.get("invuln_used"):
         return "⛔ 次元门扉符每场战斗只能使用 1 次，已经用过了！"
     battle.p_eff["invuln_used"] = True
     battle.p_eff["invuln"] = {"turns": max(1, int(v.get("turns", 1) or 1)),
                               "stun_after": int(v.get("stun_after", 1) or 1)}
-    return "🌀 次元门扉展开，你遁入虚数空间——本回合免疫一切伤害！(下回合将僵直)"
+    return "🌀 次元门扉展开，你遁入虚数空间——本刻免疫一切伤害！(下刻将僵直)"
 
 
 @register("apply_mark")
@@ -647,8 +647,8 @@ def eff_apply_mark(battle, player, value):
 
 @register("dot_amp")
 def eff_dot_amp(battle, player, value):
-    """v140 连携增幅墨：turns 回合内每次命中使目标毒/灼烧/流血层数 +layer_per_hit
-    （标记存 p_eff，命中叠层消费端属引擎批次；当前回合直接为目标已有点 dot 各 +1 层）。"""
+    """v140 连携增幅墨：turns 刻内每次命中使目标毒/灼烧/流血层数 +layer_per_hit
+    （标记存 p_eff，命中叠层消费端属引擎批次；当前刻直接为目标已有点 dot 各 +1 层）。"""
     v = _resolve(value, "dot_amp")
     turns = max(1, int(v.get("turns", 2) or 2))
     per = max(1, int(v.get("layer_per_hit", 1) or 1))
@@ -661,7 +661,7 @@ def eff_dot_amp(battle, player, value):
             d = deb.setdefault(k, {"n": 0, "mult": 1.0})
             d["n"] = int(d.get("n", 0) or 0) + per
             n += 1
-    msg = f"🎨 连携增幅墨生效！{turns} 回合内每次命中使异常层数 +{per}"
+    msg = f"🎨 连携增幅墨生效！{turns} 刻内每次命中使异常层数 +{per}"
     if n:
         msg += f"（已为目标 {n} 种异常各 +{per} 层）"
     return msg + "！"
@@ -697,7 +697,7 @@ def eff_reaction(battle, player, value):
 @register("vuln")
 def eff_vuln(battle, player, value):
     """v140 弱点击破石：目标每有 1 种负面状态，你对其伤害 +per_debuff%（上限
-    max_debuff 种 +max_bonus%），持续 turns 回合——按当前敌方负面数即时结算并
+    max_debuff 种 +max_bonus%），持续 turns 刻——按当前敌方负面数即时结算并
     挂 p_eff 标记（引擎后续攻击结算消费持续效果）。"""
     v = _resolve(value, "vuln")
     turns = max(1, int(v.get("turns", 3) or 3))
@@ -718,5 +718,5 @@ def eff_vuln(battle, player, value):
     bonus = min(cap, per * cnt)
     battle.p_eff["vuln"] = {"per_debuff": per, "count": cnt, "bonus": bonus, "turns_left": turns}
     battle.p_buffs["vuln"] = max(int(battle.p_buffs.get("vuln", 0) or 0), turns)
-    return f"🎯 弱点击破！目标当前 {neg} 种负面状态，你对其伤害 +{int(bonus * 100)}%({turns} 回合)！"
+    return f"🎯 弱点击破！目标当前 {neg} 种负面状态，你对其伤害 +{int(bonus * 100)}%({turns} 刻)！"
 

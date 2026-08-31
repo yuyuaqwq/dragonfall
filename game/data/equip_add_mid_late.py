@@ -67,7 +67,7 @@ EQUIP_ADD = {
     "eq_tie_bi_jun_tuan_tui_jia":        {"name": "铁壁军团腿甲", "slot": "legs", "quality": "blue", "lv": 53, "series": "铁壁", "req": {"str": 50}, "affixes": ["dmg_reduce", "block"], "source": "锻造"},
     # ---------- 橙装 3（legendary 特效，desc 注明触发+数值） ----------
     "eq_chen_xi_sheng_jian":             {"name": "晨曦圣剑", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 50, "series": "圣光", "req": {"str": 50}, "legendary": "chen_xi_sheng_jian", "desc": "暴击命中后，下一次攻击伤害+25%（触发：暴击命中，数值：+25%）", "source": "boss"},
-    "eq_yue_shen_zhi_jie":               {"name": "月神之戒", "slot": "ring", "quality": "orange", "lv": 52, "series": "月语", "req": {"agi": 50}, "legendary": "yue_shen_zhi_jie", "desc": "每回合开始回复2%最大生命（触发：回合开始，数值：2%）", "source": "legend"},
+    "eq_yue_shen_zhi_jie":               {"name": "月神之戒", "slot": "ring", "quality": "orange", "lv": 52, "series": "月语", "req": {"agi": 50}, "legendary": "yue_shen_zhi_jie", "desc": "每刻开始回复2%最大生命（触发：刻开始，数值：2%）", "source": "legend"},
     "eq_shu_guang_bi_lei":               {"name": "曙光壁垒", "slot": "weapon", "weapon_type": "shield", "quality": "orange", "lv": 55, "series": "圣光", "req": {"str": 52}, "legendary": "shu_guang_bi_lei", "desc": "受击时20%概率获得护盾，吸收10%最大生命的伤害（触发：受击，数值：20%/10%）", "source": "boss"},
 
     # ================= 后期 Lv.56-80 补档（20 件） =================
@@ -91,7 +91,7 @@ EQUIP_ADD = {
     "eq_nu_tao_san_cha_ji":              {"name": "怒涛三叉戟", "slot": "weapon", "weapon_type": "mace", "quality": "orange", "lv": 64, "series": "海神", "req": {"str": 62, "agi": 62}, "legendary": "nu_tao_san_cha_ji", "desc": "攻击20%概率溅射：对除目标外所有敌人造成60%伤害（触发：攻击命中，数值：20%/60%）", "source": "boss"},
     "eq_zhen_hai_zhi_dun":               {"name": "镇海之盾", "slot": "weapon", "weapon_type": "shield", "quality": "orange", "lv": 68, "series": "海神", "req": {"str": 65}, "legendary": "zhen_hai_zhi_dun", "desc": "受击伤害-15%；受击20%概率反弹30%伤害（触发：受击，数值：-15%/20%/30%）", "source": "boss"},
     "eq_shuang_lang_zhi_wang_ya":        {"name": "霜狼之王牙", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 76, "series": "霜狼", "req": {"agi": 72}, "legendary": "shuang_lang_zhi_wang_ya", "desc": "攻击30%概率追加冰锥，造成40%额外冰属性伤害（触发：攻击命中，数值：30%/40%）", "source": "boss"},
-    "eq_bing_hao_zhan_ren":              {"name": "冰嚎战刃", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 80, "series": "霜狼", "req": {"str": 78}, "legendary": "bing_hao_zhan_ren", "desc": "攻击命中25%概率冰冻目标1回合（冰冻：无法行动）（触发：攻击命中，数值：25%/1回合）", "source": "legend"},
-    "eq_xing_hui_zhi_guan":              {"name": "星辉之冠", "slot": "helm", "quality": "orange", "lv": 70, "series": "星辉", "req": {"int": 68}, "legendary": "xing_hui_zhi_guan", "desc": "每回合开始回复3%最大法力；施法暴击时叠加星辉，每层伤害+2%（上限5层）（触发：回合开始/施法暴击，数值：3%/2%×5）", "source": "boss"},
+    "eq_bing_hao_zhan_ren":              {"name": "冰嚎战刃", "slot": "weapon", "weapon_type": "sword", "quality": "orange", "lv": 80, "series": "霜狼", "req": {"str": 78}, "legendary": "bing_hao_zhan_ren", "desc": "攻击命中25%概率冰冻目标1 刻（冰冻：无法行动）（触发：攻击命中，数值：25%/1 刻）", "source": "legend"},
+    "eq_xing_hui_zhi_guan":              {"name": "星辉之冠", "slot": "helm", "quality": "orange", "lv": 70, "series": "星辉", "req": {"int": 68}, "legendary": "xing_hui_zhi_guan", "desc": "每刻开始回复3%最大法力；施法暴击时叠加星辉，每层伤害+2%（上限5层）（触发：刻开始/施法暴击，数值：3%/2%×5）", "source": "boss"},
     "eq_xing_he_fa_zhang":               {"name": "星河法杖", "slot": "weapon", "weapon_type": "staff", "quality": "orange", "lv": 72, "series": "星辉", "req": {"int": 70}, "legendary": "xing_he_fa_zhang", "desc": "释放技能后20%概率追加一次50%伤害的星辉冲击（触发：技能释放后，数值：20%/50%）", "source": "legend"},
 }

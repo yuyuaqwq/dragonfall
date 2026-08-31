@@ -79,7 +79,7 @@ class CombatCmds(CommandBase):
             return
         # v104 M24 P2：战斗中禁止探索。_in_battle 内部查 db.get_battle（battle_state 按 qq 全局，
         # 跨群/私聊同样命中）+ 内存锁 + 副本队员锁（_instance_battle_for，批次1 M04 加固）；
-        # 上方副本 map 模式分支先行放行属 v87.2 设计（副本内探索），普通/副本回合制战斗在此拦截。
+        # 上方副本 map 模式分支先行放行属 v87.2 设计（副本内探索），普通/副本刻制战斗在此拦截。
         if self._in_battle(group_id, qq_id):
             # O121 Boss 战不提示『逃跑』（无法逃跑，防误导）
             _bt = db.get_battle(group_id, qq_id) or {}
@@ -334,9 +334,9 @@ class CombatCmds(CommandBase):
         elif sa_boss and (random.random() < C.SA_BOSS_CHANCE or not events):
             monster = C.build_monster(sa_boss, cur_map)
             tag = "👑 BOSS"
-            # v95.20 #101：Boss 战无法逃跑且每回合耗体力，体力低时预警，避免中途耗尽被困
+            # v95.20 #101：Boss 战无法逃跑且每刻耗体力，体力低时预警，避免中途耗尽被困
             if (player.get("stamina") or 0) < 20:
-                stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每回合耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
+                stam_warn = f"\n⚠️ 当前体力 {player.get('stamina')} 点！Boss 战每刻耗 1 点体力且无法逃跑，体力耗尽将被困战斗——建议备好食物或先恢复再战！"
         elif events:
             # v101.25c 怪物等级波动：普通怪 ±1 级（精英/Boss 固定）——同图练级不单调
             # v130.8 意见#32：±1 感知弱 → 增强为 ±2；v132 鱼鱼拍板改回 ±1（"随机等级大概在正负1就行了"，
@@ -1253,7 +1253,7 @@ class CombatCmds(CommandBase):
             label = "治疗" if kind == "治疗" else "伤害"
             parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
         if kind in ("增益", "嘲讽"):
-            parts.append(f"持续 {E.skill_buff_turns(lv)} 回合")
+            parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
         if info.get("cond"):
             parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
@@ -1264,7 +1264,7 @@ class CombatCmds(CommandBase):
 
     def _skill_gains_curve(self, info: dict, cur: int, mx: int) -> str:
         """v134.1 意见#47：英雄联盟式多等级效果曲线（Lv.1→满级逐级数值，最高到 Lv.5）。
-        维度与 _skill_list_gains 同源（伤害/治疗/持续回合/条件×/叠层/吸血）：
+        维度与 _skill_list_gains 同源（伤害/治疗/持续刻/条件×/叠层/吸血）：
         - 折线级数（Lv.5）按『当前级/满级』压缩：跳级只保留当前级+满级；
         - 数值全等无成长 → 返回空串（passive/无成长维度，不占行）。"""
         parts = []
@@ -1278,7 +1278,7 @@ class CombatCmds(CommandBase):
         if kind in ("增益", "嘲讽"):
             vals = _curve_vals(lambda lv: E.skill_buff_turns(lv), cur, mx)
             if len(vals) > 1:
-                parts.append(f"持续 {'/'.join(f'{v}回合' for v in vals)}")
+                parts.append(f"持续 {'/'.join(f'{v}刻' for v in vals)}")
         if info.get("cond"):
             vals = _curve_vals(
                 lambda lv: round(E.skill_cond_mult(info["cond"], lv, info), 2), cur, mx)
@@ -1382,7 +1382,7 @@ class CombatCmds(CommandBase):
                     _cost.append(f"{_rcn or '资源'} +{_rg}")
             _cd = info.get("cd") or 0
             if _cd:
-                _cost.append(f"冷却 {_cd} 回合")
+                _cost.append(f"冷却 {_cd} 刻")
             if _cost:
                 lines.append(f"  · 消耗：{' ｜ '.join(_cost)}")
             else:
@@ -1516,8 +1516,8 @@ class CombatCmds(CommandBase):
         "spellblade_surge": "🔮魔涌", "stealth": "🌫️潜行", "dodge_up": "💨闪避↑",
         # 注：atk_down 由 Boss 开场技『低吼削弱』写入（battle_mech.py _b_opening），
         # 目前无属性消费端（死键）——状态栏照实显示作透明标注，待数值接入
-        # 注：reduce_all 存减伤百分比（float）且回合数由 _reduce_all_left 单独计时，
-        # 无回合数可显示，故意不进本表（避免"剩0.3回合"误导）
+        # 注：reduce_all 存减伤百分比（float）且刻数由 _reduce_all_left 单独计时，
+        # 无刻数可显示，故意不进本表（避免"剩0.3 刻"误导）
     }
     # 敌方状态 key → 显示名（v63 加 眩晕/沉默）
     _E_BUFF_NAMES = {
@@ -1549,41 +1549,41 @@ class CombatCmds(CommandBase):
     def _status_line(self, player: dict, b) -> str:
         """战斗状态行：玩家 buff/叠层 + 敌方状态。无状态返回空串。"""
         parts = []
-        # 玩家 buff（p_buffs 回合数 >0）
+        # 玩家 buff（p_buffs 刻数 >0）
         pbuf = []
         for k, v in (b.p_buffs or {}).items():
             if v and v > 0 and k in self._P_BUFF_NAMES:
-                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: ×N 是回合数，标注避免误读倍率
+                pbuf.append(f"{self._P_BUFF_NAMES[k]}(剩{v}刻)")  # #244c: ×N 是刻数，标注避免误读倍率
         # 玩家叠层（v59：叠层随战斗持久化，读 b.mech_stacks）
         # O96：burn/poison/mark 是敌方减益叠层，不在玩家栏显示
         stacks = (b.mech_stacks or {})
         for k, v in stacks.items():
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
-        # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余回合）
+        # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余刻）
         shields = getattr(b, "p_shields", {}) or {}
         for sname, s in shields.items():
             if (s or {}).get("value", 0) > 0:
                 turns = s.get("turns", 0)
-                pbuf.append(f"✨护盾{s['value']}" + (f"({turns}回合)" if turns < 999 else ""))
+                pbuf.append(f"✨护盾{s['value']}" + (f"({turns}刻)" if turns < 999 else ""))
         # 玩家金身减伤（iron 在 stacks 里已显示）
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
-        # 敌方状态（e_buffs 回合数 >0）
+        # 敌方状态（e_buffs 刻数 >0）
         ebuf = []
         for k, v in (b.e_buffs or {}).items():
             # v151 破绽断链修复：e_buffs 可能出现 dict 值（enemy_bar 状态 shaken/curse = {val, threshold, ...}），
-            # 不是回合 buff，跳过显示（bar 状态由战斗逻辑单独维护）
+            # 不是刻 buff，跳过显示（bar 状态由战斗逻辑单独维护）
             if isinstance(v, dict):
                 continue
             if v and v > 0 and k in self._E_BUFF_NAMES:
-                # v125.1 P2-4：shield 存护盾值（HP 量）、元素印记存层数——非回合语义，按各自格式显示
+                # v125.1 P2-4：shield 存护盾值（HP 量）、元素印记存层数——非刻语义，按各自格式显示
                 if k == "shield":
                     ebuf.append(f"{self._E_BUFF_NAMES[k]}{v}")
                 elif k in ("fire_mark", "ice_mark", "thunder_mark"):
                     ebuf.append(f"{self._E_BUFF_NAMES[k]}×{v}")
                 else:
-                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}回合)")  # #244c: 同上，回合数标注
+                    ebuf.append(f"{self._E_BUFF_NAMES[k]}(剩{v}刻)")  # #244c: 同上，刻数标注
         # 敌方狂暴（v58 mech）
         if b.enemy.get("enraged"):
             ebuf.append("😡狂暴")
@@ -2546,7 +2546,7 @@ class CombatCmds(CommandBase):
         # 后续 hp 写回全局也一并包含。
         gboss["dot_act"] = int(gboss.get("dot_act", 0) or 0) + 1
         if int(gboss["dot_act"]) % WORLD_BOSS_DOT_INTERVAL == 0:
-            # 契约 §2.2 实际实现：_tick_dots 原地向传入的 logs 追加文案并返回合并后同一列表，
+            # 契约 §2.2 实际实现：_tick_dots 原地向传入的 logs 追加文案并返刻并后同一列表，
             # 故用 logs = 覆盖而非 logs +=，避免同一列表二次自拼接导致 dot 行重复显示。
             logs = b._tick_dots(player, logs, force=True)  # force 结算的 dot 文案并入
         db.update_player(group_id, qq_id, hp=player["hp"], mp=player["mp"], max_hp=player["max_hp"], max_mp=player["max_mp"])
@@ -2920,7 +2920,7 @@ class CombatCmds(CommandBase):
         b = BT.Battle("pvp", enemy=None, title_bonus=self._title_bonus(group_id, qq_id), player=player, pet=db.pet_get(qq_id), enemies=[dict(opp, **_opp_extra)])
         b.p_buffs = dict(state.get(f"{my_key[0]}_buffs", {}))
         b.e_buffs = dict(state.get(f"{opp_key[0]}_buffs", {}))
-        # PVP 蓄力持久化：跨回合恢复玩家侧 charging（蓄力技 PVP 中跨回合生效）
+        # PVP 蓄力持久化：跨刻恢复玩家侧 charging（蓄力技 PVP 中跨刻生效）
         b.charging = state.get("charging")
         if action == "skill":
             info = E.skill_info(player["class_name"], skill_name)
@@ -2947,7 +2947,7 @@ class CombatCmds(CommandBase):
         # 同步快照与 buffs（v2：胜利时敌方阵列已清空，b.enemy 回退 {} → .get 兜底）
         opp["hp"] = b.enemy.get("hp", 0)
         opp["mp"] = b.enemy.get("mp", opp.get("mp", 0))
-        # 目标级减益/适应持久化：把本回合 enemy 上的 debuffs/adapt 深拷贝写回对手快照
+        # 目标级减益/适应持久化：把本刻 enemy 上的 debuffs/adapt 深拷贝写回对手快照
         #（需显式逐层复制，避免与后续 Battle 读入共享容器引用）
         if b.enemy.get("debuffs"):
             opp["debuffs"] = {k: dict(v) for k, v in b.enemy["debuffs"].items()}
@@ -2976,7 +2976,7 @@ class CombatCmds(CommandBase):
                 yield _r
             return
         if ended and b.result == "defeat":
-            # PVP 无敌方回合，正常不会走到；保险处理
+            # PVP 无敌方刻，正常不会走到；保险处理
             self._unlock_battle(group_id, qq_id)
             self._unlock_battle(group_id, opp["qq_id"])
             db.clear_battle(group_id, qq_id)

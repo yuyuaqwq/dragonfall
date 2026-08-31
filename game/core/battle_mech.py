@@ -111,7 +111,7 @@ def _m_rage_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=N
 
 @register(MECH_EFFECTS, "burn")
 def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """灼烧：叠层（每层每回合掉 3% 生命）
+    """灼烧：叠层（每层每刻掉 3% 生命）
     重构图契约 §3.1：敌方灼烧迁为 enemy["debuffs"]["burn"]（副本/世界Boss 全局共享）。"""
     if not mval:
         return
@@ -135,7 +135,7 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
     deb["burn"] = cur
     n = cur["n"]
-    base_log = f"🔥 灼烧层数 {n}(每回合 {n * 3}% 生命)"
+    base_log = f"🔥 灼烧层数 {n}(每刻 {n * 3}% 生命)"
     # v1.1 易燃预备：层数≥3 时灼爆引爆伤害 +{10*(n-2)}%（3层+10%/4层+20%/5层+30%）
     if n >= 3:
         base_log += f" 🔥 易燃预备：引爆伤害 +{10 * (n - 2)}%"
@@ -172,13 +172,13 @@ def _m_burn_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=N
 
 @register(MECH_EFFECTS, "freeze")
 def _m_freeze(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """冻结：概率冻结 1 回合"""
+    """冻结：概率冻结 1 刻"""
     use_mc, chance = _mech_chance(info, min(0.75, 0.25 + mval * 0.15))
     if not mval and not use_mc:
         return
     if random.random() < chance:
         battle.e_buffs["freeze"] = 1
-        logs.append("❄️ 敌人被冻结，跳过下回合！")
+        logs.append("❄️ 敌人被冻结，跳过下刻！")
 
 
 @register(MECH_EFFECTS, "spd_down")
@@ -189,30 +189,30 @@ def _m_spd_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=Non
         return
     if use_mc and random.random() >= chance:
         return
-    dur = max(int(mval or 0), 1)  # v113.1：mech_chance 技能不依赖 mval 成长，保证至少 1 回合
+    dur = max(int(mval or 0), 1)  # v113.1：mech_chance 技能不依赖 mval 成长，保证至少 1 刻
     battle.e_buffs["spd_down"] = max(battle.e_buffs.get("spd_down", 0), dur)
-    logs.append(f"🧊 敌人被减速 {dur} 回合，速度下降！")
+    logs.append(f"🧊 敌人被减速 {dur} 刻，速度下降！")
 
 
 @register(MECH_EFFECTS, "stun")
 def _m_stun(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """眩晕：概率眩晕 1 回合（v63 物理系控制）
+    """眩晕：概率眩晕 1 刻（v63 物理系控制）
     v113.1：技能自带 mech_chance（如时停领域 1.0）时用它覆写内部概率，Lv.1 也可触发。"""
     use_mc, chance = _mech_chance(info, min(0.60, 0.20 + mval * 0.15))
     if not mval and not use_mc:
         return
     if random.random() < chance:
         battle.e_buffs["stun"] = 1
-        logs.append("🌀 敌人被眩晕，跳过下回合！")
+        logs.append("🌀 敌人被眩晕，跳过下刻！")
 
 
 @register(MECH_EFFECTS, "silence")
 def _m_silence(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """沉默：稳定沉默 2 回合（v63 禁技能）"""
+    """沉默：稳定沉默 2 刻（v63 禁技能）"""
     if not mval:
         return
     battle.e_buffs["silence"] = 2
-    logs.append("🤐 敌人被沉默，2 回合内无法使用技能！")
+    logs.append("🤐 敌人被沉默，2 刻内无法使用技能！")
 
 
 @register(MECH_EFFECTS, "cleanse")
@@ -414,7 +414,7 @@ def _m_shadow_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
 
 @register(MECH_EFFECTS, "poison")
 def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """毒层：叠层（每层每回合 5% 生命，v110 与 POISON_PCT 对齐）
+    """毒层：叠层（每层每刻 5% 生命，v110 与 POISON_PCT 对齐）
     重构图契约 §3.1：敌方持续减益迁为 enemy["debuffs"]（副本/世界Boss 全局共享单份），
     不再写 p_mech（玩家 mech_stacks）——敌方毒层为目标级共享状态。
     v113.1：技能自带 mech_chance（如轻快拨弦 0.1 / 淬毒之刃 0.5）时作为施毒概率。"""
@@ -444,7 +444,7 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
     deb["poison"] = cur
     n = cur["n"]
     # v1.1 毒蚀：每层使目标防御 -4%（上限 -20%），随层数衰减自动恢复；日志与毒层合并输出
-    base_log = f"☠️ 毒层 {n}(每层 50%攻击+1.5%生命，{n} 回合后消散) 🛡️ 毒蚀：目标防御 -{4 * n}%（上限20%）"
+    base_log = f"☠️ 毒层 {n}(每层 50%攻击+1.5%生命，{n} 刻后消散) 🛡️ 毒蚀：目标防御 -{4 * n}%（上限20%）"
     # v1.2 减益适应（契约 §11.1）：毒层叠成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
     adapt = enemy.setdefault("adapt", {})
     adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
@@ -472,12 +472,12 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
         est = battle._enemy_stats()
         d = _calc(int(st2["atk"] * 0.30 * n), est.get("def", 0), dmg_type="phys")
         _burst_damage(battle, d, logs)
-        # v1.3 毒爆特色（与灼爆"易燃更痛"区分）：毒爆余毒虚弱——敌方攻击 -5%×n（3层-15%…5层-25%）2 回合。
+        # v1.3 毒爆特色（与灼爆"易燃更痛"区分）：毒爆余毒虚弱——敌方攻击 -5%×n（3层-15%…5层-25%）2 刻。
         # 提前引爆（3层）即可拿虚弱压制，等满层则更高伤害+更强虚弱——"提前爆发的价值"成立。
         _wv = 0.05 * n
         battle.e_buffs["mon_atk_down"] = max(int(battle.e_buffs.get("mon_atk_down", 0) or 0), 2)
         battle.e_buffs["_weaken_val"] = max(float(battle.e_buffs.get("_weaken_val", 0) or 0), _wv)
-        logs.append(f"😵 毒爆余毒侵蚀！敌方攻击 -{int(_wv * 100)}%（2 回合）")
+        logs.append(f"😵 毒爆余毒侵蚀！敌方攻击 -{int(_wv * 100)}%（2 刻）")
         logs.append(f"☠️ 毒爆！{n} 层引爆造成 {d} 点物理伤害")
     enemy.get("debuffs", {}).pop("poison", None)
     battle.e_buffs.pop("poison", None)
@@ -485,7 +485,7 @@ def _m_poison_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info
 
 @register(MECH_EFFECTS, "bleed")
 def _m_bleed(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """v151 流血：叠层到 enemy.debuffs.bleed（每层每回合掉血，与 poison 同构）。
+    """v151 流血：叠层到 enemy.debuffs.bleed（每层每刻掉血，与 poison 同构）。
     刺客割裂等技能 mech=bleed 消费端。"""
     use_mc, chance = _mech_chance(info, 1.0)
     if not mval and not use_mc:
@@ -502,7 +502,7 @@ def _m_bleed(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     cur["last_tick"] = max(1, int(battle._tick_no()))
     deb["bleed"] = cur
     n = cur["n"]
-    logs.append(f"🩸 流血 {n} 层(每层每回合掉血)")
+    logs.append(f"🩸 流血 {n} 层(每层每刻掉血)")
 
 
 @register(MECH_EFFECTS, "chi")
@@ -572,10 +572,10 @@ def _b_enrage(battle, logs, e, r):
 
 @register(BOSS_MECHS, "summon")
 def _b_summon(battle, logs, e, r):
-    """召唤：每 3 回合召唤援军实体（v101.28l #438：真召唤，援军挡刀+出手）"""
+    """召唤：每 3 刻召唤援军实体（v101.28l #438：真召唤，援军挡刀+出手）"""
     if r > 1 and r % 3 == 0 and e.get("summoned_round") != r:
         e["summoned_round"] = r
-        n = 2 if r % 6 == 0 else 1  # 每 6 回合召唤 2 只
+        n = 2 if r % 6 == 0 else 1  # 每 6 刻召唤 2 只
         mins = battle._summon_minions(n)
         names = "、".join(f"【{m['name']}】" for m in mins)
         battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), 2)
@@ -584,7 +584,7 @@ def _b_summon(battle, logs, e, r):
 
 @register(BOSS_MECHS, "heal")
 def _b_heal(battle, logs, e, r):
-    """回血：每 4 回合恢复 8% 生命"""
+    """回血：每 4 刻恢复 8% 生命"""
     if r > 1 and r % 4 == 0 and e.get("healed_round") != r:
         e["healed_round"] = r
         heal = int(e.get("max_hp", 1) * 0.08)
@@ -594,7 +594,7 @@ def _b_heal(battle, logs, e, r):
 
 @register(BOSS_MECHS, "shield")
 def _b_shield(battle, logs, e, r):
-    """护盾：首回合出现 20% 护盾（受伤减半）"""
+    """护盾：首刻出现 20% 护盾（受伤减半）"""
     if r == 1 and not e.get("boss_shield"):
         e["boss_shield"] = int(e.get("max_hp", 1) * 0.20)
         logs.append(f"🛡️【{e['name']}】周身浮现一层护盾(受伤减半)！")
@@ -615,7 +615,7 @@ def _phase_threshold(phases, pc):
 def _b_phase(battle, logs, e, r):
     """阶段：每掉一半血进入下一阶段（最多 3 次）
     v116.1 剧本化（BOSS 战编排 §一）：e 的 phases=[{"min":60,"add_skills":[..],"script":{..}},..]
-    - 阶段演出回合：进入新阶段该回合不行动（battle._phase_skip_act=True）
+    - 阶段演出刻：进入新阶段该刻不行动（battle._phase_skip_act=True）
     - 换招表：进入第 N 阶段追加 phases[N-1].add_skills（幂等）
     - 阈值预告：阶段 2/3 起，血量接近下一阈值(+3%)提前输出预警
     - 阈值：有 phases[].min 用 min%（设计 60%/30%），缺省 0.5^n（50%/25%）
@@ -625,7 +625,7 @@ def _b_phase(battle, logs, e, r):
     phases = cfg.get("phases") or []
     target = _phase_threshold(phases, pc)
     ratio = e.get("hp", 1) / max(1, e.get("max_hp", 1))
-    # ---- 阈值预告（阶段 2/3 起）：接近下一阈值 +3% 内提前 2 回合口径输出 ----
+    # ---- 阈值预告（阶段 2/3 起）：接近下一阈值 +3% 内提前 2 刻口径输出 ----
     if pc > 0:
         nxt = _phase_threshold(phases, pc)  # 下一阶段阈值
         within = 0.03
@@ -691,13 +691,13 @@ def _b_phase(battle, logs, e, r):
             logs.append(f"{icon}【{e['name']}】{sname}！")
         else:
             logs.append(f"🔥【{e['name']}】的鳞片泛起暗红……【狂暴】！")
-        # ---- 阶段演出回合：本回合不行动（给玩家呼吸点）----
+        # ---- 阶段演出刻：本刻不行动（给玩家呼吸点）----
         battle._phase_skip_act = True
 
 
 @register(BOSS_MECHS, "stacks")
 def _b_stacks(battle, logs, e, r):
-    """叠层：每 2 回合攻击叠层 +1（上限 5）"""
+    """叠层：每 2 刻攻击叠层 +1（上限 5）"""
     if r > 0 and r % 2 == 0:
         cur = e.get("mech_stacks_n", 0)
         if cur < 5:
@@ -710,12 +710,12 @@ def _b_stacks(battle, logs, e, r):
 # 数据驱动：配置从 battle._boss_cfg(e) 读取（monster_mods/instances 的 boss 条目加
 # "opening"/"triggers"/"phases" 字段，battle.py 按 enemy id 解析）。无配置则用内置兜底默认值。
 # 触发频率用附着在 e 上的计数器字段（_open_played/_low_hp_cd/_pv_broken_cd/_phase_warned）
-# 约束防刷屏（once / 每 N 回合）。战斗实例级瞬态标记 battle._phase_skip_act 用于阶段演出回合。
+# 约束防刷屏（once / 每 N 刻）。战斗实例级瞬态标记 battle._phase_skip_act 用于阶段演出刻。
 
 
 @register(BOSS_MECHS, "phase_open")
 def _b_opening(battle, logs, e, r):
-    """开场技：战斗第一回合必放一次（once）。默认『咆哮』：演出行 + mon_atk_up 增益 2 回合。
+    """开场技：战斗第一刻必放一次（once）。默认『咆哮』：演出行 + mon_atk_up 增益 2 刻。
     数据：e 的 opening 可配技能名 / {"name","effect","power"}。"""
     if r != 1 or e.get("_open_played"):
         return
@@ -739,16 +739,16 @@ def _b_opening(battle, logs, e, r):
     elif effect == "mon_atk_down":  # 低吼削弱玩家（可选）
         battle.p_buffs["atk_down"] = max(battle.p_buffs.get("atk_down", 0), int(power))
         logs.append(f"🫁【{e['name']}】的{name}压制了你，攻击下降！")
-    elif effect == "mortal_wound":  # v1.3 重创：玩家吸血/治疗偷取减半（2 回合）——反制吸血站撸
+    elif effect == "mortal_wound":  # v1.3 重创：玩家吸血/治疗偷取减半（2 刻）——反制吸血站撸
         battle.p_buffs["mortal_wound"] = max(int(battle.p_buffs.get("mortal_wound", 0) or 0), int(power))
-        logs.append(f"🤕【{e['name']}】的{name}重创了你！吸血效果减半（{int(power)} 回合）！")
+        logs.append(f"🤕【{e['name']}】的{name}重创了你！吸血效果减半（{int(power)} 刻）！")
     # 其他 effect 安全忽略（无副作用），保持"必放一次演出"性质
 
 
 @register(BOSS_MECHS, "player_low")
 def _b_player_low(battle, logs, e, r):
-    """玩家低血追击：玩家 HP<30% 时 Boss 输出杀意文案并本回合攻击加成（25%）。
-    触发频率：默认 once；或配置 triggers.player_low.cooldown=N 后每 N 回合一次。"""
+    """玩家低血追击：玩家 HP<30% 时 Boss 输出杀意文案并本刻攻击加成（25%）。
+    触发频率：默认 once；或配置 triggers.player_low.cooldown=N 后每 N 刻一次。"""
     p = getattr(battle, "player", None) or {}
     mh = p.get("max_hp") or 0
     if mh <= 0:
@@ -775,14 +775,14 @@ def _b_player_low(battle, logs, e, r):
     cooldown = int((cfg.get("triggers") or {}).get("player_low", {}).get("cooldown", 0) or 0)
     if cooldown > 0:
         e["_low_hp_cd"] = cooldown
-    logs.append(f"☠️ 【{e['name']}】盯上了重伤的你……本回合攻击大幅提升！")
+    logs.append(f"☠️ 【{e['name']}】盯上了重伤的你……本刻攻击大幅提升！")
     e["_low_hp_active"] = True
 
 
 @register(BOSS_MECHS, "pv_broken")
 def _b_pv_broken(battle, logs, e, r):
     """玩家大招后反扑（原"破防反扑"，游戏无 PV/防护体系 → 改为玩家刚放技能后 Boss 反击）：
-    玩家上一回合使用技能（battle._player_recent_skill）时触发一次反击演出 + 本回合攻击加成
+    玩家上一刻使用技能（battle._player_recent_skill）时触发一次反击演出 + 本刻攻击加成
     （30% / 额外一次攻击）。频率：once + cooldown 可选。"""
     if not getattr(battle, "_player_recent_skill", False):
         return
@@ -797,7 +797,7 @@ def _b_pv_broken(battle, logs, e, r):
     cooldown = int((cfg.get("triggers") or {}).get("pv_broken", {}).get("cooldown", 0) or 0)
     if cooldown > 0:
         e["_pv_broken_cd"] = cooldown
-    logs.append(f"💥 防护崩溃！【{e['name']}】愤怒反扑！(本回合追加攻击)")
+    logs.append(f"💥 防护崩溃！【{e['name']}】愤怒反扑！(本刻追加攻击)")
     e["_pv_broken_active"] = True
 
 
@@ -873,33 +873,33 @@ MON_CTRL_EFFECTS = {}
 
 @register(MON_CTRL_EFFECTS, "freeze")
 def _mc_freeze(battle, player, logs, mval):
-    """冻结玩家（概率，1 回合）"""
+    """冻结玩家（概率，1 刻）"""
     if battle.p_buffs.get("cc_immune"):
         logs.append("🗿 不动如山！免疫了冻结！")
         return
     chance = min(0.75, 0.25 + mval * 0.15)
     if random.random() < chance:
         battle.p_buffs["freeze"] = 1
-        logs.append("❄️ 你被冻结，下回合无法行动！")
+        logs.append("❄️ 你被冻结，下刻无法行动！")
 
 
 @register(MON_CTRL_EFFECTS, "stun")
 def _mc_stun(battle, player, logs, mval):
-    """眩晕玩家（概率，1 回合）"""
+    """眩晕玩家（概率，1 刻）"""
     if battle.p_buffs.get("cc_immune"):
         logs.append("🗿 不动如山！免疫了眩晕！")
         return
     chance = min(0.60, 0.20 + mval * 0.15)
     if random.random() < chance:
         battle.p_buffs["stun"] = 1
-        logs.append("🌀 你被眩晕，下回合无法行动！")
+        logs.append("🌀 你被眩晕，下刻无法行动！")
 
 
 @register(MON_CTRL_EFFECTS, "silence")
 def _mc_silence(battle, player, logs, mval):
-    """沉默玩家（稳定，2 回合）"""
+    """沉默玩家（稳定，2 刻）"""
     battle.p_buffs["silence"] = 2
-    logs.append("🤐 你被沉默，2 回合内无法使用技能！")
+    logs.append("🤐 你被沉默，2 刻内无法使用技能！")
 
 
 @register(MON_CTRL_EFFECTS, "interrupt")
@@ -931,7 +931,7 @@ def _mc_slow(battle, player, logs, mval):
         logs.append("🧊 抗寒生效！霜狼套免疫了减速！")
     else:
         battle.p_buffs["spd_down"] = max(battle.p_buffs.get("spd_down", 0), 2)
-        logs.append("🧊 你被减速，2 回合内速度下降！")
+        logs.append("🧊 你被减速，2 刻内速度下降！")
 
 
 # ================= 内部工具（延迟绑定 Battle 常量） =================
@@ -986,7 +986,7 @@ def _sb_element_shift(battle, skill_name, info, player, lv, logs):
 
 @register(SKILL_BUFF_EFFECTS, "stealth")
 def _sb_stealth(battle, skill_name, info, player, lv, logs):
-    """v104 R3 P1-10：潜行状态实装——下次攻击必暴（desc 对齐），暴击率 +20% 持续回合"""
+    """v104 R3 P1-10：潜行状态实装——下次攻击必暴（desc 对齐），暴击率 +20% 持续刻"""
     from ..engine import skill_buff_turns
     battle.p_buffs["stealth"] = 1
     battle.p_buffs["crit_up"] = skill_buff_turns(lv)
@@ -994,14 +994,14 @@ def _sb_stealth(battle, skill_name, info, player, lv, logs):
 
 @register(SKILL_BUFF_EFFECTS, "shadow_realm")
 def _sb_shadow_realm(battle, skill_name, info, player, lv, logs):
-    """v134.1 意见#45：影之国度实装——desc 说"每回合高暴击"但原只挂 spd_up（速度+40%），
-    描述与效果不符。现补暴击：速度+40% + 暴击+20%（crit_up）持续 skill_buff_turns 回合。
-    数值对齐 desc"暗影国度 3 回合(每回合高暴击)"；受 PCT_CAPS.crit 0.5 约束（_apply_buffs）。"""
+    """v134.1 意见#45：影之国度实装——desc 说"每刻高暴击"但原只挂 spd_up（速度+40%），
+    描述与效果不符。现补暴击：速度+40% + 暴击+20%（crit_up）持续 skill_buff_turns 刻。
+    数值对齐 desc"暗影国度 3 刻(每刻高暴击)"；受 PCT_CAPS.crit 0.5 约束（_apply_buffs）。"""
     from ..engine import skill_buff_turns
     turns = skill_buff_turns(lv)
     battle.p_buffs["spd_up"] = max(battle.p_buffs.get("spd_up", 0), turns)
     battle.p_buffs["crit_up"] = max(battle.p_buffs.get("crit_up", 0), turns)
-    logs.append(f"🌑 影之国度笼罩！速度+40%、暴击+20%（持续 {turns} 回合）")
+    logs.append(f"🌑 影之国度笼罩！速度+40%、暴击+20%（持续 {turns} 刻）")
 
 
 @register(SKILL_BUFF_EFFECTS, "mark")
@@ -1013,15 +1013,15 @@ def _sb_mark(battle, skill_name, info, player, lv, logs):
 
 @register(SKILL_BUFF_EFFECTS, "sleep")
 def _sb_sleep(battle, skill_name, info, player, lv, logs):
-    """v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 回合）
-    v120 q5：Boss 亦控制减半（普通 2 回合 → Boss 1 回合）。"""
+    """v109.2 P1-3：安眠曲改睡眠——敌方睡眠（受击解除；世界 Boss 只睡 1 刻）
+    v120 q5：Boss 亦控制减半（普通 2 刻 → Boss 1 刻）。"""
     battle.e_buffs["sleep"] = battle._boss_ctrl_dur("sleep", 1 if battle.btype == "worldboss" else 2)
 
 
 @register(SKILL_BUFF_EFFECTS, "shield_all")
 def _sb_shield_all(battle, skill_name, info, player, lv, logs):
-    """v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 回合）
-    v151 回合制审计：盾值优先读技能字段 shield_val（盾值=matk×shield_val），缺省回落 0.20"""
+    """v104 M02 P1-4：全队护盾施放者自身同样获得（与 instance.py 广播口径一致：matk 20% 3 刻）
+    v151 刻制审计：盾值优先读技能字段 shield_val（盾值=matk×shield_val），缺省回落 0.20"""
     st2 = battle._player_stats(player)
     base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
     pct = float((info or {}).get("shield_val") or 0.20)
@@ -1031,14 +1031,14 @@ def _sb_shield_all(battle, skill_name, info, player, lv, logs):
 @register(SKILL_BUFF_EFFECTS, "reduce_all")
 def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
     """v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
-    p_buffs["reduce_all"] 存减伤百分比；回合数记 battle._reduce_all_left（_end_round 单独递减）。
+    p_buffs["reduce_all"] 存减伤百分比；刻数记 battle._reduce_all_left（_end_round 单独递减）。
     v1.x：数值下沉 skills.py reduce_all 字段（原 battle.py REDUCE_ALL_PCT 中文名硬编码已删）。"""
     from ..engine import skill_buff_turns
     pct = float((info or {}).get("reduce_all") or 0)
     turns = skill_buff_turns(lv)
     battle.p_buffs["reduce_all"] = pct
     battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
-    logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 回合）")
+    logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 刻）")
 
 
 # ================= 5. BOSS_MECHS 启动校验（v125.1 P2 审计） =================
