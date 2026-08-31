@@ -70,6 +70,24 @@ def _m_shield(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
     logs.append(f"🛡️ 圣盾层数 {p_mech['shield']}(每层减伤)")
 
 
+@register(MECH_EFFECTS, "zhan_yi")
+def _m_zhan_yi(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v151 战意：叠层（0-10，持有即生效，每层＋4% 攻击，不消耗）"""
+    if not mval:
+        return
+    p_mech["zhan_yi"] = _stack(battle, "zhan_yi", p_mech, mval)
+    logs.append(f"⚔️ 战意 {p_mech['zhan_yi']}(每层攻击＋4%，满 10 进入狂暴)")
+
+
+@register(MECH_EFFECTS, "lian_duan")
+def _m_lian_duan(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v151 连段：叠层（0-10，计数非货币，断连归零）"""
+    if not mval:
+        return
+    p_mech["lian_duan"] = _stack(battle, "lian_duan", p_mech, mval)
+    logs.append(f"🔗 连段 {p_mech['lian_duan']}(计数型，断连归零)")
+
+
 @register(MECH_EFFECTS, "shield_burst")
 def _m_shield_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     """圣盾爆发：消耗层数转伤害"""

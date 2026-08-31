@@ -5579,13 +5579,23 @@ class Battle:
         st = self._player_stats(player)
         sp = float(st.get("summon_power", 0) or 0)  # 隐藏职业专属强化（亡灵/兽王）
         hp = max(20, int(st.get("max_hp", 200) * float(tmpl["hp_ratio"]) * (1 + sp)))
-        atk = max(5, int(st.get("atk", 50) * float(tmpl["atk_ratio"]) * (1 + sp)))
+        atk = max(0, int(st.get("atk", 50) * float(tmpl.get("atk_ratio", 0) or 0) * (1 + sp)))
         df = max(2, int(st.get("def", 20) * float(tmpl["def_ratio"]) * (1 + sp)))
         self.summons.append({"tid": tid, "name": tmpl["name"], "icon": tmpl.get("icon", ""),
                              "hp": hp, "max_hp": hp, "atk": atk, "def": df,
                              "dmg_type": tmpl.get("dmg_type", "phys"),
                              "rank": int(tmpl.get("rank", 1) or 1),
-                             "reach": int(tmpl.get("reach", 1) or 1)})
+                             "reach": int(tmpl.get("reach", 1) or 1),
+                             # v151 召唤物语义：纯挡刀吸收一次 / 全队攻击光环 / 吃 AOE
+                             "absorb_once": bool(tmpl.get("absorb_once", False)),
+                             "aura_atk_all": float(tmpl.get("aura_atk_all", 0) or 0),
+                             "eats_aoe": bool(tmpl.get("eats_aoe", False))})
+        # v151 古树光环：常驻全队攻击 +30%（生成时挂 p_buffs，直到召唤物死亡）
+        _aura = float(tmpl.get("aura_atk_all", 0) or 0)
+        if _aura > 0 and self.player:
+            _cur = float(self.p_buffs.get("atk_up_all", 0) or 0)
+            self.p_buffs["atk_up_all"] = max(_cur, _aura)
+            logs.append(f"🌳 古树光环：全队攻击＋{int(_aura * 100)}%！")
         logs.append(f"{tmpl.get('icon', '')} {tmpl['name']} 加入战斗！(HP {hp} / 攻击 {atk} / 站位{self.summons[-1]['rank']}层)")
         return True
 
@@ -5596,6 +5606,9 @@ class Battle:
             return logs
         for s in list(self.summons):
             if s.get("hp", 0) <= 0 or self._enemy_dead():
+                continue
+            # v151：纯挡刀召唤物（atk=0，如藤蔓守卫）不普攻
+            if int(s.get("atk", 0) or 0) <= 0:
                 continue
             # v2：召唤物按自身 reach 选目标（射程内最前排）
             target = self._pick_summon_target(s)
@@ -5692,6 +5705,11 @@ class Battle:
             taken = max(1, int(dmg))
         s["hp"] -= taken
         logs.append(f"{s.get('icon', '')} {s['name']} 为你挡下 {taken} 点伤害！")
+        # v151：纯挡刀召唤物（absorb_once）吸收 1 次单体后消失（v151 §7 藤蔓守卫）
+        if s.get("absorb_once"):
+            logs.append(f"🌿 {s['name']} 完成守护，化作碎屑消散……")
+            self.summons.remove(s)
+            return 0
         if s["hp"] <= 0:
             logs.append(f"💀 {s['name']} 在保护你时倒下了！")
             self.summons.remove(s)
