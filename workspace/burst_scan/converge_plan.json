@@ -1,0 +1,258 @@
+{
+ "刺击": {
+  "cls": "cls_ci_ke",
+  "old_power": 1.0,
+  "multi": 1,
+  "peak": 77.5,
+  "new_est": 67.2,
+  "target_power": 0.566
+ },
+ "割裂": {
+  "cls": "cls_ci_ke",
+  "old_power": 1.15,
+  "multi": 1,
+  "peak": 68.9,
+  "new_est": 59.7,
+  "target_power": 0.732
+ },
+ "双刃乱舞": {
+  "cls": "cls_ci_ke",
+  "old_power": 0.9,
+  "multi": 2,
+  "peak": 147.3,
+  "new_est": 93.6,
+  "target_power": 0.365
+ },
+ "暗杀": {
+  "cls": "cls_ci_ke",
+  "old_power": 2.4,
+  "multi": 1,
+  "peak": 117.3,
+  "new_est": 101.7,
+  "target_power": 0.897
+ },
+ "影袭": {
+  "cls": "cls_ci_ke",
+  "old_power": 1.2,
+  "multi": 1,
+  "peak": 52.9,
+  "new_est": 45.8,
+  "target_power": 0.995
+ },
+ "暗影处刑": {
+  "cls": "cls_ci_ke",
+  "old_power": 3.2,
+  "multi": 1,
+  "peak": 103.2,
+  "new_est": 89.4,
+  "target_power": 1.36
+ },
+ "破甲斩": {
+  "cls": "cls_zhan_shi",
+  "old_power": 1.3,
+  "multi": 1,
+  "peak": 116.2,
+  "new_est": 100.7,
+  "target_power": 0.491
+ },
+ "旋风斩": {
+  "cls": "cls_zhan_shi",
+  "old_power": 1.1,
+  "multi": 1,
+  "peak": 52.7,
+  "new_est": 45.7,
+  "target_power": 0.915
+ },
+ "裂地斩": {
+  "cls": "cls_zhan_shi",
+  "old_power": 1.8,
+  "multi": 1,
+  "peak": 182.2,
+  "new_est": 157.9,
+  "target_power": 0.433
+ },
+ "盾击": {
+  "cls": "cls_zhan_shi",
+  "old_power": 1.3,
+  "multi": 1,
+  "peak": 42.2,
+  "new_est": 36.6,
+  "target_power": 1.351
+ },
+ "无畏冲击": {
+  "cls": "cls_zhan_shi",
+  "old_power": 2.2,
+  "multi": 1,
+  "peak": 111.9,
+  "new_est": 97.0,
+  "target_power": 0.862
+ },
+ "疾风连射": {
+  "cls": "cls_you_xia",
+  "old_power": 0.6,
+  "multi": 2,
+  "peak": 44.4,
+  "new_est": 28.2,
+  "target_power": 0.808
+ },
+ "瞄准射击": {
+  "cls": "cls_you_xia",
+  "old_power": 1.4,
+  "multi": 1,
+  "peak": 53.3,
+  "new_est": 46.2,
+  "target_power": 1.152
+ },
+ "致命狙击": {
+  "cls": "cls_you_xia",
+  "old_power": 1.8,
+  "multi": 1,
+  "peak": 87.6,
+  "new_est": 75.9,
+  "target_power": 0.901
+ },
+ "林语印记": {
+  "cls": "cls_you_xia",
+  "old_power": 1.5,
+  "multi": 1,
+  "peak": 59.8,
+  "new_est": 51.8,
+  "target_power": 1.1
+ },
+ "狩猎终章": {
+  "cls": "cls_you_xia",
+  "old_power": 4.8,
+  "multi": 1,
+  "peak": 169.6,
+  "new_est": 147.0,
+  "target_power": 1.241
+ },
+ "火球术": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.0,
+  "multi": 1,
+  "peak": 41.3,
+  "new_est": 35.8,
+  "target_power": 1.062
+ },
+ "冰晶术": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.05,
+  "multi": 1,
+  "peak": 57.1,
+  "new_est": 49.5,
+  "target_power": 0.806
+ },
+ "冰锥": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.1,
+  "multi": 1,
+  "peak": 61.9,
+  "new_est": 53.6,
+  "target_power": 0.779
+ },
+ "元素弹幕": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.0,
+  "multi": 2,
+  "peak": 88.9,
+  "new_est": 56.5,
+  "target_power": 0.673
+ },
+ "雷击": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.2,
+  "multi": 1,
+  "peak": 48.7,
+  "new_est": 42.2,
+  "target_power": 1.08
+ },
+ "元素爆发": {
+  "cls": "cls_fa_shi",
+  "old_power": 1.6,
+  "multi": 1,
+  "peak": 43.1,
+  "new_est": 37.4,
+  "target_power": 1.628
+ },
+ "圣光术": {
+  "cls": "cls_mu_shi",
+  "old_power": 1.15,
+  "multi": 1,
+  "peak": 49.5,
+  "new_est": 42.9,
+  "target_power": 1.019
+ },
+ "圣光惩击": {
+  "cls": "cls_mu_shi",
+  "old_power": 2.0,
+  "multi": 1,
+  "peak": 102.0,
+  "new_est": 88.4,
+  "target_power": 0.86
+ },
+ "神罚·圣裁": {
+  "cls": "cls_mu_shi",
+  "old_power": 3.0,
+  "multi": 1,
+  "peak": 76.6,
+  "new_est": 66.4,
+  "target_power": 1.717
+ },
+ "直拳": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.0,
+  "multi": 1,
+  "peak": 66.0,
+  "new_est": 57.2,
+  "target_power": 0.664
+ },
+ "冲拳": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.1,
+  "multi": 1,
+  "peak": 40.3,
+  "new_est": 34.9,
+  "target_power": 1.197
+ },
+ "碎骨拳": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.5,
+  "multi": 1,
+  "peak": 77.1,
+  "new_est": 66.8,
+  "target_power": 0.853
+ },
+ "钢拳": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.2,
+  "multi": 1,
+  "peak": 46.0,
+  "new_est": 39.9,
+  "target_power": 1.144
+ },
+ "震地击": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.3,
+  "multi": 1,
+  "peak": 53.8,
+  "new_est": 46.6,
+  "target_power": 1.059
+ },
+ "连招三连": {
+  "cls": "cls_wu_seng",
+  "old_power": 1.5,
+  "multi": 3,
+  "peak": 79.1,
+  "new_est": 44.1,
+  "target_power": 1.291
+ },
+ "破晓之拳": {
+  "cls": "cls_wu_seng",
+  "old_power": 2.4,
+  "multi": 1,
+  "peak": 160.6,
+  "new_est": 139.2,
+  "target_power": 0.655
+ }
+}

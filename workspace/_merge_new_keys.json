@@ -1,0 +1,64 @@
+{
+ "cls_zhan_shi": {
+  "挥砍": "sk_zhan_shi_hui_kan",
+  "猛击": "sk_zhan_shi_meng_ji",
+  "战吼": "sk_zhan_shi_zhan_hou",
+  "铁壁": "sk_zhan_shi_tie_bi",
+  "破甲斩": "sk_zhan_shi_po_jia_zhan",
+  "旋风斩": "sk_zhan_shi_xuan_feng_zhan",
+  "盾击": "sk_zhan_shi_dun_ji",
+  "蓄力斩": "sk_zhan_shi_xu_li_zhan",
+  "冲锋": "sk_zhan_shi_chong_feng"
+ },
+ "cls_ci_ke": {
+  "刺客": "cls_ci_ke",
+  "刺击": "sk_ci_ke_ci_ji",
+  "双刃乱舞": "sk_ci_ke_shuang_ren_luan_wu",
+  "潜行": "sk_ci_ke_qian_xing",
+  "暗杀": "sk_ci_ke_an_sha",
+  "影袭": "sk_ci_ke_ying_xi",
+  "割裂": "sk_ci_ke_ge_lie",
+  "烟雾弹": "sk_ci_ke_yan_wu_dan",
+  "疾影": "sk_ci_ke_ji_ying"
+ },
+ "cls_wu_seng": {
+  "拳师": "cls_wu_seng",
+  "直拳": "sk_qs_zhi_quan",
+  "侧踢": "sk_qs_ce_ti",
+  "钢拳": "sk_qs_gang_quan",
+  "连招三连": "sk_qs_lian_zhao_san_lian",
+  "震地击": "sk_qs_zhen_di_ji",
+  "铜墙": "sk_qs_tong_qiang",
+  "冲拳": "sk_qs_chong_quan",
+  "冥想": "sk_qs_ming_xiang"
+ },
+ "cls_mu_shi": {
+  "治愈术": "sk_m_zhi_yu_shu",
+  "群体治愈": "sk_m_qun_ti_zhi_yu",
+  "圣光驱散": "sk_m_sheng_guang_qu_san",
+  "信仰祈祷": "sk_m_xin_yang_qi_dao",
+  "圣光惩戒": "sk_m_sheng_guang_cheng_jie",
+  "圣光护盾": "sk_m_sheng_guang_hu_dun",
+  "圣佑": "sk_m_sheng_you"
+ },
+ "cls_you_xia": {
+  "疾风连射": "sk_you_xia_ji_feng_lian_she",
+  "瞄准射击": "sk_you_xia_miao_zhun",
+  "鹰眼锁定": "sk_you_xia_ying_yan",
+  "风之疾走": "sk_you_xia_feng_ji_zou",
+  "猎网陷阱": "sk_you_xia_lie_wang",
+  "致命狙击": "sk_you_xia_zhi_ming",
+  "闪避步": "sk_you_xia_shan_bi",
+  "林语印记": "sk_you_xia_lin_yu_yin_ji"
+ },
+ "cls_fa_shi": {
+  "火球术": "sk_f_huo_qiu_shu",
+  "冰锥": "sk_f_bing_zhui",
+  "雷击": "sk_f_lei_ji",
+  "元素弹幕": "sk_f_yuan_su_dan_mu",
+  "冰霜新星": "sk_f_bing_shuang_xin_xing",
+  "奥术护盾": "sk_f_ao_shu_hu_dun",
+  "陨石术": "sk_f_yun_shi_shu",
+  "闪现": "sk_f_shan_xian"
+ }
+}

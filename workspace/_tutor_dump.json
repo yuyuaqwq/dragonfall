@@ -1,0 +1,17 @@
+{
+ "sk_mo_li_mai_chong": {
+  "name": "魔力脉冲",
+  "desc": "魔力脉冲！170% 魔法伤害，奥术之力涌动",
+  "cls": "cls_fa_shi"
+ },
+ "sk_sheng_guang_cheng_jie": {
+  "name": "圣光惩戒",
+  "desc": "圣光惩戒！140% 魔法伤害，对黑暗生物额外威慑",
+  "cls": "cls_mu_shi"
+ },
+ "sk_jiu_shu_zhi_guang": {
+  "name": "救赎之光",
+  "desc": "救赎之光！治疗全队 150% 生命(副本广播，团队技能)",
+  "cls": "cls_mu_shi"
+ }
+}

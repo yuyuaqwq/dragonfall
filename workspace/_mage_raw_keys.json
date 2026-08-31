@@ -1,0 +1,611 @@
+{
+ "sk_huo_qiu_shu": {
+  "name": "火球术",
+  "desc": "火球术！火系 100% 伤害，挂 1 层火印。已有火印时＋20% 且层数＋1(燎原)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_bing_jing": {
+  "name": "冰晶术",
+  "desc": "凝结冰晶掷向敌人，冰系 105% 魔法伤害。元素流转的前奏。",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_bing_zhui": {
+  "name": "冰锥",
+  "desc": "冰锥！冰系 110% 伤害，挂冰印 + 减速 1 回合。目标被冻结时＋30%",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_lei_ji": {
+  "name": "雷击",
+  "desc": "雷击！雷系 120% 伤害，挂雷印。先手时＋15%",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yuan_su_bao_fa": {
+  "name": "元素爆发",
+  "desc": "元素爆发！当前系 160% 伤害 + 触发一次元素反应(蒸发/超载/冻结/感电)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yuan_su_liu_zhuan": {
+  "name": "元素流转",
+  "desc": "元素流转！魔攻＋50% 3 回合，组队时全队魔攻强化(爆发前奏)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yuan_su_dan_mu": {
+  "name": "元素弹幕",
+  "desc": "元素弹幕！100%×2，当前系增伤(低耗填充)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yuan_su_hu_dun": {
+  "name": "元素护盾",
+  "desc": "元素护盾！防＋45% 3 回合(CD 3)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_ao_shu_qiang_hua": {
+  "name": "奥术强化",
+  "desc": "奥术强化！matk＋50% 3 回合(爆发前奏)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_bing_shuang_xin_xing": {
+  "name": "冰霜新星",
+  "desc": "冰霜新星！80% 全体伤害＋30% 概率冻结 1 回合(强控·群体，CD 3)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yuan_su_feng_bao": {
+  "name": "元素风暴",
+  "desc": "元素风暴！当前系 200% 全体伤害。目标有元素印记时＋50%(元素过载)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_yun_shi_shu": {
+  "name": "陨石术",
+  "desc": "陨石术！蓄力 2 回合，期间受击会被打断；蓄力完成召唤陨石轰击全场，火系 300% 范围伤害(可及全阵后排)。",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_fa_shu_fan_zhi": {
+  "name": "法术禁制",
+  "desc": "法术禁制！30% 微量魔法伤害，命中打断目标蓄力(可打断读条技能)。",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_lie_yan_qin_he": {
+  "name": "烈焰亲和",
+  "desc": "属性被动：火系技能伤害＋10%",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_han_shuang_qin_he": {
+  "name": "寒霜亲和",
+  "desc": "触发被动：冰系技能附带减速",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_mo_li_peng_pai": {
+  "name": "魔力澎湃",
+  "desc": "属性被动：生命高于70%时魔攻＋8%(一转觉醒·魔力澎湃)",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_mo_li_yong_dong": {
+  "name": "魔力涌动",
+  "desc": "属性被动：最大魔力＋15%",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_yuan_su_gong_ming": {
+  "name": "元素共鸣",
+  "desc": "触发被动：元素反应伤害＋15%",
+  "cls": "cls_fa_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_sheng_guang_dan": {
+  "name": "圣光弹",
+  "desc": "圣光弹！100% 圣光伤害。自身 HP>70% 时＋20%",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_sheng_guang": {
+  "name": "圣光术",
+  "desc": "圣光凝聚成束，115% 圣光伤害。",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_zhi_yu_shu": {
+  "name": "治愈术",
+  "desc": "治愈术！治疗 200%。自身 HP<30% 时治疗量＋50%(紧急救治)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_cheng_jie": {
+  "name": "惩戒",
+  "desc": "惩戒！120% 圣光伤害(基础圣光攒点技，命中 +1 信仰)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_sheng_guang_cheng_ji": {
+  "name": "圣光惩击",
+  "desc": "圣光惩击！200% 伤害 + 驱散敌方增益。信仰≥8 时＋40%",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_sheng_guang_hu_dun": {
+  "name": "圣光护盾",
+  "desc": "圣光护盾！防＋45% 3 回合(保命)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_qun_ti_zhi_yu": {
+  "name": "群体治愈",
+  "desc": "群体治愈！全队治疗 150%(群奶核心，团队技能)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_xin_yang_qi_dao": {
+  "name": "信仰祈祷",
+  "desc": "信仰祈祷！matk＋50% 3 回合(增幅)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_shen_sheng_dao_yan": {
+  "name": "神圣祷言",
+  "desc": "神圣祷言！matk＋50% 3 回合(战斗牧师爆发前奏)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_sheng_guang_qu_san": {
+  "name": "圣光驱散",
+  "desc": "圣光驱散！全队防御强化(团队技能)。注：当前实现为防御强化（effect=def_up），驱散/净化战斗加成二期排期待定",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_shen_en_jiang_lin": {
+  "name": "神恩降临",
+  "desc": "神恩降临！全队治疗 180%，消耗全部信仰(每点＋8%)。自身 HP<30% 时治疗量＋50%(低血救场)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_da_zhi_liao_shu": {
+  "name": "大治疗术",
+  "desc": "大治疗术！蓄力 1 回合，期间受击会被打断；蓄力完成施展圣光治愈，全队治疗 320%。",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_shen_fa_sheng_cai": {
+  "name": "神罚·圣裁",
+  "desc": "神罚·圣裁！300% 全体圣光惩罚，消耗全部信仰(基础满点神迹)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_bi_hu_zhi_guang": {
+  "name": "庇护之光",
+  "desc": "触发被动：治疗溢出20%转为护盾",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_shen_sheng_jian_ren": {
+  "name": "神圣坚韧",
+  "desc": "触发被动：受击减伤5%，受击时信仰+1",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_sheng_guang_zhu_fu": {
+  "name": "圣光祝福",
+  "desc": "属性被动：治疗强度＋5%(一转觉醒·圣光祝福)",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_xin_yang_jian_ding": {
+  "name": "信仰坚定",
+  "desc": "属性被动：最大魔力＋15%",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "sk_p_shen_en": {
+  "name": "神恩",
+  "desc": "触发被动：治疗技能效果＋10%",
+  "cls": "cls_mu_shi",
+  "section": "PLAYER_SKILLS",
+  "branch": ""
+ },
+ "元素冲击": {
+  "name": "元素冲击",
+  "desc": "当前系 190% 单体，挂元素印记。目标已有印记时伤害＋20%(反应前奏，充能 +1)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素法师"
+ },
+ "万象亲和": {
+  "name": "万象亲和",
+  "desc": "触发被动：施放元素技能时伤害＋8%(三系强化)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素法师"
+ },
+ "双系连珠": {
+  "name": "双系连珠",
+  "desc": "当前系 130%×2，挂 2 层印记。目标印记≥3 层时伤害＋25%（消耗 3 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素法师"
+ },
+ "元素引爆": {
+  "name": "元素引爆",
+  "desc": "当前系 240%，引爆印记。目标印记≥2 层时伤害＋30%（消耗 2 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素法师"
+ },
+ "元素湮灭": {
+  "name": "元素湮灭",
+  "desc": "元素湮灭！240% 魔法伤害，消耗全部充能(每点＋20%，满 5 充能威力翻倍)，回复 20% 伤害值的魔力",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素法师"
+ },
+ "奥术弹幕": {
+  "name": "奥术弹幕",
+  "desc": "奥术 110%×3，奥术充能＋1。充能≥2 层时伤害＋15%(蓄能强化)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "奥术直觉": {
+  "name": "奥术直觉",
+  "desc": "触发被动：每回合开始奥术充能＋1(自动蓄能)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "奥术飞弹": {
+  "name": "奥术飞弹",
+  "desc": "奥术飞弹！100% 魔法伤害，命中叠 1 层奥术印记(充能 +1)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "奥术爆破": {
+  "name": "奥术爆破",
+  "desc": "奥术 150%×2，奥术充能＋2。充能≥4 层时伤害＋25%（消耗 1 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "奥术脉冲": {
+  "name": "奥术脉冲",
+  "desc": "奥术脉冲！160% 魔法伤害，引爆全部奥术印记(每层追加伤害)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "秘法护盾": {
+  "name": "秘法护盾",
+  "desc": "秘法护盾！获得 20% 魔攻护盾 3 回合(护盾强度联动)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "奥术洪流": {
+  "name": "奥术洪流",
+  "desc": "奥术 250%，消耗全部充能每层＋15%。充能≥5 层时伤害＋40%(爆发窗口)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘法师"
+ },
+ "元素之心": {
+  "name": "元素之心",
+  "desc": "二转被动：元素系技能伤害＋10%(元素强化)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素术士"
+ },
+ "元素跃迁": {
+  "name": "元素跃迁",
+  "desc": "切换当前元素系(火→冰→雷)，下次元素技能伤害＋20%（充能 +1）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素术士"
+ },
+ "元素壁垒": {
+  "name": "元素壁垒",
+  "desc": "防御强化(元素法师的护盾，消耗 2 充能)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素术士"
+ },
+ "元素迸发": {
+  "name": "元素迸发",
+  "desc": "元素迸发！150% 雷系超远程小爆，消耗 1 点充能(-1 高频消耗口)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素术士"
+ },
+ "奥术核心": {
+  "name": "奥术核心",
+  "desc": "被动：奥术核心，奥术系伤害＋15%",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘术士"
+ },
+ "奥术之心": {
+  "name": "奥术之心",
+  "desc": "二转被动：奥术技能伤害＋10%(奥术强化，承自秘法守线)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘术士"
+ },
+ "法术反制": {
+  "name": "法术反制",
+  "desc": "60% 反制，沉默敌人 + 奥术充能＋2。充能≥2 层时伤害＋20%（充能 +1）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘术士"
+ },
+ "法力护盾": {
+  "name": "法力护盾",
+  "desc": "防御强化(法力护盾，消耗 1 充能)",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘术士"
+ },
+ "万象风暴": {
+  "name": "万象风暴",
+  "desc": "当前系 180%×3 全体。目标有印记时伤害＋30%（充能 +1）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素贤者"
+ },
+ "万象天雷": {
+  "name": "万象天雷",
+  "desc": "终极技，雷系 450% 全体 + 全队魔攻强化（消耗 3 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素贤者"
+ },
+ "元素裁决": {
+  "name": "元素裁决",
+  "desc": "三转奥义，当前系 400% 全体核弹（消耗 5 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "元素贤者"
+ },
+ "奥术爆发": {
+  "name": "奥术爆发",
+  "desc": "奥术爆发！220% 魔法伤害，引爆全部奥术印记",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘贤者"
+ },
+ "奥术领域": {
+  "name": "奥术领域",
+  "desc": "三转奥义，奥术 400% 全体 + 全队护盾（消耗 3 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘贤者"
+ },
+ "大奥术": {
+  "name": "大奥术",
+  "desc": "奥术 200%×2 全体，奥术充能＋2。充能≥6 层时伤害＋30%（充能 +1）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘贤者"
+ },
+ "奥术主宰": {
+  "name": "奥术主宰",
+  "desc": "终极技，奥术 450% 单体。充能≥5 层时伤害＋40%（消耗 5 充能）",
+  "cls": "cls_fa_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "奥秘贤者"
+ },
+ "即兴弹唱": {
+  "name": "即兴弹唱",
+  "desc": "即兴弹唱！100% 物理伤害，15% 概率使目标中毒(琴弦如刃)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "吟游诗人"
+ },
+ "轻快拨弦": {
+  "name": "轻快拨弦",
+  "desc": "轻快拨弦，110% 物理伤害，10% 附加中毒（共鸣 +1·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "吟游诗人"
+ },
+ "战歌": {
+  "name": "战歌",
+  "desc": "激昂战歌！全队攻＋30% 3 回合(副本广播，团队技能)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "吟游诗人"
+ },
+ "安眠曲": {
+  "name": "安眠曲",
+  "desc": "安眠曲！使敌人陷入沉睡 2 回合（受击解除，对首领只持续 1 回合）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "吟游诗人"
+ },
+ "启明圣咏": {
+  "name": "启明圣咏",
+  "desc": "启明圣咏！全队攻击＋10% 3 回合（消耗 3 共鸣·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "吟游诗人"
+ },
+ "圣言术": {
+  "name": "圣言术",
+  "desc": "治疗 250%。自身 HP<30% 时治疗量＋50%(紧急救治)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "神谕者"
+ },
+ "圣祷": {
+  "name": "圣祷",
+  "desc": "触发被动：治疗时 20% 概率额外治疗 30%(治疗暴击)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "神谕者"
+ },
+ "净化术": {
+  "name": "净化术",
+  "desc": "净化术！全队防御强化，CD2(团队技能)。注：当前实现为防御强化（effect=def_up），驱散/净化战斗加成二期排期待定",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "神谕者"
+ },
+ "大治愈术": {
+  "name": "大治愈术",
+  "desc": "全队治疗 300%(团队核心)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "神谕者"
+ },
+ "鼓舞": {
+  "name": "鼓舞",
+  "desc": "鼓舞士气！全队暴击＋20% 3 回合(副本广播，团队技能)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "灵魂歌者"
+ },
+ "哀歌": {
+  "name": "哀歌",
+  "desc": "哀歌！170% 魔法伤害，50% 概率沉默目标 2 回合（共鸣 +1·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "灵魂歌者"
+ },
+ "伴奏": {
+  "name": "伴奏",
+  "desc": "共鸣伴唱：施放歌类技能 20% 概率获得 1 层回声",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "灵魂歌者"
+ },
+ "轻风咏叹": {
+  "name": "轻风咏叹",
+  "desc": "轻风咏叹！全队速度＋40% 3 回合（消耗 3 共鸣·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "灵魂歌者"
+ },
+ "神圣恩典": {
+  "name": "神圣恩典",
+  "desc": "二转被动：治疗效果＋10%(治疗强化)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "大主教"
+ },
+ "生命之泉": {
+  "name": "生命之泉",
+  "desc": "触发被动：全队每回合回血 5%(团队续航)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "大主教"
+ },
+ "神圣庇护": {
+  "name": "神圣庇护",
+  "desc": "全队护盾，CD4(持续保护)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "大主教"
+ },
+ "英雄叙事诗": {
+  "name": "英雄叙事诗",
+  "desc": "英雄叙事诗！治疗全队 150% 生命（共鸣 +2）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "黎明颂者"
+ },
+ "奥术咏叹调": {
+  "name": "奥术咏叹调",
+  "desc": "奥术咏叹调！魔攻＋50% 3 回合（消耗 3 共鸣·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "黎明颂者"
+ },
+ "快板节奏": {
+  "name": "快板节奏",
+  "desc": "属性被动：快板节奏，冷却缩减＋8%",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "黎明颂者"
+ },
+ "终章·黎明颂歌": {
+  "name": "终章·黎明颂歌",
+  "desc": "终章·黎明颂歌！全队攻＋75% 3 回合（消耗 5 共鸣·回声 +2）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "黎明颂者"
+ },
+ "破晓圣咏": {
+  "name": "破晓圣咏",
+  "desc": "破晓圣咏！170% 光咏魔法伤害（共鸣 +1·回声 +1）",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "黎明颂者"
+ },
+ "圣光赞歌": {
+  "name": "圣光赞歌",
+  "desc": "全队治疗 250%(终极群奶)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "圣光先知"
+ },
+ "神迹·重生": {
+  "name": "神迹·重生",
+  "desc": "终极技，全队满血治疗(团队终极技)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "圣光先知"
+ },
+ "生命圣域": {
+  "name": "生命圣域",
+  "desc": "三转奥义，全队满血 + 减伤(终极救场)",
+  "cls": "cls_mu_shi",
+  "section": "BRANCH_SKILLS",
+  "branch": "圣光先知"
+ }
+}

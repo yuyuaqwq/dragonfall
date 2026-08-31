@@ -41,6 +41,7 @@ POSITION_BRIEF = {
     "cls_mu_shi": "信仰圣光的神职者，能打能奶，队伍的灵魂",
     "cls_ci_ke": "暗影中的利刃，出手必见血，暴击与闪避的极致",
     "cls_wu_seng": "以拳入道的修行者，拳拳到肉，连击与反击的行家",
+    "cls_shi_ren": "怀抱诗琴的吟游诗人，旋律即力量——唱响战歌鼓舞全队，或以挽歌瓦解敌阵",
 }
 
 # classes.py aliases 之外的查询兼容名（职业名兼容层；classes aliases 自动并入 JOB_ALIASES）
@@ -102,10 +103,10 @@ def _build_guide():
 
 JOB_GUIDE, BASE_ORDER, HIDDEN_ORDER, HIDDEN_SUCCESSORS = _build_guide()
 
-# 6 职业完整性 fail-fast（v151 隐藏职业删除：12→6；与 data/_assembly.py 同款启动即报错风格）
-assert len(JOB_GUIDE) == 6, f"[job_guide] 必须覆盖 6 职业，实际 {len(JOB_GUIDE)}"
-assert len(BASE_ORDER) == 6 and len(HIDDEN_ORDER) == 0, \
-    f"[job_guide] 基础六/隐藏分组异常：{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}"
+# 7 职业完整性 fail-fast（v153 新增诗人：6→7；与 data/_assembly.py 同款启动即报错风格）
+assert len(JOB_GUIDE) == 7, f"[job_guide] 必须覆盖 7 职业，实际 {len(JOB_GUIDE)}"
+assert len(BASE_ORDER) == 7 and len(HIDDEN_ORDER) == 0, \
+    f"[job_guide] 基础七/隐藏分组异常：{len(BASE_ORDER)}/{len(HIDDEN_ORDER)}"
 
 # 别名表：classes.py aliases + 分支名（含展示名映射）+ 兼容名 EXTRA_ALIASES
 JOB_ALIASES = {}

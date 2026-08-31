@@ -1,0 +1,1622 @@
+{
+ "sk_hui_kan": {
+  "name": "挥砍",
+  "new_desc": "长剑划出利落的弧光——造成 100% 物理伤害；若你的速度高于目标，先发剑势更盛(伤害＋15%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_meng_ji": {
+  "name": "猛击",
+  "new_desc": "双臂蓄满蛮力猛然砸下——造成 120% 物理伤害",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_po_jia_zhan": {
+  "name": "破甲斩",
+  "new_desc": "剑锋劈入甲胄缝隙，无视防御造成 130% 物理伤害；自身生命低于 40% 时绝境反扑(伤害＋20%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_xuan_feng_zhan": {
+  "name": "旋风斩",
+  "new_desc": "身形旋起如风暴，横扫前排造成 110% 全体物理伤害；目标生命高于 70% 时威力暴涨(伤害＋40%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_lie_di_zhan": {
+  "name": "裂地斩",
+  "new_desc": "重剑砸裂大地，无视防御造成 180% 物理伤害；怒气蓄满 8 点时怒意喷薄(伤害＋50%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_xu_li_zhan": {
+  "name": "蓄力斩",
+  "new_desc": "屏息沉肩，将全身力量注入剑锋——蓄力 1 回合(受击会打断)，挥出 220% 破防一击",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_zhan_hou": {
+  "name": "战吼",
+  "new_desc": "胸腔炸开一声战吼，战意点燃血液——攻击＋30% 持续 3 回合；组队时战意传染全队(全队攻击＋30%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_tie_bi": {
+  "name": "铁壁",
+  "new_desc": "举盾凝立如城墙——防御＋45% 持续 3 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_xu_shi": {
+  "name": "蓄势",
+  "new_desc": "收剑凝神，斗气在筋脉中翻涌——攻击＋30% 持续 3 回合，为终结技蓄足锋芒",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_dun_ji": {
+  "name": "盾击",
+  "new_desc": "重盾悍然撞出——造成 130% 伤害，35% 概率震晕目标 1 回合(CD 3)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_zhan_zheng_jian_ta": {
+  "name": "战争践踏",
+  "new_desc": "铁靴重重踏裂地面，震波席卷前排造成 80% 全体伤害；目标被冻结或减速时冲击更烈(伤害＋40%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_wu_wei_chong_ji": {
+  "name": "无畏冲击",
+  "new_desc": "将满腔怒意化作一往无前的冲锋——消耗全部怒气，每点怒气＋12% 伤害(满怒可至 220% 威力)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_zhan_yi": {
+  "name": "战意高涨",
+  "new_desc": "战意随怒气沸腾——怒气达到 5 点时攻击＋15%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_tie_bi_zhi_xin": {
+  "name": "铁壁之心",
+  "new_desc": "铠甲与意志凝为一体——受到伤害时减伤 5%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_gang_tie_bi_lei": {
+  "name": "钢铁壁垒",
+  "new_desc": "气血充盈时防线如铁铸——生命高于 70% 时防御＋10%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_po_jia_ben_neng": {
+  "name": "破甲本能",
+  "new_desc": "久经沙场的本能——破防类技能伤害＋10%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_zhan_zheng_pa_xiao": {
+  "name": "战争咆哮",
+  "new_desc": "每一声怒吼都在积累战意——攻击命中时额外获得 1 点怒气",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_p...tong": {
+  "name": "破甲精通",
+  "new_desc": "熟知每一处甲胄的薄弱——物理穿透＋5%(无视物理防御，v106.2 职业特色渠道)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_zhi_quan": {
+  "name": "直拳",
+  "new_desc": "一记笔直的拳锋破空而出——造成 100% 单体伤害(连招【拳】)；先手出招时力道更沉(伤害＋15%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_chong_quan": {
+  "name": "冲拳",
+  "new_desc": "沉肩发力，拳势如弩箭离弦——造成 110% 物理伤害(连招【拳】)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_beng_quan": {
+  "name": "碎骨拳",
+  "new_desc": "拳风裹挟气力，直撼骨节——造成 150% 破防伤害(连招【拳】)，消耗 3 点气；目标生命高于 70% 时拳势更重(伤害＋20%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_hui_xuan_ti": {
+  "name": "回旋踢",
+  "new_desc": "身形腾转，一记回旋腿扫过前排——造成 120% 全体伤害(连招【踢】)；目标减速或冻结时踢势更狠(伤害＋30%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_zhen_di_ji": {
+  "name": "震地击",
+  "new_desc": "重腿砸地，震波轰然扩散——造成 130% 全体伤害(连招【踢】)，35% 概率震晕目标",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_ce_ti": {
+  "name": "侧踢",
+  "new_desc": "侧身一记凌厉踢击——造成 110% 伤害(连招【踢】)；上一招为拳时衔接流畅(伤害＋10%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_tie_zhang": {
+  "name": "钢拳",
+  "new_desc": "拳掌如铁，蓄势待发——造成 120% 伤害(连招【掌】)，为三连蓄势",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_qi_xi_tiao_xi": {
+  "name": "冥想",
+  "new_desc": "敛息凝神，引导气力温养周身——回复 15% 生命",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_tong_qiang": {
+  "name": "铜墙",
+  "new_desc": "气沉丹田，身如铜墙铁壁——防御＋45% 持续 2 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_lian_zhao_san_lian": {
+  "name": "连招三连",
+  "new_desc": "拳、踢、掌三段连环如行云流水——连续攻击 3 次(每次 150% 伤害)；三连完成时气力技威力＋20%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_po_xiao_zhi_quan": {
+  "name": "破晓之拳",
+  "new_desc": "将周身气力凝于一拳，如破晓曙光——造成 240% 致命一击，消耗全部气(每点气＋10% 威力，满 10 气威力翻倍)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_lian_zhao_jing_tong": {
+  "name": "连招精通",
+  "new_desc": "千锤百炼的连招技艺——三连击破的追加伤害提升至 50%(v109.2 武圣连击强化)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_pan_shi_ti": {
+  "name": "磐石体",
+  "new_desc": "身躯如磐石般沉稳——受到伤害时减伤 5%，并凝聚 1 点气",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_qi_shou_shi": {
+  "name": "起手式",
+  "new_desc": "开战瞬间便抢占先机——战斗开始时攻击＋8%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_qi_xi_tiao_he": {
+  "name": "气力调和",
+  "new_desc": "气随呼吸流转不息——每回合回复 2% 生命",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_p_dou_qi_ning_ju": {
+  "name": "气力凝聚",
+  "new_desc": "气海浩瀚，凝聚更快——气获取＋1",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "怒斩": {
+  "name": "怒斩",
+  "new_desc": "怒意化作劈山一剑——造成 238% 物理伤害；自身生命低于 50% 时狂血翻涌(伤害＋25%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "死战": {
+  "name": "死战",
+  "new_desc": "伤越重，战意越炽——生命低于 50% 时攻击＋10%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "嗜血斩": {
+  "name": "嗜血斩",
+  "new_desc": "利刃贪婪地渴饮鲜血——造成 160% 物理伤害并吸血 25%；目标身带减益时剑势更凶(伤害＋20%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "狂怒爆发": {
+  "name": "狂怒爆发",
+  "new_desc": "怒血燃尽，孤注一掷——终结技造成 240% 物理伤害；自身生命低于 30% 时背水一战(伤害＋40%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "龙息之怒": {
+  "name": "龙息之怒",
+  "new_desc": "挥剑如龙啸，吐出灼热吐息——造成 100% 真伤(无视全部防御)并附加 2 层灼烧",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "盾击·卫": {
+  "name": "盾击·卫",
+  "new_desc": "重盾裹挟守护之力悍然砸出——造成 238% 盾击伤害，概率震晕目标 1 回合；目标已被眩晕时追加 50% 伤害",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "守护姿态": {
+  "name": "守护姿态",
+  "new_desc": "沉稳如山的守护架势——受到伤害降低 10%，受击时凝聚怒气",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "坚盾壁垒": {
+  "name": "坚盾壁垒",
+  "new_desc": "高举坚盾，壁垒护佑全队——组队时全队防御强化",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "嘲讽": {
+  "name": "嘲讽",
+  "new_desc": "一声挑衅怒喝，将敌意尽数引向自身——强制怪物攻击自己 2 回合(CD 3)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "狂战之魂": {
+  "name": "狂战之魂",
+  "new_desc": "狂战士之魂永不熄灭——怒气获取＋1",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "乱舞": {
+  "name": "乱舞",
+  "new_desc": "剑光如狂风乱舞——连斩 3 次(每次 120% 物理伤害)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "处决": {
+  "name": "处决",
+  "new_desc": "审判之剑落下，终结一切抵抗——造成 300% 斩杀伤害；目标生命低于 35% 时(伤害＋50%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "圣盾": {
+  "name": "圣盾",
+  "new_desc": "神圣壁垒护体——格挡率＋10%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "复仇": {
+  "name": "复仇",
+  "new_desc": "伤痛点燃复仇之焰——受击后下一次攻击＋30%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "破城锤": {
+  "name": "破城锤",
+  "new_desc": "如攻城巨锤轰碎防线——造成 220% 破防伤害；目标生命高于 70% 时全力压制(伤害＋50%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "怒涛连斩": {
+  "name": "怒涛连斩",
+  "new_desc": "剑势如怒涛连绵不绝——全体连斩 3 次(每次 180% 伤害)；怒气达到 9 点时威力再涨(伤害＋30%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "战争化身": {
+  "name": "战争化身",
+  "new_desc": "化身战争本身，挥出毁天灭地的一剑——造成 500% 毁灭斩击，消耗全部 10 点怒气",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "战争领域": {
+  "name": "战争领域",
+  "new_desc": "展开属于战争的领域——3 回合内攻击大幅提升",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "守护誓言": {
+  "name": "守护誓言",
+  "new_desc": "以誓言为盾，替全队承受伤害——组队时全队防御强化",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "不破壁垒": {
+  "name": "不破壁垒",
+  "new_desc": "筑起不破的壁垒——全队减伤 25% 持续 3 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "守护圣域": {
+  "name": "守护圣域",
+  "new_desc": "圣光凝成守护圣域——为全队张开无敌屏障",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "疾风拳": {
+  "name": "疾风拳",
+  "new_desc": "拳速如疾风掠影——造成 285% 物理伤害；气达到 5 点时拳势叠加(伤害＋50%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "格斗术": {
+  "name": "格斗术",
+  "new_desc": "格斗技巧融入血脉——连招期间伤害＋5%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "旋风踢": {
+  "name": "旋风踢",
+  "new_desc": "身体旋起如风暴之眼——造成 130% 物理伤害；目标减速时踢中要害(伤害＋20%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力爆发": {
+  "name": "气力爆发",
+  "new_desc": "气力在经脉中轰然爆发——造成 280% 物理伤害；自身生命低于 40% 时残血反扑(伤害＋30%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "铁壁拳": {
+  "name": "铁壁拳",
+  "new_desc": "拳出如铁壁横移——造成 285% 物理伤害并获得防御强化；自身有护盾时拳势更沉(伤害＋15%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "厚土": {
+  "name": "厚土",
+  "new_desc": "气血盈满时身如大地——生命高于 70% 时防御＋10%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力回涌": {
+  "name": "气力回涌",
+  "new_desc": "引气归元，温养创伤——回复 200% 生命；自身生命低于 40% 时气力回涌更盛(治疗量＋50%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "反震": {
+  "name": "反震",
+  "new_desc": "以彼之力还施彼身——受到伤害时 30% 概率反弹 30% 伤害",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "以守为攻": {
+  "name": "以守为攻",
+  "new_desc": "守势之中暗藏杀机——受击时 20% 概率立即以普攻反击",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "磐石护壁": {
+  "name": "磐石护壁",
+  "new_desc": "大地之力筑成护壁——全队减伤 15% 持续 2 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力之心": {
+  "name": "气力之心",
+  "new_desc": "气力在心底凝成泉眼——气获取＋1",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "连环拳": {
+  "name": "连环拳",
+  "new_desc": "拳影连环不绝——连续出拳 4 次(每次 110% 伤害)，快速凝聚气力",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力裂空": {
+  "name": "气力裂空",
+  "new_desc": "一拳击出，气浪撕裂长空——造成 260% 破防物理伤害",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "磐石之心": {
+  "name": "磐石之心",
+  "new_desc": "心如磐石，不动如山——受到伤害再减 5%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "反击之王": {
+  "name": "反击之王",
+  "new_desc": "以守为攻的极致——受击时 30% 概率立即以普攻反击",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力守御": {
+  "name": "气力守御",
+  "new_desc": "气力化作守护之墙——为全队张开生命值 20% 的护盾",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "无影连打": {
+  "name": "无影连打",
+  "new_desc": "拳影快到无形——连续攻击 5 次(每次 130% 伤害)；气达到 8 点时气力充盈(伤害＋30%)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力天地": {
+  "name": "气力天地",
+  "new_desc": "气力贯通天地，一拳定乾坤——造成 500% 物理伤害并为全队附加攻击强化",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力通天": {
+  "name": "气力通天",
+  "new_desc": "气机直冲云霄——3 回合内每次攻击大幅增伤",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "磐石之躯": {
+  "name": "磐石之躯",
+  "new_desc": "绝境之中身化磐石——生命低于 30% 时减伤 40%",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气力万法": {
+  "name": "气力万法",
+  "new_desc": "气力流转，护佑众生——全队减伤 30% 持续 3 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "大地守护": {
+  "name": "大地守护",
+  "new_desc": "大地之力加护全队——全队减伤 50% 持续 3 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "裂岩冲": {
+  "name": "裂岩冲",
+  "new_desc": "拳势如裂岩冲锋——造成 130% 物理伤害，命中叠加 1 层气力(每层伤害＋12%)(禅意＋1)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "蓄劲连打": {
+  "name": "蓄劲连打",
+  "new_desc": "蓄满劲力连环击出——造成 140% 物理伤害(拳连招，衔接拳-踢-掌三连追加)(禅意＋1)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "裂岳连击": {
+  "name": "裂岳连击",
+  "new_desc": "拳劲足以裂开山岳——造成 190% 物理伤害，每点禅意威力＋12%，消耗 3 点禅意",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "苦行呼吸": {
+  "name": "苦行呼吸",
+  "new_desc": "以苦行磨砺身心，吐纳之间气机沉淀——获得防御强化(禅意＋1)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "势蓄连打": {
+  "name": "势蓄连打",
+  "new_desc": "蓄势待发，连击两段——造成 120%×2 物理伤害(拳连招深化)(禅意＋1)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "律动连打": {
+  "name": "律动连打",
+  "new_desc": "拳随呼吸律动，一击重过一击——造成 180% 物理伤害，每点禅意威力＋12%，消耗 2 点禅意",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "气爆": {
+  "name": "气爆",
+  "new_desc": "将周身气力压缩至极限后猛然迸发——造成 180% 物理伤害，每层气力追加 15% 伤害，消耗 5 点禅意",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "撼岳·终焉": {
+  "name": "撼岳·终焉",
+  "new_desc": "撼动山岳的终焉之拳——造成 250% 致命一击，每点禅意威力＋12%，消耗 10 点禅意",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "裂岳绝式": {
+  "name": "裂岳绝式",
+  "new_desc": "裂岳绝式起手，气劲暗涌——造成 130% 物理伤害(禅意＋2)",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_beng_quan_lie": {
+  "name": "裂骨击",
+  "new_desc": "拳锋直取骨骼要害——造成 160% 物理伤害，20% 概率击晕目标",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_jin_gang_ti": {
+  "name": "磐石之体",
+  "new_desc": "身如磐石，傲然挺立——防御＋45% 持续 2 回合",
+  "src": "desc_rewrite_warrior.json"
+ },
+ "sk_huo_qiu_shu": {
+  "name": "火球术",
+  "new_desc": "将游离的火元素凝成灼热弹丸掷出，命中即焚(100% 火系伤害)并烙下火印；若目标已带火印，火焰燎原迸发(伤害＋20%、火印层数＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_bing_jing": {
+  "name": "冰晶术",
+  "new_desc": "指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 105% 冰系魔法伤害",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_bing_zhui": {
+  "name": "冰锥",
+  "new_desc": "召唤尖锐冰锥破空直刺，造成 110% 冰系伤害并挂冰印、减速 1 回合；目标已被冻结时寒霜更烈(伤害＋30%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_lei_ji": {
+  "name": "雷击",
+  "new_desc": "电弧在指尖跳跃，化作惊雷劈落——造成 120% 雷系伤害并烙下雷印；先手(速度高于目标)时电弧暴涨(伤害＋15%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yuan_su_bao_fa": {
+  "name": "元素爆发",
+  "new_desc": "汇聚周身元素之力轰然释放，造成当前系 160% 伤害，并触发一次元素反应(蒸发/超载/冻结/感电)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yuan_su_liu_zhuan": {
+  "name": "元素流转",
+  "new_desc": "魔力如潮水在血脉中流转，魔攻＋50% 持续 3 回合；组队时元素共鸣扩散全队(全队魔攻强化)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yuan_su_dan_mu": {
+  "name": "元素弹幕",
+  "new_desc": "连珠掷出两团浓缩元素，造成 100%×2 当前系伤害(低耗填充)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yuan_su_hu_dun": {
+  "name": "元素护盾",
+  "new_desc": "凝聚元素织成环绕护盾，防御＋45% 持续 3 回合(CD 3)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_ao_shu_qiang_hua": {
+  "name": "奥术强化",
+  "new_desc": "吟诵晦涩奥术箴言，魔力沸腾——魔攻＋50% 持续 3 回合(爆发前奏)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_bing_shuang_xin_xing": {
+  "name": "冰霜新星",
+  "new_desc": "冰霜之力自脚下轰然绽放，对全体造成 80% 冰系伤害，并有 30% 概率将敌人冻结 1 回合(CD 3)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yuan_su_feng_bao": {
+  "name": "元素风暴",
+  "new_desc": "唤来元素风暴席卷全场，造成当前系 200% 全体伤害；目标带有元素印记时风暴过载(伤害＋50%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_yun_shi_shu": {
+  "name": "陨石术",
+  "new_desc": "引动天火坠地，蓄力 2 回合(受击会打断)；蓄力完成召唤陨石轰击全场，造成火系 300% 范围伤害(可及全阵后排)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_fa_shu_fan_zhi": {
+  "name": "法术禁制",
+  "new_desc": "以禁制之力掐断敌方法术节律，造成 30% 魔法伤害并打断目标蓄力(可打断读条技能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_lie_yan_qin_he": {
+  "name": "烈焰亲和",
+  "new_desc": "与火元素心意相通，施放火系技能时伤害＋10%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_han_shuang_qin_he": {
+  "name": "寒霜亲和",
+  "new_desc": "寒气随施法悄然蔓延，冰系技能命中附带减速(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_mo_li_peng_pai": {
+  "name": "魔力澎湃",
+  "new_desc": "生命高于 70% 时魔力澎湃涌动，魔攻＋8%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_mo_li_yong_dong": {
+  "name": "魔力涌动",
+  "new_desc": "魔力源泉深不见底，最大魔力＋15%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_yuan_su_gong_ming": {
+  "name": "元素共鸣",
+  "new_desc": "元素之力彼此应和，元素反应伤害＋15%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang_dan": {
+  "name": "圣光弹",
+  "new_desc": "凝聚圣光凝成光弹掷出，造成 100% 圣光伤害；自身生命高于 70% 时圣光炽烈(伤害＋20%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang": {
+  "name": "圣光术",
+  "new_desc": "圣光凝聚成束贯穿敌人，造成 115% 圣光伤害",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_zhi_yu_shu": {
+  "name": "治愈术",
+  "new_desc": "吟诵祷词引动圣光抚愈伤口，治疗 200% 生命；自身生命低于 30% 时圣光加倍涌动(治疗量＋50%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_cheng_jie": {
+  "name": "惩戒",
+  "new_desc": "圣光化作鞭挞落下，造成 120% 圣光伤害，命中积攒 1 点信仰",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang_cheng_ji": {
+  "name": "圣光惩击",
+  "new_desc": "圣光如审判之锤轰然砸落，造成 200% 伤害并驱散敌方增益；信仰≥8 时神威更盛(伤害＋40%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang_hu_dun": {
+  "name": "圣光护盾",
+  "new_desc": "圣光织成守护屏障环绕周身，防御＋45% 持续 3 回合",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_qun_ti_zhi_yu": {
+  "name": "群体治愈",
+  "new_desc": "圣光如甘霖洒落全队，为所有队友治疗 150% 生命(团队技能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_xin_yang_qi_dao": {
+  "name": "信仰祈祷",
+  "new_desc": "虔诚祈祷引下神恩，魔攻＋50% 持续 3 回合(增幅)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_shen_sheng_dao_yan": {
+  "name": "神圣祷言",
+  "new_desc": "高声诵出神圣祷言，信仰与魔力一同沸腾——魔攻＋50% 持续 3 回合(爆发前奏)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang_qu_san": {
+  "name": "圣光驱散",
+  "new_desc": "圣光浪潮涤荡战场，为全队加持防御强化(团队技能；驱散净化二期待定)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_shen_en_jiang_lin": {
+  "name": "神恩降临",
+  "new_desc": "神恩如潮倾泻而下，为全队治疗 180% 生命并消耗全部信仰(每点＋8%)；自身生命低于 30% 时治疗量＋50%(低血救场)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_da_zhi_liao_shu": {
+  "name": "大治疗术",
+  "new_desc": "屏息凝聚圣光，蓄力 1 回合(受击会打断)；蓄力完成施展大治愈，为全队治疗 320% 生命",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_shen_fa_sheng_cai": {
+  "name": "神罚·圣裁",
+  "new_desc": "引动神罚之雷，对全体敌人降下 300% 圣光惩罚并消耗全部信仰(基础满点神迹)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_bi_hu_zhi_guang": {
+  "name": "庇护之光",
+  "new_desc": "治疗溢出时圣光凝为护盾，溢出量的 20% 转为护盾(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_shen_sheng_jian_ren": {
+  "name": "神圣坚韧",
+  "new_desc": "圣光淬炼体魄，受击减伤 5%，且受击时积攒 1 点信仰(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_sheng_guang_zhu_fu": {
+  "name": "圣光祝福",
+  "new_desc": "圣光常驻祝福，治疗强度＋5%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_xin_yang_jian_ding": {
+  "name": "信仰坚定",
+  "new_desc": "信仰凝为坚实根基，最大魔力＋15%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_p_shen_en": {
+  "name": "神恩",
+  "new_desc": "神恩常伴左右，治疗技能效果＋10%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素冲击": {
+  "name": "元素冲击",
+  "new_desc": "将当前系元素凝成冲击波轰出，造成 190% 伤害并烙下元素印记；目标已有印记时万象共鸣(伤害＋20%、充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "万象亲和": {
+  "name": "万象亲和",
+  "new_desc": "与万象元素共鸣，施放元素技能时伤害＋8%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "双系连珠": {
+  "name": "双系连珠",
+  "new_desc": "双系元素连珠齐射，造成当前系 130%×2 伤害并叠 2 层印记；目标印记≥3 层时连环迸发(伤害＋25%，消耗 3 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素引爆": {
+  "name": "元素引爆",
+  "new_desc": "引动元素印记连锁炸裂，造成当前系 240% 伤害；目标印记≥2 层时元素共鸣(伤害＋30%，消耗 2 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素湮灭": {
+  "name": "元素湮灭",
+  "new_desc": "湮灭之力倾泻而出，造成 240% 魔法伤害并消耗全部充能(每点＋20%，满 5 充能威力翻倍)，同时回复 20% 伤害值的魔力",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术弹幕": {
+  "name": "奥术弹幕",
+  "new_desc": "奥术能量如幕布倾洒，造成 110%×3 伤害并使奥术充能＋1；充能≥2 层时蓄势更猛(伤害＋15%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术直觉": {
+  "name": "奥术直觉",
+  "new_desc": "奥术直觉如影随形，每回合开始自动获得 1 层奥术充能(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术飞弹": {
+  "name": "奥术飞弹",
+  "new_desc": "奥术飞弹划出湛蓝弧光，造成 100% 魔法伤害并叠加 1 层奥术印记(充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术爆破": {
+  "name": "奥术爆破",
+  "new_desc": "奥术能量蓄满爆破，造成 150%×2 伤害并使奥术充能＋2；充能≥4 层时共鸣输出(伤害＋25%，消耗 1 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术脉冲": {
+  "name": "奥术脉冲",
+  "new_desc": "奥术脉冲激荡而出，造成 160% 魔法伤害并燃尽全部奥术印记(每层追加伤害)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "秘法护盾": {
+  "name": "秘法护盾",
+  "new_desc": "秘法之力织成魔力护盾，获得相当于 20% 魔攻的护盾持续 3 回合",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术洪流": {
+  "name": "奥术洪流",
+  "new_desc": "奥术洪流奔涌而出，造成 250% 伤害并消耗全部充能(每层＋15%)；充能≥5 层时共鸣巅峰(伤害＋40%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素之心": {
+  "name": "元素之心",
+  "new_desc": "元素之心与魔力同频跳动，元素系技能伤害＋10%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素跃迁": {
+  "name": "元素跃迁",
+  "new_desc": "身形在元素间跃迁流转，切换当前元素系(火→冰→雷)，下次元素技能伤害＋20%(充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素壁垒": {
+  "name": "元素壁垒",
+  "new_desc": "以元素铸成壁垒护体，防御强化(消耗 2 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素迸发": {
+  "name": "元素迸发",
+  "new_desc": "雷元素骤然迸发，造成 150% 雷系超远程伤害(消耗 1 充能，CD 1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术核心": {
+  "name": "奥术核心",
+  "new_desc": "奥术核心在体内运转不息，奥术系伤害＋15%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术之心": {
+  "name": "奥术之心",
+  "new_desc": "奥术之心凝聚如水晶，奥术技能伤害＋10%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "法术反制": {
+  "name": "法术反制",
+  "new_desc": "掐断敌方咒语节律，造成 60% 反制伤害并使敌人沉默，同时奥术充能＋2；充能≥2 层时反制更强(伤害＋20%、充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "法力护盾": {
+  "name": "法力护盾",
+  "new_desc": "法力凝成护盾环绕，防御强化(消耗 1 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "万象风暴": {
+  "name": "万象风暴",
+  "new_desc": "万象元素化作风暴席卷全场，造成当前系 180%×3 全体伤害；目标带有印记时万象连环(伤害＋30%、充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "万象天雷": {
+  "name": "万象天雷",
+  "new_desc": "终极技——天雷自九霄倾落，对全体造成雷系 450% 伤害，并为全队加持魔攻强化(消耗 3 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "元素裁决": {
+  "name": "元素裁决",
+  "new_desc": "三转奥义——元素之力凝成裁决之光，对全体造成当前系 400% 伤害(消耗 5 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术爆发": {
+  "name": "奥术爆发",
+  "new_desc": "奥术能量轰然爆发，造成 220% 魔法伤害并燃尽全部奥术印记",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术领域": {
+  "name": "奥术领域",
+  "new_desc": "三转奥义——展开奥术领域，对全体造成 400% 奥术伤害并为全队加持护盾(消耗 3 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "大奥术": {
+  "name": "大奥术",
+  "new_desc": "大奥术回响轰鸣，对全体造成奥术 200%×2 伤害并使充能＋2；充能≥6 层时回响更盛(伤害＋30%、充能＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术主宰": {
+  "name": "奥术主宰",
+  "new_desc": "终极技——奥术主宰万物，造成 450% 奥术伤害；充能≥5 层时主宰降临(伤害＋40%，消耗 5 充能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "即兴弹唱": {
+  "name": "即兴弹唱",
+  "new_desc": "指尖拨动琴弦即兴弹唱，琴音如刃造成 100% 物理伤害，并有 15% 概率使目标中毒",
+  "src": "desc_rewrite_mage.json"
+ },
+ "轻快拨弦": {
+  "name": "轻快拨弦",
+  "new_desc": "轻快拨动琴弦奏出刁钻音刃，造成 110% 物理伤害并有 10% 概率附加中毒(共鸣＋1·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "战歌": {
+  "name": "战歌",
+  "new_desc": "激昂战歌响彻战场，全队攻击＋30% 持续 3 回合(团队技能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "安眠曲": {
+  "name": "安眠曲",
+  "new_desc": "悠扬曲调化作睡意笼罩，使敌人陷入沉睡 2 回合(受击解除，对首领只持续 1 回合)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "启明圣咏": {
+  "name": "启明圣咏",
+  "new_desc": "启明圣咏驱散阴霾，全队攻击＋10% 持续 3 回合(消耗 3 共鸣·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "圣言术": {
+  "name": "圣言术",
+  "new_desc": "圣言落下即愈，治疗 250% 生命；自身生命低于 30% 时圣言回响(治疗量＋50%)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "圣祷": {
+  "name": "圣祷",
+  "new_desc": "虔诚圣祷引来神恩眷顾，治疗时有 20% 概率额外治疗 30%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "净化术": {
+  "name": "净化术",
+  "new_desc": "圣光涤荡污秽，为全队加持防御强化(CD 2，团队技能；净化二期待定)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "大治愈术": {
+  "name": "大治愈术",
+  "new_desc": "圣光汇聚成治愈之潮，为全队治疗 300% 生命(团队核心)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "鼓舞": {
+  "name": "鼓舞",
+  "new_desc": "歌声激昂鼓舞人心，全队暴击率＋20% 持续 3 回合(团队技能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "哀歌": {
+  "name": "哀歌",
+  "new_desc": "悲怆哀歌化作音刃，造成 170% 魔法伤害并有 50% 概率沉默目标 2 回合(共鸣＋1·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "伴奏": {
+  "name": "伴奏",
+  "new_desc": "共鸣伴唱如影随形，施放歌类技能时有 20% 概率额外获得 1 层回声(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "轻风咏叹": {
+  "name": "轻风咏叹",
+  "new_desc": "轻风咏叹拂过全场，全队速度＋40% 持续 3 回合(消耗 3 共鸣·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "神圣恩典": {
+  "name": "神圣恩典",
+  "new_desc": "神圣恩典常驻心间，治疗效果＋10%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "生命之泉": {
+  "name": "生命之泉",
+  "new_desc": "生命之泉汩汩涌流，全队每回合回复 5% 生命(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "神圣庇护": {
+  "name": "神圣庇护",
+  "new_desc": "神圣光辉织成庇护之壁，为全队加持护盾(CD 4，消耗 5 信仰)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "英雄叙事诗": {
+  "name": "英雄叙事诗",
+  "new_desc": "吟唱英雄史诗，圣光随旋律抚愈全队——治疗全队 150% 生命(共鸣＋2)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "奥术咏叹调": {
+  "name": "奥术咏叹调",
+  "new_desc": "咏叹调与奥术共鸣，全队魔攻＋50% 持续 3 回合(消耗 3 共鸣·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "快板节奏": {
+  "name": "快板节奏",
+  "new_desc": "快板节奏令人手起招落，冷却缩减＋8%(被动)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "终章·黎明颂歌": {
+  "name": "终章·黎明颂歌",
+  "new_desc": "黎明颂歌奏响终章，全队攻击＋75% 持续 3 回合(消耗 5 共鸣·回声＋2)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "破晓圣咏": {
+  "name": "破晓圣咏",
+  "new_desc": "破晓之光凝入咏唱，造成 170% 圣咏魔法伤害(共鸣＋1·回声＋1)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "圣光赞歌": {
+  "name": "圣光赞歌",
+  "new_desc": "圣光赞歌响彻天际，为全队治疗 250% 生命(消耗 5 信仰)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "神迹·重生": {
+  "name": "神迹·重生",
+  "new_desc": "终极技——神迹再现，为全队恢复至满血(消耗 10 信仰，团队终极技)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "生命圣域": {
+  "name": "生命圣域",
+  "new_desc": "三转奥义——展开生命圣域，为全队恢复满血并减伤(消耗 6 信仰，终极救场)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_mo_li_mai_chong": {
+  "name": "魔力脉冲",
+  "new_desc": "奥术之力凝成脉冲震荡而出，造成 170% 魔法伤害",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_sheng_guang_cheng_jie": {
+  "name": "圣光惩戒",
+  "new_desc": "圣光化作惩戒之刃，造成 140% 魔法伤害，对黑暗生物额外威慑",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_jiu_shu_zhi_guang": {
+  "name": "救赎之光",
+  "new_desc": "救赎之光洒落全队，治疗全队 150% 生命(团队技能)",
+  "src": "desc_rewrite_mage.json"
+ },
+ "sk_ji_..._she": {
+  "name": "疾风连射",
+  "new_desc": "弓弦颤动如风吟，两箭连珠破空而出——连续射击 2 次，每次造成 60% 物理伤害",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_miao_zhun": {
+  "name": "瞄准射击",
+  "new_desc": "凝神屏息，将呼吸与弓弦调成同频——蓄势一箭造成 140% 物理伤害",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_you_xia_zhi_ming_ju_ji": {
+  "name": "致命狙击",
+  "new_desc": "鹰瞳锁定猎物最后一口气，箭矢循着死亡轨迹射出——造成 180% 物理伤害；目标生命低于 40% 时，绝境之眼睁开（伤害＋50%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_lie...jing": {
+  "name": "猎网陷阱",
+  "new_desc": "在林间暗处布下缠着火绒的猎网，猎物踏入即燃——造成 120% 物理伤害并附加 2 层灼烧（烈火噬身，延时迸发）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_hua..._yue": {
+  "name": "林语印记",
+  "new_desc": "吟诵林间古语，箭矢裹挟自然之力烙印猎物——造成 150% 自然伤害并施加猎杀标记，命中时汲取 10 点精力（自然印记·标记核心）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_yin...ding": {
+  "name": "鹰眼锁定",
+  "new_desc": "瞳中映出鹰隼的金芒，猎物的一切破绽无所遁形——暴击率＋20%，持续 3 回合",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_fen..._zou": {
+  "name": "风之疾走",
+  "new_desc": "风元素缠绕足踝，身形化作林间掠影——速度＋40%，持续 3 回合（机动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_cui..._shi": {
+  "name": "淬毒箭矢",
+  "new_desc": "箭簇浸过幽绿毒液，破空时带起一缕腥风——造成 80% 物理伤害并附加 3 层中毒（消耗 20 精力）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_wei...i_mu": {
+  "name": "伪装帷幕",
+  "new_desc": "扯下林地与暮色织成的帷幕披在身上，身形与草木融为一体——闪避率＋40%，持续 3 回合（隐形求生）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_sho...xiao": {
+  "name": "狩猎咆哮",
+  "new_desc": "胸腔中炸开一声猎者的咆哮，热血与战意一同沸腾——攻击＋30%，持续 3 回合（标记爆发前奏）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_sho...hang": {
+  "name": "狩猎终章",
+  "new_desc": "倾尽周身精力拉开满月之弓，射出终结猎物的最后一箭——造成 480% 致命一击，消耗全部精力（100 精力大终结）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_you_xia_xu_li_ju_ji": {
+  "name": "蓄力狙击",
+  "new_desc": "屏息凝神将力量沉入箭锋——蓄力 1 回合（受击会被打断）；蓄力完成，200% 破防一箭直取后排，箭可穿透全阵",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_l...neng": {
+  "name": "猎手本能",
+  "new_desc": "猎手的血脉记住了每一头猎物的气息——对标记目标暴击率＋10%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_you_xia_feng_xing_bu": {
+  "name": "风行步",
+  "new_desc": "踏风而行，步履轻如鸿羽——速度＋8%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_j..._yan": {
+  "name": "疾风之眼",
+  "new_desc": "疾风入眼，万物皆慢——每 10 点速度转化为 1% 暴击率（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_f...a_hu": {
+  "name": "风之加护",
+  "new_desc": "林风环绕周身，为猎者拂开袭来的利刃——闪避率＋5%（一转觉醒·风之加护，被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_you_xia_ying_yan": {
+  "name": "鹰眼",
+  "new_desc": "鹰之眼俯瞰战场，猎物身上多出一道道无形准星——攻击时 15% 概率额外叠加 1 层印记（与追踪印记叠加，被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_z...n_ji": {
+  "name": "追踪印记",
+  "new_desc": "箭矢与猎物之间仿佛牵起无形的线，越缠越紧——攻击时 30% 概率额外叠加 1 层印记（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_c...jian": {
+  "name": "穿甲箭",
+  "new_desc": "箭簇打磨得足以撕裂重甲与龙鳞——物理穿透＋5%，无视目标部分物理防御（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_ci_ji": {
+  "name": "刺击",
+  "new_desc": "匕尖自袖中无声递出，直取要害——造成 100% 物理伤害；先手出手时，暗影加持（伤害＋20%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_ge_lie": {
+  "name": "割裂",
+  "new_desc": "利刃划过血肉，留下一道深可见骨的伤口——造成 115% 物理伤害",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_shu...n_wu": {
+  "name": "双刃乱舞",
+  "new_desc": "双匕翻飞如蝶，趁目标气血充盈时连斩两记——每次造成 90% 物理伤害（共 2 次）；目标生命高于 70% 时，背刺角度刁钻（伤害＋30%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_cui_du": {
+  "name": "淬毒",
+  "new_desc": "匕尖在幽绿毒液中浸过，再吻上猎物的咽喉——造成 100% 物理伤害并附加 2 层中毒（毒刃之道，核心起手）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_an_sha": {
+  "name": "暗杀",
+  "new_desc": "自阴影中现身的必杀一击，直指垂死之敌——造成 240% 物理伤害；目标生命低于 40% 时，死神已在旁等待（伤害＋40%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_qian_xing": {
+  "name": "潜行",
+  "new_desc": "身形没入暗影，气息与杀意一同敛去——暴击率＋20%，持续 3 回合，且下次攻击必定暴击（爆发核心）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_ji_ying": {
+  "name": "疾影",
+  "new_desc": "足尖点地，身影拖出残像掠向目标——速度＋40%，持续 2 回合（机动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_ying_xi": {
+  "name": "影袭",
+  "new_desc": "顺着影子扑向猎物，匕刃与黑暗一同落下——造成 120% 物理伤害并叠加 1 层影袭（潜行联动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_si_...o_ji": {
+  "name": "死亡标记",
+  "new_desc": "在猎物眉心烙下死亡的印记，令其成为众矢之的——目标受击伤害＋30%（铺垫）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_du_wu": {
+  "name": "毒雾",
+  "new_desc": "掷出毒囊炸开一片幽绿雾气，腐蚀全场敌人的血肉——造成 80% 全体物理伤害并附加 2 层中毒（毒刃流铺场）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_an_...xing": {
+  "name": "暗影处刑",
+  "new_desc": "暗影凝成刃锋，对垂死之敌执行最后的处刑——基础造成 320% 致命一击，消耗全部连击点；目标生命低于 30% 时，死亡边缘的恐惧令威力＋50%",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_a...i_wu": {
+  "name": "暗影之舞",
+  "new_desc": "于暗影中起舞，每一次出手都隐于夜色——潜行状态下暴击伤害＋30%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_ji_ying": {
+  "name": "疾影术",
+  "new_desc": "将疾影的残像刻入身法——速度＋8%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_y...tong": {
+  "name": "影刃精通",
+  "new_desc": "刃与影浑然一体，出刀必中要害——暴击伤害＋10%（一转觉醒·影刃精通，被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_ci_ke_ju_du_qin_he": {
+  "name": "剧毒亲和",
+  "new_desc": "血肉与毒素渐生共鸣，毒液成了最亲密的盟友——毒层每层伤害＋20%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "sk_p_z..._mou": {
+  "name": "致命预谋",
+  "new_desc": "战斗未启，杀局已布——战斗开始时即获得 1 点连击点（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "追猎": {
+  "name": "追猎",
+  "new_desc": "循着猎杀标记的气味穷追不舍，箭矢咬住猎物的背影——造成 190% 物理伤害；目标被标记时，猎杀本能苏醒（伤害＋30%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "追猎者": {
+  "name": "追猎者",
+  "new_desc": "目光所及，皆是猎物——对标记目标的伤害＋8%（被动，标记特攻）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "藤蔓缠绕": {
+  "name": "藤蔓缠绕",
+  "new_desc": "召唤林间藤蔓破土而出，缠上猎物的足踝并注入麻痹毒汁——造成 80% 物理伤害并叠加 2 层中毒（自然毒藤）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "召唤藤蔓守卫": {
+  "name": "召唤藤蔓守卫",
+  "new_desc": "以林语唤醒沉睡的藤蔓，化为守卫并肩而战——召唤藤蔓守卫加入战斗（可叠加 2 只，自动攻击并挡刀）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "毒爆术": {
+  "name": "毒爆术",
+  "new_desc": "以自然之力引燃猎物体内的毒素，令其由内而外迸发——造成 60% 物理伤害；毒层达到 3 层时迸发，每层追加 15% 攻击的物理伤害",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "疾风射击": {
+  "name": "疾风射击",
+  "new_desc": "借风势射出疾驰一箭，箭速快过猎物反应——造成 190% 物理伤害；速度比达到 1.5 倍以上时，疾风连击呼啸（伤害＋50%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "疾驰": {
+  "name": "疾驰",
+  "new_desc": "风在身后追赶，箭在风中先行——速度高于目标时，伤害＋8%（被动，高速压制）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "双重射击": {
+  "name": "双重射击",
+  "new_desc": "弓弦一颤两箭齐出，如双燕掠空——造成 110% 物理伤害×2；自身未受击时，身姿轻灵无瑕（伤害＋15%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "风刃乱舞": {
+  "name": "风刃乱舞",
+  "new_desc": "弓弦化作风刃席卷全场，割裂一切甲胄——造成 130% 物理伤害×3 的全体攻击（无视防御），冷却 3 回合；速度比达到 2 倍以上时，极速之风加持（伤害＋25%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "自然之眼": {
+  "name": "自然之眼",
+  "new_desc": "万物在自然之眼中皆有破绽——对标记目标的伤害＋10%（二转被动，标记强化）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "猎杀狂宴": {
+  "name": "猎杀狂宴",
+  "new_desc": "吹响猎杀盛宴的号角，全队的杀意一同高涨——全队暴击强化 3 回合，施放时回复 5 点精力（狂宴回力，攻线叠标回精引擎）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "剧毒之心": {
+  "name": "剧毒之心",
+  "new_desc": "毒与自然在血脉中交融，毒液化作第二颗心脏——毒系技能伤害＋20%（被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "穿心箭": {
+  "name": "穿心箭",
+  "new_desc": "箭矢穿透层层甲胄，直指心脏——造成 280% 破防物理伤害；目标被标记时，要害暴露无遗（伤害＋30%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "疾风之心": {
+  "name": "疾风之心",
+  "new_desc": "疾风在血脉中奔流不息——速度＋8%（二转被动，机动强化）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "急速射击": {
+  "name": "急速射击",
+  "new_desc": "弓弦几乎失去踪影，箭雨连绵不绝——造成 90% 物理伤害×5（高速叠印）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "穿云箭": {
+  "name": "穿云箭",
+  "new_desc": "一箭穿云破雾，裹着风压直贯敌阵——造成 220% 破防物理伤害；自身带有增益时，风助箭势（伤害＋20%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "致命连射": {
+  "name": "致命连射",
+  "new_desc": "四箭连珠，箭箭皆奔要害而去——造成 140% 物理伤害×4（叠印爆发）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "召唤古树守卫": {
+  "name": "召唤古树守卫",
+  "new_desc": "唤醒沉睡千年的古树化作重装守卫，以庞大身躯为伙伴挡下刀锋——召唤古树守卫（单只重装，挡刀率高）并令攻击＋30%，持续 3 回合",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "死神之箭": {
+  "name": "死神之箭",
+  "new_desc": "死神借弓弦睁开眼，一箭定生死——造成 450% 破防物理伤害；目标被标记时，死神注视之下伤害＋40%（终极技）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "猎杀时刻": {
+  "name": "猎杀时刻",
+  "new_desc": "万物寂灭，唯余猎杀——对标记目标造成 400% 破防斩杀一击（单点核爆，三转奥义）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "风暴之舞": {
+  "name": "风暴之舞",
+  "new_desc": "身随风暴起舞，箭矢如雨点般倾泻——造成 160% 物理伤害×4（终极连射）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "疾风骤雨": {
+  "name": "疾风骤雨",
+  "new_desc": "疾风化作骤雨，箭矢铺天盖地落下——造成 200% 物理伤害×3，冷却联动全技能（终极技）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "风神降临": {
+  "name": "风神降临",
+  "new_desc": "风神之息灌入四肢百骸，身形快如流光——速度大幅提升，持续 3 回合（极速爆发，三转奥义）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "影刃": {
+  "name": "影刃",
+  "new_desc": "匕刃自影中探出，割向气血正盛的猎物——造成 285% 物理伤害；目标生命高于 70% 时，暗影亲和（伤害＋20%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "无声": {
+  "name": "无声",
+  "new_desc": "杀意收敛于呼吸之间，身形与暗影无异——闪避率＋30%（被动，潜行生存）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "幻影连刺": {
+  "name": "幻影连刺",
+  "new_desc": "身影化作三道残像，匕尖如毒蛇连番噬咬——造成 100% 物理伤害×3；自身未受击时，身轻如燕（伤害＋15%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "终结·处刑": {
+  "name": "终结·处刑",
+  "new_desc": "暗影中跃出的终焉之刃，对残血之敌执行处刑——造成 400% 物理伤害；目标生命低于 40% 时，死亡之舞旋起（伤害＋40%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "毒刃": {
+  "name": "毒刃",
+  "new_desc": "刃锋淬满剧毒，划开血肉的同时种下毒种——造成 285% 物理伤害并叠加 2 层中毒；目标已中毒时，毒素蔓延加速（伤害＋15%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "毒师": {
+  "name": "毒师",
+  "new_desc": "毒师的目光扫过之处，中毒者伤口溃烂得更快——中毒目标受到的伤害＋8%（被动，毒系增伤）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "双毒刃": {
+  "name": "双毒刃",
+  "new_desc": "双刃各淬异毒，交错斩出双重毒蚀——造成 100% 物理伤害×2并叠加 3 层中毒；目标中毒达 3 层时，毒师专注（伤害＋15%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "毒爆": {
+  "name": "毒爆",
+  "new_desc": "将猎物体内积攒的剧毒尽数引燃，令其由内溃烂——造成 200% 物理伤害并继续叠毒；目标中毒达 5 层时，剧毒共鸣迸发（伤害＋30%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "暗影之心": {
+  "name": "暗影之心",
+  "new_desc": "暗影之力在心脏中搏动，影系技艺愈发锋锐——影系技能伤害＋10%（二转被动）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "暗影突袭": {
+  "name": "暗影突袭",
+  "new_desc": "自暗影中突进，刃光与身形同时闪现——造成 160% 物理伤害，冷却 2 回合；自身未受击时，突袭更加凌厉（伤害＋20%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "死亡标记·影": {
+  "name": "死亡标记·影",
+  "new_desc": "以暗影之力在目标身上烙下双重死印——标记目标，使其受击伤害提升（配合团队斩杀）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "收割": {
+  "name": "收割",
+  "new_desc": "镰刃般的匕锋划过战场，收割垂死者的生命——造成 190% 物理伤害；目标生命低于 50% 时，收割之势更盛（伤害＋30%）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "淬毒之心": {
+  "name": "淬毒之心",
+  "new_desc": "毒液在血脉中日夜淬炼，毒性愈发猛烈——毒层伤害＋10%（二转被动，毒强化）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "毒雾·淬": {
+  "name": "毒雾·淬",
+  "new_desc": "掷出淬炼过的毒囊，幽绿雾气弥漫全场——造成 80% 全体物理伤害并叠加 2 层中毒，冷却 3 回合（AOE 叠毒）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "淬毒刺杀": {
+  "name": "淬毒刺杀",
+  "new_desc": "匕刃在毒液中淬至极致，一击种下深重毒患——造成 200% 物理伤害并叠加 4 层中毒（深度叠毒）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "幻影舞": {
+  "name": "幻影舞",
+  "new_desc": "身影在敌阵中翩然起舞，匕光织成夺命之网——造成 100% 物理伤害×5（终极连击）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "终结·暗影绞杀": {
+  "name": "终结·暗影绞杀",
+  "new_desc": "暗影化作绞索缠上咽喉，终结一切反抗——造成 500% 物理伤害（终极爆发）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "影之国度": {
+  "name": "影之国度",
+  "new_desc": "撕裂现实踏入影之国度，万物皆在暗影掌控之中——速度＋40%、每回合暴击大幅提升，持续 3 回合（三转奥义）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "剧毒风暴": {
+  "name": "剧毒风暴",
+  "new_desc": "掀起剧毒风暴席卷全场，腐蚀每一寸血肉——造成 150% 全体物理伤害并叠加 4 层中毒，冷却 4 回合（群体毒爆）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "万毒噬心": {
+  "name": "万毒噬心",
+  "new_desc": "万种剧毒凝于匕尖，噬心蚀骨——造成 300% 物理伤害并叠加 5 层中毒（终极毒杀）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "万毒归宗": {
+  "name": "万毒归宗",
+  "new_desc": "万毒归一，全场敌人体内毒素同时崩解迸发——全体剧毒爆发，毒层越厚崩解越烈（毒爆核弹，三转奥义）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "幽影袭": {
+  "name": "幽影袭",
+  "new_desc": "幽影自暗处扑出，匕刃吻向气血充盈的猎物——造成 130% 物理伤害，对满血目标必定暴击（暴击命中时影步＋1）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "暗影步": {
+  "name": "暗影步",
+  "new_desc": "一步踏碎光影，身形没入暗影之中——消耗 1 点影步进入潜行，下次攻击必定暴击",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "幽影连刺": {
+  "name": "幽影连刺",
+  "new_desc": "幽影化作两道残像接连刺出，皆奔要害而去——造成 120% 物理伤害×2，对满血目标必定暴击（2 段全暴击时影步＋2）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "幽影刃": {
+  "name": "幽影刃",
+  "new_desc": "凝聚暗影为刃，自潜行中一击破敌——造成 200% 物理伤害，对满血目标必定暴击，消耗 3 点影步（潜行出手时伤害×1.25）",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "终结·破影一击": {
+  "name": "终结·破影一击",
+  "new_desc": "破开影幕的终焉一击，伏于暗影中的杀机倾泻而出——造成 320% 致命一击，消耗 4 点影步；潜行伏击出手时伤害×1.5",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "***_ci_ke_cui_du_zhi_ren": {
+  "name": "淬毒之刃",
+  "new_desc": "导师亲授的淬毒杀法，匕刃划过时毒液渗入伤口——造成 130% 物理伤害，50% 概率使目标中毒 2 回合",
+  "src": "desc_rewrite_ranger.json"
+ },
+ "龙息": {
+  "name": "龙息",
+  "new_desc": "喉间涌起龙血炽焰，一口龙息焚尽敌甲——造成 90% 真伤(无视全部防御)，附带灼烧 1 层，命中时龙力＋1",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙鳞": {
+  "name": "龙鳞",
+  "new_desc": "龙血凝鳞覆体，坚逾玄铁——防御＋45% 持续 2 回合（消耗 2 点龙力）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙威": {
+  "name": "龙威",
+  "new_desc": "释放上古龙威压向敌阵——敌方攻击－30% 持续 3 回合（消耗 2 点龙力）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙爪": {
+  "name": "龙爪",
+  "new_desc": "利爪裹着灼热龙炎撕裂血肉——造成 160% 物理伤害，附带灼烧 1 层，命中时龙力＋2",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙脉沸腾": {
+  "name": "龙脉沸腾",
+  "new_desc": "血脉中的龙之力量翻涌不息——灼烧伤害＋15%（被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙焰吐息": {
+  "name": "龙焰吐息",
+  "new_desc": "倾尽龙魂之力喷吐熔金烈焰——260% 真伤(无视全部防御)，附带灼烧 2 层，消耗 5 点龙力、命中返还 1 点；龙力≥8 时伤害＋20%(龙威)",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "龙脉终曲": {
+  "name": "龙脉终曲",
+  "new_desc": "龙脉燃至顶点，以全副龙血奏响终章——造成 320% 真伤，消耗 10 点龙力（满龙力终极：施放时每点龙力使伤害＋10%）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_long_hun": {
+  "name": "龙魂",
+  "new_desc": "龙魂寄于血脉，诸般元素难侵——元素抗性＋5%（龙裔誓约觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "***_dragon_oath_huo_zhi_qin_he": {
+  "name": "火之亲和",
+  "new_desc": "血脉与火焰共鸣，灼烧愈发炽烈——灼烧伤害＋20%（龙裔誓约觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时滞术": {
+  "name": "时滞术",
+  "new_desc": "拨动时间的丝线，让敌手的动作凝滞如浆——造成 160% 魔法伤害，50% 概率使目标减速 2 回合（时之沙＋1）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时间裂隙": {
+  "name": "时间裂隙",
+  "new_desc": "撕裂时间之壁，放出两道错位的时光刃——造成 130%×2 魔法伤害，每段 40% 概率减速（消耗 1 点时之沙）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "凝时锁": {
+  "name": "凝时锁",
+  "new_desc": "以流逝之光凝成无形锁链，锁死敌手的瞬间——造成 140% 魔法伤害，35% 概率眩晕 1 回合（消耗 1 点时之沙）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时间静止": {
+  "name": "时间静止",
+  "new_desc": "吟唱禁忌咒文，令时间在此刻停驻——使目标陷入停滞 2 回合（时之沙＋1）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时停领域": {
+  "name": "时停领域",
+  "new_desc": "三转奥义，将一方天地拖入静止时域——300% 魔法伤害，必定眩晕 1 回合，消耗 3 点时之沙；时之沙盈满(5)时伤害＋30%(沙漏盈满)",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时间坍缩": {
+  "name": "时间坍缩",
+  "new_desc": "撕开时间奇点，令战场随钟摆崩塌——150% 全场魔法伤害，全场减速、50% 概率冻结(时停大炮)，消耗 5 点时之沙，命中 ≥3 目标返还 1 点",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "时光回溯": {
+  "name": "时光回溯",
+  "new_desc": "让指针倒转，把受创的时光重新拨回——解除自身减速并刷新自身技能冷却（消耗 2 点时之沙）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_mo_li_guan_chuan": {
+  "name": "魔力贯穿",
+  "new_desc": "每一次攻击都拨动时间的节拍——攻击命中时，时间之沙＋1（时咒法师觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_shi_jian_gan_zhi": {
+  "name": "时间感知",
+  "new_desc": "对时间流逝的敏锐感知，让咒语衔接更快——冷却缩减＋5%（时咒法师觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "星陨": {
+  "name": "星陨",
+  "new_desc": "引动星辉坠击，为猎物烙上命定的印记——造成 165% 物理伤害，叠加 1 层猎杀标记（命中时猎印＋1）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "占卜": {
+  "name": "占卜",
+  "new_desc": "仰望星轨占卜吉凶，让下一次出手更加致命——暴击＋20% 持续 3 回合",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "命运之轮": {
+  "name": "命运之轮",
+  "new_desc": "转动命运之轮，三连星芒接连噬咬猎物——造成 160% 魔法伤害连击 3 次（消耗 1 点猎印）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "星辰之力": {
+  "name": "星辰之力",
+  "new_desc": "沐浴星光而行，幸运随之眷顾——幸运＋5%（被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "星轨连射": {
+  "name": "星轨连射",
+  "new_desc": "循着星轨连发两箭，星辉再度烙上印记——造成 120%×2 物理伤害，叠加 1 层猎杀标记（命中时猎印＋1）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "星祭": {
+  "name": "星祭",
+  "new_desc": "以猎印为祭、星光为刃，劈向命定之敌——造成 200% 物理伤害，叠加 2 层猎杀标记，消耗 3 点猎印",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "星辉祈愿": {
+  "name": "星辉祈愿",
+  "new_desc": "向星海许下祈愿，星光凝聚成新的印记——暴击率＋20% 持续 3 回合，施放后猎印＋2（大终结前奏）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "流星陨落": {
+  "name": "流星陨落",
+  "new_desc": "召唤流星群终结被星光标记的猎物——320% 致命一击，消耗 5 点猎印；目标带标记受易伤(每层＋20%)，猎印满(5/5)施放伤害＋15%(流星盈满)",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_p_lie_shou_ben_neng": {
+  "name": "猎手本能",
+  "new_desc": "猎手对猎物的直觉，让每一次出手都直指要害——对带标记目标暴击＋10%（星语者觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "召唤骷髅": {
+  "name": "召唤骷髅",
+  "new_desc": "吟唱悼咏，唤出墓穴中的白骨仆从——召唤骷髅兵加入战斗(上限 3，自动攻击并为你挡刀)，消耗 2 点悼咏",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "亡灵狂暴": {
+  "name": "亡灵狂暴",
+  "new_desc": "以悼咏催动亡者的凶性，白骨之军杀意暴涨——攻击＋30% 持续 3 回合",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "死亡汲取": {
+  "name": "死亡汲取",
+  "new_desc": "以暗蚀之力啃噬生灵，将其生命据为己有——造成 120% 暗蚀伤害，吸血回复等于伤害的一半（悼咏＋1）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "死亡契约": {
+  "name": "死亡契约",
+  "new_desc": "与亡者缔结的契约在生死之际应验——致命伤害由召唤物代受(以 20% 生命存活，每场 1 次，被动)",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "墓穴低语": {
+  "name": "墓穴低语",
+  "new_desc": "墓穴深处的低语化作蚀骨寒风，吹醒沉睡的白骨——造成 80% 全体暗蚀伤害并召唤 1 只骷髅，消耗 3 点悼咏",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "骷髅海": {
+  "name": "骷髅海",
+  "new_desc": "打开墓门，让白骨之潮汹涌而出——召唤骷髅兵并攻击＋30% 持续 3 回合，消耗 5 点悼咏",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "献祭暗焰": {
+  "name": "献祭暗焰",
+  "new_desc": "将亡灵献入暗焰，蚀骨火海吞没战场——130% 全体魔法伤害，消耗 1 只骷髅追加 60% 全体暗蚀，消耗 5 点悼咏",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "安魂曲": {
+  "name": "安魂曲",
+  "new_desc": "奏响送葬终章，以暗蚀淹没战场——300% 全体暗蚀伤害，以伤害值一半回复自身，消耗 10 点悼咏（满档挽歌）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "***_hymn_mu_xue_hu_jia": {
+  "name": "墓穴护甲",
+  "new_desc": "亡者的护佑缠身，伤痛与悼咏一同沉淀——受击减伤 5%，受击时悼咏＋1（暗影神谕觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_p_an_ying_zhi_wu": {
+  "name": "暗影之舞",
+  "new_desc": "与暗影共舞，藏于黑暗中的刃更加致命——潜行状态下暴击伤害＋30%（暮影行者觉醒即得，被动）",
+  "src": "desc_rewrite_advanced.json"
+ },
+ "sk_mo_...hong": {
+  "name": "魔力脉冲",
+  "new_desc": "凝集魔力脉冲轰向敌阵，奥术之力在命中的瞬间奔涌——造成 170% 魔法伤害（导师秘传，CD 2）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._jie": {
+  "name": "圣光惩戒",
+  "new_desc": "召来圣光凝成惩戒之剑劈落——造成 140% 魔法伤害，对黑暗生物格外克制（导师秘传，CD 2）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_jiu...uang": {
+  "name": "救赎之光",
+  "new_desc": "高举圣徽，救赎之光洒遍全队——治疗全队 150% 生命（团队技能，副本中全队共享，CD 2）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_huo_qiu_shu": {
+  "name": "火球术",
+  "new_desc": "将游离的火元素凝成灼热弹丸掷出，命中即焚（100% 火系伤害）并烙下火印；若目标已带火印，火焰燎原炸开（伤害＋20%、火印层数＋1）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_yuan_su_bao_fa": {
+  "name": "元素爆发",
+  "new_desc": "调动周身元素之力倾泻而出——造成 160% 当前系伤害，并触发一次元素反应（蒸发/超载/冻结/感电）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_yua...huan": {
+  "name": "元素流转",
+  "new_desc": "让元素在脉络中流转不息——魔攻＋50% 持续 3 回合；组队时元素之力流向全队（全队魔攻强化）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_yuan_su_dan_mu": {
+  "name": "元素弹幕",
+  "new_desc": "连珠般掷出两枚元素弹丸——造成 100%×2 当前系伤害（共 200%），低耗填充输出",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_yuan_su_hu_dun": {
+  "name": "元素护盾",
+  "new_desc": "以元素之力在周身凝成护盾——防御＋45% 持续 3 回合（CD 3）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_ao_..._hua": {
+  "name": "奥术强化",
+  "new_desc": "吟唱奥术咒文强化自身——魔攻＋50% 持续 3 回合，为爆发蓄势（CD 3）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_bin...xing": {
+  "name": "冰霜新星",
+  "new_desc": "冰霜以自身为圆心炸裂扩散——造成 80% 全体冰系伤害，30% 概率冻结目标 1 回合（强控·群体，CD 3）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_yua..._bao": {
+  "name": "元素风暴",
+  "new_desc": "唤起元素风暴席卷全场——造成 200% 当前系全体伤害；目标带有元素印记时风暴过载（伤害＋50%）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_yun_shi_shu": {
+  "name": "陨石术",
+  "new_desc": "引燃天际火云召唤陨石——蓄力 2 回合（受击会打断），陨石坠落后轰击全场，造成 300% 火系范围伤害（可及全阵后排）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_fa_shi_fa_shu_jin_zhi": {
+  "name": "法术禁制",
+  "new_desc": "以法术禁制攫住敌手的吟唱——造成 30% 微量魔法伤害，命中即打断目标蓄力（可打断读条技能）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._dan": {
+  "name": "圣光弹",
+  "new_desc": "凝圣光为弹丸疾射而出——造成 100% 圣光伤害；自身生命高于 70% 时，光之祝福加持（伤害＋20%）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_mu_shi_zhi_yu_shu": {
+  "name": "治愈术",
+  "new_desc": "引导圣光抚慰伤口——治疗 200% 生命；自身生命低于 30% 时圣光愈发炽烈（治疗量＋50%，紧急救治）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she...g_ji": {
+  "name": "圣光惩击",
+  "new_desc": "汇聚圣光重击敌人——造成 200% 伤害并驱散敌方增益；信仰达到 8 点时神威更盛（伤害＋40%）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._dun": {
+  "name": "圣光护盾",
+  "new_desc": "以圣光凝成壁垒护住自身——防御＋45% 持续 3 回合（保命）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "***_mu_shi_qun_ti_zhi_yu": {
+  "name": "群体治愈",
+  "new_desc": "圣光如甘霖洒落全队——治疗全队 150% 生命（群奶核心，团队技能）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_xin..._dao": {
+  "name": "信仰祈祷",
+  "new_desc": "向神明祈祷，换取力量加身——魔攻＋50% 持续 3 回合（增幅）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._yan": {
+  "name": "神圣祷言",
+  "new_desc": "低诵神圣祷言，战意随圣光高涨——魔攻＋50% 持续 3 回合（战斗牧师爆发前奏）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._san": {
+  "name": "圣光驱散",
+  "new_desc": "圣光屏障护佑全队——全队防御强化（团队技能；当前实现为防御强化，驱散/净化战斗加成二期排期待定）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._lin": {
+  "name": "神恩降临",
+  "new_desc": "神恩如瀑布倾泻，治愈全队——治疗全队 180% 生命，消耗全部信仰（每点使治疗量＋8%）；自身生命低于 30% 时圣光迸发（治疗量＋50%，低血救场）",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_da_..._shu": {
+  "name": "大治疗术",
+  "new_desc": "凝神蓄力引导圣光——蓄力 1 回合（受击会打断），圣光治愈全队，治疗 320% 生命",
+  "src": "desc_rewrite_misc.json"
+ },
+ "sk_she..._cai": {
+  "name": "神罚·圣裁",
+  "new_desc": "引动神罚圣裁从天而降——造成 300% 全体圣光伤害，消耗全部信仰（基础满点神迹）",
+  "src": "desc_rewrite_misc.json"
+ }
+}

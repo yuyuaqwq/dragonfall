@@ -3347,18 +3347,14 @@ BRANCH_SKILLS = {
     },
 }
 
-# v151 隐藏职业删除：_ADD_HIDDEN_SKILLS 已移除（原 PLAYER_SKILLS.update(_ADD_HIDDEN_SKILLS) 删除）
-
-# ===== v151 职业体系重构：6 基础职业新技能表（整体替换，overrides 已含旧 key 兼容映射）=====
-# 来源：game/data/skills_v151_overrides.py（由 workspace/skills_v151_*.py 归一化生成）
-# 策略：PLAYER_SKILLS 整体替换 6 职业段（同名技能沿用旧 key，玩家存档兼容；纯新增用新 key）
-#      BRANCH_SKILLS 整体替换 6 职业段（分支 key 1/2/3 保留，技能 key 统一中文名）
+# ===== v153 职业体系重做：294 技能整体替换（v151 表作废）=====
+# 来源：game/data/skills_v153.py（由 scripts/gen_skills_v153.py 从 docs/CLASS_MECHANICS_v153.md 生成）
 try:
-    from .skills_v151_overrides import _V151_PLAYER_SKILLS, _V151_BRANCH_SKILLS
-    PLAYER_SKILLS.update(_V151_PLAYER_SKILLS)
-    BRANCH_SKILLS.update(_V151_BRANCH_SKILLS)
-except Exception as _e:  # pragma: no cover - v151 覆盖层失败时静默降级（不影响旧数据加载）
-    print(f"[skills] v151 override import failed: {_e}")
+    from .skills_v153 import _V153_PLAYER_SKILLS, _V153_BRANCH_SKILLS
+    PLAYER_SKILLS.update(_V153_PLAYER_SKILLS)
+    BRANCH_SKILLS.update(_V153_BRANCH_SKILLS)
+except Exception as _e:  # pragma: no cover - v153 覆盖层失败时静默降级（不影响旧数据加载）
+    print(f"[skills] v153 override import failed: {_e}")
 
 # v95.23 职业导师进阶技能：各城导师专属，普通『技能学习』学不到，需找导师对话学习
 # 格式与 PLAYER_SKILLS 技能一致（battle/engine 按名字查定义）

@@ -1,0 +1,30 @@
+== PLAYER_SKILLS fa_shi skills keys ==
+'sk_huo_qiu_shu' -> 火球术
+'sk_bing_jing' -> 冰晶术
+'sk_bing_zhui' -> 冰锥
+'sk_lei_ji' -> 雷击
+'sk_yuan_su_bao_fa' -> 元素爆发
+'sk_yuan_su_liu_zhuan' -> 元素流转
+'sk_yuan_su_dan_mu' -> 元素弹幕
+'sk_yuan_su_hu_dun' -> 元素护盾
+'sk_ao_shu_qiang_hua' -> 奥术强化
+'sk_bing_shuang_xin_xing' -> 冰霜新星
+'sk_yuan_su_feng_bao' -> 元素风暴
+'sk_yun_shi_shu' -> 陨石术
+'sk_fa_shu_fan_zhi' -> 法术禁制
+'sk_p_lie_yan_qin_he' -> 烈焰亲和
+'sk_p_han_shuang_qin_he' -> 寒霜亲和
+'sk_p_mo_li_peng_pai' -> 魔力澎湃
+'sk_p_mo_li_yong_dong' -> 魔力涌动
+'sk_p_yuan_su_gong_ming' -> 元素共鸣
+
+== BRANCH_SKILLS fa_shi branches ==
+branch 1: ['元素法师', '奥秘法师']
+  元素法师: ['元素冲击', '元素聚焦', '万象亲和', '双系连珠', '元素引爆', '元素湮灭']
+  奥秘法师: ['奥术弹幕', '奥术直觉', '深度冥想', '奥术飞弹', '奥术爆破', '奥术脉冲', '秘法护盾', '奥术洪流']
+branch 2: ['元素术士', '奥秘术士']
+  元素术士: ['元素之心', '元素跃迁', '元素壁垒', '元素迸发']
+  奥秘术士: ['奥术核心', '奥术之心', '法术反制', '法力护盾']
+branch 3: ['元素贤者', '奥秘贤者']
+  元素贤者: ['万象风暴', '万象天雷', '元素裁决']
+  奥秘贤者: ['奥术爆发', '奥术领域', '大奥术', '奥术主宰']
