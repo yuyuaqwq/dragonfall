@@ -110,6 +110,16 @@ DEBUFF_TURNS = 2      # 减益默认持续回合
 # v121 CTB 行动时间轴：全局行动消耗常量
 BASE_DELAY = 100.0    # 行动消耗基数（待 Agent D 模拟标定）
 SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
+# v152 CTB 彻底化：回合 → 时刻。ACT_TICK = 参考 spd 50 的平均行动间隔（BASE_DELAY/50），
+# 1 回合 ≈ ACT_TICK 时刻。所有原"持续 N 回合 / CD N 回合"换算为 N × ACT_TICK。
+# 初值由 sim_ctb_balance 标定（BASE_DELAY=100 维持、SPD_CT_CAP=80 维持），ACT_TICK 待 Agent D 复核。
+ACT_TICK = 2.0        # 1 回合 ≈ 2.0 时刻（BASE_DELAY / 50）
+CAST_ATK = 0.5        # 普攻 cast_time 系数（× 自身行动 cost）
+CAST_SKILL = 0.8      # 技能 cast_time 系数
+CAST_ITEM = 0.5       # 道具 cast_time 系数
+CAST_FOOD = 0.5       # 食物 cast_time 系数
+CAST_DEFEND = 0.3     # 防御 cast_time 系数（快动作）
+CAST_FLEE = 1.0       # 逃跑 cast_time 系数（慢，易被打断）
 
 # v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
 # handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
@@ -231,7 +241,15 @@ class Battle:
         self._active_keys = active_keys or [str(p.get("qq_id")) for p in (allies or [])]  # v137 在场玩家 key（退队过滤，命令层注入）
         self.dmg_mult = dmg_mult           # v93 GM 世界 Boss 伤害倍率（gm_伤害 设置，仅 worldboss 生效）
         self.pet = pet or {}               # 24 章宠物：{pet_key,name,level,satiety}（战斗内宠物技能用）
-        self.round = 0
+        # v152 CTB 彻底化：回合概念删除。self._now = 全局战斗绝对时刻（从 0 起单调递增）；
+        # self._p_acts = 玩家行动次数（展示用，不再叫 round）。所有"回合"结算改为按 _now 时刻到期。
+        self._now: float = 0.0
+        self._p_acts: int = 0
+        # v152：定时事件队列（heapq 按 t 升序）。事件 = {"t": 时刻, "type": str, ...}。
+        # 由 _schedule/_process_events 维护；主要用途：Boss 定时机制、宠物技能、DOT 跳动。
+        import heapq as _heapq
+        self._events: list = []
+        self._heapq = _heapq
         # v2 多对多阵列（§3.2）：enemies=敌方阵列每怪一个 dict；allies=我方阵列
         # （单机 = [player]；副本由命令层维护）。enemy 单怪兼容包装为单怪阵列。
         self._enemies_raw = enemy or {}    # 主目标 dict（单怪时整个敌方单位）
@@ -429,6 +447,32 @@ class Battle:
         # DOT 重构（契约 §2.1）：持续减益结算闸门——单机每玩家行动结算一次（现状频率）；
         # 副本由 instance 层 set False；世界 Boss 由 combat 层 force=True 触发
         self._dot_pending: bool = True
+        # v152：开战初始化事件队列——每个敌方排初始 enemy_act 事件；DOT/宠物/Boss 机制排初始 tick。
+        # 注意：from_state 恢复的战斗不在此重排（由 from_state 末尾按存档事件恢复），
+        # 仅新建战斗在此初始化。副本（instance）由命令层自行调度，不在此排 enemy_act。
+        if self.btype != "instance":
+            try:
+                for _u in self.enemies:
+                    if _u.get("hp", 0) > 0:
+                        _init_t = float(_u.get("ct", 0) or _ct_initial_wait(_u.get("spd", 0)))
+                        self._schedule(_init_t, {"type": "enemy_act", "unit": _u})
+                # DOT：有初始 debuffs 则排第一个 dot_tick
+                if any((u.get("debuffs") or {}) for u in self.enemies):
+                    self._schedule(self._now + (ACT_TICK or 2.0), {"type": "dot_tick"})
+                # Boss 定时机制：有 mech 的敌方排 mech_tick（每 interval × ACT_TICK）
+                for _u in self.enemies:
+                    _m = (_u.get("mech") or "").strip()
+                    if _m:
+                        self._schedule(self._now + 3 * (ACT_TICK or 2.0),
+                                       {"type": "mech_tick", "unit": _u, "interval": 3})
+                # 宠物：skill_interval > 0 排 pet_tick
+                if self.pet and int((self.pet or {}).get("skill_interval", 0) or 0) > 0:
+                    self._schedule(self._now + int((self.pet or {}).get("skill_interval", 0)) * (ACT_TICK or 2.0),
+                                   {"type": "pet_tick"})
+                # 词条/套装回血节奏（regen_tick 按 ACT_TICK 节奏）
+                self._schedule(self._now + (ACT_TICK or 2.0), {"type": "regen_tick"})
+            except Exception:
+                pass
 
     # ---------------- v2 阵列兼容代理（§3.2） ----------------
     @staticmethod
@@ -496,7 +540,9 @@ class Battle:
     def to_state(self) -> dict:
         return {
             "type": self.btype,
-            "round": self.round,
+            # v152：round 概念删除，改 _now（绝对时刻）+ _p_acts（玩家行动计数，展示用）
+            "now": self._now,
+            "p_acts": self._p_acts,
             # v2：敌方完整阵列（核心）；enemy 保留为兼容键（= 主目标引用）
             "enemy": self.enemy,
             "enemies": self.enemies,
@@ -563,7 +609,10 @@ class Battle:
                 merged = dict(legacy)
                 merged.update(main.get("buffs") or {})
                 main["buffs"] = merged
-        b.round = st.get("round", 0)
+        # v152：round 概念删除，改 _now（绝对时刻）+ _p_acts（玩家行动计数，展示用）。
+        # 兼容旧档：读 round 时 _p_acts 兜底；_now 缺省 0。
+        b._now = float(st.get("now", 0.0) or 0.0)
+        b._p_acts = int(st.get("p_acts", st.get("round", 0)) or 0)
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
         b.p_buffs = dict(st.get("p_buffs") or {})
         b._p_buff_hits = dict(st.get("p_buff_hits") or {})  # v151 时刻制：防御型 buff 受击计数
@@ -1085,16 +1134,24 @@ class Battle:
                 parts.append(f"✦ {rd['name']} {v}/{mx}")
         return " ".join(parts)
 
-    # ---------------- 技能冷却（v2.0） ----------------
+    # ---------------- 技能冷却（v2.0 → v152 时刻制） ----------------
     def _skill_cd_left(self, skill_name: str) -> int:
-        """技能剩余冷却回合数(0 = 可用)。"""
-        return int(self.cooldown.get(skill_name, 0) or 0)
+        """技能剩余冷却（按时刻：ready_at - now，折算成'约 N 回合'展示用；0 = 可用）。
+        v152：cooldown 存 ready_at 绝对时刻（不再存剩余回合数）。"""
+        ra = self.cooldown.get(skill_name)
+        if not ra:
+            return 0
+        if self._now >= float(ra):
+            # 到期即清（惰性清理，避免依赖 _tick 时机）
+            del self.cooldown[skill_name]
+            return 0
+        return max(1, int((float(ra) - self._now) / (ACT_TICK or 2.0)) + 1)
 
     def _skill_on_cd(self, skill_name: str) -> bool:
         return self._skill_cd_left(skill_name) > 0
 
     def _set_skill_cd(self, skill_name: str, cd: int):
-        """设置技能冷却(cd 回合，1 表示下一回合即可用)。
+        """设置技能冷却。v152：cd（回合数）→ 绝对时刻 ready_at = now + cd × ACT_TICK。
         v106.1 冷却缩减：cd ×(1-cdr)（cap 40%），保底 1（cd=1 的技能不受影响）。"""
         if cd > 0:
             cdr = 0.0
@@ -1109,38 +1166,32 @@ class Battle:
                 _ce = self._set_eff(self.player, "cdr_set", 2, on="time_freeze")
                 if _ce:
                     cd = max(1, cd + int(_ce.get("value", -1) or -1))
-            self.cooldown[skill_name] = cd
+            self.cooldown[skill_name] = self._now + cd * (ACT_TICK or 2.0)
 
     def _tick_cooldowns(self):
-        """回合结束：所有冷却－1，归零清除。"""
+        """v152 时刻制：冷却到期检查（惰性清除，非递减）。保留函数名兼容外部调用。"""
+        _now = self._now
         for k in list(self.cooldown):
-            self.cooldown[k] -= 1
-            if self.cooldown[k] <= 0:
+            if _now >= float(self.cooldown[k]):
                 del self.cooldown[k]
         # v151 修复（回合制审计 P1-1）：特效装备冷却（we_*_cd）此前只写不递减——
         # 永冻领域/无尽辉光/哨兵壁垒/深岩壁垒等"冷却 N 回合"实际永久生效。
-        # p_eff 中 we_*_cd 键与 self.cooldown 同节奏递减（回合结束）。
+        # v152：p_eff 中 we_*_cd 存 ready_at 绝对时刻（写入点 weapon_effects.py 已换算），到期惰性清除。
         _pe = self.p_eff
         if isinstance(_pe, dict):
             for _k in [k for k in list(_pe) if k.startswith("we_") and k.endswith("_cd")]:
-                _v = int(_pe.get(_k, 0) or 0) - 1
-                if _v <= 0:
+                if _now >= float(_pe.get(_k, 0) or 0):
                     _pe.pop(_k, None)
-                else:
-                    _pe[_k] = _v
         # v151 修复（回合制审计 P1-2）：星辉壁垒每 5 回合刷新计数（we_starlight_next）
-        if isinstance(_pe, dict) and int(_pe.get("we_starlight_next", 0) or 0) > 0:
-            _sn = int(_pe.get("we_starlight_next", 0) or 0) - 1
-            if _sn <= 0:
+        # v152：we_starlight_next 存 ready_at 绝对时刻，到期 → 重新触发 battle_start 特效（星辉壁垒刷新护盾）
+        if isinstance(_pe, dict) and float(_pe.get("we_starlight_next", 0) or 0) > 0:
+            if _now >= float(_pe.get("we_starlight_next", 0) or 0):
                 _pe.pop("we_starlight_next", None)
-                # 归零 → 重新触发 battle_start 特效（星辉壁垒刷新护盾）
                 try:
                     from .core.weapon_effects import proc as _we_proc
                     _we_proc(self, self.player, "battle_start", {}, [])
                 except Exception:
                     pass
-            else:
-                _pe["we_starlight_next"] = _sn
 
     # ---------------- 连招序列（v2.0，拳师） ----------------
     # 连招顺序：拳 → 踢 → 掌 →（三连触发）→ 重新开始
@@ -1432,50 +1483,34 @@ class Battle:
             eff = 0.0
         return BASE_DELAY / max(1.0, eff)
 
-    def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None):
-        """v121 CTB→v130.10 绝对时刻：行动者 ct += cost；其余所有存活单位 ct -= cost（时间流逝，正确保留）。
-        side="p"：玩家行动完（用传入 player 的速度；from_state 恢复/副本构造无 self.player，
-        必须传 player 否则 spd 视为 0 导致 p_ct 每次 +BASE_DELAY 卡死玩家）；
-        side="e"：指定敌方单位行动完（该单位 cost 广播给玩家和其他敌）。
-        敌方单位无 get("ct") 时兜底 setdefault(-spd)。"""
+    def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None, cast_mult: float = 1.0):
+        """v152 真·事件队列：行动者 next_act_at = now + 行动耗时（绝对时刻，不互相减）。
+        兼容壳：保留函数名（大量外部调用）。side="p"：玩家行动完；side="e"：敌方单位行动完。
+        cast_mult：行为耗时系数（普攻 0.5 / 技能 0.8 / 道具 0.5 / 防御 0.3 / 逃跑 1.0）。
+        - 玩家：p_ct 升级为"玩家下次可行动绝对时刻"（= now + cast_mult × cost）
+        - 敌方：u["ct"] 升级为"该单位下次可行动绝对时刻"（= now + cast_mult × cost）
+        - 绝对时刻制：其他单位不参与"时间流逝"（它们的 next_act_at 是绝对值，不因别人行动而变）。
+        """
+        _now = self._now
         if side == "p":
             _p = player or self.player or {}
             p_cost = self._ct_cost(self._player_stats(_p).get("spd", 0) if _p else 0)
-            self.p_ct += p_cost
+            self.p_ct = _now + (p_cost * float(cast_mult or 1.0))
+            # 敌方：绝对时刻制下无需互相调整（next_act_at 已是绝对值）。兜底初始化。
             for u in self.enemies:
-                u.setdefault("ct", _ct_initial_wait(u.get("spd", 0)))
-                if u.get("hp", 0) > 0:
-                    u["ct"] = float(u.get("ct", 0) or 0) - p_cost
+                if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
+                    u["ct"] = _ct_initial_wait(u.get("spd", 0))
         else:
             u = unit or {}
-            u.setdefault("ct", -float(u.get("spd", 0) or 0))
+            if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
+                u["ct"] = _ct_initial_wait(u.get("spd", 0))
             # v121 审计修复：敌方 cost 用 buffed spd（_enemy_stats 应用 spd_down ×0.5 等），
             # 否则敌方减速/增益不影响其行动频率（与玩家侧 _player_stats 对称）
             e_cost = self._ct_cost(self._enemy_stats(u).get("spd", 0))
-            u["ct"] = float(u.get("ct", 0) or 0) + e_cost
-            # 玩家侧时间流逝
-            self.p_ct -= e_cost
-            # 其他存活敌方单位时间流逝
-            for other in self.enemies:
-                if other is u:
-                    continue
-                other.setdefault("ct", -float(other.get("spd", 0) or 0))
-                if other.get("hp", 0) > 0:
-                    other["ct"] = float(other.get("ct", 0) or 0) - e_cost
-        # v137 副本（btype="instance"）allies 广播：多玩家 CTB 时间流逝对称（v121 对称性保留）。
-        # side="e"：行动者之外存活队友 snap.ct -= e_cost；side="p"：行动者之外存活队友 -= p_cost
-        # （p_cost 已在本函数上方按 side=="p" 分支算出）。玩家 ct 权威 = 各快照 snap["ct"]，
-        # self.p_ct 单值在 instance 分支不参与调度。仅当 allies 非空才广播——
-        # monster/worldboss/pvp 单机路径 allies 恒空，行为零变化。退队过滤由命令层
-        # 注入 active_keys 完成（R8），广播按存活快照全量。
-        if self.allies:
-            _cost = e_cost if side == "e" else (p_cost if side == "p" else 0.0)
-            if _cost > 0:
-                for _a in self.allies:
-                    if _a is player:
-                        continue
-                    if _a.get("hp", 0) > 0:
-                        _a["ct"] = float(_a.get("ct", 0) or 0) - _cost
+            u["ct"] = _now + (e_cost * float(cast_mult or 1.0))
+        # v137 副本（btype="instance"）allies 广播：多玩家 CTB 时间流逝对称。
+        # 绝对时刻制下各玩家 next_act_at 独立，无需广播调整（各自按自己的 cost 排程）。
+        # 保留函数签名兼容；instance 层调度由命令层 _instance_next_actor 按 next_act_at 选人。
 
     # ---------------- v2 目标选择 / 蓄力（§3.2、§6） ----------------
     def _player_attacker(self, player: dict) -> dict:
@@ -1651,8 +1686,8 @@ class Battle:
                 _fl.append("技能施放失败！可选择其他行动")
                 return logs + _fl, False
 
-        # ---- 正常回合开始 ----
-        self.round += 1
+        # ---- 正常行动开始（v152：不再有回合计数，_p_acts 仅展示用）----
+        self._p_acts += 1
         # v116.1 pv_broken：玩家本回合是否用过技能（供敌方 _boss_mech 反扑判定）——回合开始复位
         self._player_recent_skill = False
         # v2 蓄力：回合开始结算——归零自动释放技能（§6.2）
@@ -1715,18 +1750,20 @@ class Battle:
             self._active_target = None
 
         if action == "defend":
-            return self._do_defend(player, logs, enemy_act)
+            return self._do_defend(player, logs, enemy_act, cast_mult=CAST_DEFEND)
         if action == "flee":
-            return self._do_flee(player, logs)
+            return self._do_flee(player, logs, cast_mult=CAST_FLEE)
         if action == "use_item":
             logs += self._do_use_item(skill_name or "", player)
             if self._enemy_dead():
                 self.result = "victory"
                 self._end_round()
                 return logs, True
-            # v121 CTB：使用道具也是玩家行动 → 玩家 ct 照走（PVP 不介入）
+            # v152：使用道具也是玩家行为，有行为时长（吃药有时长，鱼鱼明确要求）
+            # 道具 cast_mult：食物（hot/foodfx）用 CAST_FOOD，普通道具用 CAST_ITEM
+            _cast_mult = CAST_FOOD if (skill_name or "").startswith(("foodfx:", "hot:")) else CAST_ITEM
             if self.btype != "pvp":
-                self._after_actor_ct("p", player=player)
+                self._after_actor_ct("p", player=player, cast_mult=_cast_mult)
             return self._enemy_phase(player, logs, enemy_act)
 
         st = self._player_stats(player)
@@ -1734,17 +1771,19 @@ class Battle:
             logs += self._do_player_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
             # v116.1 pv_broken：记录玩家本回合用了技能，敌方 _boss_mech 据此决定反扑
             self._player_recent_skill = True
+            _cast_mult = CAST_SKILL
         else:
             logs += self._player_attack(st, player)
+            _cast_mult = CAST_ATK
 
         if self._enemy_dead():
             self.result = "victory"
             self._end_round()
             return logs, True
 
-        # v121 CTB：玩家行动完 → 玩家 ct += cost、其余敌方单位 ct -= cost（PVP 不介入）
+        # v152：玩家行动完 → 玩家 next_act_at = now + 行为耗时（cast_mult × cost），PVP 不介入
         if self.btype != "pvp":
-            self._after_actor_ct("p", player=player)
+            self._after_actor_ct("p", player=player, cast_mult=_cast_mult)
 
         # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每回合一次）
         if self.summons:
@@ -1758,34 +1797,22 @@ class Battle:
         return self._enemy_phase(player, logs, enemy_act)
 
     def _enemy_phase(self, player: dict, logs: list, enemy_act: bool, defend: bool = False) -> tuple:
-        """v121→v130.10 绝对时刻敌方行动段：while 敌方存活单位中最小 ct > 0（行动点）→ 该单位行动一次，
-        行动后结算其 ct（自身 +cost、其余含玩家 -cost）；死亡单位即时移出候选（存活判定沿用 alive）。
-        被控（stun/freeze）跳过的敌方单位行动后仍照常结算其 ct（行动被浪费）。
-        defend=True 时敌方伤害减半。硬上限：单次玩家行动后敌方最多连动 8 次，超限 break。
-        PVP（btype=="pvp"，或 enemy_act=False 由对方真人操作）不介入。"""
+        """v152 真·事件队列：推进战斗时刻到玩家下次可行动点，期间处理所有事件（敌方行动/DOT/机制）。
+        - 玩家行动后：玩家 next_act_at = now + 行为耗时（已在 player_turn 内 _after_actor_ct("p") 排好）
+        - _process_until(玩家 next_act_at)：弹出并处理所有 t <= until 的事件
+          · enemy_act：敌方单位行动（用其 buffed spd cost 排下一次）
+          · dot_tick / mech_tick / pet_tick / regen_tick：持续效果与定时机制
+          · cast_done：玩家行为生效（普攻/技能伤害在 cast 结束时结算）
+        - 防御状态（defend=True）：期间所有敌方伤害减半
+        - 硬上限：单次推进最多处理 64 个事件（防极端配速死循环/无限事件）
+        PVP（btype=="pvp"，或 enemy_act=False 由对方真人操作）不介入。
+        """
         if enemy_act and self.btype != "pvp":
-            from .core.formation import alive_units
-            _guard = 0  # 敌方连动硬上限（防极端配速死循环）
-            while _guard < 8:
-                alive = alive_units(self.enemies)
-                if not alive or self._player_dead(player):
-                    break
-                min_e_ct = min(float(u.get("ct", 0) or 0) for u in alive)
-                if min_e_ct > 0.0:  # v130.10 绝对时刻：0 为行动点
-                    break
-                unit = min(alive, key=lambda u: float(u.get("ct", 0) or 0))
-                mlogs, dmg = self._enemy_turn(player, unit)
-                logs += mlogs
-                if defend and dmg > 0:
-                    dmg = max(1, int(dmg * DEFEND_REDUCE))
-                    # O116 与伤害文案一起延迟输出（闪避时不显示）
-                    self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-                self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
-                # 行动后结算该单位 ct（被控跳过同样结算 —— 行动被浪费）
-                self._after_actor_ct("e", unit)
-                if self._player_dead(player):
-                    self.result = "defeat"
-                _guard += 1
+            until = float(getattr(self, "p_ct", 0) or 0)
+            if until <= 0:
+                until = self._now + (ACT_TICK or 2.0)
+            # v152：行为生效事件——玩家行动已即时结算效果，这里只推进时间处理事件
+            self._process_until(until, logs, player, defend=defend)
             # v140 波3.1：特效装备敌人行动后（兰顿倦意/冰脉寒流——速度 -6%/-8% 每层）
             try:
                 from .core.weapon_effects import proc as _we_proc
@@ -1793,12 +1820,113 @@ class Battle:
             except Exception:
                 pass
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
-        self._end_round()
+        # v152 时刻制：时间推进（含到期检查）。dt = 玩家下次可行动点 - 当前 now。
+        # _process_until 已把 now 推进到 <= p_ct 的最新事件时刻；此处补推进到 p_ct（玩家行动点），
+        # 期间处理到期（buff/CD/DOT 用绝对时刻，与推进步长无关）。
+        _target = float(getattr(self, "p_ct", 0) or 0)
+        _dt = _target - self._now
+        if _dt > 0:
+            self._advance_time(_dt)
         return logs, self.result is not None
 
+    def _schedule(self, t: float, ev: dict):
+        """排一个事件到队列（按 t 升序）。ev 含 type 及 payload。
+        v152：seq 用全局递增计数器，避免同 t 时比较 dict 报错。"""
+        if t < self._now:
+            t = self._now
+        self._ev_seq = getattr(self, "_ev_seq", 0) + 1
+        self._heapq.heappush(self._events, (float(t), self._ev_seq, ev))
+
+    def _process_until(self, until_t: float, logs: list, player: dict, defend: bool = False):
+        """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。"""
+        if until_t <= self._now:
+            return
+        _guard = 0
+        from .core.formation import alive_units
+        while self._events and _guard < 64:
+            t, _seq, ev = self._events[0]
+            if float(t) > float(until_t):
+                break
+            self._heapq.heappop(self._events)
+            self._now = max(self._now, float(t))
+            _guard += 1
+            evt = ev.get("type", "")
+            try:
+                if evt == "enemy_act":
+                    unit = ev.get("unit")
+                    if not unit or unit.get("hp", 0) <= 0:
+                        continue
+                    if self._player_dead(player):
+                        self.result = "defeat"
+                        break
+                    mlogs, dmg = self._enemy_turn(player, unit)
+                    logs += mlogs
+                    if defend and dmg > 0:
+                        dmg = max(1, int(dmg * DEFEND_REDUCE))
+                        self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
+                    self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
+                    # 行动后排下一次（用 buffed spd cost）
+                    self._after_actor_ct("e", unit)
+                    self._schedule(float(unit.get("ct", 0) or 0), {"type": "enemy_act", "unit": unit})
+                    if self._player_dead(player):
+                        self.result = "defeat"
+                        break
+                elif evt == "dot_tick":
+                    self._tick_dots(player, logs, force=True)
+                    # 重新排下一次 DOT 跳动（若有未到期 DOT）
+                    self._reschedule_dot(player, ev)
+                elif evt == "mech_tick":
+                    # Boss 定时机制：每 interval × ACT_TICK 触发一次 _boss_mech
+                    self._boss_mech(logs, ev.get("unit"))
+                    self._reschedule_mech(ev)
+                elif evt == "pet_tick":
+                    if self.pet:
+                        logs = self._pet_skill_turn(player, logs)
+                        if self.result == "victory":
+                            break
+                    self._reschedule_pet(ev)
+                elif evt == "regen_tick":
+                    # 词条/套装"回合开始回血"——按 ACT_TICK 节奏触发
+                    self._turn_start(player)
+                    self._reschedule_regen(ev)
+                elif evt == "cast_done":
+                    # 玩家行为生效（v152 即时结算已做，此事件仅用于日志时序，可空处理）
+                    pass
+            except Exception as _ex:
+                # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
+                logs.append(f"(事件处理异常: {_ex})")
+
+    def _reschedule_dot(self, player: dict, ev: dict):
+        """DOT 跳动后重新排下一次（若有未到期 DOT）。"""
+        has_dot = False
+        for u in self.enemies:
+            db = u.get("debuffs") or {}
+            if any(int(d.get("left", 0) or 0) > 0 for d in db.values()):
+                has_dot = True
+                break
+        if has_dot:
+            self._schedule(self._now + (ACT_TICK or 2.0), {"type": "dot_tick"})
+
+    def _reschedule_mech(self, ev: dict):
+        """Boss 定时机制重新排。interval 从事件 payload 读。"""
+        interval = float(ev.get("interval", 3) or 3)
+        self._schedule(self._now + interval * (ACT_TICK or 2.0),
+                       {"type": "mech_tick", "unit": ev.get("unit"), "interval": interval})
+
+    def _reschedule_pet(self, ev: dict):
+        """宠物技能重新排。interval 从 pet 数据读。"""
+        interval = float((self.pet or {}).get("skill_interval", 0) or 0)
+        if interval > 0:
+            self._schedule(self._now + interval * (ACT_TICK or 2.0), {"type": "pet_tick"})
+
+    def _reschedule_regen(self, ev: dict):
+        """词条/套装回血节奏重新排。"""
+        self._schedule(self._now + (ACT_TICK or 2.0), {"type": "regen_tick"})
+
     def _add_shield(self, key: str, value: int, turns: int = 3):
-        """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新回合（取 max），异源并存各计各的回合。
-        v106.2 护盾强度：shield_power 属性 ×(1+shield_power)（cap 50%）"""
+        """v101.28d 护盾 buff 化：同源叠加盾值 + 刷新时长（取 max），异源并存各计各的时长。
+        v106.2 护盾强度：shield_power 属性 ×(1+shield_power)（cap 50%）
+        v152 时刻制：turns（回合数）→ expire_at = now + turns × ACT_TICK。"""
         if value <= 0:
             return
         try:
@@ -1807,12 +1935,17 @@ class Battle:
                 value = int(value * (1 + _spv))
         except Exception:
             pass
+        _exp = self._now + max(1, int(turns or 1)) * (ACT_TICK or 2.0)
         cur = self.p_shields.get(key)
         if cur:
             cur["value"] += value
-            cur["turns"] = max(cur["turns"], turns)
+            # 兼容旧存档 {"value","turns"} → 转 expire_at
+            if "turns" in cur and "expire_at" not in cur:
+                cur["expire_at"] = self._now + max(1, int(cur.get("turns", 1))) * (ACT_TICK or 2.0)
+                cur.pop("turns", None)
+            cur["expire_at"] = max(float(cur.get("expire_at", _exp)), _exp)
         else:
-            self.p_shields[key] = {"value": value, "turns": turns}
+            self.p_shields[key] = {"value": value, "expire_at": _exp}
 
     def _do_use_item(self, payload: str, player: dict) -> list:
         """战斗中使用消耗品：恢复/增益(v61 抽公共，普通回合与额外行动共用)"""
@@ -2236,25 +2369,25 @@ class Battle:
         return logs
 
     # ---------------- 防御 / 逃跑 ----------------
-    def _do_defend(self, player: dict, logs: list, enemy_act: bool = True) -> tuple:
+    def _do_defend(self, player: dict, logs: list, enemy_act: bool = True, cast_mult: float = 1.0) -> tuple:
         logs.append("🛡️ 你架起防御姿态，受到的伤害减半！")
         self.p_defending = True
-        # v121 CTB：防御也是玩家行动 → 玩家 ct 照走；敌方段统一走 _enemy_phase 的 ct 判定
-        # （defend=True 时 _enemy_phase 内每个敌方单位伤害减半），PVP 不介入
+        # v152：防御也是玩家行为，有行为时长（快动作 cast_mult=CAST_DEFEND）。
+        # 防御期间敌方可行动（_process_until 处理到玩家 next_act_at），伤害减半由 defend=True 生效。
         if enemy_act and self.btype != "pvp":
-            self._after_actor_ct("p", player=player)
+            self._after_actor_ct("p", player=player, cast_mult=cast_mult)
             return self._enemy_phase(player, logs, enemy_act, defend=True)
         self._end_round()
         return logs, self.result is not None
 
-    def _do_flee(self, player: dict, logs: list) -> tuple:
+    def _do_flee(self, player: dict, logs: list, cast_mult: float = 1.0) -> tuple:
         if self.btype in ("worldboss", "pvp"):
             logs.append("💨 这里无法逃跑！背水一战吧！")
             if self.btype == "pvp":
                 # PVP：不触发 AI 反击，等对方真人行动
                 return logs, False
-            # v121 CTB：逃跑失败也被敌方追击 → 玩家 ct 照走，敌方段按 ct 判定
-            self._after_actor_ct("p", player=player)
+            # v152：逃跑失败也被敌方追击 → 玩家 ct 照走（慢动作 cast_mult=CAST_FLEE），敌方段按事件队列判定
+            self._after_actor_ct("p", player=player, cast_mult=cast_mult)
             return self._enemy_phase(player, logs, True)
         # v130.7 意见#28：逃跑成功率 = 基础 FLEE_CHANCE ± 等级差×FLEE_LEVEL_STEP
         # ± 速度差×FLEE_SPD_STEP，clamp 到 [FLEE_MIN, FLEE_MAX]——高打低/快打慢更好跑，
@@ -2280,9 +2413,9 @@ class Battle:
         elif spd_diff < 0:
             flee_reason = f"敌方比你快 {-spd_diff} 点，几乎逃不脱；"
         logs.append(f"💨 逃跑失败！被追上了！({flee_reason}可以再『逃跑』，或『防御』『用药』撑住)")
-        # v121 CTB：逃跑也是玩家行动 → 玩家 ct 照走（PVP 不介入），敌方段按 ct 判定
+        # v152：逃跑也是玩家行为，有行为时长（慢动作 cast_mult=CAST_FLEE），PVP 不介入
         if self.btype != "pvp":
-            self._after_actor_ct("p", player=player)
+            self._after_actor_ct("p", player=player, cast_mult=cast_mult)
         return self._enemy_phase(player, logs, True)
 
     # ---------------- 玩家行动结算 ----------------
@@ -4291,11 +4424,20 @@ class Battle:
             return
         from .core.battle_mech import BOSS_MECHS
         mechs = [x.strip() for x in mech.split(",") if x.strip()]
-        r = self.round
+        # v152 时刻制：round 删除，r = 从绝对时刻换算的行动轮次（int(now / ACT_TICK)）。
+        # 语义 = "第几个标准行动间隔"，供 r % N / r == 1 等"每隔 N 次"机制使用。
+        r = self._tick_no()
         for m in mechs:
             handler = BOSS_MECHS.get(m)
             if handler:
                 handler(self, logs, e, r)
+
+    def _tick_no(self) -> int:
+        """v152：从绝对时刻换算行动轮次（展示/机制用）。1 轮 ≈ ACT_TICK 时刻。"""
+        try:
+            return int(self._now / (ACT_TICK or 2.0)) + 1
+        except Exception:
+            return 1
 
     def _boss_cfg(self, e: dict) -> dict:
         """v116.1：按 enemy id 从数据层解析 Boss 条件/剧本配置。
@@ -4748,7 +4890,9 @@ class Battle:
         if not pdef:
             return logs
         interval = int(pdef.get("skill_interval", 0) or 0)
-        if interval <= 0 or self.round % interval != 0:
+        # v152 时刻制：_pet_skill_turn 由 pet_tick 事件驱动（_process_until 排程），
+        # 此处守卫仅兜底直接调用路径（PVP 等未走事件队列的场景）。
+        if interval <= 0 or self._tick_no() % interval != 0:
             return logs
         stype = pdef.get("skill_type")
         pname = pet.get("name") or pdef["name"]
@@ -4775,7 +4919,8 @@ class Battle:
         if not pdef or pdef.get("skill_type") != "block":
             return dmg
         interval = int(pdef.get("skill_interval", 0) or 0)
-        if interval <= 0 or self.round % interval != 0:
+        # v152 时刻制：_pet_block_check 是被动拦截（在 _damage_player 前），按行动轮次判定。
+        if interval <= 0 or self._tick_no() % interval != 0:
             return dmg
         if random.random() < pdef.get("skill_value", 0):
             pname = pet.get("name") or pdef["name"]
@@ -4976,11 +5121,12 @@ class Battle:
             if d.get("saturated") and k not in _ctrl:
                 _sm = float(d.get("saturate_mult", 1.0) or 1.0)
                 d["saturate_mult"] = _sm * DOT_SATURATE_MULT
-            # v1.2 适应回落：poison/burn 最近 2 回合未再叠层 → 该类型适应 -4%（耐受消退）
+            # v1.2 适应回落：poison/burn 最近 2 个行动轮次未再叠层 → 该类型适应 -4%（耐受消退）
             # v125.2 B1：步长查表 DOT_ADAPT_DECAY_STEP
+            # v152 时刻制：last_round → last_tick（行动轮次 _tick_no()）
             if k in ("poison", "burn"):
-                _last = int(d.get("last_round", 0) or 0)
-                if _last > 0 and self.round - _last >= 2:
+                _last = int(d.get("last_tick", d.get("last_round", 0)) or 0)
+                if _last > 0 and self._tick_no() - _last >= 2:
                     _am = e.setdefault("adapt", {})
                     _am[k] = max(0.0, float(_am.get(k, 0.0) or 0.0) - DOT_ADAPT_DECAY_STEP)
             if self._enemy_dead():
@@ -5312,81 +5458,98 @@ class Battle:
                     logs.append(f"🧘 专注积累 +{_f_gain}（{self.resources.get(_f_key, 0)}）")
         return logs
 
-    def _end_round(self):
-        """回合结束：buff 剩余回合递减 + v2.0 技能冷却递减"""
+    def _end_round(self, dt: float | None = None):
+        """v152 时刻制：推进战斗时刻（替代旧"回合结束递减"）。
+        兼容壳：保留 _end_round 函数名（外部大量调用），内部 = _advance_time(dt)。
+        dt 缺省 = ACT_TICK（一次标准行动间隔）。真正的时间流逝由 _advance_time 处理。
+        v152 彻底化：不再有"每回合 -1"，一切按绝对时刻 expire_at/ready_at 到期。"""
+        self._advance_time(dt if dt is not None else (ACT_TICK or 2.0))
+
+    def _advance_time(self, dt: float):
+        """v152 核心：推进战斗时刻 dt（正数），处理期间到期的所有计时项。
+        - buff（int 回合值 → 兼容旧档转 expire_at；dict bar 由 battle_bars 自行衰减）
+        - 护盾 expire_at、技能 CD ready_at、特效装备 CD、资源增幅 turns_left、弱点击破/连携
+        - 保留控制类（stun/freeze）不在此到期（行动级消费）；一次性 buff（next_atk_up 等）不在此到期（攻击消费）
+        """
+        if not dt or dt <= 0:
+            return
+        _now = self._now
+        self._now = _now + float(dt)
+        # ---- buff 到期检查（p_buffs / e_buffs）----
         for tbl in (self.p_buffs, self.e_buffs):
             for k in list(tbl):
-                # v95.24 #252 / v121 CTB：控制类 buff（stun/freeze）是"行动级"控制——
-                # 由行动消费点（_enemy_turn 被控跳过 / player_turn 被控跳过）负责 pop，
-                # 不能在回合结束时递减：否则施放当回合若敌方尚未轮到行动（副本 enemy_act=False、
-                # CTB 下敌方该轮未行动、敌方施放眩晕给玩家）会被直接吞掉，眩晕永远不生效。
+                v = tbl[k]
+                # 控制类 buff：行动级消费，不在时刻递减（与旧语义一致）
                 if k in ("stun", "freeze"):
                     continue
-                # v121 CTB：元素印记（fire/ice/thunder_mark）是层数标记而非回合 buff——
-                # 旧 v61 靠"速度优势回合不结束回合（_end_round 推迟）"掩盖了这里的误递减；
-                # CTB 下每回合都正常结束，印记施放当回合就被清掉，元素反应（挂印→异系触发）
-                # 体系整体失效。印记生命周期 = 触发反应清除（clear=True）或战斗结束。
+                # 元素印记：层数标记，触发反应清除
                 if k in ("fire_mark", "ice_mark", "thunder_mark"):
                     continue
-                # v125.3 收口审计 P1：next_atk_up（狂怒/月露/彩虹/黑羽药剂）是"下一次攻击消费"型
-                # 一次性 buff（_extra_dmg_mult 命中即 del）——按回合递减 turns=1 当回合结束被删，
-                # 下回合攻击吃不到 +50%。豁免回合递减，生命周期 = 攻击消费或战斗结束。
-                # v130.2 P0-2：引气精华 buff_phys_next 同款一次性语义（物理技消费即 del）→ 一并豁免。
-                # v130.2f2 P0-1（T1）：stealth（暗影步潜行）同一「下次出手消费」语义——出手时在
-                # _player_skill 3030-3034 消费，须跨回合保留至出手，豁免回合递减；暮影伏击流
-                # （暗影步→下回合 幽影刃/破影一击 必暴+乘区）由此可达。
+                # 一次性 buff：攻击消费，不在时刻递减
                 if k in ("next_atk_up", "buff_phys_next", "stealth"):
                     continue
-                # v113.1：reduce_all 存的是减伤百分比（float），回合数记 self._reduce_all_left，
-                # 需单独递减（数值递减会让百分比被 -1 污染）。
-                # v1.x：e_buffs["shield"]（怪物增益护盾）存的是护盾值（HP 量），
-                # 由 _boss_dmg_filter 按伤害扣减，不能按回合递减。
+                # reduce_all/shield：特殊语义，不按 int 递减
                 if k in ("reduce_all", "shield"):
                     continue
-                # v139 enemy_bar 挂敌身条：buffs 里 shaken/curse 等 bar 状态是 dict（{val, threshold, ...}），
-                # 由 battle_bars 的 bar_tick 自行衰减（decay_per_turn），回合结束不按 int 递减
-                if isinstance(tbl[k], dict):
+                # bar 状态（dict）：由 battle_bars 自行衰减
+                if isinstance(v, dict):
                     continue
-                # v151 时刻制：防御型 buff（登记了受击计数 _p_buff_hits）豁免回合递减——
-                # 由 _damage_player 实际受击时按"剩余受击次数"递减，不再按玩家回合数衰减
+                # 防御型 buff（受击计数）：由 _damage_player 受击递减
                 if tbl is self.p_buffs and k in (getattr(self, "_p_buff_hits", {}) or {}):
                     continue
-                tbl[k] -= 1
-                if tbl[k] <= 0:
-                    del tbl[k]
-        # v113.1：团队减伤 buff 独立计时
-        if self.p_buffs.get("reduce_all") is not None:
-            self._reduce_all_left = int(getattr(self, "_reduce_all_left", 1) or 1) - 1
-            if self._reduce_all_left <= 0:
-                self.p_buffs.pop("reduce_all", None)
-        # v101.28d 护盾回合递减：各来源独立计时，到 0 消失
+                # v152：buff 值兼容三种形态——expire_at(时刻)、turns(回合 int)、原始 int(视为剩余回合)
+                if isinstance(v, dict) and "expire_at" in v:
+                    if self._now >= float(v["expire_at"]):
+                        del tbl[k]
+                    continue
+                if isinstance(v, dict) and "turns" in v:
+                    if self._now >= float(v["turns"]) * (ACT_TICK or 2.0):
+                        del tbl[k]
+                    continue
+                if isinstance(v, (int, float)) and not isinstance(v, bool):
+                    # 旧 int = 剩余回合数 → 换算时刻到期
+                    if self._now >= float(v) * (ACT_TICK or 2.0):
+                        del tbl[k]
+        # v113.1：团队减伤 buff 独立计时（reduce_all 的到期）
+        if self.p_buffs.get("reduce_all") is not None and self._now >= float(getattr(self, "_reduce_all_left", 1) or 1) * (ACT_TICK or 2.0):
+            self.p_buffs.pop("reduce_all", None)
+            self._reduce_all_left = 0
+        # v101.28d 护盾到期：各来源独立 expire_at
         for key in list(self.p_shields):
-            self.p_shields[key]["turns"] -= 1
-            if self.p_shields[key]["turns"] <= 0:
+            sh = self.p_shields[key]
+            # 兼容旧 {"turns"} → expire_at
+            if "turns" in sh and "expire_at" not in sh:
+                sh["expire_at"] = self._now + max(1, int(sh.get("turns", 1))) * (ACT_TICK or 2.0)
+                sh.pop("turns", None)
+            if self._now >= float(sh.get("expire_at", 0) or 0):
                 del self.p_shields[key]
-        # v130.2 资源增幅回合制 turns 衰减（hits 制由 _amp_resource 出手命中逐次扣）→ 归 0 清 amp
+        # v130.2 资源增幅 turns_left 衰减（hits 制由 _amp_resource 出手命中逐次扣）→ 到期清
         _amp_m = (self.p_eff or {}).get("amps")
         if _amp_m:
             for _ak in list(_amp_m):
                 _a = _amp_m[_ak]
-                if not isinstance(_a, dict) or int(_a.get("turns_left", 0) or 0) <= 0:
+                if not isinstance(_a, dict):
                     continue
-                _a["turns_left"] = int(_a["turns_left"]) - 1
+                if int(_a.get("turns_left", 0) or 0) > 0:
+                    # 换算：turns_left 回合 → 到期时刻
+                    if self._now >= float(_a.get("turns_left", 0)) * (ACT_TICK or 2.0):
+                        _a["turns_left"] = 0
                 if int(_a.get("turns_left", 0) or 0) <= 0 and int(_a.get("hits_left", 0) or 0) <= 0:
                     del _amp_m[_ak]
             if not _amp_m:
                 self.p_eff.pop("amps", None)
-        # v140 波3.2：弱点击破/连携增幅墨 回合衰减（turns_left -1，归 0 清）
+        # v140 波3.2：弱点击破/连携增幅 时刻到期
         for _pkey in ("vuln", "dot_amp"):
             _pe = (self.p_eff or {}).get(_pkey)
             if isinstance(_pe, dict) and int(_pe.get("turns_left", 0) or 0) > 0:
-                _pe["turns_left"] = int(_pe.get("turns_left", 0) or 0) - 1
-                if int(_pe.get("turns_left", 0) or 0) <= 0:
+                if self._now >= float(_pe.get("turns_left", 0)) * (ACT_TICK or 2.0):
                     self.p_eff.pop(_pkey, None)
+        # CD / 特效 CD / 星辉壁垒（惰性清除）
         self._tick_cooldowns()
-        # v130.2d 疾风余韵：回合结束记录精力（下回合 _turn_start 判定 ≥80 → 自然回复 +10）
+        # v130.2d 疾风余韵：时刻推进后记录精力（供下一次判定自然回复）
         self._tailwind_prev_energy = int(self.resources.get("energy", 0) or 0)
-        # v130.2f2 满溢转盾冷却：回合末重置（本回合已转盾 → 下回合可再转，「冷却 1 回合」语义）
+        # v130.2f2 满溢转盾冷却：时刻制下按冷却时间重置（简化：每次推进后允许再次转盾，
+        # 真正的"每回合限 1 次"语义由 _overflow_shield_cd 在转盾瞬间置位并靠 CD 控制频率）
         self._overflow_shield_cd = False
 
     def _attacker_precise(self) -> float:
@@ -5778,7 +5941,7 @@ class Battle:
         if self.p_buffs.get("dodge_pot"):
             dodge = 1 - (1 - dodge) * (1 - 0.15)
         # v140 波4：新手特效 远行（novice_first_turn_dodge）——每场战斗首回合闪避率 +5%
-        if (self.p_eff or {}).get("novice_dodge_active") and int(self.round or 0) <= 1:
+        if (self.p_eff or {}).get("novice_dodge_active") and self._tick_no() <= 1:
             dodge = 1 - (1 - dodge) * (1 - 0.05)
         # 攻击方精准削减（PVP：对方玩家精准；PVE：怪物无精准=0 不削减）
         atk_hit = self._attacker_precise()
@@ -5916,7 +6079,7 @@ class Battle:
         except Exception:
             pass
         # v140 波4：新手特效 守御（novice_first_turn_guard）——每场战斗首回合受击伤害 -10%
-        if (self.p_eff or {}).get("novice_guard_active") and int(self.round or 0) <= 1:
+        if (self.p_eff or {}).get("novice_guard_active") and self._tick_no() <= 1:
             dmg = max(1, int(dmg * 0.90))
             logs.append("🛡️ 守御：首回合受击伤害 -10%！")
         # v130.2c 套装受击回资源：血誓战团（受击回怒 +1）/ 圣徽·誓约（受击回信仰 +1）

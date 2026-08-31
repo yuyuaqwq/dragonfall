@@ -748,7 +748,7 @@ def _we_ember_bulwark(battle, player, ctx, logs):
         deb = battle.enemy.setdefault("debuffs", {})
         cur = deb.get("burn") or {"n": 0, "mult": 1.0}
         cur["n"] = min(5, int(cur.get("n", 0) or 0) + 1)
-        cur["last_round"] = getattr(battle, "round", 0) or 0
+        cur["last_tick"] = max(1, int(battle._tick_no()))
         deb["burn"] = cur
         logs.append(f"🔥 烬火燎原：反伤 {dmg} 点并叠加灼烧！")
 

@@ -142,7 +142,7 @@ def _m_burn(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     # v1.2 减益适应（契约 §11.1）：灼烧叠层成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
     adapt = enemy.setdefault("adapt", {})
     adapt["burn"] = min(0.20, float(adapt.get("burn", 0.0) or 0.0) + 0.04)
-    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    cur["last_tick"] = max(1, int(battle._tick_no()))
     deb["burn"] = cur
     base_log += f" 🦠 目标对灼烧产生了适应！抗性 +4%（当前 +{int(adapt['burn'] * 100)}%）"
     logs.append(base_log)
@@ -448,7 +448,7 @@ def _m_poison(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None)
     # v1.2 减益适应（契约 §11.1）：毒层叠成功（含刷新）时适应 +4%（cap 0.20），记录 last_round
     adapt = enemy.setdefault("adapt", {})
     adapt["poison"] = min(0.20, float(adapt.get("poison", 0.0) or 0.0) + 0.04)
-    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    cur["last_tick"] = max(1, int(battle._tick_no()))
     deb["poison"] = cur
     base_log += f" 🦠 目标对毒产生了适应！抗性 +4%（当前 +{int(adapt['poison'] * 100)}%）"
     logs.append(base_log)
@@ -499,7 +499,7 @@ def _m_bleed(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
     deb = enemy.setdefault("debuffs", {})
     cur = deb.get("bleed") or {"n": 0, "mult": 1.0}
     cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
-    cur["last_round"] = max(1, int(getattr(battle, "round", 0) or 0))
+    cur["last_tick"] = max(1, int(battle._tick_no()))
     deb["bleed"] = cur
     n = cur["n"]
     logs.append(f"🩸 流血 {n} 层(每层每回合掉血)")
