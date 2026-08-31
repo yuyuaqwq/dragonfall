@@ -70,8 +70,8 @@
   - 全表扫描：见 execute_code 输出（2026-08-31）
 
 ### P5 收尾
-- ✅ 全量回归 221/222（唯一失败 test_v137 flaky：探索随机性，跑3次绿2次，非v151问题）
-- ✅ 双仓库提交 + push：dragonfall（0469c00）+ design/new_world（66bbc98）
+- ✅ 全量回归 **222/222 全绿**（test_v137 flaky 已随全量通过）
+- ✅ 双仓库提交 + push：dragonfall（b769fe9）+ design/new_world（66bbc98）
 - ✅ 策划案同步（09_职业体系.md §2/§3/版本说明更新 v151）
 - ⏳ **重启验证**：AstrBot 进程未找到（可能未运行或外部管理）——v151 改动需 AstrBot 重启生效
   （NapCat 机器人号 3473145972；当前 Hermes qqbot 官方 app 不跑 dragonfall 插件）
