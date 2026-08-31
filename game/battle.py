@@ -4071,6 +4071,10 @@ class Battle:
             logs.append(f"🔥 元素结算增伤 ×{_v153_mult:.2f}")
         if self.p_buffs.get("guard_core_burst_mult"):
             _v153_mult *= float(self.p_buffs.pop("guard_core_burst_mult"))
+        if self.p_buffs.get("finisher_mult"):
+            _v153_mult *= float(self.p_buffs.pop("finisher_mult"))
+        if self.p_buffs.get("bone_rush_mult"):
+            _v153_mult *= float(self.p_buffs.pop("bone_rush_mult"))
         if self.p_buffs.get("element_overload_aoe"):
             # 超载反应：本次技能转全体 AOE
             info = dict(info)

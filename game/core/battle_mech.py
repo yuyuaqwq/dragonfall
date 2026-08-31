@@ -1297,5 +1297,198 @@ def _m_guard_core_burst(battle, mval, p_mech, total, logs, skill_name, is_crit, 
     logs.append(f"🪨 磐核爆发！消耗 {cores} 核，伤害 ×{mult}")
 
 
+# ================= 4.12 v153 补充机制 handler（15 个缺失 mech） =================
+# v153 技能表用到的 mech 里，以下 15 个在 battle_mech.py 无 handler（会静默失效）——
+# 逐一按 v153 文档机制语义补注册。
+
+@register(MECH_EFFECTS, "zhan_yi_cash")
+def _m_zhan_yi_cash(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 战士冷静：花 5 层战意 → 回 20% 生命 + 清 1 减益"""
+    if not mval:
+        return
+    stacks = int(p_mech.get("zhan_yi", 0) or 0)
+    if stacks < mval:
+        logs.append("⚔️ 战意不足，冷静失效！")
+        return
+    p_mech["zhan_yi"] = stacks - mval
+    player = getattr(battle, "_last_player", None) or battle.player or {}
+    heal = int(player.get("max_hp", 1) * 0.20)
+    player["hp"] = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
+    logs.append(f"🧘 冷静！消耗 {mval} 层战意，回复 {heal} 点生命！")
+    for k in list(battle.p_buffs.keys()):
+        if k not in ("atk_up", "def_up", "spd_up"):
+            del battle.p_buffs[k]
+            logs.append(f"✨ 净化了减益【{k}】！")
+            break
+
+
+@register(MECH_EFFECTS, "zhan_yi_fury")
+def _m_zhan_yi_fury(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 战士血祭：花 4 层战意 → 立即进入狂暴（无视 10 层门槛）"""
+    if not mval:
+        return
+    stacks = int(p_mech.get("zhan_yi", 0) or 0)
+    if stacks < mval:
+        logs.append("⚔️ 战意不足，血祭失效！")
+        return
+    p_mech["zhan_yi"] = stacks - mval
+    from .battle_modes import dual_form_state
+    df = dual_form_state(getattr(battle, "_last_player", None) or battle.player or {})
+    df["form"] = "alt"
+    logs.append(f"🩸 血祭！消耗 {mval} 层战意，强制进入狂暴形态！")
+
+
+@register(MECH_EFFECTS, "faith_unload")
+def _m_faith_unload(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师卸负：主动卸除 3 点信念，自身回血 15%"""
+    if not mval:
+        return
+    faith = float(battle.resources.get("faith", 0) or 0)
+    if faith < mval:
+        logs.append("🕯️ 信念不足，卸负失效！")
+        return
+    battle.resources["faith"] = faith - mval
+    player = getattr(battle, "_last_player", None) or battle.player or {}
+    heal = int(player.get("max_hp", 1) * 0.15)
+    player["hp"] = min(player.get("max_hp", 1), player.get("hp", 0) + heal)
+    logs.append(f"🕊️ 卸负！信念 -{mval}，回复 {heal} 点生命！")
+
+
+@register(MECH_EFFECTS, "finisher")
+def _m_finisher(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 刺客终结技：×(1 + 0.10×连段)，结算后归零"""
+    if not mval:
+        return
+    stacks = int(p_mech.get("lian_duan", 0) or 0)
+    per = 0.10
+    if info and info.get("per_stack"):
+        per = float(info["per_stack"])
+    mult = 1.0 + per * stacks
+    battle.p_buffs["finisher_mult"] = mult
+    logs.append(f"🔪 终结技！连段 {stacks} 段，伤害 ×{mult}")
+    if not (info and info.get("keep_on_kill")):
+        p_mech["lian_duan"] = 0
+
+
+@register(MECH_EFFECTS, "hunt_mark")
+def _m_hunt_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 游侠猎印：挂敌身（enemy.debuffs.hunt_mark），每层全队 +8% 伤害，上限 3"""
+    if not mval:
+        return
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    cur = int(deb.get("hunt_mark", 0) or 0)
+    cap = int((info or {}).get("mark_cap", 3) or 3)
+    deb["hunt_mark"] = min(cap, cur + mval)
+    logs.append(f"🎯 猎印 {deb['hunt_mark']}/{cap} 层（全队对其伤害 +{8 * deb['hunt_mark']}%）")
+
+
+@register(MECH_EFFECTS, "soul_mark")
+def _m_soul_mark(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师灵魂标记：每层全队 +6%（上限 3，随骷髅存活同步）"""
+    if not mval:
+        return
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    cur = int(deb.get("soul_mark", 0) or 0)
+    cap = int((info or {}).get("mark_cap", 3) or 3)
+    deb["soul_mark"] = min(cap, cur + mval)
+    logs.append(f"💀 灵魂标记 {deb['soul_mark']}/{cap} 层（全队对其伤害 +{6 * deb['soul_mark']}%）")
+
+
+@register(MECH_EFFECTS, "curse")
+def _m_curse(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师骨噬诅咒：全队对目标伤害 +20%（8 刻）"""
+    if not mval:
+        return
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    deb["curse"] = {"n": 1, "turns": 8}
+    logs.append("☠️ 骨噬诅咒！全队对其伤害 +20%（8 刻）")
+
+
+@register(MECH_EFFECTS, "curse_refresh")
+def _m_curse_refresh(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师墓穴低语：刷新目标诅咒持续"""
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    if "curse" in deb:
+        deb["curse"]["turns"] = 8
+        logs.append("☠️ 墓穴低语：诅咒持续时间刷新！")
+    else:
+        deb["curse"] = {"n": 1, "turns": 8}
+        logs.append("☠️ 墓穴低语：施加骨噬诅咒！")
+
+
+@register(MECH_EFFECTS, "bone_rush")
+def _m_bone_rush(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师骸骨洪流：消耗全部骷髅，每只 90% 全体暗蚀"""
+    skels = [s for s in getattr(battle, "summons", []) if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
+    n = len(skels)
+    if n <= 0:
+        logs.append("💀 场上没有骷髅，骸骨洪流落空！")
+        return
+    battle.p_buffs["bone_rush_mult"] = 0.9 * n
+    logs.append(f"💀 骸骨洪流！消耗 {n} 只骷髅，全体暗蚀 ×{0.9 * n}")
+
+
+@register(MECH_EFFECTS, "sacrifice")
+def _m_sacrifice(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 牧师骸骨祭仪：献祭 1 骷髅 → 全体暗蚀"""
+    skels = [s for s in getattr(battle, "summons", []) if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
+    if not skels:
+        logs.append("💀 场上没有骷髅，祭仪落空！")
+        return
+    skels[0]["hp"] = 0
+    battle.p_buffs["bone_rush_mult"] = 0.9
+    logs.append("💀 骸骨祭仪！献祭 1 只骷髅，全体暗蚀 ×0.9")
+
+
+@register(MECH_EFFECTS, "poison_burst_finisher")
+def _m_poison_burst_finisher(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 刺客毒爆（终结技）：引爆全部毒层，每层 +14%，结算后连段归零"""
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    poison = int((deb.get("poison") or {}).get("n", 0) or 0)
+    per = 0.14
+    if info and info.get("per_layer"):
+        per = float(info["per_layer"])
+    mult = 1.0 + per * poison
+    battle.p_buffs["finisher_mult"] = mult
+    logs.append(f"☠️ 毒爆！引爆 {poison} 层毒，伤害 ×{mult}")
+    if poison:
+        deb["poison"]["n"] = 0
+    p_mech["lian_duan"] = 0
+
+
+@register(MECH_EFFECTS, "atk_down")
+def _m_atk_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 诗人哀歌：音刃 + 目标攻击 −20%"""
+    battle.e_buffs["mon_atk_down"] = 8
+    logs.append("📉 敌方攻击下降！（8 刻）")
+
+
+@register(MECH_EFFECTS, "def_down")
+def _m_def_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 诗人破碎和音：目标防御 −30%"""
+    battle.e_buffs["def_down"] = 8
+    logs.append("🛡️ 敌方防御下降！（8 刻）")
+
+
+@register(MECH_EFFECTS, "all_down")
+def _m_all_down(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 诗人哀悼之音：目标全属性 −20%"""
+    battle.e_buffs["mon_atk_down"] = 8
+    battle.e_buffs["def_down"] = 8
+    logs.append("📉 敌方全属性下降！（8 刻）")
+
+
+@register(MECH_EFFECTS, "corros")
+def _m_corros(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 刺客腐蚀：真伤 DOT（层数）"""
+    if not mval:
+        return
+    deb = (battle.enemy or {}).setdefault("debuffs", {})
+    cur = deb.get("corros") or {"n": 0, "mult": 1.0}
+    cur["n"] = min(5, int(cur.get("n", 0) or 0) + mval)
+    deb["corros"] = cur
+    logs.append(f"🧪 腐蚀 {deb['corros']['n']} 层（真伤 DOT）")
+
+
 validate_boss_mechs()
 
