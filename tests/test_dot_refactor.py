@@ -110,7 +110,8 @@ def test_adapt():
         BM.MECH_EFFECTS["poison"](b, 2, b.mech_stacks, 100, [], "淬毒", False)
     check("叠毒 3 次 adapt = 0.12", abs(b.enemy["adapt"]["poison"] - 0.12) < 1e-9,
           str(b.enemy["adapt"]))
-    check("last_round 已记录", b.enemy["debuffs"]["poison"].get("last_round", 0) >= 1,
+    # v152：last_round → last_tick（行动轮次 _tick_no() 记录）
+    check("last_tick 已记录", b.enemy["debuffs"]["poison"].get("last_tick", 0) >= 1,
           str(b.enemy["debuffs"]["poison"]))
     for _ in range(5):
         BM.MECH_EFFECTS["poison"](b, 1, b.mech_stacks, 100, [], "淬毒", False)
@@ -121,10 +122,10 @@ def test_adapt():
     tick(b2, p)
     check("总抗 min(0.95, 0.9+0.2) → 伤害 = int(65×0.05) = 3", 1000 - b2.enemy["hp"] == 3,
           f"dmg={1000 - b2.enemy['hp']}")
-    # 回落：last_round 距今 ≥2 回合 → -0.04
+    # 回落：last_tick 距今 ≥2 行动轮次 → -0.04（v152：b._now = 5×ACT_TICK，last_tick=2）
     b3 = BT.Battle("monster", mk_enemy(hp=100000, adapt={"poison": 0.12}))
-    b3.round = 5
-    b3.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0, "last_round": 2}
+    b3._now = 5 * 2.0
+    b3.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0, "last_tick": 2}
     tick(b3, p)
     check("2 回合未叠 → adapt 0.12→0.08", abs(b3.enemy["adapt"]["poison"] - 0.08) < 1e-9,
           str(b3.enemy["adapt"]))
@@ -224,10 +225,10 @@ def test_bursts():
     hl2 = []
     b6._settle_lifesteal(p, 1000, hl2)
     check("重伤吸血减半 150", "回复 150" in str(hl2), str(hl2))
-    # Boss『重创』开场技
+    # Boss『重创』开场技（v152：r=1 触发首回合开场技）
     b7 = BT.Battle("monster", mk_enemy(id="b_cardinal", role="boss", is_boss=True,
                                        mech="heal,phase_open"))
-    b7.round = 1
+    b7._now = 0.0  # 首回合（_tick_no()=1）
     hl3 = []
     BM.BOSS_MECHS["phase_open"](b7, hl3, b7.enemy, 1)
     check("Boss 重创开场挂玩家重伤", b7.p_buffs.get("mortal_wound") == 2, str(b7.p_buffs))
@@ -294,10 +295,10 @@ def test_fix_regressions():
     lg = []
     BM.MECH_EFFECTS["burn"](b3, 2, b3.mech_stacks, 100, lg, "灼烧", False)
     check("灼烧免疫不叠层", "burn" not in b3.enemy.get("debuffs", {}), str(b3.enemy.get("debuffs")))
-    # adapt 对灼烧回落
+    # adapt 对灼烧回落（v152：b._now = 5×ACT_TICK，last_tick=2）
     b4 = BT.Battle("monster", mk_enemy(hp=100000, adapt={"burn": 0.12}))
-    b4.round = 5
-    b4.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0, "last_round": 2}
+    b4._now = 5 * 2.0
+    b4.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0, "last_tick": 2}
     tick(b4, p)
     check("灼烧适应回落 0.12→0.08", abs(b4.enemy["adapt"]["burn"] - 0.08) < 1e-9, str(b4.enemy["adapt"]))
     # 重伤对技能吸血减半

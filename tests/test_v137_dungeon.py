@@ -70,9 +70,14 @@ async def attack_loop(m, gid, qid, max_rounds=12):
         # 当前行动者：ct 最小玩家（v121 CTB）
         cur = st["members"][0]
         try:
+            # v152 副本绝对时刻：_instance_next_actor 返回 ("p", key) 才可取行动者；
+            # 副本内击杀/通关后 battle 可能已被清除（battle=None → 直接结束）。
             nxt = m._instance_next_actor(st, gid)
-            if nxt[0] == "p" and nxt[1]:
+            if nxt and nxt[0] == "p" and nxt[1]:
                 cur = nxt[1]
+            elif nxt and nxt[0] == "e":
+                # 轮到敌方行动：副本命令层会在攻击指令内自动结算敌方段，跳过本次玩家行动
+                pass
         except Exception:
             pass
         out = await cmd(m, "attack", gid, cur, "攻击")
@@ -139,7 +144,7 @@ async def main():
         st = battle["state"]
         check("房2遇怪", len(st.get("enemies") or []) > 0, str(st.get("enemies")))
     out = await attack_loop(m, "g1", "q1", max_rounds=12)
-    # 清完房2 → 移动到 Boss 房
+    # 清完房2 → 移动到 Boss 房（v152：清怪后回地图模式，Boss 房 boss_alive=True 可移动）
     out = await cmd(m, "move", "g1", "q1", "移动 酋长帐篷")
     check("移动到 Boss 房", "酋长帐篷" in out or "咕噜" in out, out[:200])
     # Boss 房探索触发 Boss 战

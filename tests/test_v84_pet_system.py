@@ -105,16 +105,18 @@ async def main():
             break
     check("饱食度 0 技能不触发", "撕咬" not in "\n".join(logs2), "\n".join(logs2)[-200:])
 
-    # ---- 战斗引擎：黑猫影袭挡刀（每 3 回合触发，先跑到 round=3）----
+    # 战斗引擎：黑猫影袭挡刀（每 3 回合触发，先跑到 round=3）——v152：影袭判定按行动轮次
+    # （_pet_block_check：_tick_no() % 3 == 0 → now=4.0 时 tick_no=3 触发；now=6.0 tick_no=4 不触发）
     b3 = BT.Battle("monster", C.build_monster(["m_test3", "测试强敌", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"]),
                    {}, player=db.get_player("g1", "w1"), pet={"pet_key": "pet_cat", "name": "咪咪", "level": 10, "satiety": 100})
-    b3.round = 2  # 下一回合到 round=3（影袭判定点）
-    # 固定随机：让影袭必然触发（random 在 0.25 内）
+    b3._now = 4.0  # v152：行动轮次 3（int(4/2)+1=3）→ 影袭判定点
+    # 固定随机：让影袭必然触发（random 在 0.25 内）——直接走 _damage_player 受击路径（影袭是受击拦截）
     import random as _r
     orig_random = _r.random
     _r.random = lambda: 0.01
     try:
-        logs3, _ended3 = b3.player_turn("attack", None, db.get_player("g1", "w1"))
+        logs3 = []
+        b3._damage_player(db.get_player("g1", "w1"), 50, logs3)
     finally:
         _r.random = orig_random
     pet_log3 = "\n".join(logs3)

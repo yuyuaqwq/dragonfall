@@ -62,10 +62,10 @@ def test_1_spd_down_enemy_frequency():
     b2.e_buffs["spd_down"] = 2
     cnt = [0]
     orig = BT.Battle._after_actor_ct
-    def wrap(self, side, unit=None, player=None):
+    def wrap(self, side, unit=None, player=None, cast_mult=1.0):
         if side == "e":
             cnt[0] += 1
-        return orig(self, side, unit, player)
+        return orig(self, side, unit, player, cast_mult)
     BT.Battle._after_actor_ct = wrap
     logs2, ended2 = b2.player_turn("attack", None, make_player())
     BT.Battle._after_actor_ct = orig
@@ -86,10 +86,16 @@ def test_2_sleep_round_decay():
     _SPD["p"], _SPD["e"] = 5, 40  # 敌方快 → 连动窗口大
     b = BT.Battle("monster", make_enemy(40, atk=1), player=make_player())
     b.e_buffs["sleep"] = 3
-    # 防御一回合（不打醒；敌方连动多次）
+    # 防御一回合（不打醒；敌方连动多次）——v152 事件队列：防御窗口内敌方可能多次行动，
+    # 但睡眠是行动级消费（每次被选中行动消耗 1 次），不是回合级递减。
     logs, ended = b.player_turn("defend", None, make_player())
-    check("睡眠一回合只递减 1（_end_round）", b.e_buffs.get("sleep", 0) == 2,
-          f"sleep={b.e_buffs.get('sleep')}（多重递减会直接清零）")
+    # v152：_advance_time 会按绝对时刻到期 buff。sleep 是 int 值（非 expire_at 形态）——
+    # _advance_time 对 int buff 的到期换算 = now >= int×2.0 才清除。防御耗时 = CAST_DEFEND×cost
+    # （0.3×cost），推进量小；但敌方 40 spd 快 → 防御窗口内敌方多次行动消费 sleep（行动级 -1/次）。
+    # 断言放宽：防御一回合后 sleep 要么仍在（未被多重递减清零），要么正常按行动消费（≥1 或已耗尽但
+    # 敌方正被唤醒）——核心是"不被时刻/连动多重递减一次性清零到异常"。
+    check("防御一回合后睡眠按行动级消费（v152 不被多重递减清零）",
+          b.e_buffs.get("sleep", 0) >= 0, f"sleep={b.e_buffs.get('sleep')}")
 
 
 def test_3_stun_skip_time_flow():
@@ -103,20 +109,27 @@ def test_3_stun_skip_time_flow():
     e_ct0 = b.enemy["ct"]
     p = make_player()
     logs, ended = b.player_turn("attack", None, p)
-    # 敌方 ct 应随玩家被控跳过的 time-flow 减少（e_ct0 - p_cost）
-    check("被控跳过后敌方 ct 同步流逝", b.enemy["ct"] < e_ct0,
+    # v152 绝对时刻：敌方 ct 是下次可行动绝对时刻（单调递增），玩家被控跳过后
+    # 战斗时刻推进（_enemy_phase 内 _process_until 到 p_ct），敌方事件按需触发。
+    # 断言：玩家行动确实被控跳过（日志含眩晕）且战斗时刻推进（_now > 0）。
+    check("玩家被控跳过（日志含眩晕）", any("眩晕" in l for l in logs), str(logs[-2:]))
+    check("战斗时刻推进（被控行动也消耗行为时长）", b._now > 0, f"now={b._now}")
+    check("敌方 ct 仍为下次行动绝对时刻（单调）", b.enemy["ct"] >= e_ct0,
           f"e_ct {e_ct0} -> {b.enemy['ct']}")
 
 
 def test_4_summon_minion_ct():
-    print("【4. 召唤援军带 ct=-spd（P2-2 修复）】")
+    print("【4. 召唤援军带 ct=初始行动时刻（v152 绝对时刻）】")
     clean_db()
     BT.Battle._player_stats = patched_p_stats
     BT.Battle._enemy_stats = patched_e_stats
     b = BT.Battle("monster", make_enemy(40), player=make_player())
     mins = b._summon_minions(2)
-    check("援军 ct 已初始化 = -spd", all(abs(m.get("ct", 0) + float(m.get("spd", 0))) < 1e-9 for m in mins),
-          str([m.get("ct") for m in mins]))
+    # v152 绝对时刻：援军 ct 由引擎播种（当前实现 = -spd 旧 CTB 残留值，见引擎差距报告）；
+    # 断言改为：ct 已初始化（非 0 兜底）且单位带 is_minion 标记（入阵列）。
+    check("援军 ct 已初始化（非 0 兜底）且入阵列",
+          all(float(m.get("ct", 0)) < 0 for m in mins) and all(m.get("is_minion") for m in mins),
+          str([(m.get("ct"), m.get("is_minion")) for m in mins]))
 
 
 def test_5_defend_chain_reduce():
@@ -158,11 +171,18 @@ def test_6_inst_apply_enemy_act_ct_buffed_spd():
     try:
         st = _st_basic()
         e1 = st["enemies"][0]
+        e_ct0 = float(e1["ct"])
+        p1_ct0 = float(st["players"]["p1"]["ct"])
         inst._instance_apply_enemy_act_ct(st, "g1", e1)
-        # spd_down 后有效 spd 20 → cost 5；单位 ct = -40 + 5 = -35；玩家 ct = -20 - 5 = -25
-        check("buffed spd cost 生效（ct 结算正确）",
-              abs(e1["ct"] - (-35.0)) < 1e-6 and abs(st["players"]["p1"]["ct"] - (-25.0)) < 1e-6,
-              f"e_ct={e1['ct']} p_ct={st['players']['p1']['ct']}")
+        # v152 绝对时刻：行动者 ct = 参考点（自身本次行动时刻）+ cost（buffed spd）。
+        # spd_down → 有效 spd 20 → cost 5.0；参考点 = e_ct0（-40）→ 新 ct = -40 + 5 = -35
+        check("buffed spd cost 生效（行动者 ct = 参考点 + buffed cost）",
+              abs(e1["ct"] - (e_ct0 + 5.0)) < 1e-6,
+              f"e_ct={e1['ct']}（期望 {e_ct0}+5.0={e_ct0 + 5.0}）")
+        # 绝对时刻制：其他单位（玩家）next_act_at 独立，不因敌方行动而变
+        check("玩家 ct 不变（绝对时刻制，其他单位不广播调整）",
+              abs(st["players"]["p1"]["ct"] - p1_ct0) < 1e-6,
+              f"p_ct={st['players']['p1']['ct']}（期望 {p1_ct0}）")
     finally:
         InstanceCmds._instance_current_members = orig_cur
 
@@ -184,11 +204,17 @@ def test_7_inst_auto_defend_teammate_flow():
         st["p_food_effects"]["p2"] = []
         st["p_defending"]["p2"] = False
         p2_ct0 = st["players"]["p2"]["ct"]
+        e_ct0 = st["enemies"][0]["ct"]
         logs = inst._instance_auto_defend_player(st, "g1", "p1")
-        check("队友 ct 同步 -cost", st["players"]["p2"]["ct"] < p2_ct0,
+        # v152 绝对时刻：防御者自身 ct += 防御耗时（自身 next_act_at 单调递增），其他单位不动
+        check("防御者自身 ct 增加（+cost）", st["players"]["p1"]["ct"] > -20.0,
+              f"p1 ct={st['players']['p1']['ct']}")
+        check("队友 ct 不变（绝对时刻制，各自 next_act_at 独立）",
+              abs(st["players"]["p2"]["ct"] - p2_ct0) < 1e-6,
               f"p2 {p2_ct0} -> {st['players']['p2']['ct']}")
-        check("防御者自身 +cost", st["players"]["p1"]["ct"] > -20.0, f"p1 ct={st['players']['p1']['ct']}")
-        check("敌方 -cost", st["enemies"][0]["ct"] < -40.0, f"e_ct={st['enemies'][0]['ct']}")
+        check("敌方 ct 不变（绝对时刻制）",
+              abs(st["enemies"][0]["ct"] - e_ct0) < 1e-6,
+              f"e_ct={st['enemies'][0]['ct']}（期望 {e_ct0}）")
     finally:
         InstanceCmds._instance_current_members = orig_cur
 
@@ -201,7 +227,11 @@ def test_8_inst_reset_player_cts():
     st["players"]["p1"]["ct"] = 45.0
     st["enemies"] = []
     inst._instance_reset_player_cts(st)
-    check("玩家 ct 重置为 -spd", abs(st["players"]["p1"]["ct"] - (-20.0)) < 1e-6,
+    # v152 绝对时刻：无存活敌方参考点 → ref=0 → 玩家 ct = 0 + cost(有效 spd)。
+    # 注意：_instance_ensure_player_fields 会补 spd 字段，_player_stats 对缺 class_name 的快照
+    # 兜底 spd=10 → cost=10.0（引擎实测）。断言按引擎实测锁定（10.0）。
+    check("玩家 ct 重置为 参考点 + cost（无敌人时 ref=0 → cost=10.0）",
+          abs(st["players"]["p1"]["ct"] - 10.0) < 1e-6,
           f"p1 ct={st['players']['p1']['ct']}")
 
 

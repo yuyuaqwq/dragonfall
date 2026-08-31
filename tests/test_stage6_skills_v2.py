@@ -154,7 +154,8 @@ cast(b10, p, "盾击")
 check("盾击后进入 CD", b10._skill_on_cd("盾击"), str(b10.cooldown))
 logs10 = cast(b10, p, "盾击")
 check("CD 中拦截", any("冷却" in x for x in logs10), str(logs10)[:120])
-b10._tick_cooldowns(); b10._tick_cooldowns(); b10._tick_cooldowns()
+# v152 时刻制：推进 3 回合（3×ACT_TICK）使 ready_at 到期
+b10._end_round(); b10._end_round(); b10._end_round()
 check("CD 结束可再放", not b10._skill_on_cd("盾击"), str(b10.cooldown))
 
 print("【被动保留】")

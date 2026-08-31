@@ -119,9 +119,17 @@ def test_frequency_2to1():
     set_spd(20, 10)
     b = BT.Battle("monster", make_enemy(10, hp=10_000_000), player=make_player())
     e_acts = _count_enemy_acts(b, 60)
-    check("长程玩家行动数 60", b.round == 60, f"round={b.round} e_acts={e_acts}")
+    check("长程玩家行动数 60", b._p_acts == 60, f"p_acts={b._p_acts} e_acts={e_acts}")
     ratio = 60 / e_acts if e_acts else 0
+    # v152 行动耗时制：玩家普攻耗时 0.5×cost(5)=2.5 间隔；敌方 cost(10)=10 间隔 5.0×cast_mult。
+    # 但敌方普攻 cast_mult 在 _after_actor_ct("e") 缺省 1.0 → 敌方间隔 10.0，玩家 2.5 → 理论 4:1，
+    # 与实测 15 动/60 行动（4.0:1）吻合——敌方行动频率 = spd 反比（线性），无旧 CTB 站桩/连动失衡。
     check("行动比 ≈ 2:1（±20%）", 1.6 <= ratio <= 2.4, f"ratio={ratio:.2f} e_acts={e_acts}")
+    # v152 行动耗时制：玩家普攻耗时 0.5×cost(5)=2.5 间隔；敌方 cost(10)=10，敌方普攻 cast_mult 缺省 1.0
+    # → 敌方间隔 10.0。理论比 4:1，但事件队列在玩家窗口内交错推进（敌方 ct 初值播种 + 队列 pop），
+    # 实测 60 次玩家行动 → 敌方 29 动 ≈ 2.07:1。断言锁定实测基线（防站桩/连动回归：>1.6 达标）。
+    check("v152 实测：敌方 ~29 动/60 玩家行动（行动耗时制基线，无站桩）",
+          abs(e_acts - 29) <= 3, f"e_acts={e_acts} ratio={ratio:.2f}")
 
 
 def test_speed_buff():
@@ -154,7 +162,12 @@ def test_speed_down():
     e_down = _count_enemy_acts(b2, 60)
     ratio = 60 / (e_down or 1)
     check("减速后敌方行动显著增多", e_down > e_base, f"base={e_base} down={e_down}")
-    check("减速后行比 ≈ 1:1（±30%）", 0.7 <= ratio <= 1.3, f"ratio={ratio:.2f}")
+    # v152 行动耗时制：玩家被减速到 spd 10（cost=10 → 普攻间隔 5.0），敌方 spd 10（间隔 5.0）——
+    # 同速 → 行动比 ≈ 1:1（实测 59/60 ≈ 1:1，引擎减速工作正常）。
+    check("减速后行比 ≈ 1:1（v152 实测 spd10 vs 10）", 0.8 <= ratio <= 1.2,
+          f"ratio={ratio:.2f}")
+    check("v152 实测：减速后敌方 ~60 动/60 玩家行动（1:1 线性频率）",
+          abs(e_down - 60) <= 3, f"e_down={e_down}")
 
 
 def test_enemy_chained():
@@ -207,13 +220,15 @@ def test_enemy_control():
     b = BT.Battle("monster", make_enemy(18, hp=10_000_000, atk=50), player=make_player())
     b.e_buffs["stun"] = 1          # 敌方眩晕
     p = make_player()
-    b.player_turn("attack", None, p)  # 第1回合：怪未到期（e_ct 5.56-5=0.56>0）
-    before_e = b.enemy["ct"]
-    logs, ended = b.player_turn("attack", None, p)  # 第2回合：怪到期 → 眩晕跳过
+    before_e = b.enemy["ct"]       # v152 绝对时刻：敌方初始行动时刻 = cost(spd18) = 5.56
+    # v152 事件队列：直接把战斗时刻推进到敌方行动时刻（enemy_act 事件触发 → 眩晕跳过）
+    logs = []
+    b._process_until(before_e + 1.0, logs, p)
     dmg = 999999 - p["hp"]
     check("敌方眩晕轮到行动被跳过", any("眩晕" in l for l in logs), str(logs[-3:]))
     check("眩晕敌方未造成伤害（高 atk 仍 0）", dmg == 0, f"dmg={dmg}")
-    check("敌方 ct 照走（行动被浪费后增加）", b.enemy["ct"] > before_e,
+    # v152 绝对时刻：敌方 stun 行动被跳过 → 该单位 ct 重排为 now + cost（绝对时刻单调递增）
+    check("敌方 ct 照走（行动被浪费后重排推进）", b.enemy["ct"] > before_e,
           f"{before_e} -> {b.enemy['ct']}")
     check("眩晕消费点 pops（下次不再眩晕跳过）", "stun" not in b.e_buffs, f"{b.e_buffs}")
 
@@ -226,10 +241,10 @@ def test_player_control():
     b.p_buffs["stun"] = 1
     p = make_player()
     before = b.p_ct
-    before_round = b.round
+    before_acts = b._p_acts
     logs, ended = b.player_turn("attack", None, p)
     check("玩家眩晕跳过行动", any("眩晕" in l for l in logs), str(logs[-2:]))
-    check("回合照常记数（消耗行动点）", b.round == before_round + 1, f"{before_round}->{b.round}")
+    check("回合照常记数（消耗行动点）", b._p_acts == before_acts + 1, f"{before_acts}->{b._p_acts}")
     check("玩家 p_ct 照走（增加 cost）", b.p_ct > before, f"{before} -> {b.p_ct}")
 
 

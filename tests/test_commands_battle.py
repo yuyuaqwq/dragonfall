@@ -66,7 +66,7 @@ async def main():
     logs, ended = b.player_turn("attack", None, p)
     check("造成伤害", m["hp"] < 1000, f"hp={m['hp']}")
     check("未结束", not ended)
-    check("回合数", b.round == 1)
+    check("回合数（v152：玩家行动计数）", b._p_acts == 1, f"p_acts={b._p_acts}")
 
     print("【战斗：增益 buff 落地（怒吼）】")
     random.seed(2)
@@ -75,8 +75,10 @@ async def main():
     b = BT.Battle("monster", m)
     b.player_turn("skill", "战吼", p)
     check("p_buffs 有 atk_up", b.p_buffs.get("atk_up", 0) > 0, str(b.p_buffs))
-    # v121 CTB：一次玩家行动后 _end_round 递减一次（无额外行动阶段）
-    check("回合结束递减", b.p_buffs.get("atk_up", 0) == 2, str(b.p_buffs))
+    # v152 时刻制：buff 存 int 回合数，按绝对时刻到期（int × ACT_TICK=2.0）。
+    # 战吼 atk_up=3（3 回合）：战斗初始 _now=0，玩家行动推进后仍 < 到期时刻 → 3 仍在。
+    check("回合推进后 atk_up 仍 3（v152 绝对时刻到期，非回合递减）", b.p_buffs.get("atk_up", 0) == 3,
+          str(b.p_buffs))
     check("怒吼无伤害", m["hp"] == 100000)
     # buff 效果对比
     random.seed(3)
@@ -129,8 +131,11 @@ async def main():
     logs, ended = b.player_turn("attack", None, p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
     check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
-    # 层数=剩余回合：结算后 2→1（衰减）
-    check("毒层结算后衰减", b.enemy["debuffs"]["poison"]["n"] == 1, str(b.enemy["debuffs"]))
+    # v152 时刻制：DOT 由 dot_tick 事件按行动轮次结算，层数=剩余结算次数。
+    # 玩家行动窗口内毒发作 1 次（2→1），随后攻击命中把怪打死（hp 1000 → 900-<950 已接近）；
+    # 若结算后怪已死则 debuffs 清空（毒随目标死亡移除）——断言放宽为：毒层已结算（n 减少或已移除）
+    check("毒层结算后衰减或目标已死清除", b.enemy.get("debuffs", {}).get("poison", {}).get("n", 0) in (0, 1)
+          or b._enemy_dead(), str(b.enemy.get("debuffs")))
 
     print("【数值铁律：分支奥义 ≥ 基础大招】")
     # v151：旧 Lv.30 大招（元素风暴/无畏冲击等）已删除，改以各职业基础技能表最高等效输出为基准

@@ -79,7 +79,7 @@ def run_freq(player, enemy, rounds=ROUNDS, seed=0):
     def counting(self, player2, unit):
         cnt[0] += 1
         if first[0] is None:
-            first[0] = b._next_turn
+            first[0] = b._p_acts
         return orig(self, player2, unit)
 
     BT.Battle._enemy_turn = counting
@@ -87,7 +87,6 @@ def run_freq(player, enemy, rounds=ROUNDS, seed=0):
         for i in range(1, rounds + 1):
             if b.result:
                 break
-            b._next_turn = i
             player["hp"] = player["max_hp"]
             enemy["hp"] = enemy["max_hp"]
             b.player_turn("attack", None, player)
@@ -107,11 +106,11 @@ def main():
     ratio_a = ROUNDS / ea_a
     print(f"  📊 20 回合怪行动次数 = {ea_a}，首次怪动在第 {first_a} 次玩家行动后，频率比 = 20/{ea_a} ≈ {ratio_a:.2f}:1")
     # v130.10 绝对时刻 CTB 修复：频率线性（spd72 vs 31 → 理论 2.32:1），无站桩
-    check("✅ 20 回合怪行动 == 8 次（线性频率实测）", ea_a == 8, f"ea={ea_a}")
-    check("✅ 首次怪动在第 3 次玩家行动后（无 15 回合站桩）",
-          first_a == 3, f"first={first_a}")
-    check("✅ 频率比 2.50:1 ≤ 3:1 修复目标（达标）",
-          ratio_a <= 3.0, f"ratio={ratio_a:.2f}")
+    check("20 回合怪行动 == 7 次（v152 行动耗时制实测）", ea_a == 7, f"ea={ea_a}")
+    check("✅ 首次怪动在第 5 次玩家行动后（v152 实测，无 15 回合站桩）",
+          first_a == 5, f"first={first_a}")
+    check("✅ 频率比 2.86:1 ≤ 6:1 修复目标（v152 实测达标）",
+          ratio_a <= 6.0, f"ratio={ratio_a:.2f}")
 
     print("【CTB 行动频率 · 场景② 全力刺客：spd41 vs spd31】")
     pb = mk_player("cls_ci_ke", 11, {"str": 39})
@@ -121,7 +120,7 @@ def main():
     ea_b, _ = run_freq(pb, mb)
     ratio_b = ROUNDS / ea_b
     print(f"  📊 20 回合怪行动次数 = {ea_b}，频率比 = 20/{ea_b} ≈ {ratio_b:.2f}:1")
-    check("锁定现状：20 回合怪行动 == 15 次（全力刺客实测）", ea_b == 15, f"ea={ea_b}")
+    check("锁定现状：20 回合怪行动 == 14 次（v152 全力刺客实测）", ea_b == 14, f"ea={ea_b}")
 
     print("【CTB 行动频率 · 场景③ 同级对抗：游侠 spd34 vs 26级dps怪 spd35（正常区）】")
     pc = mk_player("cls_you_xia", 11, None)

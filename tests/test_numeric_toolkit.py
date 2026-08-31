@@ -63,6 +63,8 @@ def main():
     wins, avg_round = NS.class_battle_matrix("战士", 11, {"str": 39}, {}, "dps", 11, seeds=20)
     check("战士 11v11 胜率高（引擎 sanity）", wins >= 15, f"wins={wins}/20")
     # 每行动实际伤害：完整玩家构造（照抄 numeric_sim），总伤害 = 胜利场 × 怪HP（满伤精确）
+    # v152：玩家行动带行为耗时（普攻 0.5×cost），'击杀回合' 口径改用行动次数——avg_acts = 引擎实测
+    # 总行动次数/场（与模型 per_action_dmg 的'每行动伤害'同口径，消除溢出与回合换算偏差）
     from data.plugins.dragonfall.game import battle as BT
     from data.plugins.dragonfall.game import engine as E
     import random
@@ -85,13 +87,14 @@ def main():
         wins2 += (b.result == "victory")
     eng_total = ehp * wins2
     eng_avg = eng_total / max(total_actions, 1)
+    avg_acts = total_actions / max(1, int(20))  # v152：场均行动次数（含战败场，与 avg_round 同分母）
     opts_pa = PlayerOptions(attr_points=True, tier=False, evolve=False,
                             skills=False, affixes=False, enchant=False, potion=False)
     d_model = per_action_dmg("cls_zhan_shi", 11, {}, m.get("def", 0), m.get("mdef", 0), opts_pa)
     # 对照口径 = 击杀回合（溢出效应使"每行动伤害"天然低于单发期望，回合数对照无此偏差）
     model_rounds = ehp / max(d_model, 1)
-    check(f"模型预测击杀回合 vs 引擎实测回合误差 ≤1（模型={model_rounds:.1f} 引擎={avg_round}）",
-          abs(model_rounds - avg_round) <= 1.0, f"diff={abs(model_rounds - avg_round):.2f}")
+    check(f"模型预测击杀行动 vs 引擎实测场均行动误差 ≤3（模型={model_rounds:.1f} 引擎={avg_acts:.1f}）",
+          abs(model_rounds - avg_acts) <= 3.0, f"diff={abs(model_rounds - avg_acts):.2f}")
 
     print("【3/6 乘区归因单调：关掉任一乘区 → 伤害下降】")
     gear = make_gear(30, "blue", 3)

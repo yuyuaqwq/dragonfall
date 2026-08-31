@@ -88,7 +88,7 @@ def main():
     p["learned_skills"] = ["旋风斩"]
     b9 = BT.Battle("monster", None, {}, p,
                    enemies=[mk_enemy("A", rank=1, hp=10 ** 9), mk_enemy("B", rank=2, hp=10 ** 9)])
-    b9.round = 5
+    b9._p_acts = 5  # v152：round → _p_acts（玩家行动计数）
     st9 = b9._player_stats(p)
     random.seed(31)
     logs9 = b9._player_skill(st9, "旋风斩", info_all, p)
@@ -102,8 +102,9 @@ def main():
     # ============ 10. 战斗状态持久化：enemies/round/单位级字段 与 db 快照往返 ============
     print("\n===== 10. 战斗状态持久化：enemies/round/单位级字段 写回与读取 =====\n")
     st = b9.to_state()
-    check("to_state 含完整 enemies 阵列与 round", st.get("enemies") and st.get("round") == 5,
-          str({k: st.get(k) for k in ("enemies", "round")}))
+    check("to_state 含完整 enemies 阵列与 now/p_acts", st.get("enemies")
+          and "now" in st and st.get("p_acts") == b9._p_acts,
+          str({k: st.get(k) for k in ("enemies", "now", "p_acts")}))
     check("to_state enemies 保留单位级 buffs/stacks/charging",
           all(u.get("buffs") is not None and u.get("stacks") is not None
               and "charging" in u for u in st.get("enemies", [])),
@@ -111,7 +112,8 @@ def main():
     b11 = BT.Battle.from_state(st)
     check("from_state 恢复 enemies 阵列一致", b11.enemies == b9.enemies,
           f"{b11.enemies} vs {b9.enemies}")
-    check("from_state 恢复 round 一致", b11.round == b9.round == 5, f"round={b11.round}")
+    check("from_state 恢复 now/p_acts 一致", b11._now == b9._now and b11._p_acts == b9._p_acts,
+          f"now={b11._now} p_acts={b11._p_acts}")
     check("from_state 恢复单位级字段（B buffs/charging）",
           b11.enemies[1]["buffs"] == b9.enemies[1]["buffs"]
           and b11.enemies[1]["charging"] == b9.enemies[1]["charging"],
@@ -121,7 +123,9 @@ def main():
     st_rt = db.get_battle("g10", "q10")["state"]
     check("db 快照写回 enemies 一致", st_rt.get("enemies") == st.get("enemies"),
           str(st_rt.get("enemies")))
-    check("db 快照写回 round 一致", st_rt.get("round") == 5, f"round={st_rt.get('round')}")
+    check("db 快照写回 now/p_acts 一致", st_rt.get("now") == st.get("now")
+          and st_rt.get("p_acts") == st.get("p_acts"),
+          f"now={st_rt.get('now')} p_acts={st_rt.get('p_acts')}")
     # 旧存档容错：只有 enemy（单怪）+ 旧 e_buffs 时 from_state 并入主单位 buffs
     legacy_st = {"type": "monster", "enemy": mk_enemy("旧怪", rank=1, hp=999),
                  "e_buffs": {"atk_up": 3}}

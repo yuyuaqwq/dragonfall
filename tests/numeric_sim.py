@@ -115,15 +115,17 @@ def class_battle_matrix(cls: str, lv: int, attr: dict, equip: dict | None,
         skill_name = REP_SKILL[cls] if use_skill else None
         turns = 0
         while b.result is None and turns < _MAX_TURNS:
-            prev_round = b.round
+            # v152：round 已删除 → 用 _p_acts（玩家行动次数）判定技能拦截（未消耗行动则不变）
+            prev_acts = b._p_acts
             b.player_turn("skill" if use_skill else "attack", skill_name, player)
-            # 技能施放被拦截：player_turn 不消耗回合（round 不变、result 仍空）→ 转普攻
-            if use_skill and b.round == prev_round and b.result is None:
+            # 技能施放被拦截：player_turn 不消耗行动（_p_acts 不变、result 仍空）→ 转普攻
+            if use_skill and b._p_acts == prev_acts and b.result is None:
                 b.player_turn("attack", None, player)
             turns += 1
         if b.result == "victory":
             wins += 1
-        rounds_sum += b.round
+        # v152：回合数展示口径 = 行动轮次 _tick_no()（int(now/ACT_TICK)+1）
+        rounds_sum += b._tick_no()
     avg_round = rounds_sum / max(1, int(seeds))
     return wins, round(avg_round, 2)
 

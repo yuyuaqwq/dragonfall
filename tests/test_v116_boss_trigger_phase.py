@@ -51,7 +51,7 @@ def test_low_hp_chase():
     print("【1. player_low 低血追击】")
     # hp=1 相对 max_hp 极低，即便 __init__ 重算 max_hp 也保证 ratio 极低触发
     b = BT.Battle("monster", mk_boss("player_low"), {}, player=mk_player(hp=1, max_hp=5000))
-    b.round = 3
+    b._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     logs = []
     b._boss_mech(logs)
     check("低血触发文案【盯上了重伤的你】", any("盯上了重伤的你" in x for x in logs), str(logs))
@@ -60,7 +60,7 @@ def test_low_hp_chase():
     check("低血攻击加成 +25%", est["atk"] == int(50 * 1.25), f"{est['atk']}")
     # 玩家满血不触发
     b2 = BT.Battle("monster", mk_boss("player_low"), {}, player=mk_player(hp=5000, max_hp=5000))
-    b2.round = 3
+    b2._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     logs2 = []
     b2._boss_mech(logs2)
     check("满血不触发低血追击", not b2.enemy.get("_low_hp_active") and logs2 == [], str(logs2))
@@ -69,7 +69,7 @@ def test_low_hp_chase():
 def test_pv_broken_counter():
     print("【2. pv_broken 大招后反扑】")
     b = BT.Battle("monster", mk_boss("pv_broken"), {}, player=mk_player())
-    b.round = 3
+    b._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     b._player_recent_skill = True  # 玩家本回合用过技能
     logs = []
     b._boss_mech(logs)
@@ -79,14 +79,14 @@ def test_pv_broken_counter():
     check("反扑攻击加成 +30%", est["atk"] == int(50 * 1.30), f"{est['atk']}")
     # 玩家未用技能不触发
     b2 = BT.Battle("monster", mk_boss("pv_broken"), {}, player=mk_player())
-    b2.round = 3
+    b2._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     b2._player_recent_skill = False
     logs2 = []
     b2._boss_mech(logs2)
     check("未用技能不触发反扑", not b2.enemy.get("_pv_broken_active") and logs2 == [], str(logs2))
     # 全流程：_enemy_turn 反扑额外追加一次攻击
     b3 = BT.Battle("monster", mk_boss("pv_broken"), {}, player=mk_player())
-    b3.round = 3
+    b3._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     b3._player_recent_skill = True
     logs3, dmg3 = b3._enemy_turn(mk_player())
     check("反扑回合产生伤害", dmg3 > 0, f"dmg={dmg3}")
@@ -96,7 +96,7 @@ def test_opening_roar():
     print("【3. phase_open 开场技】")
     scripts = {"opening": {"name": "深渊咆哮", "effect": "atk_up", "power": 2}}
     b = BT.Battle("monster", mk_boss("phase_open", scripts=scripts), {}, player=mk_player())
-    b.round = 1
+    b._now = 0.0  # v152：round 1 → 首回合（_tick_no()=1）
     logs = []
     b._boss_mech(logs)
     check("开场演出【深渊咆哮】", any("深渊咆哮" in x for x in logs), str(logs))
@@ -104,7 +104,7 @@ def test_opening_roar():
     check("开场 once（_open_played）", b.enemy.get("_open_played") is True, "")
     # 非首回合不再触发
     b2 = BT.Battle("monster", mk_boss("phase_open", scripts=scripts), {}, player=mk_player())
-    b2.round = 2
+    b2._now = 2 * 2.0  # v152：round 2 → 绝对时刻 4.0（_tick_no()=3）
     logs2 = []
     b2._boss_mech(logs2)
     check("非首回合不再放开场技", not b2.enemy.get("_open_played") and not any("深渊咆哮" in x for x in logs2), str(logs2))
@@ -121,8 +121,8 @@ def test_phase_scripted():
         ],
     }
     e = mk_boss("phase", hp=400, max_hp=1000, atk=50, scripts=scripts)
-    b = BT.Battle("monster", e, {}, player=mk_player())
-    b.round = 3
+    b = BT.Battle("monster", mk_boss("phase", hp=400, max_hp=1000, atk=50, scripts=scripts), {}, player=mk_player())
+    b._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0
     logs = []
     b._boss_mech(logs)
     check("血量40%进入第2阶段", b.enemy.get("phase_count") == 1, str(b.enemy.get("phase_count")))
@@ -131,7 +131,7 @@ def test_phase_scripted():
     check("演出回合不行动(_phase_skip_act)", getattr(b, "_phase_skip_act", False) is True, "")
     # 演出回合在 _enemy_turn 里直接跳过行动
     b2 = BT.Battle("monster", mk_boss("phase", hp=400, max_hp=1000, scripts=scripts), {}, player=mk_player())
-    b2.round = 3
+    b2._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0
     logs2, dmg2 = b2._enemy_turn(mk_player())
     check("演出回合 _enemy_turn 不行动(dmg=0)", dmg2 == 0 and any("蜕变" in x for x in logs2),
           f"dmg={dmg2} logs={str(logs2)}")
@@ -148,7 +148,7 @@ def test_phase_threshold_warn():
     })
     e["phase_count"] = 1  # 已在阶段2，下一阈值 30%，当前 31%（30%~33% 内）
     b = BT.Battle("monster", e, {}, player=mk_player())
-    b.round = 5
+    b._now = 5 * 2.0  # v152：round 5 → 绝对时刻 10.0（_tick_no()=6）
     logs = []
     b._boss_mech(logs)
     check("阈值预告【气息开始紊乱】", any("气息开始紊乱" in x for x in logs), str(logs))
@@ -156,7 +156,7 @@ def test_phase_threshold_warn():
     e2 = mk_boss("phase", hp=500, max_hp=1000, scripts={"phases": []})
     e2["phase_count"] = 1
     b2 = BT.Battle("monster", e2, {}, player=mk_player())
-    b2.round = 5
+    b2._now = 5 * 2.0  # v152：round 5 → 绝对时刻 10.0（_tick_no()=6）
     logs2 = []
     b2._boss_mech(logs2)
     check("远离阈值不预告", not any("气息开始紊乱" in x for x in logs2), str(logs2))
@@ -185,7 +185,7 @@ def test_phase_save_battle_serializable():
     from data.plugins.dragonfall.game.store import battle_state as BS
     scripts = {"phases": [{"min": 60, "add_skills": []}, {"min": 30, "add_skills": []}]}
     b = BT.Battle("monster", mk_boss("phase", hp=400, max_hp=1000, scripts=scripts), {}, player=mk_player())
-    b.round = 3
+    b._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     logs = []
     b._boss_mech(logs)
     check("阶段进入 phase_count==1", b.enemy.get("phase_count") == 1, str(b.enemy.get("phase_count")))

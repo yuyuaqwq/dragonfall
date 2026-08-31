@@ -243,9 +243,9 @@ def test_overflow_cooldown():
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
     sh1 = b.p_shields.get("overflow_shield") or {}
-    check("满怒受击 #1 → 溢出 1 点转盾 5（turns=1 字段钉死持续语义）",
+    check("满怒受击 #1 → 溢出 1 点转盾 5（v152 时刻制：expire_at = now + 1×2.0 = 2.0）",
           b.resources.get("rage") == 10 and int(sh1.get("value", 0)) == 5
-          and int(sh1.get("turns", 0)) == 1,
+          and abs(float(sh1.get("expire_at", 0)) - 2.0) < 1e-9,
           f"rage={b.resources.get('rage')} shields={b.p_shields}")
     hp_after1 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
@@ -254,18 +254,18 @@ def test_overflow_cooldown():
     check("同回合受击 #2 → #1 的盾被 5 点吸收（掉血 25 而非 30）+ 冷却生效：不再补新盾",
           p["hp"] == hp_after1 - 25 and not sh2 and (b.p_shields or {}).get("overflow_shield") is None,
           f"hp={p['hp']} (before={hp_after1}) shields={b.p_shields}")
-    b._end_round()  # 回合末：盾值衰减消失 + overflow 冷却重置
-    check("回合末（_end_round）：盾 turns 1→0 消失 + 冷却复位",
+    b._end_round()  # 回合末：推进时刻 → 盾到期消失 + overflow 冷却重置（v152 绝对时刻到期）
+    check("回合末（_end_round 推进时刻）：盾 expire_at 到期消失 + 冷却复位",
           not b.p_shields.get("overflow_shield"), f"shields={b.p_shields}")
-    b.round += 1  # 跨回合（模拟 player_turn 回合递增）
+    b._advance_time(2.0)  # 跨回合（v152：推进 1 个 ACT_TICK 使冷却 ready_at 到期）
     hp_after2 = p["hp"]
     with mock.patch.object(BT.random, "random", return_value=0.99):
         b._damage_player(p, 30, [])
     sh3 = b.p_shields.get("overflow_shield") or {}
-    check("跨回合受击 #3 → 冷却重置后再转盾 5（新盾 turns=1，且本击未被盾吸收）",
-          int(sh3.get("value", 0)) == 5 and int(sh3.get("turns", 0)) == 1
+    check("跨回合受击 #3 → 冷却重置后再转盾 5（新盾 expire_at = 当前时刻+2.0，且本击未被盾吸收）",
+          int(sh3.get("value", 0)) == 5 and abs(float(sh3.get("expire_at", 0)) - (b._now + 2.0)) < 1e-9
           and p["hp"] == hp_after2 - 30,
-          f"shields={b.p_shields}")
+          f"shields={b.p_shields} now={b._now}")
 
 
 # ================= 6-9. 数据收敛组（desc / EQ 帽 / roster_id） =================

@@ -76,12 +76,13 @@ check("狂怒挂载 p_buffs", b.p_buffs.get("next_atk_up") == 1, str(b.p_buffs))
 mult, tags = b._affix_dmg_mult(p)
 check("狂怒倍率 1.5 且消耗", mult == 1.5 and "next_atk_up" not in b.p_buffs, f"{mult} {tags} {b.p_buffs}")
 
-# 岩盾：10% 护盾 3 回合
+# 岩盾：10% 护盾 3 回合（v152 时刻制：{value, expire_at}，expire_at = now + 3×2.0 = 6.0）
 b2 = mk_battle()
 p2 = mk_player()
 b2._do_use_item("special:shield_small", p2)
 check("岩盾获得 10% 护盾", b2.p_shields.get("potion", {}).get("value") == 10, str(b2.p_shields))
-check("岩盾 3 回合", b2.p_shields.get("potion", {}).get("turns") == 3, str(b2.p_shields))
+check("岩盾 3 回合（expire_at=6.0）", abs(float(b2.p_shields.get("potion", {}).get("expire_at", 0)) - 6.0) < 1e-9,
+      str(b2.p_shields))
 # 圣盾 15%
 b2b = mk_battle()
 b2b._do_use_item("special:shield_big", p2)

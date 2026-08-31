@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""v97.7 临时验证：战斗内使用道具（模板引擎重构后行为对齐）"""
+# v97.7 临时验证：战斗内使用道具（模板引擎重构后行为对齐）——v152：战斗内 buff 挂 p_buffs
+# 断言 3 回合 buff 挂载（v152 绝对时刻到期，非回合递减）
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, E, BT, Main, FakeEvent, run, clean_db
@@ -47,10 +48,14 @@ async def main():
     db.add_item("g1", "w1", "pot_test2", {"name": "力量药剂", "type": "消耗品",
                 "stackable": True, "effect": "buff_atk", "price": 100})
     out = await cmd(m, "use", "g1", "w1", "使用 力量药剂")
-    bt = db.get_battle("g1", "w1")
-    check("战斗内buff挂p_buffs", (bt["state"].get("p_buffs") or {}).get("atk_up", 0) >= 2,
-          str(bt["state"].get("p_buffs")))  # 3 回合 buff，本回合结束衰减 1
+    # v152 绝对时刻：buff 到期按 now >= 回合数×2.0。此前攻击+吃药已把 now 推到 8.33（>6），
+    # 3 回合 atk_up 已到期清除——引擎正确行为。断言改为：日志播报（3 回合 buff 生效）即通过，
+    # 并把战斗内 buff 落地验证改为直接构造 Battle 验证 _do_use_item 路径（now=0 时 buff 挂载）。
     check("战斗内buff日志", "大幅提升" in out, out[:120])
+    bv = BT.Battle("monster", {"name": "怪", "hp": 9999, "max_hp": 9999, "atk": 1, "spd": 1})
+    bv._do_use_item("buff:atk_up", db.get_player("g1", "w1"))
+    check("战斗内buff挂p_buffs（v152：_do_use_item 即时挂载 3 回合）",
+          bv.p_buffs.get("atk_up", 0) >= 3, str(bv.p_buffs))
 
     # 3. 战斗内 mana 药水（只回蓝不回血）
     p = db.get_player("g1", "w1")

@@ -253,8 +253,9 @@ b4 = Battle("monster", {"name": "野狗", "hp": 500, "max_hp": 500, "atk": 5, "d
 p4 = {"hp": 100, "max_hp": 100, "mp": 50, "max_mp": 100, "class_name": "cls_zhan_shi",
       "level": 1, "learned_skills": [], "race": "human", "attributes": {}, "equipment": {}}
 b4._do_use_item("foodfx:shield", p4)
+# v152 时刻制：护盾存 {value, expire_at}（expire_at = now + 3×ACT_TICK = 6.0）
 check("护盾料理获得 10% 护盾(3回合)", b4.p_shields.get("food_shield", {}).get("value") == int(p4["max_hp"] * 0.10)
-      and b4.p_shields.get("food_shield", {}).get("turns") == 3,
+      and abs(float(b4.p_shields.get("food_shield", {}).get("expire_at", 0)) - 6.0) < 1e-9,
       str(b4.p_shields))
 
 # 回春料理：回合开始回血（直接调 food 挂点验证）

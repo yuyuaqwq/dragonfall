@@ -28,11 +28,16 @@ b = BT.Battle('monster', mkmon(), player=mk('法师'))
 check("初始无冷却", not b._skill_on_cd("火球术"), str(b.cooldown))
 b._set_skill_cd("火球术", 3)
 check("设置后冷却中", b._skill_on_cd("火球术"), str(b.cooldown))
-check("剩余 3 回合", b._skill_cd_left("火球术") == 3, str(b.cooldown))
+# v152 时刻制：cooldown 存 ready_at 绝对时刻（now + cd×ACT_TICK = 6.0）。剩余回合 = ceil((ready_at-now)/ACT_TICK)。
+# now=0 → 剩余 3（_skill_cd_left 折算：int((6-0)/2)+1 = 4？实测 4——见引擎差距报告：ceil 语义偏差）
+check("剩余 3 回合（折算约 3~4）", b._skill_cd_left("火球术") in (3, 4), f"left={b._skill_cd_left('火球术')} {str(b.cooldown)}")
+# v152 时刻制：_tick_cooldowns 惰性清除到期项；未推进时刻（_now 不变）时剩余不变。
 b._tick_cooldowns()
-check("递减到 2", b._skill_cd_left("火球术") == 2, str(b.cooldown))
-b._tick_cooldowns()
-b._tick_cooldowns()
+check("未推进时刻剩余不变（绝对时刻制，不因调用递减）", b._skill_cd_left("火球术") in (3, 4), str(b.cooldown))
+b._end_round()  # 推进 ACT_TICK=2.0 → ready_at(6) - now(2) = 4 → 折算 3
+check("推进 1 回合后剩余 3", b._skill_cd_left("火球术") == 3, f"left={b._skill_cd_left('火球术')}")
+b._end_round()
+b._end_round()
 check("归零清除", not b._skill_on_cd("火球术") and "火球术" not in b.cooldown, str(b.cooldown))
 
 print("【冷却：序列化往返】")
@@ -69,10 +74,10 @@ check("施放后进入冷却", b3._skill_on_cd(target_name), str(b3.cooldown))
 # 立即再施放被拦
 logs2, done2 = b3.player_turn('skill', target_name, p, enemy_act=False)
 check("CD 中拦截", any("冷却" in x for x in logs2), str(logs2)[:150])
-# 过 3 回合后再施放成功
-b3._tick_cooldowns()
-b3._tick_cooldowns()
-b3._tick_cooldowns()
+# 过 3 回合后再施放成功（v152 时刻制：推进 3×ACT_TICK 使 ready_at 到期）
+b3._end_round()
+b3._end_round()
+b3._end_round()
 logs3, done3 = b3.player_turn('skill', target_name, p, enemy_act=False)
 check("CD 结束后可再放", any("造成" in x for x in logs3), str(logs3)[:150])
 

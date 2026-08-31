@@ -96,21 +96,24 @@ async def main():
     logs2 = b2._player_skill(b2._player_stats(p2), "安眠曲", info_sleep, p2)
     check("施放后 e_buffs['sleep']=2（普通怪）", b2.e_buffs.get("sleep") == 2, str(b2.e_buffs))
     l2, d2 = b2._enemy_turn(p2)
-    b2._end_round()  # v121 审计修复：睡眠回合递减统一在 _end_round（每玩家行动 1 次）
+    b2._end_round()  # v152 时刻制：_end_round 只推进时刻，sleep 不按回合递减（行动级消费）
     check("敌方回合被跳过（伤害 0）", d2 == 0, f"dmg {d2}")
     check("日志含『沉睡』", any("沉睡" in x for x in l2), str(l2))
-    check("跳过一回合后 sleep 剩 1", b2.e_buffs.get("sleep") == 1, str(b2.e_buffs))
-    # 再睡一回合后消耗完
+    check("跳过一回合后 sleep 仍 2（v152 行动级消费，非回合递减）", b2.e_buffs.get("sleep") == 2,
+          str(b2.e_buffs))
+    # 再睡一回合（行动级消费：每次被选中行动 -1）
     l2b, d2b = b2._enemy_turn(p2)
-    b2._end_round()  # v121 审计修复：同上
+    b2._end_round()
     check("第二回合再跳过", d2b == 0, f"dmg {d2b}")
-    check("sleep 已耗尽", "sleep" not in b2.e_buffs, str(b2.e_buffs))
-    # 受击解除：再挂睡眠后普攻打醒
+    l2c, d2c = b2._enemy_turn(p2)
+    b2._end_round()
+    check("第三次行动后 sleep 耗尽（2 次行动消费完）", "sleep" not in b2.e_buffs, str(b2.e_buffs))
+    # 受击解除：再挂睡眠后普攻打醒（v152：普攻命中即打醒（wake_sleep 全清），不再逐次递减）
     b2.e_buffs["sleep"] = 2
     st2 = b2._player_stats(p2)
     random.seed(8)
     b2._player_attack(st2, p2)
-    check("普攻打醒睡眠（受击解除）", "sleep" not in b2.e_buffs, str(b2.e_buffs))
+    check("普攻打醒睡眠（受击解除全清）", "sleep" not in b2.e_buffs, str(b2.e_buffs))
     # 世界 Boss 只睡 1 回合
     p2b = mk_player(cls="cls_mu_shi", skills=["安眠曲"])
     b2b = BT.Battle("worldboss", mk_enemy(), {}, p2b)

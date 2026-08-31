@@ -105,7 +105,10 @@ def section_pet():
     b = BT.Battle("monster", weak_enemy(), {}, p)
     b.pet = {"pet_key": "pet_rabbit", "name": "月光兔", "level": 10, "satiety": 100}
     p["hp"] = 50
-    b.round = 4  # 月光兔 skill_interval=4
+    # v152：round → 绝对时刻。月光兔 skill_interval=4 → pet_tick 每 4×ACT_TICK 触发；
+    # _pet_skill_turn 守卫 = _tick_no() % interval == 0 → 设 now = 8.0（_tick_no()=5）不触发。
+    # 直接构造 _tick_no() % 4 == 0 的时刻：now=6.0 → tick_no=4 → 触发。
+    b._now = 6.0  # v152：行动轮次 4（int(6/2)+1=4），4 % 4 == 0 → 触发
     logs = []
     b._pet_skill_turn(p, logs)
     expect_heal = int(p["max_hp"] * 0.08)  # Battle 构造时按实时属性重算 max_hp
@@ -117,7 +120,7 @@ def section_pet():
     b2 = BT.Battle("monster", weak_enemy(), {}, p2)
     b2.pet = {"pet_key": "pet_rabbit", "name": "月光兔", "level": 10, "satiety": 100}
     p2["hp"] = 50
-    b2.round = 3
+    b2._now = 4.0  # v152：行动轮次 3（int(4/2)+1=3），3 % 4 != 0 → 不触发
     logs2 = []
     b2._pet_skill_turn(p2, logs2)
     check("未到 interval 回合不触发", p2["hp"] == 50, f"hp={p2['hp']}")
