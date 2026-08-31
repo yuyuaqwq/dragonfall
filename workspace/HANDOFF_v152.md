@@ -15,34 +15,19 @@
 | 83f6030 P5 | instance.py `_ct_initial_wait` 改模块级调用（非 Battle 方法） |
 | 681ec89 P6 | 事件队列简化——只保留 enemy_act 调度（DOT/宠物/Boss定时/词条回血由玩家行动 _turn_start / 敌方行动 _boss_mech 触发，避免双重结算） |
 | 1ee6048 P7 | 设计文档更新（当前进度+标定结论） |
+| d07d96c P8 | 修复 weapon_effects ACT_TICK 引用（模块级常量非 Battle 属性）——哨兵壁垒/永冻领域/无尽辉光/深岩壁垒/星辉壁垒 CD 失效 bug |
+| e95623e P9 | 测试适配：26 文件 27 测试全绿（子 agent sa-0-8209573d） |
 
-## 📋 当前状态
+## ✅ 当前状态（2026-08-31 深夜）
 
-### 引擎层（已改完）
-- ✅ `self.round`/`getattr(self,"round")` 全清零（grep 无残留）
-- ✅ CD：`cooldown` 存 `ready_at` 绝对时刻（now + cd×ACT_TICK）；`_skill_cd_left` 按 now 算剩余
-- ✅ 护盾：`p_shields` 存 `expire_at`
-- ✅ 特效 CD：`we_*_cd` 存 ready_at；`we_starlight_next` 存 ready_at
-- ✅ buff：int 回合值兼容（`_advance_time` 按 int×ACT_TICK 到期）
-- ✅ 副本：绝对时刻调度（播种 `_ct_initial_wait`、行动者重排、无相对 -cost 广播）；`st["round"]` 仅展示（= `_tick_no()`）
-- ✅ 事件队列：只排 `enemy_act`（敌方按绝对时刻行动）
-- ✅ 数值标定：sim_ctb_v152.py 验证频率等价（偏差<11%）
-
-### 测试适配（子 agent 进行中）
-- 27 个失败测试，子 agent 已改 24 个文件
-- 当前全量 207/222 通过（子 agent 完成前会更高）
-- 剩余失败：test_v141 flaky（world_id 残留）、test_ctb_speed 减速断言（已 steer 修正）、test_ctb_audit 睡眠断言
-
-### 待办
-1. ⏳ 子 agent 完成测试适配（sa-0-8209573d）
-2. ⏳ 文案清理：约 470 处中文"回合"（battle.py 195 / potion_effects 70 / weapon_effects 56 / battle_mech 51...）
-   - 大部分是注释（109/195）和展示文案
-   - **待鱼鱼拍板**：文案改成"刻/行动/息"哪种说法
-   - 数据字段名 turns/max_turns/per_turn 改 ticks 是大工程（涉及所有读取方），需单独评估
-3. ⏳ 副本/世界 Boss 冒烟验证（单机已验证）
-4. ⏳ 策划案同步（design/new_world/ 独立 git 仓库）
-5. ⏳ 双仓库提交 + push
-6. ⏳ AstrBot 重启验证
+- **全量回归 222/222 全绿**（`python scripts/run_all_tests.py --serial`）
+- **数值标定**：sim_ctb_v152.py 验证频率等价（实测比 vs 真实 spd 比偏差<11%）、行为时长精确
+- **策划案同步**：design/new_world 27_战斗规则引擎.md 已更新 v152 章节（commit 9de46ac）
+- **待办**：
+  1. 文案清理：约 1190 处中文"回合"（battle.py 195 / items.py 119 / equip_add_effects 92 / skills.py 73 / battle_config 73 / equip_roster 63...），大头是数据 desc 文案 + 注释 + 数值字段名。**待鱼鱼拍板**：文案改成"刻/行动/息"哪种说法
+  2. 副本/世界 Boss 冒烟验证（单机已验证；副本测试已绿 test_v137/v141）
+  3. 双仓库 push（dragonfall + design/new_world）
+  4. AstrBot 重启验证
 
 ## 🔧 环境
 - 项目根：C:/Users/yuyu/qqbot/data/plugins/dragonfall（git: master）
