@@ -470,7 +470,7 @@ for cls, tiers in data.items():
             target = BRANCH_SKILLS[cls]["branches"][tier_num].setdefault(branch_name, {})
 
         for sk in skills:
-            name = sk["name"]
+            name = sk["name"].replace("**", "").strip()  # v153 文档加粗残留清理（**冷静** → 冷静）
             info = {
                 "lv": int(parse_num(sk["lv"], 1)),
                 "mp": int(parse_num(sk["mp"], 0)),
