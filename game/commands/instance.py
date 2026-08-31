@@ -963,10 +963,10 @@ class InstanceCmds(CommandBase):
         if not boss:
             return []
         if not boss.get("is_boss"):
-            boss.setdefault("ct", BT.Battle()._ct_initial_wait(boss.get("spd", 0)))
+            boss.setdefault("ct", BT._ct_initial_wait(boss.get("spd", 0)))
             return [boss]
         enemies = [boss]
-        boss.setdefault("ct", BT.Battle()._ct_initial_wait(boss.get("spd", 0)))
+        boss.setdefault("ct", BT._ct_initial_wait(boss.get("spd", 0)))
         inst = C.INSTANCES.get(st.get("inst_id") or "", {})
         mcfg = inst.get("minions") or []
         base_name = boss.get("name", "BOSS")
@@ -981,7 +981,7 @@ class InstanceCmds(CommandBase):
                 sub = self._scale_enemy_copy(
                     boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
                     "{}的{}".format(base_name, mname), mrank, mreach)
-                sub.setdefault("ct", BT.Battle()._ct_initial_wait(sub.get("spd", 0)))
+                sub.setdefault("ct", BT._ct_initial_wait(sub.get("spd", 0)))
                 enemies.append(sub)
         return enemies
 
@@ -1954,7 +1954,7 @@ class InstanceCmds(CommandBase):
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0),
                 # v152 绝对时刻：玩家快照 ct = 初始等待（BASE_DELAY/spd，正数越大越晚行动）
-                "ct": BT.Battle()._ct_initial_wait(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
+                "ct": BT._ct_initial_wait(E.player_final_stats(p["class_name"], p["level"], p.get("equipment", {}),
                                             p.get("class_tier", 0), p.get("attributes"),
                                             p.get("evolve_path", 0), None, p.get("race")).get("spd", 0)),
                 "equipment": p.get("equipment", {}),
