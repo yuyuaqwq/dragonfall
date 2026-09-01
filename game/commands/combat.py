@@ -1667,7 +1667,9 @@ class CombatCmds(CommandBase):
         ]
         # 敌方血量汇总（多怪时每层一行；主目标行单独列出便于一眼）
         if len(b.enemies) <= 1:
-            lines.append(f"🐾【{b.enemy['name']}】❤️ {max(0, b.enemy['hp'])}/{b.enemy['max_hp']}")
+            # v155 防御：战斗胜利后 enemies 可能被清空（b.enemy 变 {}）→ .get 兜底防 KeyError
+            _be = b.enemy or {}
+            lines.append(f"🐾【{_be.get('name', '敌人')}】❤️ {max(0, _be.get('hp', 0))}/{_be.get('max_hp', 0)}")
         else:
             alive_enemy = [u for u in b.enemies if u.get("hp", 0) > 0]
             if alive_enemy:
@@ -1694,8 +1696,10 @@ class CombatCmds(CommandBase):
         掉落仍只按主怪 monster 结算一次，任务进度按全部击杀逐个计数。"""
         self._unlock_battle(group_id, qq_id)
         db.clear_battle(group_id, qq_id)
-        exp = monster["exp"]
-        gold = monster["gold"]
+        # v155 防御（2026-09-01 玩家实战抓包）：_mon 可能来自旧存档恢复的残缺敌人
+        # （enemies=[] 只有 enemy 兼容键 → _origin_enemy 缺 exp/gold）——.get 兜底防 KeyError
+        exp = monster.get("exp", 0)
+        gold = monster.get("gold", 0)
         # v28 等级差惩罚：打高太多/低太多的怪经验衰减，杜绝一天40级刷法
         diff = monster["lv"] - player["level"]
         if diff > 5:

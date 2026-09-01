@@ -503,6 +503,14 @@ class Battle:
         u.setdefault("defending", False)
         u.setdefault("charging", None)
         u.setdefault("ct", _ct_initial_wait(u.get("spd", 0)))  # v130.10 绝对时刻：初始行动等待 = cost
+        # v155 兜底（2026-09-01 玩家实战抓包）：旧存档恢复路径（enemies=[] 只有 enemy 兼容键）
+        # 的敌人可能缺结算字段——补默认值防 _handle_victory KeyError: 'exp'/'name'
+        # ⚠️ 不能补 lv：lv 缺失时 _damage_enemy 等级压制自然跳过（补 lv=1 会让 30 级玩家对
+        # 低等级怪触发 ×1.02/级 连乘，伤害虚高——test_v107_dmg_type 实测 dealt 390 vs 218）
+        u.setdefault("name", "敌人")
+        u.setdefault("exp", 0)
+        u.setdefault("gold", 0)
+        u.setdefault("drops", [])
         return u
 
     @property
@@ -2060,6 +2068,14 @@ class Battle:
                                 _ctrl = any(k in self.p_buffs for k in ("stun", "freeze", "silence"))
                                 if _ctrl:
                                     self._interrupt_player_cast(logs)
+                    # v155 修复（2026-09-01 玩家实战抓包）：v154 读条命中制下玩家 cast_done 结算
+                    # 杀怪后只走了 _remove_unit 清空 enemies，没有设 result=victory——
+                    # 命令层在胜利结算前保存战斗状态（enemies=[] 但 result=None），下次行动
+                    # from_state 恢复残缺敌人（_origin_enemy 缺 exp/gold/name）→ _handle_victory
+                    # KeyError: 'exp' / _battle_footer KeyError: 'name'。这里补 victory 判定。
+                    if self._enemy_dead():
+                        self.result = "victory"
+                        break
                     if self._player_dead(player):
                         self.result = "defeat"
                         break

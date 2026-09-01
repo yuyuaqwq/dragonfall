@@ -98,7 +98,10 @@ def team_matrix(instances: list[str] | None = None,
         # v131 长盘承伤（含奶续航）：4 人队默认 1 奶（牧师治愈 200% × 50% 轮次占用 ≈ matk/轮）；
         # 净承伤 = hit - heal（下限 hit×20%，奶不足时不能完全抵消）；单刷 n=1 无奶 = 硬抗。
         st_w = build_player("cls_zhan_shi", lv, gear, PlayerOptions(), potion=0.0)
-        boss_dmg = _boss_hit(boss_def, m, st_w.get("def", 0), st_w.get("mdef", 0))
+        # v155 单刷适配：_boss_hit 必须乘 atk_mult（此前漏乘导致承伤模型对单人失真——
+        # atk_mult 从 1.3 降到 1.0 后工具仍按原始攻击算承伤，永远显示"扛不住"）
+        boss_dmg = _boss_hit(boss_def, m, st_w.get("def", 0), st_w.get("mdef", 0),
+                             atk_mult=inst.get("atk_mult", 1.0))
         pool = st_w.get("max_hp", 1000) * n_eff
         if n_eff >= 2 and loadout != "legacy":
             # 含奶：heal = 牧师 matk×200%×50% 轮次（治愈术 200% 治疗；保守按自职业 matk 的 0.5× 折算）
@@ -106,7 +109,14 @@ def team_matrix(instances: list[str] | None = None,
             heal = st_healer.get("matk", 0) * 2.0 * 0.5
             net = max(boss_dmg - heal, boss_dmg * 0.2)
         else:
-            net = boss_dmg
+            # 单刷（n=1）：玩家会吃药水道具（鱼鱼 2026-09-01 纠正"不是无脑承伤"）——
+            # 防御药水 def×1.45 + 治疗药水续航（每 3 轮回 50% 血，高级全效药水）
+            # 承伤 = 单发 - 每轮治疗（下限 20%），再按玩家 HP 池折算轮数
+            pdef_b = int(st_w.get("def", 0) * 1.45)
+            pmdef_b = int(st_w.get("mdef", 0) * 1.45)
+            dmg_buffed = _boss_hit(boss_def, m, pdef_b, pmdef_b, atk_mult=inst.get("atk_mult", 1.0))
+            heal_per_round = st_w.get("max_hp", 1000) * 0.50 / 3.0
+            net = max(dmg_buffed - heal_per_round, dmg_buffed * 0.2)
         survive = pool / max(net, 1) if n_eff >= 1 else 0
         if loadout == "legacy":
             flag = "🔴" if rounds > 80 else "🟡" if rounds > 40 else "✅"
@@ -134,9 +144,11 @@ def team_matrix(instances: list[str] | None = None,
     return out
 
 
-def _boss_hit(boss_def, m, pdef, pmdef):
-    """Boss 单发期望伤害（物理/魔法取高者；攻强乘区 enraged ×1.35 保守上限）。"""
+def _boss_hit(boss_def, m, pdef, pmdef, atk_mult: float = 1.0):
+    """Boss 单发期望伤害（物理/魔法取高者；攻强乘区 enraged ×1.35 保守上限）。
+    v155：atk_mult 参数——副本实例字段（单人档 1.0-1.05 vs 多人档 1.15-1.35），
+    此前漏乘导致承伤模型对单刷失真（见 team_matrix 调用处注释）。"""
     from data.plugins.dragonfall.game import engine as E
-    d_phys = E.calc_damage(int(m.get("atk", 0) * 1.35), int(pdef), variance=0.0, dmg_type="phys")
-    d_magi = E.calc_damage(int(m.get("matk", 0) * 1.35), int(pmdef), variance=0.0, dmg_type="magi")
+    d_phys = E.calc_damage(int(m.get("atk", 0) * atk_mult * 1.35), int(pdef), variance=0.0, dmg_type="phys")
+    d_magi = E.calc_damage(int(m.get("matk", 0) * atk_mult * 1.35), int(pmdef), variance=0.0, dmg_type="magi")
     return max(d_phys, d_magi)

@@ -54,8 +54,10 @@ def main():
     check("哥布林营地 legacy 轮数 565~665（v136 hp_mult 渐进标定 3.9 后）",
           565 <= gob <= 665, f"rounds={gob}")
     old_king = by_id.get("inst_old_king_tomb", {}).get("rounds")
-    check("老王之墓 legacy 轮数 277~377（v136 hp_mult 渐进标定 1.5 后）",
-          277 <= old_king <= 377, f"rounds={old_king}")
+    # v155 单刷放开（2026-09-01）：老王之墓 min_players 2→1，legacy 对照口径从 2 人变单刷
+    # （原 277~377 是 2 人组队轮数；单刷 legacy 残疾模型 = 654.7，锚点随人数口径重标定）
+    check("老王之墓 legacy 轮数 600~700（v155 单刷口径，原 2 人 277~377）",
+          600 <= old_king <= 700, f"rounds={old_king}")
 
     print("【2/6 真实模型 vs 真实引擎：per_action_dmg vs BT.Battle 每行动实测（20 seeds）】")
     m = NS.monster_of("dps", 11)
