@@ -121,7 +121,8 @@ def test_display():
     check("公式翻译展示", "攻击×0.8" in ftext or "魔法攻击" in ftext or "0.85" in ftext, ftext)
     gains = m._skill_upgrade_gains(sinfo, 2, {"atk": 100, "matk": 50, "max_hp": 500})
     check("升级预览含实际数值", any("≈" in g for g in gains), str(gains))
-    check("无表达式公式行为不变", m._skill_formula_text(_table[sname]) == "", "旧技能不该有公式行")
+    # v161：战士挥砍已迁移 LOL 式 exprs → 真实技能应有公式行（不再是"无表达式"）
+    check("v161 真实技能有公式行", m._skill_formula_text(_table[sname]) != "", "挥砍已迁移 exprs，应有公式")
 
 
 if __name__ == "__main__":

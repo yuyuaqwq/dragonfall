@@ -13,7 +13,7 @@ import json, re, sys, io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py"
+SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills.py"
 
 def apply(infile: str):
     data = json.load(open(infile, encoding="utf-8"))

@@ -26,7 +26,7 @@ import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py"
+SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills.py"
 
 # 样板职业（鱼鱼拍板：战士 + 法师）
 SAMPLE_CLASSES = {"cls_zhan_shi", "cls_fa_shi"}
@@ -57,6 +57,41 @@ def build_expr(stat: str, power: float, p: float) -> str:
             f" + player_lv + 12 + skill_lv*2")
 
 
+# v161 LOL 式设计（鱼鱼拍板：基础值 + 加成系数，商业游戏方法论）
+# 每技能: (base_flat, per_player_lv, per_skill_lv, ratio, 定位)
+#   expr = 属性×ratio + base_flat + player_lv×per_player_lv + skill_lv×per_skill_lv
+# 设计要点：
+#   - 基础值含玩家等级成长（LOL 英雄每级成长）——低装备不刮痧，等级成长有感
+#   - 前期 base 占比 60-70%（保底）→ 后期加成主导（装备收益）
+#   - 战士/拳师（坦克型低攻）base 占比高；法师/刺客（高攻）ratio 高
+#   - 验证：verify_v161_design2.py（6 轮击杀达标） + verify_v161_rounds.py（坦克补偿 92-94%）
+V161_DESIGN = {
+    "挥砍":     (60, 6, 14, 0.35, "填充"),
+    "猛击":     (80, 7, 16, 0.5,  "核心"),
+    "破甲斩":   (70, 6, 14, 0.45, "核心"),
+    "旋风斩":   (90, 7, 16, 0.45, "AOE"),
+    "冲锋":     (100, 8, 18, 0.55, "爆发"),
+    "火球术":   (60, 5, 12, 0.5,  "填充"),
+    "冰锥":     (60, 5, 12, 0.5,  "填充"),
+    "雷击":     (75, 6, 14, 0.55, "核心"),
+    "元素引爆": (80, 6, 14, 0.55, "核心"),
+    "骤雨弹幕": (40, 4, 8, 0.3,   "AOE多段"),
+    "陨石术":   (100, 8, 20, 0.7, "爆发"),
+}
+
+
+def build_expr_lol(stat: str, skill_name: str) -> str:
+    """v161 LOL 式表达式：属性×ratio + base + player_lv×per_plv + skill_lv×per_slv。"""
+    d = V161_DESIGN.get(skill_name)
+    if not d:
+        return None
+    base_flat, per_plv, per_slv, ratio, _ = d
+    def _fmt(x):
+        return str(int(x)) if float(x).is_integer() else repr(round(float(x), 4))
+    return (f"{stat}*{_fmt(ratio)} + {_fmt(base_flat)}"
+            f" + player_lv*{_fmt(per_plv)} + skill_lv*{_fmt(per_slv)}")
+
+
 def find_skill_block(src: str, key: str) -> tuple | None:
     """按 key（"sk_xxx" 或 中文名）定位技能块，返回 (start, end, block_text)。"""
     pat = re.compile(r'(["\']' + re.escape(key) + r'["\']\s*:\s*\{)')
@@ -80,8 +115,31 @@ def find_skill_block(src: str, key: str) -> tuple | None:
 
 
 def inject_expr(block_text: str, expr: str) -> str:
-    """在技能块内插入 exprs 字段（放在 'formula' 行之前）。"""
+    """在技能块内插入/替换 exprs 字段（放在 'formula' 行之前）。
+
+    v161：块内已有任意 exprs 字段时全部替换为一条新值（源文件有重复 formula
+    导致旧生成可能产生多行 exprs，后写的覆盖先写的 → 必须清掉所有旧 exprs）；
+    没有则插入一条。
+    """
     fmt = f"'{expr}'"
+    # 已有 exprs 字段 → 全部替换为一条新值
+    if "'exprs':" in block_text:
+        # 用行级处理：删掉所有 exprs 行，再在 formula 前插一条
+        lines = block_text.split("\n")
+        kept = [ln for ln in lines if "'exprs':" not in ln]
+        block_text = "\n".join(kept)
+        # 重新定位 formula/kind 插入点
+        m = re.search(r"('formula':\s*\[)", block_text)
+        if not m:
+            m = re.search(r"('kind':\s*'[^']*',)", block_text)
+            if not m:
+                return block_text
+            insert_at = m.end(1)
+        else:
+            insert_at = m.start(1)
+        indent = "             "
+        expr_line = f"\n{indent}'exprs': [{fmt}],"
+        return block_text[:insert_at] + expr_line + block_text[insert_at:]
     m = re.search(r"('formula':\s*\[)", block_text)
     if not m:
         m = re.search(r"('kind':\s*'[^']*',)", block_text)
@@ -113,10 +171,14 @@ def main():
             stat = kind_stat(s.get("kind"))
             if stat is None:
                 continue
-            power = float(s.get("power", 1.0) or 1.0)
-            up = C.SKILL_UP.get(s.get("name", ""), {})
-            p = float(up.get("p", 10) or 10)  # 默认每级+10%（SKILL_POWER_PER_LV）
-            expr = build_expr(stat, round(power, 4), p)
+            sname = s.get("name", "")
+            # v161 LOL 式：技能名在设计表 → 用 LOL 模板；否则回退旧公式展开
+            expr = build_expr_lol(stat, sname)
+            if expr is None:
+                power = float(s.get("power", 1.0) or 1.0)
+                up = C.SKILL_UP.get(sname, {})
+                p = float(up.get("p", 10) or 10)  # 默认每级+10%（SKILL_POWER_PER_LV）
+                expr = build_expr(stat, round(power, 4), p)
             targets[sid] = (s, expr)
 
     print(f"样板伤害技能: {len(targets)}")

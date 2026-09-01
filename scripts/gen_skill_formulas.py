@@ -26,7 +26,7 @@ import io
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py"
+SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills.py"
 
 # kind → (stat, type) 映射
 # v158 修复：支持元素后缀 kind（魔法·火/冰/雷/暗…）——此前只认纯"魔法"，

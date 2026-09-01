@@ -17,7 +17,9 @@ import json, re, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 SRC = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/workspace/skills_v153_parsed.json"
-OUT = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py"
+# ⚠️ v161 已合并入 skills.py 主表（skills_v153.py 已删除）。本脚本为历史生成工具，
+#    重跑会覆盖现有技能表（含 v159/v160/v161 的 exprs/formula 改动）→ 禁止再跑！
+OUT = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py.DISABLED"
 DRY = "--dry-run" in sys.argv
 
 data = json.load(open(SRC, encoding="utf-8"))

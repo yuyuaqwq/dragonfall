@@ -1,1158 +1,755 @@
 # -*- coding: utf-8 -*-
 """奥兰迪亚·余烬纪年 数据层 - skills.py(阶段六：基础技能 v2.0，12 章)"""
+
+# ===== v153 职业体系重做（2026-09-01 合并入主表，原 skills_v153.py 已删除）=====
 PLAYER_SKILLS = {
     "cls_zhan_shi": {
         "name": "战士",
         "skills": {
-    "sk_hui_kan": {
-                "lv": 1,
-                "mp": 3,
-                "power": 1.0,
-                "kind": "物理",
-                "res_gain": 1,
-                "cond": {"type": "player_first", "mult": 1.15, "label": "先手压制"},
-                "desc": "长剑划出利落的弧光——造成 100% 物理伤害；若你的速度高于目标，先发剑势更盛(伤害＋15%)",
-                "name": "挥砍",
+            "sk_hui_kan": {
+             'lv': 1,
+             'mp': 6,
+             'power': 0.82,
+             'kind': '物理',
+             
+             
+             'exprs': ['atk*0.35 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.82, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.45,
+             'mech': 'zhan_yi',
+             'mech_val': 1,
+             'name': '挥砍',
+             'desc': '长剑划出利落的弧光——造成 82% 物理伤害，命中积攒 1 点战意'
             },
-    "sk_meng_ji": {
-                "lv": 2,
-                "mp": 4,
-                "power": 1.2,
-                "kind": "物理",
-                "res_gain": 1,
-                "desc": "双臂蓄满蛮力猛然砸下——造成 120% 物理伤害",
-                "name": "猛击",
+            "sk_meng_ji": {
+             'lv': 4,
+             'mp': 6,
+             'power': 0.97,
+             'kind': '物理',
+             
+             
+             'exprs': ['atk*0.5 + 80 + player_lv*7 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.6,
+             'cd': 8,
+             'name': '猛击',
+             'desc': '双臂蓄满蛮力猛然砸下——造成 97% 物理伤害，每层战意使伤害 +3%'
             },
-    "sk_po_jia_zhan": {
-                "lv": 8,
-                "mp": 6,
-                "power": 0.875,
-                "kind": "物理",
-                "pierce": True,
-                "res_gain": 2,
-                "cond": {"type": "player_hp_low", "hp_pct": 0.4, "mult": 1.2, "label": "绝地反击"},
-                "desc": "剑锋劈入甲胄缝隙，无视防御造成 130% 物理伤害；自身生命低于 40% 时绝境反扑(伤害＋20%)",
-                "name": "破甲斩",
+            "sk_po_jia_zhan": {
+             'lv': 8,
+             'mp': 8,
+             'power': 0.87,
+             'kind': '物理',
+             
+             
+             'exprs': ['atk*0.45 + 70 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.87, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 8,
+             'mech': 'zhan_yi',
+             'mech_val': 1,
+             'name': '破甲斩',
+             'desc': '利刃精准劈入甲胄缝隙——造成 87% 物理伤害，破防并命中积攒 1 点战意'
             },
-    "sk_xuan_feng_zhan": {
-                "lv": 14,
-                "mp": 10,
-                "power": 0.946,
-                "kind": "物理",
-                "res_gain": 1,
-                "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.4, "label": "孤军深入"},
-                "aoe": "front",
-                "desc": "身形旋起如风暴，横扫前排造成 110% 全体物理伤害；目标生命高于 70% 时威力暴涨(伤害＋40%)",
-                "name": "旋风斩",
+            "sk_tie_bi": {
+             'lv': 12,
+             'mp': 5,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.35,
+             'cd': 12,
+             'mech_val': 45,
+             'effect': 'reduce',
+             'name': '铁壁',
+             'desc': '重盾横胸，筋肉绷紧如铁——自身减伤 45%，持续 8 刻'
             },
-    "sk_lie_di_zhan": {
-                "lv": 20,
-                "mp": 8,
-                "power": 0.816,
-                "kind": "物理",
-                "pierce": True,
-                "res_cost": {"rage": 3},
-                "cond": {"type": "player_res_stacks", "res_key": "rage", "stacks": 8, "mult": 1.5, "label": "震怒"},
-                "desc": "重剑砸裂大地，无视防御造成 180% 物理伤害；怒气蓄满 8 点时怒意喷薄(伤害＋50%)",
-                "name": "裂地斩",
+            "sk_zhan_hou": {
+             'lv': 16,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.5,
+             'cd': 16,
+             'mech': 'zhan_yi',
+             'mech_val': 3,
+             'effect': 'atk_all',
+             'name': '战吼',
+             'desc': '胸腔炸开一声战吼，战意点燃血液——全队攻击 +30% 持续 10 刻，自身积攒 2 点战意'
             },
-    "sk_xu_li_zhan": {
-                "lv": 22,
-                "mp": 16,
-                "power": 2.2,
-                "kind": "物理",
-                "pierce": True,
-                "res_gain": 2,
-                "cd": 4,
-                "charge": 1,
-                "desc": "屏息沉肩，将全身力量注入剑锋——蓄力 1 刻(受击会打断)，挥出 220% 破防一击",
-                "name": "蓄力斩",
+            "sk_xuan_feng_zhan": {
+             'lv': 20,
+             'mp': 12,
+             'power': 0.93,
+             'kind': '物理',
+             
+             
+             'exprs': ['atk*0.45 + 90 + player_lv*7 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 0.93, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.7,
+             'cd': 12,
+             'mech': 'zhan_yi',
+             'mech_val': 1,
+             'name': '旋风斩',
+             'desc': '身形旋转如风暴，刀光席卷前方——造成 93% 物理伤害（前排全体），每段命中积攒 1 点战意'
             },
-    "sk_zhan_hou": {
-                "lv": 3,
-                "mp": 5,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up",
-                "cd": 3,
-                "res_gain": 3,
-                "team": "atk_all",
-                "desc": "胸腔炸开一声战吼，战意点燃血液——攻击＋30% 持续 3 刻；组队时战意传染全队(全队攻击＋30%)",
-                "name": "战吼",
+            "sk_chong_feng": {
+             'lv': 24,
+             'mp': 10,
+             'power': 0.87,
+             'kind': '物理',
+             
+             
+             'exprs': ['atk*0.55 + 100 + player_lv*8 + skill_lv*18'],'formula': [{'stat': 'atk', 'mult': 0.87, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 12,
+             'cond': {"type": "player_first", "mult": 1.15, "label": "先手压制"},
+             'name': '冲锋',
+             'desc': '战靴踏碎尘土，身影撞入敌阵——造成 87% 物理伤害，位移至前排并先手压制'
             },
-    "sk_tie_bi": {
-                "lv": 6,
-                "mp": 5,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "cd": 3,
-                "res_gain": 2,
-                "desc": "举盾凝立如城墙——防御＋45% 持续 3 刻",
-                "name": "铁壁",
-            },
-    "sk_xu_shi": {
-                "lv": 11,
-                "mp": 3,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up",
-                "cd": 2,
-                "res_gain": 4,
-                "desc": "收剑凝神，斗气在筋脉中翻涌——攻击＋30% 持续 3 刻，为终结技蓄足锋芒",
-                "name": "蓄势",
-            },
-    "sk_dun_ji": {
-                "lv": 17,
-                "mp": 6,
-                "power": 1.3,
-                "kind": "物理",
-                "cd": 3,
-                "cc": "stun",
-                "desc": "重盾悍然撞出——造成 130% 伤害，35% 概率震晕目标 1 刻(CD 3)",
-                "name": "盾击",
-            },
-    "sk_zhan_zheng_jian_ta": {
-                "lv": 24,
-                "mp": 12,
-                "power": 0.8,
-                "kind": "物理",
-                "res_gain": 2,
-                "cond": {"type": "enemy_frozen", "mult": 1.4, "label": "震地压制"},
-                "aoe": "front",
-                "desc": "铁靴重重踏裂地面，震波席卷前排造成 80% 全体伤害；目标被冻结或减速时冲击更烈(伤害＋40%)",
-                "name": "战争践踏",
-            },
-    "sk_wu_wei_chong_ji": {
-                "lv": 30,
-                "mp": 15,
-                "power": 0.724,
-                "kind": "物理",
-                "res_cost": {"rage": 10},
-                "consume_all": {"key": "rage", "per": 0.12},
-                "pierce": True,
-                # v130.2 基础瘦身：去 HP<30% 血线乘区条件，做成无条件朴素满怒大招（EQ = 2.2×2.2 ≈ 4.84）
-                "desc": "将满腔怒意化作一往无前的冲锋——消耗全部怒气，每点怒气＋12% 伤害(满怒可至 220% 威力)",
-                "name": "无畏冲击",
-            },
-    "sk_p_zhan_yi": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "atk", "cond": "rage>=5", "mult": 0.15},
-                "desc": "战意随怒气沸腾——怒气达到 5 点时攻击＋15%",
-                "name": "战意高涨",
-            },
-    "sk_p_tie_bi_zhi_xin": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "dmg_taken", "reduce": 0.05},
-                "desc": "铠甲与意志凝为一体——受到伤害时减伤 5%",
-                "name": "铁壁之心",
-            },
-    # v112 一转觉醒被动（Lv.30）：基础职业与隐藏线线级被动对齐的仪式感节点
-    "sk_p_gang_tie_bi_lei": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "def", "cond": "hp_high_70", "mult": 0.10},
-                "desc": "气血充盈时防线如铁铸——生命高于 70% 时防御＋10%",
-                "name": "钢铁壁垒",
-            },
-    "sk_p_po_jia_ben_neng": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "pierce", "mult": 1.1},
-                "desc": "久经沙场的本能——破防类技能伤害＋10%",
-                "name": "破甲本能",
-            },
-    "sk_p_zhan_zheng_pa_xiao": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "res_gain_bonus"},
-                "desc": "每一声怒吼都在积累战意——攻击命中时额外获得 1 点怒气",
-                "name": "战争咆哮",
-            },
-    "sk_p_p...tong": {
-                "lv": 45,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "pene_phys", "add": 0.05},
-                "desc": "熟知每一处甲胄的薄弱——物理穿透＋5%(无视物理防御，v106.2 职业特色渠道)",
-                "name": "破甲精通",
+            "sk_leng_jing": {
+             'lv': 28,
+             'mp': 0,
+             'power': 1.0,
+             'kind': '治疗',
+             'cast': 0.5,
+             'cd': 16,
+             'mech': 'zhan_yi_cash',
+             'mech_val': 5,
+             'name': '冷静',
+             'desc': '治疗；花 5 层战意 → 回 20% 生命 + 清 1 减益（CD 16 刻）'
             },
         },
     },
     "cls_fa_shi": {
         "name": "法师",
         "skills": {
-    "sk_huo_qiu_shu": {
-                "lv": 1,
-                "mp": 10,
-                "power": 1.0,
-                "kind": "魔法",
-                "element": "fire",
-                "desc": "将游离的火元素凝成灼热弹丸掷出，命中即焚(100% 火系伤害)；目标已带灼烧时火焰燎原(伤害＋20%)",
-                "name": "火球术",
+            "sk_huo_qiu_shu": {
+             'lv': 1,
+             'mp': 6,
+             'power': 1.16,
+             'kind': '魔法·火',
+             'exprs': ['matk*0.5 + 60 + player_lv*5 + skill_lv*12'],
+             
+             'cast': 0.8,
+             'mech': 'fire_mark',
+             'mech_val': 1,
+             'name': '火球术',
+             'desc': '将游离的火元素凝成灼热弹丸掷出，命中即焚——造成 116% 魔法伤害，挂火印 1 层'
             },
-    "sk_bing_jing": {
-                "lv": 2,
-                "mp": 8,
-                "power": 1.05,
-                "kind": "魔法",
-                "element": "ice",
-                "cast": 0.8,      # v152 数据驱动动作时长：冰晶瞬发快
-                "desc": "指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 105% 冰系魔法伤害",
-                "name": "冰晶术",
+            "sk_bing_zhui": {
+             'lv': 4,
+             'mp': 8,
+             'power': 1.16,
+             'kind': '魔法·冰',
+             'exprs': ['matk*0.5 + 60 + player_lv*5 + skill_lv*12'],
+             
+             'cast': 0.8,
+             'mech': 'ice_mark',
+             'mech_val': 1,
+             'mech2': 'spd_down',
+             'name': '冰锥',
+             'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 116% 魔法伤害，挂冰印 1 层并减速 20% 持续 5 刻'
             },
-    "sk_bing_zhui": {
-                "lv": 8,
-                "mp": 15,
-                "power": 0.964,
-                "kind": "魔法",
-                "element": "ice",
-                "mech": "spd_down",
-                "mech_val": 1,
-                "cond": {"type": "enemy_frozen", "mult": 1.3, "label": "寒霜蔓延"},
-                "desc": "召唤尖锐冰锥破空直刺，造成 110% 冰系伤害并减速 1 刻；目标已被冻结时寒霜更烈(伤害＋30%)",
-                "name": "冰锥",
+            "sk_lei_ji": {
+             'lv': 8,
+             'mp': 8,
+             'power': 1.16,
+             'kind': '魔法·雷',
+             'exprs': ['matk*0.55 + 75 + player_lv*6 + skill_lv*14'],
+             
+             'cast': 0.8,
+             'cd': 8,
+             'mech': 'thunder_mark',
+             'mech_val': 1,
+             'name': '雷击',
+             'desc': '引一道晴空落雷劈下，电弧灼目——造成 116% 魔法伤害，挂雷印 1 层'
             },
-    "sk_lei_ji": {
-                "lv": 14,
-                "mp": 20,
-                "power": 1.046,
-                "kind": "魔法",
-                "element": "thunder",
-                "cond": {"type": "player_first", "mult": 1.15, "label": "雷系爆发"},
-                "desc": "电弧在指尖跳跃，化作惊雷劈落——造成 120% 雷系伤害；先手(速度高于目标)时电弧暴涨(伤害＋15%)",
-                "name": "雷击",
+            "sk_yuan_su_yin_bao": {
+             'lv': 12,
+             'mp': 10,
+             'power': 1.16,
+             'kind': '魔法',
+             
+             
+             'exprs': ['matk*0.55 + 80 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'matk', 'mult': 1.16, 'type': 'magi', 'skill_flat': True}],
+             'cast': 0.8,
+             'cd': 8,
+             'mech': 'element_burst',
+             'mech_val': 1,
+             'name': '元素引爆',
+             'desc': '捏碎掌心的元素印记，引发连锁激荡——造成 116% 魔法伤害，结算目标印记并触发对应反应'
             },
-    "sk_yuan_su_bao_fa": {
-                "lv": 20,
-                "mp": 30,
-                "power": 1.6,
-                "kind": "魔法",
-                "element": "current",
-                "desc": "调动周身元素之力倾泻而出——造成 160% 当前系伤害，蓝量倾泻、直伤爆发",
-                "name": "元素爆发",
+            "sk_shuang_jing_hu_ti": {
+             'lv': 16,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.5,
+             'cd': 16,
+             'effect': 'shield_self',
+             'name': '霜晶护体',
+             'desc': '以霜晶凝成冰甲覆于周身，寒意凛然——为自己张开护盾，持续 12 刻'
             },
-    "sk_yuan_su_liu_zhuan": {
-                "lv": 3,
-                "mp": 5,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up",
-                "cd": 2,
-                "team": "matk_all",
-                "desc": "让元素在脉络中流转不息——魔攻＋50% 持续 3 刻；组队时元素之力流向全队（全队魔攻强化）",
-                "name": "元素流转",
+            "sk_zhou_yu_dan_mu": {
+             'lv': 20,
+             'mp': 16,
+             'power': 0.47,
+             'kind': '魔法·雷',
+             'exprs': ['matk*0.3 + 40 + player_lv*4 + skill_lv*8'],
+             
+             'cast': 1.0,
+             'cd': 12,
+             'hits': 3,
+             'mech': 'thunder_mark',
+             'mech_val': 1,
+             'name': '骤雨弹幕',
+             'desc': '挥指洒出漫天电弧如骤雨倾泻——共 3 段，每段造成 47% 魔法伤害，各挂雷印 1 层'
             },
-    "sk_yuan_su_dan_mu": {
-                "lv": 6,
-                "mp": 12,
-                "power": 0.842,
-                "kind": "魔法",
-                "multi": 2,
-                "desc": "连珠般掷出两枚元素弹丸——造成 100%×2 当前系伤害（共 200%），低耗填充输出",
-                "name": "元素弹幕",
+            "sk_yun_shi_shu": {
+             'lv': 24,
+             'mp': 24,
+             'power': 1.08,
+             'kind': '魔法·火',
+             'exprs': ['matk*0.7 + 100 + player_lv*8 + skill_lv*20'],
+             
+             'cast': 1.2,
+             'cd': 16,
+             'aoe': 'all',
+             'name': '陨石术',
+             'desc': '召来天外陨石轰然坠地，烈焰翻涌四溅——造成 106% 魔法伤害（全体），挂火印 1 层'
             },
-    "sk_yuan_su_hu_dun": {
-                "lv": 11,
-                "mp": 20,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "cd": 3,
-                "desc": "以元素之力在周身凝成护盾——防御＋45% 持续 3 刻（CD 3）",
-                "name": "元素护盾",
-            },
-    "sk_ao_shu_qiang_hua": {
-                "lv": 17,
-                "mp": 25,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up",
-                "cd": 3,
-                "desc": "吟唱奥术咒文强化自身——魔攻＋50% 持续 3 刻，为爆发蓄势（CD 3）",
-                "name": "奥术强化",
-            },
-    "sk_bing_shuang_xin_xing": {
-                "lv": 24,
-                "mp": 35,
-                "power": 0.8,
-                "kind": "魔法",
-                "cd": 3,
-                "element": "ice",
-                "mech": "freeze",
-                "mech_val": 1,
-                "aoe": "all",
-                "desc": "冰霜以自身为圆心炸裂扩散——造成 80% 全体冰系伤害，30% 概率冻结目标 1 刻（强控·群体，CD 3）",
-                "name": "冰霜新星",
-            },
-    "sk_yuan_su_feng_bao": {
-                "lv": 30,
-                "mp": 60,
-                "power": 2.0,
-                "kind": "魔法",
-                "element": "current",
-                "cond": {"type": "element_marks", "element": "any", "stacks": 1, "mult": 1.5, "label": "元素过载"},
-                "aoe": "all",
-                "desc": "唤起元素风暴席卷全场——造成 200% 当前系全体伤害；目标带有元素印记时风暴过载（伤害＋50%）；转职后可借元素架设强化(魔法技能伤害＋40%)",
-                "name": "元素风暴"
-            },
-    "sk_yun_shi_shu": {
-                "lv": 28,
-                "mp": 75,
-                "power": 3.0,
-                "kind": "魔法",
-                "element": "fire",
-                "cd": 4,
-                "charge": 2,
-                "aoe": "all",
-                "reach": 3,
-                # v139 架设保护：架设中蓄力不会被打断（充能 -1 代替）；已转职法师打断时充能 -1 + 50% MP 返还并存
-                "focus_charge_protect": True,
-                "desc": "引燃天际火云召唤陨石——蓄力 2 刻（受击会打断，元素架设中不会被打断、改充能-1），陨石坠落后轰击全场，造成 300% 火系范围伤害（可及全阵后排）",
-                "name": "陨石术"
-            },
-    "sk_fa_shu_fan_zhi": {
-                "lv": 16,
-                "mp": 15,
-                "power": 0.3,
-                "kind": "魔法",
-                "element": "current",
-                "cd": 3,
-                "interrupt": True,
-                "desc": "以法术禁制攫住敌手的吟唱——造成 30% 微量魔法伤害，命中即打断目标蓄力（可打断读条技能）",
-                "name": "法术禁制",
-            },
-    "sk_p_lie_yan_qin_he": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "fire_bonus", "mult": 0.10},
-                "desc": "与火元素心意相通，施放火系技能时伤害＋10%(被动)",
-                "name": "烈焰亲和",
-            },
-    "sk_p_han_shuang_qin_he": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "ice_slow"},
-                "desc": "寒气随施法悄然蔓延，冰系技能命中附带减速(被动)",
-                "name": "寒霜亲和",
-            },
-    "sk_p_mo_li_peng_pai": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "matk", "cond": "hp_high_70", "mult": 0.08},
-                "desc": "生命高于 70% 时魔力澎湃涌动，魔攻＋8%(被动)",
-                "name": "魔力澎湃",
-            },
-    "sk_p_mo_li_yong_dong": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "mp", "mult": 0.15},
-                "desc": "魔力源泉深不见底，最大魔力＋15%(被动)",
-                "name": "魔力涌动",
-            },
-    "sk_p_yuan_su_gong_ming": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "reaction", "mult": 1.15},
-                "desc": "元素之力彼此应和，元素系技能伤害＋15%(被动)",
-                "name": "元素共鸣",
+            "sk_shan_xian": {
+             'lv': 28,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.4,
+             'cd': 12,
+             'effect': 'dodge_buff',
+             'name': '闪现',
+             'desc': '身形一晃化作流光穿梭战场——位移至后排，闪避 +30% 持续 6 刻'
             },
         },
     },
     "cls_you_xia": {
         "name": "游侠",
         "skills": {
-    "sk_ji_feng_lian_she": {
-                "lv": 1,
-                "mp": 0,
-                "power": 0.6,
-                "kind": "物理",
-                "multi": 2,
-                "res_cost": {"energy": 20},
-                # v139 屏息窗口联动：屏息窗口内 2 段 → 3 段（低耗档 ≤25 判定内）
-                "breathe_seg_bonus": 1,
-                "desc": "弓弦颤动如风吟，两箭连珠破空而出——连续射击 2 次，每次造成 60% 物理伤害；凝神屏息窗口内段数＋1(3 段)",
-                "name": "疾风连射",
+            "sk_lian_she": {
+             'lv': 1,
+             'mp': 6,
+             'power': 0.41,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.35,
+             'hits': 2,
+             'res_cost': {"energy": 22},
+             'name': '连射',
+             'desc': '弓弦连响，两箭破风而出——造成 76% 物理伤害×2'
             },
-    "sk_miao_zhun": {
-                "lv": 2,
-                "mp": 0,
-                "res_cost": {"energy": 10},
-                "power": 1.4,
-                "kind": "物理",
-                "desc": "凝神屏息，将呼吸与弓弦调成同频——蓄势一箭造成 140% 物理伤害",
-                "name": "瞄准射击",
+            "sk_miao_zhun_she_ji": {
+             'lv': 4,
+             'mp': 6,
+             'power': 1.17,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'res_cost': {"energy": 28},
+             'name': '瞄准射击',
+             'desc': '屏息凝神，箭尖直指要害——造成 87% 物理伤害'
             },
-    "sk_zhi_ming_ju_ji": {
-                "lv": 8,
-                "mp": 0,
-                "power": 1.357,
-                "kind": "物理",
-                "res_cost": {"energy": 35},
-                "cond": {"type": "enemy_hp_low", "hp_pct": 0.4, "mult": 1.5, "label": "绝境之眼"},
-                "desc": "鹰瞳锁定猎物最后一口气，箭矢循着死亡轨迹射出——造成 180% 物理伤害；目标生命低于 40% 时，绝境之眼睁开（伤害＋50%）",
-                "name": "致命狙击",
+            "sk_ying_yan_suo_ding": {
+             'lv': 8,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.35,
+             'cd': 12,
+             'res_cost': {"energy": 20},
+             'effect': 'crit_hit_buff',
+             'name': '鹰眼锁定',
+             'desc': '鹰瞳凝光，猎物破绽尽收眼底——自身暴击 +20%、命中 +15%，持续 10 刻'
             },
-    "sk_lie_wang_xian_jing": {
-                "lv": 14,
-                "mp": 0,
-                "power": 1.2,
-                "kind": "物理",
-                "res_cost": {"energy": 30},
-                "mech": "burn",
-                "mech_val": 2,
-                "desc": "在林间暗处布下缠着火绒的猎网，猎物踏入即燃——造成 120% 物理伤害并附加 2 层灼烧（烈火噬身，延时迸发）",
-                "name": "猎网陷阱",
+            "sk_lie_wang_xian_jing": {
+             'lv': 12,
+             'mp': 10,
+             'power': 1.17,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 12,
+             'mech': 'spd_down',
+             'mech_val': 40,
+             'res_cost': {"energy": 30},
+             'name': '猎网陷阱',
+             'desc': '猎网铺开，荆棘缠住猎物双足——造成 87% 物理伤害，减速 40%，持续 6 刻'
             },
-    "sk_huan_shou_qi_yue": {
-                "lv": 20,
-                "mp": 0,
-                "power": 1.5,
-                "kind": "物理",
-                "res_cost": {"energy": 40},
-                # v113.1 数值：林语印记带消耗也带命中回能（res_gain 指向本职业 energy）
-                "res_gain": {"energy": 10},
-                "mech": "mark",
-                "mech_val": 1,
-                # v139 屏息窗口联动：屏息窗口内标记 1 层 → 2 层
-                "breathe_mark_extra": 1,
-                "desc": "吟诵林间古语，箭矢裹挟自然之力烙印猎物——造成 150% 自然伤害并施加猎杀标记，命中时汲取 10 点精力（自然印记·标记核心）；凝神屏息窗口内标记叠 2 层",
-                "name": "林语印记",
+            "sk_feng_zhi_ji_zou": {
+             'lv': 16,
+             'mp': 6,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 8,
+             'res_cost': {"energy": 20},
+             'effect': 'spd_buff',
+             'name': '风之疾走',
+             'desc': '风元素缠绕足踝，身形化作林间掠影——速度 +30%，持续 8 刻，附带位移'
             },
-    "sk_ying_yan_suo_ding": {
-                "lv": 3,
-                "mp": 0,
-                "power": 0,
-                "kind": "增益",
-                "effect": "crit_up",
-                "cd": 2,
-                "res_cost": {"energy": 15},
-                "desc": "瞳中映出鹰隼的金芒，猎物的一切破绽无所遁形——暴击率＋20%，持续 3 刻",
-                "name": "鹰眼锁定",
+            "sk_zhi_ming_ju_ji": {
+             'lv': 20,
+             'mp': 14,
+             'power': 1.51,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.65,
+             'cd': 12,
+             'res_cost': {"energy": 55},
+             'cond': {"type": "enemy_debuff", "mult": 1.3},
+             'name': '致命狙击',
+             'desc': '长弓满月，箭矢贯透要害——造成 102% 物理伤害，对异常状态目标伤害 ×1.3'
             },
-    "sk_feng_zhi_ji_zou": {
-                "lv": 6,
-                "mp": 0,
-                "power": 0,
-                "kind": "增益",
-                "effect": "spd_up",
-                "cd": 2,
-                "res_cost": {"energy": 20},
-                # v139 机动泄压：施放当刻精力 -15（位移从成本变收益，快排语义）
-                "vent_energy": 15,
-                "desc": "风元素缠绕足踝，身形化作林间掠影——速度＋40%，持续 3 刻（机动）；施放当刻精力-15(机动泄压)",
-                "name": "风之疾走",
+            "sk_shan_bi_bu": {
+             'lv': 24,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 16,
+             'res_cost': {"energy": 25},
+             'effect': 'dodge_buff',
+             'name': '闪避步',
+             'desc': '身影如叶随风偏转，险险避开锋芒——闪避 +30%，持续 6 刻'
             },
-    "sk_cui_du_jian_shi": {
-                "lv": 11,
-                "mp": 0,
-                "power": 0.8,
-                "kind": "物理",
-                "res_cost": {"energy": 20},
-                "mech": "poison",
-                "mech_val": 3,
-                "desc": "箭簇浸过幽绿毒液，破空时带起一缕腥风——造成 80% 物理伤害并附加 3 层中毒（消耗 20 精力）",
-                "name": "淬毒箭矢",
-            },
-    "sk_wei_zhuang_wei_mu": {
-                "lv": 17,
-                "mp": 0,
-                "power": 0,
-                "kind": "增益",
-                "effect": "dodge_up",
-                "cd": 3,
-                "res_cost": {"energy": 30},
-                # v139 泄压阀载体之一：效果期间成功闪避精力 -15
-                "vent_on_dodge": 15,
-                "desc": "扯下林地与暮色织成的帷幕披在身上，身形与草木融为一体——闪避率＋40%，持续 3 刻（隐形求生）；效果期间成功闪避精力-15(泄压阀)",
-                "name": "伪装帷幕",
-            },
-    "sk_shou_lie_pao_xiao": {
-                "lv": 24,
-                "mp": 0,
-                "power": 0,
-                "kind": "增益",
-                "effect": "atk_up",
-                "cd": 3,
-                "res_cost": {"energy": 40},
-                "team": "atk_all",
-                "desc": "胸腔中炸开一声猎者的咆哮，热血与战意一同沸腾——攻击＋30%，持续 3 刻（标记爆发前奏）",
-                "name": "狩猎咆哮",
-            },
-    "sk_shou_lie_zhong_zhang": {
-                "lv": 30,
-                "mp": 0,
-                "power": 1.78,
-                "kind": "物理",
-                "res_cost": {"energy": 100},
-                # v130.2：100 档终极奥义「狩猎终章」纯伤害（EQ 锚定铁律 2）；去叠毒引爆条件（叠标/引爆归攻线林语者）
-                # v133 峰值红线收敛：power 1.78（L30 裸装峰值 40.9% ≤42% 红线，100 精力大终结 vs 瞄准射击 10 精力 29.2%）
-                # v139 校准尝试 2.20（P0 DPR 修复）→ 实测裸装暴击峰值 53.2% 超红线 → 回退 1.78（去 mark_burst 后峰值 40.9%）
-                # v139 红线收敛：去掉 mark_burst（引爆标记），保持纯伤害定位（峰值 40.9%≤42% 红线；标记连招专属攻线林语者引爆技）
-                "desc": "倾尽周身精力拉开满月之弓，射出终结猎物的最后一箭——造成 178% 致命一击，消耗全部精力（100 精力大终结）",
-                "name": "狩猎终章"
-            },
-    "sk_xu_li_ju_ji": {
-                "lv": 26,
-                "mp": 0,
-                "power": 1.4,
-                "kind": "物理",
-                "pierce": True,
-                "res_cost": {"energy": 50},
-                "cd": 4,
-                # v139 电荷制蓄力（云海弓手三律翻译）：charge 0-3 电荷池——「蓄力」动作耗 10 精力、电荷+1 并立即出伤 0.7/1.3/1.9；受击电荷 -1 不清零；电荷=3 强制释放狙击
-                "charge": 0,
-                "charge_mode": "ranger_charge",
-                "charge_cfg": {
-                    "max": 3,
-                    "charge_cost": 10,
-                    "m_base": 0.7,
-                    "m_step": 0.6,
-                    "snipe_m_base": 0.7,
-                    "interrupt_loss": 1,
-                    "full_force": True,
-                    "snipe_min": 1,
-                    "snipe_reach": 3
-                },
-                "reach": 3,
-                # v139 狙击指定层：可指定 rank=3 后排目标（无视站位射程判定）；对后排目标伤害 ×1.2
-                "snipe_backrank": {"mult": 1.2},
-                "desc": "电荷制蓄力狙击——「蓄力」动作(耗 10 精力)电荷+1 并立即出伤 0.7/1.3/1.9；受击电荷-1不清零；电荷=3 强制释放狙击(M 2.8、破防、reach3、可指定后排)",
-                "name": "蓄力狙击"
-            },
-    "sk_p_lie_shou_ben_neng": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "crit_mark", "mult": 0.1},
-                "desc": "猎手对猎物的直觉，让每一次出手都直指要害——对带标记目标暴击＋10%（星语者觉醒即得，被动）",
-                "name": "猎手本能",
-            },
-    "sk_p_feng_xing_bu": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "spd", "mult": 0.08},
-                "desc": "踏风而行，步履轻如鸿羽——速度＋8%（被动）",
-                "name": "风行步",
-            },
-    "sk_p_ji_feng_zhi_yan": {
-                "lv": 32,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                # v134.1 意见#45：速度→暴击（疾风之眼）——每点速度 +0.1% 暴击（10点速度+1%）
-                "passive": {"stat": "spd_crit", "mult": 0.1},
-                "desc": "疾风入眼，万物皆慢——每 10 点速度转化为 1% 暴击率（被动）",
-                "name": "疾风之眼",
-            },
-    "sk_p_feng_zhi_jia_hu": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "dodge", "mult": 0.05},
-                "desc": "林风环绕周身，为猎者拂开袭来的利刃——闪避率＋5%（一转觉醒·风之加护，被动）",
-                "name": "风之加护",
-            },
-    "sk_p_ying_yan": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "mark_extra", "chance": 0.15},
-                "desc": "鹰之眼俯瞰战场，猎物身上多出一道道无形准星——攻击时 15% 概率额外叠加 1 层印记（与追踪印记叠加，被动）",
-                "name": "鹰眼",
-            },
-    "sk_p_zhui_zong_yin_ji": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "mark_extra", "chance": 0.3},
-                "desc": "箭矢与猎物之间仿佛牵起无形的线，越缠越紧——攻击时 30% 概率额外叠加 1 层印记（被动）",
-                "name": "追踪印记",
-            },
-    "sk_p_c...jian": {
-                "lv": 48,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "pene_phys", "add": 0.05},
-                "desc": "箭簇打磨得足以撕裂重甲与龙鳞——物理穿透＋5%，无视目标部分物理防御（被动）",
-                "name": "穿甲箭",
+            "sk_lie_yin_she_ji": {
+             'lv': 28,
+             'mp': 8,
+             'power': 1.17,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 8,
+             'mech': 'hunt_mark',
+             'mech_val': 1,
+             'res_cost': {"energy": 30},
+             'name': '猎印射击',
+             'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 87% 物理伤害，挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
             },
         },
     },
     "cls_mu_shi": {
         "name": "牧师",
         "skills": {
-    "sk_sheng_guang_dan": {
-                "lv": 1,
-                "mp": 8,
-                "power": 1.0,
-                "kind": "魔法",
-                "res_gain": 1,
-                "cond": {"type": "player_hp_high", "hp_pct": 0.7, "mult": 1.2, "label": "光之祝福"},
-                "desc": "凝圣光为弹丸疾射而出——造成 100% 圣光伤害；自身生命高于 70% 时，光之祝福加持（伤害＋20%）",
-                "name": "圣光弹",
+            "sk_zhi_yu_shu": {
+             'lv': 1,
+             'mp': 8,
+             'power': 0.87,
+             'kind': '治疗',
+             'cast': 0.5,
+             'faith': 0,
+             'name': '治愈术',
+             'desc': '高举圣徽，圣光如甘霖洒落——治疗单体 87% 魔攻'
             },
-    "sk_sheng_guang": {
-                "lv": 2,
-                "mp": 8,
-                "power": 1.15,
-                "kind": "魔法",
-                "res_gain": 1,
-                "desc": "圣光凝聚成束贯穿敌人，造成 115% 圣光伤害",
-                "name": "圣光术",
+            "sk_qun_ti_zhi_yu": {
+             'lv': 4,
+             'mp': 14,
+             'power': 0.97,
+             'kind': '治疗',
+             'cast': 0.6,
+             'cd': 12,
+             'faith': 0,
+             'name': '群体治愈',
+             'desc': '圣光化作细雨笼罩全场——治疗全体 97% 魔攻（全体小治疗）'
             },
-    "sk_zhi_yu_shu": {
-                "lv": 8,
-                "mp": 15,
-                "power": 2.0,
-                "kind": "治疗",
-                # v130.2 治疗系 per-skill gain 归零（攒点走全局 on_heal +2，防双计数）
-                "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "治愈之光"},
-                "desc": "引导圣光抚慰伤口——治疗 200% 生命；自身生命低于 30% 时圣光愈发炽烈（治疗量＋50%，紧急救治）",
-                "name": "治愈术",
+            "sk_sheng_guang_qu_san": {
+             'lv': 8,
+             'mp': 10,
+             'power': 1.0,
+             'kind': '治疗',
+             'cast': 0.45,
+             'cd': 12,
+             'faith': 0,
+             'effect': 'cleanse',
+             'name': '圣光驱散',
+             'desc': '指尖迸发净化之光，浊气如雾消融——驱散单体 1 个减益'
             },
-    "sk_cheng_jie": {
-        # v130.2 基础瘦身：惩戒 由「耗 2 信仰」改为「攒点 +1 信仰」——基础只留满点神迹一个消耗档
-        # 原「审判之光·对中毒目标 ×1.3」多技能联动下放攻线（见 priest.md §4.1）
-        "lv": 10,
-        "mp": 20,
-        "power": 1.2,
-        "kind": "魔法",
-        "res_gain": 1,
-        "desc": "圣光化作鞭挞落下，造成 120% 圣光伤害，命中积攒 1 点信仰",
-        "name": "惩戒",
-    },
-    "sk_sheng_guang_cheng_ji": {
-                "lv": 20,
-                "mp": 30,
-                "power": 0.905,
-                "kind": "魔法",
-                "res_cost": {"faith": 3},
-                "mech": "cleanse",
-                "mech_val": 1,
-                "cond": {"type": "player_res_stacks", "res_key": "faith", "stacks": 8, "mult": 1.4, "label": "信仰坚定"},
-                "desc": "汇聚圣光重击敌人——造成 200% 伤害并驱散敌方增益；信仰达到 8 点时神威更盛（伤害＋40%）",
-                "name": "圣光惩击",
+            "sk_sheng_guang_hu_dun": {
+             'lv': 12,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.45,
+             'cd': 12,
+             'faith': 0,
+             'name': '圣光护盾',
+             'desc': '以圣光织成鎏金壁障——为单体张开护盾，持续 10 刻'
             },
-    "sk_sheng_guang_hu_dun": {
-                "lv": 3,
-                "mp": 12,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "cd": 3,
-                # v130.2 增益技不攒点（gain 归零）
-                "desc": "以圣光凝成壁垒护住自身——防御＋45% 持续 3 刻（保命）",
-                "name": "圣光护盾",
+            "sk_sheng_guang_cheng_jie": {
+             'lv': 16,
+             'mp': 10,
+             'power': 0.87,
+             'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 8,
+             'faith': 0,
+             'name': '圣光惩戒',
+             'desc': '圣光凝成审判之矛贯穿敌阵——造成 87% 魔攻伤害（单体输出，不增信念）'
             },
-    "sk_qun_ti_zhi_yu": {
-                "lv": 6,
-                "mp": 20,
-                "power": 1.5,
-                "kind": "治疗",
-                "cd": 2,
-                # v130.2 治疗系 per-skill gain 归零（攒点走全局 on_heal +2，防双计数）
-                "team": "heal_all",
-                "desc": "圣光如甘霖洒落全队——治疗全队 150% 生命（群奶核心，团队技能）",
-                "name": "群体治愈",
+            "sk_xin_yang_qi_dao": {
+             'lv': 20,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.6,
+             'cd': 16,
+             'faith': 0,
+             'effect': 'matk_all',
+             'name': '信仰祈祷',
+             'desc': '虔诚诵念祷词，信仰化作共鸣之力——全队魔攻 +50%，持续 10 刻'
             },
-    "sk_xin_yang_qi_dao": {
-                "lv": 11,
-                "mp": 15,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up",
-                "cd": 3,
-                # v130.2 增益技不攒点（gain 归零）
-                "desc": "向神明祈祷，换取力量加身——魔攻＋50% 持续 3 刻（增幅）",
-                "name": "信仰祈祷",
+            "sk_xie_fu": {
+             'lv': 24,
+             'mp': 0,
+             'power': 1.0,
+             'kind': '治疗',
+             'cast': 0.45,
+             'cd': 12,
+             'mech': 'faith_unload',
+             'mech_val': 3,
+             'faith': 0,
+             'name': '卸负',
+             'desc': '将沉重信念交还圣光，卸下心头重负——卸除 3 点信念，自身回血 15%'
             },
-    "sk_shen_sheng_dao_yan": {
-                "lv": 17,
-                "mp": 25,
-                "power": 0,
-                "kind": "增益",
-                "effect": "matk_up",
-                "cd": 3,
-                "desc": "高声诵出神圣祷言，信仰与魔力一同沸腾——魔攻＋50% 持续 3 刻(爆发前奏)",
-                "name": "神圣祷言",
-            },
-    "sk_sheng_guang_qu_san": {
-                "lv": 24,
-                "mp": 35,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "cd": 3,
-                "desc": "圣光屏障护佑全队——全队防御强化（团队技能；当前实现为防御强化，驱散/净化战斗加成二期排期待定）",
-                "name": "圣光驱散",
-            },
-    "sk_shen_en_jiang_lin": {
-                "lv": 30,
-                "mp": 50,
-                "power": 1.8,
-                "kind": "治疗",
-                "res_cost": {"faith": 10},
-                "consume_all": {"key": "faith", "per": 0.08},
-                "team": "heal_all",
-                "cond": {"type": "player_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "自我牺牲"},
-                "desc": "神恩如瀑布倾泻，治愈全队——治疗全队 180% 生命，消耗全部信仰（每点使治疗量＋8%）；自身生命低于 30% 时圣光迸发（治疗量＋50%，低血救场）",
-                "name": "神恩降临",
-            },
-    "sk_da_zhi_liao_shu": {
-                "lv": 26,
-                "mp": 45,
-                "power": 3.2,
-                "kind": "治疗",
-                "team": "heal_all",
-                # v130.2 治疗系 per-skill gain 归零（攒点走全局 on_heal +2，防双计数）
-                "cd": 3,
-                "charge": 1,
-                "desc": "屏息凝聚圣光，蓄力 1 刻(受击会打断)；蓄力完成施展大治愈，为全队治疗 320% 生命",
-                "name": "大治疗术",
-            },
-    "sk_shen_fa_sheng_cai": {
-                # v130.2 新增：基础满点神迹·神威爆发（EQ = 3.0 全体 ×1.6 折算 ≈ 4.8，铁律 2 锚定）
-                "lv": 30,
-                "mp": 40,
-                "power": 1.663,
-                "kind": "魔法",
-                "aoe": "all",
-                "res_cost": {"faith": 10},
-                "cd": 6,
-                "desc": "引动神罚圣裁从天而降——造成 300% 全体圣光伤害，消耗全部信仰（基础满点神迹）",
-                "name": "神罚·圣裁",
-            },
-    "sk_p_bi_hu_zhi_guang": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "heal_shield", "pct": 0.2},
-                "desc": "治疗溢出时圣光凝为护盾，溢出量的 20% 转为护盾(被动)",
-                "name": "庇护之光",
-            },
-    "sk_p_shen_sheng_jian_ren": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "dmg_taken", "reduce": 0.05, "res_gain": 1},
-                "desc": "圣光淬炼体魄，受击减伤 5%，且受击时积攒 1 点信仰(被动)",
-                "name": "神圣坚韧",
-            },
-    "sk_p_sheng_guang_zhu_fu": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "heal_power", "add": 0.05},
-                "desc": "圣光常驻祝福，治疗强度＋5%(被动)",
-                "name": "圣光祝福",
-            },
-    "sk_p_xin_yang_jian_ding": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "mp", "mult": 0.15},
-                "desc": "信仰凝为坚实根基，最大魔力＋15%(被动)",
-                "name": "信仰坚定",
-            },
-    "sk_p_shen_en": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "heal", "mult": 1.1},
-                "desc": "神恩常伴左右，治疗技能效果＋10%(被动)",
-                "name": "神恩",
+            "sk_sheng_you": {
+             'lv': 28,
+             'mp': 15,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.5,
+             'cd': 16,
+             'faith': 0,
+             'effect': 'cc_immune',
+             'name': '圣佑',
+             'desc': '圣辉结成守护光环环绕周身——免疫 1 次控制'
             },
         },
     },
     "cls_ci_ke": {
         "name": "刺客",
         "skills": {
-    # v139：段数三线投喂 + 终结阈值 DSL——多段技能每段投喂 cp/combo/poison（ASSASSIN_HIT_FEED 数据驱动）；
-    # 终结技（res_cost cp 3/5 档）是刺客全职业唯一判断消耗点，战前可设终结阈值 4 档（快刀/满刃/残血/满段）
-    # （阈值配置已放 battle_config.py ASSASSIN_FINISHER_THRESHOLD，不占技能表条目）
-    "sk_ci_ji": {
-                "lv": 1,
-                "mp": 3,
-                "power": 1.0,
-                "kind": "物理",
-                "res_gain": 1,
-                "cond": {"type": "player_first", "mult": 1.2, "label": "先手偷袭"},
-                "desc": "匕尖自袖中无声递出，直取要害——造成 100% 物理伤害；先手出手时，暗影加持（伤害＋20%）",
-                "name": "刺击",
+            "sk_ci_ji": {
+             'lv': 1,
+             'mp': 6,
+             'power': 0.66,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.25,
+             'mech': 'lian_duan',
+             'mech_val': 1,
+             'name': '刺击',
+             'desc': '匕刃如毒蛇吐信直取要害——造成 63% 物理伤害，命中积攒 1 段连击'
             },
-    "sk_ge_lie": {
-                "lv": 2,
-                "mp": 4,
-                "power": 1.15,
-                "kind": "物理",
-                "res_gain": 1,
-                "desc": "利刃划过血肉，留下一道深可见骨的伤口——造成 115% 物理伤害",
-                "name": "割裂",
+            "sk_ge_lie": {
+             'lv': 4,
+             'mp': 6,
+             'power': 0.78,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.3,
+             'cd': 8,
+             'mech': 'bleed',
+             'mech_val': 2,
+             'name': '割裂',
+             'desc': '利刃撕开皮肉留下一道血痕——造成 68% 物理伤害，附加 2 层流血持续 8 刻，命中 +1 段'
             },
-    "sk_shuang_ren_luan_wu": {
-                "lv": 8,
-                "mp": 8,
-                "power": 0.651,
-                "kind": "物理",
-                "multi": 2,
-                # v130.2 基础瘦身：多段不再每段回点，统一朴素「命中 +1」（高频多段下放攻线影舞者）
-                "res_gain": 1,
-                "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.3, "label": "背刺角度"},
-                "desc": "双匕翻飞如蝶，趁目标气血充盈时连斩两记——每次造成 90% 物理伤害（共 2 次）；目标生命高于 70% 时，背刺角度刁钻（伤害＋30%）",
-                "name": "双刃乱舞",
+            "sk_ying_xi": {
+             'lv': 8,
+             'mp': 8,
+             'power': 0.92,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.35,
+             'cd': 8,
+             'mech': 'lian_duan',
+             'mech_val': 1,
+             'name': '影袭',
+             'desc': '身形融入暗影，匕首自背后骤然刺出——造成 72% 物理伤害，命中 +1 段，背击时伤害 ×1.3'
             },
-    "sk_cui_du": {
-                "lv": 14,
-                "mp": 6,
-                "power": 1.0,
-                "kind": "物理",
-                "mech": "poison",
-                "mech_val": 2,
-                "res_gain": 1,
-                "desc": "匕尖在幽绿毒液中浸过，再吻上猎物的咽喉——造成 100% 物理伤害并附加 2 层中毒（毒刃之道，核心起手）",
-                "name": "淬毒",
+            "sk_shuang_ren_luan_wu": {
+             'lv': 12,
+             'mp': 10,
+             'power': 0.46,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.35,
+             'cd': 12,
+             'hits': 2,
+             'name': '双刃乱舞',
+             'desc': '双匕交错翻飞成银色风暴——每段造成 38% 物理伤害共 2 段，每段命中 +1 段连击'
             },
-    "sk_an_sha": {
-                "lv": 20,
-                "mp": 12,
-                "power": 1.147,
-                "kind": "物理",
-                "res_cost": {"cp": 3},
-                "cond": {"type": "enemy_hp_low", "hp_pct": 0.4, "mult": 1.4, "label": "残血收割"},
-                "desc": "自阴影中现身的必杀一击，直指垂死之敌——造成 240% 物理伤害；目标生命低于 40% 时，死神已在旁等待（伤害＋40%）",
-                "name": "暗杀",
+            "sk_qian_xing": {
+             'lv': 16,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 16,
+             'effect': 'stealth',
+             'name': '潜行',
+             'desc': '屏息凝神，气息与阴影融为一体——进入潜行：下次攻击必定暴击，且不积累连击段'
             },
-    "sk_qian_xing": {
-                "lv": 3,
-                "mp": 5,
-                "power": 0,
-                "kind": "增益",
-                "effect": "stealth",
-                "cd": 3,
-                "res_gain": 1,
-                "desc": "身形没入暗影，气息与杀意一同敛去——暴击率＋20%，持续 3 刻，且下次攻击必定暴击（爆发核心）",
-                "name": "潜行",
+            "sk_yan_wu_dan": {
+             'lv': 20,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 16,
+             'effect': 'disengage_dodge',
+             'name': '烟雾弹',
+             'desc': '掷出烟雾弹，白烟瞬间吞没战场——脱离战斗，全队闪避 +25% 持续 8 刻'
             },
-    "sk_ji_ying": {
-                "lv": 6,
-                "mp": 3,
-                "power": 0,
-                "kind": "增益",
-                "effect": "spd_up",
-                "cd": 2,
-                "desc": "足尖点地，身影拖出残像掠向目标——速度＋40%，持续 2 刻（机动）",
-                "name": "疾影",
+            "sk_ji_ying": {
+             'lv': 24,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.25,
+             'cd': 12,
+             'effect': 'spd_buff',
+             'name': '疾影',
+             'desc': '足尖点地，身影拉成一道残线——自身速度 +40% 持续 6 刻'
             },
-    "sk_ying_xi": {
-                "lv": 11,
-                "mp": 6,
-                "power": 1.2,
-                "kind": "物理",
-                "res_gain": 1,
-                "mech": "shadow",
-                "mech_val": 1,
-                "desc": "顺着影子扑向猎物，匕刃与黑暗一同落下——造成 120% 物理伤害并叠加 1 层影袭（潜行联动）",
-                "name": "影袭",
-            },
-    "sk_si_wang_biao_ji": {
-                "lv": 17,
-                "mp": 6,
-                "power": 0,
-                "kind": "增益",
-                "effect": "mark",
-                "cd": 2,
-                "res_gain": 1,
-                "team": "crit_all",
-                "desc": "在猎物眉心烙下死亡的印记，令其成为众矢之的——目标受击伤害＋30%（铺垫）",
-                "name": "死亡标记",
-            },
-    "sk_du_wu": {
-                "lv": 24,
-                "mp": 10,
-                "power": 0.8,
-                "kind": "物理",
-                "cd": 3,
-                "mech": "poison",
-                "mech_val": 2,
-                "aoe": "all",
-                "desc": "掷出毒囊炸开一片幽绿雾气，腐蚀全场敌人的血肉——造成 80% 全体物理伤害并附加 2 层中毒（毒刃流铺场）",
-                "name": "毒雾",
-            },
-    "sk_an_ying_chu_xing": {
-                "lv": 30,
-                "mp": 18,
-                "power": 1.317,
-                "kind": "物理",
-                # v130.2 统一公式：per=0 威力恒为数据表 3.2（满 5 点 3.2×1.5=EQ4.8，策划 12 章 §6.1 奥义基准；
-                # 「每点＋40%」为 v104 旧式 1+per×cur 残留——暗影处刑定位=固定 5 点高档终结，非逐点强化）
-                "consume_all": {"key": "cp", "per": 0.0},
-                "cond": {"type": "enemy_hp_low", "hp_pct": 0.3, "mult": 1.5, "label": "死亡边缘"},
-                "desc": "暗影凝成刃锋，对垂死之敌执行最后的处刑——基础造成 320% 致命一击，消耗全部连击点；目标生命低于 30% 时，死亡边缘的恐惧令威力＋50%",
-                "name": "暗影处刑",
-            },
-    "sk_p_an_ying_zhi_wu": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "stealth_crit_dmg", "mult": 0.3},
-                "desc": "与暗影共舞，藏于黑暗中的刃更加致命——潜行状态下暴击伤害＋30%（暮影行者觉醒即得，被动）",
-                "name": "暗影之舞",
-            },
-    "sk_p_ji_ying": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "spd", "mult": 0.08},
-                "desc": "将疾影的残像刻入身法——速度＋8%（被动）",
-                "name": "疾影术",
-            },
-    "sk_p_ying_ren_jing_tong": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "crit_dmg", "add": 0.10},
-                "desc": "刃与影浑然一体，出刀必中要害——暴击伤害＋10%（一转觉醒·影刃精通，被动）",
-                "name": "影刃精通",
-            },
-    "sk_p_ju_du_qin_he": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "poison", "mult": 1.2},
-                "desc": "血肉与毒素渐生共鸣，毒液成了最亲密的盟友——毒层每层伤害＋20%（被动）",
-                "name": "剧毒亲和",
-            },
-    "sk_p_zhi_ming_yu_mou": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "battle_start_cp"},
-                "desc": "战斗未启，杀局已布——战斗开始时即获得 1 点连击点（被动）",
-                "name": "致命预谋",
+            "sk_zhong_jie_ge_hou": {
+             'lv': 28,
+             'mp': 12,
+             'power': 1.04,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.4,
+             'cd': 12,
+             'mech': 'finisher',
+             'name': '终结·割喉',
+             'desc': '匕刃横过咽喉，终结一击快如闪电——造成 80% 物理伤害，连段越高伤害越高（每段 +10%），结算后连段归零'
             },
         },
     },
     "cls_wu_seng": {
         "name": "拳师",
         "skills": {
-    "sk_zhi_quan": {
-                "lv": 1,
-                "mp": 3,
-                "power": 1.0,
-                "kind": "物理",
-                "combo": "拳",
-                "res_gain": 1,
-                "cond": {"type": "player_first", "mult": 1.15, "label": "起手式"},
-                "desc": "一记笔直的拳锋破空而出——造成 100% 单体伤害(连招【拳】)；先手出招时力道更沉(伤害＋15%)",
-                "name": "直拳",
+            "sk_zhi_quan": {
+             'lv': 1,
+             'mp': 6,
+             'power': 0.63,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.35,
+             'shaken_gain': 0,
+             'name': '直拳',
+             'desc': '拳风凌厉直捣要害——造成 72% 物理伤害，命中即推破绽条'
             },
-    "sk_chong_quan": {
-                "lv": 2,
-                "mp": 3,
-                "power": 1.1,
-                "kind": "物理",
-                "res_gain": 1,
-                "combo": "拳",
-                "desc": "沉肩发力，拳势如弩箭离弦——造成 110% 物理伤害(连招【拳】)",
-                "name": "冲拳",
+            "sk_ce_ti": {
+             'lv': 4,
+             'mp': 6,
+             'power': 0.81,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.45,
+             'cd': 8,
+             'shaken_gain': 0,
+             'cond': {"type": "enemy_broken", "mult": 1.3},
+             'name': '侧踢',
+             'desc': '侧身旋踢扫向破绽处——造成 82% 物理伤害，推破绽条；对破防目标伤害 ×1.3'
             },
-    "sk_beng_quan": {
-        # v95.7 #39：碎骨拳 8→4 级并改为耗气技（3 气），解决武僧 Lv.2-7 气满无出口的空转
-        # v130.2：基础 3 气档轻倾泻——power 1.5，敌血高 +20%
-        "lv": 4,
-        "mp": 6,
-        "power": 0.96,
-        "kind": "物理",
-        "combo": "拳",
-        "pierce": True,
-        "res_cost": {"chi": 3},
-        "cond": {"type": "enemy_hp_high", "hp_pct": 0.7, "mult": 1.2, "label": "崩山之势"},
-        "desc": "拳风裹挟气力，直撼骨节——造成 150% 破防伤害(连招【拳】)，消耗 3 点气；目标生命高于 70% 时拳势更重(伤害＋20%)",
-        "name": "碎骨拳",
-    },
-    "sk_hui_xuan_ti": {
-                "lv": 14,
-                "mp": 6,
-                "power": 1.2,
-                "kind": "物理",
-                "combo": "踢",
-                "res_gain": 1,
-                "cond": {"type": "enemy_frozen", "mult": 1.3, "label": "立足不稳"},
-                "aoe": "front",
-                "desc": "身形腾转，一记回旋腿扫过前排——造成 120% 全体伤害(连招【踢】)；目标减速或冻结时踢势更狠(伤害＋30%)",
-                "name": "回旋踢",
+            "sk_gang_quan": {
+             'lv': 8,
+             'mp': 8,
+             'power': 0.59,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.5,
+             'cd': 12,
+             'shaken_gain': 0,
+             'name': '钢拳',
+             'desc': '钢拳崩裂护甲——造成 87% 物理伤害，推破绽条并使目标破防'
             },
-    "sk_zhen_di_ji": {
-                "lv": 20,
-                "mp": 8,
-                "power": 1.3,
-                "kind": "物理",
-                "combo": "踢",
-                "res_gain": 1,
-                "cc": "stun",
-                "aoe": "front",
-                "desc": "重腿砸地，震波轰然扩散——造成 130% 全体伤害(连招【踢】)，35% 概率震晕目标",
-                "name": "震地击",
+            "sk_lian_zhao_san_lian": {
+             'lv': 12,
+             'mp': 12,
+             'power': 0.29,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.45,
+             'cd': 12,
+             'hits': 3,
+             'shaken_gain': 0,
+             'name': '连招三连',
+             'desc': '拳影连珠三连轰击——每段造成 30% 物理伤害，三段皆推破绽条'
             },
-    "sk_ce_ti": {
-                "lv": 3,
-                "mp": 4,
-                "power": 1.1,
-                "kind": "物理",
-                "combo": "踢",
-                "res_gain": 1,
-                # v130.6 变招（player_combo）：上一招是【拳】→ 伤害 +10%（连击惯性，
-                # 策划案 7.3「若上一招是拳（直拳），气额外+1」的伤害化表达，鼓励按序连招）
-                "cond": {"type": "player_combo", "last": "拳", "mult": 1.10, "label": "连击惯性"},
-                "desc": "侧身一记凌厉踢击——造成 110% 伤害(连招【踢】)；上一招为拳时衔接流畅(伤害＋10%)",
-                "name": "侧踢",
+            "sk_tong_qiang": {
+             'lv': 16,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.35,
+             'cd': 16,
+             'mech_val': 45,
+             'effect': 'reduce',
+             'name': '铜墙',
+             'desc': '身如铜铸，气沉如墙——自身减伤 45% 持续 8 刻'
             },
-    "sk_tie_zhang": {
-                "lv": 6,
-                "mp": 5,
-                "power": 1.2,
-                "kind": "物理",
-                "combo": "掌",
-                "res_gain": 1,
-                "desc": "拳掌如铁，蓄势待发——造成 120% 伤害(连招【掌】)，为三连蓄势",
-                "name": "钢拳",
+            "sk_zhen_di_ji": {
+             'lv': 20,
+             'mp': 12,
+             'power': 0.59,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.55,
+             'cd': 12,
+             'mech': 'stun',
+             'mech_val': 2.0,
+             'shaken_gain': 0,
+             'name': '震地击',
+             'desc': '重拳砸地震裂大地——造成 168% 物理伤害，40% 概率眩晕 2.0 刻'
             },
-    "sk_qi_xi_tiao_xi": {
-                "lv": 11,
-                "mp": 5,
-                "power": 0.15,
-                "kind": "治疗",
-                "cd": 3,
-                "res_gain": 2,
-                "desc": "敛息凝神，引导气力温养周身——回复 15% 生命",
-                "name": "冥想",
+            "sk_chong_quan": {
+             'lv': 24,
+             'mp': 10,
+             'power': 0.73,
+             'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
+             'cast': 0.4,
+             'cd': 12,
+             'shaken_gain': 0,
+             'name': '冲拳',
+             'desc': '蓄势冲拳破阵而入——造成 123% 物理伤害，位移至前排并推破绽条'
             },
-    "sk_tong_qiang": {
-                "lv": 17,
-                "mp": 5,
-                "power": 0,
-                "kind": "增益",
-                "effect": "def_up",
-                "cd": 3,
-                "res_gain": 2,
-                "team": "def_all",
-                "desc": "周身气劲凝为壁垒，坚不可摧——防御＋45% 持续 2 刻",
-                "name": "铜墙",
-            },
-    "sk_lian_zhao_san_lian": {
-                "lv": 24,
-                "mp": 10,
-                "power": 0.896,
-                "kind": "物理",
-                "combo": "拳",
-                "multi": 3,
-                "res_gain": 3,
-                # v139 三连击破改造挂点：三连击破命中追加 shaken +15（打晕）+ def_down 破防（打防御）同时生效（共用一次命中）
-                "triple_break": {"shaken_gain": 15, "def_down": True},
-                "desc": "拳、踢、掌三段连环如行云流水——连续攻击 3 次(每次 150% 伤害)；三连完成时气力技威力＋20%；三连击破命中追加破绽+15 并施加破防(打晕与破防共用一次命中)",
-                "name": "连招三连",
-            },
-    "sk_po_xiao_zhi_quan": {
-                "lv": 30,
-                "mp": 15,
-                "power": 0.634,
-                "kind": "物理",
-                "consume_all": {"key": "chi", "per": 0.1},
-                # v130.2 基础瘦身：破晓之拳重定为无条件满势终结——每 1 气物理威力 +10%（2.4×(1+0.1×10)=4.8），
-                # 满 10 气 EQ≈4.8（去残血条件；res_cost 与 consume_all 冲突字段已去，改按持有气动态结算）
-                "desc": "将周身气力凝于一拳，如破晓曙光——造成 63% 基础伤害，消耗全部气(每点气＋10% 威力，满 10 气约 127%)；目标处于破绽被晕当刻伤害×1.15",
-                "name": "破晓之拳"
-            },
-    "sk_p_lian_zhao_jing_tong": {
-                "lv": 12,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "combo_boost"},
-                "desc": "千锤百炼的连招技艺——三连击破的追加伤害提升至 50%(v109.2 武圣连击强化)",
-                "name": "连招精通",
-            },
-    "sk_p_pan_shi_ti": {
-                "lv": 25,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "dmg_taken", "reduce": 0.05, "res_gain": 1},
-                "desc": "身躯如磐石般沉稳——受到伤害时减伤 5%，并凝聚 1 点气",
-                "name": "磐石体",
-            },
-    "sk_p_qi_shou_shi": {
-                "lv": 30,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "atk", "cond": "battle_start", "mult": 0.08},
-                "desc": "开战瞬间便抢占先机——战斗开始时攻击＋8%",
-                "name": "起手式",
-            },
-    "sk_p_qi_xi_tiao_he": {
-                "lv": 38,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"proc": "turn_heal", "pct": 0.02},
-                "desc": "气随呼吸流转不息——每刻回复 2% 生命",
-                "name": "气力调和",
-            },
-    "sk_p_dou_qi_ning_ju": {
-                "lv": 55,
-                "mp": 0,
-                "power": 0,
-                "kind": "被动",
-                "passive": {"stat": "chi_gain", "mult": 1},
-                "desc": "气劲涌动如渊，凝聚更快——气获取＋1",
-                "name": "气力凝聚",
+            "sk_ming_xiang": {
+             'lv': 28,
+             'mp': 6,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.5,
+             'cd': 16,
+             'effect': 'cleanse',
+             'name': '冥想',
+             'desc': '气沉丹田，心镜澄明——清除 1 个减益，自身每刻回蓝 2% 持续 6 刻'
             },
         },
     },
-    # ================= v87 隐藏职业：魔剑士（09 章九.2，Lv.60 解锁）=================
+    "cls_shi_ren": {
+        "name": "吟游诗人",
+        "skills": {
+            "sk_zhan_ge": {
+             'lv': 1,
+             'mp': 6,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 8,
+             'mech': 'melody',
+             'melody': 'atk',
+             'name': '战歌',
+             'desc': '拨动琴弦，战意随旋律点燃血液——驻留：全队攻击 +12%'
+            },
+            "sk_shou_ge": {
+             'lv': 4,
+             'mp': 6,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 8,
+             'mech': 'melody',
+             'melody': 'def',
+             'name': '守歌',
+             'desc': '弦音如盾，守护之歌环绕周身——驻留：全队减伤 +10%'
+            },
+            "sk_ji_ge": {
+             'lv': 8,
+             'mp': 6,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 8,
+             'mech': 'melody',
+             'melody': 'spd',
+             'name': '疾歌',
+             'desc': '轻快旋律催人疾行，风声与琴音竞速——驻留：全队速度 +12%'
+            },
+            "sk_bo_xian": {
+             'lv': 12,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.6,
+             'cd': 4,
+             'mech': 'melody_chant',
+             'mech_val': 1,
+             'name': '拨弦',
+             'desc': '指尖轻挑琴弦，引动旋律层层攀升——吟唱：当前旋律强度 +1'
+            },
+            "sk_yin_ren": {
+             'lv': 16,
+             'mp': 8,
+             'power': 1.08,
+             'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
+             'cast': 0.6,
+             'cd': 8,
+             'name': '音刃',
+             'desc': '琴弦急振，声浪凝为利刃破空而去——音波单体输出，108% 魔法伤害'
+            },
+            "sk_an_shen_qu": {
+             'lv': 20,
+             'mp': 12,
+             'power': 0.97,
+             'kind': '治疗',
+             'cast': 0.6,
+             'cd': 12,
+             'name': '安神曲',
+             'desc': '吟唱安神曲调，柔光随旋律抚愈众人——治疗全队 97% 生命'
+            },
+            "sk_ji_zou_yin": {
+             'lv': 24,
+             'mp': 8,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.3,
+             'cd': 12,
+             'effect': 'spd_all',
+             'name': '疾走音',
+             'desc': '急促音符如风掠过，脚步随之轻盈——全队速度 +20%，持续 6 刻（一次性，非驻留）'
+            },
+            "sk_he_sheng": {
+             'lv': 28,
+             'mp': 12,
+             'power': 1.0,
+             'kind': '增益',
+             'cast': 0.6,
+             'cd': 16,
+             'mech': 'melody_chant',
+             'mech_val': 1,
+             'name': '和声',
+             'desc': '多重合声叠涌，旋律在共鸣中沸腾——吟唱：强度 +1，当前旋律效果翻倍，持续 6 刻'
+            },
+        },
+    },
 }
+
 
 BRANCH_SKILLS = {
     "cls_zhan_shi": {
@@ -1160,393 +757,442 @@ BRANCH_SKILLS = {
         "branches": {
             1: {
                 "狂战士": {
-                    "怒斩":                     {
-                        "lv": 32,
-                        "power": 1.166,
-                        "kind": "物理",
-                        "res_gain": 2,
-                        "cond": {
-                            "type": "player_hp_low",
-                            "hp_pct": 0.5,
-                            "mult": 1.25,
-                            "label": "狂战血统"
-                        },
-                        # v139 狂暴态增益：狂暴形态下伤害 +20%（怒斩 = 入狂暴门槛技）
-                        "cond_rage_form": {"type": "player_rage_form", "mult": 1.2, "label": "狂暴增益"},
-                        "mp": 5,
-                        "desc": "怒意化作劈山一剑——造成 238% 物理伤害；自身生命低于 50% 时狂血翻涌(伤害＋25%)；狂暴形态下怒意更炽(伤害＋20%)",
-                        "name": "怒斩"
-                    }
-,
-                    "死战":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "atk",
-                            "cond": "hp_low_50",
-                            "mult": 0.1
-                        },
-                        # v139 狂暴精通前置：狂暴中维持成本 -1 → 0（与狂暴精通叠加归零）
-                        "rage_form": {"maintain_cost_reduce": 1},
-                        "desc": "伤越重，战意越炽——生命低于 50% 时攻击＋10%；狂暴形态下维持成本 -1(狂暴维持归零)",
-                        "name": "死战"
-                    }
-,
-                    "嗜血斩":                     {
-                        "lv": 45,
-                        "power": 1.6,
-                        "kind": "物理",
-                        "lifesteal": 0.25,
-                        "res_gain": 2,
-                        "cond": {
-                            "type": "enemy_debuff",
-                            "mult": 1.2,
-                            "label": "猎物标记"
-                        },
-                        # v139 狂暴强化：狂暴形态下吸血翻倍（25% → 50%）
-                        "rage_form": {"lifesteal_mult": 2},
-                        "mp": 8,
-                        "desc": "利刃贪婪地渴饮鲜血——造成 160% 物理伤害并吸血 25%；目标身带减益时剑势更凶(伤害＋20%)；狂暴形态下吸血翻倍(50%)",
-                        "name": "嗜血斩"
-                    }
-,
-                    "狂怒爆发":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 1.307,
-                        "kind": "物理",
-                        "res_cost": {
-                            "rage": 5
-                        },
-                        "cond": {
-                            "type": "player_hp_low",
-                            "hp_pct": 0.3,
-                            "mult": 1.4,
-                            "label": "绝境狂怒"
-                        },
-                        "desc": "怒血燃尽，孤注一掷——终结技造成 240% 物理伤害；自身生命低于 30% 时背水一战(伤害＋40%)",
-                        "name": "狂怒爆发"
-                    }
-,
-                    # v113：真伤机制下放——龙息之怒(原龙裔线 T3)降为战士攻线 Lv.55 进阶技
-                    "龙息之怒":                     {
-                        "lv": 55,
-                        "mp": 30,
-                        "power": 1.0,
-                        "kind": "真伤",
-                        "mech": "burn",
-                        "mech_val": 2,
-                        "cd": 4,
-                        "res_gain": 2,
-                        "desc": "挥剑如龙啸，吐出灼热吐息——造成 100% 真伤(无视全部防御)并附加 2 层灼烧",
-                        "name": "龙息之怒"
-                    }
-,
-                    # v139 新增：狂暴精通（攻线签名，云海疾剑式翻译）——被动：狂暴中维持成本 -1 → 0、受击成本 -1 → 0
-                    "狂暴精通":                     {
-                        "lv": 50,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "rage_form_mastery"
-                        },
-                        "rage_form": {"maintain_cost_reduce": 1, "hit_cost_reduce": 1},
-                        "desc": "狂暴技艺炉火纯青——狂暴形态下维持成本 -1、受击成本 -1（维持/受击消耗归零）",
-                        "name": "狂暴精通"
-                    }
-,
-                    # v139 新增：破势斩（云海本命「入剑追加」翻译）——入狂暴当刻自动追加 1 次 120% 物理（不占行动）
-                    "破势斩":                     {
-                        "lv": 52,
-                        "mp": 0,
-                        "power": 1.2,
-                        "kind": "物理",
-                        "auto": "rage_form_enter",
-                        "desc": "入狂暴当刻自动追加 1 次 120% 物理斩击（不占行动）",
-                        "name": "破势斩"
-                    }
-,
+                    "怒斩": {
+                        'lv': 32,
+                        'mp': 6,
+                        'power': 0.97,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 8,
+                        'mech': 'zhan_yi',
+                        'mech_val': 1,
+                        'name': '怒斩',
+                        'desc': '怒意灌注刀锋，劈出雷霆一击——造成 97% 物理伤害，每层战意 +5% 伤害，命中积攒 1 点战意'
+                    },
+                    "嗜血斩": {
+                        'lv': 38,
+                        'mp': 10,
+                        'power': 1.33,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.33, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.33, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 12,
+                        'lifesteal': 0.25,
+                        'name': '嗜血斩',
+                        'desc': '刀锋舔过血肉，伤处化作养分——造成 125% 物理伤害，吸血 25%（狂暴中 50%）'
+                    },
+                    "裂地斩": {
+                        'lv': 44,
+                        'mp': 12,
+                        'power': 1.14,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.14, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.14, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'mech': 'bleed',
+                        'mech_val': 2,
+                        'cond': {"type": "player_mech_stacks", "mech": "zhan_yi", "stacks": 6, "mult": 1.0},
+                        'name': '裂地斩',
+                        'desc': '重刀砸入大地，裂缝噬向敌群——造成 114% 物理伤害，战意 ≥6 时附加 2 层流血'
+                    },
+                    "淬血": {
+                        'lv': 50,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "zhan_yi_lifesteal"},
+                        'name': '淬血',
+                        'desc': '刀口舔血的战士，伤疤即是勋章——每层战意额外提供 1.5% 吸血'
+                    },
+                    "破势斩": {
+                        'lv': 54,
+                        'mp': 10,
+                        'power': 1.25,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.25, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.25, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 12,
+                        'auto': 'fury_append',
+                        'name': '破势斩',
+                        'desc': '怒意冲破桎梏的刹那，刀光暴起——造成 125% 物理伤害，进入狂暴时自动追加（不占行动）'
+                    },
+                    "狂战怒吼": {
+                        'lv': 58,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'mech': 'zhan_yi',
+                        'mech_val': 3,
+                        'effect': 'atk_all',
+                        'name': '狂战怒吼',
+                        'desc': '如狂兽般的怒吼震裂苍穹——全队攻击 +35% 持续 10 刻，自身积攒 3 点战意'
+                    },
                 },
                 "盾卫士": {
-                    "盾击·卫":                     {
-                        "lv": 32,
-                        "power": 1.634,
-                        "kind": "物理",
-                        "mech": "stun",
-                        "mech_val": 1,
-                        "cond": {
-                            "type": "enemy_stunned",
-                            "mult": 1.5,
-                            "label": "盾击连打"
-                        },
-                        # v139 姿态联动：守护姿态生效时伤害 +20%
-                        "cond_stance": {"type": "player_stance", "mult": 1.2, "label": "姿态联动"},
-                        "mp": 5,
-                        "desc": "重盾裹挟守护之力悍然砸出——造成 238% 盾击伤害，概率震晕目标 1 刻；目标已被眩晕时追加 50% 伤害；守护姿态生效时伤害＋20%",
-                        "cd": 3,
-                        "name": "盾击·卫"
-                    }
-,
-                    "守护姿态":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "dmg_taken",
-                            "reduce": 0.1,
-                            "res_gain": 2
-                        },
-                        # v139 云海骑士反冲槽翻译：受击自动反击 40%（不耗怒、不计 CD、每受击至多 1 次）+ 刻末保底回怒 1
-                        "counter_attack": {"proc": "on_hit", "power": 0.4, "per_hit": 1, "free": True},
-                        "stance_floor": {"res_gain": 1, "per_turn": 1},
-                        "desc": "沉稳如山的守护架势——受到伤害降低 10%，受击时凝聚怒气；受击自动反击 40% 物理(不耗怒气、不吃 CD、每受击至多 1 次)，刻末保底回怒 1",
-                        "name": "守护姿态"
-                    }
-,
-                    "坚盾壁垒":                     {
-                        "lv": 45,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "def_up",
-                        "team": "def_all",
-                        "res_cost": {"rage": 3},
-                        "desc": "高举坚盾，壁垒护佑全队——组队时全队防御强化",
-                        "name": "坚盾壁垒"
-                    }
-,
-                    "嘲讽":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "嘲讽",
-                        "cd": 3,
-                        "team": "taunt",
-                        "res_gain": 4,
-                        "res_cost": {
-                            "rage": 3
-                        },
-                        # v139 顿足盾击联动：嘲讽失效（目标死亡/免疫）当刻自动衔接 40% 顿足盾击（不占行动）
-                        "auto_followup": {"trigger": "taunt_failed", "skill": "顿足盾击", "power": 0.4, "free": True},
-                        "desc": "一声挑衅怒喝，将敌意尽数引向自身——强制怪物攻击自己 2 刻(CD 3)；嘲讽失效时当刻自动衔接 40% 顿足盾击(不占行动)",
-                        "name": "嘲讽"
-                    }
-,
-                    # v139 新增：顿足盾击（云海战士余势斩翻译）——嘲讽失效/格挡被破当刻自动 40% 低伤盾击（不占主行动、不吃 CD、不耗怒）
-                    "顿足盾击":                     {
-                        "lv": 50,
-                        "mp": 0,
-                        "power": 0.4,
-                        "kind": "物理",
-                        "auto": "stance_followup",
-                        "auto_cond": {"taunt_failed": True, "block_break": True},
-                        "desc": "守线自动衔接技——嘲讽失效或格挡被破当刻自动打出 40% 盾击(不占主行动、不吃 CD、不耗怒)",
-                        "name": "顿足盾击"
-                    }
-,
+                    "盾击·誓": {
+                        'lv': 32,
+                        'mp': 6,
+                        'power': 0.97,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 8,
+                        'mech': 'stun',
+                        'mech_val': 2.0,
+                        'name': '盾击·誓',
+                        'desc': '重盾悍然撞出，誓约之力灌注其上——造成 97% 物理伤害，40% 概率眩晕 2 刻（守护姿态中伤害 +20%）'
+                    },
+                    "守护姿态": {
+                        'lv': 38,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 8,
+                        'mech': 'zhan_yi',
+                        'mech_val': 1,
+                        'stance': 'counter',
+                        'name': '守护姿态',
+                        'desc': '沉肩架盾，如磐石钉入大地——进入守护姿态：受击反击 40%，每刻积攒 0.2 点战意'
+                    },
+                    "坚盾壁垒": {
+                        'lv': 44,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'effect': 'shield_all',
+                        'name': '坚盾壁垒',
+                        'desc': '高举巨盾，誓言化作金色壁垒——花 5 层战意：全队获得护盾（每层 6% 施法者生命上限），持续 12 刻'
+                    },
+                    "顿足": {
+                        'lv': 50,
+                        'mp': 8,
+                        'power': 0.91,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.91, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.91, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'auto': 'taunt_fail',
+                        'name': '顿足',
+                        'desc': '重重顿足，大地为之震颤——造成 91% 物理伤害，嘲讽失效时自动衔接（不占行动）'
+                    },
+                    "铁壁·誓": {
+                        'lv': 54,
+                        'mp': 8,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 12,
+                        'effect': 'shield_block',
+                        'name': '铁壁·誓',
+                        'desc': '以誓言加固铁壁，身躯坚不可摧——自身获得护盾，格挡率 +30%，持续 10 刻'
+                    },
+                    "嘲讽": {
+                        'lv': 58,
+                        'mp': 10,
+                        'power': 1.0,
+                        'kind': '嘲讽',
+                        'cast': 0.5,
+                        'cd': 12,
+                        'effect': 'taunt',
+                        'name': '嘲讽',
+                        'desc': '一声暴喝响彻战场，仇恨尽归吾身——强制敌人攻击自己，持续 8 刻'
+                    },
                 },
             },
             2: {
-                "狂战统领": {
-                    "狂战之魂":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "res_gain_bonus": 1
-                        },
-                        "desc": "狂战士之魂永不熄灭——怒气获取＋1",
-                        "name": "狂战之魂"
-                    }
-,
-                    "乱舞":                     {
-                        "lv": 62,
-                        "power": 1.2,
-                        "kind": "物理",
-                        "multi": 3,
-                        "res_gain": 3,
-                        "mp": 10,
-                        "desc": "剑光如狂风乱舞——连斩 3 次(每次 120% 物理伤害)",
-                        "cd": 2,
-                        "name": "乱舞"
-                    }
-,
-                    "处决":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 2.647,
-                        "kind": "物理",
-                        "res_cost": {
-                            "rage": 4
-                        },
-                        "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.35,
-                            "mult": 1.5,
-                            "label": "残血终结"
-                        },
-                        "desc": "审判之剑落下，终结一切抵抗——造成 300% 斩杀伤害；目标生命低于 35% 时(伤害＋50%)",
-                        "cd": 2,
-                        "name": "处决"
-                    }
-,
+                "狂战士": {
+                    "龙息之怒": {
+                        'lv': 62,
+                        'mp': 28,
+                        'power': 2.13,
+                        'kind': '真伤',
+             'formula': [{'stat': 'atk', 'mult': 2.13, 'type': 'true', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.13, 'type': 'true', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 16,
+                        'mech': 'burn',
+                        'mech_val': 2,
+                        'kind_override': '真伤',
+                        'name': '龙息之怒',
+                        'desc': '剑锋燃起赤金龙焰，灼浪吞没敌手——造成 213% 真实伤害，附加 2 层灼烧'
+                    },
+                    "血祭": {
+                        'lv': 68,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.45,
+                        'cd': 16,
+                        'mech': 'zhan_yi_fury',
+                        'mech_val': 4,
+                        'name': '血祭',
+                        'desc': '刀刃划破掌心，以鲜血祭奠怒意——花 4 层战意，无视 10 层门槛立即进入狂暴'
+                    },
+                    "怒涛连斩": {
+                        'lv': 74,
+                        'mp': 22,
+                        'power': 0.6,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 12,
+                        'hits': 3,
+                        'mech': 'zhan_yi',
+                        'mech_val': 1,
+                        'name': '怒涛连斩',
+                        'desc': '刀势如怒涛般一浪高过一浪——造成 60% 物理伤害 ×3 段，每段命中积攒 1 点战意'
+                    },
+                    "断筋": {
+                        'lv': 80,
+                        'mp': 14,
+                        'power': 1.7,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 12,
+                        'mech': 'bleed',
+                        'mech_val': 2,
+                        'mech2': 'spd_down',
+                        'mech2_val': 30,
+                        'name': '断筋',
+                        'desc': '刀锋狠辣地挑断敌之腿筋——造成 170% 物理伤害，附加 2 层流血并减速 30% 持续 6 刻'
+                    },
+                    "焚天斩": {
+                        'lv': 85,
+                        'mp': 30,
+                        'power': 1.17,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 16,
+                        'aoe': 'front',
+                        'name': '焚天斩',
+                        'desc': '烈焰缠绕刀身，斩出焚天之怒——造成 117% 物理伤害（前排全体），战意 ≥8 时扩为全体'
+                    },
+                    "狂热": {
+                        'lv': 88,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "zhan_yi_crit"},
+                        'name': '狂热',
+                        'desc': '战意沸腾至顶点的战士，目光如炬——战意 ≥8 时暴击 +15%'
+                    },
                 },
-                "坚盾卫士": {
-                    "圣盾":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "block",
-                            "mult": 0.1
-                        },
-                        # v139 格挡反击：守护姿态生效时格挡成功触发一次 40% 反击（复用 block_counter 挂点）
-                        "block_counter": {"power": 0.4, "stance_only": True},
-                        "desc": "神圣壁垒护体——格挡率＋10%；守护姿态生效时格挡成功触发一次 40% 反击",
-                        "name": "圣盾"
-                    }
-,
-                    "复仇":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "counter",
-                            "mult": 1.3
-                        },
-                        "desc": "伤痛点燃复仇之焰——受击后下一次攻击＋30%",
-                        "name": "复仇"
-                    }
-,
-                    "破城锤":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 1.097,
-                        "kind": "物理",
-                        "pierce": True,
-                        "res_cost": {
-                            "rage": 3
-                        },
-                        "cond": {
-                            "type": "enemy_hp_high",
-                            "hp_pct": 0.7,
-                            "mult": 1.5,
-                            "label": "重装压制"
-                        },
-                        "desc": "如攻城巨锤轰碎防线——造成 220% 破防伤害；目标生命高于 70% 时全力压制(伤害＋50%)",
-                        "name": "破城锤"
-                    }
-,
+                "盾卫士": {
+                    "圣盾": {
+                        'lv': 62,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'effect': 'shield_all',
+                        'name': '圣盾',
+                        'desc': '圣光在盾面流转，庇护身后众人——全队获得战意之盾（随战意层数增强，每层 +6%，不消耗），持续 12 刻'
+                    },
+                    "坚韧": {
+                        'lv': 68,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'mech_val': 2,
+                        'passive': {"proc": "tenacity"},
+                        'name': '坚韧',
+                        'desc': '久经沙场的意志，令控制难以撼动——被控制时消耗 2 层战意跳过（每场 3 次）'
+                    },
+                    "复仇": {
+                        'lv': 74,
+                        'mp': 14,
+                        'power': 1.44,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.44, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.44, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 12,
+                        'cond': {"type": "revenge", "mult": 0.8},
+                        'name': '复仇',
+                        'desc': '承受的每一道伤，都将百倍奉还——造成 144% 物理伤害，已承伤越多伤害越高（最高 +80%）'
+                    },
+                    "破城锤": {
+                        'lv': 80,
+                        'mp': 18,
+                        'power': 1.7,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 16,
+                        'mech': 'stun',
+                        'mech_val': 2.0,
+                        'name': '破城锤',
+                        'desc': '巨盾如破城之锤轰然砸出——造成 170% 物理伤害，破防并 40% 概率眩晕 2 刻'
+                    },
+                    "誓约之盾": {
+                        'lv': 85,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.7,
+                        'cd': 20,
+                        'effect': 'protect',
+                        'name': '誓约之盾',
+                        'desc': '以誓言立盾，替战友挡下刀锋——为队友挡刀并反伤 30%，持续 12 刻'
+                    },
+                    "战吼·守": {
+                        'lv': 88,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'effect': 'reduce_all',
+                        'name': '战吼·守',
+                        'desc': '守护之吼回荡战场，稳住阵脚——全队减伤 20% 持续 10 刻，自身积攒 2 点战意'
+                    },
                 },
             },
             3: {
-                "战争领主": {
-                    "怒涛连斩":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 1.202,
-                        "kind": "物理",
-                        "multi": 3,
-                        "res_cost": {
-                            "rage": 5
-                        },
-                        "cond": {
-                            "type": "player_res_stacks",
-                            "res_key": "rage",
-                            "stacks": 9,
-                            "mult": 1.3,
-                            "label": "战意通天"
-                        },
-                        "aoe": "all",
-                        "desc": "剑势如怒涛连绵不绝——全体连斩 3 次(每次 180% 伤害)；怒气达到 9 点时威力再涨(伤害＋30%)",
-                        "cd": 3,
-                        "name": "怒涛连斩"
-                    }
-,
-                    "战争化身":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 2.396,
-                        "kind": "物理",
-                        "res_cost": {
-                            "rage": 10
-                        },
-                        "cd": 5,
-                        "desc": "化身战争本身，挥出毁天灭地的一剑——造成 500% 毁灭斩击，消耗全部 10 点怒气",
-                        "name": "战争化身"
-                    }
-,
-                    "战争领域":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "atk_up_strong",
-                        "res_cost": {
-                            "rage": 10
-                        },
-                        "cd": 6,
-                        "desc": "展开属于战争的领域——3 刻内攻击大幅提升",
-                        "name": "战争领域"
-                    }
-,
+                "狂战士": {
+                    "战争化身": {
+                        'lv': 90,
+                        'mp': 40,
+                        'power': 3.71,
+                        'kind': '真伤',
+             'formula': [{'stat': 'atk', 'mult': 3.71, 'type': 'true', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 3.71, 'type': 'true', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 20,
+                        'mech': 'burn',
+                        'mech_val': 3,
+                        'kind_override': '真伤',
+                        'name': '战争化身',
+                        'desc': '怒意与战意交融，化身战场之神——造成 371% 真实伤害，附加 3 层灼烧（狂暴限定）'
+                    },
+                    "燎原之怒": {
+                        'lv': 93,
+                        'mp': 35,
+                        'power': 1.63,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.63, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.63, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 20,
+                        'aoe': 'all',
+                        'name': '燎原之怒',
+                        'desc': '刀锋所过烈焰燎原，吞没一切——造成 163% 物理伤害（全体），并清算目标身上的灼烧'
+                    },
+                    "怒涛·终焉": {
+                        'lv': 95,
+                        'mp': 45,
+                        'power': 0.59,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 1.1,
+                        'cd': 20,
+                        'hits': 4,
+                        'mech': 'zhan_yi',
+                        'mech_val': 1,
+                        'name': '怒涛·终焉',
+                        'desc': '怒涛四叠，终焉一斩终结一切——造成 59% 物理伤害 ×4 段，每段命中积攒 1 点战意'
+                    },
+                    "血怒·不灭": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "berserk_revive"},
+                        'name': '血怒·不灭',
+                        'desc': '只要怒意未熄，战士便不会倒下——狂暴中生命首次归零时，清空战意复活并回复 30% 生命'
+                    },
+                    "战意·极": {
+                        'lv': 98,
+                        'mp': 25,
+                        'power': 2.52,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 2.52, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.52, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 24,
+                        'cond': {"type": "player_mech_stacks", "mech": "zhan_yi", "stacks": 10, "mult": 1.4},
+                        'name': '战意·极',
+                        'desc': '战意满盈的一刀，足以开天裂地——造成 252% 物理伤害，战意满 10 时伤害 ×1.4'
+                    },
                 },
-                "坚城统帅": {
-                    "守护誓言":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "def_all",
-                        "team": "def_all",
-                        "res_cost": {
-                            "rage": 4
-                        },
-                        # v139 守护誓言期间姿态反击倍率 40% → 50%
-                        "stance_counter_boost": {"mult": 0.1},
-                        "desc": "以誓言为盾，守护全队——组队时全队防御强化；守护誓言期间姿态反击倍率提升(40%→50%)",
-                        "name": "守护誓言"
-                    }
-,
-                    "不破壁垒":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "reduce_all",
-                        "reduce_all": 0.25,   # v1.x 数值下沉：全队减伤 25%（原 battle.py REDUCE_ALL_PCT 中文名硬编码）
-                        "team": "reduce_all",
-                        "res_cost": {
-                            "rage": 5
-                        },
-                        "cd": 5,
-                        "desc": "筑起不破的壁垒——全队减伤 25% 持续 3 刻",
-                        "name": "不破壁垒"
-                    }
-,
-                    "守护圣域":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "reduce_all",
-                        "reduce_all": 0.50,   # v1.x 数值下沉：全队减伤 50%（守护圣域）
-                        "team": "reduce_all",
-                        "res_cost": {
-                            "rage": 5
-                        },
-                        "cd": 6,
-                        "desc": "圣光凝成守护圣域——为全队张开无敌屏障",
-                        "name": "守护圣域"
-                    }
-,
+                "盾卫士": {
+                    "守护誓言": {
+                        'lv': 90,
+                        'mp': 15,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.7,
+                        'cd': 20,
+                        'effect': 'protect',
+                        'name': '守护誓言',
+                        'desc': '立下铁血誓言，以身铸成坚盾——为队友挡刀并反伤 50%，持续 12 刻'
+                    },
+                    "不破壁垒": {
+                        'lv': 93,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.7,
+                        'cd': 24,
+                        'effect': 'reduce_all',
+                        'name': '不破壁垒',
+                        'desc': '钢铁壁垒拔地而起，万军难破——全队减伤 30% 持续 12 刻，战意 ≥8 时提升至 50%（不消耗）'
+                    },
+                    "坚城之姿": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "zhan_yi_full_reduce"},
+                        'name': '坚城之姿',
+                        'desc': '战意圆满时，战士即是移动的坚城——战意满 10 时减伤 +10%，免疫眩晕'
+                    },
+                    "守护圣域": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.8,
+                        'cd': 24,
+                        'effect': 'shield_all_reduce',
+                        'name': '守护圣域',
+                        'desc': '圣光领域徐徐张开，庇佑所有战友——花满 10 层战意：全队获得护盾并减伤 30%，持续 12 刻'
+                    },
+                    "铁誓·不动": {
+                        'lv': 98,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "stance_immortal"},
+                        'name': '铁誓·不动',
+                        'desc': '铁誓加身，不动如山——守护姿态下首次致命伤害免疫，随后清空全部战意'
+                    },
                 },
             },
         },
@@ -1555,317 +1201,430 @@ BRANCH_SKILLS = {
         "name": "法师",
         "branches": {
             1: {
-                "元素法师": {
-                    "元素冲击":                     {
-                        "lv": 32,
-                        "power": 1.371,
-                        "kind": "魔法",
-                        "element": "current",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "any",
-                            "stacks": 1,
-                            "mult": 1.2,
-                            "label": "万象共鸣"
-                        },
-                        "mp": 15,
-                        "res_gain": {"element": 1},
-                        # v139 架设联动：架设中命中额外充能 +1（施法频率预算化）
-                        "focus_gain_extra": 1,
-                        "desc": "将当前系元素凝成冲击波轰出，造成 190% 伤害并烙下元素印记；目标已有印记时万象共鸣(伤害＋20%、充能＋1)；元素架设中命中额外充能＋1",
-                        "name": "元素冲击"
-                    }
-,
-                    # v139 新增：元素聚焦（攻线开启技，云海架设翻译）——开启「元素架设」专注施法态
-                    "元素聚焦":                     {
-                        "lv": 32,
-                        "mp": 20,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "element_focus",
-                        "cd": 3,
-                        "desc": "凝神开启元素架设——本场进入专注施法态：魔法技能伤害＋40%、受击＋20%、不能普攻/换系(可防御/用道具)；主动解除无损；被打断只掉 1 层充能、不清零",
-                        "name": "元素聚焦"
-                    }
-,
-                    "万象亲和":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "element_dmg",
-                            "mult": 0.08
-                        },
-                        "desc": "与万象元素共鸣，施放元素技能时伤害＋8%(被动)",
-                        "name": "万象亲和"
-                    }
-,
-                    "双系连珠":                     {
-                        "lv": 45,
-                        "power": 1.3,
-                        "kind": "魔法",
-                        "multi": 2,
-                        "element": "current",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "any",
-                            "stacks": 3,
-                            "mult": 1.25,
-                            "label": "连环引爆"
-                        },
-                        "mp": 20,
-                        "res_cost": {"element": 3},
-                        # v139 多段适配：分段铺印（每段+1）、首段结算反应、反应触发时充能 -1
-                        "reaction_first_seg": True,
-                        "desc": "双系元素连珠齐射，造成当前系 130%×2 伤害并叠 2 层印记；目标印记≥3 层时连环迸发(伤害＋25%，消耗 3 充能)；多段分段铺印、反应仅首段结算",
-                        "cd": 2,
-                        "name": "双系连珠"
-                    }
-,
-                    "元素引爆":                     {
-                        "lv": 55,
-                        "power": 2.4,
-                        "kind": "魔法",
-                        "element": "current",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "any",
-                            "stacks": 2,
-                            "mult": 1.3,
-                            "label": "元素共鸣"
-                        },
-                        "mp": 25,
-                        "res_cost": {"element": 2},
-                        # v139 架设联动：架设中触发蒸发/超载反应时反应倍率 ×1.2（聚焦放大反应）
-                        "focus_reaction_mult": 1.2,
-                        "desc": "引动元素印记连锁炸裂，造成当前系 240% 伤害；目标印记≥2 层时元素共鸣(伤害＋30%，消耗 2 充能)；架设中触发反应倍率×1.2",
-                        "cd": 3,
-                        "name": "元素引爆"
-                    }
-,
-                    # v113：吸蓝机制下放——原时咒线吸蓝流派技降为基础法师攻线 Lv.55 进阶技
-                    # v130.2：黑名单违名技更名「元素湮灭」——重定位为攻线 T1 满充能全耗终极（consume_all element per 0.2）
-                    "元素湮灭":                     {
-                        "lv": 55,
-                        "mp": 40,
-                        "power": 1.2,
-                        "kind": "魔法",
-                        "mp_steal": 0.20,
-                        "consume_all": {"key": "element", "per": 0.2},
-                        "cd": 4,
-                        # v139 架设联动：架设中释放 power 基础 ×1.4 但受 pmult cap 封顶（峰值红线锚）
-                        "focus_power_mult": 1.4,
-                        "desc": "湮灭之力倾泻而出，造成 120% 魔法伤害并消耗全部充能(每点＋20%，满 5 充能威力翻倍)，同时回复 20% 伤害值的魔力；元素架设中释放威力×1.4(受乘区封顶)",
-                        "name": "元素湮灭"
-                    }
-,
+                "元素使": {
+                    "织焰": {
+                        'lv': 32,
+                        'mp': 12,
+                        'power': 1.48,
+                        'kind': '魔法·火',
+             'formula': [{'stat': 'matk', 'mult': 1.48, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 8,
+                        'mech': 'fire_mark',
+                        'mech_val': 1,
+                        'name': '织焰',
+                        'desc': '十指翻飞织出炽焰之网，火舌缠绕——造成 148% 魔法伤害，挂火印 2 层'
+                    },
+                    "熔炉冥想": {
+                        'lv': 38,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 12,
+                        'name': '熔炉冥想',
+                        'desc': '闭目沉入熔炉般的灼热冥想，心神与火共燃——架设：施法 +40%，受伤 +20%，不可普攻'
+                    },
+                    "双系连珠": {
+                        'lv': 44,
+                        'mp': 18,
+                        'power': 0.91,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 0.91, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 0.91, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.1,
+                        'cd': 12,
+                        'hits': 2,
+                        'mech': 'element_multi_mark',
+                        'name': '双系连珠',
+                        'desc': '双掌轮转，冰火双色流光连珠射出——共 2 段，每段造成 91% 魔法伤害，各挂不同系印记 1 层'
+                    },
+                    "棱镜护体": {
+                        'lv': 50,
+                        'mp': 15,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'name': '棱镜护体',
+                        'desc': '以七色棱光结成护体法阵，光晕流转——架设中受伤 −20%，持续 12 刻'
+                    },
+                    "元素湮灭": {
+                        'lv': 54,
+                        'mp': 25,
+                        'power': 1.71,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.1,
+                        'cd': 12,
+                        'cond': {"type": "enemy_marks", "stacks": 4, "mult": 1.35},
+                        'name': '元素湮灭',
+                        'desc': '将周身元素之力尽数灌入一击，湮灭万物——造成 171% 魔法伤害，目标印记总层数 ≥4 时伤害 ×1.35'
+                    },
+                    "元素亲和": {
+                        'lv': 58,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "element_affinity"},
+                        'name': '元素亲和',
+                        'desc': '与元素共鸣渐深，印记流转愈发生动——引爆后，下次挂印 +1 层'
+                    },
                 },
-                # v112.5：奥秘守线 = 奥术师（印记系）+ 秘法族（充能系）合并体，自原隐藏奥秘线降级
-                "奥秘法师": {
-                    "奥术弹幕": {"lv": 32, "mp": 15, "power": 0.676, "kind": "魔法",
-                                 "multi": 3, "mech": "arcane", "mech_val": 1,
-                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.15, "label": "蓄势待发"},
-                                 "cd": 2,
-                                 "desc": "奥术能量如幕布倾洒，造成 110%×3 伤害并使奥术充能＋1；充能≥2 层时蓄势更猛(伤害＋15%)",
-                                 "name": "奥术弹幕"},
-                    "奥术直觉": {"lv": 38, "mp": 0, "power": 0, "kind": "被动",
-                                 "passive": {"proc": "arcane_regen", "mech": "arcane", "mult": 1},
-                                 "desc": "奥术直觉如影随形，每刻开始自动获得 1 层奥术充能(被动)；深度冥想中叠加为每刻＋2",
-                                 "name": "奥术直觉"},
-                    # v139 新增：深度冥想（守线版架设）——开启后 arcane 每刻自动 +1（与奥术直觉叠加）+ 魔法技能 +40% + 受击 +20% + 施法受限；主动解除无损、被控解除
-                    "深度冥想": {"lv": 40, "mp": 20, "power": 0, "kind": "增益",
-                                 "effect": "element_focus", "focus_variant": "arcane",
-                                 "arcane_auto_per_turn": 1, "cd": 3,
-                                 "desc": "沉入深度冥想，开启架设驻留态——魔法技能伤害＋40%、受击＋20%、施法受限；每刻开始奥术充能＋1(与奥术直觉叠加为每刻＋2)；主动解除无损，被控强制解除",
-                                 "name": "深度冥想"},
-                    "奥术飞弹": {"lv": 40, "mp": 15, "power": 1.0, "kind": "魔法",
-                                 "mech": "arcane", "mech_val": 1, "cd": 1,
-                                 "res_gain": {"element": 1},
-                                 "focus_gain_extra": 1,
-                                 "desc": "奥术飞弹划出湛蓝弧光，造成 100% 魔法伤害并叠加 1 层奥术印记(充能＋1)；架设中命中额外充能＋1",
-                                 "name": "奥术飞弹"},
-                    "奥术爆破": {"lv": 45, "mp": 20, "power": 1.5, "kind": "魔法",
-                                 "multi": 2, "mech": "arcane", "mech_val": 2,
-                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 4, "mult": 1.25, "label": "共鸣输出"},
-                                 "cd": 2,
-                                 "res_cost": {"element": 1},
-                                 # v139 多段适配：多段首段结算「共鸣输出」层数判定
-                                 "reaction_first_seg": True,
-                                 "desc": "奥术能量蓄满爆破，造成 150%×2 伤害并使奥术充能＋2；充能≥4 层时共鸣输出(伤害＋25%，消耗 1 充能)；多段首段结算共鸣判定",
-                                 "name": "奥术爆破"},
-                    "奥术脉冲": {"lv": 48, "mp": 25, "power": 1.6, "kind": "魔法",
-                                 "mech": "arcane_burst", "mech_val": 0, "cd": 3,
-                                 # v139 架设驻留保护：架设中「燃尽」只烧一半（向下取整）——奥术驻留不清零
-                                 "focus_burn_half": True,
-                                 "desc": "奥术脉冲激荡而出，造成 160% 魔法伤害并燃尽全部奥术印记(每层追加伤害)；架设中燃尽只烧一半(向下取整)",
-                                 "name": "奥术脉冲"},
-                    "秘法护盾": {"lv": 55, "mp": 20, "power": 0, "kind": "增益",
-                                 "effect": "shield_all", "cd": 4,
-                                 "desc": "秘法之力织成魔力护盾，获得相当于 20% 魔攻的护盾持续 3 刻",
-                                 "name": "秘法护盾"},
-                    "奥术洪流": {"lv": 55, "mp": 30, "power": 1.844, "kind": "魔法",
-                                 "mech": "arcane_burst",
-                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4, "label": "共鸣巅峰"},
-                                 "cd": 3,
-                                 "desc": "奥术洪流奔涌而出，造成 250% 伤害并消耗全部充能(每层＋15%)；充能≥5 层时共鸣巅峰(伤害＋40%)",
-                                 "name": "奥术洪流"},
+                "奥术学者": {
+                    "奥术弹幕": {
+                        'lv': 32,
+                        'mp': 15,
+                        'power': 0.52,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 0.52, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 0.52, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 8,
+                        'hits': 3,
+                        'mech': 'arcane',
+                        'mech_val': 1,
+                        'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.15},
+                        'name': '奥术弹幕',
+                        'desc': '指尖连点，奥术弹丸如密雨齐射而出——共 3 段，每段造成 52% 魔法伤害，充能 +1，充能 ≥2 时伤害 ×1.15'
+                    },
+                    "奥术直觉": {
+                        'lv': 38,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "arcane_intuition"},
+                        'name': '奥术直觉',
+                        'desc': '对能量的感知如呼吸般自然，无须刻意——每刻自动回复 1 点奥术充能（冥想中 +2）'
+                    },
+                    "奥术飞弹": {
+                        'lv': 44,
+                        'mp': 15,
+                        'power': 1.25,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 4,
+                        'mech': 'arcane',
+                        'mech_val': 1,
+                        'accuracy': 'true',
+                        'name': '奥术飞弹',
+                        'desc': '凝出必中的奥术飞弹循迹追踪，无从闪避——造成 125% 魔法伤害，充能 +1，架设中额外 +1'
+                    },
+                    "深度冥想": {
+                        'lv': 50,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 12,
+                        'name': '深度冥想',
+                        'desc': '沉入深不见底的冥想之海，能量奔涌不息——架设：魔法 +40%、受击 +20%、每刻充能 +1'
+                    },
+                    "奥术爆破": {
+                        'lv': 54,
+                        'mp': 20,
+                        'power': 0.78,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 0.78, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 0.78, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 12,
+                        'hits': 2,
+                        'mech': 'arcane',
+                        'mech_val': 2,
+                        'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 4, "mult": 1.25},
+                        'name': '奥术爆破',
+                        'desc': '连轰两发奥术能量弹，震荡裂空——共 2 段，每段造成 78% 魔法伤害，充能 +2，充能 ≥4 时伤害 ×1.25'
+                    },
+                    "相位偏折": {
+                        'lv': 58,
+                        'mp': 18,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'effect': 'arcane_shield',
+                        'name': '相位偏折',
+                        'desc': '将奥术能量偏折流转，织成守护力场——张开力场护盾，消耗全部充能，每层转化为 8% 魔攻护盾'
+                    },
                 },
             },
             2: {
-                "元素术士": {
-                    "元素之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "element_dmg",
-                            "mult": 0.1
-                        },
-                        "desc": "元素之心与魔力同频跳动，元素系技能伤害＋10%(被动)",
-                        "name": "元素之心"
-                    }
-,
-                    "元素跃迁":                     {
-                        "lv": 62,
-                        "mp": 25,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "element_shift",
-                        "cd": 3,
-                        "res_gain": {"element": 1},
-                        "desc": "身形在元素间跃迁流转，切换当前元素系(火→冰→雷)，下次元素技能伤害＋20%(充能＋1)",
-                        "name": "元素跃迁"
-                    }
-,
-                    "元素壁垒":                     {
-                        "lv": 68,
-                        "mp": 30,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "def_up",
-                        "cd": 3,
-                        "res_cost": {"element": 2},
-                        "desc": "以元素铸成壁垒护体，防御强化(消耗 2 充能)",
-                        "name": "元素壁垒"
-                    }
-,
-                    # v130.2 新增：元素术士 T2 -1 高频消耗口（攻线消费阶梯 -1/-2/-3/-5 齐备）+ 补本档伤害技缺口
-                    "元素迸发":                     {
-                        "lv": 68,
-                        "mp": 12,
-                        "power": 1.5,
-                        "kind": "魔法",
-                        "element": "thunder",
-                        "reach": 3,
-                        "res_cost": {"element": 1},
-                        "cd": 1,
-                        "desc": "雷元素骤然迸发，造成 150% 雷系超远程伤害(消耗 1 充能，CD 1)",
-                        "name": "元素迸发"
-                    }
-,
+                "元素使": {
+                    "元素流转": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.4,
+                        'cd': 4,
+                        'effect': 'element_switch',
+                        'name': '元素流转',
+                        'desc': '指尖轻旋，元素之力在经脉间流转更替——切换当前主系，影响下次挂印系别'
+                    },
+                    "元素迸发": {
+                        'lv': 68,
+                        'mp': 22,
+                        'power': 1.33,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.33, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.33, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 12,
+                        'mech': 'element_burst_all',
+                        'name': '元素迸发',
+                        'desc': '将目标身上的印记尽数引燃迸发，光华四射——造成 133% 魔法伤害，结算目标全部印记，每层 +12% 伤害'
+                    },
+                    "元素同调": {
+                        'lv': 74,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "element_sync"},
+                        'name': '元素同调',
+                        'desc': '与元素的共鸣随施法渐入佳境，气息相合——连续两次同系施法，第二次挂印 +1 层'
+                    },
+                    "元素洪流": {
+                        'lv': 80,
+                        'mp': 30,
+                        'power': 1.44,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 16,
+                        'aoe': 'all',
+                        'name': '元素洪流',
+                        'desc': '双手前推，元素洪流奔涌席卷全场——造成 144% 魔法伤害（全体），挂当前系印记 1 层'
+                    },
+                    "元素之核": {
+                        'lv': 85,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "element_core"},
+                        'name': '元素之核',
+                        'desc': '元素在体内凝成核心，三系印记交相辉映——单系印记满 3 层时，该系结算暴击 +20%'
+                    },
+                    "唤火": {
+                        'lv': 88,
+                        'mp': 28,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 20,
+                        'summon': 'fire_elemental',
+                        'name': '唤火',
+                        'desc': '以魔力勾勒燃烧符文，召来火元素并肩而战——召唤火元素助阵'
+                    },
                 },
-                "奥秘术士": {
-                    "奥术核心": {"lv": 60, "mp": 0, "power": 0, "kind": "被动",
-                                 "passive": {"proc": "arcane_dmg", "mult": 0.15},
-                                 "desc": "奥术核心在体内运转不息，奥术系伤害＋15%(被动)",
-                                 "name": "奥术核心"},
-                    "奥术之心": {"lv": 60, "mp": 0, "power": 0, "kind": "被动",
-                                 "passive": {"proc": "arcane_dmg", "mult": 0.1},
-                                 "desc": "奥术之心凝聚如水晶，奥术技能伤害＋10%(被动)",
-                                 "name": "奥术之心"},
-                    "法术反制": {"lv": 62, "mp": 15, "power": 0.6, "kind": "魔法",
-                                 "mech": "arcane", "mech_val": 2, "cc": "silence",
-                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.2, "label": "反制强化"},
-                                 "res_gain": {"element": 1},
-                                 # v139 架设联动：架设中反制成功（目标沉默生效）额外充能 +1
-                                 "focus_counter_extra": 1,
-                                 "desc": "掐断敌方咒语节律，造成 60% 反制伤害并使敌人沉默，同时奥术充能＋2；充能≥2 层时反制更强(伤害＋20%、充能＋1)；架设中反制成功额外充能＋1",
-                                 "name": "法术反制"},
-                    "法力护盾": {"lv": 68, "mp": 30, "power": 0, "kind": "增益",
-                                 "effect": "def_up", "cd": 3,
-                                 "res_cost": {"element": 1},
-                                 "desc": "法力凝成护盾环绕，防御强化(消耗 1 充能)",
-                                 "name": "法力护盾"},
+                "奥术学者": {
+                    "奥术脉冲": {
+                        'lv': 62,
+                        'mp': 25,
+                        'power': 1.59,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.59, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.59, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 12,
+                        'mech': 'arcane_burst',
+                        'name': '奥术脉冲',
+                        'desc': '汇聚奥能轰出贯穿一切的脉冲光柱——造成 159% 魔法伤害，燃尽全部充能每层 +15%（架设中只烧一半）'
+                    },
+                    "奥术洪流": {
+                        'lv': 68,
+                        'mp': 30,
+                        'power': 1.71,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.0,
+                        'cd': 16,
+                        'mech': 'arcane_burst',
+                        'name': '奥术洪流',
+                        'desc': '倾泻全部奥术能量化作洪流奔涌而出——造成 171% 魔法伤害，燃尽充能每层 +15%，满 5 层时伤害 ×1.75'
+                    },
+                    "奥术共鸣": {
+                        'lv': 74,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "arcane_resonance"},
+                        'name': '奥术共鸣',
+                        'desc': '体内奥术脉络与外界能量同频共振——奥术技能伤害 +15%'
+                    },
+                    "法术反制": {
+                        'lv': 80,
+                        'mp': 15,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'mech': 'silence',
+                        'mech_val': 2,
+                        'name': '法术反制',
+                        'desc': '以奥术波动强行截断对方施法，术式崩解——沉默 2.0 刻（首领 1.0 刻），并获得充能 +2'
+                    },
+                    "奥术矩阵": {
+                        'lv': 85,
+                        'mp': 30,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.7,
+                        'cd': 24,
+                        'effect': 'arcane_matrix',
+                        'name': '奥术矩阵',
+                        'desc': '于脚下铭刻流转的奥术矩阵，展开领域——全队奥术/魔法伤害 +20%，持续 12 刻'
+                    },
+                    "奥术力场": {
+                        'lv': 88,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'effect': 'arcane_field',
+                        'name': '奥术力场',
+                        'desc': '以奥能塑形力场，随心化盾成刃——消耗 2 点充能，选择护盾或利刃（下次奥术技伤害 ×1.3）'
+                    },
                 },
             },
             3: {
-                "元素贤者": {
-                    "万象风暴":                     {
-                        "lv": 92,
-                        "power": 1.479,
-                        "kind": "魔法",
-                        "multi": 3,
-                        "element": "current",
-                        "cond": {
-                            "type": "element_marks",
-                            "element": "any",
-                            "stacks": 1,
-                            "mult": 1.3,
-                            "label": "万象连环"
-                        },
-                        "mp": 30,
-                        "aoe": "all",
-                        "res_gain": {"element": 1},
-                        # v139 多段适配同双系连珠（首段反应、分段铺印）
-                        "reaction_first_seg": True,
-                        "desc": "万象元素化作风暴席卷全场，造成当前系 180%×3 全体伤害；目标带有印记时万象连环(伤害＋30%、充能＋1)；多段分段铺印、反应仅首段结算",
-                        "cd": 3,
-                        "name": "万象风暴"
-                    }
-,
-                    "万象天雷":                     {
-                        "lv": 98,
-                        "mp": 120,
-                        "power": 4.5,
-                        "kind": "魔法",
-                        "element": "thunder",
-                        "team": "matk_all",
-                        "cd": 5,
-                        "aoe": "all",
-                        "res_cost": {"element": 3},
-                        "desc": "终极技——天雷自九霄倾落，对全体造成雷系 450% 伤害，并为全队加持魔攻强化(消耗 3 充能)",
-                        "name": "万象天雷"
-                    }
-,
-                    "元素裁决":                     {
-                        "lv": 90,
-                        "mp": 100,
-                        "power": 4.0,
-                        "kind": "魔法",
-                        "element": "current",
-                        "cd": 6,
-                        "aoe": "all",
-                        "res_cost": {"element": 5},
-                        "desc": "三转奥义——元素之力凝成裁决之光，对全体造成当前系 400% 伤害(消耗 5 充能)",
-                        "name": "元素裁决"
-                    }
-,
+                "元素使": {
+                    "元素裁决": {
+                        'lv': 90,
+                        'mp': 40,
+                        'power': 2.45,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.45, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.45, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 20,
+                        'mech': 'element_burst_3',
+                        'name': '元素裁决',
+                        'desc': '高举法杖凝聚三系之力，降下元素裁决——造成 245% 魔法伤害，结算三系印记，每系 ×1.2'
+                    },
+                    "万象风暴": {
+                        'lv': 93,
+                        'mp': 45,
+                        'power': 1.73,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.73, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.73, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 20,
+                        'aoe': 'all',
+                        'name': '万象风暴',
+                        'desc': '引动万象元素风暴席卷战场，天地变色——造成 173% 魔法伤害（全体），并为全体结算印记'
+                    },
+                    "元素起源": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "element_origin"},
+                        'name': '元素起源',
+                        'desc': '溯源元素本初之力，三系共鸣浑然一体——三系印记同时 ≥2 层时，结算伤害 +20%（加算）'
+                    },
+                    "唤雷": {
+                        'lv': 97,
+                        'mp': 32,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 20,
+                        'summon': 'thunder_elemental',
+                        'name': '唤雷',
+                        'desc': '仰天诵念雷之真言，召来雷元素轰然降临——召唤雷元素助阵'
+                    },
+                    "万象天雷": {
+                        'lv': 98,
+                        'mp': 50,
+                        'power': 3.15,
+                        'kind': '魔法·雷',
+             'formula': [{'stat': 'matk', 'mult': 3.15, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 24,
+                        'mech': 'thunder_mark',
+                        'mech_val': 1,
+                        'cond': {"type": "enemy_mark_full", "mech": "thunder", "stacks": 3, "combo": 2},
+                        'name': '万象天雷',
+                        'desc': '引九霄万象天雷灌顶而下，天地失色——造成 315% 魔法伤害，雷印满 3 层时连击 +2'
+                    },
                 },
-                "奥秘贤者": {
-                    "奥术爆发": {"lv": 90, "mp": 40, "power": 2.2, "kind": "魔法",
-                                 "mech": "arcane_burst", "mech_val": 0, "cd": 4,
-                                 "desc": "奥术能量轰然爆发，造成 220% 魔法伤害并燃尽全部奥术印记",
-                                 "name": "奥术爆发"},
-                    "奥术领域": {"lv": 90, "mp": 100, "power": 4.0, "kind": "魔法",
-                                "aoe": "all", "team": "shield_all", "cd": 6,
-                                "res_cost": {"element": 3},
-                                "desc": "三转奥义——展开奥术领域，对全体造成 400% 奥术伤害并为全队加持护盾(消耗 3 充能)",
-                                "name": "奥术领域"},
-                    "大奥术": {"lv": 92, "mp": 30, "power": 2.0, "kind": "魔法",
-                               "multi": 2, "aoe": "all", "mech": "arcane", "mech_val": 2,
-                               "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 6, "mult": 1.3, "label": "大奥术回响"},
-                               "cd": 3,
-                               "res_gain": {"element": 1},
-                               "desc": "大奥术回响轰鸣，对全体造成奥术 200%×2 伤害并使充能＋2；充能≥6 层时回响更盛(伤害＋30%、充能＋1)",
-                               "name": "大奥术"},
-                    "奥术主宰": {"lv": 98, "mp": 120, "power": 4.5, "kind": "魔法",
-                                 "cond": {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4, "label": "奥术主宰"},
-                                 "cd": 5,
-                                 "res_cost": {"element": 5},
-                                 "desc": "终极技——奥术主宰万物，造成 450% 奥术伤害；充能≥5 层时主宰降临(伤害＋40%，消耗 5 充能)",
-                                 "name": "奥术主宰"},
+                "奥术学者": {
+                    "星界风暴": {
+                        'lv': 90,
+                        'mp': 40,
+                        'power': 1.63,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.63, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.63, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.2,
+                        'cd': 20,
+                        'aoe': 'all',
+                        'name': '星界风暴',
+                        'desc': '引星界之力化作能量风暴倾泻而下——造成 163% 魔法伤害（全体纯能量）'
+                    },
+                    "奥秘主宰": {
+                        'lv': 93,
+                        'mp': 45,
+                        'power': 2.52,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.52, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.52, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 20,
+                        'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.2},
+                        'name': '奥秘主宰',
+                        'desc': '将毕生奥术奥秘凝于一点骤然迸发——造成 252% 魔法伤害，充能 ≥3 时伤害 ×1.2'
+                    },
+                    "真知": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "arcane_wisdom"},
+                        'name': '真知',
+                        'desc': '窥见能量流转的最终真谛，明澈无碍——充能满 5 时，奥术暴击 +20%'
+                    },
+                    "奥术恒常": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "arcane_constant"},
+                        'name': '奥术恒常',
+                        'desc': '能量循环生生不息，法力损耗尽数弥平——奥术技能耗蓝 −50%'
+                    },
+                    "奥术湮灭": {
+                        'lv': 98,
+                        'mp': 50,
+                        'power': 3.03,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 3.03, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 3.03, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 1.3,
+                        'cd': 24,
+                        'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4},
+                        'no_mp': True,
+                        'name': '奥术湮灭',
+                        'desc': '将全部奥能凝成湮灭之光贯穿一切——造成 303% 魔法伤害，充能满 5 时 ×1.4 且本次不耗蓝'
+                    },
                 },
             },
         },
@@ -1874,380 +1633,462 @@ BRANCH_SKILLS = {
         "name": "游侠",
         "branches": {
             1: {
-                # v113（鱼鱼拍板）：攻线改"林语者"自然系——狩猎印记保留 + 自然毒藤（下放）+ 植物召唤（下放）
-                "林语者": {
-                    "追猎":                     {
-                        "lv": 32,
-                        "mp": 0,
-                        "power": 1.9,
-                        "kind": "物理",
-                        "cond": {
-                            "type": "enemy_marked",
-                            "mult": 1.3,
-                            "label": "猎杀本能"
-                        },
-                        "res_cost": {"energy": 20},
-                        # v139 屏息窗口联动：屏息状态下命中标记目标再 +10%
-                        "breathe_mark_mult": 0.1,
-                        "desc": "循着猎杀标记的气味穷追不舍，箭矢咬住猎物的背影——造成 190% 物理伤害；目标被标记时，猎杀本能苏醒（伤害＋30%）；凝神屏息窗口内对标记目标再＋10%",
-                        "name": "追猎"
-                    }
-,
-                    "追猎者":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "mark_dmg",
-                            "mult": 0.08
-                        },
-                        "desc": "目光所及，皆是猎物——对标记目标的伤害＋8%（被动，标记特攻）",
-                        "name": "追猎者"
-                    }
-,
-                    "藤蔓缠绕":                     {
-                        "lv": 45,
-                        "mp": 18,
-                        "power": 0.8,
-                        # v113 修复：原 kind=魔法以游侠极低 matk 结算（伤害 2-3 点近废技），
-                        # 改物理以 atk 结算（battle_mech 仍叠 poison/poison_burst，机制不受影响）
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 2,
-                        "cd": 2,
-                        "res_cost": {"energy": 25},
-                        # v139 屏息窗口喂毒：屏息窗口内毒层 +1
-                        "breathe_poison_extra": 1,
-                        "desc": "召唤林间藤蔓破土而出，缠上猎物的足踝并注入麻痹毒汁——造成 80% 物理伤害并叠加 2 层中毒（自然毒藤）；凝神屏息窗口内毒层＋1",
-                        "name": "藤蔓缠绕"
-                    }
-,
-                    "召唤藤蔓守卫":                     {
-                        "lv": 48,
-                        "mp": 20,
-                        "power": 0,
-                        "kind": "增益",
-                        "summon": "vine_guard",
-                        "cd": 3,
-                        "res_cost": {"energy": 30},
-                        "desc": "以林语唤醒沉睡的藤蔓，化为守卫并肩而战——召唤藤蔓守卫加入战斗（可叠加 2 只，自动攻击并挡刀）",
-                        "name": "召唤藤蔓守卫"
-                    }
-,
-                    "毒爆术":                     {
-                        "lv": 55,
-                        "mp": 25,
-                        "power": 0.6,
-                        # v113 修复：原 kind=魔法以游侠极低 matk 结算近废技，改物理以 atk 结算。
-                        # 毒爆引爆段(poison_burst)伤害由 battle_mech 按 matk 魔法段结算，
-                        # 已由战斗层修复为按 atk，无需在本文件改动。
-                        "kind": "物理",
-                        "mech": "poison_burst",
-                        "mech_val": 1,
-                        "cd": 3,
-                        "res_cost": {"energy": 35},
-                        # v139 屏息窗口提前引爆：引爆时若处于屏息窗口毒层阈值 -1（≥2 层可爆）
-                        "breathe_burst_threshold": -1,
-                        "desc": "以自然之力引燃猎物体内的毒素，令其由内而外迸发——造成 60% 物理伤害；毒层达到 3 层时迸发，每层追加 15% 攻击的物理伤害；凝神屏息窗口内毒层≥2 层即可迸发",
-                        "name": "毒爆术"
-                    }
-,
+                "森语者": {
+                    "森语印记": {
+                        'lv': 32,
+                        'mp': 8,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 8,
+                        'mech': 'hunt_mark',
+                        'mech_val': 2,
+                        'res_cost': {"energy": 25},
+                        'name': '森语印记',
+                        'desc': '森林低语，印记深深烙上猎物之躯——挂猎印 2 层'
+                    },
+                    "追猎": {
+                        'lv': 38,
+                        'mp': 10,
+                        'power': 1.13,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'res_cost': {"energy": 30},
+                        'cond': {"type": "enemy_hunt_mark", "mult": 1.25},
+                        'name': '追猎',
+                        'desc': '循着猎印的痕迹疾追而上——造成 91% 物理伤害，对猎印目标伤害 ×1.25'
+                    },
+                    "淬毒箭": {
+                        'lv': 44,
+                        'mp': 10,
+                        'power': 1.13,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'mech': 'poison',
+                        'mech_val': 2,
+                        'res_cost': {"energy": 30},
+                        'name': '淬毒箭',
+                        'desc': '箭簇浸满幽绿毒液，破风而出——造成 91% 物理伤害，附加毒 2 层（可被荆棘爆引爆），持续 8 刻'
+                    },
+                    "藤蔓缠绕": {
+                        'lv': 50,
+                        'mp': 14,
+                        'power': 1.36,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.36, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.36, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.35,
+                        'cd': 12,
+                        'mech': 'poison',
+                        'mech_val': 2,
+                        'res_cost': {"energy": 40},
+                        'mech2': 'stun',
+                        'mech2_val': 1.5,
+                        'name': '藤蔓缠绕',
+                        'desc': '荆棘藤蔓破土缠身，毒刺没入血肉——造成 110% 魔法伤害，附加毒 2 层并定身 1.5 刻（首领免疫）'
+                    },
+                    "召唤藤蔓守卫": {
+                        'lv': 54,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 20,
+                        'res_cost': {"energy": 45},
+                        'summon': 'vine_guard',
+                        'name': '召唤藤蔓守卫',
+                        'desc': '低吟森语，藤蔓交织成守卫之躯——召唤藤蔓守卫为你作战'
+                    },
+                    "荆棘爆": {
+                        'lv': 58,
+                        'mp': 18,
+                        'power': 1.24,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.24, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.24, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.35,
+                        'cd': 12,
+                        'mech': 'poison_burst',
+                        'res_cost': {"energy": 40},
+                        'name': '荆棘爆',
+                        'desc': '荆棘炸裂，毒液喷涌四溅——造成 100% 魔法伤害，引爆毒层，每层 +15% 伤害（5 层上限，最高 ×1.75）'
+                    },
                 },
                 "风行者": {
-                    "疾风射击":                     {
-                        "lv": 32,
-                        "mp": 0,
-                        "power": 0.951,
-                        "kind": "物理",
-                        "cond": {
-                            "type": "speed_ratio",
-                            "ratio": 1.5,
-                            "mult": 1.5,
-                            "label": "疾风连击"
-                        },
-                        "res_cost": {"energy": 20},
-                        # v139 屏息窗口放宽条件：屏息窗口内速度比阈值降到 1.3
-                        "breathe_ratio_lower": 1.3,
-                        "desc": "借风势射出疾驰一箭，箭速快过猎物反应——造成 190% 物理伤害；速度比达到 1.5 倍以上时，疾风连击呼啸（伤害＋50%）；凝神屏息窗口内速度比阈值降至 1.3",
-                        "name": "疾风射击"
-                    }
-,
-                    "疾驰":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "speed_dmg",
-                            "mult": 0.08
-                        },
-                        "desc": "风在身后追赶，箭在风中先行——速度高于目标时，伤害＋8%（被动，高速压制）",
-                        "name": "疾驰"
-                    }
-,
-                    "双重射击":                     {
-                        "lv": 45,
-                        "mp": 0,
-                        "power": 1.1,
-                        "kind": "物理",
-                        "multi": 2,
-                        "cond": {
-                            "type": "player_untouched",
-                            "mult": 1.15,
-                            "label": "轻灵"
-                        },
-                        "res_cost": {"energy": 25},
-                        # v139 屏息窗口联动：屏息窗口内 2 段 → 3 段
-                        "breathe_seg_bonus": 1,
-                        "desc": "弓弦一颤两箭齐出，如双燕掠空——造成 110% 物理伤害×2；自身未受击时，身姿轻灵无瑕（伤害＋15%）；凝神屏息窗口内段数＋1(3 段)",
-                        "name": "双重射击"
-                    }
-,
-                    "风刃乱舞":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 0.629,
-                        "kind": "物理",
-                        "multi": 3,
-                        "pierce": True,
-                        "cd": 3,
-                        "cond": {
-                            "type": "speed_ratio",
-                            "ratio": 2.0,
-                            "mult": 1.25,
-                            "label": "疾风领域"
-                        },
-                        "res_cost": {"energy": 30},
-                        "aoe": "all",
-                        # v139 屏息窗口联动：屏息窗口内 3 段 → 4 段（AOE 版）
-                        "breathe_seg_bonus": 1,
-                        "desc": "弓弦化作风刃席卷全场，割裂一切甲胄——造成 130% 物理伤害×3 的全体攻击（无视防御），冷却 3 刻；速度比达到 2 倍以上时，极速之风加持（伤害＋25%）；凝神屏息窗口内段数＋1(4 段)",
-                        "name": "风刃乱舞"
-                    }
-,
+                    "疾风射击": {
+                        'lv': 32,
+                        'mp': 10,
+                        'power': 0.99,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.99, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.99, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.3,
+                        'res_cost': {"energy": 25},
+                        'cond': {"type": "speed_ratio", "ratio": 1.5, "mult": 1.3},
+                        'name': '疾风射击',
+                        'desc': '疾风裹挟箭矢，快过猎物的视线——造成 80% 物理伤害，速度比 ≥1.5 时伤害 ×1.3'
+                    },
+                    "双重射击": {
+                        'lv': 38,
+                        'mp': 12,
+                        'power': 0.6,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'hits': 2,
+                        'res_cost': {"energy": 35},
+                        'name': '双重射击',
+                        'desc': '双箭齐发，一弦二响破空——造成 96% 物理伤害×2'
+                    },
+                    "蓄力射击": {
+                        'lv': 44,
+                        'mp': 14,
+                        'power': 1.49,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 12,
+                        'res_cost': {"energy": 45},
+                        'charge': 1.5,
+                        'name': '蓄力射击',
+                        'desc': '弓弦缓缓拉满，风压凝于箭尖——蓄力 1.5 刻，造成 120% 物理伤害，蓄力完成后 ×1.45'
+                    },
+                    "风刃乱舞": {
+                        'lv': 50,
+                        'mp': 16,
+                        'power': 0.42,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.42, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.42, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.35,
+                        'cd': 12,
+                        'hits': 3,
+                        'res_cost': {"energy": 40},
+                        'name': '风刃乱舞',
+                        'desc': '三枚风刃割裂长空，纷乱斩落——造成 34% 物理伤害×3'
+                    },
+                    "星轨锁定": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 16,
+                        'res_cost': {"energy": 30},
+                        'effect': 'star_lock',
+                        'name': '星轨锁定',
+                        'desc': '星辉映照，猎物身形无所遁形——锁定目标无视站位，全队对其伤害 +12%，持续 12 刻'
+                    },
+                    "疾风步": {
+                        'lv': 58,
+                        'mp': 8,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 12,
+                        'res_cost': {"energy": 25},
+                        'effect': 'spd_buff',
+                        'name': '疾风步',
+                        'desc': '足下生风，身形化作林间流影——速度 +40%，持续 6 刻'
+                    },
                 },
             },
             2: {
-                "自然行者": {
-                    "自然之眼":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "mark_dmg",
-                            "mult": 0.1
-                        },
-                        "desc": "万物在自然之眼中皆有破绽——对标记目标的伤害＋10%（二转被动，标记强化）",
-                        "name": "自然之眼"
-                    }
-,
-                    # v130.2：与基础 100 档"狩猎终章"语义区分，重命名「猎杀狂宴」+ 升格攒点/维持双用（gain 精力 +5）
-                    "猎杀狂宴":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "crit_all",
-                        "team": "crit_all",
-                        "cd": 4,
-                        "res_cost": {"energy": 30},
-                        "res_gain": {"energy": 5},
-                        # v139 屏息循环衔接：施放后精力 +5 → 与屏息循环衔接（回精力 = 推迟节流阀）
-                        "breathe_energy_sync": True,
-                        "desc": "吹响猎杀盛宴的号角，全队的杀意一同高涨——全队暴击强化 3 刻，施放时回复 5 点精力（狂宴回力，攻线叠标回精引擎；回精力=推迟凝神屏息）",
-                        "name": "猎杀狂宴"
-                    }
-,
-                    "剧毒之心":                     {
-                        "lv": 64,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "poison_dmg",
-                            "mult": 0.20
-                        },
-                        "desc": "毒与自然在血脉中交融，毒液化作第二颗心脏——毒系技能伤害＋20%（被动）",
-                        "name": "剧毒之心"
-                    }
-,
-                    "穿心箭":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 1.884,
-                        "kind": "物理",
-                        "pierce": True,
-                        "cond": {
-                            "type": "enemy_marked",
-                            "mult": 1.3,
-                            "label": "要害瞄准"
-                        },
-                        "res_cost": {"energy": 35},
-                        # v139 狙击后排联动：对后排目标（rank=3）伤害 ×1.2
-                        "backrank_mult": 1.2,
-                        "desc": "箭矢穿透层层甲胄，直指心脏——造成 280% 破防物理伤害；目标被标记时，要害暴露无遗（伤害＋30%）；对后排目标伤害×1.2",
-                        "name": "穿心箭"
-                    }
-,
+                "森语者": {
+                    "自然之眼": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "hunt_mark_up"},
+                        'name': '自然之眼',
+                        'desc': '林间万物皆入眼帘，猎印愈发清晰——猎印每层增伤额外 +6%（叠加基础 8%）'
+                    },
+                    "追猎者": {
+                        'lv': 68,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "hunt_mark_cap"},
+                        'name': '追猎者',
+                        'desc': '猎手与猎物之间，永无距离可言——猎印上限 +2 层（至 5 层）'
+                    },
+                    "猎杀狂宴": {
+                        'lv': 74,
+                        'mp': 18,
+                        'power': 1.46,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'res_cost': {"energy": 50},
+                        'cond': {"type": "enemy_hunt_mark", "mult": 1.3},
+                        'name': '猎杀狂宴',
+                        'desc': '猎印绽放如血色盛宴，杀意沸腾——造成 118% 物理伤害，对猎印目标 ×1.3，全队暴击 +15% 持续 8 刻'
+                    },
+                    "剧毒之心": {
+                        'lv': 80,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_cap_up"},
+                        'name': '剧毒之心',
+                        'desc': '剧毒在心口搏动，毒液愈发浓烈——毒层上限 +3，毒爆增伤 +20%'
+                    },
+                    "穿心箭": {
+                        'lv': 85,
+                        'mp': 20,
+                        'power': 1.71,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.65,
+                        'cd': 12,
+                        'res_cost': {"energy": 45},
+                        'cond': {"type": "enemy_hunt_full", "mult": 1.35},
+                        'name': '穿心箭',
+                        'desc': '箭矢循着猎印直贯心口——造成 138% 物理伤害，猎印满层时伤害 ×1.35'
+                    },
+                    "自然护佑": {
+                        'lv': 88,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.4,
+                        'cd': 20,
+                        'res_cost': {"energy": 35},
+                        'effect': 'dodge_reduce_all',
+                        'name': '自然护佑',
+                        'desc': '草木生灵环护周身，藤叶织成壁垒——全队闪避 +15%、减伤 10%，持续 12 刻'
+                    },
                 },
-                "疾风射手": {
-                    "疾风之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "spd",
-                            "mult": 0.08
-                        },
-                        "desc": "疾风在血脉中奔流不息——速度＋8%（二转被动，机动强化）",
-                        "name": "疾风之心"
-                    }
-,
-                    "急速射击":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0.9,
-                        "kind": "物理",
-                        "multi": 5,
-                        "res_cost": {"energy": 30},
-                        # v139 屏息爆发窗口最高段载体：屏息窗口内 5 段 → 6 段
-                        "breathe_seg_bonus": 1,
-                        "desc": "弓弦几乎失去踪影，箭雨连绵不绝——造成 90% 物理伤害×5（高速叠印）；凝神屏息窗口内段数＋1(6 段)",
-                        "cd": 2,
-                        "name": "急速射击"
-                    }
-,
-                    "穿云箭":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 1.857,
-                        "kind": "物理",
-                        "pierce": True,
-                        "cond": {
-                            "type": "player_buffed",
-                            "mult": 1.2,
-                            "label": "风速"
-                        },
-                        "res_cost": {"energy": 30},
-                        # v139 屏息视为增益：屏息窗口触发「风速」条件（player_buffed 语义扩展）
-                        "breathe_as_buff": True,
-                        "desc": "一箭穿云破雾，裹着风压直贯敌阵——造成 220% 破防物理伤害；自身带有增益时，风助箭势（伤害＋20%）；凝神屏息视为增益触发风速",
-                        "name": "穿云箭"
-                    }
-,
+                "风行者": {
+                    "疾风之心": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "focus_surplus_crit"},
+                        'name': '疾风之心',
+                        'desc': '疾风在血脉中奔涌不息——结余 ≥40 时，下次技能暴击 +20%'
+                    },
+                    "急速射击": {
+                        'lv': 68,
+                        'mp': 12,
+                        'power': 0.36,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.36, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.36, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 12,
+                        'hits': 4,
+                        'res_cost': {"energy": 30},
+                        'name': '急速射击',
+                        'desc': '箭矢如连珠般倾泻而出——造成 29% 物理伤害×3，结余 ≥40 时改为四段'
+                    },
+                    "穿云箭": {
+                        'lv': 74,
+                        'mp': 20,
+                        'power': 1.71,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'res_cost': {"energy": 50},
+                        'pierce': True,
+                        'target': 'back',
+                        'name': '穿云箭',
+                        'desc': '箭出穿云，直取后方咽喉——造成 138% 物理伤害，点名后排并破防'
+                    },
+                    "风之屏障": {
+                        'lv': 80,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 20,
+                        'res_cost': {"energy": 30},
+                        'effect': 'dodge_buff',
+                        'name': '风之屏障',
+                        'desc': '气流在身周凝成无形之壁——闪避 +40%，持续 6 刻'
+                    },
+                    "穿甲射击": {
+                        'lv': 85,
+                        'mp': 18,
+                        'power': 1.46,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 12,
+                        'res_cost': {"energy": 45},
+                        'pierce': True,
+                        'target': 'back',
+                        'name': '穿甲射击',
+                        'desc': '风缠箭尖，撕裂一切甲胄——造成 118% 物理伤害，破防点名，无视 50% 防御'
+                    },
+                    "追风": {
+                        'lv': 88,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "focus_full_on_kill"},
+                        'name': '追风',
+                        'desc': '猎杀即风之馈赠，疾影永不停歇——击杀目标后，专注立即回满'
+                    },
                 },
             },
             3: {
-                "万木之灵": {
-                    "致命连射":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 1.4,
-                        "kind": "物理",
-                        "multi": 4,
-                        "res_cost": {"energy": 35},
-                        # v139 屏息爆发窗口主载体：屏息窗口内 4 段 → 5 段
-                        "breathe_seg_bonus": 1,
-                        "desc": "四箭连珠，箭箭皆奔要害而去——造成 140% 物理伤害×4（叠印爆发）；凝神屏息窗口内段数＋1(5 段)",
-                        "name": "致命连射"
-                    }
-,
-                    "召唤古树守卫":                     {
-                        "lv": 94,
-                        "mp": 30,
-                        "power": 0,
-                        "kind": "增益",
-                        "summon": "treant",
-                        "effect": "atk_up",
-                        "cd": 5,
-                        "res_cost": {"energy": 40},
-                        "desc": "唤醒沉睡千年的古树化作重装守卫，以庞大身躯为伙伴挡下刀锋——召唤古树守卫（单只重装，挡刀率高）并令攻击＋30%，持续 3 刻",
-                        "name": "召唤古树守卫"
-                    }
-,
-                    "死神之箭":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 2.693,
-                        "kind": "物理",
-                        "pierce": True,
-                        "cond": {
-                            "type": "enemy_marked",
-                            "mult": 1.4,
-                            "label": "死神注视"
-                        },
-                        "res_cost": {"energy": 40},
-                        # v139 狙击后排联动（T3 形态）：对 rank=3 目标 ×1.2
-                        "backrank_mult": 1.2,
-                        "desc": "死神借弓弦睁开眼，一箭定生死——造成 450% 破防物理伤害；目标被标记时，死神注视之下伤害＋40%（终极技）；对后排目标伤害×1.2",
-                        "cd": 3,
-                        "name": "死神之箭"
-                    }
-,
-                    "猎杀时刻":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 2.121,
-                        "kind": "物理",
-                        "pierce": True,
-                        "cond": {
-                            "type": "enemy_marked",
-                            "mult": 1.3,
-                            "label": "猎杀时刻"
-                        },
-                        "cd": 6,
-                        "res_cost": {"energy": 40},
-                        "desc": "万物寂灭，唯余猎杀——对标记目标造成 400% 破防斩杀一击（单点核爆，三转奥义）",
-                        "name": "猎杀时刻"
-                    }
-,
+                "森语者": {
+                    "猎杀时刻": {
+                        'lv': 90,
+                        'mp': 22,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 20,
+                        'res_cost': {"energy": 50},
+                        'effect': 'hunt_team_dmg',
+                        'name': '猎杀时刻',
+                        'desc': '猎手本能觉醒，杀意笼罩全场——全队对猎印目标增伤 +30%，持续 12 刻'
+                    },
+                    "致命连射": {
+                        'lv': 93,
+                        'mp': 24,
+                        'power': 0.43,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'hits': 4,
+                        'res_cost': {"energy": 55},
+                        'name': '致命连射',
+                        'desc': '弓弦震颤如暴雨倾泻，箭矢连珠——造成 35% 物理伤害×4'
+                    },
+                    "召唤古树守卫": {
+                        'lv': 95,
+                        'mp': 40,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 24,
+                        'res_cost': {"energy": 60},
+                        'summon': 'treant',
+                        'name': '召唤古树守卫',
+                        'desc': '大地震颤，古树拔地而起，枝干化作巨臂——召唤古树守卫为你作战'
+                    },
+                    "死神之箭": {
+                        'lv': 97,
+                        'mp': 30,
+                        'power': 2.42,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.65,
+                        'cd': 20,
+                        'res_cost': {"energy": 60},
+                        'kill': {"hunt_full": True, "poison": 5, "hp_lt": 0.25},
+                        'name': '死神之箭',
+                        'desc': '死神凝视，索命之箭离弦而出——造成 195% 物理伤害，猎印满层且毒层 ≥5 时，斩杀生命 <25% 的目标'
+                    },
+                    "森之共鸣": {
+                        'lv': 98,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 0.5,
+                        'passive': {"proc": "focus_regen_summon"},
+                        'name': '森之共鸣',
+                        'desc': '森林与召唤物同频呼吸，生机奔涌——召唤物存活时，专注充能 +5/s（至 23/s）'
+                    },
                 },
-                "疾风猎手": {
-                    "风暴之舞":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 1.405,
-                        "kind": "物理",
-                        "multi": 4,
-                        "cd": 4,
-                        "res_cost": {"energy": 40},
-                        # v139 屏息窗口联动：屏息窗口内 4 段 → 5 段
-                        "breathe_seg_bonus": 1,
-                        "desc": "身随风暴起舞，箭矢如雨点般倾泻——造成 160% 物理伤害×4（终极连射）；凝神屏息窗口内段数＋1(5 段)",
-                        "name": "风暴之舞"
-                    }
-,
-                    "疾风骤雨":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 1.684,
-                        "kind": "物理",
-                        "multi": 3,
-                        "cd": 5,
-                        "res_cost": {"energy": 40},
-                        # v139 屏息窗口联动：屏息窗口内 3 段 → 4 段
-                        "breathe_seg_bonus": 1,
-                        "desc": "疾风化作骤雨，箭矢铺天盖地落下——造成 200% 物理伤害×3，冷却联动全技能（终极技）；凝神屏息窗口内段数＋1(4 段)",
-                        "name": "疾风骤雨"
-                    }
-,
-                    "风神降临":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "spd_up",
-                        "cd": 6,
-                        "res_cost": {"energy": 40},
-                        # v139 泄压阀最高档：施放当刻精力 -15（位移从成本变收益的直接兑现）
-                        "vent_energy": 15,
-                        "desc": "风神之息灌入四肢百骸，身形快如流光——速度大幅提升，持续 3 刻（极速爆发，三转奥义）；施放当刻精力-15(机动泄压)",
-                        "name": "风神降临"
-                    }
-,
+                "风行者": {
+                    "风神降临": {
+                        'lv': 90,
+                        'mp': 22,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 24,
+                        'res_cost': {"energy": 50},
+                        'effect': 'spd_all',
+                        'name': '风神降临',
+                        'desc': '风神之翼展开，天地为之呼啸——全队速度 +30%，持续 8 刻'
+                    },
+                    "风暴之舞": {
+                        'lv': 93,
+                        'mp': 24,
+                        'power': 0.43,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'hits': 4,
+                        'res_cost': {"energy": 55},
+                        'name': '风暴之舞',
+                        'desc': '身形旋舞，箭矢如风暴席卷——造成 35% 物理伤害×4'
+                    },
+                    "疾风骤雨": {
+                        'lv': 95,
+                        'mp': 28,
+                        'power': 0.43,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 20,
+                        'hits': 4,
+                        'res_cost': {"energy": 60},
+                        'name': '疾风骤雨',
+                        'desc': '箭雨如骤，风势愈烈，杀机愈盛——造成 35% 物理伤害×4，结余 ≥40 时暴击 +25%'
+                    },
+                    "疾风·极": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "speed_ratio_dmg"},
+                        'name': '疾风·极',
+                        'desc': '身即疾风，风即锋芒，再无阻滞——速度比 ≥2.0 时，所有伤害 ×1.2'
+                    },
+                    "贯日箭": {
+                        'lv': 98,
+                        'mp': 40,
+                        'power': 2.42,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+                        'cast': 0.65,
+                        'cd': 24,
+                        'res_cost': {"energy": 70},
+                        'pierce': True,
+                        'accuracy': 'true',
+                        'crit': 'true',
+                        'target': 'back',
+                        'name': '贯日箭',
+                        'desc': '箭贯长空，骄阳亦被一箭贯穿——造成 195% 物理伤害，必中必暴、破防并点名后排'
+                    },
                 },
             },
         },
@@ -2256,263 +2097,428 @@ BRANCH_SKILLS = {
         "name": "牧师",
         "branches": {
             1: {
-                "吟游诗人": {
-                    "即兴弹唱": {"lv": 32, "mp": 3, "power": 1.0, "kind": "物理",
-                                 "res_gain": {"echo": 1},
-                                 "mech": "poison", "mech_val": 1,
-                                 # v139 谱曲标记：命中附加「轻旋律」（2 刻内下一次演唱共鸣 -1）
-                                 "light_melody": {"res_cost_reduce": 1, "turns": 2},
-                                 "desc": "指尖拨动琴弦即兴弹唱，琴音如刃造成 100% 物理伤害，并有 15% 概率使目标中毒；命中附加「轻旋律」(2 刻内下一次演唱共鸣-1)",
-                                 "name": "即兴弹唱"},
-                    "轻快拨弦": {"lv": 35, "mp": 3, "power": 1.1, "kind": "物理",
-                                 "res_gain": {"resonance": 1, "echo": 1}, "mech": "poison", "mech_chance": 0.1,
-                                 # v139 同放双涨：歌类输出 共鸣+1·回声+1（固化为分支级规则）
-                                 "bard_dual_gain": True,
-                                 "desc": "轻快拨动琴弦奏出刁钻音刃，造成 110% 物理伤害并有 10% 概率附加中毒(共鸣＋1·回声＋1 同放双涨)",
-                                 "name": "轻快拨弦"},
-                    "战歌": {"lv": 38, "mp": 10, "power": 0, "kind": "增益",
-                             "res_gain": {"echo": 1},
-                             "effect": "atk_up", "team": "atk_all", "cd": 2,
-                             # v139 双行算式：全队增益团队 100% / 歌者自身仅享 55%（self_gain_factor）；自身减伤 -5%（战歌反面）
-                             "self_gain_factor": 0.55,
-                             "self_penalty": {"reduce_dmg_taken": 0.05},
-                             "desc": "激昂战歌响彻战场，全队攻击＋30% 持续 3 刻(团队技能)；自身仅享 55%(攻+16.5%)，自身减伤-5%(战歌反面)",
-                             "name": "战歌"},
-                    "安眠曲": {"lv": 45, "mp": 10, "power": 0, "kind": "增益",
-                               "res_gain": {"echo": 1},
-                               "effect": "sleep", "cd": 3,
-                               "desc": "悠扬曲调化作睡意笼罩，使敌人陷入沉睡 2 刻(受击解除，对首领只持续 1 刻)",
-                               "name": "安眠曲"},
-                    # v130.2 新增：歌者签名一（v130.2 双资源·启明全队增益，消耗 3 共鸣）
-                    "启明圣咏": {"lv": 50, "mp": 20, "power": 0, "kind": "增益",
-                                 "res_gain": {"echo": 1},
-                                 "effect": "atk_up", "team": "atk_all", "cd": 2,
-                                 "res_cost": {"resonance": 3},
-                                 # v139 双行折算：团队 100% / 自身 55%
-                                 "self_gain_factor": 0.55,
-                                 "desc": "启明圣咏驱散阴霾，全队攻击＋10% 持续 3 刻(消耗 3 共鸣·回声＋1)；自身仅享 55%(双行折算)",
-                                 "name": "启明圣咏"},
-                },                "神谕者": {
-                    "圣言术":                     {
-                        "lv": 32,
-                        "power": 2.5,
-                        "kind": "治疗",
-                        # v139 P0 修复：res_gain 2 → 0（治疗攒点收敛到全局 on_heal +2，防双计数）
-                        "res_gain": 0,
-                        "cond": {
-                            "type": "player_hp_low",
-                            "hp_pct": 0.3,
-                            "mult": 1.5,
-                            "label": "圣言回响"
-                        },
-                        "mp": 10,
-                        "desc": "圣言落下即愈，治疗 250% 生命；自身生命低于 30% 时圣言回响(治疗量＋50%)；治疗攒点走全局 on_heal+2(无双计数)",
-                        "cd": 2,
-                        "name": "圣言术"
-                    }
-,
-                    "圣祷":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "heal_crit",
-                            "mult": 0.3,
-                            "chance": 0.2
-                        },
-                        "desc": "虔诚圣祷引来神恩眷顾，治疗时有 20% 概率额外治疗 30%(被动)",
-                        "name": "圣祷"
-                    }
-,
-                    # v139：净化术 → 圣辉涤净（云海净涤翻译）——清除自身 1 个异常 + 全队防御强化；随附（不占主行动）
-                    "圣辉涤净":                     {
-                        "lv": 45,
-                        "mp": 20,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "def_up",
-                        "cleanse_self": 1,
-                        "team": "def_all",
-                        "cd": 2,
-                        "support": True,
-                        "desc": "圣辉涤荡污秽——清除自身 1 个异常并全队防御强化；随附支援(不占主行动，每刻至多 1 件)",
-                        "name": "圣辉涤净"
-                    }
-,
-                    "大治愈术":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 3.0,
-                        "kind": "治疗",
-                        "res_cost": {
-                            "faith": 3
-                        },
-                        "team": "heal_all",
-                        # v139 随附支援入守线：本刻治疗后自动「圣辉祝福」（全队减伤 5%，1 刻）
-                        "support_followup": {"effect": "reduce_all", "reduce_all": 0.05, "turns": 1, "team": True},
-                        "desc": "圣光汇聚成治愈之潮，为全队治疗 300% 生命(团队核心)；治疗后自动随附「圣辉祝福」(全队减伤 5% 1 刻)",
-                        "name": "大治愈术"
-                    }
-,
+                "神谕者": {
+                    "圣言术": {
+                        'lv': 32,
+                        'mp': 12,
+                        'power': 1.14,
+                        'kind': '治疗',
+                        'cast': 0.6,
+                        'cd': 8,
+                        'faith': 0,
+                        'name': '圣言术',
+                        'desc': '口诵圣言，言出法随——治疗单体 114% 魔攻，信念 <5 时额外 +20%'
+                    },
+                    "圣光祈祷": {
+                        'lv': 38,
+                        'mp': 18,
+                        'power': 1.02,
+                        'kind': '治疗',
+                        'cast': 0.5,
+                        'cd': 12,
+                        'faith': 0,
+                        'name': '圣光祈祷',
+                        'desc': '双手合十，圣光随祈祷蔓延全场——治疗全体 102% 魔攻'
+                    },
+                    "神恩降临": {
+                        'lv': 44,
+                        'mp': 20,
+                        'power': 1.25,
+                        'kind': '治疗',
+                        'cast': 0.7,
+                        'cd': 16,
+                        'faith': 0,
+                        'name': '神恩降临',
+                        'desc': '天穹裂开一线，神恩倾泻而下——治疗单体 125% 魔攻，目标生命越低效果越高'
+                    },
+                    "圣辉涤净": {
+                        'lv': 50,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '治疗',
+                        'cast': 0.5,
+                        'cd': 12,
+                        'faith': 0,
+                        'effect': 'cleanse_all',
+                        'name': '圣辉涤净',
+                        'desc': '圣辉如潮水漫过战场——全体净化减益并解除控制'
+                    },
+                    "圣光回响": {
+                        'lv': 54,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "heal_overflow_shield"},
+                        'name': '圣光回响',
+                        'desc': '圣光的余韵久久不散——治疗溢出量的 50% 转为护盾（被动）'
+                    },
+                    "光愈": {
+                        'lv': 58,
+                        'mp': 14,
+                        'power': 1.14,
+                        'kind': '治疗',
+                        'cast': 0.6,
+                        'cd': 8,
+                        'faith': 0,
+                        'name': '光愈',
+                        'desc': '柔光缠绕伤口，缓缓愈合——治疗 114% 魔攻，8 刻内每 2 刻恢复一次'
+                    },
+                },
+                "死灵祭司": {
+                    "召唤骷髅": {
+                        'lv': 32,
+                        'mp': 18,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.8,
+                        'cd': 16,
+                        'faith': 0,
+                        'summon': 'skeleton',
+                        'name': '召唤骷髅',
+                        'desc': '腐朽大地裂开，白骨自墓穴爬起——召唤 1 只骷髅（挡刀，上限 3）'
+                    },
+                    "骨噬诅咒": {
+                        'lv': 38,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.0, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.0, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 12,
+                        'mech': 'curse',
+                        'mech_val': 1,
+                        'faith': 0,
+                        'name': '骨噬诅咒',
+                        'desc': '怨毒诅咒啃噬敌骨——造成 125% 魔攻暗蚀伤害，并挂诅咒：全队对其伤害 +20%，持续 8 刻'
+                    },
+                    "灵魂标记": {
+                        'lv': 44,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 12,
+                        'mech': 'soul_mark',
+                        'mech_val': 1,
+                        'faith': 0,
+                        'name': '灵魂标记',
+                        'desc': '以亡魂之力烙下灵魂印记——每层全队伤害 +6%（上限 3 层，随骷髅存活同步）'
+                    },
+                    "死歌·悼": {
+                        'lv': 50,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'faith': 0,
+                        'effect': 'reduce_all',
+                        'name': '死歌·悼',
+                        'desc': '低沉的悼歌在墓园回响——死歌光环：全队减伤 15%，持续 12 刻'
+                    },
+                    "墓穴低语": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.25,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 12,
+                        'mech': 'curse_refresh',
+                        'faith': 0,
+                        'name': '墓穴低语',
+                        'desc': '墓穴深处的低语渗入耳畔——造成 125% 魔攻暗蚀伤害，并刷新目标诅咒持续时长'
+                    },
+                    "骸骨祭仪": {
+                        'lv': 58,
+                        'mp': 18,
+                        'power': 1.25,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 16,
+                        'mech': 'sacrifice',
+                        'faith': 0,
+                        'name': '骸骨祭仪',
+                        'desc': '献祭一具骸骨，祭坛燃起幽绿冥火——造成 125% 魔攻伤害，全体暗蚀'
+                    },
                 },
             },
             2: {
-                "灵魂歌者": {
-                    "鼓舞": {"lv": 60, "mp": 10, "power": 0, "kind": "增益",
-                             "res_gain": {"echo": 1},
-                             "effect": "crit_up", "team": "crit_all", "cd": 2,
-                             "desc": "歌声激昂鼓舞人心，全队暴击率＋20% 持续 3 刻(团队技能)",
-                             "name": "鼓舞"},
-                    "哀歌": {"lv": 62, "mp": 15, "power": 1.7, "kind": "魔法",
-                             "cc": "silence", "cd": 3,
-                             "res_gain": {"resonance": 1, "echo": 1},
-                             "desc": "悲怆哀歌化作音刃，造成 170% 魔法伤害并有 50% 概率沉默目标 2 刻(共鸣＋1·回声＋1)",
-                             "name": "哀歌"},
-                    "伴奏": {"lv": 65, "mp": 0, "power": 0, "kind": "被动",
-                             "passive": {"proc": "bard_echo", "chance": 0.2},
-                             "desc": "共鸣伴唱如影随形，施放歌类技能时有 20% 概率额外获得 1 层回声(被动)",
-                             "name": "伴奏"},
-                    "轻风咏叹": {"lv": 68, "mp": 15, "power": 0, "kind": "增益",
-                                 "res_gain": {"echo": 1},
-                                 "effect": "spd_up", "team": "spd_all", "cd": 2,
-                                 "res_cost": {"resonance": 3},
-                                 # v139 双行折算：团队 100% / 自身 55%
-                                 "self_gain_factor": 0.55,
-                                 "desc": "轻风咏叹拂过全场，全队速度＋40% 持续 3 刻(消耗 3 共鸣·回声＋1)；自身仅享 55%(双行折算)",
-                                 "name": "轻风咏叹"},
-                },                "大主教": {
-                    "神圣恩典":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "heal",
-                            "mult": 0.1
-                        },
-                        "desc": "神圣恩典常驻心间，治疗效果＋10%(被动)",
-                        "name": "神圣恩典"
-                    }
-,
-                    "生命之泉":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "team_regen",
-                            "mult": 0.05
-                        },
-                        "desc": "生命之泉汩汩涌流，全队每刻回复 5% 生命(被动)",
-                        "name": "生命之泉"
-                    }
-,
-                    "神圣庇护":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "shield_all",
-                        "team": "shield_all",
-                        "cd": 4,
-                        "res_cost": {
-                            "faith": 5
-                        },
-                        # v139 随附支援入守线：护盾时自动「圣辉守护」（自身 1 刻减伤 10%）
-                        "support_followup": {"effect": "dmg_reduce", "reduce": 0.1, "turns": 1, "self": True},
-                        "desc": "神圣光辉织成庇护之壁，为全队加持护盾(CD 4，消耗 5 信仰)；护盾时自动随附「圣辉守护」(自身 1 刻减伤 10%)",
-                        "name": "神圣庇护"
-                    }
-,
+                "神谕者": {
+                    "神圣恩典": {
+                        'lv': 62,
+                        'mp': 22,
+                        'power': 1.44,
+                        'kind': '治疗',
+                        'cast': 0.7,
+                        'cd': 16,
+                        'faith': 0,
+                        'name': '神圣恩典',
+                        'desc': '沐浴神恩，万物复苏——治疗单体 144% 魔攻（单体超大治疗）'
+                    },
+                    "生命之泉": {
+                        'lv': 68,
+                        'mp': 24,
+                        'power': 1.18,
+                        'kind': '治疗',
+                        'cast': 0.5,
+                        'cd': 20,
+                        'faith': 0,
+                        'name': '生命之泉',
+                        'desc': '脚下涌出汩汩生命之泉——全体回血 118% 魔攻，12 刻内每 2 刻恢复一次'
+                    },
+                    "圣光庇护": {
+                        'lv': 74,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 20,
+                        'faith': 0,
+                        'effect': 'reduce_all',
+                        'name': '圣光庇护',
+                        'desc': '圣光展开庇护之翼笼罩全队——全队减伤 20% 并持续回血，维持 10 刻'
+                    },
+                    "神迹": {
+                        'lv': 80,
+                        'mp': 35,
+                        'power': 1.57,
+                        'kind': '治疗',
+                        'cast': 0.8,
+                        'cd': 20,
+                        'faith': 0,
+                        'name': '神迹',
+                        'desc': '神迹显现，圣光席卷八方——治疗全体 157% 魔攻（重技）'
+                    },
+                    "圣光祝福": {
+                        'lv': 85,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'faith': 0,
+                        'effect': 'atk_matk_all',
+                        'name': '圣光祝福',
+                        'desc': '圣光为武器镀上祝福辉光——全队攻击与魔攻 +30%，持续 10 刻'
+                    },
+                    "信念·流转": {
+                        'lv': 88,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "faith_share"},
+                        'name': '信念·流转',
+                        'desc': '信念如纽带将彼此相连——治疗时承担目标 10% 的伤害（分担）'
+                    },
+                },
+                "死灵祭司": {
+                    "骷髅海": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "skeleton_cap"},
+                        'name': '骷髅海',
+                        'desc': '白骨漫过荒原，亡灵如潮涌来——骷髅上限 +2（至 5 只）'
+                    },
+                    "亡灵祭仪": {
+                        'lv': 68,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "undead_faith"},
+                        'name': '亡灵祭仪',
+                        'desc': '亡灵徘徊之处，信念悄然滋长——场上每只亡灵每刻 +0.15 信念'
+                    },
+                    "死亡契约": {
+                        'lv': 74,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "death_contract"},
+                        'name': '死亡契约',
+                        'desc': '与死亡立下血之契约——信念 ≥5 时，致命伤由 1 只骷髅代为承受'
+                    },
+                    "骸骨洪流": {
+                        'lv': 80,
+                        'mp': 26,
+                        'power': 1.35,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.35, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.35, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 20,
+                        'mech': 'bone_rush',
+                        'faith': 0,
+                        'aoe': 'all',
+                        'name': '骸骨洪流',
+                        'desc': '万骨奔腾如洪流倾泻——造成 135% 魔攻全体伤害，消耗全部骷髅，每只追加 90% 全体暗蚀'
+                    },
+                    "灵魂收割": {
+                        'lv': 85,
+                        'mp': 18,
+                        'power': 1.57,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.57, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.57, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.8,
+                        'cd': 16,
+                        'faith': 0,
+                        'cond': {"type": "enemy_cursed", "mult": 1.4},
+                        'name': '灵魂收割',
+                        'desc': '镰影掠过，收割受诅之魂——造成 157% 魔攻伤害，对带诅咒目标 ×1.4'
+                    },
+                    "亡魂护甲": {
+                        'lv': 88,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 20,
+                        'faith': 0,
+                        'effect': 'reduce',
+                        'name': '亡魂护甲',
+                        'desc': '怨灵缠绕周身化作幽暗护甲——自身减伤 30%，持续 10 刻，骷髅代为挡刀'
+                    },
                 },
             },
             3: {
-                "黎明颂者": {
-                    "英雄叙事诗": {"lv": 90, "mp": 20, "power": 1.5, "kind": "治疗",
-                                   "cd": 2, "team": "heal_all",
-                                   "res_gain": {"resonance": 2},
-                                   # v139 随附化：本技能治疗「不占主行动」（1 刻只 1 次）
-                                   "support_free": True,
-                                   "desc": "吟唱英雄史诗，圣光随旋律抚愈全队——治疗全队 150% 生命(共鸣＋2)；治疗随附化不占主行动(1 刻 1 次)",
-                                   "name": "英雄叙事诗"},
-                    "奥术咏叹调": {"lv": 92, "mp": 20, "power": 0, "kind": "增益",
-                                   "res_gain": {"echo": 1},
-                                   "effect": "matk_up", "team": "matk_all", "cd": 2,
-                                   "res_cost": {"resonance": 3},
-                                   # v139 双行折算：团队 100% / 自身 55%
-                                   "self_gain_factor": 0.55,
-                                   "desc": "咏叹调与奥术共鸣，全队魔攻＋50% 持续 3 刻(消耗 3 共鸣·回声＋1)；自身仅享 55%(双行折算)",
-                                   "name": "奥术咏叹调"},
-                    "快板节奏": {"lv": 95, "mp": 0, "power": 0, "kind": "被动",
-                                 "passive": {"stat": "cdr", "add": 0.08},
-                                 "desc": "快板节奏令人手起招落，冷却缩减＋8%(被动)",
-                                 "name": "快板节奏"},
-                    "终章·黎明颂歌": {"lv": 98, "mp": 35, "power": 0, "kind": "增益",
-                                       "res_gain": {"echo": 2},
-                                       "effect": "atk_up_strong", "team": "atk_all", "cd": 5,
-                                       "res_cost": {"resonance": 5},
-                                       # v139 双行折算：团队 100% / 自身 55%
-                                       "self_gain_factor": 0.55,
-                                       "desc": "黎明颂歌奏响终章，全队攻击＋75% 持续 3 刻(消耗 5 共鸣·回声＋2)；自身仅享 55%(双行折算)",
-                                       "name": "终章·黎明颂歌"},
-                    # v130.2 新增：歌者 tier3 专属攒点技（光咏晨祷，共鸣 +1）
-                    "破晓圣咏": {"lv": 94, "mp": 30, "power": 1.8, "kind": "魔法",
-                                 "cd": 3, "reach": 2,
-                                 "res_gain": {"resonance": 1, "echo": 1},
-                                 # v139 补强为歌者伤害终结门槛：共鸣 ≥5 时 +15%（EQ ≈ 2.1 中档伤害口）
-                                 "cond": {"type": "player_res_stacks", "res_key": "resonance", "stacks": 5, "mult": 1.15, "label": "共鸣巅峰"},
-                                 "desc": "破晓之光凝入咏唱，造成 180% 圣咏魔法伤害(共鸣＋1·回声＋1)；共鸣≥5 时伤害＋15%(EQ≈2.1)",
-                                 "name": "破晓圣咏"},
-                    # v139 新增：破晓长歌（云海「收束·尾声」翻译，歌者 T3 伤害终结）——320% 单体圣咏魔法，消耗 5 共鸣，命中后回声 +1；EQ = 3.2 × 1.5 ≈ 4.8
-                    "破晓长歌": {"lv": 96, "mp": 40, "power": 3.2, "kind": "魔法",
-                                 "cd": 5, "reach": 2,
-                                 "res_cost": {"resonance": 5},
-                                 "res_gain": {"echo": 1},
-                                 "desc": "共鸣燃至顶点，奏响破晓长歌——造成 320% 圣咏魔法伤害，消耗 5 共鸣(清空短燃料条)，命中后回声＋1(EQ≈4.8 伤害终结)",
-                                 "name": "破晓长歌"},
-                },                "圣光先知": {
-                    "圣光赞歌":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 2.5,
-                        "kind": "治疗",
-                        "res_cost": {
-                            "faith": 5
-                        },
-                        "team": "heal_all",
-                        "desc": "圣光赞歌响彻天际，为全队治疗 250% 生命(消耗 5 信仰)",
-                        "name": "圣光赞歌"
-                    }
-,
-                    "神迹·重生":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 5.0,
-                        "kind": "治疗",
-                        "team": "heal_all",
-                        "cd": 5,
-                        "res_cost": {
-                            "faith": 10
-                        },
-                        "desc": "终极技——神迹再现，为全队恢复至满血(消耗 10 信仰，团队终极技)",
-                        "name": "神迹·重生"
-                    }
-,
-                    "生命圣域":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 3.0,
-                        "kind": "治疗",
-                        "team": "heal_all",
-                        "cd": 6,
-                        "res_cost": {
-                            "faith": 6
-                        },
-                        "desc": "三转奥义——展开生命圣域，为全队恢复满血并减伤(消耗 6 信仰，终极救场)",
-                        "name": "生命圣域"
-                    }
-,
+                "神谕者": {
+                    "生命圣域": {
+                        'lv': 90,
+                        'mp': 40,
+                        'power': 2.04,
+                        'kind': '治疗',
+                        'cast': 0.7,
+                        'cd': 24,
+                        'faith': 0,
+                        'effect': 'cleanse_all',
+                        'name': '生命圣域',
+                        'desc': '圣域展开，生命之力涤荡阴翳——治疗全体 204% 魔攻，并驱散全部减益'
+                    },
+                    "神迹·重生": {
+                        'lv': 93,
+                        'mp': 50,
+                        'power': 1.0,
+                        'kind': '治疗',
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'name': '神迹·重生',
+                        'desc': '神迹再现，亡者于圣光中睁眼——复活倒地队友，回复其 40% 生命'
+                    },
+                    "圣光赞歌": {
+                        'lv': 95,
+                        'mp': 40,
+                        'power': 1.78,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.78, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.78, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.8,
+                        'cd': 20,
+                        'faith': 0,
+                        'name': '圣光赞歌',
+                        'desc': '圣咏高唱，圣光凝成裁决之剑——对单体造成 178% 魔攻伤害（终结技，不增信念）'
+                    },
+                    "信念·圣化": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "faith_overload_heal"},
+                        'name': '信念·圣化',
+                        'desc': '信念满溢化作圣辉而非反噬——过载时不再力竭，改为全队回血 +30%'
+                    },
+                    "曙光": {
+                        'lv': 98,
+                        'mp': 45,
+                        'power': 2.41,
+                        'kind': '治疗',
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'name': '曙光',
+                        'desc': '第一缕曙光刺破永夜——治疗全体 241% 魔攻，全队免疫 1 次致命伤，持续 8 刻'
+                    },
+                },
+                "死灵祭司": {
+                    "亡魂大军": {
+                        'lv': 90,
+                        'mp': 35,
+                        'power': 1.0,
+                        'kind': '召唤',
+             'formula': [{'stat': 'atk', 'mult': 1.0, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'summon': 'skeleton',
+                        'name': '亡魂大军',
+                        'desc': '墓门轰然洞开，亡灵大军踏出——召唤 3 只骷髅'
+                    },
+                    "死寂领域": {
+                        'lv': 93,
+                        'mp': 30,
+                        'power': 1.32,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'aoe': 'all',
+                        'name': '死寂领域',
+                        'desc': '死寂蔓延，万物噤声——全体造成 132% 魔攻暗蚀伤害，并沉默 2 刻'
+                    },
+                    "灵魂锁链": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "soul_mark_cap"},
+                        'name': '灵魂锁链',
+                        'desc': '锁链将灵魂与亡灵紧紧相系——灵魂标记上限 +2（至 5 层），每层伤害 +8%'
+                    },
+                    "永恒安魂": {
+                        'lv': 97,
+                        'mp': 40,
+                        'power': 2.41,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.41, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.41, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'name': '永恒安魂',
+                        'desc': '献上全部骸骨，为敌奏响永恒安魂曲——造成 241% 魔攻单体高伤，并沉默 2.5 刻'
+                    },
+                    "亡魂主宰": {
+                        'lv': 98,
+                        'mp': 45,
+                        'power': 2.32,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.32, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.32, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'faith': 0,
+                        'cond': {"type": "faith_full", "stacks": 10, "mult": 1.4},
+                        'summon': 'skeleton',
+                        'name': '亡魂主宰',
+                        'desc': '亡魂之主君临战场——造成 232% 魔攻伤害，信念满 10 时 ×1.4 并召唤亡魂大军'
+                    },
                 },
             },
         },
@@ -2522,407 +2528,432 @@ BRANCH_SKILLS = {
         "branches": {
             1: {
                 "影舞者": {
-                    "影刃":                     {
-                        "lv": 32,
-                        "power": 1.151,
-                        "kind": "物理",
-                        "res_gain": 1,
-                        "cond": {
-                            "type": "enemy_hp_high",
-                            "hp_pct": 0.7,
-                            "mult": 1.2,
-                            "label": "暗影亲和"
-                        },
-                        "mp": 6,
-                        # v139 链值驱动追加段：命中时连段 +1（现有 res_gain 链值）+ 链值 ≥5 追加段 +1（影追）
-                        "combo_gain": 1,
-                        "combo_chase": {"at": 5, "power": 0.5, "cap": 1},
-                        "desc": "匕刃自影中探出，割向气血正盛的猎物——造成 285% 物理伤害；目标生命高于 70% 时，暗影亲和（伤害＋20%）；链值≥5 时追加 1 段影追(0.5×)",
-                        "name": "影刃"
-                    }
-,
-                    "无声":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "dodge_up",
-                            "mult": 0.3
-                        },
-                        "desc": "杀意收敛于呼吸之间，身形与暗影无异——闪避率＋30%（被动，潜行生存）",
-                        "name": "无声"
-                    }
-,
-                    "幻影连刺":                     {
-                        "lv": 45,
-                        "power": 0.82,
-                        "kind": "物理",
-                        "multi": 3,
-                        "res_gain": 3,
-                        "cond": {
-                            "type": "player_untouched",
-                            "mult": 1.15,
-                            "label": "身轻如燕"
-                        },
-                        "mp": 10,
-                        # v139 段数三线投喂：每段命中各 +1 链值（3 段 = +3）；链值 ≥8 时第 4 段只喂链值不喂连击点（旋锋锁死）
-                        "multi_feed": {"combo": 1},
-                        "spin_lock": 8,
-                        "desc": "身影化作三道残像，匕尖如毒蛇连番噬咬——造成 100% 物理伤害×3；自身未受击时，身轻如燕（伤害＋15%）；每段命中各+1 链值，链值≥8 追加段只喂链值(旋锋锁死)",
-                        "cd": 2,
-                        "name": "幻影连刺"
-                    }
-,
-                    "终结·处刑":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 1.598,
-                        "kind": "物理",
-                        "res_cost": {
-                            "cp": 5
-                        },
-                        "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.4,
-                            "mult": 1.4,
-                            "label": "死亡之舞"
-                        },
-                        # v139 链点回流：终结伤害 > 敌方 max_hp×10% 时链值返还 3 层（打空/闪避/低伤害不回流）
-                        "combo_reflow": {"hp_pct": 0.1, "layers": 3},
-                        # v139 终结阈值 DSL 消费点：res_cost cp 档即「判断消耗点」（战前可设快刀/满刃/残血/满段档）
-                        "finisher_tier": "5cp",
-                        "desc": "暗影中跃出的终焉之刃，对残血之敌执行处刑——造成 400% 物理伤害；目标生命低于 40% 时，死亡之舞旋起（伤害＋40%）；终结伤害达标(>敌 max_hp 10%)链值回流 3 层",
-                        "cd": 2,
-                        "name": "终结·处刑"
-                    }
-,
-                    # v139 新增：链舞（攻线本命·信物）——被动：链值每层终结技增伤 5%→8%（只放大连段终结一轴）
-                    "链舞":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "combo_finisher_per_layer",
-                            "mult": 0.08
-                        },
-                        "desc": "链舞翩跹，越连越狠——链值每层终结技增伤 8%(本命·信物，只放大连段终结一轴)",
-                        "name": "链舞"
-                    }
-,
+                    "影刃": {
+                        'lv': 32,
+                        'mp': 8,
+                        'power': 1.12,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'lian_duan',
+                        'mech_val': 1,
+                        'name': '影刃',
+                        'desc': '暗影凝成利刃呼啸斩出——造成 80% 物理伤害，命中 +1 段，连段 ≥3 时追加 1 段'
+                    },
+                    "幻影连刺": {
+                        'lv': 38,
+                        'mp': 14,
+                        'power': 0.5,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.5, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.5, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'hits': 3,
+                        'name': '幻影连刺',
+                        'desc': '三道幻影接连刺出，虚实难辨——每段造成 32% 物理伤害共 3 段，每段命中 +1 段'
+                    },
+                    "链舞": {
+                        'lv': 44,
+                        'mp': 16,
+                        'power': 1.5,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.5, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.5, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'passive': {"proc": "finisher_up"},
+                        'name': '链舞',
+                        'desc': '锁链舞动如轮，寒光漫天——造成 114% 物理伤害，终结技系数 +6%（每段 10% → 16%）'
+                    },
+                    "暗影步": {
+                        'lv': 50,
+                        'mp': 10,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 16,
+                        'effect': 'shadow_dance',
+                        'name': '暗影步',
+                        'desc': '一步踏碎虚空，坠入影舞之境——连段满 5 时进入影舞态：技能 CD −20%，受击不再清除连段'
+                    },
+                    "影分身": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 16,
+                        'effect': 'dodge_buff',
+                        'name': '影分身',
+                        'desc': '身形一分为数，真假难辨——自身闪避 +30% 持续 6 刻'
+                    },
+                    "终结·处刑": {
+                        'lv': 58,
+                        'mp': 16,
+                        'power': 1.46,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'mech': 'finisher',
+                        'name': '终结·处刑',
+                        'desc': '暗影中递出必杀之刃，避无可避——造成 104% 物理伤害，连段越高伤害越高（每段 +10%），连段 ≥4 时必定暴击'
+                    },
                 },
                 "毒刃者": {
-                    "毒刃":                     {
-                        "lv": 32,
-                        "power": 1.387,
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 2,
-                        "res_gain": 1,
-                        "cond": {
-                            "type": "enemy_poison_stacks",
-                            "stacks": 1,
-                            "mult": 1.15,
-                            "label": "毒刃蔓延"
-                        },
-                        "mp": 6,
-                        # v139 主动负向设计：守线技能明确不带 pierce（高毒腐蚀即破防）
-                        "no_pierce": True,
-                        "desc": "刃锋淬满剧毒，划开血肉的同时种下毒种——造成 285% 物理伤害并叠加 2 层中毒；目标已中毒时，毒素蔓延加速（伤害＋15%）（守线不带破防：毒蚀降防即破防）",
-                        "name": "毒刃"
-                    }
-,
-                    "毒师":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "poison_dmg",
-                            "mult": 0.08
-                        },
-                        "desc": "毒师的目光扫过之处，中毒者伤口溃烂得更快——中毒目标受到的伤害＋8%（被动，毒系增伤）",
-                        "name": "毒师"
-                    }
-,
-                    "双毒刃":                     {
-                        "lv": 45,
-                        "power": 1.0,
-                        "kind": "物理",
-                        "multi": 2,
-                        "mech": "poison",
-                        "mech_val": 3,
-                        "cond": {
-                            "type": "enemy_poison_stacks",
-                            "stacks": 3,
-                            "mult": 1.15,
-                            "label": "毒师专注"
-                        },
-                        "mp": 10,
-                        # v139 段数即毒层产出率：命中时「毒层投喂 +1」（每段+1 等效产出率翻倍）；毒层 ≥5 时不再吃追加段（守线锁死：毒层 cap5 即资源饱和）
-                        "multi_feed": {"poison": 1},
-                        "poison_cap_stop": 5,
-                        "desc": "双刃各淬异毒，交错斩出双重毒蚀——造成 100% 物理伤害×2并叠加 3 层中毒；目标中毒达 3 层时，毒师专注（伤害＋15%）；每段毒层投喂+1，毒层≥5 停止投喂(饱和)",
-                        "name": "双毒刃"
-                    }
-,
-                    "毒爆":                     {
-                        "lv": 55,
-                        "power": 2.0,
-                        "kind": "物理",
-                        # v139 改版：吃 3 cp 引爆（mech poison_burst），引爆伤害按毒层 n×atk×0.30（现有引擎已支持），毒层 ≥3 可爆（提前引爆拿虚弱压制的价值保留）
-                        "mech": "poison_burst",
-                        "mech_val": 1,
-                        "res_cost": {
-                            "cp": 3
-                        },
-                        "cond": {
-                            "type": "enemy_poison_stacks",
-                            "stacks": 3,
-                            "mult": 1.3,
-                            "label": "剧毒共鸣"
-                        },
-                        "mp": 12,
-                        "finisher_tier": "3cp",
-                        "desc": "将猎物体内积攒的剧毒尽数引燃，令其由内溃烂——消耗 3 连击点引爆毒层(每层 n×atk×0.30)；目标中毒达 3 层时，剧毒共鸣迸发（伤害＋30%）",
-                        "cd": 2,
-                        "name": "毒爆"
-                    }
-,
-                    # v139 新增：蚀骨（守线本命·信物）——被动：毒层引爆伤害 +20%（只放大毒层引爆一轴，不与连段/暴击轴交叉）
-                    "蚀骨":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "poison_burst_amp",
-                            "mult": 0.2
-                        },
-                        "desc": "蚀骨蚀心，毒爆更烈——毒层引爆伤害＋20%(本命·信物，只放大毒层引爆一轴)",
-                        "name": "蚀骨"
-                    }
-,
+                    "毒刃": {
+                        'lv': 32,
+                        'mp': 10,
+                        'power': 1.12,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'poison',
+                        'mech_val': 2,
+                        'cond': {"type": "player_mech_stacks", "mech": "lian_duan", "stacks": 2, "extra_poison": True},
+                        'name': '毒刃',
+                        'desc': '刃上淬着幽绿毒液，寒光渗人——造成 80% 物理伤害，附加 2 层毒持续 8 刻，连段 ≥3 时额外 +1 层'
+                    },
+                    "双毒刃": {
+                        'lv': 38,
+                        'mp': 14,
+                        'power': 0.63,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.35,
+                        'cd': 12,
+                        'hits': 2,
+                        'name': '双毒刃',
+                        'desc': '双匕抹过剧毒连斩而出——每段造成 45% 物理伤害共 2 段，每段附加 2 层毒'
+                    },
+                    "蚀骨": {
+                        'lv': 44,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_burst_up"},
+                        'name': '蚀骨',
+                        'desc': '毒素如蛆附骨，寸寸蚀穿血肉——毒爆伤害 +25%'
+                    },
+                    "毒爆": {
+                        'lv': 50,
+                        'mp': 16,
+                        'power': 1.44,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'mech': 'poison_burst_finisher',
+                        'name': '毒爆',
+                        'desc': '引动体内毒素瞬间爆裂喷涌——造成 103% 魔法伤害，引爆全部毒层（每层 +14%），结算后连段归零'
+                    },
+                    "淬毒之刃": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.46,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'mech': 'poison',
+                        'mech_val': 3,
+                        'pierce': True,
+                        'name': '淬毒之刃',
+                        'desc': '刃锋淬满剧毒，绿芒流转不休——造成 104% 物理伤害，附加 3 层毒持续 8 刻，并施加破防'
+                    },
+                    "死亡标记": {
+                        'lv': 58,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 16,
+                        'effect': 'vuln',
+                        'name': '死亡标记',
+                        'desc': '在目标眉心烙下死亡印记——目标受到伤害 +25%，持续 8 刻'
+                    },
                 },
             },
             2: {
-                "暗影之刃": {
-                    "暗影之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "shadow",
-                            "mult": 0.1
-                        },
-                        "desc": "暗影之力在心脏中搏动，影系技艺愈发锋锐——影系技能伤害＋10%（二转被动）",
-                        "name": "暗影之心"
-                    }
-,
-                    "暗影突袭":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 1.6,
-                        "kind": "物理",
-                        "cd": 2,
-                        "res_cost": {
-                            "cp": 3
-                        },
-                        "cond": {
-                            "type": "player_untouched",
-                            "mult": 1.2,
-                            "label": "暗影突袭"
-                        },
-                        # v139 命中链值 +1（位移保段）
-                        "combo_gain": 1,
-                        "desc": "自暗影中突进，刃光与身形同时闪现——造成 160% 物理伤害，冷却 2 刻；自身未受击时，突袭更加凌厉（伤害＋20%）；命中链值＋1(位移保段)",
-                        "name": "暗影突袭"
-                    }
-,
-                    "死亡标记·影":                     {
-                        "lv": 68,
-                        "power": 0,
-                        "kind": "增益",
-                        "mech": "mark",
-                        "mech_val": 2,
-                        "mp": 6,
-                        "desc": "以暗影之力在目标身上烙下双重死印——标记目标，使其受击伤害提升（配合团队斩杀）",
-                        "name": "死亡标记·影"
-                    }
-,
-                    # v113：斩杀机制下放——收割(原暮影线收割流)降为基础刺客攻线 T2 进阶技
-                    "收割":                     {
-                        "lv": 62,
-                        "mp": 25,
-                        "power": 1.9,
-                        "kind": "物理",
-                        "cond": {
-                            "type": "enemy_hp_low",
-                            "hp_pct": 0.5,
-                            "mult": 1.3,
-                            "label": "收割"
-                        },
-                        "cd": 3,
-                        # v139 链值消费点第二处：链值 ≥3 时伤害 +10%（攻线不加毒）
-                        "combo_cond": {"type": "player_combo_stacks", "stacks": 3, "mult": 1.1, "label": "链刃"},
-                        "desc": "镰刃般的匕锋划过战场，收割垂死者的生命——造成 190% 物理伤害；目标生命低于 50% 时，收割之势更盛（伤害＋30%）；链值≥3 时伤害＋10%",
-                        "name": "收割"
-                    }
-,
+                "影舞者": {
+                    "暗影之心": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "lian_duan_soft"},
+                        'name': '暗影之心',
+                        'desc': '历经暗影磨砺的坚韧心志——断连时只损失 1 段连击（而非减半）'
+                    },
+                    "暗影突袭": {
+                        'lv': 68,
+                        'mp': 14,
+                        'power': 1.47,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.47, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.47, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 12,
+                        'cond': {"type": "stealth", "mult": 1.4},
+                        'name': '暗影突袭',
+                        'desc': '自潜行中骤然暴起，寒芒直刺——造成 105% 物理伤害，潜行中伤害 ×1.4'
+                    },
+                    "收割": {
+                        'lv': 74,
+                        'mp': 18,
+                        'power': 1.81,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'cond': {"type": "enemy_low_hp", "hp_lt": 40, "mult": 1.45},
+                        'name': '收割',
+                        'desc': '匕刃悄然划向垂死之敌——造成 129% 物理伤害，目标生命低于 40% 时伤害 ×1.45'
+                    },
+                    "幽影连刺": {
+                        'lv': 80,
+                        'mp': 18,
+                        'power': 0.43,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 12,
+                        'hits': 4,
+                        'name': '幽影连刺',
+                        'desc': '幽影连闪，四道寒芒次第没入敌身——每段造成 29% 物理伤害共 4 段，每段命中 +1 段'
+                    },
+                    "影遁": {
+                        'lv': 85,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 20,
+                        'effect': 'stealth_cc',
+                        'name': '影遁',
+                        'desc': '身形溃散成一缕黑烟消散无踪——强制进入潜行并免疫控制，持续 6 刻'
+                    },
+                    "暗影步·极": {
+                        'lv': 88,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "shadow_dance_bonus"},
+                        'name': '暗影步·极',
+                        'desc': '将暗影步修至极境，身随意动——影舞态中自身速度 +25%、暴击伤害 +20%'
+                    },
                 },
-                "淬毒师": {
-                    "淬毒之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "poison_dmg",
-                            "mult": 0.1
-                        },
-                        "desc": "毒液在血脉中日夜淬炼，毒性愈发猛烈——毒层伤害＋10%（二转被动，毒强化）",
-                        "name": "淬毒之心"
-                    }
-,
-                    "毒雾·淬":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0.8,
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 2,
-                        "cd": 3,
-                        "res_cost": {
-                            "cp": 3
-                        },
-                        "aoe": "all",
-                        "desc": "掷出淬炼过的毒囊，幽绿雾气弥漫全场——造成 80% 全体物理伤害并叠加 2 层中毒，冷却 3 刻（AOE 叠毒）",
-                        "name": "毒雾·淬"
-                    }
-,
-                    "淬毒刺杀":                     {
-                        "lv": 68,
-                        "power": 2.0,
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 4,
-                        "mp": 15,
-                        # v139 毒层投喂 +1（+5 层，触达 cap5 上限满毒）
-                        "multi_feed": {"poison": 1},
-                        "poison_cap_stop": 5,
-                        "desc": "匕刃在毒液中淬至极致，一击种下深重毒患——造成 200% 物理伤害并叠加 4 层中毒（深度叠毒）；毒层投喂+1 触达满毒(5 层)",
-                        "cd": 2,
-                        "name": "淬毒刺杀"
-                    }
-,
+                "毒刃者": {
+                    "淬毒之心": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_cap"},
+                        'name': '淬毒之心',
+                        'desc': '以毒淬炼心脉，百毒皆可纳之——毒层上限 +3（最高 8 层）'
+                    },
+                    "毒雾·淬": {
+                        'lv': 68,
+                        'mp': 24,
+                        'power': 1.4,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.4, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.4, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.3,
+                        'cd': 16,
+                        'aoe': 'all',
+                        'name': '毒雾·淬',
+                        'desc': '掷出毒瓶，碧绿毒雾弥漫全场——对全体造成 100% 魔法伤害，附加 2 层毒持续 8 刻'
+                    },
+                    "剧毒之触": {
+                        'lv': 74,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_weaken"},
+                        'name': '剧毒之触',
+                        'desc': '剧毒缠身者步履蹒跚、甲胄松动——目标毒层 ≥5 时，减速 30%、降防 20%'
+                    },
+                    "腐蚀之刃": {
+                        'lv': 80,
+                        'mp': 22,
+                        'power': 1.95,
+                        'kind': '真伤',
+             'formula': [{'stat': 'atk', 'mult': 1.95, 'type': 'true', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.95, 'type': 'true', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 16,
+                        'name': '腐蚀之刃',
+                        'desc': '刃锋蚀过之处甲胄崩解成粉——造成 139% 真实伤害，附加 2 层腐蚀'
+                    },
+                    "淬毒刺杀": {
+                        'lv': 85,
+                        'mp': 20,
+                        'power': 1.81,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'cond': {"type": "enemy_def_high", "mult": 1.5},
+                        'name': '淬毒刺杀',
+                        'desc': '毒刃专挑重甲缝隙直刺心脉——造成 129% 物理伤害，目标防御越高伤害越高（最高 ×1.5）'
+                    },
+                    "毒雾·障": {
+                        'lv': 88,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 20,
+                        'effect': 'dodge_buff',
+                        'name': '毒雾·障',
+                        'desc': '周身腾起一圈毒雾屏障——自身闪避 +35% 持续 6 刻'
+                    },
                 },
             },
             3: {
-                "无影之刃": {
-                    "幻影舞":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 1.0,
-                        "kind": "物理",
-                        "multi": 5,
-                        "cd": 4,
-                        "res_cost": {
-                            "cp": 4
-                        },
-                        # v139 段数三线投喂 T3 形态：每段 +1 链值（5 段 = +5，触发影追临界）；链值 ≥8 锁死不累积
-                        "multi_feed": {"combo": 1},
-                        "spin_lock": 8,
-                        "desc": "身影在敌阵中翩然起舞，匕光织成夺命之网——造成 100% 物理伤害×5（终极连击）；每段命中各+1 链值，链值≥8 锁死不累积",
-                        "name": "幻影舞"
-                    }
-,
-                    "终结·暗影绞杀":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 2.347,
-                        "kind": "物理",
-                        "res_cost": {
-                            "cp": 5
-                        },
-                        "cd": 5,
-                        # v139 链点回流（同 T1 规则，返还 5 层）
-                        "combo_reflow": {"hp_pct": 0.1, "layers": 5},
-                        "finisher_tier": "5cp",
-                        "desc": "暗影化作绞索缠上咽喉，终结一切反抗——造成 500% 物理伤害（终极爆发）；终结伤害达标链值回流 5 层",
-                        "name": "终结·暗影绞杀"
-                    }
-,
-                    "影之国度":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "shadow_realm",
-                        "cd": 6,
-                        "res_cost": {
-                            "cp": 4
-                        },
-                        # v139 链值三驱动中的「暴击」驱动：开启期间「影追追加段」概率 ×2
-                        "chase_prob_mult": 2,
-                        "desc": "撕裂现实踏入影之国度，万物皆在暗影掌控之中——速度＋40%、每刻暴击大幅提升，持续 3 刻（三转奥义）；期间影追追加段概率×2",
-                        "name": "影之国度"
-                    }
-,
+                "影舞者": {
+                    "影之国度": {
+                        'lv': 90,
+                        'mp': 25,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 20,
+                        'effect': 'crit_all',
+                        'name': '影之国度',
+                        'desc': '暗影如潮水铺开，化作杀戮国度——强化影舞态：全队暴击 +20% 持续 12 刻'
+                    },
+                    "幻影舞": {
+                        'lv': 93,
+                        'mp': 24,
+                        'power': 0.49,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.49, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.49, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 16,
+                        'hits': 4,
+                        'name': '幻影舞',
+                        'desc': '幻影与真身共舞，寒刃漫天——每段造成 35% 物理伤害共 4 段，影舞态中伤害 ×1.2'
+                    },
+                    "终结·暗影绞杀": {
+                        'lv': 95,
+                        'mp': 20,
+                        'power': 2.17,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 2.17, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.17, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 20,
+                        'mech': 'finisher',
+                        'name': '终结·暗影绞杀',
+                        'desc': '暗影如蛇绞上咽喉，无声取命——造成 155% 物理伤害，连段越高伤害越高（每段 +16%），击杀则连段保留'
+                    },
+                    "影舞·无间": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "shadow_dance_cd"},
+                        'name': '影舞·无间',
+                        'desc': '身随影动，无间无隙——影舞态中所有技能冷却 −20%'
+                    },
+                    "万影归一": {
+                        'lv': 98,
+                        'mp': 45,
+                        'power': 2.1,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 2.1, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 2.1, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 24,
+                        'cond': {"type": "player_mech_stacks", "mech": "lian_duan", "stacks": 5, "mult": 1.5},
+                        'name': '万影归一',
+                        'desc': '万千暗影凝聚于一刃，天地失色——造成 150% 物理伤害，连段满 5 时伤害 ×1.5'
+                    },
                 },
-                "蚀骨者": {
-                    "剧毒风暴":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 1.5,
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 4,
-                        "cd": 4,
-                        "res_cost": {
-                            "cp": 4
-                        },
-                        "aoe": "all",
-                        # v139 守线 AOE 每目标独立叠毒，产率 ×目标数（保留语义标注）
-                        "multi_feed": {"poison": 1},
-                        "desc": "掀起剧毒风暴席卷全场，腐蚀每一寸血肉——造成 150% 全体物理伤害并叠加 4 层中毒，冷却 4 刻（群体毒爆；AOE 每目标独立叠毒）",
-                        "name": "剧毒风暴"
-                    }
-,
-                    "万毒噬心":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 2.604,
-                        "kind": "物理",
-                        "res_cost": {
-                            "cp": 5
-                        },
-                        "mech": "poison",
-                        "mech_val": 5,
-                        "cd": 5,
-                        "finisher_tier": "5cp",
-                        "desc": "万种剧毒凝于匕尖，噬心蚀骨——造成 300% 物理伤害并叠加 5 层中毒（终极毒杀，满毒大终结）",
-                        "name": "万毒噬心"
-                    }
-,
-                    "万毒归宗":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 1.937,
-                        "kind": "物理",
-                        "mech": "poison",
-                        "mech_val": 5,
-                        "cd": 6,
-                        "res_cost": {
-                            "cp": 5
-                        },
-                        "aoe": "all",
-                        "finisher_tier": "5cp",
-                        "desc": "万毒归一，全场敌人体内毒素同时崩解迸发——全体剧毒爆发，毒层越厚崩解越烈（毒爆核弹，三转奥义；满毒 AOE 引爆核弹）",
-                        "name": "万毒归宗"
-                    }
-,
+                "毒刃者": {
+                    "万毒归宗": {
+                        'lv': 90,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_all_up"},
+                        'name': '万毒归宗',
+                        'desc': '万毒同源，归于一宗，噬力倍增——所有毒层造成的伤害 +35%'
+                    },
+                    "剧毒风暴": {
+                        'lv': 93,
+                        'mp': 35,
+                        'power': 1.32,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 20,
+                        'aoe': 'all',
+                        'name': '剧毒风暴',
+                        'desc': '掀起剧毒风暴席卷全场，草木皆枯——对全体造成 94% 魔法伤害，毒层 ≥6 时伤害 ×1.4'
+                    },
+                    "万毒噬心": {
+                        'lv': 95,
+                        'mp': 45,
+                        'power': 3.25,
+                        'kind': '真伤',
+             'formula': [{'stat': 'atk', 'mult': 3.25, 'type': 'true', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 3.25, 'type': 'true', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 24,
+                        'mech': 'corros',
+                        'mech_val': 4,
+                        'kind_override': '真伤',
+                        'name': '万毒噬心',
+                        'desc': '万毒汇入敌体，噬咬心脉脏腑——造成 232% 真实伤害，附加 4 层腐蚀'
+                    },
+                    "毒刃·共鸣": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "poison_spread"},
+                        'name': '毒刃·共鸣',
+                        'desc': '毒素在尸骸间共鸣，疯狂蔓延——毒爆击杀目标时，毒层扩散至相邻敌人'
+                    },
+                    "腐世": {
+                        'lv': 98,
+                        'mp': 40,
+                        'power': 1.32,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 24,
+                        'aoe': 'all',
+                        'name': '腐世',
+                        'desc': '腐毒如瘟疫吞没天地万物——对全体造成 94% 魔法伤害，对带毒目标伤害 ×1.3'
+                    },
                 },
             },
         },
@@ -2932,432 +2963,868 @@ BRANCH_SKILLS = {
         "branches": {
             1: {
                 "格斗士": {
-                    "疾风拳":                     {
-                        "lv": 32,
-                        "power": 1.728,
-                        "kind": "物理",
-                        "combo": "拳",
-                        "res_gain": 2,
-                        "cond": {
-                            "type": "player_res_stacks",
-                            "res_key": "chi",
-                            "stacks": 5,
-                            "mult": 1.5,
-                            "label": "疾风连打"
-                        },
-                        "mp": 6,
-                        "desc": "拳速如疾风掠影——造成 285% 物理伤害；气达到 5 点时拳势叠加(伤害＋50%)",
-                        "name": "疾风拳"
-                    }
-,
-                    "格斗术":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "combo_dmg",
-                            "mult": 0.05
-                        },
-                        "desc": "格斗技巧融入血脉——连招期间伤害＋5%",
-                        "name": "格斗术"
-                    }
-,
-                    "旋风踢":                     {
-                        "lv": 45,
-                        "power": 1.3,
-                        "kind": "物理",
-                        "combo": "踢",
-                        "res_gain": 1,
-                        "cond": {
-                            "type": "enemy_slowed",
-                            "mult": 1.2,
-                            "label": "踢击要害"
-                        },
-                        "mp": 8,
-                        # v139 破绽积蓄：命中时 shaken +5（多目标 AOE 每条注入各自独立）
-                        "shaken_gain": 5,
-                        "desc": "身体旋起如风暴之眼——造成 130% 物理伤害；目标减速时踢中要害(伤害＋20%)；命中推破绽积蓄+5",
-                        "name": "旋风踢"
-                    }
-,
-                    # v139 新增：碎颅势（云海「破头」独立投射，T1-50）——单体 160% 拳；若目标 shaken > 0 则伤害 ×1.25；命中 shaken +15；cd2
-                    "碎颅势":                     {
-                        "lv": 50,
-                        "power": 1.6,
-                        "kind": "物理",
-                        "combo": "拳",
-                        "cd": 2,
-                        "mp": 10,
-                        "shaken_gain": 15,
-                        "cond": {"type": "enemy_shaken_gt", "stacks": 0, "mult": 1.25, "label": "破头"},
-                        "desc": "重拳直取颅骨，撼动敌人心神——造成 160% 物理伤害(拳连招)；目标破绽积蓄>0 时伤害×1.25(破头)；命中推破绽积蓄+15",
-                        "name": "碎颅势"
-                    }
-,
-                    "气力爆发":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 1.496,
-                        "kind": "物理",
-                        "res_cost": {
-                            "chi": 5
-                        },
-                        "cond": {
-                            "type": "player_hp_low",
-                            "hp_pct": 0.4,
-                            "mult": 1.3,
-                            "label": "气力护体"
-                        },
-                        "desc": "气力轰然爆发，灌注全身——造成 280% 物理伤害；自身生命低于 40% 时残血反扑(伤害＋30%)",
-                        "name": "气力爆发"
-                    }
-,
+                    "疾风拳": {
+                        'lv': 32,
+                        'mp': 8,
+                        'power': 0.72,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'shaken_gain': 0,
+                        'name': '疾风拳',
+                        'desc': '疾风骤雨般连打出拳——造成 122% 物理伤害，推破绽条；速度比 ≥1.3 时推条额外 +6'
+                    },
+                    "旋风踢": {
+                        'lv': 38,
+                        'mp': 14,
+                        'power': 0.81,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.45,
+                        'cd': 12,
+                        'shaken_gain': 0,
+                        'aoe': 'front',
+                        'name': '旋风踢',
+                        'desc': '旋风扫堂踢撼前排——造成 137% 物理伤害，AOE 推破绽条（前排全体）'
+                    },
+                    "碎颅势": {
+                        'lv': 44,
+                        'mp': 16,
+                        'power': 1.08,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'shaken_gain': 0,
+                        'cond': {"type": "enemy_broken", "mult": 1.45},
+                        'name': '碎颅势',
+                        'desc': '拳锋直取天灵要害——造成 183% 物理伤害，对破防目标伤害 ×1.45'
+                    },
+                    "崩拳": {
+                        'lv': 50,
+                        'mp': 18,
+                        'power': 1.35,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.35, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.35, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 16,
+                        'shaken_gain': 0,
+                        'name': '崩拳',
+                        'desc': '崩山一拳轰然砸落——造成 213% 物理伤害，单次大幅推破绽条'
+                    },
+                    "气力爆发": {
+                        'lv': 54,
+                        'mp': 16,
+                        'power': 1.08,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'cond': {"type": "enemy_shaken_ratio", "mult": 0.8},
+                        'name': '气力爆发',
+                        'desc': '气劲灌拳轰然炸裂——造成 183% 物理伤害，目标破绽每 50 点使伤害 +80%'
+                    },
+                    "铁山靠": {
+                        'lv': 58,
+                        'mp': 10,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 16,
+                        'effect': 'block_reflect',
+                        'name': '铁山靠',
+                        'desc': '铁肩靠山，屹立不退——格挡 1 次攻击并反伤 40%，持续 8 刻'
+                    },
                 },
                 "磐石行者": {
-                    "铁壁拳":                     {
-                        "lv": 32,
-                        "power": 1.705,
-                        "kind": "物理",
-                        "combo": "拳",
-                        "res_gain": 1,
-                        "effect": "def_up",
-                        "cond": {
-                            "type": "player_shield",
-                            "mult": 1.15,
-                            "label": "铁壁连拳"
-                        },
-                        "mp": 6,
-                        # v139 守线磐核 P1 自主来源：命中磐核 +1（不依赖挨打）
-                        "guard_core_gain": 1,
-                        "desc": "拳出如铁壁横移——造成 285% 物理伤害并获得防御强化；自身有护盾时拳势更沉(伤害＋15%)；命中磐核+1",
-                        "name": "铁壁拳"
-                    }
-,
-                    "厚土":                     {
-                        "lv": 38,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "stat": "def",
-                            "cond": "hp_high_70",
-                            "mult": 0.1
-                        },
-                        "desc": "气血盈满时身如大地——生命高于 70% 时防御＋10%",
-                        "name": "厚土"
-                    }
-,
-                    # v139 新增：守御姿态（守线签名挂点，非新技能——基础「防御」指令的守线专属化）——
-                    # 守线专属：防御指令下受击磐核 +1（P1 受击渠道）+ 未受击保底 +1（P2 蓄能律）；受击只增不减（P3 不清零）
-                    "守御姿态":                     {
-                        "lv": 40,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "guard_stance",
-                            "defend_hit_core": 1,
-                            "defend_idle_core": 1
-                        },
-                        "desc": "以拳卸力，守御如磐——防御指令下受击磐核+1、未受击保底+1(P2 蓄能律)；磐核受击不清零(只增不减)",
-                        "name": "守御姿态"
-                    }
-,
-                    # v139 新增：磐岩释能（云海守卫 C1 释能斩翻译，T1-48）——清空全部磐核，M = 1.0 + 0.7×核数（3 核 3.10 / 5 核 4.50）；cd4；吃蓄势
-                    "磐岩释能":                     {
-                        "lv": 48,
-                        "power": 1.0,
-                        "kind": "物理",
-                        "combo": "拳",
-                        "cd": 4,
-                        "mp": 10,
-                        "res_cost": {"guard_core": 1},
-                        "consume_all": {"key": "guard_core"},
-                        "discharge": {"base": 1.0, "per_core": 0.7},
-                        "desc": "引磐核之力凝于一击——清空全部磐核释放，倍率 M = 1.0 + 0.7×核数(3 核 3.10 / 5 核 4.50，线性刻意)；吃蓄势",
-                        "name": "磐岩释能"
-                    }
-,
-                    "气力回涌":                     {
-                        "lv": 45,
-                        "power": 2.0,
-                        "kind": "治疗",
-                        "combo": "掌",
-                        "res_gain": 3,
-                        "cond": {
-                            "type": "player_hp_low",
-                            "hp_pct": 0.4,
-                            "mult": 1.5,
-                            "label": "回气连绵"
-                        },
-                        "mp": 8,
-                        "desc": "引气归元，温养创伤——回复 200% 生命；自身生命低于 40% 时气力回涌更盛(治疗量＋50%)",
-                        "cd": 2,
-                        "name": "气力回涌"
-                    }
-,
-                    "反震":                     {
-                        "lv": 45,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "reflect",
-                            "mult": 0.3,
-                            "chance": 0.30
-                        },
-                        "desc": "以彼之力还施彼身——受到伤害时 30% 概率反弹 30% 伤害",
-                        "name": "反震"
-                    }
-,
-                    # v113：反击机制下放——以守为攻(原苦修线大地流)入基础拳师守线
-                    "以守为攻":                     {
-                        "lv": 48,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "counter_attack",
-                            "chance": 0.20
-                        },
-                        "desc": "守势之中暗藏杀机——受击时 20% 概率立即以普攻反击",
-                        "name": "以守为攻"
-                    }
-,
-
-                    "磐石护壁":                     {
-                        "lv": 55,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "reduce_all",
-                        "reduce_all": 0.15,   # v1.x 数值下沉：全队减伤 15%（磐石护壁）
-                        "team": "reduce_all",
-                        "res_cost": {
-                            "chi": 3
-                        },
-                        "desc": "大地之力筑成护壁——全队减伤 15% 持续 2 刻",
-                        "name": "磐石护壁"
-                    }
-,
+                    "铁壁拳": {
+                        'lv': 32,
+                        'mp': 8,
+                        'power': 0.72,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.4,
+                        'cd': 8,
+                        'shaken_gain': 0,
+                        'name': '铁壁拳',
+                        'desc': '铁壁横拳，攻守兼备——造成 122% 物理伤害，推破绽条并获得护盾（推条值 ×1.5% 最大生命）持续 8 刻'
+                    },
+                    "守御姿态": {
+                        'lv': 38,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.35,
+                        'cd': 8,
+                        'shaken_gain': 5,
+                        'name': '守御姿态',
+                        'desc': '沉肩扎马，守御如山——受伤 −25%，但推破绽条效果 −30%'
+                    },
+                    "磐岩释能": {
+                        'lv': 44,
+                        'mp': 14,
+                        'power': 0.45,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.45, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.45, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.25,
+                        'cd': 12,
+                        'shaken_gain': 0,
+                        'cond': {"type": "guard_core", "per_core": 0.7},
+                        'name': '磐岩释能',
+                        'desc': '引磐核之力轰然释能——造成 77% 物理伤害并推破绽条，每枚磐核使伤害 +70%'
+                    },
+                    "厚土": {
+                        'lv': 50,
+                        'mp': 10,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 16,
+                        'effect': 'reduce_all',
+                        'name': '厚土',
+                        'desc': '厚土凝阵，万伤难侵——全队减伤 30% 持续 8 刻'
+                    },
+                    "以守为攻": {
+                        'lv': 54,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "counter_chance"},
+                        'name': '以守为攻',
+                        'desc': '守中藏攻，以静制动——受击时 35% 概率反击（普攻的 80%）'
+                    },
+                    "反震": {
+                        'lv': 58,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'shaken_gain': 0,
+                        'name': '反震',
+                        'desc': '铜皮铁骨，力反其身——受击时对攻击者反弹 30% 伤害并推破绽条'
+                    },
                 },
             },
             2: {
-                "拳术师": {
-                    "气力之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "res_gain_bonus": 1
-                        },
-                        "desc": "气力在心底凝成泉眼——气获取＋1",
-                        "name": "气力之心"
-                    }
-,
-                    "连环拳":                     {
-                        "lv": 62,
-                        "power": 1.1,
-                        "kind": "物理",
-                        "multi": 4,
-                        "combo": "拳",
-                        "res_gain": 4,
-                        "mp": 12,
-                        "desc": "拳影连环不绝——连续出拳 4 次(每次 110% 伤害)，快速凝聚气力",
-                        "cd": 2,
-                        "name": "连环拳"
-                    }
-,
-                    "气力裂空":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 1.746,
-                        "kind": "物理",
-                        "pierce": True,
-                        "res_cost": {
-                            "chi": 4
-                        },
-                        "desc": "一拳击出，气浪撕裂长空——造成 260% 破防物理伤害",
-                        "name": "气力裂空"
-                    }
-,
+                "格斗士": {
+                    "气力之心": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "shaken_awareness"},
+                        'name': '气力之心',
+                        'desc': '心察破绽，气随念动——敌人破绽 ≥15 时，对其伤害 +20%'
+                    },
+                    "连环拳": {
+                        'lv': 68,
+                        'mp': 16,
+                        'power': 0.24,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.24, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.24, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 12,
+                        'hits': 4,
+                        'shaken_gain': 0,
+                        'name': '连环拳',
+                        'desc': '拳如连珠四段疾打——每段造成 31% 物理伤害，四段皆推破绽条'
+                    },
+                    "气力裂空": {
+                        'lv': 74,
+                        'mp': 20,
+                        'power': 1.26,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 16,
+                        'shaken_gain': 0,
+                        'cond': {"type": "enemy_broken", "mult": 1.5},
+                        'name': '气力裂空',
+                        'desc': '气劲裂空，拳出破晓——造成 213% 物理伤害，对破防目标伤害 ×1.5'
+                    },
+                    "裂岳连击": {
+                        'lv': 80,
+                        'mp': 22,
+                        'power': 0.38,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.38, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.38, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 16,
+                        'hits': 3,
+                        'shaken_gain': 0,
+                        'name': '裂岳连击',
+                        'desc': '裂岳之势三连重击——每段造成 46% 物理伤害；目标破绽 ≥20 时追加 1 段'
+                    },
+                    "破绽感知": {
+                        'lv': 85,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "shaken_decay_half"},
+                        'name': '破绽感知',
+                        'desc': '双目如炬，洞悉破绽——破绽衰减减半（−1.7/s → −0.85/s）'
+                    },
+                    "震慑拳": {
+                        'lv': 88,
+                        'mp': 20,
+                        'power': 1.26,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 16,
+                        'shaken_gain': 0,
+                        'mech2': 'stun',
+                        'name': '震慑拳',
+                        'desc': '震慑之拳直撼心神——造成 213% 物理伤害，破防触发时额外眩晕 1.5 刻'
+                    },
                 },
-                "铁壁行者": {
-                    "磐石之心":                     {
-                        "lv": 60,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "dmg_taken",
-                            "reduce": 0.05
-                        },
-                        "desc": "心如磐石，不动如山——受到伤害再减 5%",
-                        "name": "磐石之心"
-                    }
-,
-                    # v113：反击机制下放——反击之王(原苦修线大地流)入基础拳师守线
-                    "反击之王":                     {
-                        "lv": 62,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "counter_attack",
-                            "chance": 0.30
-                        },
-                        "desc": "以守为攻的极致——受击时 30% 概率立即以普攻反击",
-                        "name": "反击之王"
-                    }
-,
-                    # v139 新增：磐核爆发（守线中期节奏口，T2-68）——清空 3 核，M = 1.0+0.7×3 = 3.10（固定按 3 核档）；若目标正处破绽被晕，M → 3.60
-                    "磐核爆发":                     {
-                        "lv": 68,
-                        "power": 3.1,
-                        "kind": "物理",
-                        "combo": "拳",
-                        "cd": 4,
-                        "mp": 15,
-                        "res_cost": {"guard_core": 3},
-                        "cond": {"type": "enemy_shaken_gt", "stacks": 0, "mult": 1.161, "label": "破绽震慑"},
-                        "desc": "磐核凝为一点轰然迸发——清空 3 核造成 310% 物理伤害(固定 3 核档 M 3.10)；目标处于破绽被晕时威力升至 360%",
-                        "name": "磐核爆发"
-                    }
-,
-                    "气力守御":                     {
-                        "lv": 68,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "shield_all",
-                        "team": "shield_all",
-                        "res_cost": {
-                            "chi": 4
-                        },
-                        "desc": "气力化作守护之墙——为全队张开生命值 20% 的护盾",
-                        "name": "气力守御"
-                    }
-,
+                "磐石行者": {
+                    "磐石之心": {
+                        'lv': 62,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "core_overflow"},
+                        'name': '磐石之心',
+                        'desc': '心如磐石，承伤不溃——磐核 ≥3 时，溢出承伤转为护盾'
+                    },
+                    "反击之王": {
+                        'lv': 68,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "counter_up"},
+                        'name': '反击之王',
+                        'desc': '以彼之道还施彼身——反击概率 +25%，反击伤害 +50%'
+                    },
+                    "磐核爆发": {
+                        'lv': 74,
+                        'mp': 20,
+                        'power': 0.54,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.54, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.54, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.3,
+                        'cd': 16,
+                        'mech': 'guard_core_burst',
+                        'shaken_gain': 0,
+                        'name': '磐核爆发',
+                        'desc': '引爆磐核，一击惊天——造成 92% 物理伤害，消耗全部磐核，每枚使伤害 +70%'
+                    },
+                    "气力守御": {
+                        'lv': 80,
+                        'mp': 18,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 20,
+                        'effect': 'shield_all',
+                        'name': '气力守御',
+                        'desc': '气力化盾，护佑同袍——全队获得护盾（磐核数 ×4% 施法者最大生命）持续 12 刻'
+                    },
+                    "大地之肤": {
+                        'lv': 85,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "core_reduce"},
+                        'name': '大地之肤',
+                        'desc': '大地为肤，万击难伤——每枚磐核额外减伤 +2%（与基础 +3% 叠加）'
+                    },
+                    "磐岩甲": {
+                        'lv': 88,
+                        'mp': 16,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.5,
+                        'cd': 20,
+                        'mech_val': 45,
+                        'effect': 'reduce',
+                        'name': '磐岩甲',
+                        'desc': '磐岩覆体，坚不可摧——消耗 3 枚磐核，自身减伤 50% 持续 10 刻'
+                    },
                 },
             },
             3: {
-                "破晓者": {
-                    "无影连打":                     {
-                        "lv": 92,
-                        "power": 1.3,
-                        "kind": "物理",
-                        "multi": 5,
-                        "combo": "拳",
-                        "cond": {
-                            "type": "player_res_stacks",
-                            "res_key": "chi",
-                            "stacks": 8,
-                            "mult": 1.3,
-                            "label": "气贯长虹"
-                        },
-                        "mp": 15,
-                        # v139 段数即注入加速：每段命中各 shaken +3（5 段 +15）
-                        "shaken_gain": 3,
-                        "desc": "拳影快到无形——连续攻击 5 次(每次 130% 伤害)；气达到 8 点时气力充盈(伤害＋30%)；每段命中推破绽积蓄+3(5 段+15)",
-                        "cd": 3,
-                        "name": "无影连打"
-                    }
-,
-                    "气力天地":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 3.465,
-                        "kind": "物理",
-                        "res_cost": {
-                            "chi": 10
-                        },
-                        "team": "atk_all",
-                        "cd": 5,
-                        "desc": "气力贯通天地，一拳定乾坤——造成 500% 物理伤害并为全队附加攻击强化",
-                        "name": "气力天地"
-                    }
-,
-                    "气力通天":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "atk_up_strong",
-                        "cd": 6,
-                        "res_cost": {
-                            "chi": 8
-                        },
-                        "desc": "气机直冲云霄——3 刻内每次攻击大幅增伤",
-                        "name": "气力通天"
-                    }
-,
+                "格斗士": {
+                    "气力通天": {
+                        'lv': 90,
+                        'mp': 30,
+                        'power': 1.49,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.8,
+                        'cd': 20,
+                        'shaken_gain': 0,
+                        'cond': {"type": "enemy_shaken_scale", "mult": 1.0},
+                        'name': '气力通天',
+                        'desc': '气贯长天，一拳通神——造成 252% 物理伤害，破绽越高伤害越高'
+                    },
+                    "无影连打": {
+                        'lv': 93,
+                        'mp': 24,
+                        'power': 0.28,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.28, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.28, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 16,
+                        'hits': 4,
+                        'shaken_gain': 0,
+                        'name': '无影连打',
+                        'desc': '拳影无痕四段连打——每段造成 39% 物理伤害，四段皆推破绽条'
+                    },
+                    "撼岳·终焉": {
+                        'lv': 95,
+                        'mp': 40,
+                        'power': 1.67,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'shaken_gain': 0,
+                        'name': '撼岳·终焉',
+                        'desc': '撼岳终焉之拳崩天裂地——造成 283% 物理伤害，推破绽条；破防时目标眩晕 2.0 刻'
+                    },
+                    "破绽·极": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "broken_extend"},
+                        'name': '破绽·极',
+                        'desc': '破绽尽收眼底，攻势再无缝隙——破防持续 +1.5 刻，全队增伤 +50%'
+                    },
+                    "崩山": {
+                        'lv': 98,
+                        'mp': 45,
+                        'power': 1.67,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.9,
+                        'cd': 24,
+                        'cond': {"type": "enemy_broken", "mult": 1.9},
+                        'name': '崩山',
+                        'desc': '一拳崩山，万钧压顶——造成 283% 物理伤害，对破防目标伤害 ×1.9'
+                    },
                 },
-                "磐岩壁垒": {
-                    "磐石之躯":                     {
-                        "lv": 92,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "被动",
-                        "passive": {
-                            "proc": "dmg_taken",
-                            "reduce": 0.4,
-                            "cond": "hp_low_30"
-                        },
-                        "desc": "绝境之中身化磐石——生命低于 30% 时减伤 40%",
-                        "name": "磐石之躯"
-                    }
-,
-                    "气力万法":                     {
-                        "lv": 98,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "reduce_all",
-                        "reduce_all": 0.30,   # v1.x 数值下沉：全队减伤 30%（气力万法）
-                        "team": "reduce_all",
-                        "res_cost": {
-                            "chi": 10
-                        },
-                        "cd": 5,
-                        "desc": "气力流转，护佑众生——全队减伤 30% 持续 3 刻",
-                        "name": "气力万法"
-                    }
-,
-                    "大地守护":                     {
-                        "lv": 90,
-                        "mp": 0,
-                        "power": 0,
-                        "kind": "增益",
-                        "effect": "reduce_all",
-                        "reduce_all": 0.50,   # v1.x 数值下沉：全队减伤 50%（大地守护）
-                        "team": "reduce_all",
-                        "cd": 6,
-                        "res_cost": {
-                            "chi": 8
-                        },
-                        "desc": "大地之力加护全队——全队减伤 50% 持续 3 刻",
-                        "name": "大地守护"
-                    }
-,
+                "磐石行者": {
+                    "磐石之躯": {
+                        'lv': 90,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "core_full"},
+                        'name': '磐石之躯',
+                        'desc': '磐石之躯，万法不侵——磐核满 5 枚时，免疫控制并减伤 +20%'
+                    },
+                    "大地守护": {
+                        'lv': 93,
+                        'mp': 30,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 24,
+                        'effect': 'reduce_shield_all',
+                        'name': '大地守护',
+                        'desc': '大地之力护佑全军——全队减伤 30-50%（按磐核数）并获得护盾，持续 12 刻'
+                    },
+                    "气力万法": {
+                        'lv': 95,
+                        'mp': 35,
+                        'power': 0.63,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.35,
+                        'cd': 20,
+                        'mech': 'guard_core_burst',
+                        'shaken_gain': 0,
+                        'name': '气力万法',
+                        'desc': '气力汇万法于一拳——造成 107% 物理伤害，消耗全部磐核，每枚使伤害 +70%'
+                    },
+                    "不动如山": {
+                        'lv': 97,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "core_last_stand"},
+                        'name': '不动如山',
+                        'desc': '山岳不移，绝境不倒——生命 <30% 时获得 3 枚磐核并减伤 40%（每场 1 次）'
+                    },
+                    "磐岩·镇世": {
+                        'lv': 98,
+                        'mp': 45,
+                        'power': 1.49,
+                        'kind': '物理',
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+                        'cast': 0.8,
+                        'cd': 24,
+                        'shaken_gain': 0,
+                        'cond': {"type": "enemy_broken", "mult": 1.7},
+                        'name': '磐岩·镇世',
+                        'desc': '磐岩镇世，拳撼山河——造成 252% 物理伤害，推破绽条；对破防目标伤害 ×1.7'
+                    },
+                },
+            },
+        },
+    },
+    "cls_shi_ren": {
+        "name": "吟游诗人",
+        "branches": {
+            1: {
+                "咏叹者": {
+                    "激昂战歌": {
+                        'lv': 32,
+                        'mp': 10,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'melody',
+                        'melody': 'atk',
+                        'name': '激昂战歌',
+                        'desc': '战鼓般的旋律轰然奏响，点燃胸膛热血——驻留：全队攻击 +20%；终章：全队攻击 +45%，持续 8 刻'
+                    },
+                    "英雄赞歌": {
+                        'lv': 38,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'melody',
+                        'melody': 'atk_matk',
+                        'finale': 'crit',
+                        'name': '英雄赞歌',
+                        'desc': '歌颂英雄的史诗旋律，令剑与法同燃——驻留：全队攻击与魔攻 +16%；终章：全队暴击 +25%，持续 8 刻'
+                    },
+                    "二重唱": {
+                        'lv': 44,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "melody_duet"},
+                        'name': '二重唱',
+                        'desc': '第二道歌声如影随形，吟唱愈发浑厚——被动：吟唱时旋律强度额外 +1 层'
+                    },
+                    "咏叹调": {
+                        'lv': 50,
+                        'mp': 18,
+                        'power': 1.02,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 12,
+                        'cond': {"type": "melody_buff", "mult": 1.3},
+                        'name': '咏叹调',
+                        'desc': '高亢咏叹冲霄而起，化作璀璨音刃——102% 魔法伤害；当前旋律为增益系时 ×1.3'
+                    },
+                    "凯旋之歌": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'melody',
+                        'melody': 'atk',
+                        'name': '凯旋之歌',
+                        'desc': '凯旋号角般的旋律响彻战场——驻留：全队攻击 +18%、暴击 +12%；终章：全队吸血 +20%，持续 8 刻'
+                    },
+                    "咏叹·愈": {
+                        'lv': 58,
+                        'mp': 16,
+                        'power': 1.14,
+                        'kind': '治疗',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'effect': 'atk_all',
+                        'name': '咏叹·愈',
+                        'desc': '咏叹带光，治愈与鼓舞同声落下——治疗全队 114% 生命，全队攻击 +15%，持续 8 刻'
+                    },
+                },
+                "挽歌者": {
+                    "哀歌": {
+                        'lv': 32,
+                        'mp': 10,
+                        'power': 1.02,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.5,
+                        'cd': 8,
+                        'mech2': 'atk_down',
+                        'name': '哀歌',
+                        'desc': '低沉的哀歌如暮色笼罩，音刃割裂战意——102% 魔法伤害，目标攻击 −20%，持续 8 刻'
+                    },
+                    "镇魂歌": {
+                        'lv': 38,
+                        'mp': 12,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'melody',
+                        'melody': 'e_spd',
+                        'finale': 'e_spd',
+                        'name': '镇魂歌',
+                        'desc': '镇魂曲调阴冷盘旋，拖住敌人的脚步——驻留：敌方全体速度 −15%；终章：敌方全体速度 −35%，持续 8 刻'
+                    },
+                    "安眠曲": {
+                        'lv': 44,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'name': '安眠曲',
+                        'desc': '摇篮曲般的低吟轻漾，倦意如潮水漫过意识——单体睡眠：定身 3.0 刻（首领 1.5 刻）'
+                    },
+                    "悲鸣": {
+                        'lv': 50,
+                        'mp': 18,
+                        'power': 1.14,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'mech2': 'atk_down',
+                        'name': '悲鸣',
+                        'desc': '凄厉悲鸣撕裂空气，音刃啃噬敌人的斗志——114% 魔法伤害，目标攻击 −25%，持续 8 刻'
+                    },
+                    "挽歌": {
+                        'lv': 54,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 8,
+                        'mech': 'melody',
+                        'melody': 'e_atk',
+                        'finale': 'e_atk',
+                        'name': '挽歌',
+                        'desc': '挽歌低回，为敌人的气焰提前唱起丧钟——驻留：敌方全体攻击 −18%；终章：敌方全体攻击 −40%，持续 8 刻'
+                    },
+                    "破碎和音": {
+                        'lv': 58,
+                        'mp': 16,
+                        'power': 1.14,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'mech2': 'def_down',
+                        'name': '破碎和音',
+                        'desc': '刺耳和音轰然炸裂，震碎敌人的防线——114% 魔法伤害，目标防御 −30%，持续 8 刻'
+                    },
+                },
+            },
+            2: {
+                "咏叹者": {
+                    "破晓长歌": {
+                        'lv': 62,
+                        'mp': 28,
+                        'power': 1.8,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.8, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.8, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 20,
+                        'name': '破晓长歌',
+                        'desc': '破晓长歌震碎长夜，音浪化作贯日一击——180% 魔法伤害的单体音刃终结（重技）'
+                    },
+                    "英雄叙事诗": {
+                        'lv': 68,
+                        'mp': 18,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 12,
+                        'effect': 'cc_immune',
+                        'name': '英雄叙事诗',
+                        'desc': '将英雄传说吟成不朽诗篇——驻留：全队攻/魔攻/暴击/速度 +12%；终章：全队免疫 1 次控制'
+                    },
+                    "共鸣": {
+                        'lv': 74,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "melody_resonance"},
+                        'name': '共鸣',
+                        'desc': '万弦同振，共鸣之力汇入每个人的血脉——被动：强度层 ≥3 时，全队额外 +10% 全属性'
+                    },
+                    "咏叹·辉": {
+                        'lv': 80,
+                        'mp': 20,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'effect': 'cc_immune',
+                        'name': '咏叹·辉',
+                        'desc': '辉光随咏叹洒落，意志坚如磐石——全队免疫 1 次控制'
+                    },
+                    "和弦": {
+                        'lv': 85,
+                        'mp': 14,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 20,
+                        'name': '和弦',
+                        'desc': '指尖叠出双重和弦，旋律威力骤然膨胀——当前旋律效果翻倍，持续 6 刻'
+                    },
+                    "咏叹·圣咏": {
+                        'lv': 88,
+                        'mp': 22,
+                        'power': 1.31,
+                        'kind': '治疗',
+                        'cast': 0.6,
+                        'cd': 16,
+                        'name': '咏叹·圣咏',
+                        'desc': '圣咏庄严回荡，圣光如瀑倾泻而下——治疗全队 131% 生命'
+                    },
+                },
+                "挽歌者": {
+                    "沉默之歌": {
+                        'lv': 62,
+                        'mp': 18,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 16,
+                        'mech': 'melody',
+                        'melody': 'e_silence',
+                        'finale': 'silence',
+                        'name': '沉默之歌',
+                        'desc': '阴郁旋律扼住咽喉，令咒术尽数失声——驻留：封印敌方技能（每 4 刻至多 1 次）；终章：全体沉默 3.0 刻'
+                    },
+                    "安魂曲": {
+                        'lv': 68,
+                        'mp': 30,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 1.2,
+                        'cd': 20,
+                        'mech': 'stun',
+                        'mech_val': 3.0,
+                        'aoe': 'all',
+                        'sleep': True,
+                        'name': '安魂曲',
+                        'desc': '安魂曲徐徐铺展，将整片战场引入沉睡——敌方全体睡眠：定身 3.0 刻（首领 1.5 刻）'
+                    },
+                    "亡者挽歌": {
+                        'lv': 74,
+                        'mp': 24,
+                        'power': 1.31,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 16,
+                        'mech2': 'silence',
+                        'name': '亡者挽歌',
+                        'desc': '为亡者而歌的旋律缠上生者，音刃斩断言语——131% 魔法伤害，沉默 2.5 刻'
+                    },
+                    "镇魂安魂": {
+                        'lv': 80,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "dirge_ctrl_up"},
+                        'name': '镇魂安魂',
+                        'desc': '安魂之力沉淀于歌声深处，束缚愈发绵长——被动：挽歌系控制时长 +1.5 刻'
+                    },
+                    "哀悼之音": {
+                        'lv': 85,
+                        'mp': 20,
+                        'power': 1.31,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.6,
+                        'cd': 12,
+                        'mech2': 'all_down',
+                        'name': '哀悼之音',
+                        'desc': '哀悼之音如泣如诉，令万物为之衰朽——131% 魔法伤害，目标全属性 −20%，持续 8 刻'
+                    },
+                    "挽歌·沉": {
+                        'lv': 88,
+                        'mp': 22,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.3,
+                        'cd': 16,
+                        'mech': 'melody',
+                        'melody': 'e_spd_hit',
+                        'finale': 'stun',
+                        'name': '挽歌·沉',
+                        'desc': '沉郁挽歌压顶而下，天地仿佛凝滞——驻留：敌方全体速度 −20%、命中 −15%；终章：敌方全体定身 3.5 刻'
+                    },
+                },
+            },
+            3: {
+                "咏叹者": {
+                    "终章·黎明颂歌": {
+                        'lv': 90,
+                        'mp': 30,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 1.2,
+                        'cd': 24,
+                        'mech': 'melody',
+                        'melody': 'all',
+                        'finale': 'all',
+                        'name': '终章·黎明颂歌',
+                        'desc': '黎明颂歌奏响最终华章，世界为之震颤——驻留：全队全属性 +25%（顶点旋律）；终章：全队全属性 +50%，持续 10 刻'
+                    },
+                    "万籁和鸣": {
+                        'lv': 93,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "melody_full"},
+                        'name': '万籁和鸣',
+                        'desc': '天地万籁应和琴音，共鸣如潮水般漫溢——被动：强度层满 5 时，全队额外 +15% 全属性'
+                    },
+                    "咏叹·极": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "melody_master"},
+                        'name': '咏叹·极',
+                        'desc': '咏叹臻至化境，每道旋律都倾注全力——被动：每强度层 +5% 旋律效果（满层 +125%，基础 +100%）'
+                    },
+                    "天籁": {
+                        'lv': 97,
+                        'mp': 45,
+                        'power': 2.04,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 24,
+                        'cond': {"type": "melody_stacks", "stacks": 4, "mult": 1.3},
+                        'name': '天籁',
+                        'desc': '天籁之音自云端垂落，化作灭世音刃——204% 魔法伤害的音刃顶点终结；强度层 ≥4 时 ×1.3'
+                    },
+                    "永恒赞歌": {
+                        'lv': 98,
+                        'mp': 50,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 0.6,
+                        'cd': 24,
+                        'effect': 'all_stat_cc',
+                        'name': '永恒赞歌',
+                        'desc': '永恒赞歌跨越时光，祝福凝成不灭之光——全队全属性 +30%、免疫控制，持续 8 刻'
+                    },
+                },
+                "挽歌者": {
+                    "终焉挽歌": {
+                        'lv': 90,
+                        'mp': 35,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 1.2,
+                        'cd': 24,
+                        'mech': 'melody',
+                        'melody': 'e_all',
+                        'finale': 'e_all',
+                        'name': '终焉挽歌',
+                        'desc': '终焉挽歌为战场降下黄昏——驻留：敌方全体攻/速/命中 −25%；终章：敌方全体全属性 −50%，持续 10 刻'
+                    },
+                    "死寂": {
+                        'lv': 93,
+                        'mp': 40,
+                        'power': 2.04,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 20,
+                        'mech2': 'silence',
+                        'name': '死寂',
+                        'desc': '万籁凝成死寂一瞬，音刃落下带走所有声音——204% 魔法伤害的音刃终结，沉默 3.0 刻'
+                    },
+                    "挽歌·极": {
+                        'lv': 95,
+                        'mp': 0,
+                        'power': 1.0,
+                        'kind': '被动',
+                        'cast': 'None',
+                        'passive': {"proc": "dirge_debuff_dmg"},
+                        'name': '挽歌·极',
+                        'desc': '怨曲缠身者，每一道伤痕都化作催命弦音——被动：敌方每携带 1 个负面，受伤害 +4%（上限 +40%）'
+                    },
+                    "万籁俱寂": {
+                        'lv': 97,
+                        'mp': 50,
+                        'power': 1.12,
+                        'kind': '魔法',
+             'formula': [{'stat': 'matk', 'mult': 1.12, 'type': 'magi', 'skill_flat': True}],
+             'formula': [{'stat': 'matk', 'mult': 1.12, 'type': 'magi', 'skill_flat': True}],
+                        'cast': 0.7,
+                        'cd': 24,
+                        'aoe': 'all',
+                        'name': '万籁俱寂',
+                        'desc': '天地骤然失声，寂静之刃横扫整片战场——全体音刃 112% 魔法伤害，全体沉默 2.0 刻'
+                    },
+                    "终末安魂": {
+                        'lv': 98,
+                        'mp': 55,
+                        'power': 1.0,
+                        'kind': '增益',
+                        'cast': 1.2,
+                        'cd': 24,
+                        'mech': 'stun',
+                        'mech_val': 4.0,
+                        'mech2': 'all_down',
+                        'name': '终末安魂',
+                        'desc': '终末安魂响彻幽冥，将一切拖入永恒的静默——敌方全体定身 4.0 刻，全属性 −30%，持续 10 刻'
+                    },
                 },
             },
         },
     },
 }
 
-# ===== v153 职业体系重做：294 技能整体替换（v151 表作废）=====
-# 来源：game/data/skills_v153.py（由 scripts/gen_skills_v153.py 从 docs/CLASS_MECHANICS_v153.md 生成）
-try:
-    from .skills_v153 import _V153_PLAYER_SKILLS, _V153_BRANCH_SKILLS
-    PLAYER_SKILLS.update(_V153_PLAYER_SKILLS)
-    BRANCH_SKILLS.update(_V153_BRANCH_SKILLS)
-except Exception as _e:  # pragma: no cover - v153 覆盖层失败时静默降级（不影响旧数据加载）
-    print(f"[skills] v153 override import failed: {_e}")
 
-# v95.23 职业导师进阶技能：各城导师专属，普通『技能学习』学不到，需找导师对话学习
-# 格式与 PLAYER_SKILLS 技能一致（battle/engine 按名字查定义）
 TUTOR_SKILLS = {
     "cls_zhan_shi": {
     },

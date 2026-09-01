@@ -97,8 +97,9 @@ async def main():
         crashed = True
     check("引擎 _passive_map 遇 dict 被动不崩溃（契约已修复）", not crashed, "")
     # 全部 passive 均为 dict 格式（无字符串残留）
+    # v161：skills_v153.py 已合并入 skills.py 主表
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "game", "data", "skills_v153.py"), encoding="utf-8").read()
+                            "game", "data", "skills.py"), encoding="utf-8").read()
     import re as _re
     dict_passives = _re.findall(r"'passive':\s*\{", src)
     str_passives = _re.findall(r"'passive':\s*'[^']+'", src)

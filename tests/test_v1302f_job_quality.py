@@ -187,8 +187,9 @@ def test_metronome_passives():
     # v153 全部 52 处被动已由主 agent 从字符串名（passive: 'xxx'）改为 dict（passive: {'proc': 'xxx'}），
     # 引擎 _passive_map/player_passive_stats 按 dict 消费不再崩（原字符串格式 AttributeError 已修）。
     import re as _re2
+    # v161：skills_v153.py 已合并入 skills.py 主表
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "game", "data", "skills_v153.py"), encoding="utf-8").read()
+                            "game", "data", "skills.py"), encoding="utf-8").read()
     str_passives = _re2.findall(r"'passive':\s*'[^']+'", src)
     dict_passives = _re2.findall(r"'passive':\s*\{", src)
     check("v153 被动全部为 dict 格式", len(dict_passives) > 40 and len(str_passives) == 0,
