@@ -59,6 +59,8 @@ def test_hit_stack():
     b = BT.Battle("monster", e, player=p)
     for _ in range(3):
         b.player_turn("attack", None, p)
+        # v154 读条命中制：出招读条结束（cast_done）才结算命中叠层
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("风痕叠层 3 层", b.mech_stacks.get("wind_mark", 0) == 3, str(b.mech_stacks))
 
 def test_skill_hit():

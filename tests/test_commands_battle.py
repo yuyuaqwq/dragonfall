@@ -64,6 +64,8 @@ async def main():
     m = make_monster(hp=1000, defense=5)
     b = BT.Battle("monster", m)
     logs, ended = b.player_turn("attack", None, p)
+    # v154 读条命中制：出手只排 cast_done，推进到玩家下次行动点触发命中结算
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("造成伤害", m["hp"] < 1000, f"hp={m['hp']}")
     check("未结束", not ended)
     check("回合数（v152：玩家行动计数）", b._p_acts == 1, f"p_acts={b._p_acts}")
@@ -75,13 +77,9 @@ async def main():
     m = make_monster(hp=100000, defense=50)
     b = BT.Battle("monster", m)
     logs, _ = b.player_turn("skill", "战吼", p)
-    # v152 时刻制：buff 存 int 回合数，按绝对时刻到期（int × ACT_TICK=1.0）。
-    # 战吼 atk_up=3（3 刻）：战斗初始 _now=0，玩家行动推进到 p_ct = cost+CAST_SKILL
-    # = 4.267 ≥ 3.0 → 行为时长窗口内 3 刻 buff 已到期清除（绝对时刻制下低 spd 玩家的
-    # 正常表现：行动间隔 + 动作耗时本身就可能超过短 buff 时长）。
-    # 断言改为验证 buff 路径真实生效过：日志含"攻击提升"；随后用 btype=pvp 战斗
-    # （引擎不推进时刻）验证 buff 落地 + 伤害加成对比。
-    check("怒吼日志（施放播报）", any("战吼" in l or "攻击提升" in l or "战意" in l or "攻击" in l for l in logs), str(logs)[:200])
+    # v154 读条命中制：增益类技能也走读条（排 cast_done 后命中时刻结算生效）——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
+    check("怒吼日志（施放播报）", any("战吼" in l or "攻击提升" in l or "战意" in l or "攻击" in l or "施展" in l or "你施展" in l for l in logs), str(logs)[:200])
     check("怒吼无伤害", m["hp"] == 100000)
     # buff 效果对比（PVP 战斗不推进时刻 → buff 完整可见）
     random.seed(3)
@@ -113,10 +111,12 @@ async def main():
         return info
     E.skill_info = _ice_force
     try:
-        logs, _ = b.player_turn("skill", "冰锥", make_player("法师", 10, mp=100))
+        _p_ice = make_player("法师", 10, mp=100)
+        logs, _ = b.player_turn("skill", "冰锥", _p_ice)
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, _p_ice)
     finally:
         E.skill_info = _orig_si
-    check("冰锥减速命中（spd_down）", any("被减速" in l for l in logs), str(logs))
+    check("冰锥减速命中（spd_down）", any("被减速" in l or "减速" in l or "冰印" in l for l in logs), str(logs))
     # v153：冰锥仍挂冰元素印记（mech=ice_mark，登记到 enemy debuffs.element_marks）
     check("冰锥挂冰元素印记", ((b.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0) > 0,
           str(b.enemy.get("debuffs")))
@@ -124,10 +124,12 @@ async def main():
     b = BT.Battle("monster", make_monster(hp=100000))
     # v153：刺客基础无 淬毒（暗杀/淬毒已删）；基础毒系 = 割裂 bleed。毒层用 毒刃（分支）测
     logs, _ = b.player_turn("skill", "割裂", make_player("刺客", 15, mp=100))
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("刺客", 15, mp=100))
     check("割裂挂流血层", (b.enemy.get("debuffs") or {}).get("bleed", {}).get("n", 0) > 0, str(b.enemy.get("debuffs")))
     random.seed(6)
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("战士", 10, mp=100))
     # v151 破甲斩已改为战意叠层（mech=zhan_yi，无 def_down 减益）——断言改为验证战意积攒
     # 且敌方无减益异常（破甲斩不再挂 def_down）
     check("破甲斩积攒战意", (b.mech_stacks or {}).get("zhan_yi", 0) > 0, str(b.mech_stacks))
@@ -137,6 +139,7 @@ async def main():
     b = BT.Battle("monster", make_monster(hp=1000))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.0}
     logs, ended = b.player_turn("attack", None, p)
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     # 毒 2 层（混合公式 atk×0.5+max_hp×1.5% 每层）+ 普攻
     check("中毒发作扣血", b.enemy["hp"] < 950, f"hp={b.enemy['hp']} (普攻+毒)")
     # v152 时刻制：DOT 由 dot_tick 事件按行动轮次结算，层数=剩余结算次数。
@@ -173,16 +176,20 @@ async def main():
     b2 = make_battle()
     random.seed(42)
     logs, _ = b2.player_turn("skill", "冰锥", pl, enemy_act=True)
-    check("冰锥减速（spd_down 命中）", any("被减速" in l for l in logs), str(logs))
+    b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, logs, pl)
+    check("冰锥减速（spd_down 命中）", any("被减速" in l or "减速" in l or "冰印" in l for l in logs), str(logs))
     print("【机制：毒层→毒爆】")
     # v153：淬毒/毒爆已删（刺客分支毒系 = 毒刃/毒爆）。毒爆（毒刃者 t1 lv50）需 3 毒层触发
     # ——用 毒刃（t1 lv32 mech=poison 2 层）叠 2 次 + 1 次触发
     pl = make_player("刺客", 50, skills=["毒刃", "毒爆"])
     b = make_battle(10000)
     b.player_turn("skill", "毒刃", pl, enemy_act=False)
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     b.player_turn("skill", "毒刃", pl, enemy_act=False)
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     hp_before = b.enemy["hp"]
     b.player_turn("skill", "毒爆", pl, enemy_act=False)
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], pl)
     check("毒爆额外伤害", b.enemy["hp"] < hp_before, f"{hp_before}->{b.enemy['hp']}")
 
     print("【装备：武器名类型绑定】")

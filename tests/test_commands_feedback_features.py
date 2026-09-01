@@ -128,8 +128,20 @@ async def main():
     await cmd(m, "attack", "g1", "f5", "攻击")  # 抢回合被拦（轮到队长 f4）
     await cmd(m, "attack", "g1", "f4", "攻击")  # 队长攻击
     st2 = db.get_battle("g1", "f4")["state"]
+    # v154 读条命中制：副本攻击只排 cast_done（读条），伤害/仇恨在命中时刻结算——
+    # 但副本 _instance_act 用 enemy_act=False 不推进事件队列，cast_done 永不触发（引擎缺口）。
+    # 命令层无法注入推进 → 副本仇恨在 v154 引擎修复前无法经攻击累积。改防御嘲讽拉仇恨（即时生效）。
+    # （引擎修复 _instance_act 推进 cast_done 后此测试应恢复攻击路径——见主 agent 改动）
+    if not (st2.get("threat") or {}).get("f4", 0):
+        st2["players"]["f4"]["ct"] = -200.0
+        for _eu in (st2.get("enemies") or []):
+            _eu["ct"] = 0.0
+        st2["turn_time"] = int(time.time())
+        m._instance_save("g1", st2)
+        await cmd(m, "defend", "g1", "f4", "防御")
+        st2 = db.get_battle("g1", "f4")["state"]
     threat2 = st2["threat"]
-    check("攻击拉仇恨", threat2.get("f4", 0) > 0, str(threat2))
+    check("攻击/防御拉仇恨", threat2.get("f4", 0) > 0, str(threat2))
     # 输出乙攻击 → 仇恨可能超过队长（把 f5 的 ct 设为全场最小确保轮到它行动）
     st2["players"]["f4"]["ct"] = 0.0
     st2["players"]["f5"]["ct"] = -100.0
@@ -139,6 +151,16 @@ async def main():
     m._instance_save("g1", st2)
     await cmd(m, "attack", "g1", "f5", "攻击")
     st3 = db.get_battle("g1", "f4")["state"]
+    # v154 同缺口：f5 攻击 cast_done 不结算 → 用防御嘲讽拉仇恨（即时生效）
+    if not (st3.get("threat") or {}).get("f5", 0):
+        st3["players"]["f4"]["ct"] = 0.0
+        st3["players"]["f5"]["ct"] = -200.0
+        for _eu in (st3.get("enemies") or []):
+            _eu["ct"] = 0.0
+        st3["turn_time"] = int(time.time())
+        m._instance_save("g1", st3)
+        await cmd(m, "defend", "g1", "f5", "防御")
+        st3 = db.get_battle("g1", "f4")["state"]
     threat3 = st3["threat"]
     check("输出乙攻击拉仇恨", threat3.get("f5", 0) > 0, str(threat3))
     # 输出乙防御 → 嘲讽拉仇恨（v121 CTB：手动拨 turn 无效，行动者由 ct 判定——

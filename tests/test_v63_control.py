@@ -87,6 +87,8 @@ async def main():
     p = make_player(cls="cls_fa_shi", lv=20, hp=9999)
     b.p_buffs["silence"] = 2
     logs, ended = b.player_turn("skill", "冰锥", p)
+    # v154 读条命中制：转普攻也走读条——推进到命中结算后伤害才生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     check("沉默拦截技能", any("被沉默" in l for l in logs), str(logs[:3]))
     check("沉默转普攻有伤害", b.enemy["hp"] < 100000, f"hp={b.enemy['hp']}")
 

@@ -198,7 +198,15 @@ async def main():
     gold0, exp0 = p0["gold"], p0["exp"]
     out = await cmd(m, "hunt_boss", "g1", "q1", "讨伐")
     check("讨伐开战", "讨伐开始" in out, out[:100])
-    out = await cmd(m, "attack", "g1", "q1", "攻击")
+    # v154 读条命中制：攻击只排读条——命中结算在 _enemy_phase 推进时；Boss 一击残血后
+    # 需下一次行动命令才会触发击杀判定。连续攻击直至击杀（上限 5 次防死循环）。
+    out_lines = []
+    for _i in range(5):
+        out2 = await cmd(m, "attack", "g1", "q1", "攻击")
+        out_lines.append(out2)
+        if db.get_world_event() is None:
+            break
+    out = out + "\n" + "\n".join(out_lines)
     p = db.get_player("g1", "q1")
     n_mat = db.count_item("g1", "q1", "mat_zhan_hun_zhi_chen")
     n_mount = db.count_item("g1", "q1", "mountrein_mount_steed")

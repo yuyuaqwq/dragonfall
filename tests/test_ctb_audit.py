@@ -174,11 +174,11 @@ def test_6_inst_apply_enemy_act_ct_buffed_spd():
         e_ct0 = float(e1["ct"])
         p1_ct0 = float(st["players"]["p1"]["ct"])
         inst._instance_apply_enemy_act_ct(st, "g1", e1)
-        # v152 绝对时刻：行动者 ct = 参考点（自身本次行动时刻）+ cost（buffed spd）。
-        # spd_down → 有效 spd 20 → cost 40/20 = 2.0（BASE_DELAY=40）；参考点 = e_ct0（-40）→ 新 ct = -40 + 2 = -38
+        # v154 速度折算：cost = SPD_REF/buffed spd = 50/20 = 2.5（不再 BASE_DELAY=40 恢复间隔）。
+        # spd_down → 有效 spd 20 → cost 2.5；参考点 = e_ct0（-40）→ 新 ct = -40 + 2.5 = -37.5
         check("buffed spd cost 生效（行动者 ct = 参考点 + buffed cost）",
-              abs(e1["ct"] - (e_ct0 + 2.0)) < 1e-6,
-              f"e_ct={e1['ct']}（期望 {e_ct0}+2.0={e_ct0 + 2.0}）")
+              abs(e1["ct"] - (e_ct0 + 2.5)) < 1e-6,
+              f"e_ct={e1['ct']}（期望 {e_ct0}+2.5={e_ct0 + 2.5}）")
         # 绝对时刻制：其他单位（玩家）next_act_at 独立，不因敌方行动而变
         check("玩家 ct 不变（绝对时刻制，其他单位不广播调整）",
               abs(st["players"]["p1"]["ct"] - p1_ct0) < 1e-6,
@@ -227,11 +227,10 @@ def test_8_inst_reset_player_cts():
     st["players"]["p1"]["ct"] = 45.0
     st["enemies"] = []
     inst._instance_reset_player_cts(st)
-    # v152 绝对时刻：无存活敌方参考点 → ref=0 → 玩家 ct = 0 + cost(有效 spd)。
-    # 注意：_instance_ensure_player_fields 会补 spd 字段，_player_stats 对缺 class_name 的快照
-    # 兜底 spd=10 → cost = 40/10 = 4.0（v152 BASE_DELAY=40）。断言按引擎实测锁定（4.0）。
-    check("玩家 ct 重置为 参考点 + cost（无敌人时 ref=0 → cost=4.0）",
-          abs(st["players"]["p1"]["ct"] - 4.0) < 1e-6,
+    # v154 速度折算：无存活敌方参考点 → ref=0 → 玩家 ct = 0 + cost(有效 spd)。
+    # 快照缺 class_name → _player_stats 兜底 spd=10 → cost = SPD_REF/10 = 5.0（v154 不再 BASE_DELAY=40）。
+    check("玩家 ct 重置为 参考点 + cost（无敌人时 ref=0 → cost=5.0）",
+          abs(st["players"]["p1"]["ct"] - 5.0) < 1e-6,
           f"p1 ct={st['players']['p1']['ct']}")
 
 

@@ -73,18 +73,24 @@ async def main():
                               "matk": 1, "def": 1, "mdef": 1, "spd": 1, "crit": 0.05}, player=p)
     import random
     random.seed(7)
-    logs = b._do_player_skill("战歌", p)
+    # v154 读条命中制：技能需经 player_turn（排 cast_done 读条事件）——出招读条结束才结算（旋律驻留）
+    logs, _ = b.player_turn("skill", "战歌", p)
+    logs2 = []
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs2, p)
+    logs += logs2
     mel = getattr(b, "_melody", None) or {}
     check("战歌施放 → 旋律驻留（name=战歌）", mel.get("name") == "战歌" and mel.get("stack", 0) >= 1,
           f"melody={mel} logs={logs[:2]}")
     check("战歌日志含『开始演唱』", any("开始演唱" in l for l in logs), str(logs))
-    b._do_player_skill("拨弦", p)
+    b.player_turn("skill", "拨弦", p)
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     mel2 = getattr(b, "_melody", None) or {}
     check("拨弦吟唱 → 强度 +1（stack=2）", mel2.get("stack") == 2, f"melody={mel2}")
     # 拨弦 CD=4：连续吟唱需清冷却（v152 时刻制 CD 由 cooldown dict 记 ready_at）
     for _i in range(3):
         b.cooldown.pop("拨弦", None)
-        b._do_player_skill("拨弦", p)
+        b.player_turn("skill", "拨弦", p)
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], p)
     mel5 = getattr(b, "_melody", None) or {}
     check("连唱至强度 5 → 终章就绪", mel5.get("stack") == 5 and mel5.get("finale_ready") is True,
           f"melody={mel5}")
