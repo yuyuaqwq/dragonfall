@@ -24,6 +24,7 @@ CLASSES = [
     ("牧师", "cls_mu_shi", "magi", "int"),
     ("刺客", "cls_ci_ke", "phys", "str"),
     ("拳师", "cls_wu_seng", "phys", "str"),
+    ("诗人", "cls_shi_ren", "magi", "int"),   # v153 第七基础职业（v2.1 补，法系）
 ]
 
 def cls_id(name_or_id: str) -> str:
@@ -84,5 +85,22 @@ LOADOUTS = {
     "team_mid":    {"quality": "blue",  "enhance": 5, "players": 4, "label": "4人 蓝+5"},
     "team_purple9": {"quality": "purple", "enhance": 9, "players": 4, "label": "4人 紫+9"},
     "team_orange9": {"quality": "orange", "enhance": 9, "players": 4, "label": "4人 橙+9"},
+    "solo_mid_upgrade": {"quality": "blue", "enhance": 5, "upgrade": 5, "players": 1, "label": "单刷 蓝+5升5"},
+    "team_max_full": {"quality": "orange", "enhance": 9, "upgrade": 10, "gem_tier": 6, "set_bonus": True, "players": 4, "label": "4人 橙+9满加成"},
     "legacy":      {"quality": "blue",  "enhance": 0, "players": 1, "label": "旧模型(对照)"},
 }
+
+# ---------------- 词条分系常量（v130.2 装备-资源联动词条，31 条按职业线分系） ----------------
+# 从 game/data/affixes.py 的 AFFIXES 31 条带 line 字段词条按职业归属聚合（权威数据只读）。
+# 职业归属判定：line 前缀（战士·/法师·/游侠·/牧师·/刺客·/拳师·）。
+# 用途：装备区分度/词条分系权重（同职业线词条出现权重 0.6 偏好，其余 0.4）。
+AFFIX_CLASS_LINES = {
+    "战士": ["战意", "怒火熔铸", "战吼回响", "浴血", "残血灼薪", "沸血浇筑"],
+    "法师": ["充能汲引", "凝神塑能", "印记铭刻", "反应催化"],
+    "游侠": ["精力刀刃", "精力潮汐", "盈满背囊", "暴击蓄能", "疾风余韵"],
+    "牧师": ["圣辉回响", "神赐容光", "圣光之心", "圣徽之佑", "虔诚护符"],
+    "刺客": ["暴击回点", "终结之技", "连段护持", "连段之锋", "节奏之徽"],
+    "拳师": ["连段回收", "气量强化", "磐息", "爆发贯体", "起手之势", "蓄势精通"],
+}
+# 同职业线词条出现权重（0.6=偏好）；其余职业线 0.4（总和恒 1.0，主 agent 决定是否消费）
+AFFIX_LINE_WEIGHT = {name: 0.6 for name in AFFIX_CLASS_LINES}
