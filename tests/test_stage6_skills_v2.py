@@ -33,6 +33,8 @@ def learn_all(p, cls):
 def cast(b, p, skill):
     """施放技能（跳过回合流转）"""
     logs, _ = b.player_turn("skill", skill, p, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才结算命中（伤害/叠层/资源）——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return logs
 
 print("【战士：战意攒取与终结技】")
@@ -73,6 +75,9 @@ check("火球术造成伤害", any("造成" in x for x in logs), str(logs)[:120]
 b4 = BT.Battle("monster", mkmon(), player=p)
 random.seed(2)
 logs4 = b4._do_player_skill("冰锥", p)
+# v154 读条命中制：_do_player_skill 只排 cast_done（读条），需经 player_turn 设置 p_ct 后推进才结算
+logs4, _ = b4.player_turn("skill", "冰锥", p, enemy_act=False)
+b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p)
 _ice_marks = ((b4.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0)
 check("冰锥挂冰印", _ice_marks > 0, str(b4.enemy.get("debuffs")))
 check("冰锥减速（spd_down）", b4.e_buffs.get("spd_down", 0) > 0, str(b4.e_buffs))

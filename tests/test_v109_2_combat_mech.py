@@ -131,7 +131,9 @@ async def main():
     random.seed(7)
     p3 = mk_player(cls="cls_zhan_shi", skills=["龙息之怒"], hp=10000)
     b3 = BT.Battle("怪物", mk_enemy(hp=100000), {}, p3)
-    logs3 = b3._do_player_skill("龙息之怒", p3)
+    logs3, _ = b3.player_turn("skill", "龙息之怒", p3)
+    # v154 读条命中制：出招读条结束（cast_done）才结算命中（灼烧叠层）——推进后生效
+    b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3)
     burn_n = int(((b3.enemy.get("debuffs") or {}).get("burn") or {}).get("n", 0))
     check("龙息之怒命中 → 敌方灼烧 2 层", burn_n == 2, f"burn={burn_n} logs={logs3[:3]}")
     check("日志含灼烧文案", any("灼烧" in x or "燃" in x for x in logs3), str(logs3))

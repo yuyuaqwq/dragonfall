@@ -71,6 +71,8 @@ p["learned_skills"] = [name]
 b5 = BT.Battle("monster", mkmon(), player=p)
 hp0 = b5.enemy["hp"]
 logs, _ = b5.player_turn("skill", name, p, enemy_act=False)
+# v154 读条命中制：出招读条结束（cast_done）才结算命中（连招推进/伤害）——推进后生效
+b5._process_until(float(getattr(b5, "p_ct", 0) or 0) + 0.001, logs, p)
 check("拳施放记录连招", b5.combo_seq == ["拳"], str(b5.combo_seq))
 check("连招进度日志", any("连招" in x for x in logs), str(logs)[:200])
 
@@ -79,6 +81,7 @@ b5._combo_push("踢")
 sk[test_skill]["combo"] = "掌"
 hp1 = b5.enemy["hp"]
 logs2, _ = b5.player_turn("skill", name, p, enemy_act=False)
+b5._process_until(float(getattr(b5, "p_ct", 0) or 0) + 0.001, logs2, p)
 check("三连触发日志", any("三连" in x for x in logs2), str(logs2)[:200])
 check("三连追加伤害", b5.enemy["hp"] < hp1, f"{b5.enemy['hp']} vs {hp1}")
 check("combo_ready 标记", b5.resources.get("combo_ready") == 1, str(b5.resources))

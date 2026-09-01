@@ -112,7 +112,9 @@ async def main():
     p4 = mk_player(cls="战士", skills=["怒斩"], hp=10000)
     b4 = BT.Battle("怪物", mk_enemy(hp=10**9), {}, p4)
     random.seed(11)
-    logs4 = b4._do_player_skill("怒斩", p4)
+    logs4, _ = b4.player_turn("skill", "怒斩", p4)
+    # v154 读条命中制：出招读条结束（cast_done）才结算命中（战意叠层）——推进后生效
+    b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p4)
     check("怒斩施放 → 战意叠层（mech_zhan_yi 引擎挂点）",
           int(b4.mech_stacks.get("zhan_yi", 0) or 0) >= 1,
           f"zhan_yi={b4.mech_stacks.get('zhan_yi')} logs={logs4[:2]}")

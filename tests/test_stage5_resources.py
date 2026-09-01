@@ -38,6 +38,8 @@ check("游侠精力初始满 100", by.resources.get('energy') == 100, str(by.res
 
 print("【核心资源：获取】")
 logs, done = b.player_turn('attack', None, p, enemy_act=False)
+# v154 读条命中制：出招读条结束（cast_done）才结算命中（怒气获取在命中时刻）——推进后生效
+b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
 check("战士普攻 +1 怒气", b.resources.get('rage') == 1, str(b.resources))
 b3 = BT.Battle('monster', mkmon(), player=mk('战士'))
 # 屏蔽随机闪避，保证受击断言确定性（dodge≈0.03 否则 ~3% 概率闪避返回不 +怒气）

@@ -70,12 +70,15 @@ p["learned_skills"] = [target_name]
 b3 = BT.Battle('monster', mkmon(), player=p)
 # 第一次施放成功
 logs, done = b3.player_turn('skill', target_name, p, enemy_act=False)
+# v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
+b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs, p)
 check("首次施放成功", any("冷却" not in x and "造成" in x for x in logs), str(logs)[:150])
 # v152 绝对时刻制：低 spd（默认 10）玩家行动窗口 p_ct = cost+1.6 = 5.705 > CD 3.0，
 # 施放后推进时 CD 已到期清除——CD 拦截逻辑改由下方「手动置 CD」路径覆盖（确定性）。
 check("施放路径正确（无异常）", b3.result is None, str(b3.result))
 # 立即再施放被拦
 logs2, done2 = b3.player_turn('skill', target_name, p, enemy_act=False)
+b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs2, p)
 check("再施放正常放行（低 spd 行动窗口 > CD 秒数，v152 时间推进语义）", any("造成" in x for x in logs2), str(logs2)[:150])
 # 过 3 回合后再施放成功（v152 时刻制：推进 3×ACT_TICK 使 ready_at 到期）
 # 注意：施放技能本身推进 p_ct = now + cost + CAST_SKILL（玩家默认 spd=10 → 3.905 > CD 3.0），
@@ -91,6 +94,8 @@ b3b._end_round()
 b3b._end_round()
 b3b._end_round()
 logs3b, done3b = b3b.player_turn('skill', target_name, p2b, enemy_act=False)
+# v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
+b3b._process_until(float(getattr(b3b, "p_ct", 0) or 0) + 0.001, logs3b, p2b)
 check("CD 结束后可再放", any("造成" in x for x in logs3b), str(logs3b)[:150])
 
 # 还原技能表
@@ -110,6 +115,8 @@ for k, info in C.PLAYER_SKILLS["cls_zhan_shi"]["skills"].items():
 if old_skill:
     p2["learned_skills"] = [old_skill]
     logs4, done4 = b4.player_turn('skill', old_skill, p2, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才结算——推进后生效
+    b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p2)
     check("无 cd 技能不设冷却", not b4._skill_on_cd(old_skill), str(b4.cooldown))
 
 print(f"\n结果: {passed} passed, {failed} failed")

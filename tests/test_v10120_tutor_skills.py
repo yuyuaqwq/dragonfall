@@ -108,7 +108,9 @@ async def main():
     bp["hp"] = bp["max_hp"]; bp["mp"] = 50
     enemy = {"name": "测试木桩", "hp": 200, "max_hp": 200, "atk": 10, "def": 5, "matk": 10, "mdef": 5, "spd": 5, "lv": 5}
     b = Battle("monster", enemy, title_bonus=None, player=bp)
-    logs = b._do_player_skill("魔力脉冲", bp)
+    logs, _ = b.player_turn("skill", "魔力脉冲", bp)
+    # v154 读条命中制：出招读条结束（cast_done）才结算伤害——推进后命中
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, bp)
     check("战斗施放有伤害", any("伤害" in str(l) for l in logs), str(logs)[:200])
 
     print("【6. 职业技能不受影响】")
