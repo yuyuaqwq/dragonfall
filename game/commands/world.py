@@ -627,9 +627,16 @@ class WorldCmds(CommandBase):
         lines = self._map_nav_body(player, cur_map, cur_sa, group_id, qq_id)
         # v134.3 赶路模式精简：move_mode 开启时『地图』只显示可前往；带 hurry_type
         # 参数才显示对应类型区（与 _subarea_arrive 同规则，鱼鱼拍板）
+        # v161 意见#69：赶路模式也显示完整地图（玩家要看全局再决定去哪），
+        # 仅移动（非赶路）时精简显示可前往。赶路模式 = nav + 完整 blocks + 赶路提示。
         _mv = bool(db.get_event_state(f"move_mode:{qq_id}"))
         _ht = db.get_event_state(f"hurry_type:{qq_id}") or ""
         if _mv:
+            # 完整地图块（与普通地图一致）+ 赶路类型区 + 提示
+            blocks = self._map_blocks(player, cur_map, cur_sa, group_id, qq_id)
+            if blocks and lines and lines[-1]:
+                lines.append("")
+            lines += blocks
             if _ht:
                 sec = self._hurry_section(player, cur_map, cur_sa, group_id, qq_id, _ht)
                 if sec:

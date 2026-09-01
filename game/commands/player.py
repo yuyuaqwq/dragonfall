@@ -1007,16 +1007,16 @@ class PlayerCmds(CommandBase):
                 continue
             bonus = final - base.get(skey, 0)
             if skey in C.PCT_STATS:
-                lines.append(f"{icon} {cname}：{int(final*100)}%({int(bonus*100):+d}%)")
+                lines.append(f"{icon} {cname}：{final*100:.1f}%({bonus*100:+.1f}%)")
             else:
                 lines.append(f"{icon} {cname}：{final}({int(bonus):+d})")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"🎯 自由属性点：{player.get('attr_pts', 0)}")
         # 加点分配（每项单独一行，说明换行缩进——v100.9 排版优化；v100.10 冒号统一）
-        lines.append(f"💪 力量：{attr.get('str', 0)}\n   ·每点＋1.2 攻击")
+        lines.append(f"💪 力量：{attr.get('str', 0)}\n   ·每点＋1 攻击")
         lines.append(f"🏃 敏捷：{attr.get('agi', 0)}\n   ·每点＋0.8 速度 ＋ 0.4% 暴击")
-        lines.append(f"🧠 智力：{attr.get('int', 0)}\n   ·每点＋1.2 魔攻 ＋ 1.5 魔力")
-        lines.append(f"❤️‍🩹 耐力：{attr.get('vit', 0)}\n   ·每点＋8 生命")
+        lines.append(f"🧠 智力：{attr.get('int', 0)}\n   ·每点＋1 魔攻 ＋ 1.5 魔力")
+        lines.append(f"❤️‍🩹 耐力：{attr.get('vit', 0)}\n   ·每点＋6 生命")
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("attr"))
         yield event.plain_result("\n".join(lines))
@@ -1293,16 +1293,19 @@ class PlayerCmds(CommandBase):
             status = f"🔒 未学会(Lv.{info['lv']} 解锁)"
         # v104 R3 P2-3：消耗行同源展示（mp + res_cost + 精力），与 combat.py 技能列表口径一致
         # v112：资源中文名数据驱动（CORE_RESOURCES，新增资源只改数据）
+        # v161 意见#70：消耗显示与技能列表统一——资源项带 `-` 前缀（消耗=扣减，与 res_gain 的 `+` 区分）
         _costs = []
         if info.get("mp"):
             _costs.append(f"{info['mp']} 魔力")
         for _rk, _rv in (info.get("res_cost") or {}).items():
-            _costs.append(f"{_rv} {_RES_CN.get(_rk, _rk)}")
+            _cn = _RES_CN.get(_rk, _rk)
+            _costs.append(f"{_cn} -{_rv}")
         _cost_txt = " + ".join(_costs) if _costs else "无"  # v104 R3 P3-1：零消耗显示"无"（与技能列表口径一致）
         lines = [
             f"📜 【{display_name}】｜{status}",
             f"━━━━━━━━━━━━",
-            f"类型：{info.get('kind','')} ｜ 需求等级：Lv.{info['lv']} ｜ 消耗：{_cost_txt}",
+            # v161 意见#71：移除冗余"需求等级"（状态行已显示 Lv.X 解锁/可学习）
+            f"类型：{info.get('kind','')} ｜ 消耗：{_cost_txt}",
             f"效果：{info['desc']}",
         ]
         # v160 表达式技能：公式翻译展示（exprs 逐级显示当前级公式；单条 expr 显示公式本身）
