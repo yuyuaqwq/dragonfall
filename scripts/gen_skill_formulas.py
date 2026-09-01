@@ -29,19 +29,35 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 SKILLS_FILE = r"C:/Users/yuyu/qqbot/data/plugins/dragonfall/game/data/skills_v153.py"
 
 # kind → (stat, type) 映射
+# v158 修复：支持元素后缀 kind（魔法·火/冰/雷/暗…）——此前只认纯"魔法"，
+# 漏了法师核心输出（火球术/陨石术/万象天雷等 13 个），补全。
+# 召唤 kind（唤火/唤雷/召唤守卫…）本体无直接伤害但带 power，同样补 formula。
 KIND_MAP = {
     "物理": ("atk", "phys"),
     "魔法": ("matk", "magi"),
     "真伤": ("atk", "true"),
+    "召唤": ("atk", "phys"),
 }
+
+
+def kind_stat_type(kind: str) -> tuple | None:
+    """按 kind 解析 (stat, type)。支持元素后缀：魔法·火/冰/雷/暗… → magi。"""
+    if kind in KIND_MAP:
+        return KIND_MAP[kind]
+    if kind and kind.startswith("魔法"):
+        return ("matk", "magi")
+    if kind and kind.startswith("物理"):
+        return ("atk", "phys")
+    return None
 
 
 def gen_formula(skill: dict) -> list:
     """按技能 dict 生成 formula 段（数值等价）。"""
     kind = skill.get("kind")
-    if kind not in KIND_MAP:
+    st = kind_stat_type(kind)
+    if st is None:
         return None
-    stat, ftype = KIND_MAP[kind]
+    stat, ftype = st
     power = float(skill.get("power", 1.0) or 1.0)
     seg = {"stat": stat, "mult": round(power, 4), "type": ftype}
     if skill.get("pierce") and kind != "真伤":
@@ -108,12 +124,12 @@ def main():
     _sys.path.insert(0, r"C:/Users/yuyu/qqbot/data/plugins/dragonfall")
     from game.data.skills import PLAYER_SKILLS, BRANCH_SKILLS
 
-    # 收集所有伤害技能（key + 技能 dict）
+    # 收集所有伤害技能（key + 技能 dict）——v158：kind_stat_type 支持元素后缀/召唤
     targets = {}  # key -> skill dict
     for cid, cinfo in PLAYER_SKILLS.items():
         sk = cinfo.get("skills") if isinstance(cinfo, dict) else cinfo
         for sid, s in (sk or {}).items():
-            if s.get("kind") in KIND_MAP:
+            if kind_stat_type(s.get("kind")) is not None:
                 targets[sid] = s
     for cid, cinfo in (BRANCH_SKILLS or {}).items():
         branches = cinfo.get("branches") if isinstance(cinfo, dict) else cinfo
@@ -124,7 +140,7 @@ def main():
                 if not isinstance(bskills, dict):
                     continue
                 for sid, s in bskills.items():
-                    if s.get("kind") in KIND_MAP:
+                    if kind_stat_type(s.get("kind")) is not None:
                         targets[sid] = s
 
     print(f"目标伤害技能: {len(targets)}")

@@ -140,7 +140,9 @@ async def main():
         if any("吸血" in l for l in logs3c):
             found = True
             break
-    check("对照：魔法技能吸血（v153 kind 细分 bug：暂不生效）", not found, f"found={found}")
+    # v158 formula 补全：火球术（魔法·火）配 formula type=magi 段 → 法吸魔法技能生效
+    # （v153 kind 细分旧 bug 已随 formula 修复）。
+    check("对照：魔法技能吸血（v158 formula 修复后生效）", found, f"found={found}")
 
     # 4. 源码断言：类型显式声明
     print("\n— 类型显式声明（源码） —")
