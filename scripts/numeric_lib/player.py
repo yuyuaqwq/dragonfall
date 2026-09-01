@@ -72,6 +72,9 @@ def build_player(cls: str, lv: int, gear: dict | None = None,
         evolve_path=1 if (opts.evolve and tid > 0) else 0,
         title_bonus=None, race=None,
     )
+    # v161 表达式变量：等级注入（exprs 公式 player_lv 用；skill_lv 由调用方按需覆盖）
+    st["_player_lv"] = int(lv or 1)
+    st["level"] = int(lv or 1)
     if potion:
         # 药水走战斗内 buff：只乘主攻端（与 _tmp_calib_v2 一致；potion 由调用方显式传）
         if st["atk"] >= st["matk"]:
@@ -93,9 +96,15 @@ def _is_phys(cls: str) -> bool:
 
 def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0) -> float:
     """技能轴一次行动期望伤害（E.calc_damage 实算，variance=0；技能倍率 E.skill_info 实读）。
-    v133：暴击/幸运期望按每技能 multi 折算（多段仅首段吃暴击）。"""
+    v133：暴击/幸运期望按每技能 multi 折算（多段仅首段吃暴击）。
+    v161：expr/exprs 表达式技能走 skill_expr_preview（Lv.1 保守档，与 ROTATIONS 口径一致），
+          power 字段保留作 fallback（单轨迁移过渡期双兼容）。"""
     phys = _is_phys(cls)
     tot, wsum = 0.0, 0.0
+    # v161 表达式预览变量注入（player_lv 供 exprs 公式使用；skill_lv=Lv.1 保守档）
+    _st_expr = dict(st)
+    _st_expr["_player_lv"] = int(st.get("level", 1) or 1)
+    _st_expr["_skill_lv"] = 1
     for name, w in ROTATIONS.get(cls_id(cls), []):
         info = E.skill_info(cls_id(cls), name)
         if not info:
@@ -103,17 +112,25 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
         stat = st["atk"] if phys else st["matk"]
         def_mult = DEF_DOWN_SKILLS.get(cls_id(cls), {}).get(name, 1.0)
         d = (mdef if not phys else edef) * def_mult
-        power = float(info.get("power", 0)) * E.skill_power_mult(1, info)
-        # v156 技能基础值（保底伤害）：与引擎同口径（flat = BASE + 玩家等级×PER + 技能等级×PER_SKILL）
-        skill_flat = E.skill_flat_value(int(st.get("level", 1) or 1), 1, info)
         multi = int(info.get("hits", info.get("multi", 1)))   # v153：多段用 hits 字段（旧 multi 字段已删）
         pene = st.get("pene_phys" if phys else "pene_magi", 0)
         pflat = st.get("pene_flat" if phys else "pene_mflat", 0)
         dt = "phys" if phys else "magi"
-        if info.get("pierce"):
-            base = E.calc_damage(int(stat * power) + skill_flat, 0, pierce=True, dmg_type=dt, variance=0.0)
+        # v161 表达式技能：代入面板算 Lv.1 期望基础值（variance=0，与引擎同口径）
+        _expr_val = E.skill_expr_preview(info, 1, _st_expr)
+        if _expr_val > 0:
+            base_raw = _expr_val
         else:
-            base = E.calc_damage(int(stat * power) + skill_flat, int(d), pene_pct=pene, pene_flat=pflat,
+            power = float(info.get("power", 0)) * E.skill_power_mult(1, info)
+            # v156 技能基础值（保底伤害）：与引擎同口径（flat = BASE + 玩家等级×PER + 技能等级×PER_SKILL）
+            # ⚠️ player_lv 传 1（v161 前旧口径：_skill_dmg 无 level 键，st.get("level",1)=1；
+            #     build_player 注入 level 后若传实际等级会改变数值，破坏门禁基线）
+            skill_flat = E.skill_flat_value(1, 1, info)
+            base_raw = int(stat * power) + skill_flat
+        if info.get("pierce"):
+            base = E.calc_damage(int(base_raw), 0, pierce=True, dmg_type=dt, variance=0.0)
+        else:
+            base = E.calc_damage(int(base_raw), int(d), pene_pct=pene, pene_flat=pflat,
                                  dmg_type=dt, variance=0.0)
         dmg = base * multi
         if cls_id(cls) == "cls_ci_ke" and name == "双刃乱舞":
