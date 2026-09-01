@@ -455,6 +455,10 @@ class Battle:
         # O116 受击伤害日志延迟输出：_enemy_turn 只计算伤害并暂存"造成 X 点伤害"文案，
         # 由 _damage_player 在闪避判定后决定是否输出（闪避时不再同时报伤害）
         self._pending_dmg_lines: list = []
+        # v154 读条命中制：玩家出手瞬间暂存的结算参数（cast_done 事件触发时消费）
+        self._pending_player_cast: dict | None = None
+        # v154 读条命中制：玩家是否正在读条（出手 → 命中 之间；可被控制打断）
+        self._player_casting: bool = False
         # v2 受击伤害来源（打断判定用）：最近一次对敌方造成伤害的来源名（默认玩家）
         self._last_hitter: str = "你"
         # DOT 重构（契约 §2.1）：持续减益结算闸门——单机每玩家行动结算一次（现状频率）；
@@ -1491,9 +1495,9 @@ class Battle:
             eff = 0.0
         return SPD_REF / max(1.0, eff)
 
-    def _action_cast(self, kind: str, player: dict | None = None, skill: dict | None = None,
-                     item: dict | None = None, skill_name: str | None = None, spd: float | None = None) -> float:
-        """v154 数据驱动动作时长（速度折算）：返回总动作耗时 = 基准耗时 × 速度折算系数。
+    def _action_times(self, kind: str, player: dict | None = None, skill: dict | None = None,
+                      item: dict | None = None, skill_name: str | None = None, spd: float | None = None) -> tuple:
+        """v154 数据驱动动作时长（速度折算）：返回 (出招耗时, 收招耗时)。
 
         优先级：技能/职业/道具数据字段 > 全局默认常量（CAST_*）。
         kind: 'atk'|'skill'|'item'|'food'|'defend'|'flee'
@@ -1503,7 +1507,7 @@ class Battle:
         - 职业逃跑: class.cast_flee + class.recovery_flee
         - 道具:    item.cast + item.recovery
         - 兜底:    全局 CAST_* 常量（普攻 1.0/技能 1.6/道具 1.0/食物 1.0/防御 0.6/逃跑 2.0）
-        v154 速度折算：总耗时 = (出招 + 收招) × (SPD_REF / 实际速度)。
+        v154 速度折算：出招/收招各 × (SPD_REF / 实际速度)。
         速度 50 = 基准耗时；速度 25 = ×2（慢一倍）；速度 80(cap) = ×0.625（最快）。
         spd 参数：显式传入则用（敌方侧调用）；否则从 player 读（玩家侧）。
         """
@@ -1536,13 +1540,22 @@ class Battle:
         if _cast <= 0:
             _cast = {"atk": CAST_ATK, "skill": CAST_SKILL, "item": CAST_ITEM,
                      "food": CAST_FOOD, "defend": CAST_DEFEND, "flee": CAST_FLEE}.get(kind, 1.0)
-        _base = _cast + _recovery
-        # v154 速度折算：实际耗时 = 基准耗时 × (SPD_REF / 实际速度)
+        # v154 速度折算：出招/收招各 × (SPD_REF / 实际速度)
         if spd is None:
             _spd = float((self._player_stats(player).get("spd", 0) if player else 0) or 0)
         else:
             _spd = float(spd or 0)
-        return _base * self._ct_cost(_spd)
+        _mult = self._ct_cost(_spd)
+        return _cast * _mult, _recovery * _mult
+
+    def _action_cast(self, kind: str, player: dict | None = None, skill: dict | None = None,
+                     item: dict | None = None, skill_name: str | None = None, spd: float | None = None) -> float:
+        """v154 数据驱动动作时长（速度折算）：返回总动作耗时 = 出招 + 收招。
+
+        （= _action_times 两个返回值之和；保留函数名兼容既有调用。）"""
+        _c, _r = self._action_times(kind, player=player, skill=skill, item=item,
+                                    skill_name=skill_name, spd=spd)
+        return _c + _r
 
     def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None, cast_mult: float = 1.0):
         """v154 真·事件队列：行动者 next_act_at = now + 动作总耗时（出招+收招，绝对时刻）。
@@ -1832,25 +1845,49 @@ class Battle:
             return self._enemy_phase(player, logs, enemy_act)
 
         st = self._player_stats(player)
+        # v154 读条命中制：技能/普攻出手瞬间 → 排 cast_done 事件（出招读条结束 = 命中时刻结算）
         if action == "skill":
             logs += self._do_player_skill(skill_name, player, target=target)  # v122：target 传治疗队友目标
             # v116.1 pv_broken：记录玩家本刻用了技能，敌方 _boss_mech 据此决定反扑
             self._player_recent_skill = True
-            # v152 数据驱动：技能动作时长 = 技能自己的 cast + recovery（默认 CAST_SKILL）
-            _cast_mult = self._action_cast("skill", player=player, skill_name=skill_name)
+            # v154 数据驱动：出招 + 收招（速度折算）
+            _cast_t, _recover_t = self._action_times("skill", player=player, skill_name=skill_name)
+            # 出招读条结束 = 命中 → 排 cast_done 事件（结算用命中时刻状态）
+            if self.btype != "pvp":
+                self._schedule_cast_done(self._now + _cast_t, {"side": "p", "kind": "skill",
+                                                               "skill": skill_name, "target": target})
+                # 玩家下次可行动 = 命中时刻 + 收招耗时（= 出手 + 总耗时）
+                # 保证 _process_until 推进到 p_ct 时 cast_done 已触发（cast_done < p_ct）
+                self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
+                self._player_casting = True
+            else:
+                # PVP 不介入：立即结算（保持真人轮流；_do_player_skill 内部 PVP 走立即路径）
+                self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
+            _cast_mult = _cast_t + _recover_t
         else:
-            logs += self._player_attack(st, player)
-            # v152 数据驱动：普攻动作时长 = 职业 cast_atk + recovery_atk（默认 CAST_ATK）
-            _cast_mult = self._action_cast("atk", player=player)
+            # v154 读条命中制：普攻出手瞬间暂存参数（命中时刻 cast_done 才结算）
+            if self.btype != "pvp":
+                self._pending_player_cast = {"kind": "atk", "st": st}
+            else:
+                logs += self._player_attack(st, player)
+            # v154 数据驱动：出招 + 收招（速度折算）
+            _cast_t, _recover_t = self._action_times("atk", player=player)
+            if self.btype != "pvp":
+                self._schedule_cast_done(self._now + _cast_t, {"side": "p", "kind": "atk"})
+                # 玩家下次可行动 = 命中时刻 + 收招耗时（= 出手 + 总耗时），保证 cast_done 先触发
+                self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
+                self._player_casting = True
+            else:
+                self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
+            _cast_mult = _cast_t + _recover_t
 
         if self._enemy_dead():
             self.result = "victory"
             self._end_round()
             return logs, True
 
-        # v152：玩家行动完 → 玩家 next_act_at = now + 行为耗时（cast_mult × cost），PVP 不介入
-        if self.btype != "pvp":
-            self._after_actor_ct("p", player=player, cast_mult=_cast_mult)
+        # v154：玩家下次可行动点已由 _after_actor_ct 设为命中时刻 + 收招（PVP 已即时结算）
+        # 注意：非 PVP 下 cast_done 事件会在 _enemy_phase 推进时触发结算
 
         # v107 召唤物自动攻击：玩家正常行动结束后、敌方行动前（每刻一次）
         if self.summons:
@@ -1904,6 +1941,29 @@ class Battle:
         self._ev_seq = getattr(self, "_ev_seq", 0) + 1
         self._heapq.heappush(self._events, (float(t), self._ev_seq, ev))
 
+    def _interrupt_player_cast(self, logs: list):
+        """v154 打断：玩家读条被控制打断 → 行动白费、资源不返还、伤害不结算。
+        清空 _pending_player_cast，并从事件队列移除未触发的 cast_done 事件。"""
+        self._player_casting = False
+        self._pending_player_cast = None
+        # 移除队列中尚未触发的玩家 cast_done 事件
+        _kept = []
+        for _t, _s, _e in self._events:
+            if _e.get("type") == "cast_done" and _e.get("side") == "p":
+                continue
+            _kept.append((_t, _s, _e))
+        self._events = _kept
+        logs.append("💥 你的出招被打断了！读条中断，行动白费！")
+
+    def _schedule_cast_done(self, t: float, payload: dict):
+        """v154 读条命中制：排一个 cast_done 事件（出招读条结束 = 命中时刻）。
+        payload: {"side": "p"|"e", "kind": "skill"|"atk"|"item"|..., "skill": skill_name,
+                  "target": target_key, ...}
+        事件触发时 _process_until 的 cast_done 分支执行实际结算（用命中时刻的实时状态）。
+        """
+        ev = {"type": "cast_done", **payload}
+        self._schedule(t, ev)
+
     def _process_until(self, until_t: float, logs: list, player: dict, defend: bool = False):
         """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。"""
         if until_t <= self._now:
@@ -1934,6 +1994,11 @@ class Battle:
                         dmg = max(1, int(dmg * DEFEND_REDUCE))
                         self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
                     self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
+                    # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条，行动白费、资源不返还
+                    if self._player_casting and dmg > 0:
+                        _ctrl = any(k in self.p_buffs for k in ("stun", "freeze", "silence"))
+                        if _ctrl:
+                            self._interrupt_player_cast(logs)
                     # 行动后排下一次（用 buffed spd cost；敌方普攻同样有行为时长 CAST_ATK，
                     # 与玩家普攻对称——否则玩家 cast 0.5 而敌方 1.0 会破坏速度频率等价）
                     self._after_actor_ct("e", unit, cast_mult=CAST_ATK)
@@ -1942,7 +2007,34 @@ class Battle:
                         self.result = "defeat"
                         break
                 # v154：DOT/宠物/Boss 定时/词条回血不排独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
-                # cast_done（玩家/敌方出招结束命中）事件在 v154 读条命中制下激活——见 _schedule_cast_done
+                elif evt == "cast_done":
+                    # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
+                    side = ev.get("side", "p")
+                    if side == "p":
+                        self._player_casting = False
+                        pc = self._pending_player_cast or {}
+                        self._pending_player_cast = None
+                        # 目标已死 → 中断（命中落空）
+                        if not self._enemy_dead():
+                            _kind = pc.get("kind", ev.get("kind", ""))
+                            if _kind == "atk":
+                                logs += self._player_attack(pc.get("st") or self._player_stats(player), player)
+                            elif _kind == "skill":
+                                _sn = pc.get("skill_name") or ev.get("skill")
+                                _inf = pc.get("info") or {}
+                                if _sn and _inf:
+                                    logs += self._player_skill(pc.get("st") or self._player_stats(player),
+                                                               _sn, _inf, player, target=pc.get("target") or ev.get("target"))
+                            elif _kind == "item":
+                                # 道具无读条命中（即时生效，v152 行为保留）——这里只是兜底
+                                pass
+                        else:
+                            logs.append("（你的攻击落空了——目标已倒下！）")
+                        # 命中后玩家收招已完成（p_ct 已在出手时设为命中时刻+收招），无需再排
+                    # 敌方侧 cast_done（v154 对称）由 enemy_act 事件直接结算，不走此分支
+                    if self._player_dead(player):
+                        self.result = "defeat"
+                        break
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
                 logs.append(f"(事件处理异常: {_ex})")
@@ -2400,6 +2492,23 @@ class Battle:
             if cd:
                 self._set_skill_cd(skill_name, cd)
             return logs
+        # v154 读条命中制：普通技能出手 → 排 cast_done 事件（命中时刻才结算）。
+        # 不排事件的特例：PVP（真人轮流）、蓄力释放（_releasing_charge 已含蓄力读条语义）。
+        if self.btype != "pvp" and not getattr(self, "_releasing_charge", False):
+            # 出招读条（cast 秒数，速度折算）在 player_turn 已排 cast_done；
+            # 这里把"命中时刻要调用的结算函数 + 参数"暂存到 self._pending_player_cast，
+            # 由 _process_until 的 cast_done 分支消费（用命中时刻状态重新计算）。
+            self._pending_player_cast = {
+                "skill_name": skill_name,
+                "info": info,
+                "st": st,
+                "target": target,
+                "mp_cost": mp_cost,
+                "mana_lvl": mana_lvl,
+            }
+            # 出手瞬间已扣 MP/资源/进 CD（读条 = 已投入）；结算在命中时刻由 cast_done 执行
+            return logs
+        # 非读条路径（PVP / 蓄力释放）：立即结算
         logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
         # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：歌类技施放 20% 概率 回声 +1
         # （原「暴击+8%」面板加成的扣除在 _player_stats；数据层并行批次将移除其 stat crit 字段，
