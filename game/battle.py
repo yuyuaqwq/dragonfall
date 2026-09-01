@@ -249,6 +249,9 @@ class Battle:
     def __init__(self, btype: str = "monster", enemy: dict | None = None, title_bonus: dict = None, player: dict | None = None, pet: dict | None = None, dmg_mult: float = 1.0, enemies: list | None = None, allies: list | None = None, st: dict | None = None, active_keys: list | None = None):
         self.btype = btype                 # monster | worldboss | pvp | instance（瞬态 Battle 结算器）
         self._st = st or {}                # v137 副本内聚状态引用（players/alive/p_defending/threat/taunt_*）
+        # v158 副本合并：_inst_cb 副本回调钩子（instance 注入），敌方行动后/玩家行动后通知
+        # 命令层同步血量/仇恨/贡献/房间状态。野外（不传 cb）为 None，零影响。
+        self._inst_cb = (st or {}).get("_cb") if isinstance(st, dict) else None
         # v137 副本：btype="instance" 的 Battle 仅是命令层（instance.py）驱动的"瞬态结算器"——
         # 玩家行动 player_turn(enemy_act=False) + 序列化 type + allies ct 广播（_after_actor_ct 1393-1436）。
         # 副本战斗主循环（谁行动/敌方阶段/超时/换层）由命令层 instance.py 驱动，不在本引擎内调度。
@@ -641,6 +644,8 @@ class Battle:
         # 兼容旧档：读 round 时 _p_acts 兜底；_now 缺省 0。
         b._now = float(st.get("now", 0.0) or 0.0)
         b._p_acts = int(st.get("p_acts", st.get("round", 0)) or 0)
+        # v158 副本合并：from_state 透传副本回调钩子（instance 注入 st["_cb"]）
+        b._inst_cb = st.get("_cb") if isinstance(st, dict) else None
         b.allies = st.get("allies") or []   # v122 治疗指定队友（副本传存活玩家快照引用）
         b.p_buffs = dict(st.get("p_buffs") or {})
         b._p_buff_hits = dict(st.get("p_buff_hits") or {})  # v151 时刻制：防御型 buff 受击计数
@@ -2027,6 +2032,14 @@ class Battle:
                         break
                     mlogs, dmg = self._enemy_turn(player, unit)
                     logs += mlogs
+                    # v158 副本合并：敌方行动后通知副本命令层（同步血量/仇恨/贡献/倒地）
+                    # 野外不传 cb（None）→ 零影响
+                    if self._inst_cb is not None:
+                        try:
+                            self._inst_cb("enemy_acted", {"unit": unit, "logs": mlogs,
+                                                          "dmg": dmg, "battle": self})
+                        except Exception:
+                            pass
                     # v154 敌方对称读条：_enemy_turn 已排 cast_done（出招读条结束才命中结算），
                     # dmg 恒 0（读条期间不直接打玩家）；敌方下次行动时刻已由 _enemy_turn 内部
                     # _after_actor_ct("e") 设为 命中时刻+收招。此处按新 ct 重排 enemy_act 事件。
