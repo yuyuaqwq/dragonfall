@@ -599,6 +599,9 @@ class Battle:
             # v139 职业融合：模式状态机随战斗序列化（dual_form/focus/vent + charge 电荷）
             "v139_modes": getattr(self, "_v139_modes", {}),
             "v139_charge": getattr(self, "_v139_charge", {}),
+            # v154 读条命中制：玩家读条状态随战斗持久化（断线恢复不丢读条）
+            "player_casting": getattr(self, "_player_casting", False),
+            "pending_player_cast": getattr(self, "_pending_player_cast", None),
         }
 
     @classmethod
@@ -658,6 +661,9 @@ class Battle:
         b._assassin_refund_used = bool(st.get("assassin_refund_used", False))  # v130.2f 致命预谋返还标记
         b._v139_modes = st.get("v139_modes", {}) or {}   # v139 职业融合：模式状态机恢复
         b._v139_charge = st.get("v139_charge", {}) or {}  # v139 charge 电荷恢复
+        # v154 读条命中制：恢复玩家读条状态（断线恢复不丢读条）
+        b._player_casting = bool(st.get("player_casting", False))
+        b._pending_player_cast = st.get("pending_player_cast")
         # v104 M02 P2-9：恢复 _last_player/_shifted_element；_last_player 为空保持
         # 未设置（hasattr=False，避免 battle_mech 对 None 调 _player_stats 崩溃）
         _lp = st.get("last_player")
