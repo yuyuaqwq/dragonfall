@@ -113,6 +113,14 @@ async def main():
     st = db.get_battle("g1", "f4")["state"]
     check("开本有仇恨表", "threat" in st, str(st.keys()))
     check("仇恨初始 0", all(v == 0 for v in st["threat"].values()), str(st["threat"]))
+    # v158 副本合并：battle 事件队列驱动敌方后，骷髅兵会正常行动（CTB 快者多动）——
+    # 开本快照 hp 若为注册初始值会被骷髅兵打死导致仇恨测试失效。补满快照血，
+    # 专注验证仇恨逻辑（战斗生存不是本测试意图）。
+    for _q in ("f4", "f5"):
+        _sn = st["players"].get(_q)
+        if _sn:
+            _sn["hp"] = _sn.get("max_hp", 1) or 1
+    m._instance_save("g1", st)
     # 输出乙攻击（拉伤害仇恨）
     st["boss"]["atk"] = 5
     st["boss"]["matk"] = 5

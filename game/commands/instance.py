@@ -2072,6 +2072,38 @@ class InstanceCmds(CommandBase):
             f"{intro_note}"
         )
 
+    def _instance_battle_cb(self, evt: str, payload: dict):
+        """v158 副本合并：battle 事件队列回调（_inst_cb 注入）。
+
+        battle 的 _process_until 驱动敌方行动后调用。由于副本 enemies/allies 是引用
+        传递（battle 改 hp 直接写回 st），这里只需处理副本层账务：
+        - 敌方死亡压缩（battle 已 _remove_unit 清空 enemies，这里补 st 同步）
+        - 玩家倒地标记（battle _damage_player 扣血后，检查 alive 标记）
+        - 仇恨/贡献（伤害 dealt 累加——由 _instance_act 主流程在玩家行动后统一算，
+          这里不重复；回调只处理 battle 内部驱动的敌方行动带来的即时状态）
+        """
+        try:
+            if evt == "enemy_acted":
+                # 敌方行动已由 battle 结算（伤害打到 allies 引用），同步 st 存活标记。
+                # b._st["players"]/["alive"] 是副本真实 st 的引用（构造时注入）。
+                b = payload.get("battle")
+                if not b:
+                    return
+                st = getattr(b, "_st", None) or {}
+                players = st.get("players") or {}
+                alive = st.setdefault("alive", {})
+                changed = False
+                for mk, snap in players.items():
+                    k = str(mk)
+                    if snap.get("hp", 0) <= 0 and alive.get(k, True):
+                        alive[k] = False
+                        changed = True
+                if changed:
+                    # 全员倒地 → 战斗失败（由 _instance_act 后续检测 over）
+                    st["over"] = True
+        except Exception:
+            pass
+
     def _sync_players_db(self, group_id, st):
         """v95r76 #383：副本快照血量/魔力同步回 DB。
 
@@ -2135,9 +2167,12 @@ class InstanceCmds(CommandBase):
         self._instance_ensure_player_fields(st)
 
         # 1. v121 CTB 行动轴推进：敌我按 ct 最小者行动。
-        #    不再用"全员行动过 → Boss 行动"——敌方行动由 ct 判定，
-        #    无需等全员行动过。此处循环：先结算一次敌方段（若有敌方 ct 领先），随后处理
-        #    超时自动防御（含该玩家 defend 行动的 ct 结算），直到本应行动者为请求玩家或等待未超时者。
+        #    v158 副本合并：敌方行动不再由本层手动管（_instance_enemy_ct_acts 已废弃），
+        #    玩家行动 player_turn(enemy_act=True) 时 battle 事件队列 _process_until 自动驱动
+        #    敌方（含 cast_done/宠物/DOT），回调 _cb 同步血量/仇恨/贡献。本循环只负责：
+        #    a) 确认下一个行动玩家（存活玩家 ct 最小者）
+        #    b) 超时自动防御
+        #    c) 无可行动玩家 → 失败结算
         while True:
             # 无可行动存活玩家（全灭/全退队）→ 直接失败结算
             if not self._instance_living_player_cts(st, group_id):
@@ -2145,37 +2180,16 @@ class InstanceCmds(CommandBase):
                 async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                     yield _r
                 return
-            nxt = self._instance_next_actor(st, group_id)
+            cts = self._instance_living_player_cts(st, group_id)
+            if not cts:
+                return
+            cur_key = min(cts, key=lambda kk: cts[kk])
             # v157 DEBUG：轮转迭代诊断
             try:
-                print(f"[DBG_loop] 迭代: nxt={nxt} 请求者={qq_id} 现有logs={len(logs)}")
+                print(f"[DBG_loop] 迭代: 下一行动者={cur_key} 请求者={qq_id} 现有logs={len(logs)}")
             except Exception:
                 pass
-            if nxt[0] == "e":
-                elogs, ok = self._instance_enemy_ct_acts(st, group_id)
-                logs += elogs
-                if not ok:
-                    # 敌方段打满上限（8 动）仍有敌方 ct 领先 → 本轮敌方行动暂停，回退下一玩家，
-                    # 防极端配速与外部循环死锁；但敌方段可能已把玩家全灭（ok=False 同源）——
-                    # 必须在此重新检查全灭并走失败结算，否则静默 return（无 yield）卡死战斗
-                    if not self._instance_living_player_cts(st, group_id):
-                        st["over"] = True
-                        async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
-                            yield _r
-                        return
-                    cts = self._instance_living_player_cts(st, group_id)
-                    nxt = ("p", min(cts, key=lambda kk: cts[kk]) if cts else None)
-                else:
-                    continue
-            if nxt[0] != "p" or not nxt[1]:
-                # 无玩家可行动（仅剩敌方且已处理）→ 等待外部触发重算
-                return
-            cur_key = nxt[1]
-            cur_idx = members.index(cur_key)
             if cur_key == str(qq_id):
-                # 本玩家应行动
-                st["turn"] = cur_idx
-                st["turn_time"] = now
                 break
             # 非请求玩家：超时 → 自动防御（含 ct 结算）后重算；未超时 → 等待
             # v121 审计修复：auto-defend 后不刷新 turn_time——保持轮转计时起点不变，
@@ -2183,18 +2197,15 @@ class InstanceCmds(CommandBase):
             if now - st.get("turn_time", now) > INSTANCE_TIMEOUT:
                 logs += self._instance_auto_defend_player(st, group_id, cur_key)
                 continue
-            st["turn"] = cur_idx
+            st["turn"] = members.index(cur_key)
             cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
             yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～"]))
             return
 
         # 2. 确认轮到当前玩家
-        cur_idx = st["turn"]
-        cur_key = str(members[cur_idx])
-        if str(qq_id) != cur_key:
-            cur_name = (self._player(group_id, cur_key) or {}).get("name", cur_key)
-            yield event.plain_result("\n".join(logs + [f"⏳ 现在是 {cur_name} 的刻，等待 TA 行动～"]))
-            return
+        cur_idx = members.index(cur_key)
+        st["turn"] = cur_idx
+        st["turn_time"] = now
 
         # 3. 玩家行动（enemy_act=False，Boss 不立即反击）
         snap = st["players"][cur_key]
@@ -2254,17 +2265,28 @@ class InstanceCmds(CommandBase):
             # v122 治疗指定队友：存活成员快照引用（Battle 内改 hp 直接反映到 st["players"]）
             "allies": [st["players"][str(m)] for m in st.get("members", [])
                        if st.get("alive", {}).get(str(m), True)],
+            # v158 副本合并：注入副本回调——battle 事件队列驱动敌方行动后同步副本状态。
+            # 敌方伤害直接打到玩家快照（allies 引用），这里只需处理：死亡压缩/仇恨/贡献。
+            # （battle 的 _enemy_turn 用 _damage_player 扣血，allies 引用会同步；回调补副本层账务）
+            "_cb": self._instance_battle_cb,
+            # v158：回调需要访问真实副本 st 的 alive/players（构造 dict 只有子集）
+            "players": st.get("players") or {},
+            "alive": st.get("alive") or {},
         })
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
         b.player = snap
         _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
-        act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False, target=target)
+        # v158 副本合并：enemy_act=True——玩家行动后 battle 事件队列 _process_until 自动
+        # 驱动敌方（含 cast_done/宠物/DOT），与野外同一套时间轴。回调 _cb 同步副本状态。
+        act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=True, target=target)
         # v157 DEBUG：玩家行动后诊断（确认是否真的执行了 player_turn 且日志拼接）
         try:
             print(f"[DBG_instance_act] 行动后: action={action} skill={skill_name!r} ended={ended} "
                   f"pct_before={_pct_before:.3f} pct_after={float(b.p_ct):.3f} act_logs={len(act_logs)}条 "
-                  f"敌hp={[(u.get('name'), u.get('hp')) for u in (st.get('enemies') or [])][:3]}")
+                  f"敌hp={[(u.get('name'), u.get('hp')) for u in (st.get('enemies') or [])][:3]} "
+                  f"result={getattr(b, 'result', None)} 玩家hp={snap.get('hp')} "
+                  f"日志={act_logs[:4]}")
         except Exception:
             pass
         st["players"][cur_key] = snap
@@ -2290,19 +2312,11 @@ class InstanceCmds(CommandBase):
         # v121 CTB：玩家 ct 写回快照（b.p_ct 已含该玩家行动后的 _after_actor_ct("p") 推进）
         # v152 绝对时刻制：snap["ct"] = b.p_ct（= 该玩家下次可行动绝对时刻）。
         # 其他玩家 ct 是各自独立绝对值，无需广播 -cost（绝对时刻下时间流逝由各自 next_act_at 体现）。
-        # v157 修复：敌方 ct 必须同步流逝——副本无全局时钟，玩家每次行动代表时间推进
-        # 玩家耗时（= 行动后 p_ct - 行动前 p_ct），敌方 ct -= 该耗时（下限 0）。
-        # 否则敌方 ct 恒为初始大值（如 5.0），玩家 ct 每次只 +0.5 要打 10 次才追上，
-        # 表现=玩家无限出手敌方永不动（鱼鱼 2026-09-01 实抓：连续 5 次行动狂战士没动）。
-        try:
-            _dt = max(0.0, float(b.p_ct) - _pct_before)
-            for _eu in st.get("enemies") or []:
-                _c = float(_eu.get("ct", 0) or 0)
-                if _c > 0:
-                    _eu["ct"] = max(0.0, _c - _dt)
-        except Exception:
-            pass
-        # v157 修复：写回 battle 绝对时刻 now——否则副本 from_state 每次 _now=0，
+        # v158 副本合并：敌方 ct 不再手动流逝——battle 事件队列绝对时刻制自己管理
+        # （敌方行动后 _after_actor_ct("e") 设 ct = now + cast，_process_until 按 ct 调度）。
+        # 玩家 p_ct 累积（now 持久化），行动几次后自然超过敌方 ct → 敌方被队列驱动行动。
+        # v157 旧补丁（敌方 ct -= 玩家耗时）与队列双算，导致敌方连续行动，已删。
+        # v158 修复：写回 battle 绝对时刻 now——否则副本 from_state 每次 _now=0，
         # p_ct = 0 + cast 恒等于初始值（不累积）→ 玩家 ct 永远最小 → 无限出手/敌永不动
         # （2026-09-01 实抓根因，见 local_battle_sim 验证：透传 now 后 p_ct 正常累积、
         #  敌我 ct 交替，玩家 ct 超过敌方时敌方正常行动）

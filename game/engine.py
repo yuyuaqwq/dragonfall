@@ -969,20 +969,35 @@ def resolve_formula(formula, stats, target_def, target_mdef, is_crit=False,
             chance = float(seg.get("chance", 1.0) or 0.0)
         if randomize and chance < 1.0 and _r.random() > chance:
             continue
-        fstat = seg.get("stat", "atk")
-        fmult = float(seg.get("mult", 1.0) or 1.0) * mult
-        fflat = int(seg.get("flat", 0) or 0)
         ftype = seg.get("type", "phys")
-        # 属性来源
-        if fstat == "matk":
-            base = int(stats.get("matk", 0) * fmult) + fflat
-        elif fstat == "max_hp":
-            _mh = target_max_hp if target_max_hp is not None else stats.get("max_hp", 0)
-            base = int(_mh * fmult) + fflat
-        elif fstat == "flat":
-            base = fflat
-        else:  # atk
-            base = int(stats.get("atk", 0) * fmult) + fflat
+        # v159 表达式段：expr 字符串 → 求值（预编译缓存），替代 stat/mult/flat
+        _expr = seg.get("expr")
+        if _expr:
+            try:
+                from .core.formula_expr import compile_expr, eval_expr, build_vars
+                _vars = build_vars(stats, player_lv=int(stats.get("_player_lv", 0) or 0),
+                                   skill_lv=int(stats.get("_skill_lv", 0) or 0),
+                                   target_max_hp=target_max_hp,
+                                   base=float(seg.get("flat", 0) or 0))
+                _code = compile_expr(_expr)
+                _val = eval_expr(_code, _vars) * mult
+                base = int(_val)
+            except Exception:
+                base = 0
+        else:
+            fstat = seg.get("stat", "atk")
+            fmult = float(seg.get("mult", 1.0) or 1.0) * mult
+            fflat = int(seg.get("flat", 0) or 0)
+            # 属性来源
+            if fstat == "matk":
+                base = int(stats.get("matk", 0) * fmult) + fflat
+            elif fstat == "max_hp":
+                _mh = target_max_hp if target_max_hp is not None else stats.get("max_hp", 0)
+                base = int(_mh * fmult) + fflat
+            elif fstat == "flat":
+                base = fflat
+            else:  # atk
+                base = int(stats.get("atk", 0) * fmult) + fflat
         # 伤害类型 → 防御/穿透
         if ftype == "true":
             dmg = calc_damage(base, 0, is_crit, variance=variance, dmg_type="true")

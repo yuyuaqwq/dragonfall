@@ -710,6 +710,18 @@ class Battle:
                     b.mech_stacks.pop(_k, None)
             if _new_deb:
                 b.enemy["debuffs"] = _new_deb
+        # v158 副本合并：instance 类型恢复时按敌方 ct 排 enemy_act 事件——事件队列驱动
+        # 敌方行动（v137 起 instance 被排除在 __init__ 排事件之外，靠命令层外部轮转；
+        # 合并后副本也走 battle 队列，必须恢复敌方事件）。野外非 instance 已在
+        # __init__ 排过，且 from_state 原本不重排（旧存档事件在 _events 里，见 __init__ 注释）；
+        # 此处仅对 instance 补排，野外/世界Boss 不受影响。
+        if b.btype == "instance":
+            for _u in b.enemies:
+                if _u.get("hp", 0) > 0:
+                    _init_t = float(_u.get("ct", 0) or 0)
+                    if _init_t <= 0:
+                        _init_t = _ct_initial_wait(_u.get("spd", 0))
+                    b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
         return b
 
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
@@ -1941,6 +1953,15 @@ class Battle:
                 until = self._now + (ACT_TICK or 2.0)
             # v152：行为生效事件——玩家行动已即时结算效果，这里只推进时间处理事件
             self._process_until(until, logs, player, defend=defend)
+            # v158 副本合并：instance 玩家行动后只补结算一次"读条命中"事件（cast_done）——
+            # 敌方出招读条结束的伤害要在本次行动内结算（否则 from_state 不恢复事件队列，
+            # 读条结算跨次丢失 → 敌方伤害永远不结算）。只处理**当前已排好的** cast_done
+            # （不 while 追新：敌方新出招的读条留给下次玩家输入，避免一次行动内敌方多次
+            # 结算打死玩家——2026-09-01 test_commands_feedback f4 被骷髅兵连打秒杀）。
+            if self.btype == "instance":
+                _peek = self._events[0] if self._events else None
+                if _peek is not None and _peek[2].get("type") == "cast_done":
+                    self._process_until(_peek[0] + 0.001, logs, player, defend=defend)
             # v140 波3.1：特效装备敌人行动后（兰顿倦意/冰脉寒流——速度 -6%/-8% 每层）
             try:
                 from .core.weapon_effects import proc as _we_proc
@@ -3710,7 +3731,39 @@ class Battle:
             _faith_mult_applied = _tier_heal
         # v95r38：power<1 的治疗技能按 max_hp 百分比结算（如拳师气息调息 15% HP），
         # power>=1 保持原有"魔攻×power"模式（治愈术 200% 等），与消耗品 heal<1 百分比语义一致
-        if info.get("power", 0) < 1:
+        # v159 表达式：技能配 heal_formula 时走表达式（任意自定义），否则回退旧逻辑
+        _hf = info.get("heal_formula") or info.get("heal_expr")
+        if _hf:
+            try:
+                from .core.formula_expr import compile_expr, eval_expr, build_vars
+                st2 = dict(st)
+                st2["_player_lv"] = int(player.get("level", 1) or 1)
+                st2["_skill_lv"] = lv
+                st2["max_hp"] = player.get("max_hp", 0)
+                _vars = build_vars(st2, player_lv=int(player.get("level", 1) or 1),
+                                   skill_lv=lv, target_max_hp=player.get("max_hp", 0))
+                if isinstance(_hf, str):
+                    _hv = eval_expr(compile_expr(_hf), _vars)
+                else:
+                    # 段列表（同伤害 formula 格式）：求和
+                    _hv = 0
+                    for _hseg in _hf:
+                        if isinstance(_hseg, dict) and _hseg.get("expr"):
+                            _hv += eval_expr(compile_expr(_hseg["expr"]), _vars) * float(_hseg.get("mult", 1.0) or 1.0)
+                        else:
+                            _fstat = _hseg.get("stat", "matk")
+                            _fmult = float(_hseg.get("mult", 1.0) or 1.0)
+                            _fflat = int(_hseg.get("flat", 0) or 0)
+                            if _fstat == "max_hp":
+                                _hv += player.get("max_hp", 0) * _fmult + _fflat
+                            elif _fstat == "flat":
+                                _hv += _fflat
+                            else:
+                                _hv += st.get("matk", 0) * _fmult + _fflat
+                heal = int(_hv * cond_mult)
+            except Exception:
+                heal = 0
+        elif info.get("power", 0) < 1:
             heal = int(player.get("max_hp", 0) * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
         else:
             heal = int(st["matk"] * info["power"] * E.skill_power_mult(lv, info) * cond_mult)
@@ -4203,6 +4256,9 @@ class Battle:
                     if _seg.pop("skill_flat", False):
                         _seg["flat"] = int(round((int(_seg.get("flat", 0) or 0) + _skill_flat) * pmult))
                     _fml.append(_seg)
+                # v159 表达式变量：注入玩家/技能等级供 build_vars 读取（expr 段用）
+                st["_player_lv"] = int(player.get("level", 1) or 1)
+                st["_skill_lv"] = lv
                 dmg_i, _mseg = E.resolve_formula(
                     _fml, st, est["def"], est["mdef"], is_crit=_seg_crit,
                     pene_phys=_pp_phys, pene_magi=_pp_magi,
