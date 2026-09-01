@@ -43,20 +43,26 @@ MECH_STACK_WHITELIST = (
 )
 
 # ============================================================
-# DOT 混合公式（_tick_dots，契约 §2.2）：
-#   每层伤害 = (atk×atk + matk×matk + max_hp×hp) × 层数 × mult × (1 - 总抗)
+# DOT 分类公式（_tick_dots，契约 §2.2 + v156 分类重构）：
+#   v156（2026-09-01 鱼鱼拍板）：DOT 分类型，杜绝"一刀割裂流死3只怪"——
+#   flat   固定值型：吃攻击力，打谁稳定（毒）——不吃目标血，Boss 不放大
+#   pct    百分比型：吃目标 max_hp%，打血牛强（流血/腐蚀）——Boss/精英打折
+#   hybrid 混合型：固定值为主 + 少量百分比（灼烧）——Boss 打折只作用于 pct 部分
+#   每层伤害 = (atk×atk + matk×matk + max_hp×hp×boss折扣) × 层数 × mult × (1-总抗)
 #   true_dmg=True 的类型（v138.2 律四：腐蚀类）走真伤分支——绕过 _enemy_mitigate 的
 #   def/mdef 削减（仍走免疫检查 + Boss 护盾层吸收），使异常流成为第二条独立输出轴。
 # ============================================================
 DOT_DEFS = {
-    "poison": {"atk": 0.5, "matk": 0.0, "hp": 0.015},  # 毒：atk×0.5 + max_hp×1.5%
-    "burn":   {"atk": 0.0, "matk": 0.4, "hp": 0.01},   # 灼烧：matk×0.4 + max_hp×1%
-    "bleed":  {"atk": 0.6, "matk": 0.0, "hp": 0.015},  # 流血：atk×0.6 + max_hp×1.5%
-    # v138.2 律四：腐蚀（真伤轴）——数值参考 atk 0.4 / matk 0.3 / hp 2.0%，
-    # 低于毒/流血的 0.5/0.6 攻击系数 + 略高于 1.5% 的生命系数：真伤绕过 def/mdef，
-    # 对高防 Boss 的等效收益自动反超，故攻击系数刻意压低防异常流数值反超常规输出轴
-    "corros":  {"atk": 0.4, "matk": 0.3, "hp": 0.02, "true_dmg": True},
+    "poison": {"atk": 0.8, "matk": 0.0, "hp": 0.0, "type": "flat"},       # 毒：atk×0.8 固定值（稳定输出，不吃目标血）
+    "burn":   {"atk": 0.0, "matk": 0.6, "hp": 0.005, "type": "hybrid"},   # 灼烧：matk×0.6 + max_hp×0.5%（固定为主+小百分比）
+    "bleed":  {"atk": 0.05, "matk": 0.0, "hp": 0.015, "type": "pct"},   # 流血：atk×0.05 + max_hp×1.5%（百分比型，Boss打折；攻击部分低=吃目标血）
+    # v138.2 律四：腐蚀（真伤轴）——百分比型真伤（Boss 打折但绕过防御，仍是对高防 Boss 的第二轴）
+    "corros":  {"atk": 0.3, "matk": 0.2, "hp": 0.01, "type": "pct", "true_dmg": True},
 }
+# v156 Boss DOT 减免：百分比/混合 DOT 的 pct 部分在 Boss/精英战 × 该值（防"百分比无脑过 Boss"）
+DOT_BOSS_PCT_MULT = 0.5
+# v156 百分比部分单层上限：每刻 ≤ 目标 max_hp × 该值（防极端叠层爆炸；1% = 10 层才 10%/刻）
+DOT_PCT_CAP = 0.01
 DOT_BLEED_DOUBLE_HP_PCT = 0.30  # 放血：目标当前生命 <30% 时流血伤害 ×2（处决线）
 DOT_ADAPT_DECAY_STEP = 0.04     # 适应回落：poison/burn 最近 2 刻未再叠层 → 耐受 -4%
 DOT_RESIST_CAP = 0.95           # 总抗上限：min(0.95, dot_res + 适应 adapt)

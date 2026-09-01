@@ -72,7 +72,7 @@ _V153_PLAYER_SKILLS = {
             "sk_xuan_feng_zhan": {
              'lv': 20,
              'mp': 12,
-             'power': 0.73,
+             'power': 0.93,
              'kind': '物理',
              'cast': 0.7,
              'cd': 12,
@@ -183,7 +183,7 @@ _V153_PLAYER_SKILLS = {
             "sk_yun_shi_shu": {
              'lv': 24,
              'mp': 24,
-             'power': 1.06,
+             'power': 1.08,
              'kind': '魔法·火',
              'cast': 1.2,
              'cd': 16,
@@ -210,7 +210,7 @@ _V153_PLAYER_SKILLS = {
             "sk_lian_she": {
              'lv': 1,
              'mp': 6,
-             'power': 0.38,
+             'power': 0.41,
              'kind': '物理',
              'cast': 0.35,
              'hits': 2,
@@ -221,7 +221,7 @@ _V153_PLAYER_SKILLS = {
             "sk_miao_zhun_she_ji": {
              'lv': 4,
              'mp': 6,
-             'power': 0.87,
+             'power': 1.17,
              'kind': '物理',
              'cast': 0.5,
              'res_cost': {"energy": 28},
@@ -243,7 +243,7 @@ _V153_PLAYER_SKILLS = {
             "sk_lie_wang_xian_jing": {
              'lv': 12,
              'mp': 10,
-             'power': 0.87,
+             'power': 1.17,
              'kind': '物理',
              'cast': 0.5,
              'cd': 12,
@@ -268,7 +268,7 @@ _V153_PLAYER_SKILLS = {
             "sk_zhi_ming_ju_ji": {
              'lv': 20,
              'mp': 14,
-             'power': 1.02,
+             'power': 1.51,
              'kind': '物理',
              'cast': 0.65,
              'cd': 12,
@@ -292,7 +292,7 @@ _V153_PLAYER_SKILLS = {
             "sk_lie_yin_she_ji": {
              'lv': 28,
              'mp': 8,
-             'power': 0.87,
+             'power': 1.17,
              'kind': '物理',
              'cast': 0.5,
              'cd': 8,
@@ -407,7 +407,7 @@ _V153_PLAYER_SKILLS = {
             "sk_ci_ji": {
              'lv': 1,
              'mp': 6,
-             'power': 0.63,
+             'power': 0.66,
              'kind': '物理',
              'cast': 0.25,
              'mech': 'lian_duan',
@@ -418,7 +418,7 @@ _V153_PLAYER_SKILLS = {
             "sk_ge_lie": {
              'lv': 4,
              'mp': 6,
-             'power': 0.68,
+             'power': 0.78,
              'kind': '物理',
              'cast': 0.3,
              'cd': 8,
@@ -430,7 +430,7 @@ _V153_PLAYER_SKILLS = {
             "sk_ying_xi": {
              'lv': 8,
              'mp': 8,
-             'power': 0.72,
+             'power': 0.92,
              'kind': '物理',
              'cast': 0.35,
              'cd': 8,
@@ -442,7 +442,7 @@ _V153_PLAYER_SKILLS = {
             "sk_shuang_ren_luan_wu": {
              'lv': 12,
              'mp': 10,
-             'power': 0.38,
+             'power': 0.46,
              'kind': '物理',
              'cast': 0.35,
              'cd': 12,
@@ -486,7 +486,7 @@ _V153_PLAYER_SKILLS = {
             "sk_zhong_jie_ge_hou": {
              'lv': 28,
              'mp': 12,
-             'power': 0.8,
+             'power': 1.04,
              'kind': '物理',
              'cast': 0.4,
              'cd': 12,
@@ -502,7 +502,7 @@ _V153_PLAYER_SKILLS = {
             "sk_zhi_quan": {
              'lv': 1,
              'mp': 6,
-             'power': 0.72,
+             'power': 1.07,
              'kind': '物理',
              'cast': 0.35,
              'shaken_gain': 0,
@@ -512,7 +512,7 @@ _V153_PLAYER_SKILLS = {
             "sk_ce_ti": {
              'lv': 4,
              'mp': 6,
-             'power': 0.82,
+             'power': 1.38,
              'kind': '物理',
              'cast': 0.45,
              'cd': 8,
@@ -524,7 +524,7 @@ _V153_PLAYER_SKILLS = {
             "sk_gang_quan": {
              'lv': 8,
              'mp': 8,
-             'power': 0.87,
+             'power': 1.53,
              'kind': '物理',
              'cast': 0.5,
              'cd': 12,
@@ -535,9 +535,9 @@ _V153_PLAYER_SKILLS = {
             "sk_lian_zhao_san_lian": {
              'lv': 12,
              'mp': 12,
-             'power': 0.3,
+             'power': 0.49,
              'kind': '物理',
-             'cast': 0.5,
+             'cast': 0.45,
              'cd': 12,
              'hits': 3,
              'shaken_gain': 0,
@@ -559,9 +559,9 @@ _V153_PLAYER_SKILLS = {
             "sk_zhen_di_ji": {
              'lv': 20,
              'mp': 12,
-             'power': 0.97,
+             'power': 1.68,
              'kind': '物理',
-             'cast': 0.6,
+             'cast': 0.55,
              'cd': 12,
              'mech': 'stun',
              'mech_val': 2.0,
@@ -572,7 +572,7 @@ _V153_PLAYER_SKILLS = {
             "sk_chong_quan": {
              'lv': 24,
              'mp': 10,
-             'power': 0.77,
+             'power': 1.23,
              'kind': '物理',
              'cast': 0.4,
              'cd': 12,
@@ -647,7 +647,7 @@ _V153_PLAYER_SKILLS = {
             "sk_yin_ren": {
              'lv': 16,
              'mp': 8,
-             'power': 0.97,
+             'power': 1.08,
              'kind': '魔法',
              'cast': 0.6,
              'cd': 8,
@@ -1551,9 +1551,9 @@ _V153_BRANCH_SKILLS = {
                     "藤蔓缠绕": {
                         'lv': 50,
                         'mp': 14,
-                        'power': 1.02,
+                        'power': 1.1,
                         'kind': '魔法',
-                        'cast': 0.5,
+                        'cast': 0.35,
                         'cd': 12,
                         'mech': 'poison',
                         'mech_val': 2,
@@ -1578,9 +1578,9 @@ _V153_BRANCH_SKILLS = {
                     "荆棘爆": {
                         'lv': 58,
                         'mp': 18,
-                        'power': 0.84,
+                        'power': 1.0,
                         'kind': '魔法',
-                        'cast': 0.6,
+                        'cast': 0.35,
                         'cd': 12,
                         'mech': 'poison_burst',
                         'res_cost': {"energy": 40},
@@ -1617,7 +1617,7 @@ _V153_BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.2,
                         'kind': '物理',
-                        'cast': 0.65,
+                        'cast': 0.5,
                         'cd': 12,
                         'res_cost': {"energy": 45},
                         'charge': 1.5,
@@ -1629,7 +1629,7 @@ _V153_BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 0.34,
                         'kind': '物理',
-                        'cast': 0.45,
+                        'cast': 0.35,
                         'cd': 12,
                         'hits': 3,
                         'res_cost': {"energy": 40},
@@ -1759,7 +1759,7 @@ _V153_BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.38,
                         'kind': '物理',
-                        'cast': 0.65,
+                        'cast': 0.5,
                         'cd': 16,
                         'res_cost': {"energy": 50},
                         'pierce': True,
@@ -2184,7 +2184,7 @@ _V153_BRANCH_SKILLS = {
                     "骸骨洪流": {
                         'lv': 80,
                         'mp': 26,
-                        'power': 1.17,
+                        'power': 1.35,
                         'kind': '魔法',
                         'cast': 0.9,
                         'cd': 20,
@@ -2361,7 +2361,7 @@ _V153_BRANCH_SKILLS = {
                     "幻影连刺": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 0.32,
+                        'power': 0.36,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2405,7 +2405,7 @@ _V153_BRANCH_SKILLS = {
                     "终结·处刑": {
                         'lv': 58,
                         'mp': 16,
-                        'power': 0.99,
+                        'power': 1.04,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2452,7 +2452,7 @@ _V153_BRANCH_SKILLS = {
                     "毒爆": {
                         'lv': 50,
                         'mp': 16,
-                        'power': 0.7,
+                        'power': 1.03,
                         'kind': '魔法',
                         'cast': 0.4,
                         'cd': 12,
@@ -2463,7 +2463,7 @@ _V153_BRANCH_SKILLS = {
                     "淬毒之刃": {
                         'lv': 54,
                         'mp': 14,
-                        'power': 0.91,
+                        'power': 1.04,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2512,7 +2512,7 @@ _V153_BRANCH_SKILLS = {
                     "收割": {
                         'lv': 74,
                         'mp': 18,
-                        'power': 1.18,
+                        'power': 1.29,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -2523,7 +2523,7 @@ _V153_BRANCH_SKILLS = {
                     "幽影连刺": {
                         'lv': 80,
                         'mp': 18,
-                        'power': 0.29,
+                        'power': 0.31,
                         'kind': '物理',
                         'cast': 0.45,
                         'cd': 12,
@@ -2567,9 +2567,9 @@ _V153_BRANCH_SKILLS = {
                     "毒雾·淬": {
                         'lv': 68,
                         'mp': 24,
-                        'power': 0.76,
+                        'power': 1.0,
                         'kind': '魔法',
-                        'cast': 0.45,
+                        'cast': 0.3,
                         'cd': 16,
                         'aoe': 'all',
                         'name': '毒雾·淬',
@@ -2598,7 +2598,7 @@ _V153_BRANCH_SKILLS = {
                     "淬毒刺杀": {
                         'lv': 85,
                         'mp': 20,
-                        'power': 1.18,
+                        'power': 1.29,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -2646,7 +2646,7 @@ _V153_BRANCH_SKILLS = {
                     "终结·暗影绞杀": {
                         'lv': 95,
                         'mp': 20,
-                        'power': 1.38,
+                        'power': 1.55,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 20,
@@ -2690,7 +2690,7 @@ _V153_BRANCH_SKILLS = {
                     "剧毒风暴": {
                         'lv': 93,
                         'mp': 35,
-                        'power': 0.91,
+                        'power': 0.94,
                         'kind': '魔法',
                         'cast': 0.5,
                         'cd': 20,
@@ -2724,7 +2724,7 @@ _V153_BRANCH_SKILLS = {
                     "腐世": {
                         'lv': 98,
                         'mp': 40,
-                        'power': 0.91,
+                        'power': 0.94,
                         'kind': '魔法',
                         'cast': 0.5,
                         'cd': 24,
@@ -2744,7 +2744,7 @@ _V153_BRANCH_SKILLS = {
                     "疾风拳": {
                         'lv': 32,
                         'mp': 8,
-                        'power': 0.91,
+                        'power': 1.22,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -2755,9 +2755,9 @@ _V153_BRANCH_SKILLS = {
                     "旋风踢": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 0.78,
+                        'power': 1.37,
                         'kind': '物理',
-                        'cast': 0.6,
+                        'cast': 0.45,
                         'cd': 12,
                         'shaken_gain': 0,
                         'aoe': 'front',
@@ -2767,7 +2767,7 @@ _V153_BRANCH_SKILLS = {
                     "碎颅势": {
                         'lv': 44,
                         'mp': 16,
-                        'power': 1.14,
+                        'power': 1.83,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 12,
@@ -2779,7 +2779,7 @@ _V153_BRANCH_SKILLS = {
                     "崩拳": {
                         'lv': 50,
                         'mp': 18,
-                        'power': 1.25,
+                        'power': 2.13,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2790,7 +2790,7 @@ _V153_BRANCH_SKILLS = {
                     "气力爆发": {
                         'lv': 54,
                         'mp': 16,
-                        'power': 1.03,
+                        'power': 1.83,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 12,
@@ -2814,7 +2814,7 @@ _V153_BRANCH_SKILLS = {
                     "铁壁拳": {
                         'lv': 32,
                         'mp': 8,
-                        'power': 0.91,
+                        'power': 1.22,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -2836,9 +2836,9 @@ _V153_BRANCH_SKILLS = {
                     "磐岩释能": {
                         'lv': 44,
                         'mp': 14,
-                        'power': 0.37,
+                        'power': 0.77,
                         'kind': '物理',
-                        'cast': 0.5,
+                        'cast': 0.25,
                         'cd': 12,
                         'shaken_gain': 0,
                         'cond': {"type": "guard_core", "per_core": 0.7},
@@ -2893,7 +2893,7 @@ _V153_BRANCH_SKILLS = {
                     "连环拳": {
                         'lv': 68,
                         'mp': 16,
-                        'power': 0.31,
+                        'power': 0.4,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 12,
@@ -2905,7 +2905,7 @@ _V153_BRANCH_SKILLS = {
                     "气力裂空": {
                         'lv': 74,
                         'mp': 20,
-                        'power': 1.44,
+                        'power': 2.13,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2917,7 +2917,7 @@ _V153_BRANCH_SKILLS = {
                     "裂岳连击": {
                         'lv': 80,
                         'mp': 22,
-                        'power': 0.46,
+                        'power': 0.64,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 16,
@@ -2939,7 +2939,7 @@ _V153_BRANCH_SKILLS = {
                     "震慑拳": {
                         'lv': 88,
                         'mp': 20,
-                        'power': 1.44,
+                        'power': 2.13,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2973,9 +2973,9 @@ _V153_BRANCH_SKILLS = {
                     "磐核爆发": {
                         'lv': 74,
                         'mp': 20,
-                        'power': 0.47,
+                        'power': 0.92,
                         'kind': '物理',
-                        'cast': 0.6,
+                        'cast': 0.3,
                         'cd': 16,
                         'mech': 'guard_core_burst',
                         'shaken_gain': 0,
@@ -3022,7 +3022,7 @@ _V153_BRANCH_SKILLS = {
                     "气力通天": {
                         'lv': 90,
                         'mp': 30,
-                        'power': 1.78,
+                        'power': 2.52,
                         'kind': '物理',
                         'cast': 0.8,
                         'cd': 20,
@@ -3034,7 +3034,7 @@ _V153_BRANCH_SKILLS = {
                     "无影连打": {
                         'lv': 93,
                         'mp': 24,
-                        'power': 0.39,
+                        'power': 0.48,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 16,
@@ -3046,7 +3046,7 @@ _V153_BRANCH_SKILLS = {
                     "撼岳·终焉": {
                         'lv': 95,
                         'mp': 40,
-                        'power': 2.41,
+                        'power': 2.83,
                         'kind': '物理',
                         'cast': 0.9,
                         'cd': 24,
@@ -3067,7 +3067,7 @@ _V153_BRANCH_SKILLS = {
                     "崩山": {
                         'lv': 98,
                         'mp': 45,
-                        'power': 1.71,
+                        'power': 2.83,
                         'kind': '物理',
                         'cast': 0.9,
                         'cd': 24,
@@ -3101,9 +3101,9 @@ _V153_BRANCH_SKILLS = {
                     "气力万法": {
                         'lv': 95,
                         'mp': 35,
-                        'power': 0.61,
+                        'power': 1.07,
                         'kind': '物理',
-                        'cast': 0.7,
+                        'cast': 0.35,
                         'cd': 20,
                         'mech': 'guard_core_burst',
                         'shaken_gain': 0,
@@ -3123,7 +3123,7 @@ _V153_BRANCH_SKILLS = {
                     "磐岩·镇世": {
                         'lv': 98,
                         'mp': 45,
-                        'power': 1.76,
+                        'power': 2.52,
                         'kind': '物理',
                         'cast': 0.8,
                         'cd': 24,

@@ -22,6 +22,7 @@ from . import engine as E
 from .data.battle_config import (  # v125.2 B1 + v130.2 并入：战斗主路径数值/白名单数据表 + v130 引擎新机制表
     MECH_STACK_BONUS, MECH_STACK_WHITELIST, DOT_DEFS,
     DOT_BLEED_DOUBLE_HP_PCT, DOT_ADAPT_DECAY_STEP, DOT_RESIST_CAP,
+    DOT_BOSS_PCT_MULT, DOT_PCT_CAP,
     BOSS_ATTACK_MULTS, CONTROL_MECHS, SKILL_CC_WHITELIST,
     MECH_FULL_HP_CRIT, MECH_FROZEN_MULT, MECH_COMBO_STACKS,
     MECH_PROC_GROUPS, MECH_STAT_PASSIVES,
@@ -4169,8 +4170,35 @@ class Battle:
             # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
             _seg_crit = is_crit and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
             _lucky_seg = lucky and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
-            # v107 伤害类型四层架构：物理→phys / 魔法→magi / 真伤→true（新增，绕过全减伤）
-            if kind == "真伤":
+            # v156 formula 字段：每技能独立配置伤害公式（数据驱动任意组合）——
+            #   [{"stat": "atk"|"matk"|"max_hp", "mult": 百分比系数, "flat": 固定值(基础值), "type": "phys"|"magi"|"true"}]
+            #   混伤：多段 formula；物理职业魔法技：stat=atk + type=magi；基础值+百分比：flat
+            #   未配 formula 走下方旧逻辑（kind 决定 atk/matk，向后兼容）
+            if info.get("formula"):
+                dmg_i = 0
+                for _fseg in info["formula"]:
+                    _fstat = _fseg.get("stat", "atk")
+                    _fmult = float(_fseg.get("mult", 1.0) or 1.0)
+                    _fflat = int(_fseg.get("flat", 0) or 0)
+                    _ftype = _fseg.get("type", "phys")
+                    if _fstat == "matk":
+                        _fbase = int(st["matk"] * _fmult) + _fflat
+                    elif _fstat == "max_hp":
+                        _fbase = int(player.get("max_hp", 0) * _fmult) + _fflat
+                    else:
+                        _fbase = int(st["atk"] * _fmult) + _fflat
+                    if _ftype == "true":
+                        _fdmg = E.calc_damage(_fbase, 0, _seg_crit, dmg_type="true")
+                    elif _ftype == "magi":
+                        _fdmg = E.calc_damage(_fbase, est["mdef"], _seg_crit,
+                                              pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
+                    else:
+                        _fdmg = E.calc_damage(_fbase, est["def"], _seg_crit,
+                                              pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
+                    dmg_i += _fdmg
+                    if _ftype == "magi":
+                        _magi_part += _fdmg
+            elif kind == "真伤":
                 dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, dmg_type="true")
             elif kind == "物理":
                 if info.get("pierce"):
@@ -5417,8 +5445,20 @@ class Battle:
             adapt_v = float((e.get("adapt") or {}).get(k, 0.0) or 0.0)
             res = min(DOT_RESIST_CAP, base_res + adapt_v)
             # v1.1 混合公式：每层 = (攻击系数 + 最大生命小百分比) × 层数 × 被动倍率 × (1 - 总抗)
+            # v156 分类重构：DOT_DEFS 带 type（flat/pct/hybrid）——
+            #   pct/hybrid 的 hp（百分比）部分在 Boss/精英战 × DOT_BOSS_PCT_MULT（0.5），
+            #   且单层每刻 ≤ max_hp × DOT_PCT_CAP（1%）——防"百分比 DOT 无脑过 Boss"。
             atk_part = _atk * _atk_parts[k] + _matk * _matk_parts[k]
-            hp_part = max_hp * _hp_parts[k]
+            _dot_type = (DOT_DEFS.get(k) or {}).get("type", "flat")
+            _hp_part = max_hp * _hp_parts[k]
+            if _hp_part > 0 and _dot_type in ("pct", "hybrid"):
+                # Boss/精英：百分比部分打折（防无脑过 Boss）
+                if e.get("is_boss") or e.get("role") == "boss" or e.get("is_elite"):
+                    _hp_part *= DOT_BOSS_PCT_MULT
+                # 单层每刻上限（防极端叠层；对普通怪也生效——上限本身就是 1%）
+                _cap_v = max_hp * DOT_PCT_CAP
+                _hp_part = min(_hp_part, _cap_v)
+            hp_part = _hp_part
             p = int((atk_part + hp_part) * n * mult * (1 - res))
             # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，仍走免疫检查 +
             # Boss 护盾过滤（护盾层吸收）→ _damage_enemy。腐蚀类 = 独立第二条输出轴。
