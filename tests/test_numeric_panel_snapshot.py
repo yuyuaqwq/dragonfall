@@ -34,35 +34,34 @@ PANEL_SNAPSHOT = {
     },
     "cls_fa_shi": {
         1: {'max_hp': 90, 'atk': 8, 'def': 7, 'spd': 12, 'crit': 0.08, 'dodge': 0.05},
-        11: {'max_hp': 190, 'atk': 16, 'def': 17, 'spd': 20, 'crit': 0.08, 'dodge': 0.05},
-        30: {'max_hp': 380, 'atk': 31, 'def': 36, 'spd': 35, 'crit': 0.08, 'dodge': 0.05},
-        60: {'max_hp': 680, 'atk': 55, 'def': 66, 'spd': 59, 'crit': 0.08, 'dodge': 0.05},
+        11: {'max_hp': 190, 'atk': 16, 'def': 17, 'spd': 21, 'crit': 0.08, 'dodge': 0.05},
+        30: {'max_hp': 380, 'atk': 31, 'def': 36, 'spd': 38, 'crit': 0.08, 'dodge': 0.05},
+        60: {'max_hp': 680, 'atk': 55, 'def': 66, 'spd': 65, 'crit': 0.08, 'dodge': 0.05},
     },
     "cls_you_xia": {
         1: {'max_hp': 110, 'atk': 15, 'def': 10, 'spd': 16, 'crit': 0.15, 'dodge': 0.12},
-        11: {'max_hp': 250, 'atk': 41, 'def': 26, 'spd': 34, 'crit': 0.15, 'dodge': 0.12},
-        30: {'max_hp': 516, 'atk': 90, 'def': 56, 'spd': 68, 'crit': 0.15, 'dodge': 0.12},
-        60: {'max_hp': 936, 'atk': 168, 'def': 104, 'spd': 122, 'crit': 0.15, 'dodge': 0.12},
+        11: {'max_hp': 250, 'atk': 41, 'def': 26, 'spd': 30, 'crit': 0.15, 'dodge': 0.12},
+        30: {'max_hp': 516, 'atk': 90, 'def': 56, 'spd': 56, 'crit': 0.15, 'dodge': 0.12},
+        60: {'max_hp': 936, 'atk': 168, 'def': 104, 'spd': 98, 'crit': 0.15, 'dodge': 0.12},
     },
     "cls_mu_shi": {
         1: {'max_hp': 100, 'atk': 10, 'def': 11, 'spd': 11, 'crit': 0.06, 'dodge': 0.06},
-        11: {'max_hp': 220, 'atk': 22, 'def': 29, 'spd': 18, 'crit': 0.06, 'dodge': 0.06},
-        30: {'max_hp': 448, 'atk': 44, 'def': 63, 'spd': 31, 'crit': 0.06, 'dodge': 0.06},
-        60: {'max_hp': 808, 'atk': 80, 'def': 117, 'spd': 52, 'crit': 0.06, 'dodge': 0.06},
+        11: {'max_hp': 220, 'atk': 22, 'def': 29, 'spd': 19, 'crit': 0.06, 'dodge': 0.06},
+        30: {'max_hp': 448, 'atk': 44, 'def': 63, 'spd': 34, 'crit': 0.06, 'dodge': 0.06},
+        60: {'max_hp': 808, 'atk': 80, 'def': 117, 'spd': 58, 'crit': 0.06, 'dodge': 0.06},
     },
     "cls_ci_ke": {
         1: {'max_hp': 95, 'atk': 17, 'def': 9, 'spd': 19, 'crit': 0.2, 'dodge': 0.18},
-        11: {'max_hp': 215, 'atk': 47, 'def': 22, 'spd': 41, 'crit': 0.2, 'dodge': 0.18},
-        30: {'max_hp': 443, 'atk': 104, 'def': 46, 'spd': 82, 'crit': 0.2, 'dodge': 0.18},
-        60: {'max_hp': 803, 'atk': 194, 'def': 85, 'spd': 148, 'crit': 0.2, 'dodge': 0.18},
+        11: {'max_hp': 215, 'atk': 47, 'def': 22, 'spd': 35, 'crit': 0.2, 'dodge': 0.18},
+        30: {'max_hp': 443, 'atk': 104, 'def': 46, 'spd': 65, 'crit': 0.2, 'dodge': 0.18},
+        60: {'max_hp': 803, 'atk': 194, 'def': 85, 'spd': 113, 'crit': 0.2, 'dodge': 0.18},
     },
     "cls_wu_seng": {
         1: {'max_hp': 135, 'atk': 15, 'def': 12, 'spd': 14, 'crit': 0.1, 'dodge': 0.12},
-        11: {'max_hp': 315, 'atk': 43, 'def': 32, 'spd': 28, 'crit': 0.1, 'dodge': 0.12},
-        30: {'max_hp': 657, 'atk': 96, 'def': 70, 'spd': 54, 'crit': 0.1, 'dodge': 0.12},
-        60: {'max_hp': 1197, 'atk': 180, 'def': 130, 'spd': 96, 'crit': 0.1, 'dodge': 0.12},
+        11: {'max_hp': 315, 'atk': 43, 'def': 32, 'spd': 25, 'crit': 0.1, 'dodge': 0.12},
+        30: {'max_hp': 657, 'atk': 96, 'def': 70, 'spd': 45, 'crit': 0.1, 'dodge': 0.12},
+        60: {'max_hp': 1197, 'atk': 180, 'def': 130, 'spd': 78, 'crit': 0.1, 'dodge': 0.12},
     },
-    # v153 新增第 7 职业 吟游诗人（cls_shi_ren）
     "cls_shi_ren": {
         1: {'max_hp': 95, 'atk': 9, 'def': 10, 'spd': 13, 'crit': 0.07, 'dodge': 0.08},
         11: {'max_hp': 205, 'atk': 20, 'def': 25, 'spd': 22, 'crit': 0.07, 'dodge': 0.08},
@@ -111,10 +110,10 @@ def main():
         print(f"  📊 {cname}({cid}): {row}")
 
     print("【② 属性加点收益快照（11 级 · 39 点自由属性）】")
-    # 刺客：全敏 vs 全力 —— spd +31（72 vs 41）、atk +46（93 vs 47）
+    # 刺客：全敏 vs 全力 —— spd +31（66 vs 35）、atk +39（86 vs 47）
     a_agi = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"agi": 39})
     a_str = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"str": 39})
-    check("刺客 全敏 spd 72 / 全力 spd 41", a_agi["spd"] == 72 and a_str["spd"] == 41,
+    check("刺客 全敏 spd 66 / 全力 spd 35", a_agi["spd"] == 66 and a_str["spd"] == 35,
           f"agi={a_agi['spd']} str={a_str['spd']}")
     check("刺客 全敏 vs 全力 spd 差 == +31", a_agi["spd"] - a_str["spd"] == 31,
           f"d={a_agi['spd'] - a_str['spd']}")

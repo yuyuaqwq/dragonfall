@@ -172,7 +172,7 @@ CLASSES = {
             "def": 1.0,
             "matk": 3.8,
             "mdef": 1.8,
-            "spd": 0.8
+            "spd": 0.9
         },
         "weapon_type": "staff",
         "name": "法师",
@@ -234,7 +234,7 @@ CLASSES = {
             "def": 1.6,
             "matk": 0.8,
             "mdef": 1.0,
-            "spd": 1.8
+            "spd": 1.4
         },
         "weapon_type": "bow",
         "name": "游侠",
@@ -296,7 +296,7 @@ CLASSES = {
             "def": 1.8,
             "matk": 2.6,
             "mdef": 2.4,
-            "spd": 0.7
+            "spd": 0.8
         },
         "weapon_type": "mace",
         "name": "牧师",
@@ -357,7 +357,7 @@ CLASSES = {
             "def": 1.3,
             "matk": 0.6,
             "mdef": 0.9,
-            "spd": 2.2
+            "spd": 1.6
         },
         "weapon_type": "dagger",
         "name": "刺客",
@@ -420,7 +420,7 @@ CLASSES = {
             "def": 2.0,
             "matk": 0.5,
             "mdef": 1.6,
-            "spd": 1.4
+            "spd": 1.1
         },
         "weapon_type": "fist",
         "name": "拳师",

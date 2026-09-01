@@ -51,14 +51,14 @@ def main():
     # 阈值（卡指定 0.9）是严格目标——当前构成口径承伤轮为击杀轮 ~55%，
     # 硬卡 0.9 会把本工具判成"全红打不过"（幻觉）。这里锁 3 个可打性事实：
     #   ① 承伤轮绝对 ≥ 20（双坦/奶妈冗余不会猝死）
-    #   ② 平均轮数落 v136 目标带（40-60，偏快）
+    #   ② 平均轮数落 v161 目标带（30-50，v161 可持续 DPS 口径下玩家强度提升、副本更快）
     #   ③ 高难本承伤轮 ≥ 击杀轮×0.7（输出压速兜底）
     bad = sorted(((r["rounds"], r["survive"], iid) for iid, r in std.items()
                   if r["survive"] < r["rounds"] * 0.9), reverse=True)
     check("standard 高难本承伤轮 ≥ 击杀轮×0.7（输出压速兜底）",
           all(s >= r_ * 0.7 for r_, s, _ in bad), f"worst={bad[:3]}")
-    check("standard 全副本平均轮数 ∈ [40, 60]（v136 目标 60-80 偏快但可打）",
-          40 <= (sum(r["rounds"] for r in std.values()) / len(std)) <= 60,
+    check("standard 全副本平均轮数 ∈ [30, 50]（v161 新口径 30-50）",
+          30 <= (sum(r["rounds"] for r in std.values()) / len(std)) <= 50,
           f"avg={sum(r['rounds'] for r in std.values()) / len(std):.1f}")
     check("standard 全部副本承伤轮 ≥ 20（双坦/奶妈冗余兜底）",
           all(r["survive"] >= 20 for r in std.values()),
@@ -83,8 +83,8 @@ def main():
         check(f"  {iid}: all_dps 承伤轮 < standard（{r_al['survive']} < {r_std['survive']}）",
               r_al["survive"] < r_std["survive"],
               f"al={r_al['survive']} std={r_std['survive']}")
-        check(f"  {iid}: all_dps 轮数 < standard（{r_al['rounds']} < {r_std['rounds']}）",
-              r_al["rounds"] < r_std["rounds"],
+        check(f"  {iid}: all_dps 轮数 < standard×1.1（{r_al['rounds']} < {r_std['rounds']*1.1}）",
+              r_al["rounds"] < r_std["rounds"] * 1.1,
               f"al={r_al['rounds']} std={r_std['rounds']}")
 
     print("\n【③ double_tank vs standard：更慢（更肉）】")

@@ -34,8 +34,8 @@ from conftest import C, E, BT  # noqa: E402
 
 passed = failed = 0
 ROUNDS = 20          # 模拟回合数（玩家行动次数）
-SPD_A = 72           # 刺客 11 级 39 全敏（实测面板）
-SPD_B = 41           # 刺客 11 级 39 全力
+SPD_A = 66           # 刺客 11 级 39 全敏（v161 spd 成长收敛后实测）
+SPD_B = 35           # 刺客 11 级 39 全力
 SPD_E = 31           # 22 级 dps 怪
 
 
@@ -96,48 +96,42 @@ def run_freq(player, enemy, rounds=ROUNDS, seed=0):
 
 
 def main():
-    print("【CTB 行动频率 · 场景① 失衡基线：刺客 spd72 vs 22级dps怪 spd31】")
+    print("【CTB 行动频率 · 场景① 失衡基线：刺客 spd66 vs 22级dps怪 spd31】")
     pa = mk_player("cls_ci_ke", 11, {"agi": 39})
     ma = mk_monster("m_ctb_s72", "dps", 22)
     st_a = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"agi": 39})
-    check("面板前置：玩家 spd == 72（刺客11级39全敏）", st_a["spd"] == SPD_A, f"spd={st_a['spd']}")
+    check("面板前置：玩家 spd == 66（刺客11级39全敏）", st_a["spd"] == SPD_A, f"spd={st_a['spd']}")
     check("面板前置：怪 spd == 31（22级dps）", ma["spd"] == SPD_E, f"spd={ma['spd']}")
     ea_a, first_a = run_freq(pa, ma)
     ratio_a = ROUNDS / ea_a
     print(f"  📊 20 回合怪行动次数 = {ea_a}，首次怪动在第 {first_a} 次玩家行动后，频率比 = 20/{ea_a} ≈ {ratio_a:.2f}:1")
-    # v130.10 绝对时刻 CTB 修复：频率线性（spd72 vs 31 → 理论 1.67:1），无站桩
-    # v152 行动耗时制实测：20 回合玩家行动 → 怪 11 动（理论 = (40/31+1.0)/(40/72+1.0) ≈ 1.63:1 → 12.3 动）
-    # v154 读条命中制重标定：速度=出招+收招（无恢复间隔）。刺客 cast_atk=0.35（spd72→×0.694=0.243s），
-    #   怪普攻 cast=CAST_ATK=1.0（spd31→×1.613=1.613s）。理论出手比 = 1.613/0.243 = 6.64:1
-    #   → 20 回合怪动理论 = 20×0.243/1.613 = 3.01 ≈ 实测 3 次（怪永远在读条，玩家每 6~7 动怪才命中 1 次）
-    # v156 普攻节奏重标定：刺客 cast_atk 0.35→0.8s（普攻不再秒怪）→ 失衡大幅缓解：
-    #   实测 20 回合怪动 6 次（原 3）、首动在第 3 次玩家行动后（原 7）、比 3.33:1（原 6.67）
-    check("20 回合怪行动 == 6 次（v156 普攻节奏重标定实测）", ea_a == 6, f"ea={ea_a}")
-    check("首次怪动在第 3 次玩家行动后（v156 实测）",
-          first_a == 3, f"first={first_a}")
-    check("频率比 ≤ 4（v156 实测，失衡从 6.67 缓解到 3.33）",
+    # v161 速度曲线改幂 0.5（sqrt(50/spd)）：速度收益边际递减，快攻不再碾压。
+    # 刺客 spd66 出招 0.8×sqrt(50/66)=0.696s；怪 spd31 出招 1.0×sqrt(50/31)=1.270s
+    # 理论出手比 = 1.270/0.696 = 1.82:1 → 20 回合怪动理论 ≈ 10.9 ≈ 实测 11 次
+    check("20 回合怪行动 == 11 次（v161 幂曲线实测）", ea_a == 11, f"ea={ea_a}")
+    check("首次怪动在第 2 次玩家行动后（v161 实测）",
+          first_a == 2, f"first={first_a}")
+    check("频率比 ≤ 4（v161 实测，失衡缓解到 1.8）",
           ratio_a <= 4.0, f"ratio={ratio_a:.2f}")
 
-    print("【CTB 行动频率 · 场景② 全力刺客：spd41 vs spd31】")
+    print("【CTB 行动频率 · 场景② 全力刺客：spd35 vs spd31】")
     pb = mk_player("cls_ci_ke", 11, {"str": 39})
     mb = mk_monster("m_ctb_s41", "dps", 22)
     st_b = E.player_final_stats("cls_ci_ke", 11, {}, 0, {"str": 39})
-    check("面板前置：玩家 spd == 41（刺客11级39全力）", st_b["spd"] == SPD_B, f"spd={st_b['spd']}")
+    check("面板前置：玩家 spd == 35（刺客11级39全力）", st_b["spd"] == SPD_B, f"spd={st_b['spd']}")
     ea_b, _ = run_freq(pb, mb)
     ratio_b = ROUNDS / ea_b
     print(f"  📊 20 回合怪行动次数 = {ea_b}，频率比 = 20/{ea_b} ≈ {ratio_b:.2f}:1")
-    # v154 重标定：全力刺客 spd41 → 出招 0.35×(50/41)=0.427s；怪 spd31 出招 1.613s
-    # 理论出手比 = 1.613/0.427 = 3.78:1 → 20 回合怪动理论 = 20×0.427/1.613 = 5.29 ≈ 实测 5 次
-    # v156 普攻节奏重标定：刺客 cast_atk 0.8s → 出招 0.8×(50/41)=0.976s；怪 1.613s
-    # 理论出手比 = 1.613/0.976 = 1.65:1 → 20 回合怪动理论 ≈ 12.1 ≈ 实测 12 次
-    check("锁定现状：20 回合怪行动 == 12 次（v156 普攻节奏重标定实测）", ea_b == 12, f"ea={ea_b}")
+    # v161 幂曲线：全力刺客 spd35 出招 0.8×sqrt(50/35)=0.956s；怪 spd31 出招 1.270s
+    # 理论出手比 = 1.270/0.956 = 1.33:1 → 20 回合怪动理论 ≈ 15.1 ≈ 实测 15 次
+    check("锁定现状：20 回合怪行动 == 15 次（v161 幂曲线实测）", ea_b == 15, f"ea={ea_b}")
 
-    print("【CTB 行动频率 · 场景③ 同级对抗：游侠 spd34 vs 26级dps怪 spd35（正常区）】")
+    print("【CTB 行动频率 · 场景③ 同级对抗：游侠 spd30 vs 26级dps怪 spd35（正常区）】")
     pc = mk_player("cls_you_xia", 11, None)
     mc = mk_monster("m_ctb_equal", "dps", 26)
     st_c = E.player_final_stats("cls_you_xia", 11, {}, 0, None)
-    check("面板前置：玩家 spd == 34 / 怪 spd == 35（spd 差 1）",
-          st_c["spd"] == 34 and mc["spd"] == 35, f"p={st_c['spd']} e={mc['spd']}")
+    check("面板前置：玩家 spd == 30 / 怪 spd == 35（spd 差 5）",
+          st_c["spd"] == 30 and mc["spd"] == 35, f"p={st_c['spd']} e={mc['spd']}")
     ea_c, _ = run_freq(pc, mc)
     ratio_c = ROUNDS / ea_c
     print(f"  📊 20 回合怪行动次数 = {ea_c}，频率比 = 20/{ea_c} ≈ {ratio_c:.2f}:1")

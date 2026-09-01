@@ -20,6 +20,7 @@ from .constants import (
     CLASSES, TIER_GROWTH, EVOLVE_ATK_MULT, DEFAULT_ATTR_PTS, ATTR_PER_LV,
     POTION_ATK, POTION_MATK, AFFIX_MULT, ENCHANT_CRIT,
     ROTATIONS, ASSASSIN_COND_WEIGHT, DEF_DOWN_SKILLS, cls_id,
+    SPD_REF, SPD_CT_CAP, MECH_MULT,
 )
 from data.plugins.dragonfall.game import engine as E  # noqa: E402
 
@@ -100,12 +101,22 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
     v161：expr/exprs 表达式技能走 skill_expr_preview（Lv.1 保守档，与 ROTATIONS 口径一致），
           power 字段保留作 fallback（单轨迁移过渡期双兼容）。"""
     phys = _is_phys(cls)
+    # v161 ROTATIONS 按阶段选技能：[(max_lv, 技能名, 权重)]，max_lv 是该技能适用的等级上限，
+    # 选第一个 max_lv >= 当前等级的档（Lv45 → (60, T1) 而非 (30, 基础)）；超过全档用最后一档
+    lvl = int(st.get("level", 1) or 1)
+    rot = ROTATIONS.get(cls_id(cls), [])
+    cand = [t for t in rot if t[0] >= lvl]
+    if not cand:
+        cand = [rot[-1]] if rot else []   # lv 超过所有档（如 95>90）→ 用最高阶（999 毕业档）
+    else:
+        top_lv = min(t[0] for t in cand)  # 最近的上界
+        cand = [t for t in cand if t[0] == top_lv]
     tot, wsum = 0.0, 0.0
     # v161 表达式预览变量注入（player_lv 供 exprs 公式使用；skill_lv=Lv.1 保守档）
     _st_expr = dict(st)
     _st_expr["_player_lv"] = int(st.get("level", 1) or 1)
     _st_expr["_skill_lv"] = 1
-    for name, w in ROTATIONS.get(cls_id(cls), []):
+    for max_lv, name, w in cand:
         info = E.skill_info(cls_id(cls), name)
         if not info:
             continue
@@ -180,7 +191,8 @@ def per_action_dmg(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
     else:
         d = _basic_dmg(st, cls, edef, mdef)
     if crit and not opts.skills:
-        d *= _crit_mult(st, extra_crit=_ec, multi=1)
+        # v161 修复：普攻只乘一次暴击期望（此前误乘两次导致普攻虚高 ~8%，
+        # 让"技能 vs 普攻"门禁失真——技能明明更强却判弱）
         d *= _crit_mult(st, extra_crit=_ec, multi=1)
     if opts.affixes:
         d *= AFFIX_MULT
@@ -222,16 +234,31 @@ def dmg_budget(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
 MP_REGEN_PCT = 0.05   # 基础回蓝速率：每轮回复 max_mp×5%（27 章基础规则简化口径；不查回蓝技能，保守）
 
 
-def rotation_mp_per_round(cls: str, rotation: list | None = None) -> float:
+def rotation_mp_per_round(cls: str, rotation: list | None = None, lv: int | None = None) -> float:
     """技能轴平均每轮 MP 消耗（E.skill_info 实读 mp 字段）。
 
-    - rotation: [(技能名, 权重)]；None = 职业默认 ROTATIONS
+    - rotation: [(技能名, 权重)] 或 v161 [(max_lv, 技能名, 权重)]；None = 职业默认 ROTATIONS
+    - lv: 玩家等级；None = 用 ROTATIONS 全部（旧口径）。lv 给定则按档位选当前等级可达技能（与 _skill_dmg 一致）
     - 资源技（res_cost：怒气/连击点/精力等）不耗 MP → 计 0（与 _tmp_calib_v2 同口径）
     """
     cid = cls_id(cls)
     rot = rotation if rotation is not None else ROTATIONS.get(cid, [])
+    # v161 按等级选档（与 _skill_dmg 同口径）：max_lv 是技能适用等级上限，选第一个 >= lv 的档；
+    # lv 超过全档用最后一档；未传 lv 用全部（旧口径）
+    if rotation is None and lv is not None and rot and len(rot[0]) == 3:
+        cand = [t for t in rot if t[0] >= lv]
+        if cand:
+            top_lv = min(t[0] for t in cand)
+            rot = [t for t in cand if t[0] == top_lv]
+        else:
+            rot = [rot[-1]]
     tot, wsum = 0.0, 0.0
-    for name, w in rot:
+    for item in rot:
+        # v161 新格式 (max_lv, 技能名, 权重)；兼容旧格式 (技能名, 权重)
+        if len(item) == 3:
+            _, name, w = item
+        else:
+            name, w = item
         info = E.skill_info(cid, name)
         if not info:
             continue
@@ -256,7 +283,7 @@ def mp_budget(cls: str, lv: int, gear: dict | None = None,
     """
     st = build_player(cls, lv, gear, opts)
     max_mp = float(st.get("max_mp", 0) or 0)
-    per_round_mp = rotation_mp_per_round(cls, rotation)
+    per_round_mp = rotation_mp_per_round(cls, rotation, lv=lv)
     mp_regen = max_mp * MP_REGEN_PCT
     net = per_round_mp - mp_regen
     empty_rounds = float("inf") if net <= 0 else max_mp / net
@@ -266,3 +293,212 @@ def mp_budget(cls: str, lv: int, gear: dict | None = None,
         "mp_regen": mp_regen,
         "empty_rounds": empty_rounds,
     }
+
+
+# ---------------- v161 可持续 DPS：出手频率 × 资源折算 × 机制期望 ----------------
+
+def _interval(cast: float, spd: float) -> float:
+    """一次行动实际耗时（秒）＝基准耗时 × (SPD_REF / spd)^0.5，引擎 v161 同款折算。
+
+    v161 新曲线（鱼鱼拍板：取消 cap 线性，改边际递减永续公式）：
+      折算系数 = sqrt(SPD_REF / spd)，速度 50 → 1.0；25 → 1.41；100 → 0.71；200 → 0.50。
+      永不封顶、永不归零、每点速度边际递减 → 堆速度永远有意义、不爆炸。
+    """
+    import math as _m
+    eff = max(float(spd or 0), 1.0)
+    return float(cast or 0) * _m.sqrt(SPD_REF / eff)
+
+
+def basic_interval(st: dict, cls: str) -> float:
+    """普攻行动间隔：职业 cast_atk（classes.py 顶层字段）× 速度折算。"""
+    cast_atk = None
+    for _n, _id, *_ in CLASSES:
+        if _id == cls_id(cls):
+            _cls_info = _class_info(_id)
+            cast_atk = _cls_info.get("cast_atk") if _cls_info else None
+            break
+    cast = float(cast_atk or 0) if cast_atk else 1.0
+    return _interval(cast, st.get("spd", 50))
+
+
+def skill_interval(st: dict, cls: str, skill_name: str) -> float:
+    """技能行动间隔：技能 cast × 速度折算（engine 同款）。"""
+    info = E.skill_info(cls_id(cls), skill_name)
+    cast = float(info.get("cast", 0) or 0) if info else 1.0
+    return _interval(cast, st.get("spd", 50))
+
+
+def _class_info(cid: str) -> dict:
+    """职业配置（classes.py CLASSES 顶层字段：cast_atk 等）。"""
+    from data.plugins.dragonfall.game import content as _C
+    return (_C.CLASSES or {}).get(cid, {})
+
+
+def skill_mech_mult(cls: str, skill_name: str) -> float:
+    """技能机制稳态倍率（MECH_MULT 表；无机制 = 1.0）。"""
+    return float(MECH_MULT.get(skill_name, 1.0))
+
+
+def sustained_dps(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
+                  opts: PlayerOptions | None = None, potion_on: bool = False,
+                  fight_len: float = 60.0, target_max_hp: float = 0.0,
+                  target_role: str = "dps") -> float:
+    """可持续 DPS（v161 核心口径）：出手频率 × 单发 × 资源折算 × 机制期望。
+
+    口径 = 输出节奏DPS × 资源可持续性系数
+      - 出手频率：技能 cast（普攻 cast_atk）× (SPD_REF/spd)，快攻职业受益
+      - 资源折算：空蓝轮数 N = max_mp / (每轮耗蓝 - 每轮回蓝)；N ≥ 战斗长度 → 纯技能；
+                  N < 战斗长度 → 空蓝期转普攻（引擎 _skill_cast_blocked 蓝不足拦截）
+      - 机制期望：MECH_MULT 稳态倍率（印记/连击/条件增伤长盘期望）
+
+    fight_len：长盘副本基准（轮），默认 60（v136 长盘副本 60-100 轮区间下界）。
+    """
+    opts = opts or PlayerOptions()
+    # 单发伤害（技能轴 / 普攻）
+    d_skill = per_action_dmg(cls, lv, gear, edef, mdef, opts, potion_on=potion_on)
+    # 出手频率：技能轴当前档位 cast
+    st = build_player(cls, lv, gear, opts, potion=0.0)
+    lvl = int(st.get("level", 1) or 1)
+    cid = cls_id(cls)
+    rot = ROTATIONS.get(cid, [])
+    cand = [t for t in rot if t[0] >= lvl]
+    if not cand:
+        cand = [rot[-1]] if rot else []
+    else:
+        top_lv = min(t[0] for t in cand)
+        cand = [t for t in cand if t[0] == top_lv]
+    # 技能轴 cast 加权（多技能取加权；当前单技能）
+    cast_sum, wsum = 0.0, 0.0
+    for max_lv, name, w in cand:
+        cast_sum += skill_interval(st, cls, name) * w
+        wsum += w
+    cast_avg = cast_sum / max(wsum, 1.0) if wsum else basic_interval(st, cls)
+    freq = 1.0 / max(cast_avg, 0.001)
+    # 机制期望倍率（技能轴当前技能）
+    mech_mult = 1.0
+    if cand:
+        _, name, _ = cand[0]
+        mech_mult = skill_mech_mult(cls, name)
+    # 纸面 DPS（无资源压力）
+    st["_target_max_hp"] = target_max_hp
+    st["_target_role"] = target_role
+    # v161 CD 折算：技能有 CD 时不能每行动都用——一个循环 = 技能(cast秒) + CD期普攻(cd秒)。
+    # 引擎 _skill_on_cd 拦截：CD 未结束只能普攻。基础技能 cd=0（P1/P2 模型原口径）；
+    # P3+ T1-T3 技能 cd=8-24，必须折算（否则模型高估 3-5 倍）。
+    d_basic = _basic_dmg(st, cls, edef, mdef)
+    freq_basic = 1.0 / max(basic_interval(st, cls), 0.001)
+    dps_basic = d_basic * freq_basic
+    cd = 0.0
+    if cand:
+        info = E.skill_info(cls, cand[0][1])
+        if info:
+            cd = float(info.get("cd", 0) or 0)
+    if cd > 0:
+        # 循环 = cd 秒一循环：1 发主技能 + CD 剩余时间用填充技能（无 CD 基础技）或普攻。
+        # 引擎真实循环：主技能 CD 期间用基础技能填充（挥砍/连射/火球/刺击/直拳 cd=0），
+        # 牧师/诗人无 cd=0 基础技 → 普攻填充。
+        skill_hit = d_skill * mech_mult  # 单发主技能（含机制）
+        dot_hit = dot_dps(st, cls, edef, mdef, cand) / max(freq, 0.001)  # DOT 摊到单循环
+        cycle_time = cd
+        fill_dps = dps_basic  # 默认普攻填充
+        # 找该职业 cd=0 填充技能（ROTATIONS 内第一个无 CD 攻击技），用其单发×频率作填充 DPS
+        for maxlv, fname, w in ROTATIONS.get(cid, []):
+            finfo = E.skill_info(cid, fname)
+            fkind = str(finfo.get("kind", "")) if finfo else ""
+            # kind 可能是 '魔法' 或 '魔法·火'（元素后缀）——前缀匹配
+            if not (finfo and not finfo.get("cd") and (fkind.startswith("物理") or fkind.startswith("魔法"))):
+                continue
+            f_interval = skill_interval(st, cls, fname)
+            # 内联算填充技能单发（与 _skill_dmg 同口径，但指定技能名）
+            f_phys = _is_phys(cls)
+            f_stat = st["atk"] if f_phys else st["matk"]
+            f_dt = "phys" if f_phys else "magi"
+            f_expr = dict(st)
+            f_expr["_player_lv"] = int(st.get("level", 1) or 1)
+            f_expr["_skill_lv"] = 1
+            f_val = E.skill_expr_preview(finfo, 1, f_expr)
+            if f_val > 0:
+                f_raw = f_val
+            else:
+                f_raw = int(f_stat * float(finfo.get("power", 0) or 0)) + E.skill_flat_value(1, 1, finfo)
+            if finfo.get("pierce"):
+                f_base = E.calc_damage(int(f_raw), 0, pierce=True, dmg_type=f_dt, variance=0.0)
+            else:
+                f_def = mdef if not f_phys else edef
+                f_base = E.calc_damage(int(f_raw), int(f_def), dmg_type=f_dt, variance=0.0)
+            f_multi = int(finfo.get("hits", finfo.get("multi", 1)))
+            f_dmg = f_base * f_multi
+            fill_dps = f_dmg / max(f_interval, 0.001)
+            break
+        skill_dmg_cycle = skill_hit + dot_hit + fill_dps * (cd - cast_avg)
+        dps_paper = skill_dmg_cycle / max(cycle_time, 0.001)
+    else:
+        dps_paper = d_skill * freq * mech_mult + dot_dps(st, cls, edef, mdef, cand)
+    # 资源折算：空蓝轮数 → 满蓝期技能 / 空蓝期普攻
+    if opts.skills:
+        b = mp_budget(cls, lv, gear, opts)
+        empty_rounds = b["empty_rounds"]
+        if empty_rounds == float("inf"):
+            return dps_paper
+        # 空蓝期普攻 DPS（同面板，普攻 cast_atk 频率）
+        N = float(empty_rounds)
+        if N >= fight_len:
+            return dps_paper
+        return (dps_paper * N + dps_basic * (fight_len - N)) / fight_len
+    return dps_paper
+
+
+def dot_dps(st: dict, cls: str, edef: int, mdef: int,
+            rotation: list | None = None) -> float:
+    """DOT 机制稳态 DPS（v161 鱼鱼拍板：职业机制折算成系数计入 DPS）。
+
+    引擎公式（battle.py _tick_dots）：每层每刻 = (atk×a + matk×m + max_hp×h) × 层数 × (1-抗)
+    对普通怪（stage_scan 口径）：百分比部分不打折；真伤穿防。
+    对 Boss/精英：百分比部分 ×DOT_BOSS_PCT_MULT（0.5），单层 cap max_hp×1%。
+
+    稳态假设（长盘普通怪）：DOT 全程覆盖（每次释放刷新），层数 = mech_val。
+    返回当前技能轴技能的 DOT 稳态 DPS 附加（无 DOT = 0）。
+    """
+    from data.plugins.dragonfall.game.data.battle_config import DOT_DEFS, DOT_BOSS_PCT_MULT, DOT_PCT_CAP
+    cid = cls_id(cls)
+    if not rotation:
+        return 0.0
+    # 当前档技能（与 sustained_dps 同选档逻辑）
+    lvl = int(st.get("level", 1) or 1)
+    rot = rotation or []
+    cand = [t for t in rot if t[0] >= lvl]
+    if not cand:
+        cand = [rot[-1]] if rot else []
+    else:
+        top_lv = min(t[0] for t in cand)
+        cand = [t for t in cand if t[0] == top_lv]
+    if not cand:
+        return 0.0
+    _, name, _ = cand[0]
+    info = E.skill_info(cid, name)
+    if not info:
+        return 0.0
+    mech = info.get("mech", "")
+    stacks = int(info.get("mech_val", 0) or 0)
+    if not mech or mech not in DOT_DEFS or stacks <= 0:
+        return 0.0
+    dd = DOT_DEFS[mech]
+    atk = float(st.get("atk", 0) or 0)
+    matk = float(st.get("matk", 0) or 0)
+    # 目标类型：Boss/精英百分比打折。stage_scan 用普通怪（edef/mdef 为 dps 怪）
+    # 简化：函数不感知目标 role，调用方传 target_role；默认普通怪
+    target_role = st.get("_target_role", "dps")
+    is_boss = target_role in ("boss", "elite")
+    hp_part = 0.0
+    if dd.get("hp"):
+        hp_part = float(st.get("_target_max_hp", 0) or 0) * dd["hp"]
+        if dd.get("type") in ("pct", "hybrid"):
+            if is_boss:
+                hp_part *= DOT_BOSS_PCT_MULT
+            cap = float(st.get("_target_max_hp", 0) or 0) * DOT_PCT_CAP
+            hp_part = min(hp_part, cap)
+    per_tick = atk * dd.get("atk", 0) + matk * dd.get("matk", 0) + hp_part
+    # 真伤穿防（直接加）；非真伤也按引擎 _tick_dots 免防御处理（DOT 不吃防御，只吃 dot_res）
+    interval = skill_interval(st, cls, name)
+    freq = 1.0 / max(interval, 0.001)
+    return per_tick * stacks * freq

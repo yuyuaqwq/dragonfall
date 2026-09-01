@@ -234,15 +234,16 @@ def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
 
 def _ct_initial_wait(spd) -> float:
     """v154 单位初始行动等待 = 基准普攻耗时 × 速度折算系数（第一刀也按速度快慢出）。
-    v130.10 语义：初始等待 = BASE_DELAY/spd（恢复间隔制）。
-    v154 语义：恢复间隔取消，初始等待 = 出招耗时（基准 CAST_ATK × SPD_REF/spd）。
-    速度 50 → 1.0s；速度 25 → 2.0s；速度 80(cap) → 0.625s。
+
+    v161 新曲线（鱼鱼拍板：取消 cap 线性，改边际递减永续公式，与 _ct_cost 同款）：
+        速度 50 → 1.0s；速度 25 → 1.41s；速度 100 → 0.71s；速度 200 → 0.50s。
     """
+    import math as _m
     try:
-        eff = min(float(spd or 0), SPD_CT_CAP)
+        eff = max(float(spd or 0), 1.0)
     except Exception:
-        eff = 0.0
-    return CAST_ATK * (SPD_REF / max(1.0, eff))
+        eff = 1.0
+    return CAST_ATK * _m.sqrt(SPD_REF / eff)
 
 
 class Battle:
@@ -1525,15 +1526,20 @@ class Battle:
 
     def _ct_cost(self, spd) -> float:
         """v154 速度折算系数：动作耗时 = 基准耗时 × 折算系数。
-        v121 语义：行动消耗 cost = BASE_DELAY / max(1, min(spd, SPD_CT_CAP))（恢复间隔）。
-        v154 语义：恢复间隔取消，速度只影响出招/收招快慢。
-        折算系数 = SPD_REF / max(1, min(spd, SPD_CT_CAP))——速度 50 时 = 1.0（基准耗时）。
+
+        v161 新曲线（鱼鱼拍板：取消 cap 线性，改边际递减永续公式）：
+            折算系数 = (SPD_REF / spd)^0.5，SPD_REF = 50
+        - 速度 50 → 1.0（基准耗时）
+        - 速度 25 → 1.41（慢 41%）；速度 100 → 0.71（快 29%）
+        - 速度 200 → 0.50（快 2 倍）；速度 400 → 0.35（快 2.83 倍）
+        - 永不封顶、永不归零、每点速度边际递减 → 堆速度永远有意义、不爆炸
         """
+        import math as _m
         try:
-            eff = min(float(spd or 0), SPD_CT_CAP)
+            eff = max(float(spd or 0), 1.0)
         except Exception:
-            eff = 0.0
-        return SPD_REF / max(1.0, eff)
+            eff = 1.0
+        return _m.sqrt(SPD_REF / eff)
 
     def _action_times(self, kind: str, player: dict | None = None, skill: dict | None = None,
                       item: dict | None = None, skill_name: str | None = None, spd: float | None = None) -> tuple:

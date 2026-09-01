@@ -19,7 +19,7 @@ from .constants import (
     STAGES, cls_id, cls_name, CLASSES,
     BOSS_HIT_PCT_MIN, BOSS_HIT_PCT_MAX,
 )
-from .player import PlayerOptions, build_player, per_action_dmg
+from .player import PlayerOptions, build_player, per_action_dmg, sustained_dps
 from .gear import gear_loadout
 from .monster import build as build_monster, panel as monster_panel
 from data.plugins.dragonfall.game import engine as E  # noqa: E402
@@ -56,13 +56,18 @@ def _monster_hit(role: str, lv: int, pdef: int, pmdef: int,
 
 
 def player_dps(cls: str, lv: int, gear: dict, edef: int, mdef: int,
-               opts: PlayerOptions | None = None) -> float:
-    """单职业一次行动期望伤害（诗人走终章爆发折算）。"""
+               opts: PlayerOptions | None = None,
+               target_max_hp: float = 0.0, target_role: str = "dps") -> float:
+    """单职业可持续 DPS（v161 口径：出手频率 × 单发 × 资源折算 × 机制期望 + DOT）。
+
+    诗人走终章爆发折算（纯辅助职业，不参与输出排名）。
+    """
     opts = opts or PlayerOptions()
     if _is_poet(cls_id(cls)):
         st = build_player(cls_id(cls), lv, gear, opts, potion=0.0)
         return _poet_dps(st, mdef)
-    return per_action_dmg(cls_id(cls), lv, gear, edef, mdef, opts, potion_on=True)
+    return sustained_dps(cls_id(cls), lv, gear, edef, mdef, opts, potion_on=True,
+                         target_max_hp=target_max_hp, target_role=target_role)
 
 
 def stage_row(cls: str, stage: tuple, opts: PlayerOptions | None = None) -> dict:
@@ -75,7 +80,8 @@ def stage_row(cls: str, stage: tuple, opts: PlayerOptions | None = None) -> dict
     gear = gear_loadout(lv, loadout)
     m = build_monster("dps", lv)
     edef, mdef = m.get("def", 0), m.get("mdef", 0)
-    dmg = player_dps(cid, lv, gear, edef, mdef, opts)
+    dmg = player_dps(cid, lv, gear, edef, mdef, opts,
+                     target_max_hp=m.get("max_hp", 0) or m.get("hp", 0))
     st = build_player(cid, lv, gear, opts, potion=0.0)
     hp = st.get("max_hp", 0)
     boss_hit = _monster_hit("boss", lv, st.get("def", 0), st.get("mdef", 0),
@@ -125,7 +131,8 @@ def monster_scan(cls: str = "cls_zhan_shi",
         gear = gear_loadout(lv, loadout)
         m = build_monster("dps", lv)
         edef, mdef = m.get("def", 0), m.get("mdef", 0)
-        dmg = player_dps(cid, lv, gear, edef, mdef, opts)
+        dmg = player_dps(cid, lv, gear, edef, mdef, opts,
+                         target_max_hp=m.get("max_hp", 0) or m.get("hp", 0))
         st = build_player(cid, lv, gear, opts, potion=0.0)
         hp = st.get("max_hp", 0)
         # 裸装战士（关乘区，纯裸）对 dps 怪

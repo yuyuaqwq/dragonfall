@@ -11,7 +11,7 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.82,
              'kind': '物理',
-             'exprs': ['atk*0.35 + 60 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.5 + 80 + player_lv*5 + skill_lv*12'],
              
              
              'cast': 0.45,
@@ -124,7 +124,7 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.16,
              'kind': '魔法·火',
-             'exprs': ['matk*0.5 + 60 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*0.749 + 64 + player_lv*5.4 + skill_lv*12.8'],
              
              'cast': 0.8,
              'mech': 'fire_mark',
@@ -235,10 +235,10 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.41,
              'kind': '物理',
+             'exprs': ['atk*0.224 + 25 + player_lv*3.0 + skill_lv*7.5'],
              
-             'exprs': ['atk*0.3 + 35 + player_lv*4 + skill_lv*10'],'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
-             'cast': 0.35,
+             
+             'cast': 0.5,
              'hits': 2,
              'res_cost': {"energy": 22},
              'name': '连射',
@@ -249,9 +249,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.17,
              'kind': '物理',
+             'exprs': ['atk*0.5 + 70 + player_lv*5 + skill_lv*14'],
              
-             'exprs': ['atk*0.5 + 70 + player_lv*5 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.5,
              'res_cost': {"energy": 28},
              'name': '瞄准射击',
@@ -274,9 +274,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 1.17,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 65 + player_lv*5 + skill_lv*13'],
              
-             'exprs': ['atk*0.45 + 65 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.5,
              'cd': 12,
              'mech': 'spd_down',
@@ -302,9 +302,9 @@ PLAYER_SKILLS = {
              'mp': 14,
              'power': 1.51,
              'kind': '物理',
+             'exprs': ['atk*0.55 + 85 + player_lv*6 + skill_lv*15'],
              
-             'exprs': ['atk*0.55 + 85 + player_lv*6 + skill_lv*15'],'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.65,
              'cd': 12,
              'res_cost': {"energy": 55},
@@ -329,9 +329,9 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.17,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 60 + player_lv*5 + skill_lv*12'],
              
-             'exprs': ['atk*0.45 + 60 + player_lv*5 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.5,
              'cd': 8,
              'mech': 'hunt_mark',
@@ -394,9 +394,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.87,
              'kind': '魔法',
+             'exprs': ['matk*0.254 + 36 + player_lv*2.5 + skill_lv*6.6'],
              
-             'exprs': ['matk*0.5 + 70 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
+             
              'cast': 0.5,
              'cd': 8,
              'faith': 0,
@@ -450,10 +450,10 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.66,
              'kind': '物理',
+             'exprs': ['atk*0.4 + 40 + player_lv*4 + skill_lv*12'],
              
-             'exprs': ['atk*0.4 + 40 + player_lv*4 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
-             'cast': 0.25,
+             
+             'cast': 0.45,
              'mech': 'lian_duan',
              'mech_val': 1,
              'name': '刺击',
@@ -464,9 +464,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.78,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 50 + player_lv*5 + skill_lv*13'],
              
-             'exprs': ['atk*0.45 + 50 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.3,
              'cd': 8,
              'mech': 'bleed',
@@ -479,9 +479,9 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 0.92,
              'kind': '物理',
+             'exprs': ['atk*0.5 + 55 + player_lv*5 + skill_lv*14'],
              
-             'exprs': ['atk*0.5 + 55 + player_lv*5 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.35,
              'cd': 8,
              'mech': 'lian_duan',
@@ -494,9 +494,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.46,
              'kind': '物理',
+             'exprs': ['atk*0.35 + 45 + player_lv*4 + skill_lv*11'],
              
-             'exprs': ['atk*0.35 + 45 + player_lv*4 + skill_lv*11'],'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.35,
              'cd': 12,
              'hits': 2,
@@ -541,9 +541,9 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.04,
              'kind': '物理',
+             'exprs': ['atk*0.6 + 75 + player_lv*6 + skill_lv*16'],
              
-             'exprs': ['atk*0.6 + 75 + player_lv*6 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.4,
              'cd': 12,
              'mech': 'finisher',
@@ -560,9 +560,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.63,
              'kind': '物理',
+             'exprs': ['atk*0.200 + 44 + player_lv*3.4 + skill_lv*8.0'],
              
-             'exprs': ['atk*0.3 + 45 + player_lv*5 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.35,
              'shaken_gain': 0,
              'name': '直拳',
@@ -573,9 +573,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.81,
              'kind': '物理',
+             'exprs': ['atk*0.4 + 55 + player_lv*5 + skill_lv*13'],
              
-             'exprs': ['atk*0.4 + 55 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.45,
              'cd': 8,
              'shaken_gain': 0,
@@ -588,9 +588,9 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 0.59,
              'kind': '物理',
+             'exprs': ['atk*0.4 + 60 + player_lv*6 + skill_lv*14'],
              
-             'exprs': ['atk*0.4 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.5,
              'cd': 12,
              'shaken_gain': 0,
@@ -602,9 +602,9 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.29,
              'kind': '物理',
+             'exprs': ['atk*0.25 + 35 + player_lv*4 + skill_lv*10'],
              
-             'exprs': ['atk*0.25 + 35 + player_lv*4 + skill_lv*10'],'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.45,
              'cd': 12,
              'hits': 3,
@@ -629,9 +629,9 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.59,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 60 + player_lv*6 + skill_lv*14'],
              
-             'exprs': ['atk*0.45 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.55,
              'cd': 12,
              'mech': 'stun',
@@ -645,9 +645,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.73,
              'kind': '物理',
+             'exprs': ['atk*0.5 + 70 + player_lv*6 + skill_lv*15'],
              
-             'exprs': ['atk*0.5 + 70 + player_lv*6 + skill_lv*15'],'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
+             
              'cast': 0.4,
              'cd': 12,
              'shaken_gain': 0,
@@ -723,9 +723,9 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.08,
              'kind': '魔法',
+             'exprs': ['matk*0.306 + 44 + player_lv*3.4 + skill_lv*8.8'],
              
-             'exprs': ['matk*0.45 + 65 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
+             
              'cast': 0.6,
              'cd': 8,
              'name': '音刃',
@@ -780,8 +780,9 @@ BRANCH_SKILLS = {
                         'mp': 6,
                         'power': 0.97,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.45 + 314 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.45,
                         'cd': 8,
                         'mech': 'zhan_yi',
@@ -794,10 +795,11 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.33,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.33, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.33, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*1.9 + 120 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 0.7,
-                        'cd': 12,
+                        'cd': 8,
                         'lifesteal': 0.25,
                         'name': '嗜血斩',
                         'desc': '刀锋舔过血肉，伤处化作养分——造成 125% 物理伤害，吸血 25%（狂暴中 50%）'
@@ -807,8 +809,9 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.14,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.14, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.14, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.55 + 406 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'mech': 'bleed',
@@ -832,8 +835,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.25,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.25, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.25, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.5 + 565 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.7,
                         'cd': 12,
                         'auto': 'fury_append',
@@ -860,8 +864,9 @@ BRANCH_SKILLS = {
                         'mp': 6,
                         'power': 0.97,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.4 + 407 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.45,
                         'cd': 8,
                         'mech': 'stun',
@@ -898,8 +903,9 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.91,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.91, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.91, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.35 + 390 + player_lv*5 + skill_lv*11'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'auto': 'taunt_fail',
@@ -937,10 +943,11 @@ BRANCH_SKILLS = {
                         'mp': 28,
                         'power': 2.13,
                         'kind': '真伤',
-             'formula': [{'stat': 'atk', 'mult': 2.13, 'type': 'true', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.13, 'type': 'true', 'skill_flat': True}],
+             'exprs': ['atk*0.95 + 850 + player_lv*12 + skill_lv*22'],
+             
+             
                         'cast': 0.9,
-                        'cd': 16,
+                        'cd': 10,
                         'mech': 'burn',
                         'mech_val': 2,
                         'kind_override': '真伤',
@@ -964,8 +971,9 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 0.6,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.25 + 222 + player_lv*3 + skill_lv*8'],
+             
+             
                         'cast': 0.9,
                         'cd': 12,
                         'hits': 3,
@@ -979,8 +987,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.7,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.6 + 835 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.9,
                         'cd': 12,
                         'mech': 'bleed',
@@ -995,8 +1004,9 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.17,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.4 + 562 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.9,
                         'cd': 16,
                         'aoe': 'front',
@@ -1042,8 +1052,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.44,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.44, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.44, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.5 + 758 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 12,
                         'cond': {"type": "revenge", "mult": 0.8},
@@ -1055,8 +1066,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.7,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.7, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.55 + 877 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.9,
                         'cd': 16,
                         'mech': 'stun',
@@ -1095,10 +1107,11 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 3.71,
                         'kind': '真伤',
-             'formula': [{'stat': 'atk', 'mult': 3.71, 'type': 'true', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 3.71, 'type': 'true', 'skill_flat': True}],
+             'exprs': ['atk*1.6 + 1600 + player_lv*18 + skill_lv*30'],
+             
+             
                         'cast': 1.2,
-                        'cd': 20,
+                        'cd': 14,
                         'mech': 'burn',
                         'mech_val': 3,
                         'kind_override': '真伤',
@@ -1110,8 +1123,9 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 1.63,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.63, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.63, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.45 + 839 + player_lv*8 + skill_lv*18'],
+             
+             
                         'cast': 1.2,
                         'cd': 20,
                         'aoe': 'all',
@@ -1123,8 +1137,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 0.59,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.22 + 240 + player_lv*3 + skill_lv*7'],
+             
+             
                         'cast': 1.1,
                         'cd': 20,
                         'hits': 4,
@@ -1148,8 +1163,9 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 2.52,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 2.52, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.52, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.8 + 1430 + player_lv*8 + skill_lv*20'],
+             
+             
                         'cast': 1.3,
                         'cd': 24,
                         'cond': {"type": "player_mech_stacks", "mech": "zhan_yi", "stacks": 10, "mult": 1.4},
@@ -1225,7 +1241,8 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.48,
                         'kind': '魔法·火',
-             'formula': [{'stat': 'matk', 'mult': 1.48, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.767 + 133 + player_lv*7.8 + skill_lv*16.5'],
+             
                         'cast': 0.9,
                         'cd': 8,
                         'mech': 'fire_mark',
@@ -1248,8 +1265,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 0.91,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 0.91, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 0.91, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.62 + 136 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 1.1,
                         'cd': 12,
                         'hits': 2,
@@ -1272,8 +1290,9 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 1.71,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.35 + 254 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 1.1,
                         'cd': 12,
                         'cond': {"type": "enemy_marks", "stacks": 4, "mult": 1.35},
@@ -1297,8 +1316,9 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 0.52,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 0.52, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 0.52, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.28 + 31 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.9,
                         'cd': 8,
                         'hits': 3,
@@ -1323,8 +1343,9 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 1.25,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.05 + 128 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.7,
                         'cd': 4,
                         'mech': 'arcane',
@@ -1348,8 +1369,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 0.78,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 0.78, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 0.78, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.55 + 56 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.9,
                         'cd': 12,
                         'hits': 2,
@@ -1390,8 +1412,9 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 1.33,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.33, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.33, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.15 + 77 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.9,
                         'cd': 12,
                         'mech': 'element_burst_all',
@@ -1413,9 +1436,10 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.44,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
-                        'cast': 1.2,
+             'exprs': ['matk*1.918 + 597 + player_lv*10.0 + skill_lv*21.3'],
+             
+             
+                        'cast': 1.0,
                         'cd': 16,
                         'aoe': 'all',
                         'name': '元素洪流',
@@ -1450,8 +1474,9 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 1.59,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.59, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.59, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.3 + 172 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.9,
                         'cd': 12,
                         'mech': 'arcane_burst',
@@ -1463,8 +1488,9 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.71,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.71, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.45 + 167 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 1.0,
                         'cd': 16,
                         'mech': 'arcane_burst',
@@ -1524,8 +1550,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.45,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.45, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.45, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*2.1 + 327 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 1.3,
                         'cd': 20,
                         'mech': 'element_burst_3',
@@ -1537,8 +1564,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 1.73,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.73, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.73, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.5 + 144 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 1.3,
                         'cd': 20,
                         'aoe': 'all',
@@ -1572,8 +1600,9 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 3.15,
                         'kind': '魔法·雷',
-             'formula': [{'stat': 'matk', 'mult': 3.15, 'type': 'magi', 'skill_flat': True}],
-                        'cast': 1.3,
+             'exprs': ['matk*3.5 + 500 + player_lv*8 + skill_lv*18'],
+             
+                        'cast': 1.1,
                         'cd': 24,
                         'mech': 'thunder_mark',
                         'mech_val': 1,
@@ -1588,8 +1617,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.63,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.63, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.63, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.4 + 126 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 1.2,
                         'cd': 20,
                         'aoe': 'all',
@@ -1601,8 +1631,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.52,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.52, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.52, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*2.2 + 313 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 1.3,
                         'cd': 20,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.2},
@@ -1634,8 +1665,9 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 3.03,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 3.03, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 3.03, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*2.75 + 367 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 1.3,
                         'cd': 24,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4},
@@ -1670,8 +1702,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.13,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.52 + 389 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'res_cost': {"energy": 30},
@@ -1684,8 +1717,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.13,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.13, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.42 + 367 + player_lv*8 + skill_lv*18'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'mech': 'poison',
@@ -1699,8 +1733,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.36,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.36, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.36, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.6 + 296 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.35,
                         'cd': 12,
                         'mech': 'poison',
@@ -1729,8 +1764,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.24,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.24, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.24, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.52 + 162 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 0.35,
                         'cd': 12,
                         'mech': 'poison_burst',
@@ -1745,8 +1781,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 0.99,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.99, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.99, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.34 + 293 + player_lv*8 + skill_lv*18'],
+             
+             
                         'cast': 0.3,
                         'res_cost': {"energy": 25},
                         'cond': {"type": "speed_ratio", "ratio": 1.5, "mult": 1.3},
@@ -1758,8 +1795,9 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 0.6,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.6, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.3 + 41 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'hits': 2,
@@ -1772,10 +1810,11 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.49,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*1.18 + 20 + player_lv*5.3 + skill_lv*12.0'],
+             
+             
                         'cast': 0.5,
-                        'cd': 12,
+                        'cd': 8,
                         'res_cost': {"energy": 45},
                         'charge': 1.5,
                         'name': '蓄力射击',
@@ -1786,8 +1825,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 0.42,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.42, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.42, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.2 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.35,
                         'cd': 12,
                         'hits': 3,
@@ -1848,8 +1888,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.46,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.62 + 585 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'res_cost': {"energy": 50},
@@ -1872,8 +1913,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.71,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.8 + 733 + player_lv*6 + skill_lv*16'],
+             
+             
                         'cast': 0.65,
                         'cd': 12,
                         'res_cost': {"energy": 45},
@@ -1910,8 +1952,9 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 0.36,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.36, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.36, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.16 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.45,
                         'cd': 12,
                         'hits': 4,
@@ -1924,8 +1967,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.71,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.71, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'exprs': ['atk*0.664 + 498 + player_lv*5.8 + skill_lv*13.3'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'res_cost': {"energy": 50},
@@ -1951,8 +1995,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.46,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'exprs': ['atk*0.72 + 556 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.5,
                         'cd': 12,
                         'res_cost': {"energy": 45},
@@ -1992,8 +2037,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.43,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.2 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'hits': 4,
@@ -2019,10 +2065,11 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 2.42,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'skill_flat': True}],
-                        'cast': 0.65,
-                        'cd': 20,
+             'exprs': ['atk*1.42 + 1150 + player_lv*7.2 + skill_lv*17.5'],
+             
+             
+                        'cast': 0.75,
+                        'cd': 14,
                         'res_cost': {"energy": 60},
                         'kill': {"hunt_full": True, "poison": 5, "hp_lt": 0.25},
                         'name': '死神之箭',
@@ -2057,8 +2104,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.43,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.21 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'hits': 4,
@@ -2071,8 +2119,9 @@ BRANCH_SKILLS = {
                         'mp': 28,
                         'power': 0.43,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.22 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.5,
                         'cd': 20,
                         'hits': 4,
@@ -2095,8 +2144,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.42,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.42, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'exprs': ['atk*1.2 + 987 + player_lv*7 + skill_lv*18'],
+             
+             
                         'cast': 0.65,
                         'cd': 24,
                         'res_cost': {"energy": 70},
@@ -2202,8 +2252,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.0, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.0, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.79 + 30 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 12,
                         'mech': 'curse',
@@ -2242,8 +2293,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.25,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.7 + 320 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.7,
                         'cd': 12,
                         'mech': 'curse_refresh',
@@ -2256,8 +2308,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.25,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.25, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.8 + 195 + player_lv*8 + skill_lv*15'],
+             
+             
                         'cast': 0.7,
                         'cd': 16,
                         'mech': 'sacrifice',
@@ -2373,8 +2426,9 @@ BRANCH_SKILLS = {
                         'mp': 26,
                         'power': 1.35,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.35, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.35, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.65 + 456 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.9,
                         'cd': 20,
                         'mech': 'bone_rush',
@@ -2388,8 +2442,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.57,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.57, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.57, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.05 + 259 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 0.8,
                         'cd': 16,
                         'faith': 0,
@@ -2441,8 +2496,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.78,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.78, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.78, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.35 + 215 + player_lv*8 + skill_lv*18'],
+             
+             
                         'cast': 0.8,
                         'cd': 20,
                         'faith': 0,
@@ -2490,8 +2546,9 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.32,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.75 + 349 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.9,
                         'cd': 24,
                         'faith': 0,
@@ -2514,9 +2571,10 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.41,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.41, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.41, 'type': 'magi', 'skill_flat': True}],
-                        'cast': 0.9,
+             'exprs': ['matk*1.668 + 480 + player_lv*8.8 + skill_lv*19.6'],
+             
+             
+                        'cast': 0.8,
                         'cd': 24,
                         'faith': 0,
                         'name': '永恒安魂',
@@ -2527,8 +2585,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.32,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.32, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.32, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.6 + 530 + player_lv*8 + skill_lv*19'],
+             
+             
                         'cast': 0.9,
                         'cd': 24,
                         'faith': 0,
@@ -2551,8 +2610,9 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 1.12,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.52 + 404 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'lian_duan',
@@ -2565,8 +2625,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 0.5,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.5, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.5, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.26 + 68 + player_lv*4 + skill_lv*8'],
+             
+             
                         'cast': 0.4,
                         'cd': 12,
                         'hits': 3,
@@ -2578,10 +2639,11 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.5,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.5, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.5, 'type': 'phys', 'skill_flat': True}],
-                        'cast': 0.4,
-                        'cd': 12,
+             'exprs': ['atk*1.18 + 170 + player_lv*6 + skill_lv*14'],
+             
+             
+                        'cast': 0.55,
+                        'cd': 8,
                         'passive': {"proc": "finisher_up"},
                         'name': '链舞',
                         'desc': '锁链舞动如轮，寒光漫天——造成 114% 物理伤害，终结技系数 +6%（每段 10% → 16%）'
@@ -2613,8 +2675,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.46,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.68 + 562 + player_lv*7 + skill_lv*18'],
+             
+             
                         'cast': 0.4,
                         'cd': 12,
                         'mech': 'finisher',
@@ -2628,8 +2691,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.12,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.12, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.48 + 437 + player_lv*6 + skill_lv*14'],
+             
+             
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'poison',
@@ -2643,8 +2707,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 0.63,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.3 + 139 + player_lv*5 + skill_lv*11'],
+             
+             
                         'cast': 0.35,
                         'cd': 12,
                         'hits': 2,
@@ -2666,8 +2731,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.44,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.44, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.45 + 20 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.4,
                         'cd': 12,
                         'mech': 'poison_burst_finisher',
@@ -2679,8 +2745,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.46,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.46, 'type': 'phys', 'pierce': True, 'skill_flat': True}],
+             'exprs': ['atk*0.6 + 634 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.4,
                         'cd': 12,
                         'mech': 'poison',
@@ -2719,8 +2786,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.47,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.47, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.47, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.6 + 693 + player_lv*6 + skill_lv*15'],
+             
+             
                         'cast': 0.4,
                         'cd': 12,
                         'cond': {"type": "stealth", "mult": 1.4},
@@ -2732,10 +2800,11 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.81,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.64 + 980 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.5,
-                        'cd': 16,
+                        'cd': 10,
                         'cond': {"type": "enemy_low_hp", "hp_lt": 40, "mult": 1.45},
                         'name': '收割',
                         'desc': '匕刃悄然划向垂死之敌——造成 129% 物理伤害，目标生命低于 40% 时伤害 ×1.45'
@@ -2745,8 +2814,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 0.43,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.43, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.22 + 36 + player_lv*4 + skill_lv*7'],
+             
+             
                         'cast': 0.45,
                         'cd': 12,
                         'hits': 4,
@@ -2791,8 +2861,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 1.4,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.4, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.4, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.4 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.3,
                         'cd': 16,
                         'aoe': 'all',
@@ -2814,8 +2885,9 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 1.95,
                         'kind': '真伤',
-             'formula': [{'stat': 'atk', 'mult': 1.95, 'type': 'true', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.95, 'type': 'true', 'skill_flat': True}],
+             'exprs': ['atk*0.7 + 940 + player_lv*8 + skill_lv*17'],
+             
+             
                         'cast': 0.45,
                         'cd': 16,
                         'name': '腐蚀之刃',
@@ -2826,8 +2898,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.81,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.81, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.55 + 1036 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'cond': {"type": "enemy_def_high", "mult": 1.5},
@@ -2865,8 +2938,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.49,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.49, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.49, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.26 + 58 + player_lv*4 + skill_lv*8'],
+             
+             
                         'cast': 0.5,
                         'cd': 16,
                         'hits': 4,
@@ -2878,8 +2952,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 2.17,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 2.17, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.17, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.72 + 1204 + player_lv*8 + skill_lv*20'],
+             
+             
                         'cast': 0.6,
                         'cd': 20,
                         'mech': 'finisher',
@@ -2901,8 +2976,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.1,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 2.1, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 2.1, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.78 + 1065 + player_lv*7 + skill_lv*18'],
+             
+             
                         'cast': 0.5,
                         'cd': 24,
                         'cond': {"type": "player_mech_stacks", "mech": "lian_duan", "stacks": 5, "mult": 1.5},
@@ -2926,8 +3002,9 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 1.32,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.42 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.5,
                         'cd': 20,
                         'aoe': 'all',
@@ -2939,12 +3016,13 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 3.25,
                         'kind': '真伤',
-             'formula': [{'stat': 'atk', 'mult': 3.25, 'type': 'true', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 3.25, 'type': 'true', 'skill_flat': True}],
-                        'cast': 0.6,
-                        'cd': 24,
+             'exprs': ['atk*0.78 + 1750 + player_lv*8.5 + skill_lv*20.5'],
+             
+             
+                        'cast': 0.8,
+                        'cd': 16,
                         'mech': 'corros',
-                        'mech_val': 4,
+                        'mech_val': 3,
                         'kind_override': '真伤',
                         'name': '万毒噬心',
                         'desc': '万毒汇入敌体，噬咬心脉脏腑——造成 232% 真实伤害，附加 4 层腐蚀'
@@ -2964,8 +3042,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.32,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.32, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.38 + 20 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.5,
                         'cd': 24,
                         'aoe': 'all',
@@ -2986,8 +3065,9 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.72,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.5 + 56 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'shaken_gain': 0,
@@ -2999,8 +3079,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 0.81,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.55 + 58 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.45,
                         'cd': 12,
                         'shaken_gain': 0,
@@ -3013,8 +3094,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.08,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.6 + 240 + player_lv*7 + skill_lv*14'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'shaken_gain': 0,
@@ -3027,10 +3109,11 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.35,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.35, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.35, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*1.45 + 150 + player_lv*8 + skill_lv*17'],
+             
+             
                         'cast': 0.7,
-                        'cd': 16,
+                        'cd': 10,
                         'shaken_gain': 0,
                         'name': '崩拳',
                         'desc': '崩山一拳轰然砸落——造成 213% 物理伤害，单次大幅推破绽条'
@@ -3040,8 +3123,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.08,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.08, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.55 + 328 + player_lv*6 + skill_lv*13'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'cond': {"type": "enemy_shaken_ratio", "mult": 0.8},
@@ -3066,8 +3150,9 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.72,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.72, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.4 + 137 + player_lv*5 + skill_lv*12'],
+             
+             
                         'cast': 0.4,
                         'cd': 8,
                         'shaken_gain': 0,
@@ -3090,8 +3175,9 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 0.45,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.45, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.45, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.25 + 90 + player_lv*3 + skill_lv*8'],
+             
+             
                         'cast': 0.25,
                         'cd': 12,
                         'shaken_gain': 0,
@@ -3149,8 +3235,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 0.24,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.24, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.24, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.15 + 62 + player_lv*1 + skill_lv*4'],
+             
+             
                         'cast': 0.5,
                         'cd': 12,
                         'hits': 4,
@@ -3163,10 +3250,11 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.26,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*1.0 + 650 + player_lv*9 + skill_lv*19'],
+             
+             
                         'cast': 0.7,
-                        'cd': 16,
+                        'cd': 10,
                         'shaken_gain': 0,
                         'cond': {"type": "enemy_broken", "mult": 1.5},
                         'name': '气力裂空',
@@ -3177,8 +3265,9 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 0.38,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.38, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.38, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.22 + 44 + player_lv*3 + skill_lv*8'],
+             
+             
                         'cast': 0.6,
                         'cd': 16,
                         'hits': 3,
@@ -3201,8 +3290,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.26,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.26, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.65 + 379 + player_lv*7 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 16,
                         'shaken_gain': 0,
@@ -3237,8 +3327,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 0.54,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.54, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.54, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.35 + 51 + player_lv*4 + skill_lv*9'],
+             
+             
                         'cast': 0.3,
                         'cd': 16,
                         'mech': 'guard_core_burst',
@@ -3288,8 +3379,9 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.49,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.8 + 437 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 0.8,
                         'cd': 20,
                         'shaken_gain': 0,
@@ -3302,8 +3394,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.28,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.28, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.28, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.18 + 27 + player_lv*2 + skill_lv*6'],
+             
+             
                         'cast': 0.6,
                         'cd': 16,
                         'hits': 4,
@@ -3316,10 +3409,11 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.67,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
-                        'cast': 0.9,
-                        'cd': 24,
+             'exprs': ['atk*1.35 + 1150 + player_lv*12 + skill_lv*24'],
+             
+             
+                        'cast': 0.8,
+                        'cd': 16,
                         'shaken_gain': 0,
                         'name': '撼岳·终焉',
                         'desc': '撼岳终焉之拳崩天裂地——造成 283% 物理伤害，推破绽条；破防时目标眩晕 2.0 刻'
@@ -3339,8 +3433,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 1.67,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.67, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.82 + 604 + player_lv*8 + skill_lv*15'],
+             
+             
                         'cast': 0.9,
                         'cd': 24,
                         'cond': {"type": "enemy_broken", "mult": 1.9},
@@ -3375,8 +3470,9 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 0.63,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.35 + 141 + player_lv*4 + skill_lv*9'],
+             
+             
                         'cast': 0.35,
                         'cd': 20,
                         'mech': 'guard_core_burst',
@@ -3399,8 +3495,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 1.49,
                         'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
-             'formula': [{'stat': 'atk', 'mult': 1.49, 'type': 'phys', 'skill_flat': True}],
+             'exprs': ['atk*0.75 + 478 + player_lv*8 + skill_lv*16'],
+             
+             
                         'cast': 0.8,
                         'cd': 24,
                         'shaken_gain': 0,
@@ -3457,8 +3554,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.02,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.55 + 200 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.5,
                         'cd': 12,
                         'cond': {"type": "melody_buff", "mult": 1.3},
@@ -3495,8 +3593,9 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.02,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.02, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.490 + 285 + player_lv*5.9 + skill_lv*13.7'],
+             
+             
                         'cast': 0.5,
                         'cd': 8,
                         'mech2': 'atk_down',
@@ -3531,8 +3630,9 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.14,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.6 + 281 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'atk_down',
@@ -3557,8 +3657,9 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.14,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.14, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.5 + 360 + player_lv*7 + skill_lv*15'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'def_down',
@@ -3574,8 +3675,9 @@ BRANCH_SKILLS = {
                         'mp': 28,
                         'power': 1.8,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.8, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.8, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.138 + 378 + player_lv*6.6 + skill_lv*13.3'],
+             
+             
                         'cast': 0.7,
                         'cd': 20,
                         'name': '破晓长歌',
@@ -3667,8 +3769,9 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 1.31,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.7 + 371 + player_lv*7 + skill_lv*14'],
+             
+             
                         'cast': 0.6,
                         'cd': 16,
                         'mech2': 'silence',
@@ -3690,8 +3793,9 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.31,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.31, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.65 + 405 + player_lv*7 + skill_lv*16'],
+             
+             
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'all_down',
@@ -3753,8 +3857,9 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.04,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.45 + 384 + player_lv*8 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 24,
                         'cond': {"type": "melody_stacks", "stacks": 4, "mult": 1.3},
@@ -3792,8 +3897,9 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.04,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 2.04, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*1.4 + 469 + player_lv*7 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 20,
                         'mech2': 'silence',
@@ -3815,8 +3921,9 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 1.12,
                         'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.12, 'type': 'magi', 'skill_flat': True}],
-             'formula': [{'stat': 'matk', 'mult': 1.12, 'type': 'magi', 'skill_flat': True}],
+             'exprs': ['matk*0.45 + 383 + player_lv*7 + skill_lv*14'],
+             
+             
                         'cast': 0.7,
                         'cd': 24,
                         'aoe': 'all',
@@ -3857,7 +3964,7 @@ TUTOR_SKILLS = {
     "cls_you_xia": {
     },
     "cls_mu_shi": {
-        "sk_sheng_guang_cheng_jie": {
+        "sk_sheng_guang_shen_pan": {
             "lv": 6, "mp": 10, "power": 1.4, "kind": "魔法",
             "cd": 2,
             "desc": "召来圣光凝成惩戒之剑劈落——造成 140% 魔法伤害，对黑暗生物格外克制（导师秘传，CD 2）",

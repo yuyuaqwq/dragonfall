@@ -167,6 +167,28 @@ def main():
                 expr = build_expr(stat, round(power, 4), p)
             targets[sid] = (s, expr)
 
+    # v161 分支技能（BRANCH_SKILLS，branches = {tier: {分支名: {技能表}}}）
+    for cid, cinfo in (C.BRANCH_SKILLS or {}).items():
+        branches = cinfo.get("branches") if isinstance(cinfo, dict) else cinfo
+        for bidx, branches_of_tier in (branches or {}).items():
+            if not isinstance(branches_of_tier, dict):
+                continue
+            for bname, bskills in branches_of_tier.items():
+                if not isinstance(bskills, dict):
+                    continue
+                for sid, s in bskills.items():
+                    stat = kind_stat(s.get("kind"))
+                    if stat is None:
+                        continue
+                    sname = s.get("name", sid)
+                    expr = build_expr_lol(stat, sname)
+                    if expr is None:
+                        power = float(s.get("power", 1.0) or 1.0)
+                        up = C.SKILL_UP.get(sname, {})
+                        p = float(up.get("p", 10) or 10)
+                        expr = build_expr(stat, round(power, 4), p)
+                    targets[sid] = (s, expr)
+
     print(f"伤害技能: {len(targets)}")
     plan = []
     missing = []

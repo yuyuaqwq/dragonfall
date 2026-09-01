@@ -39,10 +39,11 @@ def check(name, cond, detail=""):
 
 def main():
     print("【1/4 重耗蓝职业空蓝轮更小（拳师崩拳18mp vs 战士嗜血斩10mp）】")
-    b_qs = mp_budget("拳师", 24, None)
-    b_zs = mp_budget("战士", 24, None)
-    print(f"  拳师: max_mp={b_qs['max_mp']:.0f} 每轮耗蓝={b_qs['per_round_mp']:.1f} 空蓝轮={b_qs['empty_rounds']:.1f}")
-    print(f"  战士: max_mp={b_zs['max_mp']:.0f} 每轮耗蓝={b_zs['per_round_mp']:.1f} 空蓝轮={b_zs['empty_rounds']:.1f}")
+    # v161 按阶段选技能：Lv24（P2）用基础技能耗蓝相近；Lv45（P3 二职）才体现 T1 分支差异（崩拳18 > 嗜血斩10）
+    b_qs = mp_budget("拳师", 45, None)
+    b_zs = mp_budget("战士", 45, None)
+    print(f"  拳师 Lv45: max_mp={b_qs['max_mp']:.0f} 每轮耗蓝={b_qs['per_round_mp']:.1f} 空蓝轮={b_qs['empty_rounds']:.1f}")
+    print(f"  战士 Lv45: max_mp={b_zs['max_mp']:.0f} 每轮耗蓝={b_zs['per_round_mp']:.1f} 空蓝轮={b_zs['empty_rounds']:.1f}")
     check("拳师每轮耗蓝 > 战士（崩拳18mp 嗜血斩10mp）",
           b_qs["per_round_mp"] > b_zs["per_round_mp"],
           f"qs={b_qs['per_round_mp']} zs={b_zs['per_round_mp']}")
@@ -61,8 +62,9 @@ def main():
           f"gear={b_gear['empty_rounds']} naked={b_naked['empty_rounds']}")
 
     print("【3/4 rotation 覆盖默认 ROTATIONS】")
-    b_def = mp_budget("战士", 24, None)
-    b_rot = mp_budget("战士", 24, None, rotation=[("怒斩", 1.0)])
+    # v161 按阶段选技能：Lv45（P3）默认嗜血斩 10mp vs 覆盖怒斩 8mp
+    b_def = mp_budget("战士", 45, None)
+    b_rot = mp_budget("战士", 45, None, rotation=[("怒斩", 1.0)])
     print(f"  默认: per_round_mp={b_def['per_round_mp']:.1f} 空蓝轮={b_def['empty_rounds']:.1f}")
     print(f"  覆盖: per_round_mp={b_rot['per_round_mp']:.1f} 空蓝轮={b_rot['empty_rounds']:.1f}")
     check("覆盖轴每轮耗蓝 < 默认（怒斩8mp < 嗜血斩10mp）", b_rot["per_round_mp"] < b_def["per_round_mp"],

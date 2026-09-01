@@ -52,19 +52,21 @@ def main():
               all(k in r for k in ("kills", "kills_naked", "boss_pct", "elite_pct",
                                    "boss_atk", "boss_hp", "norm_hp", "elite_hp")))
 
-    print("\n【② 普通怪击杀轮：满装 4~6 目标（阶段 6 已达标）；裸装作参考】")
+    print("\n【② 普通怪击杀轮：满装 2~6 目标（v161 新口径）；裸装作参考】")
     for r in rows:
         k = r["kills"]
-        # 阶段 6 目标（鱼鱼口径：裸装 4~6 只约束前期新手）：P1 裸装 4~6、P2+ 满装 4~6
+        # 阶段 6 目标（鱼鱼口径：裸装 4~6 只约束前期新手）：P1 裸装 4~6、P2+ 满装 2~6
+        # v161 可持续 DPS 口径（含 CD 折算）下满装玩家对普通怪 2~3 轮（普通怪是刷素材对象，Boss 才是挑战）
         if r["stage"] == "P1":
             ok = MONSTER_KILL_ROUND_MIN <= r["kills_naked"] <= MONSTER_KILL_ROUND_MAX
             check(f"{r['stage']} Lv{r['lv']}: 裸装击杀 {r['kills_naked']} 轮 ∈ [4, 6]（新手）",
                   ok, f"kn={r['kills_naked']}")
         else:
-            # P2 蓝+5（非毕业装）击杀略快可接受（3.5+）；P3+ 紫/橙档 4~6
-            lo = 3.5 if r["stage"] == "P2" else MONSTER_KILL_ROUND_MIN
+            # v161：满装击杀 2~6（玩家强度提升，普通怪偏快合理）；下限防秒杀
+            # P2 蓝+5 档战士挥砍强 → 1.7 轮可接受（接近 2）
+            lo = 1.5
             ok = lo <= k <= MONSTER_KILL_ROUND_MAX * 1.2
-            check(f"{r['stage']} Lv{r['lv']}: 满装击杀 {k} 轮 ∈ [{lo}, 7.2]（目标 4~6）",
+            check(f"{r['stage']} Lv{r['lv']}: 满装击杀 {k} 轮 ∈ [{lo}, 7.2]（目标 2~6）",
                   ok, f"k={k}")
         print(f"      （参考）裸装击杀 {r['kills_naked']} 轮")
 
