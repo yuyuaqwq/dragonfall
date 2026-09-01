@@ -1943,6 +1943,16 @@ class Battle:
             except Exception:
                 pass
             self._active_target = None  # 敌方行动结束后重置玩家下次目标
+        else:
+            # v157 修复：enemy_act=False（副本/PVP 由外部驱动敌方）时仍要推进玩家事件
+            # ——v154 读条命中制把玩家伤害结算搬进 cast_done 事件（_process_until 内触发），
+            # 副本 _instance_act 传 enemy_act=False 导致 cast_done 永不触发 → 技能只扣蓝不结算
+            # （2026-09-01 玩家实抓：副本卡战斗、蓝扣了技能没伤害）。这里推进到玩家下次
+            # 行动点，只处理玩家事件（cast_done/pet_tick 等），不驱动敌方（enemy_act=False
+            # 时 _process_until 的 enemy_act 事件直接 continue，见 _process_until 分支）。
+            until = float(getattr(self, "p_ct", 0) or 0)
+            if until > 0:
+                self._process_until(until, logs, player, defend=defend, skip_enemy=True)
         # v152 时刻制：时间推进（含到期检查）。dt = 玩家下次可行动点 - 当前 now。
         # _process_until 已把 now 推进到 <= p_ct 的最新事件时刻；此处补推进到 p_ct（玩家行动点），
         # 期间处理到期（buff/CD/DOT 用绝对时刻，与推进步长无关）。
@@ -1983,8 +1993,10 @@ class Battle:
         ev = {"type": "cast_done", **payload}
         self._schedule(t, ev)
 
-    def _process_until(self, until_t: float, logs: list, player: dict, defend: bool = False):
-        """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。"""
+    def _process_until(self, until_t: float, logs: list, player: dict, defend: bool = False,
+                       skip_enemy: bool = False):
+        """处理所有 t <= until_t 的事件。这是 v152 事件队列核心调度。
+        skip_enemy: True 时跳过 enemy_act 事件（副本/PVP 外部驱动敌方，v157 防双重行动）"""
         if until_t <= self._now:
             return
         _guard = 0
@@ -2003,6 +2015,10 @@ class Battle:
             evt = ev.get("type", "")
             try:
                 if evt == "enemy_act":
+                    # v157：skip_enemy=True（副本/PVP 外部驱动敌方）→ 跳过敌方行动，
+                    # 只处理玩家事件（cast_done/pet_tick），防副本双重敌方行动
+                    if skip_enemy:
+                        continue
                     unit = ev.get("unit")
                     if not unit or unit.get("hp", 0) <= 0:
                         continue
