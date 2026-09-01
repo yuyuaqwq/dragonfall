@@ -11,6 +11,8 @@
     atk_stage：lv≤30 →1.0；≤60 →1-(lv-30)×0.005；>60 →max(0.2, 0.85-(lv-60)×0.004)
   角色修正：boss hp ×min(1+lv×0.06, 3.0)、elite hp ×min(1+lv×0.04, 3.0)（在段修正前）；
             boss def/mdef ×1.25、elite def/mdef ×1.15（int 截断后乘，再 int）
+  v156 阶段 6（2026-09-01）：普通怪 hp ×NORMAL_HP_STAGE_MULT(lv)、boss atk ×BOSS_ATK_STAGE_MULT(lv)
+            （_stage_mult 分段斜率模型，见 core/stats.py）
   dot_res：boss=0.9 / elite=0.8（非普通怪键）
 
 运行：python tests/test_numeric_monster_curve.py（exit=0 全绿）
@@ -22,7 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from conftest import C  # noqa: E402
 from data.plugins.dragonfall.game.core.stats import (  # noqa: E402
-    monster_stats, hp_stage_mult, atk_stage_mult,
+    monster_stats, hp_stage_mult, atk_stage_mult, _stage_mult,
 )
 
 passed = failed = 0
@@ -41,18 +43,19 @@ LVS = [1, 11, 22, 30, 60]
 # (hp, atk, def, spd) 实测锁定表（2026-08-27 baseline，打印后写死）
 LOCK = {
     # v131 重标定（2026-08-27）：怪 HP×2/防御×2~4.5/攻击×1.4；boss 血量成长 58→145
-    "tank":      {1: (60, 8, 7, 6), 11: (420, 43, 47, 9), 22: (1101, 81, 91, 12),
-                  30: (1932, 109, 123, 14), 60: (5787, 181, 243, 23)},
-    "dps":       {1: (45, 12, 4, 10), 11: (345, 62, 54, 20), 22: (911, 117, 109, 31),
-                  30: (1601, 157, 149, 39), 60: (4809, 260, 299, 69)},
-    "caster":    {1: (40, 5, 3, 9), 11: (260, 23, 38, 18), 22: (677, 42, 76, 27),
-                  30: (1186, 57, 104, 35), 60: (3545, 94, 209, 62)},
-    "speedster": {1: (35, 9, 3, 16), 11: (255, 44, 48, 34), 22: (670, 82, 97, 53),
-                  30: (1177, 110, 133, 68), 60: (3532, 182, 268, 122)},
+    # v156 阶段 6 重标定（2026-09-01）：普通怪 hp ×NORMAL_HP_STAGE_MULT（P2+ 上调）、boss atk ×BOSS_ATK_STAGE_MULT（后期上调）
+    "tank":      {1: (60, 8, 7, 6), 11: (420, 43, 47, 9), 22: (1833, 81, 91, 12),
+                  30: (4685, 109, 123, 14), 60: (14901, 181, 243, 23)},
+    "dps":       {1: (45, 12, 4, 10), 11: (345, 62, 54, 20), 22: (1516, 117, 109, 31),
+                  30: (3882, 157, 149, 39), 60: (12383, 260, 299, 69)},
+    "caster":    {1: (40, 5, 3, 9), 11: (260, 23, 38, 18), 22: (1127, 42, 76, 27),
+                  30: (2876, 57, 104, 35), 60: (9128, 94, 209, 62)},
+    "speedster": {1: (35, 9, 3, 16), 11: (255, 44, 48, 34), 22: (1115, 82, 97, 53),
+                  30: (2854, 110, 133, 68), 60: (9094, 182, 268, 122)},
     "elite":     {1: (98, 14, 9, 11), 11: (1144, 79, 72, 26), 22: (3971, 150, 141, 42),
                   30: (8181, 202, 192, 54), 60: (33588, 337, 381, 99)},
-    "boss":      {1: (169, 16, 12, 10), 11: (2672, 91, 60, 28), 22: (10037, 173, 111, 47),
-                  30: (21388, 233, 150, 62), 60: (69284, 389, 292, 116)},
+    "boss":      {1: (169, 16, 12, 10), 11: (2672, 91, 60, 28), 22: (10037, 211, 111, 47),
+                  30: (21388, 344, 150, 62), 60: (69284, 1217, 292, 116)},
 }
 
 def expect_stats(lv, role):
@@ -66,6 +69,11 @@ def expect_stats(lv, role):
         hp = int(hp * min(1 + lv * 0.04, 3.0))
     hp = int(hp * hp_stage_mult(lv))
     atk = int(int(base["atk"] + growth["atk"] * (lv - 1)) * atk_stage_mult(lv))
+    # v156 阶段 6：普通怪 hp ×NORMAL_HP_STAGE_MULT、boss atk ×BOSS_ATK_STAGE_MULT
+    if role in ("tank", "dps", "caster", "speedster", "healer"):
+        hp = int(hp * _stage_mult(C.NORMAL_HP_STAGE_MULT, lv))
+    elif role == "boss":
+        atk = int(atk * _stage_mult(C.BOSS_ATK_STAGE_MULT, lv))
     df = int(base["def"] + growth["def"] * (lv - 1))
     if role == "boss":
         df = int(df * 1.25)
@@ -106,13 +114,17 @@ def main():
                   got[2] == exp_def, f"got={got[2]} exp={exp_def} lin={lin_def}")
             check(f"{role} lv{lv} hp ≥ 线性值（段修正放大）",
                   got[0] >= lin_hp, f"got={got[0]} lin={lin_hp}")
-            if lv <= 30:
+            if role == "boss":
+                # v156 阶段 6：boss atk 吃 BOSS_ATK_STAGE_MULT（后期放大），不再"≤ 线性"
+                cond = got[1] >= lin_atk
+                msg = f"got={got[1]} lin={lin_atk}（BOSS_ATK_STAGE_MULT 放大）"
+            elif lv <= 30:
                 cond = got[1] == lin_atk
                 msg = f"got={got[1]} lin={lin_atk}"
             else:
                 cond = got[1] < lin_atk
                 msg = f"got={got[1]} lin={lin_atk}（31级起放缓 ×1-(lv-30)×0.005）"
-            check(f"{role} lv{lv} atk {'== 线性值' if lv <= 30 else '< 线性值（后期放缓）'}", cond, msg)
+            check(f"{role} lv{lv} atk {'== 线性值' if lv <= 30 and role != 'boss' else '≥ 线性值（boss放大）' if role == 'boss' else '< 线性值（后期放缓）'}", cond, msg)
 
     print(f"\n===== 结果：通过 {passed} / 断言 {passed + failed} =====")
     return failed == 0

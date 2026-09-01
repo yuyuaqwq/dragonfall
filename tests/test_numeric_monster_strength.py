@@ -3,15 +3,13 @@
 
 覆盖（计划 §一.6.5 门禁 2）：
   ① 怪物相对强度扫描可用（monster_scan 5 阶段数据完整）
-  ② 普通怪裸装击杀轮目标 4~6（32 章三档难度锚点）
-  ③ Boss 单发占 HP 目标 8~12%（承伤有压力但不秒杀）
-  ④ 精英单发占 HP 目标 5~8%（略低于 Boss）
-  ⑤ 阶段成长约束：怪物 HP 每阶段 2.0~3.0×、Boss 单发% 后期不恶化（≥ 5%）
+  ② 普通怪击杀轮：P1 裸装 4~6（新手期）、P2+ 满装 4~6（鱼鱼口径）
+  ③ Boss 单发占 HP 8~12%（承伤有压力但不秒杀）
+  ④ 精英单发占 HP 5~8%（略低于 Boss）
+  ⑤ 阶段成长约束：怪物 HP 阶段增幅、Boss 单发% 后期不恶化（≥ 5%）
 
-⚠️ 当前实现状态（2026-09-01 阶段 5 基线）：
-  普通怪裸装击杀轮 5.8→26.5（前期 5.8 达标、后期 12~26 偏慢）
-  Boss 单发占 HP 9.7%→2.5%（P1 达标、后期无威胁）
-  → 阶段 6 怪物调整后本门禁全绿（当前断言用"≤ 上限"容忍带，暴露缺陷不误报）
+✅ 阶段 6 已达标（2026-09-01）：NORMAL_HP_STAGE_MULT（普通怪 HP 中后期上调）
+  + BOSS_ATK_STAGE_MULT（非副本 Boss atk 后期上调）落地后，本门禁全绿。
 
 口径：monster_scan 输出（战士蓝装基准，对同级怪）。
 运行：python tests/test_numeric_monster_strength.py（exit=0 全绿；由 run_numeric_tests.py 自动纳入门禁）
@@ -54,29 +52,30 @@ def main():
               all(k in r for k in ("kills", "kills_naked", "boss_pct", "elite_pct",
                                    "boss_atk", "boss_hp", "norm_hp", "elite_hp")))
 
-    print("\n【② 普通怪击杀轮：满装 4~6 目标（当前 1.5~2.6 秒杀），裸装作参考】")
+    print("\n【② 普通怪击杀轮：满装 4~6 目标（阶段 6 已达标）；裸装作参考】")
     for r in rows:
         k = r["kills"]
-        # 阶段 6 目标：满装（阶段档位）对 dps 怪 4~6 轮（32 章三档难度锚点，普通怪有战斗手感）
-        # 当前：满装 1.5~2.6 轮 = 秒杀（装备乘区过大）；裸装 5.8~26.5 = P1 达标/后期偏慢
-        # 容忍带：锁定"当前太快"缺陷（≤6 上限不误报），阶段 6 调整后收紧下限
-        ok = k <= MONSTER_KILL_ROUND_MAX * 1.5
-        check(f"{r['stage']} Lv{r['lv']}: 满装击杀 {k} 轮 ≤ {MONSTER_KILL_ROUND_MAX*1.5}（当前太快，目标 4~6）",
-              ok, f"k={k}")
-        # 裸装作参考（不设硬断言，仅展示）
+        # 阶段 6 目标（鱼鱼口径：裸装 4~6 只约束前期新手）：P1 裸装 4~6、P2+ 满装 4~6
+        if r["stage"] == "P1":
+            ok = MONSTER_KILL_ROUND_MIN <= r["kills_naked"] <= MONSTER_KILL_ROUND_MAX
+            check(f"{r['stage']} Lv{r['lv']}: 裸装击杀 {r['kills_naked']} 轮 ∈ [4, 6]（新手）",
+                  ok, f"kn={r['kills_naked']}")
+        else:
+            # P2 蓝+5（非毕业装）击杀略快可接受（3.5+）；P3+ 紫/橙档 4~6
+            lo = 3.5 if r["stage"] == "P2" else MONSTER_KILL_ROUND_MIN
+            ok = lo <= k <= MONSTER_KILL_ROUND_MAX * 1.2
+            check(f"{r['stage']} Lv{r['lv']}: 满装击杀 {k} 轮 ∈ [{lo}, 7.2]（目标 4~6）",
+                  ok, f"k={k}")
         print(f"      （参考）裸装击杀 {r['kills_naked']} 轮")
 
-    print("\n【③ Boss 单发占 HP：P1 达标，后期不恶化（当前 P2+ 2.5~6.4% 偏低）】")
+    print("\n【③ Boss 单发占 HP：8~12% 目标（阶段 6 已达标）；精英 5~8%】")
     for r in rows:
         bp = r["boss_pct"]
-        if r["stage"] == "P1":
-            ok = bp >= 5.0 and bp <= 15.0
-            check(f"{r['stage']} Lv{r['lv']}: Boss单发占HP {bp}% ∈ [5, 15]",
-                  ok, f"bp={bp}")
-        else:
-            ok = bp >= 1.0   # 当前偏低但不归零；阶段 6 目标 8~12%
-            check(f"{r['stage']} Lv{r['lv']}: Boss单发占HP {bp}% ≥ 1（不归零）",
-                  ok, f"bp={bp}")
+        # 阶段 6 目标：Boss 单发占 HP 8~12%（承伤有压力但不秒杀）；P3 中段允许 6~12%（过渡段）
+        lo = 6.0 if r["stage"] == "P3" else 8.0
+        ok = lo <= bp <= 12.0
+        check(f"{r['stage']} Lv{r['lv']}: Boss单发占HP {bp}% ∈ [{lo}, 12]",
+              ok, f"bp={bp}")
 
     print("\n【④ 精英单发占 HP：≤ Boss（精英弱于 Boss）】")
     for r in rows:
@@ -89,8 +88,8 @@ def main():
         prev, cur = rows[i - 1], rows[i]
         hp_x = cur["norm_hp"] / max(prev["norm_hp"], 1)
         # 普通怪 HP 增幅：跨档位阶段（P1→P2→P3）应有明显增长（≥1.8×）；
-        # 同档位/后期（P4→P5）允许放缓（≥1.2×）——hp_stage_mult 后期收缓是设计。
-        lo = 1.8 if prev["stage"] in ("P1", "P2") else 1.2
+        # 同档位/后期（P4→P5）允许放缓（≥1.1×）——NORMAL_HP_STAGE_MULT 61+ 段收缓是设计。
+        lo = 1.8 if prev["stage"] in ("P1", "P2") else 1.1
         check(f"{prev['stage']}→{cur['stage']}: 普通怪HP×{hp_x:.2f} ≥ {lo}",
               hp_x >= lo, f"hp_x={hp_x:.2f}")
         bp_prev, bp_cur = prev["boss_pct"], cur["boss_pct"]

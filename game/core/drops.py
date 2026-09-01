@@ -377,7 +377,7 @@ def build_monster(monster_def: tuple, map_obj: dict, lv_jitter: int = 0):
     # 等级波动（仅普通怪，保底 Lv.1）
     if lv_jitter > 0 and role not in ("elite", "boss"):
         lv = max(1, lv + random.randint(-lv_jitter, lv_jitter))
-    stats = monster_stats(lv, role)
+    stats = monster_stats(lv, role, area=map_obj.get("area"))
     mod = C.MONSTER_MODS.get(mid, {})
     if mod:
         for k, mult in (("hp", "hp_mult"), ("atk", "atk_mult"), ("def", "def_mult"),

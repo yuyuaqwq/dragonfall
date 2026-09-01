@@ -3,6 +3,7 @@
 from ..data import (
     EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING, MONSTER_EXP_BASE, MONSTER_GOLD_BASE,
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, QUALITY,
+    NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
 )  # v102.5 模板表下沉 data/stat_templates.py
 
 
@@ -31,9 +32,38 @@ def atk_stage_mult(lv: int) -> float:
     return max(0.2, 0.85 - (lv - 60) * 0.004)
 
 
-def monster_stats(lv: int, role: str) -> dict:
+def _stage_mult(segments: tuple, lv: int) -> float:
+    """等级段乘区表 → 分段线性（每段从上一段末值按斜率增长，与 hp_stage_mult 同风格）。
+
+    segments: [(max_lv, slope_per_lv), ...]——每段 = (该段上限等级, 每级斜率)。
+    从 lv=0 起：≤首段 max_lv 时 mult = 首段末值；之后每段按斜率线性增长。
+    例：NORMAL_HP_STAGE_MULT = ((15, 0.0), (30, 0.09), (60, 0.005), (999, -0.02))
+        Lv10 → 1.0；Lv24 → 1.0+(24-15)×0.09=1.81；Lv45 → 2.35+(45-30)×0.005=2.43；
+        Lv95 → 2.50+(95-60)×(-0.02)=1.80 ✓（61+ 段按斜率下降）
+    """
+    if not segments:
+        return 1.0
+    # 首段：≤ max_lv 用首段末值（首段斜率 0 = 恒定）
+    first_max, first_v = segments[0][0], 1.0
+    if lv <= first_max:
+        return 1.0
+    mult = 1.0
+    prev_max = 0
+    for max_lv, slope in segments:
+        if lv <= max_lv:
+            return mult + (lv - prev_max) * slope
+        mult += (max_lv - prev_max) * slope
+        prev_max = max_lv
+    # 超出最后一段：继续按最后一段斜率
+    return mult + (lv - prev_max) * segments[-1][1]
+
+
+def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
     """怪物属性公式：按等级 + 角色模板生成。
     role: tank(血牛) / dps(攻高) / caster(魔攻) / speedster(敏捷) / healer(治疗) / boss(首领) / elite(精英)
+    area: 地图 area（'instance'=副本）；None=非副本（野外/模拟）。v156 阶段 6：
+          BOSS_ATK_STAGE_MULT 只对非副本 Boss 生效（副本 Boss 走 instances atk_mult + 狂暴机制控难，
+          不再叠加——叠加会让 4 人标准队后期承伤轮暴跌扛不住）。
     v56.2：hp 吃等级段放大、atk 后期放缓（见 hp_stage_mult/atk_stage_mult）
     """
     base = MONSTER_ROLE_BASE[role]
@@ -63,6 +93,16 @@ def monster_stats(lv: int, role: str) -> dict:
     # v56.2：全角色模板吃等级段曲线
     stats["hp"] = int(stats["hp"] * hp_stage_mult(lv))
     stats["atk"] = int(stats["atk"] * atk_stage_mult(lv))
+    # v156 阶段 6 怪物数值修复（2026-09-01 鱼鱼拍板：裸装 4~6 轮只约束前期新手）：
+    #   普通怪 HP × NORMAL_HP_STAGE_MULT（tank/dps/caster/speedster/healer）——
+    #   中后期怪 HP 上调（满装击杀 1.5~2.6 轮 → 4~6 轮），前期 ≤15 恒 1.0（新手裸装 5.8 轮达标）。
+    #   Boss atk × BOSS_ATK_STAGE_MULT——**仅非副本 Boss**（野外 Boss 后期攻击追上玩家防御，
+    #   单发占 HP 0.9% → 8~12%）；副本 Boss 不吃（走 instances atk_mult + 狂暴机制控难，叠加会打崩 4 人队）。
+    #   精英不吃本表（已有 FIELD_TIER_MULT 分档 + 独立 growth）。
+    if role in ("tank", "dps", "caster", "speedster", "healer"):
+        stats["hp"] = int(stats["hp"] * _stage_mult(NORMAL_HP_STAGE_MULT, lv))
+    elif role == "boss" and area != "instance":
+        stats["atk"] = int(stats["atk"] * _stage_mult(BOSS_ATK_STAGE_MULT, lv))
     # 重构图契约 §4.1：dot_res 异常抗性（结算时乘 (1-dot_res)）——
     # boss/elite 设置抗性，普通怪不设键（缺失=0）。cap 0.95 由结算端约束。
     if role == "boss":
