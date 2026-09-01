@@ -818,10 +818,19 @@ def skill_flat_value(player_lv: int, skill_lv: int, info: dict | None = None) ->
     - 随技能等级成长（技能升级基础值也涨）
     - 高等级时百分比主导（基础值占比稀释，不膨胀）
     数值常量在 game/data/skill_up.py（SKILL_FLAT_*），工具集/引擎共用同一口径。
+    v158：支持每技能独立配置（SKILL_UP 条目可选字段）：
+      flat_base      基础值基数（缺省 SKILL_FLAT_BASE=12）
+      flat_per_lv    每玩家等级成长（缺省 1）
+      flat_per_skill 每技能等级成长（缺省 2）
+    未配置的技能完全回退全局常量（行为不变）。
     """
     from .data.skill_up import SKILL_FLAT_BASE, SKILL_FLAT_PER_PLAYER_LV, SKILL_FLAT_PER_SKILL_LV
     lv = max(1, min(skill_lv, skill_max_level(info)))
-    return int(SKILL_FLAT_BASE + player_lv * SKILL_FLAT_PER_PLAYER_LV + lv * SKILL_FLAT_PER_SKILL_LV)
+    up = _skill_up(info)
+    base = float(up.get("flat_base", SKILL_FLAT_BASE))
+    per_lv = float(up.get("flat_per_lv", SKILL_FLAT_PER_PLAYER_LV))
+    per_skill = float(up.get("flat_per_skill", SKILL_FLAT_PER_SKILL_LV))
+    return int(base + player_lv * per_lv + lv * per_skill)
 
 
 def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int:
