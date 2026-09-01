@@ -502,7 +502,7 @@ _V153_PLAYER_SKILLS = {
             "sk_zhi_quan": {
              'lv': 1,
              'mp': 6,
-             'power': 1.07,
+             'power': 0.63,
              'kind': '物理',
              'cast': 0.35,
              'shaken_gain': 0,
@@ -512,7 +512,7 @@ _V153_PLAYER_SKILLS = {
             "sk_ce_ti": {
              'lv': 4,
              'mp': 6,
-             'power': 1.38,
+             'power': 0.81,
              'kind': '物理',
              'cast': 0.45,
              'cd': 8,
@@ -524,7 +524,7 @@ _V153_PLAYER_SKILLS = {
             "sk_gang_quan": {
              'lv': 8,
              'mp': 8,
-             'power': 1.0,
+             'power': 0.59,
              'kind': '物理',
              'cast': 0.5,
              'cd': 12,
@@ -535,7 +535,7 @@ _V153_PLAYER_SKILLS = {
             "sk_lian_zhao_san_lian": {
              'lv': 12,
              'mp': 12,
-             'power': 0.49,
+             'power': 0.29,
              'kind': '物理',
              'cast': 0.45,
              'cd': 12,
@@ -559,7 +559,7 @@ _V153_PLAYER_SKILLS = {
             "sk_zhen_di_ji": {
              'lv': 20,
              'mp': 12,
-             'power': 1.0,
+             'power': 0.59,
              'kind': '物理',
              'cast': 0.55,
              'cd': 12,
@@ -572,7 +572,7 @@ _V153_PLAYER_SKILLS = {
             "sk_chong_quan": {
              'lv': 24,
              'mp': 10,
-             'power': 1.23,
+             'power': 0.73,
              'kind': '物理',
              'cast': 0.4,
              'cd': 12,
@@ -712,7 +712,7 @@ _V153_BRANCH_SKILLS = {
                     "嗜血斩": {
                         'lv': 38,
                         'mp': 10,
-                        'power': 1.25,
+                        'power': 1.33,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 12,
@@ -1526,7 +1526,7 @@ _V153_BRANCH_SKILLS = {
                     "追猎": {
                         'lv': 38,
                         'mp': 10,
-                        'power': 0.91,
+                        'power': 1.13,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -1538,7 +1538,7 @@ _V153_BRANCH_SKILLS = {
                     "淬毒箭": {
                         'lv': 44,
                         'mp': 10,
-                        'power': 0.91,
+                        'power': 1.13,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -1551,7 +1551,7 @@ _V153_BRANCH_SKILLS = {
                     "藤蔓缠绕": {
                         'lv': 50,
                         'mp': 14,
-                        'power': 1.1,
+                        'power': 1.36,
                         'kind': '魔法',
                         'cast': 0.35,
                         'cd': 12,
@@ -1578,7 +1578,7 @@ _V153_BRANCH_SKILLS = {
                     "荆棘爆": {
                         'lv': 58,
                         'mp': 18,
-                        'power': 1.0,
+                        'power': 1.24,
                         'kind': '魔法',
                         'cast': 0.35,
                         'cd': 12,
@@ -1592,7 +1592,7 @@ _V153_BRANCH_SKILLS = {
                     "疾风射击": {
                         'lv': 32,
                         'mp': 10,
-                        'power': 0.8,
+                        'power': 0.99,
                         'kind': '物理',
                         'cast': 0.3,
                         'res_cost': {"energy": 25},
@@ -1603,7 +1603,7 @@ _V153_BRANCH_SKILLS = {
                     "双重射击": {
                         'lv': 38,
                         'mp': 12,
-                        'power': 0.48,
+                        'power': 0.6,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -1615,7 +1615,7 @@ _V153_BRANCH_SKILLS = {
                     "蓄力射击": {
                         'lv': 44,
                         'mp': 14,
-                        'power': 1.2,
+                        'power': 1.49,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 12,
@@ -1627,7 +1627,7 @@ _V153_BRANCH_SKILLS = {
                     "风刃乱舞": {
                         'lv': 50,
                         'mp': 16,
-                        'power': 0.34,
+                        'power': 0.42,
                         'kind': '物理',
                         'cast': 0.35,
                         'cd': 12,
@@ -1687,7 +1687,7 @@ _V153_BRANCH_SKILLS = {
                     "猎杀狂宴": {
                         'lv': 74,
                         'mp': 18,
-                        'power': 1.18,
+                        'power': 1.46,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -1709,7 +1709,7 @@ _V153_BRANCH_SKILLS = {
                     "穿心箭": {
                         'lv': 85,
                         'mp': 20,
-                        'power': 1.38,
+                        'power': 1.71,
                         'kind': '物理',
                         'cast': 0.65,
                         'cd': 12,
@@ -1745,7 +1745,7 @@ _V153_BRANCH_SKILLS = {
                     "急速射击": {
                         'lv': 68,
                         'mp': 12,
-                        'power': 0.29,
+                        'power': 0.36,
                         'kind': '物理',
                         'cast': 0.45,
                         'cd': 12,
@@ -1757,7 +1757,7 @@ _V153_BRANCH_SKILLS = {
                     "穿云箭": {
                         'lv': 74,
                         'mp': 20,
-                        'power': 1.38,
+                        'power': 1.71,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -1782,7 +1782,7 @@ _V153_BRANCH_SKILLS = {
                     "穿甲射击": {
                         'lv': 85,
                         'mp': 18,
-                        'power': 1.18,
+                        'power': 1.46,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 12,
@@ -1821,7 +1821,7 @@ _V153_BRANCH_SKILLS = {
                     "致命连射": {
                         'lv': 93,
                         'mp': 24,
-                        'power': 0.35,
+                        'power': 0.43,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -1845,7 +1845,7 @@ _V153_BRANCH_SKILLS = {
                     "死神之箭": {
                         'lv': 97,
                         'mp': 30,
-                        'power': 1.95,
+                        'power': 2.42,
                         'kind': '物理',
                         'cast': 0.65,
                         'cd': 20,
@@ -1881,7 +1881,7 @@ _V153_BRANCH_SKILLS = {
                     "风暴之舞": {
                         'lv': 93,
                         'mp': 24,
-                        'power': 0.35,
+                        'power': 0.43,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -1893,7 +1893,7 @@ _V153_BRANCH_SKILLS = {
                     "疾风骤雨": {
                         'lv': 95,
                         'mp': 28,
-                        'power': 0.35,
+                        'power': 0.43,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 20,
@@ -1915,7 +1915,7 @@ _V153_BRANCH_SKILLS = {
                     "贯日箭": {
                         'lv': 98,
                         'mp': 40,
-                        'power': 1.95,
+                        'power': 2.42,
                         'kind': '物理',
                         'cast': 0.65,
                         'cd': 24,
@@ -2019,7 +2019,7 @@ _V153_BRANCH_SKILLS = {
                     "骨噬诅咒": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 1.25,
+                        'power': 1.0,
                         'kind': '魔法',
                         'cast': 0.7,
                         'cd': 12,
@@ -2349,7 +2349,7 @@ _V153_BRANCH_SKILLS = {
                     "影刃": {
                         'lv': 32,
                         'mp': 8,
-                        'power': 0.8,
+                        'power': 1.12,
                         'kind': '物理',
                         'cast': 0.3,
                         'cd': 8,
@@ -2361,7 +2361,7 @@ _V153_BRANCH_SKILLS = {
                     "幻影连刺": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 0.36,
+                        'power': 0.5,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2372,7 +2372,7 @@ _V153_BRANCH_SKILLS = {
                     "链舞": {
                         'lv': 44,
                         'mp': 16,
-                        'power': 1.14,
+                        'power': 1.5,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2405,7 +2405,7 @@ _V153_BRANCH_SKILLS = {
                     "终结·处刑": {
                         'lv': 58,
                         'mp': 16,
-                        'power': 1.04,
+                        'power': 1.46,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2418,7 +2418,7 @@ _V153_BRANCH_SKILLS = {
                     "毒刃": {
                         'lv': 32,
                         'mp': 10,
-                        'power': 0.8,
+                        'power': 1.12,
                         'kind': '物理',
                         'cast': 0.3,
                         'cd': 8,
@@ -2431,7 +2431,7 @@ _V153_BRANCH_SKILLS = {
                     "双毒刃": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 0.45,
+                        'power': 0.63,
                         'kind': '物理',
                         'cast': 0.35,
                         'cd': 12,
@@ -2452,7 +2452,7 @@ _V153_BRANCH_SKILLS = {
                     "毒爆": {
                         'lv': 50,
                         'mp': 16,
-                        'power': 1.03,
+                        'power': 1.44,
                         'kind': '魔法',
                         'cast': 0.4,
                         'cd': 12,
@@ -2463,7 +2463,7 @@ _V153_BRANCH_SKILLS = {
                     "淬毒之刃": {
                         'lv': 54,
                         'mp': 14,
-                        'power': 1.04,
+                        'power': 1.46,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2501,7 +2501,7 @@ _V153_BRANCH_SKILLS = {
                     "暗影突袭": {
                         'lv': 68,
                         'mp': 14,
-                        'power': 1.05,
+                        'power': 1.47,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 12,
@@ -2512,7 +2512,7 @@ _V153_BRANCH_SKILLS = {
                     "收割": {
                         'lv': 74,
                         'mp': 18,
-                        'power': 1.29,
+                        'power': 1.81,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -2523,7 +2523,7 @@ _V153_BRANCH_SKILLS = {
                     "幽影连刺": {
                         'lv': 80,
                         'mp': 18,
-                        'power': 0.31,
+                        'power': 0.43,
                         'kind': '物理',
                         'cast': 0.45,
                         'cd': 12,
@@ -2567,7 +2567,7 @@ _V153_BRANCH_SKILLS = {
                     "毒雾·淬": {
                         'lv': 68,
                         'mp': 24,
-                        'power': 1.0,
+                        'power': 1.4,
                         'kind': '魔法',
                         'cast': 0.3,
                         'cd': 16,
@@ -2588,7 +2588,7 @@ _V153_BRANCH_SKILLS = {
                     "腐蚀之刃": {
                         'lv': 80,
                         'mp': 22,
-                        'power': 1.39,
+                        'power': 1.95,
                         'kind': '真伤',
                         'cast': 0.45,
                         'cd': 16,
@@ -2598,7 +2598,7 @@ _V153_BRANCH_SKILLS = {
                     "淬毒刺杀": {
                         'lv': 85,
                         'mp': 20,
-                        'power': 1.29,
+                        'power': 1.81,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -2635,7 +2635,7 @@ _V153_BRANCH_SKILLS = {
                     "幻影舞": {
                         'lv': 93,
                         'mp': 24,
-                        'power': 0.35,
+                        'power': 0.49,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 16,
@@ -2646,7 +2646,7 @@ _V153_BRANCH_SKILLS = {
                     "终结·暗影绞杀": {
                         'lv': 95,
                         'mp': 20,
-                        'power': 1.55,
+                        'power': 2.17,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 20,
@@ -2667,7 +2667,7 @@ _V153_BRANCH_SKILLS = {
                     "万影归一": {
                         'lv': 98,
                         'mp': 45,
-                        'power': 1.5,
+                        'power': 2.1,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 24,
@@ -2690,7 +2690,7 @@ _V153_BRANCH_SKILLS = {
                     "剧毒风暴": {
                         'lv': 93,
                         'mp': 35,
-                        'power': 0.94,
+                        'power': 1.32,
                         'kind': '魔法',
                         'cast': 0.5,
                         'cd': 20,
@@ -2701,7 +2701,7 @@ _V153_BRANCH_SKILLS = {
                     "万毒噬心": {
                         'lv': 95,
                         'mp': 45,
-                        'power': 2.32,
+                        'power': 3.25,
                         'kind': '真伤',
                         'cast': 0.6,
                         'cd': 24,
@@ -2724,7 +2724,7 @@ _V153_BRANCH_SKILLS = {
                     "腐世": {
                         'lv': 98,
                         'mp': 40,
-                        'power': 0.94,
+                        'power': 1.32,
                         'kind': '魔法',
                         'cast': 0.5,
                         'cd': 24,
@@ -2744,7 +2744,7 @@ _V153_BRANCH_SKILLS = {
                     "疾风拳": {
                         'lv': 32,
                         'mp': 8,
-                        'power': 1.22,
+                        'power': 0.72,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -2755,7 +2755,7 @@ _V153_BRANCH_SKILLS = {
                     "旋风踢": {
                         'lv': 38,
                         'mp': 14,
-                        'power': 1.37,
+                        'power': 0.81,
                         'kind': '物理',
                         'cast': 0.45,
                         'cd': 12,
@@ -2767,7 +2767,7 @@ _V153_BRANCH_SKILLS = {
                     "碎颅势": {
                         'lv': 44,
                         'mp': 16,
-                        'power': 1.83,
+                        'power': 1.08,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 12,
@@ -2779,7 +2779,7 @@ _V153_BRANCH_SKILLS = {
                     "崩拳": {
                         'lv': 50,
                         'mp': 18,
-                        'power': 2.13,
+                        'power': 1.35,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2790,7 +2790,7 @@ _V153_BRANCH_SKILLS = {
                     "气力爆发": {
                         'lv': 54,
                         'mp': 16,
-                        'power': 1.83,
+                        'power': 1.08,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 12,
@@ -2814,7 +2814,7 @@ _V153_BRANCH_SKILLS = {
                     "铁壁拳": {
                         'lv': 32,
                         'mp': 8,
-                        'power': 1.22,
+                        'power': 0.72,
                         'kind': '物理',
                         'cast': 0.4,
                         'cd': 8,
@@ -2836,7 +2836,7 @@ _V153_BRANCH_SKILLS = {
                     "磐岩释能": {
                         'lv': 44,
                         'mp': 14,
-                        'power': 0.77,
+                        'power': 0.45,
                         'kind': '物理',
                         'cast': 0.25,
                         'cd': 12,
@@ -2893,7 +2893,7 @@ _V153_BRANCH_SKILLS = {
                     "连环拳": {
                         'lv': 68,
                         'mp': 16,
-                        'power': 0.4,
+                        'power': 0.24,
                         'kind': '物理',
                         'cast': 0.5,
                         'cd': 12,
@@ -2905,7 +2905,7 @@ _V153_BRANCH_SKILLS = {
                     "气力裂空": {
                         'lv': 74,
                         'mp': 20,
-                        'power': 2.13,
+                        'power': 1.26,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2917,7 +2917,7 @@ _V153_BRANCH_SKILLS = {
                     "裂岳连击": {
                         'lv': 80,
                         'mp': 22,
-                        'power': 0.64,
+                        'power': 0.38,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 16,
@@ -2939,7 +2939,7 @@ _V153_BRANCH_SKILLS = {
                     "震慑拳": {
                         'lv': 88,
                         'mp': 20,
-                        'power': 2.13,
+                        'power': 1.26,
                         'kind': '物理',
                         'cast': 0.7,
                         'cd': 16,
@@ -2973,7 +2973,7 @@ _V153_BRANCH_SKILLS = {
                     "磐核爆发": {
                         'lv': 74,
                         'mp': 20,
-                        'power': 0.92,
+                        'power': 0.54,
                         'kind': '物理',
                         'cast': 0.3,
                         'cd': 16,
@@ -3022,7 +3022,7 @@ _V153_BRANCH_SKILLS = {
                     "气力通天": {
                         'lv': 90,
                         'mp': 30,
-                        'power': 2.52,
+                        'power': 1.49,
                         'kind': '物理',
                         'cast': 0.8,
                         'cd': 20,
@@ -3034,7 +3034,7 @@ _V153_BRANCH_SKILLS = {
                     "无影连打": {
                         'lv': 93,
                         'mp': 24,
-                        'power': 0.48,
+                        'power': 0.28,
                         'kind': '物理',
                         'cast': 0.6,
                         'cd': 16,
@@ -3046,7 +3046,7 @@ _V153_BRANCH_SKILLS = {
                     "撼岳·终焉": {
                         'lv': 95,
                         'mp': 40,
-                        'power': 2.83,
+                        'power': 1.67,
                         'kind': '物理',
                         'cast': 0.9,
                         'cd': 24,
@@ -3067,7 +3067,7 @@ _V153_BRANCH_SKILLS = {
                     "崩山": {
                         'lv': 98,
                         'mp': 45,
-                        'power': 2.83,
+                        'power': 1.67,
                         'kind': '物理',
                         'cast': 0.9,
                         'cd': 24,
@@ -3101,7 +3101,7 @@ _V153_BRANCH_SKILLS = {
                     "气力万法": {
                         'lv': 95,
                         'mp': 35,
-                        'power': 1.07,
+                        'power': 0.63,
                         'kind': '物理',
                         'cast': 0.35,
                         'cd': 20,
@@ -3123,7 +3123,7 @@ _V153_BRANCH_SKILLS = {
                     "磐岩·镇世": {
                         'lv': 98,
                         'mp': 45,
-                        'power': 2.52,
+                        'power': 1.49,
                         'kind': '物理',
                         'cast': 0.8,
                         'cd': 24,
