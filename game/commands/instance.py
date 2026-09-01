@@ -2240,6 +2240,7 @@ class InstanceCmds(CommandBase):
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
         b.player = snap
+        _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False, target=target)
         st["players"][cur_key] = snap
         st["p_buffs"][cur_key] = b.p_buffs
@@ -2264,6 +2265,18 @@ class InstanceCmds(CommandBase):
         # v121 CTB：玩家 ct 写回快照（b.p_ct 已含该玩家行动后的 _after_actor_ct("p") 推进）
         # v152 绝对时刻制：snap["ct"] = b.p_ct（= 该玩家下次可行动绝对时刻）。
         # 其他玩家 ct 是各自独立绝对值，无需广播 -cost（绝对时刻下时间流逝由各自 next_act_at 体现）。
+        # v157 修复：敌方 ct 必须同步流逝——副本无全局时钟，玩家每次行动代表时间推进
+        # 玩家耗时（= 行动后 p_ct - 行动前 p_ct），敌方 ct -= 该耗时（下限 0）。
+        # 否则敌方 ct 恒为初始大值（如 5.0），玩家 ct 每次只 +0.5 要打 10 次才追上，
+        # 表现=玩家无限出手敌方永不动（鱼鱼 2026-09-01 实抓：连续 5 次行动狂战士没动）。
+        try:
+            _dt = max(0.0, float(b.p_ct) - _pct_before)
+            for _eu in st.get("enemies") or []:
+                _c = float(_eu.get("ct", 0) or 0)
+                if _c > 0:
+                    _eu["ct"] = max(0.0, _c - _dt)
+        except Exception:
+            pass
         snap["ct"] = b.p_ct
         st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
