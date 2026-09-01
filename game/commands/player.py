@@ -1507,7 +1507,8 @@ class PlayerCmds(CommandBase):
             if _val > 0:
                 label = "治疗" if kind == "治疗" else "伤害"
                 parts.append(f"{label} ≈ {int(round(_val))}")
-        if info.get("power"):
+        # v161：表达式技能已显示实际数值，跳过 power 百分比（避免 305 vs 101% 双数值矛盾）
+        if info.get("power") and not _has_expr:
             label = "治疗" if kind == "治疗" else "伤害"
             # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——
             # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）

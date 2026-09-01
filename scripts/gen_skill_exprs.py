@@ -57,35 +57,21 @@ def build_expr(stat: str, power: float, p: float) -> str:
             f" + player_lv + 12 + skill_lv*2")
 
 
-# v161 LOL 式设计（鱼鱼拍板：基础值 + 加成系数，商业游戏方法论）
-# 每技能: (base_flat, per_player_lv, per_skill_lv, ratio, 定位)
+# v161 LOL 式设计表 → scripts/v161_design_table.py（每技能独立 base/ratio，按特色设计）
+#   每技能: (base_flat, per_player_lv, per_skill_lv, ratio, 定位, 特色)
 #   expr = 属性×ratio + base_flat + player_lv×per_player_lv + skill_lv×per_skill_lv
-# 设计要点：
-#   - 基础值含玩家等级成长（LOL 英雄每级成长）——低装备不刮痧，等级成长有感
-#   - 前期 base 占比 60-70%（保底）→ 后期加成主导（装备收益）
-#   - 战士/拳师（坦克型低攻）base 占比高；法师/刺客（高攻）ratio 高
-#   - 验证：verify_v161_design2.py（6 轮击杀达标） + verify_v161_rounds.py（坦克补偿 92-94%）
-V161_DESIGN = {
-    "挥砍":     (60, 6, 14, 0.35, "填充"),
-    "猛击":     (80, 7, 16, 0.5,  "核心"),
-    "破甲斩":   (70, 6, 14, 0.45, "核心"),
-    "旋风斩":   (90, 7, 16, 0.45, "AOE"),
-    "冲锋":     (100, 8, 18, 0.55, "爆发"),
-    "火球术":   (60, 5, 12, 0.5,  "填充"),
-    "冰锥":     (60, 5, 12, 0.5,  "填充"),
-    "雷击":     (75, 6, 14, 0.55, "核心"),
-    "元素引爆": (80, 6, 14, 0.55, "核心"),
-    "骤雨弹幕": (40, 4, 8, 0.3,   "AOE多段"),
-    "陨石术":   (100, 8, 20, 0.7, "爆发"),
-}
 
 
 def build_expr_lol(stat: str, skill_name: str) -> str:
-    """v161 LOL 式表达式：属性×ratio + base + player_lv×per_plv + skill_lv×per_slv。"""
+    """v161 LOL 式表达式：属性×ratio + base + player_lv×per_plv + skill_lv×per_slv。
+
+    V161_DESIGN 从 scripts/v161_design_table.py 导入（每技能独立 base/ratio 设计）。
+    """
+    from scripts.v161_design_table import V161_DESIGN  # noqa
     d = V161_DESIGN.get(skill_name)
     if not d:
         return None
-    base_flat, per_plv, per_slv, ratio, _ = d
+    base_flat, per_plv, per_slv, ratio, _pos, *_ = d
     def _fmt(x):
         return str(int(x)) if float(x).is_integer() else repr(round(float(x), 4))
     return (f"{stat}*{_fmt(ratio)} + {_fmt(base_flat)}"
@@ -161,11 +147,11 @@ def main():
     _sys.path.insert(0, r"C:/Users/yuyu/qqbot/data/plugins/dragonfall")
     from game.data.skills import PLAYER_SKILLS
     from game import content as C
+    # v161 全量设计表（每技能独立 base/ratio）
+    from scripts.v161_design_table import V161_DESIGN  # noqa
 
     targets = {}  # key -> (skill dict, expr)
     for cid, cinfo in PLAYER_SKILLS.items():
-        if cid not in SAMPLE_CLASSES:
-            continue
         sk = cinfo.get("skills") if isinstance(cinfo, dict) else cinfo
         for sid, s in (sk or {}).items():
             stat = kind_stat(s.get("kind"))
@@ -181,7 +167,7 @@ def main():
                 expr = build_expr(stat, round(power, 4), p)
             targets[sid] = (s, expr)
 
-    print(f"样板伤害技能: {len(targets)}")
+    print(f"伤害技能: {len(targets)}")
     plan = []
     missing = []
     for key, (skill, expr) in targets.items():

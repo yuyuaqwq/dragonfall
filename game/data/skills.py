@@ -11,9 +11,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.82,
              'kind': '物理',
+             'exprs': ['atk*0.35 + 60 + player_lv*6 + skill_lv*14'],
              
              
-             'exprs': ['atk*0.35 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.82, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.45,
              'mech': 'zhan_yi',
              'mech_val': 1,
@@ -25,9 +25,9 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.97,
              'kind': '物理',
+             'exprs': ['atk*0.5 + 80 + player_lv*7 + skill_lv*16'],
              
              
-             'exprs': ['atk*0.5 + 80 + player_lv*7 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 0.97, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.6,
              'cd': 8,
              'name': '猛击',
@@ -38,9 +38,9 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 0.87,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 70 + player_lv*6 + skill_lv*14'],
              
              
-             'exprs': ['atk*0.45 + 70 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.87, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 8,
              'mech': 'zhan_yi',
@@ -78,9 +78,9 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.93,
              'kind': '物理',
+             'exprs': ['atk*0.45 + 90 + player_lv*7 + skill_lv*16'],
              
              
-             'exprs': ['atk*0.45 + 90 + player_lv*7 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 0.93, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.7,
              'cd': 12,
              'mech': 'zhan_yi',
@@ -93,9 +93,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.87,
              'kind': '物理',
+             'exprs': ['atk*0.55 + 100 + player_lv*8 + skill_lv*18'],
              
              
-             'exprs': ['atk*0.55 + 100 + player_lv*8 + skill_lv*18'],'formula': [{'stat': 'atk', 'mult': 0.87, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 12,
              'cond': {"type": "player_first", "mult": 1.15, "label": "先手压制"},
@@ -165,9 +165,9 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 1.16,
              'kind': '魔法',
+             'exprs': ['matk*0.55 + 80 + player_lv*6 + skill_lv*14'],
              
              
-             'exprs': ['matk*0.55 + 80 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'matk', 'mult': 1.16, 'type': 'magi', 'skill_flat': True}],
              'cast': 0.8,
              'cd': 8,
              'mech': 'element_burst',
@@ -235,7 +235,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.41,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.3 + 35 + player_lv*4 + skill_lv*10'],'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.41, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.35,
              'hits': 2,
@@ -248,7 +249,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.17,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.5 + 70 + player_lv*5 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'res_cost': {"energy": 28},
@@ -272,7 +274,8 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 1.17,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.45 + 65 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 12,
@@ -299,7 +302,8 @@ PLAYER_SKILLS = {
              'mp': 14,
              'power': 1.51,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.55 + 85 + player_lv*6 + skill_lv*15'],'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 1.51, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.65,
              'cd': 12,
@@ -325,7 +329,8 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.17,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.45 + 60 + player_lv*5 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 1.17, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 8,
@@ -389,7 +394,8 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.87,
              'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
+             
+             'exprs': ['matk*0.5 + 70 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
              'formula': [{'stat': 'matk', 'mult': 0.87, 'type': 'magi', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 8,
@@ -444,7 +450,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.66,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.4 + 40 + player_lv*4 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.66, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.25,
              'mech': 'lian_duan',
@@ -457,7 +464,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.78,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.45 + 50 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.78, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.3,
              'cd': 8,
@@ -471,7 +479,8 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 0.92,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.5 + 55 + player_lv*5 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.92, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.35,
              'cd': 8,
@@ -485,7 +494,8 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.46,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.35 + 45 + player_lv*4 + skill_lv*11'],'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.46, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.35,
              'cd': 12,
@@ -531,7 +541,8 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.04,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.6 + 75 + player_lv*6 + skill_lv*16'],'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 1.04, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.4,
              'cd': 12,
@@ -549,7 +560,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.63,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.3 + 45 + player_lv*5 + skill_lv*12'],'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.63, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.35,
              'shaken_gain': 0,
@@ -561,7 +573,8 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.81,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.4 + 55 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.81, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.45,
              'cd': 8,
@@ -575,7 +588,8 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 0.59,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.4 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.5,
              'cd': 12,
@@ -588,7 +602,8 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.29,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.25 + 35 + player_lv*4 + skill_lv*10'],'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.29, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.45,
              'cd': 12,
@@ -614,7 +629,8 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.59,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.45 + 60 + player_lv*6 + skill_lv*14'],'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.59, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.55,
              'cd': 12,
@@ -629,7 +645,8 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.73,
              'kind': '物理',
-             'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
+             
+             'exprs': ['atk*0.5 + 70 + player_lv*6 + skill_lv*15'],'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
              'formula': [{'stat': 'atk', 'mult': 0.73, 'type': 'phys', 'skill_flat': True}],
              'cast': 0.4,
              'cd': 12,
@@ -706,7 +723,8 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.08,
              'kind': '魔法',
-             'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
+             
+             'exprs': ['matk*0.45 + 65 + player_lv*5 + skill_lv*13'],'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
              'formula': [{'stat': 'matk', 'mult': 1.08, 'type': 'magi', 'skill_flat': True}],
              'cast': 0.6,
              'cd': 8,
