@@ -1978,9 +1978,11 @@ class Battle:
         from .core.formation import alive_units
         while self._events and _guard < 64:
             t, _seq, ev = self._events[0]
-            # v154 边界修复：严格 t < until_t 才处理——若 t == until_t（如被控跳过行动
-            # 重排到恰好等于玩家下次行动点），会在同一批循环再次触发（眩晕后立刻普攻 bug）
-            if float(t) >= float(until_t) - 1e-9:
+            # v154 边界：处理 t <= until_t（含等于）——收招=0 时 cast_done 恰好 == p_ct，
+            # 若用严格 < 会跳过导致命中永远不结算（task-2 发现的引擎缺口）。
+            # 防死循环：_after_actor_ct 对敌方重排已加 max(now+cast_mult, now+0.001) 保证严格 > now；
+            # 玩家侧 p_ct = now + cast_mult（cast_mult > 0 恒成立），同刻不会无限触发。
+            if float(t) > float(until_t) + 1e-9:
                 break
             self._heapq.heappop(self._events)
             self._now = max(self._now, float(t))
