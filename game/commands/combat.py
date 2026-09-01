@@ -945,8 +945,11 @@ class CombatCmds(CommandBase):
         else:
             _skill_target = None
         # v52 Build 懒迁移：技能栏全空的老玩家，自动把已学技能装进前几格
+        # v157 修复：技能栏含无效 ID（如 v153 重置残留的 "***" 占位符）也触发迁移——
+        # 否则输入『技能 1』查不到技能、战斗只触发被动不行动 → 玩家"无限回合"（实抓）。
         bar = db.get_skill_bar(qq_id)
-        if not any(bar or []):
+        _valid_bar = [s for s in (bar or []) if s and E.skill_info(player["class_name"], s)]
+        if not _valid_bar:
             learned = [C.display("skills", s) for s in (player.get("learned_skills") or []) if s]
             if learned:
                 new_bar = list(learned[:6])
@@ -954,6 +957,19 @@ class CombatCmds(CommandBase):
                     new_bar.append(None)
                 db.set_skill_bar(qq_id, new_bar)
                 bar = new_bar
+        elif len(_valid_bar) != len(bar or []):
+            # 部分无效：保留有效项，缺口用已学技能补（不整体重置）
+            learned = [C.display("skills", s) for s in (player.get("learned_skills") or []) if s]
+            _fill = [s for s in learned if s not in _valid_bar]
+            new_bar = list(_valid_bar)
+            for _s in _fill:
+                if len(new_bar) >= 6:
+                    break
+                new_bar.append(_s)
+            while len(new_bar) < 6:
+                new_bar.append(None)
+            db.set_skill_bar(qq_id, new_bar)
+            bar = new_bar
         skill_name = skill_name.strip()
         parts = skill_name.split()
         first = parts[0] if parts else ""
