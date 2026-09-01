@@ -131,6 +131,7 @@ CAST_ITEM = 1.0       # 道具基准耗时（1 秒 @spd50）
 CAST_FOOD = 1.0       # 食物基准耗时（1 秒 @spd50）
 CAST_DEFEND = 0.6     # 防御基准耗时（0.6 秒 @spd50，快动作）
 CAST_FLEE = 2.0       # 逃跑基准耗时（2 秒 @spd50，慢，易被打断）
+CAST_PET_SKILL = 0.8  # 宠物技能基准耗时（0.8 秒 @spd50，出手快）——v154 宠物独立读条
 
 # v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
 # handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
@@ -473,6 +474,13 @@ class Battle:
                     if _u.get("hp", 0) > 0:
                         _init_t = float(_u.get("ct", 0) or _ct_initial_wait(_u.get("spd", 0)))
                         self._schedule(_init_t, {"type": "enemy_act", "unit": _u})
+                # v154 宠物独立速度读条：开战排第一个 pet_tick（宠物初始等待 = 出招时间，
+                # 按宠物自身 spd 折算）。pet_tick 触发 = 宠物出手（决定技能 + 排 cast_done），
+                # 出招跑完 = 技能生效，随后重排下次 pet_tick（周期 = 出招 + 收招）。
+                if self.pet and int(self.pet.get("level", 0) or 0) >= 10:
+                    _pet_spd = self._pet_spd()
+                    _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
+                    self._schedule(_pt, {"type": "pet_tick"})
                 # DOT 由 player_turn 开头 _turn_start 结算（_tick_dots + _dot_pending 闸门），
                 # 不排独立 dot_tick 事件（避免重复结算）。
                 # Boss 定时机制由 _enemy_turn 内 _boss_mech 触发（每次敌方行动时按 r % interval 判定），
@@ -1777,12 +1785,8 @@ class Battle:
         # v101.28 食物持续恢复：正常刻开始结算 hot（每刻一次，含眩晕/冻结刻）
         if self.p_hot and self.p_hot.get("turns", 0) > 0:
             logs += self._apply_hot(player)
-        # 24 章宠物技能：刻开始自动触发（宠物击杀直接胜利）
-        if self.pet:
-            logs = self._pet_skill_turn(player, logs)
-            if self.result == "victory":
-                self._end_round()
-                return logs, True
+        # v154 宠物独立速度读条：宠物技能由 pet_tick 事件驱动（_process_until 内触发），
+        # 不再跟随玩家行动（玩家行动时宠物可能正在读条，节奏由宠物自身 spd 决定）。
         # v63 玩家被控：眩晕/冻结 → 跳过本刻行动（CTB 下行动浪费，玩家 ct 照走，随后敌方行动段）
         # v121 审计修复：统一走 _after_actor_ct("p")——被控也是"玩家行动消耗"，
         # 敌方应同步时间流逝（与蓄力等待/防御等路径一致），避免被控方反而配速占优
@@ -2007,6 +2011,16 @@ class Battle:
                         self.result = "defeat"
                         break
                 # v154：DOT/宠物/Boss 定时/词条回血不排独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
+                elif evt == "pet_tick":
+                    # v154 宠物独立速度读条：pet_tick = 宠物出手（技能立即决定 + 结算，
+                    # 出招跑完 = 生效；宠物技能无命中目标概念——攻击类打主目标、辅助类给玩家）。
+                    # 简化：宠物技能在出手时刻直接结算（读条只做节奏展示，不引入宠物命中/打断）。
+                    if self.pet and not self._enemy_dead():
+                        logs += self._pet_skill_turn(player, logs)
+                        if self.result == "victory":
+                            break
+                    # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）
+                    self._reschedule_pet_tick()
                 elif evt == "cast_done":
                     # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
                     side = ev.get("side", "p")
@@ -5177,10 +5191,22 @@ class Battle:
             return int(dmg * (1 + _pct * n))
         return dmg
 
+    def _pet_spd(self) -> float:
+        """宠物速度：读 PET_POOL 条目 spd 字段（v154 新增，独立行动节奏），兜底 50。"""
+        try:
+            pet = self.pet or {}
+            pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
+            if pdef and pdef.get("spd"):
+                return float(pdef["spd"])
+        except Exception:
+            pass
+        return 50.0
+
     def _pet_skill_turn(self, player: dict, logs: list) -> list:
-        """24 章宠物技能：每 N 刻自动触发（不占玩家行动、不消耗 MP）。
-        撕咬(atk_pct)/龙息(matk_pct)/月光祝福(heal_pct) 在玩家刻开始触发；
-        影袭(block) 在 _damage_player 前拦截（见 _pet_block_check）。
+        """24 章宠物技能：由 pet_tick 事件驱动（v154 宠物独立速度读条）。
+
+        撕咬(atk_pct)/龙息(matk_pct)/月光祝福(heal_pct)/影袭(block) 按宠物自身
+        出招/收招节奏触发（出招跑完 = 技能生效，读条命中制）；不占玩家行动、不消耗 MP。
         Lv.10 解锁；饱食度 =0 时技能失效。
         """
         pet = self.pet or {}
@@ -5193,11 +5219,6 @@ class Battle:
         pdef = next((p for p in C.PET_POOL if p["key"] == pet.get("pet_key")), None)
         if not pdef:
             return logs
-        interval = int(pdef.get("skill_interval", 0) or 0)
-        # v152 时刻制：_pet_skill_turn 由 pet_tick 事件驱动（_process_until 排程），
-        # 此处守卫仅兜底直接调用路径（PVP 等未走事件队列的场景）。
-        if interval <= 0 or self._tick_no() % interval != 0:
-            return logs
         stype = pdef.get("skill_type")
         pname = pet.get("name") or pdef["name"]
         sname = pdef["skill_name"]
@@ -5207,6 +5228,15 @@ class Battle:
         if handler:
             handler(self, player, pdef, pname, sname, line, logs)
         return logs
+
+    def _reschedule_pet_tick(self):
+        """v154 宠物独立读条：重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）。"""
+        try:
+            _pet_spd = self._pet_spd()
+            _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
+            self._schedule(self._now + _pt, {"type": "pet_tick"})
+        except Exception:
+            pass
 
     def _pet_block_check(self, dmg: int, logs: list) -> int:
         """24 章宠物技能·影袭：每 N 刻 value 概率替主人挡一次攻击(敌方伤害结算前)。"""
@@ -5223,10 +5253,15 @@ class Battle:
         if not pdef or pdef.get("skill_type") != "block":
             return dmg
         interval = int(pdef.get("skill_interval", 0) or 0)
-        # v152 时刻制：_pet_block_check 是被动拦截（在 _damage_player 前），按行动轮次判定。
-        if interval <= 0 or self._tick_no() % interval != 0:
+        # v154 读条制：影袭是被动拦截（受击时概率挡刀），按时间冷却制——
+        # 开战 interval 秒后才可用，之后每 interval 秒最多一次（原 _tick_no() 时刻折算在读条下失真）。
+        _last = getattr(self, "_pet_block_last_at", None)
+        if _last is None:
+            _last = 0.0  # 开战时刻：前 interval 秒为冷却期
+        if interval <= 0 or self._now - _last < interval:
             return dmg
         if random.random() < pdef.get("skill_value", 0):
+            self._pet_block_last_at = self._now
             pname = pet.get("name") or pdef["name"]
             logs.append(f"🐾 {pname}的【{pdef['skill_name']}】替你挡下了这次攻击！")
             return 0
