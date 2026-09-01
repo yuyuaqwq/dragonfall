@@ -3,6 +3,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, E, BT, Main, FakeEvent, run, clean_db
+from v154_helpers import finish_turn
 
 passed = failed = 0
 def check(name, cond, detail=""):
@@ -89,6 +90,7 @@ async def main():
     logs = []
     for _ in range(3):
         logs2, ended = b.player_turn("attack", None, db.get_player("g1", "w1"))
+        logs2 += finish_turn(b, db.get_player("g1", "w1"))
         logs += logs2
         if ended:
             break
@@ -100,16 +102,17 @@ async def main():
     logs2 = []
     for _ in range(3):
         l, ended = b2.player_turn("attack", None, db.get_player("g1", "w1"))
+        l += finish_turn(b2, db.get_player("g1", "w1"))
         logs2 += l
         if ended:
             break
     check("饱食度 0 技能不触发", "撕咬" not in "\n".join(logs2), "\n".join(logs2)[-200:])
 
-    # 战斗引擎：黑猫影袭挡刀（每 3 刻触发，先跑到 tick_no=3）——v152：影袭判定按行动轮次
-    # （_pet_block_check：_tick_no() % 3 == 0 → now=2.0 时 tick_no=3 触发；now=3.0 tick_no=4 不触发）
+    # 战斗引擎：黑猫影袭挡刀（每 3 秒触发）——v154：影袭按时间冷却制
+    # （_pet_block_check：开战 3 秒后可用 → now=3.0 触发；now=1.0 冷却中不触发）
     b3 = BT.Battle("monster", C.build_monster(["m_test3", "测试强敌", "dps", 3, [], ["狗牙"]], C.MAP_BY_ID["oak_plain"]),
                    {}, player=db.get_player("g1", "w1"), pet={"pet_key": "pet_cat", "name": "咪咪", "level": 10, "satiety": 100})
-    b3._now = 2.0  # v152：行动轮次 3（int(2/1)+1=3）→ 影袭判定点（1刻=1秒）
+    b3._now = 3.0  # v154：开战 3 秒 → 影袭可用（interval=3）
     # 固定随机：让影袭必然触发（random 在 0.25 内）——直接走 _damage_player 受击路径（影袭是受击拦截）
     import random as _r
     orig_random = _r.random

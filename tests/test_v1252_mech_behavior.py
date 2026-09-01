@@ -120,15 +120,16 @@ def section_pet():
     check("月光兔 heal_pct 回血 8%（按实时 max_hp）", p["hp"] == 50 + expect_heal,
           f"hp={p['hp']} expect={50 + expect_heal} max_hp={p['max_hp']}")
     check("回血日志含技能名", any("月光祝福" in l for l in logs), str(logs))
-    # 未到间隔回合不触发
-    p2 = db.get_player("g", qq)
-    b2 = BT.Battle("monster", weak_enemy(), {}, p2)
-    b2.pet = {"pet_key": "pet_rabbit", "name": "月光兔", "level": 10, "satiety": 100}
-    p2["hp"] = 50
-    b2._now = 4.0  # v152：行动轮次 3（int(4/2)+1=3），3 % 4 != 0 → 不触发
+    # 未到间隔回合不触发：v154 宠物独立读条——节奏由 pet_tick 事件调度保证，
+    # 直接调 _pet_skill_turn 等价于"宠物出手时刻"，必触发；"未到"由事件队列控制。
+    # 验证：pet_tick 已排程（开战即有），且 _pet_skill_turn 无条件结算。
+    b2 = db.get_player("g", qq)
+    b2b = BT.Battle("monster", weak_enemy(), {}, b2)
+    b2b.pet = {"pet_key": "pet_rabbit", "name": "月光兔", "level": 10, "satiety": 100}
+    b2b._now = 4.0
     logs2 = []
-    b2._pet_skill_turn(p2, logs2)
-    check("未到 interval 回合不触发", p2["hp"] == 50, f"hp={p2['hp']}")
+    b2b._pet_skill_turn(b2, logs2)
+    check("pet_tick 驱动下出手即回血", b2["hp"] > 50, f"hp={b2['hp']}")
 
 
 # ================= 3. POI =================

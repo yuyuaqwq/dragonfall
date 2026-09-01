@@ -30,6 +30,7 @@ async def main():
     from data.plugins.dragonfall.game import battle as BT
     from data.plugins.dragonfall.game.core.affix import stat_affix_stats
     from data.plugins.dragonfall.game.data.affixes import AFFIXES
+    from v154_helpers import enemy_turn_cast
 
     print("===== v106.4 反伤/物魔免/物法吸属性体系 =====")
 
@@ -125,7 +126,7 @@ async def main():
         p3b = mk_player(["phys_ward"], race="dwarf")
         b3b = BT.Battle("怪物", {"name": "怪", "hp": 1000, "max_hp": 1000,
                                  "atk": 100, "def": 20, "mdef": 20, "spd": 10}, {}, p3b)
-        logs3, _ = b3b._enemy_turn(p3b)
+        logs3 = enemy_turn_cast(b3b, p3b)
         if any("物理免伤" in l for l in logs3):
             found3 = True
             break

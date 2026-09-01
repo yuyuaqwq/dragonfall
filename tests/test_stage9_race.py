@@ -15,6 +15,7 @@ from conftest import FakeEvent, run, clean_db, make_player, TEST_DB, PLUGIN_DIR
 from data.plugins.dragonfall.game import content as C, db, engine as E
 from data.plugins.dragonfall.game import battle as BT
 from data.plugins.dragonfall.main import Main
+from v154_helpers import enemy_turn_cast
 
 passed = 0
 failed = 0
@@ -133,15 +134,15 @@ def test_battle_talents():
     # 石肤：矮人普攻物理减伤（v106.4 文案统一"物理免伤"）
     p_dw = mk_player("dwarf")
     b = BT.Battle("monster", mk_enemy(), {}, p_dw)
-    logs, dmg = b._enemy_turn(p_dw)
-    check("石肤物理减伤", "物理免伤" in "".join(logs) or dmg <= 30, f"{logs} dmg={dmg}")
+    logs = enemy_turn_cast(b, p_dw)
+    check("石肤物理减伤", "物理免伤" in "".join(logs), f"{logs}")
     # 龙鳞：龙裔魔法技能减伤（v106.4 文案统一"魔法免伤"）
     p_db = mk_player("dragonborn")
     enemy = mk_enemy("暗影法师", skills=["ms_an_ying_dan"], matk=50)
     b2 = BT.Battle("monster", enemy, {}, p_db)
     found = False
     for _ in range(30):  # 敌人 30% 概率用技能：30 次全普攻概率≈0.002%，消除偶发
-        logs2, _ = b2._enemy_turn(p_db)
+        logs2 = enemy_turn_cast(b2, p_db)
         if "魔法免伤" in "".join(logs2):
             found = True
             break
@@ -151,7 +152,7 @@ def test_battle_talents():
     b3 = BT.Battle("monster", mk_enemy("暗影法师", skills=["ms_an_ying_dan"], matk=50), {}, p_orc)
     found3 = False
     for _ in range(30):  # 同上：消除敌人技能随机性偶发
-        logs3, _ = b3._enemy_turn(p_orc)
+        logs3 = enemy_turn_cast(b3, p_orc)
         if "鲁莽之心" in "".join(logs3):
             found3 = True
             break

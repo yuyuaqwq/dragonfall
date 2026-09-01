@@ -13,6 +13,7 @@
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, E, BT, clean_db
+from v154_helpers import enemy_turn_cast
 
 passed = failed = 0
 
@@ -88,8 +89,11 @@ def test_pv_broken_counter():
     b3 = BT.Battle("monster", mk_boss("pv_broken"), {}, player=mk_player())
     b3._now = 3 * 2.0  # v152：round 3 → 绝对时刻 6.0（_tick_no()=4）
     b3._player_recent_skill = True
-    logs3, dmg3 = b3._enemy_turn(mk_player())
-    check("反扑回合产生伤害", dmg3 > 0, f"dmg={dmg3}")
+    p3 = mk_player()
+    hp_before = p3.get("hp", 0)
+    logs3 = enemy_turn_cast(b3, p3)
+    dmg3 = hp_before - p3.get("hp", 0)
+    check("反扑回合产生伤害", dmg3 > 0, f"dmg={dmg3} logs={logs3[-200:]}")
 
 
 def test_opening_roar():

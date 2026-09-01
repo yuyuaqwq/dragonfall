@@ -16,6 +16,7 @@ from conftest import FakeEvent, run, clean_db, make_player, TEST_DB, PLUGIN_DIR
 from data.plugins.dragonfall.game import content as C, db, engine as E
 from data.plugins.dragonfall.game import battle as BT
 from data.plugins.dragonfall.main import Main
+from v154_helpers import enemy_turn_cast
 
 passed = 0
 failed = 0
@@ -440,7 +441,7 @@ def test_set5_and_resist():
     btr = BT.Battle("monster", dict(enemy_bing), {}, p_res)
     found_r = False
     for _ in range(10):
-        logs, _ = btr._enemy_turn(p_res)
+        logs = enemy_turn_cast(btr, p_res)
         if "元素抗性减免" in "".join(logs):
             found_r = True
             break
@@ -450,7 +451,7 @@ def test_set5_and_resist():
     btd = BT.Battle("monster", dict(enemy_dark), {}, p_abyss)
     found_d = False
     for _ in range(10):
-        logs, _ = btd._enemy_turn(p_abyss)
+        logs = enemy_turn_cast(btd, p_abyss)
         if "元素抗性减免" in "".join(logs):
             found_d = True
             break
@@ -459,7 +460,7 @@ def test_set5_and_resist():
     btp = BT.Battle("monster", dict(enemy_dark), {}, p_plain)
     found_n = False
     for _ in range(10):
-        logs, _ = btp._enemy_turn(p_plain)
+        logs = enemy_turn_cast(btp, p_plain)
         if "元素抗性减免" in "".join(logs):
             found_n = True
             break
@@ -470,7 +471,7 @@ def test_set5_and_resist():
     bts = BT.Battle("monster", dict(enemy_bing), {}, p_sl)
     found_im = False
     for _ in range(10):
-        logs, _ = bts._enemy_turn(p_sl)
+        logs = enemy_turn_cast(bts, p_sl)
         if "抗寒" in "".join(logs):
             found_im = True
             break

@@ -232,7 +232,7 @@ def test_pet_block_before_dodge():
     hp_before = p["hp"]
     b = BT.Battle("monster", make_monster(),
                   pet={"pet_key": "pet_cat", "name": "黑猫", "level": 10, "satiety": 100})
-    b._now = 2.0  # v152：tick_no = int(2/1)+1 = 3 → 影袭判定点（interval=3 命中）
+    b._now = 3.0  # v154 时间冷却制：开战 3 秒后影袭可用（interval=3 命中）
     logs = []
     random.random = lambda: 0.01
     try:
@@ -242,10 +242,10 @@ def test_pet_block_before_dodge():
     check("影袭挡下攻击（优先于闪避）", any("替你挡下了" in l for l in logs), str(logs))
     check("拦截后无闪避日志（未进入闪避判定）", not any("闪避" in l for l in logs), str(logs))
     check("玩家未掉血", p["hp"] == hp_before, f"hp={p['hp']}")
-    # 非触发时刻（tick_no=2）→ 影袭不拦，正常走闪避
+    # 非触发时刻（开战 3 秒内）→ 影袭不拦，正常走闪避
     b2 = BT.Battle("monster", make_monster(),
                    pet={"pet_key": "pet_cat", "name": "黑猫", "level": 10, "satiety": 100})
-    b2._now = 1.0  # v152：tick_no = int(1/1)+1 = 2
+    b2._now = 1.0  # v154 时间冷却制：开战 1 秒 < interval=3 → 冷却中
     logs2 = []
     random.random = lambda: 0.01
     try:
