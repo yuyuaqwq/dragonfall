@@ -2094,6 +2094,17 @@ class InstanceCmds(CommandBase):
 
         v127.3：target 参数（『技能 <槽位> <编号>』指定目标）由 combat 层解析传入。
         """
+        # v157 DEBUG：副本行动入口诊断（排查"无限回合/技能不结算"）
+        try:
+            import time as _t
+            _dbg_cts = {str(k): round(float(v.get("ct", 0) or 0), 3) for k, v in (st.get("players") or {}).items()}
+            _dbg_ects = [f"{u.get('name')}:{round(float(u.get('ct', 0) or 0), 3)}" for u in (st.get("enemies") or [])]
+            _dbg_cur = self._instance_next_actor(st, group_id)
+            print(f"[DBG_instance_act] qq={qq_id} action={action} skill={skill_name!r} target={target} "
+                  f"turn={st.get('turn')} members={st.get('members')} p_cts={_dbg_cts} e_cts={_dbg_ects} "
+                  f"next={_dbg_cur} alive={st.get('alive')} turn_time={st.get('turn_time')} now={int(_t.time())}")
+        except Exception as _e:
+            print(f"[DBG_instance_act] 诊断异常 {_e!r}")
         # v101.24 #301：某层肃清后进入地图模式(boss=None, stage_cleared)时，攻击/技能/防御/使用道具
         # 都会走到 st["boss"]["hp"] 对 None 下标 → 'NoneType' object is not subscriptable 裸错。
         # 层内无敌人时直接引导『深入』推进，不进入战斗刻逻辑。
@@ -2135,6 +2146,11 @@ class InstanceCmds(CommandBase):
                     yield _r
                 return
             nxt = self._instance_next_actor(st, group_id)
+            # v157 DEBUG：轮转迭代诊断
+            try:
+                print(f"[DBG_loop] 迭代: nxt={nxt} 请求者={qq_id} 现有logs={len(logs)}")
+            except Exception:
+                pass
             if nxt[0] == "e":
                 elogs, ok = self._instance_enemy_ct_acts(st, group_id)
                 logs += elogs
@@ -2221,6 +2237,8 @@ class InstanceCmds(CommandBase):
             # （e_minions）刻结束蒸发、核心资源（resources）不持久化导致耗资源
             # 技能永不可用、round 恒 0 导致按刻 Boss 机制（召唤/回血）失序
             "round": st.get("round", 0),
+            # v157 修复：透传绝对时刻 now（否则 _now 每次 0 → p_ct 不累积 → 无限出手）
+            "now": st.get("now", 0.0) or 0.0,
             "e_minions": st.get("e_minions", []),
             "resources": st.get("resources", {}).get(cur_key, {}),
             "cooldown": st.get("cooldown", {}).get(cur_key, {}),
@@ -2242,6 +2260,13 @@ class InstanceCmds(CommandBase):
         b.player = snap
         _pct_before = float(getattr(b, "p_ct", 0.0) or 0.0)
         act_logs, ended = b.player_turn(action, skill_name, snap, enemy_act=False, target=target)
+        # v157 DEBUG：玩家行动后诊断（确认是否真的执行了 player_turn 且日志拼接）
+        try:
+            print(f"[DBG_instance_act] 行动后: action={action} skill={skill_name!r} ended={ended} "
+                  f"pct_before={_pct_before:.3f} pct_after={float(b.p_ct):.3f} act_logs={len(act_logs)}条 "
+                  f"敌hp={[(u.get('name'), u.get('hp')) for u in (st.get('enemies') or [])][:3]}")
+        except Exception:
+            pass
         st["players"][cur_key] = snap
         st["p_buffs"][cur_key] = b.p_buffs
         st.setdefault("p_hot", {})[cur_key] = b.p_hot
@@ -2277,6 +2302,11 @@ class InstanceCmds(CommandBase):
                     _eu["ct"] = max(0.0, _c - _dt)
         except Exception:
             pass
+        # v157 修复：写回 battle 绝对时刻 now——否则副本 from_state 每次 _now=0，
+        # p_ct = 0 + cast 恒等于初始值（不累积）→ 玩家 ct 永远最小 → 无限出手/敌永不动
+        # （2026-09-01 实抓根因，见 local_battle_sim 验证：透传 now 后 p_ct 正常累积、
+        #  敌我 ct 交替，玩家 ct 超过敌方时敌方正常行动）
+        st["now"] = getattr(b, "_now", 0.0) or 0.0
         snap["ct"] = b.p_ct
         st.setdefault("player_hit", {})[cur_key] = b._player_hit
         # v101.25 #323：防御状态必须写回——否则 Boss 反击时读 st["p_defending"] 永远是 False，
@@ -2875,6 +2905,7 @@ class InstanceCmds(CommandBase):
             "p_buffs": st["p_buffs"].get(tkey, {}),
             "e_buffs": unit.get("buffs") or {},
             "round": st.get("round", 0),
+            "now": st.get("now", 0.0) or 0.0,
             "e_minions": st.get("e_minions", []),
             "resources": st.get("resources", {}).get(tkey, {}),
             "cooldown": st.get("cooldown", {}).get(tkey, {}),
