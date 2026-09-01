@@ -3,12 +3,14 @@
 MONSTER_SKILLS = {
     "ms_ai_hao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],
         "power": 1.3,
         "desc": "哀嚎，恐惧敌人使其伤害降低",
         "name": "哀嚎",
     },
     "ms_an_ying_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         # v125.1 P2：原 interrupt:True 为死字段（_enemy_turn 不读 interrupt）——已改为经 mech
         # 接线 battle_mech.MON_CTRL_EFFECTS["interrupt"] 消费：命中打断玩家蓄力（battle.charging）。
@@ -19,6 +21,7 @@ MONSTER_SKILLS = {
     },
     "ms_an_ying_jian": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "暗影箭，暗影之箭攻击敌人",
         "name": "暗影箭",
@@ -26,6 +29,7 @@ MONSTER_SKILLS = {
     },
     "ms_an_ying_zhan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "暗影斩，暗影之刃斩击敌人",
         "name": "暗影斩",
@@ -33,6 +37,7 @@ MONSTER_SKILLS = {
     },
     "ms_an_ying_zhao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "暗影爪，暗影之爪撕裂敌人",
         "name": "暗影爪",
@@ -46,6 +51,7 @@ MONSTER_SKILLS = {
     },
     "ms_bao_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "爆弹，投掷爆弹炸伤敌人",
         "name": "爆弹",
@@ -53,6 +59,7 @@ MONSTER_SKILLS = {
     },
     "ms_bao_zi_bao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "孢子爆，引爆孢子造成范围伤害",
         "name": "孢子爆",
@@ -60,12 +67,14 @@ MONSTER_SKILLS = {
     },
     "ms_bao_zi_du": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "孢子毒，释放毒孢子攻击敌人",
         "name": "孢子毒",
     },
     "ms_bao_zi_pen_she": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "孢子喷射，喷射毒孢子攻击敌人",
         "name": "孢子喷射",
@@ -73,6 +82,7 @@ MONSTER_SKILLS = {
     "ms_bing_dan": {
 
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "冰弹，寒冰弹攻击敌人",
         "name": "冰弹",
@@ -81,6 +91,7 @@ MONSTER_SKILLS = {
     },
     "ms_bing_dong": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "冰冻，寒冰之力冻结敌人",
         "name": "冰冻",
@@ -89,6 +100,7 @@ MONSTER_SKILLS = {
     },
     "ms_bing_hou": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "冰吼，寒冰咆哮攻击敌人",
         "name": "冰吼",
@@ -97,6 +109,7 @@ MONSTER_SKILLS = {
     },
     "ms_bing_ji": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "冰击，寒冰冲击攻击敌人",
         "name": "冰击",
@@ -111,6 +124,7 @@ MONSTER_SKILLS = {
     },
     "ms_bing_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "冰息，寒冰吐息攻击敌人",
         "name": "冰息",
@@ -119,6 +133,7 @@ MONSTER_SKILLS = {
     },
     "ms_bing_ya": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "冰牙，寒冰之牙攻击敌人",
         "name": "冰牙",
@@ -127,54 +142,63 @@ MONSTER_SKILLS = {
     },
     "ms_cai_guang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "彩光，彩虹光芒攻击敌人",
         "name": "彩光",
     },
     "ms_cai_hong_zhan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "彩虹斩，彩虹之力斩击敌人",
         "name": "彩虹斩",
     },
     "ms_cai_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "彩息，彩虹吐息攻击敌人",
         "name": "彩息",
     },
     "ms_cha_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "叉击，攻击敌人",
         "name": "叉击",
     },
     "ms_chan_rao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "缠绕，用藤蔓缠绕攻击敌人",
         "name": "缠绕",
     },
     "ms_chong_zhuang": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "冲撞，攻击敌人",
         "name": "冲撞",
     },
     "ms_chuan_shen": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "穿身，穿透防御攻击敌人",
         "name": "穿身",
     },
     "ms_di_lie": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "地裂，攻击敌人",
         "name": "地裂",
     },
     "ms_di_yu_huo": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.2, 'type': 'magi'}],
         "power": 2.2,
         # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
         # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
@@ -185,84 +209,98 @@ MONSTER_SKILLS = {
     },
     "ms_ding_zhuang": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "顶撞，攻击敌人",
         "name": "顶撞",
     },
     "ms_dong_jie": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "冻结，凝聚寒气攻击敌人",
         "name": "冻结",
     },
     "ms_du_ci": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "毒刺，掷出毒刺攻击敌人",
         "name": "毒刺",
     },
     "ms_du_wu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "毒雾，攻击敌人",
         "name": "毒雾",
     },
     "ms_du_ya": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "毒牙，毒液侵蚀敌人",
         "name": "毒牙",
     },
     "ms_duan_dao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "短刀，攻击敌人",
         "name": "短刀",
     },
     "ms_duan_jian": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "短剑，攻击敌人",
         "name": "短剑",
     },
     "ms_dun_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "盾击，攻击敌人",
         "name": "盾击",
     },
     "ms_feng_bao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "风暴，召唤风暴攻击敌人",
         "name": "风暴",
     },
     "ms_feng_bao_zhi_nu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.2, 'type': 'magi'}],
         "power": 2.2,
         "desc": "风暴之怒，风暴之力爆发攻击敌人",
         "name": "风暴之怒",
     },
     "ms_feng_bao_zhi_yan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.4, 'type': 'magi'}],
         "power": 2.4,
         "desc": "风暴之眼，风暴核心爆发攻击敌人",
         "name": "风暴之眼",
     },
     "ms_feng_ren": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "风刃，风之利刃攻击敌人",
         "name": "风刃",
     },
     "ms_fu_chong": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "俯冲，攻击敌人",
         "name": "俯冲",
     },
     "ms_fu_hua": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "腐化，腐败之力侵蚀敌人",
         "name": "腐化",
@@ -270,12 +308,14 @@ MONSTER_SKILLS = {
     },
     "ms_fu_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "斧击，攻击敌人",
         "name": "斧击",
     },
     "ms_fu_shi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "腐蚀，腐蚀敌人护甲",
         "name": "腐蚀",
@@ -283,6 +323,7 @@ MONSTER_SKILLS = {
     },
     "ms_fu_shi_ling_yu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "腐蚀领域，腐蚀周围一切",
         "name": "腐蚀领域",
@@ -290,6 +331,7 @@ MONSTER_SKILLS = {
     },
     "ms_fu_shi_shu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "腐蚀术，释放腐蚀能量攻击敌人",
         "name": "腐蚀术",
@@ -297,42 +339,49 @@ MONSTER_SKILLS = {
     },
     "ms_fu_wen_chong_ji": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "符文冲击，符文之力冲击敌人",
         "name": "符文冲击",
     },
     "ms_gan_ran": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],
         "power": 1.3,
         "desc": "感染，释放感染能量攻击敌人",
         "name": "感染",
     },
     "ms_gao_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "镐击，攻击敌人",
         "name": "镐击",
     },
     "ms_gen_xu": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "根须，攻击敌人",
         "name": "根须",
     },
     "ms_gen_xu_chan_rao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "根须缠绕，用根须攻击敌人",
         "name": "根须缠绕",
     },
     "ms_gu_long_wei_ya": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "古龙威压，远古龙威震慑敌人",
         "name": "古龙威压",
     },
     "ms_gu_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "骨息，亡灵吐息攻击敌人",
         "name": "骨息",
@@ -340,6 +389,7 @@ MONSTER_SKILLS = {
     },
     "ms_hai_chao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "海潮，召唤巨浪冲击敌人",
         "name": "海潮",
@@ -360,6 +410,7 @@ MONSTER_SKILLS = {
     },
     "ms_hei_an_qi_dao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "黑暗祈祷，攻击敌人",
         "name": "黑暗祈祷",
@@ -367,6 +418,7 @@ MONSTER_SKILLS = {
     },
     "ms_hei_an_yi_shi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "黑暗仪式，攻击敌人",
         "name": "黑暗仪式",
@@ -386,6 +438,7 @@ MONSTER_SKILLS = {
     },
     "ms_huo_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "火弹，火焰弹攻击敌人",
         "name": "火弹",
@@ -393,6 +446,7 @@ MONSTER_SKILLS = {
     },
     "ms_huo_pao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
         # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
@@ -403,12 +457,14 @@ MONSTER_SKILLS = {
     },
     "ms_huo_qiang": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.6, 'type': 'phys'}],
         "power": 1.6,
         "desc": "火枪，射击敌人",
         "name": "火枪",
     },
     "ms_huo_yan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         # v125.1 P2 TODO：aoe 字段在敌方技能路径无消费端（_enemy_turn 单目标结算不读 aoe），
         # 待 battle.py 侧接线 AOE 结算后方可承诺"全场"；desc 暂不承诺。
@@ -425,6 +481,7 @@ MONSTER_SKILLS = {
     },
     "ms_ji_guang_shan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "极光闪，极光闪耀攻击敌人",
         "name": "极光闪",
@@ -437,18 +494,21 @@ MONSTER_SKILLS = {
     },
     "ms_jia_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "甲击，攻击敌人",
         "name": "甲击",
     },
     "ms_jian_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "剑击，攻击敌人",
         "name": "剑击",
     },
     "ms_jian_ta": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "charge": 1,
         "desc": "践踏，蓄力 1 刻后猛然踏地，命中结算(蓄力期间受击会被打断)",
@@ -456,36 +516,42 @@ MONSTER_SKILLS = {
     },
     "ms_jian_xiao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],
         "power": 1.3,
         "desc": "尖啸，震慑敌人使其速度降低",
         "name": "尖啸",
     },
     "ms_jiao_sha": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.6, 'type': 'phys'}],
         "power": 1.6,
         "desc": "绞杀，缠绕绞杀敌人",
         "name": "绞杀",
     },
     "ms_jing_hua_zhi_chao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "净化之潮，神圣潮水净化敌人",
         "name": "净化之潮",
     },
     "ms_jing_ji_chan_rao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],
         "power": 1.3,
         "desc": "荆棘缠绕，用荆棘攻击敌人",
         "name": "荆棘缠绕",
     },
     "ms_jing_ling_jian_shu": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.8, 'type': 'phys'}],
         "power": 1.8,
         "desc": "精灵剑术，精灵秘传剑法攻击敌人",
         "name": "精灵剑术",
     },
     "ms_ju_lang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "巨浪，掀起巨浪冲击敌人",
         "name": "巨浪",
@@ -494,12 +560,14 @@ MONSTER_SKILLS = {
     },
     "ms_ken_yao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "啃咬，攻击敌人",
         "name": "啃咬",
     },
     "ms_lei_bao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "雷暴，召唤雷暴攻击敌人",
         "name": "雷暴",
@@ -507,6 +575,7 @@ MONSTER_SKILLS = {
     },
     "ms_lei_ji": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "雷击，雷电轰击敌人",
         "name": "雷击",
@@ -514,6 +583,7 @@ MONSTER_SKILLS = {
     },
     "ms_lei_jian": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "雷剑，雷电之剑斩击敌人",
         "name": "雷剑",
@@ -521,6 +591,7 @@ MONSTER_SKILLS = {
     },
     "ms_lei_yu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "雷羽，雷电羽毛攻击敌人",
         "name": "雷羽",
@@ -528,48 +599,56 @@ MONSTER_SKILLS = {
     },
     "ms_lian_zhan": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "连斩，攻击敌人",
         "name": "连斩",
     },
     "ms_lie_yan_zhao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "烈焰爪，攻击敌人",
         "name": "烈焰爪",
     },
     "ms_lin_fen": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "磷粉，洒出磷粉使敌人致盲",
         "name": "磷粉",
     },
     "ms_long_jian_shu": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 2.2, 'type': 'phys'}],
         "power": 2.2,
         "desc": "龙剑术，攻击敌人",
         "name": "龙剑术",
     },
     "ms_long_lin_chong_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 2.2, 'type': 'phys'}],
         "power": 2.2,
         "desc": "龙鳞冲击，攻击敌人",
         "name": "龙鳞冲击",
     },
     "ms_long_wei": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "龙威，龙之威压震慑敌人",
         "name": "龙威",
     },
     "ms_long_wei_190": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 2.2, 'type': 'phys'}],
         "power": 2.2,
         "desc": "龙尾，攻击敌人",
         "name": "龙尾",
     },
     "ms_long_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "龙息，龙焰吐息攻击敌人",
         "name": "龙息",
@@ -577,42 +656,49 @@ MONSTER_SKILLS = {
     },
     "ms_long_yu_ai_hao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.4, 'type': 'magi'}],
         "power": 2.4,
         "desc": "龙语哀嚎，攻击敌人",
         "name": "龙语哀嚎",
     },
     "ms_long_zhao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 2.2, 'type': 'phys'}],
         "power": 2.2,
         "desc": "龙爪，攻击敌人",
         "name": "龙爪",
     },
     "ms_mei_huo": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "魅惑，迷惑敌人使其攻击偏离",
         "name": "魅惑",
     },
     "ms_mei_huo_zhi_ge": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "魅惑之歌，迷惑敌人使其伤害降低",
         "name": "魅惑之歌",
     },
     "ms_mo_zhi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "墨汁，喷出墨汁降低敌人命中",
         "name": "墨汁",
     },
     "ms_ni_jiang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "泥浆，泼洒泥浆攻击敌人",
         "name": "泥浆",
     },
     "ms_nian_ye": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "黏液，喷吐黏液攻击敌人",
         "name": "黏液",
@@ -625,6 +711,7 @@ MONSTER_SKILLS = {
     },
     "ms_pai_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "拍击，攻击敌人",
         "name": "拍击",
@@ -637,6 +724,7 @@ MONSTER_SKILLS = {
     },
     "ms_pi_kan": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "劈砍，攻击敌人",
         "name": "劈砍",
@@ -649,12 +737,14 @@ MONSTER_SKILLS = {
     },
     "ms_pu_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "扑击，攻击敌人",
         "name": "扑击",
     },
     "ms_qian_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "钳击，攻击敌人",
         "name": "钳击",
@@ -667,6 +757,7 @@ MONSTER_SKILLS = {
     },
     "ms_rong_yan_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "熔岩弹，熔岩弹攻击敌人",
         "name": "熔岩弹",
@@ -674,12 +765,14 @@ MONSTER_SKILLS = {
     },
     "ms_san_cha_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "三叉戟，攻击敌人",
         "name": "三叉戟",
     },
     "ms_shan_dian_lian": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "闪电链，连锁闪电攻击敌人",
         "name": "闪电链",
@@ -699,6 +792,7 @@ MONSTER_SKILLS = {
     },
     "ms_shen_pan_zhi_yan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.2, 'type': 'magi'}],
         "power": 2.2,
         "desc": "审判之炎，圣火审判攻击敌人",
         "name": "审判之炎",
@@ -706,6 +800,7 @@ MONSTER_SKILLS = {
     },
     "ms_shen_yuan_zhi_nu": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.4, 'type': 'magi'}],
         "power": 2.4,
         "desc": "深渊之怒，深渊之力爆发攻击敌人",
         "name": "深渊之怒",
@@ -713,36 +808,42 @@ MONSTER_SKILLS = {
     },
     "ms_sheng_guang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "圣光，神圣光芒灼烧敌人",
         "name": "圣光",
     },
     "ms_sheng_guang_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "圣光弹，发射圣光弹攻击敌人",
         "name": "圣光弹",
     },
     "ms_sheng_guang_zhan_bei_wu_ran": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "被污染的圣光斩，暗影与圣光交织",
         "name": "圣光斩(被污染)",
     },
     "ms_shi_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "石息，岩石吐息攻击敌人",
         "name": "石息",
     },
     "ms_shuai_wei": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "甩尾，攻击敌人",
         "name": "甩尾",
     },
     "ms_shui_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "水弹，水之弹攻击敌人",
         "name": "水弹",
@@ -751,6 +852,7 @@ MONSTER_SKILLS = {
     },
     "ms_shui_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "水息，水柱吐息攻击敌人",
         "name": "水息",
@@ -759,24 +861,28 @@ MONSTER_SKILLS = {
     },
     "ms_si_yao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "撕咬，攻击敌人",
         "name": "撕咬",
     },
     "ms_suan_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "酸息，酸性吐息腐蚀敌人",
         "name": "酸息",
     },
     "ms_suo_lian": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "锁链，攻击敌人",
         "name": "锁链",
     },
     "ms_teng_bian": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "藤鞭，攻击敌人",
         "name": "藤鞭",
@@ -795,30 +901,35 @@ MONSTER_SKILLS = {
     },
     "ms_tou_qie": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.0, 'type': 'magi'}],
         "power": 1.0,
         "desc": "偷窃，窃取敌人财物(少量金币)",
         "name": "偷窃",
     },
     "ms_tou_shi": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "投石，攻击敌人",
         "name": "投石",
     },
     "ms_tun_shi": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.8, 'type': 'phys'}],
         "power": 1.8,
         "desc": "吞噬，吞没敌人造成伤害",
         "name": "吞噬",
     },
     "ms_wan_dao": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "弯刀，攻击敌人",
         "name": "弯刀",
     },
     "ms_wang_wei": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "王威，王者之威震慑敌人",
         "name": "王威",
@@ -831,42 +942,49 @@ MONSTER_SKILLS = {
     },
     "ms_wei_ya": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "威压，以气势压制敌人使其伤害降低",
         "name": "威压",
     },
     "ms_xi_xue": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.5, 'type': 'phys'}],
         "power": 1.5,
         "desc": "吸血，吸取敌人生命恢复自身",
         "name": "吸血",
     },
     "ms_xing_hui_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "星辉弹，星光之力攻击敌人",
         "name": "星辉弹",
     },
     "ms_xing_hui_zhan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "星辉斩，星光之刃斩击敌人",
         "name": "星辉斩",
     },
     "ms_xing_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "星息，星辰吐息攻击敌人",
         "name": "星息",
     },
     "ms_xiong_zhang": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "熊掌，攻击敌人",
         "name": "熊掌",
     },
     "ms_xiu_jian": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "锈剑，攻击敌人",
         "name": "锈剑",
@@ -879,6 +997,7 @@ MONSTER_SKILLS = {
     },
     "ms_xuan_wo": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "漩涡，制造漩涡吞噬敌人",
         "name": "漩涡",
@@ -893,12 +1012,14 @@ MONSTER_SKILLS = {
     },
     "ms_yao_sui": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "咬碎，攻击敌人",
         "name": "咬碎",
     },
     "ms_ying_guang_shan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.4, 'type': 'magi'}],
         "power": 1.4,
         "desc": "荧光闪，荧光爆发攻击敌人",
         "name": "荧光闪",
@@ -911,12 +1032,14 @@ MONSTER_SKILLS = {
     },
     "ms_yue_guang_zhan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "月光斩，月华之刃斩击敌人",
         "name": "月光斩",
     },
     "ms_yun_dan": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "云弹，云雾弹攻击敌人",
         "name": "云弹",
@@ -929,6 +1052,7 @@ MONSTER_SKILLS = {
     },
     "ms_yun_shi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.2, 'type': 'magi'}],
         "power": 2.2,
         "desc": "陨石，召唤陨石轰击敌人",
         "name": "陨石",
@@ -942,6 +1066,7 @@ MONSTER_SKILLS = {
     },
     "ms_zhan_chui": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "战锤，攻击敌人",
         "name": "战锤",
@@ -954,6 +1079,7 @@ MONSTER_SKILLS = {
     },
     "ms_zhang_jian": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "长剑，攻击敌人",
         "name": "长剑",
@@ -1158,6 +1284,7 @@ MONSTER_SKILLS = {
     },
     "ms_zhao_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "爪击，攻击敌人",
         "name": "爪击",
@@ -1176,12 +1303,14 @@ MONSTER_SKILLS = {
     },
     "ms_zhi_mang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "致盲，使敌人攻击落空",
         "name": "致盲",
     },
     "ms_zhi_wang": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.2, 'type': 'magi'}],
         "power": 1.2,
         "desc": "织网，吐出蛛网攻击敌人",
         "name": "织网",
@@ -1194,6 +1323,7 @@ MONSTER_SKILLS = {
     },
     "ms_zhong_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "重击，攻击敌人",
         "name": "重击",
@@ -1206,12 +1336,14 @@ MONSTER_SKILLS = {
     },
     "ms_zhuang_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.4, 'type': 'phys'}],
         "power": 1.4,
         "desc": "撞击，攻击敌人",
         "name": "撞击",
     },
     "ms_zhuo_shao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "灼烧，烈焰灼烧敌人",
         "name": "灼烧",
@@ -1219,6 +1351,7 @@ MONSTER_SKILLS = {
     },
     "ms_zu_zhou": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.3, 'type': 'magi'}],
         "power": 1.3,
         "desc": "诅咒，降低敌人攻击",
         "name": "诅咒",
@@ -1231,12 +1364,14 @@ MONSTER_SKILLS = {
     },
     "ms_sheng_guang_zhui_bing": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.6, 'type': 'phys'}],
         "power": 1.6,
         "desc": "圣光骑士团的追击剑术，攻击敌人",
         "name": "追猎剑术"
     },
     "ms_sheng_guang_jian_zhen": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "罗兰的圣光剑阵，攻击敌人",
         "name": "圣光剑阵"
@@ -1244,6 +1379,7 @@ MONSTER_SKILLS = {
 
     "ms_xuan_yun_zhong_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.8, 'type': 'phys'}],
         "power": 1.8,
         "desc": "眩晕重击，重击敌人头部使其眩晕",
         "name": "眩晕重击",
@@ -1251,6 +1387,7 @@ MONSTER_SKILLS = {
     },
     "ms_chen_mo_jian_xiao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.5, 'type': 'magi'}],
         "power": 1.5,
         "desc": "沉默尖啸，刺耳的尖啸令敌人无法施法",
         "name": "沉默尖啸",
@@ -1258,6 +1395,7 @@ MONSTER_SKILLS = {
     },
     "ms_han_bing_tu_xi": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.7, 'type': 'magi'}],
         "power": 1.7,
         "desc": "寒冰吐息，龙息冰封敌人的行动",
         "name": "寒冰吐息",
@@ -1275,6 +1413,7 @@ MONSTER_SKILLS = {
     },
     "ms_you_ling": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "幽灵之触，幽魂之力侵蚀敌人",
         "name": "幽灵之触",
@@ -1282,6 +1421,7 @@ MONSTER_SKILLS = {
     },
     "ms_zhen_ji": {
         "kind": "物理",
+        "formula": [{'stat': 'atk', 'mult': 1.6, 'type': 'phys'}],
         "power": 1.6,
         "charge": 1,
         "desc": "震击，蓄力 1 刻后重拳震荡攻击敌人(蓄力期间受击会被打断)",
@@ -1289,6 +1429,7 @@ MONSTER_SKILLS = {
     },
     "ms_an_ying": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.6, 'type': 'magi'}],
         "power": 1.6,
         "desc": "暗影噬，暗影之力吞噬敌人",
         "name": "暗影噬",
@@ -1296,6 +1437,7 @@ MONSTER_SKILLS = {
     },
     "ms_xu_kong": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 2.0, 'type': 'magi'}],
         "power": 2.0,
         "desc": "虚空裂隙，撕裂空间攻击敌人",
         "name": "虚空裂隙",
@@ -1303,6 +1445,7 @@ MONSTER_SKILLS = {
     },
     "ms_hai_yao": {
         "kind": "魔法",
+        "formula": [{'stat': 'matk', 'mult': 1.8, 'type': 'magi'}],
         "power": 1.8,
         "desc": "海妖之歌，摄魂歌声攻击敌人",
         "name": "海妖之歌",

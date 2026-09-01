@@ -4803,6 +4803,30 @@ class Battle:
                         pene_phys=_pp, pene_magi=_pp_m,
                         pene_flat_phys=_pf, pene_flat_magi=_pf_m,
                     )
+                    # v157 修复：formula 分支同样走物理/魔法免伤结算（此前直接返回，
+                    # 魔法免伤(magic_reduce)/鲁莽之心(mr<0) 对带 formula 的怪物技能失效——
+                    # v157 怪物全量配 formula 后暴露。与下方非 formula 分支同款逻辑。
+                    if kind == "物理":
+                        _pst_pr = self._player_stats(player)
+                        pr = min(float(_pst_pr.get("phys_reduce", 0) or 0), 0.4)
+                        if pr > 0:
+                            red = max(1, int(dmg * pr))
+                            dmg = max(1, dmg - red)
+                            logs.append(f"🪨 物理免伤，减免 {red} 点物理伤害！")
+                    else:
+                        _pst_mr = self._player_stats(player)
+                        mr = float(_pst_mr.get("magic_reduce", 0) or 0)
+                        if self.p_buffs.get("magic_resist"):
+                            mr = 1 - (1 - mr) * (1 - 0.15)
+                        mr = min(mr, 0.4)
+                        if mr > 0:
+                            red = max(1, int(dmg * mr))
+                            dmg = max(1, dmg - red)
+                            logs.append(f"🛡️ 魔法免伤，减免 {red} 点伤害！")
+                        elif mr < 0:
+                            red = max(1, int(dmg * -mr))
+                            dmg = dmg + red
+                            logs.append(f"🔥 鲁莽之心，额外受到 {red} 点伤害！")
                 elif kind == "物理":
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
