@@ -1305,13 +1305,30 @@ class PlayerCmds(CommandBase):
             f"类型：{info.get('kind','')} ｜ 需求等级：Lv.{info['lv']} ｜ 消耗：{_cost_txt}",
             f"效果：{info['desc']}",
         ]
-        if is_learned and info.get("kind") != "被动" and mx > 1:
+        # v160 表达式技能：公式翻译展示（exprs 逐级显示当前级公式；单条 expr 显示公式本身）
+        _expr_show = self._skill_formula_text(info, slv if is_learned else 1)
+        if _expr_show:
+            lines.append(f"📐 公式：{_expr_show}")
+        # 玩家当前属性（表达式代入用；面板口径与战斗一致——称号加成省略，
+        # 展示目的是比较各级数值曲线，非精确面板；learned_skills 传入让属性被动生效）
+        # 仅表达式技能需要（旧百分比技能无玩家属性代入，省一次属性计算）
+        _stats = None
+        if (info.get("exprs") or info.get("expr")
+                or info.get("heal_formula") or info.get("heal_expr") or info.get("heal_exprs")):
+            _stats = E.player_final_stats(
+                player["class_name"], player["level"], player.get("equipment", {}),
+                player.get("class_tier", 0), player.get("attributes"),
+                player.get("evolve_path", 0), None,
+                player.get("race"), player.get("learned_skills"))
+            _stats["_player_lv"] = int(player.get("level", 1) or 1)
+        if info.get("kind") != "被动" and mx > 1:
             # v134.5 意见#57：LOL 式逐级数值——每级一行，展示 Lv.1→满级全部数值
             # （原只显示当前级单行）。维度与 _skill_upgrade_gains 同源。
+            # v160：未学技能也显示（意见#64『技能详情没学也应该显示各个等级的数值』）
             lines.append("📈 数值成长：")
             for _lv in range(1, mx + 1):
-                _gains = self._skill_upgrade_gains(info, _lv)
-                _mark = "▶" if _lv == slv else " "
+                _gains = self._skill_upgrade_gains(info, _lv, _stats)
+                _mark = "▶" if (is_learned and _lv == slv) else " "
                 if _gains:
                     lines.append(f"  {_mark} Lv.{_lv}: {' · '.join(_gains)}")
                 else:
@@ -1439,10 +1456,57 @@ class PlayerCmds(CommandBase):
             f"💡 记得『设置技能 <槽位> {display_name}』放入技能栏，战斗中『技能 <槽位>』即可施放～"
         )
 
-    def _skill_upgrade_gains(self, info: dict, lv: int) -> list:
+    def _skill_formula_text(self, info: dict, lv: int = 1) -> str:
+        """v160 表达式技能公式展示：exprs/expr/heal_formula 翻译成中文公式。
+
+        返回 '' 表示该技能无表达式（调用方不显示公式行）。
+        - 单条 expr：翻译整个公式
+        - exprs 逐级：显示『Lv.N：公式』（当前级；超过条数显示最后一条）
+        - heal_formula 字符串数组：同 exprs 逐级
+        - heal_formula 段列表：逐段翻译并用 + 连接
+        """
+        from ..core.formula_expr import translate_expr
+        _expr = E.skill_formula_expr(info, lv)
+        if _expr and isinstance(_expr, str):
+            return translate_expr(_expr)
+        # 治疗逐级
+        _hf = info.get("heal_formula") or info.get("heal_expr")
+        _he = info.get("heal_exprs")
+        if isinstance(_he, list) and _he:
+            _lvx = max(1, min(int(lv or 1), len(_he)))
+            return translate_expr(_he[_lvx - 1])
+        if isinstance(_hf, str):
+            return translate_expr(_hf)
+        if isinstance(_hf, list):
+            if _hf and all(isinstance(_x, str) for _x in _hf):
+                _lvx = max(1, min(int(lv or 1), len(_hf)))
+                return translate_expr(_hf[_lvx - 1])
+            # 段列表：逐段翻译
+            _parts = []
+            for _seg in _hf:
+                if isinstance(_seg, dict):
+                    _se = E.skill_formula_expr_for_seg(_seg, lv)
+                    if _se:
+                        _t = translate_expr(_se)
+                        _m = float(_seg.get("mult", 1.0) or 1.0)
+                        if _m != 1.0:
+                            _t = f"{_t}×{_m:g}"
+                        _parts.append(_t)
+            return " + ".join(_parts)
+        return ""
+
+    def _skill_upgrade_gains(self, info: dict, lv: int, stats: dict | None = None) -> list:
         """技能升级多维成长描述(v56.1)：按技能单独策划的成长配置列出各维度提升"""
         parts = []
         kind = info.get("kind", "")
+        # v160 表达式技能：按玩家属性代入显示实际数值（替代百分比）
+        _has_expr = (info.get("exprs") or info.get("expr")
+                     or info.get("heal_formula") or info.get("heal_expr") or info.get("heal_exprs"))
+        if _has_expr:
+            _val = E.skill_expr_preview(info, lv, stats)
+            if _val > 0:
+                label = "治疗" if kind == "治疗" else "伤害"
+                parts.append(f"{label} ≈ {int(round(_val))}")
         if info.get("power"):
             label = "治疗" if kind == "治疗" else "伤害"
             # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——

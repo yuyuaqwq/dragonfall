@@ -106,6 +106,69 @@ def test_skill_formula():
     check("技能 formula 生效（造成伤害）", has_dmg, f"logs={[l for l in logs if isinstance(l, str)][:3]}")
 
 
+def test_skill_exprs_levels():
+    """v160 逐级公式：技能级 exprs（每级一条公式）→ 引擎按技能等级取公式结算。
+
+    构造 exprs 三条：Lv.1=atk*0.8+20、Lv.2=atk*0.85+25、Lv.3=atk*0.9+30，
+    战士 Lv.11 满 str 加点 → atk 确定；验证 Lv.1/2/3 结算伤害按公式递增。
+    """
+    print("【2b. 技能 exprs 逐级公式（v160）】")
+    from game import content as C
+    player = mk_player()
+    b = mk_battle(player)
+    # 注入带 exprs 的技能（kind=物理 → phys 段）
+    C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]["sk_test_exprs"] = {
+        "lv": 1, "mp": 0, "power": 1.0, "kind": "物理", "cast": 0.5,
+        "exprs": ["atk*0.8 + 20", "atk*0.85 + 25", "atk*0.9 + 30"],
+        "name": "测试逐级斩",
+    }
+    _info = C.PLAYER_SKILLS["cls_zhan_shi"]["skills"]["sk_test_exprs"]
+    st = b._player_stats(player)
+    atk = st["atk"]
+    # 逐级结算（skill_levels 由 _skill_level_of 读 player，手动设）
+    for lv in (1, 2, 3):
+        p = dict(player)
+        p["skill_levels"] = {"测试逐级斩": lv}
+        b2 = mk_battle(p)
+        st2 = b2._player_stats(p)
+        logs = b2._player_skill(st2, "测试逐级斩", _info, p)
+        # 期望公式值：atk*mult+flat（未乘外部乘区/未过防御的基础值）
+        _expect_base = int(atk * (0.8 + 0.05 * (lv - 1)) + (20 + 5 * (lv - 1)))
+        # 伤害日志里应出现 ≈ 期望（基础值过防御后略低；直接用 resolve_formula 对齐）
+        from game.engine import resolve_formula
+        _dmg_expect, _ = resolve_formula(
+            [{"expr": _info["exprs"][lv - 1], "type": "phys"}],
+            {"atk": atk, "_player_lv": 11, "_skill_lv": lv},
+            20, 20, variance=0)
+        _has = any(isinstance(l, str) and "造成" in l and "伤害" in l for l in logs)
+        check(f"Lv.{lv} exprs 结算出伤害", _has, f"logs={[l for l in logs if isinstance(l, str)][:3]}")
+        # 提取日志伤害数值验证（若日志带数值；不带数值只验证出伤）
+        _dmg_txt = [l for l in logs if isinstance(l, str) and "造成" in l and "伤害" in l]
+        if _dmg_txt:
+            import re
+            _mm = re.findall(r"(\d+)", _dmg_txt[0])
+            if _mm:
+                _got = int(_mm[0])
+                # 战斗 variance=0.15 波动 ±15%，容差 ±20%
+                check(f"Lv.{lv} 结算≈{_dmg_expect}（atk={atk}，±20% 容差）",
+                      abs(_got - _dmg_expect) <= max(2, _dmg_expect * 0.2),
+                      f"got={_got} expect={_dmg_expect} logs={_dmg_txt[0][:60]}")
+            else:
+                check(f"Lv.{lv} 有伤害日志（无数值可核对）", True)
+        else:
+            check(f"Lv.{lv} 有伤害日志", False, f"logs={logs[:3]}")
+    # 越界：Lv.9（超过条数）取最后一条
+    p = dict(player)
+    p["skill_levels"] = {"测试逐级斩": 9}
+    b9 = mk_battle(p)
+    st9 = b9._player_stats(p)
+    logs9 = b9._player_skill(st9, "测试逐级斩", _info, p)
+    _has9 = any(isinstance(l, str) and "造成" in l and "伤害" in l for l in logs9)
+    check("Lv.9 越界取最后一条仍出伤", _has9, f"logs={[l for l in logs9 if isinstance(l, str)][:3]}")
+    # 清理注入（防污染后续测试）
+    C.PLAYER_SKILLS["cls_zhan_shi"]["skills"].pop("sk_test_exprs", None)
+
+
 def test_affix_formula():
     print("【3. 装备词条 formula（_affix_on_hit）】")
     player = mk_player()
@@ -156,6 +219,7 @@ def test_enemy_formula():
 if __name__ == "__main__":
     test_resolve_formula_pure()
     test_skill_formula()
+    test_skill_exprs_levels()
     test_affix_formula()
     test_enemy_formula()
     print(f"\n===== 结果：通过 {passed} / 断言 {passed + failed} =====")

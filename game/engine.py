@@ -804,6 +804,94 @@ def skill_max_level(info: dict | None = None) -> int:
     return int(_skill_up(info).get("max", SKILL_MAX_LEVEL))
 
 
+def skill_formula_expr(info: dict | None, level: int = 1):
+    """v160 逐级公式选择器：技能配 exprs（每级一条公式）时按技能等级取公式。
+
+    优先级：
+    1. exprs 数组 → exprs[clamp(level-1, 0, len-1)]（越界取最后一条，防配置失误）
+    2. expr 单条字符串 → 原样返回（skill_lv 变量在公式内自行成长）
+    3. 都没有 → None（调用方回退旧 stat/mult/flat 逻辑）
+
+    formula 段/治疗 heal_formula 共用（段元素也可能是 dict 带 exprs 键）。
+    """
+    if not info:
+        return None
+    _exprs = info.get("exprs")
+    if _exprs:
+        if isinstance(_exprs, str):
+            return _exprs
+        _list = list(_exprs or [])
+        if _list:
+            _lv = max(1, min(int(level or 1), len(_list)))
+            return _list[_lv - 1]
+    return info.get("expr") or None
+
+
+def skill_formula_expr_for_seg(seg: dict | None, level: int = 1):
+    """公式段级逐级选择：段带 exprs/expr 时按技能等级取（exprs 优先）。"""
+    if not seg:
+        return None
+    _exprs = seg.get("exprs")
+    if _exprs:
+        if isinstance(_exprs, str):
+            return _exprs
+        _list = list(_exprs or [])
+        if _list:
+            _lv = max(1, min(int(level or 1), len(_list)))
+            return _list[_lv - 1]
+    return seg.get("expr") or None
+
+
+def skill_expr_preview(info: dict | None, level: int, stats: dict | None = None) -> float:
+    """v160 表达式技能数值预览：按技能等级取公式，代入玩家当前属性求值。
+
+    用于技能详情『数值成长』展示（未乘外部乘区/未过防御的期望基础值）：
+    - 伤害 expr：skill_formula_expr(info, lv) → eval_expr
+    - 治疗 heal_formula/heal_expr：同语义（返回治疗量期望）
+    - 无表达式：返回 0.0（调用方回退旧 power×mult 百分比展示）
+
+    stats 缺省时只给 level（表达式里不含玩家属性也能算）；含 atk/matk/max_hp 等时按实际属性代入。
+    """
+    if not info:
+        return 0.0
+    lv = max(1, min(int(level or 1), skill_max_level(info)))
+    from .core.formula_expr import compile_expr, eval_expr, build_vars
+    _expr = skill_formula_expr(info, lv)
+    if not _expr:
+        # 治疗逐级（heal_formula 字符串数组 / heal_exprs）
+        _hf = info.get("heal_formula") or info.get("heal_expr")
+        _he = info.get("heal_exprs")
+        if isinstance(_he, list) and _he:
+            _lvx = max(1, min(lv, len(_he)))
+            _expr = _he[_lvx - 1]
+        elif isinstance(_hf, list) and _hf and all(isinstance(_x, str) for _x in _hf):
+            _lvx = max(1, min(lv, len(_hf)))
+            _expr = _hf[_lvx - 1]
+        elif isinstance(_hf, str):
+            _expr = _hf
+        elif isinstance(_hf, list):
+            # 段列表：逐段取 expr 求和（与 battle 治疗结算一致）
+            _vars = build_vars(stats or {}, skill_lv=lv)
+            _total = 0.0
+            for _seg in _hf:
+                if isinstance(_seg, dict):
+                    _se = skill_formula_expr_for_seg(_seg, lv)
+                    if _se:
+                        try:
+                            _total += eval_expr(compile_expr(_se), _vars) * float(_seg.get("mult", 1.0) or 1.0)
+                        except Exception:
+                            pass
+            return _total
+        if not _expr:
+            return 0.0
+    try:
+        _vars = build_vars(stats or {}, player_lv=int((stats or {}).get("_player_lv", 0) or 0),
+                           skill_lv=lv)
+        return float(eval_expr(compile_expr(_expr), _vars))
+    except Exception:
+        return 0.0
+
+
 def skill_power_mult(level: int, info: dict | None = None) -> float:
     """技能等级对 power 的倍率。info 给定且配了 p 时按该技能成长，否则默认每级＋10%"""
     lv = max(1, min(level, skill_max_level(info)))
@@ -971,7 +1059,8 @@ def resolve_formula(formula, stats, target_def, target_mdef, is_crit=False,
             continue
         ftype = seg.get("type", "phys")
         # v159 表达式段：expr 字符串 → 求值（预编译缓存），替代 stat/mult/flat
-        _expr = seg.get("expr")
+        # v160 逐级：段带 exprs 数组时按技能等级取公式（越界取最后）
+        _expr = skill_formula_expr_for_seg(seg, int(stats.get("_skill_lv", 1) or 1))
         if _expr:
             try:
                 from .core.formula_expr import compile_expr, eval_expr, build_vars

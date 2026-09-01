@@ -210,3 +210,45 @@ def expr_or(value, fallback):
     if isinstance(value, str):
         return compile_expr(value)
     return fallback
+
+
+# ---------- 表达式 → 中文公式翻译（技能详情展示用） ----------
+
+# 变量名 → 中文名（v160 技能详情展示；顺序无关，最具体的放前面避免子串误替换）
+_VAR_CN = {
+    "player_lv": "玩家等级",
+    "skill_lv": "技能等级",
+    "target_max_hp": "目标最大生命",
+    "crit_mult": "暴击倍率",
+    "max_hp": "最大生命",
+    "matk": "魔法攻击",
+    "mdef": "魔法防御",
+    "atk": "攻击",
+    "def": "防御",
+    "spd": "速度",
+    "crit": "暴击",
+    "hp": "当前生命",
+    "base": "基础值",
+}
+
+
+def translate_expr(expr: str) -> str:
+    """把表达式字符串翻译成人类可读中文公式（技能详情展示用）。
+
+    例：'(atk*0.8 + player_lv*5) * (1 + skill_lv*0.1)'
+      → '(攻击×0.8 + 玩家等级×5) × (1 + 技能等级×0.1)'
+
+    - 变量名替换为中文（最长词优先，避免 player_lv 被 lv 之类误切）
+    - * → ×、/ → ÷（只替换非注释部分；表达式不含注释，直接全量替换）
+    - 未知变量保持原样（不 panic）
+    """
+    if not expr:
+        return ""
+    out = str(expr)
+    # 变量替换：按中文名长度降序（player_lv > skill_lv > max_hp > hp），
+    # 用正则 \b 词边界避免 'atk' 误中 'matk' 等子串。
+    import re as _re
+    for _var in sorted(_VAR_CN, key=len, reverse=True):
+        out = _re.sub(rf"\b{_var}\b", _VAR_CN[_var], out)
+    out = out.replace("*", "×").replace("/", "÷")
+    return out

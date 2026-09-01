@@ -3732,7 +3732,19 @@ class Battle:
         # v95r38：power<1 的治疗技能按 max_hp 百分比结算（如拳师气息调息 15% HP），
         # power>=1 保持原有"魔攻×power"模式（治愈术 200% 等），与消耗品 heal<1 百分比语义一致
         # v159 表达式：技能配 heal_formula 时走表达式（任意自定义），否则回退旧逻辑
-        _hf = info.get("heal_formula") or info.get("heal_expr")
+        # v160 逐级：heal_formula 本身为字符串数组（每级一条）或 info 配 heal_exprs 时按级取；
+        #   段级 exprs 走 skill_formula_expr_for_seg（独立于伤害 exprs，不串扰）
+        _hf_raw = info.get("heal_formula") or info.get("heal_expr")
+        _hf = _hf_raw
+        if _hf_raw:
+            _he = info.get("heal_exprs")
+            if isinstance(_he, list) and _he:
+                _lvx = max(1, min(int(lv or 1), len(_he)))
+                _hf = _he[_lvx - 1]
+            elif isinstance(_hf_raw, list) and _hf_raw and all(isinstance(_x, str) for _x in _hf_raw):
+                # heal_formula 本身是字符串数组 = 逐级公式（第 N 级取第 N 条，越界取最后）
+                _lvx = max(1, min(int(lv or 1), len(_hf_raw)))
+                _hf = _hf_raw[_lvx - 1]
         if _hf:
             try:
                 from .core.formula_expr import compile_expr, eval_expr, build_vars
@@ -3748,8 +3760,9 @@ class Battle:
                     # 段列表（同伤害 formula 格式）：求和
                     _hv = 0
                     for _hseg in _hf:
-                        if isinstance(_hseg, dict) and _hseg.get("expr"):
-                            _hv += eval_expr(compile_expr(_hseg["expr"]), _vars) * float(_hseg.get("mult", 1.0) or 1.0)
+                        _hseg_expr = E.skill_formula_expr_for_seg(_hseg, lv)
+                        if isinstance(_hseg, dict) and _hseg_expr:
+                            _hv += eval_expr(compile_expr(_hseg_expr), _vars) * float(_hseg.get("mult", 1.0) or 1.0)
                         else:
                             _fstat = _hseg.get("stat", "matk")
                             _fmult = float(_hseg.get("mult", 1.0) or 1.0)
@@ -4249,7 +4262,27 @@ class Battle:
             #       flat 必须 × pmult（resolve_formula 内部 flat 不乘外层 mult，这里预先乘好）：
             #       base = atk×(power×pmult) + flat×pmult = (atk×power + flat)×pmult，与非 formula 路径等价。
             #       段级 "pierce": true → 绕过防御（等价非 formula 路径 calc_damage(pierce=True)）
-            if info.get("formula"):
+            # v160 逐级表达式：技能级 exprs（每级一条完整表达式字符串）→ 构造单段 formula 走统一解释器
+            #   用法：'exprs': ['atk*0.8 + 20', 'atk*0.85 + 25', ...]，第 N 级取第 N 条（越界取最后）
+            #   单条 expr（字符串）同样走这里（v159：表达式即唯一数值来源，与 formula 数组互斥）
+            #   type 由 kind 推导（物理→phys、真伤→true、其余 magi），与旧 formula 自动生成一致
+            #   ⚠️ 表达式已内嵌技能等级成长（skill_lv 变量/逐级公式），不再叠加 skill_power_mult——
+            #      外层 mult 需剔除技能成长项（pmult 含 skill_power_mult），避免双重成长
+            _skill_expr = E.skill_formula_expr(info, lv)
+            if _skill_expr:
+                _seg_type = "true" if kind == "真伤" else ("phys" if kind == "物理" else "magi")
+                st["_player_lv"] = int(player.get("level", 1) or 1)
+                st["_skill_lv"] = lv
+                _pmult_expr = pmult / E.skill_power_mult(lv, info) if E.skill_power_mult(lv, info) else pmult
+                _dmg0, _mseg0 = E.resolve_formula(
+                    [{"expr": _skill_expr, "type": _seg_type}], st, est["def"], est["mdef"],
+                    is_crit=_seg_crit, pene_phys=_pp_phys, pene_magi=_pp_magi,
+                    pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
+                    mult=_pmult_expr, variance=0.15,
+                )
+                dmg_i = _dmg0
+                _magi_part += _mseg0
+            elif info.get("formula"):
                 _fml = []
                 for _seg in info["formula"]:
                     _seg = dict(_seg)
