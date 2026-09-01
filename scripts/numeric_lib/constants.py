@@ -77,6 +77,29 @@ BOSS_HP_MULT = {
 }
 TEAM_PER_PLAYER_ADD = 0.65   # 每多 1 人 Boss HP +0.65（32 章三）
 
+# ---------------- 分阶段数值成长（v156 v2.1，鱼鱼点名"每个阶段"） ----------------
+# 阶段划分依据：转职门槛 30/60/90（EVOLVE_LEVELS）+ 副本等级分布 15→94 + 装备品质进度（计划 §一.5.1）。
+# 装备档位 = 该阶段典型等级代表性装备（P1 蓝+0 近似新手下限 / P2 蓝+5 / P3 紫+9 / P4 紫+9 / P5 橙+9）。
+# loadout 复用 LOADOUTS 档位（team_* 档 players=4 不影响单人面板——gear_loadout 只取 quality/enhance/upgrade/gem/set）。
+STAGES = [
+    ("P1", 10, "solo_low",      "新手",    "白/绿 +0~+3"),
+    ("P2", 24, "solo_mid",      "一职",    "蓝 +0~+5"),
+    ("P3", 45, "team_purple9",  "二职",    "蓝+5 / 紫"),
+    ("P4", 75, "team_purple9",  "三职",    "紫+9 / 橙"),
+    ("P5", 95, "team_orange9",  "毕业",    "橙+9 升10 满加成"),
+]
+# 阶段成长率约束（计划 §一.5.3，防数值失控；纯等级成长 1.7~2.0×，叠加装备档位 2.2~3.5×）：
+#   玩家 HP 每阶段 2.2~3.5× / 技能 DPS 2.5~4.5× / 同级怪 HP 2.0~3.0× / 承伤% ≤2.5% 不恶化
+# 门禁断言用 [STAGE_GROWTH_MIN, STAGE_GROWTH_MAX]（宽容带：同档位阶段纯等级成长 ~1.4× 也合法）
+STAGE_GROWTH_MIN = 1.25   # 阶段增幅下限（防断档：低于此 = 某阶段成长卡死）
+STAGE_GROWTH_MAX = 5.0    # 阶段增幅上限（防爆炸：高于此 = 数值失控）
+# Boss 单发占 HP 目标（计划 §一.6.3）：每阶段 8~12%（承伤有压力但不秒杀；后期不得低于 5%）
+BOSS_HIT_PCT_MIN = 0.08
+BOSS_HIT_PCT_MAX = 0.12
+# 普通怪击杀轮目标（32 章三档难度锚点）：裸装同级 4~6 轮
+MONSTER_KILL_ROUND_MIN = 4
+MONSTER_KILL_ROUND_MAX = 6
+
 # 玩家档位预设（--loadout / gear_loadout；quality 直接对 QUALITY 表 white/green/blue/purple/orange）
 LOADOUTS = {
     "naked":       {"quality": "white", "enhance": 0, "players": 1, "label": "裸装"},

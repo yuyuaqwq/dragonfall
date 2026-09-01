@@ -23,10 +23,11 @@ if _SDIR not in sys.path:
     sys.path.insert(0, _SDIR)
 
 from numeric_lib.env import setup_env  # noqa: E402,F401
-from numeric_lib.constants import LOADOUTS, cls_id, cls_name, CLASSES  # noqa: E402
+from numeric_lib.constants import LOADOUTS, STAGES, cls_id, cls_name, CLASSES  # noqa: E402
 from numeric_lib.player import PlayerOptions, build_player, per_action_dmg, dmg_budget, mp_budget  # noqa: E402
 from numeric_lib.gear import gear_loadout  # noqa: E402
 from numeric_lib.monster import build as build_monster, curve_override  # noqa: E402
+from numeric_lib.stage import stage_scan, monster_scan  # noqa: E402
 from numeric_lib.team import (  # noqa: E402
     team_matrix, boss_hp, team_net_mult, team_rounds, instance_details, TEAM_COMPS)
 from numeric_lib.battle import win_rate, monster_of  # noqa: E402
@@ -198,6 +199,36 @@ def cmd_mp(args):
     return ""
 
 
+def cmd_stage(args):
+    """分阶段扫描（v156 v2.1）：5 阶段 DPS/HP/承伤 + 增幅；--monster 扩展怪物侧。"""
+    if args.monster:
+        data = monster_scan(args.cls)
+        rows = data["stages"]
+        head = f"# 怪物相对强度扫描（{cls_name(cls_id(args.cls))}，5 阶段）"
+        print(head)
+        print(md_table(rows, ["stage", "lv", "loadout", "dps", "hp", "kills", "kills_naked",
+                              "boss_pct", "elite_pct", "boss_atk", "boss_hp", "norm_hp", "elite_hp"],
+                       {"stage": "阶段", "lv": "Lv", "loadout": "档位", "dps": "DPS",
+                        "hp": "HP", "kills": "击杀轮(满装)", "kills_naked": "击杀轮(裸装)",
+                        "boss_pct": "Boss单发%", "elite_pct": "精英单发%",
+                        "boss_atk": "BossATK", "boss_hp": "BossHP", "norm_hp": "普通怪HP",
+                        "elite_hp": "精英HP"}))
+        print("口径：对同级 dps 怪；击杀轮目标 4~6（裸装），Boss 单发占 HP 8~12%，精英 5~8%")
+        return "" if not args.json else to_json(data)
+    data = stage_scan(args.cls)
+    rows = data["stages"]
+    head = f"# 分阶段扫描 {cls_name(cls_id(args.cls))}（5 阶段 DPS/HP/承伤）"
+    print(head)
+    print(md_table(rows, ["stage", "lv", "loadout", "dps", "hp", "boss_pct", "elite_pct"],
+                   {"stage": "阶段", "lv": "Lv", "loadout": "档位", "dps": "DPS", "hp": "HP",
+                    "boss_pct": "Boss单发%", "elite_pct": "精英单发%"}))
+    print("\n阶段增幅（相对上一阶段）：")
+    print(md_table(data["growth"], ["from", "to", "dps_x", "hp_x"],
+                   {"from": "从", "to": "到", "dps_x": "DPS×", "hp_x": "HP×"}))
+    print("约束：HP 2.2~3.5× / DPS 2.5~4.5×（纯等级 1.7~2.0×，叠加装备档位）")
+    return "" if not args.json else to_json(data)
+
+
 def cmd_diff(args):
     with open(args.before, encoding="utf-8") as f:
         before = json.load(f)
@@ -262,10 +293,15 @@ def main(argv=None):
     sp.add_argument("--naked", action="store_true", help="裸装")
     common(sp)
 
+    sp = sub.add_parser("stage", help="分阶段扫描（v156 v2.1）：5 阶段 DPS/HP/承伤 + 增幅")
+    sp.add_argument("cls", nargs="?", default="战士", help="职业（默认战士）")
+    sp.add_argument("--monster", action="store_true", help="怪物相对强度（击杀轮/Boss单发占HP）")
+    sp.add_argument("--json", action="store_true")
+
     args = p.parse_args(argv)
     fn = {"player": cmd_player, "dmg": cmd_dmg, "calib": cmd_calib,
           "team": cmd_team, "matrix": cmd_matrix, "diff": cmd_diff,
-          "mp": cmd_mp}[args.cmd]
+          "mp": cmd_mp, "stage": cmd_stage}[args.cmd]
     out = fn(args)
     if isinstance(out, str) and out:
         print(out)
