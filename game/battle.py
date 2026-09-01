@@ -114,20 +114,23 @@ DEBUFF_TURNS = 2      # 减益默认持续刻
 # （旧 100 在新模型下战斗拖到 113s 太长；40 平衡节奏与速度差稀释）
 BASE_DELAY = 40.0     # 行动间隔基数（v152 标定：40 保持战斗节奏）
 SPD_CT_CAP = 80.0     # 参与 ct 计算的 spd 软上限（min(spd, cap)）
+# v154 鱼鱼拍板：速度影响自己的出招(cast)和收招(recovery)，出招跑完=命中。
+# 恢复间隔取消——总行动周期 = 出招 + 收招，速度收益全部收敛到动作快慢。
+# SPD_REF = 基准速度：速度 50 时动作耗时 = 数据基础值；>50 变快，<50 变慢。
+SPD_REF = 50.0        # v154 基准速度（= v152 参考档）
 # v152 CTB 彻底化：刻 → 时刻。ACT_TICK = 1 刻对应的全局时刻数。
 # 鱼鱼拍板（2026-08-31）：1 刻 = 1 游戏秒（对齐秒，玩家直观）。
 # 所有"持续 N 刻 / CD N 刻"换算为 N × ACT_TICK = N 时刻 = N 游戏秒。
 # 引擎内部无"刻"概念，只有全局绝对时刻 _now；"刻"是玩家可见的换算单位（1 刻 = 1 秒）。
 ACT_TICK = 1.0        # 1 刻 = 1.0 时刻 = 1 游戏秒（鱼鱼拍板对齐秒）
-# v152 鱼鱼拍板：总耗时 = 行动间隔（速度决定，100/spd）+ 固定动作耗时。
-# 速度只影响"恢复等待"（间隔），动作本身耗时固定（不随速度变）。
-# 动作耗时 = 绝对秒数（不再是 cast_mult 系数 × cost）。
-CAST_ATK = 1.0        # 普攻动作耗时（固定 1 秒）
-CAST_SKILL = 1.6      # 技能动作耗时（固定 1.6 秒，出手更慢）
-CAST_ITEM = 1.0       # 道具动作耗时（固定 1 秒）
-CAST_FOOD = 1.0       # 食物动作耗时（固定 1 秒）
-CAST_DEFEND = 0.6     # 防御动作耗时（固定 0.6 秒，快动作）
-CAST_FLEE = 2.0       # 逃跑动作耗时（固定 2 秒，慢，易被打断）
+# v154：CAST_* 语义从"固定动作耗时"改为"基准耗时"（速度 50 时 = 该值）。
+# 实际耗时 = 基准耗时 × (SPD_REF / 实际速度)；速度 50 时 = 基准值。
+CAST_ATK = 1.0        # 普攻基准耗时（1 秒 @spd50）
+CAST_SKILL = 1.6      # 技能基准耗时（1.6 秒 @spd50，出手更慢）
+CAST_ITEM = 1.0       # 道具基准耗时（1 秒 @spd50）
+CAST_FOOD = 1.0       # 食物基准耗时（1 秒 @spd50）
+CAST_DEFEND = 0.6     # 防御基准耗时（0.6 秒 @spd50，快动作）
+CAST_FLEE = 2.0       # 逃跑基准耗时（2 秒 @spd50，慢，易被打断）
 
 # v125.1 审计 P2-2：宠物技能类型注册表（数据驱动，替代 _pet_skill_turn 内 if/elif 链）
 # handler 签名 fn(battle, player, pdef, pname, sname, line, logs) -> None（直接改 battle 状态 + 追加日志）
@@ -228,14 +231,16 @@ def _psk_crit_up(battle, player, pdef, pname, sname, line, logs):
 
 
 def _ct_initial_wait(spd) -> float:
-    """v130.10 绝对时刻 CTB：单位初始行动等待 = BASE_DELAY/spd（阴阳师式速度条，行动频率线性）。
-    替代 v121 的 -spd 先手值——旧相对时钟下怪 ct 被玩家行动持续回拽导致追赶死锁/站桩
-    （见 docs/NUMERIC_TEST.md 失衡基线；修复后频率比 = spd_p/spd_e 线性）。"""
+    """v154 单位初始行动等待 = 基准普攻耗时 × 速度折算系数（第一刀也按速度快慢出）。
+    v130.10 语义：初始等待 = BASE_DELAY/spd（恢复间隔制）。
+    v154 语义：恢复间隔取消，初始等待 = 出招耗时（基准 CAST_ATK × SPD_REF/spd）。
+    速度 50 → 1.0s；速度 25 → 2.0s；速度 80(cap) → 0.625s。
+    """
     try:
         eff = min(float(spd or 0), SPD_CT_CAP)
     except Exception:
         eff = 0.0
-    return BASE_DELAY / max(1.0, eff)
+    return CAST_ATK * (SPD_REF / max(1.0, eff))
 
 
 class Battle:
@@ -1475,26 +1480,32 @@ class Battle:
         return 1.0 + bonus if bonus > 0 else 1.0
 
     def _ct_cost(self, spd) -> float:
-        """v121 CTB：行动消耗 cost = BASE_DELAY / max(1, min(spd, SPD_CT_CAP))。"""
+        """v154 速度折算系数：动作耗时 = 基准耗时 × 折算系数。
+        v121 语义：行动消耗 cost = BASE_DELAY / max(1, min(spd, SPD_CT_CAP))（恢复间隔）。
+        v154 语义：恢复间隔取消，速度只影响出招/收招快慢。
+        折算系数 = SPD_REF / max(1, min(spd, SPD_CT_CAP))——速度 50 时 = 1.0（基准耗时）。
+        """
         try:
             eff = min(float(spd or 0), SPD_CT_CAP)
         except Exception:
             eff = 0.0
-        return BASE_DELAY / max(1.0, eff)
+        return SPD_REF / max(1.0, eff)
 
     def _action_cast(self, kind: str, player: dict | None = None, skill: dict | None = None,
-                     item: dict | None = None, skill_name: str | None = None) -> float:
-        """v152 数据驱动动作时长：返回总动作耗时（前摇 + 后摇）。
+                     item: dict | None = None, skill_name: str | None = None, spd: float | None = None) -> float:
+        """v154 数据驱动动作时长（速度折算）：返回总动作耗时 = 基准耗时 × 速度折算系数。
 
         优先级：技能/职业/道具数据字段 > 全局默认常量（CAST_*）。
         kind: 'atk'|'skill'|'item'|'food'|'defend'|'flee'
-        - skill:   skill.cast（前摇）+ skill.recovery（后摇，默认 0）；skill_name 传入时自查技能表
+        - skill:   skill.cast（出招）+ skill.recovery（收招，默认 0）；skill_name 传入时自查技能表
         - 职业普攻: class.cast_atk + class.recovery_atk（classes.py 顶层字段）
         - 职业防御: class.cast_defend + class.recovery_defend
         - 职业逃跑: class.cast_flee + class.recovery_flee
         - 道具:    item.cast + item.recovery
         - 兜底:    全局 CAST_* 常量（普攻 1.0/技能 1.6/道具 1.0/食物 1.0/防御 0.6/逃跑 2.0）
-        未来扩展：后摇 recovery 字段已预留（默认 0，不填无影响）。
+        v154 速度折算：总耗时 = (出招 + 收招) × (SPD_REF / 实际速度)。
+        速度 50 = 基准耗时；速度 25 = ×2（慢一倍）；速度 80(cap) = ×0.625（最快）。
+        spd 参数：显式传入则用（敌方侧调用）；否则从 player 读（玩家侧）。
         """
         _cast = _recovery = 0.0
         if kind == "skill":
@@ -1525,22 +1536,28 @@ class Battle:
         if _cast <= 0:
             _cast = {"atk": CAST_ATK, "skill": CAST_SKILL, "item": CAST_ITEM,
                      "food": CAST_FOOD, "defend": CAST_DEFEND, "flee": CAST_FLEE}.get(kind, 1.0)
-        return _cast + _recovery
+        _base = _cast + _recovery
+        # v154 速度折算：实际耗时 = 基准耗时 × (SPD_REF / 实际速度)
+        if spd is None:
+            _spd = float((self._player_stats(player).get("spd", 0) if player else 0) or 0)
+        else:
+            _spd = float(spd or 0)
+        return _base * self._ct_cost(_spd)
 
     def _after_actor_ct(self, side: str, unit: dict | None = None, player: dict | None = None, cast_mult: float = 1.0):
-        """v152 真·事件队列：行动者 next_act_at = now + 总耗时（绝对时刻，不互相减）。
+        """v154 真·事件队列：行动者 next_act_at = now + 动作总耗时（出招+收招，绝对时刻）。
         兼容壳：保留函数名（大量外部调用）。side="p"：玩家行动完；side="e"：敌方单位行动完。
-        cast_mult：**固定动作耗时（秒）**——总耗时 = 行动间隔(cost) + 动作耗时。
-        （v152 鱼鱼拍板：速度只影响"恢复等待"间隔，动作本身耗时固定，不随速度变。）
-        - 玩家：p_ct 升级为"玩家下次可行动绝对时刻"（= now + cost + 动作耗时）
-        - 敌方：u["ct"] 升级为"该单位下次可行动绝对时刻"（= now + cost + 动作耗时）
+        cast_mult：**动作总耗时（秒，已含速度折算）**——总耗时 = 出招 + 收招，无恢复间隔。
+        （v154 鱼鱼拍板：速度只影响出招/收招，恢复间隔取消。）
+        - 玩家：p_ct 升级为"玩家下次可行动绝对时刻"（= now + 动作耗时）
+        - 敌方：u["ct"] 升级为"该单位下次可行动绝对时刻"（= now + 动作耗时）
         - 绝对时刻制：其他单位不参与"时间流逝"（它们的 next_act_at 是绝对值，不因别人行动而变）。
         """
         _now = self._now
         if side == "p":
             _p = player or self.player or {}
-            p_cost = self._ct_cost(self._player_stats(_p).get("spd", 0) if _p else 0)
-            self.p_ct = _now + p_cost + float(cast_mult or 1.0)
+            # v154：总耗时 = 动作耗时（出招+收招，已含速度折算），无恢复间隔
+            self.p_ct = _now + float(cast_mult or 1.0)
             # 敌方：绝对时刻制下无需互相调整（next_act_at 已是绝对值）。兜底初始化。
             for u in self.enemies:
                 if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
@@ -1549,10 +1566,10 @@ class Battle:
             u = unit or {}
             if "ct" not in u or float(u.get("ct", 0) or 0) <= 0:
                 u["ct"] = _ct_initial_wait(u.get("spd", 0))
-            # v121 审计修复：敌方 cost 用 buffed spd（_enemy_stats 应用 spd_down ×0.5 等），
-            # 否则敌方减速/增益不影响其行动频率（与玩家侧 _player_stats 对称）
-            e_cost = self._ct_cost(self._enemy_stats(u).get("spd", 0))
-            u["ct"] = _now + e_cost + float(cast_mult or 1.0)
+            # v154：敌方总耗时 = 动作耗时（已含速度折算），无恢复间隔
+            # v154 防同刻连环触发：排到的时刻必须严格 > 当前 now（否则事件循环
+            # 同一批再次触发被控跳过单位 → 眩晕/冻结后立刻又普攻的 bug）
+            u["ct"] = max(_now + float(cast_mult or 1.0), _now + 0.001)
         # v137 副本（btype="instance"）allies 广播：多玩家 CTB 时间流逝对称。
         # 绝对时刻制下各玩家 next_act_at 独立，无需广播调整（各自按自己的 cost 排程）。
         # 保留函数签名兼容；instance 层调度由命令层 _instance_next_actor 按 next_act_at 选人。
@@ -1895,7 +1912,9 @@ class Battle:
         from .core.formation import alive_units
         while self._events and _guard < 64:
             t, _seq, ev = self._events[0]
-            if float(t) > float(until_t):
+            # v154 边界修复：严格 t < until_t 才处理——若 t == until_t（如被控跳过行动
+            # 重排到恰好等于玩家下次行动点），会在同一批循环再次触发（眩晕后立刻普攻 bug）
+            if float(t) >= float(until_t) - 1e-9:
                 break
             self._heapq.heappop(self._events)
             self._now = max(self._now, float(t))
@@ -1922,11 +1941,8 @@ class Battle:
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
-                # v152：DOT/宠物/Boss 定时/词条回血不再用独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
-                # elif evt == "dot_tick": ...
-                # elif evt == "mech_tick": ...
-                # elif evt == "pet_tick": ...
-                # elif evt == "cast_done": ...
+                # v154：DOT/宠物/Boss 定时/词条回血不排独立事件（由玩家行动 _turn_start / 敌方行动 _boss_mech 触发）
+                # cast_done（玩家/敌方出招结束命中）事件在 v154 读条命中制下激活——见 _schedule_cast_done
             except Exception as _ex:
                 # 单个事件异常不阻塞队列（防御性，避免一个坏事件死循环）
                 logs.append(f"(事件处理异常: {_ex})")
