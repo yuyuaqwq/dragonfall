@@ -1665,6 +1665,9 @@ class InstanceCmds(CommandBase):
                     "monsters_left": _ml,
                     "pois_left": _poi_ids,
                     "boss_alive": bool(_sa.get("boss")),
+                    # v157 修复：显式记录是否为 Boss 房（普通房怪清空 + boss_alive=False
+                    # 恒成立，此前被误判通关——鱼鱼实抓：入口房打小怪触发副本通关）
+                    "_is_boss": bool(_sa.get("boss")),
                 }
             st["rooms"] = _rooms
             # 资源池 = POI loot 总量 + 副本通关奖励配置（inst.gold / inst.materials，
@@ -2369,9 +2372,18 @@ class InstanceCmds(CommandBase):
                 # v141 审计：Boss 房判定以"当前房间的 boss 是否已被击败"为准——
                 # boss_alive 可能已被 dungeon_move 置 False（到达 Boss 房触发 Boss 战后
                 # 未置 False 则保持 True），或 rooms 怪池消费后 Boss 从池中消失。
-                _room_boss = bool(_rstate.get("boss_alive")) or bool(_rstate.get("_boss_room"))
-                if _room_boss or (cur_sa and (st.get("rooms") or {}).get(cur_sa, {}).get("boss_alive") is False
-                                  and not (_rstate.get("monsters_left") or [])):
+                # v157 修复：必须显式 _is_boss=True 才算 Boss 房——此前 "boss_alive=False
+                # 且怪清空" 对普通房恒成立（普通房初始 boss_alive=False），导致入口房
+                # 打小怪误触发通关（鱼鱼实抓 2026-09-01）。判定 Boss 已死 = 房间怪池清空
+                # （Boss 从 monsters_left 消费后消失）且 _is_boss=True。
+                # 老数据兜底：_is_boss 缺失时按副本配置 boss_room 推断（subarea id == boss_room）。
+                _is_boss_r = bool(_rstate.get("_is_boss"))
+                if not _is_boss_r:
+                    _dun_cfg = (C.MAP_BY_ID.get(st.get("inst_id") or "") or {}).get("dungeon") or {}
+                    _is_boss_r = (_dun_cfg.get("boss_room") or "") == cur_sa
+                _room_boss = _is_boss_r and (
+                    not (_rstate.get("monsters_left") or []) or bool(_rstate.get("_boss_room")))
+                if _room_boss:
                     # Boss 房 Boss 被击败 → 标记 boss_alive=False + 通关（下段 _instance_victory）
                     _rstate["boss_alive"] = False
                     _rstate["_boss_room"] = True
@@ -2530,11 +2542,17 @@ class InstanceCmds(CommandBase):
             # boss_alive（Boss 从房间怪池消费后为 False）时，`stage_pending` 仍非空
             # （房间怪池与 stages 配置脱钩，v137 副本地图化后 rooms 是权威池）。
             # 此时玩家实际击败的是 Boss 房 Boss，应走通关结算而非"切下一只"——补一次
-            # 权威判定：当前房间 boss_alive 已 False 且房间怪池已空 → 标记通关路径。
+            # 权威判定：当前房间 _is_boss=True 且 boss_alive 已 False 且房间怪池已空
+            # → 标记通关路径（v157：必须显式 _is_boss，普通房怪清空不触发通关）。
             _cur_sa_v = self._player(group_id, st.get("leader") or "").get("cur_subarea", "") or ""
             _rv = (st.get("rooms") or {}).get(_cur_sa_v) or {}
+            # v157 老数据兜底：_is_boss 缺失时按副本配置 boss_room 推断
+            _is_boss_v = bool(_rv.get("_is_boss"))
+            if not _is_boss_v:
+                _dun_v = (C.MAP_BY_ID.get(st.get("inst_id") or "") or {}).get("dungeon") or {}
+                _is_boss_v = (_dun_v.get("boss_room") or "") == _cur_sa_v
             _room_done = bool(st.get("rooms")) and not (_rv.get("monsters_left") or []) \
-                and not _rv.get("boss_alive", True)
+                and _is_boss_v
             if _room_done and st.get("rooms"):
                 _rv["_boss_room"] = True
                 _wid_v = st.get("world_id") or ""
