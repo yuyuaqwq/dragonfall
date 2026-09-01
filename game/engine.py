@@ -982,8 +982,13 @@ def resolve_formula(formula, stats, target_def, target_mdef, is_crit=False,
                               pene_pct=pene_magi, pene_flat=pene_flat_magi, dmg_type="magi")
             magi_part += dmg
         else:
-            dmg = calc_damage(base, target_def, is_crit, variance=variance,
-                              pene_pct=pene_phys, pene_flat=pene_flat_phys, dmg_type="phys")
+            # v157 formula 段级 pierce：seg 带 "pierce": true → 绕过防御公式
+            # （与非 formula 物理 pierce 技能 calc_damage(pierce=True) 等价）
+            if seg.get("pierce"):
+                dmg = calc_damage(base, 0, is_crit, variance=variance, pierce=True, dmg_type="phys")
+            else:
+                dmg = calc_damage(base, target_def, is_crit, variance=variance,
+                                  pene_pct=pene_phys, pene_flat=pene_flat_phys, dmg_type="phys")
         total += dmg
     return total, magi_part
 

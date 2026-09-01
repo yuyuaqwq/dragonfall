@@ -4163,9 +4163,19 @@ class Battle:
             #   混伤：多段 formula；物理职业魔法技：stat=atk + type=magi；基础值+百分比：flat
             #   未配 formula 自动从 power/kind 生成（向后兼容：物理→atk、魔法→matk、真伤→atk true）
             #   统一走 E.resolve_formula（普攻/敌方/装备/食物共用同一解释器）
+            # v157：段级 "skill_flat": true → 注入 v156 技能基础值（等价非 formula 路径 +_skill_flat）。
+            #       flat 必须 × pmult（resolve_formula 内部 flat 不乘外层 mult，这里预先乘好）：
+            #       base = atk×(power×pmult) + flat×pmult = (atk×power + flat)×pmult，与非 formula 路径等价。
+            #       段级 "pierce": true → 绕过防御（等价非 formula 路径 calc_damage(pierce=True)）
             if info.get("formula"):
+                _fml = []
+                for _seg in info["formula"]:
+                    _seg = dict(_seg)
+                    if _seg.pop("skill_flat", False):
+                        _seg["flat"] = int(round((int(_seg.get("flat", 0) or 0) + _skill_flat) * pmult))
+                    _fml.append(_seg)
                 dmg_i, _mseg = E.resolve_formula(
-                    info["formula"], st, est["def"], est["mdef"], is_crit=_seg_crit,
+                    _fml, st, est["def"], est["mdef"], is_crit=_seg_crit,
                     pene_phys=_pp_phys, pene_magi=_pp_magi,
                     pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
                     mult=pmult, variance=0.15,
