@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from .stats import equip_stats, equip_value, monster_exp, monster_gold, monster_stats
+from .stats import equip_stats, equip_value, monster_exp, monster_gold, monster_stats, ARMOR_FAMILY_ALIAS
 from .affix import (fixed_affixes, random_req, roll_affixes, stat_affix_stats)
 import random
 
@@ -198,6 +198,14 @@ def generate_equip(slot: str, lv: int, quality: str, weapon_type: str | None = N
             suffix = random.choice(EQUIP_NAME_SUFFIX[slot])
             name = f"{set_name}{suffix}"
     stats = equip_stats(slot, lv, quality)
+    # v156 装备分系：武器按 weapon_type 分系、防具按需求属性族分系（随机装备路径）
+    if slot == "weapon":
+        stats = equip_stats(slot, lv, quality, weapon_type=weapon_type)
+    elif slot in ("helm", "armor", "legs", "boots"):
+        _req = random_req(slot, lv, weapon_type)
+        _fam = ARMOR_FAMILY_ALIAS.get(next(iter(_req), ""), None)
+        if _fam:
+            stats = equip_stats(slot, lv, quality, armor_family=_fam)
     # v58：前缀属性倾向（名字风格真实影响手感）
     prefix_flavor = EQUIP_PREFIX_FLAVOR.get(flavor_prefix, {})
     if prefix_flavor:
@@ -273,6 +281,14 @@ def generate_roster_equip(rid: str, affinity: str | None = None) -> dict:
     slot, lv, quality = r["slot"], r["lv"], r["quality"]
     weapon_type = r.get("weapon_type")
     stats = equip_stats(slot, lv, quality)
+    # v156 装备分系：武器按 weapon_type、防具按名册 req 推导属性族（名册装备路径）
+    if slot == "weapon":
+        stats = equip_stats(slot, lv, quality, weapon_type=weapon_type)
+    elif slot in ("helm", "armor", "legs", "boots"):
+        _req = r.get("req") or {}
+        _fam = ARMOR_FAMILY_ALIAS.get(next(iter(_req), ""), None)
+        if _fam:
+            stats = equip_stats(slot, lv, quality, armor_family=_fam)
     # v29 武器类型特色（名册武器同样吃类型风味）
     flavor = WEAPON_FLAVOR.get(weapon_type, {}) if slot == "weapon" else {}
     flavor_stats = {}

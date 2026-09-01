@@ -71,14 +71,58 @@ def monster_stats(lv: int, role: str) -> dict:
         stats["dot_res"] = 0.8
     return stats
 
-def equip_stats(slot: str, lv: int, quality: str) -> dict:
-    """装备属性公式：部位 + 装备等级 + 品质 → 属性字典"""
+# v156 装备分系表：武器按 weapon_type 分系（atk/matk 分配），防具按需求属性族分系
+# 物理武器（剑/匕/拳/弓/枪）atk 为主；法系武器（法杖/锤）matk 为主；盾 防御向
+# 防具：str/vit（重甲）HP高、agi（皮甲）spd中、int（布甲）mdef高
+WEAPON_DIST = {
+    "sword":  {"atk": 1.0, "matk": 0.1},
+    "dagger": {"atk": 1.0, "matk": 0.1},
+    "fist":   {"atk": 1.0, "matk": 0.1},
+    "bow":    {"atk": 1.0, "matk": 0.1},
+    "spear":  {"atk": 0.9, "matk": 0.2},
+    "staff":  {"atk": 0.1, "matk": 1.0},
+    "mace":   {"atk": 0.6, "matk": 0.6},
+    "shield": {"atk": 0.3, "matk": 0.3},
+}
+ARMOR_FAMILY = {
+    "heavy": {"hp_mult": 1.6, "def_mult": 1.4, "mdef_mult": 0.7, "spd_mult": 0.6},   # str/vit 重甲
+    "leather": {"hp_mult": 1.0, "def_mult": 1.0, "mdef_mult": 1.0, "spd_mult": 1.3}, # agi 皮甲
+    "cloth": {"hp_mult": 0.6, "def_mult": 0.7, "mdef_mult": 1.5, "spd_mult": 0.9},   # int 布甲
+}
+ARMOR_FAMILY_ALIAS = {"str": "heavy", "vit": "heavy", "agi": "leather", "int": "cloth"}
+
+def equip_stats(slot: str, lv: int, quality: str,
+                weapon_type: str | None = None,
+                armor_family: str | None = None) -> dict:
+    """装备属性公式：部位 + 装备等级 + 品质 → 属性字典
+
+    v156 装备分系（可选参数，默认 None = 旧行为，36 调用点零破坏）：
+      - weapon_type: 武器分系（sword/dagger/fist/bow/spear 物理 atk 主；
+                      staff/mace 法系 matk 主；shield 防御向）
+      - armor_family: 防具分系（heavy 重甲 HP高/def高；leather 皮甲 spd高；
+                       cloth 布甲 mdef高）
+    只有装备生成路径显式传参才生效，其余调用保持原样。
+    """
     mult = QUALITY[quality]["mult"]
     base = EQUIP_SLOT_BASE[slot]
     scaling = EQUIP_SLOT_SCALING[slot]
     stats = {}
     for k in base:
         stats[k] = int((base[k] + scaling[k] * lv) * mult)
+    # v156 武器分系：按 weapon_type 重分配 atk/matk（保留部位基础总量）
+    if slot == "weapon" and weapon_type and weapon_type in WEAPON_DIST:
+        dist = WEAPON_DIST[weapon_type]
+        total = stats.get("atk", 0) + stats.get("matk", 0)
+        stats["atk"] = int(total * dist["atk"])
+        stats["matk"] = int(total * dist["matk"])
+    # v156 防具分系：按需求属性族调整 HP/def/mdef/spd（保留部位基础）
+    if slot in ("helm", "armor", "legs", "boots") and armor_family:
+        fam = ARMOR_FAMILY.get(armor_family)
+        if fam:
+            for k, m in (("hp", fam["hp_mult"]), ("def", fam["def_mult"]),
+                         ("mdef", fam["mdef_mult"]), ("spd", fam["spd_mult"])):
+                if k in stats:
+                    stats[k] = int(stats[k] * m)
     if slot in ("weapon", "ring") and quality in ("blue", "purple", "orange"):
         stats["crit"] = round((0.02 + 0.01 * lv / 10) * (QUALITY[quality]["mult"] - 1), 3)
     if slot == "necklace" and quality in ("blue", "purple", "orange"):
