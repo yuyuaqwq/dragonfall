@@ -71,7 +71,8 @@ async def main():
     p1 = mk_player()
     b1 = BT.Battle("怪物", mk_enemy(mdef=500), {}, p1)
     st1 = b1._player_stats(p1)
-    base = int(st1["matk"] * 1.0)
+    # v156 基础值：flat = 12 + 30(玩家) + 30×4(技能) = 162
+    base = int(st1["matk"] * 1.0) + EG.skill_flat_value(30, 30, p_magi)
     h0 = b1.enemy["hp"]
     b1._player_skill(st1, "魔法测试", p_magi, p1)
     dealt_magi = h0 - b1.enemy["hp"]

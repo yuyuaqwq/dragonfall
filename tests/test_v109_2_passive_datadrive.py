@@ -50,7 +50,8 @@ async def main():
     p1 = mk_player(cls="战士")
     b1 = BT.Battle("怪物", mk_enemy(def_=9999), {}, p1)
     st1 = b1._player_stats(p1)
-    base1 = int(st1["atk"] * 1.0)
+    # v156 基础值：flat = 12 + 90(玩家) + 40×4(技能) = 262
+    base1 = int(st1["atk"] * 1.0) + EG.skill_flat_value(90, 40, pierce_skill)
     h0 = b1.enemy["hp"]
     b1._player_skill(st1, "破甲测试", pierce_skill, p1)
     dealt1 = h0 - b1.enemy["hp"]
@@ -64,7 +65,7 @@ async def main():
     p2 = mk_player(cls="战士")
     b2 = BT.Battle("怪物", mk_enemy(def_=0), {}, p2)
     st2 = b2._player_stats(p2)
-    base2 = int(st2["atk"] * 1.0)
+    base2 = int(st2["atk"] * 1.0) + EG.skill_flat_value(90, 40, phys_skill)
     h0 = b2.enemy["hp"]
     b2._player_skill(st2, "斩击测试", phys_skill, p2)
     dealt2 = h0 - b2.enemy["hp"]
@@ -74,7 +75,7 @@ async def main():
     p2m = mk_player(cls="法师")
     b2m = BT.Battle("怪物", mk_enemy(mdef=0), {}, p2m)
     st2m = b2m._player_stats(p2m)
-    base2m = int(st2m["matk"] * 1.0)
+    base2m = int(st2m["matk"] * 1.0) + EG.skill_flat_value(90, 40, magi_skill)
     h0 = b2m.enemy["hp"]
     b2m._player_skill(st2m, "魔法测试", magi_skill, p2m)
     dealt2m = h0 - b2m.enemy["hp"]

@@ -74,8 +74,9 @@ async def main():
     hp1 = b1.enemy["hp"]
     logs1 = b1._player_skill(st1, "斩击", e_info, p1)
     dealt1 = hp1 - b1.enemy["hp"]
-    # 无斩杀时应 ≈ atk×1.0（≈220±15%），斩杀 ×1.4 → ≈308
-    base1 = int(st1["atk"] * 1.0 * 1.4)
+    # 无斩杀时应 ≈ atk×1.0（≈220±15%），斩杀 ×1.4 → ≈308；v156 基础值 flat 也吃斩杀倍率
+    _flat = E.skill_flat_value(30, 30, e_info)
+    base1 = int((st1["atk"] * 1.0 + _flat) * 1.4)
     check(f"残血斩杀加成（≈{base1}±20%）", 0.8 * base1 <= dealt1 <= 1.2 * base1,
           f"dealt {dealt1}, atk {st1['atk']}")
     check("斩杀标签", any("斩杀" in l for l in logs1), str(logs1))

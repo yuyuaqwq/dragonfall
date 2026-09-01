@@ -104,14 +104,16 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
         def_mult = DEF_DOWN_SKILLS.get(cls_id(cls), {}).get(name, 1.0)
         d = (mdef if not phys else edef) * def_mult
         power = float(info.get("power", 0)) * E.skill_power_mult(1, info)
+        # v156 技能基础值（保底伤害）：与引擎同口径（flat = BASE + 玩家等级×PER + 技能等级×PER_SKILL）
+        skill_flat = E.skill_flat_value(int(st.get("level", 1) or 1), 1, info)
         multi = int(info.get("hits", info.get("multi", 1)))   # v153：多段用 hits 字段（旧 multi 字段已删）
         pene = st.get("pene_phys" if phys else "pene_magi", 0)
         pflat = st.get("pene_flat" if phys else "pene_mflat", 0)
         dt = "phys" if phys else "magi"
         if info.get("pierce"):
-            base = E.calc_damage(int(stat * power), 0, pierce=True, dmg_type=dt, variance=0.0)
+            base = E.calc_damage(int(stat * power) + skill_flat, 0, pierce=True, dmg_type=dt, variance=0.0)
         else:
-            base = E.calc_damage(int(stat * power), int(d), pene_pct=pene, pene_flat=pflat,
+            base = E.calc_damage(int(stat * power) + skill_flat, int(d), pene_pct=pene, pene_flat=pflat,
                                  dmg_type=dt, variance=0.0)
         dmg = base * multi
         if cls_id(cls) == "cls_ci_ke" and name == "双刃乱舞":
@@ -125,10 +127,9 @@ def _skill_dmg(st: dict, cls: str, edef: int, mdef: int, extra_crit: float = 0.0
 
 
 def _basic_dmg(st: dict, cls: str, edef: int, mdef: int) -> float:
-    phys = _is_phys(cls)
-    stat = st["atk"] if phys else st["matk"]
-    d = edef if phys else mdef
-    return E.calc_damage(int(stat), int(d), variance=0.0, dmg_type="phys" if phys else "magi")
+    """普攻伤害（v156 修正：普攻一律吃 atk——引擎 battle.py 普攻段 calc_damage(st['atk'], ...)，
+    法系职业 atk 低故普攻天然弱（魔杖/法杖敲击），符合法系定位；此前误用 matk 导致工具集虚高）"""
+    return E.calc_damage(int(st.get("atk", 0)), int(edef), variance=0.0, dmg_type="phys")
 
 
 def _crit_mult(st: dict, extra_crit: float = 0.0, multi: int = 1) -> float:

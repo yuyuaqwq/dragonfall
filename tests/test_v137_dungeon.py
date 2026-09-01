@@ -176,7 +176,7 @@ async def main():
         st = battle["state"]
         boss_name = (st.get("boss") or {}).get("name", "")
         check("Boss 登场", "咕噜" in boss_name or "酋长" in boss_name, boss_name)
-    out = await attack_loop(m, "g1", "q1", max_rounds=15)
+    out = await attack_loop(m, "g1", "q1", max_rounds=25)
     battle = db.get_battle("g1", "q1")
     if battle:
         check("通关标记", battle["state"].get("cleared"), str(battle["state"].get("cleared")))

@@ -84,7 +84,12 @@ def test_numeric_target_second():
     out = "\n".join(logs)
     # 目标 = 第 2 个敌方（史莱姆B）
     check("打到史莱姆B", "史莱姆B" in out, out[:300])
-    check("史莱姆B 掉血", b.enemies[1]["hp"] < b.enemies[1]["max_hp"], f"hp={b.enemies[1]['hp']}")
+    # v156 基础值后低级技能秒杀 1 级怪（击杀即移除）→ 断言改为：B 从 enemies 移除或掉血
+    # 注：build_monster 多怪 uid 重复，不能用 uid 判断——用名字+血量
+    b_units = [(e.get("name"), e.get("hp", 0)) for e in b.enemies]
+    b_state = [hp for name, hp in b_units if name == "史莱姆B"]
+    b_dead = len(b_state) == 0 or b_state[0] < 45
+    check("史莱姆B 掉血", b_dead, f"B状态={b_state} enemies={b_units}")
     check("史莱姆A 未掉血", b.enemies[0]["hp"] == b.enemies[0]["max_hp"], f"hp={b.enemies[0]['hp']}")
 
 
@@ -104,8 +109,11 @@ def test_a_prefixed_target():
     # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
-    check("打到史莱姆B", "史莱姆B" in out, out[:300])
-    check("史莱姆B 掉血", b.enemies[1]["hp"] < b.enemies[1]["max_hp"], f"hp={b.enemies[1]['hp']}")
+    # v156 基础值后低级技能秒杀 1 级怪 → 目标被移除，日志可能不含目标名
+    check("打到史莱姆B", "史莱姆B" in out or len(b.enemies) <= 1, out[:300])
+    b_state = [e.get("hp", 0) for e in b.enemies if e.get("name") == "史莱姆B"]
+    b_dead = len(b_state) == 0 or b_state[0] < 45
+    check("史莱姆B 掉血", b_dead, f"B={b_state} enemies={[(e.get('name'), e.get('hp')) for e in b.enemies]}")
 
 
 def test_out_of_range_target():
@@ -145,7 +153,10 @@ def test_name_prefix_target():
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     # 名字命中 B（可能暴击秒杀后日志不含名，以 B 掉血 + A 未动为准）
-    check("按名字打到史莱姆B", b.enemies[1]["hp"] < b.enemies[1]["max_hp"], f"B hp={b.enemies[1]['hp']} out={out[:60]}")
+    b_state = [e.get("hp", 0) for e in b.enemies if e.get("name") == "史莱姆B"]
+    b_dead = len(b_state) == 0 or b_state[0] < 45
+    check("按名字打到史莱姆B", b_dead,
+          f"B={b_state} enemies={[(e.get('name'), e.get('hp')) for e in b.enemies]} out={out[:60]}")
     check("史莱姆A 未掉血", b.enemies[0]["hp"] == b.enemies[0]["max_hp"], f"A hp={b.enemies[0]['hp']}")
 
 
@@ -189,7 +200,7 @@ def test_single_monster_target():
     # 被单怪路径静默忽略（无『没有找到目标』提示）+ 伤害命中唯一目标。
     check("单怪仍打唯一目标", "没有找到目标" not in out
           and "猛击" in out
-          and b.enemies[0]["hp"] < b.enemies[0]["max_hp"], out[:300])
+          and (len(b.enemies) == 0 or b.enemies[0]["hp"] < b.enemies[0]["max_hp"]), out[:300])
 
 
 def main():

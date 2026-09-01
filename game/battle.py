@@ -4150,6 +4150,9 @@ class Battle:
         # v106 穿透：物理技能用物穿/固定物穿，魔法技能用法穿/固定法穿
         _pp_phys, _pf_phys = self._pene_vals(st, magic=False)
         _pp_magi, _pf_magi = self._pene_vals(st, magic=True)
+        # v156 技能基础值（保底伤害）：flat = BASE + 玩家等级×PER_LV + 技能等级×PER_SKILL_LV
+        # 鱼鱼拍板：技能 = 基础值 + n%AD/AP（低攻不刮痧，高攻百分比主导）
+        _skill_flat = E.skill_flat_value(int(player.get("level", 1) or 1), lv, info)
         for seg in range(multi):
             # v133 峰值红线：多段仅首段吃暴击/幸运（MULTI_HIT_CRIT_FIRST_ONLY，
             # 避免"多段共享单次暴击判定"整段连锁暴击的峰值爆炸）
@@ -4169,13 +4172,13 @@ class Battle:
                 )
                 _magi_part += _mseg
             elif kind == "真伤":
-                dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, dmg_type="true")
+                dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, dmg_type="true")
             elif kind == "物理":
                 if info.get("pierce"):
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, pierce=True,
+                    dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
                                           dmg_type="phys")
                 else:
-                    dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), est["def"], _seg_crit,
+                    dmg_i = E.calc_damage(int((st["atk"] * info["power"] + _skill_flat) * pmult), est["def"], _seg_crit,
                                           pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
                 # v87 魔剑士·混合伤害：magic_add 追加魔法段（魔能斩 130% 物 + 30% 魔）
                 if info.get("magic_add"):
@@ -4186,10 +4189,10 @@ class Battle:
             else:
                 # v109.2 P1-6：pierce 魔法分支修复——审判之剑等魔法 pierce 技能此前被结算链忽略
                 if info.get("pierce"):
-                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), 0, _seg_crit, pierce=True,
+                    dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), 0, _seg_crit, pierce=True,
                                           dmg_type="magi")
                 else:
-                    dmg_i = E.calc_damage(int(st["matk"] * info["power"] * pmult), est["mdef"], _seg_crit,
+                    dmg_i = E.calc_damage(int((st["matk"] * info["power"] + _skill_flat) * pmult), est["mdef"], _seg_crit,
                                           pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
             # v87 魔剑士·魔力涌动：消耗 buff，本次攻击追加 80% 魔法伤害
             if self.p_buffs.get("spellblade_surge"):

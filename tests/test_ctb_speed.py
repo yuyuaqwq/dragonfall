@@ -123,12 +123,12 @@ def test_frequency_2to1():
     e_acts = _count_enemy_acts(b, 60)
     check("长程玩家行动数 60", b._p_acts == 60, f"p_acts={b._p_acts} e_acts={e_acts}")
     ratio = 60 / e_acts if e_acts else 0
-    # v154 行动耗时制（读条命中制 + 速度折算）：玩家战士普攻间隔 = 职业 cast_atk 0.7 × (50/20)=1.75；
-    # 敌方间隔 = CAST_ATK 1.0 × (50/10)=5.0。理论频率比 = 5.0/1.75 = 2.86:1（实测 60 动 → ~21 敌动）。
-    check("行动比 ≈ 2.86:1（v154 理论 5.0/1.75，±20%）", 2.3 <= ratio <= 3.4, f"ratio={ratio:.2f} e_acts={e_acts}")
-    # v154 实测锁定：60 次玩家行动 → 敌方 ~21 动（理论 105s/5.0s=21）。断言区间放宽（防站桩/连动回归）。
-    check("v154 实测：敌方 ~21 动/60 玩家行动（读条命中制基线，无站桩）",
-          abs(e_acts - 21) <= 4, f"e_acts={e_acts} ratio={ratio:.2f}")
+    # v156 普攻节奏重标定：战士 cast_atk 0.7→1.15 → 玩家普攻间隔 = 1.15 × (50/20)=2.875；
+    # 敌方间隔 = CAST_ATK 1.0 × (50/10)=5.0。理论频率比 = 5.0/2.875 = 1.74:1（实测 60 动 → ~34 敌动）。
+    check("行动比 ≈ 1.74:1（v156 理论 5.0/2.875，±20%）", 1.4 <= ratio <= 2.1, f"ratio={ratio:.2f} e_acts={e_acts}")
+    # v156 实测锁定：60 次玩家行动 → 敌方 ~34 动（理论 172.5s/5.0s=34.5）。断言区间放宽（防站桩/连动回归）。
+    check("v156 实测：敌方 ~34 动/60 玩家行动（读条命中制基线，无站桩）",
+          abs(e_acts - 34) <= 5, f"e_acts={e_acts} ratio={ratio:.2f}")
 
 
 def test_speed_buff():
@@ -161,12 +161,12 @@ def test_speed_down():
     e_down = _count_enemy_acts(b2, 60)
     ratio = 60 / (e_down or 1)
     check("减速后敌方行动显著增多", e_down > e_base, f"base={e_base} down={e_down}")
-    # v154 行动耗时制：玩家被减速到 spd 10 → 战士普攻间隔 0.7 × (50/10)=3.5；敌方 spd 10 → 5.0。
-    # 理论行动比 = 5.0/3.5 = 1.43:1（实测 60 动 → ~42 敌动，引擎减速工作正常）。
-    check("减速后行比 ≈ 1.43:1（v154 实测 spd10 vs 10）", 1.15 <= ratio <= 1.7,
+    # v156 普攻节奏重标定：玩家被减速到 spd 10 → 战士普攻间隔 1.15 × (50/10)=5.75；敌方 spd 10 → 5.0。
+    # 理论行动比 = 5.0/5.75 = 0.87:1（实测 60 动 → ~69 敌动，玩家减速后敌更快，引擎减速工作正常）。
+    check("减速后行比 ≈ 0.87:1（v156 实测 spd10 vs 10）", 0.7 <= ratio <= 1.1,
           f"ratio={ratio:.2f}")
-    check("v154 实测：减速后敌方 ~42 动/60 玩家行动（1.43:1 频率）",
-          abs(e_down - 42) <= 4, f"e_down={e_down}")
+    check("v156 实测：减速后敌方 ~69 动/60 玩家行动（0.87:1 频率）",
+          abs(e_down - 69) <= 8, f"e_down={e_down}")
 
 
 def test_enemy_chained():
@@ -278,9 +278,9 @@ def test_pvp_no_interference():
     before = b.p_ct
     p = make_player()
     logs, ended = b.player_turn("attack", None, p, enemy_act=True)
-    check("PVP 行动后 p_ct 推进 = 出招+收招（v154 玩家行动也有耗时，真人轮流由命令层调度）",
-          abs(b.p_ct - (before + 1.75)) < 1e-6,
-          f"{before} -> {b.p_ct}（期望 +1.75=战士普攻 0.7×(50/20)）")
+    check("PVP 行动后 p_ct 推进 = 出招+收招（v156 玩家行动也有耗时，真人轮流由命令层调度）",
+          abs(b.p_ct - (before + 2.875)) < 1e-6,
+          f"{before} -> {b.p_ct}（期望 +2.875=战士普攻 1.15×(50/20)）")
 
 
 def test_hard_cap():

@@ -772,6 +772,19 @@ def skill_power_mult(level: int, info: dict | None = None) -> float:
     return 1.0 + (p / 100) * (lv - 1)
 
 
+def skill_flat_value(player_lv: int, skill_lv: int, info: dict | None = None) -> int:
+    """v156 技能基础值（保底伤害）：flat = BASE + player_lv×PER_LV + skill_lv×PER_SKILL_LV。
+
+    - 随玩家等级成长（等级越高基础越高，低攻不刮痧）
+    - 随技能等级成长（技能升级基础值也涨）
+    - 高等级时百分比主导（基础值占比稀释，不膨胀）
+    数值常量在 game/data/skill_up.py（SKILL_FLAT_*），工具集/引擎共用同一口径。
+    """
+    from .data.skill_up import SKILL_FLAT_BASE, SKILL_FLAT_PER_PLAYER_LV, SKILL_FLAT_PER_SKILL_LV
+    lv = max(1, min(skill_lv, skill_max_level(info)))
+    return int(SKILL_FLAT_BASE + player_lv * SKILL_FLAT_PER_PLAYER_LV + lv * SKILL_FLAT_PER_SKILL_LV)
+
+
 def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int:
     """增益技能升级：每级持续刻＋1(Lv.1=3，Lv.5=7)"""
     lv = max(1, min(level, skill_max_level(info)))

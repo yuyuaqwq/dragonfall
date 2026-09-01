@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from conftest import C  # noqa: E402
-from game.engine import skill_info, skill_power_mult, player_final_stats  # noqa: E402
+from game.engine import skill_info, skill_power_mult, skill_flat_value, player_final_stats  # noqa: E402
 from game.data.classes import CLASSES  # noqa: E402
 
 passed = failed = 0
@@ -62,12 +62,13 @@ def panel(cls, lv):
     return st
 
 
-def _calc_dps_direct(st, power, cast, is_phys):
-    """DPS 直接口径（variance=0）：dps = calc_damage(atk*power, 0) / cast。
-    用 def=0 简化（防御在技能/普攻间同比例抵消，比值不变）。"""
+def _calc_dps_direct(st, power, cast, is_phys, flat=0):
+    """DPS 直接口径（variance=0）：dps = calc_damage(atk*power + flat, 0) / cast。
+    用 def=0 简化（防御在技能/普攻间同比例抵消，比值不变）。
+    flat = v156 技能基础值（保底伤害），与引擎同口径。"""
     from game.engine import calc_damage
     stat = st["atk"] if is_phys else st["matk"]
-    d = calc_damage(int(stat * power), 0, variance=0.0,
+    d = calc_damage(int(stat * power) + flat, 0, variance=0.0,
                     dmg_type="phys" if is_phys else "magi")
     return d / max(cast, 0.01)
 
@@ -117,13 +118,15 @@ def check_class(cls, lv, branch=False):
         cast = float(info.get("cast", 1.6) or 1.6)
         # 多段技能：DPS 按段数乘（hits）
         multi = int(info.get("hits", info.get("multi", 1)) or 1)
+        # v156 技能基础值（保底伤害）：与引擎同口径（flat = BASE + 玩家等级×PER + 技能等级×PER_SKILL）
+        skill_flat = skill_flat_value(lv, 3, info)
         # 真伤：dmg_type=true（不吃防御）
         kind = info.get("kind", "")
         dps_skill = _calc_dps_direct(st, power * multi, cast,
-                                     is_phys and kind != "真伤")
+                                     is_phys and kind != "真伤", flat=skill_flat)
         # 真伤技能用真伤口径
         if kind == "真伤":
-            dps_skill = _calc_dps_direct(st, power * multi, cast, True)
+            dps_skill = _calc_dps_direct(st, power * multi, cast, True, flat=skill_flat)
         ratio = dps_skill / max(dps_basic, 1)
         cond = ratio >= SKILL_BASIC_RATIO
         check(f"{cname} L{lv} {tag}『{name}』DPS={dps_skill:.1f} vs 普攻={dps_basic:.1f} "

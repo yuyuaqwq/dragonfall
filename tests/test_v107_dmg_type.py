@@ -76,12 +76,12 @@ async def main():
     true_info = {"name": "龙息测试", "kind": "真伤", "power": 1.0, "lv": 30, "cd": 1}
     phys_info = {"name": "劈砍测试", "kind": "物理", "power": 1.0, "lv": 30, "cd": 1}
 
-    # 2a. 高防怪：真伤 ≈ 实际 atk×power（含基础成长），物理被大幅削减
+    # 2a. 高防怪：真伤 ≈ 实际 atk×power + flat（v156 基础值），物理被大幅削减
     random.seed(3)
     p1 = mk_player()
     b1 = BT.Battle("怪物", mk_enemy(def_=500), {}, p1)
     st1 = b1._player_stats(p1)
-    true_base = int(st1["atk"] * 1.0)
+    true_base = int(st1["atk"] * 1.0) + EG.skill_flat_value(30, 30, true_info)
     enemy_hp_before = b1.enemy["hp"]
     logs1 = b1._player_skill(st1, "龙息测试", true_info, p1)
     dealt1 = enemy_hp_before - b1.enemy["hp"]
