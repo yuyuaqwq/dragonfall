@@ -1858,8 +1858,11 @@ class Battle:
             self._player_recent_skill = True
             # v154 数据驱动：出招 + 收招（速度折算）
             _cast_t, _recover_t = self._action_times("skill", player=player, skill_name=skill_name)
-            # 出招读条结束 = 命中 → 排 cast_done 事件（结算用命中时刻状态）
-            if self.btype != "pvp":
+            # 增益/治疗/嘲讽类技能立即生效（_do_player_skill 内已即时结算），不进读条
+            _sk_info154 = E.skill_info(player.get("class_name", ""), skill_name) or {}
+            _imm154 = _sk_info154.get("kind", "") in ("增益", "治疗", "嘲讽")
+            if self.btype != "pvp" and not _imm154:
+                # 出招读条结束 = 命中 → 排 cast_done 事件（结算用命中时刻状态）
                 self._schedule_cast_done(self._now + _cast_t, {"side": "p", "kind": "skill",
                                                                "skill": skill_name, "target": target})
                 # 玩家下次可行动 = 命中时刻 + 收招耗时（= 出手 + 总耗时）
@@ -1867,7 +1870,7 @@ class Battle:
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
                 self._player_casting = True
             else:
-                # PVP 不介入：立即结算（保持真人轮流；_do_player_skill 内部 PVP 走立即路径）
+                # 立即结算技能（增益/治疗/嘲讽 或 PVP）：玩家行动耗时照走（出招+收招）
                 self._after_actor_ct("p", player=player, cast_mult=_cast_t + _recover_t)
             _cast_mult = _cast_t + _recover_t
         else:
@@ -2505,8 +2508,12 @@ class Battle:
                 self._set_skill_cd(skill_name, cd)
             return logs
         # v154 读条命中制：普通技能出手 → 排 cast_done 事件（命中时刻才结算）。
-        # 不排事件的特例：PVP（真人轮流）、蓄力释放（_releasing_charge 已含蓄力读条语义）。
-        if self.btype != "pvp" and not getattr(self, "_releasing_charge", False):
+        # 不排事件的特例：PVP（真人轮流）、蓄力释放（_releasing_charge 已含蓄力读条语义）、
+        # 增益/治疗/嘲讽类（无"命中"概念，施放即生效——唱歌是持续效果不是读条命中）。
+        _kind154 = info.get("kind", "")
+        _immediate_kinds = ("增益", "治疗", "嘲讽")
+        if self.btype != "pvp" and not getattr(self, "_releasing_charge", False) \
+                and _kind154 not in _immediate_kinds:
             # 出招读条（cast 秒数，速度折算）在 player_turn 已排 cast_done；
             # 这里把"命中时刻要调用的结算函数 + 参数"暂存到 self._pending_player_cast，
             # 由 _process_until 的 cast_done 分支消费（用命中时刻状态重新计算）。
@@ -2520,7 +2527,7 @@ class Battle:
             }
             # 出手瞬间已扣 MP/资源/进 CD（读条 = 已投入）；结算在命中时刻由 cast_done 执行
             return logs
-        # 非读条路径（PVP / 蓄力释放）：立即结算
+        # 非读条路径（PVP / 蓄力释放 / 增益治疗嘲讽）：立即结算
         logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
         # v130.2f 歌者伴奏改版（灵魂歌者分支被动）：歌类技施放 20% 概率 回声 +1
         # （原「暴击+8%」面板加成的扣除在 _player_stats；数据层并行批次将移除其 stat crit 字段，
