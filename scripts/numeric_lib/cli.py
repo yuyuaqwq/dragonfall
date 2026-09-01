@@ -24,10 +24,11 @@ if _SDIR not in sys.path:
 
 from numeric_lib.env import setup_env  # noqa: E402,F401
 from numeric_lib.constants import LOADOUTS, cls_id, cls_name, CLASSES  # noqa: E402
-from numeric_lib.player import PlayerOptions, build_player, per_action_dmg, dmg_budget  # noqa: E402
+from numeric_lib.player import PlayerOptions, build_player, per_action_dmg, dmg_budget, mp_budget  # noqa: E402
 from numeric_lib.gear import gear_loadout  # noqa: E402
 from numeric_lib.monster import build as build_monster, curve_override  # noqa: E402
-from numeric_lib.team import team_matrix, boss_hp, team_net_mult, team_rounds, instance_details  # noqa: E402
+from numeric_lib.team import (  # noqa: E402
+    team_matrix, boss_hp, team_net_mult, team_rounds, instance_details, TEAM_COMPS)
 from numeric_lib.battle import win_rate, monster_of  # noqa: E402
 from numeric_lib.report import md_table, to_json, diff_tables  # noqa: E402
 
@@ -86,10 +87,12 @@ def cmd_dmg(args):
 
 
 def cmd_calib(args):
-    rows = team_matrix(loadout=args.loadout)
+    rows = team_matrix(loadout=args.loadout, comp=args.comp)
     if args.json:
         return to_json(rows)
     head = "全副本 Boss 轮数表（真实玩家模型）— 档位: %s" % LOADOUTS[args.loadout]["label"]
+    if args.comp:
+        head += f"，构成: {args.comp}（{'/'.join(c for c, _ in TEAM_COMPS[args.comp])}）"
     print(head)
     print(md_table(rows, ["iid", "lv", "boss_lv", "boss_hp", "ratio", "rounds", "survive", "flag"],
                    {"iid": "副本", "lv": "本Lv", "boss_lv": "BossLv", "boss_hp": "BossHP",
@@ -102,14 +105,47 @@ def cmd_calib(args):
 
 def cmd_team(args):
     inst, boss_def = instance_details(args.inst)
-    m = build_monster(boss_def, {"id": args.inst, "name": args.inst, "area": "instance"})
+    # build_monster 包装：boss_def 是 5 元组 (id, 名, role, lv, 技能列表) ——
+    # 直接构造 C.build_monster 展开（monster.build 只收 role/lv，传 tuple 会 %d 崩）
+    from data.plugins.dragonfall.game import content as _C
+    m = _C.build_monster(boss_def, {"id": args.inst, "name": args.inst, "area": "instance"})
     mn = inst.get("min_players", 1)
     lv = inst.get("lv", 0)
     gear = gear_loadout(lv, args.loadout)
-    from .player import per_action_dmg
+    from numeric_lib.player import per_action_dmg, build_player, PlayerOptions
+    from numeric_lib.team import TEAM_COMPS, _comp_dps_total, _comp_survive, _boss_hit
+    rows = []
+    if args.comp and args.comp in TEAM_COMPS:
+        # v156 构成：按构成槽位逐职业算 DPS / 承伤
+        slots = TEAM_COMPS[args.comp]
+        n = len(slots)
+        hpt = boss_hp(m.get("max_hp", 0), n, mn, inst.get("hp_mult"))
+        dmg_total, detail = _comp_dps_total(
+            slots, lv, gear, m.get("def", 0), m.get("mdef", 0),
+            lambda cls, lv, gear, edef, mdef:
+            per_action_dmg(cls, lv, gear, edef, mdef, PlayerOptions(), potion_on=True))
+        tb = 1.0 if args.loadout == "legacy" else 1.10
+        rr = hpt / max(dmg_total * tb, 1.0)
+        st_t = build_player("cls_zhan_shi", lv, gear, PlayerOptions(), potion=0.0)
+        boss_dmg = _boss_hit(boss_def, m, st_t.get("def", 0), st_t.get("mdef", 0),
+                             atk_mult=inst.get("atk_mult", 1.0))
+        survive, sdetail = _comp_survive(slots, lv, gear, boss_dmg, build_player)
+        rows.append({"人数": n, "BossHP": hpt, "轮数": round(rr, 1), "承伤轮": round(survive, 1),
+                     "构成": args.comp,
+                     "成员": " ".join(f"{c[4:]}({r})" for c, r in slots)})
+        if args.json:
+            return to_json({"inst": args.inst, "lv": lv, "comp": args.comp, "slots": slots,
+                            "boss_hp": hpt, "rounds": round(rr, 1), "survive": round(survive, 1),
+                            "dps_total": round(dmg_total, 1), "heal": sdetail["heal"],
+                            "detail": detail})
+        print(f"# {args.inst} Lv{lv} Boss: {m.get('name', boss_def)} —— 构成 {args.comp} "
+              f"({'/'.join(f'{c[4:]}({r})' for c, r in slots)})")
+        print(md_table(rows, ["人数", "BossHP", "轮数", "承伤轮", "构成", "成员"]))
+        print(f"  构成总输出/轮: {dmg_total:.0f}；治疗/轮: {sdetail['heal']:.0f}；"
+              f"承伤分线 前{sdetail['front']}×0.7 后{sdetail['back']}×0.3")
+        return ""
     dmg = per_action_dmg("cls_zhan_shi", lv, gear, m.get("def", 0), m.get("mdef", 0),
                          PlayerOptions(), potion_on=True)
-    rows = []
     for n in range(mn, 5):
         hpt = boss_hp(m.get("max_hp", 0), n, mn, inst.get("hp_mult"))
         rr = team_rounds(dmg, n, hpt)
@@ -136,6 +172,29 @@ def cmd_matrix(args):
     if args.json:
         return to_json(rows)
     print(md_table(rows, ["职业", "vs", "胜率", "均回合"]))
+    return ""
+
+
+def cmd_mp(args):
+    """技能经济：空蓝轮数（v156 阶段 3）。mp <职业> <等级> [--loadout]"""
+    cid = cls_id(args.cls)
+    gear = {} if args.naked else gear_loadout(args.lv, args.loadout)
+    b = mp_budget(cid, args.lv, gear, PlayerOptions())
+    if args.json:
+        return to_json({"cls": args.cls, "lv": args.lv, "loadout": args.loadout, **b})
+    rows = [
+        {"项": "最大魔力 (max_mp)", "值": round(b["max_mp"], 1)},
+        {"项": "每轮技能耗蓝 (per_round_mp)", "值": round(b["per_round_mp"], 1)},
+        {"项": "每轮回蓝 (mp_regen, 5%×max_mp)", "值": round(b["mp_regen"], 1)},
+        {"项": "空蓝轮数 (empty_rounds)", "值": (f"∞（回蓝 ≥ 耗蓝，不会空蓝）"
+                                               if b["empty_rounds"] == float("inf")
+                                               else round(b["empty_rounds"], 1))},
+    ]
+    print(f"# {cls_name(cid)} Lv{args.lv} 技能经济（{args.loadout}）")
+    print(md_table(rows, ["项", "值"]))
+    if b["empty_rounds"] != float("inf"):
+        print(f"长盘副本 {args.lv} 级约 100~150 轮：空蓝轮 {b['empty_rounds']:.0f} "
+              f"{'✅ 不断蓝' if b['empty_rounds'] >= 100 else '🔴 会空蓝降级普攻'}")
     return ""
 
 
@@ -172,10 +231,14 @@ def main(argv=None):
 
     sp = sub.add_parser("calib", help="全副本 Boss 轮数（真实模型）")
     common(sp, default_loadout="team_mid")
+    sp.add_argument("--comp", choices=list(TEAM_COMPS) + [None], default=None,
+                    help="队伍构成（v156；默认 None=旧战士单人行为）")
 
     sp = sub.add_parser("team", help="单副本组队矩阵")
     sp.add_argument("--inst", required=True)
     sp.add_argument("--n", type=int, default=0, help="人数（默认扫全部合法人数）")
+    sp.add_argument("--comp", choices=list(TEAM_COMPS), default=None,
+                    help="队伍构成（v156；传了则按构成算单行，否则扫人数）")
     common(sp, default_loadout="solo_mid")
 
     sp = sub.add_parser("matrix", help="真实引擎胜率矩阵")
@@ -194,9 +257,15 @@ def main(argv=None):
     sp.add_argument("--after", required=True)
     sp.add_argument("--key", default="iid")
 
+    sp = sub.add_parser("mp", help="技能经济：空蓝轮数（v156 阶段 3）")
+    sp.add_argument("cls"); sp.add_argument("lv", type=int)
+    sp.add_argument("--naked", action="store_true", help="裸装")
+    common(sp)
+
     args = p.parse_args(argv)
     fn = {"player": cmd_player, "dmg": cmd_dmg, "calib": cmd_calib,
-          "team": cmd_team, "matrix": cmd_matrix, "diff": cmd_diff}[args.cmd]
+          "team": cmd_team, "matrix": cmd_matrix, "diff": cmd_diff,
+          "mp": cmd_mp}[args.cmd]
     out = fn(args)
     if isinstance(out, str) and out:
         print(out)

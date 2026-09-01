@@ -59,6 +59,14 @@ def main():
     check("老王之墓 legacy 轮数 600~700（v155 单刷口径，原 2 人 277~377）",
           600 <= old_king <= 700, f"rounds={old_king}")
 
+    print("【1b/6 legacy+comp=None 与旧行为逐项一致（v156 向后兼容）】")
+    rows_old = team_matrix(loadout="legacy", comp=None)
+    same = all(abs(r1["rounds"] - r2["rounds"]) < 1e-6 and
+               abs(r1["survive"] - r2["survive"]) < 1e-6
+               for r1, r2 in zip(rows, rows_old))
+    check("legacy: comp=None 与默认（不传）rounds/survive 逐项一致", same,
+          f"{len(rows)} 行比对")
+
     print("【2/6 真实模型 vs 真实引擎：per_action_dmg vs BT.Battle 每行动实测（20 seeds）】")
     m = NS.monster_of("dps", 11)
     ehp = m.get("max_hp", 0)

@@ -199,3 +199,53 @@ def dmg_budget(cls: str, lv: int, gear: dict | None, edef: int, mdef: int,
         "total_mult": total / max(d_base, 1),
         "items": items,
     }
+
+
+# ---------------- 技能经济（v156 阶段 3）：空蓝轮数 ----------------
+MP_REGEN_PCT = 0.05   # 基础回蓝速率：每轮回复 max_mp×5%（27 章基础规则简化口径；不查回蓝技能，保守）
+
+
+def rotation_mp_per_round(cls: str, rotation: list | None = None) -> float:
+    """技能轴平均每轮 MP 消耗（E.skill_info 实读 mp 字段）。
+
+    - rotation: [(技能名, 权重)]；None = 职业默认 ROTATIONS
+    - 资源技（res_cost：怒气/连击点/精力等）不耗 MP → 计 0（与 _tmp_calib_v2 同口径）
+    """
+    cid = cls_id(cls)
+    rot = rotation if rotation is not None else ROTATIONS.get(cid, [])
+    tot, wsum = 0.0, 0.0
+    for name, w in rot:
+        info = E.skill_info(cid, name)
+        if not info:
+            continue
+        mp = float(info.get("mp", 0) or 0)
+        if info.get("res_cost"):   # 资源技（怒气/连击点/精力）不耗 MP
+            mp = 0.0
+        tot += mp * w
+        wsum += w
+    return tot / max(wsum, 1.0)
+
+
+def mp_budget(cls: str, lv: int, gear: dict | None = None,
+              opts: PlayerOptions | None = None,
+              rotation: list | None = None) -> dict:
+    """按技能轴算空蓝轮数（v156 技能经济：长盘副本法系续航闸门）。
+
+    返回 {"max_mp": x, "per_round_mp": y, "mp_regen": z, "empty_rounds": 空蓝轮数}
+    - max_mp: build_player 面板 mp
+    - per_round_mp: ROTATIONS 循环每轮技能 mp 消耗（E.skill_info 实读 mp 字段）
+    - mp_regen: 基础回蓝速率（简化：每轮回复 max_mp×5%，27 章基础规则口径）
+    - empty_rounds: max_mp / (per_round_mp - mp_regen)；per_round_mp <= mp_regen → inf
+    """
+    st = build_player(cls, lv, gear, opts)
+    max_mp = float(st.get("max_mp", 0) or 0)
+    per_round_mp = rotation_mp_per_round(cls, rotation)
+    mp_regen = max_mp * MP_REGEN_PCT
+    net = per_round_mp - mp_regen
+    empty_rounds = float("inf") if net <= 0 else max_mp / net
+    return {
+        "max_mp": max_mp,
+        "per_round_mp": per_round_mp,
+        "mp_regen": mp_regen,
+        "empty_rounds": empty_rounds,
+    }

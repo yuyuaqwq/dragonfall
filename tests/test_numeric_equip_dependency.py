@@ -93,13 +93,14 @@ def win_rate(equip, mdef, seeds=6):
 def main():
     print("【① 满装生成快照（固定种子，锁词条与 stats）】")
     full_equip = make_full_equip()
-    # 装备 stats/词条快照（实测锁定，2026-08-29 v136 品质 1.6→1.55 更新）
+    # 装备 stats/词条快照（实测锁定，2026-09-01 v156 品质 1.6→1.55 更新：
+    # 弯刀 atk 26→52、海盗靴 spd 14→17——词条沿用）
     EXPECT_EQUIP = {
-        "weapon": ({"atk": 26, "matk": 26, "crit": 0.089}, ["crit_up", "energy_blade"]),
+        "weapon": ({"atk": 52, "matk": 5, "crit": 0.089}, ["crit_up", "energy_blade"]),
         "helm":   ({"def": 13, "hp": 79, "spd": 1}, ["swift", "hp_up"]),
         "armor":  ({"def": 27, "hp": 162, "dodge": 0.05}, ["dodge", "pious_charm"]),
         "legs":   ({"def": 18, "hp": 102, "spd": 1}, ["swift", "meditate"]),
-        "boots":  ({"def": 10, "spd": 14}, ["swift", "arcane_focus"]),
+        "boots":  ({"def": 10, "spd": 17}, ["swift", "arcane_focus"]),
     }
     for slot, (est, eaf) in EXPECT_EQUIP.items():
         it = full_equip[slot]
@@ -116,8 +117,8 @@ def main():
     full = panel(full_equip)
     BARE_EXPECT = {"max_hp": 370, "max_mp": 70, "atk": 50, "def": 40,
                    "matk": 11, "mdef": 22, "spd": 16, "crit": 0.05, "dodge": 0.03}
-    FULL_EXPECT = {"max_hp": 713, "max_mp": 70, "atk": 82, "def": 108,
-                   "matk": 37, "mdef": 22, "spd": 35, "crit": 0.139, "dodge": 0.13}
+    FULL_EXPECT = {"max_hp": 713, "max_mp": 70, "atk": 110, "def": 108,
+                   "matk": 16, "mdef": 22, "spd": 38, "crit": 0.139, "dodge": 0.13}
     for k, v in BARE_EXPECT.items():
         check(f"裸装 {k} = {v}", bare[k] == v, f"got={bare[k]}")
     for k, v in FULL_EXPECT.items():
@@ -128,9 +129,9 @@ def main():
     print("\n【③ 提升幅度区间（装备有意义：≥1.5×；不爆炸：≤3.2×）】")
     RATIO_RANGE = {
         "max_hp": (1.8, 2.2),   # 实测 1.9595（+355）
-        "atk":    (1.5, 1.9),   # 实测 1.6600（+33）
+        "atk":    (1.8, 2.6),   # 实测 2.2000（+60，v156 弯刀 atk 上调）
         "def":    (2.5, 3.1),   # 实测 2.7750（+71）
-        "spd":    (1.9, 2.6),   # 实测 2.2500（+20）
+        "spd":    (2.0, 2.7),   # 实测 2.3750（+22，v156 海盗靴 spd 上调）
     }
     for k, (lo, hi) in RATIO_RANGE.items():
         r = full[k] / bare[k]
