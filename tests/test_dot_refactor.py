@@ -48,27 +48,27 @@ def tick(b, player):
     return logs
 
 def test_mixed_formula():
-    print("【1. 混合公式】")
+    print("【1. 混合公式（v156 分类重构）】")
     p = mk_player(atk=100, matk=80)
     b = BT.Battle("monster", mk_enemy(hp=1000))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("毒 1 层 = atk×0.5+max_hp×1.5% = 50+15 = 65", 1000 - b.enemy["hp"] == 65,
+    check("毒 1 层 = atk×0.8 flat = 80（v156 固定值型）", 1000 - b.enemy["hp"] == 80,
           f"dmg={1000 - b.enemy['hp']}")
     b = BT.Battle("monster", mk_enemy(hp=1000))
     b.enemy.setdefault("debuffs", {})["burn"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("灼烧 1 层 = matk×0.4+max_hp×1% = 32+10 = 42", 1000 - b.enemy["hp"] == 42,
+    check("灼烧 1 层 = matk×0.6+max_hp×0.5% = 48+5 = 53（v156 混合型）", 1000 - b.enemy["hp"] == 53,
           f"dmg={1000 - b.enemy['hp']}")
     b = BT.Battle("monster", mk_enemy(hp=1000))
     b.enemy.setdefault("debuffs", {})["bleed"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("流血 1 层 = atk×0.6+max_hp×1.5% = 60+15 = 75", 1000 - b.enemy["hp"] == 75,
+    check("流血 1 层 = atk×0.05+min(1.5%→cap 1%) = 5+10 = 15（v156 百分比型+cap）", 1000 - b.enemy["hp"] == 15,
           f"dmg={1000 - b.enemy['hp']}")
     b = BT.Battle("monster", mk_enemy(hp=1000))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 2, "mult": 1.2}
     tick(b, p)
-    check("毒 2 层 × mult 1.2 = int(65×2×1.2) = 156", 1000 - b.enemy["hp"] == 156,
+    check("毒 2 层 × mult 1.2 = int(80×2×1.2) = 192", 1000 - b.enemy["hp"] == 192,
           f"dmg={1000 - b.enemy['hp']}")
 
 def test_decay():
@@ -83,7 +83,7 @@ def test_decay():
         total += before - b.enemy["hp"]
         if b._enemy_dead():
             break
-    check("5 层 5 回合总伤 = 1550×15 = 23250", total == 23250, f"total={total}")
+    check("5 层 5 回合总伤 = 80×15 = 1200（v156 flat 毒）", total == 1200, f"total={total}")
     check("第 6 回合消散", "poison" not in b.enemy.get("debuffs", {}), str(b.enemy.get("debuffs")))
 
 def test_resistance():
@@ -98,7 +98,7 @@ def test_resistance():
     b = BT.Battle("monster", mk_enemy(hp=1000, dot_res=0.9))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("dot_res 0.9 → 伤害 ×0.1 = int(65×0.1) = 6", 1000 - b.enemy["hp"] == 6,
+    check("dot_res 0.9 + 防御削减 → 7", 1000 - b.enemy["hp"] == 7,
           f"dmg={1000 - b.enemy['hp']}")
 
 def test_adapt():
@@ -120,7 +120,7 @@ def test_adapt():
     b2 = BT.Battle("monster", mk_enemy(hp=1000, dot_res=0.9, adapt={"poison": 0.2}))
     b2.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b2, p)
-    check("总抗 min(0.95, 0.9+0.2) → 伤害 = int(65×0.05) = 3", 1000 - b2.enemy["hp"] == 3,
+    check("总抗 min(0.95, 0.9+0.2) → 伤害 = int(80×0.05) = 4", 1000 - b2.enemy["hp"] == 4,
           f"dmg={1000 - b2.enemy['hp']}")
     # 回落：last_tick 距今 ≥2 行动轮次 → -0.04（v152：b._now = 5×ACT_TICK，last_tick=2）
     b3 = BT.Battle("monster", mk_enemy(hp=100000, adapt={"poison": 0.12}))
@@ -150,20 +150,20 @@ def test_shield_dot():
     b = BT.Battle("monster", mk_enemy(hp=1000, mech="shield", boss_shield=500))
     b.enemy.setdefault("debuffs", {})["poison"] = {"n": 1, "mult": 1.0}
     tick(b, p)
-    check("毒 65 → 护盾减半 32", 1000 - b.enemy["hp"] == 32, f"dmg={1000 - b.enemy['hp']}")
-    check("护盾吸收", abs(b.enemy.get("boss_shield", 0) - 468) <= 1,
+    check("毒 80 → 护盾减半 40", 1000 - b.enemy["hp"] == 40, f"dmg={1000 - b.enemy['hp']}")
+    check("护盾吸收", abs(b.enemy.get("boss_shield", 0) - 460) <= 1,
           f"shield={b.enemy.get('boss_shield')}")
 
 def test_bleed_erode_mark():
     print("【7. 放血 + 毒蚀 + 标记按层】")
     p = mk_player()
-    b = BT.Battle("monster", mk_enemy(hp=100))
-    b.enemy["max_hp"] = 1000  # hp=100 < max_hp×30%=300 → 放血触发
+    b = BT.Battle("monster", mk_enemy(hp=20))
+    b.enemy["max_hp"] = 1000  # hp=20 < max_hp×30%=300 → 放血触发
     b.enemy.setdefault("debuffs", {})["bleed"] = {"n": 1, "mult": 1.0}
     logs = tick(b, p)
-    # 伤害 = (atk×0.6+max_hp×1.5%)×2 = 75×2 = 150 → 击杀
-    check("放血 <30% ×2 = 150 且击杀", b._enemy_dead()
-          and any("损失 150 点生命" in l for l in logs), str([l for l in logs if "流血" in l]))
+    # 伤害 = (atk×0.05+min(1.5%→cap 1%))×2 = 15×2 = 30 → 击杀
+    check("放血 <30% ×2 = 30 且击杀", b._enemy_dead()
+          and any("损失 30 点生命" in l for l in logs), str([l for l in logs if "流血" in l]))
     check("放血日志", any("放血" in l for l in logs), str(logs))
     b2 = BT.Battle("monster", mk_enemy(**{"def": 1000, "mdef": 800}))
     b2.enemy.setdefault("debuffs", {})["poison"] = {"n": 5, "mult": 1.0}

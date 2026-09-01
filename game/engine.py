@@ -877,6 +877,65 @@ def calc_damage(atk, def_, is_crit=False, variance=0.15, pierce=False, pene_pct=
     return max(1, dmg)
 
 
+def resolve_formula(formula, stats, target_def, target_mdef, is_crit=False,
+                    pene_phys=0.0, pene_magi=0.0, pene_flat_phys=0, pene_flat_magi=0,
+                    variance=0.15, mult=1.0, target_max_hp=None, randomize=True):
+    """v156 通用公式解释器——所有伤害来源（技能/装备/食物/宠物/敌方）共用。
+
+    formula 每段：
+      {"stat": "atk"|"matk"|"max_hp"|"flat",   # 属性来源（flat=纯固定值）
+       "mult": 1.2,                            # 百分比系数（乘以 stat）
+       "flat": 50,                             # 固定值（基础值；可选，默认 0）
+       "type": "phys"|"magi"|"true",           # 伤害类型（吃 def/mdef/无视）
+       "chance": 0.5}                          # 触发概率（可选；缺省 100%）
+
+    stats: 攻击方面板（atk/matk/max_hp 等）
+    target_def/target_mdef: 目标防御
+    mult: 外部乘区（技能 power 成长/条件/叠层等，由调用方算好）
+    target_max_hp: 目标 max_hp（stat=max_hp 时用；缺省用 stats.max_hp）
+
+    返回 (总伤害, 魔法段伤害) —— magi 段单独返回供吸血/魔免分账。
+    """
+    total = 0
+    magi_part = 0
+    if not formula:
+        return 0, 0
+    import random as _r
+    for seg in formula:
+        # 触发概率
+        chance = float(seg.get("chance", 1.0))
+        if chance != 1.0:
+            chance = float(seg.get("chance", 1.0) or 0.0)
+        if randomize and chance < 1.0 and _r.random() > chance:
+            continue
+        fstat = seg.get("stat", "atk")
+        fmult = float(seg.get("mult", 1.0) or 1.0) * mult
+        fflat = int(seg.get("flat", 0) or 0)
+        ftype = seg.get("type", "phys")
+        # 属性来源
+        if fstat == "matk":
+            base = int(stats.get("matk", 0) * fmult) + fflat
+        elif fstat == "max_hp":
+            _mh = target_max_hp if target_max_hp is not None else stats.get("max_hp", 0)
+            base = int(_mh * fmult) + fflat
+        elif fstat == "flat":
+            base = fflat
+        else:  # atk
+            base = int(stats.get("atk", 0) * fmult) + fflat
+        # 伤害类型 → 防御/穿透
+        if ftype == "true":
+            dmg = calc_damage(base, 0, is_crit, variance=variance, dmg_type="true")
+        elif ftype == "magi":
+            dmg = calc_damage(base, target_mdef, is_crit, variance=variance,
+                              pene_pct=pene_magi, pene_flat=pene_flat_magi, dmg_type="magi")
+            magi_part += dmg
+        else:
+            dmg = calc_damage(base, target_def, is_crit, variance=variance,
+                              pene_pct=pene_phys, pene_flat=pene_flat_phys, dmg_type="phys")
+        total += dmg
+    return total, magi_part
+
+
 def check_player_level_up(group_id, qq_id, player: dict) -> tuple[list, dict]:
     """检查是否升级(处理多次连升)。返回 (log列表, 更新后的player)"""
     logs = []

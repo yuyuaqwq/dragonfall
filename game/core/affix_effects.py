@@ -65,6 +65,46 @@ def register(registry, key):
     return deco
 
 
+def run_affix_formula(battle, player, dmg, logs, trigger="on_hit"):
+    """v156 通用词条 formula 执行器——装备词条带 formula 字段时自动生效（零代码）。
+
+    词条数据格式（affixes.py AFFIXES）：
+      "新词条": {
+          "name": "...", "kind": "attack", "trigger": "on_hit", "chance": 0.20,
+          "formula": [{"stat": "atk", "mult": 0.6, "type": "phys"}],   # 追加伤害
+          "effect": {...},  # 可选：额外效果（dot/debuff 等，仍走旧 handler 或数据）
+      }
+    触发：battle._affix_on_hit 遍历时，若词条带 formula → 用本函数结算追加伤害，
+    不再需要手写 handler。旧词条（无 formula）仍走注册函数，渐进迁移。
+    """
+    from .. import content as C
+    from ..engine import resolve_formula
+    ids = battle._equip_affix_ids(player)
+    if not ids:
+        return
+    st = battle._player_stats(player)
+    est = battle._enemy_stats()
+    for aid in ids:
+        info = C.AFFIXES.get(aid) or C.LEGENDARY_EFFECTS.get(aid) or {}
+        formula = info.get("formula")
+        if not formula:
+            continue
+        chance = float(info.get("chance", 1.0))
+        if chance < 1.0 and random.random() > chance:
+            continue
+        pene_p, pene_f = battle._pene_vals(st)
+        pene_pm, pene_fm = battle._pene_vals(st, magic=True)
+        bonus, _magi = resolve_formula(
+            formula, st, est.get("def", 0), est.get("mdef", 0),
+            is_crit=getattr(battle, "_last_affix_crit", False),
+            pene_phys=pene_p, pene_magi=pene_pm,
+            pene_flat_phys=pene_f, pene_flat_magi=pene_fm,
+        )
+        if bonus > 0:
+            battle._damage_enemy(bonus, logs)
+            logs.append(f"💥 {info.get('name', aid)}：追加 {bonus} 点伤害！")
+
+
 # ================= 1. 攻击命中词条（_affix_on_hit） =================
 # 注册顺序 = 旧代码 if 顺序（dict 保序遍历，行为零变化）
 

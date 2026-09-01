@@ -2812,13 +2812,10 @@ class Battle:
             logs.append(f"🔮 魔能涌动：普攻附带 {surge_dmg} 点魔法伤害！")
         else:
             _magi_part = 0
-        # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）
-        affix_mult, affix_tags = self._affix_dmg_mult(player)
+        # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
+        # 与技能共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
+        affix_mult, affix_tags = self._player_dmg_mult(player, "物理")
         dmg = int(dmg * affix_mult)
-        # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
-        if (self.p_eff or {}).get("wolf_howl_mult"):
-            dmg = int(dmg * float(self.p_eff.get("wolf_howl_mult", 1.10)))
-            affix_tags = list(affix_tags) + ["🐺狼嚎x1.1"]
         # v140 S1 直连消费：蓄势待发（surge_ready）——战斗开始后第一次攻击 +15%（一次性）
         if (self.p_eff or {}).get("surge_ready"):
             dmg = int(dmg * 1.15)
@@ -2851,35 +2848,6 @@ class Battle:
                 affix_tags = list(affix_tags) + [f"🌙暴伤x{1 + _wectx['crit_dmg']:.2f}"]
         except Exception:
             pass
-        # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
-        race_mult, race_tags = self._race_attack_mult(player)
-        dmg = int(dmg * race_mult)
-        if race_tags:
-            affix_tags = list(affix_tags) + race_tags
-        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：普攻为物理伤害，吃「每 1 气 +3%」持有加伤
-        mom_mult = self._momentum_mult(player)
-        if mom_mult != 1.0:
-            dmg = int(dmg * mom_mult)
-            affix_tags = list(affix_tags) + [f"🔥蓄势x{round(mom_mult, 2)}"]
-        # v130.2f2 苦修禅意持有加伤（武僧线）：普攻为物理伤害，吃「每 1 禅意 +4%」持有加伤（与蓄势同型）
-        zen_mult = self._zen_hold_mult(player)
-        if zen_mult != 1.0:
-            dmg = int(dmg * zen_mult)
-            affix_tags = list(affix_tags) + [f"🧘禅意x{round(zen_mult, 2)}"]
-        # v130.2 澎湃烈酒（phys_up，P0-5 消费端）：本场物理伤害 +pct%（p_eff 存 pct / p_buffs 存剩余刻）
-        if self.p_buffs.get("phys_up"):
-            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
-            if _pu > 0:
-                dmg = int(dmg * (1 + _pu))
-                affix_tags = list(affix_tags) + [f"🍺物理x{round(1 + _pu, 2)}"]
-        # v130.2 引气精华（buff_phys_next，P0-2 消费端）：下一次物理攻击 +pct%（一次性，随即清；豁免刻递减）
-        if self.p_buffs.get("buff_phys_next"):
-            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
-            if _bpn > 0:
-                dmg = int(dmg * (1 + _bpn))
-                del self.p_buffs["buff_phys_next"]
-                self.p_eff.pop("buff_phys_next", None)
-                affix_tags = list(affix_tags) + [f"🥊引气x{round(1 + _bpn, 2)}"]
         # v140 波4：新手特效 星火连击（novice_spark_followup）——释放技能后，下次普攻伤害 +10%
         if self.mech_stacks.get("novice_spark"):
             dmg = int(dmg * 1.10)
@@ -3498,6 +3466,52 @@ class Battle:
         mk = (e.get("debuffs") or {}).get("mark") or {}
         return int(mk.get("n", 0) or 0) > 0
 
+    def _player_dmg_mult(self, player: dict, kind: str = "物理") -> tuple:
+        """v156 玩家侧公共乘区统一组装——普攻/技能共用（一处修改，两边生效）。
+
+        收拢两边重复的组装逻辑：
+          - 词条增伤（_affix_dmg_mult，含食物/药水尾链）
+          - 狼嚎 wolf_howl_mult（本场 +10%）
+          - 蓄势 momentum / 禅意 zen（物理持有加伤）
+          - 澎湃烈酒 phys_up / 引气精华 buff_phys_next（物理 +pct%，一次性消费）
+          - 种族天赋 race_mult
+        返回 (mult, tags)。技能专属乘区（冻结/潜行/叠层/条件/反应）由调用方另乘。
+        """
+        mult, tags = self._affix_dmg_mult(player)
+        # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
+        if (self.p_eff or {}).get("wolf_howl_mult"):
+            mult = mult * float(self.p_eff.get("wolf_howl_mult", 1.10))
+            tags = list(tags) + ["🐺狼嚎x1.1"]
+        # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理伤害吃「每 1 气 +3%」持有加伤
+        _mom = self._momentum_mult(player)
+        if kind == "物理" and _mom != 1.0:
+            mult *= _mom
+            tags = list(tags) + [f"🔥蓄势x{round(_mom, 2)}"]
+        # v130.2f2 苦修禅意（武僧线）：物理伤害吃「每 1 禅意 +4%」持有加伤
+        _zen = self._zen_hold_mult(player)
+        if kind == "物理" and _zen != 1.0:
+            mult *= _zen
+            tags = list(tags) + [f"🧘禅意x{round(_zen, 2)}"]
+        # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理伤害 +pct%
+        if kind == "物理" and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
+            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
+            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
+            if _pu > 0:
+                mult *= (1 + _pu)
+            if _bpn > 0:
+                mult *= (1 + _bpn)
+                del self.p_buffs["buff_phys_next"]
+                self.p_eff.pop("buff_phys_next", None)
+            _tags_pu = ([f"🍺物理x{round(1 + _pu, 2)}"] if _pu > 0 else []) + \
+                       ([f"🥊引气x{round(1 + _bpn, 2)}"] if _bpn > 0 else [])
+            if _tags_pu:
+                tags = list(tags) + _tags_pu
+        # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
+        race_mult, race_tags = self._race_attack_mult(player)
+        if race_tags:
+            tags = list(tags) + race_tags
+        return mult * race_mult, tags
+
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
         """v101.28e/f 食物效果 + 药水特殊效果的伤害倍率（独立于装备词条）。
 
@@ -3555,11 +3569,14 @@ class Battle:
 
     def _affix_on_hit(self, player: dict, dmg: int, logs: list):
         """攻击命中后词条触发：流血/破甲/连击/吸血/元素附加/贯穿/蓄力/净化/龙语印记/审判之链
-        v98.5：效果数据化 → core/affix_effects.py HIT_EFFECTS（并列 if 语义，顺序遍历）"""
+        v98.5：效果数据化 → core/affix_effects.py HIT_EFFECTS（并列 if 语义，顺序遍历）
+        v156：带 formula 字段的词条走通用执行器（零代码），旧词条仍走注册函数"""
         ids = self._equip_affix_ids(player)
         if not ids or self.enemy.get("hp", 0) <= 0:
             return
-        from .core.affix_effects import HIT_EFFECTS
+        from .core.affix_effects import HIT_EFFECTS, run_affix_formula
+        # v156 formula 词条：数据驱动追加伤害（无需手写 handler）
+        run_affix_formula(self, player, dmg, logs, trigger="on_hit")
         for fn in HIT_EFFECTS.values():
             fn(self, player, dmg, logs)
         # v114 星陨（星陨之剑专属，effect aoe:True）：攻击 10% 概率全屏星陨 → 真 AOE
@@ -4078,20 +4095,12 @@ class Battle:
                 if chain_flag:
                     multi += 1
         # v130.2 拳师蓄势 Momentum（攻线·格斗士）：物理技能吃「每 1 气 +3%」持有加伤
+        # v156：蓄势已由 _player_dmg_mult 统一乘入（普攻/技能共用），此处只记录标签
         _mom_mult = self._momentum_mult(player)
         if kind == "物理" and _mom_mult != 1.0:
-            passive_bonus *= _mom_mult
             self._mom_mult = _mom_mult
         else:
             self._mom_mult = 1.0
-        # v130.2f2 苦修禅意持有加伤（武僧线）：物理技能吃「每 1 禅意 +4%」持有加伤
-        # （与蓄势同型：读当前持有 zen 动态结算，monk.md §5.2 / core_resources.py 禅意 desc）
-        _zen_mult = self._zen_hold_mult(player)
-        if kind == "物理" and _zen_mult != 1.0:
-            passive_bonus *= _zen_mult
-            self._zen_mult = _zen_mult
-        else:
-            self._zen_mult = 1.0
         # v130.2 刺客攻线·影舞者：终结技（res_cost cp）连段增伤（combo≥3 每层 +5%，上限 +40%）
         _combo_mult = 1.0
         if self._combo_active(player) and (info.get("res_cost") or {}).get("cp"):
@@ -4119,12 +4128,9 @@ class Battle:
         self._sk_af_mult = _sk_af
         total = 0
         _magi_part = 0  # v109.2 P2-4：混合伤害魔法段累计（吸血分账用）
-        # 阶段八：装备被动词条伤害加成（处决/追猎/精准/龙语印记等）+ 专属元素伤害
-        affix_mult, affix_tags = self._affix_dmg_mult(player)
-        # v140 S1 直连消费：狼嚎（wolf_howl）——本场伤害 +10%（战斗开始置位，命中即乘）
-        if (self.p_eff or {}).get("wolf_howl_mult"):
-            affix_mult = affix_mult * float(self.p_eff.get("wolf_howl_mult", 1.10))
-            affix_tags = list(affix_tags) + ["🐺狼嚎x1.1"]
+        # v156 玩家侧公共乘区统一组装（词条/狼嚎/蓄势/禅意/物理药水/种族）——
+        # 与普攻共用 _player_dmg_mult（一处修改，普攻/技能同时生效）
+        affix_mult, affix_tags = self._player_dmg_mult(player, kind)
         if self._mom_mult != 1.0:
             affix_tags = list(affix_tags) + [f"🔥蓄势x{round(self._mom_mult, 2)}"]
         if self._combo_mult != 1.0:
@@ -4133,30 +4139,9 @@ class Battle:
             affix_tags = list(affix_tags) + ["🥊三连余劲x1.20"]
         if getattr(self, "_sk_af_mult", 1.0) > 1.0:
             affix_tags = list(affix_tags) + [f"⚔️套装技x{round(self._sk_af_mult, 2)}"]
-        if getattr(self, "_zen_mult", 1.0) != 1.0:
-            affix_tags = list(affix_tags) + [f"🧘禅意x{round(getattr(self, '_zen_mult', 1.0), 2)}"]
-        # v130.2 澎湃烈酒（phys_up）/ 引气精华（buff_phys_next）：物理技能伤害 +pct%
-        # （幂等乘入 passive_bonus；buff_phys_next 一次性随即清，豁免刻递减；P0-2/P0-5 消费端）
-        if kind == "物理" and (self.p_buffs.get("phys_up") or self.p_buffs.get("buff_phys_next")):
-            _pu = float((self.p_eff or {}).get("phys_up", 0) or 0)
-            _bpn = float((self.p_eff or {}).get("buff_phys_next", 0) or 0)
-            if _pu > 0:
-                passive_bonus *= (1 + _pu)
-            if _bpn > 0:
-                passive_bonus *= (1 + _bpn)
-                del self.p_buffs["buff_phys_next"]
-                self.p_eff.pop("buff_phys_next", None)
-            _tags_pu = ([f"🍺物理x{round(1 + _pu, 2)}"] if _pu > 0 else []) + \
-                       ([f"🥊引气x{round(1 + _bpn, 2)}"] if _bpn > 0 else [])
-            if _tags_pu:
-                affix_tags = list(affix_tags) + _tags_pu
         elem_mult = self._affix_element_dmg(player, element)
-        # 阶段九：种族攻击天赋（无畏/怯战 残血、龙之吐息 首击）
-        race_mult, race_tags = self._race_attack_mult(player)
-        if race_tags:
-            affix_tags = list(affix_tags) + race_tags
         pmult = (E.skill_power_mult(lv, info) * frozen_bonus * stealth_mult * stack_bonus * cond_mult
-                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult * race_mult
+                 * magic_bonus * passive_bonus * reaction_mult * affix_mult * elem_mult
                  * self._v139_dmg_mult(player, info))
         # vF3 P1 连乘封顶：技能伤害倍率连乘（技能×冻结×潜行×叠层×条件×魔法×被动×反应×词缀×元素×种族×v139形态/专注）
         # 只 clamp 技能伤害倍率段；暴击(×1.5)/暴伤(crit_dmg)/幸运一击(×1.5) 为独立乘区，在下方另行施加不受此限。
@@ -4171,33 +4156,18 @@ class Battle:
             _seg_crit = is_crit and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
             _lucky_seg = lucky and (seg == 0 or not MULTI_HIT_CRIT_FIRST_ONLY)
             # v156 formula 字段：每技能独立配置伤害公式（数据驱动任意组合）——
-            #   [{"stat": "atk"|"matk"|"max_hp", "mult": 百分比系数, "flat": 固定值(基础值), "type": "phys"|"magi"|"true"}]
+            #   [{"stat": "atk"|"matk"|"max_hp"|"flat", "mult": 百分比系数, "flat": 固定值(基础值), "type": "phys"|"magi"|"true"}]
             #   混伤：多段 formula；物理职业魔法技：stat=atk + type=magi；基础值+百分比：flat
-            #   未配 formula 走下方旧逻辑（kind 决定 atk/matk，向后兼容）
+            #   未配 formula 自动从 power/kind 生成（向后兼容：物理→atk、魔法→matk、真伤→atk true）
+            #   统一走 E.resolve_formula（普攻/敌方/装备/食物共用同一解释器）
             if info.get("formula"):
-                dmg_i = 0
-                for _fseg in info["formula"]:
-                    _fstat = _fseg.get("stat", "atk")
-                    _fmult = float(_fseg.get("mult", 1.0) or 1.0)
-                    _fflat = int(_fseg.get("flat", 0) or 0)
-                    _ftype = _fseg.get("type", "phys")
-                    if _fstat == "matk":
-                        _fbase = int(st["matk"] * _fmult) + _fflat
-                    elif _fstat == "max_hp":
-                        _fbase = int(player.get("max_hp", 0) * _fmult) + _fflat
-                    else:
-                        _fbase = int(st["atk"] * _fmult) + _fflat
-                    if _ftype == "true":
-                        _fdmg = E.calc_damage(_fbase, 0, _seg_crit, dmg_type="true")
-                    elif _ftype == "magi":
-                        _fdmg = E.calc_damage(_fbase, est["mdef"], _seg_crit,
-                                              pene_pct=_pp_magi, pene_flat=_pf_magi, dmg_type="magi")
-                    else:
-                        _fdmg = E.calc_damage(_fbase, est["def"], _seg_crit,
-                                              pene_pct=_pp_phys, pene_flat=_pf_phys, dmg_type="phys")
-                    dmg_i += _fdmg
-                    if _ftype == "magi":
-                        _magi_part += _fdmg
+                dmg_i, _mseg = E.resolve_formula(
+                    info["formula"], st, est["def"], est["mdef"], is_crit=_seg_crit,
+                    pene_phys=_pp_phys, pene_magi=_pp_magi,
+                    pene_flat_phys=_pf_phys, pene_flat_magi=_pf_magi,
+                    mult=pmult, variance=0.15,
+                )
+                _magi_part += _mseg
             elif kind == "真伤":
                 dmg_i = E.calc_damage(int(st["atk"] * info["power"] * pmult), 0, _seg_crit, dmg_type="true")
             elif kind == "物理":
@@ -4809,7 +4779,18 @@ class Battle:
                 kind = sinfo.get("kind")
                 power = float(ev.get("power_mult", sinfo.get("power", 1.0)))
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
-                if kind == "物理":
+                # v156 通用公式：敌方技能带 formula 字段走数据驱动公式（任意 atk/matk/max_hp/混伤），
+                # 否则从 power/kind 自动生成 formula（向后兼容）
+                _fml = sinfo.get("formula")
+                if _fml:
+                    _pp, _pf = self._pene_vals(est)
+                    _pp_m, _pf_m = self._pene_vals(est, magic=True)
+                    dmg, _ = E.resolve_formula(
+                        _fml, est, pst.get("def", 0), pst.get("mdef", 0), is_crit=is_crit,
+                        pene_phys=_pp, pene_magi=_pp_m,
+                        pene_flat_phys=_pf, pene_flat_magi=_pf_m,
+                    )
+                elif kind == "物理":
                     _pp, _pf = self._pene_vals(est)
                     dmg = E.calc_damage(int(est["atk"] * power), pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                         dmg_type="phys")
