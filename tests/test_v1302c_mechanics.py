@@ -85,8 +85,8 @@ def new_battle(cls, tier, path, **pw):
 
 
 def cast_capture(b, skill_name, p):
-    """黑盒施放：真实走 _do_player_skill 全链（校验/消耗/统一公式折算），
-    仅把伤害结算 _player_skill 替换为捕获器记录引擎折算后的 info['power']
+    """黑盒施放：真实走 player_turn 全链（校验/消耗/统一公式折算 + v154 读条排事件），
+    推进到命中时刻后把伤害结算 _player_skill 替换为捕获器记录引擎折算后的 info['power']
     （确定性：不跑真实伤害链的随机点）。"""
     captured = {}
 
@@ -95,7 +95,9 @@ def cast_capture(b, skill_name, p):
         return []
 
     b._player_skill = _fake
-    logs = b._do_player_skill(skill_name, p)
+    logs, _ = b.player_turn("skill", skill_name, p, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才调用 _player_skill（命中结算）——推进后触发
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return captured, logs
 
 
@@ -134,7 +136,9 @@ def test_overcap_regression():
         b.resources["element_charge"] = 2
         logs, blocked = b._skill_cast_blocked("元素湮灭", p)
         check("持 2 充能预检不拦截", blocked is False, f"{logs}")
-        logs = b._do_player_skill("元素湮灭", p)
+        logs, _ = b.player_turn("skill", "元素湮灭", p, enemy_act=False)
+        # v154 读条命中制：施放只排读条——推进后命中结算（此处验证无资源不足日志）
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("持 2 充能施放成功（无资源不足日志）", not any("不足" in l for l in logs), f"{logs[:2]}")
         check("施放后充能保留（v153 不消耗）", b._elem_charge() == 2,
               f"charge={b._elem_charge()}")
@@ -173,7 +177,9 @@ def test_bard_echo_loop():
             pp["hp"] = hp
             bb = BT.Battle("monster", make_enemy(), player=pp)
             bb.resources["faith"] = faith
-            lg = bb._do_player_skill("治愈术", pp)
+            lg, _ = bb.player_turn("skill", "治愈术", pp, enemy_act=False)
+            # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
+            bb._process_until(float(getattr(bb, "p_ct", 0) or 0) + 0.001, lg, pp)
             m3 = _re3.search(r"治愈了你 (\d+) 点生命", next(x for x in lg if "治愈" in x))
             return int(m3.group(1)) if m3 else 0
         h0 = _heal_log("cls_mu_shi", 0)

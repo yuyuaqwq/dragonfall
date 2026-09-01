@@ -101,6 +101,8 @@ def test_shadow_ambush_flow():
     _init_res(b)
     with mock.patch.object(BT.random, "random", return_value=0.99):
         logs_a, _ = b.player_turn("skill", "潜行", p, enemy_act=False)
+        # v154 读条命中制：潜行（增益）也走读条——推进到命中时刻才挂 buff
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_a, p)
     check("潜行真实施放（player_turn 技能全链）：挂 stealth buff",
           (b.p_buffs or {}).get("stealth") == 1, f"p_buffs={b.p_buffs} logs={logs_a[:2]}")
     b._end_round()
@@ -111,6 +113,8 @@ def test_shadow_ambush_flow():
     with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap_s)):
         with mock.patch.object(BT.random, "random", return_value=0.99):
             logs_s, _ = b.player_turn("skill", "刺击", p, enemy_act=False)
+            # v154 读条命中制：技能读条结束（cast_done）才命中结算（潜行生效/消耗）——推进后触发
+            b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_s, p)
     check("潜行必暴：潜行生效日志（🌙 潜行生效）",
           any("潜行生效" in l for l in logs_s), f"{logs_s[:3]}")
     check("潜行出手后 buff 消费（stealth 已删除，一次性语义）",
@@ -123,6 +127,8 @@ def test_shadow_ambush_flow():
     with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap_n)):
         with mock.patch.object(BT.random, "random", return_value=0.99):
             logs_n, _ = b2.player_turn("skill", "刺击", p2, enemy_act=False)
+            # v154 读条命中制：同上推进（对照组的伤害结算也走读条命中）
+            b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, logs_n, p2)
     check("对照：无潜行刺击 raw 基准已取到（伤害结算同链）", cap_n.get("raw", 0) > 0,
           f"raw_n={cap_n.get('raw')}")
     check("对照：非潜行刺击无潜行标签（恒 1.0）",
@@ -139,7 +145,9 @@ def test_guard_stance_res_gain():
     b, p = new_battle("cls_zhan_shi", 1, 2, learned=["守护姿态", "挥砍"])
     _init_res(b)
     with mock.patch.object(BT.random, "random", return_value=0.99):
-        logs_s = b._do_player_skill("挥砍", p)
+        logs_s, _ = b.player_turn("skill", "挥砍", p, enemy_act=False)
+        # v154 读条命中制：技能读条结束（cast_done）才命中结算（怒气 +2）——推进后触发
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_s, p)
     check("技能施放（挥砍）命中 → 怒气 +2（on_skill 战意渠道）",
           b.resources.get("rage") == 2, f"rage={b.resources.get('rage')} logs={logs_s[:2]}")
     # 受击渠道：v153 守护姿态无被动加成 → 仅 on_hit +1（与无姿态一致，被动缺口已报告）
@@ -182,7 +190,9 @@ def test_hawk_eye_mark_path():
     _init_res(b)
     b.resources["energy"] = 41
     with mock.patch.object(BT.random, "random", side_effect=[0.99, 0.0]):
-        logs_m = b._do_player_skill("森语印记", p)
+        logs_m, _ = b.player_turn("skill", "森语印记", p, enemy_act=False)
+        # v154 读条命中制：增益技能也走读条——推进到命中时刻（此处验证 buff 分支 mech 缺口）
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_m, p)
     mark_n = int((b.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)
     check("森语印记（增益）施放后猎印 0 层（buff 分支 mech 分发缺口，已报告）",
           mark_n == 0, f"hunt_mark={mark_n} logs={logs_m[:3]}")
@@ -206,13 +216,17 @@ def test_combo_finisher():
         # 叠 5 段连段（每段 = 1 层）
         with mock.patch.object(BT.random, "random", return_value=0.99):
             for _ in range(5):
-                b._do_player_skill("刺击", p)
+                _lg, _ = b.player_turn("skill", "刺击", p, enemy_act=False)
+                # v154 读条命中制：每段刺击读条结束（cast_done）才叠段——推进后触发
+                b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, _lg, p)
         combo = b.mech_stacks.get("lian_duan", 0)
         check("5 段连段叠加（lian_duan ≥5）", combo >= 5, f"lian_duan={combo}")
         cap = {}
         with mock.patch.object(E, "calc_damage", side_effect=_capture_calc(cap)):
             with mock.patch.object(BT.random, "random", return_value=0.99):
-                logs_z = b._do_player_skill("终结·处刑", p)
+                logs_z, _ = b.player_turn("skill", "终结·处刑", p, enemy_act=False)
+                # v154 读条命中制：终结技读条结束才命中结算——推进后触发
+                b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs_z, p)
         check("终结·处刑施放成功（连段终结日志）",
               any("终结·处刑" in l for l in logs_z), f"{logs_z[:3]}")
         check("终结·处刑 raw > 0（伤害链走通）", cap.get("raw", 0) > 0, f"raw={cap.get('raw')}")

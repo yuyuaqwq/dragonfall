@@ -71,6 +71,8 @@ def cast(sk_name, setup=None, chi=10):
     if setup:
         setup(b)
     logs, _ = b.player_turn("skill", sk_name, p, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才命中结算（伤害/叠层）——推进后触发
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return b, logs
 
 

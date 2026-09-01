@@ -105,10 +105,14 @@ def test_battle_target_behaviour():
     pr = mk_player(cls="cls_fa_shi", reach=2, spd=0)
     br = BT.Battle("monster", None, {}, player=pr, enemies=[dict(front), dict(back)])
     br.player_turn("attack", None, pr, target="狼巫", enemy_act=False)
+    # v154 读条命中制：出手只排 cast_done，推进到玩家下次行动点触发命中结算
+    br._process_until(float(getattr(br, "p_ct", 0) or 0) + 0.001, [], pr)
     check("远程 reach2 可指定打后排", hp_of(br, "狼巫") < 3000, f"狼巫 hp={hp_of(br, '狼巫')}")
     pm = mk_player(reach=1, spd=0)
     bm = BT.Battle("monster", None, {}, player=pm, enemies=[dict(front), dict(back)])
     bm.player_turn("attack", None, pm, enemy_act=False)
+    # v154 读条命中制：同上推进（近战自动目标命中前排）
+    bm._process_until(float(getattr(bm, "p_ct", 0) or 0) + 0.001, [], pm)
     check("近战自动目标打前排（后排不掉）", hp_of(bm, "狼巫") == 3000, f"狼巫 hp={hp_of(bm, '狼巫')}")
 
 
@@ -347,6 +351,8 @@ def test_charge_interrupt():
     b2 = BT.Battle("monster", e2, {}, player=p2)
     random.seed(2)
     logs2, _ = b2.player_turn("attack", None, p2, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才命中结算（打断蓄力在命中时刻触发）
+    b2._process_until(float(getattr(b2, "p_ct", 0) or 0) + 0.001, [], p2)
     check("攻击打断敌方蓄力", not e2["charging"], str(e2.get("charging")))
     e3 = mk_unit("蓄力怪3", hp=1000, charging={"skill": "x", "left": 2, "name": "聚气"})
     b._interrupt_charging(e3, [], source="你的控制")

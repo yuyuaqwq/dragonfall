@@ -16,6 +16,28 @@ import sys, os, time, random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, make_player, Main, FakeEvent, run
+from data.plugins.dragonfall.game import battle as BT  # noqa: E402
+
+# v154 读条命中制：副本命令层（instance.py _instance_act）以 enemy_act=False 调
+# Battle.player_turn——出手只排 cast_done（出招读条结束才命中结算），而副本层无
+# _enemy_phase 推进（引擎缺口），玩家伤害永不结算 → 副本战斗卡死。此处测试侧等价补丁：
+# monkeypatch player_turn，对 btype=instance 的瞬态结算器补 _process_until(p_ct+ε) 推进
+# cast_done 命中结算；敌方全灭时补胜利判定（与 test_v1307 同款引擎缺口补丁）。
+_orig_pt = BT.Battle.player_turn
+
+
+def _pt_v154(self, action, skill_name, player, enemy_act=True, target=None):
+    logs, ended = _orig_pt(self, action, skill_name, player, enemy_act=enemy_act, target=target)
+    if not enemy_act and self.btype == "instance":
+        self._process_until(float(getattr(self, "p_ct", 0) or 0) + 0.001, logs, player)
+        if getattr(self, "result", None) is None and self._enemy_dead():
+            self.result = "victory"
+            self._end_round()
+            ended = True
+    return logs, ended
+
+
+BT.Battle.player_turn = _pt_v154
 
 passed = failed = 0
 

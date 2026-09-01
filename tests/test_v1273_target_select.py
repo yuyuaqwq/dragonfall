@@ -79,6 +79,8 @@ def test_numeric_target_second():
     # 战士技能：猛击
     skill_name = "猛击"
     logs, ended = b.player_turn("skill", skill_name, player, target="2")
+    # v154 读条命中制：出招读条结束（cast_done）才命中结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     # 目标 = 第 2 个敌方（史莱姆B）
     check("打到史莱姆B", "史莱姆B" in out, out[:300])
@@ -99,6 +101,8 @@ def test_a_prefixed_target():
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = make_battle(mon_defs, player)
     logs, ended = b.player_turn("skill", "猛击", player, target="a2")
+    # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     check("打到史莱姆B", "史莱姆B" in out, out[:300])
     check("史莱姆B 掉血", b.enemies[1]["hp"] < b.enemies[1]["max_hp"], f"hp={b.enemies[1]['hp']}")
@@ -117,6 +121,8 @@ def test_out_of_range_target():
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = make_battle(mon_defs, player)
     logs, ended = b.player_turn("skill", "猛击", player, target="a9")
+    # v154 读条命中制：自动选择也走读条——推进后命中结算
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     check("提示未找到目标", "没有找到目标" in out, out[:300])
     check("自动选择仍出手", "猛击" in out or "史莱姆" in out, out[:300])
@@ -135,6 +141,8 @@ def test_name_prefix_target():
     import random as _r
     _r.seed(55)
     logs, ended = b.player_turn("skill", "猛击", player, target="史莱姆B")
+    # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     # 名字命中 B（可能暴击秒杀后日志不含名，以 B 掉血 + A 未动为准）
     check("按名字打到史莱姆B", b.enemies[1]["hp"] < b.enemies[1]["max_hp"], f"B hp={b.enemies[1]['hp']} out={out[:60]}")
@@ -154,6 +162,8 @@ def test_heal_b_target():
     import random
     random.seed(7)
     logs, ended = b.player_turn("skill", "治愈术", player, target="b1")
+    # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     check("b1 指定队友乙被治疗", "队友乙" in out and "治愈" in out, out[:300])
     check("队友乙血量上升", ally2["hp"] > 30, f"hp={ally2['hp']}")
@@ -170,6 +180,8 @@ def test_single_monster_target():
               "evolve_path": 0, "race": "human", "reach": 1, "name": "测试"}
     b = BT.Battle("monster", None, {}, player=player, enemies=[mon])
     logs, ended = b.player_turn("skill", "猛击", player, target="a9")
+    # v154 读条命中制：技能读条结束（cast_done）才命中结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, player)
     out = "\n".join(logs)
     # v130.10 绝对时刻 CTB：怪 ct 初始 = cost（>0），玩家首动后怪未到行动点不再反击
     # （v121 相对时钟下怪 -spd 开局、玩家行动后即反击，日志含『史莱姆』行）。单怪路径

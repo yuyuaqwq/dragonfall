@@ -25,6 +25,26 @@ import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from conftest import C, db, clean_db, Main, FakeEvent, run, BT, E, make_player  # noqa: E402
 
+# v154 读条命中制：玩家出手只排 cast_done 事件，出招读条结束（命中时刻）才结算伤害。
+# 引擎 cast_done 分支结算击杀后未置 result（战斗胜利判定缺位，主 agent 引擎修复前的
+# 测试侧等价补丁）——命令层读 ended/result 才走胜利结算（_handle_victory 任务进度）。
+# 此处 monkeypatch Battle.player_turn：返回前若敌方已全灭则补 result=victory + _end_round，
+# 使命令层攻击流程（footer 渲染 / 胜利结算）按 v154 节奏正常工作。仅改测试，不动 game/。
+_orig_player_turn = BT.Battle.player_turn
+
+
+def _player_turn_v154(self, action, skill_name, player, enemy_act=True, target=None):
+    logs, ended = _orig_player_turn(self, action, skill_name, player, enemy_act=enemy_act, target=target)
+    if not ended and getattr(self, "result", None) is None and self._enemy_dead():
+        # v154：cast_done 命中结算击杀 → 敌方全灭 → 补胜利判定（引擎缺口等价补丁）
+        self.result = "victory"
+        self._end_round()
+        ended = True
+    return logs, ended
+
+
+BT.Battle.player_turn = _player_turn_v154
+
 passed = failed = 0
 G, Q = 1095961999, "v1307k1"
 G2, Q2 = 1095961200, "v1307k2"

@@ -75,7 +75,8 @@ def _init_res(b):
 def _dmg_run(b, p, skill=None, stealth=False, chi=None):
     """确定性伤害跑法：random → 0.99（不自然暴击/不幸运/不闪避）+
     random.uniform → 0.0（calc_damage ±15% 波动归零）。
-    stealth=True 手动挂潜行 buff；chi 非 None 则预置气。返回 (伤害值, 日志)。"""
+    stealth=True 手动挂潜行 buff；chi 非 None 则预置气。返回 (伤害值, 日志)。
+    v154 读条命中制：施放走 player_turn（排 cast_done），推进到命中时刻才结算。"""
     if stealth:
         b.p_buffs["stealth"] = 1
     if chi is not None:
@@ -84,7 +85,8 @@ def _dmg_run(b, p, skill=None, stealth=False, chi=None):
     with mock.patch.object(BT.random, "random", return_value=0.99), \
             mock.patch.object(BT.random, "uniform", return_value=0.0):
         if skill:
-            logs = b._do_player_skill(skill, p)
+            logs, _ = b.player_turn("skill", skill, p, enemy_act=False)
+            b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         else:
             st = b._player_stats(p)
             logs = b._player_attack(st, p)
@@ -127,7 +129,9 @@ def test_shadow_stealth_mult():
         b3, p3 = new_battle("cls_ci_ke", 0, 0, learned=["潜行"])
         _init_res(b3)
         with mock.patch.object(BT.random, "random", return_value=0.99):
-            logs3 = b3._do_player_skill("潜行", p3)
+            logs3, _ = b3.player_turn("skill", "潜行", p3, enemy_act=False)
+            # v154 读条命中制：增益类技能也走读条——推进后生效
+            b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs3, p3)
         check("施放【潜行】→ 挂 stealth buff", (b3.p_buffs or {}).get("stealth") == 1,
               f"p_buffs={b3.p_buffs} logs={logs3}")
     except (AttributeError, TypeError) as ex:

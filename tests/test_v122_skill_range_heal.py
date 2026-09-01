@@ -110,6 +110,8 @@ def test_heal_target_ally():
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy],
                   allies=[ally1, ally2])
     logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target="阿瓦隆")
+    # v154 读条命中制：出招读条结束（cast_done）才结算（治疗命中时刻生效）
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
     check("指定队友血量增加", ally1["hp"] > 300, f"实际 {ally1['hp']}")
     check("施法者血量不变", priest["hp"] == 400, f"实际 {priest['hp']}")
@@ -128,6 +130,8 @@ def test_heal_self_default():
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy],
                   allies=[ally1])
     logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target=None)
+    # v154 读条命中制：治疗读条结束（cast_done）才结算——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
     check("无指定奶自己", priest["hp"] > 400, f"实际 {priest['hp']}")
     check("队友血量不变", ally1["hp"] == 300, f"实际 {ally1['hp']}")
@@ -160,6 +164,8 @@ def test_heal_solo_target_ignored():
     enemy = mk_enemy()
     b = BT.Battle("monster", enemy, player=priest, enemies=[enemy])  # 无 allies
     logs, ended = b.player_turn("skill", "治愈术", priest, enemy_act=False, target="随便")
+    # v154 读条命中制：单人治疗也走读条——推进后生效
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, priest)
     text = "\n".join(logs)
     check("单人带目标仍奶自己", priest["hp"] > 400, f"实际 {priest['hp']}")
     check("日志含治愈自己", "治愈了你" in text, text[:200])

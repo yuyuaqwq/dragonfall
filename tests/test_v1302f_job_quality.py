@@ -77,7 +77,7 @@ def _init_res(b):
 
 
 def cast_capture(b, skill_name, p):
-    """黑盒施放：真实走 _do_player_skill 全链（校验/消耗/返还挂点），
+    """黑盒施放：真实走 player_turn 全链（校验/消耗/返还挂点 + v154 读条排事件），
     仅把伤害结算 _player_skill 替换为捕获器（确定性：不跑真实伤害链随机点）。"""
     captured = {}
 
@@ -86,7 +86,9 @@ def cast_capture(b, skill_name, p):
         return []
 
     b._player_skill = _fake
-    logs = b._do_player_skill(skill_name, p)
+    logs, _ = b.player_turn("skill", skill_name, p, enemy_act=False)
+    # v154 读条命中制：出招读条结束（cast_done）才调用 _player_skill（命中结算）——推进后触发
+    b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
     return captured, logs
 
 
@@ -123,7 +125,9 @@ def test_overflow_conds():
         b.enemy["hp"] = 10 ** 9
         import random
         random.seed(5)
-        logs = b._do_player_skill("怒斩", p)
+        logs, _ = b.player_turn("skill", "怒斩", p, enemy_act=False)
+        # v154 读条命中制：命中叠层在出招读条结束（cast_done）时结算——推进后触发
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("行为：怒斩施放 → 战意 +1（mech 叠层引擎挂点）",
               int(b.mech_stacks.get("zhan_yi", 0) or 0) == 1,
               f"zhan_yi={b.mech_stacks.get('zhan_yi')} logs={logs[:2]}")
@@ -160,7 +164,9 @@ def test_overflow_conds():
         b.enemy["hp"] = 10 ** 9
         import random as _r2
         _r2.seed(6)
-        logs = b._do_player_skill("影刃", p)
+        logs, _ = b.player_turn("skill", "影刃", p, enemy_act=False)
+        # v154 读条命中制：命中叠段在出招读条结束（cast_done）时结算——推进后触发
+        b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, logs, p)
         check("行为：影刃施放 → 连段 +1（mech 叠段引擎挂点）",
               int(b.mech_stacks.get("lian_duan", 0) or 0) == 1,
               f"lian_duan={b.mech_stacks.get('lian_duan')} logs={logs[:2]}")
