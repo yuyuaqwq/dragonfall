@@ -12,9 +12,43 @@ from .data.battle_config import ELEMENT_REACTIONS  # v125.2 B1：元素反应表
 # 转职成长加成（tier 0-3 → 0/15%/30%/50%）
 TIER_GROWTH = {0: 1.0, 1: 1.15, 2: 1.30, 3: 1.50}
 # v25 转职分支属性倾向（左=攻击/速度，右=防御/生命）
+# v156 职业×分支差异化（计划 §3）：每职业攻线/守线独立加成；
+# 旧结构 {1:..., 2:...} 作为默认回退（未配置职业用通用档，向后兼容）
 BRANCH_BONUS = {
-    1: {"atk": 1.06, "spd": 1.04},   # 左：进攻路线
-    2: {"def": 1.08, "hp": 1.06},    # 右：防御路线
+    1: {"atk": 1.06, "spd": 1.04},   # 左：进攻路线（默认回退）
+    2: {"def": 1.08, "hp": 1.06},    # 右：防御路线（默认回退）
+}
+# v156 职业×分支差异化表（计划 §3 权威）：class_name → {evolve_path: {属性: 倍率}}
+# key 用职业 ID（cls_zhan_shi 等，与 C.CLASSES 一致）；中文名会在查询处 resolve 成 ID
+BRANCH_BONUS_BY_CLASS = {
+    "cls_zhan_shi": {
+        1: {"atk": 1.10, "spd": 1.04, "hp": 0.95},   # 狂战士：攻高但血少
+        2: {"def": 1.14, "hp": 1.10, "atk": 0.95},   # 盾卫士：防高但攻低
+    },
+    "cls_fa_shi": {
+        1: {"matk": 1.12, "hp": 0.92},   # 元素使：魔攻高但脆
+        2: {"matk": 1.08, "mp": 1.10},   # 奥术学者：魔攻+蓝量
+    },
+    "cls_you_xia": {
+        1: {"atk": 1.10, "spd": 1.06},   # 森语者
+        2: {"spd": 1.12, "atk": 1.06},   # 风行者
+    },
+    "cls_mu_shi": {
+        1: {"matk": 1.12, "hp": 0.95},   # 死灵祭司
+        2: {"matk": 1.06, "mdef": 1.10}, # 神谕者
+    },
+    "cls_ci_ke": {
+        1: {"atk": 1.12, "crit": 0.04},  # 影舞者
+        2: {"atk": 1.08, "hp": 1.04},    # 毒刃者
+    },
+    "cls_wu_seng": {
+        1: {"atk": 1.10, "spd": 1.04},   # 格斗士
+        2: {"def": 1.12, "hp": 1.10, "atk": 0.95},  # 磐石行者
+    },
+    "cls_shi_ren": {
+        1: {"matk": 1.08, "mp": 1.10},   # 咏叹者
+        2: {"matk": 1.08, "hp": 1.06},   # 挽歌者
+    },
 }
 
 
@@ -161,11 +195,16 @@ def player_base_stats(class_name: str, level: int, tier: int = 0, evolve_path: i
     for k in ("hp", "mp", "atk", "def", "matk", "mdef", "spd"):
         base[k] = int(base[k] + growth[k] * (level - 1) * mult * rmult)
     # v25 分支属性倾向（选择转职分支后生效）
+    # v156 职业×分支差异化：优先用职业表（BRANCH_BONUS_BY_CLASS），未配置职业回退通用档
     if evolve_path:
-        bb = BRANCH_BONUS.get(evolve_path, {})
+        bb = BRANCH_BONUS_BY_CLASS.get(class_name, BRANCH_BONUS).get(evolve_path, BRANCH_BONUS.get(evolve_path, {}))
         for k, v in bb.items():
             if k == "hp":
                 base["hp"] = int(base["hp"] * v)
+            elif k == "mp":
+                base["mp"] = int(base["mp"] * v)
+            elif k == "crit":
+                base["crit"] = round(base.get("crit", 0) + v, 3)  # crit 是加法（百分比）
             else:
                 base[k] = int(base[k] * v)
     base["max_hp"] = base["hp"]
