@@ -83,6 +83,9 @@ def main():
         while b.result is None and guard < 500:
             guard += 1
             b.player_turn("attack", None, player)
+            # v154 读条命中制：player_turn 只出手（排 cast_done），命中结算在出招读条结束后——
+            # 推进到 p_ct 触发 cast_done（伤害/击杀在出招读条结束时才生效），保持与 v152 同口径
+            b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], player)
             total_actions += 1
         wins2 += (b.result == "victory")
     eng_total = ehp * wins2
