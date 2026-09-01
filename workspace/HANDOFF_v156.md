@@ -73,10 +73,10 @@
 - **口径函数**：`core/stats.py _stage_mult(segments, lv)` 分段斜率模型（与 hp_stage_mult 同风格，纯数据驱动）
 - **影响面**：所有普通怪 HP 上调（战斗略长）+ 野外 Boss 后期变强；副本 Boss 战不变（承伤测试 0/22 红）
 
-## 五、收尾（阶段 6b 进行中）
+## 五、收尾（已完成）
 
-- [ ] 策划案同步（32_数值设计.md 怪物公式节 + 分阶段数值表）——本批提交前完成
-- [ ] 双仓提交（dragonfall + dragonfall-designer）
+- [x] 策划案同步（32_数值设计.md 怪物公式节 + 分阶段数值表）——`d2ba86e`（designer 仓）
+- [x] 双仓提交（dragonfall `b011b79` + dragonfall-designer `d2ba86e`）
 - [ ] 实机冒烟（野外 Boss 后期强度 / 普通怪战斗手感）——待鱼鱼实机验证
 
 ## 六、关键数据/文件速查
