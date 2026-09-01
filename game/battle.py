@@ -1990,19 +1990,11 @@ class Battle:
                         break
                     mlogs, dmg = self._enemy_turn(player, unit)
                     logs += mlogs
-                    if defend and dmg > 0:
-                        dmg = max(1, int(dmg * DEFEND_REDUCE))
-                        self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
-                    self._damage_player(player, dmg, logs, source=unit.get("name", "敌人"))
-                    # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条，行动白费、资源不返还
-                    if self._player_casting and dmg > 0:
-                        _ctrl = any(k in self.p_buffs for k in ("stun", "freeze", "silence"))
-                        if _ctrl:
-                            self._interrupt_player_cast(logs)
-                    # 行动后排下一次（用 buffed spd cost；敌方普攻同样有行为时长 CAST_ATK，
-                    # 与玩家普攻对称——否则玩家 cast 0.5 而敌方 1.0 会破坏速度频率等价）
-                    self._after_actor_ct("e", unit, cast_mult=CAST_ATK)
-                    self._schedule(float(unit.get("ct", 0) or 0), {"type": "enemy_act", "unit": unit})
+                    # v154 敌方对称读条：_enemy_turn 已排 cast_done（出招读条结束才命中结算），
+                    # dmg 恒 0（读条期间不直接打玩家）；敌方下次行动时刻已由 _enemy_turn 内部
+                    # _after_actor_ct("e") 设为 命中时刻+收招。此处按新 ct 重排 enemy_act 事件。
+                    if unit.get("hp", 0) > 0:
+                        self._schedule(float(unit.get("ct", 0) or 0), {"type": "enemy_act", "unit": unit})
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
@@ -2031,7 +2023,21 @@ class Battle:
                         else:
                             logs.append("（你的攻击落空了——目标已倒下！）")
                         # 命中后玩家收招已完成（p_ct 已在出手时设为命中时刻+收招），无需再排
-                    # 敌方侧 cast_done（v154 对称）由 enemy_act 事件直接结算，不走此分支
+                    elif side == "e":
+                        # v154 敌方对称读条：敌方出招读条结束 → 命中结算
+                        e_unit = ev.get("unit") or {}
+                        if e_unit.get("hp", 0) > 0:
+                            mlogs, dmg = self._enemy_cast_done(player, e_unit, ev)
+                            logs += mlogs
+                            if defend and dmg > 0:
+                                dmg = max(1, int(dmg * DEFEND_REDUCE))
+                                self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
+                            self._damage_player(player, dmg, logs, source=e_unit.get("name", "敌人"))
+                            # v154 打断：玩家读条中受到控制（眩晕/冻结/沉默）→ 打断读条
+                            if self._player_casting and dmg > 0:
+                                _ctrl = any(k in self.p_buffs for k in ("stun", "freeze", "silence"))
+                                if _ctrl:
+                                    self._interrupt_player_cast(logs)
                     if self._player_dead(player):
                         self.result = "defeat"
                         break
@@ -4707,86 +4713,35 @@ class Battle:
         self._pending_dmg_lines.append(f"【{e['name']}】追加攻击，造成 {xtra} 点伤害！")
         return xtra
 
-    def _enemy_turn(self, player: dict, unit=None) -> tuple:
-        """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
-        v2：unit 缺省 = 主目标（单怪兼容）；支持单位级蓄力。"""
-        if self.btype == "pvp":
-            return self._pvp_enemy_turn(player)
-        e = unit or self.enemy
+    def _enemy_cast_done(self, player: dict, unit: dict, ev: dict) -> tuple:
+        """v154 敌方对称读条：敌方出招读条结束（cast_done 事件触发）→ 结算伤害。
+        返回 (日志列表, 对玩家伤害)。
+        ev payload: {"kind": "skill"|"atk", "skill": 技能key, "power_mult": 伤害系数}
+        - skill：按 MONSTER_SKILLS 结算（物理/魔法/元素抗性/控制）
+        - atk：敌方普攻结算
+        被控跳过/增益/蓄力不走此函数（_enemy_turn 内立即处理）。
+        """
+        e = unit or {}
         eb = e.setdefault("buffs", {})
         ename = e.get("name", "怪物")
         logs = []
-        # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
-        # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
-        self._active_target = e
-        # v116.1 反制/追击瞬态标记：每刻开头清空，仅本刻触发的刻生效
+        # v116.1 反制/追击瞬态标记
         self._clear_reactive_flags(e)
-        self._boss_mech(logs, e)
-        # v116.1 阶段演出刻：_b_phase 触发进入新阶段时设 battle._phase_skip_act，
-        # 本刻 Boss 不行动（给玩家呼吸点），消费后立即复位避免影响后续刻/单位。
-        if getattr(self, "_phase_skip_act", False):
-            self._phase_skip_act = False
-            logs.append(f"🎬 【{ename}】正在蜕变，尚未行动！")
-            return logs, 0
-        # v138.1 反制窗口：Boss 处于阶段模板（_phase_counter）时，每刻战报附一行解题提示
-        _ctr = (e or {}).get("_phase_counter")
-        if _ctr:
-            logs.append(f"💡 反制：{_ctr}")
         pst = self._player_stats(player)
-        dmg = 0
-        # v29 冻结：跳过敌方刻
-        if "freeze" in eb:
-            logs.append(f"❄️ 【{ename}】被冻结，无法行动！")
-            eb.pop("freeze", None)
-            return logs, 0
-        # v63 眩晕
-        if "stun" in eb:
-            logs.append(f"🌀 【{ename}】被眩晕，无法行动！")
-            eb.pop("stun", None)
-            return logs, 0
-        # v151 破绽断链修复（引擎差距报告 P0）：破绽触发（skip_turn）→ 敌方跳过行动。
-        # bar_trigger 已设 immune_turns>0 且 val 清空；此处读 immune_turns>0 判定本刻应跳过。
-        _sk = eb.get("shaken")
-        if isinstance(_sk, dict) and int(_sk.get("immune_turns", 0) or 0) > 0:
-            logs.append(f"💢 【{ename}】被破绽震慑，无法行动！")
-            return logs, 0
-        # v109.2 P1-3：睡眠（受击解除，按刻递减）
-        # v121 审计修复：刻递减只由 _end_round 统一执行（每玩家行动 1 次）——
-        # 此分支此前每次被选中行动都 -1，CTB 连动下睡眠一刻被多重递减直接清零
-        if "sleep" in eb:
-            logs.append(f"💤 【{ename}】陷入沉睡，无法行动！")
-            return logs, 0
         est = self._enemy_stats()
-        # v2 敌方蓄力单位：left-1；归零自动释放技能（结算效果，不普攻）
-        if e.get("charging"):
-            return self._enemy_charge_tick(e, pst, est, logs, ename)
-        # 30% 概率使用技能（v63：沉默时只能普攻）
-        skill = None
-        silenced = "silence" in eb
-        if e.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
-            skill = random.choice(e["skills"])
-            sinfo = C.MONSTER_SKILLS.get(skill)
-            if sinfo:
-                sname = sinfo.get("name", skill)  # 显示中文名
+        dmg = 0
+        _kind = ev.get("kind", "atk")
+        # v63 沉默：敌方技能被沉默 → 读条结束时转为普攻（与出手瞬间判定一致）
+        if _kind == "skill" and "silence" in eb:
+            _kind = "atk"
+        if _kind == "skill":
+            sinfo = C.MONSTER_SKILLS.get(ev.get("skill") or "") or {}
+            if not sinfo:
+                _kind = "atk"
+            else:
+                sname = sinfo.get("name", ev.get("skill", "?"))
                 kind = sinfo.get("kind")
-                # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
-                # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
-                charge_n = int(sinfo.get("charge", 0) or 0)
-                if charge_n > 0 and not e.get("charging"):
-                    e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
-                    logs.append(
-                        f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
-                        f"可『防御』减半或『打断技』赌它读条失败！")
-                    return logs, 0
-                if kind == "增益":
-                    from .core.battle_mech import MON_BUFF_EFFECTS
-                    eff = sinfo.get("effect")
-                    eff_fn = MON_BUFF_EFFECTS.get(eff)
-                    if eff_fn:
-                        eff_fn(self, logs, sname)
-                    return logs, 0
-                power = sinfo.get("power", 1.0)
-                # v104 M02 P2-10：怪物技能暴击按自身 crit 判定；v106 韧性
+                power = float(ev.get("power_mult", sinfo.get("power", 1.0)))
                 is_crit = random.random() < est.get("crit", C.MON_SKILL_CRIT) * self._tenacity_mult(pst)
                 if kind == "物理":
                     _pp, _pf = self._pene_vals(est)
@@ -4839,10 +4794,9 @@ class Battle:
                         red = max(1, int(dmg * resist))
                         dmg = max(1, dmg - red)
                         logs.append(f"🛡️ 元素抗性减免 {red} 点伤害！")
-                # O116 延迟输出
                 self._pending_dmg_lines.append(
                     f"【{ename}】使用了【{sname}】，对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
-                # v63 怪物技能控制
+                # v63 怪物技能控制（读条结束命中时施加）
                 mmech = sinfo.get("mech")
                 if mmech:
                     from .core.battle_mech import MON_CTRL_EFFECTS
@@ -4852,7 +4806,7 @@ class Battle:
                         ctrl_fn(self, player, logs, mval)
                 dmg += self._reactive_extra_attack(e, pst, logs)
                 return logs, dmg
-        # 怪物普攻
+        # 敌方普攻（_kind == "atk" 或技能查表失败）
         is_crit = random.random() < est.get("crit", 0.05) * self._tenacity_mult(pst)
         _pp, _pf = self._pene_vals(est)
         dmg = E.calc_damage(est["atk"], pst["def"], is_crit, pene_pct=_pp, pene_flat=_pf)
@@ -4866,6 +4820,120 @@ class Battle:
             f"【{ename}】攻击你，造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
         dmg += self._reactive_extra_attack(e, pst, logs)
         return logs, dmg
+
+    def _enemy_turn(self, player: dict, unit=None) -> tuple:
+        """敌方单个单位行动。返回 (日志列表, 对玩家伤害)。
+        v2：unit 缺省 = 主目标（单怪兼容）；支持单位级蓄力。
+        v154 敌方对称读条：本函数 = 敌方"出手瞬间"（决定动作类型 + 排敌方出招读条）。
+        出招读条结束（cast_done）才结算伤害——见 _enemy_cast_done。
+        特例：被控跳过（眩晕/冻结/睡眠）、增益/蓄力直接返回（无出招读条）。
+        """
+        if self.btype == "pvp":
+            return self._pvp_enemy_turn(player)
+        e = unit or self.enemy
+        eb = e.setdefault("buffs", {})
+        ename = e.get("name", "怪物")
+        logs = []
+        # v2：本次敌方行动目标 = 该单位（_enemy_stats 默认按 _active_target 解析单位属性；
+        # 兼容测试 monkeypatch 的 1 参 _enemy_stats）
+        self._active_target = e
+        # v154：est 提前定义（被控/阶段跳过分支的 ct 重排需要 spd）
+        est = self._enemy_stats()
+        # v116.1 反制/追击瞬态标记：每刻开头清空，仅本刻触发的刻生效
+        self._clear_reactive_flags(e)
+        self._boss_mech(logs, e)
+        # v116.1 阶段演出刻：_b_phase 触发进入新阶段时设 battle._phase_skip_act，
+        # 本刻 Boss 不行动（给玩家呼吸点），消费后立即复位避免影响后续刻/单位。
+        if getattr(self, "_phase_skip_act", False):
+            self._phase_skip_act = False
+            logs.append(f"🎬 【{ename}】正在蜕变，尚未行动！")
+            self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+            return logs, 0
+        # v138.1 反制窗口：Boss 处于阶段模板（_phase_counter）时，每刻战报附一行解题提示
+        _ctr = (e or {}).get("_phase_counter")
+        if _ctr:
+            logs.append(f"💡 反制：{_ctr}")
+        pst = self._player_stats(player)
+        dmg = 0
+        # v29 冻结：跳过敌方刻
+        if "freeze" in eb:
+            logs.append(f"❄️ 【{ename}】被冻结，无法行动！")
+            eb.pop("freeze", None)
+            self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+            return logs, 0
+        # v63 眩晕
+        if "stun" in eb:
+            logs.append(f"🌀 【{ename}】被眩晕，无法行动！")
+            eb.pop("stun", None)
+            self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+            return logs, 0
+        # v151 破绽断链修复（引擎差距报告 P0）：破绽触发（skip_turn）→ 敌方跳过行动。
+        # bar_trigger 已设 immune_turns>0 且 val 清空；此处读 immune_turns>0 判定本刻应跳过。
+        _sk = eb.get("shaken")
+        if isinstance(_sk, dict) and int(_sk.get("immune_turns", 0) or 0) > 0:
+            logs.append(f"💢 【{ename}】被破绽震慑，无法行动！")
+            self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+            return logs, 0
+        # v109.2 P1-3：睡眠（受击解除，按刻递减）
+        # v121 审计修复：刻递减只由 _end_round 统一执行（每玩家行动 1 次）——
+        # 此分支此前每次被选中行动都 -1，CTB 连动下睡眠一刻被多重递减直接清零
+        if "sleep" in eb:
+            logs.append(f"💤 【{ename}】陷入沉睡，无法行动！")
+            self._after_actor_ct("e", e, cast_mult=CAST_ATK * self._ct_cost(est.get("spd", 0)))
+            return logs, 0
+        est = self._enemy_stats()
+        # v2 敌方蓄力单位：left-1；归零自动释放技能（结算效果，不普攻）
+        if e.get("charging"):
+            return self._enemy_charge_tick(e, pst, est, logs, ename)
+        # 30% 概率使用技能（v63：沉默时只能普攻）
+        skill = None
+        silenced = "silence" in eb
+        if e.get("skills") and random.random() < C.MON_SKILL_CHANCE and not silenced:
+            skill = random.choice(e["skills"])
+            sinfo = C.MONSTER_SKILLS.get(skill)
+            if sinfo:
+                sname = sinfo.get("name", skill)  # 显示中文名
+                kind = sinfo.get("kind")
+                # v116 敌方蓄力接线：抽中带 charge 的技能且敌方未在蓄力 → 进入蓄力
+                # （本刻不结算伤害，先给意图预告，之后刻由 _enemy_charge_tick 结算）
+                charge_n = int(sinfo.get("charge", 0) or 0)
+                if charge_n > 0 and not e.get("charging"):
+                    e["charging"] = {"skill": skill, "left": charge_n, "name": sname}
+                    logs.append(
+                        f"⚠️ 【意图】{ename} 正在蓄力【{sname}】！下刻将造成大伤害——"
+                        f"可『防御』减半或『打断技』赌它读条失败！")
+                    return logs, 0
+                if kind == "增益":
+                    from .core.battle_mech import MON_BUFF_EFFECTS
+                    eff = sinfo.get("effect")
+                    eff_fn = MON_BUFF_EFFECTS.get(eff)
+                    if eff_fn:
+                        eff_fn(self, logs, sname)
+                    # v154：增益立即生效，但敌方行动也要消耗 ct（读条 + 收招）
+                    self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
+                    return logs, 0
+                power = sinfo.get("power", 1.0)
+                # v154 敌方对称读条：技能出招 → 排 cast_done（出招读条结束才命中结算）
+                # 出招读条时长 = 技能 cast（缺省 CAST_SKILL），速度折算
+                _cast_t, _rec_t = self._action_times("skill", skill=sinfo, spd=est.get("spd", 0))
+                _cast_t = _cast_t or (CAST_SKILL * self._ct_cost(est.get("spd", 0)))
+                self._schedule_cast_done(self._now + _cast_t,
+                                         {"side": "e", "unit": e, "kind": "skill",
+                                          "skill": skill, "power_mult": power})
+                logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
+                # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
+                self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
+                return logs, 0
+        # v154 敌方对称读条：敌方普攻出招 → 排 cast_done（出招读条结束才命中结算）
+        # 出招读条时长 = 普攻 cast（缺省 CAST_ATK），速度折算
+        _cast_t, _rec_t = self._action_times("atk", spd=est.get("spd", 0))
+        _cast_t = _cast_t or (CAST_ATK * self._ct_cost(est.get("spd", 0)))
+        self._schedule_cast_done(self._now + _cast_t,
+                                 {"side": "e", "unit": e, "kind": "atk"})
+        logs.append(f"⚔️ 【{ename}】挥爪扑向你！(出招 {_cast_t:.1f}s)")
+        # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
+        self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
+        return logs, 0
 
     def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str) -> tuple:
         """敌方蓄力单位刻：left-1；归零自动释放技能（结算效果，不普攻）。"""
@@ -4911,6 +4979,8 @@ class Battle:
                                 dmg_type="magi")
         self._pending_dmg_lines.append(
             f"【{ename}】的【{sname}】对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        # v154：蓄力释放后敌方重排下次行动（读条 + 收招）
+        self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
         return logs, max(0, dmg)
 
     def _pvp_enemy_turn(self, player: dict) -> tuple:
