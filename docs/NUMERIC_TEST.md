@@ -27,6 +27,7 @@
 | `test_numeric_equip_dependency.py` | 战士 11 级裸装 vs 满装：面板提升幅度 + 同级胜率对比（seeds=6） | 防装备无意义（裸装=满装）或数值爆炸 |
 | `test_numeric_monster_curve.py` | 6 种 role（tank/dps/caster/speedster/elite/boss）在 1/11/22/30/60 级 hp/atk/def/spd 成长曲线（对照 stat_templates 模板公式） | 防怪物成长公式误改（含等级段修正/三阶乘区） |
 | `test_numeric_skill_power.py` | 12 职业各 2 个代表技能（基础技 + 成型技）的 power/mp/lv/成长率快照 | 防技能倍率误调 |
+| `test_numeric_economy_toolkit.py` | 经济模型 economy_lib 分阶段体检（6 阶段收入/装备/锻造/掉落账本 + 副业成本-价值 + 掉落数量 cap 生效） | 防经济数值改动脱离健康带（v165 起） |
 
 ## 基线更新流程
 
