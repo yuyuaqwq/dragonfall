@@ -1508,14 +1508,20 @@ class PlayerCmds(CommandBase):
         if _has_expr:
             _val = E.skill_expr_preview(info, lv, stats)
             if _val > 0:
-                label = "治疗" if kind == "治疗" else "伤害"
-                parts.append(f"{label} ≈ {int(round(_val))}")
+                # v162 修复：攻击类显示伤害/治疗类显示治疗，增益/嘲讽等不显示数值
+                if kind == "治疗":
+                    parts.append(f"治疗 ≈ {int(round(_val))}")
+                elif kind in ("物理", "魔法", "真伤") or kind.startswith(("物理", "魔法")):
+                    parts.append(f"伤害 ≈ {int(round(_val))}")
         # v161：表达式技能已显示实际数值，跳过 power 百分比（避免 305 vs 101% 双数值矛盾）
         if info.get("power") and not _has_expr:
-            label = "治疗" if kind == "治疗" else "伤害"
-            # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——
-            # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）
-            parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
+            # v162 修复：只有攻击类（物理/魔法/真伤）显示"伤害"，增益/嘲讽/被动不该显示伤害
+            # （铁壁等增益技能带 power 字段，此前误显示"伤害 100%"）
+            if kind in ("物理", "魔法", "真伤") or kind.startswith(("物理", "魔法")):
+                label = "治疗" if kind == "治疗" else "伤害"
+                # v101.25b #339：显示总伤害倍率 power×mult（此前只显示 mult 倍率——
+                # 圣光术 desc 115% vs 升级预览 110% 玩家以为升级降伤害）
+                parts.append(f"{label} {int(info['power'] * E.skill_power_mult(lv, info) * 100)}%")
         if kind in ("增益", "嘲讽"):
             parts.append(f"持续 {E.skill_buff_turns(lv)} 刻")
         if info.get("cond"):
