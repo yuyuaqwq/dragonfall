@@ -8,17 +8,25 @@
 GATHER_MAP_POOLS = {
     # ---- v95.23 首批 7 池（19 章 §2.1） ----
     "oak_plain": [("mat_cao_yao", 30), ("mat_jiang_guo", 20), ("mat_yue_guang_cao", 15),
-                  ("mat_shi_lai_mu_nian_ye", 15), ("mat_tu_mao", 10), ("mat_tu_pi", 10)],
+                  ("mat_shi_lai_mu_nian_ye", 15), ("mat_tu_mao", 10), ("mat_tu_pi", 10),
+                  # v167 锻造基础料（亚麻织物）：低权重
+                  ("mat_sen_lin_ya_ma_bu", 8)],
     "white_deer_forest": [("mat_cao_yao", 25), ("mat_jiang_guo", 15), ("mat_yue_guang_cao", 15),
                           ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15), ("mat_lang_pi", 10),
                           # v124 S111 面包贼蓬尾：被偷的面包（任务道具；白鹿之森无树洞专属采集点→挂普通池，低权重稀有）
-                          ("mat_bei_tou_de_mian_bao", 3)],
+                          ("mat_bei_tou_de_mian_bao", 3),
+                          # v167 锻造基础料（月光棉）：低权重
+                          ("mat_yue_guang_mian", 8)],
     "emerald_forest": [("mat_cao_yao", 25), ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15),
-                       ("mat_yue_guang_cao", 10), ("mat_zhao_ze_hua", 15), ("mat_lang_pi", 15)],
+                       ("mat_yue_guang_cao", 10), ("mat_zhao_ze_hua", 15), ("mat_lang_pi", 15),
+                       # v167 锻造基础料（符文绸）：低权重
+                       ("mat_fu_wen_duan", 5)],
     "misty_swamp": [("mat_zhao_ze_hua", 30), ("mat_cao_yao", 20), ("mat_yue_guang_cao", 10),
                     ("mat_shi_lai_mu_nian_ye", 15), ("mat_lin_yu_zhi_ye", 15), ("mat_gu_mu_zhi", 10)],
     "silverwood": [("mat_yue_guang_cao", 40), ("mat_cao_yao", 15), ("mat_jiang_guo", 10),
-                   ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15)],
+                   ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 15),
+                   # v167 锻造基础料（符文绸）：低权重
+                   ("mat_fu_wen_duan", 5)],
     "permafrost_field": [("mat_bing_jing", 40), ("mat_cao_yao", 10), ("mat_yue_guang_cao", 5),
                          ("mat_lin_yu_zhi_ye", 20), ("mat_gu_mu_zhi", 25)],
     "redridge_plateau": [("mat_long_xue_cao", 15), ("mat_cao_yao", 15), ("mat_yue_guang_cao", 10),
@@ -29,9 +37,13 @@ GATHER_MAP_POOLS = {
     "ancient_tree": [("mat_shou_wei_gu_mu", 30), ("mat_ling_zhu_gu_mu_xin", 20), ("mat_gu_shu_zhi_xin", 20), ("mat_lin_yu_zhi_ye", 15), ("mat_gu_mu_zhi", 15)],
     "black_forest": [("mat_fu_ya_shou_ya", 25), ("mat_zhi_zhu_si", 20), ("mat_bian_fu_yi", 15), ("mat_fu_rou", 20), ("mat_ying_guang_fen", 20)],
     "black_tide_strait": [("mat_hei_yao_sui_pian", 25), ("mat_shen_yuan_zhen_zhu", 20), ("mat_hai_she_lin", 20), ("mat_zhang_yu_mo_nang", 15)],
-    "boar_ridge": [("mat_ye_zhu_ya", 30), ("mat_ju_xing_ye_zhu_ya", 10), ("mat_shou_rou", 25), ("mat_cao_yao", 15), ("mat_jiang_guo", 20)],
+    "boar_ridge": [("mat_ye_zhu_ya", 30), ("mat_ju_xing_ye_zhu_ya", 10), ("mat_shou_rou", 25), ("mat_cao_yao", 15), ("mat_jiang_guo", 20),
+                   # v167 锻造基础料（粗铁/青铜 中低阶金属）：低权重
+                   ("mat_cu_tie", 8), ("mat_qing_tong", 5)],
     "bone_wild": [("mat_gu_long_can_hai", 30), ("mat_hai_wang_long_gu", 20), ("mat_gu_mo_xiang_he", 15), ("mat_gu_jiu_yu", 15), ("mat_sui_gu", 20)],
-    "border_castle": [("mat_shou_ren_fu_ren", 25), ("mat_shou_rou", 20), ("mat_tie_kuang_shi", 20), ("mat_sui_gu", 20), ("mat_tie_ya_lang_pi", 15)],
+    "border_castle": [("mat_shou_ren_fu_ren", 25), ("mat_shou_rou", 20), ("mat_tie_kuang_shi", 20), ("mat_sui_gu", 20), ("mat_tie_ya_lang_pi", 15),
+                      # v167 锻造基础料（粗铁/青铜 中低阶金属）：低权重
+                      ("mat_cu_tie", 8), ("mat_qing_tong", 5)],
     "cinder_mountain": [("mat_jin_he", 25), ("mat_ember_ash", 20), ("mat_huo_fu_yi", 15), ("mat_rong_yan_he_xin", 20), ("mat_e_mo_zhan_ren", 20)],
     "cloud_sea": [("mat_yun_xu", 25), ("mat_yun_mian", 20), ("mat_tian_ying_yu", 20), ("mat_cai_hong_lu", 15), ("mat_feng_zhi_yu", 20)],
     "cold_spine_snow_trail": [("mat_meng_ma_mao", 30), ("mat_bing_jing", 20), ("mat_xue_tu_pi", 20), ("mat_bing_xiong_pi", 15), ("mat_bing_yuan_su_he_xin", 15)],

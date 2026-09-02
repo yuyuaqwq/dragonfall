@@ -58,7 +58,7 @@ if sa2:
     boar = next((m for m in (sa2.get("monsters") or []) if m[0] == "m_wild_boar"), None)
 check("白鹿之森深处 monsters 含 野猪(复用 m_wild_boar) Lv.5",
       boar and boar[1] == "野猪" and boar[3] == 5, str(boar))
-check("野猪 drops=野猪牙", boar and boar[5] == ["野猪牙"], str(boar and boar[5]))
+check("野猪 drops=野猪牙+月光棉(v167挂料)", boar and boar[5] == ["野猪牙", "月光棉"], str(boar and boar[5]))
 
 # 04 章怪物表已有（野猪岭）——只挂载未新增重复条目
 check("野猪岭 野猪王·裂鬃 仍存在（未重复新增）",

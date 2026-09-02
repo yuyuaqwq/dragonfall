@@ -6,23 +6,24 @@ ALCHEMY_RECIPES = {
             "mat_lang_pi": 1
         },
         "product": {
-            "i_treatment_potion": 1
+            "i_treat_s": 1
         },
         "min_lv": 1,
-        "desc": "用兽皮与妖精之尘炼制的恢复药水",
-        "name": "治疗药水"
+        "desc": "用兽皮与妖精之尘炼制的恢复药水（同商店「治疗药水(小)」）",
+        "name": "治疗药水(小)"
     },
     "al_mo_li_yao_shui": {
         "cost": {
             "mat_shi_xi_lin": 1
         },
         "product": {
-            "i_mana_potion": 1
+            "i_mana_s": 1
         },
         "min_lv": 1,
-        "desc": "恢复魔力",
-        # v105R3 M16 P3-5：配方名与产物名统一（产物 i_mana_potion 为『魔法药水』）
-        "name": "魔法药水"
+        "desc": "恢复魔力（同商店「魔法药水(小)」，价格与商店一致）",
+        # #80 消歧：炼金产物与商店「魔法药水(小)」同效同价 → 直接产出商店同款（i_mana_s），
+        # 消除「炼金魔法药水 vs 商店魔法药水(小)」两个同物异名（旧 i_mana_potion 别名保留兼容存量）
+        "name": "魔法药水(小)"
     },
     "al_qiang_hua_shi": {
         "cost": {
@@ -163,6 +164,45 @@ ALCHEMY_RECIPES = {
         "purify": True,
         "desc": "珍珠贝浓缩提纯为雷晶砂（蓝→紫），消耗冗余蓝材料的出口",
         "name": "珍珠贝提纯"
+    },
+    # ---- v167 锻造基础料：兽皮鞣制提纯（v167_landing_spec 炼金提纯表：兽皮×2 → 皮革） ----
+    # 与 v116 提纯同生态（purify=True，『炼金 提纯』单独列出）；产物价 ≥ 兽皮成本
+    #（卖店回收受 craft_cost 注入封顶 ≤0.9×成本，防刷金），配方名=兽皮+提纯。
+    "al_purify_lang_pi": {
+        "cost": {
+            "mat_lang_pi": 2
+        },
+        "product": {
+            "mat_cu_zhi_ge": 1
+        },
+        "min_lv": 1,
+        "purify": True,
+        "desc": "狼皮粗鞣为粗制革（白→绿），v167 皮革系锻造底料",
+        "name": "狼皮提纯"
+    },
+    "al_purify_yue_lang_mao_pi": {
+        "cost": {
+            "mat_yue_lang_mao_pi": 2
+        },
+        "product": {
+            "mat_ying_ying_ge": 1
+        },
+        "min_lv": 6,
+        "purify": True,
+        "desc": "月狼毛皮以影纱浸染为影皮革（紫→紫），刺客皮甲的高档料",
+        "name": "月狼毛皮提纯"
+    },
+    "al_purify_xue_lang_pi": {
+        "cost": {
+            "mat_xue_lang_pi": 2
+        },
+        "product": {
+            "mat_shuang_han_ge": 1
+        },
+        "min_lv": 8,
+        "purify": True,
+        "desc": "雪狼皮以霜寒淬鞣为霜寒革（橙→橙），北境风雪不侵的皮革",
+        "name": "雪狼皮提纯"
     },
     "al_gong_ji_yao_shui": {
         "cost": {

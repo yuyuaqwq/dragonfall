@@ -1672,7 +1672,6 @@ MATERIALS = {
     "mat_hai_dao_cang_bao_tu": {"price": 60, "name": "海盗的藏宝图", "type": "材料", "desc": "从搁浅水手怀里找到的藏宝图，标着海蚀洞窟的秘密角落"},
     "mat_hai_shen_dao_wen": {"price": 260, "name": "海神祷文", "type": "材料", "desc": "海神神殿的祷文刻章(可作钥匙进入海神神殿)"},
     "mat_shen_yuan_qi_shi_hu_fu": {"price": 240, "name": "深渊骑士护符", "type": "材料", "desc": "深渊骑士残骸上的护符，抵挡过黑暗的侵蚀"},
-    "mat_jing_tie_ding": {"price": 130, "name": "精铁锭", "type": "材料", "desc": "矮人工艺锻造的优质铁锭，装备强化材料"},
     "mat_lei_he": {"price": 280, "name": "雷核", "type": "材料", "desc": "风暴中凝聚的雷电核心，蕴含狂暴的能量"},
     "mat_long_gong_zhu": {"price": 300, "name": "龙宫珠", "type": "材料", "desc": "龙宫的夜明珠，价值连城(可作钥匙进入深海龙宫)"},
     "mat_long_lin": {"price": 260, "name": "龙鳞", "type": "材料", "desc": "古龙的鳞片，坚硬如铁，锻造极品材料"},
@@ -2011,6 +2010,44 @@ MATERIALS = {
     'mat_shu_shi_he_xin': {'price': 35, 'name': '鼠狮核心', 'type': '兽材', 'desc': '鼠狮兽胸口凝聚的魔核，蕴藏着不安分的野性魔力'},
     'mat_yue_ying_zhi_pi': {'price': 65, 'name': '月影之皮', 'type': '兽材', 'desc': '月影林影豹的毛皮，月光下泛着银辉，是上等的法袍衬里'},
     'mat_long_yan_jing_hua': {'price': 80, 'name': '龙焰精华', 'type': '元素', 'desc': '龙脊山脉龙焰淬炼出的火系精华，握在掌心能感到灼热的脉动'},
+    # ================= v167 锻造基础料体系（布料/皮革/金属锭/通用木料，鱼鱼拍板 2026-09-02） =================
+    # 用途：白/蓝/绿常规装备用料贴合材质身份（布甲用布/皮甲用革/重甲用锭/弓杖用木）
+    # 价格对齐 v165 经济价带；获取源见 shop/gather_pools/alchemy/subareas（v167 挂源）
+    # ---- 布料线（布甲 int 系）----
+    'mat_sen_lin_ya_ma_bu': {'price': 10, 'name': '林语麻布', 'type': '材料', 'desc': '橡木镇老织娘用山间亚麻织成的粗布，细密透气，是新手布衣的底料'},
+    'mat_yue_guang_mian': {'price': 25, 'name': '月光棉', 'type': '材料', 'desc': '月光下采摘的银白棉絮纺成，触手温凉，隐约有月色流转'},
+    'mat_yin_ling_si': {'price': 45, 'name': '银铃丝', 'type': '材料', 'desc': '铁港银铃坊织出的银丝，细韧光亮，贵族袍服最爱用它'},
+    'mat_fu_wen_duan': {'price': 95, 'name': '符文绸', 'type': '材料', 'desc': '织入微光符文的绸缎，魔力在其间缓缓流淌'},
+    'mat_sheng_hui_rong': {'price': 140, 'name': '圣辉绒', 'type': '材料', 'desc': '受过圣光祝福的绒料，泛着柔和的白芒，缝进法袍可护心神'},
+    'mat_yue_hua_chou': {'price': 190, 'name': '月华绸', 'type': '材料', 'desc': '月语精灵以月华为线织出的绸缎，薄如蝉翼却坚韧异常'},
+    'mat_xing_chen_jin': {'price': 280, 'name': '星辰锦', 'type': '材料', 'desc': '缀满星辉的锦缎，深夜中会泛起点点星光'},
+    'mat_ling_wen_juan': {'price': 350, 'name': '灵纹绢', 'type': '材料', 'desc': '天生带着灵性纹路的绢帛，是传说法袍的至臻底材'},
+    # ---- 皮革线（皮甲 agi 系，兽皮鞣制半成品）----
+    'mat_cu_zhi_ge': {'price': 15, 'name': '粗制革', 'type': '材料', 'desc': '粗鞣过的兽皮，还带着些野性气味，结实耐磨'},
+    'mat_ren_pi_ge': {'price': 60, 'name': '韧皮革', 'type': '材料', 'desc': '反复捶打鞣制的皮革，韧性十足，刀剑难透'},
+    'mat_ying_zhi_ge': {'price': 95, 'name': '硬皮革', 'type': '材料', 'desc': '硬化的厚革，可抵挡中等程度的劈砍'},
+    'mat_ying_ying_ge': {'price': 140, 'name': '影皮革', 'type': '材料', 'desc': '影豹皮鞣制的轻革，轻薄如影，适合刺客夜行'},
+    'mat_jing_zhi_ge': {'price': 190, 'name': '精制革', 'type': '材料', 'desc': '精灵工艺精制的皮革，柔韧与坚固兼得'},
+    'mat_shuang_han_ge': {'price': 245, 'name': '霜寒革', 'type': '材料', 'desc': '北境冰兽之皮鞣成，触手生寒，御寒绝佳'},
+    'mat_mo_neng_ge': {'price': 350, 'name': '魔能革', 'type': '材料', 'desc': '龙皮与魔能淬炼的至强皮革，刀枪不入'},
+    # ---- 金属锭线（重甲 str/vit 系 + 近战武器）----
+    'mat_cu_tie': {'price': 5, 'name': '粗铁', 'type': '材料', 'desc': '未精炼的生铁，村中铁匠也能随手锻打'},
+    'mat_qing_tong': {'price': 15, 'name': '青铜', 'type': '材料', 'desc': '铜锡合金，比粗铁坚韧，铁港工匠的入门料'},
+    'mat_jing_tie_ding': {'price': 45, 'name': '精铁锭', 'type': '材料', 'desc': '反复锻打提纯的精铁锭，装备强化的优质底材'},
+    'mat_gang_tie_ding': {'price': 95, 'name': '钢锭', 'type': '材料', 'desc': '精炼钢材，中域军械的主力料'},
+    'mat_hei_tie_ding': {'price': 160, 'name': '黑铁锭', 'type': '材料', 'desc': '沉黑如墨的铁锭，淬火后坚硬无比'},
+    'mat_mi_yin_ding': {'price': 245, 'name': '秘银锭', 'type': '材料', 'desc': '秘银炼成的银白锭块，轻盈却坚固，附魔首选'},
+    'mat_jing_jin_ding': {'price': 315, 'name': '精金锭', 'type': '材料', 'desc': '精金铸锭，传说武器与重甲的脊梁'},
+    'mat_xing_tie': {'price': 385, 'name': '星辰铁', 'type': '材料', 'desc': '陨落星辰中炼出的铁，泛着幽蓝星芒'},
+    # ---- 通用木料线（弓/杖共用，鱼鱼拍板去部件名）----
+    'mat_qing_xiang_mu': {'price': 10, 'name': '青橡木', 'type': '材料', 'desc': '青翠的老橡木，年轻而坚韧，做弓削杖皆宜'},
+    'mat_lie_huo_mu': {'price': 45, 'name': '猎火木', 'type': '材料', 'desc': '猎火平原的硬木，纤维紧实，火烤也不易裂'},
+    'mat_lie_feng_zhi_mu': {'price': 80, 'name': '猎风之木', 'type': '材料', 'desc': '猎风劲吹下生长的木料，轻韧如风'},
+    'mat_ling_mu': {'price': 115, 'name': '灵木', 'type': '材料', 'desc': '精灵灵木，触手温润，魔力贯通无碍'},
+    'mat_jing_ling_zhi_mu': {'price': 190, 'name': '精灵之木', 'type': '材料', 'desc': '月语古林深处的灵木，带着月华的气息'},
+    'mat_chen_xing_zhi_mu': {'price': 215, 'name': '晨星之木', 'type': '材料', 'desc': '辉映晨星的木料，握在手中隐隐发亮'},
+    'mat_yuan_su_zhi_mu': {'price': 315, 'name': '元素之木', 'type': '材料', 'desc': '受元素浸染的木料，天然亲和魔力'},
+    'mat_cang_qiong_tian_mu': {'price': 315, 'name': '苍穹天木', 'type': '材料', 'desc': '苍穹之上坠落的古木，硬逾精钢却轻如云絮'},
 }
 
 # ============ 阶段四：消耗品（13 章 2.1/2.2/3/4 + 07 章 6.3，2026-08-06） ============

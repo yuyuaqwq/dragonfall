@@ -235,11 +235,20 @@ SHOP_SMITH_MATERIALS = {
         "mat_tie_kuang_shi",  # 铁矿石 10
         "mat_shi_cai",        # 石材 5
         "mat_jing_tie",       # 精铁 30
+        # v167 锻造基础料：粗铁/林语麻布/青橡木（v167_landing_spec 商店挂载表；杖/弓通用木料已由 青橡木 承接）
+        "mat_cu_tie",         # 粗铁 5
+        "mat_sen_lin_ya_ma_bu",  # 林语麻布 10
+        "mat_qing_xiang_mu",  # 青橡木 10（原橡木杖杆/硬木弓胎合并料）
     ],
     "white_deer": [         # 鹿角铁匠铺
         "mat_tie_kuang_shi",  # 铁矿石 10
         "mat_jing_tie",       # 精铁 30
         "mat_mi_yin",         # 秘银 80
+        # v167 锻造基础料：青铜/月光棉/精铁锭/林语麻布（v167_landing_spec 商店挂载表）
+        "mat_qing_tong",      # 青铜 15
+        "mat_yue_guang_mian",  # 月光棉 25
+        "mat_jing_tie_ding",  # 精铁锭 45
+        "mat_sen_lin_ya_ma_bu",  # 林语麻布 10
     ],
     "ironharbor": [         # 锻造坊
         # v101.25 #319：补铁矿石——挖掘拜师（矿工长巴尔金）要 5 铁矿石，
@@ -247,17 +256,36 @@ SHOP_SMITH_MATERIALS = {
         "mat_tie_kuang_shi",  # 铁矿石 10
         "mat_jing_tie",       # 精铁 30
         "mat_mi_yin",         # 秘银 80
+        # v167 锻造基础料：银铃丝/韧皮革/猎火木/猎风之木/青铜（v167_landing_spec 商店挂载表）
+        "mat_yin_ling_si",    # 银铃丝 45
+        "mat_ren_pi_ge",      # 韧皮革 60
+        "mat_lie_huo_mu",     # 猎火木 45
+        "mat_lie_feng_zhi_mu",  # 猎风之木 80（原猎风弓胎合并料）
+        "mat_qing_tong",      # 青铜 15
     ],
     # 中域（Lv.25-55）
     "ironshield_town": [    # 军械铺
         "mat_mi_yin",         # 秘银 80
         "mat_jing_jin",       # 精金
+        # v167 锻造基础料：符文绸/硬皮革/钢锭（v167_landing_spec 商店挂载表）
+        "mat_fu_wen_duan",    # 符文绸 95
+        "mat_ying_zhi_ge",    # 硬皮革 95
+        "mat_gang_tie_ding",  # 钢锭 95
     ],
     "dawn_city": [          # 炼金工坊（craft 但炼金除外走普通商店）
+        # v167 锻造基础料：圣辉绒/影皮革/钢锭/灵木（v167_landing_spec 商店挂载表；灵木杖杆已并入通用木料 灵木）
+        "mat_sheng_hui_rong",  # 圣辉绒 140
+        "mat_ying_ying_ge",   # 影皮革 140
+        "mat_gang_tie_ding",  # 钢锭 95
+        "mat_ling_mu",        # 灵木 115（原灵木杖杆合并料）
     ],
     "anvil_fort": [         # 符文工坊
         "mat_jing_jin",       # 精金
         "mat_bing_jing",      # 冰晶
+        # v167 锻造基础料：月华绸/精制革/黑铁锭（v167_landing_spec 商店挂载表）
+        "mat_yue_hua_chou",   # 月华绸 190
+        "mat_jing_zhi_ge",    # 精制革 190
+        "mat_hei_tie_ding",   # 黑铁锭 160
     ],
 }
 

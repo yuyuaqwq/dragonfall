@@ -35,7 +35,7 @@ def test_counts():
     print("【1. 数量基线】")
     check("名册 632 件", len(C.EQUIP_ROSTER) == 632, str(len(C.EQUIP_ROSTER)))
     check("配方 352 条", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))
-    check("素材 563 个", len(C.MATERIALS) == 563, str(len(C.MATERIALS)))
+    check("素材 593 个(v167 +30新料)", len(C.MATERIALS) == 593, str(len(C.MATERIALS)))
     # 新素材存在
     for mid in ["mat_ye_zhu_pi", "mat_shan_zei_hui_zhang", "mat_shu_shi_he_xin",
                 "mat_yue_ying_zhi_pi", "mat_long_yan_jing_hua"]:
@@ -149,7 +149,7 @@ def test_craft():
     rec = C.CRAFT_RECIPES.get("rec_tiepichangjian") or C.CRAFT_RECIPES.get("rec_tie_pi_chang_jian")
     check("铁皮长剑配方存在", rec is not None, str(rec))
     if rec:
-        check("铁皮长剑配方 mats", "mat_lang_pi" in rec["mats"], str(rec["mats"]))
+        check("铁皮长剑配方 mats(v167换粗铁)", "mat_cu_tie" in rec["mats"], str(rec["mats"]))
     # 精制渡口胸甲（紫装带图纸）
     rec2 = C.CRAFT_RECIPES.get("rec_du_kou_chen_xi_xiong_jia")
     check("精制渡口胸甲配方", rec2 is not None, str(rec2))

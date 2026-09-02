@@ -122,6 +122,8 @@ async def main():
                      cur_map="oak_town", cur_subarea="oak_town_3")
     db.add_item("g1", "q1", "mat_shi_lai_mu_nian_ye",
                 {"name": "史莱姆黏液", "type": "材料", "stackable": True, "price": 5}, 20)
+    db.add_item("g1", "q1", "mat_cu_zhi_ge",
+                {"name": "粗制革", "type": "材料", "stackable": True, "price": 15}, 5)  # v167 换料：橡木皮甲主料
     out = await cmd(m, "craft", "g1", "q1", "锻造 橡木皮甲")
     check("锻造成功播报", "锻造成功" in out, out[:200])
     check("锻造成功含副业经验反馈", "副业经验 +1" in out, out[:300])

@@ -99,10 +99,10 @@ async def main():
     prof_setup(G, Q_A, "alchemy")
     db.add_item(G, Q_A, "mat_lang_pi", {"name": C.display("materials", "mat_lang_pi"), "type": "材料"}, 1)
     r = await cmd(m, "alchemy_craft", G, Q_A, "合成 1")
-    check("③ 『合成 1』= 面板第 1 个『治疗药水』", "炼金成功】合成了【治疗药水】" in r, r[:160])
+    check("③ 『合成 1』= 面板第 1 个『治疗药水(小)』", "炼金成功】合成了【治疗药水(小)】" in r, r[:160])
     db.add_item(G, Q_A, "mat_shi_xi_lin", {"name": C.display("materials", "mat_shi_xi_lin"), "type": "材料"}, 1)
-    r = await cmd(m, "alchemy_craft", G, Q_A, "合成 魔法药水")
-    check("③ 名称直填不回归", "炼金成功】合成了【魔法药水】" in r, r[:160])
+    r = await cmd(m, "alchemy_craft", G, Q_A, "合成 魔法药水(小)")
+    check("③ 名称直填不回归", "炼金成功】合成了【魔法药水(小)】" in r, r[:160])
 
     # ================= ④ 代工 =================
     print("【④ 代工：『代工 <序号>』= 『锻造』面板第 N 个可锻造配方】")
@@ -110,6 +110,8 @@ async def main():
     make_player(G, Q_F, "铁匠客户", "战士", level=10)
     db.update_player(G, Q_F, cur_map="oak_town", cur_subarea="oak_town_3")  # 老铁铺（craft funcs）
     db.add_item(G, Q_F, "mat_shi_lai_mu_nian_ye", {"name": C.display("materials", "mat_shi_lai_mu_nian_ye"), "type": "材料"}, 20)
+    db.add_item(G, Q_F, "mat_qing_xiang_mu", {"name": C.display("materials", "mat_qing_xiang_mu"), "type": "材料"}, 5)  # v167：猎弓用青橡木
+    db.add_item(G, Q_F, "mat_cu_tie", {"name": C.display("materials", "mat_cu_tie"), "type": "材料"}, 5)  # v167：铁剑用粗铁
     r = await cmd(m, "craft_commission", G, Q_F, "代工 99")
     check("④ 越界报错『没有第 99 个可代工配方』", "没有第 99 个可代工配方" in r, r[:120])
     r = await cmd(m, "craft_commission", G, Q_F, "代工 1")
