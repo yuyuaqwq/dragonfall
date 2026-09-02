@@ -826,7 +826,7 @@ class EconomyCmds(CommandBase):
             "orange": "一道金光破水而出——",
         }.get(fq, "")
         catch_pre = f"{_catch_line}\n" if _catch_line else ""
-        # 鱼王：全服公告 + 鱼王计数
+        # 鱼王：全服公告 + 鱼王计数（v168.2：鱼王/橙档惊喜层统一在下方普通路径收尾判定）
         if fish["type"] == "鱼王":
             db.bump_fish_king(group_id, qq_id)
             gold = 300 + player["level"] * 10
@@ -842,13 +842,17 @@ class EconomyCmds(CommandBase):
             # v104 R3 M15 P2-1：鱼王出水全服广播（13 章 2.6 传说档广播）
             self._fish_legend_broadcast(group_id, qq_id, player, fname, spot)
             _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
+            # v168.2：鱼王也走统一惊喜层（鱼王 type=鱼王、quality=orange → 橙档 30% 触发；
+            # 若同杆还中了彩蛋收藏鱼（force_legend）则直接传说档必橙装，不重复 roll）
+            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
+                                              force_legend=bool(_cf))
             return (f"🐉 天啊！你在{spot}钓上了【{q_name}】！！\n"
                     f"鱼王出水，水波震荡，岸边的旅人都看呆了！\n"
-                    f"💰 获得 {gold} 金币的赏金！{lv_msg}\n"
+                    f"💰 获得 {gold} 金币的赏金！{_sv_line}{lv_msg}\n"
                     f"📜 你的图鉴记下了这传说的一笔……{_cf_line}{bait_line}")
-        # 宝物宝箱：立即开
+        # 宝物宝箱：立即开（金币保底；惊喜层由收尾统一判定，v168.2 垂钓盲盒不再独占图纸档）
+        # 宝箱本体不入包（type=宝物 无售价，MATERIALS 已登记 price=0）；金币即其固定内容
         if fish["type"] == "宝物":
-            import uuid
             gold = random.randint(30, 80) + player["level"] * 3
             db.update_player(group_id, qq_id, gold=player["gold"] + gold)
             new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
@@ -858,14 +862,16 @@ class EconomyCmds(CommandBase):
             lv_msg += _msg
             db.bump_stats(group_id, qq_id, fish_count=1)
             C.check_achievements(group_id, qq_id, player)
-            extra = ""
-            if random.random() < C.FISH_RARE_CHANCE:  # v135：垂钓宝物箱图纸 50% → 60%（constants.FISH_RARE_CHANCE）
-                bp = C.roll_blueprint(max(1, player["level"]))
-                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
-                extra = f"\n📜 宝箱里还有：{bp['name']}！"
+            # 宝箱本体不再入包（type=宝物 固定内容=金币）；惊喜层在收尾统一判定
             _cf_line = self._collect_bonus_line(group_id, qq_id, player, _cf)
+            # v168.2：宝物箱也走统一惊喜层（type=宝物 quality=purple → 紫档 15% 触发；
+            # 若同杆还中了彩蛋收藏鱼 force_legend=True → 直接传说档必橙装）
+            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
+                                              force_legend=bool(_cf))
             return (f"{catch_pre}🎣 你在{spot}钓上来了一个【{q_name}】！\n"
-                    f"打开一看：💰 {gold} 金币！{extra}{lv_msg}{_cf_line}{bait_line}")
+                    f"打开一看：💰 {gold} 金币！{_sv_line}{_cf_line}{lv_msg}{bait_line}")
+        # 垃圾：直接报（type=垃圾 恒 white 档——惊喜触发率 0%，不走收尾惊喜层；
+        # 收藏鱼 _cf 彩蛋走 _collect_bonus_line 入图鉴，纯收藏不触发惊喜档）
         if fish["type"] == "垃圾":
             new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
             lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
@@ -889,6 +895,14 @@ class EconomyCmds(CommandBase):
             _size_line = f"（{_sw['size']:.1f}cm/{_sw['weight']}kg）"
         else:
             _size_line = ""
+        # ============ v168.2 垂钓惊喜层（鱼鱼 2026-09-03 拍板） ============
+        # 惊喜不绑定宝箱：鱼获品质→触发率（白/垃圾 0%·绿 2%·蓝 5%·紫 15%·鱼王/橙 30%；
+        # 彩蛋收藏鱼命中→必给且升级传说档=必橙装），与图纸/宠物蛋/坐骑等既有产出互相独立。
+        # 走到这里的 = 普通鱼/材料（鱼王/宝物/垃圾分支各自 return 且已含惊喜行）。
+        _sv_line = ""
+        if fq not in ("white",):
+            _sv_line = self._fishing_surprise(group_id, qq_id, player, fish,
+                                              force_legend=bool(_cf))
         new_lv, leveled = db.add_prof_exp(group_id, qq_id, "fishing", f_exp)
         lv_msg = f"\n🌟 垂钓等级提升到 Lv.{new_lv}！" if leveled else ""
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "fishing")
@@ -956,7 +970,122 @@ class EconomyCmds(CommandBase):
                         tag=_sw3)
             _master_line = f"\n🐟 渔神出手，一杆双鱼！又一条【{fname}】入网！"
         return (f"{catch_pre}🎣 你在{spot}钓上来一条【{q_name}】{_size_line}！\n"
-                f"📦 {fish['desc']}(可『出售 {fname}』，标价 {fish['price']} 金币，实收按店铺 8~9 折){lv_msg}{_cf_line}{_mount_fish_line}{_master_line}{_pet_egg_line}{_life_line}{bait_line}")
+                f"📦 {fish['desc']}(可『出售 {fname}』，标价 {fish['price']} 金币，实收按店铺 8~9 折)"
+                f"{_sv_line}{lv_msg}{_cf_line}{_mount_fish_line}{_master_line}{_pet_egg_line}{_life_line}{bait_line}")
+
+    # ============ v168.2 垂钓惊喜盲盒（鱼鱼 2026-09-03 拍板） ============
+    # 惊喜不绑定宝箱：每次垂钓结算在既有内容之外做一次「惊喜判定」，按本次鱼获品质给概率：
+    #   白(垃圾)/0% · 绿 2% · 蓝 5% · 紫(含陈旧的宝箱) 15% · 鱼王/橙 30%
+    #   彩蛋收藏鱼命中 → 必给惊喜且升级「传说档」（必橙装）
+    # 惊喜内容池（按玩家等级合理出，克制不膨胀）：图纸 30% / 装备 25% / 稀有符文 20% /
+    # 原石宝石 15% / 罕见材料 10%。档位互斥、一杆最多一条惊喜；命中触发但内容池意外全空时
+    # 静默跳过（不喧宾夺主，也不造一句假惊喜）。
+    _FISHING_SURPRISE_TRIGGER = {  # 鱼获品质 → 惊喜触发率
+        "white": 0.0, "green": 0.02, "blue": 0.05, "purple": 0.15, "orange": 0.30,
+    }
+    # 内容池档位边界（累积）：图纸 30% / 装备 55% / 符文 75% / 宝石 90% / 罕见材料 100%
+    _FISHING_SURPRISE_BP = 0.30
+    _FISHING_SURPRISE_EQ = 0.55
+    _FISHING_SURPRISE_RUNE = 0.75
+    _FISHING_SURPRISE_GEM = 0.90
+
+    def _fishing_surprise(self, group_id, qq_id, player, fish, force_legend=False):
+        """v168.2 垂钓惊喜层：按鱼获品质判定触发，命中后从内容池掷一档惊喜入包。
+
+        触发判定只吃 1 次 random.random()；内容档位各吃 1 次（总消耗可预期，不影响
+        垂钓其余随机序列）。装备档品质 roll 蓝50/紫35/橙15（鱼鱼拍板，克制不膨胀），
+        名册 roll_drop_equip('elite') 命中即用、未命中兜底 generate_equip 随机部位，
+        保证装备档永不空开。
+        force_legend=True（彩蛋收藏鱼命中）：必给惊喜且内容池固定为「传说档」= 必橙装
+        （鱼鱼拍板：收藏鱼是垂钓最高彩蛋，惊喜也拉满——不出图纸/符文等次档）。
+        """
+        if not player:
+            return ""
+        q = fish.get("quality", "white")
+        if not force_legend:
+            chance = self._FISHING_SURPRISE_TRIGGER.get(q, 0.0)
+            if chance <= 0 or random.random() >= chance:
+                return ""
+        # 命中惊喜：从内容池掷一档（force_legend=收藏鱼命中 → 直接必橙装传说档）
+        import uuid
+        lv = max(1, int(player.get("level") or 1))
+        if force_legend:
+            # 传说档：必橙装。名册就近（roll_drop_equip('elite')）命中即用，落空兜底
+            # generate_equip 橙装——两路都只可能出橙装（收藏鱼是垂钓最高彩蛋，惊喜拉满）
+            eq = C.roll_drop_equip(lv, "elite")
+            if not eq or eq.get("quality") != "orange":
+                slot = random.choice(
+                    ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
+                eq = C.generate_equip(slot, lv + random.randint(-3, 3), "orange")
+            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
+            _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
+                eq.get("quality", ""), "")
+            return (f"\n🎏 一道金光从鱼腹中迸出——【{_qmark}{eq['name']}】静静躺在"
+                    f"水草间，传说中的宝物现世了！(已收入背包)")
+        roll = random.random()
+        if roll < self._FISHING_SURPRISE_BP:      # 图纸档 30%
+            bp = C.roll_blueprint(lv)
+            if bp:
+                db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", bp)
+                return (f"\n🎏 惊喜！鱼肚子里还藏着一张泛黄的纸——【{bp['name']}】！"
+                        f"(『背包 使用』学习锻造配方)")
+            roll = self._FISHING_SURPRISE_BP  # 图纸池空（无配方可出）→ 落入装备档，不额外吃随机
+        if roll < self._FISHING_SURPRISE_EQ:      # 装备档 25%
+            _q = "blue" if random.random() < 0.50 else (
+                "purple" if random.random() < 0.70 else "orange")
+            eq = C.roll_drop_equip(lv, "elite")
+            if eq is None:
+                slot = random.choice(
+                    ["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
+                eq = C.generate_equip(slot, lv + random.randint(-3, 3), _q)
+            db.add_item(group_id, qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
+            _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
+                eq.get("quality", ""), "")
+            if eq.get("quality") == "orange":
+                return (f"\n🎏 一道金光从鱼腹中迸出——【{_qmark}{eq['name']}】静静躺在"
+                        f"水草间，传说中的宝物现世了！(已收入背包)")
+            if eq.get("quality") == "purple":
+                return f"\n🎏 紫光流转——【{_qmark}{eq['name']}】夹在鱼鳃里闪闪发亮！(已收入背包)"
+            return f"\n🎏 惊喜！鱼肚子里卷着一件装备——【{_qmark}{eq['name']}】！(已收入背包)"
+        if roll < self._FISHING_SURPRISE_RUNE:    # 稀有符文档 20%（蓝/紫品质符文）
+            rare_runes = [k for k, r in C.RUNES.items()
+                          if (r.get("quality") or "") in ("blue", "purple")]
+            if rare_runes:
+                rk = random.choice(rare_runes)
+                r_def = C.RUNES[rk]
+                rune_data = C.rune_item(r_def["effect"], random.randint(1, 2))
+                if rune_data:
+                    # key 与战斗掉落一致（rune_<effect>_<lvl>，同键可叠加）
+                    db.add_item(group_id, qq_id,
+                                f"rune_{r_def['effect']}_{rune_data['lvl']}", rune_data)
+                    return (f"\n🎏 鱼腹泛起微光——一枚刻着古老铭文的【{rune_data['name']}】"
+                            f"随水流漂出！(『背包 使用』附魔到装备)")
+            roll = self._FISHING_SURPRISE_RUNE  # 蓝紫符文池空 → 落入宝石档，不额外吃随机
+        if roll < self._FISHING_SURPRISE_GEM:     # 原石宝石档 15%（必给 1 颗原石，层数 1-6）
+            # roll_gem_drop 带 normal 2% 底率——宝石惊喜档命中了却大概率空手（98% miss 会
+            # 顺落罕见材料档，实测材料占比 24.7% 膨胀 2.5 倍）。改为：优先 roll_gem_drop
+            # （对照 instance.py 原石掉落写法），未命中直接 roll_gem 兜底——宝石档=必给原石。
+            _gem = C.roll_gem_drop({"lv": lv, "is_boss": False, "name": fname},
+                                   boss_fixed={})
+            if not _gem:
+                _gem = C.roll_gem(1, 6)
+            if _gem:
+                db.add_item(group_id, qq_id, f"gem_{uuid.uuid4().hex[:8]}", _gem)
+                return f"\n💎 惊喜！鱼肚子里嵌着一颗【{_gem['name']}】——原石入包，可『原石』镶嵌到装备孔位！"
+        # 罕见材料档 10%（type in 传说/宝石/精华 且 价≥150 的 MATERIALS 池）
+        rare_pool = {k: v for k, v in C.MATERIALS.items()
+                     if v.get("type") in ("传说", "宝石", "精华")
+                     and (v.get("price") or 0) >= 150}
+        if rare_pool:
+            _mkey = random.choice(list(rare_pool))
+            _mdef = rare_pool[_mkey]
+            _mname = C.display("materials", _mkey)
+            db.add_item(group_id, qq_id, _mkey, {
+                "name": _mname, "type": _mdef.get("type", "材料"),
+                "stackable": True, "price": _mdef.get("price", 0),
+            })
+            return f"\n🎁 惊喜！水底沉着稀罕的材料——【{_mname}】！(已收入背包)"
+        return ""  # 罕见材料池意外为空 → 静默（不再造一句假惊喜）
 
     def _collect_bonus_line(self, group_id, qq_id, player, cf):
         """彩蛋收藏鱼入包 + 计数 + 成就，返回提示行(未命中返回空串)"""

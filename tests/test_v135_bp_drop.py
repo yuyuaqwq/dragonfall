@@ -180,14 +180,24 @@ class _ChestCtx:
     def plain_result(self, text):
         return text
 
-# ============ 4. 垂钓宝物箱（FISH_RARE_CHANCE） ============
-print("【4. 垂钓宝物箱图纸（FISH_RARE_CHANCE=60%）】")
+# ============ 4. 垂钓惊喜层（v168.2 取代宝物箱 60% 图纸） ============
+print("【4. 垂钓惊喜层（v168.2 _fishing_surprise）】")
 clean_db()
 make_player("g1", "q1", "钓鱼测试", "战士", level=30)
 src = inspect.getsource(EconomyCmds)
-has_fish_const = "random.random() < C.FISH_RARE_CHANCE" in src
-check("垂钓消费 FISH_RARE_CHANCE 常量", has_fish_const)
-check("FISH_RARE_CHANCE 数值 0.6", abs(C.FISH_RARE_CHANCE - 0.6) < 1e-9)
+# v168.2 鱼鱼拍板：惊喜不绑定宝箱——每次鱼获按品质判定惊喜（白0/绿2%/蓝5%/紫15%/橙30%），
+# 内容池=图纸30/装备25/符文20/宝石15/材料10；彩蛋收藏鱼必橙装。FISH_RARE_CHANCE 常量不再被垂钓消费。
+has_surprise_fn = "def _fishing_surprise" in src
+has_trigger_map = "_FISHING_SURPRISE_TRIGGER" in src
+check("垂钓惊喜层函数 _fishing_surprise 存在", has_surprise_fn)
+check("惊喜触发品质表存在", has_trigger_map)
+# 内容池边界（累积）：图纸30/装备55/符文75/宝石90/材料100（源码为类属性不带 self. 前缀）
+for name, key, val in [("图纸 30%", "_FISHING_SURPRISE_BP", 0.30),
+                       ("装备 55%(累)", "_FISHING_SURPRISE_EQ", 0.55),
+                       ("符文 75%(累)", "_FISHING_SURPRISE_RUNE", 0.75),
+                       ("宝石 90%(累)", "_FISHING_SURPRISE_GEM", 0.90)]:
+    check(f"惊喜内容池 {name}", f"{key} = {val}" in src)
+check("FISH_RARE_CHANCE 数值仍 0.6（未删常量）", abs(C.FISH_RARE_CHANCE - 0.6) < 1e-9)
 
 # ============ 5. 副本通关全员图纸（INSTANCE_BP_CHANCE） ============
 print("【5. 副本通关全员图纸（INSTANCE_BP_CHANCE=10%）】")

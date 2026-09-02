@@ -1187,3 +1187,124 @@ def _h_summon_pact(battle, player, dmg, logs):
             logs.append(f"📜 召唤契约！召唤援军造成 {cd} 点伤害！")
 
 
+# ---- v169 橙装专属·on_hit/on_crit 攻击命中（HIT_EFFECTS）----
+# 4 件补档橙装（碎星拳套/暗星拳甲/疾风挽歌/影袭之刃）数据 trigger=on_hit/on_crit，
+# v169 数据先行但未注册战斗 handler → test_v1252_audit_closure 收口红。以下补齐注册。
+# 数值全部读 LEGENDARY_EFFECTS effect（_affix_effect），概率读数据表 chance（_affix_chance）。
+# on_crit 无独立注册表（battle.py 只有 RES_AFFIX 资源词条直连 on_crit），暴击型词条
+# 沿用文件既有惯例（_h_oath_sword）：挂 HIT_EFFECTS + 判 battle._last_crit（普攻/技能
+# 命中结算链先 _affix_on_hit 后 _set_attack_proc 写入，HIT 语境下为上一行动暴击标记，
+# 引擎侧 1 行动滞后为既有语义，与誓约之刃同口径）。
+
+@register(HIT_EFFECTS, "star_shatter")
+def _h_star_shatter(battle, player, dmg, logs):
+    """碎星拳劲（碎星拳套）：攻击 25% 造成 150% 伤害的破甲重拳（无视 30% 防御），
+    并降低目标防御 15%（2 刻）。追加段 = atk×dmg_mult 重拳按 (1-ignore_def) 有效防御
+    重算（等效本次攻击触发时拳劲本体 150% 全额伤害），随后挂 def_down 破甲。"""
+    from ..engine import calc_damage
+    if "star_shatter" not in battle._equip_affix_ids(player) or random.random() >= _affix_chance("star_shatter", 0.25):
+        return
+    if battle.enemy.get("hp", 0) <= 0:
+        return
+    eff = _affix_effect("star_shatter")
+    pst = battle._player_stats(player)
+    est = battle._enemy_stats()
+    punch = int(pst.get("atk", 0) * float(eff.get("dmg_mult", 1.50)))
+    edef = max(0, int(est.get("def", 0) * (1 - float(eff.get("ignore_def", 0.30)))))
+    cd = calc_damage(punch, edef)
+    if cd > 0:
+        battle._damage_enemy(cd, logs)
+    logs.append(f"{eff.get('tag', '💥碎星拳劲')}！破甲重拳造成 {cd} 点伤害！（无视 30% 防御）")
+    battle.e_buffs["def_down"] = max(battle.e_buffs.get("def_down", 0), int(eff.get("turns", 2)))
+    battle.e_buffs["_armor_break_pct"] = float(eff.get("pct", 0.15))
+    logs.append("🛡️ 碎星拳劲：目标防御下降 15%（2 刻）！")
+
+
+@register(HIT_EFFECTS, "dark_star_gauntlet")
+def _h_dark_star_gauntlet(battle, player, dmg, logs):
+    """暗星连打（暗星拳甲）：攻击命中叠 1 层暗星（上限 4 层）；每层使本次攻击伤害 +3%
+    （mark_pct×层数，随命中实时追加），叠满后下一次攻击额外 +20% 并清空（next_atk_mult
+    1.20 = 额外 +20%；equip_roster desc 写 +120% 为文案笔误，任务口径 +20%）。
+    层数记 battle.mech_stacks['dark_star']（随战斗 to_state 持久化）。"""
+    if "dark_star_gauntlet" not in battle._equip_affix_ids(player):
+        return
+    eff = _affix_effect("dark_star_gauntlet")
+    max_mark = int(eff.get("max_mark", 4))
+    per = float(eff.get("mark_pct", 0.03))
+    burst_mult = float(eff.get("next_atk_mult", 1.20))
+    tag = eff.get("tag", "🌑暗星连打")
+    cur = int(battle.mech_stacks.get("dark_star", 0) or 0)
+    if cur >= max_mark:
+        # 满层后的下一次攻击：额外 +20% 爆发并清空（本轮爆发替代常驻叠层增伤）
+        battle.mech_stacks["dark_star"] = 0
+        burst = max(1, int(dmg * (burst_mult - 1.0)))
+        if battle.enemy.get("hp", 0) > 0:
+            battle._damage_enemy(burst, logs)
+        logs.append(f"{tag}：暗星爆发！追加 {burst} 点伤害！（暗星层数清零）")
+        return
+    # 常驻叠层增伤：本击按已有层数每层 +3% 追加（叠层当刻生效、下一击起全额成长）
+    if cur > 0 and battle.enemy.get("hp", 0) > 0:
+        ramp = max(1, int(dmg * per * cur))
+        battle._damage_enemy(ramp, logs)
+        logs.append(f"{tag}：暗星之力（{cur} 层）追加 {ramp} 点伤害！")
+    battle.mech_stacks["dark_star"] = min(max_mark, cur + 1)
+    if cur + 1 >= max_mark:
+        logs.append(f"{tag}：暗星满层（{max_mark}）！下一次攻击将爆发 +{round((burst_mult-1)*100)}%！")
+    else:
+        logs.append(f"{tag}：暗星叠加！（{cur+1}/{max_mark} 层，每层伤害 +{round(per*100)}%）")
+
+
+@register(HIT_EFFECTS, "gale_dirge")
+def _h_gale_dirge(battle, player, dmg, logs):
+    """挽歌连矢（疾风挽歌）：攻击命中 25% 追加一支 50% 伤害的疾风矢（优先攻击召唤物）。
+    目标选择：存活敌方援军（is_minion，v163 召唤=同图小怪模板）优先，名字含数据
+    enemy_contains 关键词（"召唤"）者最优先；无援军落回主目标。箭伤按目标自身防御结算。"""
+    from ..engine import calc_damage
+    if "gale_dirge" not in battle._equip_affix_ids(player) or random.random() >= _affix_chance("gale_dirge", 0.25):
+        return
+    eff = _affix_effect("gale_dirge")
+    pst = battle._player_stats(player)
+    # 优先攻击召唤物：关键词命中 > 任意援军 > 主目标
+    kw = [str(k) for k in (eff.get("enemy_contains") or ["召唤"])]
+    named, any_min = None, None
+    for u in battle.enemies:
+        if u.get("hp", 0) > 0 and u.get("is_minion"):
+            if any_min is None:
+                any_min = u
+            if any(k in str(u.get("name", "")) for k in kw):
+                named = u
+                break
+    target = named or any_min or battle.enemy
+    if target.get("hp", 0) <= 0:
+        return
+    est_t = battle._enemy_stats(target)
+    cd = calc_damage(int(pst.get("atk", 0) * float(eff.get("extra_atk", 0.50))), est_t.get("def", 0))
+    if cd > 0:
+        battle._damage_enemy(cd, logs, target=target)
+        logs.append(f"{eff.get('tag', '🌪️挽歌连矢')}！对【{target.get('name', '敌人')}】追加疾风矢 {cd} 点伤害！")
+
+
+@register(HIT_EFFECTS, "shadow_raid")
+def _h_shadow_raid(battle, player, dmg, logs):
+    """影袭连刺（影袭之刃）：暴击后 50% 概率追加一次 40% 伤害的追击，并回复 2% 最大生命。
+    trigger=on_crit（无独立 on_crit 词条注册表，battle.py 仅 RES_AFFIX 资源词条直连）；
+    沿用 _h_oath_sword 的暴击判定惯例：判 battle._last_crit（套装特效通道写入的本次
+    行动暴击标记；HIT 分发在其前执行故为上一行动暴击——引擎侧 1 行动滞后语义同誓约之刃）。"""
+    if "shadow_raid" not in battle._equip_affix_ids(player):
+        return
+    if not getattr(battle, "_last_crit", False):
+        return
+    if random.random() >= _affix_chance("shadow_raid", 0.50):
+        return
+    eff = _affix_effect("shadow_raid")
+    tag = eff.get("tag", "🗡️影袭连刺")
+    if battle.enemy.get("hp", 0) > 0:
+        cd = max(1, int(dmg * float(eff.get("extra_atk", 0.40))))
+        battle._damage_enemy(cd, logs)
+        logs.append(f"{tag}！追击 {cd} 点伤害！")
+    heal = int(player.get("max_hp", player.get("hp", 1)) * float(eff.get("lifesteal", 0.02)))
+    if heal > 0:
+        player["hp"] = min(player.get("max_hp", player.get("hp", 1)), player.get("hp", 0) + heal)
+        logs.append(f"{tag}：回复 {heal} 点生命！")
+
+

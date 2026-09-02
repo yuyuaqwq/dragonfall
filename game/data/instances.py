@@ -223,6 +223,7 @@ INSTANCES = {
         "materials": ["杰克的金钩"],
         "mat_count": 2,
         "blueprint": True,
+        "装备": ["影袭之刃"],
     },
     "inst_old_king_tomb": {
         "entry": {"map": "king_road", "subarea": "king_road_3"},
@@ -865,6 +866,7 @@ INSTANCES = {
         "materials": ["要塞残片"],
         "mat_count": 1,
         "blueprint": False,
+        "装备": ["晨光法杖", "曙光权杖"],
     },
     "inst_holy_trial": {
         "entry": {"map": "king_road", "subarea": "king_road_2"},
@@ -1069,6 +1071,7 @@ INSTANCES = {
         "materials": ["风暴之核"],
         "mat_count": 4,
         "blueprint": True,
+        "装备": ["大贤者圣衣"],
     },
     # ================= 外域 6（翡翠海/无尽海/地底） =================
     "inst_sunken_ship": {
@@ -1562,6 +1565,7 @@ INSTANCES = {
         "materials": ["石炉之锤"],
         "mat_count": 3,
         "blueprint": True,
+        "装备": ["疾风挽歌"],
     },
     "inst_under_dragon": {
         "entry": {"map": "molten_abyss", "subarea": "molten_abyss_3"},
@@ -1654,6 +1658,7 @@ INSTANCES = {
         "materials": ["黑渊之眼"],
         "mat_count": 4,
         "blueprint": True,
+        "装备": ["云端护腿"],
     },
     # ================= 扩展 3（天空/地底终极） =================
     "inst_eye_of_storm": {
@@ -1948,24 +1953,24 @@ INSTANCES = {
 INSTANCE_BOSS_EQUIP_DROP = {
     "inst_goblin_camp":     {"boss_equip": "eq_gu_lu_de_huang_guan", "boss_rate": 0.05, "pool": ["eq_gu_lu_jin_jie", "eq_gu_lu_jun_dao", "eq_gu_lu_zhan_hui"], "pool_rate": 0.35, "pity": 20},
     "inst_sea_cave":        {"boss_equip": "eq_jin_gou_wan_dao", "boss_rate": 0.08, "pool": ["eq_jin_bi_dai", "eq_xiu_mao_hu_shou"], "pool_rate": 0.35, "pity": 15},
+    "inst_sea_god_temple":  {"boss_equip": "eq_ying_xi_zhi_ren", "boss_rate": 0.1, "pool": ["eq_nu_tao_san_cha_ji", "eq_ying_xi_zhi_ren"], "pool_rate": 0.35, "pity": 12},
     "inst_old_king_tomb":   {"boss_equip": "eq_gu_wang_jian", "boss_rate": 0.08, "pool": ["eq_wang_du_shi_yue_zhi_jian", "eq_jing_ji_zhan_jia"], "pool_rate": 0.35, "pity": 15},
     "inst_secret_crypt":    {"boss_equip": "eq_ma_er_ku_si_de_fa_guan", "boss_rate": 0.1, "pool": ["eq_shi_xiang_gui_jing_jia", "eq_wang_zhe_zhan_xue", "eq_shi_xiang_gui_zhi_xin"], "pool_rate": 0.35, "pity": 12},
     "inst_elven_ruins":     {"boss_equip": "eq_chen_xi_zhi_guan", "boss_rate": 0.1, "pool": ["eq_chen_xi_sheng_jian", "eq_shu_guang_bi_lei"], "pool_rate": 0.35, "pity": 12},
     "inst_ash_temple":      {"boss_equip": "eq_he_er_jia_de_ji_qi", "boss_rate": 0.1, "pool": ["eq_hui_jin_chang_jian", "eq_hui_jin_kai_jia", "eq_hui_jin_zhi_kui", "eq_hui_jin_zhi_dun", "eq_hui_jin_hu_tui", "eq_hui_jin_zhan_xue"], "pool_rate": 0.35, "pity": 12},
-    "inst_abyss_gate":      {"boss_equip": "eq_shi_ye_zhi_mian", "boss_rate": 0.1, "pool": ["eq_si_wang_zhi_wu", "eq_mu_guang_zhi_ci"], "pool_rate": 0.35, "pity": 12},
-    "inst_dragon_tomb":     {"boss_equip": "eq_long_yu_sheng_jian", "boss_rate": 0.1, "pool": ["eq_long_ji_lin_jia", "eq_cang_qiong_zhi_guan"], "pool_rate": 0.35, "pity": 12},
+    "inst_abyss_gate":      {"boss_equip": "eq_shi_ye_zhi_mian", "boss_rate": 0.1, "pool": ["eq_si_wang_zhi_wu", "eq_mu_guang_zhi_ci", "eq_da_xian_zhe_fa_guan", "eq_da_xian_zhe_sheng_yi"], "pool_rate": 0.35, "pity": 12},
+    "inst_dragon_tomb":     {"boss_equip": "eq_long_yu_sheng_jian", "boss_rate": 0.1, "pool": ["eq_long_ji_lin_jia", "eq_cang_qiong_zhi_guan", "eq_zhu_feng_pi_jia_92"], "pool_rate": 0.35, "pity": 12},
     "inst_deer_fort":       {"boss_equip": "eq_yao_sai_you_ling_zhi_kui", "boss_rate": 0.08, "pool": ["eq_you_ling_jun_qi", "eq_qi_shi_can_jia", "eq_yao_sai_shi_zhang"], "pool_rate": 0.35, "pity": 15},
+    "inst_storm_throne":    {"boss_equip": "eq_feng_bao_zhi_guan", "boss_rate": 0.1, "pool": ["eq_ben_lei_da_jian", "eq_da_xian_zhe_sheng_yi"], "pool_rate": 0.35, "pity": 12},
     "inst_holy_trial":      {"boss_equip": "eq_shi_lian_hui_zhang", "boss_rate": 0.08, "pool": ["eq_shen_pan_zhi_lian"], "pool_rate": 0.35, "pity": 15},
     "inst_moon_temple":     {"boss_equip": "eq_yue_hui_zhi_jie", "boss_rate": 0.08, "pool": ["eq_han_shuang_zhi_guan", "eq_lan_dun_zhi_jie"], "pool_rate": 0.35, "pity": 15},
-    "inst_frost_throne":    {"boss_equip": "eq_yong_dong_zhi_xin", "boss_rate": 0.1, "pool": ["eq_bing_mai_hu_tui", "eq_sheng_dian_zhan_xue", "eq_shuang_lang_zhi_wang_ya"], "pool_rate": 0.35, "pity": 12},
-    "inst_storm_throne":    {"boss_equip": "eq_feng_bao_zhi_guan", "boss_rate": 0.1, "pool": ["eq_ben_lei_da_jian"], "pool_rate": 0.35, "pity": 12},
+    "inst_frost_throne":    {"boss_equip": "eq_yong_dong_zhi_xin", "boss_rate": 0.1, "pool": ["eq_bing_mai_hu_tui", "eq_sheng_dian_zhan_xue", "eq_shuang_lang_zhi_wang_ya", "eq_ying_xi_zhi_ren"], "pool_rate": 0.35, "pity": 12},
     "inst_sunken_ship":     {"boss_equip": "eq_ke_luo_de_luo_pan", "boss_rate": 0.1, "pool": ["eq_shi_guang_sha_lou"], "pool_rate": 0.35, "pity": 12},
     "inst_siren_nest":      {"boss_equip": "eq_lan_ge_zhi_guan", "boss_rate": 0.1, "pool": ["eq_shu_zui_sheng_zhang", "eq_xing_yun_chang_gong"], "pool_rate": 0.35, "pity": 12},
-    "inst_sea_god_temple":  {"boss_equip": "eq_lang_ge_zhi_lei", "boss_rate": 0.1, "pool": ["eq_nu_tao_san_cha_ji"], "pool_rate": 0.35, "pity": 12},
     "inst_deep_dragon_palace": {"boss_equip": "eq_ao_lan_zhi_zhu", "boss_rate": 0.1, "pool": ["eq_zhen_hai_zhi_dun", "eq_lie_feng_zhang_gong"], "pool_rate": 0.35, "pity": 12},
-    "inst_gray_dwarf":      {"boss_equip": "eq_shi_lu_zhan_chui", "boss_rate": 0.1, "pool": ["eq_pan_shi_wang_guan", "eq_lei_wen_quan_jia"], "pool_rate": 0.35, "pity": 12},
+    "inst_gray_dwarf":      {"boss_equip": "eq_ji_feng_wan_ge", "boss_rate": 0.1, "pool": ["eq_pan_shi_wang_guan", "eq_lei_wen_quan_jia", "eq_ji_feng_wan_ge"], "pool_rate": 0.35, "pity": 12},
     "inst_under_dragon":    {"boss_equip": "eq_hei_yuan_zhi_yan", "boss_rate": 0.1, "pool": ["eq_shen_yuan_xiong_jia", "eq_yan_mie_fa_dian_fa_zhang"], "pool_rate": 0.35, "pity": 12},
     "inst_eye_of_storm":    {"boss_equip": "eq_yun_nu_zhi_he", "boss_rate": 0.12, "pool": ["eq_shi_zhi_ling_zhu_shi_jie", "eq_shi_zhi_ling_zhu_mi_yi"], "pool_rate": 0.35, "pity": 12},
-    "inst_abyss_throne":    {"boss_equip": "eq_mo_luo_zhi_guan", "boss_rate": 0.1, "pool": ["eq_yuan_su_shi_tu_zhi_guan", "eq_yuan_su_shi_tu_chang_pao", "eq_yuan_su_shi_tu_fa_zhang", "eq_yuan_su_shi_tu_zhui_shi"], "pool_rate": 0.35, "pity": 12},
-    "inst_cloud_sanctum":   {"boss_equip": "eq_ao_la_sheng_yin", "boss_rate": 0.12, "pool": ["eq_da_xian_zhe_mi_dian", "eq_tai_tan_hu_tui", "eq_xu_kong_xing_zhe_zhi_xue", "eq_sheng_hui_xiong_jia", "eq_bu_mie_yi_zhi", "eq_xing_hui_zhi_guan"], "pool_rate": 0.35, "pity": 12},
+    "inst_cloud_sanctum":   {"boss_equip": "eq_sheng_yu_quan_zhang", "boss_rate": 0.1, "pool": ["eq_da_xian_zhe_mi_dian", "eq_tai_tan_hu_tui", "eq_xu_kong_xing_zhe_zhi_xue", "eq_sheng_hui_xiong_jia", "eq_bu_mie_yi_zhi", "eq_xing_hui_zhi_guan", "eq_sheng_yu_quan_zhang"], "pool_rate": 0.35, "pity": 12},
+    "inst_abyss_throne":    {"boss_equip": "eq_sui_xing_quan_tao", "boss_rate": 0.1, "pool": ["eq_yuan_su_shi_tu_zhi_guan", "eq_yuan_su_shi_tu_chang_pao", "eq_yuan_su_shi_tu_fa_zhang", "eq_yuan_su_shi_tu_zhui_shi", "eq_sui_xing_quan_tao", "eq_an_xing_quan_tao"], "pool_rate": 0.35, "pity": 12},
 }

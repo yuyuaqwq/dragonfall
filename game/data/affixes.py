@@ -963,6 +963,32 @@ LEGENDARY_EFFECTS = {
         "effect": {"dmg_mult": 1.60, "execute_threshold": 0.30, "tag": "⚡神罚处决"},
         "desc": "对生命 <30% 的目标额外＋60% 伤害",
     },
+    # ===== v169 职业断档补档橙装专属（4 件，2026-09-03） =====
+    "holy_edict": {  # 圣谕权杖：治疗强化+溢盾
+        "name": "圣谕回响", "kind": "defense", "trigger": "stat",
+        "effect": {"heal_power": 0.15, "shield_hp_pct": 0.12},
+        "desc": "治疗量＋15%，治疗溢出 15% 转化为护盾（上限 12% 最大生命）",
+    },
+    "star_shatter": {  # 碎星拳套：破甲重拳
+        "name": "碎星拳劲", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
+        "effect": {"dmg_mult": 1.50, "ignore_def": 0.30, "debuff": "def", "pct": 0.15, "turns": 2, "tag": "💥碎星拳劲"},
+        "desc": "攻击 25% 造成 150% 伤害的破甲重拳（无视 30% 防御），并降低目标防御 15%（2 刻）",
+    },
+    "dark_star_gauntlet": {  # 暗星拳甲：叠层爆发（攻击计数叠层，满层下一次攻击爆发并清空）
+        "name": "暗星连打", "kind": "attack", "trigger": "on_hit",
+        "effect": {"mark_pct": 0.03, "max_mark": 4, "next_atk_mult": 1.20, "tag": "🌑暗星连打"},
+        "desc": "攻击命中叠 1 层暗星（上限 4 层，每层伤害 +3%），叠满后下一次攻击额外 +120% 伤害并清空",
+    },
+    "gale_dirge": {  # 疾风挽歌：连矢追猎
+        "name": "挽歌连矢", "kind": "attack", "trigger": "on_hit", "chance": 0.25,
+        "effect": {"extra_atk": 0.50, "enemy_contains": ["召唤"], "tag": "🌪️挽歌连矢"},
+        "desc": "攻击命中 25% 追加一支 50% 伤害的疾风矢（优先攻击召唤物）",
+    },
+    "shadow_raid": {  # 影袭之刃：暴击追击回血
+        "name": "影袭连刺", "kind": "attack", "trigger": "on_crit", "chance": 0.50,
+        "effect": {"extra_atk": 0.40, "lifesteal": 0.02, "tag": "🗡️影袭连刺"},
+        "desc": "暴击后 50% 概率追加一次 40% 伤害的追击，并回复 2% 最大生命",
+    },
 }
 
 # 系列固定词条（20 章 3.x；橙装固定词条 + 专属见 EQUIP_ROSTER）
@@ -1494,6 +1520,27 @@ SERIES_FIXED_AFFIX = {
     # 游侠蓝弓：元素/迅捷主题
     '霜羽长弓': ['element_ice', 'precise'],    # 霜羽之矢：攻击附加 5% 冰伤 + 减速
     '疾风猎弓': ['swift', 'hunt'],             # 疾风追猎：命中叠自身速度
+
+    # ===== v169 职业断档补档固定词条（12 件，2026-09-03） =====
+    # P0 牧师 92 权杖（圣光/治疗）
+    '圣谕权杖': ['purify', 'meditate'],
+    # P0 拳师 90/96 拳套（冲锋/破甲）
+    '碎星拳套': ['charge', 'armor_break'],
+    '暗星拳甲': ['charge', 'crit_up'],
+    # P0 游侠 75 弓（精准/贯穿）
+    '疾风挽歌': ['precise', 'pierce'],
+    # P0 智系 91+ 大贤者系（冥想/魔抗/回春）
+    '大贤者法冠': ['meditate', 'magic_ward'],
+    '大贤者圣衣': ['magic_ward', 'regen'],
+    '大贤者护腿': ['meditate', 'dodge'],
+    # P1 刺客 65 匕首（暴击/连击）
+    '影袭之刃': ['crit_up', 'combo'],
+    # P1 新手蓝武器（冥想/净化，牧师新手法器）
+    '晨光法杖': ['meditate'],
+    '曙光权杖': ['purify', 'meditate'],
+    # P1 敏系 91+ 防具（闪避/迅捷）
+    '逐风皮甲': ['dodge', 'swift'],
+    '云端护腿': ['swift', 'dodge'],
 }
 
 # ================= v130.2d R2：v130.2 资源联动套装登记块（死数据）已删除 =================

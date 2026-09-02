@@ -149,7 +149,7 @@ def main():
 
     # ===== 10. 隐藏装备/套装 =====
     print("  · 隐藏装备")
-    check("EQUIP_ROSTER 640 件（v136 Phase6 +180；v140 +243；v141.3 +龙鳞庇护之坠；v168 +8 新手本 Boss 主题装）", len(C.EQUIP_ROSTER) == 640, str(len(C.EQUIP_ROSTER)))
+    check("EQUIP_ROSTER 652 件（v136 Phase6 +180；v140 +243；v141.3 +龙鳞庇护之坠；v168 +8 新手本 Boss 主题装；v169 +12 断档补装）", len(C.EQUIP_ROSTER) == 652, str(len(C.EQUIP_ROSTER)))
     for n in ["星尘法杖", "星尘长袍", "星尘之戒", "星尘坠饰", "星尘护腿",
               "灰烬长剑", "灰烬铠甲", "灰烬之盔", "灰烬之盾", "灰烬护腿", "灰烬战靴", "星陨之剑"]:
         check(f"隐藏装备 {n}", bool(C.EQUIP_ROSTER_BY_NAME.get(n)))

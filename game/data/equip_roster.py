@@ -147,6 +147,33 @@ EQUIP_ROSTER = {
     # v104 修复（M06 P1-4）：暮影龙魂（世界 Boss/龙陨战魂·暮影掉落）此前无消费端，
     # 策划案 13 章 5.6『暮影龙魂→图纸·暮影之刃』，此处补齐装备+配方闭环
     "eq_mu_ying_zhi_ren": {"name": "暮影之刃", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 96, "series": "龙脊", "req": {"agi": 96}, "legendary": "mu_ying_blade", "source": "图纸"},
+    # ================= v169 职业断档补档（12 件，2026-09-03） =================
+    # 覆盖 P0：牧师 91+ 权杖/拳师 90 拳套/游侠 71-80 弓 + 敏防具/智系 91+ 布甲尾段；
+    # P1：刺客 61-70 匕首/新手 11-20 智系武器/敏系 91+ 防具。
+    # 渠道：橙 = 终局 Boss 专属池（副本 Boss 装备池 pool/boss_equip 二选一）；
+    #       紫/蓝图纸 = craft.py 配方（图纸残页合成池自然含），蓝 boss 装 = 中段副本 Boss 池。
+    # 特殊：v168 新手三本之前插入 → 全部落入 desc 注入 + BY_NAME 重建范围。
+    # ---- P0-牧师 91+ 权杖（橙，云中圣殿 Boss 池）----
+    "eq_sheng_yu_quan_zhang": {"name": "圣谕权杖", "slot": "weapon", "weapon_type": "mace", "quality": "orange", "lv": 92, "series": "圣谕", "req": {"int": 88}, "legendary": "holy_edict", "source": "boss", "desc": "云中圣殿祷钟锻成的圣杖，杖首圣徽会随祷言亮起。圣谕回响：释放治疗技能时治疗量 +15%；治疗溢出 15% 转化为护盾（上限 12% 最大生命）。"},
+    # ---- P0-拳师 90 拳套（橙，深渊王座 Boss 池）----
+    "eq_sui_xing_quan_tao": {"name": "碎星拳套", "slot": "weapon", "weapon_type": "fist", "quality": "orange", "lv": 90, "series": "碎星", "req": {"str": 86}, "legendary": "star_shatter", "source": "boss", "desc": "深渊祭坛以陨铁淬成的拳套，拳面刻着碎星的纹路。碎星拳劲：攻击 25% 概率造成 150% 伤害的破甲重拳（无视 30% 防御），并降低目标防御 15%（2 刻）。"},
+    # 拳师终局补档：碎星拳套 90 之上再递一级（Lv96 橙，深渊王座 Boss 池；91-100 双档不断档）
+    "eq_an_xing_quan_tao": {"name": "暗星拳甲", "slot": "weapon", "weapon_type": "fist", "quality": "orange", "lv": 96, "series": "碎星", "req": {"str": 92}, "legendary": "dark_star_gauntlet", "source": "boss", "desc": "深渊祭坛地脉黑晶淬成的拳甲，拳背嵌着吞噬光线的暗星石。暗星连打：攻击命中叠加 1 层暗星（上限 4 层），每层伤害 +3%，叠满后下一次攻击额外造成 120% 伤害并清空。"},
+    # ---- P0-游侠 75 弓（橙，灰矮人要塞 Boss 池；避名册 Lv26 逐风长弓重名）----
+    "eq_ji_feng_wan_ge": {"name": "疾风挽歌", "slot": "weapon", "weapon_type": "bow", "quality": "orange", "lv": 75, "series": "风歌", "req": {"agi": 72}, "legendary": "gale_dirge", "source": "boss", "desc": "灰矮人要塞地底风口打磨的长弓，弓臂刻着矮人挽歌的铭文。挽歌连矢：攻击命中 25% 概率追加一支 50% 伤害的疾风矢（优先攻击召唤物）。"},
+    # ---- P0-智系 91+ 布甲尾段（紫 2 件，大贤者系，深渊裂隙 Boss 池）----
+    "eq_da_xian_zhe_fa_guan": {"name": "大贤者法冠", "slot": "helm", "quality": "purple", "lv": 91, "series": "大贤者", "req": {"int": 88}, "source": "boss", "desc": "大贤者塔巅以星光织成的法冠，冠沿刻着元素四系的秘纹。大贤者回响：施法时 20% 概率回复 4% 最大魔力。"},
+    "eq_da_xian_zhe_sheng_yi": {"name": "大贤者圣衣", "slot": "armor", "quality": "purple", "lv": 92, "series": "大贤者", "req": {"int": 90}, "source": "boss", "desc": "织入贤者秘银丝线的圣衣，魔力在纹路间缓缓流转。秘法护体：战斗开始时获得护盾，吸收 12% 最大生命的伤害；施法时 15% 概率回复 2% 最大生命。"},
+    # ---- P0-智系 91+ 布甲（图纸紫，龙之墓 Boss 图纸池；补大贤者护腿档）----
+    "eq_da_xian_zhe_hu_tui": {"name": "大贤者护腿", "slot": "legs", "quality": "purple", "lv": 90, "series": "大贤者", "req": {"int": 86}, "source": "图纸", "desc": "大贤者巡礼时穿着的护腿，布面上绣着十二星宫的图样。星轨护佑：受击时 15% 概率获得护盾，吸收 8% 最大生命的伤害。"},
+    # ---- P1-刺客 65 匕首（橙，海神神殿 Boss 池）----
+    "eq_ying_xi_zhi_ren": {"name": "影袭之刃", "slot": "weapon", "weapon_type": "dagger", "quality": "orange", "lv": 65, "series": "影袭", "req": {"agi": 62}, "legendary": "shadow_raid", "source": "boss", "desc": "海神神殿暗廊中供奉的利刃，刃身暗得几乎吞光。影袭连刺：暴击后 50% 概率追加一次 40% 伤害的追击，并回复 2% 最大生命。"},
+    # ---- P1-新手 11-20 智系武器（蓝，鹿角要塞 Boss 池/商店线直购补位）----
+    "eq_chen_guang_fa_zhang_15": {"name": "晨光法杖", "slot": "weapon", "weapon_type": "staff", "quality": "blue", "lv": 15, "series": "晨光", "req": {"int": 14}, "source": "boss", "desc": "要塞瞭望塔下晒过晨光的木杖，杖头嵌着黎明色的晶石。晨光冥想：每刻回复 1% 魔力。"},
+    "eq_shu_guang_quan_zhang_16": {"name": "曙光权杖", "slot": "weapon", "weapon_type": "mace", "quality": "blue", "lv": 16, "series": "曙光", "req": {"int": 15}, "source": "boss", "desc": "黎明前第一缕光凝成的木锤，锤头刻着祝福符文。曙光祝福：释放治疗技能时治疗量 +8%。"},
+    # ---- P1-敏系 91+ 防具（紫/蓝，龙之墓/地底龙巢 Boss 池）----
+    "eq_zhu_feng_pi_jia_92": {"name": "逐风皮甲", "slot": "armor", "quality": "purple", "lv": 92, "series": "逐风", "req": {"agi": 88}, "source": "boss", "desc": "以龙脊风翼鸟羽与韧革编成的皮甲，轻如流风。逐风护体：受击时 20% 概率获得护盾，吸收 8% 最大生命的伤害（每场战斗限 1 次）。"},
+    "eq_yun_duan_hu_tui_90": {"name": "云端护腿", "slot": "legs", "quality": "blue", "lv": 90, "series": "云端", "req": {"agi": 84}, "source": "boss", "desc": "云海之巅拾回的软革护腿，绑腿处绣着风痕。云端疾行：战斗开始时自身速度 +10%（持续 3 刻）。"},
     # ================= v87 隐藏线：星尘套（H6 失落图书馆，Lv.55 紫）=================
     "eq_xing_chen_fa_zhang": {"name": "星尘法杖", "slot": "weapon", "weapon_type": "staff", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 60}, "legendary": "arcane_echo", "source": "图纸"},
     "eq_xing_chen_chang_pao": {"name": "星尘长袍", "slot": "armor", "quality": "purple", "lv": 55, "series": "星尘", "req": {"int": 55}, "source": "图纸"},

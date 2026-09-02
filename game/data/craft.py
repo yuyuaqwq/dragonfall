@@ -4600,6 +4600,37 @@ CRAFT_RECIPES = {
         'roster_id': 'eq_lie_kong_zhan_gong',
         'blueprint': '裂空战弓图纸',
     },
+    # ================= v169 职业断档补档图纸（2026-09-03） =================
+    # 圣谕权杖（橙）& 大贤者护腿（紫）同为图纸线：配方入册 → 蓝图自动进 Boss 图纸池/残页合成池。
+    'rec_sheng_yu_quan_zhang': {
+        'slot': 'weapon',
+        'quality': 'orange',
+        'lv': 92,
+        'weapon_type': 'mace',
+        "mats": {
+            'mat_jing_jin_ding': 20,
+            'mat_gu_chong_ke': 2,
+        },
+        'gold': 756,
+        'desc': '晨曦城圣光教团的制式装备',
+        'name': '圣谕权杖',
+        'roster_id': 'eq_sheng_yu_quan_zhang',
+        'blueprint': '圣谕权杖图纸',
+    },
+    'rec_da_xian_zhe_hu_tui': {
+        'slot': 'legs',
+        'quality': 'purple',
+        'lv': 90,
+        "mats": {
+            'mat_mo_neng_ge': 16,
+            'mat_feng_zhi_yu': 2,
+        },
+        'gold': 740,
+        'desc': '风翼群岛的苍穹工匠之作',
+        'name': '大贤者护腿',
+        'roster_id': 'eq_da_xian_zhe_hu_tui',
+        'blueprint': '大贤者护腿图纸',
+    },
 }
 CRAFT_RECIPE_ALIASES = {
     "rec_tie_jian": [

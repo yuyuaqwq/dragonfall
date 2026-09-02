@@ -59,8 +59,8 @@ def mk_enemy(hp=1000, role="dps", name="测试怪", max_hp=None):
 def test_data():
     print("【1. 数据完整性】")
     check("76 种词条（45 基准 + v130.2 资源联动词条 31——v110 审计拆分 tenacity_cc「坚韧」原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 76, str(len(C.AFFIXES)))
-    check("专属 88", len(C.LEGENDARY_EFFECTS) == 88, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳; v140: +初火余烬; v141.3: D2 24 + D3 35
-    check("名册 640 件", len(C.EQUIP_ROSTER) == 640, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180; v140: +213; v141.3: +龙鳞庇护之坠; v168: +8 新手本 Boss 主题装
+    check("专属 93", len(C.LEGENDARY_EFFECTS) == 93, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳; v140: +初火余烬; v141.3: D2 24 + D3 35; v169: +4 断档橙专属
+    check("名册 652 件", len(C.EQUIP_ROSTER) == 652, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180; v140: +213; v141.3: +龙鳞庇护之坠; v168: +8 新手本 Boss 主题装; v169: +12 断档补装
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.55", C.QUALITY["blue"]["mult"] == 1.55)
     # 词条触发时机全合法
@@ -314,7 +314,7 @@ def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（142 个，v104 补 11 图纸配方+淬火石配方 + v117 副本材料联动 +13 图纸配方，无旧毕业套）
     # v135 套装锻造专属：+6 配方（誓约 4 + 银铃护腿/杖 2）→ 187
-    check("配方数 424", len(C.CRAFT_RECIPES) == 424, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心; v135: +誓约4/银铃2; v136 Phase6: +165; v168: +72 断链补配方
+    check("配方数 426", len(C.CRAFT_RECIPES) == 426, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心; v135: +誓约4/银铃2; v136 Phase6: +165; v168: +72 断链补配方; v169: +2 断档橙配方
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -325,7 +325,7 @@ def test_craft_set():
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）——v104 补 11 条图纸配方 + v117 副本材料联动 +13 图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 259, str(len(bp_recs)))  # v124: +夜行披风/熔炉之心; v136 Phase6: +66(职业套装紫33+散装紫橙21+区域套12); v168: +55 图纸断链补配方
+    check("需图纸配方存在", len(bp_recs) == 261, str(len(bp_recs)))  # v124: +夜行披风/熔炉之心; v136 Phase6: +66; v168: +55 图纸断链补配方; v169: +2 断档橙配方
     # 图纸名匹配：blueprint 要么遵循「X图纸」命名（Boss 掉落动态生成），
     # 要么是静态图纸物品名（v124 起允许「图纸·X」「传说锻造图纸·X」前缀风格）
     _bp_items = {v.get("name") for v in C.MATERIALS.values() if v.get("type") == "图纸"}
