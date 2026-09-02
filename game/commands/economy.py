@@ -4147,7 +4147,7 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(self._ency_browse_instances())
             return
         if raw == "装备" or raw.startswith("装备 "):
-            yield event.plain_result(self._ency_browse_equips(raw))
+            yield event.plain_result(self._ency_browse_equips(raw, qq_id))
             return
         if raw == "材料":
             yield event.plain_result(self._ency_browse_materials())
@@ -4391,12 +4391,13 @@ class EconomyCmds(CommandBase):
         lines.append("💡 想了解某副本详情？『百科 <副本名>』（如『百科 旧王陵』）")
         return "\n".join(lines)
 
-    def _ency_browse_equips(self, raw: str = "") -> str:
+    def _ency_browse_equips(self, raw: str = "", qq_id: str = "") -> str:
         """『百科 装备』：装备名册浏览。
 
         无参数 → 按部位×品质总览（每品质代表）；
         『百科 装备 <部位> [页]』/『百科装备 <部位> [页]』→ 列出该部位全部装备（分页 12 件/页），
         每件一行：品质色【名】(Lv.X) + 需求 + 来源。部位词=武器/头盔/胸甲/护腿/靴子/戒指/项链。
+        v167.1：记录 last_list 状态，支持通用翻页快捷键 +/−/=（cmd='百科装备 <部位>'）。
         """
         _roster = C.EQUIP_ROSTER
         _slot_cn = C.EQUIP_SLOTS
@@ -4439,6 +4440,9 @@ class EconomyCmds(CommandBase):
             lines.append("━━━━━━━━━━━━")
             lines.append(f"💡 输入『百科 <装备名>』看单件详情；『百科装备 {_parts[1]} {_page+1}』下一页" if _page < _pages
                          else f"💡 输入『百科 <装备名>』看单件详情；『百科 装备』回总览")
+            # v167.1：记录列表状态 → +/-/= 通用翻页可用（cmd 用 '百科装备 <部位>' 可被百科正则重建）
+            if qq_id:
+                self._record_list_state(qq_id, f"百科装备 {_slot_word}", _page, _pages)
             return "\n".join(lines)
         # ---- 总览（无部位词）----
         lines = ["⚔️ 【装备名册】共 {} 件 · 按部位/品质速览".format(len(_roster)), "━━━━━━━━━━━━"]
