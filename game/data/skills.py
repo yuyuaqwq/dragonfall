@@ -73,7 +73,7 @@ PLAYER_SKILLS = {
              'mech_val': 3,
              'effect': 'atk_all',
              'name': '战吼',
-             'desc': '胸腔炸开一声战吼，战意点燃血液——全队攻击 +30% 持续 10 刻，自身积攒 2 点战意'
+             'desc': '胸腔炸开一声战吼，战意点燃血液——全队攻击 +30% 持续 10 刻，自身积攒 3 点战意'
             },
             "sk_xuan_feng_zhan": {
              'lv': 20,
@@ -3411,7 +3411,7 @@ BRANCH_SKILLS = {
             'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 20,
-                        'mech_val': 45,
+                        'mech_val': 50,   # v162: 对齐 desc 减伤50%
                         'effect': 'reduce',
                         'name': '磐岩甲',
                         'desc': '磐岩覆体，坚不可摧——消耗 3 枚磐核，自身减伤 50% 持续 10 刻'
