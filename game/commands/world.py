@@ -689,19 +689,20 @@ class WorldCmds(CommandBase):
                 break
         title = f"▼{cur_name}"
         if _lv:
-            title += f"(LV{_lv})"
+            title += f"(Lv.{_lv})"
         lines = [title]
         sas = cur_map.get("subareas") or []
         town = (cur_map.get("type") == C.MAP_TYPE_TOWN) or bool(cur_map.get("shop")) or bool(cur_map.get("healer"))
         # 本区域全部可达地点（数据=地图级城镇标记 + 子区域类型），顺序 = 数据顺序
+        # v167.1：行加两格缩进（对齐地图面板『  ●1.』风格）；标题 Lv 格式 Lv.N
         for sa in sas:
             nm = sa.get("name") or sa.get("id") or "？"
             if sa.get("id") == cur_sa:
-                lines.append(f"●{nm}")
+                lines.append(f"  ●{nm}")
             elif sa.get("type") == C.SUB_TYPE_TOWN or town:
-                lines.append(f"□{nm}")
+                lines.append(f"  □{nm}")
             else:
-                lines.append(f"○{nm}")
+                lines.append(f"  ○{nm}")
         # ⊕ 跨区域连接点（MAP_CONNECTIONS 当前图邻居；概览面板常显——副本 no_exit 除外）
         _dun = cur_map.get("dungeon") or {}
         neighbors = C.MAP_CONNECTIONS.get(cur, [])
@@ -712,7 +713,10 @@ class WorldCmds(CommandBase):
             nm = C.MAP_BY_ID.get(_mid)
             if nm:
                 _lock = " (🔒隐藏)" if nm.get("hidden") else ""
-                lines.append(f"⊕{nm.get('name') or _mid}{_lock}")
+                _nlv = nm.get("lv")
+                # v167.1：⊕ 跨区域连接带等级 Lv.N（对齐标题格式）
+                _lvs = f"(Lv.{_nlv})" if _nlv else ""
+                lines.append(f"  ⊕{nm.get('name') or _mid}{_lvs}{_lock}")
         yield event.plain_result("\n".join(lines))
 
     def _map_blocks(self, player: dict, cur_map: dict, cur_sa: str,
