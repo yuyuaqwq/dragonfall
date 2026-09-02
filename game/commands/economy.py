@@ -4133,7 +4133,7 @@ class EconomyCmds(CommandBase):
                 "📚 【世界百科】想知道什么？输入『百科 <名称>』",
                 "━━━━━━━━━━━━",
                 "🔍 可查询：装备 / 材料 / 怪物 / 地图 / 副本 / 符文",
-                "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 材料』按分类看材料",
+                "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 材料』按分类看材料 · 『百科 世界』看全大陆区域",
                 "⚔️ 装备：『百科 <装备名>』看单件 · 『百科 装备』总览",
                 "　　『百科装备 <部位>』列出该部位全部装备（部位：武器/头盔/胸甲/护腿/靴子/戒指/项链）",
                 "例：『百科 铁皮头盔』→ 装备详情｜『百科装备 头盔 2』→ 头盔第2页",
@@ -4151,6 +4151,9 @@ class EconomyCmds(CommandBase):
             return
         if raw == "材料":
             yield event.plain_result(self._ency_browse_materials())
+            return
+        if raw in ("世界", "大陆"):
+            yield event.plain_result(self._ency_browse_world())
             return
         # 1. 符文查询
         stone_name = None
@@ -4504,6 +4507,46 @@ class EconomyCmds(CommandBase):
             lines.append(f"{_t} ×{_cnt}　例：{'、'.join(_rep)}")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 输入『百科 <材料名>』看掉落来源；『图鉴』看收藏品")
+        return "\n".join(lines)
+
+    def _ency_browse_world(self) -> str:
+        """『百科 世界』：全大陆区域总览——按大区(region)分组，
+        每组：等级范围 + 城镇列表 + 代表野外/副本。数据读 MAPS，无硬编码。"""
+        _by_reg = {}
+        for _m in C.MAPS:
+            _reg = _m.get("region") or "未划分区域"
+            _by_reg.setdefault(_reg, []).append(_m)
+        _total = len(C.MAPS)
+        lines = [f"🗺️ 【奥兰迪亚大陆】{len(_by_reg)} 大区域 · {_total} 地点",
+                 "━━━━━━━━━━━━"]
+        # 大区排序：按区内最低等级（新手区在前，符合探索顺序）
+        _regs = sorted(_by_reg.items(), key=lambda kv: min((m.get("lv") or 0) for m in kv[1]))
+        for _reg, _ms in _regs:
+            _lvs = [m.get("lv") for m in _ms if m.get("lv")]
+            _lv_s = f"Lv.{min(_lvs)}-{max(_lvs)}" if _lvs else ""
+            # 城镇 = type 城镇区域 的 area_name（去重保序）
+            _towns = []
+            for _m in _ms:
+                if _m.get("type") == "城镇区域":
+                    _tn = _m.get("area_name") or _m.get("name")
+                    if _tn and _tn not in _towns:
+                        _towns.append(_tn)
+            _wilds = [_m.get("name") for _m in _ms
+                      if _m.get("type") not in ("城镇区域", "副本") and _m.get("name")]
+            _duns = [_m.get("name") for _m in _ms if _m.get("type") == "副本" and _m.get("name")]
+            lines.append("")
+            lines.append(f"◈ {_reg}（{_lv_s}）")
+            if _towns:
+                lines.append("　🏘 " + "、".join(_towns))
+            if _wilds:
+                # 野外多 → 只列前 4 个 + 省略号
+                _w_s = "、".join(_wilds[:4]) + (" 等" if len(_wilds) > 4 else "")
+                lines.append(f"　○ {_w_s}")
+            if _duns:
+                _d_s = "、".join(_duns[:3]) + (" 等" if len(_duns) > 3 else "")
+                lines.append(f"　⛩ {_d_s}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 『区域』看当前可前往｜『寻路 <地名>』算最短路径｜『百科 <地名>』看单区详情")
         return "\n".join(lines)
 
     def _earned_titles(self, group_id, qq_id, player):
