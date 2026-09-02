@@ -175,8 +175,11 @@ def formation_view(units, side: str = "enemy") -> list:
             icon = u.get("icon", "") or ""
             nm = u.get("name", "单位")
             hp = u.get("hp", 0)
+            mx = u.get("max_hp", 0)
             tag = f"{side_mark.lower()}{numed.get(id(u), '?')}"
-            seg = f"{tag} {icon} {nm} ❤️{hp}".strip()
+            # v164.1：血量带最大值（❤️当前/最大）——站位图即完整血量，消除下方重复汇总
+            hp_txt = f"❤️{hp}" + (f"/{mx}" if mx else "")
+            seg = f"{tag} {icon} {nm} {hp_txt}".strip()
             ch = u.get("charging")
             if ch:
                 left = ch.get("left", 1)

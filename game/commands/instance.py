@@ -1279,7 +1279,7 @@ class InstanceCmds(CommandBase):
         单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
         """
         from ..core import formation as FM
-        from ..core.formation import alive_units, front_rank
+        from ..core.formation import alive_units
         # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
         pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
         ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
@@ -1307,16 +1307,7 @@ class InstanceCmds(CommandBase):
         if _ctq:
             lines.append(_ctq)
 
-        # ③ 敌方血量汇总：多怪逐只一行 + 主目标；单怪一行
-        if len(alive_enemies) <= 1:
-            _be = alive_enemies[0] if alive_enemies else (st.get("boss") or {})
-            lines.append(f"🐾【{_be.get('name', '敌人')}】❤️ {max(0, _be.get('hp', 0))}/{_be.get('max_hp', 0)}")
-        else:
-            front = front_rank(alive_enemies)
-            rows = [f"👹 敌方 {len(alive_enemies)} 只(剩 {sum(1 for u in alive_enemies if u.get('rank', 1) == front)} 只前排)"]
-            for u in alive_enemies:
-                rows.append(f"　· {u.get('icon', '') or ''}{u.get('name', '')} ❤️{max(0, u.get('hp', 0))}".strip())
-            lines.append("\n".join(rows))
+        # ③ 敌方血量已在站位图逐只带出（❤️当前/最大，v164.1）——不再重复汇总行
 
         # ④ 全队成员血蓝 + 每人资源条 + buff/减伤/护盾状态
         _cur = self._instance_current_members(group_id, st)

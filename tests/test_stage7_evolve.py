@@ -300,7 +300,9 @@ def test_mage_mechanics():
     info3 = E.skill_info("法师", "织焰")
     check("织焰（元素使 t1）可查到", bool(info3), str(info3))
     if info3:
-        b3 = make_battle(pf)
+        # v164.1 flake 修复：木桩血 1000 会被织焰(60级 ~911+)随机波动一击秒杀，
+        # 怪死后挂的火印随移除丢失 → 随机失败。加大血量确保存活。
+        b3 = make_battle(pf, {"name": "木桩", "hp": 99999, "max_hp": 99999, "atk": 10, "def": 10, "spd": 5})
         b3.resources["element"] = "fire"
         logs = b3._player_skill(b3._player_stats(pf), "织焰", info3, dict(pf))
         _fire_marks = ((b3.enemy.get("debuffs") or {}).get("element_marks") or {}).get("fire", 0)
