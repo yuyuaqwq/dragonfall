@@ -11,34 +11,34 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.82,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 80 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*1.0 + 0 + player_lv*5 + skill_lv*12'],
              
              
              'cast': 0.45,
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '挥砍',
-             'desc': '长剑划出利落的弧光——造成 50% 攻击 + 80 固定物理伤害（成长），命中积攒 1 点战意'
+             'desc': '长剑划出利落的弧光——造成 100% 物理攻击（成长），命中积攒 1 点战意'
             },
             "sk_meng_ji": {
              'lv': 4,
              'mp': 6,
              'power': 0.97,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 80 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*1.3 + 0 + player_lv*7 + skill_lv*16'],
              
              
              'cast': 0.6,
              'cd': 8,
              'name': '猛击',
-             'desc': '双臂蓄满蛮力猛然砸下——造成 50% 攻击 + 80 固定物理伤害（成长），每层战意使伤害 +3%'
+             'desc': '双臂蓄满蛮力猛然砸下——造成 130% 物理攻击（成长），每层战意使伤害 +3%'
             },
             "sk_po_jia_zhan": {
              'lv': 8,
              'mp': 8,
              'power': 0.87,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 70 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*1.2 + 0 + player_lv*6 + skill_lv*14'],
              
              
              'cast': 0.5,
@@ -46,7 +46,7 @@ PLAYER_SKILLS = {
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '破甲斩',
-             'desc': '利刃精准劈入甲胄缝隙——造成 45% 攻击 + 70 固定物理伤害（成长），破防并命中积攒 1 点战意'
+             'desc': '利刃精准劈入甲胄缝隙——造成 120% 物理攻击（成长），破防并命中积攒 1 点战意'
             },
             "sk_tie_bi": {
              'lv': 12,
@@ -78,7 +78,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.93,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 90 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*1.2 + 0 + player_lv*7 + skill_lv*16'],
              
              
              'cast': 0.7,
@@ -86,21 +86,21 @@ PLAYER_SKILLS = {
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '旋风斩',
-             'desc': '身形旋转如风暴，刀光席卷前方——造成 45% 攻击 + 90 固定物理伤害（成长）（前排全体），每段命中积攒 1 点战意'
+             'desc': '身形旋转如风暴，刀光席卷前方——造成 120% 物理攻击（成长）（前排全体），每段命中积攒 1 点战意'
             },
             "sk_chong_feng": {
              'lv': 24,
              'mp': 10,
              'power': 0.87,
              'kind': '物理',
-             'exprs': ['atk*0.55 + 100 + player_lv*8 + skill_lv*18'],
+             'exprs': ['atk*1.5 + 0 + player_lv*8 + skill_lv*18'],
              
              
              'cast': 0.5,
              'cd': 12,
              'cond': {"type": "player_first", "mult": 1.15, "label": "先手压制"},
              'name': '冲锋',
-             'desc': '战靴踏碎尘土，身影撞入敌阵——造成 55% 攻击 + 100 固定物理伤害（成长），位移至前排并先手压制'
+             'desc': '战靴踏碎尘土，身影撞入敌阵——造成 150% 物理攻击（成长），位移至前排并先手压制'
             },
             "sk_leng_jing": {
              'lv': 28,
@@ -124,48 +124,48 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.16,
              'kind': '魔法·火',
-             'exprs': ['matk*0.749 + 64 + player_lv*5.4 + skill_lv*12.8'],
+             'exprs': ['matk*1.5 + 0 + player_lv*5.4 + skill_lv*12.8'],
              
              'cast': 0.8,
              'mech': 'fire_mark',
              'mech_val': 1,
              'name': '火球术',
-             'desc': '将游离的火元素凝成灼热弹丸掷出，命中即焚——造成 75% 攻击 + 64 固定魔法伤害（成长），挂火印 1 层'
+             'desc': '将游离的火元素凝成灼热弹丸掷出，命中即焚——造成 150% 魔法攻击（成长），挂火印 1 层'
             },
             "sk_bing_zhui": {
              'lv': 4,
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·冰',
-             'exprs': ['matk*0.5 + 60 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*1.4 + 0 + player_lv*5 + skill_lv*12'],
              
              'cast': 0.8,
              'mech': 'ice_mark',
              'mech_val': 1,
              'mech2': 'spd_down',
              'name': '冰锥',
-             'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 50% 攻击 + 60 固定魔法伤害（成长），挂冰印 1 层并减速 20% 持续 5 刻'
+             'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 140% 魔法攻击（成长），挂冰印 1 层并减速 20% 持续 5 刻'
             },
             "sk_lei_ji": {
              'lv': 8,
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·雷',
-             'exprs': ['matk*0.55 + 75 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*1.6 + 0 + player_lv*6 + skill_lv*14'],
              
              'cast': 0.8,
              'cd': 8,
              'mech': 'thunder_mark',
              'mech_val': 1,
              'name': '雷击',
-             'desc': '引一道晴空落雷劈下，电弧灼目——造成 55% 攻击 + 75 固定魔法伤害（成长），挂雷印 1 层'
+             'desc': '引一道晴空落雷劈下，电弧灼目——造成 160% 魔法攻击（成长），挂雷印 1 层'
             },
             "sk_yuan_su_yin_bao": {
              'lv': 12,
              'mp': 10,
              'power': 1.16,
              'kind': '魔法',
-             'exprs': ['matk*0.55 + 80 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*1.7 + 0 + player_lv*6 + skill_lv*14'],
              
              
              'cast': 0.8,
@@ -173,7 +173,7 @@ PLAYER_SKILLS = {
              'mech': 'element_burst',
              'mech_val': 1,
              'name': '元素引爆',
-             'desc': '捏碎掌心的元素印记，引发连锁激荡——造成 55% 攻击 + 80 固定魔法伤害（成长），结算目标印记并触发对应反应'
+             'desc': '捏碎掌心的元素印记，引发连锁激荡——造成 170% 魔法攻击（成长），结算目标印记并触发对应反应'
             },
             "sk_shuang_jing_hu_ti": {
              'lv': 16,
@@ -191,7 +191,7 @@ PLAYER_SKILLS = {
              'mp': 16,
              'power': 0.47,
              'kind': '魔法·雷',
-             'exprs': ['matk*0.3 + 40 + player_lv*4 + skill_lv*8'],
+             'exprs': ['matk*0.33 + 0 + player_lv*4 + skill_lv*8'],
              
              'cast': 1.0,
              'cd': 12,
@@ -199,20 +199,20 @@ PLAYER_SKILLS = {
              'mech': 'thunder_mark',
              'mech_val': 1,
              'name': '骤雨弹幕',
-             'desc': '挥指洒出漫天电弧如骤雨倾泻——共 3 段，每段造成 30% 攻击 + 40 固定魔法伤害（成长），各挂雷印 1 层'
+             'desc': '挥指洒出漫天电弧如骤雨倾泻——共 3 段，每段造成 33% 魔法攻击×3（成长），各挂雷印 1 层'
             },
             "sk_yun_shi_shu": {
              'lv': 24,
              'mp': 24,
              'power': 1.08,
              'kind': '魔法·火',
-             'exprs': ['matk*0.7 + 100 + player_lv*8 + skill_lv*20'],
+             'exprs': ['matk*2.0 + 0 + player_lv*8 + skill_lv*20'],
              
              'cast': 1.2,
              'cd': 16,
              'aoe': 'all',
              'name': '陨石术',
-             'desc': '召来天外陨石轰然坠地，烈焰翻涌四溅——造成 70% 攻击 + 100 固定魔法伤害（成长）（全体），挂火印 1 层'
+             'desc': '召来天外陨石轰然坠地，烈焰翻涌四溅——造成 200% 魔法攻击（成长）（全体），挂火印 1 层'
             },
             "sk_shan_xian": {
              'lv': 28,
@@ -235,27 +235,27 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.41,
              'kind': '物理',
-             'exprs': ['atk*0.224 + 25 + player_lv*3.0 + skill_lv*7.5'],
+             'exprs': ['atk*0.5 + 0 + player_lv*3 + skill_lv*7.5'],
              
              
              'cast': 0.5,
              'hits': 2,
              'res_cost': {"energy": 22},
              'name': '连射',
-             'desc': '弓弦连响，两箭破风而出——造成 22% 攻击 + 25 固定物理伤害×2（成长）'
+             'desc': '弓弦连响，两箭破风而出——造成 50% 物理攻击×2（成长）'
             },
             "sk_miao_zhun_she_ji": {
              'lv': 4,
              'mp': 6,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 70 + player_lv*5 + skill_lv*14'],
+             'exprs': ['atk*1.2 + 0 + player_lv*5 + skill_lv*14'],
              
              
              'cast': 0.5,
              'res_cost': {"energy": 28},
              'name': '瞄准射击',
-             'desc': '屏息凝神，箭尖直指要害——造成 50% 攻击 + 70 固定物理伤害（成长）'
+             'desc': '屏息凝神，箭尖直指要害——造成 120% 物理攻击（成长）'
             },
             "sk_ying_yan_suo_ding": {
              'lv': 8,
@@ -274,7 +274,7 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 65 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*1.1 + 0 + player_lv*5 + skill_lv*13'],
              
              
              'cast': 0.5,
@@ -283,7 +283,7 @@ PLAYER_SKILLS = {
              'mech_val': 40,
              'res_cost': {"energy": 30},
              'name': '猎网陷阱',
-             'desc': '猎网铺开，荆棘缠住猎物双足——造成 45% 攻击 + 65 固定物理伤害（成长），减速 40%，持续 6 刻'
+             'desc': '猎网铺开，荆棘缠住猎物双足——造成 110% 物理攻击（成长），减速 40%，持续 6 刻'
             },
             "sk_feng_zhi_ji_zou": {
              'lv': 16,
@@ -302,7 +302,7 @@ PLAYER_SKILLS = {
              'mp': 14,
              'power': 1.51,
              'kind': '物理',
-             'exprs': ['atk*0.55 + 85 + player_lv*6 + skill_lv*15'],
+             'exprs': ['atk*1.4 + 0 + player_lv*6 + skill_lv*15'],
              
              
              'cast': 0.65,
@@ -310,7 +310,7 @@ PLAYER_SKILLS = {
              'res_cost': {"energy": 55},
              'cond': {"type": "enemy_debuff", "mult": 1.3},
              'name': '致命狙击',
-             'desc': '长弓满月，箭矢贯透要害——造成 55% 攻击 + 85 固定物理伤害（成长），对异常状态目标伤害 ×1.3'
+             'desc': '长弓满月，箭矢贯透要害——造成 140% 物理攻击（成长），对异常状态目标伤害 ×1.3'
             },
             "sk_shan_bi_bu": {
              'lv': 24,
@@ -329,7 +329,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 60 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*1.1 + 0 + player_lv*5 + skill_lv*12'],
              
              
              'cast': 0.5,
@@ -338,7 +338,7 @@ PLAYER_SKILLS = {
              'mech_val': 1,
              'res_cost': {"energy": 30},
              'name': '猎印射击',
-             'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 45% 攻击 + 60 固定物理伤害（成长），挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
+             'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 110% 物理攻击（成长），挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
             },
         },
     },
@@ -394,14 +394,14 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.87,
              'kind': '魔法',
-             'exprs': ['matk*0.254 + 36 + player_lv*2.5 + skill_lv*6.6'],
+             'exprs': ['matk*1.5 + 0 + player_lv*2.5 + skill_lv*6.6'],
              
              
              'cast': 0.5,
              'cd': 8,
              'faith': 0,
              'name': '圣光惩戒',
-             'desc': '圣光凝成审判之矛贯穿敌阵——造成 25% 攻击 + 36 固定魔法伤害（成长）（单体输出，不增信念）'
+             'desc': '圣光凝成审判之矛贯穿敌阵——造成 150% 魔法攻击（成长）（单体输出，不增信念）'
             },
             "sk_xin_yang_qi_dao": {
              'lv': 20,
@@ -450,21 +450,21 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.66,
              'kind': '物理',
-             'exprs': ['atk*0.4 + 40 + player_lv*4 + skill_lv*12'],
+             'exprs': ['atk*0.85 + 0 + player_lv*4 + skill_lv*12'],
              
              
              'cast': 0.45,
              'mech': 'lian_duan',
              'mech_val': 1,
              'name': '刺击',
-             'desc': '匕刃如毒蛇吐信直取要害——造成 40% 攻击 + 40 固定物理伤害（成长），命中积攒 1 段连击'
+             'desc': '匕刃如毒蛇吐信直取要害——造成 85% 物理攻击（成长），命中积攒 1 段连击'
             },
             "sk_ge_lie": {
              'lv': 4,
              'mp': 6,
              'power': 0.78,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 50 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*1.2 + 0 + player_lv*5 + skill_lv*13'],
              
              
              'cast': 0.3,
@@ -472,14 +472,14 @@ PLAYER_SKILLS = {
              'mech': 'bleed',
              'mech_val': 2,
              'name': '割裂',
-             'desc': '利刃撕开皮肉留下一道血痕——造成 45% 攻击 + 50 固定物理伤害（成长），附加 2 层流血持续 8 刻，命中 +1 段'
+             'desc': '利刃撕开皮肉留下一道血痕——造成 120% 物理攻击（成长），附加 2 层流血持续 8 刻，命中 +1 段'
             },
             "sk_ying_xi": {
              'lv': 8,
              'mp': 8,
              'power': 0.92,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 55 + player_lv*5 + skill_lv*14'],
+             'exprs': ['atk*1.3 + 0 + player_lv*5 + skill_lv*14'],
              
              
              'cast': 0.35,
@@ -487,21 +487,21 @@ PLAYER_SKILLS = {
              'mech': 'lian_duan',
              'mech_val': 1,
              'name': '影袭',
-             'desc': '身形融入暗影，匕首自背后骤然刺出——造成 50% 攻击 + 55 固定物理伤害（成长），命中 +1 段，背击时伤害 ×1.3'
+             'desc': '身形融入暗影，匕首自背后骤然刺出——造成 130% 物理攻击（成长），命中 +1 段，背击时伤害 ×1.3'
             },
             "sk_shuang_ren_luan_wu": {
              'lv': 12,
              'mp': 10,
              'power': 0.46,
              'kind': '物理',
-             'exprs': ['atk*0.35 + 45 + player_lv*4 + skill_lv*11'],
+             'exprs': ['atk*0.5 + 0 + player_lv*4 + skill_lv*11'],
              
              
              'cast': 0.35,
              'cd': 12,
              'hits': 2,
              'name': '双刃乱舞',
-             'desc': '双匕交错翻飞成银色风暴——每段造成 35% 攻击 + 45 固定物理伤害共 2 段（成长），每段命中 +1 段连击'
+             'desc': '双匕交错翻飞成银色风暴——造成 50% 物理攻击×2（成长），每段命中 +1 段连击'
             },
             "sk_qian_xing": {
              'lv': 16,
@@ -541,14 +541,14 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.04,
              'kind': '物理',
-             'exprs': ['atk*0.6 + 75 + player_lv*6 + skill_lv*16'],
+             'exprs': ['atk*1.5 + 0 + player_lv*6 + skill_lv*16'],
              
              
              'cast': 0.4,
              'cd': 12,
              'mech': 'finisher',
              'name': '终结·割喉',
-             'desc': '匕刃横过咽喉，终结一击快如闪电——造成 60% 攻击 + 75 固定物理伤害（成长），连段越高伤害越高（每段 +10%），结算后连段归零'
+             'desc': '匕刃横过咽喉，终结一击快如闪电——造成 150% 物理攻击（成长），连段越高伤害越高（每段 +10%），结算后连段归零'
             },
         },
     },
@@ -560,20 +560,20 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.63,
              'kind': '物理',
-             'exprs': ['atk*0.200 + 44 + player_lv*3.4 + skill_lv*8.0'],
+             'exprs': ['atk*0.6 + 0 + player_lv*3.4 + skill_lv*8'],
              
              
              'cast': 0.35,
              'shaken_gain': 0,
              'name': '直拳',
-             'desc': '拳风凌厉直捣要害——造成 20% 攻击 + 44 固定物理伤害（成长），命中即推破绽条'
+             'desc': '拳风凌厉直捣要害——造成 60% 物理攻击（成长），命中即推破绽条'
             },
             "sk_ce_ti": {
              'lv': 4,
              'mp': 6,
              'power': 0.81,
              'kind': '物理',
-             'exprs': ['atk*0.4 + 55 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*0.8 + 0 + player_lv*5 + skill_lv*13'],
              
              
              'cast': 0.45,
@@ -581,28 +581,28 @@ PLAYER_SKILLS = {
              'shaken_gain': 0,
              'cond': {"type": "enemy_broken", "mult": 1.3},
              'name': '侧踢',
-             'desc': '侧身旋踢扫向破绽处——造成 40% 攻击 + 55 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.3'
+             'desc': '侧身旋踢扫向破绽处——造成 80% 物理攻击（成长），推破绽条；对破防目标伤害 ×1.3'
             },
             "sk_gang_quan": {
              'lv': 8,
              'mp': 8,
              'power': 0.59,
              'kind': '物理',
-             'exprs': ['atk*0.4 + 60 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.8 + 0 + player_lv*6 + skill_lv*14'],
              
              
              'cast': 0.5,
              'cd': 12,
              'shaken_gain': 0,
              'name': '钢拳',
-             'desc': '钢拳崩裂护甲——造成 40% 攻击 + 60 固定物理伤害（成长），推破绽条并使目标破防'
+             'desc': '钢拳崩裂护甲——造成 80% 物理攻击（成长），推破绽条并使目标破防'
             },
             "sk_lian_zhao_san_lian": {
              'lv': 12,
              'mp': 12,
              'power': 0.29,
              'kind': '物理',
-             'exprs': ['atk*0.25 + 35 + player_lv*4 + skill_lv*10'],
+             'exprs': ['atk*0.35 + 0 + player_lv*4 + skill_lv*10'],
              
              
              'cast': 0.45,
@@ -610,7 +610,7 @@ PLAYER_SKILLS = {
              'hits': 3,
              'shaken_gain': 0,
              'name': '连招三连',
-             'desc': '拳影连珠三连轰击——每段造成 25% 攻击 + 35 固定物理伤害（成长），三段皆推破绽条'
+             'desc': '拳影连珠三连轰击——每段造成 35% 物理攻击×3（成长），三段皆推破绽条'
             },
             "sk_tong_qiang": {
              'lv': 16,
@@ -629,7 +629,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.59,
              'kind': '物理',
-             'exprs': ['atk*0.45 + 60 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.8 + 0 + player_lv*6 + skill_lv*14'],
              
              
              'cast': 0.55,
@@ -638,21 +638,21 @@ PLAYER_SKILLS = {
              'mech_val': 2.0,
              'shaken_gain': 0,
              'name': '震地击',
-             'desc': '重拳砸地震裂大地——造成 45% 攻击 + 60 固定物理伤害（成长），40% 概率眩晕 2.0 刻'
+             'desc': '重拳砸地震裂大地——造成 80% 物理攻击（成长），40% 概率眩晕 2.0 刻'
             },
             "sk_chong_quan": {
              'lv': 24,
              'mp': 10,
              'power': 0.73,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 70 + player_lv*6 + skill_lv*15'],
+             'exprs': ['atk*1.0 + 0 + player_lv*6 + skill_lv*15'],
              
              
              'cast': 0.4,
              'cd': 12,
              'shaken_gain': 0,
              'name': '冲拳',
-             'desc': '蓄势冲拳破阵而入——造成 50% 攻击 + 70 固定物理伤害（成长），位移至前排并推破绽条'
+             'desc': '蓄势冲拳破阵而入——造成 100% 物理攻击（成长），位移至前排并推破绽条'
             },
             "sk_ming_xiang": {
              'lv': 28,
@@ -723,13 +723,13 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.08,
              'kind': '魔法',
-             'exprs': ['matk*0.306 + 44 + player_lv*3.4 + skill_lv*8.8'],
+             'exprs': ['matk*1.5 + 0 + player_lv*3.4 + skill_lv*8.8'],
              
              
              'cast': 0.6,
              'cd': 8,
              'name': '音刃',
-             'desc': '琴弦急振，声浪凝为利刃破空而去——音波单体输出，造成 31% 攻击 + 44 固定魔法伤害（成长）'
+             'desc': '琴弦急振，声浪凝为利刃破空而去——音波单体输出，造成 150% 魔法攻击（成长）'
             },
             "sk_an_shen_qu": {
              'lv': 20,

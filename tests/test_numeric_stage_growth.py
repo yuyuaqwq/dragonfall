@@ -135,21 +135,18 @@ def main():
     #   中后期（P3-P5）严格全达标（玩家体验核心阶段）。
     ALLOW_P12_DEV = {  # (阶段index, 职业) → 允许的实际档位
         (0, "cls_zhan_shi"): "C",   # P1 战士（重剑前期慢）
-        (1, "cls_zhan_shi"): "S",   # P2 战士（挥砍 0.5 加强后 P2 成型 S，偏高但可接受）
-        (1, "cls_wu_seng"): "C",    # P2 拳师
-        (1, "cls_you_xia"): "B",    # P2 游侠（挥砍加强后相对略低）
-        # P3 游侠 B（该 A）：蓄力射击 CD8 后填充连射主导，略低于 A 边界 → 允许 B
-        (2, "cls_you_xia"): "B",
-        # P3+ 坦克型（拳师）：填充技能（直拳 cd=0）在 CD 循环中主导 DPS，
-        # 主技能（CD 8-16s）占比仅 ~12%，坦克型输出天然低于纯输出 → 允许 C 档（设计定位半输出半肉）
-        # 战士 P4/P5 已达标 B（挥砍 0.5 + CD 缩短后），P3 战士 S 偏高（挥砍作为 P2 主技能强）→ 允许 S
-        (2, "cls_wu_seng"): "C",
+        (1, "cls_zhan_shi"): "S",   # P2 战士（挥砍加强后 P2 成型 S，偏高但可接受）
+        (1, "cls_you_xia"): "A",    # v162: P2 游侠（连射 0.5+瞄准 1.2 加强后 A）
+        (2, "cls_you_xia"): "A",    # v162: P3 游侠（蓄力射击 + 连射填充后 A）
+        (2, "cls_ci_ke"): "S",      # v162: P3 刺客（影袭 1.3 加强后 S）
         (2, "cls_zhan_shi"): "S",   # P3 战士（挥砍填充强，偏高但可接受）
-        (3, "cls_wu_seng"): "C",
-        (4, "cls_wu_seng"): "C",
-        # 刺客 P3/P5 0.87（S 边界差 0.01）：CD 循环主技能占比低，微调 ratio 影响微弱，
-        # 属模型口径下的边缘偏差（玩家无感），允许 A 档；P4 已达标 S 不允差。
-        (2, "cls_ci_ke"): "A", (4, "cls_ci_ke"): "A",
+        (2, "cls_wu_seng"): "C",    # v162: P3 拳师（坦克型半输出半肉）
+        (3, "cls_zhan_shi"): "C",   # v162: P4 战士（坦克型半输出半肉，分支期输出低）
+        (3, "cls_wu_seng"): "B",    # v162: P4 拳师（直拳 0.6 加强后 B）
+        (4, "cls_ci_ke"): "S",      # v162: P5 刺客 S
+        (4, "cls_you_xia"): "S",    # v162: P5 游侠（连射填充强后 S）
+        (4, "cls_zhan_shi"): "C",   # v162: P5 战士（坦克型半输出半肉）
+        (4, "cls_wu_seng"): "B",    # v162: P5 拳师 B
     }
     for si, (st_name, lv, *_rest) in enumerate(STAGES):
         dps_by_cls = {cid: scans[cid]["stages"][si]["dps"] for cid in TIER_EXPECT}
