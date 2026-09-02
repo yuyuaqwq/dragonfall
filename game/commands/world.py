@@ -1235,12 +1235,15 @@ class WorldCmds(CommandBase):
 
     # O115 『问路 <地名>』空回复修复：只回标题零内容（格温/血牙实测复现）——
     # 补路线指引：同图子区域直达提示 / 跨图按 MAP_CONNECTIONS 算最短路径
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?问路(?:[\s\S]*)$")
+    # v167.1：加『寻路』别名（意见#42 自动寻路 = 问路同一 BFS）；输出带每段 Lv + 起止标记
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:问路|寻路)(?:[\s\S]*)$")
     @require_player()
     async def ask_way(self, event: AstrMessageEvent):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
-        raw = self._strip_cmd(event, "问路").strip()
+        msg0 = event.get_message_str()
+        _cmd_used = "寻路" if re.search(r"(?:\[At:[^\]]*\]\s*)?寻路", msg0) else "问路"
+        raw = self._strip_cmd(event, _cmd_used).strip()
         if not raw:
             yield event.plain_result("格式：问路 <地名>！比如『问路 海蚀洞窟』～")
             return
@@ -1294,10 +1297,23 @@ class WorldCmds(CommandBase):
         if not route:
             yield event.plain_result(f"🧭 【{target['name']}】暂时没有通路抵达，去『地图』看看附近的路吧～")
             return
-        names = [C.MAP_BY_ID.get(_i, {}).get("name", _i) for _i in route]
+        # v167.1 展示优化：起止标记 + 每段区域名(Lv.N)（首段=当前，末段=目标）
+        _path_n = []
+        for _i, _mid in enumerate(route):
+            _mp = C.MAP_BY_ID.get(_mid, {})
+            _nm = _mp.get("name") or _mid
+            _nlv = _mp.get("lv")
+            _lvs = f"(Lv.{_nlv})" if _nlv else ""
+            if _i == 0:
+                _path_n.append(f"📍{_nm}{_lvs}")
+            elif _i == len(route) - 1:
+                _path_n.append(f"🎯{_nm}{_lvs}")
+            else:
+                _path_n.append(f"{_nm}{_lvs}")
         yield event.plain_result(
-            f"🧭 【{target['name']}】的路线：{' → '.join(names)}（{len(route) - 1} 段路程）。\n"
-            f"{self._tip('move')}；方碑已激活的地区可用『传送 <名称>』直达～")
+            f"🧭 【{target['name']}】寻路结果（{len(route) - 1} 段）：\n"
+            f"{' → '.join(_path_n)}\n"
+            f"💡 沿路『前往 <下一站>』逐段移动；方碑已激活的地区可用『传送 <名称>』直达～")
 
     def _instance_gate_block(self, player: dict, group_id: str, qq_id: str, target: dict) -> str:
         """q1-B 副本图门禁：徒步『前往/移动』不可直接进入副本图（type=副本）。
