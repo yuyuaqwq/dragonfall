@@ -6556,6 +6556,23 @@ class EconomyCmds(CommandBase):
                 shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
                 tname = C.WILD_NPCS.get(trader, {}).get("name", "行商")
                 shop_title = f"🧭 {tname}的货摊"  # #151：标题跟随实际在场的交易 NPC
+            # 意见#130（2026-09-03 白云白云狸雾理云/鱼神）：铁港码头栈桥(harbor_docks_1)挂着
+            # 行商(NPC 夜钓翁·老竿 map=harbor_docks 整图 roam)，本子区域没有商店也没有货摊，
+            # 却在『地图』里被 _wild_trader_here 判定为可交易 → 显示错配的「行商货摊」。
+            # 修复：交易放行条件收紧为「当前子区域是无 shop 的野外落点 OR 在场限时 NPC 事件已触发」
+            # （限时事件 = 探索偶遇后 set_timed 的 wild:{nid}，见 roll_wild_encounter；
+            #  _wild_trader_here 原本只按 NPC 静态 map 判定，夜钓翁 map=harbor_docks 全图放行）。
+            _here_trader_ok = False
+            if trader:
+                _tr_npc = C.ALL_WILD.get(trader, {})
+                _tr_roam = _tr_npc.get("roam")
+                _tr_timed = bool(C.get_timed(group_id, qq_id, f"wild:{trader}"))
+                # 无 roam 的 NPC 若 map 命中当前整图但未偶遇（无线时事件）→ 不在场，不显示行商
+                _here_trader_ok = bool(_tr_timed) if not _tr_roam else True
+            if not shop_items and _here_trader_ok:
+                shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
+                tname = C.WILD_NPCS.get(trader, {}).get("name", "行商")
+                shop_title = f"🧭 {tname}的货摊"  # #151：标题跟随实际在场的交易 NPC
             for iid in shop_items:
                 it = C.ITEMS[iid]
                 _lim = self._shop_limit_label(sa_id, f"item:{iid}")  # v166 限购标注
@@ -6634,7 +6651,13 @@ class EconomyCmds(CommandBase):
         else:
             shop_items = []
         if not shop_items and not is_smith and self._wild_trader_here(player, group_id, qq_id):
-            shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
+            # 意见#130 同源修复（与 shop 面板一致）：未偶遇的静态野外行商不隔空放行——夜钓翁
+            # map=harbor_docks 但没探索偶遇时，玩家在码头任何子区域都会被判定可买它的货
+            _trader = self._wild_trader_here(player, group_id, qq_id)
+            _tr_npc = C.ALL_WILD.get(_trader, {}) if _trader else {}
+            _tr_timed = bool(C.get_timed(group_id, qq_id, f"wild:{_trader}")) if _trader else False
+            if _trader and (_tr_npc.get("roam") or _tr_timed):
+                shop_items = C.SHOP_WILD_TRADE  # v95.4：野外行商货物
         materials = (C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])) if is_smith else []
         item_name = item_name.strip()
         # F2-2：『购买 』空参静默买第一件（空串是任意名称的子串恒 True，report_18 P1-1）
