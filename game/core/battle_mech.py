@@ -34,6 +34,10 @@ def register(registry, key):
 
 
 # v125.1 P2：注册顺序跟踪（见 register docstring；供末尾启动校验消费）
+# v163 召唤机制定稿（策划案 04 章二.5）：CD 5 刻、单次 1 只、场上上限 3。
+# 数值意图：Boss 战长盘有召唤压力但可推进；防无上限堆怪拖死（咕噜 round63 实测越打越多）。
+SUMMON_MINION_CAP = 3
+SUMMON_MINION_CD = 5
 _REG_ORDER = []
 
 
@@ -572,14 +576,17 @@ def _b_enrage(battle, logs, e, r):
 
 @register(BOSS_MECHS, "summon")
 def _b_summon(battle, logs, e, r):
-    """召唤：每 3 刻召唤援军实体（v101.28l #438：真召唤，援军挡刀+出手）"""
-    if r > 1 and r % 3 == 0 and e.get("summoned_round") != r:
+    """召唤：每 5 刻召唤 1 只援军实体（v163 定稿：原每 3 刻 1-2 只且无场上上限→越打越多，
+    咕噜 round63 实测召唤 9+ 爪牙清不完；CD 拉长 + 单次 1 只 + 上限 3 由
+    battle._summon_minions 统一执行——技能召唤同走该函数也受上限约束）"""
+    if r > 1 and r % SUMMON_MINION_CD == 0 and e.get("summoned_round") != r:
         e["summoned_round"] = r
-        n = 2 if r % 6 == 0 else 1  # 每 6 刻召唤 2 只
-        mins = battle._summon_minions(n)
-        names = "、".join(f"【{m['name']}】" for m in mins)
+        mins = battle._summon_minions(1)
+        names = '、'.join(f'【{m["name"]}】' for m in mins)
+        if not mins:
+            return  # 满员/无可召（上限 3 已满）→ 本次机制跳过（不叠攻击buff）
         battle.e_buffs["mon_atk_up"] = max(battle.e_buffs.get("mon_atk_up", 0), 2)
-        logs.append(f"👥【{e['name']}】召唤了 {names}！它们挡在身前，攻击也提升了！")
+        logs.append(f'👥【{e["name"]}】召唤了 {names}！它们挡在身前，攻击也提升了！')
 
 
 @register(BOSS_MECHS, "heal")

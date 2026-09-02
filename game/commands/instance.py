@@ -952,6 +952,27 @@ class InstanceCmds(CommandBase):
         copy["mod"] = ""
         return copy
 
+
+    def _mark_minion_copy(self, m: dict, uid: str, name: str) -> dict:
+        """v163：把 build_monster 产物标记为爪牙（独立小怪模板路径）。
+        改名/换 uid/打 is_minion + 清 mech/mod（防逐单位 _boss_mech 多怪重复机制）。
+        数值保留 build_monster 的小怪模板值（鱼鱼拍板：爪牙=小怪，非 Boss 缩放）。"""
+        copy = dict(m)
+        copy["uid"] = uid
+        copy["name"] = name
+        copy["rank"] = 1  # 爪牙恒前排挡刀
+        copy["reach"] = 1
+        copy["buffs"] = {}
+        copy["stacks"] = {}
+        copy["defending"] = False
+        copy["charging"] = None
+        copy["is_boss"] = False
+        copy["is_elite"] = False
+        copy["is_minion"] = True
+        copy["mech"] = ""
+        copy["mod"] = ""
+        return copy
+
     def _instance_build_enemy_array(self, st: dict, boss: dict) -> list:
         """v2：由主怪 st["boss"] 构建敌方阵列 st["enemies"]。
         Boss 主单位 = build_monster 产物（含 rank/reach/uid/buffs/stacks/defending/charging）；
@@ -973,14 +994,25 @@ class InstanceCmds(CommandBase):
         base_uid = boss.get("uid", "e_0")
         for mi, cfg in enumerate(mcfg):
             cnt = int(cfg.get("count", 1) or 1)
-            role = cfg.get("role", "dps")
-            mrank = 1  # 契约 §2.2：爪牙 rank1
-            mreach = 2 if role in ("caster", "healer") else 1
+            mdef_tpl = cfg.get("monster")
             mname = cfg.get("name", "爪牙")
             for j in range(cnt):
-                sub = self._scale_enemy_copy(
-                    boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
-                    "{}的{}".format(base_name, mname), mrank, mreach)
+                if mdef_tpl and isinstance(mdef_tpl, (list, tuple)) and len(mdef_tpl) >= 6:
+                    # v163 爪牙=同图小怪模板（鱼鱼拍板）：build_monster 构建独立小怪数值
+                    # （如哥布林守卫 lv15 ≈ 564HP），不从 Boss 按比例缩放。
+                    _mo = C.build_monster(mdef_tpl, {"id": st.get("inst_id") or "x",
+                                                    "name": st.get("inst_id") or "x", "area": "instance"})
+                    sub = self._mark_minion_copy(_mo,
+                                                  "{}-m{}_{}".format(base_uid, mi, j),
+                                                  "{}的{}".format(base_name, mname))
+                else:
+                    # 旧格式兼容（name/role 无 monster 模板）：仍按 Boss ×0.5 派生（老数据兜底）
+                    role = cfg.get("role", "dps")
+                    mrank = 1  # 契约 §2.2：爪牙 rank1
+                    mreach = 2 if role in ("caster", "healer") else 1
+                    sub = self._scale_enemy_copy(
+                        boss, 0.5, "{}-m{}_{}".format(base_uid, mi, j),
+                        "{}的{}".format(base_name, mname), mrank, mreach)
                 sub.setdefault("ct", BT._ct_initial_wait(sub.get("spd", 0)))
                 enemies.append(sub)
         return enemies
@@ -2625,10 +2657,11 @@ class InstanceCmds(CommandBase):
                 yield _r
             return
 
-        # 5. v121 CTB：玩家行动完 → 结算一次敌方段（按 ct 判定，无需等全员行动过），随后重算下一行动者
-        elogs, _ok = self._instance_enemy_ct_acts(st, group_id)
-        logs += elogs
-        # 敌方段可能打死最后一名存活玩家（含同归于尽）→ 全灭失败
+        # 5. v163：敌方行动已由 player_turn(enemy_act=True) 内 battle 事件队列 _process_until
+        # 统一驱动（含读条 cast_done/召唤/DOT），血量经 _inst_cb 回调/引用同步——此处
+        # 不再跑旧 _instance_enemy_ct_acts 轮转（v158 合并残留，导致敌方双重行动 +
+        # 旧瞬态 Battle 读条伤害蒸发 = 副本怪物 0 伤害）。本段只做玩家侧收尾：
+        # 倒地失败检测（battle 队列可能打死玩家）+ 下一行动玩家 = 存活玩家 ct 最小者。
         if not self._instance_living_player_cts(st, group_id):
             st["over"] = True
             if not self._instance_enemies_alive(st):
@@ -2636,14 +2669,11 @@ class InstanceCmds(CommandBase):
             async for _r in self._instance_defeat(event, group_id, qq_id, player, st, logs):
                 yield _r
             return
-        # 重算下一行动者 = 存活玩家与存活敌方中 ct 最小者
-        nxt = self._instance_next_actor(st, group_id)
-        if nxt[0] == "e":
-            # 敌方段打满上限（8 动）仍有敌方领先 → 回退到 ct 最小的存活玩家
-            cts = self._instance_living_player_cts(st, group_id)
-            nxt = ("p", min(cts, key=lambda kk: cts[kk]) if cts else None)
-        if nxt[0] == "p" and nxt[1] in members:
-            st["turn"] = members.index(nxt[1])
+        # 重算下一行动玩家 = 存活玩家中 ct 最小者（敌方由 battle 队列驱动，不参与轮转）
+        cts = self._instance_living_player_cts(st, group_id)
+        nxt_key = min(cts, key=lambda kk: cts[kk]) if cts else None
+        if nxt_key and nxt_key in members:
+            st["turn"] = members.index(nxt_key)
         else:
             st["turn"] = 0
         st["turn_time"] = now

@@ -116,17 +116,21 @@ async def main():
     bt = BT.Battle("monster", b, {}, player=mk_player())
     logs = []
     bt.enemy["hp"] = 200  # 20% 触发狂暴
-    # v152：r=2（now=2.0）→ summon 触发（r>1 且 r%3==0）；r=3（now=3.0）→ 不重复（summoned_round 幂等）
-    bt._now = 2 * 1.0
+    # v152：r 从绝对时刻换算（r = now/ACT_TICK + 1，测试 ACT_TICK=1）；v163：summon CD=5 → r=5（now=4）触发，r=6（now=5）不重复
+    bt._now = 3 * 1.0
     bt._boss_mech(logs)
     check("组合触发狂暴", bt.enemy.get("enraged"), "")
-    check("组合触发召唤（summoned_round=3）", bt.enemy.get("summoned_round") == 3,
+    check("r=4 未到召唤 CD（summoned_round 空）", not bt.enemy.get("summoned_round"),
           str(bt.enemy.get("summoned_round")))
-    logs2 = []
-    bt._now = 3 * 1.0
-    bt._boss_mech(logs2)
-    check("召唤幂等（r=3 不重复）", bt.enemy.get("summoned_round") == 3 and not logs2,
-          f"{logs2} summoned_round={bt.enemy.get('summoned_round')}")
+    bt._now = 4 * 1.0
+    bt._boss_mech(logs)
+    check("组合触发召唤（summoned_round=5）", bt.enemy.get("summoned_round") == 5,
+          str(bt.enemy.get("summoned_round")))
+    logs3 = []
+    bt._now = 5 * 1.0
+    bt._boss_mech(logs3)
+    check("召唤幂等（r=6 不重复）", bt.enemy.get("summoned_round") == 5,
+          f"{logs3} summoned_round={bt.enemy.get('summoned_round')}")
 
     # ---- 6. instances 数据完整性：22 副本 mech 全合法 ----
     legal = {"enrage", "summon", "heal", "shield", "phase", "stacks", "reflect"}

@@ -727,6 +727,18 @@ class Battle:
                     if _init_t <= 0:
                         _init_t = _ct_initial_wait(_u.get("spd", 0))
                     b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
+        # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
+        # 随 enemies 序列化；野外/副本统一）。此前事件队列不序列化，读条伤害跨消息即丢
+        # （repro_enemy_cast_loss.py 复现：野外单怪挥爪后存档恢复，伤害蒸发为 0）。
+        for _u in b.enemies:
+            _cst = _u.get("_cast")
+            if _cst and _u.get("hp", 0) > 0:
+                _hit = float(_cst.get("hit_at", 0) or 0)
+                if _hit > b._now:
+                    b._schedule(_hit, {"type": "cast_done", "side": "e", "unit": _u,
+                                       "kind": _cst.get("kind", "atk"),
+                                       "skill": _cst.get("skill"),
+                                       "power_mult": _cst.get("power_mult", 1.0)})
         return b
 
     # ---------------- 核心资源（v2.0 / v130.2 分支级 resource_override） ----------------
@@ -2120,6 +2132,8 @@ class Battle:
                         if e_unit.get("hp", 0) > 0:
                             mlogs, dmg = self._enemy_cast_done(player, e_unit, ev)
                             logs += mlogs
+                            # v163：敌方读条结算完成 → 清单位读条状态（防 from_state 重复补排）
+                            e_unit.pop("_cast", None)
                             if defend and dmg > 0:
                                 dmg = max(1, int(dmg * DEFEND_REDUCE))
                                 self._pending_dmg_lines.append(f"(格挡后 {dmg} 点伤害)")
@@ -5133,12 +5147,18 @@ class Battle:
                                          {"side": "e", "unit": e, "kind": "skill",
                                           "skill": skill, "power_mult": power})
                 logs.append(f"⚔️ 【{ename}】正在施展【{sname}】！(出招 {_cast_t:.1f}s)")
+                # v163 敌方读条持久化：命中参数写入单位 dict（随 enemies 序列化），
+                # from_state 恢复时补排 cast_done——野外/副本一套代码，读条伤害跨消息不丢。
+                e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "skill",
+                              "skill": skill, "power_mult": power}
                 # 敌方读条后收招：ct = 命中时刻 + 收招（= 出手 + 总耗时）
                 self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
                 return logs, 0
         # v154 敌方对称读条：敌方普攻出招 → 排 cast_done（出招读条结束才命中结算）
         # 出招读条时长 = 普攻 cast（缺省 CAST_ATK），速度折算
         _cast_t, _rec_t = self._action_times("atk", spd=est.get("spd", 0))
+        # v163 敌方读条持久化（同技能分支：普攻命中参数也随单位序列化）
+        e["_cast"] = {"hit_at": self._now + _cast_t, "kind": "atk"}
         _cast_t = _cast_t or (CAST_ATK * self._ct_cost(est.get("spd", 0)))
         self._schedule_cast_done(self._now + _cast_t,
                                  {"side": "e", "unit": e, "kind": "atk"})
@@ -6275,33 +6295,98 @@ class Battle:
         """v2（§7.2）：敌方援军入 enemies 阵列（rank1/reach1，站位天然挡刀）。
         保持 e_minions 旧字段同步（命令层/instance 展示与持久化兼容）。
         每只血量=Boss 20%、攻击=Boss 40%。"""
+        # v163 召唤机制定稿（策划案 04 章二.5）：援军场上上限 3 只（含开战自带爪牙）。
+        # 满员时不再召唤（机制召唤/技能召唤同走本函数，统一生效）。
+        # 上限 3 = 数值设计：1 Boss + 3 爪牙 = 4 前排已是队伍可处理上限；防无限堆怪拖死。
+        try:
+            from .core.battle_mech import SUMMON_MINION_CAP
+        except Exception:
+            SUMMON_MINION_CAP = 3
+        if n > 0:
+            _alive_min = [u for u in self.enemies if u.get("hp", 0) > 0 and u.get("is_minion")]
+            _cap = int(SUMMON_MINION_CAP or 3)
+            _room = max(0, _cap - len(_alive_min))
+            if _room <= 0:
+                return []
+            n = min(n, _room)
         e = self.enemy or {}
+        # v163：命名基准用 Boss 本体名（self.enemy 可能被前排爪牙顶替导致名字叠"爪牙的爪牙"）
+        _boss_name = ""
+        for _u in self.enemies:
+            if _u.get("is_boss") and not _u.get("is_minion"):
+                _boss_name = _u.get("name") or ""
+                break
+        if not _boss_name:
+            _boss_name = e.get("name", "首领")
         created = []
         base_uid = len(self.enemies)
+        # v163 召唤物=同图小怪模板（鱼鱼拍板）：优先读副本 inst.minions[].monster 模板
+        # build_monster 构建（如哥布林营地=哥布林守卫 lv15 ≈ 564HP），非 Boss 比例缩放。
+        # 老数据（无 inst 配置/非 instance 战斗）回落 Boss×0.2（v101.28l 旧值，仅兜底）。
+        _tpl = None
+        _tpl_name = "爪牙"
+        # v163: 副本战斗里 Boss 单位带 map=inst_id（build_monster area=instance）。
+        # 从阵列找 Boss 本体（is_boss/is_elite 或首个带 inst_ map 的单位）拿 inst 配置；
+        # 野外（无 inst 配置）回落 Boss×0.2。
+        _inst_id = ""
+        for _u in self.enemies:
+            _um = str(_u.get("map") or "")
+            if _um.startswith("inst_"):
+                _inst_id = _um
+                break
+        if _inst_id:
+            try:
+                from .data.instances import INSTANCES as _INSTS
+                _mcfg = (_INSTS.get(_inst_id) or {}).get("minions") or []
+                if _mcfg and _mcfg[0].get("monster") and isinstance(_mcfg[0]["monster"], (list, tuple)) and len(_mcfg[0]["monster"]) >= 6:
+                    _tpl = _mcfg[0]["monster"]
+                    _tpl_name = _mcfg[0].get("name", _mcfg[0]["monster"][1] if len(_mcfg[0]["monster"]) > 1 else "爪牙")
+            except Exception:
+                pass
         for i in range(n):
-            m = {
-                "uid": f"e_min_{base_uid + i}",
-                "side": "enemy",
-                "rank": 1,
-                "reach": 1,
-                "name": f"{e.get('name', '首领')}的爪牙",
-                "hp": int(e.get("max_hp", 1) * 0.20),
-                "max_hp": int(e.get("max_hp", 1) * 0.20),
-                "atk": int(e.get("atk", 0) * 0.40),
-                "matk": int(e.get("matk", 0) * 0.40),
-                "def": int(e.get("def", 0) * 0.40),
-                "mdef": int(e.get("mdef", 0) * 0.40),
-                "spd": int(e.get("spd", 0) or 1),
-                # v121 审计修复：援军必须带 ct（-spd 与其余构造路径一致），
-                # 否则缺省按 0.0 兜底会在战斗中期近乎立即行动并连动，破坏 CTB 节奏
-                "ct": -float(int(e.get("spd", 0) or 1)),
-                "crit": e.get("crit", 0.05),
-                "buffs": {},
-                "stacks": {},
-                "defending": False,
-                "charging": None,
-                "is_minion": True,
-            }
+            m = None  # v163 修复：非模板路径下 m 未定义 → UnboundLocalError（test_v83_boss_mech 抓包）
+            if _tpl is not None:
+                try:
+                    m = C.build_monster(_tpl, {"id": _inst_id or "x", "name": _inst_id or "x",
+                                               "area": "instance"})
+                except Exception:
+                    m = None
+                if m:
+                    m = dict(m)
+                    m["uid"] = f"e_min_{base_uid + i}"
+                    m["side"] = "enemy"
+                    m["name"] = f"{_boss_name}的{_tpl_name}"
+                    m["rank"] = 1
+                    m["reach"] = 1
+                    m["is_minion"] = True
+                    m["mech"] = ""
+                    m["mod"] = ""
+                    m["ct"] = -float(m.get("spd", 1) or 1)
+                else:
+                    m = None
+            if m is None:
+                # 兜底：Boss×0.2（旧值，仅非模板/老数据路径）
+                m = {
+                    "uid": f"e_min_{base_uid + i}",
+                    "side": "enemy",
+                    "rank": 1,
+                    "reach": 1,
+                    "name": f"{_boss_name}的爪牙",
+                    "hp": int(e.get("max_hp", 1) * 0.20),
+                    "max_hp": int(e.get("max_hp", 1) * 0.20),
+                    "atk": int(e.get("atk", 0) * 0.40),
+                    "matk": int(e.get("matk", 0) * 0.40),
+                    "def": int(e.get("def", 0) * 0.40),
+                    "mdef": int(e.get("mdef", 0) * 0.40),
+                    "spd": int(e.get("spd", 0) or 1),
+                    "ct": -float(int(e.get("spd", 0) or 1)),
+                    "crit": e.get("crit", 0.05),
+                    "buffs": {},
+                    "stacks": {},
+                    "defending": False,
+                    "charging": None,
+                    "is_minion": True,
+                }
             self.enemies.append(m)
             self.e_minions.append(m)
             created.append(m)
