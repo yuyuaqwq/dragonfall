@@ -1743,13 +1743,13 @@ class WorldCmds(CommandBase):
             db.update_player(group_id, m, cur_subarea=target_sa["id"])
         db.save_battle(group_id, st["leader"], st)
         arrive_view = self._subarea_arrive(self._player(group_id, qq_id), cur_map, target_sa, group_id, qq_id)
-        # v137 dungeon 修饰符：discovery_agro 遇怪判定（消耗 monsters_left，打完不刷）
-        # v141 审计：遇怪概率统一走 core/encounter.encounter_chance（数据表驱动）
-        from ..core.encounter import encounter_chance as _enc_chance
-        _agro = _enc_chance(cur_map)
+        # v137 dungeon 修饰符：房间移动遇怪（消耗 monsters_left，打完不刷）
+        # v164（鱼鱼拍板 2026-09-02）：移动遇怪改【必中】——房间怪物池非空就触发。
+        # 原 discovery_agro 0.85 概率导致"走过房间没被拦"的观感（15% 落空），
+        # 移动是副本推进主线，遇怪应确定；『探索』仍保持 discovery_agro 概率（主动探索可放空）。
         _left = rstate.get("monsters_left")
         _hit = False
-        if isinstance(_left, list) and len(_left) > 0 and random.random() < _agro:
+        if isinstance(_left, list) and len(_left) > 0:
             _hit = True
         if _hit:
             # 遇怪 → 弹出 1 只 → 构建敌方阵列 → 进战斗（现状 _enter_stage_combat 链路）
@@ -1761,14 +1761,12 @@ class WorldCmds(CommandBase):
             self._enter_stage_combat(group_id, st, _def, target_sa)
             db.save_battle(group_id, st["leader"], st)
             _mon = st.get("boss") or {}
-            _role = "👑 BOSS" if _def[2] == "boss" else ("⭐ 精英" if _def[2] == "elite" else "🐾")
             yield event.plain_result(
                 f"{arrive_view}\n"
                 f"━━━━━━━━━━━━\n"
                 f"🍃 刚踏进【{target_sa['name']}】，{_mon.get('name', '怪物')} 就扑了上来！\n"
                 f"━━━━━━━━━━━━\n"
-                f"{_role}【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} ❤️ {_mon.get('hp', 0):,}\n"
-                f"━━━━━━━━━━━━\n"
+                f"{self._instance_battle_footer(st, group_id)}\n"
                 f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
             )
             return
@@ -1788,8 +1786,7 @@ class WorldCmds(CommandBase):
                     f"━━━━━━━━━━━━\n"
                     f"👑 踏入【{target_sa['name']}】，Boss【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} 拦在面前！\n"
                     f"━━━━━━━━━━━━\n"
-                    f"👑【{_mon.get('name', '')}】❤️ {_mon.get('hp', 0):,}\n"
-                    f"━━━━━━━━━━━━\n"
+                    f"{self._instance_battle_footer(st, group_id)}\n"
                     f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
                 )
                 return

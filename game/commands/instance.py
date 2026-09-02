@@ -229,7 +229,7 @@ class InstanceCmds(CommandBase):
         yield event.plain_result(
             f"⚔️ {snap['name']} 加入了战斗！\n"
             f"━━━━━━━━━━━━\n"
-            f"{self._instance_ct_queue(st, group_id)}\n"
+            f"{self._instance_battle_footer(st, group_id)}\n"
             f"👥 当前参战：{'、'.join(str(st.get('players', {}).get(m2, {}).get('name', m2)) for m2 in st.get('members', []))}"
         )
 
@@ -461,16 +461,12 @@ class InstanceCmds(CommandBase):
                 f"{map_view}"
             )
             return
-        role = "👑 BOSS" if next_stage.get("boss") else ("⭐ 精英" if next_stage.get("elite") and not s_mons else "🐾")
-        # R3 P2-7：非 map 分支空层防御（stage_cleared 仅 map 模式置位，当前不可达；
-        # 防未来改动后 st['boss'] 为 None 时裸崩 TypeError）
-        _b = st.get("boss") or {}
         yield event.plain_result(
             f"🧭 你继续深入……\n"
             f"━━━━━━━━━━━━\n"
             f"🚪 第 {st['stage_idx'] + 1} 层 · {next_stage['name']}\n"
-            f"{role}【{_b.get('name', '未知敌人')}】Lv.{_b.get('lv', '?')} ❤️ {_b.get('hp', 0):,}\n"
             f"━━━━━━━━━━━━\n"
+            f"{self._instance_battle_footer(st, group_id)}\n"
             f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
         )
 
@@ -770,13 +766,10 @@ class InstanceCmds(CommandBase):
                         return
                     self._enter_stage_combat(group_id, st, _def, cur_sa or cur_map)
                     self._instance_save(group_id, st)
-                    _mon = st.get("boss") or {}
-                    _role = "👑 BOSS" if _def[2] == "boss" else ("⭐ 精英" if _def[2] == "elite" else "🐾")
                     yield event.plain_result(
                         f"🍃 你警惕地探索着，突然——{cur_sa.get('name', '') if cur_sa else cur_map.get('name', '')}里的怪物扑了上来！\n"
                         f"━━━━━━━━━━━━\n"
-                        f"{_role}【{_mon.get('name', '')}】Lv.{_mon.get('lv', '?')} ❤️ {_mon.get('hp', 0):,}\n"
-                        f"━━━━━━━━━━━━\n"
+                        f"{self._instance_battle_footer(st, group_id)}\n"
                         f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
                     )
                     return
@@ -795,21 +788,14 @@ class InstanceCmds(CommandBase):
             nxt = pending.pop(0)
             self._enter_stage_combat(group_id, st, nxt, stage)
             self._instance_save(group_id, st)
-            if nxt[2] == "boss":
-                role = "👑 BOSS"
-            elif nxt[2] == "elite":
-                role = "⭐ 精英"
-            else:
-                role = "🐾"
             # v126 副本剧情化：Boss 战前台词（仅 role=boss 且 inst 有 boss_line 字段才渲染）
             _inst2 = C.INSTANCES.get(st.get("inst_id") or "", {})
             boss_line_note = f"💬 {_inst2['boss_line']}\n" if nxt[2] == "boss" and _inst2.get("boss_line") else ""
             yield event.plain_result(
                 f"🍃 你警惕地探索着，突然——{stage.get('name', '')}里的怪物扑了上来！\n"
                 f"━━━━━━━━━━━━\n"
-                f"{role}【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
                 f"{boss_line_note}"
-                f"━━━━━━━━━━━━\n"
+                f"{self._instance_battle_footer(st, group_id)}\n"
                 f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
             )
             return
@@ -1254,47 +1240,22 @@ class InstanceCmds(CommandBase):
             return self._instance_map_view(st, group_id)
         inst = C.INSTANCES.get(st["inst_id"], {})
         self._instance_ensure_player_fields(st)
-        boss = st.get("boss") or (st["enemies"][0] if st.get("enemies") else {})
-        pct = max(0, int((boss or {}).get("hp", 0) / max(1, (boss or {}).get("max_hp", 1)) * 100))
         stages = st.get("inst_stages") or []
         stage_line = ""
         if stages:
             sidx = st.get("stage_idx", 0)
             sname = stages[sidx]["name"] if sidx < len(stages) else ""
             stage_line = f" 🚪 第 {sidx + 1} 层 · {sname}"
+        # v164：战斗查看面板 = 完整 footer（站位/时刻/敌方血/全队血蓝/资源/状态），
+        # 与每刻行动后弹的面板同款（对齐野外 _battle_footer 信息量），只补标题头。
         lines = [
             f"{inst.get('icon', '🏰')} 【{inst.get('name', st['inst_id'])}】 第 {st.get('round', 1)} 轮{stage_line}",
             "━━━━━━━━━━━━",
-            f"👹【{(boss or {}).get('name', '怪物')}】❤️ {max(0, (boss or {}).get('hp', 0)):,} / {(boss or {}).get('max_hp', 0):,}({pct}%)",
         ]
-        # v2 站位图（§4）：敌方阵列 + 我方存活玩家阵列，蓄力单位带标记
-        from ..core import formation as FM
-        enemy_view = FM.formation_view(st.get("enemies") or [], side="enemy")
-        player_units = [snap for key, snap in (st.get("players") or {}).items()
-                        if st.get("alive", {}).get(str(key), True)]
-        ally_view = FM.formation_view(player_units, side="ally")
-        if enemy_view:
-            lines.append("── 敌方 ──")
-            lines.extend(f"  {l}" for l in enemy_view)
-        if ally_view:
-            lines.append("── 我方 ──")
-            lines.extend(f"  {l}" for l in ally_view)
-        # v104 M04 P2：状态视图按当前队伍过滤——退队者不显示血量行，
-        # 且退队者不再是"轮到 TA 行动"（原地等 TA 行动会让全队干等）
+        lines.append(self._instance_battle_footer(st, group_id))
+        # 行动提示（footer 不含轮到谁——由调用侧拼接；此处取当前轮转玩家）
         _cur = self._instance_current_members(group_id, st)
-        shown = [m for m in st["members"] if str(m) in _cur] or st["members"]
-        for m in shown:
-            p = self._player(group_id, m)
-            pname = p["name"] if p else m
-            snap = st["players"].get(str(m), {})
-            alive = st["alive"].get(str(m), True)
-            mark = "✅" if alive else "💀"
-            cls_label = self._class_role_label(snap.get("class_name", ""))
-            lines.append(
-                f"{mark} {pname}({cls_label})：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} "
-                f"💙 {snap.get('mp', 0)}/{snap.get('max_mp', 1)}"
-            )
-        turn_idx = st["turn"]
+        turn_idx = st.get("turn", 0)
         if _cur:
             for _ in range(len(st["members"])):
                 if str(st["members"][turn_idx]) in _cur:
@@ -1305,6 +1266,142 @@ class InstanceCmds(CommandBase):
         lines.append("━━━━━━━━━━━━")
         lines.append(f"⏳ 轮到 {cur_p['name'] if cur_p else cur_key} 行动！『攻击』『技能 <名称>』『防御』")
         return "\n".join(lines)
+
+    def _instance_battle_footer(self, st: dict, group_id) -> str:
+        """v164 副本战斗面板（对齐野外 _battle_footer 信息量）。
+
+        副本每刻行动后的完整战况：双方站位图 + 时刻/行动队列 + 敌方血量 +
+        全队成员血蓝 + 每人资源条 + buff/减伤/护盾状态 + 选敌引导。
+        数据全部从 st（players/enemies/p_buffs/e_buffs/resources/...）取，
+        与野外面板共用 _P_BUFF_NAMES/_E_BUFF_NAMES/_STACK_NAMES 显示名表
+        （Main mixin 同时含 CombatCmds/InstanceCmds，getattr 兜底测试直用）。
+
+        单人副本也走同一面板（我方一行 = 自己），保证观感与野外一致。
+        """
+        from ..core import formation as FM
+        from ..core.formation import alive_units, front_rank
+        # 显示名表（CombatCmds mixin 提供；独立测试 InstanceCmds 时兜底空表）
+        pbuf_names = getattr(self, "_P_BUFF_NAMES", {}) or {}
+        ebuf_names = getattr(self, "_E_BUFF_NAMES", {}) or {}
+        stack_names = getattr(self, "_STACK_NAMES", {}) or {}
+        debuff_names = getattr(self, "_DEBUFF_NAMES", {}) or {}
+        enemy_mech_stacks = getattr(self, "_ENEMY_MECH_STACKS", ()) or ()
+
+        lines = []
+        # ① 站位图：敌方阵列 + 我方存活玩家阵列（蓄力带标记，formation_view 处理）
+        enemies = st.get("enemies") or []
+        alive_enemies = alive_units(enemies)
+        enemy_view = FM.formation_view(alive_enemies, side="enemy") if alive_enemies else []
+        self._instance_ensure_player_fields(st)
+        player_units = [snap for key, snap in (st.get("players") or {}).items()
+                        if st.get("alive", {}).get(str(key), True)]
+        ally_view = FM.formation_view(player_units, side="ally") if player_units else []
+        lines.append("── 敌方 ──" if enemy_view else "")
+        if enemy_view:
+            lines.extend(f"  {l}" for l in enemy_view)
+        lines.append("── 我方 ──")
+        lines.extend(f"  {l}" for l in ally_view)
+
+        # ② 时刻 / 行动顺序（CTB）
+        _ctq = self._instance_ct_queue(st, group_id)
+        if _ctq:
+            lines.append(_ctq)
+
+        # ③ 敌方血量汇总：多怪逐只一行 + 主目标；单怪一行
+        if len(alive_enemies) <= 1:
+            _be = alive_enemies[0] if alive_enemies else (st.get("boss") or {})
+            lines.append(f"🐾【{_be.get('name', '敌人')}】❤️ {max(0, _be.get('hp', 0))}/{_be.get('max_hp', 0)}")
+        else:
+            front = front_rank(alive_enemies)
+            rows = [f"👹 敌方 {len(alive_enemies)} 只(剩 {sum(1 for u in alive_enemies if u.get('rank', 1) == front)} 只前排)"]
+            for u in alive_enemies:
+                rows.append(f"　· {u.get('icon', '') or ''}{u.get('name', '')} ❤️{max(0, u.get('hp', 0))}".strip())
+            lines.append("\n".join(rows))
+
+        # ④ 全队成员血蓝 + 每人资源条 + buff/减伤/护盾状态
+        _cur = self._instance_current_members(group_id, st)
+        shown = [m for m in st["members"] if str(m) in _cur] or st["members"]
+        for m in shown:
+            k = str(m)
+            snap = st["players"].get(k, {})
+            pname = snap.get("name") or (self._player(group_id, k) or {}).get("name", k)
+            alive = st["alive"].get(k, True)
+            mark = "✅" if alive else "💀"
+            line = f"{mark} {pname}：❤️ {snap.get('hp', 0)}/{snap.get('max_hp', 1)} 💙 {snap.get('mp', 0)}/{snap.get('max_mp', 1)}"
+            # 防御姿态标记（下一敌方行动减伤）
+            if st.get("p_defending", {}).get(k):
+                line += " 🛡️防御"
+            lines.append(line)
+            # 资源条（读 st.resources[m]，与野外 _resource_line 同口径）
+            rd = E.core_resource_def(snap.get("class_name", ""))
+            if rd:
+                res = (st.get("resources") or {}).get(k, {}) or {}
+                key = rd.get("key", "")
+                name = rd.get("name", key)
+                if rd.get("type") == "switch":
+                    cur_res = E.ELEMENT_CN.get(res.get(key, "fire"), "火")
+                    lines.append(f"　🔮 {name}：{cur_res}系")
+                else:
+                    cur_res = res.get(key, 0)
+                    cap = rd.get("max", 99)
+                    lines.append(f"　⚡ {name}：{cur_res}/{cap}")
+            # 玩家 buff（刻数>0）+ 叠层 + 护盾（读各玩家 p_buffs/mech_stacks/p_shields）
+            pbuf = []
+            pb = (st.get("p_buffs") or {}).get(k, {}) or {}
+            for bk, bv in pb.items():
+                if isinstance(bv, dict):  # 部分 buff 存 dict（阈值/值）→ 跳过
+                    continue
+                if bv and bv > 0 and bk in pbuf_names:
+                    if bk in ("reduce_all",):  # reduce_all 存减伤百分比，特殊
+                        continue
+                    pbuf.append(f"{pbuf_names[bk]}(剩{bv}刻)")
+            # 减伤（reduce_all 百分比 + reduce_all_left 刻数，副本 st 层级）
+            _ral = int(st.get("reduce_all_left", 0) or 0)
+            if _ral > 0 and pb.get("reduce_all"):
+                pbuf.append(f"🛡️减伤{int(float(pb.get('reduce_all')) * 100)}%({_ral}刻)")
+            stacks = (st.get("mech_stacks") or {}).get(k, {}) or {}
+            for sk, sv in stacks.items():
+                if sv and sv > 0 and sk in stack_names and sk not in enemy_mech_stacks:
+                    pbuf.append(f"{stack_names[sk]}×{sv}")
+            shields = (snap.get("p_shields") or {})
+            for sname, s in shields.items():
+                if (s or {}).get("value", 0) > 0:
+                    turns = s.get("turns", 0)
+                    pbuf.append(f"✨护盾{s['value']}" + (f"({turns}刻)" if turns < 999 else ""))
+            if pbuf:
+                lines.append(f"　🛡️「{' '.join(pbuf)}」")
+        # 敌方 buff / 减益
+        ebuf = []
+        for bk, bv in (st.get("e_buffs") or {}).items():
+            if isinstance(bv, dict):
+                continue
+            if bv and bv > 0 and bk in ebuf_names:
+                if bk == "shield":
+                    ebuf.append(f"{ebuf_names[bk]}{bv}")
+                elif bk in ("fire_mark", "ice_mark", "thunder_mark"):
+                    ebuf.append(f"{ebuf_names[bk]}×{bv}")
+                else:
+                    ebuf.append(f"{ebuf_names[bk]}(剩{bv}刻)")
+        # 敌方单位级 buffs/stacks/debuffs（多对多阵列）
+        for u in alive_enemies:
+            for bk, bv in (u.get("buffs") or {}).items():
+                # 单位 buff 可能是 dict（盾/bar 状态等）→ 跳过非刻数键
+                if isinstance(bv, dict):
+                    continue
+                if bv and bv > 0 and bk in ebuf_names:
+                    ebuf.append(f"{u.get('name', '敌')} {ebuf_names[bk]}(剩{bv}刻)")
+            for dk, d in (u.get("debuffs") or {}).items():
+                if dk in debuff_names:
+                    _n = int((d or {}).get("n", 0) or 0)
+                    if _n > 0:
+                        ebuf.append(f"{u.get('name', '敌')} {debuff_names[dk]}×{_n}")
+        if ebuf:
+            lines.append(f"👹敌：「{' '.join(ebuf)}」")
+
+        # ⑤ 分隔 + 提示
+        lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
+        return "\n".join(lines)
+
 
     # ---------------- 副本地图化 helpers（v87.2，29 章十三节） ----------------
     def _stage_poi_state(self, st: dict, stage_idx: int) -> dict:
@@ -2094,11 +2191,10 @@ class InstanceCmds(CommandBase):
             f"{key_free_note}"
             f"━━━━━━━━━━━━\n"
             f"{stage_line}"
-            f"👹【{boss['name']}】Lv.{boss['lv']} ❤️ {boss['max_hp']:,}\n"
             f"📜 {inst['desc']}\n"
             f"━━━━━━━━━━━━\n"
             f"{size_tip}"
-            f"{self._instance_ct_queue(st, group_id)}\n"
+            f"{self._instance_battle_footer(st, group_id)}\n"
             f"⏳ 轮到 {first_actor_name} 行动！『攻击』『技能 <名称>』『防御』\n"
             f"💡 按 CTB 行动轴轮流出手，超时 60 秒自动防御；清光当前层怪物可『深入』下一层！"
             f"{intro_note}"
@@ -2579,10 +2675,8 @@ class InstanceCmds(CommandBase):
                     (("\n" + "\n".join(kill_lines)) if kill_lines else "") +
                     f"\n━━━━━━━━━━━━\n"
                     f"⚔️ 又一只怪物挡在面前！\n"
-                    f"👹【{st['boss']['name']}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
-                    f"━━━━━━━━━━━━\n"
-                    f"{self._instance_ct_queue(st, group_id)}\n"
-                    f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』"
+                    f"{self._instance_battle_footer(st, group_id)}\n"
+                    f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
                 )
                 return
             if stages:
@@ -2683,14 +2777,11 @@ class InstanceCmds(CommandBase):
         self._instance_save(group_id, st)
         nxt_key = str(members[st["turn"]])
         nxt_p = self._player(group_id, nxt_key)
-        boss = st["boss"] or (st["enemies"][0] if st.get("enemies") else {})
-        pct = max(0, int(boss.get("hp", 0) / max(1, boss.get("max_hp", 1)) * 100))
         yield event.plain_result(
             "\n".join(logs) +
-            f"\n━━━━━━━━━━━━\n"
-            f"{self._instance_ct_queue(st, group_id)}\n"
-            f"👹【{boss.get('name', '怪物')}】❤️ {max(0, boss.get('hp', 0)):,} / {boss.get('max_hp', 0):,}({pct}%)\n"
-            f"⏳ 轮到 {nxt_p['name'] if nxt_p else nxt_key} 行动！"
+            "\n━━━━━━━━━━━━\n"
+            f"{self._instance_battle_footer(st, group_id)}\n"
+            f"⏳ 轮到 {nxt_p['name'] if nxt_p else nxt_key} 行动！『攻击』『技能 <名称>』『防御』"
         )
 
     def _apply_team_effect(self, st: dict, source_key: str, te: dict) -> list:
@@ -3390,13 +3481,11 @@ class InstanceCmds(CommandBase):
         # 守卫精英化：补 is_elite 标记（掉落/播报走精英逻辑）
         st["boss"]["is_elite"] = True
         self._instance_save(group_id, st)
-        gname = st["boss"]["name"]
         return (
             "🧱 你扣住松动的墙砖用力一拉——暗门轰然打开！\n"
             "一个魁梧的身影挡在密室前……\n"
             "━━━━━━━━━━━━\n"
-            f"⭐ 精英守卫【{gname}】Lv.{st['boss']['lv']} ❤️ {st['boss']['hp']:,}\n"
-            "━━━━━━━━━━━━\n"
+            f"{self._instance_battle_footer(st, group_id)}\n"
             f"⏳ 轮到 {self._instance_next_player_name(st, group_id)} 行动！『攻击』『技能 <名称>』『防御』"
         )
 

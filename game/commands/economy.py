@@ -2418,7 +2418,19 @@ class EconomyCmds(CommandBase):
         unlocked += [rk for rk, rec in C.COOKING_RECIPES.items() if rec.get("blueprint") == bp_disp]
         unlocked += [rk for rk, rec in C.ALCHEMY_RECIPES.items() if rec.get("blueprint") == bp_disp]
         if not unlocked:
-            yield event.plain_result(f"『{bp_disp}』没有对应的锻造/烹饪/炼金配方(旧版本残留图纸)，图纸未消耗，可自行出售～")
+            # v164 图纸经济修正：蓝绿直锻装备（名册 source=锻造，配方无 blueprint）不再掉图纸，
+            # 但玩家背包可能残留旧图纸。识别"图纸名 = 直锻配方名 + 图纸"→ 给明确出路（直接锻造/出售），
+            # 而不是笼统的"旧版本残留"。
+            _eq_name = bp_disp[:-2] if bp_disp.endswith("图纸") else bp_disp
+            _direct_rec = next((r for r in C.CRAFT_RECIPES.values()
+                                if r.get("name") == _eq_name and not r.get("blueprint")), None)
+            if _direct_rec:
+                yield event.plain_result(
+                    f"💡 『{bp_disp}』对应装备【{_eq_name}】可以直接在铁匠铺『锻造 {_eq_name}』制作，不需要学习图纸！\n"
+                    f"这张图纸已不再掉落（旧版本遗留），可『出售 {bp_disp}』换成金币～"
+                )
+            else:
+                yield event.plain_result(f"『{bp_disp}』没有对应的锻造/烹饪/炼金配方(旧版本残留图纸)，图纸未消耗，可自行出售～")
             return
         # 消耗图纸 + 记录
         db.remove_item(group_id, qq_id, target["key"], 1)
