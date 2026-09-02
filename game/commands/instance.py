@@ -3730,23 +3730,45 @@ class InstanceCmds(CommandBase):
                     else:
                         db.add_item(group_id, m, f"bp_{uuid.uuid4().hex[:8]}", bp2)
                         lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}")
-            # v140 Boss 专属装备掉落：每名存活成员独立判定（数据 C.INSTANCE_BOSS_EQUIP_DROP，
-            # 主 agent 已并入 data/instances.py 并聚合导出；用 getattr 容错——并行子 agent
-            # 合入前常量可能暂缺，缺失时优雅跳过不报错）。命中即名册精确生成入包，
-            # 展示 👑 拾取文案（掉落只吃 1 次 random.random()，不影响副本其余随机序列）。
+            # v168 Boss 装备掉落池化（鱼鱼 2026-09-03 拍板：主题装常见/专属稀有）：
+            # 两档独立判定（各只吃 1 次 random.random()，不影响副本其余随机序列）——
+            # ① 主题装档：pool 非空且 random.random() < pool_rate → 从 pool 随机取 1 件
+            #   名册装备入包（⚔️ 拾取 Boss 珍藏，高概率常见）；
+            # ② 主专属档：random.random() < boss_rate → Boss 身份专属装备入包
+            #   （👑 从Boss身上拾取稀有专属，低概率稀有）。一杀可能双出（惊喜）或双不出。
+            # 数据 C.INSTANCE_BOSS_EQUIP_DROP 正由并行子 agent 改造成 {inst_id: {boss_equip,
+            # boss_rate, pool, pool_rate}}（键名可能带/不带 boss_ 前缀、可能保留 equip/rate
+            # 兼容键）——读 key 一律 .get 多键兜底 + getattr 容错，缺失/生成失败优雅跳过。
             try:
-                _boss_cfg = (getattr(C, "INSTANCE_BOSS_EQUIP_DROP", None) or {}).get(st.get("inst_id"))
+                _boss_cfg = (getattr(C, "INSTANCE_BOSS_EQUIP_DROP", None) or {}).get(st.get("inst_id")) or {}
             except Exception:
-                _boss_cfg = None
-            if _boss_cfg and random.random() < float(_boss_cfg.get("rate", 0) or 0):
-                try:
-                    _boss_eq = C.generate_roster_equip(_boss_cfg["equip"])
-                except Exception:
-                    _boss_eq = None
-                if _boss_eq:
-                    _be_key = f"eq_{uuid.uuid4().hex[:8]}"
-                    db.add_item(group_id, m, _be_key, _boss_eq)
-                    lines.append(f"  👑 {p['name']} 从Boss身上拾取：【{_boss_eq['name']}】！")
+                _boss_cfg = {}
+            if _boss_cfg:
+                # ① 主题装档（常见）：仅当 pool 非空才吃 1 次 random（新手本无 pool → 跳过）
+                _pool_ids = _boss_cfg.get("pool") or []
+                _pool_rate = float(_boss_cfg.get("pool_rate") or 0)
+                if _pool_ids and _pool_rate > 0 and random.random() < _pool_rate:
+                    try:
+                        _tp_eq = C.generate_roster_equip(random.choice(_pool_ids))
+                    except Exception:
+                        _tp_eq = None
+                    if _tp_eq:
+                        db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _tp_eq)
+                        lines.append(f"  ⚔️ {p['name']} 拾取 Boss 珍藏：【{_tp_eq['name']}】！")
+                # ② 主专属档（稀有）：boss_equip/equip 兼容读取，独立吃 1 次 random
+                _be_rid = _boss_cfg.get("boss_equip") or _boss_cfg.get("equip")
+                _be_rate = _boss_cfg.get("boss_rate")
+                if _be_rate is None:
+                    _be_rate = _boss_cfg.get("rate")  # v140 旧键兼容
+                _be_rate = float(_be_rate or 0)
+                if _be_rid and _be_rate > 0 and random.random() < _be_rate:
+                    try:
+                        _be_eq = C.generate_roster_equip(_be_rid)
+                    except Exception:
+                        _be_eq = None
+                    if _be_eq:
+                        db.add_item(group_id, m, f"eq_{uuid.uuid4().hex[:8]}", _be_eq)
+                        lines.append(f"  👑 {p['name']} 从Boss身上拾取稀有专属：【{_be_eq['name']}】！")
             # 专属材料
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):

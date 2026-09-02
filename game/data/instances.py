@@ -1934,36 +1934,38 @@ INSTANCES = {
     },
 }
 
-# ================= v140 波1：副本 Boss 专属装备掉落表（22 条） =================
-# 来源：原 game/data/drop_add_v140.py 之 BOSS_EQUIP_DROP（2026-08-30 孤儿文件表并入本文件；
-# 本表纯数据、无逻辑，供 v140 掉落逻辑 drops.py/instance.py 消费；孤儿文件由主 agent 收尾删除）
-# 结构：{副本id: {"equip": 装备id, "rate": 掉率, "pity": 保底击杀数}}
-# 装备名 = Boss 身份物（与材料同名但 type=装备）；eq_* 拼音 id（西幻命名）。
+# ================= v168 副本 Boss 装备掉落池表（22 条，由 v140 单件表升级） =================
+# 2026-09-03 掉落池化（鱼鱼拍板：主题装出现频率 > 主专属，专属保持稀有惊喜感）。
+# 来源：v140 波1 原 game/data/drop_add_v140.py 之 BOSS_EQUIP_DROP（2026-08-30 孤儿文件表并入本文件；
+# 本表纯数据、无逻辑，供掉落逻辑 drops.py/instance.py 消费）。
+# 结构：{副本id: {
+#   "boss_equip": 主专属装备 rid（Boss 身份物，稀有，首杀向惊喜），
+#   "boss_rate":  主专属掉率（0.05-0.12，保留 v140 原 rate 值），
+#   "pool":       [主题装 rid...]（同等级段主题装池，常见），
+#   "pool_rate":  主题装池整体出装率（0.35，命中后从 pool 内等权随机 1 件），
+#   "pity":       v140 保底击杀数（保留字段；仍指主专属保底，向前兼容）}}
+# 注：eq_* 拼音 id（西幻命名）；旧单件键 equip/rate 已并入 boss_equip/boss_rate（读取方以新键为准）。
 INSTANCE_BOSS_EQUIP_DROP = {
-    # ---- 主线 8 ----
-    "inst_goblin_camp":     {"equip": "eq_gu_lu_de_huang_guan",   "rate": 0.05, "pity": 20},  # 哥布林酋长·咕噜 → 咕噜的皇冠（头盔·橙·20）
-    "inst_sea_cave":        {"equip": "eq_jin_gou_wan_dao",       "rate": 0.08, "pity": 15},  # 海盗王·独眼杰克 → 金钩弯刀（剑·橙·26）
-    "inst_old_king_tomb":   {"equip": "eq_gu_wang_jian",          "rate": 0.08, "pity": 15},  # 古王·奥德里克 → 古王剑（剑·橙·42）
-    "inst_secret_crypt":    {"equip": "eq_ma_er_ku_si_de_fa_guan","rate": 0.10, "pity": 12},  # 审判长·马尔库斯 → 马尔库斯的法冠（头盔·橙·52）
-    "inst_elven_ruins":     {"equip": "eq_chen_xi_zhi_guan",      "rate": 0.10, "pity": 12},  # 远古精灵王·晨曦 → 晨曦之冠（头盔·橙·62）
-    "inst_ash_temple":      {"equip": "eq_he_er_jia_de_ji_qi",    "rate": 0.10, "pity": 12},  # 恶魔祭司·赫尔加 → 赫尔加的祭器（项链·橙·88）
-    "inst_abyss_gate":      {"equip": "eq_shi_ye_zhi_mian",       "rate": 0.10, "pity": 12},  # 蚀夜(真相形态) → 蚀夜之面（头盔·橙·98）
-    "inst_dragon_tomb":     {"equip": "eq_long_yu_sheng_jian",    "rate": 0.10, "pity": 12},  # 古龙·奥姆之影 → 龙语圣剑（剑·橙·92）
-    # ---- 区域支线 5 ----
-    "inst_deer_fort":       {"equip": "eq_yao_sai_you_ling_zhi_kui", "rate": 0.08, "pity": 15},  # 要塞幽灵 → 要塞幽灵之盔（头盔·紫）
-    "inst_holy_trial":      {"equip": "eq_shi_lian_hui_zhang",    "rate": 0.08, "pity": 15},  # 试炼骑士长 → 试炼徽章（项链·紫）
-    "inst_moon_temple":     {"equip": "eq_yue_hui_zhi_jie",       "rate": 0.08, "pity": 15},  # 月神守卫 → 月辉之戒（戒指·紫）
-    "inst_frost_throne":    {"equip": "eq_yong_dong_zhi_xin",     "rate": 0.10, "pity": 12},  # 冰霜领主 → 永冻之心（项链·橙）
-    "inst_storm_throne":    {"equip": "eq_feng_bao_zhi_guan",     "rate": 0.10, "pity": 12},  # 雷霆君主 → 风暴之冠（头盔·橙）
-    # ---- 外域 6 ----
-    "inst_sunken_ship":     {"equip": "eq_ke_luo_de_luo_pan",     "rate": 0.10, "pity": 12},  # 幽灵船长·克罗 → 克罗的罗盘（饰品·橙）
-    "inst_siren_nest":      {"equip": "eq_lan_ge_zhi_guan",       "rate": 0.10, "pity": 12},  # 海妖女王·蓝歌 → 蓝歌之冠（头盔·橙）
-    "inst_sea_god_temple":  {"equip": "eq_lang_ge_zhi_lei",       "rate": 0.10, "pity": 12},  # 海神祭司·澜歌 → 澜歌之泪（项链·橙·68）
-    "inst_deep_dragon_palace": {"equip": "eq_ao_lan_zhi_zhu",     "rate": 0.10, "pity": 12},  # 深海龙王·敖澜 → 敖澜之珠（戒指·橙·72）
-    "inst_gray_dwarf":      {"equip": "eq_shi_lu_zhan_chui",      "rate": 0.10, "pity": 12},  # 灰矮人领主·石炉 → 石炉战锤（战锤·橙）
-    "inst_under_dragon":    {"equip": "eq_hei_yuan_zhi_yan",      "rate": 0.10, "pity": 12},  # 地底古龙·黑渊 → 黑渊之眼（项链·橙）
-    # ---- 扩展 3 ----
-    "inst_eye_of_storm":    {"equip": "eq_yun_nu_zhi_he",         "rate": 0.12, "pity": 12},  # 风暴之主·云怒 → 云怒之核（戒指·橙）
-    "inst_abyss_throne":    {"equip": "eq_mo_luo_zhi_guan",       "rate": 0.10, "pity": 12},  # 深渊领主·摩罗 → 摩罗之冠（头盔·橙·85）
-    "inst_cloud_sanctum":   {"equip": "eq_ao_la_sheng_yin",       "rate": 0.12, "pity": 12},  # 云中圣者·奥拉 → 奥拉圣印（项链·橙·95）
+    "inst_goblin_camp":     {"boss_equip": "eq_gu_lu_de_huang_guan", "boss_rate": 0.05, "pool": ["eq_gu_lu_jin_jie", "eq_gu_lu_jun_dao", "eq_gu_lu_zhan_hui"], "pool_rate": 0.35, "pity": 20},
+    "inst_sea_cave":        {"boss_equip": "eq_jin_gou_wan_dao", "boss_rate": 0.08, "pool": ["eq_jin_bi_dai", "eq_xiu_mao_hu_shou"], "pool_rate": 0.35, "pity": 15},
+    "inst_old_king_tomb":   {"boss_equip": "eq_gu_wang_jian", "boss_rate": 0.08, "pool": ["eq_wang_du_shi_yue_zhi_jian", "eq_jing_ji_zhan_jia"], "pool_rate": 0.35, "pity": 15},
+    "inst_secret_crypt":    {"boss_equip": "eq_ma_er_ku_si_de_fa_guan", "boss_rate": 0.1, "pool": ["eq_shi_xiang_gui_jing_jia", "eq_wang_zhe_zhan_xue", "eq_shi_xiang_gui_zhi_xin"], "pool_rate": 0.35, "pity": 12},
+    "inst_elven_ruins":     {"boss_equip": "eq_chen_xi_zhi_guan", "boss_rate": 0.1, "pool": ["eq_chen_xi_sheng_jian", "eq_shu_guang_bi_lei"], "pool_rate": 0.35, "pity": 12},
+    "inst_ash_temple":      {"boss_equip": "eq_he_er_jia_de_ji_qi", "boss_rate": 0.1, "pool": ["eq_hui_jin_chang_jian", "eq_hui_jin_kai_jia", "eq_hui_jin_zhi_kui", "eq_hui_jin_zhi_dun", "eq_hui_jin_hu_tui", "eq_hui_jin_zhan_xue"], "pool_rate": 0.35, "pity": 12},
+    "inst_abyss_gate":      {"boss_equip": "eq_shi_ye_zhi_mian", "boss_rate": 0.1, "pool": ["eq_si_wang_zhi_wu", "eq_mu_guang_zhi_ci"], "pool_rate": 0.35, "pity": 12},
+    "inst_dragon_tomb":     {"boss_equip": "eq_long_yu_sheng_jian", "boss_rate": 0.1, "pool": ["eq_long_ji_lin_jia", "eq_cang_qiong_zhi_guan"], "pool_rate": 0.35, "pity": 12},
+    "inst_deer_fort":       {"boss_equip": "eq_yao_sai_you_ling_zhi_kui", "boss_rate": 0.08, "pool": ["eq_you_ling_jun_qi", "eq_qi_shi_can_jia", "eq_yao_sai_shi_zhang"], "pool_rate": 0.35, "pity": 15},
+    "inst_holy_trial":      {"boss_equip": "eq_shi_lian_hui_zhang", "boss_rate": 0.08, "pool": ["eq_shen_pan_zhi_lian"], "pool_rate": 0.35, "pity": 15},
+    "inst_moon_temple":     {"boss_equip": "eq_yue_hui_zhi_jie", "boss_rate": 0.08, "pool": ["eq_han_shuang_zhi_guan", "eq_lan_dun_zhi_jie"], "pool_rate": 0.35, "pity": 15},
+    "inst_frost_throne":    {"boss_equip": "eq_yong_dong_zhi_xin", "boss_rate": 0.1, "pool": ["eq_bing_mai_hu_tui", "eq_sheng_dian_zhan_xue", "eq_shuang_lang_zhi_wang_ya"], "pool_rate": 0.35, "pity": 12},
+    "inst_storm_throne":    {"boss_equip": "eq_feng_bao_zhi_guan", "boss_rate": 0.1, "pool": ["eq_ben_lei_da_jian"], "pool_rate": 0.35, "pity": 12},
+    "inst_sunken_ship":     {"boss_equip": "eq_ke_luo_de_luo_pan", "boss_rate": 0.1, "pool": ["eq_shi_guang_sha_lou"], "pool_rate": 0.35, "pity": 12},
+    "inst_siren_nest":      {"boss_equip": "eq_lan_ge_zhi_guan", "boss_rate": 0.1, "pool": ["eq_shu_zui_sheng_zhang", "eq_xing_yun_chang_gong"], "pool_rate": 0.35, "pity": 12},
+    "inst_sea_god_temple":  {"boss_equip": "eq_lang_ge_zhi_lei", "boss_rate": 0.1, "pool": ["eq_nu_tao_san_cha_ji"], "pool_rate": 0.35, "pity": 12},
+    "inst_deep_dragon_palace": {"boss_equip": "eq_ao_lan_zhi_zhu", "boss_rate": 0.1, "pool": ["eq_zhen_hai_zhi_dun", "eq_lie_feng_zhang_gong"], "pool_rate": 0.35, "pity": 12},
+    "inst_gray_dwarf":      {"boss_equip": "eq_shi_lu_zhan_chui", "boss_rate": 0.1, "pool": ["eq_pan_shi_wang_guan", "eq_lei_wen_quan_jia"], "pool_rate": 0.35, "pity": 12},
+    "inst_under_dragon":    {"boss_equip": "eq_hei_yuan_zhi_yan", "boss_rate": 0.1, "pool": ["eq_shen_yuan_xiong_jia", "eq_yan_mie_fa_dian_fa_zhang"], "pool_rate": 0.35, "pity": 12},
+    "inst_eye_of_storm":    {"boss_equip": "eq_yun_nu_zhi_he", "boss_rate": 0.12, "pool": ["eq_shi_zhi_ling_zhu_shi_jie", "eq_shi_zhi_ling_zhu_mi_yi"], "pool_rate": 0.35, "pity": 12},
+    "inst_abyss_throne":    {"boss_equip": "eq_mo_luo_zhi_guan", "boss_rate": 0.1, "pool": ["eq_yuan_su_shi_tu_zhi_guan", "eq_yuan_su_shi_tu_chang_pao", "eq_yuan_su_shi_tu_fa_zhang", "eq_yuan_su_shi_tu_zhui_shi"], "pool_rate": 0.35, "pity": 12},
+    "inst_cloud_sanctum":   {"boss_equip": "eq_ao_la_sheng_yin", "boss_rate": 0.12, "pool": ["eq_da_xian_zhe_mi_dian", "eq_tai_tan_hu_tui", "eq_xu_kong_xing_zhe_zhi_xue", "eq_sheng_hui_xiong_jia", "eq_bu_mie_yi_zhi", "eq_xing_hui_zhi_guan"], "pool_rate": 0.35, "pity": 12},
 }

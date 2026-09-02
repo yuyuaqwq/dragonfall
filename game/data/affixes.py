@@ -988,6 +988,10 @@ SERIES_FIXED_AFFIX = {
     "金钩弯刀": ["crit_up", "lifesteal"], "杰克的金钩": ["execute", "lifesteal"],
     # v104 修复（M06 P2-7）：咕噜的皇冠（哥布林酋长传说图纸装备）
     "咕噜的皇冠": ["tenacity"],
+    # v168 副本 Boss 掉落池新增主题装固定词条（咕噜/幽灵/海盗系）
+    "咕噜金戒": ["crit_up", "meditate"], "哥布林军刀": ["combo", "swift"], "咕噜战徽": ["hp_up", "tenacity"],
+    "幽灵军旗": ["lifesteal", "pierce"], "骑士残甲": ["dmg_reduce", "shield"], "要塞石章": ["tenacity", "dmg_reduce"],
+    "杰克的金币袋": ["dodge", "swift"], "锈锚护手": ["block", "tenacity"],
     # 圣光
     "圣光长剑": ["armor_break"], "晨曦法杖": ["meditate"],
     "王都长弓": ["pierce", "precise"], "圣殿战锤": ["charge", "execute"],

@@ -675,6 +675,23 @@ for _rid, _r in EQUIP_ROSTER.items():
     EQUIP_ROSTER_BY_NAME.setdefault(_r["name"], []).append(_rid)
 
 
+# ================= v168 新手三本 Boss 主题装新增（8件） =================
+# 2026-09-03 掉落池化补档（鱼鱼拍板：哥布林营地/鹿角要塞/海蚀洞窟 3 新手本也进主题装池；
+# 橙=主专属专属，故仅蓝/紫品质；series=咕噜/幽灵 为新主题系列（无套装定义），铁港沿用既有系列。
+# 插在 v140 大 update 之前 → 全部落入上方 desc 注入（669 行）+ 949 行 BY_NAME 重建范围。
+EQUIP_ROSTER.update({
+    # ---- 哥布林营地 inst_goblin_camp（Boss 咕噜 Lv20/副本 Lv15）→ 哥布林战利品系 ----
+    'eq_gu_lu_jin_jie': {'name': '咕噜金戒', 'slot': 'ring', 'quality': 'purple', 'lv': 16, 'series': '咕噜', 'req': {'int': 12}, 'source': 'boss', 'special': '贪婪之握：击杀敌人后攻击 +4%，可叠加 2 层', 'desc': '咕噜抢来的金戒指，戒圈被咬出一圈牙印。贪婪之握：击杀敌人后攻击 +4%，可叠加 2 层。'},
+    'eq_gu_lu_jun_dao': {'name': '哥布林军刀', 'slot': 'weapon', 'weapon_type': 'sword', 'quality': 'blue', 'lv': 15, 'series': '咕噜', 'req': {'agi': 10}, 'source': 'boss', 'special': '劫掠连击：攻击 15% 概率追加一次 40% 伤害的追击', 'desc': '哥布林打手磨快的弯刀，刀背豁口累累。劫掠连击：攻击 15% 概率追加一次 40% 伤害的追击。'},
+    'eq_gu_lu_zhan_hui': {'name': '咕噜战徽', 'slot': 'necklace', 'quality': 'blue', 'lv': 14, 'series': '咕噜', 'req': {'str': 12}, 'source': 'boss', 'special': '酋长威吓：受击时 10% 概率使攻击者攻击 -5%（2 刻）', 'desc': '咕噜别在破袍子上的酋长徽记，沾着篝火灰。酋长威吓：受击时 10% 概率使攻击者攻击 -5%（2 刻）。'},
+    # ---- 鹿角要塞 inst_deer_fort（Boss 要塞幽灵 Lv24/副本 Lv18）→ 幽灵军旗系 ----
+    'eq_you_ling_jun_qi': {'name': '幽灵军旗', 'slot': 'weapon', 'weapon_type': 'spear', 'quality': 'purple', 'lv': 20, 'series': '幽灵', 'req': {'str': 18}, 'source': 'boss', 'special': '幽旗鼓舞：战斗开始全体攻击 +3%（持续整场）', 'desc': '要塞幽灵攥着的残破军旗，旗面透着一层幽光。幽旗鼓舞：战斗开始全体攻击 +3%（持续整场）。'},
+    'eq_qi_shi_can_jia': {'name': '骑士残甲', 'slot': 'armor', 'quality': 'purple', 'lv': 18, 'series': '幽灵', 'req': {'str': 16}, 'source': 'boss', 'special': '残甲余威：受击时 12% 概率获得护盾（吸收 6% 最大生命的伤害）', 'desc': '百年前骑士团的胸甲，锈迹里嵌着箭矢。残甲余威：受击时 12% 概率获得护盾（吸收 6% 最大生命的伤害）。'},
+    'eq_yao_sai_shi_zhang': {'name': '要塞石章', 'slot': 'necklace', 'quality': 'blue', 'lv': 17, 'series': '幽灵', 'req': {'vit': 15}, 'source': 'boss', 'special': '坚壁：生命 +3%', 'desc': '要塞城门石上凿出的徽章，边缘崩裂。坚壁：生命 +3%。'},
+    # ---- 海蚀洞窟 inst_sea_cave（Boss 独眼杰克 Lv28/副本 Lv22）→ 海盗掠夺系 ----
+    'eq_jin_bi_dai': {'name': '杰克的金币袋', 'slot': 'necklace', 'quality': 'purple', 'lv': 24, 'series': '铁港', 'req': {'agi': 22}, 'source': 'boss', 'special': '贪婪嗅觉：击杀敌人后 30% 概率额外掉落少量金币', 'desc': '独眼杰克从不离身的金币袋，沉甸甸地叮当作响。贪婪嗅觉：击杀敌人后 30% 概率额外掉落少量金币。'},
+    'eq_xiu_mao_hu_shou': {'name': '锈锚护手', 'slot': 'armor', 'quality': 'blue', 'lv': 22, 'series': '铁港', 'req': {'str': 20}, 'source': 'boss', 'special': '锚壁格挡：受击时 8% 概率格挡（所受伤害 -30%）', 'desc': '从沉船锚上拆下的铁皮护手，铆钉粗糙。锚壁格挡：受击时 8% 概率格挡（所受伤害 -30%）。'},
+})
 # ================= v140 资源获取渠道丰富化新增（207件） =================
 # 来源：阶段品质补档+职业武器补位+特效装备（方案 4.7/3.3-3.5 节）
 EQUIP_ROSTER.update({
