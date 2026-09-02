@@ -3955,9 +3955,10 @@ TUTOR_SKILLS = {
     },
     "cls_fa_shi": {
         "sk_mo_li_mai_chong": {
-            "lv": 6, "mp": 10, "power": 1.7, "kind": "魔法",
+            "lv": 6, "mp": 10, "power": 1.7,
+            "exprs": ["matk*1.7 + 16 + player_lv*5.4 + skill_lv*12.8"], "kind": "魔法",
             "mech": "arcane", "cd": 2,
-            "desc": "凝集魔力脉冲轰向敌阵，奥术之力在命中的瞬间奔涌——造成 170% 魔法伤害（导师秘传，CD 2）",
+            "desc": "凝集魔力脉冲轰向敌阵，奥术之力在命中的瞬间奔涌——造成 170% 魔法攻击 + 16 固定魔法伤害（成长）（导师秘传，CD 2）",
             "name": "魔力脉冲",
         },
     },
@@ -3965,9 +3966,10 @@ TUTOR_SKILLS = {
     },
     "cls_mu_shi": {
         "sk_sheng_guang_shen_pan": {
-            "lv": 6, "mp": 10, "power": 1.4, "kind": "魔法",
+            "lv": 6, "mp": 10, "power": 1.4,
+            "exprs": ["matk*1.5 + 15 + player_lv*4.0 + skill_lv*10.0"], "kind": "魔法",
             "cd": 2,
-            "desc": "召来圣光凝成惩戒之剑劈落——造成 140% 魔法伤害，对黑暗生物格外克制（导师秘传，CD 2）",
+            "desc": "召来圣光凝成惩戒之剑劈落——造成 150% 魔法攻击 + 15 固定魔法伤害（成长），对黑暗生物格外克制（导师秘传，CD 2）",
             "name": "圣光审判",
         },
         "sk_jiu_shu_zhi_guang": {
@@ -3979,17 +3981,19 @@ TUTOR_SKILLS = {
     },
     "cls_ci_ke": {
         "sk_cui_du_zhi_ren": {
-            "lv": 10, "mp": 10, "power": 1.3, "kind": "物理",
+            "lv": 10, "mp": 10, "power": 1.3,
+            "exprs": ["atk*1.3 + 12 + player_lv*4.0 + skill_lv*12.0"], "kind": "物理",
             "mech": "poison", "mech_chance": 0.5, "cd": 3,
-            "desc": "导师亲授的淬毒杀法，匕刃划过时毒液渗入伤口——造成 130% 物理伤害，50% 概率使目标中毒 2 刻",
+            "desc": "导师亲授的淬毒杀法，匕刃划过时毒液渗入伤口——造成 130% 物理攻击 + 12 固定物理伤害（成长），50% 概率使目标中毒 2 刻",
             "name": "淬毒秘术",
         },
     },
     "cls_wu_seng": {
         "sk_beng_quan_lie": {
-            "lv": 6, "mp": 8, "power": 1.6, "kind": "物理",
+            "lv": 6, "mp": 8, "power": 1.6,
+            "exprs": ["atk*1.5 + 12 + player_lv*4.5 + skill_lv*12.0"], "kind": "物理",
             "mech": "stun", "mech_chance": 0.2, "cd": 2,
-            "desc": "拳锋直取骨骼要害——造成 160% 物理伤害，20% 概率击晕目标",
+            "desc": "拳锋直取骨骼要害——造成 150% 物理攻击 + 12 固定物理伤害（成长），20% 概率击晕目标",
             "name": "裂骨击",
         },
         "sk_jin_gang_ti": {
