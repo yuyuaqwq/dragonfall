@@ -654,6 +654,67 @@ class WorldCmds(CommandBase):
         lines += blocks
         yield event.plain_result("\n".join(lines))
 
+    # v167.1 『区域』指令：当前区域可前往总览（鱼鱼排版：▼标题(LV) + ○/●/□/⊕ 符号清单）。
+    # 数据源=现有地图结构（子区域 type/name/lv + 地图级城镇标记 + MAP_CONNECTIONS），不硬编码。
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?区域(?:\s*|$)")
+    @require_player()
+
+    async def region_view(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        _inst_row = self._instance_battle_for(group_id, qq_id)
+        if _inst_row:
+            yield event.plain_result(
+                "🗺️ 【副本战斗中】\n"
+                "你正在副本里与敌人作战，战斗结束前无法查看外界地图～\n"
+                f"{self._tip('instance')}"
+            )
+            return
+        cur = player.get("cur_map") or ""
+        if cur.startswith("home_"):
+            yield event.plain_result(self._home_view(group_id, qq_id, cur))
+            return
+        cur_map = C.MAP_BY_ID.get(cur)
+        if cur_map is None:
+            yield event.plain_result("🧭 找不到当前区域信息……")
+            return
+        cur_sa = player.get("cur_subarea") or ""
+        cur_name = cur_map.get("name") or cur
+        # ▼ 标题 = 当前区域名 + (LV等级)——等级取当前子区域 lv，缺省回退地图 lv（与赶路/到达展示同口径）
+        _lv = cur_map.get("lv") or 0
+        for _sa in (cur_map.get("subareas") or []):
+            if _sa.get("id") == cur_sa:
+                if _sa.get("lv"):
+                    _lv = _sa["lv"]
+                break
+        title = f"▼{cur_name}"
+        if _lv:
+            title += f"(LV{_lv})"
+        lines = [title]
+        sas = cur_map.get("subareas") or []
+        town = (cur_map.get("type") == C.MAP_TYPE_TOWN) or bool(cur_map.get("shop")) or bool(cur_map.get("healer"))
+        # 本区域全部可达地点（数据=地图级城镇标记 + 子区域类型），顺序 = 数据顺序
+        for sa in sas:
+            nm = sa.get("name") or sa.get("id") or "？"
+            if sa.get("id") == cur_sa:
+                lines.append(f"●{nm}")
+            elif sa.get("type") == C.SUB_TYPE_TOWN or town:
+                lines.append(f"□{nm}")
+            else:
+                lines.append(f"○{nm}")
+        # ⊕ 跨区域连接点（MAP_CONNECTIONS 当前图邻居；概览面板常显——副本 no_exit 除外）
+        _dun = cur_map.get("dungeon") or {}
+        neighbors = C.MAP_CONNECTIONS.get(cur, [])
+        if _dun.get("no_exit"):
+            neighbors = []
+        for conn in neighbors:
+            _mid = conn[0] if isinstance(conn, tuple) else conn
+            nm = C.MAP_BY_ID.get(_mid)
+            if nm:
+                _lock = " (🔒隐藏)" if nm.get("hidden") else ""
+                lines.append(f"⊕{nm.get('name') or _mid}{_lock}")
+        yield event.plain_result("\n".join(lines))
+
     def _map_blocks(self, player: dict, cur_map: dict, cur_sa: str,
                     group_id=None, qq_id=None) -> list:
         """v132 从 map_view 抽取：位置导航之外的完整区块（今日奇遇/设施/场景/NPC/旅人/玩家/怪物/tip）。

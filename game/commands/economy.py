@@ -4428,7 +4428,7 @@ class EconomyCmds(CommandBase):
             _view = _items[(_page - 1) * _per: _page * _per]
             _nm = _slot_cn.get(_slot, _parts[1])
             lines = [f"⚔️ 【{_nm}】共 {len(_items)} 件 · 第{_page}/{_pages}页", "━━━━━━━━━━━━"]
-            for _r in _view:
+            for _ri, _r in enumerate(_view, (_page - 1) * _per + 1):
                 _q = C.QUALITY.get(_r.get("quality", "white"), {})
                 _lv = _r.get("lv", "?")
                 _src = _r.get("source", "")
@@ -4436,10 +4436,10 @@ class EconomyCmds(CommandBase):
                 _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
                 _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
                 _set = f" {_r.get('set', '')}" if _r.get("set") else ""
-                lines.append(f"· {_q.get('color', '')}【{_r['name']}】(Lv.{_lv}){_set}｜{_req_s}｜{_src or '?'}")
+                lines.append(f"{_ri:>2}. {_q.get('color', '')}【{_r['name']}】(Lv.{_lv}){_set}｜{_req_s}｜{_src or '?'}")
             lines.append("━━━━━━━━━━━━")
-            lines.append(f"💡 输入『百科 <装备名>』看单件详情；『百科装备 {_parts[1]} {_page+1}』下一页" if _page < _pages
-                         else f"💡 输入『百科 <装备名>』看单件详情；『百科 装备』回总览")
+            lines.append(f"💡 『查看 <序号>』看单件详情；『+』下页｜『百科装备 {_parts[1]} {_page+1}』下一页" if _page < _pages
+                         else f"💡 『查看 <序号>』看单件详情；『-』回上页｜『百科 装备』回总览")
             # v167.1：记录列表状态 → +/-/= 通用翻页可用（cmd 用 '百科装备 <部位>' 可被百科正则重建）
             if qq_id:
                 self._record_list_state(qq_id, f"百科装备 {_slot_word}", _page, _pages)
@@ -4818,6 +4818,47 @@ class EconomyCmds(CommandBase):
                 if _msg:
                     yield event.plain_result(_msg)
                     return
+            # v167.1：百科装备 <部位> 列表 → 数字=该部位该页第 N 件装备详情
+            _lst_cmd = _lst.get("cmd") or ""
+            if _lst_cmd.startswith("百科装备 "):
+                _parts_cmd = _lst_cmd.split()
+                if len(_parts_cmd) >= 2:
+                    _slot_map_c = {v: k for k, v in C.EQUIP_SLOTS.items()}
+                    _slot_map_c.update({"武器": "weapon", "头盔": "helm", "帽子": "helm", "头": "helm",
+                                        "胸甲": "armor", "护甲": "armor", "衣服": "armor", "衣": "armor",
+                                        "护腿": "legs", "腿": "legs", "靴子": "boots", "鞋": "boots", "靴": "boots",
+                                        "戒指": "ring", "戒": "ring", "项链": "necklace", "链": "necklace"})
+                    _slot_c = _slot_map_c.get(_parts_cmd[1])
+                    _attr_cn3 = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                    if _slot_c:
+                        _items_c = sorted((r for r in C.EQUIP_ROSTER.values() if r.get("slot") == _slot_c),
+                                          key=lambda r: (r.get("lv", 0), r.get("name", "")))
+                        _idx_c = int(item_name)
+                        # 行号=全局序号（列表每页行号连续 1..N），直接定位
+                        _pos = _idx_c - 1
+                        if 0 <= _pos < len(_items_c):
+                            _r = _items_c[_pos]
+                            _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                            _snm = C.EQUIP_SLOTS.get(_r.get("slot", ""), "?")
+                            _req = _r.get("req") or {}
+                            _reqs = "、".join(f"{_attr_cn3.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+                            el = [f"⚔️ {_q.get('color', '')}【{_r['name']}】({_snm}·Lv.{_r.get('lv', '?')}·{_q.get('name', _r.get('quality'))})",
+                                  "━━━━━━━━━━━━"]
+                            if _r.get("series"):
+                                el.append(f"系列：{_r['series']}")
+                            el.append(f"需求：{_reqs}")
+                            if _r.get("source"):
+                                el.append(f"来源：{_r['source']}")
+                            if _r.get("set"):
+                                el.append(f"套装：{_r['set']}")
+                            if _r.get("special"):
+                                el.append(f"特效：{_r['special']}")
+                            if _r.get("desc"):
+                                el.append(f"{_r['desc']}")
+                            yield event.plain_result("\n".join(el))
+                            return
+                        yield event.plain_result(f"没有第 {_idx_c} 件装备（{_parts_cmd[1]}共 {len(_items_c)} 件）！『百科装备 {_parts_cmd[1]}』看列表～")
+                        return
             idx = int(item_name)
             if idx < 1 or idx > len(items):
                 yield event.plain_result(f"背包里没有第 {idx} 件物品(共 {len(items)} 件)！『背包』查看全部～")

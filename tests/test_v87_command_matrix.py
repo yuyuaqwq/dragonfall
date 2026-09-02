@@ -110,10 +110,13 @@ REPRESENTATIVES = {
     "go_out": "出门", "visit_home": "拜访", "home_storage": "仓库", "home_storage_take": "取出",
     "map_view": "地图", "move": "前往", "portal_view": "祭坛", "portal_activate": "激活祭坛",
     "portal_travel": "传送", "quest_view": "任务", "quest_accept": "接取", "daily": "每日",
+    # v167.1 『区域』指令：当前区域可前往总览（代表输入『区域』，恰命中 region_view）
     # v116：放弃进行中的支线/每日任务（代表输入带序号）
     "quest_abandon": "放弃 2",
     "time_cmd": "时间", "wild_notes": "见闻录", "location_view": "位置",
     "hurry_view": "赶路",
+    # v167.1 『区域』：当前区域可前往总览（代表输入，恰命中 region_view）
+    "region_view": "区域",
     # O74 『返回 <地名>』提示 handler / O115 『问路 <地名>』路线指引 handler
     "back_cmd": "返回 橡木镇", "ask_way": "问路 海蚀洞窟",
     "npc_quick_dialog": "5", "interact_prop": "交互", "talk_choice": "对话",
