@@ -1676,7 +1676,11 @@ class CombatCmds(CommandBase):
         return panel.rstrip("\n")
 
     def _battle_footer(self, player: dict, b, monster: dict) -> str:
-        """战斗底部：双方站位图 + 敌方血量汇总(主目标行)+ 血蓝 + 状态行(v61)"""
+        """战斗底部：双方站位图 + 血蓝 + 资源 + 状态行(v61)。
+
+        v164.1：站位图已逐只带血量（❤️当前/最大）——删除原下方重复的敌方血量汇总行
+        （单怪行 / 多怪列表），与副本 _instance_battle_footer 观感统一。
+        """
         status = self._status_line(player, b)
         lines = [
             self._battle_formation_panel(player, b),
@@ -1687,21 +1691,6 @@ class CombatCmds(CommandBase):
             lines.insert(1, f"🕐 时刻 {_bnow:.1f}s")
         except Exception:
             pass
-        # 敌方血量汇总（多怪时每层一行；主目标行单独列出便于一眼）
-        if len(b.enemies) <= 1:
-            # v155 防御：战斗胜利后 enemies 可能被清空（b.enemy 变 {}）→ .get 兜底防 KeyError
-            _be = b.enemy or {}
-            lines.append(f"🐾【{_be.get('name', '敌人')}】❤️ {max(0, _be.get('hp', 0))}/{_be.get('max_hp', 0)}")
-        else:
-            alive_enemy = [u for u in b.enemies if u.get("hp", 0) > 0]
-            if alive_enemy:
-                rows = []
-                from ..core.formation import front_rank
-                front = front_rank(alive_enemy)
-                rows.append(f"👹 敌方 {len(alive_enemy)} 只(剩 {sum(1 for u in alive_enemy if u.get('rank', 1) == front)} 只前排)")
-                for u in alive_enemy:
-                    rows.append(f"　· {u.get('icon', '') or ''}{u.get('name','')} ❤️{max(0, u.get('hp', 0))}".strip())
-                lines.append("\n".join(rows))
         lines.append(f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}")
         rl = self._resource_line(player, b)
         if rl:

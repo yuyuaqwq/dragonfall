@@ -44,7 +44,8 @@ def test_footer():
     b.p_buffs = {"atk_up": 3}
     b.e_buffs = {"def_down": 2}
     f = mixin._battle_footer(player, b, b.enemy)
-    check("怪物血条", "山贼头目】❤️ 3000/4000" in f, f)
+    # v164.1：血量汇总行已删——血量在站位图逐只带出（❤️当前/最大）
+    check("站位图怪物血条", "山贼头目 ❤️3000/4000" in f, f)
     check("玩家血蓝", "800/1000" in f and "120/300" in f, f)
     check("状态行追加", "攻击↑(剩3刻)" in f and "破甲(剩2刻)" in f, f)
 
