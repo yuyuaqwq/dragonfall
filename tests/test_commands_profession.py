@@ -38,7 +38,7 @@ def reset_profs(gid, qid):
         db.forget_prof(gid, qid, k)
 
 
-def add_mats(gid, qid, count=10):
+def add_mats(gid, qid, count=20):
     db.add_item(gid, qid, "mat_shi_lai_mu_nian_ye", {"name": "史莱姆黏液", "type": "材料", "stackable": True}, count)
 
 
@@ -122,7 +122,7 @@ async def main():
     print("【v67 代工补偿】")
     reset_profs("g1", "w1")
     db.update_player("g1", "w1", gold=5000)
-    add_mats("g1", "w1", count=2)  # 铁剑 mats = 史莱姆黏液×2：第一次代工消耗 2，剩 0 → 第二次拦
+    add_mats("g1", "w1", count=4)  # 铁剑 mats = 史莱姆黏液×4（v165 换料后）：第一次代工消耗 4，剩 0 → 第二次拦
     out = await cmd(m, "craft_commission", "g1", "w1", "代工 铁剑")
     # M10 P1-3 新手白装锻造费归 0（成本10 ≤ 卖店回收20，不再倒挂）→ 代工费 0×3=0
     check("代工成功", "代工完成" in out and "铁剑" in out and "0 金币" in out, out[:200])

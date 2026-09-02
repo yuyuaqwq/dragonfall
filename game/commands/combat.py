@@ -2011,7 +2011,11 @@ class CombatCmds(CommandBase):
                     if mprice <= 0:
                         continue
                     # q7-5 审计：向下取整（原 round 会 ±1 抖动，低阶怪刷低价材料可能白拿）
-                    n = max(1, min(99, int(per_val / mprice)))
+                    # v165 经济校准（2026-09-02 鱼鱼拍板）：材料按产出级涨价后数量已收敛，
+                    # cap 仅防 99 击穿/极端爆量：普通怪单种≤10、精英/Boss 单种≤20
+                    # （允许 5-15 个合理波动；材料涨价前 Lv52 月鹿掉 38 个、Boss 掉 99 才是问题）
+                    _n_cap = 20 if is_hi else 10
+                    n = max(1, min(_n_cap, int(per_val / mprice)))
                     db.add_item(group_id, qq_id, mid,
                                 {"name": C.display("materials", mid), "type": "材料",
                                  "stackable": True, "price": mprice}, n)

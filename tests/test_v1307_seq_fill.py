@@ -109,7 +109,7 @@ async def main():
     clean_db()
     make_player(G, Q_F, "铁匠客户", "战士", level=10)
     db.update_player(G, Q_F, cur_map="oak_town", cur_subarea="oak_town_3")  # 老铁铺（craft funcs）
-    db.add_item(G, Q_F, "mat_shi_lai_mu_nian_ye", {"name": C.display("materials", "mat_shi_lai_mu_nian_ye"), "type": "材料"}, 4)
+    db.add_item(G, Q_F, "mat_shi_lai_mu_nian_ye", {"name": C.display("materials", "mat_shi_lai_mu_nian_ye"), "type": "材料"}, 20)
     r = await cmd(m, "craft_commission", G, Q_F, "代工 99")
     check("④ 越界报错『没有第 99 个可代工配方』", "没有第 99 个可代工配方" in r, r[:120])
     r = await cmd(m, "craft_commission", G, Q_F, "代工 1")

@@ -1896,8 +1896,8 @@ EXTRA_SUBAREAS = {
             "lv": 88,
             "npcs": [],
             "monsters": [
-                ["m_ember_guard", "烬火守卫", "tank", 87, ["ms_lie_yan_zhao", "ms_tie_bi"], ["余烬甲片"]],
-                ["m_ash_knight", "灰烬骑士", "dps", 88, ["ms_duan_jian", "ms_huo_qiang"], ["烧焦剑刃"]],
+                ["m_ember_guard", "烬火守卫", "tank", 87, ["ms_lie_yan_zhao", "ms_tie_bi"], ["余烬甲片", "勇士余烬"]],
+                ["m_ash_knight", "灰烬骑士", "dps", 88, ["ms_duan_jian", "ms_huo_qiang"], ["烧焦剑刃", "勇士余烬"]],
             ],
             "elite": None,
             "boss": None,
@@ -1916,7 +1916,7 @@ EXTRA_SUBAREAS = {
             "lv": 89,
             "npcs": [],
             "monsters": [
-                ["m_ember_guard", "烬火守卫", "tank", 88, ["ms_lie_yan_zhao", "ms_tie_bi"], ["余烬甲片"]],
+                ["m_ember_guard", "烬火守卫", "tank", 88, ["ms_lie_yan_zhao", "ms_tie_bi"], ["余烬甲片", "勇士余烬"]],
                 ["m_cinder_wolf", "烬狼", "speedster", 89, ["ms_si_yao", "ms_huo_yan"], ["烬狼牙"]],
             ],
             "elite": None,

@@ -865,7 +865,7 @@ EXTRA_SUBAREAS = {
             "lv": 38,
             "npcs": [],
             "monsters": [
-                ["m_hill_wolf", "丘陵狼", "dps", 38, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮"]]
+                ["m_hill_wolf", "丘陵狼", "dps", 38, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮", "座狼犬齿"]]
             ],
             "elite": None,
             "boss": None,
@@ -1042,7 +1042,7 @@ EXTRA_SUBAREAS = {
             "lv": 36,
             "npcs": [],
             "monsters": [
-                ["m_hill_wolf", "丘陵狼", "dps", 36, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮"]]
+                ["m_hill_wolf", "丘陵狼", "dps", 36, ["ms_si_yao", "ms_hao_jiao"], ["丘陵狼皮", "座狼犬齿"]]
             ],
             "elite": None,
             "boss": None,
