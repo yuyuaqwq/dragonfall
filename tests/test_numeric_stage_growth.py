@@ -135,6 +135,7 @@ def main():
     #   中后期（P3-P5）严格全达标（玩家体验核心阶段）。
     ALLOW_P12_DEV = {  # (阶段index, 职业) → 允许的实际档位
         (0, "cls_zhan_shi"): "C",   # P1 战士（重剑前期慢）
+        (0, "cls_you_xia"): "B",    # v162: P1 游侠（连射 P1 需≥0.72 才 A，但 P3+ 需≤0.68 不超 S——单技能无法两全，P1 接受 B）
         (1, "cls_zhan_shi"): "S",   # P2 战士（挥砍加强后 P2 成型 S，偏高但可接受）
         (1, "cls_you_xia"): "A",    # v162: P2 游侠（连射 0.5+瞄准 1.2 加强后 A）
         (2, "cls_you_xia"): "A",    # v162: P3 游侠（蓄力射击 + 连射填充后 A）
@@ -142,11 +143,11 @@ def main():
         (2, "cls_zhan_shi"): "S",   # P3 战士（挥砍填充强，偏高但可接受）
         (2, "cls_wu_seng"): "C",    # v162: P3 拳师（坦克型半输出半肉）
         (3, "cls_zhan_shi"): "C",   # v162: P4 战士（坦克型半输出半肉，分支期输出低）
-        (3, "cls_wu_seng"): "B",    # v162: P4 拳师（直拳 0.6 加强后 B）
+        (3, "cls_wu_seng"): "C",    # v162: P4 拳师 C（坦克型半输出半肉，分支期输出低）
         (4, "cls_ci_ke"): "S",      # v162: P5 刺客 S
-        (4, "cls_you_xia"): "S",    # v162: P5 游侠（连射填充强后 S）
+        (4, "cls_you_xia"): "A",    # v162: P5 游侠 A（连射填充）
         (4, "cls_zhan_shi"): "C",   # v162: P5 战士（坦克型半输出半肉）
-        (4, "cls_wu_seng"): "B",    # v162: P5 拳师 B
+        (4, "cls_wu_seng"): "C",    # v162: P5 拳师 C（坦克型半输出半肉）
     }
     for si, (st_name, lv, *_rest) in enumerate(STAGES):
         dps_by_cls = {cid: scans[cid]["stages"][si]["dps"] for cid in TIER_EXPECT}

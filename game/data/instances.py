@@ -109,7 +109,7 @@ INSTANCES = {
             }
         ],
 "mech": "summon,stacks",
-        "hp_mult": 5.0,
+        "hp_mult": 4.0,
         "atk_mult": 1.0,
         "gold": 120,
         "exp": 180,
@@ -214,7 +214,7 @@ INSTANCES = {
             }
         ],
 "mech": "phase",
-        "hp_mult": 2.7,  # v155 单刷档（原 3.6 多人标定）
+        "hp_mult": 2.4,  # v155 单刷档（原 3.6 多人标定）
         "atk_mult": 1.0,  # v155 单刷档（原 1.15）
         "gold": 220,
         "exp": 320,
@@ -319,7 +319,7 @@ INSTANCES = {
         "key_item": "王陵钥匙",
         "key_source": "白鹿城铁匠铺购买(500 金)",
 "mech": "enrage,summon",
-        "hp_mult": 3.0,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
+        "hp_mult": 2.9,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
         "atk_mult": 1.0,  # v155 单刷档（原 1.2）
         "gold": 400,
         "exp": 550,
@@ -410,7 +410,7 @@ INSTANCES = {
         "key_item": "圣堂信物",
         "key_source": "晨曦城大教堂购买(300 金)",
 "mech": "shield,enrage",
-        "hp_mult": 6.6,
+        "hp_mult": 5.4,
         "atk_mult": 1.25,
         "gold": 600,
         "exp": 800,
@@ -502,7 +502,7 @@ INSTANCES = {
         "key_item": "精灵遗印",
         "key_source": "翡翠森林精英·狼王·灰影掉落",
 "mech": "heal,shield",
-        "hp_mult": 3.5,  # v155 单刷档（原 3.1 多人标定）
+        "hp_mult": 3.3,  # v155 单刷档（原 3.1 多人标定）
         "atk_mult": 1.0,  # v155 单刷档（原 1.25）
         "gold": 900,
         "exp": 1200,
@@ -594,7 +594,7 @@ INSTANCES = {
         "key_item": "烬火令",
         "key_source": "烬山精英·恶魔战士掉落",
 "mech": "summon,phase",
-        "hp_mult": 2.9,  # v155 单刷档（原 3.2 多人标定）
+        "hp_mult": 2.2,  # v155 单刷档（原 3.2 多人标定）
         "atk_mult": 1.05,  # v155 单刷档（原 1.3）
         "gold": 1800,
         "exp": 2400,
@@ -708,7 +708,7 @@ INSTANCES = {
             {"min": 30, "add_skills": ["ms_shen_yuan_zhi_nu"],
              "script": {"name": "深渊之怒倾泻", "icon": "💀"}},
         ],
-        "hp_mult": 2.0,  # v155 单刷档（原 2.8 多人标定）
+        "hp_mult": 1.2,  # v155 单刷档（原 2.8 多人标定）
         "atk_mult": 1.05,  # v155 单刷档（原 1.35）
         "gold": 3000,
         "exp": 4000,
@@ -801,7 +801,7 @@ INSTANCES = {
         "key_item": "龙牙信物",
         "key_source": "龙脊山脉·石龙掉落",
 "mech": "reflect,heal",
-        "hp_mult": 4.5,
+        "hp_mult": 2.5,
         "atk_mult": 1.35,
         "gold": 3000,
         "exp": 4000,
@@ -856,7 +856,7 @@ INSTANCES = {
         # 产 mat_jun_qi_sui_pian；改后入口按名校验与背包材料匹配，钥匙链恢复）
         "key_source": "古战场/旧战场遗迹采集",
 "mech": "enrage,summon",
-        "hp_mult": 5.1,
+        "hp_mult": 3.8,
         "atk_mult": 1.0,
         "gold": 160,
         "exp": 240,
@@ -958,7 +958,7 @@ INSTANCES = {
                 "key_item": "月辉钥匙",
         "key_source": "月冠王庭购买(3000 金)",
 "mech": "shield,phase",
-        "hp_mult": 3.9,
+        "hp_mult": 3.5,
         "atk_mult": 1.05,
         "gold": 950,
         "exp": 1300,
@@ -1009,7 +1009,7 @@ INSTANCES = {
                 "key_item": "寒冰令",
         "key_source": "永冻冰原精英·冰原猛犸·雪岭掉落",
 "mech": "stacks,enrage",
-        "hp_mult": 4.4,
+        "hp_mult": 3.1,
         "atk_mult": 1.2,
         "gold": 1500,
         "exp": 2000,
@@ -1060,7 +1060,7 @@ INSTANCES = {
                 "key_item": "雷光令",
         "key_source": "风暴崖精英·风暴崖主·雷鸣掉落",
 "mech": "phase,phase",
-        "hp_mult": 5.3,
+        "hp_mult": 3.1,
         "atk_mult": 1.3,
         "gold": 2600,
         "exp": 3500,
@@ -1247,7 +1247,7 @@ INSTANCES = {
         "key_item": "海妖鳞片信物",
         "key_source": "海妖湾精英·海妖领主·潮汐掉落",
 "mech": "phase,heal",
-        "hp_mult": 5.5,
+        "hp_mult": 4.4,
         "atk_mult": 1.15,
         "gold": 700,
         "exp": 950,
@@ -1354,7 +1354,7 @@ INSTANCES = {
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "无名港港务厅购买",
 "mech": "shield,phase",
-        "hp_mult": 6.5,
+        "hp_mult": 4.3,
         "atk_mult": 1.2,
         "gold": 1100,
         "exp": 1500,
@@ -1462,7 +1462,7 @@ INSTANCES = {
         # F3 P1-1 修复：掉落源补全——龙鲸海域精英·龙鲸王·涛声掉落（原仅副本内掉落=死锁）
         "key_source": "龙鲸海域精英·龙鲸王·涛声掉落",
 "mech": "reflect,stacks",
-        "hp_mult": 7.4,
+        "hp_mult": 4.4,
         "atk_mult": 1.25,
         "gold": 1400,
         "exp": 1900,
@@ -1553,7 +1553,7 @@ INSTANCES = {
         "key_item": "灰矮人通行令",
         "key_source": "地底集市购买(2800 金)",
 "mech": "shield,stacks",
-        "hp_mult": 4.4,
+        "hp_mult": 3.1,
         "atk_mult": 1.2,
         "gold": 1500,
         "exp": 2000,
@@ -1645,7 +1645,7 @@ INSTANCES = {
         "key_item": "龙鳞钥匙",
         "key_source": "熔火深渊精英·熔火领主·烬核掉落",
 "mech": "reflect,enrage",
-        "hp_mult": 6.5,
+        "hp_mult": 3.7,
         "atk_mult": 1.3,
         "gold": 1900,
         "exp": 2500,
@@ -1738,7 +1738,7 @@ INSTANCES = {
         "key_item": "雷核钥匙",
         "key_source": "雷暴高原·雷元素掉落",
 "mech": "phase,phase",
-        "hp_mult": 8.6,
+        "hp_mult": 6.3,
         "atk_mult": 1.32,
         "gold": 2800,
         "exp": 3700,
@@ -1830,7 +1830,7 @@ INSTANCES = {
         "key_item": "深渊圣印",
         "key_source": "深渊祭坛精英·祭坛守卫·魔眼掉落",
 "mech": "stacks,summon",
-        "hp_mult": 5.1,
+        "hp_mult": 2.8,
         "atk_mult": 1.35,
         "gold": 2900,
         "exp": 3800,
@@ -1922,7 +1922,7 @@ INSTANCES = {
         "key_item": "云玺",
         "key_source": "星辉台精英·星龙掉落",
 "mech": "shield,phase",
-        "hp_mult": 8.8,
+        "hp_mult": 6.4,
         "atk_mult": 1.35,
         "gold": 3200,
         "exp": 4200,

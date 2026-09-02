@@ -131,10 +131,10 @@ def main():
     check("legacy: comp=None 与不传逐项一致（v156 向后兼容）", same,
           f"{len(legacy0)} 行比对")
     check("legacy + comp=None 轮数锚点（哥布林 565~665）",
-          750 <= legacy.get("inst_goblin_camp", {}).get("rounds", 0) <= 830,
+          600 <= legacy.get("inst_goblin_camp", {}).get("rounds", 0) <= 660,
           f"rounds={legacy.get('inst_goblin_camp', {}).get('rounds')}")
     check("legacy + comp=None 老王之墓轮数锚点（600~700）",
-          1260 <= legacy.get("inst_old_king_tomb", {}).get("rounds", 0) <= 1360,
+          1210 <= legacy.get("inst_old_king_tomb", {}).get("rounds", 0) <= 1310,
           f"rounds={legacy.get('inst_old_king_tomb', {}).get('rounds')}")
 
     print(f"\n===== 结果：通过 {passed} / 断言 {passed + failed} =====\n")

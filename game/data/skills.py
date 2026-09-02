@@ -11,34 +11,34 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.82,
              'kind': '物理',
-             'exprs': ['atk*1.0 + 0 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*1 + 80 + skill_lv*12'],
              
              
              'cast': 0.45,
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '挥砍',
-             'desc': '长剑划出利落的弧光——造成 100% 物理攻击（成长），命中积攒 1 点战意'
+             'desc': '长剑划出利落的弧光——造成 100% 物理攻击 + 80 固定物理伤害（成长），命中积攒 1 点战意'
             },
             "sk_meng_ji": {
              'lv': 4,
              'mp': 6,
              'power': 0.97,
              'kind': '物理',
-             'exprs': ['atk*1.3 + 0 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*1.3 + 80 + skill_lv*16'],
              
              
              'cast': 0.6,
              'cd': 8,
              'name': '猛击',
-             'desc': '双臂蓄满蛮力猛然砸下——造成 130% 物理攻击（成长），每层战意使伤害 +3%'
+             'desc': '双臂蓄满蛮力猛然砸下——造成 130% 物理攻击 + 80 固定物理伤害（成长），每层战意使伤害 +3%'
             },
             "sk_po_jia_zhan": {
              'lv': 8,
              'mp': 8,
              'power': 0.87,
              'kind': '物理',
-             'exprs': ['atk*1.2 + 0 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*1.2 + 70 + skill_lv*14'],
              
              
              'cast': 0.5,
@@ -46,7 +46,7 @@ PLAYER_SKILLS = {
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '破甲斩',
-             'desc': '利刃精准劈入甲胄缝隙——造成 120% 物理攻击（成长），破防并命中积攒 1 点战意'
+             'desc': '利刃精准劈入甲胄缝隙——造成 120% 物理攻击 + 70 固定物理伤害（成长），破防并命中积攒 1 点战意'
             },
             "sk_tie_bi": {
              'lv': 12,
@@ -78,7 +78,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.93,
              'kind': '物理',
-             'exprs': ['atk*1.2 + 0 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*1.2 + 90 + skill_lv*16'],
              
              
              'cast': 0.7,
@@ -86,21 +86,21 @@ PLAYER_SKILLS = {
              'mech': 'zhan_yi',
              'mech_val': 1,
              'name': '旋风斩',
-             'desc': '身形旋转如风暴，刀光席卷前方——造成 120% 物理攻击（成长）（前排全体），每段命中积攒 1 点战意'
+             'desc': '身形旋转如风暴，刀光席卷前方——造成 120% 物理攻击 + 90 固定物理伤害（成长）（前排全体），每段命中积攒 1 点战意'
             },
             "sk_chong_feng": {
              'lv': 24,
              'mp': 10,
              'power': 0.87,
              'kind': '物理',
-             'exprs': ['atk*1.5 + 0 + player_lv*8 + skill_lv*18'],
+             'exprs': ['atk*1.5 + 100 + skill_lv*18'],
              
              
              'cast': 0.5,
              'cd': 12,
              'cond': {"type": "player_first", "mult": 1.15, "label": "先手压制"},
              'name': '冲锋',
-             'desc': '战靴踏碎尘土，身影撞入敌阵——造成 150% 物理攻击（成长），位移至前排并先手压制'
+             'desc': '战靴踏碎尘土，身影撞入敌阵——造成 150% 物理攻击 + 100 固定物理伤害（成长），位移至前排并先手压制'
             },
             "sk_leng_jing": {
              'lv': 28,
@@ -124,48 +124,48 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.16,
              'kind': '魔法·火',
-             'exprs': ['matk*1.5 + 0 + player_lv*5.4 + skill_lv*12.8'],
+             'exprs': ['matk*1.6 + 64 + skill_lv*12.8'],
              
              'cast': 0.8,
              'mech': 'fire_mark',
              'mech_val': 1,
              'name': '火球术',
-             'desc': '将游离的火元素凝成灼热弹丸掷出，命中即焚——造成 150% 魔法攻击（成长），挂火印 1 层'
+             'desc': '将游离的火元素凝成灼热弹丸掷出，命中即焚——造成 160% 魔法攻击 + 64 固定魔法伤害（成长），挂火印 1 层'
             },
             "sk_bing_zhui": {
              'lv': 4,
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·冰',
-             'exprs': ['matk*1.4 + 0 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*1.4 + 60 + skill_lv*12'],
              
              'cast': 0.8,
              'mech': 'ice_mark',
              'mech_val': 1,
              'mech2': 'spd_down',
              'name': '冰锥',
-             'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 140% 魔法攻击（成长），挂冰印 1 层并减速 20% 持续 5 刻'
+             'desc': '指尖凝出剔透冰晶掷向敌人，寒气透骨——造成 140% 魔法攻击 + 60 固定魔法伤害（成长），挂冰印 1 层并减速 20% 持续 5 刻'
             },
             "sk_lei_ji": {
              'lv': 8,
              'mp': 8,
              'power': 1.16,
              'kind': '魔法·雷',
-             'exprs': ['matk*1.6 + 0 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*1.6 + 75 + skill_lv*14'],
              
              'cast': 0.8,
              'cd': 8,
              'mech': 'thunder_mark',
              'mech_val': 1,
              'name': '雷击',
-             'desc': '引一道晴空落雷劈下，电弧灼目——造成 160% 魔法攻击（成长），挂雷印 1 层'
+             'desc': '引一道晴空落雷劈下，电弧灼目——造成 160% 魔法攻击 + 75 固定魔法伤害（成长），挂雷印 1 层'
             },
             "sk_yuan_su_yin_bao": {
              'lv': 12,
              'mp': 10,
              'power': 1.16,
              'kind': '魔法',
-             'exprs': ['matk*1.7 + 0 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*1.7 + 80 + skill_lv*14'],
              
              
              'cast': 0.8,
@@ -173,7 +173,7 @@ PLAYER_SKILLS = {
              'mech': 'element_burst',
              'mech_val': 1,
              'name': '元素引爆',
-             'desc': '捏碎掌心的元素印记，引发连锁激荡——造成 170% 魔法攻击（成长），结算目标印记并触发对应反应'
+             'desc': '捏碎掌心的元素印记，引发连锁激荡——造成 170% 魔法攻击 + 80 固定魔法伤害（成长），结算目标印记并触发对应反应'
             },
             "sk_shuang_jing_hu_ti": {
              'lv': 16,
@@ -191,7 +191,7 @@ PLAYER_SKILLS = {
              'mp': 16,
              'power': 0.47,
              'kind': '魔法·雷',
-             'exprs': ['matk*0.33 + 0 + player_lv*4 + skill_lv*8'],
+             'exprs': ['matk*0.33 + 40 + skill_lv*8'],
              
              'cast': 1.0,
              'cd': 12,
@@ -199,20 +199,20 @@ PLAYER_SKILLS = {
              'mech': 'thunder_mark',
              'mech_val': 1,
              'name': '骤雨弹幕',
-             'desc': '挥指洒出漫天电弧如骤雨倾泻——共 3 段，每段造成 33% 魔法攻击×3（成长），各挂雷印 1 层'
+             'desc': '挥指洒出漫天电弧如骤雨倾泻——共 3 段，每段造成 33% 魔法攻击 + 40 固定魔法伤害×3（成长），各挂雷印 1 层'
             },
             "sk_yun_shi_shu": {
              'lv': 24,
              'mp': 24,
              'power': 1.08,
              'kind': '魔法·火',
-             'exprs': ['matk*2.0 + 0 + player_lv*8 + skill_lv*20'],
+             'exprs': ['matk*2 + 100 + skill_lv*20'],
              
              'cast': 1.2,
              'cd': 16,
              'aoe': 'all',
              'name': '陨石术',
-             'desc': '召来天外陨石轰然坠地，烈焰翻涌四溅——造成 200% 魔法攻击（成长）（全体），挂火印 1 层'
+             'desc': '召来天外陨石轰然坠地，烈焰翻涌四溅——造成 200% 魔法攻击 + 100 固定魔法伤害（成长）（全体），挂火印 1 层'
             },
             "sk_shan_xian": {
              'lv': 28,
@@ -235,27 +235,27 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.41,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 0 + player_lv*3 + skill_lv*7.5'],
+             'exprs': ['atk*0.68 + 25 + skill_lv*7.5'],
              
              
-             'cast': 0.5,
+             'cast': 0.6,
              'hits': 2,
              'res_cost': {"energy": 22},
              'name': '连射',
-             'desc': '弓弦连响，两箭破风而出——造成 50% 物理攻击×2（成长）'
+             'desc': '弓弦连响，两箭破风而出——造成 68% 物理攻击 + 25 固定物理伤害×2（成长）'
             },
             "sk_miao_zhun_she_ji": {
              'lv': 4,
              'mp': 6,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*1.2 + 0 + player_lv*5 + skill_lv*14'],
+             'exprs': ['atk*1.3 + 70 + skill_lv*14'],
              
              
              'cast': 0.5,
              'res_cost': {"energy": 28},
              'name': '瞄准射击',
-             'desc': '屏息凝神，箭尖直指要害——造成 120% 物理攻击（成长）'
+             'desc': '屏息凝神，箭尖直指要害——造成 130% 物理攻击 + 70 固定物理伤害（成长）'
             },
             "sk_ying_yan_suo_ding": {
              'lv': 8,
@@ -274,7 +274,7 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*1.1 + 0 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*1.1 + 65 + skill_lv*13'],
              
              
              'cast': 0.5,
@@ -283,7 +283,7 @@ PLAYER_SKILLS = {
              'mech_val': 40,
              'res_cost': {"energy": 30},
              'name': '猎网陷阱',
-             'desc': '猎网铺开，荆棘缠住猎物双足——造成 110% 物理攻击（成长），减速 40%，持续 6 刻'
+             'desc': '猎网铺开，荆棘缠住猎物双足——造成 110% 物理攻击 + 65 固定物理伤害（成长），减速 40%，持续 6 刻'
             },
             "sk_feng_zhi_ji_zou": {
              'lv': 16,
@@ -302,7 +302,7 @@ PLAYER_SKILLS = {
              'mp': 14,
              'power': 1.51,
              'kind': '物理',
-             'exprs': ['atk*1.4 + 0 + player_lv*6 + skill_lv*15'],
+             'exprs': ['atk*1.3 + 85 + skill_lv*15'],
              
              
              'cast': 0.65,
@@ -310,7 +310,7 @@ PLAYER_SKILLS = {
              'res_cost': {"energy": 55},
              'cond': {"type": "enemy_debuff", "mult": 1.3},
              'name': '致命狙击',
-             'desc': '长弓满月，箭矢贯透要害——造成 140% 物理攻击（成长），对异常状态目标伤害 ×1.3'
+             'desc': '长弓满月，箭矢贯透要害——造成 130% 物理攻击 + 85 固定物理伤害（成长），对异常状态目标伤害 ×1.3'
             },
             "sk_shan_bi_bu": {
              'lv': 24,
@@ -329,7 +329,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.17,
              'kind': '物理',
-             'exprs': ['atk*1.1 + 0 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*1.1 + 60 + skill_lv*12'],
              
              
              'cast': 0.5,
@@ -338,7 +338,7 @@ PLAYER_SKILLS = {
              'mech_val': 1,
              'res_cost': {"energy": 30},
              'name': '猎印射击',
-             'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 110% 物理攻击（成长），挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
+             'desc': '箭尖蘸取猎印之芒，烙入猎物魂灵——造成 110% 物理攻击 + 60 固定物理伤害（成长），挂猎印 1 层（全队对该目标伤害 +8%/层，上限 3 层）'
             },
         },
     },
@@ -394,14 +394,14 @@ PLAYER_SKILLS = {
              'mp': 10,
              'power': 0.87,
              'kind': '魔法',
-             'exprs': ['matk*1.5 + 0 + player_lv*2.5 + skill_lv*6.6'],
+             'exprs': ['matk*1.5 + 36 + skill_lv*6.6'],
              
              
              'cast': 0.5,
              'cd': 8,
              'faith': 0,
              'name': '圣光惩戒',
-             'desc': '圣光凝成审判之矛贯穿敌阵——造成 150% 魔法攻击（成长）（单体输出，不增信念）'
+             'desc': '圣光凝成审判之矛贯穿敌阵——造成 150% 魔法攻击 + 36 固定魔法伤害（成长）（单体输出，不增信念）'
             },
             "sk_xin_yang_qi_dao": {
              'lv': 20,
@@ -450,21 +450,21 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.66,
              'kind': '物理',
-             'exprs': ['atk*0.85 + 0 + player_lv*4 + skill_lv*12'],
+             'exprs': ['atk*0.95 + 40 + skill_lv*12'],
              
              
              'cast': 0.45,
              'mech': 'lian_duan',
              'mech_val': 1,
              'name': '刺击',
-             'desc': '匕刃如毒蛇吐信直取要害——造成 85% 物理攻击（成长），命中积攒 1 段连击'
+             'desc': '匕刃如毒蛇吐信直取要害——造成 95% 物理攻击 + 40 固定物理伤害（成长），命中积攒 1 段连击'
             },
             "sk_ge_lie": {
              'lv': 4,
              'mp': 6,
              'power': 0.78,
              'kind': '物理',
-             'exprs': ['atk*1.2 + 0 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*1.2 + 50 + skill_lv*13'],
              
              
              'cast': 0.3,
@@ -472,14 +472,14 @@ PLAYER_SKILLS = {
              'mech': 'bleed',
              'mech_val': 2,
              'name': '割裂',
-             'desc': '利刃撕开皮肉留下一道血痕——造成 120% 物理攻击（成长），附加 2 层流血持续 8 刻，命中 +1 段'
+             'desc': '利刃撕开皮肉留下一道血痕——造成 120% 物理攻击 + 50 固定物理伤害（成长），附加 2 层流血持续 8 刻，命中 +1 段'
             },
             "sk_ying_xi": {
              'lv': 8,
              'mp': 8,
              'power': 0.92,
              'kind': '物理',
-             'exprs': ['atk*1.3 + 0 + player_lv*5 + skill_lv*14'],
+             'exprs': ['atk*1.3 + 55 + skill_lv*14'],
              
              
              'cast': 0.35,
@@ -487,21 +487,21 @@ PLAYER_SKILLS = {
              'mech': 'lian_duan',
              'mech_val': 1,
              'name': '影袭',
-             'desc': '身形融入暗影，匕首自背后骤然刺出——造成 130% 物理攻击（成长），命中 +1 段，背击时伤害 ×1.3'
+             'desc': '身形融入暗影，匕首自背后骤然刺出——造成 130% 物理攻击 + 55 固定物理伤害（成长），命中 +1 段，背击时伤害 ×1.3'
             },
             "sk_shuang_ren_luan_wu": {
              'lv': 12,
              'mp': 10,
              'power': 0.46,
              'kind': '物理',
-             'exprs': ['atk*0.5 + 0 + player_lv*4 + skill_lv*11'],
+             'exprs': ['atk*0.5 + 45 + skill_lv*11'],
              
              
              'cast': 0.35,
              'cd': 12,
              'hits': 2,
              'name': '双刃乱舞',
-             'desc': '双匕交错翻飞成银色风暴——造成 50% 物理攻击×2（成长），每段命中 +1 段连击'
+             'desc': '双匕交错翻飞成银色风暴——造成 50% 物理攻击 + 45 固定物理伤害×2（成长），每段命中 +1 段连击'
             },
             "sk_qian_xing": {
              'lv': 16,
@@ -541,14 +541,14 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.04,
              'kind': '物理',
-             'exprs': ['atk*1.5 + 0 + player_lv*6 + skill_lv*16'],
+             'exprs': ['atk*1.5 + 75 + skill_lv*16'],
              
              
              'cast': 0.4,
              'cd': 12,
              'mech': 'finisher',
              'name': '终结·割喉',
-             'desc': '匕刃横过咽喉，终结一击快如闪电——造成 150% 物理攻击（成长），连段越高伤害越高（每段 +10%），结算后连段归零'
+             'desc': '匕刃横过咽喉，终结一击快如闪电——造成 150% 物理攻击 + 75 固定物理伤害（成长），连段越高伤害越高（每段 +10%），结算后连段归零'
             },
         },
     },
@@ -560,20 +560,20 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 0.63,
              'kind': '物理',
-             'exprs': ['atk*0.6 + 0 + player_lv*3.4 + skill_lv*8'],
+             'exprs': ['atk*0.55 + 44 + skill_lv*8'],
              
              
-             'cast': 0.35,
+             'cast': 0.3,
              'shaken_gain': 0,
              'name': '直拳',
-             'desc': '拳风凌厉直捣要害——造成 60% 物理攻击（成长），命中即推破绽条'
+             'desc': '拳风凌厉直捣要害——造成 55% 物理攻击 + 44 固定物理伤害（成长），命中即推破绽条'
             },
             "sk_ce_ti": {
              'lv': 4,
              'mp': 6,
              'power': 0.81,
              'kind': '物理',
-             'exprs': ['atk*0.8 + 0 + player_lv*5 + skill_lv*13'],
+             'exprs': ['atk*0.9 + 55 + skill_lv*13'],
              
              
              'cast': 0.45,
@@ -581,28 +581,28 @@ PLAYER_SKILLS = {
              'shaken_gain': 0,
              'cond': {"type": "enemy_broken", "mult": 1.3},
              'name': '侧踢',
-             'desc': '侧身旋踢扫向破绽处——造成 80% 物理攻击（成长），推破绽条；对破防目标伤害 ×1.3'
+             'desc': '侧身旋踢扫向破绽处——造成 90% 物理攻击 + 55 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.3'
             },
             "sk_gang_quan": {
              'lv': 8,
              'mp': 8,
              'power': 0.59,
              'kind': '物理',
-             'exprs': ['atk*0.8 + 0 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.9 + 60 + skill_lv*14'],
              
              
              'cast': 0.5,
              'cd': 12,
              'shaken_gain': 0,
              'name': '钢拳',
-             'desc': '钢拳崩裂护甲——造成 80% 物理攻击（成长），推破绽条并使目标破防'
+             'desc': '钢拳崩裂护甲——造成 90% 物理攻击 + 60 固定物理伤害（成长），推破绽条并使目标破防'
             },
             "sk_lian_zhao_san_lian": {
              'lv': 12,
              'mp': 12,
              'power': 0.29,
              'kind': '物理',
-             'exprs': ['atk*0.35 + 0 + player_lv*4 + skill_lv*10'],
+             'exprs': ['atk*0.35 + 35 + skill_lv*10'],
              
              
              'cast': 0.45,
@@ -610,7 +610,7 @@ PLAYER_SKILLS = {
              'hits': 3,
              'shaken_gain': 0,
              'name': '连招三连',
-             'desc': '拳影连珠三连轰击——每段造成 35% 物理攻击×3（成长），三段皆推破绽条'
+             'desc': '拳影连珠三连轰击——每段造成 35% 物理攻击 + 35 固定物理伤害×3（成长），三段皆推破绽条'
             },
             "sk_tong_qiang": {
              'lv': 16,
@@ -629,7 +629,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 0.59,
              'kind': '物理',
-             'exprs': ['atk*0.8 + 0 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.9 + 60 + skill_lv*14'],
              
              
              'cast': 0.55,
@@ -638,21 +638,21 @@ PLAYER_SKILLS = {
              'mech_val': 2.0,
              'shaken_gain': 0,
              'name': '震地击',
-             'desc': '重拳砸地震裂大地——造成 80% 物理攻击（成长），40% 概率眩晕 2.0 刻'
+             'desc': '重拳砸地震裂大地——造成 90% 物理攻击 + 60 固定物理伤害（成长），40% 概率眩晕 2.0 刻'
             },
             "sk_chong_quan": {
              'lv': 24,
              'mp': 10,
              'power': 0.73,
              'kind': '物理',
-             'exprs': ['atk*1.0 + 0 + player_lv*6 + skill_lv*15'],
+             'exprs': ['atk*1.1 + 70 + skill_lv*15'],
              
              
              'cast': 0.4,
              'cd': 12,
              'shaken_gain': 0,
              'name': '冲拳',
-             'desc': '蓄势冲拳破阵而入——造成 100% 物理攻击（成长），位移至前排并推破绽条'
+             'desc': '蓄势冲拳破阵而入——造成 110% 物理攻击 + 70 固定物理伤害（成长），位移至前排并推破绽条'
             },
             "sk_ming_xiang": {
              'lv': 28,
@@ -723,13 +723,13 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.08,
              'kind': '魔法',
-             'exprs': ['matk*1.5 + 0 + player_lv*3.4 + skill_lv*8.8'],
+             'exprs': ['matk*1.5 + 44 + skill_lv*8.8'],
              
              
              'cast': 0.6,
              'cd': 8,
              'name': '音刃',
-             'desc': '琴弦急振，声浪凝为利刃破空而去——音波单体输出，造成 150% 魔法攻击（成长）'
+             'desc': '琴弦急振，声浪凝为利刃破空而去——音波单体输出，造成 150% 魔法攻击 + 44 固定魔法伤害（成长）'
             },
             "sk_an_shen_qu": {
              'lv': 20,
@@ -780,7 +780,7 @@ BRANCH_SKILLS = {
                         'mp': 6,
                         'power': 0.97,
                         'kind': '物理',
-             'exprs': ['atk*0.45 + 314 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.45 + 494 + skill_lv*14'],
              
              
                         'cast': 0.45,
@@ -788,28 +788,28 @@ BRANCH_SKILLS = {
                         'mech': 'zhan_yi',
                         'mech_val': 1,
                         'name': '怒斩',
-                        'desc': '怒意灌注刀锋，劈出雷霆一击——造成 45% 攻击 + 314 固定物理伤害（成长），每层战意 +5% 伤害，命中积攒 1 点战意'
+                        'desc': '怒意灌注刀锋，劈出雷霆一击——造成 45% 物理攻击 + 494 固定物理伤害（成长），每层战意 +5% 伤害，命中积攒 1 点战意'
                     },
                     "嗜血斩": {
                         'lv': 38,
                         'mp': 10,
                         'power': 1.33,
                         'kind': '物理',
-             'exprs': ['atk*1.9 + 120 + player_lv*8 + skill_lv*16'],
+             'exprs': ['atk*1.9 + 360 + skill_lv*16'],
              
              
                         'cast': 0.7,
                         'cd': 8,
                         'lifesteal': 0.25,
                         'name': '嗜血斩',
-                        'desc': '刀锋舔过血肉，伤处化作养分——造成 190% 攻击 + 120 固定物理伤害（成长），吸血 25%（狂暴中 50%）'
+                        'desc': '刀锋舔过血肉，伤处化作养分——造成 190% 物理攻击 + 360 固定物理伤害（成长），吸血 25%（狂暴中 50%）'
                     },
                     "裂地斩": {
                         'lv': 44,
                         'mp': 12,
                         'power': 1.14,
                         'kind': '物理',
-             'exprs': ['atk*0.55 + 406 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.55 + 586 + skill_lv*14'],
              
              
                         'cast': 0.6,
@@ -818,7 +818,7 @@ BRANCH_SKILLS = {
                         'mech_val': 2,
                         'cond': {"type": "player_mech_stacks", "mech": "zhan_yi", "stacks": 6, "mult": 1.0},
                         'name': '裂地斩',
-                        'desc': '重刀砸入大地，裂缝噬向敌群——造成 55% 攻击 + 406 固定物理伤害（成长），战意 ≥6 时附加 2 层流血'
+                        'desc': '重刀砸入大地，裂缝噬向敌群——造成 55% 物理攻击 + 586 固定物理伤害（成长），战意 ≥6 时附加 2 层流血'
                     },
                     "淬血": {
                         'lv': 50,
@@ -835,14 +835,14 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.25,
                         'kind': '物理',
-             'exprs': ['atk*0.5 + 565 + player_lv*6 + skill_lv*13'],
+             'exprs': ['atk*0.5 + 745 + skill_lv*13'],
              
              
                         'cast': 0.7,
                         'cd': 12,
                         'auto': 'fury_append',
                         'name': '破势斩',
-                        'desc': '怒意冲破桎梏的刹那，刀光暴起——造成 50% 攻击 + 565 固定物理伤害（成长），进入狂暴时自动追加（不占行动）'
+                        'desc': '怒意冲破桎梏的刹那，刀光暴起——造成 50% 物理攻击 + 745 固定物理伤害（成长），进入狂暴时自动追加（不占行动）'
                     },
                     "狂战怒吼": {
                         'lv': 58,
@@ -864,7 +864,7 @@ BRANCH_SKILLS = {
                         'mp': 6,
                         'power': 0.97,
                         'kind': '物理',
-             'exprs': ['atk*0.4 + 407 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.4 + 557 + skill_lv*12'],
              
              
                         'cast': 0.45,
@@ -872,7 +872,7 @@ BRANCH_SKILLS = {
                         'mech': 'stun',
                         'mech_val': 2.0,
                         'name': '盾击·誓',
-                        'desc': '重盾悍然撞出，誓约之力灌注其上——造成 40% 攻击 + 407 固定物理伤害（成长），40% 概率眩晕 2 刻（守护姿态中伤害 +20%）'
+                        'desc': '重盾悍然撞出，誓约之力灌注其上——造成 40% 物理攻击 + 557 固定物理伤害（成长），40% 概率眩晕 2 刻（守护姿态中伤害 +20%）'
                     },
                     "守护姿态": {
                         'lv': 38,
@@ -903,14 +903,14 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.91,
                         'kind': '物理',
-             'exprs': ['atk*0.35 + 390 + player_lv*5 + skill_lv*11'],
+             'exprs': ['atk*0.35 + 540 + skill_lv*11'],
              
              
                         'cast': 0.4,
                         'cd': 8,
                         'auto': 'taunt_fail',
                         'name': '顿足',
-                        'desc': '重重顿足，大地为之震颤——造成 35% 攻击 + 390 固定物理伤害（成长），嘲讽失效时自动衔接（不占行动）'
+                        'desc': '重重顿足，大地为之震颤——造成 35% 物理攻击 + 540 固定物理伤害（成长），嘲讽失效时自动衔接（不占行动）'
                     },
                     "铁壁·誓": {
                         'lv': 54,
@@ -943,7 +943,7 @@ BRANCH_SKILLS = {
                         'mp': 28,
                         'power': 2.13,
                         'kind': '真伤',
-             'exprs': ['atk*0.95 + 850 + player_lv*12 + skill_lv*22'],
+             'exprs': ['atk*0.95 + 1210 + skill_lv*22'],
              
              
                         'cast': 0.9,
@@ -971,7 +971,7 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 0.6,
                         'kind': '物理',
-             'exprs': ['atk*0.25 + 222 + player_lv*3 + skill_lv*8'],
+             'exprs': ['atk*0.25 + 312 + skill_lv*8'],
              
              
                         'cast': 0.9,
@@ -987,7 +987,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.7,
                         'kind': '物理',
-             'exprs': ['atk*0.6 + 835 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*0.6 + 1045 + skill_lv*16'],
              
              
                         'cast': 0.9,
@@ -997,21 +997,21 @@ BRANCH_SKILLS = {
                         'mech2': 'spd_down',
                         'mech2_val': 30,
                         'name': '断筋',
-                        'desc': '刀锋狠辣地挑断敌之腿筋——造成 60% 攻击 + 835 固定物理伤害（成长），附加 2 层流血并减速 30% 持续 6 刻'
+                        'desc': '刀锋狠辣地挑断敌之腿筋——造成 60% 物理攻击 + 1045 固定物理伤害（成长），附加 2 层流血并减速 30% 持续 6 刻'
                     },
                     "焚天斩": {
                         'lv': 85,
                         'mp': 30,
                         'power': 1.17,
                         'kind': '物理',
-             'exprs': ['atk*0.4 + 562 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.4 + 742 + skill_lv*14'],
              
              
                         'cast': 0.9,
                         'cd': 16,
                         'aoe': 'front',
                         'name': '焚天斩',
-                        'desc': '烈焰缠绕刀身，斩出焚天之怒——造成 40% 攻击 + 562 固定物理伤害（成长）（前排全体），战意 ≥8 时扩为全体'
+                        'desc': '烈焰缠绕刀身，斩出焚天之怒——造成 40% 物理攻击 + 742 固定物理伤害（成长）（前排全体），战意 ≥8 时扩为全体'
                     },
                     "狂热": {
                         'lv': 88,
@@ -1052,21 +1052,21 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.44,
                         'kind': '物理',
-             'exprs': ['atk*0.5 + 758 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.5 + 938 + skill_lv*14'],
              
              
                         'cast': 0.7,
                         'cd': 12,
                         'cond': {"type": "revenge", "mult": 0.8},
                         'name': '复仇',
-                        'desc': '承受的每一道伤，都将百倍奉还——造成 50% 攻击 + 758 固定物理伤害（成长），已承伤越多伤害越高（最高 +80%）'
+                        'desc': '承受的每一道伤，都将百倍奉还——造成 50% 物理攻击 + 938 固定物理伤害（成长），已承伤越多伤害越高（最高 +80%）'
                     },
                     "破城锤": {
                         'lv': 80,
                         'mp': 18,
                         'power': 1.7,
                         'kind': '物理',
-             'exprs': ['atk*0.55 + 877 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*0.55 + 1087 + skill_lv*16'],
              
              
                         'cast': 0.9,
@@ -1074,7 +1074,7 @@ BRANCH_SKILLS = {
                         'mech': 'stun',
                         'mech_val': 2.0,
                         'name': '破城锤',
-                        'desc': '巨盾如破城之锤轰然砸出——造成 55% 攻击 + 877 固定物理伤害（成长），破防并 40% 概率眩晕 2 刻'
+                        'desc': '巨盾如破城之锤轰然砸出——造成 55% 物理攻击 + 1087 固定物理伤害（成长），破防并 40% 概率眩晕 2 刻'
                     },
                     "誓约之盾": {
                         'lv': 85,
@@ -1107,7 +1107,7 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 3.71,
                         'kind': '真伤',
-             'exprs': ['atk*1.6 + 1600 + player_lv*18 + skill_lv*30'],
+             'exprs': ['atk*1.6 + 2140 + skill_lv*30'],
              
              
                         'cast': 1.2,
@@ -1123,21 +1123,21 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 1.63,
                         'kind': '物理',
-             'exprs': ['atk*0.45 + 839 + player_lv*8 + skill_lv*18'],
+             'exprs': ['atk*0.45 + 1079 + skill_lv*18'],
              
              
                         'cast': 1.2,
                         'cd': 20,
                         'aoe': 'all',
                         'name': '燎原之怒',
-                        'desc': '刀锋所过烈焰燎原，吞没一切——造成 45% 攻击 + 839 固定物理伤害（成长）（全体），并清算目标身上的灼烧'
+                        'desc': '刀锋所过烈焰燎原，吞没一切——造成 45% 物理攻击 + 1079 固定物理伤害（成长）（全体），并清算目标身上的灼烧'
                     },
                     "怒涛·终焉": {
                         'lv': 95,
                         'mp': 45,
                         'power': 0.59,
                         'kind': '物理',
-             'exprs': ['atk*0.22 + 240 + player_lv*3 + skill_lv*7'],
+             'exprs': ['atk*0.22 + 330 + skill_lv*7'],
              
              
                         'cast': 1.1,
@@ -1163,14 +1163,14 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 2.52,
                         'kind': '物理',
-             'exprs': ['atk*0.8 + 1430 + player_lv*8 + skill_lv*20'],
+             'exprs': ['atk*0.8 + 1670 + skill_lv*20'],
              
              
                         'cast': 1.3,
                         'cd': 24,
                         'cond': {"type": "player_mech_stacks", "mech": "zhan_yi", "stacks": 10, "mult": 1.4},
                         'name': '战意·极',
-                        'desc': '战意满盈的一刀，足以开天裂地——造成 80% 攻击 + 1430 固定物理伤害（成长），战意满 10 时伤害 ×1.4'
+                        'desc': '战意满盈的一刀，足以开天裂地——造成 80% 物理攻击 + 1670 固定物理伤害（成长），战意满 10 时伤害 ×1.4'
                     },
                 },
                 "盾卫士": {
@@ -1241,14 +1241,14 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.48,
                         'kind': '魔法·火',
-             'exprs': ['matk*1.767 + 133 + player_lv*7.8 + skill_lv*16.5'],
+             'exprs': ['matk*1.767 + 367 + skill_lv*16.5'],
              
                         'cast': 0.9,
                         'cd': 8,
                         'mech': 'fire_mark',
                         'mech_val': 1,
                         'name': '织焰',
-                        'desc': '十指翻飞织出炽焰之网，火舌缠绕——造成 177% 攻击 + 133 固定魔法伤害（成长），挂火印 1 层'
+                        'desc': '十指翻飞织出炽焰之网，火舌缠绕——造成 177% 魔法攻击 + 367 固定魔法伤害（成长），挂火印 1 层'
                     },
                     "熔炉冥想": {
                         'lv': 38,
@@ -1265,7 +1265,7 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 0.91,
                         'kind': '魔法',
-             'exprs': ['matk*0.62 + 136 + player_lv*6 + skill_lv*13'],
+             'exprs': ['matk*0.62 + 316 + skill_lv*13'],
              
              
                         'cast': 1.1,
@@ -1273,7 +1273,7 @@ BRANCH_SKILLS = {
                         'hits': 2,
                         'mech': 'element_multi_mark',
                         'name': '双系连珠',
-                        'desc': '双掌轮转，冰火双色流光连珠射出——共 2 段，每段造成 62% 攻击 + 136 固定魔法伤害（成长），各挂不同系印记 1 层'
+                        'desc': '双掌轮转，冰火双色流光连珠射出——共 2 段，每段造成 62% 魔法攻击 + 316 固定魔法伤害×2（成长），各挂不同系印记 1 层'
                     },
                     "棱镜护体": {
                         'lv': 50,
@@ -1290,14 +1290,14 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 1.71,
                         'kind': '魔法',
-             'exprs': ['matk*1.35 + 254 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.35 + 464 + skill_lv*15'],
              
              
                         'cast': 1.1,
                         'cd': 12,
                         'cond': {"type": "enemy_marks", "stacks": 4, "mult": 1.35},
                         'name': '元素湮灭',
-                        'desc': '将周身元素之力尽数灌入一击，湮灭万物——造成 135% 攻击 + 254 固定魔法伤害（成长），目标印记总层数 ≥4 时伤害 ×1.35'
+                        'desc': '将周身元素之力尽数灌入一击，湮灭万物——造成 135% 魔法攻击 + 464 固定魔法伤害（成长），目标印记总层数 ≥4 时伤害 ×1.35'
                     },
                     "元素亲和": {
                         'lv': 58,
@@ -1316,7 +1316,7 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 0.52,
                         'kind': '魔法',
-             'exprs': ['matk*0.28 + 31 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*0.28 + 181 + skill_lv*12'],
              
              
                         'cast': 0.9,
@@ -1326,7 +1326,7 @@ BRANCH_SKILLS = {
                         'mech_val': 1,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 2, "mult": 1.15},
                         'name': '奥术弹幕',
-                        'desc': '指尖连点，奥术弹丸如密雨齐射而出——共 3 段，每段造成 28% 攻击 + 31 固定魔法伤害（成长），充能 +1，充能 ≥2 时伤害 ×1.15'
+                        'desc': '指尖连点，奥术弹丸如密雨齐射而出——共 3 段，每段造成 28% 魔法攻击 + 181 固定魔法伤害×3（成长），充能 +1，充能 ≥2 时伤害 ×1.15'
                     },
                     "奥术直觉": {
                         'lv': 38,
@@ -1343,7 +1343,7 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 1.25,
                         'kind': '魔法',
-             'exprs': ['matk*1.05 + 128 + player_lv*6 + skill_lv*13'],
+             'exprs': ['matk*1.05 + 308 + skill_lv*13'],
              
              
                         'cast': 0.7,
@@ -1352,7 +1352,7 @@ BRANCH_SKILLS = {
                         'mech_val': 1,
                         'accuracy': 'true',
                         'name': '奥术飞弹',
-                        'desc': '凝出必中的奥术飞弹循迹追踪，无从闪避——造成 105% 攻击 + 128 固定魔法伤害（成长），充能 +1，架设中额外 +1'
+                        'desc': '凝出必中的奥术飞弹循迹追踪，无从闪避——造成 105% 魔法攻击 + 308 固定魔法伤害（成长），充能 +1，架设中额外 +1'
                     },
                     "深度冥想": {
                         'lv': 50,
@@ -1369,7 +1369,7 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 0.78,
                         'kind': '魔法',
-             'exprs': ['matk*0.55 + 56 + player_lv*6 + skill_lv*13'],
+             'exprs': ['matk*0.55 + 236 + skill_lv*13'],
              
              
                         'cast': 0.9,
@@ -1379,7 +1379,7 @@ BRANCH_SKILLS = {
                         'mech_val': 2,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 4, "mult": 1.25},
                         'name': '奥术爆破',
-                        'desc': '连轰两发奥术能量弹，震荡裂空——共 2 段，每段造成 55% 攻击 + 56 固定魔法伤害（成长），充能 +2，充能 ≥4 时伤害 ×1.25'
+                        'desc': '连轰两发奥术能量弹，震荡裂空——共 2 段，每段造成 55% 魔法攻击 + 236 固定魔法伤害×2（成长），充能 +2，充能 ≥4 时伤害 ×1.25'
                     },
                     "相位偏折": {
                         'lv': 58,
@@ -1412,14 +1412,14 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 1.33,
                         'kind': '魔法',
-             'exprs': ['matk*1.15 + 77 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.15 + 287 + skill_lv*15'],
              
              
                         'cast': 0.9,
                         'cd': 12,
                         'mech': 'element_burst_all',
                         'name': '元素迸发',
-                        'desc': '将目标身上的印记尽数引燃迸发，光华四射——造成 115% 攻击 + 77 固定魔法伤害（成长），结算目标全部印记，每层 +12% 伤害'
+                        'desc': '将目标身上的印记尽数引燃迸发，光华四射——造成 115% 魔法攻击 + 287 固定魔法伤害（成长），结算目标全部印记，每层 +12% 伤害'
                     },
                     "元素同调": {
                         'lv': 74,
@@ -1436,14 +1436,14 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.44,
                         'kind': '魔法',
-             'exprs': ['matk*1.918 + 597 + player_lv*10.0 + skill_lv*21.3'],
+             'exprs': ['matk*1.918 + 897 + skill_lv*21.3'],
              
              
                         'cast': 1.0,
                         'cd': 16,
                         'aoe': 'all',
                         'name': '元素洪流',
-                        'desc': '双手前推，元素洪流奔涌席卷全场——造成 192% 攻击 + 597 固定魔法伤害（成长）（全体），挂当前系印记 1 层'
+                        'desc': '双手前推，元素洪流奔涌席卷全场——造成 192% 魔法攻击 + 897 固定魔法伤害（成长）（全体），挂当前系印记 1 层'
                     },
                     "元素之核": {
                         'lv': 85,
@@ -1474,28 +1474,28 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 1.59,
                         'kind': '魔法',
-             'exprs': ['matk*1.3 + 172 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.3 + 382 + skill_lv*15'],
              
              
                         'cast': 0.9,
                         'cd': 12,
                         'mech': 'arcane_burst',
                         'name': '奥术脉冲',
-                        'desc': '汇聚奥能轰出贯穿一切的脉冲光柱——造成 130% 攻击 + 172 固定魔法伤害（成长），燃尽全部充能每层 +15%（架设中只烧一半）'
+                        'desc': '汇聚奥能轰出贯穿一切的脉冲光柱——造成 130% 魔法攻击 + 382 固定魔法伤害（成长），燃尽全部充能每层 +15%（架设中只烧一半）'
                     },
                     "奥术洪流": {
                         'lv': 68,
                         'mp': 30,
                         'power': 1.71,
                         'kind': '魔法',
-             'exprs': ['matk*1.45 + 167 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.45 + 377 + skill_lv*15'],
              
              
                         'cast': 1.0,
                         'cd': 16,
                         'mech': 'arcane_burst',
                         'name': '奥术洪流',
-                        'desc': '倾泻全部奥术能量化作洪流奔涌而出——造成 145% 攻击 + 167 固定魔法伤害（成长），燃尽充能每层 +15%，满 5 层时伤害 ×1.75'
+                        'desc': '倾泻全部奥术能量化作洪流奔涌而出——造成 145% 魔法攻击 + 377 固定魔法伤害（成长），燃尽充能每层 +15%，满 5 层时伤害 ×1.75'
                     },
                     "奥术共鸣": {
                         'lv': 74,
@@ -1550,28 +1550,28 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.45,
                         'kind': '魔法',
-             'exprs': ['matk*2.1 + 327 + player_lv*8 + skill_lv*16'],
+             'exprs': ['matk*2.1 + 567 + skill_lv*16'],
              
              
                         'cast': 1.3,
                         'cd': 20,
                         'mech': 'element_burst_3',
                         'name': '元素裁决',
-                        'desc': '高举法杖凝聚三系之力，降下元素裁决——造成 210% 攻击 + 327 固定魔法伤害（成长），结算三系印记，每系 ×1.2'
+                        'desc': '高举法杖凝聚三系之力，降下元素裁决——造成 210% 魔法攻击 + 567 固定魔法伤害（成长），结算三系印记，每系 ×1.2'
                     },
                     "万象风暴": {
                         'lv': 93,
                         'mp': 45,
                         'power': 1.73,
                         'kind': '魔法',
-             'exprs': ['matk*1.5 + 144 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.5 + 354 + skill_lv*15'],
              
              
                         'cast': 1.3,
                         'cd': 20,
                         'aoe': 'all',
                         'name': '万象风暴',
-                        'desc': '引动万象元素风暴席卷战场，天地变色——造成 150% 攻击 + 144 固定魔法伤害（成长）（全体），并为全体结算印记'
+                        'desc': '引动万象元素风暴席卷战场，天地变色——造成 150% 魔法攻击 + 354 固定魔法伤害（成长）（全体），并为全体结算印记'
                     },
                     "元素起源": {
                         'lv': 95,
@@ -1600,7 +1600,7 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 3.15,
                         'kind': '魔法·雷',
-             'exprs': ['matk*3.5 + 500 + player_lv*8 + skill_lv*18'],
+             'exprs': ['matk*3.5 + 740 + skill_lv*18'],
              
                         'cast': 1.1,
                         'cd': 24,
@@ -1608,7 +1608,7 @@ BRANCH_SKILLS = {
                         'mech_val': 1,
                         'cond': {"type": "enemy_mark_full", "mech": "thunder", "stacks": 3, "combo": 2},
                         'name': '万象天雷',
-                        'desc': '引九霄万象天雷灌顶而下，天地失色——造成 350% 攻击 + 500 固定魔法伤害（成长），雷印满 3 层时连击 +2'
+                        'desc': '引九霄万象天雷灌顶而下，天地失色——造成 350% 魔法攻击 + 740 固定魔法伤害（成长），雷印满 3 层时连击 +2'
                     },
                 },
                 "奥术学者": {
@@ -1617,28 +1617,28 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.63,
                         'kind': '魔法',
-             'exprs': ['matk*1.4 + 126 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*1.4 + 336 + skill_lv*15'],
              
              
                         'cast': 1.2,
                         'cd': 20,
                         'aoe': 'all',
                         'name': '星界风暴',
-                        'desc': '引星界之力化作能量风暴倾泻而下——造成 140% 攻击 + 126 固定魔法伤害（成长）（全体纯能量）'
+                        'desc': '引星界之力化作能量风暴倾泻而下——造成 140% 魔法攻击 + 336 固定魔法伤害（成长）（全体纯能量）'
                     },
                     "奥秘主宰": {
                         'lv': 93,
                         'mp': 45,
                         'power': 2.52,
                         'kind': '魔法',
-             'exprs': ['matk*2.2 + 313 + player_lv*8 + skill_lv*16'],
+             'exprs': ['matk*2.2 + 553 + skill_lv*16'],
              
              
                         'cast': 1.3,
                         'cd': 20,
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 3, "mult": 1.2},
                         'name': '奥秘主宰',
-                        'desc': '将毕生奥术奥秘凝于一点骤然迸发——造成 220% 攻击 + 313 固定魔法伤害（成长），充能 ≥3 时伤害 ×1.2'
+                        'desc': '将毕生奥术奥秘凝于一点骤然迸发——造成 220% 魔法攻击 + 553 固定魔法伤害（成长），充能 ≥3 时伤害 ×1.2'
                     },
                     "真知": {
                         'lv': 95,
@@ -1665,7 +1665,7 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 3.03,
                         'kind': '魔法',
-             'exprs': ['matk*2.75 + 367 + player_lv*8 + skill_lv*16'],
+             'exprs': ['matk*2.75 + 607 + skill_lv*16'],
              
              
                         'cast': 1.3,
@@ -1673,7 +1673,7 @@ BRANCH_SKILLS = {
                         'cond': {"type": "player_mech_stacks", "mech": "arcane", "stacks": 5, "mult": 1.4},
                         'no_mp': True,
                         'name': '奥术湮灭',
-                        'desc': '将全部奥能凝成湮灭之光贯穿一切——造成 275% 攻击 + 367 固定魔法伤害（成长），充能满 5 时 ×1.4 且本次不耗蓝'
+                        'desc': '将全部奥能凝成湮灭之光贯穿一切——造成 275% 魔法攻击 + 607 固定魔法伤害（成长），充能满 5 时 ×1.4 且本次不耗蓝'
                     },
                 },
             },
@@ -1702,7 +1702,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.13,
                         'kind': '物理',
-             'exprs': ['atk*0.52 + 389 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.52 + 569 + skill_lv*14'],
              
              
                         'cast': 0.4,
@@ -1710,14 +1710,14 @@ BRANCH_SKILLS = {
                         'res_cost': {"energy": 30},
                         'cond': {"type": "enemy_hunt_mark", "mult": 1.25},
                         'name': '追猎',
-                        'desc': '循着猎印的痕迹疾追而上——造成 52% 攻击 + 389 固定物理伤害（成长），对猎印目标伤害 ×1.25'
+                        'desc': '循着猎印的痕迹疾追而上——造成 52% 物理攻击 + 569 固定物理伤害（成长），对猎印目标伤害 ×1.25'
                     },
                     "淬毒箭": {
                         'lv': 44,
                         'mp': 10,
                         'power': 1.13,
                         'kind': '物理',
-             'exprs': ['atk*0.42 + 367 + player_lv*8 + skill_lv*18'],
+             'exprs': ['atk*0.42 + 607 + skill_lv*18'],
              
              
                         'cast': 0.4,
@@ -1726,14 +1726,14 @@ BRANCH_SKILLS = {
                         'mech_val': 2,
                         'res_cost': {"energy": 30},
                         'name': '淬毒箭',
-                        'desc': '箭簇浸满幽绿毒液，破风而出——造成 42% 攻击 + 367 固定物理伤害（成长），附加毒 2 层（可被荆棘爆引爆），持续 8 刻'
+                        'desc': '箭簇浸满幽绿毒液，破风而出——造成 42% 物理攻击 + 607 固定物理伤害（成长），附加毒 2 层（可被荆棘爆引爆），持续 8 刻'
                     },
                     "藤蔓缠绕": {
                         'lv': 50,
                         'mp': 14,
                         'power': 1.36,
                         'kind': '魔法',
-             'exprs': ['matk*0.6 + 296 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*0.6 + 476 + skill_lv*14'],
              
              
                         'cast': 0.35,
@@ -1744,7 +1744,7 @@ BRANCH_SKILLS = {
                         'mech2': 'stun',
                         'mech2_val': 1.5,
                         'name': '藤蔓缠绕',
-                        'desc': '荆棘藤蔓破土缠身，毒刺没入血肉——造成 60% 攻击 + 296 固定魔法伤害（成长），附加毒 2 层并定身 1.5 刻（首领免疫）'
+                        'desc': '荆棘藤蔓破土缠身，毒刺没入血肉——造成 60% 魔法攻击 + 476 固定魔法伤害（成长），附加毒 2 层并定身 1.5 刻（首领免疫）'
                     },
                     "召唤藤蔓守卫": {
                         'lv': 54,
@@ -1764,7 +1764,7 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.24,
                         'kind': '魔法',
-             'exprs': ['matk*0.52 + 162 + player_lv*8 + skill_lv*16'],
+             'exprs': ['matk*0.52 + 402 + skill_lv*16'],
              
              
                         'cast': 0.35,
@@ -1772,7 +1772,7 @@ BRANCH_SKILLS = {
                         'mech': 'poison_burst',
                         'res_cost': {"energy": 40},
                         'name': '荆棘爆',
-                        'desc': '荆棘炸裂，毒液喷涌四溅——造成 52% 攻击 + 162 固定魔法伤害（成长），引爆毒层，每层 +15% 伤害（5 层上限，最高 ×1.75）'
+                        'desc': '荆棘炸裂，毒液喷涌四溅——造成 52% 魔法攻击 + 402 固定魔法伤害（成长），引爆毒层，每层 +15% 伤害（5 层上限，最高 ×1.75）'
                     },
                 },
                 "风行者": {
@@ -1781,21 +1781,21 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 0.99,
                         'kind': '物理',
-             'exprs': ['atk*0.34 + 293 + player_lv*8 + skill_lv*18'],
+             'exprs': ['atk*0.34 + 533 + skill_lv*18'],
              
              
                         'cast': 0.3,
                         'res_cost': {"energy": 25},
                         'cond': {"type": "speed_ratio", "ratio": 1.5, "mult": 1.3},
                         'name': '疾风射击',
-                        'desc': '疾风裹挟箭矢，快过猎物的视线——造成 34% 攻击 + 293 固定物理伤害（成长），速度比 ≥1.5 时伤害 ×1.3'
+                        'desc': '疾风裹挟箭矢，快过猎物的视线——造成 34% 物理攻击 + 533 固定物理伤害（成长），速度比 ≥1.5 时伤害 ×1.3'
                     },
                     "双重射击": {
                         'lv': 38,
                         'mp': 12,
                         'power': 0.6,
                         'kind': '物理',
-             'exprs': ['atk*0.3 + 41 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.3 + 221 + skill_lv*14'],
              
              
                         'cast': 0.4,
@@ -1803,14 +1803,14 @@ BRANCH_SKILLS = {
                         'hits': 2,
                         'res_cost': {"energy": 35},
                         'name': '双重射击',
-                        'desc': '双箭齐发，一弦二响破空——造成 30% 攻击 + 41 固定物理伤害×2（成长）'
+                        'desc': '双箭齐发，一弦二响破空——造成 30% 物理攻击 + 221 固定物理伤害×2（成长）'
                     },
                     "蓄力射击": {
                         'lv': 44,
                         'mp': 14,
                         'power': 1.49,
                         'kind': '物理',
-             'exprs': ['atk*1.18 + 20 + player_lv*5.3 + skill_lv*12.0'],
+             'exprs': ['atk*0.95 + 179 + skill_lv*12'],
              
              
                         'cast': 0.5,
@@ -1818,14 +1818,14 @@ BRANCH_SKILLS = {
                         'res_cost': {"energy": 45},
                         'charge': 1.5,
                         'name': '蓄力射击',
-                        'desc': '弓弦缓缓拉满，风压凝于箭尖——蓄力 1.5 刻，造成 118% 攻击 + 20 固定物理伤害（成长），蓄力完成后 ×1.45'
+                        'desc': '弓弦缓缓拉满，风压凝于箭尖——蓄力 1.5 刻，造成 95% 物理攻击 + 179 固定物理伤害（成长），蓄力完成后 ×1.45'
                     },
                     "风刃乱舞": {
                         'lv': 50,
                         'mp': 16,
                         'power': 0.42,
                         'kind': '物理',
-             'exprs': ['atk*0.2 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.2 + 170 + skill_lv*12'],
              
              
                         'cast': 0.35,
@@ -1833,7 +1833,7 @@ BRANCH_SKILLS = {
                         'hits': 3,
                         'res_cost': {"energy": 40},
                         'name': '风刃乱舞',
-                        'desc': '三枚风刃割裂长空，纷乱斩落——造成 20% 攻击 + 20 固定物理伤害×3（成长）'
+                        'desc': '三枚风刃割裂长空，纷乱斩落——造成 20% 物理攻击 + 170 固定物理伤害×3（成长）'
                     },
                     "星轨锁定": {
                         'lv': 54,
@@ -1888,7 +1888,7 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.46,
                         'kind': '物理',
-             'exprs': ['atk*0.62 + 585 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*0.62 + 795 + skill_lv*16'],
              
              
                         'cast': 0.5,
@@ -1896,7 +1896,7 @@ BRANCH_SKILLS = {
                         'res_cost': {"energy": 50},
                         'cond': {"type": "enemy_hunt_mark", "mult": 1.3},
                         'name': '猎杀狂宴',
-                        'desc': '猎印绽放如血色盛宴，杀意沸腾——造成 62% 攻击 + 585 固定物理伤害（成长），对猎印目标 ×1.3，全队暴击 +15% 持续 8 刻'
+                        'desc': '猎印绽放如血色盛宴，杀意沸腾——造成 62% 物理攻击 + 795 固定物理伤害（成长），对猎印目标 ×1.3，全队暴击 +15% 持续 8 刻'
                     },
                     "剧毒之心": {
                         'lv': 80,
@@ -1913,7 +1913,7 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.71,
                         'kind': '物理',
-             'exprs': ['atk*0.8 + 733 + player_lv*6 + skill_lv*16'],
+             'exprs': ['atk*0.8 + 913 + skill_lv*16'],
              
              
                         'cast': 0.65,
@@ -1921,7 +1921,7 @@ BRANCH_SKILLS = {
                         'res_cost': {"energy": 45},
                         'cond': {"type": "enemy_hunt_full", "mult": 1.35},
                         'name': '穿心箭',
-                        'desc': '箭矢循着猎印直贯心口——造成 80% 攻击 + 733 固定物理伤害（成长），猎印满层时伤害 ×1.35'
+                        'desc': '箭矢循着猎印直贯心口——造成 80% 物理攻击 + 913 固定物理伤害（成长），猎印满层时伤害 ×1.35'
                     },
                     "自然护佑": {
                         'lv': 88,
@@ -1952,7 +1952,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 0.36,
                         'kind': '物理',
-             'exprs': ['atk*0.16 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.16 + 170 + skill_lv*12'],
              
              
                         'cast': 0.45,
@@ -1960,14 +1960,14 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'res_cost': {"energy": 30},
                         'name': '急速射击',
-                        'desc': '箭矢如连珠般倾泻而出——造成 16% 攻击 + 20 固定物理伤害×3（成长），结余 ≥40 时改为四段'
+                        'desc': '箭矢如连珠般倾泻而出——造成 16% 物理攻击 + 170 固定物理伤害×4（成长），结余 ≥40 时改为四段'
                     },
                     "穿云箭": {
                         'lv': 74,
                         'mp': 20,
                         'power': 1.71,
                         'kind': '物理',
-             'exprs': ['atk*0.664 + 498 + player_lv*5.8 + skill_lv*13.3'],
+             'exprs': ['atk*0.664 + 672 + skill_lv*13.3'],
              
              
                         'cast': 0.5,
@@ -1976,7 +1976,7 @@ BRANCH_SKILLS = {
                         'pierce': True,
                         'target': 'back',
                         'name': '穿云箭',
-                        'desc': '箭出穿云，直取后方咽喉——造成 66% 攻击 + 498 固定物理伤害（成长），点名后排并破防'
+                        'desc': '箭出穿云，直取后方咽喉——造成 66% 物理攻击 + 672 固定物理伤害（成长），点名后排并破防'
                     },
                     "风之屏障": {
                         'lv': 80,
@@ -1995,7 +1995,7 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.46,
                         'kind': '物理',
-             'exprs': ['atk*0.72 + 556 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.72 + 736 + skill_lv*14'],
              
              
                         'cast': 0.5,
@@ -2004,7 +2004,7 @@ BRANCH_SKILLS = {
                         'pierce': True,
                         'target': 'back',
                         'name': '穿甲射击',
-                        'desc': '风缠箭尖，撕裂一切甲胄——造成 72% 攻击 + 556 固定物理伤害（成长），破防点名，无视 50% 防御'
+                        'desc': '风缠箭尖，撕裂一切甲胄——造成 72% 物理攻击 + 736 固定物理伤害（成长），破防点名，无视 50% 防御'
                     },
                     "追风": {
                         'lv': 88,
@@ -2037,7 +2037,7 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.43,
                         'kind': '物理',
-             'exprs': ['atk*0.2 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.2 + 170 + skill_lv*12'],
              
              
                         'cast': 0.5,
@@ -2045,7 +2045,7 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'res_cost': {"energy": 55},
                         'name': '致命连射',
-                        'desc': '弓弦震颤如暴雨倾泻，箭矢连珠——造成 20% 攻击 + 20 固定物理伤害×4（成长）'
+                        'desc': '弓弦震颤如暴雨倾泻，箭矢连珠——造成 20% 物理攻击 + 170 固定物理伤害×4（成长）'
                     },
                     "召唤古树守卫": {
                         'lv': 95,
@@ -2065,7 +2065,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 2.42,
                         'kind': '物理',
-             'exprs': ['atk*1.42 + 1150 + player_lv*7.2 + skill_lv*17.5'],
+             'exprs': ['atk*1.42 + 1366 + skill_lv*17.5'],
              
              
                         'cast': 0.75,
@@ -2073,7 +2073,7 @@ BRANCH_SKILLS = {
                         'res_cost': {"energy": 60},
                         'kill': {"hunt_full": True, "poison": 5, "hp_lt": 0.25},
                         'name': '死神之箭',
-                        'desc': '死神凝视，索命之箭离弦而出——造成 142% 攻击 + 1150 固定物理伤害（成长），猎印满层且毒层 ≥5 时，斩杀生命 <25% 的目标'
+                        'desc': '死神凝视，索命之箭离弦而出——造成 142% 物理攻击 + 1366 固定物理伤害（成长），猎印满层且毒层 ≥5 时，斩杀生命 <25% 的目标'
                     },
                     "森之共鸣": {
                         'lv': 98,
@@ -2104,7 +2104,7 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.43,
                         'kind': '物理',
-             'exprs': ['atk*0.21 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.21 + 170 + skill_lv*12'],
              
              
                         'cast': 0.5,
@@ -2112,14 +2112,14 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'res_cost': {"energy": 55},
                         'name': '风暴之舞',
-                        'desc': '身形旋舞，箭矢如风暴席卷——造成 21% 攻击 + 20 固定物理伤害×4（成长）'
+                        'desc': '身形旋舞，箭矢如风暴席卷——造成 21% 物理攻击 + 170 固定物理伤害×4（成长）'
                     },
                     "疾风骤雨": {
                         'lv': 95,
                         'mp': 28,
                         'power': 0.43,
                         'kind': '物理',
-             'exprs': ['atk*0.22 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.22 + 170 + skill_lv*12'],
              
              
                         'cast': 0.5,
@@ -2127,7 +2127,7 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'res_cost': {"energy": 60},
                         'name': '疾风骤雨',
-                        'desc': '箭雨如骤，风势愈烈，杀机愈盛——造成 22% 攻击 + 20 固定物理伤害×4（成长），结余 ≥40 时暴击 +25%'
+                        'desc': '箭雨如骤，风势愈烈，杀机愈盛——造成 22% 物理攻击 + 170 固定物理伤害×4（成长），结余 ≥40 时暴击 +25%'
                     },
                     "疾风·极": {
                         'lv': 97,
@@ -2144,7 +2144,7 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.42,
                         'kind': '物理',
-             'exprs': ['atk*1.2 + 987 + player_lv*7 + skill_lv*18'],
+             'exprs': ['atk*1.2 + 1197 + skill_lv*18'],
              
              
                         'cast': 0.65,
@@ -2155,7 +2155,7 @@ BRANCH_SKILLS = {
                         'crit': 'true',
                         'target': 'back',
                         'name': '贯日箭',
-                        'desc': '箭贯长空，骄阳亦被一箭贯穿——造成 120% 攻击 + 987 固定物理伤害（成长），必中必暴、破防并点名后排'
+                        'desc': '箭贯长空，骄阳亦被一箭贯穿——造成 120% 物理攻击 + 1197 固定物理伤害（成长），必中必暴、破防并点名后排'
                     },
                 },
             },
@@ -2252,7 +2252,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '魔法',
-             'exprs': ['matk*0.79 + 30 + player_lv*6 + skill_lv*14'],
+             'exprs': ['matk*0.79 + 210 + skill_lv*14'],
              
              
                         'cast': 0.7,
@@ -2261,7 +2261,7 @@ BRANCH_SKILLS = {
                         'mech_val': 1,
                         'faith': 0,
                         'name': '骨噬诅咒',
-                        'desc': '怨毒诅咒啃噬敌骨——造成 79% 攻击 + 30 固定魔法伤害（成长），并挂诅咒：全队对其伤害 +20%，持续 8 刻'
+                        'desc': '怨毒诅咒啃噬敌骨——造成 79% 魔法攻击 + 210 固定魔法伤害（成长），并挂诅咒：全队对其伤害 +20%，持续 8 刻'
                     },
                     "灵魂标记": {
                         'lv': 44,
@@ -2293,7 +2293,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.25,
                         'kind': '魔法',
-             'exprs': ['matk*0.7 + 320 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*0.7 + 530 + skill_lv*15'],
              
              
                         'cast': 0.7,
@@ -2301,14 +2301,14 @@ BRANCH_SKILLS = {
                         'mech': 'curse_refresh',
                         'faith': 0,
                         'name': '墓穴低语',
-                        'desc': '墓穴深处的低语渗入耳畔——造成 70% 攻击 + 320 固定魔法伤害（成长），并刷新目标诅咒持续时长'
+                        'desc': '墓穴深处的低语渗入耳畔——造成 70% 魔法攻击 + 530 固定魔法伤害（成长），并刷新目标诅咒持续时长'
                     },
                     "骸骨祭仪": {
                         'lv': 58,
                         'mp': 18,
                         'power': 1.25,
                         'kind': '魔法',
-             'exprs': ['matk*0.8 + 195 + player_lv*8 + skill_lv*15'],
+             'exprs': ['matk*0.8 + 435 + skill_lv*15'],
              
              
                         'cast': 0.7,
@@ -2316,7 +2316,7 @@ BRANCH_SKILLS = {
                         'mech': 'sacrifice',
                         'faith': 0,
                         'name': '骸骨祭仪',
-                        'desc': '献祭一具骸骨，祭坛燃起幽绿冥火——造成 80% 攻击 + 195 固定魔法伤害（成长），全体暗蚀'
+                        'desc': '献祭一具骸骨，祭坛燃起幽绿冥火——造成 80% 魔法攻击 + 435 固定魔法伤害（成长），全体暗蚀'
                     },
                 },
             },
@@ -2426,7 +2426,7 @@ BRANCH_SKILLS = {
                         'mp': 26,
                         'power': 1.35,
                         'kind': '魔法',
-             'exprs': ['matk*0.65 + 456 + player_lv*7 + skill_lv*16'],
+             'exprs': ['matk*0.65 + 666 + skill_lv*16'],
              
              
                         'cast': 0.9,
@@ -2435,14 +2435,14 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'aoe': 'all',
                         'name': '骸骨洪流',
-                        'desc': '万骨奔腾如洪流倾泻——造成 65% 攻击 + 456 固定魔法伤害（成长），消耗全部骷髅，每只追加 90% 全体暗蚀'
+                        'desc': '万骨奔腾如洪流倾泻——造成 65% 魔法攻击 + 666 固定魔法伤害（成长），消耗全部骷髅，每只追加 90% 全体暗蚀'
                     },
                     "灵魂收割": {
                         'lv': 85,
                         'mp': 18,
                         'power': 1.57,
                         'kind': '魔法',
-             'exprs': ['matk*1.05 + 259 + player_lv*8 + skill_lv*16'],
+             'exprs': ['matk*1.05 + 499 + skill_lv*16'],
              
              
                         'cast': 0.8,
@@ -2450,7 +2450,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'cond': {"type": "enemy_cursed", "mult": 1.4},
                         'name': '灵魂收割',
-                        'desc': '镰影掠过，收割受诅之魂——造成 105% 攻击 + 259 固定魔法伤害（成长），对带诅咒目标 ×1.4'
+                        'desc': '镰影掠过，收割受诅之魂——造成 105% 魔法攻击 + 499 固定魔法伤害（成长），对带诅咒目标 ×1.4'
                     },
                     "亡魂护甲": {
                         'lv': 88,
@@ -2496,14 +2496,14 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.78,
                         'kind': '魔法',
-             'exprs': ['matk*1.35 + 215 + player_lv*8 + skill_lv*18'],
+             'exprs': ['matk*1.35 + 455 + skill_lv*18'],
              
              
                         'cast': 0.8,
                         'cd': 20,
                         'faith': 0,
                         'name': '圣光赞歌',
-                        'desc': '圣咏高唱，圣光凝成裁决之剑——对单体造成 135% 攻击 + 215 固定魔法伤害（成长）（终结技，不增信念）'
+                        'desc': '圣咏高唱，圣光凝成裁决之剑——对单体造成 135% 魔法攻击 + 455 固定魔法伤害（成长）（终结技，不增信念）'
                     },
                     "信念·圣化": {
                         'lv': 97,
@@ -2546,7 +2546,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.32,
                         'kind': '魔法',
-             'exprs': ['matk*0.75 + 349 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*0.75 + 559 + skill_lv*15'],
              
              
                         'cast': 0.9,
@@ -2554,7 +2554,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'aoe': 'all',
                         'name': '死寂领域',
-                        'desc': '死寂蔓延，万物噤声——全体造成 75% 攻击 + 349 固定魔法伤害（成长），并沉默 2 刻'
+                        'desc': '死寂蔓延，万物噤声——全体造成 75% 魔法攻击 + 559 固定魔法伤害（成长），并沉默 2 刻'
                     },
                     "灵魂锁链": {
                         'lv': 95,
@@ -2571,21 +2571,21 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.41,
                         'kind': '魔法',
-             'exprs': ['matk*1.668 + 480 + player_lv*8.8 + skill_lv*19.6'],
+             'exprs': ['matk*1.668 + 744 + skill_lv*19.6'],
              
              
                         'cast': 0.8,
                         'cd': 24,
                         'faith': 0,
                         'name': '永恒安魂',
-                        'desc': '献上全部骸骨，为敌奏响永恒安魂曲——造成 167% 攻击 + 480 固定魔法伤害（成长），并沉默 2.5 刻'
+                        'desc': '献上全部骸骨，为敌奏响永恒安魂曲——造成 167% 魔法攻击 + 744 固定魔法伤害（成长），并沉默 2.5 刻'
                     },
                     "亡魂主宰": {
                         'lv': 98,
                         'mp': 45,
                         'power': 2.32,
                         'kind': '魔法',
-             'exprs': ['matk*1.6 + 530 + player_lv*8 + skill_lv*19'],
+             'exprs': ['matk*1.6 + 770 + skill_lv*19'],
              
              
                         'cast': 0.9,
@@ -2594,7 +2594,7 @@ BRANCH_SKILLS = {
                         'cond': {"type": "faith_full", "stacks": 10, "mult": 1.4},
                         'summon': 'skeleton',
                         'name': '亡魂主宰',
-                        'desc': '亡魂之主君临战场——造成 160% 攻击 + 530 固定魔法伤害（成长），信念满 10 时 ×1.4 并召唤亡魂大军'
+                        'desc': '亡魂之主君临战场——造成 160% 魔法攻击 + 770 固定魔法伤害（成长），信念满 10 时 ×1.4 并召唤亡魂大军'
                     },
                 },
             },
@@ -2610,7 +2610,7 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 1.12,
                         'kind': '物理',
-             'exprs': ['atk*0.52 + 404 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.52 + 584 + skill_lv*14'],
              
              
                         'cast': 0.3,
@@ -2618,14 +2618,14 @@ BRANCH_SKILLS = {
                         'mech': 'lian_duan',
                         'mech_val': 1,
                         'name': '影刃',
-                        'desc': '暗影凝成利刃呼啸斩出——造成 52% 攻击 + 404 固定物理伤害（成长），命中 +1 段，连段 ≥3 时追加 1 段'
+                        'desc': '暗影凝成利刃呼啸斩出——造成 52% 物理攻击 + 584 固定物理伤害（成长），命中 +1 段，连段 ≥3 时追加 1 段'
                     },
                     "幻影连刺": {
                         'lv': 38,
                         'mp': 14,
                         'power': 0.5,
                         'kind': '物理',
-             'exprs': ['atk*0.26 + 68 + player_lv*4 + skill_lv*8'],
+             'exprs': ['atk*0.26 + 188 + skill_lv*8'],
              
              
                         'cast': 0.4,
@@ -2639,14 +2639,14 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.5,
                         'kind': '物理',
-             'exprs': ['atk*1.18 + 170 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*1.35 + 350 + skill_lv*14'],
              
              
                         'cast': 0.55,
                         'cd': 8,
                         'passive': {"proc": "finisher_up"},
                         'name': '链舞',
-                        'desc': '锁链舞动如轮，寒光漫天——造成 118% 攻击 + 170 固定物理伤害（成长），终结技系数 +6%（每段 10% → 16%）'
+                        'desc': '锁链舞动如轮，寒光漫天——造成 135% 物理攻击 + 350 固定物理伤害（成长），终结技系数 +6%（每段 10% → 16%）'
                     },
                     "暗影步": {
                         'lv': 50,
@@ -2675,14 +2675,14 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.46,
                         'kind': '物理',
-             'exprs': ['atk*0.68 + 562 + player_lv*7 + skill_lv*18'],
+             'exprs': ['atk*0.68 + 772 + skill_lv*18'],
              
              
                         'cast': 0.4,
                         'cd': 12,
                         'mech': 'finisher',
                         'name': '终结·处刑',
-                        'desc': '暗影中递出必杀之刃，避无可避——造成 68% 攻击 + 562 固定物理伤害（成长），连段越高伤害越高（每段 +10%），连段 ≥4 时必定暴击'
+                        'desc': '暗影中递出必杀之刃，避无可避——造成 68% 物理攻击 + 772 固定物理伤害（成长），连段越高伤害越高（每段 +10%），连段 ≥4 时必定暴击'
                     },
                 },
                 "毒刃者": {
@@ -2691,7 +2691,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.12,
                         'kind': '物理',
-             'exprs': ['atk*0.48 + 437 + player_lv*6 + skill_lv*14'],
+             'exprs': ['atk*0.48 + 617 + skill_lv*14'],
              
              
                         'cast': 0.3,
@@ -2700,14 +2700,14 @@ BRANCH_SKILLS = {
                         'mech_val': 2,
                         'cond': {"type": "player_mech_stacks", "mech": "lian_duan", "stacks": 2, "extra_poison": True},
                         'name': '毒刃',
-                        'desc': '刃上淬着幽绿毒液，寒光渗人——造成 48% 攻击 + 437 固定物理伤害（成长），附加 2 层毒持续 8 刻，连段 ≥3 时额外 +1 层'
+                        'desc': '刃上淬着幽绿毒液，寒光渗人——造成 48% 物理攻击 + 617 固定物理伤害（成长），附加 2 层毒持续 8 刻，连段 ≥3 时额外 +1 层'
                     },
                     "双毒刃": {
                         'lv': 38,
                         'mp': 14,
                         'power': 0.63,
                         'kind': '物理',
-             'exprs': ['atk*0.3 + 139 + player_lv*5 + skill_lv*11'],
+             'exprs': ['atk*0.3 + 289 + skill_lv*11'],
              
              
                         'cast': 0.35,
@@ -2731,21 +2731,21 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.44,
                         'kind': '魔法',
-             'exprs': ['matk*0.45 + 20 + player_lv*6 + skill_lv*13'],
+             'exprs': ['matk*0.45 + 200 + skill_lv*13'],
              
              
                         'cast': 0.4,
                         'cd': 12,
                         'mech': 'poison_burst_finisher',
                         'name': '毒爆',
-                        'desc': '引动体内毒素瞬间爆裂喷涌——造成 45% 攻击 + 20 固定魔法伤害（成长），引爆全部毒层（每层 +14%），结算后连段归零'
+                        'desc': '引动体内毒素瞬间爆裂喷涌——造成 45% 魔法攻击 + 200 固定魔法伤害（成长），引爆全部毒层（每层 +14%），结算后连段归零'
                     },
                     "淬毒之刃": {
                         'lv': 54,
                         'mp': 14,
                         'power': 1.46,
                         'kind': '物理',
-             'exprs': ['atk*0.6 + 634 + player_lv*7 + skill_lv*16'],
+             'exprs': ['atk*0.6 + 844 + skill_lv*16'],
              
              
                         'cast': 0.4,
@@ -2754,7 +2754,7 @@ BRANCH_SKILLS = {
                         'mech_val': 3,
                         'pierce': True,
                         'name': '淬毒之刃',
-                        'desc': '刃锋淬满剧毒，绿芒流转不休——造成 60% 攻击 + 634 固定物理伤害（成长），附加 3 层毒持续 8 刻，并施加破防'
+                        'desc': '刃锋淬满剧毒，绿芒流转不休——造成 60% 物理攻击 + 844 固定物理伤害（成长），附加 3 层毒持续 8 刻，并施加破防'
                     },
                     "死亡标记": {
                         'lv': 58,
@@ -2786,35 +2786,35 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.47,
                         'kind': '物理',
-             'exprs': ['atk*0.6 + 693 + player_lv*6 + skill_lv*15'],
+             'exprs': ['atk*0.6 + 873 + skill_lv*15'],
              
              
                         'cast': 0.4,
                         'cd': 12,
                         'cond': {"type": "stealth", "mult": 1.4},
                         'name': '暗影突袭',
-                        'desc': '自潜行中骤然暴起，寒芒直刺——造成 60% 攻击 + 693 固定物理伤害（成长），潜行中伤害 ×1.4'
+                        'desc': '自潜行中骤然暴起，寒芒直刺——造成 60% 物理攻击 + 873 固定物理伤害（成长），潜行中伤害 ×1.4'
                     },
                     "收割": {
                         'lv': 74,
                         'mp': 18,
                         'power': 1.81,
                         'kind': '物理',
-             'exprs': ['atk*0.64 + 980 + player_lv*7 + skill_lv*15'],
+             'exprs': ['atk*0.64 + 1190 + skill_lv*15'],
              
              
                         'cast': 0.5,
                         'cd': 10,
                         'cond': {"type": "enemy_low_hp", "hp_lt": 40, "mult": 1.45},
                         'name': '收割',
-                        'desc': '匕刃悄然划向垂死之敌——造成 64% 攻击 + 980 固定物理伤害（成长），目标生命低于 40% 时伤害 ×1.45'
+                        'desc': '匕刃悄然划向垂死之敌——造成 64% 物理攻击 + 1190 固定物理伤害（成长），目标生命低于 40% 时伤害 ×1.45'
                     },
                     "幽影连刺": {
                         'lv': 80,
                         'mp': 18,
                         'power': 0.43,
                         'kind': '物理',
-             'exprs': ['atk*0.22 + 36 + player_lv*4 + skill_lv*7'],
+             'exprs': ['atk*0.22 + 156 + skill_lv*7'],
              
              
                         'cast': 0.45,
@@ -2861,14 +2861,14 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 1.4,
                         'kind': '魔法',
-             'exprs': ['matk*0.4 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*0.4 + 170 + skill_lv*12'],
              
              
                         'cast': 0.3,
                         'cd': 16,
                         'aoe': 'all',
                         'name': '毒雾·淬',
-                        'desc': '掷出毒瓶，碧绿毒雾弥漫全场——对全体造成 40% 攻击 + 20 固定魔法伤害（成长），附加 2 层毒持续 8 刻'
+                        'desc': '掷出毒瓶，碧绿毒雾弥漫全场——对全体造成 40% 魔法攻击 + 170 固定魔法伤害（成长），附加 2 层毒持续 8 刻'
                     },
                     "剧毒之触": {
                         'lv': 74,
@@ -2885,7 +2885,7 @@ BRANCH_SKILLS = {
                         'mp': 22,
                         'power': 1.95,
                         'kind': '真伤',
-             'exprs': ['atk*0.7 + 940 + player_lv*8 + skill_lv*17'],
+             'exprs': ['atk*0.7 + 1180 + skill_lv*17'],
              
              
                         'cast': 0.45,
@@ -2898,14 +2898,14 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.81,
                         'kind': '物理',
-             'exprs': ['atk*0.55 + 1036 + player_lv*7 + skill_lv*15'],
+             'exprs': ['atk*0.55 + 1246 + skill_lv*15'],
              
              
                         'cast': 0.5,
                         'cd': 16,
                         'cond': {"type": "enemy_def_high", "mult": 1.5},
                         'name': '淬毒刺杀',
-                        'desc': '毒刃专挑重甲缝隙直刺心脉——造成 55% 攻击 + 1036 固定物理伤害（成长），目标防御越高伤害越高（最高 ×1.5）'
+                        'desc': '毒刃专挑重甲缝隙直刺心脉——造成 55% 物理攻击 + 1246 固定物理伤害（成长），目标防御越高伤害越高（最高 ×1.5）'
                     },
                     "毒雾·障": {
                         'lv': 88,
@@ -2938,7 +2938,7 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 0.49,
                         'kind': '物理',
-             'exprs': ['atk*0.26 + 58 + player_lv*4 + skill_lv*8'],
+             'exprs': ['atk*0.26 + 178 + skill_lv*8'],
              
              
                         'cast': 0.5,
@@ -2952,14 +2952,14 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 2.17,
                         'kind': '物理',
-             'exprs': ['atk*0.72 + 1204 + player_lv*8 + skill_lv*20'],
+             'exprs': ['atk*0.72 + 1444 + skill_lv*20'],
              
              
                         'cast': 0.6,
                         'cd': 20,
                         'mech': 'finisher',
                         'name': '终结·暗影绞杀',
-                        'desc': '暗影如蛇绞上咽喉，无声取命——造成 72% 攻击 + 1204 固定物理伤害（成长），连段越高伤害越高（每段 +16%），击杀则连段保留'
+                        'desc': '暗影如蛇绞上咽喉，无声取命——造成 72% 物理攻击 + 1444 固定物理伤害（成长），连段越高伤害越高（每段 +16%），击杀则连段保留'
                     },
                     "影舞·无间": {
                         'lv': 97,
@@ -2976,14 +2976,14 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.1,
                         'kind': '物理',
-             'exprs': ['atk*0.78 + 1065 + player_lv*7 + skill_lv*18'],
+             'exprs': ['atk*0.78 + 1275 + skill_lv*18'],
              
              
                         'cast': 0.5,
                         'cd': 24,
                         'cond': {"type": "player_mech_stacks", "mech": "lian_duan", "stacks": 5, "mult": 1.5},
                         'name': '万影归一',
-                        'desc': '万千暗影凝聚于一刃，天地失色——造成 78% 攻击 + 1065 固定物理伤害（成长），连段满 5 时伤害 ×1.5'
+                        'desc': '万千暗影凝聚于一刃，天地失色——造成 78% 物理攻击 + 1275 固定物理伤害（成长），连段满 5 时伤害 ×1.5'
                     },
                 },
                 "毒刃者": {
@@ -3002,21 +3002,21 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 1.32,
                         'kind': '魔法',
-             'exprs': ['matk*0.42 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*0.42 + 170 + skill_lv*12'],
              
              
                         'cast': 0.5,
                         'cd': 20,
                         'aoe': 'all',
                         'name': '剧毒风暴',
-                        'desc': '掀起剧毒风暴席卷全场，草木皆枯——对全体造成 42% 攻击 + 20 固定魔法伤害（成长），毒层 ≥6 时伤害 ×1.4'
+                        'desc': '掀起剧毒风暴席卷全场，草木皆枯——对全体造成 42% 魔法攻击 + 170 固定魔法伤害（成长），毒层 ≥6 时伤害 ×1.4'
                     },
                     "万毒噬心": {
                         'lv': 95,
                         'mp': 45,
                         'power': 3.25,
                         'kind': '真伤',
-             'exprs': ['atk*0.78 + 1750 + player_lv*8.5 + skill_lv*20.5'],
+             'exprs': ['atk*0.78 + 2005 + skill_lv*20.5'],
              
              
                         'cast': 0.8,
@@ -3042,14 +3042,14 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 1.32,
                         'kind': '魔法',
-             'exprs': ['matk*0.38 + 20 + player_lv*5 + skill_lv*12'],
+             'exprs': ['matk*0.38 + 170 + skill_lv*12'],
              
              
                         'cast': 0.5,
                         'cd': 24,
                         'aoe': 'all',
                         'name': '腐世',
-                        'desc': '腐毒如瘟疫吞没天地万物——对全体造成 38% 攻击 + 20 固定魔法伤害（成长），对带毒目标伤害 ×1.3'
+                        'desc': '腐毒如瘟疫吞没天地万物——对全体造成 38% 魔法攻击 + 170 固定魔法伤害（成长），对带毒目标伤害 ×1.3'
                     },
                 },
             },
@@ -3065,21 +3065,21 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.72,
                         'kind': '物理',
-             'exprs': ['atk*0.5 + 56 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.5 + 206 + skill_lv*12'],
              
              
                         'cast': 0.4,
                         'cd': 8,
                         'shaken_gain': 0,
                         'name': '疾风拳',
-                        'desc': '疾风骤雨般连打出拳——造成 50% 攻击 + 56 固定物理伤害（成长），推破绽条；速度比 ≥1.3 时推条额外 +6'
+                        'desc': '疾风骤雨般连打出拳——造成 50% 物理攻击 + 206 固定物理伤害（成长），推破绽条；速度比 ≥1.3 时推条额外 +6'
                     },
                     "旋风踢": {
                         'lv': 38,
                         'mp': 14,
                         'power': 0.81,
                         'kind': '物理',
-             'exprs': ['atk*0.55 + 58 + player_lv*6 + skill_lv*13'],
+             'exprs': ['atk*0.55 + 238 + skill_lv*13'],
              
              
                         'cast': 0.45,
@@ -3087,14 +3087,14 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'aoe': 'front',
                         'name': '旋风踢',
-                        'desc': '旋风扫堂踢撼前排——造成 55% 攻击 + 58 固定物理伤害（成长），AOE 推破绽条（前排全体）'
+                        'desc': '旋风扫堂踢撼前排——造成 55% 物理攻击 + 238 固定物理伤害（成长），AOE 推破绽条（前排全体）'
                     },
                     "碎颅势": {
                         'lv': 44,
                         'mp': 16,
                         'power': 1.08,
                         'kind': '物理',
-             'exprs': ['atk*0.6 + 240 + player_lv*7 + skill_lv*14'],
+             'exprs': ['atk*0.75 + 450 + skill_lv*14'],
              
              
                         'cast': 0.6,
@@ -3102,35 +3102,35 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'cond': {"type": "enemy_broken", "mult": 1.45},
                         'name': '碎颅势',
-                        'desc': '拳锋直取天灵要害——造成 60% 攻击 + 240 固定物理伤害（成长），对破防目标伤害 ×1.45'
+                        'desc': '拳锋直取天灵要害——造成 75% 物理攻击 + 450 固定物理伤害（成长），对破防目标伤害 ×1.45'
                     },
                     "崩拳": {
                         'lv': 50,
                         'mp': 18,
                         'power': 1.35,
                         'kind': '物理',
-             'exprs': ['atk*1.45 + 150 + player_lv*8 + skill_lv*17'],
+             'exprs': ['atk*1.6 + 390 + skill_lv*17'],
              
              
                         'cast': 0.7,
                         'cd': 10,
                         'shaken_gain': 0,
                         'name': '崩拳',
-                        'desc': '崩山一拳轰然砸落——造成 145% 攻击 + 150 固定物理伤害（成长），单次大幅推破绽条'
+                        'desc': '崩山一拳轰然砸落——造成 160% 物理攻击 + 390 固定物理伤害（成长），单次大幅推破绽条'
                     },
                     "气力爆发": {
                         'lv': 54,
                         'mp': 16,
                         'power': 1.08,
                         'kind': '物理',
-             'exprs': ['atk*0.55 + 328 + player_lv*6 + skill_lv*13'],
+             'exprs': ['atk*0.55 + 508 + skill_lv*13'],
              
              
                         'cast': 0.6,
                         'cd': 12,
                         'cond': {"type": "enemy_shaken_ratio", "mult": 0.8},
                         'name': '气力爆发',
-                        'desc': '气劲灌拳轰然炸裂——造成 55% 攻击 + 328 固定物理伤害（成长），目标破绽每 50 点使伤害 +80%'
+                        'desc': '气劲灌拳轰然炸裂——造成 55% 物理攻击 + 508 固定物理伤害（成长），目标破绽每 50 点使伤害 +80%'
                     },
                     "铁山靠": {
                         'lv': 58,
@@ -3150,14 +3150,14 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 0.72,
                         'kind': '物理',
-             'exprs': ['atk*0.4 + 137 + player_lv*5 + skill_lv*12'],
+             'exprs': ['atk*0.4 + 287 + skill_lv*12'],
              
              
                         'cast': 0.4,
                         'cd': 8,
                         'shaken_gain': 0,
                         'name': '铁壁拳',
-                        'desc': '铁壁横拳，攻守兼备——造成 40% 攻击 + 137 固定物理伤害（成长），推破绽条并获得护盾（推条值 ×1.5% 最大生命）持续 8 刻'
+                        'desc': '铁壁横拳，攻守兼备——造成 40% 物理攻击 + 287 固定物理伤害（成长），推破绽条并获得护盾（推条值 ×1.5% 最大生命）持续 8 刻'
                     },
                     "守御姿态": {
                         'lv': 38,
@@ -3175,7 +3175,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 0.45,
                         'kind': '物理',
-             'exprs': ['atk*0.25 + 90 + player_lv*3 + skill_lv*8'],
+             'exprs': ['atk*0.25 + 180 + skill_lv*8'],
              
              
                         'cast': 0.25,
@@ -3183,7 +3183,7 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'cond': {"type": "guard_core", "per_core": 0.7},
                         'name': '磐岩释能',
-                        'desc': '引磐核之力轰然释能——造成 25% 攻击 + 90 固定物理伤害（成长）并推破绽条，每枚磐核使伤害 +70%'
+                        'desc': '引磐核之力轰然释能——造成 25% 物理攻击 + 180 固定物理伤害（成长）并推破绽条，每枚磐核使伤害 +70%'
                     },
                     "厚土": {
                         'lv': 50,
@@ -3235,7 +3235,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 0.24,
                         'kind': '物理',
-             'exprs': ['atk*0.15 + 62 + player_lv*1 + skill_lv*4'],
+             'exprs': ['atk*0.15 + 92 + skill_lv*4'],
              
              
                         'cast': 0.5,
@@ -3243,14 +3243,14 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'shaken_gain': 0,
                         'name': '连环拳',
-                        'desc': '拳如连珠四段疾打——每段造成 15% 攻击 + 62 固定物理伤害（成长），四段皆推破绽条'
+                        'desc': '拳如连珠四段疾打——每段造成 15% 物理攻击 + 92 固定物理伤害×4（成长），四段皆推破绽条'
                     },
                     "气力裂空": {
                         'lv': 74,
                         'mp': 20,
                         'power': 1.26,
                         'kind': '物理',
-             'exprs': ['atk*1.0 + 650 + player_lv*9 + skill_lv*19'],
+             'exprs': ['atk*1.2 + 920 + skill_lv*19'],
              
              
                         'cast': 0.7,
@@ -3258,14 +3258,14 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'cond': {"type": "enemy_broken", "mult": 1.5},
                         'name': '气力裂空',
-                        'desc': '气劲裂空，拳出破晓——造成 100% 攻击 + 650 固定物理伤害（成长），对破防目标伤害 ×1.5'
+                        'desc': '气劲裂空，拳出破晓——造成 120% 物理攻击 + 920 固定物理伤害（成长），对破防目标伤害 ×1.5'
                     },
                     "裂岳连击": {
                         'lv': 80,
                         'mp': 22,
                         'power': 0.38,
                         'kind': '物理',
-             'exprs': ['atk*0.22 + 44 + player_lv*3 + skill_lv*8'],
+             'exprs': ['atk*0.22 + 134 + skill_lv*8'],
              
              
                         'cast': 0.6,
@@ -3273,7 +3273,7 @@ BRANCH_SKILLS = {
                         'hits': 3,
                         'shaken_gain': 0,
                         'name': '裂岳连击',
-                        'desc': '裂岳之势三连重击——每段造成 22% 攻击 + 44 固定物理伤害（成长）；目标破绽 ≥20 时追加 1 段'
+                        'desc': '裂岳之势三连重击——每段造成 22% 物理攻击 + 134 固定物理伤害×3（成长）；目标破绽 ≥20 时追加 1 段'
                     },
                     "破绽感知": {
                         'lv': 85,
@@ -3290,7 +3290,7 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.26,
                         'kind': '物理',
-             'exprs': ['atk*0.65 + 379 + player_lv*7 + skill_lv*14'],
+             'exprs': ['atk*0.65 + 589 + skill_lv*14'],
              
              
                         'cast': 0.7,
@@ -3298,7 +3298,7 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'mech2': 'stun',
                         'name': '震慑拳',
-                        'desc': '震慑之拳直撼心神——造成 65% 攻击 + 379 固定物理伤害（成长），破防触发时额外眩晕 1.5 刻'
+                        'desc': '震慑之拳直撼心神——造成 65% 物理攻击 + 589 固定物理伤害（成长），破防触发时额外眩晕 1.5 刻'
                     },
                 },
                 "磐石行者": {
@@ -3327,7 +3327,7 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 0.54,
                         'kind': '物理',
-             'exprs': ['atk*0.35 + 51 + player_lv*4 + skill_lv*9'],
+             'exprs': ['atk*0.35 + 171 + skill_lv*9'],
              
              
                         'cast': 0.3,
@@ -3335,7 +3335,7 @@ BRANCH_SKILLS = {
                         'mech': 'guard_core_burst',
                         'shaken_gain': 0,
                         'name': '磐核爆发',
-                        'desc': '引爆磐核，一击惊天——造成 35% 攻击 + 51 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
+                        'desc': '引爆磐核，一击惊天——造成 35% 物理攻击 + 171 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
                     },
                     "气力守御": {
                         'lv': 80,
@@ -3379,7 +3379,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.49,
                         'kind': '物理',
-             'exprs': ['atk*0.8 + 437 + player_lv*8 + skill_lv*16'],
+             'exprs': ['atk*0.8 + 677 + skill_lv*16'],
              
              
                         'cast': 0.8,
@@ -3387,14 +3387,14 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'cond': {"type": "enemy_shaken_scale", "mult": 1.0},
                         'name': '气力通天',
-                        'desc': '气贯长天，一拳通神——造成 80% 攻击 + 437 固定物理伤害（成长），破绽越高伤害越高'
+                        'desc': '气贯长天，一拳通神——造成 80% 物理攻击 + 677 固定物理伤害（成长），破绽越高伤害越高'
                     },
                     "无影连打": {
                         'lv': 93,
                         'mp': 24,
                         'power': 0.28,
                         'kind': '物理',
-             'exprs': ['atk*0.18 + 27 + player_lv*2 + skill_lv*6'],
+             'exprs': ['atk*0.18 + 87 + skill_lv*6'],
              
              
                         'cast': 0.6,
@@ -3402,21 +3402,21 @@ BRANCH_SKILLS = {
                         'hits': 4,
                         'shaken_gain': 0,
                         'name': '无影连打',
-                        'desc': '拳影无痕四段连打——每段造成 18% 攻击 + 27 固定物理伤害（成长），四段皆推破绽条'
+                        'desc': '拳影无痕四段连打——每段造成 18% 物理攻击 + 87 固定物理伤害×4（成长），四段皆推破绽条'
                     },
                     "撼岳·终焉": {
                         'lv': 95,
                         'mp': 40,
                         'power': 1.67,
                         'kind': '物理',
-             'exprs': ['atk*1.35 + 1150 + player_lv*12 + skill_lv*24'],
+             'exprs': ['atk*1.75 + 1510 + skill_lv*24'],
              
              
                         'cast': 0.8,
                         'cd': 16,
                         'shaken_gain': 0,
                         'name': '撼岳·终焉',
-                        'desc': '撼岳终焉之拳崩天裂地——造成 135% 攻击 + 1150 固定物理伤害（成长），推破绽条；破防时目标眩晕 2.0 刻'
+                        'desc': '撼岳终焉之拳崩天裂地——造成 175% 物理攻击 + 1510 固定物理伤害（成长），推破绽条；破防时目标眩晕 2.0 刻'
                     },
                     "破绽·极": {
                         'lv': 97,
@@ -3433,14 +3433,14 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 1.67,
                         'kind': '物理',
-             'exprs': ['atk*0.82 + 604 + player_lv*8 + skill_lv*15'],
+             'exprs': ['atk*0.82 + 844 + skill_lv*15'],
              
              
                         'cast': 0.9,
                         'cd': 24,
                         'cond': {"type": "enemy_broken", "mult": 1.9},
                         'name': '崩山',
-                        'desc': '一拳崩山，万钧压顶——造成 82% 攻击 + 604 固定物理伤害（成长），对破防目标伤害 ×1.9'
+                        'desc': '一拳崩山，万钧压顶——造成 82% 物理攻击 + 844 固定物理伤害（成长），对破防目标伤害 ×1.9'
                     },
                 },
                 "磐石行者": {
@@ -3470,7 +3470,7 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 0.63,
                         'kind': '物理',
-             'exprs': ['atk*0.35 + 141 + player_lv*4 + skill_lv*9'],
+             'exprs': ['atk*0.35 + 261 + skill_lv*9'],
              
              
                         'cast': 0.35,
@@ -3478,7 +3478,7 @@ BRANCH_SKILLS = {
                         'mech': 'guard_core_burst',
                         'shaken_gain': 0,
                         'name': '气力万法',
-                        'desc': '气力汇万法于一拳——造成 35% 攻击 + 141 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
+                        'desc': '气力汇万法于一拳——造成 35% 物理攻击 + 261 固定物理伤害（成长），消耗全部磐核，每枚使伤害 +70%'
                     },
                     "不动如山": {
                         'lv': 97,
@@ -3495,7 +3495,7 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 1.49,
                         'kind': '物理',
-             'exprs': ['atk*0.75 + 478 + player_lv*8 + skill_lv*16'],
+             'exprs': ['atk*0.75 + 718 + skill_lv*16'],
              
              
                         'cast': 0.8,
@@ -3503,7 +3503,7 @@ BRANCH_SKILLS = {
                         'shaken_gain': 0,
                         'cond': {"type": "enemy_broken", "mult": 1.7},
                         'name': '磐岩·镇世',
-                        'desc': '磐岩镇世，拳撼山河——造成 75% 攻击 + 478 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.7'
+                        'desc': '磐岩镇世，拳撼山河——造成 75% 物理攻击 + 718 固定物理伤害（成长），推破绽条；对破防目标伤害 ×1.7'
                     },
                 },
             },
@@ -3554,14 +3554,14 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.02,
                         'kind': '魔法',
-             'exprs': ['matk*0.55 + 200 + player_lv*7 + skill_lv*16'],
+             'exprs': ['matk*0.55 + 410 + skill_lv*16'],
              
              
                         'cast': 0.5,
                         'cd': 12,
                         'cond': {"type": "melody_buff", "mult": 1.3},
                         'name': '咏叹调',
-                        'desc': '高亢咏叹冲霄而起，化作璀璨音刃——造成 55% 攻击 + 200 固定魔法伤害（成长）；当前旋律为增益系时 ×1.3'
+                        'desc': '高亢咏叹冲霄而起，化作璀璨音刃——造成 55% 魔法攻击 + 410 固定魔法伤害（成长）；当前旋律为增益系时 ×1.3'
                     },
                     "凯旋之歌": {
                         'lv': 54,
@@ -3593,14 +3593,14 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.02,
                         'kind': '魔法',
-             'exprs': ['matk*0.490 + 285 + player_lv*5.9 + skill_lv*13.7'],
+             'exprs': ['matk*0.490 + 462 + skill_lv*13.7'],
              
              
                         'cast': 0.5,
                         'cd': 8,
                         'mech2': 'atk_down',
                         'name': '哀歌',
-                        'desc': '低沉的哀歌如暮色笼罩，音刃割裂战意——造成 49% 攻击 + 285 固定魔法伤害（成长），目标攻击 −20%，持续 8 刻'
+                        'desc': '低沉的哀歌如暮色笼罩，音刃割裂战意——造成 49% 魔法攻击 + 462 固定魔法伤害（成长），目标攻击 −20%，持续 8 刻'
                     },
                     "镇魂歌": {
                         'lv': 38,
@@ -3630,14 +3630,14 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.14,
                         'kind': '魔法',
-             'exprs': ['matk*0.6 + 281 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*0.6 + 491 + skill_lv*15'],
              
              
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'atk_down',
                         'name': '悲鸣',
-                        'desc': '凄厉悲鸣撕裂空气，音刃啃噬敌人的斗志——造成 60% 攻击 + 281 固定魔法伤害（成长），目标攻击 −25%，持续 8 刻'
+                        'desc': '凄厉悲鸣撕裂空气，音刃啃噬敌人的斗志——造成 60% 魔法攻击 + 491 固定魔法伤害（成长），目标攻击 −25%，持续 8 刻'
                     },
                     "挽歌": {
                         'lv': 54,
@@ -3657,14 +3657,14 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.14,
                         'kind': '魔法',
-             'exprs': ['matk*0.5 + 360 + player_lv*7 + skill_lv*15'],
+             'exprs': ['matk*0.5 + 570 + skill_lv*15'],
              
              
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'def_down',
                         'name': '破碎和音',
-                        'desc': '刺耳和音轰然炸裂，震碎敌人的防线——造成 50% 攻击 + 360 固定魔法伤害（成长），目标防御 −30%，持续 8 刻'
+                        'desc': '刺耳和音轰然炸裂，震碎敌人的防线——造成 50% 魔法攻击 + 570 固定魔法伤害（成长），目标防御 −30%，持续 8 刻'
                     },
                 },
             },
@@ -3675,13 +3675,13 @@ BRANCH_SKILLS = {
                         'mp': 28,
                         'power': 1.8,
                         'kind': '魔法',
-             'exprs': ['matk*1.138 + 378 + player_lv*6.6 + skill_lv*13.3'],
+             'exprs': ['matk*1.138 + 576 + skill_lv*13.3'],
              
              
                         'cast': 0.7,
                         'cd': 20,
                         'name': '破晓长歌',
-                        'desc': '破晓长歌震碎长夜，音浪化作贯日一击——造成 114% 攻击 + 378 固定魔法伤害（成长）的单体音刃终结（重技）'
+                        'desc': '破晓长歌震碎长夜，音浪化作贯日一击——造成 114% 魔法攻击 + 576 固定魔法伤害（成长）的单体音刃终结（重技）'
                     },
                     "英雄叙事诗": {
                         'lv': 68,
@@ -3769,14 +3769,14 @@ BRANCH_SKILLS = {
                         'mp': 24,
                         'power': 1.31,
                         'kind': '魔法',
-             'exprs': ['matk*0.7 + 371 + player_lv*7 + skill_lv*14'],
+             'exprs': ['matk*0.7 + 581 + skill_lv*14'],
              
              
                         'cast': 0.6,
                         'cd': 16,
                         'mech2': 'silence',
                         'name': '亡者挽歌',
-                        'desc': '为亡者而歌的旋律缠上生者，音刃斩断言语——造成 70% 攻击 + 371 固定魔法伤害（成长），沉默 2.5 刻'
+                        'desc': '为亡者而歌的旋律缠上生者，音刃斩断言语——造成 70% 魔法攻击 + 581 固定魔法伤害（成长），沉默 2.5 刻'
                     },
                     "镇魂安魂": {
                         'lv': 80,
@@ -3793,14 +3793,14 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.31,
                         'kind': '魔法',
-             'exprs': ['matk*0.65 + 405 + player_lv*7 + skill_lv*16'],
+             'exprs': ['matk*0.65 + 615 + skill_lv*16'],
              
              
                         'cast': 0.6,
                         'cd': 12,
                         'mech2': 'all_down',
                         'name': '哀悼之音',
-                        'desc': '哀悼之音如泣如诉，令万物为之衰朽——造成 65% 攻击 + 405 固定魔法伤害（成长），目标全属性 −20%，持续 8 刻'
+                        'desc': '哀悼之音如泣如诉，令万物为之衰朽——造成 65% 魔法攻击 + 615 固定魔法伤害（成长），目标全属性 −20%，持续 8 刻'
                     },
                     "挽歌·沉": {
                         'lv': 88,
@@ -3857,14 +3857,14 @@ BRANCH_SKILLS = {
                         'mp': 45,
                         'power': 2.04,
                         'kind': '魔法',
-             'exprs': ['matk*1.45 + 384 + player_lv*8 + skill_lv*14'],
+             'exprs': ['matk*1.45 + 624 + skill_lv*14'],
              
              
                         'cast': 0.7,
                         'cd': 24,
                         'cond': {"type": "melody_stacks", "stacks": 4, "mult": 1.3},
                         'name': '天籁',
-                        'desc': '天籁之音自云端垂落，化作灭世音刃——造成 145% 攻击 + 384 固定魔法伤害（成长）的音刃顶点终结；强度层 ≥4 时 ×1.3'
+                        'desc': '天籁之音自云端垂落，化作灭世音刃——造成 145% 魔法攻击 + 624 固定魔法伤害（成长）的音刃顶点终结；强度层 ≥4 时 ×1.3'
                     },
                     "永恒赞歌": {
                         'lv': 98,
@@ -3897,14 +3897,14 @@ BRANCH_SKILLS = {
                         'mp': 40,
                         'power': 2.04,
                         'kind': '魔法',
-             'exprs': ['matk*1.4 + 469 + player_lv*7 + skill_lv*14'],
+             'exprs': ['matk*1.4 + 679 + skill_lv*14'],
              
              
                         'cast': 0.7,
                         'cd': 20,
                         'mech2': 'silence',
                         'name': '死寂',
-                        'desc': '万籁凝成死寂一瞬，音刃落下带走所有声音——造成 140% 攻击 + 469 固定魔法伤害（成长）的音刃终结，沉默 3.0 刻'
+                        'desc': '万籁凝成死寂一瞬，音刃落下带走所有声音——造成 140% 魔法攻击 + 679 固定魔法伤害（成长）的音刃终结，沉默 3.0 刻'
                     },
                     "挽歌·极": {
                         'lv': 95,
@@ -3921,14 +3921,14 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 1.12,
                         'kind': '魔法',
-             'exprs': ['matk*0.45 + 383 + player_lv*7 + skill_lv*14'],
+             'exprs': ['matk*0.45 + 593 + skill_lv*14'],
              
              
                         'cast': 0.7,
                         'cd': 24,
                         'aoe': 'all',
                         'name': '万籁俱寂',
-                        'desc': '天地骤然失声，寂静之刃横扫整片战场——全体音刃 造成 45% 攻击 + 383 固定魔法伤害（成长），全体沉默 2.0 刻'
+                        'desc': '天地骤然失声，寂静之刃横扫整片战场——全体音刃 造成 45% 魔法攻击 + 593 固定魔法伤害（成长），全体沉默 2.0 刻'
                     },
                     "终末安魂": {
                         'lv': 98,
