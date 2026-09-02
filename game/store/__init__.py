@@ -26,6 +26,9 @@ from .players import (  # noqa: F401
 from .inventory import (  # noqa: F401
     _key_to_id, add_item, get_inventory, count_item, remove_item,
     update_item_data, sell_item_atomic,
+    # v168 冒险手册：曾拥有物品
+    record_possessed, record_possessed_conn,
+    get_possessed, get_possessed_rows, count_possessed,
 )
 from .quests import get_quests, save_quests, expire_daily  # noqa: F401
 from .battle_state import save_battle, get_battle, get_battle_raw, clear_battle  # noqa: F401
@@ -60,6 +63,8 @@ from .world import (  # noqa: F401
     home_storage_deposit_atomic, home_storage_take_atomic,
     # v115 探索见闻：子区域级到访
     add_visited_subarea, get_visited_subareas, count_visited_subareas,
+    # v168 冒险手册：子区域到访明细（含首访时间）
+    get_visited_subareas_rows,
 )
 from .feedback import (  # noqa: F401
     add_feedback, get_feedback,

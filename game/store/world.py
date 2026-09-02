@@ -120,6 +120,19 @@ def get_visited_subareas(qq_id) -> set:
         finally:
             conn.close()
 
+def get_visited_subareas_rows(qq_id) -> list:
+    """v168 冒险手册：子区域到访明细行 [{map_id, sa_id, first_at}, ...]（按 first_at 升序）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT map_id, sa_id, first_at FROM visited_subareas WHERE qq_id=? ORDER BY first_at",
+                (qq_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
 def count_visited_subareas(qq_id) -> int:
     """子区域到访总数（全大陆 visited_subareas 记录条数）。"""
     with _lock:

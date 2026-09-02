@@ -5,6 +5,7 @@ import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
 from .inventory import FISH_TAGS_MAX, _slim, _trim_individuals, _snapshot_one
+from .inventory import record_possessed_conn  # v168 冒险手册：市场/摆摊接手记曾拥有
 
 """奥兰迪亚·余烬纪年存储层 - social"""
 
@@ -251,6 +252,8 @@ def _inv_upsert(conn, group_id, qq_id, item_key, item_data, count):
                 (count, qq_id, item_key),
             )
     else:
+        # v168 冒险手册：市场买入/摆摊接手/交换 = 新格 INSERT → 记曾拥有（幂等）
+        record_possessed_conn(conn, qq_id, item_key, item_data)
         conn.execute(
             "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
             (qq_id, item_key, json.dumps(slim, ensure_ascii=False), count),

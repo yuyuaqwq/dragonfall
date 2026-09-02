@@ -189,6 +189,11 @@ CREATE TABLE IF NOT EXISTS players (
                 first_seen INTEGER,
                 last_active INTEGER,
                 PRIMARY KEY (qq_id, group_id)
+            );CREATE TABLE IF NOT EXISTS possessed (
+                qq_id TEXT NOT NULL,
+                item_key TEXT NOT NULL,
+                got_at INTEGER,
+                PRIMARY KEY (qq_id, item_key)
             );"""
 
 _SQL_SOCIAL_TABLES = """

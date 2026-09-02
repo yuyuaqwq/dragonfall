@@ -4007,18 +4007,377 @@ class EconomyCmds(CommandBase):
         lines.append("💡 前往对应地图后按区域探索/战斗即有机会遭遇；首领/精英带稀有掉落~")
         yield event.plain_result("\n".join(lines))
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?图鉴(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?冒险手册(?:\s*|$)")
+    @require_player()
+
+    async def adventure_book(self, event: AstrMessageEvent):
+        """v168 冒险手册：冒险者自己的传记总入口。
+        『冒险手册』总览 / 『冒险手册 区域』(足迹) / 『冒险手册 怪物』 /
+        『冒险手册 物品』(曾拥有) / 『冒险手册 收藏』 / 『冒险手册 垂钓』。
+        """
+        group_id, qq_id = self._uid(event)
+        raw = self._strip_cmd(event, "冒险手册").strip()
+        # 子分类路由
+        if raw:
+            if any(k in raw for k in ("区域", "足迹", "地图")):
+                yield event.plain_result(self._footprint_view(group_id, qq_id))
+                return
+            if any(k in raw for k in ("怪物", "魔物", "全部")):
+                yield event.plain_result(self._monster_view(group_id, qq_id, ""))
+                return
+            if any(k in raw for k in ("物品", "曾拥有", "拥有")):
+                yield event.plain_result(self._possessed_view(group_id, qq_id, raw))
+                return
+            if any(k in raw for k in ("收藏", "收藏品", "纪念")):
+                yield event.plain_result(self._collect_items_bestiary(group_id, qq_id))
+                return
+            if any(k in raw for k in ("垂钓", "钓鱼", "鱼")):
+                yield event.plain_result(self._collect_fish_bestiary(group_id, qq_id))
+                return
+            yield event.plain_result(
+                "📖 『冒险手册』子分类：区域/怪物/物品/收藏/垂钓（例：『冒险手册 物品』『足迹』）。\n"
+                "💡 也可以直接发『足迹』看区域足迹、『图鉴』看怪物。"
+            )
+            return
+        # 总览
+        yield event.plain_result(self._adventure_overview(group_id, qq_id))
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?足迹(?:\s*|$)")
+    @require_player()
+
+    async def footprint(self, event: AstrMessageEvent):
+        """v168 『足迹』：我去过的城镇/子区域明细（冒险手册 区域 同款）。"""
+        group_id, qq_id = self._uid(event)
+        yield event.plain_result(self._footprint_view(group_id, qq_id))
+
+    # ---------------- v168 冒险手册内部 ----------------
+
+    def _adventure_overview(self, group_id, qq_id) -> str:
+        """冒险手册总览卡片：足迹/怪物/物品/收藏 四维进度。"""
+        try:
+            # 足迹（剔副本，与足迹面板同口径）
+            vis = tot = 0
+            try:
+                _visited = db.get_visited_subareas(qq_id)
+                for _m in C.MAPS:
+                    if _m.get("type") in ("副本", "隐藏区域"):
+                        continue
+                    for _sa in ((C.SUBAREAS or {}).get(_m["id"]) or []):
+                        tot += 1
+                        if f"{_m['id']}:{_sa['id']}" in _visited:
+                            vis += 1
+            except Exception:
+                pass
+            best = db.get_bestiary(group_id, qq_id)
+            best_total = len(getattr(C, "_INDEXES", {}).get("monsters", {}).get("name_to_id", {}) or {})
+            poss = db.count_possessed(qq_id)
+            inv_keys = set()
+            for it in db.get_inventory(group_id, qq_id):
+                _pk = self._norm_item_key(it["key"], it.get("data") or {})
+                if _pk:
+                    inv_keys.add(_pk)
+            # 收藏品/彩蛋鱼计数复用 helper 逻辑（轻量：数已收集）
+            fish_n = 0
+            try:
+                _inv0 = {it["key"]: it["count"] for it in db.get_inventory(group_id, qq_id)}
+                _ach = {r["ach_key"] for r in db.get_achievements(group_id, qq_id)}
+                _fish_ach = {(_a.get("cond") or {}).get("key"): _a["id"] for _a in C.ACHIEVEMENTS
+                             if (_a.get("cond") or {}).get("type") == "collect_fish"}
+                fish_n = len([cf for cf in C.FISH_COLLECT
+                              if cf["id"] in _inv0 or _fish_ach.get(cf["id"]) in _ach])
+            except Exception:
+                pass
+            # 收藏品 defs（type=收藏 非鱼，去重；与 _collect_items_bestiary 同源）
+            _defs = 0
+            try:
+                _fish_names = {cf["name"] for cf in C.FISH_COLLECT}
+                _def_names = set()
+                for _k, _v in (C.MATERIALS or {}).items():
+                    if isinstance(_v, dict) and _v.get("type") == "收藏" \
+                            and _v.get("name") not in _fish_names:
+                        _def_names.add(_v.get("name", _k))
+                for _k, _v in (C.ITEMS or {}).items():
+                    if isinstance(_v, dict) and _v.get("type") == "收藏" \
+                            and _v.get("name") not in _fish_names:
+                        _def_names.add(_v.get("name", _k))
+                _defs = len(_def_names)
+            except Exception:
+                pass
+            _kill = sum(r["kills"] for r in best)
+            lines = [
+                "📖 【冒险手册】",
+                "━━━━━━━━━━━━",
+                f"📍 足迹 {vis}/{tot} 子区域",
+                f"👹 怪物 {len(best)}/{best_total} 种 · 累计击杀 {_kill}",
+                f"🎒 物品 {poss} 种曾拥有 · 当前持有 {len(inv_keys)} 种",
+                f"🎣 收藏 鱼 {fish_n}/{len(C.FISH_COLLECT)} ｜ 收藏品 {0}/{_defs}",
+                "━━━━━━━━━━━━",
+                "💡 『足迹』区域 ｜ 『冒险手册 怪物/物品/收藏/垂钓』看明细",
+            ]
+            return "\n".join(lines)
+        except Exception as e:
+            return f"📖 冒险手册加载失败（{e}），请联系管理～"
+
+    def _footprint_view(self, group_id, qq_id) -> str:
+        """足迹：按大区分组展示到访明细（紧凑版——只展开有到访的大区，避免刷屏）。
+        已到访地图 ✅全清/🟡部分/❌未去；有到访的地图下列出已到访子区域（含首访日期）。
+        副本/隐藏区域不参与足迹（副本不记 visited_subareas）。"""
+        try:
+            visited = db.get_visited_subareas(qq_id)
+            # 子区域首访时间 {map:sa: ts}
+            _first = {}
+            try:
+                for r in db.get_visited_subareas_rows(qq_id):
+                    _first[f"{r['map_id']}:{r['sa_id']}"] = r["first_at"]
+            except Exception:
+                pass
+            # 只统计城镇/野外（副本/隐藏不进足迹）
+            by_reg = {}
+            order = []
+            for _m in C.MAPS:
+                if _m.get("type") in ("副本", "隐藏区域"):
+                    continue
+                reg = _m.get("region") or "?"
+                if reg not in by_reg:
+                    by_reg[reg] = []
+                    order.append(reg)
+                by_reg[reg].append(_m)
+            lines = ["📍 【我的足迹】", "━━━━━━━━━━━━"]
+            any_visit = False
+            ov_vis = 0
+            ov_tot = 0
+            # 先算全量剔副本总数（分母固定，不因折叠变化）
+            for reg0 in order:
+                for _m0 in by_reg[reg0]:
+                    ov_tot += len((C.SUBAREAS or {}).get(_m0["id"]) or [])
+            for reg in order:
+                maps = by_reg[reg]
+                reg_vis = reg_tot = 0
+                rows = []
+                for _m in maps:
+                    sas = (C.SUBAREAS or {}).get(_m["id"]) or []
+                    if not sas:
+                        continue
+                    mv = 0
+                    vis_sas = []
+                    for sa in sas:
+                        k = f"{_m['id']}:{sa['id']}"
+                        if k in visited:
+                            mv += 1
+                            vis_sas.append((sa.get("name") or sa["id"], _first.get(k) or 0))
+                    reg_tot += len(sas)
+                    reg_vis += mv
+                    if mv == len(sas):
+                        rows.append(("✅", _m["name"], vis_sas))
+                    elif mv > 0:
+                        rows.append(("🟡", _m["name"], vis_sas))
+                    # mv==0 未去地图不逐行列（避免 ❌ 刷屏）
+                if reg_vis == 0:
+                    continue  # 整大区没去过 → 折叠不展示
+                any_visit = True
+                ov_vis += reg_vis
+                pct = int(round(reg_vis * 100.0 / reg_tot)) if reg_tot else 0
+                lines.append(f"◈ {reg}（{reg_vis}/{reg_tot} · {pct}%）")
+                for mark, nm, vis_sas in rows:
+                    _subs = []
+                    for _sn, _ts in vis_sas[:6]:
+                        _d = ""
+                        if _ts:
+                            try:
+                                _d = time.strftime("%m-%d", time.localtime(int(_ts)))
+                            except Exception:
+                                _d = ""
+                        _subs.append(f"{_sn}" + (f"({_d})" if _d else ""))
+                    more = f" 等{len(vis_sas)}处" if len(vis_sas) > 6 else ""
+                    lines.append(f"  {mark} {nm}" + (f"：{'、'.join(_subs[:6])}{more}" if vis_sas else ""))
+            if not any_visit:
+                return "📍 还没去过任何地方……快去『探索』冒险吧！"
+            lines.append("━━━━━━━━━━━━")
+            lines.append(f"探索足迹 {ov_vis}/{ov_tot}（城镇与野外）")
+            lines.append("💡 ✅=全到访 🟡=部分 ❌=未去 ｜ （MM-DD）=首访日期 ｜ 『探索』补全足迹")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"📍 足迹加载失败（{e}）～"
+
+    def _monster_view(self, group_id, qq_id, raw) -> str:
+        """怪物视图（沿用原『图鉴』怪物列表，含分页）。"""
+        page = self._parse_page(raw)
+        rows = db.get_bestiary(group_id, qq_id)
+        if not rows:
+            return "📖 图鉴还是空的……去『探索』击败怪物，或『垂钓』邂逅彩蛋收藏鱼吧！" \
+                   + self._collect_fish_bestiary(group_id, qq_id)
+        total = sum(r["kills"] for r in rows)
+        page_items, pages, page = self._page_items(rows, page, per_page=5)
+        lines = [f"📖 【怪物图鉴】已收录 {len(rows)} 种 · 累计击杀 {total}(第 {page}/{pages} 页)", "━━━━━━━━━━━━"]
+        for i, r in enumerate(page_items, (page - 1) * 5 + 1):
+            lines.append(f"{i:>2}. {r['name']} ×{r['kills']}")
+        lines.append("")
+        if pages > 1 and page < pages:
+            lines.append(self._tip("bestiary"))
+        lines.append("💡 击败新怪物自动收录 ｜ 『冒险手册 物品/收藏』看收集")
+        self._record_list_state(qq_id, "冒险手册 怪物", page, pages)
+        return "\n".join(lines)
+
+    def _possessed_view(self, group_id, qq_id, raw) -> str:
+        """『冒险手册 物品』：曾拥有物品图鉴（✅=拥有过 ×N=现持有；❌=未获得）。
+        按物品大类分组，已拥有排前；支持分页与『冒险手册 物品 <大类>』过滤。"""
+        try:
+            poss = db.get_possessed(qq_id)
+            inv = db.get_inventory(group_id, qq_id)
+            # 当前持有 key→count（含背包内装备实例 uuid → 归一化原型）
+            inv_cnt = {}
+            for it in inv:
+                k = it["key"]
+                _pk = self._norm_item_key(k, it.get("data") or {})
+                if _pk:
+                    inv_cnt[_pk] = inv_cnt.get(_pk, 0) + int(it["count"] or 1)
+            # 组装物品定义：材料 + 物品 + 装备原型
+            # 结构 {大类: [(display名, key, 是否曾拥有, 当前持有), ...]}
+            cat_items = {}
+            try:
+                for _k, _v in (C.MATERIALS or {}).items():
+                    _nm = _v.get("name") or _k
+                    _cat = self._item_cat(_v)
+                    if _cat is None:
+                        continue
+                    cat_items.setdefault(_cat, []).append(
+                        (_nm, _k, _k in poss, inv_cnt.get(_k, 0)))
+                for _k, _v in (C.ITEMS or {}).items():
+                    if _k in (C.MATERIALS or {}):
+                        continue
+                    if not isinstance(_v, dict):
+                        continue
+                    _nm = _v.get("name") or _k
+                    _cat = self._item_cat(_v)
+                    if _cat is None:
+                        continue
+                    cat_items.setdefault(_cat, []).append(
+                        (_nm, _k, _k in poss, inv_cnt.get(_k, 0)))
+                for _k, _v in (getattr(C, "EQUIP_ROSTER", None) or {}).items():
+                    _nm = _v.get("name") or _k
+                    _cat = self._item_cat(_v)  # 装备 v 带 slot → 归装备
+                    cat_items.setdefault(_cat, []).append(
+                        (_nm, _k, _k in poss, inv_cnt.get(_k, 0)))
+            except Exception:
+                pass
+            if not cat_items:
+                return "🎒 物品图鉴加载失败或暂无数据～"
+            # 大类过滤
+            cat_filter = None
+            if raw:
+                for _cand in raw.replace("物品", "").replace("冒险手册", "").strip().split():
+                    for _cat in cat_items:
+                        if _cand in _cat or _cat in _cand:
+                            cat_filter = _cat
+                            break
+                    if cat_filter:
+                        break
+            if cat_filter:
+                cat_items = {cat_filter: cat_items[cat_filter]}
+            # 大类顺序：玩家最关心的收集维度在前（装备/收藏品/消耗品/图纸…），材质次之
+            order = ["装备", "收藏品", "消耗品", "图纸", "鱼", "矿石", "草药", "木材",
+                     "兽材", "织物", "食材", "精华", "宝石", "杂物", "任务道具", "其他"]
+            cats_sorted = sorted(cat_items.keys(),
+                                 key=lambda c: (order.index(c) if c in order else 99, c))
+            # 默认只展示已拥有 ≥1 的大类（紧凑）；未收集大类折叠提示，可『冒险手册 物品 <大类>』直达
+            if not cat_filter:
+                owned_cats = [c for c in cats_sorted
+                              if any(it[2] for it in cat_items[c])]
+                hidden_cats = [c for c in cats_sorted if c not in owned_cats]
+            else:
+                owned_cats = cats_sorted
+                hidden_cats = []
+            cats_sorted = owned_cats
+            total_poss = len(poss)
+            total_all = sum(len(v) for v in cat_items.values())
+            # 大类内条目截断（超长类如装备 632 种只显示前 20，避免刷屏）
+            _MAX_PER_CAT = 20
+            # 分页：每页展示 1-2 个大类（保证可读性）
+            page = self._parse_page(raw)
+            per_page_cats = 2
+            total_pages = max(1, (len(cats_sorted) + per_page_cats - 1) // per_page_cats)
+            if page < 1:
+                page = 1
+            if page > total_pages:
+                page = total_pages
+            cat_page = cats_sorted[(page - 1) * per_page_cats:page * per_page_cats]
+            lines = [
+                f"🎒 【曾拥有物品】已拥有 {total_poss} · 全量 {total_all}（第 {page}/{total_pages} 页）",
+                "━━━━━━━━━━━━",
+            ]
+            for cat in cat_page:
+                items = cat_items[cat]
+                owned_n = sum(1 for it in items if it[2])
+                # 已拥有在前
+                items_sorted = sorted(items, key=lambda it: (0 if it[2] else 1, it[0]))
+                lines.append(f"{cat}（已拥有 {owned_n}/{len(items)}）")
+                shown = items_sorted[:_MAX_PER_CAT]
+                # 每行 4 个
+                row_parts = []
+                for nm, k, owned, cnt in shown:
+                    if owned:
+                        row_parts.append(f"✅{nm}" + (f"×{cnt}" if cnt > 1 else ""))
+                    else:
+                        row_parts.append(f"❌{nm}")
+                for i in range(0, len(row_parts), 4):
+                    lines.append("  " + "　".join(row_parts[i:i + 4]))
+                if len(items_sorted) > _MAX_PER_CAT:
+                    lines.append(f"  …还有 {len(items_sorted) - _MAX_PER_CAT} 种：『冒险手册 物品 {cat}』看更多")
+            if hidden_cats:
+                lines.append(f"🗂 未收集大类：{'、'.join(hidden_cats[:6])}" +
+                             (" 等" if len(hidden_cats) > 6 else "") +
+                             "（『冒险手册 物品 <大类>』查看）")
+            lines.append("━━━━━━━━━━━━")
+            lines.append("💡 ✅=曾拥有 ×N=现持有 ｜ ❌=还没拿过 ｜ 『冒险手册 物品 <大类>』只看某类 ｜ 『+』翻页")
+            self._record_list_state(qq_id, "冒险手册 物品", page, total_pages)
+            return "\n".join(lines)
+        except Exception as e:
+            return f"🎒 物品图鉴加载失败（{e}）～"
+
+    def _item_cat(self, v: dict):
+        """物品大类归一（材料 type → 显示大类；装备/收藏品特殊；无 type 按结构特征推断）。"""
+        t = (v or {}).get("type") or ""
+        if t == "装备":
+            return "装备"
+        if t in ("收藏", "收藏品"):
+            return "收藏品"
+        if t in ("消耗品", "食物", "药品"):
+            return "消耗品"
+        if t in ("任务道具", "任务物品"):
+            return "任务道具"
+        if t in ("图纸",):
+            return "图纸"
+        if t in ("杂物", "垃圾"):
+            return "杂物"
+        if t:
+            return t
+        # 无 type：按结构特征推断（i_ 消耗品/食物定义不带 type）
+        if isinstance(v, dict):
+            if v.get("food"):
+                return "消耗品"
+            if v.get("heal") is not None or v.get("mana") is not None or v.get("effect"):
+                return "消耗品"
+            if v.get("slot") or v.get("equip"):
+                return "装备"
+        return "其他"
+
+    def _norm_item_key(self, k, data):
+        """展示用：把背包 key 归一化（装备 uuid → 原型 eq_）。复用 store 层解析。"""
+        try:
+            from ..store.inventory import _possessed_key
+            return _possessed_key(k, data)
+        except Exception:
+            return k
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?图鉴(?:[\s\S]*)$")
     @require_player()
 
     async def bestiary(self, event: AstrMessageEvent):
-        """图鉴：怪物全量（默认）/『图鉴 垂钓』彩蛋收藏鱼 /『图鉴 收藏』特殊收藏品
-        v134.1 意见#41：子分类——垂钓=彩蛋收藏鱼收录，收藏=type=收藏 的特殊收藏品；
-        默认保持怪物图鉴全量（原有行为）。"""
+        """『图鉴』=『冒险手册 怪物』别名（v168 保留兼容，老玩家习惯）。"""
         group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        raw = self._strip_cmd(event, "图鉴")
-        # v134.1 意见#41：子分类路由（数字=翻页保持原义）
-        if not raw.isdigit():
+        raw = self._strip_cmd(event, "图鉴").strip()
+        # 子分类路由保留（垂钓/收藏），怪物=默认
+        if raw and not raw.isdigit():
             sub = raw.strip()
             if sub in ("垂钓", "钓鱼", "鱼"):
                 yield event.plain_result(self._collect_fish_bestiary(group_id, qq_id))
@@ -4028,26 +4387,7 @@ class EconomyCmds(CommandBase):
                 return
             if sub in ("怪物", "图鉴", "全部", "所有"):
                 raw = ""
-        page = self._parse_page(raw)
-        rows = db.get_bestiary(group_id, qq_id)
-        if not rows:
-            # v104 M15 修复：图鉴为空也展示彩蛋收藏鱼进度（原 catch_collect 计数无处可见）
-            # v104 R3 M15 P3-10：纯垂钓玩家也可收集收藏鱼——空提示同步引导垂钓
-            yield event.plain_result("📖 图鉴还是空的……去『探索』击败怪物，或『垂钓』邂逅彩蛋收藏鱼吧！"
-                                     + self._collect_fish_bestiary(group_id, qq_id))
-            return
-        total = sum(r["kills"] for r in rows)
-        page_items, pages, page = self._page_items(rows, page, per_page=5)
-        lines = [f"📖 【怪物图鉴】已收录 {len(rows)} 种 · 累计击杀 {total}(第 {page}/{pages} 页)", "━━━━━━━━━━━━"]
-        for i, r in enumerate(page_items, (page - 1) * 5 + 1):
-            lines.append(f"{i:>2}. {r['monster']} ×{r['kills']}")
-        lines.append("")
-        if pages > 1 and page < pages:
-            lines.append(self._tip("bestiary"))
-        lines.append("💡 击败新怪物会自动收录图鉴 ｜ 『图鉴 垂钓』看彩蛋收藏鱼 ｜ 『图鉴 收藏』看特殊收藏品")
-        self._record_list_state(qq_id, "图鉴", page, pages)
-        # v104 M15 修复：垂钓彩蛋收藏鱼收集展示（13 章 4.3 / 16 章 4.x）
-        yield event.plain_result("\n".join(lines) + self._collect_fish_bestiary(group_id, qq_id))
+        yield event.plain_result(self._monster_view(group_id, qq_id, raw))
 
     def _collect_fish_bestiary(self, group_id, qq_id):
         """v104 M15 修复：彩蛋收藏鱼收集进度展示（已收藏 X/3 + 各鱼钓获次数 + catch_collect 累计计数）

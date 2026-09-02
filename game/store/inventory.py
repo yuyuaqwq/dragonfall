@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import time
 from .connection import _connect, _lock, atomic
 from .. import content as C
 
@@ -180,6 +181,132 @@ def _key_to_id(item_key, item_data=None):
     # 兜底：装备/图纸等直接给名字当 key 的，保持原样（外部 data 里有 name）
     return item_key
 
+
+# ================= v168 冒险手册：曾拥有物品（possessed） =================
+# 语义：物品首次进入玩家背包（INSERT 该格）时记一条稳定 key，碰过=拥有，永久不回退。
+# 埋点：add_item 与 social._inv_upsert（市场/摆摊接手）在 INSERT 前调用 record_possessed_conn；
+#       home_storage 取仓 = 纯中转不埋（物品存仓前必然 add_item 过）。
+
+# 装备实例 uuid 形态：eq_ + 8 位 hex（如 eq_72d48ebe）；原型 id 为 eq_拼音词（如 eq_tie_jian）
+_UUID_HEX = set("0123456789abcdef")
+
+
+def _is_equip_uuid_key(item_key: str) -> bool:
+    """判断 item_key 是否为装备实例 uuid（eq_ + 8hex）。"""
+    if not item_key or not item_key.startswith("eq_"):
+        return False
+    rest = item_key[3:]
+    return len(rest) == 8 and all(ch in _UUID_HEX for ch in rest)
+
+
+def _possessed_key(item_key, item_data=None):
+    """把入包 key 归一化成图鉴用的稳定『原型 key』；无法识别返回 None（跳过不阻塞）。
+
+    - 材料/消耗品/收藏/符文/宠物蛋/坐骑缰绳（mat_/i_/rune_/petegg_/mountrein_）→ key 即稳定 ID
+    - 装备原型 id（eq_拼音词）→ 直接用
+    - 装备实例 uuid（eq_+8hex）→ item_data.name 反查 EQUIP_ROSTER；查不到跳过
+    - 其他（无前缀自定义 key）→ 有 name 且反查命中装备则记原型，否则跳过
+    """
+    if not item_key:
+        return None
+    if not _is_equip_uuid_key(item_key):
+        # 非 uuid 形态：非装备前缀稳定直接收；eq_ 原型 id 也直接收
+        if item_key.startswith(("mat_", "i_", "rune_", "petegg_", "mountrein_", "eq_", "it_")):
+            return item_key
+        # 无前缀/其它（如任务道具 uuid）：尝试按 name 反查装备
+    # uuid 装备实例 / 其它动态 key：按名字反查装备原型
+    try:
+        nm = (item_data or {}).get("name") or ""
+        if not nm:
+            return None
+        rev = _EQUIP_NAME_REV.get()
+        if rev is None:
+            roster = getattr(C, "EQUIP_ROSTER", None) or {}
+            rev = {_v.get("name"): _k for _k, _v in roster.items()}
+            _EQUIP_NAME_REV.set(rev)
+        return rev.get(nm)
+    except Exception:
+        return None
+
+
+class _LazyDict:
+    """线程安全惰性缓存容器（反查表只在首次需要时构建一次）。"""
+    def __init__(self):
+        self._v = None
+        self._lock = _lock
+
+    def get(self):
+        with self._lock:
+            return self._v
+
+    def set(self, v):
+        with self._lock:
+            self._v = v
+
+
+_EQUIP_NAME_REV = _LazyDict()
+
+
+def record_possessed_conn(conn, qq_id, item_key, item_data=None, got_at=None):
+    """事务连接上记一条曾拥有（INSERT OR IGNORE，幂等；不自己开事务）。
+
+    conn：已开启的事务连接（add_item / social._inv_upsert 的 atomic 事务内调用）。
+    装备实例 uuid 会先归一化原型 key；无法识别（非装备/无原型）则静默跳过。
+    """
+    try:
+        k = _possessed_key(item_key, item_data)
+        if not k:
+            return
+        ts = got_at if got_at is not None else int(time.time())
+        conn.execute(
+            "INSERT OR IGNORE INTO possessed (qq_id, item_key, got_at) VALUES (?,?,?)",
+            (str(qq_id), k, ts),
+        )
+    except Exception:
+        # 曾拥有记录是附加功能，绝不影响物品入包主流程
+        pass
+
+
+def record_possessed(group_id, qq_id, item_key, item_data=None):
+    """独立事务版本（供不持有 conn 的调用方）。"""
+    try:
+        with atomic() as conn:
+            record_possessed_conn(conn, qq_id, item_key, item_data)
+    except Exception:
+        pass
+
+
+def get_possessed(qq_id):
+    """返回该玩家曾拥有物品 key 集合 {item_key, ...}。"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT item_key FROM possessed WHERE qq_id=?", (str(qq_id),)
+            ).fetchall()
+            return {r["item_key"] for r in rows}
+        finally:
+            conn.close()
+
+
+def get_possessed_rows(qq_id):
+    """返回 [(item_key, got_at), ...]（按 got_at 升序）。"""
+    with _lock:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT item_key, got_at FROM possessed WHERE qq_id=? ORDER BY got_at",
+                (str(qq_id),),
+            ).fetchall()
+            return [(r["item_key"], r["got_at"]) for r in rows]
+        finally:
+            conn.close()
+
+
+def count_possessed(qq_id) -> int:
+    """曾拥有物品种类计数。"""
+    return len(get_possessed(qq_id))
+
 def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | None = None):
     """item_key: 唯一键(装备用 uuid 或 材料/消耗品用 id)；v46 自动转 ID 存储
 
@@ -229,6 +356,8 @@ def add_item(group_id, qq_id, item_key, item_data: dict, count=1, tag: dict | No
                     (count, qq_id, item_key),
                 )
             else:
+                # v168 冒险手册：物品首次入包（新格 INSERT）→ 记曾拥有（永久）
+                record_possessed_conn(conn, qq_id, item_key, item_data)
                 conn.execute(
                     "INSERT INTO inventory (qq_id, item_key, item_data, count) VALUES (?,?,?,?)",
                     (qq_id, item_key, json.dumps(slim, ensure_ascii=False), count),

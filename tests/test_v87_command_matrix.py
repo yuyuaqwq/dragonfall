@@ -184,6 +184,8 @@ REPRESENTATIVES = {
     "evolve_equip": "装备进化 弯刀",
     "calamity_forge": "炼成 铁剑",
     "enchant": "附魔", "set_view": "套装", "bestiary": "图鉴", "encyclopedia": "百科", "monster": "怪物",  # v130.3 意见#3
+    # v168 冒险手册：总入口 + 足迹
+    "adventure_book": "冒险手册 物品", "footprint": "足迹",
     "titles": "称号", "inventory": "背包", "bag_filter": "背包筛选",
     "item_view_mode_cmd": "物品详情开始", "item_detail": "物品详情", "equip": "装备",
     "unequip": "卸下", "use": "使用", "sell": "出售", "shop": "商店", "buy": "购买",
