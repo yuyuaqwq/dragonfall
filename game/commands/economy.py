@@ -22,6 +22,7 @@ from ..commands.base import CommandBase, require_player
 from ..core.drops import _eq_random_desc
 from ..core import timed_events as _te  # noqa: E402
 from ..core import smith_stock as _ss  # v135 铁匠铺全服共享货架
+from ..core import shop_stock as _sshop  # v166 商店限购（店内共享库存+每日个人限购）
 
 # v127.5 等待型副业（垂钓/采集/挖掘）收编进通用懒计时引擎：
 # 存储走 timed_events.set_timed/get_timed/remove_timed（内部 key "prof_wait"），
@@ -2290,7 +2291,7 @@ class EconomyCmds(CommandBase):
     @filter.regex(r"^(?:\[At:\d+\]\s*)?代工(?:[\s\S]*)$")
     @require_player()
     async def craft_commission(self, event: AstrMessageEvent):
-        """铁匠代工：图纸+材料＋3倍金币 → 装备(v67 单人补偿，不受锻造等级限制)"""
+        """铁匠代工：材料＋3倍金币 → 装备(v166 去图纸化；v67 单人补偿，不受锻造等级限制)"""
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         if not self._at_smith(player):
@@ -2300,15 +2301,16 @@ class EconomyCmds(CommandBase):
         if not text:
             yield event.plain_result(
                 "格式：代工 <装备名>，如『代工 铁皮长剑』\n"
-                "铁匠代工 = 图纸 + 材料＋3倍金币，不受锻造等级限制(单人玩家也能拿高级装备)"
+                "铁匠代工 = 材料＋3倍金币，不受锻造等级/图纸限制(单人玩家也能拿高级装备)"
             )
             return
-        # v130.7 意见#30：『代工 <序号>』= 『锻造』面板第 N 个可锻造配方（取数列表与面板同源 _craft_recs_filtered，与『锻造 N』一致）
+        # v130.7 意见#30：『代工 <序号>』= 『代工』面板第 N 个可代工配方
+        # v166：改按代工口径 _commission_recs（免图纸免副业，只看等级）
         if text.isdigit():
             idx = int(text)
-            _recs = self._craft_recs_filtered(player)
+            _recs = self._commission_recs(player)
             if idx < 1 or idx > len(_recs):
-                yield event.plain_result(f"没有第 {idx} 个可代工配方(当前可代工 {len(_recs)} 件)！『锻造列表』查看～")
+                yield event.plain_result(f"没有第 {idx} 个可代工配方(当前可代工 {len(_recs)} 件)！『锻造 全部』查看全部配方～")
                 return
             text = _recs[idx - 1][0]
         rec_name = C.craft_recipe_search(text)
@@ -2324,16 +2326,8 @@ class EconomyCmds(CommandBase):
         if rec["lv"] > player["level"] + 6:
             yield event.plain_result(f"【{rec_disp}】是 Lv.{rec['lv']} 的装备，你才 Lv.{player['level']}，等级再高些才能驾驭！")
             return
-        # 图纸检查（与锻造一致：需图纸配方必须已学习）
-        if rec.get("blueprint"):
-            bp_name = rec["blueprint"]
-            if bp_name not in (player.get("learned_blueprints") or []):
-                have_bp = db.count_item(group_id, qq_id, bp_name)
-                if have_bp >= 1:
-                    yield event.plain_result(f"你背包里有『{bp_name}』！输入『学习 {bp_name}』解锁配方后就能代工了～")
-                else:
-                    yield event.plain_result(f"【{rec_disp}】需要先学习图纸『{bp_name}』(Boss 掉落/宝箱/垂钓/商店获得)！")
-                return
+        # v166 代工去图纸：不再校验 learned_blueprints/背包图纸——材料+3倍金币直出
+        # （锻造 craft 命令仍保留图纸学习制，图纸线/掉率不变）
         # 材料检查
         lack = []
         for m, n in rec["mats"].items():
@@ -2533,6 +2527,17 @@ class EconomyCmds(CommandBase):
             if self._craft_prof_need(rec["lv"]) > prof_lv:
                 continue
             if not self._rec_learned(player, rec):
+                continue
+            out.append((rk, rec))
+        out.sort(key=lambda x: (x[1]["lv"], x[1]["slot"]))
+        return out
+
+    def _commission_recs(self, player) -> list:
+        """v166 代工可选单：按代工口径过滤——只需等级门槛（免副业等级 + 免图纸），
+        材料在结算时检查（与『代工』免图纸定位一致：材料+3倍金币直出）。"""
+        out = []
+        for rk, rec in C.CRAFT_RECIPES.items():
+            if rec["lv"] > player["level"] + 6:
                 continue
             out.append((rk, rec))
         out.sort(key=lambda x: (x[1]["lv"], x[1]["slot"]))
@@ -5647,11 +5652,13 @@ class EconomyCmds(CommandBase):
             sa_items = C.SHOP_SUBAREA_ITEMS.get(sa_id)
             for iid in sa_items or []:
                 it = C.ITEMS[iid]
-                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）"))
+                _lim = self._shop_limit_label(sa_id, f"item:{iid}")  # v166 限购标注
+                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）{_lim}"))
             materials = C.SHOP_SMITH_MATERIALS.get(cur) or C.SHOP_SMITH_MATERIALS.get(area_id, [])
             for mid in materials:
                 mt = C.MATERIALS[mid]
-                entries.append((mid, f"{mt['name']}{_owned(mt['name'])} —— {mt['price']} 金币（锻造材料）"))
+                _lim = self._shop_limit_label(sa_id, f"mat:{mid}")  # v166 限购标注
+                entries.append((mid, f"{mt['name']}{_owned(mt['name'])} —— {mt['price']} 金币（锻造材料）{_lim}"))
             # v94 图纸经济：铁匠铺兜底卖图纸（随机一张，价格 = 图纸价×3 = (lv×3+20)×3）
             bp_price = int((max(1, player["level"]) * C.ECON_CONFIG["bp_price_per_lv"]
                             + C.ECON_CONFIG["bp_price_base"]) * C.ECON_CONFIG["bp_smith_mult"])
@@ -5660,7 +5667,8 @@ class EconomyCmds(CommandBase):
             for rid in equip_items:
                 r = C.EQUIP_ROSTER[rid]
                 q = C.QUALITY[r["quality"]]
-                entries.append((f"e:{rid}", f"{q['color']}{r['name']}{_owned(r['name'])}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'), rid)} 金币"))
+                _lim = self._shop_limit_label(sa_id, f"equip:{rid}")  # v166 限购标注
+                entries.append((f"e:{rid}", f"{q['color']}{r['name']}{_owned(r['name'])}（{C.EQUIP_SLOTS[r['slot']]}）Lv.{r['lv']}{' · ' + self._req_label(r) if self._req_label(r) else ''} —— {self._shop_equip_price(r['slot'], r['lv'], r['quality'], r.get('weapon_type'), rid)} 金币{_lim}"))
             weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
             for wname, wtype, wlv, wq in weapons:
                 q = C.QUALITY[wq]
@@ -5669,7 +5677,8 @@ class EconomyCmds(CommandBase):
                 # v104 M09 P2 修复：非名册武器需求按 random_req 确定性推导标注（与 _buy_weapon 生成同源）
                 if not _r:
                     _r = {"req": C.random_req("weapon", wlv, wtype)}
-                entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                _lim = self._shop_limit_label(sa_id, f"weapon:{wname}")  # v166 限购标注
+                entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币{_lim}"))
             # v135 铁匠铺货架（全服共享，NPC 作品）：2 武器 + 1 防具 + 1 饰品，每日 0 点换货 + 6h 补货
             town_lv = _ss.town_level(cur)
             smith_items = _ss.get_smith_stock(cur, town_lv)
@@ -5696,7 +5705,8 @@ class EconomyCmds(CommandBase):
                 shop_title = f"🧭 {tname}的货摊"  # #151：标题跟随实际在场的交易 NPC
             for iid in shop_items:
                 it = C.ITEMS[iid]
-                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）"))
+                _lim = self._shop_limit_label(sa_id, f"item:{iid}")  # v166 限购标注
+                entries.append((iid, f"{it['name']}{_owned(it['name'])} —— {it['price']} 金币（{it['desc']}）{_lim}"))
             # 武器：铁匠/锻造类 + 普通商店（集市/商行/码头）可卖；草药铺/酒馆不卖
             if sa_kind in ("smith", "general"):
                 weapons = C.SHOP_WEAPONS.get(cur) or C.SHOP_WEAPONS.get(area_id, [])
@@ -5707,7 +5717,8 @@ class EconomyCmds(CommandBase):
                     # v104 M09 P2 修复：非名册武器需求按 random_req 确定性推导标注（与 _buy_weapon 生成同源）
                     if not _r:
                         _r = {"req": C.random_req("weapon", wlv, wtype)}
-                    entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币"))
+                    _lim = self._shop_limit_label(sa_id, f"weapon:{wname}")  # v166 限购标注
+                    entries.append((f"w:{wname}", f"{q['color']}{wname}{_owned(wname)}（{C.display('weapon_types', wtype)}）Lv.{wlv}{' · ' + self._req_label(_r) if self._req_label(_r) else ''} —— {self._shop_equip_price('weapon', wlv, wq, wtype)} 金币{_lim}"))
         # v104 修 M17-P2：橡木镇（新手村）商店面板列出可购坐骑（price>0 的老马/小毛驴），并入序号购买
         # v130.7 意见#23：坐骑只挂 smith/general 贸易场所（草药铺 herb/酒馆 tavern 不再隔空卖坐骑，口径同武器块）
         if area_id == "oak" and cur == C.START_MAP and sa_kind in ("smith", "general"):
@@ -5892,6 +5903,11 @@ class EconomyCmds(CommandBase):
                 if player["gold"] < total:
                     yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
+                # v166 商店限购：材料限购（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"mat:{mid}", qty)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
+                    return
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
                 db.add_item(group_id, qq_id, mid, {**mt, "type": "材料", "stackable": True, "price": price}, count=qty)
@@ -5913,6 +5929,11 @@ class EconomyCmds(CommandBase):
                     return
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                # v166 商店限购：商店武器（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"weapon:{wname}", 1)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
                     return
                 # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
@@ -5961,6 +5982,11 @@ class EconomyCmds(CommandBase):
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
                     return
+                # v166 商店限购：名册装备（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"equip:{rid}", 1)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
+                    return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = C.generate_roster_equip(rid)
                 # v21 防刷钱：商店装备卖出价 = 买入价一半
@@ -5994,6 +6020,11 @@ class EconomyCmds(CommandBase):
                 total = price * qty
                 if player["gold"] < total:
                     yield event.plain_result(f"金币不足！需要 {total} 金币。")
+                    return
+                # v166 商店限购：消耗品（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"item:{iid}", qty)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
@@ -6031,6 +6062,11 @@ class EconomyCmds(CommandBase):
                 if player["gold"] < total:
                     yield event.plain_result(f"金币不足！需要 {total} 金币。")
                     return
+                # v166 商店限购：消耗品（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"item:{iid}", qty)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
+                    return
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v21 防刷钱：消耗品卖出价 = 实际支付价（商队 8 折时不能原价卖出套利）
                 # v104 修 M09-P0：全量拷贝 ITEMS 定义字段（hot/hot_turns/hot_mana/food_effect/effect），
@@ -6048,6 +6084,11 @@ class EconomyCmds(CommandBase):
                 total = price * qty
                 if player["gold"] < total:
                     yield event.plain_result(f"金币不足！需要 {total} 金币。")
+                    return
+                # v166 商店限购：材料（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"mat:{mid}", qty)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - total)
                 # v104 修 M09-P3：材料购买全量拷贝定义字段（补 quality 等），不再丢字段
@@ -6067,6 +6108,11 @@ class EconomyCmds(CommandBase):
                     return
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                # v166 商店限购：商店武器（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"weapon:{wname}", 1)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
                     return
                 # 阶段八：武器不锁职业（20 章），名册名走名册精确生成
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
@@ -6089,6 +6135,11 @@ class EconomyCmds(CommandBase):
                     return
                 if player["gold"] < price:
                     yield event.plain_result(f"金币不足！需要 {price} 金币。")
+                    return
+                # v166 商店限购：名册装备（店内共享库存+每日个人限购）
+                _l_ok, _l_msg = self._shop_limit_buy_guard(group_id, qq_id, sa_id, f"equip:{rid}", 1)
+                if not _l_ok:
+                    yield event.plain_result(_l_msg)
                     return
                 db.update_player(group_id, qq_id, gold=player["gold"] - price)
                 equip_item = C.generate_roster_equip(rid)
@@ -6152,3 +6203,22 @@ class EconomyCmds(CommandBase):
                     f"💡 『骑乘 {mdef['name']}』骑上它，『坐骑』查看全部！")
                 return
         yield event.plain_result(f"商店里没有『{item_name}』！输入『商店』查看商品。")
+
+    # ============ v166 商店限购（店内共享库存 + 每日个人限购，数据驱动） ============
+    def _shop_limit_buy_guard(self, group_id: str, qq_id: str, sa_id: str, key: str, qty: int):
+        """商店限购统一拦截（在购买成交前调用，扣库存+记日限）。
+
+        返回 (ok, msg)：
+          ok=True  已通过限购检查并完成扣减（可继续扣金币发物品）
+          ok=False 被限购拦截，msg 为提示文案（yield 后 return）
+        注意：调用方必须保证本次真的成交（后续金币不足时已先于本函数校验，
+        或本函数之后仍可能因金币失败——由调用方保证扣款顺序）。
+        """
+        ok, reason, can = _sshop.check_and_consume(group_id, qq_id, sa_id, key, qty)
+        if not ok:
+            return False, reason
+        return True, ""
+
+    def _shop_limit_label(self, sa_id: str, key: str) -> str:
+        """商品面板限购标注（未配置返回 ''）。"""
+        return _sshop.limit_label(sa_id, key)

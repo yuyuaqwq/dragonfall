@@ -38,6 +38,7 @@ from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
 from .shop import SHOP_WEAPONS, SHOP_SMITH_MATERIALS, SHOP_EQUIP, SHOP_WILD_TRADE, SHOP_SUBAREA_ITEMS, SUBAREA_KIND  # noqa: F401
+from .shop_limit import SHOP_LIMIT  # noqa: F401 v166 商店限购配置
 from .factions import (  # noqa: F401
     FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES,
     FACTION_SHOP,  # v105 M18 P2-7：声望商店数据（聚合层导出，与其余表一致）

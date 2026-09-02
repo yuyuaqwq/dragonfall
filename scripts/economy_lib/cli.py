@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from economy_lib import (  # noqa: E402
-    economy_scan, check_health, profession_scan, drop_count_sim,
+    economy_scan, check_health, profession_scan, drop_count_sim, shop_scan,
     md_table, to_json, health_text,
 )
 

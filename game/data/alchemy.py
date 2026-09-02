@@ -702,7 +702,7 @@ ALCHEMY_RECIPES = {
         "name": "破法药剂"
     },
     "al_long_li_yao_ji": {
-        "cost": {"mat_long_lin": 2, "mat_long_xue_cao": 1},
+        "cost": {"mat_long_lin_sui_pian": 2, "mat_long_xue_cao": 1},
         "product": {"i_dragon_power_pot": 1},
         "min_lv": 8,
         "desc": "龙之力灌注，攻击大幅提升",
@@ -751,7 +751,7 @@ ALCHEMY_RECIPES = {
         "name": "虚空药剂"
     },
     "al_zhan_sheng_yao_ji": {
-        "cost": {"mat_zhan_hun_zhi_chen": 3, "mat_long_lin": 1},
+        "cost": {"mat_zhan_hun_zhi_chen": 3, "mat_long_lin_sui_pian": 1},
         "product": {"i_warsaint_pot": 1},
         "min_lv": 9,
         "desc": "战圣之力，攻击大幅提升",

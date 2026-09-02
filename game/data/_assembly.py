@@ -60,6 +60,7 @@ from .wild_npcs import HIDDEN_NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
 from .shop import SHOP_WEAPONS  # noqa: F401
+from .shop_limit import SHOP_LIMIT  # noqa: F401 v166 商店限购配置
 from .factions import FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES  # noqa: F401
 from .fishing import FISHING_SPOTS, FISH_POOL  # noqa: F401
 from .enhance import ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS  # noqa: F401

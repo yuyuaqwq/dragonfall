@@ -63,6 +63,11 @@ from .smith_stock import (  # noqa: F401
     QUALITY_WEIGHTS, STOCK_COUNT, STOCK_WINDOW, RESTOCK_HOURS, SMITH_NPC_NAMES,
     town_level, roll_stock, get_smith_stock, buy_stock_item, smith_stock_price,
 )
+# v166 商店限购（店内共享库存 + 每日个人限购，数据驱动）：同样延迟 import（db 惰性）
+from . import shop_stock as _shop_stock  # noqa: F401,E402
+from .shop_stock import (  # noqa: F401
+    get_limit, stock_state, check_and_consume, limit_label,
+)
 from .fishing import roll_fish, roll_collect_fish, roll_fish_size_weight  # noqa: F401
 from .time_weather import (  # noqa: F401
     current_period, current_season, today_weather, time_weather_summary,

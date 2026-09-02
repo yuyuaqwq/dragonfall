@@ -1,0 +1,228 @@
+# -*- coding: utf-8 -*-
+"""奥兰迪亚·余烬纪年 核心 - shop_stock.py（v166 商店限购，2026-09-02 鱼鱼拍板）
+
+两层限购（全数据驱动，配置在 game/data/shop_limit.py 的 SHOP_LIMIT）：
+1. **总库存（店内共享）**：每种商品在某子区域(店铺)共享一份库存（key 带子区域），
+   店内所有玩家先到先得扣减；店与店独立。缺省/未配置 = 不限量。
+2. **每人每日限购**：个人每自然日在该店该商品限购 per_day 件（防单人扫光店内共享货）。
+   个人 key 带 group_id/qq_id，跨天清零。
+
+补货：读时惰性（与 v135 smith_stock 同款，零后台定时器）——
+- restock_hours: 距上次补货 ≥ N 小时 → 恢复满额 stock
+- restock_at "HH:MM": 每日固定时刻补货（到点恢复满额）
+（若 restock_at 与 restock_hours 同时存在，任一条件满足即补货）
+
+⚠️ 依赖单向：本模块 core 层不 import db（循环 import 先炸）——
+   db 只在函数体内惰性 import（与 smith_stock 相同模式）。
+⚠️ 并发：QQ 群命令非高频支付，沿用 event_state 读-改-写 + _lock 防 SQLite 并发写
+   （与 v135 smith_stock 同级，项目已接受此并发粒度）。
+"""
+import json
+import time
+from datetime import date
+
+# db 延迟导入（防 core 层循环导入）
+# SHOP_LIMIT 从 data 层导入（配置数据）
+
+def _now_ts() -> int:
+    return int(time.time())
+
+def _today() -> str:
+    return date.today().isoformat()
+
+def _load_state(db, key: str):
+    raw = db.get_event_state(key)
+    if not raw:
+        return None
+    try:
+        st = json.loads(raw)
+        return st if isinstance(st, dict) else None
+    except (ValueError, TypeError):
+        return None
+
+def _save_state(db, key: str, st: dict):
+    db.set_event_state(key, json.dumps(st, ensure_ascii=False))
+
+# ================= 配置读取 =================
+
+def get_limit(key: str) -> dict:
+    """读商品限购配置（来自 data.shop_limit.SHOP_LIMIT）。
+    key 形如 'item:i_x' / 'mat:mat_x' / 'equip:eq_x' / 'weapon:武器名'。
+    未配置 → 返回空 dict（不限购）。"""
+    from ..data.shop_limit import SHOP_LIMIT
+    return dict(SHOP_LIMIT.get(key) or {})
+
+def _limit_of(prefix: str, ident: str) -> dict:
+    return get_limit(f"{prefix}:{ident}")
+
+# ================= 库存状态（店内共享） =================
+
+def _stock_key(sa_id: str, key: str) -> str:
+    """店内共享库存 key：shop_stock_{子区域}_{商品key}（带子区域=各店独立）"""
+    return f"shop_stock_{sa_id}_{key}"
+
+def _is_restock_due(st: dict, cfg: dict, now: int) -> bool:
+    """判断是否需要补货：restock_hours 到点 / restock_at 每日时刻到点"""
+    if not cfg.get("restock_hours") and not cfg.get("restock_at"):
+        return False
+    last = st.get("last_restock", 0)
+    if cfg.get("restock_hours") and now - last >= float(cfg["restock_hours"]) * 3600:
+        return True
+    ra = cfg.get("restock_at")
+    if ra:
+        # 每日固定时刻：今天 HH:MM 对应 epoch > last_restock 且 ≤ now
+        import datetime
+        try:
+            hh, mm = ra.split(":")
+            today_dt = datetime.datetime.now().replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
+            target = int(today_dt.timestamp())
+        except (ValueError, OSError):
+            return False
+        if target > last and target <= now:
+            return True
+    return False
+
+def stock_state(sa_id: str, key: str, cfg: dict | None = None) -> dict:
+    """读该店该商品共享库存状态；惰性初始化/补货后写回。
+    返回 {left, max, last_restock}。未配置 stock → left=None（不限量）。"""
+    from .. import db  # 惰性导入
+    cfg = cfg if cfg is not None else get_limit(key)
+    max_stock = cfg.get("stock")
+    if max_stock is None:
+        return {"left": None, "max": None, "last_restock": _now_ts()}
+    skey = _stock_key(sa_id, key)
+    now = _now_ts()
+    st = _load_state(db, skey)
+    if not st:
+        st = {"left": int(max_stock), "last_restock": now}
+        _save_state(db, skey, st)
+        return {"left": int(max_stock), "max": int(max_stock), "last_restock": now}
+    left = st.get("left", int(max_stock))
+    if _is_restock_due(st, cfg, now):
+        left = int(max_stock)
+        st = {"left": left, "last_restock": now}
+        _save_state(db, skey, st)
+    return {"left": left, "max": int(max_stock), "last_restock": st.get("last_restock", now)}
+
+def _consume_shared(db, sa_id: str, key: str, cfg: dict, qty: int) -> bool:
+    """原子扣店内共享库存 qty 件（先到先得）。不足返回 False。"""
+    max_stock = cfg.get("stock")
+    if max_stock is None:
+        return True  # 不限量
+    skey = _stock_key(sa_id, key)
+    now = _now_ts()
+    st = _load_state(db, skey) or {"left": int(max_stock), "last_restock": now}
+    # 读时补货
+    if _is_restock_due(st, cfg, now):
+        st = {"left": int(max_stock), "last_restock": now}
+    if st.get("left", 0) < qty:
+        _save_state(db, skey, st)
+        return False
+    st["left"] = int(st.get("left", 0)) - qty
+    _save_state(db, skey, st)
+    return True
+
+# ================= 个人每日限购 =================
+
+def _day_key(group_id: str, qq_id: str, sa_id: str, key: str) -> str:
+    """个人每日限购 key：shop_day_{gid}_{qid}_{sa}_{key}"""
+    return f"shop_day_{group_id}_{qq_id}_{sa_id}_{key}"
+
+def _day_bought(db, group_id: str, qq_id: str, sa_id: str, key: str) -> int:
+    """查个人今日在该店该商品已购件数（跨天自动 0）。"""
+    dk = _day_key(group_id, qq_id, sa_id, key)
+    st = _load_state(db, dk)
+    if not st or st.get("date") != _today():
+        return 0
+    return int(st.get("bought", 0))
+
+def _bump_day(db, group_id: str, qq_id: str, sa_id: str, key: str, qty: int):
+    """个人今日已购件数 +qty（跨天重置）。"""
+    dk = _day_key(group_id, qq_id, sa_id, key)
+    st = _load_state(db, dk)
+    if not st or st.get("date") != _today():
+        st = {"date": _today(), "bought": 0}
+    st["bought"] = int(st.get("bought", 0)) + qty
+    _save_state(db, dk, st)
+
+# ================= 对外主入口 =================
+
+def check_and_consume(group_id: str, qq_id: str, sa_id: str, key: str, qty: int) -> tuple:
+    """购买前检查 + 原子扣减（店内共享库存 + 个人日限）。
+
+    参数：
+      sa_id  当前子区域（店铺）ID
+      key    商品 key（'item:x'/'mat:x'/'equip:x'/'weapon:名'）
+      qty    本次想买数量
+    返回 (ok, reason, can_qty)：
+      ok=True       可买（已扣库存+记日限），reason=''
+      ok=False      不可买，reason 中文提示（'售罄'/'今日限购已达上限'等）
+      can_qty       当前最多可买件数（qty 超限时的钳制值，供提示；不可买时=0）
+    """
+    from .. import db  # 惰性导入
+    cfg = get_limit(key)
+    # 未配置任何限购 → 直接放行
+    if not cfg:
+        return True, "", qty
+
+    per_day = cfg.get("per_day")
+    stock = cfg.get("stock")
+    # 计算可买量：min(日限余量, 库存余量, qty)
+    day_left = None
+    if per_day is not None:
+        bought = _day_bought(db, group_id, qq_id, sa_id, key)
+        day_left = max(0, int(per_day) - bought)
+        if day_left <= 0:
+            return False, f"今日限购已达上限（每人每日 {per_day} 件）", 0
+    stock_left = None
+    if stock is not None:
+        st = stock_state(sa_id, key, cfg)
+        stock_left = st["left"]
+        if stock_left is None:
+            stock_left = qty
+        if stock_left <= 0:
+            return False, "该商品今日已售罄，等补货再来吧～", 0
+
+    # 可买量 = min(day_left, stock_left, qty)
+    can = qty
+    if day_left is not None:
+        can = min(can, day_left)
+    if stock_left is not None:
+        can = min(can, stock_left)
+    if can <= 0:
+        return False, "该商品暂时买不了，稍后再试～", 0
+    if can < qty:
+        # 整批购买语义：不足则不部分成交，给明确提示（与『购买 X 数量』显式报错风格一致）
+        if day_left is not None and day_left < qty and (stock_left is None or stock_left >= qty):
+            return False, f"今日限购还剩 {day_left} 件额度，明日再来吧～", day_left
+        if stock_left is not None and stock_left < qty:
+            return False, f"该店库存只剩 {stock_left} 件，等补货后再来多买吧～", stock_left
+        return False, "数量超出可购上限，请分批购买～", can
+
+    # 扣共享库存
+    if stock is not None:
+        if not _consume_shared(db, sa_id, key, cfg, can):
+            return False, "手慢了！该商品已被别的冒险者买走，等补货吧～", 0
+    # 记个人日限
+    if per_day is not None:
+        _bump_day(db, group_id, qq_id, sa_id, key, can)
+    return True, "", can
+
+# ================= 展示辅助 =================
+
+def limit_label(sa_id: str, key: str) -> str:
+    """商品行尾标注（如：『库存 3/5 · 今日限 1』），未配置返回 ''。"""
+    cfg = get_limit(key)
+    if not cfg:
+        return ""
+    parts = []
+    if cfg.get("stock") is not None:
+        try:
+            st = stock_state(sa_id, key, cfg)
+            left = st["left"] if st["left"] is not None else cfg["stock"]
+            parts.append(f"库存 {left}/{cfg['stock']}")
+        except Exception:
+            parts.append(f"库存 {cfg['stock']}")
+    if cfg.get("per_day") is not None:
+        parts.append(f"今日限 {cfg['per_day']}")
+    return " · ".join(parts) if parts else ""
