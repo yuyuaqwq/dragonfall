@@ -1519,7 +1519,7 @@ class WorldCmds(CommandBase):
         if self._stamina(player) < 1:
             yield event.plain_result(
                 f"⚡ 你太累了，走不动了！(体力 {self._stamina(player)}/{self._stamina_max(player)})\n"
-                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每5分钟+1)\n"
+                "💡 恢复体力：野外营地『休息』/ 吃食物 / 旅店『住宿』，或等体力自然恢复(每1分钟+1)\n"
                 "💡 也可以『传送』(已激活的方碑)或使用『回城卷轴』脱身～\n"
                 "💡 新手建议：野外活动前先在城镇『商店』买点食物（烤肉串等），体力 0 才不会困在野外～"
             )

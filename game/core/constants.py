@@ -124,7 +124,7 @@ PROF_EXP_BASE = 20                         # 遗留常量（v105 起由 prof_exp
 
 # ================= vF3 体验调整常量 =================
 # （F3 修复 Agent：体验与战斗数值修复（除 Boss 血量）新增的平衡/封顶常量）
-STAMINA_RECOVER_INTERVAL = 300             # 体力自然恢复间隔：300s（5 分钟）+1（原 600s，vF3 P2 加速）
+STAMINA_RECOVER_INTERVAL = 60               # 体力自然恢复间隔：60s（1 分钟）+1（原 300s 5 分钟，v166 鱼鱼拍板加速）
                                            # 消费点：store/players.py 惰性恢复（:158/:161 已同步使用本常量）
 SKILL_PMULT_CAP = 6.0                      # 技能伤害倍率连乘上限（battle.py 阶段七 pmult 封顶，防高倍率配置失控；
                                            # 仅 clamp 技能伤害倍率，不影响暴击/暴伤/幸运一击独立乘区）

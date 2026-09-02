@@ -98,10 +98,11 @@ async def main():
     out = await cmd(m, "rest_camp", "g1", "q1", "休息")
     check("营地恢复体力", "体力" in out, out[:100])
 
-    print("【8. 自然恢复（5分钟+1）】")
+    print("【8. 自然恢复（1分钟+1）】")
     db.update_player("g1", "q1", stamina=50, stamina_ts=int(time.time()) - 3600)  # 1小时前
     p = db.get_player("g1", "q1")
-    check("自然恢复 50+12=62（封顶102）", p["stamina"] == 62, f"st={p['stamina']}")
+    # v166 恢复间隔 300s→60s：1 小时 = 60 点 → 50+60=110 封顶 102
+    check("自然恢复 1小时封顶 102（原5分钟档50+12=62 已改）", p["stamina"] == 102, f"st={p['stamina']}")
     db.update_player("g1", "q1", stamina=100, stamina_ts=int(time.time()) - 99999)
     p = db.get_player("g1", "q1")
     check("自然恢复封顶上限", p["stamina"] == 102, f"st={p['stamina']}")

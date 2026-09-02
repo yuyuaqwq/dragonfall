@@ -611,7 +611,7 @@ class CommandBase:
             return False, (
                 f"😮‍💨 体力不足！{action}需要 {cost} 点体力，你只有 {cur} 点。\n"
                 f"🍖 吃点食物(『烹饪』/『使用 <食物>』)或去旅店『住宿』恢复体力～\n"
-                f"💡 体力每 5 分钟自然恢复 1 点(上限 100+等级×2)，『防御』不耗体力可拖延时间～"
+                f"💡 体力每 1 分钟自然恢复 1 点(上限 100+等级×2)，『防御』不耗体力可拖延时间～"
             )
         db.update_player(group_id, qq_id, stamina=cur - cost)
         return True, cur - cost

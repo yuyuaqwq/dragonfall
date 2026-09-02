@@ -147,7 +147,7 @@ def get_player(group_id, qq_id):
                     p["mp"] = mx_mp
             except Exception:
                 pass
-            # v94 体力系统：惰性自然恢复（vF3 起每 5 分钟 +1，封顶 100+等级×2）。
+            # v94 体力系统：惰性自然恢复（vF3 起每 5 分钟 +1，封顶 100+等级×2；v166 改 1 分钟 +1）。
             # 仅在 stamina < 上限时触发——测试档 stamina=999999 不会被拉回上限。
             try:
                 _max_st = 100 + (p.get("level") or 1) * 2
@@ -164,7 +164,7 @@ def get_player(group_id, qq_id):
                     _ts = int(time.time()) - C.STAMINA_RECOVER_INTERVAL * max(0, min(10, _max_st - _st))
                 if _st < _max_st and _ts:
                     _now = int(time.time())
-                    _gain = (_now - _ts) // C.STAMINA_RECOVER_INTERVAL  # 每 5 分钟 1 点
+                    _gain = (_now - _ts) // C.STAMINA_RECOVER_INTERVAL  # 每 1 分钟 1 点（v166）
                     if _gain > 0:
                         _new = min(_max_st, _st + _gain)
                         p["stamina"] = _new
