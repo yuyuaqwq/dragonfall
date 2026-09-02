@@ -1049,7 +1049,8 @@ def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
 @register(SKILL_BUFF_EFFECTS, "reduce")
 def _sb_reduce(battle, skill_name, info, player, lv, logs):
     """v162：单人减伤实现（铁壁/铜墙/亡魂护甲/磐岩甲等 effect=reduce 此前零效果）。
-    p_buffs["reduce"] 存减伤百分比；受击计数用 _p_buff_hits（防御型按敌方出手次数计时）。
+    时间制（与 reduce_all 一致，desc '持续 8 刻' 真实生效）：
+    p_buffs["reduce"] 存减伤百分比，剩余刻记 battle._reduce_left（_end_round 递减）。
     减伤值：优先技能 reduce_pct 字段（0.45），回落 mech_val（45=45% 或 0.45），默认 0.20。"""
     from ..engine import skill_buff_turns
     rp = float((info or {}).get("reduce_pct") or 0)
@@ -1057,10 +1058,10 @@ def _sb_reduce(battle, skill_name, info, player, lv, logs):
         mv = float((info or {}).get("mech_val") or 0)
         rp = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
     rp = min(max(rp, 0.0), 0.9)
-    # 受击次数：3 次（参考药水防御 buff _p_buff_hits=3）
+    turns = max(1, skill_buff_turns(lv, info=info))
     battle.p_buffs["reduce"] = rp
-    battle._p_buff_hits["reduce"] = 3
-    logs.append(f"🛡️ 减伤 {int(rp*100)}%（可挡 3 次攻击）")
+    battle._reduce_left = max(getattr(battle, "_reduce_left", 0), turns)
+    logs.append(f"🛡️ 减伤 {int(rp*100)}%（持续 {battle._reduce_left} 刻）")
 
 
 # ================= 5. BOSS_MECHS 启动校验（v125.1 P2 审计） =================

@@ -53,6 +53,7 @@ PLAYER_SKILLS = {
              'mp': 5,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
              'cast': 0.35,
              'cd': 12,
              'mech_val': 45,
@@ -65,6 +66,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
              'cast': 0.5,
              'cd': 16,
              'mech': 'zhan_yi',
@@ -180,6 +182,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
              'cast': 0.5,
              'cd': 16,
              'effect': 'shield_self',
@@ -219,6 +222,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
              'cast': 0.4,
              'cd': 12,
              'effect': 'dodge_buff',
@@ -266,6 +270,7 @@ PLAYER_SKILLS = {
              'cd': 12,
              'res_cost': {"energy": 20},
              'effect': 'crit_hit_buff',
+             'buff_turns': 10,   # v162: desc 持续10刻
              'name': '鹰眼锁定',
              'desc': '鹰瞳凝光，猎物破绽尽收眼底——自身暴击 +20%、命中 +15%，持续 10 刻'
             },
@@ -294,6 +299,7 @@ PLAYER_SKILLS = {
              'cd': 8,
              'res_cost': {"energy": 20},
              'effect': 'spd_buff',
+             'buff_turns': 8,   # v162: desc 持续8刻
              'name': '风之疾走',
              'desc': '风元素缠绕足踝，身形化作林间掠影——速度 +30%，持续 8 刻，附带位移'
             },
@@ -321,6 +327,7 @@ PLAYER_SKILLS = {
              'cd': 16,
              'res_cost': {"energy": 25},
              'effect': 'dodge_buff',
+             'buff_turns': 6,   # v162: desc 持续6刻
              'name': '闪避步',
              'desc': '身影如叶随风偏转，险险避开锋芒——闪避 +30%，持续 6 刻'
             },
@@ -383,6 +390,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
              'cast': 0.45,
              'cd': 12,
              'faith': 0,
@@ -408,6 +416,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
              'cast': 0.6,
              'cd': 16,
              'faith': 0,
@@ -519,6 +528,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
              'cast': 0.3,
              'cd': 16,
              'effect': 'disengage_dodge',
@@ -530,6 +540,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
              'cast': 0.25,
              'cd': 12,
              'effect': 'spd_buff',
@@ -617,6 +628,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
              'cast': 0.35,
              'cd': 16,
              'mech_val': 45,
@@ -659,6 +671,7 @@ PLAYER_SKILLS = {
              'mp': 6,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
              'cast': 0.5,
              'cd': 16,
              'effect': 'cleanse',
@@ -746,6 +759,7 @@ PLAYER_SKILLS = {
              'mp': 8,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
              'cast': 0.3,
              'cd': 12,
              'effect': 'spd_all',
@@ -757,6 +771,7 @@ PLAYER_SKILLS = {
              'mp': 12,
              'power': 1.0,
              'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
              'cast': 0.6,
              'cd': 16,
              'mech': 'melody_chant',
@@ -849,6 +864,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 16,
                         'mech': 'zhan_yi',
@@ -892,6 +908,7 @@ BRANCH_SKILLS = {
                         'mp': 0,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 16,
                         'effect': 'shield_all',
@@ -917,6 +934,7 @@ BRANCH_SKILLS = {
                         'mp': 8,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 12,
                         'effect': 'shield_block',
@@ -928,6 +946,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.0,
                         'kind': '嘲讽',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.5,
                         'cd': 12,
                         'effect': 'taunt',
@@ -1030,6 +1049,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 16,
                         'effect': 'shield_all',
@@ -1081,6 +1101,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 20,
                         'effect': 'protect',
@@ -1092,6 +1113,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 16,
                         'effect': 'reduce_all',
@@ -1179,6 +1201,7 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 20,
                         'effect': 'protect',
@@ -1190,6 +1213,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 24,
                         'effect': 'reduce_all',
@@ -1211,6 +1235,7 @@ BRANCH_SKILLS = {
                         'mp': 0,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.8,
                         'cd': 24,
                         'effect': 'shield_all_reduce',
@@ -1280,6 +1305,7 @@ BRANCH_SKILLS = {
                         'mp': 15,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 16,
                         'name': '棱镜护体',
@@ -1524,6 +1550,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 24,
                         'effect': 'arcane_matrix',
@@ -1844,6 +1871,7 @@ BRANCH_SKILLS = {
                         'cd': 16,
                         'res_cost': {"energy": 30},
                         'effect': 'star_lock',
+             'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '星轨锁定',
                         'desc': '星辉映照，猎物身形无所遁形——锁定目标无视站位，全队对其伤害 +12%，持续 12 刻'
                     },
@@ -1856,6 +1884,7 @@ BRANCH_SKILLS = {
                         'cd': 12,
                         'res_cost': {"energy": 25},
                         'effect': 'spd_buff',
+             'buff_turns': 6,   # v162: desc 持续6刻
                         'name': '疾风步',
                         'desc': '足下生风，身形化作林间流影——速度 +40%，持续 6 刻'
                     },
@@ -1932,6 +1961,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'res_cost': {"energy": 35},
                         'effect': 'dodge_reduce_all',
+             'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '自然护佑',
                         'desc': '草木生灵环护周身，藤叶织成壁垒——全队闪避 +15%、减伤 10%，持续 12 刻'
                     },
@@ -1987,6 +2017,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'res_cost': {"energy": 30},
                         'effect': 'dodge_buff',
+             'buff_turns': 6,   # v162: desc 持续6刻
                         'name': '风之屏障',
                         'desc': '气流在身周凝成无形之壁——闪避 +40%，持续 6 刻'
                     },
@@ -2029,6 +2060,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'res_cost': {"energy": 50},
                         'effect': 'hunt_team_dmg',
+             'buff_turns': 12,   # v162: desc 持续12刻
                         'name': '猎杀时刻',
                         'desc': '猎手本能觉醒，杀意笼罩全场——全队对猎印目标增伤 +30%，持续 12 刻'
                     },
@@ -2096,6 +2128,7 @@ BRANCH_SKILLS = {
                         'cd': 24,
                         'res_cost': {"energy": 50},
                         'effect': 'spd_all',
+             'buff_turns': 8,   # v162: desc 持续8刻
                         'name': '风神降临',
                         'desc': '风神之翼展开，天地为之呼啸——全队速度 +30%，持续 8 刻'
                     },
@@ -2281,6 +2314,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 16,
                         'faith': 0,
@@ -2372,6 +2406,7 @@ BRANCH_SKILLS = {
                         'mp': 20,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 16,
                         'faith': 0,
@@ -2457,6 +2492,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.6,
                         'cd': 20,
                         'faith': 0,
@@ -2665,6 +2701,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
                         'cast': 0.3,
                         'cd': 16,
                         'effect': 'dodge_buff',
@@ -2762,6 +2799,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 16,
                         'effect': 'vuln',
@@ -2829,6 +2867,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
                         'cast': 0.3,
                         'cd': 20,
                         'effect': 'stealth_cc',
@@ -2913,6 +2952,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
                         'cast': 0.3,
                         'cd': 20,
                         'effect': 'dodge_buff',
@@ -2928,6 +2968,7 @@ BRANCH_SKILLS = {
                         'mp': 25,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.5,
                         'cd': 20,
                         'effect': 'crit_all',
@@ -3138,6 +3179,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.35,
                         'cd': 16,
                         'effect': 'block_reflect',
@@ -3191,6 +3233,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.5,
                         'cd': 16,
                         'effect': 'reduce_all',
@@ -3343,6 +3386,7 @@ BRANCH_SKILLS = {
                         'mp': 18,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 20,
                         'effect': 'shield_all',
@@ -3364,6 +3408,7 @@ BRANCH_SKILLS = {
                         'mp': 16,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 20,
                         'mech_val': 45,
@@ -3460,6 +3505,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.6,
                         'cd': 24,
                         'effect': 'reduce_shield_all',
@@ -3520,6 +3566,7 @@ BRANCH_SKILLS = {
                         'mp': 10,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'melody',
@@ -3532,6 +3579,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'melody',
@@ -3569,6 +3617,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'melody',
@@ -3608,6 +3657,7 @@ BRANCH_SKILLS = {
                         'mp': 12,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'melody',
@@ -3645,6 +3695,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.3,
                         'cd': 8,
                         'mech': 'melody',
@@ -3721,6 +3772,7 @@ BRANCH_SKILLS = {
                         'mp': 14,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 6,   # v162: desc 持续6刻
                         'cast': 0.3,
                         'cd': 20,
                         'name': '和弦',
@@ -3825,6 +3877,7 @@ BRANCH_SKILLS = {
                         'mp': 30,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 1.2,
                         'cd': 24,
                         'mech': 'melody',
@@ -3872,6 +3925,7 @@ BRANCH_SKILLS = {
                         'mp': 50,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.6,
                         'cd': 24,
                         'effect': 'all_stat_cc',
@@ -3885,6 +3939,7 @@ BRANCH_SKILLS = {
                         'mp': 35,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 1.2,
                         'cd': 24,
                         'mech': 'melody',
@@ -3936,6 +3991,7 @@ BRANCH_SKILLS = {
                         'mp': 55,
                         'power': 1.0,
                         'kind': '增益',
+            'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 1.2,
                         'cd': 24,
                         'mech': 'stun',
@@ -3999,6 +4055,7 @@ TUTOR_SKILLS = {
         },
         "sk_jin_gang_ti": {
             "lv": 10, "mp": 12, "power": 0, "kind": "增益",
+            'buff_turns': 2,   # v162: desc 持续2刻
             "effect": "def_up", "cd": 3,
             "desc": "身如磐石，傲然挺立——防御＋45% 持续 2 刻",
             "name": "磐石之体",

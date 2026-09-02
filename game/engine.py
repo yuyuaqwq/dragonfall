@@ -922,8 +922,15 @@ def skill_flat_value(player_lv: int, skill_lv: int, info: dict | None = None) ->
 
 
 def skill_buff_turns(level: int, base: int = 3, info: dict | None = None) -> int:
-    """增益技能升级：每级持续刻＋1(Lv.1=3，Lv.5=7)"""
+    """增益技能升级：每级持续刻＋1。
+
+    v162：info 配了 buff_turns 时用它做 base（每个增益技能 desc 的持续各不相同——
+    铁壁 8 / 战吼 10 / 冥想 6），否则默认 3（Lv.1=3，Lv.5=7）。"""
     lv = max(1, min(level, skill_max_level(info)))
+    if info is not None:
+        _bt = info.get("buff_turns")
+        if _bt:
+            base = int(_bt)
     return base + (lv - 1)
 
 

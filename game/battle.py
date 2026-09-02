@@ -326,6 +326,7 @@ class Battle:
         self.player = player or {}         # v105 攻击方属性读取（_monster_dodge_check 需要玩家精准）
         self.p_buffs: dict = {}            # 玩家增益 {effect: turns}
         self._reduce_all_left: int = 0     # v113.1 团队减伤 reduce_all 剩余刻（百分比存 p_buffs["reduce_all"]）
+        self._reduce_left: int = 0         # v162 单人减伤 reduce 剩余刻（铁壁/铜墙等，百分比存 p_buffs["reduce"]）
         self._p_buff_hits: dict = {}       # v151 时刻制：防御型 buff 受击计数 {effect: 剩余受击次数}——防御/减伤/受击类按"敌方出手次数"计时而非玩家刻
         self.poi_buff: dict | None = None  # v104 M23 神龛祝福：{stat,mult,name}，持久 5 次战斗，battle 开始时消费 1 次
         self.p_hot: dict = {}              # v101.28 食物持续恢复 {"heal": 比例, "mana": 比例, "turns": 剩余刻}
@@ -584,6 +585,8 @@ class Battle:
             # v113.1 团队减伤 reduce_all 剩余刻：percent 存 p_buffs、刻数独立计时，
             # 必须随存档持久化，否则恢复后 __init__=0 被下刻立即弹掉 reduce_all。
             "reduce_all_left": self._reduce_all_left,
+            # v162 单人减伤 reduce 剩余刻（铁壁/铜墙）
+            "reduce_left": getattr(self, "_reduce_left", 0),
             "poi_buff": getattr(self, "poi_buff", None),
             "p_hot": self.p_hot,
             "p_food_effects": self.p_food_effects,
@@ -651,6 +654,7 @@ class Battle:
         b.p_buffs = dict(st.get("p_buffs") or {})
         b._p_buff_hits = dict(st.get("p_buff_hits") or {})  # v151 时刻制：防御型 buff 受击计数
         b._reduce_all_left = int(st.get("reduce_all_left", 0) or 0)  # v113.1 恢复减伤剩余刻
+        b._reduce_left = int(st.get("reduce_left", 0) or 0)  # v162 恢复单人减伤剩余刻
         b.poi_buff = st.get("poi_buff")
         b.p_hot = st.get("p_hot", {}) or {}
         b.p_food_effects = st.get("p_food_effects", []) or st.get("p_food_affixes", []) or []
@@ -6051,7 +6055,7 @@ class Battle:
                 if k in ("next_atk_up", "buff_phys_next", "stealth"):
                     continue
                 # reduce_all/shield：特殊语义，不按 int 递减
-                if k in ("reduce_all", "shield"):
+                if k in ("reduce_all", "reduce", "shield"):
                     continue
                 # bar 状态（dict）：由 battle_bars 自行衰减
                 if isinstance(v, dict):
@@ -6076,6 +6080,10 @@ class Battle:
         if self.p_buffs.get("reduce_all") is not None and self._now >= float(getattr(self, "_reduce_all_left", 1) or 1) * (ACT_TICK or 2.0):
             self.p_buffs.pop("reduce_all", None)
             self._reduce_all_left = 0
+        # v162：单人减伤 reduce 独立计时（铁壁/铜墙等，百分比存 p_buffs["reduce"]）
+        if self.p_buffs.get("reduce") is not None and self._now >= float(getattr(self, "_reduce_left", 1) or 1) * (ACT_TICK or 2.0):
+            self.p_buffs.pop("reduce", None)
+            self._reduce_left = 0
         # v101.28d 护盾到期：各来源独立 expire_at
         for key in list(self.p_shields):
             sh = self.p_shields[key]
