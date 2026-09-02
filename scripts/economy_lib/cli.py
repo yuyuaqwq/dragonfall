@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from economy_lib import (  # noqa: E402
     economy_scan, check_health, profession_scan, drop_count_sim, shop_scan,
+    heal_alignment_scan,
     md_table, to_json, health_text,
 )
 
@@ -60,8 +61,19 @@ def cmd_json():
     out = {
         "economy": economy_scan(),
         "professions": profession_scan(),
+        "shop": shop_scan(),
     }
     print(to_json(out))
+
+
+def cmd_heal():
+    """回复道具对齐扫描（食物 vs 药水性价比）。"""
+    r = heal_alignment_scan()
+    print(f"== 回复道具对齐（食物 {r['health']['food_count']} / 药水 {r['health']['potion_count']}）==")
+    if not r["issues"]:
+        print("✅ 全部对齐（无食物回复碾压药水）")
+    for x in sorted(r["issues"], key=lambda x: x["price"]):
+        print(f"  ⚠️ {x['name']} p={x['price']} heal={x['heal']*100:.0f}% hot累计={x['hot_sum']*100:.0f}% 体力={x['stamina']} | {x['issue']}")
 
 
 if __name__ == "__main__":
@@ -72,6 +84,14 @@ if __name__ == "__main__":
         cmd_prof()
     elif cmd == "drop":
         cmd_drop(sys.argv[2] if len(sys.argv) > 2 else None)
+    elif cmd == "shop":
+        scan = shop_scan()
+        print(f"== 商店价格分阶段扫描（{scan['total']} 条配货）==")
+        for x in scan["anchor_issues"]:
+            print(f"  ⚠️ [{x['verdict']}] {x['name']} @ {x['sa']} Lv{x['town_lv']} p={x['price']} kills={x['kills']} band={x['band']}")
+        print(f"锚点问题 {len(scan['anchor_issues'])}（须 0）/ 便利品 warning {len(scan['stage_issues'])}")
+    elif cmd == "heal":
+        cmd_heal()
     elif cmd == "json":
         cmd_json()
     else:

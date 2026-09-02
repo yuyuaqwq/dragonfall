@@ -26,7 +26,7 @@ from .core import (
     equip_price, enhance_expected_cost, upgrade_full_cost,
     craft_cost, craft_cost_ratio, inn_cost,
     drop_count_sim, economy_row, economy_scan, check_health,
-    profession_scan, shop_scan,
+    profession_scan, shop_scan, heal_alignment_scan,
 )
 from .report import md_table, to_json, health_text
 
@@ -39,6 +39,6 @@ __all__ = [
     "equip_price", "enhance_expected_cost", "upgrade_full_cost",
     "craft_cost", "craft_cost_ratio", "inn_cost",
     "drop_count_sim", "economy_row", "economy_scan", "check_health",
-    "profession_scan", "shop_scan",
+    "profession_scan", "shop_scan", "heal_alignment_scan",
     "md_table", "to_json", "health_text",
 ]

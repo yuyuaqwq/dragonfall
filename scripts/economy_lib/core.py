@@ -531,3 +531,127 @@ def shop_scan() -> dict:
                    "high_count": len([x for x in anchor_issues if x["verdict"] == "HIGH"]),
                    "must_fix": len(anchor_issues)},
     }
+
+
+# ---------------- 回复道具对齐维度（v166 食物/药水性价比，2026-09-02 鱼鱼拍板模型驱动） ----------------
+# 背景：食物同时给「战斗外回血 + 体力 + 战斗内 hot」，同价回复全面碾压药水（黑面包 10G 回 39%+20体力
+#       vs 治疗药水(小) 10G 回 20%）。策划案分工：药水=战斗中瞬时，食物=战斗外恢复+体力+效果。
+# 对齐判据：
+#   1. 食物战斗外回复(heal) 应 ≤ 同价药水基准回复 × 1.0（食物还送体力/效果，纯回不该更高）
+#   2. 食物战斗内 hot×turns 累计应 ≤ 战斗外 heal（战斗内持续只是小额，不能反超）
+#   3. 药水本身按基准曲线检查（价格-回复拟合，异常点标记）
+# 药水基准锚点（商店治疗药水链，价格→回复%）：(8,0.15),(10,0.2),(20,0.25),(30,0.4),(60,0.5),
+#   (100,0.6),(180,0.8),(350,0.9),(500,1.0)——模型线性外推 + 同价取上界。
+
+# 药水基准锚点（价格 → 回复百分比），实读商店在售治疗药水核心链
+HEAL_ANCHORS = [
+    (8, 0.15), (10, 0.20), (20, 0.25), (30, 0.40), (60, 0.50),
+    (100, 0.60), (180, 0.80), (350, 0.90), (500, 1.00),
+]
+
+
+def _potion_baseline(price: int) -> float:
+    """同价药水基准回复%（按锚点线性插值/外推，取不低于低档锚）。"""
+    # 找最接近的两个锚点线性插值
+    if price <= HEAL_ANCHORS[0][0]:
+        return HEAL_ANCHORS[0][1]
+    for i in range(len(HEAL_ANCHORS) - 1):
+        p1, r1 = HEAL_ANCHORS[i]
+        p2, r2 = HEAL_ANCHORS[i + 1]
+        if p1 <= price <= p2:
+            if p2 == p1:
+                return r2
+            return r1 + (r2 - r1) * (price - p1) / (p2 - p1)
+    return HEAL_ANCHORS[-1][1] + (price - HEAL_ANCHORS[-1][0]) * 0.0004  # 高价缓慢外推
+
+
+def _stamina_from_desc(desc: str) -> int:
+    """从 desc 提取 'N 体力'。"""
+    if not desc:
+        return 0
+    m = __import__("re").search(r"(\d+)\s*体力", desc)
+    return int(m.group(1)) if m else 0
+
+
+def heal_alignment_scan() -> dict:
+    """全量回复道具（商店食物 + 烹饪产物 + 商店药水）性价比对齐扫描。
+
+    每件道具算：
+      - price / heal(战斗外回复) / hot_sum(hot×turns 战斗内累计) / stamina(体力)
+      - baseline = 同价药水基准回复%
+      - 判据1 food_heal_exceed = heal > baseline（食物战斗外回复超同价药水）
+      - 判据2 hot_exceed = hot_sum > heal（战斗内持续反超战斗外总量）
+    返回 {total, foods, potions, issues} 其中 issues = 越界道具清单（含目标建议值）。
+
+    豁免（功能定位，非基础补给赛道，不参与对齐）：
+      - i_holy_water 祝福圣水：教堂功能水（圣堂祝福），价格偏高但无害（玩家会选药水）
+      - i_storm_chowder/i_glow_shark_soup：垂钓稀有料做的纯战斗汤（hot 定位合理）
+      - i_emergency_salve 应急灵液：瞬发救命（cast 0.3 溢价，v166 已挪寒脊）
+    """
+    EXEMPT = {"i_holy_water", "i_storm_chowder", "i_glow_shark_soup", "i_emergency_salve"}
+    items_all = {}
+    for _sa, its in D.SHOP_SUBAREA_ITEMS.items():
+        for iid in its:
+            items_all.setdefault(iid, D.ITEMS.get(iid, {}))
+    for _rk, r in getattr(D, "COOKING_RECIPES", {}).items():
+        for pk in (r.get("product") or {}):
+            items_all.setdefault(pk, D.ITEMS.get(pk, {}))
+
+    def is_food(it):
+        return bool(it.get("food") or it.get("hot") or it.get("stamina") is not None
+                    or _stamina_from_desc(str(it.get("desc", ""))) > 0
+                    or it.get("food_effect") or (it.get("effect") or "").endswith("_food"))
+
+    foods, potions, issues = [], [], []
+    for iid, it in items_all.items():
+        if not it or not it.get("price"):
+            continue
+        if iid in EXEMPT:
+            continue
+        price = it["price"]
+        heal = it.get("heal") or 0
+        hot = it.get("hot") or 0
+        turns = it.get("hot_turns") or 3
+        hot_sum = hot * turns
+        mana = it.get("mana") or 0
+        stamina = it.get("stamina")
+        if stamina is None:
+            stamina = _stamina_from_desc(str(it.get("desc", "")))
+        rec = {"key": iid, "name": it.get("name", iid), "price": price,
+               "heal": heal, "hot": hot, "turns": turns, "hot_sum": round(hot_sum, 3),
+               "stamina": stamina, "mana": mana,
+               "baseline": round(_potion_baseline(price), 3)}
+        if is_food(it):
+            # 食物判据：只有回复类食物（heal>0 或 hot>0）需要对齐；纯体力/效果食物不参与回复对齐
+            if heal > 0 or hot > 0:
+                rec["food"] = True
+                flag = None
+                # 食物体力补偿：送体力本身就是额外价值，纯回复允许比同价药水略高
+                #   （体力≥20 → 宽容 +15%；纯战斗食物无体力不宽容）
+                stamina_bonus = 0.15 if stamina >= 20 else 0.0
+                heal_cap = rec["baseline"] * (1.0 + stamina_bonus)
+                # 判据1：heal 超同价药水（含体力补偿上限）
+                if heal > heal_cap + 1e-9:
+                    flag = f"战斗外回复 {heal*100:.0f}% > 同价药水基准×体力补偿 {heal_cap*100:.0f}%"
+                # 判据2：hot 累计超 heal（战斗内持续反超战斗外总量）
+                elif hot_sum > heal + 1e-9 and heal > 0:
+                    flag = f"hot累计 {hot_sum*100:.0f}% > 战斗外 {heal*100:.0f}%"
+                if flag:
+                    rec["issue"] = flag
+                    issues.append(rec)
+            foods.append(rec)
+        elif it.get("heal") or it.get("mana"):
+            # 药水：检查是否显著低于基准（被价格曲线甩开）
+            rec["food"] = False
+            if heal > 0 and heal < rec["baseline"] * 0.5 - 1e-9:
+                rec["issue"] = f"回复 {heal*100:.0f}% 仅同价药水基准 {rec['baseline']*100:.0f}% 的 50% 以下"
+                issues.append(rec)
+            potions.append(rec)
+    return {
+        "total": len(foods) + len(potions),
+        "foods": foods,
+        "potions": potions,
+        "issues": issues,
+        "health": {"food_count": len(foods), "potion_count": len(potions),
+                   "issue_count": len(issues)},
+    }
