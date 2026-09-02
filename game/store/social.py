@@ -312,26 +312,33 @@ def market_buy_atomic(group_id, qq_id, mid):
     return True, None, item_name
 
 
-def market_stall_sell_atomic(group_id, qq_id, found_key, found_data, price, map_id, old_stall_items):
+def market_stall_sell_atomic(group_id, qq_id, found_key, found_data, price, map_id, old_stall_items, count=1):
     """原子摆摊上架：单事务内 旧摊物品全部退包→写入新摊位→从背包扣掉新货。
 
     old_stall_items: 命令层已解析的旧摊条目列表 [{"item_key","item_data"}]（不含 map_id 过滤逻辑，
     该判断仍留在命令层，本函数只负责在事务内完成 退回+上新+扣货）。
+    count: 摆摊件数（同 key 堆叠/同名多件批量摆 N 件 → 市场按一单一物插 count 行，
+    背包按 count 扣减；v167 摆摊支持序号+数量，鱼鱼拍板）。
     返回 True。所有 key 已由命令层按 get_inventory 语义解析（uuid/id 均可）。
     """
     from .inventory import _key_to_id
+    if not isinstance(count, int) or isinstance(count, bool) or count <= 0 or count > 9999:
+        count = 1
     with atomic() as conn:
         for s in old_stall_items:
             _inv_upsert(conn, group_id, qq_id,
                         _key_to_id(s["item_key"], s["item_data"]),
                         _snapshot_one(s["item_data"]), 1)
             conn.execute("DELETE FROM market WHERE id=? AND seller=?", (s["id"], qq_id))
-        conn.execute(
-            "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
-            (group_id, qq_id, _key_to_id(found_key, found_data),
-             json.dumps(_snapshot_one(found_data), ensure_ascii=False), int(price), int(time.time()), map_id or ""),
-        )
-        _inv_remove_conn(conn, qq_id, _key_to_id(found_key, found_data), 1)
+        key = _key_to_id(found_key, found_data)
+        snap = json.dumps(_snapshot_one(found_data), ensure_ascii=False)
+        now = int(time.time())
+        for _ in range(count):
+            conn.execute(
+                "INSERT INTO market (group_id, seller, item_key, item_data, price, listed_at, map_id) VALUES (?,?,?,?,?,?,?)",
+                (group_id, qq_id, key, snap, int(price), now, map_id or ""),
+            )
+        _inv_remove_conn(conn, qq_id, key, count)
     return True
 
 

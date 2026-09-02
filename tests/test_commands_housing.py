@@ -109,10 +109,10 @@ async def main():
     # v104R3 P2：铺面挂机位按房屋等级（木屋 0/石屋 1/庄园 2/宅邸 3）——木屋摆摊应被拦截，
     # 先验证拦截，再升级到石屋(Lv.2)验证摆摊成功（25 章房产案对齐）
     await cmd(m, "go_home", "g1", "w1", "回家")
-    out = await cmd(m, "stall", "g1", "w1", "摆摊 家传铁剑 800")
+    out = await cmd(m, "stall_sell", "g1", "w1", "摆卖 家传铁剑 800")
     check("木屋无挂机位摆摊被拦截", "没有铺面挂机位" in out, out[:200])
     db.update_player("g1", "w1", deed_lv=2)
-    out = await cmd(m, "stall", "g1", "w1", "摆摊 家传铁剑 800")
+    out = await cmd(m, "stall_sell", "g1", "w1", "摆卖 家传铁剑 800")
     check("石屋摆摊成功", "『家里』" in out and "800" in out, out[:200])
     out = await cmd(m, "map_view", "g1", "w1", "地图")
     check("家面板显示铺面", "铺面摊位" in out and "家传铁剑" in out, out[:300])

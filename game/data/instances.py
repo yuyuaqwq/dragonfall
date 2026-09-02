@@ -26,8 +26,8 @@ INSTANCES = {
         "boss_line": "『金币！宝石！都是咕噜的！』咕噜把抢来的皇冠往头上一扣，咧开满嘴尖牙：『你们这些商队的小跟班，也敢来掀咕噜的帐篷？』",
         "outro": "咕噜的皇冠滚落在篝火边，商路上的劫掠就此画上句号。行会的赏金结清了，可你总觉得，这条商路尽头的风声，才刚刚开始。",
         "boss": ["b_goblin_chief", "哥布林酋长·咕噜", "boss", 20,
-                 ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
-                 ["咕噜的皇冠"]],
+                ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
+                ["咕噜皇冠"]],
         "minions": [{"name": "哥布林打手", "monster": ["m_goblin_guard", "哥布林守卫", "tank", 15,
                            ["ms_dun_ji"], ["哥布林铁片"]], "count": 2}],  # v163：爪牙=同图小怪模板（鱼鱼拍板，非 Boss 缩放）
                 "stages":         [
@@ -104,7 +104,7 @@ INSTANCES = {
                         "ms_zhao_huan"
                     ],
                     [
-                        "咕噜的皇冠"
+                        "咕噜皇冠"
                     ]
                 ]
             }
@@ -114,7 +114,7 @@ INSTANCES = {
         "atk_mult": 1.0,
         "gold": 120,
         "exp": 180,
-        "materials": ["咕噜的皇冠"],
+        "materials": ["咕噜皇冠"],
         "mat_count": 1,
         "blueprint": False,
     },

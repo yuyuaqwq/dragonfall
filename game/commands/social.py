@@ -154,74 +154,169 @@ class SocialCmds(CommandBase):
             return
         yield event.plain_result(f"🛒 购入成功！【{item_name}】已放入背包(花费 {it['price']} 金币)")
 
-    # ---------------- v66 摆摊系统 ----------------
+    # ---------------- v66 摆摊系统（v167 拆分为 摆卖/摆换 两指令，鱼鱼拍板） ----------------
+    # 『摆卖 <物/背包序号> <单价> [数量]』= 摆摊出售（金币）
+    # 『摆换 <物/背包序号> [数量]』       = 摆摊以物换物（无金币价）
+    # 『收摊』『摊位』『换 <编号> <物品>』 维持不变
+    # 说明：v167 起废弃老『摆摊』一词（它同时承载卖/换两种语义靠有无价格区分，
+    # 与数量参数互相歧义——一介散人『咕噜的皇冠』同名事件暴露按名匹配的坑）。
+    # 现在卖/换动作词分开，参数互不冲突；物品支持背包全局序号（『背包』看到的序号）
+    # 或名称；同名多件按名会列出候选。老『摆摊』仅作引导提示（v167.1 意见：不静默消失）。
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆摊(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆摊(?:[\s\S]*)$", priority=5)
     @require_player()
-    async def stall(self, event: AstrMessageEvent):
-        group_id, qq_id = self._uid(event)
-        player = self._player(group_id, qq_id)
-        args = self._strip_cmd(event, "摆摊").rsplit(None, 1)
-        if len(args) == 1:
-            item_name, price = args[0], 0  # 不带价格 = 以物换物
-        elif args[1].isdigit():
-            item_name, price = args[0], int(args[1])
-            if price < C.ECON_CONFIG["market_min_price"]:
-                yield event.plain_result("价格至少 1 金币！")
-                return
-            # v104R3 P2：摆摊价格上限（与『上架』一致，防恶意占坑/诱导）
-            if price > C.ECON_CONFIG["market_price_cap"]:
-                yield event.plain_result(f"价格太高啦！摆摊价最多 {C.ECON_CONFIG['market_price_cap']} 金币～")
-                return
-        else:
-            yield event.plain_result("格式：摆摊 <物品名> [价格]，不带价格 = 以物换物，如『摆摊 铁剑』或『摆摊 铁剑 500』")
-            return
+    async def stall_deprecated(self, event: AstrMessageEvent):
+        yield event.plain_result("『摆摊』已拆成两条指令啦：\n"
+                                 "· 摆卖 = 卖金币：『摆卖 <物品/背包序号> <单价> [数量]』\n"
+                                 "· 摆换 = 以物换物：『摆换 <物品/背包序号> [数量]』\n"
+                                 "例：『摆卖 3 500 5』(背包第3件×5个，单价500)｜『摆换 铁剑』")
+
+    def _stall_parse_args(self, raw: str, is_sell: bool):
+        """解析摆卖/摆换参数。返回 (item_name, price, count) 或 (None, err_msg)。
+        is_sell=True: 『摆卖 <物> <单价> [数量]』数字 = 单价[, 数量]
+        is_sell=False: 『摆换 <物> [数量]』数字 = 数量（无单价）
+        """
+        if not raw:
+            if is_sell:
+                return None, ("格式：摆卖 <物品名/背包序号> <单价> [数量]\n"
+                              "例：『摆卖 3 500 5』(背包第3件×5个，单价500)｜『摆卖 铁剑 500』")
+            return None, ("格式：摆换 <物品名/背包序号> [数量]\n"
+                          "例：『摆换 3 5』(背包第3件拿5个出来换)｜『摆换 铁剑』(换1件)")
+        parts = re.split(r"[\s*]+", raw)
+        item_name = parts[0]
+        rest = parts[1:]
+        price, count = 0, 1
+        if rest:
+            num_tokens = [t for t in rest if t.isdigit()]
+            if not num_tokens:
+                if is_sell:
+                    return None, "价格要用数字！例『摆卖 铁剑 500』『摆卖 3 500 5』"
+                return None, "数量要用数字！例『摆换 3 5』"
+            if is_sell:
+                price = int(num_tokens[0])
+                count = int(num_tokens[1]) if len(num_tokens) >= 2 else 1
+            else:
+                count = int(num_tokens[0])
+            if price > 0:
+                if price < C.ECON_CONFIG["market_min_price"]:
+                    return None, "价格至少 1 金币！"
+                if price > C.ECON_CONFIG["market_price_cap"]:
+                    return None, f"价格太高啦！摆摊价最多 {C.ECON_CONFIG['market_price_cap']} 金币～"
+            if count < 1 or count > 999:
+                return None, "摆摊数量请填 1~999 之间！"
+        return item_name, (price, count)
+
+    def _stall_resolve(self, group_id, qq_id, item_name):
+        """按背包序号/名称解析目标物品。返回 inv 条目或 None（错误已提示）。"""
         inv = db.get_inventory(group_id, qq_id)
-        found = next((it for it in inv if it["data"].get("name") == item_name), None)
+        if item_name.isdigit():
+            idx = int(item_name)
+            if idx < 1 or idx > len(inv):
+                return None, f"背包里没有第 {idx} 件物品（共 {len(inv)} 件）！『背包』查看序号～"
+            return inv[idx - 1], None
+        # 按名：精确名优先，同名多件列出让玩家选（对齐『出售』）
+        exact = [it for it in inv if it["data"].get("name") == item_name]
+        if len(exact) == 1:
+            return exact[0], None
+        if len(exact) > 1:
+            flines = [f"❓ 找到 {len(exact)} 件同名『{item_name}』，用背包序号指定摆哪件（『摆卖 <序号> <价>』/『摆换 <序号>』）："]
+            for i, it in enumerate(exact, 1):
+                fd = it["data"]
+                _q = C.QUALITY[fd["quality"]] if fd.get("quality") and fd.get("slot") else None
+                fname_s = f"{_q['color']}【{fd['name']}】" if _q else fd["name"]
+                flines.append(f"  {i}. {fname_s} ×{it['count']}")
+            return None, "\n".join(flines)
+        fuzzy = [it for it in inv if item_name in it["data"].get("name", "")]
+        if len(fuzzy) == 1:
+            return fuzzy[0], None
+        if len(fuzzy) > 1:
+            flines = [f"❓ 找到 {len(fuzzy)} 件名字含『{item_name}』的物品，用全名或背包序号指定："]
+            for i, it in enumerate(fuzzy, 1):
+                fd = it["data"]
+                _q = C.QUALITY[fd["quality"]] if fd.get("quality") and fd.get("slot") else None
+                fname_s = f"{_q['color']}【{fd['name']}】" if _q else fd["name"]
+                flines.append(f"  {i}. {fname_s} ×{it['count']}")
+            return None, "\n".join(flines)
+        return None, f"背包里没有『{item_name}』！『背包』查看～"
+
+    async def _stall_place(self, group_id, qq_id, player, item_name, price, count):
+        """摆摊落位公共逻辑：解析物品→数量校验→地图/铺面校验→原子上架。
+        返回 (ok, head, tail, tip) 或 (False, msg)。"""
+        found, err = self._stall_resolve(group_id, qq_id, item_name)
         if not found:
-            yield event.plain_result(f"背包里没有『{item_name}』！『背包』查看～")
-            return
+            return False, err
+        if count > (found["count"] or 1):
+            return False, f"『{found['data'].get('name','?')}』你只有 {found['count']} 个，摆不了 {count} 个！"
         cur_map = player.get("cur_map", "")
         map_obj = C.MAP_BY_ID.get(cur_map, {})
         if not map_obj and not cur_map.startswith("home_"):
-            yield event.plain_result("这里没法摆摊……换个地方试试。")
-            return
-        # v68：家里摆摊 = 铺面（map 名显示为"家里"）
+            return False, "这里没法摆摊……换个地方试试。"
         if cur_map.startswith("home_"):
             map_name = "家里"
         else:
             map_name = map_obj.get("name", cur_map)
-        # 已有摊位 → 自动收旧摊（物品退回；仅公共地图单摊语义）
         old = [s for s in db.market_list_by_seller(group_id, qq_id) if s.get("map_id")]
-        # v104R3 P2：家里摆摊 = 铺面，受房屋等级挂机位限制（25 章房产案：
-        # 木屋 0 位 / 石屋 1 位 / 庄园 2 位 / 宅邸 3 位——此前恒 1 摊且不校验；
-        # 铺面多摊并存：位未满时不再自动收旧摊）
         _home_stall = cur_map.startswith("home_")
         if _home_stall:
             dlv = int(player.get("deed_lv", 1) or 1)
             hl = C.HOUSE_LEVELS.get(dlv, C.HOUSE_LEVELS[1])
             slots = hl.get("stall_slots", 0)
             if slots <= 0:
-                yield event.plain_result("🏠 木屋没有铺面挂机位！『地契 升级』到石屋解锁 1 个挂机位～")
-                return
+                return False, "🏠 木屋没有铺面挂机位！『地契 升级』到石屋解锁 1 个挂机位～"
             if len(old) >= slots:
-                yield event.plain_result(
-                    f"🏪 铺面挂机位已满({len(old)}/{slots})！先『收摊』腾位置，或升级房屋获得更多挂机位～")
-                return
-        # F1 P0-2：摆摊上新原子化（单事务：旧摊退包(仅公共地图)→写新摊→扣包内新货）。
-        # 铺面(home)多摊并存，不退回旧摊，仅事务内写新摊+扣货。
+                return False, f"🏪 铺面挂机位已满({len(old)}/{slots})！先『收摊』腾位置，或升级房屋获得更多挂机位～"
         _old_items = [] if _home_stall else [s for s in old]
         db.market_stall_sell_atomic(
-            group_id, qq_id, found["key"], found["data"], price, cur_map, _old_items
+            group_id, qq_id, found["key"], found["data"], price, cur_map, _old_items, count=count
         )
         tip = f"(旧摊位已收摊，{len(old)} 件物品退回背包)" if (old and not _home_stall) else ""
-        if price > 0:
-            head = f"🏪 你在『{map_name}』支起了摊位，出售【{found['data']['name']}】定价 {price} 金币！{tip}\n"
-            tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
-        else:
-            head = f"🔄 你在『{map_name}』支起了换摊——【{found['data']['name']}】只换不卖！{tip}\n"
-            tail = "『收摊』收摊，别人可用『换 <编号> <物品名>』跟你交换"
+        item_nm = found["data"].get("name", "?")
+        cnt_s = f" ×{count}" if count > 1 else ""
+        return True, (item_nm, cnt_s, map_name, tip)
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆卖(?:[\s\S]*)$")
+    @require_player()
+    async def stall_sell(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        raw = self._strip_cmd(event, "摆卖").strip()
+        parsed = self._stall_parse_args(raw, is_sell=True)
+        if parsed[0] is None:
+            yield event.plain_result(parsed[1])
+            return
+        item_name, (price, count) = parsed
+        if price <= 0:
+            yield event.plain_result("摆卖要带金币价！想以物换物用『摆换 <物品> [数量]』～")
+            return
+        ok, res = await self._stall_place(group_id, qq_id, player, item_name, price, count)
+        if not ok:
+            yield event.plain_result(res)
+            return
+        item_nm, cnt_s, map_name, tip = res
+        head = f"🏪 你在『{map_name}』支起了摊位，出售【{item_nm}{cnt_s}】定价 {price} 金币！{tip}\n"
+        tail = "『收摊』收摊，『摊位』看看本地谁在摆摊"
         yield event.plain_result(head + tail)
+
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?摆换(?:[\s\S]*)$")
+    @require_player()
+    async def stall_exchange_pawn(self, event: AstrMessageEvent):
+        group_id, qq_id = self._uid(event)
+        player = self._player(group_id, qq_id)
+        raw = self._strip_cmd(event, "摆换").strip()
+        parsed = self._stall_parse_args(raw, is_sell=False)
+        if parsed[0] is None:
+            yield event.plain_result(parsed[1])
+            return
+        item_name, (price, count) = parsed
+        ok, res = await self._stall_place(group_id, qq_id, player, item_name, 0, count)
+        if not ok:
+            yield event.plain_result(res)
+            return
+        item_nm, cnt_s, map_name, tip = res
+        head = f"🔄 你在『{map_name}』支起了换摊——【{item_nm}{cnt_s}】只换不卖！{tip}\n"
+        tail = "『收摊』收摊，别人可用『换 <编号> <物品名>』跟你交换"
+        yield event.plain_result(head + tail)
+
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?收摊(?:[\s\S]*)$")
     @require_player()

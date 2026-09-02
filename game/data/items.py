@@ -172,7 +172,7 @@ MATERIALS = {
     },
     "mat_gu_lu_de_huang_guan": {
         'price': 80,
-        'name': "咕噜的皇冠",
+        'name': "咕噜皇冠",
     },
     "mat_ge_bu_lin_hui_ji": {
         'price': 5,

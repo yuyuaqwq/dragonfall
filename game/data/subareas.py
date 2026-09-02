@@ -865,7 +865,7 @@ SUBAREAS = {
                     "boss",
                     20,
                     ["ms_lian_zhan", "ms_nu_hou", "ms_zhao_huan"],
-                    ["咕噜的皇冠"]
+                    ["咕噜皇冠"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,

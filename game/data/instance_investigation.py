@@ -62,13 +62,13 @@ INVESTIGATION_POINTS = {
     "inst_goblin_camp": [
         {"id": "inv_goblin_camp_1", "name": "酋长的战利品堆",
          "hint": "咕噜的财宝散落在帐篷角落，还压着半张劫掠清单（『调查 酋长的战利品堆』）",
-         "materials": ["咕噜的皇冠"]},
+         "materials": ["咕噜皇冠"]},
         {"id": "inv_goblin_camp_2", "name": "劫掠清单",
          "hint": "一张写满商队名字的羊皮纸（『调查 劫掠清单』）",
          "materials": ["哥布林铁片"]},
         {"id": "inv_goblin_camp_3", "name": "篝火余烬",
          "hint": "篝火堆里有什么东西在反光（『调查 篝火余烬』）",
-         "materials": ["咕噜的皇冠"]},
+         "materials": ["咕噜皇冠"]},
     ],
     "inst_sea_cave": [
         {"id": "inv_sea_cave_1", "name": "搁浅的宝箱",

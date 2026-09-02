@@ -496,7 +496,7 @@ async def main():
         if "通关" in out or "击败" in out:
             break
     check("单人副本通关", "通关" in out or "击败" in out, out[:300])
-    check("单人掉落咕噜的皇冠", "咕噜的皇冠" in out, out[:300])
+    check("单人掉落咕噜皇冠材料", "咕噜皇冠" in out, out[:300])
     # v101.27 #390：通关后停留搜刮状态保留，主动『离开副本』清战斗
     out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")
     check("单人离开副本", "离开" in out, out[:150])

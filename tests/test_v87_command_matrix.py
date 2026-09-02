@@ -126,7 +126,7 @@ REPRESENTATIVES = {
     "event_menu": "今日事件",
     # social.py
     "market": "市场", "market_sell": "上架", "market_unsell": "下架", "market_buy": "购入",
-    "stall": "摆摊", "stall_close": "收摊", "stall_view": "摊位", "stall_exchange": "换",
+    "stall_deprecated": "摆摊", "stall_sell": "摆卖", "stall_exchange_pawn": "摆换", "stall_close": "收摊", "stall_view": "摊位", "stall_exchange": "换",
     "party": "组队", "party_leave": "退队", "guild_create_cmd": "创建公会",
     "guild_join_cmd": "加入公会", "guild_leave_cmd": "退出公会", "guild_disband_cmd": "解散公会",
     "guild_info": "公会", "guild_sign": "公会签到", "guild_task": "公会任务",
