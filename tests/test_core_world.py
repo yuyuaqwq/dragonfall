@@ -47,8 +47,9 @@ def main():
         # v131：dps hp 成长 15→30/级，≤15 段等级段曲线仍无加成（315=10×30+15 尾差）
         check("Lv10 dps hp=315（v131 模板 30/级）", m1["hp"] == 315, "hp=%s" % m1["hp"])
         check("Lv15 dps hp=465（v131 模板）", m15["hp"] == 465, "hp=%s" % m15["hp"])
-        # v156 阶段 6：30 级 dps hp ×NORMAL_HP_STAGE_MULT（16-30 段 0.095/级 → Lv30 ×2.425）
-        check("30级怪 hp 放大(3882)", 3700 < m30["hp"] < 4100, "hp=%s" % m30["hp"])
+        # v162：16-30 段每级 +0.145（NORMAL_HP_STAGE_MULT 更新），Lv30 ×3.175
+        # Lv30 hp = int((45+30×29) × hp_stage_mult 1.75) × 3.175 = 5083
+        check("30级怪 hp 放大(5083)", 4900 < m30["hp"] < 5300, "hp=%s" % m30["hp"])
         check("60级怪 hp 继续放大", m60["hp"] > m30["hp"] * 2, "%s vs %s" % (m60["hp"], m30["hp"]))
         # v131：dps atk 成长 3.5→5.0/级，30 级线性取整 = 12+5.0×29=157
         check("30级怪 atk 线性(157)", ms(30, "dps")["atk"] == int(12 + 5.0 * 29), "atk=%s" % ms(30, "dps")["atk"])

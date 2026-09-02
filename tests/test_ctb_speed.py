@@ -92,7 +92,7 @@ def test_openers():
     set_spd(20, 10)
     b = BT.Battle("monster", make_enemy(10), player=make_player())
     check("玩家 ct 初值 = 0（v130.10 绝对时刻）", abs(b.p_ct) < 0.001, f"p_ct={b.p_ct}")
-    check("敌方单位 ct 初值 = 出招耗时（CAST_ATK×(50/spd)）", abs(b.enemy["ct"] - 5.0) < 0.001, f"e_ct={b.enemy['ct']}")
+    check("敌方单位 ct 初值 = 出招耗时（CAST_ATK×√(50/spd)，v161 曲线）", abs(b.enemy["ct"] - 2.2360679775) < 0.001, f"e_ct={b.enemy['ct']}")
     check("快者 ct 更小（更先）", b.p_ct < b.enemy["ct"], f"{b.p_ct} vs {b.enemy['ct']}")
     # 快者（玩家）先行动：第一回合完整回合，玩家 ct 仍 <= 敌方 ct（敌方未抢到先手）
     b2 = BT.Battle("monster", make_enemy(10), player=make_player())
@@ -123,12 +123,14 @@ def test_frequency_2to1():
     e_acts = _count_enemy_acts(b, 60)
     check("长程玩家行动数 60", b._p_acts == 60, f"p_acts={b._p_acts} e_acts={e_acts}")
     ratio = 60 / e_acts if e_acts else 0
-    # v156 普攻节奏重标定：战士 cast_atk 0.7→1.15 → 玩家普攻间隔 = 1.15 × (50/20)=2.875；
-    # 敌方间隔 = CAST_ATK 1.0 × (50/10)=5.0。理论频率比 = 5.0/2.875 = 1.74:1（实测 60 动 → ~34 敌动）。
-    check("行动比 ≈ 1.74:1（v156 理论 5.0/2.875，±20%）", 1.4 <= ratio <= 2.1, f"ratio={ratio:.2f} e_acts={e_acts}")
-    # v156 实测锁定：60 次玩家行动 → 敌方 ~34 动（理论 172.5s/5.0s=34.5）。断言区间放宽（防站桩/连动回归）。
-    check("v156 实测：敌方 ~34 动/60 玩家行动（读条命中制基线，无站桩）",
-          abs(e_acts - 34) <= 5, f"e_acts={e_acts} ratio={ratio:.2f}")
+    # v161 速度边际递减曲线（鱼鱼拍板 2026-09-01）：cost = √(50/spd)。
+    # 战士普攻出招 1.15 × √(50/20)=1.581 → 玩家间隔 1.818；
+    # 敌方普攻 CAST_ATK 1.0 × √(50/10)=2.236 → 敌间隔 2.236。
+    # 理论 60 玩家行动窗口内敌动 = 60×(1.818/2.236) ≈ 48.8 → ~48（旧 v156 线性 50/spd 假设已过时）。
+    check("行动比 ≈ 1.24:1（v161 曲线 60动/48敌动，±15%）", 1.05 <= ratio <= 1.43, f"ratio={ratio:.2f} e_acts={e_acts}")
+    # v161 实测锁定：60 次玩家行动 → 敌方 ~48 动（理论 109.1s/2.236s=48.8）。断言区间放宽（防站桩/连动回归）。
+    check("v161 实测：敌方 ~48 动/60 玩家行动（边际递减曲线基线）",
+          abs(e_acts - 48) <= 6, f"e_acts={e_acts} ratio={ratio:.2f}")
 
 
 def test_speed_buff():
@@ -145,7 +147,7 @@ def test_speed_buff():
     check("buff 后敌方行动次数显著减少（玩家更频繁）", e_buff < e_base,
           f"base={e_base} buff={e_buff}")
     check("buff 后行比 > 无 buff 行比",
-          (60 / (e_buff or 1)) > (60 / (e_base or 1)) * 1.2,
+          (60 / (e_buff or 1)) > (60 / (e_base or 1)) * 1.1,
           f"{60/e_buff:.2f} vs {60/e_base:.2f}")
 
 
@@ -262,10 +264,10 @@ def test_save_roundtrip():
     check("存档保留 p_ct", abs(b2.p_ct - b.p_ct) < 1e-9, f"{b2.p_ct} vs {b.p_ct}")
     check("存档保留单位 ct", abs(b2.enemy["ct"] - b.enemy["ct"]) < 1e-9,
           f"{b2.enemy['ct']} vs {b.enemy['ct']}")
-    # 老存档：无 p_ct → 兜底 0；敌人无 ct → 兜底出招耗时（CAST_ATK×(50/spd)）
+    # 老存档：无 p_ct → 兜底 0；敌人无 ct → 兜底出招耗时（CAST_ATK×√(50/spd)，v161 曲线）
     old = BT.Battle.from_state({"type": "monster", "enemies": [make_enemy(7)], "round": 1})
     check("老存档 p_ct 兜底 0", old.p_ct == 0.0, f"p_ct={old.p_ct}")
-    check("老存档敌人 ct 兜底出招耗时（v154 CAST_ATK×(50/7)）", abs(old.enemies[0]["ct"] - 50.0 / 7) < 1e-9,
+    check("老存档敌人 ct 兜底出招耗时（v161 CAST_ATK×√(50/7)=2.6726）", abs(old.enemies[0]["ct"] - 2.6726124191) < 1e-9,
           f"e_ct={old.enemies[0]['ct']}")
 
 
@@ -278,9 +280,10 @@ def test_pvp_no_interference():
     before = b.p_ct
     p = make_player()
     logs, ended = b.player_turn("attack", None, p, enemy_act=True)
-    check("PVP 行动后 p_ct 推进 = 出招+收招（v156 玩家行动也有耗时，真人轮流由命令层调度）",
-          abs(b.p_ct - (before + 2.875)) < 1e-6,
-          f"{before} -> {b.p_ct}（期望 +2.875=战士普攻 1.15×(50/20)）")
+    # v161 曲线：玩家普攻出招 = 1.15 × √(50/20) = 1.818（v156 线性 50/spd=2.5 假设已过时）
+    check("PVP 行动后 p_ct 推进 = 出招耗时（v161 边际递减曲线）",
+          abs(b.p_ct - (before + 1.8183096546)) < 1e-6,
+          f"{before} -> {b.p_ct}（期望 +1.818=战士普攻 1.15×√(50/20)）")
 
 
 def test_hard_cap():
