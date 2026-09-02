@@ -4132,12 +4132,12 @@ class EconomyCmds(CommandBase):
             lines = [
                 "📚 【世界百科】想知道什么？输入『百科 <名称>』",
                 "━━━━━━━━━━━━",
-                "🔍 可查询：材料 / 怪物 / 地图 / 副本 / 装备",
-                "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 装备』看装备名册",
-                "　　『百科 材料』按分类看材料",
-                "例：『百科 狼皮』→ 狼皮在哪掉",
-                "　　『百科 光耀狼』→ 光耀狼在哪出现",
-                "　　『百科 远境草甸』→ 地图里的怪物",
+                "🔍 可查询：装备 / 材料 / 怪物 / 地图 / 副本 / 符文",
+                "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 材料』按分类看材料",
+                "⚔️ 装备：『百科 <装备名>』看单件 · 『百科 装备』总览",
+                "　　『百科装备 <部位>』列出该部位全部装备（部位：武器/头盔/胸甲/护腿/靴子/戒指/项链）",
+                "例：『百科 铁皮头盔』→ 装备详情｜『百科装备 头盔 2』→ 头盔第2页",
+                "　　『百科 狼皮』→ 材料｜『百科 光耀狼』→ 怪物",
                 self._tip("rune"),
             ]
             yield event.plain_result("\n".join(lines))
@@ -4146,8 +4146,8 @@ class EconomyCmds(CommandBase):
         if raw == "副本":
             yield event.plain_result(self._ency_browse_instances())
             return
-        if raw == "装备":
-            yield event.plain_result(self._ency_browse_equips())
+        if raw == "装备" or raw.startswith("装备 "):
+            yield event.plain_result(self._ency_browse_equips(raw))
             return
         if raw == "材料":
             yield event.plain_result(self._ency_browse_materials())
@@ -4179,7 +4179,64 @@ class EconomyCmds(CommandBase):
         # v101.29：MATERIALS 的 key 是 mat_ ID（v48 后），按中文名查必须用 MATERIALS_BY_NAME
         # （旧代码 raw in C.MATERIALS 恒 False → 所有材料百科查询全部失效）
         mats_byname = C.MATERIALS_BY_NAME
+        # 2.1 装备名册精确命中优先于材料模糊（v167.1：『百科 龙鳞头盔』应查装备，
+        #    不被材料『龙鳞』的模糊子串抢先；材料精确 raw in mats_byname 仍最先）
+        _roster_exact = [r for r in C.EQUIP_ROSTER.values() if r.get("name") == raw]
+        if raw not in mats_byname and _roster_exact:
+            # 重名多件 → 逐件列出（同名牌不同品质/Lv 是合法数据）
+            if len(_roster_exact) > 1:
+                elines = [f"⚔️ 找到 {len(_roster_exact)} 件同名装备『{raw}』：", "━━━━━━━━━━━━"]
+                _attr_cn0 = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                for _ri, _rx in enumerate(sorted(_roster_exact, key=lambda r: (r.get("lv", 0), r.get("quality", ""))), 1):
+                    _qx = C.QUALITY.get(_rx.get("quality", "white"), {})
+                    _sx = C.EQUIP_SLOTS.get(_rx.get("slot", ""), "?")
+                    _reqx = _rx.get("req") or {}
+                    _reqsx = "、".join(f"{_attr_cn0.get(k, k)}{v}" for k, v in _reqx.items()) if _reqx else "无需求"
+                    elines.append(f"{_ri}. {_qx.get('color', '')}【{_rx['name']}】({_sx}·Lv.{_rx.get('lv', '?')}·{_qx.get('name', '')})｜{_reqsx}｜{_rx.get('source', '?')}")
+                elines.append("━━━━━━━━━━━━")
+                elines.append("💡 『百科装备 <部位>』按部位浏览可区分")
+                yield event.plain_result("\n".join(elines))
+                return
+            _r = _roster_exact[0]
+            _q = C.QUALITY.get(_r.get("quality", "white"), {})
+            _slot_nm = C.EQUIP_SLOTS.get(_r.get("slot", ""), _r.get("slot", "?"))
+            _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+            _req = _r.get("req") or {}
+            _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+            elines = [f"⚔️ {_q.get('color', '')}【{_r['name']}】({_slot_nm}·Lv.{_r.get('lv', '?')}·{_q.get('name', _r.get('quality'))})",
+                     "━━━━━━━━━━━━"]
+            if _r.get("series"):
+                elines.append(f"系列：{_r['series']}")
+            elines.append(f"需求：{_req_s}")
+            if _r.get("source"):
+                elines.append(f"来源：{_r['source']}")
+            if _r.get("set"):
+                elines.append(f"套装：{_r['set']}")
+            if _r.get("special"):
+                elines.append(f"特效：{_r['special']}")
+            if _r.get("desc"):
+                elines.append(f"{_r['desc']}")
+            elines.append(f"💡 『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
+            yield event.plain_result("\n".join(elines))
+            return
         if raw in mats_byname or any(kw in raw for kw in mats_byname):
+            # 材料模糊子串命中前，先看是否更像装备名（v167.1：『龙鳞头』≠材料『龙鳞』）
+            # 装备名包含 raw 前缀（raw 短 + 匹配装备名头）才优先——粗略判据：raw 含部位词尾或
+            # 装备名以 raw 开头。这里只防明显误伤：raw 以部位词结尾（头/甲/腿/靴/戒/链/杖/剑…）
+            _equip_like = bool(re.search(r"(头盔|头|胸甲|甲|护腿|腿|战靴|靴子|靴|戒指|戒|项链|链|杖|剑|弓|锤|枪|匕首|拳套|袍|衣|披风|斗篷|帽)$", raw))
+            if _equip_like:
+                _efuzzy = [r for r in C.EQUIP_ROSTER.values() if raw in r.get("name", "")][:8]
+                if _efuzzy:
+                    _attr_cn2 = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                    flines = [f"❓ 找到 {len(_efuzzy)} 件装备名含『{raw}』，用全名查询（或『百科装备 <部位>』浏览）："]
+                    for _i, _r in enumerate(_efuzzy, 1):
+                        _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                        _snm = C.EQUIP_SLOTS.get(_r.get("slot", ""), "?")
+                        _req = _r.get("req") or {}
+                        _reqs = "、".join(f"{_attr_cn2.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+                        flines.append(f"  {_i}. {_q.get('color', '')}【{_r['name']}】({_snm}·Lv.{_r.get('lv', '?')})｜{_reqs}")
+                    yield event.plain_result("\n".join(flines))
+                    return
             # 精确匹配优先
             mat = mats_byname.get(raw) or next((m for k, m in mats_byname.items() if k in raw), None)
             if mat:
@@ -4198,6 +4255,42 @@ class EconomyCmds(CommandBase):
                 lines.append(f"💡 出售价 {mat['price']} 金币")
                 yield event.plain_result("\n".join(l for l in lines if l))
                 return
+        # 2.25 装备单查（v167.1）：按名册精确/模糊匹配——此前『百科 <装备名>』查不到装备
+        _roster_hits = [r for r in C.EQUIP_ROSTER.values() if r.get("name") == raw]
+        if not _roster_hits:
+            _roster_hits = [r for r in C.EQUIP_ROSTER.values() if raw in r.get("name", "")][:8]
+        if _roster_hits:
+            if len(_roster_hits) == 1:
+                _r = _roster_hits[0]
+                _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                _slot_nm = C.EQUIP_SLOTS.get(_r.get("slot", ""), _r.get("slot", "?"))
+                _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                _req = _r.get("req") or {}
+                _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+                lines = [f"⚔️ {_q.get('color', '')}【{_r['name']}】({_slot_nm}·Lv.{_r.get('lv', '?')}·{_q.get('name', _r.get('quality'))})",
+                         "━━━━━━━━━━━━"]
+                if _r.get("series"):
+                    lines.append(f"系列：{_r['series']}")
+                lines.append(f"需求：{_req_s}")
+                if _r.get("source"):
+                    lines.append(f"来源：{_r['source']}")
+                if _r.get("set"):
+                    lines.append(f"套装：{_r['set']}")
+                if _r.get("special"):
+                    lines.append(f"特效：{_r['special']}")
+                if _r.get("desc"):
+                    lines.append(f"{_r['desc']}")
+                lines.append(f"💡 『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
+                yield event.plain_result("\n".join(lines))
+                return
+            # 模糊多个 → 列候选
+            flines = [f"❓ 找到 {len(_roster_hits)} 件名字含『{raw}』的装备，用全名查询："]
+            for _i, _r in enumerate(_roster_hits, 1):
+                _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                _snm = C.EQUIP_SLOTS.get(_r.get("slot", ""), "?")
+                flines.append(f"  {_i}. {_q.get('color', '')}【{_r['name']}】({_snm}·Lv.{_r.get('lv', '?')})")
+            yield event.plain_result("\n".join(flines))
+            return
         # 2.5 副本钥匙/信物查询（v134 意见#36：玩家打副本卡主线不知道钥匙哪掉 → 通用百科）
         #   双向：『百科 王陵钥匙』→ 哪个副本要它 + 获取途径；『百科 旧王陵』→ 副本要什么钥匙 + 途径。
         #   数据源 INSTANCES.key_item / key_source（20 本带钥匙副本），与副本列表引导同源。
@@ -4298,18 +4391,62 @@ class EconomyCmds(CommandBase):
         lines.append("💡 想了解某副本详情？『百科 <副本名>』（如『百科 旧王陵』）")
         return "\n".join(lines)
 
-    def _ency_browse_equips(self) -> str:
-        """『百科 装备』：装备名册分类摘要——按部位×品质给总数+代表性装备，
-        照顾 QQ 单条长度，不逐件刷屏。"""
+    def _ency_browse_equips(self, raw: str = "") -> str:
+        """『百科 装备』：装备名册浏览。
+
+        无参数 → 按部位×品质总览（每品质代表）；
+        『百科 装备 <部位> [页]』/『百科装备 <部位> [页]』→ 列出该部位全部装备（分页 12 件/页），
+        每件一行：品质色【名】(Lv.X) + 需求 + 来源。部位词=武器/头盔/胸甲/护腿/靴子/戒指/项链。
+        """
         _roster = C.EQUIP_ROSTER
-        lines = ["⚔️ 【装备名册】共 {} 件 · 按部位/品质速览".format(len(_roster)), "━━━━━━━━━━━━"]
-        # 部位顺序（EQUIP_SLOTS 定义序 = 武器/头盔/胸甲/护腿/靴子/戒指/项链）
         _slot_cn = C.EQUIP_SLOTS
-        for _slot in _slot_cn:
-            _items = [r for r in _roster.values() if r.get("slot") == _slot]
+        # 尝试解析部位 + 页码
+        _parts = (raw or "").split()
+        _slot = None
+        _page = 1
+        if len(_parts) >= 2:
+            _slot_word = _parts[1]
+            # 部位别名（含"装备 头盔"里用户可能带"部"字等）
+            _slot_map = {v: k for k, v in _slot_cn.items()}
+            _slot_map.update({"武器": "weapon", "头盔": "helm", "帽子": "helm", "头": "helm",
+                              "胸甲": "armor", "护甲": "armor", "衣服": "armor", "衣": "armor",
+                              "护腿": "legs", "腿": "legs", "靴子": "boots", "鞋": "boots", "靴": "boots",
+                              "戒指": "ring", "戒": "ring", "项链": "necklace", "链": "necklace"})
+            _slot = _slot_map.get(_slot_word)
+            if len(_parts) >= 3 and _parts[2].isdigit():
+                _page = max(1, int(_parts[2]))
+        # ---- 部位浏览（有部位词）----
+        if _slot:
+            _items = sorted((r for r in _roster.values() if r.get("slot") == _slot),
+                            key=lambda r: (r.get("lv", 0), r.get("name", "")))
+            if not _items:
+                return f"装备名册里没有『{_parts[1]}』部位……试试 武器/头盔/胸甲/护腿/靴子/戒指/项链"
+            _per = 12
+            _pages = (len(_items) + _per - 1) // _per
+            _page = min(_page, _pages)
+            _view = _items[(_page - 1) * _per: _page * _per]
+            _nm = _slot_cn.get(_slot, _parts[1])
+            lines = [f"⚔️ 【{_nm}】共 {len(_items)} 件 · 第{_page}/{_pages}页", "━━━━━━━━━━━━"]
+            for _r in _view:
+                _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                _lv = _r.get("lv", "?")
+                _src = _r.get("source", "")
+                _req = _r.get("req") or {}
+                _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+                _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+                _set = f" {_r.get('set', '')}" if _r.get("set") else ""
+                lines.append(f"· {_q.get('color', '')}【{_r['name']}】(Lv.{_lv}){_set}｜{_req_s}｜{_src or '?'}")
+            lines.append("━━━━━━━━━━━━")
+            lines.append(f"💡 输入『百科 <装备名>』看单件详情；『百科装备 {_parts[1]} {_page+1}』下一页" if _page < _pages
+                         else f"💡 输入『百科 <装备名>』看单件详情；『百科 装备』回总览")
+            return "\n".join(lines)
+        # ---- 总览（无部位词）----
+        lines = ["⚔️ 【装备名册】共 {} 件 · 按部位/品质速览".format(len(_roster)), "━━━━━━━━━━━━"]
+        for _slot_k in _slot_cn:
+            _items = [r for r in _roster.values() if r.get("slot") == _slot_k]
             if not _items:
                 continue
-            _nm = _slot_cn[_slot]
+            _nm = _slot_cn[_slot_k]
             _cnt = len(_items)
             _qcnt = {q: 0 for q in C.QUALITY_ORDER}
             for _r in _items:
@@ -4317,7 +4454,6 @@ class EconomyCmds(CommandBase):
                 if _q in _qcnt:
                     _qcnt[_q] += 1
             _qb = " ".join("{}{}".format(C.QUALITY[q]["color"], _qcnt[q]) for q in C.QUALITY_ORDER if _qcnt[q])
-            # 代表性：每品质取 Lv 最高 1 件（名字+lv+来源图标），最多 5 件防刷屏
             _reps = []
             for _q in C.QUALITY_ORDER:
                 _pool = sorted((r for r in _items if r.get("quality") == _q), key=lambda r: -r.get("lv", 0))
@@ -4333,7 +4469,8 @@ class EconomyCmds(CommandBase):
             lines.append(f"◈ {_nm} ×{_cnt}　{_qb}")
             lines.append("　代表：" + "　".join(_reps))
         lines.append("━━━━━━━━━━━━")
-        lines.append("💡 输入『百科 <装备名>』看单件详情；『图鉴』里也能看已收集装备")
+        lines.append("💡 『百科装备 <部位>』列出该部位全部装备（武器/头盔/胸甲/护腿/靴子/戒指/项链）；"
+                     "『百科 <装备名>』看单件详情")
         return "\n".join(lines)
 
     def _ency_browse_materials(self) -> str:
