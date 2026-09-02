@@ -1264,6 +1264,20 @@ class PlayerCmds(CommandBase):
             return
         yield event.plain_result(msg)
 
+    def _desc_align_turns(self, desc: str, info: dict, lv: int) -> str:
+        """v162：desc 里的『持续 N 刻』对齐实际 buff 时长（skill_buff_turns）。
+        历史遗留：增益技能 desc 手写持续（6-12刻）与实际（3刻起）脱节。
+        展示时替换为实际值，让玩家看到的 desc 与数值成长一致。"""
+        if not desc or not info:
+            return desc
+        kind = info.get("kind", "")
+        if kind not in ("增益", "嘲讽"):
+            return desc
+        import re as _re
+        actual = E.skill_buff_turns(lv, info=info)
+        # 替换 desc 里 '持续 N 刻' / '持续 N.0 刻'
+        return _re.sub(r"持续 \d+(?:\.0)? 刻", f"持续 {actual} 刻", desc)
+
     def _skill_detail_message(self, player: dict, skill_name: str) -> str | None:
         """v134.6 通用技能详情渲染（供 skill_detail / item_detail『查看』共用）：
         返回详情文本；技能不存在返回 None。player 须含 class_name/level/learned_skills/skill_levels。"""
@@ -1306,7 +1320,8 @@ class PlayerCmds(CommandBase):
             f"━━━━━━━━━━━━",
             # v161 意见#71：移除冗余"需求等级"（状态行已显示 Lv.X 解锁/可学习）
             f"类型：{info.get('kind','')} ｜ 消耗：{_cost_txt}",
-            f"效果：{info['desc']}",
+            # v162：desc 持续刻对齐实际（增益 desc 手写持续与实际脱节）
+            f"效果：{self._desc_align_turns(info['desc'], info, slv if is_learned else 1)}",
         ]
         # v160 表达式技能：公式翻译展示（exprs 逐级显示当前级公式；单条 expr 显示公式本身）
         _expr_show = self._skill_formula_text(info, slv if is_learned else 1)
