@@ -1029,7 +1029,10 @@ class CombatCmds(CommandBase):
                         f"『{info.get('name', skill_name)}』需要战斗内核心资源才能施放（消耗 {' + '.join(_rc_list)}），脱战中无法使用～"
                     )
                     return
-                if player["mp"] < info["mp"]:
+                # v164.3 修复：技能数据 v161 起支持 res_cost（精力/怒气等核心资源），无 mp 字段——
+                # 原 info["mp"] 直接下标对 res_cost 技能 KeyError 崩（玩家报"放不出技能"）。
+                # 对齐引擎 battle.py:2455：mp 用 .get 兜底；res_cost 技能资源校验由引擎施放时执行。
+                if (info.get("mp", 0) or 0) > 0 and player["mp"] < info["mp"]:
                     yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
                     return
                 if player.get("hp", 0) >= player.get("max_hp", 1):
@@ -1104,7 +1107,10 @@ class CombatCmds(CommandBase):
                 f"{self._tip('build')}"
             )
             return
-        if player["mp"] < info["mp"]:
+        # v164.3 修复：技能数据 v161 起支持 res_cost（精力/怒气等核心资源），无 mp 字段——
+        # 原 info["mp"] 直接下标对 res_cost 技能 KeyError 崩（玩家报"放不出技能"）。
+        # 对齐引擎 battle.py:2455：mp 用 .get 兜底；res_cost 技能资源校验由引擎施放时执行。
+        if (info.get("mp", 0) or 0) > 0 and player["mp"] < info["mp"]:
             yield event.plain_result("💙 魔力不足！休息一下或使用魔力药水吧～")
             return
         if battle["state"].get("type") == "instance":
