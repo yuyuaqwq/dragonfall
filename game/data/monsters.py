@@ -1452,3 +1452,29 @@ MONSTER_SKILLS = {
         "element": "ice",
     },
 }
+
+# ================= v140 波1：野外精英专属紫装掉落表（18 条） =================
+# 来源：原 game/data/drop_add_v140.py 之 ELITE_EQUIP_DROP（2026-08-30 孤儿文件表并入本文件；
+# 本表纯数据、无逻辑，供 v140 掉落逻辑 drops.py/instance.py 消费；孤儿文件由主 agent 收尾删除）
+# 结构：{精英中文名: 装备id}；掉率统一 2% + 保底 20 杀（方案 4.2）。
+# 精英名 = 04 章怪物数据中的中文名（与装备名册 eq_* id 对齐）。
+ELITE_EQUIP_DROP = {
+    "峡谷巨魔":     "eq_ju_mo_liao_ya_zhui",     # Lv.8  巨魔獠牙坠（项链·紫）
+    "野猪王·裂鬃":  "eq_lie_zong_zhan_kui",      # Lv.10 裂鬃战盔（头盔·紫）
+    "狼王·灰影":    "eq_hui_ying_lang_ya_ren",   # Lv.14 灰影狼牙刃（短刃·紫）
+    "沼泽巨鳄":     "eq_ju_e_lin_jia",           # Lv.18 巨鳄鳞甲（护甲·紫）
+    "丘陵狼王·铁牙": "eq_tie_ya_zhan_kui",        # Lv.34 铁牙战盔（头盔·紫）
+    "盗贼头目·黑鸦": "eq_hei_ya_mian_jin",        # Lv.38 黑鸦面巾（头盔·紫）
+    "珊瑚礁主·红棘": "eq_hong_ji_shan_hu_jie",    # Lv.42 红棘珊瑚戒（戒指·紫）
+    "海妖领主·潮汐": "eq_chao_xi_san_cha_ji",     # Lv.52 潮汐三叉戟（长枪·紫）
+    "月狼王·银鬃":  "eq_yin_zong_yue_ren",       # Lv.56 银鬃月刃（短刃·紫）
+    "风语王·岚歌":  "eq_lan_ge_yu_xue",          # Lv.58 岚歌羽靴（靴子·紫）
+    "古树领主":     "eq_gu_shu_zhi_zhang",       # Lv.70 古树枝杖（法杖·紫）
+    "霜巨魔王":     "eq_shuang_ju_mo_zhan_chui",  # Lv.72 霜巨魔战锤（战锤·紫）
+    "熔岩领主":     "eq_rong_yan_zhong_jian",    # Lv.76 熔岩重剑（长剑·紫）
+    "冰川龙·霜牙":  "eq_shuang_ya_bing_ren",      # Lv.84 霜牙冰刃（短刃·紫）
+    "骨龙领主·骸王": "eq_hai_wang_gu_mian",       # Lv.92 骸王骨面（头盔·紫）
+    "深渊骑士":     "eq_shen_yuan_ji_qiang",     # Lv.94 深渊骑枪（长枪·紫）
+    "雷暴领主·雷霆": "eq_lei_ting_hu_jian",       # Lv.96 雷霆护肩（护甲·紫）
+    "星龙·辰光":    "eq_chen_guang_fa_zhang",    # Lv.98 辰光法杖（法杖·紫）
+}

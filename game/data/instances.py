@@ -1933,3 +1933,37 @@ INSTANCES = {
         "blueprint": True,
     },
 }
+
+# ================= v140 波1：副本 Boss 专属装备掉落表（22 条） =================
+# 来源：原 game/data/drop_add_v140.py 之 BOSS_EQUIP_DROP（2026-08-30 孤儿文件表并入本文件；
+# 本表纯数据、无逻辑，供 v140 掉落逻辑 drops.py/instance.py 消费；孤儿文件由主 agent 收尾删除）
+# 结构：{副本id: {"equip": 装备id, "rate": 掉率, "pity": 保底击杀数}}
+# 装备名 = Boss 身份物（与材料同名但 type=装备）；eq_* 拼音 id（西幻命名）。
+INSTANCE_BOSS_EQUIP_DROP = {
+    # ---- 主线 8 ----
+    "inst_goblin_camp":     {"equip": "eq_gu_lu_de_huang_guan",   "rate": 0.05, "pity": 20},  # 哥布林酋长·咕噜 → 咕噜的皇冠（头盔·橙·20）
+    "inst_sea_cave":        {"equip": "eq_jin_gou_wan_dao",       "rate": 0.08, "pity": 15},  # 海盗王·独眼杰克 → 金钩弯刀（剑·橙·26）
+    "inst_old_king_tomb":   {"equip": "eq_gu_wang_jian",          "rate": 0.08, "pity": 15},  # 古王·奥德里克 → 古王剑（剑·橙·42）
+    "inst_secret_crypt":    {"equip": "eq_ma_er_ku_si_de_fa_guan","rate": 0.10, "pity": 12},  # 审判长·马尔库斯 → 马尔库斯的法冠（头盔·橙·52）
+    "inst_elven_ruins":     {"equip": "eq_chen_xi_zhi_guan",      "rate": 0.10, "pity": 12},  # 远古精灵王·晨曦 → 晨曦之冠（头盔·橙·62）
+    "inst_ash_temple":      {"equip": "eq_he_er_jia_de_ji_qi",    "rate": 0.10, "pity": 12},  # 恶魔祭司·赫尔加 → 赫尔加的祭器（项链·橙·88）
+    "inst_abyss_gate":      {"equip": "eq_shi_ye_zhi_mian",       "rate": 0.10, "pity": 12},  # 蚀夜(真相形态) → 蚀夜之面（头盔·橙·98）
+    "inst_dragon_tomb":     {"equip": "eq_long_yu_sheng_jian",    "rate": 0.10, "pity": 12},  # 古龙·奥姆之影 → 龙语圣剑（剑·橙·92）
+    # ---- 区域支线 5 ----
+    "inst_deer_fort":       {"equip": "eq_yao_sai_you_ling_zhi_kui", "rate": 0.08, "pity": 15},  # 要塞幽灵 → 要塞幽灵之盔（头盔·紫）
+    "inst_holy_trial":      {"equip": "eq_shi_lian_hui_zhang",    "rate": 0.08, "pity": 15},  # 试炼骑士长 → 试炼徽章（项链·紫）
+    "inst_moon_temple":     {"equip": "eq_yue_hui_zhi_jie",       "rate": 0.08, "pity": 15},  # 月神守卫 → 月辉之戒（戒指·紫）
+    "inst_frost_throne":    {"equip": "eq_yong_dong_zhi_xin",     "rate": 0.10, "pity": 12},  # 冰霜领主 → 永冻之心（项链·橙）
+    "inst_storm_throne":    {"equip": "eq_feng_bao_zhi_guan",     "rate": 0.10, "pity": 12},  # 雷霆君主 → 风暴之冠（头盔·橙）
+    # ---- 外域 6 ----
+    "inst_sunken_ship":     {"equip": "eq_ke_luo_de_luo_pan",     "rate": 0.10, "pity": 12},  # 幽灵船长·克罗 → 克罗的罗盘（饰品·橙）
+    "inst_siren_nest":      {"equip": "eq_lan_ge_zhi_guan",       "rate": 0.10, "pity": 12},  # 海妖女王·蓝歌 → 蓝歌之冠（头盔·橙）
+    "inst_sea_god_temple":  {"equip": "eq_lang_ge_zhi_lei",       "rate": 0.10, "pity": 12},  # 海神祭司·澜歌 → 澜歌之泪（项链·橙·68）
+    "inst_deep_dragon_palace": {"equip": "eq_ao_lan_zhi_zhu",     "rate": 0.10, "pity": 12},  # 深海龙王·敖澜 → 敖澜之珠（戒指·橙·72）
+    "inst_gray_dwarf":      {"equip": "eq_shi_lu_zhan_chui",      "rate": 0.10, "pity": 12},  # 灰矮人领主·石炉 → 石炉战锤（战锤·橙）
+    "inst_under_dragon":    {"equip": "eq_hei_yuan_zhi_yan",      "rate": 0.10, "pity": 12},  # 地底古龙·黑渊 → 黑渊之眼（项链·橙）
+    # ---- 扩展 3 ----
+    "inst_eye_of_storm":    {"equip": "eq_yun_nu_zhi_he",         "rate": 0.12, "pity": 12},  # 风暴之主·云怒 → 云怒之核（戒指·橙）
+    "inst_abyss_throne":    {"equip": "eq_mo_luo_zhi_guan",       "rate": 0.10, "pity": 12},  # 深渊领主·摩罗 → 摩罗之冠（头盔·橙·85）
+    "inst_cloud_sanctum":   {"equip": "eq_ao_la_sheng_yin",       "rate": 0.12, "pity": 12},  # 云中圣者·奥拉 → 奥拉圣印（项链·橙·95）
+}

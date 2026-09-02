@@ -14,7 +14,8 @@ from .maps import (
     MAP_CONNECTIONS, HIDDEN_MAP_UNLOCK, LEGACY_MAP_ALIAS,
 )  # noqa: F401
 from .subareas import SUBAREAS  # noqa: F401
-from .monsters import MONSTER_SKILLS  # noqa: F401
+from .monsters import MONSTER_SKILLS, ELITE_EQUIP_DROP  # noqa: F401
+# v140 波1：野外精英专属紫装表（并入自孤儿文件 drop_add_v140.py，聚合层导出）
 from .monster_mods import MONSTER_MODS  # noqa: F401
 from .skills import PLAYER_SKILLS, BRANCH_SKILLS, TUTOR_SKILLS  # noqa: F401
 from .builds import BUILDS  # noqa: F401
@@ -91,7 +92,8 @@ from .mounts import (  # noqa: F401
 from .alchemy import ALCHEMY_RECIPES  # noqa: F401
 from .cooking import COOKING_RECIPES  # noqa: F401
 from .guild import GUILD_CONFIG  # noqa: F401
-from .instances import INSTANCES  # noqa: F401
+from .instances import INSTANCES, INSTANCE_BOSS_EQUIP_DROP  # noqa: F401
+# v140 波1：副本 Boss 专属装备掉落表（并入自孤儿文件 drop_add_v140.py，聚合层导出）
 # v140 波2：副本通关后调查点数据（聚合层导出，命令层 C.INVESTIGATION_POINTS 直读）
 from .instance_investigation import (  # noqa: F401
     INVESTIGATION_POINTS, INVESTIGATE_COLLECT_SAMPLES,

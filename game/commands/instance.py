@@ -3562,21 +3562,58 @@ class InstanceCmds(CommandBase):
         )
 
     def _instance_secret_chest(self, group_id, qq_id, player, st) -> str:
-        """暗格宝箱：图纸残页 50% / 稀有符文 30% / 专属材料 15% / 星灵蝶蛋 5%（稀缺品低概率，防通胀）"""
+        """暗格宝箱：图纸残页 25% / 装备 40% / 稀有符文 20% / 专属材料 10% / 星灵蝶蛋 5%
+
+        v140 波1（2026-09-03）：玩家抱怨『宝箱老是图纸』——图纸占比太高（原 50%）正是根源。
+        鱼鱼拍板：装备占比必须压过图纸。v140 波2 定稿：图纸残页 50%→25%、新增装备档 40%
+        （Boss 池 60% / Elite 池 40% 随机挑一池，均返回 None 则换另一池）、稀有符文 30%→20%、
+        专属材料 15%→10%、星灵蝶蛋 5% 不动——合计恒 100%，档位无重叠无缝隙。
+        装备品质天然以紫/橙为主（Boss 池），混合 Elite 池（蓝为主）后蓝紫橙皆有；
+        双池全 None 才兜底专属材料——40% 装备档永不空开。
+        """
         roll = random.random()
         inst = C.INSTANCES[st["inst_id"]]
+        inst_lv = int(inst.get("lv", 0) or 0)
         # v104 M17 P2-4：实装星灵蝶蛋渠道（pets.py source『传说级垂钓稀有产出/神秘宝箱』后半句）
         if roll >= 0.95:
             egg = C.make_pet_egg("pet_starbutterfly")
             db.add_item(group_id, qq_id, "petegg_pet_starbutterfly", egg)
             text = f"🦋 宝箱深处泛着星光——是【{egg['name']}】！『使用 宠物蛋』孵化！"
-        elif roll < 0.50:
+        elif roll < 0.25:
             pages = random.randint(2, 4)
             db.add_item(group_id, qq_id, "mat_tu_zhi_can_ye",
                         {"name": "图纸残页", "type": "材料", "stackable": True, "price": 10},
                         count=pages)
             text = f"📜 宝箱里是泛黄的纸张——图纸残页 ×{pages}！"
-        elif roll < 0.80:
+        elif roll < 0.65:
+            # v140 波2：装备档 40%（鱼鱼拍板：宝箱掉装备必须压过图纸，宝箱不掉装备被玩家吐槽）——
+            # 池选择照抄 wild_king.py _roll_chest_rewards 成熟做法：直接调 C.roll_drop_equip。
+            # 先 60% 概率挑 Boss 池（35% 基础、紫装 70%/橙装 30%）、40% 挑 Elite 池（12% 基础、
+            # 蓝装 90%/紫装 10%）；所选池返回 None（未roll中基础掉率）则换另一池重掷，仍 None
+            # （两池基础掉率都没中）才兜底专属材料——40% 装备档永不空开、蓝紫橙品质皆有。
+            if random.random() < 0.60:
+                _eq = C.roll_drop_equip(inst_lv, "boss")
+                if not _eq:
+                    _eq = C.roll_drop_equip(inst_lv, "elite")
+            else:
+                _eq = C.roll_drop_equip(inst_lv, "elite")
+                if not _eq:
+                    _eq = C.roll_drop_equip(inst_lv, "boss")
+            if _eq:
+                _eq_key = f"eq_{uuid.uuid4().hex[:8]}"
+                db.add_item(group_id, qq_id, _eq_key, _eq)
+                _qmark = {"green": "🟢", "blue": "🔵", "purple": "✨🟣", "orange": "🌟🟠"}.get(
+                    _eq.get("quality", ""), "")
+                text = f"{_qmark} 宝箱深处静静躺着一件装备——【{_eq['name']}】！"
+            else:
+                mat = random.choice(inst.get("materials", ["兽肉"]))
+                mat_id = C.resolve("materials", mat)
+                db.add_item(group_id, qq_id, mat_id, {
+                    "name": C.display("materials", mat_id), "type": "材料",
+                    "stackable": True, "price": C.MATERIALS[mat_id]["price"],
+                }, count=2)
+                text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
+        elif roll < 0.85:
             # 稀有符文池（blue 品质符文，v101.25i6 品质统一后 quality=blue）
             blue_runes = [k for k, r in C.RUNES.items() if (r.get("quality") or "") == "blue"]
             if blue_runes:
@@ -3599,14 +3636,6 @@ class InstanceCmds(CommandBase):
                         "stackable": True, "price": C.MATERIALS[mat_id]["price"],
                     }, count=2)
                     text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
-            else:
-                mat = random.choice(inst.get("materials", ["兽肉"]))
-                mat_id = C.resolve("materials", mat)
-                db.add_item(group_id, qq_id, mat_id, {
-                    "name": C.display("materials", mat_id), "type": "材料",
-                    "stackable": True, "price": C.MATERIALS[mat_id]["price"],
-                }, count=2)
-                text = f"🎒 宝箱里是稀有材料——{C.display('materials', mat_id)} ×2！"
         else:
             mat = random.choice(inst.get("materials", ["兽肉"]))
             mat_id = C.resolve("materials", mat)
@@ -3701,6 +3730,23 @@ class InstanceCmds(CommandBase):
                     else:
                         db.add_item(group_id, m, f"bp_{uuid.uuid4().hex[:8]}", bp2)
                         lines.append(f"  📜 {p['name']} 拾取图纸：{bp2['name']}")
+            # v140 Boss 专属装备掉落：每名存活成员独立判定（数据 C.INSTANCE_BOSS_EQUIP_DROP，
+            # 主 agent 已并入 data/instances.py 并聚合导出；用 getattr 容错——并行子 agent
+            # 合入前常量可能暂缺，缺失时优雅跳过不报错）。命中即名册精确生成入包，
+            # 展示 👑 拾取文案（掉落只吃 1 次 random.random()，不影响副本其余随机序列）。
+            try:
+                _boss_cfg = (getattr(C, "INSTANCE_BOSS_EQUIP_DROP", None) or {}).get(st.get("inst_id"))
+            except Exception:
+                _boss_cfg = None
+            if _boss_cfg and random.random() < float(_boss_cfg.get("rate", 0) or 0):
+                try:
+                    _boss_eq = C.generate_roster_equip(_boss_cfg["equip"])
+                except Exception:
+                    _boss_eq = None
+                if _boss_eq:
+                    _be_key = f"eq_{uuid.uuid4().hex[:8]}"
+                    db.add_item(group_id, m, _be_key, _boss_eq)
+                    lines.append(f"  👑 {p['name']} 从Boss身上拾取：【{_boss_eq['name']}】！")
             # 专属材料
             mats = inst.get("materials", [])
             for _ in range(inst.get("mat_count", 1)):
@@ -3767,7 +3813,8 @@ class InstanceCmds(CommandBase):
         # v101.27 #390 隐藏奖励：通关后停留搜刮
         # ① 战利品堆（必出，保底搜刮体验）：金币=通关奖金×30% + 专属材料×1
         # ② 隐藏暗格（概率出）：20%（首通 50%）→ 墙上的裂痕 → 精英守卫 → 宝箱
-        #    宝箱内容分层：图纸残页 50% / 稀有符文 30% / 专属材料 20%（稀缺品走低概率，防通胀）
+        # v140 波1：宝箱内容分层同步（图纸残页 25% / 装备 40% / 稀有符文 20% / 专属材料 10% /
+        # 星灵蝶蛋 5%，见 _instance_secret_chest docstring；v140 波2 鱼鱼拍板装备占比压过图纸）
         # v140 波2：通关后调查点层（cleared 专属，22 本 × 3-5 个）——_instance_map_view /
         #    调查命令 cleared 分支已接入，通关文案给一行入口提示
         st["cleared"] = True

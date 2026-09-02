@@ -63,14 +63,18 @@ SMITH_NPC_NAMES = {
 
 # 城镇推荐等级（v135 方案文档权威等级窗口的中心值，±5 = 文档窗口：
 # 橡木1-7/白鹿3-13/铁港13-23/晨曦25-35/翡翠30-40/月语47-57/霜角60-70/龙脊80-90/风翼85-95）
+# v168 补两城：铁盾镇/铁砧要塞有 craft 铁匠铺但此前不在表 → 锻造分阶段漏网（F 报告），
+# 按地图推荐等级 30/65 补入（铁盾≈晨曦段、铁砧≈霜角段）。
 _SMITH_TOWN_LEVELS = {
     "oak_town": 4,
     "white_deer": 8,
     "ironharbor": 18,
+    "ironshield_town": 30,
     "dawn_city": 30,
     "jade_port": 35,
     "moon_gate": 52,
     "frost_horn": 65,
+    "anvil_fort": 65,
     "dragon_pass": 85,
     "wind_city": 90,
 }

@@ -3,7 +3,7 @@
 
 运行: python tests/test_v136_phase6_equip.py（直跑模式，顶部 import conftest）
 覆盖:
-1. 数量基线（名册 388 / 配方 352 / 素材 552）
+1. 数量基线（名册 388 / 配方 424 / 素材 552）
 2. 职业套装 90 件可生成 + set 挂载 + req 正确
 3. 职业折扣（本职业 100% / 非本职业 60%）
 4. 散装不挂套装（自由线）
@@ -34,7 +34,7 @@ def check(name, cond, detail=""):
 def test_counts():
     print("【1. 数量基线】")
     check("名册 632 件", len(C.EQUIP_ROSTER) == 632, str(len(C.EQUIP_ROSTER)))
-    check("配方 352 条", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))
+    check("配方 424 条", len(C.CRAFT_RECIPES) == 424, str(len(C.CRAFT_RECIPES)))
     check("素材 593 个(v167 +30新料)", len(C.MATERIALS) == 593, str(len(C.MATERIALS)))
     # 新素材存在
     for mid in ["mat_ye_zhu_pi", "mat_shan_zei_hui_zhang", "mat_shu_shi_he_xin",

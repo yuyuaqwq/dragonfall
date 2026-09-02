@@ -57,6 +57,13 @@ _te.register_timed("prof_wait", duration_sec=None, on_expire=_prof_wait_expire_c
 # v101.25h3 鱼鱼：品质价格差距调大——原白2.0/绿1.7/蓝1.5/紫1.3/橙1.2 递减系数把品质属性倍率抵消，
 # 最终橙/白价格只差 1.2 倍（橙装属性 2 倍但价格几乎没差）。改为递增系数：
 # 最终价格比（属性倍率×价格系数）：白2.0 / 绿3.12 / 蓝4.80 / 紫7.20 / 橙11.0（橙≈白 5.5 倍）
+# v167.2 图纸合成"有配方"白名单：CRAFT_RECIPES 中所有带 roster_id 的配方对应的名册装备
+# ID 集合（与 core/drops.py 的 _BLUEPRINT_RECIPE_RIDS 同源判据，roll_blueprint 同池）。
+# bp_craft 图纸合成只允许合成有锻造配方的装备，杜绝"合成出来没配方/学不了"的死图纸。
+_RECIPE_ROSTER_IDS = frozenset(
+    rec.get("roster_id") for rec in C.CRAFT_RECIPES.values() if rec.get("roster_id")
+)
+
 SHOP_EQUIP_PRICE_MULT = {"white": 2.0, "green": 2.4, "blue": 3.0, "purple": 4.0, "orange": 5.5}
 
 # v130.2d R2：SHOP_EQUIP 条目可选 dict 覆盖价 {"rid": ..., "price": ...}
@@ -1613,11 +1620,13 @@ class EconomyCmds(CommandBase):
     async def bp_craft(self, event: AstrMessageEvent):
         """v135 图纸残页合成：『图纸合成 <装备名>』——消耗 10 张图纸残页，
         定向合成 1 张指定装备的图纸（玩家可定向获取图纸，残页走经济闭环）。
+        v167.2：可合成池按"配方存在"硬过滤（rid ∈ _RECIPE_ROSTER_IDS），只列出
+        有 CRAFT_RECIPES 锻造配方的装备——杜绝合成出无配方/学不了的死图纸。
 
         支持：
-        - 『图纸合成』无参 → 列出可合成的图纸池（名册 source=图纸/boss 且配方存在）
+        - 『图纸合成』无参 → 列出可合成的图纸池（名册 source=图纸/boss 且有锻造配方）
         - 『图纸合成 <装备名>』 → 消耗 10 张图纸残页，获得该装备图纸（未学整张入包）
-        只允许名册 source=图纸/boss（roll_blueprint 同池）的装备，商店/锻造/支线装备不可定向合成。
+        只允许名册 source=图纸/boss 且配方存在（roll_blueprint 同池）的装备，商店/锻造/支线装备不可定向合成。
         """
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
@@ -1627,9 +1636,11 @@ class EconomyCmds(CommandBase):
         _shard_key = "mat_tu_zhi_can_ye"
         _shards = sum(it["count"] for it in items
                       if it["key"] == _shard_key or it["data"].get("name") == "图纸残页")
-        # 可合成图纸池（名册 source=图纸/boss，roll_blueprint 同池）
+        # 可合成图纸池：名册 source=图纸/boss 且配方存在（rid ∈ _RECIPE_ROSTER_IDS，
+        # v167.2 硬过滤——杜绝合成出无 CRAFT_RECIPES 配方的死图纸；
+        # 原 'rid in EQUIP_ROSTER_BY_NAME[name]' 恒真（rid 必在自己 by_name 列表里）已废弃）
         _cands = [(rid, r) for rid, r in C.EQUIP_ROSTER.items()
-                  if r["source"] in ("图纸", "boss") and rid in C.EQUIP_ROSTER_BY_NAME.get(r["name"], [])]
+                  if r["source"] in ("图纸", "boss") and rid in _RECIPE_ROSTER_IDS]
         _cands.sort(key=lambda x: x[1]["lv"])
         if not raw:
             page = 1
@@ -1640,7 +1651,7 @@ class EconomyCmds(CommandBase):
                 lines.append(f"{(page - 1) * 5 + i:>2}. {q.get('color', '')}【{r['name']}】Lv.{r['lv']} {C.EQUIP_SLOTS.get(r['slot'], r['slot'])}")
             lines.append("━━━━━━━━━━━━")
             lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『图纸合成 {page + 1}』下一页" if page < pages else ""))
-            lines.append(f"💡 『图纸合成 <装备名>』消耗 10 张图纸残页，定向获得 1 张指定图纸")
+            lines.append(f"💡 『图纸合成 <装备名>』消耗 10 张图纸残页，定向获得 1 张指定图纸（只列出有锻造配方的装备）")
             if _shards < 10:
                 lines.append(f"🈳 图纸残页不足(你有 {_shards}/10)——Boss/宝箱/垂钓/副本掉落或已学图纸折算")
             yield event.plain_result("\n".join(lines))
@@ -2503,12 +2514,31 @@ class EconomyCmds(CommandBase):
         mats_str = " + ".join(f"{C.display('materials', m)}×{n}" for m, n in rec["mats"].items())
         return mats_str
 
+    def _smith_town_lv(self, player) -> int | None:
+        """v168 锻造按城镇分阶段：返回当前玩家所在铁匠铺城镇的推荐等级（窗口中心）。
+
+        cur_map 命中 _SMITH_TOWN_LEVELS（11 个铁匠铺城镇）才返回城镇等级；
+        不在表内（cur_map 缺失等异常）返回 None → 调用方不做窗口过滤（回退现状）。
+        """
+        cur_map = player.get("cur_map", "") or ""
+        if cur_map in _ss._SMITH_TOWN_LEVELS:
+            return _ss.town_level(cur_map)
+        return None
+
     def _craft_recs_filtered(self, player) -> list:
-        """当前玩家可锻造的配方列表(玩家等级 + 副业等级 + 图纸已学)"""
+        """当前玩家可锻造的配方列表(玩家等级 + 副业等级 + 图纸已学 + 城镇窗口)
+
+        v168：锻造按城镇分阶段——每个铁匠铺城镇只能锻造 [城镇等级-8, 城镇等级+8]
+        的配方（橡木镇 Lv.4 → Lv.1-12；铁港 Lv.18 → Lv.10-26；低阶配方回低级城锻）。
+        玩家 cur_map 不在铁匠铺城镇表（town_lv 取不到）→ 不限制窗口（回退现状）。
+        """
+        town_lv = self._smith_town_lv(player)
         prof_lv = db.get_prof_level(player.get("group_id", ""), player.get("qq_id"), "craft")
         out = []
         for rk, rec in C.CRAFT_RECIPES.items():
             if rec["lv"] > player["level"] + 6:
+                continue
+            if town_lv is not None and abs(rec["lv"] - town_lv) > 8:
                 continue
             if self._craft_prof_need(rec["lv"]) > prof_lv:
                 continue
@@ -2520,7 +2550,13 @@ class EconomyCmds(CommandBase):
 
     def _commission_recs(self, player) -> list:
         """v166 代工可选单：按代工口径过滤——只需等级门槛（免副业等级 + 免图纸），
-        材料在结算时检查（与『代工』免图纸定位一致：材料+3倍金币直出）。"""
+        材料在结算时检查（与『代工』免图纸定位一致：材料+3倍金币直出）。
+
+        v168 备注：代工保持原样不做城镇窗口分阶段——代工=花 3 倍金币跳过锻造
+        副业/图纸门槛的"特权直出"通道（鱼鱼未要求代工分阶段），且代工单本身
+        只看玩家等级（玩家 cur_map 都在主城铁匠铺，若加窗口会把代工逼去
+        低级城反而反直觉）；锻造（_craft_recs_filtered）才按城镇分阶段。
+        """
         out = []
         for rk, rec in C.CRAFT_RECIPES.items():
             if rec["lv"] > player["level"] + 6:
@@ -2536,12 +2572,28 @@ class EconomyCmds(CommandBase):
                 f" 锻造Lv.{self._craft_prof_need(rec['lv'])}{bp}\n"
                 f"    {self._craft_mats_str(rec)}｜{rec['gold']}金")
 
+    def _craft_town_hint(self, player) -> str:
+        """v168 锻造分阶段：当前城镇窗口提示文本（如『橡木镇锻造 Lv.1-12』）。
+
+        cur_map 命中 9 主城铁匠铺 → 返回 '｜{城镇名}锻造 Lv.{lo}-{hi}'；
+        不在表内（铁盾镇/铁砧要塞等）→ 返回空串（无窗口限制，不展示）。
+        """
+        town_lv = self._smith_town_lv(player)
+        if town_lv is None:
+            return ""
+        cur_map = player.get("cur_map", "") or ""
+        tname = (C.MAP_BY_ID.get(cur_map, {}).get("name")) or cur_map
+        return f"｜{tname}锻造 Lv.{max(1, town_lv - 8)}-{town_lv + 8}"
+
     def _craft_list_available(self, player, page: int = 1) -> str:
-        """『锻造』：只列当前可锻造的配方(翻页 10/页)"""
+        """『锻造』：只列当前可锻造的配方(翻页 5/页，v168 按城镇窗口分阶段)"""
         recs = self._craft_recs_filtered(player)
+        town_hint = self._craft_town_hint(player)
         page_items, pages, page = self._page_items(recs, page, per_page=5)
-        lines = [f"🔨 铁匠铺·当前可锻造(共 {len(recs)} 件)", "━━━━━━━━━━━━"]
+        lines = [f"🔨 铁匠铺·当前可锻造(共 {len(recs)} 件){town_hint}", "━━━━━━━━━━━━"]
         base = (page - 1) * 5
+        if not page_items:
+            lines.append("此城镇可锻造的配方有限，去更高等级城镇的铁匠铺看看～")
         for i, (rk, rec) in enumerate(page_items, 1):
             lines.append(self._craft_line(rec, base + i))
         lines.append("━━━━━━━━━━━━")
@@ -2552,13 +2604,17 @@ class EconomyCmds(CommandBase):
         return "\n".join(lines)
 
     def _craft_list_all(self, player, page: int = 1) -> str:
-        """『锻造 全部』：全部配方，未达标标记"""
+        """『锻造 全部』：全部配方（未达标标记；v168 超本城窗口配方加 🔒城镇）"""
         prof_lv = db.get_prof_level(player.get("group_id", ""), player.get("qq_id"), "craft")
+        town_lv = self._smith_town_lv(player)
+        town_hint = self._craft_town_hint(player)
         recs = []
         for rk, rec in C.CRAFT_RECIPES.items():
             marks = []
             if rec["lv"] > player["level"] + 6:
                 marks.append("🔒等级")
+            if town_lv is not None and abs(rec["lv"] - town_lv) > 8:
+                marks.append("🔒城镇")
             if self._craft_prof_need(rec["lv"]) > prof_lv:
                 marks.append(f"🛠️锻造Lv.{self._craft_prof_need(rec['lv'])}")  # v101.28l #425：补缺的数字
             if not self._rec_learned(player, rec):
@@ -2566,7 +2622,7 @@ class EconomyCmds(CommandBase):
             recs.append((rk, rec, marks))
         recs.sort(key=lambda x: (x[1]["lv"], x[1]["slot"]))
         page_items, pages, page = self._page_items(recs, page, per_page=5)
-        lines = [f"🔨 铁匠铺·全部配方(共 {len(recs)} 件)", "━━━━━━━━━━━━"]
+        lines = [f"🔨 铁匠铺·全部配方(共 {len(recs)} 件){town_hint}", "━━━━━━━━━━━━"]
         base = (page - 1) * 5
         for i, (rk, rec, marks) in enumerate(page_items, 1):
             q = C.QUALITY[rec["quality"]]
@@ -2575,7 +2631,7 @@ class EconomyCmds(CommandBase):
             lines.append(f"    {self._craft_mats_str(rec)}｜{rec['gold']}金")
         lines.append("━━━━━━━━━━━━")
         lines.append(f"📄 第 {page}/{pages} 页" + (f"｜『锻造 全部 {page + 1}』下一页" if page < pages else ""))
-        lines.append("💡 未达标的配方：🔒等级不够 ｜ 🛠️锻造副业等级不够 ｜ 📜图纸未学习")
+        lines.append("💡 未达标的配方：🔒等级不够 ｜ 🛠️锻造副业等级不够 ｜ 📜图纸未学习 ｜ 🔒城镇需到对应等级城镇的铁匠铺")
         lines.append(self._tip("forge"))
         self._record_list_state(player.get("qq_id"), "锻造 全部", page, pages)
         return "\n".join(lines)

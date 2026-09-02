@@ -326,7 +326,7 @@ _RUNE_STONE_ACTIONS = {
 @register("inst:supply")
 @register("inst:corpse")
 def inst_loot(ctx):
-    """宝箱 / 补给 / 遗骸：给 loot（金币 + 材料）。"""
+    """宝箱 / 补给 / 遗骸：给 loot（金币 + 材料；v168 起约 12% 额外翻出白/绿/蓝低品质装备）。"""
     db = ctx._db()
     C = ctx._C()
     block = _need_block(ctx)
@@ -349,6 +349,26 @@ def inst_loot(ctx):
                 "price": C.MATERIALS[mid]["price"],
             })
             logs.append(f"🎒 拾取：{mname}")
+    # v168 副本宝箱低品质装备档（鱼鱼拍板：非 Boss 房宝箱也开得出装备，不再只有图纸）：
+    # 副本房间内宝箱/补给/遗骸约 12% 概率额外翻出一件装备——先 roll 品质
+    # （白 40% / 绿 35% / 蓝 25%，仅低品质三档），再按玩家等级就近随机部位生成
+    # （lv = 玩家等级 ±3，clamp 到 [1, ∞)，贴合当前等级养成；只吃 1 次 random，
+    # 不影响 inst_loot 其余随机序列）。命中不额外占副本 stage 事件，仍只 mark_used 一次。
+    if random.random() < 0.12:
+        _q_roll = random.random()
+        if _q_roll < 0.40:
+            _eq_q = "white"
+        elif _q_roll < 0.75:
+            _eq_q = "green"
+        else:
+            _eq_q = "blue"
+        _slot = random.choice(["weapon", "helm", "armor", "legs", "boots", "ring", "necklace"])
+        _lv = max(1, (ctx.player or {}).get("level", 1) + random.randint(-3, 3))
+        eq = C.generate_equip(_slot, _lv, _eq_q)
+        db.add_item(ctx.group_id, ctx.qq_id, f"eq_{uuid.uuid4().hex[:8]}", eq)
+        # 白 🎒 / 绿 🟢 / 蓝 🔵：品质色块 + 装备名（与 C.QUALITY 档位色一致）
+        _emoji = {"white": "🎒", "green": "🟢", "blue": "🔵"}.get(eq.get("quality", "white"), "🎒")
+        logs.append(f"{_emoji} 你从{ctx.pname}里翻出一件装备：【{eq['name']}】！")
     ctx.mark_used()
     head = f"💀 你蹲下搜刮{ctx.pname}……" if ctx.poi.get("type") == "corpse" else f"📦 {ctx.pname}："
     return "\n".join([head] + logs)

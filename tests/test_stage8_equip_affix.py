@@ -314,7 +314,7 @@ def test_craft_set():
     print("【8. 锻造名册化 + 套装】")
     # 锻造配方 = 名册（142 个，v104 补 11 图纸配方+淬火石配方 + v117 副本材料联动 +13 图纸配方，无旧毕业套）
     # v135 套装锻造专属：+6 配方（誓约 4 + 银铃护腿/杖 2）→ 187
-    check("配方数 348", len(C.CRAFT_RECIPES) == 352, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心; v135: +誓约4/银铃2; v136 Phase6: +165
+    check("配方数 424", len(C.CRAFT_RECIPES) == 424, str(len(C.CRAFT_RECIPES)))  # v124: +夜行披风/熔炉之心; v135: +誓约4/银铃2; v136 Phase6: +165; v168: +72 断链补配方
     check("无旧毕业套配方", not any(r.get("blueprint") == "铁皮图纸" for r in C.CRAFT_RECIPES.values()))
     # 锻造产物 = 名册精确生成（需求/套装/专属）
     eq = C.craft_recipe_make("rec_jin_gou_wan_dao")
@@ -325,7 +325,7 @@ def test_craft_set():
     check("锻造橡木白装挂套装", eq2.get("set") == "橡木套" and eq2["req"] == {}, str(eq2))
     # 需图纸配方（紫/橙）——v104 补 11 条图纸配方 + v117 副本材料联动 +13 图纸配方
     bp_recs = [r for r in C.CRAFT_RECIPES.values() if r.get("blueprint")]
-    check("需图纸配方存在", len(bp_recs) == 204, str(len(bp_recs)))  # v124: +夜行披风/熔炉之心; v136 Phase6: +66(职业套装紫33+散装紫橙21+区域套12)
+    check("需图纸配方存在", len(bp_recs) == 259, str(len(bp_recs)))  # v124: +夜行披风/熔炉之心; v136 Phase6: +66(职业套装紫33+散装紫橙21+区域套12); v168: +55 图纸断链补配方
     # 图纸名匹配：blueprint 要么遵循「X图纸」命名（Boss 掉落动态生成），
     # 要么是静态图纸物品名（v124 起允许「图纸·X」「传说锻造图纸·X」前缀风格）
     _bp_items = {v.get("name") for v in C.MATERIALS.values() if v.get("type") == "图纸"}
