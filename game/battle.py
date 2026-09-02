@@ -473,28 +473,35 @@ class Battle:
         self._dot_pending: bool = True
         # v152：开战初始化事件队列——每个敌方排初始 enemy_act 事件；DOT/宠物/Boss 机制排初始 tick。
         # 注意：from_state 恢复的战斗不在此重排（由 from_state 末尾按存档事件恢复），
-        # 仅新建战斗在此初始化。副本（instance）由命令层自行调度，不在此排 enemy_act。
-        if self.btype != "instance":
-            try:
+        # 仅新建战斗在此初始化。副本（instance）的 enemy_act 由 from_state 的 instance 分支
+        # 按敌方 ct 补排（v158），本段只负责宠物初始 pet_tick——v167.3 起不再按 btype 排除，
+        # 副本带宠物（野外/副本同一套，鱼鱼拍板）：只要 Battle 带 pet 就排初始 pet_tick。
+        try:
+            # v154 宠物独立速度读条：开战排第一个 pet_tick（宠物初始等待 = 出招时间，
+            # 按宠物自身 spd 折算）。pet_tick 触发 = 宠物出手（决定技能 + 排 cast_done），
+            # 出招跑完 = 技能生效，随后重排下次 pet_tick（周期 = 出招 + 收招）。
+            # v167.3：instance 的 from_state 也会经 __init__（带 pet 参数）——但 from_state
+            # 恢复的 _now 可能 >0，若在此排初始 pet_tick 会与真实时间轴错位，故恢复路径
+            # 不依赖本段（见 from_state 末尾按 _now 补排）；本段只服务新开战斗（_now=0）。
+            if self.pet and int(self.pet.get("level", 0) or 0) >= 10 and float(getattr(self, "_now", 0.0) or 0.0) <= 0:
+                _pet_spd = self._pet_spd()
+                _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
+                self._schedule(_pt, {"type": "pet_tick"})
+            # 开战敌方初始 enemy_act：仅非副本（instance 的 enemy_act 由 from_state 分支补排，
+            # 避免新建时排一次 + from_state 恢复再排一次导致敌方双重行动）
+            if self.btype != "instance":
                 for _u in self.enemies:
                     if _u.get("hp", 0) > 0:
                         _init_t = float(_u.get("ct", 0) or _ct_initial_wait(_u.get("spd", 0)))
                         self._schedule(_init_t, {"type": "enemy_act", "unit": _u})
-                # v154 宠物独立速度读条：开战排第一个 pet_tick（宠物初始等待 = 出招时间，
-                # 按宠物自身 spd 折算）。pet_tick 触发 = 宠物出手（决定技能 + 排 cast_done），
-                # 出招跑完 = 技能生效，随后重排下次 pet_tick（周期 = 出招 + 收招）。
-                if self.pet and int(self.pet.get("level", 0) or 0) >= 10:
-                    _pet_spd = self._pet_spd()
-                    _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
-                    self._schedule(_pt, {"type": "pet_tick"})
-                # DOT 由 player_turn 开头 _turn_start 结算（_tick_dots + _dot_pending 闸门），
-                # 不排独立 dot_tick 事件（避免重复结算）。
-                # Boss 定时机制由 _enemy_turn 内 _boss_mech 触发（每次敌方行动时按 r % interval 判定），
-                # 不排独立 mech_tick 事件（避免双重触发）。
-                # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
-                # 在玩家每次行动时结算（与旧时刻制"每玩家行动结算一次"一致），避免 DOT 重复结算。
-            except Exception:
-                pass
+            # DOT 由 player_turn 开头 _turn_start 结算（_tick_dots + _dot_pending 闸门），
+            # 不排独立 dot_tick 事件（避免重复结算）。
+            # Boss 定时机制由 _enemy_turn 内 _boss_mech 触发（每次敌方行动时按 r % interval 判定），
+            # 不排独立 mech_tick 事件（避免双重触发）。
+            # 注：词条/套装回血（regen）不排独立事件——由 player_turn 开头的 _turn_start
+            # 在玩家每次行动时结算（与旧时刻制"每玩家行动结算一次"一致），避免 DOT 重复结算。
+        except Exception:
+            pass
 
     # ---------------- v2 阵列兼容代理（§3.2） ----------------
     @staticmethod
@@ -727,6 +734,18 @@ class Battle:
                     if _init_t <= 0:
                         _init_t = _ct_initial_wait(_u.get("spd", 0))
                     b._schedule(_init_t, {"type": "enemy_act", "unit": _u})
+        # v167.3 副本带宠物：from_state 恢复后按当前时刻补排宠物 pet_tick——
+        # 事件队列本身不随存档序列化，若不补排副本/野外断线恢复后宠物永不再出手。
+        # 只在带宠（Lv≥10）且堆里还没有 pet_tick 时补（防重复堆积）；
+        # 首次出手时刻 = 当前时刻 + 宠物一个读条周期（与开战排程同语义，不抢时间轴）。
+        if b.pet and int(b.pet.get("level", 0) or 0) >= 10 and not b._enemy_dead():
+            _has_pet_tick = any(_e.get("type") == "pet_tick" for _, _, _e in b._events)
+            if not _has_pet_tick:
+                try:
+                    _pt = CAST_PET_SKILL * b._ct_cost(b._pet_spd())
+                    b._schedule(b._now + _pt, {"type": "pet_tick"})
+                except Exception:
+                    pass
         # v163 敌方读条持久化：恢复读条中的敌方 cast_done（_enemy_turn 出手时写 e["_cast"]，
         # 随 enemies 序列化；野外/副本统一）。此前事件队列不序列化，读条伤害跨消息即丢
         # （repro_enemy_cast_loss.py 复现：野外单怪挥爪后存档恢复，伤害蒸发为 0）。
@@ -1975,6 +1994,31 @@ class Battle:
                 until = self._now + (ACT_TICK or 2.0)
             # v152：行为生效事件——玩家行动已即时结算效果，这里只推进时间处理事件
             self._process_until(until, logs, player, defend=defend)
+            # v167.3 补结算（直接结算，不推进时间轴）：修复"玩家行动窗口右边界越界的敌方读条
+            # 命中丢失"——玩家慢动作（逃跑/防御等）后敌方已出招（动画已播）但命中时刻 > p_ct，
+            # 该伤害等下次玩家行动才结算；战斗结束则永远丢失（玩家实抓多次）。
+            # 实现：直接把队首越界 cast_done 对应的伤害结算掉（复刻 _process_until cast_done(side=e)
+            # 分支：_enemy_cast_done → _damage_player），并清单位 _cast 状态。
+            # ⚠️ 不调 _process_until / 不推进 now → 不抬高敌方出手频率（test_ctb_speed 基线
+            # 48/60 不受影响，2026-09-03 实测对比）。
+            if self.btype != "instance":
+                if self._events:
+                    _peek0 = self._events[0]
+                    if _peek0[2].get("type") == "cast_done" and _peek0[2].get("side") == "e":
+                        _hit0 = float(_peek0[0])
+                        if _hit0 <= until + (ACT_TICK or 1.0) * 2 + 1e-9:
+                            try:
+                                _e0 = _peek0[2].get("unit") or {}
+                                if _e0.get("hp", 0) > 0:
+                                    _ml, _dg = self._enemy_cast_done(player, _e0, _peek0[2])
+                                    logs += _ml
+                                    _e0.pop("_cast", None)
+                                    if _dg > 0:
+                                        self._damage_player(player, _dg, logs,
+                                                            source=_e0.get("name", "敌人"))
+                                    self._heapq.heappop(self._events)
+                            except Exception:
+                                pass
             # v158 副本合并：instance 玩家行动后只补结算一次"读条命中"事件（cast_done）——
             # 敌方出招读条结束的伤害要在本次行动内结算（否则 from_state 不恢复事件队列，
             # 读条结算跨次丢失 → 敌方伤害永远不结算）。只处理**当前已排好的** cast_done
@@ -1983,7 +2027,8 @@ class Battle:
             if self.btype == "instance":
                 _peek = self._events[0] if self._events else None
                 if _peek is not None and _peek[2].get("type") == "cast_done":
-                    self._process_until(_peek[0] + 0.001, logs, player, defend=defend)
+                    _hit_t = max(float(_peek[0]), self._now)
+                    self._process_until(_hit_t + 0.001, logs, player, defend=defend)
             # v140 波3.1：特效装备敌人行动后（兰顿倦意/冰脉寒流——速度 -6%/-8% 每层）
             try:
                 from .core.weapon_effects import proc as _we_proc
@@ -2062,9 +2107,17 @@ class Battle:
             _guard += 1
             evt = ev.get("type", "")
             try:
+                # 早停：战斗已有结局（victory/defeat）→ 不再触发后续事件
+                # （旧实现只在特定事件分支 break，战利品/宠物击杀把 result 置 victory 后
+                #   同批后续事件仍可能触发——副本打怪后残留 pet_tick 下回合再出手也源于此）
+                if self.result in ("victory", "defeat") and evt in ("enemy_act", "pet_tick", "cast_done"):
+                    break
                 if evt == "enemy_act":
                     # v157：skip_enemy=True（副本/PVP 外部驱动敌方）→ 跳过敌方行动，
                     # 只处理玩家事件（cast_done/pet_tick），防副本双重敌方行动
+                    # 注：外部驱动方负责在下一轮补排敌方行动（_instance_act 循环按 p_cts 判定
+                    # 下一行动者并驱动），此处 continue 丢弃堆内事件是设计语义——事件堆仅用于
+                    # 本次窗口的玩家事件结算，敌方下次行动由外部显式发起。
                     if skip_enemy:
                         continue
                     unit = ev.get("unit")
@@ -2096,11 +2149,20 @@ class Battle:
                     # v154 宠物独立速度读条：pet_tick = 宠物出手（技能立即决定 + 结算，
                     # 出招跑完 = 生效；宠物技能无命中目标概念——攻击类打主目标、辅助类给玩家）。
                     # 简化：宠物技能在出手时刻直接结算（读条只做节奏展示，不引入宠物命中/打断）。
+                    # v167.3 宠物连打修复（2026-09-03 玩家实抓 A2 层血蝠一次行动内连打 5-6 次）：
+                    # 根因 = 引擎按真实秒数推进时间，宠物读条周期 (0.76s@spd55) 远短于玩家出手
+                    # (1.56s@spd50)——玩家一次行动会跨过多个 pet_tick 到期点，旧代码把窗口内
+                    # 全部 pet_tick 连续结算 → 宠物密集连打。修复：宠物按自身 skill_interval
+                    # （面板几刻就几刻）限频——_pet_next_at 窗口内只出手一次，后续到期点跳过
+                    # （读条继续走，重排节奏不变），野外/副本同一套逻辑。
                     if self.pet and not self._enemy_dead():
-                        logs += self._pet_skill_turn(player, logs)
-                        if self.result == "victory":
-                            break
-                    # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）
+                        if self._pet_should_hit():
+                            logs += self._pet_skill_turn(player, logs)
+                            self._pet_mark_hit()
+                            if self.result == "victory":
+                                break
+                    # 重排下次 pet_tick（周期 = 出招 + 收招，按宠物 spd 折算）——
+                    # 即使本次被限频跳过也照常重排，读条节奏不丢
                     self._reschedule_pet_tick()
                 elif evt == "cast_done":
                     # v154 读条命中制：出招读条结束 = 命中时刻 → 结算（用命中时刻实时状态）
@@ -5112,8 +5174,10 @@ class Battle:
             return logs, 0
         est = self._enemy_stats()
         # v2 敌方蓄力单位：left-1；归零自动释放技能（结算效果，不普攻）
+        # v167.3 修：蓄力释放伤害必须经 _damage_player 落地（旧版只写 pending 日志不扣血——
+        # 玩家实抓野猪王【践踏】"蓄力完成，轰然落下"后无伤害）
         if e.get("charging"):
-            return self._enemy_charge_tick(e, pst, est, logs, ename)
+            return self._enemy_charge_tick(e, pst, est, logs, ename, player=player)
         # 30% 概率使用技能（v63：沉默时只能普攻）
         skill = None
         silenced = "silence" in eb
@@ -5170,7 +5234,7 @@ class Battle:
         self._after_actor_ct("e", e, cast_mult=_cast_t + _rec_t)
         return logs, 0
 
-    def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str) -> tuple:
+    def _enemy_charge_tick(self, e: dict, pst: dict, est: dict, logs: list, ename: str, player: dict | None = None) -> tuple:
         """敌方蓄力单位刻：left-1；归零自动释放技能（结算效果，不普攻）。"""
         ch = e.get("charging") or {}
         left = int(ch.get("left", 1) or 1)
@@ -5182,13 +5246,15 @@ class Battle:
                 # 蓄力完成释放：意图预告（释放刻）+ 立即结算（传技能 key 供查表）
                 logs.append(f"✨ 【{ename}】的【{cname}】蓄力完成，轰然落下！")
                 # 释放 = 结算一次该单位的技能效果（无目标次要：对玩家造成伤害）
-                return self._enemy_release_charge(e, ch.get("skill") or cname, pst, est, logs, ename)
+                return self._enemy_release_charge(e, ch.get("skill") or cname, pst, est, logs, ename,
+                                                  player=player)
             # 蓄力持续刻：精简意图预告（剩 N）
             logs.append(f"⚠️ 【意图】{ename} 蓄力中(剩 {ch['left']})！")
             return logs, 0
         return logs, 0
 
-    def _enemy_release_charge(self, e: dict, skill_name: str, pst: dict, est: dict, logs: list, ename: str) -> tuple:
+    def _enemy_release_charge(self, e: dict, skill_name: str, pst: dict, est: dict, logs: list, ename: str,
+                              player: dict | None = None) -> tuple:
         """敌方蓄力释放：按 MONSTER_SKILLS 里的技能结算伤害（对整个玩家方）。
         返回 (logs, 对玩家伤害)。"""
         sinfo = C.MONSTER_SKILLS.get(skill_name) or {}
@@ -5212,8 +5278,17 @@ class Battle:
             _pp, _pf = self._pene_vals(est, magic=True)
             dmg = E.calc_damage(int(est["matk"] * power), pst["mdef"], is_crit, pene_pct=_pp, pene_flat=_pf,
                                 dmg_type="magi")
+        # v167.3 修：蓄力释放必须真正扣玩家血（旧版只写 pending 日志+return dmg，从不调
+        # _damage_player → 践踏"轰然落下"提示后无伤害）。与敌方普攻 cast_done 分支同构：
+        # 先暂存伤害文案，再由 _damage_player 消费（闪避/格挡/挡刀正确交互）。
         self._pending_dmg_lines.append(
             f"【{ename}】的【{sname}】对你造成 {dmg} 点伤害！" + (" 💥暴击！" if is_crit else ""))
+        if player is not None:
+            _dd = max(1, int(dmg)) if dmg > 0 else 0
+            if _dd > 0:
+                self._damage_player(player, _dd, logs, source=ename)
+            else:
+                self._pending_dmg_lines = []
         # v154：蓄力释放后敌方重排下次行动（读条 + 收招）
         self._after_actor_ct("e", e, cast_mult=CAST_SKILL * self._ct_cost(est.get("spd", 0)))
         return logs, max(0, dmg)
@@ -5448,6 +5523,47 @@ class Battle:
             _pet_spd = self._pet_spd()
             _pt = CAST_PET_SKILL * self._ct_cost(_pet_spd)
             self._schedule(self._now + _pt, {"type": "pet_tick"})
+        except Exception:
+            pass
+
+    def _pet_interval_sec(self) -> float:
+        """宠物技能面板节奏（skill_interval 刻 → 秒，1 刻 = ACT_TICK 秒）。
+
+        宠物面板写明『每 N 刻一次技能』（skill_interval），v167.3 起按该节奏
+        限制 pet_tick 实际出手频率（读条仍按宠物 spd 走，但两次出手间至少隔
+        N × ACT_TICK 秒）。旧实现只按 CAST_PET_SKILL 读条周期触发，玩家一次
+        行动窗口内跨多个到期点即连打（A2 层血蝠一次行动 5-6 次吸血撕咬实抓）。
+        """
+        try:
+            _pdef = next((p for p in C.PET_POOL if p["key"] == (self.pet or {}).get("pet_key")), None)
+            iv = int((_pdef or {}).get("skill_interval", 0) or 0)
+            if iv > 0:
+                return max(float(iv) * (ACT_TICK or 1.0), 0.001)
+        except Exception:
+            pass
+        return CAST_PET_SKILL * self._ct_cost(self._pet_spd())
+
+    def _pet_should_hit(self) -> bool:
+        """v167.3 宠物限频：当前 pet_tick 是否允许出手（距上次出手 >= skill_interval 秒）。
+
+        上次出手时刻存 self.pet["_last_hit_at"]（pet dict 随 to_state/st["pets"] 持久化——
+        副本每 act 重建 Battle、野外断线恢复都要跨实例保留窗口，否则窗口重置每 act 开头都打）。
+        """
+        try:
+            _iv = self._pet_interval_sec()
+            pet = self.pet or {}
+            _last = pet.get("_last_hit_at")
+            if _last is None:
+                return True  # 首次到期即可出手
+            return self._now - float(_last) >= _iv - 1e-9
+        except Exception:
+            return True
+
+    def _pet_mark_hit(self):
+        """v167.3 记录本次出手时刻（限频窗口起点；写入 pet dict 随战斗状态持久化）。"""
+        try:
+            self.pet["_last_hit_at"] = self._now
+            self._pet_last_hit_at = self._now
         except Exception:
             pass
 

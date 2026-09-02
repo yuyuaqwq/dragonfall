@@ -29,6 +29,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
+from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
 from ..commands.base import CommandBase, no_prof_waiting, require_player
 
 INSTANCE_TIMEOUT = 60  # 副本行动超时（秒）v101.30d #O9/O32：120s→60s，队友挂机自动防御不再"卡死"（playtest 实测 60s+ 无反应）
@@ -214,6 +215,8 @@ class InstanceCmds(CommandBase):
         st.setdefault("resources", {}).setdefault(new_key, {})
         st.setdefault("cooldown", {}).setdefault(new_key, {})
         st.setdefault("combo_seq", {}).setdefault(new_key, [])
+        # v167.3 副本带宠物：加入者战斗快照也带宠物（野外/副本同一套——当前行动者带自己的宠物）
+        st.setdefault("pets", {})[new_key] = db.pet_get(qq_id) or {}
         # 7. 持久化 + 锁 + 广播
         try:
             self._instance_save(group_id, st)
@@ -840,11 +843,12 @@ class InstanceCmds(CommandBase):
                 snap["hp"] = min(int(p.get("hp", snap.get("hp", 0))), snap.get("max_hp", 1))
                 snap["mp"] = min(int(p.get("mp", snap.get("mp", 0))), snap.get("max_mp", 1))
         st["mode"] = "battle"
-        # v104 M17 P2（设计取舍确认）：副本战斗不携带宠物——宠物技能/经验加成/饱食度
-        # 消耗均不参与副本。副本奖励走 _instance_kill_reward/通关奖励链路，不经过
-        # combat._handle_victory 的宠物结算（宠物不参战 ⇒ 饱食度不扣、宠物不分经验），
-        # 与 _instance_act 中 Battle.from_state 不传 pet 一致。若未来开放宠物参战，
-        # 需同步：①副本怪物平衡（hp_mult/atk_mult/mech 均按无宠物调参）②宠物经验/饱食度结算。
+        # v167.3（2026-09-03 鱼鱼拍板）副本开放宠物参战：野外/副本完全同一套逻辑——
+        # 副本战斗带宠物（读条命中制、按 skill_interval 出手、伤害跟随玩家 buffs/装备），
+        # 多人副本 = 当前行动者带自己的宠物（st["pets"] 按 DB 快照，_instance_act 构造
+        # Battle 时传当前行动者宠物）。宠物经验/饱食度结算与野外一致：副本内击杀奖励
+        # （_instance_kill_reward）与通关奖励（_instance_victory）按存活成员各结各宠。
+        # （v104 M17 P2 旧设定『副本不携带宠物』已废弃，见 git log v167.3。）
         st["boss"] = C.build_monster(mon_def, {"id": st["inst_id"], "name": st["inst_id"], "area": "instance"})
         if mon_def[2] == "boss":
             inst2 = C.INSTANCES[st["inst_id"]]
@@ -1355,10 +1359,22 @@ class InstanceCmds(CommandBase):
                 if sv and sv > 0 and sk in stack_names and sk not in enemy_mech_stacks:
                     pbuf.append(f"{stack_names[sk]}×{sv}")
             shields = (snap.get("p_shields") or {})
+            # v167.3 显示修复（同 combat._status_line）：护盾实际按 expire_at 绝对时刻到期，
+            # 旧 {turns} 兼容值 turns=0 时显示 (0刻) 很怪 → 只对真正剩余 >0 的盾显示剩余刻数。
+            _now_sh = float(st.get("now", 0.0) or 0.0)
             for sname, s in shields.items():
                 if (s or {}).get("value", 0) > 0:
-                    turns = s.get("turns", 0)
-                    pbuf.append(f"✨护盾{s['value']}" + (f"({turns}刻)" if turns < 999 else ""))
+                    _exp = (s or {}).get("expire_at")
+                    _left_sec = None
+                    if isinstance(_exp, (int, float)):
+                        _left_sec = float(_exp) - _now_sh
+                    if _left_sec is None and (s or {}).get("turns") is not None:
+                        _left_sec = max(0.0, float(s.get("turns", 0) or 0)) * (ACT_TICK or 1.0)
+                    if _left_sec is not None and _left_sec > 0:
+                        _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
+                        pbuf.append(f"✨护盾{s['value']}({_turns}刻)")
+                    else:
+                        pbuf.append(f"✨护盾{s['value']}")
             if pbuf:
                 lines.append(f"　🛡️「{' '.join(pbuf)}」")
         # 敌方 buff / 减益
@@ -2101,6 +2117,9 @@ class InstanceCmds(CommandBase):
                 "defending": False,
                 "charging": None,
             }
+        # v167.3 副本带宠物（鱼鱼拍板：野外/副本完全同一套逻辑）：每名成员按 DB 宠物挂载，
+        # _instance_act 当前行动者 Battle 构造时取各自宠物（读条命中/技能节奏/伤害跟 buffs 全同野外）
+        st["pets"] = {str(m): (db.pet_get(m) or {}) for m in members}
         # v2：全员站位归一（老存档恢复或字段缺省时补齐）
         self._instance_ensure_player_fields(st)
         # v57：副本行动序按速度降序（快者先出手）。真人轮流节奏不变，只是顺序由速度决定
@@ -2391,6 +2410,10 @@ class InstanceCmds(CommandBase):
             # v158：回调需要访问真实副本 st 的 alive/players（构造 dict 只有子集）
             "players": st.get("players") or {},
             "alive": st.get("alive") or {},
+            # v167.3 副本带宠物：当前行动者带自己的宠物（st["pets"] 开本/加入时按 DB 快照）。
+            # 野外/副本同一套——pet_tick 由 battle 事件队列驱动，读条命中/技能节奏/伤害跟
+            # buffs/装备全走与野外 Battle 相同代码（Battle.__init__ 不再按 btype 排除排程）。
+            "pet": (st.get("pets") or {}).get(cur_key) or (db.pet_get(cur_key) or {}),
         })
         # v121 CTB：副本 Battle 由 from_state 构造未设 self.player，而 _after_actor_ct("p")
         # 按 self.player 的 _player_stats(spd) 结算玩家 ct——必须指向行动者快照，否则恒取 cost=100
@@ -2428,6 +2451,13 @@ class InstanceCmds(CommandBase):
         st.setdefault("resources", {})[cur_key] = b.resources
         st.setdefault("cooldown", {})[cur_key] = b.cooldown
         st.setdefault("combo_seq", {})[cur_key] = b.combo_seq
+        # v167.3 副本带宠物：战斗宠物状态（读条限频窗口 _last_hit_at 等）写回 st["pets"]，
+        # 下次该成员行动重建 Battle 时沿用——跨行动/跨怪/切层节奏不重置（野外/副本同一套）
+        try:
+            if b.pet:
+                st.setdefault("pets", {})[cur_key] = dict(b.pet)
+        except Exception:
+            pass
         # v121 CTB：玩家 ct 写回快照（b.p_ct 已含该玩家行动后的 _after_actor_ct("p") 推进）
         # v152 绝对时刻制：snap["ct"] = b.p_ct（= 该玩家下次可行动绝对时刻）。
         # 其他玩家 ct 是各自独立绝对值，无需广播 -cost（绝对时刻下时间流逝由各自 next_act_at 体现）。
@@ -2527,6 +2557,12 @@ class InstanceCmds(CommandBase):
                 st["boss"] = None
                 st["enemy"] = None
                 st["enemies"] = []
+                # v167.3 副本带宠物：战斗结束回地图模式 → 重置宠物限频窗口（每场新战斗节奏独立）
+                for _m0 in list((st.get("pets") or {}).keys()):
+                    try:
+                        (st["pets"][_m0]).pop("_last_hit_at", None)
+                    except Exception:
+                        pass
                 for m in st["members"]:
                     self._unlock_battle(group_id, m)
                 self._sync_players_db(group_id, st)
@@ -2579,6 +2615,12 @@ class InstanceCmds(CommandBase):
                 st["boss"] = None
                 st["enemy"] = None
                 st["enemies"] = []
+                # v167.3 副本带宠物：肃清/Boss房战斗结束 → 重置宠物限频窗口（新一场战斗节奏独立）
+                for _m0 in list((st.get("pets") or {}).keys()):
+                    try:
+                        (st["pets"][_m0]).pop("_last_hit_at", None)
+                    except Exception:
+                        pass
                 for m in st["members"]:
                     self._unlock_battle(group_id, m)
                 self._sync_players_db(group_id, st)
@@ -2646,6 +2688,13 @@ class InstanceCmds(CommandBase):
                 st["enemies"] = self._instance_build_enemy_array(st, st["boss"])
                 # v121 审计修复：切怪后玩家 ct 与敌方同规则重置（-spd 播种对称）
                 self._instance_reset_player_cts(st)
+                # v167.3 副本带宠物：肃清后敌人已清空（ended 段，切下一只）——重置宠物限频窗口
+                # （新怪=新一场战斗；野外每场 Battle 新建节奏独立，副本等价对齐）
+                for _m0 in list((st.get("pets") or {}).keys()):
+                    try:
+                        (st["pets"][_m0]).pop("_last_hit_at", None)
+                    except Exception:
+                        pass
                 st["e_buffs"] = {}
                 # δ副本层：切怪/换 Boss 清层——新怪无减益、新刻重新允许结算、
                 # 玩家资源（叠层/护盾）不跨怪残留、轮次行动记录重置
@@ -2682,6 +2731,12 @@ class InstanceCmds(CommandBase):
                     st["boss"] = None
                     st["enemy"] = None
                     st["enemies"] = []
+                    # v167.3 副本带宠物：肃清/层清 → 重置宠物限频窗口（新一场战斗节奏独立）
+                    for _m0 in list((st.get("pets") or {}).keys()):
+                        try:
+                            (st["pets"][_m0]).pop("_last_hit_at", None)
+                        except Exception:
+                            pass
                     for m in st["members"]:
                         self._unlock_battle(group_id, m)
                     self._sync_players_db(group_id, st)  # v95r76 #383：层肃清后战斗外逻辑读 DB 须与快照一致
@@ -3214,6 +3269,32 @@ class InstanceCmds(CommandBase):
                              max_hp=snap.get("max_hp", p.get("max_hp", 0)),
                              max_mp=snap.get("max_mp", p.get("max_mp", 0)))
             line = f"  {p['name']}：经验 +{exp}"
+            # v167.3 副本带宠物：宠物经验/饱食度结算与野外一致（野外路径见 combat._handle_victory：
+            # 宠物分得击杀基础经验 20%、战斗扣饱食度 -2）。这里按野外等价口径逐成员结算各自宠物：
+            # 经验 = 本场击杀基础经验（未乘分摊/等级差的原值 ×0.2，与野外一致），只对存活且带宠者生效。
+            try:
+                pet = (st.get("pets") or {}).get(str(_key)) or (db.pet_get(_key) or {})
+                if pet and int(pet.get("level", 0) or 0) >= 1 and not snap.get("hp", 1) <= 0:
+                    # 基础经验 = 本批击杀原始 exp 合计（主怪/爪牙 ratio 前），野外取 monster.exp 一次
+                    _base_exp = sum(int(kd.get("exp", 0) or 0) for kd in killed)
+                    _gain = max(1, int(_base_exp * 0.2))
+                    pet = db.pet_decay_satiety(dict(pet))
+                    _new_sat = max(0, int(pet.get("satiety", 0) or 0) - 2)
+                    _p_exp = int(pet.get("exp", 0) or 0) + _gain
+                    _p_lv = int(pet.get("level", 1) or 1)
+                    _lvup = False
+                    while _p_exp >= C.pet_exp_need(_p_lv):
+                        _p_exp -= C.pet_exp_need(_p_lv)
+                        _p_lv += 1
+                        _lvup = True
+                    db.pet_update(_key, satiety=max(0, _new_sat), exp=_p_exp, level=_p_lv,
+                                  last_sat_time=pet.get("last_sat_time"))
+                    st.setdefault("pets", {})[str(_key)] = dict(pet, satiety=max(0, _new_sat),
+                                                                exp=_p_exp, level=_p_lv)
+                    line += f"  🐾{(pet.get('name') or '宠物')} 分得经验 +{_gain}" + (
+                        f"，升至 Lv.{_p_lv}！" if _lvup else "")
+            except Exception:
+                pass
             # 去重材料（同击杀多单位同材料时合并数量提示）
             seen = {}
             for _ms in acc["mats"]:
@@ -3577,6 +3658,29 @@ class InstanceCmds(CommandBase):
                              hp=snap["hp"], mp=snap["mp"],
                              max_hp=snap["max_hp"], max_mp=snap["max_mp"])
             lines.append(f"  {p['name']}：金币 +{gold} 经验 +{exp}")
+            # v167.3 副本带宠物：通关 Boss 击杀宠物分经验 + 扣饱食度（与野外 _handle_victory
+            # 同口径：基础经验 20%、-2 饱食度）。Boss 血量按人数放大，经验按 Boss 原始 exp 计。
+            try:
+                pet = (st.get("pets") or {}).get(str(m)) or (db.pet_get(m) or {})
+                if pet and not st["alive"].get(str(m), True) is False:
+                    _gain = max(1, int(int(boss.get("exp", 0) or 0) * 0.2))
+                    pet = db.pet_decay_satiety(dict(pet))
+                    _new_sat = max(0, int(pet.get("satiety", 0) or 0) - 2)
+                    _p_exp = int(pet.get("exp", 0) or 0) + _gain
+                    _p_lv = int(pet.get("level", 1) or 1)
+                    _lvup = False
+                    while _p_exp >= C.pet_exp_need(_p_lv):
+                        _p_exp -= C.pet_exp_need(_p_lv)
+                        _p_lv += 1
+                        _lvup = True
+                    db.pet_update(m, satiety=max(0, _new_sat), exp=_p_exp, level=_p_lv,
+                                  last_sat_time=pet.get("last_sat_time"))
+                    st.setdefault("pets", {})[str(m)] = dict(pet, satiety=max(0, _new_sat),
+                                                             exp=_p_exp, level=_p_lv)
+                    lines.append(f"  🐾{(pet.get('name') or '宠物')} 分得经验 +{_gain}" + (
+                        f"，升至 Lv.{_p_lv}！" if _lvup else ""))
+            except Exception:
+                pass
             # v105 M19 P0：副本 Boss 击杀同步推进主线进度（组队玩家路线，
             # 与 _instance_kill_reward 内小怪/精英击杀同款接入）
             _ql = self._instance_main_kill_progress(group_id, m, boss.get("name", ""))

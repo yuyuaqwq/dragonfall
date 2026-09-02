@@ -17,6 +17,7 @@ from .. import content as C
 from .. import db
 from .. import engine as E
 from .. import battle as BT
+from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_TICK 秒）
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
@@ -1583,11 +1584,27 @@ class CombatCmds(CommandBase):
             if v and v > 0 and k in self._STACK_NAMES and k not in self._ENEMY_MECH_STACKS:
                 pbuf.append(f"{self._STACK_NAMES[k]}×{v}")
         # 玩家护盾（v59：随战斗持久化；v101.28d 多来源盾，显示各来源值+剩余刻）
+        # v167.3 显示修复：护盾 v152 起按绝对时刻存储（expire_at），不再有"剩余刻"直接字段；
+        # 旧 {turns} 兼容值只在过期迁移前存在。turns<999 拼接 (N刻) 在 turns=0（无刻数语义
+        # 来源/已过期迁移中）时显示 (0刻) 很怪——改为：只对**真正剩余时刻 > 0** 的护盾换算
+        # 剩余刻数显示（expire_at - now 折算 ACT_TICK；无 expire_at 的旧档不显示刻数）。
         shields = getattr(b, "p_shields", {}) or {}
+        _now_t = float(getattr(b, "_now", 0.0) or 0.0)
         for sname, s in shields.items():
             if (s or {}).get("value", 0) > 0:
-                turns = s.get("turns", 0)
-                pbuf.append(f"✨护盾{s['value']}" + (f"({turns}刻)" if turns < 999 else ""))
+                _exp = (s or {}).get("expire_at")
+                _left_sec = None
+                if isinstance(_exp, (int, float)):
+                    _left_sec = float(_exp) - _now_t
+                # 旧档 {turns} 兼容：无 expire_at 时按 turns 折算（_end_round 迁移前）
+                if _left_sec is None and (s or {}).get("turns") is not None:
+                    _left_sec = max(0.0, float(s.get("turns", 0) or 0)) * (ACT_TICK or 1.0)
+                if _left_sec is not None and _left_sec > 0:
+                    _turns = max(1, int(round(_left_sec / (ACT_TICK or 1.0))))
+                    pbuf.append(f"✨护盾{s['value']}({_turns}刻)")
+                else:
+                    # 无到期语义（turns=999 永久盾 / 未知来源）/ 已到期将清 → 只显示盾值
+                    pbuf.append(f"✨护盾{s['value']}")
         # 玩家金身减伤（iron 在 stacks 里已显示）
         if pbuf:
             parts.append(f"🛡️你：「{' '.join(pbuf)}」")
