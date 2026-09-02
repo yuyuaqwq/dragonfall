@@ -1727,9 +1727,14 @@ class CombatCmds(CommandBase):
             # 低等级怪：碾压无收益，每低 1 级 -20%，最低剩 10%
             mult = max(0.10, 1.0 - (-diff - 5) * 0.20)
             exp = int(exp * mult)
-        # 组队经验 +10%
-        if db.party_members(group_id, qq_id):
+        # 组队经验 +10%（队长队员同样生效，design 29 章 2.1 表）
+        # v95.29 #270：队伍行按 (group_id, leader) 记，队员反查必须同一 group_id——
+        # 曾误写成全局查导致"群聊组队后私聊也吃加成"（#52 关联反馈）；同群组队本就有群内限制。
+        _pm = db.party_members(group_id, qq_id)
+        party_bonus_line = ""
+        if _pm:
             exp = int(exp * 1.1)
+            party_bonus_line = f"\n🤝 组队加成：经验 +10%（与 {len(_pm) - 1} 名队友同行）"
         # 公会经验加成（等级越高加成越多，上限 20%）
         guild_bonus = []
         g = db.guild_get_by_member(qq_id)
@@ -2070,6 +2075,8 @@ class CombatCmds(CommandBase):
             lines.append(lucky_line.strip())
         if exp_bonus_line:
             lines.append(exp_bonus_line.strip())
+        if party_bonus_line:
+            lines.append(party_bonus_line.strip())
         lines += drop_lines
         if gem_line:
             lines.append(gem_line)
@@ -2679,6 +2686,7 @@ class CombatCmds(CommandBase):
         pct = max(0, int(_sum_hp / max(1, _sum_max) * 100))
         body = "\n".join(lines)
         status = self._status_line(player, b)
+        rl_wb = self._resource_line(player, b)
         _enemy_line = (f"👹【{gboss['name']}】敌方剩 {len(_enemies_alive)} 只(总 {_sum_hp:,}/{_sum_max:,}, {pct}%)"
                        if len(_enemies_alive) > 1 else
                        f"👹【{gboss['name']}】❤️ {gboss['hp']:,} / {gboss['max_hp']:,}({pct}%)")
@@ -2686,6 +2694,7 @@ class CombatCmds(CommandBase):
             f"{body}\n━━━━━━━━━━━━\n"
             f"{_enemy_line}｜你的贡献 {contrib[str(qq_id)]:,}\n"
             f"你：❤️ {player['hp']}/{player['max_hp']} 💙 {player['mp']}/{player['max_mp']}"
+            + (f"\n{rl_wb}" if rl_wb else "")
             + (f"\n{status}" if status else "")
         )
 

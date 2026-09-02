@@ -162,13 +162,15 @@ def prof_top(group_id, limit=10):
             conn.close()
 
 
-# ---------- v67 双副业上限 ----------
-
-MAX_ACTIVE_PROFS = 2
+# ---------- v167 副业解除数量上限 ----------
+# v67 曾设双副业上限（MAX_ACTIVE_PROFS=2，同时激活最多 2 条）；
+# v167（鱼鱼拍板）移除上限概念：可无限学/无限发展副业，未激活动作一律自动激活，
+# 永不再因"数量满"拦截。常量保留兼容 import，但不再参与任何位满判断。
+MAX_ACTIVE_PROFS = 999
 
 
 def get_activated_profs(group_id, qq_id):
-    """已激活的副业 key 列表(v67：每人最多发展 2 条)"""
+    """已激活的副业 key 列表(v167：解除数量上限，全部拜师副业均可激活)"""
     with _lock:
         conn = _connect()
         try:

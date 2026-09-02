@@ -61,7 +61,7 @@ def check_action_keys(action):
 # ================= 动作实现 =================
 
 # 注册顺序 = 执行顺序。apprentice_check 必须最先注册：它是条件型动作（闸门），
-# 判定失败/副业位满时设置 world._talk_route，消费端据此中断后续动作链——
+# 判定失败/副业未解锁时设置 world._talk_route，消费端据此中断后续动作链——
 # 与 v101.23d 前 talk_choice 特判"失败路径零动作执行（consume_item 不扣料）"一致。
 
 
@@ -71,15 +71,16 @@ def action_apprentice_check(world, group_id, qq_id, player, npc_id, action):
 
     条件型动作：判定结果经 world._talk_route / world._talk_tail 通道传出，
     _apply_talk_action_async 返回路由，talk_choice 主循环只做通用分发：
-      _talk_route = "__end__" → 副业位满直接结束对话（#101.29，不再渲染 fail 节点）
+      _talk_route = "__end__" → 副业未解锁直接结束对话（#101.29，不再渲染 fail 节点）
       _talk_route = "fail"    → 材料不足，走选项 fail_next
       通过（不设 route）     → 成功提示放 _talk_tail，待全部动作行之后追加
-                                 （与旧特判 notices.append("✅…") 的输出顺序一致）
+                                （与旧特判 notices.append("✅…") 的输出顺序一致）
     交互行为（选项显示/失败提示/通过流程）与 v101.23d 前内联特判完全一致。
     """
     check = action["apprentice_check"]
-    # #255: 副业位满时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
-    # 位满则材料也不收，避免玩家交完材料才被拦白跑
+    # #255: 副业未解锁（未拜师）时考验提前拦截——遍历对话树找 unlock_prof 目标副业，
+    # 未解锁则材料也不收，避免玩家交完材料才被拦白跑。
+    # v167：副业数量上限已解除，此拦截只剩"未拜师"一种情况（位满分支已随上限移除）。
     # #417: 遍历层级 bug——dlg 顶层是 {start, nodes}，必须遍历 nodes 子表
     prof_target = None
     dlg = C.get_dialogue(npc_id)
@@ -98,11 +99,12 @@ def action_apprentice_check(world, group_id, qq_id, player, npc_id, action):
     if prof_target:
         _okp, _msgp = world._prof_active_check(group_id, qq_id, prof_target)
         if not _okp:
-            # v101.29：副业位满拦截直接结束对话（不再渲染 fail 节点）——旧代码跳
-            # fail_next 会渲染"材料凑不齐"类台词，与"副业位满先不收材料"的拦截
-            # 归因矛盾（小红实测梅尔文交付被抓包）
+            # v101.29：副业未解锁拦截直接结束对话（不再渲染 fail 节点）——旧代码跳
+            # fail_next 会渲染"材料凑不齐"类台词，与"副业未解锁先不收材料"的拦截
+            # 归因矛盾（小红实测梅尔文交付被抓包）。v167 起仅剩未拜师场景，
+            # 提示语已由 _prof_active_check 输出"先去拜师"引导。
             world._talk_route = "__end__"
-            return [_msgp + "（这次考验先不收材料，腾出副业位再来吧）"]
+            return [_msgp + "（这次考验先不收材料，先去拜师解锁再来吧）"]
     have = db.count_item(group_id, qq_id, check.get("item", ""))
     need = int(check.get("count", 1))
     if have >= need:
@@ -145,7 +147,7 @@ def action_give_exp(world, group_id, qq_id, player, npc_id, action):
 
 @register("give_item")
 def action_give_item(world, group_id, qq_id, player, npc_id, action):
-    # #260: 拜师动作同时带 unlock_prof 时，副业位满则不发材料（此前 give_item 先于
+    # #260: 拜师动作同时带 unlock_prof 时，副业未解锁则不发材料（此前 give_item 先于
     # unlock_prof 执行，拦截后材料照发、与解锁不同步）
     skip_give = False
     _up = action.get("unlock_prof")

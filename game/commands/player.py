@@ -537,7 +537,7 @@ class PlayerCmds(CommandBase):
             ("💪", "力量", "str"),
             ("🏃", "敏捷", "agi"),
             ("🧠", "智力", "int"),
-            ("❤️‍🩹", "耐力", "vit"),
+            ("🧱", "耐力", "vit"),
         ):
             lines.append(f"{icon} {cname}：{attr.get(key, 0)}")
         # 资源块（金币/位置/技能点/EXP 独立成块，每项单独一行）
@@ -949,16 +949,34 @@ class PlayerCmds(CommandBase):
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         # v55.2：每个属性单独一行，格式「总值(+加成)」——加成为基础以外全部来源之和
+        # #96 修复（战斗中属性面板非实时）：玩家处于战斗（普通/世界Boss/副本）时，
+        # 用战斗实时属性渲染（含战斗内 buff/减益/叠层乘区，与『攻击』实际伤害同口径）；
+        # 脱战仍显示静态养成面板。来源明细只用来取"基础"行做加成差值基准。
+        _battle_st = None
+        if self._in_any_battle(group_id, qq_id):
+            try:
+                _bstate = db.get_battle(group_id, qq_id)
+                if _bstate and _bstate.get("state"):
+                    _b = BT.Battle.from_state(_bstate["state"])
+                    _b.player = player
+                    _battle_st = _b._player_stats(player)
+            except Exception:
+                _battle_st = None
         st, sources = E.player_stats_detail(
             player["class_name"], player["level"], player["equipment"],
             player.get("class_tier", 0), player.get("attributes"), player.get("evolve_path", 0),
             self._title_bonus(group_id, qq_id), player.get("race"),
             player.get("learned_skills", []),  # v110.4 X2 P1-2：面板接入已学属性被动
         )
+        if _battle_st is not None:
+            # 战斗内实时属性为权威值；缺键（如基础行里有的特殊键）回退静态，防 KeyError
+            for _k in list(st):
+                if _k in _battle_st:
+                    st[_k] = _battle_st[_k]
         base = next((s["stats"] for s in sources if s["name"] == "基础"), {})
         attr = player.get("attributes") or {}  # v105 P1(M01#9)：attributes=None 脏档兜底
         lines = [
-            f"📊 【{player['name']} 属性面板】 Lv.{player['level']}",
+            f"📊 【{player['name']} 属性面板】 Lv.{player['level']}{'（⚔️战斗内实时值，含 buff/减益）' if _battle_st is not None else ''}",
             "━━━━━━━━━━━━",
         ]
         stat_rows = [
@@ -1016,7 +1034,7 @@ class PlayerCmds(CommandBase):
         lines.append(f"💪 力量：{attr.get('str', 0)}\n   ·每点＋1 攻击")
         lines.append(f"🏃 敏捷：{attr.get('agi', 0)}\n   ·每点＋0.8 速度 ＋ 0.4% 暴击")
         lines.append(f"🧠 智力：{attr.get('int', 0)}\n   ·每点＋1 魔攻 ＋ 1.5 魔力")
-        lines.append(f"❤️‍🩹 耐力：{attr.get('vit', 0)}\n   ·每点＋6 生命")
+        lines.append(f"🧱 耐力：{attr.get('vit', 0)}\n   ·每点＋6 生命")
         lines.append("━━━━━━━━━━━━")
         lines.append(self._tip("attr"))
         yield event.plain_result("\n".join(lines))
@@ -1213,12 +1231,40 @@ class PlayerCmds(CommandBase):
                                    player.get("race"))
         new_hp = min(int(player.get("hp", 0)), int(_st0.get("max_hp", player.get("max_hp", 100))))
         new_mp = min(int(player.get("mp", 0)), int(_st0.get("max_mp", player.get("max_mp", 100))))
+        # #108 修复（洗点强穿）：洗点清零属性后，身上不再满足属性需求(req)的装备
+        # 一律自动卸下回背包——防玩家"先加点穿上→洗点白嫖高属性装备"。
+        # 设计口径：穿戴属性需求是持续约束，不是穿上那一刻的一次性门槛；
+        # 卸下后玩家可『装备 <名称>』手动穿回（属性达标才穿得上）。
+        equipment = dict(player.get("equipment") or {})
+        dropped = []
+        for _slot, _item in list(equipment.items()):
+            _req = (_item or {}).get("req") or {}
+            if not _req:
+                continue
+            if any((attrs0 or {}).get(_rk, 0) < _rv for _rk, _rv in _req.items()):
+                dropped.append((_slot, _item))
+                import uuid as _uuid2
+                db.add_item(group_id, qq_id, f"eq_{_uuid2.uuid4().hex[:8]}", _item)
+                equipment[_slot] = None
+        # 有自动卸下 → 重算一次无该装备的属性上限（洗点上限计算本就基于穿后属性）
+        if dropped:
+            _st0 = E.player_final_stats(player["class_name"], player["level"], equipment,
+                                        player.get("class_tier", 0), attrs0,
+                                        player.get("evolve_path", 0), self._title_bonus(group_id, qq_id),
+                                        player.get("race"))
+            new_hp = min(int(player.get("hp", 0)), int(_st0.get("max_hp", player.get("max_hp", 100))))
+            new_mp = min(int(player.get("mp", 0)), int(_st0.get("max_mp", player.get("max_mp", 100))))
         db.update_player(group_id, qq_id, gold=player["gold"] - cost,
                          attr_pts=player.get("attr_pts", 0) + used,
                          attributes=json.dumps(attrs0, ensure_ascii=False),
+                         equipment=equipment,
                          max_hp=_st0["max_hp"], max_mp=_st0["max_mp"],
                          hp=new_hp, mp=new_mp)
-        yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币)\n『加点』重新分配～")
+        _drop_txt = ""
+        if dropped:
+            _dnames = "、".join(f"{_it.get('name', _sl)}" for _sl, _it in dropped)
+            _drop_txt = f"\n⚔️ 属性不足，以下装备自动卸下回背包：{_dnames}\n（『加点』后可用『装备 <名称>』重新穿上）"
+        yield event.plain_result(f"🔄 洗点成功！返还 {used} 点属性点(花费 {cost} 金币){_drop_txt}\n『加点』重新分配～")
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?战力(?:\s*|$)")
     @require_player()

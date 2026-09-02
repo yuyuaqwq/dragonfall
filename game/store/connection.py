@@ -377,7 +377,7 @@ def _ensure_legacy_columns(conn):
     mcols = [r[1] for r in conn.execute("PRAGMA table_info(market)").fetchall()]
     if "map_id" not in mcols:
         conn.execute("ALTER TABLE market ADD COLUMN map_id TEXT DEFAULT ''")
-    # v67 双副业上限：professions 表补 activated 列（JSON 数组：已激活副业 key）
+    # v67 双副业体系：professions 表补 activated 列（JSON 数组：已激活副业 key；v167 起无数量上限）
     prcols = [r[1] for r in conn.execute("PRAGMA table_info(professions)").fetchall()]
     if "activated" not in prcols:
         conn.execute("ALTER TABLE professions ADD COLUMN activated TEXT DEFAULT '[]'")

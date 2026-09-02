@@ -4075,7 +4075,7 @@ class WorldCmds(CommandBase):
             nxt = opt.get("next", "__end__")
             # v124.3（审计）：apprentice_check 已注册为动作（talk_actions.py），
             # 主循环不再特判——条件型动作经 _apply_talk_action_async 返回的路由分发：
-            #   "fail"（材料不足）→ 走选项 fail_next；"__end__"（副业位满 #101.29）→ 结束对话
+            #   "fail"（材料不足）→ 走选项 fail_next；"__end__"（副业未解锁 #101.29）→ 结束对话
             notices, _route = await self._apply_talk_action_async(group_id, qq_id, player, npc_id, action)
             if _route == "__end__":
                 db.clear_talk_state(group_id, qq_id)

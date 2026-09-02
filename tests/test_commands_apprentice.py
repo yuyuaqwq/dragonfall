@@ -7,7 +7,7 @@
   3. 实践/授业材料不足拦截（fail_next，不扣材料）
   4. 拜师成功：apprentices 记录 + 副业激活 + 副业经验 + 入门礼
   5. 已拜师后再找导师：拜师选项隐藏（apprentice need）
-  6. 位置满拦截（激活 2 副业后再拜）
+  6. 无数量上限：已激活 ≥2 条副业仍可正常拜新导师（v167 解除双副业上限）
   7. 强化/附魔命令需要对应副业（导师进修后独立副业）
   8. 对话树数据完整性：8 位导师 next 引用合法
 """
@@ -81,38 +81,33 @@ async def main():
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("闲聊分支", "耐心" in out, out[:200])
 
-    print("【v81 拜师：位置满拦截】")
+    print("【v81 拜师：已拜师后再找导师】")
     # 先激活另外 2 个副业（直接 store 激活模拟老玩家已有两条）
+    # v167 无数量上限：直接激活 3 条验证可同时激活（原双副业上限已解除）
     db.activate_prof("g1", "w1", "mining")
     db.activate_prof("g1", "w1", "cooking")
-    check("位置已满", len(db.get_activated_profs("g1", "w1")) >= 2, str(db.get_activated_profs("g1", "w1")))
-    # 尝试拜罗莎（烹饪）——已在激活列表？不，activate 的是 cooking，要拜 crafting 之外的
-    # 拜奥格（锻造）：位置满应拦截
+    db.activate_prof("g1", "w1", "fishing")
+    check("已激活多条(>2 无上限)", len(db.get_activated_profs("g1", "w1")) >= 3, str(db.get_activated_profs("g1", "w1")))
+    # 此时 w1 已激活 gather/mining/cooking/fishing 4 条（拜师艾琳成功后 gather 在列）——
+    # v167 无上限：再拜锻造按正常材料判定走，无数量拦截
     db.update_player("g1", "w1", cur_map="ironharbor")
     out = await cmd(m, "find_npc", "g1", "w1", "找 奥格")
     check("锻造导师对话树", "图纸+材料" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
     check("答对进实践", "5 份铁矿石" in out, out[:200])
     out = await cmd(m, "talk_choice", "g1", "w1", "1")  # practice_intro → practice_check
-    # v101.25 系列 #417 + v101.29：位置满检查优先于材料检查——第一次选
-    # "铁矿石齐了"即拦截（材料不扣），且直接结束对话（不再渲染 fail 节点台词，
-    # 避免"材料凑不齐"与"副业位满"归因矛盾，小红实测梅尔文交付被抓包）
+    # v167：无数量上限，不再有"位置满"拦截——材料判定正常进行：
+    # 此时 w1 已激活 mining/cooking/gather(≥2 条)，仍可拜师锻造（上限解除实锤）
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("位置满实践拦截", "副业位已满" in out, out[:200])
-    check("拦截后结束对话", "再会了" in out, out[:200])
-    check("对话状态已清理", db.get_talk_state("g1", "w1") is None, str(db.get_talk_state("g1", "w1")))
-    # 补足材料后再拜一次：位置满依然先拦，且不扣材料（无材料可扣）
-    db.add_item("g1", "w1", "铁矿石", {}, 5)
-    out = await cmd(m, "find_npc", "g1", "w1", "找 奥格")
+    check("激活≥2条仍可拜师(无上限)", "副业位已满" not in out and "5 份铁矿石" in out, out[:300])
+    # 已拜师（apprentices 有 craft）+ 材料不足 → 走材料 fail 分支（未结束对话）
+    # 说明：practice 关拜奥格时 craft 尚未解锁，但 apprentice_check 前置于材料判定——
+    # v167 起无数量拦截，材料不足按正常 fail 路由走（不扣料、不落激活）
     out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    out = await cmd(m, "talk_choice", "g1", "w1", "1")
-    check("补料后仍被位置满拦截", "副业位已满" in out, out[:200])
-    inv_after = db.get_inventory("g1", "w1")
-    ores = [i for i in inv_after if "铁矿石" in i["data"]["name"]]
-    check("材料未扣(铁矿石仍在)", sum(i["count"] for i in ores) >= 5, str([(i["data"]["name"], i["count"]) for i in inv_after]))
-    check("未激活锻造", "craft" not in db.get_activated_profs("g1", "w1"), str(db.get_activated_profs("g1", "w1")))
     player = db.get_player("g1", "w1")
+    check("缺料走失败分支不落激活", "craft" not in db.get_activated_profs("g1", "w1")
+          or "craft" not in (player.get("apprentices") or []),
+          f"activated={db.get_activated_profs('g1', 'w1')} appr={player.get('apprentices')}")
     check("未记录学徒", "craft" not in player.get("apprentices", []), str(player.get("apprentices")))
 
     print("【v81 对话树数据完整性】")

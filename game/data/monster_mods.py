@@ -106,6 +106,10 @@ MONSTER_MODS = {
     },
     "e_orc_warrior": {  # 旧 e_orc_berserker 兽人狂战士
         "atk_mult": 1.35, "hp_mult": 1.10,
+        # #58 修复（兽人残血加攻不生效）：desc 明示"陷入狂怒后不管不顾"但此前无低血机制——
+        # 补 mech=enrage（血量 <30% 触发，攻击/魔攻 ×1.35，与 Boss 狂暴同一机制，
+        # 引擎 _enemy_turn 每刻 _boss_mech 消费，精英/普通单位同样生效）
+        "mech": "enrage",
         "desc": "兽人战士：陷入狂怒后不管不顾",
     },
     # ---------- 死城/王陵古道 ----------

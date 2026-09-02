@@ -1697,9 +1697,9 @@ class EconomyCmds(CommandBase):
         )
 
     def _prof_active_check(self, group_id, qq_id, key, require_apprentice=False):
-        """v67 双副业上限：动作前检查副业是否激活。
+        """v167 副业解除数量上限：动作前检查副业是否激活。
 
-        未激活 → 有位置自动激活（提示）；已满 → 拦截。
+        未激活 → 直接自动激活（永不因数量拦截；可无限学/无限发展副业）。
         老玩家兼容：已有等级（>1）未激活 → 自动激活无感迁移。
         v95.22：require_apprentice=True（副业动作）时，未拜师 → 拦截并引导找导师，
         副业必须先找导师 NPC 拜师学习（对话 unlock_prof）才解锁。
@@ -1708,23 +1708,9 @@ class EconomyCmds(CommandBase):
         lst = db.get_activated_profs(group_id, qq_id)
         if key in lst:
             return True, ""
-        # 位置满：有等级也拦截（严格双副业上限，玩家自己遗忘取舍）
-        if len(lst) >= db.MAX_ACTIVE_PROFS:
-            names = "、".join(db.PROF_FIELDS[k] for k in lst)
-            # v101.28l #421：强化/附魔也是副业——位满时明确说明，避免玩家不知道要占副业位
-            # O112 修复：引导补全——没学过怎么学（拜师）+ 位满怎么腾（遗忘副业），
-            # 对齐『遗忘副业 <名称>』提示文案风格
-            _extra = ""
-            if key in ("enhance", "enchant"):
-                tname, tmap = C.PROF_TUTORS.get(key, ("对应导师", "对应城市"))
-                _extra = (f"\n💡 「{db.PROF_FIELDS.get(key, key)}」也是一条副业："
-                          f"没学过先到 {tmap} 找 {tname} 拜师（『对话 {tname}』），"
-                          f"位子满了先『遗忘副业 <名称>』腾一个吧～")
-            return False, (
-                f"你的副业位已满({len(lst)}/{db.MAX_ACTIVE_PROFS}：{names})！"
-                f"想发展新副业，先『遗忘副业 <名称>』放弃一条吧～{_extra}"
-            )
-        # 老玩家兼容：位置有空 + 已有等级（>1）未激活 → 自动激活无感迁移
+        # v167：原 v67 位满拦截分支（len(lst) >= MAX_ACTIVE_PROFS 时 return False）已删除——
+        # 副业不再限制激活数量，未激活一律自动激活；拜师门槛见下方 require_apprentice 检查。
+        # 老玩家兼容：已有等级（>1）未激活 → 自动激活无感迁移
         lv = db.get_prof_level(group_id, qq_id, key)
         if lv > 1:
             db.activate_prof(group_id, qq_id, key)
@@ -1740,7 +1726,7 @@ class EconomyCmds(CommandBase):
                 )
         db.activate_prof(group_id, qq_id, key)
         new_lst = db.get_activated_profs(group_id, qq_id)
-        return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业({len(new_lst)}/{db.MAX_ACTIVE_PROFS})！"
+        return True, f"\n🔓 你选择了「{db.PROF_FIELDS.get(key, key)}」作为副业(当前已激活 {len(new_lst)} 条)！"
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?副业(?!任务)(?:[\s\S]*)$")
     @require_player()
@@ -1754,7 +1740,7 @@ class EconomyCmds(CommandBase):
             return
         profs = db.get_professions(group_id, qq_id)
         activated = db.get_activated_profs(group_id, qq_id)
-        lines = [f"🧵 【副业面板】(已激活 {len(activated)}/{db.MAX_ACTIVE_PROFS})", "━━━━━━━━━━━━"]
+        lines = [f"🧵 【副业面板】(当前已激活 {len(activated)} 条)", "━━━━━━━━━━━━"]
         icons = {"gather": "🌿", "mining": "⛏️", "fishing": "🎣", "alchemy": "🧪", "craft": "🔨", "cooking": "🍳", "enhance": "⚒️", "enchant": "✨"}
         total = 0
         for key, p in profs.items():
@@ -1823,7 +1809,7 @@ class EconomyCmds(CommandBase):
             return
         yield event.plain_result(
             f"📦 你遗忘了「{db.PROF_FIELDS[key]}」(原 Lv.{old_lv}，已清零)！\n"
-            f"副业位空出({len(db.get_activated_profs(group_id, qq_id))}/{db.MAX_ACTIVE_PROFS})，下次做副业时自动占位。"
+            f"副业随时可以重新拜师学习，放心去探索其他生活职业吧～"
             + (f"\n{_settle_text}" if _settle_text else "")
         )
 
@@ -1866,8 +1852,8 @@ class EconomyCmds(CommandBase):
                 if (claimed or parts[0] in activated
                         or not any(k in activated for k in C.DAILY_PROF_TASKS)):
                     return parts[0], parts[1], int(parts[2]), int(parts[3]), int(parts[4]), claimed
-        # v101.30: 从已激活副业里随机（未激活任何副业才全随机）——任务必须做得了，
-        # 旧版 8 选 1 全随机，玩家只有 2 个副业位，抽到没拜师的 = 当日任务废掉
+        # v167：副业已解除数量上限（可无限学/无限发展），任务只从已激活副业抽取（做得了），
+        # 未激活任何副业才全随机（做不了 → 拜师引导，见 daily_prof 视图）
         import random as _rnd
         activated = db.get_activated_profs(group_id, qq_id)
         cand = [k for k in C.DAILY_PROF_TASKS if k in activated] or list(C.DAILY_PROF_TASKS.keys())
@@ -3704,7 +3690,7 @@ class EconomyCmds(CommandBase):
         item_name = parts[0]
         stat_label = parts[1] if len(parts) > 1 else ""
         # v94 体力：附魔消耗 10 体力（v105 P1：扣体力移到所有校验通过、最终消耗前——
-        # 原实现在命令开头先扣，未拜师/位满/Lv.1/属性名无效/无装备/槽满/符文冲突/材料不足等失败路径白扣 10 体力）
+        # 原实现在命令开头先扣，未拜师/Lv.1/属性名无效/无装备/槽满/符文冲突/材料不足等失败路径白扣 10 体力）
         # v67 附魔归位炼金 → 导师进修后附魔为独立副业（19 章第八章）：附魔需要附魔副业 Lv.2
         ok, act_msg = self._prof_active_check(group_id, qq_id, "enchant", require_apprentice=True)
         if not ok:
@@ -4134,7 +4120,11 @@ class EconomyCmds(CommandBase):
     @require_player()
 
     async def encyclopedia(self, event: AstrMessageEvent):
-        """百科：查材料掉落来源 / 怪物分布 / 地图怪物(v33)"""
+        """百科：查材料掉落来源 / 怪物分布 / 地图怪物(v33)
+
+        扩展分类浏览（v167）：『百科 副本』『百科 装备』『百科 材料』——
+        raw 为分类关键词时走 _ency_browse_* 摘要浏览，具体名称仍走老逻辑单查。
+        """
         group_id, qq_id = self._uid(event)
         player = self._player(group_id, qq_id)
         raw = self._strip_cmd(event, "百科").strip()
@@ -4142,13 +4132,25 @@ class EconomyCmds(CommandBase):
             lines = [
                 "📚 【世界百科】想知道什么？输入『百科 <名称>』",
                 "━━━━━━━━━━━━",
-                "🔍 可查询：材料 / 怪物 / 地图",
+                "🔍 可查询：材料 / 怪物 / 地图 / 副本 / 装备",
+                "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 装备』看装备名册",
+                "　　『百科 材料』按分类看材料",
                 "例：『百科 狼皮』→ 狼皮在哪掉",
                 "　　『百科 光耀狼』→ 光耀狼在哪出现",
                 "　　『百科 远境草甸』→ 地图里的怪物",
                 self._tip("rune"),
             ]
             yield event.plain_result("\n".join(lines))
+            return
+        # 0. 分类浏览（v167）：具体名称仍走下方老逻辑，这里只收分类关键词
+        if raw == "副本":
+            yield event.plain_result(self._ency_browse_instances())
+            return
+        if raw == "装备":
+            yield event.plain_result(self._ency_browse_equips())
+            return
+        if raw == "材料":
+            yield event.plain_result(self._ency_browse_materials())
             return
         # 1. 符文查询
         stone_name = None
@@ -4261,6 +4263,107 @@ class EconomyCmds(CommandBase):
             yield event.plain_result(f"你是不是要找：{'、'.join(fuzzy)}？输入『百科 <完整名>』查看～")
             return
         yield event.plain_result(f"百科里没有『{raw}』！试试查材料(如『百科 狼皮』)、怪物(如『百科 光耀狼』)或地图(如『百科 远境草甸』)～")
+
+    # ================= v167 百科分类浏览（三种摘要，数据源与单查一致） =================
+    def _ency_browse_instances(self) -> str:
+        """『百科 副本』：全部副本一览（含等级/人数/钥匙/主线章）——比『副本』指令的
+        开本列表更全（那是按玩家等级上锁的玩法引导），这里是百科向完整编目。"""
+        lines = ["🏰 【副本百科】共 {} 个副本".format(len(C.INSTANCES)), "━━━━━━━━━━━━"]
+        for _i, (_kid, inst) in enumerate(C.INSTANCES.items(), 1):
+            _lv = inst.get("lv", "?")
+            _mn = inst.get("min_players", 1)
+            _mx = inst.get("max_players", _mn)
+            if _mx <= 1:
+                _ppl = "单人"
+            elif _mn == _mx:
+                _ppl = f"{_mn}人"
+            else:
+                _ppl = f"{_mn}-{_mx}人"
+            _line = f"{_i}. {inst.get('icon', '🏰')} {inst['name']}（Lv.{_lv}+ · {_ppl}）"
+            # 主线章（desc 里的（主线第 N 章））——与单查 desc 同源
+            _ch = ""
+            _m = re.search(r"主线第\s*([^）)章]+)\s*章", inst.get("desc", "") or "")
+            if _m:
+                _ch = f" · 主线第{_m.group(1)}章"
+            _line += _ch
+            # 钥匙需求并入标题行（有钥匙的副本才占一格）
+            _ki = inst.get("key_item")
+            if _ki:
+                _line += f" · 🔑需『{_ki}』"
+            lines.append(_line)
+            # 主题（desc 前 40 字，剥掉括号里的主线章标注）
+            _theme = (inst.get("desc") or "").split("（主线")[0].split("(")[0].strip()
+            lines.append(f"　📖 {_theme[:40]}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 想了解某副本详情？『百科 <副本名>』（如『百科 旧王陵』）")
+        return "\n".join(lines)
+
+    def _ency_browse_equips(self) -> str:
+        """『百科 装备』：装备名册分类摘要——按部位×品质给总数+代表性装备，
+        照顾 QQ 单条长度，不逐件刷屏。"""
+        _roster = C.EQUIP_ROSTER
+        lines = ["⚔️ 【装备名册】共 {} 件 · 按部位/品质速览".format(len(_roster)), "━━━━━━━━━━━━"]
+        # 部位顺序（EQUIP_SLOTS 定义序 = 武器/头盔/胸甲/护腿/靴子/戒指/项链）
+        _slot_cn = C.EQUIP_SLOTS
+        for _slot in _slot_cn:
+            _items = [r for r in _roster.values() if r.get("slot") == _slot]
+            if not _items:
+                continue
+            _nm = _slot_cn[_slot]
+            _cnt = len(_items)
+            _qcnt = {q: 0 for q in C.QUALITY_ORDER}
+            for _r in _items:
+                _q = _r.get("quality")
+                if _q in _qcnt:
+                    _qcnt[_q] += 1
+            _qb = " ".join("{}{}".format(C.QUALITY[q]["color"], _qcnt[q]) for q in C.QUALITY_ORDER if _qcnt[q])
+            # 代表性：每品质取 Lv 最高 1 件（名字+lv+来源图标），最多 5 件防刷屏
+            _reps = []
+            for _q in C.QUALITY_ORDER:
+                _pool = sorted((r for r in _items if r.get("quality") == _q), key=lambda r: -r.get("lv", 0))
+                if not _pool:
+                    continue
+                _top = _pool[0]
+                _src = _top.get("source", "?")
+                _src_icon = {"图纸": "📜", "锻造": "🔨", "商店": "💰", "boss": "👹",
+                             "副本Boss": "👹", "精英": "⚡", "精英专属": "⚡",
+                             "legend": "🌟", "任务": "📕", "支线": "📕", "宝藏": "🗝️"}.get(_src, "·")
+                _reps.append("{}{} {}(Lv.{})".format(_src_icon, C.QUALITY[_q]["name"], _top["name"], _top.get("lv", "?")))
+            lines.append("")
+            lines.append(f"◈ {_nm} ×{_cnt}　{_qb}")
+            lines.append("　代表：" + "　".join(_reps))
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 输入『百科 <装备名>』看单件详情；『图鉴』里也能看已收集装备")
+        return "\n".join(lines)
+
+    def _ency_browse_materials(self) -> str:
+        """『百科 材料』：材料按分类（type 字段）分组摘要——每类数量 + 代表性材料名。
+        新材料（v167 等）只要进 MATERIALS 即自动带出，无硬编码名单。"""
+        _by_type = {}
+        for _k, _m in C.MATERIALS.items():
+            _t = _m.get("type") or "杂物"
+            _by_type.setdefault(_t, []).append(_m.get("name", _k))
+        # 显示顺序：craft 原料大分类在前，任务/杂物/收藏垫底；未收录分类自动追加
+        _order = ["兽材", "矿石", "木材", "织物", "草药", "宝石", "精华",
+                  "食材", "材料", "鱼", "鱼王", "图纸", "传说", "元素", "符文", "工具",
+                  "宝物", "垃圾", "任务道具", "收藏", "杂物"]
+        _order = [t for t in _order if t in _by_type]
+        _rest = sorted(t for t in _by_type if t not in _order)
+        _order += _rest
+        lines = ["🧪 【材料百科】共 {} 种材料 · 按分类速览".format(len(C.MATERIALS)), "━━━━━━━━━━━━"]
+        for _t in _order:
+            _names = _by_type[_t]
+            _cnt = len(_names)
+            # 单件/双件分类（鱼王/元素/宝物/工具等）：名字列全
+            if _cnt <= 2:
+                lines.append(f"{_t} ×{_cnt}　{'、'.join(_names)}")
+                continue
+            # 大分类：数量 + 每类代表性 3 个（价格降序即稀有度观感，稳定且不随插入序漂移）
+            _rep = sorted(_names, key=lambda n: -int(C.MATERIALS_BY_NAME[n].get("price", 0)))[:3]
+            lines.append(f"{_t} ×{_cnt}　例：{'、'.join(_rep)}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append("💡 输入『百科 <材料名>』看掉落来源；『图鉴』看收藏品")
+        return "\n".join(lines)
 
     def _earned_titles(self, group_id, qq_id, player):
         """计算已获得的称号，返回 (已获列表, 未获列表)

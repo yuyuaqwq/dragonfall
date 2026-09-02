@@ -73,8 +73,12 @@ async def main():
     dup = [x for x in set(pool) if pool.count(x) > 1]
     check("② profession 池无重复", not dup, f"重复={dup}")
     joined = "|".join(pool)
-    for kw in ("遗忘副业", "拜师", "稀有"):
+    # v167：profession 池更新（"每人限 2 条…"→"副业没有数量上限"），
+    # 旧 v130.7 关键字『遗忘副业』不再在池内——换用『副业』+『拜师』双关键字验证信息进池
+    for kw in ("副业", "拜师", "稀有"):
         check(f"② 固定提示信息已进池『{kw}』", kw in joined, joined)
+    check("② profession 池无『限 2 条』旧口径", "限 2 条" not in joined and "每人限" not in joined, joined)
+    check("② profession 池含无上限口径", "没有数量上限" in joined, joined)
 
     # ===== ① 面板收敛 + ③ 核心信息不回归 =====
     clean_db()
@@ -82,7 +86,7 @@ async def main():
     db.activate_prof(G, Q, "gather")  # 激活采集 → Lv.1
 
     r0 = await _cmd(m, "副业")
-    check("③ 面板标题+已激活数", "🧵 【副业面板】" in r0 and "(已激活 1/2)" in r0, r0[:120])
+    check("③ 面板标题+已激活数(无分母)", "🧵 【副业面板】" in r0 and "(当前已激活 1 条)" in r0, r0[:120])
     check("③ 副业名/等级/经验条显示", "采集" in r0 and "Lv.1" in r0 and "经验" in r0, r0[:200])
     check("③ 副业总分行", "📊 副业总分：1" in r0, r0[:200])
     for kw in FIXED_OLD:

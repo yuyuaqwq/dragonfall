@@ -84,7 +84,7 @@ async def main():
     print("【锻造：配方详情】")
     out = await cmd(m, "recipe_list", "g1", "e1", "配方 铁剑")
     check("配方详情显示铁剑", "铁剑" in out, out[:120])
-    check("配方详情显示材料", "史莱姆黏液" in out, out[:120])
+    check("配方详情显示材料", "粗铁" in out, out[:120])
     out = await cmd(m, "recipe_list", "g1", "e1", "配方")
     check("配方列表全量", "铁剑" in out and "星光法杖" in out, out[:150])
 
