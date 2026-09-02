@@ -1542,7 +1542,13 @@ class PlayerCmds(CommandBase):
         if info.get("cond"):
             parts.append(f"条件 ×{E.skill_cond_mult(info['cond'], lv, info):g}")
         if info.get("mech_val"):
-            parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
+            # v162：effect=reduce 的 mech_val 是减伤百分比（铁壁 45 = 减伤45%），显示"减伤 X%"而非"叠层 X"
+            if info.get("effect") == "reduce":
+                mv = float(info.get("mech_val") or 0)
+                mv = (mv / 100.0) if mv > 1 else mv
+                parts.append(f"减伤 {int(round(mv * 100))}%")
+            else:
+                parts.append(f"叠层 {E.skill_mech_val(info, lv)}")
         # v104 R3 P2-10：吸血成长预览同 battle 口径——按 lifesteal 数据字段判定
         # （原只认 effect=="lifesteal"，全表无技能带此 effect → 嗜血斩升级预览漏显示吸血）
         if info.get("lifesteal"):

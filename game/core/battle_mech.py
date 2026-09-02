@@ -1032,13 +1032,35 @@ def _sb_shield_all(battle, skill_name, info, player, lv, logs):
 def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
     """v113.1：团队减伤改真·百分比减伤（此前映射 def_up 防御提升，与"减伤 x%"不符）。
     p_buffs["reduce_all"] 存减伤百分比；刻数记 battle._reduce_all_left（_end_round 单独递减）。
-    v1.x：数值下沉 skills.py reduce_all 字段（原 battle.py REDUCE_ALL_PCT 中文名硬编码已删）。"""
+    v1.x：数值下沉 skills.py reduce_all 字段（原 battle.py REDUCE_ALL_PCT 中文名硬编码已删）。
+    v162：技能未配 reduce_all 字段时回落 desc/mech_val（战吼·守 desc 20% 但无字段）"""
     from ..engine import skill_buff_turns
     pct = float((info or {}).get("reduce_all") or 0)
+    if pct <= 0:
+        # v162 回落：mech_val 或默认 0.20（战吼·守 desc '全队减伤 20%'）
+        mv = float((info or {}).get("mech_val") or 0)
+        pct = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
     turns = skill_buff_turns(lv)
     battle.p_buffs["reduce_all"] = pct
     battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
     logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "reduce")
+def _sb_reduce(battle, skill_name, info, player, lv, logs):
+    """v162：单人减伤实现（铁壁/铜墙/亡魂护甲/磐岩甲等 effect=reduce 此前零效果）。
+    p_buffs["reduce"] 存减伤百分比；受击计数用 _p_buff_hits（防御型按敌方出手次数计时）。
+    减伤值：优先技能 reduce_pct 字段（0.45），回落 mech_val（45=45% 或 0.45），默认 0.20。"""
+    from ..engine import skill_buff_turns
+    rp = float((info or {}).get("reduce_pct") or 0)
+    if rp <= 0:
+        mv = float((info or {}).get("mech_val") or 0)
+        rp = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
+    rp = min(max(rp, 0.0), 0.9)
+    # 受击次数：3 次（参考药水防御 buff _p_buff_hits=3）
+    battle.p_buffs["reduce"] = rp
+    battle._p_buff_hits["reduce"] = 3
+    logs.append(f"🛡️ 减伤 {int(rp*100)}%（可挡 3 次攻击）")
 
 
 # ================= 5. BOSS_MECHS 启动校验（v125.1 P2 审计） =================

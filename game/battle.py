@@ -6555,6 +6555,14 @@ class Battle:
             if _pen_rd > 0:
                 dmg += _pen_rd
                 logs.append(f"🔥 熔核代价：全减伤惩罚·受伤加重 {_pen_rd} 点！")
+        # v162：单人减伤（effect=reduce，铁壁/铜墙/亡魂护甲/磐岩甲）——p_buffs["reduce"] 存百分比，
+        # 受击次数由 _p_buff_hits 计时（_apply_dmg_to_target 尾部递减）。百分比减伤在此消费。
+        _sg_rd = float(self.p_buffs.get("reduce") or 0)
+        if _sg_rd > 0:
+            _sr = int(dmg * min(_sg_rd, 0.9))
+            if _sr > 0:
+                dmg = max(1, dmg - _sr)
+                logs.append(f"🛡️ 减伤护体吸收 {_sr} 点伤害！")
         # v106.3 格挡属性统一结算（词条折算/种族岩壁格挡/被动/药水 → st["block"]）
         # 圣盾被动 stat=block mult=0.1 已并入被动加成（_PASSIVE_STAT_APPLY block → block_add）
         block_chance = float(self._player_stats(player).get("block", 0) or 0)

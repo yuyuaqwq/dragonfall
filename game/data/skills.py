@@ -2461,6 +2461,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'faith': 0,
                         'effect': 'reduce',
+                        'mech_val': 30,   # v162: 补减伤值（desc 30%），供 _sb_reduce 读
                         'name': '亡魂护甲',
                         'desc': '怨灵缠绕周身化作幽暗护甲——自身减伤 30%，持续 10 刻，骷髅代为挡刀'
                     },
