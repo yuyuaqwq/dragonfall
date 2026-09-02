@@ -76,10 +76,20 @@ check("首次施放成功", any("冷却" not in x and "造成" in x for x in log
 # v152 绝对时刻制：低 spd（默认 10）玩家行动窗口 p_ct = cost+1.6 = 5.705 > CD 3.0，
 # 施放后推进时 CD 已到期清除——CD 拦截逻辑改由下方「手动置 CD」路径覆盖（确定性）。
 check("施放路径正确（无异常）", b3.result is None, str(b3.result))
-# 立即再施放被拦
+# 立即再施放被拦（v163 修复：读条路径出手瞬间进 CD——此前 CD 从不设置可无限连放）
 logs2, done2 = b3.player_turn('skill', target_name, p, enemy_act=False)
-b3._process_until(float(getattr(b3, "p_ct", 0) or 0) + 0.001, logs2, p)
-check("再施放正常放行（低 spd 行动窗口 > CD 秒数，v152 时间推进语义）", any("造成" in x for x in logs2), str(logs2)[:150])
+check("再施放被 CD 拦截（同刻窗口内 CD 未到期）", any("冷却" in x for x in logs2), str(logs2)[:150])
+# 推进时间超过 ready_at（now + cd×ACT_TICK）后 CD 到期可再放
+try:
+    _act = ACT_TICK or 2.0
+except NameError:
+    _act = 2.0
+b3._now = b3._now + 4 * _act + 0.1  # 推进超过 cd=3 刻的绝对时刻
+b3._process_until(b3._now, logs2, p)
+p["mp"] = 999
+logs2c, done2c = b3.player_turn('skill', target_name, p, enemy_act=False)
+check("CD 到期后放行", any("造成" in x for x in logs2c) and not any("冷却" in x for x in logs2c),
+      str(logs2c)[:150])
 # 过 3 回合后再施放成功（v152 时刻制：推进 3×ACT_TICK 使 ready_at 到期）
 # 注意：施放技能本身推进 p_ct = now + cost + CAST_SKILL（玩家默认 spd=10 → 3.905 > CD 3.0），
 # 行动窗口内 CD 已被时间推进清掉——这是 v152 绝对时刻制下低 spd 玩家的正常表现（CD 秒数短于

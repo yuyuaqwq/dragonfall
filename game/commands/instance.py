@@ -2883,7 +2883,10 @@ class InstanceCmds(CommandBase):
             if k in cur and st.get("alive", {}).get(k, True):
                 entries.append((float(snap.get("ct", 0) or 0), f"{snap.get('name', k)}(我)"))
         entries.sort(key=lambda x: x[0])
-        return "⚡ 行动顺序：" + " → ".join(p[1] for p in entries[:limit])
+        # v163 全局时刻显示：st["now"] = 战斗绝对时刻（1 刻 = 1 游戏秒，ACT_TICK=1.0）。
+        # 玩家参照读条命中/行动序需要当前时刻（出招 X.Xs 后命中 → 命中时刻 = now + X.X）。
+        _now = float(st.get("now", 0.0) or 0.0)
+        return f"🕐 时刻 {_now:.1f}s ｜ ⚡ 行动顺序：" + " → ".join(p[1] for p in entries[:limit])
 
     def _instance_next_player_name(self, st: dict, group_id: int, fallback_key=None) -> str:
         """v121 CTB：下一位玩家行动者名字（按存活玩家 ct 最小者；无则回退 fallback_key 或队伍第一人）。"""

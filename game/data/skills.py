@@ -236,7 +236,6 @@ PLAYER_SKILLS = {
         "skills": {
             "sk_lian_she": {
              'lv': 1,
-             'mp': 6,
              'power': 0.41,
              'kind': '物理',
              'exprs': ['atk*0.68 + 8 + player_lv*3.0 + skill_lv*7.5'],
@@ -250,7 +249,6 @@ PLAYER_SKILLS = {
             },
             "sk_miao_zhun_she_ji": {
              'lv': 4,
-             'mp': 6,
              'power': 1.17,
              'kind': '物理',
              'exprs': ['atk*1.3 + 18 + player_lv*5.0 + skill_lv*14'],
@@ -263,7 +261,6 @@ PLAYER_SKILLS = {
             },
             "sk_ying_yan_suo_ding": {
              'lv': 8,
-             'mp': 8,
              'power': 1.0,
              'kind': '增益',
              'cast': 0.35,
@@ -276,7 +273,6 @@ PLAYER_SKILLS = {
             },
             "sk_lie_wang_xian_jing": {
              'lv': 12,
-             'mp': 10,
              'power': 1.17,
              'kind': '物理',
              'exprs': ['atk*1.1 + 16 + player_lv*5.0 + skill_lv*13'],
@@ -292,7 +288,6 @@ PLAYER_SKILLS = {
             },
             "sk_feng_zhi_ji_zou": {
              'lv': 16,
-             'mp': 6,
              'power': 1.0,
              'kind': '增益',
              'cast': 0.3,
@@ -305,7 +300,6 @@ PLAYER_SKILLS = {
             },
             "sk_zhi_ming_ju_ji": {
              'lv': 20,
-             'mp': 14,
              'power': 1.51,
              'kind': '物理',
              'exprs': ['atk*1.3 + 21 + player_lv*6.0 + skill_lv*15'],
@@ -320,7 +314,6 @@ PLAYER_SKILLS = {
             },
             "sk_shan_bi_bu": {
              'lv': 24,
-             'mp': 8,
              'power': 1.0,
              'kind': '增益',
              'cast': 0.3,
@@ -333,7 +326,6 @@ PLAYER_SKILLS = {
             },
             "sk_lie_yin_she_ji": {
              'lv': 28,
-             'mp': 8,
              'power': 1.17,
              'kind': '物理',
              'exprs': ['atk*1.1 + 15 + player_lv*5.0 + skill_lv*12'],

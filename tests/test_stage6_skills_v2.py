@@ -99,8 +99,9 @@ check("精力满 100 正常消耗连射", b5.resources.get("energy", 0) == 78, s
 b5.resources["energy"] = 50
 logs = cast(b5, p, "连射")
 check("连射耗 22 精力", b5.resources.get("energy", 0) == 46, str(b5.resources))
-# v153：连射 mp=6，但连射 hits=2（两段都吃 mp）→ 实测扣 12（488=500-12）；按实际数据断言
-check("连射耗 12 魔（hits=2×6）", p["mp"] == 500 - 12, str(p["mp"]))
+# v163 修正：游侠不耗魔力（策划案 12 章 §4.1「游侠不耗魔力，全技能纯精力消耗」）——v153 时连射误带 mp=6
+# 的错误断言（当时把 bug 当正确数据锁进测试）。游侠 mp 字段已清除。
+check("连射不耗魔（游侠纯精力消耗）", p["mp"] == 500, f"mp={p['mp']}")
 # 精力不足拦截（回合开始回 18：4→22 < 55 致命狙击）
 b6 = BT.Battle("monster", mkmon(), player=p)
 b6.resources["energy"] = 4

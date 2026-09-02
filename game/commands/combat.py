@@ -1681,6 +1681,12 @@ class CombatCmds(CommandBase):
         lines = [
             self._battle_formation_panel(player, b),
         ]
+        # v163 全局时刻显示（野外/世界Boss）：b._now = 战斗绝对时刻（1 刻 = 1 游戏秒）
+        try:
+            _bnow = float(getattr(b, "_now", 0.0) or 0.0)
+            lines.insert(1, f"🕐 时刻 {_bnow:.1f}s")
+        except Exception:
+            pass
         # 敌方血量汇总（多怪时每层一行；主目标行单独列出便于一眼）
         if len(b.enemies) <= 1:
             # v155 防御：战斗胜利后 enemies 可能被清空（b.enemy 变 {}）→ .get 兜底防 KeyError

@@ -74,8 +74,9 @@ def test_skill_list_res_cost_format():
               "attributes": {"str": 20, "int": 5},
               "learned_skills": ["连射"]}
     out = m._skill_list_page(ranger, 1)
-    check("连射消耗行格式 6 魔力 ｜ 精力 -22",
-          "6 魔力 ｜ 精力 -22" in out, out[:400])
+    _consume_part = out.split("消耗：")[1].split("｜")[0] if "消耗：" in out else ""
+    check("连射消耗行格式 精力 -22（v163 游侠不耗魔，纯精力消耗）",
+          "精力 -22" in out and "魔力" not in _consume_part, out[:400])
     check("消耗行不含 +22 混淆格式（消耗用-获得用+）",
           "精力 +22" not in out, out[:400])
     check("消耗行不含 `精力 -22` 负号样式残留检查（-22 前必须带 ｜ 间隔）",

@@ -2388,7 +2388,7 @@ class Battle:
             left = self._skill_cd_left(skill_name)
             logs.append(f"⏳【{skill_name}】还在冷却中(剩余 {left} 刻)！")
             return logs, True
-        if player["mp"] < info["mp"]:
+        if player["mp"] < info.get("mp", 0):
             logs.append("💙 魔力不足！")
             return logs, True
         # v2.0 核心资源：『消耗全部』终结技（consume_all）至少需 1 点
@@ -2452,7 +2452,7 @@ class Battle:
             return logs
         # v2.0 核心资源：技能消耗检查（res_cost，如怒气/连击点/信仰/气）
         # v104 R3 P1-4 修复：先验蓝再扣资源（原实现先扣 res_cost 后查 mp，蓝不足时怒气/连击点白扣）
-        if not _releasing and player["mp"] < info["mp"]:
+        if not _releasing and player["mp"] < info.get("mp", 0):
             logs.append("💙 魔力不足！")
             return logs
         # v130.2 P1-4：施放前核心资源快照（满弦判定 / 隐藏线每层加成读「施放时持有值」而非扣费后值）——
@@ -2522,7 +2522,7 @@ class Battle:
                 return logs
         # v34 符文·聚能：MP 消耗 -x%
         mana_lvl = self._enchant_lvl(self._enchant_effects(player), "mana_flow")
-        mp_cost = info["mp"]
+        mp_cost = info.get("mp", 0)
         if mana_lvl:
             mp_cost = max(1, int(mp_cost * (1 - C.rune_value("mana_flow", mana_lvl))))
         # v130.2 元素亲和药剂（mana_cost_down）：技能魔力消耗 ×(1-pct)（与符文乘算叠加）
@@ -2626,6 +2626,9 @@ class Battle:
                 "mana_lvl": mana_lvl,
             }
             # 出手瞬间已扣 MP/资源/进 CD（读条 = 已投入）；结算在命中时刻由 cast_done 执行
+            cd = info.get("cd", 0)
+            if cd:
+                self._set_skill_cd(skill_name, cd)
             return logs
         # 非读条路径（PVP / 蓄力释放）：立即结算
         logs += self._player_skill(st, skill_name, info, player, target=target)  # v122：target 传治疗队友目标
