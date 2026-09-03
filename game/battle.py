@@ -2017,7 +2017,12 @@ class Battle:
         else:
             # v154 读条命中制：普攻出手瞬间暂存参数（命中时刻 cast_done 才结算）
             if self.btype != "pvp":
-                self._pending_player_cast = {"kind": "atk", "st": st}
+                # v169.7 修 #132：普攻同样快照目标（指定 a2/a3 打后排时命中不丢目标）
+                _atk_tgt_a = self._active_target
+                self._pending_player_cast = {
+                    "kind": "atk", "st": st,
+                    "_hit_target": _atk_tgt_a if _atk_tgt_a is not None and _atk_tgt_a.get("hp", 0) > 0 else None,
+                }
             else:
                 logs += self._player_attack(st, player)
             # v154 数据驱动：出招 + 收招（速度折算）
@@ -2244,6 +2249,15 @@ class Battle:
                         self._player_casting = False
                         pc = self._pending_player_cast or {}
                         self._pending_player_cast = None
+                        # v169.7 修 #132：恢复施放时快照的目标（_enemy_phase 尾部已清 _active_target）
+                        # ——目标仍存活 → 设回 _active_target（伤害结算打到指定 a2/a3 而非主目标 a1）；
+                        #   目标已死 → 清 None（_damage_enemy 兜底主目标 = 命中落空语义）。
+                        _ht = pc.get("_hit_target")
+                        if _ht is not None:
+                            if _ht.get("hp", 0) > 0 and _ht in self.enemies:
+                                self._active_target = _ht
+                            else:
+                                self._active_target = None
                         # 目标已死 → 中断（命中落空）
                         if not self._enemy_dead():
                             _kind = pc.get("kind", ev.get("kind", ""))
@@ -2765,6 +2779,10 @@ class Battle:
             # 出招读条（cast 秒数，速度折算）在 player_turn 已排 cast_done；
             # 这里把"命中时刻要调用的结算函数 + 参数"暂存到 self._pending_player_cast，
             # 由 _process_until 的 cast_done 分支消费（用命中时刻状态重新计算）。
+            # v169.7 修 #132：命中时刻 _active_target 会被敌方行动段清空（_enemy_phase 尾部
+            # self._active_target = None），若不快照目标单位，命中结算打回主目标(a1)。
+            # 快照解析好的目标 dict 引用（攻击目标，非治疗）；命中时恢复 + 死亡回退。
+            _atk_tgt = self._active_target
             self._pending_player_cast = {
                 "skill_name": skill_name,
                 "info": info,
@@ -2772,6 +2790,7 @@ class Battle:
                 "target": target,
                 "mp_cost": mp_cost,
                 "mana_lvl": mana_lvl,
+                "_hit_target": _atk_tgt if _atk_tgt is not None and _atk_tgt.get("hp", 0) > 0 else None,
             }
             # 出手瞬间已扣 MP/资源/进 CD（读条 = 已投入）；结算在命中时刻由 cast_done 执行
             cd = info.get("cd", 0)
@@ -3131,11 +3150,18 @@ class Battle:
                     bonus += float(_ps.get("add", 0.20) or 0.20)
                     break
             # 疾风之心（游侠：专注结余 = 精力当前值，≥40 时本技能暴击 +20% 一次性）
+            # v169.7 修 #123：读「施放前」精力快照（_pre_cost_res）——技能 res_cost 扣费后才结算暴击，
+            # 读扣费后 energy 会让高耗技(30/35)施放时 energy 跌破 40 → 凝神永不触发（与满弦同坑，
+            # 见 _energy_high_crit）。快照缺失（直接调用非技能链）回落当前值。
             if info is not None:
                 for _pn, _ps in pm["proc"].get("focus_surplus_crit", []):
-                    _eng = int(self.resources.get("energy", 0) or 0)
+                    _pres = getattr(self, "_pre_cost_res", None)
+                    _eng = int(_pres.get("energy", 0) or 0) if isinstance(_pres, dict) \
+                        else int(self.resources.get("energy", 0) or 0)
                     if _eng >= int(_ps.get("surplus", 40) or 40):
                         bonus += float(_ps.get("add", 0.20) or 0.20)
+                        # 提示玩家凝神已触发（意见 #123 反馈「没看到提示文本」）
+                        self.p_eff["focus_surplus_proc"] = True
                         break
             # 元素之核（法师元素攻线：单系印记满 _ps.layers（默认 3）时该系结算暴击 +20%）
             if info is not None:
@@ -4986,6 +5012,9 @@ class Battle:
             tags.append(f"✨元素x{round(elem_mult, 2)}")
         if tags:
             logs[-1] += " " + "·".join(tags)
+        # v169.7 修 #123：疾风之心凝神触发提示（_passive_crit_bonus 置位，技能结算后消费一行）
+        if (self.p_eff or {}).pop("focus_surplus_proc", None):
+            logs.append("🎯 凝神屏息！结余 ≥40，本次技能暴击 +20%")
         if reaction_log:
             logs.append(reaction_log)
         # v2.0 元素印记：施放带 element 的技能后给目标挂印记 + 法师切换当前系
@@ -6959,9 +6988,11 @@ class Battle:
 
     def _monster_dodge_check(self, logs: list) -> bool:
         """v105 怪物闪避判定：怪物闪避率 × (1 - 我方精准)（精准上限 60%），闪避率上限 30%。
-        命中判定成功追加闪避日志并返回 True（调用方跳过本次伤害结算）。"""
+        命中判定成功追加闪避日志并返回 True（调用方跳过本次伤害结算）。
+        v169.7 修 #132：判定目标用 _active_target（指定打 a2 时判 a2 闪避），无活跃目标回退主目标。"""
         try:
-            mon_dodge = min(float((self.enemy or {}).get("dodge", 0) or 0), 0.30)
+            _mob = getattr(self, "_active_target", None) or self.enemy or {}
+            mon_dodge = min(float(_mob.get("dodge", 0) or 0), 0.30)
             if mon_dodge <= 0:
                 return False
             my_hit = 0.0
@@ -6971,7 +7002,7 @@ class Battle:
                 my_hit = 0.0
             eff = mon_dodge * (1 - my_hit)
             if eff > 0 and random.random() < eff:
-                logs.append(f"💨 {self.enemy.get('name', '怪物')} 闪避了攻击！")
+                logs.append(f"💨 {_mob.get('name', '怪物')} 闪避了攻击！")
                 return True
         except Exception:
             pass
