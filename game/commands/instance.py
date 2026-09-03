@@ -667,6 +667,17 @@ class InstanceCmds(CommandBase):
             db.clear_battle(group_id, m)
         # v141 大陆隔离：离开副本 → 销毁大陆实例 + 全员 world_id 回主大陆
         _wid = st.get("world_id") or ""
+        # v173.3 意见#166：离开副本须复位 cur_map/cur_subarea 到副本入口（与撤退 retreat
+        # 同款 626-631）——此前只清 battle + world_id 回 mainland，玩家 cur_map 仍停
+        # 在副本内部房间 → 移动被副本图逻辑拦（不在大陆 MAP_CONNECTIONS），体验=“跑不掉
+        # 原地只能用传送”。
+        if st.get("rooms"):
+            _mid = (st.get("inst_id") or "").removeprefix("inst_")
+            _entry_sa = C.map_entry_subarea(_mid)
+            if _entry_sa:
+                for m in st["members"]:
+                    if str(m) in cur:
+                        db.update_player(group_id, m, cur_map=_mid, cur_subarea=_entry_sa)
         if _wid.startswith("inst:"):
             for m in st["members"]:
                 if str(m) in cur:
