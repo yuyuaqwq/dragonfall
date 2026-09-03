@@ -346,6 +346,33 @@ def _render_rune(d, lines, equipped):
     lines.append(f"💡 『附魔 <装备名> {d['name']}』刻印到装备 ｜ 出售价 {d.get('price', 0)} 金币")
 
 
+def _render_encyclopedia_equip(r):
+    """v169.x 意见#88：未拥有装备图鉴预览——复用百科 v167.1 装备单查渲染风格
+    （⚔️ 名称(部位·Lv·品质) + 系列/需求/来源/套装/特效/描述 + 图鉴提示）。
+    r 为名册条目（无随机词条/强化；属性见 desc，与商店/掉落生成的同原型装备一致）。"""
+    _q = C.QUALITY.get(r.get("quality", "white"), {})
+    _slot_nm = C.EQUIP_SLOTS.get(r.get("slot", ""), r.get("slot", "?"))
+    _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
+    _req = r.get("req") or {}
+    _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
+    el = [f"⚔️ {_q.get('color', '')}【{r['name']}】({_slot_nm}·Lv.{r.get('lv', '?')}·{_q.get('name', r.get('quality'))})",
+          "━━━━━━━━━━━━"]
+    if r.get("series"):
+        el.append(f"系列：{r['series']}")
+    el.append(f"需求：{_req_s}")
+    if r.get("source"):
+        el.append(f"来源：{r['source']}")
+    if r.get("set"):
+        el.append(f"套装：{r['set']}")
+    if r.get("special"):
+        el.append(f"特效：{r['special']}")
+    if r.get("desc"):
+        el.append(f"{r['desc']}")
+    el.append("")
+    el.append(f"💡 图鉴预览（未拥有）——『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
+    return "\n".join(el)
+
+
 def _render_blueprint(d, lines, equipped):
     """图纸详情"""
     # ===== 图纸（v41 毕业套锻造材料） =====
@@ -1178,7 +1205,10 @@ class EconomyCmds(CommandBase):
         _rare_hint = (f"\n💡 稀有产出需前往产出价≥{C.RARE_MATERIAL_PRICE} 材料的区域（高级图）" if not rare_hit else "")
         # v105R3 M14 P3-2：材料每项单独一行（对齐物品详情排版规范 v101.21）
         _got_txt = "".join(f"\n{m}x{c}" for m, c in got.items())
-        return (f"🌿 采集完成！你在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
+        # v169.x 意见#101：采集完成消息顶部加玩家名（同文件 791 行『玩家 {pname}』口径：
+        # player.name 优先，缺省回退 qq_id）
+        _pname = (player or {}).get("name") or str(qq_id)
+        return (f"🌿 采集完成！玩家【{_pname}】在【{cur_map.get('name', '？')}】采到了：{_got_txt}\n"
                 + self._tip("gather") + f"{lv_msg}{_mount_bonus_line}{_pet_egg_line}{_life_line}{_rare_hint}{_daily_txt}")
 
     # ---------- v105 挖掘疲劳值（19 章 §2.2；M14 P2-4 最小实现） ----------
@@ -5499,6 +5529,45 @@ class EconomyCmds(CommandBase):
                     target = {"data": item}
                     equipped = True
                     break
+        # v169.x 意见#62：『物品详情 <部位>』快捷查看身上已穿戴装备（部位词命中优先于背包名称）
+        # 部位词表与『卸下』同款倒排（EQUIP_SLOTS 中文名 → slot key）+ v167.1 百科装备别名；
+        # 纯部位词=玩家意图查部位（名册/背包物品名无纯部位词冲突——probe 验证 652 名册 ∩ 部位词 = ∅）
+        if not target and not item_name.isdigit():
+            _slot_map = {v: k for k, v in C.EQUIP_SLOTS.items()}
+            _slot_map.update({"武器": "weapon", "头盔": "helm", "帽子": "helm", "头": "helm",
+                              "胸甲": "armor", "护甲": "armor", "衣服": "armor", "衣": "armor",
+                              "护腿": "legs", "腿": "legs", "靴子": "boots", "鞋": "boots", "靴": "boots",
+                              "戒指": "ring", "戒": "ring", "项链": "necklace", "链": "necklace"})
+            _slot_key = _slot_map.get(item_name)
+            if _slot_key:
+                _worn = (player.get("equipment") or {}).get(_slot_key)
+                if not _worn:
+                    yield event.plain_result(f"{C.EQUIP_SLOTS[_slot_key]}部位未穿戴装备！『我的装备』查看穿戴情况～")
+                    return
+                target = {"data": _worn}
+                equipped = True
+        # v169.x 意见#88：背包/已装备都没有 → 装备名册按名查（未拥有装备图鉴预览）
+        if not target and not item_name.isdigit():
+            _rids = C.EQUIP_ROSTER_BY_NAME.get(item_name, [])
+            if not _rids:
+                _hit_r = [r for r in C.EQUIP_ROSTER.values() if item_name in r.get("name", "")]
+                if len(_hit_r) == 1:
+                    yield event.plain_result(_render_encyclopedia_equip(_hit_r[0]))
+                    return
+                if len(_hit_r) > 1:
+                    fl = [f"❓ 找到 {len(_hit_r)} 件名字含『{item_name}』的装备（未拥有），用全名查询："]
+                    for _i, _r in enumerate(_hit_r[:8], 1):
+                        _q = C.QUALITY.get(_r.get("quality", "white"), {})
+                        _snm = C.EQUIP_SLOTS.get(_r.get("slot", ""), "?")
+                        fl.append(f"  {_i}. {_q.get('color', '')}【{_r['name']}】({_snm}·Lv.{_r.get('lv', '?')})")
+                    fl.append("💡 『百科装备 <部位>』按部位浏览全部装备")
+                    yield event.plain_result("\n".join(fl))
+                    return
+            else:
+                _rids = _rids[:1]
+            if _rids:
+                yield event.plain_result(_render_encyclopedia_equip(C.EQUIP_ROSTER[_rids[0]]))
+                return
         if not target:
             yield event.plain_result(f"背包里没有叫『{item_name}』的物品！『背包』查看全部～")
             return
