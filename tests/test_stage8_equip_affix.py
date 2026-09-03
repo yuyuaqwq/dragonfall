@@ -60,7 +60,7 @@ def test_data():
     print("【1. 数据完整性】")
     check("76 种词条（45 基准 + v130.2 资源联动词条 31——v110 审计拆分 tenacity_cc「坚韧」原 tenacity 键被 v106 韧性 stat 词条占用致双机制隐性叠加）", len(C.AFFIXES) == 76, str(len(C.AFFIXES)))
     check("专属 93", len(C.LEGENDARY_EFFECTS) == 93, str(len(C.LEGENDARY_EFFECTS)))  # v124: +愿者上钩/大地心跳; v140: +初火余烬; v141.3: D2 24 + D3 35; v169: +4 断档橙专属
-    check("名册 658 件", len(C.EQUIP_ROSTER) == 658, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180; v140: +213; v141.3: +龙鳞庇护之坠; v168: +8 新手本 Boss 主题装; v169: +12 断档补装; v171: +6 新手流派白装(粗钢×3/林语×3)
+    check("名册 682 件", len(C.EQUIP_ROSTER) == 682, str(len(C.EQUIP_ROSTER)))  # v124: +6 支线; v136 Phase6: +180; v140: +213; v141.3: +龙鳞庇护之坠; v168: +8 新手本 Boss 主题装; v169: +12 断档补装; v171: +6 新手流派白装; v172 路B: +24 重锻专属(壁垒/铭文/贤者/巡猎/夜行/镇岳系)
     check("品质倍率绿 1.3", C.QUALITY["green"]["mult"] == 1.3)
     check("品质倍率蓝 1.55", C.QUALITY["blue"]["mult"] == 1.55)
     # 词条触发时机全合法

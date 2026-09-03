@@ -462,19 +462,13 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             info = C.ENHANCE_TABLE.get(enh)
             if info:
                 mult = info["mult"]
-        # v135 装备升级乘区（养装备）：与强化乘区相乘，稳定保底、不随换装沉没
-        upg = item.get("upgrade_lv", 0)
-        upg_mult = 1.0
-        if upg > 0:
-            uinfo = C.UPGRADE_TABLE.get(upg)
-            if uinfo:
-                upg_mult = uinfo["mult"]
         item_src = {}
         for k, v in item.get("stats", {}).items():
             if k in STAT_NAMES:
                 # v101.21e 修复：PCT_STATS（crit/dodge）保留小数——原代码只特判 crit，
                 # dodge 0.05 被 int() 截断成 0，装备闪避加成全部丢失
-                item_src[k] = item_src.get(k, 0) + (int(v * mult * upg_mult) if k not in C.PCT_STATS else v * upg_mult)
+                # v172 真等级化：升级乘区已移除（装备 lv 提升 → stats 重算），此处仅乘强化
+                item_src[k] = item_src.get(k, 0) + (int(v * mult) if k not in C.PCT_STATS else v)
         for af in item.get("affixes", []):
             # 阶段八：词条 v2 是 ID 列表（str），常驻属性已在生成时折算进 stats；
             # 旧结构 [{"stat","value"}] 兼容处理

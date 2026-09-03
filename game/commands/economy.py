@@ -171,6 +171,78 @@ def _equip_affix_features(d: dict) -> list:
     return features
 
 
+def _upgrade_recalc_equip(d: dict, new_lv: int) -> dict:
+    """v172 真等级化：装备升到 new_lv 后按生成公式重算 stats 并同步 price。
+
+    - 保留 affixes/enchant/sockets/calamity_bonus/req/desc/flavor/set/legendary/
+      craft_cost 等全部个体字段——只重算基础 stats 与 price（升级不动词条/附魔/宝石）。
+    - 武器/防具按原 weapon_type/req 族传分系参数（与 drops.generate_roster_equip 同口径）：
+      weapon → equip_stats(slot, lv, quality, weapon_type=weapon_type)
+      防具（helm/armor/legs/boots）→ 按 req 首属性族推 armor_family
+    - v29 武器类型特色（WEAPON_FLAVOR 固定加成，如剑微暴击/法杖魔攻）在生成时并入 stats，
+      升级重算需同步重挂（否则分系武器升 lv 后特色加成丢失）；flavor_stats 字段同口径刷新。
+    - 词条常驻属性（stat_affix_stats 按新 lv 折算 pene_flat 等）原并入 stats，重算后同样补挂
+      （旧词条 ID 列表保留，仅重算其折算值，避免固定穿透等随 lv 变化的词条掉档）。
+    - 橙装传说专属 stat 型效果（_merge_legendary_stats 按 lv 折算 hp_pct）同样补挂。
+    """
+    slot = d.get("slot", "")
+    quality = d.get("quality", "white")
+    stats = C.equip_stats(slot, new_lv, quality)
+    weapon_type = d.get("weapon_type")
+    # v156 装备分系（名册路径同款）
+    if slot == "weapon" and weapon_type:
+        stats = C.equip_stats(slot, new_lv, quality, weapon_type=weapon_type)
+    elif slot in ("helm", "armor", "legs", "boots"):
+        from ..core.stats import ARMOR_FAMILY_ALIAS  # C 聚合未导出该别名，core 直引
+        _req = d.get("req") or {}
+        _fam = ARMOR_FAMILY_ALIAS.get(next(iter(_req), ""), None)
+        if _fam:
+            stats = C.equip_stats(slot, new_lv, quality, armor_family=_fam)
+    # v29 武器类型特色（生成时并入 stats，升级后同口径重挂；非武器无 flavor）
+    if slot == "weapon" and weapon_type:
+        flavor = C.WEAPON_FLAVOR.get(weapon_type, {})
+        flavor_stats = {}
+        if flavor:
+            for fk, fv in flavor.items():
+                if fk == "desc" or not isinstance(fv, (int, float)):
+                    continue
+                if fk == "crit":
+                    stats["crit"] = round(stats.get("crit", 0) + fv, 3)
+                    flavor_stats["crit"] = fv
+                elif fk == "spd_fix":
+                    stats["spd"] = stats.get("spd", 0) + int(fv)
+                    flavor_stats["spd"] = int(fv)
+                elif fk == "hp_fix":
+                    stats["hp"] = stats.get("hp", 0) + int(fv)
+                    flavor_stats["hp"] = int(fv)
+                else:
+                    add = int(stats.get(fk, 0) * fv)
+                    stats[fk] = stats.get(fk, 0) + add
+                    flavor_stats[fk] = add
+        if flavor_stats:
+            d["flavor"] = flavor_stats
+        else:
+            d.pop("flavor", None)
+    # 词条常驻属性折算（按新 lv；触发型词条不进 stats，battle 消费，不动）
+    from ..core.affix import stat_affix_stats
+    for k, v in stat_affix_stats([a for a in (d.get("affixes") or []) if isinstance(a, str)],
+                                 slot, new_lv).items():
+        if k in C.PCT_STATS:
+            stats[k] = round(stats.get(k, 0) + v, 4)
+        else:
+            stats[k] = stats.get(k, 0) + int(v)
+    # v125 名册专属 stat 型效果（hp_pct 按新 lv 白板折算）
+    if d.get("legendary"):
+        from ..core.drops import _merge_legendary_stats
+        _merge_legendary_stats(stats, d["legendary"], slot, new_lv)
+    d["lv"] = new_lv
+    d["stats"] = stats
+    # 同步 price（生成公式：equip_value(stats) × (3 + lv×0.5) × 品质倍率）
+    from ..core.stats import equip_value
+    d["price"] = int(equip_value(stats) * (3 + new_lv * 0.5) * C.QUALITY[quality]["mult"])
+    return d
+
+
 def _render_equip(d, lines, equipped):
     """装备详情"""
     # ===== 装备 =====
@@ -268,11 +340,6 @@ def _render_equip(d, lines, equipped):
         info = C.ENHANCE_TABLE.get(enh)
         # v104R3 M11 P3-6：括号前补空格（数值+两侧空格排版），× 倍率防误读为 +136%
         lines.append(f"强化：+{enh} (属性 ×{info['mult']})" if info else f"强化：+{enh}")
-    # v135 装备升级显示（养装备）：upgrade_lv > 0 才显示
-    _upg = d.get("upgrade_lv", 0)
-    if _upg > 0:
-        _uinfo = C.UPGRADE_TABLE.get(_upg)
-        lines.append(f"升级：Lv.{_upg} (属性 ×{_uinfo['mult']})" if _uinfo else f"升级：Lv.{_upg}")
     # v136 原石孔位展示
     _socks = d.get("sockets") or {}
     if _socks:
@@ -371,6 +438,19 @@ def _render_encyclopedia_equip(r):
     el.append("")
     el.append(f"💡 图鉴预览（未拥有）——『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
     return "\n".join(el)
+
+
+def _roster_gen_equip(r: dict):
+    """按名册条目生成一件标准装备用于百科展示。rid 不在条目内 → 用名册名反查
+    EQUIP_ROSTER_BY_NAME（与掉落/商店生成同源）；失败返回 None（安全降级为无属性视图）。"""
+    try:
+        _rids = C.EQUIP_ROSTER_BY_NAME.get(r.get("name", "")) or [
+            _k for _k, _rr in C.EQUIP_ROSTER.items() if _rr.get("name") == r.get("name")]
+        if not _rids:
+            return None
+        return C.generate_roster_equip(_rids[0])
+    except Exception:
+        return None
 
 
 def _render_blueprint(d, lines, equipped):
@@ -3062,10 +3142,12 @@ class EconomyCmds(CommandBase):
     @require_player()
 
     async def equip_upgrade(self, event: AstrMessageEvent):
-        """v135 装备升级（养装备）：装备等级 lv → lv+N，稳定保底、成功率 100%。
+        """v172 装备升级（真等级化，原 v135 倍率层）：装备 lv → lv+1，属性随 equip_stats 重算。
 
         定位：强化=赌（运气掉级）、升级=养（稳定保底）、附魔=快（一次成型）。
-        副业门复用强化副业等级；材料每级 1 精炼强化石；上限 MAX_UPGRADE=10。
+        真等级化：每次升级装备 lv +1（上限 = 玩家当前等级，追平即止，不许超前）；
+        属性按生成公式重算（词条/附魔/宝石全保留，只重算基础 stats 并同步 price）。
+        副业门复用强化副业等级；材料每级 1 精炼强化石；金币按 UPGRADE_TABLE 目标级阶梯。
         """
         group_id, qq_id = self._uid(event)
         item_name = self._strip_cmd(event, "升级")
@@ -3106,30 +3188,36 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result(f"背包里没有叫『{item_name}』的装备！(已装备的装备也可以直接『升级 <装备名>』)")
                 return
         d = target["data"]
-        cur_upg = d.get("upgrade_lv", 0)
-        if cur_upg >= C.MAX_UPGRADE:
-            yield event.plain_result(f"【{d['name']}】已经升级到极限 Lv.{cur_upg} 了！")
+        # v172 真等级化：升级 = 装备 lv +1（上限追平玩家等级，不许超前——穿装门槛按 d['lv'] 判）
+        cur_lv = d.get("lv", 0) or 0
+        next_lv = cur_lv + 1
+        if next_lv > (player.get("level") or 1):
+            yield event.plain_result(f"【{d['name']}】已是 Lv.{cur_lv}，再升需要你 Lv.{next_lv}（你 Lv.{player.get('level')}）！"
+                                     f"升级追平玩家等级就到顶，先练级再来～")
             return
-        info = C.UPGRADE_TABLE[cur_upg]
+        # 金币：UPGRADE_TABLE cost 阶梯按装备当前级取（Lv.3→4 花 3 级档 675；超过 10 级封顶
+        # 用 10 级档 11524——表只到 10，真等级化后高等级装备每 +1 级消耗表末档）
+        upg_tbl = C.UPGRADE_TABLE or {}
+        info = upg_tbl.get(min(cur_lv, 10)) or upg_tbl.get(next_lv) or {"cost": 300}
         # 副业门：升级等级 ≤ 强化副业等级（与强化同门槛，形成强化→升级进阶路径）
         ok, act_msg = self._prof_active_check(group_id, qq_id, "enhance", require_apprentice=True)
         if not ok:
             yield event.plain_result(act_msg)
             return
         prof_lv = db.get_prof_level(group_id, qq_id, "enhance")
-        need = min(cur_upg + 1, 10)
+        need = min(next_lv, 10)
         if prof_lv < need:
             yield event.plain_result(
-                f"升级 Lv.{cur_upg} → Lv.{cur_upg+1} 需要强化副业 Lv.{need}(你 Lv.{prof_lv})！"
+                f"升级 Lv.{cur_lv} → Lv.{next_lv} 需要强化副业 Lv.{need}(你 Lv.{prof_lv})！"
                 f"强化与升级共修，多强化装备升级副业吧～"
             )
             return
         if player["gold"] < info["cost"]:
-            yield event.plain_result(f"升级 Lv.{cur_upg} → Lv.{cur_upg+1} 需要 {info['cost']} 金币，你只有 {player['gold']}。")
+            yield event.plain_result(f"升级 Lv.{cur_lv} → Lv.{next_lv} 需要 {info['cost']} 金币，你只有 {player['gold']}。")
             return
         # 材料：每级 1 精炼强化石
         if db.count_item(group_id, qq_id, C.UPGRADE_STONE) < 1:
-            yield event.plain_result(f"升级 Lv.{cur_upg} → Lv.{cur_upg+1} 需要 1 个{C.UPGRADE_MATERIAL_CN}！"
+            yield event.plain_result(f"升级 Lv.{cur_lv} → Lv.{next_lv} 需要 1 个{C.UPGRADE_MATERIAL_CN}！"
                                      f"(铁匠铺/炼金可得，『背包』查看～)")
             return
         # 体力：升级消耗 10（全校验通过后才扣，防白扣）
@@ -3139,19 +3227,18 @@ class EconomyCmds(CommandBase):
             return
         db.update_player(group_id, qq_id, gold=player["gold"] - info["cost"])
         db.remove_item(group_id, qq_id, C.UPGRADE_STONE, 1)
-        # 升级必定成功（与强化差异化：稳定保底）
-        d["upgrade_lv"] = cur_upg + 1
-        next_mult = C.UPGRADE_TABLE[cur_upg + 1]["mult"]
+        # 升级必定成功（与强化差异化：稳定保底）——真等级化：lv +1 + 属性按生成公式重算
+        _upgrade_recalc_equip(d, next_lv)
         if target.get("_equipped"):
             eq = dict(player.get("equipment") or {})
             eq[target["_equipped"]] = d
             db.update_player(group_id, qq_id, equipment=eq)
         else:
             db.update_item_data(group_id, qq_id, target["key"], d)
-        lines = [f"🔧 装备升级成功！【{d['name']}】Lv.{cur_upg} → Lv.{cur_upg+1} ｜ 属性 ×{next_mult:.2f}"
-                 f"(消耗 {info['cost']} 金币 + {C.UPGRADE_MATERIAL_CN}×1)"]
+        lines = [f"🔧 装备升级成功！【{d['name']}】Lv.{cur_lv} → Lv.{next_lv}"
+                 f" ｜ 属性随等级重算(消耗 {info['cost']} 金币 + {C.UPGRADE_MATERIAL_CN}×1)"]
         # 升级也给强化副业少量经验（高段多给，与强化同思路：养得越深练得越快）
-        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", max(1, cur_upg + 1))
+        new_lv, leveled = db.add_prof_exp(group_id, qq_id, "enhance", max(1, next_lv))
         if leveled:
             lines.append(f"🌟 强化副业提升到 Lv.{new_lv}！")
         _done, _msg = self._daily_prof_bump(group_id, qq_id, "enhance")
@@ -3159,8 +3246,6 @@ class EconomyCmds(CommandBase):
             lines.append(_msg.strip())
         db.bump_stats(group_id, qq_id, enhance_count=1)  # 升级并入强化养成计数（stats 白名单）
         C.check_achievements(group_id, qq_id, player)
-        if cur_upg + 1 == 10:
-            lines.append("🌟 装备焕发出温润的宝光——这已是工艺的极限！")
         yield event.plain_result("\n".join(lines))
 
     # ================= v136 原石系统：打孔/镶嵌/拆卸/合成/查看 =================
@@ -3729,30 +3814,40 @@ class EconomyCmds(CommandBase):
             f"花费 {cost} 金币\n"
             f"🎒 回收 符文碎片×{lvl}（『附魔 <装备> <符文>』可重新刻印）")
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备进化(?:[\s\S]*)$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备重锻(?:[\s\S]*)$")
     @require_player()
 
-    async def evolve_equip(self, event: AstrMessageEvent):
-        """v136 装备进化（怪猎派生树）：『装备进化 <装备名>』——同系列旧武器→高阶武器。
+    async def refine_equip(self, event: AstrMessageEvent):
+        """v172 装备重锻（怪猎派生树，原 v136 装备进化）：『装备重锻 <装备名>』——同系列旧武器→高阶武器。
 
         消耗稀有素材+金钱 → 新装备入包，继承旧装备强化/升级等级（inherit=half 折半向下取整）。
         旧装备被消耗（投资不沉没：强化/升级等级带到新装备）。
         """
         group_id, qq_id = self._uid(event)
-        raw = self._strip_cmd(event, "装备进化").strip()
+        raw = self._strip_cmd(event, "装备重锻").strip()
         player = self._player(group_id, qq_id)
         if not self._at_smith(player):
-            yield event.plain_result("需要到铁匠铺/锻造坊才能进化装备！(先『地图』移动到铁匠铺)")
+            yield event.plain_result("需要到铁匠铺/锻造坊才能重锻装备！(先『地图』移动到铁匠铺)")
             return
         if not raw:
-            # 无参：列出全部可进化配方
-            lines = ["🔀 【装备进化】（怪猎派生树：旧→新，继承一半强化/升级）", ""]
-            for _src, _cfg in C.EVOLVE_RECIPES.items():
-                _tgt = C.display("recipes", _cfg["target"])
-                _mats = " + ".join(f"{C.display('materials', m)}×{n}" for m, n in _cfg["mats"].items())
-                lines.append(f"  {_src} → {_tgt}｜{_mats} + {_cfg['gold']}金")
+            # 无参：列出全部可重锻配方（含路B 重锻专属——REFINE_EXCLUSIVE_RECIPES 以名册 rid 为目标）
+            _src_rows = []
+            for _src, _cfg in C.REFINE_RECIPES.items():
+                _tgt_rec = C.CRAFT_RECIPES.get(_cfg["target"]) or {}
+                _tgt_nm = _tgt_rec.get("name") or C.display("recipes", _cfg["target"])
+                _tgt_nm = _tgt_nm or C.EQUIP_ROSTER.get(_cfg["target"], {}).get("name", _cfg["target"])
+                _src_rows.append((_src, _tgt_nm, _cfg.get("mats", {}), _cfg.get("gold", 0)))
+            _ref_excl = getattr(C, "REFINE_EXCLUSIVE_RECIPES", None) or {}
+            for _src, _cfg in _ref_excl.items():
+                _rid = _cfg.get("target", "")
+                _tgt_nm = C.EQUIP_ROSTER.get(_rid, {}).get("name", _rid)
+                _src_rows.append((_src, _tgt_nm, _cfg.get("mats", {}), _cfg.get("gold", 0)))
+            lines = ["🔀 【装备重锻】（怪猎派生树：旧→新，继承一半强化/升级）", ""]
+            for _src, _tgt_nm, _mats, _gold in _src_rows:
+                _mats_s = " + ".join(f"{C.display('materials', m)}×{n}" for m, n in _mats.items())
+                lines.append(f"  {_src} → {_tgt_nm}｜{_mats_s} + {_gold}金")
             lines.append("")
-            lines.append("💡 『装备进化 <装备名>』进化你的装备，继承一半强化/升级！")
+            lines.append("💡 『装备重锻 <装备名>』重锻你的装备，继承一半强化/升级！")
             yield event.plain_result("\n".join(lines))
             return
         target, err = self._gem_find_equip(group_id, qq_id, player, raw)
@@ -3763,20 +3858,30 @@ class EconomyCmds(CommandBase):
         src_name = d.get("name", "")
         # 名字可能带品质色前缀（如 🔵·弯刀），用 in 匹配配方 key
         rec = None
-        for _src, _cfg in C.EVOLVE_RECIPES.items():
+        for _src, _cfg in C.REFINE_RECIPES.items():
             if _src in src_name:
                 rec = _cfg
                 break
         if not rec:
-            yield event.plain_result(f"【{src_name}】没有进化配方！『装备进化』看可进化列表～")
+            yield event.plain_result(f"【{src_name}】没有重锻配方！『装备重锻』看可重锻列表～")
             return
-        tgt_rec = C.CRAFT_RECIPES.get(rec["target"])
-        if not tgt_rec:
-            yield event.plain_result(f"【{src_name}】的进化目标不存在(配置缺失)！")
+        # v172 路B：重锻专属（REFINE_EXCLUSIVE_RECIPES，target = 名册 rid，无锻造配方）——
+        # 命中时走 generate_roster_equip(rid) 精确生成；目标等级门槛从名册条目取。
+        _ref_excl = getattr(C, "REFINE_EXCLUSIVE_RECIPES", None) or {}
+        _excl_src = None
+        for _src_k, _cfg in _ref_excl.items():
+            if _src_k in src_name:
+                _excl_src = _src_k
+                break
+        _is_exclusive = _excl_src is not None
+        tgt_rec = C.CRAFT_RECIPES.get(rec["target"]) if not _is_exclusive else None
+        if not _is_exclusive and not tgt_rec:
+            yield event.plain_result(f"【{src_name}】的重锻目标不存在(配置缺失)！")
             return
         # 校验等级门槛
-        if tgt_rec["lv"] > player["level"] + 6:
-            yield event.plain_result(f"进化目标【{tgt_rec['name']}】是 Lv.{tgt_rec['lv']}，你才 Lv.{player['level']}，等级再高些才能驾驭！")
+        _tgt_lv = tgt_rec["lv"] if tgt_rec else C.EQUIP_ROSTER.get(rec["target"], {}).get("lv", 0)
+        if _tgt_lv > player["level"] + 6:
+            yield event.plain_result(f"重锻目标【{C.EQUIP_ROSTER.get(rec['target'], {}).get('name', tgt_rec['name'] if tgt_rec else rec['target'])}】是 Lv.{_tgt_lv}，你才 Lv.{player['level']}，等级再高些才能驾驭！")
             return
         # 校验材料
         lack = []
@@ -3785,11 +3890,11 @@ class EconomyCmds(CommandBase):
             if have < n:
                 lack.append(f"{C.display('materials', m)}×{n}(你有{have})")
         if lack:
-            yield event.plain_result(f"进化材料不足！还缺：{'、'.join(lack)}。Boss 掉落稀有素材～")
+            yield event.plain_result(f"重锻材料不足！还缺：{'、'.join(lack)}。Boss 掉落稀有素材～")
             return
         # 校验金币
         if player["gold"] < rec["gold"]:
-            yield event.plain_result(f"金币不足！进化需要 {rec['gold']} 金币，你只有 {player['gold']}。")
+            yield event.plain_result(f"金币不足！重锻需要 {rec['gold']} 金币，你只有 {player['gold']}。")
             return
         # 扣材料 + 扣金币 + 扣旧装备
         for m, n in rec["mats"].items():
@@ -3802,23 +3907,43 @@ class EconomyCmds(CommandBase):
         else:
             db.remove_item(group_id, qq_id, target["key"], 1)
         # 造新装备 + 继承强化/升级（half 折半向下取整）
-        new_equip = C.craft_recipe_make(rec["target"])
+        # v172 真等级化：升级投资 = 旧装备真实 lv 超出其名册基础 lv 的部分（升级层数）；
+        # full=全额继承、half=折半向下取整。旧装备 lv 基础（本身含 base_lv）不重复折算——
+        # 目标装备基础 lv 通常高于旧装备，直接用 lv 差会恒为 0/负（升级投资被吞），
+        # 用「真实 lv - 名册 base_lv」才是玩家花的升级层数（旧 upgrade_lv 同口径）。
+        if _is_exclusive:
+            # 重锻专属：无锻造配方，走名册精确生成（generation 同款词条/套装/专属）
+            new_equip = C.generate_roster_equip(rec["target"])
+        else:
+            new_equip = C.craft_recipe_make(rec["target"])
         _inh = rec.get("inherit", "half")
+        # 旧装备名册基础 lv（按名反查名册；查不到兜底用当前 lv 当已含全部升级 → 不继承）
+        _base_lv = d.get("lv", 0) or 0
+        try:
+            for _rid in C.EQUIP_ROSTER_BY_NAME.get(src_name, []):
+                _base_lv = C.EQUIP_ROSTER[_rid].get("lv", _base_lv)
+                break
+        except Exception:
+            pass
+        _upg_boost = max(0, ((d.get("lv", 0) or 0) - _base_lv))
         if _inh == "full":
             new_equip["enhance"] = d.get("enhance", 0)
-            new_equip["upgrade_lv"] = d.get("upgrade_lv", 0)
+            new_equip["lv"] = new_equip.get("lv", 0) + _upg_boost
         else:  # half
             new_equip["enhance"] = (d.get("enhance", 0) or 0) // 2
-            new_equip["upgrade_lv"] = (d.get("upgrade_lv", 0) or 0) // 2
+            new_equip["lv"] = new_equip.get("lv", 0) + _upg_boost // 2
         # 原石/炼成不继承（新装备重新追求）
         import uuid
         key = f"eq_{uuid.uuid4().hex[:8]}"
         db.add_item(group_id, qq_id, key, new_equip)
         _eh = new_equip["enhance"]
-        _up = new_equip["upgrade_lv"]
-        _inh_str = f"继承强化+{_eh}/升级Lv.{_up}" if (_eh or _up) else "（新装备）"
+        _lv_boost = _upg_boost // 2 if _inh != "full" else _upg_boost
+        _inh_str = f"继承强化+{_eh}" if _eh else ""
+        if _lv_boost > 0:
+            _inh_str = (_inh_str + " / " if _inh_str else "") + f"升级继承 Lv.{_lv_boost}"
+        _inh_str = _inh_str or "（新装备）"
         yield event.plain_result(
-            f"🔀 【装备进化成功】{src_name} 淬炼成 {C.QUALITY[new_equip['quality']]['color']}【{new_equip['name']}】！\n"
+            f"🔀 【装备重锻成功】{src_name} 淬炼成 {C.QUALITY[new_equip['quality']]['color']}【{new_equip['name']}】！\n"
             f"🎯 {_inh_str}——旧装备的强化/升级投资不沉没！\n"
             f"💰 消耗 {rec['gold']} 金币 + 稀有素材")
 
@@ -4701,8 +4826,11 @@ class EconomyCmds(CommandBase):
                 "━━━━━━━━━━━━",
                 "🔍 可查询：装备 / 材料 / 怪物 / 地图 / 副本 / 符文",
                 "🌐 分类浏览：『百科 副本』看全部副本 · 『百科 材料』按分类看材料 · 『百科 世界』看全大陆区域",
-                "⚔️ 装备：『百科 <装备名>』看单件 · 『百科 装备』总览",
+                "⚔️ 装备：『百科 <装备名>』看单件（含属性/词条/专属）· 『百科 装备』总览",
                 "　　『百科装备 <部位>』列出该部位全部装备（部位：武器/头盔/胸甲/护腿/靴子/戒指/项链）",
+                "✨ 词条：『百科 词条』看全部 76 词条 · 『百科 词条 <关键词>』查单个（如『百科 词条 破甲』）",
+                "💎 宝石：『百科 宝石』看幸运宝石 10 阶（碎裂→神话）· 『百科 宝石 <阶名>』查单个",
+                "　　『百科 符文』看全部符文 · 『百科 符文 <名>』查单个（如『百科 符文 残忍』）",
                 "例：『百科 铁皮头盔』→ 装备详情｜『百科装备 头盔 2』→ 头盔第2页",
                 "　　『百科 狼皮』→ 材料｜『百科 光耀狼』→ 怪物",
                 self._tip("rune"),
@@ -4721,6 +4849,17 @@ class EconomyCmds(CommandBase):
             return
         if raw in ("世界", "大陆"):
             yield event.plain_result(self._ency_browse_world())
+            return
+        # 0.1 词条/宝石分类浏览与单查（v172：全量编目 + 名称关键词命中）
+        if raw == "词条" or raw.startswith("词条 ") or raw == "词缀" or raw.startswith("词缀 "):
+            yield event.plain_result(self._ency_browse_affixes(raw, qq_id))
+            return
+        if raw == "宝石" or raw.startswith("宝石 ") or raw == "幸运宝石" or raw.startswith("幸运宝石 "):
+            yield event.plain_result(self._ency_browse_gems(raw, qq_id))
+            return
+        # 裸『符文』/『符文 N』→ 全量分页浏览；『符文 <名>』下方老逻辑单查兜底
+        if re.match(r"^符文(?:\s+\d+)?\s*$", raw):
+            yield event.plain_result(self._ency_browse_runes(raw, qq_id))
             return
         # 1. 符文查询（#135 模板汉化：原代码把 rn_xxx 内部 key 直接拼进标题/使用行 →
         # 「史诗符文·rn_brutal」；desc 模板 {v}/{v1} 未填值 → 效果行出现「攻击 {v}% 概率」
@@ -4803,6 +4942,17 @@ class EconomyCmds(CommandBase):
                 yield event.plain_result("\n".join(elines))
                 return
             _r = _roster_exact[0]
+            # v172 百科详情：名册只有基础字段，先按名册生成一件标准装备（确定性统计词条
+            # 池随机与真实生成同源）再渲染完整属性/词条/专属——与『物品详情』同源口径。
+            _eq = _roster_gen_equip(_r)
+            # 该件在 CRAFT_RECIPES 中是否有锻造配方（获取链提示用；rid 与生成路径同源）
+            _rid_s = ""
+            try:
+                _rids0 = C.EQUIP_ROSTER_BY_NAME.get(_r.get("name", "")) or [
+                    _k for _k, _rr in C.EQUIP_ROSTER.items() if _rr.get("name") == _r.get("name")]
+                _rid_s = _rids0[0] if _rids0 else ""
+            except Exception:
+                _rid_s = ""
             _q = C.QUALITY.get(_r.get("quality", "white"), {})
             _slot_nm = C.EQUIP_SLOTS.get(_r.get("slot", ""), _r.get("slot", "?"))
             _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
@@ -4810,6 +4960,44 @@ class EconomyCmds(CommandBase):
             _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
             elines = [f"⚔️ {_q.get('color', '')}【{_r['name']}】({_slot_nm}·Lv.{_r.get('lv', '?')}·{_q.get('name', _r.get('quality'))})",
                      "━━━━━━━━━━━━"]
+            # ---- 属性值 / 词条 / 专属：与真实生成（generate_roster_equip）同口径 ----
+            if _eq:
+                if _r.get("weapon_type"):
+                    _wt_nm = C.display("weapon_types", _r["weapon_type"])
+                    elines.append(f"类型：{_wt_nm}")
+                    _fl = C.WEAPON_FLAVOR.get(_r["weapon_type"], {}).get("desc", "")
+                    if _fl:
+                        elines.append(f"✦ {_fl}")
+                _stat_lines = []
+                for _k, _v in (_eq.get("stats") or {}).items():
+                    if _v:
+                        _lb = _STAT_NAMES.get(_k, _k)
+                        _stat_lines.append(f"{_lb} + {int(_v * 100)}%" if _k in C.PCT_STATS else f"{_lb} + {_v}")
+                if _stat_lines:
+                    elines.append("属性：")
+                    for _s in _stat_lines:
+                        elines.append(f"  · {_s}")
+                _aff_lines = []
+                for _af in _eq.get("affixes") or []:
+                    if isinstance(_af, dict):  # 旧结构兼容
+                        _k, _v = _af.get("stat"), _af.get("value", 0)
+                        _lb = _STAT_NAMES.get(_k, _k)
+                        _aff_lines.append(f"{_lb} + {int(_v * 100)}%" if _k in C.PCT_STATS else f"{_lb} + {_v}")
+                        continue
+                    _ai = C.AFFIXES.get(_af)
+                    if _ai:
+                        _aff_lines.append(f"{_ai.get('name', _af)}：{_ai.get('desc', '')}" if _ai.get("desc") else _ai.get("name", _af))
+                if _aff_lines:
+                    elines.append("✨ 词条：")
+                    for _a in _aff_lines:
+                        elines.append(f"  · {_a}")
+                _feat = _equip_affix_features(_eq)
+                if _feat:
+                    elines.append(f"⭐ 词条特色：{'｜'.join(_feat)}")
+                if _eq.get("legendary"):
+                    _lg = C.LEGENDARY_EFFECTS.get(_eq["legendary"])
+                    if _lg:
+                        elines.append(f"✨ 专属·{_lg.get('name', '')}：{_lg.get('desc', '')}")
             if _r.get("series"):
                 elines.append(f"系列：{_r['series']}")
             elines.append(f"需求：{_req_s}")
@@ -4821,6 +5009,27 @@ class EconomyCmds(CommandBase):
                 elines.append(f"特效：{_r['special']}")
             if _r.get("desc"):
                 elines.append(f"{_r['desc']}")
+            # ---- 获取链提示：锻造可得 / 可作重锻源 / 可由重锻获得（v172）----
+            _has_craft = any((rec.get("roster_id") == _rid_s and _rid_s) for rec in C.CRAFT_RECIPES.values() if rec.get("roster_id"))
+            if _has_craft:
+                elines.append("🔨 获取：锻造可得（铁匠铺『锻造』）")
+            # 重锻配方两张表兜底（v172 改名进行时：REFINE_RECIPES / REFINE_EXCLUSIVE_RECIPES）
+            _ref_tbl = getattr(C, "REFINE_RECIPES", None) or getattr(C, "REFINE_EXCLUSIVE_RECIPES", None) or {}
+            _as_src = [(_src_k, _rc) for _src_k, _rc in _ref_tbl.items() if _src_k in _r.get("name", "")]
+            _refine_hints = []
+            for _src_k, _rc in _as_src:
+                _tgt_rec = C.CRAFT_RECIPES.get(_rc.get("target")) or {}
+                _tgt_nm = _tgt_rec.get("name") or (C.display("recipes", _rc.get("target")) if _rc.get("target") else "?")
+                _refine_hints.append(f"可重锻为 {_tgt_nm}")
+            if _refine_hints:
+                elines.append("🔀 " + "；".join(_refine_hints) + "（重锻继承一半强化/升级）")
+            _as_tgt_names = []
+            for _src_k, _rc in _ref_tbl.items():
+                _tn = C.CRAFT_RECIPES.get(_rc.get("target")) or {}
+                if _tn.get("name") == _r.get("name") or (_tn.get("roster_id") == _rid_s and _rid_s):
+                    _as_tgt_names.append(_src_k)
+            if _as_tgt_names:
+                elines.append("🔀 " + "、".join(_as_tgt_names) + " 可重锻得到（在铁匠铺『装备重锻 <旧装备>』）")
             elines.append(f"💡 『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
             yield event.plain_result("\n".join(elines))
             return
@@ -4867,13 +5076,63 @@ class EconomyCmds(CommandBase):
         if _roster_hits:
             if len(_roster_hits) == 1:
                 _r = _roster_hits[0]
-                _q = C.QUALITY.get(_r.get("quality", "white"), {})
                 _slot_nm = C.EQUIP_SLOTS.get(_r.get("slot", ""), _r.get("slot", "?"))
+                # v172 百科详情：名册只有基础字段，先按名册生成一件标准装备（确定性统计词条
+                # 池随机与真实生成同源）再渲染完整属性/词条/专属——与『物品详情』同源口径。
+                _eq = _roster_gen_equip(_r)
+                # 该件在 CRAFT_RECIPES 中是否有锻造配方（获取链提示用；rid 与生成路径同源）
+                _gen_rid = ""
+                try:
+                    _rids0 = C.EQUIP_ROSTER_BY_NAME.get(_r.get("name", "")) or [
+                        _k for _k, _rr in C.EQUIP_ROSTER.items() if _rr.get("name") == _r.get("name")]
+                    _gen_rid = _rids0[0] if _rids0 else ""
+                except Exception:
+                    _gen_rid = ""
+                _q = C.QUALITY.get(_r.get("quality", "white"), {})
                 _attr_cn = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
                 _req = _r.get("req") or {}
                 _req_s = "、".join(f"{_attr_cn.get(k, k)}{v}" for k, v in _req.items()) if _req else "无需求"
                 lines = [f"⚔️ {_q.get('color', '')}【{_r['name']}】({_slot_nm}·Lv.{_r.get('lv', '?')}·{_q.get('name', _r.get('quality'))})",
                          "━━━━━━━━━━━━"]
+                # ---- 属性值 / 词条 / 专属：与真实生成（generate_roster_equip）同口径 ----
+                if _eq:
+                    _st = _eq.get("stats") or {}
+                    if _r.get("weapon_type"):
+                        _wt_nm = C.display("weapon_types", _r["weapon_type"])
+                        lines.append(f"类型：{_wt_nm}")
+                        _fl = C.WEAPON_FLAVOR.get(_r["weapon_type"], {}).get("desc", "")
+                        if _fl:
+                            lines.append(f"✦ {_fl}")
+                    _stat_lines = []
+                    for _k, _v in _st.items():
+                        if _v:
+                            _lb = _STAT_NAMES.get(_k, _k)
+                            _stat_lines.append(f"{_lb} + {int(_v * 100)}%" if _k in C.PCT_STATS else f"{_lb} + {_v}")
+                    if _stat_lines:
+                        lines.append("属性：")
+                        for _s in _stat_lines:
+                            lines.append(f"  · {_s}")
+                    _aff_lines = []
+                    for _af in _eq.get("affixes") or []:
+                        if isinstance(_af, dict):  # 旧结构兼容
+                            _k, _v = _af.get("stat"), _af.get("value", 0)
+                            _lb = _STAT_NAMES.get(_k, _k)
+                            _aff_lines.append(f"{_lb} + {int(_v * 100)}%" if _k in C.PCT_STATS else f"{_lb} + {_v}")
+                            continue
+                        _ai = C.AFFIXES.get(_af)
+                        if _ai:
+                            _aff_lines.append(f"{_ai.get('name', _af)}：{_ai.get('desc', '')}" if _ai.get("desc") else _ai.get("name", _af))
+                    if _aff_lines:
+                        lines.append("✨ 词条：")
+                        for _a in _aff_lines:
+                            lines.append(f"  · {_a}")
+                    _feat = _equip_affix_features(_eq)
+                    if _feat:
+                        lines.append(f"⭐ 词条特色：{'｜'.join(_feat)}")
+                    if _eq.get("legendary"):
+                        _lg = C.LEGENDARY_EFFECTS.get(_eq["legendary"])
+                        if _lg:
+                            lines.append(f"✨ 专属·{_lg.get('name', '')}：{_lg.get('desc', '')}")
                 if _r.get("series"):
                     lines.append(f"系列：{_r['series']}")
                 lines.append(f"需求：{_req_s}")
@@ -4885,6 +5144,31 @@ class EconomyCmds(CommandBase):
                     lines.append(f"特效：{_r['special']}")
                 if _r.get("desc"):
                     lines.append(f"{_r['desc']}")
+                # ---- 获取链提示：锻造可得 / 可作重锻源 / 可由重锻获得（v172）----
+                # 锻造配方按 名册名→rid 反查（名册条目本身无 rid 键，与生成路径同源）
+                _has_craft = any(
+                    (rec.get("roster_id") == _gen_rid)
+                    for rec in C.CRAFT_RECIPES.values() if rec.get("roster_id"))
+                if _has_craft:
+                    lines.append("🔨 获取：锻造可得（铁匠铺『锻造』）")
+                # 重锻配方两张表兜底（v172 改名进行时：REFINE_RECIPES / REFINE_EXCLUSIVE_RECIPES）
+                _ref_tbl = getattr(C, "REFINE_RECIPES", None) or getattr(C, "REFINE_EXCLUSIVE_RECIPES", None) or {}
+                _as_src = [(_src_k, _rc) for _src_k, _rc in _ref_tbl.items() if _src_k in _r.get("name", "")]
+                _refine_hints = []
+                for _src_k, _rc in _as_src:
+                    _tgt_rec = C.CRAFT_RECIPES.get(_rc.get("target")) or {}
+                    _tgt_nm = _tgt_rec.get("name") or (C.display("recipes", _rc.get("target")) if _rc.get("target") else "?")
+                    _refine_hints.append(f"可重锻为 {_tgt_nm}")
+                if _refine_hints:
+                    lines.append("🔀 " + "；".join(_refine_hints) + "（重锻继承一半强化/升级）")
+                # 作为重锻目标（其他名册装备能重锻成它）：按目标装备名反向查
+                _as_tgt_names = []
+                for _src_k, _rc in _ref_tbl.items():
+                    _tn = C.CRAFT_RECIPES.get(_rc.get("target")) or {}
+                    if _tn.get("name") == _r.get("name") or (_tn.get("roster_id") == _gen_rid and _gen_rid):
+                        _as_tgt_names.append(_src_k)
+                if _as_tgt_names:
+                    lines.append("🔀 " + "、".join(_as_tgt_names) + " 可重锻得到（在铁匠铺『装备重锻 <旧装备>』）")
                 lines.append(f"💡 『百科装备 {_slot_nm}』看{_slot_nm}全部装备")
                 yield event.plain_result("\n".join(lines))
                 return
@@ -5149,6 +5433,167 @@ class EconomyCmds(CommandBase):
                 lines.append(f"　⛩ {_d_s}")
         lines.append("━━━━━━━━━━━━")
         lines.append("💡 『区域』看当前可前往｜『寻路 <地名>』算最短路径｜『百科 <地名>』看单区详情")
+        return "\n".join(lines)
+
+    # ================= v172 百科分类浏览：词条 / 宝石 / 符文 =================
+    @staticmethod
+    def _affix_q_label(ak: str) -> str:
+        """词条适用品质标签：qualities 显式字段 > 池归属推导（blue/purple/orange/legendary 稀有度）。"""
+        _av = C.AFFIXES.get(ak) or {}
+        _qs = _av.get("qualities")
+        if _qs:
+            _qn = {"blue": "稀有", "purple": "史诗", "orange": "传说"}.get(_qs[0], str(_qs[0]))
+            return f"{_qn}+" if len(_qs) > 1 else _qn
+        for _pool_q in ("blue", "purple", "orange"):
+            if ak in C.AFFIX_POOL_BY_QUALITY.get(_pool_q, []):
+                return {"blue": "稀有", "purple": "史诗", "orange": "传说"}.get(_pool_q, _pool_q)
+        return "传说"
+
+    def _ency_browse_affixes(self, raw: str = "", qq_id: str = "") -> str:
+        """『百科 词条 [关键词|页码]』：全部词条编目（AFFIXES，76 个）。
+
+        无参 → 全量分页（12 个/页，记录 last_list 供 +/-/= 通用翻页）；
+        带关键词 → 名称/ID/效果子串命中单个词条详情（含 trigger/品质归属）。
+        """
+        _parts = (raw or "").split()
+        _q_word = _parts[1] if len(_parts) >= 2 else ""
+        # ---- 单个词条查询：名称/ID/关键词 命中（精确名 > 子串）----
+        _hits = []
+        if _q_word:
+            for _ak, _av in C.AFFIXES.items():
+                _nm = _av.get("name", "")
+                if _q_word == _nm or _ak == _q_word or (_q_word and (_q_word in _nm or _q_word in _ak or _q_word in (_av.get("desc", "") or ""))):
+                    _hits.append((_ak, _av))
+            # 精确名命中 → 过滤掉纯子串命中的歧义项（『破甲』应直接给 破甲 而不是 破甲/破甲刃 二选一）
+            _exact = [h for h in _hits if h[1].get("name") == _q_word or h[0] == _q_word]
+            if len(_exact) == 1:
+                _hits = _exact
+            if _hits:
+                if len(_hits) > 1:
+                    _lk = [f"  · {C.AFFIXES[h[0]].get('name', h[0])}（{self._affix_q_label(h[0])}）" for h in _hits[:10]]
+                    return "🔍 词条『{}』命中 {} 个：\n{}\n━━━━━━━━━━━━\n💡 用完整词条名查单个（如『百科 词条 破甲』）".format(
+                        _q_word, len(_hits), "\n".join(_lk))
+                _ak, _av = _hits[0]
+                _qname = self._affix_q_label(_ak)
+                _kind = "武器" if _av.get("kind") == "attack" else ("防具" if _av.get("kind") == "defense" else str(_av.get("kind", "?")))
+                _trig_cn = {"stat": "常驻属性", "on_hit": "攻击命中后", "on_taken": "受击时",
+                            "turn_start": "每刻开始", "battle_start": "战斗开始", "passive": "被动判定"}.get(
+                    _av.get("trigger"), str(_av.get("trigger", "?")))
+                _eff = _av.get("effect") or {}
+                lines = [f"✨ 【{_av.get('name', _ak)}】", "━━━━━━━━━━━━"]
+                lines.append(f"归属：{_kind}词条 · {_qname}")
+                if _av.get("line"):
+                    lines.append(f"线：{_av['line']}")
+                lines.append(f"触发：{_trig_cn}" + (f"（概率 {int(_av['chance'] * 100)}%）" if _av.get("chance") else ""))
+                if _av.get("desc"):
+                    lines.append(f"效果：{_av['desc']}")
+                if _eff and not _av.get("desc"):
+                    # 无玩家向 desc 才展示原始 effect 参数（全部 76 词条都有 desc，兜底防空）
+                    lines.append(f"参数：{_eff}")
+                if _av.get("unique"):
+                    lines.append("唯一：同名词条全服不可叠加")
+                lines.append("")
+                lines.append(f"💡 出现在装备『✨ 词条』栏；『百科 词条』看全部")
+                return "\n".join(lines)
+        # ---- 全量分页 ----
+        _items = sorted(C.AFFIXES.items(), key=lambda kv: (0 if kv[1].get("kind") == "attack" else 1, kv[1].get("name", kv[0])))
+        _per = 12
+        _pages = (len(_items) + _per - 1) // _per
+        _page = 1
+        if _q_word and _q_word.isdigit():
+            _page = max(1, min(int(_q_word), _pages))
+        _view = _items[(_page - 1) * _per: _page * _per]
+        lines = [f"✨ 【词条百科】共 {len(C.AFFIXES)} 个 · 第{_page}/{_pages}页", "━━━━━━━━━━━━"]
+        for _i, (_ak2, _av2) in enumerate(_view, (_page - 1) * _per + 1):
+            _qcn = self._affix_q_label(_ak2)
+            _desc = _av2.get("desc", "")
+            if len(_desc) > 24:
+                _desc = _desc[:24] + "…"
+            lines.append(f"{_i:>2}. {_av2.get('name', _ak2)}（{_qcn}）{_desc}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append(f"💡 『+』下页｜『-』回上页｜『百科 词条 <关键词>』查单个（如『百科 词条 破甲』）" if _page < _pages
+                     else "💡 『-』回上页｜『百科 词条 <关键词>』查单个（如『百科 词条 破甲』）")
+        if qq_id:
+            self._record_list_state(qq_id, "百科 词条", _page, _pages)
+        return "\n".join(lines)
+
+    def _ency_browse_gems(self, raw: str = "", qq_id: str = "") -> str:
+        """『百科 宝石 [阶名|页码]』：幸运宝石 10 阶编目（碎裂→神话）。
+
+        每阶：全名 + 随机属性加成倍率（GEM_TIERS.mult）+ 合成链/可插孔位说明。
+        带阶名/关键词 → 单阶详情（附传说特效与掉落来源）。
+        """
+        _parts = (raw or "").split()
+        _q_word = next((p for p in _parts[1:] if not p.isdigit()), "")
+        # ---- 单阶查询：阶名关键词命中（GEM_TIER_NAMES / GEM_TIERS.name）----
+        if _q_word:
+            _hit_t = None
+            for _t, _tn in C.GEM_TIER_NAMES.items():
+                if _q_word in _tn or (_q_word in (C.GEM_TIERS.get(_t, {}).get("name", ""))):
+                    _hit_t = _t
+                    break
+            if _hit_t is not None:
+                return self._gem_tier_detail(_hit_t)
+        # ---- 全量 10 阶 ----
+        _lines = [f"💎 【幸运宝石百科】共 {len(C.GEM_TIERS)} 阶 · 碎裂 → 神话", "━━━━━━━━━━━━"]
+        for _t in sorted(C.GEM_TIERS):
+            _g = C.GEM_TIERS[_t]
+            _nm = C.GEM_TIER_NAMES.get(_t, str(_t))
+            _pct = int(_g.get("mult", 0) * 100)
+            _lines.append(f"{_t:>2}. {_nm}：随机属性 ×{_pct}%")
+        _lines.append("")
+        _lines.append("🔗 合成链：3 颗同级 → 1 颗上级（碎裂→黯淡→…→神话）")
+        _lines.append("🔩 打孔镶嵌：稀有装 1 孔（碎裂-普通）· 史诗装 2 孔（普通-无瑕）· 传说装 3 孔（无瑕-神话）")
+        _lines.append("━━━━━━━━━━━━")
+        _lines.append("💡 『百科 宝石 <阶名>』看单阶详情（如『百科 宝石 碎裂』）｜『原石』看你背包的宝石")
+        return "\n".join(_lines)
+
+    def _gem_tier_detail(self, tier: int) -> str:
+        """幸运宝石单阶详情（wiki 展示口径）"""
+        _g = C.GEM_TIERS.get(tier) or {}
+        _nm = C.GEM_TIER_NAMES.get(tier, str(tier))
+        _pct = int(_g.get("mult", 0) * 100)
+        _lines = [f"💎 【{_nm}】", "━━━━━━━━━━━━"]
+        _lines.append(f"阶位：{tier}/10 ｜ 效果：镶嵌后随机属性 ×{_pct}%")
+        _up = tier + 1
+        _up_nm = C.GEM_TIER_NAMES.get(_up)
+        if _up_nm:
+            _lines.append(f"合成：3 颗『{_nm}』→ 1 颗『{_up_nm}』（『原石合成』）")
+        else:
+            _lines.append("已是最高阶，无法再合成！")
+        _lines.append("获取：打怪概率掉落（普通怪碎裂-无瑕 · 精英更高 · Boss 可出传说/神话）")
+        if tier >= 8:
+            _lines.append(f"🌟 传说级特效：{' / '.join(C.GEM_LEGENDARY_EFFECTS)}（仅传说阶触发）")
+        _lines.append("")
+        _lines.append(f"💡 『镶嵌 <装备名> <幸运宝石>』塞进装备孔位｜『百科 宝石』看全部 10 阶")
+        return "\n".join(_lines)
+
+    def _ency_browse_runes(self, raw: str = "", qq_id: str = "") -> str:
+        """『百科 符文 [页码]』：全部符文编目（RUNES，16 个，每页 12）。
+
+        效果 desc 用 rune_item 换算等级 I 数值（与掉落/单查同源）。
+        """
+        from ..core.runes import rune_item as _mk_rune
+        _parts = (raw or "").split()
+        _page = int(_parts[1]) if len(_parts) >= 2 and _parts[1].isdigit() else 1
+        _items = sorted(C.RUNES.items(), key=lambda kv: kv[1].get("name", kv[0]))
+        _per = 12
+        _pages = max(1, (len(_items) + _per - 1) // _per)
+        _page = max(1, min(_page, _pages))
+        _view = _items[(_page - 1) * _per: _page * _per]
+        lines = [f"💎 【符文百科】共 {len(C.RUNES)} 个 · 第{_page}/{_pages}页", "━━━━━━━━━━━━"]
+        for _i, (_rk, _rs) in enumerate(_view, (_page - 1) * _per + 1):
+            _q = C.QUALITY.get(_rs.get("quality", ""), {})
+            _ri = _mk_rune(_rs.get("effect"), 1) or {}
+            _d = _ri.get("desc") or _rs.get("desc", "")
+            if len(_d) > 30:
+                _d = _d[:30] + "…"
+            lines.append(f"{_i:>2}. {_q.get('color', '')}【{_rs.get('name', _rk)}】{_q.get('name', '')} · {_d}")
+        lines.append("━━━━━━━━━━━━")
+        lines.append(f"💡 『+』下页｜『-』回上页｜『百科 符文 <名>』查单个（如『百科 符文 残忍』）" if _page < _pages
+                     else "💡 『-』回上页｜『百科 符文 <名>』查单个（如『百科 符文 残忍』）")
+        if qq_id:
+            self._record_list_state(qq_id, "百科 符文", _page, _pages)
         return "\n".join(lines)
 
     def _earned_titles(self, group_id, qq_id, player):
@@ -5711,7 +6156,7 @@ class EconomyCmds(CommandBase):
         eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?(?:装备(?!进化)|我的装备)(?:\s*|$)")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?!重锻|我的)(?:\s*|$)")
     @require_player()
 
     async def equip(self, event: AstrMessageEvent):

@@ -68,6 +68,17 @@ def get_group_players(group_id):
             for r in rows:
                 p = dict(r)
                 p["equipment"] = json.loads(p["equipment"] or "{}")
+                # v172 真等级化存量迁移：已穿戴装备 upgrade_lv → lv 补差（与 get_player 同源）
+                try:
+                    for _eq_slot, _eq_d in list((p["equipment"] or {}).items()):
+                        if isinstance(_eq_d, dict) and _eq_d.get("upgrade_lv"):
+                            _u = int(_eq_d.get("upgrade_lv") or 0)
+                            if _u > 0:
+                                _eq_d["lv"] = int(_eq_d.get("lv", 0) or 0) + _u
+                            _eq_d.pop("upgrade_lv", None)
+                            p["equipment"][_eq_slot] = _eq_d
+                except Exception:
+                    pass
                 p["skills"] = json.loads(p["skills"] or "[]")
                 p["attributes"] = json.loads(p.get("attributes") or '{"str":0,"agi":0,"int":0,"vit":0}')
                 p["learned_skills"] = json.loads(p.get("learned_skills") or "[]")
@@ -121,6 +132,18 @@ def get_player(group_id, qq_id):
                 return None
             p = dict(row)
             p["equipment"] = _jload(p["equipment"], {})
+            # v172 真等级化存量迁移：已穿戴装备 upgrade_lv → lv 补差（读档即迁移，
+            # 写回 equipment= 时落库；与 inventory._hydrate 的背包迁移同源）
+            try:
+                for _eq_slot, _eq_d in list((p["equipment"] or {}).items()):
+                    if isinstance(_eq_d, dict) and _eq_d.get("upgrade_lv"):
+                        _u = int(_eq_d.get("upgrade_lv") or 0)
+                        if _u > 0:
+                            _eq_d["lv"] = int(_eq_d.get("lv", 0) or 0) + _u
+                        _eq_d.pop("upgrade_lv", None)
+                        p["equipment"][_eq_slot] = _eq_d
+            except Exception:
+                pass
             p["skills"] = _jload(p["skills"], [])
             p["attributes"] = _jload(p.get("attributes"), {"str": 0, "agi": 0, "int": 0, "vit": 0})
             p["learned_skills"] = _jload(p.get("learned_skills"), [])

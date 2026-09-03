@@ -81,10 +81,12 @@ def enhance_expected_cost(target: int = 9) -> int:
 
 
 def upgrade_full_cost() -> int:
-    """升级 0→10 总金币成本（UPGRADE_TABLE）。"""
+    """升级 0→10 总金币成本（UPGRADE_TABLE，v172 真等级化 cost 阶梯保留）。"""
     try:
         table = D.UPGRADE_TABLE
-        return sum(int(r.get("cost", 0)) for r in table) if isinstance(table, list) else 0
+        # v172：真等级化后 upgrade_lv 从 0 起每次 +1，cost 取目标级阶梯
+        # （旧实现把 0 级 cost 200 也算进 0→10，实为 0→1 的档位费）
+        return sum(int(r.get("cost", 0)) for r in table.values() if isinstance(table, dict)) - int(table.get(0, {}).get("cost", 0))
     except Exception:
         return 0
 

@@ -115,6 +115,24 @@ def _trim_individuals(data, consumed):
     return out
 
 
+def _migrate_upgrade_lv(d: dict) -> dict:
+    """v172 真等级化存量迁移：旧档装备 upgrade_lv=N → lv += N（补偿到位），随后删除该字段。
+
+    原 v135 upgrade_lv 是倍率层（属性 ×1.00~1.35），v172 起升级 = 装备 lv 真实 +1，
+    属性随 equip_stats 重算。玩家已叠的升级层数转成 lv 补差，不沉没。
+    迁移只在内存生效；装备下次写回（update_item_data/update_player equipment=）时自然落库。
+    """
+    try:
+        if isinstance(d, dict) and d.get("slot") and d.get("upgrade_lv"):
+            _u = int(d.get("upgrade_lv") or 0)
+            if _u > 0:
+                d["lv"] = int(d.get("lv", 0) or 0) + _u
+            d.pop("upgrade_lv", None)
+    except Exception:
+        pass
+    return d
+
+
 def _hydrate(key, data):
     """v126.3 读取水合：瘦身数据补全类属性（配置 → 残留旧字段 → key 兜底）。
 
@@ -142,7 +160,7 @@ def _hydrate(key, data):
         d["name"] = C.display("materials", key)
         if d["name"] == key:
             d["name"] = C.display("items", key)
-    return d
+    return _migrate_upgrade_lv(d)
 
 
 def _key_to_id(item_key, item_data=None):

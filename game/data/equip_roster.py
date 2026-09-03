@@ -995,6 +995,44 @@ EQUIP_ROSTER.update({
 EQUIP_ROSTER.update({
     'eq_long_lin_pi_hu_zhi_zhui': {'name': '龙鳞庇护之坠', 'slot': 'necklace', 'quality': 'orange', 'lv': 95, 'series': '龙鳞', 'legendary': 'dragon_scale', 'source': 'legend', 'desc': '终章剧情必得的全服唯一坠饰，以古龙蜕下的逆鳞打磨而成。全元素抗性+15%、深渊抗性+5%，代价最大生命-10%。'},
 })
+# ================= v172 路B：重锻专属装备（24件，source=重锻，仅『装备重锻』可得） =================
+# 2026-09-03 鱼鱼拍板：重锻能造出别的地方造不到的装备——重锻独有 = 不走图纸/Boss掉落/商店/铁匠铺货架。
+# source=重锻 保证：roll_blueprint（图纸/boss 池）、smith_stock roll_stock（货架随机）、
+# _shop_equip_roster（动态补档 source∈商店/锻造）、图纸合成 bp_craft（图纸/boss 池）全部天然排除；
+# 且无 CRAFT_RECIPES 配方/无图纸 → 锻造/代工均不可得。数值与同级锻造职业套持平。
+# 专属效果全部复用 LEGENDARY_EFFECTS stat 键（并入 stats；词条审计只查 on_hit/on_taken/turn_start，无 handler 需求）。
+# 命名：v45 规范西幻军职风（壁垒/法典/巡猎/幽夜/磐岳——中级职业感，50 橙军团/法典传说专名）。
+# 固定词条见 affixes.py SERIES_FIXED_AFFIX 同名段；每件手写 desc（与现网橙紫同规格）。
+EQUIP_ROSTER.update({
+    # ===== 重锻武器 Lv.31 紫（职业套 Lv10 武器→Lv31 紫，首段目标）=====
+    'eq_bilei_zhanjian': {'name': '壁垒战剑', 'slot': 'weapon', 'weapon_type': 'sword', 'quality': 'purple', 'lv': 31, 'series': '壁垒', 'req': {'str': 30}, 'legendary': 'earth_heart', 'source': '重锻', 'special': '壁垒意志：受击伤害-5%，最大生命+5%', 'desc': '铁皮长剑叠上精铁甲片重锻而成，剑脊如城墙般厚重。壁垒意志：受击伤害-5%，最大生命+5%。'},
+    'eq_mingwen_fadian_zhizhang': {'name': '铭文法典之杖', 'slot': 'weapon', 'weapon_type': 'staff', 'quality': 'purple', 'lv': 31, 'series': '铭文法典', 'req': {'int': 30}, 'legendary': 'time_lord_scepter', 'source': '重锻', 'special': '时之低语：冷却缩减+8%', 'desc': '把学徒法杖上的潦草魔文誊成整页铭文，杖身如今字字生辉。时之低语：冷却缩减+8%。'},
+    'eq_xianzhe_fadian_zhizhang': {'name': '贤者法典之杖', 'slot': 'weapon', 'weapon_type': 'mace', 'quality': 'purple', 'lv': 31, 'series': '贤者法典', 'req': {'int': 30}, 'legendary': 'holy_edict', 'source': '重锻', 'special': '圣谕回响：治疗量+15%，治疗溢出15%转为护盾（上限12%最大生命）', 'desc': '布衣权杖经贤者之手重铸，杖首圣辉凝成书页般的纹路。圣谕回响：治疗量+15%，溢疗转盾（上限12%最大生命）。'},
+    'eq_xunlie_changgong': {'name': '巡猎长弓', 'slot': 'weapon', 'weapon_type': 'bow', 'quality': 'purple', 'lv': 31, 'series': '巡猎', 'req': {'agi': 30}, 'legendary': 'ranger_precision', 'source': '重锻', 'special': '巡林精准：精准+6%', 'desc': '猎手短弓换上了林线巡守者的弓弦，箭路直得能追上奔鹿。巡林精准：精准+6%。'},
+    'eq_yexing_duanren': {'name': '夜行短刃', 'slot': 'weapon', 'weapon_type': 'dagger', 'quality': 'purple', 'lv': 31, 'series': '夜行', 'req': {'agi': 30}, 'legendary': 'moon_shadow', 'source': '重锻', 'special': '月影庇护：闪避+4%', 'desc': '轻影匕首淬过月光重锻，刃身暗下去时连影子都找不到。月影庇护：闪避+4%。'},
+    'eq_zhenyue_quantao': {'name': '镇岳拳套', 'slot': 'weapon', 'weapon_type': 'fist', 'quality': 'purple', 'lv': 31, 'series': '镇岳', 'req': {'str': 30}, 'legendary': 'rong_lu_heart', 'source': '重锻', 'special': '大地心跳：暴击率+6%，最大生命+8%', 'desc': '行者拳套缠上精铁链与山石之核重锻，拳风沉得像压下一座山。大地心跳：暴击率+6%，最大生命+8%。'},
+    # ===== 重锻武器 Lv.52 橙（职业套 Lv30 武器→Lv52 橙，二段目标，带传说专属名）=====
+    'eq_bilei_juntuan_zhanjian': {'name': '壁垒军团战剑', 'slot': 'weapon', 'weapon_type': 'sword', 'quality': 'orange', 'lv': 52, 'series': '壁垒军团', 'req': {'str': 52}, 'legendary': 'jin_he_heart', 'source': '重锻', 'special': '烬核余温：暴击伤害+25%', 'desc': '精铁战剑熔入烬核余火，剑身烙上军团壁垒的徽记，剑锋能劈开军阵。烬核余温：暴击伤害+25%。'},
+    'eq_mingke_fadian_zhizhang': {'name': '铭刻法典之杖', 'slot': 'weapon', 'weapon_type': 'staff', 'quality': 'orange', 'lv': 52, 'series': '铭刻法典', 'req': {'int': 52}, 'legendary': 'element_apostle_pendant', 'source': '重锻', 'special': '使徒之印：暴击伤害+20%', 'desc': '符文法杖的符文被逐一錾进银脊，如今每一枚都像使徒的印章。使徒之印：暴击伤害+20%。'},
+    'eq_huiguang_shengzhang': {'name': '辉光圣杖', 'slot': 'weapon', 'weapon_type': 'mace', 'quality': 'orange', 'lv': 52, 'series': '辉光', 'req': {'int': 52}, 'legendary': 'time_lord_ring', 'source': '重锻', 'special': '时光流转：暴击伤害+18%', 'desc': '祝福权杖在圣辉泉水中浸炼七日，杖首凝出流转不息的辉光。时光流转：暴击伤害+18%。'},
+    'eq_yuanzheng_zhigong': {'name': '远征之弓', 'slot': 'weapon', 'weapon_type': 'bow', 'quality': 'orange', 'lv': 52, 'series': '远征', 'req': {'agi': 52}, 'legendary': 'moon_bow', 'source': '重锻', 'special': '月神眷顾：暴击率+10%', 'desc': '风行长弓的弓胎经远征军匠师重校，弦响如号角，箭落如月色。月神眷顾：暴击率+10%。'},
+    'eq_anyezhi_ren': {'name': '暗夜之刃', 'slot': 'weapon', 'weapon_type': 'dagger', 'quality': 'orange', 'lv': 52, 'series': '暗夜', 'req': {'agi': 52}, 'legendary': 'mu_ying_blade', 'source': '重锻', 'special': '暮影：暴击率+8%', 'desc': '夜行匕首在无星之夜重锻，刃锋吞尽夜色，出手只留一线暮影。暮影：暴击率+8%。'},
+    'eq_hanyue_quan': {'name': '撼岳拳', 'slot': 'weapon', 'weapon_type': 'fist', 'quality': 'orange', 'lv': 52, 'series': '撼岳', 'req': {'str': 52}, 'legendary': 'xing_hui_zhi_guan', 'source': '重锻', 'special': '星辉守护：暴击伤害+15%，闪避+5%', 'desc': '石拳拳套以地脉精钢重铸，一拳落下连山岳都要晃一晃。星辉守护：暴伤+15%，闪避+5%。'},
+    # ===== 重锻防具 Lv.33 紫（职业套 Lv8-10 甲→Lv33 紫）=====
+    'eq_bilei_jianjia': {'name': '壁垒肩甲', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '壁垒', 'req': {'str': 30}, 'legendary': 'element_apostle_robe', 'source': '重锻', 'special': '使徒庇护：受击伤害-5%', 'desc': '铁皮胸甲改锻成的重肩甲，甲片层层叠起，像城墙的雉堞。使徒庇护：受击伤害-5%。'},
+    'eq_mingwen_fapao': {'name': '铭文法袍', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '铭文法典', 'req': {'int': 30}, 'legendary': 'moon_shadow', 'source': '重锻', 'special': '月影庇护：闪避+4%', 'desc': '学徒长袍织入秘银线重织，袍摆的铭文在夜里会发出微光。月影庇护：闪避+4%。'},
+    'eq_xianzhe_fayi': {'name': '贤者法衣', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '贤者法典', 'req': {'int': 30}, 'legendary': 'frozen_heart', 'source': '重锻', 'special': '深渊守望：深渊抗性+10%，最大生命+5%', 'desc': '布衣法衣被贤者祝福浸透，衣料坚如羊皮卷，暗伤难侵。深渊守望：深渊抗性+10%，最大生命+5%。'},
+    'eq_xunlie_pijia': {'name': '巡猎皮甲', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '巡猎', 'req': {'agi': 30}, 'legendary': 'sea_breeze', 'source': '重锻', 'special': '海风祝福：闪避率+3%', 'desc': '猎手皮甲换过三层风干兽皮重缝，轻得能听见风从甲缝流过。海风祝福：闪避率+3%。'},
+    'eq_youye_piyi': {'name': '幽夜皮衣', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '幽夜', 'req': {'agi': 30}, 'legendary': 'moon_shadow', 'source': '重锻', 'special': '月影庇护：闪避+4%', 'desc': '轻影皮衣浸过夜色染剂重制，融进暗处便再难被目光捕捉。月影庇护：闪避+4%。'},
+    'eq_panyue_wupao': {'name': '磐岳武袍', 'slot': 'armor', 'quality': 'purple', 'lv': 33, 'series': '磐岳', 'req': {'str': 30}, 'legendary': 'beast_ward', 'source': '重锻', 'special': '兽性庇护：反伤+5%', 'desc': '行者武斗袍肩背处衬进岩鳞片，受击时反震如磐石回弹。兽性庇护：反伤+5%。'},
+    # ===== 重锻防具 Lv.53 橙（职业套 Lv30 甲→Lv53 橙）=====
+    'eq_bilei_shouyu_xiongjia': {'name': '壁垒守御胸甲', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '壁垒守御', 'req': {'str': 52}, 'legendary': 'dawn_grace', 'source': '重锻', 'special': '晨光恩泽：最大生命+4%', 'desc': '精铁胸甲与军团壁垒同炉重铸，胸口的徽记是一整面不倒的墙。晨光恩泽：最大生命+4%。'},
+    'eq_mingke_fapao': {'name': '铭刻法袍', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '铭刻法典', 'req': {'int': 52}, 'legendary': 'element_apostle_crown', 'source': '重锻', 'special': '使徒荣光：最大生命+6%', 'desc': '符文长袍的符印被逐枚錾金，织纹如法典扉页般庄严。使徒荣光：最大生命+6%。'},
+    'eq_huiguang_shengyi': {'name': '辉光圣衣', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '辉光', 'req': {'int': 52}, 'legendary': 'holy_edict', 'source': '重锻', 'special': '圣谕回响：治疗量+15%，治疗溢出15%转为护盾（上限12%最大生命）', 'desc': '祝福法衣织入圣辉金线，展开时像一片凝固的晨光。圣谕回响：治疗量+15%，溢疗转盾（上限12%最大生命）。'},
+    'eq_yuanzheng_pijia': {'name': '远征皮甲', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '远征', 'req': {'agi': 52}, 'legendary': 'earth_heart', 'source': '重锻', 'special': '大地护佑：受击伤害-5%，最大生命+5%', 'desc': '风行皮甲经远征队甲匠重制，皮面烙着百战不殆的远征纹。大地护佑：受击伤害-5%，最大生命+5%。'},
+    'eq_yeying_piyi': {'name': '夜影皮衣', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '夜影', 'req': {'agi': 52}, 'legendary': 'night_eater_mask', 'source': '重锻', 'special': '蚀夜：暗夜闪避+8%', 'desc': '夜行皮衣以夜枭羽与影兽皮重织，穿上后仿佛被夜色吞没。蚀夜：暗夜闪避+8%。'},
+    'eq_budong_wupao': {'name': '不动武袍', 'slot': 'armor', 'quality': 'orange', 'lv': 53, 'series': '不动', 'req': {'str': 52}, 'legendary': 'death_wall', 'source': '重锻', 'special': '死亡防线：韧性+8%，代价最大生命-5%——以血肉为墙', 'desc': '石拳武斗袍熔入镇山铁纱，衣重如铁、立地如山。死亡防线：韧性+8%，代价最大生命-5%。'},
+})
 
 # ================= v140 波3.3 修复：索引重建（EQUIP_ROSTER_BY_NAME 在 673 行构建，
 # v140 波1/3.4 的 213 件 update 在索引之后 → 任务发放 eq: 中文名查不到 → 静默失败）

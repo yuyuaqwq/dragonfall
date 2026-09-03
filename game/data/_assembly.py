@@ -64,7 +64,7 @@ from .shop_limit import SHOP_LIMIT  # noqa: F401 v166 商店限购配置
 from .factions import FACTIONS, FACTION_ORDER, REPUTATION_TIERS, AREA_FACTION, CHRONICLES  # noqa: F401
 from .fishing import FISHING_SPOTS, FISH_POOL  # noqa: F401
 from .enhance import ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS  # noqa: F401
-from .upgrade import UPGRADE_TABLE, MAX_UPGRADE, UPGRADE_STONE, UPGRADE_STAMINA, UPGRADE_MATERIAL_CN  # noqa: F401 v135 装备升级
+from .upgrade import UPGRADE_STONE, UPGRADE_STAMINA, UPGRADE_MATERIAL_CN  # noqa: F401 v172 装备升级（真等级化，cost 阶梯）
 from .sets import SET_THEMES, SET_CHANCE, SETS, CLASS_SET_STAGES, CLASS_SET_THEMES  # noqa: F401
 from .craft import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES  # noqa: F401
 from .enchant import (  # noqa: F401

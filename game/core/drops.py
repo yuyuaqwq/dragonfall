@@ -146,14 +146,17 @@ def roll_drop_equip(monster_lv: int, role: str) -> dict | None:
         return None
 
     # 从名册按等级就近抽（优先 ±15，再 ±30，兜底随机生成）
+    # v172 路B：source=重锻 装备（仅『装备重锻』可得）不进精英/Boss 掉落池
     roster = C.EQUIP_ROSTER
     candidates_15 = [rid for rid, r in roster.items()
-                     if r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 15]
+                     if r.get("source") != "重锻"
+                     and r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 15]
     if candidates_15:
         rid = random.choice(candidates_15)
         return generate_roster_equip(rid)
     candidates_30 = [rid for rid, r in roster.items()
-                     if r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 30]
+                     if r.get("source") != "重锻"
+                     and r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 30]
     if candidates_30:
         rid = random.choice(candidates_30)
         return generate_roster_equip(rid)

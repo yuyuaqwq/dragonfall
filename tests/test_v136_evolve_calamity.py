@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""v136 装备进化 + 怪异炼成验收（GWEN_GAME_DB 隔离，不碰生产库）
+"""v136 装备重锻 + 怪异炼成验收（GWEN_GAME_DB 隔离，不碰生产库）
 
 覆盖：
-进化：无参列配方 / 素材不足拦截 / 金币不足拦截 / 成功继承强化升级(half折半) / 已装备进化
+进化→重锻改名（v172）：无参列配方 / 素材不足拦截 / 金币不足拦截 / 成功继承强化+升级层(half折半) / 已装备重锻
 炼成：素材不足拦截 / 限3次拦截(第4次) / 成功加成生效(calamity_bonus) / engine结算含炼成 / 已装备炼成
 
 独立运行：python tests/test_v136_evolve_calamity.py
@@ -55,89 +55,91 @@ def give_mats(mats):
 
 
 def main():
-    print("== v136 装备进化 + 怪异炼成验收 ==")
+    print("== v136 装备重锻 + 怪异炼成验收 ==")
     # ---------- 0. 数据表 ----------
     print("[0] 数据表")
-    check("EVOLVE_RECIPES 有 3 条进化链", len(C.EVOLVE_RECIPES) >= 3, str(len(C.EVOLVE_RECIPES)))
-    check("弯刀→血誓战剑", C.EVOLVE_RECIPES.get("弯刀", {}).get("target") == "rec_xue_shi_zhan_jian")
+    check("REFINE_RECIPES 有 3 条重锻链", len(C.REFINE_RECIPES) >= 3, str(len(C.REFINE_RECIPES)))
+    check("弯刀→血誓战剑", C.REFINE_RECIPES.get("弯刀", {}).get("target") == "rec_xue_shi_zhan_jian")
     check("CALAMITY_MAX=3", C.CALAMITY_MAX == 3)
     check("CALAMITY_STATS 有 6 属性", len(C.CALAMITY_STATS) == 6)
     check("新素材已登记", C.display("materials", "mat_yu_jin_he_xin") == "余烬核心")
 
-    # ---------- 1. 装备进化 ----------
-    print("[1] 装备进化")
+    # ---------- 1. 装备重锻 ----------
+    print("[1] 装备重锻")
     # 1a. 无参列配方
     clean_db()
     m = Main(None)
-    make_player_lv("进化列表", 60)
+    make_player_lv("重锻列表", 60)
     goto_smith(m, g, q)
-    ev = FakeEvent(g, q, "装备进化")
-    out = asyncio.run(run(m.evolve_equip, ev))
+    ev = FakeEvent(g, q, "装备重锻")
+    out = asyncio.run(run(m.refine_equip, ev))
     txt = out[0] if out else ""
-    check("无参列出进化配方", "弯刀" in txt and "血誓战剑" in txt, txt[:150])
+    check("无参列出重锻配方", "弯刀" in txt and "血誓战剑" in txt, txt[:150])
     # 1b. 素材不足拦截
     clean_db()
     m = Main(None)
-    make_player_lv("进化缺材", 60)
+    make_player_lv("重锻缺材", 60)
     db.update_player(g, q, gold=999999)
     eq_w = C.generate_roster_equip("eq_wan_dao")
     eq_w["enhance"] = 4
-    eq_w["upgrade_lv"] = 2
+    eq_w["lv"] = 16  # 名册基础 Lv14 + 真等级化升级 2 层（1b 素材不足拦截用例）
     give_equip(eq_w)
     goto_smith(m, g, q)
-    ev = FakeEvent(g, q, "装备进化 弯刀")
-    out = asyncio.run(run(m.evolve_equip, ev))
+    ev = FakeEvent(g, q, "装备重锻 弯刀")
+    out = asyncio.run(run(m.refine_equip, ev))
     txt = out[0] if out else ""
     check("素材不足拦截", "材料不足" in txt, txt[:150])
     # 1c. 金币不足拦截
     clean_db()
     m = Main(None)
-    make_player_lv("进化缺金", 60)
+    make_player_lv("重锻缺金", 60)
     db.update_player(g, q, gold=100)
     eq_w = C.generate_roster_equip("eq_wan_dao")
     eq_w["enhance"] = 4
-    eq_w["upgrade_lv"] = 2
+    eq_w["lv"] = 16  # 名册基础 Lv14 + 真等级化升级 2 层（旧档形态迁移后）
     give_equip(eq_w)
-    give_mats(C.EVOLVE_RECIPES["弯刀"]["mats"])
+    give_mats(C.REFINE_RECIPES["弯刀"]["mats"])
     goto_smith(m, g, q)
-    ev = FakeEvent(g, q, "装备进化 弯刀")
-    out = asyncio.run(run(m.evolve_equip, ev))
+    ev = FakeEvent(g, q, "装备重锻 弯刀")
+    out = asyncio.run(run(m.refine_equip, ev))
     txt = out[0] if out else ""
     check("金币不足拦截", "金币不足" in txt, txt[:150])
-    # 1d. 成功进化：继承强化/升级(half)
+    # 1d. 成功重锻：继承强化/升级(half)
     clean_db()
     m = Main(None)
-    make_player_lv("进化成功", 60)
+    make_player_lv("重锻成功", 60)
     db.update_player(g, q, gold=999999)
     eq_w = C.generate_roster_equip("eq_wan_dao")
     eq_w["enhance"] = 4
-    eq_w["upgrade_lv"] = 3
+    eq_w["lv"] = 14 + 3  # 弯刀名册基础 Lv14 + 真等级化升级 3 层（旧档 upgrade_lv=3 迁移后形态）
     give_equip(eq_w)
-    give_mats(C.EVOLVE_RECIPES["弯刀"]["mats"])
+    give_mats(C.REFINE_RECIPES["弯刀"]["mats"])
     goto_smith(m, g, q)
-    ev = FakeEvent(g, q, "装备进化 弯刀")
-    out = asyncio.run(run(m.evolve_equip, ev))
+    ev = FakeEvent(g, q, "装备重锻 弯刀")
+    out = asyncio.run(run(m.refine_equip, ev))
     txt = out[0] if out else ""
-    check("进化成功提示", "进化成功" in txt, txt[:150])
+    check("重锻成功提示", "重锻成功" in txt, txt[:150])
     inv = db.get_inventory(g, q)
     new_eq = [it for it in inv if it["key"].startswith("eq_")][0]
     check("旧弯刀被消耗", all("弯刀" not in it["data"].get("name", "") for it in inv if it["key"] != new_eq["key"]))
     check("新装备是血誓战剑", "血誓战剑" in new_eq["data"].get("name", ""), new_eq["data"].get("name", ""))
     check("继承强化 half(4→2)", new_eq["data"].get("enhance", 0) == 2, str(new_eq["data"].get("enhance")))
-    check("继承升级 half(3→1)", new_eq["data"].get("upgrade_lv", 0) == 1, str(new_eq["data"].get("upgrade_lv")))
-    # 1e. 已装备进化
+    # v172 真等级化：升级投资 = 真实 lv − 名册基础 lv（14+3−14=3），half → 新装备 lv 36+1
+    check("继承升级 half(3层→Lv.1) 新装备 lv=37",
+          new_eq["data"].get("lv", 0) == 37, f"lv={new_eq['data'].get('lv')}")
+    # 1e. 已装备重锻
     clean_db()
     m = Main(None)
-    make_player_lv("进化已装", 60)
+    make_player_lv("重锻已装", 60)
     db.update_player(g, q, gold=999999)
     eq_w = C.generate_roster_equip("eq_wan_dao")
     db.update_player(g, q, equipment={"weapon": eq_w})
-    give_mats(C.EVOLVE_RECIPES["弯刀"]["mats"])
+    give_mats(C.REFINE_RECIPES["弯刀"]["mats"])
     goto_smith(m, g, q)
-    ev = FakeEvent(g, q, "装备进化 弯刀")
-    out = asyncio.run(run(m.evolve_equip, ev))
+    ev = FakeEvent(g, q, "装备重锻 弯刀")
+    out = asyncio.run(run(m.refine_equip, ev))
     txt = out[0] if out else ""
-    check("已装备进化成功", "进化成功" in txt, txt[:150])
+    check("已装备重锻成功", "重锻成功" in txt, txt[:150])
 
     # ---------- 2. 怪异炼成 ----------
     print("[2] 怪异炼成")

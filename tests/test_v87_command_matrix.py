@@ -182,8 +182,8 @@ REPRESENTATIVES = {
     # v136 Phase 3 符文可制作+可拆卸（独立命令，与『拆卸』原石命令并行不冲突）
     "rune_craft": "符文制作 残忍",
     "rune_remove": "符文拆卸 铁剑 1",
-    # v136 Phase 4/5 装备进化 + 怪异炼成
-    "evolve_equip": "装备进化 弯刀",
+    # v136 Phase 4/5 装备重锻 + 怪异炼成
+    "refine_equip": "装备重锻 弯刀",
     "calamity_forge": "炼成 铁剑",
     "enchant": "附魔", "set_view": "套装", "bestiary": "图鉴", "encyclopedia": "百科", "monster": "怪物",  # v130.3 意见#3
     # v168 冒险手册：总入口 + 足迹

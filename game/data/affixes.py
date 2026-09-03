@@ -1541,6 +1541,39 @@ SERIES_FIXED_AFFIX = {
     # P1 敏系 91+ 防具（闪避/迅捷）
     '逐风皮甲': ['dodge', 'swift'],
     '云端护腿': ['swift', 'dodge'],
+
+    # ===== v172 路B：重锻专属装备固定词条（24 件，2026-09-03）=====
+    # source=重锻 装备（仅『装备重锻』可得）；词条对齐同系锻造职业套风格——
+    # 武器随源套（战士处决/破甲、法师雷/法穿、牧师净化/圣愈、游侠精准/追猎、刺客暴击/连击、武僧蓄力/反击），
+    # 防具随源套族（重甲 dmg_reduce/block/tenacity、布甲 magic_ward/meditate、皮甲 swift/dodge、武袍 block/tenacity）。
+    # ---- 重锻武器 Lv.31 紫 ----
+    '壁垒战剑': ['execute', 'armor_break'],
+    '铭文法典之杖': ['element_thunder', 'pene_magi'],
+    '贤者法典之杖': ['purify', 'heal_power'],
+    '巡猎长弓': ['precise', 'hunt'],
+    '夜行短刃': ['crit_up', 'combo'],
+    '镇岳拳套': ['charge', 'counter'],
+    # ---- 重锻武器 Lv.52 橙 ----
+    '壁垒军团战剑': ['execute', 'charge', 'armor_break'],
+    '铭刻法典之杖': ['element_thunder', 'pene_magi', 'crit_up'],
+    '辉光圣杖': ['purify', 'divine_radiance', 'heal_power'],
+    '远征之弓': ['crit_up', 'precise', 'hunt'],
+    '暗夜之刃': ['crit_up', 'combo', 'pene_phys'],
+    '撼岳拳': ['charge', 'counter', 'lifesteal'],
+    # ---- 重锻防具 Lv.33 紫 ----
+    '壁垒肩甲': ['dmg_reduce', 'tenacity'],
+    '铭文法袍': ['meditate', 'magic_ward'],
+    '贤者法衣': ['heal_power', 'tenacity'],
+    '巡猎皮甲': ['swift', 'dodge'],
+    '幽夜皮衣': ['dodge', 'swift'],
+    '磐岳武袍': ['block', 'tenacity'],
+    # ---- 重锻防具 Lv.53 橙 ----
+    '壁垒守御胸甲': ['dmg_reduce', 'block', 'hp_up'],
+    '铭刻法袍': ['magic_ward', 'regen', 'tenacity'],
+    '辉光圣衣': ['holy_echo', 'magic_ward', 'regen'],
+    '远征皮甲': ['swift', 'dodge', 'crit_up'],
+    '夜影皮衣': ['dodge', 'swift', 'tenacity'],
+    '不动武袍': ['tenacity', 'block', 'dmg_reduce'],
 }
 
 # ================= v130.2d R2：v130.2 资源联动套装登记块（死数据）已删除 =================

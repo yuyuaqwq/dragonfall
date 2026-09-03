@@ -59,8 +59,8 @@ from .fishing import (  # noqa: F401
 from .enhance import (  # noqa: F401
     ENHANCE_TABLE, MAX_ENHANCE, ENHANCE_FAIL_DROP, ENHANCE_SMITH_MAPS,
 )
-from .upgrade import (  # noqa: F401 v135 装备升级机制
-    UPGRADE_TABLE, MAX_UPGRADE, UPGRADE_STONE, UPGRADE_STAMINA, UPGRADE_MATERIAL_CN,
+from .upgrade import (  # noqa: F401 v172 装备升级（真等级化，cost 阶梯）
+    UPGRADE_TABLE, UPGRADE_STONE, UPGRADE_STAMINA, UPGRADE_MATERIAL_CN,
 )
 from .sets import SET_THEMES, SET_CHANCE, SETS, CLASS_SET_STAGES, CLASS_SET_THEMES  # noqa: F401
 from .craft import CRAFT_RECIPES, CRAFT_RECIPE_ALIASES  # noqa: F401
@@ -78,8 +78,12 @@ from .gems import (  # noqa: F401
     GEM_DROP_RATE, GEM_DROP_TIER, GEM_BOSS_FIXED,
     GEM_BASE_NAME, GEM_ITEM_TYPE,
 )
-# v136 装备进化（怪猎派生树）：同系列旧→新，继承强化/升级
-from .evolve import EVOLVE_RECIPES  # noqa: F401
+# v172 装备重锻（怪猎派生树）：同系列旧→新，继承强化/升级
+from .refine import REFINE_RECIPES  # noqa: F401
+# v172 路B 重锻专属装备（source=重锻，仅重锻可得；target 为名册 rid，命令层并查两表）
+from .refine_exclusive import (  # noqa: F401
+    REFINE_EXCLUSIVE_RECIPES, merge_into,
+)
 # v136 怪异炼成（怪猎曙光怪异化）：稀有素材随机强化，每件限 3 次
 from .calamity import (  # noqa: F401
     CALAMITY_MAX, CALAMITY_COST, CALAMITY_STATS,

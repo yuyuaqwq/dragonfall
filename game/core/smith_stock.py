@@ -147,6 +147,9 @@ def roll_stock(map_id: str, town_lv: int) -> list:
     for rid, r in EQUIP_ROSTER.items():
         if rid in exclude:
             continue
+        # v172 路B：source=重锻 装备（仅『装备重锻』可得）不进铁匠铺货架随机池
+        if r.get("source") == "重锻":
+            continue
         if not (lo <= r["lv"] <= hi):
             continue
         if r["slot"] == "weapon":
@@ -163,6 +166,7 @@ def roll_stock(map_id: str, town_lv: int) -> list:
             break
         extra = [rid for rid, r in EQUIP_ROSTER.items()
                  if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]
+                 and r.get("source") != "重锻"  # v172 路B：重锻专属不进货架
                  and (lo - 6 <= r["lv"] <= hi + 6)]
         if not extra:
             break
@@ -189,6 +193,7 @@ def roll_stock(map_id: str, town_lv: int) -> list:
         glob_cands = sorted(
             (rid for rid, r in EQUIP_ROSTER.items()
              if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]
+             and r.get("source") != "重锻"  # v172 路B：重锻专属不进货架
              and (lo <= r["lv"] <= hi or (lo - 3 <= r["lv"] <= hi + 3) or r["lv"] <= town_lv + 10)),
             key=lambda rid: (0 if lo <= EQUIP_ROSTER[rid]["lv"] <= hi
                              else (1 if lo - 3 <= EQUIP_ROSTER[rid]["lv"] <= hi + 3 else 2), _near(rid)))
@@ -208,7 +213,8 @@ def roll_stock(map_id: str, town_lv: int) -> list:
         if not all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 3), (pools["trinket"], 2))):
             glob_cands = sorted(
                 (rid for rid, r in EQUIP_ROSTER.items()
-                 if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]),
+                 if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]
+                 and r.get("source") != "重锻"),  # v172 路B：重锻专属不进货架
                 key=lambda rid: (abs(EQUIP_ROSTER[rid]["lv"] - town_lv)))
             for mk in missing_kinds:
                 for rid in glob_cands:
@@ -312,6 +318,7 @@ def get_smith_stock(map_id: str, town_lv: int | None = None) -> list:
             lo, hi = town_lv - STOCK_WINDOW, town_lv + STOCK_WINDOW
             cands = [rid for rid, r in EQUIP_ROSTER.items()
                      if rid not in _static_shop_rids() and rid not in have
+                     and r.get("source") != "重锻"  # v172 路B：重锻专属不进货架
                      and lo <= r["lv"] <= hi]
             for _ in range(missing):
                 if not cands:
@@ -397,6 +404,7 @@ def buy_stock_item(map_id: str, town_lv: int | None, rid: str):
             lo, hi = town_lv - STOCK_WINDOW, town_lv + STOCK_WINDOW
             cands = [rid_ for rid_, r in EQUIP_ROSTER.items()
                      if rid_ not in _static_shop_rids() and rid_ not in have
+                     and r.get("source") != "重锻"  # v172 路B：重锻专属不进货架
                      and lo <= r["lv"] <= hi]
             for _ in range(missing):
                 if not cands:

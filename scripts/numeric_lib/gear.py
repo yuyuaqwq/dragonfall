@@ -4,7 +4,8 @@
 口径：
   equip_stats(slot, lv, quality) = (slot_base + slot_scaling×lv) × QUALITY.mult  （32 章二）
   强化：ENHANCE_TABLE[enhance].mult 直接乘装备面板（32 章 2.2，+9 = 2.10）
-  升级：UPGRADE_TABLE[upgrade].mult 与强化乘区相乘（v135 养装备，engine 同款 upg_mult）
+  升级：真等级化（v172）——make_gear 无 upgrade 乘区，upgrade 参数语义 = "装备 lv = level + upgrade"
+  （养成拉高装备 lv，属性经 equip_stats 重算，engine 同款无 upg_mult）。
   幸运宝石：GEM_TIERS[gem_tier].mult（单孔，属性随机取 atk/matk/def 之一，走面板 sockets）
   套装：set_bonus 简化 +8% 主属性（防御向 def；引擎 set_bonus_2 消费需 2 件同套，这里
         用橙装双槽位同套激活，见 make_gear 实现）
@@ -38,7 +39,8 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
 
     返回 {slot: {"stats": {...}, "enhance": n, "upgrade": n, "gem_tier": n,
                  "set_bonus": bool, "sockets": {...}?, "set": str?}}
-    - upgrade:  UPGRADE_TABLE[upgrade]["mult"]（与强化倍率相乘，engine 同款 upg_mult）
+    - upgrade:  真等级化养成差（v172）：装备 lv = level + upgrade，属性经
+                equip_stats(slot, lv+upgrade, quality) 重算（engine 同款无 upg_mult 乘区）
     - gem_tier: GEM_TIERS[gem_tier]["mult"]（单孔；属性随机取 atk/matk/def 之一，
                 固定种子可复现；写入 sockets 由 engine 原石段消费）
     - set_bonus: 套装 2 件同套激活 → 主属性 +SET_BONUS_PCT（简化 8%）。
@@ -47,15 +49,16 @@ def make_gear(level: int, quality: str = "blue", enhance: int = 0,
     """
     gear = {}
     mult = C.ENHANCE_TABLE.get(enhance, {}).get("mult", 1.0)
-    upg_mult = C.UPGRADE_TABLE.get(upgrade, {}).get("mult", 1.0)
+    # v172 真等级化：升级 = 装备 lv +upgrade（属性随 equip_stats 重算，无倍率乘区）
+    equip_lv = level + int(upgrade or 0)
     gem_mult = C.GEM_TIERS.get(gem_tier, {}).get("mult", 0.0)
     gem_stat = None
     if gem_tier > 0:
         # 固定种子：与 numeric_sim 同源可复现（seed = level % 7 + slot hash）
         gem_stat = GEM_STAT_POOL[(level + 1) % len(GEM_STAT_POOL)]
     for slot in C.EQUIP_SLOT_BASE:
-        s = ST.equip_stats(slot, level, quality)
-        s = _apply_mult(s, mult * upg_mult)
+        s = ST.equip_stats(slot, equip_lv, quality)
+        s = _apply_mult(s, mult)
         entry = {"stats": s, "enhance": enhance, "upgrade": upgrade,
                  "gem_tier": gem_tier, "set_bonus": set_bonus}
         if gem_stat:
