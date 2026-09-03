@@ -14,6 +14,15 @@
 - 条件不满足返回 False，_cond_mult 会返回 1.0（无加成）
 - 倍率成长（每级 +0.05）由调用方 E.skill_cond_mult 处理，本模块只管判断
 """
+# v169.7 TODO（依赖其他 agent 的并行改动，合并后需复核）：
+# 1. melody_buff 依赖 battle_mech agent 在 _m_melody/_melody_state 写入 mel["kind"]
+#    （系别 token ∈ atk/def/spd/atk_matk/all/e_*），未写入前本条件恒 False（咏叹调暂空转）。
+# 2. revenge（复仇）依赖 battle_mech/battle agent 提供累计承伤计数
+#    battle._dmg_taken（现 battle.py 只写一次性 p_buffs["revenge_atk"]），
+#    未提供前按 p_buffs["revenge_atk"] 判定（仅受击后下一次攻击生效）。
+# 3. enemy_shaken_ratio/enemy_shaken_scale/guard_core/enemy_def_high 需返回数值倍率的
+#    档位/比例扩展，由调用方/数据侧按 cond["_bar_val"]/["_guard_core_n"]/["_enemy_def"] 计算
+#    （现有 register 接口为 bool，_cond_mult 只判 bool 后整乘 cond.mult——扩展多值接口需设计裁定）。
 COND_CHECKS = {}
 COND_LABELS = {}  # v101.2: 条件类型 -> label(cond)->str（技能详情面板文案）
 
@@ -264,6 +273,176 @@ def _c_speed_ratio(battle, player, cond):
     est = battle._enemy_stats()
     espd = est.get("spd", 0)
     return espd > 0 and pst.get("spd", 0) / espd >= cond.get("ratio", 1.5)
+
+
+# ================= 技能条件注册表扩展（v169.7 技能全鉴补全：cond 缺口 14 种） =================
+# 来源：技能引擎缺口全量清单.md §一.1——技能数据声明了这些 cond 但注册表缺失，
+# 实机条件倍率静默失效（_cond_mult 未知 type → 1.0）。各注册与数据侧字段对齐。
+
+@register("enemy_hunt_mark", label=lambda c: "敌方有猎印")
+def _c_enemy_hunt_mark(battle, player, cond):
+    """敌方有猎印（≥1 层）。hunt_mark 由 battle_mech _m_hunt_mark 写入
+    enemy.debuffs.hunt_mark（int 层数，cap=info.mark_cap 默认 3）。"""
+    return int(((battle.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)) > 0
+
+
+@register("enemy_hunt_full", label=lambda c: f"敌方猎印已满{c.get('stacks', 3)}层")
+def _c_enemy_hunt_full(battle, player, cond):
+    """敌方猎印满层（≥ stacks，默认 3 = info.mark_cap；追猎者被动 cap 可叠加到 5）。
+    与 _m_hunt_mark 叠层上限同源：cap 默认 3、技能数据 mark_cap 可覆盖（上限 5）。"""
+    return int(((battle.enemy.get("debuffs") or {}).get("hunt_mark", 0) or 0)) >= cond.get("stacks", 3)
+
+
+@register("enemy_cursed", label=lambda c: "敌方带诅咒")
+def _c_enemy_cursed(battle, player, cond):
+    """敌方带骨噬诅咒（battle_mech _m_curse/_m_curse_refresh 写入
+    enemy.debuffs.curse = {"n": 1, "turns": N}）。"""
+    return int(((battle.enemy.get("debuffs") or {}).get("curse", {}) or {}).get("n", 0) or 0) > 0
+
+
+@register("faith_full", label=lambda c: f"信念满{c.get('stacks', 10)}")
+def _c_faith_full(battle, player, cond):
+    """信念满值（牧师 class 核心资源 battle.resources["faith"]，max=10；
+    cond.stacks 默认 10；亡魂主宰 stacks=10）。"""
+    return float(battle.resources.get("faith", 0) or 0) >= cond.get("stacks", 10)
+
+
+@register("enemy_broken", label=lambda c: "敌方被破防")
+def _c_enemy_broken(battle, player, cond):
+    """敌方被破防/震慑中（破绽条触发态）：shaken 条 trigger_count>0 且免疫期内。
+    判定与 _c_enemy_shaken_gt 完全同源（破防=敌方跳过刻=被震慑）。"""
+    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    if not isinstance(bs, dict):
+        return False
+    return int(bs.get("trigger_count", 0) or 0) > 0 and int(bs.get("immune_turns", 0) or 0) > 0
+
+
+@register("enemy_shaken_ratio", label=lambda c: f"敌方破绽每{c.get('step', 50)}点")
+def _c_enemy_shaken_ratio(battle, player, cond):
+    """敌方破绽条 ≥ 档位起点（气力爆发 desc「破绽每 50 点伤害 +80%」，mult=0.8 为每 50 点档位倍率）。
+
+    注：现有 register 接口为 bool，_cond_mult 在条件满足时把 cond.mult 整乘一次。
+    数据侧 mult=0.8 语义是「每 50 点 +80%」（如条 50 → ×1.8、条 100 → ×2.6 档进），
+    布尔判定无法表达线性档进——这里注册为「条值 ≥ 一个档位即满足」（val≥step 即生效），
+    并置 cond["_bar_val"] 供调用方/数据侧按 val 扩展多档（见文件顶部 TODO 3）。"""
+    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    if not isinstance(bs, dict):
+        return False
+    cond["_bar_val"] = int(bs.get("val", 0) or 0)  # 供调用方读取条值（多档/比例扩展用）
+    return int(bs.get("val", 0) or 0) >= cond.get("step", 50)
+
+
+@register("enemy_shaken_scale", label=lambda c: "敌方破绽越高")
+def _c_enemy_shaken_scale(battle, player, cond):
+    """敌方破绽条越高伤害越高（气力通天 desc「破绽越高伤害越高」）。
+
+    比例式倍率 1 + val/max×系数 需调用方读条值计算（register 为 bool 接口，见 TODO 3）。
+    这里注册为「条值 >0 即满足」（配合数据侧 cond.mult 作基础触发倍率），
+    条值存 cond["_bar_val"] 供调用方扩展比例档位。"""
+    bs = (battle.enemy.get("buffs") or {}).get("shaken")
+    if not isinstance(bs, dict):
+        return False
+    val = int(bs.get("val", 0) or 0)
+    cond["_bar_val"] = val
+    return val > 0
+
+
+@register("guard_core", label=lambda c: "持有磐核")
+def _c_guard_core(battle, player, cond):
+    """持有磐核 ≥1（battle.resources["guard_core"]，int 0-5，_m_guard_core_burst 消耗）。
+    磐岩释能 per_core=0.7：每枚 +70% 的线性乘区同 shaken_ratio——布尔判定满足后
+    由调用方/数据侧按 n 扩展（置 cond["_guard_core_n"] 供读取，见 TODO 3）。"""
+    n = int((battle.resources or {}).get("guard_core", 0) or 0)
+    cond["_guard_core_n"] = n
+    return n >= 1
+
+
+@register("enemy_def_high", label=lambda c: "敌方防御高")
+def _c_enemy_def_high(battle, player, cond):
+    """敌方防御高（淬毒刺杀 desc「目标防御越高伤害越高，最高 ×1.5」）。
+    读 _enemy_stats()["def"]（含 def_down 破甲等 buff 后值）。
+    档位式倍率（1.0/1.2/1.5）需调用方按 def 分档（引擎 bool 接口，见 TODO 3）；
+    这里注册「def ≥ def_at（默认 30）即满足触发」，并把 def 存 cond["_enemy_def"] 供扩展。"""
+    try:
+        est = battle._enemy_stats()
+        edef = int(est.get("def", 0) or 0)
+    except Exception:
+        return False
+    cond["_enemy_def"] = edef  # 供调用方按防御分档扩展（1.0/1.2/1.5）
+    return edef >= cond.get("def_at", 30)
+
+
+@register("melody_buff", label=lambda c: "当前旋律为增益系")
+def _c_melody_buff(battle, player, cond):
+    """当前旋律为增益系（咏叹调 desc「当前旋律为增益系时 ×1.3」）。
+    旋律状态存 battle._melody = {"name","stack","finale_ready"}（battle_mech._melody_state）；
+    kind（系别 token）由 battle_mech agent 在 _m_melody 补写 mel["kind"]=info.melody——
+    TODO（v169.7）：该改动未合并前 kind 缺失 → 恒 False，咏叹调暂空转，依赖 melody agent 改动。
+    兼容读 battle._melody.get("kind")，kind 缺失默认 False。"""
+    mel = getattr(battle, "_melody", None)
+    if not isinstance(mel, dict) or not mel.get("name"):
+        return False
+    kind = mel.get("kind")
+    if not kind:  # 依赖 battle_mech agent 写入 kind，见文件顶部 TODO
+        return False
+    return kind in ("atk", "def", "spd", "atk_matk", "all")
+
+
+@register("melody_stacks", label=lambda c: f"旋律强度≥{c.get('stacks', 4)}")
+def _c_melody_stacks(battle, player, cond):
+    """旋律强度 ≥ stacks（天籁 desc「强度层 ≥4 时 ×1.3」）。
+    读 battle._melody["stack"]（0-5，_m_melody_chant 叠加，MELODY_CFG max=5）。"""
+    mel = getattr(battle, "_melody", None)
+    if not isinstance(mel, dict):
+        return False
+    return int(mel.get("stack", 0) or 0) >= cond.get("stacks", 4)
+
+
+@register("enemy_low_hp", label=lambda c: f"敌方血量<{int(c.get('hp_lt', c.get('hp_pct', 40)))}%")
+def _c_enemy_low_hp(battle, player, cond):
+    """敌方血量低于阈值（收割 desc「目标生命 <40% 时 ×1.45」）。
+    数据侧用 hp_lt（百分数 int，40=40%）——兼容读 hp_lt 或 hp_pct（小数，0.4=40%）。"""
+    if "hp_lt" in cond:
+        return battle.enemy.get("hp", 0) < battle.enemy.get("max_hp", 1) * (int(cond["hp_lt"]) / 100.0)
+    return battle.enemy.get("hp", 0) < battle.enemy.get("max_hp", 1) * cond.get("hp_pct", 0.4)
+
+
+@register("enemy_marks", label=lambda c: f"敌方印记总层≥{c.get('stacks', 4)}")
+def _c_enemy_marks(battle, player, cond):
+    """敌方三系元素印记总层 ≥ stacks（元素湮灭 desc「目标印记总层数 ≥4」）。
+    读 battle._elem_marks()（enemy.element_marks = {"fire","ice","thunder": 0..3}，
+    与 battle_mech _element_marks 同一份 dict；与已注册 enemy_mark_full 的单系满层区分）。"""
+    try:
+        marks = battle._elem_marks()
+    except Exception:
+        marks = {}
+    if not isinstance(marks, dict):
+        return False
+    return sum(int(v or 0) for v in marks.values()) >= cond.get("stacks", 4)
+
+
+@register("revenge", label=lambda c: "已承伤")
+def _c_revenge(battle, player, cond):
+    """复仇（战士 desc「已承伤越多伤害越高，最高 +80%」）。
+
+    TODO（v169.7）：完整实现需累计承伤计数 battle._dmg_taken（现 battle.py 无此字段，
+    只写一次性 p_buffs["revenge_atk"]，见 battle.py:6882 复仇被动段）——依赖
+    battle_mech/battle agent 提供计数器后升级为按 _dmg_taken 分档。
+    当前兼容注册：读现有复仇缓冲 p_buffs["revenge_atk"]（受击后下一次攻击触发）。"""
+    if hasattr(battle, "_dmg_taken"):  # 计数器已由其他 agent 提供 → 按累计承伤判定
+        try:
+            return float(battle._dmg_taken or 0) > 0
+        except Exception:
+            pass
+    return bool(battle.p_buffs.get("revenge_atk"))
+
+
+@register("stealth", label=lambda c: "潜行中")
+def _c_stealth(battle, player, cond):
+    """潜行中（暗影突袭 desc「潜行中伤害 ×1.4」）。
+    判定 p_buffs["stealth"]（潜行态，出手消费置 _stealth_atk）或 battle._stealth_atk
+    （v130.2f2 出手标记——cond 求值在攻击消费后也能命中，与 SHADOW_STEALTH_DMG_MULT 同款消费方式）。"""
+    return bool(battle.p_buffs.get("stealth") or getattr(battle, "_stealth_atk", False))
 
 
 # ================= 被动条件注册表（v1.x：PASSIVE_COND_CHECKS） =================

@@ -1047,7 +1047,7 @@ def _sb_reduce_all(battle, skill_name, info, player, lv, logs):
         # v162 回落：mech_val 或默认 0.20（战吼·守 desc '全队减伤 20%'）
         mv = float((info or {}).get("mech_val") or 0)
         pct = (mv / 100.0) if mv > 1 else (mv if 0 < mv <= 1 else 0.20)
-    turns = skill_buff_turns(lv)
+    turns = skill_buff_turns(lv, info=info)
     battle.p_buffs["reduce_all"] = pct
     battle._reduce_all_left = max(getattr(battle, "_reduce_all_left", 0), turns)
     logs.append(f"🛡️ 全队减伤 {int(pct*100)}%（持续 {battle._reduce_all_left} 刻）")
@@ -1069,6 +1069,554 @@ def _sb_reduce(battle, skill_name, info, player, lv, logs):
     battle.p_buffs["reduce"] = rp
     battle._reduce_left = max(getattr(battle, "_reduce_left", 0), turns)
     logs.append(f"🛡️ 减伤 {int(rp*100)}%（持续 {battle._reduce_left} 刻）")
+
+
+# ================= 4.6 技能 effect 缺口补全（v169.7 技能全鉴：26 种空转 effect） =================
+# 清单来源：技能引擎缺口全量清单.md §二.1/2.2。
+# 命名遵循 _sb_* 风格；注册进 SKILL_BUFF_EFFECTS。
+# 签名：fn(battle, skill_name, info, player, lv, logs) -> None
+# ============================================================
+# 通用小工具
+# ============================================================
+
+# effect 直接映射到已有 p_buffs/e_buffs 键（不改数值体系，缺数值档位由 desc 对齐的键承载）
+# spd_buff→spd_up（BUFF_MULT spd_up=1.40）；dodge_buff→dodge_up（受击闪避 +40% 乘算并入，battle.py:6745）
+# crit_hit_buff→crit_up（暴击 +20%）；vuln→mark（e_buffs mark +30% 易伤，_apply_mark 消费）
+
+
+def _sb_pb_set_turns(battle, key, lv, info=None, base=None):
+    """写 p_buffs[key]=skill_buff_turns(lv, info)（同 effect 不同技能覆盖取高）。
+    base：显式刻数（desc 已写死 N 刻的技能），不传走数据 buff_turns/默认成长。"""
+    from ..engine import skill_buff_turns
+    t = base if base else skill_buff_turns(lv, info=info)
+    battle.p_buffs[key] = max(int(battle.p_buffs.get(key, 0) or 0), int(t))
+    return int(battle.p_buffs[key])
+
+
+def _sb_eb_set_turns(battle, key, lv, info=None, base=None):
+    """写 e_buffs[key]=skill_buff_turns(lv, info)（敌方侧计时键，同 effect 覆盖取高）。"""
+    from ..engine import skill_buff_turns
+    t = base if base else skill_buff_turns(lv, info=info)
+    battle.e_buffs[key] = max(int(battle.e_buffs.get(key, 0) or 0), int(t))
+    return int(battle.e_buffs[key])
+
+
+def _sb_write_eb_pct(battle, valkey, pct):
+    """写敌方减益百分比自定义通道（_enemy_stats 消费）：
+    mon_atk_down/_weaken_val（攻）、def_down/_armor_break_pct（防）、spd_down/_spd_down_pct（速）。"""
+    eb = battle.e_buffs
+    eb[valkey] = max(float(eb.get(valkey, 0) or 0), float(pct))
+
+
+def _sb_cleanse_p(battle, player, logs, scope="single"):
+    """净化玩家减益：白名单化（增益不删）——清首个非增益键（single）或全部（all）。
+    注：此函数被 _sb_cleanse/_sb_cleanse_all 调用；治疗型技能（圣光驱散/圣辉涤净/生命圣域
+    等 kind=治疗）的 effect 消费链在 battle.py _skill_heal——治疗路径挂接点在 battle.py
+    （另一 agent 管辖），届时直接调本表 handler 即可复用同一净化逻辑。"""
+    _bless = {"atk_up", "def_up", "spd_up", "matk_up", "matk_up_strong", "crit_up", "atk_up_strong",
+              "atk_up_big", "atk_up_small", "spd_up_small", "crit_up_small", "crit_up_big",
+              "reduce", "reduce_all", "dodge_up", "cc_immune", "shadow_dance", "next_atk_up"}
+    removed = []
+    if scope == "single":
+        for k in list(battle.p_buffs.keys()):
+            if k in _bless:
+                continue
+            # 控制类不净（解控由 cleanse_all 的 ctrl 分支另处理；单体净化 desc 只清减益）
+            removed.append(k)
+            del battle.p_buffs[k]
+            break
+    else:
+        for k in list(battle.p_buffs.keys()):
+            if k in _bless:
+                continue
+            removed.append(k)
+            del battle.p_buffs[k]
+    # 净化攻击/减速类 p_buffs 减益（spd_down/atk_down 等）
+    if removed:
+        logs.append(f"✨ 净化！驱散了 {'、'.join(removed)}")
+    return removed
+
+
+@register(SKILL_BUFF_EFFECTS, "spd_buff")
+def _sb_spd_buff(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：速度提升（风之疾走/疾影/疾风步 desc +30%~+40%）。
+    映射 BUFF_MULT spd_up=1.40（×1.40 = +40%；引擎单档无法表达 30/40 梯度，取 spd_up 档）。"""
+    turns = _sb_pb_set_turns(battle, "spd_up", lv, info)
+    logs.append(f"💨 速度提升！(spd_up 持续 {turns} 刻)")
+
+
+@register(SKILL_BUFF_EFFECTS, "dodge_buff")
+def _sb_dodge_buff(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：闪避提升（闪现/闪避步/风之屏障/影分身/毒雾·障 desc +30~40%）。
+    消费端已存在（battle.py:6745 受击闪避乘算并入 p_buffs[\"dodge_up\"] +40%）。"""
+    turns = _sb_pb_set_turns(battle, "dodge_up", lv, info)
+    logs.append(f"💨 闪避大幅提升！(dodge_up 持续 {turns} 刻)")
+
+
+@register(SKILL_BUFF_EFFECTS, "crit_hit_buff")
+def _sb_crit_hit_buff(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：鹰眼锁定 desc「暴击 +20%、命中 +15%」。
+    暴击写 crit_up（BUFF_MULT +20%）；命中：引擎无玩家命中乘区（敌方闪避判定吃我方精准
+    precise，无 buff 通道），命中维度降级为精准等价物暂不接入（_player_stats precise 无技能 buff 来源）。"""
+    turns = _sb_pb_set_turns(battle, "crit_up", lv, info)
+    logs.append(f"🎯 暴击提升 +20%（crit_up 持续 {turns} 刻；命中维度引擎暂未建模）")
+
+
+@register(SKILL_BUFF_EFFECTS, "vuln")
+def _sb_vuln(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：死亡标记（vuln）→ 目标易伤 e_buffs mark（_apply_mark 按层 +20% 消费）。
+    desc「目标受到伤害 +25%」与 mark 语义完全一致（旧表死亡标记 effect=vuln 无 handler）。"""
+    _sb_mark(battle, skill_name, info, player, lv, logs)
+
+
+@register(SKILL_BUFF_EFFECTS, "cc_immune")
+def _sb_cc_immune(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：免疫控制（圣佑/英雄叙事诗/咏叹·辉 desc「免疫 1 次控制」）。
+    药水先例 potion_effects.cc_immune 写 p_buffs[\"cc_immune\"]=turns（MON_CTRL_EFFECTS
+    freeze/stun/slow 命中前查此键，持续刻内免疫；刻递减由 _advance_time 驱动）。"""
+    turns = _sb_pb_set_turns(battle, "cc_immune", lv, info)
+    logs.append(f"🗿 免疫控制！（cc_immune 持续 {turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "cleanse")
+def _sb_cleanse(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：驱散单体 1 个减益（增益型冥想 / 治疗型圣光驱散）。
+    净化白名单见 _sb_cleanse_p。
+    治疗路径挂接点在 battle.py（治疗型技能 effect 在 _skill_heal 无消费链——该 agent 接线时
+    直接调本 handler）。"""
+    _sb_cleanse_p(battle, player, logs, scope="single")
+    # 冥想（武僧 增益）：desc「每刻回蓝 2% 持续 6 刻」——p_hot mana 通道（食物同款）
+    if (info or {}).get("name") == "冥想" and player.get("max_mp", 0):
+        _hot = battle.p_hot
+        battle.p_hot = {"heal": max(0.0, float(_hot.get("heal", 0) or 0)),
+                        "mana": max(0.02, float(_hot.get("mana", 0) or 0)),
+                        "turns": max(int(_hot.get("turns", 0) or 0), 6)}
+        logs.append("🧘 冥想：自身每刻回蓝 2%（6 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "cleanse_all")
+def _sb_cleanse_all(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：全体净化并解控（治疗型 圣辉涤净/生命圣域——治疗路径挂接点在
+    battle.py _skill_heal；增益技带此 effect 时经 _skill_buff 直接调用）。
+    解控 = 清除玩家控制（stun/freeze/silence 行动级标记由对应行动分支消费，直接移除）。"""
+    _sb_cleanse_p(battle, player, logs, scope="all")
+    _rem_ctrl = []
+    for _ck in ("stun", "freeze", "silence", "spd_down"):
+        if battle.p_buffs.pop(_ck, None) is not None:
+            _rem_ctrl.append(_ck)
+    if _rem_ctrl:
+        logs.append(f"✨ 解除了 {'、'.join(_rem_ctrl)}！")
+
+
+@register(SKILL_BUFF_EFFECTS, "atk_matk_all")
+def _sb_atk_matk_all(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：圣光祝福 desc「全队攻+魔攻 +30% 10 刻」。
+    批量写 atk_up + matk_up（参考 crit_all→crit_up 同款双写；单机=施放者自身，副本由
+    instance 广播 team_effects——effect 映射在 instance buff_effects 表，此处处理单机侧）。"""
+    from ..engine import skill_buff_turns
+    turns = skill_buff_turns(lv, info=info)
+    battle.p_buffs["atk_up"] = max(int(battle.p_buffs.get("atk_up", 0) or 0), int(turns))
+    battle.p_buffs["matk_up"] = max(int(battle.p_buffs.get("matk_up", 0) or 0), int(turns))
+    logs.append(f"✨ 全队攻击与魔攻 +30%！（持续 {turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "all_stat_cc")
+def _sb_all_stat_cc(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：永恒赞歌 desc「全队全属性 +30%、免疫控制 8 刻」。
+    批量写 BUFF_MULT 多键（atk_up/matk_up/def_up/spd_up/crit_up）+ cc_immune。"""
+    turns = skill_buff_turns(lv, info=info)
+    for _k in ("atk_up", "matk_up", "def_up", "spd_up", "crit_up"):
+        battle.p_buffs[_k] = max(int(battle.p_buffs.get(_k, 0) or 0), int(turns))
+    battle.p_buffs["cc_immune"] = max(int(battle.p_buffs.get("cc_immune", 0) or 0), int(turns))
+    logs.append(f"🌈 全队全属性 +30% 并免疫控制！（持续 {turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "element_switch")
+def _sb_element_switch(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：元素流转 desc「切换当前主系，影响下次挂印系别」。
+    法师 _m_element_mark_current 读 battle._element_main 决定挂印系；自由切（默认火系轮换
+    顺序环切，desc 无指定系——按 火→冰→雷→火 前进保持确定性）。"""
+    cur = getattr(battle, "_element_main", None) or "fire"
+    nxt = {"fire": "ice", "ice": "thunder", "thunder": "fire"}.get(cur, "fire")
+    battle._element_main = nxt
+    logs.append(f"✦ 元素流转！当前主系切换为 {nxt}（下次挂印系别）")
+
+
+@register(SKILL_BUFF_EFFECTS, "shield_self")
+def _sb_shield_self(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：霜晶护体 desc「为自己张开护盾 12 刻」。
+    _add_shield 同源叠加 + 刷新时长；盾值按实例广播口径 matk×20%（数据无 shield_val 字段）。"""
+    st2 = battle._player_stats(player)
+    base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
+    pct = float((info or {}).get("shield_val") or 0.20)
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle._add_shield("self_bless", int(base * pct), int(turns))
+    logs.append(f"🧊 霜晶护盾！获得 {int(base * pct)} 点护盾（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "shield_block")
+def _sb_shield_block(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：铁壁·誓 desc「自身获得护盾，格挡率 +30% 10 刻」。
+    护盾走 _add_shield；格挡 = 乘算并入受击格挡键 block_up（battle.py:6817 同 block_pot 通道
+    +15% 硬编码——skill 30% 需新数值键，此处写 block_up 标记 + p_eff 存 30%，引擎侧暂按
+    block_pot 15% 档接入并注释扩展点）。"""
+    st2 = battle._player_stats(player)
+    base = (st2 or {}).get("matk") or (st2 or {}).get("atk") or 0
+    pct = float((info or {}).get("shield_val") or 0.20)
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle._add_shield("shield_block", int(base * pct), int(turns))
+    # 格挡率：写 battle._p_buff_hits 专用键（受击计数 1 次 = 格挡 1 次语义，与铁山靠同款）
+    battle.p_buffs["block_up"] = max(int(battle.p_buffs.get("block_up", 0) or 0), int(turns))
+    battle.p_eff["block_up_val"] = max(float(battle.p_eff.get("block_up_val", 0) or 0), 0.30)  # 数值通道（受击格挡结算读）
+    logs.append(f"🛡️ 获得护盾并格挡率 +30%！（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "block_reflect")
+def _sb_block_reflect(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：铁山靠 desc「格挡 1 次攻击并反伤 40% 8 刻」。
+    引擎既有消费点：受击格挡判定（battle.py:6817 并入 st[\"block\"]，格挡成功减半）+ 反伤。
+    写 p_buffs block_up（格挡触发标记）+ thorns_pot（反伤乘算并入 30% 上限——40% 超上限，
+    记 battle.p_eff 数值，battle.py 反伤段已存在 thorns 汇总）。"""
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["block_up"] = max(int(battle.p_buffs.get("block_up", 0) or 0), int(turns))
+    battle.p_eff["block_up_val"] = max(float(battle.p_eff.get("block_up_val", 0) or 0), 0.50)  # 引擎格挡减伤档（格挡成功减半）
+    # 反伤 40% 走 block_reflect_val（battle.py 反伤段随 block_up 生效），不写 thorns_pot 防与荆棘药剂双算
+    battle.p_eff["block_reflect_val"] = max(float(battle.p_eff.get("block_reflect_val", 0) or 0), 0.40)
+    logs.append(f"🛡️ 格挡并反伤 40%！（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "protect")
+def _sb_protect(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：誓约之盾/守护誓言 desc「为队友挡刀并反伤 30%/50% 12 刻」。
+    单人战斗无队友（allies 空）；副本仇恨/挡刀在 instance.py 广播（team_effects 口径）。
+    本处单机侧等效：高额单人减伤（挡刀=承伤转移给自己，减伤映射）+ 反伤乘算。"""
+    rp = 0.30 if "30" in str((info or {}).get("desc", "")) else 0.50
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["reduce"] = max(float(battle.p_buffs.get("reduce", 0) or 0), rp)
+    battle._reduce_left = max(int(getattr(battle, "_reduce_left", 0) or 0), int(turns))
+    # 反伤 rp 走 block_reflect_val（随 block_up/受击反伤段生效），不写 thorns_pot 防与荆棘药剂双算
+    battle.p_eff["block_reflect_val"] = max(float(battle.p_eff.get("block_reflect_val", 0) or 0), rp)
+    battle.p_buffs["block_up"] = max(int(battle.p_buffs.get("block_up", 0) or 0), int(turns))
+    logs.append(f"🛡️ 誓约守护：减伤 {int(rp * 100)}% 并反伤！（{turns} 刻；副本挡刀由 instance 广播）")
+
+
+@register(SKILL_BUFF_EFFECTS, "disengage_dodge")
+def _sb_disengage_dodge(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：烟雾弹 desc「脱离战斗，全队闪避 +25% 8 刻」。
+    单机无脱战机制（combat 层管逃跑）；只落地闪避部分（dodge_up 40% 档降级——引擎无 25% 数值键）。"""
+    _sb_dodge_buff(battle, skill_name, info, player, lv, logs)
+
+
+@register(SKILL_BUFF_EFFECTS, "dodge_reduce_all")
+def _sb_dodge_reduce_all(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：自然护佑 desc「全队闪避 +15%、减伤 10% 12 刻」（复合）。
+    dodge 键（dodge_up）+ reduce_all 键（pct 通道独立计时）双写。"""
+    _sb_dodge_buff(battle, skill_name, info, player, lv, logs)
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["reduce_all"] = max(float(battle.p_buffs.get("reduce_all", 0) or 0), 0.10)
+    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    logs.append(f"🍃 自然护佑：全队减伤 10%（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "hunt_team_dmg")
+def _sb_hunt_team_dmg(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：猎杀时刻 desc「全队对猎印目标增伤 +30% 12 刻」。
+    伤害侧乘区键 hunt_mark_dmg_mult（battle.py 伤害结算读 p_buffs，命中带猎印目标时 ×1.30）。"""
+    turns = max(1, skill_buff_turns(lv, info=info))
+    # 乘区键：p_buffs 只存 int 时长（_advance_time 按刻到期），数值存 p_eff float（battle.py 伤害乘区读）
+    battle.p_buffs["hunt_team_dmg"] = max(int(battle.p_buffs.get("hunt_team_dmg", 0) or 0), int(turns))
+    battle.p_eff["hunt_team_dmg"] = max(float(battle.p_eff.get("hunt_team_dmg", 0) or 0), 0.30)
+    logs.append(f"🎯 猎杀时刻：全队对猎印目标增伤 +30%（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "star_lock")
+def _sb_star_lock(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：星轨锁定 desc「锁定目标无视站位，全队对其伤害 +12% 12 刻」。
+    单人无站位概念；等效 = 对当前敌增伤 12%（star_lock_mult 键伤害乘区，battle.py 读）。"""
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["star_lock"] = max(int(battle.p_buffs.get("star_lock", 0) or 0), int(turns))
+    battle.p_eff["star_lock"] = max(float(battle.p_eff.get("star_lock", 0) or 0), 0.12)
+    logs.append(f"🌟 星轨锁定：全队对目标伤害 +12%（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "reduce_shield_all")
+def _sb_reduce_shield_all(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：大地守护 desc「全队减伤 30-50%（按磐核数）+护盾 12 刻」（复合）。
+    磐核数 battle.resources.guard_core（0-5）：核数 ≥3 → 50%，否则 30%；护盾走 shield_all。"""
+    cores = int((battle.resources or {}).get("guard_core", 0) or 0)
+    rp = 0.50 if cores >= 3 else 0.30
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["reduce_all"] = max(float(battle.p_buffs.get("reduce_all", 0) or 0), rp)
+    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    _sb_shield_all(battle, skill_name, info, player, lv, logs)
+    logs.append(f"🪨 大地守护：全队减伤 {int(rp * 100)}%（磐核 {cores}）")
+
+
+@register(SKILL_BUFF_EFFECTS, "shield_all_reduce")
+def _sb_shield_all_reduce(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：守护圣域 desc「花满 10 层战意：全队护盾+减伤 30% 12 刻」（复合+门槛）。
+    战意 mech_stacks.zhan_yi ≥10 才施放（数据 mp=0 CD24；不足时提示不放——desc 门槛语义）。"""
+    zy = int((battle.mech_stacks or {}).get("zhan_yi", 0) or 0)
+    if zy < 10:
+        logs.append("⚔️ 战意不足（需满 10 层），守护圣域无法展开！")
+        return
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["reduce_all"] = max(float(battle.p_buffs.get("reduce_all", 0) or 0), 0.30)
+    battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    _sb_shield_all(battle, skill_name, info, player, lv, logs)
+    logs.append(f"🛡️ 守护圣域：全队护盾 + 减伤 30%（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "shadow_dance")
+def _sb_shadow_dance(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：暗影步 desc「连段满 5 进影舞态：技能 CD −20%、受击不清连段」。
+    battle.py 已有 _shadow_dance() 读 p_buffs[\"shadow_dance\"] 消费点（v169.7 接线：暗影步
+    施放时置位）；连段门槛校验（combo/连段 ≥5 才进影舞态）。CD 减成/受击保护由 battle.py 消费。"""
+    combo = int((battle.mech_stacks or {}).get("combo", 0) or 0)
+    if combo < 5:
+        logs.append(f"🌑 连段不足（{combo}/5），影舞态无法开启！")
+        return
+    turns = 6
+    battle.p_buffs["shadow_dance"] = max(int(battle.p_buffs.get("shadow_dance", 0) or 0), int(turns))
+    logs.append(f"🌑 影舞态开启！技能 CD −20%、受击不清连段（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "stealth_cc")
+def _sb_stealth_cc(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：影遁 desc「强制进入潜行并免疫控制 6 刻」。
+    潜行 = p_buffs stealth（攻击消费，必暴+潜行乘区）；免控 = cc_immune。"""
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["stealth"] = max(int(battle.p_buffs.get("stealth", 0) or 0), 1)
+    battle.p_buffs["cc_immune"] = max(int(battle.p_buffs.get("cc_immune", 0) or 0), int(turns))
+    logs.append(f"🌙 强制潜行并免疫控制！（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "taunt")
+def _sb_taunt(battle, skill_name, info, player, lv, logs):
+    """v169.7 注册兜底：嘲讽 effect 实机不可达（kind=嘲讽走 battle.py _player_skill 独立分支：
+    敌方降攻 + 叠狂暴 / 副本仇恨），不留无消费端假字段。仅占位注册说明。"""
+    logs.append("📢 嘲讽！强制敌人攻击你！(kind=嘲讽分支处理)")
+
+
+@register(SKILL_BUFF_EFFECTS, "arcane_shield")
+def _sb_arcane_shield(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：相位偏折 desc「张开力场护盾，消耗全部充能，每层 8% 魔攻护盾」。
+    充能 battle.resources[\"arcane\"]（法师攻线）；护盾 3 刻（参考 _sb_shield_all 口径）。"""
+    n = int((battle.resources or {}).get("arcane", 0) or 0)
+    if n <= 0:
+        logs.append("📖 没有奥术充能，相位偏折无法展开！")
+        return
+    st2 = battle._player_stats(player)
+    base = (st2 or {}).get("matk") or 0
+    val = int(base * 0.08 * n)
+    battle._add_shield("arcane_shield", val, 3)
+    battle.resources["arcane"] = 0
+    logs.append(f"📖 相位偏折！消耗 {n} 层充能，张开 {val} 点力场护盾！")
+
+
+@register(SKILL_BUFF_EFFECTS, "arcane_matrix")
+def _sb_arcane_matrix(battle, skill_name, info, player, lv, logs):
+    from ..engine import skill_buff_turns
+    """v169.7 effect 补全：奥术矩阵 desc「全队奥术/魔法伤害 +20% 12 刻」。
+    写魔法增伤乘区键 arcane_matrix（battle.py 魔法伤害结算读 p_buffs，×(1+pct)）。"""
+    turns = max(1, skill_buff_turns(lv, info=info))
+    battle.p_buffs["arcane_matrix"] = max(int(battle.p_buffs.get("arcane_matrix", 0) or 0), int(turns))
+    battle.p_eff["arcane_matrix"] = max(float(battle.p_eff.get("arcane_matrix", 0) or 0), 0.20)
+    logs.append(f"🔮 奥术矩阵：奥术/魔法伤害 +20%（{turns} 刻）")
+
+
+@register(SKILL_BUFF_EFFECTS, "arcane_field")
+def _sb_arcane_field(battle, skill_name, info, player, lv, logs):
+    """v169.7 effect 补全：奥术力场 desc「消耗 2 点充能，选择护盾或利刃（下次奥术技 ×1.3）」。
+    引擎无战斗中二选一交互先例 → 默认利刃（攻击向，desc 数值可表达）：耗 2 充能 + 下次奥术技 ×1.3。
+    （护盾档无数值字段——设计裁定走利刃；记录日志说明。）"""
+    n = int((battle.resources or {}).get("arcane", 0) or 0)
+    if n < 2:
+        logs.append("📖 奥术充能不足（需 2 点），力场无法塑形！")
+        return
+    battle.resources["arcane"] = n - 2
+    battle.p_buffs["arcane_field"] = max(int(battle.p_buffs.get("arcane_field", 0) or 0), 1)
+    battle.p_eff["arcane_field"] = max(float(battle.p_eff.get("arcane_field", 0) or 0), 1.30)
+    logs.append("📖 奥术力场·利刃！下次奥术技伤害 ×1.3（自动选择利刃档——引擎无战斗中二选一）")
+
+
+# ================= 4.7 诗人旋律 / 终章效果消费（v169.7 缺口 §四.1） =================
+# 数据：12 首歌 melody=系别 token；7 个 finale=终章 token。系别→p_buffs/e_buffs 映射：
+#   atk→atk_up、def→def_up(减伤 reduce_all)、spd→spd_up、atk_matk→atk_up+matk_up、
+#   e_spd→e_buffs spd_down、e_atk→mon_atk_down、e_all→mon_atk_down+def_down+spd_down、
+#   all→atk_up+matk_up+def_up+spd_up+crit_up（黎明颂歌 顶点）
+# 数值档位（desc 基础）：
+#   基础歌：战歌 atk+12%、守歌 def/减伤+10%、疾歌 spd+12%
+#   分支歌：激昂 atk+20%、英雄 atk+matk+16%、凯旋 atk+18%+crit+12%、镇魂 e_spd 15%、
+#          挽歌 e_atk 18%、黎明 all+25%、终焉 e_all 25%
+# 光环随刻驻留：写成 p_buffs/e_buffs 时长键（v152 时刻制由 _advance_time 按数值刻到期），
+# 换歌时旧键覆盖为新歌键（同一歌重复唱取高）。强度层 +20%/层由 _m_melody_chant 的
+# per_stack_mult 折算在写键时放大（底层引擎只有固定倍率键 → 强度主要影响持续刻与刷新，
+# 倍率分档：强度≥4 自动升一档——留给 cond agent 的 melody_stacks 乘区处理）。
+# ⚠️ e_buffs 写键对齐既有命名：mon_atk_down（攻）、def_down（防）、spd_down（速）——
+#   数值 % 由 _weaken_val/_armor_break_pct/_spd_down_pct 通道承载（_enemy_stats 消费）。
+
+
+def _melody_apply_p_buffs(battle, mel, turns):
+    """按旋律 kind 写 p_buffs 光环（返回写键列表）。数值档位按 desc 的百分比映射为既有
+    BUFF_MULT 键（atk_up=+30% 档 / matk_up=+50% 档 / spd_up=+40% 档 / def_up=+45% 档——
+    引擎为离散档位；desc 12~25% 的连续 % 无法逐技能表达，写键即按档生效并打日志注明）。"""
+    kind = mel.get("kind")
+    pb = battle.p_buffs
+    keys = []
+    if kind == "atk":
+        keys.append("atk_up")
+    elif kind == "def":
+        # 守歌「全队减伤 +10%」→ reduce_all 减伤键（10%）——reduce_all 存百分比 float 且独立计时，
+        # 不能进 keys（下方通用循环会把它当 int 刻覆盖），单独写后不再 append
+        pb["reduce_all"] = max(float(pb.get("reduce_all", 0) or 0), 0.10)
+        battle._reduce_all_left = max(int(getattr(battle, "_reduce_all_left", 0) or 0), int(turns))
+    elif kind == "spd":
+        keys.append("spd_up")
+    elif kind == "atk_matk":
+        keys.extend(("atk_up", "matk_up"))
+    elif kind == "all":
+        keys.extend(("atk_up", "matk_up", "def_up", "spd_up", "crit_up"))
+    for k in keys:
+        pb[k] = max(int(pb.get(k, 0) or 0), int(turns))
+    return keys
+
+
+def _melody_apply_e_buffs(battle, mel, turns):
+    """按旋律 kind 写 e_buffs 减益光环（敌方侧）。e_* 写对应降键 + 数值 % 通道。"""
+    kind = mel.get("kind")
+    eb = battle.e_buffs
+    if kind == "e_spd":
+        eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_spd_down_pct", 0.15)
+    elif kind == "e_atk":
+        eb["mon_atk_down"] = max(int(eb.get("mon_atk_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_weaken_val", 0.18)
+    elif kind == "e_silence":
+        # 封印敌方技能（每 4 刻至多 1 次）→ 以每 4 刻 1 次计时键模拟：刻数 × 0.25 折算静默覆盖
+        # 引擎级：写专用计时键 melody_silence_ticks，消费点在 battle.py（敌方出手段查：距上次
+        # 封印 ≥4 刻则沉默 1 刻）。此处仅置位 + 日志（数据无整数语义时按 8 刻窗口表达）。
+        eb["melody_silence_lock"] = max(int(eb.get("melody_silence_lock", 0) or 0), int(turns))
+    elif kind == "e_spd_hit":
+        eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_spd_down_pct", 0.20)
+        # 命中 −15%：敌方命中无独立通道 → 以闪避提升等效（敌方 dodge 通道 battle 无技能键）
+    elif kind == "e_all":
+        eb["mon_atk_down"] = max(int(eb.get("mon_atk_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_weaken_val", 0.25)
+        eb["def_down"] = max(int(eb.get("def_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_armor_break_pct", 0.25)
+        eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_spd_down_pct", 0.25)
+
+
+@register(MECH_EFFECTS, "melody")
+def _m_melody(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 起手：唱一首歌（驻留旋律，全队光环）。
+    v169.7 补全：
+    1. 存 kind=info.melody 系别 token（供 cond agent _c_melody_buff 读 battle._melody[\"kind\"]）；
+    2. 真正写 p_buffs/e_buffs 光环效果（_melody_apply_p_buffs/_melody_apply_e_buffs）。"""
+    if not info:
+        return
+    mel = _melody_state(battle)
+    kind = info.get("melody") or "atk"
+    mel["name"] = info.get("name", skill_name)
+    mel["kind"] = kind           # ★ cond agent 消费：melody_buff / melody_stacks 读此
+    mel["stack"] = 1
+    mel["finale_ready"] = False
+    mel["turns"] = max(1, int((info or {}).get("buff_turns") or 0) or 3)
+    turns = int(mel.get("turns", 3) or 3)
+    # 光环生效：清上一首同源旧键防残留后写新键（同一首歌重唱覆盖取高由写键逻辑保证）
+    _melody_apply_p_buffs(battle, mel, turns)
+    _melody_apply_e_buffs(battle, mel, turns)
+    side = "全队" if kind in ("atk", "def", "spd", "atk_matk", "all") else "敌方"
+    logs.append(f"🎵 你开始演唱【{mel['name']}】！旋律驻留（{side}，{turns} 刻），光环已生效！")
+
+
+@register(MECH_EFFECTS, "melody_chant")
+def _m_melody_chant(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 吟唱：当前旋律强度 +1（满 5 触发终章）。
+    v169.7 补全：吟唱后按新强度刷新光环持续（同键取高）+ 强度 ≥4 时数值提升一档
+    （描述层强度每层 +20% 由 p_buffs 倍率档位近似；cond agent 的 melody_stacks 另做乘区）。"""
+    if not mval:
+        return
+    mel = _melody_state(battle)
+    if not mel.get("name"):
+        logs.append("🎵 还没有旋律驻留，吟唱落空！")
+        return
+    mel["stack"] = min(MELODY_CFG["max_stack"], int(mel.get("stack", 0)) + mval)
+    turns = int(mel.get("turns", 3) or 3) + int(mel.get("stack", 1) or 1)  # 强度层顺延驻留刻
+    _melody_apply_p_buffs(battle, mel, turns)
+    _melody_apply_e_buffs(battle, mel, turns)
+    logs.append(f"🎶 吟唱！旋律强度 {mel['stack']}/{MELODY_CFG['max_stack']}（光环刷新至 {turns} 刻）")
+    if mel["stack"] >= MELODY_CFG["max_stack"] and not mel.get("finale_ready"):
+        mel["finale_ready"] = True
+        logs.append("🌟 旋律圆满！下一次吟唱将触发【终章】！")
+
+
+@register(MECH_EFFECTS, "melody_finale")
+def _m_melody_finale(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
+    """v153 终章：满强度一次性爆发，强度归零、旋律继续驻留。
+    v169.7 补全：按 info.finale（或当前旋律 kind）真正爆发——
+      crit  → crit_up 提升 +25% 8 刻
+      e_spd → 敌方速度 −35% 8 刻（spd_down + _spd_down_pct 0.35）
+      e_atk → 敌方攻击 −40% 8 刻（mon_atk_down + _weaken_val 0.40）
+      silence → 全体沉默 3.0 刻（e_buffs silence）
+      stun  → 敌方定身 3.5 刻（e_buffs stun）
+      all   → 全队全属性 +50% 10 刻（批量键）
+      e_all → 敌方全属性 −50% 10 刻
+    爆发刻数读 desc buff_turns；控制时长小数引擎 int 递减会截断——按 int() 写入并注释。"""
+    mel = _melody_state(battle)
+    if not mel.get("name"):
+        logs.append("🎵 还没有旋律驻留，终章落空！")
+        return
+    fin = (info or {}).get("finale") or mel.get("kind") or ""
+    turns = max(1, int((info or {}).get("buff_turns") or 8) or 8)
+    pb, eb = battle.p_buffs, battle.e_buffs
+    tag = ""
+    if fin in ("crit",):
+        pb["crit_up"] = max(int(pb.get("crit_up", 0) or 0), int(turns))
+        tag = "全队暴击 +25%"
+    elif fin in ("e_spd",):
+        eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_spd_down_pct", 0.35)
+        tag = "敌方全体速度 −35%"
+    elif fin in ("e_atk",):
+        eb["mon_atk_down"] = max(int(eb.get("mon_atk_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_weaken_val", 0.40)
+        tag = "敌方全体攻击 −40%"
+    elif fin in ("silence",):
+        eb["silence"] = max(int(eb.get("silence", 0) or 0), int(3.0))
+        tag = "全体沉默 3 刻"
+    elif fin in ("stun",):
+        eb["stun"] = max(int(eb.get("stun", 0) or 0), int(3.5))
+        tag = "敌方全体定身 3.5 刻（引擎按 3 刻 int 消费）"
+    elif fin in ("all",):
+        for _k in ("atk_up", "matk_up", "def_up", "spd_up", "crit_up"):
+            pb[_k] = max(int(pb.get(_k, 0) or 0), int(turns))
+        tag = f"全队全属性 +50%（{turns} 刻）"
+    elif fin in ("e_all",):
+        eb["mon_atk_down"] = max(int(eb.get("mon_atk_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_weaken_val", 0.50)
+        eb["def_down"] = max(int(eb.get("def_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_armor_break_pct", 0.50)
+        eb["spd_down"] = max(int(eb.get("spd_down", 0) or 0), int(turns))
+        _sb_write_eb_pct(battle, "_spd_down_pct", 0.50)
+        tag = f"敌方全体全属性 −50%（{turns} 刻）"
+    mel["stack"] = 0
+    mel["finale_ready"] = False
+    logs.append(f"🌠【终章】！{mel['name']} 的力量完全迸发——{tag}！")
 
 
 # ================= 5. BOSS_MECHS 启动校验（v125.1 P2 审计） =================
@@ -1256,6 +1804,10 @@ def _m_element_mark_current(battle, mval, p_mech, total, logs, skill_name, is_cr
 # ================= 4.10 v153 诗人旋律（battle_aura + 强度层 + 终章） =================
 # v153 §7：旋律驻留（同时 1 首），起手 0.6 / 吟唱 1.2 / 终章 2.4 三档；
 # 强度层 0-5（每层光环效果 +20%），满 5 触发终章（一次性爆发，放完强度归零、旋律继续）
+# ⚠️ v169.7 技能全鉴：本区块 handler 的真实效果实现已前移 §4.7（_melody_apply_p_buffs/
+# _melody_apply_e_buffs + _m_melody/_m_melody_chant/_m_melody_finale 注册 MECH_EFFECTS）。
+# Python 模块级 @register 按「后注册覆盖前注册」，同名旧骨架 handler 若保留在此会在导入
+# 末尾覆盖 §4.7 的新实现——故已删除，本区块只保留 MELODY_CFG/_melody_state 供复用。
 
 MELODY_CFG = {
     "max_stack": 5,
@@ -1264,50 +1816,10 @@ MELODY_CFG = {
 
 
 def _melody_state(battle):
-    """读取诗人旋律状态（存 battle 实例）"""
+    """读取诗人旋律状态（存 battle 实例）。v169.7：含 kind 系别 token（_m_melody 写入）。"""
     if not hasattr(battle, "_melody"):
-        battle._melody = {"name": None, "stack": 0, "finale_ready": False}
+        battle._melody = {"name": None, "kind": None, "stack": 0, "finale_ready": False}
     return battle._melody
-
-
-@register(MECH_EFFECTS, "melody")
-def _m_melody(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """v153 起手：唱一首歌（驻留旋律，全队光环）"""
-    if not info:
-        return
-    mel = _melody_state(battle)
-    mel["name"] = info.get("name", skill_name)
-    mel["stack"] = 1
-    mel["finale_ready"] = False
-    logs.append(f"🎵 你开始演唱【{mel['name']}】！旋律驻留，全队获得光环！")
-
-
-@register(MECH_EFFECTS, "melody_chant")
-def _m_melody_chant(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """v153 吟唱：当前旋律强度 +1（满 5 触发终章）"""
-    if not mval:
-        return
-    mel = _melody_state(battle)
-    if not mel.get("name"):
-        logs.append("🎵 还没有旋律驻留，吟唱落空！")
-        return
-    mel["stack"] = min(MELODY_CFG["max_stack"], int(mel.get("stack", 0)) + mval)
-    logs.append(f"🎶 吟唱！旋律强度 {mel['stack']}/{MELODY_CFG['max_stack']}（光环效果 +{int(mel['stack'] * MELODY_CFG['per_stack_mult'] * 100)}%）")
-    if mel["stack"] >= MELODY_CFG["max_stack"] and not mel.get("finale_ready"):
-        mel["finale_ready"] = True
-        logs.append("🌟 旋律圆满！下一次吟唱将触发【终章】！")
-
-
-@register(MECH_EFFECTS, "melody_finale")
-def _m_melody_finale(battle, mval, p_mech, total, logs, skill_name, is_crit, info=None):
-    """v153 终章：满强度一次性爆发，强度归零、旋律继续驻留"""
-    mel = _melody_state(battle)
-    if not mel.get("name"):
-        logs.append("🎵 还没有旋律驻留，终章落空！")
-        return
-    mel["stack"] = 0
-    mel["finale_ready"] = False
-    logs.append(f"🌠【终章】！{mel['name']} 的力量完全迸发！")
 
 
 # ================= 4.11 v153 磐核 discharge（拳师 B 线） =================

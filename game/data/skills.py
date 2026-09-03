@@ -58,6 +58,7 @@ PLAYER_SKILLS = {
              'cast': 0.35,
              'cd': 12,
              'mech_val': 45,
+             'reduce_pct': 0.45,   # v169.7: 显式字段（desc 自身减伤45%，mech_val 回落已等效）
              'effect': 'reduce',
              'name': '铁壁',
              'desc': '重盾横胸，筋肉绷紧如铁——自身减伤 45%，持续 8 刻'
@@ -625,6 +626,7 @@ PLAYER_SKILLS = {
              'cast': 0.35,
              'cd': 16,
              'mech_val': 45,
+             'reduce_pct': 0.45,   # v169.7: 显式字段（desc 自身减伤45%，mech_val 回落已等效）
              'effect': 'reduce',
              'name': '铜墙',
              'desc': '身如铜铸，气沉如墙——自身减伤 45% 持续 8 刻'
@@ -1112,6 +1114,7 @@ BRANCH_SKILLS = {
             'buff_turns': 10,   # v162: desc 持续10刻
                         'cast': 0.5,
                         'cd': 16,
+                        'reduce_all': 0.20,   # v169.7: desc 全队减伤20%（原缺字段跌默认20%靠运气）
                         'effect': 'reduce_all',
                         'name': '战吼·守',
                         'desc': '守护之吼回荡战场，稳住阵脚——全队减伤 20% 持续 10 刻，自身积攒 2 点战意'
@@ -1212,6 +1215,7 @@ BRANCH_SKILLS = {
             'buff_turns': 12,   # v162: desc 持续12刻
                         'cast': 0.7,
                         'cd': 24,
+                        'reduce_all': 0.30,   # v169.7: desc 全队减伤30%；战意≥8 时 50% 为条件档引擎无法表达（按基础 30% + 注释）
                         'effect': 'reduce_all',
                         'name': '不破壁垒',
                         'desc': '钢铁壁垒拔地而起，万军难破——全队减伤 30% 持续 12 刻，战意 ≥8 时提升至 50%（不消耗）'
@@ -2314,6 +2318,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 16,
                         'faith': 0,
+                        'reduce_all': 0.15,   # v169.7: desc 全队减伤15%（原缺字段跌默认20%）
                         'effect': 'reduce_all',
                         'name': '死歌·悼',
                         'desc': '低沉的悼歌在墓园回响——死歌光环：全队减伤 15%，持续 12 刻'
@@ -2382,6 +2387,7 @@ BRANCH_SKILLS = {
                         'cast': 0.6,
                         'cd': 20,
                         'faith': 0,
+                        'reduce_all': 0.20,   # v169.7: desc 全队减伤20%（原缺字段跌默认20%对但靠运气；回血承诺无数据表达）
                         'effect': 'reduce_all',
                         'name': '圣光庇护',
                         'desc': '圣光展开庇护之翼笼罩全队——全队减伤 20% 并持续回血，维持 10 刻'
@@ -2494,6 +2500,7 @@ BRANCH_SKILLS = {
                         'faith': 0,
                         'effect': 'reduce',
                         'mech_val': 30,   # v162: 补减伤值（desc 30%），供 _sb_reduce 读
+                        'reduce_pct': 0.30,   # v169.7: 显式字段（desc 自身减伤30%）
                         'name': '亡魂护甲',
                         'desc': '怨灵缠绕周身化作幽暗护甲——自身减伤 30%，持续 10 刻，骷髅代为挡刀'
                     },
@@ -3232,6 +3239,7 @@ BRANCH_SKILLS = {
             'buff_turns': 8,   # v162: desc 持续8刻
                         'cast': 0.5,
                         'cd': 16,
+                        'reduce_all': 0.30,   # v169.7: desc 全队减伤30%（原缺字段跌默认20%）
                         'effect': 'reduce_all',
                         'name': '厚土',
                         'desc': '厚土凝阵，万伤难侵——全队减伤 30% 持续 8 刻'
@@ -3409,6 +3417,7 @@ BRANCH_SKILLS = {
                         'cd': 20,
                         'mech_val': 50,   # v162: 对齐 desc 减伤50%
                         'effect': 'reduce',
+                        'reduce_pct': 0.50,   # v169.7: 显式字段（desc 自身减伤50%）
                         'name': '磐岩甲',
                         'desc': '磐岩覆体，坚不可摧——消耗 3 枚磐核，自身减伤 50% 持续 10 刻'
                     },

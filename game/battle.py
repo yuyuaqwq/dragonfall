@@ -621,6 +621,11 @@ class Battle:
             "first_attack_done": self.first_attack_done,
             "death_pact_used": getattr(self, "_death_pact_used", False),
             "set_immune_used": getattr(self, "_set_immune_used", False),
+            # v169.7 被动一次性/次数标记随战斗序列化（坚韧剩余次数 / 血怒·不灭 / 铁誓·不动 / 不动如山）
+            "tenacity_left": getattr(self, "_tenacity_left_n", 3),
+            "berserk_revive_used": getattr(self, "_berserk_revive_used", False),
+            "stance_immortal_used": getattr(self, "_stance_immortal_used", False),
+            "core_last_stand_used": getattr(self, "_core_last_stand_used", False),
             # v130.2f 致命预谋：首次终结返还标记（随战斗持久化，防断线恢复后重复返还）
             "assassin_refund_used": getattr(self, "_assassin_refund_used", False),
             # v104 M02 P2-9：断线恢复后 burst 机制（灼烧引爆/剑刃风暴/神恩护盾）与
@@ -696,6 +701,10 @@ class Battle:
         b.first_attack_done = bool(st.get("first_attack_done", False))
         b._death_pact_used = bool(st.get("death_pact_used", False))
         b._set_immune_used = bool(st.get("set_immune_used", False))
+        b._tenacity_left_n = int(st.get("tenacity_left", 3) or 3)
+        b._berserk_revive_used = bool(st.get("berserk_revive_used", False))
+        b._stance_immortal_used = bool(st.get("stance_immortal_used", False))
+        b._core_last_stand_used = bool(st.get("core_last_stand_used", False))
         b._assassin_refund_used = bool(st.get("assassin_refund_used", False))  # v130.2f 致命预谋返还标记
         b._v139_modes = st.get("v139_modes", {}) or {}   # v139 职业融合：模式状态机恢复
         b._v139_charge = st.get("v139_charge", {}) or {}  # v139 charge 电荷恢复
@@ -1249,6 +1258,15 @@ class Battle:
                 cdr = 0.0
             if cdr > 0 and cd > 1:
                 cd = max(1, int(cd * (1 - cdr)))
+            # v169.7 影舞·无间 shadow_dance_cd：影舞态中所有技能冷却 −20%（乘算叠加在既有 cdr 后）
+            if cd > 1 and self.p_buffs.get("shadow_dance"):
+                try:
+                    _pl_sd = self.player or {}
+                    for _pn_sd, _ps_sd in self._proc_pm(_pl_sd)["proc"].get("shadow_dance_cd", []):
+                        cd = max(1, int(cd * (1.0 - float(_ps_sd.get("cdr", 0.20) or 0.20))))
+                        break
+                except Exception:
+                    pass
             # v130.2c 时之领主 2 件：时停领域 冷却 -1（cdr_set on=time_freeze，最低 1）
             if skill_name == "时停领域":
                 _ce = self._set_eff(self.player, "cdr_set", 2, on="time_freeze")
@@ -1326,9 +1344,23 @@ class Battle:
 
     def _combo_break(self, player: dict, keep_chance: float = 0.0) -> None:
         """受击或落空 → 连段归零（断了重来）。
-        v130.2d 连段护持：受击时按词条概率保留连段（史诗 15%/传说 30%，tier 取档）；落空不受保护。"""
+        v130.2d 连段护持：受击时按词条概率保留连段（史诗 15%/传说 30%，tier 取档）；落空不受保护。
+        v169.7 暗影之心 lian_duan_soft：断连只损失 1 段（而非归零/减半）——影舞者攻线被动；
+        影舞态（p_buffs.shadow_dance）中受击不再清除连段（effect=shadow_dance 承诺）。"""
         if keep_chance > 0 and random.random() < keep_chance:
             return
+        # 影舞态：受击不清连段（暗影步 effect=shadow_dance desc「受击不再清除连段」）
+        if self.p_buffs.get("shadow_dance"):
+            return
+        try:
+            for _pn, _ps in self._proc_pm(player)["proc"].get("lian_duan_soft", []):
+                cur = int(self.mech_stacks.get("combo", 0) or 0)
+                if cur > 0:
+                    self.mech_stacks["combo"] = max(0, cur - 1)
+                    return
+                break
+        except Exception:
+            pass
         self.mech_stacks.pop("combo", None)
 
     def _combo_keep_chance(self, player: dict) -> float:
@@ -1850,6 +1882,19 @@ class Battle:
         self._p_acts += 1
         # v116.1 pv_broken：玩家本刻是否用过技能（供敌方 _boss_mech 反扑判定）——刻开始复位
         self._player_recent_skill = False
+        # v169.7 不动如山 core_last_stand（拳师守线）：生命 <30% 触发——刻开始兜底触发一次
+        # （覆盖非受击路径；受击路径 _damage_player 内也有触发点，双保险互斥由 _used 标记保证）
+        try:
+            if not getattr(self, "_core_last_stand_used", False):
+                _cl_pm = self._proc_pm(player)["proc"].get("core_last_stand", [])
+                if _cl_pm:
+                    _hp_r = player.get("hp", 0) / max(1, player.get("max_hp", 1) or 1)
+                    if _hp_r < float((_cl_pm[0][1]).get("hp_lt", 0.30) or 0.30):
+                        self._core_last_stand_used = True
+                        self.resources["guard_core"] = max(self._guard_core_n(), int((_cl_pm[0][1]).get("cores", 3) or 3))
+                        logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int((_cl_pm[0][1]).get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
+        except Exception:
+            pass
         # v2 蓄力：刻开始结算——归零自动释放技能（§6.2）
         self._player_charge_release(player, logs)
         logs += self._turn_start(player)
@@ -1861,6 +1906,30 @@ class Battle:
         # v63 玩家被控：眩晕/冻结 → 跳过本刻行动（CTB 下行动浪费，玩家 ct 照走，随后敌方行动段）
         # v121 审计修复：统一走 _after_actor_ct("p")——被控也是"玩家行动消耗"，
         # 敌方应同步时间流逝（与蓄力等待/防御等路径一致），避免被控方反而配速占优
+        # v169.7 坚韧 tenacity：被控时消耗 2 层战意跳过（每场 3 次）——先于被控跳过判定，
+        # 满足条件则本次行动不浪费（消耗战意 → 照常行动，敌方时间仍流逝）
+        if ("stun" in self.p_buffs or "freeze" in self.p_buffs) and self._tenacity_try_break(player, logs):
+            # 战意挡控成功：控解除、本刻照常行动（不断言走下方被控跳过分支）
+            self.p_buffs.pop("stun", None)
+            self.p_buffs.pop("freeze", None)
+        # v169.7 坚城之姿 zhan_yi_full_reduce：战意满 10 免疫眩晕——被眩晕刻自动解除（无消耗）
+        if "stun" in self.p_buffs:
+            try:
+                for _pn_zy, _ps_zy in self._proc_pm(player)["proc"].get("zhan_yi_full_reduce", []):
+                    if self._zhan_yi_n() >= int(_ps_zy.get("stacks", 10) or 10):
+                        self.p_buffs.pop("stun", None)
+                        logs.append(f"🛡️ {_pn_zy}：战意圆满，眩晕不侵！")
+                    break
+            except Exception:
+                pass
+        # v169.7 磐石之躯 core_full：磐核满 5 免控（刻开始兜底刷新免疫窗口，等效持续免控）
+        try:
+            for _pn_cf, _ps_cf in self._proc_pm(player)["proc"].get("core_full", []):
+                if self._guard_core_n() >= int(_ps_cf.get("stacks", 5) or 5):
+                    self.p_buffs["cc_immune"] = max(int(self.p_buffs.get("cc_immune", 0) or 0), 1)
+                break
+        except Exception:
+            pass
         if "stun" in self.p_buffs:
             logs.append("🌀 你被眩晕，无法行动！")
             self.p_buffs.pop("stun", None)
@@ -2600,6 +2669,19 @@ class Battle:
         _mp_red = self._mp_cost_reduce(player, info)
         if _mp_red:
             mp_cost = max(1, mp_cost - _mp_red)
+        # v169.7 奥术恒常 arcane_constant（奥术学者）：奥术技能耗蓝 −50%（乘算，与符文/药剂/词条叠加）
+        try:
+            _mech_ac = info.get("mech", "")
+            _is_arcane_skill = bool(_mech_ac in MECH_PROC_GROUPS.get("arcane_dmg", ())
+                                    or (info.get("res_gain") or {}).get("arcane")
+                                    or _mech_ac in ("arcane", "arcane_burst"))
+            if _is_arcane_skill:
+                for _pn_ac, _ps_ac in self._proc_pm(player)["proc"].get("arcane_constant", []):
+                    mp_cost = max(1, int(mp_cost * float(_ps_ac.get("mp_mult", 0.50) or 0.50)))
+                    logs.append(f"📖 {_pn_ac}：奥术恒常，耗蓝减半！")
+                    break
+        except Exception:
+            pass
         if not _releasing:  # 蓄力释放跳过 MP 扣减（施放时已扣，§6.2）
             player["mp"] -= mp_cost
         # ---- v139 电荷制（云海弓手三律翻译）：技能有 charge_cfg → 走电荷制，不走旧蓄力 ----
@@ -2811,6 +2893,14 @@ class Battle:
         # 只被挂载从未应用，减速玩家仍按原速度先手/触发速度优势
         if "spd_down" in self.p_buffs:
             st["spd"] = int(st.get("spd", 0) * SPD_DOWN_MULT)
+        # v169.7 暗影步·极 shadow_dance_bonus：影舞态中自身速度 +25%
+        if self.p_buffs.get("shadow_dance"):
+            try:
+                for _pn_sb, _ps_sb in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
+                    st["spd"] = int(st.get("spd", 0) * (1.0 + float(_ps_sb.get("spd_add", 0.25) or 0.25)))
+                    break
+            except Exception:
+                pass
         # v33/v34 符文属性：疾风(速度+) / 铁壁(防御+)
         effs = self._enchant_effects(player)
         if self._enchant_lvl(effs, "swift"):
@@ -2875,6 +2965,34 @@ class Battle:
                     and passive_cond_ok(self, player, _ps, default=False) \
                     and _st in ("atk", "def", "matk", "mdef"):
                 st[_st] = int(st.get(_st, 0) * (1 + float(_ps.get("mult", 0))))
+        # ---- v169.7 诗人旋律被动光环（读 _melody 状态；旋律驻留光环本体由 battle_mech agent 接线，本段做被动加成）----
+        # 共鸣 melody_resonance：强度层 ≥3 全队额外 +10% 全属性
+        # 万籁和鸣 melody_full：强度满 5 全队额外 +15% 全属性
+        # 咏叹·极 melody_master：每强度层 +5% 旋律效果（与上面两光环线性加叠）
+        # ⚠️ TODO（依赖 battle_mech agent 的旋律实现）：若旋律光环本体未实现，本段只加“额外”档；
+        #   已学被动玩家在有旋律时获得上述加成；无旋律（_melody.name=None）不生效
+        try:
+            _mel169 = self._melody_state()
+            _pm_mel = self._proc_pm(player)["proc"]
+            _mel_pct = 0.0
+            _mel_n = int(_mel169.get("stack", 0) or 0)
+            if _mel169.get("name") and _mel_n > 0:
+                for _pn_rs, _ps_rs in _pm_mel.get("melody_resonance", []):
+                    if _mel_n >= int(_ps_rs.get("stacks", 3) or 3):
+                        _mel_pct += float(_ps_rs.get("mult", 0.10) or 0.10)
+                    break
+                for _pn_mf, _ps_mf in _pm_mel.get("melody_full", []):
+                    if _mel_n >= int(_ps_mf.get("stacks", 5) or 5):
+                        _mel_pct += float(_ps_mf.get("mult", 0.15) or 0.15)
+                    break
+                for _pn_mm, _ps_mm in _pm_mel.get("melody_master", []):
+                    _mel_pct += float(_ps_mm.get("per_stack", 0.05) or 0.05) * _mel_n
+                    break
+            if _mel_pct > 0:
+                for _mk_s in ("atk", "def", "matk", "mdef", "spd"):
+                    st[_mk_s] = int(st.get(_mk_s, 0) * (1.0 + _mel_pct))
+        except Exception:
+            pass
         # v140 波3.1：特效装备常驻面板属性（奥术苍穹魔攻+15%/疾风步速度+/弑星·无尽辉光暴伤+）
         try:
             from .core.weapon_effects import weapon_effect_ids as _we_ids
@@ -2906,7 +3024,7 @@ class Battle:
 
     def _passive_map(self, player: dict) -> dict:
         """v104 R3 P1-1：已学被动按 proc/stat 聚合（数据驱动，替代名字硬匹配）。
-        返回 {\"proc\": {proc名: [(被动名, passive字段), ...]}, \"stat\": [(被动名, passive字段), ...]}"""
+        返回 {"proc": {proc名: [(被动名, passive字段), ...]}, "stat": [(被动名, passive字段), ...]}"""
         out = {"proc": {}, "stat": []}
         cls = player.get("class_name", "")
         for ps_name in E.passive_skills_learned(cls, player.get("learned_skills", [])):
@@ -2917,6 +3035,165 @@ class Battle:
             elif ps.get("stat"):
                 out["stat"].append((ps_name, ps))
         return out
+
+    # ---------------- v169.7 被动接线辅助（只读本族状态；见下方各族消费点） ----------------
+    def _proc_pm(self, player: dict) -> dict:
+        """已学被动按 proc 聚合（空 _passive_map 重建的轻封装，调用侧与 _passive_map 全等）。"""
+        try:
+            return self._passive_map(player)
+        except Exception:
+            return {"proc": {}, "stat": []}
+
+    def _zhan_yi_n(self) -> int:
+        """战士战意叠层（mech_stacks.zhan_yi 0-10，battle_mech _m_zhan_yi 写入）。"""
+        return int((self.mech_stacks or {}).get("zhan_yi", 0) or 0)
+
+    def _guard_core_n(self) -> int:
+        """拳师磐核数（resources.guard_core，GUARD_CORE_CFG max=5）。"""
+        return int((self.resources or {}).get("guard_core", 0) or 0)
+
+    def _poison_cap(self, player: dict) -> int:
+        """毒层上限：基础 5（MECH_STACK_MAX poison=5 / battle_mech 叠层 min(5, ...)）+ 被动提升。
+        剧毒之心（游侠 poison_cap_up +3）/ 淬毒之心（刺客 poison_cap +3，最高 8）。"""
+        cap = 5
+        pm = self._proc_pm(player)
+        for _pn, _ps in pm["proc"].get("poison_cap_up", []):
+            cap += int(_ps.get("add", 3) or 3)
+        for _pn, _ps in pm["proc"].get("poison_cap", []):
+            cap += int(_ps.get("add", 3) or 3)
+        return max(5, min(cap, 8))
+
+    def _shadow_dance(self, player: dict) -> bool:
+        """影舞态（v169.7 battle.py 侧接线）：暗影步 effect=shadow_dance 施放时置位
+        p_buffs.shadow_dance（see _skill_buff 消费点）；后续在 _combo_break / _set_skill_cd 消费。"""
+        return bool(self.p_buffs.get("shadow_dance"))
+
+    def _melody_state(self) -> dict:
+        """诗人旋律状态（battle_mech._melody_state 同结构：{name, stack, finale_ready}）。"""
+        mel = getattr(self, "_melody", None)
+        if not isinstance(mel, dict):
+            return {"name": None, "stack": 0, "finale_ready": False}
+        return mel
+
+    def _enemy_debuff_kind_count(self) -> int:
+        """敌方当前携带的负面种类数（挽歌·极 dirge_debuff_dmg：每 1 个负面 +4%，上限 40%）。
+        统计：debuffs 各类型（poison/burn/bleed/mark/corros/curse/soul_mark/hunt_mark）+ e_buffs 控制/减益键
+        （stun/freeze/silence/sleep/spd_down/def_down/mon_atk_down）——只数“正在生效”的种数。"""
+        e = self.enemy or {}
+        n = 0
+        try:
+            db = e.get("debuffs") or {}
+            for k, d in db.items():
+                if not isinstance(d, dict):
+                    if int(d or 0) > 0:
+                        n += 1
+                    continue
+                if int(d.get("n", 0) or 0) > 0 or int(d.get("turns", 0) or 0) > 0:
+                    n += 1
+        except Exception:
+            pass
+        try:
+            eb = e.get("buffs") or {}
+            for k in ("stun", "freeze", "silence", "sleep", "spd_down", "def_down", "mon_atk_down", "mon_spd_down", "atk_down"):
+                if eb.get(k):
+                    n += 1
+        except Exception:
+            pass
+        return n
+
+    def _passive_crit_bonus(self, player: dict, info: dict | None = None) -> float:
+        """v169.7 条件暴击被动族统一消费（加法并入暴击率，随 PCT_CAPS.crit 上限截断）：
+        - 狂热 zhan_yi_crit（战士）：战意 ≥8 暴击 +15%
+        - 真知 arcane_wisdom（法师）：奥术充能满 5 暴击 +20%（charge 存 mech_stacks.arcane / element_charge）
+        - 疾风之心 focus_surplus_crit（游侠攻线）：专注结余 ≥40 时下次技能暴击 +20%（一次性消费）
+        - 元素之核 element_core（法师元素）：单系印记满 3 结算暴击 +20%（充能引爆类结算技）
+        - 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加成走 _passive_crit_dmg_mult）
+        返回暴击率增量（0~1）。"""
+        bonus = 0.0
+        try:
+            pm = self._proc_pm(player)
+            # 狂热
+            for _pn, _ps in pm["proc"].get("zhan_yi_crit", []):
+                if self._zhan_yi_n() >= int(_ps.get("stacks", 8) or 8):
+                    bonus += float(_ps.get("add", 0.15) or 0.15)
+                    break
+            # 真知（守线·奥秘法师充能条 / 攻线 arcane 叠层）
+            for _pn, _ps in pm["proc"].get("arcane_wisdom", []):
+                _full = False
+                try:
+                    if self.resources.get("element_charge") is not None:
+                        _full = self._elem_charge() >= self._res_max(player, "element")
+                    else:
+                        _full = int((self.mech_stacks or {}).get("arcane", 0) or 0) >= 5
+                except Exception:
+                    _full = False
+                if _full:
+                    bonus += float(_ps.get("add", 0.20) or 0.20)
+                    break
+            # 疾风之心（游侠：专注结余 = 精力当前值，≥40 时本技能暴击 +20% 一次性）
+            if info is not None:
+                for _pn, _ps in pm["proc"].get("focus_surplus_crit", []):
+                    _eng = int(self.resources.get("energy", 0) or 0)
+                    if _eng >= int(_ps.get("surplus", 40) or 40):
+                        bonus += float(_ps.get("add", 0.20) or 0.20)
+                        break
+            # 元素之核（法师元素攻线：单系印记满 _ps.layers（默认 3）时该系结算暴击 +20%）
+            if info is not None:
+                for _pn, _ps in pm["proc"].get("element_core", []):
+                    _el = info.get("element", "")
+                    if _el == "current":
+                        _el = self.resources.get("element", "fire")
+                    if _el:
+                        _mk = self._elem_marks()
+                        if int(_mk.get(_el, 0) or 0) >= int(_ps.get("layers", 3) or 3):
+                            bonus += float(_ps.get("add", 0.20) or 0.20)
+                    break
+        except Exception:
+            pass
+        return bonus
+
+    def _passive_crit_dmg_mult(self, player: dict) -> float:
+        """v169.7 暴伤乘区被动：
+        - 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤属性加算并入 cdmg）
+        返回加法增量（0~1）。"""
+        extra = 0.0
+        try:
+            if self._shadow_dance(player):
+                for _pn, _ps in self._proc_pm(player)["proc"].get("shadow_dance_bonus", []):
+                    extra += float(_ps.get("crit_dmg", 0.20) or 0.20)
+                    break
+        except Exception:
+            pass
+        return extra
+
+    # ---- v169.7 战士守线·坚韧 / 铁誓·不动 / 血怒·不灭 状态 ----
+    def _tenacity_left(self) -> int:
+        """坚韧被动剩余次数（每场 3 次，随战斗序列化）。"""
+        if not hasattr(self, "_tenacity_left_n"):
+            self._tenacity_left_n = 3
+        return int(self._tenacity_left_n)
+
+    def _tenacity_try_break(self, player: dict, logs: list) -> bool:
+        """坚韧 tenacity：被控时消耗 2 层战意跳过控制（每场 3 次）。
+        有战意（≥ps.cost 默认 2）且剩余次数 >0 → 扣战意 + 次数 -1，返回 True（本刻照常行动）。"""
+        try:
+            _pm = self._proc_pm(player)
+            if not _pm["proc"].get("tenacity"):
+                return False
+            _ps = _pm["proc"]["tenacity"][0][1]
+            cost = int(_ps.get("cost", 2) or 2)
+            if self._zhan_yi_n() < cost:
+                return False
+            if self._tenacity_left() <= 0:
+                return False
+            # 消耗战意 + 次数
+            self.mech_stacks["zhan_yi"] = max(0, self._zhan_yi_n() - cost)
+            self._tenacity_left_n = self._tenacity_left() - 1
+            _pn = _pm["proc"]["tenacity"][0][0]
+            logs.append(f"🛡️ {_pn}：消耗 {cost} 层战意挣脱控制！（剩余 {self._tenacity_left()} 次）")
+            return True
+        except Exception:
+            return False
 
     def _player_attack(self, st: dict, player: dict) -> list:
         """普攻(含标记加成 + v10 套装攻击特效 + v34 符文效果)"""
@@ -2933,7 +3210,10 @@ class Battle:
             est["def"] = int(est["def"] * (1 - C.rune_value("armor_pierce", ap_lvl)))
         # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
         # v130.2c 巡林长披风：命中带标记目标 暴击率 +5%（crit_on_marked）
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12) + self._set_crit_bonus(player)) * self._tenacity_mult(est)
+        # v169.7 狂热 zhan_yi_crit：战意 ≥8 时暴击 +15%（条件被动消费，见 _passive_crit_bonus）
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
+                                     + self._set_crit_bonus(player)
+                                     + self._passive_crit_bonus(player, info=None)) * self._tenacity_mult(est)
         # v109.2 P1-1 运势：暴击命中后 30% 概率追加 50% 伤害（幸运一击）
         # v133 收敛：追加倍率 1.5→1.3（LUCKY_CRIT_MULT 数据表）
         lucky = is_crit and random.random() < LUCKY_CRIT_CHANCE
@@ -3002,6 +3282,8 @@ class Battle:
             dmg = int(dmg * (1 + C.rune_value("brutal", brutal_lvl)))
         # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
         cdmg = float(st.get("crit_dmg", 0) or 0)
+        # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
+        cdmg += self._passive_crit_dmg_mult(player)
         if self.p_buffs.get("crit_dmg_pot"):
             cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
         if is_crit and cdmg > 0:
@@ -3011,6 +3293,14 @@ class Battle:
             dmg = int(dmg * 1.30)
             self.p_eff.pop("eagle_vision", None)
             affix_tags = list(affix_tags) + ["🦅鹰眼锐视"]
+        # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定）——普攻同样吃团队标记/锁定增伤
+        try:
+            _v169m, _v169t = self._consume_v169_buff_dmg(kind="物理", skill_name="普攻")
+            if _v169m != 1.0:
+                dmg = int(dmg * _v169m)
+                affix_tags = list(affix_tags) + _v169t
+        except Exception:
+            pass
         dmg = self._apply_mark(dmg)
         dmg = self._boss_dmg_filter(dmg, player, logs)
         # v110 P1-3：玩家攻击端消费敌方防守属性（物免/格挡/魔免/元素抗；PVP 对称，PVE 怪无键=0 无感）
@@ -3085,6 +3375,8 @@ class Battle:
         v106.4 细分：物理吸血 lifesteal_phys（物理攻击段）、法术吸血 lifesteal_magi（魔法攻击段）
         与通用吸血乘算合成 1-(1-a)(1-b)；药水 buff 乘算并入，cap 30%。
         v107 真伤不吸血（纯真伤语义，鱼鱼拍板）：dmg_type == "true" 直接跳过。
+        v169.7：淬血 zhan_yi_lifesteal —— 每层战意额外 +1.5% 吸血（加算并入 rate，
+        突破通用 30% cap 后仍受下方 cap 30% 限制——战士常规吸血堆叠上限保持，防膨胀）。
         """
         if dmg <= 0 or dmg_type == "true":
             return
@@ -3097,6 +3389,15 @@ class Battle:
             rate = 1 - (1 - rate) * (1 - sub)
         if self.p_buffs.get("lifesteal_pot"):
             rate = 1 - (1 - rate) * (1 - 0.15)  # 嗜血药剂 +15% 吸血（乘算并入）
+        # v169.7 淬血（战士攻线）：每层战意 +1.5% 吸血（数据驱动 proc zhan_yi_lifesteal）
+        try:
+            _zy = self._zhan_yi_n()
+            if _zy > 0:
+                for _pn, _ps in self._passive_map(player)["proc"].get("zhan_yi_lifesteal", []):
+                    rate = rate + float(_ps.get("per_layer", 0.015) or 0.015) * _zy
+                    break
+        except Exception:
+            pass
         rate = min(rate, 0.30)
         # v1.3 重伤（mortal_wound）：目标被重创后吸血效果减半（Boss『重创』类技能施加）
         if self.p_buffs.get("mortal_wound"):
@@ -3653,6 +3954,18 @@ class Battle:
         race_mult, race_tags = self._race_attack_mult(player)
         if race_tags:
             tags = list(tags) + race_tags
+        # v169.7 疾风·极 speed_ratio_dmg（游侠）：速度比 ≥2.0 时所有伤害 ×1.2
+        # （读实时敌方速度；敌方无速度键时按 0 防御性跳过，不误触）
+        try:
+            _pst_spd = max(0.001, float((self._player_stats(player) or {}).get("spd", 0) or 0))
+            _est_spd = float((self._enemy_stats() or {}).get("spd", 0) or 0)
+            for _pn_sr, _ps_sr in self._proc_pm(player)["proc"].get("speed_ratio_dmg", []):
+                if _est_spd > 0 and _pst_spd / _est_spd >= float(_ps_sr.get("ratio", 2.0) or 2.0):
+                    mult *= 1.0 + float(_ps_sr.get("dmg_add", 0.20) or 0.20)
+                    tags = list(tags) + [f"💨疾风x{round(1 + float(_ps_sr.get('dmg_add', 0.20) or 0.20), 2)}"]
+                break
+        except Exception:
+            pass
         return mult * race_mult, tags
 
     def _extra_dmg_mult(self, hp_ratio: float, mult: float, tags: list) -> tuple:
@@ -3684,6 +3997,52 @@ class Battle:
             # v126 数值下沉：每层增伤读龙语印记数据 mark_pct（缺省 2%）
             _dt = (C.AFFIXES.get("dragon_tongue") or {}).get("effect") or {}
             mult *= 1 + float(_dt.get("mark_pct", 0.02)) * dm
+        return mult, tags
+
+    def _consume_v169_buff_dmg(self, kind: str = "物理", element: str = "", skill_name: str = "") -> tuple:
+        """v169.7 battle_mech §4.6/4.7 effect handler 写入的乘区键消费（普攻/技能伤害统一挂点）。
+
+        battle_mech 写端遵循 phys_up 模式：p_buffs 存 int 时长（_advance_time 按刻到期），
+        p_eff 存 float 数值。本函数在伤害结算主路径调用：
+          - hunt_team_dmg  猎杀时刻：目标带猎印（debuffs.hunt_mark>0）→ ×(1+pct)
+          - star_lock      星轨锁定：当前目标（单机主敌）→ ×(1+pct)
+          - arcane_matrix  奥术矩阵：奥术/魔法伤害 +20%（kind=魔法，持续）
+          - arcane_field   奥术力场·利刃：下次奥术技 ×1.3（一次性消费，读完即删）
+        返回 (mult, tags)。
+        """
+        mult = 1.0
+        tags = []
+        if not (self.p_buffs or {}).get("hunt_team_dmg") and not (self.p_buffs or {}).get("star_lock") \
+                and not (self.p_buffs or {}).get("arcane_matrix") and not (self.p_buffs or {}).get("arcane_field"):
+            return mult, tags
+        # 猎杀时刻：对带猎印目标增伤
+        if self.p_buffs.get("hunt_team_dmg"):
+            _hm = int(((self.enemy or {}).get("debuffs") or {}).get("hunt_mark", 0) or 0)
+            if _hm > 0:
+                pct = float((self.p_eff or {}).get("hunt_team_dmg", 0) or 0)
+                if pct > 0:
+                    mult *= 1.0 + pct
+                    tags.append("🎯猎杀")
+        # 星轨锁定：对当前主目标增伤
+        if self.p_buffs.get("star_lock"):
+            pct = float((self.p_eff or {}).get("star_lock", 0) or 0)
+            if pct > 0:
+                mult *= 1.0 + pct
+                tags.append("🌟锁定")
+        # 奥术矩阵：魔法/奥术伤害
+        if self.p_buffs.get("arcane_matrix") and kind == "魔法":
+            pct = float((self.p_eff or {}).get("arcane_matrix", 0) or 0)
+            if pct > 0:
+                mult *= 1.0 + pct
+                tags.append("🔮奥术")
+        # 奥术力场·利刃：下次奥术技（魔法）伤害 ×1.3 一次性
+        if self.p_buffs.get("arcane_field") and kind == "魔法":
+            pct = float((self.p_eff or {}).get("arcane_field", 0) or 0)
+            if pct > 0:
+                mult *= 1.0 + (pct - 1.0)  # p_eff 存 1.30 完整倍率 → 折算成增量
+                tags.append("📖力场")
+            del self.p_buffs["arcane_field"]
+            self.p_eff.pop("arcane_field", None)
         return mult, tags
 
     def _affix_element_dmg(self, player: dict, element: str) -> float:
@@ -3972,22 +4331,29 @@ class Battle:
         # v110.3 P2-4：庇护之光按“真实治疗溢出量”结算（数据驱动 proc="heal_shield"，替代名字硬匹配）
         # 此前 clamp 后按 hp-(max_hp-hp) 计算，任意治疗补满都误给 ≈20% max_hp 护盾
         # v122：治疗队友时溢出护盾加给被治疗者（队友快照 p_shields；自己场景保持 self._add_shield）
-        for _pn, _ps in self._passive_map(player)["proc"].get("heal_shield", []):
-            overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
-            if overflow > 0:
-                shield_gain = int(overflow * float(_ps.get("pct", 0.2)))
-                if target_ally is not None:
-                    _sh = target_unit.setdefault("p_shields", {})
-                    _cur = _sh.get("overflow")
-                    if _cur:
-                        _cur["value"] = _cur.get("value", 0) + shield_gain
-                        _cur["turns"] = max(_cur.get("turns", 0), 2)
+        # v169.7 圣光回响 heal_overflow_shield：与庇护之光同族同语义（proc 不同名，数值 50% 转盾）
+        # ——复用同一溢出计算；两 proc 全学则各自独立结算（50%+20% = 70% 溢出转盾，属同族叠加）
+        _heal_overflow_procs = [("heal_shield", 0.2), ("heal_overflow_shield", 0.5)]
+        for _hpn, _hpdef in _heal_overflow_procs:
+            for _pn, _ps in self._passive_map(player)["proc"].get(_hpn, []):
+                overflow = hp_before + heal - target_unit.get("max_hp", target_unit.get("hp", 0))
+                if overflow > 0:
+                    shield_gain = int(overflow * float(_ps.get("pct", _hpdef)))
+                    if target_ally is not None:
+                        _sh = target_unit.setdefault("p_shields", {})
+                        _cur = _sh.get("overflow")
+                        if _cur:
+                            _cur["value"] = _cur.get("value", 0) + shield_gain
+                            _cur["turns"] = max(_cur.get("turns", 0), 2)
+                        else:
+                            _sh["overflow"] = {"value": shield_gain, "turns": 2}
+                        logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
                     else:
-                        _sh["overflow"] = {"value": shield_gain, "turns": 2}
-                    logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
-                else:
-                    self._add_shield("overflow", shield_gain, 2)
-                    logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
+                        self._add_shield("overflow", shield_gain, 2)
+                        logs.append(f"🛡️ {_pn}：治疗溢出转化为 {shield_gain} 点护盾！")
+        # v169.7 圣光回响（heal_overflow_shield）——治疗自身无溢出（血量未满）时无效果，此分支仅日志占位
+        # v169.7 信念·流转 faith_share：治疗时承担目标 10% 伤害（分担）——单人战斗无分担目标，
+        # 副本（allies 多目标）场景由命令层 instance 广播；本引擎单人场景无副作用（记录占位）
         if target_unit.get("hp", 0) >= target_unit.get("max_hp", target_unit.get("hp", 0)) and mech == "bless":
             p_mech["bless"] = E.mech_stack_gain("bless", p_mech, mval)
         if target_ally is not None:
@@ -4028,6 +4394,19 @@ class Battle:
                     _mh(self, mval or 1, p_mech, 0, logs, skill_name, False, info)
             except Exception:
                 pass
+            # v169.7 二重唱 melody_duet：吟唱时旋律强度额外 +1（_m_melody_chant 叠完后补一层）
+            if mech == "melody_chant":
+                try:
+                    for _pn_md, _ps_md in self._proc_pm(player)["proc"].get("melody_duet", []):
+                        _mel_md = self._melody_state()
+                        if _mel_md.get("name") and int(_mel_md.get("stack", 0) or 0) > 0:
+                            from .core.battle_mech import MELODY_CFG as _MEL_CFG
+                            _mel_md["stack"] = min(int(_MEL_CFG.get("max_stack", 5) or 5),
+                                                   int(_mel_md.get("stack", 0) or 0) + 1)
+                            logs.append(f"🎶 {_pn_md}：二重唱，旋律强度额外 +1！（{_mel_md['stack']}/5）")
+                        break
+                except Exception:
+                    pass
         if eff:
             # v1.x：mon_atk_down/element_shift/stealth/mark/sleep/shield_all/reduce_all
             # 7 分支注册表化 → core/battle_mech.py SKILL_BUFF_EFFECTS；TEAM_BUFF_KEYS 保留原逻辑
@@ -4048,6 +4427,11 @@ class Battle:
         # 全库无数据 producer（skills.py 无 effect=burn_burst/rage_burst/bless_shield 条目）
         # → 死代码删除；其专属 cond_mult/cond_label 计算一并移除。
         self._apply_mech_gain(mech, mval, p_mech, logs, skill_name)
+        # v169.7 守护姿态（战士守线 增益技带 stance 字段）——置位 stance_guard 守护态标记
+        # （守护姿态数据无 effect，仅 info.stance='counter'；铁誓·不动 stance_immortal 消费该标记）
+        if info.get("stance"):
+            self.p_buffs["stance_guard"] = max(int(self.p_buffs.get("stance_guard", 0) or 0), 999)
+            logs.append("🛡️ 进入守护姿态！（铁誓·不动守护被动就绪）")
         logs.append(f"你施展【{skill_name}】！")
         if eff == "element_shift" and getattr(self, "_shifted_element", None):
             logs.append(f"✦ 元素跃迁！切换到 {E.ELEMENT_CN.get(self._shifted_element, '?')}系(下次元素技能伤害+20%)")
@@ -4109,7 +4493,10 @@ class Battle:
         est = self._enemy_stats()
         # v109.2 P1-1 运势：幸运转化为暴击补充（luck → crit，上限 +12%）；PVP 对方韧性对称生效
         # v130.2c 套装暴击：巡林长披风（带标记 +5%）/ 夜幕合契·影纱 4 件（终结技 +15%）
-        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12) + self._set_crit_bonus(player, info)) * self._tenacity_mult(est)
+        # v169.7 条件被动暴击族（狂热/真知/疾风之心/元素之核/影舞·极）：统一走 _passive_crit_bonus 消费
+        is_crit = random.random() < (st["crit"] + min(float(st.get("luck", 0) or 0) * 0.3, 0.12)
+                                     + self._set_crit_bonus(player, info)
+                                     + self._passive_crit_bonus(player, info=info)) * self._tenacity_mult(est)
         # v130.2 游侠满弦状态（守线·风行者）：精力 ≥80 且低耗/连射技能 暴击率 +10%
         if self._energy_high_crit(player, info):
             is_crit = is_crit or random.random() < float(ENERGY_HIGH.get("crit_bonus", 0.10) or 0.10)
@@ -4203,6 +4590,30 @@ class Battle:
         for _pn, _ps in _procs.get("arcane_dmg", []):
             if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
                 passive_bonus *= (1 + float(_ps.get("mult", 0)))
+        # v169.7 奥术共鸣 arcane_resonance：奥术技能伤害 +15%（与奥术之心同 mech 口径叠加）
+        for _pn, _ps in _procs.get("arcane_resonance", []):
+            if mech in MECH_PROC_GROUPS.get("arcane_dmg", ()):
+                passive_bonus *= (1 + float(_ps.get("mult", 0.15) or 0.15))
+        # v169.7 元素起源 element_origin：三系印记同时 ≥2 层时 结算伤害 +20%（加算乘区）
+        for _pn, _ps in _procs.get("element_origin", []):
+            try:
+                _mk_origin = self._elem_marks()
+                if _mk_origin and all(int(_mk_origin.get(_ek, 0) or 0) >= int(_ps.get("layers", 2) or 2)
+                                      for _ek in ("fire", "ice", "thunder")):
+                    passive_bonus *= (1 + float(_ps.get("mult", 0.20) or 0.20))
+            except Exception:
+                pass
+            break
+        # v169.7 元素同调 element_sync：连续两次同系施法，第二次挂印 +1 层（置 _elem_sync_bonus
+        # 标记，命中挂印分支消费；读 _last_element 判定连续同系）
+        for _pn, _ps in _procs.get("element_sync", []):
+            if element and E.ELEMENT_MARKS.get(element):
+                try:
+                    if getattr(self, "_last_element", None) == element:
+                        self._elem_sync_bonus = True
+                except Exception:
+                    pass
+            break
         # 连招技能伤害（武技）
         for _pn, _ps in _procs.get("combo_dmg", []):
             if info.get("combo"):
@@ -4428,6 +4839,8 @@ class Battle:
                 dmg_i = int(dmg_i * (1 + C.rune_value("brutal", brutal_lvl)))
             # v106.3 暴击伤害属性（crit_dmg 面板化：词条折算 + 种族 + 被动 + 药水）
             cdmg = float(st.get("crit_dmg", 0) or 0)
+            # v169.7 暗影步·极 shadow_dance_bonus：影舞态中暴击伤害 +20%（暴伤加算）
+            cdmg += self._passive_crit_dmg_mult(player)
             if self.p_buffs.get("crit_dmg_pot"):
                 cdmg = 1 - (1 - cdmg) * (1 - 0.25)  # 狂暴药剂 +25% 暴伤（乘算并入）
             if _seg_crit and cdmg > 0:
@@ -4473,6 +4886,16 @@ class Battle:
             self.p_buffs.pop("element_overload_aoe", None)
         if _v153_mult != 1.0:
             total = int(total * _v153_mult)
+        # v169.7 battle_mech effect 乘区键（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）——技能伤害统一挂点
+        try:
+            _v169m, _v169t = self._consume_v169_buff_dmg(kind=kind, element=element or "", skill_name=skill_name)
+            if _v169m != 1.0:
+                total = int(total * _v169m)
+                _v169_tags = _v169t
+            else:
+                _v169_tags = []
+        except Exception:
+            _v169_tags = []
         # v153 §2：感电连击（雷印满 3 层结算时连击 +1/+2）——多段追加
         _ele_combo = int(self.p_buffs.get("element_thunder_combo", 0) or 0)
         if _ele_combo:
@@ -4556,6 +4979,9 @@ class Battle:
         # 阶段八：词条伤害标签（处决/追猎/精准等）
         if affix_tags:
             tags.extend(affix_tags)
+        # v169.7 effect 乘区键标签（猎杀时刻/星轨锁定/奥术矩阵/奥术力场）
+        if locals().get("_v169_tags"):
+            tags.extend(_v169_tags)
         if elem_mult > 1.0:
             tags.append(f"✨元素x{round(elem_mult, 2)}")
         if tags:
@@ -4569,6 +4995,16 @@ class Battle:
             for _pn, _ps in _procs.get("mark_extra", []):
                 if random.random() < float(_ps.get("chance", 0.3)):
                     extra_layers += 1
+            # v169.7 元素亲和 element_affinity：引爆后下次挂印 +1 层（_elem_affinity_next 由引爆结算置位）
+            if getattr(self, "_elem_affinity_next", False):
+                self._elem_affinity_next = False
+                extra_layers += 1
+                logs.append("✨ 元素亲和：引爆余韵，挂印 +1 层！")
+            # v169.7 元素同调 element_sync：连续两次同系施法第二次挂印 +1 层（_player_skill 前置判定置位）
+            if getattr(self, "_elem_sync_bonus", False):
+                self._elem_sync_bonus = False
+                extra_layers += 1
+                logs.append("✨ 元素同调：同系连发，挂印 +1 层！")
             E.element_mark_apply(self.e_buffs, element, extra_layers)
             # v130.2 目标侧 element_marks 登记（每系上限 3；仅命中叠加——mage_转职.md §1.0①）
             if total > 0:
@@ -4627,6 +5063,25 @@ class Battle:
         # ---- 分支机制结算（v29） ----
         self._last_player = player
         self._apply_mech_effect(mech, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # v169.7 元素亲和 element_affinity：元素引爆（mech=element_burst* 清印记结算）后置位
+        # 下次挂印 +1 标记（命中挂印分支消费）；已学被动才置位
+        if mech and mech.startswith("element_burst"):
+            try:
+                for _pn_ea, _ps_ea in self._proc_pm(player)["proc"].get("element_affinity", []):
+                    self._elem_affinity_next = True
+                    break
+            except Exception:
+                pass
+        # v169.7 蚀骨 poison_burst_up / 毒刃·共鸣 poison_spread TODO（依赖 battle_mech agent 的
+        # _m_poison_burst 乘区与击杀扩散接线——毒爆结算在 battle_mech.py handler 内，battle.py
+        # 无法在不改 battle_mech 的前提下插入其内部伤害/扩散；待 battle_mech agent 在 handler
+        # 内补读 battle._proc_pm(battle._last_player)["proc"]["poison_burst_up"]/["poison_spread"]）
+        # v169.7 链舞 finisher_up TODO（数据缺陷，见 技能引擎缺口全量清单 §四.4）：finisher_up proc
+        # 挂在 kind=物理 主动技「链舞」上而非被动技能 → E.passive_skills_learned 按 kind=被动 过滤，
+        # _passive_map 聚合不到该 proc，终结技 mech=finisher 的 per_stack（10%→16%）无法按被动接线；
+        # 待 skills agent 修数据（链舞改 kind=被动 或移除 passive 字段并另立被动条目）。
+        # 若数据修正后仍需引擎支持：在 _apply_mech_effect mech=="finisher" 分支读
+        # _proc_pm(battle._last_player)["proc"]["finisher_up"] 提升 per（battle.py 侧可接）。
         # v153：mech2 第二机制（如冰锥 mech=ice_mark + mech2=spd_down 减速）——独立结算
         _mech2 = info.get("mech2")
         if _mech2:
@@ -4637,6 +5092,25 @@ class Battle:
         cc = info.get("cc")
         if cc and cc in SKILL_CC_WHITELIST:
             self._apply_mech_effect(cc, 1, p_mech, total, logs, skill_name, is_crit, info)
+        # v169.7 镇魂安魂 dirge_ctrl_up（诗人挽歌线）：挽歌系控制时长 +1.5 刻——
+        # 本技能对敌施加的控制（mech/cc 走 MECH_EFFECTS 写入 e_buffs 后）延长 1 刻（1.5 向下取整；
+        # 小数半刻引擎不支持，见 技能引擎缺口全量清单 §四.5）
+        try:
+            _ctrl_keys_dg = ("stun", "freeze", "silence", "sleep", "spd_down")
+            _apply_any_ctrl = False
+            if mech in _ctrl_keys_dg or cc in _ctrl_keys_dg or _mech2 in _ctrl_keys_dg:
+                _apply_any_ctrl = True
+            if _apply_any_ctrl:
+                for _pn_dg, _ps_dg in self._proc_pm(player)["proc"].get("dirge_ctrl_up", []):
+                    _eb_dg = self.e_buffs
+                    for _ck_dg in _ctrl_keys_dg:
+                        if _eb_dg.get(_ck_dg):
+                            _eb_dg[_ck_dg] = int(_eb_dg[_ck_dg]) + int(_ps_dg.get("add", 1) or 1)
+                            logs.append(f"🎵 {_pn_dg}：挽歌延长【{_ck_dg}】控制 +1 刻！")
+                            break
+                    break
+        except Exception:
+            pass
         # ---- v139 enemy_bar 挂敌身条：技能命中注入 shaken（拳师破绽/淬势撼岳）----
         # 数据源：技能 info.shaken_gain（三连击破+15/碎颅势+15/旋风踢+5每目标/无影连打每段+3）
         # 触发：阈值满 → 敌方跳过刻（skip_turn）；触发后免疫窗口 + 阈值递增（防无限控）
@@ -4651,6 +5125,13 @@ class Battle:
                     if bar_trigger(_tgt, "shaken", logs):
                         _tgt_buffs = _tgt.get("buffs", {})
                         _bs = _tgt_buffs.get("shaken", {})
+                        # v169.7 破绽·极 broken_extend（拳师攻线）：破防持续 +1.5 刻（免疫窗口 +1，半刻不支持向下取整）
+                        try:
+                            for _pn_be, _ps_be in self._proc_pm(player)["proc"].get("broken_extend", []):
+                                _bs["immune_turns"] = int(_bs.get("immune_turns", 0) or 0) + int(_ps_be.get("extend", 1) or 1)
+                                break
+                        except Exception:
+                            pass
                         logs.append(f"💢 破绽值满！敌人被震慑，下刻无法行动！(阈值提升至 {_bs.get('threshold', '?')})")
             except Exception:
                 pass
@@ -4795,8 +5276,56 @@ class Battle:
         v113.1：info（技能 dict）下传，handler 可读技能自带 mech_chance 固定概率。"""
         from .core.battle_mech import MECH_EFFECTS
         handler = MECH_EFFECTS.get(mech)
+        # v169.7 叠层被动上限（追猎者/灵魂锁链/剧毒·淬毒之心）：记录命中前层数，
+        # handler 按默认 cap（3/5）叠完后再把“被 cap 吞掉”的应叠层补到被动上限
+        _cap_pre = {}
+        try:
+            _pl_cap = getattr(self, "_last_player", None) or self.player or {}
+            _tgt_cap0 = getattr(self, "_active_target", None) or self.enemy
+            _deb_cap0 = (_tgt_cap0.get("debuffs") or {})
+            if mech == "hunt_mark":
+                _cap_pre["hunt_mark"] = int(_deb_cap0.get("hunt_mark", 0) or 0)
+            if mech == "soul_mark":
+                _cap_pre["soul_mark"] = int(_deb_cap0.get("soul_mark", 0) or 0)
+            if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
+                _cap_pre["poison"] = int((_deb_cap0.get("poison") or {}).get("n", 0) or 0)
+        except Exception:
+            _cap_pre = {}
         if handler:
             handler(self, mval, p_mech, total, logs, skill_name, is_crit, info)
+        # ---- v169.7 被动叠层上限放宽（术后补层，只对命中当次生效；mval=叠层量）----
+        try:
+            _pl_cap = getattr(self, "_last_player", None) or self.player or {}
+            _pm_cap = self._proc_pm(_pl_cap)
+            _tgt_cap = getattr(self, "_active_target", None) or self.enemy
+            _deb_cap = _tgt_cap.setdefault("debuffs", {})
+            _mv = max(0, int(mval or 0))
+            if mech == "hunt_mark" and _pm_cap["proc"].get("hunt_mark_cap") and _mv > 0:
+                _extra_cap = 0
+                for _pn, _ps in _pm_cap["proc"].get("hunt_mark_cap", []):
+                    _extra_cap = int(_ps.get("add", 2) or 2)
+                    break
+                _old_hm = _cap_pre.get("hunt_mark", 0)
+                _now_hm = int(_deb_cap.get("hunt_mark", 0) or 0)
+                if _old_hm + _mv > _now_hm:
+                    _deb_cap["hunt_mark"] = min(3 + _extra_cap, _old_hm + _mv)
+            if mech == "soul_mark" and _pm_cap["proc"].get("soul_mark_cap") and _mv > 0:
+                _extra_sm = 2
+                for _pn, _ps in _pm_cap["proc"].get("soul_mark_cap", []):
+                    _extra_sm = int(_ps.get("add", 2) or 2)
+                    break
+                _old_sm = _cap_pre.get("soul_mark", 0)
+                _now_sm = int(_deb_cap.get("soul_mark", 0) or 0)
+                if _old_sm + _mv > _now_sm:
+                    _deb_cap["soul_mark"] = min(3 + _extra_sm, _old_sm + _mv)
+            if mech in MECH_PROC_GROUPS.get("poison_dmg", ("poison",)):
+                _cap_pois = self._poison_cap(_pl_cap)
+                _old_p = _cap_pre.get("poison", 0)
+                _now_p = int((_deb_cap.get("poison") or {}).get("n", 0) or 0)
+                if _old_p + _mv > _now_p and _cap_pois > 5:
+                    _deb_cap.setdefault("poison", {})["n"] = min(_cap_pois, _old_p + _mv)
+        except Exception:
+            pass
         # v130.2f2（T7 P1-1）：鹰眼 mark_extra 在游侠标记路径（mech=mark：林语印记/猎杀标记类技能）
         # 也独立 roll——与法师元素印记路径（_player_skill 3388-3390）同语义：每个被动独立 chance，
         # 额外层经同源 handler 叠加进目标 debuffs.mark（cap 5）。此前消费点只在 element 印记分支，
@@ -5780,7 +6309,31 @@ class Battle:
                 _cap_v = max_hp * DOT_PCT_CAP
                 _hp_part = min(_hp_part, _cap_v)
             hp_part = _hp_part
-            p = int((atk_part + hp_part) * n * mult * (1 - res))
+            # v169.7 万毒归宗 poison_all_up（刺客毒线）：所有毒层伤害 +35%（毒 DOT 乘区）
+            _poison_all_mult = 1.0
+            if k == "poison":
+                try:
+                    for _pn_pa, _ps_pa in self._proc_pm(player)["proc"].get("poison_all_up", []):
+                        _poison_all_mult *= 1.0 + float(_ps_pa.get("mult", 0.35) or 0.35)
+                        break
+                except Exception:
+                    pass
+            p = int((atk_part + hp_part) * n * mult * _poison_all_mult * (1 - res))
+            # v169.7 剧毒之触 poison_weaken（刺客毒线）：目标毒层 ≥5 时减速 30%、降防 20%——
+            # 在 DOT tick（毒层在身）检查施加（e_buffs 写 spd_down/def_down；_enemy_stats 消费）
+            if k == "poison":
+                try:
+                    _pw_list = self._proc_pm(player)["proc"].get("poison_weaken", [])
+                    if _pw_list and n >= int((_pw_list[0][1]).get("layers", 5) or 5):
+                        for _pn_pw, _ps_pw in _pw_list:
+                            self.e_buffs["spd_down"] = max(int(self.e_buffs.get("spd_down", 0) or 0), int(_ps_pw.get("spd_down", 2) or 2))
+                            self.e_buffs["def_down"] = max(int(self.e_buffs.get("def_down", 0) or 0), int(_ps_pw.get("def_down", 2) or 2))
+                            self.e_buffs["_weaken_spd_pct"] = max(float(self.e_buffs.get("_weaken_spd_pct", 0) or 0), 0.30)
+                            self.e_buffs["_weaken_def_pct"] = max(float(self.e_buffs.get("_weaken_def_pct", 0) or 0), 0.20)
+                            logs.append("☠️ 剧毒之触：毒层 ≥5，敌人减速降防！")
+                            break
+                except Exception:
+                    pass
             # v138.2 律四：真伤分支——绕过 _enemy_mitigate 的 def/mdef 削减，仍走免疫检查 +
             # Boss 护盾过滤（护盾层吸收）→ _damage_enemy。腐蚀类 = 独立第二条输出轴。
             # 注意：总抗（dot_res/适应）仍参与公式——真伤只豁免防御削减，不豁免目标异常抗性。
@@ -5989,6 +6542,17 @@ class Battle:
                 _bd = bar_def(_bk) or {}
                 if (_bd.get("trigger_effect") or "") == "skip_turn":
                     logs.append(f"💢 破绽触发！敌方即将失去行动！")
+            # v169.7 破绽感知 shaken_decay_half（拳师攻线）：破绽衰减减半（−1.7/s → −0.85/s）——
+            # turn_start_bars 已按配置衰减 1.7，这里把半衰量回补（净效果 −0.85）
+            try:
+                for _pn_dh, _ps_dh in self._proc_pm(player)["proc"].get("shaken_decay_half", []):
+                    _eb_sh = self.e_buffs.get("shaken")
+                    if isinstance(_eb_sh, dict):
+                        _decay_full = float((_bd or {}).get("decay_per_turn", 0) or 0) or 1.7
+                        _eb_sh["val"] = int(_eb_sh.get("val", 0) or 0) + int(_decay_full / 2)
+                    break
+            except Exception:
+                pass
         except Exception:
             pass
         # 阶段八：词条刻开始回复（回春/冥想/晨曦祝福）
@@ -6089,6 +6653,22 @@ class Battle:
             self.mech_stacks[_mech] = E.mech_stack_gain(_mech, self.mech_stacks, 1)
             logs.append(f"📖 {_pn}：充能自动+1(当前 {self.mech_stacks[_mech]} 层)")
             break
+        # v169.7 奥术直觉 arcane_intuition（奥术学者）：每刻自动 +1 奥术充能（冥想中 +2）——
+        # 与 arcane_regen 旧被动同存储（mech_stacks[_mech]）；focus 专注/冥想激活时 +2
+        for _pn, _ps in self._passive_map(player)["proc"].get("arcane_intuition", []):
+            _mech2 = _ps.get("mech") or "arcane"
+            _gain2 = int(_ps.get("gain", 1) or 1)
+            try:
+                from .core.battle_modes import focus_active as _fa169
+                if _fa169(player):
+                    _gain2 += int(_ps.get("focus_gain", 1) or 1)  # 冥想中额外 +1 → 共 +2
+            except Exception:
+                pass
+            _before2 = int(self.mech_stacks.get(_mech2, 0) or 0)
+            self.mech_stacks[_mech2] = E.mech_stack_gain(_mech2, self.mech_stacks, _gain2)
+            if int(self.mech_stacks.get(_mech2, 0) or 0) > _before2:
+                logs.append(f"📖 {_pn}：每刻充能自动+{_gain2}(当前 {self.mech_stacks[_mech2]} 层)")
+            break
         for _pn, _ps in self._passive_map(player)["stat"]:
             # v113 魔剑士流派已删：spellblade_regen 无数据（保留兼容分支，mech 键同样读数据字段）
             if _ps.get("stat") == "spellblade_regen":
@@ -6118,8 +6698,35 @@ class Battle:
         _amp_pt = self._amp_resource(player, "regen")
         if _amp_pt:
             logs.append(f"⚡ 迅捷之核：自然回复额外资源 +{_amp_pt}！")
+        # v169.7 森之共鸣 focus_regen_summon（游侠攻线·森语者）：召唤物存活时 专注(精力)充能 +5/刻
+        # （与 rd.regen 主渠道叠加；存活判定 = 玩家侧召唤物 alive）
+        try:
+            if self.summons:
+                for _pn, _ps in self._passive_map(player)["proc"].get("focus_regen_summon", []):
+                    _sr_gain = int(_ps.get("gain", 5) or 5)
+                    _sr_old = int(self.resources.get("energy", 0) or 0)
+                    _sr_new = self._res_gain(player, "energy", _sr_gain)
+                    if _sr_new > _sr_old:
+                        logs.append(f"🌳 {_pn}：召唤物在场，专注充能 +{_sr_gain}（{_sr_new}）")
+                    break
+        except Exception:
+            pass
         # v153 §4（C-18）：牧师信念负载——每刻 −0.7 衰减 + 过载触发（满 10 清零→全队回复 + 力竭）
         _crd_f = E.core_resource_def(player.get("class_name", ""))
+        # v169.7 亡灵祭仪 undead_faith（牧师死灵线）：场上每只亡灵每刻 +0.15 信念——
+        # 在信念衰减前结算（先产后衰）；亡灵计数 = _undead_count（玩家骷髅/敌方亡灵同名关键词）
+        try:
+            if _crd_f and _crd_f.get("key") == "faith":
+                for _pn, _ps in self._passive_map(player)["proc"].get("undead_faith", []):
+                    _uf_n = self._undead_count()
+                    if _uf_n > 0 and not self.p_buffs.get("faith_exhausted"):
+                        _uf_gain = float(_ps.get("per_undead", 0.15) or 0.15) * _uf_n
+                        _f0 = float(self.resources.get("faith", 0) or 0)
+                        self.resources["faith"] = min(float(_crd_f.get("max", 10) or 10), _f0 + _uf_gain)
+                        logs.append(f"🕯️ {_pn}：{_uf_n} 只亡灵在场，信念 +{_uf_gain:.2f}（{self.resources['faith']:.2f}）")
+                    break
+        except Exception:
+            pass
         if _crd_f and _crd_f.get("key") == "faith" and _crd_f.get("decay_per_tick"):
             _f_before = float(self.resources.get("faith", 0) or 0)
             if _f_before >= float(_crd_f.get("max", 10)):
@@ -6127,9 +6734,22 @@ class Battle:
                 _ov_pct = float(_crd_f.get("overload_heal_pct", 0.015) or 0.015)
                 _ov_heal = int(self.player.get("max_hp", 1) * _ov_pct * _f_before)
                 self.resources["faith"] = 0
+                # v169.7 信念·圣化 faith_overload_heal（牧师死灵线）：过载时不再力竭，
+                # 改为回血提升 30%（过载回响 _ov_heal ×1.3，且不清力竭 buff）
+                _foheal = False
+                try:
+                    for _pn_fh, _ps_fh in self._proc_pm(player)["proc"].get("faith_overload_heal", []):
+                        _ov_heal = int(_ov_heal * (1.0 + float(_ps_fh.get("heal_up", 0.30) or 0.30)))
+                        _foheal = True
+                        break
+                except Exception:
+                    pass
                 logs.append(f"⚡ 信念过载！信仰之力迸发，全队回复 {_ov_heal} 点生命！")
-                # 力竭：后续治疗 ×0.5，信念不再增加（6 刻）
-                self.p_buffs["faith_exhausted"] = 6
+                if not _foheal:
+                    # 力竭：后续治疗 ×0.5，信念不再增加（6 刻）
+                    self.p_buffs["faith_exhausted"] = 6
+                else:
+                    logs.append("✨ 信念·圣化：信念过载化为圣辉，无力竭反噬！")
                 if self.player.get("hp", 0) < self.player.get("max_hp", 1):
                     self.player["hp"] = min(self.player.get("max_hp", 1), self.player.get("hp", 0) + _ov_heal)
                     logs.append(f"✨ 过载回响：你回复了 {_ov_heal} 点生命！")
@@ -6412,6 +7032,65 @@ class Battle:
             target = getattr(self, "_active_target", None) or self.enemy
         if dmg <= 0:
             return 0
+        # ---- v169.7 通用伤害乘区（读敌方标记/破绽 + 已学被动；只影响带机制/已学被动玩家）----
+        # 猎印 hunt_mark（每层基础 +8%，游侠自然之眼 hunt_mark_up 额外 +6%/层——mech 日志承诺层，消费端在此落地）
+        # 灵魂标记 soul_mark（每层基础 +6%，牧师灵魂锁链 soul_mark_cap 额外 +8%/层 并提升上限）
+        # 破绽感知 shaken_awareness：敌方破绽 ≥15 → 伤害 +20%
+        # 挽歌·极 dirge_debuff_dmg：敌方每 1 负面 +4%（上限 +40%）
+        try:
+            _db_t = target.get("debuffs") or {}
+            _mult_pas = 1.0
+            _tags_pas = []
+            _pl_d = self.player or {}
+            _pm_d = self._proc_pm(_pl_d) if _pl_d else {"proc": {}}
+            # 猎印
+            _hm = int(_db_t.get("hunt_mark", 0) or 0)
+            if _hm > 0:
+                _hm_pct = 0.08
+                for _pn, _ps in _pm_d["proc"].get("hunt_mark_up", []):
+                    _hm_pct += float(_ps.get("per_layer", 0.06) or 0.06)
+                    break
+                _mult_pas *= 1.0 + _hm_pct * _hm
+                _tags_pas.append(f"🎯猎印x{round(1 + _hm_pct * _hm, 2)}")
+            # 灵魂标记
+            _sm = int(_db_t.get("soul_mark", 0) or 0)
+            if _sm > 0:
+                _sm_pct = 0.06
+                for _pn, _ps in _pm_d["proc"].get("soul_mark_cap", []):
+                    _sm_pct += float(_ps.get("per_layer", 0.08) or 0.08)
+                    break
+                _mult_pas *= 1.0 + _sm_pct * _sm
+                _tags_pas.append(f"💀魂标x{round(1 + _sm_pct * _sm, 2)}")
+            # 气力之心（敌方破绽条 ≥15）
+            _sb_sh = (target.get("buffs") or {}).get("shaken")
+            if isinstance(_sb_sh, dict):
+                for _pn, _ps in _pm_d["proc"].get("shaken_awareness", []):
+                    if int(_sb_sh.get("val", 0) or 0) >= int(_ps.get("bar_at", 15) or 15):
+                        _mult_pas *= 1.0 + float(_ps.get("mult", 0.20) or 0.20)
+                        _tags_pas.append("🧠破绽x1.2")
+                    break
+            # 破绽·极 broken_extend：破防（被震慑免疫期）时 全队增伤 +50%
+            if isinstance(_sb_sh, dict) and int(_sb_sh.get("trigger_count", 0) or 0) > 0 \
+                    and int(_sb_sh.get("immune_turns", 0) or 0) > 0:
+                for _pn_be2, _ps_be2 in _pm_d["proc"].get("broken_extend", []):
+                    _mult_pas *= 1.0 + float(_ps_be2.get("broken_mult", 0.50) or 0.50)
+                    _tags_pas.append(f"💢破防x{round(1 + float(_ps_be2.get('broken_mult', 0.50) or 0.50), 2)}")
+                    break
+            # 挽歌·极（敌方负面种数）
+            for _pn, _ps in _pm_d["proc"].get("dirge_debuff_dmg", []):
+                _kinds = self._enemy_debuff_kind_count()
+                _pct_e = min(float(_ps.get("per_debuff", 0.04) or 0.04) * _kinds,
+                             float(_ps.get("cap", 0.40) or 0.40))
+                if _pct_e > 0:
+                    _mult_pas *= 1.0 + _pct_e
+                    _tags_pas.append(f"🎵挽歌x{round(1 + _pct_e, 2)}")
+                break
+            if _mult_pas != 1.0:
+                dmg = max(1, int(dmg * _mult_pas))
+                if _tags_pas:
+                    logs.append("·".join(_tags_pas))
+        except Exception:
+            pass
         # v136 等级压制：玩家 vs 怪物等级差伤害修正（PVE 生效，PVP 不压；按目标自身等级实时算，
         # 多目标阵列每怪等级不同也能正确压制）。双向曲线（鱼鱼拍板：增伤不封顶，曲线自然延伸）：
         #   低打高：低 1-3 级 ×0.95/级，低 4+ 级 ×0.90/级（指数曲线，封顶 ×0.30 防归零）
@@ -6559,8 +7238,18 @@ class Battle:
         if not tmpl:
             return False
         cur = [s for s in self.summons if s.get("tid") == tid]
-        if len(cur) >= int(tmpl.get("limit", 3)):
-            logs.append(f"⛔ 已有 {len(cur)} 个{tmpl['name']}（上限 {tmpl['limit']}）！")
+        # v169.7 骷髅海 skeleton_cap（牧师死灵线）：骷髅上限 +2（至 5 只）——同模板召唤上限提升
+        _summon_limit = int(tmpl.get("limit", 3))
+        try:
+            if tid == "skeleton":
+                for _pn_sk, _ps_sk in self._proc_pm(player)["proc"].get("skeleton_cap", []):
+                    _summon_limit = min(int(_ps_sk.get("cap", 5) or 5),
+                                        _summon_limit + int(_ps_sk.get("add", 2) or 2))
+                    break
+        except Exception:
+            pass
+        if len(cur) >= _summon_limit:
+            logs.append(f"⛔ 已有 {len(cur)} 个{tmpl['name']}（上限 {_summon_limit}）！")
             return False
         st = self._player_stats(player)
         sp = float(st.get("summon_power", 0) or 0)  # 隐藏职业专属强化（亡灵/兽王）
@@ -6647,6 +7336,17 @@ class Battle:
                 try:
                     from .core.weapon_effects import proc as _we_proc
                     _we_proc(self, self.player, "kill", {}, getattr(self, "_pending_dmg_lines", None) or [])
+                except Exception:
+                    pass
+                # v169.7 追风 focus_full_on_kill（游侠）：击杀目标后 专注(精力)立即回满
+                try:
+                    for _pn_k, _ps_k in self._proc_pm(self.player)["proc"].get("focus_full_on_kill", []):
+                        if self.resources.get("energy") is not None:
+                            _max_e = self._res_max(self.player, "energy")
+                            _old_e = int(self.resources.get("energy", 0) or 0)
+                            self.resources["energy"] = _max_e
+                            logs.append(f"💨 {_pn_k}：击杀！专注回满（{_old_e} → {_max_e}）")
+                        break
                 except Exception:
                     pass
             # 同步 e_minions 旧字段（镜像同对象）
@@ -6816,6 +7516,10 @@ class Battle:
         block_chance = float(self._player_stats(player).get("block", 0) or 0)
         if self.p_buffs.get("block_pot"):
             block_chance = 1 - (1 - block_chance) * (1 - 0.15)  # 岩壁药剂 +15% 格挡（乘算并入）
+        # v169.7 battle_mech effect：铁壁·誓/铁山靠 block_up（格挡率 30%/50%，数值存 p_eff block_up_val）
+        if self.p_buffs.get("block_up"):
+            _bu = float(self.p_eff.get("block_up_val", 0.30) or 0.30)
+            block_chance = 1 - (1 - block_chance) * (1 - min(_bu, 0.5))
         block_chance = min(block_chance, 0.40)
         if block_chance > 0 and random.random() < block_chance:
             block_reduce = max(1, int(dmg * 0.5))
@@ -6951,12 +7655,67 @@ class Battle:
             _ps_params = (_ps_eff or {}).get("params") or {}
             reduce_total += int(dmg * float(_ps_params.get("reduce_pct", 0.05)))
             logs.append("⛰️ 磐石不动：巍然不动，减伤 5%！")
+        # v169.7 不动如山 core_last_stand：生命 <30% 时获得 3 枚磐核并减伤 40%（每场 1 次）——
+        # 触发点（磐核生产缺口见 技能引擎缺口全量清单 §3.2 磐核族：引擎无磐核生产渠道，此处
+        # 首触发只补 3 磐核并置位；40% 减伤随 hp<30% 每次受击生效（用满整场仍 1 次生产））
+        try:
+            if not getattr(self, "_core_last_stand_used", False):
+                _hp_ratio = player.get("hp", 0) / max(1, player.get("max_hp", 1) or 1)
+                if _hp_ratio < float((self._proc_pm(player)["proc"].get("core_last_stand", [{}])[0][1]).get("hp_lt", 0.30)) if self._proc_pm(player)["proc"].get("core_last_stand") else False:
+                    for _pn_cls, _ps_cls in self._proc_pm(player)["proc"].get("core_last_stand", []):
+                        self._core_last_stand_used = True
+                        self.resources["guard_core"] = max(self._guard_core_n(), int(_ps_cls.get("cores", 3) or 3))
+                        logs.append(f"⛰️ 不动如山：绝境不屈，获得 {int(_ps_cls.get('cores', 3) or 3)} 枚磐核！（每场 1 次）")
+                        break
+        except Exception:
+            pass
         # 圣堂壁垒（holy_bastion_def）——常驻 5% 减伤（数值读 params）
         _hb_eff = self._set_eff(player, "holy_bastion_def", 4)
         if _hb_eff:
             _hb_params = (_hb_eff or {}).get("params") or {}
             reduce_total += int(dmg * float(_hb_params.get("reduce_pct", 0.05)))
             logs.append("⛪ 圣堂壁垒：受击减伤 5%！")
+        # ---- v169.7 条件减伤被动族（磐核/战意 持有档位） ----
+        # 坚城之姿 zhan_yi_full_reduce（战士守线）：战意满 10 减伤 +10%
+        # 磐石之躯 core_full（拳师守线）：磐核满 5 减伤 +20%（免疫控制部分在 _apply_mech_effect 消费）
+        # 大地之肤 core_reduce（拳师守线）：每枚磐核额外减伤 +2%（与基础 +3% 叠加）
+        # 不动如山 core_last_stand（拳师守线）：生命 <30% 减伤 40%（每场 1 次，触发时同时给 3 磐核）
+        # 磐石之心 core_overflow（拳师守线）：磐核 ≥3 受击溢出伤害转护盾
+        try:
+            _pm_dr = self._proc_pm(player)
+            _dr_pct = 0.0
+            # 坚城之姿
+            for _pn2, _ps2 in _pm_dr["proc"].get("zhan_yi_full_reduce", []):
+                if self._zhan_yi_n() >= int(_ps2.get("stacks", 10) or 10):
+                    _dr_pct += float(_ps2.get("reduce", 0.10) or 0.10)
+                break
+            # 磐石之躯 / 大地之肤（磐核档）
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_full", []):
+                if self._guard_core_n() >= int(_ps2.get("stacks", 5) or 5):
+                    _dr_pct += float(_ps2.get("reduce", 0.20) or 0.20)
+                break
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_reduce", []):
+                _gn = self._guard_core_n()
+                if _gn > 0:
+                    _dr_pct += float(_ps2.get("per_core", 0.02) or 0.02) * _gn
+                break
+            # 不动如山：已触发后（hp<30%）减伤 40% 持续生效
+            if getattr(self, "_core_last_stand_used", False):
+                for _pn2, _ps2 in _pm_dr["proc"].get("core_last_stand", []):
+                    _dr_pct += float(_ps2.get("reduce", 0.40) or 0.40)
+                    break
+            # 磐石之心：磐核 ≥3 → 溢出承伤转护盾（护盾 = 超过 hp 上限部分的伤害额 80%，3 刻）
+            for _pn2, _ps2 in _pm_dr["proc"].get("core_overflow", []):
+                if self._guard_core_n() >= int(_ps2.get("stacks", 3) or 3):
+                    _ov_sh = int(dmg * float(_ps2.get("shield_pct", 0.80) or 0.80))
+                    if _ov_sh > 0:
+                        self._add_shield("core_overflow", _ov_sh, int(_ps2.get("turns", 3) or 3))
+                        logs.append(f"🪨 磐石之心：磐核 {self._guard_core_n()} 枚，承伤转化 {_ov_sh} 点护盾！")
+                break
+            if _dr_pct > 0:
+                reduce_total += int(dmg * min(_dr_pct, 0.9))
+        except Exception:
+            pass
         if reduce_total:
             dmg = max(1, dmg - reduce_total)
             logs.append(f"🛡️ 被动减伤 {reduce_total} 点")
@@ -6966,6 +7725,11 @@ class Battle:
         if self.p_buffs.get("thorns_pot"):
             th = 1 - (1 - th) * (1 - 0.30)  # 荆棘药剂 +30% 反伤（乘算并入）
         th = min(th, 0.5)
+        # v169.7 battle_mech effect：铁山靠/守护誓言/铁壁·誓——技能反伤数值（40%/50%，p_eff 通道）
+        # block_up 存在时叠加技能反伤，cap 抬到 0.6（desc 承诺值可达 40-50%，与 thorns 并存防膨胀）
+        _brv = float((self.p_eff or {}).get("block_reflect_val", 0) or 0)
+        if _brv > 0 and self.p_buffs.get("block_up"):
+            th = min(th + _brv, 0.6)
         if th > 0 and self.enemy.get("hp", 0) > 0:
             rd = int(dmg * th)
             if rd > 0:
@@ -7014,6 +7778,40 @@ class Battle:
                 cd = E.calc_damage(int(pst2["atk"] * 1.2), est2.get("def", 0))
                 self._damage_enemy(cd, logs)
                 logs.append(f"🛡️ 盾牌反击！对【{self.enemy.get('name', '敌人')}】造成 {cd} 点伤害！")
+        # v169.7 以守为攻 counter_chance / 反击之王 counter_up：受击反击被动族——
+        # 统一挂点（与既有 counter_attack 消费点 battle.py:6990 同段）：以守为攻给基础
+        # 35% 概率×80% 普攻；反击之王在学了以守为攻时 +25% 概率 & +50% 伤害
+        # （两被动皆学 = 60% 概率 ×120% 普攻——combine，见下方聚合）
+        if self.enemy.get("hp", 0) > 0:
+            _cc_list = self._proc_pm(player)["proc"].get("counter_chance", [])
+            _cu_list = self._proc_pm(player)["proc"].get("counter_up", [])
+            if _cc_list or _cu_list:
+                _chance = 0.0
+                _mult = 1.0
+                for _pn, _ps in _cc_list:
+                    _chance = max(_chance, float(_ps.get("chance", 0.35) or 0.35))
+                    _mult = min(_mult, float(_ps.get("mult", 0.80) or 0.80))  # 以守为攻 80% 普攻
+                if _cu_list:  # 反击之王：+25% 概率、反击伤害 +50%
+                    for _pn, _ps in _cu_list:
+                        _chance += float(_ps.get("chance_add", 0.25) or 0.25)
+                        _mult *= 1.0 + float(_ps.get("dmg_add", 0.50) or 0.50)
+                        break
+                _chance = min(_chance, 0.9)
+                if random.random() < _chance:
+                    _st_c2 = self._player_stats(player)
+                    _est_c2 = self._enemy_stats()
+                    _c2_crit = random.random() < float(_st_c2.get("crit", 0) or 0)
+                    _c2_dmg = E.calc_damage(int(_st_c2["atk"] * _mult), _est_c2.get("def", 0), _c2_crit,
+                                            dmg_type="phys")
+                    _c2_dmg = self._boss_dmg_filter(_c2_dmg, player, logs)
+                    self._damage_enemy(_c2_dmg, logs)
+                    logs.append(f"🥊 反击！你立刻回击造成 {_c2_dmg} 点伤害！"
+                                + (" 💥暴击" if _c2_crit else ""))
+                    # 反击回气（同既有 counter_attack 消费点）：命中后 气 +2
+                    _cr2_cls = player.get("class_name", "")
+                    _cr2_rd = E.core_resource_def(_cr2_cls)
+                    if _cr2_rd and _cr2_rd.get("key") == "chi":
+                        self._res_gain_class(_cr2_cls, "chi", 2)
         # 龙鳞套：被攻击时 25% 概率反弹 25% 伤害
         if "reflect" in E.set_bonus_4(player.get("equipment", {})) and self.enemy.get("hp", 0) > 0:
             if random.random() < C.REFLECT_CHANCE:
@@ -7138,6 +7936,53 @@ class Battle:
                 player["hp"] = max(1, int(player.get("max_hp", player["hp"]) * 0.20))
                 logs.append(f"💀 死亡契约！{fallen.get('name', '亡灵')} 替你承受了致命一击，你以 {player['hp']} HP 站起！")
                 break
+        # v169.7 死亡契约（牧师死灵线数据化：proc death_contract 信念≥5 + 骷髅在场）——
+        # 与上方 v107 暗影祭司旧死亡契约（proc death_pact 无条件）并存；两条链都消费致死钩子
+        if player["hp"] <= 0 and not self._death_pact_used:
+            try:
+                _faith_v = float(self.resources.get("faith", 0) or 0)
+                _skels = [s for s in self.summons if s.get("tid") == "skeleton" and s.get("hp", 0) > 0]
+                for _pn, _ps in self._passive_map(player)["proc"].get("death_contract", []):
+                    if _faith_v < float(_ps.get("faith_req", 5) or 5):
+                        continue
+                    if not _skels:
+                        logs.append("💀 死亡契约：信念已足但没有骷髅代受致命一击！")
+                        continue
+                    self._death_pact_used = True
+                    fallen = _skels.pop()
+                    self.summons.remove(fallen)
+                    player["hp"] = max(1, int(player.get("max_hp", player["hp"]) * float(_ps.get("hp_pct", 0.20) or 0.20)))
+                    logs.append(f"💀 死亡契约：信念 {_faith_v:.0f} 引动契约，{fallen.get('name', '骷髅')} 代受致命伤，你以 {player['hp']} HP 站起！")
+                    break
+            except Exception:
+                pass
+        # v169.7 血怒·不灭（战士攻线·狂暴）：狂暴中首次致死 → 清空战意复活 30% 生命（每场 1 次）
+        if player["hp"] <= 0 and not getattr(self, "_berserk_revive_used", False):
+            try:
+                from .core.battle_modes import dual_form_active as _dfa169
+                if _dfa169(player):
+                    for _pn, _ps in self._passive_map(player)["proc"].get("berserk_revive", []):
+                        self._berserk_revive_used = True
+                        # 清空战意（血怒·不灭承诺「清空战意复活」）
+                        self.mech_stacks["zhan_yi"] = 0
+                        player["hp"] = max(1, int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("hp_pct", 0.30) or 0.30)))
+                        logs.append(f"🔥 血怒·不灭！狂暴意志撑住了致命一击，你以 {player['hp']} HP 站起（战意已清空）！")
+                        break
+            except Exception:
+                pass
+        # v169.7 铁誓·不动（战士守线·守护姿态）：守护姿态下首次致命伤害免疫，随后清空全部战意
+        if player["hp"] <= 0 and not getattr(self, "_stance_immortal_used", False) \
+                and self.p_buffs.get("stance_guard"):
+            try:
+                for _pn, _ps in self._passive_map(player)["proc"].get("stance_immortal", []):
+                    self._stance_immortal_used = True
+                    self.p_buffs.pop("stance_guard", None)
+                    self.mech_stacks["zhan_yi"] = 0
+                    player["hp"] = max(1, int(player.get("max_hp", player.get("hp", 1)) * float(_ps.get("hp_pct", 1.0) or 1.0)))
+                    logs.append(f"🛡️ 铁誓·不动！守护姿态替你挡下致命一击（战意已清空）！")
+                    break
+            except Exception:
+                pass
         # v2.0 核心资源：受击获取（战士怒气/牧师信仰/拳师气）
         cls = player.get("class_name", "")
         rd = E.core_resource_def(cls)
