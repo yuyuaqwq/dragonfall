@@ -189,7 +189,7 @@ REPRESENTATIVES = {
     # v168 冒险手册：总入口 + 足迹
     "adventure_book": "冒险手册 物品", "footprint": "足迹",
     "titles": "称号", "inventory": "背包", "bag_filter": "背包筛选",
-    "item_view_mode_cmd": "物品详情开始", "item_detail": "物品详情", "equip": "装备",
+    "item_view_mode_cmd": "物品详情开始", "item_detail": "物品详情", "equip": "装备", "my_equipment": "我的装备",
     "unequip": "卸下", "use": "使用", "sell": "出售", "shop": "商店", "buy": "购买",
     # gm.py
     "gm_maintenance": "gm_停服", "gm_open": "gm_开服", "gm_status": "gm_状态",

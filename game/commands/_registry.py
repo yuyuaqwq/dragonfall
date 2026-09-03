@@ -69,6 +69,7 @@ COMMAND_REGEX = {
     # v136 Phase 5 怪异炼成（怪猎曙光怪异化）：『炼成』每件限 3 次
     "calamity_forge": r'^(?:\[At:\d+\]\s*)?炼成(?:[\s\S]*)$',
     "equip": r'^(?:\[At:\d+\]\s*)?装备(?!重锻|我的)(?:\s*|$)',
+    "my_equipment": r'^(?:\[At:\d+\]\s*)?我的装备(?:\s*|$)',
     "evolve": r'^(?:\[At:\d+\]\s*)?转职(?!重置)(?:\s*|$)',
     "explore": r'^(?:\[At:\d+\]\s*)?探索(?!进度)(?:\s*|$)',
     # v115 探索见闻：『探索进度』指令（commands/exploration.py）

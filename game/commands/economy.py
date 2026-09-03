@@ -6194,6 +6194,16 @@ class EconomyCmds(CommandBase):
         eq["desc"] = _eq_random_desc(wname, "weapon", wtype)
         return eq
 
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?我的装备(?:\s*|$)")
+    @require_player()
+
+    async def my_equipment(self, event: AstrMessageEvent):
+        """v173.3 意见#167：『我的装备』查看当前穿戴一览（v134.1 意见#43 语义）——
+        v172 加『装备重锻』负向断言后『我的装备』丢失入口（equip 正则只匹配『装备』开头），
+        独立注册恢复。『装备 我的/状态』仍走 equip handler。"""
+        group_id, qq_id = self._uid(event)
+        yield event.plain_result(self._my_equipment_view(group_id, qq_id, self._player(group_id, qq_id)))
+
     @filter.regex(r"^(?:\[At:\d+\]\s*)?装备(?!重锻|我的)(?:\s*|$)")
     @require_player()
 
