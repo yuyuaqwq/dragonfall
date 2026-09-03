@@ -113,6 +113,20 @@ def _d_learn_discount(v, name):
     return f"{name} 学习-{int(v*100)}%"
 
 
+@register("first_upgrade_refund")
+def _d_first_upgrade_refund(v, name):
+    # v134.1 人类·博学者：首次升级技能返还 1 技能点（每技能一次）。展示补全（此前缺注册
+    # → 人类『种族』一览/注册种族说明里该天赋整条不显示，反馈#50「种族说明模糊」）
+    n = int(v or 0)
+    return f"{name} 每技能首次升级返还 {n} 技能点"
+
+
+@register("prof_bonus")
+def _d_prof_bonus(v, name):
+    # v134.1 人类·副业亲和：副业经验 +10%（professions.add_prof_exp 消费）
+    return f"{name} 副业经验+{int(v*100)}%"
+
+
 # A0-C1 深潜：v106.2 半身人"幸运儿"已由 gold_bonus 改用于 luck（见 data/races.py 半身人
 # talents）；全库种族已无 gold_bonus 天赋 key，原 @register("gold_bonus") 展示注册为死代码，
 # 故删除。若未来种族复用"金币+"天赋，于此重新 register 即可。

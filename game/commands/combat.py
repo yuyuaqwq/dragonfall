@@ -52,6 +52,27 @@ def _fmt_mult(v) -> str:
     s = f"{v:g}"
     return s
 
+
+def pet_battle_status_note(pet: dict | None) -> str:
+    """v110 P0（#119 宠物不动）：宠物战斗可用性提示（显示层）。
+
+    宠物 Lv≥10 才解锁战斗技能、饱食度 =0 时技能失效（设计 24 章四/五）——
+    此前玩家只看到『宠物不出手』没有任何解释（意见 #119 宠物不动了 +
+    #21/#117 喂养匹配不上/列表看不见的连锁）。返回一行提示，无则空串。"""
+    if not pet:
+        return ""
+    try:
+        lv = int(pet.get("level", 0) or 0)
+        sat = int(pet.get("satiety", 0) or 0)
+        name = pet.get("name") or "宠物"
+        if lv >= 10 and sat <= 0:
+            return (f"🐾 {name} 饿得没力气战斗了……『喂养 <食物>』（肉/鱼/草药）恢复饱食度！")
+        if lv < 10:
+            return f"🐾 {name} 还小（Lv.{lv}/10），Lv.10 解锁战斗技能！"
+    except Exception:
+        pass
+    return ""
+
 # v104 M06 P2-3：世界 Boss 特殊物品掉落池（传说材料/坐骑缰绳，按 Boss 名配池）
 # 材料用 mat_ ID 直接入库；缰绳用 mount_ key 走 make_mount_rein 生成道具
 WORLD_BOSS_DROPS = {
@@ -386,6 +407,9 @@ class CombatCmds(CommandBase):
         mod_line = f"📜 {monster['mod']}\n" if monster.get("mod") else ""
         # O121 Boss 战隐藏『逃跑』选项（引擎/命令层均禁逃，防误导）
         _acts = "『攻击』『技能 <名称>』『防御』" + ("" if monster.get("is_boss") else "『逃跑』")
+        # v110 P0（#119 宠物不动）：遭遇瞬间就提示宠物为何无法出手（饿肚子/Lv 不足），
+        # 不必等进战斗页脚——第一眼就消除『宠物怎么不动了』的困惑。
+        _pet_note = pet_battle_status_note(getattr(b, "pet", None))
         yield event.plain_result(
             f"⚔️ 遭遇战斗！\n"
             f"{role_mark}【{monster['name']}】Lv.{monster['lv']}\n"
@@ -393,8 +417,9 @@ class CombatCmds(CommandBase):
             f"{self._battle_formation_panel(player, b)}\n"
             + (f"{self._resource_line(player, b)}\n" if self._resource_line(player, b) else "")
             + f"{bless_note}━━━━━━━━━━━━\n"
-            f"你的行动：{_acts}"
-            f"{hint}{stam_warn}"
+            + (f"{_pet_note}\n" if _pet_note else "")
+            + f"你的行动：{_acts}"
+            + f"{hint}{stam_warn}"
         )
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?摸(?:战利箱|宝箱)(?:\s*|$)")
@@ -1235,13 +1260,35 @@ class CombatCmds(CommandBase):
         return table
 
     # v56.3：技能功能标签（<kind><功能> 双标签，参考鱼鱼排版示例）
+    # v63/#99 汉化补全：全量 effect/mech key → 中文展示名（原表只覆盖部分 →
+    # 诗人旋律/战意/元素印记等英文 tag 泄漏到 <xx> 技能列表）。语义见
+    # game/core/battle_mech.py 4.7 旋律注释 + SKILL_BUFF_EFFECTS 消费端。
     _MECH_CN = {"rage": "狂暴", "burn": "灼烧", "freeze": "冰冻", "poison": "中毒", "mark": "标记",
                 "shadow": "影袭", "chi": "气力", "wind": "风印", "judge": "审判", "bless": "神恩",
                 "iron": "铁壁", "shield": "圣盾", "arcane": "奥术", "cleanse": "净化", "stun": "眩晕",
-                "spd_down": "减速", "mark_burst": "引爆", "arcane_burst": "奥爆"}
+                "spd_down": "减速", "mark_burst": "引爆", "arcane_burst": "奥爆",
+                "bleed": "流血", "bone_rush": "骸骨", "corros": "腐蚀", "curse": "诅咒",
+                "curse_refresh": "诅咒刷新", "element_burst": "元素引爆", "element_burst_3": "三系引爆",
+                "element_burst_all": "全系引爆", "element_multi_mark": "多系印记", "faith_unload": "卸负",
+                "finisher": "终结", "fire_mark": "火印", "guard_core_burst": "磐核爆发",
+                "hunt_mark": "猎印", "ice_mark": "冰印", "lian_duan": "连段", "melody": "旋律",
+                "melody_chant": "吟唱", "poison_burst": "毒爆", "poison_burst_finisher": "毒爆终结",
+                "sacrifice": "献祭", "silence": "沉默", "soul_mark": "魂印", "thunder_mark": "雷印",
+                "zhan_yi": "战意", "zhan_yi_cash": "战意兑换", "zhan_yi_fury": "战意狂暴"}
     _EFFECT_CN = {"atk_up": "攻击", "def_up": "防御", "matk_up": "魔攻", "spd_up": "速度", "crit_up": "暴击",
                   "atk_up_strong": "强攻", "matk_up_strong": "强魔攻", "mon_atk_down": "威压", "lifesteal": "吸血",
-                  "counter": "反击", "rage_burst": "爆发", "burn_burst": "引爆", "bless_shield": "护盾"}
+                  "counter": "反击", "rage_burst": "爆发", "burn_burst": "引爆", "bless_shield": "护盾",
+                  "all_stat_cc": "全属性", "arcane_field": "奥术力场", "arcane_matrix": "奥术矩阵",
+                  "arcane_shield": "相位盾", "atk_all": "全队攻击", "atk_matk_all": "全队攻魔",
+                  "block_reflect": "格挡反伤", "cc_immune": "免控", "cleanse": "净化", "cleanse_all": "净化全队",
+                  "crit_all": "全队暴击", "crit_hit_buff": "暴击命中", "disengage_dodge": "脱战闪避",
+                  "dodge_buff": "闪避", "dodge_reduce_all": "全队闪避", "element_switch": "换系",
+                  "hunt_team_dmg": "猎杀增伤", "matk_all": "全队魔攻", "protect": "守护",
+                  "reduce": "减伤", "reduce_all": "全队减伤", "reduce_shield_all": "减伤护盾",
+                  "shadow_dance": "影舞", "shield_all": "全队护盾", "shield_all_reduce": "护盾减伤",
+                  "shield_block": "格挡盾", "shield_self": "护盾", "spd_all": "全队速度",
+                  "spd_buff": "加速", "star_lock": "星轨锁定", "stealth": "潜行", "stealth_cc": "影遁",
+                  "taunt": "嘲讽", "vuln": "死亡标记"}
 
     def _skill_tag(self, info: dict) -> str:
         """功能标签：被动优先，其次 effect/mech/cond"""
@@ -1722,6 +1769,11 @@ class CombatCmds(CommandBase):
             lines.append(rl)
         if status:
             lines.append(status)
+        # v110 P0（#119 宠物不动）：战斗中显示宠物可用性（饿肚子/Lv 不足），防止玩家
+        # 困惑『宠物怎么不出手』——饱食度 =0 技能失效是设计，但此前无任何提示。
+        _pnote = pet_battle_status_note(getattr(b, "pet", None))
+        if _pnote:
+            lines.append(_pnote)
         # v127.3 选敌引导：站位图编号 a1/a2(敌) b1/b2(友)，『技能 <槽位> <编号>』指定目标
         lines.append("💡 选敌：『技能1 a2』打2号(纯数字同义)；治疗『技能 <名称> b1』奶自己")
         return "\n".join(lines)

@@ -402,7 +402,21 @@ class PlayerCmds(CommandBase):
         # 阶段九：注册成就（14 章 2.3 冒险者起步）
         C.check_achievements(group_id, qq_id, player)
         init_display = "、".join(C.display("skills", s) for s in init_skills)
-        race_line = f"种族：{C.RACES[race_id]['icon']} {C.RACES[race_id]['name']}({C.RACES[race_id]['desc']})\n" if race_id in C.RACES else ""
+        # 注册欢迎语种族行：图标+名称+天赋明细（#50 种族说明模糊——原本只有一行哲学 desc，
+        # 玩家看不出种族实际给什么；改为把天赋逐条列在注册回执，与『种族』一览同口径）
+        race_line = ""
+        if race_id in C.RACES:
+            _rd = C.RACES[race_id]
+            _tnames = _rd.get("talent_names", {})
+            from ..core.race_talent_display import format_talent
+            _tl = []
+            for _tk, _tv in (_rd.get("talents") or {}).items():
+                _txt = format_talent(_tk, _tv, _tnames.get(_tk, _tk))
+                if _txt:
+                    _tl.append(_txt)
+            _talent_s = "；".join(_tl) if _tl else _rd.get("desc", "")
+            race_line = (f"种族：{_rd['icon']} {_rd['name']}（{_rd.get('desc','')}）\n"
+                         f"   · 天赋：{_talent_s}\n")
         gender_line = f"性别：{'♂ 男' if gender_id == 'male' else '♀ 女'}\n" if gender_id else ""
         if cls_id == C.CLASS_NOVICE:
             # v95.23 见习冒险者：无职业技能，引导去行会/导师就职
@@ -1344,8 +1358,10 @@ class PlayerCmds(CommandBase):
         if info.get("mp"):
             _costs.append(f"{info['mp']} 魔力")
         for _rk, _rv in (info.get("res_cost") or {}).items():
+            # v81 消耗格式统一：『x 精力』（原名在资源名后带 -x，玩家读起来像属性扣减歧义；
+            # 与技能列表『消耗：精力 -22』口径仍一致，但详情行用直白语序）
             _cn = _RES_CN.get(_rk, _rk)
-            _costs.append(f"{_cn} -{_rv}")
+            _costs.append(f"{_rv} {_cn}")
         _cost_txt = " + ".join(_costs) if _costs else "无"  # v104 R3 P3-1：零消耗显示"无"（与技能列表口径一致）
         lines = [
             f"📜 【{display_name}】｜{status}",
@@ -1393,7 +1409,11 @@ class PlayerCmds(CommandBase):
         if info.get("pierce"):
             lines.append("特性：无视防御")
         if info.get("effect"):
-            lines.append(f"特效：{info['effect']}")
+            # v63/#99 汉化：effect key → 中文 tag（与技能列表 _skill_tag 同源映射；
+            # 此前 spd_buff/atk_all 等英文 key 原样泄漏到『技能详情·特效』行）
+            from .combat import CombatCmds
+            eff_cn = CombatCmds._EFFECT_CN.get(info["effect"], info["effect"])
+            lines.append(f"特效：{eff_cn}")
         if info.get("team"):
             team_cn = {"heal_all": "治疗全队", "def_all": "防御全队", "reduce_all": "减伤全队",
                        "shield_all": "护盾全队", "matk_all": "魔攻全队", "crit_all": "暴击全队",

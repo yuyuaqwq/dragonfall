@@ -105,8 +105,20 @@ MINING_FATIGUE_RECOVER = 600    # 距上次挖掘超过 600s（10 分钟）计�
 
 # ================= 物品详情渲染器（v101.6） =================
 # 原 item_detail 内 6 分支 if-elif 硬编码：加新物品类型 = 注册一个渲染函数
+# v89 汉化补全：与 engine.STAT_NAMES 同源全量属性名（原表仅 9 键 → 打造/掉落装备
+# 的 precise/lifesteal/crit_dmg/物魔免等属性键英文泄漏「属性 · precise + 10%」）
 _STAT_NAMES = {"atk": "攻击", "def": "防御", "matk": "魔攻", "mdef": "魔防",
-              "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避"}
+              "hp": "生命", "mp": "魔力", "spd": "速度", "crit": "暴击", "dodge": "闪避",
+              "precise": "精准", "pene_phys": "物穿", "pene_magi": "法穿",
+              "pene_flat": "固定物穿", "pene_mflat": "固定法穿",
+              "tenacity": "韧性", "luck": "幸运",
+              "cdr": "冷却缩减", "elem_res": "元素抗性", "abyss_res": "深渊抗性",
+              "exp_bonus": "经验加成", "gold_bonus": "金币加成",
+              "heal_power": "治疗强度", "shield_power": "护盾强度",
+              "lifesteal": "吸血", "crit_dmg": "暴击伤害", "block": "格挡",
+              "thorns": "反伤", "phys_reduce": "物免", "magic_reduce": "魔免",
+              "lifesteal_phys": "物吸", "lifesteal_magi": "法吸",
+              "summon_power": "召唤强化"}
 _REQ_NAMES = {"str": "力量", "agi": "敏捷", "int": "智力", "vit": "耐力"}
 
 
@@ -4680,28 +4692,63 @@ class EconomyCmds(CommandBase):
         if raw in ("世界", "大陆"):
             yield event.plain_result(self._ency_browse_world())
             return
-        # 1. 符文查询
+        # 1. 符文查询（#135 模板汉化：原代码把 rn_xxx 内部 key 直接拼进标题/使用行 →
+        # 「史诗符文·rn_brutal」；desc 模板 {v}/{v1} 未填值 → 效果行出现「攻击 {v}% 概率」
+        # 原始占位符。查询按 中文名/效果key/掉落物品名 三路匹配）
         stone_name = None
-        for nm in C.RUNES:
-            if nm in raw or f"符文·{nm}" in raw:
-                stone_name = nm
+        _rune_by_key = {k: r for k, r in C.RUNES.items()}
+        for _rk, _rr in _rune_by_key.items():
+            # 匹配：中文名子串 / 内部 key 子串（玩家查 rn_brutal 时给详情而非报错）
+            if _rr.get("name") and _rr["name"] in raw:
+                stone_name = _rk
+                break
+            if _rk in raw or f"符文·{_rk}" in raw:
+                stone_name = _rk
                 break
         if stone_name or "符文" in raw:
             if stone_name:
-                st = C.RUNES[stone_name]
+                st = _rune_by_key[stone_name]
+                st_name = st.get("name", stone_name)
+                q_name = C.QUALITY[st["quality"]]["name"]
+                # 效果按等级 I/II/III 填 {v}/{v1}/{v2}（与掉落物品 rune_item 同源换算，等级 I 起步）
+                from ..core.runes import rune_item as _mk_rune_item
+                _ri = _mk_rune_item(st["effect"], 1) or {}
+                st_desc = _ri.get("desc") or st["desc"]
+                # 冲突符文名（同 effect 池内互斥项，按冲突对把 effect → 中文名）
+                _conf_names = []
+                for _x, _y in C.RUNE_CONFLICTS:
+                    _pair = None
+                    if _x == st["effect"]:
+                        _pair = _y
+                    elif _y == st["effect"]:
+                        _pair = _x
+                    if _pair is not None:
+                        _cn = C.RUNE_EFFECT_NAMES.get(_pair, _pair)
+                        if _cn not in _conf_names:
+                            _conf_names.append(_cn)
+                _conf_txt = "、".join(_conf_names) + "(不能共存)" if _conf_names else "无"
                 lines = [
-                    f"💎 【{C.QUALITY[st['quality']]['name']}符文·{stone_name}】",
+                    f"💎 【{q_name}符文·{st_name}】",
                     "━━━━━━━━━━━━",
-                    f"效果：{st['desc']}",
-                    f"品质：{C.QUALITY[st['quality']]['name']}",
+                    f"效果：{st_desc}",
+                    f"品质：{q_name}",
                     f"等级：I / II / III(等级越高效果越强，高等级更稀有)",
-                    f"冲突：{'、'.join(C.RUNE_EFFECT_NAMES.get(x, x) for x, y in C.RUNE_CONFLICTS if y == st['effect'] or x == st['effect'])}(不能共存)" if any(y == st['effect'] or x == st['effect'] for x, y in C.RUNE_CONFLICTS) else "冲突：无",
+                    f"冲突：{_conf_txt}",
                     f"获取：打怪概率掉落(精英/Boss 概率更高)",
-                    f"使用：『附魔 <装备名> {C.QUALITY[st['quality']]['name']}符文·{stone_name}』",
+                    f"使用：『附魔 <装备名> {q_name}符文·{st_name}』",
                 ]
                 yield event.plain_result("\n".join(lines))
                 return
-            yield event.plain_result("没找到这颗符文！可用：\n" + "\n".join(f"  💎 {C.QUALITY[s['quality']]['name']}符文·{nm}({s['desc']})" for nm, s in C.RUNES.items()))
+            # 无命中但带「符文」关键词 → 列出全部（中文名 + desc 填等级 I 数值，同 rune_item 换算）
+            _rune_lines = []
+            for _rn, _rs in C.RUNES.items():
+                from ..core.runes import rune_item as _mk_rune_item2
+                _ri2 = _mk_rune_item2(_rs["effect"], 1) or {}
+                _rune_lines.append(
+                    f"  💎 {C.QUALITY[_rs['quality']]['name']}符文·{_rs.get('name', _rn)}"
+                    f"({_ri2.get('desc') or _rs['desc']})"
+                )
+            yield event.plain_result("没找到这颗符文！可用：\n" + "\n".join(_rune_lines))
             return
         # 2. 材料查询（含词条材料来源）
         # v101.29：MATERIALS 的 key 是 mat_ ID（v48 后），按中文名查必须用 MATERIALS_BY_NAME

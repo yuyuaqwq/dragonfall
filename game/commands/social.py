@@ -1085,7 +1085,32 @@ class SocialCmds(CommandBase):
         db.pet_update(qq_id, satiety=pet["satiety"], last_sat_time=pet["last_sat_time"])
         mat_name = self._strip_cmd(event, "喂养").strip()
         if not mat_name:
-            yield event.plain_result("格式：喂养 <食物名/序号>，如『喂养 烤鸟肉』或『喂养 1』(打怪/采集/垂钓可获得食物)")
+            # #117 喂养列表看不见：无参『喂养』列出背包可喂食物（名+数量+序号），照抄即可喂
+            def _is_feed_food(it):
+                d = it["data"]
+                if d.get("food") or d.get("type") == "鱼":
+                    return True
+                cfg = C.ITEMS.get(it["key"]) or C.MATERIALS.get(it["key"]) or {}
+                return bool(cfg.get("food"))
+
+            _foods = [it for it in db.get_inventory(group_id, qq_id) if _is_feed_food(it)]
+            if _foods:
+                _food_lines = "、".join(
+                    f"{i}.{it['data'].get('name', it['key'])}×{it.get('count', 1)}"
+                    for i, it in enumerate(_foods, 1)
+                )
+                yield event.plain_result(
+                    f"🍖 『喂养 <食物名/序号>』喂宠物（饱食度 +30 / 亲密度 +5 / 经验 +10）\n"
+                    f"背包可喂食物：{_food_lines}\n"
+                    f"例：『喂养 1』或『喂养 {_foods[0]['data'].get('name', '')}』"
+                    "(打怪/采集/垂钓可获得食物)"
+                )
+            else:
+                yield event.plain_result(
+                    "格式：喂养 <食物名/序号>，如『喂养 烤鸟肉』或『喂养 1』\n"
+                    "背包里还没有可喂食的食物——打怪、『采集』、『垂钓』可获得食物，"
+                    "『烹饪』能做更顶饱的料理！"
+                )
             return
         # v130.7 意见#21：批量喂养『喂养 <名>*<数量>』/『喂养 <名> <数量>』双格式
         # （对齐 v130.4『使用』批量解析）；名字后带数量时名字按子串/序号匹配
