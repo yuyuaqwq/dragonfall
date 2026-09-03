@@ -6449,6 +6449,13 @@ class EconomyCmds(CommandBase):
                     if target is None:
                         target = it
         if not target:
+            # v173.3 意见#170：『使用 <装备名>』——名称命中的是装备时给穿戴引导，
+            # 原提示"背包里没有"误导（装备确实在但被 slot 排除）
+            _eq_hit = [it for it in items if it["data"].get("slot") and item_name in it["data"]["name"]]
+            if _eq_hit:
+                _d0 = _eq_hit[0]["data"]
+                yield event.plain_result(f"『{_d0['name']}』是装备，用『装备 {_d0['name']}』穿上，或『物品详情 {_d0['name']}』查看属性～")
+                return
             yield event.plain_result(f"背包里没有『{item_name}』！")
             return
         d = target["data"]
