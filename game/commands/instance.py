@@ -891,10 +891,83 @@ class InstanceCmds(CommandBase):
             st["boss_buff_next"] = False
         # v2 多对多：战斗开始由 st["boss"] 构建敌方阵列 st["enemies"]（Boss+配置爪牙）
         st["enemies"] = self._instance_build_enemy_array(st, st["boss"])
+        # v110 P0（#110）：新一场战斗清零上场的击杀账（_last_killed/killed_enemies），
+        # 配合 _instance_enemies_compact 的『空结果不覆盖』语义——上一场死亡记录只在
+        # 当刻被 _instance_kill_reward/_instance_victory 消费，绝不串场到新战斗。
+        st["_last_killed"] = []
+        st["killed_enemies"] = []
+        # v110 P0（#136 副本护盾词条不生效）：副本每场战斗开始补 battle_start 词条链
+        # （装备『护盾』/『奥术屏障』种子盾），与野外 Battle.__init__ 行为对齐。
+        self._instance_seed_battle_start_affixes(st)
         # v121 审计修复：新战斗开始玩家 ct 与敌方同规则重置（-spd 播种对称）
         self._instance_reset_player_cts(st)
 
     # ---------------- v2 多对多阵列 helpers（§2.2 / §8.2） ----------------
+    @staticmethod
+    def _instance_affix_ids(snap: dict) -> list:
+        """v110 P0（#136 副本护盾词条）：镜像 battle._equip_affix_ids（禁止改 battle.py）。
+        读玩家快照装备 affixes + legendary，供副本战斗开始词条种子使用。"""
+        ids = []
+        for item in (snap.get("equipment") or {}).values():
+            if not item:
+                continue
+            ids.extend(item.get("affixes", []) or [])
+            if item.get("legendary"):
+                ids.append(item["legendary"])
+        return ids
+
+    def _instance_seed_shield(self, snap: dict, st: dict, key: str, value: int, turns: int = 3):
+        """v110 P0（#136 副本护盾词条不生效）：镜像 battle._add_shield 的种子逻辑——
+        战斗开始词条护盾只在新开战斗 Battle.__init__(player=...) 发放；副本每场战斗经
+        _instance_act 的 Battle.from_state（无 player 参数）重建，从不执行 battle_start 链，
+        装备『护盾』/『奥术屏障』词条在副本内静默失效。此处按同源数据（affixes/legendary
+        effect + shield_power 属性）逐成员种子到快照 p_shields，随快照持久化跨刻生效。"""
+        try:
+            if value <= 0:
+                return
+            try:
+                _spv = min(float(E.player_final_stats(
+                    snap.get("class_name", "战士"), snap.get("level", 1),
+                    snap.get("equipment", {}), snap.get("class_tier", 0),
+                    snap.get("attributes"), snap.get("evolve_path", 0),
+                    None, snap.get("race")).get("shield_power", 0) or 0), 0.5)
+                if _spv > 0:
+                    value = int(value * (1 + _spv))
+            except Exception:
+                pass
+            _now = float(st.get("now", 0.0) or 0.0)
+            _exp = _now + max(1, int(turns or 1)) * (ACT_TICK or 2.0)
+            shields = snap.setdefault("p_shields", {})
+            cur = shields.get(key)
+            if cur:
+                cur["value"] = int(cur.get("value", 0) or 0) + value
+                cur["expire_at"] = max(float(cur.get("expire_at", _exp) or _exp), _exp)
+            else:
+                shields[key] = {"value": value, "expire_at": _exp}
+        except Exception:
+            pass
+
+    def _instance_seed_battle_start_affixes(self, st: dict):
+        """v110 P0（#136）：副本每场战斗开始时，按野外同款 battle_start 词条链给各成员
+        种子护盾（affix『护盾』+ 专属『奥术屏障』，数值读数据）。在 _enter_stage_combat
+        新战斗入口调用一次；p_shields 随快照持久化，_instance_act 重建 Battle 时透传。"""
+        try:
+            for m in st.get("members") or []:
+                snap = st.get("players", {}).get(str(m))
+                if not snap:
+                    continue
+                ids = self._instance_affix_ids(snap)
+                if "shield" in ids:
+                    _se = (C.AFFIXES.get("shield") or {}).get("effect") or {}
+                    self._instance_seed_shield(snap, st, "affix_shield",
+                                               int(snap.get("max_hp", 100) * float(_se.get("shield_hp_pct", 0.10) or 0.10)),
+                                               int(_se.get("turns", 3) or 3))
+                if "arcane_ward" in ids:
+                    self._instance_seed_shield(snap, st, "arcane_ward",
+                                               int(snap.get("max_hp", 100) * 0.15), 3)
+        except Exception:
+            pass
+
     def _instance_reset_player_cts(self, st: dict) -> None:
         """v152 绝对时刻：新敌人入场时重置存活玩家 ct = 参考点 + 自身 cost。
         参考点 = min(存活敌方 ct, 存活玩家 ct)（= 当前时间轴最早行动时刻），保证
@@ -1024,7 +1097,20 @@ class InstanceCmds(CommandBase):
         from ..core import formation as FM
         enemies = st.setdefault("enemies", [])
         removed = FM.compact(enemies)
-        st["_last_killed"] = removed  # 记录本刻死亡单位（击杀奖励/任务统计按单位结算）
+        # v110 P0（#110 海盗王任务卡死）：击杀账合并——battle._remove_unit 提前移出阵列的
+        # 单位（_instance_act 已把 b.killed_enemies 并入 st["killed_enemies"]）也计入本刻
+        # 死亡，防止 _last_killed 只含压缩残留、漏记 Boss。注意：同一次玩家行动 _instance_act
+        # 内会连续调用本函数多次（行动后压缩 + 全灭分支压缩），第二次调用时阵列已空、
+        # killed_enemies 已清——此时【不覆盖】_last_killed，避免把刚记下的 Boss 击杀冲掉
+        # （旧实现每调用都 st["_last_killed"]=removed，removed=[] 时会把 Boss 账清零）。
+        _bk_prev = st.get("killed_enemies") or []
+        if removed or _bk_prev:
+            merged = list(removed)
+            for _k in _bk_prev:
+                if _k not in merged:
+                    merged.append(_k)
+            st["_last_killed"] = merged  # 记录本刻死亡单位（击杀奖励/任务统计按单位结算）
+            st["killed_enemies"] = []   # 已并入 _last_killed，清累计账（单刻账目语义）
         # 兼容主目标：仅当原 Boss（按 uid 识别）仍在存活阵列中时，才把 st["boss"]/st["enemy"]
         # 更新为活着的首单位；若原 Boss 已死/被移除（爪牙存活），保留原 dict 引用，避免
         # "Boss 先死、爪牙存活"时 st["boss"] 被错误重指向爪牙。
@@ -1327,6 +1413,17 @@ class InstanceCmds(CommandBase):
             if st.get("p_defending", {}).get(k):
                 line += " 🛡️防御"
             lines.append(line)
+            # v110 P0（#119 宠物不动）：各成员宠物战斗可用性提示（饿肚子/Lv 不足），
+            # 与野外面板同款 pet_battle_status_note——副本带宠 v167.3 后玩家同样困惑
+            # 『宠物怎么不出手』（饱食度 =0 技能失效是设计，但此前副本面板零提示）。
+            try:
+                from .combat import pet_battle_status_note as _pet_note
+                _ppet = (st.get("pets") or {}).get(k) or {}
+                _pn2 = _pet_note(_ppet)
+                if _pn2:
+                    lines.append(f"　{_pn2}")
+            except Exception:
+                pass
             # 资源条（读 st.resources[m]，与野外 _resource_line 同口径）
             rd = E.core_resource_def(snap.get("class_name", ""))
             if rd:
@@ -2397,6 +2494,11 @@ class InstanceCmds(CommandBase):
             # v121 CTB：透传玩家快照 ct（行动后 Battle 内部 _after_actor_ct("p") 推进并随写回转存）
             "p_ct": snap.get("ct", 0.0),
             "player_hit": st.get("player_hit", {}).get(cur_key, False),
+            # v110 P0（#110 海盗王任务卡死）：透传击杀记录——battle._remove_unit 杀敌时
+            # 即时把死亡单位快照进 b.killed_enemies（含 Boss 被最后打死的情形，此时该单位
+            # 已不在 enemies 阵列，_instance_enemies_compact 无从记录）。此前未传该键，
+            # 副本击杀账（_last_killed）漏记 Boss → 通关结算/主线击杀目标上报全部落空。
+            "killed_enemies": st.get("killed_enemies", []) or [],
             # δ副本层：dot 结算闸门透传（A 在 Battle.from_state 读 st["dot_pending"]；
             # 全队共享敌减益，每轮只结算一次，行动后自动置 False 并写回）
             "dot_pending": st.get("dot_pending", True),
@@ -2480,6 +2582,18 @@ class InstanceCmds(CommandBase):
         snap["p_shields"] = b.p_shields
         # v2：敌方阵列写回（逐单位 hp/buffs/stacks/defending/charging）→ 压缩死亡单位
         st["enemies"] = b.enemies
+        # v110 P0（#110 海盗王任务卡死）：battle._remove_unit 击杀即从 enemies 阵列移除
+        # 单位并记入 b.killed_enemies（本次行动新击杀）——同步回 st，保证 _last_killed
+        # 击杀账不漏 Boss（Boss 死时若爪牙仍存活/同刻死亡，压缩只能记录仍在阵列的单位，
+        # 被 battle 提前移除的 Boss 若不在此合并即永久丢失）。与压缩返回的死亡单位去重合并。
+        try:
+            _bk_new = getattr(b, "killed_enemies", None) or []
+            if _bk_new:
+                _cur_killed = list(st.get("killed_enemies", []) or [])
+                _cur_killed.extend(dict(u) for u in _bk_new if u not in _cur_killed)
+                st["killed_enemies"] = _cur_killed
+        except Exception:
+            pass
         self._instance_enemies_compact(st)
         # v2 dealt = 全阵列 hp 减少总和（含爪牙，贡献/仇恨/击杀按单位）
         dealt_enemy = 0
@@ -3655,6 +3769,15 @@ class InstanceCmds(CommandBase):
         if not boss or not isinstance(boss, dict):
             boss = next((u for u in (st.get("enemies") or []) if u.get("role") == "boss"), None) \
                 or next((u for u in (st.get("enemies") or [])), None) or {}
+        # v110 P0（#110 海盗王任务卡死）：副本 Rooms Boss 战击杀后 st["boss"] 已被清空、
+        # enemies 阵列空——本场击杀账（_last_killed，经 _instance_enemies_compact 合并
+        # battle 击杀记录）里取 Boss 单位兜底，保证通关播报/宠物经验/主线击杀目标上报
+        # （_instance_main_kill_progress）能拿到 Boss 名。此前取 {} → 任务进度静默落空。
+        if not boss.get("name"):
+            _lk = st.get("_last_killed") or []
+            boss = next((u for u in _lk if isinstance(u, dict) and
+                         (u.get("role") == "boss" or u.get("is_boss"))), None) \
+                or next((u for u in _lk if isinstance(u, dict) and u.get("name")), None) or boss
         lines = [x for x in logs if "你击败了" not in x]
         lines.append("")
         lines.append(f"🎉 【{boss.get('name', '副本首领')}】被击败了！{inst.get('icon', '🏰')}{inst.get('name', '')} 通关！")
