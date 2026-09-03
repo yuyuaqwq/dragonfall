@@ -5991,12 +5991,31 @@ class EconomyCmds(CommandBase):
                 return
             target = items[idx - 1]
         else:
-            # v101.28l #420：名称查找装备优先于图纸（同名图纸不再抢占命中）
-            for it in items:
-                d = it["data"]
-                if item_name in d["name"] and d.get("type") != "图纸":
-                    target = it
-                    break
+            # v173.3 意见#144：部位词查询（『物品详情 项链』= 查身上穿的）优先于背包——
+            # 原实现部位词检查在背包查找之后，注释说"优先"实际不优先（背包有同名项链先背包命中）。
+            # 玩家意图：部位词=看身上装备；背包同名物品用『背包』列表序号或全名查。
+            if not item_name.isdigit():
+                _slot_map0 = {v: k for k, v in C.EQUIP_SLOTS.items()}
+                _slot_map0.update({"武器": "weapon", "头盔": "helm", "帽子": "helm", "头": "helm",
+                                   "胸甲": "armor", "护甲": "armor", "衣服": "armor", "衣": "armor",
+                                   "护腿": "legs", "腿": "legs", "靴子": "boots", "鞋": "boots", "靴": "boots",
+                                   "戒指": "ring", "戒": "ring", "项链": "necklace", "链": "necklace"})
+                _slot_key0 = _slot_map0.get(item_name)
+                if _slot_key0:
+                    _worn0 = (player.get("equipment") or {}).get(_slot_key0)
+                    if _worn0:
+                        target = {"data": _worn0}
+                        equipped = True
+                    else:
+                        yield event.plain_result(f"{C.EQUIP_SLOTS[_slot_key0]}部位未穿戴装备！『我的装备』查看穿戴情况～")
+                        return
+            if not target:
+                # v101.28l #420：名称查找装备优先于图纸（同名图纸不再抢占命中）
+                for it in items:
+                    d = it["data"]
+                    if item_name in d["name"] and d.get("type") != "图纸":
+                        target = it
+                        break
             if not target:
                 for it in items:
                     d = it["data"]
@@ -6010,23 +6029,6 @@ class EconomyCmds(CommandBase):
                     target = {"data": item}
                     equipped = True
                     break
-        # v169.x 意见#62：『物品详情 <部位>』快捷查看身上已穿戴装备（部位词命中优先于背包名称）
-        # 部位词表与『卸下』同款倒排（EQUIP_SLOTS 中文名 → slot key）+ v167.1 百科装备别名；
-        # 纯部位词=玩家意图查部位（名册/背包物品名无纯部位词冲突——probe 验证 652 名册 ∩ 部位词 = ∅）
-        if not target and not item_name.isdigit():
-            _slot_map = {v: k for k, v in C.EQUIP_SLOTS.items()}
-            _slot_map.update({"武器": "weapon", "头盔": "helm", "帽子": "helm", "头": "helm",
-                              "胸甲": "armor", "护甲": "armor", "衣服": "armor", "衣": "armor",
-                              "护腿": "legs", "腿": "legs", "靴子": "boots", "鞋": "boots", "靴": "boots",
-                              "戒指": "ring", "戒": "ring", "项链": "necklace", "链": "necklace"})
-            _slot_key = _slot_map.get(item_name)
-            if _slot_key:
-                _worn = (player.get("equipment") or {}).get(_slot_key)
-                if not _worn:
-                    yield event.plain_result(f"{C.EQUIP_SLOTS[_slot_key]}部位未穿戴装备！『我的装备』查看穿戴情况～")
-                    return
-                target = {"data": _worn}
-                equipped = True
         # v169.x 意见#88：背包/已装备都没有 → 装备名册按名查（未拥有装备图鉴预览）
         if not target and not item_name.isdigit():
             _rids = C.EQUIP_ROSTER_BY_NAME.get(item_name, [])
