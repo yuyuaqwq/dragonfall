@@ -494,7 +494,7 @@ class InstanceCmds(CommandBase):
 
     # ---------------- 调查（v87.2） ----------------
     # v104 M24 P2-4：空参数也命中（help 写『调查』），handler 内给格式提示
-    @filter.regex(r"^(?:\[At:\d+\]\s*)?调查(?:\s+(\S+))?\s*$")
+    @filter.regex(r"^(?:\[At:\d+\]\s*)?调查(?:\s+(.+?))?\s*$")
     @require_player()
     @no_prof_waiting()
 

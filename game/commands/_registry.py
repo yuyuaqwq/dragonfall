@@ -212,7 +212,7 @@ COMMAND_REGEX = {
     "instance_advance": r'^(?:\[At:\d+\]\s*)?深入(?:(?:第\s*)?(\d+)\s*层)?(?:[层进]\s*)?$',
     "instance_map_view_cmd": r'^(?:\[At:\d+\]\s*)?副本地图\s*$',
     # v104 M24 P2-4：『调查』空参数无响应（help 写『调查』但正则强制参数）→ 空参也命中，handler 内给格式提示
-    "instance_investigate": r'^(?:\[At:\d+\]\s*)?调查(?:\s+(\S+))?\s*$',
+    "instance_investigate": r'^(?:\[At:\d+\]\s*)?调查(?:\s+(.+?))?\s*$',
     "instance_retreat": r'^(?:\[At:\d+\]\s*)?撤退\s*$',
     "instance_leave": r'^(?:\[At:\d+\]\s*)?离开副本\s*$',
     "races": r'^(?:\[At:\d+\]\s*)?种族(?:\s*|$)',
