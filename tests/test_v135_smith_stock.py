@@ -50,12 +50,14 @@ def test_roll_stock():
                  "moon_gate", "frost_horn", "dragon_pass", "wind_city"):
         town_lv = ss.town_level(town)
         items = ss.roll_stock(town, town_lv)
-        check(f"{town} 货架 4 件", len(items) == 4, str(len(items)))
+        check(f"{town} 货架 {ss.STOCK_COUNT} 件", len(items) == ss.STOCK_COUNT, str(len(items)))
         slots = [C.EQUIP_ROSTER[it["rid"]]["slot"] for it in items]
         n_w = sum(1 for s in slots if s == "weapon")
         n_a = sum(1 for s in slots if s in ("armor", "helm", "boots", "legs"))
         n_t = sum(1 for s in slots if s in ("ring", "necklace"))
-        check(f"{town} 2武器+1防具+1饰品", (n_w, n_a, n_t) == (2, 1, 1), str((n_w, n_a, n_t)))
+        # v170：货架 4→8 = 2 武器 + 3 防具 + 2 饰品 + 1 随机（随机件落三池任一）
+        check(f"{town} ≥2武器+≥3防具+≥2饰品",
+              (n_w >= 2, n_a >= 3, n_t >= 2), str((n_w, n_a, n_t)))
         lo, hi = town_lv - ss.STOCK_WINDOW, town_lv + ss.STOCK_WINDOW
         # 低等级镇（橡木/白鹿）候选不足时允许下界放宽（方案文档窗口 1-7/3-13 中心 4/8 已是窗口中心；
         # 剩余缺口由全局低段兜底补齐，仍优先低级装——缺口只发生在名册低段空白区，
@@ -92,7 +94,7 @@ def test_get_smith_stock_day_roll():
     key = "smith_stock_white_deer"
     db.delete_event_state(key)
     items1 = ss.get_smith_stock("white_deer")
-    check("首次调用初始化 4 件", len(items1) == 4, str(len(items1)))
+    check(f"首次调用初始化 {ss.STOCK_COUNT} 件", len(items1) == ss.STOCK_COUNT, str(len(items1)))
     raw = db.get_event_state(key)
     st = json.loads(raw)
     check("全局 key（全服共享，无 qq_id）", "qq" not in key and raw is not None, key)
@@ -110,7 +112,7 @@ def test_get_smith_stock_day_roll():
     with mock.patch.object(ss, "_now_ts", return_value=int(__import__("time").time())):
         items3 = ss.get_smith_stock("white_deer")
     raw3 = json.loads(db.get_event_state(key))
-    check("日期变化重 roll（4 件新货）", len(items3) == 4 and raw3["day"] != 0, str(raw3))
+    check(f"日期变化重 roll（{ss.STOCK_COUNT} 件新货）", len(items3) == ss.STOCK_COUNT and raw3["day"] != 0, str(raw3))
 
 
 # ============ 3. 6h 补货 ============
@@ -121,11 +123,11 @@ def test_restock():
     db.delete_event_state(key)
     import time as _t
     now = int(_t.time())
-    # 先初始化（保证货架有 4 件真库存）
+    # 先初始化（保证货架有真库存）
     ss.get_smith_stock("white_deer")
     raw = json.loads(db.get_event_state(key))
     items = raw["items"]
-    check("初始 4 件", len(items) == 4, str(len(items)))
+    check(f"初始 {ss.STOCK_COUNT} 件", len(items) == ss.STOCK_COUNT, str(len(items)))
     # 模拟 3 件售罄
     for i, it in enumerate(items):
         if i > 0:
@@ -134,7 +136,7 @@ def test_restock():
     db.set_event_state(key, json.dumps(raw, ensure_ascii=False))
     with __import__("unittest").mock.patch.object(ss, "_now_ts", return_value=now):
         items2 = ss.get_smith_stock("white_deer")
-    check("补货后仍有 4 件", len(items2) == 4, str(len(items2)))
+    check(f"补货后仍有 {ss.STOCK_COUNT} 件", len(items2) == ss.STOCK_COUNT, str(len(items2)))
     check("未售罄件保留", any(it["rid"] == items[0]["rid"] for it in items2), str(items2))
     st = json.loads(db.get_event_state(key))
     check("restock_at 刷新为 now+6h", st["restock_at"] == now + ss.RESTOCK_HOURS * 3600, str(st["restock_at"]))

@@ -41,7 +41,7 @@ def _ensure_maps():
 # v135 铁匠铺货架品质权重（白/绿/蓝/紫/橙，鱼鱼拍板：紫橙可刷）
 QUALITY_WEIGHTS = {"white": 20, "green": 25, "blue": 35, "purple": 15, "orange": 5}
 
-STOCK_COUNT = 4      # 每城镇铁匠铺货架件数 = 2 武器 + 1 防具 + 1 饰品
+STOCK_COUNT = 8      # 每城镇铁匠铺货架件数 = 2 武器 + 3 防具 + 2 饰品 + 1 随机（v170 扩品）
 STOCK_WINDOW = 5     # 城镇等级 ±5 窗口
 RESTOCK_HOURS = 6    # 售罄后补货周期（小时）
 
@@ -134,11 +134,12 @@ def _pick_weighted_quality() -> str:
 
 
 def roll_stock(map_id: str, town_lv: int) -> list:
-    """roll 4 件货架：2 武器 + 1 防具 + 1 饰品（等级窗口 ±5 + 品质权重）。
+    """roll STOCK_COUNT 件货架：2 武器 + 3 防具 + 2 饰品 + 1 随机（等级窗口 ±5 + 品质权重）。
 
     每件 {"rid", "qty", "price_mult"}：
     - qty：紫/橙 1 份，蓝绿 2-3 份（random 2~3）
     - price_mult：0.8~1.2 随机（保留 1 位小数）
+    v170：货架 4→8（2武器+3防具+2饰品+1随机），随机件在三个池间再抽。
     """
     lo, hi = town_lv - STOCK_WINDOW, town_lv + STOCK_WINDOW
     exclude = _static_shop_rids()
@@ -154,10 +155,11 @@ def roll_stock(map_id: str, town_lv: int) -> list:
             pools["armor"].append(rid)
         elif r["slot"] in ("ring", "necklace"):
             pools["trinket"].append(rid)
-    # 保证 4 件：等级窗口候选不足时逐级放宽（窗口±6→全档低段→全局低段），
+    # 保证货架件数：等级窗口候选不足时逐级放宽（窗口±6→全档低段→全局低段），
     # 品质权重只做倾向（未命中权重品质的槽位直接取候选池首位），不缩水货架数量
+    need_map = {"weapon": 2, "armor": 3, "trinket": 2}
     for _ in range(6):
-        if all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 1), (pools["trinket"], 1))):
+        if all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 3), (pools["trinket"], 2))):
             break
         extra = [rid for rid, r in EQUIP_ROSTER.items()
                  if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]
@@ -173,13 +175,13 @@ def roll_stock(map_id: str, town_lv: int) -> list:
         elif r["slot"] in ("ring", "necklace"):
             pools["trinket"].append(rid)
     # 等级窗口候选不足时，最后兜底从全局低等级名册补足（优先低级，防新手镇出高等级装）
-    if not all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 1), (pools["trinket"], 1))):
+    if not all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 3), (pools["trinket"], 2))):
         missing_kinds = []
         if len(pools["weapon"]) < 2:
             missing_kinds.append("weapon")
-        if len(pools["armor"]) < 1:
+        if len(pools["armor"]) < 3:
             missing_kinds.append("armor")
-        if len(pools["trinket"]) < 1:
+        if len(pools["trinket"]) < 2:
             missing_kinds.append("trinket")
         # 兜底池：窗口内 > 邻近 ±3 > 全局低段（lv ≤ town_lv+10，越近越好）
         def _near(rid):
@@ -203,7 +205,7 @@ def roll_stock(map_id: str, town_lv: int) -> list:
                     pools["trinket"].append(rid)
                     break
         # 若仍缺（如 Lv.1-9 无任何饰品名册），放宽 lv 上限到 town_lv + 20（新手镇也能挂上低档饰品）
-        if not all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 1), (pools["trinket"], 1))):
+        if not all(len(p) >= n for p, n in ((pools["weapon"], 2), (pools["armor"], 3), (pools["trinket"], 2))):
             glob_cands = sorted(
                 (rid for rid, r in EQUIP_ROSTER.items()
                  if rid not in exclude and rid not in pools["weapon"] + pools["armor"] + pools["trinket"]),
@@ -221,7 +223,7 @@ def roll_stock(map_id: str, town_lv: int) -> list:
                         pools["trinket"].append(rid)
                         break
     items = []
-    for kind, need in (("weapon", 2), ("armor", 1), ("trinket", 1)):
+    for kind, need in (("weapon", 2), ("armor", 3), ("trinket", 2)):
         cands = list(pools[kind])
         for _ in range(need):
             if not cands:
@@ -245,6 +247,22 @@ def roll_stock(map_id: str, town_lv: int) -> list:
                 "qty": qty,
                 "price_mult": round(random.uniform(0.8, 1.2), 1),
             })
+    # 第 8 件（随机）：从非空池抽 1 件不重复件（v170 扩品）
+    spare_cands = [it["rid"] for it in items]
+    _extra_pool = []
+    for kind in ("weapon", "armor", "trinket"):
+        for rid in pools[kind]:
+            if rid not in spare_cands:
+                _extra_pool.append(rid)
+    if _extra_pool:
+        rid = random.choice(_extra_pool)
+        r8 = EQUIP_ROSTER[rid]
+        q8 = r8["quality"]
+        items.append({
+            "rid": rid,
+            "qty": _QTY_BY_QUALITY.get(q8, random.randint(2, 3)),
+            "price_mult": round(random.uniform(0.8, 1.2), 1),
+        })
     random.shuffle(items)
     return items
 

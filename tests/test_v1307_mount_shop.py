@@ -60,8 +60,8 @@ def _set(subarea, level=5, gold=10000):
     db.update_player(G, Q, cur_map="oak_town", cur_subarea=subarea, gold=gold)
 
 
-async def _all_pages(m, maxpage=6):
-    """循环翻页收集商店面板全部文本"""
+async def _all_pages(m, maxpage=12):
+    """循环翻页收集商店面板全部文本（v170 橡木铁匠铺扩品后条目变多，翻页上限放宽）"""
     out_all = []
     for page in range(1, maxpage + 1):
         out = await _cmd(m, "shop", "商店" if page == 1 else f"商店 {page}")
@@ -131,7 +131,8 @@ async def main():
     clean_db()
     _set("oak_town_3")
     idx = None
-    for page in range(1, 7):
+    # v170 橡木铁匠铺扩品后共 38 件/8 页，坐骑在末页（37/38 号）
+    for page in range(1, 9):
         out = await _cmd(m, "shop", "商店" if page == 1 else f"商店 {page}")
         for ln in (out or "").splitlines():
             mm = re.match(r"\s*(\d+)\.\s*.*老马", ln)

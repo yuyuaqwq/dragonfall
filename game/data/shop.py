@@ -291,7 +291,7 @@ SHOP_SMITH_MATERIALS = {
 
 # v93 铁匠类商店全套装备：key = 城镇地图 ID，值 = 装备名册 ID 列表（EQUIP_ROSTER）
 SHOP_EQUIP = {
-    "oak_town": [           # 橡木镇白装 6 件
+    "oak_town": [           # 橡木镇白装（v170 扩品：2 槽 × 6 部位）
         # v135 套装锻造专属：圣徽·誓约（新手保底 4 件）从商店下架，
         # 改为铁匠铺锻造获取（rec_shi_yue_* 配方）——锻造是凑齐套装的必经之路
         "eq_pi_jia",
@@ -300,14 +300,31 @@ SHOP_EQUIP = {
         "eq_mao_pi_mao",
         "eq_xiang_mu_jie_zhi",
         "eq_xiang_mu_xiang_lian",
+        # v170 扩品：同窗口第二选择——护林套（白 Lv.5 商店源，耐力系）
+        # + 粗布头巾（白 Lv.8 商店源）+ 晨露戒指/项链（蓝 Lv.10/12 锻造源，耐力系）——
+        # 新手在橡木也能凑满 6 槽且有流派可选（铁器 vs 布衣 vs 秘饰）
+        "eq_hu_lin_xiong_jia",
+        "eq_hu_lin_hu_tui",
+        "eq_hu_lin_zhi_xue",
+        "eq_cu_bu_tou_jin",
+        "eq_chen_lu_jie_zhi",
+        "eq_chen_lu_xiang_lian",
     ],
-    "white_deer": [         # 白鹿城绿装 6 件
+    "white_deer": [         # 白鹿城绿装（v170 扩品：2 槽 × 6 部位）
         "eq_bai_lu_pi_mao",
         "eq_bai_lu_xiong_jia",
         "eq_bai_lu_hu_tui",
         "eq_bai_lu_pi_xue",
         "eq_bai_lu_zhi_jie",
         "eq_bai_lu_diao_zhu",
+        # v170 扩品：白鹿窗口 Lv.5-15 双流派——铁卫/哨兵/巡林者/疾风（蓝 Lv.10 商店源，
+        # 各自带护盾/回复/反击/疾风特效）+ 春草手环(锻造 绿)/渡鸦骨链(商店 绿)
+        "eq_tie_wei_zhan_kui",
+        "eq_shao_bing_xiong_jia",
+        "eq_xun_lin_zhe_hu_tui",
+        "eq_ji_feng_qing_xue",
+        "eq_chun_cao_shou_huan",
+        "eq_du_ya_gu_lian",
     ],
     # v135 套装锻造专属：银铃套 7 件从商店下架（原 ironharbor 铁港城锻造坊直售），
     # 改为锻造获取（rec_yin_ling_* 配方齐备，Lv.18-24）——锻造是凑齐套装的必经之路
@@ -316,8 +333,37 @@ SHOP_EQUIP = {
         "eq_du_kou_xiong_jia",
         "eq_du_kou_hu_tui",
         "eq_du_kou_zhi_xue",
+        # v170 扩品：铁港系列白绿基础件 + 潮汐之环(蓝 智力)/夜莺胸针(蓝 敏捷) 双流派补位
+        "eq_tie_gang_bu_mao",
+        "eq_tie_gang_pi_jia",
+        "eq_tie_gang_guo_tui",
+        "eq_tie_gang_bu_xue",
+        "eq_tie_gang_shou_huan",
+        "eq_tie_gang_zhui_shi",
+        "eq_tie_gang_zhan_kui",    # 铁港战盔 绿 Lv.24（helm 第二档）
+        "eq_tie_gang_pi_xue",      # 铁港皮靴 绿 Lv.22（boots 第二档）
+        "eq_chao_xi_zhi_huan",     # 潮汐之环 蓝 Lv.22（智力戒指 第二档）
+        "eq_ye_ying_xiong_zhen",   # 夜莺胸针 蓝 Lv.16（necklace 第二档）
     ],
-    "jade_port": [          # 翡翠港·翡翠集市：翡翠套 5 件 + 巡林区域套过渡档（v136 审计 P1-4）
+    # v170 扩品：晨曦城 0 防具 → 补 2 槽 × 6 部位（晨曦推荐 Lv.25-38）
+    # 流派差异：制式/圣光(力量) × 风行(敏捷) × 祝福/礼赞(智力) × 灯塔(耐力)
+    "dawn_city": [
+        "eq_sheng_guang_zhi_shi_tou_kui",   # 圣光制式头盔 白 Lv.32（制式 力量系）
+        "eq_feng_xing_pi_mao",              # 风行皮帽 蓝 Lv.30（敏捷系风行）
+        "eq_sheng_guang_zhi_shi_xiong_jia", # 圣光制式胸甲 白 Lv.34
+        "eq_sheng_guang_xiong_jia",         # 圣光胸甲 蓝 Lv.30（圣光 力量）
+        "eq_sheng_tang_wei_shi_hu_tui",     # 圣堂卫士护腿 蓝 Lv.30（力量守卫）
+        "eq_sheng_guang_zhi_shi_hu_tui",    # 圣光制式护腿 白 Lv.34
+        "eq_sheng_guang_zhi_shi_zhan_xue",  # 圣光制式战靴 白 Lv.32
+        "eq_xun_jie_zhan_xue",              # 迅捷战靴 蓝 Lv.30（敏捷）
+        "eq_feng_xing_zhi_jie",             # 风行之戒 绿 Lv.28（风行敏捷）
+        "eq_mao_lian_hu_wan",               # 锚链护腕 蓝 Lv.22（力量戒 补齐 ring 2 档）
+        "eq_sheng_guang_li_zan_hui_zhang",  # 圣光礼赞徽章 绿 Lv.36（智力系）
+        "eq_zhu_fu_hui_ji",                 # 祝福徽记 绿 Lv.28（智力）
+        "eq_deng_ta_zhi_guang",             # 灯塔之光 蓝 Lv.26（耐力项链）
+    ],
+    # v170 扩品：翡翠港缺 helm/ring → 补 圣光战盔(力量) 双流派；护符/之心 耐力系
+    "jade_port": [
         "eq_fei_cui_pi_jia",
         "eq_fei_cui_hu_tui",
         "eq_fei_cui_tou_kui",
@@ -326,16 +372,28 @@ SHOP_EQUIP = {
         "eq_xun_lin_xiong_jia",
         "eq_xun_lin_hu_tui",
         "eq_xun_lin_zhi_xue",
+        "eq_sheng_guang_zhan_kui",
+        "eq_fei_cui_hu_fu",
+        "eq_fei_cui_zhi_xin",
+        "eq_sheng_guang_zhu_fu_zhi_huan",  # 圣光祝福指环 蓝 Lv.40（智力戒 补齐 ring 2 档）
     ],
-    "ironshield_town": [    # 铁盾镇军械铺：迷雾套 5 件
+    # v170 扩品：铁盾镇军械铺 迷雾套 + 补缺（铁盾 Lv.30 城双流派）
+    "ironshield_town": [
         "eq_mi_wu_hu_tui",
         "eq_mi_wu_dou_mao",
         "eq_mi_wu_xiong_jia",
         "eq_mi_wu_zhan_xue",
         "eq_mi_wu_xiang_lian",
+        # v170 扩品：铁盾缺 armor/ring/helm/boots 补足（铁盾 Lv.30 城军械铺双流派）
+        "eq_sheng_guang_xiong_jia",  # 圣光胸甲 蓝 Lv.30（力量 补齐 armor 2 档）
+        "eq_fei_cui_hu_fu",          # 翡翠护符 蓝 Lv.38（耐力戒）
+        "eq_fei_cui_zhi_xin",        # 翡翠之心 蓝 Lv.40（耐力项链）
+        "eq_xun_jie_zhan_xue",       # 迅捷战靴 蓝 Lv.30（敏捷靴 补齐 boots 2 档）
+        "eq_feng_xing_pi_mao",       # 风行皮帽 蓝 Lv.30（敏捷帽 补齐 helm 2 档）
+        "eq_sheng_guang_hu_tui",     # 圣光护腿 蓝 Lv.30（力量 补齐 legs 2 档）
+        "eq_mao_lian_hu_wan",        # 锚链护腕 蓝 Lv.22（力量戒 补齐 ring 2 档）
     ],
 }
-
 # ================= 设施 kind 表（v125 设施判定数据下沉） =================
 # key = 子区域 ID，value = 设施类别。base.py 的 _at_smith / _sa_shop_kind /
 # _facility_hint 与 world.py 地图设施清单原用中文名关键词嗅探 + white_deer_8 特判，
