@@ -149,16 +149,20 @@ def _pet_skill_register(stype):
 
 
 def _pet_skill_dmg(battle, player, pdef, pname, sname, line, logs, magic=False):
-    """宠物物理/魔法攻击 × skill_value 伤害（atk_pct/matk_pct/lifesteal/pierce 共用计算）。"""
+    """宠物物理/魔法攻击 × skill_value 伤害（atk_pct/matk_pct/lifesteal/pierce 共用计算）。
+
+    v169.4 修复：返回 _damage_enemy 压制后的真实伤害（原返回未压制 dmg——
+    _psk_lifesteal 按此回血导致宠物吸血无视等级压制，30级在45级区靠宠物站撸）。
+    """
     st = battle._player_stats(player)
     est = battle._enemy_stats()
     if magic:
         dmg = E.calc_damage(int(st["matk"] * pdef["skill_value"]), est.get("mdef", 0))
     else:
         dmg = E.calc_damage(int(st["atk"] * pdef["skill_value"]), est.get("def", 0))
-    battle._damage_enemy(dmg, logs)
-    logs.append(f"🐾 {pname}的【{sname}】造成 {dmg} 点伤害！" + (f"「{line}」" if line else ""))
-    return dmg
+    real = battle._damage_enemy(dmg, logs)
+    logs.append(f"🐾 {pname}的【{sname}】造成 {real} 点伤害！" + (f"「{line}」" if line else ""))
+    return real
 
 
 def _pet_skill_victory(battle, logs):
@@ -4970,9 +4974,10 @@ class Battle:
         return xtra
 
     # v169.3 等级压制增伤（怪打玩家方向，2026-09-03 鱼鱼拍板落实审计 §六.3）：
-    #   怪等级 > 玩家等级 → 玩家承伤 ×(1 + 0.02×等级差)，每级 +2%（温和版：玩家打怪方向
-    #   是 1.02^diff 指数、封顶 ×2.69@50 级，这里线性 +2%/级、封顶 ×3.0@100 级，避免越级怪
-    #   一发出殡）；怪 ≤ 玩家等级不削（保持现状——低怪打高玩家不惩罚，反向无趣）。
+    #   怪等级 > 玩家等级 → 玩家承伤 ×1.05^等级差（v169.4 鱼鱼拍板：原线性 +2%/级太温和，
+    #   30级在45级区靠吸血站撸。改 1.05^diff 指数——与玩家打怪方向 1.02^diff 同构但更陡，
+    #   越 5 级 ×1.28 / 10 级 ×1.63 / 15 级 ×2.08 / 20+ 级 ×2.65+，cap ×3.0 防一发出殡）；
+    #   怪 ≤ 玩家等级不削（保持现状——低怪打高玩家不惩罚，反向无趣）。
     #   PVP 排除（敌方玩家快照无 lv 压制语义）；_damage_player 全链路（普攻/技能/蓄力/反扑）都吃。
     def _enemy_lv_pressure(self, player: dict, e: dict) -> float:
         try:
@@ -4982,7 +4987,7 @@ class Battle:
             _plv = int((player or {}).get("level", 0) or 0)
             _diff = _elv - _plv
             if _diff > 0:
-                return min(1.0 + 0.02 * _diff, 3.0)
+                return min(1.05 ** min(_diff, 50), 3.0)
         except Exception:
             pass
         return 1.0
