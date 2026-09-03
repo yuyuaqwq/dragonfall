@@ -4,6 +4,7 @@ from ..data import (
     EQUIP_SLOT_BASE, EQUIP_SLOT_SCALING, MONSTER_EXP_BASE, MONSTER_GOLD_BASE,
     MONSTER_ROLE_BASE, MONSTER_ROLE_GROWTH, QUALITY,
     NORMAL_HP_STAGE_MULT, BOSS_ATK_STAGE_MULT,   # v156 阶段 6 怪物数值修复
+    INSTANCE_BOSS_ATK_STAGE_MULT,  # v173.1 副本 Boss atk 段乘区（area=instance）
 )  # v102.5 模板表下沉 data/stat_templates.py
 
 
@@ -123,6 +124,15 @@ def monster_stats(lv: int, role: str, area: str | None = None) -> dict:
     #   精英不吃本表（已有 FIELD_TIER_MULT 分档 + 独立 growth）。
     if role in ("tank", "dps", "caster", "speedster", "healer"):
         stats["hp"] = int(stats["hp"] * _stage_mult(NORMAL_HP_STAGE_MULT, lv))
+    elif role == "boss" and area == "instance":
+        # v173.1 副本 Boss atk 段乘区（鱼鱼拍板 2026-09-04，治本对齐野外 v156 做法）：
+        #   副本 Boss 此前被排除在 BOSS_ATK_STAGE_MULT 外（注释怕打崩 4 人队），但后期
+        #   玩家装备 HP/def 涨 ~11 倍、Boss atk 只涨 ~3 倍 → 平砍仅 2-4% 坦克 HP，牧师失业。
+        #   本分支给副本 Boss 同款段乘区（INSTANCE_BOSS_ATK_STAGE_MULT），让平砍占 HP
+        #   多人 12-15% / 单人 10-12%（单人差异由 instances atk_mult 回调承担）。
+        #   乘法位置与野外 boss 分支一致：先乘旧减速曲线再乘段乘区（数值可比），
+        #   且不破坏 v169.3 野外门禁口径（area 分支互斥）。
+        stats["atk"] = int(int(stats["atk"] * _boss_atk_stage(lv)) * _stage_mult(INSTANCE_BOSS_ATK_STAGE_MULT, lv))
     elif role == "boss" and area != "instance":
         # v169.3 boss 分支：先乘旧 atk 减速曲线（数值与 v169.2 完全一致，不改 boss 强度），
         # 再乘 BOSS_ATK_STAGE_MULT 段乘区（_boss_atk_stage 含下限 clamp 防未来等级上限提升出负 atk）。

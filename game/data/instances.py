@@ -19,6 +19,27 @@ v173 问题C：通关奖励数值模型化（此前 22 本 gold/exp 手填无模
     exp  = monster_exp(inst_lv, 'boss')  × 2.8    # 通关 ≈ 升级所需 4-24%（前期高后期低，随成长曲线自然回落）
   以下各本 gold/exp = 按公式标定的生成值（含战利品堆 30% / 调查点等消费端自动跟随）。
   数值门禁 tests/test_numeric_instance_reward.py 断言全本落在模型带内、跨级比单调。
+
+v173 问题D：副本 Boss 血量难度重标（2026-09-04 鱼鱼拍板 60-80 轮目标）：
+  此前 hp_mult 手填乱（哥布林 4.0 vs 海蚀 2.4 导致 15/22 级本血量几乎一样；
+  多人本过速 30-50 轮、单人本拖 100+ 轮）。本次按【标准打法人装备档】重标：
+    - 单人本（min=1）按 solo 装备档（蓝+5/升级档）单刷 60-80 轮
+    - 多人本按对应阶段 team 档（team_mid/team_purple9/team_orange9）满编 60-80 轮
+    - 终局本（龙墓/深渊王座/云中圣殿等）按橙+9 毕业装标定（鱼鱼：高本要求高配）
+  单人本 atk_mult 同步下调（×0.9）让单刷承伤可过。
+  校准：scripts/numeric_lib/team.py team_matrix（每本按其档位全量扫）；门禁 test_numeric_team_comp。
+  注：不同阶段玩家装备不同（32 章 P2 蓝+5 / P3 紫 / P4 橙 / P5 橙+9满），
+  副本难度按阶段装备标，不是全本统一蓝装。
+
+v173.1 副本 Boss 攻击重标（2026-09-04 鱼鱼拍板：平砍统一 12-15% 坦克 HP，牧师高压）：
+  此前副本 Boss 被排除在野外 BOSS_ATK_STAGE_MULT 外（v156 怕打崩 4 人队），后期玩家
+  装备 HP 涨 ~11 倍、Boss atk 只涨 ~3 倍 → 平砍仅 2-4% 坦克 HP，牧师失业。本次治本：
+    - 新增段乘区 INSTANCE_BOSS_ATK_STAGE_MULT（stat_templates.py，monster_stats 对
+      area=instance 的 boss 生效）：≤15 ×1.0 → 25 级 ×2.3 → 60 级 ×4.2 → 95 级 ~×4.9
+    - 本文件 atk_mult 全 22 本迭代校准（0.86-1.61）：统一按 4 人标准坦克 HP 12-15% 平砍。
+      单刷本 solo 装被秒 = 设计意图（Boss 攻击不因单刷而降，逼玩家组队）
+    - 治疗预期 = Boss 战牧师全职奶（numeric_lib HEAL_CAST_SHARE 0.5→1.0 + heal 输出 0）；
+      击杀轮带纯奶变长（多人本 74-87，鱼鱼接受）；承伤模型分层（坦伤被奶覆盖、后排溅射自扛）
 """
 INSTANCES = {
     # ================= 主线 8（多人/进阶） =================
@@ -118,8 +139,10 @@ INSTANCES = {
             }
         ],
 "mech": "summon,stacks",
-        "hp_mult": 4.0,
-        "atk_mult": 1.0,
+        "hp_mult": 2.343,
+
+        "atk_mult": 1.1324,
+
         "gold": 234,
         "exp": 3653,
         "materials": ["咕噜皇冠"],
@@ -224,8 +247,8 @@ INSTANCES = {
             }
         ],
 "mech": "phase",
-        "hp_mult": 2.4,  # v155 单刷档（原 3.6 多人标定）
-        "atk_mult": 1.0,  # v155 单刷档（原 1.15）
+        "hp_mult": 1.88,  # v155 单刷档（原 3.6 多人标定）
+        "atk_mult": 0.859,  # v155 单刷档（原 1.15）
         "gold": 385,
         "exp": 6465,
         "materials": ["杰克的金钩碎片"],
@@ -330,8 +353,8 @@ INSTANCES = {
         "key_item": "王陵钥匙",
         "key_source": "白鹿城铁匠铺购买(500 金)",
 "mech": "enrage,summon",
-        "hp_mult": 2.9,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
-        "atk_mult": 1.0,  # v155 单刷档（原 1.2）
+        "hp_mult": 1.952,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
+        "atk_mult": 1.1619,  # v155 单刷档（原 1.2）
         "gold": 709,
         "exp": 12835,
         "materials": ["古王剑碎片"],
@@ -421,8 +444,9 @@ INSTANCES = {
         "key_item": "圣堂信物",
         "key_source": "晨曦城大教堂购买(300 金)",
 "mech": "shield,enrage",
-        "hp_mult": 5.4,
-        "atk_mult": 1.25,
+        "hp_mult": 10.537,
+
+        "atk_mult": 1.1707,
         "gold": 890,
         "exp": 16489,
         "materials": ["马尔库斯的法冠残片"],
@@ -513,8 +537,8 @@ INSTANCES = {
         "key_item": "精灵遗印",
         "key_source": "翡翠森林精英·狼王·灰影掉落",
 "mech": "heal,shield",
-        "hp_mult": 3.3,  # v155 单刷档（原 3.1 多人标定）
-        "atk_mult": 1.0,  # v155 单刷档（原 1.25）
+        "hp_mult": 2.269,  # v155 单刷档（原 3.1 多人标定）
+        "atk_mult": 1.1751,  # v155 单刷档（原 1.25）
         "gold": 1347,
         "exp": 26098,
         "materials": ["晨曦之冠碎片"],
@@ -605,8 +629,8 @@ INSTANCES = {
         "key_item": "烬火令",
         "key_source": "烬山精英·恶魔战士掉落",
 "mech": "summon,phase",
-        "hp_mult": 2.2,  # v155 单刷档（原 3.2 多人标定）
-        "atk_mult": 1.05,  # v155 单刷档（原 1.3）
+        "hp_mult": 1.444,  # v155 单刷档（原 3.2 多人标定）
+        "atk_mult": 1.3026,  # v155 单刷档（原 1.3）
         "gold": 2064,
         "exp": 41521,
         "materials": ["赫尔加的祭器碎片"],
@@ -719,8 +743,8 @@ INSTANCES = {
             {"min": 30, "add_skills": ["ms_shen_yuan_zhi_nu"],
              "script": {"name": "深渊之怒倾泻", "icon": "💀"}},
         ],
-        "hp_mult": 1.2,  # v155 单刷档（原 2.8 多人标定）
-        "atk_mult": 1.05,  # v155 单刷档（原 1.35）
+        "hp_mult": 1.014,  # v155 单刷档（原 2.8 多人标定）
+        "atk_mult": 1.1343,  # v155 单刷档（原 1.35）
         "gold": 2319,
         "exp": 47154,
         "materials": ["黎明之光碎片"],
@@ -812,8 +836,9 @@ INSTANCES = {
         "key_item": "龙牙信物",
         "key_source": "龙脊山脉·石龙掉落",
 "mech": "reflect,heal",
-        "hp_mult": 2.5,
-        "atk_mult": 1.35,
+        "hp_mult": 6.211,
+
+        "atk_mult": 1.1706,
         "gold": 2319,
         "exp": 47154,
         "materials": ["龙语传承"],
@@ -867,8 +892,10 @@ INSTANCES = {
         # 产 mat_jun_qi_sui_pian；改后入口按名校验与背包材料匹配，钥匙链恢复）
         "key_source": "古战场/旧战场遗迹采集",
 "mech": "enrage,summon",
-        "hp_mult": 3.8,
+        "hp_mult": 2.318,
+
         "atk_mult": 1.0,
+
         "gold": 295,
         "exp": 4779,
         "materials": ["要塞残片"],
@@ -919,8 +946,10 @@ INSTANCES = {
                 "key_item": "试炼令",
         "key_source": "铁盾镇军械铺购买(400 金)",
 "mech": "shield,enrage",
-        "hp_mult": 4.0,
-        "atk_mult": 1.05,
+        "hp_mult": 2.603,
+
+        "atk_mult": 1.2008,
+
         "gold": 734,
         "exp": 13333,
         "materials": ["试炼徽记"],
@@ -970,8 +999,10 @@ INSTANCES = {
                 "key_item": "月辉钥匙",
         "key_source": "月冠王庭购买(3000 金)",
 "mech": "shield,phase",
-        "hp_mult": 3.5,
-        "atk_mult": 1.05,
+        "hp_mult": 2.324,
+
+        "atk_mult": 1.1959,
+
         "gold": 1409,
         "exp": 27417,
         "materials": ["月辉碎片"],
@@ -1021,8 +1052,9 @@ INSTANCES = {
                 "key_item": "寒冰令",
         "key_source": "永冻冰原精英·冰原猛犸·雪岭掉落",
 "mech": "stacks,enrage",
-        "hp_mult": 3.1,
-        "atk_mult": 1.2,
+        "hp_mult": 6.415,
+
+        "atk_mult": 1.1972,
         "gold": 1818,
         "exp": 36153,
         "materials": ["永冻之核"],
@@ -1072,8 +1104,9 @@ INSTANCES = {
                 "key_item": "雷光令",
         "key_source": "风暴崖精英·风暴崖主·雷鸣掉落",
 "mech": "phase,phase",
-        "hp_mult": 3.1,
-        "atk_mult": 1.3,
+        "hp_mult": 7.171,
+
+        "atk_mult": 1.5628,
         "gold": 2319,
         "exp": 47154,
         "materials": ["风暴之核"],
@@ -1168,8 +1201,10 @@ INSTANCES = {
         # shipwreck_graveyard 产 mat_you_ling_chuan_piao，材料 desc 明示"可作钥匙进入沉船湾"）
         "key_source": "沉船湾墓地采集",
 "mech": "summon,heal",
-        "hp_mult": 4.0,
-        "atk_mult": 1.1,
+        "hp_mult": 2.553,
+
+        "atk_mult": 1.1894,
+
         "gold": 785,
         "exp": 14358,
         "materials": ["克罗的罗盘碎片"],
@@ -1260,8 +1295,9 @@ INSTANCES = {
         "key_item": "海妖鳞片信物",
         "key_source": "海妖湾精英·海妖领主·潮汐掉落",
 "mech": "phase,heal",
-        "hp_mult": 4.4,
-        "atk_mult": 1.15,
+        "hp_mult": 9.635,
+
+        "atk_mult": 1.1643,
         "gold": 1169,
         "exp": 22296,
         "materials": ["蓝歌之冠残片"],
@@ -1367,8 +1403,9 @@ INSTANCES = {
         # v110 审计修复：key_item 回退材料名（v110.11 消歧误改为消耗品名）
         "key_source": "无名港港务厅购买",
 "mech": "shield,phase",
-        "hp_mult": 4.3,
-        "atk_mult": 1.2,
+        "hp_mult": 8.195,
+
+        "atk_mult": 1.2016,
         "gold": 1523,
         "exp": 29825,
         "materials": ["澜歌之泪残片"],
@@ -1475,8 +1512,9 @@ INSTANCES = {
         # F3 P1-1 修复：掉落源补全——龙鲸海域精英·龙鲸王·涛声掉落（原仅副本内掉落=死锁）
         "key_source": "龙鲸海域精英·龙鲸王·涛声掉落",
 "mech": "reflect,stacks",
-        "hp_mult": 4.4,
-        "atk_mult": 1.25,
+        "hp_mult": 9.056,
+
+        "atk_mult": 1.2108,
         "gold": 1698,
         "exp": 33569,
         "materials": ["敖澜之珠碎片"],
@@ -1566,8 +1604,9 @@ INSTANCES = {
         "key_item": "灰矮人通行令",
         "key_source": "地底集市购买(2800 金)",
 "mech": "shield,stacks",
-        "hp_mult": 3.1,
-        "atk_mult": 1.2,
+        "hp_mult": 6.415,
+
+        "atk_mult": 1.1972,
         "gold": 1818,
         "exp": 36153,
         "materials": ["石炉之锤"],
@@ -1659,8 +1698,9 @@ INSTANCES = {
         "key_item": "龙鳞钥匙",
         "key_source": "熔火深渊精英·熔火领主·烬核掉落",
 "mech": "reflect,enrage",
-        "hp_mult": 3.7,
-        "atk_mult": 1.3,
+        "hp_mult": 8.716,
+
+        "atk_mult": 1.5011,
         "gold": 2127,
         "exp": 42904,
         "materials": ["黑渊之眼残片"],
@@ -1753,8 +1793,9 @@ INSTANCES = {
         "key_item": "雷核钥匙",
         "key_source": "雷暴高原·雷元素掉落",
 "mech": "phase,phase",
-        "hp_mult": 6.3,
-        "atk_mult": 1.32,
+        "hp_mult": 14.707,
+
+        "atk_mult": 1.5681,
         "gold": 2384,
         "exp": 48602,
         "materials": ["云怒之核碎片"],
@@ -1845,8 +1886,9 @@ INSTANCES = {
         "key_item": "深渊圣印",
         "key_source": "深渊祭坛精英·祭坛守卫·魔眼掉落",
 "mech": "stacks,summon",
-        "hp_mult": 2.8,
-        "atk_mult": 1.35,
+        "hp_mult": 6.94,
+
+        "atk_mult": 1.2679,
         "gold": 2319,
         "exp": 47154,
         "materials": ["摩罗之冠碎片"],
@@ -1937,8 +1979,9 @@ INSTANCES = {
         "key_item": "云玺",
         "key_source": "星辉台精英·星龙掉落",
 "mech": "shield,phase",
-        "hp_mult": 6.4,
-        "atk_mult": 1.35,
+        "hp_mult": 15.04,
+
+        "atk_mult": 1.605,
         "gold": 2451,
         "exp": 50069,
         "materials": ["奥拉圣印碎片"],

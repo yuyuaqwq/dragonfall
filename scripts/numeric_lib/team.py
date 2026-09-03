@@ -69,10 +69,17 @@ FRONT_MULT = 0.7     # 前排：重甲减伤
 BACK_MULT = 0.3      # 后排：溅射
 BACK_HP_MULT = 0.6   # 后排 HP 池折算（脆皮职业）
 # 治疗下限：净承伤不低于 Boss 单发分线 ×HEAL_FLOOR（奶不能完全抵消）
-HEAL_FLOOR = 0.2
+# v173.1 治疗下限（2026-09-04 鱼鱼拍板）：全职奶（HEAL_CAST_SHARE 1.0）下
+#   奶量≈Boss 单发（~13%HP/轮），若仍留 20% 净伤下限 → 承伤卡 ~26 轮，达不到
+#   "每轮奶能扛 60+ 轮"的容错预期。降至 0.05：奶=伤时净承伤≈0（sv 大幅拉长），
+#   但保留 5% 下限防"奶完全免伤"的极端（双奶永动机）。
+HEAL_FLOOR = 0.05
 
 HEAL_POWER_MULT = 2.0    # 治愈术 200%（技能表 27 章：牧师治愈 200% 治疗）
-HEAL_CAST_SHARE = 0.5    # 治愈术占用 50% 轮次（每 2 轮 1 发，其余轮次输出）
+# v173.1 Boss 战治疗预期（2026-09-04 鱼鱼拍板：副本 Boss 战牧师全职奶）：
+#   此前 0.5（半奶半输出）导致承伤模型只抵消 36% raw → 多人本 survive ~11 轮（漏 2-3 轮奶
+#   就团灭）。Boss 战设计预期 = 牧师每轮治愈（专职奶），heal 翻倍 → 承伤 25-30 轮容错。
+HEAL_CAST_SHARE = 1.0    # 治愈术占用 100% 轮次（Boss 战专职奶，不半输出）
 
 
 def heal_per_round(cls_lv_gear: tuple) -> float:
@@ -105,12 +112,20 @@ def _comp_dps_total(slots: list[tuple], lv: int, gear: dict, edef: int, mdef: in
                     per_player_dmg_fn) -> tuple[float, list[dict]]:
     """构成总输出 = Σ各职业 per_action_dmg（坦/奶用各自实际 DPS，输出用刺客/法师/游侠）。
 
+    v173.1（鱼鱼拍板 2026-09-04）：heal 槽位输出贡献 = 0——Boss 战牧师专职奶
+    （HEAL_CAST_SHARE 1.0），不再半奶半输出。击杀轮按"1 坦 + 1 奶(纯奶) + 2 输出"标定，
+    队伍 DPS 比半奶模型低 → 击杀轮相应变长（与承伤 25-30 轮口径配套）。
+
     返回 (总伤害, 逐职业明细 [{cls, role, dmg}])。
     """
     detail = []
     total = 0.0
     for cls, role in slots:
-        d = per_player_dmg_fn(cls, lv, gear, edef, mdef)
+        if role == "heal":
+            # 专职奶：无输出贡献（v173.1）
+            d = 0.0
+        else:
+            d = per_player_dmg_fn(cls, lv, gear, edef, mdef)
         total += d
         detail.append({"cls": cls, "role": role, "dmg": round(d, 1)})
     return total, detail
@@ -145,12 +160,21 @@ def _comp_survive(slots: list[tuple], lv: int, gear: dict, boss_dmg: float,
         raw = boss_dmg * FRONT_MULT * len(slots)
         pool = front_pool + back_pool
     else:
-        raw = boss_dmg * FRONT_MULT + boss_dmg * BACK_MULT * back
+        raw_front = boss_dmg * FRONT_MULT            # 坦承伤（牧师单奶覆盖）
+        raw_back = boss_dmg * BACK_MULT * back       # 后排溅射（自扛/群奶/药水）
         pool = front_pool + back_pool * BACK_HP_MULT
-    net = max(raw - heal, raw * HEAL_FLOOR)
+    # v173.1 分层净承伤（鱼鱼拍板 2026-09-04）：heal 只抵消坦伤（治愈术单体大奶），
+    #   后排溅射由后排 HP 池自扛（不再从总 raw 里扣奶——旧口径把 3 后排溅射也当
+    #   \"可被单奶覆盖\"导致承伤被低估）。坦净伤 = max(raw_front - heal, raw_front×HEAL_FLOOR)，
+    #   后排净伤 = raw_back（无奶减免）。队伍净承伤 = 坦净 + 后排除，全队池分摊。
+    if front == 0:
+        net = max(raw - heal, raw * HEAL_FLOOR)
+    else:
+        net_front = max(raw_front - heal, raw_front * HEAL_FLOOR)
+        net = net_front + raw_back
     survive = pool / max(net, 1.0)
     return survive, {"front": front, "back": back, "heal": round(heal, 1),
-                     "raw": round(raw, 1), "net": round(net, 1),
+                     "raw": round(raw_front + raw_back, 1), "net": round(net, 1),
                      "front_pool": round(front_pool, 1), "back_pool": round(back_pool, 1)}
 
 
