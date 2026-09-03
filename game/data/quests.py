@@ -339,7 +339,7 @@ MAIN_QUESTS = [
         "id": "q5_5",
         "name": "王后的花园",
         "giver": "npc_king",
-        "desc": "帮王后找回被偷的圣光百合",
+        "desc": "帮王后找回被偷的圣光百合（在【晨曦大圣堂】或【白石修道院】采集获得）",
         "objective": {"collect": "圣光百合", "count": 1},
         "reward_exp": 42300,
         "reward_gold": 1110,
