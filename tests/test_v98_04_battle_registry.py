@@ -245,7 +245,7 @@ cond_reg = set(BC.COND_CHECKS.keys())
 #    独立任务 TODO：补 battle_conds.py 注册（enemy_broken/stealth/revenge 等判定逻辑）。
 #    此处豁免已知缺口防阻塞；补全后删除 UNREG_KNOWN 集合。
 UNREG_KNOWN = {"enemy_broken", "enemy_cursed", "enemy_def_high", "enemy_hunt_full",
-               "enemy_hunt_mark", "enemy_low_hp", "enemy_mark_full", "enemy_marks",
+               "enemy_hunt_mark", "enemy_low_hp", "enemy_marks",
                "enemy_shaken_ratio", "enemy_shaken_scale", "faith_full", "guard_core",
                "melody_buff", "melody_stacks", "revenge", "stealth"}
 missing_cond = (cond_types - cond_reg) - UNREG_KNOWN

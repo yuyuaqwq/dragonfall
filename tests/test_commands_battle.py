@@ -130,9 +130,10 @@ async def main():
     b = BT.Battle("monster", make_monster(hp=100000))
     b.player_turn("skill", "破甲斩", make_player("战士", 10, mp=100))
     b._process_until(float(getattr(b, "p_ct", 0) or 0) + 0.001, [], make_player("战士", 10, mp=100))
-    # v151 破甲斩已改为战意叠层（mech=zhan_yi，无 def_down 减益）——断言改为验证战意积攒
-    # 且敌方无减益异常（破甲斩不再挂 def_down）
+    # v151→技能全鉴 P1 修复：破甲斩 desc"破防"与数据对齐（恢复 pierce:True，命中后挂 def_down 破防减益）
+    # ——断言改为验证战意积攒 + 破防减益（不再是无减益异常）
     check("破甲斩积攒战意", (b.mech_stacks or {}).get("zhan_yi", 0) > 0, str(b.mech_stacks))
+    check("破甲斩施加破防（def_down）", (b.e_buffs or {}).get("def_down", 0) > 0, str(b.e_buffs))
 
     print("【战斗：中毒持续伤害】")
     p = make_player("战士", 10, hp=9999)

@@ -144,6 +144,23 @@ def _c_enemy_slowed(battle, player, cond):
     return "spd_down" in battle.e_buffs or "mon_spd_down" in battle.e_buffs
 
 
+@register("enemy_mark_full", label=lambda c: f"敌方{c.get('mech','')}印记已满{c.get('stacks',3)}层")
+def _c_enemy_mark_full(battle, player, cond):
+    """敌方某系元素印记已满（达到 stacks 层）。
+
+    v153 遗留缺口补全（技能全鉴 P2 万象天雷）：cond type 在数据里但注册表缺失，
+    条件倍率静默失效（_cond_mult 未知 type → 1.0）。判定与 mech 叠层同源——
+    读目标侧 enemy.element_marks（battle._elem_marks，与 battle_mech 的
+    fire_mark/ice_mark/thunder_mark 写的是同一份 dict），保证满层判定与挂印一致。
+    mech ∈ fire/ice/thunder。
+    """
+    try:
+        marks = battle._elem_marks()
+    except Exception:
+        marks = {}
+    return int((marks or {}).get(cond.get("mech", "thunder"), 0) or 0) >= int(cond.get("stacks", 3))
+
+
 @register("element_marks", label=lambda c: f"敌方{c.get('element','')}印记≥{c.get('stacks',0)}层")
 def _c_element_marks(battle, player, cond):
     """敌方元素印记层数 ≥ stacks（火印/冰印/雷印；element=any 任意系）"""
