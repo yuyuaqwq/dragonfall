@@ -131,8 +131,8 @@ async def main():
     clean_db()
     _set("oak_town_3")
     idx = None
-    # v170 橡木铁匠铺扩品后共 38 件/8 页，坐骑在末页（37/38 号）
-    for page in range(1, 9):
+    # v171 橡木铁匠铺扩品（+粗钢/林语 6 件）后共 44 件/9 页，坐骑在末页（43/44 号）
+    for page in range(1, 10):
         out = await _cmd(m, "shop", "商店" if page == 1 else f"商店 {page}")
         for ln in (out or "").splitlines():
             mm = re.match(r"\s*(\d+)\.\s*.*老马", ln)

@@ -519,7 +519,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
             elif k == "mp":
                 st["max_mp"] += v
             else:
-                st[k] += v
+                st[k] = st.get(k, 0) + v
     # 4. 套装 2 件百分比加成（基于基础+属性点+装备的最终值）
     # v136 Phase6：传 class_name 实现职业套装折扣（本职业 100%/非本职业 60%）
     sb2 = set_bonus_2(equipment, class_name)
@@ -584,7 +584,7 @@ def player_stats_detail(class_name: str, level: int, equipment: dict, tier: int 
                 elif k == "mp":
                     st["max_mp"] += int(v)
                 else:
-                    st[k] += int(v)
+                    st[k] = st.get(k, 0) + int(v)
             sources.append({"name": "副业称号", "stats": tb})
     # 7. 种族天赋 stat 型（08 章：月缺 HP-5% / 磐石步履先手-5% / 月之优雅暴击+8% / 坚韧体魄 HP+8%）
     rt = race_stats(race)

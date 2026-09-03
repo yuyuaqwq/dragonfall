@@ -405,9 +405,18 @@ EQUIP_ROSTER = {
     'eq_bi_chui_wu_dou_pao': {'name': '壁槌武斗袍', 'slot': 'armor', 'quality': 'purple', 'lv': 50, 'series': '壁槌', 'req': {'str': 48}, 'source': '锻造'},
     'eq_bi_chui_hu_tui': {'name': '壁槌护腿', 'slot': 'legs', 'quality': 'purple', 'lv': 50, 'series': '壁槌', 'req': {'str': 46}, 'source': '锻造'},
     'eq_bi_chui_bu_xue': {'name': '壁槌布靴', 'slot': 'boots', 'quality': 'purple', 'lv': 50, 'series': '壁槌', 'req': {'str': 46}, 'source': '锻造'},
-    'eq_hu_lin_xiong_jia': {'name': '护林胸甲', 'slot': 'armor', 'quality': 'white', 'lv': 5, 'series': '护林', 'req': {'vit': 3}, 'source': '商店'},
-    'eq_hu_lin_hu_tui': {'name': '护林护腿', 'slot': 'legs', 'quality': 'white', 'lv': 5, 'series': '护林', 'req': {'vit': 3}, 'source': '商店'},
-    'eq_hu_lin_zhi_xue': {'name': '护林之靴', 'slot': 'boots', 'quality': 'white', 'lv': 5, 'series': '护林', 'req': {'vit': 3}, 'source': '商店'},
+    'eq_hu_lin_xiong_jia': {'name': '护林胸甲', 'slot': 'armor', 'quality': 'white', 'lv': 5, 'series': '护林', 'source': '商店'},  # v171 去 req：对齐 v95 商店白装无需求原则（新手保底装不卡属性）
+    'eq_hu_lin_hu_tui': {'name': '护林护腿', 'slot': 'legs', 'quality': 'white', 'lv': 5, 'series': '护林', 'source': '商店'},
+    'eq_hu_lin_zhi_xue': {'name': '护林之靴', 'slot': 'boots', 'quality': 'white', 'lv': 5, 'series': '护林', 'source': '商店'},
+    # v171 新手流派补位：粗钢（力量重甲白装）/ 林语（智力布甲白装）——橡木出生点 Lv3-5 原只有耐力白装，
+    # 战士/法师看不到自己流派的选择；带低 req3（Lv5 随手可加）触发防具分系（str→heavy def高、int→cloth mdef高），
+    # 拒绝无 req 均衡模板换皮；头盔沿用毛皮帽/粗布头巾等现有件
+    'eq_cu_gang_xiong_jia': {'name': '粗钢胸甲', 'slot': 'armor', 'quality': 'white', 'lv': 5, 'series': '粗钢', 'req': {'str': 3}, 'source': '商店'},
+    'eq_cu_gang_hu_tui': {'name': '粗钢护腿', 'slot': 'legs', 'quality': 'white', 'lv': 5, 'series': '粗钢', 'req': {'str': 3}, 'source': '商店'},
+    'eq_cu_gang_zhan_xue': {'name': '粗钢战靴', 'slot': 'boots', 'quality': 'white', 'lv': 5, 'series': '粗钢', 'req': {'str': 3}, 'source': '商店'},
+    'eq_lin_yu_xiong_yi': {'name': '林语胸衣', 'slot': 'armor', 'quality': 'white', 'lv': 5, 'series': '林语', 'req': {'int': 3}, 'source': '商店'},
+    'eq_lin_yu_hu_tui': {'name': '林语护腿', 'slot': 'legs', 'quality': 'white', 'lv': 5, 'series': '林语', 'req': {'int': 3}, 'source': '商店'},
+    'eq_lin_yu_fa_xue': {'name': '林语法靴', 'slot': 'boots', 'quality': 'white', 'lv': 5, 'series': '林语', 'req': {'int': 3}, 'source': '商店'},
     'eq_hu_lin_bai_lu_xiong_jia': {'name': '精制护林胸甲', 'slot': 'armor', 'quality': 'blue', 'lv': 15, 'series': '护林', 'req': {'vit': 8}, 'source': '锻造'},
     'eq_hu_lin_bai_lu_hu_tui': {'name': '精制护林护腿', 'slot': 'legs', 'quality': 'blue', 'lv': 15, 'series': '护林', 'req': {'vit': 8}, 'source': '锻造'},
     'eq_hu_lin_bai_lu_zhi_xue': {'name': '精制护林之靴', 'slot': 'boots', 'quality': 'blue', 'lv': 15, 'series': '护林', 'req': {'vit': 8}, 'source': '锻造'},

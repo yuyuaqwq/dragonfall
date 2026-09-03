@@ -309,6 +309,13 @@ SHOP_EQUIP = {
         "eq_cu_bu_tou_jin",
         "eq_chen_lu_jie_zhi",
         "eq_chen_lu_xiang_lian",
+        # v171 新手流派补位：粗钢（力量重甲）/ 林语（智力布甲）——出生点不再只有耐力白装
+        "eq_cu_gang_xiong_jia",
+        "eq_cu_gang_hu_tui",
+        "eq_cu_gang_zhan_xue",
+        "eq_lin_yu_xiong_yi",
+        "eq_lin_yu_hu_tui",
+        "eq_lin_yu_fa_xue",
     ],
     "white_deer": [         # 白鹿城绿装（v170 扩品：2 槽 × 6 部位）
         "eq_bai_lu_pi_mao",
