@@ -74,8 +74,8 @@ check("火球术造成伤害", any("造成" in x for x in logs), str(logs)[:120]
 # 引擎元素印记路径把冰印登记到 enemy.debuffs["element_marks"]["ice"]，减速落 e_buffs.spd_down。
 b4 = BT.Battle("monster", mkmon(), player=p)
 random.seed(2)
-logs4 = b4._do_player_skill("冰锥", p)
-# v154 读条命中制：_do_player_skill 只排 cast_done（读条），需经 player_turn 设置 p_ct 后推进才结算
+# v154 读条命中制：技能出手只排 cast_done（读条），需经 player_turn 设置 p_ct 后推进才结算
+# （曾直接调 _do_player_skill 跳过回合 → 未走敌方行动段 _active_target 未初始化，v169.9 已由引擎兜底）
 logs4, _ = b4.player_turn("skill", "冰锥", p, enemy_act=False)
 b4._process_until(float(getattr(b4, "p_ct", 0) or 0) + 0.001, logs4, p)
 _ice_marks = ((b4.enemy.get("debuffs") or {}).get("element_marks") or {}).get("ice", 0)

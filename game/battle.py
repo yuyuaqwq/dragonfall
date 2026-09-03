@@ -2782,7 +2782,11 @@ class Battle:
             # v169.7 修 #132：命中时刻 _active_target 会被敌方行动段清空（_enemy_phase 尾部
             # self._active_target = None），若不快照目标单位，命中结算打回主目标(a1)。
             # 快照解析好的目标 dict 引用（攻击目标，非治疗）；命中时恢复 + 死亡回退。
-            _atk_tgt = self._active_target
+            # v169.9 兜底：_active_target 仅在敌方行动段赋值——直接调 _do_player_skill（测试/
+            # 副本命令层某些路径）未走敌方回合时不存在该属性 → getattr 退化到主目标。
+            _atk_tgt = getattr(self, "_active_target", None)
+            if _atk_tgt is None:
+                _atk_tgt = getattr(self, "enemy", None) or (self.enemies[0] if self.enemies else None)
             self._pending_player_cast = {
                 "skill_name": skill_name,
                 "info": info,
