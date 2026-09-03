@@ -11,6 +11,14 @@ Boss 全部引用 04 章 b_* 定义（阶段三/四已挂进地图 monsters）�
 - boss 6 元组 = (id, 名, role, lv, [技能ID], [掉落材料])
 - 血量缩放：hp_mult + 0.65 × (实际人数 - min_players)
 - 通关：每人金币/经验 + 专属材料；blueprint=True 额外图纸
+
+v173 问题C：通关奖励数值模型化（此前 22 本 gold/exp 手填无模型，量化怪相：
+  通关金=同级野外 Boss 怪金模型 14-39%、通关 exp=升级所需 5-10%）。
+  公式（economy_lib.instance_reward，scripts/economy_lib/core.py）：
+    gold = monster_gold(inst_lv, 'boss') × 0.30   # 通关 = 约 1/3 只同级野外 Boss 怪金
+    exp  = monster_exp(inst_lv, 'boss')  × 2.8    # 通关 ≈ 升级所需 4-24%（前期高后期低，随成长曲线自然回落）
+  以下各本 gold/exp = 按公式标定的生成值（含战利品堆 30% / 调查点等消费端自动跟随）。
+  数值门禁 tests/test_numeric_instance_reward.py 断言全本落在模型带内、跨级比单调。
 """
 INSTANCES = {
     # ================= 主线 8（多人/进阶） =================
@@ -112,8 +120,8 @@ INSTANCES = {
 "mech": "summon,stacks",
         "hp_mult": 4.0,
         "atk_mult": 1.0,
-        "gold": 120,
-        "exp": 1600,
+        "gold": 234,
+        "exp": 3653,
         "materials": ["咕噜皇冠"],
         "mat_count": 1,
         "blueprint": False,
@@ -131,7 +139,7 @@ INSTANCES = {
         "outro": "金钩从杰克手中脱落，暗湾里终于只剩下潮水的呼吸。铁港的船主们可以重新起锚了，而你从战利品里翻出的那张旧海图，似乎指向更深的水域。",
         "boss": ["b_jack_pirate", "海盗王·独眼杰克", "boss", 28,
                  ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
-                 ["杰克的金钩"]],
+                 ["杰克的金钩碎片"]],
         "minions": [{"name": "海盗喽啰", "monster": ["m_sea_slime", "海史莱姆", "tank", 22,
                            ["ms_zhuang_ji", "ms_nian_ye"], ["海盐结晶"]], "count": 2}],  # v163：爪牙=同图小怪模板（鱼鱼拍板，非 Boss 缩放）
                 "stages":         [
@@ -210,7 +218,7 @@ INSTANCES = {
                         "ms_zhao_huan_shui_gui"
                     ],
                     [
-                        "杰克的金钩"
+                        "杰克的金钩碎片"
                     ]
                 ]
             }
@@ -218,9 +226,9 @@ INSTANCES = {
 "mech": "phase",
         "hp_mult": 2.4,  # v155 单刷档（原 3.6 多人标定）
         "atk_mult": 1.0,  # v155 单刷档（原 1.15）
-        "gold": 220,
-        "exp": 2900,
-        "materials": ["杰克的金钩"],
+        "gold": 385,
+        "exp": 6465,
+        "materials": ["杰克的金钩碎片"],
         "mat_count": 2,
         "blueprint": True,
         "装备": ["影袭之刃"],
@@ -238,7 +246,7 @@ INSTANCES = {
         "outro": "古王的剑重归尘土，王陵重归寂静。奥德里克消散前望向北方的那一眼，让你想起他未说完的话——圣战的真相，似乎比棺椁里的陪葬品埋得更深。",
         "boss": ["b_king_odric", "古王·奥德里克", "boss", 45,
                  ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
-                 ["古王剑"]],
+                 ["古王剑碎片"]],
                 "stages":         [
             {
                 "name": "墓道",
@@ -314,7 +322,7 @@ INSTANCES = {
                         "ms_zhao_huan_ku_lou"
                     ],
                     [
-                        "古王剑"
+                        "古王剑碎片"
                     ]
                 ]
             }
@@ -324,9 +332,9 @@ INSTANCES = {
 "mech": "enrage,summon",
         "hp_mult": 2.9,  # v155 单刷档（保持原 1.5，本就是单刷档量级）
         "atk_mult": 1.0,  # v155 单刷档（原 1.2）
-        "gold": 400,
-        "exp": 7200,
-        "materials": ["古王剑"],
+        "gold": 709,
+        "exp": 12835,
+        "materials": ["古王剑碎片"],
         "mat_count": 2,
         "blueprint": True,
     },
@@ -343,7 +351,7 @@ INSTANCES = {
         "outro": "马尔库斯的法冠滚落在地，锁链垂到他脚边，不再作响。你掀开一角白布，壁画上的图案让所有人沉默——教会掩埋的阴影，比这间地窖更深、更古老。",
         "boss": ["b_marcus", "审判长·马尔库斯", "boss", 52,
                  ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
-                 ["马尔库斯的法冠"]],
+                 ["马尔库斯的法冠残片"]],
                 "stages":         [
             {
                 "name": "地窖回廊",
@@ -405,7 +413,7 @@ INSTANCES = {
                         "ms_shen_pan_zhi_yan"
                     ],
                     [
-                        "马尔库斯的法冠"
+                        "马尔库斯的法冠残片"
                     ]
                 ]
             }
@@ -415,9 +423,9 @@ INSTANCES = {
 "mech": "shield,enrage",
         "hp_mult": 5.4,
         "atk_mult": 1.25,
-        "gold": 600,
-        "exp": 10000,
-        "materials": ["马尔库斯的法冠"],
+        "gold": 890,
+        "exp": 16489,
+        "materials": ["马尔库斯的法冠残片"],
         "mat_count": 3,
         "blueprint": True,
     },
@@ -434,7 +442,7 @@ INSTANCES = {
         "outro": "晨曦之冠落回王座，废墟中的吟唱终于停歇。你抬头看见穹顶的裂缝里漏进一线月光——月神或许从未离开，只是等了太久。",
         "boss": ["b_dawn_elf", "远古精灵王·晨曦", "boss", 66,
                  ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
-                 ["晨曦之冠"]],
+                 ["晨曦之冠碎片"]],
                 "stages":         [
             {
                 "name": "残垣入口",
@@ -497,7 +505,7 @@ INSTANCES = {
                         "ms_zhi_yu"
                     ],
                     [
-                        "晨曦之冠"
+                        "晨曦之冠碎片"
                     ]
                 ]
             }
@@ -507,9 +515,9 @@ INSTANCES = {
 "mech": "heal,shield",
         "hp_mult": 3.3,  # v155 单刷档（原 3.1 多人标定）
         "atk_mult": 1.0,  # v155 单刷档（原 1.25）
-        "gold": 900,
-        "exp": 22000,
-        "materials": ["晨曦之冠"],
+        "gold": 1347,
+        "exp": 26098,
+        "materials": ["晨曦之冠碎片"],
         "mat_count": 3,
         "blueprint": True,
     },
@@ -526,7 +534,7 @@ INSTANCES = {
         "outro": "祭器碎裂，黑焰熄灭，烬山第一次安静得只剩下风声。你站在英雄王当年战斗过的地方，忽然明白那道封印守护着什么——而北方裂隙的低语，似乎又近了一些。",
         "boss": ["b_helga", "恶魔祭司·赫尔加", "boss", 92,
                  ["ms_an_ying_dan", "ms_zhao_huan_e_mo", "ms_hei_an_yi_shi"],
-                 ["赫尔加的祭器"]],
+                 ["赫尔加的祭器碎片"]],
                 "stages":         [
             {
                 "name": "祭坛外围",
@@ -589,7 +597,7 @@ INSTANCES = {
                         "ms_hei_an_yi_shi"
                     ],
                     [
-                        "赫尔加的祭器"
+                        "赫尔加的祭器碎片"
                     ]
                 ]
             }
@@ -599,9 +607,9 @@ INSTANCES = {
 "mech": "summon,phase",
         "hp_mult": 2.2,  # v155 单刷档（原 3.2 多人标定）
         "atk_mult": 1.05,  # v155 单刷档（原 1.3）
-        "gold": 1800,
-        "exp": 55000,
-        "materials": ["赫尔加的祭器"],
+        "gold": 2064,
+        "exp": 41521,
+        "materials": ["赫尔加的祭器碎片"],
         "mat_count": 4,
         "blueprint": True,
     },
@@ -713,8 +721,8 @@ INSTANCES = {
         ],
         "hp_mult": 1.2,  # v155 单刷档（原 2.8 多人标定）
         "atk_mult": 1.05,  # v155 单刷档（原 1.35）
-        "gold": 3000,
-        "exp": 92000,
+        "gold": 2319,
+        "exp": 47154,
         "materials": ["黎明之光碎片"],
         "mat_count": 5,
         "blueprint": True,
@@ -806,8 +814,8 @@ INSTANCES = {
 "mech": "reflect,heal",
         "hp_mult": 2.5,
         "atk_mult": 1.35,
-        "gold": 3000,
-        "exp": 93000,
+        "gold": 2319,
+        "exp": 47154,
         "materials": ["龙语传承"],
         "mat_count": 5,
         "blueprint": True,
@@ -861,8 +869,8 @@ INSTANCES = {
 "mech": "enrage,summon",
         "hp_mult": 3.8,
         "atk_mult": 1.0,
-        "gold": 160,
-        "exp": 2200,
+        "gold": 295,
+        "exp": 4779,
         "materials": ["要塞残片"],
         "mat_count": 1,
         "blueprint": False,
@@ -913,8 +921,8 @@ INSTANCES = {
 "mech": "shield,enrage",
         "hp_mult": 4.0,
         "atk_mult": 1.05,
-        "gold": 350,
-        "exp": 7500,
+        "gold": 734,
+        "exp": 13333,
         "materials": ["试炼徽记"],
         "mat_count": 2,
         "blueprint": False,
@@ -964,8 +972,8 @@ INSTANCES = {
 "mech": "shield,phase",
         "hp_mult": 3.5,
         "atk_mult": 1.05,
-        "gold": 950,
-        "exp": 23000,
+        "gold": 1409,
+        "exp": 27417,
         "materials": ["月辉碎片"],
         "mat_count": 2,
         "blueprint": False,
@@ -1015,8 +1023,8 @@ INSTANCES = {
 "mech": "stacks,enrage",
         "hp_mult": 3.1,
         "atk_mult": 1.2,
-        "gold": 1500,
-        "exp": 36000,
+        "gold": 1818,
+        "exp": 36153,
         "materials": ["永冻之核"],
         "mat_count": 3,
         "blueprint": True,
@@ -1066,8 +1074,8 @@ INSTANCES = {
 "mech": "phase,phase",
         "hp_mult": 3.1,
         "atk_mult": 1.3,
-        "gold": 2600,
-        "exp": 94000,
+        "gold": 2319,
+        "exp": 47154,
         "materials": ["风暴之核"],
         "mat_count": 4,
         "blueprint": True,
@@ -1087,7 +1095,7 @@ INSTANCES = {
         "outro": "罗盘在你掌心轻轻转动，指向一座早已沉没的旧港。克罗的残魂随潮水远去，沉船湾的迷雾第一次散开，露出通往海面的光。",
         "boss": ["b_ghost_captain", "幽灵船长·克罗", "boss", 48,
                  ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"],
-                 ["克罗的罗盘"]],
+                 ["克罗的罗盘碎片"]],
                 "stages":         [
             {
                 "name": "甲板",
@@ -1150,7 +1158,7 @@ INSTANCES = {
                         "ms_zu_zhou"
                     ],
                     [
-                        "克罗的罗盘"
+                        "克罗的罗盘碎片"
                     ]
                 ]
             }
@@ -1162,9 +1170,9 @@ INSTANCES = {
 "mech": "summon,heal",
         "hp_mult": 4.0,
         "atk_mult": 1.1,
-        "gold": 450,
-        "exp": 8000,
-        "materials": ["克罗的罗盘"],
+        "gold": 785,
+        "exp": 14358,
+        "materials": ["克罗的罗盘碎片"],
         "mat_count": 2,
         "blueprint": False,
     },
@@ -1181,7 +1189,7 @@ INSTANCES = {
         "outro": "蓝歌的歌声戛然而止，巢穴恢复了海底本来的寂静。那些被歌声骗来的灵魂挣脱幻梦，化作点点荧光，随洋流游向海面。",
         "boss": ["b_siren_queen", "海妖女王·蓝歌", "boss", 60,
                  ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
-                 ["蓝歌之冠"]],
+                 ["蓝歌之冠残片"]],
                 "stages":         [
             {
                 "name": "海藻洞",
@@ -1244,7 +1252,7 @@ INSTANCES = {
                         "ms_zhao_huan_chu_shou"
                     ],
                     [
-                        "蓝歌之冠"
+                        "蓝歌之冠残片"
                     ]
                 ]
             }
@@ -1254,9 +1262,9 @@ INSTANCES = {
 "mech": "phase,heal",
         "hp_mult": 4.4,
         "atk_mult": 1.15,
-        "gold": 700,
-        "exp": 12000,
-        "materials": ["蓝歌之冠"],
+        "gold": 1169,
+        "exp": 22296,
+        "materials": ["蓝歌之冠残片"],
         "mat_count": 2,
         "blueprint": True,
     },
@@ -1273,7 +1281,7 @@ INSTANCES = {
         "outro": "祭坛上的圣物重归沉寂，倒流的潮水缓缓落回海底。澜歌的身影化作一缕水光消散，神殿深处传来海神古老的叹息，像是认可，又像是告别。",
         "boss": ["b_lange", "海神祭司·澜歌", "boss", 72,
                  ["ms_hai_chao", "ms_zhao_huan_sha_yu", "ms_jing_hua_zhi_chao"],
-                 ["澜歌之泪"]],
+                 ["澜歌之泪残片"]],
                 "stages":         [
             {
                 "name": "神殿入口",
@@ -1350,7 +1358,7 @@ INSTANCES = {
                         "ms_jing_hua_zhi_chao"
                     ],
                     [
-                        "澜歌之泪"
+                        "澜歌之泪残片"
                     ]
                 ]
             }
@@ -1361,9 +1369,9 @@ INSTANCES = {
 "mech": "shield,phase",
         "hp_mult": 4.3,
         "atk_mult": 1.2,
-        "gold": 1100,
-        "exp": 27000,
-        "materials": ["澜歌之泪"],
+        "gold": 1523,
+        "exp": 29825,
+        "materials": ["澜歌之泪残片"],
         "mat_count": 3,
         "blueprint": True,
     },
@@ -1380,7 +1388,7 @@ INSTANCES = {
         "outro": "敖澜重新阖上双眼，龙宫的潮水恢复了亘古的平稳。你带着敖澜之珠离去时，整座水晶宫亮起送别的微光——龙王记住了你的名字。",
         "boss": ["b_aolan", "深海龙王·敖澜", "boss", 78,
                  ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
-                 ["敖澜之珠"]],
+                 ["敖澜之珠碎片"]],
                 "stages":         [
             {
                 "name": "宫门",
@@ -1457,7 +1465,7 @@ INSTANCES = {
                         "ms_zhao_huan_hai_shou"
                     ],
                     [
-                        "敖澜之珠"
+                        "敖澜之珠碎片"
                     ]
                 ]
             }
@@ -1469,9 +1477,9 @@ INSTANCES = {
 "mech": "reflect,stacks",
         "hp_mult": 4.4,
         "atk_mult": 1.25,
-        "gold": 1400,
-        "exp": 34000,
-        "materials": ["敖澜之珠"],
+        "gold": 1698,
+        "exp": 33569,
+        "materials": ["敖澜之珠碎片"],
         "mat_count": 3,
         "blueprint": True,
     },
@@ -1560,8 +1568,8 @@ INSTANCES = {
 "mech": "shield,stacks",
         "hp_mult": 3.1,
         "atk_mult": 1.2,
-        "gold": 1500,
-        "exp": 37000,
+        "gold": 1818,
+        "exp": 36153,
         "materials": ["石炉之锤"],
         "mat_count": 3,
         "blueprint": True,
@@ -1580,7 +1588,7 @@ INSTANCES = {
         "outro": "黑渊的咆哮在岩壁间回荡许久才平息，岩浆湖重归暗红。它沉入湖底前看了你一眼，那目光仿佛在说：地底记住了你的味道。",
         "boss": ["b_under_dragon", "地底古龙·黑渊", "boss", 92,
                  ["ms_suan_xi", "ms_tun_shi", "ms_zhao_huan_you_long"],
-                 ["黑渊之眼"]],
+                 ["黑渊之眼残片"]],
                 "stages":         [
             {
                 "name": "巢穴入口",
@@ -1643,7 +1651,7 @@ INSTANCES = {
                         "ms_zhao_huan_you_long"
                     ],
                     [
-                        "黑渊之眼"
+                        "黑渊之眼残片"
                     ]
                 ]
             }
@@ -1653,9 +1661,9 @@ INSTANCES = {
 "mech": "reflect,enrage",
         "hp_mult": 3.7,
         "atk_mult": 1.3,
-        "gold": 1900,
-        "exp": 58000,
-        "materials": ["黑渊之眼"],
+        "gold": 2127,
+        "exp": 42904,
+        "materials": ["黑渊之眼残片"],
         "mat_count": 4,
         "blueprint": True,
         "装备": ["云端护腿"],
@@ -1674,7 +1682,7 @@ INSTANCES = {
         "outro": "雷云散尽，风眼归于沉寂，天空的尽头重归湛蓝。云怒之核落入掌心，那是苍穹赐予胜者的徽记——从今往后，风暴也记住了你们的名字。",
         "boss": ["b_storm_master", "风暴之主·云怒", "boss", 100,
                  ["ms_lei_bao", "ms_feng_bao_zhi_yan", "ms_zhao_huan_lei_niao"],
-                 ["云怒之核"]],
+                 ["云怒之核碎片"]],
                 "stages":         [
             {
                 "name": "云巅之门",
@@ -1737,7 +1745,7 @@ INSTANCES = {
                         "ms_zhao_huan_lei_niao"
                     ],
                     [
-                        "云怒之核"
+                        "云怒之核碎片"
                     ]
                 ]
             }
@@ -1747,9 +1755,9 @@ INSTANCES = {
 "mech": "phase,phase",
         "hp_mult": 6.3,
         "atk_mult": 1.32,
-        "gold": 2800,
-        "exp": 96000,
-        "materials": ["云怒之核"],
+        "gold": 2384,
+        "exp": 48602,
+        "materials": ["云怒之核碎片"],
         "mat_count": 4,
         "blueprint": True,
     },
@@ -1766,7 +1774,7 @@ INSTANCES = {
         "outro": "摩罗之冠坠地，深渊军团如潮水般退去，王座上的阴影就此消散。三百年的恩怨，在这一战中画上句点——而勇者的名字，将被刻入祭坛的碑文，永镇深渊。",
         "boss": ["b_moro", "深渊领主·摩罗", "boss", 98,
                  ["ms_shen_yuan_zhi_nu", "ms_zhao_huan_e_mo", "ms_fu_shi_ling_yu"],
-                 ["摩罗之冠"]],
+                 ["摩罗之冠碎片"]],
                 "stages":         [
             {
                 "name": "深渊入口",
@@ -1829,7 +1837,7 @@ INSTANCES = {
                         "ms_fu_shi_ling_yu"
                     ],
                     [
-                        "摩罗之冠"
+                        "摩罗之冠碎片"
                     ]
                 ]
             }
@@ -1839,9 +1847,9 @@ INSTANCES = {
 "mech": "stacks,summon",
         "hp_mult": 2.8,
         "atk_mult": 1.35,
-        "gold": 2900,
-        "exp": 95000,
-        "materials": ["摩罗之冠"],
+        "gold": 2319,
+        "exp": 47154,
+        "materials": ["摩罗之冠碎片"],
         "mat_count": 4,
         "blueprint": True,
     },
@@ -1904,7 +1912,7 @@ INSTANCES = {
                         "ms_feng_bao"
                     ],
                     [
-                        "云怒之核"
+                        "云怒之核碎片"
                     ]
                 ]
             },
@@ -1931,8 +1939,8 @@ INSTANCES = {
 "mech": "shield,phase",
         "hp_mult": 6.4,
         "atk_mult": 1.35,
-        "gold": 3200,
-        "exp": 97000,
+        "gold": 2451,
+        "exp": 50069,
         "materials": ["奥拉圣印碎片"],
         "mat_count": 5,
         "blueprint": True,

@@ -147,15 +147,22 @@ def roll_drop_equip(monster_lv: int, role: str) -> dict | None:
 
     # 从名册按等级就近抽（优先 ±15，再 ±30，兜底随机生成）
     # v172 路B：source=重锻 装备（仅『装备重锻』可得）不进精英/Boss 掉落池
+    # v173 路A（问题A修复）：候选源白名单 = {boss, legend}——图纸/任务/支线/锻造/商店/
+    #   宝藏/精英专属 等"非掉落可得"源全排除，杜绝 Boss/精英掉出图纸源装备、
+    #   或低级 Boss 掉出另一 Boss 专属（如 Lv.15 咕噜掉 Lv.98 摩罗之冠）的越权掉落。
+    #   名册 source 分布（v172 审计）：图纸194/锻造184/商店127/boss61/副本Boss26/重锻24/
+    #   legend22/精英专属18/任务9/支线9/宝藏6/精英2。白名单仅 boss61+legend22=83 件可掉。
+    #   （副本 Boss 走 INSTANCE_BOSS_EQUIP_DROP 主题池 + 主专属白名单，不经本函数。）
+    _DROP_SOURCE_OK = ("boss", "legend")
     roster = C.EQUIP_ROSTER
     candidates_15 = [rid for rid, r in roster.items()
-                     if r.get("source") != "重锻"
+                     if r.get("source") in _DROP_SOURCE_OK
                      and r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 15]
     if candidates_15:
         rid = random.choice(candidates_15)
         return generate_roster_equip(rid)
     candidates_30 = [rid for rid, r in roster.items()
-                     if r.get("source") != "重锻"
+                     if r.get("source") in _DROP_SOURCE_OK
                      and r.get("quality") == quality and abs(r.get("lv", 0) - monster_lv) <= 30]
     if candidates_30:
         rid = random.choice(candidates_30)

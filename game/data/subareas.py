@@ -1389,7 +1389,7 @@ SUBAREAS = {
                     "boss",
                     28,
                     ["ms_wan_dao", "ms_huo_qiang", "ms_zhao_huan_shui_gui"],
-                    ["杰克的金钩"]
+                    ["杰克的金钩碎片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -2076,7 +2076,7 @@ SUBAREAS = {
                     "ms_hao_jiao"
                 ],
                 [
-                    "裂鬃獠牙"
+                    "裂鬃獠牙碎片"
                 ]
             ],
             "boss": None,
@@ -2613,7 +2613,7 @@ SUBAREAS = {
                     "boss",
                     45,
                     ["ms_jian_ji", "ms_wang_wei", "ms_zhao_huan_ku_lou"],
-                    ["古王剑"]
+                    ["古王剑碎片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -2920,7 +2920,7 @@ SUBAREAS = {
                     "boss",
                     52,
                     ["ms_an_ying_dan", "ms_suo_lian", "ms_shen_pan_zhi_yan"],
-                    ["马尔库斯的法冠"]
+                    ["马尔库斯的法冠残片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -3421,7 +3421,7 @@ SUBAREAS = {
                     "ms_hao_jiao"
                 ],
                 [
-                    "铁牙狼皮"
+                    "铁牙狼皮碎片"
                 ]
             ],
             "boss": None,
@@ -4036,7 +4036,7 @@ SUBAREAS = {
                     "boss",
                     66,
                     ["ms_yue_guang_zhan", "ms_zhao_huan_shu_ren", "ms_zhi_yu"],
-                    ["晨曦之冠"]
+                    ["晨曦之冠碎片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -5509,7 +5509,7 @@ SUBAREAS = {
                         "ms_hei_an_yi_shi"
                     ],
                     [
-                        "赫尔加的祭器"
+                        "赫尔加的祭器碎片"
                     ]
                 ],
                 "funcs": [
@@ -7732,7 +7732,7 @@ SUBAREAS = {
                     "ms_zhao_huan_gu_long"
                 ],
                 [
-                    "暮影龙魂"
+                    "暮影龙魂碎片"
                 ]
             ],
             "boss": None,
@@ -8382,7 +8382,7 @@ SUBAREAS = {
                     "boss",
                     48,
                     ["ms_wan_dao", "ms_zhao_huan_you_ling", "ms_zu_zhou"],
-                    ["克罗的罗盘"]
+                    ["克罗的罗盘碎片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -8460,7 +8460,7 @@ SUBAREAS = {
                     "boss",
                     60,
                     ["ms_mei_huo_zhi_ge", "ms_ju_lang", "ms_zhao_huan_chu_shou"],
-                    ["蓝歌之冠"]
+                    ["蓝歌之冠残片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -9090,7 +9090,7 @@ SUBAREAS = {
                     "ms_ju_lang"
                 ],
                 [
-                    "雷鸣龙鳞"
+                    "雷鸣龙鳞碎片"
                 ]
             ],
             "boss": None,
@@ -9186,7 +9186,7 @@ SUBAREAS = {
                         "ms_zhao_huan_sha_yu",
                         "ms_jing_hua_zhi_chao"
                     ],
-                    ["澜歌之泪"]
+                    ["澜歌之泪残片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -9273,7 +9273,7 @@ SUBAREAS = {
                     "boss",
                     78,
                     ["ms_shui_xi", "ms_long_wei", "ms_zhao_huan_hai_shou"],
-                    ["敖澜之珠"]
+                    ["敖澜之珠碎片"]
                 ],
                 "funcs": ["instance"],
                 "shop": False,
@@ -10049,7 +10049,7 @@ SUBAREAS = {
                         "ms_zhao_huan_you_long"
                     ],
                     [
-                        "黑渊之眼"
+                        "黑渊之眼残片"
                     ]
                 ],
                 "funcs": [
@@ -10256,7 +10256,7 @@ SUBAREAS = {
                     "ms_zhao_huan_ru_chong"
                 ],
                 [
-                    "烬核之心"
+                    "烬核之心碎片"
                 ]
             ],
             "boss": None,
@@ -10547,7 +10547,7 @@ SUBAREAS = {
                         "ms_fu_shi_ling_yu"
                     ],
                     [
-                        "摩罗之冠"
+                        "摩罗之冠碎片"
                     ]
                 ],
                 "funcs": [
@@ -11021,7 +11021,7 @@ SUBAREAS = {
                         "ms_zhao_huan_lei_niao"
                     ],
                     [
-                        "云怒之核"
+                        "云怒之核碎片"
                     ]
                 ],
                 "funcs": [
@@ -11347,7 +11347,7 @@ SUBAREAS = {
                         "ms_feng_bao"
                     ],
                     [
-                        "云怒之核"
+                        "云怒之核碎片"
                     ]
                 ],
                 "boss": None,

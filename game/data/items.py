@@ -60,7 +60,7 @@ MATERIALS = {
     },
     "mat_yun_nu_zhi_he": {
         'price': 200,
-        'name': "云怒之核",
+        'name': "云怒之核碎片",
     },
     "mat_yun_dian_kai_jia": {
         'price': 60,
@@ -84,7 +84,7 @@ MATERIALS = {
     },
     "mat_ke_luo_de_luo_pan": {
         'price': 15,
-        'name': "克罗的罗盘",
+        'name': "克罗的罗盘碎片",
     },
     "mat_tu_mao": {
         'price': 5,
@@ -152,7 +152,7 @@ MATERIALS = {
     },
     "mat_gu_wang_jian": {
         'price': 15,
-        'name': "古王剑",
+        'name': "古王剑碎片",
     },
     "mat_gu_long_yi_jia": {
         'price': 60,
@@ -410,11 +410,11 @@ MATERIALS = {
     },
     "mat_mo_luo_zhi_guan": {
         'price': 200,
-        'name': "摩罗之冠",
+        'name': "摩罗之冠碎片",
     },
     "mat_ao_lan_zhi_zhu": {
         'price': 80,
-        'name': "敖澜之珠",
+        'name': "敖澜之珠碎片",
     },
     "mat_jiao_guan_zhi_jian": {
         'price': 15,
@@ -430,7 +430,7 @@ MATERIALS = {
     },
     "mat_chen_xi_zhi_guan": {
         'price': 80,
-        'name': "晨曦之冠",
+        'name': "晨曦之冠碎片",
     },
     "mat_an_ying_hui_ji": {
         'price': 15,
@@ -442,7 +442,7 @@ MATERIALS = {
     },
     "mat_mu_ying_long_hun": {
         'price': 60,
-        'name': "暮影龙魂",
+        'name': "暮影龙魂碎片",
         # v104 M20 P1：原自动 desc 承诺「高级炼金的核心材料」，但全配方零消费——改纯收藏语义
         'desc': "龙陨战魂·暮影的龙魂余烬，龙陨谷守望的见证(纯收藏，无配方用途)",
     },
@@ -480,7 +480,7 @@ MATERIALS = {
     },
     "mat_jie_ke_de_jin_gou": {
         'price': 5,
-        'name': "杰克的金钩",
+        'name': "杰克的金钩碎片",
     },
     "mat_ji_guang_hu_wei": {
         'price': 35,
@@ -687,7 +687,7 @@ MATERIALS = {
     },
     "mat_lan_ge_zhi_lei": {
         'price': 80,
-        'name': "澜歌之泪",
+        'name': "澜歌之泪残片",
         # v104 M20 P1：原自动 desc 承诺「炼金师视若珍宝」，但全配方零消费——改纯收藏语义
         'desc': "海神祭司·澜歌的泪滴结晶，海神试炼的见证(纯收藏，无配方用途)",
     },
@@ -713,7 +713,7 @@ MATERIALS = {
     },
     "mat_jin_he_zhi_xin": {
         'price': 200,
-        'name': "烬核之心",
+        'name': "烬核之心碎片",
         # v104 M20 P1：原自动 desc 承诺「魔导器运转的燃料」，但全配方零消费——改纯收藏语义
         'desc': "岩浆王·烬核的核心，地底火焰暴动的见证(纯收藏，无配方用途)",
     },
@@ -903,7 +903,7 @@ MATERIALS = {
     },
     "mat_lan_ge_zhi_guan": {
         'price': 80,
-        'name': "蓝歌之冠",
+        'name': "蓝歌之冠残片",
     },
     "mat_xu_kong_quan_ya": {
         'price': 60,
@@ -935,7 +935,7 @@ MATERIALS = {
     },
     "mat_lie_zong_liao_ya": {
         'price': 5,
-        'name': "裂鬃獠牙",
+        'name': "裂鬃獠牙碎片",
         # v104 M20 P1：原自动 desc 承诺「可打磨成武器配件」，但全配方零消费——改纯收藏语义
         'desc': "野猪王·裂鬃的獠牙，灰羽猎人的战利品纪念(纯收藏，无配方用途)",
     },
@@ -953,7 +953,7 @@ MATERIALS = {
     },
     "mat_he_er_jia_de_ji_qi": {
         'price': 60,
-        'name': "赫尔加的祭器",
+        'name': "赫尔加的祭器碎片",
     },
     "mat_chen_guang_long_lin": {
         'price': 60,
@@ -977,7 +977,7 @@ MATERIALS = {
     },
     "mat_tie_ya_lang_pi": {
         'price': 15,
-        'name': "铁牙狼皮",
+        'name': "铁牙狼皮碎片",
         # v104 M20 P1：原自动 desc 承诺「打造武器的骨干」，但全配方零消费——改纯收藏语义
         'desc': "丘陵狼王·铁牙的皮毛，铁盾镇除害的见证(纯收藏，无配方用途)",
     },
@@ -1047,7 +1047,7 @@ MATERIALS = {
     },
     "mat_lei_ming_long_lin": {
         'price': 35,
-        'name': "雷鸣龙鳞",
+        'name': "雷鸣龙鳞碎片",
         # v104 M20 P1：原自动 desc 承诺「水火不侵的天然护材」，但全配方零消费——改纯收藏语义
         'desc': "风暴海龙·雷鸣的鳞片，风暴之海异变的见证(纯收藏，无配方用途)",
     },
@@ -1129,7 +1129,7 @@ MATERIALS = {
     },
     "mat_ma_er_ku_si_de_fa_guan": {
         'price': 15,
-        'name': "马尔库斯的法冠",
+        'name': "马尔库斯的法冠残片",
     },
     "mat_qi_shi_hui_ji": {
         'price': 15,
@@ -1216,7 +1216,7 @@ MATERIALS = {
     },
     "mat_hei_yuan_zhi_yan": {
         'price': 200,
-        'name': "黑渊之眼",
+        'name': "黑渊之眼残片",
     },
     "mat_hei_ya_pi_feng": {
         'price': 15,
@@ -2573,6 +2573,9 @@ for _mid, _m in MATERIALS.items():
 # ===== v165 材料分阶段定价覆盖（2026-09-02 鱼鱼拍板，economy_lib 模型推导）=====
 # 有怪物掉落的材料按产出等级带涨价（价格带 5~395），无怪掉落(采集/商店料)保持。
 # 修复观感：高级怪不再掉 5-15 元低价料 ×几十个（星辉尘 Lv93→355 等）。
+# v173 问题B 补丁：4 个副本通关 Boss 级材料价倒挂（v165 漏网——副本材料无怪物等级，
+# 原 5-15 元白档 < 同副本小怪料 25-35 元；按副本产出等级带对齐：
+#   海蚀洞窟 Lv22→E2 档 35；旧王陵 Lv35/圣堂地窖 Lv42→E3 档 90；沉船湾 Lv38→120（对齐幽灵船票 120））
 MATERIAL_PRICE_OVERRIDE = {
     "mat_cao_yao": 10,
     "mat_ge_bu_lin_hui_ji": 10,
@@ -2789,6 +2792,11 @@ MATERIAL_PRICE_OVERRIDE = {
     "mat_lei_niao_yu": 395,
     "mat_yun_xing_he": 395,
     "mat_guang_zhi_sheng_dian": 395,
+    # ---- v173 问题B 倒挂材料价对齐（Boss 级通关材料价 ≥ 同副本小怪料带，见上方注释）----
+    "mat_jie_ke_de_jin_gou": 35,
+    "mat_gu_wang_jian": 90,
+    "mat_ma_er_ku_si_de_fa_guan": 90,
+    "mat_ke_luo_de_luo_pan": 120,
 }
 
 _PRICE_SPECIAL_TYPES = {"收藏", "传说", "任务道具", "收藏品", "图纸"}

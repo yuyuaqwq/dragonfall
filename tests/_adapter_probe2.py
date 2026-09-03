@@ -196,7 +196,7 @@ async def main():
             break
     check("通关结算", "通关" in out or "击败" in out, out[:300])
     check("金币奖励", "+200" in out or "金币" in out, out[:300])
-    check("材料奖励", "古王剑" in out, out[:300])
+    check("材料奖励", "古王剑碎片" in out, out[:300])  # v173 问题B：材料改名 古王剑→古王剑碎片
     b = db.get_battle("g1", "i1")
     check("通关后停留搜刮", b is not None and b["state"].get("cleared"), str(b)[:200] if b else "")
     out = await cmd(m, "instance_leave", "g1", "i1", "离开副本")

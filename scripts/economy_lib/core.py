@@ -27,6 +27,28 @@ from game.core.drops import generate_roster_equip  # noqa: E402
 random.seed(20260902)
 
 
+# ---------------- 副本通关奖励（v173 问题C，2026-09-03 鱼鱼拍板最小可用模型） ----------------
+# 此前 22 本 gold/exp 手填无模型 → 通关金=同级野外 Boss 怪金 14-39%、exp=升级所需 5-10%，
+# 全仓唯一无模型的产出维度。现按 32 章怪金/怪经模型锚定：
+#   gold = monster_gold(inst_lv, 'boss') × INSTANCE_GOLD_MULT    （≈ 1/3 只同级野外 Boss 怪金）
+#   exp  = monster_exp(inst_lv, 'boss')  × INSTANCE_EXP_MULT     （≈ 升级所需 4-24%，随成长曲线回落）
+# 消费端：instance.py _instance_victory 逐字读 inst['gold']/inst['exp']（data 标定值），
+# 战利品堆（30%）/ 隐藏暗格等子奖励自动跟随。数值门禁 tests/test_numeric_instance_reward.py。
+INSTANCE_GOLD_MULT = 0.30
+INSTANCE_EXP_MULT = 2.8
+
+
+def instance_reward(lv: int) -> dict:
+    """副本通关奖励模型：lv = 副本 inst.lv（≈同图小怪等级）。
+
+    返回 {'gold': int, 'exp': int}——data/instances.py 各本 gold/exp 的标定源。
+    """
+    return {
+        "gold": int(S.monster_gold(lv, "boss") * INSTANCE_GOLD_MULT),
+        "exp": int(S.monster_exp(lv, "boss") * INSTANCE_EXP_MULT),
+    }
+
+
 # ---------------- 产出侧 ----------------
 def per_kill_gold(lv: int, role: str = "dps") -> int:
     """单只普通怪金币（dps 口径，role 合法取 role）。"""

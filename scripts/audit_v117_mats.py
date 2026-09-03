@@ -34,16 +34,16 @@ def check(cond, msg):
 
 # 18 种闲置 + 2 种补强
 TARGETS = {
-    "云怒之核": "mat_yun_nu_zhi_he", "克罗的罗盘": "mat_ke_luo_de_luo_pan",
+    "云怒之核碎片": "mat_yun_nu_zhi_he", "克罗的罗盘碎片": "mat_ke_luo_de_luo_pan",
     "圣光圣徽": "mat_sheng_guang_sheng_hui", "地底龙鳞": "mat_di_di_long_lin",
     "幽灵船票": "mat_you_ling_chuan_piao", "永冻之核": "mat_yong_dong_zhi_he",
     "灰矮人徽记": "mat_hui_ai_ren_hui_ji", "烬核": "mat_jin_he",
-    "石炉之锤": "mat_shi_lu_zhi_chui", "蓝歌之冠": "mat_lan_ge_zhi_guan",
+    "石炉之锤": "mat_shi_lu_zhi_chui", "蓝歌之冠残片": "mat_lan_ge_zhi_guan",
     "要塞残片": "mat_yao_sai_can_pian", "试炼徽记": "mat_shi_lian_hui_ji",
-    "赫尔加的祭器": "mat_he_er_jia_de_ji_qi", "风暴之核": "mat_feng_bao_zhi_he",
-    "马尔库斯的法冠": "mat_ma_er_ku_si_de_fa_guan", "黑渊之眼": "mat_hei_yuan_zhi_yan",
+    "赫尔加的祭器碎片": "mat_he_er_jia_de_ji_qi", "风暴之核": "mat_feng_bao_zhi_he",
+    "马尔库斯的法冠残片": "mat_ma_er_ku_si_de_fa_guan", "黑渊之眼残片": "mat_hei_yuan_zhi_yan",
     "龙宫珠": "mat_long_gong_zhu", "龙语传承": "mat_long_yu_chuan_cheng",
-    "澜歌之泪": "mat_lan_ge_zhi_lei", "古王剑": "mat_gu_wang_jian",
+    "澜歌之泪残片": "mat_lan_ge_zhi_lei", "古王剑碎片": "mat_gu_wang_jian",
 }
 
 name2id = {m.get("name"): mid for mid, m in MATERIALS.items() if isinstance(m, dict)}
@@ -127,10 +127,10 @@ for rid, r in COOKING_RECIPES.items():
 print("=== 4. 附魔关键词独特性（v117 新增/精修词严格校验；基线泛词仅警告）===")
 all_names = list(name2id.keys())
 # v117 新增/精修的关键词白名单（B agent 交付清单）
-V117_KWS = ["龙语", "黑渊", "风暴之核", "云怒之核", "龙宫珠", "试炼徽记",
+V117_KWS = ["龙语", "黑渊", "风暴之核", "云怒之核碎片", "龙宫珠", "试炼徽记",
             "地底龙鳞", "要塞残片", "永冻之核", "石炉之锤", "圣光圣徽",
-            "烬核", "赫尔加的祭器", "灰矮人徽记", "蓝歌之冠", "马尔库斯的法冠",
-            "克罗的罗盘", "幽灵船票",
+            "烬核", "赫尔加的祭器碎片", "灰矮人徽记", "蓝歌之冠残片", "马尔库斯的法冠残片",
+            "克罗的罗盘碎片", "幽灵船票",
             "龙魂碎片", "魔像核心", "潮汐之泪", "澜歌", "古王碎片", "奥拉圣印",
             "月辉", "黎明之光"]
 for stat, r in ENCHANT_RECIPES.items():

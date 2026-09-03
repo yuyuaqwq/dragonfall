@@ -173,7 +173,7 @@ WILD_KING_CHEST_TIERS = {
         "rune_chance": 0.25,
         "stone_range": [3, 6],
         "pages_range": [4, 8],
-        "mats": ["高级强化石", "敖澜之珠", "摩罗之冠"],
+        "mats": ["高级强化石", "敖澜之珠碎片", "摩罗之冠碎片"],
         "collect": ["余烬行者徽章"],
     },
 }
