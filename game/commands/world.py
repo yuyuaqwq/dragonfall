@@ -2203,10 +2203,20 @@ class WorldCmds(CommandBase):
                     prog = quests.get("main_progress", {})
                     obj = mq["objective"]
                     # v101.3：目标类型展示查表化（kill/collect/explore/talk，顺序与原 if-elif 一致）
-                    for _k, _fn in _OBJ_PROGRESS_LINES.items():
-                        if obj.get(_k):
-                            lines.append(_fn(obj, prog))
-                            break
+                    # v169.9：主线 collect 面板实时查背包（对齐支线口径）——此前只读 main_progress
+                    # 存档，玩家采到材料但没对话过 NPC 时面板仍显示 0/N，误以为物品对不上（#143）
+                    if obj.get("collect"):
+                        have = db.count_item(group_id, qq_id, obj["collect"])
+                        need = obj.get("count", 1)
+                        if have >= need:
+                            lines.append(f"  ✅ 材料已齐：{obj['collect']} {have}/{need}（回去找 {giver} 交付）")
+                        else:
+                            lines.append(f"  收集：{have}/{need}")
+                    else:
+                        for _k, _fn in _OBJ_PROGRESS_LINES.items():
+                            if obj.get(_k):
+                                lines.append(_fn(obj, prog))
+                                break
         else:
             lines.append("【主线】已全部完成！🎊")
         # 支线（v101.25i3：已完成任务不进面板，鱼鱼：交了还显示）
