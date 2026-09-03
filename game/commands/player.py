@@ -1368,6 +1368,8 @@ class PlayerCmds(CommandBase):
             f"━━━━━━━━━━━━",
             # v161 意见#71：移除冗余"需求等级"（状态行已显示 Lv.X 解锁/可学习）
             f"类型：{info.get('kind','')} ｜ 消耗：{_cost_txt}",
+            # v173.3 意见#94：技能详情补出招时间（cast 基准秒 @速度50，v154 速度折算）
+            f"⚡ 出招：{self._skill_cast_text(info)}",
             # v162 回滚：desc 已通过 buff_turns 字段真实对齐（铁壁 buff_turns=8 真持续 8 刻），
             # 不再展示层替换（原 _desc_align_turns 会把 8 错改成 3）
             f"效果：{info['desc']}",
@@ -1526,6 +1528,20 @@ class PlayerCmds(CommandBase):
             f"现在 Lv.{player['level']} 就能使用它了，剩余技能点 {pts - cost}\n"
             f"💡 记得『设置技能 <槽位> {display_name}』放入技能栏，战斗中『技能 <槽位>』即可施放～"
         )
+
+    def _skill_cast_text(self, info: dict) -> str:
+        """v173.3 意见#94：技能出招耗时文案。
+
+        cast = 基准出招秒（速度 50 时实际耗时 = cast；速度越快越短，折算见 battle
+        _ct_cost √(50/spd)）。被动技能无出招概念；无 cast 字段的技能回落普攻基准 1.0s。
+        """
+        if info.get("kind") == "被动":
+            return "被动即时生效"
+        _c = float(info.get("cast") or 0)
+        if _c <= 0:
+            # 增益/治疗/嘲讽等即时类（v154 立即生效不读条）
+            return "即时生效"
+        return f"约 {_c:g} 秒(速度 50 基准，速度越快越快)"
 
     def _skill_formula_text(self, info: dict, lv: int = 1) -> str:
         """v160 表达式技能公式展示：exprs/expr/heal_formula 翻译成中文公式。

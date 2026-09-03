@@ -1963,7 +1963,7 @@ class WorldCmds(CommandBase):
         player = self._player(group_id, qq_id)
         portals = db.get_portals(qq_id)
         cur = player["cur_map"]
-        lines = ["🌌 【旅者方碑】", "━━━━━━━━━━━━"]
+        lines = [f"🌌 【旅者方碑】(已激活 {len(portals)}/{len(C.PORTALS)})", "━━━━━━━━━━━━"]
         # 当前地图
         if cur in C.PORTALS:
             p = C.PORTALS[cur]
