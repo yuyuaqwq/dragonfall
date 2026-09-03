@@ -225,7 +225,7 @@ async def main():
     _lv = p0.get("level", 1)
     check("交付后金币+150（允许 v97.5 委托人谢礼加成）",
           g0 + 150 <= p1.get("gold", 0) <= g0 + 150 + 25 + _lv, f"{g0}->{p1.get('gold',0)}")
-    check("交付后经验+300", p1.get("exp", 0) == e0 + 300, f"{e0}->{p1.get('exp',0)}")
+    check("交付后经验+1854（v169.1 任务经验校直：护送商货 300→1854）", p1.get("exp", 0) == e0 + 1854, f"{e0}->{p1.get('exp',0)}")
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

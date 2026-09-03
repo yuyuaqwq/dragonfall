@@ -1065,7 +1065,7 @@ class EconomyCmds(CommandBase):
             # roll_gem_drop 带 normal 2% 底率——宝石惊喜档命中了却大概率空手（98% miss 会
             # 顺落罕见材料档，实测材料占比 24.7% 膨胀 2.5 倍）。改为：优先 roll_gem_drop
             # （对照 instance.py 原石掉落写法），未命中直接 roll_gem 兜底——宝石档=必给原石。
-            _gem = C.roll_gem_drop({"lv": lv, "is_boss": False, "name": fname},
+            _gem = C.roll_gem_drop({"lv": lv, "is_boss": False, "name": fish.get("name", "")},
                                    boss_fixed={})
             if not _gem:
                 _gem = C.roll_gem(1, 6)

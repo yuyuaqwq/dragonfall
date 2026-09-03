@@ -2694,10 +2694,17 @@ class WorldCmds(CommandBase):
         """v94 每日任务按等级过滤：低等级不抽打不到的任务（修复 #45）。
         通用任意怪任务全等级可做；精英 Lv.6+、Boss Lv.10+；
         区域任务按奖励分档（reward_exp 与区域怪物等级强相关）。
+        v169.1 成长模型：DAILY_QUESTS 四档等级池（新手/中坚 Lv20/高阶 Lv50/终局 Lv80），
+        任务带 min_lv 字段 → 直接按玩家等级过滤（高于 min_lv 才可抽），
+        且高 reward_exp 任务不再被旧 cap 表误放行（旧 cap Lv30+ 变 10 亿导致 Lv30 抽 Lv80 任务）。
         """
         lv = int(player.get("level") or 1)
         obj = dq.get("objective", {})
         exp = int(dq.get("reward_exp") or 0)
+        # v169.1：显式 min_lv 字段优先（新等级池）
+        _mlv = dq.get("min_lv")
+        if isinstance(_mlv, int):
+            return lv >= _mlv
         if "kill_any" in obj:
             return True
         if "kill_elite" in obj:
@@ -3066,6 +3073,9 @@ class WorldCmds(CommandBase):
             db.save_quests(group_id, qq_id, quests)
             st = "ready"
         if st == "pending":
+            # v169.1：主线 min_level 硬门槛（高经验主线防跨级接取；suggest_lv 仅软提示保留）
+            if mq.get("min_level") and player["level"] < mq["min_level"]:
+                return lines + [f"🛡️ 『{mq['name']}』需要 Lv.{mq['min_level']} 才能接取！（你当前 Lv.{player['level']}）先去提升实力吧～"]
             quests["main_status"] = "active"
             quests["main_progress"] = {}
             # talk 型任务：与发布 NPC 交谈即达成目标（对话即完成）

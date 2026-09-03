@@ -199,7 +199,8 @@ async def main():
     # dwarf_elder：q8_3 铁砧要塞 pending → welcome 对话接取（此前只有闲聊=死路）
     db.save_quests("g1", "w1", {"main_quest": "q8_3", "main_status": "pending", "main_progress": {},
                                 "daily": {}, "completed_main": ["q7_6"], "side": {}})
-    db.update_player("g1", "w1", cur_map="anvil_fort", cur_subarea="anvil_fort_2")
+    # v169.1：q8_3 有 min_level=65，测试玩家提到 65 过门槛（本段只测接取流程不测等级门）
+    db.update_player("g1", "w1", level=65, cur_map="anvil_fort", cur_subarea="anvil_fort_2")
     out = await cmd(m, "find_npc", "g1", "w1", "找 托尔丁")
     check("矮人:找NPC进对话树", "地精" in out, out[:250])
     mm = re.search(r"(\d+)\. 📜 我能帮上什么忙", out)

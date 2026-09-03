@@ -21,6 +21,8 @@ from ..battle import ACT_TICK  # v167.3 护盾剩余刻数折算（1 刻 = ACT_T
 from ..core.formation import formation_view  # v2 多对多站位图文案行
 from ..commands.base import CommandBase, no_prof_waiting, require_player, require_battle
 from .world import _DAILY_META_KEYS, _settle_daily_quest  # v125.1 P0/P2：每日元数据键 + 达标结算单点（与 world 收敛）
+from .weekly import weekly_bump_kill  # v169.2 周常悬赏击杀推进（达标自动发奖）
+from .tower import tower_guard_on_kill  # v169.2 修炼爬塔塔卫击杀结算（与野王同款接线）
 from ..core.wild_king import (  # v140 波2：野王体系（探索命中/击杀结算/摸宝箱）
     explore_king, build_king_monster, wild_king_on_kill, open_chest,
     wild_king_summary, personal_meta,
@@ -2169,6 +2171,16 @@ class CombatCmds(CommandBase):
                         pass
             except Exception:
                 pass
+        # v169.2 修炼爬塔：塔卫被击杀 → 爬塔状态推进/每日计数（标准战斗已发放 exp+gold）
+        try:
+            if monster and str(monster.get("id", "")).startswith("tower_"):
+                _tw_lines = tower_guard_on_kill(self, group_id, qq_id, monster)
+                if _tw_lines:
+                    if lines:
+                        lines.append("")
+                    lines += _tw_lines
+        except Exception:
+            pass
         # 阶段九：成就判定（击杀/等级/精英/Boss/分类怪）
         ach_lines = []
         # v87：隐藏怪击杀累计（成就·传说猎人）
@@ -2414,6 +2426,11 @@ class CombatCmds(CommandBase):
             quests["side"] = side
         if changed:
             db.save_quests(group_id, qq_id, quests)
+        # v169.2 周常悬赏：每只击杀怪物推进本周悬赏（达标自动发奖，与每日任务同构）
+        try:
+            lines += weekly_bump_kill(self, group_id, qq_id, monster)
+        except Exception:
+            pass
         return lines
 
     @filter.regex(r"^(?:\[At:\d+\]\s*)?讨伐(?:\s*|$)")

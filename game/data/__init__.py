@@ -38,6 +38,14 @@ from .items import ITEMS, MATERIALS, MATERIALS_BY_NAME  # noqa: F401
 from .npcs import NPCS  # noqa: F401
 from .dialogues import DIALOGUES  # noqa: F401
 from .quests import MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS  # noqa: F401
+# v169.2 周常悬赏（Lv50+ 高频经验源，命令层 commands/weekly.py 消费）
+from .weekly_quests import (  # noqa: F401
+    WEEKLY_QUESTS, WEEKLY_PICK, WEEKLY_MIN_LV,
+)
+# v169.2 修炼爬塔（Lv70+ 高频经验源，命令层 commands/tower.py 消费）
+from .trial_tower import (  # noqa: F401
+    TRIAL_FLOORS, TRIAL_DAILY_LIMIT, TRIAL_MIN_LV, TRIAL_MAX_FLOOR,
+)
 from .shop import SHOP_WEAPONS, SHOP_SMITH_MATERIALS, SHOP_EQUIP, SHOP_WILD_TRADE, SHOP_SUBAREA_ITEMS, SUBAREA_KIND  # noqa: F401
 from .shop_limit import SHOP_LIMIT  # noqa: F401 v166 商店限购配置
 from .factions import (  # noqa: F401
