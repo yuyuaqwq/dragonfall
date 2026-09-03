@@ -490,7 +490,7 @@ def _render_pet_egg(d, lines, equipped):
     else:
         lines.append("神秘的蛋，『使用 宠物蛋』孵化试试？")
     lines.append("")
-    lines.append(self._tip("item_detail"))
+    lines.append(f"💡 『使用 {d['name']}』孵化 ｜ 出售价 {d.get('price', 0)} 金币")
 
 
 def _render_mount(d, lines, equipped):
@@ -509,7 +509,7 @@ def _render_mount(d, lines, equipped):
     else:
         lines.append("缰绳上残留着野兽的气息……")
     lines.append("")
-    lines.append(self._tip("item_detail"))
+    lines.append(f"💡 『使用 {d['name']}』驯服 ｜ 出售价 {d.get('price', 0)} 金币")
 
 
 def _render_consumable(d, lines, equipped):

@@ -1287,7 +1287,12 @@ class InstanceCmds(CommandBase):
 
     def _instance_list(self, player) -> str:
         lines = ["🏰 【组队副本】", "━━━━━━━━━━━━"]
-        for i, (kid, inst) in enumerate(C.INSTANCES.items(), 1):
+        # v173.x 意见#162：副本列表按等级升序渲染（数据文件按主线/支线/外域分区登记，
+        # 插入顺序≠等级序，低等级本会被排到后面）——排序在渲染层做，新增副本自动有序。
+        for i, (kid, inst) in enumerate(
+            sorted(C.INSTANCES.items(), key=lambda kv: (int(kv[1].get("lv", 0) or 0), kv[0])),
+            1,
+        ):
             locked = player["level"] < inst["lv"]
             mark = "🔒" if locked else "✅"
             mn = inst.get("min_players", 2)

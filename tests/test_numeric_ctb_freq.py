@@ -85,10 +85,14 @@ def run_freq(player, enemy, rounds=ROUNDS, seed=0):
     BT.Battle._enemy_turn = counting
     try:
         for i in range(1, rounds + 1):
-            if b.result:
+            # v173.x 意见#154/#155 修复后：补结算路径 hp 归 0 会正确置 defeat（此前
+            # "血 0 不死" bug 让玩家死亡被吞）。本测试只测行动频率不测胜负：怪死光
+            # （victory）才停；玩家被打死（defeat）只回满血继续测频率。
+            if b.result == "victory":
                 break
             player["hp"] = player["max_hp"]
             enemy["hp"] = enemy["max_hp"]
+            b.result = None
             b.player_turn("attack", None, player)
     finally:
         BT.Battle._enemy_turn = orig

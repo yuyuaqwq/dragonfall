@@ -2094,6 +2094,14 @@ class Battle:
                                     if _dg > 0:
                                         self._damage_player(player, _dg, logs,
                                                             source=_e0.get("name", "敌人"))
+                                        # v173.x 意见#154/#155：补结算直调 _damage_player 缺死亡
+                                        # 判定——玩家 hp 归 0 但 result 不置 defeat → 命令层看
+                                        # ended=False 只存战斗状态，玩家血 0 不触发死亡/战败结算。
+                                        # 与 _process_until cast_done(side=e) 分支同款判定。
+                                        # 不提前 return：置 defeat 后走 _enemy_phase 正常尾部
+                                        # （_advance_time 推进 + return logs, result is not None）。
+                                        if self._player_dead(player):
+                                            self.result = "defeat"
                                     self._heapq.heappop(self._events)
                             except Exception:
                                 pass
