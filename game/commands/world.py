@@ -166,14 +166,22 @@ class WorldCmds(CommandBase):
                 _cp_name = _cp.get("name", "营地") if isinstance(_cp, dict) else str(_cp)
                 lines.append(f"🔥 篝火营地·{_cp_name}(『休息』恢复一半生命)")
         # v105R3 M14 P3-3：城镇地图不显示矿脉（『挖掘』已被城镇拦截，防"⛏️ 矿脉"与"城镇安全区"观感冲突）
+        # v173：MINE_SPOTS dict 化（name/min_lv），显示同垂钓点——副业等级不足显示 🔒
         if mid in C.MINE_SPOTS and cur_map.get("type") != "城镇区域":
             _mi = C.MINE_SPOTS[mid]
             _mi_sa = _mi.get("subarea", "") if isinstance(_mi, dict) else ""
             if not (_mi_sa and (sa_obj is None or sa_obj.get("id") != _mi_sa)):
                 _mi_name = _mi.get("name", "矿脉") if isinstance(_mi, dict) else str(_mi)
-                lines.append(f"⛏️ 矿脉·{_mi_name}(『挖掘』)")
+                _mneed = int(_mi.get("min_lv", 1)) if isinstance(_mi, dict) else 1
+                _mlv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "mining") if player else 1
+                _lock = " 🔒" if _mlv < _mneed else ""
+                lines.append(f"⛏️ 矿脉·{_mi_name}(挖掘Lv.{_mneed}){_lock}(『挖掘』)")
+        # v173：野地采集也按副业等级分档显示（同垂钓/矿脉）——等级不足显示 🔒
         if cur_map.get("type") == "野外" and mid not in C.CAMP_SPOTS:
-            lines.append("🌿 野地可采集(『采集』)")
+            _glv = db.get_prof_level(player.get("group_id", "g"), player["qq_id"], "gather") if player else 1
+            _gneed = int(C.gather_map_min_lv(int(cur_map.get("lv") or 0)))
+            _lock = " 🔒" if _glv < _gneed else ""
+            lines.append(f"🌿 野地可采集(采集Lv.{_gneed}){_lock}(『采集』)")
         return lines
 
     def _map_scene(self, cur_map: dict, player: dict = None, sa_id_override: str = None) -> tuple:

@@ -55,7 +55,7 @@ async def main():
     out = await cmd(m, "fishing", "g1", "w1", "垂钓")
     check("第 1 条(垂钓)自动激活", "选择了「垂钓」" in out and "当前已激活 1 条" in out, out[:200])
     m._prof_wait_clear("g1", "w1")
-    db.update_player("g1", "w1", cur_map="hill_mine", cur_subarea="hill_mine_2")
+    db.update_player("g1", "w1", cur_map="rockfall_gorge", cur_subarea="rockfall_gorge_1")  # v173 矿点门槛=挖1，Lv1 新号可挖
     out = await cmd(m, "mining", "g1", "w1", "挖掘")
     check("第 2 条(挖掘)自动激活", "选择了「挖掘」" in out and "当前已激活 2 条" in out, out[:200])
     m._prof_wait_clear("g1", "w1")

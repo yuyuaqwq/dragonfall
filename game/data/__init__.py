@@ -194,6 +194,7 @@ from .prof_config import (  # noqa: F401
     PROF_STAMINA_COST, PROF_WAIT_DECAY, PROF_WAIT_FLOOR, MINING_KEYWORDS, PAWN_RATES,
     ENCHANT_SLOT_UNLOCK, RUNE_LEVEL_GATE, DAILY_PROF_EXP,  # noqa: F401 v125.2 B3 副业数值下沉
     PRICE_BAND, price_band, RARE_MATERIAL_PRICE,  # noqa: F401
+    GATHER_MAP_MIN_LV, gather_map_min_lv,  # noqa: F401 v173 采集地图副业等级分档
 )
 from .item_tag_display import ITEM_TAG_DISPLAY  # noqa: F401  (v126.4 个体属性 tags 显示注册表)
 from .tips import TIPS  # noqa: F401  (v127 指令随机提示库，数据驱动)

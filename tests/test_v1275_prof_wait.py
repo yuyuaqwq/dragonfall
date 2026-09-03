@@ -131,11 +131,13 @@ async def main():
     db.set_event_state(f"prof_wait_{qid}", json.dumps(
         {"finish": past, "type": "gather", "spot_map": "starlake"}, ensure_ascii=False))
     db.update_player(gid, qid, cur_map="starlake")
+    # 角色 Lv10 在 Lv50 星语湖：v173 采集地图等级门禁下，旧轮（v173 前开的）奖励照常惰性结算，
+    # 但不会续新轮（等级不足被门禁拦）——断言「结算出现 + 不残留挂机新轮」。
     out = await cmd(m, "gather", gid, qid, "采集")
-    check("遗留到点采集 → 结算或开新轮均有有效返回",
-          len(out) > 5 and ("开始采集" in out or "采集完成" in out), out[:300])
-    check("遗留残留已消费 + 新轮已挂引擎", bool(m._prof_wait_state(gid, qid)),
-          str(m._prof_wait_state(gid, qid)))
+    check("遗留到点采集 → 旧轮结算出现（奖励不丢）",
+          ("采集完成" in out or "采到" in out or "采集" in out and "等级太高" in out), out[:300])
+    check("遗留残留已消费 + 新轮被门禁拦截（不挂高图计时）",
+          not m._prof_wait_state(gid, qid), str(m._prof_wait_state(gid, qid)))
 
     print(f"\n结果: {passed} 通过, {failed} 失败")
     return failed == 0

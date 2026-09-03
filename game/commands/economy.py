@@ -1446,6 +1446,31 @@ class EconomyCmds(CommandBase):
         if cur_map.get("type") == C.MAP_TYPE_INSTANCE:
             yield event.plain_result("副本里没有可采集的野生物资，专心闯关吧！（怪物会掉落专属材料）")
             return
+        # v173 采集副业等级门禁：采集图按池最高料价分档（采集 Lv.1→9），
+        # 等级不足不能跨级白嫖高等级图稀有料（鱼鱼 2026-09 拍板：按副业等级卡、分阶段，
+        # 对齐垂钓钓点 min_lv 模型 + 19 章"采集等级解锁更多采集点/高品质产出"）。
+        # 顺序：先 _prof_wait_flow（含旧轮惰性结算，v127.5「奖励不丢」铁律）——
+        #   旧轮结算保留；若 flow 已开新轮（_ok=True），清掉新轮再拦（防高图留计时白嫖）。
+        _gather_lv = db.get_prof_level(group_id, qq_id, "gather")
+        _need_gather = int(C.gather_map_min_lv(int(cur_map.get("lv") or 0)))
+        if _gather_lv < _need_gather:
+            text, _ok = self._prof_wait_flow(
+                event, group_id, qq_id, "gather",
+                extra={"spot_map": player["cur_map"]},
+                begin_text=f"🌿 你俯身开始采集【{cur_map.get('name', '？')}】的野生物资……预计 ",
+            )
+            if _ok:
+                # flow 已挂新轮引擎 → 清掉（防到点自动结算绕过门禁）
+                self._prof_wait_clear(group_id, qq_id)
+                if text:
+                    yield event.plain_result(act_msg + text + "\n" +
+                        f"🌿 但【{cur_map.get('name')}】的植物太珍稀（需采集 Lv.{_need_gather}，你 Lv.{_gather_lv}）——"
+                        "先在低等级区域练练采集吧！")
+                    return
+                yield event.plain_result(act_msg + text)
+                return
+            yield event.plain_result(act_msg + text)
+            return
         # v55 等待制（原 60 秒 CD 改为随机等待，自动入包，等级减时）
         # v105R3 M13 P1-1：先走等待流再扣体力——等待中重复『采集』直接提示剩余秒数，
         # 不再白扣 5 体力（v104 复验 3 处同病：采集/挖掘/垂钓，体力对齐疲劳计数只计新轮）
@@ -1482,9 +1507,20 @@ class EconomyCmds(CommandBase):
         if cur_map.get("type") == C.MAP_TYPE_TOWN:
             yield event.plain_result("城镇里没有矿脉，去野外矿点吧（『前往 <地图名>』）！")
             return
-        # 矿脉点（v13：明确配置，地图上显示⛏️）
-        if cur_map.get("id") not in C.MINE_SPOTS:
+        # 矿脉点（v13：明确配置，地图上显示⛏️；v173 dict 化含 min_lv）
+        _mine = C.MINE_SPOTS.get(cur_map.get("id"))
+        if not _mine:
             yield event.plain_result("这里没有矿脉！地图上会显示⛏️矿脉的位置，去那边『挖掘』吧～")
+            return
+        # v173 挖掘副业等级门禁：矿脉分阶段（挖掘 Lv.1→9），等级不足不能挖高级矿脉
+        # （对齐垂钓钓点 min_lv 模型 + 19 章"挖掘等级解锁更高品质矿脉"）
+        _need = int(_mine.get("min_lv", 1)) if isinstance(_mine, dict) else 1
+        _prof_lv = db.get_prof_level(group_id, qq_id, "mining")
+        if _prof_lv < _need:
+            yield event.plain_result(
+                f"⛏️ 【{_mine.get('name', '矿脉') if isinstance(_mine, dict) else _mine}】需要挖掘 Lv.{_need}，"
+                f"你才 Lv.{_prof_lv}——先在低阶矿脉练练手吧！"
+            )
             return
         # v55 等待制（原 90 秒 CD 改为随机等待，自动入包，等级减时）
         # v105R3 M13 P1-1：先走等待流再扣体力——等待中重复『挖掘』不再白扣 5 体力；

@@ -122,10 +122,25 @@ GATHER_COND_POOLS = {
 # ================= v102.3 深矿池（矿洞类地图专属高级矿） =================
 # 格式：地图ID → [(材料ID, 权重), ...]；挖掘结算时当前地图命中 → 只从深矿池产出
 #（替代价格区间兜底）。高级矿权重低：Lv.1 矿工多数挖到普通矿，深矿稀有矿要碰运气
+# v173 重排：删 deep_tunnel/sea_cave 死条（城镇/副本图不可挖掘，深矿永不命中）——
+#   星铁链迁矮人长廊（矮人矿工主题，承接原深岩隧道矿）；补 白石/边境/冰牙/熔火/龙脊 深矿。
 MINING_DEEP_POOLS = {
+    # 新手铜矿：石料/淬火石/铁矿石为主（无深矿池会兜底全域矿石池——出赫尔加碎片等杂物矿，补池约束）
+    "rockfall_gorge": [("mat_shi_cai", 40), ("mat_qiang_hua_shi", 25), ("mat_tie_kuang_shi", 25), ("mat_jing_tie", 10)],
+    # 新手矿洞：铁→淬火→精铁→秘银（低概率精金/深渊水晶）
     "hill_mine": [("mat_tie_kuang_shi", 40), ("mat_qiang_hua_shi", 20), ("mat_jing_tie", 30), ("mat_mi_yin", 20), ("mat_jing_jin", 8), ("mat_deep_crystal", 2)],
-    "deep_tunnel": [("mat_mi_yin", 30), ("mat_jing_jin", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 15)],
-    "sea_cave": [("mat_shui_jing", 35), ("mat_shan_hu_zhi", 30), ("mat_deep_crystal", 25), ("mat_star_iron", 10)],
-    # v104 R3 M14 P2-4：精金=挖掘(熔炉谷)（策划 19:223），forge_valley 深矿池补精金
+    # 中期①：白石修道院秘银脉（圣光/符文主题 + 秘银主矿）
+    "white_abbey": [("mat_tie_kuang_shi", 30), ("mat_jing_tie", 25), ("mat_mi_yin", 30), ("mat_fu_wen_shi", 20), ("mat_sheng_guang_jie_jing", 15)],
+    # 中期②：边境堡矿脉（铁→淬火→精铁，图主题兽料为主，矿为辅）
+    "border_castle": [("mat_tie_kuang_shi", 40), ("mat_qiang_hua_shi", 25), ("mat_jing_tie", 20), ("mat_shi_cai", 15)],
+    # 后期：冰牙谷冰晶矿（冰元素核心/水晶）
+    "frost_fang": [("mat_tie_kuang_shi", 30), ("mat_bing_jing", 30), ("mat_bing_yuan_su_he_xin", 20), ("mat_deep_crystal", 12), ("mat_gao_ji_qiang_hua_shi", 8)],
+    # 后期：矮人长廊秘银矿（承接原 deep_tunnel 深矿——星铁/精金/深渊水晶链不丢）
+    "dwarf_long_gallery": [("mat_mi_yin", 30), ("mat_jing_jin", 25), ("mat_deep_crystal", 20), ("mat_star_iron", 15), ("mat_yuan_gu_fu_wen_shi", 10)],
+    # 高级：熔炉谷精金矿（精铁/熔岩核心/精金）
     "forge_valley": [("mat_tie_kuang_shi", 40), ("mat_jing_tie", 30), ("mat_rong_yan_he_xin", 25), ("mat_jing_jin", 20), ("mat_deep_crystal", 5)],
+    # 高段①：熔火深渊（熔岩/黑曜/精金）
+    "molten_abyss": [("mat_rong_yan_he_xin", 30), ("mat_hei_yao_sui_pian", 20), ("mat_jing_jin", 25), ("mat_rong_huo_jing_tie", 15), ("mat_deep_crystal", 10)],
+    # 高段②：龙脊山脉（石龙鳞/龙鳞碎片/精金锭）
+    "dragon_ridge": [("mat_shi_long_lin", 30), ("mat_long_lin_sui_pian", 25), ("mat_jing_jin_ding", 15), ("mat_jing_jin", 15), ("mat_deep_crystal", 15)],
 }
